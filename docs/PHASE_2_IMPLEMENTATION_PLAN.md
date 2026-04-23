@@ -179,6 +179,12 @@ Lieferobjekte:
 
 ### WP-04 Kern-Agenten-Profile
 
+Lieferobjekte:
+
+- Runtime-Kontrakt fuer vier MVP-Agentenprofile: [docs/runtime-contracts/core-agent-profiles.md](runtime-contracts/core-agent-profiles.md)
+- Toolrechte-Matrix fuer Planner, Coder, Tester und DevOps
+- Gemeinsames Agent-Output-Envelope fuer Result-Aggregator und Memory-Updater
+
 #### PLANNER-AGENT
 
 Rolle: Intent parsen, Task-Plan erstellen, Squad zuweisen
