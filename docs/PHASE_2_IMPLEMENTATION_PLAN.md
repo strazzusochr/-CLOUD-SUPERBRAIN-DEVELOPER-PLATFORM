@@ -256,6 +256,13 @@ Output:
 - blocker register update
 - retrieval keys fuer spaetere Prompts
 
+Lieferobjekte:
+
+- Runtime-Vertrag: `docs/runtime-contracts/memory-consolidation-job.md`
+- Memory-Elemente muessen facts, decisions, blockers, evidence und follow-ups getrennt halten
+- jedes persistierbare Element braucht eine Quellreferenz
+- `docs/memory/schema.md` ist aktuell ein Runtime-Blocker, falls es vor Aktivierung nicht wiederhergestellt oder per ADR ersetzt wird
+
 Fehlerpfad:
 
 - keine stillen Teilwrites
