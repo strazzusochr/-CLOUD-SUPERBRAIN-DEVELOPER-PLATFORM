@@ -106,6 +106,12 @@ Pflichten:
 - Fallback nur bei explizitem Fehlergrund
 - Kosten- und Providerwechsel als Event loggen
 
+Lieferobjekte:
+
+- Runtime-Kontrakt fuer Gateway-Only-Routing: [docs/runtime-contracts/llm-gateway-routing.md](runtime-contracts/llm-gateway-routing.md)
+- Slot- und Kostenklassen-Mapping ohne Provider-Secrets
+- Fallback-Events und Reject-Entscheidungen als testbare Schnittstelle
+
 ### WP-03 LangGraph-Orchestrator
 
 Ziel:

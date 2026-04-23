@@ -15,6 +15,7 @@ Diese Dateien sind keine Runtime-Implementierung und kein Release-Claim.
 | Vertrag | Phase | Status | Zweck |
 | --- | --- | --- | --- |
 | [budget-rate-control.md](budget-rate-control.md) | Phase 2 / WP-01 | `prepared` | Budget-, Rate-, Cache- und Alert-Schutz vor LLM-Calls |
+| [llm-gateway-routing.md](llm-gateway-routing.md) | Phase 2 / WP-02 | `prepared` | Gateway-only Modellrouting, Kostenklassen und Fallback-Grenzen |
 
 ## Regeln
 
