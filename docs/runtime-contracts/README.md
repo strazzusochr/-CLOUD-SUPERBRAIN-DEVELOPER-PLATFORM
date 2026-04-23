@@ -20,6 +20,7 @@ Diese Dateien sind keine Runtime-Implementierung und kein Release-Claim.
 | [core-agent-profiles.md](core-agent-profiles.md) | Phase 2 / WP-04 | `prepared` | Vier MVP-Agentenprofile, Toolrechte, Output-Envelope und Eskalationsregeln |
 | [memory-consolidation-job.md](memory-consolidation-job.md) | Phase 2 / WP-05 | `prepared` | Memory-Konsolidierung, Quellenpflicht, Write-Vertrag und Retention-Gates |
 | [mcp-toolsets.md](mcp-toolsets.md) | Phase 2 / WP-06 | `prepared` | Toolset-Grenzen, Request-Envelope, Timeouts, Audit und Stop-Gates fuer GitHub, E2B, Playwright und Filesystem |
+| [verification-harness.md](verification-harness.md) | Phase 2 / WP-07 | `prepared` | Evidence Envelope, Pass/Fail-Semantik, Harness-Regeln und Stop-Gates fuer Phase-2-Claims |
 
 ## Regeln
 
@@ -27,3 +28,4 @@ Diese Dateien sind keine Runtime-Implementierung und kein Release-Claim.
 2. Kein Vertrag gilt als implementiert, solange kein Testnachweis im Verifikationsregister steht.
 3. Jede Abweichung von `TEIL 2`, `docs/cost-policy.md` oder `docs/provider-rotation-register.md` braucht ADR oder Owner-Freigabe.
 4. Vertragsbeispiele duerfen keine Secrets, Tokens oder echten Provider-Credentials enthalten.
+5. Docker Desktop mit WSL2 ist nur lokale Entwicklungs-Ausfuehrung und kein Cloud-, Production- oder No-Localhost-Nachweis.

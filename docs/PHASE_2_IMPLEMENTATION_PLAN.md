@@ -295,6 +295,7 @@ Lieferobjekte:
 ## Verifikation
 
 Die aktuelle Querverdrahtung der vorbereiteten Arbeitspakete liegt in [docs/phase-2-readiness-matrix.md](phase-2-readiness-matrix.md).
+Der verbindliche Evidence-Vertrag fuer diese Nachweise liegt in [docs/runtime-contracts/verification-harness.md](runtime-contracts/verification-harness.md).
 
 Phase-2-Readiness ist erst gegeben, wenn mindestens diese Nachweise geplant und spaeter auch ausgefuehrt werden:
 
