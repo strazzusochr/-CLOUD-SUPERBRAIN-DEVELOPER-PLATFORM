@@ -79,7 +79,7 @@ Umfang:
 
 Lieferobjekte:
 
-- Runtime-Kontrakt fuer Budgetevents
+- Runtime-Kontrakt fuer Budgetevents: [docs/runtime-contracts/budget-rate-control.md](runtime-contracts/budget-rate-control.md)
 - Alert-Regeln und Eskalationspfade
 - Tests fuer Limit-Ueberschreitung und Cache-Hit
 
