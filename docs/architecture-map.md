@@ -1,12 +1,14 @@
 # Architecture Map
 
 Stand: 2026-04-23
-Status: Draft fuer Phase 0
-Bezug: `TEIL 0`, `PHASE 0`, `TEIL 10`
+Status: Active architecture overview
+Bezug: `TEIL 0`, `TEIL 2`, `PHASE 0`, `TEIL 10`, `docs/system-architecture.md`
 
 ## 1. Zweck
 
 Dieses Dokument beschreibt die Zielarchitektur auf Systemebene, bevor Implementierungsarbeit beginnt. Es dient als gemeinsame Karte fuer Schichten, Datenfluesse, Kontrollpunkte und harte Grenzen.
+
+Die verbindliche Detailauslegung von `TEIL 2 - VOLLSTAENDIGE SYSTEM-ARCHITEKTUR` liegt in [docs/system-architecture.md](system-architecture.md). Bei Widerspruechen zwischen dieser Kurzkarte und der Detailkarte gilt der Masterplan plus `docs/system-architecture.md`; strukturelle Abweichungen brauchen einen ADR.
 
 ## 2. Systemkontext
 
@@ -16,14 +18,14 @@ Dieses Architekturziel beschreibt das Repository `-CLOUD-SUPERBRAIN-DEVELOPER-PL
 
 ```text
 User
-  -> Frontend
-  -> Backend API / Session Orchestrator
-     -> Agent Squad Runtime
-     -> MCP Tool Layer
-     -> Memory Layer
-     -> GitHub / CI-CD Integrations
-     -> Observability Pipeline
-  -> Cloud Infrastructure
+  -> Schicht 1: Eingabe / Frontend
+  -> Schicht 2: Orchestrierung
+     -> Schicht 3: Agent-Pool
+     -> Schicht 4: LLM-Gateway
+     -> Schicht 5: Tool-MCP-Schicht
+     -> Schicht 6: Memory-Schicht
+     -> Schicht 7: Observability
+  -> Deployment Targets: Vercel, Hetzner, Cloudflare
 ```
 
 ## 4. Hauptbausteine
@@ -86,11 +88,21 @@ User
 4. Kein Architekturwechsel ohne ADR.
 5. Kein lokaler Standardpfad fuer Produktbetrieb.
 
-## 7. Phase-0-Fokus
+## 7. Verbindliche Detailkarte
+
+`docs/system-architecture.md` ist die operative Checkliste fuer:
+
+1. Besitzer, Inputs, Outputs, Aufgaben und Verbote je Schicht,
+2. Deployment-Grenzen fuer Vercel, Hetzner und Cloudflare,
+3. den vollstaendigen Datenfluss inklusive LLM-Gateway, MCP, Memory und Observability,
+4. den Open-Source-Standard-Stack und teure Ausnahmeoptionen,
+5. aktive Architektur-Gates fuer Observability, Datenbank, Budget und Release.
+
+## 8. Phase-0-Fokus
 
 Dieses Zielbild ist noch kein finales Deploy-Design. Es legt nur die stabilen Hauptgrenzen fest, damit Phase 1 gegen eine dokumentierte Architektur arbeitet.
 
-## 8. Verifikation
+## 9. Verifikation
 
 Diese Architecture Map gilt fuer Phase 0 als ausreichend, wenn:
 

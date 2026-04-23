@@ -1,14 +1,15 @@
 # Repository Constitution
 
 Dieses Repository übernimmt [docs/CODEX_AGENT_SKILL_MASTER.md](docs/CODEX_AGENT_SKILL_MASTER.md) als verbindliche Arbeitsverfassung.
-Der höchste inhaltliche Projektanker ist [docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE.md](docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE.md), insbesondere `TEIL 0 — PROJECT GOAL LOCK (ABSOLUT UNVERÄNDERLICH)` und `TEIL 1 — DIE 11 ABSOLUTEN SYSTEM-REGELN`.
+Der höchste inhaltliche Projektanker ist [docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE.md](docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE.md), insbesondere `TEIL 0 — PROJECT GOAL LOCK (ABSOLUT UNVERÄNDERLICH)`, `TEIL 1 — DIE 11 ABSOLUTEN SYSTEM-REGELN` und `TEIL 2 — VOLLSTÄNDIGE SYSTEM-ARCHITEKTUR`.
+Die operative Architekturkarte fuer `TEIL 2` liegt in [docs/system-architecture.md](docs/system-architecture.md).
 Die kanonische Repository-Identität ist der Git-Slug `-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`; `D:\PLATTFORM` ist nur der lokale Workspace-Pfad und kein Projektname.
 Die verbindliche Namensreferenz liegt in [docs/repository-identity.md](docs/repository-identity.md).
 
 Geltung:
 - Diese Repo-Regeln sind für die laufende Arbeit verbindlich.
 - Übergeordnete System- und Entwickleranweisungen bleiben weiterhin maßgeblich.
-- Jede Planung, Orchestrierung, Umsetzung, Verifikation und jedes Reporting muss gegen `TEIL 0` und `TEIL 1` des Ultimatum-Dokuments geprüft werden.
+- Jede Planung, Orchestrierung, Umsetzung, Verifikation und jedes Reporting muss gegen `TEIL 0`, `TEIL 1` und `TEIL 2` des Ultimatum-Dokuments geprüft werden.
 - Keine Aufgabe gilt als fertig ohne Verifikation.
 - Keine stillen Architekturwechsel, keine direkten Schreibzugriffe auf `main`, keine unkontrollierten Loops, keine Secrets in Code oder Logs.
 
@@ -31,6 +32,15 @@ Absolute System-Regeln aus `TEIL 1`:
 - `R9` Kein Release-Betrug: release-ready nur bei erfüllten realen Release-Kriterien.
 - `R10` Budgetgrenze ist hart: `20 EUR/Monat` sind verbindlich.
 - `R11` Open-Source ist Standard: proprietär nur als begründete Ausnahme mit Owner-Freigabe.
+
+Systemarchitektur aus `TEIL 2`:
+- Es gibt genau sieben technische Schichten: Eingabe/Frontend, Orchestrierung, Agent-Pool, LLM-Gateway, Tool-MCP-Schicht, Memory-Schicht und Observability.
+- Jede Schicht hat einen Besitzer, definierte Inputs und Outputs sowie explizit verbotene Aktionen.
+- Kommunikation zwischen Schichten erfolgt nur ueber definierte Interfaces; keine direkten Provider-, DB-, Tool- oder Secret-Pfade ausserhalb der erlaubten Schicht.
+- Deployment-Ziele sind Vercel fuer Frontend, Hetzner fuer Orchestrierung/Agenten/MCP/Runtime-Services und Cloudflare fuer Edge/CDN/AI-Gateway-Caching.
+- Observability ist ein separates System und darf nicht in die Main-App-UI gemischt werden.
+- Der Open-Source-Standard-Stack ist verbindlich; Abweichungen brauchen ADR und Owner-Freigabe.
+- Aktive Architektur-Gates aus [docs/system-architecture.md](docs/system-architecture.md) duerfen nicht still uebergangen werden.
 
 Standardarbeitsweise:
 - Für qualifizierte Aufgaben wird die minimal nötige interne Rollen-Zusammenarbeit automatisch gestartet.

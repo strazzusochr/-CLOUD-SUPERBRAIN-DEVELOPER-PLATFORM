@@ -26,6 +26,7 @@ Dieses Register sammelt die Verifikationslage fuer Projektartefakte und Phasenar
 | 2026-04-23 | ADR-001 bis ADR-005 | Pflichtsektionen automatisch geprueft | `verified` | `Context`, `Decision`, `Rationale`, `Alternatives`, `Consequences` vorhanden |
 | 2026-04-23 | `docs/adr/README.md` | ADR-Verzeichnis und Aenderungsregel geprueft | `verified` | kein stiller Architekturwechsel ohne Index |
 | 2026-04-23 | `docs/architecture-map.md` | Kernbausteine, Datenfluesse und Grenzen geprueft | `verified` | Zielbild fuer Phase 1 dokumentiert |
+| 2026-04-23 | `docs/system-architecture.md` | `TEIL 2` in operative Schichten-, Deployment-, Datenfluss- und Stack-Karte ueberfuehrt | `verified` | sieben Schichten, drei Targets, OSS-Stack und aktive Gates dokumentiert |
 | 2026-04-23 | `docs/ownership-map.md` | 7-Layer-Verantwortungen und Review-Pflichten geprueft | `verified` | keine stillen Grenzverwischungen |
 | 2026-04-23 | `docs/interface-contract-register.md` | Hauptschnittstellen und Mindestgarantien geprueft | `verified` | offene Punkte sichtbar markiert |
 | 2026-04-23 | `docs/assumption-log.md` | Annahmen klar von offenen Fragen und Debt getrennt | `verified` | Neubewertungstrigger dokumentiert |
