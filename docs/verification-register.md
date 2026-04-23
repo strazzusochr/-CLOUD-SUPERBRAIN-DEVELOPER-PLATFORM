@@ -53,5 +53,7 @@ Dieses Register sammelt die Verifikationslage fuer Projektartefakte und Phasenar
 | 2026-04-23 | `observability/strategy.md` | Dateiexistenz und Inhaltscheck | `verified` | Toolchain, Alerts und Retention dokumentiert |
 | 2026-04-23 | `docs/PHASE_1_FOUNDATION_PACKAGE.md` | Dateiexistenz und Inhaltscheck | `verified` | Phase-1-Paket und Stop-Gates gebuendelt |
 | 2026-04-23 | `docs/PHASE_1_5_GATE_DECISION_PACKAGE.md` | Dateiexistenz und Inhaltscheck | `verified` | beide Phase-1-Blocker in explizite Entscheidungswege uebersetzt |
+| 2026-04-23 | `docs/PHASE_2_IMPLEMENTATION_PLAN.md` | Dateiexistenz und Inhaltscheck | `verified` | Phase-2-Handoff mit Graph, Rollenprofilen und Memory-Job dokumentiert |
 | 2026-04-23 | `docs/adr/ADR-006-observability-stack-boundary.md` | Dateiexistenz und Inhaltscheck | `verified` | vorgeschlagener ADR fuer klare Observability-Grenze vorbereitet |
 | 2026-04-23 | `PHASE 1` insgesamt | Designpaket vollstaendig, aber zwei echte Architektur-Gates offen | `blocked` | Langfuse-Service-Envelope und DB-Aktivierungsentscheidung vor Implementierung klaeren |
+| 2026-04-23 | `PHASE 2` Readiness | Handoff vorbereitet, Start aber an `PHASE 1.5` gekoppelt | `blocked` | keine Runtime-Implementierung vor Gate-Klaerung und Checkpointer-Entscheid |
