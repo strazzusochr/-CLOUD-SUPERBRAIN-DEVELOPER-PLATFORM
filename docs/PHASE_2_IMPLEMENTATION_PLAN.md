@@ -1,7 +1,7 @@
 # Phase 2 Implementation Plan
 
 Stand: 2026-04-23
-Status: Prepared, start blocked by Phase-1.5 gates
+Status: Prepared, runtime start blocked by Phase-1.5 gates
 
 ## Zweck
 
@@ -15,6 +15,9 @@ Es ist ein Implementierungsplan, kein Build-, Test- oder Release-Claim.
 1. Gate A: Observability-Grenze gemaess [docs/PHASE_1_5_GATE_DECISION_PACKAGE.md](docs/PHASE_1_5_GATE_DECISION_PACKAGE.md)
 2. Gate B: aktive PostgreSQL-kompatible Runtime fuer Checkpointer und relationale State-Persistenz
 3. keine Abweichung von `ADR-001`, `ADR-004` und `ADR-006` ohne neuen ADR
+
+Bis dahin ist nur nicht-invasive Vorarbeit erlaubt. Der erlaubte Arbeitsmodus ist in
+[docs/PHASE_1_5_AUTONOMOUS_HANDOFF.md](docs/PHASE_1_5_AUTONOMOUS_HANDOFF.md) festgelegt.
 
 ## Zielbild fuer Phase 2
 
@@ -43,6 +46,24 @@ Pflicht vor jedem produktiven LLM-Call:
 7. Verifikation fuer Recovery, Budget-Alarm und Retry-Abbruch
 
 ## Arbeitspakete
+
+### Vorlaufpakete ohne Runtime-Claim
+
+Diese Pakete duerfen vor Gate-Freigabe vorbereitet werden, solange sie keine produktive Runtime aktivieren:
+
+1. Vertragsdokumente fuer Budget-, Retry-, Timeout- und Audit-Events
+2. Testplaene fuer Budget-Alarm, Retry-Abbruch und Recovery
+3. Agentenrollen als Policy- und Toolrecht-Kontrakte
+4. DB-portable Schema- und Zugriffskonventionen gemaess `ADR-004`
+5. Observability-Interface-Beschreibung gemaess vorgeschlagenem `ADR-006`, ohne Stack-Aktivierung
+
+Nicht erlaubt vor Gate-Freigabe:
+
+1. Langfuse in den Main-App-Compose aufnehmen
+2. Self-hosted PostgreSQL als aktive MVP-Runtime setzen
+3. echte LLM-Provider-Calls ohne Budget- und Rate-Control
+4. Deployment, Secret-Aenderung oder Branch-Schutz-Aenderung
+5. Phase 2 als implementiert, getestet oder release-ready markieren
 
 ### WP-01 Budget- und Rate-Control
 

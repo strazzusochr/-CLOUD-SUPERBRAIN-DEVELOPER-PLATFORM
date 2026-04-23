@@ -1,7 +1,7 @@
 # Phase 1.5 Gate Decision Package
 
 Stand: 2026-04-23
-Status: Prepared for owner review
+Status: Prepared for owner review, autonomous safe-path documented
 
 ## Zweck
 
@@ -99,6 +99,13 @@ Das bedeutet:
 | --- | --- | --- | --- |
 | Langfuse / Observability | separater Observability-Stack | ehrlichste Trennung, vermeidet versteckte Service-Ausweitung | keine Compose-Implementierung fuer Langfuse im Hauptstack |
 | DB-Aktivierung | `ADR-004` beibehalten | kein Architekturdrift, geringeres MVP-Risiko | kein self-hosted Postgres als aktive Runtime |
+
+## Autonomer Safe-Path
+
+Bis zur Owner-Entscheidung gilt [docs/PHASE_1_5_AUTONOMOUS_HANDOFF.md](docs/PHASE_1_5_AUTONOMOUS_HANDOFF.md).
+
+Erlaubt sind nur vorbereitende, nicht-invasive Artefakte wie Work-Pakete, Kontrakte, Testplaene und Verifikationsregister.
+Gesperrt bleiben Runtime-Aktivierung, Deployment, Secret-/Auth-Aenderungen, `main`-Writes und jede stille Annahme von `ADR-006`.
 
 ## Was nach Zustimmung sofort folgen kann
 
