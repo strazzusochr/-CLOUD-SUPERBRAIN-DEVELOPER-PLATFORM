@@ -16,6 +16,7 @@ Diese Dateien sind keine Runtime-Implementierung und kein Release-Claim.
 | --- | --- | --- | --- |
 | [budget-rate-control.md](budget-rate-control.md) | Phase 2 / WP-01 | `prepared` | Budget-, Rate-, Cache- und Alert-Schutz vor LLM-Calls |
 | [llm-gateway-routing.md](llm-gateway-routing.md) | Phase 2 / WP-02 | `prepared` | Gateway-only Modellrouting, Kostenklassen und Fallback-Grenzen |
+| [langgraph-orchestrator.md](langgraph-orchestrator.md) | Phase 2 / WP-03 | `prepared` | Kontrollierter Multi-Agent-Graph, State-Vertrag, Retry-Limits und Recovery-Pfade |
 
 ## Regeln
 

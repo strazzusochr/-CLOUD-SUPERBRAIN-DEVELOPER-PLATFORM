@@ -117,6 +117,12 @@ Lieferobjekte:
 Ziel:
 Der Multi-Agent-Run ist als kontrollierter Graph mit Abbruchzaehlern modelliert.
 
+Lieferobjekte:
+
+- Runtime-Kontrakt fuer Graph-Nodes, State, Retry-Grenzen und Recovery: [docs/runtime-contracts/langgraph-orchestrator.md](runtime-contracts/langgraph-orchestrator.md)
+- Checkpointer-Anforderungen ohne aktive Runtime-Freischaltung
+- Streaming-Event-Vertrag fuer `run.*` und `node.*` Events ohne Secret- oder Rohproviderdaten
+
 #### Node 1: Intent Parser
 
 - Eingabe: Nutzerprompt, Session-Kontext, Projektkontext

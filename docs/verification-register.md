@@ -58,6 +58,7 @@ Dieses Register sammelt die Verifikationslage fuer Projektartefakte und Phasenar
 | 2026-04-23 | `docs/runtime-contracts/README.md` | Runtime-Contract-Verzeichnis und Regeln angelegt | `verified` | Vertragsartefakte klar von Implementierung getrennt |
 | 2026-04-23 | `docs/runtime-contracts/budget-rate-control.md` | WP-01 Vertrag fuer Budget-, Rate-, Cache- und Alert-Schutz dokumentiert | `verified` | vorbereitet, nicht implementiert, keine Provider-Calls |
 | 2026-04-23 | `docs/runtime-contracts/llm-gateway-routing.md` | WP-02 Vertrag fuer Gateway-Only-Routing, Modellslots und Fallback-Grenzen dokumentiert | `verified` | vorbereitet, nicht implementiert, keine Provider-Secrets |
+| 2026-04-23 | `docs/runtime-contracts/langgraph-orchestrator.md` | WP-03 Vertrag fuer LangGraph-Nodes, State, Retry-Grenzen und Recovery dokumentiert | `verified` | vorbereitet, nicht implementiert, kein Checkpointer aktiviert |
 | 2026-04-23 | `docs/PHASE_2_IMPLEMENTATION_PLAN.md` | Dateiexistenz und Inhaltscheck | `verified` | Phase-2-Handoff mit Graph, Rollenprofilen und Memory-Job dokumentiert |
 | 2026-04-23 | `docs/adr/ADR-006-observability-stack-boundary.md` | Dateiexistenz und Inhaltscheck | `verified` | vorgeschlagener ADR fuer klare Observability-Grenze vorbereitet |
 | 2026-04-23 | `PHASE 1` insgesamt | Designpaket vollstaendig, aber zwei echte Architektur-Gates offen | `blocked` | Langfuse-Service-Envelope und DB-Aktivierungsentscheidung vor Implementierung klaeren |
