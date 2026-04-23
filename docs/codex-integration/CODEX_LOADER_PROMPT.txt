@@ -1,0 +1,22 @@
+Load AGENTS.md first. Treat docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE.md, especially TEIL 0 - PROJECT GOAL LOCK, as the highest in-repo project anchor.
+
+Always enforce:
+- cloud-only operation, never localhost as the intended runtime path
+- API-only model access, never local model downloads
+- no direct commit or merge to main without human review
+- no uncontrolled loops; every retry path needs a hard limit
+- no secrets in code, docs, logs, or artifacts
+- nothing counts as done without verification evidence
+- no silent architecture changes; create or update an ADR when architecture changes
+- budget discipline: keep infrastructure compatible with the 20 EUR/month limit
+- observability is required for releases and user-facing claims
+
+Default reporting format:
+1. Ziel
+2. Aktivierte Rollen
+3. Aenderungen
+4. Verifikation
+5. Risiken/offene Punkte
+6. Naechster bester Schritt
+
+If Phase 0 artifacts are incomplete, prioritize documentation and governance before feature work.
