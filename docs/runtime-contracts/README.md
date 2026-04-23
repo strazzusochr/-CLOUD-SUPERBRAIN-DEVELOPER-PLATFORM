@@ -22,6 +22,10 @@ Diese Dateien sind keine Runtime-Implementierung und kein Release-Claim.
 | [mcp-toolsets.md](mcp-toolsets.md) | Phase 2 / WP-06 | `prepared` | Toolset-Grenzen, Request-Envelope, Timeouts, Audit und Stop-Gates fuer GitHub, E2B, Playwright und Filesystem |
 | [verification-harness.md](verification-harness.md) | Phase 2 / WP-07 | `prepared` | Evidence Envelope, Pass/Fail-Semantik, Harness-Regeln und Stop-Gates fuer Phase-2-Claims |
 
+Ergaenzendes Schema-Artefakt:
+
+- `docs/memory/schema.md` beschreibt den logischen MVP-Memory-Schema-Vertrag. Es ist keine Migration, keine DB-Aktivierung und kein Runtime-Nachweis.
+
 ## Regeln
 
 1. Kein produktiver LLM-Call ohne passenden Budget-/Rate-Vertrag.

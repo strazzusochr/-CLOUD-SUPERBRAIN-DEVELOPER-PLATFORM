@@ -15,6 +15,7 @@ Er aktiviert keinen produktiven Memory-Job, keine Datenbankverbindung, keine Emb
 
 - `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE.md`
 - `docs/PHASE_2_IMPLEMENTATION_PLAN.md`
+- `docs/memory/schema.md`
 - `docs/runtime-contracts/langgraph-orchestrator.md`
 - `docs/runtime-contracts/core-agent-profiles.md`
 - `docs/runtime-contracts/budget-rate-control.md`
@@ -25,9 +26,9 @@ Er aktiviert keinen produktiven Memory-Job, keine Datenbankverbindung, keine Emb
 
 ## Markierte Unsicherheit
 
-`docs/memory/schema.md` wird im Verifikationsregister referenziert, war bei der WP-05-Kontextpruefung aber nicht im Arbeitsbaum vorhanden.
+`docs/memory/schema.md` ist als Planungs- und Vertragsartefakt wiederhergestellt. Das ist keine produktive Schema-Verifikation.
 
-Runtime-Aktivierung der Memory-Schicht ist deshalb blockiert, bis das Schema wiederhergestellt, ersetzt oder per ADR bewusst neu festgelegt wurde.
+Runtime-Aktivierung der Memory-Schicht bleibt blockiert, bis eine reviewed Migration, CI-Nachweis, Security-/Data-Review und das DB-/Checkpointer-Gate abgeschlossen sind.
 
 ## Scope
 
@@ -117,7 +118,7 @@ Embedding-erlaubt:
 Embedding-verboten:
 
 - Rohlogs
-- Secrets, Tokens, Credentials oder Private Keys
+- Secrets, Tokens, Credentials oder asymmetrische Schluesselmaterialien
 - unbewiesene Spekulation
 - grosse Diffs oder Build-Ausgaben
 - temporaere Tool-Ausgaben ohne spaeteren Retrieval-Wert
@@ -162,7 +163,7 @@ Embedding-verboten:
 | MEM-005 | Rohlogs, Secrets und Credentials sind nicht embedding-geeignet. |
 | MEM-006 | Retention-Regeln blockieren verbotene Daten. |
 | MEM-007 | Retry stoppt nach maximal 2 Versuchen und erzeugt einen Blocker. |
-| MEM-008 | Fehlendes oder ungeklaertes Memory-Schema blockiert Runtime-Aktivierung. |
+| MEM-008 | Fehlendes, ungeklaertes oder nicht per Migration verifiziertes Memory-Schema blockiert Runtime-Aktivierung. |
 | MEM-009 | Embedding- oder LLM-Calls ohne Gateway und Budget-Guard werden blockiert. |
 | MEM-010 | Jede erfolgreiche Konsolidierung erzeugt ein Audit-Event. |
 
@@ -170,7 +171,7 @@ Embedding-verboten:
 
 Sofort stoppen bei:
 
-- fehlendem oder geaendertem Memory-Schema vor Runtime-Aktivierung
+- fehlendem, geaendertem oder nicht per Migration verifiziertem Memory-Schema vor Runtime-Aktivierung
 - Aktivierung eines echten Persistenzziels
 - Memory-Purge, Retention-Aenderung oder Datenloeschung
 - Secret-, Token-, Credential- oder PII-Fund im Memory-Input
@@ -191,4 +192,4 @@ Sofort stoppen bei:
 
 ## Naechster sicherer Schritt
 
-WP-06: MCP-Toolsets als Runtime-Vertrag dokumentieren, bevor echte Toolserver, Browser-Automation oder GitHub-Write-Aktionen aktiviert werden.
+WP-06 bleibt der naechste sequenzielle Vertragsbaustein. Fuer Memory-Runtime bleibt zusaetzlich ein separates Review-Gate noetig: `docs/memory/schema.md` gegen `ADR-004` und Datenklassifizierung reviewen, Migration und Checkpointer-Strategie getrennt vorbereiten, Security-/Data-Review abschliessen und erst danach Runtime-Code oder DB-Aenderungen vorbereiten.

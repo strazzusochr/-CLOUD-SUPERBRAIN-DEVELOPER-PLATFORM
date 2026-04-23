@@ -54,7 +54,7 @@ Diese Pakete duerfen vor Gate-Freigabe vorbereitet werden, solange sie keine pro
 1. Vertragsdokumente fuer Budget-, Retry-, Timeout- und Audit-Events
 2. Testplaene fuer Budget-Alarm, Retry-Abbruch und Recovery
 3. Agentenrollen als Policy- und Toolrecht-Kontrakte
-4. DB-portable Schema- und Zugriffskonventionen gemaess `ADR-004`
+4. DB-portable Schema- und Zugriffskonventionen gemaess `ADR-004`, inklusive `docs/memory/schema.md` als logischem Memory-Schema-Vertrag
 5. Observability-Interface-Beschreibung gemaess vorgeschlagenem `ADR-006`, ohne Stack-Aktivierung
 
 Nicht erlaubt vor Gate-Freigabe:
@@ -261,7 +261,7 @@ Lieferobjekte:
 - Runtime-Vertrag: `docs/runtime-contracts/memory-consolidation-job.md`
 - Memory-Elemente muessen facts, decisions, blockers, evidence und follow-ups getrennt halten
 - jedes persistierbare Element braucht eine Quellreferenz
-- `docs/memory/schema.md` ist aktuell ein Runtime-Blocker, falls es vor Aktivierung nicht wiederhergestellt oder per ADR ersetzt wird
+- `docs/memory/schema.md` ist als Planungs-Schema wiederhergestellt. Runtime bleibt blockiert, bis reviewed Migration, Security-/Data-Review und DB-/Checkpointer-Gate abgeschlossen sind
 
 Fehlerpfad:
 
