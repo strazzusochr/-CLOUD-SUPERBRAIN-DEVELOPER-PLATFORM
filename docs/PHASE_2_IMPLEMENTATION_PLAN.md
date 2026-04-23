@@ -285,6 +285,13 @@ Pflichtgarantien:
 - klarer Fehlermodus
 - keine geheimen lokalen Sonderpfade
 
+Lieferobjekte:
+
+- Runtime-Vertrag: `docs/runtime-contracts/mcp-toolsets.md`
+- jedes Toolset braucht Request-Envelope, Timeout, Audit-Event und klaren Fehlermodus
+- GitHub bleibt auf `feature/agent-*` und PR-/Status-Pfade begrenzt; kein `main`-Write
+- E2B, Playwright und Filesystem duerfen nicht durch lokale Sonderpfade oder unprotokollierte Direktzugriffe ersetzt werden
+
 ## Verifikation
 
 Phase-2-Readiness ist erst gegeben, wenn mindestens diese Nachweise geplant und spaeter auch ausgefuehrt werden:

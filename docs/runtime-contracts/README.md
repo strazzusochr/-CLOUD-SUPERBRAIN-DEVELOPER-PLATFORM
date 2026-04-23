@@ -19,6 +19,7 @@ Diese Dateien sind keine Runtime-Implementierung und kein Release-Claim.
 | [langgraph-orchestrator.md](langgraph-orchestrator.md) | Phase 2 / WP-03 | `prepared` | Kontrollierter Multi-Agent-Graph, State-Vertrag, Retry-Limits und Recovery-Pfade |
 | [core-agent-profiles.md](core-agent-profiles.md) | Phase 2 / WP-04 | `prepared` | Vier MVP-Agentenprofile, Toolrechte, Output-Envelope und Eskalationsregeln |
 | [memory-consolidation-job.md](memory-consolidation-job.md) | Phase 2 / WP-05 | `prepared` | Memory-Konsolidierung, Quellenpflicht, Write-Vertrag und Retention-Gates |
+| [mcp-toolsets.md](mcp-toolsets.md) | Phase 2 / WP-06 | `prepared` | Toolset-Grenzen, Request-Envelope, Timeouts, Audit und Stop-Gates fuer GitHub, E2B, Playwright und Filesystem |
 
 ## Regeln
 
