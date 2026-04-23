@@ -294,6 +294,8 @@ Lieferobjekte:
 
 ## Verifikation
 
+Die aktuelle Querverdrahtung der vorbereiteten Arbeitspakete liegt in [docs/phase-2-readiness-matrix.md](phase-2-readiness-matrix.md).
+
 Phase-2-Readiness ist erst gegeben, wenn mindestens diese Nachweise geplant und spaeter auch ausgefuehrt werden:
 
 1. Budget-Alert feuert bei `80 Prozent`
