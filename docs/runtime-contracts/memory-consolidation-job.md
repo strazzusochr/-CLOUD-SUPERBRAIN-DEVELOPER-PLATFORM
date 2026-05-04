@@ -1,7 +1,7 @@
 # Memory Consolidation Job Contract
 
-Status: Prepared, not implemented
-Datum: 2026-04-23
+Status: Phase 1 Redis-to-PostgreSQL consolidation worker implemented and verified
+Datum: 2026-04-26
 Phase: Phase 2 / WP-05
 Owner-Schicht: Schicht 6 - Memory-Schicht
 
@@ -9,7 +9,35 @@ Owner-Schicht: Schicht 6 - Memory-Schicht
 
 Dieser Vertrag definiert, wie abgeschlossene Runs, Agentenberichte, Evidence-Artefakte, Kosteninformationen und Owner-Entscheidungen in kontrollierte Memory-Updates verdichtet werden.
 
-Er aktiviert keinen produktiven Memory-Job, keine Datenbankverbindung, keine Embedding-Erzeugung und keinen Cloud-Dienst. Er beschreibt nur den verbindlichen Runtime-Vertrag fuer eine spaetere Implementierung.
+Dieser Vertrag ist in Phase 1 fuer Redis-Working-Memory nach PostgreSQL/pgvector-Memory aktiviert. Er erzeugt keine Embeddings und nutzt keinen externen Provider. Die aktive Runtime ist ein deterministischer Worker mit TTL-Schwelle, Idempotency-Key, Secret-Blocker und Audit-Events.
+
+## Phase-1-Runtime-Surface
+
+Implementiert:
+
+1. Docker-Compose-Service `memory-worker`.
+2. Worker-Entrypoint `python -m app.worker`.
+3. Testbarer One-Shot-Modus `python -m app.worker --once`.
+4. Redis-Scan-Pattern `memory:working:*`.
+5. Intervall: `MEMORY_CONSOLIDATION_INTERVAL_SECONDS=300` Sekunden.
+6. TTL-Schwelle: `MEMORY_CONSOLIDATION_TTL_THRESHOLD_SECONDS=480` Sekunden.
+7. PostgreSQL-Write nach `memory_entries` mit `consolidation_status='consolidated'`.
+8. Idempotency ueber `metadata.idempotency_key`.
+9. Audit-Events: `memory_consolidated`, `memory_consolidation_skipped`, `memory_consolidation_blocked`.
+10. Secret-Pattern-Blocker vor Persistenz.
+11. Runtime-Beweis in `scripts/verify-phase1-runtime.ps1`: Redis-Working-Memory-Key wird gesetzt, Worker `--once` konsolidiert, `memory_entries`, `audit_log`, Memory-Suche, gefilterte Consolidation-API und Prometheus-Metric werden geprueft.
+12. Public Feed: `GET /api/v1/memory/consolidation/recent`.
+13. Prometheus: `superbrain_memory_consolidation_events_total`.
+14. Frontend-Panel: `Memory Consolidation`.
+15. Redis-Heartbeat: `memory-worker:heartbeat`, ausgewertet durch `/api/v1/health` und `superbrain_service_health{service="memory_worker"}`.
+
+Nicht implementiert:
+
+1. Live-Embeddings.
+2. Provider-basierte semantische Vektoren.
+3. DSGVO-Purge-Job.
+4. Neo4j Knowledge Graph.
+5. Qdrant.
 
 ## Verbindliche Quellen
 
@@ -26,9 +54,7 @@ Er aktiviert keinen produktiven Memory-Job, keine Datenbankverbindung, keine Emb
 
 ## Markierte Unsicherheit
 
-`docs/memory/schema.md` ist als Planungs- und Vertragsartefakt wiederhergestellt. Das ist keine produktive Schema-Verifikation.
-
-Runtime-Aktivierung der Memory-Schicht bleibt blockiert, bis eine reviewed Migration, CI-Nachweis, Security-/Data-Review und das DB-/Checkpointer-Gate abgeschlossen sind.
+Das relationale Phase-1-Schema ist ueber `services/agent-api/app/migrations/001_foundation_schema.sql` aktiv und per Runtime-Verifier geprueft. Embedding- und DSGVO-Purge-Anteile bleiben Gate-Arbeit.
 
 ## Scope
 
@@ -54,9 +80,9 @@ Out of Scope:
 
 | Tier | Ziel | Status | Regel |
 | --- | --- | --- | --- |
-| Working Memory | Redis, TTL 30 Minuten | Zielbild | Nur fluechtiger Run-Kontext, keine Secrets |
-| Long-Term Memory | Supabase pgvector im MVP, spaeter Hetzner pgvector | Zielbild | Nur validierte, referenzierte und konsolidierte Inhalte |
-| Retrieval Index | Qdrant OSS self-hosted | Zielbild | Nur retrieval-relevante Inhalte, keine Rohlogs |
+| Working Memory | Redis, TTL 30 Minuten | Phase-1 aktiv | Nur fluechtiger Run-Kontext, keine Secrets |
+| Long-Term Memory | Hetzner PostgreSQL/pgvector | Phase-1 aktiv ohne Embeddings | Nur validierte, referenzierte und konsolidierte Inhalte |
+| Retrieval Index | pgvector, Embeddings spaeter | Phase-1 lexical fallback | Nur retrieval-relevante Inhalte, keine Rohlogs |
 | Knowledge Graph | Neo4j optional | Nicht Phase-2-aktiv | Nur nach ADR und Owner-Freigabe |
 
 ## Inputs
@@ -126,7 +152,8 @@ Embedding-verboten:
 
 ## Retry-, Timeout- und Eskalationsregeln
 
-- Zielintervall fuer spaetere Runtime: alle 30 Minuten oder nach abgeschlossenem Run.
+- Zielintervall fuer Runtime: alle 5 Minuten.
+- TTL-Schwelle: konsolidiere Working-Memory-Entries mit `remaining_ttl <= 8 Minuten`.
 - Maximaldauer pro Batch: 120 Sekunden.
 - Maximal 2 Retries pro Batch.
 - Backoff: 30 Sekunden, danach 120 Sekunden.
@@ -172,7 +199,7 @@ Embedding-verboten:
 Sofort stoppen bei:
 
 - fehlendem, geaendertem oder nicht per Migration verifiziertem Memory-Schema vor Runtime-Aktivierung
-- Aktivierung eines echten Persistenzziels
+- Aktivierung eines neuen oder externen Persistenzziels ausserhalb der verifizierten Phase-1-PostgreSQL-Runtime
 - Memory-Purge, Retention-Aenderung oder Datenloeschung
 - Secret-, Token-, Credential- oder PII-Fund im Memory-Input
 - unverschluesseltem Speichern sensitiver Daten
@@ -183,13 +210,12 @@ Sofort stoppen bei:
 
 ## Nicht-Behauptungen
 
-- Kein Memory-Job ist implementiert.
-- Kein produktives Memory-Schema ist verifiziert.
-- Keine Datenbank ist verbunden.
-- Keine Embeddings wurden erzeugt.
-- Kein Langzeit-Retrieval wurde getestet.
-- Keine Production-Memory-Schicht ist aktiviert.
+- Kein Live-Embedding-Provider ist aktiviert.
+- Keine providerbasierte semantische Vektorsuche ist verifiziert.
+- Kein DSGVO-Purge-Job ist implementiert.
+- Kein Neo4j Knowledge Graph ist aktiviert.
+- Kein Production-Deployment dieser Memory-Runtime ist erfolgt.
 
 ## Naechster sicherer Schritt
 
-WP-06 bleibt der naechste sequenzielle Vertragsbaustein. Fuer Memory-Runtime bleibt zusaetzlich ein separates Review-Gate noetig: `docs/memory/schema.md` gegen `ADR-004` und Datenklassifizierung reviewen, Migration und Checkpointer-Strategie getrennt vorbereiten, Security-/Data-Review abschliessen und erst danach Runtime-Code oder DB-Aenderungen vorbereiten.
+Naechster sicherer Schritt fuer Memory-Runtime: Browser-Automation-Beweis fuer das `Memory Consolidation` Panel, sobald Browser MCP verfuegbar ist. Live-Embeddings, DSGVO-Purge und Knowledge-Graph bleiben hinter Gate D plus explizitem Review.

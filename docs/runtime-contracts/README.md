@@ -21,6 +21,17 @@ Diese Dateien sind keine Runtime-Implementierung und kein Release-Claim.
 | [memory-consolidation-job.md](memory-consolidation-job.md) | Phase 2 / WP-05 | `prepared` | Memory-Konsolidierung, Quellenpflicht, Write-Vertrag und Retention-Gates |
 | [mcp-toolsets.md](mcp-toolsets.md) | Phase 2 / WP-06 | `prepared` | Toolset-Grenzen, Request-Envelope, Timeouts, Audit und Stop-Gates fuer GitHub, E2B, Playwright und Filesystem |
 | [verification-harness.md](verification-harness.md) | Phase 2 / WP-07 | `prepared` | Evidence Envelope, Pass/Fail-Semantik, Harness-Regeln und Stop-Gates fuer Phase-2-Claims |
+| [layer-interface-contracts.md](layer-interface-contracts.md) | Phase 4 / L-05 | `implemented-local` | HTTP-/SSE-/Gateway-Grenzen aller sieben Runtime-Schichten mit Request-/Response-Schema und Evidence |
+| [task-assignment-queue-contract.md](task-assignment-queue-contract.md) | Phase 4 / L-06 | `implemented-local` | TaskAssignment-Schema, Redis-Queue, Status-Sichtbarkeit und Backpressure fuer Schicht 2 zu Schicht 3 |
+| [agent-llm-streaming-contract.md](agent-llm-streaming-contract.md) | Phase 4 / L-07 | `implemented-local` | Agent-Pool-zu-LLM-Gateway OpenAI-kompatibles SSE-Protokoll, Parser-State und Live-Provider-Stop-Gates |
+| [mcp-version-pinning-contract.md](mcp-version-pinning-contract.md) | Phase 4 / L-08 | `implemented-local` | MCP-Gateway Dependency-Pins, Tool-Contract-Versionen und Drift-Policy |
+| [memory-embedding-consistency-contract.md](memory-embedding-consistency-contract.md) | Phase 4 / Audit L-09 | `implemented-local` | Memory Embedding-Version, pgvector-Dimension, Re-Embedding-Policy und Fail-Closed-Suchmodus |
+| [project-progress-integrity-contract.md](project-progress-integrity-contract.md) | Phase 4 / L-09 | `implemented-local` | Runtime-Guard gegen erfundene Fortschrittszahlen, mit Manifest-/Durchschnitts-Pruefung und Evidence |
+| [project-progress-completion-contract.md](project-progress-completion-contract.md) | Phase 4 / External gates | `implemented-local` | 100-Prozent-Fail-Closed-Vertrag mit fehlenden External-Gate-Blockern |
+| [external-gate-audit-contract.md](external-gate-audit-contract.md) | Phase 4 / External gates | `implemented-local` | Nicht-geheimer Audit fuer Vercel-Frontend, Hosted `/api/v1`, Branch Protection, Gitleaks und Hetzner |
+| [cloud-provider-inventory-contract.md](cloud-provider-inventory-contract.md) | Phase 4 / External gates | `implemented-local` | Nicht-geheimes Cloud-Inventar und Cloud-Readiness-Matrix ueber sieben Provider und die sieben Architektur-Schichten |
+| [cloud-render-offload-contract.md](cloud-render-offload-contract.md) | Phase 4 / Cloud runtime | `implemented-local` | Localhost bleibt Dev-Control-Plane; schwere Grafik-/3D-/GPU-Browserlast bleibt cloud-only |
+| [cloud-deployment-preflight-contract.md](cloud-deployment-preflight-contract.md) | Phase 4 / External gates | `implemented-local` | Fail-closed Vorflug fuer GHCR, Hetzner, Vercel origins, Hosted Staging, Branch Protection, Secret Scan und Owner Review |
 
 Ergaenzendes Schema-Artefakt:
 

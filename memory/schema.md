@@ -1,220 +1,59 @@
-# Memory and Session Schema
+# Memory and Session Schema - PATCHED
 
-Stand: 2026-04-23
-Status: Phase-1 design only
+Stand: 2026-04-25
+Status: Binding Phase 1 schema direction
 
-## Ziel
+## Architecture Rule
 
-Dieses Schema deckt die in `PHASE 1` geforderten Tabellen fuer Projekte, Sessions, Agentenkommunikation, Memory und Kosten ab.
+PostgreSQL with pgvector is the only Phase 1-5 memory database. Qdrant and Supabase MVP-runtime assumptions are superseded by `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` and ADR-007.
 
-## Architekturregel
-
-- Relationale Quelle der Wahrheit ist ein PostgreSQL-kompatibles Schema.
-- Fuer den MVP bleibt `ADR-004` aktiv: Supabase ist die freigegebene Startdatenbank.
-- Das gleiche Schema bleibt fuer spaeteres Self-Hosted PostgreSQL auf Hetzner portabel.
-- `Qdrant` ist kein Source of Truth, sondern ein Retrieval-Beschleuniger fuer Embeddings und semantische Suche.
-
-## Tabellenuebersicht
+## Required Tables
 
 ### `projects`
 
-Zweck:
+Stores project metadata, owner context, status, and budget configuration.
 
-- Projekt-Metadaten
-- Betriebsstatus
-- Budget- und Routing-Kontext
-
-Kernfelder:
-
-| Feld | Typ | Zweck |
-| --- | --- | --- |
-| `id` | `uuid` | Primaerschluessel |
-| `slug` | `text` | stabile Projektkennung |
-| `name` | `text` | Anzeigename |
-| `status` | `text` | z. B. `active`, `paused`, `archived` |
-| `owner_user_id` | `uuid` | Referenz auf kuenftige Auth-Schicht |
-| `default_model_profile` | `text` | Routing-Profil |
-| `monthly_budget_limit_eur` | `numeric(10,2)` | Budgetgrenze auf Projektebene |
-| `created_at` | `timestamptz` | Anlagezeit |
-| `updated_at` | `timestamptz` | letzte Aenderung |
-
-Indizes:
-
-- unique auf `slug`
-- index auf `status`
+Required fields: `id`, `slug`, `name`, `status`, `owner_user_id`, `monthly_budget_limit_eur`, `created_at`, `updated_at`.
 
 ### `agent_sessions`
 
-Zweck:
+Stores prompt runs and graph sessions.
 
-- zusammenhaengende Arbeitslaeufe pro Projekt
-- Nachvollziehbarkeit von Squad-, Modell- und Statusdaten
-
-Kernfelder:
-
-| Feld | Typ | Zweck |
-| --- | --- | --- |
-| `id` | `uuid` | Primaerschluessel |
-| `project_id` | `uuid` | FK auf `projects.id` |
-| `session_kind` | `text` | z. B. `planning`, `execution`, `review` |
-| `squad_size` | `integer` | z. B. `4`, `8`, `12` |
-| `requested_by` | `text` | Nutzer- oder Systemausloeser |
-| `status` | `text` | `queued`, `running`, `blocked`, `completed`, `failed` |
-| `trace_id` | `text` | durchgaengige Korrelations-ID |
-| `started_at` | `timestamptz` | Start |
-| `ended_at` | `timestamptz` | Ende |
-| `created_at` | `timestamptz` | Anlage |
-
-Indizes:
-
-- index auf `project_id, created_at desc`
-- index auf `status`
-- unique auf `trace_id`
+Required fields: `id`, `project_id`, `status`, `trace_id`, `started_at`, `ended_at`, `created_at`, `metadata`.
 
 ### `agent_messages`
 
-Zweck:
+Stores user, assistant, system, and tool events.
 
-- einzelne Nachrichten, Tool-Aufrufe und Systemereignisse je Session
-- Evidence- und Audit-Nachvollziehbarkeit
-
-Kernfelder:
-
-| Feld | Typ | Zweck |
-| --- | --- | --- |
-| `id` | `uuid` | Primaerschluessel |
-| `session_id` | `uuid` | FK auf `agent_sessions.id` |
-| `agent_role` | `text` | z. B. `planner`, `coder`, `reviewer` |
-| `message_type` | `text` | `user`, `assistant`, `tool`, `system` |
-| `sequence_no` | `bigint` | stabile Reihenfolge pro Session |
-| `content` | `text` | Nachricht oder verdichteter Inhalt |
-| `tool_name` | `text` | optionaler Tool-Name |
-| `tool_status` | `text` | `started`, `succeeded`, `failed` |
-| `token_input` | `integer` | Input-Tokens |
-| `token_output` | `integer` | Output-Tokens |
-| `cost_eur` | `numeric(10,4)` | Kostenanteil der Nachricht |
-| `created_at` | `timestamptz` | Zeitstempel |
-
-Indizes:
-
-- unique auf `session_id, sequence_no`
-- index auf `agent_role`
-- index auf `message_type`
+Required fields: `id`, `session_id`, `agent_role`, `message_type`, `sequence_no`, `content`, `tool_name`, `tool_status`, `token_input`, `token_output`, `cost_eur`, `trace_id`, `created_at`.
 
 ### `memory_entries`
 
-Zweck:
+Stores long-term memory and retrieval metadata.
 
-- langzeitrelevante Fakten, Entscheidungen und Retrieval-Metadaten
-- Bruecke zwischen relationalem Kontext und Vektorindex
-
-Kernfelder:
-
-| Feld | Typ | Zweck |
-| --- | --- | --- |
-| `id` | `uuid` | Primaerschluessel |
-| `project_id` | `uuid` | FK auf `projects.id` |
-| `session_id` | `uuid` | optionaler FK auf `agent_sessions.id` |
-| `memory_layer` | `text` | `working`, `episodic`, `semantic` |
-| `entry_type` | `text` | `decision`, `summary`, `fact`, `artifact`, `risk` |
-| `title` | `text` | kurzer Retrieval-Titel |
-| `content` | `text` | kanonischer Inhalt |
-| `summary` | `text` | kurze Retrieval-Zusammenfassung |
-| `embedding_provider` | `text` | Quelle des Embeddings |
-| `embedding_model` | `text` | Modellkennung |
-| `qdrant_point_id` | `text` | Referenz auf den Qdrant-Punkt |
-| `source_uri` | `text` | Pfad oder Referenz zum Ursprungsartefakt |
-| `importance_score` | `numeric(5,2)` | Priorisierung |
-| `expires_at` | `timestamptz` | optionale Lebensdauer |
-| `created_at` | `timestamptz` | Anlage |
-| `updated_at` | `timestamptz` | letzte Aenderung |
-
-Indizes:
-
-- index auf `project_id, memory_layer`
-- index auf `entry_type`
-- index auf `qdrant_point_id`
-- optional spaeter `GIN`/`tsvector` fuer Volltext
+Required fields: `id`, `project_id`, `session_id`, `entry_type`, `title`, `content`, `summary`, `embedding_model_version`, `content_embedding vector`, `source_uri`, `importance_score`, `consolidation_status`, `expires_at`, `created_at`, `updated_at`.
 
 ### `cost_tracking`
 
-Zweck:
+Stores cost records per project, session, provider, model, and operation.
 
-- Kosten je Projekt, Session, Modell und Provider nachhalten
-- Budget-Grenzen und Alerts ermoeglichen
+Required fields: `id`, `project_id`, `session_id`, `provider`, `model`, `operation_type`, `token_input`, `token_output`, `cost_eur`, `from_cache`, `trace_id`, `recorded_at`.
 
-Kernfelder:
+### `audit_log`
 
-| Feld | Typ | Zweck |
-| --- | --- | --- |
-| `id` | `uuid` | Primaerschluessel |
-| `project_id` | `uuid` | FK auf `projects.id` |
-| `session_id` | `uuid` | optionaler FK auf `agent_sessions.id` |
-| `provider` | `text` | z. B. `openai`, `anthropic` |
-| `model` | `text` | exakte Modellkennung |
-| `operation_type` | `text` | `chat`, `embed`, `tool`, `eval` |
-| `token_input` | `integer` | Input-Tokens |
-| `token_output` | `integer` | Output-Tokens |
-| `cost_eur` | `numeric(10,4)` | Kosten |
-| `recorded_at` | `timestamptz` | Zeitstempel |
+Stores security, purge, budget, branch-protection, and policy events.
 
-Indizes:
+Required fields: `id`, `event_type`, `user_id`, `session_id`, `details`, `severity`, `created_at`.
 
-- index auf `project_id, recorded_at desc`
-- index auf `session_id`
-- index auf `provider, model`
+## Retrieval Rule
 
-## Beziehungen
+- Canonical text lives in PostgreSQL.
+- Semantic search uses pgvector in PostgreSQL.
+- `embedding_model_version` is mandatory for every vectorized entry.
+- Memory injection may use at most 30 percent of the target model context window.
 
-- ein `project` hat viele `agent_sessions`
-- eine `agent_session` hat viele `agent_messages`
-- ein `project` hat viele `memory_entries`
-- ein `project` hat viele `cost_tracking`-Eintraege
-- `memory_entries` koennen optional auf die erzeugende Session zeigen
-- `cost_tracking` kann auf Session-Ebene oder projektweit aggregiert werden
+## Consolidation Rule
 
-## Retrieval- und Synchronisationsregel
-
-1. Schreiben:
-   - kanonischer Eintrag zuerst in PostgreSQL-kompatibler Datenbank
-   - danach Embedding erzeugen
-   - danach Punkt in Qdrant schreiben
-2. Lesen:
-   - semantische Kandidaten zuerst aus Qdrant
-   - kanonischer Volltext und Metadaten danach aus `memory_entries`
-3. Wiederherstellung:
-   - Qdrant darf aus `memory_entries` neu aufgebaut werden
-   - PostgreSQL-kompatible Datenbank darf nicht aus Qdrant rekonstruiert werden
-
-## Beispielabfragen, die das Schema tragen muss
-
-### Was kostet Projekt `X`?
-
-- Summe aus `cost_tracking.cost_eur` gefiltert nach `project_id`
-
-### Welche Agenten waren an Session `Y` beteiligt?
-
-- distinct `agent_role` aus `agent_messages` gefiltert nach `session_id`
-
-### Welche Memory-Eintraege gehoeren zu Projekt `Z`?
-
-- `memory_entries` gefiltert nach `project_id`, optional sortiert nach `importance_score` und `created_at`
-
-## Retention-Hinweise
-
-- `agent_messages` koennen spaeter in warme und kalte Aufbewahrung getrennt werden
-- `memory_entries` bleiben laenger erhalten als Debug-Logs
-- `cost_tracking` sollte fuer Budget- und Audit-Zwecke langfristig erhalten bleiben
-
-## Gate-Hinweis
-
-Dieses Schema ist migrationsfreundlich absichtlich PostgreSQL-kompatibel gehalten.
-Es loest nicht still den Widerspruch zwischen `ADR-004` und einer fruehen Self-Hosted-Postgres-Aktivierung.
-
-## Definition of Done fuer dieses Artefakt
-
-Dieses Dokument ist fertig, wenn:
-
-- alle `5` Pflichttabellen beschrieben sind
-- Projekt-, Session-, Memory- und Kostenbeziehungen klar sind
-- Qdrant sauber als Beschleuniger und nicht als Source of Truth markiert ist
+- Working memory is consolidated every 5 minutes.
+- Entries use `pending`, `consolidating`, `consolidated`, or `failed` status.
+- Failed consolidation extends TTL and emits an alert after repeated failures.

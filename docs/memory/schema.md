@@ -1,15 +1,15 @@
 # Memory Schema Contract
 
-Status: Prepared, not implemented
-Datum: 2026-04-23
+Status: Phase 1 PostgreSQL/pgvector runtime verified, live embeddings gated
+Datum: 2026-04-26
 Phase: Phase 2 / WP-05
 Owner-Schicht: Schicht 6 - Memory-Schicht
 
 ## Zweck
 
-Dieses Dokument definiert den logischen MVP-Schema-Vertrag fuer die dreischichtige Memory-Schicht der Cloud Superbrain Developer Platform. Es ist ein Planungs- und Schnittstellenartefakt fuer spaetere Migrationen, Tests und Runtime-Implementierung.
+Dieses Dokument definiert den logischen MVP-Schema-Vertrag fuer die dreischichtige Memory-Schicht der Cloud Superbrain Developer Platform. Die Phase-1-Runtime nutzt die sechs Foundation-Tabellen aus `services/agent-api/app/migrations/001_foundation_schema.sql`; die erweiterten Memory-Detailtabellen in diesem Dokument bleiben ein Phase-2+ Schemaausbau.
 
-Dieses Dokument aktiviert keine Datenbank, keine Migration, keine Embeddings, keine Retrieval-Runtime und keine produktiven Writes.
+Dieses Dokument aktiviert keine Live-Embeddings, keine externen Memory-Ziele, keine DSGVO-Purge-Runtime und keine produktiven Writes.
 
 ## Verbindliche Quellen
 
@@ -24,22 +24,21 @@ Dieses Dokument aktiviert keine Datenbank, keine Migration, keine Embeddings, ke
 In Scope:
 
 - Logische relationale MVP-Tabellen fuer Memory-Metadaten.
-- Qdrant-Rolle als semantischer Retrieval-Index.
+- pgvector-Rolle als semantischer Retrieval-Index. Qdrant ist Phase-6-Option und nicht Phase-1-5 Source of Truth.
 - Source-, Evidence-, Idempotency-, Redaction- und Retention-Regeln.
 - Migration-freundliche Namenskonventionen fuer spaetere DB-Artefakte.
 
 Out of Scope:
 
-- SQL-Migrationen.
-- Supabase-, Hetzner-, Qdrant- oder Neo4j-Deployment.
-- Live-DB-Verbindungen.
+- Externe SQL-Migrationen ausserhalb der verifizierten Phase-1-Foundation-Migration.
+- Supabase-, Qdrant- oder Neo4j-Deployment.
 - Embedding-Erzeugung.
-- Runtime-Retrieval.
+- Providerbasierte semantische Runtime-Retrievals.
 - Production-Writes.
 
 ## Pflicht-Tabellen
 
-Der MVP-Memory-Core besteht aus genau diesen fuenf Pflicht-Tabellen. Erweiterungen sind erlaubt, aber nicht ohne ADR, wenn sie Verantwortlichkeiten, Retention, Security oder Runtime-Fluss aendern.
+Der verifizierte Phase-1-Core besteht aus sechs Foundation-Tabellen: `projects`, `agent_sessions`, `agent_messages`, `memory_entries`, `cost_tracking` und `audit_log`. Der folgende erweiterte Memory-Core beschreibt Phase-2+-Detailtabellen fuer feinere Konsolidierungs- und Retention-Fluesse. Erweiterungen sind erlaubt, aber nicht ohne ADR, wenn sie Verantwortlichkeiten, Retention, Security oder Runtime-Fluss aendern.
 
 ### `memory_sessions`
 
@@ -79,7 +78,7 @@ Pflichtfelder:
 - `retention_policy`
 - `evidence_status`
 - `embedding_eligible`
-- `qdrant_point_id`
+- `pgvector_ref`
 - `status`
 - `created_at`
 - `updated_at`
@@ -189,11 +188,15 @@ Diese Tabellen duerfen spaeter ergaenzt werden, sind aber nicht Teil des Pflicht
 
 Eine optionale Tabelle darf keine produktive Pflichtabhaengigkeit werden, bevor Migration, Tests und ADR-/Review-Gates abgeschlossen sind.
 
-## Qdrant-Rolle
+## Vektor-Rolle
 
-Qdrant ist im MVP ein semantischer Retrieval-Index, nicht die Quelle der Wahrheit. Die relationale Memory-Schicht bleibt authoritative.
+PostgreSQL/pgvector ist in Phase 1-5 der einzige zulaessige semantische Retrieval-Index. Die relationale Memory-Schicht bleibt authoritative; `content_embedding vector(...)` und `pgvector_ref` duerfen nur auf PostgreSQL/pgvector-Daten zeigen.
 
-Qdrant darf speichern:
+Die verifizierte Foundation-Tabelle `memory_entries` muss fuer Embedding-Kompatibilitaet mindestens `content_embedding vector(1536)` und `embedding_model_version varchar(100)` enthalten. Der Runtime-Vertrag `GET /api/v1/memory/embedding-consistency/contract` veroeffentlicht `memory-embedding-consistency-v1`, `memory_embedding_consistency_contract_visible`, die aktive Dimension, den aktiven Modellversionsnamen und die Re-Embedding-Policy.
+
+Wenn `MEMORY_EMBEDDING_MODEL_VERSION` oder die Dimension geaendert wird, bleibt `lexical_fallback` der sichere Suchmodus, bis ein begrenzter Re-Embedding-Job mit Audit-Evidence abgeschlossen ist. Zukuenftige Vector-Search darf alte und neue Vektoren nicht mischen und muss nach `embedding_model_version` filtern.
+
+pgvector darf speichern:
 
 - Vektor fuer erlaubte, belegte Memory-Zusammenfassungen.
 - `memory_item_id`
@@ -203,7 +206,7 @@ Qdrant darf speichern:
 - `retention_policy`
 - `redaction_status`
 
-Qdrant darf nicht speichern:
+pgvector darf nicht speichern:
 
 - Secrets, Tokens, Keys oder Credentials.
 - Raw Logs.
@@ -228,27 +231,26 @@ Qdrant darf nicht speichern:
 
 Folgende Aktionen stoppen die autonome Ausfuehrung und brauchen Owner-/Review-Freigabe:
 
-- Aktivierung von Supabase-, Hetzner-, Qdrant- oder Neo4j-Persistenz.
+- Aktivierung von Supabase-, Qdrant-, LanceDB-, Neo4j- oder anderen neuen Persistenzzielen ausserhalb der verifizierten Phase-1-PostgreSQL/pgvector-Runtime.
 - Aenderung der Pflicht-Tabellen, Retention-Regeln oder Security-Klassifikation.
 - Speicherung von PII, Secrets, Tokens oder Credentials.
 - Production-DB-Writes.
 - Ausfuehrung oder Aenderung produktiver Migrationen.
-- Wechsel der DB-Strategie aus ADR-004.
+- Wechsel der DB-Strategie aus ADR-007.
 - Neo4j-/Knowledge-Graph-Aktivierung.
 
 ## Akzeptanzchecks
 
 - Dieses Dokument existiert unter `docs/memory/schema.md`.
-- Die fuenf Pflicht-Tabellen sind dokumentiert.
-- Die Qdrant-Rolle ist als Index, nicht als Source of Truth, dokumentiert.
+- Die sechs Pflicht-Tabellen sind dokumentiert.
+- Die pgvector-Rolle ist als einziger Phase-1-5-Vektorindex dokumentiert.
 - Secret-/PII-Verbote sind dokumentiert.
-- Runtime-Aktivierung bleibt blockiert, bis Migration, CI, Security-/Data-Review und DB-/Checkpointer-Gate abgeschlossen sind.
+- Runtime-Aktivierung fuer PostgreSQL/pgvector ist per Phase-1-Verifier erfolgt; Live-Embeddings, externe Memory-Ziele und Purge-Jobs bleiben bis Security-/Data-Review blockiert.
 
 ## Nicht-Behauptungen
 
-- Keine Datenbank ist verbunden.
-- Keine Migration ist implementiert.
-- Kein produktives Schema ist verifiziert.
+- Keine Live-Embedding-Pipeline ist verbunden.
+- Keine Supabase-, Qdrant- oder Neo4j-Runtime ist aktiviert.
+- Kein DSGVO-Purge-Job ist implementiert.
 - Keine Embeddings sind erzeugt.
-- Kein Retrieval ist getestet.
-- Kein Memory-Runtime-Job ist aktiviert.
+- Kein semantisches Vector-Retrieval mit Provider-Embeddings ist getestet.

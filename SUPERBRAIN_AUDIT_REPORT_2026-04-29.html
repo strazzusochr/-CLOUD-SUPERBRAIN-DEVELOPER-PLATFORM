@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SUPERBRAIN AUDIT REPORT — 2026-04-29</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600;700&family=Space+Grotesk:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg: #080c10;
+    --bg2: #0d1117;
+    --bg3: #161b22;
+    --bg4: #1c2128;
+    --border: #21262d;
+    --border2: #30363d;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --text3: #6e7681;
+    --red: #f85149;
+    --red-dim: #3d1a1a;
+    --red-border: #6e1a1a;
+    --yellow: #e3b341;
+    --yellow-dim: #3d2e0e;
+    --yellow-border: #6b4b0e;
+    --green: #3fb950;
+    --green-dim: #0d2118;
+    --green-border: #1a5c2a;
+    --blue: #388bfd;
+    --blue-dim: #0d1f3c;
+    --blue-border: #1a3f6b;
+    --purple: #a371f7;
+    --purple-dim: #1e1040;
+    --cyan: #39d0d4;
+    --cyan-dim: #0a2527;
+    --orange: #db6d28;
+    --orange-dim: #301608;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 14px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--bg2);
+    border-bottom: 2px solid var(--red);
+    padding: 28px 40px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-title h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--text);
+    text-transform: uppercase;
+  }
+  .header-title p {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 4px;
+    letter-spacing: 1px;
+  }
+  .header-badges {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .badge-red { background: var(--red-dim); color: var(--red); border: 1px solid var(--red-border); }
+  .badge-yellow { background: var(--yellow-dim); color: var(--yellow); border: 1px solid var(--yellow-border); }
+  .badge-green { background: var(--green-dim); color: var(--green); border: 1px solid var(--green-border); }
+  .badge-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid var(--blue-border); }
+  .badge-purple { background: var(--purple-dim); color: var(--purple); border: 1px solid #4a2870; }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 1400px; margin: 0 auto; padding: 32px 40px; }
+
+  /* ── GLOBAL SUMMARY ── */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+  .summary-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+    text-align: center;
+  }
+  .summary-card .val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .summary-card .lbl {
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .val-red { color: var(--red); }
+  .val-yellow { color: var(--yellow); }
+  .val-green { color: var(--green); }
+  .val-blue { color: var(--blue); }
+  .val-orange { color: var(--orange); }
+  .val-purple { color: var(--purple); }
+
+  /* ── SECTION ── */
+  .section { margin-bottom: 48px; }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-icon {
+    width: 28px; height: 28px;
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .icon-red { background: var(--red-dim); border: 1px solid var(--red-border); }
+  .icon-yellow { background: var(--yellow-dim); border: 1px solid var(--yellow-border); }
+  .icon-green { background: var(--green-dim); border: 1px solid var(--green-border); }
+  .icon-blue { background: var(--blue-dim); border: 1px solid var(--blue-border); }
+  .icon-purple { background: var(--purple-dim); border: 1px solid #4a2870; }
+
+  .section-header h2 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .section-header .count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text3);
+    margin-left: auto;
+  }
+
+  /* ── PHASE PROGRESS ── */
+  .phase-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 12px;
+  }
+  .phase-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 20px;
+  }
+  .phase-card.blocked { border-color: var(--red-border); background: var(--red-dim); }
+  .phase-card.warning { border-color: var(--yellow-border); background: var(--yellow-dim); }
+  .phase-card.ok { border-color: var(--green-border); background: var(--green-dim); }
+  .phase-card.idle { border-color: var(--border); opacity: 0.6; }
+
+  .phase-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .phase-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text2);
+  }
+  .phase-pct {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+  }
+  .pct-green { color: var(--green); }
+  .pct-yellow { color: var(--yellow); }
+  .pct-red { color: var(--red); }
+  .pct-gray { color: var(--text3); }
+
+  .progress-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 8px 0;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+  .fill-green { background: var(--green); }
+  .fill-yellow { background: var(--yellow); }
+  .fill-red { background: var(--red); }
+  .fill-gray { background: var(--text3); }
+
+  .phase-status {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    margin-top: 6px;
+  }
+
+  /* ── ITEM CARDS ── */
+  .item-list { display: flex; flex-direction: column; gap: 8px; }
+  .item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 14px 18px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .item.critical { border-left: 3px solid var(--red); }
+  .item.high { border-left: 3px solid var(--orange); }
+  .item.medium { border-left: 3px solid var(--yellow); }
+  .item.low { border-left: 3px solid var(--blue); }
+  .item.ok { border-left: 3px solid var(--green); }
+
+  .item-sev {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 3px 7px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    align-self: flex-start;
+    margin-top: 2px;
+  }
+  .sev-critical { background: var(--red-dim); color: var(--red); border: 1px solid var(--red-border); }
+  .sev-high { background: var(--orange-dim); color: var(--orange); border: 1px solid #5a2e0a; }
+  .sev-medium { background: var(--yellow-dim); color: var(--yellow); border: 1px solid var(--yellow-border); }
+  .sev-low { background: var(--blue-dim); color: var(--blue); border: 1px solid var(--blue-border); }
+  .sev-blocked { background: #1a0a0a; color: #ff4444; border: 1px solid #6e0000; }
+  .sev-missing { background: var(--purple-dim); color: var(--purple); border: 1px solid #4a2870; }
+  .sev-ok { background: var(--green-dim); color: var(--green); border: 1px solid var(--green-border); }
+  .sev-info { background: var(--bg4); color: var(--text3); border: 1px solid var(--border2); }
+
+  .item-content h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .item-content p {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+  .item-content .meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    margin-top: 6px;
+  }
+  .item-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    white-space: nowrap;
+    align-self: flex-start;
+    margin-top: 4px;
+  }
+
+  /* ── 2-COLUMN GRID ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* ── VIOLATION ALERT ── */
+  .violation-alert {
+    background: #1a0505;
+    border: 2px solid var(--red);
+    border-radius: 6px;
+    padding: 20px 24px;
+    margin-bottom: 28px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .violation-alert .alert-icon { font-size: 24px; flex-shrink: 0; }
+  .violation-alert h3 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--red);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .violation-alert p { font-size: 13px; color: var(--text2); }
+
+  /* ── TABLE ── */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text3);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: left;
+    background: var(--bg2);
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text2);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+  .td-code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+  }
+
+  /* ── LAYER BARS ── */
+  .layer-grid { display: flex; flex-direction: column; gap: 8px; }
+  .layer-row {
+    display: grid;
+    grid-template-columns: 200px 60px 1fr 60px;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+  }
+  .layer-name { font-size: 12px; font-weight: 600; color: var(--text); }
+  .layer-pct {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: right;
+  }
+  .layer-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .layer-fill { height: 100%; border-radius: 3px; }
+  .layer-status { font-size: 10px; color: var(--text3); text-align: right; }
+
+  /* ── AGENT PROFILES ── */
+  .agent-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+  }
+  .agent-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+  }
+  .agent-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .agent-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .agent-name { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 700; }
+  .agent-model { font-size: 10px; color: var(--text3); }
+  .agent-row { display: flex; justify-content: space-between; font-size: 11px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+  .agent-row:last-child { border-bottom: none; }
+  .agent-row .lbl { color: var(--text3); }
+  .agent-row .val { font-family: 'IBM Plex Mono', monospace; color: var(--text); }
+
+  /* ── FOOTER ── */
+  .footer {
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    padding: 20px 40px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    letter-spacing: 1px;
+  }
+
+  /* ── DECISION TABLE ── */
+  .decision-table { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+
+  /* ── RISK BLOCK ── */
+  .risk-block {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .risk-title { font-size: 13px; font-weight: 600; }
+  .risk-desc { font-size: 12px; color: var(--text2); }
+  .risk-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .risk-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    border: 1px solid var(--border2);
+    color: var(--text3);
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ██ HEADER ██ -->
+<div class="header">
+  <div class="header-title">
+    <h1>⬛ CLOUD-SUPERBRAIN · AUDIT REPORT</h1>
+    <p>FORENSIC DEEP-ANALYSIS · VERIFIED 2026-04-29 · SOURCES: TEIL-1 + TEIL-2 + PATCHED.md + RUNTIME DASHBOARD</p>
+  </div>
+  <div class="header-badges">
+    <span class="badge badge-red">⚠ 4 KRITISCHE ESCALATIONS</span>
+    <span class="badge badge-red">⛔ 0/4 EXTERNAL GATES</span>
+    <span class="badge badge-yellow">⚙ DRY-RUN MODE ONLY</span>
+    <span class="badge badge-yellow">🔒 GATE-D &amp; GATE-E CLOSED</span>
+    <span class="badge badge-blue">📊 46% GESAMT</span>
+    <span class="badge badge-green">€0.00 / €200.00</span>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ██ GLOBAL SUMMARY ██ -->
+<div class="summary-grid">
+  <div class="summary-card"><div class="val val-blue">46%</div><div class="lbl">Gesamt-Fortschritt</div></div>
+  <div class="summary-card"><div class="val val-red">4</div><div class="lbl">Kritische Escalations</div></div>
+  <div class="summary-card"><div class="val val-red">0/4</div><div class="lbl">External Gates OK</div></div>
+  <div class="summary-card"><div class="val val-red">33</div><div class="lbl">Architektur-Lücken</div></div>
+  <div class="summary-card"><div class="val val-yellow">6</div><div class="lbl">Required Decisions</div></div>
+  <div class="summary-card"><div class="val val-yellow">6</div><div class="lbl">Residual-Konflikte</div></div>
+  <div class="summary-card"><div class="val val-orange">8</div><div class="lbl">Provider Rotations</div></div>
+  <div class="summary-card"><div class="val val-green">€0.00</div><div class="lbl">LLM Kosten (Dry-Run)</div></div>
+  <div class="summary-card"><div class="val val-green">€9.00</div><div class="lbl">Infra Projiziert/€20</div></div>
+  <div class="summary-card"><div class="val val-red">1</div><div class="lbl">Hard Constraint Verletzt</div></div>
+</div>
+
+<!-- ██ HARD CONSTRAINT VIOLATION ██ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon icon-red">🚨</div>
+    <h2 style="color: var(--red);">HARD CONSTRAINT VERLETZUNG — SOFORTIGER HANDLUNGSBEDARF</h2>
+  </div>
+
+  <div class="violation-alert">
+    <div class="alert-icon">⛔</div>
+    <div>
+      <h3>CONSTRAINT-BRUCH: "KEIN LOCALHOST" — ABSOLUT UNVERÄNDERLICH</h3>
+      <p>Die Plattform läuft aktuell auf <strong style="color:var(--red)">http://localhost:8081/</strong> — dies verstößt direkt und ohne Ausnahme gegen die härteste Constraint des gesamten Projekts aus Teil 0, Goal Lock: <em>"KEIN Localhost. Null. Niemals. Alles läuft in der Cloud."</em> Lokale Entwicklung ist für Debugging tolerierbar, aber der produktive Betrieb und die Verifikation DÜRFEN NICHT auf localhost stattfinden. Dies ist kein Warning — es ist ein fundamentaler Architektur-Bruch der das Kernziel der Plattform (cloud-native, keine lokalen Ressourcen) verletzt. Hosted Staging URL ist als External Gate MISSING markiert.</p>
+    </div>
+  </div>
+
+  <div class="violation-alert" style="border-color: var(--yellow); background: #1a1205;">
+    <div class="alert-icon">⚠️</div>
+    <div>
+      <h3 style="color: var(--yellow);">DRY-RUN ONLY — KEINE ECHTEN LLM CALLS AKTIV</h3>
+      <p>Das System läuft vollständig im <strong style="color:var(--yellow)">deterministic_dry_run</strong> Modus. Alle Agent-Tasks (Planner, Coder, Tester, DevOps) werden ohne echte LLM-Provider-Calls ausgeführt. <strong>live_provider_calls=false</strong> für alle 8 konfigurierten Routen. Kein MCP-Tool führt echte Operationen aus (kein echtes GitHub, kein echtes Filesystem, keine echte DB). Das System ist eine Simulation, keine funktionierende Plattform. Phase 1 Gate-D und Gate-E sind geschlossen und verhindern den Übergang zur echten Ausführung.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ██ PHASE STATUS ██ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon icon-blue">📊</div>
+    <h2>PHASEN-FORTSCHRITT (HORIZONTAL)</h2>
+    <span class="count">6 Phasen · Gesamt 46%</span>
+  </div>
+  <div class="phase-grid">
+    <div class="phase-card ok">
+      <div class="phase-header"><span class="phase-name">Phase 0 — Reboot &amp; Goal Lock</span></div>
+      <div class="pct-green phase-pct">100%</div>
+      <div class="progress-bar"><div class="progress-fill fill-green" style="width:100%"></div></div>
+      <div class="phase-status">✅ verified · PATCHED.md als einzige Wahrheitsquelle bestätigt</div>
+    </div>
+    <div class="phase-card warning">
+      <div class="phase-header"><span class="phase-name">Phase 1 — Foundation Runtime</span></div>
+      <div class="pct-yellow phase-pct">98%</div>
+      <div class="progress-bar"><div class="progress-fill fill-yellow" style="width:98%"></div></div>
+      <div class="phase-status">⚠ GATE-D geschlossen · GATE-E geschlossen · Transition blockiert</div>
+    </div>
+    <div class="phase-card warning">
+      <div class="phase-header"><span class="phase-name">Phase 2 — Core Runtime</span></div>
+      <div class="pct-yellow phase-pct">86%</div>
+      <div class="progress-bar"><div class="progress-fill fill-yellow" style="width:86%"></div></div>
+      <div class="phase-status">⚠ Nur dry-run · timeout-controlled-proof · Keine live Ausführung</div>
+    </div>
+    <div class="phase-card blocked">
+      <div class="phase-header"><span class="phase-name">Phase 3 — Product Surface &amp; Security</span></div>
+      <div class="pct-red phase-pct">33%</div>
+      <div class="progress-bar"><div class="progress-fill fill-red" style="width:33%"></div></div>
+      <div class="phase-status">🔴 prepared-agent-activity · unavailable-fallback-contract · Nicht gestartet</div>
+    </div>
+    <div class="phase-card idle">
+      <div class="phase-header"><span class="phase-name">Phase 4 — Integration &amp; Hardening</span></div>
+      <div class="pct-gray phase-pct">7%</div>
+      <div class="progress-bar"><div class="progress-fill fill-gray" style="width:7%"></div></div>
+      <div class="phase-status">⬜ prepared · autopilot-mode-stream-proof · Fast nicht gestartet</div>
+    </div>
+    <div class="phase-card idle">
+      <div class="phase-header"><span class="phase-name">Phase 5 — Release Readiness</span></div>
+      <div class="pct-gray phase-pct">0%</div>
+      <div class="progress-bar"><div class="progress-fill fill-gray" style="width:0%"></div></div>
+      <div class="phase-status">⬜ not-started</div>
+    </div>
+    <div class="phase-card idle">
+      <div class="phase-header"><span class="phase-name">Phase 6 — Scale &amp; 3D Platform</span></div>
+      <div class="pct-gray phase-pct">0%</div>
+      <div class="progress-bar"><div class="progress-fill fill-gray" style="width:0%"></div></div>
+      <div class="phase-status">⬜ not-started</div>
+    </div>
+  </div>
+</div>
+
+<!-- ██ VERTICAL LAYER STATUS ██ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon icon-blue">🔷</div>
+    <h2>VERTIKALE SCHICHTEN-STATUS (7 LAYERS)</h2>
+  </div>
+  <div class="layer-grid">
+    <div class="layer-row">
+      <div class="layer-name">Frontend / Next.js</div>
+      <div class="layer-pct pct-green">96%</div>
+      <div class="layer-bar"><div class="layer-fill fill-green" style="width:96%"></div></div>
+      <div class="layer-status" style="color:var(--green)">✅ Agent summaries visible</div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-name">Orchestrator / LangGraph</div>
+      <div class="layer-pct pct-green">99%</div>
+      <div class="layer-bar"><div class="layer-fill fill-green" style="width:99%"></div></div>
+      <div class="layer-status" style="color:var(--yellow)">⚠ Dry-run only · Workflow-dispatch gated</div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-name">Agent Pool (4 Rollen)</div>
+      <div class="layer-pct pct-yellow">59%</div>
+      <div class="layer-bar"><div class="layer-fill fill-yellow" style="width:59%"></div></div>
+      <div class="layer-status" style="color:var(--yellow)">⚠ Deterministic only · Profile enforced</div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-name">LLM Gateway</div>
+      <div class="layer-pct pct-yellow">52%</div>
+      <div class="layer-bar"><div class="layer-fill fill-yellow" style="width:52%"></div></div>
+      <div class="layer-status" style="color:var(--yellow)">⚠ No live provider calls · Configured only</div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-name">MCP Gateway</div>
+      <div class="layer-pct pct-yellow">51%</div>
+      <div class="layer-bar"><div class="layer-fill fill-yellow" style="width:51%"></div></div>
+      <div class="layer-status" style="color:var(--yellow)">⚠ Contract-endpoint-visible · No real calls</div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-name">Memory (Redis + pgvector)</div>
+      <div class="layer-pct pct-yellow">69%</div>
+      <div class="layer-bar"><div class="layer-fill fill-yellow" style="width:69%"></div></div>
+      <div class="layer-status" style="color:var(--yellow)">⚠ Consolidation proof · Qdrant excluded</div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-name">Observability (Langfuse)</div>
+      <div class="layer-pct pct-green">99%</div>
+      <div class="layer-bar"><div class="layer-fill fill-green" style="width:99%"></div></div>
+      <div class="layer-status" style="color:var(--yellow)">⚠ Auth proxy required · No public access</div>
+    </div>
+  </div>
+</div>
+
+<!-- ██ CRITICAL ESCALATIONS ██ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon icon-red">🔴</div>
+    <h2 style="color:var(--red)">KRITISCHE ESCALATIONS (RUNTIME LOGS)</h2>
+    <span class="count">8 Events · 4 Unique Typen</span>
+  </div>
+  <div class="item-list">
+    <div class="item critical">
+      <span class="item-sev sev-critical">KRITISCH</span>
+      <div class="item-content">
+        <h4>ValueError: badly formed hexadecimal UUID string</h4>
+        <p>Planner-Agent konnte Task-UUID nicht parsen. Retries: 2/2 exhausted — kein weiterer Retry möglich. Task c1e665a1-9b2b-48b0-9cd8-75452142bdb3 wurde abgebrochen. Der Planner ist der zentrale Orchestrierungs-Agent — ein UUID-Parse-Fehler bedeutet, dass Aufgaben-IDs nicht korrekt generiert oder weitergeleitet werden. Dies kann den gesamten Task-Dispatch-Fluss unterbrechen.</p>
+        <div class="meta">TIME: 2026-04-29T06:53:53.937951 · AGENT: planner · RETRIES: 2/2 · STATUS: exhausted</div>
+      </div>
+      <span class="item-tag">BUG</span>
+    </div>
+    <div class="item critical">
+      <span class="item-sev sev-critical">KRITISCH</span>
+      <div class="item-content">
+        <h4>auth_refresh_reuse_blocked</h4>
+        <p>Ein Refresh-Token wurde versucht wiederverwendet zu werden (Replay-Attack-Detection ausgelöst). Das Auth-System (auth-github-jwt-refresh-v1) hat den Versuch korrekt geblockt, aber das Ereignis als Critical markiert. Ursache: Möglicherweise Race Condition im Client der denselben Refresh-Token mehrfach sendet, oder ein tatsächlicher Replay-Versuch. Ohne echten GitHub OAuth können Live-Sessions nicht verifiziert werden.</p>
+        <div class="meta">TIME: 2026-04-29T06:53:55.154099 · TASK: none · RETRIES: 0/0</div>
+      </div>
+      <span class="item-tag">SECURITY</span>
+    </div>
+    <div class="item critical">
+      <span class="item-sev sev-critical">KRITISCH</span>
+      <div class="item-content">
+        <h4>devops_workflow_dispatch_contract — Kein Error-Detail</h4>
+        <p>Der DevOps Workflow-Dispatch-Contract hat eine kritische Eskalation ausgelöst, ohne jedoch ein Error-Detail zu liefern. Dies ist ein "silent failure" — der schlimmste Fehlertyp. Der Devops-Agent sollte GitHub Actions Workflows dispatchen, tut dies aber weder wirklich (Dry-Run) noch produziert er bei einem Fehler verwertbare Diagnose-Informationen. Das GitHub Actions token fehlt (External Gate MISSING).</p>
+        <div class="meta">TIME: 2026-04-29T06:53:55.722837 · TASK: none · ERROR: No error detail</div>
+      </div>
+      <span class="item-tag">BLOCKER</span>
+    </div>
+    <div class="item critical">
+      <span class="item-sev sev-critical">KRITISCH × 3</span>
+      <div class="item-content">
+        <h4>task_policy_blocked — 3 separate Ereignisse</h4>
+        <p>Das Task-Policy-Gate (task-policy-v1, fail_closed_before_enqueue) hat 3 Tasks geblockt bevor sie in die Queue kamen. Keine Error-Details in allen 3 Fällen. Geblockte Aktionen laut Policy: force_push, live_provider_call, prod_deploy, production_db_write, push_main, secret_change. Es ist unklar welche spezifische Aktion geblockt wurde, da kein Task-ID und kein Detail vorliegt. Das Policy-Gate funktioniert korrekt (fail-closed), aber die fehlenden Details machen Debugging unmöglich.</p>
+        <div class="meta">TIMES: 06:53:52 / 06:53:51 / 06:53:51 · TASKS: none × 3 · ERROR: No error detail × 3</div>
+      </div>
+      <span class="item-tag">POLICY FAIL</span>
+    </div>
+    <div class="item high">
+      <span class="item-sev sev-high">HOCH</span>
+      <div class="item-content">
+        <h4>langgraph_dry_run_stopped — forced_phase2_sse_error_event</h4>
+        <p>Ein LangGraph-Lauf wurde durch einen erzwungenen Fehler im phase2-SSE-Test gestoppt. Node: error_handler. hard_stop_reason: forced_phase2_sse_error_event. Kein per_role_results, keine Aggregation, 0 Retries. Dies ist ein geplanter Test-Stop der beweist, dass Error-Handling-Pfade funktionieren — ABER: es zeigt auch, dass die SSE-Error-Contract-Verifikation noch nicht vollständig abgeschlossen ist (Thread 41669bb7-8485-4712-bad7-0a058aa5b74e hat keine Session-ID).</p>
+        <div class="meta">TIME: 2026-04-29T06:54:27 · RUN: 71f02af2 · NODE: error_handler · CHECKPOINTING: postgres</div>
+      </div>
+      <span class="item-tag">TEST STOP</span>
+    </div>
+    <div class="item high">
+      <span class="item-sev sev-high">HOCH</span>
+      <div class="item-content">
+        <h4>mcp_tool_executed als "Critical" klassifiziert — Fehlendes Session-Binding</h4>
+        <p>Zwei mcp_tool_executed Events wurden als CRITICAL eingestuft ohne Error-Detail. Beide haben Trace: none und Session: none. MCP-Tool-Ausführungen ohne Session-Kontext deuten auf einen Tool-Aufruf außerhalb eines LangGraph-Runs hin. Dies verletzt das Prinzip "Keine Tool-Aktion ohne Eintrag im Observability-System" (G5) — denn ohne Trace/Session ist keine Zuordnung möglich.</p>
+        <div class="meta">TIME: 2026-04-29T06:53:23 × 2 · TRACE: none · SESSION: none</div>
+      </div>
+      <span class="item-tag">GOVERNANCE</span>
+    </div>
+  </div>
+</div>
+
+<!-- ██ EXTERNAL GATES ── ALLE MISSING ██ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon icon-red">🚫</div>
+    <h2 style="color:var(--red)">EXTERNAL GATES — ALLE 4 FEHLEN (0/4)</h2>
+    <span class="count">Status: action_required</span>
+  </div>
+  <div class="item-list">
+    <div class="item critical">
+      <span class="item-sev sev-missing">MISSING</span>
+      <div class="item-content">
+        <h4>GitHub Branch Protection Apply Token</h4>
+        <p>Ohne dieses Token kann Branch-Protection für den main-Branch nicht programmatisch konfiguriert werden. Der coder-Agent könnte theoretisch direkt in main pushen. Dies verletzt Governance-Regel G4 technisch. Aktuell: Dry-Run-Fallback-Script verhindert echte main-Schreibzugriffe — aber ohne Token-Enforcement ist dies nur eine Software-Konvention, keine Hardware-Grenze.</p>
+        <div class="meta">WORKAROUND: fail-closed dry-run · MISSING: protected-main GitHub configuration</div>
+      </div>
+      <span class="item-tag">Gate 1/4</span>
+    </div>
+    <div class="item critical">
+      <span class="item-sev sev-missing">MISSING</span>
+      <div class="item-content">
+        <h4>Hosted Staging URL</h4>
+        <p>Die Plattform läuft auf localhost:8081 — es gibt keine verifizierbare öffentliche Staging-URL. Dies ist direkt verknüpft mit dem Hard-Constraint-Bruch (KEIN Localhost). Playwright-Tests können nur localhost testen, was im Playwright-Browser-Proof-Contract explizit auf localhost:8081 beschränkt ist. Kein echtes Browser-Proof auf einer gehosteten Umgebung möglich.</p>
+        <div class="meta">CONSTRAINT: KEIN Localhost (absolut) · AKTUELLE URL: localhost:8081 · VERCEL: nicht konfiguriert</div>
+      </div>
+      <span class="item-tag">Gate 2/4</span>
+    </div>
+    <div class="item critical">
+      <span class="item-sev sev-missing">MISSING</span>
+      <div class="item-content">
+        <h4>Hetzner API Token</h4>
+        <p>Ohne Hetzner API Token kann keine Live-Infrastruktur-Überprüfung erfolgen. Die Infra-Budget-Projektion von €9/Monat basiert auf configured_phase1_projection — also auf theoretischen Werten, nicht auf echten Hetzner-Rechnungen. live verified: NO. W-RESIDUAL-01 (Budget-Überschreitung CPX51+CX22) kann ohne Token nicht verifiziert werden.</p>
+        <div class="meta">BUDGET: configured_phase1_projection · LIVE VERIFIED: no · PROJECTED: €9.00/€20.00</div>
+      </div>
+      <span class="item-tag">Gate 3/4</span>
+    </div>
+    <div class="item critical">
+      <span class="item-sev sev-missing">MISSING</span>
+      <div class="item-content">
+        <h4>gitleaks Binary</h4>
+        <p>Der kanonische Secret-Scanner fehlt. gitleaks ist laut PATCHED.md (Abschnitt 4) "zwingend aktiv" für Branch Protection. Ohne gitleaks könnten API-Keys oder Secrets versehentlich in das Repository commitet werden. Aktuelle Lösung: Local fallback scanner blockt bekannte Secret-Patterns — aber dies ist kein Ersatz für den vollständigen gitleaks-Scan der Pre-Commit und GitHub Actions abdeckt.</p>
+        <div class="meta">POLICY: gitleaks_zwingend_aktiv · CURRENT: local_fallback_scanner · CANONICAL: missing</div>
+      </div>
+      <span class="item-tag">Gate 4/4</span>
+    </div>
+  </div>
+</div>
+
+<!-- ██ PROVIDER ROTATION PROBLEM ██ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon icon-yellow">🔄</div>
+    <h2>PROVIDER ROTATION — PERSISTENTES RATE-LIMIT PROBLEM</h2>
+    <span class="count">8 Rotationen · Planner → Anthropic rate_limited</span>
+  </div>
+  <div class="violation-alert" style="border-color: var(--orange); background: #1a0e05;">
+    <div class="alert-icon">⚡</div>
+    <div>
+      <h3 style="color:var(--orange)">ANTHROPIC RATE-LIMIT: Planner-Agent wird 8× rotiert</h3>
+      <p>Der Planner-Agent (primary: claude-sonnet-4-6 / anthropic) wurde in allen 8 aufgezeichneten Rotation-Events durch Rate-Limiting auf Groq (groq-llama-3.3-70b) rotiert. Das "Never blocked, always rotating" Prinzip funktioniert — die Rotation an sich ist ein Feature. ABER: 8 Rate-Limit-Events in einem einzigen Testzeitraum signalisieren, dass der Anthropic-Tier für die geplante Nutzungsintensität unzureichend ist. Da live_provider_calls=false, sind dies Dry-Run-Tests — im Live-Betrieb würde das echte API-Limits bedeuten und Kosten verursachen. Der Planner-Fallback auf groq-llama-3.3-70b ist eine Kompromittierung der Reasoning-Qualität (Tier: high → Fallback auf low-tier).</p>
+    </div>
+  </div>
+  <div class="two-col" style="margin-top:14px;">
+    <div class="risk-block">
+      <div class="risk-title" style="color:var(--orange)">Rate-Limit Pattern</div>
+      <div class="risk-desc">anthropic (claude-sonnet-4-6) → groq (groq-llama-3.3-70b) · Fallback #1 · allow_fallback</div>
+      <div class="risk-desc" style="margin-top:4px;">Cost: 0 cents (dry-run) · Zeitraum: 05:31 – 06:54 Uhr (83 Minuten · 8 Events)</div>
+      <div class="risk-tags"><span class="risk-tag">rate_limited</span><span class="risk-tag">allow_fallback</span><span class="risk-tag">provider_fallback_structured_event</span></div>
+    </div>
+    <div class="risk-block">
+      <div class="risk-title" style="color:var(--yellow)">Impact im Live-Betrieb</div>
+      <div class="risk-desc">claude-sonnet-4-6 → teurer, höhere Reasoning-Qualität. groq-llama-3.3-70b → billiger, aber potentiell schlechtere Intent-Analyse für komplexe Tasks. Anthropic Free Tier Limits müssen vor Go-Live angepasst werden.</div>
+      <div class="risk-tags"><span class="risk-tag">quality-degradation-risk</span><span class="risk-tag">api-tier-upgrade-needed</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ██ ARCHITEKTUR-LÜCKEN ██ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon icon-yellow">🏗️</div>
+    <h2>ARCHITEKTUR-LÜCKEN (L-01 bis L-33)</h2>
+    <span class="count">33 Lücken · 7 kritisch · 12 hoch · 14 mittel</span>
+  </div>
+  <div class="decision-table">
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Beschreibung</th><th>Schicht</th><th>Schwere</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="td-code">L-01</td>
+          <td>ADR-Trigger-Bedingungen nicht exakt definiert. Was löst einen neuen ADR aus? (17 Trigger, 5 Non-Trigger wurden in Teil 2 definiert aber nicht implementiert)</td>
+          <td>Governance</td>
+          <td><span class="item-sev sev-critical">Kritisch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-02</td>
+          <td>Keine explizite Wiring-Checkliste pro Modul. R5 "Keine losen Fragmente" ist nicht durchsetzbar ohne per-Modul-Checkliste</td>
+          <td>Architektur</td>
+          <td><span class="item-sev sev-critical">Kritisch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-03</td>
+          <td>Infra-Budget-Monitoring (20€/Monat) nicht getrennt von LLM-Budget (200€/Monat) implementiert. Hetzner API Token fehlt für Live-Verifizierung</td>
+          <td>Budget/DevOps</td>
+          <td><span class="item-sev sev-critical">Kritisch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-04</td>
+          <td>Kein expliziter Prozess für OSS-Alternativ-Evaluation. Wer entscheidet wenn kein OSS-Äquivalent existiert? Keine Prüfschritte definiert</td>
+          <td>Governance</td>
+          <td><span class="item-sev sev-critical">Kritisch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-05</td>
+          <td>Schicht 1→2 Interface: HTTP-Methoden, Endpoint-Pfade, Request/Response-Schema, Auth-Header-Format, SSE-Event-Types, Reconnect-Strategie fehlen. Was passiert bei Vercel 30s Edge-Function Timeout wenn Agent noch arbeitet?</td>
+          <td>Schicht 1-2</td>
+          <td><span class="item-sev sev-critical">Kritisch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-06</td>
+          <td>Schicht 2→3 Interface: Task-Assignment-Datenstruktur, Queue-Mechanismus (Redis Queue? Direct Call?), Backpressure-Strategie bei überlasteten Agenten nicht definiert</td>
+          <td>Schicht 2-3</td>
+          <td><span class="item-sev sev-critical">Kritisch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-07</td>
+          <td>Streaming-Protokoll von LiteLLM zurück zum Agenten (Schicht 3→4) nicht beschrieben</td>
+          <td>Schicht 3-4</td>
+          <td><span class="item-sev sev-critical">Kritisch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-08</td>
+          <td>MCP-Version-Pinning nicht definiert. MCP hat mehrere Versionen — welche genau? Versionsdrift kann Tool-Kompatibilität brechen</td>
+          <td>Schicht 5 MCP</td>
+          <td><span class="item-sev sev-high">Hoch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-09</td>
+          <td>Embedding-Consistency: Kein Re-Embedding-Strategie wenn Embedding-Modell gewechselt wird. Alte Embeddings werden inkompatibel</td>
+          <td>Schicht 6 Memory</td>
+          <td><span class="item-sev sev-high">Hoch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-10</td>
+          <td>Knowledge Graph (Neo4j Phase 4+) Schema komplett undefiniert. Wenn Phase 4 kommt, fehlt die Grundlage</td>
+          <td>Schicht 6 Memory</td>
+          <td><span class="item-sev sev-medium">Mittel</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-11</td>
+          <td>G1-Lücke: Kein Klassifizierungsschema für "architekturrelevante Entscheidung". Agent erkennt nicht wann er ADR-Trigger auslösen muss</td>
+          <td>Agent Governance</td>
+          <td><span class="item-sev sev-high">Hoch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-12</td>
+          <td>G2-Lücke: "Erledigt = implementiert + getestet + integriert + geliefert + geloggt" — Wer validiert diese 5 Kriterien? Agent selbst? Orchestrator? Mensch?</td>
+          <td>Agent Governance</td>
+          <td><span class="item-sev sev-high">Hoch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-13</td>
+          <td>G4-Lücke: GitHub Branch Protection ist nicht als technisches Konfigurationsartefakt definiert. Fehlt als External Gate (MISSING bestätigt)</td>
+          <td>Agent Governance</td>
+          <td><span class="item-sev sev-critical">Kritisch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-14</td>
+          <td>G6 impliziert Memory-Read-API-Vertrag zwischen Agent und Memory-Schicht — dieser Vertrag ist nicht spezifiziert</td>
+          <td>Agent → Memory</td>
+          <td><span class="item-sev sev-high">Hoch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-15</td>
+          <td>Coder-Agent Max-Output-Tokens: 8192 — DeepSeek-Chat Output-Limit je nach Version unterschiedlich. Kein Versionspinning definiert</td>
+          <td>Agent Pool</td>
+          <td><span class="item-sev sev-medium">Mittel</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-16</td>
+          <td>E2B-Ausfall: Graceful Degradation für E2B-API-Ausfall nicht definiert. Tester-Agent fällt ohne E2B komplett aus</td>
+          <td>Agent Pool / MCP</td>
+          <td><span class="item-sev sev-high">Hoch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-17</td>
+          <td>DevOps-Agent Deploy-Mechanismus: "GitHub Actions triggern" — welche GitHub API Endpoints? Welche Authentifizierung? Workflow-File-Pfad? Nicht beschrieben</td>
+          <td>DevOps / CI-CD</td>
+          <td><span class="item-sev sev-high">Hoch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-18</td>
+          <td>Langfuse-Detailansicht aus Screen 3: Langfuse ist nicht öffentlich erreichbar (kein public URL). Wie kommt User zur Trace-Ansicht? VPN? Auth-Proxy? Nicht definiert</td>
+          <td>UI/UX</td>
+          <td><span class="item-sev sev-high">Hoch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-19</td>
+          <td>Cost-Monitor Export-Format undefiniert. CSV? JSON? PDF? Zeitraum-Auswahl? Wer triggert? (Note: CSV-Export-Contract wurde in Runtime implementiert — partiell geschlossen)</td>
+          <td>UI/UX</td>
+          <td><span class="item-sev sev-medium">Mittel</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-20</td>
+          <td>3D-Preview-Screenshot-Transport: Playwright macht Screenshot auf Hetzner — wie kommt das Bild zu Vercel-Frontend? Base64 in SSE? Object Storage URL? Nicht definiert</td>
+          <td>UI/UX / 3D</td>
+          <td><span class="item-sev sev-medium">Mittel</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-21</td>
+          <td>Kein Error-Recovery-UI definiert. Was sieht User wenn gesamter Orchestrator-Stack ausfällt? Kein "System komplett nicht erreichbar" Fallback-State</td>
+          <td>UI/UX</td>
+          <td><span class="item-sev sev-high">Hoch</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">L-22–33</td>
+          <td>Weitere 12 Lücken in: Schicht-6-Wiring (pgvector Schema-DDL fehlt), CI/CD Deploy-Mechanismus (Watchtower-Strategie empfohlen aber nicht implementiert), Rollback-Prozedur auf Staging nicht getestet, CODEX_AGENT_SKILL_MASTER.md fehlt, Secret-Scanner-Konfiguration (gitleaks MISSING), ADR-006 (Single-Tenant-Assumption), ADR-007 (Auth-Design), Memory-Injection Context Budget (30% Limit definiert, nicht enforced), SSE-Heartbeat Interval (15s definiert, Replay-Buffer 50 Events), Embedding-Versionsfeld in memory_entries fehlt, Staging-Strategie (RD-06 pending), und Helicone Free-Tier Fallback &gt;100k Calls</td>
+          <td>Multiple</td>
+          <td><span class="item-sev sev-medium">Mittel</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ██ RESIDUAL WIDERSPRÜCHE ██ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon icon-yellow">⚔️</div>
+    <h2>RESIDUAL-KONFLIKTE (W-RESIDUAL-01 bis -06)</h2>
+    <span class="count">6 Konflikte · Alle pending Owner-Entscheidung</span>
+  </div>
+  <div class="item-list">
+    <div class="item critical">
+      <span class="item-sev sev-critical">W-01</span>
+      <div class="item-content">
+        <h4>Budget-Überschreitung: CPX51 (€17-20) + CX22 Staging (€4) = €21-24 &gt; €20 Limit</h4>
+        <p>Das härteste Budget-Limit (20€/Monat Infrastruktur) wird bereits durch den geplanten Server-Stack in Phase 1 verletzt. Empfehlung: CX21 (€5/Monat) Production + Staging auf demselben Server → gesamt ≤ €9/Monat. CPX31 (€10/Monat) erst in Phase 3-4 wenn Last nachgewiesen.</p>
+        <div class="meta">REQUIRED DECISION: RD-01 · PATCHED.md empfiehlt: CX21 (Phase 1) · Infra-Projektion aktuell: €9.00</div>
+      </div>
+      <span class="item-tag">RD-01</span>
+    </div>
+    <div class="item high">
+      <span class="item-sev sev-high">W-02</span>
+      <div class="item-content">
+        <h4>Langfuse-PostgreSQL vs. Agent-PostgreSQL: 1 oder 2 Instanzen?</h4>
+        <p>Langfuse benötigt eigene DB, Agent-Daten brauchen eigene DB. Shared-Instanz spart RAM, erhöht Risiko gegenseitiger Beeinträchtigung. PATCHED.md hat entschieden: Shared PostgreSQL mit zwei separaten Databases (superbrain_prod + langfuse).</p>
+        <div class="meta">REQUIRED DECISION: RD-02 · STATUS: teilweise in PATCHED.md gelöst</div>
+      </div>
+      <span class="item-tag">RD-02</span>
+    </div>
+    <div class="item high">
+      <span class="item-sev sev-high">W-03</span>
+      <div class="item-content">
+        <h4>Qdrant vs. pgvector: Welches ist die primäre Vector-Memory-Lösung?</h4>
+        <p>Stack-Tabelle definiert Qdrant, Memory-Teil definiert pgvector. Beide gleichzeitig deployed = RAM-Verschwendung auf kleinem CX21. PATCHED.md entschieden: Qdrant STRIKT AUSGESCHLOSSEN in Phase 1-5. Erst ab Phase 6 evaluieren. pgvector = einzige Vektor-Lösung.</p>
+        <div class="meta">REQUIRED DECISION: RD-03 · STATUS: in PATCHED.md gelöst · Qdrant excluded</div>
+      </div>
+      <span class="item-tag">RD-03</span>
+    </div>
+    <div class="item high">
+      <span class="item-sev sev-high">W-04</span>
+      <div class="item-content">
+        <h4>LangGraph vs. CrewAI: Wer orchestriert wen?</h4>
+        <p>Beide sind Orchestrierungs-Frameworks. PATCHED.md entschieden: LangGraph = globaler Kern-State-Machine-Orchestrator. CrewAI = lokal gekapselt INNERHALB eines LangGraph Agent-Executor-Knotens. CrewAI darf NIEMALS global orchestrieren.</p>
+        <div class="meta">REQUIRED DECISION: RD-04 · STATUS: in PATCHED.md gelöst (Option B: nested)</div>
+      </div>
+      <span class="item-tag">RD-04</span>
+    </div>
+    <div class="item high">
+      <span class="item-sev sev-high">W-05</span>
+      <div class="item-content">
+        <h4>Supabase für MVP + postgres in Docker auf Hetzner gleichzeitig?</h4>
+        <p>Teil 2.4: Supabase pgvector für MVP-DB. Phase 1.2: postgres als einer von 8 Docker-Services. Vorschlag: Hetzner-PostgreSQL für LangGraph-Checkpoints (Performance-kritisch, lokal). Supabase für pgvector-Embeddings (Phase 1-3, dann Migration).</p>
+        <div class="meta">REQUIRED DECISION: RD-05 · STATUS: empfohlen, nicht final entschieden</div>
+      </div>
+      <span class="item-tag">RD-05</span>
+    </div>
+    <div class="item medium">
+      <span class="item-sev sev-medium">W-06</span>
+      <div class="item-content">
+        <h4>Staging-Strategie: Separater CX11 Server oder shared mit Production?</h4>
+        <p>Phase 1.6 plant CX22 Staging-Server (~€4/Monat) separat. Mit W-RESIDUAL-01 (Budget-Limit 20€) und CX21 Production (~€5) müsste Staging auf demselben Server laufen (Docker-Compose Staging-Stack) oder entfallen.</p>
+        <div class="meta">REQUIRED DECISION: RD-06 · STATUS: pending · Empfehlung: CX11 minimal, vereinfachter Stack</div>
+      </div>
+      <span class="item-tag">RD-06</span>
+    </div>
+  </div>
+</div>
+
+<!-- ██ NEUE RISIKEN (Teil 2 identifiziert) ██ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon icon-red">⚡</div>
+    <h2>NEU IDENTIFIZIERTE RISIKEN (R-NEW-01 bis R-NEW-04)</h2>
+    <span class="count">Forensisch aus Teil 2 extrahiert</span>
+  </div>
+  <div class="two-col">
+    <div class="risk-block" style="border-color: var(--red-border);">
+      <div class="risk-title" style="color:var(--red)">R-NEW-01: Memory-Konsolidierungs Race Condition</div>
+      <div class="risk-desc">Redis TTL = 30 Min, Job läuft alle 30 Min → Race Condition: Entry bei Minute 1 erstellt, Job bei Minute 29 → Entry ist 28 Min alt, wird nicht konsolidiert, läuft nach Minute 30 ab ohne Sicherung. Bei Redis-Neustart: TTL-Drift → Datenverlust.</div>
+      <div class="risk-desc" style="color:var(--green); margin-top:8px;">FIX: Job alle 5 Minuten · Konsolidiere alle Entries mit remaining_ttl &lt; 8 Minuten · In PATCHED.md bereits als 5-Minuten-Memory-Konsolidierung beschlossen</div>
+      <div class="risk-tags"><span class="risk-tag">memory</span><span class="risk-tag">race-condition</span><span class="risk-tag">data-loss</span></div>
+    </div>
+    <div class="risk-block" style="border-color: var(--orange-dim);">
+      <div class="risk-title" style="color:var(--orange)">R-NEW-02: Memory-Injection Context Overflow</div>
+      <div class="risk-desc">Top-5 Chunks × 512 Token = 2.560 Token Memory-Kontext. Bei einem 4K-Context-Modell (Claude Haiku) = 64% des Kontextfensters verbraucht VOR dem eigentlichen Task-Prompt. Task-Prompt + Agent-Anweisungen + System-Prompt könnten das Fenster sprengen.</div>
+      <div class="risk-desc" style="color:var(--green); margin-top:8px;">FIX (PATCHED.md): Context Budget cap = max 30% des Modell-Kontextfensters für Memory-Injection</div>
+      <div class="risk-tags"><span class="risk-tag">memory</span><span class="risk-tag">context-overflow</span><span class="risk-tag">token-cost</span></div>
+    </div>
+    <div class="risk-block" style="border-color: var(--yellow-border);">
+      <div class="risk-title" style="color:var(--yellow)">R-NEW-03: Embedding-Modell-Inkompatibilität bei Wechsel</div>
+      <div class="risk-desc">Wenn das Embedding-Modell gewechselt wird (text-embedding-3-small → OSS-Modell), werden alle bestehenden Embeddings inkompatibel. Semantische Suche gibt dann falsche oder keine Ergebnisse zurück. Kein Re-Embedding-Plan definiert.</div>
+      <div class="risk-tags"><span class="risk-tag">memory</span><span class="risk-tag">embedding</span><span class="risk-tag">migration-risk</span></div>
+    </div>
+    <div class="risk-block" style="border-color: var(--yellow-border);">
+      <div class="risk-title" style="color:var(--yellow)">R-NEW-04: E2B-Session-Kosten-Explosion bei nicht geschlossenen Sessions</div>
+      <div class="risk-desc">Falle 18 (Teil 1): E2B-Sessions nicht schließen → 30-Min-Timeout automatisch, aber wenn Tester-Agent abstürzt ohne finally-Block, können Sessions offen bleiben. E2B ist pay-per-use. 10 offene Sessions à 30 Min = signifikante Kosten.</div>
+      <div class="risk-tags"><span class="risk-tag">e2b</span><span class="risk-tag">cost</span><span class="risk-tag">session-leak</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ██ AGENT STATUS ██ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon icon-blue">🤖</div>
+    <h2>AGENT STATUS (PHASE-2 DRY-RUN)</h2>
+    <span class="count">4 Rollen · Alle idle · 6 LangGraph Runs abgeschlossen</span>
+  </div>
+  <div class="agent-grid">
+    <div class="agent-card">
+      <div class="agent-header">
+        <div class="agent-dot" style="background:var(--yellow)"></div>
+        <div>
+          <div class="agent-name">PLANNER</div>
+          <div class="agent-model">claude-sonnet-4-6 → groq-llama-3.3-70b (rate limited)</div>
+        </div>
+      </div>
+      <div class="agent-row"><span class="lbl">Status</span><span class="val" style="color:var(--yellow)">idle (nach Dry-Run)</span></div>
+      <div class="agent-row"><span class="lbl">Last Task</span><span class="val">phase2_planner_route_plan</span></div>
+      <div class="agent-row"><span class="lbl">Last Status</span><span class="val" style="color:var(--green)">completed</span></div>
+      <div class="agent-row"><span class="lbl">Retries</span><span class="val">0/5</span></div>
+      <div class="agent-row"><span class="lbl">Error</span><span class="val" style="color:var(--red)">ValueError UUID (c1e665a1)</span></div>
+      <div class="agent-row"><span class="lbl">Limits</span><span class="val">60s · 4096 tok · 5 retries</span></div>
+      <div class="agent-row"><span class="lbl">MCP Proof</span><span class="val" style="color:var(--green)">postgresql_readonly_query_plan</span></div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-header">
+        <div class="agent-dot" style="background:var(--green)"></div>
+        <div>
+          <div class="agent-name">CODER</div>
+          <div class="agent-model">deepseek-chat</div>
+        </div>
+      </div>
+      <div class="agent-row"><span class="lbl">Status</span><span class="val" style="color:var(--green)">idle</span></div>
+      <div class="agent-row"><span class="lbl">Last Task</span><span class="val">phase2_coder_scoped_implementation_plan</span></div>
+      <div class="agent-row"><span class="lbl">Last Status</span><span class="val" style="color:var(--green)">completed</span></div>
+      <div class="agent-row"><span class="lbl">Retries</span><span class="val">0/5</span></div>
+      <div class="agent-row"><span class="lbl">Write Scope</span><span class="val">feature/agent-* branches only</span></div>
+      <div class="agent-row"><span class="lbl">Limits</span><span class="val">300s · 8192 tok · 5 retries</span></div>
+      <div class="agent-row"><span class="lbl">MCP Proof</span><span class="val" style="color:var(--green)">filesystem_workspace_access_plan</span></div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-header">
+        <div class="agent-dot" style="background:var(--green)"></div>
+        <div>
+          <div class="agent-name">TESTER</div>
+          <div class="agent-model">gpt-4o-mini</div>
+        </div>
+      </div>
+      <div class="agent-row"><span class="lbl">Status</span><span class="val" style="color:var(--green)">idle</span></div>
+      <div class="agent-row"><span class="lbl">Last Task</span><span class="val">phase2_tester_runtime_verification_plan</span></div>
+      <div class="agent-row"><span class="lbl">Last Status</span><span class="val" style="color:var(--green)">completed</span></div>
+      <div class="agent-row"><span class="lbl">Retries</span><span class="val">0/5</span></div>
+      <div class="agent-row"><span class="lbl">E2B</span><span class="val" style="color:var(--yellow)">dry-run only · credentials missing</span></div>
+      <div class="agent-row"><span class="lbl">Limits</span><span class="val">600s · 4096 tok · 5 retries</span></div>
+      <div class="agent-row"><span class="lbl">MCP Proof</span><span class="val" style="color:var(--green)">playwright_browser_proof_plan</span></div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-header">
+        <div class="agent-dot" style="background:var(--yellow)"></div>
+        <div>
+          <div class="agent-name">DEVOPS</div>
+          <div class="agent-model">gpt-4o-mini</div>
+        </div>
+      </div>
+      <div class="agent-row"><span class="lbl">Status</span><span class="val" style="color:var(--green)">idle</span></div>
+      <div class="agent-row"><span class="lbl">Last Task</span><span class="val">phase2_devops_ci_cd_dispatch_plan</span></div>
+      <div class="agent-row"><span class="lbl">Last Status</span><span class="val" style="color:var(--green)">completed</span></div>
+      <div class="agent-row"><span class="lbl">Retries</span><span class="val">0/5</span></div>
+      <div class="agent-row"><span class="lbl">Dispatch</span><span class="val" style="color:var(--red)">blocked · GitHub token MISSING</span></div>
+      <div class="agent-row"><span class="lbl">Limits</span><span class="val">120s · 4096 tok · 5 retries</span></div>
+      <div class="agent-row"><span class="lbl">MCP Proof</span><span class="val" style="color:var(--green)">github_branch_pr_plan</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ██ REQUIRED DECISIONS ██ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon icon-purple">🎯</div>
+    <h2>REQUIRED DECISIONS — OWNER INPUT ERFORDERLICH</h2>
+    <span class="count">6 Decisions · Alle blockieren Phase 1 Start</span>
+  </div>
+  <div class="decision-table">
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Entscheidung</th><th>Empfehlung (PATCHED)</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="td-code">RD-01</td>
+          <td>Welcher Server-Typ startet Phase 1? CPX51 überschreitet 20€ Limit allein.</td>
+          <td style="color:var(--green)">CX21 (~€5) Production + Staging shared → gesamt ≤€9/Monat</td>
+          <td><span class="item-sev sev-ok">Patched</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">RD-02</td>
+          <td>Shared PostgreSQL mit 2 Databases ODER 2 separate PostgreSQL-Instanzen?</td>
+          <td style="color:var(--green)">Shared PostgreSQL · superbrain_prod + langfuse Databases</td>
+          <td><span class="item-sev sev-ok">Patched</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">RD-03</td>
+          <td>Ist Qdrant für Phase 1-5 aktiv? Wenn ja, welchen Use-Case löst es anders als pgvector?</td>
+          <td style="color:var(--green)">Qdrant AUSGESCHLOSSEN Phase 1-5. pgvector einzige Lösung.</td>
+          <td><span class="item-sev sev-ok">Patched</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">RD-04</td>
+          <td>Exakte Beziehung LangGraph ↔ CrewAI? Option A/B/C?</td>
+          <td style="color:var(--green)">Option B: LangGraph State-Machine · CrewAI nested in Agent-Executor-Node</td>
+          <td><span class="item-sev sev-ok">Patched</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">RD-05</td>
+          <td>Welche Daten gehen nach Supabase und welche in Hetzner-PostgreSQL?</td>
+          <td style="color:var(--yellow)">Hetzner-PG: LangGraph-Checkpoints. Supabase: pgvector-Embeddings (Phase 1-3)</td>
+          <td><span class="item-sev sev-medium">Pending</span></td>
+        </tr>
+        <tr>
+          <td class="td-code">RD-06</td>
+          <td>Separater Staging-Server (CX11 ~€4) oder Staging auf Production-Server?</td>
+          <td style="color:var(--yellow)">CX11 minimal · vereinfachter Stack · bleibt im Budget</td>
+          <td><span class="item-sev sev-medium">Pending</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ██ FEHLENDE PFLICHT-ARTEFAKTE ██ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon icon-red">📂</div>
+    <h2>FEHLENDE PFLICHT-ARTEFAKTE</h2>
+    <span class="count">Blocker für Phase 1 Release lt. Teil 1 §10</span>
+  </div>
+  <div class="item-list">
+    <div class="item critical">
+      <span class="item-sev sev-missing">FEHLT</span>
+      <div class="item-content">
+        <h4>CODEX_AGENT_SKILL_MASTER.md</h4>
+        <p>Pflicht-Artefakt für Codex-Integration (Phase 0.5). Blockiert vollständige Portabilität des Projekts zwischen Claude, Codex und anderen Ausführungsumgebungen. Ohne dieses Dokument kann kein Codex-Agent mit vollem Projektkontext initialisiert werden.</p>
+      </div>
+      <span class="item-tag">Phase 0</span>
+    </div>
+    <div class="item critical">
+      <span class="item-sev sev-missing">FEHLT</span>
+      <div class="item-content">
+        <h4>CODEX_LOADER_PROMPT.txt</h4>
+        <p>Der Schlüssel zur Portabilität des Projekts. Initialisiert einen Codex-Agenten mit vollständigem Projektkontext. Nicht-Existenz in Phase 0 blockiert Codex-Integration vollständig.</p>
+      </div>
+      <span class="item-tag">Phase 0</span>
+    </div>
+    <div class="item critical">
+      <span class="item-sev sev-missing">FEHLT</span>
+      <div class="item-content">
+        <h4>ADR Log (min. 5 ADRs aus Phase 0)</h4>
+        <p>Architecture Decision Records sind Pflicht. ADR-001 (LangGraph), ADR-002 (Langfuse), ADR-003 (pgvector), ADR-004 (Budget), ADR-005 (CrewAI nested) sollten alle existieren. ADR-006 (Single-Tenant-Assumption) und ADR-007 (Auth-Design) wurden in Teil 2 identifiziert als fehlend aber notwendig.</p>
+      </div>
+      <span class="item-tag">Phase 0</span>
+    </div>
+    <div class="item high">
+      <span class="item-sev sev-missing">FEHLT</span>
+      <div class="item-content">
+        <h4>Interface Contract Register (alle API-Endpoints)</h4>
+        <p>HTTP-Methoden, Endpoint-Pfade, Request/Response-Schemata für alle 7 Schichten-Übergänge. Ohne dieses Register ist L-05, L-06, L-07 nicht schließbar. Aktuell: nur partiell durch Runtime-Contracts abgedeckt.</p>
+      </div>
+      <span class="item-tag">Phase 0-1</span>
+    </div>
+    <div class="item high">
+      <span class="item-sev sev-missing">FEHLT</span>
+      <div class="item-content">
+        <h4>Rollback-Prozedur auf Staging getestet</h4>
+        <p>Falle 20: "Deployment ohne Rollback-Test." Rollback-Plan muss auf Staging getestet worden sein — theoretische Pläne zählen nicht. Staging existiert nicht (External Gate MISSING). Rollback-Runbook existiert theoretisch im PATCHED-Ansatz aber wurde nie ausgeführt.</p>
+      </div>
+      <span class="item-tag">Phase 1-5</span>
+    </div>
+    <div class="item medium">
+      <span class="item-sev sev-missing">FEHLT</span>
+      <div class="item-content">
+        <h4>Design Spec Sheet Register (4 Screens)</h4>
+        <p>Ein Design-Spec-Sheet pro Screen (Workspace, Memory-Viewer, Agent-Activity, Cost-Monitor). UI State Matrix pro Screen (9 Pflicht-Zustände: Default, Loading, Empty, Success, Warning, Error, Degraded, Disabled, Fallback-Active).</p>
+      </div>
+      <span class="item-tag">Phase 0-1</span>
+    </div>
+    <div class="item medium">
+      <span class="item-sev sev-missing">FEHLT</span>
+      <div class="item-content">
+        <h4>Provider Rotation Register / Limit History Register</h4>
+        <p>Rotations-History (8 Events vorhanden in Audit-Log, aber kein dediziertes Register-Artefakt). Budget-Verbrauch pro Monat (aktuell €0, kein historischer Verlauf). Runbooks: Restart-Prozedur, Supabase-Keep-Alive, Infrastruktur-Budget-Tracking.</p>
+      </div>
+      <span class="item-tag">Betrieb</span>
+    </div>
+  </div>
+</div>
+
+<!-- ██ WAS FUNKTIONIERT GUT ██ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon icon-green">✅</div>
+    <h2>WAS VERIFIZIERT FUNKTIONIERT</h2>
+    <span class="count">Evidenzbasiert aus Runtime-Dashboard</span>
+  </div>
+  <div class="item-list">
+    <div class="item ok">
+      <span class="item-sev sev-ok">OK</span>
+      <div class="item-content">
+        <h4>LangGraph Deterministic Dry-Run — 6 Runs erfolgreich</h4>
+        <p>Alle 4 Agenten (Planner, Coder, Tester, DevOps) führen Tasks deterministisch aus. Done-Validation (implemented/tested/integrated/reported/logged) = pass für alle Rollen. Checkpointing via PostgreSQL aktiv. Partial-failure-detection funktioniert.</p>
+        <div class="meta">RUNS: 6 · AGGREGATION: agent_result_aggregation_complete · PARTIAL_FAILURE: false</div>
+      </div>
+      <span class="item-tag">Verified</span>
+    </div>
+    <div class="item ok">
+      <span class="item-sev sev-ok">OK</span>
+      <div class="item-content">
+        <h4>Policy Enforcement — fail_closed funktioniert</h4>
+        <p>Task-Policy-Gate blockt korrekt: force_push, live_provider_call, prod_deploy, production_db_write, push_main, secret_change. 6 Blocked Actions korrekt konfiguriert. 8 Allowed Tools korrekt eingeschränkt. 4 Human-Gates definiert und aktiv.</p>
+      </div>
+      <span class="item-tag">Verified</span>
+    </div>
+    <div class="item ok">
+      <span class="item-sev sev-ok">OK</span>
+      <div class="item-content">
+        <h4>Memory-Konsolidierung — 8 Consolidation-Events</h4>
+        <p>Memory-Consolidation läuft periodisch (~alle 20-25 Minuten, Ziel: 5 Minuten). Idempotenz-Keys korrekt gesetzt. Working Memory Keys werden korrekt konsolidiert. System läuft seit 05:03 Uhr ohne Memory-Verlust.</p>
+        <div class="meta">EVENTS: 8 · EARLIEST: 05:03:47 · LATEST: 06:53:47</div>
+      </div>
+      <span class="item-tag">Verified</span>
+    </div>
+    <div class="item ok">
+      <span class="item-sev sev-ok">OK</span>
+      <div class="item-content">
+        <h4>Security Headers — alle 5 gesetzt</h4>
+        <p>X-Content-Type-Options: nosniff · X-Frame-Options: DENY · Referrer-Policy: no-referrer · Permissions-Policy: restrictiv · CSP: default-src 'self'. Auth-Cookies: HttpOnly=true, Secure=true, SameSite=Strict. JWT 15 Min Access / 7 Tage Refresh.</p>
+      </div>
+      <span class="item-tag">Verified</span>
+    </div>
+    <div class="item ok">
+      <span class="item-sev sev-ok">OK</span>
+      <div class="item-content">
+        <h4>Provider-Rotation (Never blocked, always rotating)</h4>
+        <p>Anthropic Rate-Limit wird erkannt und automatisch auf Groq rotiert. Rotation wird geloggt mit vollständigem Structured-Event (from_model, to_model, fallback_index, routing_policy_decision). Das Prinzip "Never blocked" funktioniert. Cost-Metadata korrekt (0 cents, dry-run).</p>
+      </div>
+      <span class="item-tag">Verified</span>
+    </div>
+    <div class="item ok">
+      <span class="item-sev sev-ok">OK</span>
+      <div class="item-content">
+        <h4>Rate-Limit Guard + Session-Limit Guard</h4>
+        <p>Rate-Limit: 20/20 Requests verbleibend, Window 3600s. Session-Limit: 50/50 LLM-Calls verbleibend, TTL 86400s. Beide Guards geben HTTP 429 bei Overflow und beanspruchen kein done. Status-Endpoints lesen Zustand ohne Inkrement.</p>
+      </div>
+      <span class="item-tag">Verified</span>
+    </div>
+    <div class="item ok">
+      <span class="item-sev sev-ok">OK</span>
+      <div class="item-content">
+        <h4>System Health — alle Core-Services healthy</h4>
+        <p>postgres (superbrain_prod, pgcrypto+vector extensions) · redis · agent_worker · memory_worker · mcp_gateway · llm_gateway — alle healthy. 6 DB Tables. Budget Gate: open. API: agent-api.</p>
+      </div>
+      <span class="item-tag">Verified</span>
+    </div>
+    <div class="item ok">
+      <span class="item-sev sev-ok">OK</span>
+      <div class="item-content">
+        <h4>Error-Response-Contract — alle Status Codes implementiert</h4>
+        <p>400 (confirmation_required) · 422 (string_too_long) · 429 (rate limit exceeded / session limit exceeded) · Alle Responses enthalten contract_version und status_code. Validation errors schlagen vor Persistence/Task/Memory-Mutation fehl.</p>
+      </div>
+      <span class="item-tag">Verified</span>
+    </div>
+  </div>
+</div>
+
+<!-- ██ PRIORISIERTE SOFORT-AKTIONEN ██ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon icon-red">🚀</div>
+    <h2>PRIORISIERTE SOFORT-AKTIONEN (NEXT STEPS)</h2>
+    <span class="count">Owner + Agent Aktionen</span>
+  </div>
+  <div class="decision-table">
+    <table>
+      <thead>
+        <tr><th>Priorität</th><th>Aktion</th><th>Wer</th><th>Blocker für</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="item-sev sev-blocked">🔴 SOFORT</span></td>
+          <td><strong>localhost:8081 → Cloud-Deploy auf Vercel + Hetzner</strong> — Hard Constraint Bruch beheben. Hosted Staging URL konfigurieren.</td>
+          <td>Owner + DevOps</td>
+          <td>Constraint-Compliance</td>
+        </tr>
+        <tr>
+          <td><span class="item-sev sev-blocked">🔴 SOFORT</span></td>
+          <td><strong>4 External Gates konfigurieren:</strong> GitHub Token, Hetzner API Token, gitleaks binary, Hosted Staging URL</td>
+          <td>Owner</td>
+          <td>Phase 1 → Live</td>
+        </tr>
+        <tr>
+          <td><span class="item-sev sev-blocked">🔴 SOFORT</span></td>
+          <td><strong>UUID ValueError im Planner fixen</strong> — Task-ID-Generierung debuggen. task c1e665a1 hat ungültige UUID-Syntax ausgelöst</td>
+          <td>Coder Agent</td>
+          <td>Planner-Stabilität</td>
+        </tr>
+        <tr>
+          <td><span class="item-sev sev-blocked">🔴 SOFORT</span></td>
+          <td><strong>RD-05 + RD-06 Owner-Entscheidungen</strong> treffen (Supabase vs. Hetzner Split / Staging-Strategie)</td>
+          <td>Owner</td>
+          <td>Phase 1 Architektur</td>
+        </tr>
+        <tr>
+          <td><span class="item-sev sev-high">🟠 PHASE 0</span></td>
+          <td>ADR-006 (Single-Tenant-Assumption) + ADR-007 (Auth-Design) erstellen lassen</td>
+          <td>Agent</td>
+          <td>Governance</td>
+        </tr>
+        <tr>
+          <td><span class="item-sev sev-high">🟠 PHASE 0</span></td>
+          <td>CODEX_AGENT_SKILL_MASTER.md + CODEX_LOADER_PROMPT.txt erstellen</td>
+          <td>Agent</td>
+          <td>Codex-Portabilität</td>
+        </tr>
+        <tr>
+          <td><span class="item-sev sev-high">🟠 PHASE 1</span></td>
+          <td>Anthropic API-Tier prüfen/upgraden — 8 Rate-Limit-Events in 83 Min ist im Live-Betrieb inakzeptabel</td>
+          <td>Owner</td>
+          <td>Planner-Qualität</td>
+        </tr>
+        <tr>
+          <td><span class="item-sev sev-high">🟠 PHASE 1</span></td>
+          <td>Hetzner-Snapshot-Strategie implementieren bevor erstem Live-Deploy</td>
+          <td>Agent (DevOps)</td>
+          <td>Rollback-Fähigkeit</td>
+        </tr>
+        <tr>
+          <td><span class="item-sev sev-medium">🟡 PHASE 2</span></td>
+          <td>Memory-Konsolidierungsintervall auf 5 Minuten anpassen (race condition fix)</td>
+          <td>Agent</td>
+          <td>Memory-Stabilität</td>
+        </tr>
+        <tr>
+          <td><span class="item-sev sev-medium">🟡 PHASE 2</span></td>
+          <td>Budget-Guard-Node Context Budget (30%) hard enforcement aktivieren</td>
+          <td>Agent</td>
+          <td>Token-Cost-Control</td>
+        </tr>
+        <tr>
+          <td><span class="item-sev sev-medium">🟡 PHASE 2</span></td>
+          <td>MCP-Tool-Calls ohne Session-Binding (Trace: none) untersuchen und Logging-Lücke schließen</td>
+          <td>Agent</td>
+          <td>Observability (G5)</td>
+        </tr>
+        <tr>
+          <td><span class="item-sev sev-medium">🟡 PHASE 3</span></td>
+          <td>L-05: Vollständige HTTP-Interface-Contracts für alle 7 Schichten-Übergänge dokumentieren</td>
+          <td>Agent</td>
+          <td>Interface-Compliance</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ██ OFFENE FRAGEN ██ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon icon-purple">❓</div>
+    <h2>OFFENE FRAGEN (OQ-01 bis OQ-07)</h2>
+    <span class="count">7 Fragen · Owner-Input erforderlich</span>
+  </div>
+  <div class="two-col">
+    <div class="risk-block">
+      <div class="risk-title">OQ-01: Definition "aktiver Nutzer" für K3s-Trigger</div>
+      <div class="risk-desc">K3s-Migration bei "&gt;3 aktive Nutzer" — gleichzeitig oder kumulativ? Beeinflusst Skalierungsplan Phase 6.</div>
+      <div class="risk-tags"><span class="risk-tag">scaling</span><span class="risk-tag">k3s</span><span class="risk-tag">owner-decision</span></div>
+    </div>
+    <div class="risk-block">
+      <div class="risk-title">OQ-02: Max-Concurrency Phase 5 (vor K3s)</div>
+      <div class="risk-desc">"Unbegrenzt in 4er-Squads skalieren" — was ist das technische Maximum für Phase 5 auf Docker Compose?</div>
+      <div class="risk-tags"><span class="risk-tag">concurrency</span><span class="risk-tag">docker</span><span class="risk-tag">performance</span></div>
+    </div>
+    <div class="risk-block">
+      <div class="risk-title">OQ-03: "Hunderte Prompts" — absoluter Wert oder Größenordnung?</div>
+      <div class="risk-desc">Langzeitgedächtnis-Ziel: 100? 500? 1000? Beeinflusst pgvector-Dimension und Memory-Budget.</div>
+      <div class="risk-tags"><span class="risk-tag">memory</span><span class="risk-tag">pgvector</span></div>
+    </div>
+    <div class="risk-block">
+      <div class="risk-title">OQ-04: Mobile Responsiveness bewusst ausgeschlossen?</div>
+      <div class="risk-desc">UI-Design adressiert keine Mobile-Responsiveness. Bewusste Entscheidung oder Lücke? Beeinflusst shadcn/ui-Component-Auswahl.</div>
+      <div class="risk-tags"><span class="risk-tag">ui</span><span class="risk-tag">mobile</span></div>
+    </div>
+    <div class="risk-block">
+      <div class="risk-title">OQ-05: Coolify als optionales Server-Management?</div>
+      <div class="risk-desc">Einmalig erwähnt als "optional". Wenn genutzt: beeinflusst docker-compose.yml-Struktur, Port-Management, Reverse-Proxy-Konfiguration erheblich.</div>
+      <div class="risk-tags"><span class="risk-tag">devops</span><span class="risk-tag">docker</span><span class="risk-tag">coolify</span></div>
+    </div>
+    <div class="risk-block">
+      <div class="risk-title">OQ-06: Helicone-Fallback &gt;100k Calls/Monat</div>
+      <div class="risk-desc">Helicone Free Tier: 100k Requests/Monat. Was ist Fallback für Cost-Tracking wenn Limit überschritten? Kein Fallback definiert.</div>
+      <div class="risk-tags"><span class="risk-tag">cost-tracking</span><span class="risk-tag">helicone</span><span class="risk-tag">observability</span></div>
+    </div>
+    <div class="risk-block">
+      <div class="risk-title">OQ-07: Repository öffentlich oder privat?</div>
+      <div class="risk-desc">Public Repo: GitHub Actions unbegrenzt kostenlos. Private Repo: 2000 Minuten/Monat Free Tier — je nach CI/CD-Last kann das zu wenig sein. Beeinflusst gesamte CI/CD-Strategie.</div>
+      <div class="risk-tags"><span class="risk-tag">github</span><span class="risk-tag">ci-cd</span><span class="risk-tag">cost</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ██ DOCUMENT QUALITY ASSESSMENT ██ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon icon-blue">📋</div>
+    <h2>DOKUMENT-QUALITÄTSBEWERTUNG (Forensisch)</h2>
+  </div>
+  <div class="layer-grid">
+    <div class="layer-row">
+      <div class="layer-name">Vollständigkeit</div>
+      <div class="layer-pct pct-yellow">87/100</div>
+      <div class="layer-bar"><div class="layer-fill fill-yellow" style="width:87%"></div></div>
+      <div class="layer-status">Stark in Architektur/Governance; schwach in Interface-Contracts + Schema-DDL</div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-name">Kohärenz</div>
+      <div class="layer-pct pct-green">91/100</div>
+      <div class="layer-bar"><div class="layer-fill fill-green" style="width:91%"></div></div>
+      <div class="layer-status">14 Konflikte gelöst; 6 residuale Spannungen verbleiben</div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-name">Operationalisierbarkeit</div>
+      <div class="layer-pct pct-yellow">72/100</div>
+      <div class="layer-bar"><div class="layer-fill fill-yellow" style="width:72%"></div></div>
+      <div class="layer-status">Gute Richtung; konkrete Implementierungsdetails in mehreren Modulen fehlen</div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-name">Verifikationstiefe</div>
+      <div class="layer-pct pct-red">68/100</div>
+      <div class="layer-bar"><div class="layer-fill fill-red" style="width:68%"></div></div>
+      <div class="layer-status">Definition-of-Done vorhanden; Verifikationsbeweise nicht ausreichend definiert</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<!-- ██ FOOTER ██ -->
+<div class="footer">
+  <span>CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM · FORENSIC AUDIT REPORT</span>
+  <span>VERIFIED: 2026-04-29 · SOURCES: TEIL-1 (928 Zeilen) + TEIL-2 (3759 Zeilen) + PATCHED.md + RUNTIME DASHBOARD (http://localhost:8081/)</span>
+  <span>D:\PLATTFORM · PHASE 0→1 TRANSITION</span>
+</div>
+
+</body>
+</html>

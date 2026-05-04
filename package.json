@@ -1,0 +1,14 @@
+{
+  "name": "cloud-superbrain-developer-platform",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "npm run build --prefix apps/frontend",
+    "verify": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase1.ps1",
+    "verify:runtime": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase1-runtime.ps1",
+    "verify:browser": "powershell -ExecutionPolicy Bypass -File scripts\\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
+    "verify:hosted-local": "powershell -ExecutionPolicy Bypass -File scripts\\verify-hosted-staging.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
+    "verify:external-gates": "powershell -ExecutionPolicy Bypass -File scripts\\verify-external-gates.ps1",
+    "verify:autopilot": "powershell -ExecutionPolicy Bypass -File scripts\\verify-autopilot-mode.ps1 -AllowLocalhost"
+  }
+}

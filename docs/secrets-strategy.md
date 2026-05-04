@@ -27,9 +27,8 @@ Dieses Dokument definiert den kontrollierten Umgang mit Secrets fuer MVP und fru
 | `production/GITHUB_WEBHOOK_SECRET` | GitHub Environment Secret `production` | Webhook-Verifikation |
 | `production/JWT_SIGNING_KEY` | GitHub Environment Secret `production` | Session- und API-Tokens |
 | `production/SESSION_ENCRYPTION_KEY` | GitHub Environment Secret `production` | verschluesselte Sitzungsdaten |
-| `production/SUPABASE_SERVICE_ROLE_KEY` | GitHub Environment Secret `production` | privilegierte DB-Operationen |
 | `production/DATABASE_URL` | GitHub Environment Secret `production` | Datenbankverbindung |
-| `production/VECTOR_STORE_API_KEY` | GitHub Environment Secret `production` | Memory-/Vektorzugriff |
+| `production/EMBEDDING_PROVIDER_API_KEY` | GitHub Environment Secret `production` | optionale Live-Embedding-Erzeugung nach Gate D |
 | `production/HETZNER_API_TOKEN` | GitHub Environment Secret `production` | Infrastrukturautomation |
 | `production/VERCEL_DEPLOY_HOOK_SECRET` | GitHub Environment Secret `production` | kontrollierte Deploy-Triggers |
 | `production/MCP_INTERNAL_SHARED_SECRET` | GitHub Environment Secret `production` | interne Tool-Authentisierung |
@@ -39,11 +38,12 @@ Dieses Dokument definiert den kontrollierten Umgang mit Secrets fuer MVP und fru
 
 Die folgenden Werte werden nicht als Secret gefuehrt, duerfen aber auch nicht frei erfunden werden:
 
-1. `NEXT_PUBLIC_SUPABASE_URL`
-2. `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-3. Projekt-IDs
-4. oeffentliche Callback-URLs
-5. reine Feature-Flags ohne Sicherheitswirkung
+1. Projekt-IDs
+2. oeffentliche Callback-URLs
+3. reine Feature-Flags ohne Sicherheitswirkung
+4. oeffentliche Langfuse-/Grafana-Proxy-Pfade ohne Token
+
+Supabase-spezifische Public Keys sind keine aktiven MVP-Config-Werte mehr. Jede Reaktivierung von Supabase braucht ADR- und Owner-Gate.
 
 ## 5. Zugriffspolitik
 

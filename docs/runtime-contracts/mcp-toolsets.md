@@ -1,7 +1,7 @@
 # MCP Toolsets Runtime Contract
 
 Stand: 2026-04-23
-Status: Prepared, not implemented
+Status: Phase 1 safe envelope, audit persistence, timeout, blocked, and degraded paths implemented
 Phase: Phase 2 / WP-06
 Owner-Schicht: Schicht 5 - Tool-MCP-Schicht
 
@@ -10,7 +10,33 @@ Owner-Schicht: Schicht 5 - Tool-MCP-Schicht
 Dieser Vertrag definiert die erlaubten MCP-Toolsets fuer den ersten Runtime-Ausbau.
 Er legt Request-Envelope, Rechte, Timeouts, Audit-Pflichten, Fehlerklassen und Stop-Gates fest.
 
-Dieser Vertrag startet keine MCP-Server, keine Browser-Automation, keine E2B-Sandbox, keine Docker-Publishes, keine GitHub-Schreibaktion und keinen Datenbankzugriff.
+Dieser Vertrag ist in Phase 1 fuer sichere Envelope-, Timeout-, Blocked-, Degraded- und Audit-Persistenz-Pfade im MCP-Gateway aktiviert. Er startet keine Browser-Automation, keine E2B-Sandbox, keine Docker-Publishes, keine GitHub-Schreibaktion und gibt dem MCP-Gateway keine direkten Datenbankcredentials.
+
+## Phase-1-Runtime-Surface
+
+Implementiert:
+
+1. `GET /mcp/api/v1/health`
+2. `POST /mcp/api/v1/tools/execute`
+3. Request-Envelope-Validierung mit Pydantic.
+4. Timeout-Pfad via `capability=simulate_timeout`, Ergebnis `status=timeout`, `error_class=timeout`.
+5. GitHub-main/merge/force Scope-Guard, Ergebnis `status=blocked`, `error_class=github_scope_violation`.
+6. Filesystem-Scope-Guard fuer Pfade ausserhalb `/tmp/agent-workspace`.
+7. PostgreSQL-Write-Scope-Guard fuer write/migrate/delete Capabilities.
+8. E2B-Degraded-Pfad ohne `E2B_API_KEY`, Ergebnis `status=degraded`, `error_class=missing_credentials`.
+9. GitHub-Write-Degraded-Pfad ohne `GITHUB_TOKEN`.
+10. Audit-Persistenz ueber Agent API: MCP-Gateway sendet Result-Envelopes an `/internal/audit/mcp-tool-events`; Agent API schreibt `event_type=mcp_tool_executed` in `audit_log`.
+11. Orchestrator-gesteuerte MCP-Aufrufe binden `session_id`, `trace_id`, `run_id` und `tool_request_id` in das Audit-Event. Der Nachweis heisst `mcp_tool_session_bound_audit`.
+12. Verifier-Beweis in `scripts/verify-phase1-runtime.ps1` und `scripts/verify-hosted-staging.ps1`.
+
+Nicht implementiert:
+
+1. echte GitHub-Schreiboperationen
+2. echte E2B-Sandbox-Ausfuehrung
+3. echte Playwright/Puppeteer-Browser-Automation
+4. echte Filesystem-Mutation
+5. PostgreSQL-MCP-Queries
+6. externe Audit-Senke ausserhalb des Agent-API-Audit-Logs
 
 ## Verbindliche Quellen
 
@@ -53,6 +79,8 @@ Pflichtfelder:
 
 - `tool_request_id`: eindeutige ID fuer Audit und Retry-Zuordnung
 - `run_id`: Orchestrator-Run oder Task-Run
+- `session_id`: Session/Thread-ID, wenn der Toolcall aus dem Orchestrator stammt
+- `trace_id`: Trace-ID fuer Activity-Feed, Audit-Korrelation und Debugging
 - `agent_role`: aufrufender Agent aus dem erlaubten Rollenprofil
 - `toolset`: erlaubtes Toolset, zum Beispiel `github`, `e2b`, `playwright`, `filesystem`
 - `capability`: konkrete erlaubte Aktion innerhalb des Toolsets
@@ -82,6 +110,8 @@ Pflichtfelder:
 - `retry_after_ms`: empfohlene Wartezeit oder `0`
 - `rollback_note`: Rueckrollhinweis fuer Schreiboperationen
 - `evidence_ref`: Verifikationsartefakt oder `none`
+- `audit_persisted`: `true`, wenn Agent API den Toolcall in `audit_log` geschrieben hat
+- `audit_event_severity`: `info`, `warning` oder `critical`, wenn persistiert
 
 ## Toolsets
 
@@ -135,6 +165,8 @@ Jedes Audit-Event muss mindestens enthalten:
 
 - Zeitstempel
 - `run_id`
+- `session_id`, wenn vorhanden
+- `trace_id`
 - `tool_request_id`
 - aufrufender Agent
 - Toolset und Capability
@@ -144,6 +176,7 @@ Jedes Audit-Event muss mindestens enthalten:
 - Dauer
 - Fehlerklasse
 - Evidence-Referenz
+- `audit_evidence_ref=mcp_tool_session_bound_audit` fuer session-gebundene Orchestrator-Aufrufe
 - Kostenreferenz oder `none`
 
 ## Security
@@ -189,7 +222,7 @@ Sofortiger Halt mit Review-Gate ist Pflicht bei:
 
 ## Nicht-Behauptungen
 
-- Es ist kein MCP-Server live verdrahtet.
+- Es ist ein Phase-1-MCP-Gateway mit sicheren Envelope-, Timeout-, Blocked- und Degraded-Pfaden live verdrahtet.
 - Es wurde keine E2B-Sandbox gestartet.
 - Es wurde keine Browser-Automation ausgefuehrt.
 - Es wurde keine GitHub-Schreiboperation ausgefuehrt.

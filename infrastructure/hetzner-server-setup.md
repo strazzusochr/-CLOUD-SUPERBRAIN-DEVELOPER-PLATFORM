@@ -20,14 +20,14 @@ Es ist absichtlich kein Betriebsrunbook und kein ausgefuehrtes Provisioning.
 - DNS-Switch
 - Secret-Einspielung
 - Live-Migrationen
-- Datenbank-Cutover von Supabase auf Self-Hosted PostgreSQL
+- Datenbank-Cutover von externen Alt-Systemen; Phase-1-Quelle ist bereits PostgreSQL/pgvector
 
 ## Serverklassen
 
 | Umgebung | Ziel-SKU | Region | Zweck | Budget-Hinweis |
 | --- | --- | --- | --- | --- |
-| `production` | `CPX51` | `fsn1` Frankfurt | spaetere Hauptlaufzeit fuer API, Gateway, Memory, Observability | nur nach Owner-Gate aktivieren |
-| `staging` | `CX22` | `fsn1` Frankfurt | immer an, alle Deployments zuerst hier | passt in das Phase-1-MVP-Budgetprofil |
+| `production` | `CX21` oder vergleichbar klein | `fsn1` Frankfurt | spaetere Hauptlaufzeit fuer API, Gateway, Memory, Observability | Phase-1-Start, solange Messwerte im 20-EUR-Limit bleiben |
+| `staging` | kleinste budgetkonforme CX-Klasse | `fsn1` Frankfurt | alle Deployments zuerst hier | erst aktivieren, wenn `STAGING_BASE_URL` und Budget-Gate gesetzt sind |
 
 ## Basisbetriebssystem
 
@@ -76,7 +76,7 @@ Expliziter Stopp vor:
 - echtem Secret-Import
 - Datenbank-Cutover
 - oeffentlicher Exposition von Grafana oder Admin-Oberflaechen
-- Veraenderung der Hetzner-SKU ausserhalb des `20 EUR/Monat`-Budgets ohne Owner-Freigabe
+- Veraenderung der Hetzner-SKU ausserhalb des `20 EUR/Monat`-Budgets oder ohne Messwertbeleg und Owner-Freigabe
 
 ## Definition of Done fuer dieses Artefakt
 

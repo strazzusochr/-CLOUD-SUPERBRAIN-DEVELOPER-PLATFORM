@@ -1,0 +1,55 @@
+{
+  "gate_id": "phase1-to-phase2-local-transition",
+  "generated_at": "2026-04-27",
+  "status": "transition_ready_local",
+  "binding_document": "docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md",
+  "source_manifest": "docs/project-progress.manifest.json",
+  "required_verifiers": [
+    "scripts/verify-phase1.ps1",
+    "scripts/verify-phase1-runtime.ps1",
+    "scripts/verify-hosted-staging.ps1"
+  ],
+  "local_readiness": {
+    "phase_1_foundation_runtime": "verified",
+    "phase_2_contract_scaffold": "ready_for_local_runtime_implementation",
+    "compose_stack": "healthy",
+    "postgres_pgvector": "backup_restore_verified",
+    "redis": "aof_persistence_verified",
+    "agent_api": "runtime_redaction_budget_policy_memory_orchestration_verified",
+    "frontend": "production_runtime_dashboard_verified",
+    "mcp_gateway": "safe_envelope_verified"
+  },
+  "closed_gates": [
+    {
+      "id": "gate_d",
+      "label": "Secrets/auth live integrations",
+      "status": "closed",
+      "reason": "No live provider, GitHub write, E2B, Langfuse, or hosted secret gate is configured."
+    },
+    {
+      "id": "gate_e",
+      "label": "Release/Docker/Main",
+      "status": "closed",
+      "reason": "No production deployment, Docker registry push, or main-branch write is authorized."
+    }
+  ],
+  "allowed_next_actions": [
+    "Implement Phase 2 local LangGraph runtime nodes without live LLM provider calls.",
+    "Implement LiteLLM gateway configuration in disabled/provider-gated mode.",
+    "Extend local test harnesses for retry, SSE replay, and provider-rotation simulation.",
+    "Add hosted-staging proof only after STAGING_BASE_URL is configured."
+  ],
+  "forbidden_next_actions": [
+    "Use pasted secrets in chat.",
+    "Activate live LLM provider calls without secret gate.",
+    "Push Docker images or deploy production.",
+    "Merge or push directly to main.",
+    "Enable MCP write tools without branch protection and review gate."
+  ],
+  "non_claims": [
+    "Phase 2 full runtime is not implemented.",
+    "Live providers are not verified.",
+    "Production deployment is not verified.",
+    "Hosted staging is not verified without STAGING_BASE_URL."
+  ]
+}

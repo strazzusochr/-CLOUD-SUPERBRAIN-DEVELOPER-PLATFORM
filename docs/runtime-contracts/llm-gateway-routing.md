@@ -1,7 +1,7 @@
 # LLM Gateway and Model Routing Contract
 
-Stand: 2026-04-23
-Status: Prepared, not implemented
+Stand: 2026-04-28
+Status: Runtime policy evaluator implemented locally; live provider activation remains gated
 Phase: `PHASE 2 / WP-02`
 
 ## Zweck
@@ -183,15 +183,15 @@ Diese Aufloesung ist nicht Teil dieses Vertrags.
 
 | Test | Erwartung | Status |
 | --- | --- | --- |
-| direkter Provider-Call | `deny_direct_provider` | `planned` |
-| deaktivierter Modellslot | `deny_slot_disabled` | `planned` |
-| Planner fordert Premium ohne Blocker | `deny_cost_tier` | `planned` |
-| Tester nutzt Economy-Slot | `allow_primary` | `planned` |
-| Fallback nach Rate-Limit | `allow_fallback` plus Event | `planned` |
-| dritter Fallback | `deny_fallback_limit` | `planned` |
-| Retry `5` erreicht | `deny_retry_limit` | `planned` |
-| Budget-Vertrag blockiert | `deny_budget_or_rate` | `planned` |
-| sensitive Anfrage mit Cache | `deny_sensitive_cache` | `planned` |
+| direkter Provider-Call | `deny_direct_provider` | `verified-runtime-and-hosted` |
+| deaktivierter Modellslot | `deny_slot_disabled` | `verified-runtime-and-hosted` |
+| Planner fordert Premium ohne Blocker | `deny_cost_tier` | `verified-runtime-and-hosted` |
+| Tester nutzt Economy-Slot | `allow_primary` | `verified-runtime-and-hosted` |
+| Fallback nach Rate-Limit | `allow_fallback` plus Event | `verified-runtime-and-hosted` |
+| dritter Fallback | `deny_fallback_limit` | `verified-runtime-and-hosted` |
+| Retry `5` erreicht | `deny_retry_limit` | `verified-runtime-and-hosted` |
+| Budget-Vertrag blockiert | `deny_budget_or_rate` | `verified-runtime-and-hosted` |
+| sensitive Anfrage mit Cache | `deny_sensitive_cache` | `verified-runtime-and-hosted` |
 
 ## Observability
 

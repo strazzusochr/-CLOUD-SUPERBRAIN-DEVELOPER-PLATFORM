@@ -1,35 +1,21 @@
 # ADR-004 MVP Database Strategy
 
-Status: Accepted for MVP planning
+Status: Superseded by ADR-007
 Date: 2026-04-23
+Superseded: 2026-04-25
 
 ## Context
 
-Das MVP braucht schnell verfuegbare persistente Speicherung fuer Sessions, Memory-Metadaten, Nutzerkontext und Integrationszustand. Gleichzeitig gilt ein hartes Infrastruktur-Limit von `20 EUR/Monat`, und spaetere Migration auf eine guenstige, kontrollierbare Betriebsbasis muss moeglich bleiben.
+This ADR originally selected Supabase as the MVP start database. The patched master truth now requires one shared PostgreSQL instance with pgvector as the Phase 1-5 source of truth.
 
-## Decision
+## Supersession
 
-Fuer das MVP wird Supabase als Startdatenbank eingeplant. Ab Phase 4 ist eine geplante Migration auf Hetzner-hosted PostgreSQL vorzubereiten, sobald Kosten, Last oder Kontrollanforderungen das rechtfertigen.
+`docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` supersedes this ADR. Do not use this ADR to justify Supabase as active MVP runtime.
 
-## Rationale
+## Replacement
 
-1. Supabase beschleunigt MVP-Start und reduziert fruehe Betriebsarbeit.
-2. PostgreSQL-Kompatibilitaet erleichtert spaetere Migration.
-3. Die Entscheidung balanciert Startgeschwindigkeit gegen spaetere Kostenkontrolle.
+See `docs/adr/ADR-007-shared-postgres-pgvector-phase1.md`.
 
-## Alternatives Considered
+## Historical Decision
 
-1. Sofort selbst betriebenes PostgreSQL auf Hetzner
-Verworfen fuer den MVP, weil Betriebsaufwand, Backup- und Sicherheitsverantwortung frueh zu hoch werden.
-
-2. Reine Dateispeicherung
-Verworfen wegen schwacher Querybarkeit, schlechter Mehrbenutzerfaehigkeit und unklarer Memory-Skalierung.
-
-3. Proprietaere Spezialdatenbank ohne PostgreSQL-Migrationspfad
-Verworfen wegen Lock-in-Risiko und Budgetunsicherheit.
-
-## Consequences
-
-1. Das Schema muss migrationsfreundlich bleiben.
-2. Supabase-spezifische Features duerfen nicht unnoetig tief den Kern koppeln.
-3. Phase 4 braucht ein eigenes Migrations-ADR oder einen Migrationsplan.
+Supabase was previously selected to reduce early ops work. That decision is preserved only as historical context.

@@ -1,7 +1,7 @@
 # LangGraph Orchestrator Contract
 
-Status: Prepared, not implemented
-Date: 2026-04-23
+Status: Phase 1 dry-run, PostgreSQL checkpoint recovery, and SSE node progress implemented
+Date: 2026-04-26
 Phase: Phase 2 / WP-03
 Owner layer: Schicht 2 - Orchestrierung
 
@@ -9,7 +9,7 @@ Owner layer: Schicht 2 - Orchestrierung
 
 Dieser Vertrag legt fest, wie der Phase-2-Orchestrator als kontrollierter LangGraph-Graph modelliert werden muss. Er verhindert One-Shot-Chaos, unkontrollierte Loops, unklare Recovery-Pfade und Fake-Completeness.
 
-Dieser Vertrag aktiviert keine Runtime. Er beschreibt testbare Inputs, Outputs, Nodes, State-Felder, Retry-Grenzen, Checkpoint-Anforderungen und Stop-Gates.
+Dieser Vertrag ist in Phase 1 als deterministischer LangGraph-Dry-Run aktiviert. Er beschreibt weiterhin die vollstaendige Phase-2-Zielarchitektur fuer produktive Checkpoints, Live-Routing und Tool-Nutzung.
 
 ## Bindende Quellen
 
@@ -39,14 +39,31 @@ Der Vertrag gilt fuer:
 
 Nicht Bestandteil dieses Vertrags:
 
-1. produktive FastAPI-Implementierung
-2. produktiver LangGraph-Code
-3. aktive PostgreSQL-, Supabase- oder pgvector-Verbindung
-4. aktive Agent-Container
-5. direkte MCP-Tool-Ausfuehrung
-6. direkte Provider-Calls
-7. Deployment nach Vercel oder Hetzner
-8. Secrets, Auth-Flows oder Token-Rotation
+1. Live-Provider-Calls
+2. Live-Provider- und Tool-State ausserhalb des deterministischen Dry-Runs
+3. direkte MCP-Write-Tool-Ausfuehrung
+4. Deployment nach Vercel oder Hetzner
+5. Secrets, Auth-Flows oder Token-Rotation
+
+## Phase-1-Runtime-Surface
+
+Implementiert:
+
+1. `GET /api/v1/orchestrator/manifest`
+2. `POST /api/v1/orchestrator/dry-run`
+3. echte LangGraph-Engine (`langgraph==1.1.9`)
+4. offizieller PostgreSQL-Checkpointer (`langgraph-checkpoint-postgres==3.0.5`)
+5. Node-Pfad: `intent_parser -> budget_guard -> task_router -> agent_executor -> result_aggregator -> memory_updater`
+6. Policy-/Budget-Hard-Stop-Pfad ueber `error_handler`
+7. Checkpoint-Recovery ueber `GET /api/v1/orchestrator/checkpoints/{thread_id}`
+8. Restart-Recovery-Beweis: Runtime-Verifier startet `agent-api` neu und liest denselben `thread_id` aus PostgreSQL zurueck.
+9. SSE-Progress-Stream ueber `POST /api/v1/orchestrator/dry-run/stream`
+10. Verifier-Beweis in `scripts/verify-phase1-runtime.ps1` und `scripts/verify-hosted-staging.ps1`
+
+Nicht implementiert:
+
+1. Live-LLM-Routing
+2. Live-MCP-Toolausfuehrung
 
 ## Prinzipien
 
@@ -57,7 +74,7 @@ Nicht Bestandteil dieses Vertrags:
 5. Jeder LLM-Aufruf muss ueber den LLM-Gateway-Routing-Vertrag laufen.
 6. Jeder Tool-Aufruf muss spaeter ueber die MCP-Schicht laufen, nicht direkt aus dem Orchestrator.
 7. Production-Checkpointing darf nicht in-memory sein.
-8. Persistenter Checkpointer ist PostgreSQL-kompatibel und bleibt bis Gate-Freigabe nur Vertragsanforderung.
+8. Persistenter Checkpointer ist PostgreSQL-kompatibel und fuer den deterministischen Dry-Run aktiv.
 9. Streaming-Events duerfen keine Secrets, Rohproviderdaten oder ungefilterte technische Dumps enthalten.
 10. Unsicherheit wird im State markiert, nicht verschwiegen.
 
@@ -175,6 +192,8 @@ Konfliktlogik:
 1. Widerspruechliche Agentenresultate gehen nach `error_handler`.
 2. Fehlende Tests werden als `known_gaps` markiert, nicht verschwiegen.
 3. Nicht verifizierte Runtime-Behauptungen werden entfernt oder als Annahme markiert.
+4. Task-Assignment-Evidence darf `task_assignment_completed` nur fuer abgeschlossene Assignments enthalten; nicht-terminale oder drained-queued Assignments werden als Partial Failure markiert.
+5. LLM-Gateway-Streaming-Evidence darf nur als complete gelten, wenn `stream_done_seen=true` und `live_provider_calls=false` explizit bewiesen ist.
 
 ## Memory-Updater-Vertrag
 
@@ -237,11 +256,20 @@ Nicht erlaubt:
 
 Gate-Bedingung:
 
-Solange keine aktive PostgreSQL-kompatible Runtime fuer Checkpointer und relationale State-Persistenz freigegeben ist, bleibt dieser Abschnitt ein Vertrag und Testplan.
+Die aktive Phase-1-Runtime nutzt `langgraph-checkpoint-postgres==3.0.5` fuer den deterministischen Dry-Run. Fuer Live-Provider- und Tool-State bleibt dieser Abschnitt weiterhin Vertrag und Testplan.
 
 ## Streaming-Events
 
-Der Orchestrator sendet strukturierte Events an das Frontend:
+Der Orchestrator sendet in Phase 1 fuer deterministische Dry-Runs bereits strukturierte SSE-Events ueber `POST /api/v1/orchestrator/dry-run/stream`:
+
+| Event | Zeitpunkt | Mindestfelder |
+| --- | --- | --- |
+| `graph_status` | vor Graph-Ausfuehrung | `status`, `engine`, `mode`, `checkpointing`, `thread_id`, `run_id`, `live_provider_calls` |
+| `graph_node` | nach jeder LangGraph-Node-Aktualisierung | `status`, `thread_id`, `node`, `node_name`, `run_id`, `state` |
+| `done` | nach finalem Snapshot | `status`, `engine`, `mode`, `checkpointing`, `thread_id`, `run_id`, `node_name`, `state` |
+| `error` | bei Stream-Fehler | `code`, `message`, `recoverable` |
+
+Der Phase-2-Zielvertrag fuer produktive Agentenlaeufe bleibt:
 
 | Event | Zeitpunkt | Mindestfelder |
 | --- | --- | --- |
@@ -295,14 +323,12 @@ Sofort stoppen bei:
 
 Dieses Dokument behauptet nicht:
 
-1. dass LangGraph bereits implementiert ist
-2. dass ein FastAPI-Orchestrator laeuft
-3. dass ein Checkpointer aktiv ist
-4. dass Server-Restart-Recovery getestet wurde
-5. dass Agentencontainer existieren
-6. dass MCP-Tools verdrahtet sind
-7. dass Phase-2-Gates freigegeben sind
+1. dass ein Checkpointer fuer Live-Provider- oder Tool-State aktiv ist
+2. dass Server-Restart-Recovery fuer Live-Provider- oder Tool-State getestet wurde
+3. dass vollstaendige Phase-2-Agentencontainer existieren
+4. dass MCP-Live-Write-Tools freigegeben sind
+5. dass Phase-2-Gates freigegeben sind
 
 ## Naechster sicherer Schritt
 
-Nach diesem Vertrag ist der naechste nicht-invasive Schritt ein Kern-Agentenprofile-Vertrag fuer WP-04 mit Rollen, Toolrechten, Write-Scopes, Modellslots, Evidenzpflichten und Stop-Gates.
+Nach diesem Vertrag ist der naechste sichere Runtime-Schritt, MCP-Tool-Envelopes in den Projekt-Auditpfad oder eine dedizierte MCP-Audit-Tabelle zu persistieren.

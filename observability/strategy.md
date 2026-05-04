@@ -42,7 +42,6 @@ Zielschichten:
 - `mcp-gateway`
 - `redis`
 - `postgres`
-- `qdrant`
 - `langfuse`
 - Host-System
 

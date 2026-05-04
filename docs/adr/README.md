@@ -1,6 +1,6 @@
 # ADR Index
 
-Stand: 2026-04-23
+Stand: 2026-04-29
 Status: Active
 
 ## Zweck
@@ -17,6 +17,13 @@ Dieses Dokument ist das Verzeichnis aller Architecture Decision Records im Proje
 | `ADR-004` | MVP Database Strategy | accepted |
 | `ADR-005` | WebGPU With WebGL Fallback | accepted |
 | `ADR-006` | Observability Stack Boundary | proposed |
+| `ADR-007` | Shared PostgreSQL and pgvector for Phase 1 | accepted |
+| `ADR-008` | Single-Tenant Assumption Through Phase 5 | accepted |
+| `ADR-009` | Auth Design For Owner-Gated Runtime | accepted |
+
+## Audit Mapping
+
+The 2026-04-29 audit asked for ADR coverage of the single-tenant assumption and auth design. The existing ADR-006 and ADR-007 numbers were already used for observability and PostgreSQL/pgvector decisions, so the missing subjects are resolved as ADR-008 and ADR-009 without rewriting ADR history.
 
 ## Regel
 

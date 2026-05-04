@@ -1,0 +1,28 @@
+name: hotfix
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Existing image tag or commit SHA to promote
+        required: true
+      target:
+        description: Target environment
+        required: true
+        default: staging
+        type: choice
+        options: [staging, production]
+
+permissions:
+  contents: read
+
+jobs:
+  approval:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target }}
+    steps:
+      - name: Approval marker
+        run: |
+          echo "Hotfix promotion approved for ${{ inputs.target }}"
+          echo "Image tag: ${{ inputs.image_tag }}"
+          echo "Host deployment remains pull-based via GHCR + Watchtower per PATCHED Phase 1."

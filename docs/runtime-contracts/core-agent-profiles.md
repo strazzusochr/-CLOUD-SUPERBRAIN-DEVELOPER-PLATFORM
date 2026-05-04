@@ -1,7 +1,7 @@
 # Core Agent Profiles Contract
 
-Status: Prepared, not implemented
-Datum: 2026-04-23
+Status: Prepared contract, Phase-1 deterministic worker scaffold verified
+Datum: 2026-04-26
 Phase: Phase 2 / WP-04
 Owner-Schicht: Schicht 3 - Agent-Pool
 
@@ -10,7 +10,7 @@ Owner-Schicht: Schicht 3 - Agent-Pool
 Dieser Vertrag definiert die vier MVP-Kern-Agenten als Runtime-Policy, bevor Container, LLM-Calls oder MCP-Toolausfuehrung aktiviert werden.
 Er uebersetzt `TEIL 2` in klare Rollen, Toolrechte, Zeitgrenzen, Output-Formate, Memory-Regeln und Stop-Gates.
 
-Dieser Vertrag ist kein Implementierungsnachweis und keine Freigabe fuer produktive Agentenlaeufe.
+Dieser Vertrag ist kein Implementierungsnachweis fuer produktive Live-Agentenlaeufe. Phase 1 verfuegt jedoch ueber einen deterministic `agent-worker`-Scaffold, der Planner-Tasks aus Redis konsumiert, Ergebnisse persistiert, Retry/Eskalation prueft und per Redis-Heartbeat in Agent-API Health/Metrics sichtbar ist.
 
 ## Bindende Quellen
 
@@ -35,7 +35,7 @@ In Scope:
 
 Nicht in Scope:
 
-- Agent-Container bauen oder starten
+- Produktive Live-Agent-Container mit echten LLM-Provider-Calls bauen oder starten
 - LLM-Provider aufrufen
 - MCP-Server ausfuehren
 - GitHub Branch-Protection oder Secrets aendern
@@ -218,6 +218,13 @@ Jede Retry-Iteration muss den Grund, neue Evidenz und veraenderte Hypothese doku
 5. `Memory-Updater` schreibt nur klassifizierte, secret-freie Summaries und keine Roh-Credentials.
 6. `Error-Handler` eskaliert bei Retry-Ueberschreitung, Stop-Gate oder fehlender Evidenz.
 
+## Phase-1 Runtime-Scaffold-Beweis
+
+- `services/agent-worker` laeuft als separater Compose-Service und konsumiert Redis-Tasks aus `tasks:agent:queue`.
+- Der Worker schreibt Taskstatus in Redis, Planner-Ergebnisse in `agent_messages`, `task_completed`/`task_retry`/`task_escalated` in `audit_log` und nutzt keine LLM-Provider.
+- Der Worker schreibt `agent-worker:heartbeat` nach Redis; `GET /api/v1/health` meldet diesen Puls als `agent_worker.status=healthy`, und `GET /api/v1/metrics` exportiert `superbrain_service_health{service="agent_worker"} 1`.
+- `scripts/verify-phase1-runtime.ps1` und `scripts/verify-hosted-staging.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` pruefen Prompt->Task->Worker, Retry/Eskalation, Heartbeat, SSE-Ausgabe und Persistenz.
+
 ## Budget- und Modellrouting
 
 - Jeder Modellslot nutzt zuerst `budget-rate-control.md`.
@@ -269,7 +276,7 @@ Diese Aktionen stoppen die autonome Ausfuehrung und brauchen Owner-Review:
 ## Nicht-Behauptungen
 
 - Dieser Vertrag implementiert keine Agent-Runtime.
-- Es wurden keine Agent-Container gestartet.
+- Es wurden keine produktiven Live-Agenten mit echten LLM-Calls gestartet; der Phase-1 `agent-worker`-Scaffold ist gestartet und verifiziert.
 - Es wurden keine MCP-Tool-Calls ausgefuehrt.
 - Es wurden keine LLM-Provider aufgerufen.
 - Es wurden keine Secrets erstellt, rotiert oder gespeichert.
@@ -278,5 +285,4 @@ Diese Aktionen stoppen die autonome Ausfuehrung und brauchen Owner-Review:
 
 ## Naechster sicherer Schritt
 
-Der naechste autonome Schritt ist `WP-05 Memory-Konsolidierungs-Job` als separater Runtime-Vertrag.
-Er darf erst Memory-Implementierung werden, wenn die offenen Phase-1.5-Gates und Checkpointer-Entscheidungen geklaert sind.
+Der naechste autonome Schritt ist die Erweiterung vom deterministic Planner-Worker zum vollstaendigen LangGraph-Agent-Executor mit denselben Heartbeat-, Retry-, Audit- und Budget-Gates.

@@ -1,0 +1,141 @@
+{
+  "checkpoint_id": "project-anchor-2026-04-30T00-49-26+02-00",
+  "created_at_local": "2026-04-30 00:49:26 +02:00",
+  "project_root": "D:\\PLATTFORM\\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+  "anchor_file": "PROJECT_ANCHOR.md",
+  "binding_truth": [
+    "PROJECT_STATE.md",
+    "AI_HANDOFF.md",
+    "docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md",
+    "docs/project-progress.manifest.json",
+    "docs/verification-register.md"
+  ],
+  "current_progress": {
+    "overall_percent": 47,
+    "horizontal": {
+      "P0": 100,
+      "P1": 98,
+      "P2": 86,
+      "P3": 33,
+      "P4": 15,
+      "P5": 0,
+      "P6": 0
+    },
+    "vertical": {
+      "frontend": 97,
+      "orchestrator": 99,
+      "agent_pool": 61,
+      "llm_gateway": 53,
+      "mcp_gateway": 53,
+      "memory": 69,
+      "observability": 99
+    },
+    "integrity_status": "verified",
+    "computed_overall_percent": 47,
+    "manifest_overall_percent": 47,
+    "truth_policy": "Evidence-based only: percentages increase only after code, runtime proof, and verifier/doc update."
+  },
+  "runtime": {
+    "base_url": "http://localhost:8081",
+    "stream_url": "http://localhost:8081/api/stream",
+    "health": "healthy",
+    "services": {
+      "nginx": "healthy",
+      "agent_api": "healthy",
+      "frontend": "healthy",
+      "agent_worker": "healthy",
+      "memory_worker": "healthy",
+      "postgres": "healthy",
+      "redis": "healthy",
+      "mcp_gateway": "healthy",
+      "llm_gateway": "healthy"
+    },
+    "llm_gateway_mode": "deterministic_dry_run",
+    "live_provider_calls": false,
+    "live_mcp_writes": false,
+    "production_deploy": false
+  },
+  "session_history_checkpoint": {
+    "session_id": "ee81f6c1-703b-499d-9a33-b11d6b3cc0e0",
+    "contract_version": "session-history-v1",
+    "evidence_ref": "session_history_openable_project_state",
+    "messages": 4,
+    "tasks": 4,
+    "audit_events": 9,
+    "project_progress": 47,
+    "project_progress_integrity": "verified"
+  },
+  "latest_protocol_summary": {
+    "issue": "Chat/run history did not open from localhost:8081 dashboard.",
+    "root_causes": [
+      "Stale agent-api container while local code already contained the route.",
+      "Nginx kept stale Docker upstream IPs after service recreates.",
+      "Recent task listing performed many single Redis GET calls.",
+      "Frontend dashboard refresh loop overloaded the browser/network path.",
+      "Root-level optional Docker sidecars had unrelated restart loops."
+    ],
+    "fixes": [
+      "Rebuilt agent-api/frontend and verified the history route.",
+      "Added dynamic Docker DNS resolver behavior in infrastructure/nginx/dev.conf.",
+      "Optimized Redis recent-task loading with MGET chunking.",
+      "Split frontend load groups and refresh intervals.",
+      "Added browser-contract session history regression guard.",
+      "Repaired root codex sandbox health runner and removed invalid optional MCP restart loops."
+    ]
+  },
+  "verified_commands": [
+    "py -3 -m py_compile services\\agent-api\\app\\tasks.py services\\agent-api\\app\\main.py",
+    "npm run build --prefix apps/frontend",
+    "docker compose -f docker-compose.dev.yml config --quiet",
+    "powershell -ExecutionPolicy Bypass -File scripts\\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
+    "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase1.ps1",
+    "powershell -ExecutionPolicy Bypass -File scripts\\verify-hosted-staging.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
+    "GET http://localhost:8081/api/v1/health",
+    "GET http://localhost:8081/api/v1/project/progress/integrity",
+    "GET http://localhost:8081/api/v1/sessions/ee81f6c1-703b-499d-9a33-b11d6b3cc0e0/history"
+  ],
+  "next_step": {
+    "name": "external-gate-configuration-and-hosted-staging-proof",
+    "goal": "Prove the currently local deterministic contract set against a real hosted staging URL without unsupported production or live-provider claims.",
+    "required_inputs": [
+      "STAGING_BASE_URL",
+      "BRANCH_PROTECTION_TOKEN",
+      "optional canonical gitleaks binary",
+      "optional fresh Hetzner token for budget re-proof"
+    ],
+    "acceptance_criteria": [
+      "Hosted /api/v1/health returns healthy.",
+      "Hosted /api/v1/project/progress/integrity returns verified.",
+      "Hosted session history opens with session-history-v1.",
+      "Hosted browser console remains clean after opening Recent Runs history.",
+      "Verification register and project state are updated only after proof."
+    ]
+  },
+  "open_gates": [
+    "No hosted staging success without STAGING_BASE_URL.",
+    "No branch protection success without BRANCH_PROTECTION_TOKEN.",
+    "No production deployment proof.",
+    "No live external LLM provider proof.",
+    "No live MCP write proof."
+  ],
+  "resume_commands": [
+    "cd D:\\PLATTFORM\\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+    "docker compose -f docker-compose.dev.yml ps",
+    "curl.exe -s http://localhost:8081/api/v1/health",
+    "curl.exe -s http://localhost:8081/api/v1/project/progress/integrity",
+    "powershell -ExecutionPolicy Bypass -File scripts\\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
+    "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase1.ps1"
+  ],
+  "platform_memory": {
+    "status": "persisted",
+    "memory_id": "55a3959e-c570-481f-9d02-9755ff421733",
+    "session_id": "d4e09879-49a2-401a-80b2-228cfa5cfb6b",
+    "task_id": "db11d606-0d34-4041-bbe9-3aaeb7861c59",
+    "task_status": "completed",
+    "done_validation_logged": true,
+    "memory_search_verified": true,
+    "memory_search_mode": "lexical_fallback",
+    "memory_search_relevance": 1.0
+  },
+  "rollback_note": "Documentation/checkpoint anchor only. Remove PROJECT_ANCHOR.md, docs/project-checkpoint-2026-04-30.json, and anchor references from PROJECT_STATE.md and AI_HANDOFF.md to roll back."
+}

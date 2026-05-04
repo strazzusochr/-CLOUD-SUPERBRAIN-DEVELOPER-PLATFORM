@@ -1,116 +1,66 @@
-# System Architecture
+# System Architecture - PATCHED
 
-Stand: 2026-04-23
-Status: Binding architecture anchor from `TEIL 2`
-Bezug: `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE.md`, Abschnitt `TEIL 2`
+Stand: 2026-04-25
+Status: Binding operative architecture, synchronized with `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md`
 
-## 1. Zweck
+## 1. Binding Source
 
-Dieses Dokument macht `TEIL 2 - VOLLSTAENDIGE SYSTEM-ARCHITEKTUR` als operatives Architektur-Artefakt im Repo nutzbar.
-Es ersetzt den Masterplan nicht, sondern dient als schnelle, verbindliche Arbeitskarte fuer Planung, Implementierung, Review und Verifikation.
+`docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` is the highest local architecture truth. Older references to CPX51, Supabase as active MVP database, Qdrant in Phase 1-5, or 30-minute memory consolidation are superseded.
 
-Keine Schicht darf still Verantwortung, Schnittstellen, Budgetgrenzen oder verbotene Aktionen aendern. Jede strukturelle Abweichung braucht Owner-Freigabe und einen ADR.
+## 2. Phase 1 Architecture Locks
 
-## 2. Sieben technische Systemschichten
+- Infrastructure starts small: CX21 or comparable small Hetzner instance. No CPX51 in Phase 1.
+- Infrastructure budget remains capped at 20 EUR/month.
+- One PostgreSQL instance is the primary source of truth.
+- Separate databases inside the same instance: `superbrain_prod` for app state and `langfuse` for observability state.
+- `pgvector` is the only vector solution in Phase 1-5.
+- Qdrant is explicitly excluded until Phase 6 evaluation.
+- LangGraph is the core state machine for orchestration.
+- CrewAI may only run locally inside a LangGraph Agent-Executor node.
+- Memory consolidation interval is 5 minutes.
+- Budget-Guard node must run before paid API calls.
+- Frontend/backend streaming uses contractual SSE.
+- Branch protection and gitleaks are mandatory before agent write workflows.
 
-| Schicht | Besitzer | Input | Output | Aufgabe | Verboten |
+## 3. Seven Technical Layers
+
+| Layer | Owner | Inputs | Outputs | Responsibilities | Forbidden |
 | --- | --- | --- | --- | --- | --- |
-| `1 - Eingabe / Frontend` | Vercel, Next.js, shadcn/ui | User-Prompt in natuerlicher Sprache | strukturierter Request an Orchestrierung via REST/SSE | Prompt empfangen, Streaming anzeigen, Agent-Status visualisieren, Memory-Viewer und Budget-Banner bereitstellen | direkte LLM-Calls, direkte DB-Calls, Secrets, technische Rohdaten in der Hauptoberflaeche |
-| `2 - Orchestrierung` | Hetzner CPX51, LangGraph, FastAPI | strukturierter Request vom Frontend | Streaming-Events an Frontend, Task-Assignments an Agenten | Intent parsen, Task-Plan erstellen, Agenten auswaehlen, State verwalten, Ergebnisse aggregieren, Error-Handling | LLM-Training, DB-Schema-Aenderungen ohne Migration, direkte Tool-Calls ohne MCP-Layer |
-| `3 - Agent-Pool` | Hetzner Docker-Container, einer pro Agent-Typ | Task-Assignment vom Orchestrator | Ergebnis-Report an Orchestrator, State-Update an Memory | spezialisierte Tasks fuer Code, Test, Research, Deploy, Docs und Security ausfuehren | direkter Zugriff auf andere Agenten, Schreiben in `main`, Code-Ausfuehrung ausserhalb E2B-Sandboxes, Direct-DB-Write in Production |
-| `4 - LLM-Gateway` | LiteLLM auf Hetzner plus Cloudflare AI Gateway fuer Caching | generischer LLM-Request von Agenten | LLM-Response vom gewaehlten Provider | Routing, Rate-Limiting, Cost-Tracking, Modell-Selektion, Fallback-Rotation, Provider-Rotation-Logging | direkte Provider-Calls ohne Gateway, Caching sensitiver Prompts, Budget-Ueberschreitung ohne Alert |
-| `5 - Tool-MCP-Schicht` | Hetzner MCP-Server-Container, mindestens 2 Instanzen fuer kritische Tools | Tool-Request von Agenten | Tool-Ergebnis an Agenten | GitHub, Browser, E2B, Datenbank und Filesystem standardisiert bereitstellen | Tool-Calls ohne Request-Logging, Tool-Calls ohne Timeout-Schutz, GitHub-Push ohne Branch-Schutz |
-| `6 - Memory-Schicht` | Redis, Supabase/pgvector zu Hetzner pgvector, optional Neo4j | Kontextdaten und Suchanfragen von Agenten | historischer Kontext und semantische Suchergebnisse | Kontext ueber Sessions bewahren, semantische Suche, Wissensgraph, Konsolidierung alle `30 Minuten` | unverschluesseltes Speichern von Secrets, Memory-Purge ohne User-Bestaetigung, In-Memory-Checkpointing in Production |
-| `7 - Observability` | Langfuse self-hosted, Prometheus/Grafana, Helicone free tier | Events von allen anderen Schichten ueber definierte Logging-Interfaces | Dashboards, Alerts, Traces, Cost-Reports | Aktionen sichtbar machen, Kosten tracken, Fehler erkennen, Rotationshistorie und Audit-Log pflegen | Traces fuer schnelle Tests ueberspringen, Mischen mit Main-App-UI, Secrets in Logs speichern |
+| 1 Frontend | Vercel/Next.js | User prompt, session state from API | REST/SSE calls to agent-api | Prompt UI, streaming output, agent status, budget banner | Direct DB calls, direct provider calls, secrets |
+| 2 Orchestration | Hetzner/FastAPI/LangGraph | REST/SSE requests | Task assignments, SSE events | Intent parsing, routing, graph state, budget guard, recovery | Provider bypass, schema changes without ADR |
+| 3 Agent Pool | Docker containers | Task assignments | Result envelopes | Planner, Coder, Tester, DevOps execution | Main writes, production deploys, uncontrolled loops |
+| 4 LLM Gateway | LiteLLM | Generic LLM requests | Model responses, cost/provider events | Routing, rate limits, fallback, caching policy | Direct provider calls, sensitive prompt caching |
+| 5 Tool MCP | MCP gateway | Tool requests | Tool results with audit data | GitHub, E2B, Playwright, Filesystem, Postgres readonly | Untimed tool calls, unlogged tool calls |
+| 6 Memory | Redis + PostgreSQL/pgvector | Run events, memory search | Working context, long-term memory | 5-minute consolidation, retrieval, purge support | Qdrant Phase 1-5, MemorySaver in production |
+| 7 Observability | Langfuse/Prometheus/Grafana | Traces, metrics, costs | Dashboards, alerts, audit | Evidence, cost tracking, alerting | Mixing observability UI into main app, secrets in traces |
 
-## 3. Deployment-Targets
+## 4. Deployment Targets
 
-| Target | Rolle | Explizite Grenzen | Kostenannahme |
-| --- | --- | --- | --- |
-| `Vercel` | ausschliesslich Frontend, Next.js App Router, kurze Edge-Calls, Streaming-Interface | keine Datenbankverbindungen, keine Langzeitprozesse, keine Agent-Logik | `0 EUR` Free Tier bis Phase 6 angenommen |
-| `Hetzner CPX51` | LangGraph-Orchestrator, Agent-Container, MCP-Server, Redis, LiteLLM, Observability-Stacks, Nginx-Proxy | interne Service-Kommunikation nur ueber Docker-Netzwerk, nicht ueber oeffentliches Internet | Spannbreite aus Masterplan `6-42 EUR/Monat`; harte Projektgrenze bleibt `20 EUR/Monat` ohne Owner-Freigabe |
-| `Cloudflare Free Tier` | DNS, DDoS-Schutz, CDN, AI Gateway Caching, Browser Run fuer Agent-Browser-Steuerung | keine Datenbankverbindungen | Free Tier |
+| Target | Role | Phase 1 Limit |
+| --- | --- | --- |
+| Vercel | Frontend only | No DB connections, no agent runtime |
+| Hetzner CX21-class | API, agents, MCP, Redis, PostgreSQL, gateway | Must stay within 20 EUR/month total infra |
+| Cloudflare Free Tier | DNS, CDN, optional AI Gateway caching | No DB responsibility |
 
-## 4. Vollstaendiger Datenfluss
+## 5. Data Flow
 
 ```text
-User-Prompt (Vercel Frontend / Next.js)
-  -> REST/SSE
-FastAPI Orchestrator (Hetzner)
-  -> LangGraph Graph
-  -> Intent-Parser -> Task-Router
-  -> Task-Assignment
-  -> Agent-Executor (4x isolierte Docker-Container)
-     -> LiteLLM Gateway (Hetzner) -> Cloudflare AI Gateway Cache
-        -> LLM Provider (HF Inference / Groq / Together.ai / Anthropic)
-     -> MCP-Server (Hetzner)
-        -> GitHub Tool -> feature/agent-* Branch only
-        -> E2B Sandbox -> Code Execution isolated
-        -> Playwright-MCP -> Browser Automation
-        -> PostgreSQL-MCP -> read-only Projekt-Kontext
-        -> Filesystem-MCP -> Temp-Workspace only
-     -> Memory-Schicht
-        -> Redis Working Memory, TTL 30 Minuten
-        -> Konsolidierung alle 30 Minuten
-        -> Supabase pgvector fuer Long-Term Embeddings
-        -> Phase 4+: Hetzner pgvector Migration aus Supabase
-  -> Result-Aggregator -> Memory-Updater
-  -> Streaming-Events (SSE)
-Vercel Frontend
-
-Parallel:
-  -> Langfuse self-hosted fuer Traces
-  -> Prometheus/Grafana fuer System-Metriken
-  -> Helicone fuer LLM-Kosten pro Agent
+User -> Next.js Frontend -> REST/SSE -> FastAPI Agent API
+  -> LangGraph Intent Parser
+  -> Budget Guard
+  -> Task Router
+  -> Agent Executor
+     -> LiteLLM Gateway -> model provider
+     -> MCP Gateway -> GitHub/E2B/Playwright/Filesystem/Postgres-readonly
+     -> Memory -> Redis + PostgreSQL/pgvector
+  -> Result Aggregator
+  -> Memory Updater
+  -> SSE response stream -> Frontend
 ```
 
-## 5. Open-Source-Standard-Stack
+## 6. Active Gates
 
-| Bereich | Verbindlicher Standard | Abweichungsregel |
-| --- | --- | --- |
-| Orchestrierung | LangGraph OSS, ergaenzt durch CrewAI OSS fuer rollenbasierte 4er-Squads | ADR und Owner-Freigabe |
-| LLM-Gateway | LiteLLM OSS auf Hetzner plus Cloudflare AI Gateway Caching | ADR und Owner-Freigabe |
-| LLM-Anbieter | Hugging Face Serverless Inference, Groq, Together.ai, Anthropic/OpenAI nur gezielt pro Rolle | GPT-4o niemals Default fuer alle Agenten |
-| Tools | MCP-Server OSS, Playwright-MCP, Puppeteer-MCP, GitHub-MCP, PostgreSQL-MCP, Filesystem-MCP, E2B fuer Code-Ausfuehrung | Tool-Scopes, Logging und Timeouts sind Pflicht |
-| Datenbank MVP | Supabase free tier plus pgvector | Migration zu Hetzner PostgreSQL/pgvector erst Phase 4 oder per neuem ADR |
-| Vector-DB | Qdrant OSS self-hosted auf Hetzner fuer semantische Memory-Schicht | Budget- und Betriebsnachweis |
-| Observability Agents | Langfuse OSS self-hosted | separater Stack gemaess Gate A / ADR-006 |
-| Observability System | Prometheus und Grafana OSS self-hosted | nicht in Main-App mischen |
-| LLM-Kosten | Helicone free tier | keine Kostenblindheit bei produktiven Claims |
-| Frontend | Next.js App Router, shadcn/ui, Tailwind | keine direkte Provider- oder DB-Bindung |
-| Backend Hosting | Hetzner CPX51 | innerhalb `20 EUR/Monat` oder Owner-Freigabe |
-| Edge/CDN | Cloudflare Free Tier | keine DB-Verbindungen |
-| Container-Management | Docker Compose Phase 1-5, K3s erst Phase 6 bei Bedarf | kein volles Kubernetes vor Phase 6 |
-| CI/CD | GitHub Actions free fuer OSS | kein Deployment ohne Pipeline |
-| 3D Rendering | Three.js oder Babylon.js, WebGPU plus WebGL-Fallback im Browser | kein Server-Side-Rendering Phase 1-5 |
-| 3D Asset Storage | Cloudflare R2 free tier fuer kleine Volumen | Budgetpruefung vor Wachstum |
-
-## 6. Sekundaere Optionen nur mit Owner-Freigabe
-
-Diese Optionen sind nicht Standard:
-
-1. AutoGen vor Phase 6
-2. SuperAGI als Basis
-3. GPT-4o als Standard fuer alle Agenten
-4. vollstaendiges Kubernetes statt K3s
-5. LangSmith hosted statt Langfuse
-6. Hetzner GPU-Server vor Phase 6
-
-## 7. Aktive Architektur-Gates
-
-Diese Punkte duerfen nicht still als geloest behandelt werden:
-
-1. `Gate A - Observability`: Langfuse self-hosted bleibt Zielbild, aber der operative Stack muss separat vom Main-App-Compose gefuehrt oder per ADR anders entschieden werden.
-2. `Gate B - Datenbank`: `ADR-004` bleibt aktiv; Supabase ist MVP-Startdatenbank. Hetzner PostgreSQL/pgvector ist Zielbild ab Phase 4 oder per neuem ADR.
-3. `Budget-Gate`: Hetzner CPX51 wird nur innerhalb des harten `20 EUR/Monat` Infrastrukturrahmens oder nach expliziter Owner-Freigabe aktiviert.
-4. `Release-Gate`: kein Deployment ohne CI/CD-Pipeline, Observability-Integration und Release-Checkliste als Git-Artefakt.
-
-## 8. Verifikation dieses Artefakts
-
-Dieses Dokument ist verifiziert, wenn:
-
-1. alle sieben Schichten aus `TEIL 2` mit Besitzer, Input, Output, Aufgabe und Verboten erfasst sind,
-2. die drei Deployment-Targets mit Grenzen und Kostenannahmen dokumentiert sind,
-3. der Datenfluss Frontend -> Orchestrator -> Agenten -> Gateway/MCP/Memory -> Frontend plus parallele Observability abgebildet ist,
-4. der Open-Source-Standard-Stack sichtbar ist,
-5. offene Gate-Konflikte nicht als erledigt behauptet werden.
+- No Qdrant before Phase 6.
+- No CPX51 before measured resource need and budget proof.
+- No Supabase-as-active-MVP-DB claim after PATCHED; ADR-007 supersedes ADR-004.
+- No release-ready claim without CI, tests, observability evidence, rollback note, and release checklist.

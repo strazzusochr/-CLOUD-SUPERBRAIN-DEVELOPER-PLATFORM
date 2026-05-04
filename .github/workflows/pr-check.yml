@@ -1,0 +1,59 @@
+name: pr-check
+
+on:
+  workflow_call:
+  pull_request:
+    branches: [chore/repo-bootstrap]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Docker Compose config
+        run: docker compose -f docker-compose.dev.yml config >/tmp/compose.yml
+
+      - name: Forbid patched-plan drift in compose
+        run: |
+          if grep -Eiq 'qdrant|CPX51|Supabase|:latest' docker-compose.dev.yml; then
+            echo 'Forbidden Phase-1 drift term found in docker-compose.dev.yml'
+            exit 1
+          fi
+
+      - name: Python syntax
+        run: python -m py_compile services/agent-api/app/main.py services/mcp-gateway/app/main.py
+
+      - name: Frontend install
+        working-directory: apps/frontend
+        run: npm ci
+
+      - name: Frontend audit
+        working-directory: apps/frontend
+        run: npm audit --audit-level=moderate
+
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Phase 1 images
+        run: docker compose -f docker-compose.dev.yml build

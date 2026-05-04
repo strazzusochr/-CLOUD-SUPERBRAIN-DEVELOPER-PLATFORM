@@ -1,0 +1,20 @@
+{
+  "config_toml_parse": "OK",
+  "profile": "superbrain-gpt55-safe",
+  "root_has_legacy_sandbox_key": false,
+  "root_sandbox_mode": "workspace-write",
+  "root_approval_policy": "on-request",
+  "github_mcp_command": "docker",
+  "github_mcp_args": "run -i --rm -e GITHUB_PERSONAL_ACCESS_TOKEN ghcr.io/github/github-mcp-server",
+  "github_uses_official_docker": true,
+  "github_enabled": false,
+  "supabase_mcp_present": false,
+  "chrome_devtools_mcp_present": false,
+  "active_fixed_file_literal_hits": {
+    "@modelcontextprotocol/server-github": [],
+    "sandbox = \"danger-full-access\"": [],
+    "CLOUD_SUPERBRAIN_ULTIMATUM_FINALE.md": [],
+    "Supabase MVP": []
+  },
+  "status": "PASS"
+}
