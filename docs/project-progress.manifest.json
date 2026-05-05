@@ -1,5 +1,5 @@
 {
-  "overall_percent": 47,
+  "overall_percent": 54,
   "progress_source": "docs/project-progress.manifest.json",
   "horizontal": {
     "label": "Phase progress",
@@ -13,8 +13,8 @@
       {
         "id": "phase_1",
         "label": "Phase 1 - Foundation Runtime",
-        "percent": 98,
-        "status": "transition-ready-local-with-gate-d-and-gate-e-closed"
+        "percent": 100,
+        "status": "completed"
       },
       {
         "id": "phase_2",
@@ -25,20 +25,20 @@
       {
         "id": "phase_3",
         "label": "Phase 3 - Product Surface & Security",
-        "percent": 33,
-        "status": "prepared-agent-activity-per-role-summaries-visible-auth-github-jwt-refresh-contract-visible-redis-blacklist-proof-memory-dsgvo-purge-contract-memory-purge-job-status-memory-entry-delete-soft-delete-agent-activity-trace-contract-filtered-feed-visible-cost-monitor-csv-export-contract-rate-limit-guard-contract-status-429-proof-session-limit-guard-contract-status-429-proof-prompt-input-contract-counter-422-proof-error-response-contract-visible-error-envelope-enforced-security-headers-contract-enforced-trace-id-propagation-contract-cache-control-no-store-contract-enforced-request-id-correlation-contract-enforced-request-id-audit-feed-visible-system-unavailable-fallback-contract"
+        "percent": 40,
+        "status": "prepared-agent-activity-per-role-summaries-visible-auth-github-jwt-refresh-contract-visible-redis-blacklist-proof-memory-dsgvo-purge-contract-memory-purge-job-status-memory-entry-delete-soft-delete-agent-activity-trace-contract-filtered-feed-visible-cost-monitor-csv-export-contract-rate-limit-guard-contract-status-429-proof-session-limit-guard-contract-status-429-proof-prompt-input-contract-counter-422-proof-error-response-contract-visible-error-envelope-enforced-security-headers-contract-enforced-trace-id-propagation-contract-cache-control-no-store-contract-enforced-request-id-correlation-contract-enforced-request-id-audit-feed-visible-system-unavailable-fallback-contract-repeatable-browser-p3-surface-proof-local_auth_lifecycle_browser_proof-hosted_auth_lifecycle_staging_proof-hosted_cost_request_audit_staging_proof-hosted_limit_guard_staging_proof-hosted_fallback_agent_activity_staging_proof-hosted_prompt_error_header_staging_proof"
       },
       {
         "id": "phase_4",
         "label": "Phase 4 - Integration & Hardening",
-        "percent": 15,
-        "status": "prepared-autopilot-mode-stream-proof-runtime-verifier-cold-start-reconnect-and-checkpoint-hardened-governance-drift-cleanup-proof-external-gate-mirror-proof-audit-runtime-closure-proof-layer-interface-contracts-visible-proof-task-assignment-queue-contract-proof-hetzner-live-budget-warning-proof-agent-llm-streaming-contract-proof-mcp-version-pinning-contract-proof-project_progress_integrity_runtime_proof-runtime-post-recreate-steady-state-proof-memory_embedding_consistency_contract_visible-gitkraken_identity_cloud_inventory_visible-cloud_render_offload_contract_visible-cloud_deployment_preflight_contract_visible-task_priority_queue_correction_proof-orchestrator_evidence_fail_closed_proof-ultimate_sandbox_wrapper_rule_updated"
+        "percent": 30,
+        "status": "prepared-autopilot-mode-stream-proof-runtime-verifier-cold-start-reconnect-and-checkpoint-hardened-governance-drift-cleanup-proof-external-gate-mirror-proof-audit-runtime-closure-proof-layer-interface-contracts-visible-proof-task-assignment-queue-contract-proof-hetzner-live-budget-warning-proof-agent-llm-streaming-contract-proof-mcp-version-pinning-contract-proof-project_progress_integrity_runtime_proof-runtime-post-recreate-steady-state-proof-memory_embedding_consistency_contract_visible-gitkraken_identity_cloud_inventory_visible-cloud_render_offload_contract_visible-cloud_deployment_preflight_contract_visible-task_priority_queue_correction_proof-orchestrator_evidence_fail_closed_proof-ultimate_sandbox_wrapper_rule_updated-hosted_staging_https_proof-cloud_only_staging_verified-external_gate_audit_verified-ghcr_image_digest_verified-branch_protection_verified-hosted_backend_origin_verified-hetzner_live_budget_verified-canonical_gitleaks_verified-production_gate_claim_allowed-hosted_runtime_truth_alignment_verified-hosted_orchestrator_runtime_parity_proof-hosted_orchestrator_failclosed_sse_proof-hosted_mcp_devops_safe_envelope_proof-hosted_public_dashboard_stream_parity_proof-hosted_observability_runtime_truth_proof-hosted_cloud_surface_gate_mirror_parity_proof"
       },
       {
         "id": "phase_5",
         "label": "Phase 5 - Release Readiness",
-        "percent": 0,
-        "status": "not-started"
+        "percent": 21,
+        "status": "release_checklist_baseline_verified-release_candidate_artifact_visible-workflow_run_linked-production_candidate_no_release-owner_review_documented-no_release_decision_verified-rollback_readiness_proof-good_tag_rollback_drill_verified-hosted_health_verified-ghcr_candidate_tags_verified-integration_smoke_plan_verified-executed_hosted_candidate_smoke_verified-candidate_incident_drill_verified-candidate_observability_review_verified-executed_hosted_candidate_browser_proof_verified-candidate_secret_rotation_drill_verified-candidate_provider_failover_drill_verified-candidate_memory_recovery_drill_verified-candidate_handoff_packet_verified-candidate_risk_review_verified-candidate_post_handoff_stability_watch_verified-candidate_promotion_gate_refusal_verified-candidate_executed_rollback_verified"
       },
       {
         "id": "phase_6",
@@ -78,8 +78,8 @@
       {
         "id": "layer_5",
         "label": "MCP Gateway",
-        "percent": 53,
-        "status": "role-specific-mcp-proof-planner-postgresql-coder-filesystem-tester-playwright-devops-github-safe-envelope-orchestrator-invoked-audited-github-branch-pr-dry-run-contract-postgresql-readonly-query-contract-filesystem-workspace-scope-contract-playwright-browser-proof-contract-e2b-sandbox-lifecycle-contract-contract-endpoint-visible-mcp-session-bound-audit-proof-mcp-version-pinning-contract-visible-gitkraken-identity-cloud-inventory-visible"
+        "percent": 54,
+        "status": "role-specific-mcp-proof-planner-postgresql-coder-filesystem-tester-playwright-devops-github-safe-envelope-orchestrator-invoked-audited-github-branch-pr-dry-run-contract-postgresql-readonly-query-contract-filesystem-workspace-scope-contract-playwright-browser-proof-contract-e2b-sandbox-lifecycle-contract-contract-endpoint-visible-mcp-session-bound-audit-proof-mcp-version-pinning-contract-visible-gitkraken-identity-cloud-inventory-visible-hosted_mcp_devops_safe_envelope_proof"
       },
       {
         "id": "layer_6",
@@ -97,7 +97,7 @@
   },
   "truth_policy": "Evidence-based only: percentages increase only after code, runtime proof, and verifier/doc update.",
   "binding_document": "docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md",
-  "last_verified": "2026-05-03",
+  "last_verified": "2026-05-05",
   "non_claims": [
     "No live LLM provider calls are verified.",
     "No production deployment is verified.",

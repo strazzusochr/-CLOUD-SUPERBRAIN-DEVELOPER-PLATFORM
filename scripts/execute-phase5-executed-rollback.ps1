@@ -4,7 +4,7 @@ param(
   [string]$RemoteHost = "188.34.191.140",
   [string]$RemoteAppDir = "/app",
   [string]$ReleaseId = "prod-candidate-2026-05-05-rc1",
-  [string]$ExpectedSha = "5464c922f8871e4ff36e620ff53026fb1a2a05b3",
+  [string]$ExpectedSha = "ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5",
   [string]$BaseUrl = "https://188-34-191-140.sslip.io"
 )
 
@@ -132,58 +132,58 @@ $integrity = Probe-Json "$BaseUrl/api/v1/project/progress/integrity"
 $artifact = @"
 # Phase 5 Executed Rollback Proof - 2026-05-05
 
-Status: `verified`
-Candidate: `prod-candidate-2026-05-05-rc1`
-Candidate release id: `prod-candidate-2026-05-05-rc1`
-Previous good release id: `prod-candidate-2026-05-05-rc1@$ExpectedSha`
-Executed at: `$timestamp`
-Current hosted selector before rollback: ``$currentSelector``
-Executed rollback selector: ``$rollbackSelector``
-Restored candidate selector: ``$restoreSelector``
-Backup file: ``$backupName``
+Status: verified
+Candidate: prod-candidate-2026-05-05-rc1
+Candidate release id: prod-candidate-2026-05-05-rc1
+Previous good release id: prod-candidate-2026-05-05-rc1@$ExpectedSha
+Executed at: $timestamp
+Current hosted selector before rollback: $currentSelector
+Executed rollback selector: $rollbackSelector
+Restored candidate selector: $restoreSelector
+Backup file: $backupName
 
 ## Executed Rollback Pair
 
-- Candidate selector before rollback: mutable GHCR `:staging`
-- Executed rollback selector: immutable GHCR `:$ExpectedSha`
-- Restored selector after proof: mutable GHCR `:staging`
+- Candidate selector before rollback: mutable GHCR :staging
+- Executed rollback selector: immutable GHCR :$ExpectedSha
+- Restored selector after proof: mutable GHCR :staging
 - Reason: prove the real rollback path on hosted staging, then restore the candidate track
 
 ## Executed Steps
 
-1. Backup remote `.env`
-2. Replace `IMAGE_TAG=staging` with `IMAGE_TAG=$ExpectedSha`
+1. Backup remote .env
+2. Replace IMAGE_TAG=staging with IMAGE_TAG=$ExpectedSha
 3. Pull and restart application services from immutable GHCR commit tags
 4. Verify hosted root, Agent API, MCP Gateway, and LLM Gateway
-5. Restore `IMAGE_TAG=staging`
+5. Restore IMAGE_TAG=staging
 6. Pull and restart application services back to the mutable candidate selector
 7. Re-verify hosted root, Agent API, MCP Gateway, and LLM Gateway
 
 ## Verification
 
-- Rollback root status: ``$rollbackRoot``
-- Rollback Agent API status: ``$rollbackApi``
-- Rollback MCP status: ``$rollbackMcp``
-- Rollback LLM status: ``$rollbackLlm``
-- Restored root status: ``$restoreRoot``
-- Restored Agent API status: ``$restoreApi``
-- Restored MCP status: ``$restoreMcp``
-- Restored LLM status: ``$restoreLlm``
+- Rollback root status: $rollbackRoot
+- Rollback Agent API status: $rollbackApi
+- Rollback MCP status: $rollbackMcp
+- Rollback LLM status: $rollbackLlm
+- Restored root status: $restoreRoot
+- Restored Agent API status: $restoreApi
+- Restored MCP status: $restoreMcp
+- Restored LLM status: $restoreLlm
 - Hosted progress after restore remained manifest-backed
-- Hosted integrity after restore remained `verified`
+- Hosted integrity after restore remained verified
 
 ## Results
 
-- Executed rollback completed: `yes`
-- Candidate selector restored to staging: `yes`
-- Hosted runtime healthy after restore: `yes`
-- Production deployment claim introduced: `no`
+- Executed rollback completed: yes
+- Candidate selector restored to staging: yes
+- Hosted runtime healthy after restore: yes
+- Production deployment claim introduced: no
 
 ## Claim Boundary
 
 - This is an executed rollback proof on hosted staging.
 - This is not a production deployment claim.
-- This does not override the current `no-release` decision.
+- This does not override the current no-release decision.
 "@
 
 Set-Content -Path $artifactPath -Value $artifact -Encoding UTF8
