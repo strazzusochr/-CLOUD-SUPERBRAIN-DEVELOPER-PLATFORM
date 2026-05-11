@@ -24,7 +24,7 @@ may_deploy=false
 may_release=false
 ```
 
-Do not run `git add`, `git commit`, `git push`, `vercel deploy`, `docker push`, production deploy, or release promotion unless a later explicit owner-approved release procedure changes these policy values and records fresh evidence.
+Do not run `git restore --staged .`, `git add`, `git commit`, `git push`, `vercel deploy`, `docker push`, production deploy, or release promotion unless a later explicit owner-approved release procedure changes these policy values and records fresh evidence.
 
 ## Owner Decision Artifacts
 
