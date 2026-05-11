@@ -503,7 +503,7 @@ def call_llm_gateway_for_task(state: GraphState, task: dict[str, object]) -> dic
                 "memory_context_count": len(state.get("memory_context", [])),
                 "memory_context_budget": state.get("memory_context_budget", {}),
             }
-        selected_model = str(route.get("selected_model", "claude-sonnet-4-6"))
+        selected_model = str(route.get("selected_model", "deepseek-ai/DeepSeek-V4-Pro:fastest"))
         payload["model"] = selected_model
         stream_chunks: list[dict[str, object]] = []
         done_seen = False

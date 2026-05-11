@@ -9,6 +9,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+& (Join-Path $PSScriptRoot "require-docker-readiness.ps1") -GateName "phase1 PostgreSQL restore proof"
+
 function Assert-LastExitCode($label) {
   if ($LASTEXITCODE -ne 0) {
     throw "PostgreSQL restore proof failed: $label"

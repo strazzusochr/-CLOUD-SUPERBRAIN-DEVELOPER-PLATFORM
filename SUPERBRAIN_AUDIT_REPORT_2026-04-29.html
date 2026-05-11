@@ -489,7 +489,7 @@
     <div class="alert-icon">⛔</div>
     <div>
       <h3>CONSTRAINT-BRUCH: "KEIN LOCALHOST" — ABSOLUT UNVERÄNDERLICH</h3>
-      <p>Die Plattform läuft aktuell auf <strong style="color:var(--red)">http://localhost:8081/</strong> — dies verstößt direkt und ohne Ausnahme gegen die härteste Constraint des gesamten Projekts aus Teil 0, Goal Lock: <em>"KEIN Localhost. Null. Niemals. Alles läuft in der Cloud."</em> Lokale Entwicklung ist für Debugging tolerierbar, aber der produktive Betrieb und die Verifikation DÜRFEN NICHT auf localhost stattfinden. Dies ist kein Warning — es ist ein fundamentaler Architektur-Bruch der das Kernziel der Plattform (cloud-native, keine lokalen Ressourcen) verletzt. Hosted Staging URL ist als External Gate MISSING markiert.</p>
+      <p>Die Plattform läuft aktuell auf <strong style="color:var(--red)"><local-control-plane-url>/</strong> — dies verstößt direkt und ohne Ausnahme gegen die härteste Constraint des gesamten Projekts aus Teil 0, Goal Lock: <em>"KEIN Localhost. Null. Niemals. Alles läuft in der Cloud."</em> Lokale Entwicklung ist für Debugging tolerierbar, aber der produktive Betrieb und die Verifikation DÜRFEN NICHT auf localhost stattfinden. Dies ist kein Warning — es ist ein fundamentaler Architektur-Bruch der das Kernziel der Plattform (cloud-native, keine lokalen Ressourcen) verletzt. Hosted Staging URL ist als External Gate MISSING markiert.</p>
     </div>
   </div>
 
@@ -693,8 +693,8 @@
       <span class="item-sev sev-missing">MISSING</span>
       <div class="item-content">
         <h4>Hosted Staging URL</h4>
-        <p>Die Plattform läuft auf localhost:8081 — es gibt keine verifizierbare öffentliche Staging-URL. Dies ist direkt verknüpft mit dem Hard-Constraint-Bruch (KEIN Localhost). Playwright-Tests können nur localhost testen, was im Playwright-Browser-Proof-Contract explizit auf localhost:8081 beschränkt ist. Kein echtes Browser-Proof auf einer gehosteten Umgebung möglich.</p>
-        <div class="meta">CONSTRAINT: KEIN Localhost (absolut) · AKTUELLE URL: localhost:8081 · VERCEL: nicht konfiguriert</div>
+        <p>Die Plattform läuft auf <local-control-plane-host> — es gibt keine verifizierbare öffentliche Staging-URL. Dies ist direkt verknüpft mit dem Hard-Constraint-Bruch (KEIN Localhost). Playwright-Tests können nur localhost testen, was im Playwright-Browser-Proof-Contract explizit auf <local-control-plane-host> beschränkt ist. Kein echtes Browser-Proof auf einer gehosteten Umgebung möglich.</p>
+        <div class="meta">CONSTRAINT: KEIN Localhost (absolut) · AKTUELLE URL: <local-control-plane-host> · VERCEL: nicht konfiguriert</div>
       </div>
       <span class="item-tag">Gate 2/4</span>
     </div>
@@ -1284,7 +1284,7 @@
       <tbody>
         <tr>
           <td><span class="item-sev sev-blocked">🔴 SOFORT</span></td>
-          <td><strong>localhost:8081 → Cloud-Deploy auf Vercel + Hetzner</strong> — Hard Constraint Bruch beheben. Hosted Staging URL konfigurieren.</td>
+          <td><strong><local-control-plane-host> → Cloud-Deploy auf Vercel + Hetzner</strong> — Hard Constraint Bruch beheben. Hosted Staging URL konfigurieren.</td>
           <td>Owner + DevOps</td>
           <td>Constraint-Compliance</td>
         </tr>
@@ -1444,8 +1444,8 @@
 <!-- ██ FOOTER ██ -->
 <div class="footer">
   <span>CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM · FORENSIC AUDIT REPORT</span>
-  <span>VERIFIED: 2026-04-29 · SOURCES: TEIL-1 (928 Zeilen) + TEIL-2 (3759 Zeilen) + PATCHED.md + RUNTIME DASHBOARD (http://localhost:8081/)</span>
-  <span>D:\PLATTFORM · PHASE 0→1 TRANSITION</span>
+  <span>VERIFIED: 2026-04-29 · SOURCES: TEIL-1 (928 Zeilen) + TEIL-2 (3759 Zeilen) + PATCHED.md + RUNTIME DASHBOARD (<local-control-plane-url>/)</span>
+  <span><workspace-root> · PHASE 0→1 TRANSITION</span>
 </div>
 
 </body>

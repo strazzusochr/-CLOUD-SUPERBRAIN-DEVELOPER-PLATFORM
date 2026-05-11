@@ -1,0 +1,14 @@
+{
+  "decision_id": "release-rebaseline-evidence-only-20260511",
+  "decided_at": "2026-05-11T20:30:38Z",
+  "approved_by": "user-chat-authorization-2026-05-11",
+  "selected_option": "evidence-only-rebaseline",
+  "release_claim_allowed": false,
+  "may_stage": false,
+  "may_commit": false,
+  "may_push": false,
+  "may_deploy": false,
+  "may_release": false,
+  "requires_clean_worktree": false,
+  "notes": "Evidence-only rebaseline is selected to keep the project truth and external review packets current while the worktree remains dirty. This does not approve a release candidate, production deploy, commit, push, or replacement of the historical RC1 release artifact."
+}

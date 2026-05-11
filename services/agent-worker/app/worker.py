@@ -219,11 +219,12 @@ def validated_session_id(task: TaskRecord) -> str:
 
 def persist_completion(task: TaskRecord, result: str, result_envelope: dict[str, Any], done_validation: dict[str, bool]) -> None:
     session_id = validated_session_id(task)
+    trace_id = task.trace_id or session_id
     metadata = {
         "task_id": task.task_id,
         "task_type": task.task_type,
         "worker": "agent-worker",
-        "trace_id": task.trace_id,
+        "trace_id": trace_id,
         "llm_calls": 0,
         "result_envelope": result_envelope,
         "done_validation": done_validation,
@@ -237,7 +238,7 @@ def persist_completion(task: TaskRecord, result: str, result_envelope: dict[str,
                 )
                 VALUES (%s, %s, 'assistant', %s, 0, %s, %s)
                 """,
-                (session_id, task.agent_type, result, task.trace_id, Json(metadata)),
+                (session_id, task.agent_type, result, trace_id, Json(metadata)),
             )
             cur.execute(
                 """
@@ -262,11 +263,13 @@ def persist_failure(task: TaskRecord, error: str) -> None:
         session_id: str | None = str(UUID(task.session_id))
     except ValueError:
         session_id = None
+    trace_id = task.trace_id or session_id
     details = {
         "task_id": task.task_id,
         "task_type": task.task_type,
         "agent_type": task.agent_type,
         "worker": "agent-worker",
+        "trace_id": trace_id,
         "error": error,
     }
     with psycopg.connect(database_url()) as conn:

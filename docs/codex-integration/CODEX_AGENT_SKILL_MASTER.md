@@ -51,6 +51,24 @@ SECURITY:   Secret-Scan, Permissions, Dependency-Risk
 
 Nur tatsächlich benötigte Rollen aktivieren.
 
+### 0.3b Persistentes Roster beachten
+
+Vor jedem Agentenstart:
+
+```text
+1. docs/codex-integration/AUTONOMOUS_AGENT_ROSTER.md lesen
+2. launch-validierte Rollen bevorzugen
+3. blockierte Spezialrollen nicht erzwingen
+4. auf default / explorer / worker ausweichen, wenn das Roster es vorgibt
+5. Agenten nach Integration ihres Outputs sofort schließen
+```
+
+Das Roster ist die operative Wahrheit fuer:
+
+- welche Rollen gerade technisch startbar sind,
+- welche Rollen nur als Soll-Profil dokumentiert sind,
+- welche Fallback-Lane je Rolle zu verwenden ist.
+
 ### 0.4 Supervisor-Check (nach JEDEM Schritt)
 
 ```text

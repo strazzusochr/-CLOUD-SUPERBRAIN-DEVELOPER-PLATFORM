@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "worktree-owner-decision-2026-05-11",
+  "title": "Worktree Owner Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "decision_id",
+    "decided_at",
+    "approved_by",
+    "strategy",
+    "allowed_actions",
+    "scope",
+    "notes"
+  ],
+  "properties": {
+    "decision_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decided_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "approved_by": {
+      "type": "string",
+      "minLength": 1
+    },
+    "strategy": {
+      "type": "string",
+      "enum": [
+        "cleanup-first",
+        "evidence-only-rebaseline",
+        "runtime-rebaseline",
+        "defer"
+      ]
+    },
+    "allowed_actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "may_move",
+        "may_delete",
+        "may_unstage",
+        "may_stage",
+        "may_commit",
+        "may_push",
+        "may_deploy"
+      ],
+      "properties": {
+        "may_move": {
+          "type": "boolean"
+        },
+        "may_delete": {
+          "type": "boolean"
+        },
+        "may_unstage": {
+          "type": "boolean"
+        },
+        "may_stage": {
+          "type": "boolean"
+        },
+        "may_commit": {
+          "type": "boolean",
+          "const": false
+        },
+        "may_push": {
+          "type": "boolean",
+          "const": false
+        },
+        "may_deploy": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "security_review_paths",
+        "quarantine_paths",
+        "split_required_paths"
+      ],
+      "properties": {
+        "security_review_paths": {
+          "type": "string"
+        },
+        "quarantine_paths": {
+          "type": "string"
+        },
+        "split_required_paths": {
+          "type": "string"
+        }
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

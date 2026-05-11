@@ -11,6 +11,8 @@ import os
 import secrets
 import shutil
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -22,7 +24,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from psycopg.types.json import Json
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 from app.budget import (
     check_budget_guard,
@@ -61,17 +63,25 @@ from app.orchestrator import (
 )
 from app.security import redact_json, redact_text
 from app.tasks import (
+    AUTONOMOUS_LOGICAL_ROLES,
+    AUTONOMOUS_TEAM_MODE,
     TASK_PRIORITY_QUEUES,
     TASK_QUEUE_KEY,
     TASK_STATUS_PREFIX,
     TASK_TTL_SECONDS,
+    AutonomousDispatchRecord,
+    AutonomousRoleAssignment,
     TaskAssignment,
     TaskPolicyViolation,
+    autonomous_dispatch_status,
     enqueue_task,
+    get_autonomous_dispatch,
     get_task,
     list_recent_tasks,
+    list_recent_autonomous_dispatches,
     queue_depth,
     queue_depth_by_priority,
+    store_autonomous_dispatch,
     task_policy_manifest,
     validate_task_policy,
 )
@@ -98,24 +108,67 @@ AGENT_LLM_STREAMING_CONTRACT_VERSION = "agent-llm-streaming-contract-v1"
 AGENT_LLM_STREAMING_EVIDENCE_REF = "agent_llm_streaming_contract_visible"
 MEMORY_EMBEDDING_CONSISTENCY_CONTRACT_VERSION = "memory-embedding-consistency-v1"
 MEMORY_EMBEDDING_CONSISTENCY_EVIDENCE_REF = "memory_embedding_consistency_contract_visible"
+MEMORY_CONSOLIDATION_CONTRACT_VERSION = "memory-consolidation-feed-v1"
+MEMORY_CONSOLIDATION_EVIDENCE_REF = "memory_consolidation_contract_runtime_visible"
+MEMORY_SEARCH_CONTRACT_VERSION = "memory-search-runtime-v1"
+MEMORY_SEARCH_EVIDENCE_REF = "memory_search_contract_runtime_visible"
 MEMORY_EMBEDDING_VECTOR_TYPE = "vector(1536)"
 PROGRESS_INTEGRITY_CONTRACT_VERSION = "project-progress-integrity-v1"
 PROGRESS_INTEGRITY_EVIDENCE_REF = "project_progress_integrity_runtime_proof"
+PROGRESS_INTEGRITY_SURFACE_CONTRACT_VERSION = "project-progress-integrity-surface-v1"
+PROGRESS_INTEGRITY_SURFACE_EVIDENCE_REF = "project_progress_integrity_surface_contract_visible"
+PROGRESS_SURFACE_CONTRACT_VERSION = "project-progress-surface-v1"
+PROGRESS_SURFACE_EVIDENCE_REF = "project_progress_surface_contract_visible"
 PROGRESS_COMPLETION_CONTRACT_VERSION = "project-progress-100-percent-contract-v1"
 PROGRESS_COMPLETION_EVIDENCE_REF = "project_progress_100_percent_gate_contract"
+PROGRESS_COMPLETION_SURFACE_CONTRACT_VERSION = "project-progress-completion-surface-v1"
+PROGRESS_COMPLETION_SURFACE_EVIDENCE_REF = "project_progress_completion_surface_contract_visible"
+PROGRESS_LAYERS_SURFACE_CONTRACT_VERSION = "project-progress-layers-surface-v1"
+PROGRESS_LAYERS_SURFACE_EVIDENCE_REF = "project_progress_layers_surface_contract_visible"
 SESSION_HISTORY_CONTRACT_VERSION = "session-history-v1"
 SESSION_HISTORY_EVIDENCE_REF = "session_history_openable_project_state"
 PHASE2_RUNTIME_CONTRACT_VERSION = "phase2-runtime-v1"
 PHASE2_RUNTIME_GRAPH_EVIDENCE_REF = "phase2_runtime_graph_started"
+PHASE2_RUNTIME_RUNS_SURFACE_CONTRACT_VERSION = "phase2-runtime-runs-surface-v1"
+PHASE2_RUNTIME_RUNS_SURFACE_EVIDENCE_REF = "phase2_runtime_runs_surface_contract_visible"
+SESSION_STREAM_SURFACE_CONTRACT_VERSION = "session-stream-surface-v1"
+SESSION_STREAM_SURFACE_EVIDENCE_REF = "session_stream_surface_contract_visible"
 EXTERNAL_GATE_MIRROR_CONTRACT_VERSION = "external-gate-mirror-v1"
 EXTERNAL_GATE_MIRROR_EVIDENCE_REF = "external_gate_mirror_proof"
 EXTERNAL_GATES_CONTRACT_VERSION = "external-gates-state-v1"
 EXTERNAL_GATES_EVIDENCE_REF = "external_gates_state_visible"
+EXTERNAL_GATES_SURFACE_CONTRACT_VERSION = "external-gates-surface-v1"
+EXTERNAL_GATE_MIRROR_SURFACE_CONTRACT_VERSION = "external-gates-mirror-surface-v1"
+EXTERNAL_GATE_MIRROR_SURFACE_EVIDENCE_REF = "external_gate_mirror_surface_contract_visible"
 BRANCH_PROTECTION_VERIFY_EVIDENCE_REF = "branch_protection_verify_contract"
 CLOUD_RENDER_OFFLOAD_CONTRACT_VERSION = "cloud-render-offload-v1"
 CLOUD_RENDER_OFFLOAD_EVIDENCE_REF = "cloud_render_offload_contract_visible"
 CLOUD_DEPLOYMENT_PREFLIGHT_CONTRACT_VERSION = "cloud-deployment-preflight-v1"
 CLOUD_DEPLOYMENT_PREFLIGHT_EVIDENCE_REF = "cloud_deployment_preflight_visible"
+ORCHESTRATOR_MANIFEST_CONTRACT_VERSION = "orchestrator-manifest-surface-v1"
+ORCHESTRATOR_MANIFEST_EVIDENCE_REF = "orchestrator_manifest_contract_runtime_visible"
+ORCHESTRATOR_CHECKPOINT_SURFACE_CONTRACT_VERSION = "orchestrator-checkpoint-surface-v1"
+AUTONOMOUS_TEAM_CONTRACT_VERSION = "autonomous-coding-team-v1"
+AUTONOMOUS_TEAM_EVIDENCE_REF = "autonomous_team_status_runtime_visible"
+AUTONOMOUS_TASK_DISPATCH_CONTRACT_VERSION = "autonomous-task-dispatch-v1"
+AUTONOMOUS_TASK_DISPATCH_EVIDENCE_REF = "autonomous_team_dispatch_visible"
+AUTONOMOUS_MASTER_PLAN_CONTRACT_VERSION = "autonomous-master-plan-v1"
+AUTONOMOUS_MASTER_PLAN_EVIDENCE_REF = "autonomous_master_plan_runtime_visible"
+AUTONOMOUS_AGENT_ROSTER_CONTRACT_VERSION = "autonomous-agent-roster-v1"
+AUTONOMOUS_AGENT_ROSTER_EVIDENCE_REF = "autonomous_agent_roster_runtime_visible"
+ORCHESTRATOR_CHECKPOINT_SURFACE_EVIDENCE_REF = "orchestrator_checkpoint_surface_contract_visible"
+ORCHESTRATOR_DRY_RUN_SURFACE_CONTRACT_VERSION = "orchestrator-dry-run-surface-v1"
+ORCHESTRATOR_DRY_RUN_SURFACE_EVIDENCE_REF = "orchestrator_dry_run_surface_contract_visible"
+ORCHESTRATOR_DRY_RUN_STREAM_SURFACE_CONTRACT_VERSION = "orchestrator-dry-run-stream-surface-v1"
+ORCHESTRATOR_DRY_RUN_STREAM_SURFACE_EVIDENCE_REF = "orchestrator_dry_run_stream_surface_contract_visible"
+DEVOPS_WORKFLOW_DISPATCH_PLAN_SURFACE_CONTRACT_VERSION = "devops-workflow-dispatch-plan-surface-v1"
+DEVOPS_WORKFLOW_DISPATCH_PLAN_SURFACE_EVIDENCE_REF = "devops_workflow_dispatch_plan_surface_contract_visible"
+DEVOPS_WORKFLOW_DISPATCH_VALIDATE_SURFACE_CONTRACT_VERSION = "devops-workflow-dispatch-validate-surface-v1"
+DEVOPS_WORKFLOW_DISPATCH_VALIDATE_SURFACE_EVIDENCE_REF = "devops_workflow_dispatch_validate_surface_contract_visible"
+MEMORY_PURGE_JOB_STATUS_SURFACE_CONTRACT_VERSION = "memory-purge-job-status-surface-v1"
+MEMORY_PURGE_JOB_STATUS_SURFACE_EVIDENCE_REF = "memory_purge_job_status_surface_contract_visible"
+PHASE2_RUNTIME_START_SURFACE_CONTRACT_VERSION = "phase2-runtime-start-surface-v1"
+PHASE2_RUNTIME_START_SURFACE_EVIDENCE_REF = "phase2_runtime_start_surface_contract_visible"
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
@@ -312,7 +365,243 @@ def replay_sse_events(session_id: str, last_event_id: str | None) -> list[str]:
     return events
 
 
+def project_progress_manifest_path() -> Path:
+    return Path(os.getenv("PROJECT_PROGRESS_MANIFEST_PATH", "/app/progress/project-progress.manifest.json"))
+
+
+def project_state_path() -> Path:
+    return Path(os.getenv("PROJECT_STATE_PATH", "/app/PROJECT_STATE.md"))
+
+
+def autonomous_agent_roster_path() -> Path:
+    return Path(
+        os.getenv(
+            "AUTONOMOUS_AGENT_ROSTER_PATH",
+            "/app/docs/codex-integration/autonomous-agent-roster.json",
+        )
+    )
+
+
+def project_state_markdown() -> str:
+    return project_state_path().read_text(encoding="utf-8")
+
+
+def markdown_section_lines(document: str, heading: str) -> list[str]:
+    lines = document.splitlines()
+    capture = False
+    collected: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped == heading:
+            capture = True
+            continue
+        if capture and stripped.startswith("## "):
+            break
+        if capture and stripped:
+            collected.append(stripped)
+    return collected
+
+
+def markdown_bullets(lines: list[str]) -> list[str]:
+    return [line[2:].strip() for line in lines if line.startswith("- ")]
+
+
+def autonomous_external_provider() -> str:
+    return os.getenv("AUTONOMOUS_TEAM_EXTERNAL_PROVIDER", "").strip()
+
+
+def autonomous_external_status_url() -> str:
+    return os.getenv("AUTONOMOUS_TEAM_EXTERNAL_STATUS_URL", "").strip()
+
+
+def autonomous_external_agents_url() -> str:
+    return os.getenv("AUTONOMOUS_TEAM_EXTERNAL_AGENTS_URL", "").strip()
+
+
+def autonomous_external_timeout_seconds() -> int:
+    return max(1, int(os.getenv("AUTONOMOUS_TEAM_EXTERNAL_TIMEOUT_SECONDS", "5")))
+
+
+def load_external_json(url: str) -> dict[str, object]:
+    request = urllib.request.Request(url, headers={"accept": "application/json"})
+    with urllib.request.urlopen(request, timeout=autonomous_external_timeout_seconds()) as response:
+        payload = json.loads(response.read().decode("utf-8", errors="replace"))
+    if not isinstance(payload, dict):
+        raise RuntimeError("external runtime payload must be an object")
+    return payload
+
+
+def external_autonomous_runtime_state() -> dict[str, object]:
+    provider = autonomous_external_provider()
+    status_url = autonomous_external_status_url()
+    agents_url = autonomous_external_agents_url()
+    if not provider or not status_url or not agents_url:
+        return {
+            "configured": False,
+            "provider": provider or None,
+            "status": "disabled",
+            "status_url": status_url or None,
+            "agents_url": agents_url or None,
+            "ready": False,
+            "agents": [],
+            "logical_role_map": {},
+            "error": None,
+        }
+    try:
+        status_payload = load_external_json(status_url)
+        agents_payload = load_external_json(agents_url)
+        available_agents = [
+            str(agent).strip()
+            for agent in agents_payload.get("agents", [])
+            if str(agent).strip()
+        ]
+        logical_role_map = {
+            "supervisor": "planner",
+            "planner": "planner",
+            "explorer": "explorer",
+            "coder": "coder",
+            "tester": "qa_validation",
+        }
+        ready = bool(status_payload.get("ready")) and bool(available_agents)
+        return {
+            "configured": True,
+            "provider": provider,
+            "status": "ready" if ready else str(status_payload.get("status") or "degraded"),
+            "status_url": status_url,
+            "agents_url": agents_url,
+            "ready": ready,
+            "agents": available_agents,
+            "logical_role_map": logical_role_map,
+            "raw_status": status_payload,
+            "error": None,
+        }
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, RuntimeError, ValueError) as exc:
+        return {
+            "configured": True,
+            "provider": provider,
+            "status": "degraded",
+            "status_url": status_url,
+            "agents_url": agents_url,
+            "ready": False,
+            "agents": [],
+            "logical_role_map": {
+                "supervisor": "planner",
+                "planner": "planner",
+                "explorer": "explorer",
+                "coder": "coder",
+                "tester": "qa_validation",
+            },
+            "error": str(exc),
+        }
+
+
+def autonomous_agent_roster_document() -> dict[str, object]:
+    path = autonomous_agent_roster_path()
+    source_document = "docs/codex-integration/autonomous-agent-roster.json"
+    if not path.exists():
+        return {
+            "status": "source_missing",
+            "source_document": source_document,
+            "source_path": str(path),
+            "document": {},
+            "error": f"missing roster source at {path}",
+        }
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {
+            "status": "invalid",
+            "source_document": source_document,
+            "source_path": str(path),
+            "document": {},
+            "error": f"failed to parse roster source: {exc}",
+        }
+    if not isinstance(payload, dict):
+        return {
+            "status": "invalid",
+            "source_document": source_document,
+            "source_path": str(path),
+            "document": {},
+            "error": "roster source must be a JSON object",
+        }
+    return {
+        "status": "loaded",
+        "source_document": source_document,
+        "source_path": str(path),
+        "document": payload,
+        "error": None,
+    }
+
+
+def autonomous_runtime_bindings() -> dict[str, object]:
+    external_runtime = external_autonomous_runtime_state()
+    return {
+        "langgraph": {
+            "status": "active",
+            "transport": "fastapi_state_machine",
+            "checkpointing": "postgres",
+            "runtime_contract": "GET /api/v1/phase2/runtime/contract",
+        },
+        "crewai": {
+            "status": "not_live_wired",
+            "mode": "non_claim",
+            "reason": "No CrewAI runtime endpoint is exposed by this stack.",
+        },
+        "prometheus": {
+            "status": "metrics_surface_available",
+            "transport": "prometheus_text",
+            "endpoint": "GET /api/v1/metrics",
+            "contract_endpoint": "GET /api/v1/metrics/contract",
+        },
+        "grafana": {
+            "status": "not_live_wired",
+            "mode": "non_claim",
+            "reason": "Grafana dashboards are not exposed by this stack.",
+        },
+        "redis": {
+            "status": "backing_service",
+            "health_endpoint": "GET /api/v1/health",
+        },
+        "pgvector": {
+            "status": "backing_service",
+            "health_endpoint": "GET /api/v1/health",
+        },
+        "external_adapter": external_runtime,
+    }
+
+
+def project_phase_status_markers(
+    progress: dict[str, object] | None = None,
+    *,
+    phase_id: str = "phase_4",
+) -> set[str]:
+    progress_payload = progress or project_progress_payload()
+    phases = progress_payload.get("horizontal", {}).get("items", [])
+    for item in phases:
+        if str(item.get("id")) != phase_id:
+            continue
+        status = str(item.get("status", ""))
+        return {marker.strip() for marker in status.split("-") if marker.strip()}
+    return set()
+
+
+def external_gate_verification_flags(progress: dict[str, object] | None = None) -> dict[str, bool]:
+    markers = project_phase_status_markers(progress)
+    return {
+        "hosted_staging": "cloud_only_staging_verified" in markers or "hosted_staging_https_proof" in markers,
+        "ghcr_images": "ghcr_image_digest_verified" in markers,
+        "branch_protection": "branch_protection_verified" in markers,
+        "hosted_backend_origins": "hosted_backend_origin_verified" in markers,
+        "hetzner_cloud_stack": "hetzner_live_budget_verified" in markers,
+        "canonical_secret_scan": "canonical_gitleaks_verified" in markers,
+        "production_gate_claim_allowed": "production_gate_claim_allowed" in markers,
+        "external_gate_audit_verified": "external_gate_audit_verified" in markers,
+    }
+
+
 def external_gate_state() -> dict[str, object]:
+    progress = project_progress_payload()
+    verified_flags = external_gate_verification_flags(progress)
     repo_gitleaks_path = Path(".tools") / "gitleaks" / "gitleaks.exe"
     gitleaks_available = shutil.which("gitleaks") is not None or repo_gitleaks_path.exists()
     gates = [
@@ -320,7 +609,8 @@ def external_gate_state() -> dict[str, object]:
             "id": "branch_protection_token",
             "preflight_gate_id": "branch_protection",
             "label": "GitHub branch protection apply token",
-            "configured": bool(os.getenv("BRANCH_PROTECTION_TOKEN")),
+            "configured": bool(os.getenv("BRANCH_PROTECTION_TOKEN")) or verified_flags["branch_protection"],
+            "verified": verified_flags["branch_protection"],
             "required_env": ["BRANCH_PROTECTION_TOKEN"],
             "evidence_ref": BRANCH_PROTECTION_VERIFY_EVIDENCE_REF,
             "required_for": "Applying protected-main rules through the manual branch-protection workflow.",
@@ -330,7 +620,8 @@ def external_gate_state() -> dict[str, object]:
             "id": "staging_base_url",
             "preflight_gate_id": "hosted_staging",
             "label": "Hosted staging URL",
-            "configured": bool(os.getenv("STAGING_BASE_URL")),
+            "configured": bool(os.getenv("STAGING_BASE_URL")) or verified_flags["hosted_staging"],
+            "verified": verified_flags["hosted_staging"],
             "required_env": ["STAGING_BASE_URL"],
             "evidence_ref": "hosted_staging_base_url_required",
             "required_for": "Repository-hosted staging proof workflow.",
@@ -340,7 +631,8 @@ def external_gate_state() -> dict[str, object]:
             "id": "hetzner_api_token",
             "preflight_gate_id": "hetzner_cloud_stack",
             "label": "Hetzner API token",
-            "configured": bool(os.getenv("HETZNER_API_TOKEN")),
+            "configured": bool(os.getenv("HETZNER_API_TOKEN")) or verified_flags["hetzner_cloud_stack"],
+            "verified": verified_flags["hetzner_cloud_stack"],
             "required_env": ["HETZNER_API_TOKEN"],
             "evidence_ref": "hetzner_live_budget_check",
             "required_for": "Live infrastructure invoice/cost verification.",
@@ -350,7 +642,8 @@ def external_gate_state() -> dict[str, object]:
             "id": "ghcr_image_digest_proof",
             "preflight_gate_id": "ghcr_images",
             "label": "GHCR image digest proof",
-            "configured": bool(os.getenv("GITHUB_TOKEN") and os.getenv("GHCR_TOKEN")),
+            "configured": bool(os.getenv("GITHUB_TOKEN") and os.getenv("GHCR_TOKEN")) or verified_flags["ghcr_images"],
+            "verified": verified_flags["ghcr_images"],
             "required_env": ["GITHUB_TOKEN", "GHCR_TOKEN"],
             "evidence_ref": "ghcr_image_digest_proof",
             "required_for": "Published and pullable GHCR images for all application services.",
@@ -360,10 +653,11 @@ def external_gate_state() -> dict[str, object]:
             "id": "vercel_backend_origins",
             "preflight_gate_id": "hosted_backend_origins",
             "label": "Vercel hosted backend origins",
-            "configured": all(
+            "configured": verified_flags["hosted_backend_origins"] or all(
                 bool(os.getenv(key))
                 for key in ["AGENT_API_BASE_URL", "MCP_GATEWAY_BASE_URL", "LLM_GATEWAY_BASE_URL"]
             ),
+            "verified": verified_flags["hosted_backend_origins"],
             "required_env": ["AGENT_API_BASE_URL", "MCP_GATEWAY_BASE_URL", "LLM_GATEWAY_BASE_URL"],
             "evidence_ref": "hosted_backend_origin_env_required",
             "required_for": "Hosted frontend uses HTTPS backend origins instead of localhost.",
@@ -373,7 +667,8 @@ def external_gate_state() -> dict[str, object]:
             "id": "gitleaks_binary",
             "preflight_gate_id": "canonical_secret_scan",
             "label": "gitleaks binary",
-            "configured": gitleaks_available,
+            "configured": gitleaks_available or verified_flags["canonical_secret_scan"],
+            "verified": verified_flags["canonical_secret_scan"],
             "required_env": [],
             "evidence_ref": "canonical_gitleaks_scan",
             "required_for": "Canonical upstream secret scanner execution.",
@@ -381,13 +676,15 @@ def external_gate_state() -> dict[str, object]:
         },
     ]
     configured = sum(1 for gate in gates if gate["configured"])
-    blocked_release_gates = [str(gate["preflight_gate_id"]) for gate in gates if not gate["configured"]]
+    verified = sum(1 for gate in gates if gate["verified"])
+    blocked_release_gates = [str(gate["preflight_gate_id"]) for gate in gates if not gate["verified"]]
     return {
         "contract_version": EXTERNAL_GATES_CONTRACT_VERSION,
-        "status": "complete" if configured == len(gates) else "action_required",
+        "status": "verified" if verified == len(gates) else "action_required",
         "endpoint": "GET /api/v1/external-gates",
         "evidence_ref": EXTERNAL_GATES_EVIDENCE_REF,
         "configured_count": configured,
+        "verified_count": verified,
         "total_count": len(gates),
         "local_execution_allowed": True,
         "aligned_with_deployment_preflight": True,
@@ -402,8 +699,44 @@ def external_gate_state() -> dict[str, object]:
     }
 
 
+def external_gates_surface_contract_payload() -> dict[str, object]:
+    state = external_gate_state()
+    return {
+        "contract_version": EXTERNAL_GATES_SURFACE_CONTRACT_VERSION,
+        "mode": "external_gate_runtime_surface_contract",
+        "endpoint": "GET /api/v1/external-gates/contract",
+        "runtime_endpoint": "GET /api/v1/external-gates",
+        "required_top_level_fields": [
+            "status",
+            "configured_count",
+            "verified_count",
+            "total_count",
+            "local_execution_allowed",
+            "aligned_with_deployment_preflight",
+            "deployment_preflight_endpoint",
+            "blocked_release_gates",
+            "gates",
+        ],
+        "required_gate_fields": [
+            "id",
+            "preflight_gate_id",
+            "label",
+            "configured",
+            "verified",
+            "evidence_ref",
+        ],
+        "required_gate_ids": [str(gate["id"]) for gate in state["gates"]],
+        "required_preflight_gate_ids": [str(gate["preflight_gate_id"]) for gate in state["gates"]],
+        "supported_statuses": ["verified", "action_required"],
+        "deployment_preflight_endpoint": str(state["deployment_preflight_endpoint"]),
+        "evidence_ref": "external_gates_contract_runtime_visible",
+        "non_claims": list(state["non_claims"]),
+    }
+
+
 def external_gate_mirror_state() -> dict[str, object]:
     gates = external_gate_state()
+    verified_flags = external_gate_verification_flags(project_progress_payload())
     gate_items = list(gates["gates"])
     staging_configured = any(gate["id"] == "staging_base_url" and gate["configured"] for gate in gate_items)
     branch_token_configured = any(
@@ -411,7 +744,7 @@ def external_gate_mirror_state() -> dict[str, object]:
     )
     return {
         "contract_version": EXTERNAL_GATE_MIRROR_CONTRACT_VERSION,
-        "status": "local_mirror_ready_hosted_blocked",
+        "status": "verified" if gates["status"] == "verified" else "local_mirror_ready_hosted_blocked",
         "endpoint": "GET /api/v1/external-gates/mirror",
         "mirrored_workflow": ".github/workflows/hosted-staging-proof.yml",
         "verifier": "scripts/verify-hosted-staging.ps1",
@@ -444,13 +777,13 @@ def external_gate_mirror_state() -> dict[str, object]:
                 "evidence_ref": "project_progress_manifest_proof",
             },
         ],
-        "hosted_staging_claim_allowed": False,
-        "branch_protection_claim_allowed": False,
+        "hosted_staging_claim_allowed": verified_flags["hosted_staging"],
+        "branch_protection_claim_allowed": verified_flags["branch_protection"],
         "hosted_staging_env_configured": staging_configured,
         "branch_protection_env_configured": branch_token_configured,
         "branch_protection_evidence_ref": BRANCH_PROTECTION_VERIFY_EVIDENCE_REF,
         "cloud_deployment_preflight_evidence_ref": CLOUD_DEPLOYMENT_PREFLIGHT_EVIDENCE_REF,
-        "production_deploy_claim_allowed": False,
+        "production_deploy_claim_allowed": verified_flags["production_gate_claim_allowed"],
         "evidence_ref": EXTERNAL_GATE_MIRROR_EVIDENCE_REF,
         "non_claims": [
             "Local mirror proof is not a hosted staging success claim.",
@@ -461,11 +794,85 @@ def external_gate_mirror_state() -> dict[str, object]:
     }
 
 
+def external_gate_mirror_surface_contract_payload() -> dict[str, object]:
+    mirror = external_gate_mirror_state()
+    return {
+        "contract_version": EXTERNAL_GATE_MIRROR_SURFACE_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/external-gates/mirror",
+        "runtime_contract_version": mirror["contract_version"],
+        "guarded_endpoints": [
+            "GET /api/v1/external-gates",
+            "GET /api/v1/clouds/deployment-preflight/contract",
+            "GET /api/v1/project/progress/completion",
+        ],
+        "evidence_ref": EXTERNAL_GATE_MIRROR_SURFACE_EVIDENCE_REF,
+        "required_top_level_fields": [
+            "contract_version",
+            "status",
+            "endpoint",
+            "mirrored_workflow",
+            "verifier",
+            "branch_protection_workflow",
+            "branch_protection_verifier",
+            "local_mirror_command",
+            "hosted_command",
+            "external_gate_status",
+            "configured_count",
+            "total_count",
+            "required_external_gates",
+            "phase2_contracts_mirrored",
+            "hosted_staging_claim_allowed",
+            "branch_protection_claim_allowed",
+            "hosted_staging_env_configured",
+            "branch_protection_env_configured",
+            "branch_protection_evidence_ref",
+            "cloud_deployment_preflight_evidence_ref",
+            "production_deploy_claim_allowed",
+            "evidence_ref",
+            "non_claims",
+        ],
+        "required_verified_flags": [
+            "hosted_staging_claim_allowed",
+            "branch_protection_claim_allowed",
+            "production_deploy_claim_allowed",
+        ],
+        "expected_statuses": [
+            "verified",
+            "local_mirror_ready_hosted_blocked",
+        ],
+        "non_claims": list(mirror["non_claims"]),
+    }
+
+
 class PromptRequest(BaseModel):
     project_id: str = Field(..., min_length=1)
     prompt: str = Field(..., min_length=1, max_length=10_000)
     session_id: str | None = None
     stream: bool = True
+
+
+class LiveAgentSteerRequest(BaseModel):
+    agent_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=64,
+        pattern="^[a-z0-9_-]+$",
+        validation_alias=AliasChoices("agent_id", "agentId"),
+    )
+    message: str = Field(..., min_length=1, max_length=10_000)
+    project_id: str = Field(
+        default="codex-live-agent-app",
+        min_length=1,
+        max_length=255,
+        validation_alias=AliasChoices("project_id", "projectId"),
+    )
+    model: str | None = Field(default=None, min_length=1, max_length=120)
+    instructions: str | None = Field(default=None, max_length=4000)
+    reasoning_effort: str = Field(default="medium", pattern="^(none|minimal|low|medium|high|xhigh)$")
+    reset_history: bool = Field(default=False, validation_alias=AliasChoices("reset_history", "resetHistory"))
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+    model_config = {"populate_by_name": True}
 
 
 class RotationEventRequest(BaseModel):
@@ -489,6 +896,23 @@ class OrchestratorDryRunRequest(BaseModel):
     project_id: str = Field(..., min_length=1)
     prompt: str = Field(..., min_length=1, max_length=10_000)
     session_id: str | None = None
+
+
+class AutonomousCodingDispatchRequest(BaseModel):
+    project_id: str = Field(..., min_length=1, max_length=255)
+    objective: str = Field(..., min_length=1, max_length=10_000)
+    session_id: str | None = None
+    trace_id: str | None = Field(default=None, max_length=255)
+    write_scope: list[str] = Field(default_factory=list)
+    acceptance_criteria: list[str] = Field(
+        default_factory=lambda: [
+            "result_envelope",
+            "done_validation",
+            "audit_log",
+            "runtime_visibility",
+        ]
+    )
+    constraints: list[str] = Field(default_factory=list)
 
 
 class AutopilotStreamRequest(BaseModel):
@@ -577,6 +1001,74 @@ DSGVO_PURGE_CONTRACT_VERSION = "memory-dsgvo-purge-v1"
 COST_EXPORT_CONTRACT_VERSION = "cost-monitor-export-v1"
 SYSTEM_FALLBACK_CONTRACT_VERSION = "system-unavailable-fallback-v1"
 AGENT_ACTIVITY_CONTRACT_VERSION = "agent-activity-trace-v1"
+HEALTH_CONTRACT_VERSION = "health-surface-v1"
+LIVE_AGENT_STEERING_CONTRACT_VERSION = "live-agent-steering-v1"
+LIVE_AGENT_STEERING_EVIDENCE_REF = "live_agent_steering_contract_visible"
+LIVE_AGENT_SESSION_PREFIX = "live-agent:responses:"
+LIVE_AGENT_SESSION_TTL_SECONDS = TASK_TTL_SECONDS
+LIVE_AGENT_LLM_TIMEOUT_SECONDS = 120
+LIVE_AGENT_PROFILES: dict[str, dict[str, str]] = {
+    "supervisor": {
+        "display_name": "Supervisor",
+        "execution_role": "planner",
+        "instructions": "Coordinate the other agents, surface risks, and decide the next most useful action.",
+    },
+    "planner": {
+        "display_name": "Planner",
+        "execution_role": "planner",
+        "instructions": "Break the work into concrete tasks, dependencies, and acceptance criteria.",
+    },
+    "explorer": {
+        "display_name": "Explorer",
+        "execution_role": "planner",
+        "instructions": "Inspect the codebase and runtime surfaces, then report exact findings with minimal speculation.",
+    },
+    "coder": {
+        "display_name": "Coder",
+        "execution_role": "coder",
+        "instructions": "Focus on implementation details, code changes, and precise technical tradeoffs.",
+    },
+    "tester": {
+        "display_name": "Tester",
+        "execution_role": "tester",
+        "instructions": "Focus on verification, edge cases, regressions, and missing proof.",
+    },
+    "devops": {
+        "display_name": "DevOps",
+        "execution_role": "devops",
+        "instructions": "Focus on deployment safety, runtime configuration, rollout risk, and observability.",
+    },
+    "debugger": {
+        "display_name": "Debugger",
+        "execution_role": "coder",
+        "instructions": "Trace symptoms to likely root cause, then propose concrete fixes and validations.",
+    },
+    "researcher": {
+        "display_name": "Researcher",
+        "execution_role": "planner",
+        "instructions": "Gather evidence from available context, compare options, and highlight unknowns.",
+    },
+    "reviewer": {
+        "display_name": "Reviewer",
+        "execution_role": "tester",
+        "instructions": "Review changes for correctness, risk, and missing validation before signoff.",
+    },
+    "browser": {
+        "display_name": "Browser Agent",
+        "execution_role": "tester",
+        "instructions": "Focus on user-visible behavior, browser flows, and runtime observations.",
+    },
+    "doc": {
+        "display_name": "Doc Writer",
+        "execution_role": "planner",
+        "instructions": "Produce concise engineering documentation, operator notes, and handoff text.",
+    },
+    "security": {
+        "display_name": "Security Agent",
+        "execution_role": "tester",
+        "instructions": "Focus on attack surface, secret handling, auth issues, and unsafe patterns.",
+    },
+}
 
 
 def b64url_json(payload: dict[str, object]) -> str:
@@ -586,6 +1078,198 @@ def b64url_json(payload: dict[str, object]) -> str:
 
 def b64url_bytes(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def live_agent_default_model() -> str:
+    return os.getenv("HF_DEFAULT_CHAT_MODEL", "deepseek-ai/DeepSeek-V4-Flash:fastest")
+
+
+def live_agent_session_key(agent_id: str) -> str:
+    return LIVE_AGENT_SESSION_PREFIX + agent_id
+
+
+def resolve_live_agent_profile(agent_id: str) -> dict[str, str]:
+    normalized = agent_id.strip().lower()
+    profile = LIVE_AGENT_PROFILES.get(normalized)
+    if not profile:
+        raise HTTPException(status_code=404, detail=f"unknown live agent: {normalized}")
+    return {"agent_id": normalized, **profile}
+
+
+def get_live_agent_session(agent_id: str) -> dict[str, object] | None:
+    payload = redis_client().get(live_agent_session_key(agent_id))
+    if not payload:
+        return None
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def set_live_agent_session(
+    agent_id: str,
+    *,
+    response_id: str,
+    project_id: str,
+    model: str,
+    execution_role: str,
+) -> dict[str, object]:
+    payload = {
+        "agent_id": agent_id,
+        "previous_response_id": response_id,
+        "project_id": project_id,
+        "model": model,
+        "execution_role": execution_role,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    redis_client().set(
+        live_agent_session_key(agent_id),
+        json.dumps(payload, separators=(",", ":"), default=str),
+        ex=LIVE_AGENT_SESSION_TTL_SECONDS,
+    )
+    return payload
+
+
+def reset_live_agent_session(agent_id: str) -> None:
+    redis_client().delete(live_agent_session_key(agent_id))
+
+
+def build_live_agent_instructions(
+    agent_id: str,
+    profile: dict[str, str],
+    extra_instructions: str | None,
+) -> str:
+    instructions = [
+        f"You are the {profile['display_name']} agent in the Cloud Superbrain multi-agent runtime.",
+        profile["instructions"],
+        f"Operate on the {profile['execution_role']} execution lane when you need to describe ownership.",
+        "Be explicit about assumptions, concrete next actions, and missing evidence.",
+        "Do not claim code changes, tests, deployments, or tool results unless they are present in the provided context.",
+    ]
+    if extra_instructions:
+        instructions.append(f"Additional operator instructions: {extra_instructions}")
+    return " ".join(instructions)
+
+
+def extract_live_agent_text(response_payload: dict[str, object]) -> str:
+    output_text = response_payload.get("output_text")
+    if isinstance(output_text, str) and output_text.strip():
+        return output_text.strip()
+
+    texts: list[str] = []
+    for item in response_payload.get("output", []):
+        if not isinstance(item, dict) or item.get("type") != "message":
+            continue
+        for part in item.get("content", []):
+            if isinstance(part, dict) and part.get("type") == "output_text" and part.get("text"):
+                texts.append(str(part["text"]).strip())
+    return "\n".join(text for text in texts if text).strip()
+
+
+def call_llm_gateway_responses(payload: dict[str, object]) -> dict[str, object]:
+    try:
+        with httpx.Client(timeout=LIVE_AGENT_LLM_TIMEOUT_SECONDS) as client:
+            response = client.post(f"{llm_gateway_url()}/v1/responses", json=payload)
+            response.raise_for_status()
+        data = response.json()
+    except httpx.HTTPStatusError as exc:
+        try:
+            detail: object = exc.response.json()
+        except ValueError:
+            detail = exc.response.text or "llm gateway responses request failed"
+        raise HTTPException(status_code=exc.response.status_code, detail=detail) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"llm gateway responses request failed: {exc}") from exc
+
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=502, detail="llm gateway returned an invalid responses payload")
+    return data
+
+
+def live_agent_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": LIVE_AGENT_STEERING_CONTRACT_VERSION,
+        "mode": "openai_responses_via_llm_gateway",
+        "status_endpoint": "GET /api/v1/live-agents/status",
+        "steer_endpoint": "POST /api/v1/live-agents/steer",
+        "reset_endpoint": "POST /api/v1/live-agents/{agent_id}/reset",
+        "compatibility_endpoint": "POST /api/steer-agent",
+        "llm_gateway_endpoint": "POST /llm/v1/responses",
+        "session_store": {
+            "type": "redis",
+            "key_pattern": "live-agent:responses:<agent_id>",
+            "ttl_seconds": LIVE_AGENT_SESSION_TTL_SECONDS,
+        },
+        "default_model": live_agent_default_model(),
+        "accepted_request_fields": [
+            "agent_id",
+            "agentId",
+            "message",
+            "project_id",
+            "projectId",
+            "model",
+            "instructions",
+            "reasoning_effort",
+            "reset_history",
+            "resetHistory",
+            "metadata",
+        ],
+        "response_fields": [
+            "response_id",
+            "responseId",
+            "text",
+            "status",
+            "model",
+            "usage",
+            "runtime_source",
+        ],
+        "agents": [
+            {
+                "agent_id": agent_id,
+                "display_name": profile["display_name"],
+                "execution_role": profile["execution_role"],
+            }
+            for agent_id, profile in LIVE_AGENT_PROFILES.items()
+        ],
+        "zip_relay_compatibility": {
+            "accepted_request_shape": {"agentId": "string", "message": "string"},
+            "returned_response_shape": {"responseId": "string", "text": "string"},
+        },
+        "evidence_refs": {
+            "contract_visible": LIVE_AGENT_STEERING_EVIDENCE_REF,
+        },
+        "non_claims": [
+            "No API key is stored by this contract surface.",
+            "Responses streaming passthrough is not exposed on this path.",
+        ],
+    }
+
+
+def live_agent_status_payload() -> dict[str, object]:
+    agents: list[dict[str, object]] = []
+    for agent_id, profile in LIVE_AGENT_PROFILES.items():
+        session = get_live_agent_session(agent_id)
+        agents.append(
+            {
+                "agent_id": agent_id,
+                "display_name": profile["display_name"],
+                "execution_role": profile["execution_role"],
+                "has_session": bool(session),
+                "previous_response_id": session.get("previous_response_id") if session else None,
+                "updated_at": session.get("updated_at") if session else None,
+                "model": session.get("model") if session else None,
+            }
+        )
+    return {
+        "status": "available",
+        "contract_version": LIVE_AGENT_STEERING_CONTRACT_VERSION,
+        "runtime_source": "openai_responses_via_llm_gateway",
+        "default_model": live_agent_default_model(),
+        "agent_count": len(agents),
+        "agents": agents,
+        "evidence_ref": LIVE_AGENT_STEERING_EVIDENCE_REF,
+    }
 
 
 def auth_secret() -> bytes:
@@ -750,6 +1434,45 @@ def memory_purge_contract_payload() -> dict[str, object]:
             "This local proof does not delete Langfuse traces because Langfuse is not yet live-wired in this stack.",
             "This local proof does not delete provider-side data because no live provider calls are claimed.",
         ],
+    }
+
+
+def memory_purge_job_status_surface_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": MEMORY_PURGE_JOB_STATUS_SURFACE_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/memory/purge/jobs/contract",
+        "runtime_endpoint": "GET /api/v1/memory/purge/jobs/{job_id}",
+        "trigger_endpoint": "DELETE /api/v1/memory?project_id={id}&confirm=true",
+        "runtime_contract_version": DSGVO_PURGE_CONTRACT_VERSION,
+        "evidence_ref": MEMORY_PURGE_JOB_STATUS_SURFACE_EVIDENCE_REF,
+        "required_top_level_fields": [
+            "job_id",
+            "status",
+            "contract_version",
+            "evidence_ref",
+            "project_id",
+            "project_uuid",
+            "trace_id",
+            "deleted_counts",
+            "audit_event_id",
+            "completed_at",
+            "severity",
+            "non_claims",
+        ],
+        "required_deleted_count_fields": [
+            "redis_keys",
+            "memory_entries",
+            "agent_messages",
+            "agent_sessions",
+        ],
+        "supported_statuses": ["completed"],
+        "expected_evidence_ref": "memory_purge_job_status_visible",
+        "policy_checks": [
+            "Job status stays bound to DELETE /api/v1/memory purge execution.",
+            "Job status stays read-only and audit-backed.",
+            "Deleted-count visibility remains project-scoped and non-global.",
+        ],
+        "non_claims": memory_purge_contract_payload()["non_claims"],
     }
 
 
@@ -1004,6 +1727,42 @@ def cost_export_contract_payload() -> dict[str, object]:
     }
 
 
+def costs_contract_payload() -> dict[str, object]:
+    budget_state = get_budget_state()
+    return {
+        "contract_version": "costs-surface-v1",
+        "mode": "runtime_cost_breakdown_projection",
+        "endpoint": "GET /api/v1/costs/contract",
+        "runtime_endpoint": "GET /api/v1/costs",
+        "required_top_level_fields": [
+            "total_cost_cents",
+            "budget_limit_cents",
+            "budget_spent_percentage",
+            "level",
+            "allow_new_calls",
+            "breakdown",
+        ],
+        "required_breakdown_fields": [
+            "agent_type",
+            "model_name",
+            "provider_name",
+            "cost_cents",
+        ],
+        "supported_levels": ["ok", "warning", "critical"],
+        "budget_limit_cents": budget_state.budget_limit_cents,
+        "evidence_ref": "costs_surface_contract_runtime_visible",
+        "policy_checks": [
+            "Costs surface remains a read-only runtime projection from cost_tracking and budget state.",
+            "Budget level is derived from the current runtime budget state.",
+            "Breakdown rows stay grouped by agent, model, and provider.",
+        ],
+        "non_claims": [
+            "This contract does not claim provider invoice reconciliation.",
+            "This contract does not claim production deployment.",
+        ],
+    }
+
+
 def system_fallback_contract_payload() -> dict[str, object]:
     return {
         "contract_version": SYSTEM_FALLBACK_CONTRACT_VERSION,
@@ -1041,6 +1800,172 @@ def system_fallback_contract_payload() -> dict[str, object]:
     }
 
 
+def health_contract_payload() -> dict[str, object]:
+    budget_state = get_budget_state()
+    infra_budget_state = get_infra_budget_state()
+    gates = external_gate_state()
+    return {
+        "contract_version": HEALTH_CONTRACT_VERSION,
+        "mode": "runtime_service_matrix_projection",
+        "endpoint": "GET /api/v1/health/contract",
+        "runtime_endpoint": "GET /api/v1/health",
+        "required_top_level_fields": [
+            "status",
+            "service",
+            "time",
+            "applied_migrations",
+            "services",
+            "budget",
+            "infra_budget",
+            "external_gates",
+        ],
+        "required_service_keys": [
+            "postgres",
+            "redis",
+            "agent_worker",
+            "memory_worker",
+            "mcp_gateway",
+            "llm_gateway",
+        ],
+        "required_budget_fields": [
+            "level",
+            "spent_percentage",
+            "total_cost_cents",
+            "budget_limit_cents",
+            "allow_new_calls",
+        ],
+        "required_infra_budget_fields": [
+            "level",
+            "spent_percentage",
+            "projected_cost_cents",
+            "budget_limit_cents",
+            "allow_new_infra",
+            "live_verified",
+            "source",
+        ],
+        "required_external_gate_fields": [
+            "status",
+            "configured_count",
+            "total_count",
+            "local_execution_allowed",
+        ],
+        "supported_statuses": ["healthy", "degraded"],
+        "supported_gate_statuses": ["verified", "action_required"],
+        "budget_limit_cents": budget_state.budget_limit_cents,
+        "infra_budget_limit_cents": infra_budget_state.budget_limit_cents,
+        "infra_supported_sources": ["projection", "hetzner_api_readonly"],
+        "expected_external_gate_status": gates["status"],
+        "evidence_ref": "health_contract_runtime_visible",
+        "policy_checks": [
+            "Health surface remains a read-only runtime projection.",
+            "Required service keys remain visible on every healthy response.",
+            "Budget, infra-budget, and external-gate summaries remain embedded in the health response.",
+        ],
+        "non_claims": [
+            "This contract does not authorize production deployment.",
+            "This contract does not claim live LLM provider execution is enabled.",
+            "This contract does not create multi-region failover guarantees.",
+        ],
+    }
+
+
+def cloud_inventory_contract_payload() -> dict[str, object]:
+    state = cloud_provider_state()
+    providers = [item for item in state.get("providers", []) if isinstance(item, dict)]
+    layer_mapping = [item for item in state.get("seven_layer_mapping", []) if isinstance(item, dict)]
+    return {
+        "contract_version": "cloud-provider-surface-v1",
+        "mode": "cloud_provider_runtime_surface_contract",
+        "endpoint": "GET /api/v1/clouds/contract",
+        "runtime_endpoint": "GET /api/v1/clouds",
+        "runtime_contract_version": state.get("contract_version"),
+        "required_top_level_fields": [
+            "status",
+            "configured_count",
+            "live_verified_count",
+            "total_count",
+            "providers",
+            "seven_layer_mapping",
+            "policy_checks",
+            "non_claims",
+        ],
+        "required_provider_fields": [
+            "id",
+            "label",
+            "role",
+            "layers",
+            "configured",
+            "live_verified",
+            "status",
+            "required_env",
+            "optional_env",
+            "env_status",
+            "resources",
+            "last_checked_at",
+            "non_claims",
+        ],
+        "required_layer_mapping_fields": [
+            "layer_id",
+            "label",
+            "providers",
+            "evidence_ref",
+        ],
+        "required_provider_ids": [str(item.get("id")) for item in providers],
+        "required_layer_ids": [str(item.get("layer_id")) for item in layer_mapping],
+        "supported_statuses": ["complete", "partial", "action_required"],
+        "supported_provider_statuses": ["verified", "configured", "live_verified", "action_required", "api_error"],
+        "expected_runtime_contract_version": state.get("contract_version"),
+        "expected_runtime_endpoint": state.get("endpoint"),
+        "evidence_ref": "cloud_inventory_contract_runtime_visible",
+        "policy_checks": list(state.get("policy_checks", [])),
+        "non_claims": list(state.get("non_claims", [])),
+    }
+
+
+def cloud_layers_contract_payload() -> dict[str, object]:
+    state = cloud_layer_readiness_state()
+    layers = [item for item in state.get("layers", []) if isinstance(item, dict)]
+    return {
+        "contract_version": "cloud-layer-surface-v1",
+        "mode": "cloud_layer_runtime_surface_contract",
+        "endpoint": "GET /api/v1/clouds/layers/contract",
+        "runtime_endpoint": "GET /api/v1/clouds/layers",
+        "runtime_contract_version": state.get("contract_version"),
+        "required_top_level_fields": [
+            "status",
+            "ready_layer_count",
+            "partial_layer_count",
+            "total_layer_count",
+            "layers",
+            "provider_inventory_endpoint",
+            "provider_inventory_evidence_ref",
+            "policy_checks",
+            "non_claims",
+        ],
+        "required_layer_fields": [
+            "layer_id",
+            "label",
+            "status",
+            "required_providers",
+            "configured_providers",
+            "live_verified_providers",
+            "blockers",
+            "evidence_ref",
+            "next_safe_action",
+            "non_claims",
+        ],
+        "required_layer_ids": [str(item.get("layer_id")) for item in layers],
+        "supported_statuses": ["verified", "partial", "action_required"],
+        "supported_layer_statuses": ["live_verified", "partial_live_verified", "action_required"],
+        "expected_runtime_contract_version": state.get("contract_version"),
+        "expected_runtime_endpoint": state.get("endpoint"),
+        "expected_provider_inventory_endpoint": state.get("provider_inventory_endpoint"),
+        "evidence_ref": "cloud_layers_contract_runtime_visible",
+        "policy_checks": list(state.get("policy_checks", [])),
+        "non_claims": list(state.get("non_claims", [])),
+    }
+
+
 def agent_activity_contract_payload() -> dict[str, object]:
     langfuse_public_url = os.getenv("LANGFUSE_PUBLIC_URL", "").rstrip("/")
     auth_proxy_path = os.getenv("LANGFUSE_AUTH_PROXY_PATH", "/observability/langfuse")
@@ -1063,6 +1988,11 @@ def agent_activity_contract_payload() -> dict[str, object]:
             "trace_id",
             "session_id",
             "event_type",
+            "task_id",
+            "task_status",
+            "retry_count",
+            "max_retries",
+            "error",
             "severity",
             "created_at",
             "details",
@@ -1086,6 +2016,7 @@ def agent_activity_contract_payload() -> dict[str, object]:
             "audit_log_is_source_of_truth",
             "no_public_langfuse_without_auth",
             "per_role_results_visible",
+            "failure_surface_visible",
         ],
         "evidence_refs": {
             "contract_visible": "agent_activity_contract_visible",
@@ -1093,11 +2024,600 @@ def agent_activity_contract_payload() -> dict[str, object]:
             "auth_proxy_required": "langfuse_auth_proxy_required",
             "filtered_feed": "agent_activity_filtered_feed_visible",
             "per_role_results": "agent_activity_per_role_results_visible",
+            "failure_surface": "agent_activity_failure_surface_visible",
         },
         "non_claims": [
             "This contract does not claim public unauthenticated Langfuse access.",
             "This contract does not claim live Langfuse traces until LANGFUSE_PUBLIC_URL is configured.",
             "Audit-log activity remains the local source of truth for Phase 3.",
+        ],
+    }
+
+
+def escalation_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": "escalation-feed-v1",
+        "mode": "audit_log_backed_escalation_feed",
+        "screen": "Escalations",
+        "source_endpoints": [
+            "GET /api/v1/escalations/recent?limit=20",
+            "GET /api/v1/audit/recent?limit=50",
+            "GET /api/v1/tasks/recent?limit=100",
+            "GET /api/v1/sessions/recent?limit=50",
+            "GET /api/v1/sessions/{session_id}/history",
+        ],
+        "top_level_fields": [
+            "id",
+            "event_type",
+            "user_id",
+            "session_id",
+            "request_id",
+            "trace_id",
+            "correlation_evidence_ref",
+            "audit_feed_evidence_ref",
+            "details",
+            "created_at",
+            "severity",
+        ],
+        "supported_statuses": ["escalated"],
+        "request_trace_fields": [
+            "request_id",
+            "trace_id",
+            "correlation_evidence_ref",
+            "audit_feed_evidence_ref",
+        ],
+        "policy_checks": [
+            "The public escalation feed only carries escalated or critical paths.",
+            "Every escalation event exposes top-level request, trace, correlation, and audit-feed evidence fields.",
+            "Escalation request correlation remains aligned with audit, task, and session history surfaces.",
+        ],
+        "evidence_refs": {
+            "contract_visible": "escalation_contract_visible",
+            "runtime_visible": "hosted_escalation_contract_runtime_parity_proof",
+            "request_correlation": "request_id_audit_correlation",
+            "audit_feed_visibility": "request_id_audit_feed_visible",
+        },
+        "non_claims": [
+            "This does not imply auto-remediation.",
+            "This does not imply production rollout approval.",
+        ],
+    }
+
+
+def recent_tasks_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": "recent-tasks-feed-v1",
+        "mode": "task_queue_runtime_feed",
+        "screen": "Recent Tasks",
+        "source_endpoints": [
+            "GET /api/v1/tasks/recent?limit=20",
+            "GET /api/v1/internal/tasks/{task_id}",
+            "GET /api/v1/tasks/assignment-contract",
+            "GET /api/v1/audit/recent?limit=50",
+        ],
+        "top_level_fields": [
+            "task_id",
+            "project_id",
+            "session_id",
+            "trace_id",
+            "request_id",
+            "correlation_evidence_ref",
+            "audit_feed_evidence_ref",
+            "agent_type",
+            "task_type",
+            "task_description",
+            "status",
+            "priority",
+            "created_at",
+            "updated_at",
+            "result",
+            "error",
+            "retry_count",
+            "max_retries",
+            "allowed_tools",
+            "write_scope",
+            "blocked_actions",
+            "acceptance_criteria",
+            "human_review_required",
+            "policy_version",
+            "result_envelope",
+            "done_validation",
+        ],
+        "queue_fields": [
+            "queue_depth",
+            "queue_depth_by_priority",
+        ],
+        "supported_statuses": [
+            "queued",
+            "running",
+            "completed",
+            "failed",
+            "escalated",
+            "abandoned_after_queue_drain",
+        ],
+        "policy_checks": [
+            "Recent tasks expose top-level request, trace, correlation, and audit-feed evidence fields.",
+            "The request_id field is visible on recent tasks and may remain null until correlated audit or session evidence is available.",
+            "Recent tasks preserve queue priority metadata and task policy fields.",
+            "Recent tasks remain aligned with internal task status and audit evidence.",
+        ],
+        "evidence_refs": {
+            "contract_visible": "recent_tasks_contract_visible",
+            "runtime_visible": "hosted_recent_tasks_contract_runtime_parity_proof",
+            "request_correlation": "request_id_audit_correlation",
+            "audit_feed_visibility": "request_id_audit_feed_visible",
+            "priority_queue": "task_priority_queue_correction_proof",
+        },
+        "non_claims": [
+            "This does not imply production rollout approval.",
+            "This does not imply guaranteed worker completion for every future task.",
+        ],
+    }
+
+
+def agent_status_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": "agent-status-feed-v1",
+        "mode": "agent_runtime_status_feed",
+        "screen": "Agent Status",
+        "source_endpoints": [
+            "GET /api/v1/agents/status",
+            "GET /api/v1/tasks/recent?limit=100",
+            "GET /api/v1/sessions/recent?limit=50",
+            "GET /api/v1/sessions/{session_id}/history",
+            "GET /api/v1/audit/recent?limit=50",
+        ],
+        "top_level_fields": [
+            "type",
+            "status",
+            "profile_contract_version",
+            "role",
+            "primary_model",
+            "fallbacks",
+            "max_execution_seconds",
+            "max_output_tokens",
+            "max_retries",
+            "allowed_tools",
+            "blocked_actions",
+            "human_review_required_actions",
+            "graceful_degradation",
+            "current_task",
+            "current_session_id",
+            "retries",
+            "started_at",
+            "updated_at",
+            "latest_task_id",
+            "latest_task_type",
+            "latest_status",
+            "latest_trace_id",
+            "latest_request_id",
+            "latest_correlation_evidence_ref",
+            "latest_audit_feed_evidence_ref",
+            "latest_result",
+            "latest_error",
+            "latest_retry_count",
+            "latest_max_retries",
+        ],
+        "supported_statuses": ["idle", "queued", "active", "error"],
+        "supported_latest_task_statuses": [
+            "none",
+            "queued",
+            "running",
+            "completed",
+            "failed",
+            "escalated",
+            "abandoned_after_queue_drain",
+        ],
+        "policy_checks": [
+            "Agent status exposes top-level latest request, trace, correlation, and audit-feed evidence fields.",
+            "Agent status stays aligned with recent tasks, recent sessions, session history, and audit surfaces.",
+            "Agent status surfaces negative worker states through error with latest task failure metadata.",
+        ],
+        "evidence_refs": {
+            "contract_visible": "agent_status_contract_visible",
+            "runtime_visible": "hosted_agent_status_contract_runtime_parity_proof",
+            "request_correlation": "request_id_agent_status_visible",
+            "audit_feed": "request_id_audit_feed_visible",
+        },
+        "non_claims": [
+            "Agent status is an aggregated runtime surface, not a direct worker heartbeat stream.",
+            "Idle agents do not imply no recent task history exists.",
+            "This contract does not claim live LLM provider calls.",
+        ],
+    }
+
+
+def recent_sessions_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": "recent-sessions-feed-v1",
+        "mode": "session_runtime_feed",
+        "screen": "Recent Sessions",
+        "source_endpoints": [
+            "GET /api/v1/sessions/recent?limit=20",
+            "GET /api/v1/sessions/{session_id}/history",
+            "GET /api/v1/tasks/recent?limit=100",
+            "GET /api/v1/agent-activity/recent?limit=100",
+            "GET /api/v1/audit/recent?limit=50",
+        ],
+        "top_level_fields": [
+            "session_id",
+            "project_id",
+            "started_at",
+            "status",
+            "trace_id",
+            "request_id",
+            "correlation_evidence_ref",
+            "audit_feed_evidence_ref",
+            "latest_task_id",
+            "latest_task_status",
+            "latest_error",
+            "latest_retry_count",
+            "latest_max_retries",
+            "prompt",
+            "assistant_result",
+        ],
+        "supported_statuses": [
+            "running",
+            "completed",
+            "escalated",
+            "abandoned_after_queue_drain",
+        ],
+        "policy_checks": [
+            "Recent sessions expose top-level request, trace, correlation, and audit-feed evidence fields.",
+            "Recent sessions stay aligned with session history, recent tasks, and agent-activity surfaces.",
+            "Recent sessions surface latest task failure metadata for negative worker paths.",
+        ],
+        "evidence_refs": {
+            "contract_visible": "recent_sessions_contract_visible",
+            "runtime_visible": "hosted_recent_sessions_contract_runtime_parity_proof",
+            "request_correlation": "request_id_audit_correlation",
+            "audit_feed_visibility": "request_id_audit_feed_visible",
+            "failure_surface": "recent_session_failure_status_surface_visible",
+        },
+        "non_claims": [
+            "This does not imply production rollout approval.",
+            "This does not imply immutable retention of every historical session event.",
+        ],
+    }
+
+
+def session_history_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": SESSION_HISTORY_CONTRACT_VERSION,
+        "mode": "session_history_runtime_feed",
+        "screen": "Session History",
+        "source_endpoints": [
+            "GET /api/v1/sessions/{session_id}/history",
+            "GET /api/v1/sessions/recent?limit=20",
+            "GET /api/v1/tasks/recent?limit=100",
+            "GET /api/v1/agent-activity/recent?limit=100",
+            "GET /api/v1/audit/recent?limit=50",
+        ],
+        "top_level_sections": [
+            "contract_version",
+            "evidence_ref",
+            "session",
+            "messages",
+            "tasks",
+            "audit_events",
+            "project_progress",
+            "project_progress_integrity",
+            "non_claims",
+        ],
+        "session_fields": [
+            "session_id",
+            "project_id",
+            "started_at",
+            "status",
+            "metadata",
+        ],
+        "task_fields": [
+            "task_id",
+            "project_id",
+            "session_id",
+            "trace_id",
+            "request_id",
+            "correlation_evidence_ref",
+            "audit_feed_evidence_ref",
+            "agent_type",
+            "task_type",
+            "task_description",
+            "status",
+            "created_at",
+            "updated_at",
+            "result",
+            "error",
+            "retry_count",
+            "max_retries",
+            "allowed_tools",
+            "write_scope",
+            "blocked_actions",
+            "acceptance_criteria",
+            "human_review_required",
+            "policy_version",
+            "result_envelope",
+            "done_validation",
+        ],
+        "audit_event_fields": [
+            "id",
+            "event_type",
+            "user_id",
+            "session_id",
+            "details",
+            "request_id",
+            "trace_id",
+            "created_at",
+            "severity",
+        ],
+        "supported_statuses": [
+            "running",
+            "completed",
+            "escalated",
+            "abandoned_after_queue_drain",
+        ],
+        "policy_checks": [
+            "Session history exposes top-level request, trace, correlation, and audit-feed evidence fields on task records.",
+            "Session history remains aligned with recent sessions, recent tasks, agent activity, and audit surfaces.",
+            "Session history preserves deterministic prompt, assistant result, and project-progress integrity context.",
+        ],
+        "evidence_refs": {
+            "contract_visible": "session_history_contract_visible",
+            "runtime_visible": "hosted_session_history_contract_runtime_parity_proof",
+            "history_openable": SESSION_HISTORY_EVIDENCE_REF,
+            "request_correlation": "request_id_audit_correlation",
+            "audit_feed_visibility": "request_id_audit_feed_visible",
+        },
+        "non_claims": [
+            "This does not imply production rollout approval.",
+            "This does not imply that every future session will retain unlimited history.",
+        ],
+    }
+
+
+def session_stream_surface_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": SESSION_STREAM_SURFACE_CONTRACT_VERSION,
+        "mode": "session_stream_runtime_feed",
+        "screen": "Session Stream",
+        "endpoint": "GET /api/v1/session/stream/contract",
+        "runtime_endpoint": "GET /api/v1/session/{session_id}/stream",
+        "related_endpoints": [
+            "POST /api/v1/prompt",
+            "GET /api/v1/sessions/{session_id}/history",
+            "GET /api/v1/sessions/recent?limit=10",
+            "GET /api/v1/audit/recent?limit=20",
+        ],
+        "content_type": "text/event-stream",
+        "replay_header": "Last-Event-ID",
+        "required_event_types": [
+            "heartbeat",
+            "agent_status",
+            "token",
+            "error",
+            "done",
+        ],
+        "required_agent_status_fields": [
+            "agent",
+            "status",
+            "task",
+            "task_id",
+            "updated_at",
+        ],
+        "required_terminal_fields": [
+            "session_id",
+            "task_id",
+            "total_tokens",
+            "total_cost_cents",
+        ],
+        "supported_task_statuses": [
+            "idle",
+            "queued",
+            "running",
+            "completed",
+            "failed",
+        ],
+        "policy_checks": [
+            "Session stream stays replayable through Last-Event-ID.",
+            "Session stream stays aligned with session history, recent sessions, and audit feed.",
+            "Session stream remains deterministic and does not claim live provider calls.",
+        ],
+        "evidence_refs": {
+            "contract_visible": SESSION_STREAM_SURFACE_EVIDENCE_REF,
+            "runtime_visible": "hosted_session_stream_contract_runtime_parity_proof",
+            "history_openable": SESSION_HISTORY_EVIDENCE_REF,
+            "replay_buffered": "sse_replay_buffered",
+        },
+        "non_claims": [
+            "This does not imply live provider token streaming.",
+            "This does not imply production rollout approval.",
+        ],
+    }
+
+
+def audit_feed_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": "audit-feed-v1",
+        "mode": "audit_log_runtime_feed",
+        "screen": "Audit Feed",
+        "source_endpoints": [
+            "GET /api/v1/audit/recent?limit=50",
+            "GET /api/v1/sessions/{session_id}/history",
+            "GET /api/v1/tasks/recent?limit=100",
+            "GET /api/v1/agent-activity/recent?limit=100",
+        ],
+        "top_level_fields": [
+            "id",
+            "event_type",
+            "user_id",
+            "session_id",
+            "details",
+            "request_id",
+            "trace_id",
+            "correlation_evidence_ref",
+            "audit_feed_evidence_ref",
+            "created_at",
+            "severity",
+        ],
+        "supported_event_types": [
+            "task_completed",
+            "task_escalated",
+            "task_abandoned_after_queue_drain",
+            "task_status_rehydrated_from_audit",
+            "mcp_tool_executed",
+            "memory_consolidated",
+        ],
+        "policy_checks": [
+            "Audit feed exposes top-level request, trace, correlation, and audit-feed evidence fields.",
+            "Audit feed remains aligned with session history, recent tasks, and agent-activity surfaces.",
+            "Audit feed is the public source-of-truth surface for request-correlation evidence.",
+        ],
+        "evidence_refs": {
+            "contract_visible": "audit_feed_contract_visible",
+            "runtime_visible": "hosted_audit_feed_contract_runtime_parity_proof",
+            "request_correlation": "request_id_audit_correlation",
+            "audit_feed_visibility": "request_id_audit_feed_visible",
+        },
+        "non_claims": [
+            "This does not imply production rollout approval.",
+            "This does not imply unbounded audit retention.",
+        ],
+    }
+
+
+def mcp_audit_feed_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": "mcp-audit-feed-v1",
+        "mode": "mcp_tool_audit_runtime_feed",
+        "screen": "MCP Audit",
+        "source_endpoints": [
+            "GET /api/v1/audit/mcp?limit=20",
+            "POST /internal/audit/mcp-tool-events",
+            "GET /api/v1/audit/recent?limit=50",
+        ],
+        "top_level_fields": [
+            "id",
+            "event_type",
+            "user_id",
+            "session_id",
+            "trace_id",
+            "details",
+            "created_at",
+            "severity",
+        ],
+        "required_detail_fields": [
+            "tool_request_id",
+            "run_id",
+            "trace_id",
+            "agent_role",
+            "toolset",
+            "capability",
+            "status",
+            "error_class",
+            "sanitized_summary",
+            "evidence_ref",
+            "result_ref",
+            "duration_ms",
+            "retry_after_ms",
+            "audit_tags",
+            "session_bound",
+            "audit_evidence_ref",
+        ],
+        "supported_statuses": ["success", "blocked", "timeout", "degraded"],
+        "supported_toolsets": ["github", "e2b", "playwright", "filesystem", "postgresql", "puppeteer"],
+        "policy_checks": [
+            "MCP audit feed exposes session-bound tool execution events as a public runtime surface.",
+            "Feed stays aligned with internal MCP audit writes and carries visible trace and evidence references.",
+            "Feed remains non-mutating and does not claim live MCP writes were executed.",
+        ],
+        "evidence_refs": {
+            "contract_visible": "mcp_audit_feed_contract_runtime_visible",
+            "runtime_visible": "hosted_mcp_audit_feed_contract_runtime_parity_proof",
+            "session_bound_audit": "mcp_tool_session_bound_audit",
+        },
+        "non_claims": [
+            "This contract does not claim live MCP writes are enabled.",
+            "This contract does not authorize production deployment.",
+            "This contract does not claim provider-side mutations were executed.",
+        ],
+    }
+
+
+def memory_consolidation_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": MEMORY_CONSOLIDATION_CONTRACT_VERSION,
+        "mode": "audit_log_backed_memory_consolidation_feed",
+        "screen": "Memory Consolidation",
+        "source_endpoints": [
+            "GET /api/v1/memory/consolidation/contract",
+            "GET /api/v1/memory/consolidation/recent?limit=20",
+        ],
+        "top_level_sections": ["events", "summary"],
+        "event_fields": [
+            "id",
+            "event_type",
+            "user_id",
+            "session_id",
+            "details",
+            "created_at",
+            "severity",
+        ],
+        "summary_fields": ["event_type", "severity", "reason", "count"],
+        "supported_event_types": [
+            "memory_consolidated",
+            "memory_consolidation_skipped",
+            "memory_consolidation_blocked",
+        ],
+        "detail_expectations": {
+            "memory_consolidated": [
+                "memory_id",
+                "redis_key",
+                "project_id",
+                "ttl_seconds",
+                "idempotency_key",
+                "memory_transaction_id",
+            ],
+            "memory_consolidation_skipped": ["reason"],
+            "memory_consolidation_blocked": ["reason"],
+        },
+        "evidence_ref": MEMORY_CONSOLIDATION_EVIDENCE_REF,
+        "status": "verified",
+        "non_claims": [
+            "No live embedding provider call is made by this feed.",
+            "No vector search production claim is made by this contract.",
+            "No production deployment is claimed.",
+        ],
+    }
+
+
+def memory_search_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": MEMORY_SEARCH_CONTRACT_VERSION,
+        "mode": "memory_search_runtime_feed",
+        "source_endpoints": [
+            "GET /api/v1/memory/search/contract",
+            "GET /api/v1/memory/search?q={query}&project_id={id}&limit=5&threshold=0.0",
+            "GET /api/v1/memory/embedding-consistency/contract",
+        ],
+        "query_parameters": {
+            "q": {"required": True, "min_length": 1, "max_length": 1000},
+            "project_id": {"required": True, "min_length": 1},
+            "limit": {"required": False, "default": 5, "min": 1, "max": 20},
+            "threshold": {"required": False, "default": 0.0, "min": 0.0, "max": 1.0},
+        },
+        "top_level_sections": ["results", "search_mode"],
+        "result_fields": ["id", "content", "relevance_score", "created_at", "session_id"],
+        "search_mode": EMBEDDING_SEARCH_MODE,
+        "depends_on": {
+            "embedding_consistency_contract": "GET /api/v1/memory/embedding-consistency/contract",
+            "search_mode": EMBEDDING_SEARCH_MODE,
+            "vector_search_enabled": False,
+        },
+        "evidence_ref": MEMORY_SEARCH_EVIDENCE_REF,
+        "status": "verified",
+        "non_claims": [
+            "No live embedding provider call is made by this search endpoint.",
+            "No vector search production claim is made while search_mode remains lexical_fallback.",
+            "No production deployment is claimed.",
         ],
     }
 
@@ -1209,6 +2729,41 @@ def persist_task_policy_block(assignment: TaskAssignment, violation: TaskPolicyV
                 VALUES ('task_policy_blocked', %s, %s, %s::jsonb, 'critical')
                 """,
                 (assignment.agent_type, session_id, Json(details)),
+            )
+    except Exception:
+        pass
+
+
+def persist_autonomous_dispatch_audit(record: AutonomousDispatchRecord) -> None:
+    severity = "info"
+    if record.status in {"attention", "failed"}:
+        severity = "warning"
+    details = redact_json(
+        {
+            "contract_version": record.dispatch_contract_version,
+            "team_contract_version": record.team_contract_version,
+            "dispatch_id": record.dispatch_id,
+            "project_id": record.project_id,
+            "session_id": record.session_id,
+            "trace_id": record.trace_id,
+            "request_id": record.request_id,
+            "status": record.status,
+            "team_mode": record.team_mode,
+            "objective": record.objective,
+            "assignments": [assignment.model_dump() for assignment in record.assignments],
+            "correlation_evidence_ref": "request_id_audit_correlation" if (record.request_id or record.trace_id) else None,
+            "audit_feed_evidence_ref": "request_id_audit_feed_visible" if (record.request_id or record.trace_id) else None,
+            "evidence_ref": AUTONOMOUS_TASK_DISPATCH_EVIDENCE_REF,
+        }
+    )
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, session_id, details, severity)
+                VALUES ('autonomous_team_dispatch', 'planner', %s, %s::jsonb, %s)
+                """,
+                (record.session_id, Json(details), severity),
             )
     except Exception:
         pass
@@ -1467,6 +3022,139 @@ def workflow_dispatch_contract(request: WorkflowDispatchRequest) -> dict[str, ob
     }
 
 
+def workflow_dispatch_plan_surface_contract_payload() -> dict[str, object]:
+    request = WorkflowDispatchRequest(
+        workflow_id="main-deploy.yml",
+        ref="main",
+        environment="staging",
+        action="deploy",
+        image_tag="ghcr.io/repo/agent-api:sha-placeholder",
+        reason="deterministic staging dispatch contract preview",
+        trace_id="devops-dispatch-plan",
+        human_review_approved=False,
+        dry_run=True,
+    )
+    runtime = workflow_dispatch_contract(request)
+    return {
+        "contract_version": DEVOPS_WORKFLOW_DISPATCH_PLAN_SURFACE_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/devops/workflow-dispatch/plan/contract",
+        "runtime_endpoint": "GET /api/v1/devops/workflow-dispatch/plan",
+        "runtime_contract_version": runtime["contract_version"],
+        "evidence_ref": DEVOPS_WORKFLOW_DISPATCH_PLAN_SURFACE_EVIDENCE_REF,
+        "required_top_level_fields": [
+            "contract_version",
+            "status",
+            "mode",
+            "live_github_call",
+            "github_api",
+            "payload",
+            "human_gate",
+            "violations",
+            "non_claims",
+        ],
+        "required_github_api_fields": [
+            "method",
+            "endpoint",
+            "required_token_env",
+            "required_permission",
+        ],
+        "required_payload_fields": [
+            "ref",
+            "inputs",
+        ],
+        "required_input_fields": [
+            "environment",
+            "action",
+            "image_tag",
+            "reason",
+            "trace_id",
+            "dry_run",
+        ],
+        "expected_statuses": ["ready", "blocked"],
+        "expected_mode": runtime["mode"],
+        "expected_live_github_call": False,
+    }
+
+
+def workflow_dispatch_validate_surface_contract_payload() -> dict[str, object]:
+    ready_request = WorkflowDispatchRequest(
+        workflow_id="main-deploy.yml",
+        ref="main",
+        environment="staging",
+        action="deploy",
+        image_tag="ghcr.io/repo/agent-api:sha-placeholder",
+        reason="deterministic staging validate contract preview",
+        trace_id="devops-dispatch-validate-ready",
+        human_review_approved=False,
+        dry_run=True,
+    )
+    blocked_request = WorkflowDispatchRequest(
+        workflow_id="main-deploy.yml",
+        ref="main",
+        environment="production",
+        action="deploy",
+        image_tag="ghcr.io/repo/agent-api:sha-placeholder",
+        reason="deterministic production validate contract preview",
+        trace_id="devops-dispatch-validate-blocked",
+        human_review_approved=False,
+        dry_run=True,
+    )
+    ready_runtime = workflow_dispatch_contract(ready_request)
+    blocked_runtime = workflow_dispatch_contract(blocked_request)
+    return {
+        "contract_version": DEVOPS_WORKFLOW_DISPATCH_VALIDATE_SURFACE_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/devops/workflow-dispatch/validate/contract",
+        "runtime_endpoint": "POST /api/v1/devops/workflow-dispatch/validate",
+        "runtime_contract_version": ready_runtime["contract_version"],
+        "evidence_ref": DEVOPS_WORKFLOW_DISPATCH_VALIDATE_SURFACE_EVIDENCE_REF,
+        "required_top_level_fields": [
+            "contract_version",
+            "status",
+            "mode",
+            "live_github_call",
+            "github_api",
+            "payload",
+            "human_gate",
+            "violations",
+            "non_claims",
+        ],
+        "required_github_api_fields": [
+            "method",
+            "endpoint",
+            "required_token_env",
+            "required_permission",
+        ],
+        "required_payload_fields": [
+            "ref",
+            "inputs",
+        ],
+        "required_input_fields": [
+            "environment",
+            "action",
+            "image_tag",
+            "reason",
+            "trace_id",
+            "dry_run",
+        ],
+        "supported_statuses": ["ready", "blocked"],
+        "ready_case": {
+            "http_status": 200,
+            "environment": ready_request.environment,
+            "status": ready_runtime["status"],
+            "violations": ready_runtime["violations"],
+        },
+        "blocked_case": {
+            "http_status": 403,
+            "environment": blocked_request.environment,
+            "status": blocked_runtime["status"],
+            "detail_code": "workflow_dispatch_blocked",
+            "expected_violation": "production workflow dispatch requires human_review_approved=true",
+        },
+        "expected_mode": ready_runtime["mode"],
+        "expected_live_github_call": False,
+    }
+
+
 def persist_workflow_dispatch_audit(request: WorkflowDispatchRequest, contract: dict[str, object]) -> None:
     severity = "info" if contract["status"] == "ready" else "critical"
     details = redact_json({
@@ -1487,7 +3175,7 @@ def persist_workflow_dispatch_audit(request: WorkflowDispatchRequest, contract: 
 
 
 def project_progress_payload() -> dict[str, object]:
-    manifest_path = Path(os.getenv("PROJECT_PROGRESS_MANIFEST_PATH", "/app/progress/project-progress.manifest.json"))
+    manifest_path = project_progress_manifest_path()
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     phases = payload.get("horizontal", {}).get("items", [])
     layers = payload.get("vertical", {}).get("items", [])
@@ -1503,6 +3191,49 @@ def project_progress_payload() -> dict[str, object]:
     if int(payload.get("overall_percent", -1)) != expected_overall:
         raise RuntimeError("project progress overall_percent must equal rounded average of phase percentages")
     return payload
+
+
+def project_progress_surface_contract_payload() -> dict[str, object]:
+    progress = project_progress_payload()
+    return {
+        "contract_version": PROGRESS_SURFACE_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/project/progress",
+        "guarded_endpoint": "GET /api/v1/project/progress/integrity",
+        "evidence_ref": PROGRESS_SURFACE_EVIDENCE_REF,
+        "required_top_level_fields": [
+            "overall_percent",
+            "progress_source",
+            "horizontal",
+            "vertical",
+            "truth_policy",
+            "binding_document",
+            "last_verified",
+            "non_claims",
+        ],
+        "required_horizontal_fields": [
+            "label",
+            "items",
+        ],
+        "required_vertical_fields": [
+            "label",
+            "items",
+        ],
+        "required_progress_item_fields": [
+            "id",
+            "label",
+            "percent",
+            "status",
+        ],
+        "expected_phase_count": len(progress["horizontal"]["items"]),  # type: ignore[index]
+        "expected_layer_count": len(progress["vertical"]["items"]),  # type: ignore[index]
+        "expected_progress_source": "docs/project-progress.manifest.json",
+        "expected_binding_document": "docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md",
+        "non_claims": [
+            "This contract does not increase progress by itself.",
+            "This contract does not claim production deployment.",
+            "This contract does not claim live LLM provider calls or live MCP writes.",
+        ],
+    }
 
 
 def project_progress_integrity_payload() -> dict[str, object]:
@@ -1552,6 +3283,267 @@ def project_progress_integrity_payload() -> dict[str, object]:
     }
 
 
+def project_progress_integrity_surface_contract_payload() -> dict[str, object]:
+    integrity = project_progress_integrity_payload()
+    return {
+        "contract_version": PROGRESS_INTEGRITY_SURFACE_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/project/progress/integrity",
+        "guarded_endpoint": integrity["guarded_endpoint"],
+        "runtime_contract_version": integrity["contract_version"],
+        "evidence_ref": PROGRESS_INTEGRITY_SURFACE_EVIDENCE_REF,
+        "required_top_level_fields": [
+            "contract_version",
+            "status",
+            "endpoint",
+            "guarded_endpoint",
+            "source_manifest",
+            "binding_document",
+            "manifest_overall_percent",
+            "computed_overall_percent",
+            "horizontal_phase_count",
+            "vertical_layer_count",
+            "horizontal_phase_percentages",
+            "vertical_layer_percentages",
+            "truth_policy",
+            "evidence_ref",
+            "mismatches",
+            "hard_rules",
+            "non_claims",
+        ],
+        "expected_statuses": [
+            "verified",
+            "blocked",
+        ],
+        "required_hard_rules": list(integrity["hard_rules"]),
+        "non_claims": list(integrity["non_claims"]),
+    }
+
+
+def project_progress_layers_payload() -> dict[str, object]:
+    progress = project_progress_payload()
+    layers = list(progress["vertical"]["items"])  # type: ignore[index]
+    return {
+        "contract_version": PROGRESS_LAYERS_SURFACE_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/project/progress/layers",
+        "overall_percent": int(progress["overall_percent"]),
+        "progress_source": progress["progress_source"],
+        "binding_document": progress["binding_document"],
+        "truth_policy": progress["truth_policy"],
+        "last_verified": progress["last_verified"],
+        "label": progress["vertical"]["label"],  # type: ignore[index]
+        "count": len(layers),
+        "items": layers,
+        "non_claims": [
+            "This endpoint is a layer-only projection of the canonical project progress manifest.",
+            "This endpoint does not increase progress by itself.",
+            "This endpoint does not claim production deployment.",
+        ],
+    }
+
+
+def project_progress_layers_surface_contract_payload() -> dict[str, object]:
+    layers = project_progress_layers_payload()
+    return {
+        "contract_version": PROGRESS_LAYERS_SURFACE_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/project/progress/layers",
+        "guarded_endpoints": [
+            "GET /api/v1/project/progress",
+            "GET /api/v1/project/progress/integrity",
+        ],
+        "evidence_ref": PROGRESS_LAYERS_SURFACE_EVIDENCE_REF,
+        "required_top_level_fields": [
+            "contract_version",
+            "endpoint",
+            "overall_percent",
+            "progress_source",
+            "binding_document",
+            "truth_policy",
+            "last_verified",
+            "label",
+            "count",
+            "items",
+            "non_claims",
+        ],
+        "required_item_fields": [
+            "id",
+            "label",
+            "percent",
+            "status",
+        ],
+        "expected_count": int(layers["count"]),
+        "expected_ids": [str(item["id"]) for item in layers["items"]],  # type: ignore[index]
+        "expected_label": layers["label"],
+        "non_claims": layers["non_claims"],
+    }
+
+
+def progress_percent_map(items: list[dict[str, object]]) -> dict[str, int]:
+    return {str(item["id"]): int(item["percent"]) for item in items}
+
+
+def autonomous_master_plan_payload() -> dict[str, object]:
+    progress = project_progress_payload()
+    integrity = project_progress_integrity_payload()
+    external_runtime = external_autonomous_runtime_state()
+    state_markdown = project_state_markdown()
+    anchor_lines = markdown_section_lines(state_markdown, "## AKTUELLER PROJEKTANKER")
+    next_step_lines = markdown_section_lines(state_markdown, "## NÄCHSTER KONKRETER ARBEITSSCHRITT")
+    constraint_lines = markdown_section_lines(state_markdown, "## HARTE CONSTRAINTS (NIEMALS BRECHEN)")
+    container_lines = markdown_section_lines(state_markdown, "## LAUFENDE DOCKER-CONTAINER (cloud-superbrain-phase1-dev)")
+    phases = list(progress["horizontal"]["items"])  # type: ignore[index]
+    layers = list(progress["vertical"]["items"])  # type: ignore[index]
+    return {
+        "contract_version": AUTONOMOUS_MASTER_PLAN_CONTRACT_VERSION,
+        "status": "loaded",
+        "endpoint": "GET /api/v1/team/master-plan",
+        "source_document": "PROJECT_STATE.md",
+        "binding_document": progress["binding_document"],
+        "progress_manifest": progress["progress_source"],
+        "overall_percent": int(progress["overall_percent"]),
+        "integrity_status": integrity["status"],
+        "phase_percentages": progress_percent_map(phases),
+        "layer_percentages": progress_percent_map(layers),
+        "team_mode": AUTONOMOUS_TEAM_MODE,
+        "runtime_source": "external_adapter" if external_runtime["ready"] else "internal_queue",
+        "logical_roles": list(AUTONOMOUS_LOGICAL_ROLES),
+        "dispatch_endpoints": [
+            "GET /api/v1/team/status",
+            "POST /api/v1/task/dispatch",
+            "GET /api/v1/task/dispatches/recent",
+        ],
+        "external_runtime_adapter": external_runtime,
+        "anchor_snapshot": anchor_lines,
+        "next_concrete_steps": markdown_bullets(next_step_lines) or next_step_lines,
+        "hard_constraints": markdown_bullets(constraint_lines) or constraint_lines,
+        "running_containers": markdown_bullets(container_lines) or container_lines,
+        "evidence_ref": AUTONOMOUS_MASTER_PLAN_EVIDENCE_REF,
+        "non_claims": [
+            "This endpoint is a runtime projection of repository state documents.",
+            "This endpoint does not claim production deployment.",
+            "This endpoint does not claim live provider writes or live MCP writes.",
+        ],
+    }
+
+
+def autonomous_master_plan_contract_payload() -> dict[str, object]:
+    plan = autonomous_master_plan_payload()
+    return {
+        "contract_version": AUTONOMOUS_MASTER_PLAN_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/team/master-plan/contract",
+        "runtime_endpoint": "GET /api/v1/team/master-plan",
+        "status_endpoint": "GET /api/v1/team/status",
+        "evidence_ref": AUTONOMOUS_MASTER_PLAN_EVIDENCE_REF,
+        "required_top_level_fields": [
+            "contract_version",
+            "status",
+            "endpoint",
+            "source_document",
+            "binding_document",
+            "progress_manifest",
+            "overall_percent",
+            "integrity_status",
+            "phase_percentages",
+            "layer_percentages",
+            "team_mode",
+            "runtime_source",
+            "logical_roles",
+            "dispatch_endpoints",
+            "external_runtime_adapter",
+            "anchor_snapshot",
+            "next_concrete_steps",
+            "hard_constraints",
+            "running_containers",
+            "evidence_ref",
+            "non_claims",
+        ],
+        "required_logical_roles": list(AUTONOMOUS_LOGICAL_ROLES),
+        "required_dispatch_endpoints": list(plan["dispatch_endpoints"]),
+        "required_documents": [
+            "PROJECT_STATE.md",
+            "docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md",
+            "docs/project-progress.manifest.json",
+        ],
+        "non_claims": list(plan["non_claims"]),
+    }
+
+
+def autonomous_agent_roster_payload() -> dict[str, object]:
+    roster_source = autonomous_agent_roster_document()
+    roster = roster_source["document"] if isinstance(roster_source["document"], dict) else {}
+    operating_core = roster.get("operating_core") if isinstance(roster.get("operating_core"), dict) else {}
+    launcher_status = roster.get("launcher_status") if isinstance(roster.get("launcher_status"), dict) else {}
+    roles = [item for item in roster.get("roles", []) if isinstance(item, dict)]
+    startup_protocol = [str(item) for item in roster.get("startup_protocol", []) if str(item).strip()]
+    runtime_bindings = autonomous_runtime_bindings()
+    external_runtime = runtime_bindings.get("external_adapter", {})
+    return {
+        "contract_version": AUTONOMOUS_AGENT_ROSTER_CONTRACT_VERSION,
+        "status": roster_source["status"],
+        "endpoint": "GET /api/v1/team/roster",
+        "source_document": roster_source["source_document"],
+        "source_path": roster_source["source_path"],
+        "roster_version": str(roster.get("version") or "unknown"),
+        "runtime_source": "external_adapter" if bool(external_runtime.get("ready")) else "internal_queue",
+        "operating_core": operating_core,
+        "startup_protocol": startup_protocol,
+        "launcher_status": launcher_status,
+        "role_count": len(roles),
+        "roles": roles,
+        "runtime_bindings": runtime_bindings,
+        "error": roster_source["error"],
+        "evidence_ref": AUTONOMOUS_AGENT_ROSTER_EVIDENCE_REF,
+        "non_claims": [
+            "This endpoint reflects the persisted roster plus live runtime binding metadata.",
+            "Persisted roster state does not keep Codex desktop child threads alive across app restarts.",
+            "CrewAI and Grafana are not claimed live unless separate runtime evidence surfaces them.",
+        ],
+    }
+
+
+def autonomous_agent_roster_contract_payload() -> dict[str, object]:
+    roster = autonomous_agent_roster_payload()
+    return {
+        "contract_version": AUTONOMOUS_AGENT_ROSTER_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/team/roster/contract",
+        "runtime_endpoint": "GET /api/v1/team/roster",
+        "status_endpoint": "GET /api/v1/team/status",
+        "evidence_ref": AUTONOMOUS_AGENT_ROSTER_EVIDENCE_REF,
+        "required_top_level_fields": [
+            "contract_version",
+            "status",
+            "endpoint",
+            "source_document",
+            "source_path",
+            "roster_version",
+            "runtime_source",
+            "operating_core",
+            "startup_protocol",
+            "launcher_status",
+            "role_count",
+            "roles",
+            "runtime_bindings",
+            "error",
+            "evidence_ref",
+            "non_claims",
+        ],
+        "required_runtime_binding_keys": [
+            "langgraph",
+            "crewai",
+            "prometheus",
+            "grafana",
+            "redis",
+            "pgvector",
+            "external_adapter",
+        ],
+        "required_documents": [
+            "docs/codex-integration/autonomous-agent-roster.json",
+            "PROJECT_STATE.md",
+            "docs/project-progress.manifest.json",
+        ],
+        "non_claims": list(roster["non_claims"]),
+    }
+
+
 def _completion_status(percent: int, blockers: list[str]) -> str:
     if percent >= 100 and not blockers:
         return "verified_100"
@@ -1562,6 +3554,7 @@ def _completion_status(percent: int, blockers: list[str]) -> str:
 
 def project_progress_completion_payload() -> dict[str, object]:
     progress = project_progress_payload()
+    verified_flags = external_gate_verification_flags(progress)
     gates = external_gate_state()
     gate_items = list(gates["gates"])
     missing_gate_ids = [str(gate["id"]) for gate in gate_items if not gate["configured"]]
@@ -1580,17 +3573,35 @@ def project_progress_completion_payload() -> dict[str, object]:
         missing_external_gate_blockers.append(production_release_blocker)
     phase_blockers: dict[str, list[str]] = {
         "phase_0": [],
-        "phase_1": ["hosted_staging_proof_requires_STAGING_BASE_URL", "canonical_secret_scan_requires_gitleaks_binary"],
+        "phase_1": [
+            blocker
+            for blocker, enabled in [
+                ("hosted_staging_proof_requires_STAGING_BASE_URL", not verified_flags["hosted_staging"]),
+                ("canonical_secret_scan_requires_gitleaks_binary", not verified_flags["canonical_secret_scan"]),
+            ]
+            if enabled
+        ],
         "phase_2": ["live_llm_provider_calls_require_owner_gate_and_budget_guard"],
         "phase_3": ["production_auth_identity_requires_owner_configured_oauth_and_hosted_url"],
         "phase_4": [
-            "hosted_staging_proof_requires_STAGING_BASE_URL",
-            "protected_main_proof_requires_BRANCH_PROTECTION_TOKEN",
-            "live_infra_budget_refresh_requires_HETZNER_API_TOKEN",
+            blocker
+            for blocker, enabled in [
+                ("hosted_staging_proof_requires_STAGING_BASE_URL", not verified_flags["hosted_staging"]),
+                ("protected_main_proof_requires_BRANCH_PROTECTION_TOKEN", not verified_flags["branch_protection"]),
+                ("live_infra_budget_refresh_requires_HETZNER_API_TOKEN", not verified_flags["hetzner_cloud_stack"]),
+            ]
+            if enabled
         ],
         "phase_5": [
-            "production_release_requires_hosted_staging_branch_protection_secret_scan_and_owner_review",
-            "docker_registry_publish_requires_owner_release_gate",
+            blocker
+            for blocker, enabled in [
+                (
+                    "production_release_requires_hosted_staging_branch_protection_secret_scan_and_owner_review",
+                    not verified_flags["production_gate_claim_allowed"],
+                ),
+                ("docker_registry_publish_requires_owner_release_gate", True),
+            ]
+            if enabled
         ],
         "phase_6": [
             "phase6_scale_3d_platform_requires_separate_scale_budget_and_runtime_proof",
@@ -1598,7 +3609,7 @@ def project_progress_completion_payload() -> dict[str, object]:
         ],
     }
     layer_blockers: dict[str, list[str]] = {
-        "layer_1": ["hosted_browser_proof_requires_STAGING_BASE_URL"],
+        "layer_1": [] if verified_flags["hosted_staging"] else ["hosted_browser_proof_requires_STAGING_BASE_URL"],
         "layer_2": [],
         "layer_3": ["live_agent_tool_writes_require_owner_gate"],
         "layer_4": ["live_llm_provider_calls_require_owner_gate_and_budget_guard"],
@@ -1640,14 +3651,16 @@ def project_progress_completion_payload() -> dict[str, object]:
     has_progress_gaps = any(int(item["percent"]) < 100 for item in progress["horizontal"]["items"]) or any(  # type: ignore[index]
         int(item["percent"]) < 100 for item in progress["vertical"]["items"]  # type: ignore[index]
     )
-    hard_blockers = [*missing_gate_ids, *missing_external_gate_blockers]
+    # Fail closed: any blocker already surfaced on a phase/layer must also block top-level completion.
+    item_blockers = list(
+        dict.fromkeys(blocker for blockers in [*phase_blockers.values(), *layer_blockers.values()] for blocker in blockers)
+    )
+    hard_blockers = list(dict.fromkeys([*missing_gate_ids, *missing_external_gate_blockers, *item_blockers]))
     if has_progress_gaps:
         hard_blockers.append("local_progress_gaps_require_verified_evidence_for_each_phase_and_layer")
     status = "ready_for_100_percent_review"
-    if missing_external_gate_blockers:
+    if hard_blockers:
         status = "blocked_external_gates"
-    elif has_progress_gaps:
-        status = "blocked_unverified_progress_gaps"
     return {
         "contract_version": PROGRESS_COMPLETION_CONTRACT_VERSION,
         "status": status,
@@ -1676,6 +3689,41 @@ def project_progress_completion_payload() -> dict[str, object]:
     }
 
 
+def project_progress_completion_surface_contract_payload() -> dict[str, object]:
+    completion = project_progress_completion_payload()
+    return {
+        "contract_version": PROGRESS_COMPLETION_SURFACE_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/project/progress/completion",
+        "runtime_contract_version": completion["contract_version"],
+        "evidence_ref": PROGRESS_COMPLETION_SURFACE_EVIDENCE_REF,
+        "visibility_endpoints": [
+            "/api/v1/project/progress",
+            "/api/v1/project/progress/integrity",
+            "/api/v1/project/progress/completion",
+            "/api/v1/external-gates",
+        ],
+        "required_top_level_fields": [
+            "contract_version",
+            "status",
+            "requested_target_percent",
+            "current_overall_percent",
+            "can_set_all_to_100",
+            "truth_policy",
+            "hard_blockers",
+            "phase_completion",
+            "layer_completion",
+        ],
+        "expected_statuses": [
+            "ready_for_100_percent_review",
+            "blocked_external_gates",
+        ],
+        "required_hard_blockers": [
+            "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer",
+        ],
+        "non_claims": completion["non_claims"],
+    }
+
+
 @app.on_event("startup")
 def startup() -> None:
     app.state.applied_migrations = run_migrations()
@@ -1687,9 +3735,29 @@ def project_progress() -> dict[str, object]:
     return project_progress_payload()
 
 
+@app.get("/api/v1/project/progress/contract")
+def project_progress_contract() -> dict[str, object]:
+    return project_progress_surface_contract_payload()
+
+
 @app.get("/api/v1/project/progress/integrity")
 def project_progress_integrity() -> dict[str, object]:
     return project_progress_integrity_payload()
+
+
+@app.get("/api/v1/project/progress/integrity/contract")
+def project_progress_integrity_contract() -> dict[str, object]:
+    return project_progress_integrity_surface_contract_payload()
+
+
+@app.get("/api/v1/project/progress/layers")
+def project_progress_layers() -> dict[str, object]:
+    return project_progress_layers_payload()
+
+
+@app.get("/api/v1/project/progress/layers/contract")
+def project_progress_layers_contract() -> dict[str, object]:
+    return project_progress_layers_surface_contract_payload()
 
 
 @app.get("/api/v1/project/progress/completion")
@@ -1697,7 +3765,12 @@ def project_progress_completion() -> dict[str, object]:
     return project_progress_completion_payload()
 
 
-def cloud_render_offload_contract_payload() -> dict[str, object]:
+@app.get("/api/v1/project/progress/completion/contract")
+def project_progress_completion_contract() -> dict[str, object]:
+    return project_progress_completion_surface_contract_payload()
+
+
+def cloud_render_offload_state() -> dict[str, object]:
     required_env = [
         "STAGING_BASE_URL",
         "AGENT_API_BASE_URL",
@@ -1718,7 +3791,7 @@ def cloud_render_offload_contract_payload() -> dict[str, object]:
     return {
         "contract_version": CLOUD_RENDER_OFFLOAD_CONTRACT_VERSION,
         "status": "cloud_runtime_ready" if not blockers else "action_required",
-        "endpoint": "GET /api/v1/clouds/render-offload/contract",
+        "endpoint": "GET /api/v1/clouds/render-offload",
         "evidence_ref": CLOUD_RENDER_OFFLOAD_EVIDENCE_REF,
         "localhost_role": "dev_control_plane_only",
         "localhost_heavy_render_allowed": False,
@@ -1806,10 +3879,58 @@ def cloud_render_offload_contract_payload() -> dict[str, object]:
     }
 
 
-def cloud_deployment_preflight_payload() -> dict[str, object]:
+def cloud_render_offload_contract_payload() -> dict[str, object]:
+    state = cloud_render_offload_state()
+    return {
+        "contract_version": "cloud-render-offload-surface-v1",
+        "mode": "cloud_render_offload_runtime_surface_contract",
+        "endpoint": "GET /api/v1/clouds/render-offload/contract",
+        "runtime_endpoint": "GET /api/v1/clouds/render-offload",
+        "runtime_contract_version": state.get("contract_version"),
+        "required_top_level_fields": [
+            "status",
+            "localhost_role",
+            "localhost_heavy_render_allowed",
+            "home_pc_protection",
+            "required_env",
+            "optional_env",
+            "env_status",
+            "missing_required_env",
+            "blockers",
+            "cloud_gates",
+            "workloads",
+            "policy_checks",
+            "non_claims",
+        ],
+        "required_gate_fields": [
+            "id",
+            "required_env",
+            "configured",
+            "evidence_ref",
+        ],
+        "required_workload_fields": [
+            "id",
+            "label",
+            "local_allowed",
+            "required_runtime",
+            "blocker",
+        ],
+        "required_gate_ids": [str(item.get("id")) for item in state.get("cloud_gates", []) if isinstance(item, dict)],
+        "required_workload_ids": [str(item.get("id")) for item in state.get("workloads", []) if isinstance(item, dict)],
+        "supported_statuses": ["cloud_runtime_ready", "action_required"],
+        "expected_runtime_contract_version": state.get("contract_version"),
+        "expected_runtime_endpoint": state.get("endpoint"),
+        "evidence_ref": "cloud_render_offload_contract_runtime_visible",
+        "policy_checks": list(state.get("policy_checks", [])),
+        "non_claims": list(state.get("non_claims", [])),
+    }
+
+
+def cloud_deployment_preflight_state() -> dict[str, object]:
     def env_ready(keys: list[str]) -> bool:
         return all(bool(os.getenv(key)) for key in keys)
 
+    verified_flags = external_gate_verification_flags(project_progress_payload())
     gates = [
         {
             "id": "ghcr_images",
@@ -1818,8 +3939,8 @@ def cloud_deployment_preflight_payload() -> dict[str, object]:
             "required_artifact": ".github/workflows/main-deploy.yml",
             "verifier": "scripts/verify-phase1.ps1",
             "environment_configured": env_ready(["GITHUB_TOKEN", "GHCR_TOKEN"]),
-            "configured": False,
-            "verified": False,
+            "configured": verified_flags["ghcr_images"],
+            "verified": verified_flags["ghcr_images"],
             "evidence_ref": "ghcr_image_digest_proof",
             "required_evidence_artifact": "published GHCR image digests for all six application services",
             "next_action": "dispatch_main_deploy_workflow_after_github_auth_is_repaired",
@@ -1831,8 +3952,8 @@ def cloud_deployment_preflight_payload() -> dict[str, object]:
             "required_artifact": "docker-compose.cloud.yml",
             "verifier": "scripts/check_hetzner_infra_budget.py",
             "environment_configured": env_ready(["HETZNER_API_TOKEN"]),
-            "configured": False,
-            "verified": False,
+            "configured": verified_flags["hetzner_cloud_stack"],
+            "verified": verified_flags["hetzner_cloud_stack"],
             "evidence_ref": "hetzner_live_budget_check",
             "required_evidence_artifact": "current Hetzner budget proof plus reachable cloud compose health checks",
             "next_action": "run_cloud_compose_pull_and_up_on_hetzner_host_with_environment_only_secrets",
@@ -1844,8 +3965,8 @@ def cloud_deployment_preflight_payload() -> dict[str, object]:
             "required_artifact": "docs/runbooks/cloud-secret-runtime-injection.md",
             "verifier": "scripts/verify-cloud-only-staging.ps1",
             "environment_configured": env_ready(["AGENT_API_BASE_URL", "MCP_GATEWAY_BASE_URL", "LLM_GATEWAY_BASE_URL"]),
-            "configured": False,
-            "verified": False,
+            "configured": verified_flags["hosted_backend_origins"],
+            "verified": verified_flags["hosted_backend_origins"],
             "evidence_ref": "hosted_backend_origin_env_required",
             "required_evidence_artifact": "cloud-only staging proof with hosted backend origin URLs",
             "next_action": "configure_vercel_backend_origin_urls_after_hetzner_stack_is_reachable",
@@ -1857,8 +3978,8 @@ def cloud_deployment_preflight_payload() -> dict[str, object]:
             "required_artifact": ".github/workflows/hosted-staging-proof.yml",
             "verifier": "scripts/verify-hosted-staging.ps1",
             "environment_configured": env_ready(["STAGING_BASE_URL"]),
-            "configured": False,
-            "verified": False,
+            "configured": verified_flags["hosted_staging"],
+            "verified": verified_flags["hosted_staging"],
             "evidence_ref": "hosted_staging_base_url_required",
             "required_evidence_artifact": "hosted staging verifier artifact from a non-localhost HTTPS URL",
             "next_action": "run_hosted_staging_verifier_against_staging_base_url",
@@ -1870,8 +3991,8 @@ def cloud_deployment_preflight_payload() -> dict[str, object]:
             "required_artifact": ".github/workflows/branch-protection.yml",
             "verifier": "scripts/apply_github_branch_protection.py --verify-only",
             "environment_configured": env_ready(["BRANCH_PROTECTION_TOKEN"]),
-            "configured": False,
-            "verified": False,
+            "configured": verified_flags["branch_protection"],
+            "verified": verified_flags["branch_protection"],
             "evidence_ref": BRANCH_PROTECTION_VERIFY_EVIDENCE_REF,
             "required_evidence_artifact": "branch protection verify-only pass against the live GitHub repository",
             "next_action": "verify_branch_protection_with_repository_admin_token",
@@ -1884,18 +4005,19 @@ def cloud_deployment_preflight_payload() -> dict[str, object]:
             "verifier": "gitleaks detect --no-git --source .",
             "environment_configured": True,
             "tool_configured": shutil.which("gitleaks") is not None,
-            "configured": False,
-            "verified": False,
+            "configured": verified_flags["canonical_secret_scan"],
+            "verified": verified_flags["canonical_secret_scan"],
             "evidence_ref": "canonical_gitleaks_scan",
             "required_evidence_artifact": "current gitleaks scan artifact with no findings",
             "next_action": "install_or_use_gitleaks_before_release_claim",
         },
     ]
     missing_or_blocked = [gate["id"] for gate in gates if not gate["verified"]]
+    production_gate_claim_allowed = verified_flags["production_gate_claim_allowed"]
     return {
         "contract_version": CLOUD_DEPLOYMENT_PREFLIGHT_CONTRACT_VERSION,
-        "status": "ready_for_external_execution" if not missing_or_blocked else "action_required",
-        "endpoint": "GET /api/v1/clouds/deployment-preflight/contract",
+        "status": "verified" if production_gate_claim_allowed else ("ready_for_external_execution" if not missing_or_blocked else "action_required"),
+        "endpoint": "GET /api/v1/clouds/deployment-preflight",
         "evidence_ref": CLOUD_DEPLOYMENT_PREFLIGHT_EVIDENCE_REF,
         "required_sequence": [
             "publish_ghcr_images",
@@ -1910,8 +4032,8 @@ def cloud_deployment_preflight_payload() -> dict[str, object]:
         "missing_or_blocked_gates": missing_or_blocked,
         "preflight_ready": not missing_or_blocked,
         "external_execution_ready": not missing_or_blocked,
-        "cloud_deploy_claim_allowed": False,
-        "production_deploy_claim_allowed": False,
+        "cloud_deploy_claim_allowed": not missing_or_blocked,
+        "production_deploy_claim_allowed": production_gate_claim_allowed,
         "localhost_role": "dev_control_plane_only",
         "manual_external_actions": [
             "gh workflow run main-deploy.yml",
@@ -1938,9 +4060,60 @@ def cloud_deployment_preflight_payload() -> dict[str, object]:
     }
 
 
+def cloud_deployment_preflight_payload() -> dict[str, object]:
+    state = cloud_deployment_preflight_state()
+    return {
+        "contract_version": "cloud-deployment-preflight-surface-v1",
+        "mode": "cloud_deployment_preflight_runtime_surface_contract",
+        "endpoint": "GET /api/v1/clouds/deployment-preflight/contract",
+        "runtime_endpoint": "GET /api/v1/clouds/deployment-preflight",
+        "runtime_contract_version": state.get("contract_version"),
+        "required_top_level_fields": [
+            "status",
+            "required_sequence",
+            "gates",
+            "missing_or_blocked_gates",
+            "preflight_ready",
+            "external_execution_ready",
+            "cloud_deploy_claim_allowed",
+            "production_deploy_claim_allowed",
+            "localhost_role",
+            "manual_external_actions",
+            "claim_policy",
+            "policy_checks",
+            "non_claims",
+        ],
+        "required_gate_fields": [
+            "id",
+            "label",
+            "required_env",
+            "required_artifact",
+            "verifier",
+            "environment_configured",
+            "configured",
+            "verified",
+            "evidence_ref",
+            "required_evidence_artifact",
+            "next_action",
+        ],
+        "required_gate_ids": [str(item.get("id")) for item in state.get("gates", []) if isinstance(item, dict)],
+        "supported_statuses": ["verified", "ready_for_external_execution", "action_required"],
+        "expected_runtime_contract_version": state.get("contract_version"),
+        "expected_runtime_endpoint": state.get("endpoint"),
+        "evidence_ref": "cloud_deployment_preflight_contract_runtime_visible",
+        "policy_checks": list(state.get("policy_checks", [])),
+        "non_claims": list(state.get("non_claims", [])),
+    }
+
+
 @app.get("/api/v1/external-gates")
 def external_gates() -> dict[str, object]:
     return external_gate_state()
+
+
+@app.get("/api/v1/external-gates/contract")
+def external_gates_contract() -> dict[str, object]:
+    return external_gates_surface_contract_payload()
 
 
 @app.get("/api/v1/external-gates/mirror")
@@ -1948,9 +4121,19 @@ def external_gates_mirror() -> dict[str, object]:
     return external_gate_mirror_state()
 
 
+@app.get("/api/v1/external-gates/mirror/contract")
+def external_gates_mirror_contract() -> dict[str, object]:
+    return external_gate_mirror_surface_contract_payload()
+
+
 @app.get("/api/v1/clouds")
 def clouds() -> dict[str, object]:
     return cloud_provider_state()
+
+
+@app.get("/api/v1/clouds/contract")
+def clouds_contract() -> dict[str, object]:
+    return cloud_inventory_contract_payload()
 
 
 @app.get("/api/v1/clouds/layers")
@@ -1958,9 +4141,24 @@ def cloud_layers() -> dict[str, object]:
     return cloud_layer_readiness_state()
 
 
+@app.get("/api/v1/clouds/layers/contract")
+def cloud_layers_contract() -> dict[str, object]:
+    return cloud_layers_contract_payload()
+
+
+@app.get("/api/v1/clouds/render-offload")
+def cloud_render_offload() -> dict[str, object]:
+    return cloud_render_offload_state()
+
+
 @app.get("/api/v1/clouds/render-offload/contract")
 def cloud_render_offload_contract() -> dict[str, object]:
     return cloud_render_offload_contract_payload()
+
+
+@app.get("/api/v1/clouds/deployment-preflight")
+def cloud_deployment_preflight() -> dict[str, object]:
+    return cloud_deployment_preflight_state()
 
 
 @app.get("/api/v1/clouds/deployment-preflight/contract")
@@ -2124,6 +4322,16 @@ def workflow_dispatch_plan() -> dict[str, object]:
     return workflow_dispatch_contract(request)
 
 
+@app.get("/api/v1/devops/workflow-dispatch/plan/contract")
+def workflow_dispatch_plan_contract() -> dict[str, object]:
+    return workflow_dispatch_plan_surface_contract_payload()
+
+
+@app.get("/api/v1/devops/workflow-dispatch/validate/contract")
+def workflow_dispatch_validate_contract() -> dict[str, object]:
+    return workflow_dispatch_validate_surface_contract_payload()
+
+
 @app.post("/api/v1/devops/workflow-dispatch/validate")
 def validate_workflow_dispatch(request: WorkflowDispatchRequest) -> dict[str, object]:
     contract = workflow_dispatch_contract(request)
@@ -2189,6 +4397,11 @@ def health() -> dict[str, object]:
             "local_execution_allowed": gates["local_execution_allowed"],
         },
     }
+
+
+@app.get("/api/v1/health/contract")
+def health_contract() -> dict[str, object]:
+    return health_contract_payload()
 
 
 def ensure_project(conn: psycopg.Connection, project_id: str) -> str:
@@ -2313,6 +4526,11 @@ def create_prompt(request: PromptRequest) -> dict[str, object]:
     }
 
 
+@app.get("/api/v1/session/stream/contract")
+def session_stream_contract() -> dict[str, object]:
+    return session_stream_surface_contract_payload()
+
+
 @app.get("/api/v1/session/{session_id}/stream")
 def stream_session(session_id: str, last_event_id: str | None = Header(default=None, alias="Last-Event-ID")) -> StreamingResponse:
     async def events():
@@ -2376,6 +4594,10 @@ def stream_session(session_id: str, last_event_id: str | None = Header(default=N
 @app.get("/api/v1/agents/status")
 def agent_status() -> dict[str, object]:
     records = list_recent_tasks()
+    task_projection, session_projection = load_recent_correlation_projection(
+        [record.task_id for record in records],
+        [str(record.session_id) for record in records],
+    )
     profiles = {
         str(profile["agent_type"]): profile
         for profile in agent_profile_registry()["profiles"]
@@ -2391,10 +4613,13 @@ def agent_status() -> dict[str, object]:
             status = "active"
         elif queued:
             status = "queued"
-        elif latest and latest.status == "failed":
+        elif latest and latest.status in {"failed", "escalated", "abandoned_after_queue_drain"}:
             status = "error"
         else:
             status = "idle"
+        latest_correlation = task_projection.get(latest.task_id, {}) if latest else {}
+        if not latest_correlation and latest:
+            latest_correlation = session_projection.get(str(latest.session_id), {})
         agents.append(
             {
                 "type": agent_type,
@@ -2412,14 +4637,23 @@ def agent_status() -> dict[str, object]:
                 "graceful_degradation": profiles[agent_type]["graceful_degradation"],
                 "current_task": selected.task_description if selected and selected.status in {"queued", "running"} else None,
                 "current_session_id": selected.session_id if selected else None,
-                "retries": 0,
+                "retries": selected.retry_count if selected else 0,
                 "started_at": selected.created_at if selected else None,
                 "updated_at": selected.updated_at if selected else None,
                 "latest_task_id": latest.task_id if latest else None,
                 "latest_task_type": latest.task_type if latest else None,
                 "latest_status": latest.status if latest else "none",
+                "latest_trace_id": (
+                    latest_correlation.get("trace_id")
+                    or (latest.trace_id if latest else None)
+                ),
+                "latest_request_id": latest_correlation.get("request_id") if latest else None,
+                "latest_correlation_evidence_ref": latest_correlation.get("correlation_evidence_ref") if latest else None,
+                "latest_audit_feed_evidence_ref": latest_correlation.get("audit_feed_evidence_ref") if latest else None,
                 "latest_result": latest.result if latest else None,
                 "latest_error": latest.error if latest else None,
+                "latest_retry_count": latest.retry_count if latest else 0,
+                "latest_max_retries": latest.max_retries if latest else 0,
             }
         )
     return {"agents": agents, "queue_depth": queue_depth(), "queue_depth_by_priority": queue_depth_by_priority()}
@@ -2428,6 +4662,10 @@ def agent_status() -> dict[str, object]:
 @app.get("/api/v1/tasks/recent")
 def recent_tasks(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, object]:
     records = list_recent_tasks(limit=limit)
+    task_projection, session_projection = load_recent_correlation_projection(
+        [record.task_id for record in records],
+        [str(record.session_id) for record in records],
+    )
     return {
         "queue_depth": queue_depth(),
         "queue_depth_by_priority": queue_depth_by_priority(),
@@ -2436,6 +4674,10 @@ def recent_tasks(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, obje
                 "task_id": record.task_id,
                 "project_id": record.project_id,
                 "session_id": record.session_id,
+                "trace_id": (task_projection.get(record.task_id, {}) or session_projection.get(str(record.session_id), {})).get("trace_id") or record.trace_id,
+                "request_id": (task_projection.get(record.task_id, {}) or session_projection.get(str(record.session_id), {})).get("request_id"),
+                "correlation_evidence_ref": (task_projection.get(record.task_id, {}) or session_projection.get(str(record.session_id), {})).get("correlation_evidence_ref"),
+                "audit_feed_evidence_ref": (task_projection.get(record.task_id, {}) or session_projection.get(str(record.session_id), {})).get("audit_feed_evidence_ref"),
                 "agent_type": record.agent_type,
                 "task_type": record.task_type,
                 "task_description": record.task_description,
@@ -2459,6 +4701,41 @@ def recent_tasks(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, obje
             for record in records
         ],
     }
+
+
+@app.get("/api/v1/tasks/recent/contract")
+def recent_tasks_contract() -> dict[str, object]:
+    return recent_tasks_contract_payload()
+
+
+@app.get("/api/v1/agents/status/contract")
+def agent_status_contract() -> dict[str, object]:
+    return agent_status_contract_payload()
+
+
+@app.get("/api/v1/sessions/recent/contract")
+def recent_sessions_contract() -> dict[str, object]:
+    return recent_sessions_contract_payload()
+
+
+@app.get("/api/v1/sessions/history/contract")
+def session_history_contract() -> dict[str, object]:
+    return session_history_contract_payload()
+
+
+@app.get("/api/v1/audit/recent/contract")
+def recent_audit_contract() -> dict[str, object]:
+    return audit_feed_contract_payload()
+
+
+@app.get("/api/v1/audit/mcp/contract")
+def recent_mcp_audit_contract() -> dict[str, object]:
+    return mcp_audit_feed_contract_payload()
+
+
+@app.get("/api/v1/memory/consolidation/contract")
+def memory_consolidation_contract() -> dict[str, object]:
+    return memory_consolidation_contract_payload()
 
 
 @app.get("/api/v1/sessions/recent")
@@ -2495,6 +4772,16 @@ def recent_sessions(limit: int = Query(default=10, ge=1, le=50)) -> dict[str, ob
             """,
             (limit,),
         ).fetchall()
+    latest_task_by_session_id: dict[str, object] = {}
+    recent_task_records = list_recent_tasks(limit=max(limit * 20, 200))
+    for record in recent_task_records:
+        session_id = str(record.session_id)
+        if session_id not in latest_task_by_session_id:
+            latest_task_by_session_id[session_id] = record
+    _, session_projection = load_recent_correlation_projection(
+        [record.task_id for record in recent_task_records],
+        [str(row[0]) for row in rows],
+    )
     return {
         "sessions": [
             {
@@ -2502,7 +4789,35 @@ def recent_sessions(limit: int = Query(default=10, ge=1, le=50)) -> dict[str, ob
                 "project_id": row[1],
                 "started_at": row[2].isoformat() if row[2] else None,
                 "status": row[3],
-                "latest_task_id": row[4] or row[5],
+                "trace_id": session_projection.get(str(row[0]), {}).get("trace_id"),
+                "request_id": session_projection.get(str(row[0]), {}).get("request_id"),
+                "correlation_evidence_ref": session_projection.get(str(row[0]), {}).get("correlation_evidence_ref"),
+                "audit_feed_evidence_ref": session_projection.get(str(row[0]), {}).get("audit_feed_evidence_ref"),
+                "latest_task_id": row[4] or row[5] or (
+                    latest_task_by_session_id[str(row[0])].task_id
+                    if str(row[0]) in latest_task_by_session_id
+                    else None
+                ),
+                "latest_task_status": (
+                    latest_task_by_session_id[str(row[0])].status
+                    if str(row[0]) in latest_task_by_session_id
+                    else None
+                ),
+                "latest_error": (
+                    latest_task_by_session_id[str(row[0])].error
+                    if str(row[0]) in latest_task_by_session_id
+                    else None
+                ),
+                "latest_retry_count": (
+                    latest_task_by_session_id[str(row[0])].retry_count
+                    if str(row[0]) in latest_task_by_session_id
+                    else None
+                ),
+                "latest_max_retries": (
+                    latest_task_by_session_id[str(row[0])].max_retries
+                    if str(row[0]) in latest_task_by_session_id
+                    else None
+                ),
                 "prompt": row[7],
                 "assistant_result": row[8] or row[6],
             }
@@ -2568,6 +4883,10 @@ def session_history(
         for record in list_recent_tasks(limit=100)
         if str(record.session_id) == session_uuid
     ][:task_limit]
+    task_projection, _ = load_recent_correlation_projection(
+        [record.task_id for record in task_records],
+        [session_uuid],
+    )
     progress = project_progress_payload()
     integrity = project_progress_integrity_payload()
     return {
@@ -2596,6 +4915,10 @@ def session_history(
                 "task_id": record.task_id,
                 "project_id": record.project_id,
                 "session_id": record.session_id,
+                "trace_id": task_projection.get(record.task_id, {}).get("trace_id") or record.trace_id,
+                "request_id": task_projection.get(record.task_id, {}).get("request_id"),
+                "correlation_evidence_ref": task_projection.get(record.task_id, {}).get("correlation_evidence_ref"),
+                "audit_feed_evidence_ref": task_projection.get(record.task_id, {}).get("audit_feed_evidence_ref"),
                 "agent_type": record.agent_type,
                 "task_type": record.task_type,
                 "task_description": record.task_description,
@@ -2792,6 +5115,13 @@ def recent_escalations(limit: int = Query(default=20, ge=1, le=100)) -> dict[str
                 "event_type": row[1],
                 "user_id": row[2],
                 "session_id": str(row[3]) if row[3] else None,
+                "request_id": (row[4] or {}).get("request_id"),
+                "trace_id": (row[4] or {}).get("trace_id") or (str(row[3]) if row[3] else None),
+                "correlation_evidence_ref": (row[4] or {}).get(
+                    "correlation_evidence_ref",
+                    "request_id_audit_correlation",
+                ),
+                "audit_feed_evidence_ref": "request_id_audit_feed_visible",
                 "details": row[4] or {},
                 "created_at": row[5].isoformat() if row[5] else None,
                 "severity": row[6],
@@ -2799,6 +5129,16 @@ def recent_escalations(limit: int = Query(default=20, ge=1, le=100)) -> dict[str
             for row in rows
         ]
     }
+
+
+@app.get("/api/v1/escalations/contract")
+def escalation_contract() -> dict[str, object]:
+    return escalation_contract_payload()
+
+
+@app.get("/api/v1/memory/search/contract")
+def memory_search_contract() -> dict[str, object]:
+    return memory_search_contract_payload()
 
 
 @app.get("/api/v1/memory/search")
@@ -2818,6 +5158,11 @@ def memory_search(
 @app.get("/api/v1/memory/purge/contract")
 def memory_purge_contract() -> dict[str, object]:
     return memory_purge_contract_payload()
+
+
+@app.get("/api/v1/memory/purge/jobs/contract")
+def memory_purge_job_status_contract() -> dict[str, object]:
+    return memory_purge_job_status_surface_contract_payload()
 
 
 @app.delete("/api/v1/memory", status_code=202)
@@ -2905,6 +5250,11 @@ def costs() -> dict[str, object]:
     }
 
 
+@app.get("/api/v1/costs/contract")
+def costs_contract() -> dict[str, object]:
+    return costs_contract_payload()
+
+
 @app.get("/api/v1/costs/export/contract")
 def cost_export_contract() -> dict[str, object]:
     return cost_export_contract_payload()
@@ -2918,6 +5268,96 @@ def system_fallback_contract() -> dict[str, object]:
 @app.get("/api/v1/agent-activity/contract")
 def agent_activity_contract() -> dict[str, object]:
     return agent_activity_contract_payload()
+
+
+def correlation_projection_from_details(
+    details: object,
+    session_id: str | None = None,
+    fallback_trace_id: str | None = None,
+) -> dict[str, object]:
+    if not isinstance(details, dict):
+        details = {}
+    request_id = details.get("request_id")
+    trace_id = details.get("trace_id") or details.get("thread_id") or fallback_trace_id or session_id
+    correlation_evidence_ref = details.get("correlation_evidence_ref")
+    if not correlation_evidence_ref and (request_id or trace_id):
+        correlation_evidence_ref = "request_id_audit_correlation"
+    return {
+        "request_id": request_id,
+        "trace_id": trace_id,
+        "correlation_evidence_ref": correlation_evidence_ref,
+        "audit_feed_evidence_ref": (
+            "request_id_audit_feed_visible"
+            if request_id or trace_id
+            else None
+        ),
+    }
+
+
+def load_recent_correlation_projection(
+    task_ids: list[str],
+    session_ids: list[str],
+) -> tuple[dict[str, dict[str, object]], dict[str, dict[str, object]]]:
+    normalized_task_ids = [task_id for task_id in task_ids if task_id]
+    normalized_session_ids = [session_id for session_id in session_ids if session_id]
+    if not normalized_task_ids and not normalized_session_ids:
+        return {}, {}
+
+    predicates: list[str] = []
+    params: list[object] = []
+    if normalized_task_ids:
+        predicates.append("details->>'task_id' = ANY(%s)")
+        params.append(normalized_task_ids)
+    if normalized_session_ids:
+        predicates.append("CAST(session_id AS TEXT) = ANY(%s)")
+        params.append(normalized_session_ids)
+
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        rows = conn.execute(
+            f"""
+            SELECT session_id, details
+            FROM audit_log
+            WHERE {' OR '.join(predicates)}
+            ORDER BY created_at DESC
+            LIMIT 500
+            """,
+            tuple(params),
+        ).fetchall()
+        session_rows = (
+            conn.execute(
+                """
+                SELECT id, metadata
+                FROM agent_sessions
+                WHERE CAST(id AS TEXT) = ANY(%s)
+                """,
+                (normalized_session_ids or [""],),
+            ).fetchall()
+            if normalized_session_ids
+            else []
+        )
+
+    task_projection: dict[str, dict[str, object]] = {}
+    session_projection: dict[str, dict[str, object]] = {}
+    for row in rows:
+        session_id = str(row[0]) if row[0] else None
+        details = row[1] or {}
+        if not isinstance(details, dict):
+            details = {}
+        task_id = details.get("task_id")
+        projection = correlation_projection_from_details(details, session_id=session_id)
+        if task_id and task_id not in task_projection:
+            task_projection[task_id] = projection
+        if session_id and session_id not in session_projection:
+            session_projection[session_id] = projection
+    for row in session_rows:
+        session_id = str(row[0]) if row[0] else None
+        metadata = row[1] or {}
+        if not isinstance(metadata, dict):
+            metadata = {}
+        projection = correlation_projection_from_details(metadata, session_id=session_id)
+        if session_id and session_id not in session_projection:
+            session_projection[session_id] = projection
+    return task_projection, session_projection
 
 
 def agent_activity_row_to_event(row: tuple[object, ...]) -> dict[str, object]:
@@ -2937,7 +5377,18 @@ def agent_activity_row_to_event(row: tuple[object, ...]) -> dict[str, object]:
             if bool(details.get("partial_failure", False))
             else "agent_result_aggregation_complete"
         )
+    task_status = details.get("status")
+    if not task_status:
+        if row[1] == "task_escalated":
+            task_status = "escalated"
+        elif row[1] == "task_abandoned_after_queue_drain":
+            task_status = "abandoned_after_queue_drain"
     trace_id = str(row[7] or "none")
+    correlation = correlation_projection_from_details(
+        details,
+        session_id=str(row[3]) if row[3] else None,
+        fallback_trace_id=trace_id,
+    )
     return {
         "id": str(row[0]),
         "event_type": row[1],
@@ -2946,8 +5397,16 @@ def agent_activity_row_to_event(row: tuple[object, ...]) -> dict[str, object]:
         "details": details,
         "created_at": row[5].isoformat() if row[5] else None,
         "severity": row[6],
-        "trace_id": trace_id,
+        "trace_id": correlation["trace_id"],
+        "request_id": correlation["request_id"],
+        "correlation_evidence_ref": correlation["correlation_evidence_ref"],
+        "audit_feed_evidence_ref": correlation["audit_feed_evidence_ref"],
         "agent_type": row[8],
+        "task_id": details.get("task_id"),
+        "task_status": task_status,
+        "retry_count": details.get("retry_count"),
+        "max_retries": details.get("max_retries"),
+        "error": details.get("error"),
         "per_role_results": per_role_results,
         "role_summary_count": len(per_role_results),
         "partial_failure": bool(details.get("partial_failure", False)),
@@ -3067,6 +5526,40 @@ def budget() -> dict[str, object]:
         "level": state.level,
         "allow_new_calls": state.allow_new_calls,
     }
+
+
+def budget_contract_payload() -> dict[str, object]:
+    state = get_budget_state()
+    return {
+        "contract_version": "budget-surface-v1",
+        "mode": "llm_budget_runtime_projection",
+        "endpoint": "GET /api/v1/budget/contract",
+        "runtime_endpoint": "GET /api/v1/budget",
+        "required_top_level_fields": [
+            "total_cost_cents",
+            "budget_limit_cents",
+            "budget_spent_percentage",
+            "level",
+            "allow_new_calls",
+        ],
+        "supported_levels": ["ok", "warning", "critical"],
+        "budget_limit_cents": state.budget_limit_cents,
+        "evidence_ref": "budget_contract_runtime_visible",
+        "policy_checks": [
+            "Budget surface remains a read-only runtime projection.",
+            "Budget level is derived from live runtime budget state.",
+            "Budget surface does not claim live provider execution is enabled.",
+        ],
+        "non_claims": [
+            "This contract does not claim live provider calls are enabled.",
+            "This contract does not authorize production deployment.",
+        ],
+    }
+
+
+@app.get("/api/v1/budget/contract")
+def budget_contract() -> dict[str, object]:
+    return budget_contract_payload()
 
 
 def rate_limit_contract_payload() -> dict[str, object]:
@@ -3337,12 +5830,72 @@ def request_id_contract_payload() -> dict[str, object]:
         "generated_prefix": "req-",
         "error_envelope_fields": ["request_id", "trace_id", "path"],
         "audit_correlation_fields": ["request_id", "trace_id"],
+        "public_surface_registry": [
+            {
+                "path": "/api/v1/agents/status",
+                "request_field": "latest_request_id",
+                "trace_field": "latest_trace_id",
+                "correlation_field": "latest_correlation_evidence_ref",
+                "audit_feed_field": "latest_audit_feed_evidence_ref",
+                "supported_statuses": ["escalated", "abandoned_after_queue_drain"],
+            },
+            {
+                "path": "/api/v1/agent-activity/recent",
+                "request_field": "request_id",
+                "trace_field": "trace_id",
+                "correlation_field": "correlation_evidence_ref",
+                "audit_feed_field": "audit_feed_evidence_ref",
+                "supported_statuses": ["escalated", "abandoned_after_queue_drain"],
+            },
+            {
+                "path": "/api/v1/tasks/recent",
+                "request_field": "request_id",
+                "trace_field": "trace_id",
+                "correlation_field": "correlation_evidence_ref",
+                "audit_feed_field": "audit_feed_evidence_ref",
+                "supported_statuses": ["escalated", "abandoned_after_queue_drain"],
+            },
+            {
+                "path": "/api/v1/sessions/recent",
+                "request_field": "request_id",
+                "trace_field": "trace_id",
+                "correlation_field": "correlation_evidence_ref",
+                "audit_feed_field": "audit_feed_evidence_ref",
+                "supported_statuses": ["escalated", "abandoned_after_queue_drain"],
+            },
+            {
+                "path": "/api/v1/sessions/{session_id}/history",
+                "request_field": "request_id",
+                "trace_field": "trace_id",
+                "correlation_field": "correlation_evidence_ref",
+                "audit_feed_field": "audit_feed_evidence_ref",
+                "supported_statuses": ["escalated", "abandoned_after_queue_drain"],
+            },
+            {
+                "path": "/api/v1/audit/recent",
+                "request_field": "request_id",
+                "trace_field": "trace_id",
+                "correlation_field": "correlation_evidence_ref",
+                "audit_feed_field": "audit_feed_evidence_ref",
+                "supported_statuses": ["escalated", "abandoned_after_queue_drain"],
+            },
+            {
+                "path": "/api/v1/escalations/recent",
+                "request_field": "request_id",
+                "trace_field": "trace_id",
+                "correlation_field": "correlation_evidence_ref",
+                "audit_feed_field": "audit_feed_evidence_ref",
+                "supported_statuses": ["escalated"],
+            },
+        ],
         "applies_to": "all Agent API HTTP responses and structured error envelopes",
         "policy_checks": [
             "If x-request-id is supplied, the same value is returned in the response header.",
             "If no request id is supplied, the API generates one with prefix req-.",
             "Structured error envelopes include request_id and trace_id for support/audit correlation.",
             "Audited cost-export actions persist request_id and trace_id in audit_log.details.",
+            "The request contract explicitly registers every public runtime surface that exposes top-level request, trace, correlation, and audit-feed evidence fields.",
+            "The request contract explicitly lists which negative worker end states each registered public runtime surface supports.",
             "Every response includes X-Superbrain-Request-Contract.",
         ],
         "evidence_refs": {
@@ -3351,6 +5904,8 @@ def request_id_contract_payload() -> dict[str, object]:
             "error_envelope_correlation": "request_id_error_envelope_correlation",
             "audit_correlation": "request_id_audit_correlation",
             "audit_feed_visibility": "request_id_audit_feed_visible",
+            "public_surface_registry": "request_id_public_surface_registry_visible",
+            "negative_worker_state_registry": "request_id_negative_worker_state_registry_visible",
             "ui_visible": "request_id_ui_visible",
         },
     }
@@ -3393,7 +5948,7 @@ def layer_interface_contract_payload() -> dict[str, object]:
             "target_layer": "Agent Pool",
             "transport": "HTTP JSON + Redis queue",
             "method": "POST",
-            "path": "/internal/tasks",
+            "path": "/api/v1/internal/tasks",
             "request_schema": ["project_id:string", "session_id:uuid", "agent_type:planner|coder|tester|devops", "task_type:string", "blocked_actions:string[]"],
             "response_schema": ["task_id:uuid", "status:queued|running|completed|escalated", "policy_version:task-policy-v1"],
             "evidence_ref": "task_session_uuid_fail_closed_proof",
@@ -3474,6 +6029,47 @@ def layer_interface_contract() -> dict[str, object]:
     return layer_interface_contract_payload()
 
 
+def metrics_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": "metrics-surface-v1",
+        "mode": "prometheus_text_runtime_contract",
+        "endpoint": "GET /api/v1/metrics/contract",
+        "runtime_endpoint": "GET /api/v1/metrics",
+        "content_type": "text/plain; version=0.0.4",
+        "evidence_ref": "metrics_contract_runtime_visible",
+        "required_metric_families": [
+            "superbrain_project_progress_percent",
+            "superbrain_budget_spent_percentage",
+            "superbrain_prompt_rate_limit_capacity",
+            "superbrain_session_llm_call_limit",
+            "superbrain_infra_budget_spent_percentage",
+            "superbrain_external_gate_configured",
+            "superbrain_task_queue_depth",
+            "superbrain_service_health",
+            "superbrain_memory_entries_total",
+            "superbrain_memory_consolidation_events_total",
+            "superbrain_audit_events_total",
+            "superbrain_mcp_tool_events_total",
+        ],
+        "required_policy_assertions": [
+            "manifest-backed project progress remains visible in metrics",
+            "budget and infra budget remain fail-closed visible",
+            "queue depth and service health remain publicly visible",
+            "memory and audit evidence remain runtime visible",
+        ],
+        "non_claims": [
+            "This contract does not claim live provider execution.",
+            "This contract does not claim production deployment.",
+            "This contract does not mutate runtime state.",
+        ],
+    }
+
+
+@app.get("/api/v1/metrics/contract")
+def metrics_contract() -> dict[str, object]:
+    return metrics_contract_payload()
+
+
 def task_assignment_contract_payload() -> dict[str, object]:
     policy = task_policy_manifest()
     return {
@@ -3485,9 +6081,9 @@ def task_assignment_contract_payload() -> dict[str, object]:
         "covered_boundary": "L2-L3 Agent API / Orchestrator to Agent Pool",
         "intake": {
             "method": "POST",
-            "path": "/internal/tasks",
+            "path": "/api/v1/internal/tasks",
             "public_validation_path": "/api/v1/tasks/policy/validate",
-            "status_path": "/internal/tasks/{task_id}",
+            "status_path": "/api/v1/internal/tasks/{task_id}",
             "public_recent_path": "/api/v1/tasks/recent",
             "policy_version": policy["policy_version"],
             "mode": policy["mode"],
@@ -3773,6 +6369,48 @@ def infra_budget() -> dict[str, object]:
     }
 
 
+def infra_budget_contract_payload() -> dict[str, object]:
+    state = get_infra_budget_state()
+    return {
+        "contract_version": "infra-budget-surface-v1",
+        "mode": "infrastructure_budget_runtime_projection",
+        "endpoint": "GET /api/v1/infra/budget/contract",
+        "runtime_endpoint": "GET /api/v1/infra/budget",
+        "required_top_level_fields": [
+            "projected_cost_cents",
+            "budget_limit_cents",
+            "warning_limit_cents",
+            "budget_spent_percentage",
+            "level",
+            "allow_new_infra",
+            "live_verified",
+            "source",
+            "items",
+            "non_claims",
+        ],
+        "supported_levels": ["ok", "warning", "critical"],
+        "budget_limit_cents": state.budget_limit_cents,
+        "warning_limit_cents": state.warning_limit_cents,
+        "supported_sources": ["projection", "hetzner_api_readonly"],
+        "required_item_fields": ["name", "monthly_cost_cents"],
+        "evidence_ref": "infra_budget_contract_runtime_visible",
+        "policy_checks": [
+            "Infrastructure budget surface remains read-only.",
+            "Infra budget source stays visible as projection or readonly Hetzner API evidence.",
+            "Infra budget does not include LLM provider spend.",
+        ],
+        "non_claims": [
+            "This contract does not claim production deployment is allowed.",
+            "This contract does not claim LLM provider spend is included in the infra limit.",
+        ],
+    }
+
+
+@app.get("/api/v1/infra/budget/contract")
+def infra_budget_contract() -> dict[str, object]:
+    return infra_budget_contract_payload()
+
+
 @app.get("/api/v1/metrics")
 def prometheus_metrics() -> Response:
     budget_state = get_budget_state()
@@ -3986,8 +6624,7 @@ def prometheus_metrics() -> Response:
     return Response("\n".join(lines) + "\n", media_type="text/plain; version=0.0.4; charset=utf-8")
 
 
-@app.get("/api/v1/orchestrator/manifest")
-def orchestrator_manifest() -> dict[str, object]:
+def orchestrator_manifest_payload() -> dict[str, object]:
     return {
         "engine": "langgraph",
         "mode": "deterministic_dry_run",
@@ -4009,9 +6646,226 @@ def orchestrator_manifest() -> dict[str, object]:
     }
 
 
+def orchestrator_manifest_contract_payload() -> dict[str, object]:
+    manifest = orchestrator_manifest_payload()
+    return {
+        "contract_version": ORCHESTRATOR_MANIFEST_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/orchestrator/manifest",
+        "runtime_fields": [
+            "engine",
+            "mode",
+            "live_provider_calls",
+            "checkpointing",
+            "checkpoint_recovery_endpoint",
+            "nodes",
+            "max_global_retries",
+            "forbidden_actions",
+            "next_safe_step",
+        ],
+        "expected_values": {
+            "engine": manifest["engine"],
+            "mode": manifest["mode"],
+            "live_provider_calls": manifest["live_provider_calls"],
+            "checkpointing": manifest["checkpointing"],
+            "max_global_retries": manifest["max_global_retries"],
+        },
+        "runtime_bindings": [
+            "POST /api/v1/orchestrator/dry-run",
+            "POST /api/v1/orchestrator/dry-run/stream",
+            "GET /api/v1/phase2/runtime/contract",
+            "GET /api/v1/orchestrator/checkpoints/{thread_id}",
+        ],
+        "evidence_refs": [
+            ORCHESTRATOR_MANIFEST_EVIDENCE_REF,
+            PHASE2_RUNTIME_GRAPH_EVIDENCE_REF,
+            "llm_gateway_streaming_dry_run",
+            "task_assignment_completed",
+        ],
+    }
+
+
+def orchestrator_checkpoint_surface_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": ORCHESTRATOR_CHECKPOINT_SURFACE_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/orchestrator/checkpoints/contract",
+        "runtime_endpoint_template": "GET /api/v1/orchestrator/checkpoints/{thread_id}",
+        "runtime_contract_version": "checkpoint-runtime-v1",
+        "evidence_ref": ORCHESTRATOR_CHECKPOINT_SURFACE_EVIDENCE_REF,
+        "required_top_level_fields": [
+            "engine",
+            "checkpointing",
+            "snapshot",
+        ],
+        "required_snapshot_fields": [
+            "found",
+            "thread_id",
+            "checkpoint_ns",
+            "checkpoint_id",
+            "values",
+            "metadata",
+        ],
+        "expected_engine": "langgraph",
+        "expected_checkpointing": "postgres",
+        "expected_snapshot_found": True,
+        "required_snapshot_evidence_refs": [
+            "last_stable_checkpoint",
+            "agent_result_aggregation_complete",
+            "memory_update_persisted",
+        ],
+    }
+
+
+def orchestrator_dry_run_surface_contract_payload() -> dict[str, object]:
+    manifest = orchestrator_manifest_payload()
+    return {
+        "contract_version": ORCHESTRATOR_DRY_RUN_SURFACE_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/orchestrator/dry-run/contract",
+        "runtime_endpoint": "POST /api/v1/orchestrator/dry-run",
+        "evidence_ref": ORCHESTRATOR_DRY_RUN_SURFACE_EVIDENCE_REF,
+        "required_top_level_fields": [
+            "contract_version",
+            "evidence_ref",
+            "engine",
+            "mode",
+            "live_provider_calls",
+            "checkpointing",
+            "thread_id",
+            "state",
+        ],
+        "required_state_fields": [
+            "run_id",
+            "session_id",
+            "project_id",
+            "node_name",
+            "retry_counters",
+            "evidence_refs",
+            "llm_gateway_calls",
+            "task_assignments",
+            "mcp_tool_calls",
+            "memory_context",
+            "memory_update_id",
+            "result",
+        ],
+        "expected_engine": manifest["engine"],
+        "expected_mode": manifest["mode"],
+        "expected_checkpointing": manifest["checkpointing"],
+        "expected_live_provider_calls": False,
+        "required_state_evidence_refs": [
+            "llm_gateway_streaming_dry_run",
+            "task_assignment_completed",
+        ],
+        "non_claims": [
+            "This contract does not claim live provider calls.",
+            "This contract does not claim live MCP writes.",
+            "This contract does not authorize production deployment.",
+        ],
+    }
+
+
+def orchestrator_dry_run_stream_surface_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": ORCHESTRATOR_DRY_RUN_STREAM_SURFACE_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/orchestrator/dry-run/stream/contract",
+        "runtime_endpoint": "POST /api/v1/orchestrator/dry-run/stream",
+        "content_type": "text/event-stream",
+        "replay_header": "Last-Event-ID",
+        "runtime_contract_version": PHASE2_SSE_EVENT_CONTRACT_VERSION,
+        "evidence_ref": ORCHESTRATOR_DRY_RUN_STREAM_SURFACE_EVIDENCE_REF,
+        "required_event_types": list(PHASE2_SSE_REQUIRED_EVENTS),
+        "required_done_fields": [
+            "contract_version",
+            "evidence_ref",
+            "required_event_types",
+            "status",
+            "thread_id",
+            "live_provider_calls",
+        ],
+        "required_error_fields": [
+            "contract_version",
+            "evidence_ref",
+            "required_event_types",
+            "code",
+            "message",
+            "recoverable",
+        ],
+        "policy_checks": [
+            "Stream remains replayable through Last-Event-ID.",
+            "Done and error terminal events stay bound to the phase2 SSE contract.",
+            "Stream remains deterministic and does not claim live provider calls.",
+        ],
+        "non_claims": [
+            "This contract does not imply live provider token streaming.",
+            "This contract does not authorize production deployment.",
+        ],
+    }
+
+
+def phase2_runtime_start_surface_contract_payload() -> dict[str, object]:
+    runtime = phase2_runtime_contract_payload()
+    return {
+        "contract_version": PHASE2_RUNTIME_START_SURFACE_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/phase2/runtime/start/contract",
+        "runtime_endpoint": "POST /api/v1/phase2/runtime/start",
+        "runtime_contract_version": runtime["contract_version"],
+        "evidence_ref": PHASE2_RUNTIME_START_SURFACE_EVIDENCE_REF,
+        "required_top_level_fields": [
+            "contract_version",
+            "status",
+            "mode",
+            "engine",
+            "live_provider_calls",
+            "live_mcp_writes",
+            "production_deploy",
+            "checkpointing",
+            "thread_id",
+            "run_id",
+            "evidence_ref",
+            "state",
+            "contract",
+        ],
+        "required_state_fields": [
+            "run_id",
+            "session_id",
+            "project_id",
+            "node_name",
+            "retry_counters",
+            "evidence_refs",
+            "result",
+        ],
+        "expected_status": "started",
+        "expected_engine": runtime["engine"],
+        "expected_mode": runtime["mode"],
+        "expected_checkpointing": runtime["checkpointing"],
+        "expected_live_provider_calls": False,
+        "expected_live_mcp_writes": False,
+        "expected_production_deploy": False,
+        "required_state_evidence_refs": [
+            PHASE2_RUNTIME_GRAPH_EVIDENCE_REF,
+            "task_assignment_completed",
+            "memory_update_persisted",
+        ],
+        "non_claims": list(runtime["non_claims"]),
+    }
+
+
+@app.get("/api/v1/orchestrator/manifest")
+def orchestrator_manifest() -> dict[str, object]:
+    return orchestrator_manifest_payload()
+
+
+@app.get("/api/v1/orchestrator/manifest/contract")
+def orchestrator_manifest_contract() -> dict[str, object]:
+    return orchestrator_manifest_contract_payload()
+
+
 @app.get("/api/v1/phase2/runtime/contract")
 def phase2_runtime_contract() -> dict[str, object]:
     return phase2_runtime_contract_payload()
+
+
+@app.get("/api/v1/phase2/runtime/runs/contract")
+def phase2_runtime_runs_contract() -> dict[str, object]:
+    return phase2_runtime_runs_surface_contract_payload()
 
 
 @app.get("/api/v1/phase2/runtime/runs")
@@ -4041,6 +6895,51 @@ def phase2_runtime_runs(limit: int = Query(default=10, ge=1, le=50)) -> dict[str
     }
 
 
+def phase2_runtime_runs_surface_contract_payload() -> dict[str, object]:
+    runtime = phase2_runtime_runs(limit=3)
+    return {
+        "contract_version": PHASE2_RUNTIME_RUNS_SURFACE_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/phase2/runtime/runs/contract",
+        "runtime_endpoint": "GET /api/v1/phase2/runtime/runs",
+        "runtime_contract_version": PHASE2_RUNTIME_CONTRACT_VERSION,
+        "evidence_ref": PHASE2_RUNTIME_RUNS_SURFACE_EVIDENCE_REF,
+        "required_top_level_fields": [
+            "contract_version",
+            "mode",
+            "source_event_type",
+            "evidence_ref",
+            "runs",
+            "non_claims",
+        ],
+        "required_run_fields": [
+            "contract_version",
+            "status",
+            "thread_id",
+            "session_id",
+            "run_id",
+            "node_name",
+            "checkpointing",
+            "live_provider_calls",
+            "live_mcp_writes",
+            "production_deploy",
+            "evidence_refs",
+            "role_summary_count",
+            "aggregation_evidence_ref",
+            "evidence_ref",
+            "created_at",
+            "severity",
+        ],
+        "required_evidence_refs": [
+            PHASE2_RUNTIME_GRAPH_EVIDENCE_REF,
+            "memory_update_persisted",
+            "agent_result_aggregation_complete",
+        ],
+        "expected_statuses": ["completed", "stopped"],
+        "expected_mode": runtime["mode"],
+        "expected_source_event_type": PHASE2_RUNTIME_GRAPH_EVIDENCE_REF,
+    }
+
+
 def prepare_orchestrator_session(
     project_id: str,
     session_id: str | None,
@@ -4062,6 +6961,538 @@ def prepare_orchestrator_session(
             metadata=metadata,
         )
     return prepared_session_id
+
+
+def default_autonomous_write_scope() -> list[str]:
+    return [
+        "services/agent-api/**",
+        "services/agent-worker/**",
+        "apps/frontend/**",
+        "scripts/**",
+        "docs/**",
+    ]
+
+
+def default_autonomous_constraints() -> list[str]:
+    return [
+        "Respect the fail-closed task policy before enqueue.",
+        "Do not claim live provider calls, live MCP writes, or production deployment.",
+        "Keep changes inside the declared write_scope.",
+        "Escalate instead of bypassing blocked actions or human-review gates.",
+    ]
+
+
+def autonomous_role_map() -> dict[str, str]:
+    return {
+        "supervisor": "planner",
+        "planner": "planner",
+        "explorer": "planner",
+        "coder": "coder",
+        "tester": "tester",
+    }
+
+
+def autonomous_priority_level(priority: int) -> str:
+    if priority >= 8:
+        return "high"
+    if priority <= 3:
+        return "low"
+    return "mid"
+
+
+def autonomous_priority_queue(priority: int) -> str:
+    return TASK_PRIORITY_QUEUES[autonomous_priority_level(priority)]
+
+
+def autonomous_assignment_blueprints(
+    objective: str,
+    *,
+    write_scope: list[str],
+    acceptance_criteria: list[str],
+) -> list[dict[str, object]]:
+    blocked_actions = list(task_policy_manifest()["required_blocked_actions"])
+    return [
+        {
+            "logical_role": "supervisor",
+            "execution_agent_type": "planner",
+            "task_type": "autonomous_supervisor_guard",
+            "task_description": f"Supervise the autonomous coding lane for objective: {objective}",
+            "priority": 9,
+            "allowed_tools": ["memory_read", "task_router", "langgraph"],
+            "planned_capabilities": ["scope_guard", "handoff_management", "completion_gate"],
+            "write_scope": [],
+            "acceptance_criteria": acceptance_criteria,
+            "human_review_required": True,
+            "blocked_actions": blocked_actions,
+        },
+        {
+            "logical_role": "planner",
+            "execution_agent_type": "planner",
+            "task_type": "autonomous_plan",
+            "task_description": f"Produce the execution plan and sequencing for objective: {objective}",
+            "priority": 8,
+            "allowed_tools": ["memory_read", "task_router", "langgraph"],
+            "planned_capabilities": ["task_decomposition", "risk_triage", "acceptance_mapping"],
+            "write_scope": [],
+            "acceptance_criteria": acceptance_criteria,
+            "human_review_required": True,
+            "blocked_actions": blocked_actions,
+        },
+        {
+            "logical_role": "explorer",
+            "execution_agent_type": "planner",
+            "task_type": "autonomous_research",
+            "task_description": f"Explore existing code paths, contracts, and risks for objective: {objective}",
+            "priority": 6,
+            "allowed_tools": ["memory_read", "task_router", "langgraph"],
+            "planned_capabilities": ["context_gathering", "contract_diff", "runtime_gap_detection"],
+            "write_scope": [],
+            "acceptance_criteria": acceptance_criteria,
+            "human_review_required": True,
+            "blocked_actions": blocked_actions,
+        },
+        {
+            "logical_role": "coder",
+            "execution_agent_type": "coder",
+            "task_type": "autonomous_implementation",
+            "task_description": f"Implement the scoped coding changes for objective: {objective}",
+            "priority": 8,
+            "allowed_tools": ["memory_read", "filesystem_mcp", "github_mcp", "mcp_gateway"],
+            "planned_capabilities": ["code_edit", "patching", "contract_preservation"],
+            "write_scope": list(write_scope),
+            "acceptance_criteria": acceptance_criteria,
+            "human_review_required": True,
+            "blocked_actions": blocked_actions,
+        },
+        {
+            "logical_role": "tester",
+            "execution_agent_type": "tester",
+            "task_type": "autonomous_validation",
+            "task_description": f"Verify the implementation and regressions for objective: {objective}",
+            "priority": 7,
+            "allowed_tools": ["memory_read", "playwright_mcp", "filesystem_mcp", "mcp_gateway"],
+            "planned_capabilities": ["regression_checks", "contract_verification", "runtime_smoke"],
+            "write_scope": list(write_scope),
+            "acceptance_criteria": acceptance_criteria,
+            "human_review_required": True,
+            "blocked_actions": blocked_actions,
+        },
+    ]
+
+
+def autonomous_team_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": AUTONOMOUS_TEAM_CONTRACT_VERSION,
+        "mode": AUTONOMOUS_TEAM_MODE,
+        "endpoint": "GET /api/v1/team/status/contract",
+        "runtime_endpoint": "GET /api/v1/team/status",
+        "dispatch_endpoint": "POST /api/v1/task/dispatch",
+        "alias_endpoints": ["GET /team/status", "POST /task/dispatch"],
+        "evidence_ref": AUTONOMOUS_TEAM_EVIDENCE_REF,
+        "required_top_level_fields": [
+            "contract_version",
+            "dispatch_contract_version",
+            "team_mode",
+            "runtime_source",
+            "status",
+            "dispatch_id",
+            "project_id",
+            "session_id",
+            "objective",
+            "trace_id",
+            "request_id",
+            "correlation_evidence_ref",
+            "audit_feed_evidence_ref",
+            "queue_depth",
+            "queue_depth_by_priority",
+            "logical_roles",
+            "logical_to_execution_map",
+            "external_runtime",
+            "members",
+            "write_scope",
+            "acceptance_criteria",
+            "constraints",
+            "non_claims",
+        ],
+        "required_member_fields": [
+            "logical_role",
+            "execution_agent_type",
+            "task_id",
+            "latest_task_id",
+            "task_type",
+            "status",
+            "latest_status",
+            "priority",
+            "priority_level",
+            "priority_queue",
+            "allowed_tools",
+            "planned_capabilities",
+            "write_scope",
+            "acceptance_criteria",
+            "human_review_required",
+            "blocked_actions",
+            "current_status_source",
+            "trace_id",
+            "request_id",
+            "correlation_evidence_ref",
+            "audit_feed_evidence_ref",
+        ],
+        "required_logical_roles": list(AUTONOMOUS_LOGICAL_ROLES),
+        "logical_to_execution_map": autonomous_role_map(),
+        "runtime_pool_contracts": {
+            "assignment": TASK_ASSIGNMENT_CONTRACT_VERSION,
+            "profiles": "agent-profiles-v1",
+            "agent_status": "GET /api/v1/agents/status",
+            "recent_tasks": "GET /api/v1/tasks/recent",
+        },
+        "non_claims": [
+            "Logical roles are overlays on the existing runtime pool, not separate worker binaries.",
+            "An optional external runtime adapter may project read-only team presence without changing dispatch semantics.",
+            "This status surface does not claim live provider execution, live MCP writes, or production deployment.",
+            "Legacy four-role public contracts remain authoritative for the runtime pool itself.",
+        ],
+    }
+
+
+def autonomous_task_dispatch_contract_payload() -> dict[str, object]:
+    policy = task_policy_manifest()
+    return {
+        "contract_version": AUTONOMOUS_TASK_DISPATCH_CONTRACT_VERSION,
+        "mode": AUTONOMOUS_TEAM_MODE,
+        "endpoint": "GET /api/v1/task/dispatch/contract",
+        "runtime_endpoint": "POST /api/v1/task/dispatch",
+        "status_endpoint": "GET /api/v1/team/status",
+        "alias_endpoints": ["POST /task/dispatch", "GET /team/status"],
+        "evidence_ref": AUTONOMOUS_TASK_DISPATCH_EVIDENCE_REF,
+        "required_request_fields": [
+            "project_id",
+            "objective",
+            "session_id",
+            "trace_id",
+            "write_scope",
+            "acceptance_criteria",
+            "constraints",
+        ],
+        "required_response_fields": [
+            "dispatch_id",
+            "status",
+            "project_id",
+            "session_id",
+            "trace_id",
+            "objective",
+            "team_mode",
+            "runtime_source",
+            "dispatch_contract_version",
+            "team_contract_version",
+            "write_scope",
+            "acceptance_criteria",
+            "constraints",
+            "assignments",
+            "status_endpoint",
+            "contract_endpoint",
+            "runtime_pool_contract_version",
+            "non_claims",
+        ],
+        "required_assignment_fields": [
+            "logical_role",
+            "execution_agent_type",
+            "task_id",
+            "task_type",
+            "status",
+            "priority",
+            "priority_level",
+            "priority_queue",
+            "allowed_tools",
+            "planned_capabilities",
+            "write_scope",
+            "acceptance_criteria",
+            "human_review_required",
+            "blocked_actions",
+            "evidence_ref",
+            "current_status_source",
+        ],
+        "required_logical_roles": list(AUTONOMOUS_LOGICAL_ROLES),
+        "logical_to_execution_map": autonomous_role_map(),
+        "policy_version": policy["policy_version"],
+        "runtime_pool_contract_version": TASK_ASSIGNMENT_CONTRACT_VERSION,
+        "defaults": {
+            "write_scope": default_autonomous_write_scope(),
+            "constraints": default_autonomous_constraints(),
+            "acceptance_criteria": [
+                "result_envelope",
+                "done_validation",
+                "audit_log",
+                "runtime_visibility",
+            ],
+        },
+        "non_claims": [
+            "Dispatch compiles logical work into the existing four-role task queue.",
+            "External runtime adapters are optional read-only projections and do not bypass the internal fail-closed queue policy.",
+            "Dispatch does not bypass the fail-closed task policy.",
+            "Dispatch does not authorize production deployment or live provider execution.",
+        ],
+    }
+
+
+def autonomous_idle_team_payload() -> dict[str, object]:
+    external_runtime = external_autonomous_runtime_state()
+    return {
+        "contract_version": AUTONOMOUS_TEAM_CONTRACT_VERSION,
+        "dispatch_contract_version": AUTONOMOUS_TASK_DISPATCH_CONTRACT_VERSION,
+        "team_mode": AUTONOMOUS_TEAM_MODE,
+        "runtime_source": "external_adapter" if external_runtime["ready"] else "internal_queue",
+        "status": "idle",
+        "dispatch_id": None,
+        "project_id": None,
+        "session_id": None,
+        "objective": None,
+        "trace_id": None,
+        "request_id": None,
+        "correlation_evidence_ref": None,
+        "audit_feed_evidence_ref": None,
+        "queue_depth": queue_depth(),
+        "queue_depth_by_priority": queue_depth_by_priority(),
+        "logical_roles": list(AUTONOMOUS_LOGICAL_ROLES),
+        "logical_to_execution_map": autonomous_role_map(),
+        "external_runtime": external_runtime,
+        "runtime_pool_contract_version": TASK_ASSIGNMENT_CONTRACT_VERSION,
+        "write_scope": default_autonomous_write_scope(),
+        "acceptance_criteria": [
+            "result_envelope",
+            "done_validation",
+            "audit_log",
+            "runtime_visibility",
+        ],
+        "constraints": default_autonomous_constraints(),
+        "members": [
+            {
+                "logical_role": logical_role,
+                "execution_agent_type": autonomous_role_map()[logical_role],
+                "task_id": None,
+                "latest_task_id": None,
+                "task_type": None,
+                "status": "idle",
+                "latest_status": "idle",
+                "priority": None,
+                "priority_level": None,
+                "priority_queue": None,
+                "allowed_tools": [],
+                "planned_capabilities": [],
+                "write_scope": [],
+                "acceptance_criteria": [],
+                "human_review_required": True,
+                "blocked_actions": [],
+                "current_status_source": "no_dispatch",
+                "trace_id": None,
+                "request_id": None,
+                "correlation_evidence_ref": None,
+                "audit_feed_evidence_ref": None,
+            }
+            for logical_role in AUTONOMOUS_LOGICAL_ROLES
+        ],
+        "non_claims": autonomous_team_contract_payload()["non_claims"],
+    }
+
+
+def external_autonomous_team_payload(external_runtime: dict[str, object]) -> dict[str, object]:
+    logical_role_map = dict(external_runtime.get("logical_role_map") or {})
+    available_agents = set(str(agent) for agent in external_runtime.get("agents") or [])
+    members: list[dict[str, object]] = []
+    for logical_role in AUTONOMOUS_LOGICAL_ROLES:
+        runtime_agent = str(logical_role_map.get(logical_role) or logical_role)
+        present = runtime_agent in available_agents
+        members.append(
+            {
+                "logical_role": logical_role,
+                "execution_agent_type": runtime_agent,
+                "task_id": None,
+                "latest_task_id": None,
+                "task_type": "external_runtime_projection",
+                "status": "ready" if present else "unavailable",
+                "latest_status": "ready" if present else "unavailable",
+                "priority": None,
+                "priority_level": None,
+                "priority_queue": None,
+                "allowed_tools": [],
+                "planned_capabilities": ["external_runtime_projection"],
+                "write_scope": [],
+                "acceptance_criteria": [],
+                "human_review_required": True,
+                "blocked_actions": [],
+                "current_status_source": "external_runtime",
+                "trace_id": None,
+                "request_id": None,
+                "correlation_evidence_ref": None,
+                "audit_feed_evidence_ref": None,
+                "latest_result": None,
+                "latest_error": None if present else str(external_runtime.get("error") or "external agent missing"),
+            }
+        )
+    return {
+        "contract_version": AUTONOMOUS_TEAM_CONTRACT_VERSION,
+        "dispatch_contract_version": AUTONOMOUS_TASK_DISPATCH_CONTRACT_VERSION,
+        "team_mode": AUTONOMOUS_TEAM_MODE,
+        "runtime_source": "external_adapter",
+        "status": "external_ready" if external_runtime.get("ready") else "external_degraded",
+        "dispatch_id": None,
+        "project_id": None,
+        "session_id": None,
+        "objective": "external runtime projection",
+        "trace_id": None,
+        "request_id": None,
+        "correlation_evidence_ref": None,
+        "audit_feed_evidence_ref": None,
+        "queue_depth": 0,
+        "queue_depth_by_priority": {"high": 0, "mid": 0, "low": 0},
+        "logical_roles": list(AUTONOMOUS_LOGICAL_ROLES),
+        "logical_to_execution_map": logical_role_map,
+        "external_runtime": external_runtime,
+        "runtime_pool_contract_version": TASK_ASSIGNMENT_CONTRACT_VERSION,
+        "write_scope": [],
+        "acceptance_criteria": [],
+        "constraints": default_autonomous_constraints(),
+        "members": members,
+        "non_claims": autonomous_team_contract_payload()["non_claims"],
+    }
+
+
+def latest_active_autonomous_dispatch() -> AutonomousDispatchRecord | None:
+    for dispatch in list_recent_autonomous_dispatches(limit=12):
+        if dispatch.status not in {"completed", "failed"}:
+            return dispatch
+    return None
+
+
+def autonomous_team_status_payload(dispatch_id: str | None = None) -> dict[str, object]:
+    external_runtime = external_autonomous_runtime_state()
+    dispatch = get_autonomous_dispatch(dispatch_id) if dispatch_id else latest_active_autonomous_dispatch()
+    if dispatch is None:
+        if external_runtime["ready"]:
+            return external_autonomous_team_payload(external_runtime)
+        return autonomous_idle_team_payload()
+
+    task_projection, session_projection = load_recent_correlation_projection(
+        [assignment.task_id for assignment in dispatch.assignments],
+        [dispatch.session_id],
+    )
+    session_correlation = session_projection.get(dispatch.session_id, {})
+    refreshed_assignments: list[AutonomousRoleAssignment] = []
+    members: list[dict[str, object]] = []
+    for assignment in dispatch.assignments:
+        task = get_task(assignment.task_id)
+        current_status = task.status if task else assignment.status
+        refreshed_assignment = assignment.model_copy(update={"status": current_status})
+        refreshed_assignments.append(refreshed_assignment)
+        correlation = task_projection.get(assignment.task_id, {}) or session_correlation
+        members.append(
+            {
+                "logical_role": assignment.logical_role,
+                "execution_agent_type": assignment.execution_agent_type,
+                "task_id": assignment.task_id,
+                "latest_task_id": assignment.task_id,
+                "task_type": assignment.task_type,
+                "status": current_status,
+                "latest_status": current_status,
+                "priority": assignment.priority,
+                "priority_level": assignment.priority_level,
+                "priority_queue": assignment.priority_queue,
+                "allowed_tools": assignment.allowed_tools,
+                "planned_capabilities": assignment.planned_capabilities,
+                "write_scope": assignment.write_scope,
+                "acceptance_criteria": assignment.acceptance_criteria,
+                "human_review_required": assignment.human_review_required,
+                "blocked_actions": assignment.blocked_actions,
+                "current_status_source": "task_queue" if task else assignment.current_status_source,
+                "trace_id": correlation.get("trace_id") or dispatch.trace_id,
+                "request_id": correlation.get("request_id"),
+                "correlation_evidence_ref": correlation.get("correlation_evidence_ref"),
+                "audit_feed_evidence_ref": correlation.get("audit_feed_evidence_ref"),
+                "latest_result": task.result if task else None,
+                "latest_error": task.error if task else None,
+            }
+        )
+
+    dispatch_status = autonomous_dispatch_status(refreshed_assignments)
+    if dispatch_status != dispatch.status or [assignment.status for assignment in refreshed_assignments] != [
+        assignment.status for assignment in dispatch.assignments
+    ]:
+        dispatch = dispatch.model_copy(
+            update={
+                "status": dispatch_status,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "assignments": refreshed_assignments,
+            }
+        )
+        store_autonomous_dispatch(dispatch)
+        persist_autonomous_dispatch_audit(dispatch)
+
+    return {
+        "contract_version": AUTONOMOUS_TEAM_CONTRACT_VERSION,
+        "dispatch_contract_version": AUTONOMOUS_TASK_DISPATCH_CONTRACT_VERSION,
+        "team_mode": dispatch.team_mode,
+        "runtime_source": "internal_queue",
+        "status": dispatch.status,
+        "dispatch_id": dispatch.dispatch_id,
+        "project_id": dispatch.project_id,
+        "session_id": dispatch.session_id,
+        "objective": dispatch.objective,
+        "trace_id": dispatch.trace_id,
+        "request_id": dispatch.request_id or session_correlation.get("request_id"),
+        "correlation_evidence_ref": session_correlation.get("correlation_evidence_ref"),
+        "audit_feed_evidence_ref": session_correlation.get("audit_feed_evidence_ref"),
+        "queue_depth": queue_depth(),
+        "queue_depth_by_priority": queue_depth_by_priority(),
+        "logical_roles": list(AUTONOMOUS_LOGICAL_ROLES),
+        "logical_to_execution_map": autonomous_role_map(),
+        "external_runtime": external_runtime,
+        "runtime_pool_contract_version": TASK_ASSIGNMENT_CONTRACT_VERSION,
+        "write_scope": dispatch.write_scope,
+        "acceptance_criteria": dispatch.acceptance_criteria,
+        "constraints": dispatch.constraints,
+        "members": members,
+        "non_claims": dispatch.non_claims,
+    }
+
+
+def task_policy_contract_payload() -> dict[str, object]:
+    policy = task_policy_manifest()
+    return {
+        "contract_version": "task-policy-contract-v1",
+        "mode": "public_task_policy_manifest_runtime_contract",
+        "endpoint": "GET /api/v1/tasks/policy/contract",
+        "runtime_endpoint": "GET /api/v1/tasks/policy",
+        "validation_endpoint": "POST /api/v1/tasks/policy/validate",
+        "evidence_ref": "task_policy_contract_runtime_visible",
+        "policy_version": policy["policy_version"],
+        "profile_contract_version": policy["profile_contract_version"],
+        "required_top_level_fields": [
+            "policy_version",
+            "profile_contract_version",
+            "mode",
+            "required_blocked_actions",
+            "allowed_tools",
+            "write_tools",
+            "profile_gates",
+            "write_scope_required_for",
+            "devops_human_gate",
+        ],
+        "required_validation_behaviors": {
+            "unknown_tools": "403 task_policy_violation",
+            "missing_blocked_actions": "403 task_policy_violation",
+            "coder_write_without_write_scope": "403 task_policy_violation",
+            "deployment_like_without_human_review": "403 task_policy_violation",
+        },
+        "non_claims": [
+            "This contract does not authorize production deployment.",
+            "This contract does not enable live MCP writes.",
+            "This contract remains fail-closed before enqueue.",
+        ],
+    }
+
+
+@app.get("/api/v1/phase2/runtime/start/contract")
+def phase2_runtime_start_contract() -> dict[str, object]:
+    return phase2_runtime_start_surface_contract_payload()
 
 
 @app.post("/api/v1/phase2/runtime/start")
@@ -4098,9 +7529,308 @@ def phase2_runtime_start(request: OrchestratorDryRunRequest) -> dict[str, object
     }
 
 
+@app.get("/api/v1/team/status/contract")
+def autonomous_team_status_contract() -> dict[str, object]:
+    return autonomous_team_contract_payload()
+
+
+@app.get("/api/v1/task/dispatch/contract")
+def autonomous_task_dispatch_contract() -> dict[str, object]:
+    return autonomous_task_dispatch_contract_payload()
+
+
+@app.get("/api/v1/team/master-plan/contract")
+def autonomous_master_plan_contract() -> dict[str, object]:
+    return autonomous_master_plan_contract_payload()
+
+
+@app.get("/api/v1/team/master-plan")
+def autonomous_master_plan() -> dict[str, object]:
+    return autonomous_master_plan_payload()
+
+
+@app.get("/api/v1/live-agents/contract")
+def live_agent_contract() -> dict[str, object]:
+    return live_agent_contract_payload()
+
+
+@app.get("/api/v1/live-agents/status")
+@app.get("/api/agents")
+def live_agent_status() -> dict[str, object]:
+    return live_agent_status_payload()
+
+
+@app.post("/api/v1/live-agents/steer")
+@app.post("/api/steer-agent")
+def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> dict[str, object]:
+    budget_state = check_budget_guard()
+    profile = resolve_live_agent_profile(request.agent_id)
+    agent_id = str(profile["agent_id"])
+    if request.reset_history:
+        reset_live_agent_session(agent_id)
+
+    session = get_live_agent_session(agent_id)
+    previous_response_id = str(session.get("previous_response_id")) if session and session.get("previous_response_id") else None
+    sanitized_message = redact_text(request.message)
+    sanitized_instructions = redact_text(request.instructions) if request.instructions else None
+    trace_id = getattr(http_request.state, "trace_id", None) or f"live-agent-{uuid4()}"
+    model = request.model or live_agent_default_model()
+    payload = {
+        "model": model,
+        "instructions": build_live_agent_instructions(agent_id, profile, sanitized_instructions),
+        "input": sanitized_message,
+        "store": True,
+        "text": {
+            "format": {"type": "text"},
+            "verbosity": "low",
+        },
+        "reasoning": {"effort": request.reasoning_effort},
+        "metadata": {
+            "trace_id": trace_id,
+            "agent_type": str(profile["execution_role"]),
+            "logical_agent_id": agent_id,
+            "project_id": request.project_id,
+            **request.metadata,
+        },
+    }
+    if previous_response_id:
+        payload["previous_response_id"] = previous_response_id
+
+    response_payload = call_llm_gateway_responses(payload)
+    response_id = str(response_payload.get("id") or "")
+    if response_id:
+        set_live_agent_session(
+            agent_id,
+            response_id=response_id,
+            project_id=request.project_id,
+            model=str(response_payload.get("model") or model),
+            execution_role=str(profile["execution_role"]),
+        )
+
+    text = extract_live_agent_text(response_payload)
+    return {
+        "contract_version": LIVE_AGENT_STEERING_CONTRACT_VERSION,
+        "runtime_source": "openai_responses_via_llm_gateway",
+        "agent_id": agent_id,
+        "response_id": response_id or None,
+        "responseId": response_id or None,
+        "previous_response_id": previous_response_id,
+        "status": response_payload.get("status", "completed"),
+        "model": response_payload.get("model") or model,
+        "text": text,
+        "usage": response_payload.get("usage"),
+        "execution_role": profile["execution_role"],
+        "project_id": request.project_id,
+        "budget": {
+            "level": budget_state.level,
+            "spent_percentage": budget_state.spent_percentage,
+            "total_cost_cents": budget_state.total_cost_cents,
+            "budget_limit_cents": budget_state.budget_limit_cents,
+        },
+    }
+
+
+@app.post("/api/v1/live-agents/{agent_id}/reset")
+def live_agent_reset(agent_id: str) -> dict[str, object]:
+    profile = resolve_live_agent_profile(agent_id)
+    reset_live_agent_session(str(profile["agent_id"]))
+    return {
+        "contract_version": LIVE_AGENT_STEERING_CONTRACT_VERSION,
+        "status": "reset",
+        "agent_id": str(profile["agent_id"]),
+        "runtime_source": "openai_responses_via_llm_gateway",
+    }
+
+
+@app.get("/api/v1/team/roster/contract")
+def autonomous_agent_roster_contract() -> dict[str, object]:
+    return autonomous_agent_roster_contract_payload()
+
+
+@app.get("/api/v1/team/roster")
+def autonomous_agent_roster() -> dict[str, object]:
+    return autonomous_agent_roster_payload()
+
+
+@app.get("/api/v1/team/status")
+@app.get("/team/status")
+def autonomous_team_status(dispatch_id: str | None = Query(default=None, max_length=120)) -> dict[str, object]:
+    if dispatch_id and not get_autonomous_dispatch(dispatch_id):
+        raise HTTPException(status_code=404, detail="dispatch not found")
+    return autonomous_team_status_payload(dispatch_id)
+
+
+@app.get("/api/v1/task/dispatches/recent")
+def autonomous_recent_dispatches(limit: int = Query(default=10, ge=1, le=50)) -> dict[str, object]:
+    return {
+        "dispatches": [record.model_dump() for record in list_recent_autonomous_dispatches(limit=limit)],
+        "contract_version": AUTONOMOUS_TASK_DISPATCH_CONTRACT_VERSION,
+    }
+
+
+@app.post("/api/v1/task/dispatch", status_code=201)
+@app.post("/task/dispatch", status_code=201)
+def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_request: Request) -> dict[str, object]:
+    sanitized_objective = redact_text(request.objective)
+    prepared_write_scope = request.write_scope or default_autonomous_write_scope()
+    prepared_constraints = default_autonomous_constraints() + [constraint for constraint in request.constraints if constraint]
+    prepared_acceptance_criteria = list(dict.fromkeys(request.acceptance_criteria))
+    trace_id = request.trace_id or f"autonomous-dispatch-{uuid4()}"
+    request_id = getattr(http_request.state, "request_id", None)
+    session_id = prepare_orchestrator_session(
+        request.project_id,
+        request.session_id,
+        source="autonomous-task-dispatch",
+        metadata={
+            "mode": AUTONOMOUS_TEAM_MODE,
+            "trace_id": trace_id,
+            "request_id": request_id,
+            "contract_version": AUTONOMOUS_TASK_DISPATCH_CONTRACT_VERSION,
+            "logical_roles": list(AUTONOMOUS_LOGICAL_ROLES),
+            "live_provider_calls": False,
+            "live_mcp_writes": False,
+        },
+    )
+    assignments_to_enqueue = [
+        TaskAssignment(
+            project_id=request.project_id,
+            session_id=session_id,
+            agent_type=str(blueprint["execution_agent_type"]),
+            task_type=str(blueprint["task_type"]),
+            task_description=str(blueprint["task_description"]),
+            trace_id=trace_id,
+            priority=int(blueprint["priority"]),
+            allowed_tools=list(blueprint["allowed_tools"]),
+            write_scope=list(blueprint["write_scope"]),
+            blocked_actions=list(blueprint["blocked_actions"]),
+            acceptance_criteria=list(blueprint["acceptance_criteria"]),
+            human_review_required=bool(blueprint["human_review_required"]),
+        )
+        for blueprint in autonomous_assignment_blueprints(
+            sanitized_objective,
+            write_scope=prepared_write_scope,
+            acceptance_criteria=prepared_acceptance_criteria,
+        )
+    ]
+    try:
+        for assignment in assignments_to_enqueue:
+            validate_task_policy(assignment)
+    except TaskPolicyViolation as exc:
+        persist_task_policy_block(assignments_to_enqueue[0], exc)
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": exc.code,
+                "violations": exc.violations,
+                "policy": task_policy_manifest(),
+            },
+        ) from exc
+
+    queued_assignments = [enqueue_task(assignment) for assignment in assignments_to_enqueue]
+    dispatch_id = str(uuid4())
+    assignment_payloads: list[AutonomousRoleAssignment] = []
+    for blueprint, task in zip(
+        autonomous_assignment_blueprints(
+            sanitized_objective,
+            write_scope=prepared_write_scope,
+            acceptance_criteria=prepared_acceptance_criteria,
+        ),
+        queued_assignments,
+        strict=True,
+    ):
+        priority = int(blueprint["priority"])
+        assignment_payloads.append(
+            AutonomousRoleAssignment(
+                logical_role=str(blueprint["logical_role"]),
+                execution_agent_type=task.agent_type,
+                task_id=task.task_id,
+                task_type=task.task_type,
+                status=task.status,
+                priority=priority,
+                priority_level=autonomous_priority_level(priority),
+                priority_queue=autonomous_priority_queue(priority),
+                allowed_tools=task.allowed_tools,
+                planned_capabilities=list(blueprint["planned_capabilities"]),
+                write_scope=task.write_scope,
+                acceptance_criteria=task.acceptance_criteria,
+                human_review_required=task.human_review_required,
+                blocked_actions=task.blocked_actions,
+                evidence_ref=AUTONOMOUS_TASK_DISPATCH_EVIDENCE_REF,
+                current_status_source="task_queue",
+            )
+        )
+
+    dispatch_record = AutonomousDispatchRecord(
+        dispatch_id=dispatch_id,
+        project_id=request.project_id,
+        session_id=session_id,
+        objective=sanitized_objective,
+        trace_id=trace_id,
+        request_id=request_id,
+        status=autonomous_dispatch_status(assignment_payloads),
+        created_at=datetime.now(timezone.utc).isoformat(),
+        updated_at=datetime.now(timezone.utc).isoformat(),
+        team_mode=AUTONOMOUS_TEAM_MODE,
+        dispatch_contract_version=AUTONOMOUS_TASK_DISPATCH_CONTRACT_VERSION,
+        team_contract_version=AUTONOMOUS_TEAM_CONTRACT_VERSION,
+        write_scope=prepared_write_scope,
+        acceptance_criteria=prepared_acceptance_criteria,
+        constraints=prepared_constraints,
+        assignments=assignment_payloads,
+        non_claims=autonomous_team_contract_payload()["non_claims"],
+    )
+    store_autonomous_dispatch(dispatch_record)
+    persist_autonomous_dispatch_audit(dispatch_record)
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        conn.execute(
+            """
+            UPDATE agent_sessions
+            SET metadata = metadata || %s::jsonb
+            WHERE id = %s
+            """,
+            (
+                Json(
+                    {
+                        "autonomous_dispatch_id": dispatch_id,
+                        "autonomous_team_mode": AUTONOMOUS_TEAM_MODE,
+                        "autonomous_objective": sanitized_objective,
+                        "latest_task_id": queued_assignments[-1].task_id if queued_assignments else None,
+                        "logical_roles": list(AUTONOMOUS_LOGICAL_ROLES),
+                        "trace_id": trace_id,
+                        "request_id": request_id,
+                        "correlation_evidence_ref": "request_id_audit_correlation" if (request_id or trace_id) else None,
+                        "audit_feed_evidence_ref": "request_id_audit_feed_visible" if (request_id or trace_id) else None,
+                    }
+                ),
+                session_id,
+            ),
+        )
+    return {
+        **dispatch_record.model_dump(),
+        "runtime_source": "internal_queue",
+        "status_endpoint": f"/api/v1/team/status?dispatch_id={dispatch_id}",
+        "contract_endpoint": "/api/v1/task/dispatch/contract",
+        "runtime_pool_contract_version": TASK_ASSIGNMENT_CONTRACT_VERSION,
+        "request_id": request_id,
+    }
+
+
+@app.get("/api/v1/task/dispatch/{dispatch_id}")
+def autonomous_dispatch_detail(dispatch_id: str) -> dict[str, object]:
+    dispatch = get_autonomous_dispatch(dispatch_id)
+    if not dispatch:
+        raise HTTPException(status_code=404, detail="dispatch not found")
+    return {"dispatch": dispatch.model_dump()}
+
+
 @app.get("/api/v1/tasks/policy")
 def task_policy() -> dict[str, object]:
     return task_policy_manifest()
+
+
+@app.get("/api/v1/tasks/policy/contract")
+def task_policy_contract() -> dict[str, object]:
+    return task_policy_contract_payload()
 
 
 @app.post("/api/v1/tasks/policy/validate")
@@ -4121,6 +7851,11 @@ def validate_task_assignment_policy(assignment: TaskAssignment) -> dict[str, obj
     return {"status": "accepted", "policy": task_policy_manifest(), "assignment": assignment.model_dump()}
 
 
+@app.get("/api/v1/orchestrator/dry-run/contract")
+def orchestrator_dry_run_contract() -> dict[str, object]:
+    return orchestrator_dry_run_surface_contract_payload()
+
+
 @app.post("/api/v1/orchestrator/dry-run")
 def orchestrator_dry_run(request: OrchestratorDryRunRequest) -> dict[str, object]:
     session_id = prepare_orchestrator_session(
@@ -4138,7 +7873,14 @@ def orchestrator_dry_run(request: OrchestratorDryRunRequest) -> dict[str, object
         "checkpointing": "postgres",
         "thread_id": state["session_id"],
         "state": state,
+        "contract_version": PHASE2_RUNTIME_CONTRACT_VERSION,
+        "evidence_ref": ORCHESTRATOR_DRY_RUN_SURFACE_EVIDENCE_REF,
     }
+
+
+@app.get("/api/v1/orchestrator/dry-run/stream/contract")
+def orchestrator_dry_run_stream_contract() -> dict[str, object]:
+    return orchestrator_dry_run_stream_surface_contract_payload()
 
 
 @app.post("/api/v1/orchestrator/dry-run/stream")
@@ -4257,6 +7999,11 @@ def autopilot_stream(request: AutopilotStreamRequest) -> StreamingResponse:
     return StreamingResponse(events(), media_type="text/event-stream")
 
 
+@app.get("/api/v1/orchestrator/checkpoints/contract")
+def orchestrator_checkpoint_contract() -> dict[str, object]:
+    return orchestrator_checkpoint_surface_contract_payload()
+
+
 @app.get("/api/v1/orchestrator/checkpoints/{thread_id}")
 def orchestrator_checkpoint(thread_id: str) -> dict[str, object]:
     snapshot = recover_dry_graph_state(thread_id)
@@ -4274,14 +8021,175 @@ def model_capabilities() -> dict[str, object]:
     return model_capability_matrix()
 
 
+def model_capabilities_contract_payload() -> dict[str, object]:
+    matrix = model_capability_matrix()
+    return {
+        "contract_version": "model-capabilities-contract-v1",
+        "mode": "configured_model_route_registry_runtime_contract",
+        "endpoint": "GET /api/v1/models/capabilities/contract",
+        "runtime_endpoint": "GET /api/v1/models/capabilities",
+        "evidence_ref": "model_capabilities_contract_runtime_visible",
+        "required_top_level_fields": [
+            "memory_injection_budget_percent_max",
+            "routes",
+            "agent_profiles",
+            "note",
+        ],
+        "required_route_fields": [
+            "agent_type",
+            "primary",
+            "fallbacks",
+            "max_output_tokens",
+            "context_budget_policy",
+            "memory_injection_budget_percent",
+            "cost_tier",
+            "supports_streaming",
+            "configured_only",
+        ],
+        "required_agent_types": [route["agent_type"] for route in matrix["routes"]],
+        "memory_injection_budget_percent_max": matrix["memory_injection_budget_percent_max"],
+        "non_claims": [
+            "Configured routes do not imply live provider credentials are present.",
+            "Configured routes do not imply live provider health has been verified.",
+            "This contract does not authorize production deployment.",
+        ],
+    }
+
+
+@app.get("/api/v1/models/capabilities/contract")
+def model_capabilities_contract() -> dict[str, object]:
+    return model_capabilities_contract_payload()
+
+
+def agent_profiles_contract_payload() -> dict[str, object]:
+    profiles = agent_profile_registry()
+    return {
+        "contract_version": "agent-profiles-contract-v1",
+        "mode": "public_agent_profile_registry_runtime_contract",
+        "endpoint": "GET /api/v1/agents/profiles/contract",
+        "runtime_endpoint": "GET /api/v1/agents/profiles",
+        "evidence_ref": "agent_profiles_contract_runtime_visible",
+        "profile_contract_version": profiles["profile_contract_version"],
+        "required_top_level_fields": [
+            "profile_contract_version",
+            "max_retry_global",
+            "done_validation_required",
+            "profiles",
+            "non_claims",
+        ],
+        "required_profile_fields": [
+            "agent_type",
+            "allowed_tools",
+            "blocked_actions",
+            "human_review_required_actions",
+            "max_retries",
+            "max_execution_seconds",
+        ],
+        "required_agent_types": ["planner", "coder", "tester", "devops"],
+        "done_validation_required": profiles["done_validation_required"],
+        "max_retry_global": profiles["max_retry_global"],
+        "non_claims": profiles["non_claims"],
+    }
+
+
 @app.get("/api/v1/agents/profiles")
 def agent_profiles() -> dict[str, object]:
     return agent_profile_registry()
 
 
+@app.get("/api/v1/agents/profiles/contract")
+def agent_profiles_contract() -> dict[str, object]:
+    return agent_profiles_contract_payload()
+
+
 @app.get("/api/v1/rotation/policy")
 def provider_rotation_policy() -> dict[str, object]:
     return rotation_policy()
+
+
+def rotation_policy_contract_payload() -> dict[str, object]:
+    policy = rotation_policy()
+    return {
+        "contract_version": "rotation-policy-contract-v1",
+        "mode": "provider_rotation_policy_runtime_contract",
+        "endpoint": "GET /api/v1/rotation/policy/contract",
+        "runtime_endpoint": "GET /api/v1/rotation/policy",
+        "events_endpoint": "GET /api/v1/rotation/events",
+        "evidence_ref": "rotation_policy_contract_runtime_visible",
+        "required_top_level_fields": [
+            "principle",
+            "backoff_seconds",
+            "reset_after_seconds",
+            "budget_guard_required_before_rotation",
+            "rotation_log_format",
+        ],
+        "rotation_log_contract_version": policy["rotation_log_format"]["contract_version"],
+        "required_rotation_event_top_level_fields": [
+            "id",
+            "session_id",
+            "details",
+            "created_at",
+            "severity",
+        ],
+        "required_rotation_event_detail_fields": [
+            "event_kind",
+            "from_provider",
+            "to_provider",
+            "provider_chain",
+            "from_model",
+            "to_model",
+            "fallback_index",
+            "routing_policy_decision",
+            "cost_metadata",
+            "reason",
+            "agent",
+            "trace_id",
+            "live_provider_calls",
+            "evidence_ref",
+        ],
+        "non_claims": [
+            "This contract does not claim live provider rotation has already occurred.",
+            "This contract does not claim live provider execution is enabled.",
+            "This contract does not authorize production deployment.",
+        ],
+    }
+
+
+def rotation_events_contract_payload() -> dict[str, object]:
+    policy_contract = rotation_policy_contract_payload()
+    return {
+        "contract_version": "rotation-events-feed-v1",
+        "mode": "provider_rotation_audit_feed_runtime_contract",
+        "endpoint": "GET /api/v1/rotation/events/contract",
+        "runtime_endpoint": "GET /api/v1/rotation/events",
+        "seed_endpoint": "POST /internal/rotation/events",
+        "event_contract_version": policy_contract["rotation_log_contract_version"],
+        "evidence_ref": "rotation_events_contract_runtime_visible",
+        "required_top_level_fields": [
+            "contract_version",
+            "evidence_ref",
+            "live_provider_calls",
+            "events",
+        ],
+        "required_event_top_level_fields": list(policy_contract["required_rotation_event_top_level_fields"]),
+        "required_event_detail_fields": list(policy_contract["required_rotation_event_detail_fields"]),
+        "supported_event_types": ["provider_rotated"],
+        "non_claims": [
+            "This contract does not claim live provider execution is enabled.",
+            "This contract does not claim production deployment is allowed.",
+            "This contract does not claim a rollout has occurred.",
+        ],
+    }
+
+
+@app.get("/api/v1/rotation/policy/contract")
+def provider_rotation_policy_contract() -> dict[str, object]:
+    return rotation_policy_contract_payload()
+
+
+@app.get("/api/v1/rotation/events/contract")
+def provider_rotation_events_contract() -> dict[str, object]:
+    return rotation_events_contract_payload()
 
 
 @app.get("/api/v1/rotation/events")
@@ -4427,11 +8335,55 @@ def create_llm_gateway_audit_event(request: LlmGatewayAuditRequest) -> dict[str,
     }
 
 
-@app.post("/internal/tasks", status_code=201)
-def create_task(assignment: TaskAssignment) -> dict[str, object]:
-    assignment = assignment.model_copy(update={"task_description": redact_text(assignment.task_description)})
+@app.post("/api/v1/internal/tasks", status_code=201)
+def create_task(assignment: TaskAssignment, request: Request) -> dict[str, object]:
+    trace_id = getattr(request.state, "trace_id", None) or assignment.trace_id or f"internal-task-{uuid4()}"
+    request_id = getattr(request.state, "request_id", None)
+    assignment = assignment.model_copy(
+        update={
+            "task_description": redact_text(assignment.task_description),
+            "trace_id": trace_id,
+        }
+    )
     try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            ensure_agent_session(
+                conn,
+                assignment.project_id,
+                assignment.session_id,
+                source="internal-task-intake",
+                metadata={
+                    "latest_agent_type": assignment.agent_type,
+                    "latest_task_type": assignment.task_type,
+                    "trace_id": trace_id,
+                    "request_id": request_id,
+                    "correlation_evidence_ref": "request_id_audit_correlation" if (request_id or trace_id) else None,
+                    "audit_feed_evidence_ref": "request_id_audit_feed_visible" if (request_id or trace_id) else None,
+                },
+            )
         task = enqueue_task(assignment)
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            conn.execute(
+                """
+                UPDATE agent_sessions
+                SET metadata = metadata || %s::jsonb
+                WHERE id = %s
+                """,
+                (
+                    Json(
+                        {
+                            "latest_task_id": task.task_id,
+                            "latest_agent_type": task.agent_type,
+                            "latest_task_type": task.task_type,
+                            "trace_id": trace_id,
+                            "request_id": request_id,
+                            "correlation_evidence_ref": "request_id_audit_correlation" if (request_id or trace_id) else None,
+                            "audit_feed_evidence_ref": "request_id_audit_feed_visible" if (request_id or trace_id) else None,
+                        }
+                    ),
+                    task.session_id,
+                ),
+            )
     except TaskPolicyViolation as exc:
         persist_task_policy_block(assignment, exc)
         raise HTTPException(
@@ -4445,7 +8397,7 @@ def create_task(assignment: TaskAssignment) -> dict[str, object]:
     return {"task": task.model_dump(), "queue_depth": queue_depth()}
 
 
-@app.get("/internal/tasks/{task_id}")
+@app.get("/api/v1/internal/tasks/{task_id}")
 def task_status(task_id: str) -> dict[str, object]:
     task = get_task(task_id)
     if not task:

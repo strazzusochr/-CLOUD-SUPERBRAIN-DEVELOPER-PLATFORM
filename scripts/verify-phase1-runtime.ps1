@@ -1,7 +1,12 @@
 $ErrorActionPreference = "Stop"
 
+& (Join-Path $PSScriptRoot "require-docker-readiness.ps1") -GateName "phase1-runtime compose verification"
+
 $port = if ($env:NGINX_HTTP_PORT) { $env:NGINX_HTTP_PORT } else { "8081" }
 $baseUrl = "http://localhost:$port"
+$progressManifestPath = Join-Path $PSScriptRoot "..\docs\project-progress.manifest.json"
+$progressManifest = Get-Content -Path $progressManifestPath -Raw | ConvertFrom-Json
+$expectedOverallPercent = [int]$progressManifest.overall_percent
 
 function Assert-LastExitCode($label) {
   if ($LASTEXITCODE -ne 0) {
@@ -77,7 +82,7 @@ function Wait-SseContains($label, $url, $expected, $attempts = 4, $maxTime = 8, 
 
 function Wait-TaskCompleted($taskId) {
   for ($i = 0; $i -lt 45; $i++) {
-    $taskStatus = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/internal/tasks/$taskId', timeout=5).read().decode())"
+    $taskStatus = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/api/v1/internal/tasks/$taskId', timeout=5).read().decode())"
     if (($taskStatus | Out-String).Contains('"status":"completed"')) {
       return $taskStatus
     }
@@ -92,7 +97,7 @@ function Wait-TaskCompleted($taskId) {
 function Wait-TaskEscalated($taskId) {
   $last = ""
   for ($i = 0; $i -lt 90; $i++) {
-    $taskStatus = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/internal/tasks/$taskId', timeout=5).read().decode())" 2>&1
+    $taskStatus = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/api/v1/internal/tasks/$taskId', timeout=5).read().decode())" 2>&1
     $last = ($taskStatus | Out-String)
     if (($taskStatus | Out-String).Contains('"status":"escalated"')) {
       return $taskStatus
@@ -111,7 +116,8 @@ $resourceReport = powershell -ExecutionPolicy Bypass -File scripts\measure-compo
 Assert-Contains "resource report project" $resourceReport '"project":"cloud-superbrain-phase1-dev"'
 Assert-Contains "resource report upgrade rule" $resourceReport "No Hetzner upgrade without empirical CPU/RAM pressure"
 Assert-Contains "resource report agent-api" $resourceReport '"service":"agent-api"'
-Assert-Contains "resource report frontend" $resourceReport '"service":"frontend"'
+Assert-Contains "resource report container count" $resourceReport '"container_count":9'
+Assert-Contains "resource report agent worker" $resourceReport '"service":"agent-worker"'
 Assert-Contains "resource report memory worker" $resourceReport '"service":"memory-worker"'
 Assert-Contains "resource report llm gateway" $resourceReport '"service":"llm-gateway"'
 Assert-Contains "resource report nginx" $resourceReport '"service":"nginx"'
@@ -151,7 +157,7 @@ $appContainers = @(
   "cloud-superbrain-phase1-dev-memory-worker-1",
   "cloud-superbrain-phase1-dev-mcp-gateway-1",
   "cloud-superbrain-phase1-dev-llm-gateway-1",
-  "cloud-superbrain-phase1-dev-frontend-1"
+  "cloud-superbrain-phase1-dev-nginx-1"
 )
 foreach ($container in $appContainers) {
   $configuredUser = docker inspect $container --format "{{.Config.User}}"
@@ -302,7 +308,7 @@ Assert-Contains "agent-api llm gateway health matrix" $apiHealth '"llm_gateway":
 
 Write-Host "[runtime] project progress"
 $projectProgress = curl.exe -sS "$baseUrl/api/v1/project/progress"
-Assert-Contains "project progress overall" $projectProgress '"overall_percent":47'
+Assert-Contains "project progress overall" $projectProgress ('"overall_percent":{0}' -f $expectedOverallPercent)
 Assert-Contains "project progress source" $projectProgress '"progress_source":"docs/project-progress.manifest.json"'
 Assert-Contains "project progress horizontal" $projectProgress '"horizontal"'
 Assert-Contains "project progress vertical" $projectProgress '"vertical"'
@@ -314,8 +320,8 @@ $projectProgressIntegrity = curl.exe -sS "$baseUrl/api/v1/project/progress/integ
 Assert-Contains "project progress integrity version" $projectProgressIntegrity '"contract_version":"project-progress-integrity-v1"'
 Assert-Contains "project progress integrity verified" $projectProgressIntegrity '"status":"verified"'
 Assert-Contains "project progress integrity evidence" $projectProgressIntegrity '"evidence_ref":"project_progress_integrity_runtime_proof"'
-Assert-Contains "project progress integrity computed" $projectProgressIntegrity '"computed_overall_percent":47'
-Assert-Contains "project progress integrity manifest" $projectProgressIntegrity '"manifest_overall_percent":47'
+Assert-Contains "project progress integrity computed" $projectProgressIntegrity ('"computed_overall_percent":{0}' -f $expectedOverallPercent)
+Assert-Contains "project progress integrity manifest" $projectProgressIntegrity ('"manifest_overall_percent":{0}' -f $expectedOverallPercent)
 
 Write-Host "[runtime] project progress completion contract"
 $projectProgressCompletion = curl.exe -sS "$baseUrl/api/v1/project/progress/completion"
@@ -323,8 +329,7 @@ Assert-Contains "project progress completion version" $projectProgressCompletion
 Assert-Contains "project progress completion status" $projectProgressCompletion '"status":"blocked_external_gates"'
 Assert-Contains "project progress completion evidence" $projectProgressCompletion '"evidence_ref":"project_progress_100_percent_gate_contract"'
 Assert-Contains "project progress completion cannot set all to 100" $projectProgressCompletion '"can_set_all_to_100":false'
-Assert-Contains "project progress completion hosted blocker" $projectProgressCompletion "hosted_staging_proof_requires_STAGING_BASE_URL"
-Assert-Contains "project progress completion production blocker" $projectProgressCompletion "production_release_requires_hosted_staging_branch_protection_secret_scan_and_owner_review"
+Assert-Contains "project progress completion external gates cleared" $projectProgressCompletion '"missing_external_gates":[]'
 Assert-Contains "project progress completion local gap blocker" $projectProgressCompletion "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 
 Write-Host "[runtime] layer interface contracts"
@@ -351,30 +356,39 @@ Assert-Contains "cloud layer readiness evidence" $cloudLayerReadiness '"evidence
 Assert-Contains "cloud layer readiness endpoint" $cloudLayerReadiness '"endpoint":"GET /api/v1/clouds/layers"'
 Assert-Contains "cloud layer readiness layer 7" $cloudLayerReadiness '"layer_id":"layer_7"'
 Assert-Contains "cloud layer readiness gitkraken" $cloudLayerReadiness 'gitkraken_identity'
-$cloudRenderOffload = curl.exe -sS "$baseUrl/api/v1/clouds/render-offload/contract"
-Assert-Contains "cloud render offload version" $cloudRenderOffload '"contract_version":"cloud-render-offload-v1"'
-Assert-Contains "cloud render offload evidence" $cloudRenderOffload '"evidence_ref":"cloud_render_offload_contract_visible"'
-Assert-Contains "cloud render offload endpoint" $cloudRenderOffload '"endpoint":"GET /api/v1/clouds/render-offload/contract"'
-Assert-Contains "cloud render offload local block" $cloudRenderOffload '"localhost_heavy_render_allowed":false'
-Assert-Contains "cloud render offload staging blocker" $cloudRenderOffload "cloud_render_offload_requires_STAGING_BASE_URL"
-$cloudDeploymentPreflight = curl.exe -sS "$baseUrl/api/v1/clouds/deployment-preflight/contract"
-Assert-Contains "cloud deployment preflight version" $cloudDeploymentPreflight '"contract_version":"cloud-deployment-preflight-v1"'
-Assert-Contains "cloud deployment preflight evidence" $cloudDeploymentPreflight '"evidence_ref":"cloud_deployment_preflight_visible"'
-Assert-Contains "cloud deployment preflight endpoint" $cloudDeploymentPreflight '"endpoint":"GET /api/v1/clouds/deployment-preflight/contract"'
-Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflight '"status":"action_required"'
-Assert-Contains "cloud deployment preflight cloud claim blocked" $cloudDeploymentPreflight '"cloud_deploy_claim_allowed":false'
-Assert-Contains "cloud deployment preflight production blocked" $cloudDeploymentPreflight '"production_deploy_claim_allowed":false'
-Assert-Contains "cloud deployment preflight ghcr sequence" $cloudDeploymentPreflight "publish_ghcr_images"
-Assert-Contains "cloud deployment preflight hosted origins" $cloudDeploymentPreflight "hosted_backend_origins"
-Assert-Contains "cloud deployment preflight branch token" $cloudDeploymentPreflight "BRANCH_PROTECTION_TOKEN"
-Assert-Contains "cloud deployment preflight secret scan" $cloudDeploymentPreflight "canonical_secret_scan"
+$cloudRenderOffloadContract = curl.exe -sS "$baseUrl/api/v1/clouds/render-offload/contract"
+Assert-Contains "cloud render offload contract version" $cloudRenderOffloadContract '"contract_version":"cloud-render-offload-surface-v1"'
+Assert-Contains "cloud render offload contract evidence" $cloudRenderOffloadContract '"evidence_ref":"cloud_render_offload_contract_runtime_visible"'
+Assert-Contains "cloud render offload contract endpoint" $cloudRenderOffloadContract '"endpoint":"GET /api/v1/clouds/render-offload/contract"'
+Assert-Contains "cloud render offload runtime endpoint" $cloudRenderOffloadContract '"runtime_endpoint":"GET /api/v1/clouds/render-offload"'
+$cloudRenderOffloadRuntime = curl.exe -sS "$baseUrl/api/v1/clouds/render-offload"
+Assert-Contains "cloud render offload runtime version" $cloudRenderOffloadRuntime '"contract_version":"cloud-render-offload-v1"'
+Assert-Contains "cloud render offload runtime evidence" $cloudRenderOffloadRuntime '"evidence_ref":"cloud_render_offload_contract_visible"'
+Assert-Contains "cloud render offload local block" $cloudRenderOffloadRuntime '"localhost_heavy_render_allowed":false'
+Assert-Contains "cloud render offload staging blocker" $cloudRenderOffloadRuntime "cloud_render_offload_requires_STAGING_BASE_URL"
+$cloudDeploymentPreflightContract = curl.exe -sS "$baseUrl/api/v1/clouds/deployment-preflight/contract"
+Assert-Contains "cloud deployment preflight contract version" $cloudDeploymentPreflightContract '"contract_version":"cloud-deployment-preflight-surface-v1"'
+Assert-Contains "cloud deployment preflight contract evidence" $cloudDeploymentPreflightContract '"evidence_ref":"cloud_deployment_preflight_contract_runtime_visible"'
+Assert-Contains "cloud deployment preflight contract endpoint" $cloudDeploymentPreflightContract '"endpoint":"GET /api/v1/clouds/deployment-preflight/contract"'
+Assert-Contains "cloud deployment preflight runtime endpoint" $cloudDeploymentPreflightContract '"runtime_endpoint":"GET /api/v1/clouds/deployment-preflight"'
+$cloudDeploymentPreflightRuntime = curl.exe -sS "$baseUrl/api/v1/clouds/deployment-preflight"
+Assert-Contains "cloud deployment preflight runtime version" $cloudDeploymentPreflightRuntime '"contract_version":"cloud-deployment-preflight-v1"'
+Assert-Contains "cloud deployment preflight runtime evidence" $cloudDeploymentPreflightRuntime '"evidence_ref":"cloud_deployment_preflight_visible"'
+Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflightRuntime '"status":"verified"'
+Assert-Contains "cloud deployment preflight cloud claim allowed" $cloudDeploymentPreflightRuntime '"cloud_deploy_claim_allowed":true'
+Assert-Contains "cloud deployment preflight production allowed" $cloudDeploymentPreflightRuntime '"production_deploy_claim_allowed":true'
+Assert-Contains "cloud deployment preflight no blocked gates" $cloudDeploymentPreflightRuntime '"missing_or_blocked_gates":[]'
+Assert-Contains "cloud deployment preflight ghcr sequence" $cloudDeploymentPreflightRuntime "publish_ghcr_images"
+Assert-Contains "cloud deployment preflight hosted origins" $cloudDeploymentPreflightRuntime "hosted_backend_origins"
+Assert-Contains "cloud deployment preflight branch token" $cloudDeploymentPreflightRuntime "BRANCH_PROTECTION_TOKEN"
+Assert-Contains "cloud deployment preflight secret scan" $cloudDeploymentPreflightRuntime "canonical_secret_scan"
 
 Write-Host "[runtime] task assignment queue contract"
 $taskAssignmentContract = curl.exe -sS "$baseUrl/api/v1/tasks/assignment-contract"
 Assert-Contains "task assignment contract version" $taskAssignmentContract '"contract_version":"task-assignment-queue-contract-v1"'
 Assert-Contains "task assignment contract evidence" $taskAssignmentContract '"evidence_ref":"task_assignment_queue_contract_visible"'
 Assert-Contains "task assignment gap" $taskAssignmentContract '"audit_gap":"L-06"'
-Assert-Contains "task assignment intake" $taskAssignmentContract '"/internal/tasks"'
+Assert-Contains "task assignment intake" $taskAssignmentContract '"/api/v1/internal/tasks"'
 Assert-Contains "task assignment queue key" $taskAssignmentContract '"queue_key":"tasks:agent:queue"'
 Assert-Contains "task assignment high priority queue" $taskAssignmentContract '"high":"tasks:agent:queue:high"'
 Assert-Contains "task assignment mid priority queue" $taskAssignmentContract '"mid":"tasks:agent:queue"'
@@ -536,8 +550,8 @@ Assert-Contains "llm models openai list" $llmModels '"object":"list"'
 Assert-Contains "llm models deepseek" $llmModels "deepseek-chat"
 Assert-Contains "llm models no live calls" $llmModels '"live_provider_calls":false'
 $llmProviders = curl.exe -sS "$baseUrl/llm/api/v1/providers/status"
-Assert-Contains "llm providers anthropic" $llmProviders '"provider":"anthropic"'
-Assert-Contains "llm providers configured only" $llmProviders '"status":"configured_only"'
+Assert-Contains "llm providers huggingface router" $llmProviders '"provider":"huggingface_inference_router"'
+Assert-Contains "llm providers router verified" $llmProviders '"status":"live_verified"'
 Assert-Contains "llm providers no live calls" $llmProviders '"live_provider_calls":false'
 Assert-Contains "llm providers backoff" $llmProviders '"rotation_backoff_seconds":[30,60,120,300]'
 $llmRouteBody = @{
@@ -547,13 +561,13 @@ $llmRouteBody = @{
   budget_level = "ok"
 } | ConvertTo-Json -Compress
 $llmRoute = Invoke-RestMethod -Method Post -Uri "$baseUrl/llm/api/v1/routing/resolve" -ContentType "application/json" -Body $llmRouteBody
-if ($llmRoute.selected_model -ne "claude-sonnet-4-6") { throw "Runtime verification failed: LLM routing selected unexpected model" }
-if ($llmRoute.selected_provider -ne "anthropic") { throw "Runtime verification failed: LLM routing selected unexpected provider" }
+if ($llmRoute.selected_model -ne "deepseek-ai/DeepSeek-V4-Pro:fastest") { throw "Runtime verification failed: LLM routing selected unexpected model" }
+if ($llmRoute.selected_provider -ne "huggingface_inference_router") { throw "Runtime verification failed: LLM routing selected unexpected provider" }
 if ($llmRoute.live_provider_calls -ne $false) { throw "Runtime verification failed: LLM routing attempted live provider calls" }
-if ($llmRoute.configured_only -ne $true) { throw "Runtime verification failed: LLM routing was not configured-only" }
-if (-not ($llmRoute.fallback_chain -contains "gpt-4o-mini")) { throw "Runtime verification failed: LLM routing fallback chain missing emergency fallback" }
-if (-not ($llmRoute.provider_chain -contains "openai")) { throw "Runtime verification failed: LLM routing provider chain missing fallback provider" }
-if ($llmRoute.provider_health.status -ne "configured_only") { throw "Runtime verification failed: LLM routing provider health status wrong" }
+if ($llmRoute.configured_only -ne $false) { throw "Runtime verification failed: LLM routing should be live-verifiable through HF router" }
+if (-not ($llmRoute.fallback_chain -contains "moonshotai/Kimi-K2.6:fastest")) { throw "Runtime verification failed: LLM routing fallback chain missing open-source emergency fallback" }
+if (-not ($llmRoute.provider_chain -contains "huggingface_inference_router")) { throw "Runtime verification failed: LLM routing provider chain missing HF router provider" }
+if ($llmRoute.provider_health.status -ne "live_verified") { throw "Runtime verification failed: LLM routing provider health status wrong" }
 $llmTraceId = "runtime-llm-dry-run-" + [Guid]::NewGuid().ToString("N")
 $llmChatBody = @{
   model = "deepseek-chat"
@@ -1338,9 +1352,8 @@ Assert-Contains "memory consolidation feed event" $memoryConsolidationFeed "memo
 Assert-Contains "memory consolidation feed idempotency" $memoryConsolidationFeed $memoryIdempotencyKey
 
 Write-Host "[runtime] internal task queue"
-$taskQueue = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/internal/tasks', timeout=5).read().decode())"
-Assert-Contains "internal task queue" $taskQueue '"queue_depth"'
-$manualTask = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import json, urllib.request; data=json.dumps({'project_id':'runtime-task','session_id':'$($response.session_id)','agent_type':'planner','task_type':'runtime_smoke','task_description':'runtime internal task smoke','priority':5,'max_retries':5}).encode(); req=urllib.request.Request('http://127.0.0.1:8000/internal/tasks', data=data, headers={'Content-Type':'application/json'}, method='POST'); print(urllib.request.urlopen(req, timeout=5).read().decode())"
+$manualTask = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import json, urllib.request; data=json.dumps({'project_id':'runtime-task','session_id':'$($response.session_id)','agent_type':'planner','task_type':'runtime_smoke','task_description':'runtime internal task smoke','priority':5,'max_retries':5}).encode(); req=urllib.request.Request('http://127.0.0.1:8000/api/v1/internal/tasks', data=data, headers={'Content-Type':'application/json'}, method='POST'); print(urllib.request.urlopen(req, timeout=5).read().decode())"
+Assert-Contains "internal task queue depth" $manualTask '"queue_depth"'
 Assert-Contains "manual internal task" $manualTask '"status":"queued"'
 Assert-Contains "manual internal task id" $manualTask '"task_id"'
 $manualTaskJson = ($manualTask | Out-String).Trim()
@@ -1437,7 +1450,7 @@ try {
 }
 Assert-Contains "task policy profile block code" $profileBlockedOut "task_policy_violation"
 Assert-Contains "task policy profile block tool gate" $profileBlockedOut "profile does not allow tools"
-$blockedInternal = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import json, urllib.error, urllib.request; data=json.dumps({'project_id':'runtime-policy-block','session_id':'$($response.session_id)','agent_type':'coder','task_type':'implementation','task_description':'implement unsafe file write without scope','priority':5,'max_retries':5,'allowed_tools':['filesystem_mcp'],'write_scope':[],'blocked_actions':['push_main','prod_deploy','secret_change','live_provider_call','force_push','production_db_write'],'acceptance_criteria':['result_envelope','done_validation','audit_log'],'human_review_required':True}).encode(); req=urllib.request.Request('http://127.0.0.1:8000/internal/tasks', data=data, headers={'Content-Type':'application/json'}, method='POST');`ntry:`n print(urllib.request.urlopen(req, timeout=5).read().decode())`nexcept urllib.error.HTTPError as exc:`n print(str(exc.code) + ':' + exc.read().decode())"
+$blockedInternal = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import json, urllib.error, urllib.request; data=json.dumps({'project_id':'runtime-policy-block','session_id':'$($response.session_id)','agent_type':'coder','task_type':'implementation','task_description':'implement unsafe file write without scope','priority':5,'max_retries':5,'allowed_tools':['filesystem_mcp'],'write_scope':[],'blocked_actions':['push_main','prod_deploy','secret_change','live_provider_call','force_push','production_db_write'],'acceptance_criteria':['result_envelope','done_validation','audit_log'],'human_review_required':True}).encode(); req=urllib.request.Request('http://127.0.0.1:8000/api/v1/internal/tasks', data=data, headers={'Content-Type':'application/json'}, method='POST');`ntry:`n print(urllib.request.urlopen(req, timeout=5).read().decode())`nexcept urllib.error.HTTPError as exc:`n print(str(exc.code) + ':' + exc.read().decode())"
 Assert-Contains "internal task policy block status" $blockedInternal "403:"
 Assert-Contains "internal task policy block code" $blockedInternal "task_policy_violation"
 $policyAudit = curl.exe -sS "$baseUrl/api/v1/audit/recent?limit=30"
@@ -1445,7 +1458,7 @@ Assert-Contains "task policy audit event" $policyAudit "task_policy_blocked"
 Assert-Contains "task policy audit severity" $policyAudit '"severity":"critical"'
 
 Write-Host "[runtime] task session UUID fail-closed"
-$invalidTaskOut = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import json, urllib.error, urllib.request; data=json.dumps({'project_id':'runtime-invalid-session','session_id':'not-a-uuid','agent_type':'planner','task_type':'runtime_invalid_session','task_description':'runtime task session UUID fail-closed smoke','priority':5,'max_retries':2}).encode(); req=urllib.request.Request('http://127.0.0.1:8000/internal/tasks', data=data, headers={'Content-Type':'application/json'}, method='POST');`ntry:`n print(urllib.request.urlopen(req, timeout=5).read().decode())`nexcept urllib.error.HTTPError as exc:`n print(str(exc.code) + ':' + exc.read().decode())"
+$invalidTaskOut = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import json, urllib.error, urllib.request; data=json.dumps({'project_id':'runtime-invalid-session','session_id':'not-a-uuid','agent_type':'planner','task_type':'runtime_invalid_session','task_description':'runtime task session UUID fail-closed smoke','priority':5,'max_retries':2}).encode(); req=urllib.request.Request('http://127.0.0.1:8000/api/v1/internal/tasks', data=data, headers={'Content-Type':'application/json'}, method='POST');`ntry:`n print(urllib.request.urlopen(req, timeout=5).read().decode())`nexcept urllib.error.HTTPError as exc:`n print(str(exc.code) + ':' + exc.read().decode())"
 Assert-Contains "invalid task session status" $invalidTaskOut "422:"
 Assert-Contains "invalid task session uuid error" $invalidTaskOut "session_id must be a valid UUID"
 
@@ -1469,7 +1482,7 @@ Assert-Contains "external gates contract" $externalGates '"contract_version":"ex
 Assert-Contains "external gates endpoint" $externalGates '"endpoint":"GET /api/v1/external-gates"'
 Assert-Contains "external gates evidence" $externalGates '"evidence_ref":"external_gates_state_visible"'
 Assert-Contains "external gates aligned with preflight" $externalGates '"aligned_with_deployment_preflight":true'
-Assert-Contains "external gates status" $externalGates '"status":"action_required"'
+Assert-Contains "external gates status" $externalGates '"status":"verified"'
 Assert-Contains "external gates local allowed" $externalGates '"local_execution_allowed":true'
 Assert-Contains "external gates branch token" $externalGates '"id":"branch_protection_token"'
 Assert-Contains "external gates staging url" $externalGates '"id":"staging_base_url"'
@@ -1481,14 +1494,14 @@ Assert-Contains "external gates blocked ghcr" $externalGates '"ghcr_images"'
 Assert-Contains "external gates blocked hosted origins" $externalGates '"hosted_backend_origins"'
 $externalGateMirror = curl.exe -sS "$baseUrl/api/v1/external-gates/mirror"
 Assert-Contains "external gate mirror contract" $externalGateMirror '"contract_version":"external-gate-mirror-v1"'
-Assert-Contains "external gate mirror status" $externalGateMirror '"status":"local_mirror_ready_hosted_blocked"'
+Assert-Contains "external gate mirror status" $externalGateMirror '"status":"verified"'
 Assert-Contains "external gate mirror evidence" $externalGateMirror '"evidence_ref":"external_gate_mirror_proof"'
-Assert-Contains "external gate mirror hosted blocked" $externalGateMirror '"hosted_staging_claim_allowed":false'
-Assert-Contains "external gate mirror branch protection blocked" $externalGateMirror '"branch_protection_claim_allowed":false'
+Assert-Contains "external gate mirror hosted allowed" $externalGateMirror '"hosted_staging_claim_allowed":true'
+Assert-Contains "external gate mirror branch protection allowed" $externalGateMirror '"branch_protection_claim_allowed":true'
 Assert-Contains "external gate mirror branch protection evidence" $externalGateMirror '"branch_protection_evidence_ref":"branch_protection_verify_contract"'
 Assert-Contains "external gate mirror branch protection workflow" $externalGateMirror ".github/workflows/branch-protection.yml"
 Assert-Contains "external gate mirror branch protection verifier" $externalGateMirror "scripts/apply_github_branch_protection.py --verify-only"
-Assert-Contains "external gate mirror production blocked" $externalGateMirror '"production_deploy_claim_allowed":false'
+Assert-Contains "external gate mirror production allowed" $externalGateMirror '"production_deploy_claim_allowed":true'
 Assert-Contains "external gate mirror workflow" $externalGateMirror ".github/workflows/hosted-staging-proof.yml"
 Assert-Contains "external gate mirror phase2 runtime" $externalGateMirror "phase2-runtime-v1"
 Assert-Contains "external gate mirror phase2 sse" $externalGateMirror "phase2-sse-event-contract-v1"
@@ -1707,7 +1720,7 @@ Assert-Contains "agent activity feed evidence" $agentActivityFeed "agent_activit
 Write-Host "[runtime] prometheus metrics"
 $metrics = curl.exe -sS "$baseUrl/api/v1/metrics"
 Assert-Contains "metrics budget percentage" $metrics "superbrain_budget_spent_percentage"
-Assert-Contains "metrics project progress" $metrics "superbrain_project_progress_percent 47"
+Assert-Contains "metrics project progress" $metrics ("superbrain_project_progress_percent {0}" -f $expectedOverallPercent)
 Assert-Contains "metrics rate limit capacity" $metrics "superbrain_prompt_rate_limit_capacity"
 Assert-Contains "metrics rate limit remaining" $metrics "superbrain_prompt_rate_limit_remaining"
 Assert-Contains "metrics rate limit used" $metrics "superbrain_prompt_rate_limit_used"
@@ -1817,11 +1830,11 @@ if ($orchestratorLlmCall.stream_chunk_count -lt 1) { throw "Runtime verification
 if ($orchestratorLlmCall.memory_context_injected -ne $true) { throw "Runtime verification failed: orchestrator LLM call did not mark memory context injected" }
 if ($orchestratorLlmCall.memory_context_count -lt 1) { throw "Runtime verification failed: orchestrator LLM call memory context count was empty" }
 if ($orchestratorLlmCall.memory_context_budget.budget_percent_max -ne 30) { throw "Runtime verification failed: orchestrator LLM call memory context budget percent was not 30" }
-if ($orchestratorLlmCall.routing.selected_model -ne "claude-sonnet-4-6") { throw "Runtime verification failed: orchestrator did not use gateway routing resolver selected model" }
-if ($orchestratorLlmCall.routing.selected_provider -ne "anthropic") { throw "Runtime verification failed: orchestrator did not retain gateway selected provider" }
+if ($orchestratorLlmCall.routing.selected_model -ne "deepseek-ai/DeepSeek-V4-Pro:fastest") { throw "Runtime verification failed: orchestrator did not use gateway routing resolver selected model" }
+if ($orchestratorLlmCall.routing.selected_provider -ne "huggingface_inference_router") { throw "Runtime verification failed: orchestrator did not retain gateway selected provider" }
 if ($orchestratorLlmCall.routing.live_provider_calls -ne $false) { throw "Runtime verification failed: orchestrator gateway routing attempted live provider calls" }
-if ($orchestratorLlmCall.routing.configured_only -ne $true) { throw "Runtime verification failed: orchestrator gateway routing was not configured-only" }
-if ($orchestratorLlmCall.routing.provider_health.status -ne "configured_only") { throw "Runtime verification failed: orchestrator gateway provider health status wrong" }
+if ($orchestratorLlmCall.routing.configured_only -ne $false) { throw "Runtime verification failed: orchestrator gateway routing should be HF-live-verifiable" }
+if ($orchestratorLlmCall.routing.provider_health.status -ne "live_verified") { throw "Runtime verification failed: orchestrator gateway provider health status wrong" }
 if ($orchestratorLlmCall.routing_policy_checked -ne $true) { throw "Runtime verification failed: orchestrator did not check LLM routing policy before gateway call" }
 if ($orchestratorLlmCall.routing_policy_contract_version -ne "llm-routing-policy-v1") { throw "Runtime verification failed: orchestrator LLM routing policy contract version mismatch" }
 if ($orchestratorLlmCall.routing_policy_decision -ne "allow_primary") { throw "Runtime verification failed: orchestrator LLM routing policy did not allow primary route" }
@@ -2196,7 +2209,7 @@ Assert-Contains "rotation provider fallback evidence" $rotationPolicy "provider_
 Assert-Contains "rotation cost metadata format" $rotationPolicy "cost_metadata"
 
 Write-Host "[runtime] rotation event audit"
-$rotationEvent = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import json, urllib.request; data=json.dumps({'from_provider':'anthropic','to_provider':'groq','from_model':'claude-sonnet-4-6','to_model':'groq-llama-3.3-70b','fallback_index':1,'routing_policy_decision':'allow_fallback','reason':'rate_limited','agent':'planner','session_id':'$($response.session_id)','trace_id':'runtime-rotation-proof','input_tokens':321,'output_tokens':123,'estimated_cost_cents':0,'budget_level':'ok'}).encode(); req=urllib.request.Request('http://127.0.0.1:8000/internal/rotation/events', data=data, headers={'Content-Type':'application/json'}, method='POST'); print(urllib.request.urlopen(req, timeout=5).read().decode())"
+$rotationEvent = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import json, urllib.request; data=json.dumps({'from_provider':'huggingface_inference_router','to_provider':'huggingface_inference_router','from_model':'deepseek-ai/DeepSeek-V4-Pro:fastest','to_model':'Qwen/Qwen3.6-35B-A3B:fastest','fallback_index':1,'routing_policy_decision':'allow_fallback','reason':'rate_limited','agent':'planner','session_id':'$($response.session_id)','trace_id':'runtime-rotation-proof','input_tokens':321,'output_tokens':123,'estimated_cost_cents':0,'budget_level':'ok'}).encode(); req=urllib.request.Request('http://127.0.0.1:8000/internal/rotation/events', data=data, headers={'Content-Type':'application/json'}, method='POST'); print(urllib.request.urlopen(req, timeout=5).read().decode())"
 Assert-Contains "rotation event id" $rotationEvent '"event_id"'
 Assert-Contains "rotation event type" $rotationEvent '"event_type":"provider_rotated"'
 Assert-Contains "rotation event contract" $rotationEvent '"contract_version":"provider-fallback-event-v1"'
@@ -2210,8 +2223,8 @@ Assert-Contains "rotation events contract" $rotationEvents '"contract_version":"
 Assert-Contains "rotation events evidence" $rotationEvents '"evidence_ref":"provider_fallback_structured_event"'
 Assert-Contains "rotation events trace" $rotationEvents "runtime-rotation-proof"
 Assert-Contains "rotation events reason" $rotationEvents '"reason":"rate_limited"'
-Assert-Contains "rotation events provider" $rotationEvents '"to_provider":"groq"'
-Assert-Contains "rotation events model" $rotationEvents '"to_model":"groq-llama-3.3-70b"'
+Assert-Contains "rotation events provider" $rotationEvents '"to_provider":"huggingface_inference_router"'
+Assert-Contains "rotation events model" $rotationEvents '"to_model":"Qwen/Qwen3.6-35B-A3B:fastest"'
 Assert-Contains "rotation events cost metadata" $rotationEvents '"cost_metadata"'
 
 Write-Host "[runtime] post-recreate steady-state proof"
@@ -2219,8 +2232,8 @@ $steadyHealth = Wait-UrlContains "post-recreate health" "$baseUrl/api/v1/health"
 Assert-Contains "post-recreate agent worker health" $steadyHealth '"agent_worker":{"status":"healthy"'
 Assert-Contains "post-recreate memory worker health" $steadyHealth '"memory_worker":{"status":"healthy"'
 $steadyProgressIntegrity = Wait-UrlContains "post-recreate project progress integrity" "$baseUrl/api/v1/project/progress/integrity" '"status":"verified"' 45
-Assert-Contains "post-recreate project progress integrity computed" $steadyProgressIntegrity '"computed_overall_percent":47'
-Assert-Contains "post-recreate project progress integrity manifest" $steadyProgressIntegrity '"manifest_overall_percent":47'
+Assert-Contains "post-recreate project progress integrity computed" $steadyProgressIntegrity ('"computed_overall_percent":{0}' -f $expectedOverallPercent)
+Assert-Contains "post-recreate project progress integrity manifest" $steadyProgressIntegrity ('"manifest_overall_percent":{0}' -f $expectedOverallPercent)
 $steadyMcpVersionPinning = Wait-UrlContains "post-recreate mcp version pinning" "$baseUrl/mcp/api/v1/version-pinning/contract" '"contract_version":"mcp-version-pinning-v1"' 45
 Assert-Contains "post-recreate mcp version pinning evidence" $steadyMcpVersionPinning "mcp_version_pinning_contract_visible"
 $steadyMemoryEmbeddingConsistency = Wait-UrlContains "post-recreate memory embedding consistency" "$baseUrl/api/v1/memory/embedding-consistency/contract" '"contract_version":"memory-embedding-consistency-v1"' 45

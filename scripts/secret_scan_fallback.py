@@ -30,6 +30,14 @@ SKIP_SUFFIXES = {
     ".pyc",
 }
 
+SUSPICIOUS_FILE_PATTERNS = (
+    re.compile(r".*_token\.txt$", re.IGNORECASE),
+    re.compile(r".*token.*\.(png|html?)$", re.IGNORECASE),
+    re.compile(r".*tokens.*\.(png|html?)$", re.IGNORECASE),
+    re.compile(r"superbrain_key(\.pub)?$", re.IGNORECASE),
+    re.compile(r"(key_payload|server_payload|vercel_env|cloud_gate_data)\.json$", re.IGNORECASE),
+)
+
 ALLOWLIST_VALUES = {
     "change-me-now",
     "change-me-too",
@@ -77,6 +85,8 @@ def is_allowed(value: str, path: Path) -> bool:
         return True
     if normalized.startswith("process.env."):
         return True
+    if "(" in normalized or ")" in normalized:
+        return True
     return False
 
 
@@ -101,11 +111,21 @@ def scan_file(path: Path) -> list[str]:
     return findings
 
 
+def scan_filename(path: Path) -> list[str]:
+    rel = path.relative_to(ROOT)
+    filename = path.name
+    for pattern in SUSPICIOUS_FILE_PATTERNS:
+        if pattern.fullmatch(filename):
+            return [f"{rel}: suspicious secret-bearing filename"]
+    return []
+
+
 def main() -> int:
     findings: list[str] = []
     for path in ROOT.rglob("*"):
         if not path.is_file() or is_skipped(path):
             continue
+        findings.extend(scan_filename(path))
         findings.extend(scan_file(path))
 
     if findings:

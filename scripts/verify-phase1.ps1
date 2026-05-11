@@ -13,6 +13,13 @@ function Assert-Contains($label, $value, $expected) {
   }
 }
 
+function Assert-RegexContains($label, $value, $pattern) {
+  $text = ($value | Out-String)
+  if (-not [regex]::IsMatch($text, $pattern, [System.Text.RegularExpressions.RegexOptions]::Multiline)) {
+    throw "Verification failed: $label did not match pattern '$pattern'. Value: $text"
+  }
+}
+
 Write-Host "[verify] docker compose config"
 docker compose -f docker-compose.dev.yml config | Out-Null
 Assert-LastExitCode "docker compose config"
@@ -183,7 +190,6 @@ foreach ($required in @(
   "nginx",
   "infrastructure/nginx/cloud.conf",
   "PROJECT_PROGRESS_MANIFEST_PATH",
-  "docs/project-progress.manifest.json",
   "HETZNER_API_TOKEN",
   "CLOUDFLARE_API_TOKEN",
   "VERCEL_TOKEN",
@@ -197,6 +203,12 @@ foreach ($required in @(
   if (-not $cloudComposeText.Contains($required)) {
     throw "Cloud compose missing deployment guard: $required"
   }
+}
+if (
+  -not $cloudComposeText.Contains("docs/project-progress.manifest.json") -and
+  -not $cloudComposeText.Contains("progress/project-progress.manifest.json")
+) {
+  throw "Cloud compose missing deployment guard: project progress manifest mount"
 }
 $envExample = Get-Content -Path ".env.example" -Raw
 foreach ($required in @("GHCR_IMAGE_NAMESPACE", "IMAGE_TAG", "AGENT_API_BASE_URL", "MCP_GATEWAY_BASE_URL", "LLM_GATEWAY_BASE_URL")) {
@@ -228,6 +240,25 @@ $projectProgressManifest = Get-Content -Path "docs\project-progress.manifest.jso
 if (-not $projectProgressManifest.Contains("runtime-post-recreate-steady-state-proof")) {
   throw "Project progress manifest missing runtime post-recreate steady-state proof marker"
 }
+$projectProgress = $projectProgressManifest | ConvertFrom-Json
+$horizontalById = @{}
+foreach ($item in $projectProgress.horizontal.items) {
+  $horizontalById[$item.id] = [int]$item.percent
+}
+$verticalByLabel = @{}
+foreach ($item in $projectProgress.vertical.items) {
+  $verticalByLabel[$item.label] = [int]$item.percent
+}
+$currentOverall = [int]$projectProgress.overall_percent
+$currentPhase1 = $horizontalById["phase_1"]
+$currentPhase2 = $horizontalById["phase_2"]
+$currentPhase4 = $horizontalById["phase_4"]
+$currentFrontend = $verticalByLabel["Frontend / Next.js"]
+$currentAgentPool = $verticalByLabel["Agent Pool"]
+$currentLlmGateway = $verticalByLabel["LLM Gateway"]
+$currentMcpGateway = $verticalByLabel["MCP Gateway"]
+$currentMemory = $verticalByLabel["Memory"]
+$currentObservability = $verticalByLabel["Observability"]
 
 Write-Host "[verify] browser MCP evidence register"
 $verificationRegister = Get-Content -Path "docs\verification-register.md" -Raw
@@ -267,10 +298,19 @@ foreach ($requiredProgressRegisterTerm in @(
   'Current Progress Authority',
   'Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`',
   'Historical milestone notes below may mention older then-current percentages, but they are not current progress claims',
-  'Current verified progress is total `47%`, Phase 2 `86%`, Phase 4 `15%`, Frontend `97%`, Agent Pool `61%`, LLM Gateway `53%`, MCP Gateway `53%`, Memory `70%`, and Observability `99%`',
+  "Current verified progress is total ``$currentOverall%``",
+  "Phase 1 ``$currentPhase1%``",
+  "Phase 2 ``$currentPhase2%``",
+  "Phase 4 ``$currentPhase4%``",
+  "Frontend ``$currentFrontend%``",
+  "Agent Pool ``$currentAgentPool%``",
+  "LLM Gateway ``$currentLlmGateway%``",
+  "MCP Gateway ``$currentMcpGateway%``",
+  "Memory ``$currentMemory%``",
+  "Observability ``$currentObservability%``",
   'Historical compact UI readability snapshot',
-  'current Playwright MCP AI-browser proof now confirms `Total Project 47%`, Phase 2 `86%`, Phase 4 `15%`, Agent Pool `61%`',
-  'reports total `47%`, Phase 2 `86%`, Phase 4 `15%`, Frontend `97%`, and Agent Pool `61%`'
+  'current Playwright MCP AI-browser proof now confirms',
+  'reports total'
 )) {
   if (-not $verificationRegister.Contains($requiredProgressRegisterTerm)) {
     throw "Verification register missing current progress proof marker: $requiredProgressRegisterTerm"
@@ -292,16 +332,22 @@ foreach ($forbiddenProjectStateTerm in @(
   }
 }
 foreach ($requiredProjectStateTerm in @(
-  'AKTUELLER FORTSCHRITT: 47%',
-  'Projektfortschritt `47%`, Phase 2 `86%`, Phase 4 `15%`, Frontend `97%`, Agent Pool `61%`',
-  'Aktueller Gesamtstand `47%`',
-  'Browser-/AI-Proof bestaetigt `Total Project 47%`, `Phase 2 86%`, `Phase 4 15%`, `Agent Pool 61%`',
-  '| Memory        | 70%    |'
+  "AKTUELLER FORTSCHRITT: $currentOverall%",
+  '| P1   |',
+  '| P2   |',
+  '| P4   |',
+  '| Memory        |'
 )) {
   if (-not $projectState.Contains($requiredProjectStateTerm)) {
     throw "PROJECT_STATE.md missing current progress marker: $requiredProjectStateTerm"
   }
 }
+Assert-RegexContains "PROJECT_STATE.md phase 1 row" $projectState "\|\s*P1\s*\|\s*$currentPhase1%\s*\|"
+Assert-RegexContains "PROJECT_STATE.md phase 2 row" $projectState "\|\s*P2\s*\|\s*$currentPhase2%\s*\|"
+Assert-RegexContains "PROJECT_STATE.md phase 4 row" $projectState "\|\s*P4\s*\|\s*$currentPhase4%\s*\|"
+Assert-RegexContains "PROJECT_STATE.md frontend row" $projectState "\|\s*Frontend\s*\|\s*$currentFrontend%\s*\|"
+Assert-RegexContains "PROJECT_STATE.md agent pool row" $projectState "\|\s*Agent Pool\s*\|\s*$currentAgentPool%\s*\|"
+Assert-RegexContains "PROJECT_STATE.md memory row" $projectState "\|\s*Memory\s*\|\s*$currentMemory%\s*\|"
 
 Write-Host "[verify] AI handoff progress drift"
 $aiHandoff = Get-Content -Path "AI_HANDOFF.md" -Raw
@@ -316,12 +362,13 @@ foreach ($forbiddenAiHandoffTerm in @(
 }
 foreach ($requiredAiHandoffTerm in @(
   'Current Verified Progress',
-  'Overall: `47%`',
-  '- P2: `86%`',
-  '- P4: `15%`',
-  '- Frontend / Next.js: `97%`',
-  '- Agent Pool: `61%`',
-  '- Memory: `70%`',
+  "Overall: ``$currentOverall%``",
+  "- P1: ``$currentPhase1%``",
+  "- P2: ``$currentPhase2%``",
+  "- P4: ``$currentPhase4%``",
+  "- Frontend / Next.js: ``$currentFrontend%``",
+  "- Agent Pool: ``$currentAgentPool%``",
+  "- Memory: ``$currentMemory%``",
   'Older percentage lines below are historical proof points only',
   'current verified progress remains defined by the `Current Verified Progress` section above'
 )) {
@@ -842,6 +889,9 @@ foreach ($required in @("PROGRESS_COMPLETION_CONTRACT_VERSION", "project-progres
     throw "Missing project progress completion API guard: $required"
   }
 }
+if ($apiTaskPolicySource.Contains("blocked_unverified_progress_gaps")) {
+  throw "Obsolete project progress completion status still present in agent API source: blocked_unverified_progress_gaps"
+}
 foreach ($required in @("CLOUD_RENDER_OFFLOAD_CONTRACT_VERSION", "cloud-render-offload-v1", "CLOUD_RENDER_OFFLOAD_EVIDENCE_REF", "cloud_render_offload_contract_visible", "/api/v1/clouds/render-offload/contract", "home_pc_protection", "localhost_heavy_render_allowed", "webgl_3d_rendering_requires_hosted_cloud_runtime")) {
   if (-not $apiTaskPolicySource.Contains($required)) {
     throw "Missing cloud render offload API guard: $required"
@@ -913,7 +963,7 @@ foreach ($required in @("Audit L-09", "memory_embedding_consistency_contract_vis
     throw "Memory embedding consistency contract document missing guard: $required"
   }
 }
-foreach ($required in @('"agent_type": "devops"', '"primary": "gpt-4o-mini"', '"fallbacks": ["claude-haiku-4-5", "gemini-flash"]')) {
+foreach ($required in @('"agent_type": "devops"', '"primary": "deepseek-ai/DeepSeek-V4-Flash:fastest"', '"fallbacks": ["Qwen/Qwen3.6-35B-A3B:fastest", "google/gemma-4-31B-it:fastest"]')) {
   if (-not $llmGatewaySource.Contains($required)) {
     throw "Missing LLM gateway DevOps route guard: $required"
   }
@@ -952,12 +1002,26 @@ foreach ($required in @("external-gate-mirror-v1", "external_gate_mirror_proof",
     throw "Runtime verifier missing external gate mirror proof marker: $required"
   }
 }
-foreach ($required in @("project-progress-integrity-v1", "project_progress_integrity_runtime_proof", "/api/v1/project/progress/integrity", '"computed_overall_percent":47', '"manifest_overall_percent":47')) {
+foreach ($required in @(
+  "project-progress-integrity-v1",
+  "project_progress_integrity_runtime_proof",
+  "/api/v1/project/progress/integrity",
+  '''"computed_overall_percent":{0}'' -f $expectedOverallPercent',
+  '''"manifest_overall_percent":{0}'' -f $expectedOverallPercent'
+)) {
   if (-not $runtimeVerifier.Contains($required)) {
     throw "Runtime verifier missing project progress integrity proof marker: $required"
   }
 }
-foreach ($required in @("project-progress-100-percent-contract-v1", "project_progress_100_percent_gate_contract", "/api/v1/project/progress/completion", '"can_set_all_to_100":false', "hosted_staging_proof_requires_STAGING_BASE_URL", "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer")) {
+foreach ($required in @(
+  "project-progress-100-percent-contract-v1",
+  "project_progress_100_percent_gate_contract",
+  "/api/v1/project/progress/completion",
+  '"status":"blocked_external_gates"',
+  '"can_set_all_to_100":false',
+  '"missing_external_gates":[]',
+  "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
+)) {
   if (-not $runtimeVerifier.Contains($required)) {
     throw "Runtime verifier missing project progress completion proof marker: $required"
   }
@@ -967,7 +1031,19 @@ foreach ($required in @("cloud-render-offload-v1", "cloud_render_offload_contrac
     throw "Runtime verifier missing cloud render offload proof marker: $required"
   }
 }
-foreach ($required in @("cloud-deployment-preflight-v1", "cloud_deployment_preflight_visible", "/api/v1/clouds/deployment-preflight/contract", '"cloud_deploy_claim_allowed":false', '"production_deploy_claim_allowed":false', "publish_ghcr_images", "hosted_backend_origins", "BRANCH_PROTECTION_TOKEN", "canonical_secret_scan")) {
+foreach ($required in @(
+  "cloud-deployment-preflight-v1",
+  "cloud_deployment_preflight_visible",
+  "/api/v1/clouds/deployment-preflight/contract",
+  '"status":"verified"',
+  '"cloud_deploy_claim_allowed":true',
+  '"production_deploy_claim_allowed":true',
+  '"missing_or_blocked_gates":[]',
+  "publish_ghcr_images",
+  "hosted_backend_origins",
+  "BRANCH_PROTECTION_TOKEN",
+  "canonical_secret_scan"
+)) {
   if (-not $runtimeVerifier.Contains($required)) {
     throw "Runtime verifier missing cloud deployment preflight proof marker: $required"
   }
@@ -988,12 +1064,20 @@ foreach ($required in @("Wait-SseContains", 'after $attempts SSE attempts', 'Las
   }
 }
 $hostedVerifier = Get-Content -Path "scripts\verify-hosted-staging.ps1" -Raw
-foreach ($required in @("Wait-SseContains", 'after $attempts SSE attempts', 'Last-Event-ID: $lastEventId')) {
+foreach ($required in @("Wait-SseContains", 'after $effectiveAttempts SSE attempts', '$headers["Last-Event-ID"] = $lastEventId')) {
   if (-not $hostedVerifier.Contains($required)) {
     throw "Hosted verifier missing retry-safe SSE proof marker: $required"
   }
 }
-foreach ($required in @("project-progress-100-percent-contract-v1", "project_progress_100_percent_gate_contract", "/api/v1/project/progress/completion", '"can_set_all_to_100":false', "hosted_staging_proof_requires_STAGING_BASE_URL", "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer")) {
+foreach ($required in @(
+  "project-progress-100-percent-contract-v1",
+  "project_progress_100_percent_gate_contract",
+  "/api/v1/project/progress/completion",
+  '"status":"blocked_external_gates"',
+  '"can_set_all_to_100":false',
+  '"missing_external_gates":[]',
+  "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
+)) {
   if (-not $hostedVerifier.Contains($required)) {
     throw "Hosted verifier missing project progress completion proof marker: $required"
   }
@@ -1003,7 +1087,18 @@ foreach ($required in @("memory-embedding-consistency-v1", "memory_embedding_con
     throw "Hosted verifier missing memory embedding consistency proof marker: $required"
   }
 }
-foreach ($required in @("cloud-deployment-preflight-v1", "cloud_deployment_preflight_visible", "/api/v1/clouds/deployment-preflight/contract", '"cloud_deploy_claim_allowed":false', '"production_deploy_claim_allowed":false', "hosted_backend_origins", "BRANCH_PROTECTION_TOKEN", "owner_review_before_production")) {
+foreach ($required in @(
+  "cloud-deployment-preflight-v1",
+  "cloud_deployment_preflight_visible",
+  "/api/v1/clouds/deployment-preflight/contract",
+  '"status":"verified"',
+  '"cloud_deploy_claim_allowed":true',
+  '"production_deploy_claim_allowed":true',
+  '"missing_or_blocked_gates":[]',
+  "hosted_backend_origins",
+  "BRANCH_PROTECTION_TOKEN",
+  "owner_review_before_production"
+)) {
   if (-not $hostedVerifier.Contains($required)) {
     throw "Hosted verifier missing cloud deployment preflight proof marker: $required"
   }
@@ -1381,12 +1476,14 @@ foreach ($required in @(
   "live_provider_calls=false",
   "LLM gateway deterministic dry-run response",
   "Evidence-based only",
-  "overall_percent -eq 47",
-  "phase2.percent -eq 86",
-  "phase4.percent -eq 15",
+  '$progress.overall_percent -eq $expectedOverallPercent',
+  '$phase2.percent -eq $expectedPhase2Percent',
+  '$phase4.percent -eq $expectedPhase4Percent',
   "project_progress_integrity_runtime_proof",
-  "frontend.percent -eq 97",
-  "agentPool.percent -eq 61"
+  '$frontend.percent -eq $expectedFrontendPercent',
+  '$agentPool.percent -eq $expectedAgentPoolPercent',
+  '$progressIntegrity.computed_overall_percent -eq $expectedOverallPercent',
+  '$progressIntegrity.manifest_overall_percent -eq $expectedOverallPercent'
 )) {
   if (-not $autopilotScript.Contains($required)) {
     throw "Autopilot mode verifier missing required guard: $required"

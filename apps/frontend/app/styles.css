@@ -929,6 +929,7 @@ button:disabled {
 }
 
 .healthSummary > div {
+  min-width: 0;
   min-height: 74px;
 }
 
@@ -1139,6 +1140,10 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.policyGrid > * {
+  min-width: 0;
 }
 
 .policyItem strong,
@@ -1363,6 +1368,7 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 12px;
 }
@@ -1423,6 +1429,12 @@ pre {
 
 .muted {
   color: #94a3b8;
+}
+
+.evidenceLine {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.5;
 }
 
 @media (max-width: 860px) {

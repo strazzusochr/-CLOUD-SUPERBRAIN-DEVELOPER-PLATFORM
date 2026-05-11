@@ -6,6 +6,8 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
+& (Join-Path $PSScriptRoot "require-docker-readiness.ps1") -GateName "compose resource measurement"
+
 function Fail($Message) {
   throw "Resource measurement failed: $Message"
 }

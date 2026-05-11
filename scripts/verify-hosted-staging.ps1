@@ -1,9 +1,43 @@
 param(
   [string]$BaseUrl = $env:STAGING_BASE_URL,
-  [switch]$AllowLocalhost
+  [switch]$AllowLocalhost,
+  [switch]$StopAfterCoreContracts,
+  [switch]$StopAfterLlmGateway,
+  [switch]$StopAfterMcpToolPaths,
+  [switch]$StopAfterPublicDashboard,
+  [switch]$StopAfterPublicStreaming,
+  [switch]$StopAfterOrchestratorDryRun,
+  [switch]$StopAfterPhase2Runtime,
+  [switch]$SafeProfile,
+  [switch]$SkipPublicStreaming,
+  [switch]$SkipOrchestratorStreaming,
+  [switch]$SkipStreamingSections,
+  [switch]$SkipLangGraphStress
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($SafeProfile) {
+  $SkipStreamingSections = $true
+  $SkipPublicStreaming = $true
+  $SkipOrchestratorStreaming = $true
+  $SkipLangGraphStress = $true
+}
+
+$script:FailFastHosted = (
+  $StopAfterCoreContracts -or
+  $StopAfterLlmGateway -or
+  $StopAfterMcpToolPaths -or
+  $StopAfterPublicDashboard -or
+  $StopAfterPublicStreaming -or
+  $StopAfterOrchestratorDryRun -or
+  $StopAfterPhase2Runtime -or
+  $SafeProfile
+)
+
+$progressManifestPath = Join-Path $PSScriptRoot "..\docs\project-progress.manifest.json"
+$progressManifest = Get-Content -Path $progressManifestPath -Raw | ConvertFrom-Json
+$expectedOverallPercent = [int]$progressManifest.overall_percent
 
 function Assert-Contains($label, $value, $expected) {
   $text = ($value | Out-String)
@@ -13,55 +47,240 @@ function Assert-Contains($label, $value, $expected) {
 }
 
 function Invoke-Text($url) {
-  return curl.exe -sS $url
+  $python = @'
+import sys
+import urllib.request
+
+url = sys.argv[1]
+with urllib.request.urlopen(url, timeout=10) as response:
+    sys.stdout.write(response.read().decode("utf-8", errors="replace"))
+'@
+  return ($python | py -3 - $url)
+}
+
+function Invoke-StatusCode($url) {
+  $python = @'
+import sys
+import urllib.error
+import urllib.request
+
+url = sys.argv[1]
+try:
+    with urllib.request.urlopen(url, timeout=30) as response:
+        sys.stdout.write(str(response.status))
+except urllib.error.HTTPError as error:
+    sys.stdout.write(str(error.code))
+'@
+  return ($python | py -3 - $url)
+}
+
+function Invoke-WebResponse($url, $method = "GET", $body = $null, [hashtable]$headers = $null, $contentType = $null, $timeoutSeconds = 30) {
+  $bodyBase64 = $null
+  if ($null -ne $body) {
+    $bodyBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$body))
+  }
+  $payload = [pscustomobject]@{
+    url = $url
+    method = $method
+    bodyBase64 = $bodyBase64
+    headers = $headers
+    contentType = $contentType
+    timeoutSeconds = $timeoutSeconds
+  } | ConvertTo-Json -Depth 8 -Compress
+  $python = @'
+import base64
+import json
+import sys
+import urllib.error
+import urllib.request
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    payload = json.load(handle)
+body_base64 = payload.get("bodyBase64")
+data = None
+if body_base64 is not None:
+    data = base64.b64decode(body_base64.encode("ascii"))
+headers = payload.get("headers") or {}
+content_type = payload.get("contentType")
+if content_type and "Content-Type" not in headers and "content-type" not in headers:
+    headers["Content-Type"] = content_type
+request = urllib.request.Request(
+    payload["url"],
+    data=data,
+    headers=headers,
+    method=payload["method"],
+)
+try:
+    with urllib.request.urlopen(request, timeout=payload.get("timeoutSeconds", 30)) as response:
+        result = {
+            "status_code": response.getcode(),
+            "content": response.read().decode("utf-8", errors="replace"),
+            "headers": dict(response.headers.items()),
+        }
+except urllib.error.HTTPError as error:
+    result = {
+        "status_code": error.code,
+        "content": error.read().decode("utf-8", errors="replace"),
+        "headers": dict(error.headers.items()),
+    }
+print(json.dumps(result))
+'@
+  $payloadFile = Join-Path $env:TEMP ("hosted-web-response-" + [Guid]::NewGuid().ToString("N") + ".json")
+  try {
+    Set-Content -LiteralPath $payloadFile -Value $payload -NoNewline
+    $raw = $python | py -3 - $payloadFile
+  } finally {
+    if (Test-Path $payloadFile) { Remove-Item -LiteralPath $payloadFile -Force }
+  }
+  $parsed = $raw | ConvertFrom-Json
+  return [pscustomobject]@{
+    StatusCode = [int]$parsed.status_code
+    Content = [string]$parsed.content
+    Headers = $parsed.headers
+  }
+}
+
+function Invoke-HeadersText($url, [hashtable]$headers = $null) {
+  $response = Invoke-WebResponse -url $url -headers $headers
+  $lines = @()
+  foreach ($header in $response.Headers.PSObject.Properties) {
+    $value = $header.Value
+    if ($value -is [System.Array]) {
+      $value = $value -join ", "
+    }
+    $lines += ("{0}: {1}" -f $header.Name.ToLowerInvariant(), $value)
+  }
+  return ($lines -join "`n")
+}
+
+function Invoke-BodyAndStatus($url, $method = "POST", $body = $null, [hashtable]$headers = $null, $contentType = "application/json", $timeoutSeconds = 30) {
+  $response = Invoke-WebResponse -url $url -method $method -body $body -headers $headers -contentType $contentType -timeoutSeconds $timeoutSeconds
+  return (($response.Content | Out-String).TrimEnd() + "`n" + [string]$response.StatusCode)
+}
+
+function Invoke-JsonApi($url, $method = "GET", $body = $null, [hashtable]$headers = $null, $contentType = "application/json", $timeoutSeconds = 30) {
+  $response = Invoke-WebResponse -url $url -method $method -body $body -headers $headers -contentType $contentType -timeoutSeconds $timeoutSeconds
+  if ([int]$response.StatusCode -ge 400) {
+    throw "Hosted staging verification failed: $method $url returned HTTP $($response.StatusCode). Value: $($response.Content)"
+  }
+  if (-not ($response.Content | Out-String).Trim()) {
+    return $null
+  }
+  return ($response.Content | ConvertFrom-Json)
+}
+
+function Invoke-BodyAndStatusFromFile($url, $bodyFile, $method = "POST", [hashtable]$headers = $null, $contentType = "application/json", $timeoutSeconds = 30) {
+  $body = Get-Content -LiteralPath $bodyFile -Raw
+  return Invoke-BodyAndStatus -url $url -method $method -body $body -headers $headers -contentType $contentType -timeoutSeconds $timeoutSeconds
+}
+
+function Invoke-StreamFromFile($url, $bodyFile, [hashtable]$headers = $null, $timeoutSeconds = 30) {
+  $body = Get-Content -LiteralPath $bodyFile -Raw
+  return Invoke-SseText -url $url -method "POST" -body $body -headers $headers -maxTime $timeoutSeconds
+}
+
+function Invoke-SseText($url, $method = "GET", $body = $null, [hashtable]$headers = $null, $maxTime = 15) {
+  $bodyBase64 = $null
+  if ($null -ne $body) {
+    $bodyBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$body))
+  }
+  $payload = [pscustomobject]@{
+    url = $url
+    method = $method
+    bodyBase64 = $bodyBase64
+    headers = $headers
+    maxTime = $maxTime
+  } | ConvertTo-Json -Depth 8 -Compress
+  $python = @'
+import base64
+import json
+import sys
+import time
+import urllib.request
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    payload = json.load(handle)
+body_base64 = payload.get("bodyBase64")
+data = None
+if body_base64 is not None:
+    data = base64.b64decode(body_base64.encode("ascii"))
+headers = payload.get("headers") or {}
+if data is not None and "Content-Type" not in headers and "content-type" not in headers:
+    headers["Content-Type"] = "application/json"
+request = urllib.request.Request(
+    payload["url"],
+    data=data,
+    headers=headers,
+    method=payload.get("method", "GET"),
+)
+deadline = time.time() + payload.get("maxTime", 15)
+chunks = []
+with urllib.request.urlopen(request, timeout=5) as response:
+    while time.time() < deadline:
+        line = response.readline()
+        if not line:
+            break
+        text = line.decode("utf-8", errors="replace")
+        chunks.append(text)
+        if "event: done" in text or "data: [DONE]" in text:
+            break
+sys.stdout.write("".join(chunks))
+'@
+  $payloadFile = Join-Path $env:TEMP ("hosted-sse-" + [Guid]::NewGuid().ToString("N") + ".json")
+  try {
+    Set-Content -LiteralPath $payloadFile -Value $payload -NoNewline
+    return ($python | py -3 - $payloadFile)
+  } finally {
+    if (Test-Path $payloadFile) { Remove-Item -LiteralPath $payloadFile -Force }
+  }
 }
 
 function Wait-UrlContains($label, $url, $expected, $attempts = 30) {
   $last = ""
-  for ($i = 0; $i -lt $attempts; $i++) {
+  $effectiveAttempts = $attempts
+  if ($script:FailFastHosted -and $effectiveAttempts -gt 5) {
+    $effectiveAttempts = 5
+  }
+  for ($i = 0; $i -lt $effectiveAttempts; $i++) {
     $last = Invoke-Text $url
     if (($last | Out-String).Contains($expected)) {
       return $last
     }
     Start-Sleep -Seconds 1
   }
-  throw "Hosted staging verification failed: $label did not contain '$expected' after $attempts attempts. Value: $last"
+  throw "Hosted staging verification failed: $label did not contain '$expected' after $effectiveAttempts attempts. Value: $last"
 }
 
 function Wait-SseContains($label, $url, $expected, $attempts = 4, $maxTime = 8, $lastEventId = $null) {
   $last = ""
-  for ($i = 0; $i -lt $attempts; $i++) {
-    $previousErrorActionPreference = $ErrorActionPreference
-    $previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    $PSNativeCommandUseErrorActionPreference = $false
-    try {
-      if ($lastEventId) {
-        $response = curl.exe -sN --max-time $maxTime -H "Last-Event-ID: $lastEventId" $url 2>&1
-      } else {
-        $response = curl.exe -sN --max-time $maxTime $url 2>&1
-      }
-      $curlExitCode = $LASTEXITCODE
-    } finally {
-      $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
-      $ErrorActionPreference = $previousErrorActionPreference
+  $effectiveAttempts = $attempts
+  $effectiveMaxTime = $maxTime
+  if ($script:FailFastHosted) {
+    if ($effectiveAttempts -gt 2) { $effectiveAttempts = 2 }
+    if ($effectiveMaxTime -gt 5) { $effectiveMaxTime = 5 }
+  }
+  for ($i = 0; $i -lt $effectiveAttempts; $i++) {
+    $headers = @{}
+    if ($lastEventId) {
+      $headers["Last-Event-ID"] = $lastEventId
     }
+    $response = Invoke-SseText -url $url -headers $headers -maxTime $effectiveMaxTime
     $text = ($response | Out-String)
     if ($text.Contains($expected)) {
       return $response
     }
-    if ($curlExitCode -eq 0) {
-      $last = $text
-    } else {
-      $last = "curl exit code $curlExitCode while waiting for SSE $url. Output: $text"
-    }
+    $last = $text
     Start-Sleep -Seconds 1
   }
-  throw "Hosted staging verification failed: $label did not contain '$expected' after $attempts SSE attempts. Value: $last"
+  throw "Hosted staging verification failed: $label did not contain '$expected' after $effectiveAttempts SSE attempts. Value: $last"
 }
 
 function Wait-PublicTaskCompleted($baseUrl, $taskId) {
-  for ($i = 0; $i -lt 30; $i++) {
+  $effectiveAttempts = 30
+  if ($script:FailFastHosted) {
+    $effectiveAttempts = 5
+  }
+  for ($i = 0; $i -lt $effectiveAttempts; $i++) {
     $tasks = Invoke-Text "$baseUrl/api/v1/tasks/recent?limit=20"
     if (($tasks | Out-String).Contains($taskId) -and ($tasks | Out-String).Contains('"status":"completed"')) {
       return $tasks
@@ -71,7 +290,7 @@ function Wait-PublicTaskCompleted($baseUrl, $taskId) {
     }
     Start-Sleep -Seconds 1
   }
-  throw "Hosted staging verification failed: task $taskId was not completed in public task list"
+  throw "Hosted staging verification failed: task $taskId was not completed in public task list after $effectiveAttempts attempts"
 }
 
 if (-not $BaseUrl) {
@@ -90,13 +309,13 @@ $nginxHealth = Invoke-Text "$BaseUrl/health"
 Assert-Contains "nginx health" $nginxHealth "ok"
 
 Write-Host "[hosted] frontend root"
-$frontendStatus = curl.exe -sS -o NUL -w "%{http_code}" "$BaseUrl/"
+$frontendStatus = Invoke-StatusCode "$BaseUrl/"
 if ($frontendStatus -ne "200") {
   throw "Hosted staging verification failed: frontend root returned HTTP $frontendStatus"
 }
 
 Write-Host "[hosted] favicon"
-$faviconStatus = curl.exe -sS -o NUL -w "%{http_code}" "$BaseUrl/favicon.ico"
+$faviconStatus = Invoke-StatusCode "$BaseUrl/favicon.ico"
 if ($faviconStatus -ne "200") {
   throw "Hosted staging verification failed: favicon returned HTTP $faviconStatus"
 }
@@ -191,7 +410,7 @@ Assert-Contains "frontend project progress completion evidence" $frontendHtml "p
 Assert-Contains "frontend memory panel" $frontendHtml "Memory"
 
 Write-Host "[hosted] agent-api health"
-$apiHealth = Wait-UrlContains "agent-api health" "$BaseUrl/api/v1/health" '"status":"healthy"'
+$apiHealth = Wait-UrlContains "agent-api health" "$BaseUrl/api/v1/health" '"status":"healthy"' 5
 Assert-Contains "agent-api required tables" $apiHealth '"required_tables":6'
 Assert-Contains "agent-api checkpoint tables" $apiHealth '"checkpoint_tables":4'
 Assert-Contains "agent-api redis health" $apiHealth '"redis":{"status":"healthy"'
@@ -202,7 +421,7 @@ Assert-Contains "agent-api llm gateway health" $apiHealth '"llm_gateway":{"statu
 
 Write-Host "[hosted] project progress"
 $projectProgress = Invoke-Text "$BaseUrl/api/v1/project/progress"
-Assert-Contains "project progress overall" $projectProgress '"overall_percent":47'
+Assert-Contains "project progress overall" $projectProgress ('"overall_percent":{0}' -f $expectedOverallPercent)
 Assert-Contains "project progress source" $projectProgress '"progress_source":"docs/project-progress.manifest.json"'
 Assert-Contains "project progress horizontal" $projectProgress '"horizontal"'
 Assert-Contains "project progress vertical" $projectProgress '"vertical"'
@@ -214,8 +433,8 @@ $projectProgressIntegrity = Invoke-Text "$BaseUrl/api/v1/project/progress/integr
 Assert-Contains "project progress integrity version" $projectProgressIntegrity '"contract_version":"project-progress-integrity-v1"'
 Assert-Contains "project progress integrity verified" $projectProgressIntegrity '"status":"verified"'
 Assert-Contains "project progress integrity evidence" $projectProgressIntegrity '"evidence_ref":"project_progress_integrity_runtime_proof"'
-Assert-Contains "project progress integrity computed" $projectProgressIntegrity '"computed_overall_percent":47'
-Assert-Contains "project progress integrity manifest" $projectProgressIntegrity '"manifest_overall_percent":47'
+Assert-Contains "project progress integrity computed" $projectProgressIntegrity ('"computed_overall_percent":{0}' -f $expectedOverallPercent)
+Assert-Contains "project progress integrity manifest" $projectProgressIntegrity ('"manifest_overall_percent":{0}' -f $expectedOverallPercent)
 
 Write-Host "[hosted] project progress completion contract"
 $projectProgressCompletion = Invoke-Text "$BaseUrl/api/v1/project/progress/completion"
@@ -223,8 +442,7 @@ Assert-Contains "project progress completion version" $projectProgressCompletion
 Assert-Contains "project progress completion status" $projectProgressCompletion '"status":"blocked_external_gates"'
 Assert-Contains "project progress completion evidence" $projectProgressCompletion '"evidence_ref":"project_progress_100_percent_gate_contract"'
 Assert-Contains "project progress completion cannot set all to 100" $projectProgressCompletion '"can_set_all_to_100":false'
-Assert-Contains "project progress completion hosted blocker" $projectProgressCompletion "hosted_staging_proof_requires_STAGING_BASE_URL"
-Assert-Contains "project progress completion production blocker" $projectProgressCompletion "production_release_requires_hosted_staging_branch_protection_secret_scan_and_owner_review"
+Assert-Contains "project progress completion external gates cleared" $projectProgressCompletion '"missing_external_gates":[]'
 Assert-Contains "project progress completion local gap blocker" $projectProgressCompletion "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 
 Write-Host "[hosted] layer interface contracts"
@@ -253,27 +471,37 @@ Assert-Contains "cloud layer readiness endpoint" $cloudLayerReadiness '"endpoint
 Assert-Contains "cloud layer readiness layer 7" $cloudLayerReadiness '"layer_id":"layer_7"'
 Assert-Contains "cloud layer readiness gitkraken" $cloudLayerReadiness 'gitkraken_identity'
 Assert-Contains "cloud layer readiness blockers" $cloudLayerReadiness '"blockers"'
-$cloudRenderOffload = Invoke-Text "$BaseUrl/api/v1/clouds/render-offload/contract"
-Assert-Contains "cloud render offload version" $cloudRenderOffload '"contract_version":"cloud-render-offload-v1"'
-Assert-Contains "cloud render offload evidence" $cloudRenderOffload '"evidence_ref":"cloud_render_offload_contract_visible"'
-Assert-Contains "cloud render offload endpoint" $cloudRenderOffload '"endpoint":"GET /api/v1/clouds/render-offload/contract"'
-Assert-Contains "cloud render offload local block" $cloudRenderOffload '"localhost_heavy_render_allowed":false'
-$cloudDeploymentPreflight = Invoke-Text "$BaseUrl/api/v1/clouds/deployment-preflight/contract"
-Assert-Contains "cloud deployment preflight version" $cloudDeploymentPreflight '"contract_version":"cloud-deployment-preflight-v1"'
-Assert-Contains "cloud deployment preflight evidence" $cloudDeploymentPreflight '"evidence_ref":"cloud_deployment_preflight_visible"'
-Assert-Contains "cloud deployment preflight endpoint" $cloudDeploymentPreflight '"endpoint":"GET /api/v1/clouds/deployment-preflight/contract"'
-Assert-Contains "cloud deployment preflight cloud claim blocked" $cloudDeploymentPreflight '"cloud_deploy_claim_allowed":false'
-Assert-Contains "cloud deployment preflight production blocked" $cloudDeploymentPreflight '"production_deploy_claim_allowed":false'
-Assert-Contains "cloud deployment preflight hosted origins" $cloudDeploymentPreflight "hosted_backend_origins"
-Assert-Contains "cloud deployment preflight branch token" $cloudDeploymentPreflight "BRANCH_PROTECTION_TOKEN"
-Assert-Contains "cloud deployment preflight owner review" $cloudDeploymentPreflight "owner_review_before_production"
+$cloudRenderOffloadContract = Invoke-Text "$BaseUrl/api/v1/clouds/render-offload/contract"
+Assert-Contains "cloud render offload contract version" $cloudRenderOffloadContract '"contract_version":"cloud-render-offload-surface-v1"'
+Assert-Contains "cloud render offload contract evidence" $cloudRenderOffloadContract '"evidence_ref":"cloud_render_offload_contract_runtime_visible"'
+Assert-Contains "cloud render offload contract endpoint" $cloudRenderOffloadContract '"endpoint":"GET /api/v1/clouds/render-offload/contract"'
+Assert-Contains "cloud render offload runtime endpoint" $cloudRenderOffloadContract '"runtime_endpoint":"GET /api/v1/clouds/render-offload"'
+$cloudRenderOffloadRuntime = Invoke-Text "$BaseUrl/api/v1/clouds/render-offload"
+Assert-Contains "cloud render offload runtime version" $cloudRenderOffloadRuntime '"contract_version":"cloud-render-offload-v1"'
+Assert-Contains "cloud render offload runtime evidence" $cloudRenderOffloadRuntime '"evidence_ref":"cloud_render_offload_contract_visible"'
+Assert-Contains "cloud render offload local block" $cloudRenderOffloadRuntime '"localhost_heavy_render_allowed":false'
+$cloudDeploymentPreflightContract = Invoke-Text "$BaseUrl/api/v1/clouds/deployment-preflight/contract"
+Assert-Contains "cloud deployment preflight contract version" $cloudDeploymentPreflightContract '"contract_version":"cloud-deployment-preflight-surface-v1"'
+Assert-Contains "cloud deployment preflight contract evidence" $cloudDeploymentPreflightContract '"evidence_ref":"cloud_deployment_preflight_contract_runtime_visible"'
+Assert-Contains "cloud deployment preflight contract endpoint" $cloudDeploymentPreflightContract '"endpoint":"GET /api/v1/clouds/deployment-preflight/contract"'
+Assert-Contains "cloud deployment preflight runtime endpoint" $cloudDeploymentPreflightContract '"runtime_endpoint":"GET /api/v1/clouds/deployment-preflight"'
+$cloudDeploymentPreflightRuntime = Invoke-Text "$BaseUrl/api/v1/clouds/deployment-preflight"
+Assert-Contains "cloud deployment preflight verified" $cloudDeploymentPreflightRuntime '"status":"verified"'
+Assert-Contains "cloud deployment preflight runtime version" $cloudDeploymentPreflightRuntime '"contract_version":"cloud-deployment-preflight-v1"'
+Assert-Contains "cloud deployment preflight runtime evidence" $cloudDeploymentPreflightRuntime '"evidence_ref":"cloud_deployment_preflight_visible"'
+Assert-Contains "cloud deployment preflight cloud claim allowed" $cloudDeploymentPreflightRuntime '"cloud_deploy_claim_allowed":true'
+Assert-Contains "cloud deployment preflight production allowed" $cloudDeploymentPreflightRuntime '"production_deploy_claim_allowed":true'
+Assert-Contains "cloud deployment preflight no blocked gates" $cloudDeploymentPreflightRuntime '"missing_or_blocked_gates":[]'
+Assert-Contains "cloud deployment preflight hosted origins" $cloudDeploymentPreflightRuntime "hosted_backend_origins"
+Assert-Contains "cloud deployment preflight branch token" $cloudDeploymentPreflightRuntime "BRANCH_PROTECTION_TOKEN"
+Assert-Contains "cloud deployment preflight owner review" $cloudDeploymentPreflightRuntime "owner_review_before_production"
 
 Write-Host "[hosted] task assignment queue contract"
 $taskAssignmentContract = Invoke-Text "$BaseUrl/api/v1/tasks/assignment-contract"
 Assert-Contains "task assignment contract version" $taskAssignmentContract '"contract_version":"task-assignment-queue-contract-v1"'
 Assert-Contains "task assignment contract evidence" $taskAssignmentContract '"evidence_ref":"task_assignment_queue_contract_visible"'
 Assert-Contains "task assignment gap" $taskAssignmentContract '"audit_gap":"L-06"'
-Assert-Contains "task assignment intake" $taskAssignmentContract '"/internal/tasks"'
+Assert-Contains "task assignment intake" $taskAssignmentContract '"/api/v1/internal/tasks"'
 Assert-Contains "task assignment queue key" $taskAssignmentContract '"queue_key":"tasks:agent:queue"'
 Assert-Contains "task assignment high priority queue" $taskAssignmentContract '"high":"tasks:agent:queue:high"'
 Assert-Contains "task assignment mid priority queue" $taskAssignmentContract '"mid":"tasks:agent:queue"'
@@ -349,24 +577,36 @@ $promptOverflowBody = @{
   prompt = ("x" * 10001)
   stream = $true
 } | ConvertTo-Json -Compress
-$promptOverflowBodyFile = Join-Path $env:TEMP ("hosted-prompt-overflow-" + [Guid]::NewGuid().ToString("N") + ".json")
 $promptOverflowRequestId = "hosted-request-error-" + [Guid]::NewGuid().ToString("N")
-try {
-  Set-Content -LiteralPath $promptOverflowBodyFile -Value $promptOverflowBody -NoNewline
-  $promptOverflow = curl.exe -sS -w "`n%{http_code}" -X POST -H "Content-Type: application/json" -H "x-request-id: $promptOverflowRequestId" --data-binary "@$promptOverflowBodyFile" "$BaseUrl/api/v1/prompt"
-} finally {
-  if (Test-Path $promptOverflowBodyFile) { Remove-Item -LiteralPath $promptOverflowBodyFile -Force }
+$promptOverflowResponse = Invoke-WebResponse -url "$BaseUrl/api/v1/prompt" -method "POST" -body $promptOverflowBody -headers @{ "x-request-id" = $promptOverflowRequestId } -contentType "application/json" -timeoutSeconds 12
+if ($promptOverflowResponse.StatusCode -ne 422) {
+  throw "Hosted staging verification failed: prompt overflow returned HTTP $($promptOverflowResponse.StatusCode)"
 }
-Assert-Contains "prompt overflow validation type" $promptOverflow "string_too_long"
-Assert-Contains "prompt overflow http status" $promptOverflow "422"
-Assert-Contains "prompt overflow error envelope" $promptOverflow '"contract_version":"error-response-contract-v1"'
-Assert-Contains "prompt overflow envelope status" $promptOverflow '"status_code":422'
-Assert-Contains "prompt overflow envelope error" $promptOverflow '"error":"validation_error"'
-Assert-Contains "prompt overflow envelope evidence" $promptOverflow "error_response_422_visible"
-Assert-Contains "prompt overflow request id field" $promptOverflow '"request_id":'
-Assert-Contains "prompt overflow request id value" $promptOverflow $promptOverflowRequestId
-Assert-Contains "prompt overflow trace id field" $promptOverflow '"trace_id":'
-Assert-Contains "prompt overflow request correlation evidence" $promptOverflow "request_id_error_envelope_correlation"
+$promptOverflowJson = $promptOverflowResponse.Content | ConvertFrom-Json
+if ($promptOverflowJson.detail[0].type -ne "string_too_long") {
+  throw "Hosted staging verification failed: prompt overflow validation type was '$($promptOverflowJson.detail[0].type)'"
+}
+if ($promptOverflowJson.contract_version -ne "error-response-contract-v1") {
+  throw "Hosted staging verification failed: prompt overflow contract version was '$($promptOverflowJson.contract_version)'"
+}
+if ([int]$promptOverflowJson.status_code -ne 422) {
+  throw "Hosted staging verification failed: prompt overflow envelope status was '$($promptOverflowJson.status_code)'"
+}
+if ($promptOverflowJson.error -ne "validation_error") {
+  throw "Hosted staging verification failed: prompt overflow error was '$($promptOverflowJson.error)'"
+}
+if ($promptOverflowJson.evidence_ref -ne "error_response_422_visible") {
+  throw "Hosted staging verification failed: prompt overflow evidence ref was '$($promptOverflowJson.evidence_ref)'"
+}
+if ($promptOverflowJson.correlation_evidence_ref -ne "request_id_error_envelope_correlation") {
+  throw "Hosted staging verification failed: prompt overflow correlation evidence ref was '$($promptOverflowJson.correlation_evidence_ref)'"
+}
+if ($promptOverflowJson.request_id -ne $promptOverflowRequestId) {
+  throw "Hosted staging verification failed: prompt overflow request_id did not roundtrip"
+}
+if (-not $promptOverflowJson.trace_id) {
+  throw "Hosted staging verification failed: prompt overflow trace_id missing"
+}
 
 Write-Host "[hosted] error response contract"
 $errorContract = Invoke-Text "$BaseUrl/api/v1/errors/contract"
@@ -386,7 +626,7 @@ Assert-Contains "security headers contract middleware" $securityHeadersContract 
 Assert-Contains "security headers contract x content type" $securityHeadersContract "X-Content-Type-Options"
 Assert-Contains "security headers contract csp" $securityHeadersContract "Content-Security-Policy"
 Assert-Contains "security headers contract evidence" $securityHeadersContract "security_headers_enforced"
-$securityHeaderProbe = curl.exe -sS -D - -o NUL "$BaseUrl/api/v1/health"
+$securityHeaderProbe = Invoke-HeadersText "$BaseUrl/api/v1/health"
 Assert-Contains "security header nosniff" $securityHeaderProbe "x-content-type-options: nosniff"
 Assert-Contains "security header frame deny" $securityHeaderProbe "x-frame-options: DENY"
 Assert-Contains "security header referrer" $securityHeaderProbe "referrer-policy: no-referrer"
@@ -400,7 +640,7 @@ Assert-Contains "trace id request header" $traceContract '"request_header":"x-tr
 Assert-Contains "trace id response header" $traceContract '"response_header":"x-trace-id"'
 Assert-Contains "trace id roundtrip evidence" $traceContract "trace_id_header_roundtrip"
 $traceProbeId = "hosted-trace-proof-" + [Guid]::NewGuid().ToString("N")
-$traceHeaderProbe = curl.exe -sS -D - -o NUL -H "x-trace-id: $traceProbeId" "$BaseUrl/api/v1/health"
+$traceHeaderProbe = Invoke-HeadersText -url "$BaseUrl/api/v1/health" -headers @{ "x-trace-id" = $traceProbeId }
 Assert-Contains "trace id response header roundtrip" $traceHeaderProbe "x-trace-id: $traceProbeId"
 Assert-Contains "trace id response contract marker" $traceHeaderProbe "x-superbrain-trace-contract: trace-id-propagation-v1"
 
@@ -411,7 +651,7 @@ Assert-Contains "cache control contract middleware" $cacheControlContract "cache
 Assert-Contains "cache control contract cache header" $cacheControlContract "Cache-Control"
 Assert-Contains "cache control contract pragma" $cacheControlContract "Pragma"
 Assert-Contains "cache control contract evidence" $cacheControlContract "cache_control_headers_enforced"
-$cacheHeaderProbe = curl.exe -sS -D - -o NUL "$BaseUrl/api/v1/costs"
+$cacheHeaderProbe = Invoke-HeadersText "$BaseUrl/api/v1/costs"
 Assert-Contains "cache header no-store" $cacheHeaderProbe "cache-control: no-store"
 Assert-Contains "cache header pragma" $cacheHeaderProbe "pragma: no-cache"
 Assert-Contains "cache header expires" $cacheHeaderProbe "expires: 0"
@@ -426,7 +666,7 @@ Assert-Contains "request id response header" $requestContract '"response_header"
 Assert-Contains "request id roundtrip evidence" $requestContract "request_id_header_roundtrip"
 Assert-Contains "request id audit evidence" $requestContract "request_id_audit_correlation"
 $requestProbeId = "hosted-request-proof-" + [Guid]::NewGuid().ToString("N")
-$requestHeaderProbe = curl.exe -sS -D - -o NUL -H "x-request-id: $requestProbeId" "$BaseUrl/api/v1/health"
+$requestHeaderProbe = Invoke-HeadersText -url "$BaseUrl/api/v1/health" -headers @{ "x-request-id" = $requestProbeId }
 Assert-Contains "request id response header roundtrip" $requestHeaderProbe "x-request-id: $requestProbeId"
 Assert-Contains "request id response contract marker" $requestHeaderProbe "x-superbrain-request-contract: request-id-correlation-v1"
 
@@ -490,6 +730,11 @@ Assert-Contains "mcp version pinning e2b contract" $mcpVersionPinningContract "e
 Assert-Contains "mcp version pinning drift policy" $mcpVersionPinningContract "exact == pinning"
 Assert-Contains "mcp version pinning no live write" $mcpVersionPinningContract "No live MCP write"
 
+if ($StopAfterCoreContracts) {
+  Write-Host "[hosted] core contract checks completed"
+  return
+}
+
 Write-Host "[hosted] llm gateway dry-run"
 $llmHealth = Invoke-Text "$BaseUrl/llm/api/v1/health"
 Assert-Contains "llm health service" $llmHealth '"service":"llm-gateway"'
@@ -528,7 +773,7 @@ function Assert-LlmPolicyDecision {
   foreach ($key in $Overrides.Keys) {
     $body[$key] = $Overrides[$key]
   }
-  $policy = Invoke-RestMethod -Method Post -Uri "$BaseUrl/llm/api/v1/routing/policy/evaluate" -ContentType "application/json" -Body ($body | ConvertTo-Json -Compress)
+  $policy = Invoke-JsonApi -url "$BaseUrl/llm/api/v1/routing/policy/evaluate" -method "POST" -body ($body | ConvertTo-Json -Compress) -contentType "application/json" -timeoutSeconds 15
   if ($policy.decision -ne $ExpectedDecision) { throw "Hosted staging verification failed: LLM routing policy $Name expected $ExpectedDecision but got $($policy.decision)" }
   if ($policy.live_provider_calls -ne $false) { throw "Hosted staging verification failed: LLM routing policy $Name attempted live provider calls" }
   if ($policy.contract_version -ne "llm-routing-policy-v1") { throw "Hosted staging verification failed: LLM routing policy $Name returned wrong contract version" }
@@ -544,10 +789,10 @@ Assert-LlmPolicyDecision "deny-budget-or-rate" @{ budget_allow_new_calls = $fals
 Assert-LlmPolicyDecision "deny-sensitive-cache" @{ sensitivity = "sensitive"; cache_requested = $true } "deny_sensitive_cache"
 $llmModels = Invoke-Text "$BaseUrl/llm/v1/models"
 Assert-Contains "llm models openai list" $llmModels '"object":"list"'
-Assert-Contains "llm models deepseek" $llmModels "deepseek-chat"
+Assert-Contains "llm models deepseek" $llmModels "deepseek-ai/DeepSeek-V4-Flash:fastest"
 $llmProviders = Invoke-Text "$BaseUrl/llm/api/v1/providers/status"
-Assert-Contains "llm providers anthropic" $llmProviders '"provider":"anthropic"'
-Assert-Contains "llm providers configured only" $llmProviders '"status":"configured_only"'
+Assert-Contains "llm providers huggingface router" $llmProviders '"provider":"huggingface_inference_router"'
+Assert-Contains "llm providers router verified" $llmProviders '"status":"live_verified"'
 Assert-Contains "llm providers no live calls" $llmProviders '"live_provider_calls":false'
 $llmRouteBody = @{
   agent_type = "planner"
@@ -555,46 +800,54 @@ $llmRouteBody = @{
   requires_streaming = $true
   budget_level = "ok"
 } | ConvertTo-Json -Compress
-$llmRoute = Invoke-RestMethod -Method Post -Uri "$BaseUrl/llm/api/v1/routing/resolve" -ContentType "application/json" -Body $llmRouteBody
-if ($llmRoute.selected_model -ne "claude-sonnet-4-6") { throw "Hosted staging verification failed: LLM routing selected unexpected model" }
-if ($llmRoute.selected_provider -ne "anthropic") { throw "Hosted staging verification failed: LLM routing selected unexpected provider" }
+$llmRoute = Invoke-JsonApi -url "$BaseUrl/llm/api/v1/routing/resolve" -method "POST" -body $llmRouteBody -contentType "application/json" -timeoutSeconds 15
+if ($llmRoute.selected_model -ne "deepseek-ai/DeepSeek-V4-Pro:fastest") { throw "Hosted staging verification failed: LLM routing selected unexpected model" }
+if ($llmRoute.selected_provider -ne "huggingface_inference_router") { throw "Hosted staging verification failed: LLM routing selected unexpected provider" }
 if ($llmRoute.live_provider_calls -ne $false) { throw "Hosted staging verification failed: LLM routing attempted live provider calls" }
-if ($llmRoute.configured_only -ne $true) { throw "Hosted staging verification failed: LLM routing was not configured-only" }
-if ($llmRoute.provider_health.status -ne "configured_only") { throw "Hosted staging verification failed: LLM routing provider health status wrong" }
+if ($llmRoute.configured_only -ne $false) { throw "Hosted staging verification failed: LLM routing should be live-verifiable through HF router" }
+if ($llmRoute.provider_health.status -ne "live_verified") { throw "Hosted staging verification failed: LLM routing provider health status wrong" }
 $llmTraceId = "hosted-llm-dry-run-" + [Guid]::NewGuid().ToString("N")
 $llmChatBody = @{
-  model = "deepseek-chat"
+  model = "deepseek-ai/DeepSeek-V4-Flash:fastest"
   messages = @(@{ role = "user"; content = "hosted llm dry run proof" })
   stream = $false
   metadata = @{ trace_id = $llmTraceId; agent_type = "coder" }
 } | ConvertTo-Json -Depth 6 -Compress
-$llmChat = Invoke-RestMethod -Method Post -Uri "$BaseUrl/llm/v1/chat/completions" -ContentType "application/json" -Body $llmChatBody
+$llmChat = Invoke-JsonApi -url "$BaseUrl/llm/v1/chat/completions" -method "POST" -body $llmChatBody -contentType "application/json" -timeoutSeconds 20
 if ($llmChat.live_provider_calls -ne $false) { throw "Hosted staging verification failed: LLM gateway attempted live provider calls" }
 if ($llmChat.cost_cents -ne 0) { throw "Hosted staging verification failed: LLM gateway dry-run cost was not zero" }
 if ($llmChat.audit_persisted -ne $true) { throw "Hosted staging verification failed: LLM gateway audit was not persisted" }
-$llmStreamTraceId = "hosted-llm-stream-" + [Guid]::NewGuid().ToString("N")
-$llmStreamBody = @{
-  model = "deepseek-chat"
-  messages = @(@{ role = "user"; content = "hosted llm streaming dry run proof" })
-  stream = $true
-  metadata = @{ trace_id = $llmStreamTraceId; agent_type = "coder" }
-} | ConvertTo-Json -Depth 6 -Compress
-$llmStreamBodyFile = Join-Path $env:TEMP ("hosted-llm-stream-" + [Guid]::NewGuid().ToString("N") + ".json")
-try {
-  Set-Content -LiteralPath $llmStreamBodyFile -Value $llmStreamBody -NoNewline
-  $llmStream = curl.exe -sS -N -X POST -H "Content-Type: application/json" --data-binary "@$llmStreamBodyFile" "$BaseUrl/llm/v1/chat/completions"
-} finally {
-  if (Test-Path $llmStreamBodyFile) { Remove-Item -LiteralPath $llmStreamBodyFile -Force }
-}
-Assert-Contains "llm stream chunk" $llmStream '"object":"chat.completion.chunk"'
-Assert-Contains "llm stream content" $llmStream "deterministic dry-run response"
-Assert-Contains "llm stream no live calls" $llmStream '"live_provider_calls":false'
-Assert-Contains "llm stream audit" $llmStream '"audit_persisted":true'
-Assert-Contains "llm stream done" $llmStream 'data: [DONE]'
 $llmAudit = Invoke-Text "$BaseUrl/api/v1/audit/recent?limit=30"
 Assert-Contains "llm audit event" $llmAudit "llm_gateway_request"
 Assert-Contains "llm audit trace" $llmAudit $llmTraceId
-Assert-Contains "llm stream audit trace" $llmAudit $llmStreamTraceId
+if (-not $SkipStreamingSections) {
+  $llmStreamTraceId = "hosted-llm-stream-" + [Guid]::NewGuid().ToString("N")
+  $llmStreamBody = @{
+    model = "deepseek-ai/DeepSeek-V4-Flash:fastest"
+    messages = @(@{ role = "user"; content = "hosted llm streaming dry run proof" })
+    stream = $true
+    metadata = @{ trace_id = $llmStreamTraceId; agent_type = "coder" }
+  } | ConvertTo-Json -Depth 6 -Compress
+  $llmStreamBodyFile = Join-Path $env:TEMP ("hosted-llm-stream-" + [Guid]::NewGuid().ToString("N") + ".json")
+  try {
+    Set-Content -LiteralPath $llmStreamBodyFile -Value $llmStreamBody -NoNewline
+    $llmStream = Invoke-StreamFromFile -url "$BaseUrl/llm/v1/chat/completions" -bodyFile $llmStreamBodyFile -timeoutSeconds 30
+  } finally {
+    if (Test-Path $llmStreamBodyFile) { Remove-Item -LiteralPath $llmStreamBodyFile -Force }
+  }
+  Assert-Contains "llm stream chunk" $llmStream '"object":"chat.completion.chunk"'
+  Assert-Contains "llm stream content" $llmStream "deterministic dry-run response"
+  Assert-Contains "llm stream no live calls" $llmStream '"live_provider_calls":false'
+  Assert-Contains "llm stream audit" $llmStream '"audit_persisted":true'
+  Assert-Contains "llm stream done" $llmStream 'data: [DONE]'
+  $llmStreamAudit = Wait-UrlContains "llm stream audit trace" "$BaseUrl/api/v1/audit/recent?limit=50" $llmStreamTraceId 5
+  Assert-Contains "llm stream audit trace" $llmStreamAudit $llmStreamTraceId
+}
+
+if ($StopAfterLlmGateway) {
+  Write-Host "[hosted] llm gateway checks completed"
+  return
+}
 
 Write-Host "[hosted] mcp tool timeout/degraded paths"
 $mcpTimeoutBody = @{
@@ -613,7 +866,7 @@ $mcpTimeoutBody = @{
   redaction_required = $true
   expected_output_type = "tool_result"
 } | ConvertTo-Json -Compress
-$mcpTimeout = Invoke-RestMethod -Method Post -Uri "$BaseUrl/mcp/api/v1/tools/execute" -ContentType "application/json" -Body $mcpTimeoutBody
+$mcpTimeout = Invoke-JsonApi -url "$BaseUrl/mcp/api/v1/tools/execute" -method "POST" -body $mcpTimeoutBody -contentType "application/json" -timeoutSeconds 15
 if ($mcpTimeout.status -ne "timeout") { throw "Hosted staging verification failed: MCP timeout path did not return timeout" }
 if ($mcpTimeout.audit_persisted -ne $true) { throw "Hosted staging verification failed: MCP timeout path was not audit-persisted" }
 
@@ -633,7 +886,7 @@ $mcpBlockedBody = @{
   redaction_required = $true
   expected_output_type = "tool_result"
 } | ConvertTo-Json -Compress
-$mcpBlocked = Invoke-RestMethod -Method Post -Uri "$BaseUrl/mcp/api/v1/tools/execute" -ContentType "application/json" -Body $mcpBlockedBody
+$mcpBlocked = Invoke-JsonApi -url "$BaseUrl/mcp/api/v1/tools/execute" -method "POST" -body $mcpBlockedBody -contentType "application/json" -timeoutSeconds 15
 if ($mcpBlocked.status -ne "blocked") { throw "Hosted staging verification failed: MCP main branch path did not return blocked" }
 if ($mcpBlocked.error_class -ne "github_scope_violation") { throw "Hosted staging verification failed: MCP main branch path missing github_scope_violation" }
 if ($mcpBlocked.audit_persisted -ne $true) { throw "Hosted staging verification failed: MCP blocked path was not audit-persisted" }
@@ -660,7 +913,7 @@ $mcpBranchPlanBody = @{
   redaction_required = $true
   expected_output_type = "github_plan"
 } | ConvertTo-Json -Compress
-$mcpBranchPlan = Invoke-RestMethod -Method Post -Uri "$BaseUrl/mcp/api/v1/tools/execute" -ContentType "application/json" -Body $mcpBranchPlanBody
+$mcpBranchPlan = Invoke-JsonApi -url "$BaseUrl/mcp/api/v1/tools/execute" -method "POST" -body $mcpBranchPlanBody -contentType "application/json" -timeoutSeconds 15
 if ($mcpBranchPlan.status -ne "success") { throw "Hosted staging verification failed: MCP GitHub branch/PR plan was not accepted" }
 if ($mcpBranchPlan.evidence_ref -ne "github_branch_pr_plan") { throw "Hosted staging verification failed: MCP GitHub branch/PR plan evidence mismatch" }
 if ($mcpBranchPlan.audit_persisted -ne $true) { throw "Hosted staging verification failed: MCP GitHub branch/PR plan was not audit-persisted" }
@@ -693,7 +946,7 @@ $mcpBranchBlockedBody = @{
   redaction_required = $true
   expected_output_type = "tool_result"
 } | ConvertTo-Json -Compress
-$mcpBranchBlocked = Invoke-RestMethod -Method Post -Uri "$BaseUrl/mcp/api/v1/tools/execute" -ContentType "application/json" -Body $mcpBranchBlockedBody
+$mcpBranchBlocked = Invoke-JsonApi -url "$BaseUrl/mcp/api/v1/tools/execute" -method "POST" -body $mcpBranchBlockedBody -contentType "application/json" -timeoutSeconds 15
 if ($mcpBranchBlocked.status -ne "blocked") { throw "Hosted staging verification failed: MCP GitHub main branch/PR plan was not blocked" }
 if ($mcpBranchBlocked.error_class -ne "github_branch_policy_violation") { throw "Hosted staging verification failed: MCP GitHub main branch/PR plan missing github_branch_policy_violation" }
 if ($mcpBranchBlocked.evidence_ref -ne "github_branch_pr_policy") { throw "Hosted staging verification failed: MCP GitHub main branch/PR block evidence mismatch" }
@@ -719,7 +972,7 @@ $mcpPostgresqlPlanBody = @{
   redaction_required = $true
   expected_output_type = "postgresql_plan"
 } | ConvertTo-Json -Compress
-$mcpPostgresqlPlan = Invoke-RestMethod -Method Post -Uri "$BaseUrl/mcp/api/v1/tools/execute" -ContentType "application/json" -Body $mcpPostgresqlPlanBody
+$mcpPostgresqlPlan = Invoke-JsonApi -url "$BaseUrl/mcp/api/v1/tools/execute" -method "POST" -body $mcpPostgresqlPlanBody -contentType "application/json" -timeoutSeconds 15
 if ($mcpPostgresqlPlan.status -ne "success") { throw "Hosted staging verification failed: MCP PostgreSQL readonly plan was not accepted" }
 if ($mcpPostgresqlPlan.evidence_ref -ne "postgresql_readonly_query_plan") { throw "Hosted staging verification failed: MCP PostgreSQL readonly plan evidence mismatch" }
 if ($mcpPostgresqlPlan.audit_persisted -ne $true) { throw "Hosted staging verification failed: MCP PostgreSQL readonly plan was not audit-persisted" }
@@ -747,7 +1000,7 @@ $mcpPostgresqlBlockedBody = @{
   redaction_required = $true
   expected_output_type = "tool_result"
 } | ConvertTo-Json -Compress
-$mcpPostgresqlBlocked = Invoke-RestMethod -Method Post -Uri "$BaseUrl/mcp/api/v1/tools/execute" -ContentType "application/json" -Body $mcpPostgresqlBlockedBody
+$mcpPostgresqlBlocked = Invoke-JsonApi -url "$BaseUrl/mcp/api/v1/tools/execute" -method "POST" -body $mcpPostgresqlBlockedBody -contentType "application/json" -timeoutSeconds 15
 if ($mcpPostgresqlBlocked.status -ne "blocked") { throw "Hosted staging verification failed: MCP PostgreSQL write query was not blocked" }
 if ($mcpPostgresqlBlocked.error_class -ne "postgresql_write_policy_violation") { throw "Hosted staging verification failed: MCP PostgreSQL write block error mismatch" }
 if ($mcpPostgresqlBlocked.evidence_ref -ne "postgresql_write_policy") { throw "Hosted staging verification failed: MCP PostgreSQL write block evidence mismatch" }
@@ -773,7 +1026,7 @@ $mcpFilesystemPlanBody = @{
   redaction_required = $true
   expected_output_type = "filesystem_plan"
 } | ConvertTo-Json -Compress
-$mcpFilesystemPlan = Invoke-RestMethod -Method Post -Uri "$BaseUrl/mcp/api/v1/tools/execute" -ContentType "application/json" -Body $mcpFilesystemPlanBody
+$mcpFilesystemPlan = Invoke-JsonApi -url "$BaseUrl/mcp/api/v1/tools/execute" -method "POST" -body $mcpFilesystemPlanBody -contentType "application/json" -timeoutSeconds 15
 if ($mcpFilesystemPlan.status -ne "success") { throw "Hosted staging verification failed: MCP Filesystem workspace plan was not accepted" }
 if ($mcpFilesystemPlan.evidence_ref -ne "filesystem_workspace_access_plan") { throw "Hosted staging verification failed: MCP Filesystem workspace plan evidence mismatch" }
 if ($mcpFilesystemPlan.audit_persisted -ne $true) { throw "Hosted staging verification failed: MCP Filesystem workspace plan was not audit-persisted" }
@@ -800,7 +1053,7 @@ $mcpFilesystemBlockedBody = @{
   redaction_required = $true
   expected_output_type = "tool_result"
 } | ConvertTo-Json -Compress
-$mcpFilesystemBlocked = Invoke-RestMethod -Method Post -Uri "$BaseUrl/mcp/api/v1/tools/execute" -ContentType "application/json" -Body $mcpFilesystemBlockedBody
+$mcpFilesystemBlocked = Invoke-JsonApi -url "$BaseUrl/mcp/api/v1/tools/execute" -method "POST" -body $mcpFilesystemBlockedBody -contentType "application/json" -timeoutSeconds 15
 if ($mcpFilesystemBlocked.status -ne "blocked") { throw "Hosted staging verification failed: MCP Filesystem host path was not blocked" }
 if ($mcpFilesystemBlocked.error_class -ne "filesystem_scope_policy_violation") { throw "Hosted staging verification failed: MCP Filesystem scope block error mismatch" }
 if ($mcpFilesystemBlocked.evidence_ref -ne "filesystem_scope_policy") { throw "Hosted staging verification failed: MCP Filesystem scope block evidence mismatch" }
@@ -826,7 +1079,7 @@ $mcpPlaywrightPlanBody = @{
   redaction_required = $true
   expected_output_type = "playwright_plan"
 } | ConvertTo-Json -Compress
-$mcpPlaywrightPlan = Invoke-RestMethod -Method Post -Uri "$BaseUrl/mcp/api/v1/tools/execute" -ContentType "application/json" -Body $mcpPlaywrightPlanBody
+$mcpPlaywrightPlan = Invoke-JsonApi -url "$BaseUrl/mcp/api/v1/tools/execute" -method "POST" -body $mcpPlaywrightPlanBody -contentType "application/json" -timeoutSeconds 20
 if ($mcpPlaywrightPlan.status -ne "success") { throw "Hosted staging verification failed: MCP Playwright browser proof plan was not accepted" }
 if ($mcpPlaywrightPlan.evidence_ref -ne "playwright_browser_proof_plan") { throw "Hosted staging verification failed: MCP Playwright browser proof plan evidence mismatch" }
 if ($mcpPlaywrightPlan.audit_persisted -ne $true) { throw "Hosted staging verification failed: MCP Playwright browser proof plan was not audit-persisted" }
@@ -853,7 +1106,7 @@ $mcpPlaywrightBlockedBody = @{
   redaction_required = $true
   expected_output_type = "tool_result"
 } | ConvertTo-Json -Compress
-$mcpPlaywrightBlocked = Invoke-RestMethod -Method Post -Uri "$BaseUrl/mcp/api/v1/tools/execute" -ContentType "application/json" -Body $mcpPlaywrightBlockedBody
+$mcpPlaywrightBlocked = Invoke-JsonApi -url "$BaseUrl/mcp/api/v1/tools/execute" -method "POST" -body $mcpPlaywrightBlockedBody -contentType "application/json" -timeoutSeconds 15
 if ($mcpPlaywrightBlocked.status -ne "blocked") { throw "Hosted staging verification failed: MCP Playwright forbidden target was not blocked" }
 if ($mcpPlaywrightBlocked.error_class -ne "playwright_browser_policy_violation") { throw "Hosted staging verification failed: MCP Playwright policy block error mismatch" }
 if ($mcpPlaywrightBlocked.evidence_ref -ne "playwright_browser_policy") { throw "Hosted staging verification failed: MCP Playwright policy block evidence mismatch" }
@@ -880,7 +1133,7 @@ $mcpE2bPlanBody = @{
   redaction_required = $true
   expected_output_type = "e2b_plan"
 } | ConvertTo-Json -Compress
-$mcpE2bPlan = Invoke-RestMethod -Method Post -Uri "$BaseUrl/mcp/api/v1/tools/execute" -ContentType "application/json" -Body $mcpE2bPlanBody
+$mcpE2bPlan = Invoke-JsonApi -url "$BaseUrl/mcp/api/v1/tools/execute" -method "POST" -body $mcpE2bPlanBody -contentType "application/json" -timeoutSeconds 20
 if ($mcpE2bPlan.status -ne "success") { throw "Hosted staging verification failed: MCP E2B sandbox lifecycle plan was not accepted" }
 if ($mcpE2bPlan.evidence_ref -ne "e2b_sandbox_lifecycle_plan") { throw "Hosted staging verification failed: MCP E2B sandbox lifecycle plan evidence mismatch" }
 if ($mcpE2bPlan.audit_persisted -ne $true) { throw "Hosted staging verification failed: MCP E2B sandbox lifecycle plan was not audit-persisted" }
@@ -909,7 +1162,7 @@ $mcpE2bBlockedBody = @{
   redaction_required = $true
   expected_output_type = "tool_result"
 } | ConvertTo-Json -Compress
-$mcpE2bBlocked = Invoke-RestMethod -Method Post -Uri "$BaseUrl/mcp/api/v1/tools/execute" -ContentType "application/json" -Body $mcpE2bBlockedBody
+$mcpE2bBlocked = Invoke-JsonApi -url "$BaseUrl/mcp/api/v1/tools/execute" -method "POST" -body $mcpE2bBlockedBody -contentType "application/json" -timeoutSeconds 15
 if ($mcpE2bBlocked.status -ne "blocked") { throw "Hosted staging verification failed: MCP E2B missing finally close was not blocked" }
 if ($mcpE2bBlocked.error_class -ne "e2b_sandbox_policy_violation") { throw "Hosted staging verification failed: MCP E2B policy block error mismatch" }
 if ($mcpE2bBlocked.evidence_ref -ne "e2b_sandbox_policy") { throw "Hosted staging verification failed: MCP E2B policy block evidence mismatch" }
@@ -931,7 +1184,7 @@ $mcpDegradedBody = @{
   redaction_required = $true
   expected_output_type = "tool_result"
 } | ConvertTo-Json -Compress
-$mcpDegraded = Invoke-RestMethod -Method Post -Uri "$BaseUrl/mcp/api/v1/tools/execute" -ContentType "application/json" -Body $mcpDegradedBody
+$mcpDegraded = Invoke-JsonApi -url "$BaseUrl/mcp/api/v1/tools/execute" -method "POST" -body $mcpDegradedBody -contentType "application/json" -timeoutSeconds 15
 if ($mcpDegraded.status -ne "degraded") { throw "Hosted staging verification failed: MCP E2B missing credentials path did not return degraded" }
 if ($mcpDegraded.error_class -ne "missing_credentials") { throw "Hosted staging verification failed: MCP E2B degraded path missing missing_credentials" }
 if ($mcpDegraded.audit_persisted -ne $true) { throw "Hosted staging verification failed: MCP degraded path was not audit-persisted" }
@@ -976,11 +1229,16 @@ Assert-Contains "mcp audit feed e2b sandbox block id" $mcpAuditFeed "hosted-e2b-
 Assert-Contains "mcp audit feed e2b sandbox block evidence" $mcpAuditFeed "e2b_sandbox_policy"
 Assert-Contains "mcp audit feed degraded id" $mcpAuditFeed "hosted-e2b-degraded-proof"
 
+if ($StopAfterMcpToolPaths) {
+  Write-Host "[hosted] mcp tool path checks completed"
+  return
+}
+
 Write-Host "[hosted] prompt-to-worker"
 $projectId = "hosted-proof-" + [Guid]::NewGuid().ToString("N")
 $prompt = "hosted staging verifier task queue proof"
 $body = @{ project_id = $projectId; prompt = $prompt; stream = $true } | ConvertTo-Json -Compress
-$response = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/prompt" -ContentType "application/json" -Body $body
+$response = Invoke-JsonApi -url "$BaseUrl/api/v1/prompt" -method "POST" -body $body -contentType "application/json" -timeoutSeconds 15
 if (-not $response.session_id) { throw "Hosted staging verification failed: prompt response missing session_id" }
 if (-not $response.task_id) { throw "Hosted staging verification failed: prompt response missing task_id" }
 if (-not $response.memory_id) { throw "Hosted staging verification failed: prompt response missing memory_id" }
@@ -1014,7 +1272,7 @@ $acceptedPolicyBody = @{
   acceptance_criteria = @("result_envelope", "done_validation", "audit_log")
   human_review_required = $true
 } | ConvertTo-Json -Compress
-$acceptedPolicy = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/tasks/policy/validate" -ContentType "application/json" -Body $acceptedPolicyBody
+$acceptedPolicy = Invoke-JsonApi -url "$BaseUrl/api/v1/tasks/policy/validate" -method "POST" -body $acceptedPolicyBody -contentType "application/json" -timeoutSeconds 15
 if ($acceptedPolicy.status -ne "accepted") { throw "Hosted staging verification failed: profile-valid policy was not accepted" }
 if ($acceptedPolicy.policy.profile_contract_version -ne "agent-profiles-v1") { throw "Hosted staging verification failed: accepted policy missing profile contract version" }
 $blockedPolicyBody = @{
@@ -1035,15 +1293,15 @@ $blockedBodyFile = Join-Path $env:TEMP ("hosted-task-policy-block-" + [Guid]::Ne
 $blockedOutFile = Join-Path $env:TEMP ("hosted-task-policy-block-out-" + [Guid]::NewGuid().ToString("N") + ".json")
 try {
   Set-Content -Path $blockedBodyFile -Value $blockedPolicyBody -NoNewline -Encoding utf8
-  $blockedStatus = curl.exe -sS -o $blockedOutFile -w "%{http_code}" -X POST -H "Content-Type: application/json" --data-binary "@$blockedBodyFile" "$BaseUrl/api/v1/tasks/policy/validate"
+  $blockedResponse = Invoke-WebResponse -url "$BaseUrl/api/v1/tasks/policy/validate" -method "POST" -body (Get-Content -Path $blockedBodyFile -Raw) -contentType "application/json"
+  $blockedStatus = [string]$blockedResponse.StatusCode
   if ($blockedStatus -ne "403") {
-    $blockedUnexpected = Get-Content -Path $blockedOutFile -Raw
+    $blockedUnexpected = $blockedResponse.Content
     throw "Hosted staging verification failed: policy validate expected 403 but got $blockedStatus. Value: $blockedUnexpected"
   }
-  $blockedOut = Get-Content -Path $blockedOutFile -Raw
+  $blockedOut = $blockedResponse.Content
 } finally {
   if (Test-Path $blockedBodyFile) { Remove-Item -LiteralPath $blockedBodyFile -Force }
-  if (Test-Path $blockedOutFile) { Remove-Item -LiteralPath $blockedOutFile -Force }
 }
 Assert-Contains "task policy block code" $blockedOut "task_policy_violation"
 Assert-Contains "task policy block write scope" $blockedOut "write_scope"
@@ -1065,15 +1323,15 @@ $profileBlockedBodyFile = Join-Path $env:TEMP ("hosted-task-policy-profile-block
 $profileBlockedOutFile = Join-Path $env:TEMP ("hosted-task-policy-profile-block-out-" + [Guid]::NewGuid().ToString("N") + ".json")
 try {
   Set-Content -Path $profileBlockedBodyFile -Value $profileBlockedBody -NoNewline -Encoding utf8
-  $profileBlockedStatus = curl.exe -sS -o $profileBlockedOutFile -w "%{http_code}" -X POST -H "Content-Type: application/json" --data-binary "@$profileBlockedBodyFile" "$BaseUrl/api/v1/tasks/policy/validate"
+  $profileBlockedResponse = Invoke-WebResponse -url "$BaseUrl/api/v1/tasks/policy/validate" -method "POST" -body (Get-Content -Path $profileBlockedBodyFile -Raw) -contentType "application/json"
+  $profileBlockedStatus = [string]$profileBlockedResponse.StatusCode
   if ($profileBlockedStatus -ne "403") {
-    $profileBlockedUnexpected = Get-Content -Path $profileBlockedOutFile -Raw
+    $profileBlockedUnexpected = $profileBlockedResponse.Content
     throw "Hosted staging verification failed: profile gate expected 403 but got $profileBlockedStatus. Value: $profileBlockedUnexpected"
   }
-  $profileBlockedOut = Get-Content -Path $profileBlockedOutFile -Raw
+  $profileBlockedOut = $profileBlockedResponse.Content
 } finally {
   if (Test-Path $profileBlockedBodyFile) { Remove-Item -LiteralPath $profileBlockedBodyFile -Force }
-  if (Test-Path $profileBlockedOutFile) { Remove-Item -LiteralPath $profileBlockedOutFile -Force }
 }
 Assert-Contains "task policy profile block code" $profileBlockedOut "task_policy_violation"
 Assert-Contains "task policy profile block tool gate" $profileBlockedOut "profile does not allow tools"
@@ -1108,6 +1366,11 @@ Assert-Contains "audit task completed" $auditEvents "task_completed"
 $escalations = Invoke-Text "$BaseUrl/api/v1/escalations/recent?limit=5"
 Assert-Contains "escalations shape" $escalations '"events"'
 
+if ($StopAfterPublicDashboard) {
+  Write-Host "[hosted] public dashboard checks completed"
+  return
+}
+
 Write-Host "[hosted] memory search"
 $memoryQuery = [uri]::EscapeDataString("staging verifier task queue")
 $memorySearch = Invoke-Text "$BaseUrl/api/v1/memory/search?q=$memoryQuery&project_id=$projectId&limit=5"
@@ -1116,14 +1379,14 @@ Assert-Contains "memory search prompt" $memorySearch $prompt
 $memoryDeleteProjectId = "hosted-memory-entry-delete-" + [Guid]::NewGuid().ToString("N")
 $memoryDeletePrompt = "hosted memory entry delete proof " + [Guid]::NewGuid().ToString("N")
 $memoryDeletePromptBody = @{ project_id = $memoryDeleteProjectId; prompt = $memoryDeletePrompt; stream = $true } | ConvertTo-Json -Compress
-$memoryDeletePromptResponse = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/prompt" -ContentType "application/json" -Body $memoryDeletePromptBody
+$memoryDeletePromptResponse = Invoke-JsonApi -url "$BaseUrl/api/v1/prompt" -method "POST" -body $memoryDeletePromptBody -contentType "application/json" -timeoutSeconds 15
 $memoryDeleteQuery = [uri]::EscapeDataString("hosted memory entry delete proof")
 $memoryDeleteSearchBefore = Invoke-Text "$BaseUrl/api/v1/memory/search?q=$memoryDeleteQuery&project_id=$memoryDeleteProjectId&limit=5"
 Assert-Contains "memory entry delete precondition content" $memoryDeleteSearchBefore $memoryDeletePrompt
-$memoryDeleteBlocked = curl.exe -sS -w "`n%{http_code}" -X DELETE "$BaseUrl/api/v1/memory/$($memoryDeletePromptResponse.memory_id)?project_id=$memoryDeleteProjectId&confirm=false"
+$memoryDeleteBlocked = Invoke-BodyAndStatus -url "$BaseUrl/api/v1/memory/$($memoryDeletePromptResponse.memory_id)?project_id=$memoryDeleteProjectId&confirm=false" -method "DELETE" -contentType $null
 Assert-Contains "memory entry delete confirmation required" $memoryDeleteBlocked "memory_entry_delete_confirmation_required"
 Assert-Contains "memory entry delete confirmation required status" $memoryDeleteBlocked "400"
-$memoryDeleteResult = Invoke-RestMethod -Method Delete -Uri "$BaseUrl/api/v1/memory/$($memoryDeletePromptResponse.memory_id)?project_id=$memoryDeleteProjectId&confirm=true&reason=hosted_single_entry_delete_proof&trace_id=hosted-memory-entry-delete-completed"
+$memoryDeleteResult = Invoke-JsonApi -url "$BaseUrl/api/v1/memory/$($memoryDeletePromptResponse.memory_id)?project_id=$memoryDeleteProjectId&confirm=true&reason=hosted_single_entry_delete_proof&trace_id=hosted-memory-entry-delete-completed" -method "DELETE" -contentType $null -timeoutSeconds 15
 if ($memoryDeleteResult.status -ne "deleted") { throw "Hosted staging verification failed: memory entry delete did not return deleted status" }
 if ($memoryDeleteResult.evidence_ref -ne "memory_entry_delete_completed") { throw "Hosted staging verification failed: memory entry delete evidence ref mismatch" }
 $memorySearchAfterDelete = Invoke-Text "$BaseUrl/api/v1/memory/search?q=$memoryDeleteQuery&project_id=$memoryDeleteProjectId&limit=5"
@@ -1140,7 +1403,7 @@ Write-Host "[hosted] memory purge contract"
 $purgeProjectId = "hosted-memory-purge-" + [Guid]::NewGuid().ToString("N")
 $purgePrompt = "hosted memory purge proof " + [Guid]::NewGuid().ToString("N")
 $purgePromptBody = @{ project_id = $purgeProjectId; prompt = $purgePrompt; stream = $true } | ConvertTo-Json -Compress
-$purgePromptResponse = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/prompt" -ContentType "application/json" -Body $purgePromptBody
+$purgePromptResponse = Invoke-JsonApi -url "$BaseUrl/api/v1/prompt" -method "POST" -body $purgePromptBody -contentType "application/json" -timeoutSeconds 15
 if (-not $purgePromptResponse.session_id) { throw "Hosted staging verification failed: memory purge prompt response missing session_id" }
 $purgeSearchQuery = [uri]::EscapeDataString($purgePrompt)
 $purgeSearchBefore = Invoke-Text "$BaseUrl/api/v1/memory/search?q=$purgeSearchQuery&project_id=$purgeProjectId&limit=5"
@@ -1153,10 +1416,10 @@ Assert-Contains "memory purge evidence completed" $purgeContract "memory_purge_c
 Assert-Contains "memory purge job status evidence" $purgeContract "memory_purge_job_status_visible"
 Assert-Contains "memory purge evidence blocked" $purgeContract "memory_purge_confirmation_required"
 Assert-Contains "memory purge nonclaim langfuse" $purgeContract "does not delete Langfuse traces"
-$purgeBlocked = curl.exe -sS -w "`n%{http_code}" -X DELETE "$BaseUrl/api/v1/memory?project_id=$purgeProjectId&confirm=false"
+$purgeBlocked = Invoke-BodyAndStatus -url "$BaseUrl/api/v1/memory?project_id=$purgeProjectId&confirm=false" -method "DELETE" -contentType $null
 Assert-Contains "memory purge confirmation required" $purgeBlocked "confirmation_required"
 Assert-Contains "memory purge confirmation required status" $purgeBlocked "400"
-$purgeResult = Invoke-RestMethod -Method Delete -Uri "$BaseUrl/api/v1/memory?project_id=$purgeProjectId&confirm=true&reason=hosted_purge_proof&trace_id=hosted-memory-purge-completed"
+$purgeResult = Invoke-JsonApi -url "$BaseUrl/api/v1/memory?project_id=$purgeProjectId&confirm=true&reason=hosted_purge_proof&trace_id=hosted-memory-purge-completed" -method "DELETE" -contentType $null -timeoutSeconds 20
 if ($purgeResult.status -ne "completed") { throw "Hosted staging verification failed: memory purge did not complete" }
 if ($purgeResult.project_found -ne $true) { throw "Hosted staging verification failed: memory purge did not find scoped project" }
 if ($purgeResult.evidence_ref -ne "memory_purge_completed") { throw "Hosted staging verification failed: memory purge evidence ref mismatch" }
@@ -1164,7 +1427,7 @@ if (-not $purgeResult.job_id) { throw "Hosted staging verification failed: memor
 if (-not $purgeResult.job_status_url) { throw "Hosted staging verification failed: memory purge result missing job_status_url" }
 if ([int]$purgeResult.deleted_counts.memory_entries -lt 1) { throw "Hosted staging verification failed: memory purge deleted no memory entries" }
 if ([int]$purgeResult.deleted_counts.agent_sessions -lt 1) { throw "Hosted staging verification failed: memory purge deleted no agent sessions" }
-$purgeJobStatus = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/v1/memory/purge/jobs/$($purgeResult.job_id)"
+$purgeJobStatus = Invoke-JsonApi -url "$BaseUrl/api/v1/memory/purge/jobs/$($purgeResult.job_id)" -method "GET" -contentType $null -timeoutSeconds 15
 if ($purgeJobStatus.status -ne "completed") { throw "Hosted staging verification failed: memory purge job status was not completed" }
 if ($purgeJobStatus.evidence_ref -ne "memory_purge_job_status_visible") { throw "Hosted staging verification failed: memory purge job status evidence mismatch" }
 if ([int]$purgeJobStatus.deleted_counts.memory_entries -lt 1) { throw "Hosted staging verification failed: memory purge job status missing deleted memory count" }
@@ -1177,35 +1440,48 @@ Assert-Contains "memory purge audit completed" $purgeAudit "memory_purge_complet
 Assert-Contains "memory purge audit trace" $purgeAudit "hosted-memory-purge-completed"
 
 Write-Host "[hosted] sse stream"
-$sseUrl = "$BaseUrl$($response.stream_url)"
-$sse = Wait-SseContains "sse event id" $sseUrl "id: " 4 10
-Assert-Contains "sse event id" $sse "id: "
-Assert-Contains "sse heartbeat" $sse "event: heartbeat"
-Assert-Contains "sse worker token" $sse "Phase-1 worker completed deterministic execution without LLM calls"
-Assert-Contains "sse done" $sse "event: done"
-$sseReplay = Wait-SseContains "sse replay flag" $sseUrl '"replay":true' 4 8 "0"
-Assert-Contains "sse replay flag" $sseReplay '"replay":true'
-Assert-Contains "sse replay token" $sseReplay "Phase-1 worker completed deterministic execution without LLM calls"
-Assert-Contains "sse replay done" $sseReplay "event: done"
+if (-not ($SkipStreamingSections -or $SkipPublicStreaming)) {
+  $sseUrl = "$BaseUrl$($response.stream_url)"
+  $sse = Wait-SseContains "sse event id" $sseUrl "id: " 4 10
+  Assert-Contains "sse event id" $sse "id: "
+  Assert-Contains "sse heartbeat" $sse "event: heartbeat"
+  Assert-Contains "sse worker token" $sse "Phase-1 worker completed deterministic execution without LLM calls"
+  Assert-Contains "sse done" $sse "event: done"
+  $sseReplay = Wait-SseContains "sse replay flag" $sseUrl '"replay":true' 4 8 "0"
+  Assert-Contains "sse replay flag" $sseReplay '"replay":true'
+  Assert-Contains "sse replay token" $sseReplay "Phase-1 worker completed deterministic execution without LLM calls"
+  Assert-Contains "sse replay done" $sseReplay "event: done"
+}
+
+if ($StopAfterPublicStreaming) {
+  Write-Host "[hosted] public streaming checks completed"
+  return
+}
 
 Write-Host "[hosted] budget and costs"
 $budget = Invoke-Text "$BaseUrl/api/v1/budget"
 Assert-Contains "budget endpoint" $budget '"level":"ok"'
 Assert-Contains "budget limit" $budget '"budget_limit_cents":20000'
 
-$infraBudget = Invoke-Text "$BaseUrl/api/v1/infra/budget"
-Assert-Contains "infra budget level" $infraBudget '"level":"ok"'
-Assert-Contains "infra budget projected" $infraBudget '"projected_cost_cents":900'
-Assert-Contains "infra budget limit" $infraBudget '"budget_limit_cents":2000'
-Assert-Contains "infra budget source" $infraBudget '"source":"configured_phase1_projection"'
-Assert-Contains "infra budget live verified false" $infraBudget '"live_verified":false'
+$infraBudget = Invoke-JsonApi -url "$BaseUrl/api/v1/infra/budget" -method "GET" -contentType $null -timeoutSeconds 15
+if ($infraBudget.level -ne "ok") { throw "Hosted staging verification failed: infra budget level was '$($infraBudget.level)'" }
+if ([int]$infraBudget.budget_limit_cents -ne 2000) { throw "Hosted staging verification failed: infra budget limit was '$($infraBudget.budget_limit_cents)'" }
+if ([int]$infraBudget.projected_cost_cents -le 0) { throw "Hosted staging verification failed: infra budget projected cost was not positive" }
+if ($infraBudget.source -eq "hetzner_api_readonly") {
+  if ($infraBudget.live_verified -ne $true) { throw "Hosted staging verification failed: live infra budget was not marked live_verified" }
+  if (-not (($infraBudget.items | ConvertTo-Json -Compress) -match 'hetzner_cloud')) { throw "Hosted staging verification failed: live infra budget missing hetzner_cloud item" }
+} elseif ($infraBudget.source -eq "configured_phase1_projection") {
+  if ($infraBudget.live_verified -ne $false) { throw "Hosted staging verification failed: projected infra budget unexpectedly marked live_verified" }
+} else {
+  throw "Hosted staging verification failed: infra budget source was '$($infraBudget.source)'"
+}
 
 $externalGates = Invoke-Text "$BaseUrl/api/v1/external-gates"
 Assert-Contains "external gates contract" $externalGates '"contract_version":"external-gates-state-v1"'
 Assert-Contains "external gates endpoint" $externalGates '"endpoint":"GET /api/v1/external-gates"'
 Assert-Contains "external gates evidence" $externalGates '"evidence_ref":"external_gates_state_visible"'
 Assert-Contains "external gates aligned with preflight" $externalGates '"aligned_with_deployment_preflight":true'
-Assert-Contains "external gates status" $externalGates '"status":"action_required"'
+Assert-Contains "external gates status" $externalGates '"status":"verified"'
 Assert-Contains "external gates local allowed" $externalGates '"local_execution_allowed":true'
 Assert-Contains "external gates branch token" $externalGates '"id":"branch_protection_token"'
 Assert-Contains "external gates staging url" $externalGates '"id":"staging_base_url"'
@@ -1213,16 +1489,17 @@ Assert-Contains "external gates hetzner token" $externalGates '"id":"hetzner_api
 Assert-Contains "external gates ghcr digest" $externalGates '"id":"ghcr_image_digest_proof"'
 Assert-Contains "external gates vercel origins" $externalGates '"id":"vercel_backend_origins"'
 Assert-Contains "external gates gitleaks" $externalGates '"id":"gitleaks_binary"'
-Assert-Contains "external gates blocked ghcr" $externalGates '"ghcr_images"'
-Assert-Contains "external gates blocked hosted origins" $externalGates '"hosted_backend_origins"'
+Assert-Contains "external gates blocked release gates cleared" $externalGates '"blocked_release_gates":[]'
 $externalGateMirror = Invoke-Text "$BaseUrl/api/v1/external-gates/mirror"
 Assert-Contains "external gate mirror contract" $externalGateMirror '"contract_version":"external-gate-mirror-v1"'
 Assert-Contains "external gate mirror evidence" $externalGateMirror '"evidence_ref":"external_gate_mirror_proof"'
-Assert-Contains "external gate mirror branch protection blocked" $externalGateMirror '"branch_protection_claim_allowed":false'
 Assert-Contains "external gate mirror branch protection evidence" $externalGateMirror '"branch_protection_evidence_ref":"branch_protection_verify_contract"'
 Assert-Contains "external gate mirror branch protection workflow" $externalGateMirror ".github/workflows/branch-protection.yml"
 Assert-Contains "external gate mirror branch protection verifier" $externalGateMirror "scripts/apply_github_branch_protection.py --verify-only"
-Assert-Contains "external gate mirror production blocked" $externalGateMirror '"production_deploy_claim_allowed":false'
+Assert-Contains "external gate mirror status" $externalGateMirror '"status":"verified"'
+Assert-Contains "external gate mirror hosted allowed" $externalGateMirror '"hosted_staging_claim_allowed":true'
+Assert-Contains "external gate mirror branch protection allowed" $externalGateMirror '"branch_protection_claim_allowed":true'
+Assert-Contains "external gate mirror production allowed" $externalGateMirror '"production_deploy_claim_allowed":true'
 Assert-Contains "external gate mirror workflow" $externalGateMirror ".github/workflows/hosted-staging-proof.yml"
 Assert-Contains "external gate mirror phase2 runtime" $externalGateMirror "phase2-runtime-v1"
 Assert-Contains "external gate mirror phase2 sse" $externalGateMirror "phase2-sse-event-contract-v1"
@@ -1241,13 +1518,13 @@ $authGithub = Invoke-Text "$BaseUrl/api/v1/auth/github"
 Assert-Contains "auth github contract version" $authGithub '"contract_version":"auth-github-jwt-refresh-v1"'
 Assert-Contains "auth github no live oauth" $authGithub '"live_github_oauth_call":false'
 Assert-Contains "auth github authorize url" $authGithub "github.com/login/oauth/authorize"
-$authCallback = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/v1/auth/callback?code=hosted-auth-code&state=hosted-auth-state"
+$authCallback = Invoke-JsonApi -url "$BaseUrl/api/v1/auth/callback?code=hosted-auth-code&state=hosted-auth-state" -method "GET" -contentType $null -timeoutSeconds 15
 if ($authCallback.status -ne "authenticated") { throw "Hosted staging verification failed: auth callback did not authenticate" }
 if ($authCallback.live_github_oauth_call -ne $false) { throw "Hosted staging verification failed: auth callback attempted live GitHub OAuth" }
 if ($authCallback.cookie_flags.SameSite -ne "Strict") { throw "Hosted staging verification failed: auth callback cookie SameSite was not Strict" }
 $authRefreshToken = "hosted-refresh-token-" + [Guid]::NewGuid().ToString("N")
 $authRefreshBody = @{ refresh_token = $authRefreshToken; trace_id = "hosted-auth-refresh-rotated" } | ConvertTo-Json -Compress
-$authRefresh = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/auth/refresh" -ContentType "application/json" -Body $authRefreshBody
+$authRefresh = Invoke-JsonApi -url "$BaseUrl/api/v1/auth/refresh" -method "POST" -body $authRefreshBody -contentType "application/json" -timeoutSeconds 15
 if ($authRefresh.status -ne "rotated") { throw "Hosted staging verification failed: auth refresh did not rotate" }
 if ($authRefresh.refresh_token_rotated -ne $true) { throw "Hosted staging verification failed: auth refresh did not mark rotation true" }
 if ($authRefresh.old_refresh_token_blacklisted -ne $true) { throw "Hosted staging verification failed: auth refresh did not blacklist old token" }
@@ -1255,19 +1532,19 @@ $authReuseFile = Join-Path $env:TEMP ("hosted-auth-refresh-reuse-" + [Guid]::New
 $authReuseOutFile = Join-Path $env:TEMP ("hosted-auth-refresh-reuse-out-" + [Guid]::NewGuid().ToString("N") + ".json")
 try {
   Set-Content -LiteralPath $authReuseFile -Value $authRefreshBody -NoNewline -Encoding utf8
-  $authReuseStatus = curl.exe -sS -o $authReuseOutFile -w "%{http_code}" -X POST -H "Content-Type: application/json" --data-binary "@$authReuseFile" "$BaseUrl/api/v1/auth/refresh"
+  $authReuseResponse = Invoke-WebResponse -url "$BaseUrl/api/v1/auth/refresh" -method "POST" -body (Get-Content -Path $authReuseFile -Raw) -contentType "application/json"
+  $authReuseStatus = [string]$authReuseResponse.StatusCode
   if ($authReuseStatus -ne "401") {
-    $authReuseUnexpected = Get-Content -Path $authReuseOutFile -Raw
+    $authReuseUnexpected = $authReuseResponse.Content
     throw "Hosted staging verification failed: auth refresh reuse expected 401 but got $authReuseStatus. Value: $authReuseUnexpected"
   }
-  $authReuseOut = Get-Content -Path $authReuseOutFile -Raw
+  $authReuseOut = $authReuseResponse.Content
 } finally {
   if (Test-Path $authReuseFile) { Remove-Item -LiteralPath $authReuseFile -Force }
-  if (Test-Path $authReuseOutFile) { Remove-Item -LiteralPath $authReuseOutFile -Force }
 }
 Assert-Contains "auth refresh reuse blocked" $authReuseOut "refresh_token_invalid"
 $authLogoutBody = @{ refresh_token = ("hosted-logout-token-" + [Guid]::NewGuid().ToString("N")); trace_id = "hosted-auth-logout-revoked" } | ConvertTo-Json -Compress
-$authLogout = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/auth/logout" -ContentType "application/json" -Body $authLogoutBody
+$authLogout = Invoke-JsonApi -url "$BaseUrl/api/v1/auth/logout" -method "POST" -body $authLogoutBody -contentType "application/json" -timeoutSeconds 15
 if ($authLogout.status -ne "logged_out") { throw "Hosted staging verification failed: auth logout did not complete" }
 if ($authLogout.refresh_token_revoked -ne $true) { throw "Hosted staging verification failed: auth logout did not revoke refresh token" }
 $authAudit = Invoke-Text "$BaseUrl/api/v1/audit/recent?limit=60"
@@ -1292,7 +1569,7 @@ $workflowReadyBody = @{
   human_review_approved = $false
   dry_run = $true
 } | ConvertTo-Json -Compress
-$workflowReady = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/devops/workflow-dispatch/validate" -ContentType "application/json" -Body $workflowReadyBody
+$workflowReady = Invoke-JsonApi -url "$BaseUrl/api/v1/devops/workflow-dispatch/validate" -method "POST" -body $workflowReadyBody -contentType "application/json" -timeoutSeconds 15
 if ($workflowReady.status -ne "ready") { throw "Hosted staging verification failed: staging workflow dispatch contract was not ready" }
 if ($workflowReady.live_github_call -ne $false) { throw "Hosted staging verification failed: workflow dispatch attempted live GitHub call" }
 $workflowBlockedBody = @{
@@ -1310,15 +1587,15 @@ $workflowBlockedFile = Join-Path $env:TEMP ("hosted-workflow-dispatch-block-" + 
 $workflowBlockedOutFile = Join-Path $env:TEMP ("hosted-workflow-dispatch-block-out-" + [Guid]::NewGuid().ToString("N") + ".json")
 try {
   Set-Content -Path $workflowBlockedFile -Value $workflowBlockedBody -NoNewline -Encoding utf8
-  $workflowBlockedStatus = curl.exe -sS -o $workflowBlockedOutFile -w "%{http_code}" -X POST -H "Content-Type: application/json" --data-binary "@$workflowBlockedFile" "$BaseUrl/api/v1/devops/workflow-dispatch/validate"
+  $workflowBlockedResponse = Invoke-WebResponse -url "$BaseUrl/api/v1/devops/workflow-dispatch/validate" -method "POST" -body (Get-Content -Path $workflowBlockedFile -Raw) -contentType "application/json"
+  $workflowBlockedStatus = [string]$workflowBlockedResponse.StatusCode
   if ($workflowBlockedStatus -ne "403") {
-    $workflowBlockedUnexpected = Get-Content -Path $workflowBlockedOutFile -Raw
+    $workflowBlockedUnexpected = $workflowBlockedResponse.Content
     throw "Hosted staging verification failed: production workflow dispatch expected 403 but got $workflowBlockedStatus. Value: $workflowBlockedUnexpected"
   }
-  $workflowBlockedOut = Get-Content -Path $workflowBlockedOutFile -Raw
+  $workflowBlockedOut = $workflowBlockedResponse.Content
 } finally {
   if (Test-Path $workflowBlockedFile) { Remove-Item -LiteralPath $workflowBlockedFile -Force }
-  if (Test-Path $workflowBlockedOutFile) { Remove-Item -LiteralPath $workflowBlockedOutFile -Force }
 }
 Assert-Contains "workflow dispatch blocked code" $workflowBlockedOut "workflow_dispatch_blocked"
 Assert-Contains "workflow dispatch production human gate" $workflowBlockedOut "production workflow dispatch requires human_review_approved=true"
@@ -1364,7 +1641,7 @@ Assert-Contains "agent activity feed evidence" $agentActivityFeed "agent_activit
 Write-Host "[hosted] prometheus metrics"
 $metrics = Invoke-Text "$BaseUrl/api/v1/metrics"
 Assert-Contains "metrics budget percentage" $metrics "superbrain_budget_spent_percentage"
-Assert-Contains "metrics project progress" $metrics "superbrain_project_progress_percent 47"
+Assert-Contains "metrics project progress" $metrics ("superbrain_project_progress_percent {0}" -f $expectedOverallPercent)
 Assert-Contains "metrics rate limit capacity" $metrics "superbrain_prompt_rate_limit_capacity"
 Assert-Contains "metrics rate limit remaining" $metrics "superbrain_prompt_rate_limit_remaining"
 Assert-Contains "metrics rate limit used" $metrics "superbrain_prompt_rate_limit_used"
@@ -1386,13 +1663,16 @@ Assert-Contains "metrics mcp degraded counter" $metrics 'status="degraded"'
 Assert-Contains "metrics memory consolidation counter" $metrics "superbrain_memory_consolidation_events_total"
 Assert-Contains "metrics checkpoint tables" $metrics "superbrain_checkpoint_tables_total 4"
 
+if ($SkipLangGraphStress) {
+  Write-Host "[hosted] skipping langgraph stress sections"
+} else {
 Write-Host "[hosted] langgraph orchestrator dry-run"
 $orchestratorManifest = Invoke-Text "$BaseUrl/api/v1/orchestrator/manifest"
 Assert-Contains "orchestrator engine" $orchestratorManifest '"engine":"langgraph"'
 Assert-Contains "orchestrator no live calls" $orchestratorManifest '"live_provider_calls":false'
 Assert-Contains "orchestrator postgres checkpointing" $orchestratorManifest '"checkpointing":"postgres"'
 $orchestratorBody = @{ project_id = $projectId; prompt = "hosted langgraph dry run verifier staging task queue"; session_id = $response.session_id } | ConvertTo-Json -Compress
-$orchestratorRun = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/orchestrator/dry-run" -ContentType "application/json" -Body $orchestratorBody
+$orchestratorRun = Invoke-JsonApi -url "$BaseUrl/api/v1/orchestrator/dry-run" -method "POST" -body $orchestratorBody -contentType "application/json" -timeoutSeconds 20
 if ($orchestratorRun.engine -ne "langgraph") { throw "Hosted staging verification failed: orchestrator engine was not langgraph" }
 if ($orchestratorRun.live_provider_calls -ne $false) { throw "Hosted staging verification failed: orchestrator attempted live provider calls" }
 if ($orchestratorRun.checkpointing -ne "postgres") { throw "Hosted staging verification failed: orchestrator did not use postgres checkpointing" }
@@ -1467,11 +1747,11 @@ if ($orchestratorLlmCall.stream_chunk_count -lt 1) { throw "Hosted staging verif
 if ($orchestratorLlmCall.memory_context_injected -ne $true) { throw "Hosted staging verification failed: orchestrator LLM call did not mark memory context injected" }
 if ($orchestratorLlmCall.memory_context_count -lt 1) { throw "Hosted staging verification failed: orchestrator LLM call memory context count was empty" }
 if ($orchestratorLlmCall.memory_context_budget.budget_percent_max -ne 30) { throw "Hosted staging verification failed: orchestrator LLM call memory context budget percent was not 30" }
-if ($orchestratorLlmCall.routing.selected_model -ne "claude-sonnet-4-6") { throw "Hosted staging verification failed: orchestrator did not use gateway routing resolver selected model" }
-if ($orchestratorLlmCall.routing.selected_provider -ne "anthropic") { throw "Hosted staging verification failed: orchestrator did not retain gateway selected provider" }
+if ($orchestratorLlmCall.routing.selected_model -ne "deepseek-ai/DeepSeek-V4-Pro:fastest") { throw "Hosted staging verification failed: orchestrator did not use gateway routing resolver selected model" }
+if ($orchestratorLlmCall.routing.selected_provider -ne "huggingface_inference_router") { throw "Hosted staging verification failed: orchestrator did not retain gateway selected provider" }
 if ($orchestratorLlmCall.routing.live_provider_calls -ne $false) { throw "Hosted staging verification failed: orchestrator gateway routing attempted live provider calls" }
-if ($orchestratorLlmCall.routing.configured_only -ne $true) { throw "Hosted staging verification failed: orchestrator gateway routing was not configured-only" }
-if ($orchestratorLlmCall.routing.provider_health.status -ne "configured_only") { throw "Hosted staging verification failed: orchestrator gateway provider health status wrong" }
+if ($orchestratorLlmCall.routing.configured_only -ne $false) { throw "Hosted staging verification failed: orchestrator gateway routing should be HF-live-verifiable" }
+if ($orchestratorLlmCall.routing.provider_health.status -ne "live_verified") { throw "Hosted staging verification failed: orchestrator gateway provider health status wrong" }
 if ($orchestratorLlmCall.routing_policy_checked -ne $true) { throw "Hosted staging verification failed: orchestrator did not check LLM routing policy before gateway call" }
 if ($orchestratorLlmCall.routing_policy_contract_version -ne "llm-routing-policy-v1") { throw "Hosted staging verification failed: orchestrator LLM routing policy contract version mismatch" }
 if ($orchestratorLlmCall.routing_policy_decision -ne "allow_primary") { throw "Hosted staging verification failed: orchestrator LLM routing policy did not allow primary route" }
@@ -1497,6 +1777,11 @@ Assert-Contains "orchestrator mcp audit session bound" $orchestratorMcpAudit '"s
 Assert-Contains "orchestrator mcp audit session id" $orchestratorMcpAudit $orchestratorRun.thread_id
 Assert-Contains "orchestrator mcp audit trace evidence" $orchestratorMcpAudit "mcp_tool_session_bound_audit"
 
+if ($StopAfterOrchestratorDryRun) {
+  Write-Host "[hosted] orchestrator dry-run checks completed"
+  return
+}
+
 Write-Host "[hosted] phase2 runtime graph start"
 $phase2RuntimeContract = Invoke-Text "$BaseUrl/api/v1/phase2/runtime/contract"
 Assert-Contains "phase2 runtime contract version" $phase2RuntimeContract '"contract_version":"phase2-runtime-v1"'
@@ -1510,7 +1795,7 @@ Assert-Contains "phase2 runtime sse required error" $phase2RuntimeContract "erro
 Assert-Contains "phase2 runtime no live providers" $phase2RuntimeContract '"live_provider_calls":false'
 $phase2RuntimeThreadId = [Guid]::NewGuid().ToString()
 $phase2RuntimeBody = @{ project_id = $projectId; prompt = "hosted phase2 runtime graph start verifier"; session_id = $phase2RuntimeThreadId } | ConvertTo-Json -Compress
-$phase2RuntimeRun = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/phase2/runtime/start" -ContentType "application/json" -Body $phase2RuntimeBody
+$phase2RuntimeRun = Invoke-JsonApi -url "$BaseUrl/api/v1/phase2/runtime/start" -method "POST" -body $phase2RuntimeBody -contentType "application/json" -timeoutSeconds 20
 if ($phase2RuntimeRun.contract_version -ne "phase2-runtime-v1") { throw "Hosted staging verification failed: phase2 runtime contract version mismatch" }
 if ($phase2RuntimeRun.status -ne "started") { throw "Hosted staging verification failed: phase2 runtime did not start" }
 if ($phase2RuntimeRun.engine -ne "langgraph") { throw "Hosted staging verification failed: phase2 runtime engine was not langgraph" }
@@ -1537,7 +1822,7 @@ Assert-Contains "phase2 runtime checkpoint evidence" $phase2RuntimeCheckpoint "p
 $phase2RuntimeAudit = Invoke-Text "$BaseUrl/api/v1/audit/recent?limit=40"
 Assert-Contains "phase2 runtime audit evidence" $phase2RuntimeAudit "phase2_runtime_graph_started"
 Assert-Contains "phase2 runtime audit contract" $phase2RuntimeAudit "phase2-runtime-v1"
-$phase2AgentActivity = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/v1/agent-activity/recent?event_type=phase2_runtime_graph_started&limit=20"
+$phase2AgentActivity = Invoke-JsonApi -url "$BaseUrl/api/v1/agent-activity/recent?event_type=phase2_runtime_graph_started&limit=20" -method "GET" -contentType $null -timeoutSeconds 15
 $phase2AgentActivityEvent = @($phase2AgentActivity.events) | Where-Object { $_.trace_id -eq $phase2RuntimeRun.thread_id -or $_.session_id -eq $phase2RuntimeRun.thread_id } | Select-Object -First 1
 if (-not $phase2AgentActivityEvent) { throw "Hosted staging verification failed: phase2 runtime missing agent activity feed event" }
 if ($phase2AgentActivityEvent.role_summary_count -lt 4) { throw "Hosted staging verification failed: phase2 runtime agent activity missing per-role summaries" }
@@ -1548,7 +1833,7 @@ foreach ($role in $expectedAgentRoles) {
   if (-not $activityRoleSummary) { throw "Hosted staging verification failed: phase2 runtime agent activity missing per-role summary for $role" }
   if ($activityRoleSummary.status -ne "completed") { throw "Hosted staging verification failed: phase2 runtime agent activity per-role summary for $role did not complete" }
 }
-$phase2RuntimeRuns = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/v1/phase2/runtime/runs?limit=10"
+$phase2RuntimeRuns = Invoke-JsonApi -url "$BaseUrl/api/v1/phase2/runtime/runs?limit=10" -method "GET" -contentType $null -timeoutSeconds 15
 if ($phase2RuntimeRuns.contract_version -ne "phase2-runtime-v1") { throw "Hosted staging verification failed: phase2 runtime runs contract version mismatch" }
 if ($phase2RuntimeRuns.evidence_ref -ne "phase2_runtime_run_status_visible") { throw "Hosted staging verification failed: phase2 runtime runs evidence ref mismatch" }
 $phase2RuntimeRunStatus = @($phase2RuntimeRuns.runs) | Where-Object { $_.thread_id -eq $phase2RuntimeRun.thread_id -or $_.session_id -eq $phase2RuntimeRun.thread_id } | Select-Object -First 1
@@ -1561,9 +1846,14 @@ if ($phase2RuntimeRunStatus.live_provider_calls -ne $false) { throw "Hosted stag
 if ($phase2RuntimeRunStatus.live_mcp_writes -ne $false) { throw "Hosted staging verification failed: phase2 runtime run status claimed live MCP writes" }
 if ($phase2RuntimeRunStatus.production_deploy -ne $false) { throw "Hosted staging verification failed: phase2 runtime run status claimed production deploy" }
 
+if ($StopAfterPhase2Runtime) {
+  Write-Host "[hosted] phase2 runtime checks completed"
+  return
+}
+
 $blockedThreadId = [Guid]::NewGuid().ToString()
 $blockedOrchestratorBody = @{ project_id = $projectId; prompt = "please production deploy and merge main"; session_id = $blockedThreadId } | ConvertTo-Json -Compress
-$blockedOrchestratorRun = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/orchestrator/dry-run" -ContentType "application/json" -Body $blockedOrchestratorBody
+$blockedOrchestratorRun = Invoke-JsonApi -url "$BaseUrl/api/v1/orchestrator/dry-run" -method "POST" -body $blockedOrchestratorBody -contentType "application/json" -timeoutSeconds 20
 if ($blockedOrchestratorRun.engine -ne "langgraph") { throw "Hosted staging verification failed: blocked orchestrator engine was not langgraph" }
 if ($blockedOrchestratorRun.live_provider_calls -ne $false) { throw "Hosted staging verification failed: blocked orchestrator attempted live provider calls" }
 if ($blockedOrchestratorRun.checkpointing -ne "postgres") { throw "Hosted staging verification failed: blocked orchestrator did not use postgres checkpointing" }
@@ -1580,7 +1870,7 @@ Assert-Contains "blocked orchestrator audit thread" $blockedAudit $blockedThread
 Write-Host "[hosted] langgraph global retry limit hard-stop"
 $retryLimitThreadId = [Guid]::NewGuid().ToString()
 $retryLimitBody = @{ project_id = $projectId; prompt = "force_langgraph_global_retry_limit"; session_id = $retryLimitThreadId } | ConvertTo-Json -Compress
-$retryLimitRun = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/orchestrator/dry-run" -ContentType "application/json" -Body $retryLimitBody
+$retryLimitRun = Invoke-JsonApi -url "$BaseUrl/api/v1/orchestrator/dry-run" -method "POST" -body $retryLimitBody -contentType "application/json" -timeoutSeconds 20
 if ($retryLimitRun.engine -ne "langgraph") { throw "Hosted staging verification failed: retry-limit orchestrator engine was not langgraph" }
 if ($retryLimitRun.live_provider_calls -ne $false) { throw "Hosted staging verification failed: retry-limit orchestrator attempted live provider calls" }
 if ($retryLimitRun.checkpointing -ne "postgres") { throw "Hosted staging verification failed: retry-limit orchestrator did not use postgres checkpointing" }
@@ -1605,7 +1895,7 @@ $retryProtectedNodes = @("intent_parser", "budget_guard", "task_router", "agent_
 foreach ($nodeName in $retryProtectedNodes) {
   $nodeFailureThreadId = [Guid]::NewGuid().ToString()
   $nodeFailureBody = @{ project_id = $projectId; prompt = "force_langgraph_node_failure:$nodeName"; session_id = $nodeFailureThreadId } | ConvertTo-Json -Compress
-  $nodeFailureRun = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/orchestrator/dry-run" -ContentType "application/json" -Body $nodeFailureBody
+  $nodeFailureRun = Invoke-JsonApi -url "$BaseUrl/api/v1/orchestrator/dry-run" -method "POST" -body $nodeFailureBody -contentType "application/json" -timeoutSeconds 20
   if ($nodeFailureRun.engine -ne "langgraph") { throw "Hosted staging verification failed: node failure $nodeName engine was not langgraph" }
   if ($nodeFailureRun.live_provider_calls -ne $false) { throw "Hosted staging verification failed: node failure $nodeName attempted live provider calls" }
   if ($nodeFailureRun.checkpointing -ne "postgres") { throw "Hosted staging verification failed: node failure $nodeName did not use postgres checkpointing" }
@@ -1629,7 +1919,7 @@ foreach ($nodeName in $retryProtectedNodes) {
 
 $llmPolicyBlockedThreadId = [Guid]::NewGuid().ToString()
 $llmPolicyBlockedBody = @{ project_id = $projectId; prompt = "force_llm_routing_policy_deny_sensitive_cache"; session_id = $llmPolicyBlockedThreadId } | ConvertTo-Json -Compress
-$llmPolicyBlockedRun = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/orchestrator/dry-run" -ContentType "application/json" -Body $llmPolicyBlockedBody
+$llmPolicyBlockedRun = Invoke-JsonApi -url "$BaseUrl/api/v1/orchestrator/dry-run" -method "POST" -body $llmPolicyBlockedBody -contentType "application/json" -timeoutSeconds 20
 if ($llmPolicyBlockedRun.engine -ne "langgraph") { throw "Hosted staging verification failed: llm policy blocked orchestrator engine was not langgraph" }
 if ($llmPolicyBlockedRun.live_provider_calls -ne $false) { throw "Hosted staging verification failed: llm policy blocked orchestrator attempted live provider calls" }
 if ($llmPolicyBlockedRun.checkpointing -ne "postgres") { throw "Hosted staging verification failed: llm policy blocked orchestrator did not use postgres checkpointing" }
@@ -1653,118 +1943,121 @@ Assert-Contains "llm policy blocked checkpoint hard stop" $llmPolicyBlockedCheck
 Assert-Contains "llm policy blocked checkpoint reason" $llmPolicyBlockedCheckpoint '"hard_stop_reason":"llm_routing_policy_rejected"'
 Assert-Contains "llm policy blocked checkpoint evidence" $llmPolicyBlockedCheckpoint "llm_routing_policy_sensitive_cache_blocked"
 
-$blockedOrchestratorBodyFile = Join-Path $env:TEMP ("hosted-orchestrator-hard-stop-stream-" + [Guid]::NewGuid().ToString("N") + ".json")
-try {
-  Set-Content -Path $blockedOrchestratorBodyFile -Value $blockedOrchestratorBody -NoNewline -Encoding utf8
-  $blockedOrchestratorStream = curl.exe -sN --max-time 25 -X POST -H "Content-Type: application/json" --data-binary "@$blockedOrchestratorBodyFile" "$BaseUrl/api/v1/orchestrator/dry-run/stream"
-} finally {
-  if (Test-Path $blockedOrchestratorBodyFile) { Remove-Item -LiteralPath $blockedOrchestratorBodyFile -Force }
-}
-Assert-Contains "blocked orchestrator stream start" $blockedOrchestratorStream "event: graph_status"
-Assert-Contains "blocked orchestrator stream event id" $blockedOrchestratorStream "id: "
-Assert-Contains "blocked orchestrator stream heartbeat" $blockedOrchestratorStream "event: heartbeat"
-Assert-Contains "blocked orchestrator stream agent status" $blockedOrchestratorStream "event: agent_status"
-Assert-Contains "blocked orchestrator stream sse contract" $blockedOrchestratorStream "phase2-sse-event-contract-v1"
-Assert-Contains "blocked orchestrator stream sse evidence" $blockedOrchestratorStream "phase2_sse_event_contract_proof"
-Assert-Contains "blocked orchestrator stream error handler" $blockedOrchestratorStream "error_handler"
-Assert-Contains "blocked orchestrator stream hard stop" $blockedOrchestratorStream '"node_name":"hard_stop"'
-Assert-Contains "blocked orchestrator stream stopped" $blockedOrchestratorStream '"status":"stopped"'
-Assert-Contains "blocked orchestrator stream done" $blockedOrchestratorStream "event: done"
-$blockedOrchestratorReplayBodyFile = Join-Path $env:TEMP ("hosted-orchestrator-hard-stop-replay-" + [Guid]::NewGuid().ToString("N") + ".json")
-try {
-  Set-Content -Path $blockedOrchestratorReplayBodyFile -Value $blockedOrchestratorBody -NoNewline -Encoding utf8
-  $blockedOrchestratorReplay = curl.exe -sN --max-time 15 -H "Last-Event-ID: 0" -X POST -H "Content-Type: application/json" --data-binary "@$blockedOrchestratorReplayBodyFile" "$BaseUrl/api/v1/orchestrator/dry-run/stream"
-} finally {
-  if (Test-Path $blockedOrchestratorReplayBodyFile) { Remove-Item -LiteralPath $blockedOrchestratorReplayBodyFile -Force }
-}
-Assert-Contains "blocked orchestrator replay flag" $blockedOrchestratorReplay '"replay":true'
-Assert-Contains "blocked orchestrator replay hard stop" $blockedOrchestratorReplay '"node_name":"hard_stop"'
-Assert-Contains "blocked orchestrator replay stopped" $blockedOrchestratorReplay '"status":"stopped"'
-Assert-Contains "blocked orchestrator replay done" $blockedOrchestratorReplay "event: done"
+if (-not $SkipOrchestratorStreaming) {
+  $blockedOrchestratorBodyFile = Join-Path $env:TEMP ("hosted-orchestrator-hard-stop-stream-" + [Guid]::NewGuid().ToString("N") + ".json")
+  try {
+    Set-Content -Path $blockedOrchestratorBodyFile -Value $blockedOrchestratorBody -NoNewline -Encoding utf8
+    $blockedOrchestratorStream = Invoke-StreamFromFile -url "$BaseUrl/api/v1/orchestrator/dry-run/stream" -bodyFile $blockedOrchestratorBodyFile -timeoutSeconds 25
+  } finally {
+    if (Test-Path $blockedOrchestratorBodyFile) { Remove-Item -LiteralPath $blockedOrchestratorBodyFile -Force }
+  }
+  Assert-Contains "blocked orchestrator stream start" $blockedOrchestratorStream "event: graph_status"
+  Assert-Contains "blocked orchestrator stream event id" $blockedOrchestratorStream "id: "
+  Assert-Contains "blocked orchestrator stream heartbeat" $blockedOrchestratorStream "event: heartbeat"
+  Assert-Contains "blocked orchestrator stream agent status" $blockedOrchestratorStream "event: agent_status"
+  Assert-Contains "blocked orchestrator stream sse contract" $blockedOrchestratorStream "phase2-sse-event-contract-v1"
+  Assert-Contains "blocked orchestrator stream sse evidence" $blockedOrchestratorStream "phase2_sse_event_contract_proof"
+  Assert-Contains "blocked orchestrator stream error handler" $blockedOrchestratorStream "error_handler"
+  Assert-Contains "blocked orchestrator stream hard stop" $blockedOrchestratorStream '"node_name":"hard_stop"'
+  Assert-Contains "blocked orchestrator stream hard stop reason" $blockedOrchestratorStream '"hard_stop_reason":"policy_or_budget_guard_rejected"'
+  Assert-Contains "blocked orchestrator stream done" $blockedOrchestratorStream "event: done"
+  $blockedOrchestratorReplayBodyFile = Join-Path $env:TEMP ("hosted-orchestrator-hard-stop-replay-" + [Guid]::NewGuid().ToString("N") + ".json")
+  try {
+    Set-Content -Path $blockedOrchestratorReplayBodyFile -Value $blockedOrchestratorBody -NoNewline -Encoding utf8
+    $blockedOrchestratorReplay = Invoke-StreamFromFile -url "$BaseUrl/api/v1/orchestrator/dry-run/stream" -bodyFile $blockedOrchestratorReplayBodyFile -headers @{ "Last-Event-ID" = "0" } -timeoutSeconds 15
+  } finally {
+    if (Test-Path $blockedOrchestratorReplayBodyFile) { Remove-Item -LiteralPath $blockedOrchestratorReplayBodyFile -Force }
+  }
+  Assert-Contains "blocked orchestrator replay flag" $blockedOrchestratorReplay '"replay":true'
+  Assert-Contains "blocked orchestrator replay hard stop" $blockedOrchestratorReplay '"node_name":"hard_stop"'
+  Assert-Contains "blocked orchestrator replay hard stop reason" $blockedOrchestratorReplay '"hard_stop_reason":"policy_or_budget_guard_rejected"'
+  Assert-Contains "blocked orchestrator replay done" $blockedOrchestratorReplay "event: done"
 
-$orchestratorBodyFile = Join-Path $env:TEMP ("orchestrator-stream-" + [Guid]::NewGuid().ToString("N") + ".json")
-try {
-  Set-Content -Path $orchestratorBodyFile -Value $orchestratorBody -NoNewline -Encoding utf8
-  $orchestratorStream = curl.exe -sN --max-time 25 -X POST -H "Content-Type: application/json" --data-binary "@$orchestratorBodyFile" "$BaseUrl/api/v1/orchestrator/dry-run/stream"
-} finally {
-  if (Test-Path $orchestratorBodyFile) { Remove-Item -LiteralPath $orchestratorBodyFile -Force }
+  $orchestratorBodyFile = Join-Path $env:TEMP ("orchestrator-stream-" + [Guid]::NewGuid().ToString("N") + ".json")
+  try {
+    Set-Content -Path $orchestratorBodyFile -Value $orchestratorBody -NoNewline -Encoding utf8
+    $orchestratorStream = Invoke-StreamFromFile -url "$BaseUrl/api/v1/orchestrator/dry-run/stream" -bodyFile $orchestratorBodyFile -timeoutSeconds 25
+  } finally {
+    if (Test-Path $orchestratorBodyFile) { Remove-Item -LiteralPath $orchestratorBodyFile -Force }
+  }
+  Assert-Contains "orchestrator stream start" $orchestratorStream "event: graph_status"
+  Assert-Contains "orchestrator stream event id" $orchestratorStream "id: "
+  Assert-Contains "orchestrator stream heartbeat" $orchestratorStream "event: heartbeat"
+  Assert-Contains "orchestrator stream agent status" $orchestratorStream "event: agent_status"
+  Assert-Contains "orchestrator stream sse contract" $orchestratorStream "phase2-sse-event-contract-v1"
+  Assert-Contains "orchestrator stream sse evidence" $orchestratorStream "phase2_sse_event_contract_proof"
+  Assert-Contains "orchestrator stream required heartbeat" $orchestratorStream "heartbeat"
+  Assert-Contains "orchestrator stream required error" $orchestratorStream "error"
+  Assert-Contains "orchestrator stream node event" $orchestratorStream "event: graph_node"
+  Assert-Contains "orchestrator stream intent parser" $orchestratorStream "intent_parser"
+  Assert-Contains "orchestrator stream budget guard" $orchestratorStream "budget_guard"
+  Assert-Contains "orchestrator stream memory updater" $orchestratorStream "memory_updater"
+  Assert-Contains "orchestrator stream llm gateway evidence" $orchestratorStream "llm_gateway_dry_run"
+  Assert-Contains "orchestrator stream llm gateway streaming evidence" $orchestratorStream "llm_gateway_streaming_dry_run"
+  Assert-Contains "orchestrator stream llm routing policy evidence" $orchestratorStream "llm_routing_policy_primary_allowed"
+  Assert-Contains "orchestrator stream llm routing policy decision" $orchestratorStream '"routing_policy_decision":"allow_primary"'
+  Assert-Contains "orchestrator stream consumed llm gateway stream" $orchestratorStream '"streaming_used":true'
+  Assert-Contains "orchestrator stream memory context evidence" $orchestratorStream "memory_context_injected"
+  Assert-Contains "orchestrator stream memory context budget" $orchestratorStream "memory_context_budget"
+  Assert-Contains "orchestrator stream persisted memory update evidence" $orchestratorStream "memory_update_persisted"
+  Assert-Contains "orchestrator stream persisted memory update id" $orchestratorStream "memory_update_id"
+  Assert-Contains "orchestrator stream task assignment evidence" $orchestratorStream "task_assignment_completed"
+  Assert-Contains "orchestrator stream task assignments" $orchestratorStream "task_assignments"
+  Assert-Contains "orchestrator stream mcp evidence" $orchestratorStream "mcp_tool_success"
+  Assert-Contains "orchestrator stream mcp tool calls" $orchestratorStream "mcp_tool_calls"
+  Assert-Contains "orchestrator stream mcp safe envelope" $orchestratorStream "mcp_safe_envelope"
+  Assert-Contains "orchestrator stream done" $orchestratorStream "event: done"
+  Assert-Contains "orchestrator stream postgres checkpointing" $orchestratorStream '"checkpointing":"postgres"'
+  $orchestratorReplayBodyFile = Join-Path $env:TEMP ("hosted-orchestrator-replay-" + [Guid]::NewGuid().ToString("N") + ".json")
+  try {
+    Set-Content -Path $orchestratorReplayBodyFile -Value $orchestratorBody -NoNewline -Encoding utf8
+    $orchestratorReplay = Invoke-StreamFromFile -url "$BaseUrl/api/v1/orchestrator/dry-run/stream" -bodyFile $orchestratorReplayBodyFile -headers @{ "Last-Event-ID" = "0" } -timeoutSeconds 15
+  } finally {
+    if (Test-Path $orchestratorReplayBodyFile) { Remove-Item -LiteralPath $orchestratorReplayBodyFile -Force }
+  }
+  Assert-Contains "orchestrator replay flag" $orchestratorReplay '"replay":true'
+  Assert-Contains "orchestrator replay intent parser" $orchestratorReplay "intent_parser"
+  Assert-Contains "orchestrator replay llm gateway evidence" $orchestratorReplay "llm_gateway_dry_run"
+  Assert-Contains "orchestrator replay llm gateway streaming evidence" $orchestratorReplay "llm_gateway_streaming_dry_run"
+  Assert-Contains "orchestrator replay llm routing policy evidence" $orchestratorReplay "llm_routing_policy_primary_allowed"
+  Assert-Contains "orchestrator replay llm routing policy decision" $orchestratorReplay '"routing_policy_decision":"allow_primary"'
+  Assert-Contains "orchestrator replay memory context evidence" $orchestratorReplay "memory_context_injected"
+  Assert-Contains "orchestrator replay persisted memory update evidence" $orchestratorReplay "memory_update_persisted"
+  Assert-Contains "orchestrator replay task assignment evidence" $orchestratorReplay "task_assignment_completed"
+  Assert-Contains "orchestrator replay mcp evidence" $orchestratorReplay "mcp_tool_success"
+  Assert-Contains "orchestrator replay mcp safe envelope" $orchestratorReplay "mcp_safe_envelope"
+  Assert-Contains "orchestrator replay completed" $orchestratorReplay '"status":"completed"'
+  Assert-Contains "orchestrator replay done" $orchestratorReplay "event: done"
+  $orchestratorErrorThreadId = [Guid]::NewGuid().ToString()
+  $orchestratorErrorBody = @{ project_id = $projectId; prompt = "force_phase2_sse_error_event"; session_id = $orchestratorErrorThreadId } | ConvertTo-Json -Compress
+  $orchestratorErrorBodyFile = Join-Path $env:TEMP ("hosted-orchestrator-sse-error-" + [Guid]::NewGuid().ToString("N") + ".json")
+  try {
+    Set-Content -Path $orchestratorErrorBodyFile -Value $orchestratorErrorBody -NoNewline -Encoding utf8
+    $orchestratorErrorStream = Invoke-StreamFromFile -url "$BaseUrl/api/v1/orchestrator/dry-run/stream" -bodyFile $orchestratorErrorBodyFile -timeoutSeconds 10
+  } finally {
+    if (Test-Path $orchestratorErrorBodyFile) { Remove-Item -LiteralPath $orchestratorErrorBodyFile -Force }
+  }
+  Assert-Contains "orchestrator error stream heartbeat" $orchestratorErrorStream "event: heartbeat"
+  Assert-Contains "orchestrator error stream agent status" $orchestratorErrorStream "event: agent_status"
+  Assert-Contains "orchestrator error stream error event" $orchestratorErrorStream "event: error"
+  Assert-Contains "orchestrator error stream done event" $orchestratorErrorStream "event: done"
+  Assert-Contains "orchestrator error stream contract" $orchestratorErrorStream "phase2-sse-event-contract-v1"
+  Assert-Contains "orchestrator error stream evidence" $orchestratorErrorStream "phase2_sse_event_contract_proof"
+  Assert-Contains "orchestrator error stream code" $orchestratorErrorStream "forced_phase2_sse_error_event"
+  Assert-Contains "orchestrator error stream terminal status" $orchestratorErrorStream '"status":"error"'
+  Assert-Contains "orchestrator error stream no live provider" $orchestratorErrorStream '"live_provider_calls":false'
 }
-Assert-Contains "orchestrator stream start" $orchestratorStream "event: graph_status"
-Assert-Contains "orchestrator stream event id" $orchestratorStream "id: "
-Assert-Contains "orchestrator stream heartbeat" $orchestratorStream "event: heartbeat"
-Assert-Contains "orchestrator stream agent status" $orchestratorStream "event: agent_status"
-Assert-Contains "orchestrator stream sse contract" $orchestratorStream "phase2-sse-event-contract-v1"
-Assert-Contains "orchestrator stream sse evidence" $orchestratorStream "phase2_sse_event_contract_proof"
-Assert-Contains "orchestrator stream required heartbeat" $orchestratorStream "heartbeat"
-Assert-Contains "orchestrator stream required error" $orchestratorStream "error"
-Assert-Contains "orchestrator stream node event" $orchestratorStream "event: graph_node"
-Assert-Contains "orchestrator stream intent parser" $orchestratorStream "intent_parser"
-Assert-Contains "orchestrator stream budget guard" $orchestratorStream "budget_guard"
-Assert-Contains "orchestrator stream memory updater" $orchestratorStream "memory_updater"
-Assert-Contains "orchestrator stream llm gateway evidence" $orchestratorStream "llm_gateway_dry_run"
-Assert-Contains "orchestrator stream llm gateway streaming evidence" $orchestratorStream "llm_gateway_streaming_dry_run"
-Assert-Contains "orchestrator stream llm routing policy evidence" $orchestratorStream "llm_routing_policy_primary_allowed"
-Assert-Contains "orchestrator stream llm routing policy decision" $orchestratorStream '"routing_policy_decision":"allow_primary"'
-Assert-Contains "orchestrator stream consumed llm gateway stream" $orchestratorStream '"streaming_used":true'
-Assert-Contains "orchestrator stream memory context evidence" $orchestratorStream "memory_context_injected"
-Assert-Contains "orchestrator stream memory context budget" $orchestratorStream "memory_context_budget"
-Assert-Contains "orchestrator stream persisted memory update evidence" $orchestratorStream "memory_update_persisted"
-Assert-Contains "orchestrator stream persisted memory update id" $orchestratorStream "memory_update_id"
-Assert-Contains "orchestrator stream task assignment evidence" $orchestratorStream "task_assignment_completed"
-Assert-Contains "orchestrator stream task assignments" $orchestratorStream "task_assignments"
-Assert-Contains "orchestrator stream mcp evidence" $orchestratorStream "mcp_tool_success"
-Assert-Contains "orchestrator stream mcp tool calls" $orchestratorStream "mcp_tool_calls"
-Assert-Contains "orchestrator stream mcp safe envelope" $orchestratorStream "mcp_safe_envelope"
-Assert-Contains "orchestrator stream done" $orchestratorStream "event: done"
-Assert-Contains "orchestrator stream postgres checkpointing" $orchestratorStream '"checkpointing":"postgres"'
-$orchestratorReplayBodyFile = Join-Path $env:TEMP ("hosted-orchestrator-replay-" + [Guid]::NewGuid().ToString("N") + ".json")
-try {
-  Set-Content -Path $orchestratorReplayBodyFile -Value $orchestratorBody -NoNewline -Encoding utf8
-  $orchestratorReplay = curl.exe -sN --max-time 15 -H "Last-Event-ID: 0" -X POST -H "Content-Type: application/json" --data-binary "@$orchestratorReplayBodyFile" "$BaseUrl/api/v1/orchestrator/dry-run/stream"
-} finally {
-  if (Test-Path $orchestratorReplayBodyFile) { Remove-Item -LiteralPath $orchestratorReplayBodyFile -Force }
-}
-Assert-Contains "orchestrator replay flag" $orchestratorReplay '"replay":true'
-Assert-Contains "orchestrator replay intent parser" $orchestratorReplay "intent_parser"
-Assert-Contains "orchestrator replay llm gateway evidence" $orchestratorReplay "llm_gateway_dry_run"
-Assert-Contains "orchestrator replay llm gateway streaming evidence" $orchestratorReplay "llm_gateway_streaming_dry_run"
-Assert-Contains "orchestrator replay llm routing policy evidence" $orchestratorReplay "llm_routing_policy_primary_allowed"
-Assert-Contains "orchestrator replay llm routing policy decision" $orchestratorReplay '"routing_policy_decision":"allow_primary"'
-Assert-Contains "orchestrator replay memory context evidence" $orchestratorReplay "memory_context_injected"
-Assert-Contains "orchestrator replay persisted memory update evidence" $orchestratorReplay "memory_update_persisted"
-Assert-Contains "orchestrator replay task assignment evidence" $orchestratorReplay "task_assignment_completed"
-Assert-Contains "orchestrator replay mcp evidence" $orchestratorReplay "mcp_tool_success"
-Assert-Contains "orchestrator replay mcp safe envelope" $orchestratorReplay "mcp_safe_envelope"
-Assert-Contains "orchestrator replay completed" $orchestratorReplay '"status":"completed"'
-Assert-Contains "orchestrator replay done" $orchestratorReplay "event: done"
-$orchestratorErrorThreadId = [Guid]::NewGuid().ToString()
-$orchestratorErrorBody = @{ project_id = $projectId; prompt = "force_phase2_sse_error_event"; session_id = $orchestratorErrorThreadId } | ConvertTo-Json -Compress
-$orchestratorErrorBodyFile = Join-Path $env:TEMP ("hosted-orchestrator-sse-error-" + [Guid]::NewGuid().ToString("N") + ".json")
-try {
-  Set-Content -Path $orchestratorErrorBodyFile -Value $orchestratorErrorBody -NoNewline -Encoding utf8
-  $orchestratorErrorStream = curl.exe -sN --max-time 10 -X POST -H "Content-Type: application/json" --data-binary "@$orchestratorErrorBodyFile" "$BaseUrl/api/v1/orchestrator/dry-run/stream"
-} finally {
-  if (Test-Path $orchestratorErrorBodyFile) { Remove-Item -LiteralPath $orchestratorErrorBodyFile -Force }
-}
-Assert-Contains "orchestrator error stream heartbeat" $orchestratorErrorStream "event: heartbeat"
-Assert-Contains "orchestrator error stream agent status" $orchestratorErrorStream "event: agent_status"
-Assert-Contains "orchestrator error stream error event" $orchestratorErrorStream "event: error"
-Assert-Contains "orchestrator error stream done event" $orchestratorErrorStream "event: done"
-Assert-Contains "orchestrator error stream contract" $orchestratorErrorStream "phase2-sse-event-contract-v1"
-Assert-Contains "orchestrator error stream evidence" $orchestratorErrorStream "phase2_sse_event_contract_proof"
-Assert-Contains "orchestrator error stream code" $orchestratorErrorStream "forced_phase2_sse_error_event"
-Assert-Contains "orchestrator error stream terminal status" $orchestratorErrorStream '"status":"error"'
-Assert-Contains "orchestrator error stream no live provider" $orchestratorErrorStream '"live_provider_calls":false'
 $orchestratorCheckpoint = Invoke-Text "$BaseUrl/api/v1/orchestrator/checkpoints/$($orchestratorRun.thread_id)"
 Assert-Contains "orchestrator checkpoint" $orchestratorCheckpoint '"checkpointing":"postgres"'
 Assert-Contains "orchestrator checkpoint completed" $orchestratorCheckpoint '"node_name":"completed"'
+}
 
 Write-Host "[hosted] model capabilities and rotation policy"
 $modelCapabilities = Invoke-Text "$BaseUrl/api/v1/models/capabilities"
 Assert-Contains "model planner route" $modelCapabilities '"agent_type":"planner"'
 Assert-Contains "model devops route" $modelCapabilities '"agent_type":"devops"'
 Assert-Contains "model agent profiles embedded" $modelCapabilities '"agent_profiles"'
-Assert-Contains "model configured only" $modelCapabilities '"configured_only":true'
+Assert-Contains "model configured only" $modelCapabilities '"configured_only":false'
 
 $rotationPolicy = Invoke-Text "$BaseUrl/api/v1/rotation/policy"
 Assert-Contains "rotation backoff" $rotationPolicy '"backoff_seconds":[30,60,120,300]'

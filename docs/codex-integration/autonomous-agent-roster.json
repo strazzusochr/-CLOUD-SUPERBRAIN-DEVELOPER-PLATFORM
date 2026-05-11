@@ -1,0 +1,535 @@
+{
+  "version": "2026-05-07",
+  "project": "-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+  "operating_core": {
+    "manager": {
+      "slot": "manager",
+      "runtime_type": "codex-main-thread",
+      "always_on": true
+    },
+    "logical_agent_slots": [
+      {
+        "slot": "supervisor",
+        "preferred_runtime_type": "default",
+        "policy": "keep-live"
+      },
+      {
+        "slot": "planner",
+        "preferred_runtime_type": "default",
+        "policy": "persisted-park-first-on-limit"
+      },
+      {
+        "slot": "coder",
+        "preferred_runtime_type": "worker",
+        "policy": "keep-live"
+      },
+      {
+        "slot": "tester",
+        "preferred_runtime_type": "explorer",
+        "policy": "keep-live"
+      },
+      {
+        "slot": "devops",
+        "preferred_runtime_type": "worker",
+        "policy": "keep-live"
+      }
+    ],
+    "observed_concurrent_subagent_limit": 4,
+    "default_live_mode": {
+      "description": "Codex manager plus four live subagents",
+      "live_slots": [
+        "supervisor",
+        "coder",
+        "tester",
+        "devops"
+      ],
+      "parked_slot": "planner"
+    }
+  },
+  "startup_protocol": [
+    "Read AGENTS.md, PROJECT_STATE.md, docs/project-progress.manifest.json, docs/verification-register.md, and AUTONOMOUS_AGENT_ROSTER.md.",
+    "Select the smallest useful agent set.",
+    "Prefer native specialized roles only when launch-validated in the current session.",
+    "If specialized launch fails, route work to the documented fallback lane.",
+    "For local stack work, use the normal repo health flow first and treat localhost evidence as DEV-ONLY.",
+    "Close completed or errored agents immediately after integration.",
+    "After 3 repeated launcher failures for the same role, mark the role blocked and continue with fallback.",
+    "Use the fixed five-slot operating core; if the child-thread ceiling blocks all five live subagents, keep supervisor, coder, tester, and devops live and keep planner persisted but parked."
+  ],
+  "launcher_status": {
+    "last_validated": "2026-05-07",
+    "validated_startable": [
+      "default",
+      "explorer",
+      "worker"
+    ],
+    "attempted_and_blocked": {
+      "backend_platform": "spawn path falls back to unsupported gpt-4o",
+      "cloud_infra_devops": "spawn path falls back to unsupported gpt-4o",
+      "product_scope": "specialized launcher unstable; gpt-4o fallback and intermittent MCP handshake timeout",
+      "qa_validation": "specialized launcher unstable; session init timeout observed",
+      "security_anticheat": "spawn path falls back to unsupported gpt-4o",
+      "sentinel_runtime": "spawn path falls back to unsupported gpt-4o",
+      "game_design": "spawn path falls back to unsupported gpt-4o",
+      "gameplay_systems": "spawn path falls back to unsupported gpt-4o"
+    },
+    "attempted_and_unstable": {
+      "sentinel_truth": "specialized launcher did not complete session creation; filesystem handshake timeout observed",
+      "webgl_client": "specialized launcher was inconsistent; timeout and not_found behavior observed",
+      "multiplayer_netcode": "specialized launcher did not complete session creation; filesystem handshake timeout observed"
+    },
+    "defined_not_yet_launch_validated": []
+  },
+  "roles": [
+    {
+      "id": "backend_platform",
+      "slot": "backend_platform",
+      "name": "backend_platform",
+      "role": "specialized",
+      "status": "launcher-blocked",
+      "model_route": "native-specialized",
+      "fallback_allowed": true,
+      "fallback_agent_types": [
+        "worker"
+      ],
+      "capabilities": [
+        "apis",
+        "server logic",
+        "runtime architecture",
+        "platform integration"
+      ],
+      "task_types": [
+        "agent-api routes",
+        "contract drift",
+        "runtime fixes"
+      ],
+      "inputs_needed": [
+        "target endpoint",
+        "affected files",
+        "verifier surface"
+      ],
+      "evidence_expected": [
+        "green verifier output",
+        "runtime proof"
+      ],
+      "metadata": {
+        "blocker": "specialized spawn path falls back to unsupported gpt-4o"
+      }
+    },
+    {
+      "id": "cloud_infra_devops",
+      "slot": "cloud_infra_devops",
+      "name": "cloud_infra_devops",
+      "role": "specialized",
+      "status": "launcher-blocked",
+      "model_route": "native-specialized",
+      "fallback_allowed": true,
+      "fallback_agent_types": [
+        "worker"
+      ],
+      "capabilities": [
+        "deployment",
+        "hosting",
+        "ci_cd",
+        "cloud runtime",
+        "environment setup"
+      ],
+      "task_types": [
+        "hetzner staging",
+        "deploy scripts",
+        "container drift"
+      ],
+      "inputs_needed": [
+        "target environment",
+        "deploy path",
+        "gate constraints"
+      ],
+      "evidence_expected": [
+        "deploy logs",
+        "hosted verifier output",
+        "rollback note"
+      ],
+      "metadata": {
+        "blocker": "specialized spawn path falls back to unsupported gpt-4o"
+      }
+    },
+    {
+      "id": "product_scope",
+      "slot": "product_scope",
+      "name": "product_scope",
+      "role": "specialized",
+      "status": "launcher-blocked",
+      "model_route": "native-specialized",
+      "fallback_allowed": true,
+      "fallback_agent_types": [
+        "default"
+      ],
+      "capabilities": [
+        "feature planning",
+        "milestones",
+        "documentation"
+      ],
+      "task_types": [
+        "candidate coherence",
+        "release checklist coverage",
+        "next step shaping"
+      ],
+      "inputs_needed": [
+        "manifest truth",
+        "target phase",
+        "evidence set"
+      ],
+      "evidence_expected": [
+        "updated decision doc",
+        "checklist coverage"
+      ],
+      "metadata": {
+        "blocker": "specialized launcher unstable; gpt-4o fallback and intermittent MCP handshake timeout"
+      }
+    },
+    {
+      "id": "qa_validation",
+      "slot": "qa_validation",
+      "name": "qa_validation",
+      "role": "specialized",
+      "status": "launcher-blocked",
+      "model_route": "native-specialized",
+      "fallback_allowed": true,
+      "fallback_agent_types": [
+        "explorer",
+        "worker"
+      ],
+      "capabilities": [
+        "testing",
+        "bug hunting",
+        "quality assurance"
+      ],
+      "task_types": [
+        "proof scripts",
+        "runtime verification",
+        "drift detection"
+      ],
+      "inputs_needed": [
+        "verifier target",
+        "reproduction steps",
+        "expected pass fail condition"
+      ],
+      "evidence_expected": [
+        "failing and passing commands",
+        "updated proof artifacts"
+      ],
+      "metadata": {
+        "blocker": "specialized launcher unstable; session init timeout observed"
+      }
+    },
+    {
+      "id": "security_anticheat",
+      "slot": "security_anticheat",
+      "name": "security_anticheat",
+      "role": "specialized",
+      "status": "launcher-blocked",
+      "model_route": "native-specialized",
+      "fallback_allowed": true,
+      "fallback_agent_types": [
+        "explorer"
+      ],
+      "capabilities": [
+        "vulnerability analysis",
+        "abuse prevention"
+      ],
+      "task_types": [
+        "secret handling review",
+        "permission minimization",
+        "unsafe write path checks"
+      ],
+      "inputs_needed": [
+        "auth path",
+        "secret boundary",
+        "risk hypothesis"
+      ],
+      "evidence_expected": [
+        "risk statement",
+        "mitigation path"
+      ],
+      "metadata": {
+        "blocker": "specialized spawn path falls back to unsupported gpt-4o"
+      }
+    },
+    {
+      "id": "sentinel_runtime",
+      "slot": "sentinel_runtime",
+      "name": "sentinel_runtime",
+      "role": "specialized",
+      "status": "launcher-blocked",
+      "model_route": "native-specialized",
+      "fallback_allowed": true,
+      "fallback_agent_types": [
+        "explorer"
+      ],
+      "capabilities": [
+        "health",
+        "performance",
+        "failure modes"
+      ],
+      "task_types": [
+        "stuck deploys",
+        "health progress drift",
+        "runtime failure analysis"
+      ],
+      "inputs_needed": [
+        "failing runtime path",
+        "metrics log surface"
+      ],
+      "evidence_expected": [
+        "root cause hypothesis",
+        "stabilized check"
+      ],
+      "metadata": {
+        "blocker": "specialized spawn path falls back to unsupported gpt-4o"
+      }
+    },
+    {
+      "id": "sentinel_truth",
+      "slot": "sentinel_truth",
+      "name": "sentinel_truth",
+      "role": "specialized",
+      "status": "launcher-unstable",
+      "model_route": "native-specialized",
+      "fallback_allowed": true,
+      "fallback_agent_types": [
+        "default"
+      ],
+      "capabilities": [
+        "verifying claims",
+        "facts",
+        "logic"
+      ],
+      "task_types": [
+        "progress truth",
+        "candidate truth",
+        "non claim enforcement"
+      ],
+      "inputs_needed": [
+        "claim",
+        "manifest truth",
+        "proof set"
+      ],
+      "evidence_expected": [
+        "contradiction list or alignment statement"
+      ],
+      "metadata": {
+        "blocker": "specialized launcher did not complete session creation; filesystem handshake timeout observed"
+      }
+    },
+    {
+      "id": "webgl_client",
+      "slot": "webgl_client",
+      "name": "webgl_client",
+      "role": "specialized",
+      "status": "launcher-unstable",
+      "model_route": "native-specialized",
+      "fallback_allowed": true,
+      "fallback_agent_types": [
+        "worker"
+      ],
+      "capabilities": [
+        "frontend graphics",
+        "shaders",
+        "browser integration"
+      ],
+      "task_types": [
+        "advanced frontend graphics"
+      ],
+      "inputs_needed": [
+        "target component",
+        "rendering bug"
+      ],
+      "evidence_expected": [
+        "visual proof",
+        "browser behavior notes"
+      ],
+      "metadata": {
+        "blocker": "specialized launcher was inconsistent; timeout and not_found behavior observed"
+      }
+    },
+    {
+      "id": "game_design",
+      "slot": "game_design",
+      "name": "game_design",
+      "role": "specialized",
+      "status": "launcher-blocked",
+      "model_route": "native-specialized",
+      "fallback_allowed": true,
+      "fallback_agent_types": [
+        "default"
+      ],
+      "capabilities": [
+        "mechanics design",
+        "player experience",
+        "systems balance"
+      ],
+      "task_types": [
+        "interactive system framing"
+      ],
+      "inputs_needed": [
+        "interaction brief"
+      ],
+      "evidence_expected": [
+        "design rationale"
+      ],
+      "metadata": {
+        "blocker": "specialized spawn path falls back to unsupported gpt-4o"
+      }
+    },
+    {
+      "id": "gameplay_systems",
+      "slot": "gameplay_systems",
+      "name": "gameplay_systems",
+      "role": "specialized",
+      "status": "launcher-blocked",
+      "model_route": "native-specialized",
+      "fallback_allowed": true,
+      "fallback_agent_types": [
+        "worker"
+      ],
+      "capabilities": [
+        "mechanics implementation",
+        "game logic",
+        "system interactions"
+      ],
+      "task_types": [
+        "interactive system logic"
+      ],
+      "inputs_needed": [
+        "system rules",
+        "state transitions"
+      ],
+      "evidence_expected": [
+        "logic change",
+        "deterministic test"
+      ],
+      "metadata": {
+        "blocker": "specialized spawn path falls back to unsupported gpt-4o"
+      }
+    },
+    {
+      "id": "multiplayer_netcode",
+      "slot": "multiplayer_netcode",
+      "name": "multiplayer_netcode",
+      "role": "specialized",
+      "status": "launcher-unstable",
+      "model_route": "native-specialized",
+      "fallback_allowed": true,
+      "fallback_agent_types": [
+        "explorer"
+      ],
+      "capabilities": [
+        "networking",
+        "synchronization",
+        "latency management"
+      ],
+      "task_types": [
+        "real time sync review"
+      ],
+      "inputs_needed": [
+        "protocol assumptions",
+        "sync path"
+      ],
+      "evidence_expected": [
+        "protocol notes",
+        "failure mode analysis"
+      ],
+      "metadata": {
+        "blocker": "specialized launcher did not complete session creation; filesystem handshake timeout observed"
+      }
+    },
+    {
+      "id": "default",
+      "slot": "default",
+      "name": "default",
+      "role": "generic",
+      "status": "launch-validated",
+      "model_route": "generic",
+      "fallback_allowed": false,
+      "fallback_agent_types": [],
+      "capabilities": [
+        "planning",
+        "synthesis",
+        "cross cutting reasoning"
+      ],
+      "task_types": [
+        "fallback orchestration",
+        "document consistency",
+        "multi surface coordination"
+      ],
+      "inputs_needed": [
+        "task objective",
+        "file scope"
+      ],
+      "evidence_expected": [
+        "integrated output",
+        "next safe step"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "explorer",
+      "slot": "explorer",
+      "name": "explorer",
+      "role": "generic",
+      "status": "launch-validated",
+      "model_route": "generic",
+      "fallback_allowed": false,
+      "fallback_agent_types": [],
+      "capabilities": [
+        "specific codebase questions",
+        "fast inspection"
+      ],
+      "task_types": [
+        "trace drift",
+        "locate verifier mismatch",
+        "inspect scripts and routes"
+      ],
+      "inputs_needed": [
+        "exact question",
+        "narrow scope"
+      ],
+      "evidence_expected": [
+        "concise findings",
+        "file references"
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "worker",
+      "slot": "worker",
+      "name": "worker",
+      "role": "generic",
+      "status": "launch-validated",
+      "model_route": "generic",
+      "fallback_allowed": false,
+      "fallback_agent_types": [],
+      "capabilities": [
+        "execution",
+        "production work",
+        "bounded fixes"
+      ],
+      "task_types": [
+        "route fixes",
+        "script fixes",
+        "scoped verifier updates"
+      ],
+      "inputs_needed": [
+        "clear ownership",
+        "target files",
+        "acceptance check"
+      ],
+      "evidence_expected": [
+        "changed files",
+        "commands run",
+        "pass fail summary"
+      ],
+      "metadata": {}
+    }
+  ]
+}

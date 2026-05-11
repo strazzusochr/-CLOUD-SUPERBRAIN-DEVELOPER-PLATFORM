@@ -1,0 +1,254 @@
+[
+  {
+    "id": "security",
+    "description": "Validate secret-scan artifacts and fallback scanner.",
+    "patterns": [
+      "verify-security.ps1",
+      "verify-evidence-artifact-safety.ps1"
+    ]
+  },
+  {
+    "id": "phase1",
+    "description": "Foundation repo and static contract checks.",
+    "patterns": [
+      "verify-phase1.ps1",
+      "verify-single-region-runbook.ps1"
+    ]
+  },
+  {
+    "id": "phase1-redis",
+    "description": "Phase 1 Redis persistence verification.",
+    "patterns": [
+      "verify-redis-persistence-phase1.ps1"
+    ]
+  },
+  {
+    "id": "phase1-runtime",
+    "description": "Local runtime and compose verification.",
+    "patterns": [
+      "verify-phase1-runtime.ps1"
+    ]
+  },
+  {
+    "id": "runtime",
+    "description": "Local runtime-focused verification bundle.",
+    "suites": [
+      "phase1-redis",
+      "phase1-runtime",
+      "autonomy"
+    ]
+  },
+  {
+    "id": "browser-contract",
+    "description": "Browser-visible public contract verification.",
+    "patterns": [
+      "verify-browser-contract.ps1"
+    ]
+  },
+  {
+    "id": "cloud-only-staging",
+    "description": "Cloud-only staging contract verification.",
+    "patterns": [
+      "verify-cloud-only-staging.ps1"
+    ]
+  },
+  {
+    "id": "external-gates",
+    "description": "External gate verification without credential bootstrap.",
+    "patterns": [
+      "verify-external-gates.ps1"
+    ]
+  },
+  {
+    "id": "external-gates-with-tokens",
+    "description": "External gate verification with credential bootstrap checks.",
+    "patterns": [
+      "verify-all-gates-with-tokens.ps1"
+    ]
+  },
+  {
+    "id": "tooling-readiness",
+    "description": "Local CLI and provider token readiness without secret disclosure.",
+    "patterns": [
+      "verify-docker-readiness.ps1",
+      "verify-env-bootstrap.ps1",
+      "verify-docker-readiness-guard.ps1",
+      "verify-vercel-access.ps1",
+      "verify-tooling-readiness.ps1"
+    ]
+  },
+  {
+    "id": "release-boundary",
+    "description": "Fail-closed release boundary checks for dirty worktree, candidate SHA parity, and owner decision.",
+    "patterns": [
+      "verify-worktree-change-inventory.ps1",
+      "verify-worktree-cleanup-plan.ps1",
+      "verify-worktree-review-action-matrix.ps1",
+      "verify-worktree-quarantine-plan.ps1",
+      "verify-worktree-quarantine-action-packet.ps1",
+      "verify-worktree-security-review-packet.ps1",
+      "verify-worktree-security-review-action-packet.ps1",
+      "verify-worktree-owner-decision.ps1",
+      "verify-worktree-split-plan.ps1",
+      "verify-worktree-split-action-packet.ps1",
+      "verify-worktree-cleanup-execution-plan.ps1",
+      "verify-worktree-owner-decision-packet.ps1",
+      "verify-worktree-owner-decision-candidates.ps1",
+      "verify-worktree-owner-action-packet.ps1",
+      "verify-owner-decision-readiness-packet.ps1",
+      "verify-worktree-release-boundary.ps1",
+      "verify-vercel-access.ps1",
+      "verify-vercel-remediation-plan.ps1",
+      "verify-release-rebaseline-plan.ps1",
+      "verify-blocker-resolution-plan.ps1",
+      "verify-project-truth-state.ps1",
+      "verify-project-truth-consistency.ps1",
+      "verify-external-review-packet.ps1",
+      "verify-evidence-artifact-safety.ps1"
+    ]
+  },
+  {
+    "id": "release-boundary-regression",
+    "description": "Regression checks for release-boundary safety gates and fail-closed truth artifacts.",
+    "patterns": [
+      "verify-release-boundary-regression.ps1"
+    ]
+  },
+  {
+    "id": "hosted-staging",
+    "description": "Hosted staging cross-surface verification.",
+    "patterns": [
+      "verify-hosted-staging.ps1"
+    ]
+  },
+  {
+    "id": "hosted-staging-smoke",
+    "description": "Hosted staging smoke verification.",
+    "patterns": [
+      "verify-hosted-staging-smoke.ps1"
+    ]
+  },
+  {
+    "id": "autonomy",
+    "description": "Autonomous coordination and worker regression checks.",
+    "patterns": [
+      "verify-autonomous-*.ps1",
+      "verify-autopilot-mode.ps1",
+      "verify-worker-status-regression.ps1"
+    ]
+  },
+  {
+    "id": "phase3",
+    "description": "Phase 3 hosted contract suite.",
+    "patterns": [
+      "verify-phase3-*.ps1"
+    ]
+  },
+  {
+    "id": "phase4",
+    "description": "Phase 4 hosted/runtime contract suite.",
+    "patterns": [
+      "verify-phase4-*.ps1"
+    ]
+  },
+  {
+    "id": "contracts",
+    "description": "Cross-phase contract bundle for repo, hosted, and runtime surfaces.",
+    "suites": [
+      "phase1",
+      "phase3",
+      "phase4"
+    ]
+  },
+  {
+    "id": "hosted",
+    "description": "Hosted surface verification bundle.",
+    "suites": [
+      "browser-contract",
+      "cloud-only-staging",
+      "external-gates",
+      "hosted-staging",
+      "hosted-staging-smoke",
+      "phase3",
+      "phase4"
+    ]
+  },
+  {
+    "id": "observability",
+    "description": "Observability and evidence-oriented hosted verification.",
+    "patterns": [
+      "verify-phase4-observability-hosted.ps1",
+      "verify-phase5-observability-*.ps1"
+    ]
+  },
+  {
+    "id": "phase5",
+    "description": "Phase 5 candidate, rollback, and release-readiness suite.",
+    "patterns": [
+      "verify-phase5-*.ps1"
+    ]
+  },
+  {
+    "id": "phase5-immutable-staging-parity-positive",
+    "description": "Opt-in positive immutable staging parity proof; excluded while staging parity is blocked.",
+    "patterns": [
+      "manual/verify-phase5-staging-immutable-parity.ps1"
+    ]
+  },
+  {
+    "id": "hosted-core",
+    "description": "Core externally visible verification surfaces.",
+    "suites": [
+      "browser-contract",
+      "cloud-only-staging",
+      "external-gates",
+      "hosted-staging",
+      "hosted-staging-smoke",
+      "phase1-runtime"
+    ]
+  },
+  {
+    "id": "release-candidate",
+    "description": "Release candidate gate bundle.",
+    "suites": [
+      "security",
+      "external-gates-with-tokens",
+      "phase5",
+      "hosted-staging",
+      "browser-contract"
+    ]
+  },
+  {
+    "id": "release",
+    "description": "Operator-facing release verification bundle.",
+    "suites": [
+      "security",
+      "hosted-core",
+      "phase5",
+      "observability"
+    ]
+  },
+  {
+    "id": "all",
+    "description": "All registered verification suites.",
+    "suites": [
+      "security",
+      "phase1",
+      "phase1-redis",
+      "phase1-runtime",
+      "browser-contract",
+      "cloud-only-staging",
+      "external-gates",
+      "external-gates-with-tokens",
+      "tooling-readiness",
+      "release-boundary",
+      "release-boundary-regression",
+      "hosted-staging-smoke",
+      "hosted-staging",
+      "autonomy",
+      "phase3",
+      "phase4",
+      "phase5"
+    ]
+  }
+]

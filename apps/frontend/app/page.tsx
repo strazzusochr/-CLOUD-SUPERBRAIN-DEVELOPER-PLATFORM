@@ -27,6 +27,216 @@ type AgentStatus = {
   updated_at?: string | null;
 };
 
+type AutonomousTeamMember = {
+  logical_role: string;
+  execution_agent_type: string;
+  task_id?: string | null;
+  latest_task_id?: string | null;
+  task_type?: string | null;
+  status: string;
+  latest_status?: string;
+  priority?: number | null;
+  priority_level?: string | null;
+  priority_queue?: string | null;
+  allowed_tools: string[];
+  planned_capabilities: string[];
+  write_scope: string[];
+  acceptance_criteria: string[];
+  human_review_required: boolean;
+  blocked_actions: string[];
+  current_status_source: string;
+  trace_id?: string | null;
+  request_id?: string | null;
+  correlation_evidence_ref?: string | null;
+  audit_feed_evidence_ref?: string | null;
+  latest_result?: string | null;
+  latest_error?: string | null;
+};
+
+type AutonomousTeamStatus = {
+  contract_version: string;
+  dispatch_contract_version: string;
+  team_mode: string;
+  runtime_source?: string;
+  status: string;
+  dispatch_id?: string | null;
+  project_id?: string | null;
+  session_id?: string | null;
+  objective?: string | null;
+  trace_id?: string | null;
+  request_id?: string | null;
+  correlation_evidence_ref?: string | null;
+  audit_feed_evidence_ref?: string | null;
+  queue_depth: number;
+  queue_depth_by_priority: Record<string, number>;
+  logical_roles: string[];
+  logical_to_execution_map: Record<string, string>;
+  external_runtime?: {
+    configured?: boolean;
+    provider?: string | null;
+    status?: string;
+    ready?: boolean;
+    agents?: string[];
+    error?: string | null;
+  };
+  runtime_pool_contract_version: string;
+  write_scope: string[];
+  acceptance_criteria: string[];
+  constraints: string[];
+  members: AutonomousTeamMember[];
+  non_claims: string[];
+};
+
+type AutonomousTaskDispatchContract = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  runtime_endpoint: string;
+  status_endpoint: string;
+  evidence_ref: string;
+  required_request_fields: string[];
+  required_response_fields: string[];
+  required_assignment_fields: string[];
+  required_logical_roles: string[];
+  logical_to_execution_map: Record<string, string>;
+  policy_version: string;
+  runtime_pool_contract_version: string;
+  defaults: {
+    write_scope: string[];
+    constraints: string[];
+    acceptance_criteria: string[];
+  };
+  non_claims: string[];
+};
+
+type AutonomousMasterPlanState = {
+  contract_version: string;
+  status: string;
+  endpoint: string;
+  source_document: string;
+  binding_document: string;
+  progress_manifest: string;
+  overall_percent: number;
+  integrity_status: string;
+  phase_percentages: Record<string, number>;
+  layer_percentages: Record<string, number>;
+  team_mode: string;
+  runtime_source?: string;
+  logical_roles: string[];
+  dispatch_endpoints: string[];
+  external_runtime_adapter?: {
+    configured?: boolean;
+    provider?: string | null;
+    status?: string;
+    ready?: boolean;
+    agents?: string[];
+    error?: string | null;
+  };
+  anchor_snapshot: string[];
+  next_concrete_steps: string[];
+  hard_constraints: string[];
+  running_containers: string[];
+  evidence_ref: string;
+  non_claims: string[];
+};
+
+type AutonomousMasterPlanContract = {
+  contract_version: string;
+  endpoint: string;
+  runtime_endpoint: string;
+  status_endpoint: string;
+  evidence_ref: string;
+  required_top_level_fields: string[];
+  required_logical_roles: string[];
+  required_dispatch_endpoints: string[];
+  required_documents: string[];
+  non_claims: string[];
+};
+
+type AutonomousAgentRosterRole = {
+  id: string;
+  slot?: string;
+  name?: string;
+  status?: string;
+  fallback_agent_types?: string[];
+  capabilities?: string[];
+  metadata?: {
+    blocker?: string;
+  };
+};
+
+type AutonomousAgentRosterState = {
+  contract_version: string;
+  status: string;
+  endpoint: string;
+  source_document: string;
+  source_path: string;
+  roster_version: string;
+  runtime_source: string;
+  operating_core: {
+    observed_concurrent_subagent_limit?: number;
+    default_live_mode?: {
+      description?: string;
+      live_slots?: string[];
+      parked_slot?: string;
+    };
+  };
+  startup_protocol: string[];
+  launcher_status: {
+    validated_startable?: string[];
+    attempted_and_blocked?: Record<string, string>;
+    attempted_and_unstable?: Record<string, string>;
+  };
+  role_count: number;
+  roles: AutonomousAgentRosterRole[];
+  runtime_bindings: {
+    langgraph?: {
+      status?: string;
+      transport?: string;
+      checkpointing?: string;
+      runtime_contract?: string;
+    };
+    crewai?: {
+      status?: string;
+      mode?: string;
+      reason?: string;
+    };
+    prometheus?: {
+      status?: string;
+      endpoint?: string;
+      contract_endpoint?: string;
+    };
+    grafana?: {
+      status?: string;
+      mode?: string;
+      reason?: string;
+    };
+    external_adapter?: {
+      configured?: boolean;
+      provider?: string | null;
+      status?: string;
+      ready?: boolean;
+      agents?: string[];
+      error?: string | null;
+    };
+  };
+  error?: string | null;
+  evidence_ref: string;
+  non_claims: string[];
+};
+
+type AutonomousAgentRosterContract = {
+  contract_version: string;
+  endpoint: string;
+  runtime_endpoint: string;
+  status_endpoint: string;
+  evidence_ref: string;
+  required_top_level_fields: string[];
+  required_runtime_binding_keys: string[];
+  required_documents: string[];
+  non_claims: string[];
+};
+
 type BudgetState = {
   total_cost_cents: number;
   budget_limit_cents: number;
@@ -1047,7 +1257,16 @@ type LlmGatewayState = {
   service: string;
   mode: string;
   live_provider_calls: boolean;
+  live_provider_calls_available?: boolean;
   openai_compatible: boolean;
+  open_source_first?: boolean;
+  hf_router?: {
+    available: boolean;
+    provider: string;
+    upstream_base_url: string;
+    default_model: string;
+    model_downloads: boolean;
+  };
   routing_resolver: boolean;
   provider_health: boolean;
   streaming_sse: boolean;
@@ -1063,10 +1282,12 @@ type LlmGatewayState = {
 type LlmRoutingResolution = {
   mode: string;
   live_provider_calls: boolean;
+  live_provider_calls_available?: boolean;
   agent_type: string;
   task_type: string;
   selected_model: string;
   selected_provider: string;
+  selected_model_family?: string;
   reason: string;
   fallback_chain: string[];
   provider_chain: string[];
@@ -1080,6 +1301,7 @@ type LlmRoutingResolution = {
     status: string;
     live_verified: boolean;
     live_provider_calls: boolean;
+    live_provider_calls_available?: boolean;
     non_claim: string;
   };
 };
@@ -1093,10 +1315,14 @@ type LlmProviderSnapshot = {
     status: string;
     live_verified: boolean;
     live_provider_calls: boolean;
-    models: string[];
-    backoff_seconds: number[];
-    reset_after_seconds: number;
-    non_claim: string;
+    live_provider_calls_available?: boolean;
+    models?: string[];
+    configured_models?: string[];
+    visible_models_sample?: string[];
+    model_count_visible?: number;
+    backoff_seconds?: number[];
+    reset_after_seconds?: number;
+    non_claim?: string;
   }>;
 };
 
@@ -1284,6 +1510,10 @@ function listText(value: unknown) {
   return Array.isArray(value) && value.length ? value.map((item) => String(item)).join("; ") : null;
 }
 
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((item) => String(item)) : [];
+}
+
 function escalationDetail(event: AuditEvent) {
   const details = event.details;
   const contract = recordValue(details.contract);
@@ -1361,6 +1591,16 @@ export default function Home() {
   const [systemFallbackContract, setSystemFallbackContract] = useState<SystemFallbackContract | null>(null);
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [agents, setAgents] = useState<AgentStatus[]>(defaultAgents);
+  const [autonomousTeam, setAutonomousTeam] = useState<AutonomousTeamStatus | null>(null);
+  const [autonomousDispatchContract, setAutonomousDispatchContract] = useState<AutonomousTaskDispatchContract | null>(
+    null,
+  );
+  const [autonomousMasterPlan, setAutonomousMasterPlan] = useState<AutonomousMasterPlanState | null>(null);
+  const [autonomousMasterPlanContract, setAutonomousMasterPlanContract] =
+    useState<AutonomousMasterPlanContract | null>(null);
+  const [autonomousAgentRoster, setAutonomousAgentRoster] = useState<AutonomousAgentRosterState | null>(null);
+  const [autonomousAgentRosterContract, setAutonomousAgentRosterContract] =
+    useState<AutonomousAgentRosterContract | null>(null);
   const [lastRun, setLastRun] = useState<PromptResponse | null>(null);
   const [memoryResults, setMemoryResults] = useState<MemoryResult[]>([]);
   const [memoryDeleteStatus, setMemoryDeleteStatus] = useState("No memory entry delete requested.");
@@ -1657,6 +1897,42 @@ export default function Home() {
     setAgents(payload.agents ?? defaultAgents);
   }
 
+  async function loadAutonomousTeamStatus() {
+    const response = await fetch("/api/v1/team/status", { cache: "no-store" });
+    if (!response.ok) throw new Error(`autonomous team ${response.status}`);
+    setAutonomousTeam(await response.json());
+  }
+
+  async function loadAutonomousDispatchContract() {
+    const response = await fetch("/api/v1/task/dispatch/contract", { cache: "no-store" });
+    if (!response.ok) throw new Error(`autonomous dispatch contract ${response.status}`);
+    setAutonomousDispatchContract(await response.json());
+  }
+
+  async function loadAutonomousMasterPlan() {
+    const response = await fetch("/api/v1/team/master-plan", { cache: "no-store" });
+    if (!response.ok) throw new Error(`autonomous master plan ${response.status}`);
+    setAutonomousMasterPlan(await response.json());
+  }
+
+  async function loadAutonomousMasterPlanContract() {
+    const response = await fetch("/api/v1/team/master-plan/contract", { cache: "no-store" });
+    if (!response.ok) throw new Error(`autonomous master plan contract ${response.status}`);
+    setAutonomousMasterPlanContract(await response.json());
+  }
+
+  async function loadAutonomousAgentRoster() {
+    const response = await fetch("/api/v1/team/roster", { cache: "no-store" });
+    if (!response.ok) throw new Error(`autonomous agent roster ${response.status}`);
+    setAutonomousAgentRoster(await response.json());
+  }
+
+  async function loadAutonomousAgentRosterContract() {
+    const response = await fetch("/api/v1/team/roster/contract", { cache: "no-store" });
+    if (!response.ok) throw new Error(`autonomous agent roster contract ${response.status}`);
+    setAutonomousAgentRosterContract(await response.json());
+  }
+
   async function loadRecentSessions() {
     const response = await fetch("/api/v1/sessions/recent?limit=6", { cache: "no-store" });
     if (!response.ok) throw new Error(`sessions ${response.status}`);
@@ -1896,6 +2172,12 @@ export default function Home() {
         loadHealth(),
         loadSystemFallbackContract(),
         loadAgents(),
+        loadAutonomousTeamStatus(),
+        loadAutonomousDispatchContract(),
+        loadAutonomousMasterPlan(),
+        loadAutonomousMasterPlanContract(),
+        loadAutonomousAgentRoster(),
+        loadAutonomousAgentRosterContract(),
         loadRecentTasks(),
         loadTaskPolicy(),
         loadRotationEvents(),
@@ -2038,6 +2320,9 @@ export default function Home() {
       loadHealth,
       loadSystemFallbackContract,
       loadAgents,
+      loadAutonomousTeamStatus,
+      loadAutonomousMasterPlan,
+      loadAutonomousAgentRoster,
       loadRecentTasks,
       loadProjectProgress,
       loadProjectProgressIntegrity,
@@ -2067,6 +2352,9 @@ export default function Home() {
       loadRequestIdContract,
       loadLayerInterfaceContract,
       loadTaskAssignmentContract,
+      loadAutonomousDispatchContract,
+      loadAutonomousMasterPlanContract,
+      loadAutonomousAgentRosterContract,
       loadAgentLlmStreamingContract,
       loadExternalGates,
       loadExternalGateMirror,
@@ -2092,6 +2380,9 @@ export default function Home() {
     const liveLoads: Array<() => Promise<unknown>> = [
       loadHealth,
       loadAgents,
+      loadAutonomousTeamStatus,
+      loadAutonomousMasterPlan,
+      loadAutonomousAgentRoster,
       loadRecentTasks,
       loadRecentSessions,
       loadProjectProgress,
@@ -2201,6 +2492,59 @@ export default function Home() {
     audit_feed_visibility: "request_id_audit_feed_visible",
     ui_visible: "request_id_ui_visible",
   };
+  const projectProgressMismatches = stringList(projectProgressIntegrity?.mismatches);
+  const projectProgressHardBlockers = stringList(projectProgressCompletion?.hard_blockers);
+  const horizontalProgressItems = Array.isArray(projectProgress?.horizontal?.items)
+    ? projectProgress.horizontal.items
+    : [];
+  const verticalProgressItems = Array.isArray(projectProgress?.vertical?.items) ? projectProgress.vertical.items : [];
+  const agentActivityLangfuse = agentActivityContract?.langfuse;
+  const agentActivitySourceEndpoints = stringList(agentActivityContract?.source_endpoints);
+  const agentActivityFilters = stringList(agentActivityContract?.filters);
+  const agentActivityNonClaims = stringList(agentActivityContract?.non_claims);
+  const agentActivityEvidenceRefs = agentActivityContract?.evidence_refs ?? {
+    contract_visible: "agent_activity_contract_visible",
+    trace_link_template: "agent_activity_trace_link_template",
+    auth_proxy_required: "langfuse_auth_proxy_required",
+    filtered_feed: "agent_activity_filtered_feed_visible",
+    per_role_results: "agent_activity_per_role_results_visible",
+  };
+  const mcpGateway = mcpVersionPinningContract?.gateway;
+  const mcpPinnedDependencies = Array.isArray(mcpVersionPinningContract?.pinned_dependencies)
+    ? mcpVersionPinningContract.pinned_dependencies
+    : [
+        { name: "fastapi", version: "0.115.8", pin: "fastapi==0.115.8" },
+        { name: "uvicorn[standard]", version: "0.34.0", pin: "uvicorn[standard]==0.34.0" },
+        { name: "pydantic", version: "2.10.6", pin: "pydantic==2.10.6" },
+      ];
+  const mcpPinnedToolContracts = Array.isArray(mcpVersionPinningContract?.pinned_tool_contracts)
+    ? mcpVersionPinningContract.pinned_tool_contracts
+    : [
+        { toolset: "github", capability: "plan_branch_pr", contract_version: "github-branch-pr-plan-v1", endpoint: "", live_mutation: false },
+        { toolset: "postgresql", capability: "query_readonly", contract_version: "postgresql-readonly-query-v1", endpoint: "", live_mutation: false },
+        { toolset: "filesystem", capability: "plan_workspace_access", contract_version: "filesystem-workspace-scope-v1", endpoint: "", live_mutation: false },
+        { toolset: "playwright", capability: "plan_browser_proof", contract_version: "playwright-browser-proof-v1", endpoint: "", live_mutation: false },
+        { toolset: "e2b", capability: "plan_sandbox_lifecycle", contract_version: "e2b-sandbox-lifecycle-v1", endpoint: "", live_mutation: false },
+      ];
+  const mcpRequestContract = recordValue(mcpVersionPinningContract?.request_contract) ?? {
+    model: "ToolRequest",
+    session_id: "uuid-or-null",
+    retry_budget: "0..2",
+  };
+  const mcpDriftPolicy = stringList(mcpVersionPinningContract?.drift_policy);
+  const mcpEvidenceRefs = stringList(mcpVersionPinningContract?.evidence_refs);
+  const mcpNonClaims = stringList(mcpVersionPinningContract?.non_claims);
+  const memoryCurrentEmbedding = memoryEmbeddingConsistencyContract?.current_embedding;
+  const memorySchema = memoryEmbeddingConsistencyContract?.schema;
+  const memoryReadPolicy = recordValue(memoryEmbeddingConsistencyContract?.read_policy);
+  const memoryReembeddingPolicy = memoryEmbeddingConsistencyContract?.reembedding_policy;
+  const memoryExpectedColumns = recordValue(memorySchema?.expected_columns) ?? {
+    content_embedding: "vector(1536)",
+    embedding_model_version: "character varying(100)",
+  };
+  const memoryRequiredSteps = stringList(memoryReembeddingPolicy?.required_steps);
+  const memoryEvidenceRefs = stringList(memoryEmbeddingConsistencyContract?.evidence_refs);
+  const memoryNonClaims = stringList(memoryEmbeddingConsistencyContract?.non_claims);
 
   return (
     <main className="shell">
@@ -2227,9 +2571,9 @@ export default function Home() {
             />
             <small>
               Prompt Input Guard · {prompt.length}/{promptContract?.max_prompt_chars ?? 10_000} ·{" "}
-              {promptContract?.evidence_refs.contract_visible ?? "prompt_input_contract_visible"} /{" "}
-              {promptContract?.evidence_refs.frontend_counter_visible ?? "prompt_input_counter_visible"} /{" "}
-              {promptContract?.evidence_refs.overflow_blocked ?? "prompt_input_422_enforced"}
+              {promptContract?.evidence_refs?.contract_visible ?? "prompt_input_contract_visible"} /{" "}
+              {promptContract?.evidence_refs?.frontend_counter_visible ?? "prompt_input_counter_visible"} /{" "}
+              {promptContract?.evidence_refs?.overflow_blocked ?? "prompt_input_422_enforced"}
             </small>
           </label>
           <div className="actions">
@@ -2269,7 +2613,7 @@ export default function Home() {
               <strong>{errorEvidenceRefs.ui_error_state}</strong>
             </div>
           </div>
-          <p className="muted">
+          <p className="muted evidenceLine">
             Evidence: {errorEvidenceRefs.contract_visible} / {errorEvidenceRefs.validation_error_blocked} /{" "}
             {errorEvidenceRefs.rate_limit_error_blocked} / {errorEvidenceRefs.ui_error_state} /{" "}
             {errorEvidenceRefs.envelope_enforced}
@@ -2331,7 +2675,7 @@ export default function Home() {
               <strong>{degradedServices.length}</strong>
             </div>
           </div>
-          <p className="muted">
+          <p className="muted evidenceLine">
             Evidence: {fallbackEvidenceRefs.contract_visible} / {fallbackEvidenceRefs.unavailable_state} /{" "}
             {fallbackEvidenceRefs.degraded_service}
           </p>
@@ -2387,7 +2731,7 @@ export default function Home() {
               <strong>{securityHeaderEvidenceRefs.ui_visible}</strong>
             </div>
           </div>
-          <p className="muted">
+          <p className="muted evidenceLine">
             Evidence: {securityHeaderEvidenceRefs.contract_visible} / {securityHeaderEvidenceRefs.headers_enforced} /{" "}
             {securityHeaderEvidenceRefs.same_origin_cors_policy} / {securityHeaderEvidenceRefs.ui_visible}
           </p>
@@ -2437,7 +2781,7 @@ export default function Home() {
               <strong>{traceIdEvidenceRefs.ui_visible}</strong>
             </div>
           </div>
-          <p className="muted">
+          <p className="muted evidenceLine">
             Evidence: {traceIdEvidenceRefs.contract_visible} / {traceIdEvidenceRefs.header_roundtrip} /{" "}
             {traceIdEvidenceRefs.generated_trace_visible} / {traceIdEvidenceRefs.ui_visible}
           </p>
@@ -2477,7 +2821,7 @@ export default function Home() {
               <strong>{cacheControlEvidenceRefs.ui_visible}</strong>
             </div>
           </div>
-          <p className="muted">
+          <p className="muted evidenceLine">
             Evidence: {cacheControlEvidenceRefs.contract_visible} / {cacheControlEvidenceRefs.headers_enforced} /{" "}
             {cacheControlEvidenceRefs.sensitive_payload_no_store} / {cacheControlEvidenceRefs.ui_visible}
           </p>
@@ -2527,7 +2871,7 @@ export default function Home() {
               <strong>{requestIdEvidenceRefs.ui_visible}</strong>
             </div>
           </div>
-          <p className="muted">
+          <p className="muted evidenceLine">
             Evidence: {requestIdEvidenceRefs.contract_visible} / {requestIdEvidenceRefs.header_roundtrip} /{" "}
             {requestIdEvidenceRefs.error_envelope_correlation} / {requestIdEvidenceRefs.audit_correlation} /{" "}
             {requestIdEvidenceRefs.audit_feed_visibility} / {requestIdEvidenceRefs.ui_visible}
@@ -2682,7 +3026,7 @@ export default function Home() {
               </p>
             </article>
           </div>
-          <p className="muted">
+          <p className="muted evidenceLine">
             Evidence:{" "}
             {(taskAssignmentContract?.evidence_refs ?? [
               "task_assignment_queue_contract_visible",
@@ -2777,7 +3121,7 @@ export default function Home() {
               "The Agent executor records stream_done_seen=true before claiming streaming completion.",
             ]).join(" / ")}
           </p>
-          <p className="muted">
+          <p className="muted evidenceLine">
             Evidence:{" "}
             {(agentLlmStreamingContract?.evidence_refs ?? [
               "agent_llm_streaming_contract_visible",
@@ -2843,8 +3187,8 @@ export default function Home() {
               <strong>{projectProgressIntegrity?.evidence_ref ?? "project_progress_integrity_runtime_proof"}</strong>
             </div>
             <p>
-              {projectProgressIntegrity?.mismatches.length
-                ? `Blocked: ${projectProgressIntegrity.mismatches.join(", ")}`
+              {projectProgressMismatches.length
+                ? `Blocked: ${projectProgressMismatches.join(", ")}`
                 : projectProgressIntegrity?.contract_version ?? "project-progress-integrity-v1"}
             </p>
           </div>
@@ -2866,8 +3210,8 @@ export default function Home() {
               <strong>{projectProgressCompletion?.evidence_ref ?? "project_progress_100_percent_gate_contract"}</strong>
             </div>
             <p>
-              {projectProgressCompletion?.hard_blockers?.length
-                ? `Blocked by ${projectProgressCompletion.hard_blockers.slice(0, 4).join(", ")}`
+              {projectProgressHardBlockers.length
+                ? `Blocked by ${projectProgressHardBlockers.slice(0, 4).join(", ")}`
                 : "Completion gate loading."}
             </p>
           </div>
@@ -2875,7 +3219,8 @@ export default function Home() {
             <section aria-label="Horizontal phase progress">
               <h3>Horizontal Phases</h3>
               <div className="horizontalProgress">
-                {projectProgress?.horizontal.items.map((item) => (
+                {horizontalProgressItems.length ? (
+                  horizontalProgressItems.map((item) => (
                   <article className="progressRow" key={item.id}>
                     <div>
                       <strong>{item.label}</strong>
@@ -2886,13 +3231,17 @@ export default function Home() {
                     </div>
                     <small title={item.status}>{compactProgressStatus(item.status)}</small>
                   </article>
-                )) ?? <p className="muted">Phase progress loading.</p>}
+                  ))
+                ) : (
+                  <p className="muted">Phase progress loading.</p>
+                )}
               </div>
             </section>
             <section aria-label="Vertical architecture progress">
               <h3>Vertical Layers</h3>
               <div className="verticalProgress">
-                {projectProgress?.vertical.items.map((item) => (
+                {verticalProgressItems.length ? (
+                  verticalProgressItems.map((item) => (
                   <article className="verticalItem" key={item.id}>
                     <strong>{item.percent}%</strong>
                     <div className="verticalLayerHeader">
@@ -2903,7 +3252,10 @@ export default function Home() {
                     </div>
                     <small title={item.status}>{compactProgressStatus(item.status)}</small>
                   </article>
-                )) ?? <p className="muted">Layer progress loading.</p>}
+                  ))
+                ) : (
+                  <p className="muted">Layer progress loading.</p>
+                )}
               </div>
             </section>
           </div>
@@ -2934,6 +3286,267 @@ export default function Home() {
               {agent.latest_error ? <small className="agentError">{agent.latest_error}</small> : null}
             </article>
           ))}
+        </section>
+
+        <section className="panel taskPanel" aria-label="Autonomous coding team">
+          <header className="panelHeader">
+            <h2>Autonomous Coding Team</h2>
+            <button
+              type="button"
+              onClick={() => void Promise.all([loadAutonomousTeamStatus(), loadAutonomousDispatchContract()])}
+            >
+              Refresh
+            </button>
+          </header>
+          <div className="taskSummary">
+            <span>Status</span>
+            <strong>{autonomousTeam?.status ?? "loading"}</strong>
+            <small>
+              {(autonomousTeam?.team_mode ?? "logical team mode loading") +
+                " | runtime " +
+                (autonomousTeam?.runtime_source ?? "loading")}
+            </small>
+          </div>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>Dispatch</strong>
+              <p>{autonomousTeam?.dispatch_id ?? "No dispatch recorded yet."}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Objective</strong>
+              <p>{autonomousTeam?.objective ?? "Awaiting first autonomous dispatch."}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Queue</strong>
+              <p>
+                depth {autonomousTeam?.queue_depth ?? 0} | high {autonomousTeam?.queue_depth_by_priority?.high ?? 0} |
+                mid {autonomousTeam?.queue_depth_by_priority?.mid ?? 0} | low{" "}
+                {autonomousTeam?.queue_depth_by_priority?.low ?? 0}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Runtime Contract</strong>
+              <p>{autonomousDispatchContract?.runtime_pool_contract_version ?? "Loading runtime pool contract."}</p>
+            </article>
+            <article className="policyItem">
+              <strong>External Adapter</strong>
+              <p>
+                {autonomousTeam?.external_runtime?.provider ?? "none"} |{" "}
+                {autonomousTeam?.external_runtime?.status ?? "disabled"}
+              </p>
+            </article>
+          </div>
+          <div className="modelList compactList">
+            {autonomousTeam?.members?.length ? (
+              autonomousTeam.members.map((member) => {
+                const allowedTools = stringList(member.allowed_tools);
+                const plannedCapabilities = stringList(member.planned_capabilities);
+                const writeScope = stringList(member.write_scope);
+                return (
+                  <article className="modelItem" key={member.logical_role}>
+                    <strong>
+                      {member.logical_role} -&gt; {member.execution_agent_type}
+                    </strong>
+                    <small>
+                      {member.latest_status ?? member.status} | priority {member.priority ?? "n/a"} | queue{" "}
+                      {member.priority_level ?? "n/a"}
+                    </small>
+                    <small>Task: {member.task_type ?? "none"}</small>
+                    <small>ID: {member.latest_task_id ?? member.task_id ?? "none"}</small>
+                    <small>Tools: {allowedTools.length ? allowedTools.join(", ") : "none"}</small>
+                    <small>
+                      Capabilities: {plannedCapabilities.length ? plannedCapabilities.join(", ") : "none"}
+                    </small>
+                    <small>Write scope: {writeScope.length ? writeScope.join(", ") : "read-only"}</small>
+                    <small>Trace: {member.trace_id ?? "none"}</small>
+                    <small>Request: {member.request_id ?? "none"}</small>
+                    {member.latest_result ? <small>{member.latest_result}</small> : null}
+                    {member.latest_error ? <small className="agentError">{member.latest_error}</small> : null}
+                  </article>
+                );
+              })
+            ) : (
+              <p className="muted">Autonomous team status not loaded yet.</p>
+            )}
+          </div>
+          <small>
+            Contract: {autonomousTeam?.contract_version ?? "loading"} / dispatch{" "}
+            {autonomousTeam?.dispatch_contract_version ?? autonomousDispatchContract?.contract_version ?? "loading"}
+          </small>
+        </section>
+
+        <section className="panel taskPanel" aria-label="Autonomous master plan">
+          <header className="panelHeader">
+            <h2>Autonomous Master Plan</h2>
+            <button
+              type="button"
+              onClick={() => void Promise.all([loadAutonomousMasterPlan(), loadAutonomousMasterPlanContract()])}
+            >
+              Refresh
+            </button>
+          </header>
+          <div className="taskSummary">
+            <span>Status</span>
+            <strong>{autonomousMasterPlan?.status ?? "loading"}</strong>
+            <small>
+              {(autonomousMasterPlan?.source_document ?? "master plan source loading") +
+                " | runtime " +
+                (autonomousMasterPlan?.runtime_source ?? "loading")}
+            </small>
+          </div>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>Overall</strong>
+              <p>{autonomousMasterPlan?.overall_percent ?? 0}%</p>
+            </article>
+            <article className="policyItem">
+              <strong>Integrity</strong>
+              <p>{autonomousMasterPlan?.integrity_status ?? "loading"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Binding Document</strong>
+              <p>{autonomousMasterPlan?.binding_document ?? "loading"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Contract</strong>
+              <p>{autonomousMasterPlanContract?.contract_version ?? autonomousMasterPlan?.contract_version ?? "loading"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>External Adapter</strong>
+              <p>
+                {autonomousMasterPlan?.external_runtime_adapter?.provider ?? "none"} |{" "}
+                {autonomousMasterPlan?.external_runtime_adapter?.status ?? "disabled"}
+              </p>
+            </article>
+          </div>
+          <div className="modelList compactList">
+            <article className="modelItem">
+              <strong>Next Concrete Steps</strong>
+              {autonomousMasterPlan?.next_concrete_steps?.length ? (
+                autonomousMasterPlan.next_concrete_steps.map((step) => <small key={step}>{step}</small>)
+              ) : (
+                <small>Next steps loading.</small>
+              )}
+            </article>
+            <article className="modelItem">
+              <strong>Hard Constraints</strong>
+              {autonomousMasterPlan?.hard_constraints?.length ? (
+                autonomousMasterPlan.hard_constraints.map((constraint) => <small key={constraint}>{constraint}</small>)
+              ) : (
+                <small>Constraints loading.</small>
+              )}
+            </article>
+            <article className="modelItem">
+              <strong>Running Containers</strong>
+              {autonomousMasterPlan?.running_containers?.length ? (
+                autonomousMasterPlan.running_containers.map((container) => <small key={container}>{container}</small>)
+              ) : (
+                <small>Container state loading.</small>
+              )}
+            </article>
+            <article className="modelItem">
+              <strong>Roles</strong>
+              <small>{autonomousMasterPlan?.logical_roles?.join(", ") ?? "loading"}</small>
+              <small>{autonomousMasterPlan?.dispatch_endpoints?.join(" | ") ?? "dispatch endpoints loading"}</small>
+            </article>
+          </div>
+        </section>
+
+        <section className="panel taskPanel" aria-label="Persisted agent roster">
+          <header className="panelHeader">
+            <h2>Persisted Agent Roster</h2>
+            <button
+              type="button"
+              onClick={() => void Promise.all([loadAutonomousAgentRoster(), loadAutonomousAgentRosterContract()])}
+            >
+              Refresh
+            </button>
+          </header>
+          <div className="taskSummary">
+            <span>Status</span>
+            <strong>{autonomousAgentRoster?.status ?? "loading"}</strong>
+            <small>
+              {(autonomousAgentRoster?.source_document ?? "roster source loading") +
+                " | runtime " +
+                (autonomousAgentRoster?.runtime_source ?? "loading")}
+            </small>
+          </div>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>Role Count</strong>
+              <p>{autonomousAgentRoster?.role_count ?? 0}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Live Slots</strong>
+              <p>{autonomousAgentRoster?.operating_core?.default_live_mode?.live_slots?.join(", ") ?? "loading"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Parked Slot</strong>
+              <p>{autonomousAgentRoster?.operating_core?.default_live_mode?.parked_slot ?? "loading"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Contract</strong>
+              <p>{autonomousAgentRosterContract?.contract_version ?? autonomousAgentRoster?.contract_version ?? "loading"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Bindings</strong>
+              <p>
+                LangGraph {autonomousAgentRoster?.runtime_bindings?.langgraph?.status ?? "loading"} | CrewAI{" "}
+                {autonomousAgentRoster?.runtime_bindings?.crewai?.status ?? "loading"} | Prometheus{" "}
+                {autonomousAgentRoster?.runtime_bindings?.prometheus?.status ?? "loading"}
+              </p>
+            </article>
+          </div>
+          <div className="modelList compactList">
+            <article className="modelItem">
+              <strong>Validated Startable</strong>
+              {(autonomousAgentRoster?.launcher_status?.validated_startable?.length
+                ? autonomousAgentRoster.launcher_status.validated_startable
+                : ["loading"]).map((item) => (
+                <small key={item}>{item}</small>
+              ))}
+            </article>
+            <article className="modelItem">
+              <strong>Runtime Bindings</strong>
+              <small>
+                LangGraph: {autonomousAgentRoster?.runtime_bindings?.langgraph?.transport ?? "loading"} /{" "}
+                {autonomousAgentRoster?.runtime_bindings?.langgraph?.checkpointing ?? "loading"}
+              </small>
+              <small>
+                Prometheus: {autonomousAgentRoster?.runtime_bindings?.prometheus?.endpoint ?? "loading"}
+              </small>
+              <small>
+                External Adapter: {autonomousAgentRoster?.runtime_bindings?.external_adapter?.provider ?? "none"} |{" "}
+                {autonomousAgentRoster?.runtime_bindings?.external_adapter?.status ?? "disabled"}
+              </small>
+              {autonomousAgentRoster?.runtime_bindings?.external_adapter?.agents?.length ? (
+                <small>
+                  External Agents: {autonomousAgentRoster.runtime_bindings.external_adapter.agents.join(", ")}
+                </small>
+              ) : null}
+            </article>
+            <article className="modelItem">
+              <strong>Startup Protocol</strong>
+              {autonomousAgentRoster?.startup_protocol?.length ? (
+                autonomousAgentRoster.startup_protocol.map((step) => <small key={step}>{step}</small>)
+              ) : (
+                <small>Startup protocol loading.</small>
+              )}
+            </article>
+            <article className="modelItem">
+              <strong>Persisted Roles</strong>
+              {autonomousAgentRoster?.roles?.length ? (
+                autonomousAgentRoster.roles.slice(0, 8).map((role) => (
+                  <small key={role.id}>
+                    {role.id}: {role.status ?? "unknown"}
+                    {role.metadata?.blocker ? ` | ${role.metadata.blocker}` : ""}
+                  </small>
+                ))
+              ) : (
+                <small>Role roster loading.</small>
+              )}
+            </article>
+          </div>
         </section>
 
         <section className="panel taskPanel" aria-label="Task queue">
@@ -3004,11 +3617,11 @@ export default function Home() {
             </div>
             <div>
               <span>Blocked actions</span>
-              <strong>{taskPolicy?.required_blocked_actions.length ?? "loading"}</strong>
+              <strong>{taskPolicy ? stringList(taskPolicy.required_blocked_actions).length : "loading"}</strong>
             </div>
             <div>
               <span>Allowed tools</span>
-              <strong>{taskPolicy?.allowed_tools.length ?? "loading"}</strong>
+              <strong>{taskPolicy ? stringList(taskPolicy.allowed_tools).length : "loading"}</strong>
             </div>
             <div>
               <span>Profile gates</span>
@@ -3018,19 +3631,25 @@ export default function Home() {
           <div className="policyGrid">
             <article className="policyItem">
               <strong>Required Blocks</strong>
-              <p>{taskPolicy?.required_blocked_actions.join(", ") ?? "Loading policy blocks."}</p>
+              <p>
+                {taskPolicy
+                  ? stringList(taskPolicy.required_blocked_actions).join(", ") || "none"
+                  : "Loading policy blocks."}
+              </p>
             </article>
             <article className="policyItem">
               <strong>Allowed Tools</strong>
-              <p>{taskPolicy?.allowed_tools.join(", ") ?? "Loading tool allowlist."}</p>
+              <p>
+                {taskPolicy ? stringList(taskPolicy.allowed_tools).join(", ") || "none" : "Loading tool allowlist."}
+              </p>
             </article>
             <article className="policyItem">
               <strong>Write Scope Rule</strong>
               <p>
                 {taskPolicy
-                  ? `${taskPolicy.write_scope_required_for.agent_type} tasks using ${taskPolicy.write_scope_required_for.tools.join(
+                  ? `${taskPolicy.write_scope_required_for?.agent_type ?? "write-scoped"} tasks using ${stringList(taskPolicy.write_scope_required_for?.tools).join(
                       ", ",
-                    )} require explicit write_scope.`
+                    ) || "write tools"} require explicit write_scope.`
                   : "Loading write-scope rule."}
               </p>
             </article>
@@ -3051,8 +3670,8 @@ export default function Home() {
                   <small>
                     {gate.max_retries} retries | {gate.max_execution_seconds}s max
                   </small>
-                  <small>Tools: {gate.allowed_tools.join(", ")}</small>
-                  <small>Human gates: {gate.human_review_required_actions.join(", ")}</small>
+                  <small>Tools: {stringList(gate.allowed_tools).join(", ") || "none"}</small>
+                  <small>Human gates: {stringList(gate.human_review_required_actions).join(", ") || "none"}</small>
                 </article>
               ))}
             </div>
@@ -3107,20 +3726,23 @@ export default function Home() {
           </div>
           <div className="modelList">
             {modelCapabilities?.routes?.length ? (
-              modelCapabilities.routes.map((route) => (
-                <article className="modelItem" key={route.agent_type}>
-                  <div>
-                    <strong>{route.agent_type}</strong>
-                    <span>{route.cost_tier}</span>
-                  </div>
-                  <p>{route.primary}</p>
-                  <small>Fallbacks: {route.fallbacks.join(" -> ")}</small>
-                  <small>Max output: {route.max_output_tokens}</small>
-                  <small>Memory budget: {route.memory_injection_budget_percent}%</small>
-                  <small>{route.supports_streaming ? "Streaming ready" : "No streaming"}</small>
-                  <small>{route.configured_only ? "Configured only" : "Live verified"}</small>
-                </article>
-              ))
+              modelCapabilities.routes.map((route) => {
+                const fallbacks = stringList(route.fallbacks);
+                return (
+                  <article className="modelItem" key={route.agent_type}>
+                    <div>
+                      <strong>{route.agent_type}</strong>
+                      <span>{route.cost_tier}</span>
+                    </div>
+                    <p>{route.primary}</p>
+                    <small>Fallbacks: {fallbacks.length ? fallbacks.join(" -> ") : "none"}</small>
+                    <small>Max output: {route.max_output_tokens}</small>
+                    <small>Memory budget: {route.memory_injection_budget_percent}%</small>
+                    <small>{route.supports_streaming ? "Streaming ready" : "No streaming"}</small>
+                    <small>{route.configured_only ? "Configured only" : "Live verified"}</small>
+                  </article>
+                );
+              })
             ) : (
               <p className="muted">Model routes loading.</p>
             )}
@@ -3148,8 +3770,8 @@ export default function Home() {
               <p>{llmGateway?.live_provider_calls ? "live provider calls active" : "live_provider_calls=false"}</p>
             </article>
             <article className="policyItem">
-              <strong>OpenAI Contract</strong>
-              <p>{llmGateway?.openai_compatible ? "compatible endpoints exposed" : "loading"}</p>
+              <strong>HF Router Contract</strong>
+              <p>{llmGateway?.hf_router?.available ? "HF router verified" : "router pending"}</p>
             </article>
             <article className="policyItem">
               <strong>Routing Resolver</strong>
@@ -3216,18 +3838,23 @@ export default function Home() {
           </p>
           <div className="modelList">
             {llmGateway?.provider_snapshot?.providers?.length ? (
-              llmGateway.provider_snapshot.providers.map((provider) => (
-                <article className="modelItem" key={provider.provider}>
-                  <div>
-                    <strong>{provider.provider}</strong>
-                    <span>{provider.status}</span>
-                  </div>
-                  <small>Models: {provider.models.join(", ")}</small>
-                  <small>Backoff: {provider.backoff_seconds.join("s -> ")}s</small>
-                  <small>Reset: {provider.reset_after_seconds}s</small>
-                  <small>{provider.non_claim}</small>
-                </article>
-              ))
+              llmGateway.provider_snapshot.providers.map((provider) => {
+                const providerModels = provider.configured_models ?? provider.models ?? provider.visible_models_sample ?? [];
+                const backoffSeconds = provider.backoff_seconds ?? [];
+                return (
+                  <article className="modelItem" key={provider.provider}>
+                    <div>
+                      <strong>{provider.provider}</strong>
+                      <span>{provider.status}</span>
+                    </div>
+                    <small>Models: {providerModels.length ? providerModels.join(", ") : "not advertised"}</small>
+                    <small>Visible via router: {provider.model_count_visible ?? "unknown"}</small>
+                    <small>Backoff: {backoffSeconds.length ? `${backoffSeconds.join("s -> ")}s` : "not required"}</small>
+                    <small>Reset: {provider.reset_after_seconds ?? "not required"}</small>
+                    <small>{provider.non_claim ?? "Provider health is loaded from the current gateway snapshot."}</small>
+                  </article>
+                );
+              })
             ) : (
               <p className="muted">Provider health snapshot loading.</p>
             )}
@@ -3382,34 +4009,30 @@ export default function Home() {
             </div>
             <div>
               <span>Langfuse</span>
-              <strong>{agentActivityContract?.langfuse.public_url_configured ? "configured" : "auth proxy required"}</strong>
+              <strong>{agentActivityLangfuse?.public_url_configured ? "configured" : "auth proxy required"}</strong>
             </div>
             <div>
               <span>Sources</span>
-              <strong>{agentActivityContract?.source_endpoints.length ?? "loading"}</strong>
+              <strong>{agentActivityContract ? agentActivitySourceEndpoints.length : "loading"}</strong>
             </div>
           </div>
           <div className="policyGrid">
             <article className="policyItem">
               <strong>Trace Deep-Link</strong>
-              <p>{agentActivityContract?.langfuse.deep_link_template ?? "/observability/langfuse/trace/{trace_id}"}</p>
+              <p>{agentActivityLangfuse?.deep_link_template ?? "/observability/langfuse/trace/{trace_id}"}</p>
               <small>Evidence: agent_activity_trace_link_template / langfuse_auth_proxy_required</small>
             </article>
             <article className="policyItem">
               <strong>Source Endpoints</strong>
-              <p>{agentActivityContract?.source_endpoints.join(" / ") ?? "GET /api/v1/audit/recent?limit=50"}</p>
+              <p>{agentActivitySourceEndpoints.length ? agentActivitySourceEndpoints.join(" / ") : "GET /api/v1/audit/recent?limit=50"}</p>
             </article>
             <article className="policyItem">
               <strong>Filters</strong>
-              <p>{agentActivityContract?.filters.join(", ") ?? "agent_type, event_type, severity, time_range, trace_id"}</p>
+              <p>{agentActivityFilters.length ? agentActivityFilters.join(", ") : "agent_type, event_type, severity, time_range, trace_id"}</p>
             </article>
             <article className="policyItem">
               <strong>Evidence</strong>
-              <p>
-                {agentActivityContract
-                  ? Object.values(agentActivityContract.evidence_refs).join(" / ")
-                  : "agent_activity_contract_visible / agent_activity_trace_link_template / langfuse_auth_proxy_required / agent_activity_filtered_feed_visible / agent_activity_per_role_results_visible"}
-              </p>
+              <p>{Object.values(agentActivityEvidenceRefs).join(" / ")}</p>
             </article>
             <article className="policyItem perRoleSummaryContract">
               <strong>Per-role Summaries</strong>
@@ -3515,8 +4138,9 @@ export default function Home() {
             )}
           </div>
           <p className="infraNote">
-            {agentActivityContract?.non_claims.join(" ") ??
-              "This contract does not claim public unauthenticated Langfuse access."}
+            {agentActivityNonClaims.length
+              ? agentActivityNonClaims.join(" ")
+              : "This contract does not claim public unauthenticated Langfuse access."}
           </p>
         </section>
 
@@ -4393,35 +5017,43 @@ export default function Home() {
           </p>
           <div className="gateList">
             {externalGates?.gates?.length ? (
-              externalGates.gates.map((gate) => (
-                <article className={gate.configured ? "gateItem gateReady" : "gateItem gateMissing"} key={gate.id}>
-                  <div>
-                    <strong>{gate.label}</strong>
-                    <span>{gate.configured ? "configured" : "missing"}</span>
-                  </div>
-                  <small>{gate.required_for}</small>
-                  <p>
-                    {gate.id} -&gt; {gate.preflight_gate_id}
-                  </p>
-                  <p>{gate.required_env.length ? gate.required_env.join(", ") : "No env required"}</p>
-                  <p>{gate.evidence_ref}</p>
-                  <p>{gate.fallback}</p>
-                </article>
-              ))
+              externalGates.gates.map((gate) => {
+                const requiredEnv = stringList(gate.required_env);
+                return (
+                  <article className={gate.configured ? "gateItem gateReady" : "gateItem gateMissing"} key={gate.id}>
+                    <div>
+                      <strong>{gate.label}</strong>
+                      <span>{gate.configured ? "configured" : "missing"}</span>
+                    </div>
+                    <small>{gate.required_for}</small>
+                    <p>
+                      {gate.id} -&gt; {gate.preflight_gate_id}
+                    </p>
+                    <p>{requiredEnv.length ? requiredEnv.join(", ") : "No env required"}</p>
+                    <p>{gate.evidence_ref}</p>
+                    <p>{gate.fallback}</p>
+                  </article>
+                );
+              })
             ) : (
               <p className="muted">External gate status loading.</p>
             )}
           </div>
-          <p className="muted">
-            Release blockers:{" "}
-            {externalGates?.blocked_release_gates?.length
-              ? externalGates.blocked_release_gates.join(" | ")
-              : "loading"}
-          </p>
-          <p className="muted">
-            Deployment preflight link:{" "}
-            {externalGates?.deployment_preflight_endpoint ?? "GET /api/v1/clouds/deployment-preflight/contract"}
-          </p>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>Phase 5 - Release Readiness</strong>
+              <p>
+                Release blockers:{" "}
+                {stringList(externalGates?.blocked_release_gates).length
+                  ? stringList(externalGates?.blocked_release_gates).join(" | ")
+                  : "loading"}
+              </p>
+              <small>
+                Deployment preflight link:{" "}
+                {externalGates?.deployment_preflight_endpoint ?? "GET /api/v1/clouds/deployment-preflight/contract"}
+              </small>
+            </article>
+          </div>
         </section>
 
         <section className="panel externalGatesPanel" aria-label="External Gate Mirror">
@@ -5169,11 +5801,11 @@ export default function Home() {
             </div>
             <div>
               <span>Gateway</span>
-              <strong>{mcpVersionPinningContract?.gateway.app_version ?? "0.1.0"}</strong>
+              <strong>{mcpGateway?.app_version ?? "0.1.0"}</strong>
             </div>
             <div>
               <span>Pin Policy</span>
-              <strong>{mcpVersionPinningContract?.gateway.dependency_pin_policy ?? "exact_version_required"}</strong>
+              <strong>{mcpGateway?.dependency_pin_policy ?? "exact_version_required"}</strong>
             </div>
             <div>
               <span>Evidence</span>
@@ -5184,39 +5816,19 @@ export default function Home() {
             <article className="policyItem">
               <strong>Dependencies</strong>
               <p>
-                {(mcpVersionPinningContract?.pinned_dependencies ?? [
-                  { name: "fastapi", version: "0.115.8", pin: "fastapi==0.115.8" },
-                  { name: "uvicorn[standard]", version: "0.34.0", pin: "uvicorn[standard]==0.34.0" },
-                  { name: "pydantic", version: "2.10.6", pin: "pydantic==2.10.6" },
-                ])
-                  .map((dependency) => dependency.pin)
-                  .join(", ")}
+                {mcpPinnedDependencies.map((dependency) => dependency.pin).join(", ")}
               </p>
             </article>
             <article className="policyItem">
               <strong>Tool Contracts</strong>
               <p>
-                {(mcpVersionPinningContract?.pinned_tool_contracts ?? [
-                  { toolset: "github", capability: "plan_branch_pr", contract_version: "github-branch-pr-plan-v1", endpoint: "", live_mutation: false },
-                  { toolset: "postgresql", capability: "query_readonly", contract_version: "postgresql-readonly-query-v1", endpoint: "", live_mutation: false },
-                  { toolset: "filesystem", capability: "plan_workspace_access", contract_version: "filesystem-workspace-scope-v1", endpoint: "", live_mutation: false },
-                  { toolset: "playwright", capability: "plan_browser_proof", contract_version: "playwright-browser-proof-v1", endpoint: "", live_mutation: false },
-                  { toolset: "e2b", capability: "plan_sandbox_lifecycle", contract_version: "e2b-sandbox-lifecycle-v1", endpoint: "", live_mutation: false },
-                ])
-                  .map((contract) => contract.contract_version)
-                  .join(", ")}
+                {mcpPinnedToolContracts.map((contract) => contract.contract_version).join(", ")}
               </p>
             </article>
             <article className="policyItem">
               <strong>Request Contract</strong>
               <p>
-                {Object.entries(
-                  mcpVersionPinningContract?.request_contract ?? {
-                    model: "ToolRequest",
-                    session_id: "uuid-or-null",
-                    retry_budget: "0..2",
-                  },
-                )
+                {Object.entries(mcpRequestContract)
                   .map(([key, value]) => `${key}: ${String(value)}`)
                   .join("; ")}
               </p>
@@ -5224,13 +5836,14 @@ export default function Home() {
             <article className="policyItem">
               <strong>Non-Claims</strong>
               <p>
-                {mcpVersionPinningContract?.non_claims.join(" ") ??
-                  "No live MCP write, external MCP server version, or production deployment is claimed."}
+                {mcpNonClaims.length
+                  ? mcpNonClaims.join(" ")
+                  : "No live MCP write, external MCP server version, or production deployment is claimed."}
               </p>
             </article>
           </div>
           <div className="gateList">
-            {(mcpVersionPinningContract?.drift_policy ?? [
+            {(mcpDriftPolicy.length ? mcpDriftPolicy : [
               "Every runtime dependency in services/mcp-gateway/requirements.txt must use exact == pinning.",
               "Every exposed MCP tool contract must publish a stable contract_version.",
               "Adding or changing a tool capability requires updating this endpoint, docs, UI, and verifiers in the same change.",
@@ -5244,9 +5857,9 @@ export default function Home() {
               </article>
             ))}
           </div>
-          <p className="infraNote">
+          <p className="infraNote evidenceLine">
             Evidence:{" "}
-            {(mcpVersionPinningContract?.evidence_refs ?? [
+            {(mcpEvidenceRefs.length ? mcpEvidenceRefs : [
               "mcp_version_pinning_contract_visible",
               "mcp_safe_envelope",
               "mcp_scope_guard",
@@ -5277,7 +5890,7 @@ export default function Home() {
             <div>
               <span>Model</span>
               <strong>
-                {memoryEmbeddingConsistencyContract?.current_embedding.model_version ?? "text-embedding-3-small"}
+                {memoryCurrentEmbedding?.model_version ?? "text-embedding-3-small"}
               </strong>
             </div>
             <div>
@@ -5292,12 +5905,7 @@ export default function Home() {
             <article className="policyItem">
               <strong>Schema</strong>
               <p>
-                {Object.entries(
-                  memoryEmbeddingConsistencyContract?.schema.expected_columns ?? {
-                    content_embedding: "vector(1536)",
-                    embedding_model_version: "character varying(100)",
-                  },
-                )
+                {Object.entries(memoryExpectedColumns)
                   .map(([key, value]) => `${key}: ${value}`)
                   .join("; ")}
               </p>
@@ -5306,27 +5914,28 @@ export default function Home() {
               <strong>Search Mode</strong>
               <p>
                 {memoryEmbeddingConsistencyContract
-                  ? `${memoryEmbeddingConsistencyContract.current_embedding.search_mode}; vector search enabled: ${String(memoryEmbeddingConsistencyContract.read_policy.vector_search_enabled)}`
+                  ? `${memoryCurrentEmbedding?.search_mode ?? "lexical_fallback"}; vector search enabled: ${String(memoryReadPolicy?.vector_search_enabled ?? false)}`
                   : "lexical_fallback; vector search enabled: false"}
               </p>
             </article>
             <article className="policyItem">
               <strong>Re-Embedding</strong>
               <p>
-                {memoryEmbeddingConsistencyContract?.reembedding_policy.stale_row_policy ??
+                {memoryReembeddingPolicy?.stale_row_policy ??
                   "Rows with non-current embedding_model_version are excluded from future vector search."}
               </p>
             </article>
             <article className="policyItem">
               <strong>Non-Claims</strong>
               <p>
-                {memoryEmbeddingConsistencyContract?.non_claims.join(" ") ??
-                  "No live embedding provider call or production vector-search readiness is claimed."}
+                {memoryNonClaims.length
+                  ? memoryNonClaims.join(" ")
+                  : "No live embedding provider call or production vector-search readiness is claimed."}
               </p>
             </article>
           </div>
           <div className="gateList">
-            {(memoryEmbeddingConsistencyContract?.reembedding_policy.required_steps ?? [
+            {(memoryRequiredSteps.length ? memoryRequiredSteps : [
               "record old and new embedding_model_version",
               "queue bounded re-embedding job per project",
               "publish audit evidence before raising memory-layer progress",
@@ -5340,9 +5949,9 @@ export default function Home() {
               </article>
             ))}
           </div>
-          <p className="infraNote">
+          <p className="infraNote evidenceLine">
             Evidence:{" "}
-            {(memoryEmbeddingConsistencyContract?.evidence_refs ?? [
+            {(memoryEvidenceRefs.length ? memoryEvidenceRefs : [
               "memory_embedding_consistency_contract_visible",
               "embedding_model_version_persisted",
               "embedding_vector_dimension_guard",

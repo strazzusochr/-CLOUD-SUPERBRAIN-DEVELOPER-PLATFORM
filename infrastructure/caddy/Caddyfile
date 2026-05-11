@@ -1,0 +1,4 @@
+{$STAGING_HOSTNAME} {
+	encode gzip zstd
+	reverse_proxy nginx:80
+}

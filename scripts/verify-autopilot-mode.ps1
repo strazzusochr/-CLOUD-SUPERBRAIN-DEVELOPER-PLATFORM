@@ -5,6 +5,13 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$progressManifestPath = Join-Path $PSScriptRoot "..\docs\project-progress.manifest.json"
+$progressManifest = Get-Content -Path $progressManifestPath -Raw | ConvertFrom-Json
+$expectedOverallPercent = [int]$progressManifest.overall_percent
+$expectedPhase2Percent = [int](($progressManifest.horizontal.items | Where-Object { $_.id -eq "phase_2" } | Select-Object -First 1).percent)
+$expectedPhase4Percent = [int](($progressManifest.horizontal.items | Where-Object { $_.id -eq "phase_4" } | Select-Object -First 1).percent)
+$expectedFrontendPercent = [int](($progressManifest.vertical.items | Where-Object { $_.id -eq "layer_1" } | Select-Object -First 1).percent)
+$expectedAgentPoolPercent = [int](($progressManifest.vertical.items | Where-Object { $_.id -eq "layer_3" } | Select-Object -First 1).percent)
 
 function Assert-Contains($label, $value, $expected) {
   $text = ($value | Out-String)
@@ -51,24 +58,24 @@ Assert-True "llm gateway dry-run mode" ($health.services.llm_gateway.live_provid
 
 Write-Host "[autopilot] project progress"
 $progress = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/v1/project/progress" -TimeoutSec 15
-Assert-True "overall progress 47" ($progress.overall_percent -eq 47)
+Assert-True "overall progress matches manifest" ($progress.overall_percent -eq $expectedOverallPercent)
 Assert-True "seven horizontal phases" (@($progress.horizontal.items).Count -eq 7)
 Assert-True "seven vertical layers" (@($progress.vertical.items).Count -eq 7)
 $phase2 = @($progress.horizontal.items) | Where-Object { $_.id -eq "phase_2" } | Select-Object -First 1
 $phase4 = @($progress.horizontal.items) | Where-Object { $_.id -eq "phase_4" } | Select-Object -First 1
 $frontend = @($progress.vertical.items) | Where-Object { $_.id -eq "layer_1" } | Select-Object -First 1
 $agentPool = @($progress.vertical.items) | Where-Object { $_.id -eq "layer_3" } | Select-Object -First 1
-Assert-True "phase 2 is 86" ($phase2.percent -eq 86)
-Assert-True "phase 4 is 15" ($phase4.percent -eq 15)
-Assert-True "frontend is 97" ($frontend.percent -eq 97)
-Assert-True "agent pool is 61" ($agentPool.percent -eq 61)
+Assert-True "phase 2 matches manifest" ($phase2.percent -eq $expectedPhase2Percent)
+Assert-True "phase 4 matches manifest" ($phase4.percent -eq $expectedPhase4Percent)
+Assert-True "frontend matches manifest" ($frontend.percent -eq $expectedFrontendPercent)
+Assert-True "agent pool matches manifest" ($agentPool.percent -eq $expectedAgentPoolPercent)
 Assert-Contains "truth policy" $progress.truth_policy "Evidence-based only"
 
 Write-Host "[autopilot] project progress integrity"
 $progressIntegrity = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/v1/project/progress/integrity" -TimeoutSec 15
 Assert-True "progress integrity verified" ($progressIntegrity.status -eq "verified")
-Assert-True "progress integrity computed overall" ($progressIntegrity.computed_overall_percent -eq 47)
-Assert-True "progress integrity manifest overall" ($progressIntegrity.manifest_overall_percent -eq 47)
+Assert-True "progress integrity computed overall" ($progressIntegrity.computed_overall_percent -eq $expectedOverallPercent)
+Assert-True "progress integrity manifest overall" ($progressIntegrity.manifest_overall_percent -eq $expectedOverallPercent)
 Assert-Contains "progress integrity evidence" $progressIntegrity.evidence_ref "project_progress_integrity_runtime_proof"
 
 Write-Host "[autopilot] orchestrator manifest"

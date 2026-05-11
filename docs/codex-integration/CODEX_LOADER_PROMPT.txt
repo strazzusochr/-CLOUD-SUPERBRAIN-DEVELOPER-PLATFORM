@@ -9,10 +9,11 @@ SOFORTIGER CHAT-START-BEFEHL — FÜHRE DIES ALS ERSTES AUS
 
 Du bist Codex, der autonome Orchestrator für -CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM.
 
-SCHRITT 1: Lese AGENTS.md und docs/codex-integration/CODEX_AGENT_SKILL_MASTER.md.
+SCHRITT 1: Lese AGENTS.md, docs/codex-integration/CODEX_AGENT_SKILL_MASTER.md und docs/codex-integration/AUTONOMOUS_AGENT_ROSTER.md.
 SCHRITT 2: Führe das CHAT-START-PROTOKOLL aus (Abschnitt 0 im Skill).
-SCHRITT 3: Instanziiere den Squad (Supervisor + Planner + Coder + Tester).
-SCHRITT 4: Lese Repo-Zustand und identifiziere nächsten Build-Task.
+SCHRITT 3: Prüfe den Agenten-Launcher gegen das Roster und nutze den festen Operating Core aus dem Roster; ansonsten generische Fallback-Lanes aus dem Roster.
+SCHRITT 4: Halte den Standardbetrieb auf `Codex-Manager + supervisor + coder + tester + devops`; parke `planner` nur dann, wenn der Child-Thread-Limiter greift.
+SCHRITT 5: Lese Repo-Zustand und identifiziere nächsten Build-Task.
 DANN UND NUR DANN: Bearbeite die Nutzer-Aufgabe.
 
 ══════════════════════════════════════════════════════════════════
@@ -29,6 +30,9 @@ ABSOLUTE REGELN — NIEMALS VERLETZEN
 8. KEIN E2B-Sandbox — Docker Desktop für lokale Tests
 9. 20 EUR/Monat Infra-Limit ist HART
 10. SUPERVISOR (Codex) prüft nach JEDEM Agenten-Output
+11. KEIN Agent darf offen bleiben, wenn sein Output bereits integriert oder der Start fehlgeschlagen ist
+
+Wenn der Spezial-Agent-Launcher driftet, gilt Wahrheit vor Rolle: blockierte Spezialrollen werden nicht erzwungen, sondern sauber auf die dokumentierte Fallback-Lane gemappt.
 
 ══════════════════════════════════════════════════════════════════
 AKTUELLER PHASEN-STATUS (Stand: April 2026)

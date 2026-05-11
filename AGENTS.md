@@ -30,9 +30,11 @@ At every start:
 1. Read `PROJECT_STATE.md`.
 2. Read the binding patched ultimatum: `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md`.
 3. Read the GPT-5.5 supplement when present: `docs/CLOUD_SUPERBRAIN_ULTIMATUM_GPT55_PATCHED_2026-04-29.md`.
-4. Extract current total progress, horizontal phase progress, vertical layer progress, last verified step, next concrete step, and all closed gates.
-5. Continue with the next safe step.
-6. Do not claim completion without evidence.
+4. Read `docs/codex-integration/AUTONOMOUS_AGENT_ROSTER.md` and `docs/codex-integration/autonomous-agent-roster.json`.
+5. Extract current total progress, horizontal phase progress, vertical layer progress, last verified step, next concrete step, and all closed gates.
+6. If subagents are useful, start from the fixed operating core in the roster. Prefer launch-validated native roles from the roster; otherwise use the documented generic fallback lane.
+7. Continue with the next safe step.
+8. Do not claim completion without evidence.
 
 When the user says `weiter`, `go`, `mach weiter`, or gives a concrete task, continue autonomously from `PROJECT_STATE.md` unless the task requires explicit Owner approval under the gates below.
 

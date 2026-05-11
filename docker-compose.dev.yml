@@ -5,12 +5,17 @@ services:
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
+      target: dev-runner
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_AGENT_API_URL: /api
       AGENT_API_INTERNAL_URL: http://agent-api:8000
+      WATCHPACK_POLLING: "true"
     expose:
       - "3000"
+    volumes:
+      - ./apps/frontend/app:/app/app:ro
+      - ./apps/frontend/next.config.mjs:/app/next.config.mjs:ro
     depends_on:
       agent-api:
         condition: service_healthy
@@ -28,6 +33,7 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+      - /app/.next:uid=10001,gid=10001,mode=1777
     networks:
       - platform
 
@@ -53,6 +59,12 @@ services:
       PROMPT_RATE_LIMIT_CAPACITY: ${PROMPT_RATE_LIMIT_CAPACITY:-20}
       PROMPT_RATE_LIMIT_WINDOW_SECONDS: ${PROMPT_RATE_LIMIT_WINDOW_SECONDS:-3600}
       PROJECT_PROGRESS_MANIFEST_PATH: /app/progress/project-progress.manifest.json
+      PROJECT_STATE_PATH: /app/PROJECT_STATE.md
+      AUTONOMOUS_AGENT_ROSTER_PATH: /app/docs/codex-integration/autonomous-agent-roster.json
+      AUTONOMOUS_TEAM_EXTERNAL_PROVIDER: ${AUTONOMOUS_TEAM_EXTERNAL_PROVIDER:-dopiert}
+      AUTONOMOUS_TEAM_EXTERNAL_STATUS_URL: ${AUTONOMOUS_TEAM_EXTERNAL_STATUS_URL:-http://host.docker.internal:8000/status}
+      AUTONOMOUS_TEAM_EXTERNAL_AGENTS_URL: ${AUTONOMOUS_TEAM_EXTERNAL_AGENTS_URL:-http://host.docker.internal:8000/agents}
+      AUTONOMOUS_TEAM_EXTERNAL_TIMEOUT_SECONDS: ${AUTONOMOUS_TEAM_EXTERNAL_TIMEOUT_SECONDS:-5}
       CLOUD_PROVIDER_INVENTORY_ENABLED: ${CLOUD_PROVIDER_INVENTORY_ENABLED:-true}
       HETZNER_API_TOKEN: ${HETZNER_API_TOKEN:-}
       HETZNER_PROJECT_ID: ${HETZNER_PROJECT_ID:-}
@@ -89,6 +101,11 @@ services:
       - "8000"
     volumes:
       - ./docs/project-progress.manifest.json:/app/progress/project-progress.manifest.json:ro
+      - ./PROJECT_STATE.md:/app/PROJECT_STATE.md:ro
+      - ./docs/codex-integration/autonomous-agent-roster.json:/app/docs/codex-integration/autonomous-agent-roster.json:ro
+      - ./services/agent-api/app:/app/app:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -123,6 +140,8 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-superbrain}:${POSTGRES_PASSWORD:-change-me-now}@postgres:5432/${POSTGRES_DB:-superbrain_prod}
       REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./services/agent-worker/app:/app/app:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -158,6 +177,8 @@ services:
       MEMORY_CONSOLIDATION_INTERVAL_SECONDS: ${MEMORY_CONSOLIDATION_INTERVAL_SECONDS:-300}
       MEMORY_CONSOLIDATION_TTL_THRESHOLD_SECONDS: ${MEMORY_CONSOLIDATION_TTL_THRESHOLD_SECONDS:-480}
       WORKING_MEMORY_PATTERN: memory:working:*
+    volumes:
+      - ./services/memory-worker/app:/app/app:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -194,6 +215,7 @@ services:
       - "9000"
     volumes:
       - mcp_workspace:/tmp/agent-workspace
+      - ./services/mcp-gateway/app:/app/app:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/api/v1/health', timeout=3)"]
       interval: 20s
@@ -218,10 +240,16 @@ services:
     restart: unless-stopped
     environment:
       AGENT_API_INTERNAL_URL: http://agent-api:8000
-      LLM_GATEWAY_MODE: live
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      LLM_GATEWAY_MODE: ${LLM_GATEWAY_MODE:-deterministic_dry_run}
+      LLM_LIVE_PROVIDER_DEFAULT: ${LLM_LIVE_PROVIDER_DEFAULT:-false}
+      HF_TOKEN: ${HF_TOKEN:-}
+      HF_ROUTER_BASE_URL: ${HF_ROUTER_BASE_URL:-https://router.huggingface.co/v1}
+      HF_DEFAULT_CHAT_MODEL: ${HF_DEFAULT_CHAT_MODEL:-deepseek-ai/DeepSeek-V4-Flash:fastest}
+      HF_ROUTER_TIMEOUT_SECONDS: ${HF_ROUTER_TIMEOUT_SECONDS:-90}
     expose:
       - "4000"
+    volumes:
+      - ./services/llm-gateway/app:/app/app:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/api/v1/health', timeout=3)"]
       interval: 20s
@@ -283,10 +311,10 @@ services:
       - platform
 
   nginx:
-    image: nginx:1.27.4-alpine
+    image: nginxinc/nginx-unprivileged:1.27-alpine
     restart: unless-stopped
     ports:
-      - "${NGINX_HTTP_PORT:-8081}:80"
+      - "${NGINX_HTTP_PORT:-8081}:8080"
     volumes:
       - ./infrastructure/nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
@@ -299,12 +327,21 @@ services:
       llm-gateway:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 20s
       timeout: 5s
       retries: 5
     mem_limit: 128m
     cpus: "0.25"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
     networks:
       - platform
 

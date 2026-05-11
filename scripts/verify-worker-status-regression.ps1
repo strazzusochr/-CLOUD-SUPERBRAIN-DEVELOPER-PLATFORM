@@ -33,7 +33,7 @@ function Invoke-AgentApiPython($code) {
 function Wait-TaskStatus($taskId, $expectedStatus, $attempts = 30) {
   $last = ""
   for ($i = 0; $i -lt $attempts; $i++) {
-    $last = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/internal/tasks/$taskId', timeout=5).read().decode())"
+    $last = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/api/v1/internal/tasks/$taskId', timeout=5).read().decode())"
     if (($last | Out-String).Contains("`"status`":`"$expectedStatus`"")) {
       return $last
     }
@@ -235,7 +235,7 @@ $malformedStatus = Wait-TaskStatus $seed.malformed_task_id "abandoned_after_queu
 Assert-Contains "malformed audit did not rehydrate" $malformedStatus "queued status had no matching queue item"
 
 Write-Host "[worker-status] fresh queued status remains queued"
-$freshStatus = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/internal/tasks/$($seed.fresh_task_id)', timeout=5).read().decode())"
+$freshStatus = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/api/v1/internal/tasks/$($seed.fresh_task_id)', timeout=5).read().decode())"
 Assert-Contains "fresh queued untouched" $freshStatus '"status":"queued"'
 
 Write-Host "[worker-status] queued list item is processed rather than abandoned"
