@@ -104,6 +104,9 @@ function Test-ReleaseMetadataPath([string]$Path) {
   if ($normalized -like "scripts/*-proof.ps1") {
     return $true
   }
+  if ($normalized -eq ".github/workflows/pr-check.yml") {
+    return $true
+  }
   return $false
 }
 
