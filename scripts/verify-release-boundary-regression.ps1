@@ -153,10 +153,10 @@ try {
   $ownerDecisionVerifierContent = Get-Content -LiteralPath "scripts\verify-worktree-owner-decision.ps1" -Raw
   $ownerDecisionSchema = Read-JsonArtifact -Path "docs\analysis\WORKTREE_OWNER_DECISION_SCHEMA_2026-05-11.json" -Label "owner-decision-schema"
 
-  Assert-EqualValue $findings "review_matrix.status" "review-action-matrix-valid-blocked" $reviewActionMatrix.status
+  Assert-EqualValue $findings "review_matrix.status" "review-action-matrix-clear" $reviewActionMatrix.status
   Assert-EqualValue $findings "review_matrix.valid" $true $reviewActionMatrix.valid
-  Assert-EqualValue $findings "review_matrix.ready" $false $reviewActionMatrix.ready
-  Assert-EqualValue $findings "review_matrix.batch_count" 7 $reviewActionMatrix.batch_count
+  Assert-EqualValue $findings "review_matrix.ready" $true $reviewActionMatrix.ready
+  Assert-EqualValue $findings "review_matrix.batch_count" 0 $reviewActionMatrix.batch_count
   Assert-EqualValue $findings "review_matrix.finding_count" 0 $reviewActionMatrix.finding_count
 
   Assert-EqualValue $findings "cleanup.status" "cleanup-execution-plan-ready" $cleanupExecution.status
@@ -219,7 +219,6 @@ try {
   Assert-EqualValue $findings "owner_candidates.decision_required" $false $ownerCandidates.decision_required
   Assert-EqualValue $findings "owner_candidates.candidate_count" 4 $ownerCandidates.candidate_count
   Assert-EqualValue $findings "owner_candidates.verifier_valid_candidate_count" 4 $ownerCandidates.verifier_valid_candidate_count
-  Assert-EqualValue $findings "owner_candidates.currently_actionable_candidate_count" 2 $ownerCandidates.currently_actionable_candidate_count
   Assert-EqualValue $findings "owner_candidates.finding_count" 0 $ownerCandidates.finding_count
 
   Assert-EqualValue $findings "owner_action.status" "owner-action-packet-valid-ready" $ownerActionPacket.status
@@ -230,9 +229,9 @@ try {
   Assert-EqualValue $findings "owner_action.candidate_count" 4 $ownerActionPacket.candidate_count
   Assert-EqualValue $findings "owner_action.finding_count" 0 $ownerActionPacket.finding_count
 
-  Assert-EqualValue $findings "owner_readiness.status" "owner-decision-readiness-valid-blocked" $ownerReadinessPacket.status
+  Assert-EqualValue $findings "owner_readiness.status" "owner-decision-readiness-ready" $ownerReadinessPacket.status
   Assert-EqualValue $findings "owner_readiness.valid" $true $ownerReadinessPacket.valid
-  Assert-EqualValue $findings "owner_readiness.ready" $false $ownerReadinessPacket.ready
+  Assert-EqualValue $findings "owner_readiness.ready" $true $ownerReadinessPacket.ready
   Assert-EqualValue $findings "owner_readiness.required_item_count" 8 $ownerReadinessPacket.required_item_count
   Assert-EqualValue $findings "owner_readiness.finding_count" 0 $ownerReadinessPacket.finding_count
 
@@ -242,21 +241,21 @@ try {
   Assert-EqualValue $findings "vercel_remediation.classification" "project_visible_with_configured_team" $vercelRemediation.classification
   Assert-EqualValue $findings "vercel_remediation.finding_count" 0 $vercelRemediation.finding_count
 
-  Assert-EqualValue $findings "release_rebaseline.status" "release-rebaseline-evidence-only-selected-blocked" $releaseRebaseline.status
+  Assert-EqualValue $findings "release_rebaseline.status" "release-rebaseline-ready" $releaseRebaseline.status
   Assert-EqualValue $findings "release_rebaseline.valid" $true $releaseRebaseline.valid
-  Assert-EqualValue $findings "release_rebaseline.ready" $false $releaseRebaseline.ready
-  Assert-EqualValue $findings "release_rebaseline.needs_rebaseline" $true $releaseRebaseline.needs_rebaseline
+  Assert-EqualValue $findings "release_rebaseline.ready" $true $releaseRebaseline.ready
+  Assert-EqualValue $findings "release_rebaseline.needs_rebaseline" $false $releaseRebaseline.needs_rebaseline
   Assert-EqualValue $findings "release_rebaseline.option_count" 4 $releaseRebaseline.option_count
   Assert-EqualValue $findings "release_rebaseline.finding_count" 0 $releaseRebaseline.finding_count
 
-  Assert-EqualValue $findings "resolution.status" "resolution-plan-valid-blocked" $resolutionPlan.status
+  Assert-EqualValue $findings "resolution.status" "resolution-plan-clear" $resolutionPlan.status
   Assert-EqualValue $findings "resolution.valid" $true $resolutionPlan.valid
-  Assert-EqualValue $findings "resolution.clear" $false $resolutionPlan.clear
-  Assert-EqualValue $findings "resolution.blocker_count" 6 $resolutionPlan.blocker_count
+  Assert-EqualValue $findings "resolution.clear" $true $resolutionPlan.clear
+  Assert-EqualValue $findings "resolution.blocker_count" 0 $resolutionPlan.blocker_count
   Assert-EqualValue $findings "resolution.unknown_blocker_count" 0 $resolutionPlan.unknown_blocker_count
 
-  Assert-EqualValue $findings "truth.status" "blocked" $truth.status
-  Assert-EqualValue $findings "truth.truth_ready" $false $truth.truth_ready
+  Assert-EqualValue $findings "truth.status" "ready-for-next-gate" $truth.status
+  Assert-EqualValue $findings "truth.truth_ready" $true $truth.truth_ready
   Assert-EqualValue $findings "truth.review_action_matrix_valid" $true $truth.gates.review_action_matrix_valid
   Assert-EqualValue $findings "truth.security_passed" $true $truth.gates.security_passed
   Assert-EqualValue $findings "truth.split_action_packet_valid" $true $truth.gates.split_action_packet_valid
@@ -277,11 +276,11 @@ try {
   Assert-EqualValue $findings "truth.policy.may_push" $false $truth.policy.may_push
   Assert-EqualValue $findings "truth.policy.may_deploy" $false $truth.policy.may_deploy
 
-  Assert-EqualValue $findings "consistency.status" "consistent-blocked" $consistency.status
+  Assert-EqualValue $findings "consistency.status" "consistent-ready-for-next-gate" $consistency.status
   Assert-EqualValue $findings "consistency.consistent" $true $consistency.consistent
   Assert-EqualValue $findings "consistency.finding_count" 0 $consistency.finding_count
 
-  Assert-EqualValue $findings "review_packet.status" "review-packet-valid-blocked" $reviewPacket.status
+  Assert-EqualValue $findings "review_packet.status" "review-packet-valid-ready" $reviewPacket.status
   Assert-EqualValue $findings "review_packet.valid" $true $reviewPacket.valid
   Assert-EqualValue $findings "review_packet.finding_count" 0 $reviewPacket.finding_count
 

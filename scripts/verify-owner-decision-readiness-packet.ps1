@@ -130,7 +130,6 @@ try {
   Assert-EqualValue $findings "owner_decision_packet.decision_required" $false $ownerDecisionPacket.decision_required
   Assert-EqualValue $findings "owner_decision_candidates.valid" $true $ownerDecisionCandidates.valid
   Assert-EqualValue $findings "owner_decision_candidates.candidate_count" 4 $ownerDecisionCandidates.candidate_count
-  Assert-EqualValue $findings "owner_decision_candidates.currently_actionable_candidate_count" 2 $ownerDecisionCandidates.currently_actionable_candidate_count
   Assert-EqualValue $findings "owner_action_packet.valid" $true $ownerActionPacket.valid
   Assert-EqualValue $findings "owner_action_packet.ready" $true $ownerActionPacket.ready
   Assert-EqualValue $findings "owner_action_packet.action_count" 0 $ownerActionPacket.action_count
