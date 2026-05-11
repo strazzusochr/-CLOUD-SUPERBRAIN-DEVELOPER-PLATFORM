@@ -46,6 +46,37 @@ function Assert-Contains($label, $value, $expected) {
   }
 }
 
+function Get-PythonRuntime() {
+  if ($script:PythonRuntime) {
+    return $script:PythonRuntime
+  }
+
+  $candidates = @(
+    @{ Command = "py"; Args = @("-3") },
+    @{ Command = "python3"; Args = @() },
+    @{ Command = "python"; Args = @() }
+  )
+
+  foreach ($candidate in $candidates) {
+    $command = Get-Command $candidate.Command -ErrorAction SilentlyContinue
+    if ($command) {
+      $script:PythonRuntime = [pscustomobject]@{
+        Path = $command.Source
+        Args = @($candidate.Args)
+      }
+      return $script:PythonRuntime
+    }
+  }
+
+  throw "Hosted staging verification failed: Python runtime not found. Install Python or ensure 'py', 'python3', or 'python' is on PATH."
+}
+
+function Invoke-PythonInline([string]$Code, [string[]]$Arguments = @()) {
+  $runtime = Get-PythonRuntime
+  $runtimeArgs = @($runtime.Args) + @("-") + @($Arguments)
+  return ($Code | & $runtime.Path @runtimeArgs)
+}
+
 function Invoke-Text($url) {
   $python = @'
 import sys
@@ -55,7 +86,7 @@ url = sys.argv[1]
 with urllib.request.urlopen(url, timeout=10) as response:
     sys.stdout.write(response.read().decode("utf-8", errors="replace"))
 '@
-  return ($python | py -3 - $url)
+  return (Invoke-PythonInline -Code $python -Arguments @($url))
 }
 
 function Invoke-StatusCode($url) {
@@ -71,7 +102,7 @@ try:
 except urllib.error.HTTPError as error:
     sys.stdout.write(str(error.code))
 '@
-  return ($python | py -3 - $url)
+  return (Invoke-PythonInline -Code $python -Arguments @($url))
 }
 
 function Invoke-WebResponse($url, $method = "GET", $body = $null, [hashtable]$headers = $null, $contentType = $null, $timeoutSeconds = 30) {
@@ -128,7 +159,7 @@ print(json.dumps(result))
   $payloadFile = Join-Path $env:TEMP ("hosted-web-response-" + [Guid]::NewGuid().ToString("N") + ".json")
   try {
     Set-Content -LiteralPath $payloadFile -Value $payload -NoNewline
-    $raw = $python | py -3 - $payloadFile
+    $raw = Invoke-PythonInline -Code $python -Arguments @($payloadFile)
   } finally {
     if (Test-Path $payloadFile) { Remove-Item -LiteralPath $payloadFile -Force }
   }
@@ -229,7 +260,7 @@ sys.stdout.write("".join(chunks))
   $payloadFile = Join-Path $env:TEMP ("hosted-sse-" + [Guid]::NewGuid().ToString("N") + ".json")
   try {
     Set-Content -LiteralPath $payloadFile -Value $payload -NoNewline
-    return ($python | py -3 - $payloadFile)
+    return (Invoke-PythonInline -Code $python -Arguments @($payloadFile))
   } finally {
     if (Test-Path $payloadFile) { Remove-Item -LiteralPath $payloadFile -Force }
   }
