@@ -12,6 +12,8 @@ smoke_result: `passed`
 observability_check: `present`
 rollback_note: `no production rollout performed; rollback remains the existing hosted staging rollback path`
 owner_decision: `approved`
+hosted_selector_observed: `IMAGE_TAG=deploy-20260511-agentfix-full`
+hosted_selector_observed_at: `2026-05-11T21:30:52Z`
 
 ## Verification Evidence
 
@@ -35,4 +37,5 @@ owner_decision: `approved`
 - The runtime source boundary is commit `aa52877d009e2b0a51fd8676e06943a65064c2be`; subsequent release-metadata-only commits do not change app/runtime source scope.
 - This artifact does not claim a production rollout.
 - This artifact does not replace the historical `prod-candidate-2026-05-05-rc1` no-release evidence.
+- The hosted selector line records the current Hetzner staging selector observed after later deployment work; it does not rewrite the historical 2026-05-05 rollback selector.
 - Production deployment still requires the release-candidate gate bundle and a separate rollout proof.

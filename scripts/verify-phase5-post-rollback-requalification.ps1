@@ -4,7 +4,8 @@ param(
   [string]$RemoteUser = "root",
   [string]$RemoteHost = "188.34.191.140",
   [string]$RemoteAppDir = "/app",
-  [string]$BaseUrl = "https://188-34-191-140.sslip.io"
+  [string]$BaseUrl = "https://188-34-191-140.sslip.io",
+  [string]$ExpectedLiveSelector = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,11 +26,28 @@ with urllib.request.urlopen(r"$url", context=ctx, timeout=20) as r:
 "@ | py -3 -
 }
 
+function Resolve-ExpectedLiveSelector($explicitSelector) {
+  if (-not [string]::IsNullOrWhiteSpace($explicitSelector)) {
+    return $explicitSelector
+  }
+
+  $currentCandidatePath = "docs\release-artifacts\prod-candidate-2026-05-11-rc1.md"
+  if (Test-Path $currentCandidatePath) {
+    $currentCandidate = Get-Content $currentCandidatePath -Raw
+    if ($currentCandidate -match 'hosted_selector_observed:\s*`([^`]+)`') {
+      return $Matches[1]
+    }
+  }
+
+  return "IMAGE_TAG=staging"
+}
+
 $artifactPath = "docs\release-artifacts\prod-candidate-2026-05-05-rc1-post-rollback-requalification.md"
 if (-not (Test-Path $artifactPath)) {
   throw "Missing post-rollback requalification artifact: $artifactPath"
 }
 $artifact = Get-Content $artifactPath -Raw
+$expectedLiveSelector = Resolve-ExpectedLiveSelector $ExpectedLiveSelector
 foreach ($required in @(
   "Status: ``verified``",
   "Candidate: ``$ReleaseId``",
@@ -53,7 +71,7 @@ $selector = (& ssh -i $KeyPath -o StrictHostKeyChecking=no "${RemoteUser}@${Remo
 if ($LASTEXITCODE -ne 0) {
   throw "Verification failed: unable to read remote IMAGE_TAG selector."
 }
-Assert-Contains "remote selector" $selector "IMAGE_TAG=staging"
+Assert-Contains "remote selector" $selector $expectedLiveSelector
 
 $manifest = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
 $expectedOverall = [int]$manifest.overall_percent

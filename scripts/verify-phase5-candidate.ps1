@@ -302,18 +302,45 @@ if (-not (Test-Path $repoParityPath)) {
 }
 $repoParity = Get-Content $repoParityPath -Raw
 $currentHead = (git rev-parse HEAD).Trim()
-foreach ($required in @(
-  "Status: ``blocked``",
-  "release_id: ``$ReleaseId``",
-  "candidate_source_commit_sha: ``$candidateSourceSha``",
-  "current_repo_head_sha: ``$currentHead``",
-  "worktree_dirty: ``yes``",
-  "overall_percent: ``$expectedOverall``",
-  "phase_5_percent: ``$expectedPhase5``",
-  "owner_decision: ``no-release``",
-  "parity_classification: ``blocked_candidate_worktree_parity``"
-)) {
-  Assert-Contains "repo worktree parity blocker artifact" $repoParity $required
+$dirtyStatus = (git status --short | Out-String).Trim()
+if ($dirtyStatus) {
+  foreach ($required in @(
+    "Status: ``blocked``",
+    "release_id: ``$ReleaseId``",
+    "candidate_source_commit_sha: ``$candidateSourceSha``",
+    "current_repo_head_sha: ``$currentHead``",
+    "worktree_dirty: ``yes``",
+    "overall_percent: ``$expectedOverall``",
+    "phase_5_percent: ``$expectedPhase5``",
+    "owner_decision: ``no-release``",
+    "parity_classification: ``blocked_candidate_worktree_parity``"
+  )) {
+    Assert-Contains "repo worktree parity blocker artifact" $repoParity $required
+  }
+} else {
+  $currentCandidatePath = "docs\release-artifacts\current-release-candidate.json"
+  if (-not (Test-Path $currentCandidatePath)) {
+    throw "Missing current release candidate config: $currentCandidatePath"
+  }
+  $activeReleaseId = [string]((Get-Content $currentCandidatePath -Raw | ConvertFrom-Json).active_release_id)
+  if ([string]::IsNullOrWhiteSpace($activeReleaseId)) {
+    throw "Verification failed: active release id missing from current release candidate config."
+  }
+
+  foreach ($required in @(
+    "Status: ``retired``",
+    "release_id: ``$ReleaseId``",
+    "candidate_source_commit_sha: ``$candidateSourceSha``",
+    "worktree_dirty: ``no``",
+    "overall_percent: ``$expectedOverall``",
+    "phase_5_percent: ``$expectedPhase5``",
+    "owner_decision: ``no-release``",
+    "active_release_id: ``$activeReleaseId``",
+    "active_release_boundary_clear: ``yes``",
+    "parity_classification: ``retired_by_current_candidate_boundary``"
+  )) {
+    Assert-Contains "repo worktree parity blocker artifact" $repoParity $required
+  }
 }
 
 Write-Host "[phase5-candidate] candidate verified"
