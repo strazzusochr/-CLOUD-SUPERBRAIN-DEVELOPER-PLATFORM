@@ -86,6 +86,9 @@ function Test-ReleaseMetadataPath([string]$Path) {
   if ($normalized -like "docs/release-artifacts/*") {
     return $true
   }
+  if ($normalized -eq "docs/verification-register.md") {
+    return $true
+  }
   if ($normalized -eq "docs/analysis/release-rebaseline-decision-20260511.json") {
     return $true
   }
@@ -96,6 +99,9 @@ function Test-ReleaseMetadataPath([string]$Path) {
     return $true
   }
   if ($normalized -like "scripts/verify-*.ps1") {
+    return $true
+  }
+  if ($normalized -like "scripts/*-proof.ps1") {
     return $true
   }
   return $false
