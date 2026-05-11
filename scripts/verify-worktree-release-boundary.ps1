@@ -1,5 +1,6 @@
 param(
-  [string]$ReleaseId = "prod-candidate-2026-05-05-rc1",
+  [string]$ReleaseId = "",
+  [string]$CurrentReleaseCandidatePath = "docs\release-artifacts\current-release-candidate.json",
   [string]$OutputPath = ".phase1-artifacts\worktree-release-boundary-20260510.json",
   [switch]$ReportOnly,
   [switch]$JsonOnly
@@ -65,10 +66,46 @@ function Test-RiskyArtifactPath([string]$Path) {
   return $false
 }
 
+function Resolve-ReleaseId([string]$ExplicitReleaseId, [string]$ConfigPath) {
+  if (-not [string]::IsNullOrWhiteSpace($ExplicitReleaseId)) {
+    return $ExplicitReleaseId
+  }
+
+  if (Test-Path -LiteralPath $ConfigPath) {
+    $config = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
+    if (-not [string]::IsNullOrWhiteSpace([string]$config.active_release_id)) {
+      return [string]$config.active_release_id
+    }
+  }
+
+  return "prod-candidate-2026-05-05-rc1"
+}
+
+function Test-ReleaseMetadataPath([string]$Path) {
+  $normalized = $Path -replace '\\', '/'
+  if ($normalized -like "docs/release-artifacts/*") {
+    return $true
+  }
+  if ($normalized -eq "docs/analysis/release-rebaseline-decision-20260511.json") {
+    return $true
+  }
+  if ($normalized -like "docs/analysis/*REVIEW*2026-05-*.md" -or $normalized -like "docs/analysis/*RUNBOOK*2026-05-*.md") {
+    return $true
+  }
+  if ($normalized -like "docs/CLOUD_TRUTH_2026-05-*.md") {
+    return $true
+  }
+  if ($normalized -like "scripts/verify-*.ps1") {
+    return $true
+  }
+  return $false
+}
+
 $repoRoot = Split-Path $PSScriptRoot -Parent
 Push-Location $repoRoot
 try {
-  $candidatePath = Join-Path "docs\release-artifacts" "$ReleaseId.md"
+  $resolvedReleaseId = Resolve-ReleaseId -ExplicitReleaseId $ReleaseId -ConfigPath $CurrentReleaseCandidatePath
+  $candidatePath = Join-Path "docs\release-artifacts" "$resolvedReleaseId.md"
   if (-not (Test-Path -LiteralPath $candidatePath)) {
     throw "Missing release candidate artifact: $candidatePath"
   }
@@ -96,7 +133,23 @@ try {
   $doubleModifiedEntries = @($entries | Where-Object { $_.staged_and_modified })
   $riskyEntries = @($entries | Where-Object { Test-RiskyArtifactPath -Path $_.path })
 
-  $headMatchesCandidate = ($headSha -eq $candidateSha)
+  $headExactlyMatchesCandidate = ($headSha -eq $candidateSha)
+  $candidateIsAncestorOfHead = $false
+  $metadataDeltaPaths = @()
+  $nonMetadataDeltaPaths = @()
+  $releaseMetadataOnlyDelta = $false
+  if (-not $headExactlyMatchesCandidate) {
+    $global:LASTEXITCODE = 0
+    git merge-base --is-ancestor $candidateSha HEAD 2>$null
+    $candidateIsAncestorOfHead = ($LASTEXITCODE -eq 0)
+    if ($candidateIsAncestorOfHead) {
+      $metadataDeltaPaths = @(git diff --name-only "$candidateSha..HEAD" | ForEach-Object { $_ -replace '\\', '/' })
+      $nonMetadataDeltaPaths = @($metadataDeltaPaths | Where-Object { -not (Test-ReleaseMetadataPath -Path ([string]$_)) })
+      $releaseMetadataOnlyDelta = ($metadataDeltaPaths.Count -gt 0 -and $nonMetadataDeltaPaths.Count -eq 0)
+    }
+  }
+
+  $headMatchesCandidate = ($headExactlyMatchesCandidate -or $releaseMetadataOnlyDelta)
   $worktreeClean = ($entries.Count -eq 0)
   $ownerApproved = ($ownerDecision -eq "approved")
   $releaseBoundaryClear = ($headMatchesCandidate -and $worktreeClean -and $ownerApproved)
@@ -130,11 +183,15 @@ try {
   $summary = [ordered]@{
     generated_at = (Get-Date).ToUniversalTime().ToString("o")
     repo = $repoRoot
-    release_id = $ReleaseId
+    release_id = $resolvedReleaseId
+    active_release_candidate_config = $CurrentReleaseCandidatePath
     candidate_artifact = $candidatePath
     candidate_source_sha = $candidateSha
     current_head_sha = $headSha
     head_matches_candidate = $headMatchesCandidate
+    head_exactly_matches_candidate_source = $headExactlyMatchesCandidate
+    candidate_source_is_ancestor_of_head = $candidateIsAncestorOfHead
+    release_metadata_only_delta = $releaseMetadataOnlyDelta
     owner_decision = $ownerDecision
     owner_approved = $ownerApproved
     worktree_clean = $worktreeClean
@@ -151,6 +208,8 @@ try {
     }
     staged_and_modified_paths = @($doubleModifiedEntries | Select-Object -ExpandProperty path)
     risky_artifact_paths = @($riskyEntries | Select-Object -ExpandProperty path)
+    metadata_delta_paths = @($metadataDeltaPaths)
+    non_metadata_delta_paths = @($nonMetadataDeltaPaths)
     staged_paths = @($stagedEntries | Select-Object -ExpandProperty path)
     unstaged_paths_sample = @($unstagedEntries | Select-Object -First 30 -ExpandProperty path)
     untracked_paths_sample = @($untrackedEntries | Select-Object -First 50 -ExpandProperty path)

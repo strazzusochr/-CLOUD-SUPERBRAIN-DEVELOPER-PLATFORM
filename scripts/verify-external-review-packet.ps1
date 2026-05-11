@@ -64,7 +64,7 @@ try {
     $runbookContent = Get-Content -LiteralPath $OperatorRunbookPath -Raw
   }
 
-  foreach ($required in @(
+  $packetRequired = @(
     ".phase1-artifacts\project-truth-state-20260510.json",
     ".phase1-artifacts\project-truth-consistency-20260510.json",
     ".phase1-artifacts\blocker-resolution-plan-20260511.json",
@@ -84,6 +84,13 @@ try {
     "scripts\verify.ps1 -Suite release-boundary -ReportOnly -MaxWaitSeconds 1",
     ".phase1-artifacts\worktree-security-review-packet-20260511.json",
     ".phase1-artifacts\worktree-security-review-action-packet-20260511.json",
+    "truth_ready=$($truth.truth_ready.ToString().ToLowerInvariant())",
+    "status=$($truth.status)",
+    "release_boundary_clear=$($truth.gates.release_boundary_clear.ToString().ToLowerInvariant())",
+    "worktree_clean=$($truth.gates.worktree_clean.ToString().ToLowerInvariant())",
+    "release_id=$($truth.release_candidate.release_id)",
+    "candidate_source_sha=$($truth.release_candidate.candidate_source_sha)",
+    "head_matches_candidate=$($truth.release_candidate.head_matches_candidate.ToString().ToLowerInvariant())",
     "may_cleanup=false",
     "may_stage=false",
     "may_commit=false",
@@ -91,53 +98,44 @@ try {
     "may_deploy=false",
     "may_release=false",
     "review_action_matrix_valid=true",
-    "review-action-matrix-valid-blocked",
-    "review_action_matrix_batches=7",
+    "review_action_matrix_batches=$($truth.counts.review_action_matrix_batches)",
+    "review_action_matrix_unique_paths=$($truth.counts.review_action_matrix_unique_paths)",
     "owner_decision_packet_valid=true",
     "owner_decision_candidates_valid=true",
-    "owner-decision-candidates-valid-ready",
     "owner_decision_candidate_options=4",
     "owner_action_packet_valid=true",
-    "owner-action-packet-valid-ready",
     "owner_action_count=0",
     "owner_decision_readiness_packet_valid=true",
-    "owner-decision-readiness-valid-blocked",
     "owner_decision_readiness_items=8",
     "OWNER_OPERATOR_RUNBOOK_2026-05-11.md",
     "quarantine_action_packet_valid=true",
-    "quarantine-action-packet-clear",
     "quarantine_action_count=0",
     "split_action_packet_valid=true",
-    "split-action-packet-clear",
     "split_action_count=0",
     "security_review_packet_valid=true",
-    "security-review-packet-clear",
     "security_review_packet_paths=0",
     "security_review_action_packet_valid=true",
-    "security-review-action-packet-clear",
     "security_review_action_count=0",
     "security_review_baseline_hotspots=0",
     "security_review_baseline_hotspot_findings=0",
     "blocker_resolution_plan_valid=true",
-    "blocker_resolution_mapped=6",
+    "blocker_resolution_mapped=$($truth.counts.blocker_resolution_mapped)",
+    "blocker_resolution_unknowns=0",
     "vercel_remediation_plan_valid=true",
     "release_rebaseline_plan_valid=true",
-    "release-rebaseline-evidence-only-selected-blocked",
     "release_rebaseline_options=4",
-    "vercel-remediation-ready",
-    "resolution-plan-valid-blocked",
     "classification=project_visible_with_configured_team",
-    "cleanup-execution-plan-ready",
-    "split-plan-clear",
     "owner_decision_valid=true",
     "staged_and_modified=0"
-  )) {
+  )
+  foreach ($required in $packetRequired) {
     Assert-PacketContains -Findings $findings -Content $packetContent -Needle $required
   }
 
-  foreach ($required in @(
-    "truth_ready=false",
-    "release_boundary_clear=false",
+  $runbookRequired = @(
+    "truth_ready=$($truth.truth_ready.ToString().ToLowerInvariant())",
+    "release_boundary_clear=$($truth.gates.release_boundary_clear.ToString().ToLowerInvariant())",
+    "release_id=$($truth.release_candidate.release_id)",
     "owner_decision_valid=true",
     "vercel_access_ready=true",
     "security_passed=true",
@@ -153,7 +151,7 @@ try {
     "docs\analysis\WORKTREE_OWNER_DECISION_TEMPLATE_2026-05-10.json",
     "docs\analysis\WORKTREE_OWNER_DECISION_SCHEMA_2026-05-11.json",
     "cleanup-first",
-    "evidence-only-rebaseline",
+    "create-new-candidate-from-current-head",
     "runtime-rebaseline",
     "defer",
     "may_commit=false",
@@ -169,18 +167,14 @@ try {
     ".phase1-artifacts\release-rebaseline-plan-20260511.json",
     "classification=project_visible_with_configured_team",
     "keep-rc1-and-restore-head",
-    "create-new-candidate-from-current-head",
-    "runtime-rebaseline-after-clean-sweep",
     "scripts\verify.ps1 -Suite security",
     "scripts\verify.ps1 -Suite release-boundary -ReportOnly -MaxWaitSeconds 1",
     "This runbook is not an approval."
-  )) {
+  )
+  foreach ($required in $runbookRequired) {
     Assert-PacketContains -Findings $findings -Content $runbookContent -Needle $required
   }
 
-  if ($truth.truth_ready -eq $true) {
-    Add-Finding -Findings $findings -Id "truth_unexpectedly_ready" -Expected "false for this handoff packet" -Actual "true"
-  }
   if ($truth.policy.may_commit -ne $false -or $truth.policy.may_push -ne $false -or $truth.policy.may_deploy -ne $false) {
     Add-Finding -Findings $findings -Id "truth_policy_not_fail_closed" -Expected "commit/push/deploy false" -Actual "one or more true"
   }

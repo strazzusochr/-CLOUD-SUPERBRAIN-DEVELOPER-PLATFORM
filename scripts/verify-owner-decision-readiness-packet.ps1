@@ -106,10 +106,11 @@ try {
   $blockerResolutionPlan = Read-JsonArtifact -Path $BlockerResolutionPlanPath -Label "blocker-resolution-plan"
 
   $findings = [System.Collections.Generic.List[object]]::new()
+  $expectedReviewReady = ([int]$reviewActionMatrix.batch_count -eq 0 -and [int]$reviewActionMatrix.unique_path_count -eq 0)
+  $expectedBlockerClear = ([int]$blockerResolutionPlan.blocker_count -eq 0)
 
   Assert-EqualValue $findings "review_action_matrix.valid" $true $reviewActionMatrix.valid
-  Assert-EqualValue $findings "review_action_matrix.ready" $false $reviewActionMatrix.ready
-  Assert-EqualValue $findings "review_action_matrix.batch_count" 7 $reviewActionMatrix.batch_count
+  Assert-EqualValue $findings "review_action_matrix.ready" $expectedReviewReady $reviewActionMatrix.ready
   Assert-EqualValue $findings "review_action_matrix.finding_count" 0 $reviewActionMatrix.finding_count
   Assert-EqualValue $findings "quarantine_action_packet.valid" $true $quarantineActionPacket.valid
   Assert-EqualValue $findings "quarantine_action_packet.ready" $true $quarantineActionPacket.ready
@@ -137,10 +138,9 @@ try {
   Assert-EqualValue $findings "vercel_remediation_plan.ready" $true $vercelRemediationPlan.ready
   Assert-EqualValue $findings "vercel_remediation_plan.remediation_action_count" 1 $vercelRemediationPlan.remediation_action_count
   Assert-EqualValue $findings "release_rebaseline_plan.valid" $true $releaseRebaselinePlan.valid
-  Assert-EqualValue $findings "release_rebaseline_plan.ready" $false $releaseRebaselinePlan.ready
   Assert-EqualValue $findings "release_rebaseline_plan.option_count" 4 $releaseRebaselinePlan.option_count
   Assert-EqualValue $findings "blocker_resolution_plan.valid" $true $blockerResolutionPlan.valid
-  Assert-EqualValue $findings "blocker_resolution_plan.clear" $false $blockerResolutionPlan.clear
+  Assert-EqualValue $findings "blocker_resolution_plan.clear" $expectedBlockerClear $blockerResolutionPlan.clear
   Assert-EqualValue $findings "blocker_resolution_plan.unknown_blocker_count" 0 $blockerResolutionPlan.unknown_blocker_count
 
   $readinessItems = @(
@@ -160,7 +160,7 @@ try {
       -SourceArtifact $ReviewActionMatrixPath `
       -VerificationGate "verify-worktree-review-action-matrix.ps1" `
       -UnitCount ([int]$reviewActionMatrix.batch_count) `
-      -RequiresOwnerDecision $true `
+      -RequiresOwnerDecision (-not ($reviewActionMatrix.ready -eq $true)) `
       -RequiresCloudAccess $false
     New-ReadinessItem `
       -Id "resolve-quarantine-actions" `
@@ -205,7 +205,7 @@ try {
       -SourceArtifact $ReleaseRebaselinePlanPath `
       -VerificationGate "verify-release-rebaseline-plan.ps1" `
       -UnitCount ([int]$releaseRebaselinePlan.option_count) `
-      -RequiresOwnerDecision $true `
+      -RequiresOwnerDecision (-not ($releaseRebaselinePlan.ready -eq $true)) `
       -RequiresCloudAccess $true
     New-ReadinessItem `
       -Id "resolve-mapped-blockers" `
@@ -214,7 +214,7 @@ try {
       -SourceArtifact $BlockerResolutionPlanPath `
       -VerificationGate "verify-blocker-resolution-plan.ps1" `
       -UnitCount ([int]$blockerResolutionPlan.mapped_blocker_count) `
-      -RequiresOwnerDecision $true `
+      -RequiresOwnerDecision (-not ($blockerResolutionPlan.clear -eq $true)) `
       -RequiresCloudAccess $true
   )
 

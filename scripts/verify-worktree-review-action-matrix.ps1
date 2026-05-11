@@ -85,15 +85,18 @@ try {
   $batches = @($cleanupPlan.batches)
   $batchIds = @($batches | Select-Object -ExpandProperty id)
   $findings = [System.Collections.Generic.List[object]]::new()
-  $requiredBatchIds = @(
-    "verification",
-    "release-artifacts",
-    "runbooks",
-    "analysis",
-    "runtime-review",
-    "senior-review",
-    "standard-review"
-  )
+  $requiredBatchIds = @()
+  if ($batches.Count -gt 0) {
+    $requiredBatchIds = @(
+      "verification",
+      "release-artifacts",
+      "runbooks",
+      "analysis",
+      "runtime-review",
+      "senior-review",
+      "standard-review"
+    )
+  }
   if ($batchIds -contains "split-required") {
     $requiredBatchIds += "split-required"
   }

@@ -1,0 +1,7 @@
+{
+  "active_release_id": "prod-candidate-2026-05-11-rc1",
+  "updated_at": "2026-05-11T22:10:00Z",
+  "updated_by": "codex-release-boundary-cleanup-20260511",
+  "reason": "Use the reviewed clean HEAD as the active release-boundary candidate. Historical prod-candidate-2026-05-05-rc1 remains preserved as no-release evidence.",
+  "production_rollout_claimed": false
+}
