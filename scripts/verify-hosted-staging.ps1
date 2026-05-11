@@ -77,6 +77,11 @@ function Invoke-PythonInline([string]$Code, [string[]]$Arguments = @()) {
   return ($Code | & $runtime.Path @runtimeArgs)
 }
 
+function New-HostedTempPath([string]$Prefix) {
+  $tempRoot = [System.IO.Path]::GetTempPath()
+  return (Join-Path $tempRoot ($Prefix + [Guid]::NewGuid().ToString("N") + ".json"))
+}
+
 function Invoke-Text($url) {
   $python = @'
 import sys
@@ -156,7 +161,7 @@ except urllib.error.HTTPError as error:
     }
 print(json.dumps(result))
 '@
-  $payloadFile = Join-Path $env:TEMP ("hosted-web-response-" + [Guid]::NewGuid().ToString("N") + ".json")
+  $payloadFile = New-HostedTempPath -Prefix "hosted-web-response-"
   try {
     Set-Content -LiteralPath $payloadFile -Value $payload -NoNewline
     $raw = Invoke-PythonInline -Code $python -Arguments @($payloadFile)
@@ -257,7 +262,7 @@ with urllib.request.urlopen(request, timeout=5) as response:
             break
 sys.stdout.write("".join(chunks))
 '@
-  $payloadFile = Join-Path $env:TEMP ("hosted-sse-" + [Guid]::NewGuid().ToString("N") + ".json")
+  $payloadFile = New-HostedTempPath -Prefix "hosted-sse-"
   try {
     Set-Content -LiteralPath $payloadFile -Value $payload -NoNewline
     return (Invoke-PythonInline -Code $python -Arguments @($payloadFile))
@@ -859,7 +864,7 @@ if (-not $SkipStreamingSections) {
     stream = $true
     metadata = @{ trace_id = $llmStreamTraceId; agent_type = "coder" }
   } | ConvertTo-Json -Depth 6 -Compress
-  $llmStreamBodyFile = Join-Path $env:TEMP ("hosted-llm-stream-" + [Guid]::NewGuid().ToString("N") + ".json")
+  $llmStreamBodyFile = New-HostedTempPath -Prefix "hosted-llm-stream-"
   try {
     Set-Content -LiteralPath $llmStreamBodyFile -Value $llmStreamBody -NoNewline
     $llmStream = Invoke-StreamFromFile -url "$BaseUrl/llm/v1/chat/completions" -bodyFile $llmStreamBodyFile -timeoutSeconds 30
@@ -1320,8 +1325,8 @@ $blockedPolicyBody = @{
   acceptance_criteria = @("result_envelope", "done_validation", "audit_log")
   human_review_required = $true
 } | ConvertTo-Json -Compress
-$blockedBodyFile = Join-Path $env:TEMP ("hosted-task-policy-block-" + [Guid]::NewGuid().ToString("N") + ".json")
-$blockedOutFile = Join-Path $env:TEMP ("hosted-task-policy-block-out-" + [Guid]::NewGuid().ToString("N") + ".json")
+$blockedBodyFile = New-HostedTempPath -Prefix "hosted-task-policy-block-"
+$blockedOutFile = New-HostedTempPath -Prefix "hosted-task-policy-block-out-"
 try {
   Set-Content -Path $blockedBodyFile -Value $blockedPolicyBody -NoNewline -Encoding utf8
   $blockedResponse = Invoke-WebResponse -url "$BaseUrl/api/v1/tasks/policy/validate" -method "POST" -body (Get-Content -Path $blockedBodyFile -Raw) -contentType "application/json"
@@ -1350,8 +1355,8 @@ $profileBlockedBody = @{
   acceptance_criteria = @("result_envelope", "done_validation", "audit_log")
   human_review_required = $true
 } | ConvertTo-Json -Compress
-$profileBlockedBodyFile = Join-Path $env:TEMP ("hosted-task-policy-profile-block-" + [Guid]::NewGuid().ToString("N") + ".json")
-$profileBlockedOutFile = Join-Path $env:TEMP ("hosted-task-policy-profile-block-out-" + [Guid]::NewGuid().ToString("N") + ".json")
+$profileBlockedBodyFile = New-HostedTempPath -Prefix "hosted-task-policy-profile-block-"
+$profileBlockedOutFile = New-HostedTempPath -Prefix "hosted-task-policy-profile-block-out-"
 try {
   Set-Content -Path $profileBlockedBodyFile -Value $profileBlockedBody -NoNewline -Encoding utf8
   $profileBlockedResponse = Invoke-WebResponse -url "$BaseUrl/api/v1/tasks/policy/validate" -method "POST" -body (Get-Content -Path $profileBlockedBodyFile -Raw) -contentType "application/json"
@@ -1559,8 +1564,8 @@ $authRefresh = Invoke-JsonApi -url "$BaseUrl/api/v1/auth/refresh" -method "POST"
 if ($authRefresh.status -ne "rotated") { throw "Hosted staging verification failed: auth refresh did not rotate" }
 if ($authRefresh.refresh_token_rotated -ne $true) { throw "Hosted staging verification failed: auth refresh did not mark rotation true" }
 if ($authRefresh.old_refresh_token_blacklisted -ne $true) { throw "Hosted staging verification failed: auth refresh did not blacklist old token" }
-$authReuseFile = Join-Path $env:TEMP ("hosted-auth-refresh-reuse-" + [Guid]::NewGuid().ToString("N") + ".json")
-$authReuseOutFile = Join-Path $env:TEMP ("hosted-auth-refresh-reuse-out-" + [Guid]::NewGuid().ToString("N") + ".json")
+$authReuseFile = New-HostedTempPath -Prefix "hosted-auth-refresh-reuse-"
+$authReuseOutFile = New-HostedTempPath -Prefix "hosted-auth-refresh-reuse-out-"
 try {
   Set-Content -LiteralPath $authReuseFile -Value $authRefreshBody -NoNewline -Encoding utf8
   $authReuseResponse = Invoke-WebResponse -url "$BaseUrl/api/v1/auth/refresh" -method "POST" -body (Get-Content -Path $authReuseFile -Raw) -contentType "application/json"
@@ -1614,8 +1619,8 @@ $workflowBlockedBody = @{
   human_review_approved = $false
   dry_run = $true
 } | ConvertTo-Json -Compress
-$workflowBlockedFile = Join-Path $env:TEMP ("hosted-workflow-dispatch-block-" + [Guid]::NewGuid().ToString("N") + ".json")
-$workflowBlockedOutFile = Join-Path $env:TEMP ("hosted-workflow-dispatch-block-out-" + [Guid]::NewGuid().ToString("N") + ".json")
+$workflowBlockedFile = New-HostedTempPath -Prefix "hosted-workflow-dispatch-block-"
+$workflowBlockedOutFile = New-HostedTempPath -Prefix "hosted-workflow-dispatch-block-out-"
 try {
   Set-Content -Path $workflowBlockedFile -Value $workflowBlockedBody -NoNewline -Encoding utf8
   $workflowBlockedResponse = Invoke-WebResponse -url "$BaseUrl/api/v1/devops/workflow-dispatch/validate" -method "POST" -body (Get-Content -Path $workflowBlockedFile -Raw) -contentType "application/json"
@@ -1975,7 +1980,7 @@ Assert-Contains "llm policy blocked checkpoint reason" $llmPolicyBlockedCheckpoi
 Assert-Contains "llm policy blocked checkpoint evidence" $llmPolicyBlockedCheckpoint "llm_routing_policy_sensitive_cache_blocked"
 
 if (-not $SkipOrchestratorStreaming) {
-  $blockedOrchestratorBodyFile = Join-Path $env:TEMP ("hosted-orchestrator-hard-stop-stream-" + [Guid]::NewGuid().ToString("N") + ".json")
+  $blockedOrchestratorBodyFile = New-HostedTempPath -Prefix "hosted-orchestrator-hard-stop-stream-"
   try {
     Set-Content -Path $blockedOrchestratorBodyFile -Value $blockedOrchestratorBody -NoNewline -Encoding utf8
     $blockedOrchestratorStream = Invoke-StreamFromFile -url "$BaseUrl/api/v1/orchestrator/dry-run/stream" -bodyFile $blockedOrchestratorBodyFile -timeoutSeconds 25
@@ -1992,7 +1997,7 @@ if (-not $SkipOrchestratorStreaming) {
   Assert-Contains "blocked orchestrator stream hard stop" $blockedOrchestratorStream '"node_name":"hard_stop"'
   Assert-Contains "blocked orchestrator stream hard stop reason" $blockedOrchestratorStream '"hard_stop_reason":"policy_or_budget_guard_rejected"'
   Assert-Contains "blocked orchestrator stream done" $blockedOrchestratorStream "event: done"
-  $blockedOrchestratorReplayBodyFile = Join-Path $env:TEMP ("hosted-orchestrator-hard-stop-replay-" + [Guid]::NewGuid().ToString("N") + ".json")
+  $blockedOrchestratorReplayBodyFile = New-HostedTempPath -Prefix "hosted-orchestrator-hard-stop-replay-"
   try {
     Set-Content -Path $blockedOrchestratorReplayBodyFile -Value $blockedOrchestratorBody -NoNewline -Encoding utf8
     $blockedOrchestratorReplay = Invoke-StreamFromFile -url "$BaseUrl/api/v1/orchestrator/dry-run/stream" -bodyFile $blockedOrchestratorReplayBodyFile -headers @{ "Last-Event-ID" = "0" } -timeoutSeconds 15
@@ -2004,7 +2009,7 @@ if (-not $SkipOrchestratorStreaming) {
   Assert-Contains "blocked orchestrator replay hard stop reason" $blockedOrchestratorReplay '"hard_stop_reason":"policy_or_budget_guard_rejected"'
   Assert-Contains "blocked orchestrator replay done" $blockedOrchestratorReplay "event: done"
 
-  $orchestratorBodyFile = Join-Path $env:TEMP ("orchestrator-stream-" + [Guid]::NewGuid().ToString("N") + ".json")
+  $orchestratorBodyFile = New-HostedTempPath -Prefix "orchestrator-stream-"
   try {
     Set-Content -Path $orchestratorBodyFile -Value $orchestratorBody -NoNewline -Encoding utf8
     $orchestratorStream = Invoke-StreamFromFile -url "$BaseUrl/api/v1/orchestrator/dry-run/stream" -bodyFile $orchestratorBodyFile -timeoutSeconds 25
@@ -2039,7 +2044,7 @@ if (-not $SkipOrchestratorStreaming) {
   Assert-Contains "orchestrator stream mcp safe envelope" $orchestratorStream "mcp_safe_envelope"
   Assert-Contains "orchestrator stream done" $orchestratorStream "event: done"
   Assert-Contains "orchestrator stream postgres checkpointing" $orchestratorStream '"checkpointing":"postgres"'
-  $orchestratorReplayBodyFile = Join-Path $env:TEMP ("hosted-orchestrator-replay-" + [Guid]::NewGuid().ToString("N") + ".json")
+  $orchestratorReplayBodyFile = New-HostedTempPath -Prefix "hosted-orchestrator-replay-"
   try {
     Set-Content -Path $orchestratorReplayBodyFile -Value $orchestratorBody -NoNewline -Encoding utf8
     $orchestratorReplay = Invoke-StreamFromFile -url "$BaseUrl/api/v1/orchestrator/dry-run/stream" -bodyFile $orchestratorReplayBodyFile -headers @{ "Last-Event-ID" = "0" } -timeoutSeconds 15
@@ -2061,7 +2066,7 @@ if (-not $SkipOrchestratorStreaming) {
   Assert-Contains "orchestrator replay done" $orchestratorReplay "event: done"
   $orchestratorErrorThreadId = [Guid]::NewGuid().ToString()
   $orchestratorErrorBody = @{ project_id = $projectId; prompt = "force_phase2_sse_error_event"; session_id = $orchestratorErrorThreadId } | ConvertTo-Json -Compress
-  $orchestratorErrorBodyFile = Join-Path $env:TEMP ("hosted-orchestrator-sse-error-" + [Guid]::NewGuid().ToString("N") + ".json")
+  $orchestratorErrorBodyFile = New-HostedTempPath -Prefix "hosted-orchestrator-sse-error-"
   try {
     Set-Content -Path $orchestratorErrorBodyFile -Value $orchestratorErrorBody -NoNewline -Encoding utf8
     $orchestratorErrorStream = Invoke-StreamFromFile -url "$BaseUrl/api/v1/orchestrator/dry-run/stream" -bodyFile $orchestratorErrorBodyFile -timeoutSeconds 10
