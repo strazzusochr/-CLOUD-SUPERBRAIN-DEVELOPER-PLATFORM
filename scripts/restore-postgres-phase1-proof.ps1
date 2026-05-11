@@ -29,6 +29,19 @@ function Assert-SafeDatabaseName([string]$name) {
   }
 }
 
+function Convert-LastJsonObject($label, $output) {
+  $jsonLine = @($output) |
+    ForEach-Object { ($_ | Out-String).Trim() } |
+    Where-Object { $_.StartsWith("{") -and $_.EndsWith("}") } |
+    Select-Object -Last 1
+
+  if ([string]::IsNullOrWhiteSpace($jsonLine)) {
+    throw "PostgreSQL restore proof failed: $label did not emit a JSON object. Output: $($output | Out-String)"
+  }
+
+  return ($jsonLine | ConvertFrom-Json)
+}
+
 $containerId = docker ps --filter "name=^/$Container$" --format "{{.ID}}"
 Assert-LastExitCode "inspect postgres container"
 if ([string]::IsNullOrWhiteSpace($containerId)) {
@@ -45,7 +58,7 @@ $backupJson = powershell -ExecutionPolicy Bypass -File scripts\backup-postgres-p
   -Database $SourceDatabase `
   -DbUser $DbUser `
   -OutputDir $OutputDir
-$backup = $backupJson | ConvertFrom-Json
+$backup = Convert-LastJsonObject "backup proof" $backupJson
 if (-not $backup.schema_only) {
   throw "PostgreSQL restore proof failed: restore drill requires a schema-only backup"
 }

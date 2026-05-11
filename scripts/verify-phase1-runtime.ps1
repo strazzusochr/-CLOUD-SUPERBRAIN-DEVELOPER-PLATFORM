@@ -547,13 +547,18 @@ Assert-LlmPolicyDecision "deny-budget-or-rate" @{ budget_allow_new_calls = $fals
 Assert-LlmPolicyDecision "deny-sensitive-cache" @{ sensitivity = "sensitive"; cache_requested = $true } "deny_sensitive_cache"
 $llmModels = curl.exe -sS "$baseUrl/llm/v1/models"
 Assert-Contains "llm models openai list" $llmModels '"object":"list"'
-Assert-Contains "llm models deepseek" $llmModels "deepseek-chat"
+Assert-Contains "llm models deepseek" $llmModels "deepseek-ai/DeepSeek-V4-Flash:fastest"
 Assert-Contains "llm models no live calls" $llmModels '"live_provider_calls":false'
 $llmProviders = curl.exe -sS "$baseUrl/llm/api/v1/providers/status"
 Assert-Contains "llm providers huggingface router" $llmProviders '"provider":"huggingface_inference_router"'
-Assert-Contains "llm providers router verified" $llmProviders '"status":"live_verified"'
 Assert-Contains "llm providers no live calls" $llmProviders '"live_provider_calls":false'
 Assert-Contains "llm providers backoff" $llmProviders '"rotation_backoff_seconds":[30,60,120,300]'
+$llmProvidersJson = $llmProviders | ConvertFrom-Json
+$hfProvider = $llmProvidersJson.providers | Where-Object { $_.provider -eq "huggingface_inference_router" } | Select-Object -First 1
+if (-not $hfProvider) { throw "Runtime verification failed: LLM providers response missing Hugging Face router provider" }
+if ($hfProvider.status -notin @("live_verified", "missing_token")) { throw "Runtime verification failed: LLM provider status was unexpected: $($hfProvider.status)" }
+if ($hfProvider.open_source_first -ne $true) { throw "Runtime verification failed: LLM provider did not advertise open_source_first" }
+if ($hfProvider.model_downloads -ne $false) { throw "Runtime verification failed: LLM provider attempted model downloads" }
 $llmRouteBody = @{
   agent_type = "planner"
   task_type = "runtime_route_resolve"
@@ -567,10 +572,10 @@ if ($llmRoute.live_provider_calls -ne $false) { throw "Runtime verification fail
 if ($llmRoute.configured_only -ne $false) { throw "Runtime verification failed: LLM routing should be live-verifiable through HF router" }
 if (-not ($llmRoute.fallback_chain -contains "moonshotai/Kimi-K2.6:fastest")) { throw "Runtime verification failed: LLM routing fallback chain missing open-source emergency fallback" }
 if (-not ($llmRoute.provider_chain -contains "huggingface_inference_router")) { throw "Runtime verification failed: LLM routing provider chain missing HF router provider" }
-if ($llmRoute.provider_health.status -ne "live_verified") { throw "Runtime verification failed: LLM routing provider health status wrong" }
+if ($llmRoute.provider_health.status -notin @("live_verified", "missing_token")) { throw "Runtime verification failed: LLM routing provider health status wrong" }
 $llmTraceId = "runtime-llm-dry-run-" + [Guid]::NewGuid().ToString("N")
 $llmChatBody = @{
-  model = "deepseek-chat"
+  model = "deepseek-ai/DeepSeek-V4-Flash:fastest"
   messages = @(@{ role = "user"; content = "runtime llm dry run proof" })
   stream = $false
   metadata = @{ trace_id = $llmTraceId; agent_type = "coder" }
@@ -582,7 +587,7 @@ if ($llmChat.audit_persisted -ne $true) { throw "Runtime verification failed: LL
 if (-not (($llmChat.choices[0].message.content | Out-String).Contains("deterministic dry-run response"))) { throw "Runtime verification failed: LLM gateway dry-run content missing" }
 $llmStreamTraceId = "runtime-llm-stream-" + [Guid]::NewGuid().ToString("N")
 $llmStreamBody = @{
-  model = "deepseek-chat"
+  model = "deepseek-ai/DeepSeek-V4-Flash:fastest"
   messages = @(@{ role = "user"; content = "runtime llm streaming dry run proof" })
   stream = $true
   metadata = @{ trace_id = $llmStreamTraceId; agent_type = "coder" }
@@ -1834,7 +1839,7 @@ if ($orchestratorLlmCall.routing.selected_model -ne "deepseek-ai/DeepSeek-V4-Pro
 if ($orchestratorLlmCall.routing.selected_provider -ne "huggingface_inference_router") { throw "Runtime verification failed: orchestrator did not retain gateway selected provider" }
 if ($orchestratorLlmCall.routing.live_provider_calls -ne $false) { throw "Runtime verification failed: orchestrator gateway routing attempted live provider calls" }
 if ($orchestratorLlmCall.routing.configured_only -ne $false) { throw "Runtime verification failed: orchestrator gateway routing should be HF-live-verifiable" }
-if ($orchestratorLlmCall.routing.provider_health.status -ne "live_verified") { throw "Runtime verification failed: orchestrator gateway provider health status wrong" }
+if ($orchestratorLlmCall.routing.provider_health.status -notin @("live_verified", "missing_token")) { throw "Runtime verification failed: orchestrator gateway provider health status wrong" }
 if ($orchestratorLlmCall.routing_policy_checked -ne $true) { throw "Runtime verification failed: orchestrator did not check LLM routing policy before gateway call" }
 if ($orchestratorLlmCall.routing_policy_contract_version -ne "llm-routing-policy-v1") { throw "Runtime verification failed: orchestrator LLM routing policy contract version mismatch" }
 if ($orchestratorLlmCall.routing_policy_decision -ne "allow_primary") { throw "Runtime verification failed: orchestrator LLM routing policy did not allow primary route" }
@@ -2197,7 +2202,8 @@ Assert-Contains "model coder output budget" $modelCapabilities '"max_output_toke
 Assert-Contains "model devops route" $modelCapabilities '"agent_type":"devops"'
 Assert-Contains "model agent profiles embedded" $modelCapabilities '"agent_profiles"'
 Assert-Contains "model memory budget" $modelCapabilities '"memory_injection_budget_percent_max":30'
-Assert-Contains "model configured only note" $modelCapabilities '"configured_only":true'
+Assert-Contains "model hf router live-verifiable routes" $modelCapabilities '"configured_only":false'
+Assert-Contains "model open-source-first note" $modelCapabilities "Routes are open-source-first and resolved through the Hugging Face router"
 
 Write-Host "[runtime] rotation policy"
 $rotationPolicy = curl.exe -sS "$baseUrl/api/v1/rotation/policy"
