@@ -31,7 +31,7 @@
 ## Latest Post-Merge Handoff
 
 - Current handoff: `docs/analysis/CURRENT_CLOUD_HANDOFF_2026-05-12.md`
-- Post-merge repository head: `0b54ede8f234e48f097e9d498951f50a48729d02`
+- Last validated CI/runtime head: `0b54ede8f234e48f097e9d498951f50a48729d02`
 - Main deploy run: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25753246471`
 - Main deploy result: `success`
 - Post-merge release-candidate suite: `scripts=51 failed=0`

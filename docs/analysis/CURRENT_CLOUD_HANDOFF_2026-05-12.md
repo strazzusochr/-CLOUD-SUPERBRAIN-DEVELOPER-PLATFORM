@@ -14,7 +14,8 @@ This document is the current external-review handoff for the cloud/runtime state
 
 - Base branch: `chore/repo-bootstrap`
 - Final handoff documentation branch: `codex-current-cloud-handoff-final-20260512`
-- Current post-merge head: `0b54ede8f234e48f097e9d498951f50a48729d02`
+- Last validated CI/runtime head: `0b54ede8f234e48f097e9d498951f50a48729d02`
+- This handoff file may be carried by a later documentation-only merge commit. Treat `git log -1` as the current repository head, and treat the value above as the last head whose full post-merge `main-deploy` evidence is recorded here.
 - PR #6: merged, immutable candidate/staging parity correction.
 - PR #7: merged, production image tag publishing is now gated before `build-and-push`.
 - PR #8: merged, current cloud handoff and review/runbook truth-state reconciliation.
@@ -35,7 +36,7 @@ This document is the current external-review handoff for the cloud/runtime state
 - Active release candidate: `prod-candidate-2026-05-11-rc1`
 - Candidate source commit: `fc00a787b54399133a90158bb63f6228859b5c96`
 - Candidate immutable image commit: `b0c2773b1d122745947315a8d39734d5a6c96d6b`
-- Current merged repository head: `0b54ede8f234e48f097e9d498951f50a48729d02`
+- Last validated CI/runtime head: `0b54ede8f234e48f097e9d498951f50a48729d02`
 - Runtime image boundary remains the immutable `b0c2773b1d122745947315a8d39734d5a6c96d6b` service image set.
 - PR #7 changed CI release safety. PR #8 through PR #10 changed documentation and CI workflow maintenance. They do not claim a new production runtime rollout.
 
@@ -156,7 +157,7 @@ This prevents production image tags from being pushed before the GitHub producti
 
 - No production deployment was triggered from this handoff.
 - No production runtime rollout is claimed.
-- No new Hetzner runtime image rollout from merge commit `0b54ede8f234e48f097e9d498951f50a48729d02` is claimed.
+- No new Hetzner runtime image rollout from validated CI/runtime head `0b54ede8f234e48f097e9d498951f50a48729d02` is claimed.
 - GitLab identity remains not claimable in the current external gate audit.
 - GitKraken identity remains not claimable in the current external gate audit.
 - Docker Desktop local readiness was not part of this post-merge verification pass.
