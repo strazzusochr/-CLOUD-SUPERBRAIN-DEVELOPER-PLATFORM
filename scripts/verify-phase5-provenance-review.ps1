@@ -24,6 +24,27 @@ with urllib.request.urlopen(r'''$uri''', timeout=30) as response:
   return ($content | ConvertFrom-Json)
 }
 
+function Invoke-DockerManifestInspect($ref, [switch]$Verbose) {
+  $attempts = 3
+  $lastOutput = ""
+  for ($attempt = 1; $attempt -le $attempts; $attempt++) {
+    $global:LASTEXITCODE = 0
+    if ($Verbose) {
+      $lastOutput = docker manifest inspect --verbose $ref 2>&1 | Out-String
+    } else {
+      $lastOutput = docker manifest inspect $ref 2>&1 | Out-String
+    }
+    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($lastOutput)) {
+      return $lastOutput
+    }
+    if ($attempt -lt $attempts) {
+      Write-Warning "GHCR manifest inspect retry $attempt/$attempts for $ref"
+      Start-Sleep -Seconds (5 * $attempt)
+    }
+  }
+  throw "Verification failed: GHCR immutable manifest inspect failed for $ref after $attempts attempts. Last output: $lastOutput"
+}
+
 $artifactPath = "docs\release-artifacts\$ReleaseId-provenance-review.md"
 $manifest = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
 $expectedOverall = [int]$manifest.overall_percent
@@ -51,8 +72,7 @@ Assert-Contains "candidate source sha" $candidate 'source_commit_sha: `ddde3b4c1
 $images = @("agent-api", "mcp-gateway", "frontend", "llm-gateway", "agent-worker", "memory-worker")
 foreach ($name in $images) {
   $ref = "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/${name}:ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5"
-  docker manifest inspect $ref | Out-Null
-  if ($LASTEXITCODE -ne 0) { throw "Verification failed: GHCR immutable manifest inspect failed for $ref" }
+  Invoke-DockerManifestInspect $ref | Out-Null
 }
 
 $progress = Get-Json "$BaseUrl/api/v1/project/progress"

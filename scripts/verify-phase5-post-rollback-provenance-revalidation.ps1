@@ -18,6 +18,27 @@ $code
 "@ | py -3 -
 }
 
+function Invoke-DockerManifestInspect($ref, [switch]$Verbose) {
+  $attempts = 3
+  $lastOutput = ""
+  for ($attempt = 1; $attempt -le $attempts; $attempt++) {
+    $global:LASTEXITCODE = 0
+    if ($Verbose) {
+      $lastOutput = docker manifest inspect --verbose $ref 2>&1 | Out-String
+    } else {
+      $lastOutput = docker manifest inspect $ref 2>&1 | Out-String
+    }
+    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($lastOutput)) {
+      return $lastOutput
+    }
+    if ($attempt -lt $attempts) {
+      Write-Warning "GHCR manifest inspect retry $attempt/$attempts for $ref"
+      Start-Sleep -Seconds (5 * $attempt)
+    }
+  }
+  throw "Verification failed: GHCR manifest inspect failed for $ref after $attempts attempts. Last output: $lastOutput"
+}
+
 $artifactPath = "docs\release-artifacts\prod-candidate-2026-05-05-rc1-post-rollback-provenance-revalidation.md"
 if (-not (Test-Path $artifactPath)) {
   throw "Missing post-rollback provenance revalidation artifact: $artifactPath"
@@ -62,10 +83,7 @@ Assert-Contains "workflow head sha" $workflow '"head_sha": "ddde3b4c11b9e50e6411
 $images = @("agent-api", "mcp-gateway", "frontend", "llm-gateway", "agent-worker", "memory-worker")
 foreach ($name in $images) {
   $ref = "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/${name}:ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5"
-  $manifestInspect = docker manifest inspect $ref
-  if ($LASTEXITCODE -ne 0) {
-    throw "Verification failed: GHCR manifest inspect failed for $ref"
-  }
+  $manifestInspect = Invoke-DockerManifestInspect $ref
   Assert-Contains "ghcr manifest $name" $manifestInspect '"architecture": "amd64"'
   Assert-Contains "ghcr manifest $name" $manifestInspect '"architecture": "arm64"'
 }
