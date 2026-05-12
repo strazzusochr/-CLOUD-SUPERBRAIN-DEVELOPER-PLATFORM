@@ -134,6 +134,20 @@ foreach ($required in @(
 )) {
   Assert-Contains "main deploy workflow" $mainDeploy $required
 }
+$productionGateIndex = $mainDeploy.IndexOf("  production-gate:")
+$buildAndPushIndex = $mainDeploy.IndexOf("  build-and-push:")
+if ($productionGateIndex -lt 0 -or $buildAndPushIndex -lt 0) {
+  throw "main-deploy workflow must define both production-gate and build-and-push jobs"
+}
+if ($productionGateIndex -gt $buildAndPushIndex) {
+  throw "main-deploy production-gate must run before build-and-push so production tags cannot publish before approval"
+}
+if ($mainDeploy -notmatch '(?s)  production-gate:\s+if: \$\{\{ github\.event\.inputs\.deploy_environment == ''production'' \}\}\s+needs: verify\s+runs-on: ubuntu-latest\s+environment: production') {
+  throw "main-deploy production-gate must depend on verify and require the production environment before image publishing"
+}
+if ($mainDeploy -notmatch '(?s)  build-and-push:\s+needs: \[verify, production-gate\]\s+if: \$\{\{ always\(\) && needs\.verify\.result == ''success'' && \(needs\.production-gate\.result == ''success'' \|\| needs\.production-gate\.result == ''skipped''\) \}\}') {
+  throw "main-deploy build-and-push must wait for verify and production-gate while still allowing skipped gate for staging"
+}
 
 Write-Host "[phase5] manifest syntax"
 py -3 scripts\verify_project_progress_manifest.py | Out-Null
