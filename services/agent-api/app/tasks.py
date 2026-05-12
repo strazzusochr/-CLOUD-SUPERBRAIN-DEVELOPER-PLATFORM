@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import re
 from uuid import UUID, uuid4
 
 import redis
@@ -19,6 +20,11 @@ TASK_PRIORITY_QUEUES = {
 TASK_PRIORITY_ORDER = ("high", "mid", "low")
 TASK_STATUS_PREFIX = "task:status:"
 TASK_TTL_SECONDS = 60 * 60 * 24
+AUTONOMOUS_TEAM_DISPATCH_PREFIX = "team:autonomous:dispatch:"
+AUTONOMOUS_TEAM_DISPATCH_INDEX_KEY = "team:autonomous:dispatch:index"
+AUTONOMOUS_TEAM_TTL_SECONDS = TASK_TTL_SECONDS
+AUTONOMOUS_TEAM_MODE = "logical_five_role_overlay_on_runtime_pool"
+AUTONOMOUS_LOGICAL_ROLES = ("supervisor", "planner", "explorer", "coder", "tester")
 PROFILE_BY_AGENT = {profile.agent_type: profile for profile in AGENT_PROFILES}
 REQUIRED_BLOCKED_ACTIONS = set(PROFILE_REQUIRED_BLOCKED_ACTIONS)
 ALLOWED_TOOL_NAMES = {
@@ -85,6 +91,59 @@ class TaskRecord(TaskAssignment):
     done_validation: dict[str, bool] | None = None
 
 
+class AutonomousRoleAssignment(BaseModel):
+    logical_role: str = Field(..., pattern="^(supervisor|planner|explorer|coder|tester)$")
+    execution_agent_type: str = Field(..., pattern="^(planner|coder|tester|devops)$")
+    task_id: str
+    task_type: str = Field(..., min_length=1, max_length=120)
+    status: str = Field(
+        default="queued",
+        pattern="^(queued|running|completed|failed|escalated|abandoned_after_queue_drain)$",
+    )
+    priority: int = Field(default=5, ge=1, le=10)
+    priority_level: str = Field(..., pattern="^(high|mid|low)$")
+    priority_queue: str = Field(..., min_length=1)
+    allowed_tools: list[str] = Field(default_factory=list)
+    planned_capabilities: list[str] = Field(default_factory=list)
+    write_scope: list[str] = Field(default_factory=list)
+    acceptance_criteria: list[str] = Field(default_factory=list)
+    human_review_required: bool = True
+    blocked_actions: list[str] = Field(default_factory=list)
+    evidence_ref: str = "autonomous_team_dispatch_visible"
+    current_status_source: str = "task_queue"
+
+
+class AutonomousDispatchRecord(BaseModel):
+    dispatch_id: str
+    project_id: str = Field(..., min_length=1)
+    session_id: str = Field(..., min_length=1)
+    objective: str = Field(..., min_length=1, max_length=10_000)
+    trace_id: str | None = None
+    request_id: str | None = None
+    status: str = Field(
+        default="queued",
+        pattern="^(queued|active|completed|attention|failed)$",
+    )
+    created_at: str
+    updated_at: str | None = None
+    team_mode: str = AUTONOMOUS_TEAM_MODE
+    dispatch_contract_version: str = "autonomous-task-dispatch-v1"
+    team_contract_version: str = "autonomous-coding-team-v1"
+    write_scope: list[str] = Field(default_factory=list)
+    acceptance_criteria: list[str] = Field(default_factory=list)
+    constraints: list[str] = Field(default_factory=list)
+    assignments: list[AutonomousRoleAssignment] = Field(default_factory=list)
+    non_claims: list[str] = Field(default_factory=list)
+
+    @field_validator("session_id")
+    @classmethod
+    def validate_dispatch_session_uuid(cls, value: str) -> str:
+        try:
+            return str(UUID(value))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("session_id must be a valid UUID") from exc
+
+
 def task_policy_manifest() -> dict[str, object]:
     return {
         "policy_version": "task-policy-v1",
@@ -111,6 +170,10 @@ def task_policy_manifest() -> dict[str, object]:
         },
         "devops_human_gate": "required for deployment-like tasks",
     }
+
+
+def text_contains_policy_keyword(text: str, keyword: str) -> bool:
+    return re.search(rf"(?<![a-z0-9_]){re.escape(keyword)}(?![a-z0-9_])", text) is not None
 
 
 def validate_task_policy(assignment: TaskAssignment) -> None:
@@ -147,11 +210,11 @@ def validate_task_policy(assignment: TaskAssignment) -> None:
 
     text = f"{assignment.task_type} {assignment.task_description}".lower()
     has_write_tool = bool(set(assignment.allowed_tools) & WRITE_TOOL_NAMES)
-    looks_like_write_task = any(keyword in text for keyword in WRITE_KEYWORDS)
+    looks_like_write_task = any(text_contains_policy_keyword(text, keyword) for keyword in WRITE_KEYWORDS)
     if assignment.agent_type == "coder" and (has_write_tool or looks_like_write_task) and not assignment.write_scope:
         violations.append("coder write-like tasks require an explicit non-empty write_scope")
 
-    looks_like_deploy_task = any(keyword in text for keyword in DEPLOY_KEYWORDS)
+    looks_like_deploy_task = any(text_contains_policy_keyword(text, keyword) for keyword in DEPLOY_KEYWORDS)
     if assignment.agent_type == "devops" and looks_like_deploy_task and not assignment.human_review_required:
         violations.append("devops deployment-like tasks require human_review_required=true")
 
@@ -242,3 +305,51 @@ def queue_depth_by_priority() -> dict[str, int]:
         priority_level: int(client.llen(queue_key))
         for priority_level, queue_key in TASK_PRIORITY_QUEUES.items()
     }
+
+
+def autonomous_dispatch_key(dispatch_id: str) -> str:
+    return AUTONOMOUS_TEAM_DISPATCH_PREFIX + dispatch_id
+
+
+def autonomous_dispatch_status(assignments: list[AutonomousRoleAssignment]) -> str:
+    statuses = {assignment.status for assignment in assignments}
+    if statuses & {"failed"}:
+        return "failed"
+    if statuses & {"escalated", "abandoned_after_queue_drain"}:
+        return "attention"
+    if statuses and statuses <= {"completed"}:
+        return "completed"
+    if statuses & {"running"}:
+        return "active"
+    return "queued"
+
+
+def store_autonomous_dispatch(record: AutonomousDispatchRecord) -> AutonomousDispatchRecord:
+    client = redis_client()
+    payload = record.model_dump_json()
+    client.set(autonomous_dispatch_key(record.dispatch_id), payload, ex=AUTONOMOUS_TEAM_TTL_SECONDS)
+    client.lpush(AUTONOMOUS_TEAM_DISPATCH_INDEX_KEY, record.dispatch_id)
+    client.ltrim(AUTONOMOUS_TEAM_DISPATCH_INDEX_KEY, 0, 199)
+    return record
+
+
+def get_autonomous_dispatch(dispatch_id: str) -> AutonomousDispatchRecord | None:
+    payload = redis_client().get(autonomous_dispatch_key(dispatch_id))
+    if not payload:
+        return None
+    return AutonomousDispatchRecord.model_validate_json(payload)
+
+
+def list_recent_autonomous_dispatches(limit: int = 20) -> list[AutonomousDispatchRecord]:
+    client = redis_client()
+    dispatch_ids = client.lrange(AUTONOMOUS_TEAM_DISPATCH_INDEX_KEY, 0, max(limit * 5, limit) - 1)
+    records: list[AutonomousDispatchRecord] = []
+    for dispatch_id in dispatch_ids:
+        payload = client.get(autonomous_dispatch_key(dispatch_id))
+        if not payload:
+            continue
+        try:
+            records.append(AutonomousDispatchRecord.model_validate_json(payload))
+        except ValueError:
+            continue
+    return records[:limit]

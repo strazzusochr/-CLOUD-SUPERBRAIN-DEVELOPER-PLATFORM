@@ -2,12 +2,16 @@ param(
   [string]$HostedBaseUrl = $env:STAGING_BASE_URL,
   [string]$LocalBaseUrl = "http://localhost:8081",
   [string]$Repository = $(if ($env:GITHUB_REPOSITORY) { $env:GITHUB_REPOSITORY } else { "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM" }),
-  [string]$Branch = $(if ($env:BRANCH_NAME) { $env:BRANCH_NAME } else { "main" }),
+  [string]$Branch = $(if ($env:BRANCH_NAME) { $env:BRANCH_NAME } else { "" }),
   [string]$GitLabProfileUrl = $(if ($env:GITLAB_PROFILE_URL) { $env:GITLAB_PROFILE_URL } else { "https://gitlab.com/strazzusochr" }),
   [string]$HuggingFaceProfileUrl = $(if ($env:HF_PROFILE_URL) { $env:HF_PROFILE_URL } else { "https://huggingface.co/Wrzzzrzr" }),
   [string]$GitKrakenDashboardUrl = $(if ($env:GITKRAKEN_DASHBOARD_URL) { $env:GITKRAKEN_DASHBOARD_URL } else { "https://gitkraken.dev" }),
   [string]$GhcrImageNamespace = $(if ($env:GHCR_IMAGE_NAMESPACE) { $env:GHCR_IMAGE_NAMESPACE } else { "ghcr.io/strazzusochr/cloud-superbrain-developer-platform" }),
   [string]$ImageTag = $(if ($env:IMAGE_TAG) { $env:IMAGE_TAG } else { "staging" }),
+  [string]$StagingSshHost = $(if ($env:STAGING_SSH_HOST) { $env:STAGING_SSH_HOST } else { "188.34.191.140" }),
+  [string]$StagingSshUser = $(if ($env:STAGING_SSH_USER) { $env:STAGING_SSH_USER } else { "root" }),
+  [string]$StagingSshKeyPath = $(if ($env:STAGING_SSH_KEY_PATH) { $env:STAGING_SSH_KEY_PATH } else { "" }),
+  [string]$StagingAppDir = $(if ($env:STAGING_APP_DIR) { $env:STAGING_APP_DIR } else { "/app" }),
   [string]$ArtifactDirectory = ".phase1-artifacts",
   [switch]$RequireAllClosed
 )
@@ -21,6 +25,27 @@ function Normalize-BaseUrl([string]$value) {
   return $value.Trim().TrimEnd("/")
 }
 
+function Resolve-BranchName([string]$value) {
+  if (-not [string]::IsNullOrWhiteSpace($value)) {
+    return $value
+  }
+  $remoteHead = git symbolic-ref refs/remotes/origin/HEAD 2>$null
+  if ($LASTEXITCODE -eq 0) {
+    $normalizedRemoteHead = ($remoteHead | Out-String).Trim()
+    if ($normalizedRemoteHead -match "^refs/remotes/origin/(.+)$") {
+      return $Matches[1]
+    }
+  }
+  $gitBranch = git branch --show-current 2>$null
+  if ($LASTEXITCODE -eq 0) {
+    $normalized = ($gitBranch | Out-String).Trim()
+    if (-not [string]::IsNullOrWhiteSpace($normalized)) {
+      return $normalized
+    }
+  }
+  return "main"
+}
+
 function Assert-HostedBaseUrlSafe([string]$value) {
   if ([string]::IsNullOrWhiteSpace($value)) {
     return
@@ -31,6 +56,20 @@ function Assert-HostedBaseUrlSafe([string]$value) {
   if ($value -notmatch "^https://") {
     throw "External gate hosted proof requires HTTPS"
   }
+}
+
+function Join-OriginProbeUrl([string]$BaseUrl, [string]$ExpectedPrefix, [string]$HealthPath) {
+  $normalized = Normalize-BaseUrl $BaseUrl
+  if ([string]::IsNullOrWhiteSpace($normalized)) {
+    return $null
+  }
+
+  $prefix = $ExpectedPrefix.TrimEnd("/")
+  if ($prefix -and $normalized.EndsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+    return "$normalized$HealthPath"
+  }
+
+  return "$normalized$ExpectedPrefix$HealthPath"
 }
 
 function New-Probe(
@@ -95,6 +134,38 @@ fetch(url).then(async (response) => {
     return $result
   } catch {
     return New-Probe $Id "failed" $true $false $EvidenceRef $Url 0 "node fetch probe failed" ($raw.Trim())
+  }
+}
+
+function Invoke-JsonProbe([string]$Url) {
+  $nodeScript = @'
+const url = process.argv[1];
+fetch(url).then(async (response) => {
+  const body = await response.text();
+  let payload = null;
+  try { payload = JSON.parse(body); } catch {}
+  console.log(JSON.stringify({
+    status: response.status,
+    ok: response.status >= 200 && response.status < 300,
+    payload,
+    body
+  }));
+}).catch((error) => {
+  console.log(JSON.stringify({ status: 0, ok: false, error: error.message, payload: null, body: '' }));
+  process.exitCode = 2;
+});
+'@
+  $previousErrorActionPreference = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    $raw = node -e $nodeScript $Url 2>&1 | Out-String
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+  try {
+    return ($raw | ConvertFrom-Json)
+  } catch {
+    return $null
   }
 }
 
@@ -275,8 +346,72 @@ function Invoke-ProcessProbe([string]$Id, [string]$EvidenceRef, [scriptblock]$Co
   }
 }
 
+function Invoke-RemoteBranchProtectionProbe(
+  [string]$Repository,
+  [string]$Branch,
+  [string]$SshHost,
+  [string]$User,
+  [string]$KeyPath,
+  [string]$AppDir
+) {
+  if ([string]::IsNullOrWhiteSpace($SshHost) -or [string]::IsNullOrWhiteSpace($User) -or [string]::IsNullOrWhiteSpace($KeyPath) -or [string]::IsNullOrWhiteSpace($AppDir)) {
+    return New-Probe "github_branch_protection_verify" "missing_secret_or_binary" $false $false "branch_protection_verify_contract" "" 0 "remote branch protection fallback is not configured" ""
+  }
+  if (-not (Test-Path $KeyPath)) {
+    return New-Probe "github_branch_protection_verify" "missing_secret_or_binary" $false $false "branch_protection_verify_contract" "" 0 "remote branch protection fallback key is missing" ""
+  }
+  $localVerifierScript = Join-Path $PSScriptRoot "apply_github_branch_protection.py"
+  if (-not (Test-Path $localVerifierScript)) {
+    return New-Probe "github_branch_protection_verify" "missing_secret_or_binary" $false $false "branch_protection_verify_contract" "" 0 "local branch protection verifier script is missing" ""
+  }
+
+  $remoteVerifierScript = "/tmp/apply_github_branch_protection.py"
+  $remoteCommand = "set -a; . '$AppDir/.env' >/dev/null 2>&1 || exit 21; set +a; python3 '$remoteVerifierScript' --verify-only --repo '$Repository' --branch '$Branch'"
+
+  $previousErrorActionPreference = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    scp -i $KeyPath -o StrictHostKeyChecking=no $localVerifierScript "${User}@${SshHost}:$remoteVerifierScript" 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+      throw "remote verifier upload failed"
+    }
+    $raw = ssh -i $KeyPath -o StrictHostKeyChecking=no "$User@$SshHost" $remoteCommand 2>&1 | Out-String
+    $exitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+
+  try {
+    $probe = $raw | ConvertFrom-Json
+    $probeDeclaredOk = $false
+    if ($null -ne $probe.ok) {
+      $probeDeclaredOk = [bool]$probe.ok
+    } elseif ($null -ne $probe.status) {
+      $probeDeclaredOk = ([string]$probe.status) -eq "verified"
+    }
+    $ok = $probeDeclaredOk -and ($exitCode -eq 0)
+    $probeStatus = if ($null -ne $probe.status -and -not [string]::IsNullOrWhiteSpace([string]$probe.status)) { [string]$probe.status } else { "failed" }
+    $probeMessage = if ($null -ne $probe.message -and -not [string]::IsNullOrWhiteSpace([string]$probe.message)) { [string]$probe.message } else { "remote branch protection verification completed" }
+    $probeApiStatus = if ($null -ne $probe.api_status) { [int]$probe.api_status } else { 0 }
+    $result = New-Probe "github_branch_protection_verify" $(if ($ok) { "verified" } else { $probeStatus }) $true $ok "branch_protection_verify_contract" "" $probeApiStatus $probeMessage ""
+    if ($probe.mismatch_count -ne $null) {
+      $result["mismatch_count"] = [int]$probe.mismatch_count
+    }
+    if ($probe.mismatches) {
+      $result["mismatches"] = $probe.mismatches
+    }
+    if ($probe.body_excerpt) {
+      $result["body_excerpt"] = [string]$probe.body_excerpt
+    }
+    return $result
+  } catch {
+    return New-Probe "github_branch_protection_verify" "failed" $true $false "branch_protection_verify_contract" "" 0 "remote branch protection verification failed" ($raw.Trim())
+  }
+}
+
 $localBase = Normalize-BaseUrl $LocalBaseUrl
 $hostedBase = Normalize-BaseUrl $HostedBaseUrl
+$Branch = Resolve-BranchName $Branch
 Assert-HostedBaseUrlSafe $hostedBase
 
 $localProbes = @(
@@ -285,13 +420,13 @@ $localProbes = @(
   (Invoke-HttpProbe "local_cloud_provider_inventory" "$localBase/api/v1/clouds" "cloud-provider-inventory-v1" "cloud_provider_inventory_visible"),
   (Invoke-HttpProbe "local_cloud_layer_readiness" "$localBase/api/v1/clouds/layers" "cloud-layer-readiness-v1" "cloud_layer_readiness_visible"),
   (Invoke-HttpProbe "local_cloud_deployment_preflight" "$localBase/api/v1/clouds/deployment-preflight/contract" "cloud-deployment-preflight-v1" "cloud_deployment_preflight_visible"),
-  (Invoke-HttpProbe "local_external_gates" "$localBase/api/v1/external-gates" "action_required" "external_gate_runtime_state")
+  (Invoke-HttpProbe "local_external_gates" "$localBase/api/v1/external-gates" "external-gates-state-v1" "external_gate_runtime_state")
 )
 
 if ($hostedBase) {
   $hostedProbes = @(
     (Invoke-HttpProbe "hosted_frontend_root" "$hostedBase/" "Cloud Superbrain" "hosted_frontend_preview_visible"),
-    (Invoke-HttpProbe "hosted_frontend_health" "$hostedBase/api/health" "frontend" "hosted_frontend_health_visible"),
+    (Invoke-HttpProbe "hosted_frontend_health" "$hostedBase/health" "ok" "hosted_frontend_health_visible"),
     (Invoke-HttpProbe "hosted_agent_api_health" "$hostedBase/api/v1/health" "agent-api" "hosted_agent_api_health_required"),
     (Invoke-HttpProbe "hosted_cloud_provider_inventory" "$hostedBase/api/v1/clouds" "cloud-provider-inventory-v1" "hosted_cloud_provider_inventory_required"),
     (Invoke-HttpProbe "hosted_cloud_layer_readiness" "$hostedBase/api/v1/clouds/layers" "cloud-layer-readiness-v1" "hosted_cloud_layer_readiness_required"),
@@ -313,27 +448,33 @@ $gitleaksProbe = Invoke-ProcessProbe "canonical_gitleaks_scan" "canonical_gitlea
 } ([bool]$gitleaksExecutable)
 
 $branchTokenConfigured = [bool]$env:BRANCH_PROTECTION_TOKEN
-$branchProtectionProbe = Invoke-ProcessProbe "github_branch_protection_verify" "branch_protection_verify_contract" {
-  py -3 scripts\apply_github_branch_protection.py --verify-only --repo $Repository --branch $Branch
-} $branchTokenConfigured
+if ($branchTokenConfigured) {
+  $branchProtectionProbe = Invoke-ProcessProbe "github_branch_protection_verify" "branch_protection_verify_contract" {
+    py -3 scripts\apply_github_branch_protection.py --verify-only --repo $Repository --branch $Branch
+  } $true
+} else {
+  $branchProtectionProbe = Invoke-RemoteBranchProtectionProbe $Repository $Branch $StagingSshHost $StagingSshUser $StagingSshKeyPath $StagingAppDir
+}
 
-$ghcrTokenConfigured = [bool]($env:GITHUB_TOKEN -and $env:GHCR_TOKEN)
+$dockerManifestAvailable = [bool](Get-Command docker -ErrorAction SilentlyContinue)
+$ghcrProbeConfigured = $dockerManifestAvailable -and (-not [string]::IsNullOrWhiteSpace($GhcrImageNamespace))
 $ghcrProbe = Invoke-ProcessProbe "ghcr_image_digest_verify" "ghcr_image_digest_proof" {
   $services = @("frontend", "agent-api", "agent-worker", "memory-worker", "mcp-gateway", "llm-gateway")
   foreach ($service in $services) {
     docker manifest inspect "$GhcrImageNamespace/$service`:$ImageTag" | Out-Null
   }
-} $ghcrTokenConfigured
+} $ghcrProbeConfigured
 
 $originUrls = @(
-  @{ id = "vercel_agent_api_origin"; url = $env:AGENT_API_BASE_URL; path = "/api/v1/health"; marker = "agent-api" },
-  @{ id = "vercel_mcp_gateway_origin"; url = $env:MCP_GATEWAY_BASE_URL; path = "/mcp/api/v1/health"; marker = "mcp-gateway" },
-  @{ id = "vercel_llm_gateway_origin"; url = $env:LLM_GATEWAY_BASE_URL; path = "/llm/api/v1/health"; marker = "llm-gateway" }
+  @{ id = "vercel_agent_api_origin"; url = $env:AGENT_API_BASE_URL; prefix = "/api"; health = "/v1/health"; marker = "agent-api" },
+  @{ id = "vercel_mcp_gateway_origin"; url = $env:MCP_GATEWAY_BASE_URL; prefix = "/mcp"; health = "/api/v1/health"; marker = "mcp-gateway" },
+  @{ id = "vercel_llm_gateway_origin"; url = $env:LLM_GATEWAY_BASE_URL; prefix = "/llm"; health = "/api/v1/health"; marker = "llm-gateway" }
 )
 $vercelOriginProbes = @()
 foreach ($origin in $originUrls) {
   $originId = [string]$origin["id"]
-  $originPath = [string]$origin["path"]
+  $originPrefix = [string]$origin["prefix"]
+  $originHealthPath = [string]$origin["health"]
   $originMarker = [string]$origin["marker"]
   $normalizedOrigin = Normalize-BaseUrl $origin["url"]
   if (-not $normalizedOrigin) {
@@ -341,14 +482,19 @@ foreach ($origin in $originUrls) {
     continue
   }
   Assert-HostedBaseUrlSafe $normalizedOrigin
-  $vercelOriginProbes += Invoke-HttpProbe $originId "$normalizedOrigin$originPath" $originMarker "vercel_backend_origin_health_required"
+  $originProbeUrl = Join-OriginProbeUrl $normalizedOrigin $originPrefix $originHealthPath
+  $vercelOriginProbes += Invoke-HttpProbe $originId $originProbeUrl $originMarker "vercel_backend_origin_health_required"
 }
 $vercelOriginsClaimAllowed = @($vercelOriginProbes | Where-Object { $_.claim_allowed }).Count -eq $originUrls.Count
 
 $hetznerTokenConfigured = [bool]$env:HETZNER_API_TOKEN
-$hetznerProbe = Invoke-ProcessProbe "hetzner_live_budget_check" "hetzner_live_budget_check" {
-  py -3 scripts\check_hetzner_infra_budget.py
-} $hetznerTokenConfigured
+if ($hetznerTokenConfigured) {
+  $hetznerProbe = Invoke-ProcessProbe "hetzner_live_budget_check" "hetzner_live_budget_check" {
+    py -3 scripts\check_hetzner_infra_budget.py
+  } $true
+} else {
+  $hetznerProbe = New-Probe "hetzner_live_budget_check" "missing_secret_or_token" $false $false "hetzner_live_budget_check" "" 0 "HETZNER_API_TOKEN is required for live Hetzner budget proof" ""
+}
 
 $hostedApiRequiredIds = @(
   "hosted_agent_api_health",

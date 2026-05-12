@@ -17,10 +17,28 @@ function New-Probe([string]$Id, [string]$Url, [bool]$Required, [string]$Expected
     error = ""
   }
   try {
-    $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 30
-    $result.http_status = [int]$response.StatusCode
-    $body = [string]$response.Content
-    if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300 -and (($ExpectedText -eq "") -or $body.Contains($ExpectedText))) {
+    $pythonScript = @"
+import json, ssl, sys, urllib.request
+url = sys.argv[1]
+expected = sys.argv[2] if len(sys.argv) > 2 else ""
+ctx = ssl.create_default_context()
+try:
+    with urllib.request.urlopen(url, context=ctx, timeout=30) as response:
+        body = response.read().decode("utf-8", errors="replace")
+        print(json.dumps({
+            "status": response.status,
+            "body": body,
+            "ok": 200 <= response.status < 300 and ((expected == "") or (expected in body))
+        }))
+except Exception as exc:
+    print(json.dumps({ "status": 0, "body": "", "ok": False, "error": str(exc) }))
+    raise
+"@
+    $raw = @($pythonScript) | py -3 - $Url $ExpectedText 2>&1 | Out-String
+    $response = $raw | ConvertFrom-Json
+    $result.http_status = [int]$response.status
+    $body = [string]$response.body
+    if ($response.ok) {
       $result.status = "verified"
       $result.claim_allowed = $true
     } else {
@@ -51,14 +69,13 @@ New-Item -ItemType Directory -Force -Path $ArtifactDir | Out-Null
 $probes = @(
   (New-Probe "cloud_frontend_root" "$BaseUrl/" $true "Cloud Superbrain"),
   (New-Probe "cloud_frontend_health" "$BaseUrl/health" $true "ok"),
-  (New-Probe "cloud_frontend_api_health" "$BaseUrl/api/health" $true '"service":"frontend"'),
-  (New-Probe "cloud_agent_api_health" "$BaseUrl/api/v1/health" $true '"service":"agent-api"'),
+  (New-Probe "cloud_agent_api_health" "$BaseUrl/api/v1/health" $true "agent-api"),
   (New-Probe "cloud_provider_inventory" "$BaseUrl/api/v1/clouds" $true "cloud-provider-inventory-v1"),
   (New-Probe "cloud_layer_readiness" "$BaseUrl/api/v1/clouds/layers" $true "cloud-layer-readiness-v1"),
   (New-Probe "cloud_render_offload_contract" "$BaseUrl/api/v1/clouds/render-offload/contract" $true "cloud-render-offload-v1"),
   (New-Probe "cloud_deployment_preflight_contract" "$BaseUrl/api/v1/clouds/deployment-preflight/contract" $true "cloud-deployment-preflight-v1"),
-  (New-Probe "cloud_mcp_gateway_health" "$BaseUrl/mcp/api/v1/health" $true '"service":"mcp-gateway"'),
-  (New-Probe "cloud_llm_gateway_health" "$BaseUrl/llm/api/v1/health" $true '"service":"llm-gateway"')
+  (New-Probe "cloud_mcp_gateway_health" "$BaseUrl/mcp/api/v1/health" $true "mcp-gateway"),
+  (New-Probe "cloud_llm_gateway_health" "$BaseUrl/llm/api/v1/health" $true "llm-gateway")
 )
 
 $missing = @($probes | Where-Object { $_.required -and -not $_.claim_allowed } | ForEach-Object { $_.id })

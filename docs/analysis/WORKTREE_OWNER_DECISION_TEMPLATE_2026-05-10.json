@@ -1,0 +1,21 @@
+{
+  "decision_id": "worktree-cleanup-2026-05-10",
+  "decided_at": "2026-05-10T00:00:00Z",
+  "approved_by": "",
+  "strategy": "defer",
+  "allowed_actions": {
+    "may_move": false,
+    "may_delete": false,
+    "may_unstage": false,
+    "may_stage": false,
+    "may_commit": false,
+    "may_push": false,
+    "may_deploy": false
+  },
+  "scope": {
+    "security_review_paths": "review only; do not include secret values in this file",
+    "quarantine_paths": "owner decision required before move or exclusion",
+    "split_required_paths": "normalize staged and worktree versions before commit boundary"
+  },
+  "notes": "Copy this file to docs/analysis/worktree-owner-decision-20260510.json and set approved_by, strategy, and allowed_actions explicitly. Keep may_commit, may_push, and may_deploy false for cleanup decisions."
+}

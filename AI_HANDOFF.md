@@ -6,6 +6,8 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
+Current honesty guardrail: the last fully verified candidate remains `ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5`. The current repository `HEAD` is not claimed as candidate-equal unless the repo-parity blocker is cleared or a new candidate is rebaselined.
+
 ## Binding Truth
 
 Primary project truth hierarchy:
@@ -27,11 +29,11 @@ Follow `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` over older planning f
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 
-Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `54%` progress state, the detailed repair protocol, the GitKraken cloud-inventory extension proof, the cloud render-offload proof, the cloud deployment preflight fail-closed proof, the external-gates alignment proof, the hosted HTTPS staging proof on Hetzner, the external-gate audit closure proof on hosted HTTPS, the hosted browser proof under `.phase1-artifacts/hosted-browser-proof-20260504-235540.md`, the workflow-linked production-candidate artifact under `docs/release-artifacts/prod-candidate-2026-05-05-rc1.md`, the candidate integration-plan artifact under `docs/release-artifacts/prod-candidate-2026-05-05-rc1-integration-plan.md`, the immutable rollback-drill artifact under `.phase1-artifacts/phase5-rollback-drill-prod-candidate-20260505-rc1.md`, the explicit no-release owner decision artifact under `.phase1-artifacts/phase5-owner-decision-no-release-20260505.md`, the hosted orchestrator-runtime parity artifact under `.phase1-artifacts/phase4-orchestrator-runtime-hosted-proof-20260505.md`, the hosted orchestrator fail-closed/SSE artifact under `.phase1-artifacts/phase4-orchestrator-failclosed-hosted-proof-20260505.md`, the hosted MCP/DevOps artifact under `.phase1-artifacts/phase4-mcp-devops-hosted-proof-20260505.md`, the hosted public-dashboard artifact under `.phase1-artifacts/phase4-public-dashboard-hosted-proof-20260505.md`, the hosted observability artifact under `.phase1-artifacts/phase4-observability-hosted-proof-20260505.md`, the hosted cloud-surface artifact under `.phase1-artifacts/phase4-cloud-surfaces-hosted-proof-20260505.md`, and the current next safe work item: continue dedicated hosted Phase-4/Phase-5 evidence instead of rollout.
+Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `70%` progress state, the detailed repair protocol, and the current hosted evidence chain up through `.phase1-artifacts/phase4-system-fallback-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-audit-feed-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-cache-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-cost-export-contract-runtime-hosted-proof-20260507.md`, plus `.phase1-artifacts/phase4-phase2-runtime-start-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-orchestrator-dry-run-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-orchestrator-dry-run-stream-contract-runtime-hosted-proof-20260507.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-phase4-rebaseline.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-runbook-applicability.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-checklist-conformance.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-integration-plan-rebaseline.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-auth-gate-recheck.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-provenance-review.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-smoke-recheck.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-observability-recheck.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-handoff-packet.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-secret-rotation-drill.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-provider-failover-drill.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-memory-recovery-drill.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-handoff-stability-watch.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-promotion-gate-refusal.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-stability-watch.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-promotion-gate-refusal.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-observability-revalidation.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-completion-gate-freeze.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-risk-review.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-observability-review.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-smoke-proof.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-provenance-revalidation.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-incident-drill.md`, `.phase1-artifacts/phase5-rollback-drill-prod-candidate-20260505-rc1.md`, `.phase1-artifacts/phase5-release-baseline-refresh-20260507.md`, `.phase1-artifacts/phase5-browser-evidence-reactivation-20260507.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-browser-proof.md`, `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md`, `.phase1-artifacts/phase5-final-browser-e2e-recheck-20260507.md`, `.phase1-artifacts/phase5-full-verifier-sweep-20260507.md`, `.phase1-artifacts/phase5-truth-mirror-rebaseline-20260507.md`, and the existing Phase-5 candidate/rollback/no-release artifacts. Continue dedicated hosted Phase-5 evidence instead of rollout.
 
 ## Current Verified Progress
 
-Overall: `54%`
+Overall: `70%`
 
 Horizontal:
 
@@ -39,18 +41,18 @@ Horizontal:
 - P1: `100%`
 - P2: `86%`
 - P3: `40%`
-- P4: `30%`
-- P5: `21%`
+- P4: `100%`
+- P5: `67%`
 - P6: `0%`
 
 Vertical:
 
 - Frontend / Next.js: `97%`
 - Orchestrator / LangGraph: `99%`
-- Agent Pool: `61%`
-- LLM Gateway: `53%`
-- MCP Gateway: `54%`
-- Memory: `70%`
+- Agent Pool: `68%`
+- LLM Gateway: `54%`
+- MCP Gateway: `55%`
+- Memory: `72%`
 - Observability: `99%`
 
 Older percentage lines below are historical proof points only. Current percentages must come from this section and `docs/project-progress.manifest.json`.
@@ -104,14 +106,379 @@ Autopilot stream proof now runs through the active Agent API/Nginx stack at `<lo
 
 ## Latest Completed Proof
 
-Phase 5 Executed Hosted Rollback Proof:
+Phase 5 Integration Smoke Plan Rerun:
 
-- `.phase1-artifacts/phase5-executed-rollback-prod-candidate-20260505-rc1.md` now binds the current production-candidate to a real hosted rollback/restore run against Hetzner staging.
-- `scripts/execute-phase5-executed-rollback.ps1` now preflights remote architecture, validates GHCR manifest architecture before selector mutation, performs the real `IMAGE_TAG=<immutable-sha>` switch, verifies hosted root/API/MCP/LLM health, restores `IMAGE_TAG=staging`, and re-verifies the hosted runtime.
-- `docs/release-artifacts/prod-candidate-2026-05-05-rc1.md` now links the executed rollback proof directly as candidate evidence and points to workflow run `25392582005` on commit `ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5`.
-- `scripts/verify-phase5-executed-rollback.ps1` verifies the executed rollback artifact fail-closed against the immutable selector, restored selector, hosted truth, and remote `.env` state.
-- Verified commands: `gh run watch 25392582005`, `powershell -ExecutionPolicy Bypass -File scripts\execute-phase5-executed-rollback.ps1 -ExpectedSha ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-executed-rollback.ps1`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-candidate.ps1`, `py -3 scripts\verify_project_progress_manifest.py`
-- Progress change: Overall remains `54%`; Phase 5 rises to `21%`. This is a real release-readiness rollback execution proof, not a rollout or production deployment.
+- `docs/release-artifacts/prod-candidate-2026-05-05-rc1-integration-smoke-plan-rerun.md` records one fresh candidate-scoped hosted smoke-plan rerun on the active truth `overall=70`, `phase_5=67`, with hosted root/API/MCP/LLM `200`, hosted progress/integrity, fail-closed completion, external gates `verified`, external-gates mirror visibility, and deployment-preflight `verified`.
+- `scripts/verify-phase5-integration-smoke-plan-rerun.ps1` re-checks that artifact, the active candidate link, the hosted HTML title `Cloud Superbrain`, the hosted API surface set, and the current manifest-backed hosted truth.
+- The rerun preserves `IMAGE_TAG=staging` as the current selector and `IMAGE_TAG=ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5` as the immutable rollback selector.
+- `docs/release-artifacts/prod-candidate-2026-05-05-rc1-staging-parity-blocked.md` and `scripts/verify-phase5-staging-parity-blocked.ps1` now keep the resulting digest-parity blocker explicit: the mutable `:staging` tag set currently does not equal the immutable candidate SHA tag set, so hosted parity is not claimed.
+- Verified by `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-integration-smoke-plan-rerun.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-candidate.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`, and Hetzner re-sync.
+- Progress change: Overall remains `70%`; Phase 5 rises to `67%`. This is not a rollout or production deployment claim.
+
+Previous latest completed proof:
+
+Phase 5 Executed Rollback + Post-Rollback Requalification + Release Readiness Rerun:
+
+- `.phase1-artifacts/phase5-executed-rollback-rerun-20260507.md` records one fresh rerun of the existing executed rollback lane on the active hosted truth `overall=70`, `phase_5=66`, confirms the immutable selector `ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5`, and re-checks the restored hosted selector `IMAGE_TAG=staging`.
+- `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-requalification-rerun.md` records one fresh rerun of the post-rollback requalification lane on the same hosted truth and reconfirms hosted root/API/MCP/LLM `200`, fail-closed completion, and external gates `verified`.
+- `docs/release-artifacts/prod-candidate-2026-05-05-rc1-release-readiness-rerun.md` records one fresh candidate-scoped release-readiness rerun against the same hosted truth, active runbooks, active candidate links, and the active browser-evidence chain.
+- `.phase1-artifacts/phase5-owner-decision-no-release-20260505.md`, `.phase1-artifacts/phase5-rollback-readiness-20260505.md`, and `.phase1-artifacts/phase5-release-baseline-refresh-20260507.md` were corrected in the same batch so the active candidate no longer depends on stale `50/8` and `67/40` truth fragments.
+- Verified by `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-executed-rollback-rerun.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-post-rollback-requalification-rerun.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-release-readiness-rerun.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-release-baseline-refresh.ps1`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-candidate.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`, and Hetzner re-sync.
+- Progress change: Overall remains `70%`; Phase 5 rises to `66%`. This is not a rollout or production deployment claim.
+
+Previous latest completed proof:
+
+Phase 5 Final Browser E2E + Full Verifier Sweep + Truth Mirror Rebaseline:
+
+- `.phase1-artifacts/phase5-final-browser-e2e-recheck-20260507.md` records one fresh local-plus-hosted AI-browser rerun on the active candidate truth `overall=70`, `phase_5=63`, with visible markers `Cloud Superbrain`, `Project Progress`, `External Gates`, `Phase 5 - Release Readiness`, `Progress Integrity`, `Error Response Contract`, and `System Unavailable Fallback`.
+- `.phase1-artifacts/phase5-full-verifier-sweep-20260507.md` records one complete green end-to-end verifier chain: `py -3 scripts\verify_project_progress_manifest.py`, the full `verify-phase5*.ps1` sweep, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`, and `gitleaks`.
+- `.phase1-artifacts/phase5-truth-mirror-rebaseline-20260507.md` records the current mirror rebaseline across `docs/project-progress.manifest.json`, `docs/verification-register.md`, `PROJECT_STATE.md`, `AI_HANDOFF.md`, and `docs/release-artifacts/prod-candidate-2026-05-05-rc1.md`.
+- Verified by `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-final-browser-e2e-recheck.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-full-verifier-sweep.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-truth-mirror-rebaseline.ps1 -BaseUrl https://188-34-191-140.sslip.io`, the full `verify-phase5*.ps1` sweep, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`, and Hetzner re-sync.
+- Progress rises repo-honestly: Overall is now `70%` and Phase 5 is now `63%`. This is a verification/mirror-closure batch, not a rollout or production deployment claim.
+
+Previous latest completed proof:
+
+Phase 5 Browser Claims Fail-Closed Repair:
+
+- `docs/release-artifacts/prod-candidate-2026-05-05-rc1-browser-proof.md` and `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md` are now explicitly historical `superseded` artifacts, not current candidate evidence.
+- `scripts/verify-phase5-browser-proof.ps1` and `scripts/verify-phase5-post-rollback-browser-revalidation.ps1` now verify the fail-closed blocked state instead of carrying non-reproducible current browser claims.
+- `scripts/verify-phase5-candidate.ps1` and `docs/release-artifacts/prod-candidate-2026-05-05-rc1.md` no longer link the two browser artifacts as active candidate evidence; the current blocker is documented directly in the candidate artifact.
+- Hard blocker evidence is explicit: `node_repl` + `iab` fails with `failed to start codex app-server ... (os error 3)`, `chrome_devtools` fails with `Target.setDiscoverTargets): Target closed`, and Playwright closes with launcher `exit code 13`.
+- Progress change: Overall remains `69%`; Phase 5 is corrected fail-closed to `57%`. This removes two stale current claims and still does not create a rollout or production deployment claim.
+
+Previous latest completed proof:
+
+Phase 5 Post-Rollback Provenance + Incident + Rollback Drill Rerun:
+
+- `scripts/verify-phase5-post-rollback-provenance-revalidation.ps1` now rebinds the legacy post-rollback provenance artifact to current hosted `overall=69`, hosted `phase_5=57`, workflow run `25392582005`, immutable GHCR SHA `ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5`, and hosted root/API/MCP/LLM health.
+- `scripts/verify-phase5-incident-drill.ps1` now validates deployment preflight through the runtime endpoint `GET /api/v1/clouds/deployment-preflight`, binds the drill to current hosted `overall=69`, hosted `phase_5=57`, and replaces the obsolete rollback selector `5464c922...` with the current immutable SHA `ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5`.
+- `scripts/verify-phase5-rollback-drill.ps1` now validates the rollback drill against GitHub Actions run `25392582005` and the immutable rollback SHA `ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5` through the GitHub API instead of the stale old run/SHA pair.
+- `scripts/verify-phase5-candidate.ps1` now derives the expected rollback-drill SHA and workflow run directly from the candidate artifact, so the candidate verifier no longer conserves the obsolete rollback pin.
+- `scripts/verify-phase5-integration-plan.ps1` and `docs/release-artifacts/prod-candidate-2026-05-05-rc1-integration-plan.md` were updated in the same batch so the legacy integration plan also uses runtime deployment preflight and the current immutable rollback selector.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-post-rollback-provenance-revalidation.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-incident-drill.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-rollback-drill.ps1`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-integration-plan.ps1`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-candidate.ps1`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
+- Progress change: Overall remains `69%`; Phase 5 had previously risen to `59%`, but current manifest-backed truth is now `57%` after the browser claims were removed fail-closed. This is still not a rollout or production deployment.
+
+Phase 5 Risk + Observability + Smoke Rerun:
+
+- `scripts/verify-phase5-risk-review.ps1` now reads expected hosted progress from the canonical manifest instead of the stale `53/18` pin and re-checks `owner_decision=no-release`, hosted progress/integrity, fail-closed completion truth, external gates, and hosted audit/escalation visibility.
+- `scripts/verify-phase5-observability-review.ps1` now reads expected hosted progress from the canonical manifest instead of the stale `52/11` pin and re-checks hosted health, progress, integrity, metrics, audit feed, escalation feed, and external gates.
+- `scripts/verify-phase5-executed-smoke.ps1` now binds the smoke proof to current hosted `overall=69`, hosted `phase_4=100`, hosted `phase_5=56` and fixes the real contract-vs-runtime check by validating deployment preflight through `GET /api/v1/clouds/deployment-preflight` instead of the contract endpoint.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-risk-review.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-observability-review.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-executed-smoke.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-candidate.ps1`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
+- Progress change: Overall rises to `69%`; Phase 5 rises to `56%`. This is still not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Project Progress + Layer Progress Contract Runtime Parity:
+
+- `scripts/verify-phase4-project-progress-contract-runtime-hosted.ps1` now binds `GET /api/v1/project/progress/contract` directly to the visible hosted runtime at `GET /api/v1/project/progress` plus `GET /api/v1/project/progress/integrity` and proves the canonical manifest-backed top-level fields, phase count, layer count, binding document, and non-empty runtime status strings on the live Hetzner stack.
+- `scripts/verify-phase4-project-progress-layers-contract-runtime-hosted.ps1` now binds `GET /api/v1/project/progress/layers/contract` directly to the new hosted layer-only projection at `GET /api/v1/project/progress/layers` and proves the seven layer ids, label parity, count parity, overall-percent parity, and runtime alignment with the canonical progress feed.
+- `.phase1-artifacts/phase4-project-progress-contract-runtime-hosted-proof-20260507.md` and `.phase1-artifacts/phase4-project-progress-layers-contract-runtime-hosted-proof-20260507.md` record the successful hosted proofs.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-project-progress-contract-runtime-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-project-progress-layers-contract-runtime-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
+- Progress change: Overall remains `63%`; Phase 4 rises to `86%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Task Assignment + Agent LLM Streaming Contract Runtime Parity:
+
+- `scripts/verify-phase4-task-assignment-contract-runtime-hosted.ps1` now binds `GET /api/v1/tasks/assignment-contract` to a fresh hosted internal task over `POST /api/v1/internal/tasks` and proves the same task through `GET /api/v1/internal/tasks/{task_id}`, `GET /api/v1/tasks/recent`, `GET /api/v1/agents/status`, and `GET /api/v1/metrics`.
+- `scripts/verify-phase4-agent-llm-streaming-contract-runtime-hosted.ps1` now binds `GET /api/v1/agents/llm-streaming-contract` to the live hosted LLM SSE contract at `GET /llm/api/v1/streaming/contract` and to a real hosted orchestrator dry-run with visible `llm_gateway_calls[]`, `stream_done_seen=true`, `stream_chunk_count>=1`, `routing_policy_decision=allow_primary`, `live_provider_calls=false`, and matching trace visibility in hosted agent activity and audit feeds.
+- `.phase1-artifacts/phase4-task-assignment-contract-runtime-hosted-proof-20260507.md` and `.phase1-artifacts/phase4-agent-llm-streaming-contract-runtime-hosted-proof-20260507.md` record the successful hosted proofs.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-task-assignment-contract-runtime-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-agent-llm-streaming-contract-runtime-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
+- Progress change: Overall remains `62%`; Phase 4 rises to `82%`; Agent Pool rises to `68%`; LLM Gateway rises to `54%`. This is a hosted integration proof, not a rollout or production deployment.
+
+Phase 4 Hosted Health Contract Runtime Parity:
+
+- `services/agent-api/app/main.py` now exposes `GET /api/v1/health/contract` via `health_contract_payload()`, so the public health runtime surface now has its own visible contract instead of being covered only indirectly through fallback, budget, and external-gate proofs.
+- the new visible health contract declares `contract_version=health-surface-v1`, the required top-level runtime fields, the required service keys, the embedded budget and infra-budget field sets, the embedded external-gates field set, and the currently supported health and gate statuses.
+- `scripts/verify-phase4-health-contract-runtime-hosted.ps1` proves the hosted contract against `GET /api/v1/health` on the live Hetzner runtime and binds the visible contract to the real hosted values.
+- `.phase1-artifacts/phase4-health-contract-runtime-hosted-proof-20260507.md` records the successful hosted proof.
+- Verified commands: `py -3 -m py_compile services\agent-api\app\main.py`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-health-contract-runtime-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
+- Progress change: Overall remains `61%`; Phase 4 rises to `72%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Costs Contract Runtime Parity:
+
+- `services/agent-api/app/main.py` now exposes `GET /api/v1/costs/contract` via `costs_contract_payload()`, so the public costs runtime surface now has its own visible contract instead of being covered only indirectly through budget, metrics, and export proofs.
+- the new visible costs contract declares `contract_version=costs-surface-v1`, the required top-level runtime fields, the required `breakdown[]` fields, the supported budget levels, and the runtime budget limit binding.
+- `scripts/verify-phase4-costs-contract-runtime-hosted.ps1` proves the hosted contract against `GET /api/v1/costs` on the live Hetzner runtime and binds the visible contract to the real hosted runtime values.
+- `.phase1-artifacts/phase4-costs-contract-runtime-hosted-proof-20260507.md` records the successful hosted proof.
+- Verified commands: `py -3 -m py_compile services\agent-api\app\main.py`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-costs-contract-runtime-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
+- Progress change: Overall remains `61%`; Phase 4 rises to `71%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Budget Contracts Runtime Parity:
+
+- `services/agent-api/app/main.py` now exposes `GET /api/v1/budget/contract` via `budget_contract_payload()` and `GET /api/v1/infra/budget/contract` via `infra_budget_contract_payload()`, so both public budget surfaces now have their own visible runtime contracts instead of being covered only indirectly through metrics and older budget guard proofs.
+- the new visible budget contracts declare `contract_version=budget-surface-v1` and `contract_version=infra-budget-surface-v1`, their required top-level runtime fields, supported levels, supported infra sources, and the required hosted `items[]` fields for the infra budget surface.
+- `scripts/verify-phase4-budget-contracts-runtime-hosted.ps1` proves both hosted contracts against `GET /api/v1/budget`, `GET /api/v1/infra/budget`, `GET /api/v1/budget/contract`, and `GET /api/v1/infra/budget/contract` on the live Hetzner runtime and binds the visible contracts to the live hosted values including `source=hetzner_api_readonly`.
+- `.phase1-artifacts/phase4-budget-contracts-runtime-hosted-proof-20260506.md` records the successful hosted proof.
+- Verified commands: `py -3 -m py_compile services\agent-api\app\main.py`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-budget-contracts-runtime-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
+- Progress change: Overall rises to `61%`; Phase 4 rises to `70%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted MCP Audit Feed Contract Runtime Parity:
+
+- `services/agent-api/app/main.py` now exposes `GET /api/v1/audit/mcp/contract` via `mcp_audit_feed_contract_payload()`, so the public MCP audit feed has its own visible contract instead of being covered only indirectly through the generic audit feed and MCP safe-envelope proofs.
+- the new visible MCP-audit contract declares `contract_version=mcp-audit-feed-v1`, the top-level event fields, the required `mcp_tool_executed` detail fields, and the supported statuses `success|blocked|timeout|degraded`.
+- `scripts/verify-phase4-mcp-audit-feed-contract-runtime-hosted.ps1` proves the hosted contract against `GET /api/v1/audit/mcp`, creates a real hosted `mcp_tool_executed` event through `POST /internal/audit/mcp-tool-events`, and binds the dedicated contract to the live MCP audit feed on the Hetzner runtime.
+- `scripts/deploy-to-staging.ps1` was hardened in the same slice: remote hot-mount source directories are now reset before recursive copy so stale nested `app/app` trees cannot shadow newer runtime code on the host.
+- `.phase1-artifacts/phase4-mcp-audit-feed-contract-runtime-hosted-proof-20260506.md` records the successful hosted proof.
+- Verified commands: `py -3 -m py_compile services\agent-api\app\main.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-mcp-audit-feed-contract-runtime-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
+- Progress change: Overall remains `60%`; Phase 4 rises to `68%`; MCP Gateway rises to `55%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Session History Contract Runtime Parity:
+
+- `services/agent-api/app/main.py` now exposes `GET /api/v1/sessions/history/contract` via `session_history_contract_payload()`, so the public session-history runtime surface has its own visible contract instead of being covered only indirectly through stream/history proofs.
+- `scripts/verify-phase4-session-history-contract-runtime-hosted.ps1` proves the hosted session-history contract against the real runtime by creating one real hosted prompt session through `POST /api/v1/prompt`, waiting for completion, then reading `GET /api/v1/sessions/history/contract`, `GET /api/v1/sessions/{session_id}/history`, `GET /api/v1/sessions/recent`, `GET /api/v1/tasks/recent`, `GET /api/v1/agent-activity/recent`, and `GET /api/v1/audit/recent`.
+- the proof confirms that the dedicated session-history contract and the real hosted session-history feed stay aligned on top-level sections, session fields, task fields, audit-event fields, and request/trace/correlation/audit-feed visibility.
+- `.phase1-artifacts/phase4-session-history-contract-runtime-hosted-proof-20260506.md` records the successful hosted proof for session-history-contract runtime parity.
+- Verified commands: `py -3 -m py_compile services\agent-api\app\main.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-session-history-contract-runtime-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
+- Progress change: Overall remains `59%`; Phase 4 rises to `57%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Recent Sessions Contract Runtime Parity:
+
+- `services/agent-api/app/main.py` now exposes `GET /api/v1/sessions/recent/contract` via `recent_sessions_contract_payload()`, so the public recent-sessions runtime surface has its own visible contract instead of being covered only indirectly through session-stream, failure-history, and cross-surface runtime proofs.
+- `scripts/verify-phase4-recent-sessions-contract-runtime-hosted.ps1` proves the hosted recent-sessions contract against the real runtime by creating one real hosted prompt session through `POST /api/v1/prompt`, waiting for completion, then reading `GET /api/v1/sessions/recent/contract`, `GET /api/v1/sessions/recent`, `GET /api/v1/sessions/{session_id}/history`, `GET /api/v1/tasks/recent`, `GET /api/v1/agent-activity/recent`, and `GET /api/v1/audit/recent`.
+- the proof confirms that the dedicated recent-sessions contract and the real hosted recent-sessions feed stay aligned on top-level session fields, supported status coverage, latest-task failure metadata, and request/trace/correlation/audit-feed visibility.
+- `.phase1-artifacts/phase4-recent-sessions-contract-runtime-hosted-proof-20260506.md` records the successful hosted proof for recent-sessions-contract runtime parity.
+- Verified commands: `py -3 -m py_compile services\agent-api\app\main.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-recent-sessions-contract-runtime-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
+- Progress change: Overall rises to `59%`; Phase 4 rises to `56%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Recent Tasks Contract Runtime Parity:
+
+- `services/agent-api/app/main.py` now exposes `GET /api/v1/tasks/recent/contract` via `recent_tasks_contract_payload()`, so the public recent-tasks runtime surface has its own visible contract instead of being covered only indirectly through worker-priority and cross-surface runtime proofs.
+- the same runtime patch also closes a real correlation gap: `POST /api/v1/internal/tasks` now writes trace/request/correlation metadata into `agent_sessions`, and `GET /api/v1/tasks/recent` now falls back to session projection when fresh audit correlation for the task itself is not available yet.
+- `scripts/verify-phase4-recent-tasks-contract-runtime-hosted.ps1` proves the hosted recent-tasks contract against the real runtime by creating one real hosted `planner` task through `POST /api/v1/internal/tasks`, waiting for completion, then reading `GET /api/v1/tasks/recent/contract`, `GET /api/v1/tasks/recent`, `GET /api/v1/internal/tasks/{task_id}`, and `GET /api/v1/audit/recent`.
+- the proof confirms that the dedicated recent-tasks contract and the real hosted recent-tasks feed stay aligned on top-level task fields, queue fields, status coverage, trace visibility, and task policy metadata.
+- `.phase1-artifacts/phase4-recent-tasks-contract-runtime-hosted-proof-20260506.md` records the successful hosted proof for recent-tasks-contract runtime parity.
+- Verified commands: `py -3 -m py_compile services\agent-api\app\main.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-recent-tasks-contract-runtime-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
+- Progress change: Overall remains `58%`; Phase 4 rises to `55%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Escalation Contract Runtime Parity:
+
+- `services/agent-api/app/main.py` now exposes `GET /api/v1/escalations/contract` via `escalation_contract_payload()`, so the public escalation runtime surface has its own visible contract instead of being covered only indirectly through request and audit parity.
+- `scripts/verify-phase4-escalation-contract-runtime-hosted.ps1` proves the hosted escalation contract against the real runtime by seeding one escalated `coder` path with shared `request_id`, `trace_id`, `correlation_evidence_ref=request_id_audit_correlation`, and `audit_feed_evidence_ref=request_id_audit_feed_visible`, then reading `GET /api/v1/escalations/contract`, `GET /api/v1/escalations/recent`, and `GET /api/v1/audit/recent`.
+- the proof confirms that the dedicated escalation contract and the real hosted escalation feed stay aligned on top-level fields plus request/trace/correlation/audit-feed evidence.
+- `.phase1-artifacts/phase4-escalation-contract-runtime-hosted-proof-20260506.md` records the successful hosted proof for escalation-contract runtime parity.
+- Verified commands: `py -3 -m py_compile services\agent-api\app\main.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-escalation-contract-runtime-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
+- Progress change: Overall remains `58%`; Phase 4 rises to `54%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Request Contract Negative-State Parity:
+
+- `services/agent-api/app/main.py` now extends the request contract registry with explicit `supported_statuses`, so each public runtime surface declares whether it carries `escalated`, `abandoned_after_queue_drain`, or both negative worker end states.
+- `scripts/verify-phase4-request-contract-negative-state-parity-hosted.ps1` proves the hosted request contract against the real runtime by seeding one escalated `coder` path and one `abandoned_after_queue_drain` `tester` path with shared `request_id`, `trace_id`, `correlation_evidence_ref=request_id_audit_correlation`, and `audit_feed_evidence_ref=request_id_audit_feed_visible`, then reading `GET /api/v1/request/contract`.
+- the proof re-checks `/api/v1/agents/status`, `/api/v1/agent-activity/recent`, `/api/v1/tasks/recent`, `/api/v1/sessions/recent`, `/api/v1/sessions/{session_id}/history`, `/api/v1/audit/recent`, and `/api/v1/escalations/recent` on the live Hetzner staging stack and confirms the declared `supported_statuses` plus the registered request/trace/correlation/audit-feed fields stay aligned on the real runtime surfaces.
+- `.phase1-artifacts/phase4-request-contract-negative-state-parity-hosted-proof-20260506.md` records the successful hosted proof for request-contract negative-state parity.
+- Verified commands: `py -3 -m py_compile services\agent-api\app\main.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-request-contract-negative-state-parity-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
+- Progress change: Overall remains `58%`; Phase 4 rises to `53%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Request Contract Runtime Parity:
+
+- `scripts/verify-phase4-request-contract-runtime-parity-hosted.ps1` proves the hosted request contract against the real runtime by seeding one escalated `coder` path with shared `request_id`, `trace_id`, `correlation_evidence_ref=request_id_audit_correlation`, and `audit_feed_evidence_ref=request_id_audit_feed_visible`, then reading `GET /api/v1/request/contract` and using its `public_surface_registry` as the binding source of field names.
+- the proof re-checks `/api/v1/agents/status`, `/api/v1/agent-activity/recent`, `/api/v1/tasks/recent`, `/api/v1/sessions/recent`, `/api/v1/sessions/{session_id}/history`, `/api/v1/audit/recent`, and `/api/v1/escalations/recent` on the live Hetzner staging stack and confirms the registered request/trace/correlation/audit-feed fields are present and value-aligned on the real runtime surfaces.
+- `.phase1-artifacts/phase4-request-contract-runtime-parity-hosted-proof-20260506.md` records the successful hosted proof for request-contract-to-runtime parity.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-request-contract-runtime-parity-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`
+- Progress change: Overall remains `58%`; Phase 4 rises to `52%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Request Contract Surface Registry Parity:
+
+- `services/agent-api/app/main.py` now extends `request_id_contract_payload()` with a visible `public_surface_registry` that enumerates the public runtime surfaces carrying top-level request, trace, correlation, and audit-feed evidence fields.
+- `scripts/verify-phase4-request-contract-surface-registry-hosted.ps1` proves the hosted request contract surface end to end by checking `GET /api/v1/request/contract` on the live Hetzner staging stack and confirming that all seven public runtime surfaces are explicitly registered with their request/trace/correlation/audit-feed fields.
+- `.phase1-artifacts/phase4-request-contract-surface-registry-hosted-proof-20260506.md` records the successful hosted proof for request-contract surface-registry parity.
+- Verified commands: `py -3 -m py_compile services\agent-api\app\main.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-request-contract-surface-registry-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`
+- Progress change: Overall remains `58%`; Phase 4 rises to `51%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Dual-Path Audit Feed Parity:
+
+- `scripts/verify-phase4-dual-path-audit-feed-parity-hosted.ps1` proves the hosted public audit-feed parity surface end to end by seeding one escalated `coder` path and one `abandoned_after_queue_drain` `tester` path with a shared `trace_id`, shared `request_id`, `correlation_evidence_ref=request_id_audit_correlation`, and `audit_feed_evidence_ref=request_id_audit_feed_visible`, then re-checking `GET /api/v1/agents/status`, `GET /api/v1/agent-activity/recent`, `GET /api/v1/tasks/recent`, `GET /api/v1/sessions/recent`, `GET /api/v1/sessions/{session_id}/history`, and `GET /api/v1/audit/recent` for both paths plus `GET /api/v1/escalations/recent` for the escalated path.
+- the proof confirms that both negative worker paths now keep top-level request-/trace-correlation and `audit_feed_evidence_ref` aligned across all relevant hosted public surfaces.
+- `.phase1-artifacts/phase4-dual-path-audit-feed-parity-hosted-proof-20260506.md` records the successful hosted proof for dual-path audit-feed parity.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-dual-path-audit-feed-parity-hosted.ps1`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`
+- Progress change: Overall remains `58%`; Phase 4 rises to `50%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Audit Feed Evidence Cross-Surface Parity:
+
+- `scripts/verify-phase4-audit-feed-evidence-cross-surface-hosted.ps1` proves the hosted public audit-feed evidence surface end to end by seeding one escalated `coder` path with a shared `trace_id`, shared `request_id`, `correlation_evidence_ref=request_id_audit_correlation`, and `audit_feed_evidence_ref=request_id_audit_feed_visible`, then re-checking `GET /api/v1/escalations/recent`, `GET /api/v1/agents/status`, `GET /api/v1/agent-activity/recent`, `GET /api/v1/tasks/recent`, `GET /api/v1/sessions/recent`, `GET /api/v1/sessions/{session_id}/history`, and `GET /api/v1/audit/recent`.
+- the proof confirms that top-level request-/trace-correlation and `audit_feed_evidence_ref` now stay aligned across all seven hosted public surfaces for the escalated worker path.
+- `.phase1-artifacts/phase4-audit-feed-evidence-cross-surface-hosted-proof-20260506.md` records the successful hosted proof for audit-feed-evidence cross-surface parity.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-audit-feed-evidence-cross-surface-hosted.ps1`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`
+- Progress change: Overall rises to `58%`; Phase 4 rises to `49%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Escalation Request Correlation Parity:
+
+- `services/agent-api/app/main.py` now projects top-level request-/trace-correlation onto `GET /api/v1/escalations/recent` via `request_id`, `trace_id`, `correlation_evidence_ref`, and `audit_feed_evidence_ref`.
+- `scripts/verify-phase4-escalation-request-correlation-hosted.ps1` proves the hosted public escalation surface end to end by seeding one escalated `coder` path with a shared `trace_id`, shared `request_id`, and explicit `correlation_evidence_ref=request_id_audit_correlation`, then re-checking `GET /api/v1/escalations/recent`, `GET /api/v1/tasks/recent`, `GET /api/v1/sessions/recent`, `GET /api/v1/sessions/{session_id}/history`, and `GET /api/v1/audit/recent`.
+- the proof confirms that top-level request-/trace-correlation now stays aligned on the hosted escalation surface with the already correlated task/session/audit surfaces for the escalated worker path.
+- `.phase1-artifacts/phase4-escalation-request-correlation-hosted-proof-20260506.md` records the successful hosted proof for escalation request correlation parity.
+- Verified commands: `py -3 -m py_compile services/agent-api/app/main.py`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-escalation-request-correlation-hosted.ps1`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
+- Progress change: Overall remains `57%`; Phase 4 rises to `48%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Agent Status Request Correlation Parity:
+
+- `services/agent-api/app/main.py` now projects top-level request-/trace-correlation onto `GET /api/v1/agents/status` via `latest_trace_id`, `latest_request_id`, `latest_correlation_evidence_ref`, and `latest_audit_feed_evidence_ref`.
+- `scripts/verify-phase4-agent-status-request-correlation-hosted.ps1` proves the hosted public agent-status surface end to end by seeding one escalated `coder` path and one `abandoned_after_queue_drain` `tester` path with a shared `trace_id`, shared `request_id`, and explicit `correlation_evidence_ref=request_id_audit_correlation`, then re-checking `GET /api/v1/agents/status`, `GET /api/v1/tasks/recent`, `GET /api/v1/sessions/recent`, `GET /api/v1/sessions/{session_id}/history`, and `GET /api/v1/audit/recent`.
+- the proof confirms that top-level request-/trace-correlation now stays aligned on the hosted agent-status surface with the already correlated task/session/audit surfaces for both negative worker paths.
+- `.phase1-artifacts/phase4-agent-status-request-correlation-hosted-proof-20260506.md` records the successful hosted proof for agent-status request correlation parity.
+- Verified commands: `py -3 -m py_compile services/agent-api/app/main.py`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-agent-status-request-correlation-hosted.ps1`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
+- Progress change: Overall remains `57%`; Phase 4 rises to `47%`; Agent Pool rises to `66%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Request Correlation Cross-Surface Parity:
+
+- `services/agent-api/app/main.py` now projects top-level `trace_id`, `request_id`, and `correlation_evidence_ref` from the hosted audit trail onto `GET /api/v1/tasks/recent`, `GET /api/v1/sessions/recent`, `GET /api/v1/sessions/{session_id}/history`, and `GET /api/v1/agent-activity/recent`.
+- `scripts/verify-phase4-request-correlation-cross-surface-hosted.ps1` proves the hosted public correlation surfaces end to end by seeding one escalated `coder` path and one `abandoned_after_queue_drain` `tester` path with a shared `trace_id`, shared `request_id`, and explicit `correlation_evidence_ref=request_id_audit_correlation`, then re-checking `GET /api/v1/agent-activity/recent?trace_id=...`, `GET /api/v1/tasks/recent`, `GET /api/v1/sessions/recent`, `GET /api/v1/sessions/{session_id}/history`, and `GET /api/v1/audit/recent`.
+- the proof confirms that top-level `trace_id`, `request_id`, and `correlation_evidence_ref` stay aligned across all five hosted public surfaces for both negative worker paths.
+- `.phase1-artifacts/phase4-request-correlation-cross-surface-hosted-proof-20260506.md` records the successful hosted proof for cross-surface request correlation parity.
+- Verified commands: `py -3 -m py_compile services/agent-api/app/main.py`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-request-correlation-cross-surface-hosted.ps1`, `py -3 scripts\verify_project_progress_manifest.py`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
+- Progress change: Overall remains `57%`; Phase 4 rises to `46%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Agent Activity Filter Parity:
+
+- `scripts/verify-phase4-agent-activity-filter-parity-hosted.ps1` now proves the hosted public filter surface end to end by seeding one escalated `coder` path and one `abandoned_after_queue_drain` `tester` path with a shared `trace_id`, then re-checking `GET /api/v1/agent-activity/recent?trace_id=...` plus the narrower `agent_type`, `event_type`, and `severity` combinations for each path, and finally mirroring the results against `GET /api/v1/audit/recent`.
+- the proof confirms that the filtered agent-activity feed isolates exactly the intended failure event and keeps `task_id`, `trace_id`, and retry metadata aligned with the public audit feed.
+- `.phase1-artifacts/phase4-agent-activity-filter-parity-hosted-proof-20260506.md` records the successful hosted proof for filter parity on the public agent-activity surface.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-agent-activity-filter-parity-hosted.ps1`, `py -3 scripts\verify_project_progress_manifest.py`
+- Progress change: Overall remains `57%`; Phase 4 rises to `45%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Trace + Request Correlation Parity:
+
+- `scripts/verify-phase4-trace-request-correlation-hosted.ps1` now proves the hosted public correlation surfaces end to end by seeding one escalated `coder` path and one `abandoned_after_queue_drain` `tester` path with a shared `trace_id`, a shared `request_id`, and explicit `correlation_evidence_ref=request_id_audit_correlation`, then re-checking `GET /api/v1/agent-activity/recent?trace_id=...`, `GET /api/v1/audit/recent`, `GET /api/v1/sessions/{session_id}/history`, and `GET /api/v1/request/contract` for the same ids and evidence refs.
+- the proof confirms that `trace_id`, `request_id`, `request_id_audit_correlation`, and `request_id_audit_feed_visible` stay aligned between the hosted agent-activity feed, hosted audit feed, and hosted session-history audit events for both negative worker paths.
+- `.phase1-artifacts/phase4-trace-request-correlation-hosted-proof-20260506.md` records the successful hosted proof for trace/request correlation parity.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-trace-request-correlation-hosted.ps1`, `py -3 scripts\verify_project_progress_manifest.py`
+- Progress change: Overall remains `57%`; Phase 4 rises to `44%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Failure Audit + Escalation Parity:
+
+- `scripts/verify-phase4-failure-audit-escalation-parity-hosted.ps1` now proves the hosted public audit and escalation surfaces end to end by seeding one escalated `coder` path and one `abandoned_after_queue_drain` `tester` path on the real Hetzner staging stack, then re-checking `GET /api/v1/audit/recent`, `GET /api/v1/escalations/recent`, and `GET /api/v1/sessions/{session_id}/history` for the same ids and failure fields.
+- the verifier was corrected to the real feed contracts: both feeds expose `events`, `trace_id` on the escalation feed lives inside `details`, and `escalations/recent` intentionally includes the escalated path rather than the queue-drain abandonment path.
+- `.phase1-artifacts/phase4-failure-audit-escalation-hosted-proof-20260506.md` records the successful hosted proof for audit/escalation/history parity of the negative worker end states.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-failure-audit-escalation-parity-hosted.ps1`, `py -3 scripts\verify_project_progress_manifest.py`
+- Progress change: Overall remains `57%`; Phase 4 rises to `43%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Agent Status Cross-Surface Parity:
+
+- `scripts/verify-phase4-agent-status-cross-surface-hosted.ps1` now proves the hosted public agent-status surface end to end by seeding one escalated `coder` path and one `abandoned_after_queue_drain` `tester` path on the real Hetzner staging stack, then re-checking `GET /api/v1/agents/status`, `GET /api/v1/tasks/recent`, `GET /api/v1/sessions/recent`, and `GET /api/v1/sessions/{session_id}/history` for the same ids and failure fields.
+- no runtime code change was required for this slice; the proof closes the hosted parity gap between the already-existing public surfaces.
+- `.phase1-artifacts/phase4-agent-status-cross-surface-hosted-proof-20260506.md` records the successful hosted proof for cross-surface parity of `escalated` and `abandoned_after_queue_drain` from the `agents/status` perspective.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-agent-status-cross-surface-hosted.ps1`, `py -3 scripts\verify_project_progress_manifest.py`
+- Progress change: Overall rises to `57%`; Phase 4 rises to `42%`; Agent Pool rises to `65%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Failure Cross-Surface Parity:
+
+- `scripts/verify-phase4-failure-cross-surface-hosted.ps1` now proves the hosted public failure surface end to end by seeding one escalated `coder` path and one `abandoned_after_queue_drain` `tester` path on the real Hetzner staging stack, then re-checking `GET /api/v1/agent-activity/recent`, `GET /api/v1/tasks/recent`, `GET /api/v1/sessions/recent`, and `GET /api/v1/sessions/{session_id}/history` for the same ids and failure fields.
+- the verifier itself had a real seed-parser defect and now parses only the final remote JSON line before building the hosted `trace_id` filter URL; no runtime surface change was required for this slice.
+- `.phase1-artifacts/phase4-failure-cross-surface-hosted-proof-20260505.md` records the successful hosted proof for cross-surface parity of `escalated` and `abandoned_after_queue_drain`.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-failure-cross-surface-hosted.ps1`, `py -3 scripts\verify_project_progress_manifest.py`
+- Progress change: Overall remains `56%`; Phase 4 rises to `41%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Agent Activity Contract Parity:
+
+- `services/agent-api/app/main.py` now declares `task_id`, `task_status`, `retry_count`, `max_retries`, and `error` in `agent_activity_contract_payload()`, and adds explicit contract markers `failure_surface_visible` plus `agent_activity_failure_surface_visible`.
+- `scripts/verify-phase4-agent-activity-contract-hosted.ps1` proves the hosted public contract/runtime surface end to end by checking `GET /api/v1/agent-activity/contract`, seeding one escalated `coder` audit path and one `abandoned_after_queue_drain` `tester` audit path on the real Hetzner staging stack, then re-checking `GET /api/v1/agent-activity/recent?trace_id=...`.
+- `.phase1-artifacts/phase4-agent-activity-contract-hosted-proof-20260505.md` records the successful hosted proof for public contract/runtime parity of the surfaced failure fields on the same task ids.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-agent-activity-contract-hosted.ps1`, `py -3 -m py_compile services\agent-api\app\main.py`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`
+- Progress change: Overall remains `56%`; Phase 4 rises to `40%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Worker Failure / Stale Queue Parity:
+
+- `scripts/verify-phase4-worker-failure-parity-hosted.ps1` now proves the hosted worker failure path end to end by seeding real Hetzner Redis/Postgres state for one escalating task with a missing session, one stale queued rehydrate path with a completed audit, and one stale queued abandon path without queue membership; it then re-checks `GET /api/v1/internal/tasks/{task_id}`, `GET /api/v1/tasks/recent`, `GET /api/v1/audit/recent`, `GET /api/v1/escalations/recent`, `GET /api/v1/metrics`, and `GET /api/v1/health`.
+- `.phase1-artifacts/phase4-worker-failure-parity-hosted-proof-20260505.md` records the successful hosted proof for `task_retry`, `task_failed`, `task_escalated`, `task_status_rehydrated_from_audit`, and `task_abandoned_after_queue_drain` parity on the real staging stack.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-worker-failure-parity-hosted.ps1`, `py -3 -m py_compile services\agent-api\app\main.py`, `py -3 scripts\verify_project_progress_manifest.py`
+- Progress change: Overall rises to `56%`; Phase 4 rises to `35%`; Agent Pool rises to `63%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Orchestrator Stream / Checkpoint Replay Parity:
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Session History / SSE Replay Parity:
+
+- `scripts/verify-phase4-session-stream-history-hosted.ps1` now proves the hosted session history and stream path end to end through `POST /api/v1/prompt`, `GET /api/v1/sessions/{session_id}/history`, `GET /api/v1/session/{session_id}/stream`, replay against the same stream with `Last-Event-ID: 0`, `GET /api/v1/sessions/recent`, and `GET /api/v1/audit/recent`.
+- `.phase1-artifacts/phase4-session-stream-history-hosted-proof-20260505.md` records the successful hosted proof for session visibility, session history, live SSE, replay SSE, and audit parity.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-session-stream-history-hosted.ps1`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`
+- Progress change: Overall remains `55%`; Phase 4 rises to `33%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Session / Memory Worker Runtime Parity:
+
+- `scripts/verify-phase4-session-memory-parity-hosted.ps1` now proves the hosted session and memory-worker runtime path end to end through `POST /api/v1/prompt`, `GET /api/v1/sessions/{session_id}/history`, `GET /api/v1/sessions/recent`, a real SSH-seeded hosted `memory:working:*` key plus `memory-worker --once`, `GET /api/v1/memory/search`, `GET /api/v1/memory/consolidation/recent`, and `GET /api/v1/metrics`.
+- `.phase1-artifacts/phase4-session-memory-parity-hosted-proof-20260505.md` records the successful hosted proof for session visibility, session history, deterministic worker completion, Redis-to-Postgres memory consolidation, public memory search, consolidation audit, and metrics parity.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-session-memory-parity-hosted.ps1`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`
+- Progress change: Overall remains `55%`; Phase 4 rises to `32%`; Memory rises to `71%`. This is a hosted integration proof, not a rollout or production deployment.
+## Previous Latest Completed Proof
+
+Phase 4 Hosted Worker / Priority Queue Runtime Parity:
+
+- `scripts/verify-phase4-worker-priority-runtime-hosted.ps1` now proves the hosted worker runtime path end to end through `GET /api/v1/tasks/assignment-contract`, `POST /api/v1/internal/tasks`, `GET /api/v1/internal/tasks/{task_id}`, `GET /api/v1/tasks/recent`, `GET /api/v1/agents/status`, `GET /api/v1/sessions/recent`, `GET /api/v1/metrics`, and `GET /api/v1/audit/recent`.
+- `services/agent-api/app/main.py` now initializes `agent_sessions` before internal task enqueue and writes `latest_task_id/latest_task_type` metadata for the hosted internal-task path; this fixes the real `ForeignKeyViolation`/`status=escalated` bug previously triggered by hosted worker proof tasks.
+- `.phase1-artifacts/phase4-worker-priority-queue-hosted-proof-20260505.md` records the successful hosted proof for high/mid/low task priorities, worker completion, session visibility, audit visibility, and metrics parity.
+- Verified commands: `py -3 -m py_compile services\agent-api\app\main.py`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase4-worker-priority-runtime-hosted.ps1`
+- Progress change: Overall remains `55%`; Phase 4 rises to `31%`; Agent Pool rises to `62%`. This is a hosted integration proof, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Phase 5 Post-Rollback Provenance + Completion Gate Freeze:
+
+- `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-provenance-revalidation.md` now binds the current production-candidate to a fresh post-rollback provenance revalidation across GitHub Actions run `25392582005`, immutable GHCR SHA tags for all six services, multi-arch `amd64/arm64` availability, and hosted root/API/MCP/LLM health at `overall=55`, `phase5=28`.
+- `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-completion-gate-freeze.md` now binds the same candidate to the still fail-closed completion boundary after rollback/restore: external gates remain `verified`, `blocked_release_gates=[]`, but `can_set_all_to_100=false` and `owner_decision=no-release` remain hard true.
+- `docs/release-artifacts/prod-candidate-2026-05-05-rc1.md` now links both new post-rollback provenance and completion-gate-freeze artifacts directly beside the existing rollback/requalification evidence.
+- `scripts/verify-phase5-post-rollback-provenance-revalidation.ps1` and `scripts/verify-phase5-post-rollback-completion-gate-freeze.ps1` verify the new artifacts fail-closed against live GitHub workflow truth, live GHCR manifests, and current hosted truth.
+- Verified commands: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-post-rollback-provenance-revalidation.ps1`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-post-rollback-completion-gate-freeze.ps1`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-candidate.ps1`, `powershell -ExecutionPolicy Bypass -File scripts\deploy-to-staging.ps1 -KeyPath C:\Users\immer\.ssh\oracle_key -StagingBaseUrl https://188-34-191-140.sslip.io -StagingHostname 188-34-191-140.sslip.io`, `py -3 scripts\verify_project_progress_manifest.py`
+- Progress change: Overall remains `55%`; Phase 5 rises to `28%`. These are post-rollback release-readiness proofs, not a rollout or production deployment.
+
+## Previous Latest Completed Proof
+
+Historical, now superseded browser section - Phase 5 Post-Rollback Observability + Browser Revalidation:
+
+- `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-observability-revalidation.md` now binds the current production-candidate to a fresh hosted observability revalidation after rollback/restore, checking health, progress, integrity, metrics, audit, escalations, and external gates at `overall=55`, `phase5=26`.
+- `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md` is now a historical `superseded` artifact only; fresh browser reruns are currently blocked and are not counted in current candidate evidence.
+- `docs/release-artifacts/prod-candidate-2026-05-05-rc1.md` now links only the post-rollback observability artifact as active current evidence; the browser revalidation artifact is excluded from the current candidate truth.
+- `scripts/verify-phase5-post-rollback-observability-revalidation.ps1` remains on current hosted truth, while `scripts/verify-phase5-post-rollback-browser-revalidation.ps1` now verifies the fail-closed blocked historical state.
+- Blocker evidence is explicit: `failed to start codex app-server ... (os error 3)`, `Target.setDiscoverTargets): Target closed`, and Playwright launcher `exit code 13`.
+- The progress line in this historical section is retained only as provenance and is not the current manifest-backed truth.
 
 ## Previous Completed Proof
 
@@ -165,12 +532,12 @@ Phase 5 Executed Candidate Secret Rotation Drill:
 
 ## Previous Completed Proof
 
-Phase 5 Executed Hosted Candidate Browser Proof:
+Historical, now superseded browser section - Phase 5 Executed Hosted Candidate Browser Proof:
 
-- `docs/release-artifacts/prod-candidate-2026-05-05-rc1-browser-proof.md` now binds the current production-candidate to an executed live browser proof against the hosted HTTPS target.
-- `docs/release-artifacts/prod-candidate-2026-05-05-rc1.md` now links the browser proof directly as candidate evidence.
-- `scripts/verify-phase5-browser-proof.ps1` verifies the browser-proof artifact fail-closed against the title, URL, screenshot handle, and required visible markers.
-- Verified commands: live Puppeteer DOM proof, screenshot `phase5-hosted-browser-proof-20260505`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-browser-proof.ps1`, `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-candidate.ps1`, `py -3 scripts\verify_project_progress_manifest.py`
+- `docs/release-artifacts/prod-candidate-2026-05-05-rc1-browser-proof.md` is now a historical `superseded` artifact only; fresh browser reruns are currently blocked and are not counted in current candidate evidence.
+- `docs/release-artifacts/prod-candidate-2026-05-05-rc1.md` no longer links the browser proof as active candidate evidence.
+- `scripts/verify-phase5-browser-proof.ps1` now verifies the fail-closed blocked historical state instead of a current browser-proof claim.
+- Blocker evidence is explicit: `failed to start codex app-server ... (os error 3)`, `Target.setDiscoverTargets): Target closed`, and Playwright launcher `exit code 13`.
 - Progress change: Overall remains `53%`; Phase 5 rises to `13%`. This is a release-readiness browser evidence step, not a rollout or production deployment.
 
 ## Previous Completed Proof
@@ -504,7 +871,7 @@ Do not claim these until external evidence exists:
 1. Keep localhost as a dev control plane only; the authoritative hosted gate truth is on the Hetzner staging URL.
 2. Keep extending candidate-scoped Phase-5 evidence after the integration-plan proof instead of switching to rollout.
 3. If rollout is approved later, treat `.phase1-artifacts/phase5-rollback-drill-prod-candidate-20260505-rc1.md` as the rollback starting point, not the floating `:staging` alias.
-4. Reuse `.phase1-artifacts/hosted-browser-proof-20260504-235540.md` as the latest hosted UI/runtime truth artifact unless a newer hosted proof supersedes it.
+4. Treat `.phase1-artifacts/hosted-browser-proof-20260504-235540.md` as historical provenance only; do not reuse it as current candidate evidence until the external Codex browser bridge is repaired and a fresh rerun exists.
 
 ## Git State Warning
 
@@ -514,3 +881,29 @@ The current workspace is intentionally not clean. Many files are modified or unt
 2. Commit/stage the whole current workspace before handing it off.
 
 Do not rely on `git clone` alone unless these local changes have been committed and pushed.
+
+## Current Verified Progress
+
+- Overall: `63%`
+- Horizontal `P0 100 | P1 100 | P2 86 | P3 40 | P4 84 | P5 28 | P6 0`
+- Vertical `Frontend 97 | Orchestrator 99 | Agent Pool 68 | LLM 54 | MCP 55 | Memory 72 | Observability 99`
+
+## Latest Completed Hosted Proofs
+
+**Project Progress Completion Contract Runtime Parity**
+
+- API:
+  - `GET /api/v1/project/progress/completion/contract`
+  - `GET /api/v1/project/progress/completion`
+- Contract: `project-progress-completion-surface-v1`
+- Runtime stayed fail-closed with `can_set_all_to_100=false`
+- Proof: `.phase1-artifacts/phase4-progress-completion-contract-runtime-hosted-proof-20260507.md`
+
+**Orchestrator Manifest Contract Runtime Parity**
+
+- API:
+  - `GET /api/v1/orchestrator/manifest/contract`
+  - `GET /api/v1/orchestrator/manifest`
+- Contract: `orchestrator-manifest-surface-v1`
+- Hosted dry-run stayed aligned with `engine=langgraph`, `checkpointing=postgres`, `live_provider_calls=false`
+- Proof: `.phase1-artifacts/phase4-orchestrator-manifest-contract-runtime-hosted-proof-20260507.md`

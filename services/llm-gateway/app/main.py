@@ -8,14 +8,22 @@ from typing import Any
 from uuid import uuid4
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="Cloud Superbrain LLM Gateway", version="0.1.0")
 
+GATEWAY_MODE = os.getenv("LLM_GATEWAY_MODE", "deterministic_dry_run").strip() or "deterministic_dry_run"
 LIVE_PROVIDER_CALLS = False
-GATEWAY_MODE = "deterministic_dry_run"
+HF_ROUTER_BASE_URL = os.getenv("HF_ROUTER_BASE_URL", "https://router.huggingface.co/v1").rstrip("/")
+HF_DEFAULT_CHAT_MODEL = os.getenv("HF_DEFAULT_CHAT_MODEL", "deepseek-ai/DeepSeek-V4-Flash:fastest")
+HF_ROUTER_TIMEOUT_SECONDS = float(os.getenv("HF_ROUTER_TIMEOUT_SECONDS", "90"))
+LLM_LIVE_PROVIDER_DEFAULT = os.getenv("LLM_LIVE_PROVIDER_DEFAULT", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+}
 ROTATION_BACKOFF_SECONDS = [30, 60, 120, 300]
 PROVIDER_RESET_AFTER_SECONDS = 900
 STREAMING_PROTOCOL = "openai_compatible_sse"
@@ -23,46 +31,58 @@ ROUTING_POLICY_CONTRACT_VERSION = "llm-routing-policy-v1"
 MAX_FALLBACKS_PER_REQUEST = 2
 MAX_RETRY_CYCLES_PER_RUN = 5
 
+LEGACY_MODEL_ALIASES = {
+    "deepseek-chat": "deepseek-ai/DeepSeek-V4-Flash:fastest",
+    "qwen-coder": "Qwen/Qwen3-Coder-Next:fastest",
+    "gemma-chat": "google/gemma-4-31B-it:fastest",
+    "llama-chat": "meta-llama/Llama-3.1-8B-Instruct:fastest",
+}
+
 MODEL_ROUTES = [
     {
         "agent_type": "planner",
-        "primary": "claude-sonnet-4-6",
-        "fallbacks": ["gpt-4o", "gpt-4o-mini"],
+        "primary": "deepseek-ai/DeepSeek-V4-Pro:fastest",
+        "fallbacks": ["Qwen/Qwen3.6-35B-A3B:fastest", "moonshotai/Kimi-K2.6:fastest"],
         "max_output_tokens": 4096,
         "supports_streaming": True,
-        "configured_only": True,
+        "configured_only": False,
+        "open_source_first": True,
     },
     {
         "agent_type": "coder",
-        "primary": "deepseek-chat",
-        "fallbacks": ["claude-haiku-4-5", "groq-llama-3.3-70b"],
+        "primary": "Qwen/Qwen3-Coder-Next:fastest",
+        "fallbacks": ["deepseek-ai/DeepSeek-V4-Flash:fastest", "google/gemma-4-31B-it:fastest"],
         "max_output_tokens": 8192,
         "supports_streaming": True,
-        "configured_only": True,
+        "configured_only": False,
+        "open_source_first": True,
     },
     {
         "agent_type": "tester",
-        "primary": "gpt-4o-mini",
-        "fallbacks": ["groq-llama-3.3-70b", "deepseek-chat"],
+        "primary": "google/gemma-4-26B-A4B-it:cheapest",
+        "fallbacks": ["Qwen/Qwen3.5-9B:cheapest", "meta-llama/Llama-3.1-8B-Instruct:cheapest"],
         "max_output_tokens": 4096,
         "supports_streaming": True,
-        "configured_only": True,
+        "configured_only": False,
+        "open_source_first": True,
     },
     {
         "agent_type": "devops",
-        "primary": "gpt-4o-mini",
-        "fallbacks": ["claude-haiku-4-5", "gemini-flash"],
+        "primary": "deepseek-ai/DeepSeek-V4-Flash:fastest",
+        "fallbacks": ["Qwen/Qwen3.6-35B-A3B:fastest", "google/gemma-4-31B-it:fastest"],
         "max_output_tokens": 4096,
         "supports_streaming": True,
-        "configured_only": True,
+        "configured_only": False,
+        "open_source_first": True,
     },
     {
         "agent_type": "research",
-        "primary": "gemini-flash",
-        "fallbacks": ["mistral-large", "gpt-4o-mini"],
+        "primary": "zai-org/GLM-5.1:fastest",
+        "fallbacks": ["deepseek-ai/DeepSeek-V4-Pro:fastest", "inclusionAI/Ling-2.6-1T:fastest"],
         "max_output_tokens": 4096,
         "supports_streaming": True,
-        "configured_only": True,
+        "configured_only": False,
+        "open_source_first": True,
     },
 ]
 
@@ -105,6 +125,33 @@ class RoutingPolicyRequest(BaseModel):
     direct_provider_url: str | None = None
     direct_provider_key_ref: str | None = None
     blocker_ref: str | None = None
+
+
+def hf_router_token() -> str | None:
+    value = (os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_HUB_TOKEN") or "").strip()
+    return value or None
+
+
+def hf_router_available() -> bool:
+    return hf_router_token() is not None
+
+
+def huggingface_router_capability_snapshot() -> dict[str, object]:
+    return {
+        "available": hf_router_available(),
+        "provider": "huggingface_inference_router",
+        "chat_endpoint": "/v1/chat/completions",
+        "responses_adapter_endpoint": "/v1/responses",
+        "upstream_base_url": HF_ROUTER_BASE_URL,
+        "default_model": HF_DEFAULT_CHAT_MODEL,
+        "auth_env": "HF_TOKEN",
+        "stateful_sessions_supported": True,
+        "stream_passthrough": False,
+        "model_downloads": False,
+        "open_source_first": True,
+        "live_provider_calls_default": LLM_LIVE_PROVIDER_DEFAULT,
+        "non_claim": "Responses requests are adapted to the Hugging Face OpenAI-compatible chat endpoint; no OpenAI key is required.",
+    }
 
 
 SLOT_POLICIES: dict[str, dict[str, object]] = {
@@ -158,52 +205,118 @@ def model_ids() -> list[str]:
     for route in MODEL_ROUTES:
         values.append(str(route["primary"]))
         values.extend(str(item) for item in route["fallbacks"])
+    values.extend(LEGACY_MODEL_ALIASES.values())
     return sorted(set(values))
 
 
-def provider_for_model(model: str) -> str:
-    if model.startswith("claude"):
-        return "anthropic"
-    if model.startswith("gpt"):
-        return "openai"
-    if model.startswith("deepseek"):
+def normalize_model_id(model: str | None) -> str:
+    if not model:
+        return HF_DEFAULT_CHAT_MODEL
+    return LEGACY_MODEL_ALIASES.get(model, model)
+
+
+def model_family(model: str) -> str:
+    base = normalize_model_id(model).split(":", 1)[0]
+    if base.startswith("deepseek-ai/"):
         return "deepseek"
-    if model.startswith("groq"):
-        return "groq"
-    if model.startswith("gemini"):
-        return "google"
-    if model.startswith("mistral"):
+    if base.startswith("Qwen/"):
+        return "qwen"
+    if base.startswith("google/gemma"):
+        return "gemma"
+    if base.startswith("meta-llama/"):
+        return "llama"
+    if base.startswith("mistralai/"):
         return "mistral"
-    return "unknown"
+    if base.startswith("moonshotai/"):
+        return "kimi"
+    if base.startswith("zai-org/"):
+        return "glm"
+    if base.startswith("inclusionai/"):
+        return "ling"
+    return "open-weight"
+
+
+def provider_for_model(model: str) -> str:
+    return "huggingface_inference_router"
+
+
+def hf_router_model_snapshot(limit: int = 20) -> dict[str, object]:
+    if not hf_router_available():
+        return {
+            "status": "missing_token",
+            "live_verified": False,
+            "model_count_visible": 0,
+            "models": [],
+        }
+
+    headers = {"Authorization": f"Bearer {hf_router_token()}"}
+    try:
+        with httpx.Client(timeout=10) as client:
+            response = client.get(f"{HF_ROUTER_BASE_URL}/models", headers=headers)
+            response.raise_for_status()
+        payload = response.json()
+    except httpx.HTTPStatusError as exc:
+        return {
+            "status": "http_error",
+            "http_status": exc.response.status_code,
+            "live_verified": False,
+            "model_count_visible": 0,
+            "models": [],
+        }
+    except httpx.HTTPError as exc:
+        return {
+            "status": "network_error",
+            "error": type(exc).__name__,
+            "live_verified": False,
+            "model_count_visible": 0,
+            "models": [],
+        }
+
+    items = payload.get("data", []) if isinstance(payload, dict) else []
+    models = [
+        str(item.get("id"))
+        for item in items
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    ]
+    return {
+        "status": "live_verified",
+        "live_verified": True,
+        "model_count_visible": len(models),
+        "models": models[:limit],
+    }
 
 
 def provider_status_snapshot() -> dict[str, object]:
-    providers: dict[str, set[str]] = {}
-    for model_id in model_ids():
-        providers.setdefault(provider_for_model(model_id), set()).add(model_id)
+    router = hf_router_model_snapshot()
 
     return {
         "mode": GATEWAY_MODE,
         "live_provider_calls": LIVE_PROVIDER_CALLS,
+        "live_provider_calls_available": hf_router_available(),
         "live_verified": False,
         "policy": {
             "rotation_backoff_seconds": ROTATION_BACKOFF_SECONDS,
             "reset_after_seconds": PROVIDER_RESET_AFTER_SECONDS,
             "never_break_budget": True,
-            "external_provider_calls_disabled": not LIVE_PROVIDER_CALLS,
+            "external_provider_calls_disabled_by_default": not LLM_LIVE_PROVIDER_DEFAULT,
+            "requires_request_metadata": "metadata.live_provider_calls_allowed=true",
         },
         "providers": [
             {
-                "provider": provider,
-                "status": "configured_only",
-                "live_verified": False,
-                "live_provider_calls": False,
-                "models": sorted(models),
+                "provider": "huggingface_inference_router",
+                "status": router["status"],
+                "live_verified": bool(router["live_verified"]),
+                "live_provider_calls": LIVE_PROVIDER_CALLS,
+                "live_provider_calls_available": hf_router_available(),
+                "model_count_visible": router["model_count_visible"],
+                "configured_models": model_ids(),
+                "visible_models_sample": router["models"],
                 "backoff_seconds": ROTATION_BACKOFF_SECONDS,
                 "reset_after_seconds": PROVIDER_RESET_AFTER_SECONDS,
-                "non_claim": "Provider is configured in routing policy; no external health check was made.",
-            }
-            for provider, models in sorted(providers.items())
+                "model_downloads": False,
+                "open_source_first": True,
+                "non_claim": "HF router model listing is verified when token is present; generation still requires policy/metadata approval per request.",
+            },
         ],
     }
 
@@ -368,34 +481,40 @@ def resolve_route(request: RoutingResolveRequest) -> dict[str, object]:
         selected = candidates[-1]
         reason = "streaming_required_primary_not_supported"
     selected_provider = provider_for_model(selected)
+    router = hf_router_model_snapshot(limit=5)
 
     return {
         "mode": GATEWAY_MODE,
         "live_provider_calls": LIVE_PROVIDER_CALLS,
+        "live_provider_calls_available": hf_router_available(),
         "agent_type": request.agent_type,
         "task_type": request.task_type,
         "selected_model": selected,
         "selected_provider": selected_provider,
+        "selected_model_family": model_family(selected),
         "reason": reason,
         "fallback_chain": candidates,
         "provider_chain": [provider_for_model(candidate) for candidate in candidates],
         "max_output_tokens": route["max_output_tokens"],
         "supports_streaming": route["supports_streaming"],
-        "configured_only": True,
-        "live_verified": False,
+        "configured_only": False,
+        "live_verified": bool(router["live_verified"]),
         "budget_level": request.budget_level,
         "provider_health": {
             "provider": selected_provider,
-            "status": "configured_only",
-            "live_verified": False,
+            "status": router["status"],
+            "live_verified": bool(router["live_verified"]),
             "live_provider_calls": False,
-            "non_claim": "No external provider health check was made in deterministic dry-run mode.",
+            "live_provider_calls_available": hf_router_available(),
+            "model_downloads": False,
+            "non_claim": "Router availability is verified through HF /v1/models; generation is still policy-gated.",
         },
         "policy": {
             "rotation_backoff_seconds": ROTATION_BACKOFF_SECONDS,
             "reset_after_seconds": PROVIDER_RESET_AFTER_SECONDS,
             "never_break_budget": True,
-            "external_provider_calls_disabled": not LIVE_PROVIDER_CALLS,
+            "external_provider_calls_disabled_by_default": not LLM_LIVE_PROVIDER_DEFAULT,
+            "requires_request_metadata": "metadata.live_provider_calls_allowed=true",
         },
     }
 
@@ -415,7 +534,90 @@ def deterministic_content(request: ChatCompletionRequest) -> str:
     )
 
 
-def openai_usage(request: ChatCompletionRequest, content: str) -> dict[str, int]:
+def request_allows_live_provider(metadata: dict[str, Any] | None) -> bool:
+    metadata = metadata or {}
+    value = metadata.get("live_provider_calls_allowed")
+    if value is None:
+        return LLM_LIVE_PROVIDER_DEFAULT
+    return value is True or (isinstance(value, str) and value.strip().lower() in {"1", "true", "yes"})
+
+
+def chat_message_payloads(messages: list[ChatMessage]) -> list[dict[str, Any]]:
+    payloads: list[dict[str, Any]] = []
+    for message in messages:
+        payloads.append({"role": message.role, "content": message.content})
+    return payloads
+
+
+def extract_chat_content(response_payload: dict[str, Any]) -> str:
+    choices = response_payload.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return ""
+    first = choices[0]
+    if not isinstance(first, dict):
+        return ""
+    message = first.get("message")
+    if isinstance(message, dict) and message.get("content"):
+        return str(message["content"])
+    delta = first.get("delta")
+    if isinstance(delta, dict) and delta.get("content"):
+        return str(delta["content"])
+    return ""
+
+
+def usage_from_chat_payload(request: ChatCompletionRequest, response_payload: dict[str, Any], content: str) -> dict[str, int]:
+    usage = response_payload.get("usage")
+    if isinstance(usage, dict):
+        prompt_tokens = int(usage.get("prompt_tokens") or usage.get("input_tokens") or 0)
+        completion_tokens = int(usage.get("completion_tokens") or usage.get("output_tokens") or 0)
+        total_tokens = int(usage.get("total_tokens") or prompt_tokens + completion_tokens)
+        return {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens,
+        }
+    return chat_usage(request, content)
+
+
+def call_hf_chat_completion(request: ChatCompletionRequest) -> dict[str, Any]:
+    token = hf_router_token()
+    if not token:
+        raise HTTPException(status_code=503, detail="HF_TOKEN is not configured for Hugging Face router calls")
+
+    upstream_payload: dict[str, Any] = {
+        "model": normalize_model_id(request.model),
+        "messages": chat_message_payloads(request.messages),
+        "stream": False,
+    }
+    if request.temperature is not None:
+        upstream_payload["temperature"] = request.temperature
+    if request.max_tokens is not None:
+        upstream_payload["max_tokens"] = request.max_tokens
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    try:
+        with httpx.Client(timeout=HF_ROUTER_TIMEOUT_SECONDS) as client:
+            response = client.post(f"{HF_ROUTER_BASE_URL}/chat/completions", headers=headers, json=upstream_payload)
+            response.raise_for_status()
+        response_payload = response.json()
+    except httpx.HTTPStatusError as exc:
+        try:
+            detail: object = exc.response.json()
+        except ValueError:
+            detail = exc.response.text or "Hugging Face router request failed"
+        raise HTTPException(status_code=exc.response.status_code, detail=detail) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Hugging Face router request failed: {type(exc).__name__}") from exc
+
+    if not isinstance(response_payload, dict):
+        raise HTTPException(status_code=502, detail="Hugging Face router returned an invalid payload")
+    return response_payload
+
+
+def chat_usage(request: ChatCompletionRequest, content: str) -> dict[str, int]:
     prompt_tokens = count_text_tokens(request.messages)
     completion_tokens = len(content.split())
     return {
@@ -425,7 +627,41 @@ def openai_usage(request: ChatCompletionRequest, content: str) -> dict[str, int]
     }
 
 
-def audit_event(request: ChatCompletionRequest, content: str, usage: dict[str, int]) -> bool:
+def extract_response_output_text(response_payload: dict[str, Any]) -> str:
+    output_text = response_payload.get("output_text")
+    if isinstance(output_text, str) and output_text.strip():
+        return output_text.strip()
+
+    texts: list[str] = []
+    for item in response_payload.get("output", []):
+        if not isinstance(item, dict) or item.get("type") != "message":
+            continue
+        for part in item.get("content", []):
+            if isinstance(part, dict) and part.get("type") == "output_text" and part.get("text"):
+                texts.append(str(part["text"]).strip())
+    return "\n".join(text for text in texts if text).strip()
+
+
+def response_usage_totals(response_payload: dict[str, Any]) -> dict[str, int]:
+    usage = response_payload.get("usage")
+    if not isinstance(usage, dict):
+        return {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+    return {
+        "input_tokens": int(usage.get("input_tokens") or 0),
+        "output_tokens": int(usage.get("output_tokens") or 0),
+        "total_tokens": int(usage.get("total_tokens") or 0),
+    }
+
+
+def audit_event(
+    request: ChatCompletionRequest,
+    content: str,
+    usage: dict[str, int],
+    *,
+    provider_name: str = "deterministic-dry-run",
+    status: str = "dry_run",
+    live_provider_calls: bool = False,
+) -> bool:
     base_url = os.getenv("AGENT_API_INTERNAL_URL", "").rstrip("/")
     if not base_url:
         return False
@@ -433,13 +669,13 @@ def audit_event(request: ChatCompletionRequest, content: str, usage: dict[str, i
     payload = {
         "trace_id": trace_id,
         "model_name": request.model,
-        "provider_name": "deterministic-dry-run",
+        "provider_name": provider_name,
         "agent_type": str(request.metadata.get("agent_type") or "unknown"),
-        "status": "dry_run",
+        "status": status,
         "input_tokens": usage["prompt_tokens"],
         "output_tokens": usage["completion_tokens"],
         "cost_cents": 0,
-        "live_provider_calls": False,
+        "live_provider_calls": live_provider_calls,
         "summary": content,
     }
     try:
@@ -451,42 +687,167 @@ def audit_event(request: ChatCompletionRequest, content: str, usage: dict[str, i
         return False
 
 
+def audit_responses_event(request_payload: dict[str, Any], response_payload: dict[str, Any]) -> bool:
+    base_url = os.getenv("AGENT_API_INTERNAL_URL", "").rstrip("/")
+    if not base_url:
+        return False
+
+    metadata = request_payload.get("metadata")
+    metadata_map = metadata if isinstance(metadata, dict) else {}
+    usage = response_usage_totals(response_payload)
+    summary = extract_response_output_text(response_payload) or "Responses API call completed without text output."
+    payload = {
+        "trace_id": str(metadata_map.get("trace_id") or f"llm-responses-{uuid4()}"),
+        "model_name": str(response_payload.get("model") or request_payload.get("model") or HF_DEFAULT_CHAT_MODEL),
+        "provider_name": "huggingface_router_responses_adapter",
+        "agent_type": str(metadata_map.get("agent_type") or "unknown"),
+        "status": "success" if response_payload.get("status") == "completed" else "error",
+        "input_tokens": usage["input_tokens"],
+        "output_tokens": usage["output_tokens"],
+        "cost_cents": 0,
+        "live_provider_calls": bool(response_payload.get("live_provider_calls")),
+        "summary": summary[:500],
+    }
+    try:
+        with httpx.Client(timeout=3) as client:
+            response = client.post(f"{base_url}/internal/audit/llm-events", json=payload)
+            response.raise_for_status()
+        return True
+    except Exception:
+        return False
+
+
+def normalize_responses_request(payload: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(payload)
+    if normalized.get("stream") is True:
+        raise HTTPException(status_code=501, detail="stream=true is not supported on this /v1/responses proxy")
+    if "input" not in normalized and "prompt" not in normalized:
+        raise HTTPException(status_code=422, detail="input or prompt is required")
+    if not normalized.get("model"):
+        normalized["model"] = HF_DEFAULT_CHAT_MODEL
+    normalized.setdefault("store", True)
+    metadata = normalized.get("metadata")
+    if metadata is None:
+        metadata = {}
+    if not isinstance(metadata, dict):
+        raise HTTPException(status_code=422, detail="metadata must be an object")
+    normalized["metadata"] = {"gateway_path": "responses_proxy", **metadata}
+    return normalized
+
+
+def responses_input_to_messages(payload: dict[str, Any]) -> list[ChatMessage]:
+    value = payload.get("input")
+    if isinstance(value, str):
+        return [ChatMessage(role="user", content=value)]
+    if isinstance(value, list):
+        messages: list[ChatMessage] = []
+        for item in value:
+            if not isinstance(item, dict):
+                continue
+            role = str(item.get("role") or "user")
+            content = item.get("content")
+            if isinstance(content, str):
+                messages.append(ChatMessage(role=role, content=content))
+            elif isinstance(content, list):
+                texts: list[str] = []
+                for part in content:
+                    if isinstance(part, dict) and part.get("type") in {"input_text", "output_text"} and part.get("text"):
+                        texts.append(str(part["text"]))
+                messages.append(ChatMessage(role=role, content="\n".join(texts)))
+        if messages:
+            return messages
+    prompt = payload.get("prompt")
+    if isinstance(prompt, dict) and prompt.get("id"):
+        return [ChatMessage(role="user", content=f"Prompt template request: {prompt['id']}")]
+    return [ChatMessage(role="user", content="")]
+
+
+def responses_adapter_payload(normalized: dict[str, Any], content: str, live_call: bool, usage: dict[str, int]) -> dict[str, Any]:
+    created = int(time.time())
+    return {
+        "id": f"resp_hf_{uuid4()}",
+        "object": "response",
+        "created_at": created,
+        "status": "completed",
+        "model": normalize_model_id(str(normalized.get("model") or HF_DEFAULT_CHAT_MODEL)),
+        "output": [
+            {
+                "id": f"msg_hf_{uuid4()}",
+                "type": "message",
+                "status": "completed",
+                "role": "assistant",
+                "content": [{"type": "output_text", "text": content, "annotations": []}],
+            }
+        ],
+        "output_text": content,
+        "gateway_mode": GATEWAY_MODE,
+        "provider_name": "huggingface_inference_router" if live_call else "deterministic-dry-run",
+        "live_provider_calls": live_call,
+        "model_downloads": False,
+        "usage": {
+            "input_tokens": usage.get("prompt_tokens", 0),
+            "output_tokens": usage.get("completion_tokens", 0),
+            "total_tokens": usage.get("total_tokens", 0),
+        },
+    }
+
+
 @app.get("/api/v1/health")
 def health() -> dict[str, object]:
+    router = hf_router_model_snapshot(limit=5)
     return {
         "status": "healthy",
         "service": "llm-gateway",
         "mode": GATEWAY_MODE,
         "live_provider_calls": LIVE_PROVIDER_CALLS,
+        "live_provider_calls_available": hf_router_available(),
         "openai_compatible": True,
+        "open_source_first": True,
+        "model_downloads": False,
+        "provider": "huggingface_inference_router",
         "routing_resolver": True,
         "routing_policy": True,
         "provider_health": True,
+        "provider_live_verified": bool(router["live_verified"]),
+        "provider_status": router["status"],
+        "provider_model_count_visible": router["model_count_visible"],
         "streaming_sse": True,
         "streaming_protocol": STREAMING_PROTOCOL,
         "models_configured": len(model_ids()),
+        "hf_router": huggingface_router_capability_snapshot(),
+        "responses_api": huggingface_router_capability_snapshot(),
         "non_claims": [
-            "No external provider request is made in this local Phase-2 gateway.",
-            "configured_only=true until provider secrets and live checks are explicitly configured.",
+            "No model files are downloaded by this gateway.",
+            "Generation calls require HF_TOKEN plus request policy/metadata approval.",
+            "OpenAI-compatible means wire protocol compatibility, not OpenAI provider dependency.",
         ],
     }
 
 
 @app.get("/v1/models")
 def models() -> dict[str, object]:
+    router = hf_router_model_snapshot(limit=200)
+    route_models = set(model_ids())
+    visible = router["models"] if router["live_verified"] else []
+    merged = sorted(route_models.union(str(item) for item in visible))
     return {
         "object": "list",
         "data": [
             {
                 "id": model_id,
                 "object": "model",
-                "owned_by": "configured-route",
-                "configured_only": True,
-                "live_verified": False,
+                "owned_by": "huggingface-router",
+                "configured_route": model_id in route_models,
+                "open_source_first": True,
+                "live_verified": bool(router["live_verified"]),
             }
-            for model_id in model_ids()
+            for model_id in merged
         ],
         "live_provider_calls": LIVE_PROVIDER_CALLS,
+        "live_provider_calls_available": hf_router_available(),
+        "provider": "huggingface_inference_router",
+        "router_status": router["status"],
+        "model_downloads": False,
     }
 
 
@@ -527,10 +888,57 @@ def routing_resolve(request: RoutingResolveRequest) -> dict[str, object]:
 @app.post("/v1/chat/completions")
 def chat_completions(request: ChatCompletionRequest):
     created = int(time.time())
-    content = deterministic_content(request)
-    usage = openai_usage(request, content)
-    audit_persisted = audit_event(request, content, usage)
-    completion_id = f"chatcmpl-dryrun-{uuid4()}"
+    live_allowed = request_allows_live_provider(request.metadata)
+    live_call = live_allowed and hf_router_available()
+    completion_id = f"chatcmpl-{'hf' if live_call else 'dryrun'}-{uuid4()}"
+
+    if live_allowed and not hf_router_available():
+        raise HTTPException(status_code=503, detail="HF_TOKEN is required for live Hugging Face router calls")
+
+    if live_call:
+        response_payload = call_hf_chat_completion(request)
+        content = extract_chat_content(response_payload)
+        usage = usage_from_chat_payload(request, response_payload, content)
+        audit_persisted = audit_event(
+            request,
+            content,
+            usage,
+            provider_name="huggingface_inference_router",
+            status="success",
+            live_provider_calls=True,
+        )
+        response_payload["gateway_mode"] = GATEWAY_MODE
+        response_payload["provider_name"] = "huggingface_inference_router"
+        response_payload["requested_model"] = request.model
+        response_payload["model"] = response_payload.get("model") or normalize_model_id(request.model)
+        response_payload["live_provider_calls"] = True
+        response_payload["audit_persisted"] = audit_persisted
+        response_payload["cost_cents"] = 0
+        response_payload["model_downloads"] = False
+    else:
+        content = deterministic_content(request)
+        usage = chat_usage(request, content)
+        audit_persisted = audit_event(request, content, usage)
+        response_payload = {
+            "id": completion_id,
+            "object": "chat.completion",
+            "created": created,
+            "model": normalize_model_id(request.model),
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": content},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": usage,
+            "live_provider_calls": LIVE_PROVIDER_CALLS,
+            "live_provider_calls_available": hf_router_available(),
+            "audit_persisted": audit_persisted,
+            "cost_cents": 0,
+            "provider_name": "deterministic-dry-run",
+            "model_downloads": False,
+        }
 
     if request.stream:
         def events():
@@ -538,17 +946,19 @@ def chat_completions(request: ChatCompletionRequest):
                 "id": completion_id,
                 "object": "chat.completion.chunk",
                 "created": created,
-                "model": request.model,
+                "model": response_payload.get("model") or normalize_model_id(request.model),
                 "choices": [{"index": 0, "delta": {"content": content}, "finish_reason": None}],
-                "live_provider_calls": LIVE_PROVIDER_CALLS,
+                "live_provider_calls": live_call,
                 "audit_persisted": audit_persisted,
+                "provider_name": response_payload.get("provider_name"),
+                "model_downloads": False,
             }
             yield f"data: {json.dumps(chunk, separators=(',', ':'))}\n\n"
             done = {
                 "id": completion_id,
                 "object": "chat.completion.chunk",
                 "created": created,
-                "model": request.model,
+                "model": response_payload.get("model") or normalize_model_id(request.model),
                 "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
             }
             yield f"data: {json.dumps(done, separators=(',', ':'))}\n\n"
@@ -556,20 +966,34 @@ def chat_completions(request: ChatCompletionRequest):
 
         return StreamingResponse(events(), media_type="text/event-stream")
 
-    return {
-        "id": completion_id,
-        "object": "chat.completion",
-        "created": created,
-        "model": request.model,
-        "choices": [
-            {
-                "index": 0,
-                "message": {"role": "assistant", "content": content},
-                "finish_reason": "stop",
-            }
-        ],
-        "usage": usage,
-        "live_provider_calls": LIVE_PROVIDER_CALLS,
-        "audit_persisted": audit_persisted,
-        "cost_cents": 0,
-    }
+    return response_payload
+
+
+@app.post("/v1/responses")
+def create_response(payload: dict[str, Any]) -> dict[str, Any]:
+    normalized = normalize_responses_request(payload)
+    chat_request = ChatCompletionRequest(
+        model=str(normalized.get("model") or HF_DEFAULT_CHAT_MODEL),
+        messages=responses_input_to_messages(normalized),
+        stream=False,
+        temperature=normalized.get("temperature") if isinstance(normalized.get("temperature"), (int, float)) else None,
+        max_tokens=normalized.get("max_output_tokens") if isinstance(normalized.get("max_output_tokens"), int) else None,
+        metadata=normalized.get("metadata") if isinstance(normalized.get("metadata"), dict) else {},
+    )
+    live_allowed = request_allows_live_provider(chat_request.metadata)
+    if live_allowed and not hf_router_available():
+        raise HTTPException(status_code=503, detail="HF_TOKEN is required for live Hugging Face router calls")
+
+    if live_allowed:
+        chat_payload = call_hf_chat_completion(chat_request)
+        content = extract_chat_content(chat_payload)
+        usage = usage_from_chat_payload(chat_request, chat_payload, content)
+        response_payload = responses_adapter_payload(normalized, content, True, usage)
+    else:
+        content = deterministic_content(chat_request)
+        usage = chat_usage(chat_request, content)
+        response_payload = responses_adapter_payload(normalized, content, False, usage)
+
+    audit_persisted = audit_responses_event(normalized, response_payload)
+    response_payload["audit_persisted"] = audit_persisted
+    return response_payload

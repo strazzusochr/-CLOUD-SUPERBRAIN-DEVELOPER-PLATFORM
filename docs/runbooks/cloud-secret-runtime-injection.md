@@ -56,6 +56,30 @@ Optional metadata keys:
 
 For local testing, inject secrets into the shell or Docker runtime from a private secret store that is outside the repository. Do not write real values to `.env`, `.env.example`, docs, Compose files, PowerShell history snippets, or generated artifacts.
 
+The canonical local helper for transient shell injection is:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\import-local-env.ps1
+```
+
+By default it reads `C:\Users\<user>\.codex\secrets\cloud-superbrain.local.env`, sets process environment variables only, does not print values, and does not overwrite already-set process variables. It also fills safe alias names when the target is missing:
+
+- `VERCEL_TEAM_ID -> VERCEL_ORG_ID`
+- `VERCEL_ORG_ID -> VERCEL_TEAM_ID`
+- `HCLOUD_TOKEN -> HETZNER_API_TOKEN`
+- `HETZNER_API_TOKEN -> HCLOUD_TOKEN`
+- `GITHUB_TOKEN -> BRANCH_PROTECTION_TOKEN`
+
+Use `scripts\verify-all-gates-with-tokens.ps1` for external gate verification with the same private env bootstrap. Optional identity provider tokens remain optional unless the verifier is run with an explicit strict identity policy.
+
+Validate the bootstrap behavior without real tokens by running:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-env-bootstrap.ps1
+```
+
+The verifier uses only dummy values, confirms alias filling and no-overwrite behavior, and fails if the helper prints secret-like values.
+
 `GET /api/v1/clouds` and `GET /api/v1/clouds/layers` must show only:
 
 - env key names

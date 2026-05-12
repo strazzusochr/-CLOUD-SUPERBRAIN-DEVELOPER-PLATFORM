@@ -36,8 +36,8 @@
     "truth_policy": "Evidence-based only: percentages increase only after code, runtime proof, and verifier/doc update."
   },
   "runtime": {
-    "base_url": "http://localhost:8081",
-    "stream_url": "http://localhost:8081/api/stream",
+    "base_url": "<local-control-plane-url>",
+    "stream_url": "<local-control-plane-stream-url>",
     "health": "healthy",
     "services": {
       "nginx": "healthy",
@@ -66,7 +66,7 @@
     "project_progress_integrity": "verified"
   },
   "latest_protocol_summary": {
-    "issue": "Chat/run history did not open from localhost:8081 dashboard.",
+    "issue": "Chat/run history did not open from <local-control-plane-host> dashboard.",
     "root_causes": [
       "Stale agent-api container while local code already contained the route.",
       "Nginx kept stale Docker upstream IPs after service recreates.",
@@ -87,12 +87,12 @@
     "py -3 -m py_compile services\\agent-api\\app\\tasks.py services\\agent-api\\app\\main.py",
     "npm run build --prefix apps/frontend",
     "docker compose -f docker-compose.dev.yml config --quiet",
-    "powershell -ExecutionPolicy Bypass -File scripts\\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
+    "powershell -ExecutionPolicy Bypass -File scripts\\verify-browser-contract.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost",
     "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase1.ps1",
-    "powershell -ExecutionPolicy Bypass -File scripts\\verify-hosted-staging.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
-    "GET http://localhost:8081/api/v1/health",
-    "GET http://localhost:8081/api/v1/project/progress/integrity",
-    "GET http://localhost:8081/api/v1/sessions/ee81f6c1-703b-499d-9a33-b11d6b3cc0e0/history"
+    "powershell -ExecutionPolicy Bypass -File scripts\\verify-hosted-staging.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost",
+    "GET <local-control-plane-url>/api/v1/health",
+    "GET <local-control-plane-url>/api/v1/project/progress/integrity",
+    "GET <local-control-plane-url>/api/v1/sessions/ee81f6c1-703b-499d-9a33-b11d6b3cc0e0/history"
   ],
   "next_step": {
     "name": "external-gate-configuration-and-hosted-staging-proof",
@@ -121,9 +121,9 @@
   "resume_commands": [
     "cd D:\\PLATTFORM\\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
     "docker compose -f docker-compose.dev.yml ps",
-    "curl.exe -s http://localhost:8081/api/v1/health",
-    "curl.exe -s http://localhost:8081/api/v1/project/progress/integrity",
-    "powershell -ExecutionPolicy Bypass -File scripts\\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
+    "curl.exe -s <local-control-plane-url>/api/v1/health",
+    "curl.exe -s <local-control-plane-url>/api/v1/project/progress/integrity",
+    "powershell -ExecutionPolicy Bypass -File scripts\\verify-browser-contract.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost",
     "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase1.ps1"
   ],
   "platform_memory": {

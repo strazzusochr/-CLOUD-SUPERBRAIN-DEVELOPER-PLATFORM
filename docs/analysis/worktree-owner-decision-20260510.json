@@ -1,0 +1,21 @@
+{
+  "decision_id": "owner-decision-cleanup-first-20260511-chat-authorized",
+  "decided_at": "2026-05-11T20:04:14Z",
+  "approved_by": "user-chat-authorization-2026-05-11",
+  "strategy": "cleanup-first",
+  "allowed_actions": {
+    "may_move": true,
+    "may_delete": false,
+    "may_unstage": true,
+    "may_stage": false,
+    "may_commit": false,
+    "may_push": false,
+    "may_deploy": false
+  },
+  "scope": {
+    "security_review_paths": ".phase1-artifacts/worktree-security-review-packet-20260511.json",
+    "quarantine_paths": ".phase1-artifacts/worktree-quarantine-plan-20260510.json",
+    "split_required_paths": ".phase1-artifacts/worktree-split-plan-20260510.json"
+  },
+  "notes": "User authorized fully autonomous continuation in chat on 2026-05-11. This decision only authorizes cleanup preparation and staged/worktree normalization required by release-boundary gates. It does not authorize deletion, staging new release contents, commits, pushes, production deploys, or publication of secrets."
+}

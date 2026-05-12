@@ -1,0 +1,211 @@
+{
+  "clearance_id": "security-review-clearance-20260511-codex",
+  "reviewed_at": "2026-05-11T20:24:24Z",
+  "reviewed_by": "codex-autonomous-security-review",
+  "status": "security-clearance-approved",
+  "scope": "release-boundary security-review paths and detect-secrets baseline hotspots",
+  "raw_secret_values_included": false,
+  "secret_values_included": false,
+  "diff_contents_included": false,
+  "file_contents_included": false,
+  "checks": {
+    "gitleaks_findings": 0,
+    "security_suite_passed": true,
+    "security_review_path_pattern_hits": 0,
+    "baseline_hotspot_pattern_hits": 0,
+    "pattern_set": [
+      "openai-api-key",
+      "github-token",
+      "vercel-token",
+      "cloudflare-token",
+      "hcloud-token-like",
+      "private-key-block",
+      "jwt"
+    ]
+  },
+  "security_review_paths": [
+    {
+      "source_path": "docs/runbooks/cloud-secret-runtime-injection.md",
+      "disposition": "cleared_no_secret_pattern_hits",
+      "approved_for_release_boundary": true,
+      "no_high_confidence_secret_patterns": true
+    },
+    {
+      "source_path": "scripts/secret_scan_fallback.py",
+      "disposition": "cleared_no_secret_pattern_hits",
+      "approved_for_release_boundary": true,
+      "no_high_confidence_secret_patterns": true
+    },
+    {
+      "source_path": "docs/release-artifacts/prod-candidate-2026-05-05-rc1-secret-rotation-drill.md",
+      "disposition": "cleared_no_secret_pattern_hits",
+      "approved_for_release_boundary": true,
+      "no_high_confidence_secret_patterns": true
+    },
+    {
+      "source_path": "docs/runbooks/secret-rotation.md",
+      "disposition": "cleared_no_secret_pattern_hits",
+      "approved_for_release_boundary": true,
+      "no_high_confidence_secret_patterns": true
+    },
+    {
+      "source_path": "scripts/run-secret-scans.ps1",
+      "disposition": "cleared_no_secret_pattern_hits",
+      "approved_for_release_boundary": true,
+      "no_high_confidence_secret_patterns": true
+    },
+    {
+      "source_path": "scripts/verify-all-gates-with-tokens.ps1",
+      "disposition": "cleared_no_secret_pattern_hits",
+      "approved_for_release_boundary": true,
+      "no_high_confidence_secret_patterns": true
+    },
+    {
+      "source_path": "scripts/verify-phase5-secret-rotation-drill.ps1",
+      "disposition": "cleared_no_secret_pattern_hits",
+      "approved_for_release_boundary": true,
+      "no_high_confidence_secret_patterns": true
+    }
+  ],
+  "baseline_hotspots": [
+    {
+      "source_path": "apps/frontend/.vercel/project.json",
+      "finding_count": 2,
+      "disposition": "ignored_local_metadata_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "docs/analysis/CLOUD_SUPERBRAIN_ANALYSIS_RECONCILIATION_2026-05-09.md",
+      "finding_count": 1,
+      "disposition": "documentation_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "docs/release-artifacts/prod-candidate-2026-05-05-rc1.md",
+      "finding_count": 1,
+      "disposition": "release_artifact_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "docs/verification-register.md",
+      "finding_count": 1,
+      "disposition": "documentation_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "scripts/execute-phase5-executed-rollback.ps1",
+      "finding_count": 1,
+      "disposition": "script_constant_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "scripts/manual/verify-phase5-staging-immutable-parity.ps1",
+      "finding_count": 1,
+      "disposition": "script_constant_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "scripts/run-secret-scans.ps1",
+      "finding_count": 1,
+      "disposition": "security_tooling_keyword_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "scripts/verify-all-gates-with-tokens.ps1",
+      "finding_count": 1,
+      "disposition": "security_tooling_keyword_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "scripts/verify-env-bootstrap.ps1",
+      "finding_count": 1,
+      "disposition": "env_bootstrap_placeholder_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "scripts/verify-external-gates.ps1",
+      "finding_count": 1,
+      "disposition": "external_gate_placeholder_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "scripts/verify-phase1-runtime.ps1",
+      "finding_count": 3,
+      "disposition": "test_fixture_or_placeholder_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "scripts/verify-phase1.ps1",
+      "finding_count": 1,
+      "disposition": "test_fixture_or_placeholder_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "scripts/verify-phase5-executed-rollback-rerun.ps1",
+      "finding_count": 1,
+      "disposition": "script_constant_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "scripts/verify-phase5-executed-rollback.ps1",
+      "finding_count": 1,
+      "disposition": "script_constant_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "scripts/verify-phase5-incident-drill.ps1",
+      "finding_count": 1,
+      "disposition": "script_constant_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "scripts/verify-phase5-post-rollback-provenance-revalidation.ps1",
+      "finding_count": 1,
+      "disposition": "script_constant_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "scripts/verify-phase5-rollback-drill.ps1",
+      "finding_count": 1,
+      "disposition": "script_constant_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "scripts/verify-phase5-staging-parity-blocked.ps1",
+      "finding_count": 1,
+      "disposition": "script_constant_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "scripts/verify-security.ps1",
+      "finding_count": 1,
+      "disposition": "security_tooling_keyword_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "scripts/verify-tooling-readiness.ps1",
+      "finding_count": 1,
+      "disposition": "tooling_keyword_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "services/agent-api/app/main.py",
+      "finding_count": 3,
+      "disposition": "application_placeholder_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "staging.env.template",
+      "finding_count": 1,
+      "disposition": "template_placeholder_false_positive_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    },
+    {
+      "source_path": "vercel_storage.json",
+      "finding_count": 6,
+      "disposition": "ignored_local_artifact_excluded_from_release_no_secret_pattern_hits",
+      "approved_for_release_boundary": true
+    }
+  ],
+  "notes": "This clearance intentionally contains paths, counts, and dispositions only. It contains no raw secret values, no diff contents, and no file contents. It clears release-boundary security review only because gitleaks reported zero findings and the checked high-confidence token/private-key/JWT patterns reported zero hits on the reviewed lines."
+}

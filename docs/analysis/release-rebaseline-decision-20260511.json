@@ -1,0 +1,14 @@
+{
+  "decision_id": "release-rebaseline-current-head-candidate-20260511",
+  "decided_at": "2026-05-11T22:10:00Z",
+  "approved_by": "user-chat-authorization-2026-05-11",
+  "selected_option": "create-new-candidate-from-current-head",
+  "release_claim_allowed": false,
+  "may_stage": false,
+  "may_commit": false,
+  "may_push": false,
+  "may_deploy": false,
+  "may_release": false,
+  "requires_clean_worktree": true,
+  "notes": "The reviewed clean HEAD is selected as a new release-boundary candidate. This does not approve a production rollout, push, deploy, or replacement of the historical RC1 no-release artifact."
+}

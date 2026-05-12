@@ -9,6 +9,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+& (Join-Path $PSScriptRoot "require-docker-readiness.ps1") -GateName "phase1 Redis persistence compose verification"
+
 function Assert-LastExitCode($label) {
   if ($LASTEXITCODE -ne 0) {
     throw "Redis persistence proof failed: $label"

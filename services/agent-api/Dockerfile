@@ -1,22 +1,33 @@
-FROM python:3.12-slim
+FROM python:3.12-alpine AS builder
+
+WORKDIR /app
+COPY requirements.txt .
+# Install build dependencies for any python packages that need compilation
+RUN apk add --no-cache build-base postgresql-dev python3-dev libffi-dev \
+    && pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+FROM python:3.12-alpine
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install runtime dependencies (like libpq for psycopg)
+RUN apk add --no-cache libpq ca-certificates
+COPY --from=builder /install /usr/local
 ARG GITLEAKS_VERSION=8.30.1
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl \
-    && curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz \
+
+RUN apk add --no-cache curl \
+    && ARCH=$(uname -m) \
+    && GITLEAKS_ARCH=$(if [ "$ARCH" = "aarch64" ]; then echo "arm64"; else echo "x64"; fi) \
+    && curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${GITLEAKS_ARCH}.tar.gz" -o /tmp/gitleaks.tar.gz \
     && tar -xzf /tmp/gitleaks.tar.gz -C /usr/local/bin gitleaks \
     && chmod +x /usr/local/bin/gitleaks \
     && rm -f /tmp/gitleaks.tar.gz \
-    && apt-get purge -y --auto-remove curl \
-    && rm -rf /var/lib/apt/lists/*
+    && apk del curl
+
 COPY app ./app
-RUN useradd --create-home --uid 10001 appuser && chown -R appuser:appuser /app
+RUN adduser -D -u 10001 appuser && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8000

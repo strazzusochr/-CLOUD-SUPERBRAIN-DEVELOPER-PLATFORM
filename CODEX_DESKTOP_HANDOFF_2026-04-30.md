@@ -11,7 +11,7 @@ This file is intentionally token-free. It names secret locations and variable na
 You are continuing the Cloud Superbrain Developer Platform.
 
 Open this project folder:
-D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM
+<repo-root>
 
 Do not use a clean git clone as the only source. The current state contains many required untracked and modified files. Use the whole local folder or commit/stage/push all local changes first.
 
@@ -44,17 +44,17 @@ Current verified state:
 - Observability: 99%
 
 Runtime entrypoints:
-- Browser: http://localhost:8081/
-- Agent stream/autopilot: http://localhost:8081/api/stream
-- Health: http://localhost:8081/api/v1/health
-- Progress integrity: http://localhost:8081/api/v1/project/progress/integrity
+- Browser: <local-control-plane-url>/
+- Agent stream/autopilot: <local-control-plane-stream-url>
+- Health: <local-control-plane-url>/api/v1/health
+- Progress integrity: <local-control-plane-url>/api/v1/project/progress/integrity
 
 Before making changes, verify:
-cd D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM
+cd <repo-root>
 docker compose -f docker-compose.dev.yml ps
-curl.exe -s http://localhost:8081/api/v1/health
-curl.exe -s http://localhost:8081/api/v1/project/progress/integrity
-powershell -ExecutionPolicy Bypass -File scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost
+curl.exe -s <local-control-plane-url>/api/v1/health
+curl.exe -s <local-control-plane-url>/api/v1/project/progress/integrity
+powershell -ExecutionPolicy Bypass -File scripts\verify-browser-contract.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost
 powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1
 
 Important rules:
@@ -74,7 +74,7 @@ Important rules:
 
 Primary project:
 
-- Path: `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
+- Path: `<repo-root>`
 - Remote: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM.git`
 - Branch: `chore/repo-bootstrap`
 - Local branch state: ahead of `origin/chore/repo-bootstrap` by 1 commit
@@ -82,14 +82,14 @@ Primary project:
 
 Parent workspace:
 
-- Path: `D:\PLATTFORM`
+- Path: `<workspace-root>`
 - Branch: `chore/repo-bootstrap`
 - State: ahead 1, behind 3, dirty
 - The primary project appears as a modified nested repo/subtree from the parent workspace.
 
 Secondary/older workspace:
 
-- Path: `D:\PLATTFORM\cloud-superbrain-fresh`
+- Path: `<workspace-root>\cloud-superbrain-fresh`
 - Contains an actual `.env` with older/fresh-build secrets and settings.
 - Treat it as a legacy/reference working copy unless a human explicitly says to switch roots.
 
@@ -127,9 +127,9 @@ Hard constraints:
 
 Checked during this handoff:
 
-- `GET http://localhost:8081/api/v1/health`: healthy.
-- `GET http://localhost:8081/api/v1/project/progress/integrity`: verified.
-- `GET http://localhost:8081/api/v1/sessions/recent?limit=3`: returned recent hosted-proof sessions.
+- `GET <local-control-plane-url>/api/v1/health`: healthy.
+- `GET <local-control-plane-url>/api/v1/project/progress/integrity`: verified.
+- `GET <local-control-plane-url>/api/v1/sessions/recent?limit=3`: returned recent hosted-proof sessions.
 - `docker compose -f docker-compose.dev.yml ps`: all expected services healthy.
 
 Healthy Compose services:
@@ -199,8 +199,8 @@ Relevant thread names found in `session_index.jsonl`:
 
 - `Chatverlauf wiederherstellen` on 2026-04-20
 - `Fix Chatverlauf-Zugriff` on 2026-04-29
-- `Behebe Chatverlauf localhost:8081` on 2026-04-29
-- `Clouds zu localhost:8081 hinzufuegen` on 2026-04-30
+- `Behebe Chatverlauf <local-control-plane-host>` on 2026-04-29
+- `Clouds zu <local-control-plane-host> hinzufuegen` on 2026-04-30
 
 Reconstructed work sequence:
 
@@ -222,7 +222,7 @@ Reconstructed work sequence:
    - frontend data-load/refresh split in `apps/frontend/app/page.tsx`,
    - session-history regression guard in `scripts/verify-browser-contract.ps1`,
    - static guard strings in `scripts/verify-phase1.ps1`,
-   - root Codex sandbox runner repaired at `D:\PLATTFORM\codex-github-runner.py`,
+   - root Codex sandbox runner repaired at `<workspace-root>\codex-github-runner.py`,
    - optional invalid MCP restart loops marked host-CLI-only.
 7. Evidence showed the run history panel opening again:
    - `GET /api/v1/sessions/ee81f6c1-703b-499d-9a33-b11d6b3cc0e0/history => 200 OK`
@@ -239,19 +239,19 @@ Reconstructed work sequence:
 
 Root-level screenshots and snapshots:
 
-- `D:\PLATTFORM\superbrain-history-open-verified-2026-04-29.png`
-- `D:\PLATTFORM\superbrain-opened-history-panel-verified-2026-04-29.png`
-- `D:\PLATTFORM\superbrain-ai-browser-clean-proof-2026-04-29.png`
-- `D:\PLATTFORM\superbrain-live-proof-2026-04-29.png`
-- `D:\PLATTFORM\superbrain-live-ui-proof-47-viewport.png`
-- `D:\PLATTFORM\superbrain-progress-live-2026-04-29T2045.png`
-- `D:\PLATTFORM\superbrain-progress-section-2026-04-29T2045.png`
-- `D:\PLATTFORM\cloud-preview-redeploy-snapshot-20260430.md`
-- `D:\PLATTFORM\cloud-preview-redeploy-viewport-20260430.png`
+- `<workspace-root>\superbrain-history-open-verified-2026-04-29.png`
+- `<workspace-root>\superbrain-opened-history-panel-verified-2026-04-29.png`
+- `<workspace-root>\superbrain-ai-browser-clean-proof-2026-04-29.png`
+- `<workspace-root>\superbrain-live-proof-2026-04-29.png`
+- `<workspace-root>\superbrain-live-ui-proof-47-viewport.png`
+- `<workspace-root>\superbrain-progress-live-2026-04-29T2045.png`
+- `<workspace-root>\superbrain-progress-section-2026-04-29T2045.png`
+- `<workspace-root>\cloud-preview-redeploy-snapshot-20260430.md`
+- `<workspace-root>\cloud-preview-redeploy-viewport-20260430.png`
 
 Project artifacts:
 
-- `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\.phase1-artifacts\`
+- `<repo-root>\.phase1-artifacts\`
 - `.phase1-artifacts\cloud-only-staging-proof-20260430-124141.json`
 - `.phase1-artifacts\cloud-only-staging-proof-20260430-124747.json`
 - `.phase1-artifacts\lighthouse-cloud-preview-20260430\`
@@ -319,7 +319,7 @@ Do not paste secret values into Codex chat. Let Codex Desktop read the local fil
 
 Project env template:
 
-- `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\.env.example`
+- `<repo-root>\.env.example`
 - This is a template, not a real secret store.
 - It lists active runtime keys including:
   - `STAGING_BASE_URL`
@@ -340,7 +340,7 @@ Project env template:
 
 Legacy/fresh-build actual env:
 
-- `D:\PLATTFORM\cloud-superbrain-fresh\.env`
+- `<workspace-root>\cloud-superbrain-fresh\.env`
 - Contains real-looking local values for keys such as:
   - `OPENAI_API_KEY`
   - `ANTHROPIC_API_KEY`
@@ -354,8 +354,8 @@ Legacy/fresh-build actual env:
 
 Legacy/fresh env templates:
 
-- `D:\PLATTFORM\cloud-superbrain-fresh\.env.example`
-- `D:\PLATTFORM\cloud-superbrain-fresh\infrastructure\hetzner\.env.prod.example`
+- `<workspace-root>\cloud-superbrain-fresh\.env.example`
+- `<workspace-root>\cloud-superbrain-fresh\infrastructure\hetzner\.env.prod.example`
 
 Local Codex auth and config:
 
@@ -366,11 +366,11 @@ Local Codex auth and config:
 - `C:\Users\immer\.codex\state_5.sqlite`
 - `C:\Users\immer\.codex\logs_2.sqlite`
 
-Important: `C:\Users\immer\.codex\config.toml` currently contains MCP server configuration and a plaintext GitHub MCP token under the GitHub MCP server environment. Do not copy the value into docs or chat. Because it is plaintext, rotate it if it was exposed or if Codex Desktop/GitHub reports auth problems.
+Important: the local Codex configuration currently contains MCP server configuration and sensitive provider credentials. Do not copy any values into docs or chat. Rotate any credential that was exposed or if Codex Desktop/GitHub reports auth problems.
 
 Local Codex secret folder:
 
-- `C:\Users\immer\.codex\secrets\Tokens SuperbrainPlattform.txt`
+- Private local secret store (outside this repository)
 - This likely contains provider/API tokens for this project. Do not paste values.
 
 Sandbox secret folder:
@@ -415,7 +415,7 @@ Runtime cloud injection contract:
 Static/local checks:
 
 ```powershell
-cd D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM
+cd <repo-root>
 powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1
 py -3 scripts\verify_project_progress_manifest.py
 ```
@@ -423,12 +423,12 @@ py -3 scripts\verify_project_progress_manifest.py
 Runtime checks:
 
 ```powershell
-cd D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM
+cd <repo-root>
 docker compose -f docker-compose.dev.yml ps
-curl.exe -s http://localhost:8081/api/v1/health
-curl.exe -s http://localhost:8081/api/v1/project/progress/integrity
-powershell -ExecutionPolicy Bypass -File scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost
-powershell -ExecutionPolicy Bypass -File scripts\verify-hosted-staging.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost
+curl.exe -s <local-control-plane-url>/api/v1/health
+curl.exe -s <local-control-plane-url>/api/v1/project/progress/integrity
+powershell -ExecutionPolicy Bypass -File scripts\verify-browser-contract.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost
+powershell -ExecutionPolicy Bypass -File scripts\verify-hosted-staging.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost
 powershell -ExecutionPolicy Bypass -File scripts\verify-phase1-runtime.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify-autopilot-mode.ps1 -AllowLocalhost
 ```
@@ -436,7 +436,7 @@ powershell -ExecutionPolicy Bypass -File scripts\verify-autopilot-mode.ps1 -Allo
 Hosted proof once a real staging URL exists:
 
 ```powershell
-cd D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM
+cd <repo-root>
 $env:STAGING_BASE_URL = "https://YOUR-REAL-STAGING-URL"
 powershell -ExecutionPolicy Bypass -File scripts\verify-hosted-staging.ps1 -BaseUrl $env:STAGING_BASE_URL
 powershell -ExecutionPolicy Bypass -File scripts\verify-cloud-only-staging.ps1 -BaseUrl $env:STAGING_BASE_URL
@@ -445,7 +445,7 @@ powershell -ExecutionPolicy Bypass -File scripts\verify-cloud-only-staging.ps1 -
 External gates:
 
 ```powershell
-cd D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM
+cd <repo-root>
 powershell -ExecutionPolicy Bypass -File scripts\verify-external-gates.ps1
 py -3 scripts\apply_github_branch_protection.py --repo strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM --verify-only
 py -3 scripts\check_hetzner_infra_budget.py
@@ -490,7 +490,7 @@ Untracked required project files include the real current application/runtime su
 
 This is why Codex Desktop must use the whole folder, not only `git clone`.
 
-Parent workspace `D:\PLATTFORM` is also dirty:
+Parent workspace `<workspace-root>` is also dirty:
 
 - modified root Docker/MCP files,
 - deleted `full_config.json`,
@@ -579,8 +579,8 @@ Next cloud handoff step:
 ## Safety Notes
 
 - Rotate any token that was pasted into chat, screenshots, docs, shell history, or config output.
-- The GitHub MCP token in `C:\Users\immer\.codex\config.toml` is plaintext; treat it as sensitive.
-- The file `C:\Users\immer\.codex\secrets\Tokens SuperbrainPlattform.txt` is sensitive; read only locally, never quote.
+- The local Codex config may contain plaintext credentials; treat it as sensitive.
+- The private local secret store is sensitive; read only locally, never quote.
 - Do not commit `.env` files.
 - Do not commit Codex auth files.
 - Do not include `.phase1-artifacts` only selectively if the next agent needs evidence; the artifacts are useful for reconstruction.

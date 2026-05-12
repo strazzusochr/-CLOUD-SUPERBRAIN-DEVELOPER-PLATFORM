@@ -2,7 +2,7 @@
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 Created: `2026-04-30 00:49:26 +02:00`
-Project root: `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
+Project root: `<repo-root>`
 Checkpoint file: `docs/project-checkpoint-2026-04-30.json`
 
 ## Binding Truth
@@ -56,8 +56,8 @@ Current progress:
 
 Runtime snapshot:
 
-- Browser entrypoint: `http://localhost:8081/`
-- Stream entrypoint: `http://localhost:8081/api/stream`
+- Browser entrypoint: `<local-control-plane-url>/`
+- Stream entrypoint: `<local-control-plane-stream-url>`
 - `GET /api/v1/health`: `healthy`
 - Postgres: `healthy`
 - Redis: `healthy`
@@ -101,7 +101,7 @@ Fixes implemented:
 - Split frontend data loading into primary, delayed background, 15-second live refresh, and 60-second activity refresh groups in `apps/frontend/app/page.tsx`.
 - Added a regression guard to `scripts/verify-browser-contract.ps1` proving session history opens for a freshly started Phase 2 runtime run.
 - Added static guard strings to `scripts/verify-phase1.ps1` so the browser verifier cannot drop the history proof silently.
-- Repaired the root-level Codex sandbox with a stdlib-only health runner at `D:\PLATTFORM\codex-github-runner.py`.
+- Repaired the root-level Codex sandbox with a stdlib-only health runner at `<workspace-root>\codex-github-runner.py`.
 - Marked the optional root Docker MCP gateway/nginx profile as host-CLI-only to stop invalid restart loops.
 
 Evidence from the repair:
@@ -118,8 +118,8 @@ Evidence from the repair:
   - Audit Events: 9
   - Manifest evidence: `project_progress_integrity_runtime_proof`
 - Screenshot artifacts:
-  - `D:\PLATTFORM\superbrain-history-open-verified-2026-04-29.png`
-  - `D:\PLATTFORM\superbrain-opened-history-panel-verified-2026-04-29.png`
+  - `<workspace-root>\superbrain-history-open-verified-2026-04-29.png`
+  - `<workspace-root>\superbrain-opened-history-panel-verified-2026-04-29.png`
 
 Verification commands that passed in the repair cycle:
 
@@ -127,18 +127,18 @@ Verification commands that passed in the repair cycle:
 - `npm run build --prefix apps/frontend`
 - `docker compose -f docker-compose.dev.yml config --quiet`
 - `nginx -t` against the dev Nginx config
-- `powershell -ExecutionPolicy Bypass -File scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
+- `powershell -ExecutionPolicy Bypass -File scripts\verify-browser-contract.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost`
 - `powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`
-- `powershell -ExecutionPolicy Bypass -File scripts\verify-hosted-staging.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
+- `powershell -ExecutionPolicy Bypass -File scripts\verify-hosted-staging.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost`
 
 Verification commands that passed for this anchor:
 
-- `GET http://localhost:8081/api/v1/health`
-- `GET http://localhost:8081/api/v1/project/progress`
-- `GET http://localhost:8081/api/v1/project/progress/integrity`
-- `GET http://localhost:8081/api/v1/sessions/recent?limit=3`
-- `GET http://localhost:8081/api/v1/sessions/ee81f6c1-703b-499d-9a33-b11d6b3cc0e0/history`
-- `docker compose -f D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\docker-compose.dev.yml ps`
+- `GET <local-control-plane-url>/api/v1/health`
+- `GET <local-control-plane-url>/api/v1/project/progress`
+- `GET <local-control-plane-url>/api/v1/project/progress/integrity`
+- `GET <local-control-plane-url>/api/v1/sessions/recent?limit=3`
+- `GET <local-control-plane-url>/api/v1/sessions/ee81f6c1-703b-499d-9a33-b11d6b3cc0e0/history`
+- `docker compose -f <repo-root>\docker-compose.dev.yml ps`
 
 ## Current Non-Claims
 
@@ -185,7 +185,7 @@ Resume prompt:
 
 ```text
 Resume from PROJECT_ANCHOR.md and docs/project-checkpoint-2026-04-30.json.
-First verify localhost:8081 health, project progress integrity, Docker compose health,
+First verify <local-control-plane-host> health, project progress integrity, Docker compose health,
 and session history opening. Then continue external gate / hosted staging proof work
 without changing progress percentages until runtime evidence exists.
 ```
@@ -193,11 +193,11 @@ without changing progress percentages until runtime evidence exists.
 Resume commands:
 
 ```powershell
-cd D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM
+cd <repo-root>
 docker compose -f docker-compose.dev.yml ps
-curl.exe -s http://localhost:8081/api/v1/health
-curl.exe -s http://localhost:8081/api/v1/project/progress/integrity
-powershell -ExecutionPolicy Bypass -File scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost
+curl.exe -s <local-control-plane-url>/api/v1/health
+curl.exe -s <local-control-plane-url>/api/v1/project/progress/integrity
+powershell -ExecutionPolicy Bypass -File scripts\verify-browser-contract.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost
 powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1
 ```
 

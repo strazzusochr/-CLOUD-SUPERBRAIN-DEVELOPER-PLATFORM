@@ -5,7 +5,8 @@ param(
   [string]$RemoteUser = "root",
   [string]$RemoteHost = "188.34.191.140",
   [string]$RemoteAppDir = "/app",
-  [string]$BaseUrl = "https://188-34-191-140.sslip.io"
+  [string]$BaseUrl = "https://188-34-191-140.sslip.io",
+  [string]$ExpectedLiveSelector = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,10 +27,30 @@ with urllib.request.urlopen(r"$url", context=ctx, timeout=20) as r:
 "@ | py -3 -
 }
 
+function Resolve-ExpectedLiveSelector($explicitSelector) {
+  if (-not [string]::IsNullOrWhiteSpace($explicitSelector)) {
+    return $explicitSelector
+  }
+
+  $currentCandidatePath = "docs\release-artifacts\prod-candidate-2026-05-11-rc1.md"
+  if (Test-Path $currentCandidatePath) {
+    $currentCandidate = Get-Content $currentCandidatePath -Raw
+    if ($currentCandidate -match 'hosted_selector_observed:\s*`([^`]+)`') {
+      return $Matches[1]
+    }
+  }
+
+  return "IMAGE_TAG=staging"
+}
+
 $artifactPath = ".phase1-artifacts\phase5-executed-rollback-prod-candidate-20260505-rc1.md"
 if (-not (Test-Path $artifactPath)) {
   throw "Missing executed rollback artifact: $artifactPath"
 }
+$manifest = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
+$expectedOverall = [int]$manifest.overall_percent
+$expectedPhase5 = [int](($manifest.horizontal.items | Where-Object { $_.id -eq "phase_5" }).percent)
+$expectedLiveSelector = Resolve-ExpectedLiveSelector $ExpectedLiveSelector
 $artifact = Get-Content $artifactPath -Raw
 foreach ($required in @(
   "Status: verified",
@@ -39,26 +60,28 @@ foreach ($required in @(
   "Restored candidate selector: IMAGE_TAG=staging",
   "Executed rollback completed: yes",
   "Candidate selector restored to staging: yes",
+  "Hosted progress after restore remained manifest-backed: overall=$expectedOverall, phase5=$expectedPhase5",
+  "Hosted integrity after restore remained verified: yes",
   "This is an executed rollback proof on hosted staging."
 )) {
   Assert-Contains "executed rollback artifact" $artifact $required
 }
 
 $candidate = Get-Content "docs\release-artifacts\$ReleaseId.md" -Raw
-Assert-Contains "candidate executed rollback linked" $candidate 'Executed rollback proof: `.phase1-artifacts/phase5-executed-rollback-prod-candidate-20260505-rc1.md`'
+Assert-Contains "candidate executed rollback linked" $candidate 'Historical executed rollback reference: `.phase1-artifacts/phase5-executed-rollback-prod-candidate-20260505-rc1.md`'
 
 $selector = (& ssh -i $KeyPath -o StrictHostKeyChecking=no "${RemoteUser}@${RemoteHost}" "cd $RemoteAppDir && grep '^IMAGE_TAG=' .env") | Out-String
 if ($LASTEXITCODE -ne 0) {
   throw "Verification failed: unable to read remote IMAGE_TAG selector."
 }
-Assert-Contains "remote restored selector" $selector "IMAGE_TAG=staging"
+Assert-Contains "remote live selector" $selector $expectedLiveSelector
 
 $progress = Get-Json "$BaseUrl/api/v1/project/progress"
-Assert-Contains "progress overall" $progress '"overall_percent": 54'
-Assert-Contains "progress phase5" $progress '"percent": 21'
+Assert-Contains "progress overall" $progress """overall_percent"": $expectedOverall"
+Assert-Contains "progress phase5" $progress """percent"": $expectedPhase5"
 
 $integrity = Get-Json "$BaseUrl/api/v1/project/progress/integrity"
 Assert-Contains "integrity" $integrity '"status": "verified"'
-Assert-Contains "integrity phase5" $integrity '"phase_5": 21'
+Assert-Contains "integrity phase5" $integrity """phase_5"": $expectedPhase5"
 
 Write-Host "[phase5-executed-rollback] verified"

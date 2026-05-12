@@ -1,12 +1,12 @@
 # Runbook Index
 
-Stand: 2026-04-23
-Status: Draft fuer Phase 0
+Stand: 2026-05-05
+Status: Active baseline for Phase 5
 Bezug: `TEIL 10`
 
 ## 1. Zweck
 
-Dieses Verzeichnis ist der Einstiegspunkt fuer operative Runbooks. In Phase 0 werden noch nicht alle einzelnen Runbooks ausgearbeitet, aber die Pflichtkategorien und ihr spaeterer Zweck werden verbindlich festgelegt.
+Dieses Verzeichnis ist der Einstiegspunkt fuer operative Runbooks. Die Pflichtkategorien sind jetzt nicht mehr nur geplant, sondern als Phase-5-Baseline ausgearbeitet und muessen mit Release-Checklist, Verification Register und Hosted-Proofs zusammenpassen.
 
 ## 2. Pflichtkategorien
 
@@ -17,6 +17,8 @@ Dieses Verzeichnis ist der Einstiegspunkt fuer operative Runbooks. In Phase 0 we
 | `rollback-deploy.md` | Ruecknahme eines fehlerhaften Releases | vor erster produktiver Pipeline |
 | `provider-failover.md` | Wechsel auf alternativen LLM- oder Tool-Provider | vor Multi-Provider-Betrieb |
 | `memory-recovery.md` | Umgang mit fehlerhaften Memory-Indizes oder Retention-Problemen | vor persistentem Langzeit-Memory |
+| `single-region-frankfurt-outage.md` | manuelle Ausweichprozedur bei Hetzner-Frankfurt- oder Primaerhost-Ausfall | vor erster laenger laufender Hosted-Nutzung |
+| `docker-desktop-wsl2-readiness.md` | lokaler Docker-Desktop/WSL2-Health-Check fuer dockerbasierte Gates | vor lokalen Docker-/Compose-Verifikationen |
 
 ## 3. Regeln
 

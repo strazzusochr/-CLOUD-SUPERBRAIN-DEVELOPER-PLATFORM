@@ -6,6 +6,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$progressManifestPath = Join-Path $PSScriptRoot "..\docs\project-progress.manifest.json"
+$progressManifest = Get-Content -Path $progressManifestPath -Raw | ConvertFrom-Json
+$expectedOverallPercent = [int]$progressManifest.overall_percent
+
 function Assert-Contains($label, $value, $expected) {
   $text = ($value | Out-String)
   if (-not $text.Contains($expected)) {
@@ -19,8 +23,121 @@ function Assert-True($label, $condition) {
   }
 }
 
+function Assert-ArrayEquivalent($label, $actual, $expected) {
+  $actualItems = @($actual | ForEach-Object { [string]$_ })
+  $expectedItems = @($expected | ForEach-Object { [string]$_ })
+  if ($actualItems.Count -ne $expectedItems.Count) {
+    throw "Browser contract verification failed: $label count mismatch. Actual: $($actualItems -join ', ') Expected: $($expectedItems -join ', ')"
+  }
+  foreach ($item in $expectedItems) {
+    if (-not ($actualItems -contains $item)) {
+      throw "Browser contract verification failed: $label missing expected '$item'. Actual: $($actualItems -join ', ')"
+    }
+  }
+  foreach ($item in $actualItems) {
+    if (-not ($expectedItems -contains $item)) {
+      throw "Browser contract verification failed: $label had unexpected '$item'. Expected: $($expectedItems -join ', ')"
+    }
+  }
+}
+
 function Invoke-Text($url) {
-  return curl.exe -sS $url
+  $python = @'
+import sys
+import urllib.request
+
+url = sys.argv[1]
+with urllib.request.urlopen(url, timeout=10) as response:
+    sys.stdout.write(response.read().decode("utf-8", errors="replace"))
+'@
+  return ($python | py -3 - $url)
+}
+
+function Invoke-StatusCode($url) {
+  $python = @'
+import sys
+import urllib.error
+import urllib.request
+
+url = sys.argv[1]
+try:
+    with urllib.request.urlopen(url, timeout=30) as response:
+        sys.stdout.write(str(response.status))
+except urllib.error.HTTPError as error:
+    sys.stdout.write(str(error.code))
+'@
+  return ($python | py -3 - $url)
+}
+
+function Invoke-JsonApi(
+  [string]$Url,
+  [string]$Method = "GET",
+  [string]$Body = "",
+  [string]$ContentType = "application/json",
+  [int]$TimeoutSeconds = 15
+) {
+  $payload = [ordered]@{
+    url = $Url
+    method = $Method
+    timeout_seconds = $TimeoutSeconds
+  }
+  if ($Body) {
+    $payload.body_b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($Body))
+  }
+  if ($ContentType) {
+    $payload.content_type = $ContentType
+  }
+  $payloadJson = $payload | ConvertTo-Json -Compress -Depth 6
+  $payloadFile = Join-Path $env:TEMP ("browser-contract-json-" + [Guid]::NewGuid().ToString("N") + ".json")
+  $pythonFile = Join-Path $env:TEMP ("browser-contract-json-" + [Guid]::NewGuid().ToString("N") + ".py")
+  try {
+    Set-Content -LiteralPath $payloadFile -Value $payloadJson -NoNewline -Encoding utf8
+    $pythonScript = @'
+import base64
+import json
+import sys
+import urllib.request
+
+with open(sys.argv[1], "r", encoding="utf-8-sig") as handle:
+    payload = json.load(handle)
+
+data = None
+if payload.get("body_b64"):
+    data = base64.b64decode(payload["body_b64"])
+
+headers = {}
+if payload.get("content_type"):
+    headers["Content-Type"] = payload["content_type"]
+
+request = urllib.request.Request(
+    payload["url"],
+    data=data,
+    headers=headers,
+    method=payload.get("method", "GET"),
+)
+
+try:
+    with urllib.request.urlopen(request, timeout=payload.get("timeout_seconds", 15)) as response:
+        body = response.read().decode("utf-8")
+    print(body)
+except urllib.error.HTTPError as exc:
+    print(exc.read().decode("utf-8"))
+    sys.exit(exc.code)
+'@
+    Set-Content -LiteralPath $pythonFile -Value $pythonScript -NoNewline -Encoding utf8
+    $output = py -3 $pythonFile $payloadFile 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) {
+      throw $output.Trim()
+    }
+    return $output
+  } finally {
+    if (Test-Path $payloadFile) {
+      Remove-Item -LiteralPath $payloadFile -Force
+    }
+    if (Test-Path $pythonFile) {
+      Remove-Item -LiteralPath $pythonFile -Force
+    }
+  }
 }
 
 if (-not $BaseUrl) {
@@ -62,6 +179,8 @@ Assert-Contains "cloud render offload endpoint marker" $frontendHtml "GET /api/v
 Assert-Contains "cloud deployment preflight panel" $frontendHtml "Cloud Deployment Preflight"
 Assert-Contains "cloud deployment preflight evidence marker" $frontendHtml "cloud_deployment_preflight_visible"
 Assert-Contains "cloud deployment preflight endpoint marker" $frontendHtml "GET /api/v1/clouds/deployment-preflight/contract"
+Assert-Contains "auth contract panel" $frontendHtml "Auth Contract"
+Assert-Contains "system fallback panel" $frontendHtml "System Unavailable Fallback"
 Assert-Contains "layer interface contract panel" $frontendHtml "Layer Interface Contracts"
 Assert-Contains "layer interface evidence marker" $frontendHtml "layer_interface_contracts_visible"
 Assert-Contains "task assignment contract panel" $frontendHtml "Task Assignment Queue Contract"
@@ -80,14 +199,27 @@ Assert-Contains "project progress completion contract panel" $frontendHtml "100%
 Assert-Contains "project progress completion evidence marker" $frontendHtml "project_progress_100_percent_gate_contract"
 Assert-Contains "agent activity per-role summaries ui" $frontendHtml "Per-role Summaries"
 Assert-Contains "agent activity per-role css" $frontendHtml "perRoleSummary"
+Assert-Contains "memory purge contract panel" $frontendHtml "Memory Purge Contract"
+Assert-Contains "cost export contract panel" $frontendHtml "CSV Export"
+Assert-Contains "rate limit guard panel" $frontendHtml "Rate Limit Guard"
+Assert-Contains "session limit guard panel" $frontendHtml "Session Limit Guard"
+Assert-Contains "error response contract panel" $frontendHtml "Error Response Contract"
+Assert-Contains "security headers contract panel" $frontendHtml "Security Headers Contract"
+Assert-Contains "trace id contract panel" $frontendHtml "Trace ID Contract"
+Assert-Contains "cache control contract panel" $frontendHtml "Cache Control Contract"
+Assert-Contains "request id contract panel" $frontendHtml "Request ID Contract"
+Assert-Contains "request id audit feed marker" $frontendHtml "request_id_audit_feed_visible"
+Assert-Contains "agent activity panel" $frontendHtml "Agent Activity"
+Assert-Contains "agent activity filtered feed marker" $frontendHtml "agent_activity_filtered_feed_visible"
+Assert-Contains "agent activity filter controls" $frontendHtml "activityFilterBar"
 
 Write-Host "[browser-contract] favicon"
-$faviconStatus = curl.exe -sS -o NUL -w "%{http_code}" "$BaseUrl/favicon.ico"
+$faviconStatus = Invoke-StatusCode "$BaseUrl/favicon.ico"
 Assert-True "favicon status 200" ($faviconStatus -eq "200")
 
 Write-Host "[browser-contract] project progress"
 $projectProgress = Invoke-Text "$BaseUrl/api/v1/project/progress"
-Assert-Contains "project progress overall" $projectProgress '"overall_percent":47'
+Assert-Contains "project progress overall" $projectProgress ('"overall_percent":{0}' -f $expectedOverallPercent)
 Assert-Contains "project progress phase2" $projectProgress '"id":"phase_2"'
 Assert-Contains "project progress layer frontend" $projectProgress '"id":"layer_1"'
 Assert-Contains "project progress worker status regression" $projectProgress "worker-status-regression-harness"
@@ -97,8 +229,8 @@ $projectProgressIntegrity = Invoke-Text "$BaseUrl/api/v1/project/progress/integr
 Assert-Contains "project progress integrity version" $projectProgressIntegrity '"contract_version":"project-progress-integrity-v1"'
 Assert-Contains "project progress integrity verified" $projectProgressIntegrity '"status":"verified"'
 Assert-Contains "project progress integrity evidence" $projectProgressIntegrity '"evidence_ref":"project_progress_integrity_runtime_proof"'
-Assert-Contains "project progress integrity computed" $projectProgressIntegrity '"computed_overall_percent":47'
-Assert-Contains "project progress integrity manifest" $projectProgressIntegrity '"manifest_overall_percent":47'
+Assert-Contains "project progress integrity computed" $projectProgressIntegrity ('"computed_overall_percent":{0}' -f $expectedOverallPercent)
+Assert-Contains "project progress integrity manifest" $projectProgressIntegrity ('"manifest_overall_percent":{0}' -f $expectedOverallPercent)
 
 Write-Host "[browser-contract] project progress completion contract"
 $projectProgressCompletion = Invoke-Text "$BaseUrl/api/v1/project/progress/completion"
@@ -106,8 +238,7 @@ Assert-Contains "project progress completion version" $projectProgressCompletion
 Assert-Contains "project progress completion status" $projectProgressCompletion '"status":"blocked_external_gates"'
 Assert-Contains "project progress completion evidence" $projectProgressCompletion '"evidence_ref":"project_progress_100_percent_gate_contract"'
 Assert-Contains "project progress completion cannot set all to 100" $projectProgressCompletion '"can_set_all_to_100":false'
-Assert-Contains "project progress completion hosted blocker" $projectProgressCompletion "hosted_staging_proof_requires_STAGING_BASE_URL"
-Assert-Contains "project progress completion production blocker" $projectProgressCompletion "production_release_requires_hosted_staging_branch_protection_secret_scan_and_owner_review"
+Assert-Contains "project progress completion external gates cleared" $projectProgressCompletion '"missing_external_gates":[]'
 Assert-Contains "project progress completion local gap blocker" $projectProgressCompletion "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 
 Write-Host "[browser-contract] layer interface contracts"
@@ -130,24 +261,141 @@ Assert-Contains "cloud layer readiness contract version" $cloudLayerReadiness '"
 Assert-Contains "cloud layer readiness evidence" $cloudLayerReadiness '"evidence_ref":"cloud_layer_readiness_visible"'
 Assert-Contains "cloud layer readiness layer 7" $cloudLayerReadiness '"layer_id":"layer_7"'
 Assert-Contains "cloud layer readiness gitkraken" $cloudLayerReadiness 'gitkraken_identity'
-$cloudRenderOffload = Invoke-Text "$BaseUrl/api/v1/clouds/render-offload/contract"
-Assert-Contains "cloud render offload version" $cloudRenderOffload '"contract_version":"cloud-render-offload-v1"'
-Assert-Contains "cloud render offload evidence" $cloudRenderOffload '"evidence_ref":"cloud_render_offload_contract_visible"'
-Assert-Contains "cloud render offload endpoint" $cloudRenderOffload '"endpoint":"GET /api/v1/clouds/render-offload/contract"'
-Assert-Contains "cloud render offload local block" $cloudRenderOffload '"localhost_heavy_render_allowed":false'
-Assert-Contains "cloud render offload staging blocker" $cloudRenderOffload "cloud_render_offload_requires_STAGING_BASE_URL"
-$cloudDeploymentPreflight = Invoke-Text "$BaseUrl/api/v1/clouds/deployment-preflight/contract"
-Assert-Contains "cloud deployment preflight version" $cloudDeploymentPreflight '"contract_version":"cloud-deployment-preflight-v1"'
-Assert-Contains "cloud deployment preflight evidence" $cloudDeploymentPreflight '"evidence_ref":"cloud_deployment_preflight_visible"'
-Assert-Contains "cloud deployment preflight endpoint" $cloudDeploymentPreflight '"endpoint":"GET /api/v1/clouds/deployment-preflight/contract"'
-Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflight '"status":"action_required"'
-Assert-Contains "cloud deployment preflight cloud claim blocked" $cloudDeploymentPreflight '"cloud_deploy_claim_allowed":false'
-Assert-Contains "cloud deployment preflight production blocked" $cloudDeploymentPreflight '"production_deploy_claim_allowed":false'
-Assert-Contains "cloud deployment preflight ghcr sequence" $cloudDeploymentPreflight "publish_ghcr_images"
-Assert-Contains "cloud deployment preflight hosted origins" $cloudDeploymentPreflight "hosted_backend_origins"
-Assert-Contains "cloud deployment preflight branch token" $cloudDeploymentPreflight "BRANCH_PROTECTION_TOKEN"
-Assert-Contains "cloud deployment preflight cloud compose" $cloudDeploymentPreflight "docker-compose.cloud.yml"
-Assert-Contains "cloud deployment preflight hosted staging blocker" $cloudDeploymentPreflight "hosted_staging_base_url_required"
+$cloudRenderOffloadContract = Invoke-Text "$BaseUrl/api/v1/clouds/render-offload/contract"
+Assert-Contains "cloud render offload contract version" $cloudRenderOffloadContract '"contract_version":"cloud-render-offload-surface-v1"'
+Assert-Contains "cloud render offload contract evidence" $cloudRenderOffloadContract '"evidence_ref":"cloud_render_offload_contract_runtime_visible"'
+Assert-Contains "cloud render offload contract endpoint" $cloudRenderOffloadContract '"endpoint":"GET /api/v1/clouds/render-offload/contract"'
+Assert-Contains "cloud render offload runtime endpoint" $cloudRenderOffloadContract '"runtime_endpoint":"GET /api/v1/clouds/render-offload"'
+$cloudRenderOffloadRuntime = Invoke-Text "$BaseUrl/api/v1/clouds/render-offload"
+Assert-Contains "cloud render offload runtime version" $cloudRenderOffloadRuntime '"contract_version":"cloud-render-offload-v1"'
+Assert-Contains "cloud render offload runtime evidence" $cloudRenderOffloadRuntime '"evidence_ref":"cloud_render_offload_contract_visible"'
+Assert-Contains "cloud render offload local block" $cloudRenderOffloadRuntime '"localhost_heavy_render_allowed":false'
+$cloudRenderOffloadRuntimeJson = $cloudRenderOffloadRuntime | ConvertFrom-Json
+$cloudRenderOffloadMissingRequired = @($cloudRenderOffloadRuntimeJson.missing_required_env | ForEach-Object { [string]$_ })
+$cloudRenderOffloadExpectedBlockers = @($cloudRenderOffloadMissingRequired | ForEach-Object { "cloud_render_offload_requires_{0}" -f $_ })
+$cloudRenderOffloadActualBlockers = @($cloudRenderOffloadRuntimeJson.blockers | ForEach-Object { [string]$_ })
+Assert-True "cloud render offload missing required env visible" ($null -ne $cloudRenderOffloadRuntimeJson.missing_required_env)
+Assert-True "cloud render offload blockers visible" ($null -ne $cloudRenderOffloadRuntimeJson.blockers)
+Assert-True "cloud render offload status supported" (@("cloud_runtime_ready", "action_required") -contains [string]$cloudRenderOffloadRuntimeJson.status)
+if ($cloudRenderOffloadExpectedBlockers.Count -eq 0) {
+  Assert-True "cloud render offload ready when no blockers remain" ([string]$cloudRenderOffloadRuntimeJson.status -eq "cloud_runtime_ready")
+} else {
+  Assert-True "cloud render offload action required when blockers remain" ([string]$cloudRenderOffloadRuntimeJson.status -eq "action_required")
+}
+Assert-ArrayEquivalent "cloud render offload blocker set" $cloudRenderOffloadActualBlockers $cloudRenderOffloadExpectedBlockers
+$cloudDeploymentPreflightContract = Invoke-Text "$BaseUrl/api/v1/clouds/deployment-preflight/contract"
+Assert-Contains "cloud deployment preflight contract version" $cloudDeploymentPreflightContract '"contract_version":"cloud-deployment-preflight-surface-v1"'
+Assert-Contains "cloud deployment preflight contract evidence" $cloudDeploymentPreflightContract '"evidence_ref":"cloud_deployment_preflight_contract_runtime_visible"'
+Assert-Contains "cloud deployment preflight contract endpoint" $cloudDeploymentPreflightContract '"endpoint":"GET /api/v1/clouds/deployment-preflight/contract"'
+Assert-Contains "cloud deployment preflight runtime endpoint" $cloudDeploymentPreflightContract '"runtime_endpoint":"GET /api/v1/clouds/deployment-preflight"'
+$cloudDeploymentPreflightRuntime = Invoke-Text "$BaseUrl/api/v1/clouds/deployment-preflight"
+Assert-Contains "cloud deployment preflight runtime version" $cloudDeploymentPreflightRuntime '"contract_version":"cloud-deployment-preflight-v1"'
+Assert-Contains "cloud deployment preflight runtime evidence" $cloudDeploymentPreflightRuntime '"evidence_ref":"cloud_deployment_preflight_visible"'
+Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflightRuntime '"status":"verified"'
+Assert-Contains "cloud deployment preflight cloud claim allowed" $cloudDeploymentPreflightRuntime '"cloud_deploy_claim_allowed":true'
+Assert-Contains "cloud deployment preflight production allowed" $cloudDeploymentPreflightRuntime '"production_deploy_claim_allowed":true'
+Assert-Contains "cloud deployment preflight no blocked gates" $cloudDeploymentPreflightRuntime '"missing_or_blocked_gates":[]'
+Assert-Contains "cloud deployment preflight ghcr sequence" $cloudDeploymentPreflightRuntime "publish_ghcr_images"
+Assert-Contains "cloud deployment preflight hosted origins" $cloudDeploymentPreflightRuntime "hosted_backend_origins"
+Assert-Contains "cloud deployment preflight branch token" $cloudDeploymentPreflightRuntime "BRANCH_PROTECTION_TOKEN"
+Assert-Contains "cloud deployment preflight cloud compose" $cloudDeploymentPreflightRuntime "docker-compose.cloud.yml"
+Assert-Contains "cloud deployment preflight owner review" $cloudDeploymentPreflightRuntime "owner_review_before_production"
+
+Write-Host "[browser-contract] auth contract"
+$authContract = Invoke-Text "$BaseUrl/api/v1/auth/contract"
+Assert-Contains "auth contract version" $authContract '"contract_version":"auth-github-jwt-refresh-v1"'
+Assert-Contains "auth contract evidence" $authContract '"contract":"auth_contract_visible"'
+Assert-Contains "auth contract no live oauth" $authContract '"live_github_oauth_call":false'
+Assert-Contains "auth contract access ttl" $authContract '"access_token_ttl_seconds":900'
+Assert-Contains "auth contract refresh ttl" $authContract '"ttl_seconds":604800'
+Assert-Contains "auth contract rotation" $authContract '"rotation_required":true'
+Assert-Contains "auth contract redis blacklist" $authContract '"blacklist_store":"redis"'
+Assert-Contains "auth contract same site" $authContract '"SameSite":"Strict"'
+$authGithub = Invoke-Text "$BaseUrl/api/v1/auth/github"
+Assert-Contains "auth github contract version" $authGithub '"contract_version":"auth-github-jwt-refresh-v1"'
+Assert-Contains "auth github no live oauth" $authGithub '"live_github_oauth_call":false'
+Assert-Contains "auth github authorize url" $authGithub "github.com/login/oauth/authorize"
+$authCallback = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/callback?code=browser-auth-code&state=browser-auth-state" -Method "GET" -ContentType ""
+Assert-Contains "auth callback authenticated" $authCallback '"status":"authenticated"'
+Assert-Contains "auth callback no live oauth" $authCallback '"live_github_oauth_call":false'
+Assert-Contains "auth callback same site strict" $authCallback '"SameSite":"Strict"'
+$authRefreshToken = "browser-refresh-token-" + [Guid]::NewGuid().ToString("N")
+$authRefreshBody = @{ refresh_token = $authRefreshToken; trace_id = "browser-auth-refresh-rotated" } | ConvertTo-Json -Compress
+$authRefresh = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/refresh" -Method "POST" -Body $authRefreshBody -ContentType "application/json"
+Assert-Contains "auth refresh rotated status" $authRefresh '"status":"rotated"'
+Assert-Contains "auth refresh rotated flag" $authRefresh '"refresh_token_rotated":true'
+Assert-Contains "auth refresh blacklist flag" $authRefresh '"old_refresh_token_blacklisted":true'
+$authReuseOutput = ""
+$authReuseFailed = $false
+try {
+  $authReuseOutput = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/refresh" -Method "POST" -Body $authRefreshBody -ContentType "application/json"
+} catch {
+  $authReuseFailed = $true
+  $authReuseOutput = $_.Exception.Message
+}
+Assert-True "auth refresh reuse blocked with non-2xx" $authReuseFailed
+Assert-Contains "auth refresh reuse blocked" $authReuseOutput "refresh_token_invalid"
+$authLogoutBody = @{ refresh_token = ("browser-logout-token-" + [Guid]::NewGuid().ToString("N")); trace_id = "browser-auth-logout-revoked" } | ConvertTo-Json -Compress
+$authLogout = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/logout" -Method "POST" -Body $authLogoutBody -ContentType "application/json"
+Assert-Contains "auth logout status" $authLogout '"status":"logged_out"'
+Assert-Contains "auth logout revoked" $authLogout '"refresh_token_revoked":true'
+$authAudit = Invoke-Text "$BaseUrl/api/v1/audit/recent?limit=60"
+Assert-Contains "auth audit refresh rotated" $authAudit "auth_refresh_rotated"
+Assert-Contains "auth audit refresh reuse blocked" $authAudit "auth_refresh_reuse_blocked"
+Assert-Contains "auth audit logout revoked" $authAudit "auth_logout_revoked"
+
+Write-Host "[browser-contract] system unavailable fallback contract"
+$systemFallbackContract = Invoke-Text "$BaseUrl/api/v1/system/fallback/contract"
+Assert-Contains "system fallback version" $systemFallbackContract '"contract_version":"system-unavailable-fallback-v1"'
+Assert-Contains "system fallback evidence" $systemFallbackContract '"contract_visible":"system_fallback_contract_visible"'
+Assert-Contains "system fallback mode" $systemFallbackContract '"mode":"frontend_error_recovery_contract"'
+Assert-Contains "system fallback ui state" $systemFallbackContract '"ui_state":"System Unavailable"'
+Assert-Contains "system fallback retry action" $systemFallbackContract '"keep retry button visible"'
+
+Write-Host "[browser-contract] phase3 product surface contracts"
+$memoryPurgeContract = Invoke-Text "$BaseUrl/api/v1/memory/purge/contract"
+Assert-Contains "memory purge contract version" $memoryPurgeContract '"contract_version":"memory-dsgvo-purge-v1"'
+Assert-Contains "memory purge job status endpoint" $memoryPurgeContract 'GET /api/v1/memory/purge/jobs/{job_id}'
+Assert-Contains "memory purge evidence visible" $memoryPurgeContract "memory_purge_job_status_visible"
+$costExportContract = Invoke-Text "$BaseUrl/api/v1/costs/export/contract"
+Assert-Contains "cost export contract version" $costExportContract '"contract_version":"cost-monitor-export-v1"'
+Assert-Contains "cost export csv support" $costExportContract '"supported_formats":["csv"]'
+Assert-Contains "cost export evidence visible" $costExportContract "cost_export_csv_generated"
+$rateLimitContract = Invoke-Text "$BaseUrl/api/v1/rate-limit/contract"
+Assert-Contains "rate limit contract version" $rateLimitContract '"contract_version":"rate-limit-guard-v1"'
+Assert-Contains "rate limit 429 evidence" $rateLimitContract "rate_limit_429_enforced"
+$rateLimitProjectId = "browser-rate-limit-" + [Guid]::NewGuid().ToString("N")
+$rateLimitStatus = Invoke-Text "$BaseUrl/api/v1/rate-limit/status?project_id=$rateLimitProjectId"
+Assert-Contains "rate limit status contract" $rateLimitStatus '"contract_version":"rate-limit-guard-v1"'
+Assert-Contains "rate limit status evidence" $rateLimitStatus '"evidence_ref":"rate_limit_status_visible"'
+$sessionLimitContract = Invoke-Text "$BaseUrl/api/v1/session-limits/contract"
+Assert-Contains "session limit contract version" $sessionLimitContract '"contract_version":"session-llm-call-limit-v1"'
+Assert-Contains "session limit 429 evidence" $sessionLimitContract "session_limit_429_enforced"
+$sessionLimitId = "browser-session-limit-" + [Guid]::NewGuid().ToString("N")
+$sessionLimitStatus = Invoke-Text "$BaseUrl/api/v1/session-limits/status?session_id=$sessionLimitId"
+Assert-Contains "session limit status contract" $sessionLimitStatus '"contract_version":"session-llm-call-limit-v1"'
+Assert-Contains "session limit status evidence" $sessionLimitStatus '"evidence_ref":"session_limit_status_visible"'
+$errorContract = Invoke-Text "$BaseUrl/api/v1/errors/contract"
+Assert-Contains "error contract version" $errorContract '"contract_version":"error-response-contract-v1"'
+Assert-Contains "error contract envelope evidence" $errorContract "error_response_envelope_enforced"
+$securityHeadersContract = Invoke-Text "$BaseUrl/api/v1/security/headers/contract"
+Assert-Contains "security headers contract version" $securityHeadersContract '"contract_version":"security-headers-v1"'
+Assert-Contains "security headers evidence" $securityHeadersContract "security_headers_enforced"
+$traceContract = Invoke-Text "$BaseUrl/api/v1/trace/contract"
+Assert-Contains "trace contract version" $traceContract '"contract_version":"trace-id-propagation-v1"'
+Assert-Contains "trace contract evidence" $traceContract "trace_id_header_roundtrip"
+$cacheControlContract = Invoke-Text "$BaseUrl/api/v1/cache/contract"
+Assert-Contains "cache control contract version" $cacheControlContract '"contract_version":"cache-control-no-store-v1"'
+Assert-Contains "cache control evidence" $cacheControlContract "cache_control_headers_enforced"
+$requestIdContract = Invoke-Text "$BaseUrl/api/v1/request/contract"
+Assert-Contains "request id contract version" $requestIdContract '"contract_version":"request-id-correlation-v1"'
+Assert-Contains "request id evidence" $requestIdContract "request_id_audit_correlation"
+$agentActivityContract = Invoke-Text "$BaseUrl/api/v1/agent-activity/contract"
+Assert-Contains "agent activity contract version" $agentActivityContract '"contract_version":"agent-activity-trace-v1"'
+Assert-Contains "agent activity filtered feed evidence" $agentActivityContract "agent_activity_filtered_feed_visible"
+$agentActivityFeed = Invoke-Text "$BaseUrl/api/v1/agent-activity/recent?limit=5&severity=info"
+Assert-Contains "agent activity feed contract" $agentActivityFeed '"contract_version":"agent-activity-trace-v1"'
+Assert-Contains "agent activity feed mode" $agentActivityFeed '"mode":"audit_log_backed_filtered_feed"'
 
 Write-Host "[browser-contract] task assignment queue contract"
 $taskAssignmentContract = Invoke-Text "$BaseUrl/api/v1/tasks/assignment-contract"
@@ -225,14 +473,14 @@ Assert-Contains "external gates branch alias" $externalGates '"preflight_gate_id
 Assert-Contains "external gates evidence alias" $externalGates '"evidence_ref":"ghcr_image_digest_proof"'
 $externalGateMirror = Invoke-Text "$BaseUrl/api/v1/external-gates/mirror"
 Assert-Contains "external gate mirror contract" $externalGateMirror '"contract_version":"external-gate-mirror-v1"'
-Assert-Contains "external gate mirror status" $externalGateMirror '"status":"local_mirror_ready_hosted_blocked"'
+Assert-Contains "external gate mirror status" $externalGateMirror '"status":"verified"'
 Assert-Contains "external gate mirror evidence" $externalGateMirror '"evidence_ref":"external_gate_mirror_proof"'
-Assert-Contains "external gate mirror hosted blocked" $externalGateMirror '"hosted_staging_claim_allowed":false'
-Assert-Contains "external gate mirror branch protection blocked" $externalGateMirror '"branch_protection_claim_allowed":false'
+Assert-Contains "external gate mirror hosted allowed" $externalGateMirror '"hosted_staging_claim_allowed":true'
+Assert-Contains "external gate mirror branch protection allowed" $externalGateMirror '"branch_protection_claim_allowed":true'
 Assert-Contains "external gate mirror branch protection evidence" $externalGateMirror '"branch_protection_evidence_ref":"branch_protection_verify_contract"'
 Assert-Contains "external gate mirror branch protection workflow" $externalGateMirror ".github/workflows/branch-protection.yml"
 Assert-Contains "external gate mirror branch protection verifier" $externalGateMirror "scripts/apply_github_branch_protection.py --verify-only"
-Assert-Contains "external gate mirror production blocked" $externalGateMirror '"production_deploy_claim_allowed":false'
+Assert-Contains "external gate mirror production allowed" $externalGateMirror '"production_deploy_claim_allowed":true'
 Assert-Contains "external gate mirror sse contract" $externalGateMirror "phase2-sse-event-contract-v1"
 Assert-Contains "external gate mirror project progress proof" $externalGateMirror "project_progress_manifest_proof"
 
@@ -243,7 +491,7 @@ $phase2RuntimeBody = @{
   prompt = "browser contract phase2 runtime button proof"
   session_id = $phase2RuntimeThreadId
 } | ConvertTo-Json -Compress
-$phase2RuntimeRun = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/phase2/runtime/start" -ContentType "application/json" -Body $phase2RuntimeBody
+$phase2RuntimeRun = (Invoke-JsonApi -Url "$BaseUrl/api/v1/phase2/runtime/start" -Method "POST" -Body $phase2RuntimeBody -ContentType "application/json" -TimeoutSeconds 120) | ConvertFrom-Json
 Assert-True "phase2 runtime status started" ($phase2RuntimeRun.status -eq "started")
 Assert-True "phase2 runtime contract version" ($phase2RuntimeRun.contract_version -eq "phase2-runtime-v1")
 Assert-True "phase2 runtime engine langgraph" ($phase2RuntimeRun.engine -eq "langgraph")
@@ -287,7 +535,7 @@ Assert-Contains "phase2 runtime checkpoint evidence" $runtimeCheckpoint "phase2_
 $runtimeAudit = Invoke-Text "$BaseUrl/api/v1/audit/recent?limit=60"
 Assert-Contains "phase2 runtime audit evidence" $runtimeAudit "phase2_runtime_graph_started"
 Assert-Contains "phase2 runtime audit contract" $runtimeAudit "phase2-runtime-v1"
-$agentActivityRecent = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/v1/agent-activity/recent?event_type=phase2_runtime_graph_started&limit=20"
+$agentActivityRecent = (Invoke-JsonApi -Url "$BaseUrl/api/v1/agent-activity/recent?event_type=phase2_runtime_graph_started&limit=20" -Method "GET" -ContentType "" -TimeoutSeconds 30) | ConvertFrom-Json
 $agentActivityRuntimeEvent = @($agentActivityRecent.events) | Where-Object { $_.trace_id -eq $phase2RuntimeRun.thread_id -or $_.session_id -eq $phase2RuntimeRun.thread_id } | Select-Object -First 1
 Assert-True "agent activity runtime event visible" ($null -ne $agentActivityRuntimeEvent)
 Assert-True "agent activity per-role count visible" ($agentActivityRuntimeEvent.role_summary_count -ge 4)
@@ -298,7 +546,7 @@ foreach ($role in $expectedAgentRoles) {
   Assert-True "agent activity per-role summary for $role" ($null -ne $activityRoleSummary)
   Assert-True "agent activity per-role completed for $role" ($activityRoleSummary.status -eq "completed")
 }
-$phase2RuntimeRuns = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/v1/phase2/runtime/runs?limit=10"
+$phase2RuntimeRuns = (Invoke-JsonApi -Url "$BaseUrl/api/v1/phase2/runtime/runs?limit=10" -Method "GET" -ContentType "" -TimeoutSeconds 30) | ConvertFrom-Json
 Assert-True "phase2 runtime runs contract version" ($phase2RuntimeRuns.contract_version -eq "phase2-runtime-v1")
 Assert-True "phase2 runtime runs evidence ref" ($phase2RuntimeRuns.evidence_ref -eq "phase2_runtime_run_status_visible")
 $phase2RuntimeRunStatus = @($phase2RuntimeRuns.runs) | Where-Object { $_.thread_id -eq $phase2RuntimeRun.thread_id -or $_.session_id -eq $phase2RuntimeRun.thread_id } | Select-Object -First 1
@@ -311,14 +559,14 @@ Assert-True "phase2 runtime run status no live mcp writes" ($phase2RuntimeRunSta
 Assert-True "phase2 runtime run status no production deploy" ($phase2RuntimeRunStatus.production_deploy -eq $false)
 
 Write-Host "[browser-contract] session history opens"
-$sessionHistory = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/v1/sessions/$($phase2RuntimeRun.thread_id)/history"
+$sessionHistory = (Invoke-JsonApi -Url "$BaseUrl/api/v1/sessions/$($phase2RuntimeRun.thread_id)/history" -Method "GET" -ContentType "" -TimeoutSeconds 30) | ConvertFrom-Json
 Assert-True "session history contract version" ($sessionHistory.contract_version -eq "session-history-v1")
 Assert-True "session history evidence ref" ($sessionHistory.evidence_ref -eq "session_history_openable_project_state")
 Assert-True "session history session id" ($sessionHistory.session.session_id -eq $phase2RuntimeRun.thread_id)
 Assert-True "session history messages visible" (@($sessionHistory.messages).Count -ge 4)
 Assert-True "session history tasks visible" (@($sessionHistory.tasks).Count -ge 4)
 Assert-True "session history audit events visible" (@($sessionHistory.audit_events).Count -ge 4)
-Assert-True "session history project progress visible" ($sessionHistory.project_progress.overall_percent -eq 47)
+Assert-True "session history project progress visible" ($sessionHistory.project_progress.overall_percent -eq $expectedOverallPercent)
 Assert-True "session history integrity verified" ($sessionHistory.project_progress_integrity.status -eq "verified")
 Assert-True "session history integrity evidence" ($sessionHistory.project_progress_integrity.evidence_ref -eq "project_progress_integrity_runtime_proof")
 

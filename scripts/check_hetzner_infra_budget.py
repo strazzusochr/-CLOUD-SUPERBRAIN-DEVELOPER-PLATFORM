@@ -44,8 +44,8 @@ def server_monthly_gross(server: dict) -> Decimal:
 def main() -> int:
     token = os.environ.get("HETZNER_API_TOKEN")
     if not token:
-        print("HETZNER_API_TOKEN is not configured; skipping infra cost check.")
-        return 0
+        print("ERROR: HETZNER_API_TOKEN is required for the live infra cost check.", file=sys.stderr)
+        return 3
 
     budget = money(os.environ.get("INFRA_BUDGET_EUR", "20"))
     warning = money(os.environ.get("INFRA_WARN_EUR", "16"))
