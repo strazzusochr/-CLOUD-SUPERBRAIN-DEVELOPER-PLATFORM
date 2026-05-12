@@ -5,9 +5,9 @@ This runbook is not an approval. It records the current operator procedure and f
 ## Current State
 
 ```text
-truth_ready=true
-status=ready-for-next-gate
-release_boundary_clear=true
+truth_ready=false
+status=blocked
+release_boundary_clear=false
 release_id=prod-candidate-2026-05-11-rc1
 owner_decision_valid=true
 vercel_access_ready=true
@@ -72,5 +72,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-worktree-rele
 - Treat `fc00a787b54399133a90158bb63f6228859b5c96` as the candidate source boundary commit.
 - Treat `b0c2773b1d122745947315a8d39734d5a6c96d6b` as the candidate immutable image commit deployed to staging.
 - Treat later verifier/docs-only commits as metadata wrappers only when the verifier reports `release_metadata_only_delta=true`.
+- Current post-merge repository head differs from the candidate source boundary, so the current truth state remains blocked until an explicit rebaseline or promotion decision is recorded.
+- Current cloud handoff is recorded in `docs\analysis\CURRENT_CLOUD_HANDOFF_2026-05-12.md`.
 - Remote immutable Hetzner parity is verified for staging after the image-filesystem deploy and `verify-phase5-staging-immutable-parity.ps1 -RequireVerified`.
 - Do not claim production readiness from this runbook alone.

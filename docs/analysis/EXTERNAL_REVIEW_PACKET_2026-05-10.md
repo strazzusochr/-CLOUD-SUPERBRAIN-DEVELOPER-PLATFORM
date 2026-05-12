@@ -24,6 +24,7 @@ docs\analysis\WORKTREE_OWNER_DECISION_SCHEMA_2026-05-11.json
 .phase1-artifacts\worktree-cleanup-execution-plan-20260510.json
 .phase1-artifacts\worktree-security-review-packet-20260511.json
 .phase1-artifacts\worktree-security-review-action-packet-20260511.json
+docs\analysis\CURRENT_CLOUD_HANDOFF_2026-05-12.md
 ```
 
 ## Verification Command
@@ -35,13 +36,13 @@ scripts\verify.ps1 -Suite release-boundary -ReportOnly -MaxWaitSeconds 1
 ## Current Truth Snapshot
 
 ```text
-truth_ready=true
-status=ready-for-next-gate
-release_boundary_clear=true
+truth_ready=false
+status=blocked
+release_boundary_clear=false
 worktree_clean=true
 release_id=prod-candidate-2026-05-11-rc1
 candidate_source_sha=fc00a787b54399133a90158bb63f6228859b5c96
-head_matches_candidate=true
+head_matches_candidate=false
 staged_and_modified=0
 ```
 
@@ -75,7 +76,7 @@ security_review_action_count=0
 security_review_baseline_hotspots=0
 security_review_baseline_hotspot_findings=0
 blocker_resolution_plan_valid=true
-blocker_resolution_mapped=0
+blocker_resolution_mapped=1
 blocker_resolution_unknowns=0
 vercel_remediation_plan_valid=true
 release_rebaseline_plan_valid=true
@@ -91,6 +92,8 @@ owner_decision_valid=true
 - Candidate source commit is `fc00a787b54399133a90158bb63f6228859b5c96`.
 - Candidate immutable image commit is `b0c2773b1d122745947315a8d39734d5a6c96d6b`.
 - Later verifier/docs commits are treated as release-metadata-only wrappers when all changed paths are under release metadata or verifier files.
+- Current post-merge repository head differs from the candidate source commit, so the release-boundary truth state is blocked until the next explicit rebaseline/promotion decision.
+- Current cloud handoff is recorded in `docs\analysis\CURRENT_CLOUD_HANDOFF_2026-05-12.md`.
 - This packet does not claim a production rollout.
 - This packet records completed remote immutable Hetzner parity for staging after the image-filesystem staging deploy and `verify-phase5-staging-immutable-parity.ps1 -RequireVerified` pass.
 - Production deployment remains blocked until a separate release-candidate gate bundle and rollout proof exist.
