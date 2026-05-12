@@ -28,8 +28,18 @@ jobs:
   verify:
     uses: ./.github/workflows/pr-check.yml
 
-  build-and-push:
+  production-gate:
+    if: ${{ github.event.inputs.deploy_environment == 'production' }}
     needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Production approval marker
+        run: echo 'Production image tags are published after environment approval. Watchtower/host deployment remains pull-based.'
+
+  build-and-push:
+    needs: [verify, production-gate]
+    if: ${{ always() && needs.verify.result == 'success' && (needs.production-gate.result == 'success' || needs.production-gate.result == 'skipped') }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -72,12 +82,3 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAMESPACE }}/${{ matrix.name }}:${{ github.sha }}
             ${{ env.IMAGE_NAMESPACE }}/${{ matrix.name }}:${{ github.event.inputs.deploy_environment || 'staging' }}
-
-  production-gate:
-    if: ${{ github.event.inputs.deploy_environment == 'production' }}
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - name: Production approval marker
-        run: echo 'Production image tags are published after environment approval. Watchtower/host deployment remains pull-based.'
