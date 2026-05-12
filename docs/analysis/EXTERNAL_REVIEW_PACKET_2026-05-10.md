@@ -91,5 +91,5 @@ owner_decision_valid=true
 - Candidate immutable image commit is `b0c2773b1d122745947315a8d39734d5a6c96d6b`.
 - Later verifier/docs commits are treated as release-metadata-only wrappers when all changed paths are under release metadata or verifier files.
 - This packet does not claim a production rollout.
-- This packet does not claim completed remote immutable Hetzner parity until the image-filesystem staging deploy and `verify-phase5-staging-immutable-parity.ps1 -RequireVerified` pass.
+- This packet records completed remote immutable Hetzner parity for staging after the image-filesystem staging deploy and `verify-phase5-staging-immutable-parity.ps1 -RequireVerified` pass.
 - Production deployment remains blocked until a separate release-candidate gate bundle and rollout proof exist.
