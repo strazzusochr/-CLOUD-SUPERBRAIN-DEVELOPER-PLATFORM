@@ -12,6 +12,13 @@ function Assert-Contains($label, $value, $expected) {
   }
 }
 
+function Assert-Matches($label, $value, $pattern) {
+  $text = ($value | Out-String)
+  if ($text -notmatch $pattern) {
+    throw "Verification failed: $label did not match pattern '$pattern'."
+  }
+}
+
 function Assert-Equal($label, $actual, $expected) {
   if ($actual -ne $expected) {
     throw "Verification failed: $label expected '$expected' but got '$actual'."
@@ -110,6 +117,7 @@ foreach ($required in @(
   'Positive immutable staging parity verifier exists: `yes`',
   'Immutable SHA deploy plans are guarded: a 40-character SHA image tag is rejected unless it uses `-UseImageFilesystem` or a matching `-SourceRef`.',
   'Remote staging selector files are backed up before mutation and restored if copy, selector update, compose pull/up, or hosted health probes fail.',
+  'Because `:staging` is retagged by every successful `main-deploy` run, the digest lines below are historical evidence. The verifier re-queries GHCR live and requires current `:staging` to remain different from the immutable candidate tag set.',
   'Candidate remains fail-closed for release: `yes`'
 )) {
   Assert-Contains "staging parity blocker artifact" $artifact $required
@@ -176,10 +184,13 @@ $mismatchCount = 0
 foreach ($service in $services) {
   $stagingDigest = (Get-GhcrManifestDigest $service "staging").Trim()
   $immutableDigest = (Get-GhcrManifestDigest $service $immutableTag).Trim()
-  if ($stagingDigest -ne $immutableDigest) {
-    $mismatchCount += 1
+  if ($stagingDigest -eq $immutableDigest) {
+    throw "Verification failed: current staging digest for $service now matches immutable candidate digest; blocker artifact must be retired or rewritten."
   }
-  Assert-Contains "artifact digest line $service" $artifact "- ``$service``: staging ``$stagingDigest`` != immutable ``$immutableDigest``"
+  $mismatchCount += 1
+  $artifactDigestPattern = "(?m)^- ``$([regex]::Escape($service))``: staging ``sha256:[0-9a-f]+`` != immutable ``$([regex]::Escape($immutableDigest))``$"
+  Assert-Matches "artifact historical digest line $service" $artifact $artifactDigestPattern
+  Write-Host "[phase5-staging-parity-blocked] live digest mismatch $service"
 }
 if ($mismatchCount -lt 1) {
   throw "Verification failed: staging and immutable candidate digests no longer diverge; blocker artifact must be retired or rewritten."
