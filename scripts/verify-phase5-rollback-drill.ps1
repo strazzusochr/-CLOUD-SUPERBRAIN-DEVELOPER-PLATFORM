@@ -19,6 +19,27 @@ function Get-Json($command) {
   return ($raw | Out-String)
 }
 
+function Invoke-DockerManifestInspect($ref, [switch]$Verbose) {
+  $attempts = 3
+  $lastOutput = ""
+  for ($attempt = 1; $attempt -le $attempts; $attempt++) {
+    $global:LASTEXITCODE = 0
+    if ($Verbose) {
+      $lastOutput = docker manifest inspect --verbose $ref 2>&1 | Out-String
+    } else {
+      $lastOutput = docker manifest inspect $ref 2>&1 | Out-String
+    }
+    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($lastOutput)) {
+      return $lastOutput
+    }
+    if ($attempt -lt $attempts) {
+      Write-Warning "GHCR manifest inspect retry $attempt/$attempts for $ref"
+      Start-Sleep -Seconds (5 * $attempt)
+    }
+  }
+  throw "Verification failed: GHCR manifest inspect failed for $ref after $attempts attempts. Last output: $lastOutput"
+}
+
 Write-Host "[phase5-rollback] artifact"
 $artifactPath = ".phase1-artifacts\phase5-rollback-drill-prod-candidate-20260505-rc1.md"
 if (-not (Test-Path $artifactPath)) {
@@ -53,10 +74,7 @@ Write-Host "[phase5-rollback] immutable ghcr tags"
 $images = @("agent-api", "mcp-gateway", "frontend", "llm-gateway", "agent-worker", "memory-worker")
 foreach ($name in $images) {
   $ref = "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/${name}:$ExpectedSha"
-  docker manifest inspect $ref | Out-Null
-  if ($LASTEXITCODE -ne 0) {
-    throw "Verification failed: GHCR manifest inspect failed for $ref"
-  }
+  Invoke-DockerManifestInspect $ref | Out-Null
 }
 
 Write-Host "[phase5-rollback] hosted endpoints"
