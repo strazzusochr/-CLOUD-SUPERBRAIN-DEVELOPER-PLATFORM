@@ -40,12 +40,12 @@ This blocker is now classified wider than tag parity. The hosted cloud compose c
 
 ## Live Digest Comparison
 
-- `agent-api`: staging `sha256:1b3fcfbb6875ede2d3488171c8aeeefa4fff7ccc7e9b65af82b8dd159da94890` != immutable `sha256:48b66077a9f65cd788c069f7469b91ce0ed9fac0eed0cc42d8a0810b06d29ed4`
-- `mcp-gateway`: staging `sha256:3b8e95d0a45f85d4cee4178d76751825d3484273309350c8da84b6119ca238bd` != immutable `sha256:cc177575a564491976c7894af19b9997785d86c1f950bb4a5c89bbab7f1fd2b0`
-- `frontend`: staging `sha256:b5d023c8e40765c768676b4e923897e0f9df6aa664de0a0ddbdeaa21703cd668` != immutable `sha256:0200ddffb69e5efce034792a5f05440fb06f38bdfcdccc08a06b87b2bf361822`
-- `llm-gateway`: staging `sha256:fc886b97d18fa8bf8eff4cdbb8b9d810fd0b267834ff55e4befeeda54b30f76c` != immutable `sha256:1c50fd9c5fc9880b7f890b689ed3ebaaafa048a98674da733c42551febed4a8f`
-- `agent-worker`: staging `sha256:739d40ad26bdaccb475feed5d34e42b3bac8df2b84b9b112ecfa330e8e0d33b3` != immutable `sha256:b80215c7d9484ae30f42ccf44aa9fe537812b23d8c3f91d5db4a5b5495168add`
-- `memory-worker`: staging `sha256:f5f508b520d446f379d4332119fa32ec1c400c84bc70c5f2cf6ee8a5eda797e1` != immutable `sha256:71b3e42646c36df03c37827364738b7eaa19b6cd18d7116c9748f1250a0bafd4`
+- `agent-api`: staging `sha256:6eb738c883f6454b00c50c3370f8be00c170d94c4334c64c2b8755a1c8e44abb` != immutable `sha256:48b66077a9f65cd788c069f7469b91ce0ed9fac0eed0cc42d8a0810b06d29ed4`
+- `mcp-gateway`: staging `sha256:fce0c4b6efebaab7d8b830c14782449b8f9a3672b1b03fabd45b62749c0cd84e` != immutable `sha256:cc177575a564491976c7894af19b9997785d86c1f950bb4a5c89bbab7f1fd2b0`
+- `frontend`: staging `sha256:5313a825bcbafcc8dcd58051e30d03a7cacc403b2e2438470ee2db782781cb90` != immutable `sha256:0200ddffb69e5efce034792a5f05440fb06f38bdfcdccc08a06b87b2bf361822`
+- `llm-gateway`: staging `sha256:a3481cbb2e0822a6d085f9248032a5bae739562a9179c3eeb02117eb2f52d1f1` != immutable `sha256:1c50fd9c5fc9880b7f890b689ed3ebaaafa048a98674da733c42551febed4a8f`
+- `agent-worker`: staging `sha256:0db4219d4e9c33369634d97b085719f724797cbd32ccc120bf7ade88ac9f03ec` != immutable `sha256:b80215c7d9484ae30f42ccf44aa9fe537812b23d8c3f91d5db4a5b5495168add`
+- `memory-worker`: staging `sha256:117f90324d9229c2c5278a88e857fe9cc1eb264553a0ab344b0a0594aecb5221` != immutable `sha256:71b3e42646c36df03c37827364738b7eaa19b6cd18d7116c9748f1250a0bafd4`
 
 ## Results
 
