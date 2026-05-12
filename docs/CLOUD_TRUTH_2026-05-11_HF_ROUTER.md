@@ -28,6 +28,16 @@
 - Immutable staging parity ready: `scripts\manual\verify-phase5-staging-immutable-parity.ps1 -ReleaseId prod-candidate-2026-05-11-rc1 -CandidateSha b0c2773b1d122745947315a8d39734d5a6c96d6b`
 - Immutable staging parity remote proof: `scripts\manual\verify-phase5-staging-immutable-parity.ps1 -RequireVerified -ReleaseId prod-candidate-2026-05-11-rc1 -CandidateSha b0c2773b1d122745947315a8d39734d5a6c96d6b -BaseUrl https://188-34-191-140.sslip.io -KeyPath <local-private-key>`
 
+## Latest Post-Merge Handoff
+
+- Current handoff: `docs/analysis/CURRENT_CLOUD_HANDOFF_2026-05-12.md`
+- Post-merge repository head: `73f5825afe6c6ce052841ae2e96ab2bb406eb70e`
+- Main deploy run: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25749614172`
+- Main deploy result: `success`
+- Post-merge release-candidate suite: `scripts=51 failed=0`
+- PR #7 production tag gate ordering: merged and verified.
+- Production rollout remains unclaimed.
+
 ## Fail-Closed Policy
 
 - `may_stage=false`
