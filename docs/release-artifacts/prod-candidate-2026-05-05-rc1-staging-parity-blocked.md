@@ -32,13 +32,14 @@ This blocker is now classified wider than tag parity. The hosted cloud compose c
 - Hosted progress integrity remains `verified`.
 - Hosted completion remains fail-closed with `can_set_all_to_100=false`.
 - GHCR top-level digests for the mutable `:staging` tags were compared against the immutable candidate SHA tags for all six services.
+- Because `:staging` is retagged by every successful `main-deploy` run, the digest lines below are historical evidence. The verifier re-queries GHCR live and requires current `:staging` to remain different from the immutable candidate tag set.
 - The cloud compose service hot-mounts are treated as a release blocker until the deploy path runs with image-contained service code via `-UseImageFilesystem`.
 - Runtime source drift between the active repository/worktree and candidate source SHA remains a blocker until a new immutable candidate is built or the hosted runtime is deliberately moved to image-contained candidate code and reverified.
 - Immutable SHA deploy plans are guarded: a 40-character SHA image tag is rejected unless it uses `-UseImageFilesystem` or a matching `-SourceRef`.
 - Remote staging selector files are backed up before mutation and restored if copy, selector update, compose pull/up, or hosted health probes fail.
 - Positive parity verification is prepared as an opt-in manual verifier in `scripts/manual/verify-phase5-staging-immutable-parity.ps1`; default mode proves readiness only, while `-RequireVerified` must be used after an actual immutable staging deploy.
 
-## Live Digest Comparison
+## Observed Digest Comparison
 
 - `agent-api`: staging `sha256:6eb738c883f6454b00c50c3370f8be00c170d94c4334c64c2b8755a1c8e44abb` != immutable `sha256:48b66077a9f65cd788c069f7469b91ce0ed9fac0eed0cc42d8a0810b06d29ed4`
 - `mcp-gateway`: staging `sha256:fce0c4b6efebaab7d8b830c14782449b8f9a3672b1b03fabd45b62749c0cd84e` != immutable `sha256:cc177575a564491976c7894af19b9997785d86c1f950bb4a5c89bbab7f1fd2b0`
