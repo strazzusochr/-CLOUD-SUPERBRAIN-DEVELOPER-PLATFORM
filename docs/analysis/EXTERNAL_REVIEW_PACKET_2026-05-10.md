@@ -40,7 +40,7 @@ status=ready-for-next-gate
 release_boundary_clear=true
 worktree_clean=true
 release_id=prod-candidate-2026-05-11-rc1
-candidate_source_sha=aa52877d009e2b0a51fd8676e06943a65064c2be
+candidate_source_sha=95661c553dc86254b8fcb5a2e8d8c9bfb08162a4
 head_matches_candidate=true
 staged_and_modified=0
 ```
@@ -88,7 +88,9 @@ owner_decision_valid=true
 
 - Historical `prod-candidate-2026-05-05-rc1` remains preserved as `owner_decision=no-release`.
 - Active boundary candidate is `prod-candidate-2026-05-11-rc1`.
-- Candidate runtime source commit is `aa52877d009e2b0a51fd8676e06943a65064c2be`.
+- Candidate source commit is `95661c553dc86254b8fcb5a2e8d8c9bfb08162a4`.
+- Candidate immutable image commit is `b0c2773b1d122745947315a8d39734d5a6c96d6b`.
 - Later verifier/docs commits are treated as release-metadata-only wrappers when all changed paths are under release metadata or verifier files.
 - This packet does not claim a production rollout.
+- This packet records completed remote immutable Hetzner parity for staging after the image-filesystem staging deploy and `verify-phase5-staging-immutable-parity.ps1 -RequireVerified` pass.
 - Production deployment remains blocked until a separate release-candidate gate bundle and rollout proof exist.

@@ -130,7 +130,9 @@ with urllib.request.urlopen(url, context=ctx, timeout=30) as response:
 }
 
 function Invoke-Ssh([string]$Command) {
-    ssh -i $KeyPath -o StrictHostKeyChecking=no "$RemoteUser@$StagingIp" $Command
+    $normalizedCommand = $Command -replace "`r`n", "`n"
+    $normalizedCommand = $normalizedCommand -replace "`r", "`n"
+    ssh -i $KeyPath -o StrictHostKeyChecking=no "$RemoteUser@$StagingIp" $normalizedCommand
     if ($LASTEXITCODE -ne 0) {
         throw "SSH command failed: $Command"
     }

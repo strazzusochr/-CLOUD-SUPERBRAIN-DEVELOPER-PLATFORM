@@ -93,8 +93,19 @@ if (-not (Test-Path $candidatePath)) {
 }
 $candidate = Get-Content $candidatePath -Raw
 Assert-Contains "candidate release id" $candidate "release_id: ``$ReleaseId``"
-Assert-Contains "candidate source sha" $candidate "source_commit_sha: ``$CandidateSha``"
 Assert-Contains "candidate immutable tag set" $candidate "immutable_tag_set: ``ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:$CandidateSha``"
+if ($candidate -notmatch '(?m)^source_commit_sha:\s*`([^`]+)`\s*$') {
+  throw "Verification failed: candidate artifact missing source_commit_sha."
+}
+$candidateSourceSha = $Matches[1]
+Assert-Sha "candidate source sha" $candidateSourceSha
+if ($candidate -match '(?m)^immutable_image_commit_sha:\s*`([^`]+)`\s*$') {
+  $immutableImageCommitSha = $Matches[1]
+} else {
+  $immutableImageCommitSha = $candidateSourceSha
+}
+Assert-Sha "candidate immutable image commit sha" $immutableImageCommitSha
+Assert-Equal "candidate immutable image commit sha" $immutableImageCommitSha $CandidateSha
 
 $deployScript = Get-Content "scripts\deploy-to-staging.ps1" -Raw
 Assert-Contains "deploy image filesystem switch" $deployScript "[switch]`$UseImageFilesystem"

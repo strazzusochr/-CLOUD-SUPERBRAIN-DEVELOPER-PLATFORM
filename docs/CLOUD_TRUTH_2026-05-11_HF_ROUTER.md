@@ -10,9 +10,12 @@
 ## Current Release Boundary
 
 - Active candidate: `prod-candidate-2026-05-11-rc1`
-- Candidate source commit: `aa52877d009e2b0a51fd8676e06943a65064c2be`
+- Candidate source commit: `95661c553dc86254b8fcb5a2e8d8c9bfb08162a4`
+- Candidate immutable image commit: `b0c2773b1d122745947315a8d39734d5a6c96d6b`
+- Candidate immutable tag set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:b0c2773b1d122745947315a8d39734d5a6c96d6b`
 - Historical candidate `prod-candidate-2026-05-05-rc1` remains preserved as `no-release`.
-- Release metadata/docs/verifier commits after `aa52877d009e2b0a51fd8676e06943a65064c2be` do not change app/runtime source scope when `release_metadata_only_delta=true`.
+- Release metadata/docs/verifier commits after `95661c553dc86254b8fcb5a2e8d8c9bfb08162a4` do not change app/runtime source scope when `release_metadata_only_delta=true`.
+- Remote immutable Hetzner parity is verified for the six owned service images after image-filesystem staging deploy and `verify-phase5-staging-immutable-parity.ps1 -RequireVerified`.
 
 ## Verified Checks
 
@@ -22,6 +25,8 @@
 - Hosted smoke: `scripts\verify.ps1 -Suite hosted-staging-smoke -BaseUrl https://188-34-191-140.sslip.io`
 - Hosted safe profile: `scripts\verify.ps1 -Suite hosted-staging -BaseUrl https://188-34-191-140.sslip.io -SafeProfile`
 - Release boundary: `scripts\verify.ps1 -Suite release-boundary -ReportOnly -MaxWaitSeconds 1`
+- Immutable staging parity ready: `scripts\manual\verify-phase5-staging-immutable-parity.ps1 -ReleaseId prod-candidate-2026-05-11-rc1 -CandidateSha b0c2773b1d122745947315a8d39734d5a6c96d6b`
+- Immutable staging parity remote proof: `scripts\manual\verify-phase5-staging-immutable-parity.ps1 -RequireVerified -ReleaseId prod-candidate-2026-05-11-rc1 -CandidateSha b0c2773b1d122745947315a8d39734d5a6c96d6b -BaseUrl https://188-34-191-140.sslip.io -KeyPath <local-private-key>`
 
 ## Fail-Closed Policy
 
