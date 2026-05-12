@@ -69,7 +69,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-worktree-rele
 
 - Keep `prod-candidate-2026-05-05-rc1` immutable as historical `no-release` evidence.
 - Use `prod-candidate-2026-05-11-rc1` as the active release-boundary candidate.
-- Treat `b0c2773b1d122745947315a8d39734d5a6c96d6b` as the candidate immutable image commit.
+- Treat `95b36ce483c198e8fff2d7069bcba854d6821691` as the candidate source boundary commit.
+- Treat `b0c2773b1d122745947315a8d39734d5a6c96d6b` as the candidate immutable image commit deployed to staging.
 - Treat later verifier/docs-only commits as metadata wrappers only when the verifier reports `release_metadata_only_delta=true`.
 - Remote immutable Hetzner parity is verified for staging after the image-filesystem deploy and `verify-phase5-staging-immutable-parity.ps1 -RequireVerified`.
 - Do not claim production readiness from this runbook alone.

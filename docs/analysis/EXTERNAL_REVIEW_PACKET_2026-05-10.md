@@ -40,7 +40,7 @@ status=ready-for-next-gate
 release_boundary_clear=true
 worktree_clean=true
 release_id=prod-candidate-2026-05-11-rc1
-candidate_source_sha=b0c2773b1d122745947315a8d39734d5a6c96d6b
+candidate_source_sha=95b36ce483c198e8fff2d7069bcba854d6821691
 head_matches_candidate=true
 staged_and_modified=0
 ```
@@ -88,6 +88,7 @@ owner_decision_valid=true
 
 - Historical `prod-candidate-2026-05-05-rc1` remains preserved as `owner_decision=no-release`.
 - Active boundary candidate is `prod-candidate-2026-05-11-rc1`.
+- Candidate source commit is `95b36ce483c198e8fff2d7069bcba854d6821691`.
 - Candidate immutable image commit is `b0c2773b1d122745947315a8d39734d5a6c96d6b`.
 - Later verifier/docs commits are treated as release-metadata-only wrappers when all changed paths are under release metadata or verifier files.
 - This packet does not claim a production rollout.
