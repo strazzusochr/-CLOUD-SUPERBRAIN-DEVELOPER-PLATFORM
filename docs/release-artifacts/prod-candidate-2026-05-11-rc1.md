@@ -4,11 +4,11 @@ release_id: `prod-candidate-2026-05-11-rc1`
 scope: `release-boundary cleanup, HF router truth, frontend build, agent-api/runtime compile checks, hosted staging smoke checks, immutable staging image candidate`
 environment: `production-candidate`
 source_branch: `chore/repo-bootstrap`
-source_commit_sha: `95b36ce483c198e8fff2d7069bcba854d6821691`
+source_commit_sha: `95661c553dc86254b8fcb5a2e8d8c9bfb08162a4`
 source_commit_semantics: `current release boundary commit including deploy tooling; later release-metadata-only verifier/docs commits may wrap this source without changing runtime scope`
 immutable_image_commit_sha: `b0c2773b1d122745947315a8d39734d5a6c96d6b`
 workflow_run_url: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25735275873`
-pipeline_status: `main-deploy success for immutable_image_commit_sha b0c2773b1d122745947315a8d39734d5a6c96d6b; deploy tooling fixed in source_commit_sha 95b36ce483c198e8fff2d7069bcba854d6821691`
+pipeline_status: `main-deploy success for immutable_image_commit_sha b0c2773b1d122745947315a8d39734d5a6c96d6b; deploy tooling fixed in source_commit_sha 95661c553dc86254b8fcb5a2e8d8c9bfb08162a4`
 smoke_result: `passed`
 observability_check: `present`
 rollback_note: `no production rollout performed; rollback remains the existing hosted staging rollback path`
@@ -42,7 +42,7 @@ immutable_staging_parity_status: `verified`
 ## Guardrails
 
 - This artifact approves the current clean repository boundary as a production candidate.
-- The release boundary source commit is `95b36ce483c198e8fff2d7069bcba854d6821691`; the immutable image commit deployed to staging is `b0c2773b1d122745947315a8d39734d5a6c96d6b`.
+- The release boundary source commit is `95661c553dc86254b8fcb5a2e8d8c9bfb08162a4`; the immutable image commit deployed to staging is `b0c2773b1d122745947315a8d39734d5a6c96d6b`.
 - This artifact does not claim a production rollout.
 - Remote immutable Hetzner parity is verified for the six owned service images at `b0c2773b1d122745947315a8d39734d5a6c96d6b`; this remains staging evidence only.
 - This artifact does not replace the historical `prod-candidate-2026-05-05-rc1` no-release evidence.
