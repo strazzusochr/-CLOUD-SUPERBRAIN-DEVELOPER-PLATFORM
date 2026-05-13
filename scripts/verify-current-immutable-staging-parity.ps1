@@ -3,10 +3,14 @@ param(
   [string]$BaseUrl = "https://188-34-191-140.sslip.io",
   [string]$CandidateSha = "",
   [string]$KeyPath = "",
-  [switch]$RequireVerified
+  [string]$OutputPath = "",
+  [switch]$RequireVerified,
+  [switch]$ReportOnly,
+  [switch]$JsonOnly
 )
 
 $ErrorActionPreference = "Stop"
+$startedAt = Get-Date
 
 function Assert-Contains($Label, $Value, $Expected) {
   $text = ($Value | Out-String)
@@ -101,12 +105,29 @@ try {
     $manualArgs.KeyPath = $KeyPath
   }
 
-  & "scripts\manual\verify-phase5-staging-immutable-parity.ps1" @manualArgs
+  & "scripts\manual\verify-phase5-staging-immutable-parity.ps1" @manualArgs *>$null
   if ($LASTEXITCODE -ne 0) {
     throw "Verification failed: manual immutable staging parity verifier failed."
   }
 
-  if ($RequireVerified) {
+  $report = [pscustomobject]@{
+    status = "passed"
+    passed = $true
+    release_id = $ReleaseId
+    candidate_sha = $CandidateSha
+    require_verified = [bool]$RequireVerified
+    report_only = [bool]$ReportOnly
+    started_at = $startedAt.ToUniversalTime().ToString("o")
+    completed_at = (Get-Date).ToUniversalTime().ToString("o")
+  }
+
+  if (-not [string]::IsNullOrWhiteSpace($OutputPath)) {
+    $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $OutputPath -Encoding UTF8
+  }
+
+  if ($JsonOnly) {
+    $report | ConvertTo-Json -Depth 6
+  } elseif ($RequireVerified) {
     Write-Host "[current-immutable-staging-parity] verified"
   } else {
     Write-Host "[current-immutable-staging-parity] ready"
