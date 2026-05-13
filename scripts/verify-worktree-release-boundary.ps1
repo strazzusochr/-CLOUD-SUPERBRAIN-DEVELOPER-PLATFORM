@@ -104,6 +104,9 @@ function Test-ReleaseMetadataPath([string]$Path) {
   if ($normalized -like "scripts/verify-*.ps1") {
     return $true
   }
+  if ($normalized -eq "scripts/verify.ps1") {
+    return $true
+  }
   if ($normalized -eq "scripts/verify.suites.json") {
     return $true
   }
