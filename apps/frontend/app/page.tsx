@@ -1366,12 +1366,57 @@ type LlmGatewayState = {
   streaming_sse: boolean;
   streaming_protocol: string;
   models_configured: number;
+  model_catalog_contract_version?: string;
+  model_catalog_endpoint?: string;
+  model_catalog_evidence_ref?: string;
   non_claims: string[];
   routing_resolution?: LlmRoutingResolution;
   provider_snapshot?: LlmProviderSnapshot;
   streaming_contract?: LlmStreamingContract;
   routing_policy_contract?: LlmRoutingPolicyContract;
   runtime_guard_parity?: LlmRuntimeGuardParity;
+  model_catalog?: LlmModelCatalog;
+};
+
+type LlmModelCatalog = {
+  contract_version: string;
+  status: string;
+  mode: string;
+  endpoint: string;
+  public_endpoint?: string;
+  evidence_ref: string;
+  provider: string;
+  live_provider_calls: boolean;
+  live_provider_calls_available?: boolean;
+  model_downloads: boolean;
+  local_model_downloads_allowed: boolean;
+  open_source_first: boolean;
+  api_inference_only: boolean;
+  route_count: number;
+  configured_model_count: number;
+  alias_count: number;
+  routes: Array<{
+    agent_type: string;
+    primary: string;
+    fallbacks: string[];
+    models: string[];
+    provider_chain: string[];
+    model_families: string[];
+    max_output_tokens: number;
+    supports_streaming: boolean;
+    configured_only: boolean;
+    open_source_first: boolean;
+    api_inference_only: boolean;
+    model_downloads: boolean;
+  }>;
+  evidence_refs: {
+    catalog_visible: string;
+    runtime_guard_parity_visible: string;
+    unknown_model_blocked: string;
+    output_token_budget_blocked: string;
+    direct_provider_blocked: string;
+  };
+  non_claims: string[];
 };
 
 type LlmRuntimeGuardParity = {
@@ -2244,6 +2289,7 @@ export default function Home() {
       streamingResponse,
       policyResponse,
       runtimeGuardResponse,
+      modelCatalogResponse,
     ] = await Promise.all([
       fetch("/llm/api/v1/health", { cache: "no-store" }),
       fetch("/llm/api/v1/routing/resolve", {
@@ -2260,6 +2306,7 @@ export default function Home() {
       fetch("/llm/api/v1/streaming/contract", { cache: "no-store" }),
       fetch("/llm/api/v1/routing/policy/contract", { cache: "no-store" }),
       fetch("/llm/api/v1/runtime/guard-parity", { cache: "no-store" }),
+      fetch("/llm/api/v1/models/catalog", { cache: "no-store" }),
     ]);
     if (!healthResponse.ok) throw new Error(`llm gateway ${healthResponse.status}`);
     if (!routingResponse.ok) throw new Error(`llm routing ${routingResponse.status}`);
@@ -2267,12 +2314,14 @@ export default function Home() {
     if (!streamingResponse.ok) throw new Error(`llm streaming ${streamingResponse.status}`);
     if (!policyResponse.ok) throw new Error(`llm routing policy ${policyResponse.status}`);
     if (!runtimeGuardResponse.ok) throw new Error(`llm runtime guard parity ${runtimeGuardResponse.status}`);
+    if (!modelCatalogResponse.ok) throw new Error(`llm model catalog ${modelCatalogResponse.status}`);
     const health = (await healthResponse.json()) as LlmGatewayState;
     const routing = (await routingResponse.json()) as LlmRoutingResolution;
     const providerSnapshot = (await providerResponse.json()) as LlmProviderSnapshot;
     const streamingContract = (await streamingResponse.json()) as LlmStreamingContract;
     const routingPolicyContract = (await policyResponse.json()) as LlmRoutingPolicyContract;
     const runtimeGuardParity = (await runtimeGuardResponse.json()) as LlmRuntimeGuardParity;
+    const modelCatalog = (await modelCatalogResponse.json()) as LlmModelCatalog;
     setLlmGateway({
       ...health,
       routing_resolution: routing,
@@ -2280,6 +2329,7 @@ export default function Home() {
       streaming_contract: streamingContract,
       routing_policy_contract: routingPolicyContract,
       runtime_guard_parity: runtimeGuardParity,
+      model_catalog: modelCatalog,
     });
   }
 
@@ -4186,9 +4236,34 @@ export default function Home() {
             </article>
             <article className="policyItem">
               <strong>Models</strong>
-              <p>{llmGateway ? `${llmGateway.models_configured} configured routes` : "loading"}</p>
+              <p>
+                {llmGateway
+                  ? `${llmGateway.model_catalog?.configured_model_count ?? llmGateway.models_configured} configured models`
+                  : "loading"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Model Catalog</strong>
+              <p>{llmGateway?.model_catalog?.contract_version ?? "llm-model-catalog-v1"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Inference Mode</strong>
+              <p>{llmGateway?.model_catalog?.api_inference_only === false ? "blocked" : "API-only / no downloads"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Catalog Evidence</strong>
+              <p>{llmGateway?.model_catalog?.evidence_ref ?? "llm_model_catalog_visible"}</p>
             </article>
           </div>
+          <p className="muted">
+            Model catalog:{" "}
+            {llmGateway?.model_catalog?.public_endpoint ??
+              llmGateway?.model_catalog_endpoint ??
+              "GET /llm/api/v1/models/catalog"}{" "}
+            / {llmGateway?.model_catalog?.evidence_refs?.catalog_visible ?? "llm_model_catalog_visible"} /{" "}
+            {llmGateway?.model_catalog?.open_source_first ? "open_source_first=true" : "loading"} /{" "}
+            {llmGateway?.model_catalog?.model_downloads === false ? "model_downloads=false" : "loading"}
+          </p>
           <p className="muted">
             Fallback chain: {llmGateway?.routing_resolution?.fallback_chain?.join(" -> ") ?? "loading"}
           </p>
@@ -4222,6 +4297,28 @@ export default function Home() {
             {llmGateway?.routing_policy_contract?.evidence_refs?.sensitive_cache_blocked ??
               "llm_routing_policy_sensitive_cache_blocked"}
           </p>
+          <div className="modelList">
+            {llmGateway?.model_catalog?.routes?.length ? (
+              llmGateway.model_catalog.routes.map((route) => (
+                <article className="modelItem" key={route.agent_type}>
+                  <div>
+                    <strong>{route.agent_type}</strong>
+                    <span>{route.api_inference_only ? "API-only" : "blocked"}</span>
+                  </div>
+                  <small>Primary: {route.primary}</small>
+                  <small>Fallbacks: {route.fallbacks.join(", ")}</small>
+                  <small>Provider chain: {route.provider_chain.join(" -> ")}</small>
+                  <small>Families: {route.model_families.join(", ")}</small>
+                  <small>
+                    {route.open_source_first ? "open_source_first=true" : "open_source_first=false"} /{" "}
+                    {route.model_downloads ? "model_downloads=true" : "model_downloads=false"}
+                  </small>
+                </article>
+              ))
+            ) : (
+              <p className="muted">Model catalog loading.</p>
+            )}
+          </div>
           <div className="modelList">
             {llmGateway?.provider_snapshot?.providers?.length ? (
               llmGateway.provider_snapshot.providers.map((provider) => {

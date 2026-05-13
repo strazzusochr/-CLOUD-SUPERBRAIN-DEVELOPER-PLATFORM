@@ -214,6 +214,21 @@ Pflicht-Guards:
 Die Agent-API spiegelt dieselbe Grenze ueber `GET /api/v1/agents/llm-runtime-guard-parity`.
 Diese Oberflaeche ist ein Guard-Paritaetsbeweis, kein Live-Provider-Generierungsbeweis.
 
+## Model Catalog Contract
+
+`GET /llm/api/v1/models/catalog` ist der sichtbare Vertrag fuer die Open-Source-first, API-only Modellmatrix.
+Der Snapshot muss `contract_version=llm-model-catalog-v1`, `status=verified`, `evidence_ref=llm_model_catalog_visible`, `live_provider_calls=false`, `model_downloads=false`, `local_model_downloads_allowed=false`, `api_inference_only=true` und `open_source_first=true` liefern.
+
+Pflichtinhalte:
+
+1. `planner`, `coder`, `tester`, `devops` und `research` Routen mit Primaermodell und mindestens zwei Fallbacks
+2. Providerkette ausschliesslich ueber `huggingface_inference_router`
+3. Modellfamilien und Output-Budget pro Route
+4. Alias-Mapping fuer Legacy-Modelle ohne Credential- oder Provider-URL-Offenlegung
+5. Evidence-Refs fuer Catalog-Sichtbarkeit, Runtime-Guard-Paritaet, Unknown-Model-Block und Output-Token-Budget-Guard
+
+`GET /llm/v1/models` bleibt die OpenAI-kompatible Modellschnittstelle. Sie darf konfigurierte und live sichtbare Router-Modelle listen, muss aber pro Modell `api_inference_only=true` und `model_downloads=false` ausweisen. Diese Oberflaeche ist kein Beweis fuer Live-Generierung und kein Modell-Download-Plan.
+
 ## Observability
 
 Jede Routing-Entscheidung erzeugt ein Event fuer die separate Observability-Schicht.

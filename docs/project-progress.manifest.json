@@ -72,8 +72,8 @@
       {
         "id": "layer_4",
         "label": "LLM Gateway",
-        "percent": 54,
-        "status": "openai-compatible-deterministic-dry-run-provider-snapshot-routing-streaming-contract-routing-policy-evaluator-allow-deny-proof-orchestrator-policy-preflight-deny-hard-stop-consumed-devops-route-no-live-provider-calls-agent-llm-streaming-contract-visible-llm_stream_done_fail_closed_proof-live_provider_nonclaim_fail_closed-hosted_agent_llm_streaming_contract_runtime_parity_proof"
+        "percent": 55,
+        "status": "openai-compatible-deterministic-dry-run-provider-snapshot-routing-streaming-contract-routing-policy-evaluator-allow-deny-proof-orchestrator-policy-preflight-deny-hard-stop-consumed-devops-route-no-live-provider-calls-agent-llm-streaming-contract-visible-llm_stream_done_fail_closed_proof-live_provider_nonclaim_fail_closed-hosted_agent_llm_streaming_contract_runtime_parity_proof-llm_model_catalog_visible-open_source_api_only_model_catalog_verified"
       },
       {
         "id": "layer_5",
@@ -97,7 +97,7 @@
   },
   "truth_policy": "Evidence-based only: percentages increase only after code, runtime proof, and verifier/doc update.",
   "binding_document": "docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md",
-  "last_verified": "2026-05-07",
+  "last_verified": "2026-05-13",
   "non_claims": [
     "No live LLM provider calls are verified.",
     "No production deployment is verified.",

@@ -34,6 +34,8 @@ STREAMING_PROTOCOL = "openai_compatible_sse"
 ROUTING_POLICY_CONTRACT_VERSION = "llm-routing-policy-v1"
 LLM_RUNTIME_GUARD_PARITY_CONTRACT_VERSION = "llm-runtime-guard-parity-v1"
 LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF = "llm_runtime_guard_parity_visible"
+LLM_MODEL_CATALOG_CONTRACT_VERSION = "llm-model-catalog-v1"
+LLM_MODEL_CATALOG_EVIDENCE_REF = "llm_model_catalog_visible"
 MAX_FALLBACKS_PER_REQUEST = 2
 MAX_RETRY_CYCLES_PER_RUN = 5
 DIRECT_PROVIDER_METADATA_KEYS = {"direct_provider_url", "direct_provider_key_ref", "provider_api_key_ref"}
@@ -359,6 +361,82 @@ def model_family(model: str) -> str:
 
 def provider_for_model(model: str) -> str:
     return "huggingface_inference_router"
+
+
+def route_model_chain(route: dict[str, object]) -> list[str]:
+    return [str(route["primary"]), *[str(item) for item in route["fallbacks"]]]
+
+
+def configured_route_catalog() -> list[dict[str, object]]:
+    routes: list[dict[str, object]] = []
+    for route in MODEL_ROUTES:
+        models = route_model_chain(route)
+        routes.append(
+            {
+                "agent_type": str(route["agent_type"]),
+                "primary": str(route["primary"]),
+                "fallbacks": [str(item) for item in route["fallbacks"]],
+                "models": models,
+                "provider_chain": [provider_for_model(model) for model in models],
+                "model_families": [model_family(model) for model in models],
+                "max_output_tokens": int(route["max_output_tokens"]),
+                "supports_streaming": bool(route["supports_streaming"]),
+                "configured_only": bool(route["configured_only"]),
+                "open_source_first": bool(route["open_source_first"]),
+                "api_inference_only": True,
+                "model_downloads": False,
+            }
+        )
+    return routes
+
+
+def model_catalog_snapshot() -> dict[str, object]:
+    aliases = [
+        {
+            "alias": alias,
+            "model": target,
+            "provider": provider_for_model(target),
+            "model_family": model_family(target),
+            "api_inference_only": True,
+            "model_downloads": False,
+        }
+        for alias, target in sorted(LEGACY_MODEL_ALIASES.items())
+    ]
+    return {
+        "contract_version": LLM_MODEL_CATALOG_CONTRACT_VERSION,
+        "status": "verified",
+        "mode": GATEWAY_MODE,
+        "endpoint": "GET /api/v1/models/catalog",
+        "public_endpoint": "GET /llm/api/v1/models/catalog",
+        "openai_compatible_models_endpoint": "GET /v1/models",
+        "routing_resolve_endpoint": "POST /api/v1/routing/resolve",
+        "provider_status_endpoint": "GET /api/v1/providers/status",
+        "evidence_ref": LLM_MODEL_CATALOG_EVIDENCE_REF,
+        "provider": "huggingface_inference_router",
+        "live_provider_calls": LIVE_PROVIDER_CALLS,
+        "live_provider_calls_available": hf_router_available(),
+        "model_downloads": False,
+        "local_model_downloads_allowed": False,
+        "open_source_first": True,
+        "api_inference_only": True,
+        "route_count": len(MODEL_ROUTES),
+        "configured_model_count": len(model_ids()),
+        "alias_count": len(LEGACY_MODEL_ALIASES),
+        "routes": configured_route_catalog(),
+        "aliases": aliases,
+        "evidence_refs": {
+            "catalog_visible": LLM_MODEL_CATALOG_EVIDENCE_REF,
+            "runtime_guard_parity_visible": LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+            "unknown_model_blocked": LLM_UNKNOWN_MODEL_EVIDENCE_REF,
+            "output_token_budget_blocked": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+            "direct_provider_blocked": "llm_routing_policy_direct_provider_blocked",
+        },
+        "non_claims": [
+            "This catalog is an API inference routing contract, not a local model download plan.",
+            "No provider credential, direct provider URL, or live billing path is exposed by this catalog.",
+            "Live generation remains disabled unless environment and request policy gates both explicitly allow it.",
+        ],
+    }
 
 
 def hf_router_model_snapshot(limit: int = 20) -> dict[str, object]:
@@ -1065,6 +1143,9 @@ def health() -> dict[str, object]:
         "streaming_sse": True,
         "streaming_protocol": STREAMING_PROTOCOL,
         "models_configured": len(model_ids()),
+        "model_catalog_contract_version": LLM_MODEL_CATALOG_CONTRACT_VERSION,
+        "model_catalog_endpoint": "GET /llm/api/v1/models/catalog",
+        "model_catalog_evidence_ref": LLM_MODEL_CATALOG_EVIDENCE_REF,
         "hf_router": huggingface_router_capability_snapshot(),
         "responses_api": huggingface_router_capability_snapshot(),
         "non_claims": [
@@ -1091,6 +1172,10 @@ def models() -> dict[str, object]:
                 "configured_route": model_id in route_models,
                 "open_source_first": True,
                 "live_verified": bool(router["live_verified"]),
+                "provider": provider_for_model(model_id),
+                "model_family": model_family(model_id),
+                "api_inference_only": True,
+                "model_downloads": False,
             }
             for model_id in merged
         ],
@@ -1100,6 +1185,11 @@ def models() -> dict[str, object]:
         "router_status": router["status"],
         "model_downloads": False,
     }
+
+
+@app.get("/api/v1/models/catalog")
+def model_catalog() -> dict[str, object]:
+    return model_catalog_snapshot()
 
 
 @app.get("/api/v1/routes")
