@@ -25,8 +25,8 @@
       {
         "id": "phase_3",
         "label": "Phase 3 - Product Surface & Security",
-        "percent": 41,
-        "status": "prepared-agent-activity-per-role-summaries-visible-auth-github-jwt-refresh-contract-visible-redis-blacklist-proof-memory-dsgvo-purge-contract-memory-purge-job-status-memory-entry-delete-soft-delete-agent-activity-trace-contract-filtered-feed-visible-cost-monitor-csv-export-contract-rate-limit-guard-contract-status-429-proof-session-limit-guard-contract-status-429-proof-prompt-input-contract-counter-422-proof-error-response-contract-visible-error-envelope-enforced-security-headers-contract-enforced-csp_report_contract_visible-trace-id-propagation-contract-cache-control-no-store-contract-enforced-request-id-correlation-contract-enforced-request-id-audit-feed-visible-system-unavailable-fallback-contract-repeatable-browser-p3-surface-proof-local_auth_lifecycle_browser_proof-hosted_auth_lifecycle_staging_proof-hosted_cost_request_audit_staging_proof-hosted_limit_guard_staging_proof-hosted_fallback_agent_activity_staging_proof-hosted_prompt_error_header_staging_proof"
+        "percent": 42,
+        "status": "prepared-agent-activity-per-role-summaries-visible-auth-github-jwt-refresh-contract-visible-redis-blacklist-proof-memory-dsgvo-purge-contract-memory-purge-job-status-memory-entry-delete-soft-delete-agent-activity-trace-contract-filtered-feed-visible-cost-monitor-csv-export-contract-rate-limit-guard-contract-status-429-proof-session-limit-guard-contract-status-429-proof-prompt-input-contract-counter-422-proof-error-response-contract-visible-error-envelope-enforced-security-headers-contract-enforced-csp_report_contract_visible-llm_audit_feed_visible-trace-id-propagation-contract-cache-control-no-store-contract-enforced-request-id-correlation-contract-enforced-request-id-audit-feed-visible-system-unavailable-fallback-contract-repeatable-browser-p3-surface-proof-local_auth_lifecycle_browser_proof-hosted_auth_lifecycle_staging_proof-hosted_cost_request_audit_staging_proof-hosted_limit_guard_staging_proof-hosted_fallback_agent_activity_staging_proof-hosted_prompt_error_header_staging_proof"
       },
         {
           "id": "phase_4",
@@ -72,8 +72,8 @@
       {
         "id": "layer_4",
         "label": "LLM Gateway",
-        "percent": 55,
-        "status": "openai-compatible-deterministic-dry-run-provider-snapshot-routing-streaming-contract-routing-policy-evaluator-allow-deny-proof-orchestrator-policy-preflight-deny-hard-stop-consumed-devops-route-no-live-provider-calls-agent-llm-streaming-contract-visible-llm_stream_done_fail_closed_proof-live_provider_nonclaim_fail_closed-hosted_agent_llm_streaming_contract_runtime_parity_proof-llm_model_catalog_visible-open_source_api_only_model_catalog_verified"
+        "percent": 56,
+        "status": "openai-compatible-deterministic-dry-run-provider-snapshot-routing-streaming-contract-routing-policy-evaluator-allow-deny-proof-orchestrator-policy-preflight-deny-hard-stop-consumed-devops-route-no-live-provider-calls-agent-llm-streaming-contract-visible-llm_stream_done_fail_closed_proof-live_provider_nonclaim_fail_closed-hosted_agent_llm_streaming_contract_runtime_parity_proof-llm_model_catalog_visible-open_source_api_only_model_catalog_verified-llm_audit_feed_visible"
       },
       {
         "id": "layer_5",

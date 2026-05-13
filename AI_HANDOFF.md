@@ -40,7 +40,7 @@ Horizontal:
 - P0: `100%`
 - P1: `100%`
 - P2: `86%`
-- P3: `41%`
+- P3: `42%`
 - P4: `100%`
 - P5: `67%`
 - P6: `0%`
@@ -50,7 +50,7 @@ Vertical:
 - Frontend / Next.js: `97%`
 - Orchestrator / LangGraph: `99%`
 - Agent Pool: `68%`
-- LLM Gateway: `55%`
+- LLM Gateway: `56%`
 - MCP Gateway: `56%`
 - Memory: `72%`
 - Observability: `99%`

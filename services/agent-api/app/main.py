@@ -111,6 +111,8 @@ AGENT_LLM_STREAMING_CONTRACT_VERSION = "agent-llm-streaming-contract-v1"
 AGENT_LLM_STREAMING_EVIDENCE_REF = "agent_llm_streaming_contract_visible"
 LLM_RUNTIME_GUARD_PARITY_CONTRACT_VERSION = "llm-runtime-guard-parity-v1"
 LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF = "llm_runtime_guard_parity_visible"
+LLM_AUDIT_FEED_CONTRACT_VERSION = "llm-audit-feed-v1"
+LLM_AUDIT_FEED_EVIDENCE_REF = "llm_audit_feed_visible"
 MEMORY_EMBEDDING_CONSISTENCY_CONTRACT_VERSION = "memory-embedding-consistency-v1"
 MEMORY_EMBEDDING_CONSISTENCY_EVIDENCE_REF = "memory_embedding_consistency_contract_visible"
 MEMORY_CONSOLIDATION_CONTRACT_VERSION = "memory-consolidation-feed-v1"
@@ -5282,6 +5284,95 @@ def recent_mcp_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dic
     }
 
 
+def llm_audit_feed_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": LLM_AUDIT_FEED_CONTRACT_VERSION,
+        "mode": "audit_log_backed_llm_gateway_feed",
+        "endpoint": "GET /api/v1/audit/llm",
+        "source_event_type": "llm_gateway_request",
+        "source_table": "audit_log",
+        "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
+        "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
+        "read_only": True,
+        "live_provider_calls_claimed": False,
+        "required_detail_fields": [
+            "trace_id",
+            "model_name",
+            "provider_name",
+            "agent_type",
+            "status",
+            "input_tokens",
+            "output_tokens",
+            "cost_cents",
+            "live_provider_calls",
+            "summary",
+        ],
+        "policy_checks": [
+            "The feed only reads audit_log rows with event_type=llm_gateway_request.",
+            "Every returned event exposes trace_id and live_provider_calls=false for dry-run proofs.",
+            "The endpoint never calls an LLM provider and never changes routing policy.",
+            "Provider credentials and prompts are not returned by this feed.",
+        ],
+        "non_claims": [
+            "No live provider call is enabled by this feed.",
+            "No production deployment or provider billing proof is claimed.",
+            "This is not a long-term telemetry warehouse or Langfuse replacement.",
+        ],
+    }
+
+
+@app.get("/api/v1/audit/llm/contract")
+def llm_audit_feed_contract() -> dict[str, object]:
+    return llm_audit_feed_contract_payload()
+
+
+@app.get("/api/v1/audit/llm")
+def recent_llm_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, object]:
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        rows = conn.execute(
+            """
+            SELECT id, event_type, user_id, session_id, details, created_at, severity
+            FROM audit_log
+            WHERE event_type = 'llm_gateway_request'
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        ).fetchall()
+    events = [
+        {
+            "id": str(row[0]),
+            "event_type": row[1],
+            "user_id": row[2],
+            "session_id": str(row[3]) if row[3] else None,
+            "trace_id": (row[4] or {}).get("trace_id"),
+            "model_name": (row[4] or {}).get("model_name"),
+            "provider_name": (row[4] or {}).get("provider_name"),
+            "agent_type": (row[4] or {}).get("agent_type") or row[2],
+            "status": (row[4] or {}).get("status"),
+            "live_provider_calls": (row[4] or {}).get("live_provider_calls"),
+            "cost_cents": (row[4] or {}).get("cost_cents"),
+            "details": row[4] or {},
+            "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
+            "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
+            "created_at": row[5].isoformat() if row[5] else None,
+            "severity": row[6],
+        }
+        for row in rows
+    ]
+    return {
+        "contract_version": LLM_AUDIT_FEED_CONTRACT_VERSION,
+        "mode": "audit_log_backed_llm_gateway_feed",
+        "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
+        "source_event_type": "llm_gateway_request",
+        "read_only": True,
+        "live_provider_calls_claimed": False,
+        "events": events,
+        "count": len(events),
+        "non_claims": llm_audit_feed_contract_payload()["non_claims"],
+    }
+
+
 @app.get("/api/v1/memory/consolidation/recent")
 def recent_memory_consolidation_events(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, object]:
     with psycopg.connect(database_url(), autocommit=True) as conn:
@@ -8788,6 +8879,14 @@ def create_llm_gateway_audit_event(request: LlmGatewayAuditRequest) -> dict[str,
     if request.live_provider_calls:
         severity = "critical"
     details = redact_json(request.model_dump())
+    details.update(
+        {
+            "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
+            "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
+            "contract_version": LLM_AUDIT_FEED_CONTRACT_VERSION,
+            "read_only_feed": True,
+        }
+    )
     with psycopg.connect(database_url(), autocommit=True) as conn:
         row = conn.execute(
             """

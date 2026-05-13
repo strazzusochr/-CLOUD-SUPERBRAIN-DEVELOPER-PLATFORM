@@ -195,6 +195,10 @@ Assert-Contains "llm model catalog panel" $frontendHtml "Model Catalog"
 Assert-Contains "llm model catalog contract marker" $frontendHtml "llm-model-catalog-v1"
 Assert-Contains "llm model catalog evidence marker" $frontendHtml "llm_model_catalog_visible"
 Assert-Contains "llm model catalog endpoint marker" $frontendHtml "GET /llm/api/v1/models/catalog"
+Assert-Contains "llm audit feed panel" $frontendHtml "LLM Audit Feed"
+Assert-Contains "llm audit feed contract marker" $frontendHtml "llm-audit-feed-v1"
+Assert-Contains "llm audit feed evidence marker" $frontendHtml "llm_audit_feed_visible"
+Assert-Contains "llm audit feed endpoint marker" $frontendHtml "GET /api/v1/audit/llm"
 Assert-Contains "live agent control panel" $frontendHtml "Live Agent Control"
 Assert-Contains "live agent ui evidence marker" $frontendHtml "live_agent_steering_ui_visible"
 Assert-Contains "live agent history evidence marker" $frontendHtml "live_agent_steering_history_visible"
@@ -420,6 +424,18 @@ Assert-Contains "agent activity filtered feed evidence" $agentActivityContract "
 $agentActivityFeed = Invoke-Text "$BaseUrl/api/v1/agent-activity/recent?limit=5&severity=info"
 Assert-Contains "agent activity feed contract" $agentActivityFeed '"contract_version":"agent-activity-trace-v1"'
 Assert-Contains "agent activity feed mode" $agentActivityFeed '"mode":"audit_log_backed_filtered_feed"'
+
+Write-Host "[browser-contract] llm audit feed"
+$llmAuditContract = Invoke-Text "$BaseUrl/api/v1/audit/llm/contract"
+Assert-Contains "llm audit contract version" $llmAuditContract '"contract_version":"llm-audit-feed-v1"'
+Assert-Contains "llm audit endpoint" $llmAuditContract "GET /api/v1/audit/llm"
+Assert-Contains "llm audit source" $llmAuditContract "llm_gateway_request"
+Assert-Contains "llm audit evidence" $llmAuditContract "llm_audit_feed_visible"
+Assert-Contains "llm audit event evidence" $llmAuditContract "llm_audit_feed_event_visible"
+$llmAuditFeed = Invoke-Text "$BaseUrl/api/v1/audit/llm?limit=5"
+Assert-Contains "llm audit feed contract" $llmAuditFeed '"contract_version":"llm-audit-feed-v1"'
+Assert-Contains "llm audit feed source" $llmAuditFeed '"source_event_type":"llm_gateway_request"'
+Assert-Contains "llm audit feed evidence" $llmAuditFeed "llm_audit_feed_visible"
 
 Write-Host "[browser-contract] task assignment queue contract"
 $taskAssignmentContract = Invoke-Text "$BaseUrl/api/v1/tasks/assignment-contract"

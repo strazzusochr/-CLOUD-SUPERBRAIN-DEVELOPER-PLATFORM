@@ -1271,6 +1271,31 @@ type AuditEvent = {
   audit_feed_evidence_ref?: string | null;
 };
 
+type LlmAuditEvent = AuditEvent & {
+  model_name?: string | null;
+  provider_name?: string | null;
+  agent_type?: string | null;
+  status?: string | null;
+  live_provider_calls?: boolean | null;
+  cost_cents?: number | null;
+  evidence_ref?: string | null;
+};
+
+type LlmAuditFeedContract = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  source_event_type: string;
+  source_table: string;
+  evidence_ref: string;
+  audit_feed_evidence_ref: string;
+  read_only: boolean;
+  live_provider_calls_claimed: boolean;
+  required_detail_fields: string[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
 type PerRoleResult = {
   role: string;
   status: string;
@@ -1834,6 +1859,8 @@ export default function Home() {
   const [activityAgentFilter, setActivityAgentFilter] = useState("");
   const [activityTraceFilter, setActivityTraceFilter] = useState("");
   const [mcpAuditEvents, setMcpAuditEvents] = useState<AuditEvent[]>([]);
+  const [llmAuditFeedContract, setLlmAuditFeedContract] = useState<LlmAuditFeedContract | null>(null);
+  const [llmAuditEvents, setLlmAuditEvents] = useState<LlmAuditEvent[]>([]);
   const [memoryConsolidationEvents, setMemoryConsolidationEvents] = useState<AuditEvent[]>([]);
   const [escalations, setEscalations] = useState<AuditEvent[]>([]);
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
@@ -2303,6 +2330,18 @@ export default function Home() {
     setMcpAuditEvents(payload.events ?? []);
   }
 
+  async function loadLlmAuditFeed() {
+    const [contractResponse, feedResponse] = await Promise.all([
+      fetch("/api/v1/audit/llm/contract", { cache: "no-store" }),
+      fetch("/api/v1/audit/llm?limit=8", { cache: "no-store" }),
+    ]);
+    if (!contractResponse.ok) throw new Error(`llm audit contract ${contractResponse.status}`);
+    if (!feedResponse.ok) throw new Error(`llm audit feed ${feedResponse.status}`);
+    setLlmAuditFeedContract(await contractResponse.json());
+    const payload = await feedResponse.json();
+    setLlmAuditEvents(payload.events ?? []);
+  }
+
   async function loadMemoryConsolidationEvents() {
     const response = await fetch("/api/v1/memory/consolidation/recent?limit=8", { cache: "no-store" });
     if (!response.ok) throw new Error(`memory consolidation ${response.status}`);
@@ -2541,6 +2580,7 @@ export default function Home() {
         loadRecentSessions(),
         loadAuditEvents(),
         loadMcpAuditEvents(),
+        loadLlmAuditFeed(),
         loadMemoryConsolidationEvents(),
         loadEscalations(),
         runMemorySearch(prompt.split(" ").slice(-2).join(" ")),
@@ -2728,6 +2768,7 @@ export default function Home() {
       loadLlmGateway,
       loadAuditEvents,
       loadMcpAuditEvents,
+      loadLlmAuditFeed,
       loadMemoryConsolidationEvents,
       loadEscalations,
     ];
@@ -2751,6 +2792,7 @@ export default function Home() {
     const activityLoads: Array<() => Promise<unknown>> = [
       loadAuditEvents,
       loadMcpAuditEvents,
+      loadLlmAuditFeed,
       loadMemoryConsolidationEvents,
       loadEscalations,
       loadAgentActivityEvents,
@@ -4997,6 +5039,83 @@ export default function Home() {
               </article>
             )}
           </div>
+        </section>
+
+        <section className="panel llmAuditPanel" aria-label="LLM audit feed">
+          <header className="panelHeader">
+            <h2>LLM Audit Feed</h2>
+            <button type="button" onClick={() => void loadLlmAuditFeed()}>
+              Refresh
+            </button>
+          </header>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>{llmAuditFeedContract?.contract_version ?? "llm-audit-feed-v1"}</strong>
+              <p>{llmAuditFeedContract?.endpoint ?? "GET /api/v1/audit/llm"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Evidence</strong>
+              <p>
+                {llmAuditFeedContract?.evidence_ref ?? "llm_audit_feed_visible"} /{" "}
+                {llmAuditFeedContract?.audit_feed_evidence_ref ?? "llm_audit_feed_event_visible"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Source</strong>
+              <p>{llmAuditFeedContract?.source_event_type ?? "llm_gateway_request"} from audit_log</p>
+            </article>
+            <article className="policyItem">
+              <strong>Mode</strong>
+              <p>
+                {llmAuditFeedContract?.read_only === false ? "write-enabled" : "read_only=true"} /{" "}
+                {llmAuditFeedContract?.live_provider_calls_claimed
+                  ? "live provider proof claimed"
+                  : "live_provider_calls_claimed=false"}
+              </p>
+            </article>
+          </div>
+          <div className="auditList">
+            {llmAuditEvents.length ? (
+              llmAuditEvents.map((event) => (
+                <article className="auditItem" key={event.id}>
+                  <div>
+                    <strong>{event.model_name ?? String(event.details.model_name ?? "model")}</strong>
+                    <span className={`severity severity-${event.severity}`}>
+                      {event.status ?? String(event.details.status ?? event.severity)}
+                    </span>
+                  </div>
+                  <small>Provider: {event.provider_name ?? String(event.details.provider_name ?? "none")}</small>
+                  <small>Agent: {event.agent_type ?? String(event.details.agent_type ?? event.user_id ?? "unknown")}</small>
+                  <small>Trace ID: {event.trace_id ?? String(event.details.trace_id ?? "none")}</small>
+                  <small>
+                    Live:{" "}
+                    {String(event.live_provider_calls ?? event.details.live_provider_calls ?? false)} / Cost:{" "}
+                    {String(event.cost_cents ?? event.details.cost_cents ?? 0)} cents
+                  </small>
+                  <small>
+                    Evidence:{" "}
+                    {event.evidence_ref ??
+                      event.audit_feed_evidence_ref ??
+                      String(event.details.audit_feed_evidence_ref ?? "llm_audit_feed_visible")}
+                  </small>
+                  <p>{String(event.details.summary ?? "Audit-backed LLM Gateway dry-run event.")}</p>
+                </article>
+              ))
+            ) : (
+              <article className="auditItem auditItemEmpty">
+                <div>
+                  <strong>No LLM audit events yet.</strong>
+                  <span className="severity severity-info">read-only</span>
+                </div>
+                <small>Endpoint: GET /api/v1/audit/llm</small>
+                <small>Contract: llm-audit-feed-v1</small>
+                <small>Evidence: llm_audit_feed_visible / llm_audit_feed_event_visible</small>
+              </article>
+            )}
+          </div>
+          <p className="muted">
+            {llmAuditFeedContract?.non_claims?.[0] ?? "No live provider call is enabled by this feed."}
+          </p>
         </section>
 
         <section className="panel mcpAuditPanel" aria-label="MCP audit">
