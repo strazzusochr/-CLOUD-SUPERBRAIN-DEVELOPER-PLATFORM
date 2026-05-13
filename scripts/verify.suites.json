@@ -210,6 +210,11 @@
     "parameter_overrides": {
       "ReleaseId": "prod-candidate-2026-05-05-rc1"
     },
+    "script_parameter_overrides": {
+      "verify-phase5-candidate.ps1": {
+        "ReleaseId": null
+      }
+    },
     "patterns": [
       "verify-phase5-*.ps1"
     ]
