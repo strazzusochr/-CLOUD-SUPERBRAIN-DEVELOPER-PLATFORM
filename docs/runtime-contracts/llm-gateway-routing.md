@@ -1,6 +1,6 @@
 # LLM Gateway and Model Routing Contract
 
-Stand: 2026-04-28
+Stand: 2026-05-13
 Status: Runtime policy evaluator implemented locally; live provider activation remains gated
 Phase: `PHASE 2 / WP-02`
 
@@ -185,6 +185,7 @@ Diese Aufloesung ist nicht Teil dieses Vertrags.
 
 | Test | Erwartung | Status |
 | --- | --- | --- |
+| Runtime Guard Parity sichtbar | `llm-runtime-guard-parity-v1` und `llm_runtime_guard_parity_visible` | `verified-runtime-and-hosted` |
 | direkter Provider-Call | `deny_direct_provider` | `verified-runtime-and-hosted` |
 | unbekannte Modell-ID | `llm_routing_policy_unknown_model_blocked` | `verified-runtime-and-hosted` |
 | Output-Token-Limit ungueltig oder ueberschritten | `llm_output_token_budget_guard` | `verified-runtime-and-hosted` |
@@ -196,6 +197,22 @@ Diese Aufloesung ist nicht Teil dieses Vertrags.
 | Retry `5` erreicht | `deny_retry_limit` | `verified-runtime-and-hosted` |
 | Budget-Vertrag blockiert | `deny_budget_or_rate` | `verified-runtime-and-hosted` |
 | sensitive Anfrage mit Cache | `deny_sensitive_cache` | `verified-runtime-and-hosted` |
+
+## Runtime Guard Parity
+
+`GET /llm/api/v1/runtime/guard-parity` ist der bindende Runtime-Snapshot fuer die LLM-Gateway-Guard-Paritaet.
+Der Snapshot muss `contract_version=llm-runtime-guard-parity-v1`, `status=verified`, `evidence_ref=llm_runtime_guard_parity_visible`, `live_provider_calls=false` und `model_downloads=false` liefern.
+
+Pflicht-Guards:
+
+1. `direct_provider_bypass` mit `llm_routing_policy_direct_provider_blocked`
+2. `unknown_model_id` mit `llm_routing_policy_unknown_model_blocked`
+3. `output_token_budget` mit `llm_output_token_budget_guard`
+4. `streaming_terminal_done` mit `llm_gateway_streaming_dry_run`
+5. `routing_policy_preflight` mit `llm_routing_policy_primary_allowed`
+
+Die Agent-API spiegelt dieselbe Grenze ueber `GET /api/v1/agents/llm-runtime-guard-parity`.
+Diese Oberflaeche ist ein Guard-Paritaetsbeweis, kein Live-Provider-Generierungsbeweis.
 
 ## Observability
 
@@ -227,8 +244,8 @@ Pflichtfelder:
 
 Dieses Dokument behauptet nicht:
 
-1. dass LiteLLM bereits deployed ist
-2. dass Provider-Credentials vorhanden sind
-3. dass ein Modell live erreichbar ist
-4. dass Fallbacks getestet wurden
-5. dass Phase 2 runtime-ready ist
+1. dass Provider-Credentials vorhanden sind
+2. dass ein Modell live erreichbar ist
+3. dass Live-Provider-Generation freigegeben ist
+4. dass Fallbacks gegen echte Providerkosten ausgefuehrt wurden
+5. dass eine Production-Promotion ausgeloest wurde

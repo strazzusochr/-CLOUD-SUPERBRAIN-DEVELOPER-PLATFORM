@@ -1339,6 +1339,28 @@ type LlmGatewayState = {
   provider_snapshot?: LlmProviderSnapshot;
   streaming_contract?: LlmStreamingContract;
   routing_policy_contract?: LlmRoutingPolicyContract;
+  runtime_guard_parity?: LlmRuntimeGuardParity;
+};
+
+type LlmRuntimeGuardParity = {
+  contract_version: string;
+  status: string;
+  endpoint: string;
+  evidence_ref: string;
+  live_provider_calls: boolean;
+  live_provider_calls_available?: boolean;
+  model_downloads: boolean;
+  configured_routes: number;
+  configured_models: string[];
+  guard_matrix: Array<{
+    guard: string;
+    status: string;
+    evidence_ref: string;
+    enforced_on: string[];
+    fail_closed: boolean;
+  }>;
+  evidence_refs: string[];
+  non_claims: string[];
 };
 
 type LlmRoutingResolution = {
@@ -2167,7 +2189,14 @@ export default function Home() {
   }
 
   async function loadLlmGateway() {
-    const [healthResponse, routingResponse, providerResponse, streamingResponse, policyResponse] = await Promise.all([
+    const [
+      healthResponse,
+      routingResponse,
+      providerResponse,
+      streamingResponse,
+      policyResponse,
+      runtimeGuardResponse,
+    ] = await Promise.all([
       fetch("/llm/api/v1/health", { cache: "no-store" }),
       fetch("/llm/api/v1/routing/resolve", {
         method: "POST",
@@ -2182,23 +2211,27 @@ export default function Home() {
       fetch("/llm/api/v1/providers/status", { cache: "no-store" }),
       fetch("/llm/api/v1/streaming/contract", { cache: "no-store" }),
       fetch("/llm/api/v1/routing/policy/contract", { cache: "no-store" }),
+      fetch("/llm/api/v1/runtime/guard-parity", { cache: "no-store" }),
     ]);
     if (!healthResponse.ok) throw new Error(`llm gateway ${healthResponse.status}`);
     if (!routingResponse.ok) throw new Error(`llm routing ${routingResponse.status}`);
     if (!providerResponse.ok) throw new Error(`llm providers ${providerResponse.status}`);
     if (!streamingResponse.ok) throw new Error(`llm streaming ${streamingResponse.status}`);
     if (!policyResponse.ok) throw new Error(`llm routing policy ${policyResponse.status}`);
+    if (!runtimeGuardResponse.ok) throw new Error(`llm runtime guard parity ${runtimeGuardResponse.status}`);
     const health = (await healthResponse.json()) as LlmGatewayState;
     const routing = (await routingResponse.json()) as LlmRoutingResolution;
     const providerSnapshot = (await providerResponse.json()) as LlmProviderSnapshot;
     const streamingContract = (await streamingResponse.json()) as LlmStreamingContract;
     const routingPolicyContract = (await policyResponse.json()) as LlmRoutingPolicyContract;
+    const runtimeGuardParity = (await runtimeGuardResponse.json()) as LlmRuntimeGuardParity;
     setLlmGateway({
       ...health,
       routing_resolution: routing,
       provider_snapshot: providerSnapshot,
       streaming_contract: streamingContract,
       routing_policy_contract: routingPolicyContract,
+      runtime_guard_parity: runtimeGuardParity,
     });
   }
 
@@ -4008,8 +4041,16 @@ export default function Home() {
               <p>{llmGateway?.live_provider_calls ? "live provider calls active" : "live_provider_calls=false"}</p>
             </article>
             <article className="policyItem">
+              <strong>Runtime Guard</strong>
+              <p>{llmGateway?.runtime_guard_parity?.status ?? "loading"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Guard Version</strong>
+              <p>{llmGateway?.runtime_guard_parity?.contract_version ?? "llm-runtime-guard-parity-v1"}</p>
+            </article>
+            <article className="policyItem">
               <strong>HF Router Contract</strong>
-              <p>{llmGateway?.hf_router?.available ? "HF router verified" : "router pending"}</p>
+              <p>{llmGateway?.hf_router?.available ? "HF token configured" : "router token absent"}</p>
             </article>
             <article className="policyItem">
               <strong>Routing Resolver</strong>
@@ -4056,6 +4097,13 @@ export default function Home() {
           </p>
           <p className="muted">
             Streaming frames: {llmGateway?.streaming_contract?.frames?.join(" | ") ?? "loading"}
+          </p>
+          <p className="muted">
+            Runtime guard parity: {llmGateway?.runtime_guard_parity?.endpoint ?? "GET /llm/api/v1/runtime/guard-parity"} /{" "}
+            {llmGateway?.runtime_guard_parity?.evidence_ref ?? "llm_runtime_guard_parity_visible"} /{" "}
+            {(llmGateway?.runtime_guard_parity?.guard_matrix ?? [])
+              .map((guard) => `${guard.guard}:${guard.status}`)
+              .join(" | ") || "loading"}
           </p>
           <p className="muted">
             Policy evidence:{" "}

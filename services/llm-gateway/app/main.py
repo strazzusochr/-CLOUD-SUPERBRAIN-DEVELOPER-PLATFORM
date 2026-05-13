@@ -32,6 +32,8 @@ ROTATION_BACKOFF_SECONDS = [30, 60, 120, 300]
 PROVIDER_RESET_AFTER_SECONDS = 900
 STREAMING_PROTOCOL = "openai_compatible_sse"
 ROUTING_POLICY_CONTRACT_VERSION = "llm-routing-policy-v1"
+LLM_RUNTIME_GUARD_PARITY_CONTRACT_VERSION = "llm-runtime-guard-parity-v1"
+LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF = "llm_runtime_guard_parity_visible"
 MAX_FALLBACKS_PER_REQUEST = 2
 MAX_RETRY_CYCLES_PER_RUN = 5
 DIRECT_PROVIDER_METADATA_KEYS = {"direct_provider_url", "direct_provider_key_ref", "provider_api_key_ref"}
@@ -514,6 +516,103 @@ def routing_policy_contract_snapshot() -> dict[str, object]:
             "No external provider is called by this policy evaluator.",
             "No provider credential, direct provider URL, or live billing path is accepted.",
             "Chat and Responses ingress reject URL-like model ids and direct-provider metadata before routing.",
+        ],
+    }
+
+
+def runtime_guard_parity_snapshot() -> dict[str, object]:
+    return {
+        "contract_version": LLM_RUNTIME_GUARD_PARITY_CONTRACT_VERSION,
+        "status": "verified",
+        "mode": GATEWAY_MODE,
+        "endpoint": "GET /api/v1/runtime/guard-parity",
+        "evidence_ref": LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+        "live_provider_calls": LIVE_PROVIDER_CALLS,
+        "live_provider_calls_available": hf_router_available(),
+        "model_downloads": False,
+        "open_source_api_only": True,
+        "ingress_surface": {
+            "chat_completions": "POST /v1/chat/completions",
+            "responses": "POST /v1/responses",
+            "models": "GET /v1/models",
+            "routing_policy": "POST /api/v1/routing/policy/evaluate",
+            "streaming_contract": "GET /api/v1/streaming/contract",
+        },
+        "configured_routes": len(MODEL_ROUTES),
+        "configured_models": model_ids(),
+        "guard_matrix": [
+            {
+                "guard": "direct_provider_bypass",
+                "status": "enforced",
+                "evidence_ref": "llm_routing_policy_direct_provider_blocked",
+                "enforced_on": ["/v1/chat/completions", "/v1/responses"],
+                "fail_closed": True,
+            },
+            {
+                "guard": "unknown_model_id",
+                "status": "enforced",
+                "evidence_ref": LLM_UNKNOWN_MODEL_EVIDENCE_REF,
+                "enforced_on": ["/v1/chat/completions", "/v1/responses"],
+                "fail_closed": True,
+            },
+            {
+                "guard": "output_token_budget",
+                "status": "enforced",
+                "evidence_ref": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+                "enforced_on": ["/v1/chat/completions", "/v1/responses"],
+                "fail_closed": True,
+            },
+            {
+                "guard": "streaming_terminal_done",
+                "status": "enforced",
+                "evidence_ref": "llm_gateway_streaming_dry_run",
+                "enforced_on": ["/v1/chat/completions?stream=true"],
+                "fail_closed": True,
+            },
+            {
+                "guard": "routing_policy_preflight",
+                "status": "enforced",
+                "evidence_ref": "llm_routing_policy_primary_allowed",
+                "enforced_on": ["/api/v1/routing/policy/evaluate"],
+                "fail_closed": True,
+            },
+        ],
+        "route_parity": [
+            {
+                "agent_type": str(route["agent_type"]),
+                "primary": str(route["primary"]),
+                "fallbacks": [str(item) for item in route["fallbacks"]],
+                "provider_chain": [provider_for_model(model) for model in [str(route["primary"]), *[str(item) for item in route["fallbacks"]]]],
+                "max_output_tokens": int(route["max_output_tokens"]),
+                "supports_streaming": bool(route["supports_streaming"]),
+                "open_source_first": bool(route["open_source_first"]),
+                "model_downloads": False,
+            }
+            for route in MODEL_ROUTES
+        ],
+        "agent_executor_contract": {
+            "consumer_module": "services/agent-api/app/orchestrator.py",
+            "consumer_function": "call_llm_gateway_for_task",
+            "preflight_required": "POST /api/v1/routing/policy/evaluate before POST /v1/chat/completions",
+            "required_state_fields": [
+                "llm_gateway_calls[].routing_policy_checked",
+                "llm_gateway_calls[].routing_policy_decision",
+                "llm_gateway_calls[].stream_done_seen",
+                "llm_gateway_calls[].live_provider_calls_proven_false",
+            ],
+        },
+        "evidence_refs": [
+            LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+            "llm_routing_policy_direct_provider_blocked",
+            LLM_UNKNOWN_MODEL_EVIDENCE_REF,
+            LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+            "llm_gateway_streaming_dry_run",
+            "llm_routing_policy_primary_allowed",
+        ],
+        "non_claims": [
+            "This parity endpoint is a deterministic runtime guard proof, not a live provider generation proof.",
+            "No provider credential, direct provider URL, local model download, or production rollout is enabled by this endpoint.",
+            "Live provider calls stay disabled unless environment and request policy gates both explicitly allow them.",
         ],
     }
 
@@ -1025,6 +1124,11 @@ def streaming_contract() -> dict[str, object]:
 @app.get("/api/v1/routing/policy/contract")
 def routing_policy_contract() -> dict[str, object]:
     return routing_policy_contract_snapshot()
+
+
+@app.get("/api/v1/runtime/guard-parity")
+def runtime_guard_parity() -> dict[str, object]:
+    return runtime_guard_parity_snapshot()
 
 
 @app.post("/api/v1/routing/policy/evaluate")

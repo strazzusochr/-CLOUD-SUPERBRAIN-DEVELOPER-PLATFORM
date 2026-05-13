@@ -107,6 +107,8 @@ TASK_ASSIGNMENT_CONTRACT_VERSION = "task-assignment-queue-contract-v1"
 TASK_ASSIGNMENT_EVIDENCE_REF = "task_assignment_queue_contract_visible"
 AGENT_LLM_STREAMING_CONTRACT_VERSION = "agent-llm-streaming-contract-v1"
 AGENT_LLM_STREAMING_EVIDENCE_REF = "agent_llm_streaming_contract_visible"
+LLM_RUNTIME_GUARD_PARITY_CONTRACT_VERSION = "llm-runtime-guard-parity-v1"
+LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF = "llm_runtime_guard_parity_visible"
 MEMORY_EMBEDDING_CONSISTENCY_CONTRACT_VERSION = "memory-embedding-consistency-v1"
 MEMORY_EMBEDDING_CONSISTENCY_EVIDENCE_REF = "memory_embedding_consistency_contract_visible"
 MEMORY_CONSOLIDATION_CONTRACT_VERSION = "memory-consolidation-feed-v1"
@@ -6405,6 +6407,65 @@ def agent_llm_streaming_contract_payload() -> dict[str, object]:
 @app.get("/api/v1/agents/llm-streaming-contract")
 def agent_llm_streaming_contract() -> dict[str, object]:
     return agent_llm_streaming_contract_payload()
+
+
+def agent_llm_runtime_guard_parity_payload() -> dict[str, object]:
+    gateway_snapshot: dict[str, object] | None = None
+    gateway_error: str | None = None
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            response = client.get(f"{llm_gateway_url()}/api/v1/runtime/guard-parity")
+            response.raise_for_status()
+            gateway_snapshot = response.json()
+    except Exception as exc:
+        gateway_error = type(exc).__name__
+
+    status = "verified" if gateway_snapshot and gateway_snapshot.get("status") == "verified" else "blocked"
+    evidence_refs = [
+        LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+        "agent_llm_streaming_contract_visible",
+        "llm_gateway_streaming_dry_run",
+        "llm_routing_policy_primary_allowed",
+    ]
+    if isinstance(gateway_snapshot, dict) and isinstance(gateway_snapshot.get("evidence_refs"), list):
+        evidence_refs = sorted(set(evidence_refs).union(str(item) for item in gateway_snapshot["evidence_refs"]))
+
+    return {
+        "contract_version": LLM_RUNTIME_GUARD_PARITY_CONTRACT_VERSION,
+        "mode": "agent_api_to_llm_gateway_runtime_guard_parity",
+        "endpoint": "GET /api/v1/agents/llm-runtime-guard-parity",
+        "gateway_endpoint": "GET /llm/api/v1/runtime/guard-parity",
+        "evidence_ref": LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+        "status": status,
+        "covered_boundary": "L3-L4 Agent API / Agent Pool to LLM Gateway",
+        "live_provider_calls": False,
+        "model_downloads": False,
+        "gateway_snapshot": gateway_snapshot,
+        "gateway_error": gateway_error,
+        "required_agent_executor_fields": [
+            "llm_gateway_calls[].routing_policy_checked",
+            "llm_gateway_calls[].routing_policy_decision",
+            "llm_gateway_calls[].stream_done_seen",
+            "llm_gateway_calls[].live_provider_calls_proven_false",
+        ],
+        "required_gateway_guards": [
+            "direct_provider_bypass",
+            "unknown_model_id",
+            "output_token_budget",
+            "streaming_terminal_done",
+            "routing_policy_preflight",
+        ],
+        "evidence_refs": evidence_refs,
+        "non_claims": [
+            "This Agent API surface mirrors the LLM Gateway guard parity contract; it does not enable live provider generation.",
+            "No direct provider URL, provider key, local model download, live MCP write, or production rollout is enabled here.",
+        ],
+    }
+
+
+@app.get("/api/v1/agents/llm-runtime-guard-parity")
+def agent_llm_runtime_guard_parity() -> dict[str, object]:
+    return agent_llm_runtime_guard_parity_payload()
 
 
 def memory_embedding_schema_columns() -> dict[str, str]:

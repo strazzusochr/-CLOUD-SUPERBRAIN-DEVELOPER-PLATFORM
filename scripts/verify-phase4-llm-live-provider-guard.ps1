@@ -107,6 +107,28 @@ Assert-True "providers policy blocks url-like models" ($providers.policy.url_lik
 Assert-True "providers policy blocks unknown models" ($providers.policy.unknown_model_ids_blocked -eq $true)
 Assert-True "providers policy exposes output guard" ($providers.policy.output_token_budget_guard.evidence_ref -eq "llm_output_token_budget_guard")
 
+$runtimeGuard = Invoke-JsonApi "$BaseUrl/llm/api/v1/runtime/guard-parity"
+Assert-True "runtime guard contract version" ($runtimeGuard.contract_version -eq "llm-runtime-guard-parity-v1")
+Assert-True "runtime guard status" ($runtimeGuard.status -eq "verified")
+Assert-True "runtime guard evidence" ($runtimeGuard.evidence_ref -eq "llm_runtime_guard_parity_visible")
+Assert-True "runtime guard no live call" ($runtimeGuard.live_provider_calls -eq $false)
+Assert-True "runtime guard no model download" ($runtimeGuard.model_downloads -eq $false)
+Assert-True "runtime guard direct provider" (@($runtimeGuard.guard_matrix | ForEach-Object { $_.guard }) -contains "direct_provider_bypass")
+Assert-True "runtime guard unknown model" (@($runtimeGuard.guard_matrix | ForEach-Object { $_.guard }) -contains "unknown_model_id")
+Assert-True "runtime guard output budget" (@($runtimeGuard.guard_matrix | ForEach-Object { $_.guard }) -contains "output_token_budget")
+Assert-True "runtime guard streaming done" (@($runtimeGuard.guard_matrix | ForEach-Object { $_.guard }) -contains "streaming_terminal_done")
+Assert-True "runtime guard routing preflight" (@($runtimeGuard.guard_matrix | ForEach-Object { $_.guard }) -contains "routing_policy_preflight")
+Assert-True "runtime guard evidence refs" (@($runtimeGuard.evidence_refs) -contains "llm_runtime_guard_parity_visible")
+
+$agentRuntimeGuard = Invoke-JsonApi "$BaseUrl/api/v1/agents/llm-runtime-guard-parity"
+Assert-True "agent runtime guard contract version" ($agentRuntimeGuard.contract_version -eq "llm-runtime-guard-parity-v1")
+Assert-True "agent runtime guard status" ($agentRuntimeGuard.status -eq "verified")
+Assert-True "agent runtime guard evidence" ($agentRuntimeGuard.evidence_ref -eq "llm_runtime_guard_parity_visible")
+Assert-True "agent runtime guard no live call" ($agentRuntimeGuard.live_provider_calls -eq $false)
+Assert-True "agent runtime guard no model download" ($agentRuntimeGuard.model_downloads -eq $false)
+Assert-True "agent runtime guard mirrored gateway" ($agentRuntimeGuard.gateway_snapshot.contract_version -eq "llm-runtime-guard-parity-v1")
+Assert-True "agent runtime guard required fields" (@($agentRuntimeGuard.required_agent_executor_fields) -contains "llm_gateway_calls[].stream_done_seen")
+
 $chatBody = @{
   model = "deepseek-ai/DeepSeek-V4-Flash:fastest"
   stream = $false
@@ -252,5 +274,16 @@ $unknownModelBody = @{
 
 $unknownModel = Invoke-RawHttp -Url "$BaseUrl/llm/v1/chat/completions" -Method "POST" -Body $unknownModelBody
 Assert-BlockedLlmPolicy "chat unknown model blocked" $unknownModel 422 "llm_routing_policy_unknown_model_blocked"
+
+$unknownModelResponsesBody = @{
+  model = "not-configured/example-model"
+  input = "This unknown responses model must be blocked before routing."
+  metadata = @{
+    source = "phase4-unknown-model-guard"
+  }
+} | ConvertTo-Json -Compress -Depth 6
+
+$unknownModelResponses = Invoke-RawHttp -Url "$BaseUrl/llm/v1/responses" -Method "POST" -Body $unknownModelResponsesBody
+Assert-BlockedLlmPolicy "responses unknown model blocked" $unknownModelResponses 422 "llm_routing_policy_unknown_model_blocked"
 
 Write-Host "[phase4-llm-live-provider-guard] ok"
