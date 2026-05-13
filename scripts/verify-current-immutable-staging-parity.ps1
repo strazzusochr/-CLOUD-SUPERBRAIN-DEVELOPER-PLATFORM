@@ -33,6 +33,12 @@ function Assert-Sha($Label, $Value) {
   }
 }
 
+function Assert-ReleaseId($Label, $Value) {
+  if ([string]::IsNullOrWhiteSpace($Value) -or $Value -notmatch '^prod-candidate-[0-9]{4}-[0-9]{2}-[0-9]{2}-rc[0-9]+$') {
+    throw "Verification failed: $Label is not a valid release candidate id."
+  }
+}
+
 $repoRoot = Split-Path $PSScriptRoot -Parent
 Push-Location $repoRoot
 try {
@@ -51,6 +57,7 @@ try {
     $ReleaseId = $activeReleaseId
   }
   Assert-Equal "release id" $ReleaseId $activeReleaseId
+  Assert-ReleaseId "release id" $ReleaseId
   Assert-False "production rollout claimed" $config.production_rollout_claimed
 
   $candidatePath = "docs\release-artifacts\$ReleaseId.md"
