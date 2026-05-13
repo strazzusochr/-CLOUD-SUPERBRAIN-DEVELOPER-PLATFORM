@@ -67,14 +67,14 @@ From `docs/project-progress.manifest.json` and mirrored in `docs/verification-re
 - total: `71%`
 - phase 1: `100%`
 - phase 2: `86%`
-- phase 3: `43%`
+- phase 3: `44%`
 - phase 4: `100%`
 - phase 5: `67%`
 - phase 6: `0%`
 
 Vertical layer/module progress:
 
-- Frontend: `97%`
+- Frontend: `98%`
 - Orchestrator: `99%`
 - Agent Pool: `68%`
 - LLM Gateway: `56%`

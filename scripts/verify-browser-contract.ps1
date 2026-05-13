@@ -206,6 +206,7 @@ Assert-Contains "langfuse trace access endpoint marker" $frontendHtml "GET /api/
 Assert-Contains "live agent control panel" $frontendHtml "Live Agent Control"
 Assert-Contains "live agent ui evidence marker" $frontendHtml "live_agent_steering_ui_visible"
 Assert-Contains "live agent history evidence marker" $frontendHtml "live_agent_steering_history_visible"
+Assert-Contains "live agent audit evidence marker" $frontendHtml "live_agent_steering_audit_persisted"
 Assert-Contains "live agent metadata guard marker" $frontendHtml "live_agent_metadata_guard_enforced"
 Assert-Contains "live agent steer endpoint marker" $frontendHtml "POST /api/v1/live-agents/steer"
 Assert-Contains "live agent history endpoint marker" $frontendHtml "GET /api/v1/live-agents/history"

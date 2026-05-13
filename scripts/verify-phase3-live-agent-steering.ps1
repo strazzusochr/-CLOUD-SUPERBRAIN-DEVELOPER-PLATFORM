@@ -5,6 +5,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$progressManifestPath = Join-Path $PSScriptRoot "..\docs\project-progress.manifest.json"
+$progressManifest = Get-Content -Path $progressManifestPath -Raw | ConvertFrom-Json
+$expectedOverallPercent = [int]$progressManifest.overall_percent
+$expectedPhase3Percent = [int](@($progressManifest.horizontal.items) | Where-Object { $_.id -eq "phase_3" } | Select-Object -First 1).percent
+
 function Assert-True($label, $condition) {
   if (-not $condition) {
     throw "Live agent steering verification failed: $label"
@@ -114,6 +119,13 @@ Assert-True "status version" ($status.contract_version -eq "live-agent-steering-
 Assert-True "status agent count" ([int]$status.agent_count -ge 5)
 Assert-True "status history endpoint" ($status.history_endpoint -eq "GET /api/v1/live-agents/history")
 Assert-True "status evidence" ($status.evidence_ref -eq "live_agent_steering_contract_visible")
+
+$projectProgress = Invoke-Text "$BaseUrl/api/v1/project/progress"
+Assert-True "project progress overall binding" ($projectProgress.Contains(('"overall_percent":{0}' -f $expectedOverallPercent)))
+Assert-True "project progress phase3 percent binding" ($projectProgress.Contains(('"percent":{0}' -f $expectedPhase3Percent)))
+Assert-True "project progress live steering ui binding" ($projectProgress.Contains("live_agent_steering_ui_visible"))
+Assert-True "project progress live steering history binding" ($projectProgress.Contains("live_agent_steering_history_visible"))
+Assert-True "project progress live steering audit binding" ($projectProgress.Contains("live_agent_steering_audit_persisted"))
 
 $projectId = "phase3-live-agent-" + [Guid]::NewGuid().ToString("N")
 $body = @{
