@@ -20,6 +20,7 @@ MCP_VERSION_PINNING_CONTRACT_VERSION = "mcp-version-pinning-v1"
 MCP_VERSION_PINNING_EVIDENCE_REF = "mcp_version_pinning_contract_visible"
 MCP_REDACTION_EVIDENCE_REF = "mcp_secret_redaction_guard"
 MCP_UNSUPPORTED_TOOLSET_EVIDENCE_REF = "mcp_unsupported_toolset_guard"
+MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF = "mcp_unsupported_capability_guard"
 
 app = FastAPI(title="Cloud Superbrain MCP Gateway", version=MCP_GATEWAY_VERSION)
 
@@ -105,6 +106,14 @@ E2B_ALLOWED_ACTIONS = ("create_sandbox", "execute_code", "read_output", "close_s
 E2B_ALLOWED_SCOPES = ("sandbox:test", "sandbox:ephemeral")
 E2B_FORBIDDEN_TOKENS = ("production", "secret", "private_key", "sudo", "privileged", "crypto_mining", "network_scan")
 E2B_MAX_SESSION_TIMEOUT_MS = 1_800_000
+SUPPORTED_CAPABILITIES = {
+    "github": {"plan_branch_pr"},
+    "postgresql": {"query_readonly"},
+    "filesystem": {"plan_workspace_access"},
+    "playwright": {"plan_browser_proof"},
+    "e2b": {"plan_sandbox_lifecycle", "simulate_timeout", "create_sandbox"},
+    "puppeteer": set(),
+}
 SECRET_REDACTION_PATTERNS = (
     (re.compile(r"\bsk-[A-Za-z0-9_-]{12,}\b"), "[REDACTED_OPENAI_KEY]"),
     (re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"), "[REDACTED_GITHUB_TOKEN]"),
@@ -477,8 +486,14 @@ def mcp_version_pinning_contract() -> dict[str, object]:
             "mcp_timeout_guard",
             "mcp_tool_session_bound_audit",
             MCP_UNSUPPORTED_TOOLSET_EVIDENCE_REF,
+            MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF,
             MCP_REDACTION_EVIDENCE_REF,
         ],
+        "capability_guard": {
+            "mode": "fail_closed_unknown_capability",
+            "supported_capabilities": {key: sorted(value) for key, value in SUPPORTED_CAPABILITIES.items()},
+            "evidence_ref": MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF,
+        },
         "non_claims": [
             "No live MCP write is enabled by this version-pinning contract.",
             "No external MCP server version is claimed beyond the local gateway and its pinned Python dependencies.",
@@ -765,6 +780,10 @@ def forbidden_scope(request: ToolRequest) -> str | None:
     return None
 
 
+def unsupported_capability(request: ToolRequest) -> bool:
+    return request.capability not in SUPPORTED_CAPABILITIES.get(request.toolset, set())
+
+
 @app.get("/api/v1/health")
 def health() -> dict[str, object]:
     return {
@@ -894,6 +913,21 @@ async def execute_tool(request: ToolRequest) -> dict[str, object]:
                 error_class="missing_credentials",
                 retry_after_ms=0,
                 evidence_ref="mcp_degraded_missing_github_credentials",
+                started=started,
+            ),
+        )
+
+    if unsupported_capability(request):
+        return await audited_result(
+            request,
+            envelope_result(
+                request,
+                status="blocked",
+                sanitized_summary=(
+                    f"MCP capability '{request.capability}' is not wired to a contract for toolset '{request.toolset}'."
+                ),
+                error_class="unsupported_capability",
+                evidence_ref=MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF,
                 started=started,
             ),
         )
