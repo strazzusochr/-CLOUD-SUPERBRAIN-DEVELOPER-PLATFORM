@@ -131,6 +131,9 @@
   {
     "id": "autonomy",
     "description": "Autonomous coordination and worker regression checks.",
+    "default_switches": [
+      "AllowLocalhost"
+    ],
     "patterns": [
       "verify-autonomous-*.ps1",
       "verify-autopilot-mode.ps1",

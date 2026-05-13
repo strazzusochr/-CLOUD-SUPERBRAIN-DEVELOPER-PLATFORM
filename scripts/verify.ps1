@@ -76,6 +76,7 @@ function Resolve-Suite([string]$SuiteId, [System.Collections.Generic.HashSet[str
           SuiteId = $SuiteId
           ScriptPath = $match.FullName
           ScriptName = $match.Name
+          DefaultSwitches = @($entry.default_switches)
         })
       }
     }
@@ -114,7 +115,7 @@ function Get-UncoveredVerifierScripts() {
   return $uncovered
 }
 
-function Get-InvocationArgs([hashtable]$DeclaredParameters) {
+function Get-InvocationArgs([hashtable]$DeclaredParameters, [string[]]$DefaultSwitches = @()) {
   $arguments = [ordered]@{}
   $candidateValues = [ordered]@{
     BaseUrl = $BaseUrl
@@ -149,7 +150,8 @@ function Get-InvocationArgs([hashtable]$DeclaredParameters) {
     JsonOnly = $JsonOnly
   }
   foreach ($key in $candidateSwitches.Keys) {
-    if ($DeclaredParameters.ContainsKey($key) -and $candidateSwitches[$key].IsPresent) {
+    $isRequested = $candidateSwitches[$key].IsPresent -or ($DefaultSwitches -contains $key)
+    if ($DeclaredParameters.ContainsKey($key) -and $isRequested) {
       $arguments[$key] = $true
     }
   }
@@ -215,7 +217,7 @@ if ($Plan) {
   Write-Host ("[verify-plan] suite={0} scripts={1}" -f $Suite, $scripts.Count)
   foreach ($script in $scripts) {
     $declaredParameters = Get-DeclaredParameters -ScriptPath $script.ScriptPath
-    $invocationArgs = Get-InvocationArgs -DeclaredParameters $declaredParameters
+    $invocationArgs = Get-InvocationArgs -DeclaredParameters $declaredParameters -DefaultSwitches $script.DefaultSwitches
     Write-Host ("[verify-plan] {0} {1}" -f $script.ScriptName, (Format-InvocationArgs -Arguments $invocationArgs))
   }
   return
@@ -224,7 +226,7 @@ if ($Plan) {
 $results = [System.Collections.Generic.List[object]]::new()
 foreach ($script in $scripts) {
   $declaredParameters = Get-DeclaredParameters -ScriptPath $script.ScriptPath
-  $invocationArgs = Get-InvocationArgs -DeclaredParameters $declaredParameters
+  $invocationArgs = Get-InvocationArgs -DeclaredParameters $declaredParameters -DefaultSwitches $script.DefaultSwitches
   Write-Host ("[verify] running {0} {1}" -f $script.ScriptName, (Format-InvocationArgs -Arguments $invocationArgs))
 
   try {
