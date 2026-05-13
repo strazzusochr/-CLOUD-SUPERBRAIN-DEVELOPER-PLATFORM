@@ -29,7 +29,7 @@ Follow `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` over older planning f
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 
-Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `71%` progress state, the detailed repair protocol, and the current hosted evidence chain up through `.phase1-artifacts/phase4-system-fallback-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-audit-feed-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-cache-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-cost-export-contract-runtime-hosted-proof-20260507.md`, plus `.phase1-artifacts/phase4-phase2-runtime-start-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-orchestrator-dry-run-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-orchestrator-dry-run-stream-contract-runtime-hosted-proof-20260507.md`, the progress-bound live-agent-steering/history Phase-3 evidence, and the existing Phase-5 candidate/rollback/no-release artifacts. Continue dedicated hosted Phase-5 evidence instead of rollout.
+Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `71%` progress state, the detailed repair protocol, and the current hosted evidence chain up through `.phase1-artifacts/phase4-system-fallback-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-audit-feed-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-cache-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-cost-export-contract-runtime-hosted-proof-20260507.md`, plus `.phase1-artifacts/phase4-phase2-runtime-start-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-orchestrator-dry-run-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-orchestrator-dry-run-stream-contract-runtime-hosted-proof-20260507.md`, the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 frontend source-build path proof, the active runtime-selector-truth proof, and the existing Phase-5 candidate/rollback/no-release artifacts. Continue dedicated hosted Phase-5 evidence instead of rollout.
 
 ## Current Verified Progress
 
@@ -42,12 +42,12 @@ Horizontal:
 - P2: `86%`
 - P3: `44%`
 - P4: `100%`
-- P5: `67%`
+- P5: `69%`
 - P6: `0%`
 
 Vertical:
 
-- Frontend / Next.js: `98%`
+- Frontend / Next.js: `99%`
 - Orchestrator / LangGraph: `99%`
 - Agent Pool: `68%`
 - LLM Gateway: `56%`
@@ -105,6 +105,26 @@ Recent verification status: local deterministic verifiers were extended for Prio
 Autopilot stream proof now runs through the active Agent API/Nginx stack at `<local-control-plane-stream-url>` and emits `status:init`, `status:llm`, `token`, and `done` with `autopilot-mode-stream-proof`.
 
 ## Latest Completed Proof
+
+Phase 5 Active Runtime Selector Truth:
+
+- `docs/release-artifacts/prod-candidate-2026-05-11-rc1-runtime-selector-truth.md` records the active hosted selector truth: `IMAGE_TAG=staging` plus `cloud-superbrain-frontend:source-staging`.
+- `docs/release-artifacts/prod-candidate-2026-05-11-rc1.md` now marks current immutable staging parity as `blocked_after_frontend_source_build`.
+- `scripts/verify-current-runtime-selector-truth.ps1` binds the active RC, proof artifact, hosted root, hosted progress, and optional SSH selector/image proof.
+- `scripts/verify-current-immutable-staging-parity.ps1` now passes this current state only as `blocked`; real immutable parity still requires `-RequireVerified`.
+- Progress change: Overall remains `71%`; Phase 5 rises to `69%`. No production rollout, GHCR push, Vercel promotion, live provider call, live MCP write, or immutable candidate parity is claimed.
+
+Previous latest completed proof:
+
+Phase 5 Frontend Source Build Path:
+
+- `docs/release-artifacts/prod-candidate-2026-05-11-rc1-frontend-source-build-path.md` records the staging-only Hetzner frontend source-build proof.
+- `scripts/deploy-to-staging.ps1 -FrontendSourceBuild -ImageTag staging` builds `cloud-superbrain-frontend:source-staging` on the host with `pull_policy: never` while backend services stay on `IMAGE_TAG=staging`.
+- The failed `staging-src-dba8cb012e8a` selector attempt restored cleanly; the correct staging-only run then passed.
+- Verified by local frontend build, remote Docker readiness, hosted deploy, remote compose proof, hosted browser contract, and `scripts\verify-phase5-frontend-source-build-path.ps1 -BaseUrl https://188-34-191-140.sslip.io -KeyPath C:\Users\immer\.ssh\oracle_key`.
+- Progress change: Overall remains `71%`; Phase 5 rises to `68%`; Frontend rises to `99%`. No production rollout, GHCR push, Vercel promotion, live provider call, live MCP write, or immutable candidate parity is claimed.
+
+Previous latest completed proof:
 
 Phase 5 Active Candidate Gate Rerun:
 

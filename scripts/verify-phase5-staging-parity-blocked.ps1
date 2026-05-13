@@ -139,8 +139,12 @@ if ($hotMountCount -lt 1) {
 
 $deployScript = Get-Content "scripts\deploy-to-staging.ps1" -Raw
 Assert-Contains "deploy script immutable image filesystem option" $deployScript "[switch]`$UseImageFilesystem"
+Assert-Contains "deploy script frontend source build option" $deployScript "[switch]`$FrontendSourceBuild"
 Assert-Contains "deploy script plan-only option" $deployScript "[switch]`$PlanOnly"
 Assert-Contains "deploy script immutable hot-mount guard" $deployScript "Immutable image tag deploys must use -UseImageFilesystem or matching -SourceRef"
+Assert-Contains "deploy script frontend source immutable guard" $deployScript "Frontend source builds are staging-only and cannot use immutable SHA image tags."
+Assert-Contains "deploy script frontend source override" $deployScript "docker-compose.frontend-source.yml"
+Assert-Contains "deploy script frontend source pull policy" $deployScript "pull_policy: never"
 Assert-Contains "deploy script remote env backup" $deployScript '$remoteEnvBackupName = ".env.bak.codex-$remoteBackupSuffix"'
 Assert-Contains "deploy script remote compose backup" $deployScript '$remoteComposeBackupName = "docker-compose.cloud.yml.bak.codex-$remoteBackupSuffix"'
 Assert-Contains "deploy script remote rollback warning" $deployScript "Staging deploy failed; restoring previous remote selector files."
@@ -164,6 +168,16 @@ Assert-Contains "immutable plan image tag" $planOutput "Image tag: $immutableTag
 Assert-Contains "immutable plan hot mount count" $planOutput "Service hot-mount entries in source compose: 5"
 Assert-Contains "immutable plan caddy" $planOutput "Compose has caddy: True"
 
+$frontendSourcePlanOutput = Invoke-DeployPlan @(
+  "-PlanOnly",
+  "-FrontendSourceBuild",
+  "-ImageTag",
+  "staging-src-test"
+) $true "Build frontend on remote: True"
+Assert-Contains "frontend source plan override" $frontendSourcePlanOutput "Frontend source build override: docker-compose.frontend-source.yml"
+Assert-Contains "frontend source plan local image" $frontendSourcePlanOutput "Frontend source build image: cloud-superbrain-frontend:source-staging"
+Assert-Contains "frontend source plan pull set" $frontendSourcePlanOutput "Pull services: agent-api agent-worker memory-worker mcp-gateway llm-gateway nginx caddy"
+
 Invoke-DeployPlan @(
   "-PlanOnly",
   "-ImageTag",
@@ -178,6 +192,13 @@ Invoke-DeployPlan @(
   "-SourceRef",
   "main"
 ) $false "Immutable image tag deploys must use an empty SourceRef for the current infra overlay or a SourceRef matching" | Out-Null
+
+Invoke-DeployPlan @(
+  "-PlanOnly",
+  "-FrontendSourceBuild",
+  "-ImageTag",
+  $immutableTag
+) $false "Frontend source builds are staging-only and cannot use immutable SHA image tags." | Out-Null
 
 $services = @("agent-api", "mcp-gateway", "frontend", "llm-gateway", "agent-worker", "memory-worker")
 $mismatchCount = 0

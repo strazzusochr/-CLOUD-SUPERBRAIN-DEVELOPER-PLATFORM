@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-05-07 11:55 Uhr
+Letzte Aktualisierung: 2026-05-14 00:05 Uhr
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `71%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 3 Product Surface & Security ist durch den audit-backed CSP-Report-Contract, den read-only LLM-Audit-Feed, den audit-backed Langfuse-Trace-Access und die progress-gebundene Live-Agent-Steering-/History-Oberflaeche auf `44%` gehoben; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der letzte verifizierte Candidate bleibt an `overall=70`, `phase_4=100`, `phase_5=67`, `integrity=verified`, `external_gates=verified`, weiter fail-closed `completion=false`, unveraendertem `no-release`, explizit blockierter `staging`-zu-immutable-Digest-Paritaet und aktuell blockierter Repo-Worktree-Paritaet zu `source_commit_sha=ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5` gebunden. Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `71%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 3 Product Surface & Security ist durch den audit-backed CSP-Report-Contract, den read-only LLM-Audit-Feed, den audit-backed Langfuse-Trace-Access und die progress-gebundene Live-Agent-Steering-/History-Oberflaeche auf `44%` gehoben; Phase 5 steht durch den staging-only Frontend-Source-Build-Pfad und die aktive Runtime-Selector-Truth auf `69%`; Frontend / Next.js steht durch die echte Hetzner-Source-Build-UI auf `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der letzte verifizierte Candidate bleibt weiter fail-closed ohne Production-Rollout; mutable `IMAGE_TAG=staging` plus `cloud-superbrain-frontend:source-staging` ist keine immutable Candidate-Paritaet. Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -41,14 +41,14 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 | P2   | 86%    |
 | P3   | 44%    |
 | P4   | 100%   |
-| P5   | 67%    |
+| P5   | 69%    |
 | P6   | 0%     |
 
 ### Vertikal (nach Modul)
 
 | Modul         | Status |
 |---------------|--------|
-| Frontend      | 98%    |
+| Frontend      | 99%    |
 | Orchestrator  | 99%    |
 | Agent Pool    | 68%    |
 | LLM Gateway   | 56%    |
@@ -70,13 +70,29 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Staging-Tag-Paritaet explizit blockiert halten oder sauber aufloesen** — Phase 4 ist jetzt manifestseitig `100%`; der naechste harte Pfad ist die repo-ehrliche Aufloesung der bekannten Luecke zwischen mutablem `IMAGE_TAG=staging` und dem immutable Candidate-SHA
+- **Neuen immutable Candidate bauen oder Image-Filesystem-Candidate deployen** — Hetzner zeigt jetzt die aktuelle Frontend-UI ueber den staging-only Source-Build-Pfad und der aktive RC ist ehrlich als `blocked_after_frontend_source_build` klassifiziert; der naechste harte Pfad ist ein neuer immutable Candidate-SHA oder ein expliziter `-UseImageFilesystem -RequireVerified` Lauf
 - danach folgen weitere `P5`-Slices statt eines Rollouts
 - lokal und hosted bleiben weiterhin deterministische Proofs ohne Live-Provider und ohne Live-MCP-Writes; `production_deploy_claim_allowed=true` ist kein Deployment-Nachweis
 
 ## ZULETZT ABGESCHLOSSEN
 
-**Phase 5 Active Candidate Gate Rerun** — der aktive `prod-candidate-2026-05-11-rc1` ist jetzt mit einem eigenen Gate-Rerun-Proof gegen die reale Hosted-Surface und die aktuelle Vercel-/Git-Bindung nachgezogen:
+**Phase 5 Active Runtime Selector Truth** — der aktive RC1 ist jetzt wieder ehrlich an den aktuellen Hosted-Selector gebunden:
+
+- `docs/release-artifacts/prod-candidate-2026-05-11-rc1.md` fuehrt jetzt `hosted_selector_observed=IMAGE_TAG=staging`, `frontend_runtime_image_observed=cloud-superbrain-frontend:source-staging` und `immutable_staging_parity_status=blocked_after_frontend_source_build`
+- `docs/release-artifacts/prod-candidate-2026-05-11-rc1-runtime-selector-truth.md` dokumentiert die aktuelle Runtime-Truth ohne Production- oder Immutable-Parity-Claim
+- `scripts\verify-current-runtime-selector-truth.ps1` prueft aktiven Candidate, Proof-Artefakt, Hosted-Root, Hosted-Progress und optional den SSH-Beweis fuer `.env`, Frontend-Image und `pull_policy: never`
+- `scripts\verify-current-immutable-staging-parity.ps1` akzeptiert diese Lage nur als `blocked`; echte Paritaet verlangt weiter `-RequireVerified`
+- Fortschritt: `overall=71`, `phase_5=69`, `frontend=99`; kein Production-Rollout, kein GHCR-Push, keine immutable Candidate-Paritaet
+
+**Vorheriger Abschluss — Phase 5 Frontend Source Build Path** — Hetzner ist jetzt ohne GHCR-Frontend-Push auf die aktuelle Frontend-UI nachgezogen:
+
+- `scripts/deploy-to-staging.ps1 -FrontendSourceBuild -ImageTag staging` kopiert nicht-geheime Frontend-Quellen nach `/app/apps/frontend`, legt `docker-compose.frontend-source.yml` an, baut `cloud-superbrain-frontend:source-staging` und erzwingt `pull_policy: never`
+- der erste falsche Versuch mit `staging-src-dba8cb012e8a` ist fail-closed in den Restore gelaufen; danach wurde korrekt mit Backend-Selector `IMAGE_TAG=staging` deployed
+- gehosteter Root zeigt jetzt `Live Agent Control` und `Runtime Guard`; `scripts\verify-browser-contract.ps1 -BaseUrl https://188-34-191-140.sslip.io` ist gruen
+- `scripts\verify-phase5-frontend-source-build-path.ps1` bindet Artefakt, PlanOnly-Guards, Hosted-Root, Hosted-Progress und Remote-Compose-Beweis zusammen
+- Fortschritt: `overall=71`, `phase_5=68`, `frontend=99`; kein Production-Rollout, kein GHCR-Push, keine immutable Candidate-Paritaet
+
+**Vorheriger Abschluss — Phase 5 Active Candidate Gate Rerun** — der aktive `prod-candidate-2026-05-11-rc1` ist jetzt mit einem eigenen Gate-Rerun-Proof gegen die reale Hosted-Surface und die aktuelle Vercel-/Git-Bindung nachgezogen:
 
 - `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-candidate-gate-rerun.md` bindet `current-release-candidate.json`, den aktiven Candidate, `https://188-34-191-140.sslip.io`, Vercel Git Link, Project Git Readiness und das Active-Release-Candidate-Bundle zusammen
 - `scripts/verify-phase5-active-candidate-gate-rerun.ps1` prueft den Proof, parst das JSON aus `scripts\verify-active-release-candidate-bundle.ps1 -ReportOnly -JsonOnly` und ruft danach `scripts\verify-current-release-candidate.ps1` erneut auf

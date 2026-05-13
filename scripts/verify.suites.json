@@ -213,6 +213,9 @@
     "script_parameter_overrides": {
       "verify-phase5-candidate.ps1": {
         "ReleaseId": null
+      },
+      "verify-phase5-frontend-source-build-path.ps1": {
+        "ReleaseId": null
       }
     },
     "patterns": [
@@ -224,6 +227,7 @@
     "description": "Active release-boundary candidate verification without mutating production.",
     "patterns": [
       "verify-current-immutable-staging-parity.ps1",
+      "verify-current-runtime-selector-truth.ps1",
       "verify-current-release-candidate.ps1"
     ]
   },

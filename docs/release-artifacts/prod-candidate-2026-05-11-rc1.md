@@ -14,10 +14,12 @@ observability_check: `present`
 rollback_note: `no production rollout performed; rollback remains the existing hosted staging rollback path`
 immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:b0c2773b1d122745947315a8d39734d5a6c96d6b`
 owner_decision: `approved`
-hosted_selector_observed: `IMAGE_TAG=b0c2773b1d122745947315a8d39734d5a6c96d6b`
-hosted_selector_observed_at: `2026-05-12T14:08:00Z`
-immutable_staging_parity_status: `verified`
+hosted_selector_observed: `IMAGE_TAG=staging`
+hosted_selector_observed_at: `2026-05-14T00:25:00Z`
+frontend_runtime_image_observed: `cloud-superbrain-frontend:source-staging`
+immutable_staging_parity_status: `blocked_after_frontend_source_build`
 active_candidate_gate_rerun_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-candidate-gate-rerun.md`
+runtime_selector_truth_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-runtime-selector-truth.md`
 
 ## Verification Evidence
 
@@ -36,6 +38,7 @@ active_candidate_gate_rerun_proof: `docs/release-artifacts/prod-candidate-2026-0
 - Immutable staging parity ready check: `scripts\manual\verify-phase5-staging-immutable-parity.ps1 -ReleaseId prod-candidate-2026-05-11-rc1 -CandidateSha b0c2773b1d122745947315a8d39734d5a6c96d6b`
 - Immutable staging parity remote proof: `scripts\manual\verify-phase5-staging-immutable-parity.ps1 -RequireVerified -ReleaseId prod-candidate-2026-05-11-rc1 -CandidateSha b0c2773b1d122745947315a8d39734d5a6c96d6b -BaseUrl https://188-34-191-140.sslip.io -KeyPath <local-private-key>`
 - Active candidate gate rerun proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-candidate-gate-rerun.md`
+- Runtime selector truth proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-runtime-selector-truth.md`
 
 ## Cloud Surfaces
 
@@ -49,7 +52,7 @@ active_candidate_gate_rerun_proof: `docs/release-artifacts/prod-candidate-2026-0
 - This artifact approves the current clean repository boundary as a production candidate.
 - The release boundary source commit is `1d87de96d74ed75bbafff9840e963f2075253df9`; the immutable image commit deployed to staging is `b0c2773b1d122745947315a8d39734d5a6c96d6b`.
 - This artifact does not claim a production rollout.
-- Remote immutable Hetzner parity is verified for the six owned service images at `b0c2773b1d122745947315a8d39734d5a6c96d6b`; this remains staging evidence only.
+- Remote immutable Hetzner parity for `b0c2773b1d122745947315a8d39734d5a6c96d6b` is historical staging evidence only; current hosted runtime is mutable `IMAGE_TAG=staging` plus the staging-only frontend source image.
 - This artifact does not replace the historical `prod-candidate-2026-05-05-rc1` no-release evidence.
 - The hosted selector line records the current Hetzner staging selector observed after later deployment work; it does not rewrite the historical 2026-05-05 rollback selector.
 - Production deployment still requires the release-candidate gate bundle and a separate rollout proof.

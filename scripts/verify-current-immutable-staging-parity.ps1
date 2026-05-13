@@ -86,8 +86,14 @@ try {
   Assert-Equal "candidate sha" $CandidateSha $immutableSha
 
   Assert-Contains "immutable tag set" $candidate "immutable_tag_set: ``ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:$CandidateSha``"
-  Assert-Contains "immutable staging status" $candidate "immutable_staging_parity_status: ``verified``"
-  Assert-Contains "hosted selector" $candidate "hosted_selector_observed: ``IMAGE_TAG=$CandidateSha``"
+  $parityVerified = $candidate.Contains("immutable_staging_parity_status: ``verified``") -and $candidate.Contains("hosted_selector_observed: ``IMAGE_TAG=$CandidateSha``")
+  $parityBlocked = $candidate.Contains("immutable_staging_parity_status: ``blocked_after_frontend_source_build``") -and $candidate.Contains("hosted_selector_observed: ``IMAGE_TAG=staging``")
+  if ($RequireVerified -and -not $parityVerified) {
+    throw "Verification failed: active release candidate is not currently deployed as the immutable staging selector."
+  }
+  if (-not $RequireVerified -and -not ($parityVerified -or $parityBlocked)) {
+    throw "Verification failed: active release artifact must either verify immutable staging parity or explicitly block it with current selector truth."
+  }
 
   $manualArgs = @{
     ReleaseId = $ReleaseId
@@ -129,6 +135,8 @@ try {
     $report | ConvertTo-Json -Depth 6
   } elseif ($RequireVerified) {
     Write-Host "[current-immutable-staging-parity] verified"
+  } elseif ($parityBlocked) {
+    Write-Host "[current-immutable-staging-parity] blocked"
   } else {
     Write-Host "[current-immutable-staging-parity] ready"
   }
