@@ -113,6 +113,9 @@ LLM_RUNTIME_GUARD_PARITY_CONTRACT_VERSION = "llm-runtime-guard-parity-v1"
 LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF = "llm_runtime_guard_parity_visible"
 LLM_AUDIT_FEED_CONTRACT_VERSION = "llm-audit-feed-v1"
 LLM_AUDIT_FEED_EVIDENCE_REF = "llm_audit_feed_visible"
+LANGFUSE_TRACE_ACCESS_CONTRACT_VERSION = "langfuse-trace-access-v1"
+LANGFUSE_TRACE_ACCESS_EVIDENCE_REF = "langfuse_trace_access_visible"
+LANGFUSE_TRACE_EVENT_EVIDENCE_REF = "langfuse_trace_event_visible"
 MEMORY_EMBEDDING_CONSISTENCY_CONTRACT_VERSION = "memory-embedding-consistency-v1"
 MEMORY_EMBEDDING_CONSISTENCY_EVIDENCE_REF = "memory_embedding_consistency_contract_visible"
 MEMORY_CONSOLIDATION_CONTRACT_VERSION = "memory-consolidation-feed-v1"
@@ -2134,6 +2137,7 @@ def agent_activity_contract_payload() -> dict[str, object]:
         "screen": "Agent Activity",
         "source_endpoints": [
             "GET /api/v1/agent-activity/recent?limit=50&severity=&event_type=&agent_type=&trace_id=",
+            "GET /api/v1/observability/langfuse/trace/{trace_id}",
             "GET /api/v1/audit/recent?limit=50",
             "GET /api/v1/audit/mcp?limit=50",
             "GET /api/v1/escalations/recent?limit=50",
@@ -2174,6 +2178,7 @@ def agent_activity_contract_payload() -> dict[str, object]:
             "per_role_results_visible",
             "failure_surface_visible",
             "live_agent_steering_audit_visible",
+            "langfuse_trace_access_audit_backed",
         ],
         "evidence_refs": {
             "contract_visible": "agent_activity_contract_visible",
@@ -2183,11 +2188,52 @@ def agent_activity_contract_payload() -> dict[str, object]:
             "per_role_results": "agent_activity_per_role_results_visible",
             "failure_surface": "agent_activity_failure_surface_visible",
             "live_agent_steering_audit": "live_agent_steering_audit_persisted",
+            "trace_access": LANGFUSE_TRACE_ACCESS_EVIDENCE_REF,
+            "trace_event": LANGFUSE_TRACE_EVENT_EVIDENCE_REF,
         },
         "non_claims": [
             "This contract does not claim public unauthenticated Langfuse access.",
             "This contract does not claim live Langfuse traces until LANGFUSE_PUBLIC_URL is configured.",
             "Audit-log activity remains the local source of truth for Phase 3.",
+        ],
+    }
+
+
+def langfuse_trace_access_contract_payload() -> dict[str, object]:
+    langfuse_public_url = os.getenv("LANGFUSE_PUBLIC_URL", "").rstrip("/")
+    auth_proxy_path = os.getenv("LANGFUSE_AUTH_PROXY_PATH", "/observability/langfuse")
+    deep_link_template = (
+        f"{langfuse_public_url}/trace/{{trace_id}}"
+        if langfuse_public_url
+        else f"{auth_proxy_path}/trace/{{trace_id}}"
+    )
+    return {
+        "contract_version": LANGFUSE_TRACE_ACCESS_CONTRACT_VERSION,
+        "mode": "audit_log_backed_trace_access",
+        "screen": "Langfuse Trace Access",
+        "endpoint": "GET /api/v1/observability/langfuse/trace/{trace_id}",
+        "contract_endpoint": "GET /api/v1/observability/langfuse/contract",
+        "source_table": "audit_log",
+        "source_endpoint": "GET /api/v1/agent-activity/recent?trace_id={trace_id}",
+        "deep_link_template": deep_link_template,
+        "langfuse_public_url_configured": bool(langfuse_public_url),
+        "auth_proxy_required": True,
+        "read_only": True,
+        "live_langfuse_trace_claimed": bool(langfuse_public_url),
+        "provider_trace_export": False,
+        "evidence_ref": LANGFUSE_TRACE_ACCESS_EVIDENCE_REF,
+        "event_evidence_ref": LANGFUSE_TRACE_EVENT_EVIDENCE_REF,
+        "required_trace_fields": ["trace_id", "event_type", "severity", "created_at", "details"],
+        "policy_checks": [
+            "Trace lookup reads audit_log only.",
+            "No public unauthenticated Langfuse access is claimed.",
+            "Provider trace export remains disabled until live Langfuse is configured.",
+            "The response redacts audit details before returning them.",
+        ],
+        "non_claims": [
+            "No live Langfuse deployment is claimed unless LANGFUSE_PUBLIC_URL is configured.",
+            "No provider-side trace export or purge is claimed.",
+            "No production observability auth proxy is claimed.",
         ],
     }
 
@@ -5823,6 +5869,67 @@ def recent_agent_activity(
         },
         "evidence_ref": "agent_activity_filtered_feed_visible",
         "events": [agent_activity_row_to_event(row) for row in rows],
+    }
+
+
+@app.get("/api/v1/observability/langfuse/contract")
+def langfuse_trace_access_contract() -> dict[str, object]:
+    return langfuse_trace_access_contract_payload()
+
+
+@app.get("/api/v1/observability/langfuse/trace/{trace_id}")
+def langfuse_trace_access(
+    trace_id: str,
+    limit: int = Query(default=20, ge=1, le=100),
+) -> dict[str, object]:
+    if not trace_id or len(trace_id) > 255:
+        raise HTTPException(status_code=422, detail="trace_id must be between 1 and 255 characters")
+    trace_pattern = f"%{trace_id}%"
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        rows = conn.execute(
+            """
+            SELECT id, event_type, user_id, session_id, details, created_at, severity
+            FROM audit_log
+            WHERE details->>'trace_id' ILIKE %s
+               OR details->>'thread_id' ILIKE %s
+               OR CAST(session_id AS TEXT) ILIKE %s
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            (trace_pattern, trace_pattern, trace_pattern, limit),
+        ).fetchall()
+    events = []
+    for row in rows:
+        details = row[4] or {}
+        resolved_trace_id = details.get("trace_id") or details.get("thread_id") or (str(row[3]) if row[3] else trace_id)
+        events.append(
+            {
+                "id": str(row[0]),
+                "event_type": row[1],
+                "user_id": row[2],
+                "session_id": str(row[3]) if row[3] else None,
+                "trace_id": resolved_trace_id,
+                "severity": row[6],
+                "created_at": row[5].isoformat() if row[5] else None,
+                "details": redact_json(details),
+                "evidence_ref": LANGFUSE_TRACE_EVENT_EVIDENCE_REF,
+            }
+        )
+    contract = langfuse_trace_access_contract_payload()
+    return {
+        "contract_version": LANGFUSE_TRACE_ACCESS_CONTRACT_VERSION,
+        "mode": "audit_log_backed_trace_access",
+        "trace_id": trace_id,
+        "evidence_ref": LANGFUSE_TRACE_ACCESS_EVIDENCE_REF,
+        "event_evidence_ref": LANGFUSE_TRACE_EVENT_EVIDENCE_REF,
+        "langfuse_trace_url": str(contract["deep_link_template"]).replace("{trace_id}", trace_id),
+        "langfuse_public_url_configured": contract["langfuse_public_url_configured"],
+        "auth_proxy_required": contract["auth_proxy_required"],
+        "read_only": True,
+        "provider_trace_export": False,
+        "events": events,
+        "count": len(events),
+        "non_claims": contract["non_claims"],
     }
 
 

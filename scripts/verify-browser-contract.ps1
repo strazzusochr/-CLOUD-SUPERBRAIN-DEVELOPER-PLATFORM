@@ -199,6 +199,10 @@ Assert-Contains "llm audit feed panel" $frontendHtml "LLM Audit Feed"
 Assert-Contains "llm audit feed contract marker" $frontendHtml "llm-audit-feed-v1"
 Assert-Contains "llm audit feed evidence marker" $frontendHtml "llm_audit_feed_visible"
 Assert-Contains "llm audit feed endpoint marker" $frontendHtml "GET /api/v1/audit/llm"
+Assert-Contains "langfuse trace access panel" $frontendHtml "Langfuse Trace Access"
+Assert-Contains "langfuse trace access contract marker" $frontendHtml "langfuse-trace-access-v1"
+Assert-Contains "langfuse trace access evidence marker" $frontendHtml "langfuse_trace_access_visible"
+Assert-Contains "langfuse trace access endpoint marker" $frontendHtml "GET /api/v1/observability/langfuse/trace/{trace_id}"
 Assert-Contains "live agent control panel" $frontendHtml "Live Agent Control"
 Assert-Contains "live agent ui evidence marker" $frontendHtml "live_agent_steering_ui_visible"
 Assert-Contains "live agent history evidence marker" $frontendHtml "live_agent_steering_history_visible"
@@ -424,6 +428,16 @@ Assert-Contains "agent activity filtered feed evidence" $agentActivityContract "
 $agentActivityFeed = Invoke-Text "$BaseUrl/api/v1/agent-activity/recent?limit=5&severity=info"
 Assert-Contains "agent activity feed contract" $agentActivityFeed '"contract_version":"agent-activity-trace-v1"'
 Assert-Contains "agent activity feed mode" $agentActivityFeed '"mode":"audit_log_backed_filtered_feed"'
+
+Write-Host "[browser-contract] langfuse trace access"
+$langfuseTraceContract = Invoke-Text "$BaseUrl/api/v1/observability/langfuse/contract"
+Assert-Contains "langfuse trace contract version" $langfuseTraceContract '"contract_version":"langfuse-trace-access-v1"'
+Assert-Contains "langfuse trace endpoint" $langfuseTraceContract "GET /api/v1/observability/langfuse/trace/{trace_id}"
+Assert-Contains "langfuse trace source" $langfuseTraceContract "audit_log"
+Assert-Contains "langfuse trace evidence" $langfuseTraceContract "langfuse_trace_access_visible"
+Assert-Contains "langfuse trace event evidence" $langfuseTraceContract "langfuse_trace_event_visible"
+Assert-Contains "langfuse trace read only" $langfuseTraceContract '"read_only":true'
+Assert-Contains "langfuse trace provider export false" $langfuseTraceContract '"provider_trace_export":false'
 
 Write-Host "[browser-contract] llm audit feed"
 $llmAuditContract = Invoke-Text "$BaseUrl/api/v1/audit/llm/contract"

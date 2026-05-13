@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `71%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 3 Product Surface & Security ist durch den audit-backed CSP-Report-Contract und den read-only LLM-Audit-Feed auf `42%` gehoben; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der letzte verifizierte Candidate bleibt an `overall=70`, `phase_4=100`, `phase_5=67`, `integrity=verified`, `external_gates=verified`, weiter fail-closed `completion=false`, unveraendertem `no-release`, explizit blockierter `staging`-zu-immutable-Digest-Paritaet und aktuell blockierter Repo-Worktree-Paritaet zu `source_commit_sha=ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5` gebunden. Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `71%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 3 Product Surface & Security ist durch den audit-backed CSP-Report-Contract und den read-only LLM-Audit-Feed sowie den audit-backed Langfuse-Trace-Access auf `43%` gehoben; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der letzte verifizierte Candidate bleibt an `overall=70`, `phase_4=100`, `phase_5=67`, `integrity=verified`, `external_gates=verified`, weiter fail-closed `completion=false`, unveraendertem `no-release`, explizit blockierter `staging`-zu-immutable-Digest-Paritaet und aktuell blockierter Repo-Worktree-Paritaet zu `source_commit_sha=ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5` gebunden. Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -39,7 +39,7 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 | P0   | 100%   |
 | P1   | 100%   |
 | P2   | 86%    |
-| P3   | 42%    |
+| P3   | 43%    |
 | P4   | 100%   |
 | P5   | 67%    |
 | P6   | 0%     |

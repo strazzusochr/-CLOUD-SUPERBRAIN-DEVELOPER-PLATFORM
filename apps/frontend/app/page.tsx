@@ -386,7 +386,30 @@ type AgentActivityContract = {
     auth_proxy_required: string;
     filtered_feed?: string;
     per_role_results?: string;
+    trace_access?: string;
+    trace_event?: string;
   };
+  non_claims: string[];
+};
+
+type LangfuseTraceAccessContract = {
+  contract_version: string;
+  mode: string;
+  screen: string;
+  endpoint: string;
+  contract_endpoint: string;
+  source_table: string;
+  source_endpoint: string;
+  deep_link_template: string;
+  langfuse_public_url_configured: boolean;
+  auth_proxy_required: boolean;
+  read_only: boolean;
+  live_langfuse_trace_claimed: boolean;
+  provider_trace_export: boolean;
+  evidence_ref: string;
+  event_evidence_ref: string;
+  required_trace_fields: string[];
+  policy_checks: string[];
   non_claims: string[];
 };
 
@@ -1787,6 +1810,7 @@ export default function Home() {
   const [costs, setCosts] = useState<CostState | null>(null);
   const [costExportContract, setCostExportContract] = useState<CostExportContract | null>(null);
   const [agentActivityContract, setAgentActivityContract] = useState<AgentActivityContract | null>(null);
+  const [langfuseTraceAccess, setLangfuseTraceAccess] = useState<LangfuseTraceAccessContract | null>(null);
   const [infraBudget, setInfraBudget] = useState<InfraBudgetState | null>(null);
   const [clouds, setClouds] = useState<CloudProviderState | null>(null);
   const [cloudLayers, setCloudLayers] = useState<CloudLayerReadinessState | null>(null);
@@ -1935,6 +1959,12 @@ export default function Home() {
     const response = await fetch("/api/v1/agent-activity/contract", { cache: "no-store" });
     if (!response.ok) throw new Error(`agent activity contract ${response.status}`);
     setAgentActivityContract(await response.json());
+  }
+
+  async function loadLangfuseTraceAccess() {
+    const response = await fetch("/api/v1/observability/langfuse/contract", { cache: "no-store" });
+    if (!response.ok) throw new Error(`langfuse trace access contract ${response.status}`);
+    setLangfuseTraceAccess(await response.json());
   }
 
   async function loadAgentActivityEvents() {
@@ -2527,6 +2557,7 @@ export default function Home() {
         loadCosts(),
         loadCostExportContract(),
         loadAgentActivityContract(),
+        loadLangfuseTraceAccess(),
         loadAgentActivityEvents(),
         loadInfraBudget(),
         loadCloudDeploymentPreflight(),
@@ -2725,6 +2756,7 @@ export default function Home() {
     const backgroundLoads: Array<() => Promise<unknown>> = [
       loadCostExportContract,
       loadAgentActivityContract,
+      loadLangfuseTraceAccess,
       loadAgentActivityEvents,
       loadInfraBudget,
       loadClouds,
@@ -2793,6 +2825,7 @@ export default function Home() {
       loadAuditEvents,
       loadMcpAuditEvents,
       loadLlmAuditFeed,
+      loadLangfuseTraceAccess,
       loadMemoryConsolidationEvents,
       loadEscalations,
       loadAgentActivityEvents,
@@ -4640,7 +4673,14 @@ export default function Home() {
             <h2>Agent Activity</h2>
             <button
               type="button"
-              onClick={() => void Promise.all([loadAgentActivityContract(), loadAgentActivityEvents(), loadAuditEvents()])}
+              onClick={() =>
+                void Promise.all([
+                  loadAgentActivityContract(),
+                  loadLangfuseTraceAccess(),
+                  loadAgentActivityEvents(),
+                  loadAuditEvents(),
+                ])
+              }
             >
               Refresh
             </button>
@@ -4668,6 +4708,19 @@ export default function Home() {
               <strong>Trace Deep-Link</strong>
               <p>{agentActivityLangfuse?.deep_link_template ?? "/observability/langfuse/trace/{trace_id}"}</p>
               <small>Evidence: agent_activity_trace_link_template / langfuse_auth_proxy_required</small>
+            </article>
+            <article className="policyItem langfuseTraceAccess">
+              <strong>Langfuse Trace Access</strong>
+              <p>{langfuseTraceAccess?.endpoint ?? "GET /api/v1/observability/langfuse/trace/{trace_id}"}</p>
+              <small>
+                {langfuseTraceAccess?.contract_version ?? "langfuse-trace-access-v1"} / Evidence:{" "}
+                {langfuseTraceAccess?.evidence_ref ?? "langfuse_trace_access_visible"} /{" "}
+                {langfuseTraceAccess?.event_evidence_ref ?? "langfuse_trace_event_visible"}
+              </small>
+              <small>
+                provider_trace_export={String(langfuseTraceAccess?.provider_trace_export ?? false)} /
+                auth_proxy_required={String(langfuseTraceAccess?.auth_proxy_required ?? true)}
+              </small>
             </article>
             <article className="policyItem">
               <strong>Source Endpoints</strong>
