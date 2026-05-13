@@ -1,8 +1,10 @@
 # Current Project Truth Review - 2026-05-13
 
-Generated from the verified release-boundary artifacts after PR #14 and `main-deploy` run `25783523312`.
+Generated from the verified release-boundary artifacts after PR #15 and `main-deploy` run `25784372088`.
 
 This is the current review anchor for external AI/operator review. Older `PROJECT_TRUTH_STATE_2026-05-10.md`, `PROJECT_TRUTH_CONSISTENCY_2026-05-10.md`, and checkpoint files remain historical snapshots and must not be treated as the current state.
+
+This review records the latest post-merge CI/runtime evidence head known at creation time. A later docs-only carrier merge can move repository HEAD without implying a new runtime rollout.
 
 ## Current Truth Snapshot
 
@@ -26,7 +28,7 @@ external_review_packet_valid=true
 ```text
 release_id=prod-candidate-2026-05-11-rc1
 candidate_source_sha=1d87de96d74ed75bbafff9840e963f2075253df9
-current_head_sha=66534610ab129ccaac03c07bc870a7cae8f58e82
+current_head_sha=850753c59077c2c7209f4a5651ea78b03bea555f
 head_matches_candidate=true
 head_exactly_matches_candidate_source=false
 candidate_source_is_ancestor_of_head=true
@@ -62,8 +64,8 @@ local_release_boundary_result=suite=release-boundary scripts=24 failed=0
 project_truth_state=status=ready-for-next-gate; truth_ready=True
 project_truth_consistency=status=consistent-ready-for-next-gate; consistent=True
 external_review_packet=status=review-packet-valid-ready; valid=True
-main_deploy_run=25783523312
-main_deploy_head=66534610ab129ccaac03c07bc870a7cae8f58e82
+main_deploy_run=25784372088
+main_deploy_head=850753c59077c2c7209f4a5651ea78b03bea555f
 main_deploy_result=success
 ```
 
@@ -99,7 +101,7 @@ scripts/verify.suites.json
 
 - No production deployment was triggered.
 - No production runtime rollout is claimed.
-- No new Hetzner runtime image rollout from `66534610ab129ccaac03c07bc870a7cae8f58e82` is claimed.
+- No new Hetzner runtime image rollout from `850753c59077c2c7209f4a5651ea78b03bea555f` is claimed.
 - The immutable staging image evidence remains tied to `b0c2773b1d122745947315a8d39734d5a6c96d6b`.
 - Secret values, token values, environment values, and raw credential material are not included in this report.
 
