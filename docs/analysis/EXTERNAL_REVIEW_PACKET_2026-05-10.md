@@ -36,13 +36,13 @@ scripts\verify.ps1 -Suite release-boundary -ReportOnly -MaxWaitSeconds 1
 ## Current Truth Snapshot
 
 ```text
-truth_ready=false
-status=blocked
-release_boundary_clear=false
+truth_ready=true
+status=ready-for-next-gate
+release_boundary_clear=true
 worktree_clean=true
 release_id=prod-candidate-2026-05-11-rc1
-candidate_source_sha=fc00a787b54399133a90158bb63f6228859b5c96
-head_matches_candidate=false
+candidate_source_sha=1d87de96d74ed75bbafff9840e963f2075253df9
+head_matches_candidate=true
 staged_and_modified=0
 ```
 
@@ -76,7 +76,7 @@ security_review_action_count=0
 security_review_baseline_hotspots=0
 security_review_baseline_hotspot_findings=0
 blocker_resolution_plan_valid=true
-blocker_resolution_mapped=1
+blocker_resolution_mapped=0
 blocker_resolution_unknowns=0
 vercel_remediation_plan_valid=true
 release_rebaseline_plan_valid=true
@@ -89,10 +89,10 @@ owner_decision_valid=true
 
 - Historical `prod-candidate-2026-05-05-rc1` remains preserved as `owner_decision=no-release`.
 - Active boundary candidate is `prod-candidate-2026-05-11-rc1`.
-- Candidate source commit is `fc00a787b54399133a90158bb63f6228859b5c96`.
+- Candidate source commit is `1d87de96d74ed75bbafff9840e963f2075253df9`.
 - Candidate immutable image commit is `b0c2773b1d122745947315a8d39734d5a6c96d6b`.
 - Later verifier/docs commits are treated as release-metadata-only wrappers when all changed paths are under release metadata or verifier files.
-- Current post-merge repository head differs from the candidate source commit, so the release-boundary truth state is blocked until the next explicit rebaseline/promotion decision.
+- Current repository head is allowed as a release-metadata-only descendant when the verifier reports `release_metadata_only_delta=true`; the release-boundary truth state is clear for the next gate.
 - Current cloud handoff is recorded in `docs\analysis\CURRENT_CLOUD_HANDOFF_2026-05-12.md`.
 - This packet does not claim a production rollout.
 - This packet records completed remote immutable Hetzner parity for staging after the image-filesystem staging deploy and `verify-phase5-staging-immutable-parity.ps1 -RequireVerified` pass.
