@@ -71,7 +71,11 @@ function Invoke-ReportOnlyVerifier([string]$ScriptName) {
   }
 
   $global:LASTEXITCODE = 0
-  & $scriptPath -ReportOnly | Out-Null
+  if ($ScriptName -eq "verify-active-release-candidate-bundle.ps1") {
+    & $scriptPath -ReportOnly -OutputPath ".phase1-artifacts\active-release-candidate-bundle-20260513.json" | Out-Null
+  } else {
+    & $scriptPath -ReportOnly | Out-Null
+  }
   if ($LASTEXITCODE -ne 0) {
     throw "$ScriptName exited with code $LASTEXITCODE"
   }
@@ -96,6 +100,7 @@ try {
     "scripts\verify-owner-decision-readiness-packet.ps1",
     "scripts\verify-vercel-project-git-readiness.ps1",
     "scripts\verify-vercel-git-link.ps1",
+    "scripts\verify-active-release-candidate-bundle.ps1",
     "scripts\verify-vercel-remediation-plan.ps1",
     "scripts\verify-release-rebaseline-plan.ps1",
     "scripts\verify-blocker-resolution-plan.ps1",
@@ -124,6 +129,7 @@ try {
     "verify-owner-decision-readiness-packet.ps1",
     "verify-vercel-project-git-readiness.ps1",
     "verify-vercel-git-link.ps1",
+    "verify-active-release-candidate-bundle.ps1",
     "verify-vercel-remediation-plan.ps1",
     "verify-release-rebaseline-plan.ps1",
     "verify-blocker-resolution-plan.ps1",
@@ -149,6 +155,7 @@ try {
   $ownerReadinessPacket = Read-JsonArtifact -Path ".phase1-artifacts\owner-decision-readiness-packet-20260511.json" -Label "owner-decision-readiness-packet"
   $vercelProjectGitReadiness = Read-JsonArtifact -Path ".phase1-artifacts\vercel-project-git-readiness-20260513.json" -Label "vercel-project-git-readiness"
   $vercelGitLink = Read-JsonArtifact -Path ".phase1-artifacts\vercel-git-link-20260513.json" -Label "vercel-git-link"
+  $activeReleaseCandidateBundle = Read-JsonArtifact -Path ".phase1-artifacts\active-release-candidate-bundle-20260513.json" -Label "active-release-candidate-bundle"
   $vercelRemediation = Read-JsonArtifact -Path ".phase1-artifacts\vercel-remediation-plan-20260511.json" -Label "vercel-remediation-plan"
   $releaseRebaseline = Read-JsonArtifact -Path ".phase1-artifacts\release-rebaseline-plan-20260511.json" -Label "release-rebaseline-plan"
   $resolutionPlan = Read-JsonArtifact -Path ".phase1-artifacts\blocker-resolution-plan-20260511.json" -Label "blocker-resolution-plan"
@@ -256,6 +263,25 @@ try {
   Assert-EqualValue $findings "vercel_git_link.link_repo" "-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM" $vercelGitLink.observed.linkRepo
   Assert-EqualValue $findings "vercel_git_link.production_branch" "chore/repo-bootstrap" $vercelGitLink.observed.linkProductionBranch
 
+  Assert-EqualValue $findings "active_rc_bundle.status" "passed" $activeReleaseCandidateBundle.status
+  Assert-EqualValue $findings "active_rc_bundle.passed" $true $activeReleaseCandidateBundle.passed
+  Assert-EqualValue $findings "active_rc_bundle.release_id" "prod-candidate-2026-05-11-rc1" $activeReleaseCandidateBundle.active_release_id
+  Assert-EqualValue $findings "active_rc_bundle.gate_count" 3 $activeReleaseCandidateBundle.gate_count
+  Assert-EqualValue $findings "active_rc_bundle.production_rollout_claimed" $false $activeReleaseCandidateBundle.production_rollout_claimed
+  Assert-EqualValue $findings "active_rc_bundle.mutates_production" $false $activeReleaseCandidateBundle.policy.mutates_production
+  Assert-EqualValue $findings "active_rc_bundle.deploys_production" $false $activeReleaseCandidateBundle.policy.deploys_production
+  Assert-EqualValue $findings "active_rc_bundle.claims_rollout" $false $activeReleaseCandidateBundle.policy.claims_rollout
+  Assert-EqualValue $findings "active_rc_bundle.includes_secrets" $false $activeReleaseCandidateBundle.policy.includes_secrets
+  $activeRcExpectedGates = @("current-release-candidate", "vercel-project-git-readiness", "vercel-git-link")
+  foreach ($actualGateId in @($activeReleaseCandidateBundle.gates.id)) {
+    if ($activeRcExpectedGates -notcontains $actualGateId) {
+      Add-Finding -Findings $findings -Id "active_rc_bundle.gate.extra:$actualGateId" -Expected ($activeRcExpectedGates -join ",") -Actual $actualGateId
+    }
+  }
+  Assert-ContainsValue $findings "active_rc_bundle.gate.current" @($activeReleaseCandidateBundle.gates.id) "current-release-candidate"
+  Assert-ContainsValue $findings "active_rc_bundle.gate.vercel_project" @($activeReleaseCandidateBundle.gates.id) "vercel-project-git-readiness"
+  Assert-ContainsValue $findings "active_rc_bundle.gate.vercel_git" @($activeReleaseCandidateBundle.gates.id) "vercel-git-link"
+
   Assert-EqualValue $findings "vercel_remediation.status" "vercel-remediation-ready" $vercelRemediation.status
   Assert-EqualValue $findings "vercel_remediation.valid" $true $vercelRemediation.valid
   Assert-EqualValue $findings "vercel_remediation.ready" $true $vercelRemediation.ready
@@ -336,6 +362,7 @@ try {
       ".phase1-artifacts\owner-decision-readiness-packet-20260511.json",
       ".phase1-artifacts\vercel-project-git-readiness-20260513.json",
       ".phase1-artifacts\vercel-git-link-20260513.json",
+      ".phase1-artifacts\active-release-candidate-bundle-20260513.json",
       ".phase1-artifacts\vercel-remediation-plan-20260511.json",
       ".phase1-artifacts\release-rebaseline-plan-20260511.json",
       ".phase1-artifacts\blocker-resolution-plan-20260511.json",
