@@ -8,7 +8,7 @@ source_commit_sha: `1d87de96d74ed75bbafff9840e963f2075253df9`
 source_commit_semantics: `current validated CI/runtime head including production tag gate ordering, Node24 workflow migration, and current cloud handoff metadata; later release-metadata-only verifier/docs commits may wrap this source without changing runtime scope`
 immutable_image_commit_sha: `b0c2773b1d122745947315a8d39734d5a6c96d6b`
 workflow_run_url: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25735275873`
-pipeline_status: `main-deploy success for immutable_image_commit_sha b0c2773b1d122745947315a8d39734d5a6c96d6b; final validated CI/runtime head 1d87de96d74ed75bbafff9840e963f2075253df9 passed main-deploy run 25765691998`
+pipeline_status: `main-deploy success for immutable_image_commit_sha b0c2773b1d122745947315a8d39734d5a6c96d6b; release-boundary source head 1d87de96d74ed75bbafff9840e963f2075253df9 passed main-deploy run 25765691998; latest metadata/verifier wrapper head 66c9a7fc1f5f51e60dc73ad4def0e4d35ba7a403 passed main-deploy run 25782828285`
 smoke_result: `passed`
 observability_check: `present`
 rollback_note: `no production rollout performed; rollback remains the existing hosted staging rollback path`
@@ -27,7 +27,8 @@ immutable_staging_parity_status: `verified`
 - Hosted staging safe profile: `scripts\verify.ps1 -Suite hosted-staging -BaseUrl https://188-34-191-140.sslip.io -SafeProfile`
 - Release boundary suite: `scripts\verify.ps1 -Suite release-boundary -ReportOnly`
 - Main deploy workflow for immutable staging image commit: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25735275873`
-- Main deploy workflow for validated CI/runtime head: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25765691998`
+- Main deploy workflow for release-boundary source head: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25765691998`
+- Main deploy workflow for metadata/verifier wrapper head: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25782828285`
 - Hosted staging proof workflow: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25738288780`
 - Production tag gate ordering: `production-gate` depends on `verify`, uses environment `production`, and `build-and-push` waits for `production-gate` before publishing production tags.
 - Immutable staging plan: `scripts\deploy-to-staging.ps1 -PlanOnly -UseImageFilesystem -ImageTag b0c2773b1d122745947315a8d39734d5a6c96d6b`

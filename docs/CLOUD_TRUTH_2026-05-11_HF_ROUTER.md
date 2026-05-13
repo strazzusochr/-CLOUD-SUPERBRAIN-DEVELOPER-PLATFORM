@@ -30,14 +30,17 @@
 
 ## Latest Post-Merge Handoff
 
-- Current handoff: `docs/analysis/CURRENT_CLOUD_HANDOFF_2026-05-12.md`
-- Last validated CI/runtime head: `0b54ede8f234e48f097e9d498951f50a48729d02`
-- Main deploy run: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25753246471`
+- Current handoff: `docs/analysis/CURRENT_CLOUD_HANDOFF_2026-05-13.md`
+- Latest validated repository head: `66c9a7fc1f5f51e60dc73ad4def0e4d35ba7a403`
+- Release-boundary source head: `1d87de96d74ed75bbafff9840e963f2075253df9`
+- Main deploy run: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25782828285`
 - Main deploy result: `success`
-- Post-merge release-candidate suite: `scripts=51 failed=0`
+- Post-merge release-boundary suite: `scripts=24 failed=0`
 - PR #7 production tag gate ordering: merged and verified.
 - PR #8 current cloud handoff: merged and verified.
 - PR #9/#10 GitHub Actions Node24 migration: merged and verified.
+- PR #11/#12 current cloud handoff refresh/stabilization: merged and verified.
+- PR #13 release-boundary truth rebaseline and verifier ordering: merged and verified.
 - Production rollout remains unclaimed.
 
 ## Fail-Closed Policy
