@@ -260,6 +260,33 @@ button:disabled {
   font-size: 12px;
 }
 
+.liveAgentHistory {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  border: 1px solid #334155;
+  background: #08111f;
+  padding: 12px;
+}
+
+.historyHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.liveAgentHistory small,
+.liveAgentHistory p,
+.historyHeader strong {
+  overflow-wrap: anywhere;
+}
+
+.liveAgentHistory small {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
 .split {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(340px, 0.8fr);

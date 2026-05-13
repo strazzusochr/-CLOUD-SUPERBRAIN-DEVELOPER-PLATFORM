@@ -253,6 +253,7 @@ type LiveAgentContract = {
   status_endpoint: string;
   steer_endpoint: string;
   reset_endpoint: string;
+  history_endpoint?: string;
   compatibility_endpoint: string;
   llm_gateway_endpoint: string;
   default_model: string;
@@ -274,6 +275,37 @@ type LiveAgentStatus = {
   agent_count: number;
   agents: LiveAgentProfile[];
   evidence_ref: string;
+};
+
+type LiveAgentHistoryEvent = {
+  id: string;
+  event_type: string;
+  agent_id: string;
+  execution_role: string;
+  project_id?: string | null;
+  response_id?: string | null;
+  previous_response_id?: string | null;
+  status?: string | null;
+  model?: string | null;
+  trace_id?: string | null;
+  request_id?: string | null;
+  response_preview?: string | null;
+  runtime_source?: string;
+  live_provider_calls?: boolean;
+  audit_persisted?: boolean;
+  evidence_ref?: string;
+  created_at?: string | null;
+};
+
+type LiveAgentHistory = {
+  contract_version: string;
+  status: string;
+  mode: string;
+  history_endpoint: string;
+  history_count: number;
+  events: LiveAgentHistoryEvent[];
+  evidence_ref: string;
+  non_claims: string[];
 };
 
 type LiveAgentSteerResponse = {
@@ -1691,6 +1723,8 @@ export default function Home() {
   const [liveAgentMessage, setLiveAgentMessage] = useState("");
   const [liveAgentSendStatus, setLiveAgentSendStatus] = useState("idle");
   const [liveAgentResponse, setLiveAgentResponse] = useState<LiveAgentSteerResponse | null>(null);
+  const [liveAgentHistory, setLiveAgentHistory] = useState<LiveAgentHistory | null>(null);
+  const [liveAgentHistoryStatus, setLiveAgentHistoryStatus] = useState("loading");
   const [lastRun, setLastRun] = useState<PromptResponse | null>(null);
   const [memoryResults, setMemoryResults] = useState<MemoryResult[]>([]);
   const [memoryDeleteStatus, setMemoryDeleteStatus] = useState("No memory entry delete requested.");
@@ -1748,10 +1782,12 @@ export default function Home() {
     : liveAgentContract?.agents ?? [];
   const selectedLiveAgent =
     liveAgentProfiles.find((agent) => agent.agent_id === liveAgentId) ?? liveAgentProfiles[0] ?? null;
-  const liveAgentEvidenceRefs = liveAgentContract?.evidence_refs ?? {
+  const liveAgentEvidenceRefs = {
     contract_visible: "live_agent_steering_contract_visible",
     ui_visible: "live_agent_steering_ui_visible",
     security_guard: "live_agent_metadata_guard_enforced",
+    history_visible: "live_agent_steering_history_visible",
+    ...(liveAgentContract?.evidence_refs ?? {}),
   };
 
   async function loadBudget() {
@@ -2050,6 +2086,18 @@ export default function Home() {
     }
   }
 
+  async function loadLiveAgentHistory(nextAgentId = liveAgentId, nextProjectId = projectId) {
+    setLiveAgentHistoryStatus("loading");
+    const params = new URLSearchParams({ limit: "8" });
+    if (nextAgentId.trim()) params.set("agent_id", nextAgentId.trim());
+    if (nextProjectId.trim()) params.set("project_id", nextProjectId.trim());
+    const response = await fetch(`/api/v1/live-agents/history?${params.toString()}`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`live agent history ${response.status}`);
+    const payload = (await response.json()) as LiveAgentHistory;
+    setLiveAgentHistory(payload);
+    setLiveAgentHistoryStatus(`loaded ${payload.history_count}`);
+  }
+
   async function steerLiveAgent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const message = liveAgentMessage.trim();
@@ -2081,7 +2129,7 @@ export default function Home() {
       setLiveAgentResponse(payload);
       setLiveAgentMessage("");
       setLiveAgentSendStatus("sent");
-      await loadLiveAgents();
+      await Promise.all([loadLiveAgents(), loadLiveAgentHistory(payload.agent_id, payload.project_id)]);
     } catch (caught) {
       setLiveAgentSendStatus("error");
       setError(caught instanceof Error ? caught.message : "live agent steer failed");
@@ -2101,7 +2149,7 @@ export default function Home() {
       }
       setLiveAgentResponse(null);
       setLiveAgentSendStatus("reset");
-      await loadLiveAgents();
+      await Promise.all([loadLiveAgents(), loadLiveAgentHistory(liveAgentId, projectId)]);
     } catch (caught) {
       setLiveAgentSendStatus("error");
       setError(caught instanceof Error ? caught.message : "live agent reset failed");
@@ -2365,6 +2413,7 @@ export default function Home() {
         loadAutonomousAgentRoster(),
         loadAutonomousAgentRosterContract(),
         loadRecentTasks(),
+        loadLiveAgentHistory(liveAgentId, projectId),
         loadTaskPolicy(),
         loadRotationEvents(),
         loadModelCapabilities(),
@@ -3484,7 +3533,10 @@ export default function Home() {
         >
           <header className="panelHeader">
             <h2>Live Agent Control</h2>
-            <button type="button" onClick={() => void loadLiveAgents()}>
+            <button
+              type="button"
+              onClick={() => void Promise.all([loadLiveAgents(), loadLiveAgentHistory(liveAgentId, projectId)])}
+            >
               Refresh
             </button>
           </header>
@@ -3502,6 +3554,10 @@ export default function Home() {
               <p>{liveAgentContract?.steer_endpoint ?? "POST /api/v1/live-agents/steer"}</p>
             </article>
             <article className="policyItem">
+              <strong>History</strong>
+              <p>{liveAgentContract?.history_endpoint ?? "GET /api/v1/live-agents/history"}</p>
+            </article>
+            <article className="policyItem">
               <strong>Provider Calls</strong>
               <p>{liveAgentContract?.metadata_policy?.live_provider_calls_allowed ? "enabled" : "disabled"}</p>
             </article>
@@ -3509,7 +3565,14 @@ export default function Home() {
           <form className="liveAgentForm" onSubmit={steerLiveAgent}>
             <label>
               <span>Agent</span>
-              <select value={liveAgentId} onChange={(event) => setLiveAgentId(event.target.value)}>
+              <select
+                value={liveAgentId}
+                onChange={(event) => {
+                  const nextAgentId = event.target.value;
+                  setLiveAgentId(nextAgentId);
+                  void loadLiveAgentHistory(nextAgentId, projectId);
+                }}
+              >
                 {liveAgentProfiles.length ? (
                   liveAgentProfiles.map((agent) => (
                     <option key={agent.agent_id} value={agent.agent_id}>
@@ -3553,9 +3616,46 @@ export default function Home() {
               {liveAgentResponse?.audit_evidence_ref ?? "live_agent_steering_audit_persisted"}
             </small>
           </div>
+          <div
+            className="liveAgentHistory"
+            aria-label="Live agent message history"
+            data-evidence="live_agent_steering_history_visible"
+          >
+            <div className="historyHeader">
+              <strong>Message History</strong>
+              <button type="button" onClick={() => void loadLiveAgentHistory(liveAgentId, projectId)}>
+                Refresh
+              </button>
+            </div>
+            <small>
+              {liveAgentHistory?.history_endpoint ?? "GET /api/v1/live-agents/history"} /{" "}
+              {liveAgentHistory?.evidence_ref ?? "live_agent_steering_history_visible"} / {liveAgentHistoryStatus}
+            </small>
+            <div className="compactList">
+              {liveAgentHistory?.events?.length ? (
+                liveAgentHistory.events.map((event) => (
+                  <article className="modelItem" key={event.id}>
+                    <strong>
+                      {event.agent_id} / {event.status ?? "unknown"}
+                    </strong>
+                    <small>
+                      {event.created_at ?? "unknown time"} / {event.model ?? "unknown model"} /{" "}
+                      {event.live_provider_calls ? "provider-call" : "live_provider_calls=false"}
+                    </small>
+                    <p>{event.response_preview || "No response preview stored."}</p>
+                    <small>Response: {event.response_id ?? "none"}</small>
+                    <small>Trace: {event.trace_id ?? "none"}</small>
+                    <small>{event.evidence_ref ?? "live_agent_steering_audit_persisted"}</small>
+                  </article>
+                ))
+              ) : (
+                <p className="muted">No persisted live-agent history for this agent yet.</p>
+              )}
+            </div>
+          </div>
           <p className="muted evidenceLine">
             Evidence: {liveAgentEvidenceRefs.contract_visible} / {liveAgentEvidenceRefs.ui_visible} /{" "}
-            {liveAgentEvidenceRefs.security_guard}
+            {liveAgentEvidenceRefs.security_guard} / {liveAgentEvidenceRefs.history_visible}
           </p>
         </section>
 

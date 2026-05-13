@@ -1234,6 +1234,7 @@ def live_agent_contract_payload() -> dict[str, object]:
         "status_endpoint": "GET /api/v1/live-agents/status",
         "steer_endpoint": "POST /api/v1/live-agents/steer",
         "reset_endpoint": "POST /api/v1/live-agents/{agent_id}/reset",
+        "history_endpoint": "GET /api/v1/live-agents/history",
         "compatibility_endpoint": "POST /api/steer-agent",
         "llm_gateway_endpoint": "POST /llm/v1/responses",
         "session_store": {
@@ -1265,6 +1266,21 @@ def live_agent_contract_payload() -> dict[str, object]:
             "runtime_source",
             "audit_persisted",
             "audit_evidence_ref",
+            "trace_id",
+            "request_id",
+        ],
+        "history_fields": [
+            "agent_id",
+            "execution_role",
+            "project_id",
+            "response_id",
+            "previous_response_id",
+            "status",
+            "model",
+            "trace_id",
+            "request_id",
+            "response_preview",
+            "created_at",
         ],
         "agents": [
             {
@@ -1289,11 +1305,13 @@ def live_agent_contract_payload() -> dict[str, object]:
             "ui_visible": "live_agent_steering_ui_visible",
             "security_guard": "live_agent_metadata_guard_enforced",
             "audit_persisted": "live_agent_steering_audit_persisted",
+            "history_visible": "live_agent_steering_history_visible",
         },
         "non_claims": [
             "No API key is stored by this contract surface.",
             "Responses streaming passthrough is not exposed on this path.",
             "End-user metadata cannot enable live provider calls or override system trace/agent fields.",
+            "Live agent history is a read-only audit-log projection and does not execute a model request.",
         ],
     }
 
@@ -1320,7 +1338,78 @@ def live_agent_status_payload() -> dict[str, object]:
         "default_model": live_agent_default_model(),
         "agent_count": len(agents),
         "agents": agents,
+        "history_endpoint": "GET /api/v1/live-agents/history",
         "evidence_ref": LIVE_AGENT_STEERING_EVIDENCE_REF,
+    }
+
+
+def live_agent_history_row_to_event(row: tuple[object, ...]) -> dict[str, object]:
+    details = row[4] or {}
+    if not isinstance(details, dict):
+        details = {}
+    return {
+        "id": str(row[0]),
+        "event_type": row[1],
+        "agent_id": str(details.get("agent") or details.get("agent_id") or "unknown"),
+        "execution_role": str(details.get("agent_type") or details.get("agent_role") or row[2] or "unknown"),
+        "project_id": details.get("project_id"),
+        "response_id": details.get("response_id"),
+        "previous_response_id": details.get("previous_response_id"),
+        "status": details.get("status"),
+        "model": details.get("model"),
+        "trace_id": str(details.get("trace_id") or "none"),
+        "request_id": str(details.get("request_id") or "none"),
+        "response_preview": str(details.get("response_preview") or ""),
+        "runtime_source": details.get("runtime_source") or "openai_responses_via_llm_gateway",
+        "live_provider_calls": bool(details.get("live_provider_calls", False)),
+        "audit_persisted": True,
+        "evidence_ref": details.get("evidence_ref") or "live_agent_steering_audit_persisted",
+        "created_at": row[5].isoformat() if row[5] else None,
+        "severity": row[6],
+    }
+
+
+def live_agent_history_payload(
+    agent_id: str | None = None,
+    project_id: str | None = None,
+    limit: int = 10,
+) -> dict[str, object]:
+    conditions = ["event_type = 'live_agent_steered'"]
+    params: list[object] = []
+    if agent_id:
+        profile = resolve_live_agent_profile(agent_id)
+        resolved_agent_id = str(profile["agent_id"])
+        conditions.append("details->>'agent' = %s")
+        params.append(resolved_agent_id)
+    if project_id:
+        conditions.append("details->>'project_id' = %s")
+        params.append(project_id)
+    params.append(limit)
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        rows = conn.execute(
+            f"""
+            SELECT id, event_type, user_id, session_id, details, created_at, severity
+            FROM audit_log
+            WHERE {' AND '.join(conditions)}
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            tuple(params),
+        ).fetchall()
+    events = [live_agent_history_row_to_event(row) for row in rows]
+    return {
+        "contract_version": LIVE_AGENT_STEERING_CONTRACT_VERSION,
+        "status": "available",
+        "mode": "audit_log_backed_live_agent_history",
+        "history_endpoint": "GET /api/v1/live-agents/history",
+        "applied_filters": {"agent_id": agent_id, "project_id": project_id, "limit": limit},
+        "history_count": len(events),
+        "events": events,
+        "evidence_ref": "live_agent_steering_history_visible",
+        "non_claims": [
+            "History reads existing live_agent_steered audit rows only.",
+            "History retrieval does not call the LLM Gateway or any model provider.",
+        ],
     }
 
 
@@ -7788,6 +7877,15 @@ def live_agent_contract() -> dict[str, object]:
 @app.get("/api/agents")
 def live_agent_status() -> dict[str, object]:
     return live_agent_status_payload()
+
+
+@app.get("/api/v1/live-agents/history")
+def live_agent_history(
+    agent_id: str | None = Query(default=None, min_length=1, max_length=50),
+    project_id: str | None = Query(default=None, min_length=1, max_length=255),
+    limit: int = Query(default=10, ge=1, le=50),
+) -> dict[str, object]:
+    return live_agent_history_payload(agent_id=agent_id, project_id=project_id, limit=limit)
 
 
 @app.post("/api/v1/live-agents/steer")

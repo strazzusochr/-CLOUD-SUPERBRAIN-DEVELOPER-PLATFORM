@@ -92,22 +92,27 @@ Assert-True "homepage shows live agent control" ($homepage.Contains("Live Agent 
 Assert-True "homepage exposes live agent UI evidence" ($homepage.Contains("live_agent_steering_ui_visible"))
 Assert-True "homepage exposes metadata guard evidence" ($homepage.Contains("live_agent_metadata_guard_enforced"))
 Assert-True "homepage exposes steering endpoint" ($homepage.Contains("POST /api/v1/live-agents/steer"))
+Assert-True "homepage exposes history evidence" ($homepage.Contains("live_agent_steering_history_visible"))
+Assert-True "homepage exposes history endpoint" ($homepage.Contains("GET /api/v1/live-agents/history"))
 
 $contract = Invoke-JsonApi "$BaseUrl/api/v1/live-agents/contract"
 Assert-True "contract version" ($contract.contract_version -eq "live-agent-steering-v1")
 Assert-True "status endpoint" ($contract.status_endpoint -eq "GET /api/v1/live-agents/status")
 Assert-True "steer endpoint" ($contract.steer_endpoint -eq "POST /api/v1/live-agents/steer")
+Assert-True "history endpoint" ($contract.history_endpoint -eq "GET /api/v1/live-agents/history")
 Assert-True "compatibility endpoint" ($contract.compatibility_endpoint -eq "POST /api/steer-agent")
 Assert-True "metadata policy blocks live providers" ($contract.metadata_policy.live_provider_calls_allowed -eq $false)
 Assert-True "metadata policy system wins" ($contract.metadata_policy.system_metadata_wins -eq $true)
 Assert-True "metadata guard evidence" ($contract.evidence_refs.security_guard -eq "live_agent_metadata_guard_enforced")
 Assert-True "ui evidence" ($contract.evidence_refs.ui_visible -eq "live_agent_steering_ui_visible")
 Assert-True "audit evidence" ($contract.evidence_refs.audit_persisted -eq "live_agent_steering_audit_persisted")
+Assert-True "history evidence" ($contract.evidence_refs.history_visible -eq "live_agent_steering_history_visible")
 
 $status = Invoke-JsonApi "$BaseUrl/api/v1/live-agents/status"
 Assert-True "status available" ($status.status -eq "available")
 Assert-True "status version" ($status.contract_version -eq "live-agent-steering-v1")
 Assert-True "status agent count" ([int]$status.agent_count -ge 5)
+Assert-True "status history endpoint" ($status.history_endpoint -eq "GET /api/v1/live-agents/history")
 Assert-True "status evidence" ($status.evidence_ref -eq "live_agent_steering_contract_visible")
 
 $projectId = "phase3-live-agent-" + [Guid]::NewGuid().ToString("N")
@@ -141,6 +146,18 @@ Assert-True "steer text dry-run proof" ([string]$steer.text -match "live_provide
 Assert-True "steer audit persisted" ($steer.audit_persisted -eq $true)
 Assert-True "steer audit evidence" ($steer.audit_evidence_ref -eq "live_agent_steering_audit_persisted")
 
+$coderBody = @{
+  agentId = "coder"
+  projectId = $projectId
+  message = "Return one concise sibling audit proof with live_provider_calls=false."
+  resetHistory = $true
+  metadata = @{
+    source = "phase3-live-agent-verifier"
+  }
+} | ConvertTo-Json -Compress -Depth 6
+$coderSteer = Invoke-JsonApi "$BaseUrl/api/v1/live-agents/steer" "POST" $coderBody
+Assert-True "coder steer response id" (-not [string]::IsNullOrWhiteSpace([string]$coderSteer.response_id))
+
 $activity = Invoke-JsonApi "$BaseUrl/api/v1/agent-activity/recent?event_type=live_agent_steered&agent_type=planner&trace_id=$($steer.trace_id)&limit=10"
 $activityEvent = @($activity.events | Where-Object { $_.details.response_id -eq $steer.response_id } | Select-Object -First 1)
 Assert-True "activity event visible" ($null -ne $activityEvent)
@@ -148,8 +165,23 @@ Assert-True "activity event agent" ($activityEvent.details.agent -eq "supervisor
 Assert-True "activity event evidence" ($activityEvent.details.evidence_ref -eq "live_agent_steering_audit_persisted")
 Assert-True "activity event provider nonclaim" ($activityEvent.details.live_provider_calls -eq $false)
 
+$history = Invoke-JsonApi "$BaseUrl/api/v1/live-agents/history?agent_id=supervisor&project_id=$projectId&limit=10"
+$historyEvent = @($history.events | Where-Object { $_.response_id -eq $steer.response_id } | Select-Object -First 1)
+Assert-True "history available" ($history.status -eq "available")
+Assert-True "history evidence" ($history.evidence_ref -eq "live_agent_steering_history_visible")
+Assert-True "history event visible" ($null -ne $historyEvent)
+foreach ($event in @($history.events)) {
+  Assert-True "history filter scoped to supervisor" ($event.agent_id -eq "supervisor")
+  Assert-True "history filter scoped to project" ($event.project_id -eq $projectId)
+}
+Assert-True "history excludes same-project coder event" (-not (@($history.events).response_id -contains $coderSteer.response_id))
+Assert-True "history event provider nonclaim" ($historyEvent.live_provider_calls -eq $false)
+Assert-True "history event trace" ($historyEvent.trace_id -eq $steer.trace_id)
+
 $reset = Invoke-JsonApi "$BaseUrl/api/v1/live-agents/supervisor/reset" "POST"
 Assert-True "reset status" ($reset.status -eq "reset")
 Assert-True "reset version" ($reset.contract_version -eq "live-agent-steering-v1")
+$coderReset = Invoke-JsonApi "$BaseUrl/api/v1/live-agents/coder/reset" "POST"
+Assert-True "coder reset status" ($coderReset.status -eq "reset")
 
 Write-Host "[phase3-live-agent] ok"
