@@ -32,9 +32,9 @@
 
 - Current handoff: `docs/analysis/CURRENT_CLOUD_HANDOFF_2026-05-13.md`
 - Current project truth review: `docs/analysis/CURRENT_PROJECT_TRUTH_REVIEW_2026-05-13.md`
-- Latest validated repository head: `66534610ab129ccaac03c07bc870a7cae8f58e82`
+- Latest validated repository head: `850753c59077c2c7209f4a5651ea78b03bea555f`
 - Release-boundary source head: `1d87de96d74ed75bbafff9840e963f2075253df9`
-- Main deploy run: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25783523312`
+- Main deploy run: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25784372088`
 - Main deploy result: `success`
 - Post-merge release-boundary suite: `scripts=24 failed=0`
 - Current project truth: `truth_ready=true`, `status=ready-for-next-gate`, `release_boundary_clear=true`
@@ -44,6 +44,8 @@
 - PR #11/#12 current cloud handoff refresh/stabilization: merged and verified.
 - PR #13 release-boundary truth rebaseline and verifier ordering: merged and verified.
 - PR #14 current cloud handoff refresh: merged and verified.
+- PR #15 current project truth review: merged and verified.
+- Later docs-only carrier commits may move HEAD without implying a new runtime rollout.
 - Production rollout remains unclaimed.
 
 ## Fail-Closed Policy
