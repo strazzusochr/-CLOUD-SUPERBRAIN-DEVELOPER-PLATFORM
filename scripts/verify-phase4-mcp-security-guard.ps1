@@ -159,7 +159,10 @@ Assert-True "unsupported e2b blocked error" ($unsupportedE2b.error_class -eq "un
 Assert-True "unsupported e2b blocked evidence" ($unsupportedE2b.evidence_ref -eq "mcp_unsupported_capability_guard")
 Assert-True "unsupported e2b audit" ($unsupportedE2b.audit_persisted -eq $true)
 
-$secretBodyText = "Contains ghp_abcdefghijklmnopqrstuvwxyz123456 and token=supersecretvalue12345 and sk-testsecretvalue12345"
+$fakeGithubToken = "ghp_" + ("a" * 32)
+$fakeTokenValue = "super" + "secret" + "value" + "12345"
+$fakeOpenAiToken = "sk-" + "test" + "secret" + "value" + "12345"
+$secretBodyText = "Contains $fakeGithubToken and token=$fakeTokenValue and $fakeOpenAiToken"
 $githubInput = @{
   branch = "feature/agent-redaction-proof"
   title = "Redaction proof"
@@ -188,9 +191,9 @@ Assert-True "github plan success" ($github.status -eq "success")
 Assert-True "github redaction applied" ($github.github_plan.redaction.applied -eq $true)
 Assert-True "github redaction evidence" ($github.github_plan.redaction.evidence_ref -eq "mcp_secret_redaction_guard")
 $body = [string]$github.github_plan.pull_request_payload.body
-Assert-True "github body no ghp token" (-not $body.Contains("ghp_abcdefghijklmnopqrstuvwxyz123456"))
-Assert-True "github body no token value" (-not $body.Contains("supersecretvalue12345"))
-Assert-True "github body no sk token" (-not $body.Contains("sk-testsecretvalue12345"))
+Assert-True "github body no ghp token" (-not $body.Contains($fakeGithubToken))
+Assert-True "github body no token value" (-not $body.Contains($fakeTokenValue))
+Assert-True "github body no sk token" (-not $body.Contains($fakeOpenAiToken))
 Assert-True "github body contains redaction marker" ($body.Contains("[REDACTED_") -or $body.Contains("[REDACTED_SECRET]"))
 
 Write-Host "[phase4-mcp-security-guard] ok"
