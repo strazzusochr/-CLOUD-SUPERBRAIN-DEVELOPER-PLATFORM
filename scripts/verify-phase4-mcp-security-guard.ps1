@@ -1,0 +1,106 @@
+param(
+  [string]$BaseUrl = "http://localhost:8081",
+  [switch]$AllowLocalhost
+)
+
+$ErrorActionPreference = "Stop"
+
+function Assert-True($label, $condition) {
+  if (-not $condition) {
+    throw "MCP security guard verification failed: $label"
+  }
+}
+
+function Invoke-JsonApi($url, $method = "GET", $body = $null) {
+  $params = @{
+    Uri = $url
+    Method = $method
+    TimeoutSec = 60
+  }
+  if ($null -ne $body) {
+    $params.Body = $body
+    $params.ContentType = "application/json"
+  }
+  $response = Invoke-WebRequest @params
+  if ([int]$response.StatusCode -ge 400) {
+    throw "$method $url returned HTTP $($response.StatusCode): $($response.Content)"
+  }
+  return ($response.Content | ConvertFrom-Json)
+}
+
+if (-not $BaseUrl) {
+  throw "BaseUrl is required"
+}
+
+$BaseUrl = $BaseUrl.TrimEnd("/")
+if ((-not $AllowLocalhost) -and ($BaseUrl -match "localhost|127\.0\.0\.1|\[::1\]")) {
+  throw "MCP security guard proof refuses localhost unless -AllowLocalhost is set"
+}
+
+Write-Host "[phase4-mcp-security-guard] base url: $BaseUrl"
+
+$versionContract = Invoke-JsonApi "$BaseUrl/mcp/api/v1/version-pinning/contract"
+Assert-True "unsupported puppeteer listed" (@($versionContract.request_contract.unsupported_toolsets_blocked) -contains "puppeteer")
+Assert-True "unsupported toolset evidence listed" (@($versionContract.evidence_refs) -contains "mcp_unsupported_toolset_guard")
+Assert-True "redaction evidence listed" (@($versionContract.evidence_refs) -contains "mcp_secret_redaction_guard")
+
+$githubContract = Invoke-JsonApi "$BaseUrl/mcp/api/v1/github/branch-pr/contract"
+Assert-True "github redaction evidence" ($githubContract.evidence_refs.redaction -eq "mcp_secret_redaction_guard")
+
+$puppeteerBody = @{
+  tool_request_id = "phase4-puppeteer-block"
+  run_id = "phase4-proof"
+  agent_role = "tester"
+  toolset = "puppeteer"
+  capability = "launch_browser"
+  intent_summary = "prove unsupported puppeteer is blocked"
+  input_ref = "{}"
+  allowed_scope = "browser-proof-localhost"
+  timeout_ms = 1000
+  retry_budget = 0
+  idempotency_key = "phase4-puppeteer-block"
+  audit_tags = @("phase4", "mcp", "puppeteer-block")
+  redaction_required = $true
+  expected_output_type = "tool_result"
+} | ConvertTo-Json -Compress
+
+$puppeteer = Invoke-JsonApi "$BaseUrl/mcp/api/v1/tools/execute" "POST" $puppeteerBody
+Assert-True "puppeteer blocked status" ($puppeteer.status -eq "blocked")
+Assert-True "puppeteer blocked error" ($puppeteer.error_class -eq "unsupported_toolset")
+Assert-True "puppeteer blocked evidence" ($puppeteer.evidence_ref -eq "mcp_unsupported_toolset_guard")
+
+$secretBodyText = "Contains ghp_abcdefghijklmnopqrstuvwxyz123456 and token=supersecretvalue12345 and sk-testsecretvalue12345"
+$githubInput = @{
+  branch = "feature/agent-redaction-proof"
+  title = "Redaction proof"
+  base = "main"
+  body = $secretBodyText
+} | ConvertTo-Json -Compress
+$githubBody = @{
+  tool_request_id = "phase4-github-redaction"
+  run_id = "phase4-proof"
+  agent_role = "devops"
+  toolset = "github"
+  capability = "plan_branch_pr"
+  intent_summary = "prove branch pr body redaction"
+  input_ref = $githubInput
+  allowed_scope = "feature/agent-redaction-proof"
+  timeout_ms = 1000
+  retry_budget = 0
+  idempotency_key = "phase4-github-redaction"
+  audit_tags = @("phase4", "mcp", "redaction")
+  redaction_required = $true
+  expected_output_type = "github_plan"
+} | ConvertTo-Json -Compress
+
+$github = Invoke-JsonApi "$BaseUrl/mcp/api/v1/tools/execute" "POST" $githubBody
+Assert-True "github plan success" ($github.status -eq "success")
+Assert-True "github redaction applied" ($github.github_plan.redaction.applied -eq $true)
+Assert-True "github redaction evidence" ($github.github_plan.redaction.evidence_ref -eq "mcp_secret_redaction_guard")
+$body = [string]$github.github_plan.pull_request_payload.body
+Assert-True "github body no ghp token" (-not $body.Contains("ghp_abcdefghijklmnopqrstuvwxyz123456"))
+Assert-True "github body no token value" (-not $body.Contains("supersecretvalue12345"))
+Assert-True "github body no sk token" (-not $body.Contains("sk-testsecretvalue12345"))
+Assert-True "github body contains redaction marker" ($body.Contains("[REDACTED_") -or $body.Contains("[REDACTED_SECRET]"))
+
+Write-Host "[phase4-mcp-security-guard] ok"

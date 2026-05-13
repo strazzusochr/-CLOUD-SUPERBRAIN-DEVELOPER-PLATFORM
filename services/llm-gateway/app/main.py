@@ -24,6 +24,10 @@ LLM_LIVE_PROVIDER_DEFAULT = os.getenv("LLM_LIVE_PROVIDER_DEFAULT", "false").stri
     "true",
     "yes",
 }
+LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE = os.getenv(
+    "LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE",
+    "false",
+).strip().lower() in {"1", "true", "yes"}
 ROTATION_BACKOFF_SECONDS = [30, 60, 120, 300]
 PROVIDER_RESET_AFTER_SECONDS = 900
 STREAMING_PROTOCOL = "openai_compatible_sse"
@@ -150,6 +154,7 @@ def huggingface_router_capability_snapshot() -> dict[str, object]:
         "model_downloads": False,
         "open_source_first": True,
         "live_provider_calls_default": LLM_LIVE_PROVIDER_DEFAULT,
+        "request_live_provider_override_enabled": LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE,
         "non_claim": "Responses requests are adapted to the Hugging Face OpenAI-compatible chat endpoint; no OpenAI key is required.",
     }
 
@@ -299,7 +304,8 @@ def provider_status_snapshot() -> dict[str, object]:
             "reset_after_seconds": PROVIDER_RESET_AFTER_SECONDS,
             "never_break_budget": True,
             "external_provider_calls_disabled_by_default": not LLM_LIVE_PROVIDER_DEFAULT,
-            "requires_request_metadata": "metadata.live_provider_calls_allowed=true",
+            "request_live_provider_override_enabled": LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE,
+            "requires_request_metadata": "metadata.live_provider_calls_allowed=true and LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE=true",
         },
         "providers": [
             {
@@ -514,7 +520,8 @@ def resolve_route(request: RoutingResolveRequest) -> dict[str, object]:
             "reset_after_seconds": PROVIDER_RESET_AFTER_SECONDS,
             "never_break_budget": True,
             "external_provider_calls_disabled_by_default": not LLM_LIVE_PROVIDER_DEFAULT,
-            "requires_request_metadata": "metadata.live_provider_calls_allowed=true",
+            "request_live_provider_override_enabled": LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE,
+            "requires_request_metadata": "metadata.live_provider_calls_allowed=true and LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE=true",
         },
     }
 
@@ -539,7 +546,10 @@ def request_allows_live_provider(metadata: dict[str, Any] | None) -> bool:
     value = metadata.get("live_provider_calls_allowed")
     if value is None:
         return LLM_LIVE_PROVIDER_DEFAULT
-    return value is True or (isinstance(value, str) and value.strip().lower() in {"1", "true", "yes"})
+    requested = value is True or (isinstance(value, str) and value.strip().lower() in {"1", "true", "yes"})
+    if not requested:
+        return False
+    return LLM_LIVE_PROVIDER_DEFAULT or LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE
 
 
 def chat_message_payloads(messages: list[ChatMessage]) -> list[dict[str, Any]]:

@@ -237,6 +237,64 @@ type AutonomousAgentRosterContract = {
   non_claims: string[];
 };
 
+type LiveAgentProfile = {
+  agent_id: string;
+  display_name: string;
+  execution_role: string;
+  has_session?: boolean;
+  previous_response_id?: string | null;
+  updated_at?: string | null;
+  model?: string | null;
+};
+
+type LiveAgentContract = {
+  contract_version: string;
+  mode: string;
+  status_endpoint: string;
+  steer_endpoint: string;
+  reset_endpoint: string;
+  compatibility_endpoint: string;
+  llm_gateway_endpoint: string;
+  default_model: string;
+  agents: LiveAgentProfile[];
+  metadata_policy?: {
+    live_provider_calls_allowed?: boolean;
+    system_metadata_wins?: boolean;
+    reserved_keys_stripped?: string[];
+  };
+  evidence_refs?: Record<string, string>;
+  non_claims: string[];
+};
+
+type LiveAgentStatus = {
+  status: string;
+  contract_version: string;
+  runtime_source: string;
+  default_model: string;
+  agent_count: number;
+  agents: LiveAgentProfile[];
+  evidence_ref: string;
+};
+
+type LiveAgentSteerResponse = {
+  contract_version: string;
+  runtime_source: string;
+  agent_id: string;
+  response_id?: string | null;
+  responseId?: string | null;
+  previous_response_id?: string | null;
+  status: string;
+  model: string;
+  text: string;
+  execution_role: string;
+  project_id: string;
+  metadata_policy?: {
+    live_provider_calls_allowed?: boolean;
+    user_metadata_fields_forwarded?: string[];
+    evidence_ref?: string;
+  };
+};
+
 type BudgetState = {
   total_cost_cents: number;
   budget_limit_cents: number;
@@ -1601,6 +1659,12 @@ export default function Home() {
   const [autonomousAgentRoster, setAutonomousAgentRoster] = useState<AutonomousAgentRosterState | null>(null);
   const [autonomousAgentRosterContract, setAutonomousAgentRosterContract] =
     useState<AutonomousAgentRosterContract | null>(null);
+  const [liveAgentContract, setLiveAgentContract] = useState<LiveAgentContract | null>(null);
+  const [liveAgentStatus, setLiveAgentStatus] = useState<LiveAgentStatus | null>(null);
+  const [liveAgentId, setLiveAgentId] = useState("supervisor");
+  const [liveAgentMessage, setLiveAgentMessage] = useState("");
+  const [liveAgentSendStatus, setLiveAgentSendStatus] = useState("idle");
+  const [liveAgentResponse, setLiveAgentResponse] = useState<LiveAgentSteerResponse | null>(null);
   const [lastRun, setLastRun] = useState<PromptResponse | null>(null);
   const [memoryResults, setMemoryResults] = useState<MemoryResult[]>([]);
   const [memoryDeleteStatus, setMemoryDeleteStatus] = useState("No memory entry delete requested.");
@@ -1653,6 +1717,16 @@ export default function Home() {
     () => new Map((clouds?.providers ?? []).map((provider) => [provider.id, provider.label])),
     [clouds],
   );
+  const liveAgentProfiles = liveAgentStatus?.agents?.length
+    ? liveAgentStatus.agents
+    : liveAgentContract?.agents ?? [];
+  const selectedLiveAgent =
+    liveAgentProfiles.find((agent) => agent.agent_id === liveAgentId) ?? liveAgentProfiles[0] ?? null;
+  const liveAgentEvidenceRefs = liveAgentContract?.evidence_refs ?? {
+    contract_visible: "live_agent_steering_contract_visible",
+    ui_visible: "live_agent_steering_ui_visible",
+    security_guard: "live_agent_metadata_guard_enforced",
+  };
 
   async function loadBudget() {
     const response = await fetch("/api/v1/budget", { cache: "no-store" });
@@ -1931,6 +2005,81 @@ export default function Home() {
     const response = await fetch("/api/v1/team/roster/contract", { cache: "no-store" });
     if (!response.ok) throw new Error(`autonomous agent roster contract ${response.status}`);
     setAutonomousAgentRosterContract(await response.json());
+  }
+
+  async function loadLiveAgents() {
+    const [contractResponse, statusResponse] = await Promise.all([
+      fetch("/api/v1/live-agents/contract", { cache: "no-store" }),
+      fetch("/api/v1/live-agents/status", { cache: "no-store" }),
+    ]);
+    if (!contractResponse.ok) throw new Error(`live agent contract ${contractResponse.status}`);
+    if (!statusResponse.ok) throw new Error(`live agent status ${statusResponse.status}`);
+    const contractPayload = (await contractResponse.json()) as LiveAgentContract;
+    const statusPayload = (await statusResponse.json()) as LiveAgentStatus;
+    setLiveAgentContract(contractPayload);
+    setLiveAgentStatus(statusPayload);
+    const nextAgents = statusPayload.agents?.length ? statusPayload.agents : contractPayload.agents ?? [];
+    if (nextAgents.length && !nextAgents.some((agent) => agent.agent_id === liveAgentId)) {
+      setLiveAgentId(nextAgents[0].agent_id);
+    }
+  }
+
+  async function steerLiveAgent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const message = liveAgentMessage.trim();
+    if (!message) {
+      setError("live agent steering guard: message is required");
+      return;
+    }
+    setLiveAgentSendStatus("sending");
+    setError(null);
+    try {
+      const response = await fetch("/api/steer-agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agentId: liveAgentId,
+          projectId,
+          message,
+          metadata: {
+            source: "frontend_live_agent_control",
+            ui_evidence_ref: "live_agent_steering_ui_visible",
+          },
+        }),
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`live agent steer ${response.status}: ${body}`);
+      }
+      const payload = (await response.json()) as LiveAgentSteerResponse;
+      setLiveAgentResponse(payload);
+      setLiveAgentMessage("");
+      setLiveAgentSendStatus("sent");
+      await loadLiveAgents();
+    } catch (caught) {
+      setLiveAgentSendStatus("error");
+      setError(caught instanceof Error ? caught.message : "live agent steer failed");
+    }
+  }
+
+  async function resetLiveAgentSession() {
+    setLiveAgentSendStatus("resetting");
+    setError(null);
+    try {
+      const response = await fetch(`/api/v1/live-agents/${encodeURIComponent(liveAgentId)}/reset`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`live agent reset ${response.status}: ${body}`);
+      }
+      setLiveAgentResponse(null);
+      setLiveAgentSendStatus("reset");
+      await loadLiveAgents();
+    } catch (caught) {
+      setLiveAgentSendStatus("error");
+      setError(caught instanceof Error ? caught.message : "live agent reset failed");
+    }
   }
 
   async function loadRecentSessions() {
@@ -2323,6 +2472,7 @@ export default function Home() {
       loadAutonomousTeamStatus,
       loadAutonomousMasterPlan,
       loadAutonomousAgentRoster,
+      loadLiveAgents,
       loadRecentTasks,
       loadProjectProgress,
       loadProjectProgressIntegrity,
@@ -2355,6 +2505,7 @@ export default function Home() {
       loadAutonomousDispatchContract,
       loadAutonomousMasterPlanContract,
       loadAutonomousAgentRosterContract,
+      loadLiveAgents,
       loadAgentLlmStreamingContract,
       loadExternalGates,
       loadExternalGateMirror,
@@ -2383,6 +2534,7 @@ export default function Home() {
       loadAutonomousTeamStatus,
       loadAutonomousMasterPlan,
       loadAutonomousAgentRoster,
+      loadLiveAgents,
       loadRecentTasks,
       loadRecentSessions,
       loadProjectProgress,
@@ -3286,6 +3438,84 @@ export default function Home() {
               {agent.latest_error ? <small className="agentError">{agent.latest_error}</small> : null}
             </article>
           ))}
+        </section>
+
+        <section
+          className="panel liveAgentPanel"
+          aria-label="Live agent steering"
+          data-evidence="live_agent_steering_ui_visible"
+        >
+          <header className="panelHeader">
+            <h2>Live Agent Control</h2>
+            <button type="button" onClick={() => void loadLiveAgents()}>
+              Refresh
+            </button>
+          </header>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>Contract</strong>
+              <p>{liveAgentContract?.contract_version ?? liveAgentStatus?.contract_version ?? "live-agent-steering-v1"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Runtime</strong>
+              <p>{liveAgentStatus?.runtime_source ?? liveAgentContract?.mode ?? "openai_responses_via_llm_gateway"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Endpoint</strong>
+              <p>{liveAgentContract?.steer_endpoint ?? "POST /api/v1/live-agents/steer"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Provider Calls</strong>
+              <p>{liveAgentContract?.metadata_policy?.live_provider_calls_allowed ? "enabled" : "disabled"}</p>
+            </article>
+          </div>
+          <form className="liveAgentForm" onSubmit={steerLiveAgent}>
+            <label>
+              <span>Agent</span>
+              <select value={liveAgentId} onChange={(event) => setLiveAgentId(event.target.value)}>
+                {liveAgentProfiles.length ? (
+                  liveAgentProfiles.map((agent) => (
+                    <option key={agent.agent_id} value={agent.agent_id}>
+                      {agent.display_name} / {agent.execution_role}
+                    </option>
+                  ))
+                ) : (
+                  <option value="supervisor">Supervisor / planner</option>
+                )}
+              </select>
+            </label>
+            <label>
+              <span>Message</span>
+              <textarea
+                value={liveAgentMessage}
+                maxLength={10_000}
+                onChange={(event) => setLiveAgentMessage(event.target.value)}
+              />
+              <small>
+                {selectedLiveAgent?.agent_id ?? liveAgentId} | session{" "}
+                {selectedLiveAgent?.has_session ? selectedLiveAgent.previous_response_id ?? "active" : "new"} |{" "}
+                {liveAgentEvidenceRefs.ui_visible} / {liveAgentEvidenceRefs.security_guard}
+              </small>
+            </label>
+            <div className="actions">
+              <button type="submit" disabled={liveAgentSendStatus === "sending" || !liveAgentMessage.trim()}>
+                Send
+              </button>
+              <button type="button" onClick={() => void resetLiveAgentSession()} disabled={!liveAgentProfiles.length}>
+                Reset
+              </button>
+            </div>
+          </form>
+          <div className="liveAgentTranscript" aria-label="Live agent response">
+            <strong>{liveAgentResponse?.agent_id ?? selectedLiveAgent?.agent_id ?? liveAgentId}</strong>
+            <span>{liveAgentResponse?.status ?? liveAgentSendStatus}</span>
+            <small>{liveAgentResponse?.model ?? selectedLiveAgent?.model ?? liveAgentStatus?.default_model ?? "loading"}</small>
+            <p>{liveAgentResponse?.text ?? "No live-agent response in this browser session yet."}</p>
+          </div>
+          <p className="muted evidenceLine">
+            Evidence: {liveAgentEvidenceRefs.contract_visible} / {liveAgentEvidenceRefs.ui_visible} /{" "}
+            {liveAgentEvidenceRefs.security_guard}
+          </p>
         </section>
 
         <section className="panel taskPanel" aria-label="Autonomous coding team">

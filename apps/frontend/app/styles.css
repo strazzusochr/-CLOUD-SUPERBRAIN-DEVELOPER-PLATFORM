@@ -17,7 +17,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
@@ -106,7 +107,8 @@ label {
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
   background: #0f1b2d;
   color: #f8fafc;
@@ -121,7 +123,8 @@ textarea {
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   border-color: #22d3ee;
 }
 
@@ -223,6 +226,38 @@ button:disabled {
 
 .agentError {
   color: #fecaca;
+}
+
+.liveAgentPanel {
+  margin-bottom: 16px;
+}
+
+.liveAgentForm {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.liveAgentTranscript {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  border: 1px solid #164e63;
+  background: #071923;
+  padding: 12px;
+}
+
+.liveAgentTranscript strong,
+.liveAgentTranscript span,
+.liveAgentTranscript small,
+.liveAgentTranscript p {
+  overflow-wrap: anywhere;
+}
+
+.liveAgentTranscript span,
+.liveAgentTranscript small {
+  color: #94a3b8;
+  font-size: 12px;
 }
 
 .split {

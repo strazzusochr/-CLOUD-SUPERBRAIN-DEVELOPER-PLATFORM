@@ -1007,6 +1007,17 @@ LIVE_AGENT_STEERING_EVIDENCE_REF = "live_agent_steering_contract_visible"
 LIVE_AGENT_SESSION_PREFIX = "live-agent:responses:"
 LIVE_AGENT_SESSION_TTL_SECONDS = TASK_TTL_SECONDS
 LIVE_AGENT_LLM_TIMEOUT_SECONDS = 120
+LIVE_AGENT_RESERVED_METADATA_KEYS = {
+    "agent_id",
+    "agent_type",
+    "logical_agent_id",
+    "live_provider_calls_allowed",
+    "previous_response_id",
+    "project_id",
+    "response_id",
+    "runtime_policy",
+    "trace_id",
+}
 LIVE_AGENT_PROFILES: dict[str, dict[str, str]] = {
     "supervisor": {
         "display_name": "Supervisor",
@@ -1082,6 +1093,23 @@ def b64url_bytes(raw: bytes) -> str:
 
 def live_agent_default_model() -> str:
     return os.getenv("HF_DEFAULT_CHAT_MODEL", "deepseek-ai/DeepSeek-V4-Flash:fastest")
+
+
+def sanitize_live_agent_metadata(metadata: dict[str, object] | None) -> dict[str, object]:
+    safe_metadata: dict[str, object] = {}
+    for raw_key, value in (metadata or {}).items():
+        key = str(raw_key).strip()
+        normalized_key = key.lower()
+        if (
+            not key
+            or len(key) > 64
+            or normalized_key in LIVE_AGENT_RESERVED_METADATA_KEYS
+            or normalized_key.startswith(("live_provider", "agent_", "logical_agent", "trace_", "project_", "response_"))
+        ):
+            continue
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            safe_metadata[key] = value
+    return safe_metadata
 
 
 def live_agent_session_key(agent_id: str) -> str:
@@ -1236,12 +1264,21 @@ def live_agent_contract_payload() -> dict[str, object]:
             "accepted_request_shape": {"agentId": "string", "message": "string"},
             "returned_response_shape": {"responseId": "string", "text": "string"},
         },
+        "metadata_policy": {
+            "reserved_keys_stripped": sorted(LIVE_AGENT_RESERVED_METADATA_KEYS),
+            "reserved_prefixes_stripped": ["live_provider", "agent_", "logical_agent", "trace_", "project_", "response_"],
+            "live_provider_calls_allowed": False,
+            "system_metadata_wins": True,
+        },
         "evidence_refs": {
             "contract_visible": LIVE_AGENT_STEERING_EVIDENCE_REF,
+            "ui_visible": "live_agent_steering_ui_visible",
+            "security_guard": "live_agent_metadata_guard_enforced",
         },
         "non_claims": [
             "No API key is stored by this contract surface.",
             "Responses streaming passthrough is not exposed on this path.",
+            "End-user metadata cannot enable live provider calls or override system trace/agent fields.",
         ],
     }
 
@@ -7573,6 +7610,7 @@ def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> d
     previous_response_id = str(session.get("previous_response_id")) if session and session.get("previous_response_id") else None
     sanitized_message = redact_text(request.message)
     sanitized_instructions = redact_text(request.instructions) if request.instructions else None
+    safe_metadata = sanitize_live_agent_metadata(request.metadata)
     trace_id = getattr(http_request.state, "trace_id", None) or f"live-agent-{uuid4()}"
     model = request.model or live_agent_default_model()
     payload = {
@@ -7586,11 +7624,13 @@ def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> d
         },
         "reasoning": {"effort": request.reasoning_effort},
         "metadata": {
+            **safe_metadata,
             "trace_id": trace_id,
             "agent_type": str(profile["execution_role"]),
             "logical_agent_id": agent_id,
             "project_id": request.project_id,
-            **request.metadata,
+            "live_provider_calls_allowed": False,
+            "runtime_policy": "live_agent_deterministic_gateway_required",
         },
     }
     if previous_response_id:
@@ -7626,6 +7666,11 @@ def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> d
             "spent_percentage": budget_state.spent_percentage,
             "total_cost_cents": budget_state.total_cost_cents,
             "budget_limit_cents": budget_state.budget_limit_cents,
+        },
+        "metadata_policy": {
+            "live_provider_calls_allowed": False,
+            "user_metadata_fields_forwarded": sorted(safe_metadata.keys()),
+            "evidence_ref": "live_agent_metadata_guard_enforced",
         },
     }
 
