@@ -52,6 +52,18 @@ function Get-DeclaredParameters([string]$ScriptPath) {
   return $parameters
 }
 
+function Convert-ToHashtable($Value) {
+  $map = @{}
+  if ($null -eq $Value) {
+    return $map
+  }
+
+  foreach ($property in $Value.PSObject.Properties) {
+    $map[$property.Name] = $property.Value
+  }
+  return $map
+}
+
 function Resolve-Suite([string]$SuiteId, [System.Collections.Generic.HashSet[string]]$Stack) {
   if (-not $suiteIndex.ContainsKey($SuiteId)) {
     throw "Unknown suite '$SuiteId'. Use -List to inspect the registry."
@@ -65,6 +77,11 @@ function Resolve-Suite([string]$SuiteId, [System.Collections.Generic.HashSet[str
   $resolved = [System.Collections.Generic.List[object]]::new()
 
   if ($entry.PSObject.Properties.Name -contains "patterns") {
+    $parameterOverrides = @{}
+    if ($entry.PSObject.Properties.Name -contains "parameter_overrides") {
+      $parameterOverrides = Convert-ToHashtable $entry.parameter_overrides
+    }
+
     foreach ($pattern in @($entry.patterns)) {
       $pathPattern = Join-Path $PSScriptRoot $pattern
       $matches = @(Get-ChildItem -Path $pathPattern -File | Sort-Object Name)
@@ -77,6 +94,7 @@ function Resolve-Suite([string]$SuiteId, [System.Collections.Generic.HashSet[str
           ScriptPath = $match.FullName
           ScriptName = $match.Name
           DefaultSwitches = @($entry.default_switches)
+          ParameterOverrides = $parameterOverrides
         })
       }
     }
@@ -115,7 +133,7 @@ function Get-UncoveredVerifierScripts() {
   return $uncovered
 }
 
-function Get-InvocationArgs([hashtable]$DeclaredParameters, [string[]]$DefaultSwitches = @()) {
+function Get-InvocationArgs([hashtable]$DeclaredParameters, [string[]]$DefaultSwitches = @(), [hashtable]$ParameterOverrides = @{}) {
   $arguments = [ordered]@{}
   $candidateValues = [ordered]@{
     BaseUrl = $BaseUrl
@@ -153,6 +171,12 @@ function Get-InvocationArgs([hashtable]$DeclaredParameters, [string[]]$DefaultSw
     $isRequested = $candidateSwitches[$key].IsPresent -or ($DefaultSwitches -contains $key)
     if ($DeclaredParameters.ContainsKey($key) -and $isRequested) {
       $arguments[$key] = $true
+    }
+  }
+
+  foreach ($key in $ParameterOverrides.Keys) {
+    if ($DeclaredParameters.ContainsKey($key)) {
+      $arguments[$key] = $ParameterOverrides[$key]
     }
   }
 
@@ -217,7 +241,7 @@ if ($Plan) {
   Write-Host ("[verify-plan] suite={0} scripts={1}" -f $Suite, $scripts.Count)
   foreach ($script in $scripts) {
     $declaredParameters = Get-DeclaredParameters -ScriptPath $script.ScriptPath
-    $invocationArgs = Get-InvocationArgs -DeclaredParameters $declaredParameters -DefaultSwitches $script.DefaultSwitches
+    $invocationArgs = Get-InvocationArgs -DeclaredParameters $declaredParameters -DefaultSwitches $script.DefaultSwitches -ParameterOverrides $script.ParameterOverrides
     Write-Host ("[verify-plan] {0} {1}" -f $script.ScriptName, (Format-InvocationArgs -Arguments $invocationArgs))
   }
   return
@@ -226,7 +250,7 @@ if ($Plan) {
 $results = [System.Collections.Generic.List[object]]::new()
 foreach ($script in $scripts) {
   $declaredParameters = Get-DeclaredParameters -ScriptPath $script.ScriptPath
-  $invocationArgs = Get-InvocationArgs -DeclaredParameters $declaredParameters -DefaultSwitches $script.DefaultSwitches
+  $invocationArgs = Get-InvocationArgs -DeclaredParameters $declaredParameters -DefaultSwitches $script.DefaultSwitches -ParameterOverrides $script.ParameterOverrides
   Write-Host ("[verify] running {0} {1}" -f $script.ScriptName, (Format-InvocationArgs -Arguments $invocationArgs))
 
   try {
