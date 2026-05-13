@@ -103,7 +103,10 @@ def store_memory(request: MemoryWriteRequest) -> str:
 
 
 def search_memory(project_id: str, query: str, limit: int = 5) -> list[MemorySearchResult]:
-    like_query = f"%{query}%"
+    normalized_query = query.strip()
+    if not normalized_query:
+        return []
+    like_query = f"%{normalized_query}%"
     with psycopg.connect(database_url(), autocommit=True) as conn:
         project_uuid = find_project_uuid(conn, project_id)
         if not project_uuid:

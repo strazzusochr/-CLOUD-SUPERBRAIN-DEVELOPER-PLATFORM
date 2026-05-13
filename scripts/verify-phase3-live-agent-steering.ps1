@@ -102,6 +102,7 @@ Assert-True "metadata policy blocks live providers" ($contract.metadata_policy.l
 Assert-True "metadata policy system wins" ($contract.metadata_policy.system_metadata_wins -eq $true)
 Assert-True "metadata guard evidence" ($contract.evidence_refs.security_guard -eq "live_agent_metadata_guard_enforced")
 Assert-True "ui evidence" ($contract.evidence_refs.ui_visible -eq "live_agent_steering_ui_visible")
+Assert-True "audit evidence" ($contract.evidence_refs.audit_persisted -eq "live_agent_steering_audit_persisted")
 
 $status = Invoke-JsonApi "$BaseUrl/api/v1/live-agents/status"
 Assert-True "status available" ($status.status -eq "available")
@@ -137,6 +138,15 @@ Assert-True "steer forwards safe metadata" (@($steer.metadata_policy.user_metada
 Assert-True "steer strips live provider override" (-not (@($steer.metadata_policy.user_metadata_fields_forwarded) -contains "live_provider_calls_allowed"))
 Assert-True "steer strips trace override" (-not (@($steer.metadata_policy.user_metadata_fields_forwarded) -contains "trace_id"))
 Assert-True "steer text dry-run proof" ([string]$steer.text -match "live_provider_calls=false")
+Assert-True "steer audit persisted" ($steer.audit_persisted -eq $true)
+Assert-True "steer audit evidence" ($steer.audit_evidence_ref -eq "live_agent_steering_audit_persisted")
+
+$activity = Invoke-JsonApi "$BaseUrl/api/v1/agent-activity/recent?event_type=live_agent_steered&agent_type=planner&trace_id=$($steer.trace_id)&limit=10"
+$activityEvent = @($activity.events | Where-Object { $_.details.response_id -eq $steer.response_id } | Select-Object -First 1)
+Assert-True "activity event visible" ($null -ne $activityEvent)
+Assert-True "activity event agent" ($activityEvent.details.agent -eq "supervisor")
+Assert-True "activity event evidence" ($activityEvent.details.evidence_ref -eq "live_agent_steering_audit_persisted")
+Assert-True "activity event provider nonclaim" ($activityEvent.details.live_provider_calls -eq $false)
 
 $reset = Invoke-JsonApi "$BaseUrl/api/v1/live-agents/supervisor/reset" "POST"
 Assert-True "reset status" ($reset.status -eq "reset")

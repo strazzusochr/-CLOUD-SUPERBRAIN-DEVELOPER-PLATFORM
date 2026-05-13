@@ -293,6 +293,10 @@ type LiveAgentSteerResponse = {
     user_metadata_fields_forwarded?: string[];
     evidence_ref?: string;
   };
+  audit_persisted?: boolean;
+  audit_evidence_ref?: string;
+  trace_id?: string;
+  request_id?: string;
 };
 
 type BudgetState = {
@@ -3511,6 +3515,10 @@ export default function Home() {
             <span>{liveAgentResponse?.status ?? liveAgentSendStatus}</span>
             <small>{liveAgentResponse?.model ?? selectedLiveAgent?.model ?? liveAgentStatus?.default_model ?? "loading"}</small>
             <p>{liveAgentResponse?.text ?? "No live-agent response in this browser session yet."}</p>
+            <small>
+              Audit: {liveAgentResponse?.audit_persisted ? "persisted" : "pending"} ·{" "}
+              {liveAgentResponse?.audit_evidence_ref ?? "live_agent_steering_audit_persisted"}
+            </small>
           </div>
           <p className="muted evidenceLine">
             Evidence: {liveAgentEvidenceRefs.contract_visible} / {liveAgentEvidenceRefs.ui_visible} /{" "}

@@ -1260,6 +1260,8 @@ def live_agent_contract_payload() -> dict[str, object]:
             "model",
             "usage",
             "runtime_source",
+            "audit_persisted",
+            "audit_evidence_ref",
         ],
         "agents": [
             {
@@ -1283,6 +1285,7 @@ def live_agent_contract_payload() -> dict[str, object]:
             "contract_visible": LIVE_AGENT_STEERING_EVIDENCE_REF,
             "ui_visible": "live_agent_steering_ui_visible",
             "security_guard": "live_agent_metadata_guard_enforced",
+            "audit_persisted": "live_agent_steering_audit_persisted",
         },
         "non_claims": [
             "No API key is stored by this contract surface.",
@@ -2047,6 +2050,8 @@ def agent_activity_contract_payload() -> dict[str, object]:
             "partial_failure",
             "partial_failure_reasons",
             "aggregation_evidence_ref",
+            "response_id",
+            "runtime_source",
         ],
         "langfuse": {
             "live_langfuse_deep_link": bool(langfuse_public_url),
@@ -2063,6 +2068,7 @@ def agent_activity_contract_payload() -> dict[str, object]:
             "no_public_langfuse_without_auth",
             "per_role_results_visible",
             "failure_surface_visible",
+            "live_agent_steering_audit_visible",
         ],
         "evidence_refs": {
             "contract_visible": "agent_activity_contract_visible",
@@ -2071,6 +2077,7 @@ def agent_activity_contract_payload() -> dict[str, object]:
             "filtered_feed": "agent_activity_filtered_feed_visible",
             "per_role_results": "agent_activity_per_role_results_visible",
             "failure_surface": "agent_activity_failure_surface_visible",
+            "live_agent_steering_audit": "live_agent_steering_audit_persisted",
         },
         "non_claims": [
             "This contract does not claim public unauthenticated Langfuse access.",
@@ -2645,10 +2652,15 @@ def memory_search_contract_payload() -> dict[str, object]:
             "GET /api/v1/memory/embedding-consistency/contract",
         ],
         "query_parameters": {
-            "q": {"required": True, "min_length": 1, "max_length": 1000},
+            "q": {"required": True, "min_length": 1, "min_trimmed_length": 1, "max_length": 1000},
             "project_id": {"required": True, "min_length": 1},
             "limit": {"required": False, "default": 5, "min": 1, "max": 20},
             "threshold": {"required": False, "default": 0.0, "min": 0.0, "max": 1.0},
+        },
+        "empty_query_policy": {
+            "status_code": 422,
+            "error": "memory_search_empty_query",
+            "evidence_ref": "memory_search_empty_query_blocked",
         },
         "top_level_sections": ["results", "search_mode"],
         "result_fields": ["id", "content", "relevance_score", "created_at", "session_id"],
@@ -2754,6 +2766,58 @@ def persist_cost_export_audit(group_by: str, row_count: int, trace_id: str, requ
             )
     except Exception:
         pass
+
+
+def persist_live_agent_steer_audit(
+    *,
+    agent_id: str,
+    execution_role: str,
+    project_id: str,
+    response_id: str,
+    previous_response_id: str | None,
+    model: str,
+    status: object,
+    text: str,
+    usage: object,
+    trace_id: str,
+    request_id: str,
+    safe_metadata_keys: list[str],
+) -> bool:
+    details = redact_json(
+        {
+            "contract_version": LIVE_AGENT_STEERING_CONTRACT_VERSION,
+            "agent": agent_id,
+            "agent_type": execution_role,
+            "agent_role": execution_role,
+            "project_id": project_id,
+            "response_id": response_id or None,
+            "previous_response_id": previous_response_id,
+            "model": model,
+            "status": status,
+            "runtime_source": "openai_responses_via_llm_gateway",
+            "live_provider_calls": False,
+            "metadata_fields_forwarded": safe_metadata_keys,
+            "response_preview": redact_text(text)[:280],
+            "usage": usage,
+            "trace_id": trace_id,
+            "request_id": request_id,
+            "correlation_evidence_ref": "request_id_audit_correlation",
+            "audit_feed_evidence_ref": "request_id_audit_feed_visible",
+            "evidence_ref": "live_agent_steering_audit_persisted",
+        }
+    )
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, details, severity)
+                VALUES ('live_agent_steered', %s, %s::jsonb, 'info')
+                """,
+                (execution_role, Json(details)),
+            )
+        return True
+    except Exception:
+        return False
 
 
 def persist_task_policy_block(assignment: TaskAssignment, violation: TaskPolicyViolation) -> None:
@@ -5194,10 +5258,21 @@ def memory_search(
     limit: int = Query(default=5, ge=1, le=20),
     threshold: float = Query(default=0.0, ge=0.0, le=1.0),
 ) -> dict[str, object]:
-    results = [item.model_dump() for item in search_memory(project_id, q, limit)]
+    normalized_query = q.strip()
+    if not normalized_query:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "memory_search_empty_query",
+                "message": "memory search query must contain at least one non-whitespace character",
+                "evidence_ref": "memory_search_empty_query_blocked",
+            },
+        )
+    results = [item.model_dump() for item in search_memory(project_id, normalized_query, limit)]
     return {
         "results": [item for item in results if item["relevance_score"] >= threshold],
         "search_mode": "lexical_fallback",
+        "evidence_ref": MEMORY_SEARCH_EVIDENCE_REF,
     }
 
 
@@ -7621,6 +7696,11 @@ def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> d
     sanitized_instructions = redact_text(request.instructions) if request.instructions else None
     safe_metadata = sanitize_live_agent_metadata(request.metadata)
     trace_id = getattr(http_request.state, "trace_id", None) or f"live-agent-{uuid4()}"
+    request_id = (
+        getattr(http_request.state, "request_id", None)
+        or http_request.headers.get("x-request-id")
+        or f"req-live-agent-{uuid4()}"
+    )
     model = request.model or live_agent_default_model()
     payload = {
         "model": model,
@@ -7657,6 +7737,20 @@ def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> d
         )
 
     text = extract_live_agent_text(response_payload)
+    audit_persisted = persist_live_agent_steer_audit(
+        agent_id=agent_id,
+        execution_role=str(profile["execution_role"]),
+        project_id=request.project_id,
+        response_id=response_id,
+        previous_response_id=previous_response_id,
+        model=str(response_payload.get("model") or model),
+        status=response_payload.get("status", "completed"),
+        text=text,
+        usage=response_payload.get("usage"),
+        trace_id=trace_id,
+        request_id=request_id,
+        safe_metadata_keys=sorted(safe_metadata.keys()),
+    )
     return {
         "contract_version": LIVE_AGENT_STEERING_CONTRACT_VERSION,
         "runtime_source": "openai_responses_via_llm_gateway",
@@ -7681,6 +7775,10 @@ def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> d
             "user_metadata_fields_forwarded": sorted(safe_metadata.keys()),
             "evidence_ref": "live_agent_metadata_guard_enforced",
         },
+        "audit_persisted": audit_persisted,
+        "audit_evidence_ref": "live_agent_steering_audit_persisted",
+        "trace_id": trace_id,
+        "request_id": request_id,
     }
 
 
