@@ -85,6 +85,7 @@ Assert-True "unsupported toolset evidence listed" (@($versionContract.evidence_r
 Assert-True "unsupported capability evidence listed" (@($versionContract.evidence_refs) -contains "mcp_unsupported_capability_guard")
 Assert-True "unsupported capability guard mode" ($versionContract.capability_guard.mode -eq "fail_closed_unknown_capability")
 Assert-True "github supported capability visible" (@($versionContract.capability_guard.supported_capabilities.github) -contains "plan_branch_pr")
+Assert-True "e2b raw create_sandbox not supported" (-not (@($versionContract.capability_guard.supported_capabilities.e2b) -contains "create_sandbox"))
 Assert-True "redaction evidence listed" (@($versionContract.evidence_refs) -contains "mcp_secret_redaction_guard")
 
 $githubContract = Invoke-JsonApi "$BaseUrl/mcp/api/v1/github/branch-pr/contract"
@@ -134,6 +135,29 @@ Assert-True "unsupported capability blocked status" ($unsupportedCapability.stat
 Assert-True "unsupported capability blocked error" ($unsupportedCapability.error_class -eq "unsupported_capability")
 Assert-True "unsupported capability blocked evidence" ($unsupportedCapability.evidence_ref -eq "mcp_unsupported_capability_guard")
 Assert-True "unsupported capability audit" ($unsupportedCapability.audit_persisted -eq $true)
+
+$unsupportedE2bBody = @{
+  tool_request_id = "phase4-e2b-create-sandbox-block"
+  run_id = "phase4-proof"
+  agent_role = "tester"
+  toolset = "e2b"
+  capability = "create_sandbox"
+  intent_summary = "prove raw e2b create sandbox is blocked without lifecycle contract"
+  input_ref = "{}"
+  allowed_scope = "sandbox:test"
+  timeout_ms = 1000
+  retry_budget = 0
+  idempotency_key = "phase4-e2b-create-sandbox-block"
+  audit_tags = @("phase4", "mcp", "unsupported-capability")
+  redaction_required = $true
+  expected_output_type = "tool_result"
+} | ConvertTo-Json -Compress
+
+$unsupportedE2b = Invoke-JsonApi "$BaseUrl/mcp/api/v1/tools/execute" "POST" $unsupportedE2bBody
+Assert-True "unsupported e2b blocked status" ($unsupportedE2b.status -eq "blocked")
+Assert-True "unsupported e2b blocked error" ($unsupportedE2b.error_class -eq "unsupported_capability")
+Assert-True "unsupported e2b blocked evidence" ($unsupportedE2b.evidence_ref -eq "mcp_unsupported_capability_guard")
+Assert-True "unsupported e2b audit" ($unsupportedE2b.audit_persisted -eq $true)
 
 $secretBodyText = "Contains ghp_abcdefghijklmnopqrstuvwxyz123456 and token=supersecretvalue12345 and sk-testsecretvalue12345"
 $githubInput = @{

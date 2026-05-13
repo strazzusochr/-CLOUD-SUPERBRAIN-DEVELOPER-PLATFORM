@@ -111,7 +111,7 @@ SUPPORTED_CAPABILITIES = {
     "postgresql": {"query_readonly"},
     "filesystem": {"plan_workspace_access"},
     "playwright": {"plan_browser_proof"},
-    "e2b": {"plan_sandbox_lifecycle", "simulate_timeout", "create_sandbox"},
+    "e2b": {"plan_sandbox_lifecycle", "simulate_timeout"},
     "puppeteer": set(),
 }
 SECRET_REDACTION_PATTERNS = (
@@ -889,6 +889,21 @@ async def execute_tool(request: ToolRequest) -> dict[str, object]:
             )
         raise HTTPException(status_code=500, detail="timeout simulation unexpectedly completed")
 
+    if unsupported_capability(request):
+        return await audited_result(
+            request,
+            envelope_result(
+                request,
+                status="blocked",
+                sanitized_summary=(
+                    f"MCP capability '{request.capability}' is not wired to a contract for toolset '{request.toolset}'."
+                ),
+                error_class="unsupported_capability",
+                evidence_ref=MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF,
+                started=started,
+            ),
+        )
+
     if request.toolset == "e2b" and not os.getenv("E2B_API_KEY"):
         return await audited_result(
             request,
@@ -913,21 +928,6 @@ async def execute_tool(request: ToolRequest) -> dict[str, object]:
                 error_class="missing_credentials",
                 retry_after_ms=0,
                 evidence_ref="mcp_degraded_missing_github_credentials",
-                started=started,
-            ),
-        )
-
-    if unsupported_capability(request):
-        return await audited_result(
-            request,
-            envelope_result(
-                request,
-                status="blocked",
-                sanitized_summary=(
-                    f"MCP capability '{request.capability}' is not wired to a contract for toolset '{request.toolset}'."
-                ),
-                error_class="unsupported_capability",
-                evidence_ref=MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF,
                 started=started,
             ),
         )

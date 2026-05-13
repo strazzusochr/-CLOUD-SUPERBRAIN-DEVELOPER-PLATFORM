@@ -12,6 +12,8 @@ Er legt Request-Envelope, Rechte, Timeouts, Audit-Pflichten, Fehlerklassen und S
 
 Dieser Vertrag ist in Phase 1 fuer sichere Envelope-, Timeout-, Blocked-, Degraded- und Audit-Persistenz-Pfade im MCP-Gateway aktiviert. Er startet keine Browser-Automation, keine E2B-Sandbox, keine Docker-Publishes, keine GitHub-Schreibaktion und gibt dem MCP-Gateway keine direkten Datenbankcredentials.
 
+Der aktive Runtime-Guard ist fail-closed: bekannte Toolsets akzeptieren nur explizit freigegebene Capabilities. Jede nicht freigegebene Capability, zum Beispiel `github/delete_branch`, wird mit `status=blocked`, `error_class=unsupported_capability` und `evidence_ref=mcp_unsupported_capability_guard` auditiert, statt in einen generischen Erfolgs- oder Platzhalterpfad zu fallen.
+
 ## Phase-1-Runtime-Surface
 
 Implementiert:
@@ -27,7 +29,8 @@ Implementiert:
 9. GitHub-Write-Degraded-Pfad ohne `GITHUB_TOKEN`.
 10. Audit-Persistenz ueber Agent API: MCP-Gateway sendet Result-Envelopes an `/internal/audit/mcp-tool-events`; Agent API schreibt `event_type=mcp_tool_executed` in `audit_log`.
 11. Orchestrator-gesteuerte MCP-Aufrufe binden `session_id`, `trace_id`, `run_id` und `tool_request_id` in das Audit-Event. Der Nachweis heisst `mcp_tool_session_bound_audit`.
-12. Verifier-Beweis in `scripts/verify-phase1-runtime.ps1` und `scripts/verify-hosted-staging.ps1`.
+12. Unsupported-Capability-Guard mit expliziter Allowlist pro Toolset; Nachweis `mcp_unsupported_capability_guard`.
+13. Verifier-Beweis in `scripts/verify-phase1-runtime.ps1`, `scripts/verify-hosted-staging.ps1`, und `scripts/verify-phase4-mcp-security-guard.ps1`.
 
 Nicht implementiert:
 
@@ -117,18 +120,19 @@ Pflichtfelder:
 
 | Toolset | Primaerer Besitzer | Erlaubt | Verboten | Timeout | Fehlermodus |
 | --- | --- | --- | --- | --- | --- |
-| GitHub-MCP | Coder, DevOps | Branch- und PR-Arbeit auf `feature/agent-*`, Draft-PRs, Workflow-Status lesen | `main` schreiben, mergen, ungeschuetzter Push, Secrets hochladen, Branch destruktiv loeschen ohne Gate | `30000 ms` read, `90000 ms` write | `blocked` bei Auth, Branch-Schutz oder Scope-Verletzung |
-| E2B-Sandbox-MCP | Tester | isolierte Build-/Testausfuehrung, Logs und Artefakte lesen, Sandbox beenden | lokale Ausfuehrung als Ersatz, Secret-Exfiltration, Produktionscredentials, persistente Sandbox ohne TTL | `30000 ms` setup, `120000 ms` execution | `degraded` oder `test-blocked` bei Timeout |
-| Playwright-MCP | Tester | Smoke-Flows, Screenshots, Text- und Statuspruefung gegen freigegebene Cloud-/Preview-URLs | Localhost-only Evidence, Credential Capture, persistente Browserprofile | `60000 ms` scenario | `evidence-blocked` bei fehlender Runtime-Evidence |
-| Filesystem-MCP | Coder, DevOps | Temp-Workspace, repo-begrenzte geplante Patch-Staging-Pfade | Secret-Pfade, User-Home, Main-Bypass, unprotokollierte Bulk-Copy | `20000 ms` read, `60000 ms` write | `blocked` bei Scope-Verletzung |
-| PostgreSQL-MCP | Planner, Tester | read-only Projektkontext nach Schema- und Auth-Gate | Production-Write, Schema-Migration, direkter DB-Zugriff ausserhalb MCP | `30000 ms` query | `blocked` bis Gate erfuellt |
-| Puppeteer-MCP | Tester, Sentinel Runtime | zweiter Browser-Evidence-Pfad fuer UI-/Gameplay-Aufgaben | Ersatz fuer Playwright-Evidence, Secret Capture, Profilpersistenz | `60000 ms` scenario | `evidence-blocked` bei Sentinel-Ablehnung |
+| GitHub-MCP | Coder, DevOps | `plan_branch_pr` fuer Branch-/PR-Planung auf erlaubten Feature-Scopes | `main` schreiben, mergen, ungeschuetzter Push, Secrets hochladen, destruktive Branch-Aktionen wie `delete_branch` | `30000 ms` read, `90000 ms` write | `blocked` bei Auth, Branch-Schutz, Scope-Verletzung oder nicht freigegebener Capability |
+| E2B-Sandbox-MCP | Tester | `plan_sandbox_lifecycle`, `simulate_timeout` | rohe Sandbox-Aktionen wie `create_sandbox` ausserhalb des Lifecycle-Plans, lokale Ausfuehrung als Ersatz, Secret-Exfiltration, Produktionscredentials, persistente Sandbox ohne TTL | `30000 ms` setup, `120000 ms` execution | `degraded`, `timeout` oder `blocked` bei nicht freigegebener Capability |
+| Playwright-MCP | Tester | `plan_browser_proof` gegen freigegebene Cloud-/Preview-URLs | Localhost-only Evidence, Credential Capture, persistente Browserprofile | `60000 ms` scenario | `evidence-blocked` oder `blocked` bei nicht freigegebener Capability |
+| Filesystem-MCP | Coder, DevOps | `plan_workspace_access` fuer repo/temp-scoped geplante Pfade | Secret-Pfade, User-Home, Main-Bypass, unprotokollierte Bulk-Copy | `20000 ms` read, `60000 ms` write | `blocked` bei Scope-Verletzung oder nicht freigegebener Capability |
+| PostgreSQL-MCP | Planner, Tester | `query_readonly` nach Schema- und Auth-Gate | Production-Write, Schema-Migration, direkter DB-Zugriff ausserhalb MCP | `30000 ms` query | `blocked` bis Gate erfuellt oder bei nicht freigegebener Capability |
+| Puppeteer-MCP | Tester, Sentinel Runtime | keine Runtime-Capability freigegeben | Ersatz fuer Playwright-Evidence, Secret Capture, Profilpersistenz | `60000 ms` scenario | `blocked` bei jeder Capability |
 
 ## Globale Garantien
 
 - Kein Toolcall ohne Request-Envelope.
 - Kein Toolcall ohne `timeout_ms`.
 - Kein Toolcall ohne Audit-Event vor und nach der Ausfuehrung.
+- Keine nicht freigegebene Capability darf in einen Erfolgspfad fallen.
 - Kein Toolcall darf Secrets in Argumente, Logs, Screenshots oder Artefakte schreiben.
 - Kein Toolcall darf eine lokale Sonderroute als Ersatz fuer die definierte Cloud-/Sandbox-Schicht nutzen.
 - Jeder Fehler muss als `blocked`, `timeout`, `failed` oder `degraded` sichtbar werden.
@@ -204,6 +208,7 @@ Jedes Audit-Event muss mindestens enthalten:
 | MCP-010 | Mehr als `2` Retries pro Toolcall | wird blockiert |
 | MCP-011 | Tool-Ergebnis `degraded` | darf nicht als fertig gelten |
 | MCP-012 | UI-/Gameplay-Task ohne Browser-Evidence | bleibt `evidence-blocked` |
+| MCP-013 | bekannte Toolset-Capability ohne Allowlist-Freigabe | wird mit `mcp_unsupported_capability_guard` blockiert und auditiert |
 
 ## Stop-Gates
 
