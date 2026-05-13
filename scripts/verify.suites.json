@@ -218,6 +218,7 @@
     "id": "current-release-candidate",
     "description": "Active release-boundary candidate verification without mutating production.",
     "patterns": [
+      "verify-current-immutable-staging-parity.ps1",
       "verify-current-release-candidate.ps1"
     ]
   },

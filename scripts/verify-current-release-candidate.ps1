@@ -206,7 +206,7 @@ foreach ($checkName in @(
   Assert-True "Vercel Git link check $checkName" $vercelGitLink.checks.$checkName
 }
 
-& "scripts\manual\verify-phase5-staging-immutable-parity.ps1" -ReleaseId $ReleaseId -CandidateSha $CandidateSha -BaseUrl $BaseUrl
+& "scripts\verify-current-immutable-staging-parity.ps1" -ReleaseId $ReleaseId -CandidateSha $CandidateSha -BaseUrl $BaseUrl
 if ($LASTEXITCODE -ne 0) {
   throw "Verification failed: immutable staging parity readiness verifier failed."
 }
