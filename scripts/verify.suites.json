@@ -73,8 +73,27 @@
       "verify-docker-readiness.ps1",
       "verify-env-bootstrap.ps1",
       "verify-docker-readiness-guard.ps1",
+      "verify-vercel-project-git-readiness.ps1",
       "verify-vercel-access.ps1",
+      "verify-vercel-git-link.ps1",
       "verify-tooling-readiness.ps1"
+    ]
+  },
+  {
+    "id": "vercel-project-git-readiness",
+    "description": "Verify local Vercel project link, Git origin, and branch upstream readiness.",
+    "default_switches": [
+      "RequireBranchUpstream"
+    ],
+    "patterns": [
+      "verify-vercel-project-git-readiness.ps1"
+    ]
+  },
+  {
+    "id": "vercel-git-link",
+    "description": "Verify Vercel frontend GitHub linkage and monorepo root settings.",
+    "patterns": [
+      "verify-vercel-git-link.ps1"
     ]
   },
   {
@@ -96,6 +115,7 @@
       "verify-worktree-owner-decision-candidates.ps1",
       "verify-worktree-owner-action-packet.ps1",
       "verify-worktree-release-boundary.ps1",
+      "verify-vercel-project-git-readiness.ps1",
       "verify-vercel-access.ps1",
       "verify-vercel-remediation-plan.ps1",
       "verify-blocker-resolution-plan.ps1",
@@ -226,6 +246,8 @@
     "suites": [
       "security",
       "external-gates-with-tokens",
+      "vercel-project-git-readiness",
+      "vercel-git-link",
       "current-release-candidate",
       "phase5",
       "hosted-staging",
@@ -254,6 +276,8 @@
       "cloud-only-staging",
       "external-gates",
       "external-gates-with-tokens",
+      "vercel-project-git-readiness",
+      "vercel-git-link",
       "tooling-readiness",
       "release-boundary",
       "release-boundary-regression",

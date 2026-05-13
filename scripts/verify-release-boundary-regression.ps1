@@ -94,6 +94,8 @@ try {
     "scripts\verify-worktree-owner-decision-candidates.ps1",
     "scripts\verify-worktree-owner-action-packet.ps1",
     "scripts\verify-owner-decision-readiness-packet.ps1",
+    "scripts\verify-vercel-project-git-readiness.ps1",
+    "scripts\verify-vercel-git-link.ps1",
     "scripts\verify-vercel-remediation-plan.ps1",
     "scripts\verify-release-rebaseline-plan.ps1",
     "scripts\verify-blocker-resolution-plan.ps1",
@@ -120,6 +122,8 @@ try {
     "verify-worktree-owner-decision-candidates.ps1",
     "verify-worktree-owner-action-packet.ps1",
     "verify-owner-decision-readiness-packet.ps1",
+    "verify-vercel-project-git-readiness.ps1",
+    "verify-vercel-git-link.ps1",
     "verify-vercel-remediation-plan.ps1",
     "verify-release-rebaseline-plan.ps1",
     "verify-blocker-resolution-plan.ps1",
@@ -143,6 +147,8 @@ try {
   $ownerCandidates = Read-JsonArtifact -Path ".phase1-artifacts\worktree-owner-decision-candidates-20260511.json" -Label "owner-decision-candidates"
   $ownerActionPacket = Read-JsonArtifact -Path ".phase1-artifacts\worktree-owner-action-packet-20260511.json" -Label "owner-action-packet"
   $ownerReadinessPacket = Read-JsonArtifact -Path ".phase1-artifacts\owner-decision-readiness-packet-20260511.json" -Label "owner-decision-readiness-packet"
+  $vercelProjectGitReadiness = Read-JsonArtifact -Path ".phase1-artifacts\vercel-project-git-readiness-20260513.json" -Label "vercel-project-git-readiness"
+  $vercelGitLink = Read-JsonArtifact -Path ".phase1-artifacts\vercel-git-link-20260513.json" -Label "vercel-git-link"
   $vercelRemediation = Read-JsonArtifact -Path ".phase1-artifacts\vercel-remediation-plan-20260511.json" -Label "vercel-remediation-plan"
   $releaseRebaseline = Read-JsonArtifact -Path ".phase1-artifacts\release-rebaseline-plan-20260511.json" -Label "release-rebaseline-plan"
   $resolutionPlan = Read-JsonArtifact -Path ".phase1-artifacts\blocker-resolution-plan-20260511.json" -Label "blocker-resolution-plan"
@@ -235,6 +241,21 @@ try {
   Assert-EqualValue $findings "owner_readiness.required_item_count" 8 $ownerReadinessPacket.required_item_count
   Assert-EqualValue $findings "owner_readiness.finding_count" 0 $ownerReadinessPacket.finding_count
 
+  Assert-EqualValue $findings "vercel_project_git.status" "ready" $vercelProjectGitReadiness.status
+  Assert-EqualValue $findings "vercel_project_git.ready" $true $vercelProjectGitReadiness.ready
+  Assert-EqualValue $findings "vercel_project_git.classification" "project_link_git_config_ready" $vercelProjectGitReadiness.classification
+  Assert-EqualValue $findings "vercel_project_git.blocking_failure_count" 0 $vercelProjectGitReadiness.blocking_failure_count
+  Assert-EqualValue $findings "vercel_project_git.no_secrets" $false $vercelProjectGitReadiness.leak_prevention.secret_values_included
+
+  Assert-EqualValue $findings "vercel_git_link.status" "ready" $vercelGitLink.status
+  Assert-EqualValue $findings "vercel_git_link.classification" "vercel_git_link_ready" $vercelGitLink.classification
+  Assert-EqualValue $findings "vercel_git_link.safe_for_git_auto_deploy" $true $vercelGitLink.safe_for_git_auto_deploy
+  Assert-EqualValue $findings "vercel_git_link.http_status" 200 $vercelGitLink.http_status
+  Assert-EqualValue $findings "vercel_git_link.root_directory" "apps/frontend" $vercelGitLink.observed.rootDirectory
+  Assert-EqualValue $findings "vercel_git_link.link_org" "strazzusochr" $vercelGitLink.observed.linkOrg
+  Assert-EqualValue $findings "vercel_git_link.link_repo" "-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM" $vercelGitLink.observed.linkRepo
+  Assert-EqualValue $findings "vercel_git_link.production_branch" "chore/repo-bootstrap" $vercelGitLink.observed.linkProductionBranch
+
   Assert-EqualValue $findings "vercel_remediation.status" "vercel-remediation-ready" $vercelRemediation.status
   Assert-EqualValue $findings "vercel_remediation.valid" $true $vercelRemediation.valid
   Assert-EqualValue $findings "vercel_remediation.ready" $true $vercelRemediation.ready
@@ -313,6 +334,8 @@ try {
       ".phase1-artifacts\worktree-owner-decision-candidates-20260511.json",
       ".phase1-artifacts\worktree-owner-action-packet-20260511.json",
       ".phase1-artifacts\owner-decision-readiness-packet-20260511.json",
+      ".phase1-artifacts\vercel-project-git-readiness-20260513.json",
+      ".phase1-artifacts\vercel-git-link-20260513.json",
       ".phase1-artifacts\vercel-remediation-plan-20260511.json",
       ".phase1-artifacts\release-rebaseline-plan-20260511.json",
       ".phase1-artifacts\blocker-resolution-plan-20260511.json",
