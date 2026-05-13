@@ -17,6 +17,7 @@ owner_decision: `approved`
 hosted_selector_observed: `IMAGE_TAG=b0c2773b1d122745947315a8d39734d5a6c96d6b`
 hosted_selector_observed_at: `2026-05-12T14:08:00Z`
 immutable_staging_parity_status: `verified`
+active_candidate_gate_rerun_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-candidate-gate-rerun.md`
 
 ## Verification Evidence
 
@@ -34,6 +35,7 @@ immutable_staging_parity_status: `verified`
 - Immutable staging plan: `scripts\deploy-to-staging.ps1 -PlanOnly -UseImageFilesystem -ImageTag b0c2773b1d122745947315a8d39734d5a6c96d6b`
 - Immutable staging parity ready check: `scripts\manual\verify-phase5-staging-immutable-parity.ps1 -ReleaseId prod-candidate-2026-05-11-rc1 -CandidateSha b0c2773b1d122745947315a8d39734d5a6c96d6b`
 - Immutable staging parity remote proof: `scripts\manual\verify-phase5-staging-immutable-parity.ps1 -RequireVerified -ReleaseId prod-candidate-2026-05-11-rc1 -CandidateSha b0c2773b1d122745947315a8d39734d5a6c96d6b -BaseUrl https://188-34-191-140.sslip.io -KeyPath <local-private-key>`
+- Active candidate gate rerun proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-candidate-gate-rerun.md`
 
 ## Cloud Surfaces
 

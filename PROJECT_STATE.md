@@ -76,7 +76,15 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 
 ## ZULETZT ABGESCHLOSSEN
 
-**Phase 5 Integration Smoke Plan Rerun** — der aktuelle `RC1`-Truth ist jetzt nochmals gegen den gehosteten Integration-/Smoke-Pfad auf `overall=70`, `phase_5=67` nachgezogen:
+**Phase 5 Active Candidate Gate Rerun** — der aktive `prod-candidate-2026-05-11-rc1` ist jetzt mit einem eigenen Gate-Rerun-Proof gegen die reale Hosted-Surface und die aktuelle Vercel-/Git-Bindung nachgezogen:
+
+- `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-candidate-gate-rerun.md` bindet `current-release-candidate.json`, den aktiven Candidate, `https://188-34-191-140.sslip.io`, Vercel Git Link, Project Git Readiness und das Active-Release-Candidate-Bundle zusammen
+- `scripts/verify-phase5-active-candidate-gate-rerun.ps1` prueft den Proof, parst das JSON aus `scripts\verify-active-release-candidate-bundle.ps1 -ReportOnly -JsonOnly` und ruft danach `scripts\verify-current-release-candidate.ps1` erneut auf
+- die Proof-Kette bestaetigt `bundle_status=passed`, `bundle_gate_count=3`, `active_release_id=prod-candidate-2026-05-11-rc1`, `production_rollout_claimed=false` und fail-closed Policy-Flags fuer Produktion, Rollout und Secrets
+- dies ist nur ein aktiver Release-Candidate-Gate-Rerun; kein Production-Rollout, kein Production-Deploy, kein Live-Provider-Call und keine Secret-Offenlegung
+- Fortschritt bleibt repo-ehrlich unveraendert: `overall=70`, `phase_5=67`
+
+**Vorheriger Abschluss — Phase 5 Integration Smoke Plan Rerun** — der aktuelle `RC1`-Truth ist jetzt nochmals gegen den gehosteten Integration-/Smoke-Pfad auf `overall=70`, `phase_5=67` nachgezogen:
 
 - `docs/release-artifacts/prod-candidate-2026-05-05-rc1-integration-smoke-plan-rerun.md` dokumentiert einen frischen candidate-scoped Hosted-Smoke-Lauf gegen Root, API-, MCP- und LLM-Health, Project Progress, Integrity, Completion, External Gates, External-Gates-Mirror und Deployment-Preflight
 - `scripts/verify-phase5-integration-smoke-plan-rerun.ps1` bindet denselben Proof an die aktuelle Manifest-Truth, den aktiven Candidate und die reale Hosted-Surface auf `https://188-34-191-140.sslip.io`

@@ -106,6 +106,16 @@ Autopilot stream proof now runs through the active Agent API/Nginx stack at `<lo
 
 ## Latest Completed Proof
 
+Phase 5 Active Candidate Gate Rerun:
+
+- `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-candidate-gate-rerun.md` records one active-RC gate rerun against `https://188-34-191-140.sslip.io`, binding current-release-candidate config, active candidate artifact, active release-candidate bundle, Vercel Git link readiness, and project Git readiness.
+- `scripts/verify-phase5-active-candidate-gate-rerun.ps1` re-checks the proof, parses `scripts\verify-active-release-candidate-bundle.ps1 -ReportOnly -JsonOnly`, and then reruns `scripts\verify-current-release-candidate.ps1`.
+- The rerun asserts `bundle_status=passed`, `bundle_gate_count=3`, `active_release_id=prod-candidate-2026-05-11-rc1`, `production_rollout_claimed=false`, and policy flags for production mutation, deploy, rollout claim, and secret inclusion all remain false.
+- This is an active release-candidate verification proof only; it does not claim production rollout, production deploy, live provider use, or secret disclosure.
+- Progress change: Overall remains `70%`; Phase 5 remains `67%`.
+
+Previous latest completed proof:
+
 Phase 5 Integration Smoke Plan Rerun:
 
 - `docs/release-artifacts/prod-candidate-2026-05-05-rc1-integration-smoke-plan-rerun.md` records one fresh candidate-scoped hosted smoke-plan rerun on the active truth `overall=70`, `phase_5=67`, with hosted root/API/MCP/LLM `200`, hosted progress/integrity, fail-closed completion, external gates `verified`, external-gates mirror visibility, and deployment-preflight `verified`.
