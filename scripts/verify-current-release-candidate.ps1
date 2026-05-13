@@ -106,6 +106,7 @@ if ([string]::IsNullOrWhiteSpace($ReleaseId)) {
 } else {
   Assert-Equal "requested release id" $ReleaseId $activeReleaseId
 }
+Assert-PublicHttpsUrl "BaseUrl" $BaseUrl
 Assert-False "production rollout claimed flag" $config.production_rollout_claimed
 
 $candidatePath = "docs\release-artifacts\$ReleaseId.md"
@@ -188,11 +189,10 @@ Assert-Equal "Vercel link type" $vercelGitLink.observed.linkType "github"
 Assert-Equal "Vercel link org" $vercelGitLink.observed.linkOrg "strazzusochr"
 Assert-Equal "Vercel link repo" $vercelGitLink.observed.linkRepo "-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM"
 Assert-Equal "Vercel production branch" $vercelGitLink.observed.linkProductionBranch $sourceBranch
-Assert-True "Vercel frontend domain bound to project" (@($vercelGitLink.observed.domainNames) -contains $vercelFrontendHost)
 $matchingVerifiedDomain = @($vercelGitLink.observed.domains | Where-Object {
   [string]$_.name -eq $vercelFrontendHost -and [bool]$_.verified
 } | Select-Object -First 1)
-Assert-True "Vercel frontend domain verified" ($null -ne $matchingVerifiedDomain)
+Assert-True "Vercel frontend domain bound to verified project domain" ($null -ne $matchingVerifiedDomain)
 foreach ($checkName in @(
   "project_readable",
   "project_id_matches",

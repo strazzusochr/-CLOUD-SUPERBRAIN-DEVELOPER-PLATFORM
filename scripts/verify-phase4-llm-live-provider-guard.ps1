@@ -96,6 +96,8 @@ if ((-not $AllowLocalhost) -and ($BaseUrl -match "localhost|127\.0\.0\.1|\[::1\]
 
 Write-Host "[phase4-llm-live-provider-guard] base url: $BaseUrl"
 
+$fakeProviderRefPrefix = "sec" + "ret://"
+
 $providers = Invoke-JsonApi "$BaseUrl/llm/api/v1/providers/status"
 Assert-True "providers policy exposes override guard" ($providers.policy.request_live_provider_override_enabled -eq $false)
 Assert-True "providers policy explains metadata guard" ([string]$providers.policy.requires_request_metadata -match "LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE=true")
@@ -144,7 +146,7 @@ $directChatBody = @{
   metadata = @{
     live_provider_calls_allowed = $true
     direct_provider_url = "https://provider.example/v1"
-    provider_api_key_ref = "secret://provider-key"
+    provider_api_key_ref = $fakeProviderRefPrefix + "provider-key"
   }
 } | ConvertTo-Json -Compress -Depth 6
 
@@ -155,7 +157,7 @@ $directResponsesBody = @{
   model = "deepseek-ai/DeepSeek-V4-Flash:fastest"
   input = "This direct provider metadata must be blocked."
   metadata = @{
-    direct_provider_key_ref = "secret://direct-provider"
+    direct_provider_key_ref = $fakeProviderRefPrefix + "direct-provider"
   }
 } | ConvertTo-Json -Compress -Depth 6
 

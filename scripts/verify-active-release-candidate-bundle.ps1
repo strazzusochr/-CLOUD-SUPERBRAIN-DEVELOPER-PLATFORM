@@ -39,7 +39,7 @@ function Invoke-Gate([string]$Id, [string]$ScriptPath, [hashtable]$Arguments) {
 
   $startedAt = Get-Date
   $global:LASTEXITCODE = 0
-  & $ScriptPath @Arguments
+  & $ScriptPath @Arguments *>$null
   $exitCode = $LASTEXITCODE
   if ($exitCode -ne 0) {
     throw "Gate failed: $Id exited with code $exitCode."
