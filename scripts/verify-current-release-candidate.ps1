@@ -37,6 +37,12 @@ function Assert-Sha($label, $value) {
   }
 }
 
+function Assert-ReleaseId($label, $value) {
+  if ([string]::IsNullOrWhiteSpace($value) -or $value -notmatch '^prod-candidate-[0-9]{4}-[0-9]{2}-[0-9]{2}-rc[0-9]+$') {
+    throw "Verification failed: $label is not a valid release candidate id."
+  }
+}
+
 function Assert-PublicHttpsUrl($label, $value) {
   if ([string]::IsNullOrWhiteSpace($value)) {
     throw "Verification failed: $label is empty."
@@ -60,27 +66,15 @@ function Assert-PublicHttpsUrl($label, $value) {
 }
 
 function Get-Json($url) {
-@"
-import json, urllib.request
-with urllib.request.urlopen(r"$url", timeout=30) as response:
-    print(json.dumps(json.load(response)))
-"@ | py -3 -
+  (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 30).Content
 }
 
 function Get-Text($url) {
-@"
-import urllib.request
-with urllib.request.urlopen(r"$url", timeout=30) as response:
-    print(response.read(200000).decode("utf-8", "replace"))
-"@ | py -3 -
+  (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 30).Content
 }
 
 function Get-Status($url) {
-@"
-import urllib.request
-with urllib.request.urlopen(r"$url", timeout=30) as response:
-    print(response.status)
-"@ | py -3 -
+  (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 30).StatusCode
 }
 
 function Assert-GitCommitExists($sha) {
@@ -106,6 +100,7 @@ if ([string]::IsNullOrWhiteSpace($ReleaseId)) {
 } else {
   Assert-Equal "requested release id" $ReleaseId $activeReleaseId
 }
+Assert-ReleaseId "active release id" $ReleaseId
 Assert-PublicHttpsUrl "BaseUrl" $BaseUrl
 Assert-False "production rollout claimed flag" $config.production_rollout_claimed
 
