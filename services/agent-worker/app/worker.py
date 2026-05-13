@@ -40,6 +40,9 @@ class TaskRecord(BaseModel):
     status: str = "queued"
     created_at: str
     trace_id: str | None = None
+    dispatch_id: str | None = Field(default=None, max_length=120)
+    logical_role: str | None = Field(default=None, pattern="^(supervisor|planner|explorer|coder|tester)$")
+    provenance_evidence_ref: str | None = Field(default=None, max_length=160)
     priority: int = Field(default=5, ge=1, le=10)
     max_retries: int = Field(default=5, ge=1, le=5)
     allowed_tools: list[str] = Field(default_factory=lambda: ["memory_read", "task_router"])
@@ -163,10 +166,20 @@ def deterministic_agent_result(task: TaskRecord) -> str:
 
 
 def build_result_envelope(task: TaskRecord, result: str) -> dict[str, Any]:
+    evidence_refs = ["agent-worker:deterministic-completion", "audit_log:task_completed"]
+    if task.provenance_evidence_ref:
+        evidence_refs.append(task.provenance_evidence_ref)
     return {
         "agent_id": task.agent_type,
         "role": task.agent_type,
+        "logical_role": task.logical_role,
         "task_id": task.task_id,
+        "dispatch": {
+            "dispatch_id": task.dispatch_id,
+            "logical_role": task.logical_role,
+            "execution_agent_type": task.agent_type,
+            "provenance_evidence_ref": task.provenance_evidence_ref,
+        },
         "status": "completed",
         "summary": result,
         "artifacts": [
@@ -181,7 +194,7 @@ def build_result_envelope(task: TaskRecord, result: str) -> dict[str, Any]:
                 "description": "Completion event persisted with task metadata.",
             },
         ],
-        "evidence_refs": ["agent-worker:deterministic-completion", "audit_log:task_completed"],
+        "evidence_refs": evidence_refs,
         "memory_write": {
             "allowed": True,
             "classification": "test_artifact",
@@ -225,6 +238,9 @@ def persist_completion(task: TaskRecord, result: str, result_envelope: dict[str,
         "task_type": task.task_type,
         "worker": "agent-worker",
         "trace_id": trace_id,
+        "dispatch_id": task.dispatch_id,
+        "logical_role": task.logical_role,
+        "provenance_evidence_ref": task.provenance_evidence_ref,
         "llm_calls": 0,
         "result_envelope": result_envelope,
         "done_validation": done_validation,
@@ -268,6 +284,9 @@ def persist_failure(task: TaskRecord, error: str) -> None:
         "task_id": task.task_id,
         "task_type": task.task_type,
         "agent_type": task.agent_type,
+        "dispatch_id": task.dispatch_id,
+        "logical_role": task.logical_role,
+        "provenance_evidence_ref": task.provenance_evidence_ref,
         "worker": "agent-worker",
         "trace_id": trace_id,
         "error": error,
@@ -293,6 +312,9 @@ def persist_retry(task: TaskRecord, error: str, next_retry_count: int) -> None:
         "task_id": task.task_id,
         "task_type": task.task_type,
         "agent_type": task.agent_type,
+        "dispatch_id": task.dispatch_id,
+        "logical_role": task.logical_role,
+        "provenance_evidence_ref": task.provenance_evidence_ref,
         "worker": "agent-worker",
         "error": error,
         "retry_count": next_retry_count,
@@ -319,6 +341,9 @@ def persist_escalation(task: TaskRecord, error: str) -> None:
         "task_id": task.task_id,
         "task_type": task.task_type,
         "agent_type": task.agent_type,
+        "dispatch_id": task.dispatch_id,
+        "logical_role": task.logical_role,
+        "provenance_evidence_ref": task.provenance_evidence_ref,
         "worker": "agent-worker",
         "error": error,
         "retry_count": task.retry_count,
@@ -346,6 +371,9 @@ def persist_abandoned_after_queue_drain(task: TaskRecord, error: str) -> None:
         "task_id": task.task_id,
         "task_type": task.task_type,
         "agent_type": task.agent_type,
+        "dispatch_id": task.dispatch_id,
+        "logical_role": task.logical_role,
+        "provenance_evidence_ref": task.provenance_evidence_ref,
         "worker": "agent-worker",
         "status": "abandoned_after_queue_drain",
         "error": error,
@@ -399,6 +427,9 @@ def persist_status_rehydrated_from_audit(task: TaskRecord) -> None:
         "task_id": task.task_id,
         "task_type": task.task_type,
         "agent_type": task.agent_type,
+        "dispatch_id": task.dispatch_id,
+        "logical_role": task.logical_role,
+        "provenance_evidence_ref": task.provenance_evidence_ref,
         "worker": "agent-worker",
         "status": "completed",
         "evidence_ref": "worker_status_rehydrated_from_completed_audit",

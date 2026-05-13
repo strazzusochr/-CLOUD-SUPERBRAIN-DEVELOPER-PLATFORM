@@ -2153,6 +2153,9 @@ def recent_tasks_contract_payload() -> dict[str, object]:
             "project_id",
             "session_id",
             "trace_id",
+            "dispatch_id",
+            "logical_role",
+            "provenance_evidence_ref",
             "request_id",
             "correlation_evidence_ref",
             "audit_feed_evidence_ref",
@@ -2192,6 +2195,7 @@ def recent_tasks_contract_payload() -> dict[str, object]:
             "Recent tasks expose top-level request, trace, correlation, and audit-feed evidence fields.",
             "The request_id field is visible on recent tasks and may remain null until correlated audit or session evidence is available.",
             "Recent tasks preserve queue priority metadata and task policy fields.",
+            "Recent tasks expose autonomous dispatch_id, logical_role, and provenance evidence when created by the autonomous team dispatcher.",
             "Recent tasks remain aligned with internal task status and audit evidence.",
         ],
         "evidence_refs": {
@@ -2200,6 +2204,7 @@ def recent_tasks_contract_payload() -> dict[str, object]:
             "request_correlation": "request_id_audit_correlation",
             "audit_feed_visibility": "request_id_audit_feed_visible",
             "priority_queue": "task_priority_queue_correction_proof",
+            "dispatch_provenance": "autonomous_team_dispatch_task_provenance",
         },
         "non_claims": [
             "This does not imply production rollout approval.",
@@ -4785,6 +4790,9 @@ def recent_tasks(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, obje
                 "project_id": record.project_id,
                 "session_id": record.session_id,
                 "trace_id": (task_projection.get(record.task_id, {}) or session_projection.get(str(record.session_id), {})).get("trace_id") or record.trace_id,
+                "dispatch_id": record.dispatch_id,
+                "logical_role": record.logical_role,
+                "provenance_evidence_ref": record.provenance_evidence_ref,
                 "request_id": (task_projection.get(record.task_id, {}) or session_projection.get(str(record.session_id), {})).get("request_id"),
                 "correlation_evidence_ref": (task_projection.get(record.task_id, {}) or session_projection.get(str(record.session_id), {})).get("correlation_evidence_ref"),
                 "audit_feed_evidence_ref": (task_projection.get(record.task_id, {}) or session_projection.get(str(record.session_id), {})).get("audit_feed_evidence_ref"),
@@ -6234,6 +6242,9 @@ def task_assignment_contract_payload() -> dict[str, object]:
                 "task_type": "string 1..120",
                 "task_description": "string 1..10000 redacted before persistence",
                 "trace_id": "optional string",
+                "dispatch_id": "optional autonomous dispatch id",
+                "logical_role": "optional supervisor|planner|explorer|coder|tester overlay role",
+                "provenance_evidence_ref": "optional evidence ref binding dispatch to queued task",
                 "priority": "integer 1..10 default 5",
                 "max_retries": "integer 1..5 bounded by agent profile",
                 "allowed_tools": "array constrained by agent profile",
@@ -6250,6 +6261,9 @@ def task_assignment_contract_payload() -> dict[str, object]:
             "retry_count": "integer",
             "result_envelope": "object or null",
             "done_validation": "implemented/tested/integrated/reported/logged booleans or null",
+            "dispatch_id": "autonomous dispatch id or null",
+            "logical_role": "logical overlay role or null",
+            "provenance_evidence_ref": "dispatch-to-task provenance evidence or null",
             "queue_depth": "integer from Redis llen",
             "queue_depth_by_priority": "object keyed by high/mid/low Redis queue depth",
         },
@@ -6269,12 +6283,14 @@ def task_assignment_contract_payload() -> dict[str, object]:
             "worker_stale_queued_finalized",
             "task_session_uuid_fail_closed_proof",
             "agent_activity_per_role_results_visible",
+            "autonomous_team_dispatch_task_provenance",
         ],
         "policy_checks": [
             "TaskAssignment validates session_id as UUID before Redis enqueue.",
             "Task policy rejects unknown tools, profile tool drift, missing blocked actions, missing write_scope, and unsafe deployment routing.",
             "Queue depth is visible through public status, recent task feed, and Prometheus metrics.",
             "Priority routing is visible through high/mid/low queue keys and worker consumption order.",
+            "Autonomous dispatch provenance is persisted onto each queued task and visible through task status and recent task feeds.",
             "Stale queued tasks are reconciled by the worker and do not produce false completed claims.",
         ],
         "non_claims": [
@@ -7237,6 +7253,8 @@ def autonomous_team_contract_payload() -> dict[str, object]:
         ],
         "required_member_fields": [
             "logical_role",
+            "dispatch_id",
+            "provenance_evidence_ref",
             "execution_agent_type",
             "task_id",
             "latest_task_id",
@@ -7315,7 +7333,9 @@ def autonomous_task_dispatch_contract_payload() -> dict[str, object]:
             "non_claims",
         ],
         "required_assignment_fields": [
+            "dispatch_id",
             "logical_role",
+            "provenance_evidence_ref",
             "execution_agent_type",
             "task_id",
             "task_type",
@@ -7388,6 +7408,8 @@ def autonomous_idle_team_payload() -> dict[str, object]:
         "members": [
             {
                 "logical_role": logical_role,
+                "dispatch_id": None,
+                "provenance_evidence_ref": None,
                 "execution_agent_type": autonomous_role_map()[logical_role],
                 "task_id": None,
                 "latest_task_id": None,
@@ -7425,6 +7447,8 @@ def external_autonomous_team_payload(external_runtime: dict[str, object]) -> dic
         members.append(
             {
                 "logical_role": logical_role,
+                "dispatch_id": None,
+                "provenance_evidence_ref": None,
                 "execution_agent_type": runtime_agent,
                 "task_id": None,
                 "latest_task_id": None,
@@ -7508,6 +7532,8 @@ def autonomous_team_status_payload(dispatch_id: str | None = None) -> dict[str, 
         members.append(
             {
                 "logical_role": assignment.logical_role,
+                "dispatch_id": assignment.dispatch_id,
+                "provenance_evidence_ref": assignment.provenance_evidence_ref,
                 "execution_agent_type": assignment.execution_agent_type,
                 "task_id": assignment.task_id,
                 "latest_task_id": assignment.task_id,
@@ -7829,6 +7855,12 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
     prepared_acceptance_criteria = list(dict.fromkeys(request.acceptance_criteria))
     trace_id = request.trace_id or f"autonomous-dispatch-{uuid4()}"
     request_id = getattr(http_request.state, "request_id", None)
+    dispatch_id = str(uuid4())
+    blueprints = autonomous_assignment_blueprints(
+        sanitized_objective,
+        write_scope=prepared_write_scope,
+        acceptance_criteria=prepared_acceptance_criteria,
+    )
     session_id = prepare_orchestrator_session(
         request.project_id,
         request.session_id,
@@ -7851,6 +7883,9 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
             task_type=str(blueprint["task_type"]),
             task_description=str(blueprint["task_description"]),
             trace_id=trace_id,
+            dispatch_id=dispatch_id,
+            logical_role=str(blueprint["logical_role"]),
+            provenance_evidence_ref="autonomous_team_dispatch_task_provenance",
             priority=int(blueprint["priority"]),
             allowed_tools=list(blueprint["allowed_tools"]),
             write_scope=list(blueprint["write_scope"]),
@@ -7858,11 +7893,7 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
             acceptance_criteria=list(blueprint["acceptance_criteria"]),
             human_review_required=bool(blueprint["human_review_required"]),
         )
-        for blueprint in autonomous_assignment_blueprints(
-            sanitized_objective,
-            write_scope=prepared_write_scope,
-            acceptance_criteria=prepared_acceptance_criteria,
-        )
+        for blueprint in blueprints
     ]
     try:
         for assignment in assignments_to_enqueue:
@@ -7879,21 +7910,14 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
         ) from exc
 
     queued_assignments = [enqueue_task(assignment) for assignment in assignments_to_enqueue]
-    dispatch_id = str(uuid4())
     assignment_payloads: list[AutonomousRoleAssignment] = []
-    for blueprint, task in zip(
-        autonomous_assignment_blueprints(
-            sanitized_objective,
-            write_scope=prepared_write_scope,
-            acceptance_criteria=prepared_acceptance_criteria,
-        ),
-        queued_assignments,
-        strict=True,
-    ):
+    for blueprint, task in zip(blueprints, queued_assignments, strict=True):
         priority = int(blueprint["priority"])
         assignment_payloads.append(
             AutonomousRoleAssignment(
+                dispatch_id=dispatch_id,
                 logical_role=str(blueprint["logical_role"]),
+                provenance_evidence_ref="autonomous_team_dispatch_task_provenance",
                 execution_agent_type=task.agent_type,
                 task_id=task.task_id,
                 task_type=task.task_type,
@@ -7947,6 +7971,7 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
                         "autonomous_team_mode": AUTONOMOUS_TEAM_MODE,
                         "autonomous_objective": sanitized_objective,
                         "latest_task_id": queued_assignments[-1].task_id if queued_assignments else None,
+                        "autonomous_task_ids": [task.task_id for task in queued_assignments],
                         "logical_roles": list(AUTONOMOUS_LOGICAL_ROLES),
                         "trace_id": trace_id,
                         "request_id": request_id,
@@ -8507,6 +8532,9 @@ def create_task(assignment: TaskAssignment, request: Request) -> dict[str, objec
                 metadata={
                     "latest_agent_type": assignment.agent_type,
                     "latest_task_type": assignment.task_type,
+                    "dispatch_id": assignment.dispatch_id,
+                    "logical_role": assignment.logical_role,
+                    "provenance_evidence_ref": assignment.provenance_evidence_ref,
                     "trace_id": trace_id,
                     "request_id": request_id,
                     "correlation_evidence_ref": "request_id_audit_correlation" if (request_id or trace_id) else None,
@@ -8527,6 +8555,9 @@ def create_task(assignment: TaskAssignment, request: Request) -> dict[str, objec
                             "latest_task_id": task.task_id,
                             "latest_agent_type": task.agent_type,
                             "latest_task_type": task.task_type,
+                            "dispatch_id": task.dispatch_id,
+                            "logical_role": task.logical_role,
+                            "provenance_evidence_ref": task.provenance_evidence_ref,
                             "trace_id": trace_id,
                             "request_id": request_id,
                             "correlation_evidence_ref": "request_id_audit_correlation" if (request_id or trace_id) else None,
