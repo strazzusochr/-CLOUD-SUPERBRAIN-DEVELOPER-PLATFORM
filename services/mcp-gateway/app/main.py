@@ -986,6 +986,20 @@ async def execute_tool(request: ToolRequest) -> dict[str, object]:
             )
         raise HTTPException(status_code=500, detail="timeout simulation unexpectedly completed")
 
+    if request.toolset == "e2b" and request.capability in E2B_ALLOWED_ACTIONS and not os.getenv("E2B_API_KEY"):
+        return await audited_result(
+            request,
+            envelope_result(
+                request,
+                status="degraded",
+                sanitized_summary="E2B API key is not configured; sandbox execution remains disabled.",
+                error_class="missing_credentials",
+                retry_after_ms=0,
+                evidence_ref="mcp_degraded_missing_e2b_credentials",
+                started=started,
+            ),
+        )
+
     if unsupported_capability(request):
         return await audited_result(
             request,
@@ -997,20 +1011,6 @@ async def execute_tool(request: ToolRequest) -> dict[str, object]:
                 ),
                 error_class="unsupported_capability",
                 evidence_ref=MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF,
-                started=started,
-            ),
-        )
-
-    if request.toolset == "e2b" and not os.getenv("E2B_API_KEY"):
-        return await audited_result(
-            request,
-            envelope_result(
-                request,
-                status="degraded",
-                sanitized_summary="E2B API key is not configured; sandbox execution remains disabled.",
-                error_class="missing_credentials",
-                retry_after_ms=0,
-                evidence_ref="mcp_degraded_missing_e2b_credentials",
                 started=started,
             ),
         )
