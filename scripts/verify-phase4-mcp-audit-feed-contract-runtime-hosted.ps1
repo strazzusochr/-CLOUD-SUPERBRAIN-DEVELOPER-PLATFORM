@@ -77,6 +77,7 @@ Assert-True "contract version" ($contract.contract_version -eq "mcp-audit-feed-v
 
 $sessionId = [guid]::NewGuid().ToString()
 $traceId = "mcp-audit-feed-proof-" + ([guid]::NewGuid().ToString("N"))
+$requestId = "req-mcp-audit-feed-" + ([guid]::NewGuid().ToString("N"))
 $toolRequestId = "mcp-audit-feed-proof-" + ([guid]::NewGuid().ToString("N"))
 $runId = "mcp-audit-feed-run-" + ([guid]::NewGuid().ToString("N"))
 
@@ -85,6 +86,7 @@ $eventBody = @{
   run_id = $runId
   session_id = $sessionId
   trace_id = $traceId
+  request_id = $requestId
   agent_role = "devops"
   toolset = "github"
   capability = "plan_branch_pr"
@@ -111,8 +113,11 @@ foreach ($field in $contract.required_detail_fields) {
   Assert-True "event detail field $field present" ($null -ne $match.details.$field)
 }
 Assert-True "tool request id roundtrip" ($match.details.tool_request_id -eq $toolRequestId)
+Assert-True "request id roundtrip" ($match.request_id -eq $requestId -and $match.details.request_id -eq $requestId)
 Assert-True "trace id roundtrip" ($match.details.trace_id -eq $traceId)
 Assert-True "session bound" ($match.details.session_bound -eq $true)
 Assert-True "audit evidence ref" ($match.details.audit_evidence_ref -eq "mcp_tool_session_bound_audit")
+Assert-True "request correlation ref" ($match.correlation_evidence_ref -eq "request_id_audit_correlation")
+Assert-True "audit feed ref" ($match.audit_feed_evidence_ref -eq "request_id_audit_feed_visible")
 
 Write-Host "[phase4-mcp-audit-feed-contract-runtime] result=verified"

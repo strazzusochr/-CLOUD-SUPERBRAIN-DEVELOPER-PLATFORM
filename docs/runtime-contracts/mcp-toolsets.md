@@ -30,7 +30,8 @@ Implementiert:
 10. Audit-Persistenz ueber Agent API: MCP-Gateway sendet Result-Envelopes an `/internal/audit/mcp-tool-events`; Agent API schreibt `event_type=mcp_tool_executed` in `audit_log`.
 11. Orchestrator-gesteuerte MCP-Aufrufe binden `session_id`, `trace_id`, `run_id` und `tool_request_id` in das Audit-Event. Der Nachweis heisst `mcp_tool_session_bound_audit`.
 12. Unsupported-Capability-Guard mit expliziter Allowlist pro Toolset; Nachweis `mcp_unsupported_capability_guard`.
-13. Verifier-Beweis in `scripts/verify-phase1-runtime.ps1`, `scripts/verify-hosted-staging.ps1`, und `scripts/verify-phase4-mcp-security-guard.ps1`.
+13. Denied-Tool-Audit-Korrelation propagiert `request_id`, `trace_id`, `correlation_evidence_ref` und `audit_feed_evidence_ref` von blockierten MCP-Gateway-Aufrufen in `/api/v1/audit/mcp`, `/api/v1/audit/recent` und `/api/v1/agent-activity/recent`; Nachweis `mcp_denied_tool_audit_correlation`.
+14. Verifier-Beweis in `scripts/verify-phase1-runtime.ps1`, `scripts/verify-hosted-staging.ps1`, `scripts/verify-phase4-mcp-security-guard.ps1`, und `scripts/verify-phase3-mcp-deny-audit-correlation.ps1`.
 
 Nicht implementiert:
 
@@ -84,6 +85,7 @@ Pflichtfelder:
 - `run_id`: Orchestrator-Run oder Task-Run
 - `session_id`: Session/Thread-ID, wenn der Toolcall aus dem Orchestrator stammt
 - `trace_id`: Trace-ID fuer Activity-Feed, Audit-Korrelation und Debugging
+- `request_id`: optionale Request-ID fuer auditierbare Cross-Surface-Korrelation
 - `agent_role`: aufrufender Agent aus dem erlaubten Rollenprofil
 - `toolset`: erlaubtes Toolset, zum Beispiel `github`, `e2b`, `playwright`, `filesystem`
 - `capability`: konkrete erlaubte Aktion innerhalb des Toolsets

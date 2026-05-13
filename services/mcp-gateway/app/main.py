@@ -21,6 +21,7 @@ MCP_VERSION_PINNING_EVIDENCE_REF = "mcp_version_pinning_contract_visible"
 MCP_REDACTION_EVIDENCE_REF = "mcp_secret_redaction_guard"
 MCP_UNSUPPORTED_TOOLSET_EVIDENCE_REF = "mcp_unsupported_toolset_guard"
 MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF = "mcp_unsupported_capability_guard"
+MCP_DENIED_AUDIT_CORRELATION_EVIDENCE_REF = "mcp_denied_tool_audit_correlation"
 
 app = FastAPI(title="Cloud Superbrain MCP Gateway", version=MCP_GATEWAY_VERSION)
 
@@ -30,6 +31,7 @@ class ToolRequest(BaseModel):
     run_id: str = Field(..., min_length=1, max_length=120)
     session_id: str | None = Field(default=None, max_length=120)
     trace_id: str | None = Field(default=None, max_length=255)
+    request_id: str | None = Field(default=None, max_length=255)
     agent_role: str = Field(..., pattern="^(planner|coder|tester|devops)$")
     toolset: str = Field(..., pattern="^(github|e2b|playwright|filesystem|postgresql|puppeteer)$")
     capability: str = Field(..., min_length=1, max_length=120)
@@ -485,6 +487,7 @@ def mcp_version_pinning_contract() -> dict[str, object]:
             "mcp_scope_guard",
             "mcp_timeout_guard",
             "mcp_tool_session_bound_audit",
+            MCP_DENIED_AUDIT_CORRELATION_EVIDENCE_REF,
             MCP_UNSUPPORTED_TOOLSET_EVIDENCE_REF,
             MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF,
             MCP_REDACTION_EVIDENCE_REF,
@@ -729,6 +732,7 @@ def post_audit_event(request: ToolRequest, result: dict[str, object]) -> dict[st
         "run_id": request.run_id,
         "session_id": request.session_id,
         "trace_id": request.trace_id,
+        "request_id": request.request_id,
         "agent_role": request.agent_role,
         "toolset": request.toolset,
         "capability": request.capability,

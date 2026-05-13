@@ -947,6 +947,7 @@ class McpToolAuditRequest(BaseModel):
     run_id: str = Field(..., min_length=1, max_length=120)
     session_id: str | None = Field(default=None, max_length=120)
     trace_id: str | None = Field(default=None, max_length=255)
+    request_id: str | None = Field(default=None, max_length=255)
     agent_role: str = Field(..., pattern="^(planner|coder|tester|devops)$")
     toolset: str = Field(..., pattern="^(github|e2b|playwright|filesystem|postgresql|puppeteer)$")
     capability: str = Field(..., min_length=1, max_length=120)
@@ -2557,7 +2558,10 @@ def mcp_audit_feed_contract_payload() -> dict[str, object]:
             "event_type",
             "user_id",
             "session_id",
+            "request_id",
             "trace_id",
+            "correlation_evidence_ref",
+            "audit_feed_evidence_ref",
             "details",
             "created_at",
             "severity",
@@ -2565,6 +2569,7 @@ def mcp_audit_feed_contract_payload() -> dict[str, object]:
         "required_detail_fields": [
             "tool_request_id",
             "run_id",
+            "request_id",
             "trace_id",
             "agent_role",
             "toolset",
@@ -2579,6 +2584,11 @@ def mcp_audit_feed_contract_payload() -> dict[str, object]:
             "audit_tags",
             "session_bound",
             "audit_evidence_ref",
+            "correlation_evidence_ref",
+            "audit_feed_evidence_ref",
+        ],
+        "blocked_detail_fields": [
+            "denied_tool_correlation_evidence_ref",
         ],
         "supported_statuses": ["success", "blocked", "timeout", "degraded"],
         "supported_toolsets": ["github", "e2b", "playwright", "filesystem", "postgresql", "puppeteer"],
@@ -2591,6 +2601,9 @@ def mcp_audit_feed_contract_payload() -> dict[str, object]:
             "contract_visible": "mcp_audit_feed_contract_runtime_visible",
             "runtime_visible": "hosted_mcp_audit_feed_contract_runtime_parity_proof",
             "session_bound_audit": "mcp_tool_session_bound_audit",
+            "denied_tool_correlation": "mcp_denied_tool_audit_correlation",
+            "request_correlation": "request_id_audit_correlation",
+            "audit_feed_visibility": "request_id_audit_feed_visible",
         },
         "non_claims": [
             "This contract does not claim live MCP writes are enabled.",
@@ -5148,7 +5161,16 @@ def recent_mcp_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dic
                 "event_type": row[1],
                 "user_id": row[2],
                 "session_id": str(row[3]) if row[3] else None,
+                "request_id": (row[4] or {}).get("request_id"),
                 "trace_id": (row[4] or {}).get("trace_id") or (str(row[3]) if row[3] else None),
+                "correlation_evidence_ref": (row[4] or {}).get(
+                    "correlation_evidence_ref",
+                    "request_id_audit_correlation",
+                ),
+                "audit_feed_evidence_ref": (row[4] or {}).get(
+                    "audit_feed_evidence_ref",
+                    "request_id_audit_feed_visible",
+                ),
                 "details": row[4] or {},
                 "created_at": row[5].isoformat() if row[5] else None,
                 "severity": row[6],
@@ -6102,7 +6124,7 @@ def layer_interface_contract_payload() -> dict[str, object]:
             "transport": "HTTP JSON",
             "method": "POST",
             "path": "/mcp/api/v1/tools/execute",
-            "request_schema": ["tool_request_id:string", "run_id:uuid", "session_id:uuid", "trace_id:string", "toolset:string", "capability:string"],
+            "request_schema": ["tool_request_id:string", "run_id:uuid", "session_id:uuid", "trace_id:string", "request_id?:string", "toolset:string", "capability:string"],
             "response_schema": ["status:success|blocked|timeout|degraded", "evidence_ref:string", "audit_persisted:boolean", "result_ref:string"],
             "evidence_ref": "mcp_tool_session_bound_audit",
             "status": "verified",
@@ -8464,8 +8486,22 @@ def create_mcp_tool_audit_event(request: McpToolAuditRequest) -> dict[str, objec
             **request.model_dump(),
             "session_bound": session_id is not None,
             "trace_id": request.trace_id or request.session_id or request.run_id,
+            "request_id": request.request_id or request.tool_request_id,
             "evidence_ref": request.evidence_ref,
             "audit_evidence_ref": "mcp_tool_session_bound_audit",
+            "correlation_evidence_ref": (
+                "request_id_audit_correlation"
+                if request.request_id or request.trace_id or request.session_id or request.tool_request_id
+                else None
+            ),
+            "audit_feed_evidence_ref": (
+                "request_id_audit_feed_visible"
+                if request.request_id or request.trace_id or request.session_id or request.tool_request_id
+                else None
+            ),
+            "denied_tool_correlation_evidence_ref": (
+                "mcp_denied_tool_audit_correlation" if request.status == "blocked" else None
+            ),
         }
     )
     with psycopg.connect(database_url(), autocommit=True) as conn:
