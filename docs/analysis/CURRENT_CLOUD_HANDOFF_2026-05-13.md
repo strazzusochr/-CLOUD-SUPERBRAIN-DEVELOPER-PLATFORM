@@ -1,6 +1,6 @@
-# Current Cloud Handoff - 2026-05-12
+# Current Cloud Handoff - 2026-05-13
 
-Generated at: `2026-05-12T18:44:11Z`
+Generated at: `2026-05-13T06:49:34Z`
 
 Repository: `strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
 
@@ -8,19 +8,23 @@ Local repo path: `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
 
 ## Purpose
 
-This document is the current external-review handoff for the cloud/runtime state after PR #6 through PR #10. It separates verified facts from non-claims. No secret values are included.
+This document is the current external-review handoff for the cloud/runtime state after PR #6 through PR #13. It separates verified facts from non-claims. No secret values are included.
 
 ## Current Repository State
 
 - Base branch: `chore/repo-bootstrap`
-- Final handoff documentation branch: `codex-current-cloud-handoff-final-20260512`
-- Last validated CI/runtime head: `0b54ede8f234e48f097e9d498951f50a48729d02`
+- Final handoff documentation branch: `codex-current-cloud-handoff-20260513`
+- Latest validated repository head: `66c9a7fc1f5f51e60dc73ad4def0e4d35ba7a403`
+- Release-boundary source head: `1d87de96d74ed75bbafff9840e963f2075253df9`
 - This handoff file may be carried by a later documentation-only merge commit. Treat `git log -1` as the current repository head, and treat the value above as the last head whose full post-merge `main-deploy` evidence is recorded here.
 - PR #6: merged, immutable candidate/staging parity correction.
 - PR #7: merged, production image tag publishing is now gated before `build-and-push`.
 - PR #8: merged, current cloud handoff and review/runbook truth-state reconciliation.
 - PR #9: merged, GitHub checkout/setup/Gitleaks flow moved off Node.js 20 actions.
 - PR #10: merged, Docker build/push actions moved off Node.js 20 actions.
+- PR #11: merged, current cloud handoff refreshed after PR #9/#10.
+- PR #12: merged, handoff head wording stabilized.
+- PR #13: merged, release-boundary truth rebaselined and verifier ordering stabilized.
 - PR #7 URL: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/7`
 - PR #7 merge commit: `73f5825afe6c6ce052841ae2e96ab2bb406eb70e`
 - PR #8 URL: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/8`
@@ -29,16 +33,22 @@ This document is the current external-review handoff for the cloud/runtime state
 - PR #9 merge commit: `7a5a77cc00a5a9d69dedc85a5c0f5422d79461ea`
 - PR #10 URL: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/10`
 - PR #10 merge commit: `0b54ede8f234e48f097e9d498951f50a48729d02`
+- PR #11 URL: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/11`
+- PR #11 merge commit: `c79ab993d4fa97bd8036e51c3d52eafa9f5019c6`
+- PR #12 URL: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/12`
+- PR #12 merge commit: `1d87de96d74ed75bbafff9840e963f2075253df9`
+- PR #13 URL: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/13`
+- PR #13 merge commit: `66c9a7fc1f5f51e60dc73ad4def0e4d35ba7a403`
 - Local worktree status before this document edit: clean and in sync with `origin/chore/repo-bootstrap`.
 
 ## Active Release Boundary
 
 - Active release candidate: `prod-candidate-2026-05-11-rc1`
-- Candidate source commit: `fc00a787b54399133a90158bb63f6228859b5c96`
+- Candidate source commit: `1d87de96d74ed75bbafff9840e963f2075253df9`
 - Candidate immutable image commit: `b0c2773b1d122745947315a8d39734d5a6c96d6b`
-- Last validated CI/runtime head: `0b54ede8f234e48f097e9d498951f50a48729d02`
+- Latest validated repository head: `66c9a7fc1f5f51e60dc73ad4def0e4d35ba7a403`
 - Runtime image boundary remains the immutable `b0c2773b1d122745947315a8d39734d5a6c96d6b` service image set.
-- PR #7 changed CI release safety. PR #8 through PR #10 changed documentation and CI workflow maintenance. They do not claim a new production runtime rollout.
+- PR #7 changed CI release safety. PR #8 through PR #13 changed documentation, CI workflow maintenance, release-boundary truth metadata, and verifier ordering. They do not claim a new production runtime rollout.
 
 ## Active Cloud Surfaces
 
@@ -54,10 +64,10 @@ This document is the current external-review handoff for the cloud/runtime state
 Main deploy run:
 
 ```text
-run_id=25753246471
+run_id=25782828285
 workflow=main-deploy
-url=https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25753246471
-head_sha=0b54ede8f234e48f097e9d498951f50a48729d02
+url=https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25782828285
+head_sha=66c9a7fc1f5f51e60dc73ad4def0e4d35ba7a403
 conclusion=success
 ```
 
@@ -83,16 +93,19 @@ checkout/setup actions use node24-capable major versions
 Gitleaks scan uses official Gitleaks CLI v8.30.1 with checksum verification
 Docker actions use node24-capable major versions
 No old Node20 action references remain in .github/workflows
-main-deploy run 25753246471 completed successfully after the migration
+main-deploy run 25782828285 completed successfully after PR #13
 ```
 
 ## Post-Merge Verification Evidence
 
-Full release-candidate suite:
+Release-boundary suite after PR #13:
 
 ```text
-scripts\verify.ps1 -Suite release-candidate -BaseUrl https://188-34-191-140.sslip.io -ReportOnly -MaxWaitSeconds 1
-result: suite=release-candidate scripts=51 failed=0
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\verify.ps1 -Suite release-boundary -ReportOnly -MaxWaitSeconds 1
+result: suite=release-boundary scripts=24 failed=0
+project-truth-state: status=ready-for-next-gate; truth_ready=True
+worktree-release-boundary: release_boundary_clear=True
+external-review-packet: valid=True
 ```
 
 Security excerpt from the same suite:
@@ -126,7 +139,7 @@ scripts\manual\verify-phase5-staging-immutable-parity.ps1 -RequireVerified -Rele
 result: [phase5-staging-immutable-parity] verified
 ```
 
-Direct live HTTP probe using Python/OpenSSL with certificate verification disabled for status-code-only validation:
+Direct live HTTP probe using Node/OpenSSL with certificate verification disabled for status-code-only validation:
 
 ```text
 HTTP 200 https://188-34-191-140.sslip.io/
@@ -136,7 +149,7 @@ HTTP 200 https://188-34-191-140.sslip.io/llm/api/v1/health
 HTTP 200 https://188-34-191-140.sslip.io/api/v1/project/progress/integrity
 ```
 
-PowerShell `Invoke-WebRequest` and Windows `curl.exe` both failed local TLS handling in this session. The hosted verifier suite and Python/OpenSSL probe succeeded against the same URLs.
+PowerShell `Invoke-WebRequest` and Windows `curl.exe` both failed local TLS handling in this session with `SEC_E_NO_CREDENTIALS`. TCP 80 and 443 were reachable, HTTP returned the expected HTTPS redirect, and the Node/OpenSSL probe succeeded against the same HTTPS URLs.
 
 ## Production Safety State
 
@@ -157,7 +170,7 @@ This prevents production image tags from being pushed before the GitHub producti
 
 - No production deployment was triggered from this handoff.
 - No production runtime rollout is claimed.
-- No new Hetzner runtime image rollout from validated CI/runtime head `0b54ede8f234e48f097e9d498951f50a48729d02` is claimed.
+- No new Hetzner runtime image rollout from validated repository head `66c9a7fc1f5f51e60dc73ad4def0e4d35ba7a403` is claimed.
 - GitLab identity remains not claimable in the current external gate audit.
 - GitKraken identity remains not claimable in the current external gate audit.
 - Docker Desktop local readiness was not part of this post-merge verification pass.

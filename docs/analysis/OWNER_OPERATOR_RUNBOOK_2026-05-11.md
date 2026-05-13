@@ -73,6 +73,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-worktree-rele
 - Treat `b0c2773b1d122745947315a8d39734d5a6c96d6b` as the candidate immutable image commit deployed to staging.
 - Treat later verifier/docs-only commits as metadata wrappers only when the verifier reports `release_metadata_only_delta=true`.
 - Current repository head is allowed as a release-metadata-only descendant when the verifier reports `release_metadata_only_delta=true`; the current truth state is ready for the next gate.
-- Current cloud handoff is recorded in `docs\analysis\CURRENT_CLOUD_HANDOFF_2026-05-12.md`.
+- Current cloud handoff is recorded in `docs\analysis\CURRENT_CLOUD_HANDOFF_2026-05-13.md`.
 - Remote immutable Hetzner parity is verified for staging after the image-filesystem deploy and `verify-phase5-staging-immutable-parity.ps1 -RequireVerified`.
 - Do not claim production readiness from this runbook alone.

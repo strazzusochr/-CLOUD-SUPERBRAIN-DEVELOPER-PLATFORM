@@ -92,6 +92,9 @@ function Test-ReleaseMetadataPath([string]$Path) {
   if ($normalized -eq "docs/analysis/release-rebaseline-decision-20260511.json") {
     return $true
   }
+  if ($normalized -like "docs/analysis/CURRENT_CLOUD_HANDOFF_2026-05-*.md") {
+    return $true
+  }
   if ($normalized -like "docs/analysis/*REVIEW*2026-05-*.md" -or $normalized -like "docs/analysis/*RUNBOOK*2026-05-*.md") {
     return $true
   }
