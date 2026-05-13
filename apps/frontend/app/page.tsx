@@ -653,6 +653,12 @@ type SecurityHeadersContract = {
   enforced_by: string;
   applies_to: string;
   headers: Record<string, string>;
+  csp_report_contract?: {
+    contract_version: string;
+    endpoint: string;
+    evidence_ref: string;
+    audit_event_type: string;
+  };
   cors_policy: {
     mode: string;
     reason: string;
@@ -664,7 +670,22 @@ type SecurityHeadersContract = {
     headers_enforced: string;
     same_origin_cors_policy: string;
     ui_visible: string;
+    csp_report_visible?: string;
   };
+};
+
+type CspReportContract = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  audit_event_type: string;
+  audit_user_id: string;
+  evidence_ref: string;
+  audit_evidence_ref: string;
+  accepted_shapes: string[];
+  sanitized_fields: string[];
+  policy_checks: string[];
+  non_claims: string[];
 };
 
 type TraceIdContract = {
@@ -1754,6 +1775,7 @@ export default function Home() {
   const [promptContract, setPromptContract] = useState<PromptContract | null>(null);
   const [errorResponseContract, setErrorResponseContract] = useState<ErrorResponseContract | null>(null);
   const [securityHeadersContract, setSecurityHeadersContract] = useState<SecurityHeadersContract | null>(null);
+  const [cspReportContract, setCspReportContract] = useState<CspReportContract | null>(null);
   const [traceIdContract, setTraceIdContract] = useState<TraceIdContract | null>(null);
   const [cacheControlContract, setCacheControlContract] = useState<CacheControlContract | null>(null);
   const [requestIdContract, setRequestIdContract] = useState<RequestIdContract | null>(null);
@@ -1972,6 +1994,12 @@ export default function Home() {
     const response = await fetch("/api/v1/security/headers/contract", { cache: "no-store" });
     if (!response.ok) throw new Error(`security headers contract ${response.status}`);
     setSecurityHeadersContract(await response.json());
+  }
+
+  async function loadCspReportContract() {
+    const response = await fetch("/api/v1/security/csp/contract", { cache: "no-store" });
+    if (!response.ok) throw new Error(`csp report contract ${response.status}`);
+    setCspReportContract(await response.json());
   }
 
   async function loadTraceIdContract() {
@@ -2470,6 +2498,7 @@ export default function Home() {
         loadPromptContract(),
         loadErrorResponseContract(),
         loadSecurityHeadersContract(),
+        loadCspReportContract(),
         loadTraceIdContract(),
         loadCacheControlContract(),
         loadRequestIdContract(),
@@ -2669,6 +2698,7 @@ export default function Home() {
       loadPromptContract,
       loadErrorResponseContract,
       loadSecurityHeadersContract,
+      loadCspReportContract,
       loadTraceIdContract,
       loadCacheControlContract,
       loadRequestIdContract,
@@ -2782,6 +2812,7 @@ export default function Home() {
       "X-Frame-Options": "DENY",
       "Referrer-Policy": "no-referrer",
       "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+      "Content-Security-Policy": "default-src 'self'; report-uri /api/v1/security/csp/report",
     },
   );
   const securityHeaderEvidenceRefs = securityHeadersContract?.evidence_refs ?? {
@@ -2789,7 +2820,11 @@ export default function Home() {
     headers_enforced: "security_headers_enforced",
     same_origin_cors_policy: "security_headers_same_origin_policy",
     ui_visible: "security_headers_ui_visible",
+    csp_report_visible: "csp_report_contract_visible",
   };
+  const cspSanitizedFields = stringList(cspReportContract?.sanitized_fields);
+  const cspPolicyChecks = stringList(cspReportContract?.policy_checks);
+  const cspNonClaims = stringList(cspReportContract?.non_claims);
   const traceIdEvidenceRefs = traceIdContract?.evidence_refs ?? {
     contract_visible: "trace_id_contract_visible",
     header_roundtrip: "trace_id_header_roundtrip",
@@ -3082,6 +3117,53 @@ export default function Home() {
               <span key={check}>{check}</span>
             ))}
           </div>
+        </section>
+
+        <section className="panel" aria-label="CSP report contract">
+          <header className="panelHeader">
+            <h2>CSP Report Contract</h2>
+            <button type="button" onClick={() => void loadCspReportContract()}>
+              Refresh Contract
+            </button>
+          </header>
+          <div className="healthSummary">
+            <div>
+              <span>Contract</span>
+              <strong>{cspReportContract?.contract_version ?? "csp-report-contract-v1"}</strong>
+            </div>
+            <div>
+              <span>Mode</span>
+              <strong>{cspReportContract?.mode ?? "same_origin_csp_violation_audit_sink"}</strong>
+            </div>
+            <div>
+              <span>Endpoint</span>
+              <strong>{cspReportContract?.endpoint ?? "POST /api/v1/security/csp/report"}</strong>
+            </div>
+            <div>
+              <span>Evidence</span>
+              <strong>{cspReportContract?.evidence_ref ?? "csp_report_contract_visible"}</strong>
+            </div>
+          </div>
+          <p className="muted evidenceLine">
+            Evidence: {cspReportContract?.evidence_ref ?? "csp_report_contract_visible"} /{" "}
+            {cspReportContract?.audit_evidence_ref ?? "csp_report_audit_persisted"} /{" "}
+            {securityHeaderEvidenceRefs.csp_report_visible ?? "csp_report_contract_visible"}
+          </p>
+          <div className="policyGrid">
+            {(cspPolicyChecks.length ? cspPolicyChecks : [
+              "Reports are same-origin only through the Agent API surface.",
+              "Report payloads are redacted before audit persistence.",
+              "No external CSP reporting service is configured or claimed.",
+            ]).map((check) => (
+              <span key={check}>{check}</span>
+            ))}
+          </div>
+          <p className="muted">
+            Sanitized fields: {cspSanitizedFields.length ? cspSanitizedFields.join(", ") : "document-uri, blocked-uri, violated-directive"}
+          </p>
+          <p className="muted">
+            {cspNonClaims.length ? cspNonClaims.join(" ") : "No production security incident workflow is claimed."}
+          </p>
         </section>
 
         <section className="panel" aria-label="Trace ID propagation contract">

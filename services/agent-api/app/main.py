@@ -98,6 +98,8 @@ SESSION_LIMIT_CONTRACT_VERSION = "session-llm-call-limit-v1"
 PROMPT_INPUT_CONTRACT_VERSION = "prompt-input-contract-v1"
 ERROR_RESPONSE_CONTRACT_VERSION = "error-response-contract-v1"
 SECURITY_HEADERS_CONTRACT_VERSION = "security-headers-v1"
+CSP_REPORT_CONTRACT_VERSION = "csp-report-contract-v1"
+CSP_REPORT_EVIDENCE_REF = "csp_report_contract_visible"
 TRACE_ID_CONTRACT_VERSION = "trace-id-propagation-v1"
 CACHE_CONTROL_CONTRACT_VERSION = "cache-control-no-store-v1"
 REQUEST_ID_CONTRACT_VERSION = "request-id-correlation-v1"
@@ -177,7 +179,7 @@ SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-    "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; report-uri /api/v1/security/csp/report",
 }
 CACHE_CONTROL_HEADERS = {
     "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
@@ -882,6 +884,15 @@ class LiveAgentSteerRequest(BaseModel):
     reasoning_effort: str = Field(default="medium", pattern="^(none|minimal|low|medium|high|xhigh)$")
     reset_history: bool = Field(default=False, validation_alias=AliasChoices("reset_history", "resetHistory"))
     metadata: dict[str, object] = Field(default_factory=dict)
+
+    model_config = {"populate_by_name": True}
+
+
+class CspViolationReportRequest(BaseModel):
+    report: dict[str, object] = Field(default_factory=dict, validation_alias=AliasChoices("report", "csp-report", "csp_report"))
+    user_agent: str | None = Field(default=None, max_length=500, validation_alias=AliasChoices("user_agent", "userAgent"))
+    request_id: str | None = Field(default=None, max_length=255, validation_alias=AliasChoices("request_id", "requestId"))
+    trace_id: str | None = Field(default=None, max_length=255, validation_alias=AliasChoices("trace_id", "traceId"))
 
     model_config = {"populate_by_name": True}
 
@@ -5976,6 +5987,12 @@ def security_headers_contract_payload() -> dict[str, object]:
         "enforced_by": "security_headers_middleware",
         "applies_to": "all Agent API HTTP responses including error envelopes",
         "headers": SECURITY_HEADERS,
+        "csp_report_contract": {
+            "contract_version": CSP_REPORT_CONTRACT_VERSION,
+            "endpoint": "POST /api/v1/security/csp/report",
+            "evidence_ref": CSP_REPORT_EVIDENCE_REF,
+            "audit_event_type": "security_csp_violation_reported",
+        },
         "cors_policy": {
             "mode": "same_origin_by_default",
             "reason": "Frontend reaches Agent API through the same Nginx origin in Phase 1.",
@@ -5987,12 +6004,14 @@ def security_headers_contract_payload() -> dict[str, object]:
             "Every response includes Referrer-Policy=no-referrer.",
             "Every response includes a restrictive Permissions-Policy.",
             "Every response includes a default self Content-Security-Policy.",
+            "CSP violation reports are accepted through a same-origin endpoint and persisted without raw secrets.",
         ],
         "evidence_refs": {
             "contract_visible": "security_headers_contract_visible",
             "headers_enforced": "security_headers_enforced",
             "same_origin_cors_policy": "security_headers_same_origin_policy",
             "ui_visible": "security_headers_ui_visible",
+            "csp_report_visible": CSP_REPORT_EVIDENCE_REF,
         },
     }
 
@@ -6000,6 +6019,87 @@ def security_headers_contract_payload() -> dict[str, object]:
 @app.get("/api/v1/security/headers/contract")
 def security_headers_contract() -> dict[str, object]:
     return security_headers_contract_payload()
+
+
+def csp_report_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": CSP_REPORT_CONTRACT_VERSION,
+        "mode": "same_origin_csp_violation_audit_sink",
+        "endpoint": "POST /api/v1/security/csp/report",
+        "audit_event_type": "security_csp_violation_reported",
+        "audit_user_id": "security",
+        "evidence_ref": CSP_REPORT_EVIDENCE_REF,
+        "audit_evidence_ref": "csp_report_audit_persisted",
+        "accepted_shapes": ["report", "csp-report", "csp_report"],
+        "sanitized_fields": [
+            "document-uri",
+            "blocked-uri",
+            "violated-directive",
+            "effective-directive",
+            "source-file",
+            "line-number",
+            "column-number",
+            "status-code",
+        ],
+        "policy_checks": [
+            "Reports are same-origin only through the Agent API surface.",
+            "Report payloads are redacted before audit persistence.",
+            "The endpoint returns accepted, not completion or incident-resolution.",
+            "No external CSP reporting service is configured or claimed.",
+        ],
+        "non_claims": [
+            "No production security incident workflow is claimed.",
+            "No third-party report collector is used.",
+            "No browser session, cookies, or credentials are persisted by this endpoint.",
+        ],
+    }
+
+
+def persist_csp_report_audit(details: dict[str, object]) -> str | None:
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            row = conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, details, severity)
+                VALUES ('security_csp_violation_reported', 'security', %s::jsonb, 'warning')
+                RETURNING id
+                """,
+                (Json(redact_json(details)),),
+            ).fetchone()
+            return str(row[0]) if row else None
+    except Exception:
+        return None
+
+
+@app.get("/api/v1/security/csp/contract")
+def csp_report_contract() -> dict[str, object]:
+    return csp_report_contract_payload()
+
+
+@app.post("/api/v1/security/csp/report")
+def csp_report(request_body: CspViolationReportRequest, request: Request) -> dict[str, object]:
+    report = request_body.report or {}
+    details = {
+        "contract_version": CSP_REPORT_CONTRACT_VERSION,
+        "evidence_ref": CSP_REPORT_EVIDENCE_REF,
+        "audit_evidence_ref": "csp_report_audit_persisted",
+        "request_id": request_body.request_id or getattr(request.state, "request_id", None),
+        "trace_id": request_body.trace_id or getattr(request.state, "trace_id", None),
+        "report": report,
+        "user_agent": request_body.user_agent or request.headers.get("user-agent"),
+        "live_external_report_forwarding": False,
+    }
+    audit_event_id = persist_csp_report_audit(details)
+    return {
+        "status": "accepted",
+        "contract_version": CSP_REPORT_CONTRACT_VERSION,
+        "evidence_ref": CSP_REPORT_EVIDENCE_REF,
+        "audit_evidence_ref": "csp_report_audit_persisted",
+        "audit_event_id": audit_event_id,
+        "audit_persisted": audit_event_id is not None,
+        "live_external_report_forwarding": False,
+        "sanitized_summary": "CSP violation report accepted into local audit sink.",
+    }
 
 
 def trace_id_contract_payload() -> dict[str, object]:

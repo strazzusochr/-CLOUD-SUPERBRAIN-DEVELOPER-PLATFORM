@@ -222,6 +222,8 @@ Assert-Contains "rate limit guard panel" $frontendHtml "Rate Limit Guard"
 Assert-Contains "session limit guard panel" $frontendHtml "Session Limit Guard"
 Assert-Contains "error response contract panel" $frontendHtml "Error Response Contract"
 Assert-Contains "security headers contract panel" $frontendHtml "Security Headers Contract"
+Assert-Contains "csp report contract panel" $frontendHtml "CSP Report Contract"
+Assert-Contains "csp report evidence marker" $frontendHtml "csp_report_contract_visible"
 Assert-Contains "trace id contract panel" $frontendHtml "Trace ID Contract"
 Assert-Contains "cache control contract panel" $frontendHtml "Cache Control Contract"
 Assert-Contains "request id contract panel" $frontendHtml "Request ID Contract"
@@ -398,6 +400,11 @@ Assert-Contains "error contract envelope evidence" $errorContract "error_respons
 $securityHeadersContract = Invoke-Text "$BaseUrl/api/v1/security/headers/contract"
 Assert-Contains "security headers contract version" $securityHeadersContract '"contract_version":"security-headers-v1"'
 Assert-Contains "security headers evidence" $securityHeadersContract "security_headers_enforced"
+Assert-Contains "security csp report endpoint" $securityHeadersContract "POST /api/v1/security/csp/report"
+$cspReportContract = Invoke-Text "$BaseUrl/api/v1/security/csp/contract"
+Assert-Contains "csp report contract version" $cspReportContract '"contract_version":"csp-report-contract-v1"'
+Assert-Contains "csp report evidence" $cspReportContract "csp_report_contract_visible"
+Assert-Contains "csp report audit evidence" $cspReportContract "csp_report_audit_persisted"
 $traceContract = Invoke-Text "$BaseUrl/api/v1/trace/contract"
 Assert-Contains "trace contract version" $traceContract '"contract_version":"trace-id-propagation-v1"'
 Assert-Contains "trace contract evidence" $traceContract "trace_id_header_roundtrip"

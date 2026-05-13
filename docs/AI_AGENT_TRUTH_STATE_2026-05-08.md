@@ -64,10 +64,10 @@ This means:
 
 From `docs/project-progress.manifest.json` and mirrored in `docs/verification-register.md`:
 
-- total: `70%`
+- total: `71%`
 - phase 1: `100%`
 - phase 2: `86%`
-- phase 3: `40%`
+- phase 3: `41%`
 - phase 4: `100%`
 - phase 5: `67%`
 - phase 6: `0%`

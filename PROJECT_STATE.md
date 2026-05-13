@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `70%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Project Progress Integrity `verified`; Task-Assignment nutzt echte high/mid/low-Priority-Queues; Cloud Inventory umfasst Vercel, Hetzner, Cloudflare, GitHub, GHCR, Hugging Face, GitLab und GitKraken als nicht-geheime Provider-Oberflaechen; Cloud Render Offload und Cloud Deployment Preflight sind als eigene gehostete Runtime-Surfaces mit dedizierten Contracts auf `<hosted-staging-url>` verifiziert; die Layer-Interface-Register-Surface, die Phase-2-Runtime-Contract-, Phase-2-Runtime-Start- und Phase-2-Runs-Surfaces, die Orchestrator-Manifest-, Orchestrator-Dry-Run-, Orchestrator-Dry-Run-Stream- und Orchestrator-Checkpoint-Surfaces, die DevOps-Workflow-Plan- und DevOps-Workflow-Validate-Surfaces, die Session-Stream-Surface, die Memory-Purge-Job-Status-Surface, die Memory-Embedding-Consistency-Surface, die Task-Assignment-Surface, die Agent-LLM-Streaming-Surface, die Cache-Control-Surface, die Cost-Export-Surface, die System-Fallback-Surface, die Project-Progress-Completion-Surface, die Project-Progress-Hauptsurface und die Project-Progress-Layer-Surface sind jetzt ebenfalls gehostet gegen echte Runtime-Projektion gebunden; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert; External-Gate-Audit, GHCR-Digest, Branch-Protection, Hosted Backend Origins, canonical Gitleaks und Hetzner-Live-Budget sind evidenzbasiert geschlossen. Phase 4 ist manifestseitig `100%`; die AI-Browser-Reruns fuer den letzten verifizierten Candidate, die Post-Rollback-Revalidation und der finale lokale-plus-hosted Browser-E2E-Recheck sind auf `2026-05-07` live verifiziert. Der letzte verifizierte Candidate bleibt an `overall=70`, `phase_4=100`, `phase_5=67`, `integrity=verified`, `external_gates=verified`, weiter fail-closed `completion=false`, unveraendertem `no-release`, explizit blockierter `staging`-zu-immutable-Digest-Paritaet und aktuell blockierter Repo-Worktree-Paritaet zu `source_commit_sha=ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5` gebunden. Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `71%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 3 Product Surface & Security ist durch den audit-backed CSP-Report-Contract auf `41%` gehoben; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der letzte verifizierte Candidate bleibt an `overall=70`, `phase_4=100`, `phase_5=67`, `integrity=verified`, `external_gates=verified`, weiter fail-closed `completion=false`, unveraendertem `no-release`, explizit blockierter `staging`-zu-immutable-Digest-Paritaet und aktuell blockierter Repo-Worktree-Paritaet zu `source_commit_sha=ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5` gebunden. Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -30,7 +30,7 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 6. **Kein E2B-Sandbox:** Docker Desktop für lokale Tests
 7. **7-Schichten-Architektur** laut Ultimatum Finale
 
-## AKTUELLER FORTSCHRITT: 70%
+## AKTUELLER FORTSCHRITT: 71%
 
 ### Horizontal (nach Priorität)
 
@@ -39,7 +39,7 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 | P0   | 100%   |
 | P1   | 100%   |
 | P2   | 86%    |
-| P3   | 40%    |
+| P3   | 41%    |
 | P4   | 100%   |
 | P5   | 67%    |
 | P6   | 0%     |
