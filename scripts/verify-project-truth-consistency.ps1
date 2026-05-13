@@ -64,11 +64,24 @@ function Assert-BlockerPresent(
 }
 
 function Get-ArtifactTimestamp([object]$Artifact) {
-  if ($null -eq $Artifact -or [string]::IsNullOrWhiteSpace([string]$Artifact.generated_at)) {
+  if ($null -eq $Artifact -or $null -eq $Artifact.generated_at) {
     return $null
   }
 
-  return [datetimeoffset]::Parse([string]$Artifact.generated_at)
+  $value = $Artifact.generated_at
+  if ($value -is [datetimeoffset]) {
+    return $value
+  }
+  if ($value -is [datetime]) {
+    return [datetimeoffset]::new($value.ToUniversalTime())
+  }
+
+  $text = [string]$value
+  if ([string]::IsNullOrWhiteSpace($text)) {
+    return $null
+  }
+
+  return [datetimeoffset]::Parse($text, [System.Globalization.CultureInfo]::InvariantCulture)
 }
 
 $repoRoot = Split-Path $PSScriptRoot -Parent

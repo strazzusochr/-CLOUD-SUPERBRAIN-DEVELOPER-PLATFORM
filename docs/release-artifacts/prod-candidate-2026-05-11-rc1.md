@@ -4,11 +4,11 @@ release_id: `prod-candidate-2026-05-11-rc1`
 scope: `release-boundary cleanup, HF router truth, frontend build, agent-api/runtime compile checks, hosted staging smoke checks, immutable staging image candidate`
 environment: `production-candidate`
 source_branch: `chore/repo-bootstrap`
-source_commit_sha: `fc00a787b54399133a90158bb63f6228859b5c96`
-source_commit_semantics: `current release boundary commit including deploy tooling; later release-metadata-only verifier/docs commits may wrap this source without changing runtime scope`
+source_commit_sha: `1d87de96d74ed75bbafff9840e963f2075253df9`
+source_commit_semantics: `current validated CI/runtime head including production tag gate ordering, Node24 workflow migration, and current cloud handoff metadata; later release-metadata-only verifier/docs commits may wrap this source without changing runtime scope`
 immutable_image_commit_sha: `b0c2773b1d122745947315a8d39734d5a6c96d6b`
 workflow_run_url: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25735275873`
-pipeline_status: `main-deploy success for immutable_image_commit_sha b0c2773b1d122745947315a8d39734d5a6c96d6b; deploy tooling and production tag gate fixed in source_commit_sha fc00a787b54399133a90158bb63f6228859b5c96`
+pipeline_status: `main-deploy success for immutable_image_commit_sha b0c2773b1d122745947315a8d39734d5a6c96d6b; final validated CI/runtime head 1d87de96d74ed75bbafff9840e963f2075253df9 passed main-deploy run 25765691998`
 smoke_result: `passed`
 observability_check: `present`
 rollback_note: `no production rollout performed; rollback remains the existing hosted staging rollback path`
@@ -26,7 +26,8 @@ immutable_staging_parity_status: `verified`
 - Hosted staging smoke: `scripts\verify.ps1 -Suite hosted-staging-smoke -BaseUrl https://188-34-191-140.sslip.io`
 - Hosted staging safe profile: `scripts\verify.ps1 -Suite hosted-staging -BaseUrl https://188-34-191-140.sslip.io -SafeProfile`
 - Release boundary suite: `scripts\verify.ps1 -Suite release-boundary -ReportOnly`
-- Main deploy workflow: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25735275873`
+- Main deploy workflow for immutable staging image commit: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25735275873`
+- Main deploy workflow for validated CI/runtime head: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25765691998`
 - Hosted staging proof workflow: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25738288780`
 - Production tag gate ordering: `production-gate` depends on `verify`, uses environment `production`, and `build-and-push` waits for `production-gate` before publishing production tags.
 - Immutable staging plan: `scripts\deploy-to-staging.ps1 -PlanOnly -UseImageFilesystem -ImageTag b0c2773b1d122745947315a8d39734d5a6c96d6b`
@@ -43,7 +44,7 @@ immutable_staging_parity_status: `verified`
 ## Guardrails
 
 - This artifact approves the current clean repository boundary as a production candidate.
-- The release boundary source commit is `fc00a787b54399133a90158bb63f6228859b5c96`; the immutable image commit deployed to staging is `b0c2773b1d122745947315a8d39734d5a6c96d6b`.
+- The release boundary source commit is `1d87de96d74ed75bbafff9840e963f2075253df9`; the immutable image commit deployed to staging is `b0c2773b1d122745947315a8d39734d5a6c96d6b`.
 - This artifact does not claim a production rollout.
 - Remote immutable Hetzner parity is verified for the six owned service images at `b0c2773b1d122745947315a8d39734d5a6c96d6b`; this remains staging evidence only.
 - This artifact does not replace the historical `prod-candidate-2026-05-05-rc1` no-release evidence.
