@@ -68,6 +68,14 @@ function Invoke-JsonApi($url, $method = "GET", $body = $null) {
   return ($response.Content | ConvertFrom-Json)
 }
 
+function Assert-BlockedDirectProvider($label, $response) {
+  Assert-True "$label status" ([int]$response.StatusCode -eq 403)
+  $payload = $response.Content | ConvertFrom-Json
+  Assert-True "$label code" ($payload.detail.code -eq "llm_routing_policy_direct_provider_blocked")
+  Assert-True "$label evidence" ($payload.detail.evidence_ref -eq "llm_routing_policy_direct_provider_blocked")
+  Assert-True "$label no live call" ($payload.detail.live_provider_calls -eq $false)
+}
+
 if (-not $BaseUrl) {
   throw "BaseUrl is required"
 }
@@ -82,6 +90,9 @@ Write-Host "[phase4-llm-live-provider-guard] base url: $BaseUrl"
 $providers = Invoke-JsonApi "$BaseUrl/llm/api/v1/providers/status"
 Assert-True "providers policy exposes override guard" ($providers.policy.request_live_provider_override_enabled -eq $false)
 Assert-True "providers policy explains metadata guard" ([string]$providers.policy.requires_request_metadata -match "LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE=true")
+Assert-True "providers policy blocks direct metadata" (@($providers.policy.direct_provider_metadata_keys_blocked) -contains "direct_provider_url")
+Assert-True "providers policy blocks provider key refs" (@($providers.policy.direct_provider_metadata_keys_blocked) -contains "provider_api_key_ref")
+Assert-True "providers policy blocks url-like models" ($providers.policy.url_like_model_ids_blocked -eq $true)
 
 $chatBody = @{
   model = "deepseek-ai/DeepSeek-V4-Flash:fastest"
@@ -112,5 +123,32 @@ $responses = Invoke-JsonApi "$BaseUrl/llm/v1/responses" "POST" $responsesBody
 Assert-True "responses remains deterministic" ($responses.live_provider_calls -eq $false)
 Assert-True "responses proof text" ([string]$responses.output_text -match "live_provider_calls=false")
 Assert-True "responses audit persisted flag present" ($null -ne $responses.audit_persisted)
+
+$directChatBody = @{
+  model = "https://provider.example/v1/chat/completions"
+  stream = $false
+  messages = @(
+    @{ role = "user"; content = "This must be blocked before routing." }
+  )
+  metadata = @{
+    live_provider_calls_allowed = $true
+    direct_provider_url = "https://provider.example/v1"
+    provider_api_key_ref = "secret://provider-key"
+  }
+} | ConvertTo-Json -Compress -Depth 6
+
+$directChat = Invoke-RawHttp -Url "$BaseUrl/llm/v1/chat/completions" -Method "POST" -Body $directChatBody
+Assert-BlockedDirectProvider "chat direct provider blocked" $directChat
+
+$directResponsesBody = @{
+  model = "deepseek-ai/DeepSeek-V4-Flash:fastest"
+  input = "This direct provider metadata must be blocked."
+  metadata = @{
+    direct_provider_key_ref = "secret://direct-provider"
+  }
+} | ConvertTo-Json -Compress -Depth 6
+
+$directResponses = Invoke-RawHttp -Url "$BaseUrl/llm/v1/responses" -Method "POST" -Body $directResponsesBody
+Assert-BlockedDirectProvider "responses direct provider blocked" $directResponses
 
 Write-Host "[phase4-llm-live-provider-guard] ok"

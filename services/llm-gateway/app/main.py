@@ -34,6 +34,7 @@ STREAMING_PROTOCOL = "openai_compatible_sse"
 ROUTING_POLICY_CONTRACT_VERSION = "llm-routing-policy-v1"
 MAX_FALLBACKS_PER_REQUEST = 2
 MAX_RETRY_CYCLES_PER_RUN = 5
+DIRECT_PROVIDER_METADATA_KEYS = {"direct_provider_url", "direct_provider_key_ref", "provider_api_key_ref"}
 
 LEGACY_MODEL_ALIASES = {
     "deepseek-chat": "deepseek-ai/DeepSeek-V4-Flash:fastest",
@@ -220,6 +221,38 @@ def normalize_model_id(model: str | None) -> str:
     return LEGACY_MODEL_ALIASES.get(model, model)
 
 
+def is_url_like_model(model: str | None) -> bool:
+    value = (model or "").strip().lower()
+    return "://" in value or value.startswith(("http:", "https:", "ws:", "wss:"))
+
+
+def direct_provider_metadata_keys(metadata: dict[str, Any] | None) -> list[str]:
+    metadata = metadata or {}
+    return sorted(key for key in DIRECT_PROVIDER_METADATA_KEYS if metadata.get(key))
+
+
+def enforce_no_direct_provider_bypass(*, model: str | None, metadata: dict[str, Any] | None) -> None:
+    violations: list[str] = []
+    if is_url_like_model(model):
+        violations.append("model_must_be_configured_model_id_not_provider_url")
+    blocked_metadata_keys = direct_provider_metadata_keys(metadata)
+    if blocked_metadata_keys:
+        violations.append("metadata_must_not_supply_direct_provider_credentials_or_urls")
+    if not violations:
+        return
+    raise HTTPException(
+        status_code=403,
+        detail={
+            "code": "llm_routing_policy_direct_provider_blocked",
+            "evidence_ref": "llm_routing_policy_direct_provider_blocked",
+            "violations": violations,
+            "blocked_metadata_keys": blocked_metadata_keys,
+            "live_provider_calls": False,
+            "model_downloads": False,
+        },
+    )
+
+
 def model_family(model: str) -> str:
     base = normalize_model_id(model).split(":", 1)[0]
     if base.startswith("deepseek-ai/"):
@@ -306,6 +339,8 @@ def provider_status_snapshot() -> dict[str, object]:
             "external_provider_calls_disabled_by_default": not LLM_LIVE_PROVIDER_DEFAULT,
             "request_live_provider_override_enabled": LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE,
             "requires_request_metadata": "metadata.live_provider_calls_allowed=true and LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE=true",
+            "direct_provider_metadata_keys_blocked": sorted(DIRECT_PROVIDER_METADATA_KEYS),
+            "url_like_model_ids_blocked": True,
         },
         "providers": [
             {
@@ -390,6 +425,7 @@ def routing_policy_contract_snapshot() -> dict[str, object]:
             "This contract evaluates local routing policy only.",
             "No external provider is called by this policy evaluator.",
             "No provider credential, direct provider URL, or live billing path is accepted.",
+            "Chat and Responses ingress reject URL-like model ids and direct-provider metadata before routing.",
         ],
     }
 
@@ -898,6 +934,7 @@ def routing_resolve(request: RoutingResolveRequest) -> dict[str, object]:
 @app.post("/v1/chat/completions")
 def chat_completions(request: ChatCompletionRequest):
     created = int(time.time())
+    enforce_no_direct_provider_bypass(model=request.model, metadata=request.metadata)
     live_allowed = request_allows_live_provider(request.metadata)
     live_call = live_allowed and hf_router_available()
     completion_id = f"chatcmpl-{'hf' if live_call else 'dryrun'}-{uuid4()}"
@@ -982,6 +1019,10 @@ def chat_completions(request: ChatCompletionRequest):
 @app.post("/v1/responses")
 def create_response(payload: dict[str, Any]) -> dict[str, Any]:
     normalized = normalize_responses_request(payload)
+    enforce_no_direct_provider_bypass(
+        model=str(normalized.get("model") or ""),
+        metadata=normalized.get("metadata") if isinstance(normalized.get("metadata"), dict) else {},
+    )
     chat_request = ChatCompletionRequest(
         model=str(normalized.get("model") or HF_DEFAULT_CHAT_MODEL),
         messages=responses_input_to_messages(normalized),
