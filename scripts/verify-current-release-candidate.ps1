@@ -25,26 +25,60 @@ function Assert-False($label, $value) {
   }
 }
 
+function Assert-True($label, $value) {
+  if (-not [bool]$value) {
+    throw "Verification failed: $label expected true."
+  }
+}
+
 function Assert-Sha($label, $value) {
   if ([string]::IsNullOrWhiteSpace($value) -or $value -notmatch '^[0-9a-f]{40}$') {
     throw "Verification failed: $label is not a lowercase 40-character SHA."
   }
 }
 
+function Assert-PublicHttpsUrl($label, $value) {
+  if ([string]::IsNullOrWhiteSpace($value)) {
+    throw "Verification failed: $label is empty."
+  }
+  try {
+    $uri = [System.Uri]$value
+  } catch {
+    throw "Verification failed: $label is not a valid URL."
+  }
+  if ($uri.Scheme -ne "https") {
+    throw "Verification failed: $label must use https."
+  }
+  $urlHost = $uri.Host.ToLowerInvariant()
+  if (
+    $urlHost -eq "localhost" -or
+    $urlHost.EndsWith(".local") -or
+    $urlHost -match '^(127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)'
+  ) {
+    throw "Verification failed: $label must be a public hosted URL, not $urlHost."
+  }
+}
+
 function Get-Json($url) {
 @"
-import json, ssl, urllib.request
-ctx = ssl._create_unverified_context()
-with urllib.request.urlopen(r"$url", timeout=30, context=ctx) as response:
+import json, urllib.request
+with urllib.request.urlopen(r"$url", timeout=30) as response:
     print(json.dumps(json.load(response)))
+"@ | py -3 -
+}
+
+function Get-Text($url) {
+@"
+import urllib.request
+with urllib.request.urlopen(r"$url", timeout=30) as response:
+    print(response.read(200000).decode("utf-8", "replace"))
 "@ | py -3 -
 }
 
 function Get-Status($url) {
 @"
-import ssl, urllib.request
-ctx = ssl._create_unverified_context()
-with urllib.request.urlopen(r"$url", timeout=30, context=ctx) as response:
+import urllib.request
+with urllib.request.urlopen(r"$url", timeout=30) as response:
     print(response.status)
 "@ | py -3 -
 }
@@ -92,6 +126,14 @@ $sourceSha = $Matches[1]
 Assert-Sha "source_commit_sha" $sourceSha
 Assert-GitCommitExists $sourceSha
 
+if ($artifact -notmatch '(?m)^source_branch:\s*`([^`]+)`\s*$') {
+  throw "Verification failed: active release artifact missing source_branch."
+}
+$sourceBranch = $Matches[1]
+if ([string]::IsNullOrWhiteSpace($sourceBranch)) {
+  throw "Verification failed: active release source_branch is empty."
+}
+
 if ($artifact -notmatch '(?m)^immutable_image_commit_sha:\s*`([^`]+)`\s*$') {
   throw "Verification failed: active release artifact missing immutable_image_commit_sha."
 }
@@ -115,6 +157,53 @@ if ($LASTEXITCODE -ne 0) {
 $rolloutArtifacts = @(Get-ChildItem "docs\release-artifacts" -Filter "prod-release-*.md" -File -ErrorAction SilentlyContinue)
 if ($rolloutArtifacts.Count -gt 0) {
   throw "Verification failed: production rollout artifacts already exist under docs\release-artifacts."
+}
+
+if ($artifact -notmatch '(?m)^-\s+Vercel frontend:\s*`([^`]+)`\s*$') {
+  throw "Verification failed: active release artifact missing Vercel frontend cloud surface."
+}
+$vercelFrontendUrl = $Matches[1]
+Assert-PublicHttpsUrl "Vercel frontend URL" $vercelFrontendUrl
+$vercelFrontendHost = ([System.Uri]$vercelFrontendUrl).Host
+$vercelStatus = Get-Status $vercelFrontendUrl
+Assert-Contains "Vercel frontend status" $vercelStatus "200"
+$vercelHtml = Get-Text $vercelFrontendUrl
+Assert-Contains "Vercel frontend HTML" $vercelHtml "Cloud Superbrain"
+
+$vercelGitLinkRaw = & "scripts\verify-vercel-git-link.ps1" -ReportOnly -JsonOnly -OutputPath "" 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0) {
+  throw "Verification failed: Vercel Git link verifier exited with code $LASTEXITCODE."
+}
+try {
+  $vercelGitLink = $vercelGitLinkRaw | ConvertFrom-Json
+} catch {
+  throw "Verification failed: Vercel Git link verifier did not return JSON."
+}
+Assert-Equal "Vercel Git link status" $vercelGitLink.status "ready"
+Assert-Equal "Vercel Git link classification" $vercelGitLink.classification "vercel_git_link_ready"
+Assert-True "Vercel Git auto deploy safety" $vercelGitLink.safe_for_git_auto_deploy
+Assert-Equal "Vercel Git link HTTP status" ([int]$vercelGitLink.http_status) 200
+Assert-Equal "Vercel root directory" $vercelGitLink.observed.rootDirectory "apps/frontend"
+Assert-Equal "Vercel link type" $vercelGitLink.observed.linkType "github"
+Assert-Equal "Vercel link org" $vercelGitLink.observed.linkOrg "strazzusochr"
+Assert-Equal "Vercel link repo" $vercelGitLink.observed.linkRepo "-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM"
+Assert-Equal "Vercel production branch" $vercelGitLink.observed.linkProductionBranch $sourceBranch
+Assert-True "Vercel frontend domain bound to project" (@($vercelGitLink.observed.domainNames) -contains $vercelFrontendHost)
+$matchingVerifiedDomain = @($vercelGitLink.observed.domains | Where-Object {
+  [string]$_.name -eq $vercelFrontendHost -and [bool]$_.verified
+} | Select-Object -First 1)
+Assert-True "Vercel frontend domain verified" ($null -ne $matchingVerifiedDomain)
+foreach ($checkName in @(
+  "project_readable",
+  "project_id_matches",
+  "framework_nextjs",
+  "root_directory_matches",
+  "link_type_github",
+  "link_org_matches",
+  "link_repo_matches",
+  "production_branch_matches"
+)) {
+  Assert-True "Vercel Git link check $checkName" $vercelGitLink.checks.$checkName
 }
 
 & "scripts\manual\verify-phase5-staging-immutable-parity.ps1" -ReleaseId $ReleaseId -CandidateSha $CandidateSha -BaseUrl $BaseUrl
