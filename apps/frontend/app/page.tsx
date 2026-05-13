@@ -2034,7 +2034,7 @@ export default function Home() {
     setLiveAgentSendStatus("sending");
     setError(null);
     try {
-      const response = await fetch("/api/steer-agent", {
+      const response = await fetch("/api/v1/live-agents/steer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

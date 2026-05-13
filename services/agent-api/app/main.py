@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID, uuid4
 
+import httpx
 import psycopg
 import redis
 from fastapi import Cookie, FastAPI, Header, HTTPException, Query, Request
@@ -420,6 +421,14 @@ def autonomous_external_agents_url() -> str:
 
 def autonomous_external_timeout_seconds() -> int:
     return max(1, int(os.getenv("AUTONOMOUS_TEAM_EXTERNAL_TIMEOUT_SECONDS", "5")))
+
+
+def llm_gateway_url() -> str:
+    return (
+        os.getenv("LLM_GATEWAY_URL")
+        or os.getenv("LLM_GATEWAY_BASE_URL")
+        or "http://llm-gateway:4000"
+    ).rstrip("/")
 
 
 def load_external_json(url: str) -> dict[str, object]:

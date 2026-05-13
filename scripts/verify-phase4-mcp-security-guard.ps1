@@ -11,17 +11,57 @@ function Assert-True($label, $condition) {
   }
 }
 
+function Invoke-RawHttp($Url, $Method = "GET", $Body = $null) {
+  $payload = [ordered]@{
+    url = $Url
+    method = $Method
+  }
+  if ($null -ne $Body) {
+    $payload.body_b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes([string]$Body))
+  }
+  $payloadFile = Join-Path $env:TEMP ("mcp-guard-http-" + [Guid]::NewGuid().ToString("N") + ".json")
+  $pythonFile = Join-Path $env:TEMP ("mcp-guard-http-" + [Guid]::NewGuid().ToString("N") + ".py")
+  try {
+    Set-Content -LiteralPath $payloadFile -Value ($payload | ConvertTo-Json -Compress -Depth 5) -NoNewline -Encoding utf8
+    $pythonScript = @'
+import base64
+import json
+import sys
+import urllib.error
+import urllib.request
+
+with open(sys.argv[1], "r", encoding="utf-8-sig") as handle:
+    payload = json.load(handle)
+
+data = None
+headers = {}
+if payload.get("body_b64"):
+    data = base64.b64decode(payload["body_b64"])
+    headers["Content-Type"] = "application/json"
+
+request = urllib.request.Request(payload["url"], data=data, headers=headers, method=payload.get("method", "GET"))
+try:
+    with urllib.request.urlopen(request, timeout=60) as response:
+        content = response.read().decode("utf-8", errors="replace")
+        print(json.dumps({"StatusCode": response.status, "Content": content}))
+except urllib.error.HTTPError as exc:
+    content = exc.read().decode("utf-8", errors="replace")
+    print(json.dumps({"StatusCode": exc.code, "Content": content}))
+'@
+    Set-Content -LiteralPath $pythonFile -Value $pythonScript -NoNewline -Encoding utf8
+    $output = py -3 $pythonFile $payloadFile
+    if ($LASTEXITCODE -ne 0) {
+      throw ($output | Out-String)
+    }
+    return ($output | ConvertFrom-Json)
+  } finally {
+    if (Test-Path $payloadFile) { Remove-Item -LiteralPath $payloadFile -Force }
+    if (Test-Path $pythonFile) { Remove-Item -LiteralPath $pythonFile -Force }
+  }
+}
+
 function Invoke-JsonApi($url, $method = "GET", $body = $null) {
-  $params = @{
-    Uri = $url
-    Method = $method
-    TimeoutSec = 60
-  }
-  if ($null -ne $body) {
-    $params.Body = $body
-    $params.ContentType = "application/json"
-  }
-  $response = Invoke-WebRequest @params
+  $response = Invoke-RawHttp -Url $url -Method $method -Body $body
   if ([int]$response.StatusCode -ge 400) {
     throw "$method $url returned HTTP $($response.StatusCode): $($response.Content)"
   }
