@@ -35,6 +35,8 @@ ROUTING_POLICY_CONTRACT_VERSION = "llm-routing-policy-v1"
 MAX_FALLBACKS_PER_REQUEST = 2
 MAX_RETRY_CYCLES_PER_RUN = 5
 DIRECT_PROVIDER_METADATA_KEYS = {"direct_provider_url", "direct_provider_key_ref", "provider_api_key_ref"}
+LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF = "llm_output_token_budget_guard"
+LLM_UNKNOWN_MODEL_EVIDENCE_REF = "llm_routing_policy_unknown_model_blocked"
 
 LEGACY_MODEL_ALIASES = {
     "deepseek-chat": "deepseek-ai/DeepSeek-V4-Flash:fastest",
@@ -215,10 +217,33 @@ def model_ids() -> list[str]:
     return sorted(set(values))
 
 
+def route_models(route: dict[str, object]) -> set[str]:
+    return {str(route["primary"]), *{str(item) for item in route["fallbacks"]}}
+
+
 def normalize_model_id(model: str | None) -> str:
     if not model:
         return HF_DEFAULT_CHAT_MODEL
     return LEGACY_MODEL_ALIASES.get(model, model)
+
+
+def route_output_token_limit(model: str | None, metadata: dict[str, Any] | None = None) -> int | None:
+    normalized = normalize_model_id(model)
+    metadata = metadata or {}
+    requested_agent_type = str(metadata.get("agent_type") or "").strip()
+    candidate_limits: list[int] = []
+
+    for route in MODEL_ROUTES:
+        if normalized not in route_models(route):
+            continue
+        route_limit = int(route["max_output_tokens"])
+        if requested_agent_type and requested_agent_type == str(route["agent_type"]):
+            return route_limit
+        candidate_limits.append(route_limit)
+
+    if candidate_limits:
+        return max(candidate_limits)
+    return None
 
 
 def is_url_like_model(model: str | None) -> bool:
@@ -247,6 +272,62 @@ def enforce_no_direct_provider_bypass(*, model: str | None, metadata: dict[str, 
             "evidence_ref": "llm_routing_policy_direct_provider_blocked",
             "violations": violations,
             "blocked_metadata_keys": blocked_metadata_keys,
+            "live_provider_calls": False,
+            "model_downloads": False,
+        },
+    )
+
+
+def enforce_model_and_output_budget(
+    *,
+    model: str | None,
+    requested_max_output_tokens: int | None,
+    metadata: dict[str, Any] | None,
+) -> None:
+    normalized_model = normalize_model_id(model)
+    allowed_max_output_tokens = route_output_token_limit(model, metadata)
+    if allowed_max_output_tokens is None:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": LLM_UNKNOWN_MODEL_EVIDENCE_REF,
+                "evidence_ref": LLM_UNKNOWN_MODEL_EVIDENCE_REF,
+                "model": model,
+                "normalized_model": normalized_model,
+                "configured_models": model_ids(),
+                "live_provider_calls": False,
+                "model_downloads": False,
+            },
+        )
+
+    if requested_max_output_tokens is None:
+        return
+    if requested_max_output_tokens <= 0:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+                "evidence_ref": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+                "reason": "requested_max_output_tokens_must_be_positive",
+                "model": model,
+                "normalized_model": normalized_model,
+                "requested_max_output_tokens": requested_max_output_tokens,
+                "allowed_max_output_tokens": allowed_max_output_tokens,
+                "live_provider_calls": False,
+                "model_downloads": False,
+            },
+        )
+    if requested_max_output_tokens <= allowed_max_output_tokens:
+        return
+    raise HTTPException(
+        status_code=422,
+        detail={
+            "code": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+            "evidence_ref": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+            "model": model,
+            "normalized_model": normalized_model,
+            "requested_max_output_tokens": requested_max_output_tokens,
+            "allowed_max_output_tokens": allowed_max_output_tokens,
             "live_provider_calls": False,
             "model_downloads": False,
         },
@@ -341,6 +422,11 @@ def provider_status_snapshot() -> dict[str, object]:
             "requires_request_metadata": "metadata.live_provider_calls_allowed=true and LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE=true",
             "direct_provider_metadata_keys_blocked": sorted(DIRECT_PROVIDER_METADATA_KEYS),
             "url_like_model_ids_blocked": True,
+            "unknown_model_ids_blocked": True,
+            "output_token_budget_guard": {
+                "mode": "fail_closed_over_route_limit",
+                "evidence_ref": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+            },
         },
         "providers": [
             {
@@ -415,6 +501,8 @@ def routing_policy_contract_snapshot() -> dict[str, object]:
         "evidence_refs": {
             "contract_visible": "llm_routing_policy_contract_visible",
             "direct_provider_blocked": "llm_routing_policy_direct_provider_blocked",
+            "unknown_model_blocked": LLM_UNKNOWN_MODEL_EVIDENCE_REF,
+            "output_token_budget_blocked": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
             "fallback_limit_blocked": "llm_routing_policy_fallback_limit_blocked",
             "retry_limit_blocked": "llm_routing_policy_retry_limit_blocked",
             "sensitive_cache_blocked": "llm_routing_policy_sensitive_cache_blocked",
@@ -778,6 +866,24 @@ def normalize_responses_request(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(metadata, dict):
         raise HTTPException(status_code=422, detail="metadata must be an object")
     normalized["metadata"] = {"gateway_path": "responses_proxy", **metadata}
+    if "max_output_tokens" in normalized and (
+        isinstance(normalized.get("max_output_tokens"), bool)
+        or not isinstance(normalized.get("max_output_tokens"), int)
+    ):
+        model = str(normalized.get("model") or HF_DEFAULT_CHAT_MODEL)
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+                "evidence_ref": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+                "reason": "max_output_tokens_must_be_integer",
+                "model": model,
+                "normalized_model": normalize_model_id(model),
+                "requested_max_output_tokens": normalized.get("max_output_tokens"),
+                "live_provider_calls": False,
+                "model_downloads": False,
+            },
+        )
     return normalized
 
 
@@ -935,6 +1041,11 @@ def routing_resolve(request: RoutingResolveRequest) -> dict[str, object]:
 def chat_completions(request: ChatCompletionRequest):
     created = int(time.time())
     enforce_no_direct_provider_bypass(model=request.model, metadata=request.metadata)
+    enforce_model_and_output_budget(
+        model=request.model,
+        requested_max_output_tokens=request.max_tokens,
+        metadata=request.metadata,
+    )
     live_allowed = request_allows_live_provider(request.metadata)
     live_call = live_allowed and hf_router_available()
     completion_id = f"chatcmpl-{'hf' if live_call else 'dryrun'}-{uuid4()}"
@@ -1030,6 +1141,11 @@ def create_response(payload: dict[str, Any]) -> dict[str, Any]:
         temperature=normalized.get("temperature") if isinstance(normalized.get("temperature"), (int, float)) else None,
         max_tokens=normalized.get("max_output_tokens") if isinstance(normalized.get("max_output_tokens"), int) else None,
         metadata=normalized.get("metadata") if isinstance(normalized.get("metadata"), dict) else {},
+    )
+    enforce_model_and_output_budget(
+        model=chat_request.model,
+        requested_max_output_tokens=chat_request.max_tokens,
+        metadata=chat_request.metadata,
     )
     live_allowed = request_allows_live_provider(chat_request.metadata)
     if live_allowed and not hf_router_available():

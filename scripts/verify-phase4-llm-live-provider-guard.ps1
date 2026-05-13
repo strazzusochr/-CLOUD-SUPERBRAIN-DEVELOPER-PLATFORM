@@ -76,6 +76,15 @@ function Assert-BlockedDirectProvider($label, $response) {
   Assert-True "$label no live call" ($payload.detail.live_provider_calls -eq $false)
 }
 
+function Assert-BlockedLlmPolicy($label, $response, $statusCode, $code) {
+  Assert-True "$label status" ([int]$response.StatusCode -eq $statusCode)
+  $payload = $response.Content | ConvertFrom-Json
+  Assert-True "$label code" ($payload.detail.code -eq $code)
+  Assert-True "$label evidence" ($payload.detail.evidence_ref -eq $code)
+  Assert-True "$label no live call" ($payload.detail.live_provider_calls -eq $false)
+  Assert-True "$label no model download" ($payload.detail.model_downloads -eq $false)
+}
+
 if (-not $BaseUrl) {
   throw "BaseUrl is required"
 }
@@ -93,6 +102,8 @@ Assert-True "providers policy explains metadata guard" ([string]$providers.polic
 Assert-True "providers policy blocks direct metadata" (@($providers.policy.direct_provider_metadata_keys_blocked) -contains "direct_provider_url")
 Assert-True "providers policy blocks provider key refs" (@($providers.policy.direct_provider_metadata_keys_blocked) -contains "provider_api_key_ref")
 Assert-True "providers policy blocks url-like models" ($providers.policy.url_like_model_ids_blocked -eq $true)
+Assert-True "providers policy blocks unknown models" ($providers.policy.unknown_model_ids_blocked -eq $true)
+Assert-True "providers policy exposes output guard" ($providers.policy.output_token_budget_guard.evidence_ref -eq "llm_output_token_budget_guard")
 
 $chatBody = @{
   model = "deepseek-ai/DeepSeek-V4-Flash:fastest"
@@ -150,5 +161,94 @@ $directResponsesBody = @{
 
 $directResponses = Invoke-RawHttp -Url "$BaseUrl/llm/v1/responses" -Method "POST" -Body $directResponsesBody
 Assert-BlockedDirectProvider "responses direct provider blocked" $directResponses
+
+$oversizedChatBody = @{
+  model = "deepseek-ai/DeepSeek-V4-Flash:fastest"
+  max_tokens = 1000000
+  messages = @(
+    @{ role = "user"; content = "This must be blocked by the output token guard." }
+  )
+  metadata = @{
+    source = "phase4-output-token-guard"
+  }
+} | ConvertTo-Json -Compress -Depth 6
+
+$oversizedChat = Invoke-RawHttp -Url "$BaseUrl/llm/v1/chat/completions" -Method "POST" -Body $oversizedChatBody
+Assert-BlockedLlmPolicy "chat oversized output blocked" $oversizedChat 422 "llm_output_token_budget_guard"
+
+$oversizedResponsesBody = @{
+  model = "deepseek-ai/DeepSeek-V4-Flash:fastest"
+  input = "This must be blocked by the responses output token guard."
+  max_output_tokens = 1000000
+  metadata = @{
+    source = "phase4-output-token-guard"
+  }
+} | ConvertTo-Json -Compress -Depth 6
+
+$oversizedResponses = Invoke-RawHttp -Url "$BaseUrl/llm/v1/responses" -Method "POST" -Body $oversizedResponsesBody
+Assert-BlockedLlmPolicy "responses oversized output blocked" $oversizedResponses 422 "llm_output_token_budget_guard"
+
+$zeroChatBody = @{
+  model = "deepseek-ai/DeepSeek-V4-Flash:fastest"
+  max_tokens = 0
+  messages = @(
+    @{ role = "user"; content = "This zero token request must be blocked." }
+  )
+  metadata = @{
+    source = "phase4-output-token-guard"
+  }
+} | ConvertTo-Json -Compress -Depth 6
+
+$zeroChat = Invoke-RawHttp -Url "$BaseUrl/llm/v1/chat/completions" -Method "POST" -Body $zeroChatBody
+Assert-BlockedLlmPolicy "chat zero output blocked" $zeroChat 422 "llm_output_token_budget_guard"
+
+$zeroResponsesBody = @{
+  model = "deepseek-ai/DeepSeek-V4-Flash:fastest"
+  input = "This zero responses output token request must be blocked."
+  max_output_tokens = 0
+  metadata = @{
+    source = "phase4-output-token-guard"
+  }
+} | ConvertTo-Json -Compress -Depth 6
+
+$zeroResponses = Invoke-RawHttp -Url "$BaseUrl/llm/v1/responses" -Method "POST" -Body $zeroResponsesBody
+Assert-BlockedLlmPolicy "responses zero output blocked" $zeroResponses 422 "llm_output_token_budget_guard"
+
+$stringTokenResponsesBody = @{
+  model = "deepseek-ai/DeepSeek-V4-Flash:fastest"
+  input = "This string responses output token request must be blocked."
+  max_output_tokens = "1000000"
+  metadata = @{
+    source = "phase4-output-token-guard"
+  }
+} | ConvertTo-Json -Compress -Depth 6
+
+$stringTokenResponses = Invoke-RawHttp -Url "$BaseUrl/llm/v1/responses" -Method "POST" -Body $stringTokenResponsesBody
+Assert-BlockedLlmPolicy "responses string output blocked" $stringTokenResponses 422 "llm_output_token_budget_guard"
+
+$boolTokenResponsesBody = @{
+  model = "deepseek-ai/DeepSeek-V4-Flash:fastest"
+  input = "This boolean responses output token request must be blocked."
+  max_output_tokens = $true
+  metadata = @{
+    source = "phase4-output-token-guard"
+  }
+} | ConvertTo-Json -Compress -Depth 6
+
+$boolTokenResponses = Invoke-RawHttp -Url "$BaseUrl/llm/v1/responses" -Method "POST" -Body $boolTokenResponsesBody
+Assert-BlockedLlmPolicy "responses bool output blocked" $boolTokenResponses 422 "llm_output_token_budget_guard"
+
+$unknownModelBody = @{
+  model = "not-configured/example-model"
+  messages = @(
+    @{ role = "user"; content = "This unknown model must be blocked before routing." }
+  )
+  metadata = @{
+    source = "phase4-unknown-model-guard"
+  }
+} | ConvertTo-Json -Compress -Depth 6
+
+$unknownModel = Invoke-RawHttp -Url "$BaseUrl/llm/v1/chat/completions" -Method "POST" -Body $unknownModelBody
+Assert-BlockedLlmPolicy "chat unknown model blocked" $unknownModel 422 "llm_routing_policy_unknown_model_blocked"
 
 Write-Host "[phase4-llm-live-provider-guard] ok"

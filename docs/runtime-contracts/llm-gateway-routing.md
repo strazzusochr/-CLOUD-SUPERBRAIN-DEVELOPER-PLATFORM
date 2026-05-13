@@ -178,12 +178,16 @@ Diese Aufloesung ist nicht Teil dieses Vertrags.
 6. Fallback in eine hoehere Kostenklasse braucht dokumentierten Grund und Budgetfreigabe.
 7. Jeder Fallback muss `budget-rate-control.md` erneut durchlaufen.
 8. Direkte Provider-URLs oder Provider-Keys in Agent-Requests sind ein harter Reject.
+9. Unbekannte Modell-IDs werden vor Routing mit `llm_routing_policy_unknown_model_blocked` abgelehnt.
+10. `max_tokens` und `max_output_tokens` muessen positive Integer sein und duerfen den konfigurierten Routen-Limit nicht ueberschreiten; ungueltige oder Oversize-Requests werden mit `llm_output_token_budget_guard` abgelehnt.
 
 ## Akzeptanztests
 
 | Test | Erwartung | Status |
 | --- | --- | --- |
 | direkter Provider-Call | `deny_direct_provider` | `verified-runtime-and-hosted` |
+| unbekannte Modell-ID | `llm_routing_policy_unknown_model_blocked` | `verified-runtime-and-hosted` |
+| Output-Token-Limit ungueltig oder ueberschritten | `llm_output_token_budget_guard` | `verified-runtime-and-hosted` |
 | deaktivierter Modellslot | `deny_slot_disabled` | `verified-runtime-and-hosted` |
 | Planner fordert Premium ohne Blocker | `deny_cost_tier` | `verified-runtime-and-hosted` |
 | Tester nutzt Economy-Slot | `allow_primary` | `verified-runtime-and-hosted` |
