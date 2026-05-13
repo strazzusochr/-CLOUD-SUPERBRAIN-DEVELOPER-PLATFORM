@@ -50,8 +50,8 @@ Vertical:
 - Frontend / Next.js: `97%`
 - Orchestrator / LangGraph: `99%`
 - Agent Pool: `68%`
-- LLM Gateway: `54%`
-- MCP Gateway: `55%`
+- LLM Gateway: `55%`
+- MCP Gateway: `56%`
 - Memory: `72%`
 - Observability: `99%`
 

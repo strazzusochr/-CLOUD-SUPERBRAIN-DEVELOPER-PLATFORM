@@ -1099,6 +1099,34 @@ type McpVersionPinningContract = {
   non_claims: string[];
 };
 
+type McpCapabilityCatalog = {
+  contract_version: string;
+  status: string;
+  mode: string;
+  endpoint: string;
+  evidence_ref: string;
+  toolset_count: number;
+  capability_count: number;
+  live_mcp_writes: boolean;
+  live_mutations: boolean;
+  external_mcp_server_calls: boolean;
+  toolsets: Array<{
+    toolset: string;
+    mode: string;
+    supported_capabilities: string[];
+    blocked_capability_examples: string[];
+    contract_version: string | null;
+    contract_endpoint: string | null;
+    live_mutation: boolean;
+    live_mcp_writes: boolean;
+    requires_audit: boolean;
+    requires_timeout: boolean;
+    unsupported_capability_guard: string;
+  }>;
+  guards: Record<string, string>;
+  non_claims: string[];
+};
+
 type MemoryEmbeddingConsistencyContract = {
   contract_version: string;
   mode: string;
@@ -1747,6 +1775,7 @@ export default function Home() {
     useState<E2bSandboxLifecycleContract | null>(null);
   const [mcpVersionPinningContract, setMcpVersionPinningContract] =
     useState<McpVersionPinningContract | null>(null);
+  const [mcpCapabilityCatalog, setMcpCapabilityCatalog] = useState<McpCapabilityCatalog | null>(null);
   const [memoryEmbeddingConsistencyContract, setMemoryEmbeddingConsistencyContract] =
     useState<MemoryEmbeddingConsistencyContract | null>(null);
   const [systemFallbackContract, setSystemFallbackContract] = useState<SystemFallbackContract | null>(null);
@@ -2051,6 +2080,12 @@ export default function Home() {
     const response = await fetch("/mcp/api/v1/version-pinning/contract", { cache: "no-store" });
     if (!response.ok) throw new Error(`mcp version pinning contract ${response.status}`);
     setMcpVersionPinningContract(await response.json());
+  }
+
+  async function loadMcpCapabilityCatalog() {
+    const response = await fetch("/mcp/api/v1/capabilities/catalog", { cache: "no-store" });
+    if (!response.ok) throw new Error(`mcp capability catalog ${response.status}`);
+    setMcpCapabilityCatalog(await response.json());
   }
 
   async function loadMemoryEmbeddingConsistencyContract() {
@@ -2452,6 +2487,7 @@ export default function Home() {
         loadPlaywrightBrowserProofContract(),
         loadE2bSandboxLifecycleContract(),
         loadMcpVersionPinningContract(),
+        loadMcpCapabilityCatalog(),
         loadMemoryEmbeddingConsistencyContract(),
         loadHealth(),
         loadSystemFallbackContract(),
@@ -2654,6 +2690,7 @@ export default function Home() {
       loadPlaywrightBrowserProofContract,
       loadE2bSandboxLifecycleContract,
       loadMcpVersionPinningContract,
+      loadMcpCapabilityCatalog,
       loadMemoryEmbeddingConsistencyContract,
       loadTaskPolicy,
       loadRotationEvents,
@@ -2822,6 +2859,9 @@ export default function Home() {
   const mcpDriftPolicy = stringList(mcpVersionPinningContract?.drift_policy);
   const mcpEvidenceRefs = stringList(mcpVersionPinningContract?.evidence_refs);
   const mcpNonClaims = stringList(mcpVersionPinningContract?.non_claims);
+  const mcpCatalogToolsets = Array.isArray(mcpCapabilityCatalog?.toolsets) ? mcpCapabilityCatalog.toolsets : [];
+  const mcpCatalogGuards = recordValue(mcpCapabilityCatalog?.guards) ?? {};
+  const mcpCatalogNonClaims = stringList(mcpCapabilityCatalog?.non_claims);
   const memoryCurrentEmbedding = memoryEmbeddingConsistencyContract?.current_embedding;
   const memorySchema = memoryEmbeddingConsistencyContract?.schema;
   const memoryReadPolicy = recordValue(memoryEmbeddingConsistencyContract?.read_policy);
@@ -6349,6 +6389,74 @@ export default function Home() {
               "mcp_timeout_guard",
               "mcp_tool_session_bound_audit",
             ]).join(" / ")}
+          </p>
+        </section>
+
+        <section className="panel externalGatesPanel" aria-label="MCP Capability Catalog">
+          <header className="panelHeader">
+            <h2>MCP Capability Catalog</h2>
+            <button type="button" onClick={() => void loadMcpCapabilityCatalog()}>
+              Refresh
+            </button>
+          </header>
+          <div className="costSummary">
+            <div>
+              <span>Contract</span>
+              <strong>{mcpCapabilityCatalog?.contract_version ?? "mcp-capability-catalog-v1"}</strong>
+            </div>
+            <div>
+              <span>Status</span>
+              <strong>{mcpCapabilityCatalog?.status ?? "loading"}</strong>
+            </div>
+            <div>
+              <span>Writes</span>
+              <strong>{mcpCapabilityCatalog?.live_mcp_writes ? "live_mcp_writes=true" : "live_mcp_writes=false"}</strong>
+            </div>
+            <div>
+              <span>Evidence</span>
+              <strong>{mcpCapabilityCatalog?.evidence_ref ?? "mcp_capability_catalog_visible"}</strong>
+            </div>
+          </div>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>Endpoint</strong>
+              <p>{mcpCapabilityCatalog?.endpoint ?? "GET /mcp/api/v1/capabilities/catalog"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Toolsets</strong>
+              <p>{mcpCapabilityCatalog ? `${mcpCapabilityCatalog.toolset_count} toolsets` : "loading"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Capabilities</strong>
+              <p>{mcpCapabilityCatalog ? `${mcpCapabilityCatalog.capability_count} allowed capabilities` : "loading"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Guards</strong>
+              <p>{Object.entries(mcpCatalogGuards).map(([key, value]) => `${key}: ${String(value)}`).join("; ") || "loading"}</p>
+            </article>
+          </div>
+          <div className="modelList">
+            {mcpCatalogToolsets.length ? (
+              mcpCatalogToolsets.map((toolset) => (
+                <article className="modelItem" key={toolset.toolset}>
+                  <div>
+                    <strong>{toolset.toolset}</strong>
+                    <span>{toolset.live_mcp_writes ? "writes enabled" : "dry-run gated"}</span>
+                  </div>
+                  <small>Allowed: {toolset.supported_capabilities.length ? toolset.supported_capabilities.join(", ") : "none"}</small>
+                  <small>Blocked examples: {toolset.blocked_capability_examples.join(", ")}</small>
+                  <small>{toolset.contract_version ?? "no contract"} / {toolset.contract_endpoint ?? "blocked"}</small>
+                  <small>{toolset.unsupported_capability_guard}</small>
+                </article>
+              ))
+            ) : (
+              <p className="muted">MCP capability catalog loading.</p>
+            )}
+          </div>
+          <p className="infraNote">
+            {mcpCatalogNonClaims.length
+              ? mcpCatalogNonClaims.join(" ")
+              : "No live MCP write or external MCP server call is claimed."}
           </p>
         </section>
 

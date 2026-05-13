@@ -14,7 +14,21 @@ Dieser Vertrag ist in Phase 1 fuer sichere Envelope-, Timeout-, Blocked-, Degrad
 
 Der aktive Runtime-Guard ist fail-closed: bekannte Toolsets akzeptieren nur explizit freigegebene Capabilities. Jede nicht freigegebene Capability, zum Beispiel `github/delete_branch`, wird mit `status=blocked`, `error_class=unsupported_capability` und `evidence_ref=mcp_unsupported_capability_guard` auditiert, statt in einen generischen Erfolgs- oder Platzhalterpfad zu fallen.
 
-## Phase-1-Runtime-Surface
+## Capability Catalog Contract
+
+`GET /mcp/api/v1/capabilities/catalog` veroeffentlicht den verbindlichen MCP-Capability-Katalog `mcp-capability-catalog-v1` mit Evidence `mcp_capability_catalog_visible`.
+
+Der Katalog ist ein deterministischer Runtime-Vertrag und kein Live-MCP-Write-Gate. Er listet jedes bekannte Toolset, erlaubte Capabilities, geblockte Beispiel-Capabilities, zugehoerige Contract-Versionen, Timeout-/Audit-Pflichten und die aktiven Guard-Evidence-Refs. `github`, `postgresql`, `filesystem`, `playwright` und `e2b` bleiben plan-/readonly-/dry-run-gebunden; `puppeteer` bleibt ohne freigegebene Capability sichtbar blockiert.
+
+Verbindliche Catalog-Regeln:
+
+- `live_mcp_writes=false`, `live_mutations=false` und `external_mcp_server_calls=false` muessen im Katalog erhalten bleiben.
+- Jede bekannte Capability muss auch in `SUPPORTED_CAPABILITIES`, UI, Dokumentation und dediziertem Verifier sichtbar sein.
+- Jede neue oder geaenderte Capability braucht denselben Change in Gateway, Frontend, Docs und Verifier.
+- Nicht freigegebene Capabilities fallen immer auf `mcp_unsupported_capability_guard`.
+- Der Version-Pinning-Vertrag muss `mcp_capability_catalog_visible` als Evidence-Ref mittragen.
+
+## Aktuelle Runtime-Surface
 
 Implementiert:
 
@@ -31,7 +45,8 @@ Implementiert:
 11. Orchestrator-gesteuerte MCP-Aufrufe binden `session_id`, `trace_id`, `run_id` und `tool_request_id` in das Audit-Event. Der Nachweis heisst `mcp_tool_session_bound_audit`.
 12. Unsupported-Capability-Guard mit expliziter Allowlist pro Toolset; Nachweis `mcp_unsupported_capability_guard`.
 13. Denied-Tool-Audit-Korrelation propagiert `request_id`, `trace_id`, `correlation_evidence_ref` und `audit_feed_evidence_ref` von blockierten MCP-Gateway-Aufrufen in `/api/v1/audit/mcp`, `/api/v1/audit/recent` und `/api/v1/agent-activity/recent`; Nachweis `mcp_denied_tool_audit_correlation`.
-14. Verifier-Beweis in `scripts/verify-phase1-runtime.ps1`, `scripts/verify-hosted-staging.ps1`, `scripts/verify-phase4-mcp-security-guard.ps1`, und `scripts/verify-phase3-mcp-deny-audit-correlation.ps1`.
+14. MCP-Capability-Katalog `GET /mcp/api/v1/capabilities/catalog` mit `mcp-capability-catalog-v1` und Nachweis `mcp_capability_catalog_visible`.
+15. Dedizierter Verifier-Beweis in `scripts/verify-phase4-mcp-capability-catalog.ps1`; Browser-Regression in `scripts/verify-browser-contract.ps1`; bestehende MCP-Guard-Beweise in `scripts/verify-phase4-mcp-security-guard.ps1` und `scripts/verify-phase3-mcp-deny-audit-correlation.ps1`.
 
 Nicht implementiert:
 
@@ -211,6 +226,7 @@ Jedes Audit-Event muss mindestens enthalten:
 | MCP-011 | Tool-Ergebnis `degraded` | darf nicht als fertig gelten |
 | MCP-012 | UI-/Gameplay-Task ohne Browser-Evidence | bleibt `evidence-blocked` |
 | MCP-013 | bekannte Toolset-Capability ohne Allowlist-Freigabe | wird mit `mcp_unsupported_capability_guard` blockiert und auditiert |
+| MCP-014 | MCP-Capability-Katalog | listet alle bekannten Toolsets, erlaubten Capabilities, geblockten Beispiele, Contract-Versionen, Audit-/Timeout-Pflichten und No-Live-Write-Flags |
 
 ## Stop-Gates
 
