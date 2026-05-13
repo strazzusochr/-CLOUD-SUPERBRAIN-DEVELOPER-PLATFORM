@@ -41,4 +41,19 @@ foreach ($script in $guardedScripts) {
   Assert-Contains $script $content "require-docker-readiness.ps1"
 }
 
+$toolingReadinessPath = "scripts\verify-tooling-readiness.ps1"
+if (-not (Test-Path -LiteralPath $toolingReadinessPath)) {
+  throw "Missing tooling readiness script: $toolingReadinessPath"
+}
+$toolingReadiness = Get-Content -LiteralPath $toolingReadinessPath -Raw
+foreach ($required in @(
+  "docker info --format '{{.ServerVersion}}'",
+  "docker_gates_blocked",
+  "ready_with_docker_gates_blocked",
+  "docker_dependent_gates_ready",
+  "[SKIPPED-REASON: docker-unavailable]"
+)) {
+  Assert-Contains $toolingReadinessPath $toolingReadiness $required
+}
+
 Write-Host "[docker-readiness-guard] verified"

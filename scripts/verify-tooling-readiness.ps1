@@ -110,6 +110,28 @@ function Invoke-ProcessProbe([scriptblock]$Command) {
   }
 }
 
+function Invoke-DockerReadinessProbe() {
+  $docker = Get-Command docker -ErrorAction SilentlyContinue
+  if (-not $docker) {
+    return [pscustomobject]@{
+      ready = $false
+      exit_code = 127
+      server_version = ""
+      output_excerpt = "docker command is not available"
+    }
+  }
+
+  $probe = Invoke-ProcessProbe { docker info --format '{{.ServerVersion}}' }
+  $output = ($probe.output | Out-String).Trim()
+  $versionMatch = [regex]::Match($output, '^[0-9]+(\.[0-9]+)+', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+  return [pscustomobject]@{
+    ready = ($probe.exit_code -eq 0 -and $versionMatch.Success)
+    exit_code = $probe.exit_code
+    server_version = if ($versionMatch.Success) { $versionMatch.Value } else { "" }
+    output_excerpt = $output.Substring(0, [Math]::Min(500, $output.Length))
+  }
+}
+
 $repoRoot = Split-Path $PSScriptRoot -Parent
 Push-Location $repoRoot
 try {
@@ -142,6 +164,13 @@ try {
   }
   $gitLfsProbe = Invoke-ProcessProbe { git lfs version }
   $cliChecks.git_lfs = ($gitLfsProbe.exit_code -eq 0)
+
+  $dockerProbe = Invoke-DockerReadinessProbe
+  if ($dockerProbe.ready) {
+    $checks.Add((New-Check "docker" @("docker") "Docker engine readiness verified" "docker info --format '{{.ServerVersion}}'" ("server_version={0}" -f $dockerProbe.server_version) "" "ready" 0 $false))
+  } else {
+    $checks.Add((New-Check "docker" @("docker") "Docker engine is not ready for local docker-dependent gates" "docker info --format '{{.ServerVersion}}'" ("exit_code={0}; [BLOCKED] docker-compose gates; [SKIPPED-REASON: docker-unavailable] docker-dependent verification" -f $dockerProbe.exit_code) "Restore Docker Desktop/WSL2 readiness before running compose, image build, backup, or local runtime gates. Process checks do not prove Docker readiness." "docker_gates_blocked" 0 $false))
+  }
 
   $vercelProbe = Invoke-NodeJson @'
 const project = process.env.VERCEL_PROJECT_ID || "";
@@ -329,16 +358,26 @@ fetch(apiBase + "/api_tokens", { headers: { Authorization: "Bearer " + token } }
 
   $blockingFailures = @($checks | Where-Object { $_.blocking -and $_.status -notin @("ready", "ready_with_fix") })
   $optionalFailures = @($checks | Where-Object { -not $_.blocking -and $_.status -eq "optional_blocked" })
+  $dockerGateFailures = @($checks | Where-Object { $_.provider -eq "docker" -and $_.status -eq "docker_gates_blocked" })
   $ready = @($checks | Where-Object { $_.status -in @("ready", "ready_with_fix") })
+  $overallStatus = if ($blockingFailures.Count -gt 0) {
+    "blocked"
+  } elseif ($dockerGateFailures.Count -gt 0) {
+    "ready_with_docker_gates_blocked"
+  } else {
+    "ready"
+  }
   $summary = [ordered]@{
     generated_at = (Get-Date).ToUniversalTime().ToString("o")
     repo = $repoRoot
     secret_file_present = Test-Path -LiteralPath $SecretPath
     cli = $cliChecks
-    overall_status = if ($blockingFailures.Count -eq 0) { "ready" } else { "blocked" }
+    overall_status = $overallStatus
     safe_to_continue_codex = ($blockingFailures.Count -eq 0)
+    docker_dependent_gates_ready = ($dockerGateFailures.Count -eq 0)
     ready = @($ready.provider)
     blocked = @($blockingFailures.provider)
+    docker_blocked = @($dockerGateFailures.provider)
     optional = @($optionalFailures.provider)
     checks = $checks
   }
@@ -356,8 +395,10 @@ fetch(apiBase + "/api_tokens", { headers: { Authorization: "Bearer " + token } }
   } else {
     Write-Host "[tooling-readiness] overall_status=$($summary.overall_status)"
     Write-Host "[tooling-readiness] safe_to_continue_codex=$($summary.safe_to_continue_codex)"
+    Write-Host "[tooling-readiness] docker_dependent_gates_ready=$($summary.docker_dependent_gates_ready)"
     Write-Host "[tooling-readiness] ready=$($summary.ready -join ',')"
     Write-Host "[tooling-readiness] blocked=$($summary.blocked -join ',')"
+    Write-Host "[tooling-readiness] docker_blocked=$($summary.docker_blocked -join ',')"
     Write-Host "[tooling-readiness] optional=$($summary.optional -join ',')"
     foreach ($check in $checks) {
       Write-Host ("[tooling-readiness] {0}: {1} :: {2}" -f $check.provider, $check.status, $check.result)
