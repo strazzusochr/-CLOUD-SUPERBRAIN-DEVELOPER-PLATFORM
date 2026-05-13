@@ -187,8 +187,18 @@
   {
     "id": "phase5",
     "description": "Phase 5 candidate, rollback, and release-readiness suite.",
+    "parameter_overrides": {
+      "ReleaseId": "prod-candidate-2026-05-05-rc1"
+    },
     "patterns": [
       "verify-phase5-*.ps1"
+    ]
+  },
+  {
+    "id": "current-release-candidate",
+    "description": "Active release-boundary candidate verification without mutating production.",
+    "patterns": [
+      "verify-current-release-candidate.ps1"
     ]
   },
   {
@@ -216,6 +226,7 @@
     "suites": [
       "security",
       "external-gates-with-tokens",
+      "current-release-candidate",
       "phase5",
       "hosted-staging",
       "browser-contract"
@@ -251,6 +262,7 @@
       "autonomy",
       "phase3",
       "phase4",
+      "current-release-candidate",
       "phase5"
     ]
   }
