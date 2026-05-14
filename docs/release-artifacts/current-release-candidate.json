@@ -1,7 +1,7 @@
 {
   "active_release_id": "prod-candidate-2026-05-11-rc1",
-  "updated_at": "2026-05-14T14:59:54+02:00",
-  "updated_by": "codex-llm-audit-export-20260514",
-  "reason": "Keep prod-candidate-2026-05-11-rc1 active and bind it to the verified LLM Audit Export immutable staging selector. Local py_compile, Next.js build, Docker readiness, local LLM-audit export/feed verifiers with adversarial redaction canaries, local browser-contract verifier, security verifier, evidence artifact safety verifier, Docker Buildx GHCR image push for all six services at 13d02661c5cfbc2e4a881f1a16f303002affca06, Hetzner staging deploy via scripts/deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 13d02661c5cfbc2e4a881f1a16f303002affca06, hosted LLM-audit export, hosted LLM-audit feed, browser-contract, hosted-staging, and full Phase-3 suite verifiers all passed. This is staging parity only; production rollout remains false.",
+  "updated_at": "2026-05-14T18:10:00+02:00",
+  "updated_by": "codex-mcp-audit-export-20260514",
+  "reason": "Keep prod-candidate-2026-05-11-rc1 active and bind it to the verified MCP Audit Export immutable staging selector. Local py_compile, Next.js build, Docker readiness, local MCP-audit export/snapshot verifiers with adversarial redaction canaries, local browser-contract verifier, security verifier, evidence artifact safety verifier, Docker Buildx GHCR image push for all six services at 21145b89634b330231b6fd66c8aa2654c55a047e, Hetzner staging deploy via scripts/deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 21145b89634b330231b6fd66c8aa2654c55a047e, hosted MCP-audit export, hosted MCP-audit snapshot, browser-contract, hosted-staging, and full Phase-3 suite verifiers all passed. This is staging parity only; production rollout remains false.",
   "production_rollout_claimed": false
 }

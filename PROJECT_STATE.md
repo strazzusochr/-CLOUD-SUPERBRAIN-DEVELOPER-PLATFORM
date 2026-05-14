@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-05-14 14:59 Uhr
+Letzte Aktualisierung: 2026-05-14 18:10 Uhr
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-14 14:59 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `79%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline und Auth Audit Export auf `88%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist als immutable Staging-Selector verifiziert; Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `79%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, MCP Audit Export, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline und Auth Audit Export auf `90%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist als immutable Staging-Selector verifiziert; Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -39,7 +39,7 @@ Letzte Aktualisierung: 2026-05-14 14:59 Uhr
 | P0   | 100%   |
 | P1   | 100%   |
 | P2   | 88%    |
-| P3   | 88%    |
+| P3   | 90%    |
 | P4   | 100%   |
 | P5   | 74%    |
 | P6   | 0%     |
@@ -52,7 +52,7 @@ Letzte Aktualisierung: 2026-05-14 14:59 Uhr
 | Orchestrator  | 99%    |
 | Agent Pool    | 73%    |
 | LLM Gateway   | 62%    |
-| MCP Gateway   | 61%    |
+| MCP Gateway   | 63%    |
 | Memory        | 72%    |
 | Observability | 99%    |
 
@@ -70,13 +70,22 @@ Letzte Aktualisierung: 2026-05-14 14:59 Uhr
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Naechster grosser Fortschrittshebel: Phase 3 Product Surface & Security** — Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline und Auth Audit Export sind jetzt lokal und hosted auf immutable Staging verifiziert.
+- **Naechster grosser Fortschrittshebel: Phase 3 Product Surface & Security** — Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, MCP Audit Export, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline und Auth Audit Export sind jetzt lokal und hosted auf immutable Staging verifiziert.
 - danach folgen P3-Auth/Security- und LLM/MCP-Layer-Slices, kein Production-Rollout ohne separates Gate
 - lokal und hosted bleiben weiterhin deterministische Proofs ohne Live-Provider und ohne Live-MCP-Writes; `production_deploy_claim_allowed=true` ist kein Deployment-Nachweis
 
 ## ZULETZT ABGESCHLOSSEN
 
-**LLM Audit Export Proof** — die LLM-Operator-Ansicht hat jetzt einen read-only CSV-Export ueber sichere LLM-Gateway-Audit-Ereignisse:
+**MCP Audit Export Proof** — die MCP-Operator-Ansicht hat jetzt einen read-only CSV-Export ueber sichere MCP-Gateway-Audit-Ereignisse:
+
+- `GET /api/v1/audit/mcp/export/contract` liefert `mcp-audit-export-v1`, `mcp_audit_export_visible`, `mcp_audit_export_audit_persisted`, `mcp_audit_redaction_enforced` und `mcp_audit_no_live_write_guard`.
+- `GET /api/v1/audit/mcp/export?format=csv&limit=80` liest nur dieselbe sichere `audit_log`-Projektion wie MCP Audit Feed und Snapshot und gibt ausschliesslich allowlisted CSV-Spalten aus.
+- Export und Export-Audit geben keine Tool-Input-Refs, Prompt-Bodies, Cookies, Authorization-Header, Provider-Credentials, raw details, Live-MCP-Write-Claims, Production-Rollout-Claims oder Promotion-Claims zurueck.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `docker info --format '{{.ServerVersion}}'`, `docker compose -f docker-compose.dev.yml up -d --build agent-api frontend nginx`, `scripts\verify-phase3-mcp-audit-export.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireSeed`, `scripts\verify-phase3-mcp-deny-audit-correlation.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, Browser-Contract, Security und Evidence-Artifact-Safety.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach GHCR-Build/Push und immutable Image-Deploy mit `IMAGE_TAG=21145b89634b330231b6fd66c8aa2654c55a047e`: MCP-Audit-Export, MCP-Audit-Snapshot, Browser-Contract, Hosted-Staging und `scripts\verify.ps1 -Suite phase3` sind gruen.
+- Fortschritt: `overall=79`, `phase_3=90`, `mcp_gateway=63`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — LLM Audit Export Proof** — die LLM-Operator-Ansicht hat jetzt einen read-only CSV-Export ueber sichere LLM-Gateway-Audit-Ereignisse:
 
 - `GET /api/v1/audit/llm/export/contract` liefert `llm-audit-export-v1`, `llm_audit_export_visible`, `llm_audit_export_audit_persisted`, `llm_audit_redaction_enforced` und `llm_audit_no_live_provider_guard`.
 - `GET /api/v1/audit/llm/export?format=csv&limit=80` liest nur dieselbe sichere `audit_log`-Projektion wie LLM Audit Feed und Snapshot und gibt ausschliesslich allowlisted CSV-Spalten aus.
