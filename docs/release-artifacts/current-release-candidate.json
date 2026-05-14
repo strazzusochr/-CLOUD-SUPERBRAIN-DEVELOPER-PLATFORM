@@ -1,7 +1,7 @@
 {
   "active_release_id": "prod-candidate-2026-05-11-rc1",
-  "updated_at": "2026-05-14T21:55:00+02:00",
-  "updated_by": "codex-vercel-github-deployment-status-20260514",
-  "reason": "Keep prod-candidate-2026-05-11-rc1 active and bind it to the verified Vercel GitHub Deployment Status proof plus the existing Active Security Evidence Bundle on immutable staging selector 4364d31d7f1e6d0dec1f4d9f686715fec41d3b35. Docker readiness, runtime-selector truth, current release candidate, Phase 5 suite planning, Vercel Git-link readiness, GitHub Vercel status, public Vercel frontend, and hosted staging checks passed. This is staging parity and release-readiness evidence only; production rollout remains false.",
+  "updated_at": "2026-05-14T22:20:00+02:00",
+  "updated_by": "codex-autonomous-roster-master-plan-20260514",
+  "reason": "Keep prod-candidate-2026-05-11-rc1 active and bind it to the verified Autonomous Roster Master Plan proof plus the existing Vercel GitHub Deployment Status and Active Security Evidence Bundle on immutable staging selector 4364d31d7f1e6d0dec1f4d9f686715fec41d3b35. Docker readiness, local and hosted autonomous master-plan, roster, team-status, recent-dispatch, autonomy-suite, Vercel GitHub status, and hosted staging checks passed. This is staging parity and release-readiness evidence only; production rollout remains false.",
   "production_rollout_claimed": false
 }

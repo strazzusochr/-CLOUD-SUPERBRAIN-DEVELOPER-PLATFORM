@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-05-14 21:55 Uhr
+Letzte Aktualisierung: 2026-05-14 22:20 Uhr
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-14 21:55 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `79%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI, Security Review Gate Summary, Security Review Queue Export, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, MCP Audit Export, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Gateway Correlation Export, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline und Auth Audit Export auf `94%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%` und hat zusaetzlich das Active Security Evidence Bundle sowie den Vercel GitHub Deployment Status verifiziert; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist als immutable Staging-Selector plus Security Evidence Bundle plus Vercel/GitHub-Status verifiziert; Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `79%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance und die Autonomous-Roster/Master-Plan-Proofs auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI, Security Review Gate Summary, Security Review Queue Export, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, MCP Audit Export, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Gateway Correlation Export, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline und Auth Audit Export auf `94%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%` und hat zusaetzlich das Active Security Evidence Bundle sowie den Vercel GitHub Deployment Status verifiziert; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist als immutable Staging-Selector plus Security Evidence Bundle plus Vercel/GitHub-Status plus Autonomous Roster Master Plan verifiziert; Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -76,7 +76,13 @@ Letzte Aktualisierung: 2026-05-14 21:55 Uhr
 
 ## ZULETZT ABGESCHLOSSEN
 
-**Vercel GitHub Deployment Status Proof** — der aktive RC1 bindet jetzt GitHub-Commitstatus, Vercel-Git-Link-Readiness, die oeffentliche Vercel-Frontend-URL und Hosted Staging:
+**Autonomous Roster Master Plan Proof** — der aktive RC1 bindet jetzt die Agenten-Roster- und Master-Plan-Runtime an lokale und gehostete Beweise:
+
+- `scripts\verify-autonomous-roster-master-plan-bundle.ps1` prueft Master-Plan-Contract, Roster-Contract, Team-Status, Recent-Dispatch-Provenance und Homepage-Marker lokal sowie hosted.
+- Nachgewiesen sind `autonomous-master-plan-v1`, `autonomous-agent-roster-v1`, `autonomous_master_plan_runtime_visible`, `autonomous_agent_roster_runtime_visible`, alle fuenf logischen Rollen, mindestens 14 persistierte Roster-Rollen, LangGraph-Binding und ein completed Dispatch mit `autonomous_team_dispatch_task_provenance`.
+- Fortschritt bleibt `overall=79`, `phase_2=88`, `agent_pool=74`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, keine External-Agent-Uptime-Garantie und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Vercel GitHub Deployment Status Proof** — der aktive RC1 bindet jetzt GitHub-Commitstatus, Vercel-Git-Link-Readiness, die oeffentliche Vercel-Frontend-URL und Hosted Staging:
 
 - `scripts\verify-phase5-vercel-github-deployment-status.ps1` prueft GitHub combined status `Vercel=success`, Vercel-Ziel-URL-Prefix, lokalen Vercel-Git-Link, public Vercel Frontend HTTP `200`, Hosted Staging HTTP `200`, RC1-Artefakt und Non-Claim-Policy.
 - Das Runtime-Selector-Paritaetsartefakt enthaelt jetzt die Metadaten, die `scripts\verify-current-runtime-selector-truth.ps1` erwartet.
