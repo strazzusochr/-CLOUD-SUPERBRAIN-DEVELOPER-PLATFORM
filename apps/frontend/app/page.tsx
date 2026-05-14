@@ -1420,6 +1420,37 @@ type McpAuditSnapshot = {
   safe_fields: string[];
 };
 
+type McpAuditExportContract = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  contract_endpoint: string;
+  feed_endpoint: string;
+  snapshot_endpoint: string;
+  supported_formats: string[];
+  filename_pattern: string;
+  columns: string[];
+  evidence_ref: string;
+  export_audit_evidence_ref: string;
+  feed_evidence_ref: string;
+  audit_feed_evidence_ref: string;
+  snapshot_evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_mcp_write_evidence_ref: string;
+  read_only: boolean;
+  audit_persisted: boolean;
+  live_mcp_writes_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  input_refs_returned: boolean;
+  provider_credentials_returned: boolean;
+  raw_details_returned: boolean;
+  provider_side_mutation_claimed: boolean;
+  policy_checks: string[];
+  non_claims: string[];
+};
+
 type MemoryEmbeddingConsistencyContract = {
   contract_version: string;
   mode: string;
@@ -2503,6 +2534,7 @@ export default function Home() {
   const [activityTraceFilter, setActivityTraceFilter] = useState("");
   const [mcpAuditEvents, setMcpAuditEvents] = useState<AuditEvent[]>([]);
   const [mcpAuditSnapshot, setMcpAuditSnapshot] = useState<McpAuditSnapshot | null>(null);
+  const [mcpAuditExportContract, setMcpAuditExportContract] = useState<McpAuditExportContract | null>(null);
   const [llmAuditFeedContract, setLlmAuditFeedContract] = useState<LlmAuditFeedContract | null>(null);
   const [llmAuditEvents, setLlmAuditEvents] = useState<LlmAuditEvent[]>([]);
   const [llmAuditSnapshot, setLlmAuditSnapshot] = useState<LlmAuditSnapshot | null>(null);
@@ -3064,9 +3096,10 @@ export default function Home() {
   }
 
   async function loadMcpAuditEvents() {
-    const [response, snapshotResponse] = await Promise.all([
+    const [response, snapshotResponse, exportResponse] = await Promise.all([
       fetch("/api/v1/audit/mcp?limit=8", { cache: "no-store" }),
       fetch("/api/v1/audit/mcp/snapshot?limit=50", { cache: "no-store" }),
+      fetch("/api/v1/audit/mcp/export/contract", { cache: "no-store" }),
     ]);
     if (!response.ok) throw new Error(`mcp audit ${response.status}`);
     if (!snapshotResponse.ok) throw new Error(`mcp audit snapshot ${snapshotResponse.status}`);
@@ -3074,6 +3107,9 @@ export default function Home() {
     const snapshot = (await snapshotResponse.json()) as McpAuditSnapshot;
     setMcpAuditEvents(payload.events ?? []);
     setMcpAuditSnapshot(snapshot);
+    if (exportResponse.ok) {
+      setMcpAuditExportContract(await exportResponse.json());
+    }
   }
 
   async function loadLlmAuditFeed() {
@@ -6564,6 +6600,36 @@ export default function Home() {
             <small>
               blocked={mcpAuditSnapshot?.blocked_count ?? 0} / denied_correlation=
               {mcpAuditSnapshot?.denied_tool_correlation_count ?? 0} / session_bound={mcpAuditSnapshot?.session_bound_count ?? 0}
+            </small>
+          </div>
+          <div className="auditSnapshot">
+            <strong>MCP Audit Export</strong>
+            <span>
+              {mcpAuditExportContract?.contract_version ?? "mcp-audit-export-v1"} /{" "}
+              {mcpAuditExportContract?.evidence_ref ?? "mcp_audit_export_visible"}
+            </span>
+            <small>
+              Endpoint: {mcpAuditExportContract?.endpoint ?? "GET /api/v1/audit/mcp/export?format=csv&limit=80"}
+            </small>
+            <small>
+              Contract: {mcpAuditExportContract?.contract_endpoint ?? "GET /api/v1/audit/mcp/export/contract"} /
+              file {mcpAuditExportContract?.filename_pattern ?? "superbrain-mcp-audit.csv"}
+            </small>
+            <small>
+              Export audit:{" "}
+              {mcpAuditExportContract?.export_audit_evidence_ref ?? "mcp_audit_export_audit_persisted"} /
+              Redaction: {mcpAuditExportContract?.redaction_evidence_ref ?? "mcp_audit_redaction_enforced"} /
+              No-live-write: {mcpAuditExportContract?.no_live_mcp_write_evidence_ref ?? "mcp_audit_no_live_write_guard"}
+            </small>
+            <small>
+              read_only={String(mcpAuditExportContract?.read_only ?? true)} /
+              audit_persisted={String(mcpAuditExportContract?.audit_persisted ?? true)} /
+              production_rollout_claimed={String(mcpAuditExportContract?.production_rollout_claimed ?? false)}
+            </small>
+            <small>
+              input_refs_returned={String(mcpAuditExportContract?.input_refs_returned ?? false)} /
+              provider_credentials_returned={String(mcpAuditExportContract?.provider_credentials_returned ?? false)} /
+              raw_details_returned={String(mcpAuditExportContract?.raw_details_returned ?? false)}
             </small>
           </div>
           <div className="mcpAuditList">

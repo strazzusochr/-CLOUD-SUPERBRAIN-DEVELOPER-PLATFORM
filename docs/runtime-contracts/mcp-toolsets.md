@@ -19,6 +19,8 @@ Der aktive Runtime-Guard ist fail-closed: bekannte Toolsets akzeptieren nur expl
 `GET /mcp/api/v1/capabilities/catalog` veroeffentlicht den verbindlichen MCP-Capability-Katalog `mcp-capability-catalog-v1` mit Evidence `mcp_capability_catalog_visible`.
 `GET /api/v1/audit/mcp/snapshot` veroeffentlicht den read-only MCP-Audit-Redaction-Snapshot `mcp-audit-feed-v1` mit Evidence `mcp_audit_snapshot_visible` und `mcp_audit_redaction_enforced`.
 
+`GET /api/v1/audit/mcp/export/contract` und `GET /api/v1/audit/mcp/export?format=csv&limit=80` veroeffentlichen den read-only MCP-Audit-CSV-Export `mcp-audit-export-v1` mit Evidence `mcp_audit_export_visible`, `mcp_audit_export_audit_persisted`, `mcp_audit_redaction_enforced` und `mcp_audit_no_live_write_guard`.
+
 Der Katalog ist ein deterministischer Runtime-Vertrag und kein Live-MCP-Write-Gate. Er listet jedes bekannte Toolset, erlaubte Capabilities, geblockte Beispiel-Capabilities, zugehoerige Contract-Versionen, Timeout-/Audit-Pflichten und die aktiven Guard-Evidence-Refs. `github`, `postgresql`, `filesystem`, `playwright` und `e2b` bleiben plan-/readonly-/dry-run-gebunden; `puppeteer` bleibt ohne freigegebene Capability sichtbar blockiert.
 
 Verbindliche Catalog-Regeln:
@@ -29,6 +31,7 @@ Verbindliche Catalog-Regeln:
 - Nicht freigegebene Capabilities fallen immer auf `mcp_unsupported_capability_guard`.
 - Der Version-Pinning-Vertrag muss `mcp_capability_catalog_visible` als Evidence-Ref mittragen.
 - Der MCP-Audit-Vertrag muss `snapshot_endpoint=GET /api/v1/audit/mcp/snapshot`, `input_refs_returned=false`, `live_mcp_writes_claimed=false`, `forbidden_pattern_hits=0` und `mcp_audit_redaction_enforced` mittragen.
+- Der MCP-Audit-Export darf nur allowlisted CSV-Felder aus `audit_log` / `event_type=mcp_tool_executed` ausgeben und muss `input_refs_returned=false`, `provider_credentials_returned=false`, `raw_details_returned=false`, `live_mcp_writes_claimed=false`, `mcp_audit_export_visible` und `mcp_audit_no_live_write_guard` mittragen.
 
 ## Aktuelle Runtime-Surface
 
@@ -49,6 +52,7 @@ Implementiert:
 13. Denied-Tool-Audit-Korrelation propagiert `request_id`, `trace_id`, `correlation_evidence_ref` und `audit_feed_evidence_ref` von blockierten MCP-Gateway-Aufrufen in `/api/v1/audit/mcp`, `/api/v1/audit/recent` und `/api/v1/agent-activity/recent`; Nachweis `mcp_denied_tool_audit_correlation`.
 14. MCP-Capability-Katalog `GET /mcp/api/v1/capabilities/catalog` mit `mcp-capability-catalog-v1` und Nachweis `mcp_capability_catalog_visible`.
 15. MCP-Audit-Snapshot `GET /api/v1/audit/mcp/snapshot` mit `mcp_audit_snapshot_visible`, `mcp_audit_redaction_enforced`, `input_refs_returned=false` und `live_mcp_writes_claimed=false`.
+16. MCP-Audit-Export `GET /api/v1/audit/mcp/export?format=csv&limit=80` mit `mcp-audit-export-v1`, `mcp_audit_export_visible`, `mcp_audit_export_audit_persisted`, `mcp_audit_redaction_enforced`, `mcp_audit_no_live_write_guard` und CSV-allowlist ohne Input-Refs, Provider-Credentials oder raw Details.
 15. Dedizierter Verifier-Beweis in `scripts/verify-phase4-mcp-capability-catalog.ps1`; Browser-Regression in `scripts/verify-browser-contract.ps1`; bestehende MCP-Guard-Beweise in `scripts/verify-phase4-mcp-security-guard.ps1` und `scripts/verify-phase3-mcp-deny-audit-correlation.ps1`.
 
 Nicht implementiert:

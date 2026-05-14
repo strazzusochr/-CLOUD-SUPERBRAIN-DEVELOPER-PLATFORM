@@ -270,6 +270,12 @@ Assert-Contains "mcp audit snapshot panel" $frontendHtml "MCP Audit Snapshot"
 Assert-Contains "mcp audit snapshot evidence marker" $frontendHtml "mcp_audit_snapshot_visible"
 Assert-Contains "mcp audit redaction evidence marker" $frontendHtml "mcp_audit_redaction_enforced"
 Assert-Contains "mcp audit snapshot endpoint marker" $frontendHtml "GET /api/v1/audit/mcp/snapshot"
+Assert-Contains "mcp audit export panel" $frontendHtml "MCP Audit Export"
+Assert-Contains "mcp audit export version marker" $frontendHtml "mcp-audit-export-v1"
+Assert-Contains "mcp audit export evidence marker" $frontendHtml "mcp_audit_export_visible"
+Assert-Contains "mcp audit export audit evidence marker" $frontendHtml "mcp_audit_export_audit_persisted"
+Assert-Contains "mcp audit export no-live marker" $frontendHtml "mcp_audit_no_live_write_guard"
+Assert-Contains "mcp audit export endpoint marker" $frontendHtml "GET /api/v1/audit/mcp/export"
 Assert-Contains "memory embedding consistency contract panel" $frontendHtml "Memory Embedding Consistency Contract"
 Assert-Contains "memory embedding consistency evidence marker" $frontendHtml "memory_embedding_consistency_contract_visible"
 Assert-Contains "memory consolidation panel" $frontendHtml "Memory Consolidation"
@@ -776,8 +782,19 @@ Assert-True "gateway correlation timeline redaction clear" ($gatewayCorrelationT
 $mcpAuditContract = Invoke-Text "$BaseUrl/api/v1/audit/mcp/contract"
 Assert-Contains "mcp audit contract version" $mcpAuditContract '"contract_version":"mcp-audit-feed-v1"'
 Assert-Contains "mcp audit snapshot endpoint" $mcpAuditContract '"snapshot_endpoint":"GET /api/v1/audit/mcp/snapshot"'
+Assert-Contains "mcp audit export endpoint" $mcpAuditContract '"export_endpoint":"GET /api/v1/audit/mcp/export?format=csv&limit=80"'
+Assert-Contains "mcp audit export contract endpoint" $mcpAuditContract '"export_contract_endpoint":"GET /api/v1/audit/mcp/export/contract"'
 Assert-Contains "mcp audit snapshot evidence" $mcpAuditContract "mcp_audit_snapshot_visible"
 Assert-Contains "mcp audit redaction evidence" $mcpAuditContract "mcp_audit_redaction_enforced"
+Assert-Contains "mcp audit export evidence" $mcpAuditContract "mcp_audit_export_visible"
+Assert-Contains "mcp audit export audit evidence" $mcpAuditContract "mcp_audit_export_audit_persisted"
+Assert-Contains "mcp audit export no-live evidence" $mcpAuditContract "mcp_audit_no_live_write_guard"
+$mcpAuditExportContract = Invoke-Text "$BaseUrl/api/v1/audit/mcp/export/contract"
+Assert-Contains "mcp audit export contract version" $mcpAuditExportContract '"contract_version":"mcp-audit-export-v1"'
+Assert-Contains "mcp audit export contract mode" $mcpAuditExportContract '"mode":"read_only_mcp_audit_csv_export"'
+Assert-Contains "mcp audit export contract evidence" $mcpAuditExportContract "mcp_audit_export_visible"
+Assert-Contains "mcp audit export contract audit evidence" $mcpAuditExportContract "mcp_audit_export_audit_persisted"
+Assert-Contains "mcp audit export contract no-live" $mcpAuditExportContract "mcp_audit_no_live_write_guard"
 $mcpAuditSnapshot = Invoke-Text "$BaseUrl/api/v1/audit/mcp/snapshot?limit=5"
 Assert-Contains "mcp audit snapshot mode" $mcpAuditSnapshot "read_only_mcp_audit_redaction_snapshot"
 Assert-Contains "mcp audit snapshot evidence" $mcpAuditSnapshot "mcp_audit_snapshot_visible"
