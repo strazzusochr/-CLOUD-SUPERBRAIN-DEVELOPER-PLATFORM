@@ -6,6 +6,14 @@ Image tag: `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
 Hosted base: `https://188-34-191-140.sslip.io`
 Production rollout claimed: `false`
 
+Status: `verified`
+release_id: `prod-candidate-2026-05-11-rc1`
+candidate_sha: `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
+production_rollout_claimed: `false`
+runtime_selector: `IMAGE_TAG=4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
+immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
+selector_verifier: `scripts\verify-current-immutable-staging-parity.ps1 -RequireVerified`
+
 ## Scope
 
 This proof binds the active staging candidate to the Phase 3 Security Review Queue Export slice. It is a staging parity proof only and does not promote production.
