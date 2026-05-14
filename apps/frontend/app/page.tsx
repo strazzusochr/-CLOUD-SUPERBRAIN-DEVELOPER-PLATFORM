@@ -1201,6 +1201,31 @@ type McpCapabilityCatalog = {
   non_claims: string[];
 };
 
+type McpAuditSnapshot = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  snapshot_evidence_ref: string;
+  redaction_evidence_ref: string;
+  read_only: boolean;
+  live_mcp_writes_claimed: boolean;
+  input_refs_returned: boolean;
+  provider_credentials_returned: boolean;
+  events_scanned: number;
+  blocked_count: number;
+  denied_tool_correlation_count: number;
+  session_bound_count: number;
+  live_mcp_write_count: number;
+  forbidden_pattern_hits: number;
+  redaction_status: string;
+  status_counts: Record<string, number>;
+  toolset_counts: Record<string, number>;
+  capability_counts: Record<string, number>;
+  error_class_counts: Record<string, number>;
+  agent_role_counts: Record<string, number>;
+  safe_fields: string[];
+};
+
 type MemoryEmbeddingConsistencyContract = {
   contract_version: string;
   mode: string;
@@ -1322,6 +1347,8 @@ type AuditEvent = {
   trace_id?: string | null;
   correlation_evidence_ref?: string | null;
   audit_feed_evidence_ref?: string | null;
+  redaction_evidence_ref?: string | null;
+  input_ref_stored?: boolean | null;
 };
 
 type LlmAuditEvent = AuditEvent & {
@@ -2074,6 +2101,7 @@ export default function Home() {
   const [activityAgentFilter, setActivityAgentFilter] = useState("");
   const [activityTraceFilter, setActivityTraceFilter] = useState("");
   const [mcpAuditEvents, setMcpAuditEvents] = useState<AuditEvent[]>([]);
+  const [mcpAuditSnapshot, setMcpAuditSnapshot] = useState<McpAuditSnapshot | null>(null);
   const [llmAuditFeedContract, setLlmAuditFeedContract] = useState<LlmAuditFeedContract | null>(null);
   const [llmAuditEvents, setLlmAuditEvents] = useState<LlmAuditEvent[]>([]);
   const [llmAuditSnapshot, setLlmAuditSnapshot] = useState<LlmAuditSnapshot | null>(null);
@@ -2610,10 +2638,16 @@ export default function Home() {
   }
 
   async function loadMcpAuditEvents() {
-    const response = await fetch("/api/v1/audit/mcp?limit=8", { cache: "no-store" });
+    const [response, snapshotResponse] = await Promise.all([
+      fetch("/api/v1/audit/mcp?limit=8", { cache: "no-store" }),
+      fetch("/api/v1/audit/mcp/snapshot?limit=50", { cache: "no-store" }),
+    ]);
     if (!response.ok) throw new Error(`mcp audit ${response.status}`);
+    if (!snapshotResponse.ok) throw new Error(`mcp audit snapshot ${snapshotResponse.status}`);
     const payload = await response.json();
+    const snapshot = (await snapshotResponse.json()) as McpAuditSnapshot;
     setMcpAuditEvents(payload.events ?? []);
+    setMcpAuditSnapshot(snapshot);
   }
 
   async function loadLlmAuditFeed() {
@@ -5799,6 +5833,25 @@ export default function Home() {
               Refresh
             </button>
           </header>
+          <div className="auditSnapshot">
+            <strong>MCP Audit Snapshot</strong>
+            <span>{mcpAuditSnapshot?.snapshot_evidence_ref ?? "mcp_audit_snapshot_visible"}</span>
+            <span>{mcpAuditSnapshot?.redaction_evidence_ref ?? "mcp_audit_redaction_enforced"}</span>
+            <small>{mcpAuditSnapshot?.endpoint ?? "GET /api/v1/audit/mcp/snapshot"}</small>
+            <small>{mcpAuditSnapshot?.mode ?? "read_only_mcp_audit_redaction_snapshot"}</small>
+            <small>
+              live_mcp_writes_claimed={String(mcpAuditSnapshot?.live_mcp_writes_claimed ?? false)} / input_refs_returned=
+              {String(mcpAuditSnapshot?.input_refs_returned ?? false)}
+            </small>
+            <small>
+              redaction_status={mcpAuditSnapshot?.redaction_status ?? "loading"} / forbidden_pattern_hits=
+              {mcpAuditSnapshot?.forbidden_pattern_hits ?? 0}
+            </small>
+            <small>
+              blocked={mcpAuditSnapshot?.blocked_count ?? 0} / denied_correlation=
+              {mcpAuditSnapshot?.denied_tool_correlation_count ?? 0} / session_bound={mcpAuditSnapshot?.session_bound_count ?? 0}
+            </small>
+          </div>
           <div className="mcpAuditList">
             {mcpAuditEvents.length ? (
               mcpAuditEvents.map((event) => (
@@ -5810,6 +5863,8 @@ export default function Home() {
                   <small>{String(event.details.capability ?? "unknown capability")}</small>
                   <small>Request: {String(event.details.tool_request_id ?? "none")}</small>
                   <small>Error: {String(event.details.error_class ?? "none")}</small>
+                  <small>{String(event.details.redaction_evidence_ref ?? event.redaction_evidence_ref ?? "mcp_audit_redaction_enforced")}</small>
+                  <small>input_ref_stored={String(event.details.input_ref_stored ?? event.input_ref_stored ?? false)}</small>
                   <p>{String(event.details.sanitized_summary ?? "No summary.")}</p>
                 </article>
               ))

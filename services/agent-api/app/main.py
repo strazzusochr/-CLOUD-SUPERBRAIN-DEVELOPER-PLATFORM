@@ -127,6 +127,10 @@ LLM_AUDIT_FEED_CONTRACT_VERSION = "llm-audit-feed-v1"
 LLM_AUDIT_FEED_EVIDENCE_REF = "llm_audit_feed_visible"
 LLM_AUDIT_SNAPSHOT_EVIDENCE_REF = "llm_audit_snapshot_visible"
 LLM_AUDIT_REDACTION_EVIDENCE_REF = "llm_audit_redaction_enforced"
+MCP_AUDIT_FEED_CONTRACT_VERSION = "mcp-audit-feed-v1"
+MCP_AUDIT_FEED_EVIDENCE_REF = "mcp_audit_feed_contract_runtime_visible"
+MCP_AUDIT_SNAPSHOT_EVIDENCE_REF = "mcp_audit_snapshot_visible"
+MCP_AUDIT_REDACTION_EVIDENCE_REF = "mcp_audit_redaction_enforced"
 LANGFUSE_TRACE_ACCESS_CONTRACT_VERSION = "langfuse-trace-access-v1"
 LANGFUSE_TRACE_ACCESS_EVIDENCE_REF = "langfuse_trace_access_visible"
 LANGFUSE_TRACE_EVENT_EVIDENCE_REF = "langfuse_trace_event_visible"
@@ -2713,11 +2717,21 @@ def audit_feed_contract_payload() -> dict[str, object]:
 
 def mcp_audit_feed_contract_payload() -> dict[str, object]:
     return {
-        "contract_version": "mcp-audit-feed-v1",
+        "contract_version": MCP_AUDIT_FEED_CONTRACT_VERSION,
         "mode": "mcp_tool_audit_runtime_feed",
+        "endpoint": "GET /api/v1/audit/mcp",
+        "snapshot_endpoint": "GET /api/v1/audit/mcp/snapshot",
+        "source_event_type": "mcp_tool_executed",
+        "source_table": "audit_log",
         "screen": "MCP Audit",
+        "evidence_ref": MCP_AUDIT_FEED_EVIDENCE_REF,
+        "snapshot_evidence_ref": MCP_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "redaction_evidence_ref": MCP_AUDIT_REDACTION_EVIDENCE_REF,
+        "read_only": True,
+        "live_mcp_writes_claimed": False,
         "source_endpoints": [
             "GET /api/v1/audit/mcp?limit=20",
+            "GET /api/v1/audit/mcp/snapshot",
             "POST /internal/audit/mcp-tool-events",
             "GET /api/v1/audit/recent?limit=50",
         ],
@@ -2752,6 +2766,8 @@ def mcp_audit_feed_contract_payload() -> dict[str, object]:
             "audit_tags",
             "session_bound",
             "audit_evidence_ref",
+            "redaction_evidence_ref",
+            "input_ref_stored",
             "correlation_evidence_ref",
             "audit_feed_evidence_ref",
         ],
@@ -2764,11 +2780,14 @@ def mcp_audit_feed_contract_payload() -> dict[str, object]:
             "MCP audit feed exposes session-bound tool execution events as a public runtime surface.",
             "Feed stays aligned with internal MCP audit writes and carries visible trace and evidence references.",
             "Feed remains non-mutating and does not claim live MCP writes were executed.",
+            "The snapshot endpoint aggregates redacted audit fields and never returns tool input refs.",
         ],
         "evidence_refs": {
-            "contract_visible": "mcp_audit_feed_contract_runtime_visible",
+            "contract_visible": MCP_AUDIT_FEED_EVIDENCE_REF,
             "runtime_visible": "hosted_mcp_audit_feed_contract_runtime_parity_proof",
             "session_bound_audit": "mcp_tool_session_bound_audit",
+            "snapshot_visible": MCP_AUDIT_SNAPSHOT_EVIDENCE_REF,
+            "redaction_enforced": MCP_AUDIT_REDACTION_EVIDENCE_REF,
             "denied_tool_correlation": "mcp_denied_tool_audit_correlation",
             "request_correlation": "request_id_audit_correlation",
             "audit_feed_visibility": "request_id_audit_feed_visible",
@@ -2779,6 +2798,40 @@ def mcp_audit_feed_contract_payload() -> dict[str, object]:
             "This contract does not claim provider-side mutations were executed.",
         ],
     }
+
+
+def mcp_audit_rows(limit: int) -> list[object]:
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        return conn.execute(
+            """
+            SELECT id, event_type, user_id, session_id, details, created_at, severity
+            FROM audit_log
+            WHERE event_type = 'mcp_tool_executed'
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        ).fetchall()
+
+
+def mcp_audit_forbidden_pattern_hits(events: list[dict[str, object]]) -> int:
+    forbidden = (
+        "redaction-proof-value",
+        "sk-proj-",
+        "sk-",
+        "ghp_",
+        "github_pat_",
+        "vck_",
+        "cfat_",
+        "hcloud_",
+        "hf_",
+        "glpat-",
+        "authorization:",
+        "cookie:",
+        "private key",
+    )
+    text = json.dumps(events, sort_keys=True).lower()
+    return sum(1 for marker in forbidden if marker in text)
 
 
 def memory_consolidation_contract_payload() -> dict[str, object]:
@@ -5311,18 +5364,16 @@ def recent_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dict[st
 
 @app.get("/api/v1/audit/mcp")
 def recent_mcp_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, object]:
-    with psycopg.connect(database_url(), autocommit=True) as conn:
-        rows = conn.execute(
-            """
-            SELECT id, event_type, user_id, session_id, details, created_at, severity
-            FROM audit_log
-            WHERE event_type = 'mcp_tool_executed'
-            ORDER BY created_at DESC
-            LIMIT %s
-            """,
-            (limit,),
-        ).fetchall()
+    rows = mcp_audit_rows(limit)
     return {
+        "contract_version": MCP_AUDIT_FEED_CONTRACT_VERSION,
+        "mode": "mcp_tool_audit_runtime_feed",
+        "evidence_ref": MCP_AUDIT_FEED_EVIDENCE_REF,
+        "snapshot_evidence_ref": MCP_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "redaction_evidence_ref": MCP_AUDIT_REDACTION_EVIDENCE_REF,
+        "source_event_type": "mcp_tool_executed",
+        "read_only": True,
+        "live_mcp_writes_claimed": False,
         "events": [
             {
                 "id": str(row[0]),
@@ -5340,11 +5391,102 @@ def recent_mcp_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dic
                     "request_id_audit_feed_visible",
                 ),
                 "details": row[4] or {},
+                "redaction_evidence_ref": (row[4] or {}).get(
+                    "redaction_evidence_ref",
+                    MCP_AUDIT_REDACTION_EVIDENCE_REF,
+                ),
+                "input_ref_stored": (row[4] or {}).get("input_ref_stored", False),
                 "created_at": row[5].isoformat() if row[5] else None,
                 "severity": row[6],
             }
             for row in rows
-        ]
+        ],
+        "count": len(rows),
+        "non_claims": mcp_audit_feed_contract_payload()["non_claims"],
+    }
+
+
+@app.get("/api/v1/audit/mcp/snapshot")
+def mcp_audit_snapshot(limit: int = Query(default=50, ge=1, le=200)) -> dict[str, object]:
+    rows = mcp_audit_rows(limit)
+    events = [
+        {
+            "event_id": str(row[0]),
+            "severity": row[6],
+            "details": row[4] or {},
+        }
+        for row in rows
+    ]
+    details = [event["details"] for event in events if isinstance(event.get("details"), dict)]
+    status_counts = count_by_key([str(item.get("status")) if item.get("status") is not None else None for item in details])
+    toolset_counts = count_by_key([str(item.get("toolset")) if item.get("toolset") is not None else None for item in details])
+    capability_counts = count_by_key(
+        [str(item.get("capability")) if item.get("capability") is not None else None for item in details]
+    )
+    error_class_counts = count_by_key(
+        [str(item.get("error_class")) if item.get("error_class") is not None else None for item in details]
+    )
+    agent_role_counts = count_by_key(
+        [str(item.get("agent_role")) if item.get("agent_role") is not None else None for item in details]
+    )
+    blocked_count = sum(1 for item in details if item.get("status") == "blocked")
+    denied_tool_correlation_count = sum(
+        1 for item in details if item.get("denied_tool_correlation_evidence_ref") == "mcp_denied_tool_audit_correlation"
+    )
+    session_bound_count = sum(1 for item in details if item.get("session_bound") is True)
+    live_mcp_write_count = sum(
+        1 for item in details if item.get("live_mcp_write") is True or item.get("live_mcp_writes") is True
+    )
+    forbidden_pattern_hits = mcp_audit_forbidden_pattern_hits(events)
+    return {
+        "contract_version": MCP_AUDIT_FEED_CONTRACT_VERSION,
+        "mode": "read_only_mcp_audit_redaction_snapshot",
+        "endpoint": "GET /api/v1/audit/mcp/snapshot",
+        "source_endpoint": "GET /api/v1/audit/mcp",
+        "source_event_type": "mcp_tool_executed",
+        "source_table": "audit_log",
+        "evidence_ref": MCP_AUDIT_FEED_EVIDENCE_REF,
+        "snapshot_evidence_ref": MCP_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "redaction_evidence_ref": MCP_AUDIT_REDACTION_EVIDENCE_REF,
+        "read_only": True,
+        "live_mcp_writes_claimed": False,
+        "input_refs_returned": False,
+        "provider_credentials_returned": False,
+        "events_scanned": len(events),
+        "blocked_count": blocked_count,
+        "denied_tool_correlation_count": denied_tool_correlation_count,
+        "session_bound_count": session_bound_count,
+        "live_mcp_write_count": live_mcp_write_count,
+        "forbidden_pattern_hits": forbidden_pattern_hits,
+        "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+        "status_counts": status_counts,
+        "toolset_counts": toolset_counts,
+        "capability_counts": capability_counts,
+        "error_class_counts": error_class_counts,
+        "agent_role_counts": agent_role_counts,
+        "safe_fields": [
+            "tool_request_id",
+            "run_id",
+            "request_id",
+            "trace_id",
+            "agent_role",
+            "toolset",
+            "capability",
+            "status",
+            "error_class",
+            "sanitized_summary",
+            "evidence_ref",
+            "audit_evidence_ref",
+            "redaction_evidence_ref",
+            "input_ref_stored",
+        ],
+        "policy_checks": [
+            "Snapshot reads audit_log only.",
+            "Snapshot aggregates safe MCP audit fields and does not return tool input refs.",
+            "Snapshot reports forbidden_pattern_hits before any release claim.",
+            "Snapshot never executes MCP tools or external MCP writes.",
+        ],
+        "non_claims": mcp_audit_feed_contract_payload()["non_claims"],
     }
 
 
@@ -9651,14 +9793,18 @@ def create_mcp_tool_audit_event(request: McpToolAuditRequest) -> dict[str, objec
         session_id: str | None = str(UUID(str(request.session_id))) if request.session_id else None
     except (TypeError, ValueError):
         session_id = None
+    request_details = request.model_dump()
+    request_details.pop("input_ref", None)
     details = redact_json(
         {
-            **request.model_dump(),
+            **request_details,
+            "input_ref_stored": False,
             "session_bound": session_id is not None,
             "trace_id": request.trace_id or request.session_id or request.run_id,
             "request_id": request.request_id or request.tool_request_id,
             "evidence_ref": request.evidence_ref,
             "audit_evidence_ref": "mcp_tool_session_bound_audit",
+            "redaction_evidence_ref": MCP_AUDIT_REDACTION_EVIDENCE_REF,
             "correlation_evidence_ref": (
                 "request_id_audit_correlation"
                 if request.request_id or request.trace_id or request.session_id or request.tool_request_id

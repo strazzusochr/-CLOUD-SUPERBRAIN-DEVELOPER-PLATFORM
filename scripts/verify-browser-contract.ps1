@@ -226,6 +226,11 @@ Assert-Contains "mcp capability catalog panel" $frontendHtml "MCP Capability Cat
 Assert-Contains "mcp capability catalog contract marker" $frontendHtml "mcp-capability-catalog-v1"
 Assert-Contains "mcp capability catalog evidence marker" $frontendHtml "mcp_capability_catalog_visible"
 Assert-Contains "mcp capability catalog endpoint marker" $frontendHtml "GET /mcp/api/v1/capabilities/catalog"
+Assert-Contains "mcp audit panel" $frontendHtml "MCP Audit"
+Assert-Contains "mcp audit snapshot panel" $frontendHtml "MCP Audit Snapshot"
+Assert-Contains "mcp audit snapshot evidence marker" $frontendHtml "mcp_audit_snapshot_visible"
+Assert-Contains "mcp audit redaction evidence marker" $frontendHtml "mcp_audit_redaction_enforced"
+Assert-Contains "mcp audit snapshot endpoint marker" $frontendHtml "GET /api/v1/audit/mcp/snapshot"
 Assert-Contains "memory embedding consistency contract panel" $frontendHtml "Memory Embedding Consistency Contract"
 Assert-Contains "memory embedding consistency evidence marker" $frontendHtml "memory_embedding_consistency_contract_visible"
 Assert-Contains "memory consolidation panel" $frontendHtml "Memory Consolidation"
@@ -520,6 +525,19 @@ Assert-Contains "llm audit snapshot evidence" $llmAuditSnapshot "llm_audit_snaps
 Assert-Contains "llm audit redaction evidence" $llmAuditSnapshot "llm_audit_redaction_enforced"
 Assert-Contains "llm audit snapshot prompt bodies" $llmAuditSnapshot '"prompt_bodies_returned":false'
 Assert-Contains "llm audit snapshot forbidden hits" $llmAuditSnapshot '"forbidden_pattern_hits":0'
+
+$mcpAuditContract = Invoke-Text "$BaseUrl/api/v1/audit/mcp/contract"
+Assert-Contains "mcp audit contract version" $mcpAuditContract '"contract_version":"mcp-audit-feed-v1"'
+Assert-Contains "mcp audit snapshot endpoint" $mcpAuditContract '"snapshot_endpoint":"GET /api/v1/audit/mcp/snapshot"'
+Assert-Contains "mcp audit snapshot evidence" $mcpAuditContract "mcp_audit_snapshot_visible"
+Assert-Contains "mcp audit redaction evidence" $mcpAuditContract "mcp_audit_redaction_enforced"
+$mcpAuditSnapshot = Invoke-Text "$BaseUrl/api/v1/audit/mcp/snapshot?limit=5"
+Assert-Contains "mcp audit snapshot mode" $mcpAuditSnapshot "read_only_mcp_audit_redaction_snapshot"
+Assert-Contains "mcp audit snapshot evidence" $mcpAuditSnapshot "mcp_audit_snapshot_visible"
+Assert-Contains "mcp audit redaction evidence" $mcpAuditSnapshot "mcp_audit_redaction_enforced"
+Assert-Contains "mcp audit snapshot no writes" $mcpAuditSnapshot '"live_mcp_writes_claimed":false'
+Assert-Contains "mcp audit snapshot input refs" $mcpAuditSnapshot '"input_refs_returned":false'
+Assert-Contains "mcp audit snapshot forbidden hits" $mcpAuditSnapshot '"forbidden_pattern_hits":0'
 
 Write-Host "[browser-contract] task assignment queue contract"
 $taskAssignmentContract = Invoke-Text "$BaseUrl/api/v1/tasks/assignment-contract"

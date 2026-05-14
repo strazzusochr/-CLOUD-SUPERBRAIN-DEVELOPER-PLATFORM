@@ -38,6 +38,10 @@ Assert-True "audit contract top-level request_id" (@($auditContract.top_level_fi
 Assert-True "audit contract top-level correlation" (@($auditContract.top_level_fields) -contains "correlation_evidence_ref")
 Assert-True "audit contract blocked denied correlation" (@($auditContract.blocked_detail_fields) -contains "denied_tool_correlation_evidence_ref")
 Assert-True "audit contract evidence denied correlation" ($auditContract.evidence_refs.denied_tool_correlation -eq "mcp_denied_tool_audit_correlation")
+Assert-True "audit contract snapshot endpoint" ($auditContract.snapshot_endpoint -eq "GET /api/v1/audit/mcp/snapshot")
+Assert-True "audit contract snapshot evidence" ($auditContract.snapshot_evidence_ref -eq "mcp_audit_snapshot_visible")
+Assert-True "audit contract redaction evidence" ($auditContract.redaction_evidence_ref -eq "mcp_audit_redaction_enforced")
+Assert-True "audit contract no live mcp writes" ($auditContract.live_mcp_writes_claimed -eq $false)
 
 $sessionId = [guid]::NewGuid().ToString()
 $traceId = "mcp-deny-correlation-" + ([guid]::NewGuid().ToString("N"))
@@ -70,6 +74,7 @@ Assert-True "mcp result blocked" ($result.status -eq "blocked")
 Assert-True "mcp result unsupported capability" ($result.error_class -eq "unsupported_capability")
 Assert-True "mcp result evidence" ($result.evidence_ref -eq "mcp_unsupported_capability_guard")
 Assert-True "mcp audit persisted" ($result.audit_persisted -eq $true)
+Assert-True "mcp result redacted input absent" (-not (($result | ConvertTo-Json -Depth 20) -like "*redaction-proof-value*"))
 
 Start-Sleep -Milliseconds 500
 
@@ -82,7 +87,24 @@ Assert-True "mcp audit correlation ref" ($mcpMatch.correlation_evidence_ref -eq 
 Assert-True "mcp audit feed ref" ($mcpMatch.audit_feed_evidence_ref -eq "request_id_audit_feed_visible")
 Assert-True "mcp audit denied ref" ($mcpMatch.details.denied_tool_correlation_evidence_ref -eq "mcp_denied_tool_audit_correlation")
 Assert-True "mcp audit status" ($mcpMatch.details.status -eq "blocked")
+Assert-True "mcp audit redaction ref" ($mcpMatch.details.redaction_evidence_ref -eq "mcp_audit_redaction_enforced")
+Assert-True "mcp audit input ref not stored" ($mcpMatch.details.input_ref_stored -eq $false)
 Assert-True "mcp audit redacted input absent" (-not (($mcpMatch | ConvertTo-Json -Depth 20) -like "*redaction-proof-value*"))
+
+$snapshot = Invoke-JsonApi "$BaseUrl/api/v1/audit/mcp/snapshot?limit=50"
+Assert-True "mcp snapshot mode" ($snapshot.mode -eq "read_only_mcp_audit_redaction_snapshot")
+Assert-True "mcp snapshot endpoint" ($snapshot.endpoint -eq "GET /api/v1/audit/mcp/snapshot")
+Assert-True "mcp snapshot evidence" ($snapshot.snapshot_evidence_ref -eq "mcp_audit_snapshot_visible")
+Assert-True "mcp snapshot redaction evidence" ($snapshot.redaction_evidence_ref -eq "mcp_audit_redaction_enforced")
+Assert-True "mcp snapshot read only" ($snapshot.read_only -eq $true)
+Assert-True "mcp snapshot no live writes" ($snapshot.live_mcp_writes_claimed -eq $false)
+Assert-True "mcp snapshot input refs absent" ($snapshot.input_refs_returned -eq $false)
+Assert-True "mcp snapshot forbidden hits" ($snapshot.forbidden_pattern_hits -eq 0)
+Assert-True "mcp snapshot redaction clear" ($snapshot.redaction_status -eq "clear")
+Assert-True "mcp snapshot blocked count" ([int]$snapshot.blocked_count -ge 1)
+Assert-True "mcp snapshot denied correlation count" ([int]$snapshot.denied_tool_correlation_count -ge 1)
+Assert-True "mcp snapshot session bound count" ([int]$snapshot.session_bound_count -ge 1)
+Assert-True "mcp snapshot redacted input absent" (-not (($snapshot | ConvertTo-Json -Depth 20) -like "*redaction-proof-value*"))
 
 $recentAudit = Invoke-JsonApi "$BaseUrl/api/v1/audit/recent?limit=50"
 $recentMatch = @($recentAudit.events) | Where-Object { $_.details.tool_request_id -eq $toolRequestId } | Select-Object -First 1
