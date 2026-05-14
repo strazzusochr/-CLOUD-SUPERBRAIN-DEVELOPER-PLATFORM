@@ -6,7 +6,7 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-Current honesty guardrail: the active staging candidate is `70660b500748d5ac6b16d3c863408699029b1c0a`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
+Current honesty guardrail: the active staging candidate is `8fc8654f4a77a7b6705f351e060244bfc42d664e`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
 
 ## Binding Truth
 
@@ -29,18 +29,18 @@ Follow `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` over older planning f
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 
-Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `74%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-3 Security Audit Surface proof, and the Autonomous Team Dispatch UI proof and Security Review Queue proof for SHA `70660b500748d5ac6b16d3c863408699029b1c0a`. Continue Phase-3 security/product-surface evidence before rollout.
+Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `75%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-3 Security Audit Surface proof, and the Autonomous Team Dispatch UI proof and Security Review Queue Snapshot proof for SHA `8fc8654f4a77a7b6705f351e060244bfc42d664e`. Continue Phase-3 security/product-surface evidence before rollout.
 
 ## Current Verified Progress
 
-Overall: `74%`
+Overall: `75%`
 
 Horizontal:
 
 - P0: `100%`
 - P1: `100%`
 - P2: `88%`
-- P3: `57%`
+- P3: `60%`
 - P4: `100%`
 - P5: `74%`
 - P6: `0%`
@@ -59,14 +59,14 @@ Older percentage lines below are historical proof points only. Current percentag
 
 ## Latest Verified Step
 
-Security Review Queue Proof:
+Security Review Queue Snapshot Proof:
 
-- `GET /api/v1/security/review-queue/contract` exposes `security-review-queue-v1`, read-only policy, and evidence refs `security_review_queue_visible`, `security_review_item_visible`, `security_review_redaction_enforced`, and `security_review_mutation_blocked`.
-- `GET /api/v1/security/review-queue` returns redacted review items; `POST/PUT/PATCH/DELETE /api/v1/security/review-queue` return HTTP `403`.
-- Frontend renders `Security Review Queue`, endpoint markers, status/severity counts, redaction markers, and item evidence refs.
+- `GET /api/v1/security/review-queue/contract` exposes `security-review-queue-v1`, read-only policy, and evidence refs `security_review_queue_visible`, `security_review_item_visible`, `security_review_filter_state_visible`, `security_review_decision_history_visible`, `security_review_evidence_snapshot_visible`, `security_review_redaction_enforced`, and `security_review_mutation_blocked`.
+- `GET /api/v1/security/review-queue` returns redacted review items; `GET /api/v1/security/review-queue/snapshot` returns filter state, risk badges, decision history, and evidence snapshots; `POST/PUT/PATCH/DELETE /api/v1/security/review-queue` return HTTP `403`.
+- Frontend renders `Security Review Queue`, endpoint markers, snapshot evidence, filter state, risk badges, decision history, status/severity counts, redaction markers, and item evidence refs.
 - Local proof passed: `scripts\verify-phase3-security-review-queue.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` and `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
-- Hosted proof passed after immutable deploy `IMAGE_TAG=70660b500748d5ac6b16d3c863408699029b1c0a`: Security-Review-Queue verifier, Browser-Contract, and Hosted-Smoke all green on `https://188-34-191-140.sslip.io`.
-- Progress change: Overall remains `74%`; Phase 3 rises to `57%`; no production rollout, live provider call, live MCP write, or secret exposure is claimed.
+- Hosted proof passed after immutable deploy `IMAGE_TAG=8fc8654f4a77a7b6705f351e060244bfc42d664e`: Security-Review-Queue-Snapshot verifier, Browser-Contract, and Hosted-Smoke all green on `https://188-34-191-140.sslip.io`.
+- Progress change: Overall rises to `75%`; Phase 3 rises to `60%`; no production rollout, live provider call, live MCP write, or secret exposure is claimed.
 
 Previous verified step - Phase 3 Security Audit Surface:
 

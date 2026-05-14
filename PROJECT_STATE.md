@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-05-14 05:10 Uhr
+Letzte Aktualisierung: 2026-05-14 06:20 Uhr
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-14 05:10 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `74%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI und Security Review Queue auf `57%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist jetzt als immutable Staging-Selector `IMAGE_TAG=70660b500748d5ac6b16d3c863408699029b1c0a` verifiziert. Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `75%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI und Security Review Queue Snapshot auf `60%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist jetzt als immutable Staging-Selector `IMAGE_TAG=8fc8654f4a77a7b6705f351e060244bfc42d664e` verifiziert. Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -30,7 +30,7 @@ Letzte Aktualisierung: 2026-05-14 05:10 Uhr
 6. **Kein E2B-Sandbox:** Docker Desktop für lokale Tests
 7. **7-Schichten-Architektur** laut Ultimatum Finale
 
-## AKTUELLER FORTSCHRITT: 74%
+## AKTUELLER FORTSCHRITT: 75%
 
 ### Horizontal (nach Priorität)
 
@@ -39,7 +39,7 @@ Letzte Aktualisierung: 2026-05-14 05:10 Uhr
 | P0   | 100%   |
 | P1   | 100%   |
 | P2   | 88%    |
-| P3   | 57%    |
+| P3   | 60%    |
 | P4   | 100%   |
 | P5   | 74%    |
 | P6   | 0%     |
@@ -70,20 +70,20 @@ Letzte Aktualisierung: 2026-05-14 05:10 Uhr
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Naechster grosser Fortschrittshebel: Phase 3 Product Surface & Security** — Security Audit Surface und Autonomous Team Dispatch UI sind jetzt lokal und hosted verifiziert; weiter geht es mit weiteren echten Security/Product-Surface-Slices statt P5-Reruns
+- **Naechster grosser Fortschrittshebel: Phase 3 Product Surface & Security** — Security Audit Surface, Autonomous Team Dispatch UI und Security Review Queue Snapshot sind jetzt lokal und hosted verifiziert; weiter geht es mit weiteren echten Security/Product-Surface-Slices statt P5-Reruns
 - danach folgen P3-Auth/Security- und LLM/MCP-Layer-Slices, kein Production-Rollout ohne separates Gate
 - lokal und hosted bleiben weiterhin deterministische Proofs ohne Live-Provider und ohne Live-MCP-Writes; `production_deploy_claim_allowed=true` ist kein Deployment-Nachweis
 
 ## ZULETZT ABGESCHLOSSEN
 
-**Security Review Queue Proof** — die Operator-Oberflaeche hat jetzt eine read-only Security Review Queue mit Redaction- und Mutation-Block-Nachweis:
+**Security Review Queue Snapshot Proof** — die Operator-Oberflaeche hat jetzt eine read-only Security Review Queue mit Snapshot-, Filter-, Risk-Badge-, Decision-History-, Redaction- und Mutation-Block-Nachweis:
 
-- `GET /api/v1/security/review-queue/contract` liefert `security-review-queue-v1`, `read_only=true` und die Evidence-Refs `security_review_queue_visible`, `security_review_item_visible`, `security_review_redaction_enforced` und `security_review_mutation_blocked`.
-- `GET /api/v1/security/review-queue` aggregiert Security-Audit-Findings redacted; `POST/PUT/PATCH/DELETE /api/v1/security/review-queue` blocken mit HTTP `403`.
-- Frontend rendert `Security Review Queue`, Endpoint, Evidence-Refs, Status-/Severity-Zaehler und redacted Item Cards.
+- `GET /api/v1/security/review-queue/contract` liefert `security-review-queue-v1`, `read_only=true` und die Evidence-Refs `security_review_queue_visible`, `security_review_item_visible`, `security_review_filter_state_visible`, `security_review_decision_history_visible`, `security_review_evidence_snapshot_visible`, `security_review_redaction_enforced` und `security_review_mutation_blocked`.
+- `GET /api/v1/security/review-queue` aggregiert Security-Audit-Findings redacted; `GET /api/v1/security/review-queue/snapshot` liefert Filter-State, Status-/Kategorie-Counts, Risk-Badges, Decision-History und Evidence-Snapshots; `POST/PUT/PATCH/DELETE /api/v1/security/review-queue` blocken mit HTTP `403`.
+- Frontend rendert `Security Review Queue`, Endpoint, Snapshot-Evidence, Filter-State, Risk-Badges, Decision-History, Status-/Severity-Zaehler und redacted Item Cards.
 - Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `scripts\verify-phase3-security-review-queue.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
-- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach immutable Image-Deploy mit `IMAGE_TAG=70660b500748d5ac6b16d3c863408699029b1c0a`: Security-Review-Queue-Verifier, Browser-Contract und Hosted-Smoke sind gruen.
-- Fortschritt: `overall=74`, `phase_3=57`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach immutable Image-Deploy mit `IMAGE_TAG=8fc8654f4a77a7b6705f351e060244bfc42d664e`: Security-Review-Queue-Snapshot-Verifier, Browser-Contract und Hosted-Smoke sind gruen.
+- Fortschritt: `overall=75`, `phase_3=60`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
 
 **Vorheriger Abschluss — Phase 3 Security Audit Surface** — die Product-Surface-&-Security-Schicht hat jetzt eine read-only Operator-Ansicht ueber sicherheitsrelevante Audit-Events:
 
