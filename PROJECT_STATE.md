@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-05-14 23:10 Uhr
+Letzte Aktualisierung: 2026-05-14 23:35 Uhr
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-14 23:10 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `79%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance, die Autonomous-Roster/Master-Plan-Proofs und den Phase-2-Runtime-Dual-Surface-Proof auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI, Security Review Gate Summary, Security Review Queue Export, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, MCP Audit Export, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Gateway Correlation Export, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline und Auth Audit Export auf `94%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%` und hat zusaetzlich das Active Runtime Evidence Bundle, das Active Security Evidence Bundle sowie den Vercel GitHub Deployment Status verifiziert; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist als immutable Staging-Selector plus Runtime Evidence Bundle plus Security Evidence Bundle plus Vercel/GitHub-Status plus Autonomous Roster Master Plan plus Phase 2 Runtime Dual Surface verifiziert; Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `80%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance, die Autonomous-Roster/Master-Plan-Proofs und den Phase-2-Runtime-Dual-Surface-Proof auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI, Security Review Gate Summary, Security Review Queue Export, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, MCP Audit Export, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Gateway Correlation Export, Active Gateway Policy Bundle, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline und Auth Audit Export auf `95%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%` und hat zusaetzlich das Active Runtime Evidence Bundle, das Active Security Evidence Bundle sowie den Vercel GitHub Deployment Status verifiziert; LLM Gateway steht bei `64%`; MCP Gateway steht bei `65%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist als immutable Staging-Selector plus Active Gateway Policy Bundle plus Runtime Evidence Bundle plus Security Evidence Bundle plus Vercel/GitHub-Status plus Autonomous Roster Master Plan plus Phase 2 Runtime Dual Surface verifiziert; Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -30,7 +30,7 @@ Letzte Aktualisierung: 2026-05-14 23:10 Uhr
 6. **Kein E2B-Sandbox:** Docker Desktop für lokale Tests
 7. **7-Schichten-Architektur** laut Ultimatum Finale
 
-## AKTUELLER FORTSCHRITT: 79%
+## AKTUELLER FORTSCHRITT: 80%
 
 ### Horizontal (nach Priorität)
 
@@ -39,7 +39,7 @@ Letzte Aktualisierung: 2026-05-14 23:10 Uhr
 | P0   | 100%   |
 | P1   | 100%   |
 | P2   | 88%    |
-| P3   | 94%    |
+| P3   | 95%    |
 | P4   | 100%   |
 | P5   | 74%    |
 | P6   | 0%     |
@@ -51,8 +51,8 @@ Letzte Aktualisierung: 2026-05-14 23:10 Uhr
 | Frontend      | 99%    |
 | Orchestrator  | 99%    |
 | Agent Pool    | 74%    |
-| LLM Gateway   | 63%    |
-| MCP Gateway   | 64%    |
+| LLM Gateway   | 64%    |
+| MCP Gateway   | 65%    |
 | Memory        | 72%    |
 | Observability | 99%    |
 
@@ -70,13 +70,19 @@ Letzte Aktualisierung: 2026-05-14 23:10 Uhr
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Naechster grosser Fortschrittshebel: Phase 5 Release Readiness** — der aktive RC1 ist als immutable Staging-Selector verifiziert und bindet jetzt die LLM-, MCP-, Gateway-Correlation-, Auth- und Security-Review-Exportflaechen in einem Active Security Evidence Bundle sowie den GitHub/Vercel Deployment-Status.
+- **Naechster grosser Fortschrittshebel: Phase 5 Release Readiness** — der aktive RC1 ist als immutable Staging-Selector verifiziert und bindet jetzt die LLM-/MCP-Gateway-Policy-Surfaces in einem Active Gateway Policy Bundle, die Runtime-Flaechen im Active Runtime Evidence Bundle, die wichtigsten Security-Exportflaechen im Active Security Evidence Bundle sowie den GitHub/Vercel Deployment-Status.
 - danach folgen P3-Auth/Security- und LLM/MCP-Layer-Slices, kein Production-Rollout ohne separates Gate
 - lokal und hosted bleiben weiterhin deterministische Proofs ohne Live-Provider und ohne Live-MCP-Writes; `production_deploy_claim_allowed=true` ist kein Deployment-Nachweis
 
 ## ZULETZT ABGESCHLOSSEN
 
-**Active Runtime Evidence Bundle Proof** — der aktive RC1 bindet jetzt read-only Runtime-Flaechen an lokale und gehostete Beweise:
+**Active Gateway Policy Bundle Proof** — der aktive RC1 bindet jetzt LLM-/MCP-Gateway-Policy-Flaechen an lokale und gehostete Beweise:
+
+- `scripts\verify-phase3-active-gateway-policy-bundle.ps1` prueft LLM Health, LLM Model Catalog, LLM Audit Contract/Feed/Snapshot, MCP Health, MCP Capability Catalog, MCP Audit Contract/Feed/Snapshot sowie Gateway-Correlation Contract/Snapshot/Risk-Rollup/Timeline lokal und hosted.
+- Nachgewiesen sind `llm-model-catalog-v1`, `mcp-capability-catalog-v1`, `llm-audit-feed-v1`, `read_only_llm_audit_redaction_snapshot`, `llm_audit_snapshot_visible`, `mcp-audit-feed-v1`, `read_only_mcp_audit_redaction_snapshot`, `mcp_audit_snapshot_visible`, `gateway-correlation-snapshot-v1`, `gateway-correlation-risk-rollup-v1`, `gateway-correlation-timeline-v1`, `open_source_first=true`, `api_inference_only=true`, `model_downloads=false`, `local_model_downloads_allowed=false`, `live_provider_calls=false` und `live_mcp_writes=false`.
+- Fortschritt steigt `overall=80`, `phase_3=95`, `llm_gateway=64`, `mcp_gateway=65`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Active Runtime Evidence Bundle Proof** — der aktive RC1 bindet jetzt read-only Runtime-Flaechen an lokale und gehostete Beweise:
 
 - `scripts\verify-phase5-active-runtime-evidence-bundle.ps1` prueft Project Progress, Progress Integrity, Phase-2-Runtime-Contract/Runs, Orchestrator Manifest, Agent Status, Agent Activity, Master Plan, Roster und Team Status lokal sowie hosted.
 - Nachgewiesen sind `phase2-runtime-v1`, `audit_log_backed_phase2_runtime_runs`, `agent-profiles-v1`, `autonomous-master-plan-v1`, `autonomous-agent-roster-v1`, `langgraph`, `postgres`, completed deterministische Rollen und die Non-Claims fuer Live-Provider, Live-MCP-Writes, Production Deploy, lokale Model-Downloads und Secrets.
