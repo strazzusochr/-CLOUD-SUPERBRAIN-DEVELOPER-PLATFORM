@@ -1057,10 +1057,47 @@ AUTH_REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60
 AUTH_BLACKLIST_PREFIX = "auth:refresh:blacklist:"
 AUTH_AUDIT_SNAPSHOT_CONTRACT_VERSION = "auth-audit-snapshot-v1"
 AUTH_AUDIT_RISK_ROLLUP_CONTRACT_VERSION = "auth-audit-risk-rollup-v1"
+AUTH_AUDIT_TIMELINE_CONTRACT_VERSION = "auth-audit-timeline-v1"
 AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF = "auth_audit_snapshot_visible"
 AUTH_AUDIT_RISK_ROLLUP_EVIDENCE_REF = "auth_audit_risk_rollup_visible"
+AUTH_AUDIT_TIMELINE_EVIDENCE_REF = "auth_audit_timeline_visible"
 AUTH_AUDIT_REDACTION_EVIDENCE_REF = "auth_audit_redaction_enforced"
 AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF = "auth_no_live_oauth_guard"
+AUTH_PUBLIC_TRACE_ID_ALLOWED_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._:-")
+PUBLIC_AUDIT_OMIT_DETAIL_KEYS = {
+    "access-token",
+    "refresh-token",
+    "blacklist-key",
+    "authorization",
+    "authorization-header",
+    "cookie",
+    "set-cookie",
+    "code",
+    "state",
+}
+PUBLIC_AUDIT_SENSITIVE_KEY_PREFIXES = (
+    "accesstoken",
+    "refreshtoken",
+    "blacklistkey",
+    "authorization",
+    "cookie",
+    "setcookie",
+    "jwttoken",
+    "bearertoken",
+    "tokenhash",
+)
+PUBLIC_AUDIT_SENSITIVE_KEY_EXACT = {
+    "code",
+    "codes",
+    "oauthcode",
+    "oauthcodes",
+    "state",
+    "states",
+    "oauthstate",
+    "oauthstates",
+    "jwt",
+    "bearer",
+}
 DSGVO_PURGE_CONTRACT_VERSION = "memory-dsgvo-purge-v1"
 COST_EXPORT_CONTRACT_VERSION = "cost-monitor-export-v1"
 SYSTEM_FALLBACK_CONTRACT_VERSION = "system-unavailable-fallback-v1"
@@ -1530,7 +1567,7 @@ def persist_auth_audit(event_type: str, details: dict[str, object], severity: st
                 INSERT INTO audit_log(event_type, user_id, details, severity)
                 VALUES (%s, 'auth', %s::jsonb, %s)
                 """,
-                (event_type, Json(redact_json(details)), severity),
+                (event_type, Json(auth_audit_details(details)), severity),
             )
     except Exception:
         pass
@@ -1567,6 +1604,7 @@ def auth_contract_payload() -> dict[str, object]:
             "audit_contract": "/api/v1/audit/auth/contract",
             "audit_snapshot": "/api/v1/audit/auth/snapshot",
             "audit_risk_rollup": "/api/v1/audit/auth/risk-rollup",
+            "audit_timeline": "/api/v1/audit/auth/timeline",
         },
         "evidence_refs": {
             "contract": "auth_contract_visible",
@@ -1575,6 +1613,7 @@ def auth_contract_payload() -> dict[str, object]:
             "logout_revoked": "auth_logout_revoked",
             "audit_snapshot": AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF,
             "audit_risk_rollup": AUTH_AUDIT_RISK_ROLLUP_EVIDENCE_REF,
+            "audit_timeline": AUTH_AUDIT_TIMELINE_EVIDENCE_REF,
             "audit_redaction": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
             "no_live_oauth": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
         },
@@ -1608,12 +1647,15 @@ def auth_audit_contract_payload() -> dict[str, object]:
         "mode": "read_only_auth_audit_snapshot",
         "endpoint": "GET /api/v1/audit/auth/snapshot",
         "risk_rollup_endpoint": "GET /api/v1/audit/auth/risk-rollup",
+        "timeline_endpoint": "GET /api/v1/audit/auth/timeline",
         "contract_endpoint": "GET /api/v1/audit/auth/contract",
         "risk_rollup_contract_version": AUTH_AUDIT_RISK_ROLLUP_CONTRACT_VERSION,
+        "timeline_contract_version": AUTH_AUDIT_TIMELINE_CONTRACT_VERSION,
         "source_table": "audit_log",
         "source_event_types": list(AUTH_AUDIT_EVENT_TYPES),
         "evidence_ref": AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF,
         "risk_rollup_evidence_ref": AUTH_AUDIT_RISK_ROLLUP_EVIDENCE_REF,
+        "timeline_evidence_ref": AUTH_AUDIT_TIMELINE_EVIDENCE_REF,
         "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
         "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
         "read_only": True,
@@ -1639,12 +1681,30 @@ def auth_audit_contract_payload() -> dict[str, object]:
             "redaction_evidence_ref",
             "no_live_oauth_evidence_ref",
         ],
+        "timeline_fields": [
+            "sequence_index",
+            "event_id",
+            "created_at",
+            "event_type",
+            "timeline_leg",
+            "trace_id",
+            "lifecycle_step",
+            "status",
+            "severity",
+            "code_present",
+            "cookie_flags",
+            "live_github_oauth_call",
+            "evidence_ref",
+            "redaction_evidence_ref",
+            "no_live_oauth_evidence_ref",
+        ],
         "policy_checks": [
             "Snapshot reads audit_log only and never starts OAuth, refresh, logout, or token issuance flows.",
             "Returned events are reduced to safe auth lifecycle fields only.",
             "Refresh tokens, access tokens, cookies, authorization headers, OAuth code/state values, and Redis blacklist keys are omitted.",
             "Any live GitHub OAuth call claim or forbidden credential pattern blocks the snapshot.",
             "The risk rollup is computed from the same safe auth audit projection and never performs auth writes or live OAuth calls.",
+            "The timeline is computed from the same safe auth audit projection and never returns raw audit_log details.",
         ],
         "non_claims": [
             "This endpoint does not perform or prove a live GitHub OAuth exchange.",
@@ -1685,12 +1745,68 @@ def auth_lifecycle_step(event_type: str) -> str:
     return "unknown"
 
 
+def public_correlation_id(value: object, redacted_prefix: str) -> str | None:
+    if value is None:
+        return None
+    text = redact_text(str(value).strip())
+    if not text:
+        return None
+    if len(text) > 96 or any(char not in AUTH_PUBLIC_TRACE_ID_ALLOWED_CHARS for char in text):
+        return redacted_prefix + "-redacted-" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+    if redact_text(text) != text:
+        return redacted_prefix + "-redacted-" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+    return text
+
+
+def public_trace_id(value: object) -> str | None:
+    return public_correlation_id(value, "trace")
+
+
+def public_request_id(value: object) -> str | None:
+    return public_correlation_id(value, "request")
+
+
+def public_audit_key_is_sensitive(key: str) -> bool:
+    compact = "".join(char for char in key.lower() if char.isalnum())
+    return compact in PUBLIC_AUDIT_SENSITIVE_KEY_EXACT or any(
+        compact.startswith(prefix) for prefix in PUBLIC_AUDIT_SENSITIVE_KEY_PREFIXES
+    )
+
+
+def public_audit_details(value: object) -> object:
+    redacted = redact_json(value)
+    if isinstance(redacted, dict):
+        public: dict[str, object] = {}
+        for raw_key, item in redacted.items():
+            key = str(raw_key)
+            normalized = key.strip().lower().replace("_", "-")
+            if normalized in PUBLIC_AUDIT_OMIT_DETAIL_KEYS or public_audit_key_is_sensitive(key):
+                public[f"{normalized.replace('-', '_')}_redacted"] = True
+                continue
+            public[key] = public_audit_details(item)
+        if "trace_id" in public:
+            public["trace_id"] = public_trace_id(public.get("trace_id"))
+        if "request_id" in public:
+            public["request_id"] = public_request_id(public.get("request_id"))
+        return public
+    if isinstance(redacted, list):
+        return [public_audit_details(item) for item in redacted]
+    if isinstance(redacted, tuple):
+        return [public_audit_details(item) for item in redacted]
+    return redacted
+
+
+def auth_audit_details(details: dict[str, object]) -> dict[str, object]:
+    safe_details = public_audit_details(details)
+    return safe_details if isinstance(safe_details, dict) else {}
+
+
 def safe_auth_audit_event(row: object) -> dict[str, object]:
-    details = row[4] or {}
+    details = auth_audit_details(row[4] or {})
     if not isinstance(details, dict):
         details = {}
     event_type = str(row[1])
-    trace_id = str(details.get("trace_id") or "") or None
+    trace_id = public_trace_id(details.get("trace_id"))
     live_github_oauth_call = bool(details.get("live_github_oauth_call") is True)
     cookie_flags = details.get("cookie_flags") if isinstance(details.get("cookie_flags"), dict) else {}
     return {
@@ -1857,6 +1973,78 @@ def build_auth_audit_risk_rollup(events: list[dict[str, object]]) -> dict[str, o
             "Risk rollup never starts OAuth, refresh, logout, token issuance, deployment, or production promotion flows.",
             "Refresh-token reuse blocks are review evidence, not release blockers, when redaction and no-live-OAuth guards stay clear.",
             "Any forbidden pattern or live GitHub OAuth claim raises blocker_count and risk_status=blocked.",
+        ],
+        "non_claims": auth_audit_contract_payload()["non_claims"],
+    }
+
+
+def build_auth_audit_timeline(events: list[dict[str, object]]) -> dict[str, object]:
+    forbidden_pattern_hits = auth_audit_forbidden_pattern_hits(events)
+    ordered_events = sorted(events, key=lambda event: str(event.get("created_at") or ""))
+    timeline: list[dict[str, object]] = []
+    for index, event in enumerate(ordered_events[:80], start=1):
+        event_type = str(event.get("event_type") or "unknown")
+        timeline.append(
+            {
+                "sequence_index": index,
+                "event_id": event.get("event_id"),
+                "created_at": event.get("created_at"),
+                "event_type": event_type,
+                "timeline_leg": auth_lifecycle_step(event_type),
+                "trace_id": public_trace_id(event.get("trace_id")),
+                "lifecycle_step": event.get("lifecycle_step"),
+                "status": event.get("status"),
+                "severity": event.get("severity"),
+                "code_present": event.get("code_present"),
+                "cookie_flags": event.get("cookie_flags"),
+                "live_github_oauth_call": event.get("live_github_oauth_call") is True,
+                "evidence_ref": event.get("evidence_ref"),
+                "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+                "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+            }
+        )
+    live_github_oauth_call_count = sum(1 for event in timeline if event["live_github_oauth_call"] is True)
+    return {
+        "contract_version": AUTH_AUDIT_TIMELINE_CONTRACT_VERSION,
+        "parent_contract_version": AUTH_AUDIT_SNAPSHOT_CONTRACT_VERSION,
+        "mode": "read_only_auth_audit_timeline",
+        "endpoint": "GET /api/v1/audit/auth/timeline",
+        "snapshot_endpoint": "GET /api/v1/audit/auth/snapshot",
+        "risk_rollup_endpoint": "GET /api/v1/audit/auth/risk-rollup",
+        "contract_endpoint": "GET /api/v1/audit/auth/contract",
+        "source_table": "audit_log",
+        "source_event_types": list(AUTH_AUDIT_EVENT_TYPES),
+        "evidence_ref": AUTH_AUDIT_TIMELINE_EVIDENCE_REF,
+        "snapshot_evidence_ref": AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "risk_rollup_evidence_ref": AUTH_AUDIT_RISK_ROLLUP_EVIDENCE_REF,
+        "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+        "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+        "read_only": True,
+        "live_github_oauth_call_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "tokens_returned": False,
+        "cookies_returned": False,
+        "authorization_headers_returned": False,
+        "blacklist_keys_returned": False,
+        "oauth_codes_returned": False,
+        "oauth_states_returned": False,
+        "events_scanned": len(events),
+        "timeline_count": len(timeline),
+        "live_github_oauth_call_count": live_github_oauth_call_count,
+        "forbidden_pattern_hits": forbidden_pattern_hits,
+        "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+        "oauth_status": "dry_run_only" if live_github_oauth_call_count == 0 else "blocked",
+        "event_type_counts": count_by_key([str(event.get("event_type")) for event in events]),
+        "timeline_leg_counts": count_by_key([str(event.get("timeline_leg")) for event in timeline]),
+        "status_counts": count_by_key([str(event.get("status")) if event.get("status") else None for event in timeline]),
+        "severity_counts": count_by_key([str(event.get("severity")) if event.get("severity") else None for event in timeline]),
+        "timeline": timeline,
+        "policy_checks": [
+            "Timeline reads audit_log through the safe auth audit projection only.",
+            "Timeline never starts OAuth, refresh, logout, token issuance, deployment, or production promotion flows.",
+            "Timeline entries expose ordering and lifecycle fields only; raw audit_log details remain omitted.",
+            "Any forbidden pattern or live GitHub OAuth claim raises redaction/oauth blocked status.",
         ],
         "non_claims": auth_audit_contract_payload()["non_claims"],
     }
@@ -4832,6 +5020,14 @@ def auth_audit_risk_rollup(limit: int = Query(default=80, ge=1, le=200)) -> dict
     return build_auth_audit_risk_rollup(events)
 
 
+@app.get("/api/v1/audit/auth/timeline")
+@app.get("/api/v1/auth/audit/timeline")
+def auth_audit_timeline(limit: int = Query(default=80, ge=1, le=200)) -> dict[str, object]:
+    rows = auth_audit_rows(limit)
+    events = [safe_auth_audit_event(row) for row in rows]
+    return build_auth_audit_timeline(events)
+
+
 @app.get("/api/v1/auth/github")
 @app.post("/api/v1/auth/github")
 def auth_github_start() -> dict[str, object]:
@@ -4867,7 +5063,7 @@ def auth_callback(
         "auth_github_callback_contract",
         {
             "trace_id": trace_id,
-            "state": state,
+            "state_present": bool(state),
             "code_present": bool(code),
             "live_github_oauth_call": False,
             "cookie_flags": auth_contract_payload()["cookie_flags"],
@@ -4902,7 +5098,11 @@ def auth_refresh(
     if client.get(blacklist_key):
         persist_auth_audit(
             "auth_refresh_reuse_blocked",
-            {"trace_id": request.trace_id if request else None, "blacklist_key": blacklist_key},
+            {
+                "trace_id": request.trace_id if request else None,
+                "blacklist_key_present": True,
+                "blacklist_key_ref": "auth_blacklist_key_redacted",
+            },
             "critical",
         )
         raise HTTPException(status_code=401, detail={"error": "refresh_token_invalid", "reason": "blacklisted"})
@@ -4916,7 +5116,8 @@ def auth_refresh(
         {
             "trace_id": trace_id,
             "old_refresh_blacklisted": True,
-            "blacklist_key": blacklist_key,
+            "blacklist_key_present": True,
+            "blacklist_key_ref": "auth_blacklist_key_redacted",
             "new_refresh_issued": True,
             "cookie_flags": auth_contract_payload()["cookie_flags"],
         },
@@ -4927,7 +5128,8 @@ def auth_refresh(
         "access_token_issued": True,
         "refresh_token_rotated": True,
         "old_refresh_token_blacklisted": True,
-        "blacklist_key": blacklist_key,
+        "blacklist_key_returned": False,
+        "blacklist_key_ref": "auth_blacklist_key_redacted",
         "access_token_expires_in": AUTH_ACCESS_TOKEN_TTL_SECONDS,
         "refresh_token_expires_in": AUTH_REFRESH_TOKEN_TTL_SECONDS,
         "cookie_flags": auth_contract_payload()["cookie_flags"],
@@ -4953,7 +5155,8 @@ def auth_logout(
         {
             "trace_id": trace_id,
             "refresh_token_revoked": bool(supplied_token),
-            "blacklist_key": blacklist_key,
+            "blacklist_key_present": bool(blacklist_key),
+            "blacklist_key_ref": "auth_blacklist_key_redacted" if blacklist_key else None,
             "cookies_cleared": True,
         },
     )
@@ -4962,7 +5165,8 @@ def auth_logout(
         "contract_version": "auth-github-jwt-refresh-v1",
         "refresh_token_revoked": bool(supplied_token),
         "cookies_cleared": True,
-        "blacklist_key": blacklist_key,
+        "blacklist_key_returned": False,
+        "blacklist_key_ref": "auth_blacklist_key_redacted" if blacklist_key else None,
         "trace_id": trace_id,
     }
 
@@ -5610,9 +5814,9 @@ def session_history(
                 "event_type": row[1],
                 "user_id": row[2],
                 "session_id": str(row[3]) if row[3] else None,
-                "details": row[4] or {},
-                "request_id": (row[4] or {}).get("request_id"),
-                "trace_id": (row[4] or {}).get("trace_id"),
+                "details": public_audit_details(row[4] or {}),
+                "request_id": public_request_id((row[4] or {}).get("request_id")),
+                "trace_id": public_trace_id((row[4] or {}).get("trace_id")),
                 "created_at": row[5].isoformat() if row[5] else None,
                 "severity": row[6],
             }
@@ -5658,9 +5862,9 @@ def recent_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dict[st
                 "event_type": row[1],
                 "user_id": row[2],
                 "session_id": str(row[3]) if row[3] else None,
-                "details": row[4] or {},
-                "request_id": (row[4] or {}).get("request_id"),
-                "trace_id": (row[4] or {}).get("trace_id"),
+                "details": public_audit_details(row[4] or {}),
+                "request_id": public_request_id((row[4] or {}).get("request_id")),
+                "trace_id": public_trace_id((row[4] or {}).get("trace_id")),
                 "correlation_evidence_ref": (row[4] or {}).get(
                     "correlation_evidence_ref",
                     "request_id_audit_feed_visible",
@@ -5692,8 +5896,8 @@ def recent_mcp_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dic
                 "event_type": row[1],
                 "user_id": row[2],
                 "session_id": str(row[3]) if row[3] else None,
-                "request_id": (row[4] or {}).get("request_id"),
-                "trace_id": (row[4] or {}).get("trace_id") or (str(row[3]) if row[3] else None),
+                "request_id": public_request_id((row[4] or {}).get("request_id")),
+                "trace_id": public_trace_id((row[4] or {}).get("trace_id") or (str(row[3]) if row[3] else None)),
                 "correlation_evidence_ref": (row[4] or {}).get(
                     "correlation_evidence_ref",
                     "request_id_audit_correlation",
@@ -5702,7 +5906,7 @@ def recent_mcp_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dic
                     "audit_feed_evidence_ref",
                     "request_id_audit_feed_visible",
                 ),
-                "details": row[4] or {},
+                "details": public_audit_details(row[4] or {}),
                 "redaction_evidence_ref": (row[4] or {}).get(
                     "redaction_evidence_ref",
                     MCP_AUDIT_REDACTION_EVIDENCE_REF,
@@ -5725,7 +5929,7 @@ def mcp_audit_snapshot(limit: int = Query(default=50, ge=1, le=200)) -> dict[str
         {
             "event_id": str(row[0]),
             "severity": row[6],
-            "details": row[4] or {},
+            "details": public_audit_details(row[4] or {}),
         }
         for row in rows
     ]
@@ -5899,7 +6103,7 @@ def recent_llm_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dic
             "event_type": row[1],
             "user_id": row[2],
             "session_id": str(row[3]) if row[3] else None,
-            "trace_id": (row[4] or {}).get("trace_id"),
+            "trace_id": public_trace_id((row[4] or {}).get("trace_id")),
             "model_name": (row[4] or {}).get("model_name"),
             "provider_name": (row[4] or {}).get("provider_name"),
             "agent_type": (row[4] or {}).get("agent_type") or row[2],
@@ -5911,7 +6115,7 @@ def recent_llm_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dic
                 "redaction_evidence_ref",
                 LLM_AUDIT_REDACTION_EVIDENCE_REF,
             ),
-            "details": row[4] or {},
+            "details": public_audit_details(row[4] or {}),
             "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
             "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
             "created_at": row[5].isoformat() if row[5] else None,
@@ -5939,7 +6143,7 @@ def llm_audit_snapshot(limit: int = Query(default=50, ge=1, le=200)) -> dict[str
         {
             "event_id": str(row[0]),
             "severity": row[6],
-            "details": row[4] or {},
+            "details": public_audit_details(row[4] or {}),
         }
         for row in rows
     ]
@@ -6619,8 +6823,10 @@ def recent_security_audit_events(
 
     events = []
     for row in rows:
-        details = row[4] or {}
-        trace_id = details.get("trace_id") or (str(row[3]) if row[3] else None)
+        details = public_audit_details(row[4] or {})
+        if not isinstance(details, dict):
+            details = {}
+        trace_id = public_trace_id(details.get("trace_id") or (str(row[3]) if row[3] else None))
         events.append(
             {
                 "id": str(row[0]),
@@ -6628,7 +6834,7 @@ def recent_security_audit_events(
                 "category": SECURITY_AUDIT_EVENT_CATEGORIES.get(row[1], "security_audit"),
                 "user_id": row[2],
                 "session_id": str(row[3]) if row[3] else None,
-                "request_id": details.get("request_id"),
+                "request_id": public_request_id(details.get("request_id")),
                 "trace_id": trace_id,
                 "evidence_ref": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
                 "audit_feed_evidence_ref": details.get(
@@ -6857,7 +7063,9 @@ def build_security_review_queue(
 
     items: list[dict[str, object]] = []
     for row in rows:
-        details = row[4] or {}
+        details = public_audit_details(row[4] or {})
+        if not isinstance(details, dict):
+            details = {}
         row_category = SECURITY_AUDIT_EVENT_CATEGORIES.get(row[1], "security_audit")
         row_status = security_review_status_for_event(row[1], row[6], details)
         if status is not None and row_status != status:
@@ -6865,7 +7073,7 @@ def build_security_review_queue(
         if category is not None and row_category != category:
             continue
         summary, redaction_applied, detail_keys = security_review_summary(row[1], row_category, details)
-        trace_id = details.get("trace_id") or (str(row[3]) if row[3] else None)
+        trace_id = public_trace_id(details.get("trace_id") or (str(row[3]) if row[3] else None))
         source_event_id = str(row[0])
         risk_badge = security_review_risk_badge(row_status, row[6], row_category)
         items.append(
@@ -6878,7 +7086,7 @@ def build_security_review_queue(
                 "status": row_status,
                 "risk_badge": risk_badge,
                 "summary": summary,
-                "request_id": details.get("request_id"),
+                "request_id": public_request_id(details.get("request_id")),
                 "trace_id": trace_id,
                 "detail_keys": detail_keys,
                 "redaction_applied": redaction_applied,
@@ -7132,7 +7340,7 @@ def recent_memory_consolidation_events(limit: int = Query(default=20, ge=1, le=1
                 "event_type": row[1],
                 "user_id": row[2],
                 "session_id": str(row[3]) if row[3] else None,
-                "details": row[4] or {},
+                "details": public_audit_details(row[4] or {}),
                 "created_at": row[5].isoformat() if row[5] else None,
                 "severity": row[6],
             }
@@ -7170,14 +7378,14 @@ def recent_escalations(limit: int = Query(default=20, ge=1, le=100)) -> dict[str
                 "event_type": row[1],
                 "user_id": row[2],
                 "session_id": str(row[3]) if row[3] else None,
-                "request_id": (row[4] or {}).get("request_id"),
-                "trace_id": (row[4] or {}).get("trace_id") or (str(row[3]) if row[3] else None),
+                "request_id": public_request_id((row[4] or {}).get("request_id")),
+                "trace_id": public_trace_id((row[4] or {}).get("trace_id") or (str(row[3]) if row[3] else None)),
                 "correlation_evidence_ref": (row[4] or {}).get(
                     "correlation_evidence_ref",
                     "request_id_audit_correlation",
                 ),
                 "audit_feed_evidence_ref": "request_id_audit_feed_visible",
-                "details": row[4] or {},
+                "details": public_audit_details(row[4] or {}),
                 "created_at": row[5].isoformat() if row[5] else None,
                 "severity": row[6],
             }
@@ -7343,8 +7551,11 @@ def correlation_projection_from_details(
 ) -> dict[str, object]:
     if not isinstance(details, dict):
         details = {}
-    request_id = details.get("request_id")
-    trace_id = details.get("trace_id") or details.get("thread_id") or fallback_trace_id or session_id
+    details = public_audit_details(details)
+    if not isinstance(details, dict):
+        details = {}
+    request_id = public_request_id(details.get("request_id"))
+    trace_id = public_trace_id(details.get("trace_id") or details.get("thread_id") or fallback_trace_id or session_id)
     correlation_evidence_ref = details.get("correlation_evidence_ref")
     if not correlation_evidence_ref and (request_id or trace_id):
         correlation_evidence_ref = "request_id_audit_correlation"
@@ -7427,7 +7638,7 @@ def load_recent_correlation_projection(
 
 
 def agent_activity_row_to_event(row: tuple[object, ...]) -> dict[str, object]:
-    details = row[4] or {}
+    details = public_audit_details(row[4] or {})
     if not isinstance(details, dict):
         details = {}
     per_role_results = details.get("per_role_results")
@@ -7576,8 +7787,10 @@ def langfuse_trace_access(
         ).fetchall()
     events = []
     for row in rows:
-        details = row[4] or {}
-        resolved_trace_id = details.get("trace_id") or details.get("thread_id") or (str(row[3]) if row[3] else trace_id)
+        details = public_audit_details(row[4] or {})
+        if not isinstance(details, dict):
+            details = {}
+        resolved_trace_id = public_trace_id(details.get("trace_id") or details.get("thread_id") or (str(row[3]) if row[3] else trace_id))
         events.append(
             {
                 "id": str(row[0]),
@@ -7587,7 +7800,7 @@ def langfuse_trace_access(
                 "trace_id": resolved_trace_id,
                 "severity": row[6],
                 "created_at": row[5].isoformat() if row[5] else None,
-                "details": redact_json(details),
+                "details": details,
                 "evidence_ref": LANGFUSE_TRACE_EVENT_EVIDENCE_REF,
             }
         )
@@ -7595,10 +7808,10 @@ def langfuse_trace_access(
     return {
         "contract_version": LANGFUSE_TRACE_ACCESS_CONTRACT_VERSION,
         "mode": "audit_log_backed_trace_access",
-        "trace_id": trace_id,
+        "trace_id": public_trace_id(trace_id),
         "evidence_ref": LANGFUSE_TRACE_ACCESS_EVIDENCE_REF,
         "event_evidence_ref": LANGFUSE_TRACE_EVENT_EVIDENCE_REF,
-        "langfuse_trace_url": str(contract["deep_link_template"]).replace("{trace_id}", trace_id),
+        "langfuse_trace_url": str(contract["deep_link_template"]).replace("{trace_id}", public_trace_id(trace_id) or "trace-redacted"),
         "langfuse_public_url_configured": contract["langfuse_public_url_configured"],
         "auth_proxy_required": contract["auth_proxy_required"],
         "read_only": True,
@@ -10558,7 +10771,7 @@ def recent_rotation_events(limit: int = Query(default=20, ge=1, le=100)) -> dict
             {
                 "id": str(row[0]),
                 "session_id": str(row[1]) if row[1] else None,
-                "details": row[2] or {},
+                "details": public_audit_details(row[2] or {}),
                 "created_at": row[3].isoformat() if row[3] else None,
                 "severity": row[4],
             }

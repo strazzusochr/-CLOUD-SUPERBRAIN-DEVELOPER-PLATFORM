@@ -190,6 +190,10 @@ Assert-Contains "auth audit risk panel" $frontendHtml "Auth Audit Risk Rollup"
 Assert-Contains "auth audit risk contract marker" $frontendHtml "auth-audit-risk-rollup-v1"
 Assert-Contains "auth audit risk evidence marker" $frontendHtml "auth_audit_risk_rollup_visible"
 Assert-Contains "auth audit risk endpoint marker" $frontendHtml "GET /api/v1/audit/auth/risk-rollup"
+Assert-Contains "auth audit timeline panel" $frontendHtml "Auth Audit Timeline"
+Assert-Contains "auth audit timeline contract marker" $frontendHtml "auth-audit-timeline-v1"
+Assert-Contains "auth audit timeline evidence marker" $frontendHtml "auth_audit_timeline_visible"
+Assert-Contains "auth audit timeline endpoint marker" $frontendHtml "GET /api/v1/audit/auth/timeline"
 Assert-Contains "system fallback panel" $frontendHtml "System Unavailable Fallback"
 Assert-Contains "layer interface contract panel" $frontendHtml "Layer Interface Contracts"
 Assert-Contains "layer interface evidence marker" $frontendHtml "layer_interface_contracts_visible"
@@ -431,8 +435,10 @@ $authAuditContract = Invoke-Text "$BaseUrl/api/v1/audit/auth/contract"
 Assert-Contains "auth audit contract version" $authAuditContract '"contract_version":"auth-audit-snapshot-v1"'
 Assert-Contains "auth audit snapshot endpoint" $authAuditContract "GET /api/v1/audit/auth/snapshot"
 Assert-Contains "auth audit risk endpoint" $authAuditContract "GET /api/v1/audit/auth/risk-rollup"
+Assert-Contains "auth audit timeline endpoint" $authAuditContract "GET /api/v1/audit/auth/timeline"
 Assert-Contains "auth audit evidence" $authAuditContract "auth_audit_snapshot_visible"
 Assert-Contains "auth audit risk evidence" $authAuditContract "auth_audit_risk_rollup_visible"
+Assert-Contains "auth audit timeline evidence" $authAuditContract "auth_audit_timeline_visible"
 Assert-Contains "auth audit redaction evidence" $authAuditContract "auth_audit_redaction_enforced"
 Assert-Contains "auth audit no live oauth evidence" $authAuditContract "auth_no_live_oauth_guard"
 $authAuditSnapshot = Invoke-Text "$BaseUrl/api/v1/audit/auth/snapshot?limit=60"
@@ -467,6 +473,62 @@ Assert-True "auth audit risk no forbidden hits" ([int]$authAuditRiskJson.forbidd
 Assert-True "auth audit risk no live oauth count" ([int]$authAuditRiskJson.live_github_oauth_call_count -eq 0)
 Assert-True "auth audit risk blockers clear" ([int]$authAuditRiskJson.blocker_count -eq 0)
 Assert-True "auth audit risk badges visible" (@($authAuditRiskJson.risk_badges).Count -ge 3)
+$authAuditTimeline = Invoke-Text "$BaseUrl/api/v1/audit/auth/timeline?limit=60"
+Assert-Contains "auth audit timeline version" $authAuditTimeline '"contract_version":"auth-audit-timeline-v1"'
+Assert-Contains "auth audit timeline mode" $authAuditTimeline "read_only_auth_audit_timeline"
+Assert-Contains "auth audit timeline evidence" $authAuditTimeline "auth_audit_timeline_visible"
+Assert-Contains "auth audit timeline snapshot evidence" $authAuditTimeline "auth_audit_snapshot_visible"
+Assert-Contains "auth audit timeline risk evidence" $authAuditTimeline "auth_audit_risk_rollup_visible"
+Assert-Contains "auth audit timeline read only" $authAuditTimeline '"read_only":true'
+Assert-Contains "auth audit timeline no live oauth claim" $authAuditTimeline '"live_github_oauth_call_claimed":false'
+Assert-Contains "auth audit timeline production false" $authAuditTimeline '"production_rollout_claimed":false'
+Assert-Contains "auth audit timeline promotion false" $authAuditTimeline '"promotion_allowed":false'
+Assert-Contains "auth audit timeline tokens absent" $authAuditTimeline '"tokens_returned":false'
+Assert-Contains "auth audit timeline cookies absent" $authAuditTimeline '"cookies_returned":false'
+Assert-Contains "auth audit timeline blacklist keys absent" $authAuditTimeline '"blacklist_keys_returned":false'
+Assert-Contains "auth audit timeline redaction clear" $authAuditTimeline '"redaction_status":"clear"'
+$authAuditTimelineJson = $authAuditTimeline | ConvertFrom-Json
+Assert-True "auth audit timeline no forbidden hits" ([int]$authAuditTimelineJson.forbidden_pattern_hits -eq 0)
+Assert-True "auth audit timeline no live oauth count" ([int]$authAuditTimelineJson.live_github_oauth_call_count -eq 0)
+Assert-True "auth audit timeline parity" ([int]$authAuditTimelineJson.events_scanned -eq [int]$authAuditSnapshotJson.events_scanned)
+Assert-True "auth audit timeline count visible" ([int]$authAuditTimelineJson.timeline_count -eq @($authAuditTimelineJson.timeline).Count)
+$authCanaryId = [Guid]::NewGuid().ToString("N")
+$authCanaryTrace = "unsafe $authCanaryId Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJicm93c2VyLWNhbmFyeSJ9.signature Cookie: refresh_token=csr_$authCanaryId auth:refresh:blacklist:$authCanaryId"
+$authCanaryCode = "browser-code-$authCanaryId"
+$authCanaryState = "browser-state-$authCanaryId"
+Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/callback?code=$([uri]::EscapeDataString($authCanaryCode))&state=$([uri]::EscapeDataString($authCanaryState))" -Method "GET" -ContentType "" | Out-Null
+$authCanaryBody = @{ refresh_token = "csr_$authCanaryId"; trace_id = $authCanaryTrace } | ConvertTo-Json -Compress
+Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/refresh" -Method "POST" -Body $authCanaryBody -ContentType "application/json" | Out-Null
+try {
+  Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/refresh" -Method "POST" -Body $authCanaryBody -ContentType "application/json" | Out-Null
+} catch {
+  Assert-Contains "auth adversarial reuse blocked" $_.Exception.Message "refresh_token_invalid"
+}
+$authTimelineAfter = Invoke-Text "$BaseUrl/api/v1/audit/auth/timeline?limit=80"
+$authRecentAfter = Invoke-Text "$BaseUrl/api/v1/audit/recent?limit=80"
+$authCanaryCombined = "$authTimelineAfter`n$authRecentAfter"
+foreach ($forbidden in @(
+  $authCanaryTrace,
+  $authCanaryCode,
+  $authCanaryState,
+  "csr_$authCanaryId",
+  "Authorization: Bearer",
+  "Cookie:",
+  "Set-Cookie",
+  "auth:refresh:blacklist:$authCanaryId",
+  "eyJhbGciOiJIUzI1NiJ9",
+  '"access_token":',
+  '"refresh_token":',
+  '"blacklist_key":',
+  '"code":',
+  '"state":'
+)) {
+  Assert-True "auth adversarial canary omitted $forbidden" (-not $authCanaryCombined.Contains($forbidden))
+}
+$authTimelineAfterJson = $authTimelineAfter | ConvertFrom-Json
+$authRecentAfterJson = $authRecentAfter | ConvertFrom-Json
+Assert-True "auth adversarial trace redacted timeline" (@($authTimelineAfterJson.timeline | Where-Object { $_.trace_id -match "^trace-redacted-[0-9a-f]{16}$" }).Count -ge 1)
+Assert-True "auth adversarial trace redacted recent audit" (@($authRecentAfterJson.events | Where-Object { $_.trace_id -match "^trace-redacted-[0-9a-f]{16}$" }).Count -ge 1)
 
 Write-Host "[browser-contract] system unavailable fallback contract"
 $systemFallbackContract = Invoke-Text "$BaseUrl/api/v1/system/fallback/contract"

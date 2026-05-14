@@ -19,6 +19,7 @@ This contract exposes a read-only operator surface for security-relevant `audit_
 | `GET` | `/api/v1/audit/auth/contract` | Read-only auth audit snapshot contract |
 | `GET` | `/api/v1/audit/auth/snapshot?limit=80` | Safe auth lifecycle audit snapshot |
 | `GET` | `/api/v1/audit/auth/risk-rollup?limit=80` | Read-only auth audit risk rollup computed from safe lifecycle events |
+| `GET` | `/api/v1/audit/auth/timeline?limit=80` | Read-only ordered auth lifecycle timeline computed from safe lifecycle events |
 | `GET` | `/api/v1/security/gateway-correlation/contract` | Read-only Agent/LLM/MCP correlation contract |
 | `GET` | `/api/v1/security/gateway-correlation/snapshot?limit=80` | Safe correlation snapshot across agent task, LLM audit, and MCP audit rows |
 | `GET` | `/api/v1/security/gateway-correlation/risk-rollup?limit=80` | Read-only risk rollup computed from gateway correlation groups |
@@ -52,6 +53,17 @@ The auth audit risk rollup derives from the same safe auth audit projection and 
 The rollup always returns `production_rollout_claimed=false` and `promotion_allowed=false`. Refresh-token reuse blocks are review evidence when redaction and no-live-OAuth guards remain clear; forbidden credential patterns or live GitHub OAuth claims are blockers.
 
 The verifier `scripts/verify-phase3-auth-audit-risk-rollup.ps1` performs GET-only checks against the contract, rollup, and frontend markers. With `-RequireLifecycle`, it proves callback, refresh-rotation, refresh-reuse-block, and logout-revoke evidence is present without returning tokens, cookies, authorization headers, OAuth code/state values, Redis blacklist keys, or raw audit details.
+
+## Auth Audit Timeline
+
+Contract version: `auth-audit-timeline-v1`
+Evidence: `auth_audit_timeline_visible`, `auth_audit_redaction_enforced`, `auth_no_live_oauth_guard`
+
+The auth audit timeline derives from the same safe auth audit projection and stays read-only. It orders dry-run callback, refresh-token rotation, refresh-token reuse block, and logout revoke evidence by timestamp and exposes only sequence index, event id/type, timeline leg, trace id, lifecycle step, status, severity, timestamp, cookie flag summaries, and evidence refs.
+
+The timeline always returns `production_rollout_claimed=false` and `promotion_allowed=false`. It never returns access tokens, refresh tokens, cookies, authorization headers, OAuth code/state values, Redis blacklist keys, raw request details, or live GitHub OAuth claims.
+
+The verifier `scripts/verify-phase3-auth-audit-timeline.ps1` performs GET-only checks against the contract, snapshot, risk rollup, timeline, and frontend markers. With `-RequireLifecycle`, it proves all four lifecycle legs are visible without returning sensitive auth material.
 
 ## Gateway Correlation Snapshot
 
@@ -93,7 +105,7 @@ The verifier `scripts/verify-phase3-gateway-correlation-timeline.ps1` performs G
 3. Events expose `request_id` and `trace_id` when the source audit writer recorded them.
 4. Redacted audit details must not reveal provider tokens, API keys, prompt bodies, or browser cookies.
 5. Evidence refs must include `security_audit_surface_visible` and `security_audit_event_visible`.
-6. Auth audit evidence must include `auth_audit_snapshot_visible`, `auth_audit_risk_rollup_visible`, `auth_audit_redaction_enforced`, and `auth_no_live_oauth_guard`.
+6. Auth audit evidence must include `auth_audit_snapshot_visible`, `auth_audit_risk_rollup_visible`, `auth_audit_timeline_visible`, `auth_audit_redaction_enforced`, and `auth_no_live_oauth_guard`.
 7. Gateway correlation evidence must include `gateway_correlation_snapshot_visible`, `gateway_correlation_risk_rollup_visible`, `gateway_correlation_timeline_visible`, `gateway_correlation_redaction_enforced`, and `gateway_correlation_no_live_write_guard`.
 
 ## Non-Claims

@@ -1076,6 +1076,66 @@ type AuthAuditRiskRollup = {
   non_claims: string[];
 };
 
+type AuthAuditTimelineEvent = {
+  sequence_index: number;
+  event_id: string;
+  created_at: string | null;
+  event_type: string;
+  timeline_leg: string;
+  trace_id: string | null;
+  lifecycle_step: string;
+  status: string;
+  severity: string | null;
+  code_present: boolean | null;
+  cookie_flags: {
+    HttpOnly: boolean | null;
+    Secure: boolean | null;
+    SameSite: string | null;
+  };
+  live_github_oauth_call: boolean;
+  evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_oauth_evidence_ref: string;
+};
+
+type AuthAuditTimeline = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  snapshot_endpoint: string;
+  risk_rollup_endpoint: string;
+  contract_endpoint: string;
+  evidence_ref: string;
+  snapshot_evidence_ref: string;
+  risk_rollup_evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_oauth_evidence_ref: string;
+  read_only: boolean;
+  live_github_oauth_call_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  tokens_returned: boolean;
+  cookies_returned: boolean;
+  authorization_headers_returned: boolean;
+  blacklist_keys_returned: boolean;
+  oauth_codes_returned: boolean;
+  oauth_states_returned: boolean;
+  events_scanned: number;
+  timeline_count: number;
+  live_github_oauth_call_count: number;
+  forbidden_pattern_hits: number;
+  redaction_status: string;
+  oauth_status: string;
+  event_type_counts: Record<string, number>;
+  timeline_leg_counts: Record<string, number>;
+  status_counts: Record<string, number>;
+  severity_counts: Record<string, number>;
+  timeline: AuthAuditTimelineEvent[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
 type MemoryPurgeContract = {
   contract_version: string;
   mode: string;
@@ -2311,6 +2371,7 @@ export default function Home() {
   const [authContract, setAuthContract] = useState<AuthContract | null>(null);
   const [authAuditSnapshot, setAuthAuditSnapshot] = useState<AuthAuditSnapshot | null>(null);
   const [authAuditRiskRollup, setAuthAuditRiskRollup] = useState<AuthAuditRiskRollup | null>(null);
+  const [authAuditTimeline, setAuthAuditTimeline] = useState<AuthAuditTimeline | null>(null);
   const [memoryPurgeContract, setMemoryPurgeContract] = useState<MemoryPurgeContract | null>(null);
   const [workflowDispatch, setWorkflowDispatch] = useState<WorkflowDispatchPlan | null>(null);
   const [githubBranchPrContract, setGithubBranchPrContract] = useState<GithubBranchPrContract | null>(null);
@@ -2611,10 +2672,11 @@ export default function Home() {
   }
 
   async function loadAuthContract() {
-    const [response, auditResponse, riskResponse] = await Promise.all([
+    const [response, auditResponse, riskResponse, timelineResponse] = await Promise.all([
       fetch("/api/v1/auth/contract", { cache: "no-store" }),
       fetch("/api/v1/audit/auth/snapshot?limit=80", { cache: "no-store" }),
       fetch("/api/v1/audit/auth/risk-rollup?limit=80", { cache: "no-store" }),
+      fetch("/api/v1/audit/auth/timeline?limit=80", { cache: "no-store" }),
     ]);
     if (!response.ok) throw new Error(`auth contract ${response.status}`);
     setAuthContract(await response.json());
@@ -2623,6 +2685,9 @@ export default function Home() {
     }
     if (riskResponse.ok) {
       setAuthAuditRiskRollup(await riskResponse.json());
+    }
+    if (timelineResponse.ok) {
+      setAuthAuditTimeline(await timelineResponse.json());
     }
   }
 
@@ -7329,6 +7394,68 @@ export default function Home() {
                 </p>
               </article>
             ))}
+          </div>
+          <div className="auditSnapshot">
+            <strong>Auth Audit Timeline</strong>
+            <span>
+              {authAuditTimeline?.redaction_status ?? "loading"} / timeline{" "}
+              {String(authAuditTimeline?.timeline_count ?? 0)} / forbidden hits{" "}
+              {String(authAuditTimeline?.forbidden_pattern_hits ?? 0)}
+            </span>
+            <small>
+              {authAuditTimeline?.contract_version ?? "auth-audit-timeline-v1"} /{" "}
+              {authAuditTimeline?.evidence_ref ?? "auth_audit_timeline_visible"}
+            </small>
+            <small>
+              Endpoint: {authAuditTimeline?.endpoint ?? "GET /api/v1/audit/auth/timeline"} / Risk:{" "}
+              {authAuditTimeline?.risk_rollup_endpoint ?? "GET /api/v1/audit/auth/risk-rollup"}
+            </small>
+            <small>
+              Redaction: {authAuditTimeline?.redaction_evidence_ref ?? "auth_audit_redaction_enforced"} /
+              No-live-OAuth: {authAuditTimeline?.no_live_oauth_evidence_ref ?? "auth_no_live_oauth_guard"}
+            </small>
+            <small>
+              production_rollout_claimed={String(authAuditTimeline?.production_rollout_claimed ?? false)} /
+              promotion_allowed={String(authAuditTimeline?.promotion_allowed ?? false)} /
+              live_oauth_count={String(authAuditTimeline?.live_github_oauth_call_count ?? 0)}
+            </small>
+          </div>
+          <div className="auditList">
+            {authAuditTimeline?.timeline?.length ? (
+              authAuditTimeline.timeline.slice(0, 6).map((event) => (
+                <article className="auditItem" key={`auth-timeline-${event.sequence_index}-${event.event_id}`}>
+                  <div>
+                    <strong>
+                      #{event.sequence_index} {event.timeline_leg}
+                    </strong>
+                    <span className="severity severity-info">{event.status}</span>
+                  </div>
+                  <small>
+                    {event.event_type} / {event.created_at ?? "no timestamp"}
+                  </small>
+                  <small>Trace: {event.trace_id ?? "none"}</small>
+                  <small>
+                    Cookie flags: HttpOnly={String(event.cookie_flags.HttpOnly ?? false)} / Secure=
+                    {String(event.cookie_flags.Secure ?? false)} / SameSite={event.cookie_flags.SameSite ?? "none"}
+                  </small>
+                  <small>
+                    Evidence: {event.evidence_ref} / {event.redaction_evidence_ref} /{" "}
+                    {event.no_live_oauth_evidence_ref}
+                  </small>
+                </article>
+              ))
+            ) : (
+              <article className="auditItem auditItemEmpty">
+                <div>
+                  <strong>No auth timeline events yet.</strong>
+                  <span className="severity severity-info">read-only</span>
+                </div>
+                <small>Endpoint: GET /api/v1/audit/auth/timeline</small>
+                <small>Contract: auth-audit-timeline-v1</small>
+                <small>Evidence: auth_audit_timeline_visible / auth_audit_redaction_enforced</small>
+                <small>Guard: auth_no_live_oauth_guard</small>
+              </article>
+            )}
           </div>
           <div className="auditList">
             {authAuditSnapshot?.events?.length ? (
