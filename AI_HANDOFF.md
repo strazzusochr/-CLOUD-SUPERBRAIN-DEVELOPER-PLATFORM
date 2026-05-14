@@ -6,7 +6,7 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-Current honesty guardrail: the active staging candidate is `10df3ea48627e6f11787587e3c984b72107e78f5`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
+Current honesty guardrail: the active staging candidate is `5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
 
 ## Binding Truth
 
@@ -29,7 +29,7 @@ Follow `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` over older planning f
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 
-Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `77%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, LLM Audit Feed Redaction Snapshot proof, MCP Audit Redaction Snapshot proof, Gateway Correlation Snapshot proof, and local Gateway Correlation Risk Rollup proof. Continue Phase-3 security/product-surface evidence before rollout.
+Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `77%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, LLM Audit Feed Redaction Snapshot proof, MCP Audit Redaction Snapshot proof, Gateway Correlation Snapshot proof, and Gateway Correlation Risk Rollup proof. Continue Phase-3 security/product-surface evidence before rollout.
 
 ## Current Verified Progress
 
@@ -63,7 +63,8 @@ Gateway Correlation Risk Rollup Proof:
 
 - `GET /api/v1/security/gateway-correlation/risk-rollup` exposes `gateway-correlation-risk-rollup-v1`, `gateway_correlation_risk_rollup_visible`, `read_only=true`, `promotion_allowed=false`, `production_rollout_claimed=false`, `live_provider_calls_claimed=false`, and `live_mcp_writes_claimed=false`.
 - The rollup derives from safe `audit_log` correlation groups and counts full/partial/gateway-pair correlations, missing Agent/LLM/MCP legs, blocker_count, review_count, risk_badges, and per-group risk states without returning prompt bodies, raw MCP input refs, provider credentials, cookies, or full details.
-- Local proof passed: `scripts\verify-phase3-gateway-correlation-snapshot.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-phase3-gateway-correlation-risk-rollup.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireFullCorrelation`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `py -3 -m py_compile services\agent-api\app\main.py`, and `npm run build`.
+- Local proof passed: `scripts\verify-phase3-gateway-correlation-snapshot.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-phase3-gateway-correlation-risk-rollup.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireFullCorrelation`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `py -3 scripts\verify_project_progress_manifest.py`, `py -3 -m py_compile services\agent-api\app\main.py`, and `npm run build`.
+- Hosted proof passed after GHCR build/push plus Hetzner immutable deploy for `IMAGE_TAG=5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0`: `scripts\verify-phase3-gateway-correlation-snapshot.ps1 -BaseUrl https://188-34-191-140.sslip.io`, `scripts\verify-phase3-gateway-correlation-risk-rollup.ps1 -BaseUrl https://188-34-191-140.sslip.io -RequireFullCorrelation`, `scripts\verify-browser-contract.ps1 -BaseUrl https://188-34-191-140.sslip.io`, and `scripts\verify-hosted-staging-smoke.ps1 -BaseUrl https://188-34-191-140.sslip.io`.
 - Progress change: Overall remains `77%`; Phase 3 rises to `76%`; no production rollout, live provider call, live MCP write, release promotion, or secret exposure is claimed.
 
 Previous verified step - Gateway Correlation Snapshot Proof:

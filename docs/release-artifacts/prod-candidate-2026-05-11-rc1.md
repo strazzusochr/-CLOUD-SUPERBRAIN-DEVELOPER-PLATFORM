@@ -1,27 +1,27 @@
 # Release Artifact
 
 release_id: `prod-candidate-2026-05-11-rc1`
-scope: `release-boundary cleanup, HF router truth, frontend build, agent-api/runtime compile checks, hosted staging smoke checks, immutable staging image candidate, Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot`
+scope: `release-boundary cleanup, HF router truth, frontend build, agent-api/runtime compile checks, hosted staging smoke checks, immutable staging image candidate, Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup`
 environment: `production-candidate`
 source_branch: `chore/repo-bootstrap`
 image_build_branch: `codex/live-agent-steering-ui-20260513`
-source_commit_sha: `10df3ea48627e6f11787587e3c984b72107e78f5`
-source_commit_semantics: `Vercel production branch remains chore/repo-bootstrap; immutable GHCR images were built from codex/live-agent-steering-ui-20260513 at the current validated runtime head including live-agent UI/runtime state, Phase 5 runtime-selector truth, immutable image-filesystem staging proof, the Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot, and Gateway Correlation Snapshot`
-immutable_image_commit_sha: `10df3ea48627e6f11787587e3c984b72107e78f5`
+source_commit_sha: `5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0`
+source_commit_semantics: `Vercel production branch remains chore/repo-bootstrap; immutable GHCR images were built from codex/live-agent-steering-ui-20260513 at the current validated runtime head including live-agent UI/runtime state, Phase 5 runtime-selector truth, immutable image-filesystem staging proof, the Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot, and Gateway Correlation Risk Rollup`
+immutable_image_commit_sha: `5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0`
 workflow_run_url: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25833000061`
-pipeline_status: `local Docker Buildx with arm64 binfmt built and pushed all six GHCR images for 10df3ea48627e6f11787587e3c984b72107e78f5 after py_compile, Next.js build, local MCP-audit snapshot verifier, local gateway-correlation snapshot verifier, and local browser-contract passed; hosted immutable deploy plus hosted gateway-correlation, MCP-audit, browser, and smoke verifiers passed after push`
+pipeline_status: `local Docker Buildx with arm64 binfmt built and pushed all six GHCR images for 5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0 after py_compile, Next.js build, local gateway-correlation snapshot verifier, local gateway-correlation risk-rollup verifier, local browser-contract, and manifest verifier passed; hosted immutable deploy plus hosted gateway-correlation snapshot, gateway-correlation risk-rollup, browser, and smoke verifiers passed after push`
 smoke_result: `passed`
 observability_check: `present`
 rollback_note: `no production rollout performed; rollback remains the existing hosted staging rollback path`
-immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:10df3ea48627e6f11787587e3c984b72107e78f5`
+immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0`
 owner_decision: `approved`
-hosted_selector_observed: `IMAGE_TAG=10df3ea48627e6f11787587e3c984b72107e78f5`
-hosted_selector_observed_at: `2026-05-14T06:05:00Z`
-frontend_runtime_image_observed: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:10df3ea48627e6f11787587e3c984b72107e78f5`
+hosted_selector_observed: `IMAGE_TAG=5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0`
+hosted_selector_observed_at: `2026-05-14T08:00:27Z`
+frontend_runtime_image_observed: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0`
 immutable_staging_parity_status: `verified`
 active_candidate_gate_rerun_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-candidate-gate-rerun.md`
 runtime_selector_truth_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-runtime-selector-truth.md`
-immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-gateway-correlation-snapshot-immutable-staging-20260514.md`
+immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-gateway-correlation-risk-rollup-immutable-staging-20260514.md`
 
 ## Verification Evidence
 
@@ -33,9 +33,10 @@ immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-1
 - LLM Audit Feed Redaction Snapshot local proof: `scripts\verify-phase3-llm-audit-feed.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` including snapshot endpoint, prompt-body omission, forbidden-pattern count, redaction evidence, and no-live-provider checks
 - MCP Audit Redaction Snapshot local proof: `scripts\verify-phase3-mcp-deny-audit-correlation.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` including snapshot endpoint, input-ref omission, forbidden-pattern count, redaction evidence, deny correlation, and no-live-MCP-write checks
 - Gateway Correlation Snapshot local proof: `scripts\verify-phase3-gateway-correlation-snapshot.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` including shared-trace agent task, LLM dry-run audit row, denied MCP audit row, full `agent_llm_mcp_correlated` group, `forbidden_pattern_hits=0`, `live_provider_call_count=0`, and `live_mcp_write_count=0`
+- Gateway Correlation Risk Rollup local proof: `scripts\verify-phase3-gateway-correlation-risk-rollup.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireFullCorrelation` including `gateway-correlation-risk-rollup-v1`, `read_only=true`, `promotion_allowed=false`, `production_rollout_claimed=false`, redaction/no-live-write evidence, parity with snapshot counts, risk badges, and zero blocker count
 - Browser contract local proof: `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
-- GHCR arm64 image build/push: `docker run --privileged --rm tonistiigi/binfmt --install arm64`, then `scripts\build-and-push.ps1 -Tag 10df3ea48627e6f11787587e3c984b72107e78f5 -Platforms linux/arm64 -Builder codex-multiarch`
-- Immutable staging deploy: `scripts\deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 10df3ea48627e6f11787587e3c984b72107e78f5 -KeyPath <local-private-key>`
+- GHCR arm64 image build/push: `scripts\build-and-push.ps1 -Tag 5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0 -Platforms linux/arm64 -Builder codex-multiarch`
+- Immutable staging deploy: `scripts\deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0 -KeyPath <local-private-key>`
 - Phase 3 Security Audit Surface hosted proof: `scripts\verify-phase3-security-audit-surface-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 - Autonomous Team Dispatch UI hosted proof: `scripts\verify-autonomous-coding-team.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 - Security Review Queue hosted proof: `scripts\verify-phase3-security-review-queue.ps1 -BaseUrl https://188-34-191-140.sslip.io` including snapshot endpoint, filter state, risk badges, decision history, evidence snapshot, redaction, and mutation block checks
@@ -43,6 +44,7 @@ immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-1
 - LLM Audit Feed Redaction Snapshot hosted proof: `scripts\verify-phase3-llm-audit-feed.ps1 -BaseUrl https://188-34-191-140.sslip.io` including `llm_audit_snapshot_visible`, `llm_audit_redaction_enforced`, `prompt_bodies_returned=false`, `provider_credentials_returned=false`, and `forbidden_pattern_hits=0`
 - MCP Audit Redaction Snapshot hosted proof: `scripts\verify-phase3-mcp-deny-audit-correlation.ps1 -BaseUrl https://188-34-191-140.sslip.io` including `mcp_audit_snapshot_visible`, `mcp_audit_redaction_enforced`, `input_refs_returned=false`, `live_mcp_writes_claimed=false`, and `forbidden_pattern_hits=0`
 - Gateway Correlation Snapshot hosted proof: `scripts\verify-phase3-gateway-correlation-snapshot.ps1 -BaseUrl https://188-34-191-140.sslip.io` including `gateway_correlation_snapshot_visible`, `gateway_correlation_redaction_enforced`, `gateway_correlation_no_live_write_guard`, `agent_llm_mcp_correlated`, `live_provider_call_count=0`, `live_mcp_write_count=0`, and `forbidden_pattern_hits=0`
+- Gateway Correlation Risk Rollup hosted proof: `scripts\verify-phase3-gateway-correlation-risk-rollup.ps1 -BaseUrl https://188-34-191-140.sslip.io -RequireFullCorrelation` including `gateway_correlation_risk_rollup_visible`, `read_only=true`, `promotion_allowed=false`, `production_rollout_claimed=false`, `live_provider_calls_claimed=false`, `live_mcp_writes_claimed=false`, and `blocker_count=0`
 - Full Phase 3 hosted suite: `scripts\verify.ps1 -Suite phase3 -BaseUrl https://188-34-191-140.sslip.io -FailFast`
 - Browser contract hosted proof: `scripts\verify-browser-contract.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 - Hosted staging smoke: `scripts\verify-hosted-staging-smoke.ps1 -BaseUrl https://188-34-191-140.sslip.io`
