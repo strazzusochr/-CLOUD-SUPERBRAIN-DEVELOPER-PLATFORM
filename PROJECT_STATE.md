@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-05-14 01:37 Uhr
+Letzte Aktualisierung: 2026-05-14 03:41 Uhr
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-14 01:37 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `72%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 3 Product Surface & Security ist durch den audit-backed CSP-Report-Contract, den read-only LLM-Audit-Feed, den audit-backed Langfuse-Trace-Access und die progress-gebundene Live-Agent-Steering-/History-Oberflaeche auf `44%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht durch die echte Hetzner-Source-Build-UI und danach den immutable Frontend-Image-Selector auf `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist jetzt als immutable Staging-Selector `IMAGE_TAG=031c95c3e5af1101caf282eee463256285803495` verifiziert. Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `73%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History und die neue read-only Security Audit Surface auf `50%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist jetzt als immutable Staging-Selector `IMAGE_TAG=54bb064c8a5650f9a5c811179d3b4d0e1f38cfbf` verifiziert. Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -30,7 +30,7 @@ Letzte Aktualisierung: 2026-05-14 01:37 Uhr
 6. **Kein E2B-Sandbox:** Docker Desktop für lokale Tests
 7. **7-Schichten-Architektur** laut Ultimatum Finale
 
-## AKTUELLER FORTSCHRITT: 72%
+## AKTUELLER FORTSCHRITT: 73%
 
 ### Horizontal (nach Priorität)
 
@@ -39,7 +39,7 @@ Letzte Aktualisierung: 2026-05-14 01:37 Uhr
 | P0   | 100%   |
 | P1   | 100%   |
 | P2   | 86%    |
-| P3   | 44%    |
+| P3   | 50%    |
 | P4   | 100%   |
 | P5   | 74%    |
 | P6   | 0%     |
@@ -51,8 +51,8 @@ Letzte Aktualisierung: 2026-05-14 01:37 Uhr
 | Frontend      | 99%    |
 | Orchestrator  | 99%    |
 | Agent Pool    | 68%    |
-| LLM Gateway   | 56%    |
-| MCP Gateway   | 56%    |
+| LLM Gateway   | 57%    |
+| MCP Gateway   | 57%    |
 | Memory        | 72%    |
 | Observability | 99%    |
 
@@ -70,13 +70,22 @@ Letzte Aktualisierung: 2026-05-14 01:37 Uhr
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Naechster grosser Fortschrittshebel: Phase 3 Product Surface & Security** — der aktive RC1 ist jetzt immutable auf Hetzner-Staging verifiziert; weiter geht es mit echten audit-backed Security/Product-Surface-Slices statt weiteren P5-Reruns
-- danach folgen P3-Security-Slices und LLM/MCP-Layer-Slices, kein Production-Rollout ohne separates Gate
+- **Naechster grosser Fortschrittshebel: Phase 3 Product Surface & Security** — Security Audit Surface ist jetzt lokal und hosted verifiziert; weiter geht es mit weiteren echten Security/Product-Surface-Slices statt P5-Reruns
+- danach folgen P3-Auth/Security- und LLM/MCP-Layer-Slices, kein Production-Rollout ohne separates Gate
 - lokal und hosted bleiben weiterhin deterministische Proofs ohne Live-Provider und ohne Live-MCP-Writes; `production_deploy_claim_allowed=true` ist kein Deployment-Nachweis
 
 ## ZULETZT ABGESCHLOSSEN
 
-**Phase 5 Immutable Staging Parity** — der aktive RC1 ist jetzt wirklich als immutable Image-Filesystem-Selector auf Hetzner-Staging verifiziert:
+**Phase 3 Security Audit Surface** — die Product-Surface-&-Security-Schicht hat jetzt eine read-only Operator-Ansicht ueber sicherheitsrelevante Audit-Events:
+
+- `GET /api/v1/security/events/contract` liefert `security-audit-surface-v1`, `security_audit_surface_visible`, `security_audit_event_visible`, `read_only=true`, Eventtypen fuer CSP/Auth/MCP/LLM und klare Non-Claims.
+- `GET /api/v1/security/events` liest nur `audit_log`, zeigt Request-/Trace-Korrelation, MCP-Deny-Evidence und LLM-Dry-Run-Status, ohne Tools oder Provider aufzurufen.
+- Frontend rendert `Security Audit Surface`; `scripts\verify-phase3-security-audit-surface-hosted.ps1` seedet CSP, LLM-Dry-Run und MCP-Deny-Events und prueft Redaction.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `scripts\verify-phase3-security-audit-surface-hosted.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach immutable Image-Deploy mit `IMAGE_TAG=54bb064c8a5650f9a5c811179d3b4d0e1f38cfbf`: Security-Audit-Verifier, Browser-Contract und Hosted-Smoke sind gruen.
+- Fortschritt: `overall=73`, `phase_3=50`, `llm_gateway=57`, `mcp_gateway=57`; kein Production-Rollout, kein Live-Provider-Call und kein Live-MCP-Write.
+
+**Vorheriger Abschluss — Phase 5 Immutable Staging Parity** — der aktive RC1 ist wirklich als immutable Image-Filesystem-Selector auf Hetzner-Staging verifiziert:
 
 - GitHub Actions `main-deploy` Run `25833000061` baute `agent-api`, `agent-worker`, `memory-worker`, `mcp-gateway` und `llm-gateway` fuer `031c95c3e5af1101caf282eee463256285803495`; der unveraenderte Frontend-Manifest wurde vom vorher verifizierten Tag `97c7ea04b5180862ea9862cc18b9c5bac994f794` auf `031c95c3e5af1101caf282eee463256285803495` retagged, nachdem der Frontend-Build-Job hing.
 - `scripts\deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 031c95c3e5af1101caf282eee463256285803495` deployte die Images auf Hetzner und entfernte die service-code Hot-Mounts.

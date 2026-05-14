@@ -87,6 +87,9 @@ Assert-Contains "release artifact non-claim" $candidate "This artifact does not 
 
 if ($parityVerified) {
   $artifactPath = "docs\release-artifacts\$ReleaseId-immutable-staging-parity-20260514.md"
+  if ($candidate -match '(?m)^immutable_staging_parity_proof:\s*`([^`]+)`\s*$') {
+    $artifactPath = $Matches[1]
+  }
   if (-not (Test-Path $artifactPath)) {
     throw "Missing immutable staging parity artifact: $artifactPath"
   }
@@ -129,9 +132,11 @@ Assert-Contains "hosted root current UI marker" $root.Content "Live Agent Contro
 Assert-Contains "hosted root runtime guard marker" $root.Content "Runtime Guard"
 
 $progress = Get-Json "$BaseUrl/api/v1/project/progress"
-Assert-Equal "hosted overall percent" ([int]$progress.overall_percent) 72
+$manifest = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
+Assert-Equal "hosted overall percent" ([int]$progress.overall_percent) ([int]$manifest.overall_percent)
 $phase5 = $progress.horizontal.items | Where-Object { $_.id -eq "phase_5" } | Select-Object -First 1
-Assert-Equal "hosted phase5 percent" ([int]$phase5.percent) 74
+$manifestPhase5 = $manifest.horizontal.items | Where-Object { $_.id -eq "phase_5" } | Select-Object -First 1
+Assert-Equal "hosted phase5 percent" ([int]$phase5.percent) ([int]$manifestPhase5.percent)
 
 if ([string]::IsNullOrWhiteSpace($KeyPath)) {
   $KeyPath = [Environment]::GetEnvironmentVariable("STAGING_SSH_KEY_PATH")
