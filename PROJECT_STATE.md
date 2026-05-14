@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-14 07:29 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `76%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI, Security Review Gate Summary und LLM Audit Feed Redaction Snapshot auf `70%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist jetzt als immutable Staging-Selector `IMAGE_TAG=f5fb7d221d403b966b38d240bd5b936755ecc245` verifiziert. Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `76%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot und MCP Audit Redaction Snapshot auf `72%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist jetzt als immutable Staging-Selector `IMAGE_TAG=0a7ca2bed583f2e01af39a73e095e91cee642365` verifiziert. Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -39,7 +39,7 @@ Letzte Aktualisierung: 2026-05-14 07:29 Uhr
 | P0   | 100%   |
 | P1   | 100%   |
 | P2   | 88%    |
-| P3   | 70%    |
+| P3   | 72%    |
 | P4   | 100%   |
 | P5   | 74%    |
 | P6   | 0%     |
@@ -52,7 +52,7 @@ Letzte Aktualisierung: 2026-05-14 07:29 Uhr
 | Orchestrator  | 99%    |
 | Agent Pool    | 72%    |
 | LLM Gateway   | 60%    |
-| MCP Gateway   | 57%    |
+| MCP Gateway   | 60%    |
 | Memory        | 72%    |
 | Observability | 99%    |
 
@@ -76,7 +76,16 @@ Letzte Aktualisierung: 2026-05-14 07:29 Uhr
 
 ## ZULETZT ABGESCHLOSSEN
 
-**LLM Audit Feed Redaction Snapshot Proof** — die LLM-Gateway-Operator-Ansicht hat jetzt einen read-only Snapshot fuer Redaction, Dry-Run-Zaehler und No-Live-Provider-Nachweise:
+**MCP Audit Redaction Snapshot Proof** — die MCP-Gateway-Operator-Ansicht hat jetzt einen read-only Snapshot fuer Redaction, Deny-Korrelation und No-Live-MCP-Write-Nachweise:
+
+- `GET /api/v1/audit/mcp/contract` liefert weiter `mcp-audit-feed-v1`, jetzt zusaetzlich mit `snapshot_endpoint=GET /api/v1/audit/mcp/snapshot`, `mcp_audit_snapshot_visible`, `mcp_audit_redaction_enforced` und `live_mcp_writes_claimed=false`.
+- `GET /api/v1/audit/mcp` gibt MCP-Audit-Events mit `input_ref_stored=false` und `redaction_evidence_ref=mcp_audit_redaction_enforced` aus; `GET /api/v1/audit/mcp/snapshot` aggregiert Status-, Toolset-, Capability-, Error-Class- und Agent-Role-Counts und setzt `input_refs_returned=false`, `provider_credentials_returned=false`, `forbidden_pattern_hits=0`.
+- Frontend rendert `MCP Audit Snapshot`, Snapshot-Endpunkt, Snapshot-Evidence, Redaction-Evidence, Forbidden-Hit-Status, Blocked-/Denied-/Session-Bound-Zaehler und Input-Ref-Non-Claim im MCP Audit Panel.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `scripts\verify-phase3-mcp-deny-audit-correlation.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach immutable Image-Deploy mit `IMAGE_TAG=0a7ca2bed583f2e01af39a73e095e91cee642365`: MCP-Audit-Snapshot-Verifier, Browser-Contract und Hosted-Smoke sind gruen.
+- Fortschritt: `overall=76`, `phase_3=72`, `mcp_gateway=60`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — LLM Audit Feed Redaction Snapshot Proof** — die LLM-Gateway-Operator-Ansicht hat jetzt einen read-only Snapshot fuer Redaction, Dry-Run-Zaehler und No-Live-Provider-Nachweise:
 
 - `GET /api/v1/audit/llm/contract` liefert weiter `llm-audit-feed-v1`, jetzt zusaetzlich mit `snapshot_endpoint=GET /api/v1/audit/llm/snapshot`, `llm_audit_snapshot_visible` und `llm_audit_redaction_enforced`.
 - `GET /api/v1/audit/llm` gibt LLM-Audit-Events mit `prompt_body_stored=false` und `redaction_evidence_ref=llm_audit_redaction_enforced` aus; `GET /api/v1/audit/llm/snapshot` aggregiert Status-, Provider-, Agent- und Model-Counts und setzt `prompt_bodies_returned=false`, `provider_credentials_returned=false`, `forbidden_pattern_hits=0`.

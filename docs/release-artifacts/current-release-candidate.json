@@ -1,7 +1,7 @@
 {
   "active_release_id": "prod-candidate-2026-05-11-rc1",
-  "updated_at": "2026-05-14T05:29:22Z",
-  "updated_by": "codex-llm-audit-snapshot-20260514",
-  "reason": "Keep prod-candidate-2026-05-11-rc1 active and bind it to the verified LLM Audit Feed Redaction Snapshot immutable staging selector. Local py_compile, Next.js build, local LLM audit feed verifier, local browser-contract verifier, Docker Buildx GHCR image push for all six services at f5fb7d221d403b966b38d240bd5b936755ecc245, Hetzner staging deploy via scripts/deploy-to-staging.ps1 -UseImageFilesystem -ImageTag f5fb7d221d403b966b38d240bd5b936755ecc245, hosted LLM-audit-feed, browser-contract, and smoke verifiers all passed. This is staging parity only; production rollout remains false.",
+  "updated_at": "2026-05-14T06:05:00Z",
+  "updated_by": "codex-mcp-audit-snapshot-20260514",
+  "reason": "Keep prod-candidate-2026-05-11-rc1 active and bind it to the verified MCP Audit Redaction Snapshot immutable staging selector. Local py_compile, Next.js build, local MCP deny audit correlation verifier, local browser-contract verifier, Docker Buildx GHCR image push for all six services at 0a7ca2bed583f2e01af39a73e095e91cee642365, Hetzner staging deploy via scripts/deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 0a7ca2bed583f2e01af39a73e095e91cee642365, hosted MCP-audit snapshot, browser-contract, and smoke verifiers all passed. This is staging parity only; production rollout remains false.",
   "production_rollout_claimed": false
 }
