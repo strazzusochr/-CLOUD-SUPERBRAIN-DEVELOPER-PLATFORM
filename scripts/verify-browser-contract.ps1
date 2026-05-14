@@ -220,8 +220,14 @@ Assert-Contains "llm audit feed evidence marker" $frontendHtml "llm_audit_feed_v
 Assert-Contains "llm audit snapshot panel" $frontendHtml "LLM Audit Snapshot"
 Assert-Contains "llm audit snapshot evidence marker" $frontendHtml "llm_audit_snapshot_visible"
 Assert-Contains "llm audit redaction evidence marker" $frontendHtml "llm_audit_redaction_enforced"
+Assert-Contains "llm audit export panel" $frontendHtml "LLM Audit Export"
+Assert-Contains "llm audit export contract marker" $frontendHtml "llm-audit-export-v1"
+Assert-Contains "llm audit export evidence marker" $frontendHtml "llm_audit_export_visible"
+Assert-Contains "llm audit export audit marker" $frontendHtml "llm_audit_export_audit_persisted"
+Assert-Contains "llm audit export no-live marker" $frontendHtml "llm_audit_no_live_provider_guard"
 Assert-Contains "llm audit feed endpoint marker" $frontendHtml "GET /api/v1/audit/llm"
 Assert-Contains "llm audit snapshot endpoint marker" $frontendHtml "GET /api/v1/audit/llm/snapshot"
+Assert-Contains "llm audit export endpoint marker" $frontendHtml "GET /api/v1/audit/llm/export"
 Assert-Contains "gateway correlation panel" $frontendHtml "Gateway Correlation Snapshot"
 Assert-Contains "gateway correlation contract marker" $frontendHtml "gateway-correlation-snapshot-v1"
 Assert-Contains "gateway correlation evidence marker" $frontendHtml "gateway_correlation_snapshot_visible"
@@ -662,6 +668,11 @@ Assert-Contains "llm audit evidence" $llmAuditContract "llm_audit_feed_visible"
 Assert-Contains "llm audit event evidence" $llmAuditContract "llm_audit_feed_event_visible"
 Assert-Contains "llm audit snapshot evidence" $llmAuditContract "llm_audit_snapshot_visible"
 Assert-Contains "llm audit redaction evidence" $llmAuditContract "llm_audit_redaction_enforced"
+Assert-Contains "llm audit export endpoint" $llmAuditContract "GET /api/v1/audit/llm/export"
+Assert-Contains "llm audit export version" $llmAuditContract "llm-audit-export-v1"
+Assert-Contains "llm audit export evidence" $llmAuditContract "llm_audit_export_visible"
+Assert-Contains "llm audit export audit evidence" $llmAuditContract "llm_audit_export_audit_persisted"
+Assert-Contains "llm audit export no-live evidence" $llmAuditContract "llm_audit_no_live_provider_guard"
 $llmAuditFeed = Invoke-Text "$BaseUrl/api/v1/audit/llm?limit=5"
 Assert-Contains "llm audit feed contract" $llmAuditFeed '"contract_version":"llm-audit-feed-v1"'
 Assert-Contains "llm audit feed source" $llmAuditFeed '"source_event_type":"llm_gateway_request"'
@@ -672,6 +683,18 @@ Assert-Contains "llm audit snapshot evidence" $llmAuditSnapshot "llm_audit_snaps
 Assert-Contains "llm audit redaction evidence" $llmAuditSnapshot "llm_audit_redaction_enforced"
 Assert-Contains "llm audit snapshot prompt bodies" $llmAuditSnapshot '"prompt_bodies_returned":false'
 Assert-Contains "llm audit snapshot forbidden hits" $llmAuditSnapshot '"forbidden_pattern_hits":0'
+$llmAuditExportContract = Invoke-Text "$BaseUrl/api/v1/audit/llm/export/contract"
+Assert-Contains "llm audit export contract version" $llmAuditExportContract '"contract_version":"llm-audit-export-v1"'
+Assert-Contains "llm audit export mode" $llmAuditExportContract "read_only_llm_audit_csv_export"
+Assert-Contains "llm audit export evidence" $llmAuditExportContract "llm_audit_export_visible"
+Assert-Contains "llm audit export audit evidence" $llmAuditExportContract "llm_audit_export_audit_persisted"
+Assert-Contains "llm audit export read only" $llmAuditExportContract '"read_only":true'
+Assert-Contains "llm audit export no live provider claim" $llmAuditExportContract '"live_provider_calls_claimed":false'
+Assert-Contains "llm audit export prompt bodies absent" $llmAuditExportContract '"prompt_bodies_returned":false'
+Assert-Contains "llm audit export raw details absent" $llmAuditExportContract '"raw_details_returned":false'
+$llmAuditExportCsv = Invoke-Text "$BaseUrl/api/v1/audit/llm/export?format=csv&limit=20"
+Assert-Contains "llm audit export csv header" $llmAuditExportCsv "sequence_index,event_id,created_at,event_type,severity,trace_id,model_name,provider_name,agent_type,status,input_tokens,output_tokens,cost_cents,live_provider_calls,prompt_body_stored,evidence_ref,audit_feed_evidence_ref,redaction_evidence_ref,no_live_provider_evidence_ref"
+Assert-True "llm audit export no secret pattern leak" (-not ($llmAuditExportCsv -match "sk-proj-[A-Za-z0-9_-]{16,}|github_pat_[A-Za-z0-9_]{16,}|ghp_[A-Za-z0-9_]{16,}|vck_[A-Za-z0-9_-]{24,}|cfat_[A-Za-z0-9_-]{24,}|hcloud_[A-Za-z0-9_-]{16,}|\bhf_[A-Za-z0-9_-]{24,}|glpat-[A-Za-z0-9_.-]{20,}|Authorization: Bearer|Cookie:|eyJ[A-Za-z0-9_-]{10,}\."))
 
 Write-Host "[browser-contract] gateway correlation snapshot"
 $gatewayCorrelationContract = Invoke-Text "$BaseUrl/api/v1/security/gateway-correlation/contract"

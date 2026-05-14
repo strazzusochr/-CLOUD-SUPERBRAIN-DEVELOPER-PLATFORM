@@ -127,6 +127,10 @@ LLM_AUDIT_FEED_CONTRACT_VERSION = "llm-audit-feed-v1"
 LLM_AUDIT_FEED_EVIDENCE_REF = "llm_audit_feed_visible"
 LLM_AUDIT_SNAPSHOT_EVIDENCE_REF = "llm_audit_snapshot_visible"
 LLM_AUDIT_REDACTION_EVIDENCE_REF = "llm_audit_redaction_enforced"
+LLM_AUDIT_EXPORT_CONTRACT_VERSION = "llm-audit-export-v1"
+LLM_AUDIT_EXPORT_EVIDENCE_REF = "llm_audit_export_visible"
+LLM_AUDIT_EXPORT_AUDIT_EVIDENCE_REF = "llm_audit_export_audit_persisted"
+LLM_AUDIT_NO_LIVE_PROVIDER_EVIDENCE_REF = "llm_audit_no_live_provider_guard"
 GATEWAY_CORRELATION_CONTRACT_VERSION = "gateway-correlation-snapshot-v1"
 GATEWAY_CORRELATION_RISK_ROLLUP_CONTRACT_VERSION = "gateway-correlation-risk-rollup-v1"
 GATEWAY_CORRELATION_TIMELINE_CONTRACT_VERSION = "gateway-correlation-timeline-v1"
@@ -6203,14 +6207,46 @@ def llm_audit_feed_contract_payload() -> dict[str, object]:
         "mode": "audit_log_backed_llm_gateway_feed",
         "endpoint": "GET /api/v1/audit/llm",
         "snapshot_endpoint": "GET /api/v1/audit/llm/snapshot",
+        "export_endpoint": "GET /api/v1/audit/llm/export?format=csv&limit=80",
+        "export_contract_endpoint": "GET /api/v1/audit/llm/export/contract",
+        "export_contract_version": LLM_AUDIT_EXPORT_CONTRACT_VERSION,
         "source_event_type": "llm_gateway_request",
         "source_table": "audit_log",
+        "supported_export_formats": ["csv"],
         "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
         "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
         "snapshot_evidence_ref": LLM_AUDIT_SNAPSHOT_EVIDENCE_REF,
         "redaction_evidence_ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
+        "export_evidence_ref": LLM_AUDIT_EXPORT_EVIDENCE_REF,
+        "export_audit_evidence_ref": LLM_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+        "no_live_provider_evidence_ref": LLM_AUDIT_NO_LIVE_PROVIDER_EVIDENCE_REF,
         "read_only": True,
+        "audit_persisted": True,
         "live_provider_calls_claimed": False,
+        "prompt_bodies_returned": False,
+        "provider_credentials_returned": False,
+        "raw_details_returned": False,
+        "export_columns": [
+            "sequence_index",
+            "event_id",
+            "created_at",
+            "event_type",
+            "severity",
+            "trace_id",
+            "model_name",
+            "provider_name",
+            "agent_type",
+            "status",
+            "input_tokens",
+            "output_tokens",
+            "cost_cents",
+            "live_provider_calls",
+            "prompt_body_stored",
+            "evidence_ref",
+            "audit_feed_evidence_ref",
+            "redaction_evidence_ref",
+            "no_live_provider_evidence_ref",
+        ],
         "required_detail_fields": [
             "trace_id",
             "model_name",
@@ -6231,6 +6267,7 @@ def llm_audit_feed_contract_payload() -> dict[str, object]:
             "The endpoint never calls an LLM provider and never changes routing policy.",
             "Provider credentials and prompts are not returned by this feed.",
             "The snapshot endpoint aggregates redacted audit fields and never returns prompt bodies.",
+            "The CSV export emits only allowlisted LLM audit fields and logs redacted export metadata.",
         ],
         "non_claims": [
             "No live provider call is enabled by this feed.",
@@ -6280,9 +6317,121 @@ def llm_audit_forbidden_pattern_hits(events: list[dict[str, object]]) -> int:
     return sum(1 for marker in forbidden if marker in text)
 
 
+def llm_audit_export_contract_payload() -> dict[str, object]:
+    contract = llm_audit_feed_contract_payload()
+    return {
+        "contract_version": LLM_AUDIT_EXPORT_CONTRACT_VERSION,
+        "parent_contract_version": LLM_AUDIT_FEED_CONTRACT_VERSION,
+        "mode": "read_only_llm_audit_csv_export",
+        "endpoint": "GET /api/v1/audit/llm/export?format=csv&limit=80",
+        "contract_endpoint": "GET /api/v1/audit/llm/export/contract",
+        "feed_endpoint": "GET /api/v1/audit/llm",
+        "snapshot_endpoint": "GET /api/v1/audit/llm/snapshot",
+        "source_table": "audit_log",
+        "source_event_type": "llm_gateway_request",
+        "supported_formats": ["csv"],
+        "default_format": "csv",
+        "default_limit": 80,
+        "max_limit": 200,
+        "filename_pattern": "superbrain-llm-audit.csv",
+        "columns": contract["export_columns"],
+        "evidence_ref": LLM_AUDIT_EXPORT_EVIDENCE_REF,
+        "export_audit_evidence_ref": LLM_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+        "feed_evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
+        "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
+        "snapshot_evidence_ref": LLM_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "redaction_evidence_ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
+        "no_live_provider_evidence_ref": LLM_AUDIT_NO_LIVE_PROVIDER_EVIDENCE_REF,
+        "read_only": True,
+        "audit_persisted": True,
+        "live_provider_calls_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "prompt_bodies_returned": False,
+        "provider_credentials_returned": False,
+        "raw_details_returned": False,
+        "provider_trace_export": False,
+        "policy_checks": [
+            "Export reads only audit_log rows with event_type=llm_gateway_request.",
+            "Export emits CSV columns from the allowlisted LLM audit fields only.",
+            "Export never calls live providers and never changes routing policy.",
+            "Export audit logging stores only redacted metadata: contract version, row count, trace id, request id, format, and evidence ref.",
+            "Any forbidden pattern in exported rows blocks the verifier.",
+        ],
+        "non_claims": contract["non_claims"],
+    }
+
+
+def build_llm_audit_export_csv(rows: list[object]) -> str:
+    output = io.StringIO()
+    fieldnames = llm_audit_export_contract_payload()["columns"]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
+    writer.writeheader()
+    ordered_rows = sorted(rows, key=lambda row: row[5].isoformat() if row[5] else "")
+    for index, row in enumerate(ordered_rows, start=1):
+        details = public_audit_details(row[4] or {})
+        csv_row = {
+            "sequence_index": index,
+            "event_id": str(row[0]),
+            "created_at": row[5].isoformat() if row[5] else None,
+            "event_type": row[1],
+            "severity": row[6],
+            "trace_id": public_trace_id(details.get("trace_id")),
+            "model_name": details.get("model_name"),
+            "provider_name": details.get("provider_name"),
+            "agent_type": details.get("agent_type") or row[2],
+            "status": details.get("status"),
+            "input_tokens": details.get("input_tokens"),
+            "output_tokens": details.get("output_tokens"),
+            "cost_cents": details.get("cost_cents"),
+            "live_provider_calls": details.get("live_provider_calls") is True,
+            "prompt_body_stored": details.get("prompt_body_stored", False) is True,
+            "evidence_ref": LLM_AUDIT_EXPORT_EVIDENCE_REF,
+            "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
+            "redaction_evidence_ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
+            "no_live_provider_evidence_ref": LLM_AUDIT_NO_LIVE_PROVIDER_EVIDENCE_REF,
+        }
+        writer.writerow({key: csv_safe_value(value) for key, value in csv_row.items()})
+    return output.getvalue()
+
+
+def persist_llm_audit_export_audit(format: str, row_count: int, trace_id: str, request_id: str) -> None:
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, details, severity)
+                VALUES ('llm_audit_export_generated', 'llm-audit', %s::jsonb, 'info')
+                """,
+                (
+                    Json(
+                        redact_json(
+                            {
+                                "contract_version": LLM_AUDIT_EXPORT_CONTRACT_VERSION,
+                                "trace_id": trace_id,
+                                "request_id": request_id,
+                                "format": format,
+                                "row_count": row_count,
+                                "evidence_ref": LLM_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+                                "redaction_evidence_ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
+                                "no_live_provider_evidence_ref": LLM_AUDIT_NO_LIVE_PROVIDER_EVIDENCE_REF,
+                            }
+                        )
+                    ),
+                ),
+            )
+    except Exception as exc:  # pragma: no cover - audit persistence must not break exports
+        print(f"llm audit export audit failed: {exc}")
+
+
 @app.get("/api/v1/audit/llm/contract")
 def llm_audit_feed_contract() -> dict[str, object]:
     return llm_audit_feed_contract_payload()
+
+
+@app.get("/api/v1/audit/llm/export/contract")
+def llm_audit_export_contract() -> dict[str, object]:
+    return llm_audit_export_contract_payload()
 
 
 @app.get("/api/v1/audit/llm")
@@ -6389,6 +6538,44 @@ def llm_audit_snapshot(limit: int = Query(default=50, ge=1, le=200)) -> dict[str
         ],
         "non_claims": llm_audit_feed_contract_payload()["non_claims"],
     }
+
+
+@app.get("/api/v1/audit/llm/export")
+def llm_audit_export(
+    request: Request,
+    format: str = Query(default="csv", pattern="^csv$"),
+    limit: int = Query(default=80, ge=1, le=200),
+    trace_id: str | None = Query(default=None, max_length=255),
+    request_id: str | None = Query(default=None, max_length=255),
+) -> Response:
+    if format != "csv":
+        raise HTTPException(status_code=400, detail={"error": "unsupported_format", "allowed": ["csv"]})
+    rows = llm_audit_rows(limit)
+    csv_payload = build_llm_audit_export_csv(rows)
+    row_count = max(0, len(csv_payload.splitlines()) - 1)
+    resolved_trace_id = public_trace_id(trace_id) or f"llm-audit-export-{uuid4()}"
+    resolved_request_id = (
+        public_request_id(request_id)
+        or public_request_id(getattr(request.state, "request_id", None))
+        or public_request_id(request.headers.get("x-request-id"))
+        or f"req-{uuid4()}"
+    )
+    persist_llm_audit_export_audit(format, row_count, resolved_trace_id, resolved_request_id)
+    filename = "superbrain-llm-audit.csv"
+    return Response(
+        csv_payload,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Contract-Version": LLM_AUDIT_EXPORT_CONTRACT_VERSION,
+            "X-Evidence-Ref": LLM_AUDIT_EXPORT_EVIDENCE_REF,
+            "X-Export-Audit-Evidence-Ref": LLM_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+            "X-Redaction-Evidence-Ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
+            "X-No-Live-Provider-Evidence-Ref": LLM_AUDIT_NO_LIVE_PROVIDER_EVIDENCE_REF,
+            "X-Trace-Id": resolved_trace_id,
+            "X-Request-Id": resolved_request_id,
+        },
+    )
 
 
 GATEWAY_CORRELATION_EVENT_TYPES = (

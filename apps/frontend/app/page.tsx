@@ -1562,15 +1562,58 @@ type LlmAuditFeedContract = {
   mode: string;
   endpoint: string;
   snapshot_endpoint?: string;
+  export_endpoint?: string;
+  export_contract_endpoint?: string;
+  export_contract_version?: string;
   source_event_type: string;
   source_table: string;
+  supported_export_formats?: string[];
   evidence_ref: string;
   audit_feed_evidence_ref: string;
   snapshot_evidence_ref?: string;
   redaction_evidence_ref?: string;
+  export_evidence_ref?: string;
+  export_audit_evidence_ref?: string;
+  no_live_provider_evidence_ref?: string;
   read_only: boolean;
+  audit_persisted?: boolean;
   live_provider_calls_claimed: boolean;
+  prompt_bodies_returned?: boolean;
+  provider_credentials_returned?: boolean;
+  raw_details_returned?: boolean;
+  export_columns?: string[];
   required_detail_fields: string[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type LlmAuditExportContract = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  contract_endpoint: string;
+  feed_endpoint: string;
+  snapshot_endpoint: string;
+  supported_formats: string[];
+  filename_pattern: string;
+  columns: string[];
+  evidence_ref: string;
+  export_audit_evidence_ref: string;
+  feed_evidence_ref: string;
+  audit_feed_evidence_ref: string;
+  snapshot_evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_provider_evidence_ref: string;
+  read_only: boolean;
+  audit_persisted: boolean;
+  live_provider_calls_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  prompt_bodies_returned: boolean;
+  provider_credentials_returned: boolean;
+  raw_details_returned: boolean;
+  provider_trace_export: boolean;
   policy_checks: string[];
   non_claims: string[];
 };
@@ -2463,6 +2506,7 @@ export default function Home() {
   const [llmAuditFeedContract, setLlmAuditFeedContract] = useState<LlmAuditFeedContract | null>(null);
   const [llmAuditEvents, setLlmAuditEvents] = useState<LlmAuditEvent[]>([]);
   const [llmAuditSnapshot, setLlmAuditSnapshot] = useState<LlmAuditSnapshot | null>(null);
+  const [llmAuditExportContract, setLlmAuditExportContract] = useState<LlmAuditExportContract | null>(null);
   const [gatewayCorrelationSnapshot, setGatewayCorrelationSnapshot] =
     useState<GatewayCorrelationSnapshot | null>(null);
   const [gatewayCorrelationRiskRollup, setGatewayCorrelationRiskRollup] =
@@ -3033,10 +3077,11 @@ export default function Home() {
   }
 
   async function loadLlmAuditFeed() {
-    const [contractResponse, feedResponse, snapshotResponse] = await Promise.all([
+    const [contractResponse, feedResponse, snapshotResponse, exportResponse] = await Promise.all([
       fetch("/api/v1/audit/llm/contract", { cache: "no-store" }),
       fetch("/api/v1/audit/llm?limit=8", { cache: "no-store" }),
       fetch("/api/v1/audit/llm/snapshot?limit=50", { cache: "no-store" }),
+      fetch("/api/v1/audit/llm/export/contract", { cache: "no-store" }),
     ]);
     if (!contractResponse.ok) throw new Error(`llm audit contract ${contractResponse.status}`);
     if (!feedResponse.ok) throw new Error(`llm audit feed ${feedResponse.status}`);
@@ -3045,6 +3090,9 @@ export default function Home() {
     const payload = await feedResponse.json();
     setLlmAuditEvents(payload.events ?? []);
     setLlmAuditSnapshot(await snapshotResponse.json());
+    if (exportResponse.ok) {
+      setLlmAuditExportContract(await exportResponse.json());
+    }
   }
 
   async function loadGatewayCorrelationSnapshot() {
@@ -6134,6 +6182,17 @@ export default function Home() {
               <p>{llmAuditFeedContract?.snapshot_endpoint ?? "GET /api/v1/audit/llm/snapshot"}</p>
             </article>
             <article className="policyItem">
+              <strong>LLM Audit Export</strong>
+              <p>{llmAuditExportContract?.endpoint ?? "GET /api/v1/audit/llm/export?format=csv&limit=80"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>{llmAuditExportContract?.contract_version ?? "llm-audit-export-v1"}</strong>
+              <p>
+                {llmAuditExportContract?.evidence_ref ?? "llm_audit_export_visible"} /{" "}
+                {llmAuditExportContract?.export_audit_evidence_ref ?? "llm_audit_export_audit_persisted"}
+              </p>
+            </article>
+            <article className="policyItem">
               <strong>Redaction</strong>
               <p>
                 {llmAuditSnapshot?.redaction_status ?? "clear"} /{" "}
@@ -6166,6 +6225,13 @@ export default function Home() {
                 {llmAuditSnapshot?.prompt_bodies_returned
                   ? "prompt bodies returned"
                   : "prompt_bodies_returned=false"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Export Guard</strong>
+              <p>
+                {llmAuditExportContract?.no_live_provider_evidence_ref ?? "llm_audit_no_live_provider_guard"} /{" "}
+                {llmAuditExportContract?.raw_details_returned ? "raw_details_returned=true" : "raw_details_returned=false"}
               </p>
             </article>
           </div>
