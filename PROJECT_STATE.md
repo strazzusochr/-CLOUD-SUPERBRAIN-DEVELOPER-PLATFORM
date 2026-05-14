@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-05-14 04:39 Uhr
+Letzte Aktualisierung: 2026-05-14 05:10 Uhr
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-14 04:39 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `74%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface und die neue Autonomous Team Dispatch UI auf `53%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist jetzt als immutable Staging-Selector `IMAGE_TAG=79c3c24dbb3d9907f00733e9d7d3d2238f50cb24` verifiziert. Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `74%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI und Security Review Queue auf `57%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist jetzt als immutable Staging-Selector `IMAGE_TAG=70660b500748d5ac6b16d3c863408699029b1c0a` verifiziert. Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -39,7 +39,7 @@ Letzte Aktualisierung: 2026-05-14 04:39 Uhr
 | P0   | 100%   |
 | P1   | 100%   |
 | P2   | 88%    |
-| P3   | 53%    |
+| P3   | 57%    |
 | P4   | 100%   |
 | P5   | 74%    |
 | P6   | 0%     |
@@ -76,13 +76,14 @@ Letzte Aktualisierung: 2026-05-14 04:39 Uhr
 
 ## ZULETZT ABGESCHLOSSEN
 
-**Autonomous Team Dispatch UI Proof** — die Operator-Oberflaeche kann jetzt Ziele an das autonome Team uebergeben und den Status sichtbar nachziehen:
+**Security Review Queue Proof** — die Operator-Oberflaeche hat jetzt eine read-only Security Review Queue mit Redaction- und Mutation-Block-Nachweis:
 
-- `POST /api/v1/task/dispatch` liefert Dispatch-, UI-, Status-, Provenance- und Audit-Evidence-Refs.
-- Frontend rendert `Dispatch Objective`, `POST /api/v1/task/dispatch`, `autonomous_team_dispatch_ui_visible` und `autonomous_team_dispatch_status_visible`.
-- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `scripts\verify-autonomous-coding-team.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
-- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach immutable Image-Deploy mit `IMAGE_TAG=79c3c24dbb3d9907f00733e9d7d3d2238f50cb24`: Autonomous-Team-Verifier, Browser-Contract und Hosted-Smoke sind gruen.
-- Fortschritt: `overall=74`, `phase_2=88`, `phase_3=53`, `agent_pool=72`; kein Production-Rollout, kein Live-Provider-Call und kein Live-MCP-Write.
+- `GET /api/v1/security/review-queue/contract` liefert `security-review-queue-v1`, `read_only=true` und die Evidence-Refs `security_review_queue_visible`, `security_review_item_visible`, `security_review_redaction_enforced` und `security_review_mutation_blocked`.
+- `GET /api/v1/security/review-queue` aggregiert Security-Audit-Findings redacted; `POST/PUT/PATCH/DELETE /api/v1/security/review-queue` blocken mit HTTP `403`.
+- Frontend rendert `Security Review Queue`, Endpoint, Evidence-Refs, Status-/Severity-Zaehler und redacted Item Cards.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `scripts\verify-phase3-security-review-queue.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach immutable Image-Deploy mit `IMAGE_TAG=70660b500748d5ac6b16d3c863408699029b1c0a`: Security-Review-Queue-Verifier, Browser-Contract und Hosted-Smoke sind gruen.
+- Fortschritt: `overall=74`, `phase_3=57`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
 
 **Vorheriger Abschluss — Phase 3 Security Audit Surface** — die Product-Surface-&-Security-Schicht hat jetzt eine read-only Operator-Ansicht ueber sicherheitsrelevante Audit-Events:
 
@@ -1053,8 +1054,9 @@ Letzte Aktualisierung: 2026-05-14 04:39 Uhr
 - Hosted Dry-run bleibt an Manifest-Werte `engine=langgraph`, `checkpointing=postgres`, `live_provider_calls=false` gebunden.
 - Proof: `.phase1-artifacts/phase4-orchestrator-manifest-contract-runtime-hosted-proof-20260507.md`
 
-**Aktueller verifizierter Stand**
+**Historischer Hosted-Proof-Snapshot**
 
-- Gesamt `63%`
-- Horizontal `P0 100 | P1 100 | P2 86 | P3 40 | P4 84 | P5 28 | P6 0`
-- Vertikal `Frontend 97 | Orchestrator 99 | Agent Pool 68 | LLM 54 | MCP 55 | Memory 72 | Observability 99`
+- Historisch Gesamt `63%`
+- Historisch Horizontal `P0 100 | P1 100 | P2 86 | P3 40 | P4 84 | P5 28 | P6 0`
+- Historisch Vertikal `Frontend 97 | Orchestrator 99 | Agent Pool 68 | LLM 54 | MCP 55 | Memory 72 | Observability 99`
+- Aktuelle Wahrheit bleibt der Kopf dieses Dokuments und `docs/project-progress.manifest.json`.
