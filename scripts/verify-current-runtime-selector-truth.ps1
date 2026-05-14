@@ -86,6 +86,31 @@ if (-not ($parityVerified -or $parityBlocked)) {
 Assert-Contains "release artifact non-claim" $candidate "This artifact does not claim a production rollout."
 
 if ($parityVerified) {
+  $selectorTruthPath = "docs\release-artifacts\$ReleaseId-runtime-selector-truth.md"
+  if (-not (Test-Path $selectorTruthPath)) {
+    throw "Missing runtime selector truth artifact: $selectorTruthPath"
+  }
+  $selectorTruth = Get-Content $selectorTruthPath -Raw
+  $manifest = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
+  $expectedOverall = [int]$manifest.overall_percent
+  $expectedPhase5 = [int](($manifest.horizontal.items | Where-Object { $_.id -eq "phase_5" }).percent)
+  foreach ($required in @(
+    'Status: `verified`',
+    "release_id: ``$ReleaseId``",
+    "overall_percent: ``$expectedOverall``",
+    "phase_5_percent: ``$expectedPhase5``",
+    "current_hosted_selector: ``IMAGE_TAG=$candidateSha``",
+    "frontend_runtime_image: ``ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:$candidateSha``",
+    "immutable_candidate_tag: ``$candidateSha``",
+    'immutable_candidate_parity_claimed: `true`',
+    'production_rollout_claimed: `false`',
+    'new_ghcr_push_claimed: `false`',
+    'immutable_staging_parity_status: `verified`',
+    'remote_proof_required: `true`'
+  )) {
+    Assert-Contains "runtime selector truth artifact" $selectorTruth $required
+  }
+
   $artifactPath = "docs\release-artifacts\$ReleaseId-immutable-staging-parity-20260514.md"
   if ($candidate -match '(?m)^immutable_staging_parity_proof:\s*`([^`]+)`\s*$') {
     $artifactPath = $Matches[1]

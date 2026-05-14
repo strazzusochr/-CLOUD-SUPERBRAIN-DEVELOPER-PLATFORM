@@ -14,7 +14,7 @@ This proof binds the active RC1 runtime to the autonomous master-plan and persis
 ## Evidence
 
 - `GET /api/v1/team/master-plan/contract` exposes `autonomous-master-plan-v1`.
-- `GET /api/v1/team/master-plan` exposes `autonomous_master_plan_runtime_visible`, `PROJECT_STATE.md`, the progress manifest, Phase 2 `88`, Phase 5 `75`, Agent Pool `74`, hard constraints, dispatch endpoints, and logical roles `supervisor`, `planner`, `explorer`, `coder`, and `tester`.
+- `GET /api/v1/team/master-plan` exposes `autonomous_master_plan_runtime_visible`, `PROJECT_STATE.md`, the progress manifest, Phase 2 `88`, Phase 5 `77`, Agent Pool `74`, hard constraints, dispatch endpoints, and logical roles `supervisor`, `planner`, `explorer`, `coder`, and `tester`.
 - `GET /api/v1/team/roster/contract` exposes `autonomous-agent-roster-v1`.
 - `GET /api/v1/team/roster` exposes `autonomous_agent_roster_runtime_visible`, `role_count>=14`, launch-validated generic roles, launcher-blocked specialized roles, LangGraph active binding, and external-adapter status visibility.
 - `GET /api/v1/team/status` remains bound to `autonomous-coding-team-v1` and `autonomous-task-dispatch-v1`.

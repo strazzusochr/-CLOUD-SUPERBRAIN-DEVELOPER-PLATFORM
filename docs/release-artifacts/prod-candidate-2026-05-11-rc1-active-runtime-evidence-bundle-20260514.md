@@ -29,7 +29,7 @@ Verified surfaces:
 
 - Overall progress: `80%`
 - Phase 2: `88%`
-- Phase 5: `75%`
+- Phase 5: `77%`
 - Runtime contract: `phase2-runtime-v1`
 - Runtime runs: `audit_log_backed_phase2_runtime_runs`
 - Orchestrator: `langgraph`, `deterministic_dry_run`, `postgres`
