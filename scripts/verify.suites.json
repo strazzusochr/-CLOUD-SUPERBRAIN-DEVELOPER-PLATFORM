@@ -30,6 +30,13 @@
     ]
   },
   {
+    "id": "phase2",
+    "description": "Phase 2 dual-surface runtime verification.",
+    "patterns": [
+      "verify-phase2-*.ps1"
+    ]
+  },
+  {
     "id": "runtime",
     "description": "Local runtime-focused verification bundle.",
     "suites": [
@@ -296,6 +303,7 @@
       "phase1",
       "phase1-redis",
       "phase1-runtime",
+      "phase2",
       "browser-contract",
       "cloud-only-staging",
       "external-gates",

@@ -6,7 +6,7 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-Current honesty guardrail: the active staging candidate is `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`, verified through GHCR multi-service images, Hetzner `-UseImageFilesystem` parity, the Active Security Evidence Bundle, the Vercel GitHub Deployment Status proof, and the Autonomous Roster Master Plan proof. This is a staging-candidate claim only; production rollout remains unclaimed.
+Current honesty guardrail: the active staging candidate is `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`, verified through GHCR multi-service images, Hetzner `-UseImageFilesystem` parity, the Active Security Evidence Bundle, the Vercel GitHub Deployment Status proof, the Autonomous Roster Master Plan proof, and the Phase 2 Runtime Dual Surface proof. This is a staging-candidate claim only; production rollout remains unclaimed.
 
 ## Binding Truth
 
@@ -29,7 +29,7 @@ Follow `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` over older planning f
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 
-Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `79%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-5 Active Security Evidence Bundle proof, the Phase-5 Vercel GitHub Deployment Status proof, the Phase-2/Agent-Pool Autonomous Roster Master Plan proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, Security Review Queue Export proof, LLM Audit Feed Redaction Snapshot proof, LLM Audit Export proof, MCP Audit Redaction Snapshot proof, MCP Audit Export proof, Gateway Correlation Snapshot proof, Gateway Correlation Risk Rollup proof, Gateway Correlation Timeline proof, Gateway Correlation Export proof, Auth Audit Snapshot proof, Auth Audit Risk Rollup proof, Auth Audit Timeline proof, and Auth Audit Export proof. Continue Phase-5 candidate hardening before rollout.
+Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `79%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-5 Active Security Evidence Bundle proof, the Phase-5 Vercel GitHub Deployment Status proof, the Phase-2 Runtime Dual Surface proof, the Phase-2/Agent-Pool Autonomous Roster Master Plan proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, Security Review Queue Export proof, LLM Audit Feed Redaction Snapshot proof, LLM Audit Export proof, MCP Audit Redaction Snapshot proof, MCP Audit Export proof, Gateway Correlation Snapshot proof, Gateway Correlation Risk Rollup proof, Gateway Correlation Timeline proof, Gateway Correlation Export proof, Auth Audit Snapshot proof, Auth Audit Risk Rollup proof, Auth Audit Timeline proof, and Auth Audit Export proof. Continue Phase-5 candidate hardening before rollout.
 
 ## Current Verified Progress
 
@@ -59,7 +59,14 @@ Older percentage lines below are historical proof points only. Current percentag
 
 ## Latest Verified Step
 
-Autonomous Roster Master Plan Proof:
+Phase 2 Runtime Dual Surface Proof:
+
+- `scripts\verify-phase2-runtime-dual-surface.ps1` binds local and hosted Phase 2 runtime contracts, start execution, and audit-log-backed runs into one active RC1 proof.
+- The verifier checks `phase2-runtime-v1`, `phase2-runtime-start-surface-v1`, `phase2-runtime-runs-surface-v1`, `deterministic_local_runtime`, `audit_log_backed_phase2_runtime_runs`, `langgraph`, `postgres`, four completed deterministic roles, and evidence refs including `phase2_runtime_graph_started`, `task_assignment_completed`, `memory_update_persisted`, and `agent_result_aggregation_complete`.
+- Local and hosted proofs passed; the new `phase2` verifier suite is registered in `scripts\verify.suites.json`.
+- Progress remains `79%`; Phase 2 remains `88%`; no production rollout, release promotion, live provider call, live MCP write, local model download, or secret exposure is claimed.
+
+Previous verified step - Autonomous Roster Master Plan Proof:
 
 - `scripts\verify-autonomous-roster-master-plan-bundle.ps1` binds the active hosted and local runtime to `GET /api/v1/team/master-plan`, `GET /api/v1/team/roster`, `GET /api/v1/team/status`, and `GET /api/v1/task/dispatches/recent?limit=10`.
 - The verifier checks `autonomous-master-plan-v1`, `autonomous-agent-roster-v1`, `autonomous_master_plan_runtime_visible`, `autonomous_agent_roster_runtime_visible`, all five logical roles, at least 14 persisted roster entries, LangGraph binding, recent completed dispatch provenance, and homepage markers.
