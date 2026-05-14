@@ -1385,6 +1385,7 @@ type SecurityReviewQueueContract = {
   screen: string;
   endpoint: string;
   contract_endpoint: string;
+  gate_endpoint?: string;
   source_table: string;
   source_surface: string;
   supported_event_types: string[];
@@ -1403,6 +1404,7 @@ type SecurityReviewQueueContract = {
     filter_state: string;
     decision_history: string;
     evidence_snapshot: string;
+    gate_summary: string;
     source_security_surface: string;
   };
   policy_checks: string[];
@@ -1436,6 +1438,37 @@ type SecurityReviewQueueItem = {
     created_at?: string | null;
   }>;
   evidence_snapshot?: Record<string, string>;
+};
+
+type SecurityReviewGateSummary = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  queue_endpoint: string;
+  snapshot_endpoint: string;
+  evidence_ref: string;
+  queue_evidence_ref: string;
+  snapshot_evidence_ref: string;
+  read_only: boolean;
+  gate_status: string;
+  blocker_count: number;
+  monitoring_count: number;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  release_authority: string;
+  risk_badges: Record<string, number>;
+  blockers: Array<{
+    queue_item_id: string;
+    event_type: string;
+    category: string;
+    severity?: string | null;
+    status: string;
+    risk_badge: string;
+    request_id?: string | null;
+    trace_id?: string | null;
+  }>;
+  policy_checks: string[];
+  non_claims: string[];
 };
 
 type PerRoleResult = {
@@ -2016,6 +2049,7 @@ export default function Home() {
   const [securityReviewQueueContract, setSecurityReviewQueueContract] =
     useState<SecurityReviewQueueContract | null>(null);
   const [securityReviewQueueItems, setSecurityReviewQueueItems] = useState<SecurityReviewQueueItem[]>([]);
+  const [securityReviewGate, setSecurityReviewGate] = useState<SecurityReviewGateSummary | null>(null);
   const [memoryConsolidationEvents, setMemoryConsolidationEvents] = useState<AuditEvent[]>([]);
   const [escalations, setEscalations] = useState<AuditEvent[]>([]);
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
@@ -2573,15 +2607,18 @@ export default function Home() {
   }
 
   async function loadSecurityReviewQueue() {
-    const [contractResponse, queueResponse] = await Promise.all([
+    const [contractResponse, queueResponse, gateResponse] = await Promise.all([
       fetch("/api/v1/security/review-queue/contract", { cache: "no-store" }),
       fetch("/api/v1/security/review-queue?limit=8", { cache: "no-store" }),
+      fetch("/api/v1/security/review-queue/gate?limit=50", { cache: "no-store" }),
     ]);
     if (!contractResponse.ok) throw new Error(`security review contract ${contractResponse.status}`);
     if (!queueResponse.ok) throw new Error(`security review queue ${queueResponse.status}`);
+    if (!gateResponse.ok) throw new Error(`security review gate ${gateResponse.status}`);
     setSecurityReviewQueueContract(await contractResponse.json());
     const payload = await queueResponse.json();
     setSecurityReviewQueueItems(payload.items ?? []);
+    setSecurityReviewGate(await gateResponse.json());
   }
 
   async function loadMemoryConsolidationEvents() {
@@ -3139,6 +3176,7 @@ export default function Home() {
     filter_state: "security_review_filter_state_visible",
     decision_history: "security_review_decision_history_visible",
     evidence_snapshot: "security_review_evidence_snapshot_visible",
+    gate_summary: "security_review_gate_summary_visible",
     source_security_surface: "security_audit_surface_visible",
   };
   const securityReviewPolicyChecks = stringList(securityReviewQueueContract?.policy_checks);
@@ -3599,6 +3637,31 @@ export default function Home() {
             Snapshot: {securityReviewEvidenceRefs.filter_state} / {securityReviewEvidenceRefs.decision_history} /{" "}
             {securityReviewEvidenceRefs.evidence_snapshot}
           </p>
+          <div
+            className={`securityReviewGate ${
+              securityReviewGate?.gate_status === "blocked_by_open_security_reviews"
+                ? "securityReviewGateBlocked"
+                : "securityReviewGateClear"
+            }`}
+          >
+            <div>
+              <strong>Security Review Gate Summary</strong>
+              <span>{securityReviewGate?.gate_status ?? "read_only_security_review_gate_summary"}</span>
+            </div>
+            <small>
+              Blockers: {securityReviewGate?.blocker_count ?? 0} / Monitors:{" "}
+              {securityReviewGate?.monitoring_count ?? 0} / Promotion allowed:{" "}
+              {String(securityReviewGate?.promotion_allowed ?? false)}
+            </small>
+            <small>
+              Evidence: {securityReviewGate?.evidence_ref ?? securityReviewEvidenceRefs.gate_summary} /{" "}
+              {securityReviewGate?.snapshot_evidence_ref ?? securityReviewEvidenceRefs.evidence_snapshot}
+            </small>
+            <small>
+              Authority: {securityReviewGate?.release_authority ?? "outside_security_review_queue"} / Production
+              rollout claimed: {String(securityReviewGate?.production_rollout_claimed ?? false)}
+            </small>
+          </div>
           <div className="policyGrid">
             {(securityReviewPolicyChecks.length ? securityReviewPolicyChecks : [
               "The review queue reads audit_log only and never executes tools, deploys code, or calls providers.",

@@ -111,6 +111,7 @@ SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF = "security_review_mutation_blocked"
 SECURITY_REVIEW_FILTER_EVIDENCE_REF = "security_review_filter_state_visible"
 SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF = "security_review_decision_history_visible"
 SECURITY_REVIEW_SNAPSHOT_EVIDENCE_REF = "security_review_evidence_snapshot_visible"
+SECURITY_REVIEW_GATE_EVIDENCE_REF = "security_review_gate_summary_visible"
 TRACE_ID_CONTRACT_VERSION = "trace-id-propagation-v1"
 CACHE_CONTROL_CONTRACT_VERSION = "cache-control-no-store-v1"
 REQUEST_ID_CONTRACT_VERSION = "request-id-correlation-v1"
@@ -5585,6 +5586,7 @@ def security_review_queue_contract_payload() -> dict[str, object]:
         "endpoint": "GET /api/v1/security/review-queue",
         "contract_endpoint": "GET /api/v1/security/review-queue/contract",
         "snapshot_endpoint": "GET /api/v1/security/review-queue/snapshot",
+        "gate_endpoint": "GET /api/v1/security/review-queue/gate",
         "source_table": "audit_log",
         "source_surface": "GET /api/v1/security/events",
         "supported_event_types": list(SECURITY_AUDIT_EVENT_CATEGORIES.keys()),
@@ -5643,6 +5645,7 @@ def security_review_queue_contract_payload() -> dict[str, object]:
             "filter_state": SECURITY_REVIEW_FILTER_EVIDENCE_REF,
             "decision_history": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
             "evidence_snapshot": SECURITY_REVIEW_SNAPSHOT_EVIDENCE_REF,
+            "gate_summary": SECURITY_REVIEW_GATE_EVIDENCE_REF,
             "source_security_surface": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
         },
         "policy_checks": [
@@ -5650,6 +5653,7 @@ def security_review_queue_contract_payload() -> dict[str, object]:
             "Items return summaries and detail key names only; raw detail payloads are not returned.",
             "Mutation methods are blocked with security_review_mutation_blocked.",
             "Risk badges, filters, decision history, and evidence snapshots are derived from read-only audit rows.",
+            "The gate summary is advisory and cannot approve a production rollout.",
             "Secrets, prompt bodies, cookies, authorization headers, and raw files are forbidden from queue responses.",
             "Production release decisions remain outside this read-only queue.",
         ],
@@ -5835,6 +5839,63 @@ def build_security_review_queue(
     }
 
 
+def build_security_review_gate(limit: int, severity: str | None, category: str | None) -> dict[str, object]:
+    queue = build_security_review_queue(limit=limit, status=None, severity=severity, category=category)
+    blockers = [item for item in queue["items"] if item["status"] == "needs_review"]
+    gate_status = "blocked_by_open_security_reviews" if blockers else "clear_for_security_review_queue_only"
+    return {
+        "contract_version": SECURITY_REVIEW_QUEUE_CONTRACT_VERSION,
+        "mode": "read_only_security_review_gate_summary",
+        "endpoint": "GET /api/v1/security/review-queue/gate",
+        "queue_endpoint": "GET /api/v1/security/review-queue",
+        "snapshot_endpoint": "GET /api/v1/security/review-queue/snapshot",
+        "evidence_ref": SECURITY_REVIEW_GATE_EVIDENCE_REF,
+        "queue_evidence_ref": SECURITY_REVIEW_QUEUE_EVIDENCE_REF,
+        "snapshot_evidence_ref": SECURITY_REVIEW_SNAPSHOT_EVIDENCE_REF,
+        "read_only": True,
+        "filters": {
+            "limit": limit,
+            "severity": severity,
+            "category": category,
+        },
+        "gate_status": gate_status,
+        "blocker_count": len(blockers),
+        "monitoring_count": int(queue["status_counts"].get("monitoring", 0)),
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "release_authority": "outside_security_review_queue",
+        "risk_badges": queue["risk_badges"],
+        "blockers": [
+            {
+                "queue_item_id": item["queue_item_id"],
+                "source_event_id": item["source_event_id"],
+                "event_type": item["event_type"],
+                "category": item["category"],
+                "severity": item["severity"],
+                "status": item["status"],
+                "risk_badge": item["risk_badge"],
+                "request_id": item["request_id"],
+                "trace_id": item["trace_id"],
+                "evidence_ref": item["evidence_ref"],
+                "redaction_evidence_ref": item["redaction_evidence_ref"],
+            }
+            for item in blockers[:10]
+        ],
+        "policy_checks": [
+            "This gate summary is read-only and derived from security review queue items.",
+            "Open needs_review items block this advisory security-review gate.",
+            "This endpoint never approves production promotion or release rollout.",
+            "Blockers expose IDs and evidence refs only; raw audit detail payloads stay hidden.",
+        ],
+        "non_claims": [
+            "No production rollout is claimed or authorized.",
+            "No production release approval is granted by this endpoint.",
+            "No live provider calls, live MCP writes, file edits, or cloud mutations are enabled.",
+            "No secret values, raw prompt bodies, cookies, authorization headers, or raw files are returned.",
+        ],
+    }
+
+
 @app.get("/api/v1/security/review-queue/contract")
 def security_review_queue_contract() -> dict[str, object]:
     return security_review_queue_contract_payload()
@@ -5922,6 +5983,15 @@ def security_review_queue_snapshot(
         ],
         "non_claims": security_review_queue_contract_payload()["non_claims"],
     }
+
+
+@app.get("/api/v1/security/review-queue/gate")
+def security_review_queue_gate(
+    limit: int = Query(default=50, ge=1, le=100),
+    severity: str | None = Query(default=None),
+    category: str | None = Query(default=None),
+) -> dict[str, object]:
+    return build_security_review_gate(limit=limit, severity=severity, category=category)
 
 
 @app.api_route(

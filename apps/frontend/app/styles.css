@@ -887,6 +887,45 @@ button:disabled {
   color: #a5f3fc;
 }
 
+.securityReviewGate {
+  border: 1px solid #334155;
+  background: #08111f;
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 10px;
+}
+
+.securityReviewGate div {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.securityReviewGate strong,
+.securityReviewGate span,
+.securityReviewGate small {
+  overflow-wrap: anywhere;
+}
+
+.securityReviewGate span {
+  border: 1px solid #475569;
+  color: #dbeafe;
+  font-size: 12px;
+  padding: 3px 6px;
+}
+
+.securityReviewGateBlocked span {
+  border-color: #fb7185;
+  color: #fecdd3;
+}
+
+.securityReviewGateClear span {
+  border-color: #22d3ee;
+  color: #a5f3fc;
+}
+
 .costSummary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

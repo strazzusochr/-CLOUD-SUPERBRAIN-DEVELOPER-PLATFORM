@@ -253,6 +253,8 @@ Assert-Contains "security review queue mutation marker" $frontendHtml "security_
 Assert-Contains "security review queue filter marker" $frontendHtml "security_review_filter_state_visible"
 Assert-Contains "security review queue decision marker" $frontendHtml "security_review_decision_history_visible"
 Assert-Contains "security review queue snapshot marker" $frontendHtml "security_review_evidence_snapshot_visible"
+Assert-Contains "security review gate marker" $frontendHtml "security_review_gate_summary_visible"
+Assert-Contains "security review gate panel" $frontendHtml "Security Review Gate Summary"
 Assert-Contains "security review queue endpoint marker" $frontendHtml "GET /api/v1/security/review-queue"
 Assert-Contains "trace id contract panel" $frontendHtml "Trace ID Contract"
 Assert-Contains "cache control contract panel" $frontendHtml "Cache Control Contract"
@@ -455,11 +457,19 @@ Assert-Contains "security review queue evidence" $securityReviewContract "securi
 Assert-Contains "security review item evidence" $securityReviewContract "security_review_item_visible"
 Assert-Contains "security review redaction evidence" $securityReviewContract "security_review_redaction_enforced"
 Assert-Contains "security review mutation evidence" $securityReviewContract "security_review_mutation_blocked"
+Assert-Contains "security review gate evidence" $securityReviewContract "security_review_gate_summary_visible"
+Assert-Contains "security review gate endpoint" $securityReviewContract "GET /api/v1/security/review-queue/gate"
 
 $securityReviewQueue = Invoke-Text "$BaseUrl/api/v1/security/review-queue?limit=5"
 Assert-Contains "security review queue contract" $securityReviewQueue '"contract_version":"security-review-queue-v1"'
 Assert-Contains "security review queue evidence" $securityReviewQueue "security_review_queue_visible"
 Assert-Contains "security review queue item evidence" $securityReviewQueue "security_review_item_visible"
+$securityReviewGate = Invoke-Text "$BaseUrl/api/v1/security/review-queue/gate?limit=5"
+Assert-Contains "security review gate contract" $securityReviewGate '"contract_version":"security-review-queue-v1"'
+Assert-Contains "security review gate mode" $securityReviewGate "read_only_security_review_gate_summary"
+Assert-Contains "security review gate evidence" $securityReviewGate "security_review_gate_summary_visible"
+Assert-Contains "security review gate non rollout" $securityReviewGate '"production_rollout_claimed":false'
+Assert-Contains "security review gate no promotion" $securityReviewGate '"promotion_allowed":false'
 $traceContract = Invoke-Text "$BaseUrl/api/v1/trace/contract"
 Assert-Contains "trace contract version" $traceContract '"contract_version":"trace-id-propagation-v1"'
 Assert-Contains "trace contract evidence" $traceContract "trace_id_header_roundtrip"
