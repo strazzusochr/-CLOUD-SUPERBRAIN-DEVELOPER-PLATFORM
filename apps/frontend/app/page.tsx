@@ -974,6 +974,58 @@ type AuthContract = {
   non_claims: string[];
 };
 
+type AuthAuditEvent = {
+  event_id: string;
+  event_type: string;
+  trace_id: string | null;
+  lifecycle_step: string;
+  status: string;
+  severity: string | null;
+  created_at: string | null;
+  code_present: boolean | null;
+  cookie_flags: {
+    HttpOnly: boolean | null;
+    Secure: boolean | null;
+    SameSite: string | null;
+  };
+  live_github_oauth_call: boolean;
+  evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_oauth_evidence_ref: string;
+};
+
+type AuthAuditSnapshot = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  contract_endpoint: string;
+  source_table: string;
+  source_event_types: string[];
+  evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_oauth_evidence_ref: string;
+  read_only: boolean;
+  live_github_oauth_call_claimed: boolean;
+  tokens_returned: boolean;
+  cookies_returned: boolean;
+  authorization_headers_returned: boolean;
+  blacklist_keys_returned: boolean;
+  oauth_codes_returned: boolean;
+  oauth_states_returned: boolean;
+  events_scanned: number;
+  event_type_counts: Record<string, number>;
+  lifecycle_step_counts: Record<string, number>;
+  severity_counts: Record<string, number>;
+  live_github_oauth_call_count: number;
+  forbidden_pattern_hits: number;
+  redaction_status: string;
+  oauth_status: string;
+  events: AuthAuditEvent[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
 type MemoryPurgeContract = {
   contract_version: string;
   mode: string;
@@ -2207,6 +2259,7 @@ export default function Home() {
   const [externalGates, setExternalGates] = useState<ExternalGatesState | null>(null);
   const [externalGateMirror, setExternalGateMirror] = useState<ExternalGateMirrorContract | null>(null);
   const [authContract, setAuthContract] = useState<AuthContract | null>(null);
+  const [authAuditSnapshot, setAuthAuditSnapshot] = useState<AuthAuditSnapshot | null>(null);
   const [memoryPurgeContract, setMemoryPurgeContract] = useState<MemoryPurgeContract | null>(null);
   const [workflowDispatch, setWorkflowDispatch] = useState<WorkflowDispatchPlan | null>(null);
   const [githubBranchPrContract, setGithubBranchPrContract] = useState<GithubBranchPrContract | null>(null);
@@ -2507,9 +2560,15 @@ export default function Home() {
   }
 
   async function loadAuthContract() {
-    const response = await fetch("/api/v1/auth/contract", { cache: "no-store" });
+    const [response, auditResponse] = await Promise.all([
+      fetch("/api/v1/auth/contract", { cache: "no-store" }),
+      fetch("/api/v1/audit/auth/snapshot?limit=80", { cache: "no-store" }),
+    ]);
     if (!response.ok) throw new Error(`auth contract ${response.status}`);
     setAuthContract(await response.json());
+    if (auditResponse.ok) {
+      setAuthAuditSnapshot(await auditResponse.json());
+    }
   }
 
   async function loadMemoryPurgeContract() {
@@ -7131,6 +7190,65 @@ export default function Home() {
                 auth_refresh_reuse_blocked / auth_logout_revoked
               </small>
             </article>
+          </div>
+          <div className="auditSnapshot">
+            <strong>Auth Audit Snapshot</strong>
+            <span>
+              {authAuditSnapshot?.redaction_status ?? "clear"} / events{" "}
+              {String(authAuditSnapshot?.events_scanned ?? 0)} / forbidden hits{" "}
+              {String(authAuditSnapshot?.forbidden_pattern_hits ?? 0)}
+            </span>
+            <small>
+              {authAuditSnapshot?.contract_version ?? "auth-audit-snapshot-v1"} /{" "}
+              {authAuditSnapshot?.evidence_ref ?? "auth_audit_snapshot_visible"}
+            </small>
+            <small>
+              Endpoint: {authAuditSnapshot?.endpoint ?? "GET /api/v1/audit/auth/snapshot"}
+            </small>
+            <small>
+              Redaction: {authAuditSnapshot?.redaction_evidence_ref ?? "auth_audit_redaction_enforced"} /
+              No-live-OAuth: {authAuditSnapshot?.no_live_oauth_evidence_ref ?? "auth_no_live_oauth_guard"}
+            </small>
+            <small>
+              live_github_oauth_call_claimed={String(authAuditSnapshot?.live_github_oauth_call_claimed ?? false)} /
+              tokens_returned={String(authAuditSnapshot?.tokens_returned ?? false)} /
+              blacklist_keys_returned={String(authAuditSnapshot?.blacklist_keys_returned ?? false)}
+            </small>
+          </div>
+          <div className="auditList">
+            {authAuditSnapshot?.events?.length ? (
+              authAuditSnapshot.events.slice(0, 6).map((event) => (
+                <article className="auditItem" key={`auth-audit-${event.event_id}`}>
+                  <div>
+                    <strong>{event.lifecycle_step}</strong>
+                    <span className="severity severity-info">{event.status}</span>
+                  </div>
+                  <small>
+                    {event.event_type} / {event.created_at ?? "no timestamp"}
+                  </small>
+                  <small>Trace: {event.trace_id ?? "none"}</small>
+                  <small>
+                    Cookie flags: HttpOnly={String(event.cookie_flags.HttpOnly ?? false)} / Secure=
+                    {String(event.cookie_flags.Secure ?? false)} / SameSite={event.cookie_flags.SameSite ?? "none"}
+                  </small>
+                  <small>
+                    Evidence: {event.evidence_ref} / {event.redaction_evidence_ref} /{" "}
+                    {event.no_live_oauth_evidence_ref}
+                  </small>
+                </article>
+              ))
+            ) : (
+              <article className="auditItem auditItemEmpty">
+                <div>
+                  <strong>No auth audit events yet.</strong>
+                  <span className="severity severity-info">read-only</span>
+                </div>
+                <small>Endpoint: GET /api/v1/audit/auth/snapshot</small>
+                <small>Contract: auth-audit-snapshot-v1</small>
+                <small>Evidence: auth_audit_snapshot_visible / auth_audit_redaction_enforced</small>
+                <small>Guard: auth_no_live_oauth_guard</small>
+              </article>
+            )}
           </div>
           <div className="gateList">
             {authContract?.policy_checks?.length ? (

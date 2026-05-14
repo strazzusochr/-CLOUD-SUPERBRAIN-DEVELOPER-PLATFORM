@@ -16,6 +16,8 @@ This contract exposes a read-only operator surface for security-relevant `audit_
 | `GET` | `/api/v1/security/events/contract` | Contract metadata, supported event types, evidence refs, and non-claims |
 | `GET` | `/api/v1/security/events?limit=20` | Recent security audit events |
 | `GET` | `/api/v1/security/events?event_type=security_csp_violation_reported` | Filtered security audit events |
+| `GET` | `/api/v1/audit/auth/contract` | Read-only auth audit snapshot contract |
+| `GET` | `/api/v1/audit/auth/snapshot?limit=80` | Safe auth lifecycle audit snapshot |
 | `GET` | `/api/v1/security/gateway-correlation/contract` | Read-only Agent/LLM/MCP correlation contract |
 | `GET` | `/api/v1/security/gateway-correlation/snapshot?limit=80` | Safe correlation snapshot across agent task, LLM audit, and MCP audit rows |
 | `GET` | `/api/v1/security/gateway-correlation/risk-rollup?limit=80` | Read-only risk rollup computed from gateway correlation groups |
@@ -29,6 +31,15 @@ This contract exposes a read-only operator surface for security-relevant `audit_
 - `auth_logout_revoked`
 - `mcp_tool_executed`
 - `llm_gateway_request`
+
+## Auth Audit Snapshot
+
+Contract version: `auth-audit-snapshot-v1`
+Evidence: `auth_audit_snapshot_visible`, `auth_audit_redaction_enforced`, `auth_no_live_oauth_guard`
+
+The auth audit snapshot reads `audit_log` rows for dry-run GitHub callback, refresh-token rotation, refresh-token reuse block, and logout revoke events. It exposes only safe lifecycle fields: event id, event type, trace id, lifecycle step, status, severity, timestamp, evidence refs, no-live-OAuth evidence, and boolean cookie flag summaries when recorded.
+
+It never returns access tokens, refresh tokens, cookies, authorization headers, OAuth code/state values, Redis blacklist keys, raw request details, or live GitHub OAuth claims. The verifier `scripts/verify-phase3-auth-audit-snapshot.ps1` performs GET-only checks by default and can require seeded lifecycle rows with `-RequireLifecycle`.
 
 ## Gateway Correlation Snapshot
 
@@ -70,7 +81,8 @@ The verifier `scripts/verify-phase3-gateway-correlation-timeline.ps1` performs G
 3. Events expose `request_id` and `trace_id` when the source audit writer recorded them.
 4. Redacted audit details must not reveal provider tokens, API keys, prompt bodies, or browser cookies.
 5. Evidence refs must include `security_audit_surface_visible` and `security_audit_event_visible`.
-6. Gateway correlation evidence must include `gateway_correlation_snapshot_visible`, `gateway_correlation_risk_rollup_visible`, `gateway_correlation_timeline_visible`, `gateway_correlation_redaction_enforced`, and `gateway_correlation_no_live_write_guard`.
+6. Auth audit evidence must include `auth_audit_snapshot_visible`, `auth_audit_redaction_enforced`, and `auth_no_live_oauth_guard`.
+7. Gateway correlation evidence must include `gateway_correlation_snapshot_visible`, `gateway_correlation_risk_rollup_visible`, `gateway_correlation_timeline_visible`, `gateway_correlation_redaction_enforced`, and `gateway_correlation_no_live_write_guard`.
 
 ## Non-Claims
 

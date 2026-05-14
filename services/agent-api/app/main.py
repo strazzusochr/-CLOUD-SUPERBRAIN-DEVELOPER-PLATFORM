@@ -1055,6 +1055,10 @@ class MemoryEntryDeleteRequest(BaseModel):
 AUTH_ACCESS_TOKEN_TTL_SECONDS = 15 * 60
 AUTH_REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60
 AUTH_BLACKLIST_PREFIX = "auth:refresh:blacklist:"
+AUTH_AUDIT_SNAPSHOT_CONTRACT_VERSION = "auth-audit-snapshot-v1"
+AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF = "auth_audit_snapshot_visible"
+AUTH_AUDIT_REDACTION_EVIDENCE_REF = "auth_audit_redaction_enforced"
+AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF = "auth_no_live_oauth_guard"
 DSGVO_PURGE_CONTRACT_VERSION = "memory-dsgvo-purge-v1"
 COST_EXPORT_CONTRACT_VERSION = "cost-monitor-export-v1"
 SYSTEM_FALLBACK_CONTRACT_VERSION = "system-unavailable-fallback-v1"
@@ -1558,12 +1562,17 @@ def auth_contract_payload() -> dict[str, object]:
             "callback": "/api/v1/auth/callback",
             "refresh": "/api/v1/auth/refresh",
             "logout": "/api/v1/auth/logout",
+            "audit_contract": "/api/v1/audit/auth/contract",
+            "audit_snapshot": "/api/v1/audit/auth/snapshot",
         },
         "evidence_refs": {
             "contract": "auth_contract_visible",
             "refresh_rotated": "auth_refresh_rotated",
             "refresh_reuse_blocked": "auth_refresh_reuse_blocked",
             "logout_revoked": "auth_logout_revoked",
+            "audit_snapshot": AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF,
+            "audit_redaction": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+            "no_live_oauth": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
         },
         "policy_checks": [
             "Access JWT expires after 900 seconds.",
@@ -1577,6 +1586,165 @@ def auth_contract_payload() -> dict[str, object]:
             "No live GitHub OAuth exchange is claimed without GitHub OAuth credentials.",
             "This local proof validates token lifecycle mechanics, not production identity ownership.",
         ],
+    }
+
+
+AUTH_AUDIT_EVENT_TYPES = (
+    "auth_github_callback_contract",
+    "auth_refresh_rotated",
+    "auth_refresh_reuse_blocked",
+    "auth_logout_revoked",
+)
+
+
+def auth_audit_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": AUTH_AUDIT_SNAPSHOT_CONTRACT_VERSION,
+        "parent_contract_version": "auth-github-jwt-refresh-v1",
+        "mode": "read_only_auth_audit_snapshot",
+        "endpoint": "GET /api/v1/audit/auth/snapshot",
+        "contract_endpoint": "GET /api/v1/audit/auth/contract",
+        "source_table": "audit_log",
+        "source_event_types": list(AUTH_AUDIT_EVENT_TYPES),
+        "evidence_ref": AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+        "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+        "read_only": True,
+        "live_github_oauth_call_claimed": False,
+        "tokens_returned": False,
+        "cookies_returned": False,
+        "authorization_headers_returned": False,
+        "blacklist_keys_returned": False,
+        "oauth_codes_returned": False,
+        "oauth_states_returned": False,
+        "safe_event_fields": [
+            "event_id",
+            "event_type",
+            "trace_id",
+            "lifecycle_step",
+            "status",
+            "severity",
+            "created_at",
+            "code_present",
+            "cookie_flags",
+            "live_github_oauth_call",
+            "evidence_ref",
+            "redaction_evidence_ref",
+            "no_live_oauth_evidence_ref",
+        ],
+        "policy_checks": [
+            "Snapshot reads audit_log only and never starts OAuth, refresh, logout, or token issuance flows.",
+            "Returned events are reduced to safe auth lifecycle fields only.",
+            "Refresh tokens, access tokens, cookies, authorization headers, OAuth code/state values, and Redis blacklist keys are omitted.",
+            "Any live GitHub OAuth call claim or forbidden credential pattern blocks the snapshot.",
+        ],
+        "non_claims": [
+            "This endpoint does not perform or prove a live GitHub OAuth exchange.",
+            "This endpoint does not return tokens, cookies, OAuth codes, OAuth states, Redis blacklist keys, or authorization headers.",
+            "This endpoint does not authorize production identity rollout or release promotion.",
+        ],
+    }
+
+
+def auth_audit_rows(limit: int) -> list[object]:
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        return conn.execute(
+            """
+            SELECT id, event_type, user_id, session_id, details, created_at, severity
+            FROM audit_log
+            WHERE event_type IN (
+              'auth_github_callback_contract',
+              'auth_refresh_rotated',
+              'auth_refresh_reuse_blocked',
+              'auth_logout_revoked'
+            )
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        ).fetchall()
+
+
+def auth_lifecycle_step(event_type: str) -> str:
+    if event_type == "auth_github_callback_contract":
+        return "dry_run_callback"
+    if event_type == "auth_refresh_rotated":
+        return "refresh_rotation"
+    if event_type == "auth_refresh_reuse_blocked":
+        return "refresh_reuse_block"
+    if event_type == "auth_logout_revoked":
+        return "logout_revoke"
+    return "unknown"
+
+
+def safe_auth_audit_event(row: object) -> dict[str, object]:
+    details = row[4] or {}
+    if not isinstance(details, dict):
+        details = {}
+    event_type = str(row[1])
+    trace_id = str(details.get("trace_id") or row[3] or "") or None
+    live_github_oauth_call = bool(details.get("live_github_oauth_call") is True)
+    cookie_flags = details.get("cookie_flags") if isinstance(details.get("cookie_flags"), dict) else {}
+    return {
+        "event_id": str(row[0]),
+        "event_type": event_type,
+        "trace_id": trace_id,
+        "lifecycle_step": auth_lifecycle_step(event_type),
+        "status": "blocked" if event_type == "auth_refresh_reuse_blocked" else "verified",
+        "severity": row[6],
+        "created_at": row[5].isoformat() if row[5] else None,
+        "code_present": bool(details.get("code_present")) if "code_present" in details else None,
+        "cookie_flags": {
+            "HttpOnly": bool(cookie_flags.get("HttpOnly")) if "HttpOnly" in cookie_flags else None,
+            "Secure": bool(cookie_flags.get("Secure")) if "Secure" in cookie_flags else None,
+            "SameSite": str(cookie_flags.get("SameSite")) if cookie_flags.get("SameSite") else None,
+        },
+        "live_github_oauth_call": live_github_oauth_call,
+        "evidence_ref": event_type,
+        "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+        "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+    }
+
+
+def auth_audit_forbidden_pattern_hits(events: list[dict[str, object]]) -> int:
+    forbidden = (
+        "sk-proj-",
+        "sk-",
+        "ghp_",
+        "github_pat_",
+        "vck_",
+        "cfat_",
+        "hcloud_",
+        "hf_",
+        "glpat-",
+        "authorization:",
+        "cookie:",
+        "set-cookie",
+        '"access_token":',
+        '"refresh_token":',
+        '"blacklist_key":',
+        '"code":',
+        '"state":',
+        "private key",
+    )
+    text = json.dumps(events, sort_keys=True).lower()
+    return sum(1 for marker in forbidden if marker in text)
+
+
+def build_auth_audit_snapshot(events: list[dict[str, object]]) -> dict[str, object]:
+    forbidden_pattern_hits = auth_audit_forbidden_pattern_hits(events)
+    live_github_oauth_call_count = sum(1 for event in events if event.get("live_github_oauth_call") is True)
+    return {
+        **auth_audit_contract_payload(),
+        "events_scanned": len(events),
+        "event_type_counts": count_by_key([str(event.get("event_type")) for event in events]),
+        "lifecycle_step_counts": count_by_key([str(event.get("lifecycle_step")) for event in events]),
+        "severity_counts": count_by_key([str(event.get("severity")) if event.get("severity") else None for event in events]),
+        "live_github_oauth_call_count": live_github_oauth_call_count,
+        "forbidden_pattern_hits": forbidden_pattern_hits,
+        "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+        "oauth_status": "dry_run_only" if live_github_oauth_call_count == 0 else "blocked",
+        "events": events[:20],
     }
 
 
@@ -4526,6 +4694,20 @@ def cloud_deployment_preflight_contract() -> dict[str, object]:
 @app.get("/api/v1/auth/contract")
 def auth_contract() -> dict[str, object]:
     return auth_contract_payload()
+
+
+@app.get("/api/v1/audit/auth/contract")
+@app.get("/api/v1/auth/audit/contract")
+def auth_audit_contract() -> dict[str, object]:
+    return auth_audit_contract_payload()
+
+
+@app.get("/api/v1/audit/auth/snapshot")
+@app.get("/api/v1/auth/audit/snapshot")
+def auth_audit_snapshot(limit: int = Query(default=80, ge=1, le=200)) -> dict[str, object]:
+    rows = auth_audit_rows(limit)
+    events = [safe_auth_audit_event(row) for row in rows]
+    return build_auth_audit_snapshot(events)
 
 
 @app.get("/api/v1/auth/github")
