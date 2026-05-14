@@ -6,7 +6,7 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-Current honesty guardrail: the active staging candidate is `7a849155a7b6c3f2dd3ba93ff9fa306ad87b9296`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
+Current honesty guardrail: the active staging candidate is `efa2035e565a500b4c530fffdbab5016853a910e`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
 
 ## Binding Truth
 
@@ -29,18 +29,18 @@ Follow `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` over older planning f
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 
-Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `77%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, LLM Audit Feed Redaction Snapshot proof, MCP Audit Redaction Snapshot proof, Gateway Correlation Snapshot proof, Gateway Correlation Risk Rollup proof, Gateway Correlation Timeline proof, and Auth Audit Snapshot proof. Continue Phase-3 security/product-surface evidence before rollout.
+Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `78%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, LLM Audit Feed Redaction Snapshot proof, MCP Audit Redaction Snapshot proof, Gateway Correlation Snapshot proof, Gateway Correlation Risk Rollup proof, Gateway Correlation Timeline proof, Auth Audit Snapshot proof, Auth Audit Risk Rollup proof, Auth Audit Timeline proof, and Auth Audit Export proof. Continue Phase-3 security/product-surface evidence before rollout.
 
 ## Current Verified Progress
 
-Overall: `77%`
+Overall: `78%`
 
 Horizontal:
 
 - P0: `100%`
 - P1: `100%`
 - P2: `88%`
-- P3: `80%`
+- P3: `86%`
 - P4: `100%`
 - P5: `74%`
 - P6: `0%`
@@ -59,7 +59,16 @@ Older percentage lines below are historical proof points only. Current percentag
 
 ## Latest Verified Step
 
-Auth Audit Snapshot Proof:
+Auth Audit Export Proof:
+
+- `GET /api/v1/audit/auth/export/contract` exposes `auth-audit-export-v1`, `auth_audit_export_visible`, `auth_audit_export_audit_persisted`, `auth_audit_redaction_enforced`, and `auth_no_live_oauth_guard`.
+- `GET /api/v1/audit/auth/export?format=csv&limit=80` reads only the same safe Auth Audit projection as snapshot, risk rollup, and timeline and emits allowlisted CSV columns only.
+- Export and export audit metadata do not return tokens, cookies, authorization headers, OAuth code/state values, Redis blacklist keys, raw details, live GitHub OAuth claims, production rollout claims, or promotion claims.
+- Local proof passed: `scripts\verify-phase3-auth-audit-export.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireLifecycle`, Auth Audit Snapshot/Risk Rollup/Timeline local verifiers, browser-contract, py_compile, Next.js build, Docker readiness, security, evidence-artifact-safety, and manifest validation.
+- Hosted proof passed after GHCR build/push plus Hetzner immutable deploy for `IMAGE_TAG=efa2035e565a500b4c530fffdbab5016853a910e`: auth lifecycle, auth-audit export, auth-audit snapshot, auth-audit risk-rollup, auth-audit timeline, browser-contract, hosted-staging, and full Phase-3 suite.
+- Progress change: Overall remains `78%`; Phase 3 rises to `86%`; no production rollout, live GitHub OAuth claim, live provider call, live MCP write, release promotion, or secret exposure is claimed.
+
+Previous verified step - Auth Audit Snapshot Proof:
 
 - `GET /api/v1/audit/auth/contract` exposes `auth-audit-snapshot-v1`, `parent_contract_version=auth-github-jwt-refresh-v1`, `read_only=true`, `auth_audit_snapshot_visible`, `auth_audit_redaction_enforced`, and `auth_no_live_oauth_guard`.
 - `GET /api/v1/audit/auth/snapshot` reads only `audit_log`, returns safe Auth lifecycle fields, counts callback/refresh/logout events, and does not return tokens, cookies, authorization headers, OAuth code/state values, Redis blacklist keys, or raw details.

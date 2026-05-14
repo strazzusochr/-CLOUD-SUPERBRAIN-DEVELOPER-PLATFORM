@@ -1,27 +1,27 @@
 # Release Artifact
 
 release_id: `prod-candidate-2026-05-11-rc1`
-scope: `release-boundary cleanup, HF router truth, frontend build, agent-api/runtime compile checks, hosted staging smoke checks, immutable staging image candidate, Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Auth Audit Snapshot`
+scope: `release-boundary cleanup, HF router truth, frontend build, agent-api/runtime compile checks, hosted staging smoke checks, immutable staging image candidate, Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline, Auth Audit Export`
 environment: `production-candidate`
 source_branch: `chore/repo-bootstrap`
 image_build_branch: `codex/live-agent-steering-ui-20260513`
-source_commit_sha: `7a849155a7b6c3f2dd3ba93ff9fa306ad87b9296`
-source_commit_semantics: `Vercel production branch remains chore/repo-bootstrap; immutable GHCR images were built from codex/live-agent-steering-ui-20260513 at the current validated runtime head including live-agent UI/runtime state, Phase 5 runtime-selector truth, immutable image-filesystem staging proof, the Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, and Auth Audit Snapshot`
-immutable_image_commit_sha: `7a849155a7b6c3f2dd3ba93ff9fa306ad87b9296`
+source_commit_sha: `efa2035e565a500b4c530fffdbab5016853a910e`
+source_commit_semantics: `Vercel production branch remains chore/repo-bootstrap; immutable GHCR images were built from codex/live-agent-steering-ui-20260513 at the current validated runtime head including live-agent UI/runtime state, Phase 5 runtime-selector truth, immutable image-filesystem staging proof, the Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline, and Auth Audit Export`
+immutable_image_commit_sha: `efa2035e565a500b4c530fffdbab5016853a910e`
 workflow_run_url: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25833000061`
-pipeline_status: `local Docker Buildx with arm64 binfmt built and pushed all six GHCR images for 7a849155a7b6c3f2dd3ba93ff9fa306ad87b9296 after py_compile, Next.js build, local auth-audit snapshot verifier, local browser-contract, security verifier, and evidence artifact safety verifier passed; hosted immutable deploy plus hosted auth lifecycle, hosted auth-audit snapshot, full Phase-3 suite, browser, and smoke verifiers passed after push`
+pipeline_status: `local Docker Buildx with arm64 binfmt built and pushed all six GHCR images for efa2035e565a500b4c530fffdbab5016853a910e after py_compile, Next.js build, local auth-audit export/snapshot/risk-rollup/timeline verifiers, local browser-contract, security verifier, and evidence artifact safety verifier passed; hosted immutable deploy plus hosted auth lifecycle, hosted auth-audit export, hosted auth-audit snapshot, hosted auth-audit risk-rollup, hosted auth-audit timeline, full Phase-3 suite, browser, and hosted-staging verifiers passed after push`
 smoke_result: `passed`
 observability_check: `present`
 rollback_note: `no production rollout performed; rollback remains the existing hosted staging rollback path`
-immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:7a849155a7b6c3f2dd3ba93ff9fa306ad87b9296`
+immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:efa2035e565a500b4c530fffdbab5016853a910e`
 owner_decision: `approved`
-hosted_selector_observed: `IMAGE_TAG=7a849155a7b6c3f2dd3ba93ff9fa306ad87b9296`
-hosted_selector_observed_at: `2026-05-14T09:39:46Z`
-frontend_runtime_image_observed: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:7a849155a7b6c3f2dd3ba93ff9fa306ad87b9296`
+hosted_selector_observed: `IMAGE_TAG=efa2035e565a500b4c530fffdbab5016853a910e`
+hosted_selector_observed_at: `2026-05-14T14:08:39+02:00`
+frontend_runtime_image_observed: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:efa2035e565a500b4c530fffdbab5016853a910e`
 immutable_staging_parity_status: `verified`
 active_candidate_gate_rerun_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-candidate-gate-rerun.md`
 runtime_selector_truth_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-runtime-selector-truth.md`
-immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-auth-audit-snapshot-immutable-staging-20260514.md`
+immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-auth-audit-export-immutable-staging-20260514.md`
 
 ## Verification Evidence
 
