@@ -134,9 +134,12 @@ LLM_AUDIT_NO_LIVE_PROVIDER_EVIDENCE_REF = "llm_audit_no_live_provider_guard"
 GATEWAY_CORRELATION_CONTRACT_VERSION = "gateway-correlation-snapshot-v1"
 GATEWAY_CORRELATION_RISK_ROLLUP_CONTRACT_VERSION = "gateway-correlation-risk-rollup-v1"
 GATEWAY_CORRELATION_TIMELINE_CONTRACT_VERSION = "gateway-correlation-timeline-v1"
+GATEWAY_CORRELATION_EXPORT_CONTRACT_VERSION = "gateway-correlation-export-v1"
 GATEWAY_CORRELATION_EVIDENCE_REF = "gateway_correlation_snapshot_visible"
 GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF = "gateway_correlation_risk_rollup_visible"
 GATEWAY_CORRELATION_TIMELINE_EVIDENCE_REF = "gateway_correlation_timeline_visible"
+GATEWAY_CORRELATION_EXPORT_EVIDENCE_REF = "gateway_correlation_export_visible"
+GATEWAY_CORRELATION_EXPORT_AUDIT_EVIDENCE_REF = "gateway_correlation_export_audit_persisted"
 GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF = "gateway_correlation_redaction_enforced"
 GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF = "gateway_correlation_no_live_write_guard"
 MCP_AUDIT_FEED_CONTRACT_VERSION = "mcp-audit-feed-v1"
@@ -6795,17 +6798,24 @@ def gateway_correlation_contract_payload() -> dict[str, object]:
         "endpoint": "GET /api/v1/security/gateway-correlation/snapshot",
         "risk_rollup_endpoint": "GET /api/v1/security/gateway-correlation/risk-rollup",
         "timeline_endpoint": "GET /api/v1/security/gateway-correlation/timeline",
+        "export_endpoint": "GET /api/v1/security/gateway-correlation/export?format=csv&limit=80",
         "contract_endpoint": "GET /api/v1/security/gateway-correlation/contract",
+        "export_contract_endpoint": "GET /api/v1/security/gateway-correlation/export/contract",
         "risk_rollup_contract_version": GATEWAY_CORRELATION_RISK_ROLLUP_CONTRACT_VERSION,
         "timeline_contract_version": GATEWAY_CORRELATION_TIMELINE_CONTRACT_VERSION,
+        "export_contract_version": GATEWAY_CORRELATION_EXPORT_CONTRACT_VERSION,
         "source_table": "audit_log",
         "source_event_types": list(GATEWAY_CORRELATION_EVENT_TYPES),
+        "supported_export_formats": ["csv"],
         "evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
         "risk_rollup_evidence_ref": GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF,
         "timeline_evidence_ref": GATEWAY_CORRELATION_TIMELINE_EVIDENCE_REF,
+        "export_evidence_ref": GATEWAY_CORRELATION_EXPORT_EVIDENCE_REF,
+        "export_audit_evidence_ref": GATEWAY_CORRELATION_EXPORT_AUDIT_EVIDENCE_REF,
         "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
         "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
         "read_only": True,
+        "audit_persisted": True,
         "live_provider_calls_claimed": False,
         "live_mcp_writes_claimed": False,
         "safe_event_fields": [
@@ -6859,6 +6869,30 @@ def gateway_correlation_contract_payload() -> dict[str, object]:
             "redaction_evidence_ref",
             "no_live_write_evidence_ref",
         ],
+        "export_columns": [
+            "sequence_index",
+            "correlation_key",
+            "trace_id",
+            "request_id",
+            "session_id",
+            "correlation_state",
+            "event_count",
+            "event_types",
+            "has_agent_task",
+            "has_llm_audit",
+            "has_mcp_audit",
+            "risk_status",
+            "missing_legs",
+            "live_provider_call_count",
+            "live_mcp_write_count",
+            "evidence_ref",
+            "snapshot_evidence_ref",
+            "risk_rollup_evidence_ref",
+            "timeline_evidence_ref",
+            "export_audit_evidence_ref",
+            "redaction_evidence_ref",
+            "no_live_write_evidence_ref",
+        ],
         "policy_checks": [
             "Snapshot reads audit_log only and never executes an agent, LLM provider, MCP tool, or deployment action.",
             "Returned events are reduced to safe correlation fields; raw prompts, tool input refs, provider credentials, and raw details are omitted.",
@@ -6866,6 +6900,7 @@ def gateway_correlation_contract_payload() -> dict[str, object]:
             "The snapshot fails closed when live_provider_calls or live_mcp_writes appear in correlated evidence.",
             "The risk rollup is computed from the same read-only snapshot groups and never performs seed writes or live calls.",
             "The timeline is computed from the same safe event projection and never returns raw audit_log details.",
+            "The CSV export emits allowlisted correlation group fields and persists only redacted export metadata.",
         ],
         "non_claims": [
             "This endpoint does not authorize production rollout or release promotion.",
@@ -7239,9 +7274,183 @@ def build_gateway_correlation_risk_rollup(
     }
 
 
+def gateway_correlation_export_contract_payload() -> dict[str, object]:
+    contract = gateway_correlation_contract_payload()
+    return {
+        "contract_version": GATEWAY_CORRELATION_EXPORT_CONTRACT_VERSION,
+        "parent_contract_version": GATEWAY_CORRELATION_CONTRACT_VERSION,
+        "mode": "read_only_gateway_correlation_csv_export",
+        "endpoint": "GET /api/v1/security/gateway-correlation/export?format=csv&limit=80",
+        "contract_endpoint": "GET /api/v1/security/gateway-correlation/export/contract",
+        "snapshot_endpoint": "GET /api/v1/security/gateway-correlation/snapshot",
+        "risk_rollup_endpoint": "GET /api/v1/security/gateway-correlation/risk-rollup",
+        "timeline_endpoint": "GET /api/v1/security/gateway-correlation/timeline",
+        "source_table": "audit_log",
+        "source_event_types": list(GATEWAY_CORRELATION_EVENT_TYPES),
+        "supported_formats": ["csv"],
+        "default_format": "csv",
+        "default_limit": 80,
+        "max_limit": 200,
+        "filename_pattern": "superbrain-gateway-correlation.csv",
+        "columns": contract["export_columns"],
+        "evidence_ref": GATEWAY_CORRELATION_EXPORT_EVIDENCE_REF,
+        "export_audit_evidence_ref": GATEWAY_CORRELATION_EXPORT_AUDIT_EVIDENCE_REF,
+        "snapshot_evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
+        "risk_rollup_evidence_ref": GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF,
+        "timeline_evidence_ref": GATEWAY_CORRELATION_TIMELINE_EVIDENCE_REF,
+        "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+        "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+        "read_only": True,
+        "audit_persisted": True,
+        "live_provider_calls_claimed": False,
+        "live_mcp_writes_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "prompt_bodies_returned": False,
+        "tool_input_refs_returned": False,
+        "provider_credentials_returned": False,
+        "raw_details_returned": False,
+        "policy_checks": [
+            "Export reads audit_log through the same safe gateway correlation projection used by snapshot, risk rollup, and timeline.",
+            "Export emits allowlisted CSV columns over correlation groups only; raw audit details, prompts, tool inputs, and credentials are omitted.",
+            "Export never executes agents, calls LLM providers, executes MCP tools, writes external provider state, or promotes production.",
+            "Export audit logging stores only redacted metadata: contract version, row count, trace id, request id, format, and evidence refs.",
+        ],
+        "non_claims": contract["non_claims"],
+    }
+
+
+def build_gateway_correlation_export_csv(
+    events: list[dict[str, object]],
+    groups: list[dict[str, object]],
+) -> str:
+    output = io.StringIO()
+    fieldnames = gateway_correlation_export_contract_payload()["columns"]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
+    writer.writeheader()
+    risk_by_key = {
+        str(risk.get("correlation_key")): risk
+        for risk in (gateway_correlation_group_risk(group) for group in groups)
+    }
+    ordered_groups = sorted(groups, key=lambda group: str(group.get("correlation_key") or ""))
+    for index, group in enumerate(ordered_groups, start=1):
+        key = str(group.get("correlation_key") or "")
+        risk = risk_by_key.get(key, {})
+        event_types = group.get("event_types") if isinstance(group.get("event_types"), list) else []
+        missing_legs = risk.get("missing_legs") if isinstance(risk.get("missing_legs"), list) else []
+        csv_row = {
+            "sequence_index": index,
+            "correlation_key": key,
+            "trace_id": public_trace_id(group.get("trace_id")),
+            "request_id": public_request_id(group.get("request_id")),
+            "session_id": group.get("session_id"),
+            "correlation_state": group.get("correlation_state"),
+            "event_count": group.get("event_count"),
+            "event_types": "|".join(str(item) for item in event_types),
+            "has_agent_task": group.get("has_agent_task") is True,
+            "has_llm_audit": group.get("has_llm_audit") is True,
+            "has_mcp_audit": group.get("has_mcp_audit") is True,
+            "risk_status": risk.get("risk_status"),
+            "missing_legs": "|".join(str(item) for item in missing_legs),
+            "live_provider_call_count": group.get("live_provider_call_count"),
+            "live_mcp_write_count": group.get("live_mcp_write_count"),
+            "evidence_ref": GATEWAY_CORRELATION_EXPORT_EVIDENCE_REF,
+            "snapshot_evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
+            "risk_rollup_evidence_ref": GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF,
+            "timeline_evidence_ref": GATEWAY_CORRELATION_TIMELINE_EVIDENCE_REF,
+            "export_audit_evidence_ref": GATEWAY_CORRELATION_EXPORT_AUDIT_EVIDENCE_REF,
+            "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+            "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+        }
+        writer.writerow({field: csv_safe_value(csv_row.get(field)) for field in fieldnames})
+    return output.getvalue()
+
+
+def persist_gateway_correlation_export_audit(format: str, row_count: int, trace_id: str, request_id: str) -> None:
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, details, severity)
+                VALUES ('gateway_correlation_export_generated', 'gateway-correlation', %s::jsonb, 'info')
+                """,
+                (
+                    Json(
+                        redact_json(
+                            {
+                                "contract_version": GATEWAY_CORRELATION_EXPORT_CONTRACT_VERSION,
+                                "trace_id": trace_id,
+                                "request_id": request_id,
+                                "format": format,
+                                "row_count": row_count,
+                                "evidence_ref": GATEWAY_CORRELATION_EXPORT_AUDIT_EVIDENCE_REF,
+                                "export_evidence_ref": GATEWAY_CORRELATION_EXPORT_EVIDENCE_REF,
+                                "snapshot_evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
+                                "risk_rollup_evidence_ref": GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF,
+                                "timeline_evidence_ref": GATEWAY_CORRELATION_TIMELINE_EVIDENCE_REF,
+                                "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+                                "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+                                "live_provider_calls_claimed": False,
+                                "live_mcp_writes_claimed": False,
+                                "production_rollout_claimed": False,
+                                "promotion_allowed": False,
+                            }
+                        )
+                    ),
+                ),
+            )
+    except Exception as exc:  # pragma: no cover - audit persistence must not break exports
+        print(f"gateway correlation export audit failed: {exc}")
+
+
 @app.get("/api/v1/security/gateway-correlation/contract")
 def gateway_correlation_contract() -> dict[str, object]:
     return gateway_correlation_contract_payload()
+
+
+@app.get("/api/v1/security/gateway-correlation/export/contract")
+def gateway_correlation_export_contract() -> dict[str, object]:
+    return gateway_correlation_export_contract_payload()
+
+
+@app.get("/api/v1/security/gateway-correlation/export")
+def gateway_correlation_export(
+    request: Request,
+    format: str = Query(default="csv", pattern="^csv$"),
+    limit: int = Query(default=80, ge=1, le=200),
+    trace_id: str | None = Query(default=None, max_length=255),
+    request_id: str | None = Query(default=None, max_length=255),
+) -> Response:
+    if format != "csv":
+        raise HTTPException(status_code=400, detail={"error": "unsupported_format", "allowed": ["csv"]})
+    rows = gateway_correlation_rows(limit)
+    events = [safe_gateway_correlation_event(row) for row in rows]
+    groups = build_gateway_correlation_groups(events)
+    csv_payload = build_gateway_correlation_export_csv(events, groups)
+    row_count = max(0, len(csv_payload.splitlines()) - 1)
+    resolved_trace_id = public_trace_id(trace_id) or f"gateway-correlation-export-{uuid4()}"
+    resolved_request_id = (
+        public_request_id(request_id)
+        or public_request_id(getattr(request.state, "request_id", None))
+        or public_request_id(request.headers.get("x-request-id"))
+        or f"req-{uuid4()}"
+    )
+    persist_gateway_correlation_export_audit(format, row_count, resolved_trace_id, resolved_request_id)
+    filename = "superbrain-gateway-correlation.csv"
+    return Response(
+        csv_payload,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Contract-Version": GATEWAY_CORRELATION_EXPORT_CONTRACT_VERSION,
+            "X-Evidence-Ref": GATEWAY_CORRELATION_EXPORT_EVIDENCE_REF,
+            "X-Export-Audit-Evidence-Ref": GATEWAY_CORRELATION_EXPORT_AUDIT_EVIDENCE_REF,
+            "X-Redaction-Evidence-Ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+            "X-No-Live-Write-Evidence-Ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+            "X-Trace-Id": resolved_trace_id,
+            "X-Request-Id": resolved_request_id,
+        },
+    )
 
 
 @app.get("/api/v1/security/gateway-correlation/snapshot")

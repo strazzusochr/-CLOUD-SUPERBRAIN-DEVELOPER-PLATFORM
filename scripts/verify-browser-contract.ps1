@@ -276,6 +276,12 @@ Assert-Contains "mcp audit export evidence marker" $frontendHtml "mcp_audit_expo
 Assert-Contains "mcp audit export audit evidence marker" $frontendHtml "mcp_audit_export_audit_persisted"
 Assert-Contains "mcp audit export no-live marker" $frontendHtml "mcp_audit_no_live_write_guard"
 Assert-Contains "mcp audit export endpoint marker" $frontendHtml "GET /api/v1/audit/mcp/export"
+Assert-Contains "gateway correlation export panel" $frontendHtml "Gateway Correlation Export"
+Assert-Contains "gateway correlation export version marker" $frontendHtml "gateway-correlation-export-v1"
+Assert-Contains "gateway correlation export evidence marker" $frontendHtml "gateway_correlation_export_visible"
+Assert-Contains "gateway correlation export audit marker" $frontendHtml "gateway_correlation_export_audit_persisted"
+Assert-Contains "gateway correlation export no-live marker" $frontendHtml "gateway_correlation_no_live_write_guard"
+Assert-Contains "gateway correlation export endpoint marker" $frontendHtml "GET /api/v1/security/gateway-correlation/export"
 Assert-Contains "memory embedding consistency contract panel" $frontendHtml "Memory Embedding Consistency Contract"
 Assert-Contains "memory embedding consistency evidence marker" $frontendHtml "memory_embedding_consistency_contract_visible"
 Assert-Contains "memory consolidation panel" $frontendHtml "Memory Consolidation"
@@ -778,6 +784,15 @@ Assert-True "gateway correlation timeline count parity" ([int]$gatewayCorrelatio
 Assert-True "gateway correlation timeline no live provider count" ([int]$gatewayCorrelationTimelineJson.live_provider_call_count -eq 0)
 Assert-True "gateway correlation timeline no live mcp count" ([int]$gatewayCorrelationTimelineJson.live_mcp_write_count -eq 0)
 Assert-True "gateway correlation timeline redaction clear" ($gatewayCorrelationTimelineJson.redaction_status -eq "clear")
+
+$gatewayCorrelationExportContract = Invoke-Text "$BaseUrl/api/v1/security/gateway-correlation/export/contract"
+Assert-Contains "gateway correlation export contract version" $gatewayCorrelationExportContract '"contract_version":"gateway-correlation-export-v1"'
+Assert-Contains "gateway correlation export contract mode" $gatewayCorrelationExportContract "read_only_gateway_correlation_csv_export"
+Assert-Contains "gateway correlation export contract evidence" $gatewayCorrelationExportContract "gateway_correlation_export_visible"
+Assert-Contains "gateway correlation export contract audit evidence" $gatewayCorrelationExportContract "gateway_correlation_export_audit_persisted"
+Assert-Contains "gateway correlation export contract redaction" $gatewayCorrelationExportContract "gateway_correlation_redaction_enforced"
+Assert-Contains "gateway correlation export contract no-live" $gatewayCorrelationExportContract "gateway_correlation_no_live_write_guard"
+Assert-Contains "gateway correlation export contract endpoint" $gatewayCorrelationExportContract '"endpoint":"GET /api/v1/security/gateway-correlation/export?format=csv&limit=80"'
 
 $mcpAuditContract = Invoke-Text "$BaseUrl/api/v1/audit/mcp/contract"
 Assert-Contains "mcp audit contract version" $mcpAuditContract '"contract_version":"mcp-audit-feed-v1"'

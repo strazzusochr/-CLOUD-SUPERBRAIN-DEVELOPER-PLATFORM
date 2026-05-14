@@ -111,6 +111,17 @@ The timeline always returns `production_rollout_claimed=false` and `promotion_al
 
 The verifier `scripts/verify-phase3-gateway-correlation-timeline.ps1` performs GET-only checks against the contract, snapshot, risk rollup, timeline, and frontend markers. When run after the snapshot verifier with `-RequireFullCorrelation`, it proves all three timeline legs are visible for the seeded shared trace.
 
+## Gateway Correlation Export
+
+Contract version: `gateway-correlation-export-v1`
+Evidence: `gateway_correlation_export_visible`, `gateway_correlation_export_audit_persisted`, `gateway_correlation_redaction_enforced`, `gateway_correlation_no_live_write_guard`
+
+The export derives from the same safe gateway correlation projection used by snapshot, risk rollup, and timeline. It returns `text/csv` with allowlisted correlation-group columns only: sequence index, correlation key, trace/request/session ids, correlation state, event counts, event types, Agent/LLM/MCP leg booleans, risk status, missing legs, live-call/write counts, and evidence refs.
+
+The export always returns `production_rollout_claimed=false` through its contract and persists only redacted export metadata in `audit_log` as `gateway_correlation_export_generated`. It never returns raw `audit_log.details`, prompt bodies, MCP input refs, provider credentials, cookies, authorization headers, tokens, release-promotion claims, live-provider-call claims, or live-MCP-write claims.
+
+The verifier `scripts/verify-phase3-gateway-correlation-export.ps1` checks frontend markers, parent contract export metadata, export contract, CSV schema and headers, response evidence headers, persisted export audit metadata, full-correlation compatibility, and adversarial redaction canaries.
+
 ## Policy
 
 1. The surface reads `audit_log` only.
@@ -119,7 +130,7 @@ The verifier `scripts/verify-phase3-gateway-correlation-timeline.ps1` performs G
 4. Redacted audit details must not reveal provider tokens, API keys, prompt bodies, or browser cookies.
 5. Evidence refs must include `security_audit_surface_visible` and `security_audit_event_visible`.
 6. Auth audit evidence must include `auth_audit_snapshot_visible`, `auth_audit_risk_rollup_visible`, `auth_audit_timeline_visible`, `auth_audit_export_visible`, `auth_audit_export_audit_persisted`, `auth_audit_redaction_enforced`, and `auth_no_live_oauth_guard`.
-7. Gateway correlation evidence must include `gateway_correlation_snapshot_visible`, `gateway_correlation_risk_rollup_visible`, `gateway_correlation_timeline_visible`, `gateway_correlation_redaction_enforced`, and `gateway_correlation_no_live_write_guard`.
+7. Gateway correlation evidence must include `gateway_correlation_snapshot_visible`, `gateway_correlation_risk_rollup_visible`, `gateway_correlation_timeline_visible`, `gateway_correlation_export_visible`, `gateway_correlation_export_audit_persisted`, `gateway_correlation_redaction_enforced`, and `gateway_correlation_no_live_write_guard`.
 
 ## Non-Claims
 

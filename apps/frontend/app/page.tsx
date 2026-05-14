@@ -1837,6 +1837,40 @@ type GatewayCorrelationTimeline = {
   non_claims: string[];
 };
 
+type GatewayCorrelationExportContract = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  contract_endpoint: string;
+  snapshot_endpoint: string;
+  risk_rollup_endpoint: string;
+  timeline_endpoint: string;
+  source_event_types: string[];
+  supported_formats: string[];
+  filename_pattern: string;
+  columns: string[];
+  evidence_ref: string;
+  export_audit_evidence_ref: string;
+  snapshot_evidence_ref: string;
+  risk_rollup_evidence_ref: string;
+  timeline_evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_write_evidence_ref: string;
+  read_only: boolean;
+  audit_persisted: boolean;
+  live_provider_calls_claimed: boolean;
+  live_mcp_writes_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  prompt_bodies_returned: boolean;
+  tool_input_refs_returned: boolean;
+  provider_credentials_returned: boolean;
+  raw_details_returned: boolean;
+  policy_checks: string[];
+  non_claims: string[];
+};
+
 type SecurityAuditSurfaceContract = {
   contract_version: string;
   mode: string;
@@ -2545,6 +2579,8 @@ export default function Home() {
     useState<GatewayCorrelationRiskRollup | null>(null);
   const [gatewayCorrelationTimeline, setGatewayCorrelationTimeline] =
     useState<GatewayCorrelationTimeline | null>(null);
+  const [gatewayCorrelationExportContract, setGatewayCorrelationExportContract] =
+    useState<GatewayCorrelationExportContract | null>(null);
   const [securityAuditSurfaceContract, setSecurityAuditSurfaceContract] =
     useState<SecurityAuditSurfaceContract | null>(null);
   const [securityAuditEvents, setSecurityAuditEvents] = useState<SecurityAuditEvent[]>([]);
@@ -3150,6 +3186,13 @@ export default function Home() {
     });
     if (timelineResponse.ok) {
       setGatewayCorrelationTimeline(await timelineResponse.json());
+    }
+
+    const exportResponse = await fetch("/api/v1/security/gateway-correlation/export/contract", {
+      cache: "no-store",
+    });
+    if (exportResponse.ok) {
+      setGatewayCorrelationExportContract(await exportResponse.json());
     }
   }
 
@@ -6447,6 +6490,42 @@ export default function Home() {
             <small>
               promotion_allowed={String(gatewayCorrelationTimeline?.promotion_allowed ?? false)} /
               production_rollout_claimed={String(gatewayCorrelationTimeline?.production_rollout_claimed ?? false)}
+            </small>
+          </div>
+          <div className="auditSnapshot">
+            <strong>Gateway Correlation Export</strong>
+            <span>
+              {gatewayCorrelationExportContract?.contract_version ?? "gateway-correlation-export-v1"} /{" "}
+              {gatewayCorrelationExportContract?.evidence_ref ?? "gateway_correlation_export_visible"}
+            </span>
+            <small>
+              Endpoint:{" "}
+              {gatewayCorrelationExportContract?.endpoint ??
+                "GET /api/v1/security/gateway-correlation/export?format=csv&limit=80"}
+            </small>
+            <small>
+              Contract:{" "}
+              {gatewayCorrelationExportContract?.contract_endpoint ??
+                "GET /api/v1/security/gateway-correlation/export/contract"}
+            </small>
+            <small>
+              Audit:{" "}
+              {gatewayCorrelationExportContract?.export_audit_evidence_ref ??
+                "gateway_correlation_export_audit_persisted"}{" "}
+              / Redaction:{" "}
+              {gatewayCorrelationExportContract?.redaction_evidence_ref ??
+                "gateway_correlation_redaction_enforced"}
+            </small>
+            <small>
+              No-live-write:{" "}
+              {gatewayCorrelationExportContract?.no_live_write_evidence_ref ??
+                "gateway_correlation_no_live_write_guard"}{" "}
+              / File: {gatewayCorrelationExportContract?.filename_pattern ?? "superbrain-gateway-correlation.csv"}
+            </small>
+            <small>
+              live_provider_calls_claimed=
+              {String(gatewayCorrelationExportContract?.live_provider_calls_claimed ?? false)} /
+              live_mcp_writes_claimed={String(gatewayCorrelationExportContract?.live_mcp_writes_claimed ?? false)}
             </small>
           </div>
           <div className="statusPills">
