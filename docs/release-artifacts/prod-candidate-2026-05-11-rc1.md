@@ -1,27 +1,27 @@
 # Release Artifact
 
 release_id: `prod-candidate-2026-05-11-rc1`
-scope: `release-boundary cleanup, HF router truth, frontend build, agent-api/runtime compile checks, hosted staging smoke checks, immutable staging image candidate, Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup`
+scope: `release-boundary cleanup, HF router truth, frontend build, agent-api/runtime compile checks, hosted staging smoke checks, immutable staging image candidate, Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline`
 environment: `production-candidate`
 source_branch: `chore/repo-bootstrap`
 image_build_branch: `codex/live-agent-steering-ui-20260513`
-source_commit_sha: `5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0`
-source_commit_semantics: `Vercel production branch remains chore/repo-bootstrap; immutable GHCR images were built from codex/live-agent-steering-ui-20260513 at the current validated runtime head including live-agent UI/runtime state, Phase 5 runtime-selector truth, immutable image-filesystem staging proof, the Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot, and Gateway Correlation Risk Rollup`
-immutable_image_commit_sha: `5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0`
+source_commit_sha: `d2c8b9c52785955b698da151edb666c884ac888f`
+source_commit_semantics: `Vercel production branch remains chore/repo-bootstrap; immutable GHCR images were built from codex/live-agent-steering-ui-20260513 at the current validated runtime head including live-agent UI/runtime state, Phase 5 runtime-selector truth, immutable image-filesystem staging proof, the Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, and Gateway Correlation Timeline`
+immutable_image_commit_sha: `d2c8b9c52785955b698da151edb666c884ac888f`
 workflow_run_url: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25833000061`
-pipeline_status: `local Docker Buildx with arm64 binfmt built and pushed all six GHCR images for 5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0 after py_compile, Next.js build, local gateway-correlation snapshot verifier, local gateway-correlation risk-rollup verifier, local browser-contract, and manifest verifier passed; hosted immutable deploy plus hosted gateway-correlation snapshot, gateway-correlation risk-rollup, browser, and smoke verifiers passed after push`
+pipeline_status: `local Docker Buildx with arm64 binfmt built and pushed all six GHCR images for d2c8b9c52785955b698da151edb666c884ac888f after py_compile, Next.js build, local gateway-correlation snapshot verifier, local gateway-correlation risk-rollup verifier, local gateway-correlation timeline verifier, local browser-contract, security verifier, and evidence artifact safety verifier passed; hosted immutable deploy plus hosted gateway-correlation snapshot, gateway-correlation risk-rollup, gateway-correlation timeline, full Phase-3 suite, browser, and smoke verifiers passed after push`
 smoke_result: `passed`
 observability_check: `present`
 rollback_note: `no production rollout performed; rollback remains the existing hosted staging rollback path`
-immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0`
+immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:d2c8b9c52785955b698da151edb666c884ac888f`
 owner_decision: `approved`
-hosted_selector_observed: `IMAGE_TAG=5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0`
-hosted_selector_observed_at: `2026-05-14T08:00:27Z`
-frontend_runtime_image_observed: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0`
+hosted_selector_observed: `IMAGE_TAG=d2c8b9c52785955b698da151edb666c884ac888f`
+hosted_selector_observed_at: `2026-05-14T08:48:01Z`
+frontend_runtime_image_observed: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:d2c8b9c52785955b698da151edb666c884ac888f`
 immutable_staging_parity_status: `verified`
 active_candidate_gate_rerun_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-candidate-gate-rerun.md`
 runtime_selector_truth_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-runtime-selector-truth.md`
-immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-gateway-correlation-risk-rollup-immutable-staging-20260514.md`
+immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-gateway-correlation-timeline-immutable-staging-20260514.md`
 
 ## Verification Evidence
 
@@ -34,9 +34,11 @@ immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-1
 - MCP Audit Redaction Snapshot local proof: `scripts\verify-phase3-mcp-deny-audit-correlation.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` including snapshot endpoint, input-ref omission, forbidden-pattern count, redaction evidence, deny correlation, and no-live-MCP-write checks
 - Gateway Correlation Snapshot local proof: `scripts\verify-phase3-gateway-correlation-snapshot.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` including shared-trace agent task, LLM dry-run audit row, denied MCP audit row, full `agent_llm_mcp_correlated` group, `forbidden_pattern_hits=0`, `live_provider_call_count=0`, and `live_mcp_write_count=0`
 - Gateway Correlation Risk Rollup local proof: `scripts\verify-phase3-gateway-correlation-risk-rollup.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireFullCorrelation` including `gateway-correlation-risk-rollup-v1`, `read_only=true`, `promotion_allowed=false`, `production_rollout_claimed=false`, redaction/no-live-write evidence, parity with snapshot counts, risk badges, and zero blocker count
+- Gateway Correlation Timeline local proof: `scripts\verify-phase3-gateway-correlation-timeline.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireFullCorrelation` including `gateway-correlation-timeline-v1`, ordered Agent/LLM/MCP timeline legs, `read_only=true`, `promotion_allowed=false`, `production_rollout_claimed=false`, redaction/no-live-write evidence, parity with snapshot/rollup counts, and zero forbidden hits
 - Browser contract local proof: `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
-- GHCR arm64 image build/push: `scripts\build-and-push.ps1 -Tag 5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0 -Platforms linux/arm64 -Builder codex-multiarch`
-- Immutable staging deploy: `scripts\deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0 -KeyPath <local-private-key>`
+- Security proof: `scripts\verify-security.ps1` and `scripts\verify-evidence-artifact-safety.ps1`
+- GHCR arm64 image build/push: `scripts\build-and-push.ps1 -Tag d2c8b9c52785955b698da151edb666c884ac888f -Platforms linux/arm64 -Builder codex-multiarch`
+- Immutable staging deploy: `scripts\deploy-to-staging.ps1 -UseImageFilesystem -ImageTag d2c8b9c52785955b698da151edb666c884ac888f -KeyPath <local-private-key>`
 - Phase 3 Security Audit Surface hosted proof: `scripts\verify-phase3-security-audit-surface-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 - Autonomous Team Dispatch UI hosted proof: `scripts\verify-autonomous-coding-team.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 - Security Review Queue hosted proof: `scripts\verify-phase3-security-review-queue.ps1 -BaseUrl https://188-34-191-140.sslip.io` including snapshot endpoint, filter state, risk badges, decision history, evidence snapshot, redaction, and mutation block checks
@@ -45,6 +47,7 @@ immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-1
 - MCP Audit Redaction Snapshot hosted proof: `scripts\verify-phase3-mcp-deny-audit-correlation.ps1 -BaseUrl https://188-34-191-140.sslip.io` including `mcp_audit_snapshot_visible`, `mcp_audit_redaction_enforced`, `input_refs_returned=false`, `live_mcp_writes_claimed=false`, and `forbidden_pattern_hits=0`
 - Gateway Correlation Snapshot hosted proof: `scripts\verify-phase3-gateway-correlation-snapshot.ps1 -BaseUrl https://188-34-191-140.sslip.io` including `gateway_correlation_snapshot_visible`, `gateway_correlation_redaction_enforced`, `gateway_correlation_no_live_write_guard`, `agent_llm_mcp_correlated`, `live_provider_call_count=0`, `live_mcp_write_count=0`, and `forbidden_pattern_hits=0`
 - Gateway Correlation Risk Rollup hosted proof: `scripts\verify-phase3-gateway-correlation-risk-rollup.ps1 -BaseUrl https://188-34-191-140.sslip.io -RequireFullCorrelation` including `gateway_correlation_risk_rollup_visible`, `read_only=true`, `promotion_allowed=false`, `production_rollout_claimed=false`, `live_provider_calls_claimed=false`, `live_mcp_writes_claimed=false`, and `blocker_count=0`
+- Gateway Correlation Timeline hosted proof: `scripts\verify-phase3-gateway-correlation-timeline.ps1 -BaseUrl https://188-34-191-140.sslip.io -RequireFullCorrelation` including `gateway_correlation_timeline_visible`, ordered Agent/LLM/MCP timeline legs, `read_only=true`, `promotion_allowed=false`, `production_rollout_claimed=false`, `live_provider_calls_claimed=false`, `live_mcp_writes_claimed=false`, and `forbidden_pattern_hits=0`
 - Full Phase 3 hosted suite: `scripts\verify.ps1 -Suite phase3 -BaseUrl https://188-34-191-140.sslip.io -FailFast`
 - Browser contract hosted proof: `scripts\verify-browser-contract.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 - Hosted staging smoke: `scripts\verify-hosted-staging-smoke.ps1 -BaseUrl https://188-34-191-140.sslip.io`
@@ -102,6 +105,16 @@ immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-1
 - Proof shape: one deterministic agent task, one LLM Gateway dry-run event, and one denied MCP event share a trace id and produce an `agent_llm_mcp_correlated` group.
 - Non-claims: no production rollout, no live provider call, no live MCP write, no external SOC/SIEM completeness claim, no provider billing proof, and no raw prompt/tool input exposure.
 
+## Gateway Correlation Timeline Evidence
+
+- Contract: `gateway-correlation-timeline-v1`
+- Endpoint: `GET /api/v1/security/gateway-correlation/timeline`
+- Parent endpoints: `GET /api/v1/security/gateway-correlation/contract`, `GET /api/v1/security/gateway-correlation/snapshot`, and `GET /api/v1/security/gateway-correlation/risk-rollup`
+- Evidence refs: `gateway_correlation_timeline_visible`, `gateway_correlation_snapshot_visible`, `gateway_correlation_redaction_enforced`, `gateway_correlation_no_live_write_guard`
+- Timeline guards: `read_only=true`, `prompt_bodies_returned=false`, `tool_input_refs_returned=false`, `provider_credentials_returned=false`, `forbidden_pattern_hits=0`, `live_provider_calls_claimed=false`, `live_mcp_writes_claimed=false`, `production_rollout_claimed=false`, and `promotion_allowed=false`
+- Proof shape: ordered timeline entries expose sequence index, event type, timeline leg, correlation key, trace/request/session ids, status, severity, and evidence refs only; no raw audit details are returned.
+- Non-claims: no production rollout, no live provider call, no live MCP write, no external SOC/SIEM completeness claim, no provider billing proof, and no raw prompt/tool input exposure.
+
 ## Security Review Gate Summary Evidence
 
 - Contract: `security-review-queue-v1`
@@ -118,9 +131,9 @@ immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-1
 ## Guardrails
 
 - This artifact approves the current clean repository boundary as a production candidate.
-- The release boundary source commit is `10df3ea48627e6f11787587e3c984b72107e78f5`; the immutable image commit deployed to staging is `10df3ea48627e6f11787587e3c984b72107e78f5`.
+- The release boundary source commit is `d2c8b9c52785955b698da151edb666c884ac888f`; the immutable image commit deployed to staging is `d2c8b9c52785955b698da151edb666c884ac888f`.
 - This artifact does not claim a production rollout.
-- Remote immutable Hetzner parity for `10df3ea48627e6f11787587e3c984b72107e78f5` is current staging evidence only; production is still not rolled out.
+- Remote immutable Hetzner parity for `d2c8b9c52785955b698da151edb666c884ac888f` is current staging evidence only; production is still not rolled out.
 - This artifact does not replace the historical `prod-candidate-2026-05-05-rc1` no-release evidence.
 - The hosted selector line records the current Hetzner staging selector observed after later deployment work; it does not rewrite the historical 2026-05-05 rollback selector.
 - Production deployment still requires the release-candidate gate bundle and a separate rollout proof.
