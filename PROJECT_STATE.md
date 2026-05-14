@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-05-14 00:05 Uhr
+Letzte Aktualisierung: 2026-05-14 01:37 Uhr
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-14 00:05 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `71%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 3 Product Surface & Security ist durch den audit-backed CSP-Report-Contract, den read-only LLM-Audit-Feed, den audit-backed Langfuse-Trace-Access und die progress-gebundene Live-Agent-Steering-/History-Oberflaeche auf `44%` gehoben; Phase 5 steht durch den staging-only Frontend-Source-Build-Pfad und die aktive Runtime-Selector-Truth auf `69%`; Frontend / Next.js steht durch die echte Hetzner-Source-Build-UI auf `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der letzte verifizierte Candidate bleibt weiter fail-closed ohne Production-Rollout; mutable `IMAGE_TAG=staging` plus `cloud-superbrain-frontend:source-staging` ist keine immutable Candidate-Paritaet. Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `72%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 3 Product Surface & Security ist durch den audit-backed CSP-Report-Contract, den read-only LLM-Audit-Feed, den audit-backed Langfuse-Trace-Access und die progress-gebundene Live-Agent-Steering-/History-Oberflaeche auf `44%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht durch die echte Hetzner-Source-Build-UI und danach den immutable Frontend-Image-Selector auf `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist jetzt als immutable Staging-Selector `IMAGE_TAG=031c95c3e5af1101caf282eee463256285803495` verifiziert. Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -30,7 +30,7 @@ Letzte Aktualisierung: 2026-05-14 00:05 Uhr
 6. **Kein E2B-Sandbox:** Docker Desktop für lokale Tests
 7. **7-Schichten-Architektur** laut Ultimatum Finale
 
-## AKTUELLER FORTSCHRITT: 71%
+## AKTUELLER FORTSCHRITT: 72%
 
 ### Horizontal (nach Priorität)
 
@@ -41,7 +41,7 @@ Letzte Aktualisierung: 2026-05-14 00:05 Uhr
 | P2   | 86%    |
 | P3   | 44%    |
 | P4   | 100%   |
-| P5   | 69%    |
+| P5   | 74%    |
 | P6   | 0%     |
 
 ### Vertikal (nach Modul)
@@ -70,13 +70,21 @@ Letzte Aktualisierung: 2026-05-14 00:05 Uhr
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Neuen immutable Candidate bauen oder Image-Filesystem-Candidate deployen** — Hetzner zeigt jetzt die aktuelle Frontend-UI ueber den staging-only Source-Build-Pfad und der aktive RC ist ehrlich als `blocked_after_frontend_source_build` klassifiziert; der naechste harte Pfad ist ein neuer immutable Candidate-SHA oder ein expliziter `-UseImageFilesystem -RequireVerified` Lauf
-- danach folgen weitere `P5`-Slices statt eines Rollouts
+- **Naechster grosser Fortschrittshebel: Phase 3 Product Surface & Security** — der aktive RC1 ist jetzt immutable auf Hetzner-Staging verifiziert; weiter geht es mit echten audit-backed Security/Product-Surface-Slices statt weiteren P5-Reruns
+- danach folgen P3-Security-Slices und LLM/MCP-Layer-Slices, kein Production-Rollout ohne separates Gate
 - lokal und hosted bleiben weiterhin deterministische Proofs ohne Live-Provider und ohne Live-MCP-Writes; `production_deploy_claim_allowed=true` ist kein Deployment-Nachweis
 
 ## ZULETZT ABGESCHLOSSEN
 
-**Phase 5 Active Runtime Selector Truth** — der aktive RC1 ist jetzt wieder ehrlich an den aktuellen Hosted-Selector gebunden:
+**Phase 5 Immutable Staging Parity** — der aktive RC1 ist jetzt wirklich als immutable Image-Filesystem-Selector auf Hetzner-Staging verifiziert:
+
+- GitHub Actions `main-deploy` Run `25833000061` baute `agent-api`, `agent-worker`, `memory-worker`, `mcp-gateway` und `llm-gateway` fuer `031c95c3e5af1101caf282eee463256285803495`; der unveraenderte Frontend-Manifest wurde vom vorher verifizierten Tag `97c7ea04b5180862ea9862cc18b9c5bac994f794` auf `031c95c3e5af1101caf282eee463256285803495` retagged, nachdem der Frontend-Build-Job hing.
+- `scripts\deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 031c95c3e5af1101caf282eee463256285803495` deployte die Images auf Hetzner und entfernte die service-code Hot-Mounts.
+- Remote `.env` zeigt `IMAGE_TAG=031c95c3e5af1101caf282eee463256285803495`; die laufenden Service-Images tragen denselben SHA-Tag.
+- `scripts\verify-current-immutable-staging-parity.ps1 -RequireVerified` und `scripts\verify-current-runtime-selector-truth.ps1 -RequireRemoteProof` sind gruen.
+- Fortschritt: `overall=72`, `phase_5=74`, `frontend=99`; kein Production-Rollout, keine Production-Tag-Promotion, kein Live-Provider-Call und kein Live-MCP-Write.
+
+**Vorheriger Abschluss — Phase 5 Active Runtime Selector Truth** — der aktive RC1 wurde ehrlich an den damaligen Hosted-Selector gebunden:
 
 - `docs/release-artifacts/prod-candidate-2026-05-11-rc1.md` fuehrt jetzt `hosted_selector_observed=IMAGE_TAG=staging`, `frontend_runtime_image_observed=cloud-superbrain-frontend:source-staging` und `immutable_staging_parity_status=blocked_after_frontend_source_build`
 - `docs/release-artifacts/prod-candidate-2026-05-11-rc1-runtime-selector-truth.md` dokumentiert die aktuelle Runtime-Truth ohne Production- oder Immutable-Parity-Claim

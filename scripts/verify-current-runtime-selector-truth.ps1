@@ -74,28 +74,53 @@ if (-not (Test-Path $candidatePath)) {
   throw "Missing release candidate artifact: $candidatePath"
 }
 $candidate = Get-Content $candidatePath -Raw
-Assert-Contains "release artifact parity block" $candidate 'immutable_staging_parity_status: `blocked_after_frontend_source_build`'
-Assert-Contains "release artifact hosted selector" $candidate 'hosted_selector_observed: `IMAGE_TAG=staging`'
-Assert-Contains "release artifact frontend runtime image" $candidate 'frontend_runtime_image_observed: `cloud-superbrain-frontend:source-staging`'
+if ($candidate -notmatch '(?m)^immutable_image_commit_sha:\s*`([^`]+)`\s*$') {
+  throw "Verification failed: active release artifact missing immutable_image_commit_sha."
+}
+$candidateSha = $Matches[1]
+$parityVerified = $candidate.Contains("immutable_staging_parity_status: ``verified``") -and $candidate.Contains("hosted_selector_observed: ``IMAGE_TAG=$candidateSha``")
+$parityBlocked = $candidate.Contains("immutable_staging_parity_status: ``blocked_after_frontend_source_build``") -and $candidate.Contains("hosted_selector_observed: ``IMAGE_TAG=staging``")
+if (-not ($parityVerified -or $parityBlocked)) {
+  throw "Verification failed: active release artifact must either verify immutable selector truth or explicitly block immutable parity."
+}
 Assert-Contains "release artifact non-claim" $candidate "This artifact does not claim a production rollout."
 
-$artifactPath = "docs\release-artifacts\$ReleaseId-runtime-selector-truth.md"
-if (-not (Test-Path $artifactPath)) {
-  throw "Missing runtime selector truth artifact: $artifactPath"
-}
-$artifact = Get-Content $artifactPath -Raw
-foreach ($required in @(
-  'Status: `verified-blocked`',
-  "release_id: ``$ReleaseId``",
-  'current_hosted_selector: `IMAGE_TAG=staging`',
-  'frontend_runtime_image: `cloud-superbrain-frontend:source-staging`',
-  'immutable_candidate_parity_claimed: `false`',
-  'production_rollout_claimed: `false`',
-  'ghcr_push_claimed: `false`',
-  'immutable_staging_parity_status: `blocked_after_frontend_source_build`',
-  'next_allowed_action: `build_new_immutable_candidate_or_run_image_filesystem_candidate_deploy`'
-)) {
-  Assert-Contains "runtime selector truth artifact" $artifact $required
+if ($parityVerified) {
+  $artifactPath = "docs\release-artifacts\$ReleaseId-immutable-staging-parity-20260514.md"
+  if (-not (Test-Path $artifactPath)) {
+    throw "Missing immutable staging parity artifact: $artifactPath"
+  }
+  $artifact = Get-Content $artifactPath -Raw
+  foreach ($required in @(
+    'Status: `verified`',
+    "release_id: ``$ReleaseId``",
+    "candidate_sha: ``$candidateSha``",
+    'production_rollout_claimed: `false`',
+    "IMAGE_TAG=$candidateSha",
+    "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:$candidateSha",
+    "scripts\verify-current-immutable-staging-parity.ps1 -RequireVerified"
+  )) {
+    Assert-Contains "immutable staging parity artifact" $artifact $required
+  }
+} else {
+  $artifactPath = "docs\release-artifacts\$ReleaseId-runtime-selector-truth.md"
+  if (-not (Test-Path $artifactPath)) {
+    throw "Missing runtime selector truth artifact: $artifactPath"
+  }
+  $artifact = Get-Content $artifactPath -Raw
+  foreach ($required in @(
+    'Status: `verified-blocked`',
+    "release_id: ``$ReleaseId``",
+    'current_hosted_selector: `IMAGE_TAG=staging`',
+    'frontend_runtime_image: `cloud-superbrain-frontend:source-staging`',
+    'immutable_candidate_parity_claimed: `false`',
+    'production_rollout_claimed: `false`',
+    'ghcr_push_claimed: `false`',
+    'immutable_staging_parity_status: `blocked_after_frontend_source_build`',
+    'next_allowed_action: `build_new_immutable_candidate_or_run_image_filesystem_candidate_deploy`'
+  )) {
+    Assert-Contains "runtime selector truth artifact" $artifact $required
+  }
 }
 
 $root = Invoke-WebRequest -Uri $BaseUrl -UseBasicParsing -TimeoutSec 30
@@ -104,9 +129,9 @@ Assert-Contains "hosted root current UI marker" $root.Content "Live Agent Contro
 Assert-Contains "hosted root runtime guard marker" $root.Content "Runtime Guard"
 
 $progress = Get-Json "$BaseUrl/api/v1/project/progress"
-Assert-Equal "hosted overall percent" ([int]$progress.overall_percent) 71
+Assert-Equal "hosted overall percent" ([int]$progress.overall_percent) 72
 $phase5 = $progress.horizontal.items | Where-Object { $_.id -eq "phase_5" } | Select-Object -First 1
-Assert-Equal "hosted phase5 percent" ([int]$phase5.percent) 69
+Assert-Equal "hosted phase5 percent" ([int]$phase5.percent) 74
 
 if ([string]::IsNullOrWhiteSpace($KeyPath)) {
   $KeyPath = [Environment]::GetEnvironmentVariable("STAGING_SSH_KEY_PATH")
@@ -116,13 +141,30 @@ if ($RequireRemoteProof -and [string]::IsNullOrWhiteSpace($KeyPath)) {
 }
 
 if (-not [string]::IsNullOrWhiteSpace($KeyPath)) {
-  $remoteProof = @(ssh -i $KeyPath -o StrictHostKeyChecking=no "${RemoteUser}@${RemoteHost}" "cd $RemoteAppDir && grep '^IMAGE_TAG=' .env && docker compose --env-file .env -f docker-compose.cloud.yml -f docker-compose.frontend-source.yml ps frontend --format json && grep -n 'pull_policy: never\|cloud-superbrain-frontend:source-staging' docker-compose.frontend-source.yml" 2>&1 | ForEach-Object { $_.ToString() }) | Out-String
+  $remoteCommand = if ($parityVerified) {
+    "cd $RemoteAppDir && grep '^IMAGE_TAG=' .env && id=`$(docker compose --env-file .env -f docker-compose.cloud.yml ps -q frontend) && docker inspect --format '{{.Config.Image}}' `$id && (grep -E './services/(agent-api|agent-worker|memory-worker|mcp-gateway|llm-gateway)/app:/app/app:ro' docker-compose.cloud.yml || true)"
+  } else {
+    "cd $RemoteAppDir && grep '^IMAGE_TAG=' .env && docker compose --env-file .env -f docker-compose.cloud.yml -f docker-compose.frontend-source.yml ps frontend --format json && grep -n 'pull_policy: never\|cloud-superbrain-frontend:source-staging' docker-compose.frontend-source.yml"
+  }
+  $remoteProof = @(ssh -i $KeyPath -o StrictHostKeyChecking=no "${RemoteUser}@${RemoteHost}" $remoteCommand 2>&1 | ForEach-Object { $_.ToString() }) | Out-String
   if ($LASTEXITCODE -ne 0) {
     throw "Remote runtime selector proof failed: $remoteProof"
   }
-  Assert-Contains "remote selector" $remoteProof "IMAGE_TAG=staging"
-  Assert-Contains "remote frontend image" $remoteProof "cloud-superbrain-frontend:source-staging"
-  Assert-Contains "remote frontend pull policy" $remoteProof "pull_policy: never"
+  if ($parityVerified) {
+    Assert-Contains "remote selector" $remoteProof "IMAGE_TAG=$candidateSha"
+    Assert-Contains "remote frontend image" $remoteProof "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:$candidateSha"
+    if ($remoteProof.Contains("./services/")) {
+      throw "Verification failed: remote image-filesystem proof still contains service app hot-mounts."
+    }
+  } else {
+    Assert-Contains "remote selector" $remoteProof "IMAGE_TAG=staging"
+    Assert-Contains "remote frontend image" $remoteProof "cloud-superbrain-frontend:source-staging"
+    Assert-Contains "remote frontend pull policy" $remoteProof "pull_policy: never"
+  }
 }
 
-Write-Host "[current-runtime-selector-truth] verified-blocked"
+if ($parityVerified) {
+  Write-Host "[current-runtime-selector-truth] verified"
+} else {
+  Write-Host "[current-runtime-selector-truth] verified-blocked"
+}

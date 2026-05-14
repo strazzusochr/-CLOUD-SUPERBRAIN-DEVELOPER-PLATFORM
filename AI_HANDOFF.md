@@ -6,7 +6,7 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-Current honesty guardrail: the last fully verified candidate remains `ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5`. The current repository `HEAD` is not claimed as candidate-equal unless the repo-parity blocker is cleared or a new candidate is rebaselined.
+Current honesty guardrail: the active staging candidate is `031c95c3e5af1101caf282eee463256285803495`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
 
 ## Binding Truth
 
@@ -29,11 +29,11 @@ Follow `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` over older planning f
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 
-Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `71%` progress state, the detailed repair protocol, and the current hosted evidence chain up through `.phase1-artifacts/phase4-system-fallback-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-audit-feed-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-cache-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-cost-export-contract-runtime-hosted-proof-20260507.md`, plus `.phase1-artifacts/phase4-phase2-runtime-start-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-orchestrator-dry-run-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-orchestrator-dry-run-stream-contract-runtime-hosted-proof-20260507.md`, the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 frontend source-build path proof, the active runtime-selector-truth proof, and the existing Phase-5 candidate/rollback/no-release artifacts. Continue dedicated hosted Phase-5 evidence instead of rollout.
+Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `72%` progress state, the detailed repair protocol, and the current hosted evidence chain up through `.phase1-artifacts/phase4-system-fallback-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-audit-feed-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-cache-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-cost-export-contract-runtime-hosted-proof-20260507.md`, plus `.phase1-artifacts/phase4-phase2-runtime-start-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-orchestrator-dry-run-contract-runtime-hosted-proof-20260507.md`, `.phase1-artifacts/phase4-orchestrator-dry-run-stream-contract-runtime-hosted-proof-20260507.md`, the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 frontend source-build path proof, the active runtime-selector-truth proof, and the immutable staging parity proof for SHA `031c95c3e5af1101caf282eee463256285803495`. Continue Phase-3 security/product-surface evidence before rollout.
 
 ## Current Verified Progress
 
-Overall: `71%`
+Overall: `72%`
 
 Horizontal:
 
@@ -42,7 +42,7 @@ Horizontal:
 - P2: `86%`
 - P3: `44%`
 - P4: `100%`
-- P5: `69%`
+- P5: `74%`
 - P6: `0%`
 
 Vertical:
@@ -56,6 +56,16 @@ Vertical:
 - Observability: `99%`
 
 Older percentage lines below are historical proof points only. Current percentages must come from this section and `docs/project-progress.manifest.json`.
+
+## Latest Verified Step
+
+Phase 5 Immutable Staging Parity:
+
+- `main-deploy` run `25833000061` passed verify plus five service GHCR builds on `codex/live-agent-steering-ui-20260513`; the unchanged frontend image was copied by OCI manifest retag from `97c7ea04b5180862ea9862cc18b9c5bac994f794` after the frontend build job stalled and was force-cancelled.
+- `scripts\deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 031c95c3e5af1101caf282eee463256285803495` deployed immutable GHCR images to Hetzner staging.
+- `scripts\verify-current-immutable-staging-parity.ps1 -RequireVerified -BaseUrl https://188-34-191-140.sslip.io -KeyPath <local-private-key>` passed.
+- `scripts\verify-current-runtime-selector-truth.ps1 -RequireRemoteProof -BaseUrl https://188-34-191-140.sslip.io -KeyPath <local-private-key>` passed.
+- Progress change: Overall rises to `72%`; Phase 5 rises to `74%`; no production rollout, production tag promotion, live provider call, live MCP write, or secret exposure is claimed.
 
 ## Current Runtime
 
