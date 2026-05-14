@@ -6,7 +6,7 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-Current honesty guardrail: the active staging candidate is `9f1e52266b3d9f9ddbdfc226d68bd2379ead9fad`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
+Current honesty guardrail: the active staging candidate is `f5fb7d221d403b966b38d240bd5b936755ecc245`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
 
 ## Binding Truth
 
@@ -29,7 +29,7 @@ Follow `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` over older planning f
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 
-Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `76%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-3 Security Audit Surface proof, and the Autonomous Team Dispatch UI proof and Security Review Gate Summary proof for SHA `9f1e52266b3d9f9ddbdfc226d68bd2379ead9fad`. Continue Phase-3 security/product-surface evidence before rollout.
+Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `76%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, and LLM Audit Feed Redaction Snapshot proof for SHA `f5fb7d221d403b966b38d240bd5b936755ecc245`. Continue Phase-3 security/product-surface evidence before rollout.
 
 ## Current Verified Progress
 
@@ -40,7 +40,7 @@ Horizontal:
 - P0: `100%`
 - P1: `100%`
 - P2: `88%`
-- P3: `67%`
+- P3: `70%`
 - P4: `100%`
 - P5: `74%`
 - P6: `0%`
@@ -50,7 +50,7 @@ Vertical:
 - Frontend / Next.js: `99%`
 - Orchestrator / LangGraph: `99%`
 - Agent Pool: `72%`
-- LLM Gateway: `57%`
+- LLM Gateway: `60%`
 - MCP Gateway: `57%`
 - Memory: `72%`
 - Observability: `99%`
@@ -59,7 +59,16 @@ Older percentage lines below are historical proof points only. Current percentag
 
 ## Latest Verified Step
 
-Security Review Gate Summary Proof:
+LLM Audit Feed Redaction Snapshot Proof:
+
+- `GET /api/v1/audit/llm/contract` exposes `llm-audit-feed-v1` with `snapshot_endpoint=GET /api/v1/audit/llm/snapshot`, `llm_audit_snapshot_visible`, and `llm_audit_redaction_enforced`.
+- `GET /api/v1/audit/llm` returns LLM audit rows with `prompt_body_stored=false` and redaction evidence; `GET /api/v1/audit/llm/snapshot` returns aggregate status/provider/agent/model counts with `prompt_bodies_returned=false`, `provider_credentials_returned=false`, `forbidden_pattern_hits=0`, and `live_provider_calls_claimed=false`.
+- Frontend renders `LLM Audit Snapshot`, snapshot endpoint markers, redaction evidence, forbidden-hit status, dry-run count, and prompt-body non-claim.
+- Local proof passed: `scripts\verify-phase3-llm-audit-feed.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` and `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
+- Hosted proof passed after immutable deploy `IMAGE_TAG=f5fb7d221d403b966b38d240bd5b936755ecc245`: LLM-Audit-Feed verifier, Browser-Contract, and Hosted-Smoke all green on `https://188-34-191-140.sslip.io`.
+- Progress change: Overall remains `76%`; Phase 3 rises to `70%`; LLM Gateway rises to `60%`; no production rollout, live provider call, live MCP write, or secret exposure is claimed.
+
+Previous verified step - Security Review Gate Summary Proof:
 
 - `GET /api/v1/security/review-queue/contract` exposes `security-review-queue-v1`, read-only policy, and evidence refs `security_review_queue_visible`, `security_review_item_visible`, `security_review_filter_state_visible`, `security_review_decision_history_visible`, `security_review_evidence_snapshot_visible`, `security_review_redaction_enforced`, and `security_review_mutation_blocked`.
 - `GET /api/v1/security/review-queue` returns redacted review items; `GET /api/v1/security/review-queue/snapshot` returns filter state, risk badges, decision history, and evidence snapshots; `GET /api/v1/security/review-queue/gate` returns blocker_count, production_rollout_claimed=false, and promotion_allowed=false; `POST/PUT/PATCH/DELETE /api/v1/security/review-queue` return HTTP `403`.

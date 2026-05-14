@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-05-14 06:45 Uhr
+Letzte Aktualisierung: 2026-05-14 07:29 Uhr
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-14 06:45 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `76%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI und Security Review Gate Summary auf `67%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist jetzt als immutable Staging-Selector `IMAGE_TAG=9f1e52266b3d9f9ddbdfc226d68bd2379ead9fad` verifiziert. Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `76%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI, Security Review Gate Summary und LLM Audit Feed Redaction Snapshot auf `70%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist jetzt als immutable Staging-Selector `IMAGE_TAG=f5fb7d221d403b966b38d240bd5b936755ecc245` verifiziert. Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -39,7 +39,7 @@ Letzte Aktualisierung: 2026-05-14 06:45 Uhr
 | P0   | 100%   |
 | P1   | 100%   |
 | P2   | 88%    |
-| P3   | 67%    |
+| P3   | 70%    |
 | P4   | 100%   |
 | P5   | 74%    |
 | P6   | 0%     |
@@ -51,7 +51,7 @@ Letzte Aktualisierung: 2026-05-14 06:45 Uhr
 | Frontend      | 99%    |
 | Orchestrator  | 99%    |
 | Agent Pool    | 72%    |
-| LLM Gateway   | 57%    |
+| LLM Gateway   | 60%    |
 | MCP Gateway   | 57%    |
 | Memory        | 72%    |
 | Observability | 99%    |
@@ -70,11 +70,20 @@ Letzte Aktualisierung: 2026-05-14 06:45 Uhr
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Naechster grosser Fortschrittshebel: Phase 3 Product Surface & Security** — Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue Snapshot und Security Review Gate Summary sind jetzt lokal und hosted verifiziert; weiter geht es mit weiteren echten Security/Product-Surface-Slices statt P5-Reruns
+- **Naechster grosser Fortschrittshebel: Phase 3 Product Surface & Security** — Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue Snapshot, Security Review Gate Summary und LLM Audit Feed Redaction Snapshot sind jetzt lokal und hosted verifiziert; weiter geht es mit weiteren echten Security/Product-Surface-Slices statt P5-Reruns
 - danach folgen P3-Auth/Security- und LLM/MCP-Layer-Slices, kein Production-Rollout ohne separates Gate
 - lokal und hosted bleiben weiterhin deterministische Proofs ohne Live-Provider und ohne Live-MCP-Writes; `production_deploy_claim_allowed=true` ist kein Deployment-Nachweis
 
 ## ZULETZT ABGESCHLOSSEN
+
+**LLM Audit Feed Redaction Snapshot Proof** — die LLM-Gateway-Operator-Ansicht hat jetzt einen read-only Snapshot fuer Redaction, Dry-Run-Zaehler und No-Live-Provider-Nachweise:
+
+- `GET /api/v1/audit/llm/contract` liefert weiter `llm-audit-feed-v1`, jetzt zusaetzlich mit `snapshot_endpoint=GET /api/v1/audit/llm/snapshot`, `llm_audit_snapshot_visible` und `llm_audit_redaction_enforced`.
+- `GET /api/v1/audit/llm` gibt LLM-Audit-Events mit `prompt_body_stored=false` und `redaction_evidence_ref=llm_audit_redaction_enforced` aus; `GET /api/v1/audit/llm/snapshot` aggregiert Status-, Provider-, Agent- und Model-Counts und setzt `prompt_bodies_returned=false`, `provider_credentials_returned=false`, `forbidden_pattern_hits=0`.
+- Frontend rendert `LLM Audit Snapshot`, Snapshot-Endpunkt, Snapshot-Evidence, Redaction-Evidence, Forbidden-Hit-Status und Prompt-Body-Non-Claim im LLM Audit Feed Panel.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py services\agent-api\app\security.py`, `npm run build`, `scripts\verify-phase3-llm-audit-feed.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach immutable Image-Deploy mit `IMAGE_TAG=f5fb7d221d403b966b38d240bd5b936755ecc245`: LLM-Audit-Feed-Verifier, Browser-Contract und Hosted-Smoke sind gruen.
+- Fortschritt: `overall=76`, `phase_3=70`, `llm_gateway=60`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
 
 **Security Review Gate Summary Proof** — die Operator-Oberflaeche hat jetzt eine read-only Security Review Queue mit Snapshot-, Filter-, Risk-Badge-, Decision-History-, Gate-Summary-, Redaction- und Mutation-Block-Nachweis:
 
