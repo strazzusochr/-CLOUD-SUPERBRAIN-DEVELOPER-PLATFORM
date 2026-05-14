@@ -108,6 +108,9 @@ SECURITY_REVIEW_QUEUE_EVIDENCE_REF = "security_review_queue_visible"
 SECURITY_REVIEW_ITEM_EVIDENCE_REF = "security_review_item_visible"
 SECURITY_REVIEW_REDACTION_EVIDENCE_REF = "security_review_redaction_enforced"
 SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF = "security_review_mutation_blocked"
+SECURITY_REVIEW_FILTER_EVIDENCE_REF = "security_review_filter_state_visible"
+SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF = "security_review_decision_history_visible"
+SECURITY_REVIEW_SNAPSHOT_EVIDENCE_REF = "security_review_evidence_snapshot_visible"
 TRACE_ID_CONTRACT_VERSION = "trace-id-propagation-v1"
 CACHE_CONTROL_CONTRACT_VERSION = "cache-control-no-store-v1"
 REQUEST_ID_CONTRACT_VERSION = "request-id-correlation-v1"
@@ -5581,6 +5584,7 @@ def security_review_queue_contract_payload() -> dict[str, object]:
         "screen": "Security Review Queue",
         "endpoint": "GET /api/v1/security/review-queue",
         "contract_endpoint": "GET /api/v1/security/review-queue/contract",
+        "snapshot_endpoint": "GET /api/v1/security/review-queue/snapshot",
         "source_table": "audit_log",
         "source_surface": "GET /api/v1/security/events",
         "supported_event_types": list(SECURITY_AUDIT_EVENT_CATEGORIES.keys()),
@@ -5636,12 +5640,16 @@ def security_review_queue_contract_payload() -> dict[str, object]:
             "item_visible": SECURITY_REVIEW_ITEM_EVIDENCE_REF,
             "redaction_enforced": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
             "mutation_blocked": SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF,
+            "filter_state": SECURITY_REVIEW_FILTER_EVIDENCE_REF,
+            "decision_history": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
+            "evidence_snapshot": SECURITY_REVIEW_SNAPSHOT_EVIDENCE_REF,
             "source_security_surface": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
         },
         "policy_checks": [
             "The review queue reads audit_log only and never executes tools, deploys code, or calls providers.",
             "Items return summaries and detail key names only; raw detail payloads are not returned.",
             "Mutation methods are blocked with security_review_mutation_blocked.",
+            "Risk badges, filters, decision history, and evidence snapshots are derived from read-only audit rows.",
             "Secrets, prompt bodies, cookies, authorization headers, and raw files are forbidden from queue responses.",
             "Production release decisions remain outside this read-only queue.",
         ],
@@ -5686,17 +5694,40 @@ def security_review_summary(event_type: str, category: str, details: dict[str, o
     return text[:280], redaction_applied, key_names
 
 
-@app.get("/api/v1/security/review-queue/contract")
-def security_review_queue_contract() -> dict[str, object]:
-    return security_review_queue_contract_payload()
+def security_review_risk_badge(status: str, severity: str | None, category: str) -> str:
+    severity_text = str(severity or "").lower()
+    if status == "needs_review" and severity_text in {"critical", "high", "error"}:
+        return "release_blocker_review"
+    if status == "needs_review":
+        return "review_required"
+    if category in {"mcp", "llm"}:
+        return "runtime_monitor"
+    return "monitor"
 
 
-@app.get("/api/v1/security/review-queue")
-def security_review_queue(
-    limit: int = Query(default=20, ge=1, le=100),
-    status: str | None = Query(default=None),
-    severity: str | None = Query(default=None),
-    category: str | None = Query(default=None),
+def security_review_decision_history(source_event_id: str, status: str, created_at: object) -> list[dict[str, object]]:
+    created_at_text = created_at.isoformat() if hasattr(created_at, "isoformat") else None
+    return [
+        {
+            "state": "audit_event_ingested",
+            "source_event_id": source_event_id,
+            "evidence_ref": SECURITY_AUDIT_EVENT_EVIDENCE_REF,
+            "created_at": created_at_text,
+        },
+        {
+            "state": status,
+            "source_event_id": source_event_id,
+            "evidence_ref": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
+            "created_at": created_at_text,
+        },
+    ]
+
+
+def build_security_review_queue(
+    limit: int,
+    status: str | None,
+    severity: str | None,
+    category: str | None,
 ) -> dict[str, object]:
     allowed_statuses = {"needs_review", "monitoring"}
     if status is not None and status not in allowed_statuses:
@@ -5747,6 +5778,7 @@ def security_review_queue(
         summary, redaction_applied, detail_keys = security_review_summary(row[1], row_category, details)
         trace_id = details.get("trace_id") or (str(row[3]) if row[3] else None)
         source_event_id = str(row[0])
+        risk_badge = security_review_risk_badge(row_status, row[6], row_category)
         items.append(
             {
                 "queue_item_id": f"security-review-{source_event_id}",
@@ -5755,6 +5787,7 @@ def security_review_queue(
                 "category": row_category,
                 "severity": row[6],
                 "status": row_status,
+                "risk_badge": risk_badge,
                 "summary": summary,
                 "request_id": details.get("request_id"),
                 "trace_id": trace_id,
@@ -5762,9 +5795,21 @@ def security_review_queue(
                 "redaction_applied": redaction_applied,
                 "redaction_marker": "***MASKED_SECRET***" if redaction_applied else None,
                 "created_at": row[5].isoformat() if row[5] else None,
+                "decision_history": security_review_decision_history(source_event_id, row_status, row[5]),
+                "evidence_snapshot": {
+                    "queue_visible": SECURITY_REVIEW_QUEUE_EVIDENCE_REF,
+                    "item_visible": SECURITY_REVIEW_ITEM_EVIDENCE_REF,
+                    "redaction_enforced": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+                    "mutation_blocked": SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF,
+                    "filter_state": SECURITY_REVIEW_FILTER_EVIDENCE_REF,
+                    "decision_history": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
+                    "source_security_surface": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+                },
                 "evidence_ref": SECURITY_REVIEW_QUEUE_EVIDENCE_REF,
                 "item_evidence_ref": SECURITY_REVIEW_ITEM_EVIDENCE_REF,
                 "redaction_evidence_ref": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+                "filter_evidence_ref": SECURITY_REVIEW_FILTER_EVIDENCE_REF,
+                "decision_history_evidence_ref": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
                 "source_security_surface_evidence_ref": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
             }
         )
@@ -5773,12 +5818,45 @@ def security_review_queue(
         "needs_review": sum(1 for item in items if item["status"] == "needs_review"),
         "monitoring": sum(1 for item in items if item["status"] == "monitoring"),
     }
+    category_counts = {
+        item_category: sum(1 for item in items if item["category"] == item_category)
+        for item_category in sorted({str(item["category"]) for item in items})
+    }
+    risk_badges = {
+        risk_badge: sum(1 for item in items if item["risk_badge"] == risk_badge)
+        for risk_badge in sorted({str(item["risk_badge"]) for item in items})
+    }
+    return {
+        "items": items,
+        "count": len(items),
+        "status_counts": status_counts,
+        "category_counts": category_counts,
+        "risk_badges": risk_badges,
+    }
+
+
+@app.get("/api/v1/security/review-queue/contract")
+def security_review_queue_contract() -> dict[str, object]:
+    return security_review_queue_contract_payload()
+
+
+@app.get("/api/v1/security/review-queue")
+def security_review_queue(
+    limit: int = Query(default=20, ge=1, le=100),
+    status: str | None = Query(default=None),
+    severity: str | None = Query(default=None),
+    category: str | None = Query(default=None),
+) -> dict[str, object]:
+    queue = build_security_review_queue(limit=limit, status=status, severity=severity, category=category)
     return {
         "contract_version": SECURITY_REVIEW_QUEUE_CONTRACT_VERSION,
         "mode": "read_only_redacted_security_review_queue",
         "evidence_ref": SECURITY_REVIEW_QUEUE_EVIDENCE_REF,
         "item_evidence_ref": SECURITY_REVIEW_ITEM_EVIDENCE_REF,
         "redaction_evidence_ref": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+        "filter_evidence_ref": SECURITY_REVIEW_FILTER_EVIDENCE_REF,
+        "decision_history_evidence_ref": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
+        "evidence_snapshot_ref": SECURITY_REVIEW_SNAPSHOT_EVIDENCE_REF,
         "read_only": True,
         "filters": {
             "limit": limit,
@@ -5786,10 +5864,62 @@ def security_review_queue(
             "severity": severity,
             "category": category,
         },
-        "items": items,
-        "count": len(items),
-        "status_counts": status_counts,
+        "items": queue["items"],
+        "count": queue["count"],
+        "status_counts": queue["status_counts"],
+        "category_counts": queue["category_counts"],
+        "risk_badges": queue["risk_badges"],
         "source_surface": "GET /api/v1/security/events",
+        "non_claims": security_review_queue_contract_payload()["non_claims"],
+    }
+
+
+@app.get("/api/v1/security/review-queue/snapshot")
+def security_review_queue_snapshot(
+    limit: int = Query(default=50, ge=1, le=100),
+    status: str | None = Query(default=None),
+    severity: str | None = Query(default=None),
+    category: str | None = Query(default=None),
+) -> dict[str, object]:
+    queue = build_security_review_queue(limit=limit, status=status, severity=severity, category=category)
+    return {
+        "contract_version": SECURITY_REVIEW_QUEUE_CONTRACT_VERSION,
+        "mode": "read_only_security_review_evidence_snapshot",
+        "endpoint": "GET /api/v1/security/review-queue/snapshot",
+        "queue_endpoint": "GET /api/v1/security/review-queue",
+        "evidence_ref": SECURITY_REVIEW_SNAPSHOT_EVIDENCE_REF,
+        "filter_evidence_ref": SECURITY_REVIEW_FILTER_EVIDENCE_REF,
+        "decision_history_evidence_ref": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
+        "read_only": True,
+        "filters": {
+            "limit": limit,
+            "status": status,
+            "severity": severity,
+            "category": category,
+        },
+        "counts": {
+            "items": queue["count"],
+            "status": queue["status_counts"],
+            "category": queue["category_counts"],
+            "risk_badges": queue["risk_badges"],
+        },
+        "latest_decisions": [
+            {
+                "queue_item_id": item["queue_item_id"],
+                "request_id": item["request_id"],
+                "trace_id": item["trace_id"],
+                "status": item["status"],
+                "risk_badge": item["risk_badge"],
+                "decision_history": item["decision_history"],
+                "evidence_snapshot": item["evidence_snapshot"],
+            }
+            for item in queue["items"][:10]
+        ],
+        "policy_checks": [
+            "Evidence snapshots are derived from read-only audit_log rows.",
+            "Filter state is explicit and visible through security_review_filter_state_visible.",
+            "Decision history is read-only and cannot approve or reject release boundaries.",
+        ],
         "non_claims": security_review_queue_contract_payload()["non_claims"],
     }
 

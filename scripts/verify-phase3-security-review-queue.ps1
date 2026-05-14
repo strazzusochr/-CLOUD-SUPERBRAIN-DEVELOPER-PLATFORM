@@ -131,6 +131,9 @@ Assert-Contains "contract queue evidence" $contract "security_review_queue_visib
 Assert-Contains "contract item evidence" $contract "security_review_item_visible"
 Assert-Contains "contract redaction evidence" $contract "security_review_redaction_enforced"
 Assert-Contains "contract mutation evidence" $contract "security_review_mutation_blocked"
+Assert-Contains "contract filter evidence" $contract "security_review_filter_state_visible"
+Assert-Contains "contract decision history evidence" $contract "security_review_decision_history_visible"
+Assert-Contains "contract evidence snapshot" $contract "security_review_evidence_snapshot_visible"
 Assert-Contains "contract forbidden token" $contract "authorization_header"
 Assert-Contains "contract forbidden cookie" $contract "cookie"
 Assert-Contains "contract no live provider" $contract "No live provider calls"
@@ -163,6 +166,11 @@ Assert-Contains "queue read only" $queue '"read_only":true'
 Assert-Contains "queue evidence" $queue "security_review_queue_visible"
 Assert-Contains "queue item evidence" $queue "security_review_item_visible"
 Assert-Contains "queue redaction evidence" $queue "security_review_redaction_enforced"
+Assert-Contains "queue filter evidence" $queue "security_review_filter_state_visible"
+Assert-Contains "queue decision history evidence" $queue "security_review_decision_history_visible"
+Assert-Contains "queue evidence snapshot" $queue "security_review_evidence_snapshot_visible"
+Assert-Contains "queue risk badge" $queue "risk_badge"
+Assert-Contains "queue decision history" $queue "decision_history"
 Assert-Contains "queue csp request" $queue $cspRequestId
 Assert-Contains "queue csp trace" $queue $cspTraceId
 Assert-Contains "queue detail keys only" $queue "detail_keys"
@@ -175,6 +183,18 @@ Assert-Contains "queue masked marker visible" $queue "***MASKED_SECRET***"
 $needsReview = Invoke-Text "$BaseUrl/api/v1/security/review-queue?status=needs_review&limit=50"
 Assert-Contains "needs review status" $needsReview "needs_review"
 Assert-Contains "needs review request" $needsReview $cspRequestId
+Assert-Contains "needs review filter evidence" $needsReview "security_review_filter_state_visible"
+
+$snapshot = Invoke-Text "$BaseUrl/api/v1/security/review-queue/snapshot?status=needs_review&limit=50"
+Assert-Contains "snapshot mode" $snapshot "read_only_security_review_evidence_snapshot"
+Assert-Contains "snapshot endpoint" $snapshot "GET /api/v1/security/review-queue/snapshot"
+Assert-Contains "snapshot filter evidence" $snapshot "security_review_filter_state_visible"
+Assert-Contains "snapshot decision history" $snapshot "security_review_decision_history_visible"
+Assert-Contains "snapshot evidence ref" $snapshot "security_review_evidence_snapshot_visible"
+Assert-Contains "snapshot risk badges" $snapshot "risk_badges"
+Assert-Contains "snapshot latest decisions" $snapshot "latest_decisions"
+Assert-Contains "snapshot csp request" $snapshot $cspRequestId
+Assert-NotContains "snapshot raw secret absent" $snapshot $redactionSecret
 
 $blocked = Invoke-WebResponse -Url "$BaseUrl/api/v1/security/review-queue" -Method "POST" -Body (@{ status = "approved" } | ConvertTo-Json -Compress)
 Assert-True "mutation blocked status" ([int]$blocked.status_code -eq 403)

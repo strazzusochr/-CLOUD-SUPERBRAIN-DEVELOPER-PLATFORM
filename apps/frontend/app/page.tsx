@@ -1400,6 +1400,9 @@ type SecurityReviewQueueContract = {
     item_visible: string;
     redaction_enforced: string;
     mutation_blocked: string;
+    filter_state: string;
+    decision_history: string;
+    evidence_snapshot: string;
     source_security_surface: string;
   };
   policy_checks: string[];
@@ -1413,6 +1416,7 @@ type SecurityReviewQueueItem = {
   category: string;
   severity?: string | null;
   status: string;
+  risk_badge?: string;
   summary: string;
   request_id?: string | null;
   trace_id?: string | null;
@@ -1422,7 +1426,16 @@ type SecurityReviewQueueItem = {
   evidence_ref: string;
   item_evidence_ref: string;
   redaction_evidence_ref: string;
+  filter_evidence_ref?: string;
+  decision_history_evidence_ref?: string;
   source_security_surface_evidence_ref: string;
+  decision_history?: Array<{
+    state: string;
+    source_event_id: string;
+    evidence_ref: string;
+    created_at?: string | null;
+  }>;
+  evidence_snapshot?: Record<string, string>;
 };
 
 type PerRoleResult = {
@@ -3123,6 +3136,9 @@ export default function Home() {
     item_visible: "security_review_item_visible",
     redaction_enforced: "security_review_redaction_enforced",
     mutation_blocked: "security_review_mutation_blocked",
+    filter_state: "security_review_filter_state_visible",
+    decision_history: "security_review_decision_history_visible",
+    evidence_snapshot: "security_review_evidence_snapshot_visible",
     source_security_surface: "security_audit_surface_visible",
   };
   const securityReviewPolicyChecks = stringList(securityReviewQueueContract?.policy_checks);
@@ -3579,6 +3595,10 @@ export default function Home() {
             Evidence: {securityReviewEvidenceRefs.queue_visible} / {securityReviewEvidenceRefs.item_visible} /{" "}
             {securityReviewEvidenceRefs.redaction_enforced} / {securityReviewEvidenceRefs.mutation_blocked}
           </p>
+          <p className="muted evidenceLine">
+            Snapshot: {securityReviewEvidenceRefs.filter_state} / {securityReviewEvidenceRefs.decision_history} /{" "}
+            {securityReviewEvidenceRefs.evidence_snapshot}
+          </p>
           <div className="policyGrid">
             {(securityReviewPolicyChecks.length ? securityReviewPolicyChecks : [
               "The review queue reads audit_log only and never executes tools, deploys code, or calls providers.",
@@ -3594,13 +3614,26 @@ export default function Home() {
                 <article className="auditItem" key={item.queue_item_id}>
                   <div>
                     <strong>{item.event_type}</strong>
-                    <span className={`severity severity-${item.severity}`}>{item.status}</span>
+                    <span className={`severity severity-${item.status === "needs_review" ? "warning" : "info"}`}>
+                      {item.status}
+                    </span>
+                    <span className={`riskBadge riskBadge-${item.risk_badge ?? "monitor"}`}>
+                      {item.risk_badge ?? "monitor"}
+                    </span>
                   </div>
                   <small>Category: {item.category}</small>
                   <small>Request ID: {item.request_id ?? "none"}</small>
                   <small>Trace ID: {item.trace_id ?? "none"}</small>
                   <small>
+                    Decision History: {item.decision_history_evidence_ref ?? securityReviewEvidenceRefs.decision_history}
+                  </small>
+                  <small>
                     Evidence: {item.evidence_ref} / {item.item_evidence_ref} / {item.redaction_evidence_ref}
+                  </small>
+                  <small>
+                    Snapshot refs:{" "}
+                    {Object.values(item.evidence_snapshot ?? {}).join(" / ") ||
+                      securityReviewEvidenceRefs.evidence_snapshot}
                   </small>
                   <small>Detail keys only: {item.detail_keys.join(", ") || "none"}</small>
                   <p>{item.summary}</p>

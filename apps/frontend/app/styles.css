@@ -853,9 +853,38 @@ button:disabled {
   color: #fde68a;
 }
 
+.severity-error,
+.severity-high {
+  border-color: #fb7185;
+  color: #fecdd3;
+}
+
 .severity-critical {
   border-color: #ef4444;
   color: #fecaca;
+}
+
+.riskBadge {
+  border: 1px solid #475569;
+  padding: 3px 6px;
+  color: #dbeafe;
+  font-size: 12px;
+}
+
+.riskBadge-release_blocker_review {
+  border-color: #fb7185;
+  color: #fecdd3;
+}
+
+.riskBadge-review_required {
+  border-color: #f59e0b;
+  color: #fde68a;
+}
+
+.riskBadge-runtime_monitor,
+.riskBadge-monitor {
+  border-color: #22d3ee;
+  color: #a5f3fc;
 }
 
 .costSummary {
