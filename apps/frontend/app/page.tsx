@@ -1136,6 +1136,38 @@ type AuthAuditTimeline = {
   non_claims: string[];
 };
 
+type AuthAuditExportContract = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  contract_endpoint: string;
+  snapshot_endpoint: string;
+  risk_rollup_endpoint: string;
+  timeline_endpoint: string;
+  supported_formats: string[];
+  filename_pattern: string;
+  columns: string[];
+  evidence_ref: string;
+  export_audit_evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_oauth_evidence_ref: string;
+  read_only: boolean;
+  audit_persisted: boolean;
+  live_github_oauth_call_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  tokens_returned: boolean;
+  cookies_returned: boolean;
+  authorization_headers_returned: boolean;
+  blacklist_keys_returned: boolean;
+  oauth_codes_returned: boolean;
+  oauth_states_returned: boolean;
+  raw_details_returned: boolean;
+  policy_checks: string[];
+  non_claims: string[];
+};
+
 type MemoryPurgeContract = {
   contract_version: string;
   mode: string;
@@ -2372,6 +2404,7 @@ export default function Home() {
   const [authAuditSnapshot, setAuthAuditSnapshot] = useState<AuthAuditSnapshot | null>(null);
   const [authAuditRiskRollup, setAuthAuditRiskRollup] = useState<AuthAuditRiskRollup | null>(null);
   const [authAuditTimeline, setAuthAuditTimeline] = useState<AuthAuditTimeline | null>(null);
+  const [authAuditExportContract, setAuthAuditExportContract] = useState<AuthAuditExportContract | null>(null);
   const [memoryPurgeContract, setMemoryPurgeContract] = useState<MemoryPurgeContract | null>(null);
   const [workflowDispatch, setWorkflowDispatch] = useState<WorkflowDispatchPlan | null>(null);
   const [githubBranchPrContract, setGithubBranchPrContract] = useState<GithubBranchPrContract | null>(null);
@@ -2672,11 +2705,12 @@ export default function Home() {
   }
 
   async function loadAuthContract() {
-    const [response, auditResponse, riskResponse, timelineResponse] = await Promise.all([
+    const [response, auditResponse, riskResponse, timelineResponse, exportResponse] = await Promise.all([
       fetch("/api/v1/auth/contract", { cache: "no-store" }),
       fetch("/api/v1/audit/auth/snapshot?limit=80", { cache: "no-store" }),
       fetch("/api/v1/audit/auth/risk-rollup?limit=80", { cache: "no-store" }),
       fetch("/api/v1/audit/auth/timeline?limit=80", { cache: "no-store" }),
+      fetch("/api/v1/audit/auth/export/contract", { cache: "no-store" }),
     ]);
     if (!response.ok) throw new Error(`auth contract ${response.status}`);
     setAuthContract(await response.json());
@@ -2688,6 +2722,9 @@ export default function Home() {
     }
     if (timelineResponse.ok) {
       setAuthAuditTimeline(await timelineResponse.json());
+    }
+    if (exportResponse.ok) {
+      setAuthAuditExportContract(await exportResponse.json());
     }
   }
 
@@ -7456,6 +7493,41 @@ export default function Home() {
                 <small>Guard: auth_no_live_oauth_guard</small>
               </article>
             )}
+          </div>
+          <div className="auditSnapshot">
+            <strong>Auth Audit Export</strong>
+            <span>
+              {authAuditExportContract?.contract_version ?? "auth-audit-export-v1"} /{" "}
+              {authAuditExportContract?.evidence_ref ?? "auth_audit_export_visible"}
+            </span>
+            <small>
+              Endpoint: {authAuditExportContract?.endpoint ?? "GET /api/v1/audit/auth/export?format=csv&limit=80"}
+            </small>
+            <small>
+              Contract: {authAuditExportContract?.contract_endpoint ?? "GET /api/v1/audit/auth/export/contract"} /
+              file {authAuditExportContract?.filename_pattern ?? "superbrain-auth-audit.csv"}
+            </small>
+            <small>
+              Export audit:{" "}
+              {authAuditExportContract?.export_audit_evidence_ref ?? "auth_audit_export_audit_persisted"} /
+              Redaction: {authAuditExportContract?.redaction_evidence_ref ?? "auth_audit_redaction_enforced"} /
+              No-live-OAuth: {authAuditExportContract?.no_live_oauth_evidence_ref ?? "auth_no_live_oauth_guard"}
+            </small>
+            <small>
+              read_only={String(authAuditExportContract?.read_only ?? true)} /
+              audit_persisted={String(authAuditExportContract?.audit_persisted ?? true)} /
+              production_rollout_claimed={String(authAuditExportContract?.production_rollout_claimed ?? false)}
+            </small>
+            <small>
+              tokens_returned={String(authAuditExportContract?.tokens_returned ?? false)} /
+              cookies_returned={String(authAuditExportContract?.cookies_returned ?? false)} /
+              raw_details_returned={String(authAuditExportContract?.raw_details_returned ?? false)}
+            </small>
+            <small>
+              Columns:{" "}
+              {authAuditExportContract?.columns?.join(", ") ??
+                "sequence_index, event_id, created_at, event_type, lifecycle_step, status, severity, trace_id"}
+            </small>
           </div>
           <div className="auditList">
             {authAuditSnapshot?.events?.length ? (

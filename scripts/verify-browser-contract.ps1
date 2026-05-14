@@ -194,6 +194,11 @@ Assert-Contains "auth audit timeline panel" $frontendHtml "Auth Audit Timeline"
 Assert-Contains "auth audit timeline contract marker" $frontendHtml "auth-audit-timeline-v1"
 Assert-Contains "auth audit timeline evidence marker" $frontendHtml "auth_audit_timeline_visible"
 Assert-Contains "auth audit timeline endpoint marker" $frontendHtml "GET /api/v1/audit/auth/timeline"
+Assert-Contains "auth audit export panel" $frontendHtml "Auth Audit Export"
+Assert-Contains "auth audit export contract marker" $frontendHtml "auth-audit-export-v1"
+Assert-Contains "auth audit export evidence marker" $frontendHtml "auth_audit_export_visible"
+Assert-Contains "auth audit export audit marker" $frontendHtml "auth_audit_export_audit_persisted"
+Assert-Contains "auth audit export endpoint marker" $frontendHtml "GET /api/v1/audit/auth/export"
 Assert-Contains "system fallback panel" $frontendHtml "System Unavailable Fallback"
 Assert-Contains "layer interface contract panel" $frontendHtml "Layer Interface Contracts"
 Assert-Contains "layer interface evidence marker" $frontendHtml "layer_interface_contracts_visible"
@@ -436,9 +441,12 @@ Assert-Contains "auth audit contract version" $authAuditContract '"contract_vers
 Assert-Contains "auth audit snapshot endpoint" $authAuditContract "GET /api/v1/audit/auth/snapshot"
 Assert-Contains "auth audit risk endpoint" $authAuditContract "GET /api/v1/audit/auth/risk-rollup"
 Assert-Contains "auth audit timeline endpoint" $authAuditContract "GET /api/v1/audit/auth/timeline"
+Assert-Contains "auth audit export endpoint" $authAuditContract "GET /api/v1/audit/auth/export"
 Assert-Contains "auth audit evidence" $authAuditContract "auth_audit_snapshot_visible"
 Assert-Contains "auth audit risk evidence" $authAuditContract "auth_audit_risk_rollup_visible"
 Assert-Contains "auth audit timeline evidence" $authAuditContract "auth_audit_timeline_visible"
+Assert-Contains "auth audit export evidence" $authAuditContract "auth_audit_export_visible"
+Assert-Contains "auth audit export audit evidence" $authAuditContract "auth_audit_export_audit_persisted"
 Assert-Contains "auth audit redaction evidence" $authAuditContract "auth_audit_redaction_enforced"
 Assert-Contains "auth audit no live oauth evidence" $authAuditContract "auth_no_live_oauth_guard"
 $authAuditSnapshot = Invoke-Text "$BaseUrl/api/v1/audit/auth/snapshot?limit=60"
@@ -492,6 +500,19 @@ Assert-True "auth audit timeline no forbidden hits" ([int]$authAuditTimelineJson
 Assert-True "auth audit timeline no live oauth count" ([int]$authAuditTimelineJson.live_github_oauth_call_count -eq 0)
 Assert-True "auth audit timeline parity" ([int]$authAuditTimelineJson.events_scanned -eq [int]$authAuditSnapshotJson.events_scanned)
 Assert-True "auth audit timeline count visible" ([int]$authAuditTimelineJson.timeline_count -eq @($authAuditTimelineJson.timeline).Count)
+$authAuditExportContract = Invoke-Text "$BaseUrl/api/v1/audit/auth/export/contract"
+Assert-Contains "auth audit export version" $authAuditExportContract '"contract_version":"auth-audit-export-v1"'
+Assert-Contains "auth audit export mode" $authAuditExportContract "read_only_auth_audit_csv_export"
+Assert-Contains "auth audit export evidence" $authAuditExportContract "auth_audit_export_visible"
+Assert-Contains "auth audit export audit evidence" $authAuditExportContract "auth_audit_export_audit_persisted"
+Assert-Contains "auth audit export read only" $authAuditExportContract '"read_only":true'
+Assert-Contains "auth audit export no live oauth claim" $authAuditExportContract '"live_github_oauth_call_claimed":false'
+Assert-Contains "auth audit export production false" $authAuditExportContract '"production_rollout_claimed":false'
+Assert-Contains "auth audit export tokens absent" $authAuditExportContract '"tokens_returned":false'
+Assert-Contains "auth audit export raw details absent" $authAuditExportContract '"raw_details_returned":false'
+$authAuditExportCsv = Invoke-Text "$BaseUrl/api/v1/audit/auth/export?format=csv&limit=60"
+Assert-Contains "auth audit export csv header" $authAuditExportCsv "sequence_index,event_id,created_at,event_type,lifecycle_step,status,severity,trace_id,code_present,cookie_http_only,cookie_secure,cookie_same_site,live_github_oauth_call,evidence_ref,redaction_evidence_ref,no_live_oauth_evidence_ref"
+Assert-True "auth audit export no secret pattern leak" (-not ($authAuditExportCsv -match "sk-proj-[A-Za-z0-9_-]{16,}|github_pat_[A-Za-z0-9_]{16,}|ghp_[A-Za-z0-9_]{16,}|vck_[A-Za-z0-9_-]{24,}|cfat_[A-Za-z0-9_-]{24,}|hcloud_[A-Za-z0-9_-]{16,}|\bhf_[A-Za-z0-9_-]{24,}|glpat-[A-Za-z0-9_.-]{20,}|Authorization: Bearer|Cookie:|auth:refresh:blacklist:|csr_[A-Za-z0-9_-]{16,}|eyJ[A-Za-z0-9_-]{10,}\."))
 $authCanaryId = [Guid]::NewGuid().ToString("N")
 $authCanaryTrace = "unsafe $authCanaryId Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJicm93c2VyLWNhbmFyeSJ9.signature Cookie: refresh_token=csr_$authCanaryId auth:refresh:blacklist:$authCanaryId"
 $authCanaryCode = "browser-code-$authCanaryId"

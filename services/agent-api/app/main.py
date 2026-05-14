@@ -1058,9 +1058,12 @@ AUTH_BLACKLIST_PREFIX = "auth:refresh:blacklist:"
 AUTH_AUDIT_SNAPSHOT_CONTRACT_VERSION = "auth-audit-snapshot-v1"
 AUTH_AUDIT_RISK_ROLLUP_CONTRACT_VERSION = "auth-audit-risk-rollup-v1"
 AUTH_AUDIT_TIMELINE_CONTRACT_VERSION = "auth-audit-timeline-v1"
+AUTH_AUDIT_EXPORT_CONTRACT_VERSION = "auth-audit-export-v1"
 AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF = "auth_audit_snapshot_visible"
 AUTH_AUDIT_RISK_ROLLUP_EVIDENCE_REF = "auth_audit_risk_rollup_visible"
 AUTH_AUDIT_TIMELINE_EVIDENCE_REF = "auth_audit_timeline_visible"
+AUTH_AUDIT_EXPORT_EVIDENCE_REF = "auth_audit_export_visible"
+AUTH_AUDIT_EXPORT_AUDIT_EVIDENCE_REF = "auth_audit_export_audit_persisted"
 AUTH_AUDIT_REDACTION_EVIDENCE_REF = "auth_audit_redaction_enforced"
 AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF = "auth_no_live_oauth_guard"
 AUTH_PUBLIC_TRACE_ID_ALLOWED_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._:-")
@@ -1614,6 +1617,7 @@ def auth_contract_payload() -> dict[str, object]:
             "audit_snapshot": AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF,
             "audit_risk_rollup": AUTH_AUDIT_RISK_ROLLUP_EVIDENCE_REF,
             "audit_timeline": AUTH_AUDIT_TIMELINE_EVIDENCE_REF,
+            "audit_export": AUTH_AUDIT_EXPORT_EVIDENCE_REF,
             "audit_redaction": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
             "no_live_oauth": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
         },
@@ -1648,17 +1652,24 @@ def auth_audit_contract_payload() -> dict[str, object]:
         "endpoint": "GET /api/v1/audit/auth/snapshot",
         "risk_rollup_endpoint": "GET /api/v1/audit/auth/risk-rollup",
         "timeline_endpoint": "GET /api/v1/audit/auth/timeline",
+        "export_endpoint": "GET /api/v1/audit/auth/export?format=csv&limit=80",
+        "export_contract_endpoint": "GET /api/v1/audit/auth/export/contract",
         "contract_endpoint": "GET /api/v1/audit/auth/contract",
         "risk_rollup_contract_version": AUTH_AUDIT_RISK_ROLLUP_CONTRACT_VERSION,
         "timeline_contract_version": AUTH_AUDIT_TIMELINE_CONTRACT_VERSION,
+        "export_contract_version": AUTH_AUDIT_EXPORT_CONTRACT_VERSION,
+        "supported_export_formats": ["csv"],
         "source_table": "audit_log",
         "source_event_types": list(AUTH_AUDIT_EVENT_TYPES),
         "evidence_ref": AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF,
         "risk_rollup_evidence_ref": AUTH_AUDIT_RISK_ROLLUP_EVIDENCE_REF,
         "timeline_evidence_ref": AUTH_AUDIT_TIMELINE_EVIDENCE_REF,
+        "export_evidence_ref": AUTH_AUDIT_EXPORT_EVIDENCE_REF,
+        "export_audit_evidence_ref": AUTH_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
         "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
         "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
         "read_only": True,
+        "audit_persisted": True,
         "live_github_oauth_call_claimed": False,
         "tokens_returned": False,
         "cookies_returned": False,
@@ -1698,6 +1709,24 @@ def auth_audit_contract_payload() -> dict[str, object]:
             "redaction_evidence_ref",
             "no_live_oauth_evidence_ref",
         ],
+        "export_columns": [
+            "sequence_index",
+            "event_id",
+            "created_at",
+            "event_type",
+            "lifecycle_step",
+            "status",
+            "severity",
+            "trace_id",
+            "code_present",
+            "cookie_http_only",
+            "cookie_secure",
+            "cookie_same_site",
+            "live_github_oauth_call",
+            "evidence_ref",
+            "redaction_evidence_ref",
+            "no_live_oauth_evidence_ref",
+        ],
         "policy_checks": [
             "Snapshot reads audit_log only and never starts OAuth, refresh, logout, or token issuance flows.",
             "Returned events are reduced to safe auth lifecycle fields only.",
@@ -1705,11 +1734,13 @@ def auth_audit_contract_payload() -> dict[str, object]:
             "Any live GitHub OAuth call claim or forbidden credential pattern blocks the snapshot.",
             "The risk rollup is computed from the same safe auth audit projection and never performs auth writes or live OAuth calls.",
             "The timeline is computed from the same safe auth audit projection and never returns raw audit_log details.",
+            "The CSV export is generated from the same safe auth audit projection and logs only redacted export metadata.",
         ],
         "non_claims": [
             "This endpoint does not perform or prove a live GitHub OAuth exchange.",
             "This endpoint does not return tokens, cookies, OAuth codes, OAuth states, Redis blacklist keys, or authorization headers.",
             "This endpoint does not authorize production identity rollout or release promotion.",
+            "The export is operator evidence only and is not a SOC/SIEM completion claim.",
         ],
     }
 
@@ -2048,6 +2079,120 @@ def build_auth_audit_timeline(events: list[dict[str, object]]) -> dict[str, obje
         ],
         "non_claims": auth_audit_contract_payload()["non_claims"],
     }
+
+
+def auth_audit_export_contract_payload() -> dict[str, object]:
+    contract = auth_audit_contract_payload()
+    return {
+        "contract_version": AUTH_AUDIT_EXPORT_CONTRACT_VERSION,
+        "parent_contract_version": AUTH_AUDIT_SNAPSHOT_CONTRACT_VERSION,
+        "mode": "read_only_auth_audit_csv_export",
+        "endpoint": "GET /api/v1/audit/auth/export?format=csv&limit=80",
+        "contract_endpoint": "GET /api/v1/audit/auth/export/contract",
+        "snapshot_endpoint": "GET /api/v1/audit/auth/snapshot",
+        "risk_rollup_endpoint": "GET /api/v1/audit/auth/risk-rollup",
+        "timeline_endpoint": "GET /api/v1/audit/auth/timeline",
+        "source_table": "audit_log",
+        "source_event_types": list(AUTH_AUDIT_EVENT_TYPES),
+        "supported_formats": ["csv"],
+        "default_format": "csv",
+        "default_limit": 80,
+        "max_limit": 200,
+        "filename_pattern": "superbrain-auth-audit.csv",
+        "columns": contract["export_columns"],
+        "evidence_ref": AUTH_AUDIT_EXPORT_EVIDENCE_REF,
+        "export_audit_evidence_ref": AUTH_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+        "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+        "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+        "read_only": True,
+        "audit_persisted": True,
+        "live_github_oauth_call_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "tokens_returned": False,
+        "cookies_returned": False,
+        "authorization_headers_returned": False,
+        "blacklist_keys_returned": False,
+        "oauth_codes_returned": False,
+        "oauth_states_returned": False,
+        "raw_details_returned": False,
+        "policy_checks": [
+            "Export reads audit_log through the safe auth audit projection only.",
+            "Export emits CSV columns from the allowlisted auth audit fields only.",
+            "Export never starts OAuth, refresh, logout, token issuance, deployment, or production promotion flows.",
+            "Export audit logging stores only redacted metadata: contract version, row count, trace id, request id, format, and evidence ref.",
+            "Any forbidden pattern in exported rows blocks the verifier.",
+        ],
+        "non_claims": contract["non_claims"],
+    }
+
+
+def csv_safe_value(value: object) -> object:
+    if value is None or isinstance(value, bool | int | float):
+        return value
+    text = str(value)
+    if text.startswith(("=", "+", "-", "@", "\t", "\r", "\n")):
+        return "'" + text
+    return text
+
+
+def build_auth_audit_export_csv(events: list[dict[str, object]]) -> str:
+    output = io.StringIO()
+    fieldnames = auth_audit_export_contract_payload()["columns"]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
+    writer.writeheader()
+    ordered_events = sorted(events, key=lambda event: str(event.get("created_at") or ""))
+    for index, event in enumerate(ordered_events, start=1):
+        cookie_flags = event.get("cookie_flags") if isinstance(event.get("cookie_flags"), dict) else {}
+        row = {
+            "sequence_index": index,
+            "event_id": event.get("event_id"),
+            "created_at": event.get("created_at"),
+            "event_type": event.get("event_type"),
+            "lifecycle_step": event.get("lifecycle_step"),
+            "status": event.get("status"),
+            "severity": event.get("severity"),
+            "trace_id": public_trace_id(event.get("trace_id")),
+            "code_present": event.get("code_present"),
+            "cookie_http_only": cookie_flags.get("HttpOnly"),
+            "cookie_secure": cookie_flags.get("Secure"),
+            "cookie_same_site": cookie_flags.get("SameSite"),
+            "live_github_oauth_call": event.get("live_github_oauth_call") is True,
+            "evidence_ref": event.get("evidence_ref"),
+            "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+            "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+        }
+        writer.writerow({key: csv_safe_value(value) for key, value in row.items()})
+    return output.getvalue()
+
+
+def persist_auth_audit_export_audit(format: str, row_count: int, trace_id: str, request_id: str) -> None:
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, details, severity)
+                VALUES ('auth_audit_export_generated', 'auth-audit', %s::jsonb, 'info')
+                """,
+                (
+                    Json(
+                        redact_json(
+                            {
+                                "contract_version": AUTH_AUDIT_EXPORT_CONTRACT_VERSION,
+                                "trace_id": trace_id,
+                                "request_id": request_id,
+                                "format": format,
+                                "row_count": row_count,
+                                "evidence_ref": AUTH_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+                                "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+                                "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+                            }
+                        )
+                    ),
+                ),
+            )
+    except Exception as exc:  # pragma: no cover - audit persistence must not break exports
+        print(f"auth audit export audit failed: {exc}")
 
 
 def memory_purge_contract_payload() -> dict[str, object]:
@@ -5004,6 +5149,12 @@ def auth_audit_contract() -> dict[str, object]:
     return auth_audit_contract_payload()
 
 
+@app.get("/api/v1/audit/auth/export/contract")
+@app.get("/api/v1/auth/audit/export/contract")
+def auth_audit_export_contract() -> dict[str, object]:
+    return auth_audit_export_contract_payload()
+
+
 @app.get("/api/v1/audit/auth/snapshot")
 @app.get("/api/v1/auth/audit/snapshot")
 def auth_audit_snapshot(limit: int = Query(default=80, ge=1, le=200)) -> dict[str, object]:
@@ -5026,6 +5177,46 @@ def auth_audit_timeline(limit: int = Query(default=80, ge=1, le=200)) -> dict[st
     rows = auth_audit_rows(limit)
     events = [safe_auth_audit_event(row) for row in rows]
     return build_auth_audit_timeline(events)
+
+
+@app.get("/api/v1/audit/auth/export")
+@app.get("/api/v1/auth/audit/export")
+def auth_audit_export(
+    request: Request,
+    format: str = Query(default="csv", pattern="^csv$"),
+    limit: int = Query(default=80, ge=1, le=200),
+    trace_id: str | None = Query(default=None, max_length=255),
+    request_id: str | None = Query(default=None, max_length=255),
+) -> Response:
+    if format != "csv":
+        raise HTTPException(status_code=400, detail={"error": "unsupported_format", "allowed": ["csv"]})
+    rows = auth_audit_rows(limit)
+    events = [safe_auth_audit_event(row) for row in rows]
+    csv_payload = build_auth_audit_export_csv(events)
+    row_count = max(0, len(csv_payload.splitlines()) - 1)
+    resolved_trace_id = public_trace_id(trace_id) or f"auth-audit-export-{uuid4()}"
+    resolved_request_id = (
+        public_request_id(request_id)
+        or public_request_id(getattr(request.state, "request_id", None))
+        or public_request_id(request.headers.get("x-request-id"))
+        or f"req-{uuid4()}"
+    )
+    persist_auth_audit_export_audit(format, row_count, resolved_trace_id, resolved_request_id)
+    filename = "superbrain-auth-audit.csv"
+    return Response(
+        csv_payload,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Contract-Version": AUTH_AUDIT_EXPORT_CONTRACT_VERSION,
+            "X-Evidence-Ref": AUTH_AUDIT_EXPORT_EVIDENCE_REF,
+            "X-Export-Audit-Evidence-Ref": AUTH_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+            "X-Redaction-Evidence-Ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+            "X-No-Live-Oauth-Evidence-Ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+            "X-Trace-Id": resolved_trace_id,
+            "X-Request-Id": resolved_request_id,
+        },
+    )
 
 
 @app.get("/api/v1/auth/github")
