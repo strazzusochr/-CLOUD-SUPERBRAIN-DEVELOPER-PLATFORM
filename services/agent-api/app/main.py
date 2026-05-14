@@ -129,8 +129,10 @@ LLM_AUDIT_SNAPSHOT_EVIDENCE_REF = "llm_audit_snapshot_visible"
 LLM_AUDIT_REDACTION_EVIDENCE_REF = "llm_audit_redaction_enforced"
 GATEWAY_CORRELATION_CONTRACT_VERSION = "gateway-correlation-snapshot-v1"
 GATEWAY_CORRELATION_RISK_ROLLUP_CONTRACT_VERSION = "gateway-correlation-risk-rollup-v1"
+GATEWAY_CORRELATION_TIMELINE_CONTRACT_VERSION = "gateway-correlation-timeline-v1"
 GATEWAY_CORRELATION_EVIDENCE_REF = "gateway_correlation_snapshot_visible"
 GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF = "gateway_correlation_risk_rollup_visible"
+GATEWAY_CORRELATION_TIMELINE_EVIDENCE_REF = "gateway_correlation_timeline_visible"
 GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF = "gateway_correlation_redaction_enforced"
 GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF = "gateway_correlation_no_live_write_guard"
 MCP_AUDIT_FEED_CONTRACT_VERSION = "mcp-audit-feed-v1"
@@ -5706,12 +5708,15 @@ def gateway_correlation_contract_payload() -> dict[str, object]:
         "mode": "read_only_agent_llm_mcp_correlation_snapshot",
         "endpoint": "GET /api/v1/security/gateway-correlation/snapshot",
         "risk_rollup_endpoint": "GET /api/v1/security/gateway-correlation/risk-rollup",
+        "timeline_endpoint": "GET /api/v1/security/gateway-correlation/timeline",
         "contract_endpoint": "GET /api/v1/security/gateway-correlation/contract",
         "risk_rollup_contract_version": GATEWAY_CORRELATION_RISK_ROLLUP_CONTRACT_VERSION,
+        "timeline_contract_version": GATEWAY_CORRELATION_TIMELINE_CONTRACT_VERSION,
         "source_table": "audit_log",
         "source_event_types": list(GATEWAY_CORRELATION_EVENT_TYPES),
         "evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
         "risk_rollup_evidence_ref": GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF,
+        "timeline_evidence_ref": GATEWAY_CORRELATION_TIMELINE_EVIDENCE_REF,
         "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
         "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
         "read_only": True,
@@ -5751,12 +5756,30 @@ def gateway_correlation_contract_payload() -> dict[str, object]:
             "promotion_allowed",
             "production_rollout_claimed",
         ],
+        "timeline_fields": [
+            "sequence_index",
+            "event_id",
+            "created_at",
+            "event_type",
+            "timeline_leg",
+            "correlation_key",
+            "trace_id",
+            "request_id",
+            "session_id",
+            "agent_type",
+            "status",
+            "severity",
+            "evidence_ref",
+            "redaction_evidence_ref",
+            "no_live_write_evidence_ref",
+        ],
         "policy_checks": [
             "Snapshot reads audit_log only and never executes an agent, LLM provider, MCP tool, or deployment action.",
             "Returned events are reduced to safe correlation fields; raw prompts, tool input refs, provider credentials, and raw details are omitted.",
             "A full correlation requires agent task evidence, LLM audit evidence, and MCP audit evidence sharing a trace, request, or session key.",
             "The snapshot fails closed when live_provider_calls or live_mcp_writes appear in correlated evidence.",
             "The risk rollup is computed from the same read-only snapshot groups and never performs seed writes or live calls.",
+            "The timeline is computed from the same safe event projection and never returns raw audit_log details.",
         ],
         "non_claims": [
             "This endpoint does not authorize production rollout or release promotion.",
@@ -5848,10 +5871,29 @@ def gateway_correlation_forbidden_pattern_hits(events: list[dict[str, object]]) 
     return sum(1 for marker in forbidden if marker in text)
 
 
+def gateway_correlation_event_key(event: dict[str, object]) -> str:
+    return str(event.get("trace_id") or event.get("request_id") or event.get("session_id") or event["event_id"])
+
+
+def gateway_correlation_timeline_leg(event_type: str) -> str:
+    if event_type in {
+        "task_completed",
+        "autonomous_team_dispatch",
+        "langgraph_dry_run_completed",
+        "langgraph_dry_run_stopped",
+    }:
+        return "agent_task"
+    if event_type == "llm_gateway_request":
+        return "llm_audit"
+    if event_type == "mcp_tool_executed":
+        return "mcp_audit"
+    return "unknown"
+
+
 def build_gateway_correlation_groups(events: list[dict[str, object]]) -> list[dict[str, object]]:
     grouped: dict[str, list[dict[str, object]]] = {}
     for event in events:
-        key = str(event.get("trace_id") or event.get("request_id") or event.get("session_id") or event["event_id"])
+        key = gateway_correlation_event_key(event)
         grouped.setdefault(key, []).append(event)
 
     groups: list[dict[str, object]] = []
@@ -5897,6 +5939,79 @@ def build_gateway_correlation_groups(events: list[dict[str, object]]) -> list[di
             }
         )
     return sorted(groups, key=lambda item: int(item["event_count"]), reverse=True)
+
+
+def build_gateway_correlation_timeline(events: list[dict[str, object]]) -> dict[str, object]:
+    forbidden_pattern_hits = gateway_correlation_forbidden_pattern_hits(events)
+    ordered_events = sorted(
+        events,
+        key=lambda event: str(event.get("created_at") or ""),
+    )
+    timeline: list[dict[str, object]] = []
+    for index, event in enumerate(ordered_events, start=1):
+        event_type = str(event.get("event_type") or "unknown")
+        timeline.append(
+            {
+                "sequence_index": index,
+                "event_id": event.get("event_id"),
+                "created_at": event.get("created_at"),
+                "event_type": event_type,
+                "timeline_leg": gateway_correlation_timeline_leg(event_type),
+                "correlation_key": gateway_correlation_event_key(event),
+                "trace_id": event.get("trace_id"),
+                "request_id": event.get("request_id"),
+                "session_id": event.get("session_id"),
+                "agent_type": event.get("agent_type"),
+                "status": event.get("status"),
+                "severity": event.get("severity"),
+                "evidence_ref": event.get("evidence_ref"),
+                "redaction_evidence_ref": event.get("redaction_evidence_ref"),
+                "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+                "live_provider_calls": event.get("live_provider_calls") is True,
+                "live_mcp_writes": event.get("live_mcp_writes") is True,
+            }
+        )
+    live_provider_call_count = sum(1 for event in timeline if event["live_provider_calls"] is True)
+    live_mcp_write_count = sum(1 for event in timeline if event["live_mcp_writes"] is True)
+    return {
+        "contract_version": GATEWAY_CORRELATION_TIMELINE_CONTRACT_VERSION,
+        "parent_contract_version": GATEWAY_CORRELATION_CONTRACT_VERSION,
+        "mode": "read_only_gateway_correlation_timeline",
+        "endpoint": "GET /api/v1/security/gateway-correlation/timeline",
+        "snapshot_endpoint": "GET /api/v1/security/gateway-correlation/snapshot",
+        "risk_rollup_endpoint": "GET /api/v1/security/gateway-correlation/risk-rollup",
+        "contract_endpoint": "GET /api/v1/security/gateway-correlation/contract",
+        "source_table": "audit_log",
+        "source_event_types": list(GATEWAY_CORRELATION_EVENT_TYPES),
+        "evidence_ref": GATEWAY_CORRELATION_TIMELINE_EVIDENCE_REF,
+        "snapshot_evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
+        "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+        "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+        "read_only": True,
+        "live_provider_calls_claimed": False,
+        "live_mcp_writes_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "prompt_bodies_returned": False,
+        "tool_input_refs_returned": False,
+        "provider_credentials_returned": False,
+        "events_scanned": len(events),
+        "timeline_count": len(timeline),
+        "live_provider_call_count": live_provider_call_count,
+        "live_mcp_write_count": live_mcp_write_count,
+        "forbidden_pattern_hits": forbidden_pattern_hits,
+        "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+        "event_type_counts": count_by_key([str(event.get("event_type")) for event in events]),
+        "timeline_leg_counts": count_by_key([str(event.get("timeline_leg")) for event in timeline]),
+        "timeline": timeline[:80],
+        "policy_checks": [
+            "Timeline reads audit_log through the safe gateway correlation projection only.",
+            "Timeline never seeds audit rows, executes agents, calls LLM providers, executes MCP tools, or dispatches deployments.",
+            "Timeline entries expose ordering and correlation keys only; raw audit_log details remain omitted.",
+            "Production rollout and promotion remain false even when full correlation evidence exists.",
+        ],
+        "non_claims": gateway_correlation_contract_payload()["non_claims"],
+    }
 
 
 def gateway_correlation_group_risk(group: dict[str, object]) -> dict[str, object]:
@@ -6090,6 +6205,13 @@ def gateway_correlation_risk_rollup(limit: int = Query(default=80, ge=1, le=200)
     events = [safe_gateway_correlation_event(row) for row in rows]
     groups = build_gateway_correlation_groups(events)
     return build_gateway_correlation_risk_rollup(events, groups)
+
+
+@app.get("/api/v1/security/gateway-correlation/timeline")
+def gateway_correlation_timeline(limit: int = Query(default=80, ge=1, le=200)) -> dict[str, object]:
+    rows = gateway_correlation_rows(limit)
+    events = [safe_gateway_correlation_event(row) for row in rows]
+    return build_gateway_correlation_timeline(events)
 
 
 SECURITY_AUDIT_EVENT_CATEGORIES = {

@@ -213,6 +213,10 @@ Assert-Contains "gateway correlation risk rollup panel" $frontendHtml "Gateway C
 Assert-Contains "gateway correlation risk contract marker" $frontendHtml "gateway-correlation-risk-rollup-v1"
 Assert-Contains "gateway correlation risk evidence marker" $frontendHtml "gateway_correlation_risk_rollup_visible"
 Assert-Contains "gateway correlation risk endpoint marker" $frontendHtml "GET /api/v1/security/gateway-correlation/risk-rollup"
+Assert-Contains "gateway correlation timeline panel" $frontendHtml "Gateway Correlation Timeline"
+Assert-Contains "gateway correlation timeline contract marker" $frontendHtml "gateway-correlation-timeline-v1"
+Assert-Contains "gateway correlation timeline evidence marker" $frontendHtml "gateway_correlation_timeline_visible"
+Assert-Contains "gateway correlation timeline endpoint marker" $frontendHtml "GET /api/v1/security/gateway-correlation/timeline"
 Assert-Contains "langfuse trace access panel" $frontendHtml "Langfuse Trace Access"
 Assert-Contains "langfuse trace access contract marker" $frontendHtml "langfuse-trace-access-v1"
 Assert-Contains "langfuse trace access evidence marker" $frontendHtml "langfuse_trace_access_visible"
@@ -550,6 +554,9 @@ Assert-Contains "gateway correlation no live write evidence" $gatewayCorrelation
 Assert-Contains "gateway correlation risk endpoint" $gatewayCorrelationContract "GET /api/v1/security/gateway-correlation/risk-rollup"
 Assert-Contains "gateway correlation risk version" $gatewayCorrelationContract "gateway-correlation-risk-rollup-v1"
 Assert-Contains "gateway correlation risk evidence" $gatewayCorrelationContract "gateway_correlation_risk_rollup_visible"
+Assert-Contains "gateway correlation timeline endpoint" $gatewayCorrelationContract "GET /api/v1/security/gateway-correlation/timeline"
+Assert-Contains "gateway correlation timeline version" $gatewayCorrelationContract "gateway-correlation-timeline-v1"
+Assert-Contains "gateway correlation timeline evidence" $gatewayCorrelationContract "gateway_correlation_timeline_visible"
 Assert-Contains "gateway correlation read only" $gatewayCorrelationContract '"read_only":true'
 Assert-Contains "gateway correlation no live provider claim" $gatewayCorrelationContract '"live_provider_calls_claimed":false'
 Assert-Contains "gateway correlation no live mcp claim" $gatewayCorrelationContract '"live_mcp_writes_claimed":false'
@@ -587,6 +594,28 @@ Assert-True "gateway correlation risk rollup not blocked" ($gatewayCorrelationRi
 Assert-True "gateway correlation risk rollup event parity" ([int]$gatewayCorrelationRiskRollupJson.events_scanned -eq [int]$gatewayCorrelationSnapshotJson.events_scanned)
 Assert-True "gateway correlation risk rollup group parity" ([int]$gatewayCorrelationRiskRollupJson.groups_scanned -eq [int]$gatewayCorrelationSnapshotJson.groups_scanned)
 Assert-True "gateway correlation risk rollup badge coverage" (@($gatewayCorrelationRiskRollupJson.risk_badges).Count -ge 3)
+
+$gatewayCorrelationTimeline = Invoke-Text "$BaseUrl/api/v1/security/gateway-correlation/timeline?limit=20"
+Assert-Contains "gateway correlation timeline version" $gatewayCorrelationTimeline '"contract_version":"gateway-correlation-timeline-v1"'
+Assert-Contains "gateway correlation timeline mode" $gatewayCorrelationTimeline "read_only_gateway_correlation_timeline"
+Assert-Contains "gateway correlation timeline evidence" $gatewayCorrelationTimeline "gateway_correlation_timeline_visible"
+Assert-Contains "gateway correlation timeline redaction" $gatewayCorrelationTimeline "gateway_correlation_redaction_enforced"
+Assert-Contains "gateway correlation timeline no live write" $gatewayCorrelationTimeline "gateway_correlation_no_live_write_guard"
+Assert-Contains "gateway correlation timeline read-only" $gatewayCorrelationTimeline '"read_only":true'
+Assert-Contains "gateway correlation timeline no live provider claim" $gatewayCorrelationTimeline '"live_provider_calls_claimed":false'
+Assert-Contains "gateway correlation timeline no live mcp claim" $gatewayCorrelationTimeline '"live_mcp_writes_claimed":false'
+Assert-Contains "gateway correlation timeline no production rollout" $gatewayCorrelationTimeline '"production_rollout_claimed":false'
+Assert-Contains "gateway correlation timeline promotion blocked" $gatewayCorrelationTimeline '"promotion_allowed":false'
+Assert-Contains "gateway correlation timeline prompt bodies" $gatewayCorrelationTimeline '"prompt_bodies_returned":false'
+Assert-Contains "gateway correlation timeline input refs" $gatewayCorrelationTimeline '"tool_input_refs_returned":false'
+Assert-Contains "gateway correlation timeline credentials" $gatewayCorrelationTimeline '"provider_credentials_returned":false'
+Assert-Contains "gateway correlation timeline forbidden hits" $gatewayCorrelationTimeline '"forbidden_pattern_hits":0'
+$gatewayCorrelationTimelineJson = $gatewayCorrelationTimeline | ConvertFrom-Json
+Assert-True "gateway correlation timeline event parity" ([int]$gatewayCorrelationTimelineJson.events_scanned -eq [int]$gatewayCorrelationSnapshotJson.events_scanned)
+Assert-True "gateway correlation timeline count parity" ([int]$gatewayCorrelationTimelineJson.timeline_count -eq @($gatewayCorrelationTimelineJson.timeline).Count)
+Assert-True "gateway correlation timeline no live provider count" ([int]$gatewayCorrelationTimelineJson.live_provider_call_count -eq 0)
+Assert-True "gateway correlation timeline no live mcp count" ([int]$gatewayCorrelationTimelineJson.live_mcp_write_count -eq 0)
+Assert-True "gateway correlation timeline redaction clear" ($gatewayCorrelationTimelineJson.redaction_status -eq "clear")
 
 $mcpAuditContract = Invoke-Text "$BaseUrl/api/v1/audit/mcp/contract"
 Assert-Contains "mcp audit contract version" $mcpAuditContract '"contract_version":"mcp-audit-feed-v1"'

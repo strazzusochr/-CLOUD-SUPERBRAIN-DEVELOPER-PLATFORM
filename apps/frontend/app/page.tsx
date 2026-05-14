@@ -1517,6 +1517,58 @@ type GatewayCorrelationRiskRollup = {
   non_claims: string[];
 };
 
+type GatewayCorrelationTimelineEvent = {
+  sequence_index: number;
+  event_id: string;
+  created_at: string | null;
+  event_type: string;
+  timeline_leg: string;
+  correlation_key: string;
+  trace_id: string | null;
+  request_id: string | null;
+  session_id: string | null;
+  agent_type: string;
+  status: string;
+  severity: string | null;
+  evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_write_evidence_ref: string;
+  live_provider_calls: boolean;
+  live_mcp_writes: boolean;
+};
+
+type GatewayCorrelationTimeline = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  snapshot_endpoint: string;
+  risk_rollup_endpoint: string;
+  evidence_ref: string;
+  snapshot_evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_write_evidence_ref: string;
+  read_only: boolean;
+  live_provider_calls_claimed: boolean;
+  live_mcp_writes_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  prompt_bodies_returned: boolean;
+  tool_input_refs_returned: boolean;
+  provider_credentials_returned: boolean;
+  events_scanned: number;
+  timeline_count: number;
+  live_provider_call_count: number;
+  live_mcp_write_count: number;
+  forbidden_pattern_hits: number;
+  redaction_status: string;
+  event_type_counts: Record<string, number>;
+  timeline_leg_counts: Record<string, number>;
+  timeline: GatewayCorrelationTimelineEvent[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
 type SecurityAuditSurfaceContract = {
   contract_version: string;
   mode: string;
@@ -2217,6 +2269,8 @@ export default function Home() {
     useState<GatewayCorrelationSnapshot | null>(null);
   const [gatewayCorrelationRiskRollup, setGatewayCorrelationRiskRollup] =
     useState<GatewayCorrelationRiskRollup | null>(null);
+  const [gatewayCorrelationTimeline, setGatewayCorrelationTimeline] =
+    useState<GatewayCorrelationTimeline | null>(null);
   const [securityAuditSurfaceContract, setSecurityAuditSurfaceContract] =
     useState<SecurityAuditSurfaceContract | null>(null);
   const [securityAuditEvents, setSecurityAuditEvents] = useState<SecurityAuditEvent[]>([]);
@@ -2789,6 +2843,13 @@ export default function Home() {
     });
     if (riskResponse.ok) {
       setGatewayCorrelationRiskRollup(await riskResponse.json());
+    }
+
+    const timelineResponse = await fetch("/api/v1/security/gateway-correlation/timeline?limit=80", {
+      cache: "no-store",
+    });
+    if (timelineResponse.ok) {
+      setGatewayCorrelationTimeline(await timelineResponse.json());
     }
   }
 
@@ -6043,6 +6104,33 @@ export default function Home() {
               production_rollout_claimed={String(gatewayCorrelationRiskRollup?.production_rollout_claimed ?? false)}
             </small>
           </div>
+          <div className="auditSnapshot">
+            <strong>Gateway Correlation Timeline</strong>
+            <span>
+              {gatewayCorrelationTimeline?.redaction_status ?? "clear"} / timeline{" "}
+              {String(gatewayCorrelationTimeline?.timeline_count ?? 0)} / forbidden hits{" "}
+              {String(gatewayCorrelationTimeline?.forbidden_pattern_hits ?? 0)}
+            </span>
+            <small>
+              {gatewayCorrelationTimeline?.contract_version ?? "gateway-correlation-timeline-v1"} /{" "}
+              {gatewayCorrelationTimeline?.evidence_ref ?? "gateway_correlation_timeline_visible"}
+            </small>
+            <small>
+              Endpoint:{" "}
+              {gatewayCorrelationTimeline?.endpoint ?? "GET /api/v1/security/gateway-correlation/timeline"}
+            </small>
+            <small>
+              Redaction:{" "}
+              {gatewayCorrelationTimeline?.redaction_evidence_ref ?? "gateway_correlation_redaction_enforced"} /
+              No-live-write:{" "}
+              {gatewayCorrelationTimeline?.no_live_write_evidence_ref ??
+                "gateway_correlation_no_live_write_guard"}
+            </small>
+            <small>
+              promotion_allowed={String(gatewayCorrelationTimeline?.promotion_allowed ?? false)} /
+              production_rollout_claimed={String(gatewayCorrelationTimeline?.production_rollout_claimed ?? false)}
+            </small>
+          </div>
           <div className="statusPills">
             {(gatewayCorrelationRiskRollup?.risk_badges ?? [
               {
@@ -6095,6 +6183,41 @@ export default function Home() {
                 <small>Endpoint: GET /api/v1/security/gateway-correlation/snapshot</small>
                 <small>Contract: gateway-correlation-snapshot-v1</small>
                 <small>Evidence: gateway_correlation_snapshot_visible / gateway_correlation_redaction_enforced</small>
+                <small>Guard: gateway_correlation_no_live_write_guard</small>
+              </article>
+            )}
+          </div>
+          <div className="auditList">
+            {gatewayCorrelationTimeline?.timeline?.length ? (
+              gatewayCorrelationTimeline.timeline.slice(0, 6).map((event) => (
+                <article className="auditItem" key={`timeline-${event.sequence_index}-${event.event_id}`}>
+                  <div>
+                    <strong>
+                      #{event.sequence_index} {event.timeline_leg}
+                    </strong>
+                    <span className="severity severity-info">{event.status}</span>
+                  </div>
+                  <small>
+                    {event.event_type} / {event.created_at ?? "no timestamp"}
+                  </small>
+                  <small>Trace: {event.trace_id ?? "none"}</small>
+                  <small>Request: {event.request_id ?? "none"}</small>
+                  <small>Session: {event.session_id ?? "none"}</small>
+                  <small>
+                    Evidence: {event.evidence_ref} / {event.redaction_evidence_ref} /{" "}
+                    {event.no_live_write_evidence_ref}
+                  </small>
+                </article>
+              ))
+            ) : (
+              <article className="auditItem auditItemEmpty">
+                <div>
+                  <strong>No gateway timeline events yet.</strong>
+                  <span className="severity severity-info">read-only</span>
+                </div>
+                <small>Endpoint: GET /api/v1/security/gateway-correlation/timeline</small>
+                <small>Contract: gateway-correlation-timeline-v1</small>
+                <small>Evidence: gateway_correlation_timeline_visible / gateway_correlation_redaction_enforced</small>
                 <small>Guard: gateway_correlation_no_live_write_guard</small>
               </article>
             )}
