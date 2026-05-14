@@ -1319,6 +1319,36 @@ type LlmAuditFeedContract = {
   non_claims: string[];
 };
 
+type SecurityAuditSurfaceContract = {
+  contract_version: string;
+  mode: string;
+  screen: string;
+  endpoint: string;
+  contract_endpoint: string;
+  source_table: string;
+  source_endpoints: string[];
+  supported_event_types: string[];
+  category_map: Record<string, string>;
+  filters: string[];
+  read_only: boolean;
+  evidence_refs: {
+    surface_visible: string;
+    event_visible: string;
+    csp_audit_persisted: string;
+    mcp_deny_correlation: string;
+    llm_audit_event: string;
+  };
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type SecurityAuditEvent = AuditEvent & {
+  category?: string | null;
+  evidence_ref?: string | null;
+  security_surface_evidence_ref?: string | null;
+  summary?: string | null;
+};
+
 type PerRoleResult = {
   role: string;
   status: string;
@@ -1885,6 +1915,9 @@ export default function Home() {
   const [mcpAuditEvents, setMcpAuditEvents] = useState<AuditEvent[]>([]);
   const [llmAuditFeedContract, setLlmAuditFeedContract] = useState<LlmAuditFeedContract | null>(null);
   const [llmAuditEvents, setLlmAuditEvents] = useState<LlmAuditEvent[]>([]);
+  const [securityAuditSurfaceContract, setSecurityAuditSurfaceContract] =
+    useState<SecurityAuditSurfaceContract | null>(null);
+  const [securityAuditEvents, setSecurityAuditEvents] = useState<SecurityAuditEvent[]>([]);
   const [memoryConsolidationEvents, setMemoryConsolidationEvents] = useState<AuditEvent[]>([]);
   const [escalations, setEscalations] = useState<AuditEvent[]>([]);
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
@@ -2372,6 +2405,18 @@ export default function Home() {
     setLlmAuditEvents(payload.events ?? []);
   }
 
+  async function loadSecurityAuditSurface() {
+    const [contractResponse, feedResponse] = await Promise.all([
+      fetch("/api/v1/security/events/contract", { cache: "no-store" }),
+      fetch("/api/v1/security/events?limit=8", { cache: "no-store" }),
+    ]);
+    if (!contractResponse.ok) throw new Error(`security audit contract ${contractResponse.status}`);
+    if (!feedResponse.ok) throw new Error(`security audit feed ${feedResponse.status}`);
+    setSecurityAuditSurfaceContract(await contractResponse.json());
+    const payload = await feedResponse.json();
+    setSecurityAuditEvents(payload.events ?? []);
+  }
+
   async function loadMemoryConsolidationEvents() {
     const response = await fetch("/api/v1/memory/consolidation/recent?limit=8", { cache: "no-store" });
     if (!response.ok) throw new Error(`memory consolidation ${response.status}`);
@@ -2569,6 +2614,7 @@ export default function Home() {
         loadErrorResponseContract(),
         loadSecurityHeadersContract(),
         loadCspReportContract(),
+        loadSecurityAuditSurface(),
         loadTraceIdContract(),
         loadCacheControlContract(),
         loadRequestIdContract(),
@@ -2612,6 +2658,7 @@ export default function Home() {
         loadAuditEvents(),
         loadMcpAuditEvents(),
         loadLlmAuditFeed(),
+        loadSecurityAuditSurface(),
         loadMemoryConsolidationEvents(),
         loadEscalations(),
         runMemorySearch(prompt.split(" ").slice(-2).join(" ")),
@@ -2771,6 +2818,7 @@ export default function Home() {
       loadErrorResponseContract,
       loadSecurityHeadersContract,
       loadCspReportContract,
+      loadSecurityAuditSurface,
       loadTraceIdContract,
       loadCacheControlContract,
       loadRequestIdContract,
@@ -2801,6 +2849,7 @@ export default function Home() {
       loadAuditEvents,
       loadMcpAuditEvents,
       loadLlmAuditFeed,
+      loadSecurityAuditSurface,
       loadMemoryConsolidationEvents,
       loadEscalations,
     ];
@@ -2825,6 +2874,7 @@ export default function Home() {
       loadAuditEvents,
       loadMcpAuditEvents,
       loadLlmAuditFeed,
+      loadSecurityAuditSurface,
       loadLangfuseTraceAccess,
       loadMemoryConsolidationEvents,
       loadEscalations,
@@ -2900,6 +2950,16 @@ export default function Home() {
   const cspSanitizedFields = stringList(cspReportContract?.sanitized_fields);
   const cspPolicyChecks = stringList(cspReportContract?.policy_checks);
   const cspNonClaims = stringList(cspReportContract?.non_claims);
+  const securityAuditEvidenceRefs = securityAuditSurfaceContract?.evidence_refs ?? {
+    surface_visible: "security_audit_surface_visible",
+    event_visible: "security_audit_event_visible",
+    csp_audit_persisted: "csp_report_audit_persisted",
+    mcp_deny_correlation: "mcp_denied_tool_audit_correlation",
+    llm_audit_event: "llm_audit_feed_event_visible",
+  };
+  const securityAuditEventTypes = stringList(securityAuditSurfaceContract?.supported_event_types);
+  const securityAuditPolicyChecks = stringList(securityAuditSurfaceContract?.policy_checks);
+  const securityAuditNonClaims = stringList(securityAuditSurfaceContract?.non_claims);
   const traceIdEvidenceRefs = traceIdContract?.evidence_refs ?? {
     contract_visible: "trace_id_contract_visible",
     header_roundtrip: "trace_id_header_roundtrip",
@@ -3238,6 +3298,88 @@ export default function Home() {
           </p>
           <p className="muted">
             {cspNonClaims.length ? cspNonClaims.join(" ") : "No production security incident workflow is claimed."}
+          </p>
+        </section>
+
+        <section className="panel securityAuditSurfacePanel" aria-label="Security audit surface">
+          <header className="panelHeader">
+            <h2>Security Audit Surface</h2>
+            <button type="button" onClick={() => void loadSecurityAuditSurface()}>
+              Refresh
+            </button>
+          </header>
+          <div className="healthSummary">
+            <div>
+              <span>Contract</span>
+              <strong>{securityAuditSurfaceContract?.contract_version ?? "security-audit-surface-v1"}</strong>
+            </div>
+            <div>
+              <span>Mode</span>
+              <strong>{securityAuditSurfaceContract?.mode ?? "read_only_security_product_audit_surface"}</strong>
+            </div>
+            <div>
+              <span>Endpoint</span>
+              <strong>{securityAuditSurfaceContract?.endpoint ?? "GET /api/v1/security/events"}</strong>
+            </div>
+            <div>
+              <span>Evidence</span>
+              <strong>{securityAuditEvidenceRefs.surface_visible}</strong>
+            </div>
+          </div>
+          <p className="muted evidenceLine">
+            Evidence: {securityAuditEvidenceRefs.surface_visible} / {securityAuditEvidenceRefs.event_visible} /{" "}
+            {securityAuditEvidenceRefs.csp_audit_persisted} / {securityAuditEvidenceRefs.mcp_deny_correlation}
+          </p>
+          <div className="policyGrid">
+            {(securityAuditPolicyChecks.length ? securityAuditPolicyChecks : [
+              "The surface reads audit_log only and never executes tools or provider calls.",
+              "Events expose request_id and trace_id when the source event recorded them.",
+              "Returned details are already redacted by the source audit writers.",
+            ]).map((check) => (
+              <span key={check}>{check}</span>
+            ))}
+          </div>
+          <p className="muted">
+            Event types:{" "}
+            {securityAuditEventTypes.length
+              ? securityAuditEventTypes.join(", ")
+              : "security_csp_violation_reported, auth_refresh_rotated, mcp_tool_executed, llm_gateway_request"}
+          </p>
+          <div className="auditList">
+            {securityAuditEvents.length ? (
+              securityAuditEvents.map((event) => (
+                <article className="auditItem" key={event.id}>
+                  <div>
+                    <strong>{event.event_type}</strong>
+                    <span className={`severity severity-${event.severity}`}>{event.severity}</span>
+                  </div>
+                  <small>Category: {event.category ?? String(event.details.category ?? "security_audit")}</small>
+                  <small>Request ID: {event.request_id ?? String(event.details.request_id ?? "none")}</small>
+                  <small>Trace ID: {event.trace_id ?? String(event.details.trace_id ?? "none")}</small>
+                  <small>
+                    Evidence:{" "}
+                    {event.evidence_ref ??
+                      event.security_surface_evidence_ref ??
+                      event.audit_feed_evidence_ref ??
+                      "security_audit_event_visible"}
+                  </small>
+                  <p>{event.summary ?? String(event.details.summary ?? event.details.sanitized_summary ?? event.event_type)}</p>
+                </article>
+              ))
+            ) : (
+              <article className="auditItem auditItemEmpty">
+                <div>
+                  <strong>No security audit events yet.</strong>
+                  <span className="severity severity-info">read-only</span>
+                </div>
+                <small>Endpoint: GET /api/v1/security/events</small>
+                <small>Contract: security-audit-surface-v1</small>
+                <small>Evidence: security_audit_surface_visible / security_audit_event_visible</small>
+              </article>
+            )}
+          </div>
+          <p className="muted">
+            {securityAuditNonClaims[0] ?? "No production SOC, SIEM, or incident-response workflow is claimed."}
           </p>
         </section>
 

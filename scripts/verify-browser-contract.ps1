@@ -233,6 +233,11 @@ Assert-Contains "error response contract panel" $frontendHtml "Error Response Co
 Assert-Contains "security headers contract panel" $frontendHtml "Security Headers Contract"
 Assert-Contains "csp report contract panel" $frontendHtml "CSP Report Contract"
 Assert-Contains "csp report evidence marker" $frontendHtml "csp_report_contract_visible"
+Assert-Contains "security audit surface panel" $frontendHtml "Security Audit Surface"
+Assert-Contains "security audit surface contract marker" $frontendHtml "security-audit-surface-v1"
+Assert-Contains "security audit surface evidence marker" $frontendHtml "security_audit_surface_visible"
+Assert-Contains "security audit surface event evidence marker" $frontendHtml "security_audit_event_visible"
+Assert-Contains "security audit surface endpoint marker" $frontendHtml "GET /api/v1/security/events"
 Assert-Contains "trace id contract panel" $frontendHtml "Trace ID Contract"
 Assert-Contains "cache control contract panel" $frontendHtml "Cache Control Contract"
 Assert-Contains "request id contract panel" $frontendHtml "Request ID Contract"
@@ -414,6 +419,17 @@ $cspReportContract = Invoke-Text "$BaseUrl/api/v1/security/csp/contract"
 Assert-Contains "csp report contract version" $cspReportContract '"contract_version":"csp-report-contract-v1"'
 Assert-Contains "csp report evidence" $cspReportContract "csp_report_contract_visible"
 Assert-Contains "csp report audit evidence" $cspReportContract "csp_report_audit_persisted"
+$securityAuditContract = Invoke-Text "$BaseUrl/api/v1/security/events/contract"
+Assert-Contains "security audit contract version" $securityAuditContract '"contract_version":"security-audit-surface-v1"'
+Assert-Contains "security audit endpoint" $securityAuditContract "GET /api/v1/security/events"
+Assert-Contains "security audit source table" $securityAuditContract "audit_log"
+Assert-Contains "security audit surface evidence" $securityAuditContract "security_audit_surface_visible"
+Assert-Contains "security audit event evidence" $securityAuditContract "security_audit_event_visible"
+Assert-Contains "security audit read only" $securityAuditContract '"read_only":true'
+$securityAuditFeed = Invoke-Text "$BaseUrl/api/v1/security/events?limit=5"
+Assert-Contains "security audit feed contract" $securityAuditFeed '"contract_version":"security-audit-surface-v1"'
+Assert-Contains "security audit feed evidence" $securityAuditFeed "security_audit_surface_visible"
+Assert-Contains "security audit feed event evidence" $securityAuditFeed "security_audit_event_visible"
 $traceContract = Invoke-Text "$BaseUrl/api/v1/trace/contract"
 Assert-Contains "trace contract version" $traceContract '"contract_version":"trace-id-propagation-v1"'
 Assert-Contains "trace contract evidence" $traceContract "trace_id_header_roundtrip"

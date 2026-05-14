@@ -100,6 +100,9 @@ ERROR_RESPONSE_CONTRACT_VERSION = "error-response-contract-v1"
 SECURITY_HEADERS_CONTRACT_VERSION = "security-headers-v1"
 CSP_REPORT_CONTRACT_VERSION = "csp-report-contract-v1"
 CSP_REPORT_EVIDENCE_REF = "csp_report_contract_visible"
+SECURITY_AUDIT_SURFACE_CONTRACT_VERSION = "security-audit-surface-v1"
+SECURITY_AUDIT_SURFACE_EVIDENCE_REF = "security_audit_surface_visible"
+SECURITY_AUDIT_EVENT_EVIDENCE_REF = "security_audit_event_visible"
 TRACE_ID_CONTRACT_VERSION = "trace-id-propagation-v1"
 CACHE_CONTROL_CONTRACT_VERSION = "cache-control-no-store-v1"
 REQUEST_ID_CONTRACT_VERSION = "request-id-correlation-v1"
@@ -5416,6 +5419,151 @@ def recent_llm_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dic
         "events": events,
         "count": len(events),
         "non_claims": llm_audit_feed_contract_payload()["non_claims"],
+    }
+
+
+SECURITY_AUDIT_EVENT_CATEGORIES = {
+    "security_csp_violation_reported": "browser_security_policy",
+    "auth_refresh_rotated": "auth_lifecycle",
+    "auth_refresh_reuse_blocked": "auth_lifecycle",
+    "auth_logout_revoked": "auth_lifecycle",
+    "mcp_tool_executed": "mcp_guard",
+    "llm_gateway_request": "llm_gateway_guard",
+}
+
+
+def security_audit_surface_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": SECURITY_AUDIT_SURFACE_CONTRACT_VERSION,
+        "mode": "read_only_security_product_audit_surface",
+        "screen": "Security Audit Surface",
+        "endpoint": "GET /api/v1/security/events",
+        "contract_endpoint": "GET /api/v1/security/events/contract",
+        "source_table": "audit_log",
+        "source_endpoints": [
+            "POST /api/v1/security/csp/report",
+            "POST /api/v1/auth/refresh",
+            "POST /api/v1/auth/logout",
+            "POST /mcp/api/v1/tools/execute",
+            "POST /llm/v1/chat/completions",
+        ],
+        "supported_event_types": list(SECURITY_AUDIT_EVENT_CATEGORIES.keys()),
+        "category_map": SECURITY_AUDIT_EVENT_CATEGORIES,
+        "filters": ["limit", "event_type", "severity"],
+        "read_only": True,
+        "evidence_refs": {
+            "surface_visible": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+            "event_visible": SECURITY_AUDIT_EVENT_EVIDENCE_REF,
+            "csp_audit_persisted": "csp_report_audit_persisted",
+            "mcp_deny_correlation": "mcp_denied_tool_audit_correlation",
+            "llm_audit_event": "llm_audit_feed_event_visible",
+        },
+        "policy_checks": [
+            "The surface reads audit_log only and never executes tools or provider calls.",
+            "Events expose request_id and trace_id when the source event recorded them.",
+            "Returned details are already redacted by the source audit writers.",
+            "MCP denied-tool rows keep mcp_denied_tool_audit_correlation visible.",
+            "LLM rows keep live_provider_calls visible so dry-run proofs cannot look like live billing.",
+        ],
+        "non_claims": [
+            "No production SOC, SIEM, or incident-response workflow is claimed.",
+            "No live provider calls or live MCP writes are enabled by this read-only feed.",
+            "No secrets, prompt bodies, or browser cookies are intentionally returned.",
+        ],
+    }
+
+
+@app.get("/api/v1/security/events/contract")
+def security_audit_surface_contract() -> dict[str, object]:
+    return security_audit_surface_contract_payload()
+
+
+@app.get("/api/v1/security/events")
+def recent_security_audit_events(
+    limit: int = Query(default=20, ge=1, le=100),
+    event_type: str | None = Query(default=None),
+    severity: str | None = Query(default=None),
+) -> dict[str, object]:
+    allowed_event_types = set(SECURITY_AUDIT_EVENT_CATEGORIES.keys())
+    if event_type is not None and event_type not in allowed_event_types:
+        raise HTTPException(status_code=400, detail="unsupported_security_audit_event_type")
+
+    where_clauses = [
+        """
+        event_type IN (
+          'security_csp_violation_reported',
+          'auth_refresh_rotated',
+          'auth_refresh_reuse_blocked',
+          'auth_logout_revoked',
+          'mcp_tool_executed',
+          'llm_gateway_request'
+        )
+        """
+    ]
+    params: list[object] = []
+    if event_type:
+        where_clauses.append("event_type = %s")
+        params.append(event_type)
+    if severity:
+        where_clauses.append("severity = %s")
+        params.append(severity)
+    params.append(limit)
+
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        rows = conn.execute(
+            f"""
+            SELECT id, event_type, user_id, session_id, details, created_at, severity
+            FROM audit_log
+            WHERE {" AND ".join(where_clauses)}
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            tuple(params),
+        ).fetchall()
+
+    events = []
+    for row in rows:
+        details = row[4] or {}
+        trace_id = details.get("trace_id") or (str(row[3]) if row[3] else None)
+        events.append(
+            {
+                "id": str(row[0]),
+                "event_type": row[1],
+                "category": SECURITY_AUDIT_EVENT_CATEGORIES.get(row[1], "security_audit"),
+                "user_id": row[2],
+                "session_id": str(row[3]) if row[3] else None,
+                "request_id": details.get("request_id"),
+                "trace_id": trace_id,
+                "evidence_ref": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+                "audit_feed_evidence_ref": details.get(
+                    "audit_feed_evidence_ref",
+                    SECURITY_AUDIT_EVENT_EVIDENCE_REF,
+                ),
+                "security_surface_evidence_ref": SECURITY_AUDIT_EVENT_EVIDENCE_REF,
+                "summary": details.get("summary")
+                or details.get("sanitized_summary")
+                or details.get("error_class")
+                or row[1],
+                "details": details,
+                "created_at": row[5].isoformat() if row[5] else None,
+                "severity": row[6],
+            }
+        )
+
+    return {
+        "contract_version": SECURITY_AUDIT_SURFACE_CONTRACT_VERSION,
+        "mode": "read_only_security_product_audit_surface",
+        "evidence_ref": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+        "event_evidence_ref": SECURITY_AUDIT_EVENT_EVIDENCE_REF,
+        "read_only": True,
+        "filters": {
+            "event_type": event_type,
+            "severity": severity,
+            "limit": limit,
+        },
+        "events": events,
+        "count": len(events),
+        "non_claims": security_audit_surface_contract_payload()["non_claims"],
     }
 
 
