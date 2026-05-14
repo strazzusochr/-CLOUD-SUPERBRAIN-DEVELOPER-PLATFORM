@@ -790,6 +790,41 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.statusPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.statusPill {
+  max-width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #cbd5e1;
+  background: #0f172a;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.statusPill-clear,
+.statusPill-verified {
+  border-color: #0f766e;
+  color: #99f6e4;
+}
+
+.statusPill-watch,
+.statusPill-review {
+  border-color: #a16207;
+  color: #fde68a;
+}
+
+.statusPill-blocked {
+  border-color: #b91c1c;
+  color: #fecaca;
+}
+
 .auditItem {
   border: 1px solid #334155;
   background: #08111f;

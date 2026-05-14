@@ -1454,6 +1454,69 @@ type GatewayCorrelationSnapshot = {
   non_claims: string[];
 };
 
+type GatewayCorrelationRisk = {
+  correlation_key: string;
+  trace_id: string | null;
+  session_id: string | null;
+  request_id: string | null;
+  correlation_state: string;
+  event_count: number;
+  missing_legs: string[];
+  risk_status: string;
+  severity: string;
+  live_provider_call_count: number;
+  live_mcp_write_count: number;
+  redaction_evidence_ref: string;
+  no_live_write_evidence_ref: string;
+};
+
+type GatewayCorrelationRiskBadge = {
+  id: string;
+  label: string;
+  status: string;
+  count: number;
+  evidence_ref: string;
+};
+
+type GatewayCorrelationRiskRollup = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  snapshot_endpoint: string;
+  evidence_ref: string;
+  snapshot_evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_write_evidence_ref: string;
+  read_only: boolean;
+  live_provider_calls_claimed: boolean;
+  live_mcp_writes_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  prompt_bodies_returned: boolean;
+  tool_input_refs_returned: boolean;
+  provider_credentials_returned: boolean;
+  events_scanned: number;
+  groups_scanned: number;
+  risk_status: string;
+  blocker_count: number;
+  review_count: number;
+  full_correlation_count: number;
+  partial_correlation_count: number;
+  gateway_pair_count: number;
+  missing_leg_counts: Record<string, number>;
+  live_provider_call_count: number;
+  live_mcp_write_count: number;
+  forbidden_pattern_hits: number;
+  redaction_status: string;
+  correlation_state_counts: Record<string, number>;
+  risk_status_counts: Record<string, number>;
+  risk_badges: GatewayCorrelationRiskBadge[];
+  group_risks: GatewayCorrelationRisk[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
 type SecurityAuditSurfaceContract = {
   contract_version: string;
   mode: string;
@@ -2152,6 +2215,8 @@ export default function Home() {
   const [llmAuditSnapshot, setLlmAuditSnapshot] = useState<LlmAuditSnapshot | null>(null);
   const [gatewayCorrelationSnapshot, setGatewayCorrelationSnapshot] =
     useState<GatewayCorrelationSnapshot | null>(null);
+  const [gatewayCorrelationRiskRollup, setGatewayCorrelationRiskRollup] =
+    useState<GatewayCorrelationRiskRollup | null>(null);
   const [securityAuditSurfaceContract, setSecurityAuditSurfaceContract] =
     useState<SecurityAuditSurfaceContract | null>(null);
   const [securityAuditEvents, setSecurityAuditEvents] = useState<SecurityAuditEvent[]>([]);
@@ -2713,9 +2778,18 @@ export default function Home() {
   }
 
   async function loadGatewayCorrelationSnapshot() {
-    const response = await fetch("/api/v1/security/gateway-correlation/snapshot?limit=80", { cache: "no-store" });
+    const response = await fetch("/api/v1/security/gateway-correlation/snapshot?limit=80", {
+      cache: "no-store",
+    });
     if (!response.ok) throw new Error(`gateway correlation snapshot ${response.status}`);
     setGatewayCorrelationSnapshot(await response.json());
+
+    const riskResponse = await fetch("/api/v1/security/gateway-correlation/risk-rollup?limit=80", {
+      cache: "no-store",
+    });
+    if (riskResponse.ok) {
+      setGatewayCorrelationRiskRollup(await riskResponse.json());
+    }
   }
 
   async function loadSecurityAuditSurface() {
@@ -5943,6 +6017,54 @@ export default function Home() {
               {String(gatewayCorrelationSnapshot?.live_mcp_write_count ?? 0)}
             </small>
           </div>
+          <div className="auditSnapshot">
+            <strong>Gateway Correlation Risk Rollup</strong>
+            <span>
+              {gatewayCorrelationRiskRollup?.risk_status ?? "clear"} / blockers{" "}
+              {String(gatewayCorrelationRiskRollup?.blocker_count ?? 0)} / review{" "}
+              {String(gatewayCorrelationRiskRollup?.review_count ?? 0)}
+            </span>
+            <small>
+              {gatewayCorrelationRiskRollup?.contract_version ?? "gateway-correlation-risk-rollup-v1"} /{" "}
+              {gatewayCorrelationRiskRollup?.evidence_ref ?? "gateway_correlation_risk_rollup_visible"}
+            </small>
+            <small>
+              Full {String(gatewayCorrelationRiskRollup?.full_correlation_count ?? 0)} / Partial{" "}
+              {String(gatewayCorrelationRiskRollup?.partial_correlation_count ?? 0)} / Gateway pair{" "}
+              {String(gatewayCorrelationRiskRollup?.gateway_pair_count ?? 0)}
+            </small>
+            <small>
+              Missing agent {String(gatewayCorrelationRiskRollup?.missing_leg_counts?.agent_task ?? 0)} / LLM{" "}
+              {String(gatewayCorrelationRiskRollup?.missing_leg_counts?.llm_audit ?? 0)} / MCP{" "}
+              {String(gatewayCorrelationRiskRollup?.missing_leg_counts?.mcp_audit ?? 0)}
+            </small>
+            <small>
+              promotion_allowed={String(gatewayCorrelationRiskRollup?.promotion_allowed ?? false)} /
+              production_rollout_claimed={String(gatewayCorrelationRiskRollup?.production_rollout_claimed ?? false)}
+            </small>
+          </div>
+          <div className="statusPills">
+            {(gatewayCorrelationRiskRollup?.risk_badges ?? [
+              {
+                id: "redaction",
+                label: "Redaction",
+                status: "clear",
+                count: 0,
+                evidence_ref: "gateway_correlation_redaction_enforced",
+              },
+              {
+                id: "no_live_write",
+                label: "No Live Write",
+                status: "clear",
+                count: 0,
+                evidence_ref: "gateway_correlation_no_live_write_guard",
+              },
+            ]).map((badge) => (
+              <span className={`statusPill statusPill-${badge.status}`} key={badge.id}>
+                {badge.label}: {badge.status} ({badge.count}) / {badge.evidence_ref}
+              </span>
+            ))}
+          </div>
           <div className="auditList">
             {gatewayCorrelationSnapshot?.groups?.length ? (
               gatewayCorrelationSnapshot.groups.slice(0, 6).map((group) => (
@@ -5974,6 +6096,36 @@ export default function Home() {
                 <small>Contract: gateway-correlation-snapshot-v1</small>
                 <small>Evidence: gateway_correlation_snapshot_visible / gateway_correlation_redaction_enforced</small>
                 <small>Guard: gateway_correlation_no_live_write_guard</small>
+              </article>
+            )}
+          </div>
+          <div className="auditList">
+            {gatewayCorrelationRiskRollup?.group_risks?.length ? (
+              gatewayCorrelationRiskRollup.group_risks.slice(0, 6).map((risk) => (
+                <article className="auditItem" key={`risk-${risk.correlation_key}`}>
+                  <div>
+                    <strong>{risk.risk_status}</strong>
+                    <span className={`severity severity-${risk.severity}`}>{risk.correlation_state}</span>
+                  </div>
+                  <small>Trace: {risk.trace_id ?? "none"}</small>
+                  <small>Missing: {risk.missing_legs.length ? risk.missing_legs.join(", ") : "none"}</small>
+                  <small>
+                    Live provider {String(risk.live_provider_call_count)} / Live MCP {String(risk.live_mcp_write_count)}
+                  </small>
+                  <small>
+                    Evidence: {risk.redaction_evidence_ref} / {risk.no_live_write_evidence_ref}
+                  </small>
+                </article>
+              ))
+            ) : (
+              <article className="auditItem auditItemEmpty">
+                <div>
+                  <strong>No gateway risk groups yet.</strong>
+                  <span className="severity severity-info">read-only</span>
+                </div>
+                <small>Endpoint: GET /api/v1/security/gateway-correlation/risk-rollup</small>
+                <small>Contract: gateway-correlation-risk-rollup-v1</small>
+                <small>Evidence: gateway_correlation_risk_rollup_visible / gateway_correlation_redaction_enforced</small>
               </article>
             )}
           </div>

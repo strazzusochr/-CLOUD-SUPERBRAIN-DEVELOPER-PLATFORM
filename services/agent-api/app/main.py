@@ -128,7 +128,9 @@ LLM_AUDIT_FEED_EVIDENCE_REF = "llm_audit_feed_visible"
 LLM_AUDIT_SNAPSHOT_EVIDENCE_REF = "llm_audit_snapshot_visible"
 LLM_AUDIT_REDACTION_EVIDENCE_REF = "llm_audit_redaction_enforced"
 GATEWAY_CORRELATION_CONTRACT_VERSION = "gateway-correlation-snapshot-v1"
+GATEWAY_CORRELATION_RISK_ROLLUP_CONTRACT_VERSION = "gateway-correlation-risk-rollup-v1"
 GATEWAY_CORRELATION_EVIDENCE_REF = "gateway_correlation_snapshot_visible"
+GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF = "gateway_correlation_risk_rollup_visible"
 GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF = "gateway_correlation_redaction_enforced"
 GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF = "gateway_correlation_no_live_write_guard"
 MCP_AUDIT_FEED_CONTRACT_VERSION = "mcp-audit-feed-v1"
@@ -5703,10 +5705,13 @@ def gateway_correlation_contract_payload() -> dict[str, object]:
         "contract_version": GATEWAY_CORRELATION_CONTRACT_VERSION,
         "mode": "read_only_agent_llm_mcp_correlation_snapshot",
         "endpoint": "GET /api/v1/security/gateway-correlation/snapshot",
+        "risk_rollup_endpoint": "GET /api/v1/security/gateway-correlation/risk-rollup",
         "contract_endpoint": "GET /api/v1/security/gateway-correlation/contract",
+        "risk_rollup_contract_version": GATEWAY_CORRELATION_RISK_ROLLUP_CONTRACT_VERSION,
         "source_table": "audit_log",
         "source_event_types": list(GATEWAY_CORRELATION_EVENT_TYPES),
         "evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
+        "risk_rollup_evidence_ref": GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF,
         "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
         "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
         "read_only": True,
@@ -5737,11 +5742,21 @@ def gateway_correlation_contract_payload() -> dict[str, object]:
             "live_mcp_write_count",
             "correlation_state",
         ],
+        "risk_rollup_fields": [
+            "risk_status",
+            "blocker_count",
+            "review_count",
+            "missing_leg_counts",
+            "risk_badges",
+            "promotion_allowed",
+            "production_rollout_claimed",
+        ],
         "policy_checks": [
             "Snapshot reads audit_log only and never executes an agent, LLM provider, MCP tool, or deployment action.",
             "Returned events are reduced to safe correlation fields; raw prompts, tool input refs, provider credentials, and raw details are omitted.",
             "A full correlation requires agent task evidence, LLM audit evidence, and MCP audit evidence sharing a trace, request, or session key.",
             "The snapshot fails closed when live_provider_calls or live_mcp_writes appear in correlated evidence.",
+            "The risk rollup is computed from the same read-only snapshot groups and never performs seed writes or live calls.",
         ],
         "non_claims": [
             "This endpoint does not authorize production rollout or release promotion.",
@@ -5884,6 +5899,145 @@ def build_gateway_correlation_groups(events: list[dict[str, object]]) -> list[di
     return sorted(groups, key=lambda item: int(item["event_count"]), reverse=True)
 
 
+def gateway_correlation_group_risk(group: dict[str, object]) -> dict[str, object]:
+    missing_legs: list[str] = []
+    if group.get("has_agent_task") is not True:
+        missing_legs.append("agent_task")
+    if group.get("has_llm_audit") is not True:
+        missing_legs.append("llm_audit")
+    if group.get("has_mcp_audit") is not True:
+        missing_legs.append("mcp_audit")
+    live_provider_call_count = int(group.get("live_provider_call_count") or 0)
+    live_mcp_write_count = int(group.get("live_mcp_write_count") or 0)
+    has_live_violation = live_provider_call_count > 0 or live_mcp_write_count > 0
+    if has_live_violation:
+        risk_status = "blocked"
+        severity = "critical"
+    elif missing_legs:
+        risk_status = "review"
+        severity = "warning"
+    else:
+        risk_status = "verified"
+        severity = "info"
+    return {
+        "correlation_key": group.get("correlation_key"),
+        "trace_id": group.get("trace_id"),
+        "session_id": group.get("session_id"),
+        "request_id": group.get("request_id"),
+        "correlation_state": group.get("correlation_state"),
+        "event_count": int(group.get("event_count") or 0),
+        "missing_legs": missing_legs,
+        "risk_status": risk_status,
+        "severity": severity,
+        "live_provider_call_count": live_provider_call_count,
+        "live_mcp_write_count": live_mcp_write_count,
+        "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+        "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+    }
+
+
+def build_gateway_correlation_risk_rollup(
+    events: list[dict[str, object]],
+    groups: list[dict[str, object]],
+) -> dict[str, object]:
+    group_risks = [gateway_correlation_group_risk(group) for group in groups]
+    forbidden_pattern_hits = gateway_correlation_forbidden_pattern_hits(events)
+    full_correlation_count = sum(1 for group in groups if group.get("correlation_state") == "agent_llm_mcp_correlated")
+    partial_correlation_count = sum(1 for group in groups if group.get("correlation_state") == "partial_correlation")
+    gateway_pair_count = sum(1 for group in groups if group.get("correlation_state") == "gateway_pair_correlated")
+    live_provider_call_count = sum(int(group.get("live_provider_call_count") or 0) for group in groups)
+    live_mcp_write_count = sum(int(group.get("live_mcp_write_count") or 0) for group in groups)
+    missing_leg_counts = {
+        "agent_task": sum(1 for risk in group_risks if "agent_task" in risk["missing_legs"]),
+        "llm_audit": sum(1 for risk in group_risks if "llm_audit" in risk["missing_legs"]),
+        "mcp_audit": sum(1 for risk in group_risks if "mcp_audit" in risk["missing_legs"]),
+    }
+    blocker_count = live_provider_call_count + live_mcp_write_count + forbidden_pattern_hits
+    review_count = sum(1 for risk in group_risks if risk["risk_status"] == "review")
+    if blocker_count > 0:
+        risk_status = "blocked"
+    elif review_count > 0 or partial_correlation_count > 0 or gateway_pair_count > 0:
+        risk_status = "review"
+    else:
+        risk_status = "clear"
+    risk_badges = [
+        {
+            "id": "redaction",
+            "label": "Redaction",
+            "status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+            "count": forbidden_pattern_hits,
+            "evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+        },
+        {
+            "id": "live_provider",
+            "label": "Live Provider",
+            "status": "clear" if live_provider_call_count == 0 else "blocked",
+            "count": live_provider_call_count,
+            "evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+        },
+        {
+            "id": "live_mcp_write",
+            "label": "Live MCP Write",
+            "status": "clear" if live_mcp_write_count == 0 else "blocked",
+            "count": live_mcp_write_count,
+            "evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+        },
+        {
+            "id": "full_correlation",
+            "label": "Full Correlation",
+            "status": "verified" if full_correlation_count > 0 else "watch",
+            "count": full_correlation_count,
+            "evidence_ref": GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF,
+        },
+    ]
+    return {
+        "contract_version": GATEWAY_CORRELATION_RISK_ROLLUP_CONTRACT_VERSION,
+        "parent_contract_version": GATEWAY_CORRELATION_CONTRACT_VERSION,
+        "mode": "read_only_gateway_correlation_risk_rollup",
+        "endpoint": "GET /api/v1/security/gateway-correlation/risk-rollup",
+        "snapshot_endpoint": "GET /api/v1/security/gateway-correlation/snapshot",
+        "contract_endpoint": "GET /api/v1/security/gateway-correlation/contract",
+        "source_table": "audit_log",
+        "source_event_types": list(GATEWAY_CORRELATION_EVENT_TYPES),
+        "evidence_ref": GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF,
+        "snapshot_evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
+        "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+        "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+        "read_only": True,
+        "live_provider_calls_claimed": False,
+        "live_mcp_writes_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "prompt_bodies_returned": False,
+        "tool_input_refs_returned": False,
+        "provider_credentials_returned": False,
+        "events_scanned": len(events),
+        "groups_scanned": len(groups),
+        "risk_status": risk_status,
+        "blocker_count": blocker_count,
+        "review_count": review_count,
+        "full_correlation_count": full_correlation_count,
+        "partial_correlation_count": partial_correlation_count,
+        "gateway_pair_count": gateway_pair_count,
+        "missing_leg_counts": missing_leg_counts,
+        "live_provider_call_count": live_provider_call_count,
+        "live_mcp_write_count": live_mcp_write_count,
+        "forbidden_pattern_hits": forbidden_pattern_hits,
+        "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+        "correlation_state_counts": count_by_key([str(group.get("correlation_state")) for group in groups]),
+        "risk_status_counts": count_by_key([str(risk.get("risk_status")) for risk in group_risks]),
+        "risk_badges": risk_badges,
+        "group_risks": group_risks[:12],
+        "policy_checks": [
+            "Risk rollup reads audit_log through the safe gateway correlation projection only.",
+            "Risk rollup never seeds audit rows, executes agents, calls LLM providers, executes MCP tools, or dispatches deployments.",
+            "Production rollout and promotion remain false even when full correlation evidence exists.",
+            "Any forbidden pattern, live provider call, or live MCP write raises blocker_count and risk_status=blocked.",
+        ],
+        "non_claims": gateway_correlation_contract_payload()["non_claims"],
+    }
+
+
 @app.get("/api/v1/security/gateway-correlation/contract")
 def gateway_correlation_contract() -> dict[str, object]:
     return gateway_correlation_contract_payload()
@@ -5928,6 +6082,14 @@ def gateway_correlation_snapshot(limit: int = Query(default=80, ge=1, le=200)) -
         "policy_checks": gateway_correlation_contract_payload()["policy_checks"],
         "non_claims": gateway_correlation_contract_payload()["non_claims"],
     }
+
+
+@app.get("/api/v1/security/gateway-correlation/risk-rollup")
+def gateway_correlation_risk_rollup(limit: int = Query(default=80, ge=1, le=200)) -> dict[str, object]:
+    rows = gateway_correlation_rows(limit)
+    events = [safe_gateway_correlation_event(row) for row in rows]
+    groups = build_gateway_correlation_groups(events)
+    return build_gateway_correlation_risk_rollup(events, groups)
 
 
 SECURITY_AUDIT_EVENT_CATEGORIES = {
