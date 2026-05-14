@@ -1,7 +1,7 @@
 {
   "active_release_id": "prod-candidate-2026-05-11-rc1",
-  "updated_at": "2026-05-14T12:34:00+02:00",
-  "updated_by": "codex-auth-audit-risk-rollup-20260514",
-  "reason": "Keep prod-candidate-2026-05-11-rc1 active and bind it to the verified Auth Audit Risk Rollup immutable staging selector. Local py_compile, Next.js build, Docker readiness, local auth-audit snapshot verifier, local auth-audit risk-rollup verifier, local browser-contract verifier, security verifier, evidence artifact safety verifier, Docker Buildx GHCR image push for all six services at 4a59571c77d46728b8c11320e6dc65433b7eeff0, Hetzner staging deploy via scripts/deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 4a59571c77d46728b8c11320e6dc65433b7eeff0, hosted auth lifecycle, auth-audit snapshot, auth-audit risk-rollup, browser-contract, smoke, and full Phase-3 suite verifiers all passed. This is staging parity only; production rollout remains false.",
+  "updated_at": "2026-05-14T13:17:00+02:00",
+  "updated_by": "codex-auth-audit-timeline-20260514",
+  "reason": "Keep prod-candidate-2026-05-11-rc1 active and bind it to the verified Auth Audit Timeline immutable staging selector. Local py_compile, Next.js build, Docker readiness, local auth-audit snapshot verifier, local auth-audit risk-rollup verifier, local auth-audit timeline verifier with adversarial redaction canaries, local browser-contract verifier, security verifier, evidence artifact safety verifier, Docker Buildx GHCR image push for all six services at 9c38c59238043dbda2d02ee4fcd0c59d44bac812, Hetzner staging deploy via scripts/deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 9c38c59238043dbda2d02ee4fcd0c59d44bac812, hosted auth lifecycle, auth-audit snapshot, auth-audit risk-rollup, auth-audit timeline, browser-contract, hosted-staging, and full Phase-3 suite verifiers all passed. This is staging parity only; production rollout remains false.",
   "production_rollout_claimed": false
 }
