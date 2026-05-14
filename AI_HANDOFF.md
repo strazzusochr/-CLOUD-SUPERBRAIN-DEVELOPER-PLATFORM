@@ -6,7 +6,7 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-Current honesty guardrail: the active staging candidate is `54bb064c8a5650f9a5c811179d3b4d0e1f38cfbf`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
+Current honesty guardrail: the active staging candidate is `79c3c24dbb3d9907f00733e9d7d3d2238f50cb24`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
 
 ## Binding Truth
 
@@ -29,18 +29,18 @@ Follow `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` over older planning f
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 
-Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `73%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, and the Phase-3 Security Audit Surface proof for SHA `54bb064c8a5650f9a5c811179d3b4d0e1f38cfbf`. Continue Phase-3 security/product-surface evidence before rollout.
+Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `74%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-3 Security Audit Surface proof, and the Autonomous Team Dispatch UI proof for SHA `79c3c24dbb3d9907f00733e9d7d3d2238f50cb24`. Continue Phase-3 security/product-surface evidence before rollout.
 
 ## Current Verified Progress
 
-Overall: `73%`
+Overall: `74%`
 
 Horizontal:
 
 - P0: `100%`
 - P1: `100%`
-- P2: `86%`
-- P3: `50%`
+- P2: `88%`
+- P3: `53%`
 - P4: `100%`
 - P5: `74%`
 - P6: `0%`
@@ -49,7 +49,7 @@ Vertical:
 
 - Frontend / Next.js: `99%`
 - Orchestrator / LangGraph: `99%`
-- Agent Pool: `68%`
+- Agent Pool: `72%`
 - LLM Gateway: `57%`
 - MCP Gateway: `57%`
 - Memory: `72%`
@@ -59,7 +59,15 @@ Older percentage lines below are historical proof points only. Current percentag
 
 ## Latest Verified Step
 
-Phase 3 Security Audit Surface:
+Autonomous Team Dispatch UI Proof:
+
+- `POST /api/v1/task/dispatch` exposes dispatch, UI, status, provenance, and audit evidence refs for objective forwarding.
+- Frontend renders `Dispatch Objective`, `POST /api/v1/task/dispatch`, `autonomous_team_dispatch_ui_visible`, and `autonomous_team_dispatch_status_visible`.
+- Local proof passed: `scripts\verify-autonomous-coding-team.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` and `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
+- Hosted proof passed after immutable deploy `IMAGE_TAG=79c3c24dbb3d9907f00733e9d7d3d2238f50cb24`: Autonomous-Team verifier, Browser-Contract, and Hosted-Smoke all green on `https://188-34-191-140.sslip.io`.
+- Progress change: Overall rises to `74%`; Phase 2 rises to `88%`; Phase 3 rises to `53%`; Agent Pool rises to `72%`; no production rollout, live provider call, live MCP write, or secret exposure is claimed.
+
+Previous verified step - Phase 3 Security Audit Surface:
 
 - `GET /api/v1/security/events/contract` exposes `security-audit-surface-v1`, `security_audit_surface_visible`, `security_audit_event_visible`, and `read_only=true`.
 - `GET /api/v1/security/events` reads `audit_log` only for CSP/Auth/MCP/LLM security-relevant events.

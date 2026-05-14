@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-05-14 03:41 Uhr
+Letzte Aktualisierung: 2026-05-14 04:39 Uhr
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-14 03:41 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `73%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History und die neue read-only Security Audit Surface auf `50%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist jetzt als immutable Staging-Selector `IMAGE_TAG=54bb064c8a5650f9a5c811179d3b4d0e1f38cfbf` verifiziert. Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `74%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface und die neue Autonomous Team Dispatch UI auf `53%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist jetzt als immutable Staging-Selector `IMAGE_TAG=79c3c24dbb3d9907f00733e9d7d3d2238f50cb24` verifiziert. Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -30,7 +30,7 @@ Letzte Aktualisierung: 2026-05-14 03:41 Uhr
 6. **Kein E2B-Sandbox:** Docker Desktop für lokale Tests
 7. **7-Schichten-Architektur** laut Ultimatum Finale
 
-## AKTUELLER FORTSCHRITT: 73%
+## AKTUELLER FORTSCHRITT: 74%
 
 ### Horizontal (nach Priorität)
 
@@ -38,8 +38,8 @@ Letzte Aktualisierung: 2026-05-14 03:41 Uhr
 |------|--------|
 | P0   | 100%   |
 | P1   | 100%   |
-| P2   | 86%    |
-| P3   | 50%    |
+| P2   | 88%    |
+| P3   | 53%    |
 | P4   | 100%   |
 | P5   | 74%    |
 | P6   | 0%     |
@@ -50,7 +50,7 @@ Letzte Aktualisierung: 2026-05-14 03:41 Uhr
 |---------------|--------|
 | Frontend      | 99%    |
 | Orchestrator  | 99%    |
-| Agent Pool    | 68%    |
+| Agent Pool    | 72%    |
 | LLM Gateway   | 57%    |
 | MCP Gateway   | 57%    |
 | Memory        | 72%    |
@@ -70,13 +70,21 @@ Letzte Aktualisierung: 2026-05-14 03:41 Uhr
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Naechster grosser Fortschrittshebel: Phase 3 Product Surface & Security** — Security Audit Surface ist jetzt lokal und hosted verifiziert; weiter geht es mit weiteren echten Security/Product-Surface-Slices statt P5-Reruns
+- **Naechster grosser Fortschrittshebel: Phase 3 Product Surface & Security** — Security Audit Surface und Autonomous Team Dispatch UI sind jetzt lokal und hosted verifiziert; weiter geht es mit weiteren echten Security/Product-Surface-Slices statt P5-Reruns
 - danach folgen P3-Auth/Security- und LLM/MCP-Layer-Slices, kein Production-Rollout ohne separates Gate
 - lokal und hosted bleiben weiterhin deterministische Proofs ohne Live-Provider und ohne Live-MCP-Writes; `production_deploy_claim_allowed=true` ist kein Deployment-Nachweis
 
 ## ZULETZT ABGESCHLOSSEN
 
-**Phase 3 Security Audit Surface** — die Product-Surface-&-Security-Schicht hat jetzt eine read-only Operator-Ansicht ueber sicherheitsrelevante Audit-Events:
+**Autonomous Team Dispatch UI Proof** — die Operator-Oberflaeche kann jetzt Ziele an das autonome Team uebergeben und den Status sichtbar nachziehen:
+
+- `POST /api/v1/task/dispatch` liefert Dispatch-, UI-, Status-, Provenance- und Audit-Evidence-Refs.
+- Frontend rendert `Dispatch Objective`, `POST /api/v1/task/dispatch`, `autonomous_team_dispatch_ui_visible` und `autonomous_team_dispatch_status_visible`.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `scripts\verify-autonomous-coding-team.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach immutable Image-Deploy mit `IMAGE_TAG=79c3c24dbb3d9907f00733e9d7d3d2238f50cb24`: Autonomous-Team-Verifier, Browser-Contract und Hosted-Smoke sind gruen.
+- Fortschritt: `overall=74`, `phase_2=88`, `phase_3=53`, `agent_pool=72`; kein Production-Rollout, kein Live-Provider-Call und kein Live-MCP-Write.
+
+**Vorheriger Abschluss — Phase 3 Security Audit Surface** — die Product-Surface-&-Security-Schicht hat jetzt eine read-only Operator-Ansicht ueber sicherheitsrelevante Audit-Events:
 
 - `GET /api/v1/security/events/contract` liefert `security-audit-surface-v1`, `security_audit_surface_visible`, `security_audit_event_visible`, `read_only=true`, Eventtypen fuer CSP/Auth/MCP/LLM und klare Non-Claims.
 - `GET /api/v1/security/events` liest nur `audit_log`, zeigt Request-/Trace-Korrelation, MCP-Deny-Evidence und LLM-Dry-Run-Status, ohne Tools oder Provider aufzurufen.
