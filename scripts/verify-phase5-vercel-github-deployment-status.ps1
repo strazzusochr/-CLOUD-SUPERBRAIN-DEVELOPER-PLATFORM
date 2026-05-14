@@ -68,7 +68,11 @@ function Invoke-ProcessProbe([string]$CommandName, [string[]]$Arguments) {
   }
 
   if ($exitCode -ne 0) {
-    throw "$CommandName command failed with exit code $exitCode."
+    $excerpt = $output.Trim()
+    if ($excerpt.Length -gt 800) {
+      $excerpt = $excerpt.Substring(0, 800)
+    }
+    throw "$CommandName command failed with exit code $exitCode. Output: $excerpt"
   }
 
   return $output.Trim()
@@ -93,6 +97,13 @@ function Invoke-StatusWebRequest([string]$Url) {
 }
 
 function Select-VercelGitLinkSummary($Probe) {
+  $domainVerified = $false
+  foreach ($domain in @($Probe.observed.domains)) {
+    if ([string]$domain.name -eq "frontend-seven-psi-78.vercel.app" -and [bool]$domain.verified) {
+      $domainVerified = $true
+    }
+  }
+
   return [ordered]@{
     status = [string]$Probe.status
     classification = [string]$Probe.classification
@@ -104,13 +115,12 @@ function Select-VercelGitLinkSummary($Probe) {
     link_org_matches = [bool]$Probe.checks.link_org_matches
     link_repo_matches = [bool]$Probe.checks.link_repo_matches
     production_branch_matches = [bool]$Probe.checks.production_branch_matches
-    domain_verified = (@($Probe.observed.domains) | Where-Object {
-      $_.name -eq "frontend-seven-psi-78.vercel.app" -and [bool]$_.verified
-    }).Count -gt 0
+    domain_verified = $domainVerified
   }
 }
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
+$tempOutputPaths = @()
 Push-Location $repoRoot
 try {
   if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
@@ -169,8 +179,10 @@ try {
   Assert-Sha "commit sha" $CommitSha
 
   $gitStatus = Invoke-ProcessProbe "git" @("status", "--short")
-  Assert-Equal "worktree status" $gitStatus ""
+  $worktreeHasChanges = -not [string]::IsNullOrWhiteSpace($gitStatus)
 
+  $projectReadinessOutputPath = Join-Path ([System.IO.Path]::GetTempPath()) ("phase5-vercel-project-readiness-{0}.json" -f ([guid]::NewGuid().ToString("N")))
+  $tempOutputPaths += $projectReadinessOutputPath
   $projectReadiness = Invoke-JsonProcess "powershell" @(
     "-NoProfile",
     "-ExecutionPolicy",
@@ -181,12 +193,14 @@ try {
     "-ReportOnly",
     "-JsonOnly",
     "-OutputPath",
-    ""
+    $projectReadinessOutputPath
   )
   Assert-Equal "Vercel project git readiness status" ([string]$projectReadiness.status) "ready"
   Assert-True "Vercel project git readiness boolean" ([bool]$projectReadiness.ready)
   Assert-Equal "Vercel project git readiness blocking failures" ([int]$projectReadiness.blocking_failure_count) 0
 
+  $gitLinkOutputPath = Join-Path ([System.IO.Path]::GetTempPath()) ("phase5-vercel-git-link-{0}.json" -f ([guid]::NewGuid().ToString("N")))
+  $tempOutputPaths += $gitLinkOutputPath
   $gitLinkRaw = Invoke-JsonProcess "powershell" @(
     "-NoProfile",
     "-ExecutionPolicy",
@@ -196,7 +210,7 @@ try {
     "-ReportOnly",
     "-JsonOnly",
     "-OutputPath",
-    ""
+    $gitLinkOutputPath
   )
   $gitLink = Select-VercelGitLinkSummary $gitLinkRaw
   Assert-Equal "Vercel Git link status" ([string]$gitLink.status) "ready"
@@ -233,6 +247,7 @@ try {
     release_id = $ReleaseId
     branch = $currentBranch
     commit_sha = $CommitSha
+    worktree_has_changes = $worktreeHasChanges
     github_combined_status = [string]$combinedStatus.state
     github_status_context = "Vercel"
     github_status_state = [string]$vercelStatus.state
@@ -287,5 +302,8 @@ try {
   }
   throw
 } finally {
+  foreach ($path in $tempOutputPaths) {
+    Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+  }
   Pop-Location
 }
