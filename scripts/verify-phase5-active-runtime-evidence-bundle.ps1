@@ -167,18 +167,18 @@ try {
   Assert-NotSecretBearing "active runtime proof artifact" $proof
 
   $progress = Invoke-JsonApi "$BaseUrl/api/v1/project/progress"
-  Assert-Equal "progress overall" ([int]$progress.overall_percent) 79
+  Assert-Equal "progress overall" ([int]$progress.overall_percent) 80
   $phase2 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_2" }) | Select-Object -First 1
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
   Assert-Equal "progress phase2" ([int]$phase2.percent) 88
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 74
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 75
   Assert-NotSecretBearing "progress payload" ($progress | ConvertTo-Json -Depth 20 -Compress)
 
   $integrity = Invoke-JsonApi "$BaseUrl/api/v1/project/progress/integrity"
   Assert-Equal "progress integrity version" $integrity.contract_version "project-progress-integrity-v1"
   Assert-Equal "progress integrity status" $integrity.status "verified"
-  Assert-Equal "progress integrity manifest percent" ([int]$integrity.manifest_overall_percent) 79
-  Assert-Equal "progress integrity computed percent" ([int]$integrity.computed_overall_percent) 79
+  Assert-Equal "progress integrity manifest percent" ([int]$integrity.manifest_overall_percent) 80
+  Assert-Equal "progress integrity computed percent" ([int]$integrity.computed_overall_percent) 80
   Assert-True "progress integrity no mismatches" (@($integrity.mismatches).Count -eq 0)
 
   $runtimeContract = Invoke-JsonApi "$BaseUrl/api/v1/phase2/runtime/contract"
@@ -244,9 +244,9 @@ try {
   $masterPlan = Invoke-JsonApi "$BaseUrl/api/v1/team/master-plan"
   Assert-Equal "master plan contract version" $masterPlan.contract_version "autonomous-master-plan-v1"
   Assert-Equal "master plan evidence" $masterPlan.evidence_ref "autonomous_master_plan_runtime_visible"
-  Assert-Equal "master plan overall" ([int]$masterPlan.overall_percent) 79
+  Assert-Equal "master plan overall" ([int]$masterPlan.overall_percent) 80
   Assert-Equal "master plan phase2" ([int]$masterPlan.phase_percentages.phase_2) 88
-  Assert-Equal "master plan phase5" ([int]$masterPlan.phase_percentages.phase_5) 74
+  Assert-Equal "master plan phase5" ([int]$masterPlan.phase_percentages.phase_5) 75
   Assert-True "master plan logical roles" (@($masterPlan.logical_roles).Count -eq 5)
   Assert-NotSecretBearing "master plan payload" ($masterPlan | ConvertTo-Json -Depth 20 -Compress)
 

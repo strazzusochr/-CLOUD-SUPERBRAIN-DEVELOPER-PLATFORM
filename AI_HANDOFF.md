@@ -6,7 +6,7 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-Current honesty guardrail: the active staging candidate is `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`, verified through GHCR multi-service images, Hetzner `-UseImageFilesystem` parity, the Active Gateway Policy Bundle, the Active Runtime Evidence Bundle, the Active Security Evidence Bundle, the Vercel GitHub Deployment Status proof, the Autonomous Roster Master Plan proof, and the Phase 2 Runtime Dual Surface proof. This is a staging-candidate claim only; production rollout remains unclaimed.
+Current honesty guardrail: the active staging candidate is `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`, verified through GHCR multi-service images, Hetzner `-UseImageFilesystem` parity, the Active Verifier Sweep Bundle, the Active Gateway Policy Bundle, the Active Runtime Evidence Bundle, the Active Security Evidence Bundle, the Vercel GitHub Deployment Status proof, the Autonomous Roster Master Plan proof, and the Phase 2 Runtime Dual Surface proof. This is a staging-candidate claim only; production rollout remains unclaimed.
 
 ## Binding Truth
 
@@ -29,7 +29,7 @@ Follow `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` over older planning f
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 
-Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the historical anchor. For the current resume point, use this handoff plus `docs/project-progress.manifest.json`, `docs/verification-register.md`, and `docs/release-artifacts/current-release-candidate.json`. They record the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `80%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-3 Active Gateway Policy Bundle proof, the Phase-5 Active Runtime Evidence Bundle proof, the Phase-5 Active Security Evidence Bundle proof, the Phase-5 Vercel GitHub Deployment Status proof, the Phase-2 Runtime Dual Surface proof, the Phase-2/Agent-Pool Autonomous Roster Master Plan proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, Security Review Queue Export proof, LLM Audit Feed Redaction Snapshot proof, LLM Audit Export proof, MCP Audit Redaction Snapshot proof, MCP Audit Export proof, Gateway Correlation Snapshot proof, Gateway Correlation Risk Rollup proof, Gateway Correlation Timeline proof, Gateway Correlation Export proof, Auth Audit Snapshot proof, Auth Audit Risk Rollup proof, Auth Audit Timeline proof, and Auth Audit Export proof. Continue Phase-5 candidate hardening before rollout.
+Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the historical anchor. For the current resume point, use this handoff plus `docs/project-progress.manifest.json`, `docs/verification-register.md`, and `docs/release-artifacts/current-release-candidate.json`. They record the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `80%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-5 Active Verifier Sweep Bundle proof, the Phase-3 Active Gateway Policy Bundle proof, the Phase-5 Active Runtime Evidence Bundle proof, the Phase-5 Active Security Evidence Bundle proof, the Phase-5 Vercel GitHub Deployment Status proof, the Phase-2 Runtime Dual Surface proof, the Phase-2/Agent-Pool Autonomous Roster Master Plan proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, Security Review Queue Export proof, LLM Audit Feed Redaction Snapshot proof, LLM Audit Export proof, MCP Audit Redaction Snapshot proof, MCP Audit Export proof, Gateway Correlation Snapshot proof, Gateway Correlation Risk Rollup proof, Gateway Correlation Timeline proof, Gateway Correlation Export proof, Auth Audit Snapshot proof, Auth Audit Risk Rollup proof, Auth Audit Timeline proof, and Auth Audit Export proof. Continue Phase-5 candidate hardening before rollout.
 
 ## Current Verified Progress
 
@@ -42,7 +42,7 @@ Horizontal:
 - P2: `88%`
 - P3: `95%`
 - P4: `100%`
-- P5: `74%`
+- P5: `75%`
 - P6: `0%`
 
 Vertical:
@@ -59,7 +59,14 @@ Older percentage lines below are historical proof points only. Current percentag
 
 ## Latest Verified Step
 
-Active Gateway Policy Bundle Proof:
+Active Verifier Sweep Bundle Proof:
+
+- `scripts\verify-phase5-active-verifier-sweep-bundle.ps1` binds active RC1 to eight non-mutating hosted/repo safety gates: current release-candidate, active release-candidate bundle, hosted staging smoke, Active Gateway Policy Bundle, LLM model catalog, MCP capability catalog, security scan, and evidence-artifact-safety.
+- The verifier checks `production_rollout_claimed=false`, active bundle `status=passed`, hosted progress `80%`, Phase 5 `75%`, LLM/MCP catalog proof, security scan success, and evidence-artifact-safety `safe`.
+- Hosted proof passed through the new Phase-5 verifier; active runtime and roster verifiers were rebaselined to the current progress authority.
+- Progress changes: Phase 5 rises to `75%`; Overall remains `80%`; no production rollout, release promotion, live provider call, live MCP write, local model download, or secret exposure is claimed.
+
+Previous verified step - Active Gateway Policy Bundle Proof:
 
 - `scripts\verify-phase3-active-gateway-policy-bundle.ps1` binds active RC1 to read-only local and hosted policy evidence across LLM health, LLM model catalog, LLM audit contract/feed/snapshot, MCP health, MCP capability catalog, MCP audit contract/feed/snapshot, and gateway-correlation contract/snapshot/risk-rollup/timeline surfaces.
 - The verifier checks `llm-model-catalog-v1`, `mcp-capability-catalog-v1`, `llm-audit-feed-v1`, `read_only_llm_audit_redaction_snapshot`, `llm_audit_snapshot_visible`, `mcp-audit-feed-v1`, `read_only_mcp_audit_redaction_snapshot`, `mcp_audit_snapshot_visible`, `gateway-correlation-snapshot-v1`, `gateway-correlation-risk-rollup-v1`, `gateway-correlation-timeline-v1`, open-source-first/API-only routing, model-download guards, redaction guards, and non-claims for live provider calls, live MCP writes, production deployment, local model downloads, and secrets.
@@ -71,7 +78,7 @@ Previous verified step - Active Runtime Evidence Bundle Proof:
 - `scripts\verify-phase5-active-runtime-evidence-bundle.ps1` binds active RC1 to read-only local and hosted runtime evidence across project progress, progress integrity, Phase 2 runtime contract/runs, orchestrator manifest, agent status, agent activity, master plan, roster, and team status.
 - The verifier checks `phase2-runtime-v1`, `audit_log_backed_phase2_runtime_runs`, `agent-profiles-v1`, `autonomous-master-plan-v1`, `autonomous-agent-roster-v1`, `langgraph`, `postgres`, completed deterministic role summaries, and non-claims for live provider calls, live MCP writes, production deployment, local model downloads, and secrets.
 - Local and hosted proofs passed through the new Phase-5 verifier.
-- Progress remains `79%`; Phase 5 remains `74%`; no production rollout, release promotion, live provider call, live MCP write, local model download, or secret exposure is claimed.
+- Progress is current at `80%`; Phase 5 is current at `75%`; no production rollout, release promotion, live provider call, live MCP write, local model download, or secret exposure is claimed.
 
 Previous verified step - Phase 2 Runtime Dual Surface Proof:
 

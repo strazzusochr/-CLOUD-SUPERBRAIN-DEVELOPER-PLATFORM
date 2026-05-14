@@ -38,6 +38,10 @@ if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) {
 Assert-Contains "phase5 plan active candidate default" $plan "verify-phase5-candidate.ps1 (default parameters)"
 Assert-NotContains "phase5 plan active candidate stale override" $plan "verify-phase5-candidate.ps1 -ReleaseId prod-candidate-2026-05-05-rc1"
 Assert-Contains "phase5 plan active candidate rerun proof" $plan "verify-phase5-active-candidate-gate-rerun.ps1 (default parameters)"
+Assert-Contains "phase5 plan active runtime proof" $plan "verify-phase5-active-runtime-evidence-bundle.ps1 (default parameters)"
+Assert-Contains "phase5 plan active security proof" $plan "verify-phase5-active-security-evidence-bundle.ps1 (default parameters)"
+Assert-Contains "phase5 plan active verifier sweep proof" $plan "verify-phase5-active-verifier-sweep-bundle.ps1 (default parameters)"
+Assert-Contains "phase5 plan vercel status proof" $plan "verify-phase5-vercel-github-deployment-status.ps1 (default parameters)"
 Assert-Contains "phase5 plan historical artifact coverage" $plan "verify-phase5-staging-parity-blocked.ps1 -ReleaseId prod-candidate-2026-05-05-rc1"
 Assert-Contains "phase5 plan historical artifact coverage" $plan "verify-phase5-release-readiness-rerun.ps1 -ReleaseId prod-candidate-2026-05-05-rc1"
 

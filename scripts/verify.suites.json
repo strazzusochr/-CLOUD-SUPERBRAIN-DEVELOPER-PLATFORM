@@ -230,6 +230,9 @@
       "verify-phase5-vercel-github-deployment-status.ps1": {
         "ReleaseId": null
       },
+      "verify-phase5-active-verifier-sweep-bundle.ps1": {
+        "ReleaseId": null
+      },
       "verify-phase5-frontend-source-build-path.ps1": {
         "ReleaseId": null
       }
