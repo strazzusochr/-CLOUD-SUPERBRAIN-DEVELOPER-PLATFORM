@@ -1,7 +1,7 @@
 {
   "active_release_id": "prod-candidate-2026-05-11-rc1",
-  "updated_at": "2026-05-14T04:03:23Z",
-  "updated_by": "codex-security-review-snapshot-20260514",
-  "reason": "Keep prod-candidate-2026-05-11-rc1 active and bind it to the verified Security Review Queue snapshot immutable staging selector. Local py_compile, Next.js build, local security-review snapshot verifier, local browser-contract verifier, Docker Buildx GHCR image push for all six services at 8fc8654f4a77a7b6705f351e060244bfc42d664e, Hetzner staging deploy via scripts/deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 8fc8654f4a77a7b6705f351e060244bfc42d664e, hosted security-review snapshot, browser-contract, and smoke verifiers all passed. This is staging parity only; production rollout remains false.",
+  "updated_at": "2026-05-14T04:40:01Z",
+  "updated_by": "codex-security-review-gate-20260514",
+  "reason": "Keep prod-candidate-2026-05-11-rc1 active and bind it to the verified Security Review Gate immutable staging selector. Local py_compile, Next.js build, local security-review-gate verifier, local browser-contract verifier, Docker Buildx GHCR image push for all six services at 9f1e52266b3d9f9ddbdfc226d68bd2379ead9fad, Hetzner staging deploy via scripts/deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 9f1e52266b3d9f9ddbdfc226d68bd2379ead9fad, hosted security-review-gate, browser-contract, and smoke verifiers all passed. This is staging parity only; production rollout remains false.",
   "production_rollout_claimed": false
 }
