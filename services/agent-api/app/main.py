@@ -1056,7 +1056,9 @@ AUTH_ACCESS_TOKEN_TTL_SECONDS = 15 * 60
 AUTH_REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60
 AUTH_BLACKLIST_PREFIX = "auth:refresh:blacklist:"
 AUTH_AUDIT_SNAPSHOT_CONTRACT_VERSION = "auth-audit-snapshot-v1"
+AUTH_AUDIT_RISK_ROLLUP_CONTRACT_VERSION = "auth-audit-risk-rollup-v1"
 AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF = "auth_audit_snapshot_visible"
+AUTH_AUDIT_RISK_ROLLUP_EVIDENCE_REF = "auth_audit_risk_rollup_visible"
 AUTH_AUDIT_REDACTION_EVIDENCE_REF = "auth_audit_redaction_enforced"
 AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF = "auth_no_live_oauth_guard"
 DSGVO_PURGE_CONTRACT_VERSION = "memory-dsgvo-purge-v1"
@@ -1564,6 +1566,7 @@ def auth_contract_payload() -> dict[str, object]:
             "logout": "/api/v1/auth/logout",
             "audit_contract": "/api/v1/audit/auth/contract",
             "audit_snapshot": "/api/v1/audit/auth/snapshot",
+            "audit_risk_rollup": "/api/v1/audit/auth/risk-rollup",
         },
         "evidence_refs": {
             "contract": "auth_contract_visible",
@@ -1571,6 +1574,7 @@ def auth_contract_payload() -> dict[str, object]:
             "refresh_reuse_blocked": "auth_refresh_reuse_blocked",
             "logout_revoked": "auth_logout_revoked",
             "audit_snapshot": AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF,
+            "audit_risk_rollup": AUTH_AUDIT_RISK_ROLLUP_EVIDENCE_REF,
             "audit_redaction": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
             "no_live_oauth": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
         },
@@ -1603,10 +1607,13 @@ def auth_audit_contract_payload() -> dict[str, object]:
         "parent_contract_version": "auth-github-jwt-refresh-v1",
         "mode": "read_only_auth_audit_snapshot",
         "endpoint": "GET /api/v1/audit/auth/snapshot",
+        "risk_rollup_endpoint": "GET /api/v1/audit/auth/risk-rollup",
         "contract_endpoint": "GET /api/v1/audit/auth/contract",
+        "risk_rollup_contract_version": AUTH_AUDIT_RISK_ROLLUP_CONTRACT_VERSION,
         "source_table": "audit_log",
         "source_event_types": list(AUTH_AUDIT_EVENT_TYPES),
         "evidence_ref": AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "risk_rollup_evidence_ref": AUTH_AUDIT_RISK_ROLLUP_EVIDENCE_REF,
         "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
         "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
         "read_only": True,
@@ -1637,6 +1644,7 @@ def auth_audit_contract_payload() -> dict[str, object]:
             "Returned events are reduced to safe auth lifecycle fields only.",
             "Refresh tokens, access tokens, cookies, authorization headers, OAuth code/state values, and Redis blacklist keys are omitted.",
             "Any live GitHub OAuth call claim or forbidden credential pattern blocks the snapshot.",
+            "The risk rollup is computed from the same safe auth audit projection and never performs auth writes or live OAuth calls.",
         ],
         "non_claims": [
             "This endpoint does not perform or prove a live GitHub OAuth exchange.",
@@ -1682,7 +1690,7 @@ def safe_auth_audit_event(row: object) -> dict[str, object]:
     if not isinstance(details, dict):
         details = {}
     event_type = str(row[1])
-    trace_id = str(details.get("trace_id") or row[3] or "") or None
+    trace_id = str(details.get("trace_id") or "") or None
     live_github_oauth_call = bool(details.get("live_github_oauth_call") is True)
     cookie_flags = details.get("cookie_flags") if isinstance(details.get("cookie_flags"), dict) else {}
     return {
@@ -1745,6 +1753,112 @@ def build_auth_audit_snapshot(events: list[dict[str, object]]) -> dict[str, obje
         "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
         "oauth_status": "dry_run_only" if live_github_oauth_call_count == 0 else "blocked",
         "events": events[:20],
+    }
+
+
+def build_auth_audit_risk_rollup(events: list[dict[str, object]]) -> dict[str, object]:
+    forbidden_pattern_hits = auth_audit_forbidden_pattern_hits(events)
+    live_github_oauth_call_count = sum(1 for event in events if event.get("live_github_oauth_call") is True)
+    event_type_counts = count_by_key([str(event.get("event_type")) for event in events])
+    lifecycle_step_counts = count_by_key([str(event.get("lifecycle_step")) for event in events])
+    status_counts = count_by_key([str(event.get("status")) if event.get("status") else None for event in events])
+    severity_counts = count_by_key([str(event.get("severity")) if event.get("severity") else None for event in events])
+    dry_run_callback_count = int(event_type_counts.get("auth_github_callback_contract", 0))
+    refresh_rotation_count = int(event_type_counts.get("auth_refresh_rotated", 0))
+    refresh_reuse_block_count = int(event_type_counts.get("auth_refresh_reuse_blocked", 0))
+    logout_revoke_count = int(event_type_counts.get("auth_logout_revoked", 0))
+    blocker_count = forbidden_pattern_hits + live_github_oauth_call_count
+    review_count = refresh_reuse_block_count
+    if blocker_count > 0:
+        risk_status = "blocked"
+    elif review_count > 0:
+        risk_status = "review"
+    else:
+        risk_status = "clear"
+    risk_badges = [
+        {
+            "id": "redaction",
+            "label": "Redaction",
+            "status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+            "count": forbidden_pattern_hits,
+            "evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+        },
+        {
+            "id": "no_live_oauth",
+            "label": "No Live OAuth",
+            "status": "clear" if live_github_oauth_call_count == 0 else "blocked",
+            "count": live_github_oauth_call_count,
+            "evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+        },
+        {
+            "id": "refresh_reuse_blocked",
+            "label": "Refresh Reuse Blocked",
+            "status": "review" if refresh_reuse_block_count > 0 else "clear",
+            "count": refresh_reuse_block_count,
+            "evidence_ref": "auth_refresh_reuse_blocked",
+        },
+        {
+            "id": "refresh_rotation",
+            "label": "Refresh Rotation",
+            "status": "verified" if refresh_rotation_count > 0 else "watch",
+            "count": refresh_rotation_count,
+            "evidence_ref": "auth_refresh_rotated",
+        },
+        {
+            "id": "logout_revoke",
+            "label": "Logout Revoke",
+            "status": "verified" if logout_revoke_count > 0 else "watch",
+            "count": logout_revoke_count,
+            "evidence_ref": "auth_logout_revoked",
+        },
+    ]
+    return {
+        "contract_version": AUTH_AUDIT_RISK_ROLLUP_CONTRACT_VERSION,
+        "parent_contract_version": AUTH_AUDIT_SNAPSHOT_CONTRACT_VERSION,
+        "mode": "read_only_auth_audit_risk_rollup",
+        "endpoint": "GET /api/v1/audit/auth/risk-rollup",
+        "snapshot_endpoint": "GET /api/v1/audit/auth/snapshot",
+        "contract_endpoint": "GET /api/v1/audit/auth/contract",
+        "source_table": "audit_log",
+        "source_event_types": list(AUTH_AUDIT_EVENT_TYPES),
+        "evidence_ref": AUTH_AUDIT_RISK_ROLLUP_EVIDENCE_REF,
+        "snapshot_evidence_ref": AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+        "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+        "read_only": True,
+        "live_github_oauth_call_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "tokens_returned": False,
+        "cookies_returned": False,
+        "authorization_headers_returned": False,
+        "blacklist_keys_returned": False,
+        "oauth_codes_returned": False,
+        "oauth_states_returned": False,
+        "events_scanned": len(events),
+        "risk_status": risk_status,
+        "blocker_count": blocker_count,
+        "review_count": review_count,
+        "dry_run_callback_count": dry_run_callback_count,
+        "refresh_rotation_count": refresh_rotation_count,
+        "refresh_reuse_block_count": refresh_reuse_block_count,
+        "logout_revoke_count": logout_revoke_count,
+        "live_github_oauth_call_count": live_github_oauth_call_count,
+        "forbidden_pattern_hits": forbidden_pattern_hits,
+        "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+        "oauth_status": "dry_run_only" if live_github_oauth_call_count == 0 else "blocked",
+        "event_type_counts": event_type_counts,
+        "lifecycle_step_counts": lifecycle_step_counts,
+        "status_counts": status_counts,
+        "severity_counts": severity_counts,
+        "risk_badges": risk_badges,
+        "policy_checks": [
+            "Risk rollup reads audit_log through the safe auth audit projection only.",
+            "Risk rollup never starts OAuth, refresh, logout, token issuance, deployment, or production promotion flows.",
+            "Refresh-token reuse blocks are review evidence, not release blockers, when redaction and no-live-OAuth guards stay clear.",
+            "Any forbidden pattern or live GitHub OAuth claim raises blocker_count and risk_status=blocked.",
+        ],
+        "non_claims": auth_audit_contract_payload()["non_claims"],
     }
 
 
@@ -4708,6 +4822,14 @@ def auth_audit_snapshot(limit: int = Query(default=80, ge=1, le=200)) -> dict[st
     rows = auth_audit_rows(limit)
     events = [safe_auth_audit_event(row) for row in rows]
     return build_auth_audit_snapshot(events)
+
+
+@app.get("/api/v1/audit/auth/risk-rollup")
+@app.get("/api/v1/auth/audit/risk-rollup")
+def auth_audit_risk_rollup(limit: int = Query(default=80, ge=1, le=200)) -> dict[str, object]:
+    rows = auth_audit_rows(limit)
+    events = [safe_auth_audit_event(row) for row in rows]
+    return build_auth_audit_risk_rollup(events)
 
 
 @app.get("/api/v1/auth/github")

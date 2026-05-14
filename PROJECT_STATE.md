@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-05-14 11:39 Uhr
+Letzte Aktualisierung: 2026-05-14 12:34 Uhr
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-14 11:39 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `77%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline und Auth Audit Snapshot auf `80%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist jetzt als immutable Staging-Selector `IMAGE_TAG=7a849155a7b6c3f2dd3ba93ff9fa306ad87b9296` verifiziert. Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `78%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Auth Audit Snapshot und Auth Audit Risk Rollup auf `82%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist als immutable Staging-Selector verifiziert; Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -30,7 +30,7 @@ Letzte Aktualisierung: 2026-05-14 11:39 Uhr
 6. **Kein E2B-Sandbox:** Docker Desktop für lokale Tests
 7. **7-Schichten-Architektur** laut Ultimatum Finale
 
-## AKTUELLER FORTSCHRITT: 77%
+## AKTUELLER FORTSCHRITT: 78%
 
 ### Horizontal (nach Priorität)
 
@@ -39,7 +39,7 @@ Letzte Aktualisierung: 2026-05-14 11:39 Uhr
 | P0   | 100%   |
 | P1   | 100%   |
 | P2   | 88%    |
-| P3   | 80%    |
+| P3   | 82%    |
 | P4   | 100%   |
 | P5   | 74%    |
 | P6   | 0%     |
@@ -70,13 +70,20 @@ Letzte Aktualisierung: 2026-05-14 11:39 Uhr
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Naechster grosser Fortschrittshebel: Phase 3 Product Surface & Security** — Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline und Auth Audit Snapshot sind jetzt lokal und hosted auf immutable Staging verifiziert.
+- **Naechster grosser Fortschrittshebel: Phase 3 Product Surface & Security** — Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Auth Audit Snapshot und Auth Audit Risk Rollup sind jetzt lokal und hosted auf immutable Staging verifiziert.
 - danach folgen P3-Auth/Security- und LLM/MCP-Layer-Slices, kein Production-Rollout ohne separates Gate
 - lokal und hosted bleiben weiterhin deterministische Proofs ohne Live-Provider und ohne Live-MCP-Writes; `production_deploy_claim_allowed=true` ist kein Deployment-Nachweis
 
 ## ZULETZT ABGESCHLOSSEN
 
-**Auth Audit Snapshot Proof** — die Auth-Operator-Ansicht hat jetzt einen read-only Audit-Snapshot ueber Auth-Lifecycle-Ereignisse:
+**Auth Audit Risk Rollup Proof** — die Auth-Operator-Ansicht hat jetzt einen read-only Risiko-Rollup ueber sichere Auth-Lifecycle-Ereignisse:
+
+- `GET /api/v1/audit/auth/contract` liefert zusaetzlich `risk_rollup_endpoint=GET /api/v1/audit/auth/risk-rollup`, `risk_rollup_contract_version=auth-audit-risk-rollup-v1` und `auth_audit_risk_rollup_visible`.
+- `GET /api/v1/audit/auth/risk-rollup` liest nur dieselbe sichere `audit_log`-Projektion wie der Snapshot, zaehlt Callback/Refresh-Reuse/Refresh-Rotation/Logout-Ereignisse, Risk-Badges, Blocker/Reviews, Redaction-Hits und Live-OAuth-Hits und setzt `production_rollout_claimed=false` sowie `promotion_allowed=false`.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `docker info --format '{{.ServerVersion}}'`, `docker compose -f docker-compose.dev.yml up -d --build agent-api frontend nginx`, `scripts\verify-phase3-auth-audit-snapshot.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireLifecycle`, `scripts\verify-phase3-auth-audit-risk-rollup.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireLifecycle`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-security.ps1` und `scripts\verify-evidence-artifact-safety.ps1`.
+- Fortschritt: `overall=78`, `phase_3=82`; kein Production-Rollout, kein Live-GitHub-OAuth-Claim, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Auth Audit Snapshot Proof** — die Auth-Operator-Ansicht hat jetzt einen read-only Audit-Snapshot ueber Auth-Lifecycle-Ereignisse:
 
 - `GET /api/v1/audit/auth/contract` liefert `auth-audit-snapshot-v1`, `parent_contract_version=auth-github-jwt-refresh-v1`, `read_only=true`, `auth_audit_snapshot_visible`, `auth_audit_redaction_enforced` und `auth_no_live_oauth_guard`.
 - `GET /api/v1/audit/auth/snapshot` liest nur `audit_log`, zeigt sichere Auth-Lifecycle-Felder, zaehlt Callback/Refresh-Reuse/Refresh-Rotation/Logout-Ereignisse und gibt keine Tokens, Cookies, Authorization-Header, OAuth-Code/State-Werte, Redis-Blacklist-Keys oder raw details zurueck.

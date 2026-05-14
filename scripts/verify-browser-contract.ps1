@@ -186,6 +186,10 @@ Assert-Contains "auth audit snapshot evidence marker" $frontendHtml "auth_audit_
 Assert-Contains "auth audit redaction evidence marker" $frontendHtml "auth_audit_redaction_enforced"
 Assert-Contains "auth audit no live oauth marker" $frontendHtml "auth_no_live_oauth_guard"
 Assert-Contains "auth audit snapshot endpoint marker" $frontendHtml "GET /api/v1/audit/auth/snapshot"
+Assert-Contains "auth audit risk panel" $frontendHtml "Auth Audit Risk Rollup"
+Assert-Contains "auth audit risk contract marker" $frontendHtml "auth-audit-risk-rollup-v1"
+Assert-Contains "auth audit risk evidence marker" $frontendHtml "auth_audit_risk_rollup_visible"
+Assert-Contains "auth audit risk endpoint marker" $frontendHtml "GET /api/v1/audit/auth/risk-rollup"
 Assert-Contains "system fallback panel" $frontendHtml "System Unavailable Fallback"
 Assert-Contains "layer interface contract panel" $frontendHtml "Layer Interface Contracts"
 Assert-Contains "layer interface evidence marker" $frontendHtml "layer_interface_contracts_visible"
@@ -426,7 +430,9 @@ Assert-Contains "auth audit logout revoked" $authAudit "auth_logout_revoked"
 $authAuditContract = Invoke-Text "$BaseUrl/api/v1/audit/auth/contract"
 Assert-Contains "auth audit contract version" $authAuditContract '"contract_version":"auth-audit-snapshot-v1"'
 Assert-Contains "auth audit snapshot endpoint" $authAuditContract "GET /api/v1/audit/auth/snapshot"
+Assert-Contains "auth audit risk endpoint" $authAuditContract "GET /api/v1/audit/auth/risk-rollup"
 Assert-Contains "auth audit evidence" $authAuditContract "auth_audit_snapshot_visible"
+Assert-Contains "auth audit risk evidence" $authAuditContract "auth_audit_risk_rollup_visible"
 Assert-Contains "auth audit redaction evidence" $authAuditContract "auth_audit_redaction_enforced"
 Assert-Contains "auth audit no live oauth evidence" $authAuditContract "auth_no_live_oauth_guard"
 $authAuditSnapshot = Invoke-Text "$BaseUrl/api/v1/audit/auth/snapshot?limit=60"
@@ -443,6 +449,24 @@ $authAuditSnapshotJson = $authAuditSnapshot | ConvertFrom-Json
 Assert-True "auth audit snapshot no forbidden hits" ([int]$authAuditSnapshotJson.forbidden_pattern_hits -eq 0)
 Assert-True "auth audit snapshot no live oauth count" ([int]$authAuditSnapshotJson.live_github_oauth_call_count -eq 0)
 Assert-True "auth audit snapshot has lifecycle events" ([int]$authAuditSnapshotJson.events_scanned -ge 1)
+$authAuditRisk = Invoke-Text "$BaseUrl/api/v1/audit/auth/risk-rollup?limit=60"
+Assert-Contains "auth audit risk version" $authAuditRisk '"contract_version":"auth-audit-risk-rollup-v1"'
+Assert-Contains "auth audit risk mode" $authAuditRisk "read_only_auth_audit_risk_rollup"
+Assert-Contains "auth audit risk evidence" $authAuditRisk "auth_audit_risk_rollup_visible"
+Assert-Contains "auth audit risk snapshot evidence" $authAuditRisk "auth_audit_snapshot_visible"
+Assert-Contains "auth audit risk read only" $authAuditRisk '"read_only":true'
+Assert-Contains "auth audit risk no live oauth claim" $authAuditRisk '"live_github_oauth_call_claimed":false'
+Assert-Contains "auth audit risk production false" $authAuditRisk '"production_rollout_claimed":false'
+Assert-Contains "auth audit risk promotion false" $authAuditRisk '"promotion_allowed":false'
+Assert-Contains "auth audit risk tokens absent" $authAuditRisk '"tokens_returned":false'
+Assert-Contains "auth audit risk cookies absent" $authAuditRisk '"cookies_returned":false'
+Assert-Contains "auth audit risk blacklist keys absent" $authAuditRisk '"blacklist_keys_returned":false'
+Assert-Contains "auth audit risk redaction clear" $authAuditRisk '"redaction_status":"clear"'
+$authAuditRiskJson = $authAuditRisk | ConvertFrom-Json
+Assert-True "auth audit risk no forbidden hits" ([int]$authAuditRiskJson.forbidden_pattern_hits -eq 0)
+Assert-True "auth audit risk no live oauth count" ([int]$authAuditRiskJson.live_github_oauth_call_count -eq 0)
+Assert-True "auth audit risk blockers clear" ([int]$authAuditRiskJson.blocker_count -eq 0)
+Assert-True "auth audit risk badges visible" (@($authAuditRiskJson.risk_badges).Count -ge 3)
 
 Write-Host "[browser-contract] system unavailable fallback contract"
 $systemFallbackContract = Invoke-Text "$BaseUrl/api/v1/system/fallback/contract"

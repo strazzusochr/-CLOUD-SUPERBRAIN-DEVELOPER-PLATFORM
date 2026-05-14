@@ -1026,6 +1026,56 @@ type AuthAuditSnapshot = {
   non_claims: string[];
 };
 
+type AuthAuditRiskBadge = {
+  id: string;
+  label: string;
+  status: string;
+  count: number;
+  evidence_ref: string;
+};
+
+type AuthAuditRiskRollup = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  snapshot_endpoint: string;
+  contract_endpoint: string;
+  evidence_ref: string;
+  snapshot_evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_oauth_evidence_ref: string;
+  read_only: boolean;
+  live_github_oauth_call_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  tokens_returned: boolean;
+  cookies_returned: boolean;
+  authorization_headers_returned: boolean;
+  blacklist_keys_returned: boolean;
+  oauth_codes_returned: boolean;
+  oauth_states_returned: boolean;
+  events_scanned: number;
+  risk_status: string;
+  blocker_count: number;
+  review_count: number;
+  dry_run_callback_count: number;
+  refresh_rotation_count: number;
+  refresh_reuse_block_count: number;
+  logout_revoke_count: number;
+  live_github_oauth_call_count: number;
+  forbidden_pattern_hits: number;
+  redaction_status: string;
+  oauth_status: string;
+  event_type_counts: Record<string, number>;
+  lifecycle_step_counts: Record<string, number>;
+  status_counts: Record<string, number>;
+  severity_counts: Record<string, number>;
+  risk_badges: AuthAuditRiskBadge[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
 type MemoryPurgeContract = {
   contract_version: string;
   mode: string;
@@ -2260,6 +2310,7 @@ export default function Home() {
   const [externalGateMirror, setExternalGateMirror] = useState<ExternalGateMirrorContract | null>(null);
   const [authContract, setAuthContract] = useState<AuthContract | null>(null);
   const [authAuditSnapshot, setAuthAuditSnapshot] = useState<AuthAuditSnapshot | null>(null);
+  const [authAuditRiskRollup, setAuthAuditRiskRollup] = useState<AuthAuditRiskRollup | null>(null);
   const [memoryPurgeContract, setMemoryPurgeContract] = useState<MemoryPurgeContract | null>(null);
   const [workflowDispatch, setWorkflowDispatch] = useState<WorkflowDispatchPlan | null>(null);
   const [githubBranchPrContract, setGithubBranchPrContract] = useState<GithubBranchPrContract | null>(null);
@@ -2560,14 +2611,18 @@ export default function Home() {
   }
 
   async function loadAuthContract() {
-    const [response, auditResponse] = await Promise.all([
+    const [response, auditResponse, riskResponse] = await Promise.all([
       fetch("/api/v1/auth/contract", { cache: "no-store" }),
       fetch("/api/v1/audit/auth/snapshot?limit=80", { cache: "no-store" }),
+      fetch("/api/v1/audit/auth/risk-rollup?limit=80", { cache: "no-store" }),
     ]);
     if (!response.ok) throw new Error(`auth contract ${response.status}`);
     setAuthContract(await response.json());
     if (auditResponse.ok) {
       setAuthAuditSnapshot(await auditResponse.json());
+    }
+    if (riskResponse.ok) {
+      setAuthAuditRiskRollup(await riskResponse.json());
     }
   }
 
@@ -7214,6 +7269,66 @@ export default function Home() {
               tokens_returned={String(authAuditSnapshot?.tokens_returned ?? false)} /
               blacklist_keys_returned={String(authAuditSnapshot?.blacklist_keys_returned ?? false)}
             </small>
+          </div>
+          <div className="auditSnapshot">
+            <strong>Auth Audit Risk Rollup</strong>
+            <span>
+              {authAuditRiskRollup?.risk_status ?? "loading"} / blockers{" "}
+              {String(authAuditRiskRollup?.blocker_count ?? 0)} / reviews{" "}
+              {String(authAuditRiskRollup?.review_count ?? 0)}
+            </span>
+            <small>
+              {authAuditRiskRollup?.contract_version ?? "auth-audit-risk-rollup-v1"} /{" "}
+              {authAuditRiskRollup?.evidence_ref ?? "auth_audit_risk_rollup_visible"}
+            </small>
+            <small>
+              Endpoint: {authAuditRiskRollup?.endpoint ?? "GET /api/v1/audit/auth/risk-rollup"} / Snapshot:{" "}
+              {authAuditRiskRollup?.snapshot_endpoint ?? "GET /api/v1/audit/auth/snapshot"}
+            </small>
+            <small>
+              Redaction: {authAuditRiskRollup?.redaction_evidence_ref ?? "auth_audit_redaction_enforced"} /
+              No-live-OAuth: {authAuditRiskRollup?.no_live_oauth_evidence_ref ?? "auth_no_live_oauth_guard"}
+            </small>
+            <small>
+              production_rollout_claimed={String(authAuditRiskRollup?.production_rollout_claimed ?? false)} /
+              promotion_allowed={String(authAuditRiskRollup?.promotion_allowed ?? false)} /
+              live_oauth_count={String(authAuditRiskRollup?.live_github_oauth_call_count ?? 0)}
+            </small>
+          </div>
+          <div className="gateList">
+            {(authAuditRiskRollup?.risk_badges ?? [
+              {
+                id: "redaction",
+                label: "Redaction",
+                status: "loading",
+                count: 0,
+                evidence_ref: "auth_audit_redaction_enforced",
+              },
+              {
+                id: "no_live_oauth",
+                label: "No Live OAuth",
+                status: "loading",
+                count: 0,
+                evidence_ref: "auth_no_live_oauth_guard",
+              },
+              {
+                id: "risk_rollup",
+                label: "Auth Audit Risk Rollup",
+                status: "loading",
+                count: 0,
+                evidence_ref: "auth_audit_risk_rollup_visible",
+              },
+            ]).map((badge) => (
+              <article className="gateItem gateReady" key={`auth-risk-${badge.id}`}>
+                <div>
+                  <strong>{badge.label}</strong>
+                  <span>{badge.status}</span>
+                </div>
+                <p>
+                  Count {badge.count} / {badge.evidence_ref}
+                </p>
+              </article>
+            ))}
           </div>
           <div className="auditList">
             {authAuditSnapshot?.events?.length ? (
