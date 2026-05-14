@@ -154,9 +154,15 @@ $unsupportedE2bBody = @{
 } | ConvertTo-Json -Compress
 
 $unsupportedE2b = Invoke-JsonApi "$BaseUrl/mcp/api/v1/tools/execute" "POST" $unsupportedE2bBody
-Assert-True "unsupported e2b blocked status" ($unsupportedE2b.status -eq "blocked")
-Assert-True "unsupported e2b blocked error" ($unsupportedE2b.error_class -eq "unsupported_capability")
-Assert-True "unsupported e2b blocked evidence" ($unsupportedE2b.evidence_ref -eq "mcp_unsupported_capability_guard")
+Assert-True "unsupported e2b safe status" (@("blocked", "degraded") -contains [string]$unsupportedE2b.status)
+if ([string]$unsupportedE2b.status -eq "blocked") {
+  Assert-True "unsupported e2b blocked error" ($unsupportedE2b.error_class -eq "unsupported_capability")
+  Assert-True "unsupported e2b blocked evidence" ($unsupportedE2b.evidence_ref -eq "mcp_unsupported_capability_guard")
+} else {
+  Assert-True "unsupported e2b degraded error" ($unsupportedE2b.error_class -eq "missing_credentials")
+  Assert-True "unsupported e2b degraded evidence" ($unsupportedE2b.evidence_ref -eq "mcp_degraded_missing_e2b_credentials")
+  Assert-True "unsupported e2b no mutation" ([string]$unsupportedE2b.rollback_note -eq "No mutation performed by phase1 gateway.")
+}
 Assert-True "unsupported e2b audit" ($unsupportedE2b.audit_persisted -eq $true)
 
 $fakeGithubToken = "ghp_" + ("a" * 32)

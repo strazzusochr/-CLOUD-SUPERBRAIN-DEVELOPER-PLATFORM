@@ -1,6 +1,7 @@
 param(
   [string]$ReleaseId = "",
   [string]$BaseUrl = "https://188-34-191-140.sslip.io",
+  [switch]$AllowLocalhost,
   [switch]$ReportOnly,
   [switch]$JsonOnly
 )
@@ -9,26 +10,26 @@ $ErrorActionPreference = "Stop"
 
 function Assert-Equal($Label, $Actual, $Expected) {
   if ($Actual -ne $Expected) {
-    throw "Phase5 active verifier sweep bundle verification failed: $Label expected '$Expected' but got '$Actual'."
+    throw "Phase5 active runtime guard matrix bundle verification failed: $Label expected '$Expected' but got '$Actual'."
   }
 }
 
 function Assert-True($Label, $Condition) {
   if (-not $Condition) {
-    throw "Phase5 active verifier sweep bundle verification failed: $Label"
+    throw "Phase5 active runtime guard matrix bundle verification failed: $Label"
   }
 }
 
 function Assert-False($Label, $Value) {
   if ([bool]$Value) {
-    throw "Phase5 active verifier sweep bundle verification failed: $Label expected false."
+    throw "Phase5 active runtime guard matrix bundle verification failed: $Label expected false."
   }
 }
 
 function Assert-Contains($Label, $Value, $Expected) {
   $text = ($Value | Out-String)
   if (-not $text.Contains($Expected)) {
-    throw "Phase5 active verifier sweep bundle verification failed: $Label missing '$Expected'."
+    throw "Phase5 active runtime guard matrix bundle verification failed: $Label missing '$Expected'."
   }
 }
 
@@ -36,19 +37,19 @@ function Assert-NotSecretBearing($Label, $Value) {
   $text = ($Value | Out-String)
   $forbiddenPattern = "sk-proj-[A-Za-z0-9_-]{16,}|github_pat_[A-Za-z0-9_]{16,}|ghp_[A-Za-z0-9_]{16,}|vck_[A-Za-z0-9_-]{24,}|cfat_[A-Za-z0-9_-]{24,}|hcloud_[A-Za-z0-9_-]{16,}|\bhf_[A-Za-z0-9_-]{24,}|glpat-[A-Za-z0-9_.-]{20,}|Authorization: Bearer|Bearer [A-Za-z0-9_.-]{16,}|Cookie:|Set-Cookie:|BEGIN PRIVATE KEY|private key|raw_file_contents|redaction-proof-value"
   if ($text -match $forbiddenPattern) {
-    throw "Phase5 active verifier sweep bundle verification failed: $Label contained a forbidden secret/raw-payload pattern."
+    throw "Phase5 active runtime guard matrix bundle verification failed: $Label contained a forbidden secret/raw-payload pattern."
   }
 }
 
 function Assert-Sha($Label, $Value) {
   if ([string]::IsNullOrWhiteSpace($Value) -or $Value -notmatch '^[0-9a-f]{40}$') {
-    throw "Phase5 active verifier sweep bundle verification failed: $Label is not a lowercase 40-character SHA."
+    throw "Phase5 active runtime guard matrix bundle verification failed: $Label is not a lowercase 40-character SHA."
   }
 }
 
 function Assert-ReleaseId($Label, $Value) {
   if ([string]::IsNullOrWhiteSpace($Value) -or $Value -notmatch '^prod-candidate-[0-9]{4}-[0-9]{2}-[0-9]{2}-rc[0-9]+$') {
-    throw "Phase5 active verifier sweep bundle verification failed: $Label is not a valid release candidate id."
+    throw "Phase5 active runtime guard matrix bundle verification failed: $Label is not a valid release candidate id."
   }
 }
 
@@ -73,8 +74,8 @@ try {
     throw "BaseUrl is required."
   }
   $BaseUrl = $BaseUrl.TrimEnd("/")
-  if ($BaseUrl -notmatch "^https://") {
-    throw "Phase5 active verifier sweep bundle requires a public HTTPS BaseUrl."
+  if ((-not $AllowLocalhost) -and ($BaseUrl -notmatch "^https://")) {
+    throw "Phase5 active runtime guard matrix bundle requires HTTPS unless -AllowLocalhost is set."
   }
 
   $configPath = "docs\release-artifacts\current-release-candidate.json"
@@ -94,7 +95,7 @@ try {
   Assert-Contains "candidate id" $candidate "release_id: ``$ReleaseId``"
   Assert-Contains "candidate environment" $candidate "environment: ``production-candidate``"
   Assert-Contains "candidate non-claim" $candidate "This artifact does not claim a production rollout."
-  Assert-Contains "candidate verifier sweep proof" $candidate "active_verifier_sweep_bundle_proof: ``docs/release-artifacts/$ReleaseId-active-verifier-sweep-bundle-20260515.md``"
+  Assert-Contains "candidate runtime guard bundle proof" $candidate "active_runtime_guard_matrix_bundle_proof: ``docs/release-artifacts/$ReleaseId-active-runtime-guard-matrix-bundle-20260515.md``"
   Assert-NotSecretBearing "candidate artifact" $candidate
 
   if ($candidate -notmatch '(?m)^source_commit_sha:\s*`([^`]+)`\s*$') {
@@ -108,17 +109,16 @@ try {
   $immutableSha = $Matches[1]
   Assert-Sha "immutable image commit sha" $immutableSha
 
-  $proofPath = "docs\release-artifacts\$ReleaseId-active-verifier-sweep-bundle-20260515.md"
-  Assert-True "active verifier sweep proof exists" (Test-Path -LiteralPath $proofPath)
+  $proofPath = "docs\release-artifacts\$ReleaseId-active-runtime-guard-matrix-bundle-20260515.md"
+  Assert-True "active runtime guard matrix proof exists" (Test-Path -LiteralPath $proofPath)
   $proof = Get-Content -LiteralPath $proofPath -Raw
   foreach ($required in @(
     "Status: ``verified``",
     "release_id: ``$ReleaseId``",
     "source_commit_sha: ``$sourceSha``",
     "immutable_image_commit_sha: ``$immutableSha``",
-    "base_url: ``$BaseUrl``",
     "production_rollout_claimed: ``false``",
-    "verifier_gate_count: ``9``",
+    "runtime_guard_gate_count: ``6``",
     "changed_horizontal: ``none``",
     "changed_vertical: ``none``",
     "This proof does not claim a production rollout.",
@@ -128,48 +128,55 @@ try {
     "This proof does not claim local model downloads.",
     "This proof does not include secret values."
   )) {
-    Assert-Contains "active verifier sweep proof artifact" $proof $required
+    Assert-Contains "active runtime guard matrix proof artifact" $proof $required
   }
-  Assert-NotSecretBearing "active verifier sweep proof artifact" $proof
+  if ($AllowLocalhost) {
+    Assert-Contains "active runtime guard matrix proof local command" $proof "scripts\verify-phase5-active-runtime-guard-matrix-bundle.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost"
+    Assert-Contains "active runtime guard matrix proof local base" $proof "local_control_plane_url: ``$BaseUrl``"
+  } else {
+    Assert-Contains "active runtime guard matrix proof base url" $proof "base_url: ``$BaseUrl``"
+  }
+  Assert-NotSecretBearing "active runtime guard matrix proof artifact" $proof
 
   $progress = Invoke-JsonApi "$BaseUrl/api/v1/project/progress"
   Assert-Equal "progress overall" ([int]$progress.overall_percent) 80
+  $phase3 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_3" }) | Select-Object -First 1
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
+  Assert-Equal "progress phase3" ([int]$phase3.percent) 95
   Assert-Equal "progress phase5" ([int]$phase5.percent) 77
-  Assert-Contains "phase5 status" $phase5.status "active_verifier_sweep_bundle_verified"
+
+  $agentPool = @($progress.vertical.items | Where-Object { $_.id -eq "layer_3" }) | Select-Object -First 1
+  $llmLayer = @($progress.vertical.items | Where-Object { $_.id -eq "layer_4" }) | Select-Object -First 1
+  $mcpLayer = @($progress.vertical.items | Where-Object { $_.id -eq "layer_5" }) | Select-Object -First 1
+  Assert-Equal "agent pool percent" ([int]$agentPool.percent) 74
+  Assert-Equal "llm gateway percent" ([int]$llmLayer.percent) 64
+  Assert-Equal "mcp gateway percent" ([int]$mcpLayer.percent) 65
   Assert-NotSecretBearing "progress payload" ($progress | ConvertTo-Json -Depth 20 -Compress)
 
-  $currentReleaseOutput = Invoke-RepoScript "current-release-candidate" "scripts\verify-current-release-candidate.ps1" @("-BaseUrl", $BaseUrl, "-ReleaseId", $ReleaseId)
-  Assert-Contains "current-release-candidate output" $currentReleaseOutput "[current-release-candidate] verified"
+  $steeringArgs = @("-BaseUrl", $BaseUrl)
+  if ($AllowLocalhost) { $steeringArgs += "-AllowLocalhost" }
+  $steeringOutput = Invoke-RepoScript "phase3-live-agent-steering" "scripts\verify-phase3-live-agent-steering.ps1" $steeringArgs
+  Assert-Contains "phase3-live-agent-steering output" $steeringOutput "[phase3-live-agent] ok"
 
-  $activeBundleOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\verify-active-release-candidate-bundle.ps1" -BaseUrl $BaseUrl -ReportOnly -JsonOnly 2>&1
-  $activeBundleText = ($activeBundleOutput | Out-String)
-  if ($LASTEXITCODE -ne 0) {
-    throw "active-release-candidate-bundle failed: $activeBundleText"
-  }
-  Assert-NotSecretBearing "active-release-candidate-bundle" $activeBundleText
-  Assert-Contains "active bundle status" $activeBundleText '"status":  "passed"'
-  Assert-Contains "active bundle passed" $activeBundleText '"passed":  true'
-  Assert-Contains "active bundle production rollout" $activeBundleText '"production_rollout_claimed":  false'
-  Assert-Contains "active bundle gate count" $activeBundleText '"gate_count":  3'
+  $historyArgs = @("-BaseUrl", $BaseUrl)
+  if ($AllowLocalhost) { $historyArgs += "-AllowLocalhost" }
+  $historyOutput = Invoke-RepoScript "phase3-live-agent-history" "scripts\verify-phase3-live-agent-history.ps1" $historyArgs
+  Assert-Contains "phase3-live-agent-history output" $historyOutput "[phase3-live-agent-history] ok"
 
-  $hostedSmokeOutput = Invoke-RepoScript "hosted-staging-smoke" "scripts\verify-hosted-staging-smoke.ps1" @("-BaseUrl", $BaseUrl)
-  Assert-Contains "hosted smoke output" $hostedSmokeOutput "[hosted-smoke] checks completed"
+  $llmGuardArgs = @("-BaseUrl", $BaseUrl)
+  if ($AllowLocalhost) { $llmGuardArgs += "-AllowLocalhost" }
+  $llmGuardOutput = Invoke-RepoScript "phase4-llm-live-provider-guard" "scripts\verify-phase4-llm-live-provider-guard.ps1" $llmGuardArgs
+  Assert-Contains "phase4-llm-live-provider-guard output" $llmGuardOutput "[phase4-llm-live-provider-guard] ok"
 
-  $gatewayPolicyOutput = Invoke-RepoScript "phase3-active-gateway-policy-bundle" "scripts\verify-phase3-active-gateway-policy-bundle.ps1" @("-BaseUrl", $BaseUrl)
-  Assert-Contains "gateway policy output" $gatewayPolicyOutput "[phase3-active-gateway-policy-bundle] verified"
+  $mcpGuardArgs = @("-BaseUrl", $BaseUrl)
+  if ($AllowLocalhost) { $mcpGuardArgs += "-AllowLocalhost" }
+  $mcpGuardOutput = Invoke-RepoScript "phase4-mcp-security-guard" "scripts\verify-phase4-mcp-security-guard.ps1" $mcpGuardArgs
+  Assert-Contains "phase4-mcp-security-guard output" $mcpGuardOutput "[phase4-mcp-security-guard] ok"
 
-  $runtimeGuardOutput = Invoke-RepoScript "phase5-active-runtime-guard-matrix-bundle" "scripts\verify-phase5-active-runtime-guard-matrix-bundle.ps1" @("-BaseUrl", $BaseUrl)
-  Assert-Contains "runtime guard output" $runtimeGuardOutput "[phase5-active-runtime-guard-matrix-bundle] verified"
-
-  $llmCatalogOutput = Invoke-RepoScript "phase4-llm-model-catalog" "scripts\verify-phase4-llm-model-catalog.ps1" @("-BaseUrl", $BaseUrl)
-  Assert-Contains "llm catalog output" $llmCatalogOutput "status=verified"
-
-  $mcpCatalogOutput = Invoke-RepoScript "phase4-mcp-capability-catalog" "scripts\verify-phase4-mcp-capability-catalog.ps1" @("-BaseUrl", $BaseUrl)
-  Assert-Contains "mcp catalog output" $mcpCatalogOutput "status=verified"
-
-  $securityOutput = Invoke-RepoScript "security" "scripts\verify-security.ps1" @()
-  Assert-Contains "security output" $securityOutput "[verify-security] verified"
+  $browserArgs = @("-BaseUrl", $BaseUrl)
+  if ($AllowLocalhost) { $browserArgs += "-AllowLocalhost" }
+  $browserOutput = Invoke-RepoScript "browser-contract" "scripts\verify-browser-contract.ps1" $browserArgs
+  Assert-Contains "browser-contract output" $browserOutput "[browser-contract] checks completed"
 
   $artifactSafetyOutput = Invoke-RepoScript "evidence-artifact-safety" "scripts\verify-evidence-artifact-safety.ps1" @()
   Assert-Contains "artifact safety output" $artifactSafetyOutput "[evidence-artifact-safety] status=safe"
@@ -182,18 +189,15 @@ try {
     source_commit_sha = $sourceSha
     immutable_image_commit_sha = $immutableSha
     production_rollout_claimed = $false
-    verifier_gate_count = 9
+    runtime_guard_gate_count = 6
     changed_horizontal = "none"
     changed_vertical = "none"
     gates = @(
-      "current-release-candidate",
-      "active-release-candidate-bundle",
-      "hosted-staging-smoke",
-      "phase3-active-gateway-policy-bundle",
-      "phase5-active-runtime-guard-matrix-bundle",
-      "phase4-llm-model-catalog",
-      "phase4-mcp-capability-catalog",
-      "security",
+      "phase3-live-agent-steering",
+      "phase3-live-agent-history",
+      "phase4-llm-live-provider-guard",
+      "phase4-mcp-security-guard",
+      "browser-contract",
       "evidence-artifact-safety"
     )
     policy = [ordered]@{
@@ -212,9 +216,9 @@ try {
   if ($JsonOnly) {
     $summary | ConvertTo-Json -Depth 8
   } else {
-    Write-Host "[phase5-active-verifier-sweep-bundle] verified"
-    Write-Host "[phase5-active-verifier-sweep-bundle] release_id=$ReleaseId"
-    Write-Host "[phase5-active-verifier-sweep-bundle] verifier_gate_count=$($summary.verifier_gate_count)"
+    Write-Host "[phase5-active-runtime-guard-matrix-bundle] verified"
+    Write-Host "[phase5-active-runtime-guard-matrix-bundle] release_id=$ReleaseId"
+    Write-Host "[phase5-active-runtime-guard-matrix-bundle] runtime_guard_gate_count=$($summary.runtime_guard_gate_count)"
   }
 } catch {
   if ($ReportOnly) {
@@ -229,8 +233,8 @@ try {
     if ($JsonOnly) {
       $summary | ConvertTo-Json -Depth 4
     } else {
-      Write-Host "[phase5-active-verifier-sweep-bundle] failed"
-      Write-Host "[phase5-active-verifier-sweep-bundle] error=$($_.Exception.Message)"
+      Write-Host "[phase5-active-runtime-guard-matrix-bundle] failed"
+      Write-Host "[phase5-active-runtime-guard-matrix-bundle] error=$($_.Exception.Message)"
     }
     exit 0
   }
