@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-05-14 20:41 Uhr
+Letzte Aktualisierung: 2026-05-14 21:30 Uhr
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-14 20:41 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `79%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI, Security Review Gate Summary, Security Review Queue Export, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, MCP Audit Export, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Gateway Correlation Export, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline und Auth Audit Export auf `94%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist als immutable Staging-Selector verifiziert; Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `79%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI, Security Review Gate Summary, Security Review Queue Export, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, MCP Audit Export, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Gateway Correlation Export, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline und Auth Audit Export auf `94%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%` und hat zusaetzlich das Active Security Evidence Bundle verifiziert; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist als immutable Staging-Selector plus Security Evidence Bundle verifiziert; Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -70,11 +70,19 @@ Letzte Aktualisierung: 2026-05-14 20:41 Uhr
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Naechster grosser Fortschrittshebel: Phase 3 Product Surface & Security** — Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue Snapshot, Security Review Gate Summary, Security Review Queue Export, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, MCP Audit Export, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Gateway Correlation Export, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline und Auth Audit Export sind jetzt lokal und hosted auf immutable Staging verifiziert.
+- **Naechster grosser Fortschrittshebel: Phase 5 Release Readiness** — der aktive RC1 ist als immutable Staging-Selector verifiziert und bindet jetzt die LLM-, MCP-, Gateway-Correlation-, Auth- und Security-Review-Exportflaechen in einem Active Security Evidence Bundle.
 - danach folgen P3-Auth/Security- und LLM/MCP-Layer-Slices, kein Production-Rollout ohne separates Gate
 - lokal und hosted bleiben weiterhin deterministische Proofs ohne Live-Provider und ohne Live-MCP-Writes; `production_deploy_claim_allowed=true` ist kein Deployment-Nachweis
 
 ## ZULETZT ABGESCHLOSSEN
+
+**Active Security Evidence Bundle Proof** — der aktive RC1 bindet jetzt die wichtigsten redacted Security-Exportflaechen an den immutable Staging-Selector:
+
+- `scripts\verify-phase5-active-security-evidence-bundle.ps1` prueft lokal und hosted die Export-Contracts/CSV-Responses fuer LLM Audit, MCP Audit, Gateway Correlation, Auth Audit und Security Review Queue.
+- Jeder Export ist read-only, audit-persisted, redaction-guarded und wird mit Trace-/Request-ID in `audit_log` nachgewiesen.
+- Lokal verifiziert: `scripts\verify-phase5-active-security-evidence-bundle.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
+- Hosted verifiziert: `scripts\verify-phase5-active-security-evidence-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`.
+- Fortschritt bleibt `overall=79`, `phase_5=74`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
 
 **Security Review Queue Export Proof** — die Security-Review-Operator-Oberflaeche hat jetzt einen read-only CSV-Export ueber sichere Review-Queue-Eintraege:
 

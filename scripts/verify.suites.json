@@ -214,6 +214,9 @@
       "verify-phase5-candidate.ps1": {
         "ReleaseId": null
       },
+      "verify-phase5-active-security-evidence-bundle.ps1": {
+        "ReleaseId": null
+      },
       "verify-phase5-frontend-source-build-path.ps1": {
         "ReleaseId": null
       }

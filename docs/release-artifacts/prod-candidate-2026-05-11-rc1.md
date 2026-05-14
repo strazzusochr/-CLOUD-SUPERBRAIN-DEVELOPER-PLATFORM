@@ -1,7 +1,7 @@
 # Release Artifact
 
 release_id: `prod-candidate-2026-05-11-rc1`
-scope: `release-boundary cleanup, HF router truth, frontend build, agent-api/runtime compile checks, hosted staging smoke checks, immutable staging image candidate, Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, Security Review Queue Export, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, MCP Audit Export, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Gateway Correlation Export, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline, Auth Audit Export`
+scope: `release-boundary cleanup, HF router truth, frontend build, agent-api/runtime compile checks, hosted staging smoke checks, immutable staging image candidate, Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, Security Review Queue Export, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, MCP Audit Export, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Gateway Correlation Export, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline, Auth Audit Export, Phase 5 Active Security Evidence Bundle`
 environment: `production-candidate`
 source_branch: `chore/repo-bootstrap`
 image_build_branch: `codex/live-agent-steering-ui-20260513`
@@ -10,7 +10,7 @@ source_commit_semantics: `Vercel production branch remains chore/repo-bootstrap;
 immutable_image_commit_sha: `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
 workflow_run_url: `local-docker-buildx-2026-05-14-no-github-workflow-run-for-4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
 workflow_run_note: `No GitHub Actions workflow run is claimed for the current immutable selector 4364d31d7f1e6d0dec1f4d9f686715fec41d3b35; current GHCR evidence is local Docker Buildx publication plus registry inspection. Historical CI references below are retained only as prior release-boundary evidence.`
-pipeline_status: `local Docker Buildx with arm64 binfmt published all six GHCR images for 4364d31d7f1e6d0dec1f4d9f686715fec41d3b35 after py_compile, Next.js build, local Security Review Queue Export verifier, local Security Review Queue verifier, and local browser-contract passed; hosted immutable deploy plus hosted Security Review Queue Export, browser-contract, and hosted-staging verifiers passed after push`
+pipeline_status: `local Docker Buildx with arm64 binfmt published all six GHCR images for 4364d31d7f1e6d0dec1f4d9f686715fec41d3b35 after py_compile, Next.js build, local Security Review Queue Export verifier, local Security Review Queue verifier, and local browser-contract passed; hosted immutable deploy plus hosted Security Review Queue Export, browser-contract, hosted-staging, and Phase 5 Active Security Evidence Bundle verifiers passed against the same immutable staging selector`
 smoke_result: `passed`
 observability_check: `present`
 rollback_note: `no production rollout performed; rollback remains the existing hosted staging rollback path`
@@ -21,6 +21,7 @@ hosted_selector_observed_at: `2026-05-14T20:41:00+02:00`
 frontend_runtime_image_observed: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
 immutable_staging_parity_status: `verified`
 active_candidate_gate_rerun_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-candidate-gate-rerun.md`
+active_security_evidence_bundle_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-security-evidence-bundle-20260514.md`
 runtime_selector_truth_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-runtime-selector-truth.md`
 immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-security-review-export-immutable-staging-20260514.md`
 
@@ -77,6 +78,8 @@ immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-1
 - Immutable staging parity ready check: `scripts\manual\verify-phase5-staging-immutable-parity.ps1 -ReleaseId prod-candidate-2026-05-11-rc1 -CandidateSha 4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
 - Immutable staging parity remote proof: `scripts\manual\verify-phase5-staging-immutable-parity.ps1 -RequireVerified -ReleaseId prod-candidate-2026-05-11-rc1 -CandidateSha 4364d31d7f1e6d0dec1f4d9f686715fec41d3b35 -BaseUrl https://188-34-191-140.sslip.io -KeyPath <local-private-key>`
 - Active candidate gate rerun proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-candidate-gate-rerun.md`
+- Active Security Evidence Bundle proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-security-evidence-bundle-20260514.md`
+- Active Security Evidence Bundle hosted proof: `scripts\verify-phase5-active-security-evidence-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 - Runtime selector truth proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-runtime-selector-truth.md`
 
 ## Cloud Surfaces
