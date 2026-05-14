@@ -127,6 +127,10 @@ LLM_AUDIT_FEED_CONTRACT_VERSION = "llm-audit-feed-v1"
 LLM_AUDIT_FEED_EVIDENCE_REF = "llm_audit_feed_visible"
 LLM_AUDIT_SNAPSHOT_EVIDENCE_REF = "llm_audit_snapshot_visible"
 LLM_AUDIT_REDACTION_EVIDENCE_REF = "llm_audit_redaction_enforced"
+GATEWAY_CORRELATION_CONTRACT_VERSION = "gateway-correlation-snapshot-v1"
+GATEWAY_CORRELATION_EVIDENCE_REF = "gateway_correlation_snapshot_visible"
+GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF = "gateway_correlation_redaction_enforced"
+GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF = "gateway_correlation_no_live_write_guard"
 MCP_AUDIT_FEED_CONTRACT_VERSION = "mcp-audit-feed-v1"
 MCP_AUDIT_FEED_EVIDENCE_REF = "mcp_audit_feed_contract_runtime_visible"
 MCP_AUDIT_SNAPSHOT_EVIDENCE_REF = "mcp_audit_snapshot_visible"
@@ -5681,6 +5685,248 @@ def llm_audit_snapshot(limit: int = Query(default=50, ge=1, le=200)) -> dict[str
             "Snapshot never calls LLM providers.",
         ],
         "non_claims": llm_audit_feed_contract_payload()["non_claims"],
+    }
+
+
+GATEWAY_CORRELATION_EVENT_TYPES = (
+    "task_completed",
+    "autonomous_team_dispatch",
+    "langgraph_dry_run_completed",
+    "langgraph_dry_run_stopped",
+    "llm_gateway_request",
+    "mcp_tool_executed",
+)
+
+
+def gateway_correlation_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": GATEWAY_CORRELATION_CONTRACT_VERSION,
+        "mode": "read_only_agent_llm_mcp_correlation_snapshot",
+        "endpoint": "GET /api/v1/security/gateway-correlation/snapshot",
+        "contract_endpoint": "GET /api/v1/security/gateway-correlation/contract",
+        "source_table": "audit_log",
+        "source_event_types": list(GATEWAY_CORRELATION_EVENT_TYPES),
+        "evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
+        "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+        "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+        "read_only": True,
+        "live_provider_calls_claimed": False,
+        "live_mcp_writes_claimed": False,
+        "safe_event_fields": [
+            "event_id",
+            "event_type",
+            "session_id",
+            "trace_id",
+            "request_id",
+            "agent_type",
+            "status",
+            "evidence_ref",
+            "created_at",
+            "severity",
+        ],
+        "group_fields": [
+            "correlation_key",
+            "trace_id",
+            "session_id",
+            "request_id",
+            "event_types",
+            "has_agent_task",
+            "has_llm_audit",
+            "has_mcp_audit",
+            "live_provider_call_count",
+            "live_mcp_write_count",
+            "correlation_state",
+        ],
+        "policy_checks": [
+            "Snapshot reads audit_log only and never executes an agent, LLM provider, MCP tool, or deployment action.",
+            "Returned events are reduced to safe correlation fields; raw prompts, tool input refs, provider credentials, and raw details are omitted.",
+            "A full correlation requires agent task evidence, LLM audit evidence, and MCP audit evidence sharing a trace, request, or session key.",
+            "The snapshot fails closed when live_provider_calls or live_mcp_writes appear in correlated evidence.",
+        ],
+        "non_claims": [
+            "This endpoint does not authorize production rollout or release promotion.",
+            "This endpoint does not claim live provider calls, live MCP writes, provider billing proof, or external SOC/SIEM completeness.",
+            "This endpoint does not return secrets, prompt bodies, raw tool inputs, cookies, authorization headers, or full audit details.",
+        ],
+    }
+
+
+def gateway_correlation_rows(limit: int) -> list[object]:
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        return conn.execute(
+            """
+            SELECT id, event_type, user_id, session_id, details, created_at, severity
+            FROM audit_log
+            WHERE event_type IN (
+              'task_completed',
+              'autonomous_team_dispatch',
+              'langgraph_dry_run_completed',
+              'langgraph_dry_run_stopped',
+              'llm_gateway_request',
+              'mcp_tool_executed'
+            )
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        ).fetchall()
+
+
+def safe_gateway_correlation_event(row: object) -> dict[str, object]:
+    details = row[4] or {}
+    if not isinstance(details, dict):
+        details = {}
+    event_type = str(row[1])
+    session_id = str(row[3]) if row[3] else str(details.get("session_id") or "") or None
+    trace_id = str(details.get("trace_id") or session_id or "") or None
+    request_id = str(details.get("request_id") or "") or None
+    agent_type = str(
+        details.get("agent_type")
+        or details.get("agent_role")
+        or details.get("logical_role")
+        or row[2]
+        or "unknown"
+    )
+    status = str(details.get("status") or ("completed" if event_type == "task_completed" else "visible"))
+    live_provider_calls = bool(details.get("live_provider_calls") is True)
+    live_mcp_writes = bool(details.get("live_mcp_write") is True or details.get("live_mcp_writes") is True)
+    return {
+        "event_id": str(row[0]),
+        "event_type": event_type,
+        "session_id": session_id,
+        "trace_id": trace_id,
+        "request_id": request_id,
+        "agent_type": agent_type,
+        "status": status,
+        "evidence_ref": str(details.get("evidence_ref") or details.get("provenance_evidence_ref") or event_type),
+        "audit_feed_evidence_ref": str(details.get("audit_feed_evidence_ref") or "request_id_audit_feed_visible"),
+        "correlation_evidence_ref": str(details.get("correlation_evidence_ref") or GATEWAY_CORRELATION_EVIDENCE_REF),
+        "redaction_evidence_ref": str(
+            details.get("redaction_evidence_ref") or GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF
+        ),
+        "live_provider_calls": live_provider_calls,
+        "live_mcp_writes": live_mcp_writes,
+        "created_at": row[5].isoformat() if row[5] else None,
+        "severity": row[6],
+    }
+
+
+def gateway_correlation_forbidden_pattern_hits(events: list[dict[str, object]]) -> int:
+    forbidden = (
+        "redaction-proof-value",
+        "sk-proj-",
+        "sk-",
+        "ghp_",
+        "github_pat_",
+        "vck_",
+        "cfat_",
+        "hcloud_",
+        "hf_",
+        "glpat-",
+        "authorization:",
+        "cookie:",
+        "private key",
+        "prompt_body",
+        "input_ref",
+    )
+    text = json.dumps(events, sort_keys=True).lower()
+    return sum(1 for marker in forbidden if marker in text)
+
+
+def build_gateway_correlation_groups(events: list[dict[str, object]]) -> list[dict[str, object]]:
+    grouped: dict[str, list[dict[str, object]]] = {}
+    for event in events:
+        key = str(event.get("trace_id") or event.get("request_id") or event.get("session_id") or event["event_id"])
+        grouped.setdefault(key, []).append(event)
+
+    groups: list[dict[str, object]] = []
+    for key, group_events in grouped.items():
+        event_types = sorted({str(event["event_type"]) for event in group_events})
+        trace_ids = sorted({str(event["trace_id"]) for event in group_events if event.get("trace_id")})
+        session_ids = sorted({str(event["session_id"]) for event in group_events if event.get("session_id")})
+        request_ids = sorted({str(event["request_id"]) for event in group_events if event.get("request_id")})
+        has_agent_task = any(
+            event_type in event_types
+            for event_type in ("task_completed", "autonomous_team_dispatch", "langgraph_dry_run_completed", "langgraph_dry_run_stopped")
+        )
+        has_llm_audit = "llm_gateway_request" in event_types
+        has_mcp_audit = "mcp_tool_executed" in event_types
+        live_provider_call_count = sum(1 for event in group_events if event.get("live_provider_calls") is True)
+        live_mcp_write_count = sum(1 for event in group_events if event.get("live_mcp_writes") is True)
+        if has_agent_task and has_llm_audit and has_mcp_audit:
+            correlation_state = "agent_llm_mcp_correlated"
+        elif has_llm_audit and has_mcp_audit:
+            correlation_state = "gateway_pair_correlated"
+        else:
+            correlation_state = "partial_correlation"
+        groups.append(
+            {
+                "correlation_key": key,
+                "trace_id": trace_ids[0] if trace_ids else None,
+                "session_id": session_ids[0] if session_ids else None,
+                "request_id": request_ids[0] if request_ids else None,
+                "event_types": event_types,
+                "event_count": len(group_events),
+                "has_agent_task": has_agent_task,
+                "has_llm_audit": has_llm_audit,
+                "has_mcp_audit": has_mcp_audit,
+                "trace_id_count": len(trace_ids),
+                "session_id_count": len(session_ids),
+                "request_id_count": len(request_ids),
+                "live_provider_call_count": live_provider_call_count,
+                "live_mcp_write_count": live_mcp_write_count,
+                "correlation_state": correlation_state,
+                "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+                "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+                "events": group_events[:8],
+            }
+        )
+    return sorted(groups, key=lambda item: int(item["event_count"]), reverse=True)
+
+
+@app.get("/api/v1/security/gateway-correlation/contract")
+def gateway_correlation_contract() -> dict[str, object]:
+    return gateway_correlation_contract_payload()
+
+
+@app.get("/api/v1/security/gateway-correlation/snapshot")
+def gateway_correlation_snapshot(limit: int = Query(default=80, ge=1, le=200)) -> dict[str, object]:
+    rows = gateway_correlation_rows(limit)
+    events = [safe_gateway_correlation_event(row) for row in rows]
+    groups = build_gateway_correlation_groups(events)
+    full_correlations = [group for group in groups if group["correlation_state"] == "agent_llm_mcp_correlated"]
+    live_provider_call_count = sum(int(group["live_provider_call_count"]) for group in groups)
+    live_mcp_write_count = sum(int(group["live_mcp_write_count"]) for group in groups)
+    forbidden_pattern_hits = gateway_correlation_forbidden_pattern_hits(events)
+    return {
+        "contract_version": GATEWAY_CORRELATION_CONTRACT_VERSION,
+        "mode": "read_only_agent_llm_mcp_correlation_snapshot",
+        "endpoint": "GET /api/v1/security/gateway-correlation/snapshot",
+        "contract_endpoint": "GET /api/v1/security/gateway-correlation/contract",
+        "source_table": "audit_log",
+        "source_event_types": list(GATEWAY_CORRELATION_EVENT_TYPES),
+        "evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
+        "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+        "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+        "read_only": True,
+        "live_provider_calls_claimed": False,
+        "live_mcp_writes_claimed": False,
+        "prompt_bodies_returned": False,
+        "tool_input_refs_returned": False,
+        "provider_credentials_returned": False,
+        "events_scanned": len(events),
+        "groups_scanned": len(groups),
+        "full_correlation_count": len(full_correlations),
+        "live_provider_call_count": live_provider_call_count,
+        "live_mcp_write_count": live_mcp_write_count,
+        "forbidden_pattern_hits": forbidden_pattern_hits,
+        "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+        "event_type_counts": count_by_key([str(event.get("event_type")) for event in events]),
+        "agent_counts": count_by_key([str(event.get("agent_type")) if event.get("agent_type") else None for event in events]),
+        "correlation_state_counts": count_by_key([str(group.get("correlation_state")) for group in groups]),
+        "groups": groups[:12],
+        "policy_checks": gateway_correlation_contract_payload()["policy_checks"],
+        "non_claims": gateway_correlation_contract_payload()["non_claims"],
     }
 
 

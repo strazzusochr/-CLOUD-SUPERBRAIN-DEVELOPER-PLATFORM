@@ -203,6 +203,12 @@ Assert-Contains "llm audit snapshot evidence marker" $frontendHtml "llm_audit_sn
 Assert-Contains "llm audit redaction evidence marker" $frontendHtml "llm_audit_redaction_enforced"
 Assert-Contains "llm audit feed endpoint marker" $frontendHtml "GET /api/v1/audit/llm"
 Assert-Contains "llm audit snapshot endpoint marker" $frontendHtml "GET /api/v1/audit/llm/snapshot"
+Assert-Contains "gateway correlation panel" $frontendHtml "Gateway Correlation Snapshot"
+Assert-Contains "gateway correlation contract marker" $frontendHtml "gateway-correlation-snapshot-v1"
+Assert-Contains "gateway correlation evidence marker" $frontendHtml "gateway_correlation_snapshot_visible"
+Assert-Contains "gateway correlation redaction marker" $frontendHtml "gateway_correlation_redaction_enforced"
+Assert-Contains "gateway correlation no live write marker" $frontendHtml "gateway_correlation_no_live_write_guard"
+Assert-Contains "gateway correlation endpoint marker" $frontendHtml "GET /api/v1/security/gateway-correlation/snapshot"
 Assert-Contains "langfuse trace access panel" $frontendHtml "Langfuse Trace Access"
 Assert-Contains "langfuse trace access contract marker" $frontendHtml "langfuse-trace-access-v1"
 Assert-Contains "langfuse trace access evidence marker" $frontendHtml "langfuse_trace_access_visible"
@@ -525,6 +531,33 @@ Assert-Contains "llm audit snapshot evidence" $llmAuditSnapshot "llm_audit_snaps
 Assert-Contains "llm audit redaction evidence" $llmAuditSnapshot "llm_audit_redaction_enforced"
 Assert-Contains "llm audit snapshot prompt bodies" $llmAuditSnapshot '"prompt_bodies_returned":false'
 Assert-Contains "llm audit snapshot forbidden hits" $llmAuditSnapshot '"forbidden_pattern_hits":0'
+
+Write-Host "[browser-contract] gateway correlation snapshot"
+$gatewayCorrelationContract = Invoke-Text "$BaseUrl/api/v1/security/gateway-correlation/contract"
+Assert-Contains "gateway correlation contract version" $gatewayCorrelationContract '"contract_version":"gateway-correlation-snapshot-v1"'
+Assert-Contains "gateway correlation endpoint" $gatewayCorrelationContract "GET /api/v1/security/gateway-correlation/snapshot"
+Assert-Contains "gateway correlation source table" $gatewayCorrelationContract '"source_table":"audit_log"'
+Assert-Contains "gateway correlation task source" $gatewayCorrelationContract "task_completed"
+Assert-Contains "gateway correlation llm source" $gatewayCorrelationContract "llm_gateway_request"
+Assert-Contains "gateway correlation mcp source" $gatewayCorrelationContract "mcp_tool_executed"
+Assert-Contains "gateway correlation evidence" $gatewayCorrelationContract "gateway_correlation_snapshot_visible"
+Assert-Contains "gateway correlation redaction evidence" $gatewayCorrelationContract "gateway_correlation_redaction_enforced"
+Assert-Contains "gateway correlation no live write evidence" $gatewayCorrelationContract "gateway_correlation_no_live_write_guard"
+Assert-Contains "gateway correlation read only" $gatewayCorrelationContract '"read_only":true'
+Assert-Contains "gateway correlation no live provider claim" $gatewayCorrelationContract '"live_provider_calls_claimed":false'
+Assert-Contains "gateway correlation no live mcp claim" $gatewayCorrelationContract '"live_mcp_writes_claimed":false'
+$gatewayCorrelationSnapshot = Invoke-Text "$BaseUrl/api/v1/security/gateway-correlation/snapshot?limit=20"
+Assert-Contains "gateway correlation snapshot mode" $gatewayCorrelationSnapshot "read_only_agent_llm_mcp_correlation_snapshot"
+Assert-Contains "gateway correlation snapshot evidence" $gatewayCorrelationSnapshot "gateway_correlation_snapshot_visible"
+Assert-Contains "gateway correlation snapshot redaction" $gatewayCorrelationSnapshot "gateway_correlation_redaction_enforced"
+Assert-Contains "gateway correlation snapshot no live write" $gatewayCorrelationSnapshot "gateway_correlation_no_live_write_guard"
+Assert-Contains "gateway correlation snapshot prompt bodies" $gatewayCorrelationSnapshot '"prompt_bodies_returned":false'
+Assert-Contains "gateway correlation snapshot input refs" $gatewayCorrelationSnapshot '"tool_input_refs_returned":false'
+Assert-Contains "gateway correlation snapshot credentials" $gatewayCorrelationSnapshot '"provider_credentials_returned":false'
+Assert-Contains "gateway correlation snapshot no live provider claim" $gatewayCorrelationSnapshot '"live_provider_calls_claimed":false'
+Assert-Contains "gateway correlation snapshot no live mcp claim" $gatewayCorrelationSnapshot '"live_mcp_writes_claimed":false'
+Assert-Contains "gateway correlation snapshot forbidden hits" $gatewayCorrelationSnapshot '"forbidden_pattern_hits":0'
+Assert-Contains "gateway correlation snapshot redaction clear" $gatewayCorrelationSnapshot '"redaction_status":"clear"'
 
 $mcpAuditContract = Invoke-Text "$BaseUrl/api/v1/audit/mcp/contract"
 Assert-Contains "mcp audit contract version" $mcpAuditContract '"contract_version":"mcp-audit-feed-v1"'

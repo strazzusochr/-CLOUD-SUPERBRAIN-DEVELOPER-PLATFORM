@@ -16,6 +16,8 @@ This contract exposes a read-only operator surface for security-relevant `audit_
 | `GET` | `/api/v1/security/events/contract` | Contract metadata, supported event types, evidence refs, and non-claims |
 | `GET` | `/api/v1/security/events?limit=20` | Recent security audit events |
 | `GET` | `/api/v1/security/events?event_type=security_csp_violation_reported` | Filtered security audit events |
+| `GET` | `/api/v1/security/gateway-correlation/contract` | Read-only Agent/LLM/MCP correlation contract |
+| `GET` | `/api/v1/security/gateway-correlation/snapshot?limit=80` | Safe correlation snapshot across agent task, LLM audit, and MCP audit rows |
 
 ## Supported Event Types
 
@@ -26,6 +28,17 @@ This contract exposes a read-only operator surface for security-relevant `audit_
 - `mcp_tool_executed`
 - `llm_gateway_request`
 
+## Gateway Correlation Snapshot
+
+Contract version: `gateway-correlation-snapshot-v1`
+Evidence: `gateway_correlation_snapshot_visible`, `gateway_correlation_redaction_enforced`, `gateway_correlation_no_live_write_guard`
+
+The gateway correlation snapshot groups safe `audit_log` projections by trace, request, or session key across `task_completed`, `autonomous_team_dispatch`, `langgraph_dry_run_completed`, `langgraph_dry_run_stopped`, `llm_gateway_request`, and `mcp_tool_executed`.
+
+It returns only safe fields: event id, event type, trace id, request id, session id, agent type, status, evidence refs, severity, and timestamps. It never returns raw prompt bodies, raw MCP `input_ref`, provider credentials, cookies, authorization headers, or full audit details.
+
+The verifier `scripts/verify-phase3-gateway-correlation-snapshot.ps1` seeds one deterministic agent task, one LLM dry-run audit row, and one denied MCP audit row under a shared trace id, then proves a full `agent_llm_mcp_correlated` group with `live_provider_call_count=0`, `live_mcp_write_count=0`, `forbidden_pattern_hits=0`, and `redaction_status=clear`.
+
 ## Policy
 
 1. The surface reads `audit_log` only.
@@ -33,6 +46,7 @@ This contract exposes a read-only operator surface for security-relevant `audit_
 3. Events expose `request_id` and `trace_id` when the source audit writer recorded them.
 4. Redacted audit details must not reveal provider tokens, API keys, prompt bodies, or browser cookies.
 5. Evidence refs must include `security_audit_surface_visible` and `security_audit_event_visible`.
+6. Gateway correlation evidence must include `gateway_correlation_snapshot_visible`, `gateway_correlation_redaction_enforced`, and `gateway_correlation_no_live_write_guard`.
 
 ## Non-Claims
 

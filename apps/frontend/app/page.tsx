@@ -1409,6 +1409,51 @@ type LlmAuditSnapshot = {
   non_claims: string[];
 };
 
+type GatewayCorrelationGroup = {
+  correlation_key: string;
+  trace_id: string | null;
+  session_id: string | null;
+  request_id: string | null;
+  event_types: string[];
+  event_count: number;
+  has_agent_task: boolean;
+  has_llm_audit: boolean;
+  has_mcp_audit: boolean;
+  live_provider_call_count: number;
+  live_mcp_write_count: number;
+  correlation_state: string;
+  redaction_evidence_ref: string;
+  no_live_write_evidence_ref: string;
+};
+
+type GatewayCorrelationSnapshot = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  contract_endpoint: string;
+  evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_write_evidence_ref: string;
+  read_only: boolean;
+  live_provider_calls_claimed: boolean;
+  live_mcp_writes_claimed: boolean;
+  prompt_bodies_returned: boolean;
+  tool_input_refs_returned: boolean;
+  provider_credentials_returned: boolean;
+  events_scanned: number;
+  groups_scanned: number;
+  full_correlation_count: number;
+  live_provider_call_count: number;
+  live_mcp_write_count: number;
+  forbidden_pattern_hits: number;
+  redaction_status: string;
+  event_type_counts: Record<string, number>;
+  correlation_state_counts: Record<string, number>;
+  groups: GatewayCorrelationGroup[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
 type SecurityAuditSurfaceContract = {
   contract_version: string;
   mode: string;
@@ -2105,6 +2150,8 @@ export default function Home() {
   const [llmAuditFeedContract, setLlmAuditFeedContract] = useState<LlmAuditFeedContract | null>(null);
   const [llmAuditEvents, setLlmAuditEvents] = useState<LlmAuditEvent[]>([]);
   const [llmAuditSnapshot, setLlmAuditSnapshot] = useState<LlmAuditSnapshot | null>(null);
+  const [gatewayCorrelationSnapshot, setGatewayCorrelationSnapshot] =
+    useState<GatewayCorrelationSnapshot | null>(null);
   const [securityAuditSurfaceContract, setSecurityAuditSurfaceContract] =
     useState<SecurityAuditSurfaceContract | null>(null);
   const [securityAuditEvents, setSecurityAuditEvents] = useState<SecurityAuditEvent[]>([]);
@@ -2665,6 +2712,12 @@ export default function Home() {
     setLlmAuditSnapshot(await snapshotResponse.json());
   }
 
+  async function loadGatewayCorrelationSnapshot() {
+    const response = await fetch("/api/v1/security/gateway-correlation/snapshot?limit=80", { cache: "no-store" });
+    if (!response.ok) throw new Error(`gateway correlation snapshot ${response.status}`);
+    setGatewayCorrelationSnapshot(await response.json());
+  }
+
   async function loadSecurityAuditSurface() {
     const [contractResponse, feedResponse] = await Promise.all([
       fetch("/api/v1/security/events/contract", { cache: "no-store" }),
@@ -2934,6 +2987,7 @@ export default function Home() {
         loadAuditEvents(),
         loadMcpAuditEvents(),
         loadLlmAuditFeed(),
+        loadGatewayCorrelationSnapshot(),
         loadSecurityAuditSurface(),
         loadSecurityReviewQueue(),
         loadMemoryConsolidationEvents(),
@@ -3127,6 +3181,7 @@ export default function Home() {
       loadAuditEvents,
       loadMcpAuditEvents,
       loadLlmAuditFeed,
+      loadGatewayCorrelationSnapshot,
       loadSecurityAuditSurface,
       loadSecurityReviewQueue,
       loadMemoryConsolidationEvents,
@@ -3153,6 +3208,7 @@ export default function Home() {
       loadAuditEvents,
       loadMcpAuditEvents,
       loadLlmAuditFeed,
+      loadGatewayCorrelationSnapshot,
       loadSecurityAuditSurface,
       loadLangfuseTraceAccess,
       loadMemoryConsolidationEvents,
@@ -5823,6 +5879,107 @@ export default function Home() {
           </div>
           <p className="muted">
             {llmAuditFeedContract?.non_claims?.[0] ?? "No live provider call is enabled by this feed."}
+          </p>
+        </section>
+
+        <section className="panel gatewayCorrelationPanel" aria-label="Gateway correlation snapshot">
+          <header className="panelHeader">
+            <h2>Gateway Correlation Snapshot</h2>
+            <button type="button" onClick={() => void loadGatewayCorrelationSnapshot()}>
+              Refresh
+            </button>
+          </header>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>{gatewayCorrelationSnapshot?.contract_version ?? "gateway-correlation-snapshot-v1"}</strong>
+              <p>{gatewayCorrelationSnapshot?.endpoint ?? "GET /api/v1/security/gateway-correlation/snapshot"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Evidence</strong>
+              <p>
+                {gatewayCorrelationSnapshot?.evidence_ref ?? "gateway_correlation_snapshot_visible"} /{" "}
+                {gatewayCorrelationSnapshot?.redaction_evidence_ref ?? "gateway_correlation_redaction_enforced"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>No Live Writes</strong>
+              <p>
+                {gatewayCorrelationSnapshot?.no_live_write_evidence_ref ??
+                  "gateway_correlation_no_live_write_guard"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Mode</strong>
+              <p>{gatewayCorrelationSnapshot?.mode ?? "read_only_agent_llm_mcp_correlation_snapshot"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Live Claims</strong>
+              <p>
+                live_provider_calls_claimed={String(gatewayCorrelationSnapshot?.live_provider_calls_claimed ?? false)} /{" "}
+                live_mcp_writes_claimed={String(gatewayCorrelationSnapshot?.live_mcp_writes_claimed ?? false)}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Raw Data</strong>
+              <p>
+                prompt_bodies_returned={String(gatewayCorrelationSnapshot?.prompt_bodies_returned ?? false)} /{" "}
+                tool_input_refs_returned={String(gatewayCorrelationSnapshot?.tool_input_refs_returned ?? false)}
+              </p>
+            </article>
+          </div>
+          <div className="auditSnapshot">
+            <strong>Agent - LLM - MCP</strong>
+            <span>
+              {gatewayCorrelationSnapshot?.redaction_status ?? "clear"} / forbidden hits{" "}
+              {String(gatewayCorrelationSnapshot?.forbidden_pattern_hits ?? 0)}
+            </span>
+            <small>
+              Events {String(gatewayCorrelationSnapshot?.events_scanned ?? 0)} / Groups{" "}
+              {String(gatewayCorrelationSnapshot?.groups_scanned ?? 0)} / Full{" "}
+              {String(gatewayCorrelationSnapshot?.full_correlation_count ?? 0)}
+            </small>
+            <small>
+              Live provider {String(gatewayCorrelationSnapshot?.live_provider_call_count ?? 0)} / Live MCP{" "}
+              {String(gatewayCorrelationSnapshot?.live_mcp_write_count ?? 0)}
+            </small>
+          </div>
+          <div className="auditList">
+            {gatewayCorrelationSnapshot?.groups?.length ? (
+              gatewayCorrelationSnapshot.groups.slice(0, 6).map((group) => (
+                <article className="auditItem" key={group.correlation_key}>
+                  <div>
+                    <strong>{group.correlation_state}</strong>
+                    <span className="severity severity-info">{group.event_count}</span>
+                  </div>
+                  <small>Trace: {group.trace_id ?? "none"}</small>
+                  <small>Session: {group.session_id ?? "none"}</small>
+                  <small>Request: {group.request_id ?? "none"}</small>
+                  <small>Events: {group.event_types.join(", ")}</small>
+                  <small>
+                    Agent={String(group.has_agent_task)} / LLM={String(group.has_llm_audit)} / MCP=
+                    {String(group.has_mcp_audit)}
+                  </small>
+                  <small>
+                    Evidence: {group.redaction_evidence_ref} / {group.no_live_write_evidence_ref}
+                  </small>
+                </article>
+              ))
+            ) : (
+              <article className="auditItem auditItemEmpty">
+                <div>
+                  <strong>No gateway correlation groups yet.</strong>
+                  <span className="severity severity-info">read-only</span>
+                </div>
+                <small>Endpoint: GET /api/v1/security/gateway-correlation/snapshot</small>
+                <small>Contract: gateway-correlation-snapshot-v1</small>
+                <small>Evidence: gateway_correlation_snapshot_visible / gateway_correlation_redaction_enforced</small>
+                <small>Guard: gateway_correlation_no_live_write_guard</small>
+              </article>
+            )}
+          </div>
+          <p className="muted">
+            {gatewayCorrelationSnapshot?.non_claims?.[0] ??
+              "No live provider call or live MCP write is enabled by this snapshot."}
           </p>
         </section>
 
