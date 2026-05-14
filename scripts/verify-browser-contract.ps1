@@ -315,6 +315,11 @@ Assert-Contains "security review queue decision marker" $frontendHtml "security_
 Assert-Contains "security review queue snapshot marker" $frontendHtml "security_review_evidence_snapshot_visible"
 Assert-Contains "security review gate marker" $frontendHtml "security_review_gate_summary_visible"
 Assert-Contains "security review gate panel" $frontendHtml "Security Review Gate Summary"
+Assert-Contains "security review export panel" $frontendHtml "Security Review Export"
+Assert-Contains "security review export version marker" $frontendHtml "security-review-queue-export-v1"
+Assert-Contains "security review export evidence marker" $frontendHtml "security_review_queue_export_visible"
+Assert-Contains "security review export audit marker" $frontendHtml "security_review_queue_export_audit_persisted"
+Assert-Contains "security review export endpoint marker" $frontendHtml "GET /api/v1/security/review-queue/export"
 Assert-Contains "security review queue endpoint marker" $frontendHtml "GET /api/v1/security/review-queue"
 Assert-Contains "trace id contract panel" $frontendHtml "Trace ID Contract"
 Assert-Contains "cache control contract panel" $frontendHtml "Cache Control Contract"
@@ -633,6 +638,10 @@ Assert-Contains "security review redaction evidence" $securityReviewContract "se
 Assert-Contains "security review mutation evidence" $securityReviewContract "security_review_mutation_blocked"
 Assert-Contains "security review gate evidence" $securityReviewContract "security_review_gate_summary_visible"
 Assert-Contains "security review gate endpoint" $securityReviewContract "GET /api/v1/security/review-queue/gate"
+Assert-Contains "security review export version" $securityReviewContract "security-review-queue-export-v1"
+Assert-Contains "security review export evidence" $securityReviewContract "security_review_queue_export_visible"
+Assert-Contains "security review export audit evidence" $securityReviewContract "security_review_queue_export_audit_persisted"
+Assert-Contains "security review export endpoint" $securityReviewContract "GET /api/v1/security/review-queue/export"
 
 $securityReviewQueue = Invoke-Text "$BaseUrl/api/v1/security/review-queue?limit=5"
 Assert-Contains "security review queue contract" $securityReviewQueue '"contract_version":"security-review-queue-v1"'
@@ -644,6 +653,19 @@ Assert-Contains "security review gate mode" $securityReviewGate "read_only_secur
 Assert-Contains "security review gate evidence" $securityReviewGate "security_review_gate_summary_visible"
 Assert-Contains "security review gate non rollout" $securityReviewGate '"production_rollout_claimed":false'
 Assert-Contains "security review gate no promotion" $securityReviewGate '"promotion_allowed":false'
+$securityReviewExportContract = Invoke-Text "$BaseUrl/api/v1/security/review-queue/export/contract"
+Assert-Contains "security review export contract version" $securityReviewExportContract '"contract_version":"security-review-queue-export-v1"'
+Assert-Contains "security review export mode" $securityReviewExportContract "read_only_security_review_queue_csv_export"
+Assert-Contains "security review export evidence" $securityReviewExportContract "security_review_queue_export_visible"
+Assert-Contains "security review export audit evidence" $securityReviewExportContract "security_review_queue_export_audit_persisted"
+Assert-Contains "security review export read only" $securityReviewExportContract '"read_only":true'
+Assert-Contains "security review export no live provider" $securityReviewExportContract '"live_provider_calls_claimed":false'
+Assert-Contains "security review export no live mcp writes" $securityReviewExportContract '"live_mcp_writes_claimed":false'
+Assert-Contains "security review export production false" $securityReviewExportContract '"production_rollout_claimed":false'
+Assert-Contains "security review export raw details false" $securityReviewExportContract '"raw_details_returned":false'
+$securityReviewExportCsv = Invoke-Text "$BaseUrl/api/v1/security/review-queue/export?format=csv&limit=20"
+Assert-Contains "security review export csv header" $securityReviewExportCsv "sequence_index,queue_item_id,source_event_id,created_at,event_type,category,severity,status,risk_badge,request_id,trace_id,summary,redaction_applied,detail_keys,evidence_ref,item_evidence_ref,redaction_evidence_ref,filter_evidence_ref,decision_history_evidence_ref,source_security_surface_evidence_ref"
+Assert-True "security review export no secret pattern leak" (-not ($securityReviewExportCsv -match "sk-proj-[A-Za-z0-9_-]{16,}|github_pat_[A-Za-z0-9_]{16,}|ghp_[A-Za-z0-9_]{16,}|vck_[A-Za-z0-9_-]{24,}|cfat_[A-Za-z0-9_-]{24,}|hcloud_[A-Za-z0-9_-]{16,}|\bhf_[A-Za-z0-9_-]{24,}|glpat-[A-Za-z0-9_.-]{20,}|Authorization: Bearer|Cookie:|Set-Cookie:|BEGIN PRIVATE KEY"))
 $traceContract = Invoke-Text "$BaseUrl/api/v1/trace/contract"
 Assert-Contains "trace contract version" $traceContract '"contract_version":"trace-id-propagation-v1"'
 Assert-Contains "trace contract evidence" $traceContract "trace_id_header_roundtrip"

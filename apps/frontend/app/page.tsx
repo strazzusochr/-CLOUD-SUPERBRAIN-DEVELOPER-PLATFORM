@@ -1908,13 +1908,19 @@ type SecurityReviewQueueContract = {
   endpoint: string;
   contract_endpoint: string;
   gate_endpoint?: string;
+  export_endpoint?: string;
+  export_contract_endpoint?: string;
+  export_contract_version?: string;
   source_table: string;
   source_surface: string;
   supported_event_types: string[];
+  supported_export_formats?: string[];
   filters: string[];
   read_only: boolean;
+  audit_persisted?: boolean;
   mutation_endpoints_blocked: string[];
   required_item_fields: string[];
+  export_columns?: string[];
   safe_fields: string[];
   forbidden_fields: string[];
   status_values: string[];
@@ -1927,8 +1933,52 @@ type SecurityReviewQueueContract = {
     decision_history: string;
     evidence_snapshot: string;
     gate_summary: string;
+    export_visible: string;
+    export_audit_persisted: string;
     source_security_surface: string;
   };
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type SecurityReviewExportContract = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  contract_endpoint: string;
+  queue_endpoint: string;
+  snapshot_endpoint: string;
+  gate_endpoint: string;
+  source_table: string;
+  source_surface: string;
+  source_event_types: string[];
+  supported_formats: string[];
+  default_format: string;
+  default_limit: number;
+  max_limit: number;
+  filename_pattern: string;
+  columns: string[];
+  evidence_ref: string;
+  export_audit_evidence_ref: string;
+  queue_evidence_ref: string;
+  item_evidence_ref: string;
+  redaction_evidence_ref: string;
+  mutation_block_evidence_ref: string;
+  filter_evidence_ref: string;
+  decision_history_evidence_ref: string;
+  source_security_surface_evidence_ref: string;
+  read_only: boolean;
+  audit_persisted: boolean;
+  live_provider_calls_claimed: boolean;
+  live_mcp_writes_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  prompt_bodies_returned: boolean;
+  provider_credentials_returned: boolean;
+  cookies_returned: boolean;
+  authorization_headers_returned: boolean;
+  raw_details_returned: boolean;
   policy_checks: string[];
   non_claims: string[];
 };
@@ -2586,6 +2636,8 @@ export default function Home() {
   const [securityAuditEvents, setSecurityAuditEvents] = useState<SecurityAuditEvent[]>([]);
   const [securityReviewQueueContract, setSecurityReviewQueueContract] =
     useState<SecurityReviewQueueContract | null>(null);
+  const [securityReviewExportContract, setSecurityReviewExportContract] =
+    useState<SecurityReviewExportContract | null>(null);
   const [securityReviewQueueItems, setSecurityReviewQueueItems] = useState<SecurityReviewQueueItem[]>([]);
   const [securityReviewGate, setSecurityReviewGate] = useState<SecurityReviewGateSummary | null>(null);
   const [memoryConsolidationEvents, setMemoryConsolidationEvents] = useState<AuditEvent[]>([]);
@@ -3209,10 +3261,11 @@ export default function Home() {
   }
 
   async function loadSecurityReviewQueue() {
-    const [contractResponse, queueResponse, gateResponse] = await Promise.all([
+    const [contractResponse, queueResponse, gateResponse, exportResponse] = await Promise.all([
       fetch("/api/v1/security/review-queue/contract", { cache: "no-store" }),
       fetch("/api/v1/security/review-queue?limit=8", { cache: "no-store" }),
       fetch("/api/v1/security/review-queue/gate?limit=50", { cache: "no-store" }),
+      fetch("/api/v1/security/review-queue/export/contract", { cache: "no-store" }),
     ]);
     if (!contractResponse.ok) throw new Error(`security review contract ${contractResponse.status}`);
     if (!queueResponse.ok) throw new Error(`security review queue ${queueResponse.status}`);
@@ -3221,6 +3274,9 @@ export default function Home() {
     const payload = await queueResponse.json();
     setSecurityReviewQueueItems(payload.items ?? []);
     setSecurityReviewGate(await gateResponse.json());
+    if (exportResponse.ok) {
+      setSecurityReviewExportContract(await exportResponse.json());
+    }
   }
 
   async function loadMemoryConsolidationEvents() {
@@ -3782,6 +3838,8 @@ export default function Home() {
     decision_history: "security_review_decision_history_visible",
     evidence_snapshot: "security_review_evidence_snapshot_visible",
     gate_summary: "security_review_gate_summary_visible",
+    export_visible: "security_review_queue_export_visible",
+    export_audit_persisted: "security_review_queue_export_audit_persisted",
     source_security_surface: "security_audit_surface_visible",
   };
   const securityReviewPolicyChecks = stringList(securityReviewQueueContract?.policy_checks);
@@ -4265,6 +4323,40 @@ export default function Home() {
             <small>
               Authority: {securityReviewGate?.release_authority ?? "outside_security_review_queue"} / Production
               rollout claimed: {String(securityReviewGate?.production_rollout_claimed ?? false)}
+            </small>
+          </div>
+          <div className="auditSnapshot">
+            <strong>Security Review Export</strong>
+            <span>
+              {securityReviewExportContract?.contract_version ?? "security-review-queue-export-v1"} /{" "}
+              {securityReviewExportContract?.evidence_ref ?? securityReviewEvidenceRefs.export_visible}
+            </span>
+            <small>
+              Endpoint:{" "}
+              {securityReviewExportContract?.endpoint ??
+                "GET /api/v1/security/review-queue/export?format=csv&limit=80"}
+            </small>
+            <small>
+              Contract:{" "}
+              {securityReviewExportContract?.contract_endpoint ??
+                "GET /api/v1/security/review-queue/export/contract"}{" "}
+              / File: {securityReviewExportContract?.filename_pattern ?? "superbrain-security-review-queue.csv"}
+            </small>
+            <small>
+              Audit:{" "}
+              {securityReviewExportContract?.export_audit_evidence_ref ??
+                securityReviewEvidenceRefs.export_audit_persisted}{" "}
+              / Redaction:{" "}
+              {securityReviewExportContract?.redaction_evidence_ref ?? securityReviewEvidenceRefs.redaction_enforced}
+            </small>
+            <small>
+              read_only={String(securityReviewExportContract?.read_only ?? true)} / audit_persisted=
+              {String(securityReviewExportContract?.audit_persisted ?? true)} / production_rollout_claimed=
+              {String(securityReviewExportContract?.production_rollout_claimed ?? false)}
+            </small>
+            <small>
+              prompt_bodies_returned={String(securityReviewExportContract?.prompt_bodies_returned ?? false)} /
+              raw_details_returned={String(securityReviewExportContract?.raw_details_returned ?? false)}
             </small>
           </div>
           <div className="policyGrid">

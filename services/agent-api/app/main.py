@@ -112,6 +112,9 @@ SECURITY_REVIEW_FILTER_EVIDENCE_REF = "security_review_filter_state_visible"
 SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF = "security_review_decision_history_visible"
 SECURITY_REVIEW_SNAPSHOT_EVIDENCE_REF = "security_review_evidence_snapshot_visible"
 SECURITY_REVIEW_GATE_EVIDENCE_REF = "security_review_gate_summary_visible"
+SECURITY_REVIEW_EXPORT_CONTRACT_VERSION = "security-review-queue-export-v1"
+SECURITY_REVIEW_EXPORT_EVIDENCE_REF = "security_review_queue_export_visible"
+SECURITY_REVIEW_EXPORT_AUDIT_EVIDENCE_REF = "security_review_queue_export_audit_persisted"
 TRACE_ID_CONTRACT_VERSION = "trace-id-propagation-v1"
 CACHE_CONTROL_CONTRACT_VERSION = "cache-control-no-store-v1"
 REQUEST_ID_CONTRACT_VERSION = "request-id-correlation-v1"
@@ -7665,11 +7668,16 @@ def security_review_queue_contract_payload() -> dict[str, object]:
         "contract_endpoint": "GET /api/v1/security/review-queue/contract",
         "snapshot_endpoint": "GET /api/v1/security/review-queue/snapshot",
         "gate_endpoint": "GET /api/v1/security/review-queue/gate",
+        "export_endpoint": "GET /api/v1/security/review-queue/export?format=csv&limit=80",
+        "export_contract_endpoint": "GET /api/v1/security/review-queue/export/contract",
+        "export_contract_version": SECURITY_REVIEW_EXPORT_CONTRACT_VERSION,
         "source_table": "audit_log",
         "source_surface": "GET /api/v1/security/events",
         "supported_event_types": list(SECURITY_AUDIT_EVENT_CATEGORIES.keys()),
+        "supported_export_formats": ["csv"],
         "filters": ["limit", "status", "severity", "category"],
         "read_only": True,
+        "audit_persisted": True,
         "mutation_endpoints_blocked": [
             "POST /api/v1/security/review-queue",
             "PATCH /api/v1/security/review-queue",
@@ -7690,6 +7698,28 @@ def security_review_queue_contract_payload() -> dict[str, object]:
             "evidence_ref",
             "item_evidence_ref",
             "redaction_evidence_ref",
+        ],
+        "export_columns": [
+            "sequence_index",
+            "queue_item_id",
+            "source_event_id",
+            "created_at",
+            "event_type",
+            "category",
+            "severity",
+            "status",
+            "risk_badge",
+            "request_id",
+            "trace_id",
+            "summary",
+            "redaction_applied",
+            "detail_keys",
+            "evidence_ref",
+            "item_evidence_ref",
+            "redaction_evidence_ref",
+            "filter_evidence_ref",
+            "decision_history_evidence_ref",
+            "source_security_surface_evidence_ref",
         ],
         "safe_fields": [
             "ids",
@@ -7724,6 +7754,8 @@ def security_review_queue_contract_payload() -> dict[str, object]:
             "decision_history": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
             "evidence_snapshot": SECURITY_REVIEW_SNAPSHOT_EVIDENCE_REF,
             "gate_summary": SECURITY_REVIEW_GATE_EVIDENCE_REF,
+            "export_visible": SECURITY_REVIEW_EXPORT_EVIDENCE_REF,
+            "export_audit_persisted": SECURITY_REVIEW_EXPORT_AUDIT_EVIDENCE_REF,
             "source_security_surface": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
         },
         "policy_checks": [
@@ -7732,6 +7764,7 @@ def security_review_queue_contract_payload() -> dict[str, object]:
             "Mutation methods are blocked with security_review_mutation_blocked.",
             "Risk badges, filters, decision history, and evidence snapshots are derived from read-only audit rows.",
             "The gate summary is advisory and cannot approve a production rollout.",
+            "The CSV export emits allowlisted queue columns only and persists redacted export metadata.",
             "Secrets, prompt bodies, cookies, authorization headers, and raw files are forbidden from queue responses.",
             "Production release decisions remain outside this read-only queue.",
         ],
@@ -7976,9 +8009,144 @@ def build_security_review_gate(limit: int, severity: str | None, category: str |
     }
 
 
+def security_review_queue_export_contract_payload() -> dict[str, object]:
+    contract = security_review_queue_contract_payload()
+    return {
+        "contract_version": SECURITY_REVIEW_EXPORT_CONTRACT_VERSION,
+        "parent_contract_version": SECURITY_REVIEW_QUEUE_CONTRACT_VERSION,
+        "mode": "read_only_security_review_queue_csv_export",
+        "endpoint": "GET /api/v1/security/review-queue/export?format=csv&limit=80",
+        "contract_endpoint": "GET /api/v1/security/review-queue/export/contract",
+        "queue_endpoint": "GET /api/v1/security/review-queue",
+        "snapshot_endpoint": "GET /api/v1/security/review-queue/snapshot",
+        "gate_endpoint": "GET /api/v1/security/review-queue/gate",
+        "source_table": "audit_log",
+        "source_surface": "GET /api/v1/security/events",
+        "source_event_types": list(SECURITY_AUDIT_EVENT_CATEGORIES.keys()),
+        "supported_formats": ["csv"],
+        "default_format": "csv",
+        "default_limit": 80,
+        "max_limit": 200,
+        "filename_pattern": "superbrain-security-review-queue.csv",
+        "columns": contract["export_columns"],
+        "evidence_ref": SECURITY_REVIEW_EXPORT_EVIDENCE_REF,
+        "export_audit_evidence_ref": SECURITY_REVIEW_EXPORT_AUDIT_EVIDENCE_REF,
+        "queue_evidence_ref": SECURITY_REVIEW_QUEUE_EVIDENCE_REF,
+        "item_evidence_ref": SECURITY_REVIEW_ITEM_EVIDENCE_REF,
+        "redaction_evidence_ref": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+        "mutation_block_evidence_ref": SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF,
+        "filter_evidence_ref": SECURITY_REVIEW_FILTER_EVIDENCE_REF,
+        "decision_history_evidence_ref": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
+        "source_security_surface_evidence_ref": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+        "read_only": True,
+        "audit_persisted": True,
+        "live_provider_calls_claimed": False,
+        "live_mcp_writes_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "prompt_bodies_returned": False,
+        "provider_credentials_returned": False,
+        "cookies_returned": False,
+        "authorization_headers_returned": False,
+        "raw_details_returned": False,
+        "policy_checks": [
+            "Export reads audit_log through the same safe security review queue projection.",
+            "Export emits CSV columns from the allowlisted security review fields only.",
+            "Export never executes tools, calls providers, writes external state, deploys code, or promotes production.",
+            "Export audit logging stores only redacted metadata: contract version, row count, trace id, request id, format, and evidence refs.",
+            "Raw audit details, prompt bodies, cookies, authorization headers, screenshots, and raw files are omitted.",
+        ],
+        "non_claims": contract["non_claims"],
+    }
+
+
+def build_security_review_export_csv(items: list[dict[str, object]]) -> str:
+    output = io.StringIO()
+    fieldnames = security_review_queue_export_contract_payload()["columns"]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
+    writer.writeheader()
+    ordered_items = sorted(items, key=lambda item: str(item.get("created_at") or ""))
+    for index, item in enumerate(ordered_items, start=1):
+        detail_keys = item.get("detail_keys") if isinstance(item.get("detail_keys"), list) else []
+        export_detail_keys = []
+        for key in detail_keys:
+            safe_key = redact_text(str(key))
+            compact_key = "".join(char for char in safe_key.lower() if char.isalnum())
+            if any(marker in compact_key for marker in ("prompt", "token", "secret", "password", "cookie", "authorization", "rawfile")):
+                export_detail_keys.append("sensitive_key_redacted")
+            else:
+                export_detail_keys.append(safe_key)
+        csv_row = {
+            "sequence_index": index,
+            "queue_item_id": item.get("queue_item_id"),
+            "source_event_id": item.get("source_event_id"),
+            "created_at": item.get("created_at"),
+            "event_type": item.get("event_type"),
+            "category": item.get("category"),
+            "severity": item.get("severity"),
+            "status": item.get("status"),
+            "risk_badge": item.get("risk_badge"),
+            "request_id": public_request_id(item.get("request_id")),
+            "trace_id": public_trace_id(item.get("trace_id")),
+            "summary": redact_text(str(item.get("summary") or "")),
+            "redaction_applied": item.get("redaction_applied") is True,
+            "detail_keys": "|".join(sorted(set(export_detail_keys))),
+            "evidence_ref": SECURITY_REVIEW_EXPORT_EVIDENCE_REF,
+            "item_evidence_ref": item.get("item_evidence_ref") or SECURITY_REVIEW_ITEM_EVIDENCE_REF,
+            "redaction_evidence_ref": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+            "filter_evidence_ref": SECURITY_REVIEW_FILTER_EVIDENCE_REF,
+            "decision_history_evidence_ref": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
+            "source_security_surface_evidence_ref": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+        }
+        writer.writerow({field: csv_safe_value(csv_row.get(field)) for field in fieldnames})
+    return output.getvalue()
+
+
+def persist_security_review_export_audit(format: str, row_count: int, trace_id: str, request_id: str) -> None:
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, details, severity)
+                VALUES ('security_review_queue_export_generated', 'security-review', %s::jsonb, 'info')
+                """,
+                (
+                    Json(
+                        redact_json(
+                            {
+                                "contract_version": SECURITY_REVIEW_EXPORT_CONTRACT_VERSION,
+                                "trace_id": trace_id,
+                                "request_id": request_id,
+                                "format": format,
+                                "row_count": row_count,
+                                "evidence_ref": SECURITY_REVIEW_EXPORT_AUDIT_EVIDENCE_REF,
+                                "export_evidence_ref": SECURITY_REVIEW_EXPORT_EVIDENCE_REF,
+                                "queue_evidence_ref": SECURITY_REVIEW_QUEUE_EVIDENCE_REF,
+                                "item_evidence_ref": SECURITY_REVIEW_ITEM_EVIDENCE_REF,
+                                "redaction_evidence_ref": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+                                "mutation_block_evidence_ref": SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF,
+                                "source_security_surface_evidence_ref": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+                                "live_provider_calls_claimed": False,
+                                "live_mcp_writes_claimed": False,
+                                "production_rollout_claimed": False,
+                                "promotion_allowed": False,
+                            }
+                        )
+                    ),
+                ),
+            )
+    except Exception as exc:  # pragma: no cover - audit persistence must not break exports
+        print(f"security review export audit failed: {exc}")
+
+
 @app.get("/api/v1/security/review-queue/contract")
 def security_review_queue_contract() -> dict[str, object]:
     return security_review_queue_contract_payload()
+
+
+@app.get("/api/v1/security/review-queue/export/contract")
+def security_review_queue_export_contract() -> dict[str, object]:
+    return security_review_queue_export_contract_payload()
 
 
 @app.get("/api/v1/security/review-queue")
@@ -8072,6 +8240,48 @@ def security_review_queue_gate(
     category: str | None = Query(default=None),
 ) -> dict[str, object]:
     return build_security_review_gate(limit=limit, severity=severity, category=category)
+
+
+@app.get("/api/v1/security/review-queue/export")
+def security_review_queue_export(
+    request: Request,
+    format: str = Query(default="csv", pattern="^csv$"),
+    limit: int = Query(default=80, ge=1, le=200),
+    status: str | None = Query(default=None),
+    severity: str | None = Query(default=None),
+    category: str | None = Query(default=None),
+    trace_id: str | None = Query(default=None, max_length=255),
+    request_id: str | None = Query(default=None, max_length=255),
+) -> Response:
+    if format != "csv":
+        raise HTTPException(status_code=400, detail={"error": "unsupported_format", "allowed": ["csv"]})
+    queue = build_security_review_queue(limit=limit, status=status, severity=severity, category=category)
+    items = queue["items"] if isinstance(queue.get("items"), list) else []
+    csv_payload = build_security_review_export_csv(items)
+    row_count = max(0, len(csv_payload.splitlines()) - 1)
+    resolved_trace_id = public_trace_id(trace_id) or f"security-review-export-{uuid4()}"
+    resolved_request_id = (
+        public_request_id(request_id)
+        or public_request_id(getattr(request.state, "request_id", None))
+        or public_request_id(request.headers.get("x-request-id"))
+        or f"req-{uuid4()}"
+    )
+    persist_security_review_export_audit(format, row_count, resolved_trace_id, resolved_request_id)
+    filename = "superbrain-security-review-queue.csv"
+    return Response(
+        csv_payload,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Contract-Version": SECURITY_REVIEW_EXPORT_CONTRACT_VERSION,
+            "X-Evidence-Ref": SECURITY_REVIEW_EXPORT_EVIDENCE_REF,
+            "X-Export-Audit-Evidence-Ref": SECURITY_REVIEW_EXPORT_AUDIT_EVIDENCE_REF,
+            "X-Redaction-Evidence-Ref": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+            "X-Mutation-Block-Evidence-Ref": SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF,
+            "X-Trace-Id": resolved_trace_id,
+            "X-Request-Id": resolved_request_id,
+        },
+    )
 
 
 @app.api_route(
