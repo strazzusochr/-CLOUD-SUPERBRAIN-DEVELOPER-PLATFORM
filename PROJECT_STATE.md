@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-14 07:29 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `76%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot und MCP Audit Redaction Snapshot auf `72%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist jetzt als immutable Staging-Selector `IMAGE_TAG=0a7ca2bed583f2e01af39a73e095e91cee642365` verifiziert. Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `77%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance auf `88%`; Phase 3 Product Surface & Security ist durch CSP-Report, LLM-Audit-Feed, Langfuse-Trace-Access, Live-Agent-Steering/History, Security Audit Surface, Autonomous Team Dispatch UI, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot und Gateway Correlation Snapshot auf `74%` gehoben; Phase 5 steht durch den echten GHCR-Multi-Service-Build plus Hetzner `-UseImageFilesystem` Paritaet auf `74%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist jetzt als immutable Staging-Selector `IMAGE_TAG=10df3ea48627e6f11787587e3c984b72107e78f5` verifiziert. Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -30,7 +30,7 @@ Letzte Aktualisierung: 2026-05-14 07:29 Uhr
 6. **Kein E2B-Sandbox:** Docker Desktop für lokale Tests
 7. **7-Schichten-Architektur** laut Ultimatum Finale
 
-## AKTUELLER FORTSCHRITT: 76%
+## AKTUELLER FORTSCHRITT: 77%
 
 ### Horizontal (nach Priorität)
 
@@ -39,7 +39,7 @@ Letzte Aktualisierung: 2026-05-14 07:29 Uhr
 | P0   | 100%   |
 | P1   | 100%   |
 | P2   | 88%    |
-| P3   | 72%    |
+| P3   | 74%    |
 | P4   | 100%   |
 | P5   | 74%    |
 | P6   | 0%     |
@@ -50,9 +50,9 @@ Letzte Aktualisierung: 2026-05-14 07:29 Uhr
 |---------------|--------|
 | Frontend      | 99%    |
 | Orchestrator  | 99%    |
-| Agent Pool    | 72%    |
-| LLM Gateway   | 60%    |
-| MCP Gateway   | 60%    |
+| Agent Pool    | 73%    |
+| LLM Gateway   | 61%    |
+| MCP Gateway   | 61%    |
 | Memory        | 72%    |
 | Observability | 99%    |
 
@@ -70,13 +70,22 @@ Letzte Aktualisierung: 2026-05-14 07:29 Uhr
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Naechster grosser Fortschrittshebel: Phase 3 Product Surface & Security** — Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue Snapshot, Security Review Gate Summary und LLM Audit Feed Redaction Snapshot sind jetzt lokal und hosted verifiziert; weiter geht es mit weiteren echten Security/Product-Surface-Slices statt P5-Reruns
+- **Naechster grosser Fortschrittshebel: Phase 3 Product Surface & Security** — Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, MCP Audit Redaction Snapshot und Gateway Correlation Snapshot sind jetzt lokal und hosted verifiziert; weiter geht es mit weiteren echten Security/Product-Surface-Slices statt P5-Reruns
 - danach folgen P3-Auth/Security- und LLM/MCP-Layer-Slices, kein Production-Rollout ohne separates Gate
 - lokal und hosted bleiben weiterhin deterministische Proofs ohne Live-Provider und ohne Live-MCP-Writes; `production_deploy_claim_allowed=true` ist kein Deployment-Nachweis
 
 ## ZULETZT ABGESCHLOSSEN
 
-**MCP Audit Redaction Snapshot Proof** — die MCP-Gateway-Operator-Ansicht hat jetzt einen read-only Snapshot fuer Redaction, Deny-Korrelation und No-Live-MCP-Write-Nachweise:
+**Gateway Correlation Snapshot Proof** — die Operator-Ansicht korreliert Agent-Task-, LLM-Gateway- und MCP-Gateway-Audit-Evidence jetzt read-only unter gemeinsamen Trace-/Request-/Session-Keys:
+
+- `GET /api/v1/security/gateway-correlation/contract` liefert `gateway-correlation-snapshot-v1`, `read_only=true`, `live_provider_calls_claimed=false`, `live_mcp_writes_claimed=false`, `gateway_correlation_snapshot_visible`, `gateway_correlation_redaction_enforced` und `gateway_correlation_no_live_write_guard`.
+- `GET /api/v1/security/gateway-correlation/snapshot` liest nur `audit_log`, gibt nur sichere Korrelationsfelder aus und setzt `prompt_bodies_returned=false`, `tool_input_refs_returned=false`, `provider_credentials_returned=false`, `forbidden_pattern_hits=0`.
+- Der Verifier seedet eine deterministische Agent-Task, einen LLM-Dry-Run und einen denied MCP-Call unter demselben Trace und verlangt `agent_llm_mcp_correlated` mit `live_provider_call_count=0` und `live_mcp_write_count=0`.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `scripts\verify-phase3-gateway-correlation-snapshot.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `py -3 scripts\verify_project_progress_manifest.py`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach immutable Image-Deploy mit `IMAGE_TAG=10df3ea48627e6f11787587e3c984b72107e78f5`: Gateway-Correlation-Verifier, Browser-Contract und Hosted-Smoke sind gruen.
+- Fortschritt: `overall=77`, `phase_3=74`, `agent_pool=73`, `llm_gateway=61`, `mcp_gateway=61`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — MCP Audit Redaction Snapshot Proof** — die MCP-Gateway-Operator-Ansicht hat jetzt einen read-only Snapshot fuer Redaction, Deny-Korrelation und No-Live-MCP-Write-Nachweise:
 
 - `GET /api/v1/audit/mcp/contract` liefert weiter `mcp-audit-feed-v1`, jetzt zusaetzlich mit `snapshot_endpoint=GET /api/v1/audit/mcp/snapshot`, `mcp_audit_snapshot_visible`, `mcp_audit_redaction_enforced` und `live_mcp_writes_claimed=false`.
 - `GET /api/v1/audit/mcp` gibt MCP-Audit-Events mit `input_ref_stored=false` und `redaction_evidence_ref=mcp_audit_redaction_enforced` aus; `GET /api/v1/audit/mcp/snapshot` aggregiert Status-, Toolset-, Capability-, Error-Class- und Agent-Role-Counts und setzt `input_refs_returned=false`, `provider_credentials_returned=false`, `forbidden_pattern_hits=0`.

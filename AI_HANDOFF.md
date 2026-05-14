@@ -6,7 +6,7 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-Current honesty guardrail: the active staging candidate is `0a7ca2bed583f2e01af39a73e095e91cee642365`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
+Current honesty guardrail: the active staging candidate is `10df3ea48627e6f11787587e3c984b72107e78f5`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
 
 ## Binding Truth
 
@@ -29,18 +29,18 @@ Follow `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` over older planning f
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 
-Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `76%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, LLM Audit Feed Redaction Snapshot proof, and MCP Audit Redaction Snapshot proof for SHA `0a7ca2bed583f2e01af39a73e095e91cee642365`. Continue Phase-3 security/product-surface evidence before rollout.
+Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `77%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, LLM Audit Feed Redaction Snapshot proof, MCP Audit Redaction Snapshot proof, and Gateway Correlation Snapshot proof for SHA `10df3ea48627e6f11787587e3c984b72107e78f5`. Continue Phase-3 security/product-surface evidence before rollout.
 
 ## Current Verified Progress
 
-Overall: `76%`
+Overall: `77%`
 
 Horizontal:
 
 - P0: `100%`
 - P1: `100%`
 - P2: `88%`
-- P3: `72%`
+- P3: `74%`
 - P4: `100%`
 - P5: `74%`
 - P6: `0%`
@@ -49,9 +49,9 @@ Vertical:
 
 - Frontend / Next.js: `99%`
 - Orchestrator / LangGraph: `99%`
-- Agent Pool: `72%`
-- LLM Gateway: `60%`
-- MCP Gateway: `60%`
+- Agent Pool: `73%`
+- LLM Gateway: `61%`
+- MCP Gateway: `61%`
 - Memory: `72%`
 - Observability: `99%`
 
@@ -59,7 +59,16 @@ Older percentage lines below are historical proof points only. Current percentag
 
 ## Latest Verified Step
 
-MCP Audit Redaction Snapshot Proof:
+Gateway Correlation Snapshot Proof:
+
+- `GET /api/v1/security/gateway-correlation/contract` exposes `gateway-correlation-snapshot-v1`, `read_only=true`, `live_provider_calls_claimed=false`, `live_mcp_writes_claimed=false`, and evidence refs `gateway_correlation_snapshot_visible`, `gateway_correlation_redaction_enforced`, `gateway_correlation_no_live_write_guard`.
+- `GET /api/v1/security/gateway-correlation/snapshot` groups safe `audit_log` projections across agent task, LLM audit, and MCP audit events while keeping prompt bodies, raw tool input refs, provider credentials, cookies, authorization headers, and full details out of the response.
+- Frontend renders `Gateway Correlation Snapshot`, evidence refs, live-call/write non-claims, redaction status, full-correlation counts, and grouped trace/session/request cards.
+- Local proof passed: `scripts\verify-phase3-gateway-correlation-snapshot.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, and `py -3 scripts\verify_project_progress_manifest.py`.
+- Hosted proof passed after immutable deploy `IMAGE_TAG=10df3ea48627e6f11787587e3c984b72107e78f5`: gateway-correlation verifier, Browser-Contract, and Hosted-Smoke all green on `https://188-34-191-140.sslip.io`.
+- Progress change: Overall rises to `77%`; Phase 3 rises to `74%`; Agent Pool rises to `73%`; LLM Gateway rises to `61%`; MCP Gateway rises to `61%`; no production rollout, live provider call, live MCP write, provider billing proof, SOC/SIEM completeness, or secret exposure is claimed.
+
+Previous verified step - MCP Audit Redaction Snapshot Proof:
 
 - `GET /api/v1/audit/mcp/contract` exposes `mcp-audit-feed-v1` with `snapshot_endpoint=GET /api/v1/audit/mcp/snapshot`, `mcp_audit_snapshot_visible`, `mcp_audit_redaction_enforced`, and `live_mcp_writes_claimed=false`.
 - `GET /api/v1/audit/mcp` returns MCP audit rows with `input_ref_stored=false` and redaction evidence; `GET /api/v1/audit/mcp/snapshot` returns aggregate status/toolset/capability/error/agent-role counts with `input_refs_returned=false`, `provider_credentials_returned=false`, `forbidden_pattern_hits=0`, and `live_mcp_writes_claimed=false`.
