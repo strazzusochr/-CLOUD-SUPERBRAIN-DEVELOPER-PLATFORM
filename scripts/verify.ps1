@@ -38,6 +38,7 @@ $suiteIndex = @{}
 foreach ($entry in $registry) {
   $suiteIndex[$entry.id] = $entry
 }
+$explicitReleaseIdProvided = $PSBoundParameters.ContainsKey("ReleaseId") -and -not [string]::IsNullOrWhiteSpace($ReleaseId)
 
 function Get-DeclaredParameters([string]$ScriptPath) {
   $tokens = $null
@@ -195,6 +196,10 @@ function Get-InvocationArgs([hashtable]$DeclaredParameters, [string[]]$DefaultSw
 
   foreach ($key in $ParameterOverrides.Keys) {
     if ($null -eq $ParameterOverrides[$key]) {
+      if ($key -eq "ReleaseId" -and $script:explicitReleaseIdProvided) {
+        $arguments[$key] = $ReleaseId
+        continue
+      }
       if ($arguments.Contains($key)) {
         $arguments.Remove($key)
       }
