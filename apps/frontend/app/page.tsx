@@ -1379,6 +1379,52 @@ type SecurityAuditEvent = AuditEvent & {
   summary?: string | null;
 };
 
+type SecurityReviewQueueContract = {
+  contract_version: string;
+  mode: string;
+  screen: string;
+  endpoint: string;
+  contract_endpoint: string;
+  source_table: string;
+  source_surface: string;
+  supported_event_types: string[];
+  filters: string[];
+  read_only: boolean;
+  mutation_endpoints_blocked: string[];
+  required_item_fields: string[];
+  safe_fields: string[];
+  forbidden_fields: string[];
+  status_values: string[];
+  evidence_refs: {
+    queue_visible: string;
+    item_visible: string;
+    redaction_enforced: string;
+    mutation_blocked: string;
+    source_security_surface: string;
+  };
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type SecurityReviewQueueItem = {
+  queue_item_id: string;
+  source_event_id: string;
+  event_type: string;
+  category: string;
+  severity?: string | null;
+  status: string;
+  summary: string;
+  request_id?: string | null;
+  trace_id?: string | null;
+  detail_keys: string[];
+  redaction_applied: boolean;
+  created_at?: string | null;
+  evidence_ref: string;
+  item_evidence_ref: string;
+  redaction_evidence_ref: string;
+  source_security_surface_evidence_ref: string;
+};
+
 type PerRoleResult = {
   role: string;
   status: string;
@@ -1954,6 +2000,9 @@ export default function Home() {
   const [securityAuditSurfaceContract, setSecurityAuditSurfaceContract] =
     useState<SecurityAuditSurfaceContract | null>(null);
   const [securityAuditEvents, setSecurityAuditEvents] = useState<SecurityAuditEvent[]>([]);
+  const [securityReviewQueueContract, setSecurityReviewQueueContract] =
+    useState<SecurityReviewQueueContract | null>(null);
+  const [securityReviewQueueItems, setSecurityReviewQueueItems] = useState<SecurityReviewQueueItem[]>([]);
   const [memoryConsolidationEvents, setMemoryConsolidationEvents] = useState<AuditEvent[]>([]);
   const [escalations, setEscalations] = useState<AuditEvent[]>([]);
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
@@ -2510,6 +2559,18 @@ export default function Home() {
     setSecurityAuditEvents(payload.events ?? []);
   }
 
+  async function loadSecurityReviewQueue() {
+    const [contractResponse, queueResponse] = await Promise.all([
+      fetch("/api/v1/security/review-queue/contract", { cache: "no-store" }),
+      fetch("/api/v1/security/review-queue?limit=8", { cache: "no-store" }),
+    ]);
+    if (!contractResponse.ok) throw new Error(`security review contract ${contractResponse.status}`);
+    if (!queueResponse.ok) throw new Error(`security review queue ${queueResponse.status}`);
+    setSecurityReviewQueueContract(await contractResponse.json());
+    const payload = await queueResponse.json();
+    setSecurityReviewQueueItems(payload.items ?? []);
+  }
+
   async function loadMemoryConsolidationEvents() {
     const response = await fetch("/api/v1/memory/consolidation/recent?limit=8", { cache: "no-store" });
     if (!response.ok) throw new Error(`memory consolidation ${response.status}`);
@@ -2708,6 +2769,7 @@ export default function Home() {
         loadSecurityHeadersContract(),
         loadCspReportContract(),
         loadSecurityAuditSurface(),
+        loadSecurityReviewQueue(),
         loadTraceIdContract(),
         loadCacheControlContract(),
         loadRequestIdContract(),
@@ -2752,6 +2814,7 @@ export default function Home() {
         loadMcpAuditEvents(),
         loadLlmAuditFeed(),
         loadSecurityAuditSurface(),
+        loadSecurityReviewQueue(),
         loadMemoryConsolidationEvents(),
         loadEscalations(),
         runMemorySearch(prompt.split(" ").slice(-2).join(" ")),
@@ -2912,6 +2975,7 @@ export default function Home() {
       loadSecurityHeadersContract,
       loadCspReportContract,
       loadSecurityAuditSurface,
+      loadSecurityReviewQueue,
       loadTraceIdContract,
       loadCacheControlContract,
       loadRequestIdContract,
@@ -2943,6 +3007,7 @@ export default function Home() {
       loadMcpAuditEvents,
       loadLlmAuditFeed,
       loadSecurityAuditSurface,
+      loadSecurityReviewQueue,
       loadMemoryConsolidationEvents,
       loadEscalations,
     ];
@@ -3053,6 +3118,15 @@ export default function Home() {
   const securityAuditEventTypes = stringList(securityAuditSurfaceContract?.supported_event_types);
   const securityAuditPolicyChecks = stringList(securityAuditSurfaceContract?.policy_checks);
   const securityAuditNonClaims = stringList(securityAuditSurfaceContract?.non_claims);
+  const securityReviewEvidenceRefs = securityReviewQueueContract?.evidence_refs ?? {
+    queue_visible: "security_review_queue_visible",
+    item_visible: "security_review_item_visible",
+    redaction_enforced: "security_review_redaction_enforced",
+    mutation_blocked: "security_review_mutation_blocked",
+    source_security_surface: "security_audit_surface_visible",
+  };
+  const securityReviewPolicyChecks = stringList(securityReviewQueueContract?.policy_checks);
+  const securityReviewNonClaims = stringList(securityReviewQueueContract?.non_claims);
   const traceIdEvidenceRefs = traceIdContract?.evidence_refs ?? {
     contract_visible: "trace_id_contract_visible",
     header_roundtrip: "trace_id_header_roundtrip",
@@ -3473,6 +3547,80 @@ export default function Home() {
           </div>
           <p className="muted">
             {securityAuditNonClaims[0] ?? "No production SOC, SIEM, or incident-response workflow is claimed."}
+          </p>
+        </section>
+
+        <section className="panel securityReviewQueuePanel" aria-label="Security review queue">
+          <header className="panelHeader">
+            <h2>Security Review Queue</h2>
+            <button type="button" onClick={() => void loadSecurityReviewQueue()}>
+              Refresh
+            </button>
+          </header>
+          <div className="healthSummary">
+            <div>
+              <span>Contract</span>
+              <strong>{securityReviewQueueContract?.contract_version ?? "security-review-queue-v1"}</strong>
+            </div>
+            <div>
+              <span>Mode</span>
+              <strong>{securityReviewQueueContract?.mode ?? "read_only_redacted_security_review_queue"}</strong>
+            </div>
+            <div>
+              <span>Endpoint</span>
+              <strong>{securityReviewQueueContract?.endpoint ?? "GET /api/v1/security/review-queue"}</strong>
+            </div>
+            <div>
+              <span>Evidence</span>
+              <strong>{securityReviewEvidenceRefs.queue_visible}</strong>
+            </div>
+          </div>
+          <p className="muted evidenceLine">
+            Evidence: {securityReviewEvidenceRefs.queue_visible} / {securityReviewEvidenceRefs.item_visible} /{" "}
+            {securityReviewEvidenceRefs.redaction_enforced} / {securityReviewEvidenceRefs.mutation_blocked}
+          </p>
+          <div className="policyGrid">
+            {(securityReviewPolicyChecks.length ? securityReviewPolicyChecks : [
+              "The review queue reads audit_log only and never executes tools, deploys code, or calls providers.",
+              "Items return summaries and detail key names only; raw detail payloads are not returned.",
+              "Mutation methods are blocked with security_review_mutation_blocked.",
+            ]).map((check) => (
+              <span key={check}>{check}</span>
+            ))}
+          </div>
+          <div className="auditList">
+            {securityReviewQueueItems.length ? (
+              securityReviewQueueItems.map((item) => (
+                <article className="auditItem" key={item.queue_item_id}>
+                  <div>
+                    <strong>{item.event_type}</strong>
+                    <span className={`severity severity-${item.severity}`}>{item.status}</span>
+                  </div>
+                  <small>Category: {item.category}</small>
+                  <small>Request ID: {item.request_id ?? "none"}</small>
+                  <small>Trace ID: {item.trace_id ?? "none"}</small>
+                  <small>
+                    Evidence: {item.evidence_ref} / {item.item_evidence_ref} / {item.redaction_evidence_ref}
+                  </small>
+                  <small>Detail keys only: {item.detail_keys.join(", ") || "none"}</small>
+                  <p>{item.summary}</p>
+                </article>
+              ))
+            ) : (
+              <article className="auditItem auditItemEmpty">
+                <div>
+                  <strong>No security review queue items yet.</strong>
+                  <span className="severity severity-info">read-only</span>
+                </div>
+                <small>Endpoint: GET /api/v1/security/review-queue</small>
+                <small>Contract: security-review-queue-v1</small>
+                <small>Evidence: security_review_queue_visible / security_review_item_visible</small>
+              </article>
+            )}
+          </div>
+          <p className="muted">
+            {securityReviewNonClaims[0] ??
+              "No production SOC, SIEM, incident ownership, or remediation workflow is claimed."}
           </p>
         </section>
 

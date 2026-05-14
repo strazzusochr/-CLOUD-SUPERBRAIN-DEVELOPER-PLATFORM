@@ -103,6 +103,11 @@ CSP_REPORT_EVIDENCE_REF = "csp_report_contract_visible"
 SECURITY_AUDIT_SURFACE_CONTRACT_VERSION = "security-audit-surface-v1"
 SECURITY_AUDIT_SURFACE_EVIDENCE_REF = "security_audit_surface_visible"
 SECURITY_AUDIT_EVENT_EVIDENCE_REF = "security_audit_event_visible"
+SECURITY_REVIEW_QUEUE_CONTRACT_VERSION = "security-review-queue-v1"
+SECURITY_REVIEW_QUEUE_EVIDENCE_REF = "security_review_queue_visible"
+SECURITY_REVIEW_ITEM_EVIDENCE_REF = "security_review_item_visible"
+SECURITY_REVIEW_REDACTION_EVIDENCE_REF = "security_review_redaction_enforced"
+SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF = "security_review_mutation_blocked"
 TRACE_ID_CONTRACT_VERSION = "trace-id-propagation-v1"
 CACHE_CONTROL_CONTRACT_VERSION = "cache-control-no-store-v1"
 REQUEST_ID_CONTRACT_VERSION = "request-id-correlation-v1"
@@ -5567,6 +5572,242 @@ def recent_security_audit_events(
         "count": len(events),
         "non_claims": security_audit_surface_contract_payload()["non_claims"],
     }
+
+
+def security_review_queue_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": SECURITY_REVIEW_QUEUE_CONTRACT_VERSION,
+        "mode": "read_only_redacted_security_review_queue",
+        "screen": "Security Review Queue",
+        "endpoint": "GET /api/v1/security/review-queue",
+        "contract_endpoint": "GET /api/v1/security/review-queue/contract",
+        "source_table": "audit_log",
+        "source_surface": "GET /api/v1/security/events",
+        "supported_event_types": list(SECURITY_AUDIT_EVENT_CATEGORIES.keys()),
+        "filters": ["limit", "status", "severity", "category"],
+        "read_only": True,
+        "mutation_endpoints_blocked": [
+            "POST /api/v1/security/review-queue",
+            "PATCH /api/v1/security/review-queue",
+            "PUT /api/v1/security/review-queue",
+            "DELETE /api/v1/security/review-queue",
+        ],
+        "required_item_fields": [
+            "queue_item_id",
+            "source_event_id",
+            "event_type",
+            "category",
+            "severity",
+            "status",
+            "summary",
+            "request_id",
+            "trace_id",
+            "created_at",
+            "evidence_ref",
+            "item_evidence_ref",
+            "redaction_evidence_ref",
+        ],
+        "safe_fields": [
+            "ids",
+            "event_type",
+            "category",
+            "severity",
+            "status",
+            "request_id",
+            "trace_id",
+            "redacted_summary",
+            "detail_key_names_only",
+            "evidence_refs",
+        ],
+        "forbidden_fields": [
+            "token",
+            "api_key",
+            "password",
+            "authorization_header",
+            "cookie",
+            "secret_value",
+            "prompt_body",
+            "browser_session",
+            "raw_file_contents",
+        ],
+        "status_values": ["needs_review", "monitoring"],
+        "evidence_refs": {
+            "queue_visible": SECURITY_REVIEW_QUEUE_EVIDENCE_REF,
+            "item_visible": SECURITY_REVIEW_ITEM_EVIDENCE_REF,
+            "redaction_enforced": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+            "mutation_blocked": SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF,
+            "source_security_surface": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+        },
+        "policy_checks": [
+            "The review queue reads audit_log only and never executes tools, deploys code, or calls providers.",
+            "Items return summaries and detail key names only; raw detail payloads are not returned.",
+            "Mutation methods are blocked with security_review_mutation_blocked.",
+            "Secrets, prompt bodies, cookies, authorization headers, and raw files are forbidden from queue responses.",
+            "Production release decisions remain outside this read-only queue.",
+        ],
+        "non_claims": [
+            "No production SOC, SIEM, incident ownership, or remediation workflow is claimed.",
+            "No live provider calls, live MCP writes, file edits, or cloud mutations are enabled by this queue.",
+            "No secret values, raw prompt bodies, screenshots, browser cookies, or raw file contents are returned.",
+        ],
+    }
+
+
+def security_review_status_for_event(event_type: str, severity: str | None, details: dict[str, object]) -> str:
+    severity_text = str(severity or "").lower()
+    event_status = str(details.get("status") or "").lower()
+    if severity_text in {"critical", "high", "warning", "error"}:
+        return "needs_review"
+    if event_type in {"auth_refresh_reuse_blocked", "security_csp_violation_reported"}:
+        return "needs_review"
+    if event_type == "mcp_tool_executed" and event_status in {"blocked", "denied", "failed"}:
+        return "needs_review"
+    return "monitoring"
+
+
+def security_review_summary(event_type: str, category: str, details: dict[str, object]) -> tuple[str, bool, list[str]]:
+    raw_summary = (
+        details.get("summary")
+        or details.get("sanitized_summary")
+        or details.get("error_class")
+        or details.get("status")
+        or event_type
+    )
+    text = redact_text(str(raw_summary))
+    key_names = sorted(str(key) for key in details.keys())
+    detail_text = json.dumps(details, sort_keys=True, default=str)
+    detail_text_redacted = redact_text(detail_text)
+    redaction_indicators = ("token", "api_key", "authorization", "password", "cookie", "secret", "private key")
+    redaction_applied = (
+        text != str(raw_summary)
+        or detail_text_redacted != detail_text
+        or any(indicator in detail_text.lower() for indicator in redaction_indicators)
+    )
+    return text[:280], redaction_applied, key_names
+
+
+@app.get("/api/v1/security/review-queue/contract")
+def security_review_queue_contract() -> dict[str, object]:
+    return security_review_queue_contract_payload()
+
+
+@app.get("/api/v1/security/review-queue")
+def security_review_queue(
+    limit: int = Query(default=20, ge=1, le=100),
+    status: str | None = Query(default=None),
+    severity: str | None = Query(default=None),
+    category: str | None = Query(default=None),
+) -> dict[str, object]:
+    allowed_statuses = {"needs_review", "monitoring"}
+    if status is not None and status not in allowed_statuses:
+        raise HTTPException(status_code=400, detail="unsupported_security_review_status")
+    allowed_categories = set(SECURITY_AUDIT_EVENT_CATEGORIES.values())
+    if category is not None and category not in allowed_categories:
+        raise HTTPException(status_code=400, detail="unsupported_security_review_category")
+
+    where_clauses = [
+        """
+        event_type IN (
+          'security_csp_violation_reported',
+          'auth_refresh_rotated',
+          'auth_refresh_reuse_blocked',
+          'auth_logout_revoked',
+          'mcp_tool_executed',
+          'llm_gateway_request'
+        )
+        """
+    ]
+    params: list[object] = []
+    if severity:
+        where_clauses.append("severity = %s")
+        params.append(severity)
+    params.append(limit)
+
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        rows = conn.execute(
+            f"""
+            SELECT id, event_type, user_id, session_id, details, created_at, severity
+            FROM audit_log
+            WHERE {" AND ".join(where_clauses)}
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            tuple(params),
+        ).fetchall()
+
+    items: list[dict[str, object]] = []
+    for row in rows:
+        details = row[4] or {}
+        row_category = SECURITY_AUDIT_EVENT_CATEGORIES.get(row[1], "security_audit")
+        row_status = security_review_status_for_event(row[1], row[6], details)
+        if status is not None and row_status != status:
+            continue
+        if category is not None and row_category != category:
+            continue
+        summary, redaction_applied, detail_keys = security_review_summary(row[1], row_category, details)
+        trace_id = details.get("trace_id") or (str(row[3]) if row[3] else None)
+        source_event_id = str(row[0])
+        items.append(
+            {
+                "queue_item_id": f"security-review-{source_event_id}",
+                "source_event_id": source_event_id,
+                "event_type": row[1],
+                "category": row_category,
+                "severity": row[6],
+                "status": row_status,
+                "summary": summary,
+                "request_id": details.get("request_id"),
+                "trace_id": trace_id,
+                "detail_keys": detail_keys,
+                "redaction_applied": redaction_applied,
+                "redaction_marker": "***MASKED_SECRET***" if redaction_applied else None,
+                "created_at": row[5].isoformat() if row[5] else None,
+                "evidence_ref": SECURITY_REVIEW_QUEUE_EVIDENCE_REF,
+                "item_evidence_ref": SECURITY_REVIEW_ITEM_EVIDENCE_REF,
+                "redaction_evidence_ref": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+                "source_security_surface_evidence_ref": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+            }
+        )
+
+    status_counts = {
+        "needs_review": sum(1 for item in items if item["status"] == "needs_review"),
+        "monitoring": sum(1 for item in items if item["status"] == "monitoring"),
+    }
+    return {
+        "contract_version": SECURITY_REVIEW_QUEUE_CONTRACT_VERSION,
+        "mode": "read_only_redacted_security_review_queue",
+        "evidence_ref": SECURITY_REVIEW_QUEUE_EVIDENCE_REF,
+        "item_evidence_ref": SECURITY_REVIEW_ITEM_EVIDENCE_REF,
+        "redaction_evidence_ref": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+        "read_only": True,
+        "filters": {
+            "limit": limit,
+            "status": status,
+            "severity": severity,
+            "category": category,
+        },
+        "items": items,
+        "count": len(items),
+        "status_counts": status_counts,
+        "source_surface": "GET /api/v1/security/events",
+        "non_claims": security_review_queue_contract_payload()["non_claims"],
+    }
+
+
+@app.api_route(
+    "/api/v1/security/review-queue",
+    methods=["POST", "PUT", "PATCH", "DELETE"],
+)
+def security_review_queue_mutation_blocked() -> None:
+    raise HTTPException(
+        status_code=403,
+        detail={
+            "error": "security_review_queue_is_read_only",
+            "evidence_ref": SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF,
+            "read_only": True,
+            "allowed_method": "GET",
+        },
+    )
 
 
 @app.get("/api/v1/memory/consolidation/recent")

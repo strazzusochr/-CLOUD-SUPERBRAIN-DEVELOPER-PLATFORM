@@ -244,6 +244,13 @@ Assert-Contains "security audit surface contract marker" $frontendHtml "security
 Assert-Contains "security audit surface evidence marker" $frontendHtml "security_audit_surface_visible"
 Assert-Contains "security audit surface event evidence marker" $frontendHtml "security_audit_event_visible"
 Assert-Contains "security audit surface endpoint marker" $frontendHtml "GET /api/v1/security/events"
+Assert-Contains "security review queue panel" $frontendHtml "Security Review Queue"
+Assert-Contains "security review queue contract marker" $frontendHtml "security-review-queue-v1"
+Assert-Contains "security review queue evidence marker" $frontendHtml "security_review_queue_visible"
+Assert-Contains "security review queue item evidence marker" $frontendHtml "security_review_item_visible"
+Assert-Contains "security review queue redaction marker" $frontendHtml "security_review_redaction_enforced"
+Assert-Contains "security review queue mutation marker" $frontendHtml "security_review_mutation_blocked"
+Assert-Contains "security review queue endpoint marker" $frontendHtml "GET /api/v1/security/review-queue"
 Assert-Contains "trace id contract panel" $frontendHtml "Trace ID Contract"
 Assert-Contains "cache control contract panel" $frontendHtml "Cache Control Contract"
 Assert-Contains "request id contract panel" $frontendHtml "Request ID Contract"
@@ -436,6 +443,20 @@ $securityAuditFeed = Invoke-Text "$BaseUrl/api/v1/security/events?limit=5"
 Assert-Contains "security audit feed contract" $securityAuditFeed '"contract_version":"security-audit-surface-v1"'
 Assert-Contains "security audit feed evidence" $securityAuditFeed "security_audit_surface_visible"
 Assert-Contains "security audit feed event evidence" $securityAuditFeed "security_audit_event_visible"
+
+$securityReviewContract = Invoke-Text "$BaseUrl/api/v1/security/review-queue/contract"
+Assert-Contains "security review contract version" $securityReviewContract '"contract_version":"security-review-queue-v1"'
+Assert-Contains "security review endpoint" $securityReviewContract "GET /api/v1/security/review-queue"
+Assert-Contains "security review read only" $securityReviewContract '"read_only":true'
+Assert-Contains "security review queue evidence" $securityReviewContract "security_review_queue_visible"
+Assert-Contains "security review item evidence" $securityReviewContract "security_review_item_visible"
+Assert-Contains "security review redaction evidence" $securityReviewContract "security_review_redaction_enforced"
+Assert-Contains "security review mutation evidence" $securityReviewContract "security_review_mutation_blocked"
+
+$securityReviewQueue = Invoke-Text "$BaseUrl/api/v1/security/review-queue?limit=5"
+Assert-Contains "security review queue contract" $securityReviewQueue '"contract_version":"security-review-queue-v1"'
+Assert-Contains "security review queue evidence" $securityReviewQueue "security_review_queue_visible"
+Assert-Contains "security review queue item evidence" $securityReviewQueue "security_review_item_visible"
 $traceContract = Invoke-Text "$BaseUrl/api/v1/trace/contract"
 Assert-Contains "trace contract version" $traceContract '"contract_version":"trace-id-propagation-v1"'
 Assert-Contains "trace contract evidence" $traceContract "trace_id_header_roundtrip"
