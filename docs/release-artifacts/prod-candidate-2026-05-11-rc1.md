@@ -1,27 +1,28 @@
 # Release Artifact
 
 release_id: `prod-candidate-2026-05-11-rc1`
-scope: `release-boundary cleanup, HF router truth, frontend build, agent-api/runtime compile checks, hosted staging smoke checks, immutable staging image candidate, Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, MCP Audit Export, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Gateway Correlation Export, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline, Auth Audit Export`
+scope: `release-boundary cleanup, HF router truth, frontend build, agent-api/runtime compile checks, hosted staging smoke checks, immutable staging image candidate, Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, Security Review Queue Export, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, MCP Audit Export, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Gateway Correlation Export, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline, Auth Audit Export`
 environment: `production-candidate`
 source_branch: `chore/repo-bootstrap`
 image_build_branch: `codex/live-agent-steering-ui-20260513`
-source_commit_sha: `819ec616b79059ab727567e5be82edba99b59045`
-source_commit_semantics: `Vercel production branch remains chore/repo-bootstrap; immutable GHCR images were built from codex/live-agent-steering-ui-20260513 at the current validated runtime head including live-agent UI/runtime state, Phase 5 runtime-selector truth, immutable image-filesystem staging proof, the Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, MCP Audit Export, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Gateway Correlation Export, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline, and Auth Audit Export`
-immutable_image_commit_sha: `819ec616b79059ab727567e5be82edba99b59045`
-workflow_run_url: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25833000061`
-pipeline_status: `local Docker Buildx with arm64 binfmt built and pushed all six GHCR images for 819ec616b79059ab727567e5be82edba99b59045 after py_compile, Next.js build, local Gateway-Correlation export/snapshot/risk/timeline verifiers, local browser-contract, security verifier, evidence artifact safety verifier, and manifest verifier passed; hosted immutable deploy plus hosted Gateway-Correlation export, snapshot, risk rollup, timeline, full Phase-3 suite, browser, smoke, and hosted-staging verifiers passed after push`
+source_commit_sha: `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
+source_commit_semantics: `Vercel production branch remains chore/repo-bootstrap; immutable GHCR images were built from codex/live-agent-steering-ui-20260513 at the current validated runtime head including live-agent UI/runtime state, Phase 5 runtime-selector truth, immutable image-filesystem staging proof, the Phase 3 Security Audit Surface, Autonomous Team Dispatch UI, Security Review Queue, Security Review Queue Snapshot, Security Review Gate Summary, Security Review Queue Export, LLM Audit Feed Redaction Snapshot, LLM Audit Export, MCP Audit Redaction Snapshot, MCP Audit Export, Gateway Correlation Snapshot, Gateway Correlation Risk Rollup, Gateway Correlation Timeline, Gateway Correlation Export, Auth Audit Snapshot, Auth Audit Risk Rollup, Auth Audit Timeline, and Auth Audit Export`
+immutable_image_commit_sha: `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
+workflow_run_url: `local-docker-buildx-2026-05-14-no-github-workflow-run-for-4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
+workflow_run_note: `No GitHub Actions workflow run is claimed for the current immutable selector 4364d31d7f1e6d0dec1f4d9f686715fec41d3b35; current GHCR evidence is local Docker Buildx publication plus registry inspection. Historical CI references below are retained only as prior release-boundary evidence.`
+pipeline_status: `local Docker Buildx with arm64 binfmt published all six GHCR images for 4364d31d7f1e6d0dec1f4d9f686715fec41d3b35 after py_compile, Next.js build, local Security Review Queue Export verifier, local Security Review Queue verifier, and local browser-contract passed; hosted immutable deploy plus hosted Security Review Queue Export, browser-contract, and hosted-staging verifiers passed after push`
 smoke_result: `passed`
 observability_check: `present`
 rollback_note: `no production rollout performed; rollback remains the existing hosted staging rollback path`
-immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:819ec616b79059ab727567e5be82edba99b59045`
+immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
 owner_decision: `approved`
-hosted_selector_observed: `IMAGE_TAG=819ec616b79059ab727567e5be82edba99b59045`
-hosted_selector_observed_at: `2026-05-14T19:12:00+02:00`
-frontend_runtime_image_observed: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:819ec616b79059ab727567e5be82edba99b59045`
+hosted_selector_observed: `IMAGE_TAG=4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
+hosted_selector_observed_at: `2026-05-14T20:41:00+02:00`
+frontend_runtime_image_observed: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
 immutable_staging_parity_status: `verified`
 active_candidate_gate_rerun_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-candidate-gate-rerun.md`
 runtime_selector_truth_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-runtime-selector-truth.md`
-immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-gateway-correlation-export-immutable-staging-20260514.md`
+immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-security-review-export-immutable-staging-20260514.md`
 
 ## Verification Evidence
 
@@ -30,6 +31,7 @@ immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-1
 - Phase 3 Security Audit Surface local proof: `scripts\verify-phase3-security-audit-surface-hosted.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
 - Autonomous Team Dispatch UI local proof: `scripts\verify-autonomous-coding-team.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
 - Security Review Queue local proof: `scripts\verify-phase3-security-review-queue.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` including snapshot endpoint, filter state, risk badges, decision history, evidence snapshot, redaction, and mutation block checks
+- Security Review Queue Export local proof: `scripts\verify-phase3-security-review-export.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` including export contract, allowlisted CSV headers, response headers, redaction evidence, persisted export-audit metadata, and mutation-block/no-live-provider/no-live-MCP-write checks
 - LLM Audit Feed Redaction Snapshot local proof: `scripts\verify-phase3-llm-audit-feed.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` including snapshot endpoint, prompt-body omission, forbidden-pattern count, redaction evidence, and no-live-provider checks
 - LLM Audit Export local proof: `scripts\verify-phase3-llm-audit-export.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireSeed` including export contract, allowlisted CSV, response headers, redaction evidence, persisted export-audit metadata, and no-live-provider checks
 - MCP Audit Export local proof: `scripts\verify-phase3-mcp-audit-export.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireSeed` including export contract, allowlisted CSV, response headers, redaction evidence, persisted export-audit metadata, and no-live-MCP-write checks
@@ -41,12 +43,13 @@ immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-1
 - Auth Audit Snapshot local proof: `scripts\verify-phase3-auth-audit-snapshot.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireLifecycle` including `auth-audit-snapshot-v1`, `auth_audit_snapshot_visible`, `auth_audit_redaction_enforced`, `auth_no_live_oauth_guard`, safe event field allowlist, no raw details, no token/cookie/header/code/state/blacklist-key return, and zero forbidden hits
 - Browser contract local proof: `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
 - Security proof: `scripts\verify-security.ps1` and `scripts\verify-evidence-artifact-safety.ps1`
-- GHCR arm64 image build/push: `scripts\build-and-push.ps1 -Tag 819ec616b79059ab727567e5be82edba99b59045 -Platforms linux/arm64 -Builder codex-multiarch` plus retry of the interrupted frontend push after a transient network/DNS outage
-- Immutable staging deploy: `scripts\deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 819ec616b79059ab727567e5be82edba99b59045 -KeyPath <local-private-key>`
+- GHCR arm64 image build/push: `scripts\build-and-push.ps1 -Tag 4364d31d7f1e6d0dec1f4d9f686715fec41d3b35 -Builder superbrain_builder`; the build command timed out after registry publication, and `docker buildx imagetools inspect` confirmed all six service tags for `linux/arm64`
+- Immutable staging deploy: `scripts\deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 4364d31d7f1e6d0dec1f4d9f686715fec41d3b35 -KeyPath <local-private-key>`
 - Phase 3 Security Audit Surface hosted proof: `scripts\verify-phase3-security-audit-surface-hosted.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 - Autonomous Team Dispatch UI hosted proof: `scripts\verify-autonomous-coding-team.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 - Security Review Queue hosted proof: `scripts\verify-phase3-security-review-queue.ps1 -BaseUrl https://188-34-191-140.sslip.io` including snapshot endpoint, filter state, risk badges, decision history, evidence snapshot, redaction, and mutation block checks
 - Security Review Gate hosted proof: `scripts\verify-phase3-security-review-gate.ps1 -BaseUrl https://188-34-191-140.sslip.io` including blocked advisory gate, blocker count, production_rollout_claimed=false, promotion_allowed=false, redaction, and mutation block checks
+- Security Review Queue Export hosted proof: `scripts\verify-phase3-security-review-export.ps1 -BaseUrl https://188-34-191-140.sslip.io` including `security_review_queue_export_visible`, `security_review_queue_export_audit_persisted`, `security_review_redaction_enforced`, `security_review_mutation_blocked`, allowlisted CSV headers, response headers, and persisted export-audit metadata
 - LLM Audit Feed Redaction Snapshot hosted proof: `scripts\verify-phase3-llm-audit-feed.ps1 -BaseUrl https://188-34-191-140.sslip.io` including `llm_audit_snapshot_visible`, `llm_audit_redaction_enforced`, `prompt_bodies_returned=false`, `provider_credentials_returned=false`, and `forbidden_pattern_hits=0`
 - LLM Audit Export hosted proof: `scripts\verify-phase3-llm-audit-export.ps1 -BaseUrl https://188-34-191-140.sslip.io` including `llm_audit_export_visible`, `llm_audit_export_audit_persisted`, `llm_audit_no_live_provider_guard`, allowlisted CSV headers, redaction evidence, and no-live-provider checks
 - MCP Audit Export hosted proof: `scripts\verify-phase3-mcp-audit-export.ps1 -BaseUrl https://188-34-191-140.sslip.io` including `mcp_audit_export_visible`, `mcp_audit_export_audit_persisted`, `mcp_audit_no_live_write_guard`, allowlisted CSV headers, redaction evidence, and no-live-MCP-write checks
@@ -64,15 +67,15 @@ immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-1
 - Hosted staging smoke: `scripts\verify.ps1 -Suite hosted-staging-smoke -BaseUrl https://188-34-191-140.sslip.io`
 - Hosted staging safe profile: `scripts\verify.ps1 -Suite hosted-staging -BaseUrl https://188-34-191-140.sslip.io -SafeProfile`
 - Release boundary suite: `scripts\verify.ps1 -Suite release-boundary -ReportOnly`
-- Main deploy workflow for immutable staging image commit: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25833000061` (verify plus five service builds succeeded; frontend job was force-cancelled after OCI manifest retag proof)
-- Frontend immutable manifest retag proof: `docker buildx imagetools create -t ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:031c95c3e5af1101caf282eee463256285803495 ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:97c7ea04b5180862ea9862cc18b9c5bac994f794`
+- Historical main deploy workflow for the previous immutable staging image commit: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25833000061` (retained as prior evidence only; it is not claimed as the workflow for `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`)
+- Historical frontend immutable manifest retag proof for the previous selector: `docker buildx imagetools create -t ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:031c95c3e5af1101caf282eee463256285803495 ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:97c7ea04b5180862ea9862cc18b9c5bac994f794`
 - Main deploy workflow for release-boundary source head: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25765691998`
 - Main deploy workflow for metadata/verifier wrapper head: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25782828285`
 - Hosted staging proof workflow: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25738288780`
 - Production tag gate ordering: `production-gate` depends on `verify`, uses environment `production`, and `build-and-push` waits for `production-gate` before publishing production tags.
-- Immutable staging plan: `scripts\deploy-to-staging.ps1 -PlanOnly -UseImageFilesystem -ImageTag 10df3ea48627e6f11787587e3c984b72107e78f5`
-- Immutable staging parity ready check: `scripts\manual\verify-phase5-staging-immutable-parity.ps1 -ReleaseId prod-candidate-2026-05-11-rc1 -CandidateSha 10df3ea48627e6f11787587e3c984b72107e78f5`
-- Immutable staging parity remote proof: `scripts\manual\verify-phase5-staging-immutable-parity.ps1 -RequireVerified -ReleaseId prod-candidate-2026-05-11-rc1 -CandidateSha 10df3ea48627e6f11787587e3c984b72107e78f5 -BaseUrl https://188-34-191-140.sslip.io -KeyPath <local-private-key>`
+- Immutable staging plan: `scripts\deploy-to-staging.ps1 -PlanOnly -UseImageFilesystem -ImageTag 4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
+- Immutable staging parity ready check: `scripts\manual\verify-phase5-staging-immutable-parity.ps1 -ReleaseId prod-candidate-2026-05-11-rc1 -CandidateSha 4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
+- Immutable staging parity remote proof: `scripts\manual\verify-phase5-staging-immutable-parity.ps1 -RequireVerified -ReleaseId prod-candidate-2026-05-11-rc1 -CandidateSha 4364d31d7f1e6d0dec1f4d9f686715fec41d3b35 -BaseUrl https://188-34-191-140.sslip.io -KeyPath <local-private-key>`
 - Active candidate gate rerun proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-candidate-gate-rerun.md`
 - Runtime selector truth proof: `docs/release-artifacts/prod-candidate-2026-05-11-rc1-runtime-selector-truth.md`
 
@@ -160,9 +163,9 @@ immutable_staging_parity_proof: `docs/release-artifacts/prod-candidate-2026-05-1
 ## Guardrails
 
 - This artifact approves the current clean repository boundary as a production candidate.
-- The release boundary source commit is `21145b89634b330231b6fd66c8aa2654c55a047e`; the immutable image commit deployed to staging is `21145b89634b330231b6fd66c8aa2654c55a047e`.
+- The current release boundary source commit is `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`; the immutable image commit deployed to staging is `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`.
 - This artifact does not claim a production rollout.
-- Remote immutable Hetzner parity for `21145b89634b330231b6fd66c8aa2654c55a047e` is current staging evidence only; production is still not rolled out.
+- Remote immutable Hetzner parity for `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35` is current staging evidence only; production is still not rolled out.
 - This artifact does not replace the historical `prod-candidate-2026-05-05-rc1` no-release evidence.
 - The hosted selector line records the current Hetzner staging selector observed after later deployment work; it does not rewrite the historical 2026-05-05 rollback selector.
 - Production deployment still requires the release-candidate gate bundle and a separate rollout proof.

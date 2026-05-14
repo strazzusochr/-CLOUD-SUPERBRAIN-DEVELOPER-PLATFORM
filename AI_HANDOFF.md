@@ -6,7 +6,7 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-Current honesty guardrail: the active staging candidate is `819ec616b79059ab727567e5be82edba99b59045`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
+Current honesty guardrail: the active staging candidate is `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
 
 ## Binding Truth
 
@@ -29,7 +29,7 @@ Follow `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` over older planning f
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 
-Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `79%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, LLM Audit Feed Redaction Snapshot proof, LLM Audit Export proof, MCP Audit Redaction Snapshot proof, MCP Audit Export proof, Gateway Correlation Snapshot proof, Gateway Correlation Risk Rollup proof, Gateway Correlation Timeline proof, Gateway Correlation Export proof, Auth Audit Snapshot proof, Auth Audit Risk Rollup proof, Auth Audit Timeline proof, and Auth Audit Export proof. Continue Phase-3 security/product-surface evidence before rollout.
+Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `79%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, Security Review Queue Export proof, LLM Audit Feed Redaction Snapshot proof, LLM Audit Export proof, MCP Audit Redaction Snapshot proof, MCP Audit Export proof, Gateway Correlation Snapshot proof, Gateway Correlation Risk Rollup proof, Gateway Correlation Timeline proof, Gateway Correlation Export proof, Auth Audit Snapshot proof, Auth Audit Risk Rollup proof, Auth Audit Timeline proof, and Auth Audit Export proof. Continue Phase-3 security/product-surface evidence before rollout.
 
 ## Current Verified Progress
 
@@ -40,7 +40,7 @@ Horizontal:
 - P0: `100%`
 - P1: `100%`
 - P2: `88%`
-- P3: `92%`
+- P3: `94%`
 - P4: `100%`
 - P5: `74%`
 - P6: `0%`
@@ -59,7 +59,16 @@ Older percentage lines below are historical proof points only. Current percentag
 
 ## Latest Verified Step
 
-Gateway Correlation Export Proof:
+Security Review Queue Export Proof:
+
+- `GET /api/v1/security/review-queue/export/contract` exposes `security-review-queue-export-v1`, `security_review_queue_export_visible`, `security_review_queue_export_audit_persisted`, `security_review_redaction_enforced`, and `security_review_mutation_blocked`.
+- `GET /api/v1/security/review-queue/export?format=csv&limit=80` reads only the same safe Security Review Queue projection as queue, snapshot, and gate and emits allowlisted CSV columns only.
+- Export and export audit metadata do not return raw details, prompt bodies, cookies, authorization headers, provider credentials, screenshots, raw files, live provider call claims, live MCP write claims, production rollout claims, or promotion claims.
+- Local proof passed: `scripts\verify-phase3-security-review-export.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, Security Review Queue verifier, browser-contract, py_compile, Next.js build, and Docker readiness.
+- Hosted proof passed after GHCR build/push plus Hetzner immutable deploy for `IMAGE_TAG=4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`: Security Review Queue Export, browser-contract, and hosted-staging.
+- Progress change: Overall remains `79%`; Phase 3 rises to `94%`; no production rollout, live provider call, live MCP write, release promotion, or secret exposure is claimed.
+
+Previous verified step - Gateway Correlation Export Proof:
 
 - `GET /api/v1/security/gateway-correlation/export/contract` exposes `gateway-correlation-export-v1`, `gateway_correlation_export_visible`, `gateway_correlation_export_audit_persisted`, `gateway_correlation_redaction_enforced`, and `gateway_correlation_no_live_write_guard`.
 - `GET /api/v1/security/gateway-correlation/export?format=csv&limit=80` reads only the same safe Gateway Correlation projection as snapshot, risk rollup, and timeline and emits allowlisted CSV columns only.

@@ -1,7 +1,7 @@
 {
   "active_release_id": "prod-candidate-2026-05-11-rc1",
-  "updated_at": "2026-05-14T19:12:00+02:00",
-  "updated_by": "codex-gateway-correlation-export-20260514",
-  "reason": "Keep prod-candidate-2026-05-11-rc1 active and bind it to the verified Gateway Correlation Export immutable staging selector. Local py_compile, Next.js build, Docker readiness, local Gateway-Correlation export/snapshot/risk/timeline verifiers with adversarial redaction canaries, local browser-contract verifier, security verifier, evidence artifact safety verifier, manifest verifier, Docker Buildx GHCR image push for all six services at 819ec616b79059ab727567e5be82edba99b59045, Hetzner staging deploy via scripts/deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 819ec616b79059ab727567e5be82edba99b59045, hosted Gateway-Correlation export, hosted Gateway-Correlation snapshot/risk/timeline, browser-contract, hosted-staging, and full Phase-3 suite verifiers all passed. This is staging parity only; production rollout remains false.",
+  "updated_at": "2026-05-14T20:41:00+02:00",
+  "updated_by": "codex-security-review-export-20260514",
+  "reason": "Keep prod-candidate-2026-05-11-rc1 active and bind it to the verified Security Review Queue Export immutable staging selector. Local py_compile, Next.js build, Docker readiness, local Security Review Queue Export verifier with adversarial redaction canary, local Security Review Queue verifier, local browser-contract verifier, GHCR image inspection for all six arm64 service tags at 4364d31d7f1e6d0dec1f4d9f686715fec41d3b35, Hetzner staging deploy via scripts/deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 4364d31d7f1e6d0dec1f4d9f686715fec41d3b35, hosted Security Review Queue Export, browser-contract, and hosted-staging verifiers all passed. This is staging parity only; production rollout remains false.",
   "production_rollout_claimed": false
 }

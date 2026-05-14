@@ -35,7 +35,7 @@ function Invoke-Json($Url, $Method = "GET", $Body = $null, $TimeoutSeconds = 30)
 }
 
 function Invoke-Text($Url) {
-  return (Invoke-WebRequest -Method GET -Uri $Url -TimeoutSec 30).Content
+  return (Invoke-WebRequest -UseBasicParsing -Method GET -Uri $Url -TimeoutSec 30).Content
 }
 
 function Header-Value($Response, [string]$Name) {
@@ -138,7 +138,7 @@ Assert-NotContains "queue raw secret absent" $queue $redactionSecret
 
 $exportTraceId = "security-review-export-proof-" + [Guid]::NewGuid().ToString("N")
 $exportRequestId = "req-security-review-export-" + [Guid]::NewGuid().ToString("N")
-$exportResponse = Invoke-WebRequest -Method GET -Uri "$BaseUrl/api/v1/security/review-queue/export?format=csv&limit=80&trace_id=$exportTraceId&request_id=$exportRequestId" -TimeoutSec 30
+$exportResponse = Invoke-WebRequest -UseBasicParsing -Method GET -Uri "$BaseUrl/api/v1/security/review-queue/export?format=csv&limit=80&trace_id=$exportTraceId&request_id=$exportRequestId" -TimeoutSec 30
 Assert-True "export status" ([int]$exportResponse.StatusCode -eq 200)
 Assert-Contains "content type csv" (Header-Value $exportResponse "Content-Type") "text/csv"
 Assert-Contains "content disposition filename" (Header-Value $exportResponse "Content-Disposition") "superbrain-security-review-queue.csv"

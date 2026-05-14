@@ -99,7 +99,7 @@ if ($RequireFullCorrelation) {
 
 $exportTraceId = "gateway-correlation-export-proof-" + [Guid]::NewGuid().ToString("N")
 $exportRequestId = "req-gateway-correlation-export-" + [Guid]::NewGuid().ToString("N")
-$exportResponse = Invoke-WebRequest -Method GET -Uri "$BaseUrl/api/v1/security/gateway-correlation/export?format=csv&limit=80&trace_id=$exportTraceId&request_id=$exportRequestId" -TimeoutSec 30
+$exportResponse = Invoke-WebRequest -UseBasicParsing -Method GET -Uri "$BaseUrl/api/v1/security/gateway-correlation/export?format=csv&limit=80&trace_id=$exportTraceId&request_id=$exportRequestId" -TimeoutSec 30
 $csv = [string]$exportResponse.Content
 
 Assert-True "header contract version" ((Header-Value $exportResponse "X-Contract-Version") -eq "gateway-correlation-export-v1")

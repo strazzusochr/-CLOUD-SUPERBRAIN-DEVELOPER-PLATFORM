@@ -26,6 +26,8 @@ This contract exposes a read-only operator surface for security-relevant `audit_
 | `GET` | `/api/v1/security/gateway-correlation/snapshot?limit=80` | Safe correlation snapshot across agent task, LLM audit, and MCP audit rows |
 | `GET` | `/api/v1/security/gateway-correlation/risk-rollup?limit=80` | Read-only risk rollup computed from gateway correlation groups |
 | `GET` | `/api/v1/security/gateway-correlation/timeline?limit=80` | Read-only ordered timeline computed from safe gateway correlation events |
+| `GET` | `/api/v1/security/review-queue/export/contract` | Read-only Security Review Queue CSV export contract |
+| `GET` | `/api/v1/security/review-queue/export?format=csv&limit=80` | CSV export generated from safe Security Review Queue projection |
 
 ## Supported Event Types
 
@@ -122,6 +124,17 @@ The export always returns `production_rollout_claimed=false` through its contrac
 
 The verifier `scripts/verify-phase3-gateway-correlation-export.ps1` checks frontend markers, parent contract export metadata, export contract, CSV schema and headers, response evidence headers, persisted export audit metadata, full-correlation compatibility, and adversarial redaction canaries.
 
+## Security Review Queue Export
+
+Contract version: `security-review-queue-export-v1`
+Evidence: `security_review_queue_export_visible`, `security_review_queue_export_audit_persisted`, `security_review_redaction_enforced`, `security_review_mutation_blocked`
+
+The Security Review Queue export derives from the same safe review projection used by `/api/v1/security/review-queue`, snapshot, and gate. It returns `text/csv` with allowlisted queue columns only: sequence index, queue/source ids, timestamp, event type, category, severity, status, risk badge, request/trace ids, redacted summary, sanitized detail-key names, and evidence refs.
+
+The export always returns `production_rollout_claimed=false` through its contract and persists only redacted export metadata in `audit_log` as `security_review_queue_export_generated`. It never returns raw audit details, prompt bodies, cookies, authorization headers, provider credentials, screenshots, raw files, live provider claims, live MCP write claims, production rollout claims, or promotion claims.
+
+The verifier `scripts/verify-phase3-security-review-export.ps1` checks frontend markers, parent contract export metadata, export contract, CSV schema and headers, response evidence headers, persisted export audit metadata, seeded CSP review evidence, and adversarial redaction canaries.
+
 ## Policy
 
 1. The surface reads `audit_log` only.
@@ -131,6 +144,7 @@ The verifier `scripts/verify-phase3-gateway-correlation-export.ps1` checks front
 5. Evidence refs must include `security_audit_surface_visible` and `security_audit_event_visible`.
 6. Auth audit evidence must include `auth_audit_snapshot_visible`, `auth_audit_risk_rollup_visible`, `auth_audit_timeline_visible`, `auth_audit_export_visible`, `auth_audit_export_audit_persisted`, `auth_audit_redaction_enforced`, and `auth_no_live_oauth_guard`.
 7. Gateway correlation evidence must include `gateway_correlation_snapshot_visible`, `gateway_correlation_risk_rollup_visible`, `gateway_correlation_timeline_visible`, `gateway_correlation_export_visible`, `gateway_correlation_export_audit_persisted`, `gateway_correlation_redaction_enforced`, and `gateway_correlation_no_live_write_guard`.
+8. Security review export evidence must include `security_review_queue_export_visible`, `security_review_queue_export_audit_persisted`, `security_review_redaction_enforced`, and `security_review_mutation_blocked`.
 
 ## Non-Claims
 
