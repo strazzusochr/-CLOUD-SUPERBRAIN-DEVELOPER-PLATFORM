@@ -165,6 +165,8 @@ AUTONOMOUS_TEAM_CONTRACT_VERSION = "autonomous-coding-team-v1"
 AUTONOMOUS_TEAM_EVIDENCE_REF = "autonomous_team_status_runtime_visible"
 AUTONOMOUS_TASK_DISPATCH_CONTRACT_VERSION = "autonomous-task-dispatch-v1"
 AUTONOMOUS_TASK_DISPATCH_EVIDENCE_REF = "autonomous_team_dispatch_visible"
+AUTONOMOUS_TASK_DISPATCH_UI_EVIDENCE_REF = "autonomous_team_dispatch_ui_visible"
+AUTONOMOUS_TASK_DISPATCH_STATUS_EVIDENCE_REF = "autonomous_team_dispatch_status_visible"
 AUTONOMOUS_MASTER_PLAN_CONTRACT_VERSION = "autonomous-master-plan-v1"
 AUTONOMOUS_MASTER_PLAN_EVIDENCE_REF = "autonomous_master_plan_runtime_visible"
 AUTONOMOUS_AGENT_ROSTER_CONTRACT_VERSION = "autonomous-agent-roster-v1"
@@ -7921,6 +7923,15 @@ def autonomous_task_dispatch_contract_payload() -> dict[str, object]:
         "status_endpoint": "GET /api/v1/team/status",
         "alias_endpoints": ["POST /task/dispatch", "GET /team/status"],
         "evidence_ref": AUTONOMOUS_TASK_DISPATCH_EVIDENCE_REF,
+        "ui_evidence_ref": AUTONOMOUS_TASK_DISPATCH_UI_EVIDENCE_REF,
+        "status_evidence_ref": AUTONOMOUS_TASK_DISPATCH_STATUS_EVIDENCE_REF,
+        "evidence_refs": {
+            "dispatch_visible": AUTONOMOUS_TASK_DISPATCH_EVIDENCE_REF,
+            "ui_visible": AUTONOMOUS_TASK_DISPATCH_UI_EVIDENCE_REF,
+            "status_visible": AUTONOMOUS_TASK_DISPATCH_STATUS_EVIDENCE_REF,
+            "provenance": "autonomous_team_dispatch_task_provenance",
+            "audit_persisted": "autonomous_team_dispatch_audit_persisted",
+        },
         "required_request_fields": [
             "project_id",
             "objective",
@@ -7988,7 +7999,8 @@ def autonomous_task_dispatch_contract_payload() -> dict[str, object]:
             "Dispatch compiles logical work into the existing four-role task queue.",
             "External runtime adapters are optional read-only projections and do not bypass the internal fail-closed queue policy.",
             "Dispatch does not bypass the fail-closed task policy.",
-            "Dispatch does not authorize production deployment or live provider execution.",
+            "Dispatch does not authorize production deployment, live provider execution, or live MCP writes.",
+            "Dispatch UI sends objectives into the internal queue only; it does not directly edit files or execute cloud mutations.",
         ],
     }
 
@@ -8615,6 +8627,9 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
         "status_endpoint": f"/api/v1/team/status?dispatch_id={dispatch_id}",
         "contract_endpoint": "/api/v1/task/dispatch/contract",
         "runtime_pool_contract_version": TASK_ASSIGNMENT_CONTRACT_VERSION,
+        "evidence_ref": AUTONOMOUS_TASK_DISPATCH_EVIDENCE_REF,
+        "ui_evidence_ref": AUTONOMOUS_TASK_DISPATCH_UI_EVIDENCE_REF,
+        "status_evidence_ref": AUTONOMOUS_TASK_DISPATCH_STATUS_EVIDENCE_REF,
         "request_id": request_id,
     }
 

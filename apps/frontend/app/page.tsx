@@ -94,6 +94,9 @@ type AutonomousTaskDispatchContract = {
   runtime_endpoint: string;
   status_endpoint: string;
   evidence_ref: string;
+  ui_evidence_ref?: string;
+  status_evidence_ref?: string;
+  evidence_refs?: Record<string, string>;
   required_request_fields: string[];
   required_response_fields: string[];
   required_assignment_fields: string[];
@@ -106,6 +109,33 @@ type AutonomousTaskDispatchContract = {
     constraints: string[];
     acceptance_criteria: string[];
   };
+  non_claims: string[];
+};
+
+type AutonomousTaskDispatchResponse = {
+  dispatch_id: string;
+  status: string;
+  project_id: string;
+  session_id: string;
+  objective: string;
+  trace_id?: string | null;
+  request_id?: string | null;
+  team_mode: string;
+  runtime_source?: string;
+  status_endpoint: string;
+  contract_endpoint: string;
+  runtime_pool_contract_version: string;
+  evidence_ref?: string;
+  ui_evidence_ref?: string;
+  status_evidence_ref?: string;
+  assignments: Array<{
+    logical_role: string;
+    execution_agent_type: string;
+    task_id: string;
+    status: string;
+    evidence_ref?: string;
+    provenance_evidence_ref?: string;
+  }>;
   non_claims: string[];
 };
 
@@ -1886,6 +1916,12 @@ export default function Home() {
   const [autonomousDispatchContract, setAutonomousDispatchContract] = useState<AutonomousTaskDispatchContract | null>(
     null,
   );
+  const [autonomousDispatchObjective, setAutonomousDispatchObjective] = useState(
+    "Continue the current project plan and report exact blockers with evidence.",
+  );
+  const [autonomousDispatchStatus, setAutonomousDispatchStatus] = useState("idle");
+  const [autonomousDispatchResponse, setAutonomousDispatchResponse] =
+    useState<AutonomousTaskDispatchResponse | null>(null);
   const [autonomousMasterPlan, setAutonomousMasterPlan] = useState<AutonomousMasterPlanState | null>(null);
   const [autonomousMasterPlanContract, setAutonomousMasterPlanContract] =
     useState<AutonomousMasterPlanContract | null>(null);
@@ -2231,8 +2267,11 @@ export default function Home() {
     setAgents(payload.agents ?? defaultAgents);
   }
 
-  async function loadAutonomousTeamStatus() {
-    const response = await fetch("/api/v1/team/status", { cache: "no-store" });
+  async function loadAutonomousTeamStatus(dispatchId?: string | null) {
+    const params = new URLSearchParams();
+    if (dispatchId) params.set("dispatch_id", dispatchId);
+    const url = params.toString() ? `/api/v1/team/status?${params.toString()}` : "/api/v1/team/status";
+    const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) throw new Error(`autonomous team ${response.status}`);
     setAutonomousTeam(await response.json());
   }
@@ -2265,6 +2304,60 @@ export default function Home() {
     const response = await fetch("/api/v1/team/roster/contract", { cache: "no-store" });
     if (!response.ok) throw new Error(`autonomous agent roster contract ${response.status}`);
     setAutonomousAgentRosterContract(await response.json());
+  }
+
+  async function dispatchAutonomousTeam(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const objective = autonomousDispatchObjective.trim();
+    if (!objective) {
+      setError("autonomous team dispatch guard: objective is required");
+      return;
+    }
+    setAutonomousDispatchStatus("dispatching");
+    setError(null);
+    try {
+      const response = await fetch("/api/v1/task/dispatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project_id: projectId,
+          objective,
+          write_scope: autonomousDispatchContract?.defaults?.write_scope ?? [
+            "apps/frontend",
+            "services/agent-api",
+            "scripts",
+          ],
+          acceptance_criteria: autonomousDispatchContract?.defaults?.acceptance_criteria ?? [
+            "result_envelope",
+            "done_validation",
+            "audit_log",
+            "runtime_visibility",
+          ],
+          constraints: [
+            ...(autonomousDispatchContract?.defaults?.constraints ?? []),
+            "no production deployment",
+            "no live provider calls",
+            "no live MCP writes",
+          ],
+        }),
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`autonomous dispatch ${response.status}: ${body}`);
+      }
+      const payload = (await response.json()) as AutonomousTaskDispatchResponse;
+      setAutonomousDispatchResponse(payload);
+      setAutonomousDispatchStatus(`dispatched ${payload.assignments?.length ?? 0}`);
+      await Promise.all([
+        loadAutonomousTeamStatus(payload.dispatch_id),
+        loadAgents(),
+        loadAgentActivityEvents(),
+        loadRecentSessions(),
+      ]);
+    } catch (caught) {
+      setAutonomousDispatchStatus("error");
+      setError(caught instanceof Error ? caught.message : "autonomous team dispatch failed");
+    }
   }
 
   async function loadLiveAgents() {
@@ -4048,7 +4141,11 @@ export default function Home() {
           </p>
         </section>
 
-        <section className="panel taskPanel" aria-label="Autonomous coding team">
+        <section
+          className="panel taskPanel"
+          aria-label="Autonomous coding team"
+          data-evidence={autonomousDispatchContract?.ui_evidence_ref ?? "autonomous_team_dispatch_ui_visible"}
+        >
           <header className="panelHeader">
             <h2>Autonomous Coding Team</h2>
             <button
@@ -4089,12 +4186,67 @@ export default function Home() {
               <p>{autonomousDispatchContract?.runtime_pool_contract_version ?? "Loading runtime pool contract."}</p>
             </article>
             <article className="policyItem">
+              <strong>Dispatch Endpoint</strong>
+              <p>{autonomousDispatchContract?.runtime_endpoint ?? "POST /api/v1/task/dispatch"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Evidence</strong>
+              <p>
+                {autonomousDispatchContract?.evidence_refs?.dispatch_visible ??
+                  autonomousDispatchContract?.evidence_ref ??
+                  "autonomous_team_dispatch_visible"}{" "}
+                / {autonomousDispatchContract?.status_evidence_ref ?? "autonomous_team_dispatch_status_visible"}
+              </p>
+            </article>
+            <article className="policyItem">
               <strong>External Adapter</strong>
               <p>
                 {autonomousTeam?.external_runtime?.provider ?? "none"} |{" "}
                 {autonomousTeam?.external_runtime?.status ?? "disabled"}
               </p>
             </article>
+          </div>
+          <form className="liveAgentForm" onSubmit={dispatchAutonomousTeam}>
+            <label>
+              <span>Dispatch Objective</span>
+              <textarea
+                value={autonomousDispatchObjective}
+                maxLength={10_000}
+                onChange={(event) => setAutonomousDispatchObjective(event.target.value)}
+              />
+              <small>
+                {autonomousDispatchContract?.runtime_endpoint ?? "POST /api/v1/task/dispatch"} /{" "}
+                {autonomousDispatchContract?.evidence_refs?.ui_visible ?? "autonomous_team_dispatch_ui_visible"} / no
+                production deployment
+              </small>
+            </label>
+            <div className="actions">
+              <button
+                type="submit"
+                disabled={autonomousDispatchStatus === "dispatching" || !autonomousDispatchObjective.trim()}
+              >
+                Dispatch
+              </button>
+              <button
+                type="button"
+                onClick={() => void loadAutonomousTeamStatus(autonomousDispatchResponse?.dispatch_id)}
+              >
+                Status
+              </button>
+            </div>
+          </form>
+          <div className="liveAgentTranscript" aria-label="Autonomous team dispatch result">
+            <strong>{autonomousDispatchResponse?.dispatch_id ?? autonomousTeam?.dispatch_id ?? "No dispatch yet"}</strong>
+            <span>{autonomousDispatchStatus}</span>
+            <small>
+              Assignments: {autonomousDispatchResponse?.assignments?.length ?? autonomousTeam?.members?.length ?? 0} /
+              runtime {autonomousDispatchResponse?.runtime_source ?? autonomousTeam?.runtime_source ?? "internal_queue"}
+            </small>
+            <p>{autonomousDispatchResponse?.objective ?? autonomousTeam?.objective ?? "No operator objective dispatched yet."}</p>
+            <small>
+              Contract: {autonomousDispatchResponse?.contract_endpoint ?? "/api/v1/task/dispatch/contract"} / Status:{" "}
+              {autonomousDispatchResponse?.status_endpoint ?? "/api/v1/team/status"}
+            </small>
           </div>
           <div className="modelList compactList">
             {autonomousTeam?.members?.length ? (
