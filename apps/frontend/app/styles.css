@@ -768,6 +768,28 @@ button:disabled {
   gap: 10px;
 }
 
+.auditSnapshot {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid #164e63;
+  border-radius: 6px;
+  background: #071923;
+}
+
+.auditSnapshot span {
+  color: #93c5fd;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.auditSnapshot small {
+  color: #94a3b8;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 .auditItem {
   border: 1px solid #334155;
   background: #08111f;

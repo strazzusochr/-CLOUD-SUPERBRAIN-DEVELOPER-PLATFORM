@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 SECRET_PATTERNS = [
+    re.compile(r"\bsk-proj-[A-Za-z0-9_-]{16,}\b"),
     re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b"),
     re.compile(r"\bghp_[A-Za-z0-9_]{16,}\b"),
     re.compile(r"\bgithub_pat_[A-Za-z0-9_]{16,}\b"),

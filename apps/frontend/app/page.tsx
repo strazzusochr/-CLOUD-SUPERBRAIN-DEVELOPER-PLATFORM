@@ -1331,6 +1331,8 @@ type LlmAuditEvent = AuditEvent & {
   status?: string | null;
   live_provider_calls?: boolean | null;
   cost_cents?: number | null;
+  prompt_body_stored?: boolean | null;
+  redaction_evidence_ref?: string | null;
   evidence_ref?: string | null;
 };
 
@@ -1338,13 +1340,44 @@ type LlmAuditFeedContract = {
   contract_version: string;
   mode: string;
   endpoint: string;
+  snapshot_endpoint?: string;
   source_event_type: string;
   source_table: string;
   evidence_ref: string;
   audit_feed_evidence_ref: string;
+  snapshot_evidence_ref?: string;
+  redaction_evidence_ref?: string;
   read_only: boolean;
   live_provider_calls_claimed: boolean;
   required_detail_fields: string[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type LlmAuditSnapshot = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  source_endpoint: string;
+  source_event_type: string;
+  source_table: string;
+  evidence_ref: string;
+  snapshot_evidence_ref: string;
+  redaction_evidence_ref: string;
+  read_only: boolean;
+  live_provider_calls_claimed: boolean;
+  prompt_bodies_returned: boolean;
+  provider_credentials_returned: boolean;
+  events_scanned: number;
+  dry_run_count: number;
+  live_provider_call_count: number;
+  forbidden_pattern_hits: number;
+  redaction_status: string;
+  status_counts: Record<string, number>;
+  provider_counts: Record<string, number>;
+  agent_counts: Record<string, number>;
+  model_counts: Record<string, number>;
+  safe_fields: string[];
   policy_checks: string[];
   non_claims: string[];
 };
@@ -2043,6 +2076,7 @@ export default function Home() {
   const [mcpAuditEvents, setMcpAuditEvents] = useState<AuditEvent[]>([]);
   const [llmAuditFeedContract, setLlmAuditFeedContract] = useState<LlmAuditFeedContract | null>(null);
   const [llmAuditEvents, setLlmAuditEvents] = useState<LlmAuditEvent[]>([]);
+  const [llmAuditSnapshot, setLlmAuditSnapshot] = useState<LlmAuditSnapshot | null>(null);
   const [securityAuditSurfaceContract, setSecurityAuditSurfaceContract] =
     useState<SecurityAuditSurfaceContract | null>(null);
   const [securityAuditEvents, setSecurityAuditEvents] = useState<SecurityAuditEvent[]>([]);
@@ -2583,15 +2617,18 @@ export default function Home() {
   }
 
   async function loadLlmAuditFeed() {
-    const [contractResponse, feedResponse] = await Promise.all([
+    const [contractResponse, feedResponse, snapshotResponse] = await Promise.all([
       fetch("/api/v1/audit/llm/contract", { cache: "no-store" }),
       fetch("/api/v1/audit/llm?limit=8", { cache: "no-store" }),
+      fetch("/api/v1/audit/llm/snapshot?limit=50", { cache: "no-store" }),
     ]);
     if (!contractResponse.ok) throw new Error(`llm audit contract ${contractResponse.status}`);
     if (!feedResponse.ok) throw new Error(`llm audit feed ${feedResponse.status}`);
+    if (!snapshotResponse.ok) throw new Error(`llm audit snapshot ${snapshotResponse.status}`);
     setLlmAuditFeedContract(await contractResponse.json());
     const payload = await feedResponse.json();
     setLlmAuditEvents(payload.events ?? []);
+    setLlmAuditSnapshot(await snapshotResponse.json());
   }
 
   async function loadSecurityAuditSurface() {
@@ -5652,6 +5689,17 @@ export default function Home() {
               </p>
             </article>
             <article className="policyItem">
+              <strong>LLM Audit Snapshot</strong>
+              <p>{llmAuditFeedContract?.snapshot_endpoint ?? "GET /api/v1/audit/llm/snapshot"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Redaction</strong>
+              <p>
+                {llmAuditSnapshot?.redaction_status ?? "clear"} /{" "}
+                {llmAuditSnapshot?.redaction_evidence_ref ?? "llm_audit_redaction_enforced"}
+              </p>
+            </article>
+            <article className="policyItem">
               <strong>Source</strong>
               <p>{llmAuditFeedContract?.source_event_type ?? "llm_gateway_request"} from audit_log</p>
             </article>
@@ -5664,6 +5712,34 @@ export default function Home() {
                   : "live_provider_calls_claimed=false"}
               </p>
             </article>
+            <article className="policyItem">
+              <strong>Snapshot Evidence</strong>
+              <p>
+                {llmAuditSnapshot?.snapshot_evidence_ref ?? "llm_audit_snapshot_visible"} / forbidden hits{" "}
+                {String(llmAuditSnapshot?.forbidden_pattern_hits ?? 0)}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Prompt Bodies</strong>
+              <p>
+                {llmAuditSnapshot?.prompt_bodies_returned
+                  ? "prompt bodies returned"
+                  : "prompt_bodies_returned=false"}
+              </p>
+            </article>
+          </div>
+          <div className="auditSnapshot">
+            <strong>LLM Audit Snapshot</strong>
+            <span>{llmAuditSnapshot?.mode ?? "read_only_llm_audit_redaction_snapshot"}</span>
+            <small>
+              Events {String(llmAuditSnapshot?.events_scanned ?? 0)} / Dry-run{" "}
+              {String(llmAuditSnapshot?.dry_run_count ?? 0)} / Live{" "}
+              {String(llmAuditSnapshot?.live_provider_call_count ?? 0)}
+            </small>
+            <small>
+              Evidence: {llmAuditSnapshot?.snapshot_evidence_ref ?? "llm_audit_snapshot_visible"} /{" "}
+              {llmAuditSnapshot?.redaction_evidence_ref ?? "llm_audit_redaction_enforced"}
+            </small>
           </div>
           <div className="auditList">
             {llmAuditEvents.length ? (
@@ -5689,6 +5765,12 @@ export default function Home() {
                       event.audit_feed_evidence_ref ??
                       String(event.details.audit_feed_evidence_ref ?? "llm_audit_feed_visible")}
                   </small>
+                  <small>
+                    Redaction:{" "}
+                    {event.redaction_evidence_ref ??
+                      String(event.details.redaction_evidence_ref ?? "llm_audit_redaction_enforced")}{" "}
+                    / prompt_body_stored={String(event.prompt_body_stored ?? event.details.prompt_body_stored ?? false)}
+                  </small>
                   <p>{String(event.details.summary ?? "Audit-backed LLM Gateway dry-run event.")}</p>
                 </article>
               ))
@@ -5701,6 +5783,7 @@ export default function Home() {
                 <small>Endpoint: GET /api/v1/audit/llm</small>
                 <small>Contract: llm-audit-feed-v1</small>
                 <small>Evidence: llm_audit_feed_visible / llm_audit_feed_event_visible</small>
+                <small>Snapshot: llm_audit_snapshot_visible / llm_audit_redaction_enforced</small>
               </article>
             )}
           </div>

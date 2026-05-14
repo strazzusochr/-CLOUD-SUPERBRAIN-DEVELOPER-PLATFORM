@@ -15,6 +15,7 @@ This contract exposes a read-only operator feed for LLM Gateway audit rows. It i
 | --- | --- | --- |
 | `GET` | `/api/v1/audit/llm/contract` | Contract metadata and non-claims |
 | `GET` | `/api/v1/audit/llm?limit=20` | Recent LLM Gateway audit events |
+| `GET` | `/api/v1/audit/llm/snapshot?limit=50` | Read-only redaction and aggregate snapshot |
 | `POST` | `/internal/audit/llm-events` | Internal audit writer used by gateway/verifiers |
 
 ## Required Fields
@@ -29,6 +30,8 @@ This contract exposes a read-only operator feed for LLM Gateway audit rows. It i
 - `cost_cents`
 - `live_provider_calls`
 - `summary`
+- `prompt_body_stored`
+- `redaction_evidence_ref`
 
 ## Policy
 
@@ -37,6 +40,8 @@ This contract exposes a read-only operator feed for LLM Gateway audit rows. It i
 3. Dry-run proof rows must expose `live_provider_calls=false`.
 4. Provider credentials, API keys, and prompt bodies must not be returned.
 5. Evidence refs must include `llm_audit_feed_visible` and `llm_audit_feed_event_visible`.
+6. Snapshot evidence must include `llm_audit_snapshot_visible` and `llm_audit_redaction_enforced`.
+7. Snapshot responses must expose `prompt_bodies_returned=false`, `provider_credentials_returned=false`, and `forbidden_pattern_hits=0` before any release claim.
 
 ## Non-Claims
 

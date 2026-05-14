@@ -125,6 +125,8 @@ LLM_RUNTIME_GUARD_PARITY_CONTRACT_VERSION = "llm-runtime-guard-parity-v1"
 LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF = "llm_runtime_guard_parity_visible"
 LLM_AUDIT_FEED_CONTRACT_VERSION = "llm-audit-feed-v1"
 LLM_AUDIT_FEED_EVIDENCE_REF = "llm_audit_feed_visible"
+LLM_AUDIT_SNAPSHOT_EVIDENCE_REF = "llm_audit_snapshot_visible"
+LLM_AUDIT_REDACTION_EVIDENCE_REF = "llm_audit_redaction_enforced"
 LANGFUSE_TRACE_ACCESS_CONTRACT_VERSION = "langfuse-trace-access-v1"
 LANGFUSE_TRACE_ACCESS_EVIDENCE_REF = "langfuse_trace_access_visible"
 LANGFUSE_TRACE_EVENT_EVIDENCE_REF = "langfuse_trace_event_visible"
@@ -1014,6 +1016,8 @@ class LlmGatewayAuditRequest(BaseModel):
     cost_cents: int = Field(..., ge=0)
     live_provider_calls: bool = False
     summary: str = Field(..., min_length=1, max_length=500)
+    prompt_body_stored: bool = False
+    redaction_evidence_ref: str | None = Field(default=None, max_length=120)
 
 
 class AuthRefreshRequest(BaseModel):
@@ -5349,10 +5353,13 @@ def llm_audit_feed_contract_payload() -> dict[str, object]:
         "contract_version": LLM_AUDIT_FEED_CONTRACT_VERSION,
         "mode": "audit_log_backed_llm_gateway_feed",
         "endpoint": "GET /api/v1/audit/llm",
+        "snapshot_endpoint": "GET /api/v1/audit/llm/snapshot",
         "source_event_type": "llm_gateway_request",
         "source_table": "audit_log",
         "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
         "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
+        "snapshot_evidence_ref": LLM_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "redaction_evidence_ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
         "read_only": True,
         "live_provider_calls_claimed": False,
         "required_detail_fields": [
@@ -5366,12 +5373,15 @@ def llm_audit_feed_contract_payload() -> dict[str, object]:
             "cost_cents",
             "live_provider_calls",
             "summary",
+            "prompt_body_stored",
+            "redaction_evidence_ref",
         ],
         "policy_checks": [
             "The feed only reads audit_log rows with event_type=llm_gateway_request.",
             "Every returned event exposes trace_id and live_provider_calls=false for dry-run proofs.",
             "The endpoint never calls an LLM provider and never changes routing policy.",
             "Provider credentials and prompts are not returned by this feed.",
+            "The snapshot endpoint aggregates redacted audit fields and never returns prompt bodies.",
         ],
         "non_claims": [
             "No live provider call is enabled by this feed.",
@@ -5381,15 +5391,9 @@ def llm_audit_feed_contract_payload() -> dict[str, object]:
     }
 
 
-@app.get("/api/v1/audit/llm/contract")
-def llm_audit_feed_contract() -> dict[str, object]:
-    return llm_audit_feed_contract_payload()
-
-
-@app.get("/api/v1/audit/llm")
-def recent_llm_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, object]:
+def llm_audit_rows(limit: int) -> list[object]:
     with psycopg.connect(database_url(), autocommit=True) as conn:
-        rows = conn.execute(
+        return conn.execute(
             """
             SELECT id, event_type, user_id, session_id, details, created_at, severity
             FROM audit_log
@@ -5399,6 +5403,42 @@ def recent_llm_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dic
             """,
             (limit,),
         ).fetchall()
+
+
+def count_by_key(values: list[str | None]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for value in values:
+        key = value or "unknown"
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def llm_audit_forbidden_pattern_hits(events: list[dict[str, object]]) -> int:
+    forbidden = (
+        "sk-proj-",
+        "sk-",
+        "ghp_",
+        "github_pat_",
+        "vck_",
+        "cfat_",
+        "hf_",
+        "glpat-",
+        "authorization:",
+        "cookie:",
+        "private key",
+    )
+    text = json.dumps(events, sort_keys=True).lower()
+    return sum(1 for marker in forbidden if marker in text)
+
+
+@app.get("/api/v1/audit/llm/contract")
+def llm_audit_feed_contract() -> dict[str, object]:
+    return llm_audit_feed_contract_payload()
+
+
+@app.get("/api/v1/audit/llm")
+def recent_llm_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, object]:
+    rows = llm_audit_rows(limit)
     events = [
         {
             "id": str(row[0]),
@@ -5412,6 +5452,11 @@ def recent_llm_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dic
             "status": (row[4] or {}).get("status"),
             "live_provider_calls": (row[4] or {}).get("live_provider_calls"),
             "cost_cents": (row[4] or {}).get("cost_cents"),
+            "prompt_body_stored": (row[4] or {}).get("prompt_body_stored", False),
+            "redaction_evidence_ref": (row[4] or {}).get(
+                "redaction_evidence_ref",
+                LLM_AUDIT_REDACTION_EVIDENCE_REF,
+            ),
             "details": row[4] or {},
             "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
             "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
@@ -5429,6 +5474,70 @@ def recent_llm_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dic
         "live_provider_calls_claimed": False,
         "events": events,
         "count": len(events),
+        "non_claims": llm_audit_feed_contract_payload()["non_claims"],
+    }
+
+
+@app.get("/api/v1/audit/llm/snapshot")
+def llm_audit_snapshot(limit: int = Query(default=50, ge=1, le=200)) -> dict[str, object]:
+    rows = llm_audit_rows(limit)
+    events = [
+        {
+            "event_id": str(row[0]),
+            "severity": row[6],
+            "details": row[4] or {},
+        }
+        for row in rows
+    ]
+    details = [event["details"] for event in events if isinstance(event.get("details"), dict)]
+    status_counts = count_by_key([str(item.get("status")) if item.get("status") is not None else None for item in details])
+    provider_counts = count_by_key(
+        [str(item.get("provider_name")) if item.get("provider_name") is not None else None for item in details]
+    )
+    agent_counts = count_by_key([str(item.get("agent_type")) if item.get("agent_type") is not None else None for item in details])
+    model_counts = count_by_key([str(item.get("model_name")) if item.get("model_name") is not None else None for item in details])
+    live_provider_call_count = sum(1 for item in details if item.get("live_provider_calls") is True)
+    forbidden_pattern_hits = llm_audit_forbidden_pattern_hits(events)
+    return {
+        "contract_version": LLM_AUDIT_FEED_CONTRACT_VERSION,
+        "mode": "read_only_llm_audit_redaction_snapshot",
+        "endpoint": "GET /api/v1/audit/llm/snapshot",
+        "source_endpoint": "GET /api/v1/audit/llm",
+        "source_event_type": "llm_gateway_request",
+        "source_table": "audit_log",
+        "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
+        "snapshot_evidence_ref": LLM_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "redaction_evidence_ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
+        "read_only": True,
+        "live_provider_calls_claimed": False,
+        "prompt_bodies_returned": False,
+        "provider_credentials_returned": False,
+        "events_scanned": len(events),
+        "dry_run_count": status_counts.get("dry_run", 0),
+        "live_provider_call_count": live_provider_call_count,
+        "forbidden_pattern_hits": forbidden_pattern_hits,
+        "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+        "status_counts": status_counts,
+        "provider_counts": provider_counts,
+        "agent_counts": agent_counts,
+        "model_counts": model_counts,
+        "safe_fields": [
+            "trace_id",
+            "model_name",
+            "provider_name",
+            "agent_type",
+            "status",
+            "cost_cents",
+            "live_provider_calls",
+            "prompt_body_stored",
+            "redaction_evidence_ref",
+        ],
+        "policy_checks": [
+            "Snapshot reads audit_log only.",
+            "Snapshot aggregates safe fields and does not return prompt bodies.",
+            "Snapshot reports forbidden_pattern_hits before any release claim.",
+            "Snapshot never calls LLM providers.",
+        ],
         "non_claims": llm_audit_feed_contract_payload()["non_claims"],
     }
 
@@ -9594,8 +9703,10 @@ def create_llm_gateway_audit_event(request: LlmGatewayAuditRequest) -> dict[str,
         {
             "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
             "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
+            "redaction_evidence_ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
             "contract_version": LLM_AUDIT_FEED_CONTRACT_VERSION,
             "read_only_feed": True,
+            "prompt_body_stored": False,
         }
     )
     with psycopg.connect(database_url(), autocommit=True) as conn:

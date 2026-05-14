@@ -97,21 +97,29 @@ $frontendHtml = Invoke-Text "$BaseUrl/"
 Assert-Contains "frontend llm audit feed panel" $frontendHtml "LLM Audit Feed"
 Assert-Contains "frontend llm audit contract" $frontendHtml "llm-audit-feed-v1"
 Assert-Contains "frontend llm audit evidence" $frontendHtml "llm_audit_feed_visible"
+Assert-Contains "frontend llm audit snapshot panel" $frontendHtml "LLM Audit Snapshot"
+Assert-Contains "frontend llm audit snapshot evidence" $frontendHtml "llm_audit_snapshot_visible"
+Assert-Contains "frontend llm audit redaction evidence" $frontendHtml "llm_audit_redaction_enforced"
 Assert-Contains "frontend llm audit endpoint" $frontendHtml "GET /api/v1/audit/llm"
+Assert-Contains "frontend llm audit snapshot endpoint" $frontendHtml "GET /api/v1/audit/llm/snapshot"
 
 $contract = Invoke-Text "$BaseUrl/api/v1/audit/llm/contract"
 Assert-Contains "contract version" $contract '"contract_version":"llm-audit-feed-v1"'
 Assert-Contains "contract endpoint" $contract "GET /api/v1/audit/llm"
+Assert-Contains "contract snapshot endpoint" $contract "GET /api/v1/audit/llm/snapshot"
 Assert-Contains "contract source" $contract '"source_event_type":"llm_gateway_request"'
 Assert-Contains "contract evidence" $contract "llm_audit_feed_visible"
 Assert-Contains "contract event evidence" $contract "llm_audit_feed_event_visible"
+Assert-Contains "contract snapshot evidence" $contract "llm_audit_snapshot_visible"
+Assert-Contains "contract redaction evidence" $contract "llm_audit_redaction_enforced"
 Assert-Contains "contract read only" $contract '"read_only":true'
 Assert-Contains "contract no live claim" $contract '"live_provider_calls_claimed":false'
 
 $traceId = "phase3-llm-audit-" + [Guid]::NewGuid().ToString("N")
+$secretProbe = "sk-proj-llmaudit" + [Guid]::NewGuid().ToString("N")
 $body = @{
   model = "deepseek-ai/DeepSeek-V4-Flash:fastest"
-  messages = @(@{ role = "user"; content = "phase3 llm audit feed proof" })
+  messages = @(@{ role = "user"; content = "phase3 llm audit feed proof $secretProbe" })
   stream = $false
   metadata = @{
     trace_id = $traceId
@@ -135,9 +143,32 @@ Assert-Contains "feed model visible" $feed "deepseek-ai/DeepSeek-V4-Flash:fastes
 Assert-Contains "feed provider visible" $feed "deterministic-dry-run"
 Assert-Contains "feed live false" $feed '"live_provider_calls":false'
 Assert-Contains "feed cost zero" $feed '"cost_cents":0'
+Assert-Contains "feed prompt body omitted" $feed '"prompt_body_stored":false'
+Assert-Contains "feed redaction evidence" $feed "llm_audit_redaction_enforced"
 Assert-Contains "feed evidence" $feed "llm_audit_feed_visible"
 Assert-Contains "feed event evidence" $feed "llm_audit_feed_event_visible"
+if ($feed.Contains($secretProbe)) {
+  throw "Phase3 LLM audit feed verification failed: feed leaked secret probe"
+}
+
+$snapshot = Invoke-Text "$BaseUrl/api/v1/audit/llm/snapshot?limit=50"
+Assert-Contains "snapshot mode" $snapshot "read_only_llm_audit_redaction_snapshot"
+Assert-Contains "snapshot endpoint" $snapshot "GET /api/v1/audit/llm/snapshot"
+Assert-Contains "snapshot evidence" $snapshot "llm_audit_snapshot_visible"
+Assert-Contains "snapshot redaction evidence" $snapshot "llm_audit_redaction_enforced"
+Assert-Contains "snapshot read only" $snapshot '"read_only":true'
+Assert-Contains "snapshot no live claim" $snapshot '"live_provider_calls_claimed":false'
+Assert-Contains "snapshot prompt body omitted" $snapshot '"prompt_bodies_returned":false'
+Assert-Contains "snapshot credentials omitted" $snapshot '"provider_credentials_returned":false'
+Assert-Contains "snapshot forbidden clear" $snapshot '"forbidden_pattern_hits":0'
+Assert-Contains "snapshot redaction clear" $snapshot '"redaction_status":"clear"'
+Assert-Contains "snapshot dry-run count" $snapshot '"dry_run_count":'
+Assert-Contains "snapshot live count" $snapshot '"live_provider_call_count":'
+if ($snapshot.Contains($secretProbe)) {
+  throw "Phase3 LLM audit feed verification failed: snapshot leaked secret probe"
+}
 
 Write-Host "status=verified"
 Write-Host "contract_version=llm-audit-feed-v1"
 Write-Host "evidence_ref=llm_audit_feed_visible"
+Write-Host "snapshot_evidence_ref=llm_audit_snapshot_visible"
