@@ -6,7 +6,7 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-Current honesty guardrail: the active staging candidate is `efa2035e565a500b4c530fffdbab5016853a910e`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
+Current honesty guardrail: the active staging candidate is `13d02661c5cfbc2e4a881f1a16f303002affca06`, verified through GHCR multi-service images and Hetzner `-UseImageFilesystem` parity. This is a staging-candidate claim only; production rollout remains unclaimed.
 
 ## Binding Truth
 
@@ -29,18 +29,18 @@ Follow `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` over older planning f
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 
-Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `78%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, LLM Audit Feed Redaction Snapshot proof, MCP Audit Redaction Snapshot proof, Gateway Correlation Snapshot proof, Gateway Correlation Risk Rollup proof, Gateway Correlation Timeline proof, Auth Audit Snapshot proof, Auth Audit Risk Rollup proof, Auth Audit Timeline proof, and Auth Audit Export proof. Continue Phase-3 security/product-surface evidence before rollout.
+Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the current resume point. It records the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `79%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, LLM Audit Feed Redaction Snapshot proof, LLM Audit Export proof, MCP Audit Redaction Snapshot proof, Gateway Correlation Snapshot proof, Gateway Correlation Risk Rollup proof, Gateway Correlation Timeline proof, Auth Audit Snapshot proof, Auth Audit Risk Rollup proof, Auth Audit Timeline proof, and Auth Audit Export proof. Continue Phase-3 security/product-surface evidence before rollout.
 
 ## Current Verified Progress
 
-Overall: `78%`
+Overall: `79%`
 
 Horizontal:
 
 - P0: `100%`
 - P1: `100%`
 - P2: `88%`
-- P3: `86%`
+- P3: `88%`
 - P4: `100%`
 - P5: `74%`
 - P6: `0%`
@@ -50,7 +50,7 @@ Vertical:
 - Frontend / Next.js: `99%`
 - Orchestrator / LangGraph: `99%`
 - Agent Pool: `73%`
-- LLM Gateway: `61%`
+- LLM Gateway: `62%`
 - MCP Gateway: `61%`
 - Memory: `72%`
 - Observability: `99%`
@@ -59,7 +59,16 @@ Older percentage lines below are historical proof points only. Current percentag
 
 ## Latest Verified Step
 
-Auth Audit Export Proof:
+LLM Audit Export Proof:
+
+- `GET /api/v1/audit/llm/export/contract` exposes `llm-audit-export-v1`, `llm_audit_export_visible`, `llm_audit_export_audit_persisted`, `llm_audit_redaction_enforced`, and `llm_audit_no_live_provider_guard`.
+- `GET /api/v1/audit/llm/export?format=csv&limit=80` reads only the same safe LLM Audit projection as feed and snapshot and emits allowlisted CSV columns only.
+- Export and export audit metadata do not return prompt bodies, tokens, cookies, authorization headers, provider credentials, raw details, live provider claims, production rollout claims, or promotion claims.
+- Local proof passed: `scripts\verify-phase3-llm-audit-export.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireSeed`, `scripts\verify-phase3-llm-audit-feed.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, browser-contract, py_compile, Next.js build, Docker readiness, security, and evidence-artifact-safety.
+- Hosted proof passed after GHCR build/push plus Hetzner immutable deploy for `IMAGE_TAG=13d02661c5cfbc2e4a881f1a16f303002affca06`: LLM-audit export, LLM-audit feed, browser-contract, hosted-staging, and full Phase-3 suite.
+- Progress change: Overall rises to `79%`; Phase 3 rises to `88%`; LLM Gateway rises to `62%`; no production rollout, live provider call, live MCP write, release promotion, or secret exposure is claimed.
+
+Previous verified step - Auth Audit Export Proof:
 
 - `GET /api/v1/audit/auth/export/contract` exposes `auth-audit-export-v1`, `auth_audit_export_visible`, `auth_audit_export_audit_persisted`, `auth_audit_redaction_enforced`, and `auth_no_live_oauth_guard`.
 - `GET /api/v1/audit/auth/export?format=csv&limit=80` reads only the same safe Auth Audit projection as snapshot, risk rollup, and timeline and emits allowlisted CSV columns only.
