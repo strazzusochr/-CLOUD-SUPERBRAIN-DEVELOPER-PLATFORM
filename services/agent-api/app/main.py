@@ -187,6 +187,8 @@ MEMORY_EMBEDDING_CONSISTENCY_CONTRACT_VERSION = "memory-embedding-consistency-v1
 MEMORY_EMBEDDING_CONSISTENCY_EVIDENCE_REF = "memory_embedding_consistency_contract_visible"
 MEMORY_CONSOLIDATION_CONTRACT_VERSION = "memory-consolidation-feed-v1"
 MEMORY_CONSOLIDATION_EVIDENCE_REF = "memory_consolidation_contract_runtime_visible"
+MEMORY_WORKER_HEALTH_CONTRACT_VERSION = "memory-worker-health-contract-v1"
+MEMORY_WORKER_HEALTH_EVIDENCE_REF = "memory_worker_health_contract_visible"
 MEMORY_SEARCH_CONTRACT_VERSION = "memory-search-runtime-v1"
 MEMORY_SEARCH_EVIDENCE_REF = "memory_search_contract_runtime_visible"
 MEMORY_SUCCESS_CORRELATION_EVIDENCE_REF = "memory_success_correlation_runtime_visible"
@@ -3726,6 +3728,51 @@ def memory_consolidation_contract_payload() -> dict[str, object]:
     }
 
 
+def memory_worker_health_contract_payload() -> dict[str, object]:
+    snapshot: dict[str, object]
+    try:
+        snapshot = check_memory_worker()
+    except Exception as exc:
+        snapshot = {"status": "down", "reason": type(exc).__name__}
+    return {
+        "contract_version": MEMORY_WORKER_HEALTH_CONTRACT_VERSION,
+        "mode": "redis_heartbeat_freshness_guard",
+        "endpoint": "GET /api/v1/memory/worker-health/contract",
+        "health_endpoint": "GET /api/v1/health",
+        "metrics_endpoint": "GET /api/v1/metrics",
+        "evidence_ref": MEMORY_WORKER_HEALTH_EVIDENCE_REF,
+        "status": "verified" if snapshot.get("status") == "healthy" else "degraded",
+        "heartbeat_key": snapshot.get("heartbeat_key", "memory-worker:heartbeat"),
+        "accepted_heartbeat_statuses": ["running", "healthy"],
+        "max_heartbeat_age_seconds": snapshot.get("max_heartbeat_age_seconds", 450),
+        "max_batch_runtime_seconds": snapshot.get("max_batch_runtime_seconds", 120),
+        "docker_healthcheck_command": "python -m app.worker --healthcheck",
+        "docker_healthcheck_timeout_seconds": 15,
+        "runtime_snapshot": snapshot,
+        "required_runtime_fields": [
+            "heartbeat_status",
+            "heartbeat_age_seconds",
+            "max_heartbeat_age_seconds",
+            "max_batch_runtime_seconds",
+            "stale_heartbeat",
+            "contract_version",
+            "evidence_ref",
+        ],
+        "policy_checks": [
+            "A Redis heartbeat is required before the memory worker can be reported healthy.",
+            "Heartbeat status must be running or healthy.",
+            "Heartbeat age must stay below max_heartbeat_age_seconds, independent of Redis TTL.",
+            "The Docker healthcheck uses the worker-owned --healthcheck path with a 15-second timeout rather than dependency-only pings.",
+            "Health visibility remains DEV-ONLY locally and does not claim hosted parity without deployment proof.",
+        ],
+        "non_claims": [
+            "No live embedding provider call is made by this contract.",
+            "No local model download is made by this contract.",
+            "No live MCP write, production rollout, release promotion, or hosted parity is claimed by this local contract.",
+        ],
+    }
+
+
 def memory_search_contract_payload() -> dict[str, object]:
     return {
         "contract_version": MEMORY_SEARCH_CONTRACT_VERSION,
@@ -6324,6 +6371,11 @@ def mcp_audit_export_contract() -> dict[str, object]:
 @app.get("/api/v1/memory/consolidation/contract")
 def memory_consolidation_contract() -> dict[str, object]:
     return memory_consolidation_contract_payload()
+
+
+@app.get("/api/v1/memory/worker-health/contract")
+def memory_worker_health_contract() -> dict[str, object]:
+    return memory_worker_health_contract_payload()
 
 
 @app.get("/api/v1/sessions/recent")

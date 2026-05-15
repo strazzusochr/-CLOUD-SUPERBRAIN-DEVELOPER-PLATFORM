@@ -313,6 +313,10 @@ Assert-Contains "gateway correlation export endpoint marker" $frontendHtml "GET 
 Assert-Contains "memory embedding consistency contract panel" $frontendHtml "Memory Embedding Consistency Contract"
 Assert-Contains "memory embedding consistency evidence marker" $frontendHtml "memory_embedding_consistency_contract_visible"
 Assert-Contains "memory consolidation panel" $frontendHtml "Memory Consolidation"
+Assert-Contains "memory worker health contract panel" $frontendHtml "Memory Worker Health Contract"
+Assert-Contains "memory worker health contract version marker" $frontendHtml "memory-worker-health-contract-v1"
+Assert-Contains "memory worker health evidence marker" $frontendHtml "memory_worker_health_contract_visible"
+Assert-Contains "memory worker health endpoint marker" $frontendHtml "GET /api/v1/memory/worker-health/contract"
 Assert-Contains "memory consolidation refresh button" $frontendHtml "Refresh"
 Assert-Contains "project progress panel" $frontendHtml "Project Progress"
 Assert-Contains "project progress completion contract panel" $frontendHtml "100% Contract"
@@ -965,6 +969,17 @@ Assert-Contains "memory embedding consistency column" $memoryEmbeddingConsistenc
 Assert-Contains "memory embedding consistency vector" $memoryEmbeddingConsistencyContract "vector(1536)"
 Assert-Contains "memory embedding consistency fallback" $memoryEmbeddingConsistencyContract "lexical_fallback"
 Assert-Contains "memory embedding consistency no live provider" $memoryEmbeddingConsistencyContract "No live embedding provider call"
+
+Write-Host "[browser-contract] memory worker health contract"
+$memoryWorkerHealthContract = Invoke-Text "$BaseUrl/api/v1/memory/worker-health/contract"
+Assert-Contains "memory worker health version" $memoryWorkerHealthContract '"contract_version":"memory-worker-health-contract-v1"'
+Assert-Contains "memory worker health status" $memoryWorkerHealthContract '"status":"verified"'
+Assert-Contains "memory worker health evidence" $memoryWorkerHealthContract '"evidence_ref":"memory_worker_health_contract_visible"'
+Assert-Contains "memory worker health endpoint" $memoryWorkerHealthContract 'GET /api/v1/memory/worker-health/contract'
+Assert-Contains "memory worker health docker command" $memoryWorkerHealthContract "python -m app.worker --healthcheck"
+Assert-Contains "memory worker health timeout" $memoryWorkerHealthContract '"docker_healthcheck_timeout_seconds":15'
+Assert-Contains "memory worker health stale false" $memoryWorkerHealthContract '"stale_heartbeat":false'
+Assert-Contains "memory worker health no live embedding" $memoryWorkerHealthContract "No live embedding provider call"
 
 Write-Host "[browser-contract] phase2 runtime contract"
 $runtimeContract = Invoke-Text "$BaseUrl/api/v1/phase2/runtime/contract"

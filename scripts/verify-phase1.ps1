@@ -757,6 +757,11 @@ foreach ($required in @("Memory Embedding Consistency Contract", "loadMemoryEmbe
     throw "Missing Memory Embedding Consistency Contract UI guard: $required"
   }
 }
+foreach ($required in @("Memory Worker Health Contract", "loadMemoryWorkerHealthContract", "MemoryWorkerHealthContract", "/api/v1/memory/worker-health/contract", "memory-worker-health-contract-v1", "memory_worker_health_contract_visible", "python -m app.worker --healthcheck", "stale_heartbeat")) {
+  if (-not $frontendSource.Contains($required)) {
+    throw "Missing Memory Worker Health Contract UI guard: $required"
+  }
+}
 foreach ($required in @("Progress Integrity", "loadProjectProgressIntegrity", "ProjectProgressIntegrity", "/api/v1/project/progress/integrity", "project-progress-integrity-v1", "project_progress_integrity_runtime_proof")) {
   if (-not $frontendSource.Contains($required)) {
     throw "Missing project progress integrity UI guard: $required"
@@ -1445,6 +1450,9 @@ foreach ($required in @(
   "session_history_openable_project_state",
   "Memory Consolidation",
   "/api/v1/memory/consolidation/recent",
+  "/api/v1/memory/worker-health/contract",
+  "memory-worker-health-contract-v1",
+  "memory_worker_health_contract_visible",
   "SeedMemoryConsolidation",
   "browser_contract_harness",
   "/api/v1/memory/embedding-consistency/contract",
@@ -1457,6 +1465,46 @@ foreach ($required in @(
 )) {
   if (-not $browserContractScript.Contains($required)) {
     throw "Browser contract verifier missing required guard: $required"
+  }
+}
+
+$memoryWorkerSource = Get-Content -Path "services\memory-worker\app\worker.py" -Raw
+foreach ($required in @("MEMORY_WORKER_HEALTH_CONTRACT_VERSION", "memory-worker-health-contract-v1", "memory_worker_health_contract_visible", "--healthcheck", "max_heartbeat_age_seconds")) {
+  if (-not $memoryWorkerSource.Contains($required)) {
+    throw "Memory worker source missing health contract guard: $required"
+  }
+}
+
+$agentDbSource = Get-Content -Path "services\agent-api\app\db.py" -Raw
+foreach ($required in @("max_heartbeat_age_seconds", "stale_heartbeat", "heartbeat_stale_or_unhealthy", "heartbeat_status")) {
+  if (-not $agentDbSource.Contains($required)) {
+    throw "Agent API DB health source missing memory worker heartbeat guard: $required"
+  }
+}
+
+$agentApiSource = Get-Content -Path "services\agent-api\app\main.py" -Raw
+foreach ($required in @("memory_worker_health_contract_payload", "/api/v1/memory/worker-health/contract", "memory-worker-health-contract-v1", "memory_worker_health_contract_visible", "python -m app.worker --healthcheck", "docker_healthcheck_timeout_seconds")) {
+  if (-not $agentApiSource.Contains($required)) {
+    throw "Agent API source missing memory worker health contract guard: $required"
+  }
+}
+
+foreach ($composePath in @("docker-compose.dev.yml", "docker-compose.cloud.yml")) {
+  $composeSource = Get-Content -Path $composePath -Raw
+  foreach ($required in @('"python", "-m", "app.worker", "--healthcheck"', "MEMORY_WORKER_MAX_BATCH_SECONDS", "MEMORY_WORKER_HEALTH_MAX_AGE_SECONDS", "timeout: 15s")) {
+    if (-not $composeSource.Contains($required)) {
+      throw "$composePath missing memory worker healthcheck guard: $required"
+    }
+  }
+}
+
+if (-not (Test-Path "docs\runtime-contracts\memory-worker-health-contract.md")) {
+  throw "Missing memory worker health contract document"
+}
+$memoryWorkerHealthDoc = Get-Content -Path "docs\runtime-contracts\memory-worker-health-contract.md" -Raw
+foreach ($required in @("memory-worker-health-contract-v1", "memory_worker_health_contract_visible", "GET /api/v1/memory/worker-health/contract", "python -m app.worker --healthcheck", "No live embedding provider call")) {
+  if (-not $memoryWorkerHealthDoc.Contains($required)) {
+    throw "Memory worker health contract document missing guard: $required"
   }
 }
 $autopilotParseErrors = $null

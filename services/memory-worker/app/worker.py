@@ -15,6 +15,9 @@ import redis
 from psycopg.types.json import Json
 
 
+MEMORY_WORKER_HEALTH_CONTRACT_VERSION = "memory-worker-health-contract-v1"
+MEMORY_WORKER_HEALTH_EVIDENCE_REF = "memory_worker_health_contract_visible"
+
 SECRET_PATTERNS = [
     re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
     re.compile(r"(?i)(api[_-]?key|secret|token)\s*[:=]\s*['\"][^'\"]{8,}['\"]"),
@@ -58,22 +61,90 @@ def heartbeat_key() -> str:
     return os.getenv("MEMORY_WORKER_HEARTBEAT_KEY", "memory-worker:heartbeat")
 
 
+def max_batch_runtime_seconds() -> int:
+    return int(os.getenv("MEMORY_WORKER_MAX_BATCH_SECONDS", "120"))
+
+
+def health_max_age_seconds() -> int:
+    configured = os.getenv("MEMORY_WORKER_HEALTH_MAX_AGE_SECONDS")
+    if configured:
+        try:
+            value = int(configured)
+        except ValueError:
+            value = 0
+        if value > 0:
+            return value
+    return max(interval_seconds() + max_batch_runtime_seconds() + 30, 30)
+
+
 def heartbeat_ttl_seconds() -> int:
-    return max(interval_seconds() * 3, 30)
+    return max(interval_seconds() * 3, health_max_age_seconds() * 2, 30)
 
 
 def write_heartbeat(redis_client: redis.Redis, status: str, stats: dict[str, int] | None = None) -> None:
     payload: dict[str, object] = {
+        "contract_version": MEMORY_WORKER_HEALTH_CONTRACT_VERSION,
+        "evidence_ref": MEMORY_WORKER_HEALTH_EVIDENCE_REF,
         "service": "memory-worker",
         "status": status,
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "interval_seconds": interval_seconds(),
         "ttl_threshold_seconds": ttl_threshold_seconds(),
+        "max_batch_runtime_seconds": max_batch_runtime_seconds(),
+        "max_heartbeat_age_seconds": health_max_age_seconds(),
+        "heartbeat_ttl_seconds": heartbeat_ttl_seconds(),
         "working_memory_pattern": working_memory_pattern(),
+        "live_embedding_provider_calls": False,
+        "model_downloads": False,
+        "production_rollout_claimed": False,
     }
     if stats is not None:
         payload["last_run"] = stats
     redis_client.set(heartbeat_key(), json.dumps(payload, sort_keys=True), ex=heartbeat_ttl_seconds())
+
+
+def heartbeat_health(redis_client: redis.Redis) -> dict[str, object]:
+    key = heartbeat_key()
+    raw_value = redis_client.get(key)
+    if not raw_value:
+        return {"status": "down", "reason": "heartbeat_missing", "heartbeat_key": key}
+    try:
+        payload = json.loads(raw_value.decode("utf-8") if isinstance(raw_value, bytes) else str(raw_value))
+    except json.JSONDecodeError:
+        return {"status": "down", "reason": "heartbeat_invalid", "heartbeat_key": key}
+
+    updated_at = str(payload.get("updated_at") or "")
+    age_seconds: float | None = None
+    if updated_at:
+        try:
+            updated = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+            age_seconds = (datetime.now(timezone.utc) - updated).total_seconds()
+        except ValueError:
+            age_seconds = None
+
+    ttl = redis_client.ttl(key)
+    raw_max_age = payload.get("max_heartbeat_age_seconds", health_max_age_seconds())
+    try:
+        max_age = int(raw_max_age)
+    except (TypeError, ValueError):
+        max_age = health_max_age_seconds()
+    heartbeat_status = str(payload.get("status") or "unknown")
+    stale = age_seconds is None or age_seconds > max_age
+    healthy = bool(ttl and ttl > 0) and not stale and heartbeat_status in {"running", "healthy"}
+    return {
+        "status": "healthy" if healthy else "down",
+        "reason": None if healthy else "heartbeat_stale_or_unhealthy",
+        "heartbeat_key": key,
+        "heartbeat_status": heartbeat_status,
+        "heartbeat_ttl_seconds": int(ttl) if ttl is not None else None,
+        "heartbeat_age_seconds": round(age_seconds, 3) if age_seconds is not None else None,
+        "max_heartbeat_age_seconds": max_age,
+        "max_batch_runtime_seconds": int(payload.get("max_batch_runtime_seconds", max_batch_runtime_seconds())),
+        "stale_heartbeat": stale,
+        "contract_version": payload.get("contract_version", MEMORY_WORKER_HEALTH_CONTRACT_VERSION),
+        "evidence_ref": payload.get("evidence_ref", MEMORY_WORKER_HEALTH_EVIDENCE_REF),
+        "last_run": payload.get("last_run"),
+    }
 
 
 def contains_secret(text: str) -> bool:
@@ -232,6 +303,7 @@ def consolidate_one(conn: psycopg.Connection, memory: WorkingMemory, ttl: int) -
 
 
 def run_once(force: bool = False) -> dict[str, int]:
+    started = time.monotonic()
     stats = {"scanned": 0, "eligible": 0, "consolidated": 0, "skipped": 0, "blocked": 0, "invalid": 0}
     redis_client = redis.Redis.from_url(redis_url(), socket_timeout=5, socket_connect_timeout=5)
     write_heartbeat(redis_client, "running")
@@ -257,15 +329,28 @@ def run_once(force: bool = False) -> dict[str, int]:
             stats[result] = stats.get(result, 0) + 1
             if result in {"consolidated", "skipped", "blocked"}:
                 redis_client.delete(key)
+    stats["duration_ms"] = int((time.monotonic() - started) * 1000)
     write_heartbeat(redis_client, "healthy", stats)
     return stats
+
+
+def run_healthcheck() -> int:
+    redis_client = redis.Redis.from_url(redis_url(), socket_timeout=2, socket_connect_timeout=2)
+    redis_client.ping()
+    health = heartbeat_health(redis_client)
+    print(json.dumps(health, sort_keys=True))
+    return 0 if health.get("status") == "healthy" else 1
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Cloud Superbrain memory consolidation worker")
     parser.add_argument("--once", action="store_true", help="Run one consolidation pass then exit.")
     parser.add_argument("--force", action="store_true", help="Consolidate matching keys regardless of TTL.")
+    parser.add_argument("--healthcheck", action="store_true", help="Validate heartbeat freshness for container health.")
     args = parser.parse_args()
+
+    if args.healthcheck:
+        raise SystemExit(run_healthcheck())
 
     if args.once:
         print(json.dumps(run_once(force=args.force), sort_keys=True))

@@ -303,8 +303,18 @@ Assert-Contains "agent-api budget" $apiHealth '"allow_new_calls":true'
 Assert-Contains "agent-api redis health" $apiHealth '"redis":{"status":"healthy"'
 Assert-Contains "agent-api agent worker health" $apiHealth '"agent_worker":{"status":"healthy"'
 Assert-Contains "agent-api memory worker health" $apiHealth '"memory_worker":{"status":"healthy"'
+Assert-Contains "agent-api memory worker health contract" $apiHealth '"contract_version":"memory-worker-health-contract-v1"'
+Assert-Contains "agent-api memory worker health evidence" $apiHealth '"evidence_ref":"memory_worker_health_contract_visible"'
+Assert-Contains "agent-api memory worker stale heartbeat guard" $apiHealth '"stale_heartbeat":false'
 Assert-Contains "agent-api mcp health matrix" $apiHealth '"mcp_gateway":{"status":"healthy"'
 Assert-Contains "agent-api llm gateway health matrix" $apiHealth '"llm_gateway":{"status":"healthy"'
+
+Write-Host "[runtime] memory worker health contract"
+$memoryWorkerHealthContract = Wait-UrlContains "memory worker health contract" "$baseUrl/api/v1/memory/worker-health/contract" '"contract_version":"memory-worker-health-contract-v1"' 30
+Assert-Contains "memory worker health contract status" $memoryWorkerHealthContract '"status":"verified"'
+Assert-Contains "memory worker health evidence" $memoryWorkerHealthContract '"evidence_ref":"memory_worker_health_contract_visible"'
+Assert-Contains "memory worker health docker command" $memoryWorkerHealthContract "python -m app.worker --healthcheck"
+Assert-Contains "memory worker health stale false" $memoryWorkerHealthContract '"stale_heartbeat":false'
 
 Write-Host "[runtime] project progress"
 $projectProgress = curl.exe -sS "$baseUrl/api/v1/project/progress"

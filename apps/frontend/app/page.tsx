@@ -1588,6 +1588,35 @@ type MemoryEmbeddingConsistencyContract = {
   non_claims: string[];
 };
 
+type MemoryWorkerHealthContract = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  health_endpoint: string;
+  metrics_endpoint: string;
+  evidence_ref: string;
+  status: string;
+  heartbeat_key: string;
+  accepted_heartbeat_statuses: string[];
+  max_heartbeat_age_seconds: number;
+  max_batch_runtime_seconds: number;
+  docker_healthcheck_command: string;
+  runtime_snapshot: ServiceHealth & {
+    heartbeat_key?: string;
+    heartbeat_status?: string;
+    heartbeat_ttl_seconds?: number;
+    heartbeat_age_seconds?: number;
+    max_heartbeat_age_seconds?: number;
+    max_batch_runtime_seconds?: number;
+    stale_heartbeat?: boolean;
+    contract_version?: string;
+    evidence_ref?: string;
+  };
+  required_runtime_fields: string[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
 type ServiceHealth = {
   status: string;
   database?: string;
@@ -1595,6 +1624,15 @@ type ServiceHealth = {
   extensions?: string[];
   service?: string;
   error?: string;
+  reason?: string | null;
+  heartbeat_status?: string;
+  heartbeat_ttl_seconds?: number;
+  heartbeat_age_seconds?: number;
+  max_heartbeat_age_seconds?: number;
+  max_batch_runtime_seconds?: number;
+  stale_heartbeat?: boolean;
+  contract_version?: string;
+  evidence_ref?: string;
 };
 
 type SystemHealth = {
@@ -3012,6 +3050,8 @@ export default function Home() {
   const [mcpRuntimeGuardParity, setMcpRuntimeGuardParity] = useState<McpRuntimeGuardParity | null>(null);
   const [memoryEmbeddingConsistencyContract, setMemoryEmbeddingConsistencyContract] =
     useState<MemoryEmbeddingConsistencyContract | null>(null);
+  const [memoryWorkerHealthContract, setMemoryWorkerHealthContract] =
+    useState<MemoryWorkerHealthContract | null>(null);
   const [systemFallbackContract, setSystemFallbackContract] = useState<SystemFallbackContract | null>(null);
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [agents, setAgents] = useState<AgentStatus[]>(defaultAgents);
@@ -3398,6 +3438,12 @@ export default function Home() {
     const response = await fetch("/api/v1/memory/embedding-consistency/contract", { cache: "no-store" });
     if (!response.ok) throw new Error(`memory embedding consistency contract ${response.status}`);
     setMemoryEmbeddingConsistencyContract(await response.json());
+  }
+
+  async function loadMemoryWorkerHealthContract() {
+    const response = await fetch("/api/v1/memory/worker-health/contract", { cache: "no-store" });
+    if (!response.ok) throw new Error(`memory worker health contract ${response.status}`);
+    setMemoryWorkerHealthContract(await response.json());
   }
 
   async function loadHealth() {
@@ -3949,6 +3995,7 @@ export default function Home() {
         loadMcpCapabilityCatalog(),
         loadMcpRuntimeGuardParity(),
         loadMemoryEmbeddingConsistencyContract(),
+        loadMemoryWorkerHealthContract(),
         loadHealth(),
         loadSystemFallbackContract(),
         loadAgents(),
@@ -4169,6 +4216,7 @@ export default function Home() {
       loadMcpCapabilityCatalog,
       loadMcpRuntimeGuardParity,
       loadMemoryEmbeddingConsistencyContract,
+      loadMemoryWorkerHealthContract,
       loadTaskPolicy,
       loadRotationEvents,
       loadModelCapabilities,
@@ -4410,6 +4458,10 @@ export default function Home() {
   const memoryRequiredSteps = stringList(memoryReembeddingPolicy?.required_steps);
   const memoryEvidenceRefs = stringList(memoryEmbeddingConsistencyContract?.evidence_refs);
   const memoryNonClaims = stringList(memoryEmbeddingConsistencyContract?.non_claims);
+  const memoryWorkerHealthSnapshot =
+    memoryWorkerHealthContract?.runtime_snapshot ?? health?.services?.memory_worker ?? null;
+  const memoryWorkerHealthNonClaims = stringList(memoryWorkerHealthContract?.non_claims);
+  const memoryWorkerHealthChecks = stringList(memoryWorkerHealthContract?.policy_checks);
 
   const forgeAgentSlots = agents.length ? agents : defaultAgents;
   const forgeModelRoutes = llmGateway?.model_catalog?.routes?.length
@@ -7916,10 +7968,68 @@ export default function Home() {
         <section className="panel memoryConsolidationPanel" aria-label="Memory consolidation">
           <header className="panelHeader">
             <h2>Memory Consolidation</h2>
-            <button type="button" onClick={() => void loadMemoryConsolidationEvents()}>
+            <button type="button" onClick={() => void Promise.all([loadMemoryConsolidationEvents(), loadMemoryWorkerHealthContract()])}>
               Refresh
             </button>
           </header>
+          <div className="costSummary" aria-label="Memory Worker Health Contract">
+            <div>
+              <span>Worker Health</span>
+              <strong>{memoryWorkerHealthContract?.contract_version ?? "memory-worker-health-contract-v1"}</strong>
+            </div>
+            <div>
+              <span>Evidence</span>
+              <strong>{memoryWorkerHealthContract?.evidence_ref ?? "memory_worker_health_contract_visible"}</strong>
+            </div>
+            <div>
+              <span>Heartbeat</span>
+              <strong>
+                {memoryWorkerHealthSnapshot?.heartbeat_status ?? "loading"} / stale_heartbeat=
+                {String(memoryWorkerHealthSnapshot?.stale_heartbeat ?? false)}
+              </strong>
+            </div>
+            <div>
+              <span>Max Age</span>
+              <strong>{memoryWorkerHealthContract?.max_heartbeat_age_seconds ?? 450}s</strong>
+            </div>
+          </div>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>Memory Worker Health Contract</strong>
+              <p>
+                GET /api/v1/memory/worker-health/contract /{" "}
+                {memoryWorkerHealthContract?.docker_healthcheck_command ?? "python -m app.worker --healthcheck"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Runtime Snapshot</strong>
+              <p>
+                status={memoryWorkerHealthSnapshot?.status ?? "loading"} / age=
+                {memoryWorkerHealthSnapshot?.heartbeat_age_seconds ?? "n/a"}s / ttl=
+                {memoryWorkerHealthSnapshot?.heartbeat_ttl_seconds ?? "n/a"}s
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Policy</strong>
+              <p>
+                {(memoryWorkerHealthChecks.length
+                  ? memoryWorkerHealthChecks.slice(0, 2)
+                  : [
+                      "A Redis heartbeat is required before the memory worker can be reported healthy.",
+                      "Heartbeat age must stay below max_heartbeat_age_seconds.",
+                    ]
+                ).join(" ")}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Non-Claims</strong>
+              <p>
+                {memoryWorkerHealthNonClaims.length
+                  ? memoryWorkerHealthNonClaims.join(" ")
+                  : "No live embedding provider call, local model download, hosted parity, or production rollout is claimed."}
+              </p>
+            </article>
+          </div>
           <div className="auditList">
             {memoryConsolidationEvents.length ? (
               memoryConsolidationEvents.map((event) => (

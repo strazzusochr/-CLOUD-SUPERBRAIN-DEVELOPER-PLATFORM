@@ -106,13 +106,14 @@ def check_redis() -> dict[str, object]:
 
 def check_memory_worker() -> dict[str, object]:
     client = redis.Redis.from_url(redis_url(), socket_timeout=2, socket_connect_timeout=2)
-    raw_value = client.get(os.getenv("MEMORY_WORKER_HEARTBEAT_KEY", "memory-worker:heartbeat"))
+    key = os.getenv("MEMORY_WORKER_HEARTBEAT_KEY", "memory-worker:heartbeat")
+    raw_value = client.get(key)
     if not raw_value:
-        return {"status": "down", "reason": "heartbeat_missing"}
+        return {"status": "down", "reason": "heartbeat_missing", "heartbeat_key": key}
     try:
         payload = json.loads(raw_value.decode("utf-8") if isinstance(raw_value, bytes) else str(raw_value))
     except json.JSONDecodeError:
-        return {"status": "down", "reason": "heartbeat_invalid"}
+        return {"status": "down", "reason": "heartbeat_invalid", "heartbeat_key": key}
     updated_at = str(payload.get("updated_at") or "")
     age_seconds: float | None = None
     if updated_at:
@@ -121,13 +122,34 @@ def check_memory_worker() -> dict[str, object]:
             age_seconds = (datetime.now(timezone.utc) - updated).total_seconds()
         except ValueError:
             age_seconds = None
-    ttl = client.ttl(os.getenv("MEMORY_WORKER_HEARTBEAT_KEY", "memory-worker:heartbeat"))
-    status = "healthy" if ttl and ttl > 0 else "down"
+    ttl = client.ttl(key)
+    raw_max_age = payload.get("max_heartbeat_age_seconds")
+    try:
+        max_age = int(raw_max_age)
+    except (TypeError, ValueError):
+        try:
+            interval = int(payload.get("interval_seconds") or 300)
+            max_batch = int(payload.get("max_batch_runtime_seconds") or 120)
+        except (TypeError, ValueError):
+            interval = 300
+            max_batch = 120
+        max_age = max(interval + max_batch + 30, 30)
+    heartbeat_status = str(payload.get("status") or "unknown")
+    stale = age_seconds is None or age_seconds > max_age
+    healthy = bool(ttl and ttl > 0) and not stale and heartbeat_status in {"running", "healthy"}
     return {
-        "status": status,
+        "status": "healthy" if healthy else "down",
+        "reason": None if healthy else "heartbeat_stale_or_unhealthy",
         "service": payload.get("service", "memory-worker"),
+        "heartbeat_key": key,
+        "heartbeat_status": heartbeat_status,
         "heartbeat_ttl_seconds": int(ttl) if ttl is not None else None,
         "heartbeat_age_seconds": round(age_seconds, 3) if age_seconds is not None else None,
+        "max_heartbeat_age_seconds": max_age,
+        "max_batch_runtime_seconds": payload.get("max_batch_runtime_seconds"),
+        "stale_heartbeat": stale,
+        "contract_version": payload.get("contract_version"),
+        "evidence_ref": payload.get("evidence_ref"),
         "interval_seconds": payload.get("interval_seconds"),
         "ttl_threshold_seconds": payload.get("ttl_threshold_seconds"),
         "last_run": payload.get("last_run"),
