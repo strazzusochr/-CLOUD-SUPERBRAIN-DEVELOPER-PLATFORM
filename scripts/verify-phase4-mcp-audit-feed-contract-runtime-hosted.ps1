@@ -1,5 +1,6 @@
 param(
-  [string]$BaseUrl = "https://188-34-191-140.sslip.io"
+  [string]$BaseUrl = "https://188-34-191-140.sslip.io",
+  [switch]$AllowLocalhost
 )
 
 $ErrorActionPreference = "Stop"
@@ -68,7 +69,7 @@ function Invoke-JsonApi($url, $method = "GET", $body = $null, $contentType = "ap
 
 if (-not $BaseUrl) { throw "BaseUrl is required" }
 $BaseUrl = $BaseUrl.TrimEnd("/")
-if ($BaseUrl -notmatch "^https://") { throw "Phase4 hosted MCP audit-feed proof requires HTTPS" }
+if ((-not $AllowLocalhost) -and ($BaseUrl -notmatch "^https://")) { throw "Phase4 hosted MCP audit-feed proof requires HTTPS" }
 
 Write-Host "[phase4-mcp-audit-feed-contract-runtime] base_url=$BaseUrl"
 

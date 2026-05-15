@@ -143,14 +143,14 @@ try {
   $phase3 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_3" }) | Select-Object -First 1
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
   Assert-Equal "progress phase3" ([int]$phase3.percent) 95
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 81
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 82
 
   $agentPool = @($progress.vertical.items | Where-Object { $_.id -eq "layer_3" }) | Select-Object -First 1
   $llmLayer = @($progress.vertical.items | Where-Object { $_.id -eq "layer_4" }) | Select-Object -First 1
   $mcpLayer = @($progress.vertical.items | Where-Object { $_.id -eq "layer_5" }) | Select-Object -First 1
   Assert-Equal "agent pool percent" ([int]$agentPool.percent) 75
   Assert-Equal "llm gateway percent" ([int]$llmLayer.percent) 65
-  Assert-Equal "mcp gateway percent" ([int]$mcpLayer.percent) 65
+  Assert-Equal "mcp gateway percent" ([int]$mcpLayer.percent) 66
   Assert-NotSecretBearing "progress payload" ($progress | ConvertTo-Json -Depth 20 -Compress)
 
   $steeringArgs = @("-BaseUrl", $BaseUrl)

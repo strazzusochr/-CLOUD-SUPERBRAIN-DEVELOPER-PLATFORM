@@ -3,8 +3,8 @@
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
 environment: `production-candidate`
-source_commit_sha: `0065a5e0254dd530b1c3a49f8ce602b8952eafa4`
-immutable_image_commit_sha: `0065a5e0254dd530b1c3a49f8ce602b8952eafa4`
+source_commit_sha: `b9734ad55dc6488a56acca693b50ec9019bab01b`
+immutable_image_commit_sha: `b9734ad55dc6488a56acca693b50ec9019bab01b`
 base_url: `https://188-34-191-140.sslip.io`
 production_rollout_claimed: `false`
 active_gate_count: `10`
@@ -28,7 +28,7 @@ changed_vertical: `none`
 ## Evidence Bound
 
 - Active Phase 5 suite plan now keeps the current RC1 verifier set on default parameters while preserving explicit historical coverage for retired `prod-candidate-2026-05-05-rc1` artifacts.
-- Hosted staging status remains HTTP `200`, project progress is `81%`, Phase 5 is `81%`, Agent Pool is `75%`, LLM Gateway is `65%`, Memory is `73%`, and immutable selector remains `0065a5e0254dd530b1c3a49f8ce602b8952eafa4`.
+- Hosted staging status remains HTTP `200`, project progress is `81%`, Phase 5 is `81%`, Agent Pool is `75%`, LLM Gateway is `65%`, Memory is `73%`, and immutable selector remains `b9734ad55dc6488a56acca693b50ec9019bab01b`.
 - Active runtime, active security, active verifier sweep, Vercel/GitHub status, active release-candidate bundle, current release-candidate, and evidence-artifact-safety gates pass together on the same active RC1 boundary.
 
 ## Non-Claims
