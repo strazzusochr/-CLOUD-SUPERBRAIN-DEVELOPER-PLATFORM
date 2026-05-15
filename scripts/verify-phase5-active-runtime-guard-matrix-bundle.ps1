@@ -149,7 +149,7 @@ try {
   $llmLayer = @($progress.vertical.items | Where-Object { $_.id -eq "layer_4" }) | Select-Object -First 1
   $mcpLayer = @($progress.vertical.items | Where-Object { $_.id -eq "layer_5" }) | Select-Object -First 1
   Assert-Equal "agent pool percent" ([int]$agentPool.percent) 76
-  Assert-Equal "llm gateway percent" ([int]$llmLayer.percent) 66
+  Assert-Equal "llm gateway percent" ([int]$llmLayer.percent) 67
   Assert-Equal "mcp gateway percent" ([int]$mcpLayer.percent) 67
   Assert-NotSecretBearing "progress payload" ($progress | ConvertTo-Json -Depth 20 -Compress)
 

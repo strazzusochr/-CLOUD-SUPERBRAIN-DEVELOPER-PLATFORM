@@ -162,7 +162,7 @@ function Assert-GuardAuditCorrelation([string]$BaseUrl, $Case, [string]$SessionI
   Assert-Equal "$($Case.name) agent activity request id" ([string]$activityMatch.request_id) $RequestId
   Assert-Equal "$($Case.name) agent activity feed ref" ([string]$activityMatch.audit_feed_evidence_ref) "request_id_audit_feed_visible"
 
-  $timeline = Invoke-JsonApi "$BaseUrl/api/v1/security/gateway-correlation/timeline?limit=120"
+  $timeline = Invoke-JsonApi "$BaseUrl/api/v1/security/gateway-correlation/timeline?limit=80"
   $timelineMatch = @($timeline.timeline) | Where-Object { $_.trace_id -eq $TraceId -and $_.event_type -eq "llm_gateway_request" } | Select-Object -First 1
   Assert-True "$($Case.name) gateway timeline llm leg visible" ($null -ne $timelineMatch)
   Assert-Equal "$($Case.name) gateway timeline leg" ([string]$timelineMatch.timeline_leg) "llm_audit"

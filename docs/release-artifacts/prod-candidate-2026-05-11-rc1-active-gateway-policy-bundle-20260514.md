@@ -3,8 +3,8 @@
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
 environment: `production-candidate`
-source_commit_sha: `5abca83a7680ea680a65a8e3e8f70a368ed79db7`
-immutable_image_commit_sha: `5abca83a7680ea680a65a8e3e8f70a368ed79db7`
+source_commit_sha: `c0a9d461615e4ccad2397fb6c0821659969ede4d`
+immutable_image_commit_sha: `c0a9d461615e4ccad2397fb6c0821659969ede4d`
 base_url: `https://188-34-191-140.sslip.io`
 local_control_plane_url: `http://localhost:8081`
 production_rollout_claimed: `false`

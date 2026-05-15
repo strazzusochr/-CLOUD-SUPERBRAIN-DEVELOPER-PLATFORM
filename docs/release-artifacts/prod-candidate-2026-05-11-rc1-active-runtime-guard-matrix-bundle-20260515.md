@@ -3,8 +3,8 @@
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
 environment: `production-candidate`
-source_commit_sha: `5abca83a7680ea680a65a8e3e8f70a368ed79db7`
-immutable_image_commit_sha: `5abca83a7680ea680a65a8e3e8f70a368ed79db7`
+source_commit_sha: `c0a9d461615e4ccad2397fb6c0821659969ede4d`
+immutable_image_commit_sha: `c0a9d461615e4ccad2397fb6c0821659969ede4d`
 base_url: `https://188-34-191-140.sslip.io`
 local_control_plane_url: `http://localhost:8081`
 production_rollout_claimed: `false`
@@ -33,7 +33,7 @@ changed_vertical: `none`
 ## Guarantees
 
 - The active RC1 now binds the hosted candidate to live-agent steering/history runtime guards plus LLM/MCP gateway guard surfaces.
-- Current progress authority remains enforced at `overall=81`, `phase_3=95`, `phase_5=86`, `agent_pool=76`, `llm_gateway=66`, `mcp_gateway=67`, and `memory=74`.
+- Current progress authority remains enforced at `overall=82`, `phase_3=95`, `phase_5=87`, `agent_pool=76`, `llm_gateway=67`, `mcp_gateway=67`, and `memory=74`.
 - This proof does not claim a production rollout.
 - This proof does not claim release promotion.
 - This proof does not claim live LLM provider calls.
