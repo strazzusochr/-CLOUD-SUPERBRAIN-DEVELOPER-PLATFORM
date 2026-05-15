@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type AgentStatus = {
   type: string;
@@ -2538,6 +2538,182 @@ const defaultAgents: AgentStatus[] = [
   { type: "devops", status: "idle", retries: 0 },
 ];
 
+type WorkbenchModuleId =
+  | "build"
+  | "code"
+  | "game"
+  | "research"
+  | "media"
+  | "docs"
+  | "agents"
+  | "models"
+  | "mcp"
+  | "memory"
+  | "observability"
+  | "settings";
+
+type WorkbenchTabId = "overview" | "create" | "agents" | "tools" | "assets" | "runs" | "audit" | "settings";
+
+const workbenchTabs: Array<{ id: WorkbenchTabId; label: string }> = [
+  { id: "overview", label: "Overview" },
+  { id: "create", label: "Create" },
+  { id: "agents", label: "Agents" },
+  { id: "tools", label: "Tools" },
+  { id: "assets", label: "Assets" },
+  { id: "runs", label: "Runs" },
+  { id: "audit", label: "Audit" },
+  { id: "settings", label: "Settings" },
+];
+
+const workbenchModules: Array<{
+  id: WorkbenchModuleId;
+  label: string;
+  glyph: string;
+  description: string;
+  primary: string;
+  scope: string;
+  target: string;
+  capabilities: string[];
+}> = [
+  {
+    id: "build",
+    label: "Build",
+    glyph: "B",
+    description: "App factory, product slices, full-stack plans, release-ready UI surfaces.",
+    primary: "Create App",
+    scope: "apps, SaaS, internal tools",
+    target: "#project-progress-surface",
+    capabilities: ["App Builder", "Product Plan", "Release Candidate", "UI Workflow"],
+  },
+  {
+    id: "code",
+    label: "Code",
+    glyph: "C",
+    description: "Coding workspace for implementation, review, tests, fixes, and repo navigation.",
+    primary: "Code Task",
+    scope: "frontend, backend, infra",
+    target: "#agent-status",
+    capabilities: ["Feature Work", "Bug Fix", "Code Review", "Test Repair"],
+  },
+  {
+    id: "game",
+    label: "3D/Game",
+    glyph: "3D",
+    description: "3D web games, real-time scenes, game systems, shaders, and browser proof.",
+    primary: "Build Game",
+    scope: "Three.js, WebGL, gameplay",
+    target: "#cloud-render-offload-surface",
+    capabilities: ["3D Scene", "Game Loop", "Multiplayer Plan", "Asset Pipeline"],
+  },
+  {
+    id: "research",
+    label: "Research",
+    glyph: "R",
+    description: "Deep web research, source maps, technical analysis, and decision reports.",
+    primary: "Deep Search",
+    scope: "web, docs, papers, markets",
+    target: "#langgraph-surface",
+    capabilities: ["Deep Search", "Source Atlas", "Comparison", "Report"],
+  },
+  {
+    id: "media",
+    label: "Media",
+    glyph: "M",
+    description: "Images, video, music, audio, design assets, and multimodal production flows.",
+    primary: "Create Media",
+    scope: "image, video, audio, music",
+    target: "#llm-gateway-surface",
+    capabilities: ["Image", "Video", "Music", "Storyboard"],
+  },
+  {
+    id: "docs",
+    label: "Docs",
+    glyph: "D",
+    description: "Documents, spreadsheets, presentations, exports, docs, and release notes.",
+    primary: "Write Doc",
+    scope: "docs, sheets, slides",
+    target: "#memory-surface",
+    capabilities: ["Document", "Deck", "Spreadsheet", "Export"],
+  },
+  {
+    id: "agents",
+    label: "Agents",
+    glyph: "A",
+    description: "Multi-agent teams, specialist roles, dispatch, steering, and run history.",
+    primary: "Route Team",
+    scope: "planner, coder, tester, devops",
+    target: "#agent-status",
+    capabilities: ["Single Agent", "Swarm", "Specialist Team", "Auto Router"],
+  },
+  {
+    id: "models",
+    label: "Models",
+    glyph: "L",
+    description: "LLM gateway routes, model catalog, provider guards, and fallback chains.",
+    primary: "Pick Model",
+    scope: "API-only external models",
+    target: "#llm-gateway-surface",
+    capabilities: ["Model Route", "Fallback Chain", "Streaming", "Guard Parity"],
+  },
+  {
+    id: "mcp",
+    label: "MCP Tools",
+    glyph: "T",
+    description: "Guarded Model Context Protocol tools, capability catalog, and no-write gates.",
+    primary: "Select Tools",
+    scope: "toolsets, contracts, guards",
+    target: "#mcp-builder-surface",
+    capabilities: ["Filesystem Plan", "Browser Proof", "GitHub Plan", "Sandbox Plan"],
+  },
+  {
+    id: "memory",
+    label: "Memory",
+    glyph: "K",
+    description: "Project memory, search, embeddings policy, consolidation, and deletion guards.",
+    primary: "Search Memory",
+    scope: "project knowledge",
+    target: "#memory-surface",
+    capabilities: ["Recall", "Consolidate", "Delete", "Embed Policy"],
+  },
+  {
+    id: "observability",
+    label: "Observability",
+    glyph: "O",
+    description: "Runs, traces, audits, costs, activity, security, and diagnostics.",
+    primary: "Inspect Runs",
+    scope: "audit, traces, metrics",
+    target: "#diagnostics-surface",
+    capabilities: ["Run Log", "Trace", "Cost", "Security Review"],
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    glyph: "S",
+    description: "Workspace policy, budgets, auth, cloud gates, integrations, and release guards.",
+    primary: "Configure",
+    scope: "workspace and governance",
+    target: "#security-surface",
+    capabilities: ["Budget", "Auth", "Cloud Gates", "Policies"],
+  },
+];
+
+const agentRunModes = [
+  { id: "auto-router", label: "Auto Router", detail: "Choose best agent or team per task" },
+  { id: "single", label: "Single Agent", detail: "Use the selected specialist only" },
+  { id: "swarm", label: "Swarm", detail: "Coordinate multiple agents for large work" },
+  { id: "specialists", label: "Specialists", detail: "Planner, coder, tester, devops lanes" },
+];
+
+const workbenchLayers: Array<{ label: string; module: WorkbenchModuleId; target: string }> = [
+  { label: "Frontend", module: "build", target: "#project-progress-surface" },
+  { label: "Orchestrator", module: "agents", target: "#langgraph-surface" },
+  { label: "Agent Pool", module: "agents", target: "#agent-status" },
+  { label: "LLM Gateway", module: "models", target: "#llm-gateway-surface" },
+  { label: "MCP Gateway", module: "mcp", target: "#mcp-builder-surface" },
+  { label: "Memory", module: "memory", target: "#memory-surface" },
+  { label: "Observability", module: "observability", target: "#diagnostics-surface" },
+];
+
 function cents(value: number) {
   return (value / 100).toLocaleString("en-US", { style: "currency", currency: "EUR" });
 }
@@ -2592,6 +2768,12 @@ export default function Home() {
   const [projectId, setProjectId] = useState("browser-workspace");
   const [prompt, setPrompt] = useState("Build the next safe platform slice.");
   const [search, setSearch] = useState("platform");
+  const [activeModuleId, setActiveModuleId] = useState<WorkbenchModuleId>("build");
+  const [activeWorkbenchTab, setActiveWorkbenchTab] = useState<WorkbenchTabId>("overview");
+  const [selectedAgentMode, setSelectedAgentMode] = useState("auto-router");
+  const [selectedRouteKey, setSelectedRouteKey] = useState("auto");
+  const [selectedToolsetKey, setSelectedToolsetKey] = useState("auto");
+  const [commandQuery, setCommandQuery] = useState("");
   const [budget, setBudget] = useState<BudgetState | null>(null);
   const [costs, setCosts] = useState<CostState | null>(null);
   const [costExportContract, setCostExportContract] = useState<CostExportContract | null>(null);
@@ -2723,6 +2905,7 @@ export default function Home() {
   const [events, setEvents] = useState<string[]>([]);
   const [status, setStatus] = useState("ready");
   const [error, setError] = useState<string | null>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
 
   const budgetLabel = useMemo(() => {
     if (!budget) return "Budget loading";
@@ -3514,10 +3697,13 @@ export default function Home() {
       setError(`prompt input guard: prompt must be between ${minPromptChars} and ${maxPromptChars} characters`);
       return;
     }
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
     try {
       const response = await fetch("/api/v1/prompt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({ project_id: projectId, prompt, stream: true }),
       });
       if (!response.ok) {
@@ -3527,7 +3713,7 @@ export default function Home() {
       const payload: PromptResponse = await response.json();
       setLastRun(payload);
       setStatus("streaming");
-      await streamRun(payload.stream_url);
+      await streamRun(payload.stream_url, controller.signal);
       await Promise.all([
         loadBudget(),
         loadCosts(),
@@ -3601,13 +3787,20 @@ export default function Home() {
       setSearch(prompt.split(" ").slice(-2).join(" "));
       setStatus("ready");
     } catch (caught) {
+      if (caught instanceof DOMException && caught.name === "AbortError") {
+        setStatus("stopped");
+        setEvents((current) => [...current.slice(-10), "event: operator_stop_requested"]);
+        return;
+      }
       setStatus("error");
       setError(caught instanceof Error ? caught.message : "unknown error");
+    } finally {
+      if (streamAbortRef.current === controller) streamAbortRef.current = null;
     }
   }
 
-  async function streamRun(url: string) {
-    const response = await fetch(url, { cache: "no-store" });
+  async function streamRun(url: string, signal?: AbortSignal) {
+    const response = await fetch(url, { cache: "no-store", signal });
     if (!response.ok || !response.body) throw new Error(`stream ${response.status}`);
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -4081,25 +4274,85 @@ export default function Home() {
           unsupported_capability_guard: "mcp_unsupported_capability_guard",
         },
       ];
+  const activeWorkbenchModule =
+    workbenchModules.find((module) => module.id === activeModuleId) ?? workbenchModules[0];
+  const activeAgentMode =
+    agentRunModes.find((mode) => mode.id === selectedAgentMode) ?? agentRunModes[0];
+  const selectedModelRoute =
+    selectedRouteKey === "auto"
+      ? forgeModelRoutes[0] ?? null
+      : forgeModelRoutes.find((route) => route.agent_type === selectedRouteKey) ?? forgeModelRoutes[0] ?? null;
+  const selectedMcpToolset =
+    selectedToolsetKey === "auto"
+      ? forgeToolCards[0] ?? null
+      : forgeToolCards.find((toolset) => toolset.toolset === selectedToolsetKey) ?? forgeToolCards[0] ?? null;
+  const commandMatches = workbenchModules
+    .filter((module) => {
+      const query = commandQuery.trim().toLowerCase();
+      if (!query) return true;
+      return `${module.label} ${module.description} ${module.capabilities.join(" ")}`
+        .toLowerCase()
+        .includes(query);
+    })
+    .slice(0, 5);
+  const workbenchStats = [
+    { label: "Project", value: projectProgress ? `${projectProgress.overall_percent}%` : "loading" },
+    { label: "Agents", value: `${forgeAgentSlots.length} visible` },
+    { label: "Models", value: `${forgeModelRoutes.length || modelCapabilities?.routes?.length || 0} routes` },
+    { label: "MCP", value: `${forgeToolCards.length} guarded` },
+  ];
+  const recentRunCount = recentSessions.length + phase2RuntimeRuns.length;
+  const selectedRouteLabel = selectedModelRoute
+    ? `${selectedModelRoute.agent_type}: ${selectedModelRoute.primary}`
+    : "Auto route";
+  const selectedToolsetLabel = selectedMcpToolset
+    ? `${selectedMcpToolset.toolset} / ${selectedMcpToolset.supported_capabilities[0] ?? "guarded"}`
+    : "Auto MCP scope";
 
   return (
     <main className="shell scanline">
       <div className="forgeChrome">
-        <aside className="forgeSidebar" aria-label="Agent Forge navigation">
+        <aside className="forgeSidebar workbenchSidebar" aria-label="Superbrain workbench navigation">
           <div className="forgeBrand">
             <span className="forgeBrandIcon">#</span>
             <div>
               <strong>Cloud Superbrain</strong>
-              <small>Agent Forge</small>
+              <small>Developer Workbench</small>
             </div>
           </div>
+          <label className="workbenchCommandSearch">
+            <span>Command Palette</span>
+            <input
+              value={commandQuery}
+              onChange={(event) => setCommandQuery(event.target.value)}
+              placeholder="Search modules, agents, tools..."
+            />
+          </label>
+          <nav className="workbenchModuleNav" aria-label="Workbench modules">
+            {workbenchModules.map((module) => (
+              <button
+                type="button"
+                className={module.id === activeModuleId ? "workbenchModuleButton workbenchModuleButton-active" : "workbenchModuleButton"}
+                aria-pressed={module.id === activeModuleId}
+                onClick={() => {
+                  setActiveModuleId(module.id);
+                  setActiveWorkbenchTab("overview");
+                }}
+                key={module.id}
+              >
+                <span>{module.glyph}</span>
+                <strong>{module.label}</strong>
+                <small>{module.scope}</small>
+              </button>
+            ))}
+          </nav>
           <div className="forgeSidebarSection">
             <div className="forgeSidebarHeader">
               <span>Active Agents</span>
-              <a href="#forge-model-atlas">Model Atlas</a>
+              <a href="#agent-status">Roster</a>
             </div>
             <div className="forgeAgentList">
-              {forgeAgentSlots.slice(0, 6).map((agent) => (
+              {forgeAgentSlots.slice(0, 4).map((agent) => (
                 <a className="forgeAgentButton" href="#agent-status" key={agent.type}>
                   <span className={`forgeAgentDot forgeAgentDot-${agent.status ?? "idle"}`} />
                   <span>{agent.type}</span>
@@ -4108,14 +4361,6 @@ export default function Home() {
               ))}
             </div>
           </div>
-          <nav className="forgeSidebarSection forgeNav" aria-label="Runtime surfaces">
-            <a href="#project-progress-surface">Project Progress</a>
-            <a href="#langgraph-surface">LangGraph</a>
-            <a href="#llm-gateway-surface">LLM Gateway</a>
-            <a href="#mcp-builder-surface">MCP Builder</a>
-            <a href="#security-surface">Security</a>
-            <a href="#memory-surface">Memory</a>
-          </nav>
           <div className="forgeSidebarFooter">
             <span>System Ready</span>
             <strong>{budgetLabel}</strong>
@@ -4123,36 +4368,119 @@ export default function Home() {
         </aside>
 
       <section className="workspace forgeWorkspace">
-        <header className="topbar">
+        <header className="topbar workbenchTopbar">
           <div>
-            <p className="eyebrow">Phase 1 Runtime</p>
-            <h1>Cloud Superbrain</h1>
+            <p className="eyebrow">Superbrain Developer Platform</p>
+            <h1>{activeWorkbenchModule.label} Workbench</h1>
+            <p className="workbenchTopline">{activeWorkbenchModule.description}</p>
           </div>
-          <div className={`budget budget-${budget?.level ?? "loading"}`}>{budgetLabel}</div>
+          <div className="workbenchTopActions">
+            <a href="#diagnostics-surface">Diagnostics</a>
+            <a href={activeWorkbenchModule.target}>Open Details</a>
+            <div className={`budget budget-${budget?.level ?? "loading"}`}>{budgetLabel}</div>
+          </div>
         </header>
 
-        <form className="promptPanel" onSubmit={startRun} aria-label="Prompt workspace">
-          <label>
-            <span>Project</span>
-            <input value={projectId} onChange={(event) => setProjectId(event.target.value)} />
-          </label>
-          <label>
-            <span>Prompt</span>
-            <textarea
-              value={prompt}
-              maxLength={promptContract?.max_prompt_chars ?? 10_000}
-              onChange={(event) => setPrompt(event.target.value)}
-            />
-            <small>
-              Prompt Input Guard · {prompt.length}/{promptContract?.max_prompt_chars ?? 10_000} ·{" "}
-              {promptContract?.evidence_refs?.contract_visible ?? "prompt_input_contract_visible"} /{" "}
-              {promptContract?.evidence_refs?.frontend_counter_visible ?? "prompt_input_counter_visible"} /{" "}
-              {promptContract?.evidence_refs?.overflow_blocked ?? "prompt_input_422_enforced"}
-            </small>
-          </label>
-          <div className="actions">
+        <form className="promptPanel workbenchComposer" onSubmit={startRun} aria-label="Prompt workspace">
+          <div className="workbenchComposerHeader">
+            <div>
+              <span>{activeWorkbenchModule.primary}</span>
+              <strong>{activeWorkbenchModule.scope}</strong>
+            </div>
+            <div className="workbenchStatusPills" aria-label="Workbench status">
+              {workbenchStats.map((item) => (
+                <span key={item.label}>
+                  {item.label}: {item.value}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="workbenchComposerBody">
+            <label className="workbenchProjectField">
+              <span>Project</span>
+              <input value={projectId} onChange={(event) => setProjectId(event.target.value)} />
+            </label>
+            <label className="workbenchPromptField">
+              <span>Prompt</span>
+              <textarea
+                value={prompt}
+                maxLength={promptContract?.max_prompt_chars ?? 10_000}
+                onChange={(event) => setPrompt(event.target.value)}
+              />
+              <small>
+                Prompt Input Guard · {prompt.length}/{promptContract?.max_prompt_chars ?? 10_000} ·{" "}
+                {promptContract?.evidence_refs?.contract_visible ?? "prompt_input_contract_visible"} /{" "}
+                {promptContract?.evidence_refs?.frontend_counter_visible ?? "prompt_input_counter_visible"} /{" "}
+                {promptContract?.evidence_refs?.overflow_blocked ?? "prompt_input_422_enforced"}
+              </small>
+            </label>
+          </div>
+          <div className="workbenchControlGrid">
+            <label>
+              <span>Mode</span>
+              <select value={activeWorkbenchTab} onChange={(event) => setActiveWorkbenchTab(event.target.value as WorkbenchTabId)}>
+                {workbenchTabs.map((tab) => (
+                  <option value={tab.id} key={tab.id}>
+                    {tab.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Agent Team</span>
+              <select value={selectedAgentMode} onChange={(event) => setSelectedAgentMode(event.target.value)}>
+                {agentRunModes.map((mode) => (
+                  <option value={mode.id} key={mode.id}>
+                    {mode.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Model Route</span>
+              <select value={selectedRouteKey} onChange={(event) => setSelectedRouteKey(event.target.value)}>
+                <option value="auto">Auto route</option>
+                {forgeModelRoutes.map((route) => (
+                  <option value={route.agent_type} key={route.agent_type}>
+                    {route.agent_type}: {route.primary}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>MCP Scope</span>
+              <select value={selectedToolsetKey} onChange={(event) => setSelectedToolsetKey(event.target.value)}>
+                <option value="auto">Auto guarded scope</option>
+                {forgeToolCards.map((toolset) => (
+                  <option value={toolset.toolset} key={toolset.toolset}>
+                    {toolset.toolset}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="actions workbenchActionBar">
             <button type="submit" disabled={status === "starting" || status === "streaming"}>
-              Start
+              Run
+            </button>
+            <button
+              type="button"
+              disabled={status !== "streaming"}
+              onClick={() => {
+                setStatus("stopping");
+                streamAbortRef.current?.abort();
+              }}
+            >
+              Stop
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveModuleId("observability");
+                setActiveWorkbenchTab("audit");
+              }}
+            >
+              Review
             </button>
             <button type="button" onClick={() => void loadBudget()}>
               Refresh
@@ -4162,108 +4490,152 @@ export default function Home() {
 
         {error ? <p className="error">{error}</p> : null}
 
-        <section className="forgeCommandDeck" aria-label="Agent Forge command deck">
-          <div className="forgeDeckHeader">
-            <div>
-              <span className="forgeKicker">7-Layer Cloud Runtime</span>
-              <h2>Agent Forge Control Plane</h2>
-            </div>
-            <div className="forgeSegmented">
-              <a href="#project-progress-surface">Progress</a>
-              <a href="#llm-gateway-surface">Models</a>
-              <a href="#mcp-builder-surface">Builder</a>
-            </div>
-          </div>
-          <div className="forgeLayerStrip" aria-label="7-layer cloud system">
-            {[
-              "Frontend",
-              "Orchestrator",
-              "Agent Pool",
-              "LLM Gateway",
-              "MCP Gateway",
-              "Memory",
-              "Observability",
-            ].map((layer, index) => (
-              <a href={index === 3 ? "#llm-gateway-surface" : index === 4 ? "#mcp-builder-surface" : "#project-progress-surface"} key={layer}>
+        <section className="workbenchLayerDock" aria-label="7-layer cloud system">
+          {workbenchLayers.map((layer, index) => {
+            const layerProgress = projectProgress?.vertical.items.find((item) =>
+              item.label.toLowerCase().includes(layer.label.toLowerCase().split(" ")[0]),
+            );
+            return (
+              <button
+                type="button"
+                className={layer.module === activeModuleId ? "workbenchLayerButton workbenchLayerButton-active" : "workbenchLayerButton"}
+                onClick={() => {
+                  setActiveModuleId(layer.module);
+                  setActiveWorkbenchTab("overview");
+                }}
+                key={layer.label}
+              >
                 <span>L{index + 1}</span>
-                <strong>{layer}</strong>
-              </a>
+                <strong>{layer.label}</strong>
+                <small>{layerProgress ? `${layerProgress.percent}%` : "loading"}</small>
+              </button>
+            );
+          })}
+        </section>
+
+        <section className="workbenchStage" aria-label="Agent Forge Control Plane">
+          <header className="workbenchStageHeader">
+            <div>
+              <span className="forgeKicker">Agent Forge Control Plane</span>
+              <h2>{activeWorkbenchModule.label}</h2>
+              <p>{activeWorkbenchModule.description}</p>
+            </div>
+            <div className="workbenchStageBadges">
+              <span>API-only / no local models</span>
+              <span>live_mcp_writes=false</span>
+              <span>no production rollout</span>
+            </div>
+          </header>
+          <nav className="workbenchTabs" aria-label="Workspace tabs">
+            {workbenchTabs.map((tab) => (
+              <button
+                type="button"
+                className={tab.id === activeWorkbenchTab ? "workbenchTab workbenchTab-active" : "workbenchTab"}
+                aria-pressed={tab.id === activeWorkbenchTab}
+                onClick={() => setActiveWorkbenchTab(tab.id)}
+                key={tab.id}
+              >
+                {tab.label}
+              </button>
             ))}
-          </div>
-          <div className="forgeDeckGrid">
-            <article className="forgeAtlasPanel" id="forge-model-atlas">
+          </nav>
+          <div className="workbenchCanvas">
+            <article className="workbenchPanel workbenchPrimaryPanel">
               <header>
-                <span>Initialize New Agent</span>
-                <strong>API-only / no local models</strong>
+                <span>{activeWorkbenchTab}</span>
+                <strong>{activeWorkbenchModule.primary}</strong>
               </header>
-              <div className="forgeSearchGhost">Search models...</div>
-              <p className="forgeDeckNote">
-                External models stay behind the LLM Gateway: live_provider_calls=false until Owner gate,
-                model_downloads=false, routing-policy preflight required.
+              <p>
+                {activeWorkbenchModule.label} is ready for {activeWorkbenchModule.scope}. Pick a capability,
+                route the right agent team, then run with gateway guards.
               </p>
-              <div className="forgeModelCards">
-                {forgeModelRoutes.length ? (
-                  forgeModelRoutes.map((route) => (
-                    <article className="forgeModelCard" key={route.agent_type}>
-                      <div>
-                        <strong>{route.agent_type}: {route.primary}</strong>
-                        <span>{route.max_output_tokens.toLocaleString()} ctx</span>
-                      </div>
-                      <p>{route.supports_streaming ? "streaming_sse" : "non_streaming"} / model_downloads=false</p>
-                      <small>{route.fallbacks.length ? `Fallbacks: ${route.fallbacks.join(" -> ")}` : "No fallback route"}</small>
-                    </article>
+              <div className="workbenchCapabilityGrid">
+                {activeWorkbenchModule.capabilities.map((capability) => (
+                  <button
+                    type="button"
+                    className="workbenchCapability"
+                    onClick={() => setPrompt(`${capability}: ${prompt}`)}
+                    key={capability}
+                  >
+                    <strong>{capability}</strong>
+                    <small>{activeWorkbenchModule.label}</small>
+                  </button>
+                ))}
+              </div>
+            </article>
+
+            <article className="workbenchPanel">
+              <header>
+                <span>Routing</span>
+                <strong>{activeAgentMode.label}</strong>
+              </header>
+              <div className="workbenchRouteStack">
+                <div>
+                  <span>Agent Mode</span>
+                  <strong>{activeAgentMode.detail}</strong>
+                </div>
+                <div>
+                  <span>Model Route</span>
+                  <strong>{selectedRouteLabel}</strong>
+                  <small>model_downloads=false / live_provider_calls=false until Owner gate</small>
+                </div>
+                <div>
+                  <span>MCP Scope</span>
+                  <strong>{selectedToolsetLabel}</strong>
+                  <small>guarded through MCP Gateway, never direct browser writes</small>
+                </div>
+              </div>
+            </article>
+
+            <article className="workbenchPanel">
+              <header>
+                <span>Command Results</span>
+                <strong>{commandQuery.trim() ? commandQuery : "All modules"}</strong>
+              </header>
+              <div className="workbenchCommandResults">
+                {commandMatches.length ? (
+                  commandMatches.map((module) => (
+                    <button
+                      type="button"
+                      className="workbenchCommandResult"
+                      onClick={() => {
+                        setActiveModuleId(module.id);
+                        setActiveWorkbenchTab("overview");
+                      }}
+                      key={module.id}
+                    >
+                      <span>{module.glyph}</span>
+                      <strong>{module.label}</strong>
+                      <small>{module.capabilities.join(" / ")}</small>
+                    </button>
                   ))
                 ) : (
-                  <article className="forgeModelCard">
-                    <div>
-                      <strong>planner: deterministic dry-run</strong>
-                      <span>loading</span>
-                    </div>
-                    <p>llm-runtime-guard-parity-v1 / model_downloads=false</p>
-                    <small>Model catalog route data is loading.</small>
-                  </article>
+                  <p className="muted">No module match yet. Try agents, video, game, code, docs, or research.</p>
                 )}
               </div>
             </article>
 
-            <article className="forgeBuilderPreview" id="mcp-builder-surface" aria-label="MCP Builder">
+            <article className="workbenchPanel">
               <header>
-                <div>
-                  <span className="forgeBuilderIcon">#</span>
-                  <strong>MCP BUILDER</strong>
-                </div>
-                <a href="#mcp-runtime-guard-surface">Guard Matrix</a>
+                <span>Runs</span>
+                <strong>{recentRunCount ? `${recentRunCount} recent` : "No run opened"}</strong>
               </header>
-              <p>Configure guarded Model Context Protocol toolsets through the MCP Gateway, never direct browser writes.</p>
-              <div className="forgeBuilderSplit">
-                <div className="forgeServerRail">
-                  <span>Active Servers</span>
-                  {forgeToolCards.slice(0, 3).map((toolset) => (
-                    <article className="forgeServerCard" key={toolset.toolset}>
-                      <div>
-                        <span className="forgeAgentDot forgeAgentDot-completed" />
-                        <strong>{toolset.toolset}</strong>
-                      </div>
-                      <small>{toolset.contract_endpoint ?? "contract pending"}</small>
-                    </article>
-                  ))}
-                </div>
-                <div className="forgeToolGrid">
-                  {forgeToolCards.slice(0, 6).map((toolset) => (
-                    <article className="forgeToolCard" key={toolset.toolset}>
-                      <div>
-                        <strong>{toolset.supported_capabilities[0] ?? toolset.toolset}</strong>
-                        <span>{toolset.toolset}</span>
-                      </div>
-                      <p>{toolset.unsupported_capability_guard}</p>
-                      <small>{toolset.live_mcp_writes ? "live_mcp_writes=true" : "live_mcp_writes=false"}</small>
-                    </article>
-                  ))}
-                </div>
+              <div className="workbenchRunList">
+                <span>Status: {status}</span>
+                <span>Graph: {graphStatus}</span>
+                <span>Queue: {taskQueueDepth}</span>
+                <span>Evidence: prompt_input_contract_visible</span>
               </div>
             </article>
           </div>
         </section>
+
+        <details className="workbenchEvidenceVault" id="diagnostics-surface">
+          <summary>
+            <span>Contracts, Audit, Diagnostics</span>
+            <strong>Full verification surface</strong>
+          </summary>
+          <div className="workbenchEvidenceBody">
 
         <section className="panel" aria-label="Error response contract">
           <header className="panelHeader">
@@ -9128,7 +9500,42 @@ export default function Home() {
             </div>
           </section>
         </section>
+          </div>
+        </details>
       </section>
+      <aside className="workbenchInspector" aria-label="Context inspector">
+        <section>
+          <span className="forgeKicker">Inspector</span>
+          <h2>{activeWorkbenchModule.label}</h2>
+          <p>{activeWorkbenchModule.description}</p>
+        </section>
+        <section className="workbenchInspectorCard">
+          <span>Selected Agent Mode</span>
+          <strong>{activeAgentMode.label}</strong>
+          <p>{activeAgentMode.detail}</p>
+        </section>
+        <section className="workbenchInspectorCard">
+          <span>Model Route</span>
+          <strong>{selectedRouteLabel}</strong>
+          <p>{selectedModelRoute?.supports_streaming ? "Streaming route available" : "Non-streaming or loading route"}</p>
+        </section>
+        <section className="workbenchInspectorCard">
+          <span>MCP Tool Scope</span>
+          <strong>{selectedToolsetLabel}</strong>
+          <p>{selectedMcpToolset?.unsupported_capability_guard ?? "mcp_unsupported_capability_guard"}</p>
+        </section>
+        <section className="workbenchInspectorCard">
+          <span>Safety Gates</span>
+          <strong>Fail closed</strong>
+          <p>API-only models, no local model downloads, no live MCP writes, no production rollout claim.</p>
+        </section>
+        <section className="workbenchInspectorActions">
+          <a href={activeWorkbenchModule.target}>Open module details</a>
+          <a href="#diagnostics-surface">Open diagnostics</a>
+          <a href="#mcp-runtime-guard-surface">Guard matrix</a>
+          <a href="#memory-surface">Memory policy</a>
+        </section>
+      </aside>
       </div>
     </main>
   );

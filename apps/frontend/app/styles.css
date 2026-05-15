@@ -97,8 +97,10 @@ select {
 
 .forgeChrome {
   display: grid;
-  grid-template-columns: 292px minmax(0, 1fr);
+  grid-template-columns: 268px minmax(0, 1fr) 310px;
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 .forgeSidebar {
@@ -112,6 +114,7 @@ select {
   background: rgba(13, 13, 15, 0.92);
   padding: 22px 16px;
   backdrop-filter: blur(14px);
+  overflow-y: auto;
 }
 
 .forgeBrand {
@@ -266,6 +269,8 @@ select {
 
 .forgeWorkspace {
   padding: 28px;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .topbar {
@@ -2163,6 +2168,462 @@ pre {
   line-height: 1.5;
 }
 
+.workbenchSidebar {
+  gap: 14px;
+}
+
+.workbenchCommandSearch {
+  border: 1px solid var(--forge-border-soft);
+  background: rgba(7, 7, 8, 0.7);
+  padding: 10px;
+}
+
+.workbenchCommandSearch input {
+  min-height: 38px;
+  padding: 9px 10px;
+}
+
+.workbenchModuleNav {
+  display: grid;
+  gap: 6px;
+}
+
+.workbenchModuleButton,
+.workbenchLayerButton,
+.workbenchTab,
+.workbenchCapability,
+.workbenchCommandResult {
+  min-width: 0;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.workbenchModuleButton {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 3px 10px;
+  align-items: center;
+  border-color: transparent;
+  background: transparent;
+  padding: 9px 10px;
+}
+
+.workbenchModuleButton span {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--forge-border-soft);
+  color: var(--forge-cyan);
+  font-size: 11px;
+}
+
+.workbenchModuleButton strong,
+.workbenchCommandResult strong,
+.workbenchCapability strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workbenchModuleButton small,
+.workbenchCommandResult small,
+.workbenchCapability small {
+  color: var(--forge-muted);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workbenchModuleButton-active,
+.workbenchModuleButton:hover {
+  border-color: rgba(34, 211, 238, 0.38);
+  background: rgba(34, 211, 238, 0.08);
+  color: #f8fafc;
+}
+
+.workbenchTopbar {
+  align-items: flex-start;
+}
+
+.workbenchTopline {
+  margin-top: 7px;
+  color: #a1a1aa;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workbenchTopActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.workbenchTopActions a,
+.workbenchInspectorActions a {
+  border: 1px solid var(--forge-border-soft);
+  background: rgba(7, 7, 8, 0.84);
+  color: var(--forge-cyan);
+  padding: 9px 11px;
+  text-decoration: none;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workbenchComposer {
+  align-items: stretch;
+  grid-template-columns: 1fr;
+}
+
+.workbenchComposerHeader,
+.workbenchComposerBody,
+.workbenchControlGrid,
+.workbenchActionBar,
+.workbenchStageHeader,
+.workbenchStageBadges,
+.workbenchRouteStack > div,
+.workbenchLayerButton,
+.workbenchInspectorCard {
+  min-width: 0;
+}
+
+.workbenchComposerHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--forge-border-soft);
+  padding-bottom: 12px;
+}
+
+.workbenchComposerHeader span,
+.workbenchInspectorCard span,
+.workbenchRunList span {
+  color: var(--forge-muted);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.workbenchComposerHeader strong {
+  display: block;
+  margin-top: 5px;
+  color: #f8fafc;
+}
+
+.workbenchStatusPills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.workbenchStatusPills span,
+.workbenchStageBadges span {
+  border: 1px solid var(--forge-border-soft);
+  background: #08080a;
+  color: #a5f3fc;
+  padding: 6px 8px;
+  font-size: 10px;
+}
+
+.workbenchComposerBody {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.28fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.workbenchPromptField textarea {
+  min-height: 88px;
+}
+
+.workbenchControlGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.workbenchActionBar {
+  justify-content: flex-end;
+}
+
+.workbenchLayerDock {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+  border: 1px solid var(--forge-border-soft);
+  background: rgba(8, 8, 10, 0.94);
+  padding: 8px;
+  backdrop-filter: blur(14px);
+}
+
+.workbenchLayerButton {
+  display: grid;
+  gap: 4px;
+  border-color: var(--forge-border-soft);
+  background: #0b0b0d;
+  padding: 9px;
+}
+
+.workbenchLayerButton span,
+.workbenchLayerButton small {
+  color: var(--forge-muted);
+  font-size: 10px;
+}
+
+.workbenchLayerButton strong {
+  color: #f4f4f5;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workbenchLayerButton-active,
+.workbenchLayerButton:hover {
+  border-color: rgba(16, 185, 129, 0.42);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.workbenchStage {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--forge-border-soft);
+  background: rgba(12, 12, 14, 0.94);
+  padding: 16px;
+}
+
+.workbenchStageHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.workbenchStageHeader p {
+  margin-top: 7px;
+  color: #a1a1aa;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.workbenchStageBadges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-content: start;
+}
+
+.workbenchTabs {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.workbenchTab {
+  border-color: var(--forge-border-soft);
+  background: #08080a;
+  color: var(--forge-muted);
+  padding: 8px;
+  text-align: center;
+  font-size: 10px;
+}
+
+.workbenchTab-active,
+.workbenchTab:hover {
+  border-color: rgba(34, 211, 238, 0.45);
+  background: rgba(34, 211, 238, 0.1);
+  color: #ecfeff;
+}
+
+.workbenchCanvas {
+  display: grid;
+  grid-template-columns: minmax(300px, 1.15fr) minmax(260px, 0.85fr);
+  gap: 12px;
+}
+
+.workbenchPanel {
+  min-width: 0;
+  border: 1px solid var(--forge-border-soft);
+  background: rgba(17, 17, 20, 0.9);
+  padding: 14px;
+}
+
+.workbenchPanel header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.workbenchPanel header span {
+  color: var(--forge-muted);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.workbenchPanel p {
+  color: #a1a1aa;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.workbenchCapabilityGrid,
+.workbenchCommandResults,
+.workbenchRouteStack,
+.workbenchRunList {
+  display: grid;
+  gap: 8px;
+}
+
+.workbenchCapabilityGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.workbenchCapability,
+.workbenchCommandResult {
+  display: grid;
+  gap: 4px;
+  border-color: var(--forge-border-soft);
+  background: #0a0a0c;
+  padding: 10px;
+}
+
+.workbenchCommandResult {
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+}
+
+.workbenchCommandResult span {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--forge-border-soft);
+  color: var(--forge-cyan);
+}
+
+.workbenchCapability:hover,
+.workbenchCommandResult:hover {
+  border-color: rgba(34, 211, 238, 0.4);
+}
+
+.workbenchRouteStack > div {
+  border: 1px solid var(--forge-border-soft);
+  background: #08080a;
+  padding: 10px;
+}
+
+.workbenchRouteStack span,
+.workbenchRouteStack small {
+  display: block;
+  color: var(--forge-muted);
+  font-size: 10px;
+}
+
+.workbenchRouteStack strong {
+  display: block;
+  margin: 6px 0;
+  color: #f8fafc;
+  overflow-wrap: anywhere;
+}
+
+.workbenchRunList span {
+  border: 1px solid var(--forge-border-soft);
+  background: #08080a;
+  padding: 9px;
+  overflow-wrap: anywhere;
+}
+
+.workbenchEvidenceVault {
+  margin-bottom: 16px;
+  border: 1px solid var(--forge-border-soft);
+  background: rgba(8, 8, 10, 0.72);
+}
+
+.workbenchEvidenceVault > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  padding: 14px;
+  color: var(--forge-cyan);
+  list-style: none;
+}
+
+.workbenchEvidenceVault > summary::-webkit-details-marker {
+  display: none;
+}
+
+.workbenchEvidenceVault > summary span,
+.workbenchEvidenceVault > summary strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workbenchEvidenceBody {
+  display: grid;
+  gap: 16px;
+  border-top: 1px solid var(--forge-border-soft);
+  padding: 14px;
+}
+
+.workbenchInspector {
+  height: 100vh;
+  overflow-y: auto;
+  border-left: 1px solid var(--forge-border-soft);
+  background: rgba(13, 13, 15, 0.92);
+  padding: 22px 16px;
+}
+
+.workbenchInspector section {
+  margin-bottom: 12px;
+}
+
+.workbenchInspector h2 {
+  margin-top: 7px;
+}
+
+.workbenchInspector p {
+  color: #a1a1aa;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.workbenchInspectorCard {
+  border: 1px solid var(--forge-border-soft);
+  background: #0b0b0d;
+  padding: 12px;
+}
+
+.workbenchInspectorCard strong {
+  display: block;
+  margin: 7px 0;
+  color: #f8fafc;
+  overflow-wrap: anywhere;
+}
+
+.workbenchInspectorActions {
+  display: grid;
+  gap: 8px;
+}
+
 @media (max-width: 860px) {
   .shell {
     padding: 0;
@@ -2170,6 +2631,8 @@ pre {
 
   .forgeChrome {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
   }
 
   .forgeSidebar {
@@ -2181,11 +2644,32 @@ pre {
 
   .forgeWorkspace {
     padding: 16px;
+    height: auto;
+    overflow: visible;
+  }
+
+  .workbenchInspector {
+    height: auto;
+    border-left: 0;
+    border-top: 1px solid var(--forge-border-soft);
   }
 
   .topbar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .workbenchComposerHeader,
+  .workbenchStageHeader,
+  .workbenchTopActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .workbenchStatusPills,
+  .workbenchStageBadges,
+  .workbenchTopActions {
+    justify-content: flex-start;
   }
 
   .budget {
@@ -2196,8 +2680,17 @@ pre {
 
   .promptPanel,
   .forgeDeckGrid,
-  .forgeBuilderSplit {
+  .forgeBuilderSplit,
+  .workbenchComposerBody,
+  .workbenchCanvas {
     grid-template-columns: 1fr;
+  }
+
+  .workbenchControlGrid,
+  .workbenchLayerDock,
+  .workbenchTabs,
+  .workbenchCapabilityGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .forgeDeckHeader {
