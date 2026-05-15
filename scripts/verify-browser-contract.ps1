@@ -214,6 +214,11 @@ Assert-Contains "llm model catalog panel" $frontendHtml "Model Catalog"
 Assert-Contains "llm model catalog contract marker" $frontendHtml "llm-model-catalog-v1"
 Assert-Contains "llm model catalog evidence marker" $frontendHtml "llm_model_catalog_visible"
 Assert-Contains "llm model catalog endpoint marker" $frontendHtml "GET /llm/api/v1/models/catalog"
+Assert-Contains "llm provider readiness panel" $frontendHtml "Provider Readiness Contract"
+Assert-Contains "llm provider readiness contract marker" $frontendHtml "llm-provider-readiness-contract-v1"
+Assert-Contains "llm provider readiness evidence marker" $frontendHtml "llm_provider_readiness_contract_visible"
+Assert-Contains "llm provider readiness endpoint marker" $frontendHtml "GET /llm/api/v1/providers/readiness/contract"
+Assert-Contains "llm provider readiness no-probe marker" $frontendHtml "external_probe_performed"
 Assert-Contains "llm audit feed panel" $frontendHtml "LLM Audit Feed"
 Assert-Contains "llm audit feed contract marker" $frontendHtml "llm-audit-feed-v1"
 Assert-Contains "llm audit feed evidence marker" $frontendHtml "llm_audit_feed_visible"
@@ -723,6 +728,21 @@ Assert-Contains "langfuse trace evidence" $langfuseTraceContract "langfuse_trace
 Assert-Contains "langfuse trace event evidence" $langfuseTraceContract "langfuse_trace_event_visible"
 Assert-Contains "langfuse trace read only" $langfuseTraceContract '"read_only":true'
 Assert-Contains "langfuse trace provider export false" $langfuseTraceContract '"provider_trace_export":false'
+
+Write-Host "[browser-contract] llm provider readiness"
+$llmProviderReadiness = Invoke-Text "$BaseUrl/llm/api/v1/providers/readiness/contract"
+Assert-Contains "llm provider readiness version" $llmProviderReadiness '"contract_version":"llm-provider-readiness-contract-v1"'
+Assert-Contains "llm provider readiness status" $llmProviderReadiness '"status":"verified"'
+Assert-Contains "llm provider readiness evidence" $llmProviderReadiness '"evidence_ref":"llm_provider_readiness_contract_visible"'
+Assert-Contains "llm provider readiness endpoint" $llmProviderReadiness "GET /llm/api/v1/providers/readiness/contract"
+Assert-Contains "llm provider readiness no live calls" $llmProviderReadiness '"live_provider_calls":false'
+Assert-Contains "llm provider readiness no external probe" $llmProviderReadiness '"external_probe_performed":false'
+Assert-Contains "llm provider readiness no model downloads" $llmProviderReadiness '"model_downloads":false'
+Assert-Contains "llm provider readiness token absent" $llmProviderReadiness '"provider_token_returned":false'
+Assert-Contains "llm provider readiness deterministic default" $llmProviderReadiness '"default_generation_decision":"deterministic_dry_run"'
+Assert-Contains "llm provider readiness direct-provider guard" $llmProviderReadiness "direct_provider_url"
+Assert-Contains "llm provider readiness no live generation" $llmProviderReadiness "No live provider generation call"
+Assert-Contains "llm provider readiness no upstream probe" $llmProviderReadiness "No upstream model-list probe"
 
 Write-Host "[browser-contract] llm audit feed"
 $llmAuditContract = Invoke-Text "$BaseUrl/api/v1/audit/llm/contract"

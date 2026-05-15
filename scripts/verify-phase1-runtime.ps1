@@ -308,6 +308,8 @@ Assert-Contains "agent-api memory worker health evidence" $apiHealth '"evidence_
 Assert-Contains "agent-api memory worker stale heartbeat guard" $apiHealth '"stale_heartbeat":false'
 Assert-Contains "agent-api mcp health matrix" $apiHealth '"mcp_gateway":{"status":"healthy"'
 Assert-Contains "agent-api llm gateway health matrix" $apiHealth '"llm_gateway":{"status":"healthy"'
+Assert-Contains "agent-api llm provider readiness health version" $apiHealth '"provider_readiness_contract_version":"llm-provider-readiness-contract-v1"'
+Assert-Contains "agent-api llm provider readiness health evidence" $apiHealth '"provider_readiness_evidence_ref":"llm_provider_readiness_contract_visible"'
 
 Write-Host "[runtime] memory worker health contract"
 $memoryWorkerHealthContract = Wait-UrlContains "memory worker health contract" "$baseUrl/api/v1/memory/worker-health/contract" '"contract_version":"memory-worker-health-contract-v1"' 30
@@ -569,6 +571,14 @@ if (-not $hfProvider) { throw "Runtime verification failed: LLM providers respon
 if ($hfProvider.status -notin @("live_verified", "missing_token")) { throw "Runtime verification failed: LLM provider status was unexpected: $($hfProvider.status)" }
 if ($hfProvider.open_source_first -ne $true) { throw "Runtime verification failed: LLM provider did not advertise open_source_first" }
 if ($hfProvider.model_downloads -ne $false) { throw "Runtime verification failed: LLM provider attempted model downloads" }
+$llmProviderReadiness = curl.exe -sS "$baseUrl/llm/api/v1/providers/readiness/contract"
+Assert-Contains "llm provider readiness version" $llmProviderReadiness '"contract_version":"llm-provider-readiness-contract-v1"'
+Assert-Contains "llm provider readiness evidence" $llmProviderReadiness '"evidence_ref":"llm_provider_readiness_contract_visible"'
+Assert-Contains "llm provider readiness no live calls" $llmProviderReadiness '"live_provider_calls":false'
+Assert-Contains "llm provider readiness no external probe" $llmProviderReadiness '"external_probe_performed":false'
+Assert-Contains "llm provider readiness no downloads" $llmProviderReadiness '"model_downloads":false'
+Assert-Contains "llm provider readiness token returned false" $llmProviderReadiness '"provider_token_returned":false'
+Assert-Contains "llm provider readiness deterministic default" $llmProviderReadiness '"default_generation_decision":"deterministic_dry_run"'
 $llmRouteBody = @{
   agent_type = "planner"
   task_type = "runtime_route_resolve"

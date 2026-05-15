@@ -207,4 +207,7 @@ def check_llm_gateway() -> dict[str, object]:
         "mode": payload.get("mode"),
         "live_provider_calls": payload.get("live_provider_calls"),
         "openai_compatible": payload.get("openai_compatible"),
+        "provider_readiness_contract_version": payload.get("provider_readiness_contract_version"),
+        "provider_readiness_evidence_ref": payload.get("provider_readiness_evidence_ref"),
+        "provider_readiness_endpoint": payload.get("provider_readiness_endpoint"),
     }

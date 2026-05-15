@@ -36,6 +36,8 @@ LLM_RUNTIME_GUARD_PARITY_CONTRACT_VERSION = "llm-runtime-guard-parity-v1"
 LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF = "llm_runtime_guard_parity_visible"
 LLM_MODEL_CATALOG_CONTRACT_VERSION = "llm-model-catalog-v1"
 LLM_MODEL_CATALOG_EVIDENCE_REF = "llm_model_catalog_visible"
+LLM_PROVIDER_READINESS_CONTRACT_VERSION = "llm-provider-readiness-contract-v1"
+LLM_PROVIDER_READINESS_EVIDENCE_REF = "llm_provider_readiness_contract_visible"
 MAX_FALLBACKS_PER_REQUEST = 2
 MAX_RETRY_CYCLES_PER_RUN = 5
 DIRECT_PROVIDER_METADATA_KEYS = {"direct_provider_url", "direct_provider_key_ref", "provider_api_key_ref"}
@@ -525,6 +527,81 @@ def provider_status_snapshot() -> dict[str, object]:
                 "open_source_first": True,
                 "non_claim": "HF router model listing is verified when token is present; generation still requires policy/metadata approval per request.",
             },
+        ],
+    }
+
+
+def provider_readiness_contract_snapshot() -> dict[str, object]:
+    live_generation_ready = (
+        hf_router_available()
+        and LLM_LIVE_PROVIDER_DEFAULT
+        and LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE
+    )
+    return {
+        "contract_version": LLM_PROVIDER_READINESS_CONTRACT_VERSION,
+        "status": "verified",
+        "mode": "llm_provider_readiness_fail_closed_contract",
+        "endpoint": "GET /api/v1/providers/readiness/contract",
+        "public_endpoint": "GET /llm/api/v1/providers/readiness/contract",
+        "provider_status_endpoint": "GET /api/v1/providers/status",
+        "model_catalog_endpoint": "GET /api/v1/models/catalog",
+        "runtime_guard_endpoint": "GET /api/v1/runtime/guard-parity",
+        "evidence_ref": LLM_PROVIDER_READINESS_EVIDENCE_REF,
+        "live_provider_calls": LIVE_PROVIDER_CALLS,
+        "external_probe_performed": False,
+        "model_downloads": False,
+        "local_model_downloads_allowed": False,
+        "provider": "huggingface_inference_router",
+        "provider_token_configured": hf_router_available(),
+        "provider_token_env": "HF_TOKEN",
+        "provider_token_returned": False,
+        "live_generation_default_allowed": LLM_LIVE_PROVIDER_DEFAULT,
+        "request_live_provider_override_enabled": LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE,
+        "live_generation_ready": live_generation_ready,
+        "default_generation_decision": "deterministic_dry_run",
+        "requires_request_metadata": "metadata.live_provider_calls_allowed=true",
+        "requires_env_gates": [
+            "HF_TOKEN configured",
+            "LLM_LIVE_PROVIDER_DEFAULT=true",
+            "LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE=true",
+        ],
+        "direct_provider_metadata_keys_blocked": sorted(DIRECT_PROVIDER_METADATA_KEYS),
+        "url_like_model_ids_blocked": True,
+        "unknown_model_ids_blocked": True,
+        "output_token_budget_guard": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+        "route_count": len(MODEL_ROUTES),
+        "configured_model_count": len(model_ids()),
+        "route_readiness": [
+            {
+                "agent_type": str(route["agent_type"]),
+                "primary": str(route["primary"]),
+                "fallback_count": len(route["fallbacks"]),
+                "provider": provider_for_model(str(route["primary"])),
+                "max_output_tokens": int(route["max_output_tokens"]),
+                "api_inference_only": True,
+                "model_downloads": False,
+                "live_provider_calls": LIVE_PROVIDER_CALLS,
+            }
+            for route in MODEL_ROUTES
+        ],
+        "evidence_refs": [
+            LLM_PROVIDER_READINESS_EVIDENCE_REF,
+            LLM_MODEL_CATALOG_EVIDENCE_REF,
+            LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+            "llm_routing_policy_direct_provider_blocked",
+            LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+        ],
+        "policy_checks": [
+            "This contract does not call the upstream provider while proving readiness.",
+            "Default generation remains deterministic_dry_run unless all env gates and per-request metadata allow live calls.",
+            "Provider tokens, direct provider URLs, and provider key refs are never returned.",
+            "Configured routes remain API-inference-only and local model downloads remain disabled.",
+            "Unknown model IDs and output-token budget overages fail closed before generation.",
+        ],
+        "non_claims": [
+            "No live provider generation call is made by this contract.",
+            "No upstream model-list probe is made by this contract.",
+            "No provider credential, direct provider URL, local model download, production rollout, release promotion, or hosted parity is claimed by this local contract.",
         ],
     }
 
@@ -1185,6 +1262,9 @@ def health() -> dict[str, object]:
         "provider_live_verified": bool(router["live_verified"]),
         "provider_status": router["status"],
         "provider_model_count_visible": router["model_count_visible"],
+        "provider_readiness_contract_version": LLM_PROVIDER_READINESS_CONTRACT_VERSION,
+        "provider_readiness_evidence_ref": LLM_PROVIDER_READINESS_EVIDENCE_REF,
+        "provider_readiness_endpoint": "GET /llm/api/v1/providers/readiness/contract",
         "streaming_sse": True,
         "streaming_protocol": STREAMING_PROTOCOL,
         "models_configured": len(model_ids()),
@@ -1249,6 +1329,11 @@ def routes() -> dict[str, object]:
 @app.get("/api/v1/providers/status")
 def providers_status() -> dict[str, object]:
     return provider_status_snapshot()
+
+
+@app.get("/api/v1/providers/readiness/contract")
+def providers_readiness_contract() -> dict[str, object]:
+    return provider_readiness_contract_snapshot()
 
 
 @app.get("/api/v1/streaming/contract")

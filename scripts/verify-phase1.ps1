@@ -792,6 +792,11 @@ foreach ($required in @("LlmRoutingPolicyContract", "Routing Policy", "Policy De
     throw "Missing LLM routing policy UI guard: $required"
   }
 }
+foreach ($required in @("LlmProviderReadinessContract", "Provider Readiness Contract", "llm-provider-readiness-contract-v1", "llm_provider_readiness_contract_visible", "/llm/api/v1/providers/readiness/contract", "external_probe_performed", "provider_token_returned")) {
+  if (-not $frontendSource.Contains($required)) {
+    throw "Missing LLM provider readiness UI guard: $required"
+  }
+}
 foreach ($required in @("RotationEvent", "Rotation Events", "provider_fallback_structured_event", "fallback_index", "routing_policy_decision", "cost_metadata", "live_provider_calls")) {
   if (-not $frontendSource.Contains($required)) {
     throw "Missing provider fallback UI guard: $required"
@@ -853,9 +858,18 @@ foreach ($required in @("DEFAULT_EMBEDDING_MODEL_VERSION", "DEFAULT_EMBEDDING_DI
   }
 }
 $llmGatewaySource = Get-Content -Path "services\llm-gateway\app\main.py" -Raw
-foreach ($required in @("LIVE_PROVIDER_CALLS = False", "/v1/chat/completions", "/v1/models", "/api/v1/routing/resolve", "/api/v1/providers/status", "/api/v1/streaming/contract", "/api/v1/routing/policy/contract", "/api/v1/routing/policy/evaluate", "provider_status_snapshot", "streaming_contract_snapshot", "ROUTING_POLICY_CONTRACT_VERSION", "llm-routing-policy-v1", "STREAMING_PROTOCOL", "text/event-stream", "data: [DONE]", "provider_for_model", "resolve_route", "evaluate_routing_policy", "deny_direct_provider", "deny_fallback_limit", "deny_retry_limit", "deny_sensitive_cache", "deny_budget_or_rate", "deterministic_dry_run", "audit_persisted")) {
+foreach ($required in @("LIVE_PROVIDER_CALLS = False", "/v1/chat/completions", "/v1/models", "/api/v1/routing/resolve", "/api/v1/providers/status", "/api/v1/providers/readiness/contract", "/api/v1/streaming/contract", "/api/v1/routing/policy/contract", "/api/v1/routing/policy/evaluate", "provider_status_snapshot", "provider_readiness_contract_snapshot", "LLM_PROVIDER_READINESS_CONTRACT_VERSION", "llm-provider-readiness-contract-v1", "llm_provider_readiness_contract_visible", "external_probe_performed", "provider_token_returned", "streaming_contract_snapshot", "ROUTING_POLICY_CONTRACT_VERSION", "llm-routing-policy-v1", "STREAMING_PROTOCOL", "text/event-stream", "data: [DONE]", "provider_for_model", "resolve_route", "evaluate_routing_policy", "deny_direct_provider", "deny_fallback_limit", "deny_retry_limit", "deny_sensitive_cache", "deny_budget_or_rate", "deterministic_dry_run", "audit_persisted")) {
   if (-not $llmGatewaySource.Contains($required)) {
     throw "Missing LLM gateway dry-run guard: $required"
+  }
+}
+if (-not (Test-Path "docs\runtime-contracts\llm-provider-readiness-contract.md")) {
+  throw "Missing LLM provider readiness contract document"
+}
+$llmProviderReadinessDoc = Get-Content -Path "docs\runtime-contracts\llm-provider-readiness-contract.md" -Raw
+foreach ($required in @("llm-provider-readiness-contract-v1", "llm_provider_readiness_contract_visible", "GET /llm/api/v1/providers/readiness/contract", "external_probe_performed=false", "No live provider generation call")) {
+  if (-not $llmProviderReadinessDoc.Contains($required)) {
+    throw "LLM provider readiness contract document missing guard: $required"
   }
 }
 $modelSource = Get-Content -Path "services\agent-api\app\models.py" -Raw
@@ -1453,6 +1467,9 @@ foreach ($required in @(
   "/api/v1/memory/worker-health/contract",
   "memory-worker-health-contract-v1",
   "memory_worker_health_contract_visible",
+  "/llm/api/v1/providers/readiness/contract",
+  "llm-provider-readiness-contract-v1",
+  "llm_provider_readiness_contract_visible",
   "SeedMemoryConsolidation",
   "browser_contract_harness",
   "/api/v1/memory/embedding-consistency/contract",

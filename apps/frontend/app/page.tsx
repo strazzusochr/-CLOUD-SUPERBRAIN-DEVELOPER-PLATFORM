@@ -2332,9 +2332,13 @@ type LlmGatewayState = {
   model_catalog_contract_version?: string;
   model_catalog_endpoint?: string;
   model_catalog_evidence_ref?: string;
+  provider_readiness_contract_version?: string;
+  provider_readiness_endpoint?: string;
+  provider_readiness_evidence_ref?: string;
   non_claims: string[];
   routing_resolution?: LlmRoutingResolution;
   provider_snapshot?: LlmProviderSnapshot;
+  provider_readiness_contract?: LlmProviderReadinessContract;
   streaming_contract?: LlmStreamingContract;
   routing_policy_contract?: LlmRoutingPolicyContract;
   runtime_guard_parity?: LlmRuntimeGuardParity;
@@ -2448,6 +2452,51 @@ type LlmProviderSnapshot = {
     reset_after_seconds?: number;
     non_claim?: string;
   }>;
+};
+
+type LlmProviderReadinessContract = {
+  contract_version: string;
+  status: string;
+  mode: string;
+  endpoint: string;
+  public_endpoint: string;
+  provider_status_endpoint: string;
+  model_catalog_endpoint: string;
+  runtime_guard_endpoint: string;
+  evidence_ref: string;
+  live_provider_calls: boolean;
+  external_probe_performed: boolean;
+  model_downloads: boolean;
+  local_model_downloads_allowed: boolean;
+  provider: string;
+  provider_token_configured: boolean;
+  provider_token_env: string;
+  provider_token_returned: boolean;
+  live_generation_default_allowed: boolean;
+  request_live_provider_override_enabled: boolean;
+  live_generation_ready: boolean;
+  default_generation_decision: string;
+  requires_request_metadata: string;
+  requires_env_gates: string[];
+  direct_provider_metadata_keys_blocked: string[];
+  url_like_model_ids_blocked: boolean;
+  unknown_model_ids_blocked: boolean;
+  output_token_budget_guard: string;
+  route_count: number;
+  configured_model_count: number;
+  route_readiness: Array<{
+    agent_type: string;
+    primary: string;
+    fallback_count: number;
+    provider: string;
+    max_output_tokens: number;
+    api_inference_only: boolean;
+    model_downloads: boolean;
+    live_provider_calls: boolean;
+  }>;
+  evidence_refs: string[];
+  policy_checks: string[];
+  non_claims: string[];
 };
 
 type LlmStreamingContract = {
@@ -3819,6 +3868,7 @@ export default function Home() {
       healthResponse,
       routingResponse,
       providerResponse,
+      providerReadinessResponse,
       streamingResponse,
       policyResponse,
       runtimeGuardResponse,
@@ -3836,6 +3886,7 @@ export default function Home() {
         }),
       }),
       fetch("/llm/api/v1/providers/status", { cache: "no-store" }),
+      fetch("/llm/api/v1/providers/readiness/contract", { cache: "no-store" }),
       fetch("/llm/api/v1/streaming/contract", { cache: "no-store" }),
       fetch("/llm/api/v1/routing/policy/contract", { cache: "no-store" }),
       fetch("/llm/api/v1/runtime/guard-parity", { cache: "no-store" }),
@@ -3844,6 +3895,7 @@ export default function Home() {
     if (!healthResponse.ok) throw new Error(`llm gateway ${healthResponse.status}`);
     if (!routingResponse.ok) throw new Error(`llm routing ${routingResponse.status}`);
     if (!providerResponse.ok) throw new Error(`llm providers ${providerResponse.status}`);
+    if (!providerReadinessResponse.ok) throw new Error(`llm provider readiness ${providerReadinessResponse.status}`);
     if (!streamingResponse.ok) throw new Error(`llm streaming ${streamingResponse.status}`);
     if (!policyResponse.ok) throw new Error(`llm routing policy ${policyResponse.status}`);
     if (!runtimeGuardResponse.ok) throw new Error(`llm runtime guard parity ${runtimeGuardResponse.status}`);
@@ -3851,6 +3903,7 @@ export default function Home() {
     const health = (await healthResponse.json()) as LlmGatewayState;
     const routing = (await routingResponse.json()) as LlmRoutingResolution;
     const providerSnapshot = (await providerResponse.json()) as LlmProviderSnapshot;
+    const providerReadinessContract = (await providerReadinessResponse.json()) as LlmProviderReadinessContract;
     const streamingContract = (await streamingResponse.json()) as LlmStreamingContract;
     const routingPolicyContract = (await policyResponse.json()) as LlmRoutingPolicyContract;
     const runtimeGuardParity = (await runtimeGuardResponse.json()) as LlmRuntimeGuardParity;
@@ -3859,6 +3912,7 @@ export default function Home() {
       ...health,
       routing_resolution: routing,
       provider_snapshot: providerSnapshot,
+      provider_readiness_contract: providerReadinessContract,
       streaming_contract: streamingContract,
       routing_policy_contract: routingPolicyContract,
       runtime_guard_parity: runtimeGuardParity,
@@ -6803,6 +6857,30 @@ export default function Home() {
               <p>{llmGateway?.routing_resolution?.provider_health?.status ?? "loading"}</p>
             </article>
             <article className="policyItem">
+              <strong>Provider Readiness Contract</strong>
+              <p>
+                {llmGateway?.provider_readiness_contract?.contract_version ??
+                  llmGateway?.provider_readiness_contract_version ??
+                  "llm-provider-readiness-contract-v1"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Readiness Evidence</strong>
+              <p>
+                {llmGateway?.provider_readiness_contract?.evidence_ref ??
+                  llmGateway?.provider_readiness_evidence_ref ??
+                  "llm_provider_readiness_contract_visible"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Live Gate</strong>
+              <p>
+                {llmGateway?.provider_readiness_contract?.default_generation_decision ?? "deterministic_dry_run"} /
+                external_probe_performed=
+                {String(llmGateway?.provider_readiness_contract?.external_probe_performed ?? false)}
+              </p>
+            </article>
+            <article className="policyItem">
               <strong>Streaming Contract</strong>
               <p>{llmGateway?.streaming_contract?.protocol ?? llmGateway?.streaming_protocol ?? "loading"}</p>
             </article>
@@ -6841,6 +6919,21 @@ export default function Home() {
           </p>
           <p className="muted">
             Provider chain: {llmGateway?.routing_resolution?.provider_chain?.join(" -> ") ?? "loading"}
+          </p>
+          <p className="muted">
+            Provider readiness:{" "}
+            {llmGateway?.provider_readiness_contract?.public_endpoint ??
+              llmGateway?.provider_readiness_endpoint ??
+              "GET /llm/api/v1/providers/readiness/contract"}{" "}
+            / {llmGateway?.provider_readiness_contract?.evidence_ref ?? "llm_provider_readiness_contract_visible"} /
+            live_provider_calls={String(llmGateway?.provider_readiness_contract?.live_provider_calls ?? false)} /
+            model_downloads={String(llmGateway?.provider_readiness_contract?.model_downloads ?? false)} /
+            provider_token_returned={String(llmGateway?.provider_readiness_contract?.provider_token_returned ?? false)}
+          </p>
+          <p className="muted">
+            Readiness non-claims:{" "}
+            {llmGateway?.provider_readiness_contract?.non_claims?.join(" ") ??
+              "No live provider generation call is made by this contract. No upstream model-list probe is made by this contract. No local model download, hosted parity, or production rollout is claimed."}
           </p>
           <p className="muted">
             Streaming frames: {llmGateway?.streaming_contract?.frames?.join(" | ") ?? "loading"}

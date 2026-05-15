@@ -229,6 +229,21 @@ Pflichtinhalte:
 
 `GET /llm/v1/models` bleibt die OpenAI-kompatible Modellschnittstelle. Sie darf konfigurierte und live sichtbare Router-Modelle listen, muss aber pro Modell `api_inference_only=true` und `model_downloads=false` ausweisen. Diese Oberflaeche ist kein Beweis fuer Live-Generierung und kein Modell-Download-Plan.
 
+## Provider Readiness Contract
+
+`GET /llm/api/v1/providers/readiness/contract` ist der sichtbare Fail-Closed-Vertrag fuer Provider-Bereitschaft ohne Upstream-Probe.
+Der Snapshot muss `contract_version=llm-provider-readiness-contract-v1`, `status=verified`, `evidence_ref=llm_provider_readiness_contract_visible`, `live_provider_calls=false`, `external_probe_performed=false`, `model_downloads=false`, `provider_token_returned=false` und `default_generation_decision=deterministic_dry_run` liefern.
+
+Pflichtinhalte:
+
+1. Provider: `huggingface_inference_router`.
+2. Env-Gates: `HF_TOKEN`, `LLM_LIVE_PROVIDER_DEFAULT=true`, `LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE=true`.
+3. Per-Request-Gate: `metadata.live_provider_calls_allowed=true`.
+4. Blockierte Direktumgehungen: `direct_provider_url`, `direct_provider_key_ref`, `provider_api_key_ref`.
+5. Route-Readiness fuer Planner, Coder, Tester, DevOps und Research mit API-Inferenz und `model_downloads=false`.
+
+Diese Oberflaeche ist kein Live-Provider-Status, kein Provider-Model-Listing, kein Credential-Beweis und kein Production-Rollout.
+
 ## Observability
 
 Jede Routing-Entscheidung erzeugt ein Event fuer die separate Observability-Schicht.
