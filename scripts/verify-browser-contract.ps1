@@ -272,6 +272,16 @@ Assert-Contains "workbench launch lane cloud runtime visible" $frontendHtml "Clo
 Assert-Contains "workbench squad mode visible" $frontendHtml "Squad Mode"
 Assert-Contains "workbench supervisor lane visible" $frontendHtml "Supervisor"
 Assert-Contains "workbench active layer accessibility visible" $frontendHtml "aria-pressed=""true"""
+Assert-Contains "agent skill mode panel visible" $frontendHtml "Agent Skill Mode"
+Assert-Contains "agent skill mode contract marker" $frontendHtml "agent-skill-mode-capability-contract-v1"
+Assert-Contains "agent skill mode evidence marker" $frontendHtml "agent_skill_mode_capability_visible"
+Assert-Contains "agent skill mode plugins count visible" $frontendHtml "Plugins 11"
+Assert-Contains "agent skill mode apps count visible" $frontendHtml "Apps 4"
+Assert-Contains "agent skill mode mcp count visible" $frontendHtml "MCPs 1"
+Assert-Contains "agent skill mode skills count visible" $frontendHtml "Skills 140"
+Assert-Contains "agent skill mode no live external marker visible" $frontendHtml "agent_skill_mode_no_live_external_calls"
+Assert-Contains "agent skill mode no secret material marker visible" $frontendHtml "agent_skill_mode_no_secret_material"
+Assert-Contains "agent skill mode no local model marker visible" $frontendHtml "agent_skill_mode_no_local_model_downloads"
 Assert-Contains "mcp runtime guard parity agent endpoint marker" $frontendHtml "GET /api/v1/agents/mcp-runtime-guard-parity"
 Assert-Contains "mcp runtime guard parity gateway endpoint marker" $frontendHtml "GET /mcp/api/v1/runtime/guard-parity"
 Assert-Contains "mcp runtime guard parity no live writes marker" $frontendHtml "live_mcp_writes=false"
@@ -922,6 +932,28 @@ Assert-Contains "mcp gateway runtime guard parity no live mutations" $mcpGateway
 Assert-Contains "mcp gateway runtime guard parity no external calls" $mcpGatewayRuntimeGuardParity '"external_mcp_server_calls":false'
 Assert-Contains "mcp gateway runtime guard parity no model downloads" $mcpGatewayRuntimeGuardParity '"model_downloads":false'
 Assert-Contains "mcp gateway runtime guard parity fail closed" $mcpGatewayRuntimeGuardParity '"fail_closed":true'
+
+Write-Host "[browser-contract] agent skill mode contract"
+$agentSkillModeContract = Invoke-Text "$BaseUrl/api/v1/agents/skill-mode/contract"
+Assert-Contains "agent skill mode contract version" $agentSkillModeContract '"contract_version":"agent-skill-mode-capability-contract-v1"'
+Assert-Contains "agent skill mode status" $agentSkillModeContract '"status":"verified"'
+Assert-Contains "agent skill mode evidence" $agentSkillModeContract '"evidence_ref":"agent_skill_mode_capability_visible"'
+Assert-Contains "agent skill mode endpoint" $agentSkillModeContract '"endpoint":"GET /api/v1/agents/skill-mode/contract"'
+Assert-Contains "agent skill mode plugins count" $agentSkillModeContract '"plugins":11'
+Assert-Contains "agent skill mode apps count" $agentSkillModeContract '"apps":4'
+Assert-Contains "agent skill mode mcp count" $agentSkillModeContract '"mcp_servers":1'
+Assert-Contains "agent skill mode skills count" $agentSkillModeContract '"skills":140'
+Assert-Contains "agent skill mode api only" $agentSkillModeContract '"api_only":true'
+Assert-Contains "agent skill mode no model downloads" $agentSkillModeContract '"local_model_downloads":false'
+Assert-Contains "agent skill mode no direct providers" $agentSkillModeContract '"direct_provider_calls":false'
+Assert-Contains "agent skill mode no live mcp writes" $agentSkillModeContract '"live_mcp_writes":false'
+Assert-Contains "agent skill mode no external mcp calls" $agentSkillModeContract '"external_mcp_server_calls":false'
+Assert-Contains "agent skill mode production non-claim" $agentSkillModeContract "production_rollout_claimed=false"
+Assert-Contains "agent skill mode secret guard" $agentSkillModeContract "secrets_exposed=false"
+Assert-Contains "agent skill mode no live external marker" $agentSkillModeContract "agent_skill_mode_no_live_external_calls"
+Assert-Contains "agent skill mode no secret material marker" $agentSkillModeContract "agent_skill_mode_no_secret_material"
+Assert-Contains "agent skill mode no local model marker" $agentSkillModeContract "agent_skill_mode_no_local_model_downloads"
+Assert-Contains "agent skill mode roster evidence" $agentSkillModeContract "autonomous_agent_roster_runtime_visible"
 
 Write-Host "[browser-contract] memory embedding consistency contract"
 $memoryEmbeddingConsistencyContract = Invoke-Text "$BaseUrl/api/v1/memory/embedding-consistency/contract"

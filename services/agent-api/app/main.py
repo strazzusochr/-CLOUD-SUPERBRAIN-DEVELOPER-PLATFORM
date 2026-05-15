@@ -178,6 +178,8 @@ MCP_AUDIT_NO_LIVE_WRITE_EVIDENCE_REF = "mcp_audit_no_live_write_guard"
 MCP_GUARD_CORRELATION_EVIDENCE_REF = "mcp_guard_correlation_audit_visible"
 MCP_RUNTIME_GUARD_PARITY_CONTRACT_VERSION = "mcp-runtime-guard-parity-v1"
 MCP_RUNTIME_GUARD_PARITY_EVIDENCE_REF = "mcp_runtime_guard_parity_visible"
+AGENT_SKILL_MODE_CONTRACT_VERSION = "agent-skill-mode-capability-contract-v1"
+AGENT_SKILL_MODE_EVIDENCE_REF = "agent_skill_mode_capability_visible"
 LANGFUSE_TRACE_ACCESS_CONTRACT_VERSION = "langfuse-trace-access-v1"
 LANGFUSE_TRACE_ACCESS_EVIDENCE_REF = "langfuse_trace_access_visible"
 LANGFUSE_TRACE_EVENT_EVIDENCE_REF = "langfuse_trace_event_visible"
@@ -4086,6 +4088,115 @@ def phase2_runtime_contract_payload() -> dict[str, object]:
             "It does not call live LLM providers.",
             "It does not perform live MCP writes.",
             "It does not deploy to production.",
+        ],
+    }
+
+
+def agent_skill_mode_contract_payload() -> dict[str, object]:
+    declared_surfaces = {
+        "plugins": 11,
+        "apps": 4,
+        "mcp_servers": 1,
+        "skills": 140,
+    }
+    plugin_slots = [
+        "Browser Use",
+        "Cloudflare",
+        "Codex Security",
+        "Documents",
+        "Expo",
+        "GitHub",
+        "Hugging Face",
+        "OpenAI Developers",
+        "Presentations",
+        "Spreadsheets",
+        "Vercel",
+    ]
+    app_slots = [
+        "GitHub",
+        "OpenAI Platform",
+        "Browser Use",
+        "Vercel",
+    ]
+    skill_group_bindings = [
+        {"group": "cloud_deploy", "examples": ["cloudflare", "vercel", "azure"], "guard": "owner_gate_required"},
+        {"group": "ai_gateway", "examples": ["openai-developers", "hugging-face"], "guard": "api_only_gateway_route"},
+        {"group": "frontend", "examples": ["vercel:nextjs", "expo"], "guard": "browser_contract_required"},
+        {"group": "media_docs", "examples": ["documents", "presentations", "spreadsheets"], "guard": "artifact_redaction_required"},
+        {"group": "security", "examples": ["codex-security"], "guard": "no_secret_output"},
+        {"group": "game_3d", "examples": ["3d-web-game-swarm"], "guard": "cloud_render_offload_required"},
+        {"group": "runtime_research", "examples": ["browser-use", "github"], "guard": "read_only_by_default"},
+    ]
+    layer_bindings = [
+        {"layer": "L1 Frontend", "binding": "Workbench module registry and browser contract markers", "guard": "no_hidden_progress_claim"},
+        {"layer": "L2 Orchestrator", "binding": "LangGraph task envelopes choose skills through policy", "guard": "budget_guard_before_execution"},
+        {"layer": "L3 Agent Pool", "binding": "Supervisor, Planner, Coder, Tester, DevOps squad slots", "guard": "role_scope_and_acceptance_required"},
+        {"layer": "L4 LLM Gateway", "binding": "External models remain behind the gateway", "guard": "direct_provider_bypass_blocked"},
+        {"layer": "L5 MCP Gateway", "binding": "Tools route through safe envelopes and capability catalogs", "guard": "live_mcp_writes_false"},
+        {"layer": "L6 Memory", "binding": "Skill results may be summarized, not raw secrets", "guard": "redacted_memory_only"},
+        {"layer": "L7 Observability", "binding": "Every activation needs evidence refs and audit trails", "guard": "audit_or_contract_required"},
+    ]
+    return {
+        "contract_version": AGENT_SKILL_MODE_CONTRACT_VERSION,
+        "mode": "codex_agent_skill_mode_guarded_capability_registry",
+        "endpoint": "GET /api/v1/agents/skill-mode/contract",
+        "evidence_ref": AGENT_SKILL_MODE_EVIDENCE_REF,
+        "status": "verified",
+        "declared_codex_surfaces": declared_surfaces,
+        "plugin_slots": plugin_slots,
+        "app_slots": app_slots,
+        "mcp_policy": {
+            "configured_mcp_servers": declared_surfaces["mcp_servers"],
+            "live_mcp_writes": False,
+            "external_mcp_server_calls": False,
+            "write_access_requires_owner_gate": True,
+        },
+        "model_policy": {
+            "api_only": True,
+            "local_model_downloads": False,
+            "direct_provider_calls": False,
+            "routing_surface": "LLM Gateway",
+        },
+        "skill_group_bindings": skill_group_bindings,
+        "layer_bindings": layer_bindings,
+        "workbench_modules": [
+            "Build",
+            "Code",
+            "3D/Game",
+            "Research",
+            "Media",
+            "Docs",
+            "Agents",
+            "Models",
+            "MCP Tools",
+            "Memory",
+            "Observability",
+            "Settings",
+        ],
+        "required_guard_flags": [
+            "api_only",
+            "model_downloads=false",
+            "live_provider_calls=false",
+            "live_mcp_writes=false",
+            "external_mcp_server_calls=false",
+            "production_rollout_claimed=false",
+            "secrets_exposed=false",
+            "agent_skill_mode_no_live_external_calls",
+            "agent_skill_mode_no_secret_material",
+            "agent_skill_mode_no_local_model_downloads",
+        ],
+        "evidence_refs": [
+            AGENT_SKILL_MODE_EVIDENCE_REF,
+            "autonomous_agent_roster_runtime_visible",
+            "autonomous_team_dispatch_visible",
+            "mcp_runtime_guard_parity_visible",
+            "llm_runtime_guard_parity_visible",
+            "project_progress_manifest_proof",
+        ],
+        "non_claims": [
+            "This contract inventories the Codex capability surface declared for the current operator context; it does not execute every plugin, app, MCP, or skill.",
+            "No live provider call, live MCP write, external MCP server mutation, local model download, production rollout, release promotion, or secret exposure is enabled by this contract.",
+            "Capability activation remains routed through the seven-layer guard model and existing verifiers.",
         ],
     }
 
@@ -10773,6 +10884,11 @@ def orchestrator_manifest_contract() -> dict[str, object]:
 @app.get("/api/v1/phase2/runtime/contract")
 def phase2_runtime_contract() -> dict[str, object]:
     return phase2_runtime_contract_payload()
+
+
+@app.get("/api/v1/agents/skill-mode/contract")
+def agent_skill_mode_contract() -> dict[str, object]:
+    return agent_skill_mode_contract_payload()
 
 
 @app.get("/api/v1/phase2/runtime/runs/contract")

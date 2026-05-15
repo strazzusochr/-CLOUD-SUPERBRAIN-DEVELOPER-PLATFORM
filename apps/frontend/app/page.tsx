@@ -891,6 +891,48 @@ type AgentLlmStreamingContract = {
   non_claims: string[];
 };
 
+type AgentSkillModeContract = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  evidence_ref: string;
+  status: string;
+  declared_codex_surfaces: {
+    plugins: number;
+    apps: number;
+    mcp_servers: number;
+    skills: number;
+  };
+  plugin_slots: string[];
+  app_slots: string[];
+  mcp_policy: {
+    configured_mcp_servers: number;
+    live_mcp_writes: boolean;
+    external_mcp_server_calls: boolean;
+    write_access_requires_owner_gate: boolean;
+  };
+  model_policy: {
+    api_only: boolean;
+    local_model_downloads: boolean;
+    direct_provider_calls: boolean;
+    routing_surface: string;
+  };
+  skill_group_bindings: Array<{
+    group: string;
+    examples: string[];
+    guard: string;
+  }>;
+  layer_bindings: Array<{
+    layer: string;
+    binding: string;
+    guard: string;
+  }>;
+  workbench_modules: string[];
+  required_guard_flags: string[];
+  evidence_refs: string[];
+  non_claims: string[];
+};
+
 type ExternalGate = {
   id: string;
   preflight_gate_id: string;
@@ -2947,6 +2989,7 @@ export default function Home() {
   const [taskAssignmentContract, setTaskAssignmentContract] = useState<TaskAssignmentContract | null>(null);
   const [agentLlmStreamingContract, setAgentLlmStreamingContract] =
     useState<AgentLlmStreamingContract | null>(null);
+  const [agentSkillModeContract, setAgentSkillModeContract] = useState<AgentSkillModeContract | null>(null);
   const [externalGates, setExternalGates] = useState<ExternalGatesState | null>(null);
   const [externalGateMirror, setExternalGateMirror] = useState<ExternalGateMirrorContract | null>(null);
   const [authContract, setAuthContract] = useState<AuthContract | null>(null);
@@ -3247,6 +3290,12 @@ export default function Home() {
     const response = await fetch("/api/v1/agents/llm-streaming-contract", { cache: "no-store" });
     if (!response.ok) throw new Error(`agent llm streaming contract ${response.status}`);
     setAgentLlmStreamingContract(await response.json());
+  }
+
+  async function loadAgentSkillModeContract() {
+    const response = await fetch("/api/v1/agents/skill-mode/contract", { cache: "no-store" });
+    if (!response.ok) throw new Error(`agent skill mode contract ${response.status}`);
+    setAgentSkillModeContract(await response.json());
   }
 
   async function loadExternalGates() {
@@ -4105,6 +4154,7 @@ export default function Home() {
       loadAutonomousAgentRosterContract,
       loadLiveAgents,
       loadAgentLlmStreamingContract,
+      loadAgentSkillModeContract,
       loadExternalGates,
       loadExternalGateMirror,
       loadAuthContract,
@@ -4336,6 +4386,19 @@ export default function Home() {
     ? mcpRuntimeGuardParity.required_agent_executor_fields
     : [];
   const mcpRuntimeNonClaims = stringList(mcpRuntimeGuardParity?.non_claims);
+  const agentSkillModeCounts = agentSkillModeContract?.declared_codex_surfaces ?? {
+    plugins: 11,
+    apps: 4,
+    mcp_servers: 1,
+    skills: 140,
+  };
+  const agentSkillModeGuards = stringList(agentSkillModeContract?.required_guard_flags);
+  const agentSkillModeLayerBindings = Array.isArray(agentSkillModeContract?.layer_bindings)
+    ? agentSkillModeContract.layer_bindings
+    : [];
+  const agentSkillModeGroups = Array.isArray(agentSkillModeContract?.skill_group_bindings)
+    ? agentSkillModeContract.skill_group_bindings
+    : [];
   const memoryCurrentEmbedding = memoryEmbeddingConsistencyContract?.current_embedding;
   const memorySchema = memoryEmbeddingConsistencyContract?.schema;
   const memoryReadPolicy = recordValue(memoryEmbeddingConsistencyContract?.read_policy);
@@ -4481,6 +4544,11 @@ export default function Home() {
     { role: "Tester", lane: "Verification", state: "ready" },
     { role: "DevOps", lane: "Runtime", state: activeModuleId === "settings" ? "active" : "gated" },
   ];
+  const clearWorkbenchHash = () => {
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+    }
+  };
 
   return (
     <main className="shell scanline">
@@ -4498,6 +4566,7 @@ export default function Home() {
             <input
               value={commandQuery}
               onChange={(event) => setCommandQuery(event.target.value)}
+              onFocus={(event) => event.currentTarget.select()}
               placeholder="Search modules, agents, tools..."
             />
           </label>
@@ -4510,6 +4579,7 @@ export default function Home() {
                 onClick={() => {
                   setActiveModuleId(module.id);
                   setActiveWorkbenchTab("overview");
+                  clearWorkbenchHash();
                 }}
                 key={module.id}
               >
@@ -4597,10 +4667,43 @@ export default function Home() {
               ))}
             </div>
           </section>
+          <section className="workbenchCapabilityBridge" aria-label="Agent Skill Mode">
+            <div className="workbenchCapabilityBridgeHeader">
+              <span>Agent Skill Mode</span>
+              <strong>{agentSkillModeContract?.contract_version ?? "agent-skill-mode-capability-contract-v1"}</strong>
+              <small>{agentSkillModeContract?.evidence_ref ?? "agent_skill_mode_capability_visible"}</small>
+            </div>
+            <div className="workbenchCapabilityBridgeGrid">
+              <a href="#agent-skill-mode-surface">
+                <span>Plugins</span>
+                <strong>Plugins {agentSkillModeCounts.plugins}</strong>
+              </a>
+              <a href="#agent-skill-mode-surface">
+                <span>Apps</span>
+                <strong>Apps {agentSkillModeCounts.apps}</strong>
+              </a>
+              <a href="#agent-skill-mode-surface">
+                <span>MCPs</span>
+                <strong>MCPs {agentSkillModeCounts.mcp_servers}</strong>
+              </a>
+              <a href="#agent-skill-mode-surface">
+                <span>Skills</span>
+                <strong>Skills {agentSkillModeCounts.skills}</strong>
+              </a>
+            </div>
+            <p className="workbenchCapabilityBridgeGuards">
+              agent_skill_mode_no_live_external_calls / agent_skill_mode_no_secret_material /
+              agent_skill_mode_no_local_model_downloads
+            </p>
+          </section>
           <div className="workbenchComposerBody">
             <label className="workbenchProjectField">
               <span>Project</span>
-              <input value={projectId} onChange={(event) => setProjectId(event.target.value)} />
+              <input
+                value={projectId}
+                onChange={(event) => setProjectId(event.target.value)}
+                onFocus={(event) => event.currentTarget.select()}
+              />
             </label>
             <label className="workbenchPromptField">
               <span>Prompt</span>
@@ -4608,6 +4711,7 @@ export default function Home() {
                 value={prompt}
                 maxLength={promptContract?.max_prompt_chars ?? 10_000}
                 onChange={(event) => setPrompt(event.target.value)}
+                onFocus={(event) => event.currentTarget.select()}
               />
               <small>
                 Prompt Input Guard · {prompt.length}/{promptContract?.max_prompt_chars ?? 10_000} ·{" "}
@@ -4702,6 +4806,7 @@ export default function Home() {
               onClick={() => {
                 setActiveModuleId("observability");
                 setActiveWorkbenchTab("audit");
+                clearWorkbenchHash();
               }}
             >
               Review
@@ -4756,6 +4861,7 @@ export default function Home() {
                 onClick={() => {
                   setActiveModuleId(layer.module);
                   setActiveWorkbenchTab("overview");
+                  clearWorkbenchHash();
                 }}
                 key={layer.label}
               >
@@ -4809,6 +4915,7 @@ export default function Home() {
                   setActiveModuleId(pack.module);
                   setActiveWorkbenchTab("create");
                   setPrompt(pack.prompt);
+                  clearWorkbenchHash();
                 }}
                 aria-pressed={pack.id === selectedLaunchPackId}
                 key={pack.id}
@@ -4882,6 +4989,7 @@ export default function Home() {
                       onClick={() => {
                         setActiveModuleId(module.id);
                         setActiveWorkbenchTab("overview");
+                        clearWorkbenchHash();
                       }}
                       key={module.id}
                     >
@@ -9604,6 +9712,108 @@ export default function Home() {
           </p>
         </section>
 
+        <section className="panel externalGatesPanel" id="agent-skill-mode-surface" aria-label="Agent Skill Mode Capability Contract">
+          <header className="panelHeader">
+            <h2>Agent Skill Mode</h2>
+            <button type="button" onClick={() => void loadAgentSkillModeContract()}>
+              Refresh
+            </button>
+          </header>
+          <div className="costSummary">
+            <div>
+              <span>Contract</span>
+              <strong>{agentSkillModeContract?.contract_version ?? "agent-skill-mode-capability-contract-v1"}</strong>
+            </div>
+            <div>
+              <span>Plugins</span>
+              <strong>Plugins {agentSkillModeCounts.plugins}</strong>
+            </div>
+            <div>
+              <span>Apps</span>
+              <strong>Apps {agentSkillModeCounts.apps}</strong>
+            </div>
+            <div>
+              <span>Skills</span>
+              <strong>Skills {agentSkillModeCounts.skills}</strong>
+            </div>
+          </div>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>Agent Endpoint</strong>
+              <p>{agentSkillModeContract?.endpoint ?? "GET /api/v1/agents/skill-mode/contract"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>MCP Surface</strong>
+              <p>
+                MCPs {agentSkillModeCounts.mcp_servers}; live_mcp_writes=
+                {String(agentSkillModeContract?.mcp_policy?.live_mcp_writes ?? false)}; external_mcp_server_calls=
+                {String(agentSkillModeContract?.mcp_policy?.external_mcp_server_calls ?? false)}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Model Surface</strong>
+              <p>
+                api_only={String(agentSkillModeContract?.model_policy?.api_only ?? true)}; model_downloads=
+                {String(agentSkillModeContract?.model_policy?.local_model_downloads ?? false)}; route=
+                {agentSkillModeContract?.model_policy?.routing_surface ?? "LLM Gateway"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Evidence</strong>
+              <p>{agentSkillModeContract?.evidence_ref ?? "agent_skill_mode_capability_visible"}</p>
+            </article>
+          </div>
+          <div className="gateList">
+            {(agentSkillModeLayerBindings.length
+              ? agentSkillModeLayerBindings
+              : [
+                  { layer: "L1 Frontend", binding: "Workbench module registry", guard: "no_hidden_progress_claim" },
+                  { layer: "L3 Agent Pool", binding: "Supervisor squad slots", guard: "role_scope_required" },
+                  { layer: "L5 MCP Gateway", binding: "Safe-envelope tools", guard: "live_mcp_writes_false" },
+                ]).map((item) => (
+              <article className="gateItem gateReady" key={`${item.layer}-${item.guard}`}>
+                <div>
+                  <strong>{item.layer}</strong>
+                  <span>{item.guard}</span>
+                </div>
+                <p>{item.binding}</p>
+              </article>
+            ))}
+          </div>
+          <p className="infraNote evidenceLine">
+            Guard flags:{" "}
+            {(agentSkillModeGuards.length
+              ? agentSkillModeGuards
+              : [
+                  "api_only",
+                  "model_downloads=false",
+                  "live_provider_calls=false",
+                  "live_mcp_writes=false",
+                  "external_mcp_server_calls=false",
+                  "production_rollout_claimed=false",
+                  "secrets_exposed=false",
+                  "agent_skill_mode_no_live_external_calls",
+                  "agent_skill_mode_no_secret_material",
+                  "agent_skill_mode_no_local_model_downloads",
+                ]).join(" / ")}
+          </p>
+          <p className="infraNote evidenceLine">
+            Skill groups:{" "}
+            {(agentSkillModeGroups.length
+              ? agentSkillModeGroups.map((group) => `${group.group}:${group.guard}`)
+              : ["cloud_deploy:owner_gate_required", "ai_gateway:api_only_gateway_route", "security:no_secret_output"]).join(
+              " / ",
+            )}
+          </p>
+          <p className="infraNote">
+            {(agentSkillModeContract?.non_claims?.length
+              ? agentSkillModeContract.non_claims
+              : [
+                  "No live provider call, live MCP write, external MCP server mutation, local model download, production rollout, release promotion, or secret exposure is enabled by this contract.",
+                ]).join(" ")}
+          </p>
+        </section>
+
         <section className="panel externalGatesPanel" aria-label="MCP Capability Catalog">
           <header className="panelHeader">
             <h2>MCP Capability Catalog</h2>
@@ -9839,9 +10049,17 @@ export default function Home() {
           <strong>Fail closed</strong>
           <p>API-only models, no local model downloads, no live MCP writes, no production rollout claim.</p>
         </section>
+        <section className="workbenchInspectorCard">
+          <span>Codex Surface</span>
+          <strong>
+            {agentSkillModeCounts.plugins}+{agentSkillModeCounts.apps}+{agentSkillModeCounts.skills}
+          </strong>
+          <p>Plugins 11, Apps 4, MCPs 1, Skills 140 behind guarded seven-layer activation.</p>
+        </section>
         <section className="workbenchInspectorActions">
           <a href={activeWorkbenchModule.target}>Open module details</a>
           <a href="#diagnostics-surface">Open diagnostics</a>
+          <a href="#agent-skill-mode-surface">Skill mode</a>
           <a href="#mcp-runtime-guard-surface">Guard matrix</a>
           <a href="#memory-surface">Memory policy</a>
         </section>

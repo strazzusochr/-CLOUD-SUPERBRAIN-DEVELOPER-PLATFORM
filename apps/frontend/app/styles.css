@@ -2452,6 +2452,64 @@ pre {
   padding: 8px;
 }
 
+.workbenchCapabilityBridge {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.24fr) minmax(0, 1fr);
+  gap: 10px;
+  border: 1px solid rgba(168, 85, 247, 0.24);
+  background: rgba(168, 85, 247, 0.045);
+  padding: 10px;
+}
+
+.workbenchCapabilityBridgeHeader {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.workbenchCapabilityBridgeHeader span,
+.workbenchCapabilityBridgeHeader small,
+.workbenchCapabilityBridgeGrid span {
+  color: var(--forge-muted);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.workbenchCapabilityBridgeHeader strong,
+.workbenchCapabilityBridgeGrid strong {
+  color: #f8fafc;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.workbenchCapabilityBridgeGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.workbenchCapabilityBridgeGrid a {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid var(--forge-border-soft);
+  background: #08080a;
+  padding: 8px;
+  text-decoration: none;
+}
+
+.workbenchCapabilityBridgeGuards {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--forge-muted);
+  font-size: 10px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .workbenchComposerBody {
   display: grid;
   grid-template-columns: minmax(180px, 0.28fr) minmax(0, 1fr);
@@ -2988,6 +3046,8 @@ pre {
   .workbenchSystemProofGrid,
   .workbenchSquadStrip,
   .workbenchSquadGrid,
+  .workbenchCapabilityBridge,
+  .workbenchCapabilityBridgeGrid,
   .workbenchInlineInspectorGrid,
   .workbenchDiagnosticsNav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3062,6 +3122,8 @@ pre {
   .workbenchSystemProofGrid,
   .workbenchSquadStrip,
   .workbenchSquadGrid,
+  .workbenchCapabilityBridge,
+  .workbenchCapabilityBridgeGrid,
   .workbenchInlineInspectorGrid,
   .workbenchDiagnosticsNav {
     grid-template-columns: 1fr;
