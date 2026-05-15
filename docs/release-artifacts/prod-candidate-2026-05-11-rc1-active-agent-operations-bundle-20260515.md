@@ -1,4 +1,4 @@
-# Active Memory Operations Bundle Proof
+# Active Agent Operations Bundle Proof
 
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
@@ -8,19 +8,19 @@ immutable_image_commit_sha: `9d8469801b1dcdf8f8e4cd326be258389c0f8183`
 base_url: `https://188-34-191-140.sslip.io`
 local_control_plane_url: `http://localhost:8081`
 production_rollout_claimed: `false`
-memory_gate_count: `8`
-changed_horizontal: `Phase 5 78->79`
-changed_vertical: `Memory 72->73`
+agent_gate_count: `8`
+changed_horizontal: `Phase 5 79->80`
+changed_vertical: `Agent Pool 74->75`
 
-## Bound Memory Gates
+## Bound Agent Gates
 
-- `memory-runtime-probe`
-- `memory-purge-job-status`
-- `memory-search-runtime`
-- `memory-contract-surface`
-- `phase4-session-memory-parity-hosted`
-- `phase4-memory-embedding-consistency-hosted`
-- `hosted-staging-smoke`
+- `agent-status-runtime-probe`
+- `recent-tasks-contract`
+- `autonomous-coding-team`
+- `autonomous-roster-master-plan-bundle`
+- `phase2-runtime-dual-surface`
+- `phase3-live-agent-steering`
+- `phase3-live-agent-history`
 - `evidence-artifact-safety`
 
 ## Verification Commands
@@ -28,14 +28,13 @@ changed_vertical: `Memory 72->73`
 - Docker readiness: `docker info --format '{{.ServerVersion}}'`
 - Build/push: `scripts\build-and-push.ps1 -Tag 9d8469801b1dcdf8f8e4cd326be258389c0f8183 -Builder superbrain_builder`
 - Immutable staging deploy: `scripts\deploy-to-staging.ps1 -ImageTag 9d8469801b1dcdf8f8e4cd326be258389c0f8183 -UseImageFilesystem -KeyPath <local-private-key>`
-- Local proof: `scripts\verify-phase5-active-memory-operations-bundle.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
-- Hosted proof: `scripts\verify-phase5-active-memory-operations-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io -KeyPath <local-private-key>`
+- Local proof: `scripts\verify-phase5-active-agent-operations-bundle.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
+- Hosted proof: `scripts\verify-phase5-active-agent-operations-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 
 ## Non-Claims
 
 - This proof does not claim a production rollout.
 - This proof does not claim release promotion.
-- This proof does not claim live embedding provider calls.
 - This proof does not claim live LLM provider calls.
 - This proof does not claim live MCP writes.
 - This proof does not claim local model downloads.

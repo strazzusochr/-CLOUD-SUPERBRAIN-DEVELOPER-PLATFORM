@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-05-15 02:35 Uhr
+Letzte Aktualisierung: 2026-05-15 03:52 Uhr
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-15 02:35 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `80%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance, die Autonomous-Roster/Master-Plan-Proofs und den Phase-2-Runtime-Dual-Surface-Proof auf `88%`; Phase 3 Product Surface & Security steht weiterhin auf `95%`; Phase 5 steht jetzt auf `79%`; Memory steht bei `73%`; Agent Pool steht bei `74%`; LLM Gateway steht bei `64%`; MCP Gateway steht bei `65%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist als immutable Staging-Selector `984254f78c3f9fe0363ac2e8f3468f4b1c49ab05` plus Active Memory Operations Bundle, Active Gateway Execution Bundle, Active Runtime Selector Truth Rebaseline, Active Full-Suite Rebaseline, Active Verifier Sweep Bundle Rebaseline, Active Runtime Guard Matrix Bundle, Active Gateway Policy Bundle, Runtime Evidence Bundle, Security Evidence Bundle, Vercel/GitHub-Status, Autonomous Roster Master Plan und Phase 2 Runtime Dual Surface verifiziert; Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `80%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance, die Autonomous-Roster/Master-Plan-Proofs und den Phase-2-Runtime-Dual-Surface-Proof auf `88%`; Phase 3 Product Surface & Security steht weiterhin auf `95%`; Phase 5 steht jetzt auf `80%`; Agent Pool steht bei `75%`; Memory steht bei `73%`; LLM Gateway steht bei `64%`; MCP Gateway steht bei `65%`; Frontend / Next.js steht bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist als immutable Staging-Selector `9d8469801b1dcdf8f8e4cd326be258389c0f8183` plus Active Agent Operations Bundle, Active Memory Operations Bundle, Active Gateway Execution Bundle, Active Runtime Selector Truth Rebaseline, Active Full-Suite Rebaseline, Active Verifier Sweep Bundle Rebaseline, Active Runtime Guard Matrix Bundle, Active Gateway Policy Bundle, Runtime Evidence Bundle, Security Evidence Bundle, Vercel/GitHub-Status, Autonomous Roster Master Plan und Phase 2 Runtime Dual Surface verifiziert; Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -41,7 +41,7 @@ Letzte Aktualisierung: 2026-05-15 02:35 Uhr
 | P2   | 88%    |
 | P3   | 95%    |
 | P4   | 100%   |
-| P5   | 79%    |
+| P5   | 80%    |
 | P6   | 0%     |
 
 ### Vertikal (nach Modul)
@@ -50,7 +50,7 @@ Letzte Aktualisierung: 2026-05-15 02:35 Uhr
 |---------------|--------|
 | Frontend      | 99%    |
 | Orchestrator  | 99%    |
-| Agent Pool    | 74%    |
+| Agent Pool    | 75%    |
 | LLM Gateway   | 64%    |
 | MCP Gateway   | 65%    |
 | Memory        | 73%    |
@@ -70,23 +70,29 @@ Letzte Aktualisierung: 2026-05-15 02:35 Uhr
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Naechster grosser Fortschrittshebel: Phase 5 Release Readiness** — der aktive RC1 ist als immutable Staging-Selector `984254f78c3f9fe0363ac2e8f3468f4b1c49ab05` verifiziert und bindet jetzt das Active Memory Operations Bundle, Active Gateway Execution Bundle, Active Full-Suite Rebaseline, den Active Verifier Sweep Rebaseline, die Runtime-Guard-Surfaces im Active Runtime Guard Matrix Bundle, die LLM-/MCP-Gateway-Policy-Surfaces im Active Gateway Policy Bundle, die Runtime-Flaechen im Active Runtime Evidence Bundle, die wichtigsten Security-Exportflaechen im Active Security Evidence Bundle sowie den GitHub/Vercel Deployment-Status.
+- **Naechster grosser Fortschrittshebel: Phase 5 Release Readiness** — der aktive RC1 ist als immutable Staging-Selector `9d8469801b1dcdf8f8e4cd326be258389c0f8183` verifiziert und bindet jetzt das Active Agent Operations Bundle, Active Memory Operations Bundle, Active Gateway Execution Bundle, Active Full-Suite Rebaseline, den Active Verifier Sweep Rebaseline, die Runtime-Guard-Surfaces im Active Runtime Guard Matrix Bundle, die LLM-/MCP-Gateway-Policy-Surfaces im Active Gateway Policy Bundle, die Runtime-Flaechen im Active Runtime Evidence Bundle, die wichtigsten Security-Exportflaechen im Active Security Evidence Bundle sowie den GitHub/Vercel Deployment-Status.
 - danach folgen P3-Auth/Security- und LLM/MCP-Layer-Slices, kein Production-Rollout ohne separates Gate
 - lokal und hosted bleiben weiterhin deterministische Proofs ohne Live-Provider und ohne Live-MCP-Writes; `production_deploy_claim_allowed=true` ist kein Deployment-Nachweis
 
 ## ZULETZT ABGESCHLOSSEN
 
-**Active Memory Operations Bundle Proof** — der aktive RC1 laeuft jetzt als neuer immutable Staging-Selector `984254f78c3f9fe0363ac2e8f3468f4b1c49ab05` und bindet reale Memory-Operations-Pfade:
+**Active Agent Operations Bundle Proof** — der aktive RC1 laeuft jetzt als neuer immutable Staging-Selector `9d8469801b1dcdf8f8e4cd326be258389c0f8183` und bindet reale Agent-Operations-Pfade:
+
+- `scripts\verify-phase5-active-agent-operations-bundle.ps1` prueft Agent Status, Recent-Tasks-Contract, Autonomous Coding Team, Autonomous Roster/Master-Plan, Phase 2 Runtime Dual Surface, Live-Agent-Steering, Live-Agent-History und Evidence-Artifact-Safety.
+- Nachgewiesen sind hosted `overall=80`, Phase 5 `80%`, Agent Pool `75%`, `IMAGE_TAG=9d8469801b1dcdf8f8e4cd326be258389c0f8183`, GHCR `linux/arm64` fuer alle sechs Services und immutable Hetzner `-UseImageFilesystem`.
+- Fortschritt steigt `phase_5=80` und `agent_pool=75`; Gesamt bleibt `80`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Active Memory Operations Bundle Proof** — der aktive RC1 laeuft jetzt als immutable Staging-Selector `9d8469801b1dcdf8f8e4cd326be258389c0f8183` und bindet reale Memory-Operations-Pfade:
 
 - `scripts\verify-phase5-active-memory-operations-bundle.ps1` prueft Memory Search, Memory Purge Job Status, Memory Contracts, Hosted Session-Memory-Parity, Hosted Embedding-Consistency-Parity, Hosted Smoke und Evidence-Artifact-Safety.
-- Nachgewiesen sind hosted `overall=80`, Phase 5 `79%`, Memory `73%`, `IMAGE_TAG=984254f78c3f9fe0363ac2e8f3468f4b1c49ab05`, GHCR `linux/arm64` fuer alle sechs Services und immutable Hetzner `-UseImageFilesystem`.
+- Nachgewiesen sind hosted `overall=80`, Phase 5 `79%`, Memory `73%`, `IMAGE_TAG=9d8469801b1dcdf8f8e4cd326be258389c0f8183`, GHCR `linux/arm64` fuer alle sechs Services und immutable Hetzner `-UseImageFilesystem`.
 - Fortschritt steigt `phase_5=79` und `memory=73`; Gesamt bleibt `80`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein Live-Embedding-Provider-Call, kein lokaler Model-Download und keine Secret-Offenlegung.
 
-**Active Gateway Execution Bundle Proof** — der aktive RC1 laeuft jetzt als immutable Staging-Selector `984254f78c3f9fe0363ac2e8f3468f4b1c49ab05` und bindet reale nicht-mutierende Ausfuehrungspfade:
+**Active Gateway Execution Bundle Proof** — der aktive RC1 laeuft jetzt als immutable Staging-Selector `9d8469801b1dcdf8f8e4cd326be258389c0f8183` und bindet reale nicht-mutierende Ausfuehrungspfade:
 
 - `scripts\verify-phase5-active-gateway-execution-bundle.ps1` prueft Phase-2 Runtime Dual Surface, Agent-LLM-Streaming, MCP DevOps Safe Envelope, Gateway Correlation Snapshot/Risk/Timeline, Hosted Smoke und Evidence-Artifact-Safety.
-- Nachgewiesen sind hosted `overall=80`, Phase 5 `79%`, `IMAGE_TAG=984254f78c3f9fe0363ac2e8f3468f4b1c49ab05`, GHCR `linux/arm64` fuer alle sechs Services und immutable Hetzner `-UseImageFilesystem`.
-- Fortschritt steigt in diesem Schritt auf `phase_5=78`; aktueller Manifeststand nach Memory-Operations-Rebaseline ist `phase_5=79`; Gesamt bleibt `80`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+- Nachgewiesen sind hosted `overall=80`, Phase 5 `79%`, `IMAGE_TAG=9d8469801b1dcdf8f8e4cd326be258389c0f8183`, GHCR `linux/arm64` fuer alle sechs Services und immutable Hetzner `-UseImageFilesystem`.
+- Fortschritt steigt in diesem Schritt auf `phase_5=78`; aktueller Manifeststand nach Agent-Operations-Rebaseline ist `phase_5=80`; Gesamt bleibt `80`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
 
 **Active Verifier Sweep Bundle Rebaseline Proof** — der aktive RC1 bindet jetzt elf nicht-mutierende Safety-Gates an den aktuellen Hosted-Candidate:
 
@@ -97,14 +103,14 @@ Letzte Aktualisierung: 2026-05-15 02:35 Uhr
 **Vorheriger Abschluss — Active Runtime Guard Matrix Bundle Proof** — der aktive RC1 bindet jetzt Live-Agent-, LLM- und MCP-Runtime-Guards an lokale und gehostete Beweise:
 
 - `scripts\verify-phase5-active-runtime-guard-matrix-bundle.ps1` prueft Live-Agent-Steering, Live-Agent-History, LLM Live-Provider Guard, MCP Security Guard, Browser-Contract und Evidence-Artifact-Safety lokal und hosted.
-- Nachgewiesen sind `live_agent_metadata_guard_enforced`, `llm_runtime_guard_parity_visible`, `mcp_unsupported_toolset_guard` und `mcp_secret_redaction_guard` bei hosted progress `80%`, `phase_3=95`, `phase_5=79`, `agent_pool=74`, `llm_gateway=64` und `mcp_gateway=65`.
+- Nachgewiesen sind `live_agent_metadata_guard_enforced`, `llm_runtime_guard_parity_visible`, `mcp_unsupported_toolset_guard` und `mcp_secret_redaction_guard` bei hosted progress `80%`, `phase_3=95`, `phase_5=80`, `agent_pool=75`, `llm_gateway=64` und `mcp_gateway=65`.
 - Fortschritt bleibt unveraendert; Gesamt bleibt `80`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
 
 **Vorheriger Abschluss — Active Full-Suite Rebaseline Proof** — der aktive RC1 bindet jetzt den Phase-5-Suite-Plan und die aktuellen Active-Candidate-Gates an denselben Hosted-Candidate:
 
 - `scripts\verify-phase5-full-verifier-sweep.ps1` prueft fuer den aktiven RC1 Manifest, Phase-5-Suite-Plan, current-release-candidate, active-release-candidate bundle, hosted staging smoke, Active Runtime Evidence Bundle, Active Security Evidence Bundle, Active Verifier Sweep Bundle, Vercel/GitHub Deployment Status und Evidence-Artifact-Safety.
-- Nachgewiesen sind `active_gate_count=10`, `phase5_suite_plan_status=passed`, hosted progress `80%`, Phase 5 aktuell `79%`, immutable selector `984254f78c3f9fe0363ac2e8f3468f4b1c49ab05` und `production_rollout_claimed=false`.
-- Fortschritt stieg in diesem Schritt auf `phase_5=76`; aktueller Manifeststand nach Selector-, Gateway-Execution- und Memory-Operations-Rebaseline ist `phase_5=79`, Gesamt bleibt `80`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+- Nachgewiesen sind `active_gate_count=10`, `phase5_suite_plan_status=passed`, hosted progress `80%`, Phase 5 aktuell `79%`, immutable selector `9d8469801b1dcdf8f8e4cd326be258389c0f8183` und `production_rollout_claimed=false`.
+- Fortschritt stieg in diesem Schritt auf `phase_5=76`; aktueller Manifeststand nach Selector-, Gateway-Execution-, Memory-Operations- und Agent-Operations-Rebaseline ist `phase_5=80`, Gesamt bleibt `80`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
 
 **Vorheriger Abschluss — Active Verifier Sweep Bundle Proof** — der aktive RC1 bindet jetzt die wichtigsten nicht-mutierenden Verifier-Gates an den aktuellen Hosted-Candidate:
 
@@ -122,7 +128,7 @@ Letzte Aktualisierung: 2026-05-15 02:35 Uhr
 
 - `scripts\verify-phase5-active-runtime-evidence-bundle.ps1` prueft Project Progress, Progress Integrity, Phase-2-Runtime-Contract/Runs, Orchestrator Manifest, Agent Status, Agent Activity, Master Plan, Roster und Team Status lokal sowie hosted.
 - Nachgewiesen sind `phase2-runtime-v1`, `audit_log_backed_phase2_runtime_runs`, `agent-profiles-v1`, `autonomous-master-plan-v1`, `autonomous-agent-roster-v1`, `langgraph`, `postgres`, completed deterministische Rollen und die Non-Claims fuer Live-Provider, Live-MCP-Writes, Production Deploy, lokale Model-Downloads und Secrets.
-- Fortschritt ist auf aktuellem Stand `overall=80`, `phase_5=79`, `memory=73`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+- Fortschritt ist auf aktuellem Stand `overall=80`, `phase_5=80`, `agent_pool=75`, `memory=73`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
 
 **Vorheriger Abschluss — Phase 2 Runtime Dual Surface Proof** — der aktive RC1 bindet jetzt die Phase-2-Runtime-Contracts, Start-Ausfuehrung und Runs-Feed an lokale und gehostete Beweise:
 
@@ -156,7 +162,7 @@ Letzte Aktualisierung: 2026-05-15 02:35 Uhr
 - `GET /api/v1/security/review-queue/export?format=csv&limit=80` liest nur dieselbe sichere `audit_log`-Projektion wie Security Review Queue, Snapshot und Gate und gibt ausschliesslich allowlisted CSV-Spalten aus.
 - Export und Export-Audit geben keine raw details, Prompt-Bodies, Cookies, Authorization-Header, Provider-Credentials, Screenshots, Raw-Files, Live-Provider-Claims, Live-MCP-Write-Claims, Production-Rollout-Claims oder Promotion-Claims zurueck.
 - Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm --prefix apps/frontend run build`, `docker info --format '{{.ServerVersion}}'`, `docker compose -f docker-compose.dev.yml up -d --force-recreate agent-api nginx`, `scripts\verify-phase3-security-review-export.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-phase3-security-review-queue.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` und `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
-- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach GHCR-Build/Push und immutable Image-Deploy mit `IMAGE_TAG=984254f78c3f9fe0363ac2e8f3468f4b1c49ab05`: Active Memory Operations Bundle, Active Gateway Execution Bundle, Security-Review-Export, Browser-Contract und Hosted-Staging sind gruen.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach GHCR-Build/Push und immutable Image-Deploy mit `IMAGE_TAG=9d8469801b1dcdf8f8e4cd326be258389c0f8183`: Active Memory Operations Bundle, Active Gateway Execution Bundle, Security-Review-Export, Browser-Contract und Hosted-Staging sind gruen.
 - Fortschritt: `overall=79`, `phase_3=94`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
 
 **Gateway Correlation Export Proof** — die Gateway-Korrelationsansicht hat jetzt einen read-only CSV-Export ueber sichere Agent-/LLM-/MCP-Korrelationsgruppen:

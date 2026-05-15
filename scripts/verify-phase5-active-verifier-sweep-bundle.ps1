@@ -118,9 +118,9 @@ try {
     "immutable_image_commit_sha: ``$immutableSha``",
     "base_url: ``$BaseUrl``",
     "production_rollout_claimed: ``false``",
-    "verifier_gate_count: ``11``",
-    "changed_horizontal: ``Phase 5 78->79``",
-    "changed_vertical: ``Memory 72->73``",
+    "verifier_gate_count: ``12``",
+    "changed_horizontal: ``Phase 5 79->80``",
+    "changed_vertical: ``Agent Pool 74->75``",
     "This proof does not claim a production rollout.",
     "This proof does not claim release promotion.",
     "This proof does not claim live LLM provider calls.",
@@ -135,9 +135,13 @@ try {
   $progress = Invoke-JsonApi "$BaseUrl/api/v1/project/progress"
   Assert-Equal "progress overall" ([int]$progress.overall_percent) 80
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 79
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 80
   Assert-Contains "phase5 status" $phase5.status "active_verifier_sweep_bundle_verified"
   Assert-Contains "phase5 memory status" $phase5.status "active_memory_operations_bundle_verified"
+  Assert-Contains "phase5 agent operations status" $phase5.status "active_agent_operations_bundle_verified"
+  $agentPool = @($progress.vertical.items | Where-Object { $_.id -eq "layer_3" }) | Select-Object -First 1
+  Assert-Equal "progress agent pool" ([int]$agentPool.percent) 75
+  Assert-Contains "agent pool status" $agentPool.status "active_agent_operations_runtime_verified"
   $memory = @($progress.vertical.items | Where-Object { $_.id -eq "layer_6" }) | Select-Object -First 1
   Assert-Equal "progress memory" ([int]$memory.percent) 73
   Assert-Contains "memory status" $memory.status "active_memory_operations_runtime_verified"
@@ -172,6 +176,9 @@ try {
   $memoryOperationsOutput = Invoke-RepoScript "phase5-active-memory-operations-bundle" "scripts\verify-phase5-active-memory-operations-bundle.ps1" @("-BaseUrl", $BaseUrl)
   Assert-Contains "memory operations output" $memoryOperationsOutput "[phase5-active-memory-operations-bundle] verified"
 
+  $agentOperationsOutput = Invoke-RepoScript "phase5-active-agent-operations-bundle" "scripts\verify-phase5-active-agent-operations-bundle.ps1" @("-BaseUrl", $BaseUrl)
+  Assert-Contains "agent operations output" $agentOperationsOutput "[phase5-active-agent-operations-bundle] verified"
+
   $llmCatalogOutput = Invoke-RepoScript "phase4-llm-model-catalog" "scripts\verify-phase4-llm-model-catalog.ps1" @("-BaseUrl", $BaseUrl)
   Assert-Contains "llm catalog output" $llmCatalogOutput "status=verified"
 
@@ -192,9 +199,9 @@ try {
     source_commit_sha = $sourceSha
     immutable_image_commit_sha = $immutableSha
     production_rollout_claimed = $false
-    verifier_gate_count = 11
-    changed_horizontal = "Phase 5 78->79"
-    changed_vertical = "Memory 72->73"
+    verifier_gate_count = 12
+    changed_horizontal = "Phase 5 79->80"
+    changed_vertical = "Agent Pool 74->75"
     gates = @(
       "current-release-candidate",
       "active-release-candidate-bundle",
@@ -203,6 +210,7 @@ try {
       "phase5-active-runtime-guard-matrix-bundle",
       "phase5-active-gateway-execution-bundle",
       "phase5-active-memory-operations-bundle",
+      "phase5-active-agent-operations-bundle",
       "phase4-llm-model-catalog",
       "phase4-mcp-capability-catalog",
       "security",

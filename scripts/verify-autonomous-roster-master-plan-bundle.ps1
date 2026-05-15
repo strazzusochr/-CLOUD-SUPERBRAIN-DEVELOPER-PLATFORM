@@ -81,8 +81,8 @@ try {
   Assert-Equal "master plan progress manifest" $masterPlan.progress_manifest "docs/project-progress.manifest.json"
   Assert-Equal "master plan evidence ref" $masterPlan.evidence_ref "autonomous_master_plan_runtime_visible"
   Assert-Equal "master plan phase 2" ([int]$masterPlan.phase_percentages.phase_2) 88
-  Assert-Equal "master plan phase 5" ([int]$masterPlan.phase_percentages.phase_5) 79
-  Assert-Equal "master plan agent pool" ([int]$masterPlan.layer_percentages.layer_3) 74
+  Assert-Equal "master plan phase 5" ([int]$masterPlan.phase_percentages.phase_5) 80
+  Assert-Equal "master plan agent pool" ([int]$masterPlan.layer_percentages.layer_3) 75
   Assert-True "master plan dispatch endpoints" (@($masterPlan.dispatch_endpoints) -contains "POST /api/v1/task/dispatch")
   Assert-True "master plan external runtime status visible" (@("disabled", "ready") -contains [string]$masterPlan.external_runtime_adapter.status)
   Assert-NotSecretBearing "master plan payload" ($masterPlan | ConvertTo-Json -Depth 20 -Compress)
