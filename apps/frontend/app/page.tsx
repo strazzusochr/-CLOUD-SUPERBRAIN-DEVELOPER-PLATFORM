@@ -4814,7 +4814,7 @@ export default function Home() {
         <section
           className="panel progressPanel"
           aria-label="Project progress"
-          data-evidence="active_frontend_orchestrator_evidence_bundle_visible"
+          data-evidence="active_frontend_orchestrator_evidence_bundle_visible active_observability_rebaseline_bundle_visible"
         >
           <header className="panelHeader">
             <h2>Project Progress</h2>
