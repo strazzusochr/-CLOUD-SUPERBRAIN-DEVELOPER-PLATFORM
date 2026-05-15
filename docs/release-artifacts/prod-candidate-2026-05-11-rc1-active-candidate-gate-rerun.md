@@ -1,11 +1,11 @@
-# Active Candidate Gate Rerun
+﻿# Active Candidate Gate Rerun
 
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
 base_url: `https://188-34-191-140.sslip.io`
 active_release_id: `prod-candidate-2026-05-11-rc1`
-source_commit_sha: `c0a9d461615e4ccad2397fb6c0821659969ede4d`
-immutable_image_commit_sha: `c0a9d461615e4ccad2397fb6c0821659969ede4d`
+source_commit_sha: `4ce557f7e195846afa39d89861f296202561f34a`
+immutable_image_commit_sha: `4ce557f7e195846afa39d89861f296202561f34a`
 production_rollout_claimed: `false`
 bundle_status: `passed`
 bundle_gate_count: `3`

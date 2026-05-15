@@ -98,6 +98,7 @@ $eventBody = @{
   result_ref = "mcp_audit_feed_contract_runtime_proof"
   duration_ms = 42
   retry_after_ms = 0
+  guard_evidence_ref = "mcp_scope_guard"
   audit_tags = @("hosted", "mcp-audit-feed", "contract")
 } | ConvertTo-Json -Compress
 

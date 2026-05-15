@@ -1,9 +1,9 @@
-# RC1 Active Memory Success Correlation Bundle - 2026-05-15
+﻿# RC1 Active Memory Success Correlation Bundle - 2026-05-15
 
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
-source_commit_sha: `c0a9d461615e4ccad2397fb6c0821659969ede4d`
-immutable_image_commit_sha: `c0a9d461615e4ccad2397fb6c0821659969ede4d`
+source_commit_sha: `4ce557f7e195846afa39d89861f296202561f34a`
+immutable_image_commit_sha: `4ce557f7e195846afa39d89861f296202561f34a`
 base_url: `https://188-34-191-140.sslip.io`
 production_rollout_claimed: `false`
 memory_success_gate_count: `6`
@@ -15,8 +15,8 @@ changed_vertical: `Memory 73->74`
 - `docker info --format '{{.ServerVersion}}'`
 - `py -3 -m compileall services\agent-api\app`
 - `py -3 scripts\verify_project_progress_manifest.py`
-- `scripts\build-and-push.ps1 -Tag c0a9d461615e4ccad2397fb6c0821659969ede4d -Builder superbrain_builder`
-- `scripts\deploy-to-staging.ps1 -ImageTag c0a9d461615e4ccad2397fb6c0821659969ede4d -UseImageFilesystem -KeyPath <local-private-key>`
+- `scripts\build-and-push.ps1 -Tag 4ce557f7e195846afa39d89861f296202561f34a -Builder superbrain_builder`
+- `scripts\deploy-to-staging.ps1 -ImageTag 4ce557f7e195846afa39d89861f296202561f34a -UseImageFilesystem -KeyPath <local-private-key>`
 - `scripts\verify-phase5-active-memory-success-correlation-bundle.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
 - `scripts\verify-phase5-active-memory-success-correlation-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 - `scripts\verify-phase5-active-verifier-sweep-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`

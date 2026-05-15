@@ -1,12 +1,12 @@
-# Active Runtime Evidence Bundle
+﻿# Active Runtime Evidence Bundle
 
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
 verified_at: `2026-05-14T23:10:00+02:00`
 base_url: `https://188-34-191-140.sslip.io`
 local_control_plane_url: `http://localhost:8081`
-source_commit_sha: `c0a9d461615e4ccad2397fb6c0821659969ede4d`
-immutable_image_commit_sha: `c0a9d461615e4ccad2397fb6c0821659969ede4d`
+source_commit_sha: `4ce557f7e195846afa39d89861f296202561f34a`
+immutable_image_commit_sha: `4ce557f7e195846afa39d89861f296202561f34a`
 production_rollout_claimed: `false`
 runtime_surface_count: `8`
 

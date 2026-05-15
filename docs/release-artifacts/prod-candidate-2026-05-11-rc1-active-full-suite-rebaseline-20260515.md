@@ -1,16 +1,16 @@
-# Active Full-Suite Rebaseline Proof
+﻿# Active Full-Suite Rebaseline Proof
 
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
 environment: `production-candidate`
-source_commit_sha: `c0a9d461615e4ccad2397fb6c0821659969ede4d`
-immutable_image_commit_sha: `c0a9d461615e4ccad2397fb6c0821659969ede4d`
+source_commit_sha: `4ce557f7e195846afa39d89861f296202561f34a`
+immutable_image_commit_sha: `4ce557f7e195846afa39d89861f296202561f34a`
 base_url: `https://188-34-191-140.sslip.io`
 production_rollout_claimed: `false`
 active_gate_count: `10`
 phase5_suite_plan_status: `passed`
-changed_horizontal: `Phase 2 88->89; Phase 5 84->87`
-changed_vertical: `Agent Pool 75->76; LLM Gateway 65->67; Memory 73->74`
+changed_horizontal: `Phase 2 88->89; Phase 5 84->88`
+changed_vertical: `Agent Pool 75->76; LLM Gateway 65->67; MCP Gateway 67->68; Memory 73->74`
 
 ## Verified Gates
 
@@ -27,8 +27,8 @@ changed_vertical: `Agent Pool 75->76; LLM Gateway 65->67; Memory 73->74`
 
 ## Evidence Bound
 
-- Active Phase 5 suite plan now keeps the current RC1 verifier set on default parameters and includes the Active LLM Guard Correlation Bundle, Active Memory Success Correlation Bundle, Active Agent Success Correlation Bundle, Active LLM Success Correlation Bundle, and Active MCP Success Correlation Bundle.
-- Hosted staging status remains HTTP `200`, project progress is `82%`, Phase 5 is `87%`, Agent Pool is `76%`, LLM Gateway is `67%`, MCP Gateway is `67%`, Memory is `74%`, and immutable selector is `c0a9d461615e4ccad2397fb6c0821659969ede4d`.
+- Active Phase 5 suite plan now keeps the current RC1 verifier set on default parameters and includes the Active MCP Guard Correlation Bundle, Active LLM Guard Correlation Bundle, Active Memory Success Correlation Bundle, Active Agent Success Correlation Bundle, Active LLM Success Correlation Bundle, and Active MCP Success Correlation Bundle.
+- Hosted staging status remains HTTP `200`, project progress is `82%`, Phase 5 is `88%`, Agent Pool is `76%`, LLM Gateway is `67%`, MCP Gateway is `68%`, Memory is `74%`, and immutable selector is `4ce557f7e195846afa39d89861f296202561f34a`.
 - Active runtime, active security, active verifier sweep, Vercel/GitHub status, active release-candidate bundle, current release-candidate, and evidence-artifact-safety gates pass together on the same active RC1 boundary.
 
 ## Non-Claims
