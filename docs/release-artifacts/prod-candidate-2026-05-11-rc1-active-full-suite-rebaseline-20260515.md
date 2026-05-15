@@ -1,16 +1,16 @@
-﻿# Active Full-Suite Rebaseline Proof
+# Active Full-Suite Rebaseline Proof
 
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
 environment: `production-candidate`
-source_commit_sha: `43783e702ae37ce4e88fe9f309a2488445cd83e1`
-immutable_image_commit_sha: `43783e702ae37ce4e88fe9f309a2488445cd83e1`
+source_commit_sha: `4a894c16d5f340b89ad1134da781d1c855d6ced5`
+immutable_image_commit_sha: `4a894c16d5f340b89ad1134da781d1c855d6ced5`
 base_url: `https://188-34-191-140.sslip.io`
 production_rollout_claimed: `false`
 active_gate_count: `10`
 phase5_suite_plan_status: `passed`
-changed_horizontal: `Phase 5 83->84`
-changed_vertical: `LLM Gateway 65->66`
+changed_horizontal: `Phase 2 88->89; Phase 5 84->85`
+changed_vertical: `Agent Pool 75->76`
 
 ## Verified Gates
 
@@ -28,7 +28,7 @@ changed_vertical: `LLM Gateway 65->66`
 ## Evidence Bound
 
 - Active Phase 5 suite plan now keeps the current RC1 verifier set on default parameters and includes the Active LLM Success Correlation Bundle and Active MCP Success Correlation Bundle.
-- Hosted staging status remains HTTP `200`, project progress is `81%`, Phase 5 is `84%`, Agent Pool is `75%`, LLM Gateway is `66%`, MCP Gateway is `67%`, Memory is `73%`, and immutable selector is `43783e702ae37ce4e88fe9f309a2488445cd83e1`.
+- Hosted staging status remains HTTP `200`, project progress is `81%`, Phase 5 is `84%`, Agent Pool is `75%`, LLM Gateway is `66%`, MCP Gateway is `67%`, Memory is `73%`, and immutable selector is `4a894c16d5f340b89ad1134da781d1c855d6ced5`.
 - Active runtime, active security, active verifier sweep, Vercel/GitHub status, active release-candidate bundle, current release-candidate, and evidence-artifact-safety gates pass together on the same active RC1 boundary.
 
 ## Non-Claims

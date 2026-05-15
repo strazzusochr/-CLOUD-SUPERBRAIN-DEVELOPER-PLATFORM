@@ -98,11 +98,11 @@ function Invoke-AgentSuccessCorrelationProbe([string]$BaseUrl) {
   $sessionId = [guid]::NewGuid().ToString()
   $traceId = "phase5-agent-success-" + [guid]::NewGuid().ToString("N")
   $requestId = "req-phase5-agent-success-" + [guid]::NewGuid().ToString("N")
-  $headers = @{ "X-Request-Id" = $requestId }
+  $headers = @{ "X-Request-Id" = $requestId; "X-Trace-Id" = $traceId }
   $body = @{
     project_id = "phase5-agent-success-correlation"
     session_id = $sessionId
-    agent_type = "tester"
+    agent_type = "planner"
     task_type = "phase5_agent_success_correlation"
     task_description = "Phase5 agent success correlation deterministic worker proof."
     trace_id = $traceId
@@ -200,9 +200,16 @@ function Invoke-AgentSuccessCorrelationProbe([string]$BaseUrl) {
     session_id = $dispatchSessionId
     objective = "Phase5 autonomous dispatch success correlation runtime proof."
     trace_id = $dispatchTraceId
-    acceptance_criteria = @("request_id_visible", "trace_id_visible", "audit_feed_visible")
+    acceptance_criteria = @(
+      "result_envelope",
+      "done_validation",
+      "audit_log",
+      "request_id_visible",
+      "trace_id_visible",
+      "audit_feed_visible"
+    )
   } | ConvertTo-Json -Depth 8 -Compress
-  $dispatch = Invoke-JsonApi "$BaseUrl/api/v1/task/dispatch" "POST" $dispatchBody @{ "X-Request-Id" = $dispatchRequestId }
+  $dispatch = Invoke-JsonApi "$BaseUrl/api/v1/task/dispatch" "POST" $dispatchBody @{ "X-Request-Id" = $dispatchRequestId; "X-Trace-Id" = $dispatchTraceId }
   Assert-Equal "dispatch request id" ([string]$dispatch.request_id) $dispatchRequestId
   Assert-Equal "dispatch trace id" ([string]$dispatch.trace_id) $dispatchTraceId
   Assert-Equal "dispatch session id" ([string]$dispatch.session_id) $dispatchSessionId
@@ -223,8 +230,8 @@ function Invoke-AgentSuccessCorrelationProbe([string]$BaseUrl) {
   Assert-Equal "team status request id" ([string]$teamStatus.request_id) $dispatchRequestId
   Assert-Equal "team status trace id" ([string]$teamStatus.trace_id) $dispatchTraceId
   Assert-Equal "team status session id" ([string]$teamStatus.session_id) $dispatchSessionId
-  Assert-True "team assignments completed" (@($teamStatus.assignments | Where-Object { $_.status -eq "completed" }).Count -ge 5)
-  $firstAssignment = @($teamStatus.assignments) | Select-Object -First 1
+  Assert-True "team assignments completed" (@($teamStatus.members | Where-Object { $_.status -eq "completed" }).Count -ge 5)
+  $firstAssignment = @($teamStatus.members) | Select-Object -First 1
   Assert-Equal "team assignment request id" ([string]$firstAssignment.request_id) $dispatchRequestId
   Assert-Equal "team assignment trace id" ([string]$firstAssignment.trace_id) $dispatchTraceId
   Assert-Equal "team assignment correlation ref" ([string]$firstAssignment.correlation_evidence_ref) "request_id_audit_correlation"
@@ -250,7 +257,7 @@ function Invoke-AgentSuccessCorrelationProbe([string]$BaseUrl) {
     session_id_visible = $true
     direct_task_status = [string]$completed.task.status
     dispatch_status = [string]$teamStatus.status
-    assignment_count = @($teamStatus.assignments).Count
+    assignment_count = @($teamStatus.members).Count
     gateway_timeline_leg = [string]$timelineMatch.timeline_leg
   }
 }

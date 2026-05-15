@@ -1,10 +1,10 @@
-﻿# Active Gateway Execution Bundle Proof
+# Active Gateway Execution Bundle Proof
 
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
 environment: `production-candidate`
-source_commit_sha: `43783e702ae37ce4e88fe9f309a2488445cd83e1`
-immutable_image_commit_sha: `43783e702ae37ce4e88fe9f309a2488445cd83e1`
+source_commit_sha: `4a894c16d5f340b89ad1134da781d1c855d6ced5`
+immutable_image_commit_sha: `4a894c16d5f340b89ad1134da781d1c855d6ced5`
 base_url: `https://188-34-191-140.sslip.io`
 local_control_plane_url: `http://localhost:8081`
 production_rollout_claimed: `false`
@@ -26,8 +26,8 @@ changed_vertical: `none`
 ## Verification Commands
 
 - Docker readiness: `docker info --format '{{.ServerVersion}}'`
-- Build/push: `scripts\build-and-push.ps1 -Tag 43783e702ae37ce4e88fe9f309a2488445cd83e1 -Builder superbrain_builder`
-- Immutable staging deploy: `scripts\deploy-to-staging.ps1 -ImageTag 43783e702ae37ce4e88fe9f309a2488445cd83e1 -UseImageFilesystem -KeyPath <local-private-key>`
+- Build/push: `scripts\build-and-push.ps1 -Tag 4a894c16d5f340b89ad1134da781d1c855d6ced5 -Builder superbrain_builder`
+- Immutable staging deploy: `scripts\deploy-to-staging.ps1 -ImageTag 4a894c16d5f340b89ad1134da781d1c855d6ced5 -UseImageFilesystem -KeyPath <local-private-key>`
 - Local proof: `scripts\verify-phase5-active-gateway-execution-bundle.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
 - Hosted proof: `scripts\verify-phase5-active-gateway-execution-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 

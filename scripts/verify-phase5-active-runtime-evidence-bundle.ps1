@@ -170,8 +170,8 @@ try {
   Assert-Equal "progress overall" ([int]$progress.overall_percent) 81
   $phase2 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_2" }) | Select-Object -First 1
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
-  Assert-Equal "progress phase2" ([int]$phase2.percent) 88
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 84
+  Assert-Equal "progress phase2" ([int]$phase2.percent) 89
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 85
   Assert-NotSecretBearing "progress payload" ($progress | ConvertTo-Json -Depth 20 -Compress)
 
   $integrity = Invoke-JsonApi "$BaseUrl/api/v1/project/progress/integrity"
@@ -245,8 +245,8 @@ try {
   Assert-Equal "master plan contract version" $masterPlan.contract_version "autonomous-master-plan-v1"
   Assert-Equal "master plan evidence" $masterPlan.evidence_ref "autonomous_master_plan_runtime_visible"
   Assert-Equal "master plan overall" ([int]$masterPlan.overall_percent) 81
-  Assert-Equal "master plan phase2" ([int]$masterPlan.phase_percentages.phase_2) 88
-  Assert-Equal "master plan phase5" ([int]$masterPlan.phase_percentages.phase_5) 84
+  Assert-Equal "master plan phase2" ([int]$masterPlan.phase_percentages.phase_2) 89
+  Assert-Equal "master plan phase5" ([int]$masterPlan.phase_percentages.phase_5) 85
   Assert-True "master plan logical roles" (@($masterPlan.logical_roles).Count -eq 5)
   Assert-NotSecretBearing "master plan payload" ($masterPlan | ConvertTo-Json -Depth 20 -Compress)
 

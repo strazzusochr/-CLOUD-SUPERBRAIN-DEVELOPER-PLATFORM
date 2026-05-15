@@ -1,4 +1,4 @@
-# RC1 Active MCP Success Correlation Bundle - 2026-05-15
+# RC1 Active Agent Success Correlation Bundle - 2026-05-15
 
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
@@ -6,30 +6,31 @@ source_commit_sha: `4a894c16d5f340b89ad1134da781d1c855d6ced5`
 immutable_image_commit_sha: `4a894c16d5f340b89ad1134da781d1c855d6ced5`
 base_url: `https://188-34-191-140.sslip.io`
 production_rollout_claimed: `false`
-mcp_success_gate_count: `7`
-changed_horizontal: `Phase 5 82->83`
-changed_vertical: `MCP Gateway 66->67`
+agent_success_gate_count: `8`
+changed_horizontal: `Phase 2 88->89; Phase 5 84->85`
+changed_vertical: `Agent Pool 75->76`
 
 ## Verified Commands
 
 - `docker info --format '{{.ServerVersion}}'`
+- `py -3 -m compileall services\agent-api\app services\agent-worker\app`
 - `py -3 scripts\verify_project_progress_manifest.py`
 - `scripts\build-and-push.ps1 -Tag 4a894c16d5f340b89ad1134da781d1c855d6ced5 -Builder superbrain_builder`
 - `docker buildx imagetools inspect ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:4a894c16d5f340b89ad1134da781d1c855d6ced5`
 - `scripts\deploy-to-staging.ps1 -ImageTag 4a894c16d5f340b89ad1134da781d1c855d6ced5 -UseImageFilesystem -KeyPath <local-private-key>`
-- `scripts\verify-phase5-active-mcp-success-correlation-bundle.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
-- `scripts\verify-phase5-active-mcp-success-correlation-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`
+- `scripts\verify-phase5-active-agent-success-correlation-bundle.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
+- `scripts\verify-phase5-active-agent-success-correlation-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 - `scripts\verify-phase5-active-verifier-sweep-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 - `scripts\verify-current-runtime-selector-truth.ps1 -BaseUrl https://188-34-191-140.sslip.io -RequireRemoteProof -KeyPath <local-private-key>`
 - `scripts\verify-evidence-artifact-safety.ps1`
 
 ## Runtime Evidence
 
-- Hosted project progress returned `overall=81`, `phase_5=83`, `mcp_gateway=67`, and status marker `active_mcp_success_correlation_bundle_verified`.
-- The verifier executed a successful MCP `github/plan_branch_pr` dry-run with explicit `session_id`, `trace_id`, `request_id`, and `tool_request_id`.
-- The MCP Gateway returned `status=success`, `evidence_ref=github_branch_pr_plan`, `audit_persisted=true`, `live_github_call=false`, and a draft PR plan without creating a branch or pull request.
-- The MCP audit feed, global audit feed, and agent-activity feed exposed the same request and trace correlation evidence while keeping `input_ref_stored=false`.
-- The gateway correlation timeline exposed the success event as a safe MCP audit leg with `live_mcp_writes=false`.
+- Hosted project progress returned `overall=81`, `phase_2=89`, `phase_5=85`, `agent_pool=76`, and status marker `active_agent_success_correlation_bundle_verified`.
+- The verifier executed a deterministic internal task success path with explicit `session_id`, `trace_id`, and `request_id`.
+- The task status, recent-task feed, global audit feed, agent-activity feed, and gateway correlation timeline exposed the same request, trace, and session correlation evidence.
+- The verifier executed an autonomous team dispatch success path and confirmed the dispatch record, assignment rows, team status, and dispatch audit all carried the same request/trace/session evidence.
+- Agent success audit rows kept `live_provider_calls=false` and `live_mcp_writes=false`.
 
 ## Non-Claims
 

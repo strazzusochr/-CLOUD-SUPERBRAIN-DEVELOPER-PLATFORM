@@ -1,4 +1,4 @@
-# RC1 Active LLM Success Correlation Immutable Staging Proof - 2026-05-15
+# RC1 Active Agent Success Correlation Immutable Staging Proof - 2026-05-15
 
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
@@ -15,7 +15,7 @@ production_rollout_claimed: `false`
 - All six GHCR service images were built and pushed for `linux/arm64` under tag `4a894c16d5f340b89ad1134da781d1c855d6ced5`.
 - Hetzner staging was deployed with `scripts\deploy-to-staging.ps1 -ImageTag 4a894c16d5f340b89ad1134da781d1c855d6ced5 -UseImageFilesystem -KeyPath <local-private-key>`.
 - Remote selector reported `IMAGE_TAG=4a894c16d5f340b89ad1134da781d1c855d6ced5`.
-- Hosted progress returned `overall=81`, `phase_5=84`, and `llm_gateway=66`.
+- Hosted progress returned `overall=81`, `phase_2=89`, `phase_5=85`, and `agent_pool=76`.
 - Current parity verifier command: `scripts\verify-current-immutable-staging-parity.ps1 -RequireVerified -ReleaseId prod-candidate-2026-05-11-rc1 -ExpectedImageTag 4a894c16d5f340b89ad1134da781d1c855d6ced5 -BaseUrl https://188-34-191-140.sslip.io -KeyPath <local-private-key>`.
 
 ## Non-Claims
