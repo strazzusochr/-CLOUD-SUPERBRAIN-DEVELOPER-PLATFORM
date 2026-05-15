@@ -1,9 +1,16 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {};
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
-if (!process.env.VERCEL) {
-  nextConfig.outputFileTracingRoot = new URL("../..", import.meta.url).pathname;
-}
+const appRoot = dirname(fileURLToPath(import.meta.url));
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  poweredByHeader: false,
+  turbopack: {
+    root: appRoot,
+  },
+};
 
 const cloudRewrite = (source, envKey, pathPrefix = "") => {
   const baseUrl = process.env[envKey];

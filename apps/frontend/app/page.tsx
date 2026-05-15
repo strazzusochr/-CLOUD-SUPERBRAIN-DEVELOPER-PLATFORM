@@ -3853,6 +3853,7 @@ export default function Home() {
       window.clearInterval(liveTimer);
       window.clearInterval(activityTimer);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const degradedServices = health
@@ -4007,9 +4008,121 @@ export default function Home() {
   const memoryEvidenceRefs = stringList(memoryEmbeddingConsistencyContract?.evidence_refs);
   const memoryNonClaims = stringList(memoryEmbeddingConsistencyContract?.non_claims);
 
+  const forgeAgentSlots = agents.length ? agents : defaultAgents;
+  const forgeModelRoutes = llmGateway?.model_catalog?.routes?.length
+    ? llmGateway.model_catalog.routes.slice(0, 4)
+    : (modelCapabilities?.routes ?? []).slice(0, 4).map((route) => ({
+        agent_type: route.agent_type,
+        primary: route.primary,
+        fallbacks: route.fallbacks,
+        models: [route.primary, ...route.fallbacks],
+        provider_chain: [],
+        model_families: [],
+        max_output_tokens: route.max_output_tokens,
+        supports_streaming: route.supports_streaming,
+        configured_only: route.configured_only,
+        open_source_first: true,
+        api_inference_only: true,
+        model_downloads: false,
+      }));
+  const forgeToolCards = mcpCatalogToolsets.length
+    ? mcpCatalogToolsets
+    : [
+        {
+          toolset: "github",
+          mode: "dry_run",
+          supported_capabilities: ["plan_branch_pr"],
+          blocked_capability_examples: ["push", "merge"],
+          contract_version: "github-branch-pr-plan-v1",
+          contract_endpoint: "GET /mcp/api/v1/github/branch-pr/contract",
+          live_mutation: false,
+          live_mcp_writes: false,
+          requires_audit: true,
+          requires_timeout: true,
+          unsupported_capability_guard: "mcp_unsupported_capability_guard",
+        },
+        {
+          toolset: "postgresql",
+          mode: "readonly",
+          supported_capabilities: ["query_readonly"],
+          blocked_capability_examples: ["insert", "update", "delete"],
+          contract_version: "postgresql-readonly-query-v1",
+          contract_endpoint: "GET /mcp/api/v1/postgresql/readonly-query/contract",
+          live_mutation: false,
+          live_mcp_writes: false,
+          requires_audit: true,
+          requires_timeout: true,
+          unsupported_capability_guard: "mcp_unsupported_capability_guard",
+        },
+        {
+          toolset: "filesystem",
+          mode: "workspace_scope_plan",
+          supported_capabilities: ["plan_workspace_access"],
+          blocked_capability_examples: ["host_root_access"],
+          contract_version: "filesystem-workspace-scope-v1",
+          contract_endpoint: "GET /mcp/api/v1/filesystem/workspace-scope/contract",
+          live_mutation: false,
+          live_mcp_writes: false,
+          requires_audit: true,
+          requires_timeout: true,
+          unsupported_capability_guard: "mcp_unsupported_capability_guard",
+        },
+        {
+          toolset: "playwright",
+          mode: "browser_proof_plan",
+          supported_capabilities: ["plan_browser_proof"],
+          blocked_capability_examples: ["external_browser_mutation"],
+          contract_version: "playwright-browser-proof-v1",
+          contract_endpoint: "GET /mcp/api/v1/playwright/browser-proof/contract",
+          live_mutation: false,
+          live_mcp_writes: false,
+          requires_audit: true,
+          requires_timeout: true,
+          unsupported_capability_guard: "mcp_unsupported_capability_guard",
+        },
+      ];
+
   return (
-    <main className="shell">
-      <section className="workspace">
+    <main className="shell scanline">
+      <div className="forgeChrome">
+        <aside className="forgeSidebar" aria-label="Agent Forge navigation">
+          <div className="forgeBrand">
+            <span className="forgeBrandIcon">#</span>
+            <div>
+              <strong>Cloud Superbrain</strong>
+              <small>Agent Forge</small>
+            </div>
+          </div>
+          <div className="forgeSidebarSection">
+            <div className="forgeSidebarHeader">
+              <span>Active Agents</span>
+              <a href="#forge-model-atlas">Model Atlas</a>
+            </div>
+            <div className="forgeAgentList">
+              {forgeAgentSlots.slice(0, 6).map((agent) => (
+                <a className="forgeAgentButton" href="#agent-status" key={agent.type}>
+                  <span className={`forgeAgentDot forgeAgentDot-${agent.status ?? "idle"}`} />
+                  <span>{agent.type}</span>
+                  <small>{agent.status}</small>
+                </a>
+              ))}
+            </div>
+          </div>
+          <nav className="forgeSidebarSection forgeNav" aria-label="Runtime surfaces">
+            <a href="#project-progress-surface">Project Progress</a>
+            <a href="#langgraph-surface">LangGraph</a>
+            <a href="#llm-gateway-surface">LLM Gateway</a>
+            <a href="#mcp-builder-surface">MCP Builder</a>
+            <a href="#security-surface">Security</a>
+            <a href="#memory-surface">Memory</a>
+          </nav>
+          <div className="forgeSidebarFooter">
+            <span>System Ready</span>
+            <strong>{budgetLabel}</strong>
+          </div>
+        </aside>
+
+      <section className="workspace forgeWorkspace">
         <header className="topbar">
           <div>
             <p className="eyebrow">Phase 1 Runtime</p>
@@ -4048,6 +4161,109 @@ export default function Home() {
         </form>
 
         {error ? <p className="error">{error}</p> : null}
+
+        <section className="forgeCommandDeck" aria-label="Agent Forge command deck">
+          <div className="forgeDeckHeader">
+            <div>
+              <span className="forgeKicker">7-Layer Cloud Runtime</span>
+              <h2>Agent Forge Control Plane</h2>
+            </div>
+            <div className="forgeSegmented">
+              <a href="#project-progress-surface">Progress</a>
+              <a href="#llm-gateway-surface">Models</a>
+              <a href="#mcp-builder-surface">Builder</a>
+            </div>
+          </div>
+          <div className="forgeLayerStrip" aria-label="7-layer cloud system">
+            {[
+              "Frontend",
+              "Orchestrator",
+              "Agent Pool",
+              "LLM Gateway",
+              "MCP Gateway",
+              "Memory",
+              "Observability",
+            ].map((layer, index) => (
+              <a href={index === 3 ? "#llm-gateway-surface" : index === 4 ? "#mcp-builder-surface" : "#project-progress-surface"} key={layer}>
+                <span>L{index + 1}</span>
+                <strong>{layer}</strong>
+              </a>
+            ))}
+          </div>
+          <div className="forgeDeckGrid">
+            <article className="forgeAtlasPanel" id="forge-model-atlas">
+              <header>
+                <span>Initialize New Agent</span>
+                <strong>API-only / no local models</strong>
+              </header>
+              <div className="forgeSearchGhost">Search models...</div>
+              <p className="forgeDeckNote">
+                External models stay behind the LLM Gateway: live_provider_calls=false until Owner gate,
+                model_downloads=false, routing-policy preflight required.
+              </p>
+              <div className="forgeModelCards">
+                {forgeModelRoutes.length ? (
+                  forgeModelRoutes.map((route) => (
+                    <article className="forgeModelCard" key={route.agent_type}>
+                      <div>
+                        <strong>{route.agent_type}: {route.primary}</strong>
+                        <span>{route.max_output_tokens.toLocaleString()} ctx</span>
+                      </div>
+                      <p>{route.supports_streaming ? "streaming_sse" : "non_streaming"} / model_downloads=false</p>
+                      <small>{route.fallbacks.length ? `Fallbacks: ${route.fallbacks.join(" -> ")}` : "No fallback route"}</small>
+                    </article>
+                  ))
+                ) : (
+                  <article className="forgeModelCard">
+                    <div>
+                      <strong>planner: deterministic dry-run</strong>
+                      <span>loading</span>
+                    </div>
+                    <p>llm-runtime-guard-parity-v1 / model_downloads=false</p>
+                    <small>Model catalog route data is loading.</small>
+                  </article>
+                )}
+              </div>
+            </article>
+
+            <article className="forgeBuilderPreview" id="mcp-builder-surface" aria-label="MCP Builder">
+              <header>
+                <div>
+                  <span className="forgeBuilderIcon">#</span>
+                  <strong>MCP BUILDER</strong>
+                </div>
+                <a href="#mcp-runtime-guard-surface">Guard Matrix</a>
+              </header>
+              <p>Configure guarded Model Context Protocol toolsets through the MCP Gateway, never direct browser writes.</p>
+              <div className="forgeBuilderSplit">
+                <div className="forgeServerRail">
+                  <span>Active Servers</span>
+                  {forgeToolCards.slice(0, 3).map((toolset) => (
+                    <article className="forgeServerCard" key={toolset.toolset}>
+                      <div>
+                        <span className="forgeAgentDot forgeAgentDot-completed" />
+                        <strong>{toolset.toolset}</strong>
+                      </div>
+                      <small>{toolset.contract_endpoint ?? "contract pending"}</small>
+                    </article>
+                  ))}
+                </div>
+                <div className="forgeToolGrid">
+                  {forgeToolCards.slice(0, 6).map((toolset) => (
+                    <article className="forgeToolCard" key={toolset.toolset}>
+                      <div>
+                        <strong>{toolset.supported_capabilities[0] ?? toolset.toolset}</strong>
+                        <span>{toolset.toolset}</span>
+                      </div>
+                      <p>{toolset.unsupported_capability_guard}</p>
+                      <small>{toolset.live_mcp_writes ? "live_mcp_writes=true" : "live_mcp_writes=false"}</small>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
 
         <section className="panel" aria-label="Error response contract">
           <header className="panelHeader">
@@ -4167,7 +4383,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="panel" aria-label="Security headers contract">
+        <section className="panel" id="security-surface" aria-label="Security headers contract">
           <header className="panelHeader">
             <h2>Security Headers Contract</h2>
             <button type="button" onClick={() => void loadSecurityHeadersContract()}>
@@ -4892,6 +5108,7 @@ export default function Home() {
 
         <section
           className="panel progressPanel"
+          id="project-progress-surface"
           aria-label="Project progress"
           data-evidence="active_frontend_orchestrator_evidence_bundle_visible active_observability_rebaseline_bundle_visible"
         >
@@ -5688,7 +5905,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="panel modelPanel" aria-label="LLM gateway">
+        <section className="panel modelPanel" id="llm-gateway-surface" aria-label="LLM gateway">
           <header className="panelHeader">
             <h2>LLM Gateway</h2>
             <button type="button" onClick={() => void loadLlmGateway()}>
@@ -5863,7 +6080,7 @@ export default function Home() {
           <p className="muted">{llmGateway?.non_claims?.[0] ?? "No live LLM provider proof is claimed."}</p>
         </section>
 
-        <section className="panel graphPanel" aria-label="LangGraph progress">
+        <section className="panel graphPanel" id="langgraph-surface" aria-label="LangGraph progress">
           <header className="panelHeader">
             <h2>LangGraph Progress</h2>
             <button type="button" onClick={() => void startPhase2RuntimeGraph()} disabled={graphStatus === "streaming"}>
@@ -8575,7 +8792,7 @@ export default function Home() {
           </p>
         </section>
 
-        <section className="panel externalGatesPanel" aria-label="MCP Runtime Guard Parity">
+        <section className="panel externalGatesPanel" id="mcp-runtime-guard-surface" aria-label="MCP Runtime Guard Parity">
           <header className="panelHeader">
             <h2>MCP Runtime Guard Parity</h2>
             <button type="button" onClick={() => void loadMcpRuntimeGuardParity()}>
@@ -8778,7 +8995,7 @@ export default function Home() {
           </p>
         </section>
 
-        <section className="panel externalGatesPanel" aria-label="Memory Embedding Consistency Contract">
+        <section className="panel externalGatesPanel" id="memory-surface" aria-label="Memory Embedding Consistency Contract">
           <header className="panelHeader">
             <h2>Memory Embedding Consistency Contract</h2>
             <button type="button" onClick={() => void loadMemoryEmbeddingConsistencyContract()}>
@@ -8912,6 +9129,7 @@ export default function Home() {
           </section>
         </section>
       </section>
+      </div>
     </main>
   );
 }

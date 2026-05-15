@@ -5,7 +5,7 @@ services:
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
-      target: dev-runner
+      target: runner
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_AGENT_API_URL: /api
@@ -13,9 +13,6 @@ services:
       WATCHPACK_POLLING: "true"
     expose:
       - "3000"
-    volumes:
-      - ./apps/frontend/app:/app/app:ro
-      - ./apps/frontend/next.config.mjs:/app/next.config.mjs:ro
     depends_on:
       agent-api:
         condition: service_healthy
@@ -33,7 +30,6 @@ services:
     read_only: true
     tmpfs:
       - /tmp
-      - /app/.next:uid=10001,gid=10001,mode=1777
     networks:
       - platform
 
