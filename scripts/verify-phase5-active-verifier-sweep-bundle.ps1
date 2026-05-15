@@ -118,8 +118,8 @@ try {
     "immutable_image_commit_sha: ``$immutableSha``",
     "base_url: ``$BaseUrl``",
     "production_rollout_claimed: ``false``",
-    "verifier_gate_count: ``21``",
-    "changed_horizontal: ``Phase 2 88->89; Phase 5 84->88``",
+    "verifier_gate_count: ``22``",
+    "changed_horizontal: ``Phase 2 88->89; Phase 5 84->89``",
     "changed_vertical: ``Agent Pool 75->76; LLM Gateway 65->67; MCP Gateway 67->68; Memory 73->74; Frontend / Next.js 99->100; Orchestrator / LangGraph 99->100``",
     "This proof does not claim a production rollout.",
     "This proof does not claim release promotion.",
@@ -138,8 +138,9 @@ try {
   $phase2 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_2" }) | Select-Object -First 1
   Assert-Equal "progress phase2" ([int]$phase2.percent) 89
   Assert-Contains "phase2 agent success correlation status" $phase2.status "active_agent_success_correlation_runtime_verified"
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 88
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 89
   Assert-Contains "phase5 status" $phase5.status "active_verifier_sweep_bundle_verified"
+  Assert-Contains "phase5 observability rebaseline status" $phase5.status "active_observability_rebaseline_bundle_verified"
   Assert-Contains "phase5 agent success correlation status" $phase5.status "active_agent_success_correlation_bundle_verified"
   Assert-Contains "phase5 memory status" $phase5.status "active_memory_operations_bundle_verified"
   Assert-Contains "phase5 memory success correlation status" $phase5.status "active_memory_success_correlation_bundle_verified"
@@ -174,6 +175,9 @@ try {
   Assert-Equal "progress memory" ([int]$memory.percent) 74
   Assert-Contains "memory status" $memory.status "active_memory_operations_runtime_verified"
   Assert-Contains "memory success correlation status" $memory.status "active_memory_success_correlation_runtime_verified"
+  $observability = @($progress.vertical.items | Where-Object { $_.id -eq "layer_7" }) | Select-Object -First 1
+  Assert-Equal "progress observability" ([int]$observability.percent) 99
+  Assert-Contains "observability status" $observability.status "active_observability_rebaseline_runtime_verified"
   Assert-NotSecretBearing "progress payload" ($progress | ConvertTo-Json -Depth 20 -Compress)
 
   $currentReleaseOutput = Invoke-RepoScript "current-release-candidate" "scripts\verify-current-release-candidate.ps1" @("-BaseUrl", $BaseUrl, "-ReleaseId", $ReleaseId)
@@ -235,6 +239,9 @@ try {
   $frontendOrchestratorOutput = Invoke-RepoScript "phase5-active-frontend-orchestrator-evidence-bundle" "scripts\verify-phase5-active-frontend-orchestrator-evidence-bundle.ps1" @("-BaseUrl", $BaseUrl)
   Assert-Contains "frontend orchestrator output" $frontendOrchestratorOutput "[phase5-active-frontend-orchestrator-evidence-bundle] verified"
 
+  $observabilityRebaselineOutput = Invoke-RepoScript "phase5-active-observability-rebaseline-bundle" "scripts\verify-phase5-active-observability-rebaseline-bundle.ps1" @("-BaseUrl", $BaseUrl)
+  Assert-Contains "observability rebaseline output" $observabilityRebaselineOutput "[phase5-active-observability-rebaseline-bundle] verified"
+
   $llmCatalogOutput = Invoke-RepoScript "phase4-llm-model-catalog" "scripts\verify-phase4-llm-model-catalog.ps1" @("-BaseUrl", $BaseUrl)
   Assert-Contains "llm catalog output" $llmCatalogOutput "status=verified"
 
@@ -255,8 +262,8 @@ try {
     source_commit_sha = $sourceSha
     immutable_image_commit_sha = $immutableSha
     production_rollout_claimed = $false
-    verifier_gate_count = 21
-    changed_horizontal = "Phase 2 88->89; Phase 5 84->88"
+    verifier_gate_count = 22
+    changed_horizontal = "Phase 2 88->89; Phase 5 84->89"
     changed_vertical = "Agent Pool 75->76; LLM Gateway 65->67; MCP Gateway 67->68; Memory 73->74; Frontend / Next.js 99->100; Orchestrator / LangGraph 99->100"
     gates = @(
       "current-release-candidate",
@@ -276,6 +283,7 @@ try {
       "phase5-active-mcp-success-correlation-bundle",
       "phase5-active-mcp-guard-correlation-bundle",
       "phase5-active-frontend-orchestrator-evidence-bundle",
+      "phase5-active-observability-rebaseline-bundle",
       "phase4-llm-model-catalog",
       "phase4-mcp-capability-catalog",
       "security",

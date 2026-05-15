@@ -305,7 +305,7 @@ try {
   $progress = Invoke-JsonApi "$BaseUrl/api/v1/project/progress"
   Assert-Equal "progress overall" ([int]$progress.overall_percent) 82
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 88
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 89
   Assert-Contains "phase5 status" $phase5.status "active_llm_guard_correlation_bundle_verified"
   $llmGateway = @($progress.vertical.items | Where-Object { $_.id -eq "layer_4" }) | Select-Object -First 1
   Assert-Equal "LLM Gateway percent" ([int]$llmGateway.percent) 67

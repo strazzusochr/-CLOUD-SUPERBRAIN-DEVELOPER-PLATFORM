@@ -1,4 +1,4 @@
-﻿# AI Handoff - Cloud Superbrain Developer Platform
+# AI Handoff - Cloud Superbrain Developer Platform
 
 ## Project Root
 
@@ -6,7 +6,7 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-Current honesty guardrail: the active staging candidate is `6292a2f3c0cf0cfe02916f6fd0a6f940629adc52`, verified through GHCR multi-service images, Hetzner `-UseImageFilesystem` parity, the Active Frontend-Orchestrator Evidence Bundle, the Active MCP Guard Correlation Bundle, the Active LLM Guard Correlation Bundle, the Active Memory Success Correlation Bundle, the Active Agent Success Correlation Bundle, the Active LLM Success Correlation Bundle, the Active MCP Success Correlation Bundle, the Active MCP Operations Bundle, the Active LLM Operations Bundle, the Active Agent Operations Bundle, the Active Memory Operations Bundle, the Active Gateway Execution Bundle, the Active Runtime Selector Truth Rebaseline, the Active Full-Suite Rebaseline, the Active Verifier Sweep Bundle Rebaseline, the Active Runtime Guard Matrix Bundle, the Active Gateway Policy Bundle, the Active Runtime Evidence Bundle, the Active Security Evidence Bundle, the Vercel GitHub Deployment Status proof, the Autonomous Roster Master Plan proof, and the Phase 2 Runtime Dual Surface proof. This is a staging-candidate claim only; production rollout remains unclaimed.
+Current honesty guardrail: the active staging candidate is `5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1`, verified through GHCR multi-service images, Hetzner `-UseImageFilesystem` parity, the Active Observability Rebaseline Bundle, the Active Frontend-Orchestrator Evidence Bundle, the Active MCP Guard Correlation Bundle, the Active LLM Guard Correlation Bundle, the Active Memory Success Correlation Bundle, the Active Agent Success Correlation Bundle, the Active LLM Success Correlation Bundle, the Active MCP Success Correlation Bundle, the Active MCP Operations Bundle, the Active LLM Operations Bundle, the Active Agent Operations Bundle, the Active Memory Operations Bundle, the Active Gateway Execution Bundle, the Active Runtime Selector Truth Rebaseline, the Active Full-Suite Rebaseline, the Active Verifier Sweep Bundle Rebaseline, the Active Runtime Guard Matrix Bundle, the Active Gateway Policy Bundle, the Active Runtime Evidence Bundle, the Active Security Evidence Bundle, the Vercel GitHub Deployment Status proof, the Autonomous Roster Master Plan proof, and the Phase 2 Runtime Dual Surface proof. This is a staging-candidate claim only; production rollout remains unclaimed.
 
 ## Binding Truth
 
@@ -29,7 +29,7 @@ Follow `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` over older planning f
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 
-Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the historical anchor. For the current resume point, use this handoff plus `docs/project-progress.manifest.json`, `docs/verification-register.md`, and `docs/release-artifacts/current-release-candidate.json`. They record the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `82%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the Phase-5 Active Frontend-Orchestrator Evidence Bundle proof, the Phase-5 Active MCP Guard Correlation Bundle proof, the Phase-5 Active LLM Guard Correlation Bundle proof, the Phase-5 Active Memory Success Correlation Bundle proof, the Phase-5 Active Agent Success Correlation Bundle proof, the Phase-5 Active LLM Success Correlation Bundle proof, the Phase-5 Active MCP Success Correlation Bundle proof, the Phase-5 Active MCP Operations Bundle proof, the Phase-5 Active Gateway Execution Bundle proof, the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-5 Active Full-Suite Rebaseline proof, the Phase-5 Active Verifier Sweep Bundle Rebaseline proof, the Phase-5 Active Runtime Guard Matrix Bundle proof, the Phase-3 Active Gateway Policy Bundle proof, the Phase-5 Active Runtime Evidence Bundle proof, the Phase-5 Active Security Evidence Bundle proof, the Phase-5 Vercel GitHub Deployment Status proof, the Phase-2 Runtime Dual Surface proof, the Phase-2/Agent-Pool Autonomous Roster Master Plan proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, Security Review Queue Export proof, LLM Audit Feed Redaction Snapshot proof, LLM Audit Export proof, MCP Audit Redaction Snapshot proof, MCP Audit Export proof, Gateway Correlation Snapshot proof, Gateway Correlation Risk Rollup proof, Gateway Correlation Timeline proof, Gateway Correlation Export proof, Auth Audit Snapshot proof, Auth Audit Risk Rollup proof, Auth Audit Timeline proof, and Auth Audit Export proof. Continue Phase-5 candidate hardening before rollout.
+Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the historical anchor. For the current resume point, use this handoff plus `docs/project-progress.manifest.json`, `docs/verification-register.md`, and `docs/release-artifacts/current-release-candidate.json`. They record the verified `<local-control-plane-host>` health snapshot, the restored session-history proof, the current `82%` progress state, the detailed repair protocol, and the current hosted evidence chain up through the Phase-5 Active Observability Rebaseline Bundle proof, the Phase-5 Active Frontend-Orchestrator Evidence Bundle proof, the Phase-5 Active MCP Guard Correlation Bundle proof, the Phase-5 Active LLM Guard Correlation Bundle proof, the Phase-5 Active Memory Success Correlation Bundle proof, the Phase-5 Active Agent Success Correlation Bundle proof, the Phase-5 Active LLM Success Correlation Bundle proof, the Phase-5 Active MCP Success Correlation Bundle proof, the Phase-5 Active MCP Operations Bundle proof, the Phase-5 Active Gateway Execution Bundle proof, the progress-bound live-agent-steering/history Phase-3 evidence, the Phase-5 immutable staging parity proof, the Phase-5 Active Full-Suite Rebaseline proof, the Phase-5 Active Verifier Sweep Bundle Rebaseline proof, the Phase-5 Active Runtime Guard Matrix Bundle proof, the Phase-3 Active Gateway Policy Bundle proof, the Phase-5 Active Runtime Evidence Bundle proof, the Phase-5 Active Security Evidence Bundle proof, the Phase-5 Vercel GitHub Deployment Status proof, the Phase-2 Runtime Dual Surface proof, the Phase-2/Agent-Pool Autonomous Roster Master Plan proof, the Phase-3 Security Audit Surface proof, the Autonomous Team Dispatch UI proof, Security Review Gate Summary proof, Security Review Queue Export proof, LLM Audit Feed Redaction Snapshot proof, LLM Audit Export proof, MCP Audit Redaction Snapshot proof, MCP Audit Export proof, Gateway Correlation Snapshot proof, Gateway Correlation Risk Rollup proof, Gateway Correlation Timeline proof, Gateway Correlation Export proof, Auth Audit Snapshot proof, Auth Audit Risk Rollup proof, Auth Audit Timeline proof, and Auth Audit Export proof. Continue Phase-5 candidate hardening before rollout.
 
 ## Current Verified Progress
 
@@ -42,7 +42,7 @@ Horizontal:
 - P2: `89%`
 - P3: `95%`
 - P4: `100%`
-- P5: `88%`
+- P5: `89%`
 - P6: `0%`
 
 Vertical:
@@ -58,6 +58,12 @@ Vertical:
 Older percentage lines below are historical proof points only. Current percentages must come from this section and `docs/project-progress.manifest.json`.
 
 ## Latest Verified Step
+
+Active Observability Rebaseline Bundle Proof:
+
+- `scripts\verify-phase5-active-observability-rebaseline-bundle.ps1` binds project progress, integrity, completion, health, metrics, agent activity, audit, escalations, Langfuse trace access, deterministic no-live LLM audit seeding, gateway-correlation surfaces, and homepage evidence markers to the active RC1 boundary.
+- Immutable staging selector is now `5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1`; all six service images were published for `linux/arm64` and Hetzner staging was redeployed with `-UseImageFilesystem`.
+- Progress changes: Phase 5 rises to `89%`; Overall remains `82%`; Observability remains blocked at `99%` pending hosted Langfuse/Grafana owner endpoint proof; no production rollout, release promotion, live provider call, live MCP write, local model download, or secret exposure is claimed.
 
 Active Frontend-Orchestrator Evidence Bundle Proof:
 
@@ -129,9 +135,9 @@ Active Gateway Execution Bundle Proof:
 
 Active Verifier Sweep Bundle Rebaseline Proof:
 
-- `scripts\verify-phase5-active-verifier-sweep-bundle.ps1` now binds active RC1 to twenty non-mutating hosted/repo safety gates including current release-candidate, active release-candidate bundle, hosted staging smoke, Active Gateway Policy Bundle, Active Runtime Guard Matrix Bundle, Active Gateway Execution Bundle, Active Memory Operations Bundle, LLM/MCP/Agent/Memory success correlation bundles, the LLM Guard Correlation Bundle, the MCP Guard Correlation Bundle, LLM/MCP operation bundles, security scan, and evidence-artifact-safety.
-- The verifier checks `production_rollout_claimed=false`, `verifier_gate_count=20`, hosted progress `82%`, Phase 5 `88%`, Agent Pool `76%`, LLM Gateway `67%`, MCP Gateway `68%`, and Memory `74%`.
-- Progress changes: Phase 5 rises to `87%`; LLM Gateway rises to `67%`; Overall rises to `82%`; no production rollout, release promotion, live provider call, live MCP write, local model download, or secret exposure is claimed.
+- `scripts\verify-phase5-active-verifier-sweep-bundle.ps1` now binds active RC1 to twenty-two non-mutating hosted/repo safety gates including current release-candidate, active release-candidate bundle, hosted staging smoke, Active Gateway Policy Bundle, Active Runtime Guard Matrix Bundle, Active Gateway Execution Bundle, Active Memory Operations Bundle, LLM/MCP/Agent/Memory success correlation bundles, the LLM Guard Correlation Bundle, the MCP Guard Correlation Bundle, the Active Frontend-Orchestrator Evidence Bundle, the Active Observability Rebaseline Bundle, LLM/MCP operation bundles, security scan, and evidence-artifact-safety.
+- The verifier checks `production_rollout_claimed=false`, `verifier_gate_count=22`, hosted progress `82%`, Phase 5 `89%`, Agent Pool `76%`, LLM Gateway `67%`, MCP Gateway `68%`, Memory `74%`, Frontend `100%`, Orchestrator `100%`, and Observability `99%`.
+- Progress changes: Phase 5 rises to `89%`; Overall remains `82%`; Observability remains externally blocked at `99%`; no production rollout, release promotion, live provider call, live MCP write, local model download, or secret exposure is claimed.
 
 Previous verified step - Active Runtime Guard Matrix Bundle Proof:
 

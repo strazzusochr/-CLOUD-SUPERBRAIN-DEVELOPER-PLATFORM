@@ -3,8 +3,8 @@
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
 environment: `production-candidate`
-source_commit_sha: `6292a2f3c0cf0cfe02916f6fd0a6f940629adc52`
-immutable_image_commit_sha: `6292a2f3c0cf0cfe02916f6fd0a6f940629adc52`
+source_commit_sha: `5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1`
+immutable_image_commit_sha: `5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1`
 base_url: `https://188-34-191-140.sslip.io`
 local_control_plane_url: `http://localhost:8081`
 production_rollout_claimed: `false`
@@ -26,8 +26,8 @@ changed_vertical: `Memory 72->73`
 ## Verification Commands
 
 - Docker readiness: `docker info --format '{{.ServerVersion}}'`
-- Build/push: `scripts\build-and-push.ps1 -Tag 6292a2f3c0cf0cfe02916f6fd0a6f940629adc52 -Builder superbrain_builder`
-- Immutable staging deploy: `scripts\deploy-to-staging.ps1 -ImageTag 6292a2f3c0cf0cfe02916f6fd0a6f940629adc52 -UseImageFilesystem -KeyPath <local-private-key>`
+- Build/push: `scripts\build-and-push.ps1 -Tag 5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1 -Builder superbrain_builder`
+- Immutable staging deploy: `scripts\deploy-to-staging.ps1 -ImageTag 5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1 -UseImageFilesystem -KeyPath <local-private-key>`
 - Local proof: `scripts\verify-phase5-active-memory-operations-bundle.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
 - Hosted proof: `scripts\verify-phase5-active-memory-operations-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io -KeyPath <local-private-key>`
 

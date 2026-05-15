@@ -2,8 +2,8 @@
 
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
-source_commit_sha: `6292a2f3c0cf0cfe02916f6fd0a6f940629adc52`
-immutable_image_commit_sha: `6292a2f3c0cf0cfe02916f6fd0a6f940629adc52`
+source_commit_sha: `5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1`
+immutable_image_commit_sha: `5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1`
 base_url: `https://188-34-191-140.sslip.io`
 production_rollout_claimed: `false`
 memory_success_gate_count: `6`
@@ -15,8 +15,8 @@ changed_vertical: `Memory 73->74`
 - `docker info --format '{{.ServerVersion}}'`
 - `py -3 -m compileall services\agent-api\app`
 - `py -3 scripts\verify_project_progress_manifest.py`
-- `scripts\build-and-push.ps1 -Tag 6292a2f3c0cf0cfe02916f6fd0a6f940629adc52 -Builder superbrain_builder`
-- `scripts\deploy-to-staging.ps1 -ImageTag 6292a2f3c0cf0cfe02916f6fd0a6f940629adc52 -UseImageFilesystem -KeyPath <local-private-key>`
+- `scripts\build-and-push.ps1 -Tag 5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1 -Builder superbrain_builder`
+- `scripts\deploy-to-staging.ps1 -ImageTag 5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1 -UseImageFilesystem -KeyPath <local-private-key>`
 - `scripts\verify-phase5-active-memory-success-correlation-bundle.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
 - `scripts\verify-phase5-active-memory-success-correlation-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 - `scripts\verify-phase5-active-verifier-sweep-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`
