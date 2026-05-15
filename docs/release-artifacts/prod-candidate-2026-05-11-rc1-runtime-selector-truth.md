@@ -3,14 +3,14 @@
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
 overall_percent: `81`
-phase_5_percent: `85`
+phase_5_percent: `86`
 agent_pool_percent: `76`
 llm_gateway_percent: `66`
 mcp_gateway_percent: `67`
-memory_percent: `73`
-current_hosted_selector: `IMAGE_TAG=4a894c16d5f340b89ad1134da781d1c855d6ced5`
-frontend_runtime_image: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:4a894c16d5f340b89ad1134da781d1c855d6ced5`
-immutable_candidate_tag: `4a894c16d5f340b89ad1134da781d1c855d6ced5`
+memory_percent: `74`
+current_hosted_selector: `IMAGE_TAG=5abca83a7680ea680a65a8e3e8f70a368ed79db7`
+frontend_runtime_image: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:5abca83a7680ea680a65a8e3e8f70a368ed79db7`
+immutable_candidate_tag: `5abca83a7680ea680a65a8e3e8f70a368ed79db7`
 immutable_candidate_parity_claimed: `true`
 production_rollout_claimed: `false`
 new_ghcr_push_claimed: `true`
@@ -25,11 +25,11 @@ This proof rebaselines the active release candidate after the immutable image-fi
 
 ## Evidence
 
-- Remote `.env` selector: `IMAGE_TAG=4a894c16d5f340b89ad1134da781d1c855d6ced5`.
-- Remote frontend service image: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:4a894c16d5f340b89ad1134da781d1c855d6ced5`.
+- Remote `.env` selector: `IMAGE_TAG=5abca83a7680ea680a65a8e3e8f70a368ed79db7`.
+- Remote frontend service image: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend:5abca83a7680ea680a65a8e3e8f70a368ed79db7`.
 - Remote image-filesystem proof confirms no service `./services/.../app:/app/app:ro` hot-mounts are present.
 - Hosted root returns HTTP `200` and shows `Live Agent Control` plus `Runtime Guard`.
-- Hosted progress returns `overall=81`, `phase_2=89`, `phase_5=85`, `agent_pool=76`, `llm_gateway=66`, `mcp_gateway=67`, `memory=73`, and integrity remains `verified`.
+- Hosted progress returns `overall=81`, `phase_2=89`, `phase_5=86`, `agent_pool=76`, `llm_gateway=66`, `mcp_gateway=67`, `memory=74`, and integrity remains `verified`.
 - `scripts\verify-current-immutable-staging-parity.ps1 -RequireVerified` proves the active immutable selector remotely.
 - `scripts\verify-current-runtime-selector-truth.ps1 -RequireRemoteProof` binds the current remote selector, active candidate artifact, hosted progress truth, and immutable parity proof.
 

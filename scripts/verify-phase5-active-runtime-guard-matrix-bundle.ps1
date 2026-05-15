@@ -143,7 +143,7 @@ try {
   $phase3 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_3" }) | Select-Object -First 1
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
   Assert-Equal "progress phase3" ([int]$phase3.percent) 95
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 85
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 86
 
   $agentPool = @($progress.vertical.items | Where-Object { $_.id -eq "layer_3" }) | Select-Object -First 1
   $llmLayer = @($progress.vertical.items | Where-Object { $_.id -eq "layer_4" }) | Select-Object -First 1

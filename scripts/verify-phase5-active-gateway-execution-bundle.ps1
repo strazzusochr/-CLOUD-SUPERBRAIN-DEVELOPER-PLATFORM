@@ -154,7 +154,7 @@ try {
   $progress = Invoke-JsonApi "$BaseUrl/api/v1/project/progress"
   Assert-Equal "progress overall" ([int]$progress.overall_percent) 81
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 85
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 86
   Assert-Contains "phase5 status" $phase5.status "active_gateway_execution_bundle_verified"
   Assert-NotSecretBearing "progress payload" ($progress | ConvertTo-Json -Depth 20 -Compress)
 

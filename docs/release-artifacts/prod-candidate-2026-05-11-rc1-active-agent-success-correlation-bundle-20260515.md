@@ -2,8 +2,8 @@
 
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
-source_commit_sha: `4a894c16d5f340b89ad1134da781d1c855d6ced5`
-immutable_image_commit_sha: `4a894c16d5f340b89ad1134da781d1c855d6ced5`
+source_commit_sha: `5abca83a7680ea680a65a8e3e8f70a368ed79db7`
+immutable_image_commit_sha: `5abca83a7680ea680a65a8e3e8f70a368ed79db7`
 base_url: `https://188-34-191-140.sslip.io`
 production_rollout_claimed: `false`
 agent_success_gate_count: `8`
@@ -15,9 +15,9 @@ changed_vertical: `Agent Pool 75->76`
 - `docker info --format '{{.ServerVersion}}'`
 - `py -3 -m compileall services\agent-api\app services\agent-worker\app`
 - `py -3 scripts\verify_project_progress_manifest.py`
-- `scripts\build-and-push.ps1 -Tag 4a894c16d5f340b89ad1134da781d1c855d6ced5 -Builder superbrain_builder`
-- `docker buildx imagetools inspect ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:4a894c16d5f340b89ad1134da781d1c855d6ced5`
-- `scripts\deploy-to-staging.ps1 -ImageTag 4a894c16d5f340b89ad1134da781d1c855d6ced5 -UseImageFilesystem -KeyPath <local-private-key>`
+- `scripts\build-and-push.ps1 -Tag 5abca83a7680ea680a65a8e3e8f70a368ed79db7 -Builder superbrain_builder`
+- `docker buildx imagetools inspect ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:5abca83a7680ea680a65a8e3e8f70a368ed79db7`
+- `scripts\deploy-to-staging.ps1 -ImageTag 5abca83a7680ea680a65a8e3e8f70a368ed79db7 -UseImageFilesystem -KeyPath <local-private-key>`
 - `scripts\verify-phase5-active-agent-success-correlation-bundle.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
 - `scripts\verify-phase5-active-agent-success-correlation-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 - `scripts\verify-phase5-active-verifier-sweep-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`

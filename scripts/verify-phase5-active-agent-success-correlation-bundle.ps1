@@ -334,7 +334,7 @@ try {
   Assert-Equal "progress phase2" ([int]$phase2.percent) 89
   Assert-Contains "phase2 status" $phase2.status "active_agent_success_correlation_runtime_verified"
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 85
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 86
   Assert-Contains "phase5 status" $phase5.status "active_agent_success_correlation_bundle_verified"
   $agentPool = @($progress.vertical.items | Where-Object { $_.id -eq "layer_3" }) | Select-Object -First 1
   Assert-Equal "Agent Pool percent" ([int]$agentPool.percent) 76
