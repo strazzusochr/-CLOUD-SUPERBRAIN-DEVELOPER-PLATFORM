@@ -162,6 +162,7 @@ MEMORY_CONSOLIDATION_CONTRACT_VERSION = "memory-consolidation-feed-v1"
 MEMORY_CONSOLIDATION_EVIDENCE_REF = "memory_consolidation_contract_runtime_visible"
 MEMORY_SEARCH_CONTRACT_VERSION = "memory-search-runtime-v1"
 MEMORY_SEARCH_EVIDENCE_REF = "memory_search_contract_runtime_visible"
+MEMORY_SUCCESS_CORRELATION_EVIDENCE_REF = "memory_success_correlation_runtime_visible"
 MEMORY_EMBEDDING_VECTOR_TYPE = "vector(1536)"
 PROGRESS_INTEGRITY_CONTRACT_VERSION = "project-progress-integrity-v1"
 PROGRESS_INTEGRITY_EVIDENCE_REF = "project_progress_integrity_runtime_proof"
@@ -908,7 +909,11 @@ class PromptRequest(BaseModel):
     project_id: str = Field(..., min_length=1)
     prompt: str = Field(..., min_length=1, max_length=10_000)
     session_id: str | None = None
+    trace_id: str | None = Field(default=None, max_length=255, validation_alias=AliasChoices("trace_id", "traceId"))
+    request_id: str | None = Field(default=None, max_length=255, validation_alias=AliasChoices("request_id", "requestId"))
     stream: bool = True
+
+    model_config = {"populate_by_name": True}
 
 
 class LiveAgentSteerRequest(BaseModel):
@@ -3704,7 +3709,19 @@ def memory_search_contract_payload() -> dict[str, object]:
             "evidence_ref": "memory_search_empty_query_blocked",
         },
         "top_level_sections": ["results", "search_mode"],
-        "result_fields": ["id", "content", "relevance_score", "created_at", "session_id"],
+        "result_fields": [
+            "id",
+            "content",
+            "relevance_score",
+            "created_at",
+            "session_id",
+            "trace_id",
+            "request_id",
+            "correlation_evidence_ref",
+            "audit_feed_evidence_ref",
+            "memory_success_evidence_ref",
+        ],
+        "correlation_fields": ["session_id", "trace_id", "request_id"],
         "search_mode": EMBEDDING_SEARCH_MODE,
         "depends_on": {
             "embedding_consistency_contract": "GET /api/v1/memory/embedding-consistency/contract",
@@ -3712,6 +3729,7 @@ def memory_search_contract_payload() -> dict[str, object]:
             "vector_search_enabled": False,
         },
         "evidence_ref": MEMORY_SEARCH_EVIDENCE_REF,
+        "success_correlation_evidence_ref": MEMORY_SUCCESS_CORRELATION_EVIDENCE_REF,
         "status": "verified",
         "non_claims": [
             "No live embedding provider call is made by this search endpoint.",
@@ -5686,13 +5704,63 @@ def ensure_agent_session(
     return project_uuid
 
 
+def persist_memory_write_audit(
+    conn: psycopg.Connection,
+    *,
+    project_id: str,
+    session_id: str,
+    memory_id: str,
+    trace_id: str | None,
+    request_id: str | None,
+    source: str,
+) -> None:
+    try:
+        session_db_id: str | None = str(UUID(session_id)) if session_id else None
+    except (TypeError, ValueError):
+        session_db_id = None
+    details = redact_json(
+        {
+            "project_id": project_id,
+            "session_id": session_db_id or session_id or None,
+            "memory_id": memory_id,
+            "trace_id": trace_id,
+            "request_id": request_id,
+            "source": source,
+            "status": "success",
+            "search_mode": EMBEDDING_SEARCH_MODE,
+            "evidence_ref": MEMORY_SUCCESS_CORRELATION_EVIDENCE_REF,
+            "search_evidence_ref": MEMORY_SEARCH_EVIDENCE_REF,
+            "correlation_evidence_ref": "request_id_audit_correlation"
+            if (trace_id or request_id or session_id)
+            else None,
+            "audit_feed_evidence_ref": "request_id_audit_feed_visible"
+            if (trace_id or request_id or session_id)
+            else None,
+            "live_provider_calls": False,
+            "live_mcp_writes": False,
+            "live_embedding_provider_calls": False,
+            "model_downloads": False,
+            "prompt_body_stored": False,
+        }
+    )
+    conn.execute(
+        """
+        INSERT INTO audit_log(event_type, user_id, session_id, details, severity)
+        VALUES ('memory_entry_written', 'memory', %s, %s::jsonb, 'info')
+        """,
+        (session_db_id, Json(details)),
+    )
+
+
 @app.post("/api/v1/prompt", status_code=201)
-def create_prompt(request: PromptRequest) -> dict[str, object]:
-    session_id = request.session_id or str(uuid4())
-    sanitized_prompt = redact_text(request.prompt)
+def create_prompt(prompt_request: PromptRequest, http_request: Request) -> dict[str, object]:
+    session_id = prompt_request.session_id or str(uuid4())
+    trace_id = prompt_request.trace_id or getattr(http_request.state, "trace_id", None) or f"prompt-{uuid4()}"
+    request_id = prompt_request.request_id or getattr(http_request.state, "request_id", None) or f"req-{uuid4()}"
+    sanitized_prompt = redact_text(prompt_request.prompt)
     try:
         budget_state = check_budget_guard()
-        rate_limit = rate_limit_prompt(request.project_id)
+        rate_limit = rate_limit_prompt(prompt_request.project_id)
         llm_call_count = register_session_llm_call(session_id)
     except RuntimeError as exc:
         detail = str(exc)
@@ -5701,14 +5769,27 @@ def create_prompt(request: PromptRequest) -> dict[str, object]:
 
     try:
         with psycopg.connect(database_url(), autocommit=True) as conn:
-            project_uuid = ensure_project(conn, request.project_id)
+            project_uuid = ensure_project(conn, prompt_request.project_id)
             conn.execute(
                 """
                 INSERT INTO agent_sessions(id, project_id, agent_list, metadata)
                 VALUES (%s, %s, %s, %s::jsonb)
                 ON CONFLICT (id) DO NOTHING
                 """,
-                (session_id, project_uuid, ["planner"], Json({"source": "phase1-smoke"})),
+                (
+                    session_id,
+                    project_uuid,
+                    ["planner"],
+                    Json(
+                        {
+                            "source": "phase1-smoke",
+                            "trace_id": trace_id,
+                            "request_id": request_id,
+                            "correlation_evidence_ref": "request_id_audit_correlation",
+                            "audit_feed_evidence_ref": "request_id_audit_feed_visible",
+                        }
+                    ),
+                ),
             )
             conn.execute(
                 """
@@ -5722,16 +5803,39 @@ def create_prompt(request: PromptRequest) -> dict[str, object]:
                 project_uuid,
                 session_id,
                 sanitized_prompt,
-                {"source": "prompt", "search_mode": "lexical_fallback", "redaction_applied": sanitized_prompt != request.prompt},
+                {
+                    "source": "prompt",
+                    "search_mode": "lexical_fallback",
+                    "redaction_applied": sanitized_prompt != prompt_request.prompt,
+                    "trace_id": trace_id,
+                    "request_id": request_id,
+                    "session_id": session_id,
+                    "correlation_evidence_ref": "request_id_audit_correlation",
+                    "audit_feed_evidence_ref": "request_id_audit_feed_visible",
+                    "memory_success_evidence_ref": MEMORY_SUCCESS_CORRELATION_EVIDENCE_REF,
+                    "live_embedding_provider_calls": False,
+                    "model_downloads": False,
+                },
+            )
+            persist_memory_write_audit(
+                conn,
+                project_id=prompt_request.project_id,
+                session_id=session_id,
+                memory_id=memory_id,
+                trace_id=trace_id,
+                request_id=request_id,
+                source="prompt",
             )
             task = enqueue_task(
                 TaskAssignment(
-                    project_id=request.project_id,
+                    project_id=prompt_request.project_id,
                     session_id=session_id,
                     agent_type="planner",
                     task_type="prompt_intake",
                     task_description=sanitized_prompt,
                     allowed_tools=["memory_read", "task_router"],
+                    trace_id=trace_id,
+                    request_id=request_id,
                 )
             )
             conn.execute(
@@ -5740,7 +5844,21 @@ def create_prompt(request: PromptRequest) -> dict[str, object]:
                 SET metadata = metadata || %s::jsonb
                 WHERE id = %s
                 """,
-                (Json({"latest_task_id": task.task_id, "latest_memory_id": memory_id}), session_id),
+                (
+                    Json(
+                        {
+                            "latest_task_id": task.task_id,
+                            "latest_memory_id": memory_id,
+                            "latest_trace_id": trace_id,
+                            "latest_request_id": request_id,
+                            "trace_id": trace_id,
+                            "request_id": request_id,
+                            "correlation_evidence_ref": "request_id_audit_correlation",
+                            "audit_feed_evidence_ref": "request_id_audit_feed_visible",
+                        }
+                    ),
+                    session_id,
+                ),
             )
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"session persistence failed: {exc}") from exc
@@ -5758,6 +5876,11 @@ def create_prompt(request: PromptRequest) -> dict[str, object]:
         "session_llm_call_count": llm_call_count,
         "task_id": task.task_id,
         "memory_id": memory_id,
+        "trace_id": trace_id,
+        "request_id": request_id,
+        "correlation_evidence_ref": "request_id_audit_correlation",
+        "audit_feed_evidence_ref": "request_id_audit_feed_visible",
+        "memory_success_evidence_ref": MEMORY_SUCCESS_CORRELATION_EVIDENCE_REF,
     }
 
 
@@ -8501,16 +8624,59 @@ def delete_memory_entry(
 
 
 @app.post("/internal/memory", status_code=201)
-def create_memory(request: MemoryWriteRequest) -> dict[str, object]:
+def create_memory(request: MemoryWriteRequest, http_request: Request) -> dict[str, object]:
+    resolved_trace_id = request.trace_id or getattr(http_request.state, "trace_id", None)
+    resolved_request_id = request.request_id or getattr(http_request.state, "request_id", None)
+    enriched_request = request.model_copy(
+        update={
+            "trace_id": resolved_trace_id,
+            "request_id": resolved_request_id,
+            "metadata": {
+                **request.metadata,
+                "trace_id": resolved_trace_id,
+                "request_id": resolved_request_id,
+                "session_id": request.session_id,
+                "correlation_evidence_ref": "request_id_audit_correlation"
+                if (resolved_trace_id or resolved_request_id or request.session_id)
+                else None,
+                "audit_feed_evidence_ref": "request_id_audit_feed_visible"
+                if (resolved_trace_id or resolved_request_id or request.session_id)
+                else None,
+                "memory_success_evidence_ref": MEMORY_SUCCESS_CORRELATION_EVIDENCE_REF,
+            },
+        }
+    )
     try:
-        memory_id = store_memory(request)
+        memory_id = store_memory(enriched_request)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            persist_memory_write_audit(
+                conn,
+                project_id=request.project_id,
+                session_id=request.session_id or "",
+                memory_id=memory_id,
+                trace_id=resolved_trace_id,
+                request_id=resolved_request_id,
+                source="internal-memory",
+            )
+    except Exception:
+        pass
     return {
         "memory_id": memory_id,
         "search_mode": EMBEDDING_SEARCH_MODE,
         "embedding_model_version": current_embedding_model_version(),
         "evidence_ref": "embedding_model_version_persisted",
+        "trace_id": resolved_trace_id,
+        "request_id": resolved_request_id,
+        "correlation_evidence_ref": "request_id_audit_correlation"
+        if (resolved_trace_id or resolved_request_id or request.session_id)
+        else None,
+        "audit_feed_evidence_ref": "request_id_audit_feed_visible"
+        if (resolved_trace_id or resolved_request_id or request.session_id)
+        else None,
+        "memory_success_evidence_ref": MEMORY_SUCCESS_CORRELATION_EVIDENCE_REF,
     }
 
 
@@ -9374,8 +9540,23 @@ def layer_interface_contract_payload() -> dict[str, object]:
             "transport": "HTTP JSON",
             "method": "POST",
             "path": "/api/v1/prompt",
-            "request_schema": ["project_id:string", "prompt:string 1..10000", "session_id?:uuid", "stream:boolean"],
-            "response_schema": ["session_id:uuid", "stream_url:string", "task_id?:uuid", "memory_id?:uuid", "budget.level:string"],
+            "request_schema": [
+                "project_id:string",
+                "prompt:string 1..10000",
+                "session_id?:uuid",
+                "trace_id?:string",
+                "request_id?:string",
+                "stream:boolean",
+            ],
+            "response_schema": [
+                "session_id:uuid",
+                "stream_url:string",
+                "task_id?:uuid",
+                "memory_id?:uuid",
+                "trace_id:string",
+                "request_id:string",
+                "budget.level:string",
+            ],
             "evidence_ref": "prompt_input_contract_visible",
             "status": "verified",
         },

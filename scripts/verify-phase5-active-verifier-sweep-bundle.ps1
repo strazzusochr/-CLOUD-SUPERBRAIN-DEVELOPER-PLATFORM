@@ -118,9 +118,9 @@ try {
     "immutable_image_commit_sha: ``$immutableSha``",
     "base_url: ``$BaseUrl``",
     "production_rollout_claimed: ``false``",
-    "verifier_gate_count: ``17``",
-    "changed_horizontal: ``Phase 2 88->89; Phase 5 84->85``",
-    "changed_vertical: ``Agent Pool 75->76``",
+    "verifier_gate_count: ``18``",
+    "changed_horizontal: ``Phase 2 88->89; Phase 5 84->86``",
+    "changed_vertical: ``Agent Pool 75->76; Memory 73->74``",
     "This proof does not claim a production rollout.",
     "This proof does not claim release promotion.",
     "This proof does not claim live LLM provider calls.",
@@ -138,10 +138,11 @@ try {
   $phase2 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_2" }) | Select-Object -First 1
   Assert-Equal "progress phase2" ([int]$phase2.percent) 89
   Assert-Contains "phase2 agent success correlation status" $phase2.status "active_agent_success_correlation_runtime_verified"
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 85
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 86
   Assert-Contains "phase5 status" $phase5.status "active_verifier_sweep_bundle_verified"
   Assert-Contains "phase5 agent success correlation status" $phase5.status "active_agent_success_correlation_bundle_verified"
   Assert-Contains "phase5 memory status" $phase5.status "active_memory_operations_bundle_verified"
+  Assert-Contains "phase5 memory success correlation status" $phase5.status "active_memory_success_correlation_bundle_verified"
   Assert-Contains "phase5 agent operations status" $phase5.status "active_agent_operations_bundle_verified"
   Assert-Contains "phase5 LLM operations status" $phase5.status "active_llm_operations_bundle_verified"
   Assert-Contains "phase5 LLM success correlation status" $phase5.status "active_llm_success_correlation_bundle_verified"
@@ -160,8 +161,9 @@ try {
   Assert-Contains "MCP Gateway status" $mcpGateway.status "active_mcp_operations_runtime_verified"
   Assert-Contains "MCP Gateway success correlation status" $mcpGateway.status "active_mcp_success_correlation_runtime_verified"
   $memory = @($progress.vertical.items | Where-Object { $_.id -eq "layer_6" }) | Select-Object -First 1
-  Assert-Equal "progress memory" ([int]$memory.percent) 73
+  Assert-Equal "progress memory" ([int]$memory.percent) 74
   Assert-Contains "memory status" $memory.status "active_memory_operations_runtime_verified"
+  Assert-Contains "memory success correlation status" $memory.status "active_memory_success_correlation_runtime_verified"
   Assert-NotSecretBearing "progress payload" ($progress | ConvertTo-Json -Depth 20 -Compress)
 
   $currentReleaseOutput = Invoke-RepoScript "current-release-candidate" "scripts\verify-current-release-candidate.ps1" @("-BaseUrl", $BaseUrl, "-ReleaseId", $ReleaseId)
@@ -192,6 +194,9 @@ try {
 
   $memoryOperationsOutput = Invoke-RepoScript "phase5-active-memory-operations-bundle" "scripts\verify-phase5-active-memory-operations-bundle.ps1" @("-BaseUrl", $BaseUrl)
   Assert-Contains "memory operations output" $memoryOperationsOutput "[phase5-active-memory-operations-bundle] verified"
+
+  $memorySuccessCorrelationOutput = Invoke-RepoScript "phase5-active-memory-success-correlation-bundle" "scripts\verify-phase5-active-memory-success-correlation-bundle.ps1" @("-BaseUrl", $BaseUrl)
+  Assert-Contains "memory success correlation output" $memorySuccessCorrelationOutput "[phase5-active-memory-success-correlation-bundle] verified"
 
   $agentOperationsOutput = Invoke-RepoScript "phase5-active-agent-operations-bundle" "scripts\verify-phase5-active-agent-operations-bundle.ps1" @("-BaseUrl", $BaseUrl)
   Assert-Contains "agent operations output" $agentOperationsOutput "[phase5-active-agent-operations-bundle] verified"
@@ -231,9 +236,9 @@ try {
     source_commit_sha = $sourceSha
     immutable_image_commit_sha = $immutableSha
     production_rollout_claimed = $false
-    verifier_gate_count = 17
-    changed_horizontal = "Phase 2 88->89; Phase 5 84->85"
-    changed_vertical = "Agent Pool 75->76"
+    verifier_gate_count = 18
+    changed_horizontal = "Phase 2 88->89; Phase 5 84->86"
+    changed_vertical = "Agent Pool 75->76; Memory 73->74"
     gates = @(
       "current-release-candidate",
       "active-release-candidate-bundle",
@@ -242,6 +247,7 @@ try {
       "phase5-active-runtime-guard-matrix-bundle",
       "phase5-active-gateway-execution-bundle",
       "phase5-active-memory-operations-bundle",
+      "phase5-active-memory-success-correlation-bundle",
       "phase5-active-agent-operations-bundle",
       "phase5-active-agent-success-correlation-bundle",
       "phase5-active-llm-operations-bundle",

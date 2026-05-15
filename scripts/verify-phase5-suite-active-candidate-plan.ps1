@@ -43,6 +43,7 @@ Assert-Contains "phase5 plan active security proof" $plan "verify-phase5-active-
 Assert-Contains "phase5 plan active runtime guard matrix proof" $plan "verify-phase5-active-runtime-guard-matrix-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active gateway execution proof" $plan "verify-phase5-active-gateway-execution-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active memory operations proof" $plan "verify-phase5-active-memory-operations-bundle.ps1 (default parameters)"
+Assert-Contains "phase5 plan active memory success correlation proof" $plan "verify-phase5-active-memory-success-correlation-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active agent operations proof" $plan "verify-phase5-active-agent-operations-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active agent success correlation proof" $plan "verify-phase5-active-agent-success-correlation-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active LLM operations proof" $plan "verify-phase5-active-llm-operations-bundle.ps1 (default parameters)"
