@@ -153,7 +153,7 @@ function Invoke-LlmSuccessCorrelationProbe([string]$BaseUrl) {
   Assert-Equal "agent activity feed ref" ([string]$activityMatch.audit_feed_evidence_ref) "request_id_audit_feed_visible"
   Assert-NotSecretBearing "agent activity match" ($activityMatch | ConvertTo-Json -Depth 30 -Compress)
 
-  $timeline = Invoke-JsonApi "$BaseUrl/api/v1/security/gateway-correlation/timeline?limit=100"
+  $timeline = Invoke-JsonApi "$BaseUrl/api/v1/security/gateway-correlation/timeline?limit=80"
   $timelineMatch = @($timeline.timeline) | Where-Object { $_.trace_id -eq $traceId -and $_.event_type -eq "llm_gateway_request" } | Select-Object -First 1
   Assert-True "gateway timeline llm leg visible" ($null -ne $timelineMatch)
   Assert-Equal "gateway timeline contract" ([string]$timeline.contract_version) "gateway-correlation-timeline-v1"

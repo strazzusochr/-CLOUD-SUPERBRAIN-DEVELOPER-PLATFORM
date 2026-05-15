@@ -5,8 +5,8 @@ release_id: `prod-candidate-2026-05-11-rc1`
 verified_at: `2026-05-14T23:10:00+02:00`
 base_url: `https://188-34-191-140.sslip.io`
 local_control_plane_url: `http://localhost:8081`
-source_commit_sha: `2d6d8ac7b7b74e3d8a5493fe52aa05ae98094569`
-immutable_image_commit_sha: `2d6d8ac7b7b74e3d8a5493fe52aa05ae98094569`
+source_commit_sha: `43783e702ae37ce4e88fe9f309a2488445cd83e1`
+immutable_image_commit_sha: `43783e702ae37ce4e88fe9f309a2488445cd83e1`
 production_rollout_claimed: `false`
 runtime_surface_count: `8`
 
