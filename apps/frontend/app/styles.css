@@ -2446,6 +2446,55 @@ pre {
   color: #ecfeff;
 }
 
+.workbenchLaunchStrip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.workbenchLaunchCard {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 4px 10px;
+  align-items: center;
+  min-width: 0;
+  border-color: var(--forge-border-soft);
+  background: #09090b;
+  padding: 10px;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.workbenchLaunchCard span {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  color: var(--forge-cyan);
+  font-size: 10px;
+}
+
+.workbenchLaunchCard strong,
+.workbenchLaunchCard small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workbenchLaunchCard small {
+  color: var(--forge-muted);
+  font-size: 10px;
+}
+
+.workbenchLaunchCard-active,
+.workbenchLaunchCard:hover {
+  border-color: rgba(34, 211, 238, 0.42);
+  background: rgba(34, 211, 238, 0.08);
+}
+
 .workbenchCanvas {
   display: grid;
   grid-template-columns: minmax(300px, 1.15fr) minmax(260px, 0.85fr);
@@ -2481,6 +2530,7 @@ pre {
 
 .workbenchCapabilityGrid,
 .workbenchCommandResults,
+.workbenchSubmenuGrid,
 .workbenchRouteStack,
 .workbenchRunList {
   display: grid;
@@ -2519,6 +2569,27 @@ pre {
 .workbenchCapability:hover,
 .workbenchCommandResult:hover {
   border-color: rgba(34, 211, 238, 0.4);
+}
+
+.workbenchSubmenuGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.workbenchSubmenuGrid a {
+  border: 1px solid var(--forge-border-soft);
+  background: #08080a;
+  color: #a5f3fc;
+  padding: 10px;
+  text-decoration: none;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workbenchSubmenuGrid a:hover {
+  border-color: rgba(34, 211, 238, 0.4);
+  background: rgba(34, 211, 238, 0.08);
 }
 
 .workbenchRouteStack > div {
@@ -2689,6 +2760,8 @@ pre {
   .workbenchControlGrid,
   .workbenchLayerDock,
   .workbenchTabs,
+  .workbenchLaunchStrip,
+  .workbenchSubmenuGrid,
   .workbenchCapabilityGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

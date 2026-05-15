@@ -2697,6 +2697,107 @@ const workbenchModules: Array<{
   },
 ];
 
+const workbenchLaunchPacks: Array<{
+  id: string;
+  module: WorkbenchModuleId;
+  glyph: string;
+  label: string;
+  lane: string;
+  description: string;
+  prompt: string;
+}> = [
+  {
+    id: "app-builder",
+    module: "build",
+    glyph: "APP",
+    label: "App",
+    lane: "Build",
+    description: "Full-stack app, SaaS, dashboard, workflow tool.",
+    prompt: "Build a production-ready app workflow with frontend, backend, tests, and guarded release proof.",
+  },
+  {
+    id: "software",
+    module: "code",
+    glyph: "IDE",
+    label: "Software",
+    lane: "Code",
+    description: "Feature, bug fix, refactor, automation, CLI, service.",
+    prompt: "Implement a software task with code changes, tests, verification, and concise release notes.",
+  },
+  {
+    id: "game-3d",
+    module: "game",
+    glyph: "3D",
+    label: "3D Web Game",
+    lane: "Game",
+    description: "Interactive Three.js/WebGL gameplay and browser proof.",
+    prompt: "Build a polished 3D web game slice with controls, responsive canvas, and browser verification.",
+  },
+  {
+    id: "deep-search",
+    module: "research",
+    glyph: "WEB",
+    label: "Deep Search",
+    lane: "Research",
+    description: "Web, papers, docs, competitors, source-backed analysis.",
+    prompt: "Run deep research, compare sources, extract decisions, and produce a source-backed implementation brief.",
+  },
+  {
+    id: "image",
+    module: "media",
+    glyph: "IMG",
+    label: "Images",
+    lane: "Media",
+    description: "Concept art, UI assets, diagrams, product visuals.",
+    prompt: "Create an image asset plan with style, constraints, target use, and generation/editing steps.",
+  },
+  {
+    id: "video",
+    module: "media",
+    glyph: "VID",
+    label: "Video",
+    lane: "Media",
+    description: "Storyboard, clips, explainers, product demos.",
+    prompt: "Plan a video production workflow with storyboard, assets, scenes, timing, and export checks.",
+  },
+  {
+    id: "music",
+    module: "media",
+    glyph: "AUD",
+    label: "Music",
+    lane: "Media",
+    description: "Audio, sound design, music briefs, voice workflows.",
+    prompt: "Create a music/audio production brief with mood, structure, assets, and validation steps.",
+  },
+  {
+    id: "documents",
+    module: "docs",
+    glyph: "DOC",
+    label: "Documents",
+    lane: "Docs",
+    description: "Docs, decks, spreadsheets, reports, release artifacts.",
+    prompt: "Create a document workflow with outline, data inputs, review gates, and export-ready structure.",
+  },
+  {
+    id: "agent-team",
+    module: "agents",
+    glyph: "AI",
+    label: "Multi-Agent",
+    lane: "Agents",
+    description: "Single agent, swarm, specialist team, auto-router.",
+    prompt: "Route this task through the best multi-agent plan with roles, write scopes, tests, and guardrails.",
+  },
+  {
+    id: "tool-chain",
+    module: "mcp",
+    glyph: "MCP",
+    label: "Tool Chain",
+    lane: "MCP",
+    description: "Guarded MCP tools, catalogs, sandboxes, browser proof.",
+    prompt: "Select a guarded tool chain for this task with no live MCP writes and explicit contract evidence.",
+  },
+];
+
 const agentRunModes = [
   { id: "auto-router", label: "Auto Router", detail: "Choose best agent or team per task" },
   { id: "single", label: "Single Agent", detail: "Use the selected specialist only" },
@@ -4301,6 +4402,10 @@ export default function Home() {
     { label: "Models", value: `${forgeModelRoutes.length || modelCapabilities?.routes?.length || 0} routes` },
     { label: "MCP", value: `${forgeToolCards.length} guarded` },
   ];
+  const activeLaunchPacks = [
+    ...workbenchLaunchPacks.filter((pack) => pack.module === activeModuleId),
+    ...workbenchLaunchPacks.filter((pack) => pack.module !== activeModuleId),
+  ].slice(0, 8);
   const recentRunCount = recentSessions.length + phase2RuntimeRuns.length;
   const selectedRouteLabel = selectedModelRoute
     ? `${selectedModelRoute.agent_type}: ${selectedModelRoute.primary}`
@@ -4539,6 +4644,24 @@ export default function Home() {
               </button>
             ))}
           </nav>
+          <div className="workbenchLaunchStrip" aria-label="Fast launch workspaces">
+            {activeLaunchPacks.map((pack) => (
+              <button
+                type="button"
+                className={pack.module === activeModuleId ? "workbenchLaunchCard workbenchLaunchCard-active" : "workbenchLaunchCard"}
+                onClick={() => {
+                  setActiveModuleId(pack.module);
+                  setActiveWorkbenchTab("create");
+                  setPrompt(pack.prompt);
+                }}
+                key={pack.id}
+              >
+                <span>{pack.glyph}</span>
+                <strong>{pack.label}</strong>
+                <small>{pack.description}</small>
+              </button>
+            ))}
+          </div>
           <div className="workbenchCanvas">
             <article className="workbenchPanel workbenchPrimaryPanel">
               <header>
@@ -4612,6 +4735,23 @@ export default function Home() {
                 ) : (
                   <p className="muted">No module match yet. Try agents, video, game, code, docs, or research.</p>
                 )}
+              </div>
+            </article>
+
+            <article className="workbenchPanel">
+              <header>
+                <span>Submenus</span>
+                <strong>{activeWorkbenchTab}</strong>
+              </header>
+              <div className="workbenchSubmenuGrid">
+                <a href={activeWorkbenchModule.target}>Details</a>
+                <a href="#diagnostics-surface">Diagnostics</a>
+                <a href="#agent-status">Agents</a>
+                <a href="#mcp-runtime-guard-surface">Contracts</a>
+                <a href="#llm-gateway-surface">Models</a>
+                <a href="#memory-surface">Assets</a>
+                <a href="#security-surface">Security</a>
+                <a href="#project-progress-surface">Release</a>
               </div>
             </article>
 
@@ -7989,7 +8129,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="panel externalGatesPanel" aria-label="Cloud render offload contract">
+        <section className="panel externalGatesPanel" id="cloud-render-offload-surface" aria-label="Cloud render offload contract">
           <header className="panelHeader">
             <h2>Cloud Render Offload</h2>
             <button type="button" onClick={() => void loadCloudRenderOffload()}>
@@ -9508,6 +9648,11 @@ export default function Home() {
           <span className="forgeKicker">Inspector</span>
           <h2>{activeWorkbenchModule.label}</h2>
           <p>{activeWorkbenchModule.description}</p>
+        </section>
+        <section className="workbenchInspectorCard">
+          <span>Fast Launch</span>
+          <strong>{activeLaunchPacks[0]?.label ?? activeWorkbenchModule.primary}</strong>
+          <p>{activeLaunchPacks[0]?.description ?? "Select a launch pack to configure the prompt and workspace."}</p>
         </section>
         <section className="workbenchInspectorCard">
           <span>Selected Agent Mode</span>
