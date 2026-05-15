@@ -1395,6 +1395,68 @@ type McpCapabilityCatalog = {
   non_claims: string[];
 };
 
+type McpRuntimeGuardParity = {
+  contract_version: string;
+  status: string;
+  mode: string;
+  endpoint: string;
+  gateway_endpoint: string;
+  evidence_ref: string;
+  covered_boundary: string;
+  live_mcp_writes: boolean;
+  live_mutations: boolean;
+  external_mcp_server_calls: boolean;
+  model_downloads: boolean;
+  snapshots_redacted: boolean;
+  snapshot_redaction_policy: string;
+  gateway_snapshot?: {
+    contract_version?: string;
+    status?: string;
+    endpoint?: string;
+    evidence_ref?: string;
+    live_mcp_writes?: boolean;
+    live_mutations?: boolean;
+    external_mcp_server_calls?: boolean;
+    model_downloads?: boolean;
+    guard_matrix?: Array<{
+      guard: string;
+      status: string;
+      evidence_ref: string;
+      enforced_on: string[];
+      fail_closed: boolean;
+    }>;
+    version_pinning_contract?: {
+      contract_version: string;
+      endpoint: string;
+      evidence_ref: string;
+      live_mcp_writes: boolean;
+      live_mutations: boolean;
+      external_mcp_server_calls: boolean;
+    };
+    capability_catalog_contract?: {
+      contract_version: string;
+      endpoint: string;
+      evidence_ref: string;
+      toolset_count: number;
+      capability_count: number;
+      live_mcp_writes: boolean;
+      live_mutations: boolean;
+      external_mcp_server_calls: boolean;
+    };
+    agent_executor_contract?: {
+      required_state_fields: string[];
+    };
+    evidence_refs?: string[];
+    non_claims?: string[];
+  };
+  gateway_error: string | null;
+  required_agent_executor_fields: string[];
+  required_gateway_contracts: string[];
+  required_gateway_guards: string[];
+  evidence_refs: string[];
+  non_claims: string[];
+};
+
 type McpAuditSnapshot = {
   contract_version: string;
   mode: string;
@@ -2575,6 +2637,7 @@ export default function Home() {
   const [mcpVersionPinningContract, setMcpVersionPinningContract] =
     useState<McpVersionPinningContract | null>(null);
   const [mcpCapabilityCatalog, setMcpCapabilityCatalog] = useState<McpCapabilityCatalog | null>(null);
+  const [mcpRuntimeGuardParity, setMcpRuntimeGuardParity] = useState<McpRuntimeGuardParity | null>(null);
   const [memoryEmbeddingConsistencyContract, setMemoryEmbeddingConsistencyContract] =
     useState<MemoryEmbeddingConsistencyContract | null>(null);
   const [systemFallbackContract, setSystemFallbackContract] = useState<SystemFallbackContract | null>(null);
@@ -2944,6 +3007,12 @@ export default function Home() {
     const response = await fetch("/mcp/api/v1/capabilities/catalog", { cache: "no-store" });
     if (!response.ok) throw new Error(`mcp capability catalog ${response.status}`);
     setMcpCapabilityCatalog(await response.json());
+  }
+
+  async function loadMcpRuntimeGuardParity() {
+    const response = await fetch("/api/v1/agents/mcp-runtime-guard-parity", { cache: "no-store" });
+    if (!response.ok) throw new Error(`mcp runtime guard parity ${response.status}`);
+    setMcpRuntimeGuardParity(await response.json());
   }
 
   async function loadMemoryEmbeddingConsistencyContract() {
@@ -3496,6 +3565,7 @@ export default function Home() {
         loadE2bSandboxLifecycleContract(),
         loadMcpVersionPinningContract(),
         loadMcpCapabilityCatalog(),
+        loadMcpRuntimeGuardParity(),
         loadMemoryEmbeddingConsistencyContract(),
         loadHealth(),
         loadSystemFallbackContract(),
@@ -3707,6 +3777,7 @@ export default function Home() {
       loadE2bSandboxLifecycleContract,
       loadMcpVersionPinningContract,
       loadMcpCapabilityCatalog,
+      loadMcpRuntimeGuardParity,
       loadMemoryEmbeddingConsistencyContract,
       loadTaskPolicy,
       loadRotationEvents,
@@ -3916,6 +3987,14 @@ export default function Home() {
   const mcpCatalogToolsets = Array.isArray(mcpCapabilityCatalog?.toolsets) ? mcpCapabilityCatalog.toolsets : [];
   const mcpCatalogGuards = recordValue(mcpCapabilityCatalog?.guards) ?? {};
   const mcpCatalogNonClaims = stringList(mcpCapabilityCatalog?.non_claims);
+  const mcpRuntimeGuardEvidenceRefs = stringList(mcpRuntimeGuardParity?.evidence_refs);
+  const mcpRuntimeGuardMatrix = Array.isArray(mcpRuntimeGuardParity?.gateway_snapshot?.guard_matrix)
+    ? mcpRuntimeGuardParity.gateway_snapshot.guard_matrix
+    : [];
+  const mcpRuntimeExecutorFields = Array.isArray(mcpRuntimeGuardParity?.required_agent_executor_fields)
+    ? mcpRuntimeGuardParity.required_agent_executor_fields
+    : [];
+  const mcpRuntimeNonClaims = stringList(mcpRuntimeGuardParity?.non_claims);
   const memoryCurrentEmbedding = memoryEmbeddingConsistencyContract?.current_embedding;
   const memorySchema = memoryEmbeddingConsistencyContract?.schema;
   const memoryReadPolicy = recordValue(memoryEmbeddingConsistencyContract?.read_policy);
@@ -8493,6 +8572,141 @@ export default function Home() {
               "mcp_timeout_guard",
               "mcp_tool_session_bound_audit",
             ]).join(" / ")}
+          </p>
+        </section>
+
+        <section className="panel externalGatesPanel" aria-label="MCP Runtime Guard Parity">
+          <header className="panelHeader">
+            <h2>MCP Runtime Guard Parity</h2>
+            <button type="button" onClick={() => void loadMcpRuntimeGuardParity()}>
+              Refresh
+            </button>
+          </header>
+          <div className="costSummary">
+            <div>
+              <span>Contract</span>
+              <strong>{mcpRuntimeGuardParity?.contract_version ?? "mcp-runtime-guard-parity-v1"}</strong>
+            </div>
+            <div>
+              <span>Status</span>
+              <strong>{mcpRuntimeGuardParity?.status ?? "loading"}</strong>
+            </div>
+            <div>
+              <span>Writes</span>
+              <strong>{mcpRuntimeGuardParity?.live_mcp_writes ? "live_mcp_writes=true" : "live_mcp_writes=false"}</strong>
+            </div>
+            <div>
+              <span>Evidence</span>
+              <strong>{mcpRuntimeGuardParity?.evidence_ref ?? "mcp_runtime_guard_parity_visible"}</strong>
+            </div>
+          </div>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>Agent Endpoint</strong>
+              <p>{mcpRuntimeGuardParity?.endpoint ?? "GET /api/v1/agents/mcp-runtime-guard-parity"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Gateway Endpoint</strong>
+              <p>{mcpRuntimeGuardParity?.gateway_endpoint ?? "GET /mcp/api/v1/runtime/guard-parity"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Mutation Guards</strong>
+              <p>
+                {mcpRuntimeGuardParity
+                  ? `live_mutations=${String(mcpRuntimeGuardParity.live_mutations)}; external_mcp_server_calls=${String(
+                      mcpRuntimeGuardParity.external_mcp_server_calls,
+                    )}; model_downloads=${String(mcpRuntimeGuardParity.model_downloads)}`
+                  : "live_mutations=false; external_mcp_server_calls=false; model_downloads=false"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Snapshot Redaction</strong>
+              <p>
+                {mcpRuntimeGuardParity
+                  ? `snapshots_redacted=${String(mcpRuntimeGuardParity.snapshots_redacted)}; ${
+                      mcpRuntimeGuardParity.snapshot_redaction_policy
+                    }`
+                  : "snapshots_redacted=true; app.security.redact_json"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Gateway Contracts</strong>
+              <p>{mcpRuntimeGuardParity?.required_gateway_contracts?.join(", ") ?? "mcp-runtime-guard-parity-v1, mcp-version-pinning-v1, mcp-capability-catalog-v1"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Gateway Guards</strong>
+              <p>{mcpRuntimeGuardParity?.required_gateway_guards?.join(", ") ?? "unsupported_toolset, unsupported_capability, scope_guard, timeout_guard, secret_redaction, denied_audit_correlation"}</p>
+            </article>
+          </div>
+          <div className="gateList">
+            {(mcpRuntimeGuardMatrix.length
+              ? mcpRuntimeGuardMatrix
+              : [
+                  {
+                    guard: "unsupported_toolset",
+                    status: "enforced",
+                    evidence_ref: "mcp_unsupported_toolset_guard",
+                    enforced_on: ["/api/v1/tools/execute"],
+                    fail_closed: true,
+                  },
+                  {
+                    guard: "unsupported_capability",
+                    status: "enforced",
+                    evidence_ref: "mcp_unsupported_capability_guard",
+                    enforced_on: ["/api/v1/tools/execute"],
+                    fail_closed: true,
+                  },
+                  {
+                    guard: "secret_redaction",
+                    status: "enforced",
+                    evidence_ref: "mcp_secret_redaction_guard",
+                    enforced_on: ["/api/v1/tools/execute"],
+                    fail_closed: true,
+                  },
+                ]).map((guard) => (
+              <article className="gateItem gateReady" key={guard.guard}>
+                <div>
+                  <strong>{guard.guard}</strong>
+                  <span>{guard.status}</span>
+                </div>
+                <p>
+                  {guard.evidence_ref} / fail_closed={String(guard.fail_closed)} /{" "}
+                  {guard.enforced_on?.join(", ") ?? "/api/v1/tools/execute"}
+                </p>
+              </article>
+            ))}
+          </div>
+          <p className="infraNote evidenceLine">
+            Agent executor fields:{" "}
+            {(mcpRuntimeExecutorFields.length
+              ? mcpRuntimeExecutorFields
+              : [
+                  "mcp_gateway_calls[].tool_request_id",
+                  "mcp_gateway_calls[].session_id",
+                  "mcp_gateway_calls[].trace_id",
+                  "mcp_gateway_calls[].request_id",
+                  "mcp_gateway_calls[].guard_evidence_ref",
+                  "mcp_gateway_calls[].live_mcp_writes_proven_false",
+                ]).join(" / ")}
+          </p>
+          <p className="infraNote evidenceLine">
+            Evidence:{" "}
+            {(mcpRuntimeGuardEvidenceRefs.length
+              ? mcpRuntimeGuardEvidenceRefs
+              : [
+                  "mcp_runtime_guard_parity_visible",
+                  "mcp_version_pinning_contract_visible",
+                  "mcp_capability_catalog_visible",
+                  "mcp_secret_redaction_guard",
+                  "mcp_unsupported_toolset_guard",
+                  "mcp_unsupported_capability_guard",
+                  "mcp_denied_tool_audit_correlation",
+                ]).join(" / ")}
+          </p>
+          <p className="infraNote">
+            {mcpRuntimeNonClaims.length
+              ? mcpRuntimeNonClaims.join(" ")
+              : "No live MCP write, live mutation, external MCP server call, local model download, production rollout, or release promotion is claimed."}
           </p>
         </section>
 

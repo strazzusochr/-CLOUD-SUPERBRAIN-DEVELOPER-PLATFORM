@@ -261,6 +261,16 @@ Assert-Contains "autonomous dispatch evidence marker" $frontendHtml "autonomous_
 Assert-Contains "autonomous dispatch status evidence marker" $frontendHtml "autonomous_team_dispatch_status_visible"
 Assert-Contains "mcp version pinning contract panel" $frontendHtml "MCP Version Pinning Contract"
 Assert-Contains "mcp version pinning evidence marker" $frontendHtml "mcp_version_pinning_contract_visible"
+Assert-Contains "mcp runtime guard parity panel" $frontendHtml "MCP Runtime Guard Parity"
+Assert-Contains "mcp runtime guard parity contract marker" $frontendHtml "mcp-runtime-guard-parity-v1"
+Assert-Contains "mcp runtime guard parity evidence marker" $frontendHtml "mcp_runtime_guard_parity_visible"
+Assert-Contains "mcp runtime guard parity agent endpoint marker" $frontendHtml "GET /api/v1/agents/mcp-runtime-guard-parity"
+Assert-Contains "mcp runtime guard parity gateway endpoint marker" $frontendHtml "GET /mcp/api/v1/runtime/guard-parity"
+Assert-Contains "mcp runtime guard parity no live writes marker" $frontendHtml "live_mcp_writes=false"
+Assert-Contains "mcp runtime guard parity no live mutations marker" $frontendHtml "live_mutations=false"
+Assert-Contains "mcp runtime guard parity no external calls marker" $frontendHtml "external_mcp_server_calls=false"
+Assert-Contains "mcp runtime guard parity no model downloads marker" $frontendHtml "model_downloads=false"
+Assert-Contains "mcp runtime guard parity redaction marker" $frontendHtml "mcp_secret_redaction_guard"
 Assert-Contains "mcp capability catalog panel" $frontendHtml "MCP Capability Catalog"
 Assert-Contains "mcp capability catalog contract marker" $frontendHtml "mcp-capability-catalog-v1"
 Assert-Contains "mcp capability catalog evidence marker" $frontendHtml "mcp_capability_catalog_visible"
@@ -876,6 +886,34 @@ Assert-Contains "mcp version pinning github contract" $mcpVersionPinningContract
 Assert-Contains "mcp version pinning e2b contract" $mcpVersionPinningContract "e2b-sandbox-lifecycle-v1"
 Assert-Contains "mcp version pinning drift policy" $mcpVersionPinningContract "exact == pinning"
 Assert-Contains "mcp version pinning no live write" $mcpVersionPinningContract "No live MCP write"
+
+Write-Host "[browser-contract] mcp runtime guard parity"
+$mcpRuntimeGuardParity = Invoke-Text "$BaseUrl/api/v1/agents/mcp-runtime-guard-parity"
+Assert-Contains "mcp runtime guard parity contract version" $mcpRuntimeGuardParity '"contract_version":"mcp-runtime-guard-parity-v1"'
+Assert-Contains "mcp runtime guard parity status" $mcpRuntimeGuardParity '"status":"verified"'
+Assert-Contains "mcp runtime guard parity evidence" $mcpRuntimeGuardParity '"evidence_ref":"mcp_runtime_guard_parity_visible"'
+Assert-Contains "mcp runtime guard parity endpoint" $mcpRuntimeGuardParity '"endpoint":"GET /api/v1/agents/mcp-runtime-guard-parity"'
+Assert-Contains "mcp runtime guard parity gateway endpoint" $mcpRuntimeGuardParity '"gateway_endpoint":"GET /mcp/api/v1/runtime/guard-parity"'
+Assert-Contains "mcp runtime guard parity no live writes" $mcpRuntimeGuardParity '"live_mcp_writes":false'
+Assert-Contains "mcp runtime guard parity no live mutations" $mcpRuntimeGuardParity '"live_mutations":false'
+Assert-Contains "mcp runtime guard parity no external calls" $mcpRuntimeGuardParity '"external_mcp_server_calls":false'
+Assert-Contains "mcp runtime guard parity no model downloads" $mcpRuntimeGuardParity '"model_downloads":false'
+Assert-Contains "mcp runtime guard parity redaction policy" $mcpRuntimeGuardParity '"snapshots_redacted":true'
+Assert-Contains "mcp runtime guard parity version ref" $mcpRuntimeGuardParity "mcp_version_pinning_contract_visible"
+Assert-Contains "mcp runtime guard parity catalog ref" $mcpRuntimeGuardParity "mcp_capability_catalog_visible"
+Assert-Contains "mcp runtime guard parity redaction ref" $mcpRuntimeGuardParity "mcp_secret_redaction_guard"
+Assert-Contains "mcp runtime guard parity unsupported toolset ref" $mcpRuntimeGuardParity "mcp_unsupported_toolset_guard"
+Assert-Contains "mcp runtime guard parity unsupported capability ref" $mcpRuntimeGuardParity "mcp_unsupported_capability_guard"
+Assert-Contains "mcp runtime guard parity deny correlation ref" $mcpRuntimeGuardParity "mcp_denied_tool_audit_correlation"
+Assert-Contains "mcp runtime guard parity executor field" $mcpRuntimeGuardParity "mcp_gateway_calls[].live_mcp_writes_proven_false"
+$mcpGatewayRuntimeGuardParity = Invoke-Text "$BaseUrl/mcp/api/v1/runtime/guard-parity"
+Assert-Contains "mcp gateway runtime guard parity contract version" $mcpGatewayRuntimeGuardParity '"contract_version":"mcp-runtime-guard-parity-v1"'
+Assert-Contains "mcp gateway runtime guard parity evidence" $mcpGatewayRuntimeGuardParity '"evidence_ref":"mcp_runtime_guard_parity_visible"'
+Assert-Contains "mcp gateway runtime guard parity no live writes" $mcpGatewayRuntimeGuardParity '"live_mcp_writes":false'
+Assert-Contains "mcp gateway runtime guard parity no live mutations" $mcpGatewayRuntimeGuardParity '"live_mutations":false'
+Assert-Contains "mcp gateway runtime guard parity no external calls" $mcpGatewayRuntimeGuardParity '"external_mcp_server_calls":false'
+Assert-Contains "mcp gateway runtime guard parity no model downloads" $mcpGatewayRuntimeGuardParity '"model_downloads":false'
+Assert-Contains "mcp gateway runtime guard parity fail closed" $mcpGatewayRuntimeGuardParity '"fail_closed":true'
 
 Write-Host "[browser-contract] memory embedding consistency contract"
 $memoryEmbeddingConsistencyContract = Invoke-Text "$BaseUrl/api/v1/memory/embedding-consistency/contract"
