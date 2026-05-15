@@ -245,6 +245,9 @@
             "verify-phase5-active-mcp-operations-bundle.ps1": {
                 "ReleaseId": null
             },
+            "verify-phase5-active-mcp-success-correlation-bundle.ps1": {
+                "ReleaseId": null
+            },
             "verify-phase5-vercel-github-deployment-status.ps1": {
                 "ReleaseId": null
             },

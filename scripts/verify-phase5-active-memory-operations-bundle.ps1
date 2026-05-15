@@ -214,7 +214,7 @@ try {
   $progress = Invoke-JsonApi "$BaseUrl/api/v1/project/progress"
   Assert-Equal "progress overall" ([int]$progress.overall_percent) 81
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 82
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 83
   Assert-Contains "phase5 status" $phase5.status "active_memory_operations_bundle_verified"
   $memory = @($progress.vertical.items | Where-Object { $_.id -eq "layer_6" }) | Select-Object -First 1
   Assert-Equal "memory percent" ([int]$memory.percent) 73

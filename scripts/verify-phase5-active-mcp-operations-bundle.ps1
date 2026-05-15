@@ -212,10 +212,10 @@ try {
   $progress = Invoke-JsonApi "$BaseUrl/api/v1/project/progress"
   Assert-Equal "progress overall" ([int]$progress.overall_percent) 81
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 82
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 83
   Assert-Contains "phase5 status" $phase5.status "active_mcp_operations_bundle_verified"
   $mcpGateway = @($progress.vertical.items | Where-Object { $_.id -eq "layer_5" }) | Select-Object -First 1
-  Assert-Equal "MCP Gateway percent" ([int]$mcpGateway.percent) 66
+  Assert-Equal "MCP Gateway percent" ([int]$mcpGateway.percent) 67
   Assert-Contains "MCP Gateway status" $mcpGateway.status "active_mcp_operations_runtime_verified"
   Assert-NotSecretBearing "progress payload" ($progress | ConvertTo-Json -Depth 20 -Compress)
 

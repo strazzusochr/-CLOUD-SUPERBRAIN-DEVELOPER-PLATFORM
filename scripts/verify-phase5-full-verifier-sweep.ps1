@@ -96,7 +96,7 @@ if ($ReleaseId -ne "prod-candidate-2026-05-05-rc1") {
     "release_id: ``$ReleaseId``",
     "environment: ``production-candidate``",
     "This artifact does not claim a production rollout.",
-    "active_full_suite_rebaseline_proof: ``docs/release-artifacts/$ReleaseId-active-full-suite-rebaseline-20260514.md``"
+    "active_full_suite_rebaseline_proof: ``docs/release-artifacts/$ReleaseId-active-full-suite-rebaseline-20260515.md``"
   )) {
     Assert-Contains "active candidate artifact" $candidate $required
   }
@@ -112,7 +112,7 @@ if ($ReleaseId -ne "prod-candidate-2026-05-05-rc1") {
   $immutableSha = $Matches[1]
   Assert-Sha "immutable image commit sha" $immutableSha
 
-  $proofPath = "docs\release-artifacts\$ReleaseId-active-full-suite-rebaseline-20260514.md"
+  $proofPath = "docs\release-artifacts\$ReleaseId-active-full-suite-rebaseline-20260515.md"
   if (-not (Test-Path -LiteralPath $proofPath)) {
     throw "Missing active full-suite rebaseline proof: $proofPath"
   }
@@ -125,8 +125,8 @@ if ($ReleaseId -ne "prod-candidate-2026-05-05-rc1") {
     "production_rollout_claimed: ``false``",
     "active_gate_count: ``10``",
     "phase5_suite_plan_status: ``passed``",
-    "changed_horizontal: ``Phase 5 75->76``",
-    "changed_vertical: ``none``",
+    "changed_horizontal: ``Phase 5 82->83``",
+    "changed_vertical: ``MCP Gateway 66->67``",
     "This proof does not claim a production rollout.",
     "This proof does not include secret values."
   )) {
