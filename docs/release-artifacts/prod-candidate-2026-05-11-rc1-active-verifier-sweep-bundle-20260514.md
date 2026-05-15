@@ -1,10 +1,10 @@
-# Active Verifier Sweep Bundle Proof
+﻿# Active Verifier Sweep Bundle Proof
 
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
 environment: `production-candidate`
-source_commit_sha: `b9734ad55dc6488a56acca693b50ec9019bab01b`
-immutable_image_commit_sha: `b9734ad55dc6488a56acca693b50ec9019bab01b`
+source_commit_sha: `2d6d8ac7b7b74e3d8a5493fe52aa05ae98094569`
+immutable_image_commit_sha: `2d6d8ac7b7b74e3d8a5493fe52aa05ae98094569`
 base_url: `https://188-34-191-140.sslip.io`
 production_rollout_claimed: `false`
 verifier_gate_count: `8`
@@ -25,7 +25,7 @@ changed_vertical: `none`
 ## Evidence Bound
 
 - Active release-candidate status: `prod-candidate-2026-05-11-rc1`, `production_rollout_claimed=false`, active bundle `status=passed`, `gate_count=3`
-- Hosted staging status: root/API smoke remains HTTP `200`, project progress is `80%`, Phase 5 is `77%`, and immutable selector remains `b9734ad55dc6488a56acca693b50ec9019bab01b`
+- Hosted staging status: root/API smoke remains HTTP `200`, project progress is `80%`, Phase 5 is `77%`, and immutable selector remains `2d6d8ac7b7b74e3d8a5493fe52aa05ae98094569`
 - Gateway policy status: Active Gateway Policy Bundle remains verified with LLM/MCP catalogs, audit snapshots, gateway-correlation policy surfaces, and no live provider/MCP writes
 - Safety status: security scan and evidence-artifact-safety pass without adding secret values or raw payload material
 

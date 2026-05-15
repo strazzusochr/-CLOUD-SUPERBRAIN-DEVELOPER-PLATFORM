@@ -143,7 +143,7 @@ function Invoke-McpSuccessCorrelationProbe([string]$BaseUrl) {
   Assert-False "mcp snapshot input refs" $snapshot.input_refs_returned
   Assert-Equal "mcp snapshot forbidden hits" ([int]$snapshot.forbidden_pattern_hits) 0
   Assert-Equal "mcp snapshot redaction clear" ([string]$snapshot.redaction_status) "clear"
-  Assert-True "mcp snapshot success count" ([int]$snapshot.success_count -ge 1)
+  Assert-True "mcp snapshot success count" ([int]$snapshot.status_counts.success -ge 1)
   Assert-True "mcp snapshot session bound count" ([int]$snapshot.session_bound_count -ge 1)
   Assert-NotSecretBearing "mcp snapshot" ($snapshot | ConvertTo-Json -Depth 30 -Compress)
 
