@@ -40,7 +40,18 @@ from app.budget import (
     session_llm_call_limit,
 )
 from app.clouds import cloud_layer_readiness_state, cloud_provider_state
-from app.db import check_agent_worker, check_llm_gateway, check_mcp, check_memory_worker, check_postgres, check_redis, database_url, redis_url, run_migrations
+from app.db import (
+    check_agent_worker,
+    check_llm_gateway,
+    check_mcp,
+    check_memory_worker,
+    check_postgres,
+    check_redis,
+    database_url,
+    mcp_gateway_url,
+    redis_url,
+    run_migrations,
+)
 from app.memory import (
     EMBEDDING_SEARCH_MODE,
     MemoryWriteRequest,
@@ -165,6 +176,8 @@ MCP_AUDIT_EXPORT_EVIDENCE_REF = "mcp_audit_export_visible"
 MCP_AUDIT_EXPORT_AUDIT_EVIDENCE_REF = "mcp_audit_export_audit_persisted"
 MCP_AUDIT_NO_LIVE_WRITE_EVIDENCE_REF = "mcp_audit_no_live_write_guard"
 MCP_GUARD_CORRELATION_EVIDENCE_REF = "mcp_guard_correlation_audit_visible"
+MCP_RUNTIME_GUARD_PARITY_CONTRACT_VERSION = "mcp-runtime-guard-parity-v1"
+MCP_RUNTIME_GUARD_PARITY_EVIDENCE_REF = "mcp_runtime_guard_parity_visible"
 LANGFUSE_TRACE_ACCESS_CONTRACT_VERSION = "langfuse-trace-access-v1"
 LANGFUSE_TRACE_ACCESS_EVIDENCE_REF = "langfuse_trace_access_visible"
 LANGFUSE_TRACE_EVENT_EVIDENCE_REF = "langfuse_trace_event_visible"
@@ -10048,6 +10061,103 @@ def agent_llm_runtime_guard_parity_payload() -> dict[str, object]:
 @app.get("/api/v1/agents/llm-runtime-guard-parity")
 def agent_llm_runtime_guard_parity() -> dict[str, object]:
     return agent_llm_runtime_guard_parity_payload()
+
+
+def agent_mcp_runtime_guard_parity_payload() -> dict[str, object]:
+    gateway_snapshot: dict[str, object] | None = None
+    gateway_error: str | None = None
+
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            response = client.get(f"{mcp_gateway_url()}/api/v1/runtime/guard-parity")
+            response.raise_for_status()
+            gateway_snapshot = redact_json(response.json())
+    except Exception as exc:
+        gateway_error = type(exc).__name__
+
+    required_gateway_evidence_refs = [
+        "mcp_version_pinning_contract_visible",
+        "mcp_capability_catalog_visible",
+        "mcp_secret_redaction_guard",
+        "mcp_unsupported_toolset_guard",
+        "mcp_unsupported_capability_guard",
+        "mcp_denied_tool_audit_correlation",
+    ]
+    evidence_refs = {MCP_RUNTIME_GUARD_PARITY_EVIDENCE_REF}
+    if isinstance(gateway_snapshot, dict):
+        if isinstance(gateway_snapshot.get("evidence_ref"), str):
+            evidence_refs.add(str(gateway_snapshot["evidence_ref"]))
+        if isinstance(gateway_snapshot.get("evidence_refs"), list):
+            evidence_refs.update(str(item) for item in gateway_snapshot["evidence_refs"])
+
+    guard_matrix = gateway_snapshot.get("guard_matrix") if isinstance(gateway_snapshot, dict) else None
+    guards_verified = isinstance(guard_matrix, list) and all(
+        isinstance(item, dict)
+        and item.get("status") == "enforced"
+        and item.get("fail_closed") is True
+        for item in guard_matrix
+    )
+    gateway_verified = (
+        isinstance(gateway_snapshot, dict)
+        and gateway_snapshot.get("contract_version") == MCP_RUNTIME_GUARD_PARITY_CONTRACT_VERSION
+        and gateway_snapshot.get("status") == "verified"
+        and gateway_snapshot.get("live_mcp_writes") is False
+        and gateway_snapshot.get("live_mutations") is False
+        and gateway_snapshot.get("external_mcp_server_calls") is False
+        and gateway_snapshot.get("model_downloads") is False
+        and guards_verified
+    )
+    required_refs_present = all(item in evidence_refs for item in required_gateway_evidence_refs)
+    status = "verified" if gateway_verified and required_refs_present else "blocked"
+
+    return {
+        "contract_version": MCP_RUNTIME_GUARD_PARITY_CONTRACT_VERSION,
+        "mode": "agent_api_to_mcp_gateway_runtime_guard_parity",
+        "endpoint": "GET /api/v1/agents/mcp-runtime-guard-parity",
+        "gateway_endpoint": "GET /mcp/api/v1/runtime/guard-parity",
+        "evidence_ref": MCP_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+        "status": status,
+        "covered_boundary": "L3-L5 Agent API / Agent Pool to MCP Gateway",
+        "live_mcp_writes": False,
+        "live_mutations": False,
+        "external_mcp_server_calls": False,
+        "model_downloads": False,
+        "snapshots_redacted": True,
+        "snapshot_redaction_policy": "app.security.redact_json",
+        "gateway_snapshot": gateway_snapshot,
+        "gateway_error": gateway_error,
+        "required_agent_executor_fields": [
+            "mcp_gateway_calls[].tool_request_id",
+            "mcp_gateway_calls[].session_id",
+            "mcp_gateway_calls[].trace_id",
+            "mcp_gateway_calls[].request_id",
+            "mcp_gateway_calls[].guard_evidence_ref",
+            "mcp_gateway_calls[].live_mcp_writes_proven_false",
+        ],
+        "required_gateway_contracts": [
+            MCP_RUNTIME_GUARD_PARITY_CONTRACT_VERSION,
+            "mcp-version-pinning-v1",
+            "mcp-capability-catalog-v1",
+        ],
+        "required_gateway_guards": [
+            "unsupported_toolset",
+            "unsupported_capability",
+            "scope_guard",
+            "timeout_guard",
+            "secret_redaction",
+            "denied_audit_correlation",
+        ],
+        "evidence_refs": sorted(evidence_refs),
+        "non_claims": [
+            "This Agent API surface mirrors MCP Gateway version pinning and capability guards; it does not enable live MCP writes.",
+            "No external MCP server call, direct tool mutation, provider key, local model download, production rollout, or release promotion is enabled here.",
+        ],
+    }
+
+
+@app.get("/api/v1/agents/mcp-runtime-guard-parity")
+def agent_mcp_runtime_guard_parity() -> dict[str, object]:
+    return agent_mcp_runtime_guard_parity_payload()
 
 
 def memory_embedding_schema_columns() -> dict[str, str]:

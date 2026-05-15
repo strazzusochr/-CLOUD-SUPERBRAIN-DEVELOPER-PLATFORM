@@ -17,6 +17,8 @@ Der aktive Runtime-Guard ist fail-closed: bekannte Toolsets akzeptieren nur expl
 ## Capability Catalog Contract
 
 `GET /mcp/api/v1/capabilities/catalog` veroeffentlicht den verbindlichen MCP-Capability-Katalog `mcp-capability-catalog-v1` mit Evidence `mcp_capability_catalog_visible`.
+`GET /mcp/api/v1/runtime/guard-parity` veroeffentlicht den verbindlichen MCP-Runtime-Guard-Parity-Vertrag `mcp-runtime-guard-parity-v1` mit Evidence `mcp_runtime_guard_parity_visible`, Guard-Matrix und Agent-Executor-Pflichtfeldern.
+`GET /api/v1/agents/mcp-runtime-guard-parity` veroeffentlicht den read-only Agent-API-Spiegel desselben Vertrags. Der Spiegel prueft `GET /mcp/api/v1/runtime/guard-parity`, bleibt GET-only und bestaetigt `live_mcp_writes=false`, `live_mutations=false`, `external_mcp_server_calls=false` und `model_downloads=false`.
 `GET /api/v1/audit/mcp/snapshot` veroeffentlicht den read-only MCP-Audit-Redaction-Snapshot `mcp-audit-feed-v1` mit Evidence `mcp_audit_snapshot_visible` und `mcp_audit_redaction_enforced`.
 
 `GET /api/v1/audit/mcp/export/contract` und `GET /api/v1/audit/mcp/export?format=csv&limit=80` veroeffentlichen den read-only MCP-Audit-CSV-Export `mcp-audit-export-v1` mit Evidence `mcp_audit_export_visible`, `mcp_audit_export_audit_persisted`, `mcp_audit_redaction_enforced` und `mcp_audit_no_live_write_guard`.
@@ -53,7 +55,8 @@ Implementiert:
 14. MCP-Capability-Katalog `GET /mcp/api/v1/capabilities/catalog` mit `mcp-capability-catalog-v1` und Nachweis `mcp_capability_catalog_visible`.
 15. MCP-Audit-Snapshot `GET /api/v1/audit/mcp/snapshot` mit `mcp_audit_snapshot_visible`, `mcp_audit_redaction_enforced`, `input_refs_returned=false` und `live_mcp_writes_claimed=false`.
 16. MCP-Audit-Export `GET /api/v1/audit/mcp/export?format=csv&limit=80` mit `mcp-audit-export-v1`, `mcp_audit_export_visible`, `mcp_audit_export_audit_persisted`, `mcp_audit_redaction_enforced`, `mcp_audit_no_live_write_guard` und CSV-allowlist ohne Input-Refs, Provider-Credentials oder raw Details.
-15. Dedizierter Verifier-Beweis in `scripts/verify-phase4-mcp-capability-catalog.ps1`; Browser-Regression in `scripts/verify-browser-contract.ps1`; bestehende MCP-Guard-Beweise in `scripts/verify-phase4-mcp-security-guard.ps1` und `scripts/verify-phase3-mcp-deny-audit-correlation.ps1`.
+17. MCP-Runtime-Guard-Parity `GET /mcp/api/v1/runtime/guard-parity` plus Agent-API-Spiegel `GET /api/v1/agents/mcp-runtime-guard-parity` mit `mcp-runtime-guard-parity-v1`, Guard-Matrix, Agent-Executor-Pflichtfeldern und Nachweis `mcp_runtime_guard_parity_visible`.
+18. Dedizierte Verifier-Beweise in `scripts/verify-phase4-mcp-capability-catalog.ps1` und `scripts/verify-phase4-mcp-runtime-guard-parity.ps1`; Browser-Regression in `scripts/verify-browser-contract.ps1`; bestehende MCP-Guard-Beweise in `scripts/verify-phase4-mcp-security-guard.ps1` und `scripts/verify-phase3-mcp-deny-audit-correlation.ps1`.
 
 Nicht implementiert:
 

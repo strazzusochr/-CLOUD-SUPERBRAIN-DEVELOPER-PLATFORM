@@ -25,6 +25,8 @@ MCP_UNSUPPORTED_TOOLSET_EVIDENCE_REF = "mcp_unsupported_toolset_guard"
 MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF = "mcp_unsupported_capability_guard"
 MCP_DENIED_AUDIT_CORRELATION_EVIDENCE_REF = "mcp_denied_tool_audit_correlation"
 MCP_GUARD_CORRELATION_EVIDENCE_REF = "mcp_guard_correlation_audit_visible"
+MCP_RUNTIME_GUARD_PARITY_CONTRACT_VERSION = "mcp-runtime-guard-parity-v1"
+MCP_RUNTIME_GUARD_PARITY_EVIDENCE_REF = "mcp_runtime_guard_parity_visible"
 
 app = FastAPI(title="Cloud Superbrain MCP Gateway", version=MCP_GATEWAY_VERSION)
 
@@ -535,6 +537,12 @@ def mcp_version_pinning_contract() -> dict[str, object]:
         "audit_gap": "L-08",
         "endpoint": "GET /mcp/api/v1/version-pinning/contract",
         "evidence_ref": MCP_VERSION_PINNING_EVIDENCE_REF,
+        "capability_catalog_contract_version": MCP_CAPABILITY_CATALOG_CONTRACT_VERSION,
+        "capability_catalog_endpoint": "GET /mcp/api/v1/capabilities/catalog",
+        "capability_catalog_evidence_ref": MCP_CAPABILITY_CATALOG_EVIDENCE_REF,
+        "live_mcp_writes": False,
+        "live_mutations": False,
+        "external_mcp_server_calls": False,
         "gateway": {
             "service": "mcp-gateway",
             "app_version": MCP_GATEWAY_VERSION,
@@ -586,6 +594,144 @@ def mcp_version_pinning_contract() -> dict[str, object]:
             "No live MCP write is enabled by this version-pinning contract.",
             "No external MCP server version is claimed beyond the local gateway and its pinned Python dependencies.",
             "No production deployment or hosted staging success is claimed by this local contract.",
+        ],
+    }
+
+
+def mcp_runtime_guard_parity_snapshot() -> dict[str, object]:
+    catalog = mcp_capability_catalog_contract()
+    version_contract = mcp_version_pinning_contract()
+    guard_matrix = [
+        {
+            "guard": "unsupported_toolset",
+            "status": "enforced",
+            "evidence_ref": MCP_UNSUPPORTED_TOOLSET_EVIDENCE_REF,
+            "enforced_on": ["/api/v1/tools/execute"],
+            "fail_closed": True,
+        },
+        {
+            "guard": "unsupported_capability",
+            "status": "enforced",
+            "evidence_ref": MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF,
+            "enforced_on": ["/api/v1/tools/execute"],
+            "fail_closed": True,
+        },
+        {
+            "guard": "scope_guard",
+            "status": "enforced",
+            "evidence_ref": "mcp_scope_guard",
+            "enforced_on": ["/api/v1/tools/execute"],
+            "fail_closed": True,
+        },
+        {
+            "guard": "timeout_guard",
+            "status": "enforced",
+            "evidence_ref": "mcp_timeout_guard",
+            "enforced_on": ["/api/v1/tools/execute"],
+            "fail_closed": True,
+        },
+        {
+            "guard": "secret_redaction",
+            "status": "enforced",
+            "evidence_ref": MCP_REDACTION_EVIDENCE_REF,
+            "enforced_on": ["/api/v1/tools/execute", "POST /internal/audit/mcp-tool-events"],
+            "fail_closed": True,
+        },
+        {
+            "guard": "denied_audit_correlation",
+            "status": "enforced",
+            "evidence_ref": MCP_DENIED_AUDIT_CORRELATION_EVIDENCE_REF,
+            "enforced_on": ["/api/v1/tools/execute", "GET /api/v1/audit/mcp"],
+            "fail_closed": True,
+        },
+    ]
+    evidence_refs = sorted(
+        {
+            MCP_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+            MCP_VERSION_PINNING_EVIDENCE_REF,
+            MCP_CAPABILITY_CATALOG_EVIDENCE_REF,
+            MCP_REDACTION_EVIDENCE_REF,
+            MCP_UNSUPPORTED_TOOLSET_EVIDENCE_REF,
+            MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF,
+            MCP_DENIED_AUDIT_CORRELATION_EVIDENCE_REF,
+            "mcp_safe_envelope",
+            "mcp_scope_guard",
+            "mcp_timeout_guard",
+            "mcp_tool_session_bound_audit",
+        }
+        .union(str(item) for item in version_contract.get("evidence_refs", []))
+        .union(str(item.get("evidence_ref")) for item in guard_matrix)
+    )
+    status = (
+        "verified"
+        if (
+            version_contract.get("contract_version") == MCP_VERSION_PINNING_CONTRACT_VERSION
+            and catalog.get("contract_version") == MCP_CAPABILITY_CATALOG_CONTRACT_VERSION
+            and catalog.get("status") == "verified"
+            and catalog.get("live_mcp_writes") is False
+            and catalog.get("live_mutations") is False
+            and catalog.get("external_mcp_server_calls") is False
+            and all(item["status"] == "enforced" and item["fail_closed"] is True for item in guard_matrix)
+        )
+        else "blocked"
+    )
+    return {
+        "contract_version": MCP_RUNTIME_GUARD_PARITY_CONTRACT_VERSION,
+        "status": status,
+        "mode": "deterministic_mcp_runtime_guard_parity",
+        "endpoint": "GET /mcp/api/v1/runtime/guard-parity",
+        "evidence_ref": MCP_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+        "live_mcp_writes": False,
+        "live_mutations": False,
+        "external_mcp_server_calls": False,
+        "model_downloads": False,
+        "ingress_surface": {
+            "tool_execute": "POST /mcp/api/v1/tools/execute",
+            "version_pinning": "GET /mcp/api/v1/version-pinning/contract",
+            "capability_catalog": "GET /mcp/api/v1/capabilities/catalog",
+            "health": "GET /mcp/api/v1/health",
+        },
+        "configured_toolsets": sorted(SUPPORTED_CAPABILITIES.keys()),
+        "configured_capabilities": {
+            key: sorted(value) for key, value in SUPPORTED_CAPABILITIES.items()
+        },
+        "guard_matrix": guard_matrix,
+        "version_pinning_contract": {
+            "contract_version": version_contract["contract_version"],
+            "endpoint": version_contract["endpoint"],
+            "evidence_ref": version_contract["evidence_ref"],
+            "live_mcp_writes": version_contract["live_mcp_writes"],
+            "live_mutations": version_contract["live_mutations"],
+            "external_mcp_server_calls": version_contract["external_mcp_server_calls"],
+        },
+        "capability_catalog_contract": {
+            "contract_version": catalog["contract_version"],
+            "endpoint": catalog["endpoint"],
+            "evidence_ref": catalog["evidence_ref"],
+            "toolset_count": catalog["toolset_count"],
+            "capability_count": catalog["capability_count"],
+            "live_mcp_writes": catalog["live_mcp_writes"],
+            "live_mutations": catalog["live_mutations"],
+            "external_mcp_server_calls": catalog["external_mcp_server_calls"],
+        },
+        "agent_executor_contract": {
+            "consumer_module": "services/agent-api/app/main.py",
+            "consumer_function": "agent_mcp_runtime_guard_parity_payload",
+            "preflight_required": "GET /api/v1/runtime/guard-parity before Agent API claims MCP guard parity verified",
+            "required_state_fields": [
+                "mcp_gateway_calls[].tool_request_id",
+                "mcp_gateway_calls[].session_id",
+                "mcp_gateway_calls[].trace_id",
+                "mcp_gateway_calls[].request_id",
+                "mcp_gateway_calls[].guard_evidence_ref",
+                "mcp_gateway_calls[].live_mcp_writes_proven_false",
+            ],
+        },
+        "evidence_refs": evidence_refs,
+        "non_claims": [
+            "This parity endpoint is a deterministic MCP guard proof, not a live MCP execution or mutation proof.",
+            "No GitHub write, filesystem mutation, database write, browser automation, E2B execution, local model download, or production rollout is enabled by this endpoint.",
+            "Live MCP writes stay disabled unless a separate owner gate and policy review explicitly allow them.",
         ],
     }
 
@@ -929,6 +1075,11 @@ def mcp_version_pinning_contract_endpoint() -> dict[str, object]:
 @app.get("/api/v1/capabilities/catalog")
 def mcp_capability_catalog_endpoint() -> dict[str, object]:
     return mcp_capability_catalog_contract()
+
+
+@app.get("/api/v1/runtime/guard-parity")
+def mcp_runtime_guard_parity_endpoint() -> dict[str, object]:
+    return mcp_runtime_guard_parity_snapshot()
 
 
 @app.post("/api/v1/tools/execute")
