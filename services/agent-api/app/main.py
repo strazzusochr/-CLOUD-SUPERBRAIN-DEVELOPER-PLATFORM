@@ -1033,6 +1033,8 @@ class McpToolAuditRequest(BaseModel):
 
 class LlmGatewayAuditRequest(BaseModel):
     trace_id: str = Field(..., min_length=1, max_length=255)
+    request_id: str | None = Field(default=None, max_length=255)
+    session_id: str | None = Field(default=None, max_length=64)
     model_name: str = Field(..., min_length=1, max_length=120)
     provider_name: str = Field(..., min_length=1, max_length=120)
     agent_type: str = Field(default="unknown", max_length=50)
@@ -1044,6 +1046,16 @@ class LlmGatewayAuditRequest(BaseModel):
     summary: str = Field(..., min_length=1, max_length=500)
     prompt_body_stored: bool = False
     redaction_evidence_ref: str | None = Field(default=None, max_length=120)
+
+    @field_validator("session_id")
+    @classmethod
+    def validate_session_uuid(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        try:
+            return str(UUID(value))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("session_id must be a valid UUID") from exc
 
 
 class AuthRefreshRequest(BaseModel):
@@ -6417,12 +6429,13 @@ def llm_audit_feed_contract_payload() -> dict[str, object]:
         "export_contract_endpoint": "GET /api/v1/audit/llm/export/contract",
         "export_contract_version": LLM_AUDIT_EXPORT_CONTRACT_VERSION,
         "source_event_type": "llm_gateway_request",
-        "source_table": "audit_log",
-        "supported_export_formats": ["csv"],
-        "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
-        "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
-        "snapshot_evidence_ref": LLM_AUDIT_SNAPSHOT_EVIDENCE_REF,
-        "redaction_evidence_ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
+            "source_table": "audit_log",
+            "supported_export_formats": ["csv"],
+            "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
+            "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
+            "correlation_evidence_ref": "request_id_audit_correlation",
+            "snapshot_evidence_ref": LLM_AUDIT_SNAPSHOT_EVIDENCE_REF,
+            "redaction_evidence_ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
         "export_evidence_ref": LLM_AUDIT_EXPORT_EVIDENCE_REF,
         "export_audit_evidence_ref": LLM_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
         "no_live_provider_evidence_ref": LLM_AUDIT_NO_LIVE_PROVIDER_EVIDENCE_REF,
@@ -6455,6 +6468,8 @@ def llm_audit_feed_contract_payload() -> dict[str, object]:
         ],
         "required_detail_fields": [
             "trace_id",
+            "request_id",
+            "session_id",
             "model_name",
             "provider_name",
             "agent_type",
@@ -6470,6 +6485,7 @@ def llm_audit_feed_contract_payload() -> dict[str, object]:
         "policy_checks": [
             "The feed only reads audit_log rows with event_type=llm_gateway_request.",
             "Every returned event exposes trace_id and live_provider_calls=false for dry-run proofs.",
+            "Request and session identifiers are surfaced when provided so LLM audit rows join cross-gateway correlation safely.",
             "The endpoint never calls an LLM provider and never changes routing policy.",
             "Provider credentials and prompts are not returned by this feed.",
             "The snapshot endpoint aggregates redacted audit fields and never returns prompt bodies.",
@@ -6650,6 +6666,11 @@ def recent_llm_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dic
             "user_id": row[2],
             "session_id": str(row[3]) if row[3] else None,
             "trace_id": public_trace_id((row[4] or {}).get("trace_id")),
+            "request_id": public_request_id((row[4] or {}).get("request_id")),
+            "correlation_evidence_ref": (row[4] or {}).get(
+                "correlation_evidence_ref",
+                "request_id_audit_correlation",
+            ),
             "model_name": (row[4] or {}).get("model_name"),
             "provider_name": (row[4] or {}).get("provider_name"),
             "agent_type": (row[4] or {}).get("agent_type") or row[2],
@@ -6727,6 +6748,8 @@ def llm_audit_snapshot(limit: int = Query(default=50, ge=1, le=200)) -> dict[str
         "model_counts": model_counts,
         "safe_fields": [
             "trace_id",
+            "request_id",
+            "session_id",
             "model_name",
             "provider_name",
             "agent_type",
@@ -11888,12 +11911,14 @@ def create_llm_gateway_audit_event(request: LlmGatewayAuditRequest) -> dict[str,
     severity = "info" if request.status == "dry_run" else "warning"
     if request.live_provider_calls:
         severity = "critical"
+    session_id = request.session_id
     details = redact_json(request.model_dump())
     details.update(
         {
             "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
             "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
             "redaction_evidence_ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
+            "correlation_evidence_ref": "request_id_audit_correlation",
             "contract_version": LLM_AUDIT_FEED_CONTRACT_VERSION,
             "read_only_feed": True,
             "prompt_body_stored": False,
@@ -11902,11 +11927,11 @@ def create_llm_gateway_audit_event(request: LlmGatewayAuditRequest) -> dict[str,
     with psycopg.connect(database_url(), autocommit=True) as conn:
         row = conn.execute(
             """
-            INSERT INTO audit_log(event_type, user_id, details, severity)
-            VALUES ('llm_gateway_request', %s, %s::jsonb, %s)
+            INSERT INTO audit_log(event_type, user_id, session_id, details, severity)
+            VALUES ('llm_gateway_request', %s, %s, %s::jsonb, %s)
             RETURNING id, created_at
             """,
-            (request.agent_type, Json(details), severity),
+            (request.agent_type, session_id, Json(details), severity),
         ).fetchone()
     if not row:
         raise HTTPException(status_code=503, detail="llm gateway audit insert failed")

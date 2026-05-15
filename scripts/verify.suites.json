@@ -242,6 +242,9 @@
             "verify-phase5-active-llm-operations-bundle.ps1": {
                 "ReleaseId": null
             },
+            "verify-phase5-active-llm-success-correlation-bundle.ps1": {
+                "ReleaseId": null
+            },
             "verify-phase5-active-mcp-operations-bundle.ps1": {
                 "ReleaseId": null
             },

@@ -118,9 +118,9 @@ try {
     "immutable_image_commit_sha: ``$immutableSha``",
     "base_url: ``$BaseUrl``",
     "production_rollout_claimed: ``false``",
-    "verifier_gate_count: ``15``",
-    "changed_horizontal: ``Phase 5 82->83``",
-    "changed_vertical: ``MCP Gateway 66->67``",
+    "verifier_gate_count: ``16``",
+    "changed_horizontal: ``Phase 5 83->84``",
+    "changed_vertical: ``LLM Gateway 65->66``",
     "This proof does not claim a production rollout.",
     "This proof does not claim release promotion.",
     "This proof does not claim live LLM provider calls.",
@@ -135,19 +135,21 @@ try {
   $progress = Invoke-JsonApi "$BaseUrl/api/v1/project/progress"
   Assert-Equal "progress overall" ([int]$progress.overall_percent) 81
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 83
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 84
   Assert-Contains "phase5 status" $phase5.status "active_verifier_sweep_bundle_verified"
   Assert-Contains "phase5 memory status" $phase5.status "active_memory_operations_bundle_verified"
   Assert-Contains "phase5 agent operations status" $phase5.status "active_agent_operations_bundle_verified"
   Assert-Contains "phase5 LLM operations status" $phase5.status "active_llm_operations_bundle_verified"
+  Assert-Contains "phase5 LLM success correlation status" $phase5.status "active_llm_success_correlation_bundle_verified"
   Assert-Contains "phase5 MCP operations status" $phase5.status "active_mcp_operations_bundle_verified"
   Assert-Contains "phase5 MCP success correlation status" $phase5.status "active_mcp_success_correlation_bundle_verified"
   $agentPool = @($progress.vertical.items | Where-Object { $_.id -eq "layer_3" }) | Select-Object -First 1
   Assert-Equal "progress agent pool" ([int]$agentPool.percent) 75
   Assert-Contains "agent pool status" $agentPool.status "active_agent_operations_runtime_verified"
   $llmGateway = @($progress.vertical.items | Where-Object { $_.id -eq "layer_4" }) | Select-Object -First 1
-  Assert-Equal "progress LLM Gateway" ([int]$llmGateway.percent) 65
+  Assert-Equal "progress LLM Gateway" ([int]$llmGateway.percent) 66
   Assert-Contains "LLM Gateway status" $llmGateway.status "active_llm_operations_runtime_verified"
+  Assert-Contains "LLM Gateway success correlation status" $llmGateway.status "active_llm_success_correlation_runtime_verified"
   $mcpGateway = @($progress.vertical.items | Where-Object { $_.id -eq "layer_5" }) | Select-Object -First 1
   Assert-Equal "progress MCP Gateway" ([int]$mcpGateway.percent) 67
   Assert-Contains "MCP Gateway status" $mcpGateway.status "active_mcp_operations_runtime_verified"
@@ -192,6 +194,9 @@ try {
   $llmOperationsOutput = Invoke-RepoScript "phase5-active-llm-operations-bundle" "scripts\verify-phase5-active-llm-operations-bundle.ps1" @("-BaseUrl", $BaseUrl)
   Assert-Contains "LLM operations output" $llmOperationsOutput "[phase5-active-llm-operations-bundle] verified"
 
+  $llmSuccessCorrelationOutput = Invoke-RepoScript "phase5-active-llm-success-correlation-bundle" "scripts\verify-phase5-active-llm-success-correlation-bundle.ps1" @("-BaseUrl", $BaseUrl)
+  Assert-Contains "LLM success correlation output" $llmSuccessCorrelationOutput "[phase5-active-llm-success-correlation-bundle] verified"
+
   $mcpOperationsOutput = Invoke-RepoScript "phase5-active-mcp-operations-bundle" "scripts\verify-phase5-active-mcp-operations-bundle.ps1" @("-BaseUrl", $BaseUrl)
   Assert-Contains "MCP operations output" $mcpOperationsOutput "[phase5-active-mcp-operations-bundle] verified"
 
@@ -218,9 +223,9 @@ try {
     source_commit_sha = $sourceSha
     immutable_image_commit_sha = $immutableSha
     production_rollout_claimed = $false
-    verifier_gate_count = 15
-    changed_horizontal = "Phase 5 82->83"
-    changed_vertical = "MCP Gateway 66->67"
+    verifier_gate_count = 16
+    changed_horizontal = "Phase 5 83->84"
+    changed_vertical = "LLM Gateway 65->66"
     gates = @(
       "current-release-candidate",
       "active-release-candidate-bundle",
@@ -231,6 +236,7 @@ try {
       "phase5-active-memory-operations-bundle",
       "phase5-active-agent-operations-bundle",
       "phase5-active-llm-operations-bundle",
+      "phase5-active-llm-success-correlation-bundle",
       "phase5-active-mcp-operations-bundle",
       "phase5-active-mcp-success-correlation-bundle",
       "phase4-llm-model-catalog",

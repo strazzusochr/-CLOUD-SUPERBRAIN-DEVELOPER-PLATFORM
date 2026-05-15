@@ -976,12 +976,17 @@ def audit_event(
     base_url = os.getenv("AGENT_API_INTERNAL_URL", "").rstrip("/")
     if not base_url:
         return False
-    trace_id = str(request.metadata.get("trace_id") or f"llm-dry-run-{uuid4()}")
+    metadata = request.metadata or {}
+    trace_id = str(metadata.get("trace_id") or f"llm-dry-run-{uuid4()}")
+    request_id = metadata.get("request_id")
+    session_id = metadata.get("session_id")
     payload = {
         "trace_id": trace_id,
+        "request_id": str(request_id) if request_id else None,
+        "session_id": str(session_id) if session_id else None,
         "model_name": request.model,
         "provider_name": provider_name,
-        "agent_type": str(request.metadata.get("agent_type") or "unknown"),
+        "agent_type": str(metadata.get("agent_type") or "unknown"),
         "status": status,
         "input_tokens": usage["prompt_tokens"],
         "output_tokens": usage["completion_tokens"],
@@ -1009,8 +1014,10 @@ def audit_responses_event(request_payload: dict[str, Any], response_payload: dic
     summary = extract_response_output_text(response_payload) or "Responses API call completed without text output."
     payload = {
         "trace_id": str(metadata_map.get("trace_id") or f"llm-responses-{uuid4()}"),
+        "request_id": str(metadata_map.get("request_id")) if metadata_map.get("request_id") else None,
+        "session_id": str(metadata_map.get("session_id")) if metadata_map.get("session_id") else None,
         "model_name": str(response_payload.get("model") or request_payload.get("model") or HF_DEFAULT_CHAT_MODEL),
-        "provider_name": "huggingface_router_responses_adapter",
+        "provider_name": str(response_payload.get("provider_name") or "huggingface_router_responses_adapter"),
         "agent_type": str(metadata_map.get("agent_type") or "unknown"),
         "status": "success" if response_payload.get("status") == "completed" else "error",
         "input_tokens": usage["input_tokens"],
