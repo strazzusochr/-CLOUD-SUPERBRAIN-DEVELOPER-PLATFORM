@@ -1,9 +1,9 @@
-﻿# RC1 Active MCP Success Correlation Bundle - 2026-05-15
+# RC1 Active MCP Success Correlation Bundle - 2026-05-15
 
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
-source_commit_sha: `4ce557f7e195846afa39d89861f296202561f34a`
-immutable_image_commit_sha: `4ce557f7e195846afa39d89861f296202561f34a`
+source_commit_sha: `6292a2f3c0cf0cfe02916f6fd0a6f940629adc52`
+immutable_image_commit_sha: `6292a2f3c0cf0cfe02916f6fd0a6f940629adc52`
 base_url: `https://188-34-191-140.sslip.io`
 production_rollout_claimed: `false`
 mcp_success_gate_count: `7`
@@ -14,9 +14,9 @@ changed_vertical: `MCP Gateway 66->67`
 
 - `docker info --format '{{.ServerVersion}}'`
 - `py -3 scripts\verify_project_progress_manifest.py`
-- `scripts\build-and-push.ps1 -Tag 4ce557f7e195846afa39d89861f296202561f34a -Builder superbrain_builder`
-- `docker buildx imagetools inspect ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:4ce557f7e195846afa39d89861f296202561f34a`
-- `scripts\deploy-to-staging.ps1 -ImageTag 4ce557f7e195846afa39d89861f296202561f34a -UseImageFilesystem -KeyPath <local-private-key>`
+- `scripts\build-and-push.ps1 -Tag 6292a2f3c0cf0cfe02916f6fd0a6f940629adc52 -Builder superbrain_builder`
+- `docker buildx imagetools inspect ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:6292a2f3c0cf0cfe02916f6fd0a6f940629adc52`
+- `scripts\deploy-to-staging.ps1 -ImageTag 6292a2f3c0cf0cfe02916f6fd0a6f940629adc52 -UseImageFilesystem -KeyPath <local-private-key>`
 - `scripts\verify-phase5-active-mcp-success-correlation-bundle.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
 - `scripts\verify-phase5-active-mcp-success-correlation-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 - `scripts\verify-phase5-active-verifier-sweep-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`

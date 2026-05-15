@@ -1,10 +1,10 @@
-﻿# Active Runtime Guard Matrix Bundle
+# Active Runtime Guard Matrix Bundle
 
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
 environment: `production-candidate`
-source_commit_sha: `4ce557f7e195846afa39d89861f296202561f34a`
-immutable_image_commit_sha: `4ce557f7e195846afa39d89861f296202561f34a`
+source_commit_sha: `6292a2f3c0cf0cfe02916f6fd0a6f940629adc52`
+immutable_image_commit_sha: `6292a2f3c0cf0cfe02916f6fd0a6f940629adc52`
 base_url: `https://188-34-191-140.sslip.io`
 local_control_plane_url: `http://localhost:8081`
 production_rollout_claimed: `false`

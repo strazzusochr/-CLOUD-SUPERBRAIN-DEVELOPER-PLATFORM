@@ -1,15 +1,15 @@
-﻿# Active Verifier Sweep Bundle Proof
+# Active Verifier Sweep Bundle Proof
 
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
 environment: `production-candidate`
-source_commit_sha: `4ce557f7e195846afa39d89861f296202561f34a`
-immutable_image_commit_sha: `4ce557f7e195846afa39d89861f296202561f34a`
+source_commit_sha: `6292a2f3c0cf0cfe02916f6fd0a6f940629adc52`
+immutable_image_commit_sha: `6292a2f3c0cf0cfe02916f6fd0a6f940629adc52`
 base_url: `https://188-34-191-140.sslip.io`
 production_rollout_claimed: `false`
-verifier_gate_count: `20`
+verifier_gate_count: `21`
 changed_horizontal: `Phase 2 88->89; Phase 5 84->88`
-changed_vertical: `Agent Pool 75->76; LLM Gateway 65->67; MCP Gateway 67->68; Memory 73->74`
+changed_vertical: `Agent Pool 75->76; LLM Gateway 65->67; MCP Gateway 67->68; Memory 73->74; Frontend / Next.js 99->100; Orchestrator / LangGraph 99->100`
 
 ## Verified Gates
 
@@ -29,6 +29,7 @@ changed_vertical: `Agent Pool 75->76; LLM Gateway 65->67; MCP Gateway 67->68; Me
 - `phase5-active-mcp-operations-bundle`
 - `phase5-active-mcp-success-correlation-bundle`
 - `phase5-active-mcp-guard-correlation-bundle`
+- `phase5-active-frontend-orchestrator-evidence-bundle`
 - `phase4-llm-model-catalog`
 - `phase4-mcp-capability-catalog`
 - `security`

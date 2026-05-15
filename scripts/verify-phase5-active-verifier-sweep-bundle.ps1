@@ -118,9 +118,9 @@ try {
     "immutable_image_commit_sha: ``$immutableSha``",
     "base_url: ``$BaseUrl``",
     "production_rollout_claimed: ``false``",
-    "verifier_gate_count: ``20``",
+    "verifier_gate_count: ``21``",
     "changed_horizontal: ``Phase 2 88->89; Phase 5 84->88``",
-    "changed_vertical: ``Agent Pool 75->76; LLM Gateway 65->67; MCP Gateway 67->68; Memory 73->74``",
+    "changed_vertical: ``Agent Pool 75->76; LLM Gateway 65->67; MCP Gateway 67->68; Memory 73->74; Frontend / Next.js 99->100; Orchestrator / LangGraph 99->100``",
     "This proof does not claim a production rollout.",
     "This proof does not claim release promotion.",
     "This proof does not claim live LLM provider calls.",
@@ -150,6 +150,12 @@ try {
   Assert-Contains "phase5 MCP operations status" $phase5.status "active_mcp_operations_bundle_verified"
   Assert-Contains "phase5 MCP success correlation status" $phase5.status "active_mcp_success_correlation_bundle_verified"
   Assert-Contains "phase5 MCP guard correlation status" $phase5.status "active_mcp_guard_correlation_bundle_verified"
+  $frontend = @($progress.vertical.items | Where-Object { $_.id -eq "layer_1" }) | Select-Object -First 1
+  Assert-Equal "progress frontend" ([int]$frontend.percent) 100
+  Assert-Contains "frontend status" $frontend.status "active_frontend_orchestrator_evidence_bundle_verified"
+  $orchestrator = @($progress.vertical.items | Where-Object { $_.id -eq "layer_2" }) | Select-Object -First 1
+  Assert-Equal "progress orchestrator" ([int]$orchestrator.percent) 100
+  Assert-Contains "orchestrator status" $orchestrator.status "active_frontend_orchestrator_evidence_bundle_verified"
   $agentPool = @($progress.vertical.items | Where-Object { $_.id -eq "layer_3" }) | Select-Object -First 1
   Assert-Equal "progress agent pool" ([int]$agentPool.percent) 76
   Assert-Contains "agent pool status" $agentPool.status "active_agent_operations_runtime_verified"
@@ -226,6 +232,9 @@ try {
   $mcpGuardCorrelationOutput = Invoke-RepoScript "phase5-active-mcp-guard-correlation-bundle" "scripts\verify-phase5-active-mcp-guard-correlation-bundle.ps1" @("-BaseUrl", $BaseUrl)
   Assert-Contains "MCP guard correlation output" $mcpGuardCorrelationOutput "[phase5-active-mcp-guard-correlation-bundle] verified"
 
+  $frontendOrchestratorOutput = Invoke-RepoScript "phase5-active-frontend-orchestrator-evidence-bundle" "scripts\verify-phase5-active-frontend-orchestrator-evidence-bundle.ps1" @("-BaseUrl", $BaseUrl)
+  Assert-Contains "frontend orchestrator output" $frontendOrchestratorOutput "[phase5-active-frontend-orchestrator-evidence-bundle] verified"
+
   $llmCatalogOutput = Invoke-RepoScript "phase4-llm-model-catalog" "scripts\verify-phase4-llm-model-catalog.ps1" @("-BaseUrl", $BaseUrl)
   Assert-Contains "llm catalog output" $llmCatalogOutput "status=verified"
 
@@ -246,9 +255,9 @@ try {
     source_commit_sha = $sourceSha
     immutable_image_commit_sha = $immutableSha
     production_rollout_claimed = $false
-    verifier_gate_count = 20
+    verifier_gate_count = 21
     changed_horizontal = "Phase 2 88->89; Phase 5 84->88"
-    changed_vertical = "Agent Pool 75->76; LLM Gateway 65->67; MCP Gateway 67->68; Memory 73->74"
+    changed_vertical = "Agent Pool 75->76; LLM Gateway 65->67; MCP Gateway 67->68; Memory 73->74; Frontend / Next.js 99->100; Orchestrator / LangGraph 99->100"
     gates = @(
       "current-release-candidate",
       "active-release-candidate-bundle",
@@ -266,6 +275,7 @@ try {
       "phase5-active-mcp-operations-bundle",
       "phase5-active-mcp-success-correlation-bundle",
       "phase5-active-mcp-guard-correlation-bundle",
+      "phase5-active-frontend-orchestrator-evidence-bundle",
       "phase4-llm-model-catalog",
       "phase4-mcp-capability-catalog",
       "security",

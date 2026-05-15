@@ -263,6 +263,9 @@
             "verify-phase5-active-mcp-guard-correlation-bundle.ps1": {
                 "ReleaseId": null
             },
+            "verify-phase5-active-frontend-orchestrator-evidence-bundle.ps1": {
+                "ReleaseId": null
+            },
             "verify-phase5-vercel-github-deployment-status.ps1": {
                 "ReleaseId": null
             },
