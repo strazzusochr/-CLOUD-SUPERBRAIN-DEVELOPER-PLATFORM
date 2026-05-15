@@ -139,11 +139,11 @@ try {
   Assert-NotSecretBearing "active runtime guard matrix proof artifact" $proof
 
   $progress = Invoke-JsonApi "$BaseUrl/api/v1/project/progress"
-  Assert-Equal "progress overall" ([int]$progress.overall_percent) 81
+  Assert-Equal "progress overall" ([int]$progress.overall_percent) 82
   $phase3 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_3" }) | Select-Object -First 1
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
   Assert-Equal "progress phase3" ([int]$phase3.percent) 95
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 86
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 87
 
   $agentPool = @($progress.vertical.items | Where-Object { $_.id -eq "layer_3" }) | Select-Object -First 1
   $llmLayer = @($progress.vertical.items | Where-Object { $_.id -eq "layer_4" }) | Select-Object -First 1

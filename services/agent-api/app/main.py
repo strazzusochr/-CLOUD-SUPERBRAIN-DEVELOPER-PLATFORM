@@ -1051,6 +1051,11 @@ class LlmGatewayAuditRequest(BaseModel):
     summary: str = Field(..., min_length=1, max_length=500)
     prompt_body_stored: bool = False
     redaction_evidence_ref: str | None = Field(default=None, max_length=120)
+    guard_evidence_ref: str | None = Field(default=None, max_length=120)
+    blocked_reason: str | None = Field(default=None, max_length=120)
+    http_status: int | None = Field(default=None, ge=100, le=599)
+    llm_guard_correlation_evidence_ref: str | None = Field(default=None, max_length=120)
+    model_downloads: bool = False
 
     @field_validator("session_id")
     @classmethod

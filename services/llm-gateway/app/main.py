@@ -41,6 +41,7 @@ MAX_RETRY_CYCLES_PER_RUN = 5
 DIRECT_PROVIDER_METADATA_KEYS = {"direct_provider_url", "direct_provider_key_ref", "provider_api_key_ref"}
 LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF = "llm_output_token_budget_guard"
 LLM_UNKNOWN_MODEL_EVIDENCE_REF = "llm_routing_policy_unknown_model_blocked"
+LLM_GUARD_CORRELATION_EVIDENCE_REF = "llm_guard_correlation_audit_visible"
 
 LEGACY_MODEL_ALIASES = {
     "deepseek-chat": "deepseek-ai/DeepSeek-V4-Flash:fastest",
@@ -1035,6 +1036,43 @@ def audit_responses_event(request_payload: dict[str, Any], response_payload: dic
         return False
 
 
+def audit_guard_block_event(request_payload: dict[str, Any], exc: HTTPException, *, model: str | None = None) -> bool:
+    base_url = os.getenv("AGENT_API_INTERNAL_URL", "").rstrip("/")
+    if not base_url:
+        return False
+
+    metadata = request_payload.get("metadata")
+    metadata_map = metadata if isinstance(metadata, dict) else {}
+    detail = exc.detail if isinstance(exc.detail, dict) else {"code": str(exc.detail)}
+    guard_ref = str(detail.get("evidence_ref") or detail.get("code") or "llm_runtime_guard_blocked")
+    payload = {
+        "trace_id": str(metadata_map.get("trace_id") or f"llm-guard-block-{uuid4()}"),
+        "request_id": str(metadata_map.get("request_id")) if metadata_map.get("request_id") else None,
+        "session_id": str(metadata_map.get("session_id")) if metadata_map.get("session_id") else None,
+        "model_name": str(model or request_payload.get("model") or HF_DEFAULT_CHAT_MODEL),
+        "provider_name": "deterministic-guard",
+        "agent_type": str(metadata_map.get("agent_type") or "unknown"),
+        "status": "blocked",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cost_cents": 0,
+        "live_provider_calls": False,
+        "summary": f"LLM runtime guard blocked request: {guard_ref}",
+        "guard_evidence_ref": guard_ref,
+        "blocked_reason": str(detail.get("code") or guard_ref),
+        "http_status": int(exc.status_code),
+        "llm_guard_correlation_evidence_ref": LLM_GUARD_CORRELATION_EVIDENCE_REF,
+        "model_downloads": False,
+    }
+    try:
+        with httpx.Client(timeout=3) as client:
+            response = client.post(f"{base_url}/internal/audit/llm-events", json=payload)
+            response.raise_for_status()
+        return True
+    except Exception:
+        return False
+
+
 def normalize_responses_request(payload: dict[str, Any]) -> dict[str, Any]:
     normalized = dict(payload)
     if normalized.get("stream") is True:
@@ -1241,12 +1279,16 @@ def routing_resolve(request: RoutingResolveRequest) -> dict[str, object]:
 @app.post("/v1/chat/completions")
 def chat_completions(request: ChatCompletionRequest):
     created = int(time.time())
-    enforce_no_direct_provider_bypass(model=request.model, metadata=request.metadata)
-    enforce_model_and_output_budget(
-        model=request.model,
-        requested_max_output_tokens=request.max_tokens,
-        metadata=request.metadata,
-    )
+    try:
+        enforce_no_direct_provider_bypass(model=request.model, metadata=request.metadata)
+        enforce_model_and_output_budget(
+            model=request.model,
+            requested_max_output_tokens=request.max_tokens,
+            metadata=request.metadata,
+        )
+    except HTTPException as exc:
+        audit_guard_block_event({"model": request.model, "metadata": request.metadata}, exc, model=request.model)
+        raise
     live_allowed = request_allows_live_provider(request.metadata)
     live_call = live_allowed and hf_router_available()
     completion_id = f"chatcmpl-{'hf' if live_call else 'dryrun'}-{uuid4()}"
@@ -1331,23 +1373,31 @@ def chat_completions(request: ChatCompletionRequest):
 @app.post("/v1/responses")
 def create_response(payload: dict[str, Any]) -> dict[str, Any]:
     normalized = normalize_responses_request(payload)
-    enforce_no_direct_provider_bypass(
-        model=str(normalized.get("model") or ""),
-        metadata=normalized.get("metadata") if isinstance(normalized.get("metadata"), dict) else {},
-    )
-    chat_request = ChatCompletionRequest(
-        model=str(normalized.get("model") or HF_DEFAULT_CHAT_MODEL),
-        messages=responses_input_to_messages(normalized),
-        stream=False,
-        temperature=normalized.get("temperature") if isinstance(normalized.get("temperature"), (int, float)) else None,
-        max_tokens=normalized.get("max_output_tokens") if isinstance(normalized.get("max_output_tokens"), int) else None,
-        metadata=normalized.get("metadata") if isinstance(normalized.get("metadata"), dict) else {},
-    )
-    enforce_model_and_output_budget(
-        model=chat_request.model,
-        requested_max_output_tokens=chat_request.max_tokens,
-        metadata=chat_request.metadata,
-    )
+    try:
+        enforce_no_direct_provider_bypass(
+            model=str(normalized.get("model") or ""),
+            metadata=normalized.get("metadata") if isinstance(normalized.get("metadata"), dict) else {},
+        )
+        chat_request = ChatCompletionRequest(
+            model=str(normalized.get("model") or HF_DEFAULT_CHAT_MODEL),
+            messages=responses_input_to_messages(normalized),
+            stream=False,
+            temperature=normalized.get("temperature") if isinstance(normalized.get("temperature"), (int, float)) else None,
+            max_tokens=normalized.get("max_output_tokens") if isinstance(normalized.get("max_output_tokens"), int) else None,
+            metadata=normalized.get("metadata") if isinstance(normalized.get("metadata"), dict) else {},
+        )
+        enforce_model_and_output_budget(
+            model=chat_request.model,
+            requested_max_output_tokens=chat_request.max_tokens,
+            metadata=chat_request.metadata,
+        )
+    except HTTPException as exc:
+        audit_guard_block_event(
+            normalized,
+            exc,
+            model=str(normalized.get("model") or HF_DEFAULT_CHAT_MODEL),
+        )
+        raise
     live_allowed = request_allows_live_provider(chat_request.metadata)
     if live_allowed and not hf_router_available():
         raise HTTPException(status_code=503, detail="HF_TOKEN is required for live Hugging Face router calls")

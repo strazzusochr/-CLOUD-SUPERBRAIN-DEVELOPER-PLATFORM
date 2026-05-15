@@ -48,6 +48,7 @@ Assert-Contains "phase5 plan active agent operations proof" $plan "verify-phase5
 Assert-Contains "phase5 plan active agent success correlation proof" $plan "verify-phase5-active-agent-success-correlation-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active LLM operations proof" $plan "verify-phase5-active-llm-operations-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active LLM success correlation proof" $plan "verify-phase5-active-llm-success-correlation-bundle.ps1 (default parameters)"
+Assert-Contains "phase5 plan active LLM guard correlation proof" $plan "verify-phase5-active-llm-guard-correlation-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active MCP operations proof" $plan "verify-phase5-active-mcp-operations-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active MCP success correlation proof" $plan "verify-phase5-active-mcp-success-correlation-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active verifier sweep proof" $plan "verify-phase5-active-verifier-sweep-bundle.ps1 (default parameters)"
