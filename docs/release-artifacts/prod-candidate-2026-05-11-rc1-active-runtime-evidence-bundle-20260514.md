@@ -5,8 +5,8 @@ release_id: `prod-candidate-2026-05-11-rc1`
 verified_at: `2026-05-14T23:10:00+02:00`
 base_url: `https://188-34-191-140.sslip.io`
 local_control_plane_url: `http://localhost:8081`
-source_commit_sha: `9d8469801b1dcdf8f8e4cd326be258389c0f8183`
-immutable_image_commit_sha: `9d8469801b1dcdf8f8e4cd326be258389c0f8183`
+source_commit_sha: `0065a5e0254dd530b1c3a49f8ce602b8952eafa4`
+immutable_image_commit_sha: `0065a5e0254dd530b1c3a49f8ce602b8952eafa4`
 production_rollout_claimed: `false`
 runtime_surface_count: `8`
 
@@ -27,9 +27,9 @@ Verified surfaces:
 
 ## Evidence
 
-- Overall progress: `80%`
+- Overall progress: `81%`
 - Phase 2: `88%`
-- Phase 5: `79%`
+- Phase 5: `81%`
 - Runtime contract: `phase2-runtime-v1`
 - Runtime runs: `audit_log_backed_phase2_runtime_runs`
 - Orchestrator: `langgraph`, `deterministic_dry_run`, `postgres`

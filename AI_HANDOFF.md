@@ -6,7 +6,7 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-Current honesty guardrail: the active staging candidate is `9d8469801b1dcdf8f8e4cd326be258389c0f8183`, verified through GHCR multi-service images, Hetzner `-UseImageFilesystem` parity, the Active Agent Operations Bundle, the Active Memory Operations Bundle, the Active Gateway Execution Bundle, the Active Runtime Selector Truth Rebaseline, the Active Full-Suite Rebaseline, the Active Verifier Sweep Bundle Rebaseline, the Active Runtime Guard Matrix Bundle, the Active Gateway Policy Bundle, the Active Runtime Evidence Bundle, the Active Security Evidence Bundle, the Vercel GitHub Deployment Status proof, the Autonomous Roster Master Plan proof, and the Phase 2 Runtime Dual Surface proof. This is a staging-candidate claim only; production rollout remains unclaimed.
+Current honesty guardrail: the active staging candidate is `0065a5e0254dd530b1c3a49f8ce602b8952eafa4`, verified through GHCR multi-service images, Hetzner `-UseImageFilesystem` parity, the Active LLM Operations Bundle, the Active Agent Operations Bundle, the Active Memory Operations Bundle, the Active Gateway Execution Bundle, the Active Runtime Selector Truth Rebaseline, the Active Full-Suite Rebaseline, the Active Verifier Sweep Bundle Rebaseline, the Active Runtime Guard Matrix Bundle, the Active Gateway Policy Bundle, the Active Runtime Evidence Bundle, the Active Security Evidence Bundle, the Vercel GitHub Deployment Status proof, the Autonomous Roster Master Plan proof, and the Phase 2 Runtime Dual Surface proof. This is a staging-candidate claim only; production rollout remains unclaimed.
 
 ## Binding Truth
 
@@ -33,7 +33,7 @@ Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as the hi
 
 ## Current Verified Progress
 
-Overall: `80%`
+Overall: `81%`
 
 Horizontal:
 
@@ -42,7 +42,7 @@ Horizontal:
 - P2: `88%`
 - P3: `95%`
 - P4: `100%`
-- P5: `80%`
+- P5: `81%`
 - P6: `0%`
 
 Vertical:
@@ -50,7 +50,7 @@ Vertical:
 - Frontend / Next.js: `99%`
 - Orchestrator / LangGraph: `99%`
 - Agent Pool: `75%`
-- LLM Gateway: `64%`
+- LLM Gateway: `65%`
 - MCP Gateway: `65%`
 - Memory: `73%`
 - Observability: `99%`
@@ -59,22 +59,28 @@ Older percentage lines below are historical proof points only. Current percentag
 
 ## Latest Verified Step
 
+Active LLM Operations Bundle Proof:
+
+- `scripts\verify-phase5-active-llm-operations-bundle.ps1` binds active RC1 to LLM health, model catalog, runtime guard parity, streaming contract, Agent-to-LLM streaming contract, LLM audit contract/feed/export, live-provider guard, and evidence-artifact safety.
+- Immutable staging selector is now `0065a5e0254dd530b1c3a49f8ce602b8952eafa4`; all six service images were published for `linux/arm64` and Hetzner staging was redeployed with `-UseImageFilesystem`.
+- Progress changes: Overall rises to `81%`; Phase 5 rises to `81%`; LLM Gateway rises to `65%`; no production rollout, release promotion, live provider call, live MCP write, local model download, or secret exposure is claimed.
+
 Active Agent Operations Bundle Proof:
 
 - `scripts\verify-phase5-active-agent-operations-bundle.ps1` binds active RC1 to agent status, recent-task contract/runtime visibility, autonomous coding-team dispatch, autonomous roster/master-plan, Phase 2 runtime dual surface, live-agent steering/history, and evidence-artifact safety.
-- Immutable staging selector is now `9d8469801b1dcdf8f8e4cd326be258389c0f8183`; all six service images were published for `linux/arm64` and Hetzner staging was redeployed with `-UseImageFilesystem`.
+- Immutable staging selector is now `0065a5e0254dd530b1c3a49f8ce602b8952eafa4`; all six service images were published for `linux/arm64` and Hetzner staging was redeployed with `-UseImageFilesystem`.
 - Progress changes: Phase 5 rises to `80%`; Agent Pool rises to `75%`; Overall remains `80%`; no production rollout, release promotion, live provider call, live MCP write, local model download, or secret exposure is claimed.
 
 Active Memory Operations Bundle Proof:
 
 - `scripts\verify-phase5-active-memory-operations-bundle.ps1` binds active RC1 to memory search, purge job status, memory contract surfaces, hosted session-memory parity, hosted embedding-consistency parity, hosted smoke, and evidence-artifact safety.
-- Immutable staging selector is now `9d8469801b1dcdf8f8e4cd326be258389c0f8183`; all six service images were published for `linux/arm64` and Hetzner staging was redeployed with `-UseImageFilesystem`.
+- Immutable staging selector is now `0065a5e0254dd530b1c3a49f8ce602b8952eafa4`; all six service images were published for `linux/arm64` and Hetzner staging was redeployed with `-UseImageFilesystem`.
 - Progress changes: Phase 5 rises to `79%`; Memory rises to `73%`; Overall remains `80%`; no production rollout, release promotion, live provider call, live MCP write, live embedding provider call, local model download, or secret exposure is claimed.
 
 Active Gateway Execution Bundle Proof:
 
 - `scripts\verify-phase5-active-gateway-execution-bundle.ps1` binds active RC1 to non-mutating execution gates across Phase 2 runtime, Agent-LLM streaming, MCP DevOps safe-envelope, Gateway Correlation Snapshot/Risk/Timeline, hosted smoke, and evidence-artifact safety.
-- Immutable staging selector is now `9d8469801b1dcdf8f8e4cd326be258389c0f8183`; all six service images were published for `linux/arm64` and Hetzner staging was redeployed with `-UseImageFilesystem`.
+- Immutable staging selector is now `0065a5e0254dd530b1c3a49f8ce602b8952eafa4`; all six service images were published for `linux/arm64` and Hetzner staging was redeployed with `-UseImageFilesystem`.
 - Progress changes: Phase 5 rises to `78%`; Overall remains `80%`; no production rollout, release promotion, live provider call, live MCP write, local model download, or secret exposure is claimed.
 
 Active Verifier Sweep Bundle Rebaseline Proof:
@@ -92,7 +98,7 @@ Previous verified step - Active Runtime Guard Matrix Bundle Proof:
 Previous verified step - Active Full-Suite Rebaseline Proof:
 
 - `scripts\verify-phase5-full-verifier-sweep.ps1` binds active RC1 to the current Phase-5 active-candidate suite plan plus 10 non-mutating active gates: manifest, suite-plan, current release-candidate, active release-candidate bundle, hosted staging smoke, Active Runtime Evidence Bundle, Active Security Evidence Bundle, Active Verifier Sweep Bundle, Vercel/GitHub Deployment Status, and evidence-artifact-safety.
-- The verifier checks `active_gate_count=10`, `phase5_suite_plan_status=passed`, `production_rollout_claimed=false`, hosted progress `80%`, Phase 5 now `79%`, and immutable selector `9d8469801b1dcdf8f8e4cd326be258389c0f8183`.
+- The verifier checks `active_gate_count=10`, `phase5_suite_plan_status=passed`, `production_rollout_claimed=false`, hosted progress `80%`, Phase 5 now `79%`, and immutable selector `0065a5e0254dd530b1c3a49f8ce602b8952eafa4`.
 - Progress changes: this step raised Phase 5 to `76%`; current manifest after selector, gateway-execution, and memory-operations rebaseline is `79%`; Overall remains `80%`; no production rollout, release promotion, live provider call, live MCP write, local model download, or secret exposure is claimed.
 
 Previous verified step - Active Verifier Sweep Bundle Proof:
@@ -151,7 +157,7 @@ Previous verified step - Security Review Queue Export Proof:
 - `GET /api/v1/security/review-queue/export?format=csv&limit=80` reads only the same safe Security Review Queue projection as queue, snapshot, and gate and emits allowlisted CSV columns only.
 - Export and export audit metadata do not return raw details, prompt bodies, cookies, authorization headers, provider credentials, screenshots, raw files, live provider call claims, live MCP write claims, production rollout claims, or promotion claims.
 - Local proof passed: `scripts\verify-phase3-security-review-export.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, Security Review Queue verifier, browser-contract, py_compile, Next.js build, and Docker readiness.
-- Hosted proof passed after GHCR build/push plus Hetzner immutable deploy for `IMAGE_TAG=9d8469801b1dcdf8f8e4cd326be258389c0f8183`: Active Memory Operations Bundle, Active Gateway Execution Bundle, Security Review Queue Export, browser-contract, and hosted-staging.
+- Hosted proof passed after GHCR build/push plus Hetzner immutable deploy for `IMAGE_TAG=0065a5e0254dd530b1c3a49f8ce602b8952eafa4`: Active Memory Operations Bundle, Active Gateway Execution Bundle, Security Review Queue Export, browser-contract, and hosted-staging.
 - Progress change: Overall remains `79%`; Phase 3 rises to `94%`; no production rollout, live provider call, live MCP write, release promotion, or secret exposure is claimed.
 
 Previous verified step - Gateway Correlation Export Proof:

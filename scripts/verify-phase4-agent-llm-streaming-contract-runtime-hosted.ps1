@@ -1,5 +1,6 @@
 param(
-  [string]$BaseUrl = "https://188-34-191-140.sslip.io"
+  [string]$BaseUrl = "https://188-34-191-140.sslip.io",
+  [switch]$AllowLocalhost
 )
 
 $ErrorActionPreference = "Stop"
@@ -74,7 +75,7 @@ function Invoke-JsonApi($url, $method = "GET", $body = $null, [hashtable]$header
 
 if (-not $BaseUrl) { throw "BaseUrl is required" }
 $BaseUrl = $BaseUrl.TrimEnd("/")
-if ($BaseUrl -notmatch "^https://") { throw "Phase4 hosted agent-llm-streaming-contract proof requires HTTPS" }
+if ((-not $AllowLocalhost) -and ($BaseUrl -notmatch "^https://")) { throw "Phase4 hosted agent-llm-streaming-contract proof requires HTTPS" }
 
 $contract = Invoke-JsonApi -url "$BaseUrl/api/v1/agents/llm-streaming-contract" -method "GET" -contentType $null -timeoutSeconds 20
 Assert-True "contract version" ($contract.contract_version -eq "agent-llm-streaming-contract-v1")

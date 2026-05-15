@@ -182,9 +182,9 @@ try {
   Assert-NotSecretBearing "active agent operations proof artifact" $proof
 
   $progress = Invoke-JsonApi "$BaseUrl/api/v1/project/progress"
-  Assert-Equal "progress overall" ([int]$progress.overall_percent) 80
+  Assert-Equal "progress overall" ([int]$progress.overall_percent) 81
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 80
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 81
   Assert-Contains "phase5 status" $phase5.status "active_agent_operations_bundle_verified"
   $agentPool = @($progress.vertical.items | Where-Object { $_.id -eq "layer_3" }) | Select-Object -First 1
   Assert-Equal "agent pool percent" ([int]$agentPool.percent) 75

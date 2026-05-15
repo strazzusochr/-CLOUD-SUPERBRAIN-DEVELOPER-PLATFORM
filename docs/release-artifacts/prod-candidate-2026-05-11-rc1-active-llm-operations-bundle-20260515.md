@@ -1,4 +1,4 @@
-# Active Agent Operations Bundle Proof
+# Active LLM Operations Bundle Proof
 
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
@@ -8,19 +8,19 @@ immutable_image_commit_sha: `0065a5e0254dd530b1c3a49f8ce602b8952eafa4`
 base_url: `https://188-34-191-140.sslip.io`
 local_control_plane_url: `http://localhost:8081`
 production_rollout_claimed: `false`
-agent_gate_count: `8`
-changed_horizontal: `Phase 5 79->80`
-changed_vertical: `Agent Pool 74->75`
+llm_gate_count: `8`
+changed_horizontal: `Phase 5 80->81`
+changed_vertical: `LLM Gateway 64->65`
 
-## Bound Agent Gates
+## Bound LLM Gates
 
-- `agent-status-runtime-probe`
-- `recent-tasks-contract`
-- `autonomous-coding-team`
-- `autonomous-roster-master-plan-bundle`
-- `phase2-runtime-dual-surface`
-- `phase3-live-agent-steering`
-- `phase3-live-agent-history`
+- `llm-runtime-probe`
+- `llm-audit-contract`
+- `phase4-llm-model-catalog`
+- `phase4-llm-live-provider-guard`
+- `phase3-llm-audit-feed`
+- `phase3-llm-audit-export`
+- `phase4-agent-llm-streaming-contract-runtime-hosted`
 - `evidence-artifact-safety`
 
 ## Verification Commands
@@ -28,8 +28,8 @@ changed_vertical: `Agent Pool 74->75`
 - Docker readiness: `docker info --format '{{.ServerVersion}}'`
 - Build/push: `scripts\build-and-push.ps1 -Tag 0065a5e0254dd530b1c3a49f8ce602b8952eafa4 -Builder superbrain_builder`
 - Immutable staging deploy: `scripts\deploy-to-staging.ps1 -ImageTag 0065a5e0254dd530b1c3a49f8ce602b8952eafa4 -UseImageFilesystem -KeyPath <local-private-key>`
-- Local proof: `scripts\verify-phase5-active-agent-operations-bundle.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
-- Hosted proof: `scripts\verify-phase5-active-agent-operations-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`
+- Local proof: `scripts\verify-phase5-active-llm-operations-bundle.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`
+- Hosted proof: `scripts\verify-phase5-active-llm-operations-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`
 
 ## Non-Claims
 
