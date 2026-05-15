@@ -15,7 +15,7 @@ This is a bonus track after the release gate, not part of the current Phase 5 co
 
 | Source | Current finding | Import path |
 |---|---:|---|
-| OpenRouter API and model pages | API probe returned `441` models for `GET /api/v1/models?output_modalities=all`; docs describe OpenAI-like chat schema, model metadata, output modality filters, supported-parameter filters, routing, plugins, and OpenAPI specs. | API-first metadata import; no scraping needed for canonical model list. |
+| OpenRouter API and model pages | API probe returned `441` models for `GET /api/v1/models?output_modalities=all`; direct `GET /api/v1/models` returned `364` model rows and is now imported into the generated atlas shard. Docs describe OpenAI-like chat schema, model metadata, output modality filters, supported-parameter filters, routing, plugins, and OpenAPI specs. | API-first metadata import; no scraping needed for canonical model list. |
 | OpenRouter coding apps | Coding category exposes ranked coding agents such as Cline, OpenHands, Qwen Code, GDevelop, Aider, Goose, and others. | Agent registry import by app rank, token volume, homepage, license/status where available. |
 | Hugging Face models | Public page reports `2,877,435` models; API probe to `/api/models?limit=50` returns cursor-paginated model metadata. | Cursor crawler using Hub API or `huggingface_hub.HfApi.list_models()`. |
 | Hugging Face collections | API probe to `/api/collections?limit=50` returns cursor-paginated collections with 50 rows per page and first-page slugs such as Gemma, Jina embeddings, Qwen, DeepSeek. User target mentions about `20,461` pages; verify by resumable crawl before claiming final count. | Collection crawler stores collection metadata plus visible item refs; expand individual collection pages only after rate-limit budget is known. |
@@ -91,7 +91,7 @@ Score every entry from `0-100`:
 
 ### M2 - API-Only Harvesters
 
-- OpenRouter: import `/api/v1/models?output_modalities=all`; optional `/models/count`.
+- OpenRouter: import `/api/v1/models`, `/api/v1/models?output_modalities=all`; optional `/models/count`.
 - Hugging Face models: cursor crawl `/api/models?limit=50`, then filters for text-generation, image-text-to-text, embeddings, code, GGUF, MLX, ONNX.
 - Hugging Face collections: cursor crawl `/api/collections?limit=50`; store collection slugs and item refs.
 - SiliconFlow: import `/v1/models` by `type` and `sub_type` when token is configured.
@@ -146,6 +146,7 @@ Score every entry from `0-100`:
 ## First API Calls To Implement
 
 ```text
+GET https://openrouter.ai/api/v1/models
 GET https://openrouter.ai/api/v1/models?output_modalities=all
 GET https://openrouter.ai/api/v1/models/count?output_modalities=all
 GET https://huggingface.co/api/models?limit=50
@@ -182,8 +183,10 @@ GITHUB_TOKEN
 The post-release atlas now has a saved source-of-truth seed and generated shard plan:
 
 - Source module: `services/agent-api/app/link_atlas.py`
+- OpenRouter generated module: `services/agent-api/app/openrouter_model_links.py`
 - Index: `docs/analysis/model-agent-fusion-link-atlas/README.md`
 - Generator: `scripts/generate_model_agent_fusion_link_atlas.py`
+- OpenRouter importer: `scripts/import_openrouter_models_to_link_atlas.py`
 - Verifier: `scripts/verify-model-agent-fusion-link-atlas.ps1`
 - Contract: `model-agent-fusion-link-atlas-v1`
 - Evidence: `model_agent_fusion_link_atlas_visible`
@@ -208,6 +211,7 @@ GET /api/v1/catalog/link-atlas/export.csv
 Generated first shards:
 
 - `openrouter-models-0001.md`
+- `openrouter-api-models-0001.md`
 - `openrouter-apps-0001.md`
 - `huggingface-models-0001.md`
 - `huggingface-collections-0001.md`
@@ -216,11 +220,12 @@ Generated first shards:
 - `hermes-agent-links-0001.md`
 - `fusion-recipes-0001.md`
 
-The seed lists every prompt-required source/API URL now. The post-release crawler appends every collected model, agent, collection, and fusion URL into additional numbered shards and the API exports, without model downloads, secrets, or rollout claims.
+The seed lists every prompt-required source/API URL now. Current generated atlas state is `409` metadata rows across `9` shards, including `364` OpenRouter `/api/v1/models` rows. The post-release crawler appends every collected model, agent, collection, and fusion URL into additional numbered shards and the API exports, without model downloads, secrets, or rollout claims.
 
 ## Source Links
 
 - OpenRouter API overview: https://openrouter.ai/docs/api/reference/overview
+- OpenRouter direct models API: https://openrouter.ai/api/v1/models
 - OpenRouter models API: https://openrouter.ai/docs/api/api-reference/models/get-models
 - OpenRouter models guide: https://openrouter.ai/docs/guides/overview/models
 - OpenRouter models: https://openrouter.ai/models

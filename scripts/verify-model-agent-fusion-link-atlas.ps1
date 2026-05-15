@@ -95,6 +95,10 @@ if contract["contract_version"] != LINK_ATLAS_CONTRACT_VERSION:
     raise SystemExit("contract version mismatch")
 if contract["evidence_ref"] != LINK_ATLAS_EVIDENCE_REF:
     raise SystemExit("evidence ref mismatch")
+if contract["openrouter_import"]["api_url"] != "https://openrouter.ai/api/v1/models":
+    raise SystemExit("OpenRouter model import API mismatch")
+if int(contract["openrouter_import"]["model_count"]) < 300:
+    raise SystemExit("OpenRouter model import count below expected floor")
 if sources["source_count"] != len(SOURCE_DEFINITIONS):
     raise SystemExit("source count mismatch")
 if items["total_count"] != len(CATALOG_ITEMS):
@@ -134,8 +138,8 @@ Assert-True "static status" ($staticResult.status -eq "verified")
 Assert-True "static contract version" ($staticResult.contract_version -eq "model-agent-fusion-link-atlas-v1")
 Assert-True "static evidence ref" ($staticResult.evidence_ref -eq "model_agent_fusion_link_atlas_visible")
 Assert-True "static sources" ([int]$staticResult.source_count -ge 6)
-Assert-True "static items" ([int]$staticResult.item_count -ge 30)
-Assert-True "static shards" ([int]$staticResult.shard_count -ge 8)
+Assert-True "static items" ([int]$staticResult.item_count -ge 400)
+Assert-True "static shards" ([int]$staticResult.shard_count -ge 9)
 
 if ($BaseUrl) {
   $BaseUrl = $BaseUrl.TrimEnd("/")
@@ -156,6 +160,7 @@ if ($BaseUrl) {
   Assert-True "sources count" ([int]$sources.source_count -ge 6)
   foreach ($url in @(
     "https://openrouter.ai/docs/api/reference/overview",
+    "https://openrouter.ai/api/v1/models",
     "https://openrouter.ai/models",
     "https://openrouter.ai/models?active=false",
     "https://openrouter.ai/models?order=top-weekly",
@@ -169,7 +174,7 @@ if ($BaseUrl) {
   }
 
   $items = Invoke-JsonApi "$BaseUrl/api/v1/catalog/link-atlas/items?limit=500"
-  Assert-True "items count" ([int]$items.total_count -ge 30)
+  Assert-True "items count" ([int]$items.total_count -ge 400)
   foreach ($field in @("canonical_id", "source", "name", "url", "api_url", "category", "tags", "license", "gated_private", "dedupe_group", "last_seen")) {
     Assert-True "field visible $field" (@($items.fields) -contains $field)
   }
@@ -178,7 +183,7 @@ if ($BaseUrl) {
   Assert-True "single item id" ($one.item.canonical_id -eq "openrouter-api-overview")
 
   $shards = Invoke-JsonApi "$BaseUrl/api/v1/catalog/link-atlas/shards"
-  Assert-True "shard count" ([int]$shards.shard_count -ge 8)
+  Assert-True "shard count" ([int]$shards.shard_count -ge 9)
 
   $jsonl = Invoke-Text "$BaseUrl/api/v1/catalog/link-atlas/export.jsonl"
   Assert-True "jsonl contains openrouter" ($jsonl.Contains("openrouter-api-overview"))

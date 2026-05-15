@@ -6,10 +6,13 @@ import json
 from datetime import date
 from typing import Any
 
+from app.openrouter_model_links import OPENROUTER_MODEL_LINK_ITEMS, OPENROUTER_MODEL_LINK_SOURCE
+
 LINK_ATLAS_CONTRACT_VERSION = "model-agent-fusion-link-atlas-v1"
 LINK_ATLAS_EVIDENCE_REF = "model_agent_fusion_link_atlas_visible"
 LINK_ATLAS_CREATED = "2026-05-15"
 LINK_ATLAS_GATE = "post_release_after_verified_100_percent"
+SILICONFLOW_PROMPT_URL = "https://www.siliconflow.com/models?utm_source=capgo&utm_medium=organic_ugcblog&utm_campaign=202509_series&utm_id=000003&utm_term=Ultimativer%20Leitfaden%20%E2%80%93%20Das%20beste%20Open-Source-LLM%20f%C3%BCr%20Agenten-Workflows%20im%20Jahr%202026&utm_content=guide_banner"
 
 CATALOG_FIELDS = [
     "canonical_id",
@@ -28,13 +31,14 @@ CATALOG_FIELDS = [
 
 PROMPT_REQUIRED_URLS = [
     "https://openrouter.ai/docs/api/reference/overview",
+    "https://openrouter.ai/api/v1/models",
     "https://openrouter.ai/models",
     "https://openrouter.ai/models?active=false",
     "https://openrouter.ai/models?order=top-weekly",
     "https://openrouter.ai/apps/category/coding",
     "https://huggingface.co/models?sort=trending",
     "https://huggingface.co/collections",
-    "https://www.siliconflow.com/models?utm_source=capgo&utm_medium=organic_ugcblog&utm_campaign=202509_series&utm_id=000003&utm_term=Ultimativer%20Leitfaden%20%E2%80%93%20Das%20beste%20Open-Source-LLM%20f%C3%BCr%20Agenten-Workflows%20im%20Jahr%202026&utm_content=guide_banner",
+    SILICONFLOW_PROMPT_URL,
     "https://github.com/NousResearch/hermes-agent",
     "https://llm-explorer.com/",
 ]
@@ -78,17 +82,19 @@ SOURCE_DEFINITIONS: list[dict[str, Any]] = [
         "homepage": "https://openrouter.ai/models",
         "auth_env": "OPENROUTER_API_KEY",
         "import_mode": "api_first_metadata_only",
-        "shards": ["openrouter-models-0001.md", "openrouter-apps-0001.md"],
+        "shards": ["openrouter-models-0001.md", "openrouter-api-models-0001.md", "openrouter-apps-0001.md"],
         "source_urls": [
             "https://openrouter.ai/docs/api/reference/overview",
             "https://openrouter.ai/docs/api/api-reference/models/get-models",
             "https://openrouter.ai/docs/guides/overview/models",
+            "https://openrouter.ai/api/v1/models",
             "https://openrouter.ai/models",
             "https://openrouter.ai/models?active=false",
             "https://openrouter.ai/models?order=top-weekly",
             "https://openrouter.ai/apps/category/coding",
         ],
         "api_urls": [
+            "https://openrouter.ai/api/v1/models",
             "https://openrouter.ai/api/v1/models?output_modalities=all",
             "https://openrouter.ai/api/v1/models/count?output_modalities=all",
         ],
@@ -125,7 +131,7 @@ SOURCE_DEFINITIONS: list[dict[str, Any]] = [
         "shards": ["siliconflow-models-0001.md"],
         "source_urls": [
             "https://www.siliconflow.com/models",
-            PROMPT_REQUIRED_URLS[7],
+            SILICONFLOW_PROMPT_URL,
             "https://docs.siliconflow.com/en/api-reference/models/get-model-list",
         ],
         "api_urls": [
@@ -293,6 +299,7 @@ CATALOG_ITEMS: list[dict[str, Any]] = [
         tags=["agents", "coding", "apps"],
         dedupe_group="openrouter:coding-apps",
     ),
+    *OPENROUTER_MODEL_LINK_ITEMS,
     _item(
         canonical_id="huggingface-models-trending",
         source="huggingface",
@@ -364,7 +371,7 @@ CATALOG_ITEMS: list[dict[str, Any]] = [
         source="siliconflow",
         kind="model_source",
         name="SiliconFlow Models Page User Link",
-        url=PROMPT_REQUIRED_URLS[7],
+        url=SILICONFLOW_PROMPT_URL,
         api_url="https://api.siliconflow.com/v1/models",
         category="provider_directory",
         tags=["models", "provider", "prompt-required-url"],
@@ -525,6 +532,13 @@ SHARD_DEFINITIONS: list[dict[str, Any]] = [
         "title": "OpenRouter Coding App Links 0001",
         "source": "openrouter",
         "include_kinds": ["agent_source"],
+    },
+    {
+        "shard_id": "openrouter-api-models-0001",
+        "path": "docs/analysis/model-agent-fusion-link-atlas/openrouter-api-models-0001.md",
+        "title": "OpenRouter API Model Links 0001",
+        "source": "openrouter",
+        "include_kinds": ["model_entry"],
     },
     {
         "shard_id": "huggingface-models-0001",
@@ -688,7 +702,7 @@ def link_atlas_export_jsonl_text() -> str:
 
 def link_atlas_export_csv_text() -> str:
     output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=CATALOG_FIELDS, lineterminator="\n")
+    writer = csv.DictWriter(output, fieldnames=CATALOG_FIELDS, extrasaction="ignore", lineterminator="\n")
     writer.writeheader()
     for item in normalized_items():
         row = dict(item)
@@ -723,6 +737,7 @@ def link_atlas_contract_payload() -> dict[str, Any]:
         "item_count": len(CATALOG_ITEMS),
         "shard_count": len(SHARD_DEFINITIONS),
         "required_prompt_url_count": len(PROMPT_REQUIRED_URLS),
+        "openrouter_import": OPENROUTER_MODEL_LINK_SOURCE,
         "required_fields": CATALOG_FIELDS,
         "docs_index": "docs/analysis/model-agent-fusion-link-atlas/README.md",
         "post_release_gate": LINK_ATLAS_GATE,
