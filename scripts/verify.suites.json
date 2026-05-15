@@ -230,6 +230,9 @@
       "verify-phase5-active-runtime-guard-matrix-bundle.ps1": {
         "ReleaseId": null
       },
+      "verify-phase5-active-gateway-execution-bundle.ps1": {
+        "ReleaseId": null
+      },
       "verify-phase5-vercel-github-deployment-status.ps1": {
         "ReleaseId": null
       },

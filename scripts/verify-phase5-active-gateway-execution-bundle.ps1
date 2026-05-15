@@ -10,26 +10,26 @@ $ErrorActionPreference = "Stop"
 
 function Assert-Equal($Label, $Actual, $Expected) {
   if ($Actual -ne $Expected) {
-    throw "Phase5 active runtime guard matrix bundle verification failed: $Label expected '$Expected' but got '$Actual'."
+    throw "Phase5 active gateway execution bundle verification failed: $Label expected '$Expected' but got '$Actual'."
   }
 }
 
 function Assert-True($Label, $Condition) {
   if (-not $Condition) {
-    throw "Phase5 active runtime guard matrix bundle verification failed: $Label"
+    throw "Phase5 active gateway execution bundle verification failed: $Label"
   }
 }
 
 function Assert-False($Label, $Value) {
   if ([bool]$Value) {
-    throw "Phase5 active runtime guard matrix bundle verification failed: $Label expected false."
+    throw "Phase5 active gateway execution bundle verification failed: $Label expected false."
   }
 }
 
 function Assert-Contains($Label, $Value, $Expected) {
   $text = ($Value | Out-String)
   if (-not $text.Contains($Expected)) {
-    throw "Phase5 active runtime guard matrix bundle verification failed: $Label missing '$Expected'."
+    throw "Phase5 active gateway execution bundle verification failed: $Label missing '$Expected'."
   }
 }
 
@@ -37,19 +37,19 @@ function Assert-NotSecretBearing($Label, $Value) {
   $text = ($Value | Out-String)
   $forbiddenPattern = "sk-proj-[A-Za-z0-9_-]{16,}|github_pat_[A-Za-z0-9_]{16,}|ghp_[A-Za-z0-9_]{16,}|vck_[A-Za-z0-9_-]{24,}|cfat_[A-Za-z0-9_-]{24,}|hcloud_[A-Za-z0-9_-]{16,}|\bhf_[A-Za-z0-9_-]{24,}|glpat-[A-Za-z0-9_.-]{20,}|Authorization: Bearer|Bearer [A-Za-z0-9_.-]{16,}|Cookie:|Set-Cookie:|BEGIN PRIVATE KEY|private key|raw_file_contents|redaction-proof-value"
   if ($text -match $forbiddenPattern) {
-    throw "Phase5 active runtime guard matrix bundle verification failed: $Label contained a forbidden secret/raw-payload pattern."
+    throw "Phase5 active gateway execution bundle verification failed: $Label contained a forbidden secret/raw-payload pattern."
   }
 }
 
 function Assert-Sha($Label, $Value) {
   if ([string]::IsNullOrWhiteSpace($Value) -or $Value -notmatch '^[0-9a-f]{40}$') {
-    throw "Phase5 active runtime guard matrix bundle verification failed: $Label is not a lowercase 40-character SHA."
+    throw "Phase5 active gateway execution bundle verification failed: $Label is not a lowercase 40-character SHA."
   }
 }
 
 function Assert-ReleaseId($Label, $Value) {
   if ([string]::IsNullOrWhiteSpace($Value) -or $Value -notmatch '^prod-candidate-[0-9]{4}-[0-9]{2}-[0-9]{2}-rc[0-9]+$') {
-    throw "Phase5 active runtime guard matrix bundle verification failed: $Label is not a valid release candidate id."
+    throw "Phase5 active gateway execution bundle verification failed: $Label is not a valid release candidate id."
   }
 }
 
@@ -57,8 +57,25 @@ function Invoke-JsonApi([string]$Url) {
   return Invoke-RestMethod -Method Get -Uri $Url -Headers @{ Accept = "application/json" } -TimeoutSec 90
 }
 
-function Invoke-RepoScript([string]$Label, [string]$Path, [string[]]$ScriptArgs) {
-  $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $Path @ScriptArgs 2>&1
+function Convert-ScriptArguments([hashtable]$Arguments) {
+  $items = [System.Collections.Generic.List[string]]::new()
+  foreach ($entry in $Arguments.GetEnumerator()) {
+    $name = "-$($entry.Key)"
+    if ($entry.Value -is [bool] -or $entry.Value -is [switch]) {
+      if ([bool]$entry.Value) {
+        $items.Add($name) | Out-Null
+      }
+    } elseif ($null -ne $entry.Value) {
+      $items.Add($name) | Out-Null
+      $items.Add([string]$entry.Value) | Out-Null
+    }
+  }
+  return @($items)
+}
+
+function Invoke-RepoScript([string]$Label, [string]$Path, [hashtable]$Arguments) {
+  $argumentList = Convert-ScriptArguments $Arguments
+  $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $Path @argumentList 2>&1
   $text = ($output | Out-String)
   if ($LASTEXITCODE -ne 0) {
     throw "$Label failed: $text"
@@ -75,7 +92,7 @@ try {
   }
   $BaseUrl = $BaseUrl.TrimEnd("/")
   if ((-not $AllowLocalhost) -and ($BaseUrl -notmatch "^https://")) {
-    throw "Phase5 active runtime guard matrix bundle requires HTTPS unless -AllowLocalhost is set."
+    throw "Phase5 active gateway execution bundle requires HTTPS unless -AllowLocalhost is set."
   }
 
   $configPath = "docs\release-artifacts\current-release-candidate.json"
@@ -95,7 +112,7 @@ try {
   Assert-Contains "candidate id" $candidate "release_id: ``$ReleaseId``"
   Assert-Contains "candidate environment" $candidate "environment: ``production-candidate``"
   Assert-Contains "candidate non-claim" $candidate "This artifact does not claim a production rollout."
-  Assert-Contains "candidate runtime guard bundle proof" $candidate "active_runtime_guard_matrix_bundle_proof: ``docs/release-artifacts/$ReleaseId-active-runtime-guard-matrix-bundle-20260515.md``"
+  Assert-Contains "candidate gateway execution proof" $candidate "active_gateway_execution_bundle_proof: ``docs/release-artifacts/$ReleaseId-active-gateway-execution-bundle-20260515.md``"
   Assert-NotSecretBearing "candidate artifact" $candidate
 
   if ($candidate -notmatch '(?m)^source_commit_sha:\s*`([^`]+)`\s*$') {
@@ -108,18 +125,20 @@ try {
   }
   $immutableSha = $Matches[1]
   Assert-Sha "immutable image commit sha" $immutableSha
+  Assert-Contains "candidate hosted selector" $candidate "hosted_selector_observed: ``IMAGE_TAG=$immutableSha``"
 
-  $proofPath = "docs\release-artifacts\$ReleaseId-active-runtime-guard-matrix-bundle-20260515.md"
-  Assert-True "active runtime guard matrix proof exists" (Test-Path -LiteralPath $proofPath)
+  $proofPath = "docs\release-artifacts\$ReleaseId-active-gateway-execution-bundle-20260515.md"
+  Assert-True "active gateway execution proof exists" (Test-Path -LiteralPath $proofPath)
   $proof = Get-Content -LiteralPath $proofPath -Raw
   foreach ($required in @(
     "Status: ``verified``",
     "release_id: ``$ReleaseId``",
     "source_commit_sha: ``$sourceSha``",
     "immutable_image_commit_sha: ``$immutableSha``",
+    "base_url: ``https://188-34-191-140.sslip.io``",
     "production_rollout_claimed: ``false``",
-    "runtime_guard_gate_count: ``6``",
-    "changed_horizontal: ``none``",
+    "execution_gate_count: ``8``",
+    "changed_horizontal: ``Phase 5 77->78``",
     "changed_vertical: ``none``",
     "This proof does not claim a production rollout.",
     "This proof does not claim release promotion.",
@@ -128,58 +147,55 @@ try {
     "This proof does not claim local model downloads.",
     "This proof does not include secret values."
   )) {
-    Assert-Contains "active runtime guard matrix proof artifact" $proof $required
+    Assert-Contains "active gateway execution proof artifact" $proof $required
   }
-  if ($AllowLocalhost) {
-    Assert-Contains "active runtime guard matrix proof local command" $proof "scripts\verify-phase5-active-runtime-guard-matrix-bundle.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost"
-    Assert-Contains "active runtime guard matrix proof local base" $proof "local_control_plane_url: ``$BaseUrl``"
-  } else {
-    Assert-Contains "active runtime guard matrix proof base url" $proof "base_url: ``$BaseUrl``"
-  }
-  Assert-NotSecretBearing "active runtime guard matrix proof artifact" $proof
+  Assert-NotSecretBearing "active gateway execution proof artifact" $proof
 
   $progress = Invoke-JsonApi "$BaseUrl/api/v1/project/progress"
   Assert-Equal "progress overall" ([int]$progress.overall_percent) 80
-  $phase3 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_3" }) | Select-Object -First 1
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
-  Assert-Equal "progress phase3" ([int]$phase3.percent) 95
   Assert-Equal "progress phase5" ([int]$phase5.percent) 78
-
-  $agentPool = @($progress.vertical.items | Where-Object { $_.id -eq "layer_3" }) | Select-Object -First 1
-  $llmLayer = @($progress.vertical.items | Where-Object { $_.id -eq "layer_4" }) | Select-Object -First 1
-  $mcpLayer = @($progress.vertical.items | Where-Object { $_.id -eq "layer_5" }) | Select-Object -First 1
-  Assert-Equal "agent pool percent" ([int]$agentPool.percent) 74
-  Assert-Equal "llm gateway percent" ([int]$llmLayer.percent) 64
-  Assert-Equal "mcp gateway percent" ([int]$mcpLayer.percent) 65
+  Assert-Contains "phase5 status" $phase5.status "active_gateway_execution_bundle_verified"
   Assert-NotSecretBearing "progress payload" ($progress | ConvertTo-Json -Depth 20 -Compress)
 
-  $steeringArgs = @("-BaseUrl", $BaseUrl)
-  if ($AllowLocalhost) { $steeringArgs += "-AllowLocalhost" }
-  $steeringOutput = Invoke-RepoScript "phase3-live-agent-steering" "scripts\verify-phase3-live-agent-steering.ps1" $steeringArgs
-  Assert-Contains "phase3-live-agent-steering output" $steeringOutput "[phase3-live-agent] ok"
+  $gates = [System.Collections.Generic.List[string]]::new()
+  $phase2Args = @{ BaseUrl = $BaseUrl }
+  if ($AllowLocalhost) { $phase2Args.AllowLocalhost = $true }
+  Invoke-RepoScript "phase2-runtime-dual-surface" "scripts\verify-phase2-runtime-dual-surface.ps1" $phase2Args | Out-Null
+  $gates.Add("phase2-runtime-dual-surface") | Out-Null
 
-  $historyArgs = @("-BaseUrl", $BaseUrl)
-  if ($AllowLocalhost) { $historyArgs += "-AllowLocalhost" }
-  $historyOutput = Invoke-RepoScript "phase3-live-agent-history" "scripts\verify-phase3-live-agent-history.ps1" $historyArgs
-  Assert-Contains "phase3-live-agent-history output" $historyOutput "[phase3-live-agent-history] ok"
+  $gatewaySnapshotArgs = @{ BaseUrl = $BaseUrl }
+  $gatewayFullArgs = @{ BaseUrl = $BaseUrl; RequireFullCorrelation = $true }
+  if ($AllowLocalhost) {
+    $gatewaySnapshotArgs.AllowLocalhost = $true
+    $gatewayFullArgs.AllowLocalhost = $true
+  }
+  Invoke-RepoScript "phase3-gateway-correlation-snapshot" "scripts\verify-phase3-gateway-correlation-snapshot.ps1" $gatewaySnapshotArgs | Out-Null
+  $gates.Add("phase3-gateway-correlation-snapshot") | Out-Null
+  Invoke-RepoScript "phase3-gateway-correlation-risk-rollup" "scripts\verify-phase3-gateway-correlation-risk-rollup.ps1" $gatewayFullArgs | Out-Null
+  $gates.Add("phase3-gateway-correlation-risk-rollup") | Out-Null
+  Invoke-RepoScript "phase3-gateway-correlation-timeline" "scripts\verify-phase3-gateway-correlation-timeline.ps1" $gatewayFullArgs | Out-Null
+  $gates.Add("phase3-gateway-correlation-timeline") | Out-Null
 
-  $llmGuardArgs = @("-BaseUrl", $BaseUrl)
-  if ($AllowLocalhost) { $llmGuardArgs += "-AllowLocalhost" }
-  $llmGuardOutput = Invoke-RepoScript "phase4-llm-live-provider-guard" "scripts\verify-phase4-llm-live-provider-guard.ps1" $llmGuardArgs
-  Assert-Contains "phase4-llm-live-provider-guard output" $llmGuardOutput "[phase4-llm-live-provider-guard] ok"
+  if ($AllowLocalhost) {
+    Invoke-RepoScript "browser-contract" "scripts\verify-browser-contract.ps1" @{ BaseUrl = $BaseUrl; AllowLocalhost = $true } | Out-Null
+    $gates.Add("browser-contract") | Out-Null
+  } else {
+    Invoke-RepoScript "phase4-agent-llm-streaming-contract-runtime" "scripts\verify-phase4-agent-llm-streaming-contract-runtime-hosted.ps1" @{ BaseUrl = $BaseUrl } | Out-Null
+    $gates.Add("phase4-agent-llm-streaming-contract-runtime") | Out-Null
+    Invoke-RepoScript "phase4-mcp-devops-hosted" "scripts\verify-phase4-mcp-devops-hosted.ps1" @{ BaseUrl = $BaseUrl } | Out-Null
+    $gates.Add("phase4-mcp-devops-hosted") | Out-Null
+    Invoke-RepoScript "hosted-staging-smoke" "scripts\verify-hosted-staging-smoke.ps1" @{ BaseUrl = $BaseUrl } | Out-Null
+    $gates.Add("hosted-staging-smoke") | Out-Null
+  }
 
-  $mcpGuardArgs = @("-BaseUrl", $BaseUrl)
-  if ($AllowLocalhost) { $mcpGuardArgs += "-AllowLocalhost" }
-  $mcpGuardOutput = Invoke-RepoScript "phase4-mcp-security-guard" "scripts\verify-phase4-mcp-security-guard.ps1" $mcpGuardArgs
-  Assert-Contains "phase4-mcp-security-guard output" $mcpGuardOutput "[phase4-mcp-security-guard] ok"
-
-  $browserArgs = @("-BaseUrl", $BaseUrl)
-  if ($AllowLocalhost) { $browserArgs += "-AllowLocalhost" }
-  $browserOutput = Invoke-RepoScript "browser-contract" "scripts\verify-browser-contract.ps1" $browserArgs
-  Assert-Contains "browser-contract output" $browserOutput "[browser-contract] checks completed"
-
-  $artifactSafetyOutput = Invoke-RepoScript "evidence-artifact-safety" "scripts\verify-evidence-artifact-safety.ps1" @()
-  Assert-Contains "artifact safety output" $artifactSafetyOutput "[evidence-artifact-safety] status=safe"
+  Invoke-RepoScript "evidence-artifact-safety" "scripts\verify-evidence-artifact-safety.ps1" @{} | Out-Null
+  $gates.Add("evidence-artifact-safety") | Out-Null
+  if ($AllowLocalhost) {
+    Assert-Equal "local execution gate count" $gates.Count 6
+  } else {
+    Assert-Equal "hosted execution gate count" $gates.Count 8
+  }
 
   $summary = [ordered]@{
     status = "passed"
@@ -189,17 +205,10 @@ try {
     source_commit_sha = $sourceSha
     immutable_image_commit_sha = $immutableSha
     production_rollout_claimed = $false
-    runtime_guard_gate_count = 6
-    changed_horizontal = "none"
+    execution_gate_count = $gates.Count
+    changed_horizontal = "Phase 5 77->78"
     changed_vertical = "none"
-    gates = @(
-      "phase3-live-agent-steering",
-      "phase3-live-agent-history",
-      "phase4-llm-live-provider-guard",
-      "phase4-mcp-security-guard",
-      "browser-contract",
-      "evidence-artifact-safety"
-    )
+    gates = @($gates)
     policy = [ordered]@{
       mutates_production = $false
       deploys_production = $false
@@ -216,9 +225,9 @@ try {
   if ($JsonOnly) {
     $summary | ConvertTo-Json -Depth 8
   } else {
-    Write-Host "[phase5-active-runtime-guard-matrix-bundle] verified"
-    Write-Host "[phase5-active-runtime-guard-matrix-bundle] release_id=$ReleaseId"
-    Write-Host "[phase5-active-runtime-guard-matrix-bundle] runtime_guard_gate_count=$($summary.runtime_guard_gate_count)"
+    Write-Host "[phase5-active-gateway-execution-bundle] verified"
+    Write-Host "[phase5-active-gateway-execution-bundle] release_id=$ReleaseId"
+    Write-Host "[phase5-active-gateway-execution-bundle] execution_gate_count=$($summary.execution_gate_count)"
   }
 } catch {
   if ($ReportOnly) {
@@ -233,8 +242,8 @@ try {
     if ($JsonOnly) {
       $summary | ConvertTo-Json -Depth 4
     } else {
-      Write-Host "[phase5-active-runtime-guard-matrix-bundle] failed"
-      Write-Host "[phase5-active-runtime-guard-matrix-bundle] error=$($_.Exception.Message)"
+      Write-Host "[phase5-active-gateway-execution-bundle] failed"
+      Write-Host "[phase5-active-gateway-execution-bundle] error=$($_.Exception.Message)"
     }
     exit 0
   }

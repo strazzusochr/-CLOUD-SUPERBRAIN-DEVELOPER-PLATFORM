@@ -4,8 +4,8 @@ Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
 environment: `production-candidate`
 base_url: `https://188-34-191-140.sslip.io`
-source_commit_sha: `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
-immutable_image_commit_sha: `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
+source_commit_sha: `052a05c295b640e69e50f6bfb73378306670713e`
+immutable_image_commit_sha: `052a05c295b640e69e50f6bfb73378306670713e`
 production_rollout_claimed: `false`
 bundle_status: `passed`
 security_export_surface_count: `5`
@@ -41,4 +41,4 @@ This proof binds the active RC1 immutable staging selector to a read-only securi
 - This proof does not claim live provider calls.
 - This proof does not claim live MCP writes.
 - This proof does not include secret values.
-- This proof keeps the manifest percentages unchanged because the immutable runtime selector remains `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`.
+- This proof keeps the manifest percentages unchanged because the immutable runtime selector remains `052a05c295b640e69e50f6bfb73378306670713e`.

@@ -3,12 +3,12 @@
 Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
 environment: `production-candidate`
-source_commit_sha: `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
-immutable_image_commit_sha: `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
+source_commit_sha: `052a05c295b640e69e50f6bfb73378306670713e`
+immutable_image_commit_sha: `052a05c295b640e69e50f6bfb73378306670713e`
 base_url: `https://188-34-191-140.sslip.io`
 production_rollout_claimed: `false`
-verifier_gate_count: `9`
-changed_horizontal: `none`
+verifier_gate_count: `10`
+changed_horizontal: `Phase 5 77->78`
 changed_vertical: `none`
 
 ## Verified Gates
@@ -18,6 +18,7 @@ changed_vertical: `none`
 - `hosted-staging-smoke`
 - `phase3-active-gateway-policy-bundle`
 - `phase5-active-runtime-guard-matrix-bundle`
+- `phase5-active-gateway-execution-bundle`
 - `phase4-llm-model-catalog`
 - `phase4-mcp-capability-catalog`
 - `security`

@@ -104,7 +104,8 @@ if ($parityVerified) {
     "immutable_candidate_tag: ``$candidateSha``",
     'immutable_candidate_parity_claimed: `true`',
     'production_rollout_claimed: `false`',
-    'new_ghcr_push_claimed: `false`',
+    'new_ghcr_push_claimed: `true`',
+    'ghcr_publication_scope: `staging-candidate`',
     'immutable_staging_parity_status: `verified`',
     'remote_proof_required: `true`'
   )) {

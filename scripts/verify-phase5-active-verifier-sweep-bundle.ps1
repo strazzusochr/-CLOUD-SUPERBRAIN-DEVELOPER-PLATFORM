@@ -118,8 +118,8 @@ try {
     "immutable_image_commit_sha: ``$immutableSha``",
     "base_url: ``$BaseUrl``",
     "production_rollout_claimed: ``false``",
-    "verifier_gate_count: ``9``",
-    "changed_horizontal: ``none``",
+    "verifier_gate_count: ``10``",
+    "changed_horizontal: ``Phase 5 77->78``",
     "changed_vertical: ``none``",
     "This proof does not claim a production rollout.",
     "This proof does not claim release promotion.",
@@ -135,7 +135,7 @@ try {
   $progress = Invoke-JsonApi "$BaseUrl/api/v1/project/progress"
   Assert-Equal "progress overall" ([int]$progress.overall_percent) 80
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 77
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 78
   Assert-Contains "phase5 status" $phase5.status "active_verifier_sweep_bundle_verified"
   Assert-NotSecretBearing "progress payload" ($progress | ConvertTo-Json -Depth 20 -Compress)
 
@@ -162,6 +162,9 @@ try {
   $runtimeGuardOutput = Invoke-RepoScript "phase5-active-runtime-guard-matrix-bundle" "scripts\verify-phase5-active-runtime-guard-matrix-bundle.ps1" @("-BaseUrl", $BaseUrl)
   Assert-Contains "runtime guard output" $runtimeGuardOutput "[phase5-active-runtime-guard-matrix-bundle] verified"
 
+  $gatewayExecutionOutput = Invoke-RepoScript "phase5-active-gateway-execution-bundle" "scripts\verify-phase5-active-gateway-execution-bundle.ps1" @("-BaseUrl", $BaseUrl)
+  Assert-Contains "gateway execution output" $gatewayExecutionOutput "[phase5-active-gateway-execution-bundle] verified"
+
   $llmCatalogOutput = Invoke-RepoScript "phase4-llm-model-catalog" "scripts\verify-phase4-llm-model-catalog.ps1" @("-BaseUrl", $BaseUrl)
   Assert-Contains "llm catalog output" $llmCatalogOutput "status=verified"
 
@@ -182,8 +185,8 @@ try {
     source_commit_sha = $sourceSha
     immutable_image_commit_sha = $immutableSha
     production_rollout_claimed = $false
-    verifier_gate_count = 9
-    changed_horizontal = "none"
+    verifier_gate_count = 10
+    changed_horizontal = "Phase 5 77->78"
     changed_vertical = "none"
     gates = @(
       "current-release-candidate",
@@ -191,6 +194,7 @@ try {
       "hosted-staging-smoke",
       "phase3-active-gateway-policy-bundle",
       "phase5-active-runtime-guard-matrix-bundle",
+      "phase5-active-gateway-execution-bundle",
       "phase4-llm-model-catalog",
       "phase4-mcp-capability-catalog",
       "security",
