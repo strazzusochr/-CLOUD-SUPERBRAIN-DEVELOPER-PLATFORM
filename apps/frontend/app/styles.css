@@ -2347,6 +2347,56 @@ pre {
   font-size: 10px;
 }
 
+.workbenchSystemProof {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.2fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: stretch;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  background: rgba(16, 185, 129, 0.06);
+  padding: 10px;
+}
+
+.workbenchSystemProofTitle {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.workbenchSystemProofTitle span,
+.workbenchSystemProofGrid span {
+  color: var(--forge-muted);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.workbenchSystemProofTitle strong,
+.workbenchSystemProofGrid strong {
+  color: #f8fafc;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workbenchSystemProofGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.workbenchSystemProofGrid a {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid var(--forge-border-soft);
+  background: #08080a;
+  padding: 8px;
+  text-decoration: none;
+}
+
 .workbenchComposerBody {
   display: grid;
   grid-template-columns: minmax(180px, 0.28fr) minmax(0, 1fr);
@@ -2673,6 +2723,62 @@ pre {
   overflow-wrap: anywhere;
 }
 
+.workbenchInlineInspector {
+  display: none;
+  margin-bottom: 14px;
+  border: 1px solid var(--forge-border-soft);
+  background: rgba(12, 12, 14, 0.86);
+}
+
+.workbenchInlineInspector > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  padding: 12px 14px;
+  color: var(--forge-cyan);
+  list-style: none;
+}
+
+.workbenchInlineInspector > summary::-webkit-details-marker {
+  display: none;
+}
+
+.workbenchInlineInspector > summary span,
+.workbenchInlineInspector article span {
+  color: var(--forge-muted);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.workbenchInlineInspectorGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  border-top: 1px solid var(--forge-border-soft);
+  padding: 12px;
+}
+
+.workbenchInlineInspector article {
+  min-width: 0;
+  border: 1px solid var(--forge-border-soft);
+  background: #08080a;
+  padding: 10px;
+}
+
+.workbenchInlineInspector article strong,
+.workbenchInlineInspector article p {
+  overflow-wrap: anywhere;
+}
+
+.workbenchInlineInspector article p {
+  margin-top: 6px;
+  color: #a1a1aa;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .workbenchEvidenceVault {
   margin-bottom: 16px;
   border: 1px solid var(--forge-border-soft);
@@ -2706,6 +2812,32 @@ pre {
   gap: 16px;
   border-top: 1px solid var(--forge-border-soft);
   padding: 14px;
+}
+
+.workbenchDiagnosticsNav {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.workbenchDiagnosticsNav a {
+  border: 1px solid var(--forge-border-soft);
+  background: #08080a;
+  color: #a5f3fc;
+  padding: 9px;
+  text-align: center;
+  text-decoration: none;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workbenchDiagnosticsNav a:hover {
+  border-color: rgba(34, 211, 238, 0.4);
+  background: rgba(34, 211, 238, 0.08);
 }
 
 .workbenchInspector {
@@ -2764,6 +2896,10 @@ pre {
     display: none;
   }
 
+  .workbenchInlineInspector {
+    display: block;
+  }
+
   .topbar,
   .workbenchComposerHeader,
   .workbenchStageHeader {
@@ -2783,7 +2919,11 @@ pre {
   }
 
   .workbenchFlowMap,
-  .workbenchLayerDock {
+  .workbenchLayerDock,
+  .workbenchSystemProof,
+  .workbenchSystemProofGrid,
+  .workbenchInlineInspectorGrid,
+  .workbenchDiagnosticsNav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -2851,7 +2991,11 @@ pre {
   .forgeDeckGrid,
   .forgeBuilderSplit,
   .workbenchComposerBody,
-  .workbenchCanvas {
+  .workbenchCanvas,
+  .workbenchSystemProof,
+  .workbenchSystemProofGrid,
+  .workbenchInlineInspectorGrid,
+  .workbenchDiagnosticsNav {
     grid-template-columns: 1fr;
   }
 

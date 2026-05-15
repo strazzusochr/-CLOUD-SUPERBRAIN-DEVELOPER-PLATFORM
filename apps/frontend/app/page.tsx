@@ -4461,6 +4461,19 @@ export default function Home() {
   const selectedToolsetLabel = selectedMcpToolset
     ? `${selectedMcpToolset.toolset} / ${selectedMcpToolset.supported_capabilities[0] ?? "guarded"}`
     : "Auto MCP scope";
+  const workbenchSystemProof = [
+    { label: "Runtime", value: "api_only" },
+    {
+      label: "Models",
+      value: mcpRuntimeGuardParity?.model_downloads ? "model_downloads=true" : "model_downloads=false",
+    },
+    {
+      label: "MCP",
+      value: mcpRuntimeGuardParity?.live_mcp_writes ? "live_mcp_writes=true" : "live_mcp_writes=false",
+    },
+    { label: "Release", value: "production_rollout_claimed=false" },
+    { label: "Contract", value: mcpRuntimeGuardParity?.contract_version ?? "mcp-runtime-guard-parity-v1" },
+  ];
 
   return (
     <main className="shell scanline">
@@ -4548,6 +4561,20 @@ export default function Home() {
               ))}
             </div>
           </div>
+          <section className="workbenchSystemProof" aria-label="System Proof">
+            <div className="workbenchSystemProofTitle">
+              <span>System Proof</span>
+              <strong>Fail-closed runtime base</strong>
+            </div>
+            <div className="workbenchSystemProofGrid">
+              {workbenchSystemProof.map((item) => (
+                <a href={item.label === "Contract" ? "#mcp-runtime-guard-surface" : "#diagnostics-surface"} key={item.label}>
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                </a>
+              ))}
+            </div>
+          </section>
           <div className="workbenchComposerBody">
             <label className="workbenchProjectField">
               <span>Project</span>
@@ -4664,6 +4691,35 @@ export default function Home() {
         </form>
 
         {error ? <p className="error">{error}</p> : null}
+
+        <details className="workbenchInlineInspector" aria-label="Context inspector drawer">
+          <summary>
+            <span>Context Inspector</span>
+            <strong>{selectedLaunchPack?.label ?? activeWorkbenchModule.primary}</strong>
+          </summary>
+          <div className="workbenchInlineInspectorGrid">
+            <article>
+              <span>Fast Launch</span>
+              <strong>{selectedLaunchPack?.label ?? activeWorkbenchModule.primary}</strong>
+              <p>{selectedLaunchPack?.description ?? "Select a launch pack to configure the prompt and workspace."}</p>
+            </article>
+            <article>
+              <span>Agent Mode</span>
+              <strong>{activeAgentMode.label}</strong>
+              <p>{activeAgentMode.detail}</p>
+            </article>
+            <article>
+              <span>Model Route</span>
+              <strong>{selectedRouteLabel}</strong>
+              <p>model_downloads=false / live_provider_calls=false until Owner gate</p>
+            </article>
+            <article>
+              <span>MCP Scope</span>
+              <strong>{selectedToolsetLabel}</strong>
+              <p>live_mcp_writes=false / gateway guarded</p>
+            </article>
+          </div>
+        </details>
 
         <section className="workbenchLayerDock" aria-label="7-layer cloud system">
           {workbenchLayers.map((layer, index) => {
@@ -4854,6 +4910,13 @@ export default function Home() {
             <strong>Full verification surface</strong>
           </summary>
           <div className="workbenchEvidenceBody">
+            <nav className="workbenchDiagnosticsNav" aria-label="Diagnostics sections">
+              <a href="#diagnostics-surface">Diagnostics</a>
+              <a href="#mcp-runtime-guard-surface">Contracts</a>
+              <a href="#llm-gateway-surface">Audit</a>
+              <a href="#security-surface">Exports</a>
+              <a href="#project-progress-surface">Runtime Proof</a>
+            </nav>
 
         <section className="panel" aria-label="Error response contract">
           <header className="panelHeader">
