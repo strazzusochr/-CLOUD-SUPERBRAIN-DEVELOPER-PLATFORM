@@ -267,6 +267,8 @@ Assert-Contains "mcp runtime guard parity evidence marker" $frontendHtml "mcp_ru
 Assert-Contains "workbench system proof visible" $frontendHtml "System Proof"
 Assert-Contains "workbench api only visible" $frontendHtml "api_only"
 Assert-Contains "workbench production non-claim visible" $frontendHtml "production_rollout_claimed=false"
+Assert-Contains "workbench launch lane model router visible" $frontendHtml "Model Router"
+Assert-Contains "workbench launch lane cloud runtime visible" $frontendHtml "Cloud Runtime"
 Assert-Contains "mcp runtime guard parity agent endpoint marker" $frontendHtml "GET /api/v1/agents/mcp-runtime-guard-parity"
 Assert-Contains "mcp runtime guard parity gateway endpoint marker" $frontendHtml "GET /mcp/api/v1/runtime/guard-parity"
 Assert-Contains "mcp runtime guard parity no live writes marker" $frontendHtml "live_mcp_writes=false"

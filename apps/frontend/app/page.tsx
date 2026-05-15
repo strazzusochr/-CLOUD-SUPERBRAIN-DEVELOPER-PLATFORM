@@ -4792,6 +4792,7 @@ export default function Home() {
               >
                 <span>{pack.glyph}</span>
                 <strong>{pack.label}</strong>
+                <em>{pack.lane}</em>
                 <small>{pack.description}</small>
               </button>
             ))}

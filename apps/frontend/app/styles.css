@@ -2567,7 +2567,7 @@ pre {
 }
 
 .workbenchLaunchCard span {
-  grid-row: span 2;
+  grid-row: span 3;
   display: grid;
   place-items: center;
   width: 32px;
@@ -2578,10 +2578,19 @@ pre {
 }
 
 .workbenchLaunchCard strong,
+.workbenchLaunchCard em,
 .workbenchLaunchCard small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.workbenchLaunchCard em {
+  color: var(--forge-green);
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .workbenchLaunchCard small {
@@ -2957,7 +2966,7 @@ pre {
   }
 
   .workbenchInspector {
-    display: block;
+    display: none;
     height: auto;
     border-left: 0;
     border-top: 1px solid var(--forge-border-soft);
