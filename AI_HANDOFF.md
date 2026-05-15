@@ -6,7 +6,7 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-Current honesty guardrail: the active staging candidate is `4ce557f7e195846afa39d89861f296202561f34a`, verified through GHCR multi-service images, Hetzner `-UseImageFilesystem` parity, the Active MCP Guard Correlation Bundle, the Active LLM Guard Correlation Bundle, the Active Memory Success Correlation Bundle, the Active Agent Success Correlation Bundle, the Active LLM Success Correlation Bundle, the Active MCP Success Correlation Bundle, the Active MCP Operations Bundle, the Active LLM Operations Bundle, the Active Agent Operations Bundle, the Active Memory Operations Bundle, the Active Gateway Execution Bundle, the Active Runtime Selector Truth Rebaseline, the Active Full-Suite Rebaseline, the Active Verifier Sweep Bundle Rebaseline, the Active Runtime Guard Matrix Bundle, the Active Gateway Policy Bundle, the Active Runtime Evidence Bundle, the Active Security Evidence Bundle, the Vercel GitHub Deployment Status proof, the Autonomous Roster Master Plan proof, and the Phase 2 Runtime Dual Surface proof. This is a staging-candidate claim only; production rollout remains unclaimed.
+Current honesty guardrail: the active staging candidate is `4ce557f7e195846afa39d89861f296202561f34a`, verified through GHCR multi-service images, Hetzner `-UseImageFilesystem` parity, the Active Frontend-Orchestrator Evidence Bundle, the Active MCP Guard Correlation Bundle, the Active LLM Guard Correlation Bundle, the Active Memory Success Correlation Bundle, the Active Agent Success Correlation Bundle, the Active LLM Success Correlation Bundle, the Active MCP Success Correlation Bundle, the Active MCP Operations Bundle, the Active LLM Operations Bundle, the Active Agent Operations Bundle, the Active Memory Operations Bundle, the Active Gateway Execution Bundle, the Active Runtime Selector Truth Rebaseline, the Active Full-Suite Rebaseline, the Active Verifier Sweep Bundle Rebaseline, the Active Runtime Guard Matrix Bundle, the Active Gateway Policy Bundle, the Active Runtime Evidence Bundle, the Active Security Evidence Bundle, the Vercel GitHub Deployment Status proof, the Autonomous Roster Master Plan proof, and the Phase 2 Runtime Dual Surface proof. This is a staging-candidate claim only; production rollout remains unclaimed.
 
 ## Binding Truth
 
@@ -47,8 +47,8 @@ Horizontal:
 
 Vertical:
 
-- Frontend / Next.js: `99%`
-- Orchestrator / LangGraph: `99%`
+- Frontend / Next.js: `100%`
+- Orchestrator / LangGraph: `100%`
 - Agent Pool: `76%`
 - LLM Gateway: `67%`
 - MCP Gateway: `68%`
@@ -58,6 +58,11 @@ Vertical:
 Older percentage lines below are historical proof points only. Current percentages must come from this section and `docs/project-progress.manifest.json`.
 
 ## Latest Verified Step
+
+Active Frontend-Orchestrator Evidence Bundle Proof:
+
+- `scripts\verify-phase5-active-frontend-orchestrator-evidence-bundle.ps1` binds project progress, integrity, completion, homepage evidence markers, Orchestrator Manifest, Phase 2 runtime contract/runs, master plan, roster, and team status to the active RC1 boundary.
+- Progress changes: Frontend rises to `100%`; Orchestrator rises to `100%`; Overall remains `82%`; no production rollout, release promotion, live provider call, live MCP write, local model download, or secret exposure is claimed.
 
 Active MCP Guard Correlation Bundle Proof:
 

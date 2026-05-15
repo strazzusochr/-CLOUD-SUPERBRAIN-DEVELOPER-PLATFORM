@@ -4780,7 +4780,7 @@ def project_progress_completion_payload() -> dict[str, object]:
                     "production_release_requires_hosted_staging_branch_protection_secret_scan_and_owner_review",
                     not verified_flags["production_gate_claim_allowed"],
                 ),
-                ("docker_registry_publish_requires_owner_release_gate", True),
+                ("docker_registry_production_tag_publish_requires_owner_release_gate", True),
             ]
             if enabled
         ],
