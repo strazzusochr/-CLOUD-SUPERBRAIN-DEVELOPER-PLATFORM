@@ -118,9 +118,9 @@ try {
     "immutable_image_commit_sha: ``$immutableSha``",
     "base_url: ``$BaseUrl``",
     "production_rollout_claimed: ``false``",
-    "verifier_gate_count: ``19``",
-    "changed_horizontal: ``Phase 2 88->89; Phase 5 84->87``",
-    "changed_vertical: ``Agent Pool 75->76; LLM Gateway 65->67; Memory 73->74``",
+    "verifier_gate_count: ``20``",
+    "changed_horizontal: ``Phase 2 88->89; Phase 5 84->88``",
+    "changed_vertical: ``Agent Pool 75->76; LLM Gateway 65->67; MCP Gateway 67->68; Memory 73->74``",
     "This proof does not claim a production rollout.",
     "This proof does not claim release promotion.",
     "This proof does not claim live LLM provider calls.",
@@ -138,7 +138,7 @@ try {
   $phase2 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_2" }) | Select-Object -First 1
   Assert-Equal "progress phase2" ([int]$phase2.percent) 89
   Assert-Contains "phase2 agent success correlation status" $phase2.status "active_agent_success_correlation_runtime_verified"
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 87
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 88
   Assert-Contains "phase5 status" $phase5.status "active_verifier_sweep_bundle_verified"
   Assert-Contains "phase5 agent success correlation status" $phase5.status "active_agent_success_correlation_bundle_verified"
   Assert-Contains "phase5 memory status" $phase5.status "active_memory_operations_bundle_verified"
@@ -149,6 +149,7 @@ try {
   Assert-Contains "phase5 LLM guard correlation status" $phase5.status "active_llm_guard_correlation_bundle_verified"
   Assert-Contains "phase5 MCP operations status" $phase5.status "active_mcp_operations_bundle_verified"
   Assert-Contains "phase5 MCP success correlation status" $phase5.status "active_mcp_success_correlation_bundle_verified"
+  Assert-Contains "phase5 MCP guard correlation status" $phase5.status "active_mcp_guard_correlation_bundle_verified"
   $agentPool = @($progress.vertical.items | Where-Object { $_.id -eq "layer_3" }) | Select-Object -First 1
   Assert-Equal "progress agent pool" ([int]$agentPool.percent) 76
   Assert-Contains "agent pool status" $agentPool.status "active_agent_operations_runtime_verified"
@@ -159,9 +160,10 @@ try {
   Assert-Contains "LLM Gateway success correlation status" $llmGateway.status "active_llm_success_correlation_runtime_verified"
   Assert-Contains "LLM Gateway guard correlation status" $llmGateway.status "active_llm_guard_correlation_runtime_verified"
   $mcpGateway = @($progress.vertical.items | Where-Object { $_.id -eq "layer_5" }) | Select-Object -First 1
-  Assert-Equal "progress MCP Gateway" ([int]$mcpGateway.percent) 67
+  Assert-Equal "progress MCP Gateway" ([int]$mcpGateway.percent) 68
   Assert-Contains "MCP Gateway status" $mcpGateway.status "active_mcp_operations_runtime_verified"
   Assert-Contains "MCP Gateway success correlation status" $mcpGateway.status "active_mcp_success_correlation_runtime_verified"
+  Assert-Contains "MCP Gateway guard correlation status" $mcpGateway.status "active_mcp_guard_correlation_runtime_verified"
   $memory = @($progress.vertical.items | Where-Object { $_.id -eq "layer_6" }) | Select-Object -First 1
   Assert-Equal "progress memory" ([int]$memory.percent) 74
   Assert-Contains "memory status" $memory.status "active_memory_operations_runtime_verified"
@@ -221,6 +223,9 @@ try {
   $mcpSuccessCorrelationOutput = Invoke-RepoScript "phase5-active-mcp-success-correlation-bundle" "scripts\verify-phase5-active-mcp-success-correlation-bundle.ps1" @("-BaseUrl", $BaseUrl)
   Assert-Contains "MCP success correlation output" $mcpSuccessCorrelationOutput "[phase5-active-mcp-success-correlation-bundle] verified"
 
+  $mcpGuardCorrelationOutput = Invoke-RepoScript "phase5-active-mcp-guard-correlation-bundle" "scripts\verify-phase5-active-mcp-guard-correlation-bundle.ps1" @("-BaseUrl", $BaseUrl)
+  Assert-Contains "MCP guard correlation output" $mcpGuardCorrelationOutput "[phase5-active-mcp-guard-correlation-bundle] verified"
+
   $llmCatalogOutput = Invoke-RepoScript "phase4-llm-model-catalog" "scripts\verify-phase4-llm-model-catalog.ps1" @("-BaseUrl", $BaseUrl)
   Assert-Contains "llm catalog output" $llmCatalogOutput "status=verified"
 
@@ -241,9 +246,9 @@ try {
     source_commit_sha = $sourceSha
     immutable_image_commit_sha = $immutableSha
     production_rollout_claimed = $false
-    verifier_gate_count = 19
-    changed_horizontal = "Phase 2 88->89; Phase 5 84->87"
-    changed_vertical = "Agent Pool 75->76; LLM Gateway 65->67; Memory 73->74"
+    verifier_gate_count = 20
+    changed_horizontal = "Phase 2 88->89; Phase 5 84->88"
+    changed_vertical = "Agent Pool 75->76; LLM Gateway 65->67; MCP Gateway 67->68; Memory 73->74"
     gates = @(
       "current-release-candidate",
       "active-release-candidate-bundle",
@@ -260,6 +265,7 @@ try {
       "phase5-active-llm-guard-correlation-bundle",
       "phase5-active-mcp-operations-bundle",
       "phase5-active-mcp-success-correlation-bundle",
+      "phase5-active-mcp-guard-correlation-bundle",
       "phase4-llm-model-catalog",
       "phase4-mcp-capability-catalog",
       "security",

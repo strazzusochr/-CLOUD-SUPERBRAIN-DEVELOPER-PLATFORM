@@ -51,6 +51,7 @@ Assert-Contains "phase5 plan active LLM success correlation proof" $plan "verify
 Assert-Contains "phase5 plan active LLM guard correlation proof" $plan "verify-phase5-active-llm-guard-correlation-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active MCP operations proof" $plan "verify-phase5-active-mcp-operations-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active MCP success correlation proof" $plan "verify-phase5-active-mcp-success-correlation-bundle.ps1 (default parameters)"
+Assert-Contains "phase5 plan active MCP guard correlation proof" $plan "verify-phase5-active-mcp-guard-correlation-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active verifier sweep proof" $plan "verify-phase5-active-verifier-sweep-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active full-suite rebaseline proof" $plan "verify-phase5-full-verifier-sweep.ps1 (default parameters)"
 Assert-Contains "phase5 plan vercel status proof" $plan "verify-phase5-vercel-github-deployment-status.ps1 (default parameters)"

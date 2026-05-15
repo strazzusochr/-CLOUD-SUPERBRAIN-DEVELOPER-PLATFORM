@@ -24,6 +24,7 @@ MCP_REDACTION_EVIDENCE_REF = "mcp_secret_redaction_guard"
 MCP_UNSUPPORTED_TOOLSET_EVIDENCE_REF = "mcp_unsupported_toolset_guard"
 MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF = "mcp_unsupported_capability_guard"
 MCP_DENIED_AUDIT_CORRELATION_EVIDENCE_REF = "mcp_denied_tool_audit_correlation"
+MCP_GUARD_CORRELATION_EVIDENCE_REF = "mcp_guard_correlation_audit_visible"
 
 app = FastAPI(title="Cloud Superbrain MCP Gateway", version=MCP_GATEWAY_VERSION)
 
@@ -829,6 +830,9 @@ def post_audit_event(request: ToolRequest, result: dict[str, object]) -> dict[st
         "retry_after_ms": result["retry_after_ms"],
         "audit_tags": request.audit_tags,
     }
+    if result["status"] == "blocked":
+        payload["guard_evidence_ref"] = result["evidence_ref"]
+        payload["mcp_guard_correlation_evidence_ref"] = MCP_GUARD_CORRELATION_EVIDENCE_REF
     http_request = urllib.request.Request(
         f"{base_url}/internal/audit/mcp-tool-events",
         data=json.dumps(payload).encode("utf-8"),

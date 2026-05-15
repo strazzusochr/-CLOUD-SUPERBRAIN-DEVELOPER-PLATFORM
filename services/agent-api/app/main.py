@@ -153,6 +153,7 @@ MCP_AUDIT_EXPORT_CONTRACT_VERSION = "mcp-audit-export-v1"
 MCP_AUDIT_EXPORT_EVIDENCE_REF = "mcp_audit_export_visible"
 MCP_AUDIT_EXPORT_AUDIT_EVIDENCE_REF = "mcp_audit_export_audit_persisted"
 MCP_AUDIT_NO_LIVE_WRITE_EVIDENCE_REF = "mcp_audit_no_live_write_guard"
+MCP_GUARD_CORRELATION_EVIDENCE_REF = "mcp_guard_correlation_audit_visible"
 LANGFUSE_TRACE_ACCESS_CONTRACT_VERSION = "langfuse-trace-access-v1"
 LANGFUSE_TRACE_ACCESS_EVIDENCE_REF = "langfuse_trace_access_visible"
 LANGFUSE_TRACE_EVENT_EVIDENCE_REF = "langfuse_trace_event_visible"
@@ -1023,6 +1024,8 @@ class McpToolAuditRequest(BaseModel):
     result_ref: str = Field(..., min_length=1, max_length=180)
     duration_ms: int = Field(..., ge=0)
     retry_after_ms: int = Field(..., ge=0)
+    guard_evidence_ref: str | None = Field(default=None, max_length=120)
+    mcp_guard_correlation_evidence_ref: str | None = Field(default=None, max_length=120)
     audit_tags: list[str] = Field(default_factory=list)
 
     @field_validator("session_id")
@@ -3393,6 +3396,7 @@ def mcp_audit_feed_contract_payload() -> dict[str, object]:
         "export_evidence_ref": MCP_AUDIT_EXPORT_EVIDENCE_REF,
         "export_audit_evidence_ref": MCP_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
         "no_live_write_evidence_ref": MCP_AUDIT_NO_LIVE_WRITE_EVIDENCE_REF,
+        "guard_correlation_evidence_ref": MCP_GUARD_CORRELATION_EVIDENCE_REF,
         "read_only": True,
         "audit_persisted": True,
         "live_mcp_writes_claimed": False,
@@ -3437,6 +3441,8 @@ def mcp_audit_feed_contract_payload() -> dict[str, object]:
             "audit_tags",
             "session_bound",
             "audit_evidence_ref",
+            "guard_evidence_ref",
+            "mcp_guard_correlation_evidence_ref",
             "redaction_evidence_ref",
             "input_ref_stored",
             "correlation_evidence_ref",
@@ -3489,6 +3495,7 @@ def mcp_audit_feed_contract_payload() -> dict[str, object]:
             "export_audit_persisted": MCP_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
             "no_live_write_guard": MCP_AUDIT_NO_LIVE_WRITE_EVIDENCE_REF,
             "denied_tool_correlation": "mcp_denied_tool_audit_correlation",
+            "guard_correlation": MCP_GUARD_CORRELATION_EVIDENCE_REF,
             "request_correlation": "request_id_audit_correlation",
             "audit_feed_visibility": "request_id_audit_feed_visible",
         },
@@ -6452,6 +6459,9 @@ def mcp_audit_snapshot(limit: int = Query(default=50, ge=1, le=200)) -> dict[str
     denied_tool_correlation_count = sum(
         1 for item in details if item.get("denied_tool_correlation_evidence_ref") == "mcp_denied_tool_audit_correlation"
     )
+    guard_correlation_count = sum(
+        1 for item in details if item.get("mcp_guard_correlation_evidence_ref") == MCP_GUARD_CORRELATION_EVIDENCE_REF
+    )
     session_bound_count = sum(1 for item in details if item.get("session_bound") is True)
     live_mcp_write_count = sum(
         1 for item in details if item.get("live_mcp_write") is True or item.get("live_mcp_writes") is True
@@ -6474,6 +6484,7 @@ def mcp_audit_snapshot(limit: int = Query(default=50, ge=1, le=200)) -> dict[str
         "events_scanned": len(events),
         "blocked_count": blocked_count,
         "denied_tool_correlation_count": denied_tool_correlation_count,
+        "guard_correlation_count": guard_correlation_count,
         "session_bound_count": session_bound_count,
         "live_mcp_write_count": live_mcp_write_count,
         "forbidden_pattern_hits": forbidden_pattern_hits,
@@ -6496,6 +6507,9 @@ def mcp_audit_snapshot(limit: int = Query(default=50, ge=1, le=200)) -> dict[str
             "sanitized_summary",
             "evidence_ref",
             "audit_evidence_ref",
+            "guard_evidence_ref",
+            "mcp_guard_correlation_evidence_ref",
+            "denied_tool_correlation_evidence_ref",
             "redaction_evidence_ref",
             "input_ref_stored",
         ],
@@ -12071,6 +12085,10 @@ def create_mcp_tool_audit_event(request: McpToolAuditRequest) -> dict[str, objec
             ),
             "denied_tool_correlation_evidence_ref": (
                 "mcp_denied_tool_audit_correlation" if request.status == "blocked" else None
+            ),
+            "mcp_guard_correlation_evidence_ref": (
+                request.mcp_guard_correlation_evidence_ref
+                or (MCP_GUARD_CORRELATION_EVIDENCE_REF if request.status == "blocked" else None)
             ),
         }
     )

@@ -125,8 +125,8 @@ if ($ReleaseId -ne "prod-candidate-2026-05-05-rc1") {
     "production_rollout_claimed: ``false``",
     "active_gate_count: ``10``",
     "phase5_suite_plan_status: ``passed``",
-    "changed_horizontal: ``Phase 2 88->89; Phase 5 84->87``",
-    "changed_vertical: ``Agent Pool 75->76; LLM Gateway 65->67; Memory 73->74``",
+    "changed_horizontal: ``Phase 2 88->89; Phase 5 84->88``",
+    "changed_vertical: ``Agent Pool 75->76; LLM Gateway 65->67; MCP Gateway 67->68; Memory 73->74``",
     "This proof does not claim a production rollout.",
     "This proof does not include secret values."
   )) {
