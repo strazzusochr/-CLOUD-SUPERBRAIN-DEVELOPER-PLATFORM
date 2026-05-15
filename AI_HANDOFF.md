@@ -118,9 +118,9 @@ Active Gateway Execution Bundle Proof:
 
 Active Verifier Sweep Bundle Rebaseline Proof:
 
-- `scripts\verify-phase5-active-verifier-sweep-bundle.ps1` now binds active RC1 to eighteen non-mutating hosted/repo safety gates including current release-candidate, active release-candidate bundle, hosted staging smoke, Active Gateway Policy Bundle, Active Runtime Guard Matrix Bundle, Active Gateway Execution Bundle, Active Memory Operations Bundle, LLM/MCP/Agent/Memory success correlation bundles, LLM/MCP operation bundles, security scan, and evidence-artifact-safety.
-- The verifier checks `production_rollout_claimed=false`, `verifier_gate_count=18`, hosted progress `81%`, Phase 5 `86%`, Agent Pool `76%`, and Memory `74%`.
-- Progress changes: none; Overall remains `80%`; no production rollout, release promotion, live provider call, live MCP write, local model download, or secret exposure is claimed.
+- `scripts\verify-phase5-active-verifier-sweep-bundle.ps1` now binds active RC1 to nineteen non-mutating hosted/repo safety gates including current release-candidate, active release-candidate bundle, hosted staging smoke, Active Gateway Policy Bundle, Active Runtime Guard Matrix Bundle, Active Gateway Execution Bundle, Active Memory Operations Bundle, LLM/MCP/Agent/Memory success correlation bundles, the LLM Guard Correlation Bundle, LLM/MCP operation bundles, security scan, and evidence-artifact-safety.
+- The verifier checks `production_rollout_claimed=false`, `verifier_gate_count=19`, hosted progress `82%`, Phase 5 `87%`, Agent Pool `76%`, LLM Gateway `67%`, and Memory `74%`.
+- Progress changes: Phase 5 rises to `87%`; LLM Gateway rises to `67%`; Overall rises to `82%`; no production rollout, release promotion, live provider call, live MCP write, local model download, or secret exposure is claimed.
 
 Previous verified step - Active Runtime Guard Matrix Bundle Proof:
 
