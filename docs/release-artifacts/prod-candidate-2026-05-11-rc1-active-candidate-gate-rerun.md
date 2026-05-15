@@ -4,8 +4,8 @@ Status: `verified`
 release_id: `prod-candidate-2026-05-11-rc1`
 base_url: `https://188-34-191-140.sslip.io`
 active_release_id: `prod-candidate-2026-05-11-rc1`
-source_commit_sha: `052a05c295b640e69e50f6bfb73378306670713e`
-immutable_image_commit_sha: `052a05c295b640e69e50f6bfb73378306670713e`
+source_commit_sha: `984254f78c3f9fe0363ac2e8f3468f4b1c49ab05`
+immutable_image_commit_sha: `984254f78c3f9fe0363ac2e8f3468f4b1c49ab05`
 production_rollout_claimed: `false`
 bundle_status: `passed`
 bundle_gate_count: `3`

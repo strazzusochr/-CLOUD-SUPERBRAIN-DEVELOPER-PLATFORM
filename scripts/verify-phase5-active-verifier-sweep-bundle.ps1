@@ -118,9 +118,9 @@ try {
     "immutable_image_commit_sha: ``$immutableSha``",
     "base_url: ``$BaseUrl``",
     "production_rollout_claimed: ``false``",
-    "verifier_gate_count: ``10``",
-    "changed_horizontal: ``Phase 5 77->78``",
-    "changed_vertical: ``none``",
+    "verifier_gate_count: ``11``",
+    "changed_horizontal: ``Phase 5 78->79``",
+    "changed_vertical: ``Memory 72->73``",
     "This proof does not claim a production rollout.",
     "This proof does not claim release promotion.",
     "This proof does not claim live LLM provider calls.",
@@ -135,8 +135,12 @@ try {
   $progress = Invoke-JsonApi "$BaseUrl/api/v1/project/progress"
   Assert-Equal "progress overall" ([int]$progress.overall_percent) 80
   $phase5 = @($progress.horizontal.items | Where-Object { $_.id -eq "phase_5" }) | Select-Object -First 1
-  Assert-Equal "progress phase5" ([int]$phase5.percent) 78
+  Assert-Equal "progress phase5" ([int]$phase5.percent) 79
   Assert-Contains "phase5 status" $phase5.status "active_verifier_sweep_bundle_verified"
+  Assert-Contains "phase5 memory status" $phase5.status "active_memory_operations_bundle_verified"
+  $memory = @($progress.vertical.items | Where-Object { $_.id -eq "layer_6" }) | Select-Object -First 1
+  Assert-Equal "progress memory" ([int]$memory.percent) 73
+  Assert-Contains "memory status" $memory.status "active_memory_operations_runtime_verified"
   Assert-NotSecretBearing "progress payload" ($progress | ConvertTo-Json -Depth 20 -Compress)
 
   $currentReleaseOutput = Invoke-RepoScript "current-release-candidate" "scripts\verify-current-release-candidate.ps1" @("-BaseUrl", $BaseUrl, "-ReleaseId", $ReleaseId)
@@ -165,6 +169,9 @@ try {
   $gatewayExecutionOutput = Invoke-RepoScript "phase5-active-gateway-execution-bundle" "scripts\verify-phase5-active-gateway-execution-bundle.ps1" @("-BaseUrl", $BaseUrl)
   Assert-Contains "gateway execution output" $gatewayExecutionOutput "[phase5-active-gateway-execution-bundle] verified"
 
+  $memoryOperationsOutput = Invoke-RepoScript "phase5-active-memory-operations-bundle" "scripts\verify-phase5-active-memory-operations-bundle.ps1" @("-BaseUrl", $BaseUrl)
+  Assert-Contains "memory operations output" $memoryOperationsOutput "[phase5-active-memory-operations-bundle] verified"
+
   $llmCatalogOutput = Invoke-RepoScript "phase4-llm-model-catalog" "scripts\verify-phase4-llm-model-catalog.ps1" @("-BaseUrl", $BaseUrl)
   Assert-Contains "llm catalog output" $llmCatalogOutput "status=verified"
 
@@ -185,9 +192,9 @@ try {
     source_commit_sha = $sourceSha
     immutable_image_commit_sha = $immutableSha
     production_rollout_claimed = $false
-    verifier_gate_count = 10
-    changed_horizontal = "Phase 5 77->78"
-    changed_vertical = "none"
+    verifier_gate_count = 11
+    changed_horizontal = "Phase 5 78->79"
+    changed_vertical = "Memory 72->73"
     gates = @(
       "current-release-candidate",
       "active-release-candidate-bundle",
@@ -195,6 +202,7 @@ try {
       "phase3-active-gateway-policy-bundle",
       "phase5-active-runtime-guard-matrix-bundle",
       "phase5-active-gateway-execution-bundle",
+      "phase5-active-memory-operations-bundle",
       "phase4-llm-model-catalog",
       "phase4-mcp-capability-catalog",
       "security",

@@ -42,6 +42,7 @@ Assert-Contains "phase5 plan active runtime proof" $plan "verify-phase5-active-r
 Assert-Contains "phase5 plan active security proof" $plan "verify-phase5-active-security-evidence-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active runtime guard matrix proof" $plan "verify-phase5-active-runtime-guard-matrix-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active gateway execution proof" $plan "verify-phase5-active-gateway-execution-bundle.ps1 (default parameters)"
+Assert-Contains "phase5 plan active memory operations proof" $plan "verify-phase5-active-memory-operations-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active verifier sweep proof" $plan "verify-phase5-active-verifier-sweep-bundle.ps1 (default parameters)"
 Assert-Contains "phase5 plan active full-suite rebaseline proof" $plan "verify-phase5-full-verifier-sweep.ps1 (default parameters)"
 Assert-Contains "phase5 plan vercel status proof" $plan "verify-phase5-vercel-github-deployment-status.ps1 (default parameters)"
