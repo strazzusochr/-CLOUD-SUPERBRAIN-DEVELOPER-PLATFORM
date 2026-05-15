@@ -61,6 +61,7 @@ class TaskAssignment(BaseModel):
     task_type: str = Field(..., min_length=1, max_length=120)
     task_description: str = Field(..., min_length=1, max_length=10_000)
     trace_id: str | None = None
+    request_id: str | None = Field(default=None, max_length=255)
     dispatch_id: str | None = Field(default=None, max_length=120)
     logical_role: str | None = Field(default=None, pattern="^(supervisor|planner|explorer|coder|tester)$")
     provenance_evidence_ref: str | None = Field(default=None, max_length=160)

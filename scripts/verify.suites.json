@@ -239,6 +239,9 @@
             "verify-phase5-active-agent-operations-bundle.ps1": {
                 "ReleaseId": null
             },
+            "verify-phase5-active-agent-success-correlation-bundle.ps1": {
+                "ReleaseId": null
+            },
             "verify-phase5-active-llm-operations-bundle.ps1": {
                 "ReleaseId": null
             },

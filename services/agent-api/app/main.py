@@ -11281,6 +11281,7 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
             task_type=str(blueprint["task_type"]),
             task_description=str(blueprint["task_description"]),
             trace_id=trace_id,
+            request_id=request_id,
             dispatch_id=dispatch_id,
             logical_role=str(blueprint["logical_role"]),
             provenance_evidence_ref="autonomous_team_dispatch_task_provenance",
@@ -11951,6 +11952,7 @@ def create_task(assignment: TaskAssignment, request: Request) -> dict[str, objec
         update={
             "task_description": redact_text(assignment.task_description),
             "trace_id": trace_id,
+            "request_id": request_id,
         }
     )
     try:
