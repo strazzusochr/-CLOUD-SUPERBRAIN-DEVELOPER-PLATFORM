@@ -2796,6 +2796,51 @@ const workbenchLaunchPacks: Array<{
     description: "Guarded MCP tools, catalogs, sandboxes, browser proof.",
     prompt: "Select a guarded tool chain for this task with no live MCP writes and explicit contract evidence.",
   },
+  {
+    id: "model-router",
+    module: "models",
+    glyph: "LLM",
+    label: "Model Router",
+    lane: "Models",
+    description: "External API-only models, fallback chains, routing policy.",
+    prompt: "Design a model routing plan with API-only providers, fallbacks, budgets, and no local model downloads.",
+  },
+  {
+    id: "memory-workspace",
+    module: "memory",
+    glyph: "MEM",
+    label: "Memory",
+    lane: "Memory",
+    description: "Project recall, knowledge base, embedding policy, deletion guard.",
+    prompt: "Organize project memory with searchable knowledge, retention policy, audit proof, and safe deletion controls.",
+  },
+  {
+    id: "observability-center",
+    module: "observability",
+    glyph: "OBS",
+    label: "Observability",
+    lane: "Observe",
+    description: "Runs, traces, audit, cost, health, diagnostics.",
+    prompt: "Inspect the platform run state with traces, audit events, costs, health, and failure diagnostics.",
+  },
+  {
+    id: "security-release",
+    module: "settings",
+    glyph: "SEC",
+    label: "Security",
+    lane: "Settings",
+    description: "Security gates, auth, cloud preflight, release blockers.",
+    prompt: "Review security and release gates with fail-closed checks, no production claims, and evidence requirements.",
+  },
+  {
+    id: "cloud-runtime",
+    module: "settings",
+    glyph: "CLD",
+    label: "Cloud Runtime",
+    lane: "Settings",
+    description: "7-layer cloud readiness, staging proof, deployment gates.",
+    prompt: "Plan the cloud runtime path across the 7 layers with staging proof, blockers, and no rollout claim.",
+  },
 ];
 
 const agentRunModes = [
@@ -2874,6 +2919,7 @@ export default function Home() {
   const [selectedAgentMode, setSelectedAgentMode] = useState("auto-router");
   const [selectedRouteKey, setSelectedRouteKey] = useState("auto");
   const [selectedToolsetKey, setSelectedToolsetKey] = useState("auto");
+  const [selectedLaunchPackId, setSelectedLaunchPackId] = useState("app-builder");
   const [commandQuery, setCommandQuery] = useState("");
   const [budget, setBudget] = useState<BudgetState | null>(null);
   const [costs, setCosts] = useState<CostState | null>(null);
@@ -4405,7 +4451,9 @@ export default function Home() {
   const activeLaunchPacks = [
     ...workbenchLaunchPacks.filter((pack) => pack.module === activeModuleId),
     ...workbenchLaunchPacks.filter((pack) => pack.module !== activeModuleId),
-  ].slice(0, 8);
+  ];
+  const selectedLaunchPack =
+    workbenchLaunchPacks.find((pack) => pack.id === selectedLaunchPackId) ?? activeLaunchPacks[0] ?? null;
   const recentRunCount = recentSessions.length + phase2RuntimeRuns.length;
   const selectedRouteLabel = selectedModelRoute
     ? `${selectedModelRoute.agent_type}: ${selectedModelRoute.primary}`
@@ -4490,7 +4538,7 @@ export default function Home() {
           <div className="workbenchComposerHeader">
             <div>
               <span>{activeWorkbenchModule.primary}</span>
-              <strong>{activeWorkbenchModule.scope}</strong>
+              <strong>{selectedLaunchPack ? `${selectedLaunchPack.label} / ${activeWorkbenchModule.scope}` : activeWorkbenchModule.scope}</strong>
             </div>
             <div className="workbenchStatusPills" aria-label="Workbench status">
               {workbenchStats.map((item) => (
@@ -4563,6 +4611,28 @@ export default function Home() {
                 ))}
               </select>
             </label>
+          </div>
+          <div className="workbenchFlowMap" aria-label="Task flow map">
+            <article>
+              <span>Intent</span>
+              <strong>{selectedLaunchPack?.label ?? activeWorkbenchModule.label}</strong>
+              <small>{selectedLaunchPack?.description ?? activeWorkbenchModule.description}</small>
+            </article>
+            <article>
+              <span>Agents</span>
+              <strong>{activeAgentMode.label}</strong>
+              <small>{activeAgentMode.detail}</small>
+            </article>
+            <article>
+              <span>Tools</span>
+              <strong>{selectedToolsetLabel}</strong>
+              <small>live_mcp_writes=false</small>
+            </article>
+            <article>
+              <span>Proof</span>
+              <strong>Contracts + Audit</strong>
+              <small>no production rollout claim</small>
+            </article>
           </div>
           <div className="actions workbenchActionBar">
             <button type="submit" disabled={status === "starting" || status === "streaming"}>
@@ -4648,12 +4718,20 @@ export default function Home() {
             {activeLaunchPacks.map((pack) => (
               <button
                 type="button"
-                className={pack.module === activeModuleId ? "workbenchLaunchCard workbenchLaunchCard-active" : "workbenchLaunchCard"}
+                className={
+                  pack.id === selectedLaunchPackId
+                    ? "workbenchLaunchCard workbenchLaunchCard-active"
+                    : pack.module === activeModuleId
+                      ? "workbenchLaunchCard workbenchLaunchCard-related"
+                      : "workbenchLaunchCard"
+                }
                 onClick={() => {
+                  setSelectedLaunchPackId(pack.id);
                   setActiveModuleId(pack.module);
                   setActiveWorkbenchTab("create");
                   setPrompt(pack.prompt);
                 }}
+                aria-pressed={pack.id === selectedLaunchPackId}
                 key={pack.id}
               >
                 <span>{pack.glyph}</span>
@@ -9651,8 +9729,8 @@ export default function Home() {
         </section>
         <section className="workbenchInspectorCard">
           <span>Fast Launch</span>
-          <strong>{activeLaunchPacks[0]?.label ?? activeWorkbenchModule.primary}</strong>
-          <p>{activeLaunchPacks[0]?.description ?? "Select a launch pack to configure the prompt and workspace."}</p>
+          <strong>{selectedLaunchPack?.label ?? activeWorkbenchModule.primary}</strong>
+          <p>{selectedLaunchPack?.description ?? "Select a launch pack to configure the prompt and workspace."}</p>
         </section>
         <section className="workbenchInspectorCard">
           <span>Selected Agent Mode</span>
