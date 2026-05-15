@@ -33,6 +33,8 @@ def current_embedding_dimensions() -> int:
 class MemoryWriteRequest(BaseModel):
     project_id: str = Field(..., min_length=1)
     session_id: str | None = None
+    trace_id: str | None = Field(default=None, max_length=255)
+    request_id: str | None = Field(default=None, max_length=255)
     content_text: str = Field(..., min_length=1, max_length=20_000)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -43,6 +45,11 @@ class MemorySearchResult(BaseModel):
     relevance_score: float
     created_at: str
     session_id: str | None
+    trace_id: str | None = None
+    request_id: str | None = None
+    correlation_evidence_ref: str | None = None
+    audit_feed_evidence_ref: str | None = None
+    memory_success_evidence_ref: str | None = None
 
 
 def find_project_uuid(conn: psycopg.Connection, project_id: str) -> str | None:
@@ -95,6 +102,15 @@ def store_memory(request: MemoryWriteRequest) -> str:
             redact_text(request.content_text),
             {
                 **request.metadata,
+                "trace_id": request.trace_id,
+                "request_id": request.request_id,
+                "session_id": request.session_id,
+                "correlation_evidence_ref": "request_id_audit_correlation"
+                if (request.trace_id or request.request_id or request.session_id)
+                else None,
+                "audit_feed_evidence_ref": "request_id_audit_feed_visible"
+                if (request.trace_id or request.request_id or request.session_id)
+                else None,
                 "search_mode": EMBEDDING_SEARCH_MODE,
                 "embedding_model_version": current_embedding_model_version(),
                 "embedding_dimensions": current_embedding_dimensions(),
@@ -103,14 +119,17 @@ def store_memory(request: MemoryWriteRequest) -> str:
 
 
 def search_memory(project_id: str, query: str, limit: int = 5) -> list[MemorySearchResult]:
-    like_query = f"%{query}%"
+    normalized_query = query.strip()
+    if not normalized_query:
+        return []
+    like_query = f"%{normalized_query}%"
     with psycopg.connect(database_url(), autocommit=True) as conn:
         project_uuid = find_project_uuid(conn, project_id)
         if not project_uuid:
             return []
         rows = conn.execute(
             """
-            SELECT id, content_text, COALESCE(relevance_score, 0.5), created_at, session_id
+            SELECT id, content_text, COALESCE(relevance_score, 0.5), created_at, session_id, metadata
             FROM memory_entries
             WHERE project_id = %s
               AND status = 'active'
@@ -121,12 +140,25 @@ def search_memory(project_id: str, query: str, limit: int = 5) -> list[MemorySea
             (project_uuid, like_query, limit),
         ).fetchall()
     return [
-        MemorySearchResult(
-            id=str(row[0]),
-            content=row[1],
-            relevance_score=float(row[2]),
-            created_at=row[3].isoformat() if isinstance(row[3], datetime) else str(row[3]),
-            session_id=str(row[4]) if row[4] else None,
-        )
+        (
+            lambda metadata: MemorySearchResult(
+                id=str(row[0]),
+                content=row[1],
+                relevance_score=float(row[2]),
+                created_at=row[3].isoformat() if isinstance(row[3], datetime) else str(row[3]),
+                session_id=str(row[4]) if row[4] else None,
+                trace_id=str(metadata.get("trace_id")) if metadata.get("trace_id") else None,
+                request_id=str(metadata.get("request_id")) if metadata.get("request_id") else None,
+                correlation_evidence_ref=str(metadata.get("correlation_evidence_ref"))
+                if metadata.get("correlation_evidence_ref")
+                else None,
+                audit_feed_evidence_ref=str(metadata.get("audit_feed_evidence_ref"))
+                if metadata.get("audit_feed_evidence_ref")
+                else None,
+                memory_success_evidence_ref=str(metadata.get("memory_success_evidence_ref"))
+                if metadata.get("memory_success_evidence_ref")
+                else None,
+            )
+        )(row[5] if isinstance(row[5], dict) else {})
         for row in rows
     ]

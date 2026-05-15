@@ -6,6 +6,19 @@ This is the current review anchor for external AI/operator review. Older `PROJEC
 
 This review records the latest post-merge CI/runtime evidence head known at creation time. A later docs-only carrier merge can move repository HEAD without implying a new runtime rollout.
 
+## 2026-05-14 Runtime Addendum
+
+This review predates the Security Review Queue Export staging slice. Current binding truth is now mirrored in `AI_HANDOFF.md`, `PROJECT_STATE.md`, `docs/project-progress.manifest.json`, and `docs/verification-register.md`.
+
+```text
+active_staging_candidate=4364d31d7f1e6d0dec1f4d9f686715fec41d3b35
+active_release_id=prod-candidate-2026-05-11-rc1
+latest_verified_slice=security-review-queue-export-v1
+overall_percent=79
+phase_3_percent=94
+production_rollout_claimed=false
+```
+
 ## Current Truth Snapshot
 
 ```text
@@ -24,6 +37,8 @@ external_review_packet_valid=true
 ```
 
 ## Current Release Boundary
+
+Historical section note: this block records the May 13 review state at file creation time. It is superseded for current runtime purposes by the `2026-05-14 Runtime Addendum` above and by `AI_HANDOFF.md`.
 
 ```text
 release_id=prod-candidate-2026-05-11-rc1
@@ -101,8 +116,8 @@ scripts/verify.suites.json
 
 - No production deployment was triggered.
 - No production runtime rollout is claimed.
-- No new Hetzner runtime image rollout from `850753c59077c2c7209f4a5651ea78b03bea555f` is claimed.
-- The immutable staging image evidence remains tied to `b0c2773b1d122745947315a8d39734d5a6c96d6b`.
+- No production rollout is claimed for the current `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35` staging selector.
+- The historical May 13 immutable staging image evidence remains tied to `b0c2773b1d122745947315a8d39734d5a6c96d6b`; the current runtime selector is documented in the addendum above.
 - Secret values, token values, environment values, and raw credential material are not included in this report.
 
 ## Next Valid Gate

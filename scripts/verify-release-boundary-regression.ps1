@@ -72,9 +72,9 @@ function Invoke-ReportOnlyVerifier([string]$ScriptName) {
 
   $global:LASTEXITCODE = 0
   if ($ScriptName -eq "verify-active-release-candidate-bundle.ps1") {
-    & $scriptPath -ReportOnly -OutputPath ".phase1-artifacts\active-release-candidate-bundle-20260513.json" | Out-Null
+    & $scriptPath -ReportOnly -OutputPath ".phase1-artifacts\active-release-candidate-bundle-20260513.json" 6>$null | Out-Null
   } else {
-    & $scriptPath -ReportOnly | Out-Null
+    & $scriptPath -ReportOnly 6>$null | Out-Null
   }
   if ($LASTEXITCODE -ne 0) {
     throw "$ScriptName exited with code $LASTEXITCODE"
@@ -156,6 +156,16 @@ try {
   $vercelProjectGitReadiness = Read-JsonArtifact -Path ".phase1-artifacts\vercel-project-git-readiness-20260513.json" -Label "vercel-project-git-readiness"
   $vercelGitLink = Read-JsonArtifact -Path ".phase1-artifacts\vercel-git-link-20260513.json" -Label "vercel-git-link"
   $activeReleaseCandidateBundle = Read-JsonArtifact -Path ".phase1-artifacts\active-release-candidate-bundle-20260513.json" -Label "active-release-candidate-bundle"
+  $currentReleaseConfig = Read-JsonArtifact -Path "docs\release-artifacts\current-release-candidate.json" -Label "current-release-candidate"
+  $activeReleaseArtifactPath = "docs\release-artifacts\$($currentReleaseConfig.active_release_id).md"
+  if (-not (Test-Path -LiteralPath $activeReleaseArtifactPath)) {
+    throw "Missing active release artifact: $activeReleaseArtifactPath"
+  }
+  $activeReleaseArtifactContent = Get-Content -LiteralPath $activeReleaseArtifactPath -Raw
+  if ($activeReleaseArtifactContent -notmatch '(?m)^source_branch:\s*`([^`]+)`\s*$') {
+    throw "Active release artifact missing source_branch: $activeReleaseArtifactPath"
+  }
+  $activeReleaseSourceBranch = $Matches[1]
   $vercelRemediation = Read-JsonArtifact -Path ".phase1-artifacts\vercel-remediation-plan-20260511.json" -Label "vercel-remediation-plan"
   $releaseRebaseline = Read-JsonArtifact -Path ".phase1-artifacts\release-rebaseline-plan-20260511.json" -Label "release-rebaseline-plan"
   $resolutionPlan = Read-JsonArtifact -Path ".phase1-artifacts\blocker-resolution-plan-20260511.json" -Label "blocker-resolution-plan"
@@ -261,7 +271,7 @@ try {
   Assert-EqualValue $findings "vercel_git_link.root_directory" "apps/frontend" $vercelGitLink.observed.rootDirectory
   Assert-EqualValue $findings "vercel_git_link.link_org" "strazzusochr" $vercelGitLink.observed.linkOrg
   Assert-EqualValue $findings "vercel_git_link.link_repo" "-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM" $vercelGitLink.observed.linkRepo
-  Assert-EqualValue $findings "vercel_git_link.production_branch" "chore/repo-bootstrap" $vercelGitLink.observed.linkProductionBranch
+  Assert-EqualValue $findings "vercel_git_link.production_branch" $activeReleaseSourceBranch $vercelGitLink.observed.linkProductionBranch
 
   Assert-EqualValue $findings "active_rc_bundle.status" "passed" $activeReleaseCandidateBundle.status
   Assert-EqualValue $findings "active_rc_bundle.passed" $true $activeReleaseCandidateBundle.passed

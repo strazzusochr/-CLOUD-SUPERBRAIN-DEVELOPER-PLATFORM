@@ -38,6 +38,7 @@ $suiteIndex = @{}
 foreach ($entry in $registry) {
   $suiteIndex[$entry.id] = $entry
 }
+$explicitReleaseIdProvided = $PSBoundParameters.ContainsKey("ReleaseId") -and -not [string]::IsNullOrWhiteSpace($ReleaseId)
 
 function Get-DeclaredParameters([string]$ScriptPath) {
   $tokens = $null
@@ -81,6 +82,10 @@ function Resolve-Suite([string]$SuiteId, [System.Collections.Generic.HashSet[str
     if ($entry.PSObject.Properties.Name -contains "parameter_overrides") {
       $parameterOverrides = Convert-ToHashtable $entry.parameter_overrides
     }
+    $scriptParameterOverrides = @{}
+    if ($entry.PSObject.Properties.Name -contains "script_parameter_overrides") {
+      $scriptParameterOverrides = Convert-ToHashtable $entry.script_parameter_overrides
+    }
 
     foreach ($pattern in @($entry.patterns)) {
       $pathPattern = Join-Path $PSScriptRoot $pattern
@@ -89,12 +94,22 @@ function Resolve-Suite([string]$SuiteId, [System.Collections.Generic.HashSet[str
         throw "Suite '$SuiteId' pattern '$pattern' resolved to no scripts."
       }
       foreach ($match in $matches) {
+        $effectiveParameterOverrides = @{}
+        foreach ($key in $parameterOverrides.Keys) {
+          $effectiveParameterOverrides[$key] = $parameterOverrides[$key]
+        }
+        if ($scriptParameterOverrides.ContainsKey($match.Name)) {
+          $perScriptOverrides = Convert-ToHashtable $scriptParameterOverrides[$match.Name]
+          foreach ($key in $perScriptOverrides.Keys) {
+            $effectiveParameterOverrides[$key] = $perScriptOverrides[$key]
+          }
+        }
         $resolved.Add([pscustomobject]@{
           SuiteId = $SuiteId
           ScriptPath = $match.FullName
           ScriptName = $match.Name
           DefaultSwitches = @($entry.default_switches)
-          ParameterOverrides = $parameterOverrides
+          ParameterOverrides = $effectiveParameterOverrides
         })
       }
     }
@@ -180,6 +195,16 @@ function Get-InvocationArgs([hashtable]$DeclaredParameters, [string[]]$DefaultSw
   }
 
   foreach ($key in $ParameterOverrides.Keys) {
+    if ($null -eq $ParameterOverrides[$key]) {
+      if ($key -eq "ReleaseId" -and $script:explicitReleaseIdProvided) {
+        $arguments[$key] = $ReleaseId
+        continue
+      }
+      if ($arguments.Contains($key)) {
+        $arguments.Remove($key)
+      }
+      continue
+    }
     if ($DeclaredParameters.ContainsKey($key)) {
       $arguments[$key] = $ParameterOverrides[$key]
     }

@@ -18,6 +18,15 @@ from pydantic import BaseModel, Field, field_validator
 MCP_GATEWAY_VERSION = "0.1.0"
 MCP_VERSION_PINNING_CONTRACT_VERSION = "mcp-version-pinning-v1"
 MCP_VERSION_PINNING_EVIDENCE_REF = "mcp_version_pinning_contract_visible"
+MCP_CAPABILITY_CATALOG_CONTRACT_VERSION = "mcp-capability-catalog-v1"
+MCP_CAPABILITY_CATALOG_EVIDENCE_REF = "mcp_capability_catalog_visible"
+MCP_REDACTION_EVIDENCE_REF = "mcp_secret_redaction_guard"
+MCP_UNSUPPORTED_TOOLSET_EVIDENCE_REF = "mcp_unsupported_toolset_guard"
+MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF = "mcp_unsupported_capability_guard"
+MCP_DENIED_AUDIT_CORRELATION_EVIDENCE_REF = "mcp_denied_tool_audit_correlation"
+MCP_GUARD_CORRELATION_EVIDENCE_REF = "mcp_guard_correlation_audit_visible"
+MCP_RUNTIME_GUARD_PARITY_CONTRACT_VERSION = "mcp-runtime-guard-parity-v1"
+MCP_RUNTIME_GUARD_PARITY_EVIDENCE_REF = "mcp_runtime_guard_parity_visible"
 
 app = FastAPI(title="Cloud Superbrain MCP Gateway", version=MCP_GATEWAY_VERSION)
 
@@ -27,6 +36,7 @@ class ToolRequest(BaseModel):
     run_id: str = Field(..., min_length=1, max_length=120)
     session_id: str | None = Field(default=None, max_length=120)
     trace_id: str | None = Field(default=None, max_length=255)
+    request_id: str | None = Field(default=None, max_length=255)
     agent_role: str = Field(..., pattern="^(planner|coder|tester|devops)$")
     toolset: str = Field(..., pattern="^(github|e2b|playwright|filesystem|postgresql|puppeteer)$")
     capability: str = Field(..., min_length=1, max_length=120)
@@ -103,6 +113,146 @@ E2B_ALLOWED_ACTIONS = ("create_sandbox", "execute_code", "read_output", "close_s
 E2B_ALLOWED_SCOPES = ("sandbox:test", "sandbox:ephemeral")
 E2B_FORBIDDEN_TOKENS = ("production", "secret", "private_key", "sudo", "privileged", "crypto_mining", "network_scan")
 E2B_MAX_SESSION_TIMEOUT_MS = 1_800_000
+SUPPORTED_CAPABILITIES = {
+    "github": {"plan_branch_pr"},
+    "postgresql": {"query_readonly"},
+    "filesystem": {"plan_workspace_access"},
+    "playwright": {"plan_browser_proof"},
+    "e2b": {"plan_sandbox_lifecycle", "simulate_timeout"},
+    "puppeteer": set(),
+}
+SECRET_REDACTION_PATTERNS = (
+    (re.compile(r"\bsk-[A-Za-z0-9_-]{12,}\b"), "[REDACTED_OPENAI_KEY]"),
+    (re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"), "[REDACTED_GITHUB_TOKEN]"),
+    (re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{12,}\b"), "[REDACTED_GITHUB_TOKEN]"),
+    (re.compile(r"\bvck_[A-Za-z0-9_-]{12,}\b"), "[REDACTED_VERCEL_TOKEN]"),
+    (re.compile(r"\b(cf|hcloud)_[A-Za-z0-9_-]{12,}\b", re.IGNORECASE), "[REDACTED_CLOUD_TOKEN]"),
+    (re.compile(r"(?i)\b(bearer|token|secret|password|api[_-]?key)\s*[:=]\s*['\"]?[^'\"\s]{8,}"), r"\1=[REDACTED_SECRET]"),
+)
+
+
+def mcp_pinned_tool_contracts() -> list[dict[str, object]]:
+    return [
+        {
+            "toolset": "github",
+            "capability": "plan_branch_pr",
+            "contract_version": "github-branch-pr-plan-v1",
+            "endpoint": "GET /mcp/api/v1/github/branch-pr/contract",
+            "live_mutation": False,
+        },
+        {
+            "toolset": "postgresql",
+            "capability": "query_readonly",
+            "contract_version": "postgresql-readonly-query-v1",
+            "endpoint": "GET /mcp/api/v1/postgresql/readonly-query/contract",
+            "live_mutation": False,
+        },
+        {
+            "toolset": "filesystem",
+            "capability": "plan_workspace_access",
+            "contract_version": "filesystem-workspace-scope-v1",
+            "endpoint": "GET /mcp/api/v1/filesystem/workspace-scope/contract",
+            "live_mutation": False,
+        },
+        {
+            "toolset": "playwright",
+            "capability": "plan_browser_proof",
+            "contract_version": "playwright-browser-proof-v1",
+            "endpoint": "GET /mcp/api/v1/playwright/browser-proof/contract",
+            "live_mutation": False,
+        },
+        {
+            "toolset": "e2b",
+            "capability": "plan_sandbox_lifecycle",
+            "contract_version": "e2b-sandbox-lifecycle-v1",
+            "endpoint": "GET /mcp/api/v1/e2b/sandbox-lifecycle/contract",
+            "live_mutation": False,
+        },
+    ]
+
+
+def mcp_capability_catalog_contract() -> dict[str, object]:
+    contract_by_toolset = {
+        str(item["toolset"]): item
+        for item in mcp_pinned_tool_contracts()
+    }
+    toolset_modes = {
+        "github": "branch_pr_plan_only",
+        "postgresql": "readonly_query_plan_only",
+        "filesystem": "workspace_scope_plan_only",
+        "playwright": "browser_proof_plan_only",
+        "e2b": "sandbox_lifecycle_plan_only",
+        "puppeteer": "blocked_placeholder_toolset",
+    }
+    blocked_examples = {
+        "github": ["delete_branch", "merge_pull_request", "force_push"],
+        "postgresql": ["insert", "update", "delete", "migrate"],
+        "filesystem": ["delete", "move", "read_secret", "shell"],
+        "playwright": ["file_url_capture", "credential_capture", "metadata_ip_probe"],
+        "e2b": ["create_sandbox", "execute_code", "network_scan"],
+        "puppeteer": ["launch_browser"],
+    }
+
+    toolsets: list[dict[str, object]] = []
+    for toolset in sorted(SUPPORTED_CAPABILITIES.keys()):
+        capabilities = sorted(SUPPORTED_CAPABILITIES[toolset])
+        contract = contract_by_toolset.get(toolset)
+        toolsets.append(
+            {
+                "toolset": toolset,
+                "mode": toolset_modes[toolset],
+                "supported_capabilities": capabilities,
+                "blocked_capability_examples": blocked_examples[toolset],
+                "contract_version": contract.get("contract_version") if contract else None,
+                "contract_endpoint": contract.get("endpoint") if contract else None,
+                "live_mutation": False,
+                "live_mcp_writes": False,
+                "requires_audit": True,
+                "requires_timeout": True,
+                "unsupported_capability_guard": MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF,
+            }
+        )
+
+    return {
+        "contract_version": MCP_CAPABILITY_CATALOG_CONTRACT_VERSION,
+        "status": "verified",
+        "mode": "deterministic_mcp_capability_catalog",
+        "endpoint": "GET /mcp/api/v1/capabilities/catalog",
+        "evidence_ref": MCP_CAPABILITY_CATALOG_EVIDENCE_REF,
+        "toolset_count": len(toolsets),
+        "capability_count": sum(len(item["supported_capabilities"]) for item in toolsets),
+        "live_mcp_writes": False,
+        "live_mutations": False,
+        "external_mcp_server_calls": False,
+        "toolsets": toolsets,
+        "request_contract": {
+            "model": "ToolRequest",
+            "toolset_pattern": "^(github|e2b|playwright|filesystem|postgresql|puppeteer)$",
+            "timeout_ms": "1..1800000",
+            "retry_budget": "0..2",
+            "redaction_required_default": True,
+        },
+        "guards": {
+            "unsupported_toolset": MCP_UNSUPPORTED_TOOLSET_EVIDENCE_REF,
+            "unsupported_capability": MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF,
+            "scope_guard": "mcp_scope_guard",
+            "timeout_guard": "mcp_timeout_guard",
+            "secret_redaction": MCP_REDACTION_EVIDENCE_REF,
+            "denied_audit_correlation": MCP_DENIED_AUDIT_CORRELATION_EVIDENCE_REF,
+        },
+        "non_claims": [
+            "This catalog is a deterministic capability contract, not a live MCP write enablement.",
+            "No GitHub write, filesystem mutation, database write, browser automation, or E2B execution is enabled by this endpoint.",
+            "Changing a capability requires updating gateway, UI, docs, and verifiers together.",
+        ],
+    }
+
+
+def redact_sensitive_text(value: str) -> str:
+    redacted = value
+    for pattern, replacement in SECRET_REDACTION_PATTERNS:
+        redacted = pattern.sub(replacement, redacted)
+    return redacted
 
 
 def normalize_sql(sql: str) -> str:
@@ -387,6 +537,12 @@ def mcp_version_pinning_contract() -> dict[str, object]:
         "audit_gap": "L-08",
         "endpoint": "GET /mcp/api/v1/version-pinning/contract",
         "evidence_ref": MCP_VERSION_PINNING_EVIDENCE_REF,
+        "capability_catalog_contract_version": MCP_CAPABILITY_CATALOG_CONTRACT_VERSION,
+        "capability_catalog_endpoint": "GET /mcp/api/v1/capabilities/catalog",
+        "capability_catalog_evidence_ref": MCP_CAPABILITY_CATALOG_EVIDENCE_REF,
+        "live_mcp_writes": False,
+        "live_mutations": False,
+        "external_mcp_server_calls": False,
         "gateway": {
             "service": "mcp-gateway",
             "app_version": MCP_GATEWAY_VERSION,
@@ -399,46 +555,11 @@ def mcp_version_pinning_contract() -> dict[str, object]:
             {"name": "uvicorn[standard]", "version": "0.34.0", "pin": "uvicorn[standard]==0.34.0"},
             {"name": "pydantic", "version": "2.10.6", "pin": "pydantic==2.10.6"},
         ],
-        "pinned_tool_contracts": [
-            {
-                "toolset": "github",
-                "capability": "plan_branch_pr",
-                "contract_version": "github-branch-pr-plan-v1",
-                "endpoint": "GET /mcp/api/v1/github/branch-pr/contract",
-                "live_mutation": False,
-            },
-            {
-                "toolset": "postgresql",
-                "capability": "query_readonly",
-                "contract_version": "postgresql-readonly-query-v1",
-                "endpoint": "GET /mcp/api/v1/postgresql/readonly-query/contract",
-                "live_mutation": False,
-            },
-            {
-                "toolset": "filesystem",
-                "capability": "plan_workspace_access",
-                "contract_version": "filesystem-workspace-scope-v1",
-                "endpoint": "GET /mcp/api/v1/filesystem/workspace-scope/contract",
-                "live_mutation": False,
-            },
-            {
-                "toolset": "playwright",
-                "capability": "plan_browser_proof",
-                "contract_version": "playwright-browser-proof-v1",
-                "endpoint": "GET /mcp/api/v1/playwright/browser-proof/contract",
-                "live_mutation": False,
-            },
-            {
-                "toolset": "e2b",
-                "capability": "plan_sandbox_lifecycle",
-                "contract_version": "e2b-sandbox-lifecycle-v1",
-                "endpoint": "GET /mcp/api/v1/e2b/sandbox-lifecycle/contract",
-                "live_mutation": False,
-            },
-        ],
+        "pinned_tool_contracts": mcp_pinned_tool_contracts(),
         "request_contract": {
             "model": "ToolRequest",
             "toolset_pattern": "^(github|e2b|playwright|filesystem|postgresql|puppeteer)$",
+            "unsupported_toolsets_blocked": ["puppeteer"],
             "session_id": "uuid-or-null",
             "timeout_ms": "1..1800000",
             "retry_budget": "0..2",
@@ -449,19 +570,168 @@ def mcp_version_pinning_contract() -> dict[str, object]:
             "Every exposed MCP tool contract must publish a stable contract_version.",
             "Adding or changing a tool capability requires updating this endpoint, docs, UI, and verifiers in the same change.",
             "Unknown toolsets or scope-violating capabilities fail closed before live execution.",
+            "Placeholder toolsets without a concrete contract, such as puppeteer, return a blocked envelope.",
             "Live mutations remain disabled until a separate external gate and human review are configured.",
         ],
         "evidence_refs": [
             MCP_VERSION_PINNING_EVIDENCE_REF,
+            MCP_CAPABILITY_CATALOG_EVIDENCE_REF,
             "mcp_safe_envelope",
             "mcp_scope_guard",
             "mcp_timeout_guard",
             "mcp_tool_session_bound_audit",
+            MCP_DENIED_AUDIT_CORRELATION_EVIDENCE_REF,
+            MCP_UNSUPPORTED_TOOLSET_EVIDENCE_REF,
+            MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF,
+            MCP_REDACTION_EVIDENCE_REF,
         ],
+        "capability_guard": {
+            "mode": "fail_closed_unknown_capability",
+            "supported_capabilities": {key: sorted(value) for key, value in SUPPORTED_CAPABILITIES.items()},
+            "evidence_ref": MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF,
+        },
         "non_claims": [
             "No live MCP write is enabled by this version-pinning contract.",
             "No external MCP server version is claimed beyond the local gateway and its pinned Python dependencies.",
             "No production deployment or hosted staging success is claimed by this local contract.",
+        ],
+    }
+
+
+def mcp_runtime_guard_parity_snapshot() -> dict[str, object]:
+    catalog = mcp_capability_catalog_contract()
+    version_contract = mcp_version_pinning_contract()
+    guard_matrix = [
+        {
+            "guard": "unsupported_toolset",
+            "status": "enforced",
+            "evidence_ref": MCP_UNSUPPORTED_TOOLSET_EVIDENCE_REF,
+            "enforced_on": ["/api/v1/tools/execute"],
+            "fail_closed": True,
+        },
+        {
+            "guard": "unsupported_capability",
+            "status": "enforced",
+            "evidence_ref": MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF,
+            "enforced_on": ["/api/v1/tools/execute"],
+            "fail_closed": True,
+        },
+        {
+            "guard": "scope_guard",
+            "status": "enforced",
+            "evidence_ref": "mcp_scope_guard",
+            "enforced_on": ["/api/v1/tools/execute"],
+            "fail_closed": True,
+        },
+        {
+            "guard": "timeout_guard",
+            "status": "enforced",
+            "evidence_ref": "mcp_timeout_guard",
+            "enforced_on": ["/api/v1/tools/execute"],
+            "fail_closed": True,
+        },
+        {
+            "guard": "secret_redaction",
+            "status": "enforced",
+            "evidence_ref": MCP_REDACTION_EVIDENCE_REF,
+            "enforced_on": ["/api/v1/tools/execute", "POST /internal/audit/mcp-tool-events"],
+            "fail_closed": True,
+        },
+        {
+            "guard": "denied_audit_correlation",
+            "status": "enforced",
+            "evidence_ref": MCP_DENIED_AUDIT_CORRELATION_EVIDENCE_REF,
+            "enforced_on": ["/api/v1/tools/execute", "GET /api/v1/audit/mcp"],
+            "fail_closed": True,
+        },
+    ]
+    evidence_refs = sorted(
+        {
+            MCP_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+            MCP_VERSION_PINNING_EVIDENCE_REF,
+            MCP_CAPABILITY_CATALOG_EVIDENCE_REF,
+            MCP_REDACTION_EVIDENCE_REF,
+            MCP_UNSUPPORTED_TOOLSET_EVIDENCE_REF,
+            MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF,
+            MCP_DENIED_AUDIT_CORRELATION_EVIDENCE_REF,
+            "mcp_safe_envelope",
+            "mcp_scope_guard",
+            "mcp_timeout_guard",
+            "mcp_tool_session_bound_audit",
+        }
+        .union(str(item) for item in version_contract.get("evidence_refs", []))
+        .union(str(item.get("evidence_ref")) for item in guard_matrix)
+    )
+    status = (
+        "verified"
+        if (
+            version_contract.get("contract_version") == MCP_VERSION_PINNING_CONTRACT_VERSION
+            and catalog.get("contract_version") == MCP_CAPABILITY_CATALOG_CONTRACT_VERSION
+            and catalog.get("status") == "verified"
+            and catalog.get("live_mcp_writes") is False
+            and catalog.get("live_mutations") is False
+            and catalog.get("external_mcp_server_calls") is False
+            and all(item["status"] == "enforced" and item["fail_closed"] is True for item in guard_matrix)
+        )
+        else "blocked"
+    )
+    return {
+        "contract_version": MCP_RUNTIME_GUARD_PARITY_CONTRACT_VERSION,
+        "status": status,
+        "mode": "deterministic_mcp_runtime_guard_parity",
+        "endpoint": "GET /mcp/api/v1/runtime/guard-parity",
+        "evidence_ref": MCP_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+        "live_mcp_writes": False,
+        "live_mutations": False,
+        "external_mcp_server_calls": False,
+        "model_downloads": False,
+        "ingress_surface": {
+            "tool_execute": "POST /mcp/api/v1/tools/execute",
+            "version_pinning": "GET /mcp/api/v1/version-pinning/contract",
+            "capability_catalog": "GET /mcp/api/v1/capabilities/catalog",
+            "health": "GET /mcp/api/v1/health",
+        },
+        "configured_toolsets": sorted(SUPPORTED_CAPABILITIES.keys()),
+        "configured_capabilities": {
+            key: sorted(value) for key, value in SUPPORTED_CAPABILITIES.items()
+        },
+        "guard_matrix": guard_matrix,
+        "version_pinning_contract": {
+            "contract_version": version_contract["contract_version"],
+            "endpoint": version_contract["endpoint"],
+            "evidence_ref": version_contract["evidence_ref"],
+            "live_mcp_writes": version_contract["live_mcp_writes"],
+            "live_mutations": version_contract["live_mutations"],
+            "external_mcp_server_calls": version_contract["external_mcp_server_calls"],
+        },
+        "capability_catalog_contract": {
+            "contract_version": catalog["contract_version"],
+            "endpoint": catalog["endpoint"],
+            "evidence_ref": catalog["evidence_ref"],
+            "toolset_count": catalog["toolset_count"],
+            "capability_count": catalog["capability_count"],
+            "live_mcp_writes": catalog["live_mcp_writes"],
+            "live_mutations": catalog["live_mutations"],
+            "external_mcp_server_calls": catalog["external_mcp_server_calls"],
+        },
+        "agent_executor_contract": {
+            "consumer_module": "services/agent-api/app/main.py",
+            "consumer_function": "agent_mcp_runtime_guard_parity_payload",
+            "preflight_required": "GET /api/v1/runtime/guard-parity before Agent API claims MCP guard parity verified",
+            "required_state_fields": [
+                "mcp_gateway_calls[].tool_request_id",
+                "mcp_gateway_calls[].session_id",
+                "mcp_gateway_calls[].trace_id",
+                "mcp_gateway_calls[].request_id",
+                "mcp_gateway_calls[].guard_evidence_ref",
+                "mcp_gateway_calls[].live_mcp_writes_proven_false",
+            ],
+        },
+        "evidence_refs": evidence_refs,
+        "non_claims": [
+            "This parity endpoint is a deterministic MCP guard proof, not a live MCP execution or mutation proof.",
+            "No GitHub write, filesystem mutation, database write, browser automation, E2B execution, local model download, or production rollout is enabled by this endpoint.",
+            "Live MCP writes stay disabled unless a separate owner gate and policy review explicitly allow them.",
         ],
     }
 
@@ -550,9 +820,11 @@ def postgresql_readonly_query_contract() -> dict[str, object]:
 def github_branch_pr_plan(request: ToolRequest, started: float) -> dict[str, object]:
     payload = parse_input_ref(request.input_ref)
     branch = str(payload.get("branch") or request.allowed_scope).strip()
-    title = str(payload.get("title") or "Agent generated change proposal").strip()
+    raw_title = str(payload.get("title") or "Agent generated change proposal").strip()
     base = str(payload.get("base") or "main").strip()
-    body = str(payload.get("body") or "Dry-run PR plan generated by MCP gateway.").strip()
+    raw_body = str(payload.get("body") or "Dry-run PR plan generated by MCP gateway.").strip()
+    title = redact_sensitive_text(raw_title)
+    body = redact_sensitive_text(raw_body)
     violations: list[str] = []
     if not re.fullmatch(r"feature/agent-[a-z0-9][a-z0-9._-]{6,120}", branch):
         violations.append("branch must match feature/agent-*")
@@ -595,6 +867,11 @@ def github_branch_pr_plan(request: ToolRequest, started: float) -> dict[str, obj
             "base": base,
             "body": body,
             "draft": True,
+        },
+        "redaction": {
+            "required": request.redaction_required,
+            "applied": title != raw_title or body != raw_body,
+            "evidence_ref": MCP_REDACTION_EVIDENCE_REF,
         },
         "forbidden_capabilities": ["merge_pull_request", "force_push", "delete_branch", "admin_operations"],
         "non_claims": [
@@ -639,11 +916,13 @@ def github_branch_pr_contract() -> dict[str, object]:
             "pull request base must be main",
             "direct main branch writes are forbidden",
             "force-push and merge capabilities are forbidden",
+            "secret-like values in generated branch/PR payloads are redacted before output.",
         ],
         "forbidden_capabilities": ["merge_pull_request", "force_push", "delete_branch", "admin_operations"],
         "evidence_refs": {
             "accepted": "github_branch_pr_plan",
             "blocked": "github_branch_pr_policy",
+            "redaction": MCP_REDACTION_EVIDENCE_REF,
         },
         "non_claims": [
             "No GitHub branch is created by this contract endpoint.",
@@ -684,6 +963,7 @@ def post_audit_event(request: ToolRequest, result: dict[str, object]) -> dict[st
         "run_id": request.run_id,
         "session_id": request.session_id,
         "trace_id": request.trace_id,
+        "request_id": request.request_id,
         "agent_role": request.agent_role,
         "toolset": request.toolset,
         "capability": request.capability,
@@ -696,6 +976,9 @@ def post_audit_event(request: ToolRequest, result: dict[str, object]) -> dict[st
         "retry_after_ms": result["retry_after_ms"],
         "audit_tags": request.audit_tags,
     }
+    if result["status"] == "blocked":
+        payload["guard_evidence_ref"] = result["evidence_ref"]
+        payload["mcp_guard_correlation_evidence_ref"] = MCP_GUARD_CORRELATION_EVIDENCE_REF
     http_request = urllib.request.Request(
         f"{base_url}/internal/audit/mcp-tool-events",
         data=json.dumps(payload).encode("utf-8"),
@@ -735,12 +1018,20 @@ def forbidden_scope(request: ToolRequest) -> str | None:
     return None
 
 
+def unsupported_capability(request: ToolRequest) -> bool:
+    return request.capability not in SUPPORTED_CAPABILITIES.get(request.toolset, set())
+
+
 @app.get("/api/v1/health")
 def health() -> dict[str, object]:
     return {
         "status": "healthy",
         "service": "mcp-gateway",
         "time": datetime.now(timezone.utc).isoformat(),
+        "capability_catalog_contract_version": MCP_CAPABILITY_CATALOG_CONTRACT_VERSION,
+        "capability_catalog_endpoint": "GET /mcp/api/v1/capabilities/catalog",
+        "capability_catalog_evidence_ref": MCP_CAPABILITY_CATALOG_EVIDENCE_REF,
+        "live_mcp_writes": False,
         "toolsets": {
             "github": bool(os.getenv("GITHUB_TOKEN")),
             "e2b": bool(os.getenv("E2B_API_KEY")),
@@ -781,9 +1072,31 @@ def mcp_version_pinning_contract_endpoint() -> dict[str, object]:
     return mcp_version_pinning_contract()
 
 
+@app.get("/api/v1/capabilities/catalog")
+def mcp_capability_catalog_endpoint() -> dict[str, object]:
+    return mcp_capability_catalog_contract()
+
+
+@app.get("/api/v1/runtime/guard-parity")
+def mcp_runtime_guard_parity_endpoint() -> dict[str, object]:
+    return mcp_runtime_guard_parity_snapshot()
+
+
 @app.post("/api/v1/tools/execute")
 async def execute_tool(request: ToolRequest) -> dict[str, object]:
     started = time.perf_counter()
+    if request.toolset == "puppeteer":
+        return await audited_result(
+            request,
+            envelope_result(
+                request,
+                status="blocked",
+                sanitized_summary="Puppeteer toolset is not wired to a contract and remains blocked.",
+                error_class="unsupported_toolset",
+                evidence_ref=MCP_UNSUPPORTED_TOOLSET_EVIDENCE_REF,
+                started=started,
+            ),
+        )
     if request.toolset == "github" and request.capability == "plan_branch_pr":
         return await audited_result(request, github_branch_pr_plan(request, started))
     if request.toolset == "postgresql" and request.capability == "query_readonly":
@@ -828,7 +1141,7 @@ async def execute_tool(request: ToolRequest) -> dict[str, object]:
             )
         raise HTTPException(status_code=500, detail="timeout simulation unexpectedly completed")
 
-    if request.toolset == "e2b" and not os.getenv("E2B_API_KEY"):
+    if request.toolset == "e2b" and request.capability in E2B_ALLOWED_ACTIONS and not os.getenv("E2B_API_KEY"):
         return await audited_result(
             request,
             envelope_result(
@@ -838,6 +1151,21 @@ async def execute_tool(request: ToolRequest) -> dict[str, object]:
                 error_class="missing_credentials",
                 retry_after_ms=0,
                 evidence_ref="mcp_degraded_missing_e2b_credentials",
+                started=started,
+            ),
+        )
+
+    if unsupported_capability(request):
+        return await audited_result(
+            request,
+            envelope_result(
+                request,
+                status="blocked",
+                sanitized_summary=(
+                    f"MCP capability '{request.capability}' is not wired to a contract for toolset '{request.toolset}'."
+                ),
+                error_class="unsupported_capability",
+                evidence_ref=MCP_UNSUPPORTED_CAPABILITY_EVIDENCE_REF,
                 started=started,
             ),
         )

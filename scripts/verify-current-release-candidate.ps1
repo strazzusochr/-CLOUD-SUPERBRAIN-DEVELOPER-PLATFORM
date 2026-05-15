@@ -37,6 +37,12 @@ function Assert-Sha($label, $value) {
   }
 }
 
+function Assert-ReleaseId($label, $value) {
+  if ([string]::IsNullOrWhiteSpace($value) -or $value -notmatch '^prod-candidate-[0-9]{4}-[0-9]{2}-[0-9]{2}-rc[0-9]+$') {
+    throw "Verification failed: $label is not a valid release candidate id."
+  }
+}
+
 function Assert-PublicHttpsUrl($label, $value) {
   if ([string]::IsNullOrWhiteSpace($value)) {
     throw "Verification failed: $label is empty."
@@ -60,27 +66,15 @@ function Assert-PublicHttpsUrl($label, $value) {
 }
 
 function Get-Json($url) {
-@"
-import json, urllib.request
-with urllib.request.urlopen(r"$url", timeout=30) as response:
-    print(json.dumps(json.load(response)))
-"@ | py -3 -
+  (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 30).Content
 }
 
 function Get-Text($url) {
-@"
-import urllib.request
-with urllib.request.urlopen(r"$url", timeout=30) as response:
-    print(response.read(200000).decode("utf-8", "replace"))
-"@ | py -3 -
+  (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 30).Content
 }
 
 function Get-Status($url) {
-@"
-import urllib.request
-with urllib.request.urlopen(r"$url", timeout=30) as response:
-    print(response.status)
-"@ | py -3 -
+  (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 30).StatusCode
 }
 
 function Assert-GitCommitExists($sha) {
@@ -106,6 +100,8 @@ if ([string]::IsNullOrWhiteSpace($ReleaseId)) {
 } else {
   Assert-Equal "requested release id" $ReleaseId $activeReleaseId
 }
+Assert-ReleaseId "active release id" $ReleaseId
+Assert-PublicHttpsUrl "BaseUrl" $BaseUrl
 Assert-False "production rollout claimed flag" $config.production_rollout_claimed
 
 $candidatePath = "docs\release-artifacts\$ReleaseId.md"
@@ -188,11 +184,10 @@ Assert-Equal "Vercel link type" $vercelGitLink.observed.linkType "github"
 Assert-Equal "Vercel link org" $vercelGitLink.observed.linkOrg "strazzusochr"
 Assert-Equal "Vercel link repo" $vercelGitLink.observed.linkRepo "-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM"
 Assert-Equal "Vercel production branch" $vercelGitLink.observed.linkProductionBranch $sourceBranch
-Assert-True "Vercel frontend domain bound to project" (@($vercelGitLink.observed.domainNames) -contains $vercelFrontendHost)
 $matchingVerifiedDomain = @($vercelGitLink.observed.domains | Where-Object {
   [string]$_.name -eq $vercelFrontendHost -and [bool]$_.verified
 } | Select-Object -First 1)
-Assert-True "Vercel frontend domain verified" ($null -ne $matchingVerifiedDomain)
+Assert-True "Vercel frontend domain bound to verified project domain" ($null -ne $matchingVerifiedDomain)
 foreach ($checkName in @(
   "project_readable",
   "project_id_matches",
@@ -206,7 +201,7 @@ foreach ($checkName in @(
   Assert-True "Vercel Git link check $checkName" $vercelGitLink.checks.$checkName
 }
 
-& "scripts\manual\verify-phase5-staging-immutable-parity.ps1" -ReleaseId $ReleaseId -CandidateSha $CandidateSha -BaseUrl $BaseUrl
+& "scripts\verify-current-immutable-staging-parity.ps1" -ReleaseId $ReleaseId -CandidateSha $CandidateSha -BaseUrl $BaseUrl
 if ($LASTEXITCODE -ne 0) {
   throw "Verification failed: immutable staging parity readiness verifier failed."
 }

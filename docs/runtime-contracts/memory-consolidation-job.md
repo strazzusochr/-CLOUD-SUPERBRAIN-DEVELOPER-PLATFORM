@@ -30,6 +30,8 @@ Implementiert:
 13. Prometheus: `superbrain_memory_consolidation_events_total`.
 14. Frontend-Panel: `Memory Consolidation`.
 15. Redis-Heartbeat: `memory-worker:heartbeat`, ausgewertet durch `/api/v1/health` und `superbrain_service_health{service="memory_worker"}`.
+16. Health Contract: `GET /api/v1/memory/worker-health/contract` mit `memory-worker-health-contract-v1` und `memory_worker_health_contract_visible`.
+17. Docker Healthcheck: `python -m app.worker --healthcheck` mit frischem Redis-Heartbeat, `stale_heartbeat=false` und `timeout: 15s`.
 
 Nicht implementiert:
 
@@ -155,6 +157,7 @@ Embedding-verboten:
 - Zielintervall fuer Runtime: alle 5 Minuten.
 - TTL-Schwelle: konsolidiere Working-Memory-Entries mit `remaining_ttl <= 8 Minuten`.
 - Maximaldauer pro Batch: 120 Sekunden.
+- Heartbeat-Frische fuer Health: maximal 450 Sekunden; Redis-TTL allein reicht nicht fuer `healthy`.
 - Maximal 2 Retries pro Batch.
 - Backoff: 30 Sekunden, danach 120 Sekunden.
 - Nach Ausschoepfung der Retries wird ein Blocker erzeugt.

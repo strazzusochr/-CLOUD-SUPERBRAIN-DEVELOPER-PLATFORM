@@ -61,6 +61,10 @@ class TaskAssignment(BaseModel):
     task_type: str = Field(..., min_length=1, max_length=120)
     task_description: str = Field(..., min_length=1, max_length=10_000)
     trace_id: str | None = None
+    request_id: str | None = Field(default=None, max_length=255)
+    dispatch_id: str | None = Field(default=None, max_length=120)
+    logical_role: str | None = Field(default=None, pattern="^(supervisor|planner|explorer|coder|tester)$")
+    provenance_evidence_ref: str | None = Field(default=None, max_length=160)
     priority: int = Field(default=5, ge=1, le=10)
     max_retries: int = Field(default=5, ge=1, le=5)
     allowed_tools: list[str] = Field(default_factory=lambda: ["memory_read", "task_router"])
@@ -92,6 +96,7 @@ class TaskRecord(TaskAssignment):
 
 
 class AutonomousRoleAssignment(BaseModel):
+    dispatch_id: str | None = Field(default=None, max_length=120)
     logical_role: str = Field(..., pattern="^(supervisor|planner|explorer|coder|tester)$")
     execution_agent_type: str = Field(..., pattern="^(planner|coder|tester|devops)$")
     task_id: str
@@ -110,6 +115,7 @@ class AutonomousRoleAssignment(BaseModel):
     human_review_required: bool = True
     blocked_actions: list[str] = Field(default_factory=list)
     evidence_ref: str = "autonomous_team_dispatch_visible"
+    provenance_evidence_ref: str = "autonomous_team_dispatch_task_provenance"
     current_status_source: str = "task_queue"
 
 

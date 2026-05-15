@@ -6,6 +6,17 @@ Repository: `strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
 
 Local repo path: `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
 
+## 2026-05-14 Runtime Addendum
+
+This file was originally generated before the Phase 3 Security Review Queue Export slice. For the current runtime truth, prefer `AI_HANDOFF.md`, `PROJECT_STATE.md`, `docs/project-progress.manifest.json`, and `docs/verification-register.md`.
+
+- Active staging candidate: `4364d31d7f1e6d0dec1f4d9f686715fec41d3b35`
+- Active release candidate: `prod-candidate-2026-05-11-rc1`
+- Latest verified slice: Security Review Queue Export, `security-review-queue-export-v1`
+- Current progress: overall `79%`, Phase 3 `94%`
+- Hosted staging: `https://188-34-191-140.sslip.io/`
+- Production rollout claimed: `false`
+
 ## Purpose
 
 This document is the current external-review handoff for the cloud/runtime state after PR #6 through PR #15. It separates verified facts from non-claims. No secret values are included.
@@ -50,6 +61,8 @@ Current project truth review: `docs/analysis/CURRENT_PROJECT_TRUTH_REVIEW_2026-0
 - Local worktree status before this document edit: clean and in sync with `origin/chore/repo-bootstrap`.
 
 ## Active Release Boundary
+
+Historical section note: the bullets in this section record the May 13 boundary at file creation time. They are superseded for current runtime purposes by the `2026-05-14 Runtime Addendum` above and by `AI_HANDOFF.md`.
 
 - Active release candidate: `prod-candidate-2026-05-11-rc1`
 - Candidate source commit: `1d87de96d74ed75bbafff9840e963f2075253df9`
@@ -143,6 +156,7 @@ missing_or_failed_gates=[]
 Immutable staging parity:
 
 ```text
+historical_may_13_proof=true
 scripts\manual\verify-phase5-staging-immutable-parity.ps1 -RequireVerified -ReleaseId prod-candidate-2026-05-11-rc1 -CandidateSha b0c2773b1d122745947315a8d39734d5a6c96d6b -BaseUrl https://188-34-191-140.sslip.io -KeyPath <local-private-key>
 result: [phase5-staging-immutable-parity] verified
 ```

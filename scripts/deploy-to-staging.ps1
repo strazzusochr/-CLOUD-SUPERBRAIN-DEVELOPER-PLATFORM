@@ -8,6 +8,7 @@ param(
     [string]$ImageTag = "",
     [string]$SourceRef = "",
     [switch]$UseImageFilesystem,
+    [switch]$FrontendSourceBuild,
     [switch]$PlanOnly,
     [switch]$RequireHttps = $true
 )
@@ -106,6 +107,14 @@ function Assert-SourceFile([string]$RelativePath) {
     return $path
 }
 
+function Assert-SourceDirectory([string]$RelativePath) {
+    $path = Get-SourcePath $RelativePath
+    if (-not (Test-Path -LiteralPath $path -PathType Container)) {
+        throw "Required deployment source directory missing: $RelativePath"
+    }
+    return $path
+}
+
 function Get-DefaultHostname([string]$Ip) {
     return ($Ip -replace '\.', '-') + ".sslip.io"
 }
@@ -196,6 +205,12 @@ Assert-RemoteValue "STAGING_BASE_URL" $StagingBaseUrl
 Assert-DockerTag "IMAGE_TAG" $ImageTag
 Assert-GitRef "SOURCE_REF" $SourceRef
 $imageTagIsImmutableSha = $ImageTag -match '^[0-9a-f]{40}$'
+if ($FrontendSourceBuild -and $UseImageFilesystem) {
+    throw "Frontend source builds are staging-only and cannot be combined with -UseImageFilesystem."
+}
+if ($FrontendSourceBuild -and $imageTagIsImmutableSha) {
+    throw "Frontend source builds are staging-only and cannot use immutable SHA image tags."
+}
 if ($imageTagIsImmutableSha -and -not $UseImageFilesystem -and $SourceRef -ne $ImageTag) {
     throw "Immutable image tag deploys must use -UseImageFilesystem or matching -SourceRef $ImageTag to avoid mixing candidate images with mutable hot-mounted source."
 }
@@ -224,6 +239,7 @@ if (-not [string]::IsNullOrWhiteSpace($SourceRef)) {
 $composeSourcePath = Assert-SourceFile "docker-compose.cloud.yml"
 $composeText = Get-Content -LiteralPath $composeSourcePath -Raw
 $composeDeployPath = $composeSourcePath
+$frontendSourceComposePath = $null
 $hotMountPattern = '(?m)^[ \t]+- \./services/(agent-api|agent-worker|memory-worker|mcp-gateway|llm-gateway)/app:/app/app:ro\r?\n'
 $hotMountCount = [regex]::Matches($composeText, $hotMountPattern).Count
 $hasCaddyService = $composeText -match '(?m)^  caddy:'
@@ -244,11 +260,35 @@ if ($UseImageFilesystem) {
     Set-Content -LiteralPath $composeDeployPath -Value $composeImageFilesystemText -Encoding UTF8
 }
 
+if ($FrontendSourceBuild) {
+    $frontendSourceComposePath = Join-Path ([System.IO.Path]::GetTempPath()) ("superbrain-deploy-source-" + [Guid]::NewGuid().ToString("N") + "-docker-compose.frontend-source.yml")
+    Register-TemporaryPath $frontendSourceComposePath
+    @"
+services:
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+      target: runner
+    image: cloud-superbrain-frontend:source-staging
+    pull_policy: never
+"@ | Set-Content -LiteralPath $frontendSourceComposePath -Encoding UTF8
+}
+
 $deployServices = @("frontend", "agent-api", "agent-worker", "memory-worker", "mcp-gateway", "llm-gateway", "nginx")
 if ($hasCaddyService) {
     $deployServices += "caddy"
 }
 $deployServiceArgs = $deployServices -join " "
+$composeCommandFiles = "-f docker-compose.cloud.yml"
+if ($FrontendSourceBuild) {
+    $composeCommandFiles = "-f docker-compose.cloud.yml -f docker-compose.frontend-source.yml"
+}
+$pullServices = $deployServices
+if ($FrontendSourceBuild) {
+    $pullServices = @($deployServices | Where-Object { $_ -ne "frontend" })
+}
+$pullServiceArgs = $pullServices -join " "
 
 if ($PlanOnly) {
     Write-Host "--- Staging deployment plan only ---"
@@ -257,10 +297,16 @@ if ($PlanOnly) {
     Write-Host "Image tag: $ImageTag"
     Write-Host "Source ref: $SourceRef"
     Write-Host "Use image filesystem: $UseImageFilesystem"
+    Write-Host "Build frontend on remote: $FrontendSourceBuild"
+    if ($FrontendSourceBuild) {
+        Write-Host "Frontend source build override: docker-compose.frontend-source.yml"
+        Write-Host "Frontend source build image: cloud-superbrain-frontend:source-staging"
+    }
     Write-Host "Service hot-mount entries in source compose: $hotMountCount"
     Write-Host "Compose has caddy: $hasCaddyService"
     Write-Host "Compose has roster mount: $hasRosterMount"
     Write-Host "Deploy services: $deployServiceArgs"
+    Write-Host "Pull services: $pullServiceArgs"
     Assert-SourceFile "infrastructure/nginx/cloud.conf" | Out-Null
     Assert-SourceFile "docs/project-progress.manifest.json" | Out-Null
     Assert-SourceFile "PROJECT_STATE.md" | Out-Null
@@ -283,6 +329,20 @@ if ($PlanOnly) {
             }
         }
     }
+    if ($FrontendSourceBuild) {
+        foreach ($path in @(
+            "apps/frontend/Dockerfile",
+            "apps/frontend/package.json",
+            "apps/frontend/package-lock.json",
+            "apps/frontend/next.config.mjs",
+            "apps/frontend/tsconfig.json",
+            "apps/frontend/next-env.d.ts",
+            "apps/frontend/.dockerignore"
+        )) {
+            Assert-SourceFile $path | Out-Null
+        }
+        Assert-SourceDirectory "apps/frontend/app" | Out-Null
+    }
     return
 }
 
@@ -291,13 +351,18 @@ if ([string]::IsNullOrWhiteSpace($KeyPath)) {
 }
 
 Write-Host "--- Preparing remote directories ---"
-Invoke-Ssh "mkdir -p $RemoteAppDir/infrastructure/nginx $RemoteAppDir/infrastructure/caddy $RemoteAppDir/infrastructure/postgres/init $RemoteAppDir/progress $RemoteAppDir/docs/codex-integration $RemoteAppDir/services/agent-api $RemoteAppDir/services/agent-worker $RemoteAppDir/services/memory-worker $RemoteAppDir/services/mcp-gateway $RemoteAppDir/services/llm-gateway"
+Invoke-Ssh "mkdir -p $RemoteAppDir/apps $RemoteAppDir/infrastructure/nginx $RemoteAppDir/infrastructure/caddy $RemoteAppDir/infrastructure/postgres/init $RemoteAppDir/progress $RemoteAppDir/docs/codex-integration $RemoteAppDir/services/agent-api $RemoteAppDir/services/agent-worker $RemoteAppDir/services/memory-worker $RemoteAppDir/services/mcp-gateway $RemoteAppDir/services/llm-gateway"
 
 if (-not $UseImageFilesystem) {
     Write-Host "--- Resetting remote hot-mount source directories ---"
     Invoke-Ssh "rm -rf $RemoteAppDir/services/agent-api/app $RemoteAppDir/services/agent-worker/app $RemoteAppDir/services/memory-worker/app $RemoteAppDir/services/mcp-gateway/app $RemoteAppDir/services/llm-gateway/app && mkdir -p $RemoteAppDir/services/agent-api $RemoteAppDir/services/agent-worker $RemoteAppDir/services/memory-worker $RemoteAppDir/services/mcp-gateway $RemoteAppDir/services/llm-gateway"
 } else {
     Write-Host "--- Using service code from immutable container images ---"
+}
+
+if ($FrontendSourceBuild) {
+    Write-Host "--- Resetting remote frontend source directory ---"
+    Invoke-Ssh "rm -rf $RemoteAppDir/apps/frontend && mkdir -p $RemoteAppDir/apps/frontend"
 }
 
 $remoteBackupSuffix = [DateTime]::UtcNow.ToString("yyyyMMddHHmmss")
@@ -310,6 +375,9 @@ $remoteBackupCreated = $true
 try {
 Write-Host "--- Copying non-secret deployment files ---"
 Invoke-Scp $composeDeployPath "$RemoteAppDir/docker-compose.cloud.yml"
+if ($FrontendSourceBuild) {
+    Invoke-Scp $frontendSourceComposePath "$RemoteAppDir/docker-compose.frontend-source.yml"
+}
 Invoke-Scp (Get-SourcePath "infrastructure/nginx/cloud.conf") "$RemoteAppDir/infrastructure/nginx/cloud.conf"
 if ($hasCaddyService) {
     Invoke-Scp (Get-SourcePath "infrastructure/caddy/Caddyfile") "$RemoteAppDir/infrastructure/caddy/Caddyfile"
@@ -326,6 +394,23 @@ if (-not $UseImageFilesystem) {
     Invoke-ScpRecursive (Get-SourcePath "services/memory-worker/app") "$RemoteAppDir/services/memory-worker/"
     Invoke-ScpRecursive (Get-SourcePath "services/mcp-gateway/app") "$RemoteAppDir/services/mcp-gateway/"
     Invoke-ScpRecursive (Get-SourcePath "services/llm-gateway/app") "$RemoteAppDir/services/llm-gateway/"
+}
+if ($FrontendSourceBuild) {
+    foreach ($relativePath in @(
+        "apps/frontend/Dockerfile",
+        "apps/frontend/package.json",
+        "apps/frontend/package-lock.json",
+        "apps/frontend/next.config.mjs",
+        "apps/frontend/tsconfig.json",
+        "apps/frontend/next-env.d.ts",
+        "apps/frontend/.dockerignore"
+    )) {
+        Invoke-Scp (Get-SourcePath $relativePath) "$RemoteAppDir/apps/frontend/$(Split-Path -Leaf $relativePath)"
+    }
+    Invoke-ScpRecursive (Get-SourcePath "apps/frontend/app") "$RemoteAppDir/apps/frontend/"
+    if (Test-Path -LiteralPath (Get-SourcePath "apps/frontend/public") -PathType Container) {
+        Invoke-ScpRecursive (Get-SourcePath "apps/frontend/public") "$RemoteAppDir/apps/frontend/"
+    }
 }
 
 Write-Host "--- Verifying remote secret file exists ---"
@@ -347,10 +432,10 @@ mv .env.tmp .env
 Invoke-Ssh $remoteUpdate
 
 Write-Host "--- Deploying staging stack ---"
-Invoke-Ssh "cd $RemoteAppDir && docker compose --env-file .env -f docker-compose.cloud.yml pull && docker compose --env-file .env -f docker-compose.cloud.yml up -d --force-recreate --remove-orphans $deployServiceArgs"
+Invoke-Ssh "cd $RemoteAppDir && docker compose --env-file .env -f docker-compose.cloud.yml pull $pullServiceArgs && docker compose --env-file .env $composeCommandFiles up -d --build --force-recreate --remove-orphans $deployServiceArgs"
 
 Write-Host "--- Remote health probes ---"
-Invoke-Ssh "cd $RemoteAppDir && docker compose --env-file .env -f docker-compose.cloud.yml ps"
+Invoke-Ssh "cd $RemoteAppDir && docker compose --env-file .env $composeCommandFiles ps"
 
 $ProgressPreference = "SilentlyContinue"
 $rootResponse = Invoke-HostedGet $StagingBaseUrl
@@ -377,6 +462,7 @@ if (-not [string]::IsNullOrWhiteSpace($SourceRef)) {
     Write-Host "Hosted source ref: $SourceRef"
 }
 Write-Host "Hosted image filesystem: $UseImageFilesystem"
+Write-Host "Hosted frontend source build: $FrontendSourceBuild"
 } finally {
     Remove-TemporaryPaths
 }

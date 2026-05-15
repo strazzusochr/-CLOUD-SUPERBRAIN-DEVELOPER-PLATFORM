@@ -5,7 +5,7 @@ services:
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
-      target: dev-runner
+      target: runner
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_AGENT_API_URL: /api
@@ -13,9 +13,6 @@ services:
       WATCHPACK_POLLING: "true"
     expose:
       - "3000"
-    volumes:
-      - ./apps/frontend/app:/app/app:ro
-      - ./apps/frontend/next.config.mjs:/app/next.config.mjs:ro
     depends_on:
       agent-api:
         condition: service_healthy
@@ -33,7 +30,6 @@ services:
     read_only: true
     tmpfs:
       - /tmp
-      - /app/.next:uid=10001,gid=10001,mode=1777
     networks:
       - platform
 
@@ -176,6 +172,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       MEMORY_CONSOLIDATION_INTERVAL_SECONDS: ${MEMORY_CONSOLIDATION_INTERVAL_SECONDS:-300}
       MEMORY_CONSOLIDATION_TTL_THRESHOLD_SECONDS: ${MEMORY_CONSOLIDATION_TTL_THRESHOLD_SECONDS:-480}
+      MEMORY_WORKER_MAX_BATCH_SECONDS: ${MEMORY_WORKER_MAX_BATCH_SECONDS:-120}
+      MEMORY_WORKER_HEALTH_MAX_AGE_SECONDS: ${MEMORY_WORKER_HEALTH_MAX_AGE_SECONDS:-450}
       WORKING_MEMORY_PATTERN: memory:working:*
     volumes:
       - ./services/memory-worker/app:/app/app:ro
@@ -185,10 +183,11 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import os, psycopg, redis; redis.Redis.from_url(os.environ['REDIS_URL'], socket_timeout=2).ping(); psycopg.connect(os.environ['DATABASE_URL']).close()"]
+      test: ["CMD", "python", "-m", "app.worker", "--healthcheck"]
       interval: 20s
-      timeout: 5s
+      timeout: 15s
       retries: 5
+      start_period: 30s
     mem_limit: 384m
     cpus: "0.35"
     cap_drop:

@@ -1,0 +1,42 @@
+# Active Full-Suite Rebaseline Proof
+
+Status: `verified`
+release_id: `prod-candidate-2026-05-11-rc1`
+environment: `production-candidate`
+source_commit_sha: `5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1`
+immutable_image_commit_sha: `5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1`
+base_url: `https://188-34-191-140.sslip.io`
+production_rollout_claimed: `false`
+active_gate_count: `10`
+phase5_suite_plan_status: `passed`
+changed_horizontal: `Phase 2 88->89; Phase 5 84->89`
+changed_vertical: `Agent Pool 75->76; LLM Gateway 65->67; MCP Gateway 67->68; Memory 73->74; Frontend / Next.js 99->100; Orchestrator / LangGraph 99->100`
+
+## Verified Gates
+
+- `py -3 scripts\verify_project_progress_manifest.py`
+- `scripts\verify-phase5-suite-active-candidate-plan.ps1`
+- `scripts\verify-current-release-candidate.ps1 -BaseUrl https://188-34-191-140.sslip.io -ReleaseId prod-candidate-2026-05-11-rc1`
+- `scripts\verify-active-release-candidate-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io -ReleaseId prod-candidate-2026-05-11-rc1 -ReportOnly -JsonOnly`
+- `scripts\verify-hosted-staging-smoke.ps1 -BaseUrl https://188-34-191-140.sslip.io`
+- `scripts\verify-phase5-active-runtime-evidence-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io -ReleaseId prod-candidate-2026-05-11-rc1`
+- `scripts\verify-phase5-active-security-evidence-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io -ReleaseId prod-candidate-2026-05-11-rc1`
+- `scripts\verify-phase5-active-verifier-sweep-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io -ReleaseId prod-candidate-2026-05-11-rc1`
+- `scripts\verify-phase5-vercel-github-deployment-status.ps1 -BaseUrl https://188-34-191-140.sslip.io -ReleaseId prod-candidate-2026-05-11-rc1`
+- `scripts\verify-evidence-artifact-safety.ps1`
+
+## Evidence Bound
+
+- Active Phase 5 suite plan now keeps the current RC1 verifier set on default parameters and includes the Active Frontend-Orchestrator Evidence Bundle, Active MCP Guard Correlation Bundle, Active LLM Guard Correlation Bundle, Active Memory Success Correlation Bundle, Active Agent Success Correlation Bundle, Active LLM Success Correlation Bundle, and Active MCP Success Correlation Bundle.
+- Hosted staging status remains HTTP `200`, project progress is `82%`, Phase 5 is `89%`, Frontend is `100%`, Orchestrator is `100%`, Agent Pool is `76%`, LLM Gateway is `67%`, MCP Gateway is `68%`, Memory is `74%`, Observability remains `99%`, and immutable selector is `5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1`.
+- Active runtime, active security, active verifier sweep, Vercel/GitHub status, active release-candidate bundle, current release-candidate, and evidence-artifact-safety gates pass together on the same active RC1 boundary.
+
+## Non-Claims
+
+- This proof does not claim a production rollout.
+- This proof does not claim release promotion.
+- This proof does not claim live LLM provider calls.
+- This proof does not claim live MCP writes.
+- This proof does not claim local model downloads.
+- This proof does not claim provider billing proof.
+- This proof does not include secret values.

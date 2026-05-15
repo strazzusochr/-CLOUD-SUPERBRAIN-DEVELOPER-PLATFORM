@@ -1,5 +1,6 @@
 param(
-  [string]$BaseUrl = "https://188-34-191-140.sslip.io"
+  [string]$BaseUrl = "https://188-34-191-140.sslip.io",
+  [switch]$AllowLocalhost
 )
 
 $ErrorActionPreference = "Stop"
@@ -110,7 +111,7 @@ if (-not $BaseUrl) {
 }
 
 $BaseUrl = $BaseUrl.TrimEnd("/")
-if ($BaseUrl -notmatch "^https://") {
+if ((-not $AllowLocalhost) -and ($BaseUrl -notmatch "^https://")) {
   throw "Phase4 hosted mcp-devops proof requires HTTPS"
 }
 

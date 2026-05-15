@@ -32,6 +32,12 @@ function Assert-Sha($Label, $Value) {
   }
 }
 
+function Assert-ReleaseId($Label, $Value) {
+  if ([string]::IsNullOrWhiteSpace($Value) -or $Value -notmatch '^prod-candidate-[0-9]{4}-[0-9]{2}-[0-9]{2}-rc[0-9]+$') {
+    throw "Verification failed: $Label is not a valid release candidate id."
+  }
+}
+
 function Invoke-Gate([string]$Id, [string]$ScriptPath, [hashtable]$Arguments) {
   if (-not (Test-Path -LiteralPath $ScriptPath)) {
     throw "Missing gate script for $Id`: $ScriptPath"
@@ -39,7 +45,7 @@ function Invoke-Gate([string]$Id, [string]$ScriptPath, [hashtable]$Arguments) {
 
   $startedAt = Get-Date
   $global:LASTEXITCODE = 0
-  & $ScriptPath @Arguments
+  & $ScriptPath @Arguments *>$null
   $exitCode = $LASTEXITCODE
   if ($exitCode -ne 0) {
     throw "Gate failed: $Id exited with code $exitCode."
@@ -105,6 +111,7 @@ try {
     $ReleaseId = $activeReleaseId
   }
   Assert-Equal "release id" $ReleaseId $activeReleaseId
+  Assert-ReleaseId "release id" $ReleaseId
   Assert-False "production rollout claimed" $config.production_rollout_claimed
 
   $candidatePath = "docs\release-artifacts\$ReleaseId.md"
