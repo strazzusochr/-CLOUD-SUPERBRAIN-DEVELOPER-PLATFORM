@@ -376,6 +376,7 @@
       "autonomy",
       "phase3",
       "phase4",
+      "post-release-catalog",
       "current-release-candidate",
       "active-release-candidate",
       "phase5"
