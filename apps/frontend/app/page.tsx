@@ -4474,6 +4474,13 @@ export default function Home() {
     { label: "Release", value: "production_rollout_claimed=false" },
     { label: "Contract", value: mcpRuntimeGuardParity?.contract_version ?? "mcp-runtime-guard-parity-v1" },
   ];
+  const workbenchSquadSlots = [
+    { role: "Supervisor", lane: "Gatekeeping", state: "active" },
+    { role: "Planner", lane: "Architecture", state: activeAgentMode.id === "single" ? "standby" : "armed" },
+    { role: "Coder", lane: "Implementation", state: "ready" },
+    { role: "Tester", lane: "Verification", state: "ready" },
+    { role: "DevOps", lane: "Runtime", state: activeModuleId === "settings" ? "active" : "gated" },
+  ];
 
   return (
     <main className="shell scanline">
@@ -4572,6 +4579,21 @@ export default function Home() {
                   <span>{item.label}</span>
                   <strong>{item.value}</strong>
                 </a>
+              ))}
+            </div>
+          </section>
+          <section className="workbenchSquadStrip" aria-label="Squad Mode">
+            <div className="workbenchSquadHeader">
+              <span>Squad Mode</span>
+              <strong>{activeAgentMode.label}</strong>
+            </div>
+            <div className="workbenchSquadGrid">
+              {workbenchSquadSlots.map((slot) => (
+                <article key={slot.role}>
+                  <span>{slot.role}</span>
+                  <strong>{slot.lane}</strong>
+                  <small>{slot.state}</small>
+                </article>
               ))}
             </div>
           </section>
@@ -4730,6 +4752,7 @@ export default function Home() {
               <button
                 type="button"
                 className={layer.module === activeModuleId ? "workbenchLayerButton workbenchLayerButton-active" : "workbenchLayerButton"}
+                aria-pressed={layer.module === activeModuleId}
                 onClick={() => {
                   setActiveModuleId(layer.module);
                   setActiveWorkbenchTab("overview");

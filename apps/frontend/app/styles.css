@@ -2372,12 +2372,18 @@ pre {
   text-transform: uppercase;
 }
 
-.workbenchSystemProofTitle strong,
-.workbenchSystemProofGrid strong {
+.workbenchSystemProofTitle strong {
   color: #f8fafc;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.workbenchSystemProofGrid strong {
+  color: #f8fafc;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .workbenchSystemProofGrid {
@@ -2395,6 +2401,55 @@ pre {
   background: #08080a;
   padding: 8px;
   text-decoration: none;
+}
+
+.workbenchSquadStrip {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.2fr) minmax(0, 1fr);
+  gap: 10px;
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  background: rgba(34, 211, 238, 0.045);
+  padding: 10px;
+}
+
+.workbenchSquadHeader {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.workbenchSquadHeader span,
+.workbenchSquadGrid span,
+.workbenchSquadGrid small {
+  color: var(--forge-muted);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.workbenchSquadHeader strong,
+.workbenchSquadGrid strong {
+  color: #f8fafc;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workbenchSquadGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.workbenchSquadGrid article {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid var(--forge-border-soft);
+  background: #08080a;
+  padding: 8px;
 }
 
 .workbenchComposerBody {
@@ -2931,6 +2986,8 @@ pre {
   .workbenchLayerDock,
   .workbenchSystemProof,
   .workbenchSystemProofGrid,
+  .workbenchSquadStrip,
+  .workbenchSquadGrid,
   .workbenchInlineInspectorGrid,
   .workbenchDiagnosticsNav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3003,6 +3060,8 @@ pre {
   .workbenchCanvas,
   .workbenchSystemProof,
   .workbenchSystemProofGrid,
+  .workbenchSquadStrip,
+  .workbenchSquadGrid,
   .workbenchInlineInspectorGrid,
   .workbenchDiagnosticsNav {
     grid-template-columns: 1fr;
