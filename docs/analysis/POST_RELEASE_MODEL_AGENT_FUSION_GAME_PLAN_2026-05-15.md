@@ -177,6 +177,47 @@ GITHUB_TOKEN
 - `fusion-dry-run` proves route recipes do not call live providers.
 - `atlas-ui-contract` proves read-only UI and filters.
 
+## Vollstaendiger Link-Atlas
+
+The post-release atlas now has a saved source-of-truth seed and generated shard plan:
+
+- Source module: `services/agent-api/app/link_atlas.py`
+- Index: `docs/analysis/model-agent-fusion-link-atlas/README.md`
+- Generator: `scripts/generate_model_agent_fusion_link_atlas.py`
+- Verifier: `scripts/verify-model-agent-fusion-link-atlas.ps1`
+- Contract: `model-agent-fusion-link-atlas-v1`
+- Evidence: `model_agent_fusion_link_atlas_visible`
+
+Read-only API surfaces:
+
+```text
+GET /catalog/link-atlas/sources
+GET /catalog/link-atlas/items?source=&kind=&cursor=&limit=
+GET /catalog/link-atlas/items/{canonical_id}
+GET /catalog/link-atlas/shards
+GET /catalog/link-atlas/export.jsonl
+GET /catalog/link-atlas/export.csv
+GET /api/v1/catalog/link-atlas/sources
+GET /api/v1/catalog/link-atlas/items?source=&kind=&cursor=&limit=
+GET /api/v1/catalog/link-atlas/items/{canonical_id}
+GET /api/v1/catalog/link-atlas/shards
+GET /api/v1/catalog/link-atlas/export.jsonl
+GET /api/v1/catalog/link-atlas/export.csv
+```
+
+Generated first shards:
+
+- `openrouter-models-0001.md`
+- `openrouter-apps-0001.md`
+- `huggingface-models-0001.md`
+- `huggingface-collections-0001.md`
+- `siliconflow-models-0001.md`
+- `llm-explorer-models-0001.md`
+- `hermes-agent-links-0001.md`
+- `fusion-recipes-0001.md`
+
+The seed lists every prompt-required source/API URL now. The post-release crawler appends every collected model, agent, collection, and fusion URL into additional numbered shards and the API exports, without model downloads, secrets, or rollout claims.
+
 ## Source Links
 
 - OpenRouter API overview: https://openrouter.ai/docs/api/reference/overview

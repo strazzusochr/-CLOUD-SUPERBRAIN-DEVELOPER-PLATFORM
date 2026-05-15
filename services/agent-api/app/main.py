@@ -63,6 +63,17 @@ from app.orchestrator import (
     stream_dry_graph_events,
 )
 from app.security import redact_json, redact_text
+from app.link_atlas import (
+    LINK_ATLAS_CONTRACT_VERSION,
+    LINK_ATLAS_EVIDENCE_REF,
+    link_atlas_contract_payload,
+    link_atlas_export_csv_text,
+    link_atlas_export_jsonl_text,
+    link_atlas_get_item,
+    link_atlas_items_page,
+    link_atlas_shards_payload,
+    link_atlas_sources_payload,
+)
 from app.tasks import (
     AUTONOMOUS_LOGICAL_ROLES,
     AUTONOMOUS_TEAM_MODE,
@@ -5345,6 +5356,81 @@ def cloud_deployment_preflight() -> dict[str, object]:
 @app.get("/api/v1/clouds/deployment-preflight/contract")
 def cloud_deployment_preflight_contract() -> dict[str, object]:
     return cloud_deployment_preflight_payload()
+
+
+@app.get("/catalog/link-atlas/contract")
+@app.get("/api/v1/catalog/link-atlas/contract")
+def catalog_link_atlas_contract() -> dict[str, object]:
+    return link_atlas_contract_payload()
+
+
+@app.get("/catalog/link-atlas/sources")
+@app.get("/api/v1/catalog/link-atlas/sources")
+def catalog_link_atlas_sources() -> dict[str, object]:
+    return link_atlas_sources_payload()
+
+
+@app.get("/catalog/link-atlas/items")
+@app.get("/api/v1/catalog/link-atlas/items")
+def catalog_link_atlas_items(
+    source: str | None = Query(default=None, min_length=1, max_length=80),
+    kind: str | None = Query(default=None, min_length=1, max_length=80),
+    cursor: str | None = Query(default=None, max_length=40),
+    limit: int = Query(default=50, ge=1, le=500),
+) -> dict[str, object]:
+    return link_atlas_items_page(source=source, kind=kind, cursor=cursor, limit=limit)
+
+
+@app.get("/catalog/link-atlas/items/{canonical_id}")
+@app.get("/api/v1/catalog/link-atlas/items/{canonical_id}")
+def catalog_link_atlas_item(canonical_id: str) -> dict[str, object]:
+    item = link_atlas_get_item(canonical_id)
+    if not item:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "link_atlas_item_not_found",
+                "contract_version": LINK_ATLAS_CONTRACT_VERSION,
+                "evidence_ref": LINK_ATLAS_EVIDENCE_REF,
+                "canonical_id": canonical_id,
+            },
+        )
+    return {
+        "contract_version": LINK_ATLAS_CONTRACT_VERSION,
+        "status": "metadata_only",
+        "evidence_ref": LINK_ATLAS_EVIDENCE_REF,
+        "item": item,
+        "non_claims": [
+            "This item is a metadata link only.",
+            "No provider credential, model download, or live provider call is exposed by this endpoint.",
+        ],
+    }
+
+
+@app.get("/catalog/link-atlas/shards")
+@app.get("/api/v1/catalog/link-atlas/shards")
+def catalog_link_atlas_shards() -> dict[str, object]:
+    return link_atlas_shards_payload()
+
+
+@app.get("/catalog/link-atlas/export.jsonl")
+@app.get("/api/v1/catalog/link-atlas/export.jsonl")
+def catalog_link_atlas_export_jsonl() -> Response:
+    return Response(
+        link_atlas_export_jsonl_text(),
+        media_type="application/x-ndjson",
+        headers={"Content-Disposition": "attachment; filename=model-agent-fusion-link-atlas.jsonl"},
+    )
+
+
+@app.get("/catalog/link-atlas/export.csv")
+@app.get("/api/v1/catalog/link-atlas/export.csv")
+def catalog_link_atlas_export_csv() -> Response:
+    return Response(
+        link_atlas_export_csv_text(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=model-agent-fusion-link-atlas.csv"},
+    )
 
 
 @app.get("/api/v1/auth/contract")

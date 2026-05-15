@@ -212,6 +212,13 @@
     ]
   },
   {
+    "id": "post-release-catalog",
+    "description": "Post-release Model/Agent/Fusion Link Atlas static and optional runtime verification.",
+    "patterns": [
+      "verify-model-agent-fusion-link-atlas.ps1"
+    ]
+  },
+  {
     "id": "phase5",
     "description": "Phase 5 candidate, rollback, and release-readiness suite.",
     "parameter_overrides": {
