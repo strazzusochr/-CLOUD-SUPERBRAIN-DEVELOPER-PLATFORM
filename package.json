@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "build": "npm run build --prefix apps/frontend",
+    "build": "npm install --prefix apps/frontend && npm run build --prefix apps/frontend",
     "verify": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase1.ps1",
     "verify:runtime": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase1-runtime.ps1",
     "verify:browser": "powershell -ExecutionPolicy Bypass -File scripts\\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
