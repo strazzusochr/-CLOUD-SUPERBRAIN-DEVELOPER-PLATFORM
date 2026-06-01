@@ -126,13 +126,21 @@ export default function CortexCanvas({
     let H = 0;
     const resize = () => {
       const rect = wrap.getBoundingClientRect();
-      W = Math.max(1, rect.width);
-      H = Math.max(1, rect.height);
       dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.floor(W * dpr);
-      canvas.height = Math.floor(H * dpr);
-      canvas.style.width = `${W}px`;
-      canvas.style.height = `${H}px`;
+      const newW = Math.max(1, rect.width);
+      const newH = Math.max(1, rect.height);
+      const bw = Math.floor(newW * dpr);
+      const bh = Math.floor(newH * dpr);
+      // Assigning canvas.width/height CLEARS the canvas. A ResizeObserver can
+      // fire every frame (sub-pixel layout churn), so only touch the backing
+      // store when the integer size truly changes — otherwise each rendered
+      // frame gets wiped immediately and the cortex shows up blank. Sizing is
+      // handled in CSS (absolute inset:0), so no inline style writes here.
+      if (bw === canvas.width && bh === canvas.height) return;
+      W = newW;
+      H = newH;
+      canvas.width = bw;
+      canvas.height = bh;
     };
     resize();
     const ro = new ResizeObserver(resize);
