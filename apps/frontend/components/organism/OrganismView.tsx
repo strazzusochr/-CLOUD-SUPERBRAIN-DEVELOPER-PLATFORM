@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import CortexCanvas from "./CortexCanvas";
+import CortexLive from "./CortexLive";
 import { REGIONS, STATE_LABEL, type RunState } from "./regionMap";
 import { PageHeader, Note } from "../ui";
 
@@ -31,11 +31,12 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
       <div className="grid" style={{ gridTemplateColumns: "1fr 300px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ height: 560 }}>
-            <CortexCanvas
+            <CortexLive
               runState={runState}
               nodeCount={620}
               activeRegion={active}
               onSelectRegion={setActive}
+              interactive
             />
           </div>
           <div className="panel panel-pad" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>

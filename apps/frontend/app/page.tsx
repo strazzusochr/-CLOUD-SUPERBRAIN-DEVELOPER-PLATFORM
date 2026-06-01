@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import CortexCanvas from "../components/organism/CortexCanvas";
+import CortexLive from "../components/organism/CortexLive";
 import { LAYERS, PROVIDERS, providersForLayer } from "../components/organism/regionMap";
 import { Icon, SLOGAN } from "../lib/nav";
 
@@ -65,7 +65,7 @@ export default function Landing() {
               </div>
             </div>
             <div className="hero-canvas">
-              <CortexCanvas runState="planning" nodeCount={520} interactive={false} />
+              <CortexLive runState="planning" nodeCount={520} interactive={false} />
             </div>
           </section>
 
