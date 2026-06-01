@@ -745,7 +745,7 @@ p {
 .layer-strip { display: flex; flex-direction: column; gap: 6px; }
 .layer-row {
   display: grid;
-  grid-template-columns: 56px 1fr;
+  grid-template-columns: 40px minmax(150px, 0.85fr) 1.4fr;
   gap: 12px;
   align-items: center;
   padding: 9px 12px;
@@ -756,12 +756,53 @@ p {
 .layer-tag {
   font-family: var(--font-mono);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   text-align: center;
   padding: 4px 0;
   border-radius: 7px;
   color: #04060c;
 }
+.layer-name { font-size: 13px; color: var(--text-pri); font-weight: 500; }
+.layer-providers { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.layer-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  background: rgba(4, 6, 12, 0.55);
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .layer-row { grid-template-columns: 36px 1fr; }
+  .layer-providers { grid-column: 1 / -1; justify-content: flex-start; }
+}
+.stack-list { display: flex; flex-direction: column; }
+.layer-row-flat { background: transparent; border: none; border-radius: 0; border-bottom: 1px solid var(--border); }
+.layer-row-flat:last-child { border-bottom: none; }
+.prov-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r14);
+  background: var(--surface-1);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.prov-head { display: flex; align-items: center; gap: 8px; }
+.prov-head h3 { font-size: 14px; margin: 0; flex: 1; }
+.prov-dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.prov-role { font-size: 12px; color: var(--text-mut); line-height: 1.45; min-height: 34px; }
+.prov-layers { display: flex; flex-wrap: wrap; gap: 5px; }
+.prov-layer {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+}
+.prov-api { font-size: 11px; color: var(--text-dim); margin-top: auto; }
 
 /* Workbench layout */
 .wb {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import CortexCanvas from "../components/organism/CortexCanvas";
-import { LAYERS } from "../components/organism/regionMap";
+import { LAYERS, PROVIDERS, providersForLayer } from "../components/organism/regionMap";
 import { Icon, SLOGAN } from "../lib/nav";
 
 const FEATURES = [
@@ -90,7 +90,7 @@ export default function Landing() {
             <div className="page-head" style={{ marginBottom: 12 }}>
               <div>
                 <div className="eyebrow">Architecture</div>
-                <h1 style={{ fontSize: 20 }}>7-Layer Cloud Stack</h1>
+                <h1 style={{ fontSize: 20 }}>7 Layers · {PROVIDERS.length} Cloud Providers</h1>
               </div>
               <Link href="/about/stack" className="btn btn-sm btn-ghost">
                 Technology stack →
@@ -98,17 +98,29 @@ export default function Landing() {
             </div>
             <div className="layer-strip">
               {LAYERS.map((l) => (
-                <div key={l.id} className="layer-row">
-                  <span className="layer-tag" style={{ background: l.color }}>
-                    {l.id}
+                <div key={l.code} className="layer-row">
+                  <span className="layer-tag" style={{ background: l.color }}>L{l.no}</span>
+                  <span className="layer-name">{l.label}</span>
+                  <span className="layer-providers">
+                    {providersForLayer(l.no).map((p) => (
+                      <span
+                        key={p.id}
+                        className="layer-chip"
+                        style={{ color: p.color, borderColor: p.color }}
+                        title={p.role}
+                      >
+                        {p.label}
+                      </span>
+                    ))}
                   </span>
-                  <span style={{ fontSize: 13, color: "var(--text-mut)" }}>{l.role}</span>
                 </div>
               ))}
             </div>
             <p style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 10 }}>
-              Tokens and API credentials live under <span className="mono">.codex/secrets</span> —
-              surfaced only as status (configured / verified / blocked), never printed.
+              Each layer is backed by real cloud providers (Vercel · Hetzner · Cloudflare · GitHub ·
+              GHCR · Hugging Face · GitLab · GitKraken). Tokens live under{" "}
+              <span className="mono">.codex/secrets</span> — surfaced only as status
+              (configured / verified / blocked), never printed.
             </p>
           </section>
 

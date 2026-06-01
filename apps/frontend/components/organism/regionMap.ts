@@ -54,13 +54,65 @@ export const STATE_LABEL: Record<RunState, string> = {
   blocked: "BLOCKED",
 };
 
-/** 7-layer cloud stack — secrets/tokens live under .codex secrets (status only). */
-export const LAYERS: { id: string; role: string; color: string }[] = [
-  { id: "FE", role: "Frontend · Workbench · Cortex Canvas", color: C.cyan },
-  { id: "ORC", role: "Orchestrator · Planning · Routing · LangGraph", color: C.blue },
-  { id: "AP", role: "Agent Pool · Roles · Watchdog · Collect", color: C.violet },
-  { id: "LLM", role: "LLM Gateway · Model Routing · Safety · Cost", color: C.magenta },
-  { id: "MCP", role: "MCP Gateway · Tools · Provider Access", color: C.amber },
-  { id: "MEM", role: "Memory · Checkpoints · Resume · Knowledge", color: C.green },
-  { id: "OBS", role: "Observability · Traces · Evidence · Release Guard", color: "#fbbf24" },
+/* ------------------------------------------------------------------
+ * 7-layer cloud architecture × cloud providers.
+ * Source of truth: services/agent-api/app/clouds.py
+ *   - cloud_provider_state().seven_layer_mapping  (layer → providers)
+ *   - vercel/hetzner/cloudflare/github/ghcr/huggingface/gitlab/gitkraken provider()
+ * Tokens for every provider live under .codex/secrets — status only, never shown.
+ * ------------------------------------------------------------------ */
+
+export type ProviderStatus =
+  | "live_verified"
+  | "configured"
+  | "metadata_only"
+  | "action_required";
+
+export interface CloudProvider {
+  id: string;
+  label: string;
+  role: string;
+  layers: number[];
+  color: string;
+  optional: boolean;
+  /** API base the backend reads (read-only, token-gated). */
+  api: string;
+}
+
+/** The 8 non-secret cloud-provider surfaces (clouds.py provider IDs). */
+export const PROVIDERS: CloudProvider[] = [
+  { id: "vercel", label: "Vercel", role: "Hosted frontend · staging proof origin", layers: [1, 7], color: C.cyan, optional: false, api: "api.vercel.com" },
+  { id: "hetzner", label: "Hetzner Cloud", role: "Runtime host · PostgreSQL pgvector · live infra budget", layers: [2, 3, 6, 7], color: C.red, optional: false, api: "api.hetzner.cloud" },
+  { id: "cloudflare", label: "Cloudflare", role: "Edge · DNS · AI gateway · provider cache", layers: [4, 7], color: C.amber, optional: false, api: "api.cloudflare.com" },
+  { id: "github", label: "GitHub Actions", role: "CI/CD · branch protection · deploy gate", layers: [5, 7], color: C.blue, optional: false, api: "api.github.com" },
+  { id: "ghcr", label: "GHCR", role: "Container artifact registry (pull-based deploy)", layers: [5], color: C.violet, optional: false, api: "ghcr.io" },
+  { id: "huggingface", label: "Hugging Face", role: "Model / provider identity check (not prod runtime)", layers: [4, 7], color: "#fbbf24", optional: true, api: "huggingface.co" },
+  { id: "gitlab", label: "GitLab", role: "External identity / mirror proof", layers: [5, 7], color: C.magenta, optional: true, api: "gitlab.com" },
+  { id: "gitkraken", label: "GitKraken", role: "Dev-workspace / organization identity", layers: [5, 7], color: C.green, optional: true, api: "gitkraken.gitclear.com" },
 ];
+
+export interface CloudLayer {
+  no: number;
+  /** Short code shared with Region.layer. */
+  code: string;
+  label: string;
+  /** Provider IDs that back this layer (clouds.py seven_layer_mapping). */
+  providers: string[];
+  color: string;
+}
+
+/** The seven architecture layers, each backed by real cloud providers. */
+export const LAYERS: CloudLayer[] = [
+  { no: 1, code: "FE", label: "Frontend / Next.js", providers: ["vercel"], color: C.cyan },
+  { no: 2, code: "ORC", label: "Orchestrator / LangGraph", providers: ["hetzner"], color: C.blue },
+  { no: 3, code: "AP", label: "Agent Pool", providers: ["hetzner"], color: C.violet },
+  { no: 4, code: "LLM", label: "LLM Gateway", providers: ["cloudflare", "huggingface"], color: C.magenta },
+  { no: 5, code: "MCP", label: "MCP Gateway / Tools", providers: ["github", "ghcr", "gitlab", "gitkraken"], color: C.amber },
+  { no: 6, code: "MEM", label: "Memory / PostgreSQL pgvector", providers: ["hetzner"], color: C.green },
+  { no: 7, code: "OBS", label: "Observability / Evidence", providers: ["vercel", "hetzner", "cloudflare", "github", "gitkraken"], color: "#fbbf24" },
+];
+
+/** Lookup helper: provider objects backing a given layer number. */
+export function providersForLayer(no: number): CloudProvider[] {
+  return PROVIDERS.filter((p) => p.layers.includes(no));
+}
