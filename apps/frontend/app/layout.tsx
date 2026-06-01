@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./styles.css";
 
 export const metadata: Metadata = {
-  title: "Cloud Superbrain",
-  description: "Phase 1 developer platform foundation",
+  title: "Cloud Superbrain — AI Developer Organism Platform",
+  description:
+    "Open-source, independent, free, multi-cloud AI Developer Organism. Workbench-first platform with a live 3D cortex.",
   icons: {
     icon: "/favicon.ico",
   },
