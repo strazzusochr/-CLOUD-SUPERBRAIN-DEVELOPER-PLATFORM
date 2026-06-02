@@ -34,7 +34,7 @@ export default function AppShell({
   return (
     <div className="app-shell">
       <nav className="rail" aria-label="Primary">
-        <Link href="/" className="rail-logo" aria-label="Cloud Superbrain home" />
+        <Link href="/home" className="rail-logo" aria-label="Cloud Superbrain home" />
         {railGroups.map((group, gi) => (
           <div key={gi} style={{ display: "contents" }}>
             {gi > 0 ? <div className="rail-divider" /> : null}

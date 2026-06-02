@@ -57,6 +57,7 @@ Provider writes, deploy, push remain CLOSED gates.`}</pre>
             <div className="wb-pad stack">
               <div className="row" style={{ gap: 8 }}>
                 <input
+                  aria-label="Search project files"
                   placeholder="Search in project…"
                   style={{ flex: 1, background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 9, padding: "8px 12px", fontSize: 13 }}
                 />

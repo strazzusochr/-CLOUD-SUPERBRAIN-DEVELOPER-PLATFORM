@@ -6,8 +6,9 @@ import { LAYERS } from "../../components/organism/regionMap";
 
 export const metadata = { title: "Observe / Monitoring — Cloud Superbrain" };
 
-const OBS = API_SURFACES.find((g) => g.group === "Observability")!;
-const HEALTH = API_SURFACES.find((g) => g.group === "Health & Run State")!;
+const OBS = API_SURFACES.find((g) => g.group === "Observability") ?? { group: "Observability", endpoints: [] };
+const HEALTH = API_SURFACES.find((g) => g.group === "Health & Run State") ?? { group: "Health & Run State", endpoints: [] };
+const STREAM_SURFACE = HEALTH.endpoints[5] ?? "/api/v1/session/{id}/stream";
 
 const BARS = [40, 62, 48, 70, 55, 80, 60, 74, 52, 66, 90, 58];
 
@@ -74,7 +75,7 @@ export default function ObservePage() {
           <p style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 6 }}>
             Spec-only series. Bind a live OTel collector + <span className="mono">/api/v1/metrics</span> to
             replace it with real traffic; run state and traces correlate via{" "}
-            <span className="mono">{HEALTH.endpoints[5]}</span>.
+            <span className="mono">{STREAM_SURFACE}</span>.
           </p>
         </Panel>
       </div>

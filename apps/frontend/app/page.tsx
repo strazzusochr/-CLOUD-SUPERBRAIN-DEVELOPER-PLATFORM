@@ -90,7 +90,7 @@ export default function Landing() {
             <div className="page-head" style={{ marginBottom: 12 }}>
               <div>
                 <div className="eyebrow">Architecture</div>
-                <h1 style={{ fontSize: 20 }}>7 Layers · {PROVIDERS.length} Cloud Providers</h1>
+                <h2 style={{ fontSize: 20 }}>7 Layers · {PROVIDERS.length} Cloud Providers</h2>
               </div>
               <Link href="/about/stack" className="btn btn-sm btn-ghost">
                 Technology stack →

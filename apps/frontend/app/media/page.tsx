@@ -1,3 +1,4 @@
+import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, EmptyState, SpecModeBadge } from "../../components/ui";
 
@@ -33,7 +34,7 @@ export default function MediaPage() {
               <EmptyState
                 title="No media generated yet"
                 body="Media generation is spec-only in this build. Start a brief from the Workbench with mode=Media."
-                action={<a href="/workbench" className="btn btn-sm btn-primary">Open Workbench</a>}
+                action={<Link href="/workbench" className="btn btn-sm btn-primary">Open Workbench</Link>}
               />
             </div>
           </Panel>

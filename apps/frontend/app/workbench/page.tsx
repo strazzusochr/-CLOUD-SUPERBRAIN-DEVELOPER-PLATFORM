@@ -113,6 +113,7 @@ export default function WorkbenchPage() {
               </div>
               <div className="row" style={{ gap: 8 }}>
                 <input
+                  aria-label="Prompt context or notes"
                   placeholder="Add context or notes…"
                   style={{ flex: 1, background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 9, padding: "8px 12px", fontSize: 13 }}
                 />
