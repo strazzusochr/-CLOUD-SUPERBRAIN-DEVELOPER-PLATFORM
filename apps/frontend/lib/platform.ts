@@ -129,3 +129,54 @@ export const API_SURFACES: SurfaceGroup[] = [
   { group: "Observability", endpoints: ["/api/v1/metrics/contract", "/api/v1/costs", "/api/v1/budget", "/api/v1/audit/recent", "/api/v1/audit/mcp", "/api/v1/escalations/recent", "/api/v1/trace/contract", "/api/v1/rate-limit/status"] },
   { group: "Memory", endpoints: ["/api/v1/memory/search", "/api/v1/memory/consolidation/recent", "/api/v1/memory/purge/jobs/{id}"] },
 ];
+
+/* ------------------------------------------------------------------
+ * Project manifest snapshot (PROJECT_STATE.md / docs/project-progress.manifest.json,
+ * dated 2026-05-07). Live values come from GET /api/v1/project/progress and
+ * /api/v1/project/progress/layers — these are the dated manifest figures, shown
+ * only on /diagnostics (never on Home/Workbench as a hero).
+ * ------------------------------------------------------------------ */
+export const MANIFEST = {
+  snapshot: "2026-05-07",
+  overall: 70,
+  integrity: "verified",
+  modules: [
+    { name: "Frontend", layer: 1, pct: 97 },
+    { name: "Orchestrator", layer: 2, pct: 99 },
+    { name: "Agent Pool", layer: 3, pct: 68 },
+    { name: "LLM Gateway", layer: 4, pct: 54 },
+    { name: "MCP Gateway", layer: 5, pct: 55 },
+    { name: "Memory", layer: 6, pct: 72 },
+    { name: "Observability", layer: 7, pct: 99 },
+  ],
+  phases: [
+    { id: "P0", pct: 100 },
+    { id: "P1", pct: 100 },
+    { id: "P2", pct: 86 },
+    { id: "P3", pct: 40 },
+    { id: "P4", pct: 100 },
+    { id: "P5", pct: 67 },
+    { id: "P6", pct: 0 },
+  ],
+} as const;
+
+/** Real verifier scripts in the repo (scripts/*). */
+export const VERIFIERS = [
+  "scripts/verify-phase1.ps1",
+  "scripts/verify-phase5-candidate.ps1",
+  "scripts/verify_project_progress_manifest.py",
+  "scripts/verify-external-gates.ps1",
+  "scripts/verify-browser-contract.ps1",
+];
+
+/** The dangerous gates that stay closed by default (settings governance). */
+export const CLOSED_GATES = [
+  "Production deploy",
+  "Release promotion",
+  "Provider writes",
+  "Main push",
+  "Registry push",
+  "Live MCP write",
+  "Live LLM call",
+  "Secret output",
+];

@@ -28,8 +28,8 @@ export default function HomePage() {
 
         <div className="grid cols-4" style={{ marginBottom: 16 }}>
           <Metric label="Recent projects" value="3" foot={<><StatusDot tone="cyan" /> local</>} />
-          <Metric label="Active agents" value="0" foot={<><StatusDot tone="mut" /> idle</>} />
-          <Metric label="Generated outputs" value="6" foot={<>apps · games · docs</>} />
+          <Metric label="Agent profiles" value="0 / 4" foot={<><StatusDot tone="mut" /> idle · planner/coder/tester/devops</>} />
+          <Metric label="Cloud layers" value="7" foot={<>8 providers</>} />
           <Metric label="Gates" value="CLOSED" foot={<><StatusDot tone="green" /> safe by default</>} />
         </div>
 

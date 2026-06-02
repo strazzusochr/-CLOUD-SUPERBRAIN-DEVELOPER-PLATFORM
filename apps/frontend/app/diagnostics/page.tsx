@@ -1,6 +1,8 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
-import { PageHeader, Panel, Badge, Metric, Note } from "../../components/ui";
+import { PageHeader, Panel, Badge, Metric, Bar, Note } from "../../components/ui";
+import { MANIFEST } from "../../lib/platform";
+import { LAYERS } from "../../components/organism/regionMap";
 
 export const metadata = { title: "Diagnostics / Archive — Cloud Superbrain" };
 
@@ -8,7 +10,6 @@ const ARCHIVE = [
   { name: "Owner Approval Storage Dry-Run", date: "2026-05-27", kind: "Run" },
   { name: "File Apply Preflight Dry-Run", date: "2026-05-27", kind: "Run" },
   { name: "Historical progress 82 / 95 / 97", date: "legacy", kind: "Snapshot" },
-  { name: "GitKraken / GitClear", date: "legacy", kind: "Archive" },
   { name: "Recovery bundle 2026-05-27-1700", date: "2026-05-27", kind: "Recovery" },
 ];
 
@@ -18,22 +19,54 @@ export default function DiagnosticsPage() {
       <div className="page-wide">
         <PageHeader
           eyebrow="Diagnostics / Archive"
-          title="Historical progress, recovery & raw verifiers"
-          subtitle="This — and only this — is where project-status percentages, recovery bundles and raw verifier history live. Kept out of Home and Workbench by design."
+          title="Project progress, recovery & raw verifiers"
+          subtitle="This — and only this — is where project-status percentages and recovery bundles live. Kept off Home and Workbench by design."
         />
 
         <Note variant="warn">
-          Legacy progress values (82 / 95 / 97, 7-of-8) are historical snapshots. They do not
-          represent active readiness — see <Link href="/evidence" style={{ color: "var(--cyan)" }}>Evidence</Link> for current proofs.
+          Manifest snapshot <span className="mono">{MANIFEST.snapshot}</span> — live values project
+          from <span className="mono">GET /api/v1/project/progress</span> and{" "}
+          <span className="mono">/project/progress/layers</span>. Legacy values (82 / 95 / 97) are
+          historical; see <Link href="/evidence" style={{ color: "var(--cyan)" }}>Evidence</Link> for current proofs.
         </Note>
 
         <div className="grid cols-3" style={{ margin: "16px 0" }}>
-          <Metric label="System health" value="99.8%" foot={<Badge tone="green">overall</Badge>} />
-          <Metric label="Archived runs" value="12" foot={<>q-archive</>} />
-          <Metric label="Recovery bundles" value="4" foot={<>retained 30d</>} />
+          <Metric label="Overall progress" value={`${MANIFEST.overall}%`} foot={<Badge tone="amber">manifest</Badge>} />
+          <Metric label="Progress integrity" value="verified" foot={<Badge tone="green">contract</Badge>} />
+          <Metric label="Production deploy" value="blocked" foot={<Badge tone="red">gate closed</Badge>} />
         </div>
 
-        <Panel title="Archive & backups">
+        <div className="grid cols-2">
+          <Panel title="Module readiness (7 layers)">
+            <div className="wb-pad stack" style={{ gap: 10 }}>
+              {MANIFEST.modules.map((m) => {
+                const layer = LAYERS[m.layer - 1];
+                return (
+                  <div key={m.name} className="svc-row">
+                    <span className="layer-tag" style={{ background: layer.color, padding: "2px 7px", fontSize: 10.5, minWidth: 26 }}>L{m.layer}</span>
+                    <span style={{ fontSize: 13, minWidth: 110 }}>{m.name}</span>
+                    <Bar pct={m.pct} />
+                    <span style={{ fontSize: 11, color: "var(--text-mut)", minWidth: 34, textAlign: "right" }}>{m.pct}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          </Panel>
+
+          <Panel title="Phase progress">
+            <div className="wb-pad stack" style={{ gap: 10 }}>
+              {MANIFEST.phases.map((p) => (
+                <div key={p.id} className="svc-row">
+                  <span className="mono" style={{ fontSize: 12, minWidth: 26 }}>{p.id}</span>
+                  <Bar pct={p.pct} />
+                  <span style={{ fontSize: 11, color: "var(--text-mut)", minWidth: 34, textAlign: "right" }}>{p.pct}%</span>
+                </div>
+              ))}
+            </div>
+          </Panel>
+        </div>
+
+        <Panel title="Archive & recovery" style={{ marginTop: 16 }}>
           <table className="tbl">
             <thead><tr><th>Item</th><th>Kind</th><th>Date</th><th /></tr></thead>
             <tbody>
