@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import CortexLive from "./CortexLive";
-import { REGIONS, STATE_LABEL, type RunState } from "./regionMap";
+import { REGIONS, STATE_LABEL, LAYERS, providersForLayer, type RunState } from "./regionMap";
 import { PageHeader, Note } from "../ui";
 
 const STATES: RunState[] = ["idle", "planning", "executing", "verifying", "blocked"];
@@ -76,20 +76,41 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
             </div>
           </section>
 
-          {region ? (
-            <section className="panel panel-pad">
-              <span className="panel-title" style={{ display: "block", marginBottom: 8 }}>Inspector</span>
-              <h3 style={{ fontSize: 15 }}>{region.name}</h3>
-              <p style={{ fontSize: 13, color: "var(--text-mut)", marginTop: 6 }}>{region.cap}</p>
-              <p style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 8 }}>
-                Mapped to layer <span className="mono">{region.layer}</span>.
-              </p>
-            </section>
-          ) : null}
+          {region ? (() => {
+            const layer = LAYERS.find((l) => l.code === region.layer);
+            const provs = layer ? providersForLayer(layer.no) : [];
+            return (
+              <section className="panel panel-pad">
+                <span className="panel-title" style={{ display: "block", marginBottom: 8 }}>Inspector</span>
+                <h3 style={{ fontSize: 15 }}>{region.name}</h3>
+                <p style={{ fontSize: 13, color: "var(--text-mut)", marginTop: 6 }}>{region.cap}</p>
+                {layer ? (
+                  <>
+                    <p className="inspect-label">Architecture layer</p>
+                    <div className="row" style={{ alignItems: "center", gap: 8, marginTop: 4 }}>
+                      <span className="layer-tag" style={{ background: layer.color, padding: "3px 8px", fontSize: 11 }}>L{layer.no}</span>
+                      <span style={{ fontSize: 13, color: "var(--text-pri)" }}>{layer.label}</span>
+                    </div>
+                    <p className="inspect-label">Cloud providers</p>
+                    <div className="layer-providers" style={{ justifyContent: "flex-start", marginTop: 4 }}>
+                      {provs.map((p) => (
+                        <span key={p.id} className="layer-chip" style={{ color: p.color, borderColor: p.color }} title={p.role}>
+                          {p.label}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+              </section>
+            );
+          })() : null}
 
           <Note>
-            Animation is data-driven, never fake-live. Reduced-motion replaces the canvas with a
-            static 2D topology list (same data contract).
+            Animation is data-driven, never fake-live. Live binding targets the backend run
+            surfaces — <span className="mono">GET /api/v1/agents/status</span>,{" "}
+            <span className="mono">/tasks/recent</span>,{" "}
+            <span className="mono">/session/{"{id}"}/stream</span>. Reduced-motion replaces the
+            canvas with a static 2D topology list.
           </Note>
         </aside>
       </div>

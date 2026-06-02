@@ -815,6 +815,7 @@ p {
   border-radius: 6px;
 }
 .prov-api { font-size: 11px; color: var(--text-dim); margin-top: auto; }
+.inspect-label { font-size: 10.5px; color: var(--text-dim); margin-top: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
 
 /* Workbench layout */
 .wb {
