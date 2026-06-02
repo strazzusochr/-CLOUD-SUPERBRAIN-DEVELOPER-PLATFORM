@@ -62,6 +62,7 @@ export default function CortexLive(props: Props) {
           activeRegion={props.activeRegion}
           onSelectRegion={props.onSelectRegion}
           interactive={props.interactive}
+          showRegions={props.showRegions}
         />
       </GLErrorBoundary>
     );

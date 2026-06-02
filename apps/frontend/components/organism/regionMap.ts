@@ -54,6 +54,30 @@ export const STATE_LABEL: Record<RunState, string> = {
   blocked: "BLOCKED",
 };
 
+export interface Hub {
+  id: string;
+  label: string;
+  color: string;
+  route: string;
+  /** Orbit position around the central organism. */
+  pos: [number, number, number];
+}
+
+/**
+ * The 8 capability hubs that orbit the central Superbrain organism
+ * (collective-organism view — central brain + radial data/control links).
+ */
+export const HUBS: Hub[] = [
+  { id: "workbench", label: "WORKBENCH", color: C.cyan, route: "/workbench", pos: [0, 2.35, 0.35] },
+  { id: "agents", label: "AGENTS", color: C.violet, route: "/agents", pos: [1.66, 1.66, -0.35] },
+  { id: "tools", label: "TOOLS / MCP", color: C.amber, route: "/tools", pos: [2.35, 0, 0.35] },
+  { id: "models", label: "MODELS", color: C.green, route: "/marketplace", pos: [1.66, -1.66, -0.35] },
+  { id: "marketplace", label: "MARKETPLACE", color: C.magenta, route: "/marketplace", pos: [0, -2.35, 0.35] },
+  { id: "observe", label: "OBSERVABILITY", color: "#fbbf24", route: "/observe", pos: [-1.66, -1.66, -0.35] },
+  { id: "memory", label: "MEMORY", color: C.blue, route: "/files", pos: [-2.35, 0, 0.35] },
+  { id: "cloud", label: "CLOUD", color: C.cyan, route: "/about/stack", pos: [-1.66, 1.66, -0.35] },
+];
+
 /* ------------------------------------------------------------------
  * 7-layer cloud architecture × cloud providers.
  * Source of truth: services/agent-api/app/clouds.py

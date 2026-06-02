@@ -65,7 +65,7 @@ export default function Landing() {
               </div>
             </div>
             <div className="hero-canvas">
-              <CortexLive runState="planning" nodeCount={520} interactive={false} />
+              <CortexLive runState="planning" nodeCount={900} interactive={false} showRegions={false} />
             </div>
           </section>
 
