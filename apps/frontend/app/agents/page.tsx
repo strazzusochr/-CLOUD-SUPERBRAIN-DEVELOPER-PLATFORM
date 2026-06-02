@@ -1,20 +1,8 @@
 import AppShell from "../../components/shell/AppShell";
-import { PageHeader, Panel, Badge, StatusDot, Bar } from "../../components/ui";
+import { PageHeader, Panel, Badge, Note } from "../../components/ui";
+import { AGENTS } from "../../lib/platform";
 
 export const metadata = { title: "Agent Control Center — Cloud Superbrain" };
-
-type Tone = "cyan" | "green" | "amber" | "red" | "mut";
-const AGENTS: { name: string; role: string; state: string; tone: Tone; health: number; task: string }[] = [
-  { name: "Supervisor", role: "Gate control", state: "active", tone: "green", health: 98, task: "Guarding write gates" },
-  { name: "Architect", role: "Plan + design", state: "planning", tone: "cyan", health: 87, task: "Combat system design" },
-  { name: "Coder", role: "Build + edit", state: "idle", tone: "mut", health: 100, task: "—" },
-  { name: "Reviewer", role: "Review + diff", state: "idle", tone: "mut", health: 96, task: "—" },
-  { name: "Tester", role: "Verifier", state: "verifying", tone: "amber", health: 71, task: "test_health_ratio.py" },
-  { name: "Security", role: "Risk + secrets", state: "active", tone: "green", health: 99, task: "Secret scan" },
-  { name: "DevOps", role: "CLI / cloud", state: "blocked", tone: "red", health: 60, task: "Provider write closed" },
-  { name: "Monitor", role: "Telemetry", state: "active", tone: "cyan", health: 92, task: "Trace ingest" },
-  { name: "Watchdog", role: "Health + retries", state: "active", tone: "green", health: 95, task: "Heartbeat" },
-];
 
 export default function AgentsPage() {
   return (
@@ -22,27 +10,45 @@ export default function AgentsPage() {
       <div className="page-wide">
         <PageHeader
           eyebrow="Agent Control Center"
-          title="Agent roster"
-          subtitle="State, task, health and skills per agent. Collect, watchdog and handoff visibility — not a decorative grid."
-          actions={<Badge tone="green"><StatusDot tone="green" /> 6 active</Badge>}
+          title={`${AGENTS.length} deterministic agent profiles`}
+          subtitle="Real role pool from the backend contract agent-profiles-v1. Each profile pins its model, fallbacks, allowed MCP tools, execution limits and human-review actions. Live status (active / queued / idle / error) projects from GET /api/v1/agents/status."
+          actions={<Badge tone="cyan">agent-profiles-v1</Badge>}
         />
-        <div className="grid cols-3">
+        <div className="grid cols-2">
           {AGENTS.map((a) => (
-            <Panel key={a.name} pad>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <StatusDot tone={a.tone} pulse={a.tone !== "mut"} />
-                <strong style={{ fontSize: 14 }}>{a.name}</strong>
-                <Badge tone={a.tone === "mut" ? "mut" : a.tone}>{a.state}</Badge>
+            <Panel key={a.type} pad>
+              <div className="agent-head">
+                <span className="agent-type">{a.type}</span>
+                <Badge tone="mut">{a.maxExecSec}s · {a.maxOutTokens} tok · ≤{a.maxRetries} retries</Badge>
               </div>
-              <p style={{ fontSize: 12.5, color: "var(--text-mut)" }}>{a.role}</p>
-              <p style={{ fontSize: 12, color: "var(--text-dim)", margin: "8px 0" }}>{a.task}</p>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Bar pct={a.health} />
-                <span style={{ fontSize: 11, color: "var(--text-mut)", minWidth: 34, textAlign: "right" }}>{a.health}%</span>
+              <p className="agent-role">{a.role}</p>
+
+              <p className="inspect-label">Model · fallbacks</p>
+              <p className="agent-model mono">{a.model}</p>
+              <p className="agent-fallbacks">↳ {a.fallbacks.join(" · ")}</p>
+
+              <p className="inspect-label">Allowed MCP tools</p>
+              <div className="chip-wrap">
+                {a.tools.map((t) => (
+                  <span key={t} className="tool-chip mono">{t}</span>
+                ))}
+              </div>
+
+              <p className="inspect-label">Human-review required</p>
+              <div className="chip-wrap">
+                {a.humanReview.map((h) => (
+                  <span key={h} className="review-chip mono">{h}</span>
+                ))}
               </div>
             </Panel>
           ))}
         </div>
+
+        <Note>
+          Profiles are deterministic runtime contracts — they do not imply live provider credentials
+          are configured, and production-deploy actions stay human-review gated. All four agents run
+          on Layer 3 (Agent Pool · Hetzner); global max-retry is 5.
+        </Note>
       </div>
     </AppShell>
   );

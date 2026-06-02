@@ -1,23 +1,13 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
-import { PageHeader, Panel, Metric, Badge, Bar, SpecModeBadge } from "../../components/ui";
+import { PageHeader, Panel, Badge, SpecModeBadge } from "../../components/ui";
+import { SERVICES, API_SURFACES } from "../../lib/platform";
+import { LAYERS } from "../../components/organism/regionMap";
 
 export const metadata = { title: "Observe / Monitoring — Cloud Superbrain" };
 
-const SERVICES = [
-  { name: "agent-api", health: 99 },
-  { name: "mcp-gateway", health: 97 },
-  { name: "llm-gateway", health: 94 },
-  { name: "memory / pgvector", health: 99 },
-  { name: "orchestrator", health: 96 },
-];
-
-const LOGS = [
-  { lvl: "INFO", tone: "cyan" as const, msg: "Run plan created", t: "12:45:10" },
-  { lvl: "INFO", tone: "cyan" as const, msg: "Agent started", t: "12:45:18" },
-  { lvl: "WARN", tone: "amber" as const, msg: "Rate limit approaching", t: "12:45:24" },
-  { lvl: "INFO", tone: "green" as const, msg: "Checks passed", t: "12:45:32" },
-];
+const OBS = API_SURFACES.find((g) => g.group === "Observability")!;
+const HEALTH = API_SURFACES.find((g) => g.group === "Health & Run State")!;
 
 const BARS = [40, 62, 48, 70, 55, 80, 60, 74, 52, 66, 90, 58];
 
@@ -28,7 +18,7 @@ export default function ObservePage() {
         <PageHeader
           eyebrow="Observe / Monitoring"
           title="Runtime signals"
-          subtitle="Health, runs, latency, traces and logs. Open a run to inspect its trace and evidence."
+          subtitle="Health, runs, latency, traces and logs bound to the real backend surfaces. Live numbers project from the endpoints below; the charts are spec-only until an OTel collector is wired."
           actions={
             <>
               <SpecModeBadge mode="spec_only" />
@@ -37,54 +27,55 @@ export default function ObservePage() {
           }
         />
 
-        <div className="grid cols-3" style={{ marginBottom: 16 }}>
-          <Metric label="Requests / min" value="1,287" foot={<Badge tone="green">+12.5%</Badge>} />
-          <Metric label="Error rate" value="0.38%" foot={<Badge tone="green">−2.1%</Badge>} />
-          <Metric label="Latency p95" value="243ms" foot={<Badge tone="amber">+8.7%</Badge>} />
-        </div>
-
         <div className="grid cols-2">
-          <Panel title="Traffic (OpenTelemetry)" pad>
-            <SpecModeBadge mode="spec_only" />
-            <svg viewBox="0 0 320 120" width="100%" height="120" style={{ marginTop: 10 }} role="img" aria-label="Traffic chart (spec-only)">
-              {BARS.map((b, i) => (
-                <rect key={i} x={i * 26 + 6} y={120 - b} width="16" height={b} rx="3" fill="url(#g11)" opacity="0.85" />
-              ))}
-              <defs>
-                <linearGradient id="g11" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#00e5ff" />
-                  <stop offset="100%" stopColor="#3b82f6" />
-                </linearGradient>
-              </defs>
-            </svg>
-            <p style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 6 }}>
-              Bind a live OTel collector to replace this spec-only series.
-            </p>
+          <Panel title="Runtime services (cloud-superbrain-phase1-dev)">
+            <div className="wb-pad stack" style={{ gap: 9 }}>
+              {SERVICES.map((s) => {
+                const layer = LAYERS[s.layer - 1];
+                return (
+                  <div key={s.name} className="svc-row">
+                    <span className="layer-tag" style={{ background: layer.color, padding: "2px 7px", fontSize: 10.5 }}>L{s.layer}</span>
+                    <span className="mono" style={{ fontSize: 13 }}>{s.name}</span>
+                    <span className="svc-meta">{layer.label}</span>
+                  </div>
+                );
+              })}
+              <p style={{ fontSize: 11.5, color: "var(--text-dim)", marginTop: 4 }}>
+                Health projects from <span className="mono">GET /api/v1/health</span>.
+              </p>
+            </div>
           </Panel>
 
-          <Panel title="Services health">
-            <div className="wb-pad stack" style={{ gap: 12 }}>
-              {SERVICES.map((s) => (
-                <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 13, minWidth: 150 }} className="mono">{s.name}</span>
-                  <Bar pct={s.health} />
-                  <span style={{ fontSize: 11, color: "var(--text-mut)", minWidth: 34, textAlign: "right" }}>{s.health}%</span>
+          <Panel title="Observability surfaces">
+            <div className="wb-pad stack" style={{ gap: 6 }}>
+              {OBS.endpoints.map((e) => (
+                <div key={e} className="surface-row">
+                  <span className="mono" style={{ fontSize: 12.5 }}>{e}</span>
+                  <Badge tone="cyan">read-only</Badge>
                 </div>
               ))}
             </div>
           </Panel>
         </div>
 
-        <Panel title="Logs" style={{ marginTop: 16 }}>
-          <div className="list">
-            {LOGS.map((l, i) => (
-              <div key={i} className="lrow mono" style={{ fontSize: 12.5 }}>
-                <Badge tone={l.tone}>{l.lvl}</Badge>
-                <span>{l.msg}</span>
-                <span className="meta">{l.t}</span>
-              </div>
+        <Panel title="Traffic (OpenTelemetry)" style={{ marginTop: 16 }} pad>
+          <SpecModeBadge mode="spec_only" />
+          <svg viewBox="0 0 320 120" width="100%" height="120" style={{ marginTop: 10 }} role="img" aria-label="Traffic chart (spec-only)">
+            {BARS.map((b, i) => (
+              <rect key={i} x={i * 26 + 6} y={120 - b} width="16" height={b} rx="3" fill="url(#g11)" opacity="0.85" />
             ))}
-          </div>
+            <defs>
+              <linearGradient id="g11" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#00e5ff" />
+                <stop offset="100%" stopColor="#3b82f6" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <p style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 6 }}>
+            Spec-only series. Bind a live OTel collector + <span className="mono">/api/v1/metrics</span> to
+            replace it with real traffic; run state and traces correlate via{" "}
+            <span className="mono">{HEALTH.endpoints[5]}</span>.
+          </p>
         </Panel>
       </div>
     </AppShell>
