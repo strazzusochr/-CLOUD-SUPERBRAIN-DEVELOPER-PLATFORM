@@ -59,23 +59,30 @@ export interface Hub {
   label: string;
   color: string;
   route: string;
+  /** Architecture layer code (FE/ORC/AP/LLM/MCP/MEM/OBS) — used by the layer filter. */
+  layer: string;
+  /** Agent profiles that drive this hub — used by the agent filter. */
+  agents: string[];
   /** Orbit position around the central organism. */
   pos: [number, number, number];
 }
+
+/** The 4 deterministic agent profiles (organism agent filter). */
+export const ORGANISM_AGENTS = ["planner", "coder", "tester", "devops"] as const;
 
 /**
  * The 8 capability hubs that orbit the central Superbrain organism
  * (collective-organism view — central brain + radial data/control links).
  */
 export const HUBS: Hub[] = [
-  { id: "workbench", label: "WORKBENCH", color: C.cyan, route: "/workbench", pos: [0, 2.35, 0.35] },
-  { id: "agents", label: "AGENTS", color: C.violet, route: "/agents", pos: [1.66, 1.66, -0.35] },
-  { id: "tools", label: "TOOLS / MCP", color: C.amber, route: "/tools", pos: [2.35, 0, 0.35] },
-  { id: "models", label: "MODELS", color: C.green, route: "/marketplace", pos: [1.66, -1.66, -0.35] },
-  { id: "marketplace", label: "MARKETPLACE", color: C.magenta, route: "/marketplace", pos: [0, -2.35, 0.35] },
-  { id: "observe", label: "OBSERVABILITY", color: "#fbbf24", route: "/observe", pos: [-1.66, -1.66, -0.35] },
-  { id: "memory", label: "MEMORY", color: C.blue, route: "/files", pos: [-2.35, 0, 0.35] },
-  { id: "cloud", label: "CLOUD", color: C.cyan, route: "/about/stack", pos: [-1.66, 1.66, -0.35] },
+  { id: "workbench", label: "WORKBENCH", color: C.cyan, route: "/workbench", layer: "FE", agents: ["planner", "coder", "tester", "devops"], pos: [0, 2.35, 0.35] },
+  { id: "agents", label: "AGENTS", color: C.violet, route: "/agents", layer: "AP", agents: ["planner", "coder", "tester", "devops"], pos: [1.66, 1.66, -0.35] },
+  { id: "tools", label: "TOOLS / MCP", color: C.amber, route: "/tools", layer: "MCP", agents: ["coder", "tester", "devops"], pos: [2.35, 0, 0.35] },
+  { id: "models", label: "MODELS", color: C.green, route: "/marketplace", layer: "LLM", agents: ["planner", "coder", "tester", "devops"], pos: [1.66, -1.66, -0.35] },
+  { id: "marketplace", label: "MARKETPLACE", color: C.magenta, route: "/marketplace", layer: "MCP", agents: ["planner"], pos: [0, -2.35, 0.35] },
+  { id: "observe", label: "OBSERVABILITY", color: "#fbbf24", route: "/observe", layer: "OBS", agents: ["tester", "devops"], pos: [-1.66, -1.66, -0.35] },
+  { id: "memory", label: "MEMORY", color: C.blue, route: "/files", layer: "MEM", agents: ["planner", "coder", "tester", "devops"], pos: [-2.35, 0, 0.35] },
+  { id: "cloud", label: "CLOUD", color: C.cyan, route: "/about/stack", layer: "ORC", agents: ["devops"], pos: [-1.66, 1.66, -0.35] },
 ];
 
 /* ------------------------------------------------------------------

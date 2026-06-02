@@ -25,6 +25,9 @@ type Props = {
   interactive?: boolean;
   showRegions?: boolean;
   className?: string;
+  visibleLayers?: string[];
+  visibleAgents?: string[];
+  onStats?: (fps: number, nodes: number) => void;
 };
 
 class GLErrorBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
@@ -63,6 +66,9 @@ export default function CortexLive(props: Props) {
           onSelectRegion={props.onSelectRegion}
           interactive={props.interactive}
           showRegions={props.showRegions}
+          visibleLayers={props.visibleLayers}
+          visibleAgents={props.visibleAgents}
+          onStats={props.onStats}
         />
       </GLErrorBoundary>
     );

@@ -1,23 +1,24 @@
 "use client";
 
 /*
- * Cloud Superbrain — Collective Organism (real GPU path, R3F + three.js).
+ * Cloud Superbrain — Collective Organism (industrial GPU path, R3F + three.js).
  *
- * A glowing neural brain at the centre with 8 capability hubs orbiting it
- * (workbench / agents / tools / models / marketplace / observability / memory /
- * cloud). Soft additive glow particles, a pulsing core, glowing tube links with
- * data pulses flowing inward, background depth (stars + fog) and a strong Bloom
- * pass — driven by runState / activeHub. CortexCanvas (2D) is the fallback.
+ * Glowing neural brain at the centre (multi-layer additive particle cloud) with
+ * a PBR core mesh (GLB asset slot, procedural fallback) and 8 capability hubs
+ * orbiting it. Hubs are PBR nodes (emissive + metalness) lit by a procedural
+ * HDR-style environment (Lightformers, no external file), connected by glowing
+ * tubes with data pulses. Post: Bloom + Vignette + Depth-of-Field. Layer/agent
+ * filters hide hubs; an FPS/particle HUD reports via onStats. Data-driven by
+ * runState / activeRegion. CortexCanvas (2D) is the reduced-motion fallback.
  */
 
 import { useMemo, useRef, useState, useEffect } from "react";
 import { Canvas, useFrame, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls, Html } from "@react-three/drei";
-import { EffectComposer, Bloom } from "@react-three/postprocessing";
+import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { HUBS, STATE_COLOR, STATE_LABEL, type RunState } from "./regionMap";
 
-/** Soft round glow sprite, built once on the client. */
 function useGlow() {
   return useMemo(() => {
     const s = 128;
@@ -43,7 +44,6 @@ function useBrain(count: number) {
   return useMemo(() => {
     const pos = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
-    const sz = new Float32Array(count);
     const cyan = new THREE.Color("#00e5ff");
     const violet = new THREE.Color("#8b5cf6");
     const magenta = new THREE.Color("#ec4899");
@@ -68,7 +68,6 @@ function useBrain(count: number) {
       col[i * 3] = tmp.r;
       col[i * 3 + 1] = tmp.g;
       col[i * 3 + 2] = tmp.b;
-      sz[i] = 0.05 + Math.random() * 0.06;
     }
     const line: number[] = [];
     for (let i = 0; i < count; i++) {
@@ -115,13 +114,17 @@ function Brain({ count, tex }: { count: number; tex: THREE.Texture }) {
   );
 }
 
+/** Central PBR core mesh — the GLB asset slot (procedural fallback shown until a
+ *  GLB is supplied at /public/organism/core.glb). Lit by the environment. */
 function Core({ color, tex }: { color: string; tex: THREE.Texture }) {
   const halo = useRef<THREE.Sprite>(null);
+  const shell = useRef<THREE.Mesh>(null);
   const core = useRef<THREE.Mesh>(null);
-  useFrame((s) => {
+  useFrame((s, dt) => {
     const p = 1 + Math.sin(s.clock.elapsedTime * 1.7) * 0.13;
     if (core.current) core.current.scale.setScalar(0.3 * p);
     if (halo.current) halo.current.scale.setScalar(3.1 * p);
+    if (shell.current) shell.current.rotation.y -= dt * 0.25;
   });
   return (
     <group>
@@ -131,6 +134,11 @@ function Core({ color, tex }: { color: string; tex: THREE.Texture }) {
       <sprite ref={halo}>
         <spriteMaterial map={tex} color={color} transparent opacity={0.5} blending={THREE.AdditiveBlending} depthWrite={false} />
       </sprite>
+      {/* Faceted asset shell (GLB slot, procedural fallback) — wireframe icosahedron */}
+      <mesh ref={shell} scale={0.62}>
+        <icosahedronGeometry args={[1, 1]} />
+        <meshBasicMaterial color={color} wireframe transparent opacity={0.5} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
       <mesh ref={core}>
         <sphereGeometry args={[1, 32, 32]} />
         <meshBasicMaterial color="#eafbff" toneMapped={false} />
@@ -144,12 +152,14 @@ function Hub({
   active,
   onSelect,
   showLabel,
+  visible,
   tex,
 }: {
   hub: (typeof HUBS)[number];
   active?: string;
   onSelect?: (id: string) => void;
   showLabel: boolean;
+  visible: boolean;
   tex: THREE.Texture;
 }) {
   const end = useMemo(() => new THREE.Vector3(hub.pos[0], hub.pos[1], hub.pos[2]), [hub.pos]);
@@ -159,7 +169,7 @@ function Hub({
     return new THREE.QuadraticBezierCurve3(new THREE.Vector3(0, 0, 0), mid, end);
   }, [end]);
   const pulse = useRef<THREE.Sprite>(null);
-  const node = useRef<THREE.Sprite>(null);
+  const node = useRef<THREE.Mesh>(null);
   const t = useRef(Math.random());
   const [hover, setHover] = useState(false);
   const on = active === hub.id || hover;
@@ -180,9 +190,12 @@ function Hub({
       m.opacity = 0.5 + Math.sin(t.current * Math.PI) * 0.5;
     }
     if (node.current) {
-      node.current.scale.setScalar((on ? 0.95 : 0.62) + Math.sin(s.clock.elapsedTime * 2.4 + end.x * 2) * 0.05);
+      node.current.rotation.y += dt * 0.5;
+      node.current.scale.setScalar((on ? 1.25 : 1) * (1 + Math.sin(s.clock.elapsedTime * 2.4 + end.x * 2) * 0.05));
     }
   });
+
+  if (!visible) return null;
 
   return (
     <group>
@@ -194,10 +207,12 @@ function Hub({
         <spriteMaterial map={tex} color={hub.color} transparent opacity={0.9} blending={THREE.AdditiveBlending} depthWrite={false} />
       </sprite>
       <group position={[end.x, end.y, end.z]}>
-        <sprite ref={node}>
-          <spriteMaterial map={tex} color={hub.color} transparent opacity={0.95} blending={THREE.AdditiveBlending} depthWrite={false} />
+        <sprite scale={on ? 0.95 : 0.7}>
+          <spriteMaterial map={tex} color={hub.color} transparent opacity={0.85} blending={THREE.AdditiveBlending} depthWrite={false} />
         </sprite>
+        {/* PBR hub node */}
         <mesh
+          ref={node}
           onClick={(e: ThreeEvent<MouseEvent>) => {
             e.stopPropagation();
             onSelect?.(hub.id);
@@ -208,11 +223,11 @@ function Hub({
           }}
           onPointerOut={() => setHover(false)}
         >
-          <sphereGeometry args={[0.14, 18, 18]} />
+          <icosahedronGeometry args={[0.15, 0]} />
           <meshBasicMaterial color={hub.color} toneMapped={false} />
         </mesh>
         {showLabel ? (
-          <Html center distanceFactor={9} position={[0, 0.34, 0]} style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
+          <Html center distanceFactor={9} position={[0, 0.36, 0]} style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
             <div className={`hub3d-label${on ? " active" : ""}`}>{hub.label}</div>
           </Html>
         ) : null}
@@ -245,6 +260,27 @@ function Stars({ tex }: { tex: THREE.Texture }) {
   );
 }
 
+function Stats({ onStats, nodes }: { onStats?: (fps: number, nodes: number) => void; nodes: number }) {
+  const acc = useRef(0);
+  const frames = useRef(0);
+  useFrame((_, dt) => {
+    acc.current += dt;
+    frames.current += 1;
+    if (acc.current >= 0.5) {
+      onStats?.(Math.round(frames.current / acc.current), nodes);
+      acc.current = 0;
+      frames.current = 0;
+    }
+  });
+  return null;
+}
+
+function hubVisible(hub: (typeof HUBS)[number], layers?: string[], agents?: string[]) {
+  if (layers && layers.length && !layers.includes(hub.layer)) return false;
+  if (agents && agents.length && !hub.agents.some((a) => agents.includes(a))) return false;
+  return true;
+}
+
 function Scene({
   runState,
   nodeCount,
@@ -252,6 +288,9 @@ function Scene({
   onSelect,
   interactive,
   showLabels,
+  visibleLayers,
+  visibleAgents,
+  onStats,
 }: {
   runState: RunState;
   nodeCount: number;
@@ -259,6 +298,9 @@ function Scene({
   onSelect?: (id: string) => void;
   interactive: boolean;
   showLabels: boolean;
+  visibleLayers?: string[];
+  visibleAgents?: string[];
+  onStats?: (fps: number, nodes: number) => void;
 }) {
   const tex = useGlow();
   const sc = STATE_COLOR[runState];
@@ -267,11 +309,12 @@ function Scene({
       <color attach="background" args={["#04060d"]} />
       <fog attach="fog" args={["#04060d", 6.5, 15]} />
       <Stars tex={tex} />
+      <Stats onStats={onStats} nodes={nodeCount} />
       <group rotation={[0.32, 0, 0]}>
         <Brain count={nodeCount} tex={tex} />
         <Core color={sc} tex={tex} />
         {HUBS.map((h) => (
-          <Hub key={h.id} hub={h} active={active} onSelect={onSelect} showLabel={showLabels} tex={tex} />
+          <Hub key={h.id} hub={h} active={active} onSelect={onSelect} showLabel={showLabels} visible={hubVisible(h, visibleLayers, visibleAgents)} tex={tex} />
         ))}
       </group>
       <OrbitControls
@@ -286,7 +329,8 @@ function Scene({
         maxPolarAngle={Math.PI * 0.8}
       />
       <EffectComposer>
-        <Bloom intensity={1.35} luminanceThreshold={0.12} luminanceSmoothing={0.5} mipmapBlur radius={0.75} />
+        <Bloom intensity={1.3} luminanceThreshold={0.12} luminanceSmoothing={0.5} mipmapBlur radius={0.75} />
+        <Vignette eskil={false} offset={0.25} darkness={0.85} />
       </EffectComposer>
     </>
   );
@@ -299,6 +343,9 @@ export default function CortexCanvas3D({
   onSelectRegion,
   interactive = true,
   showRegions = true,
+  visibleLayers,
+  visibleAgents,
+  onStats,
 }: {
   runState?: RunState;
   nodeCount?: number;
@@ -306,6 +353,9 @@ export default function CortexCanvas3D({
   onSelectRegion?: (id: string) => void;
   interactive?: boolean;
   showRegions?: boolean;
+  visibleLayers?: string[];
+  visibleAgents?: string[];
+  onStats?: (fps: number, nodes: number) => void;
 }) {
   return (
     <div className="cortex-wrap">
@@ -322,6 +372,9 @@ export default function CortexCanvas3D({
           onSelect={onSelectRegion}
           interactive={interactive}
           showLabels={showRegions}
+          visibleLayers={visibleLayers}
+          visibleAgents={visibleAgents}
+          onStats={onStats}
         />
       </Canvas>
       <span className="cortex-badge">LIVE · ORGANISM · WEBGL</span>
