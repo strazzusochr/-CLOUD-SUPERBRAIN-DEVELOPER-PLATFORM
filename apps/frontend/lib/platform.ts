@@ -180,3 +180,43 @@ export const CLOSED_GATES = [
   "Live LLM call",
   "Secret output",
 ];
+
+/** Platform skills (deterministic capabilities the agents compose). */
+export const SKILLS = [
+  { id: "strict-project-gate", purpose: "Path gate — no project write without an explicit gate." },
+  { id: "product-ux-guardian", purpose: "Home/Workbench stay product surfaces, not an audit hero." },
+  { id: "live-3d-organism-architect", purpose: "Cortex canvas, brain regions, synapse flows." },
+  { id: "r3f-three-engineer", purpose: "R3F/three.js: canvas, GLB loader, instancing, bloom." },
+  { id: "blender-gltf-pipeline", purpose: "Blender → GLB → glTF Transform → gltfjsx." },
+  { id: "mcp-safety-auditor", purpose: "MCP servers, scopes, secrets and writes review." },
+  { id: "visual-verifier", purpose: "Playwright screenshots, visual diff, responsive checks." },
+  { id: "accessibility-reduced-motion", purpose: "A11y, reduced motion, keyboard, contrast." },
+  { id: "telemetry-binding-engineer", purpose: "OpenTelemetry → cortex visual signals." },
+  { id: "opa-gate-engineer", purpose: "can_write / can_deploy / can_push local policy gates." },
+];
+
+/** Models pinned by the agent profiles (primary, per agent). */
+export const MODELS = [
+  { id: "deepseek-ai/DeepSeek-V4-Pro", role: "Planner primary" },
+  { id: "Qwen/Qwen3-Coder-Next", role: "Coder primary" },
+  { id: "google/gemma-4-26B-A4B-it", role: "Tester primary" },
+  { id: "deepseek-ai/DeepSeek-V4-Flash", role: "DevOps primary" },
+];
+
+/** Read-only scoped roots for the local files surface. */
+export const FILE_ROOTS = ["project", "workspace", "documents", "codex_runs", "codex_skills"];
+
+/** Real top-level project tree (read-only; .git/.env/secrets blocked). */
+export const PROJECT_TREE: { d: number; name: string; folder?: boolean }[] = [
+  { d: 0, name: "-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM", folder: true },
+  { d: 1, name: "apps", folder: true },
+  { d: 2, name: "frontend", folder: true },
+  { d: 1, name: "services", folder: true },
+  { d: 2, name: "agent-api", folder: true },
+  { d: 1, name: "docs", folder: true },
+  { d: 1, name: "scripts", folder: true },
+  { d: 1, name: "AGENTS.md" },
+  { d: 1, name: "PROJECT_STATE.md" },
+  { d: 1, name: "README.md" },
+  { d: 1, name: "docker-compose.cloud.yml" },
+];

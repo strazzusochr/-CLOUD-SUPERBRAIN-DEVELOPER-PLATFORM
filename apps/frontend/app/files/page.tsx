@@ -6,10 +6,10 @@ import { Icon } from "../../lib/nav";
 export const metadata = { title: "Files & Knowledge — Cloud Superbrain" };
 
 const KB = [
-  { name: "Game Design Docs", kind: "Vector DB", count: "128 docs" },
-  { name: "API Reference", kind: "Vector DB", count: "64 docs" },
-  { name: "Lore & World", kind: "Graph DB", count: "212 nodes" },
-  { name: "Research Papers", kind: "Vector DB", count: "39 docs" },
+  { name: "Vector store · pgvector", kind: "vector(1536)", count: "memory/search" },
+  { name: "Memory consolidation", kind: "job", count: "consolidation/recent" },
+  { name: "Relationship graph", kind: "relations", count: "open_nodes" },
+  { name: "Purge lifecycle", kind: "gated", count: "purge/jobs" },
 ];
 
 export default function FilesPage() {
