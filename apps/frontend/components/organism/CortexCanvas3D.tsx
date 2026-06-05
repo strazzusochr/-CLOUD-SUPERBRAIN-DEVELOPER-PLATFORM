@@ -120,11 +120,18 @@ function Core({ color, tex }: { color: string; tex: THREE.Texture }) {
   const halo = useRef<THREE.Sprite>(null);
   const shell = useRef<THREE.Mesh>(null);
   const core = useRef<THREE.Mesh>(null);
+  const ringA = useRef<THREE.Mesh>(null);
+  const ringB = useRef<THREE.Mesh>(null);
   useFrame((s, dt) => {
     const p = 1 + Math.sin(s.clock.elapsedTime * 1.7) * 0.13;
     if (core.current) core.current.scale.setScalar(0.3 * p);
     if (halo.current) halo.current.scale.setScalar(3.1 * p);
     if (shell.current) shell.current.rotation.y -= dt * 0.25;
+    if (ringA.current) ringA.current.rotation.z += dt * 0.6;
+    if (ringB.current) {
+      ringB.current.rotation.x += dt * 0.5;
+      ringB.current.rotation.y += dt * 0.3;
+    }
   });
   return (
     <group>
@@ -138,6 +145,15 @@ function Core({ color, tex }: { color: string; tex: THREE.Texture }) {
       <mesh ref={shell} scale={0.62}>
         <icosahedronGeometry args={[1, 1]} />
         <meshBasicMaterial color={color} wireframe transparent opacity={0.5} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+      {/* Reactor energy rings */}
+      <mesh ref={ringA} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.72, 0.01, 8, 96]} />
+        <meshBasicMaterial color={color} transparent opacity={0.55} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+      <mesh ref={ringB}>
+        <torusGeometry args={[0.88, 0.008, 8, 96]} />
+        <meshBasicMaterial color="#36d3ff" transparent opacity={0.4} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
       <mesh ref={core}>
         <sphereGeometry args={[1, 32, 32]} />
@@ -169,7 +185,9 @@ function Hub({
     return new THREE.QuadraticBezierCurve3(new THREE.Vector3(0, 0, 0), mid, end);
   }, [end]);
   const pulse = useRef<THREE.Sprite>(null);
+  const pulse2 = useRef<THREE.Sprite>(null);
   const node = useRef<THREE.Mesh>(null);
+  const ring = useRef<THREE.Mesh>(null);
   const t = useRef(Math.random());
   const [hover, setHover] = useState(false);
   const on = active === hub.id || hover;
@@ -186,9 +204,14 @@ function Hub({
     if (pulse.current) {
       const p = curve.getPoint(1 - t.current);
       pulse.current.position.set(p.x, p.y, p.z);
-      const m = pulse.current.material as THREE.SpriteMaterial;
-      m.opacity = 0.5 + Math.sin(t.current * Math.PI) * 0.5;
+      (pulse.current.material as THREE.SpriteMaterial).opacity = 0.5 + Math.sin(t.current * Math.PI) * 0.5;
     }
+    if (pulse2.current) {
+      const p = curve.getPoint(t.current);
+      pulse2.current.position.set(p.x, p.y, p.z);
+      (pulse2.current.material as THREE.SpriteMaterial).opacity = 0.3 + Math.sin(t.current * Math.PI) * 0.3;
+    }
+    if (ring.current) ring.current.rotation.z += dt * 1.3;
     if (node.current) {
       node.current.rotation.y += dt * 0.5;
       node.current.scale.setScalar((on ? 1.25 : 1) * (1 + Math.sin(s.clock.elapsedTime * 2.4 + end.x * 2) * 0.05));
@@ -205,6 +228,9 @@ function Hub({
       </mesh>
       <sprite ref={pulse} scale={0.32}>
         <spriteMaterial map={tex} color={hub.color} transparent opacity={0.9} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </sprite>
+      <sprite ref={pulse2} scale={0.2}>
+        <spriteMaterial map={tex} color="#eafbff" transparent opacity={0.5} blending={THREE.AdditiveBlending} depthWrite={false} />
       </sprite>
       <group position={[end.x, end.y, end.z]}>
         <sprite scale={on ? 0.95 : 0.7}>
@@ -225,6 +251,10 @@ function Hub({
         >
           <icosahedronGeometry args={[0.15, 0]} />
           <meshBasicMaterial color={hub.color} toneMapped={false} />
+        </mesh>
+        <mesh ref={ring} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.24, 0.007, 6, 40]} />
+          <meshBasicMaterial color={hub.color} transparent opacity={on ? 0.7 : 0.4} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} />
         </mesh>
         {showLabel ? (
           <Html center distanceFactor={9} position={[0, 0.36, 0]} style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
