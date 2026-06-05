@@ -2,7 +2,9 @@ import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, Badge, SpecModeBadge } from "../../components/ui";
 import { Icon } from "../../lib/nav";
+import { fetchMetrics } from "../../lib/agentApi";
 
+export const dynamic = "force-dynamic";
 export const metadata = { title: "Files & Knowledge — Cloud Superbrain" };
 
 const KB = [
@@ -12,7 +14,13 @@ const KB = [
   { name: "Purge lifecycle", kind: "gated", count: "purge/jobs" },
 ];
 
-export default function FilesPage() {
+export default async function FilesPage() {
+  const metrics = await fetchMetrics();
+  const entries = metrics?.scalars.superbrain_memory_entries_total;
+  const live = typeof entries === "number";
+  const kb = KB.map((k) =>
+    k.name.startsWith("Vector store") && live ? { ...k, count: `${entries.toLocaleString("en-US")} entries` } : k,
+  );
   return (
     <AppShell crumb="Files & Knowledge" runState="idle">
       <div className="page-wide">
@@ -22,7 +30,7 @@ export default function FilesPage() {
           subtitle="Files, knowledge bases, vectors and a relationship graph — the platform's long-term memory surface."
           actions={
             <>
-              <SpecModeBadge mode="local_files" />
+              {live ? <Badge tone="green">● Live · pgvector</Badge> : <SpecModeBadge mode="local_files" />}
               <Link href="/files/local" className="btn btn-sm">Open Local Files</Link>
             </>
           }
@@ -40,7 +48,7 @@ export default function FilesPage() {
         <div className="grid" style={{ gridTemplateColumns: "1fr 1.3fr 300px" }}>
           <Panel title="Knowledge bases">
             <div className="list">
-              {KB.map((k) => (
+              {kb.map((k) => (
                 <div key={k.name} className="lrow">
                   {Icon.files({ size: 16 })}
                   <span style={{ fontWeight: 500 }}>{k.name}</span>
