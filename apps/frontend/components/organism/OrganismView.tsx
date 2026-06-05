@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import CortexLive from "./CortexLive";
 import { HUBS, LAYERS, ORGANISM_AGENTS, STATE_LABEL, type RunState } from "./regionMap";
@@ -25,6 +25,26 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
   const [layers, setLayers] = useState<string[]>(LAYERS.map((l) => l.code));
   const [agents, setAgents] = useState<string[]>([...ORGANISM_AGENTS]);
   const [stats, setStats] = useState<{ fps: number; nodes: number }>({ fps: 0, nodes: 0 });
+  const [feed, setFeed] = useState<{ source: string; live: boolean; hubs: Record<string, string> } | null>(null);
+
+  // Bind to the organism live-state feed: real when the local agent-api is
+  // reachable (source: "agent-api"), honest deterministic mock otherwise.
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/v1/organism/live-state", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { source?: string; live?: boolean; run_state?: string; hubs?: Array<{ id: string; status: string }> } | null) => {
+        if (!alive || !d) return;
+        const hubs: Record<string, string> = {};
+        (d.hubs ?? []).forEach((h) => (hubs[h.id] = h.status));
+        setFeed({ source: d.source ?? "mock", live: !!d.live, hubs });
+        if (d.run_state && STATES.includes(d.run_state as RunState)) setRunState(d.run_state as RunState);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const hub = HUBS.find((h) => h.id === active);
   const onStats = useCallback((fps: number, nodes: number) => setStats({ fps, nodes }), []);
@@ -67,6 +87,11 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
               <span className="mono">{stats.fps} FPS</span>
               <span className="mono">{stats.nodes} nodes</span>
               <span className="mono">hub:{active}</span>
+              {feed ? (
+                <span className={`org-feed ${feed.live ? "live" : "mock"}`} title={`live-state source: ${feed.source}`}>
+                  {feed.live ? `LIVE · ${feed.source}` : `MOCK · ${feed.source}`}
+                </span>
+              ) : null}
             </div>
             {/* OPA gate badges overlay */}
             <div className="org-gates">
@@ -130,7 +155,8 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
                 <button key={h.id} className={`lg-row${h.id === active ? " active" : ""}`} onClick={() => setActive(h.id)}>
                   <span className="lg-dot" style={{ background: h.color }} />
                   <span>{h.label}</span>
-                  <span className="lg-cap" style={{ marginLeft: "auto" }}>L{LAYERS.find((l) => l.code === h.layer)?.no}</span>
+                  {feed?.hubs[h.id] === "active" ? <span className="lg-pip" title="feed: active" style={{ marginLeft: "auto" }} /> : null}
+                  <span className="lg-cap" style={feed?.hubs[h.id] === "active" ? { marginLeft: 6 } : { marginLeft: "auto" }}>L{LAYERS.find((l) => l.code === h.layer)?.no}</span>
                 </button>
               ))}
             </div>
@@ -153,9 +179,12 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
           ) : null}
 
           <div className="note">
-            Data-driven, never fake-live. Live binding targets <span className="mono">/api/v1/organism/live-state</span>,{" "}
-            <span className="mono">/events</span>, <span className="mono">/replay</span> (mock-labelled until the hosted
-            backend serves them). Reduced motion shows a static 2D topology.
+            Data-driven, never fake-live. The HUD badge shows the{" "}
+            <span className="mono">/api/v1/organism/live-state</span> source:{" "}
+            <span className="mono">LIVE · agent-api</span> when the local cloud-layer runtime is reachable,{" "}
+            <span className="mono">MOCK</span> otherwise (e.g. on Vercel). Hub state is derived from the agent-api{" "}
+            <span className="mono">cloud-layer-readiness</span> contract; LLM stays in deterministic dry-run.
+            Reduced motion shows a static 2D topology.
           </div>
         </aside>
       </div>

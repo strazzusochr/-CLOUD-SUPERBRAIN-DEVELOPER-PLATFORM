@@ -6,8 +6,14 @@
 - **/organism: PASS** — industrial collective-organism (glowing neural core + 8 PBR-faceted
   capability hubs, wireframe asset shell, vignette/bloom, layer + agent filters, FPS HUD,
   OPA gate badges) with a real contract API. No console errors under headless WebGL.
-- **Backend layers (ORC/LLM/MEM): BLOCKED** for local runtime — hosted-only Python agent-api,
-  not run in this environment. Honest, not faked.
+- **Backend layers (ORC/AP/LLM/MCP/MEM/OBS): PASS (local dry-run runtime)** — `docker-compose.dev`
+  runs agent-api + postgres/pgvector + redis + mcp/llm gateways + agent-worker locally without
+  secrets; `/api/v1/clouds/layers` reports all 7 layers `live_verified`; LLM stays
+  `deterministic_dry_run` (`live_provider_calls: false`). MEM is WARN (consolidation worker down,
+  store healthy). Evidence: `docs/audit/backend-runtime-evidence.md`. Hosted prod is separate/gated.
+- **Organism live binding: REAL when reachable** — `/api/v1/organism/live-state` derives hub
+  state from the local agent-api cloud-layer-readiness contract (`source: agent-api, live: true`),
+  honest mock fallback otherwise. HUD badge shows LIVE/MOCK; screenshot `organism-live.png`.
 - **CI: green** — Vercel `frontend` + `cloud-superbrain-developer-platform` + `verify`.
 
 ## Delivered this pass
@@ -33,15 +39,20 @@
   both layers run together at 60 fps = the "video glow + PBR/HDR as one" look.
 
 ## BLOCKED (honest limits)
-- **Live backend organism state** — `live-state/events/replay` are mock-labelled until the
-  hosted `agent-api` serves `/api/v1/organism/*`.
+- **Hosted production organism state** — on Vercel (no reachable agent-api) `live-state` returns
+  the labelled mock; `events`/`replay` stay mock until a backend serves `/api/v1/organism/*`.
+  Live binding is proven locally only (dry-run), never against a live provider.
+- **Memory consolidation worker** — `memory-worker` heartbeat is down; the pgvector store is
+  healthy but background consolidation is not running in this compose session.
 - **Production GLB / Blender pipeline** — asset-slot infra + procedural fallback shipped;
   real GLB at `/public/organism/core.glb` is the activation step.
 - **Repo MCP config** — no `.mcp.json`; MCP claims are dev-environment-only.
 
 ## NEXT (smallest safe steps)
-1. `docker-compose.dev` up the `agent-api` locally → lift ORC/LLM/MEM from BLOCKED + run
+1. ✅ **Done** — `docker-compose.dev` runtime up; all 7 layers `live_verified` locally;
+   `/organism` bound to `/api/v1/organism/live-state` (LIVE when reachable, mock fallback).
+2. Bring up the `memory-worker` heartbeat (lift MEM from WARN → PASS) and run
    `scripts/00-run-full-audit.ps1 -RunRuntime -RuntimeRepeat 5 -ProbeMcp`.
-2. Drop a licensed GLB into `/public/organism/core.glb` to activate the asset slot (PBR/HDR
-   on hardware GPU).
-3. Bind `/organism` to `/api/v1/organism/live-state` for animated, contract-driven state.
+3. Drop a licensed GLB into `/public/organism/core.glb` to activate the asset slot (PBR/HDR
+   on hardware GPU); current path is the procedural faceted fallback.
+4. Extend live binding to `events`/`replay` once the agent-api exposes an organism event log.
