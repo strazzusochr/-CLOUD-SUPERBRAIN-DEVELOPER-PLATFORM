@@ -1,4 +1,5 @@
 import AppShell from "../../components/shell/AppShell";
+import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Badge, StatusDot } from "../../components/ui";
 import { VERIFIERS, CLOSED_GATES } from "../../lib/platform";
 import { fetchMetrics } from "../../lib/agentApi";
@@ -31,6 +32,8 @@ export default async function EvidencePage() {
           subtitle="Every claim maps to a verifier or proof. Honest PASS / PARTIAL / BLOCKED — no faked green. Gate & service rows project live from the runtime when reachable."
           actions={live ? <Badge tone="green">● Live · runtime verified</Badge> : <Badge tone="amber">static proofs</Badge>}
         />
+
+        <SevenLayerBar title="Every claim verified across 7 cloud layers" />
 
         {live ? (
           <Panel title="Live runtime verification (GET /api/v1/metrics)" style={{ marginBottom: 16 }} actions={<Badge tone="cyan">read-only · no token values</Badge>}>

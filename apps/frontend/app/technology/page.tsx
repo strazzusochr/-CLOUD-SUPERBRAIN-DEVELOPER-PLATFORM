@@ -1,7 +1,9 @@
 import AppShell from "../../components/shell/AppShell";
+import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Badge, Note } from "../../components/ui";
 import { LAYERS, PROVIDERS, providersForLayer } from "../../components/organism/regionMap";
 
+export const dynamic = "force-dynamic";
 export const metadata = { title: "Technology — 7 Layers × 8 Providers — Cloud Superbrain" };
 
 const RUNTIME: { group: string; items: string[] }[] = [
@@ -34,6 +36,8 @@ export default function TechnologyPage() {
           subtitle="The seven architecture layers and the real cloud providers that back each one. The mapping mirrors the backend cloud inventory (GET /api/v1/clouds); every provider read is read-only and token-gated, and tokens under .codex/secrets are surfaced as status only — never printed."
           actions={<Badge tone="green">layers live_verified · local runtime</Badge>}
         />
+
+        <SevenLayerBar />
 
         <Panel title="Seven-layer cloud stack">
           <div className="stack-list">

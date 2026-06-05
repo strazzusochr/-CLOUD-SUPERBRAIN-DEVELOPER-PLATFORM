@@ -8,7 +8,7 @@ async function get(path: string): Promise<Response | null> {
   const b = base();
   if (!b) return null;
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 1500);
+  const timer = setTimeout(() => ctrl.abort(), 2500);
   try {
     const res = await fetch(`${b}${path}`, { cache: "no-store", signal: ctrl.signal });
     return res.ok ? res : null;
@@ -17,6 +17,32 @@ async function get(path: string): Promise<Response | null> {
     return null;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+export type CloudLayer = { id: string; label: string; status: string; verified: boolean };
+
+/** The 7-layer cloud-layer-readiness contract (GET /api/v1/clouds/layers). */
+export async function fetchLayers(): Promise<CloudLayer[] | null> {
+  const res = await get("/api/v1/clouds/layers");
+  if (!res) return null;
+  try {
+    const body = (await res.json()) as unknown;
+    const list = (Array.isArray(body) ? body : (body as { layers?: unknown[] })?.layers ?? []) as Array<{
+      layer_id?: string;
+      label?: string;
+      status?: string;
+    }>;
+    if (!list.length) return null;
+    return list.map((l) => ({
+      id: String(l.layer_id ?? ""),
+      label: String(l.label ?? l.layer_id ?? ""),
+      status: String(l.status ?? "unknown"),
+      verified: String(l.status ?? "") === "live_verified",
+    }));
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") console.error("agent-api response parse failed:", err);
+    return null;
   }
 }
 
@@ -52,19 +78,63 @@ export async function fetchMetrics(): Promise<Metrics | null> {
   return Object.keys(scalars).length || services.length ? { scalars, services, gates } : null;
 }
 
+export type PlanItem = { id: string; label: string; status: string; percent: number };
 export type Progress = {
   overall_percent?: number;
   last_verified?: string;
   progress_source?: string;
-  horizontal?: { items?: Array<{ id?: string; label?: string; status?: string; percent?: number }> };
+  binding_document?: string;
+  truth_policy?: string;
+  phases: PlanItem[];
+  layers: PlanItem[];
 };
+
+type RawProgress = {
+  overall_percent?: number;
+  last_verified?: string;
+  progress_source?: string;
+  binding_document?: string;
+  truth_policy?: string;
+  horizontal?: { items?: unknown[] };
+  vertical?: { items?: unknown[] };
+};
+
+/** Long verifier-marker status strings collapse to a clean badge label. */
+function cleanStatus(raw: unknown, percent: number): string {
+  if (percent >= 100) return "verified";
+  const first = String(raw ?? "").split("-")[0].trim();
+  return /^(verified|completed|complete|prepared|in_progress|active|pending)$/.test(first) ? first : "in progress";
+}
+
+function planItems(items: unknown[] | undefined): PlanItem[] {
+  if (!Array.isArray(items)) return [];
+  return items.map((raw) => {
+    const it = (raw ?? {}) as { id?: string; label?: string; title?: string; status?: string; percent?: number };
+    const percent = typeof it.percent === "number" ? it.percent : 0;
+    return {
+      id: String(it.id ?? ""),
+      label: String(it.label ?? it.title ?? it.id ?? ""),
+      status: cleanStatus(it.status, percent),
+      percent,
+    };
+  });
+}
 
 /** Project-progress manifest projection (evidence-based, never fabricated). */
 export async function fetchProgress(): Promise<Progress | null> {
   const res = await get("/api/v1/project/progress");
   if (!res) return null;
   try {
-    return (await res.json()) as Progress;
+    const d = (await res.json()) as RawProgress;
+    return {
+      overall_percent: d.overall_percent,
+      last_verified: d.last_verified,
+      progress_source: d.progress_source,
+      binding_document: d.binding_document,
+      truth_policy: d.truth_policy,
+      phases: planItems(d.horizontal?.items),
+      layers: planItems(d.vertical?.items),
+    };
   } catch (err) {
     if (process.env.NODE_ENV !== "production") console.error("agent-api response parse failed:", err);
     return null;

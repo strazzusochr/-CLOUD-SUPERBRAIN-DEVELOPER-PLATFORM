@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
+import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Metric, Badge, StatusDot } from "../../components/ui";
 import { Icon } from "../../lib/nav";
 import { fetchLiveAgents } from "../../lib/agentApi";
@@ -85,6 +86,10 @@ export default async function HomePage() {
               </div>
             </div>
           </Panel>
+        </div>
+
+        <div style={{ marginTop: 16 }}>
+          <SevenLayerBar />
         </div>
       </div>
     </AppShell>

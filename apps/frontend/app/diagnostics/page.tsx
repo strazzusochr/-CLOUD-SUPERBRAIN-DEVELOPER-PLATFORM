@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
+import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Badge, Metric, Bar, Note } from "../../components/ui";
 import { MANIFEST } from "../../lib/platform";
 import { LAYERS } from "../../components/organism/regionMap";
@@ -29,56 +30,58 @@ export default async function DiagnosticsPage() {
           actions={live ? <Badge tone="green">● Live · /api/v1/project/progress</Badge> : <Badge tone="amber">manifest snapshot</Badge>}
         />
 
+        <SevenLayerBar title="Project plan verified across 7 cloud layers" />
+
         <Note variant={live ? "info" : "warn"}>
           {live ? (
             <>
-              Live projection from <span className="mono">GET /api/v1/project/progress</span> —{" "}
-              source <span className="mono">{progress!.progress_source ?? "manifest"}</span>, last verified{" "}
-              <span className="mono">{progress!.last_verified ?? "—"}</span>. Evidence-based, never fabricated.
+              Live project plan from <span className="mono">GET /api/v1/project/progress</span> —{" "}
+              binding document <span className="mono">{progress!.binding_document ?? "—"}</span>, last verified{" "}
+              <span className="mono">{progress!.last_verified ?? "—"}</span>.{" "}
+              {progress!.truth_policy ?? "Evidence-based only — percentages increase only after code + runtime proof + verifier update."}
             </>
           ) : (
             <>
-              Manifest snapshot <span className="mono">{MANIFEST.snapshot}</span> — live values project
-              from <span className="mono">GET /api/v1/project/progress</span> and{" "}
-              <span className="mono">/project/progress/layers</span> when the runtime is reachable. Legacy
-              values (82 / 95 / 97) are historical; see{" "}
-              <Link href="/evidence" style={{ color: "var(--cyan)" }}>Evidence</Link> for current proofs.
+              Manifest snapshot <span className="mono">{MANIFEST.snapshot}</span> — the live 7×7 project
+              plan projects from <span className="mono">GET /api/v1/project/progress</span> when the runtime
+              is reachable. See <Link href="/evidence" style={{ color: "var(--cyan)" }}>Evidence</Link> for proofs.
             </>
           )}
         </Note>
 
         <div className="grid cols-3" style={{ margin: "16px 0" }}>
-          <Metric label="Overall progress" value={`${overall}%`} foot={<Badge tone={live ? "green" : "amber"}>{live ? "live" : "manifest"}</Badge>} />
-          <Metric label="Progress integrity" value="verified" foot={<Badge tone="green">contract</Badge>} />
-          <Metric label="Production deploy" value="blocked" foot={<Badge tone="red">gate closed</Badge>} />
+          <Metric label="Overall progress" value={`${overall}%`} foot={<Badge tone={live ? "green" : "amber"}>{live ? "live · evidence-based" : "manifest"}</Badge>} />
+          <Metric label="Plan coverage" value={live ? `${progress!.phases.length} × ${progress!.layers.length}` : "7 × 7"} foot={<Badge tone="cyan">phases × layers</Badge>} />
+          <Metric label="Production deploy" value="blocked" foot={<Badge tone="red">OPA gate (policy)</Badge>} />
         </div>
 
         <div className="grid cols-2">
-          <Panel title="Module readiness (7 layers)">
-            <div className="wb-pad stack" style={{ gap: 10 }}>
-              {MANIFEST.modules.map((m) => {
-                const layer = LAYERS[m.layer - 1];
-                return (
-                  <div key={m.name} className="svc-row">
-                    <span className="layer-tag" style={{ background: layer.color, padding: "2px 7px", fontSize: 10.5, minWidth: 26 }}>L{m.layer}</span>
-                    <span style={{ fontSize: 13, minWidth: 110 }}>{m.name}</span>
-                    <Bar pct={m.pct} />
-                    <span style={{ fontSize: 11, color: "var(--text-mut)", minWidth: 34, textAlign: "right" }}>{m.pct}%</span>
-                  </div>
-                );
-              })}
+          <Panel title={`Roadmap — ${live ? progress!.phases.length : 7} phases`}>
+            <div className="wb-pad stack" style={{ gap: 9 }}>
+              {(live ? progress!.phases : MANIFEST.phases.map((p) => ({ id: p.id, label: p.id, status: p.pct >= 100 ? "verified" : "in progress", percent: p.pct }))).map((p) => (
+                <div key={p.id} className="svc-row">
+                  <span className="mono" style={{ fontSize: 11.5, minWidth: 52, color: "var(--text-dim)" }}>{p.id}</span>
+                  <span style={{ fontSize: 12.5, minWidth: 150, flex: 1 }}>{p.label}</span>
+                  <Bar pct={p.percent} />
+                  <Badge tone={p.percent >= 100 ? "green" : "amber"}>{p.status}</Badge>
+                </div>
+              ))}
             </div>
           </Panel>
 
-          <Panel title="Phase progress">
-            <div className="wb-pad stack" style={{ gap: 10 }}>
-              {MANIFEST.phases.map((p) => (
-                <div key={p.id} className="svc-row">
-                  <span className="mono" style={{ fontSize: 12, minWidth: 26 }}>{p.id}</span>
-                  <Bar pct={p.pct} />
-                  <span style={{ fontSize: 11, color: "var(--text-mut)", minWidth: 34, textAlign: "right" }}>{p.pct}%</span>
-                </div>
-              ))}
+          <Panel title={`Layer readiness — ${live ? progress!.layers.length : 7} layers`}>
+            <div className="wb-pad stack" style={{ gap: 9 }}>
+              {(live ? progress!.layers : MANIFEST.modules.map((m, i) => ({ id: `layer_${i + 1}`, label: m.name, status: m.pct >= 100 ? "verified" : "in progress", percent: m.pct }))).map((l, i) => {
+                const layer = LAYERS[i] ?? LAYERS[0];
+                return (
+                  <div key={l.id} className="svc-row">
+                    <span className="layer-tag" style={{ background: layer.color, padding: "2px 7px", fontSize: 10.5, minWidth: 26 }}>L{i + 1}</span>
+                    <span style={{ fontSize: 12.5, minWidth: 150, flex: 1 }}>{l.label}</span>
+                    <Bar pct={l.percent} />
+                    <Badge tone={l.percent >= 100 ? "green" : "amber"}>{l.status}</Badge>
+                  </div>
+                );
+              })}
             </div>
           </Panel>
         </div>
