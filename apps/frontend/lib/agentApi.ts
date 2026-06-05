@@ -61,6 +61,39 @@ export async function fetchProgress(): Promise<Progress | null> {
   }
 }
 
+export type CloudProvider = { id: string; label: string; status: string; configured: boolean; liveVerified: boolean; layers: string[] };
+export type CloudReadiness = { providers: CloudProvider[]; liveCount: number; total: number };
+
+/** Cloud provider readiness from GET /api/v1/clouds. Exposes only status metadata —
+ *  never `required_env` names or any token value. Null → caller shows the static inventory. */
+export async function fetchProviders(): Promise<CloudReadiness | null> {
+  const res = await get("/api/v1/clouds");
+  if (!res) return null;
+  try {
+    const d = (await res.json()) as {
+      live_verified_count?: number;
+      total_count?: number;
+      providers?: Array<{ id?: string; label?: string; status?: string; configured?: boolean; live_verified?: boolean; layers?: string[] }>;
+    };
+    const raw = Array.isArray(d.providers) ? d.providers : [];
+    if (!raw.length) return null;
+    return {
+      providers: raw.map((p) => ({
+        id: String(p.id ?? ""),
+        label: String(p.label ?? p.id ?? ""),
+        status: String(p.status ?? "unknown"),
+        configured: !!p.configured,
+        liveVerified: !!p.live_verified,
+        layers: Array.isArray(p.layers) ? p.layers.map(String) : [],
+      })),
+      liveCount: Number(d.live_verified_count ?? 0),
+      total: Number(d.total_count ?? raw.length),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export type LiveAgent = { id: string; name: string; role: string; hasSession: boolean; model: string | null };
 export type LiveRoster = { agents: LiveAgent[]; defaultModel: string | null; runtimeSource: string | null };
 
