@@ -20,6 +20,7 @@ export default function WorkbenchPage() {
   return (
     <AppShell crumb="Workbench" runState="planning">
       <div className="page-wide">
+        <h1 className="sr-only">Workbench — superbrain-game-engine workspace</h1>
         {/* Project sub-bar */}
         <div className="panel panel-head" style={{ marginBottom: 16, borderRadius: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

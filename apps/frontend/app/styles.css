@@ -961,6 +961,8 @@ p {
 .oss-head, .bp-head { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); background: var(--surface-2); }
 .rule-list { color: var(--text-mut); font-size: 13px; line-height: 1.85; padding-left: 18px; margin: 0; }
 .rule-list li { margin-bottom: 3px; }
+/* Accessibility: screen-reader-only (keeps a document-outline h1 on app pages) */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 /* Tokens swatches */
 .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
