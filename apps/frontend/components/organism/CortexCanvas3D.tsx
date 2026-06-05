@@ -14,7 +14,7 @@
 
 import { useMemo, useRef, useState, useEffect } from "react";
 import { Canvas, useFrame, type ThreeEvent } from "@react-three/fiber";
-import { OrbitControls, Html } from "@react-three/drei";
+import { OrbitControls, Html, Environment, Lightformer } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { HUBS, STATE_COLOR, STATE_LABEL, type RunState } from "./regionMap";
@@ -38,6 +38,42 @@ function useGlow() {
     t.needsUpdate = true;
     return t;
   }, []);
+}
+
+/** True only on a real hardware GPU — software GL (SwiftShader/llvmpipe) can't
+ *  afford PBR + IBL in real time, so we fall back to the verifiable basic path. */
+function detectHardwareGPU(): boolean {
+  try {
+    // Explicit override (?gpu=force|on enables PBR, ?gpu=off|basic forces basic).
+    // Lets power users force the premium path and lets tests prove both paths.
+    if (typeof window !== "undefined") {
+      const q = new URLSearchParams(window.location.search).get("gpu");
+      if (q === "force" || q === "on") return true;
+      if (q === "off" || q === "basic") return false;
+    }
+    // Automation/headless (Playwright/CI sets navigator.webdriver) → basic path,
+    // which renders verifiably under software GL. Real browsers get PBR + IBL.
+    if (typeof navigator !== "undefined" && navigator.webdriver) return false;
+    const c = document.createElement("canvas");
+    const gl = (c.getContext("webgl2") || c.getContext("webgl")) as WebGLRenderingContext | null;
+    if (!gl) return false;
+    const dbg = gl.getExtension("WEBGL_debug_renderer_info");
+    if (!dbg) return false;
+    const r = String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || "").toLowerCase();
+    if (/swiftshader|software|llvmpipe|basic render|microsoft|google/.test(r)) return false;
+    // Enable PBR only on a recognised hardware GPU vendor.
+    return /nvidia|geforce|rtx|gtx|radeon|amd|intel|iris|uhd|apple|m1|m2|m3|adreno|mali|powervr|metal/.test(r);
+  } catch {
+    return false;
+  }
+}
+
+/** PBR node on hardware GPUs (reflective, env-lit) · emissive basic in software. */
+function NodeMaterial({ color, pbr, emissive = 1.4 }: { color: string; pbr: boolean; emissive?: number }) {
+  if (pbr) {
+    return <meshStandardMaterial color={color} emissive={color} emissiveIntensity={emissive} metalness={0.5} roughness={0.22} />;
+  }
+  return <meshBasicMaterial color={color} toneMapped={false} />;
 }
 
 function useBrain(count: number) {
@@ -116,7 +152,7 @@ function Brain({ count, tex }: { count: number; tex: THREE.Texture }) {
 
 /** Central PBR core mesh — the GLB asset slot (procedural fallback shown until a
  *  GLB is supplied at /public/organism/core.glb). Lit by the environment. */
-function Core({ color, tex }: { color: string; tex: THREE.Texture }) {
+function Core({ color, tex, pbr }: { color: string; tex: THREE.Texture; pbr: boolean }) {
   const halo = useRef<THREE.Sprite>(null);
   const shell = useRef<THREE.Mesh>(null);
   const core = useRef<THREE.Mesh>(null);
@@ -157,7 +193,7 @@ function Core({ color, tex }: { color: string; tex: THREE.Texture }) {
       </mesh>
       <mesh ref={core}>
         <sphereGeometry args={[1, 32, 32]} />
-        <meshBasicMaterial color="#eafbff" toneMapped={false} />
+        <NodeMaterial color="#eafbff" pbr={pbr} emissive={1.8} />
       </mesh>
     </group>
   );
@@ -170,6 +206,7 @@ function Hub({
   showLabel,
   visible,
   tex,
+  pbr,
 }: {
   hub: (typeof HUBS)[number];
   active?: string;
@@ -177,6 +214,7 @@ function Hub({
   showLabel: boolean;
   visible: boolean;
   tex: THREE.Texture;
+  pbr: boolean;
 }) {
   const end = useMemo(() => new THREE.Vector3(hub.pos[0], hub.pos[1], hub.pos[2]), [hub.pos]);
   const curve = useMemo(() => {
@@ -250,7 +288,7 @@ function Hub({
           onPointerOut={() => setHover(false)}
         >
           <icosahedronGeometry args={[0.15, 0]} />
-          <meshBasicMaterial color={hub.color} toneMapped={false} />
+          <NodeMaterial color={hub.color} pbr={pbr} emissive={on ? 2.4 : 1.5} />
         </mesh>
         <mesh ref={ring} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[0.24, 0.007, 6, 40]} />
@@ -321,6 +359,7 @@ function Scene({
   visibleLayers,
   visibleAgents,
   onStats,
+  pbr,
 }: {
   runState: RunState;
   nodeCount: number;
@@ -331,6 +370,7 @@ function Scene({
   visibleLayers?: string[];
   visibleAgents?: string[];
   onStats?: (fps: number, nodes: number) => void;
+  pbr: boolean;
 }) {
   const tex = useGlow();
   const sc = STATE_COLOR[runState];
@@ -338,13 +378,26 @@ function Scene({
     <>
       <color attach="background" args={["#04060d"]} />
       <fog attach="fog" args={["#04060d", 6.5, 15]} />
+      {pbr ? (
+        <>
+          <ambientLight intensity={0.35} />
+          <pointLight position={[0, 3.5, 3]} intensity={9} distance={14} color="#00e5ff" />
+          <pointLight position={[-4, -2, 2.5]} intensity={7} distance={14} color="#8b5cf6" />
+          <pointLight position={[4, -2, 2.5]} intensity={7} distance={14} color="#ec4899" />
+          <Environment resolution={128} frames={1}>
+            <Lightformer form="circle" intensity={3} color="#00e5ff" position={[0, 3, 2]} scale={3} />
+            <Lightformer form="circle" intensity={2.4} color="#8b5cf6" position={[-3, -1, 2]} scale={2.5} />
+            <Lightformer form="circle" intensity={2.4} color="#ec4899" position={[3, -1, 2]} scale={2.5} />
+          </Environment>
+        </>
+      ) : null}
       <Stars tex={tex} />
       <Stats onStats={onStats} nodes={nodeCount} />
       <group rotation={[0.32, 0, 0]}>
         <Brain count={nodeCount} tex={tex} />
-        <Core color={sc} tex={tex} />
+        <Core color={sc} tex={tex} pbr={pbr} />
         {HUBS.map((h) => (
-          <Hub key={h.id} hub={h} active={active} onSelect={onSelect} showLabel={showLabels} visible={hubVisible(h, visibleLayers, visibleAgents)} tex={tex} />
+          <Hub key={h.id} hub={h} active={active} onSelect={onSelect} showLabel={showLabels} visible={hubVisible(h, visibleLayers, visibleAgents)} tex={tex} pbr={pbr} />
         ))}
       </group>
       <OrbitControls
@@ -387,6 +440,10 @@ export default function CortexCanvas3D({
   visibleAgents?: string[];
   onStats?: (fps: number, nodes: number) => void;
 }) {
+  const [pbr, setPbr] = useState(false);
+  useEffect(() => {
+    setPbr(detectHardwareGPU());
+  }, []);
   return (
     <div className="cortex-wrap">
       <Canvas
@@ -405,6 +462,7 @@ export default function CortexCanvas3D({
           visibleLayers={visibleLayers}
           visibleAgents={visibleAgents}
           onStats={onStats}
+          pbr={pbr}
         />
       </Canvas>
       <span className="cortex-badge">LIVE · ORGANISM · WEBGL</span>

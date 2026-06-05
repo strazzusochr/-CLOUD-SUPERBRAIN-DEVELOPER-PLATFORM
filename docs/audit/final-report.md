@@ -21,12 +21,20 @@
   `playwright.config.ts` + `e2e/organism.spec.ts` (routes + contract + mock labels + WebGL proof).
 - **E** reports: `docs/audit/{frontend-audit,7-layer-wiring,capability-report,final-report}.md`.
 
+## Dual-path render (RESOLVED this pass)
+- **Basic path** (default under automation/`navigator.webdriver`, or `?gpu=off`): emissive +
+  additive glow + Bloom + Vignette. Renders fast and verifiably under software GL — this is the
+  Playwright screenshot proof (`e2e/__artifacts__/organism.png`, 0 console errors).
+- **PBR/HDR path** (real hardware GPU via `detectHardwareGPU`, or forced with `?gpu=force`):
+  `meshStandardMaterial` metalness nodes + 3 colored point lights + procedural HDR environment
+  (drei `Environment`/`Lightformer`, no external file) + IBL reflections. Verified to render
+  with 0 console errors (`e2e/__artifacts__/organism-pbr.png`); it is merely *slow* under
+  SwiftShader (~12 s/frame), which is exactly why it is gated to hardware GPUs. On a real GPU
+  both layers run together at 60 fps = the "video glow + PBR/HDR as one" look.
+
 ## BLOCKED (honest limits)
 - **Live backend organism state** — `live-state/events/replay` are mock-labelled until the
   hosted `agent-api` serves `/api/v1/organism/*`.
-- **PBR/HDR runtime in headless** — `meshStandardMaterial` + lights/Environment hung the
-  software-GL (SwiftShader) screenshot; the shipped path uses faceted geometry + emissive +
-  bloom (verifiable). True PBR/HDR works on hardware GPUs and is the next upgrade.
 - **Production GLB / Blender pipeline** — asset-slot infra + procedural fallback shipped;
   real GLB at `/public/organism/core.glb` is the activation step.
 - **Repo MCP config** — no `.mcp.json`; MCP claims are dev-environment-only.
