@@ -941,7 +941,26 @@ p {
 .frames { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .frame { border: 1px solid var(--border); border-radius: var(--r14); overflow: hidden; background: var(--surface-1); }
 .frame-bar { padding: 8px 12px; font-size: 12px; color: var(--text-mut); border-bottom: 1px solid var(--border); }
-.frame-body { height: 170px; background: #04060c; display: grid; place-items: center; color: var(--text-dim); font-size: 11px; }
+.frame-body { height: 170px; background: #04060c; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 12px; color: var(--text-dim); font-size: 11px; }
+.frame-skeleton { display: grid; gap: 4px; width: 84%; height: 88px; }
+.fr-desktop .frame-skeleton { grid-template-columns: 16px 1fr 30%; }
+.fr-laptop .frame-skeleton { grid-template-columns: 14px 1fr 22%; }
+.fr-tablet .frame-skeleton { grid-template-columns: 12px 1fr; }
+.fr-mobile .frame-skeleton { grid-template-columns: 1fr; }
+.frame-skeleton span { border-radius: 4px; background: rgba(0, 229, 255, 0.12); border: 1px solid rgba(0, 229, 255, 0.22); }
+.fs-rail { background: rgba(139, 92, 246, 0.18); border-color: rgba(139, 92, 246, 0.3); }
+.fs-aside { background: rgba(236, 72, 153, 0.14); border-color: rgba(236, 72, 153, 0.28); }
+.fr-tablet .fs-aside, .fr-mobile .fs-aside { display: none; }
+.fr-mobile .fs-rail { display: none; }
+.frame-note { font-size: 11px; color: var(--text-mut); text-align: center; }
+/* OSS + breakpoint tables */
+.oss-table, .bp-table { display: flex; flex-direction: column; }
+.oss-row { display: grid; grid-template-columns: 1.1fr 0.9fr 2fr; gap: 10px; align-items: center; padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.bp-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1.4fr; gap: 10px; align-items: center; padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.oss-row:last-child, .bp-row:last-child { border-bottom: none; }
+.oss-head, .bp-head { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); background: var(--surface-2); }
+.rule-list { color: var(--text-mut); font-size: 13px; line-height: 1.85; padding-left: 18px; margin: 0; }
+.rule-list li { margin-bottom: 3px; }
 
 /* Tokens swatches */
 .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }

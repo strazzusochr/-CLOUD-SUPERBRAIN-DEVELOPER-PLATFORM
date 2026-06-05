@@ -23,7 +23,7 @@ export default function DesignSystemPage() {
           eyebrow="Design System"
           title="NeuroGlass Enterprise Dark"
           subtitle="Tokens, typography, components and data-viz. WCAG 2.2: 4.5:1 text, 3:1 non-text. Status is never colour-only."
-          actions={<Link href="/design-system/responsive" className="btn btn-sm btn-ghost">Responsive preview →</Link>}
+          actions={<Link href="/responsive" className="btn btn-sm btn-ghost">Responsive preview →</Link>}
         />
 
         <div className="grid cols-2">

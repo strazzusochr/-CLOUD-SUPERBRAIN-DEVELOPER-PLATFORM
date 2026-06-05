@@ -85,7 +85,7 @@ export const railGroups: NavItem[][] = [
     { id: "evidence", no: 12, label: "Evidence", route: "/evidence", icon: "evidence" },
     { id: "diagnostics", no: 14, label: "Diagnostics / Archive", route: "/diagnostics", icon: "diagnostics" },
     { id: "design-system", no: 15, label: "Design System", route: "/design-system", icon: "design" },
-    { id: "stack", no: 17, label: "Technology Stack", route: "/about/stack", icon: "stack" },
+    { id: "stack", no: 17, label: "Technology", route: "/technology", icon: "stack" },
     { id: "settings", no: 13, label: "Settings", route: "/settings", icon: "settings" },
   ],
 ];

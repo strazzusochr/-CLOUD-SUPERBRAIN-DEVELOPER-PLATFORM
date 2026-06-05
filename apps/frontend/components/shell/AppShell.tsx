@@ -57,9 +57,9 @@ export default function AppShell({
         ))}
         <div className="rail-spacer" />
         <div className="rail-divider" />
-        <Link href="/about/open-source" className="rail-item" aria-label="Open by Design">
+        <Link href="/open-source" className="rail-item" aria-label="Open Source">
           {Icon.open()}
-          <span className="rail-tip">Open by Design</span>
+          <span className="rail-tip">Open Source</span>
         </Link>
         <Link href="/login" className="rail-item" aria-label="Login / Onboarding">
           {Icon.login()}

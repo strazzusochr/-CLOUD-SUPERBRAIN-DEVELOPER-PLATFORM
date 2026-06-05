@@ -25,7 +25,7 @@ export default function Landing() {
           <Link href="/organism">Organism</Link>
           <Link href="/tools">Tools</Link>
           <Link href="/marketplace">Marketplace</Link>
-          <Link href="/about/open-source">Open Source</Link>
+          <Link href="/open-source">Open Source</Link>
         </nav>
         <div className="grow" />
         <Link href="/login" className="btn btn-ghost btn-sm">
@@ -92,7 +92,7 @@ export default function Landing() {
                 <div className="eyebrow">Architecture</div>
                 <h2 style={{ fontSize: 20 }}>7 Layers · {PROVIDERS.length} Cloud Providers</h2>
               </div>
-              <Link href="/about/stack" className="btn btn-sm btn-ghost">
+              <Link href="/technology" className="btn btn-sm btn-ghost">
                 Technology stack →
               </Link>
             </div>
