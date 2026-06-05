@@ -1,14 +1,16 @@
 {
   "name": "cloud-superbrain-frontend",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "test": "playwright test",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "release:build": "next build",
+    "release": "node release.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
