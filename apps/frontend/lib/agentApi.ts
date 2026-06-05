@@ -21,6 +21,7 @@ async function get(path: string): Promise<Response | null> {
 export type Metrics = {
   scalars: Record<string, number>;
   services: { name: string; up: boolean }[];
+  gates: { name: string; status: string; ok: boolean }[];
 };
 
 /** Parse the Prometheus text exposition into a small structured form. */
@@ -30,6 +31,7 @@ export async function fetchMetrics(): Promise<Metrics | null> {
   const txt = await res.text();
   const scalars: Record<string, number> = {};
   const services: { name: string; up: boolean }[] = [];
+  const gates: { name: string; status: string; ok: boolean }[] = [];
   for (const line of txt.split("\n")) {
     if (!line || line[0] === "#") continue;
     const svc = line.match(/^superbrain_service_health\{service="([^"]+)"\}\s+([0-9.]+)/);
@@ -37,10 +39,15 @@ export async function fetchMetrics(): Promise<Metrics | null> {
       services.push({ name: svc[1], up: Number(svc[2]) >= 1 });
       continue;
     }
+    const gate = line.match(/^superbrain_external_gate_configured\{gate="([^"]+)",status="([^"]+)"\}\s+([0-9.]+)/);
+    if (gate) {
+      gates.push({ name: gate[1], status: gate[2], ok: Number(gate[3]) >= 1 });
+      continue;
+    }
     const sc = line.match(/^(superbrain_[a-z0-9_]+)\s+([0-9.eE+-]+)$/);
     if (sc && !(sc[1] in scalars)) scalars[sc[1]] = Number(sc[2]);
   }
-  return Object.keys(scalars).length || services.length ? { scalars, services } : null;
+  return Object.keys(scalars).length || services.length ? { scalars, services, gates } : null;
 }
 
 export type Progress = {

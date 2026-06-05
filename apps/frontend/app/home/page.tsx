@@ -2,7 +2,9 @@ import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, Metric, Badge, StatusDot } from "../../components/ui";
 import { Icon } from "../../lib/nav";
+import { fetchLiveAgents } from "../../lib/agentApi";
 
+export const dynamic = "force-dynamic";
 export const metadata = { title: "Home — Cloud Superbrain" };
 
 const RECENT = [
@@ -11,7 +13,12 @@ const RECENT = [
   { name: "platform-architecture.md", kind: "Doc", route: "/docs-output", when: "3h ago" },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const roster = await fetchLiveAgents();
+  const live = !!roster;
+  const sessions = roster ? roster.agents.filter((a) => a.hasSession).length : 0;
+  const agentValue = live ? `${sessions} / ${roster!.agents.length}` : "0 / 4";
+
   return (
     <AppShell crumb="Home" runState="idle">
       <div className="page">
@@ -28,7 +35,11 @@ export default function HomePage() {
 
         <div className="grid cols-4" style={{ marginBottom: 16 }}>
           <Metric label="Recent projects" value="3" foot={<><StatusDot tone="cyan" /> local</>} />
-          <Metric label="Agent profiles" value="0 / 4" foot={<><StatusDot tone="mut" /> idle · planner/coder/tester/devops</>} />
+          <Metric
+            label="Agents active"
+            value={agentValue}
+            foot={live ? <><StatusDot tone="green" pulse /> live roster</> : <><StatusDot tone="mut" /> planner/coder/tester/devops</>}
+          />
           <Metric label="Cloud layers" value="7" foot={<>8 providers</>} />
           <Metric label="Gates" value="CLOSED" foot={<><StatusDot tone="green" /> safe by default</>} />
         </div>

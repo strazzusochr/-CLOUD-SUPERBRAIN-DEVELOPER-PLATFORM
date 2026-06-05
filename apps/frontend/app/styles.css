@@ -976,6 +976,11 @@ p {
 .rd-name { font-weight: 600; color: var(--text-pri); }
 .rd-layers { font-size: 10.5px; color: var(--text-dim); }
 @media (max-width: 900px) { .readiness { grid-template-columns: 1fr; } }
+/* Evidence live verification grids */
+.ev-grid { display: flex; flex-direction: column; gap: 2px; }
+.ev-row { display: grid; grid-template-columns: 14px 1fr auto; gap: 9px; align-items: center; padding: 6px 4px; font-size: 12.5px; border-bottom: 1px solid var(--border); }
+.ev-row:last-child { border-bottom: none; }
+.ev-row .mono { color: var(--text-mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Tokens swatches */
 .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
