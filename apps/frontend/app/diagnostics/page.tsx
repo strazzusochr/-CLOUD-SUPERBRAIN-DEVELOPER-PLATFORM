@@ -3,7 +3,9 @@ import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, Badge, Metric, Bar, Note } from "../../components/ui";
 import { MANIFEST } from "../../lib/platform";
 import { LAYERS } from "../../components/organism/regionMap";
+import { fetchProgress } from "../../lib/agentApi";
 
+export const dynamic = "force-dynamic";
 export const metadata = { title: "Diagnostics / Archive — Cloud Superbrain" };
 
 const ARCHIVE = [
@@ -13,7 +15,10 @@ const ARCHIVE = [
   { name: "Recovery bundle 2026-05-27-1700", date: "2026-05-27", kind: "Recovery" },
 ];
 
-export default function DiagnosticsPage() {
+export default async function DiagnosticsPage() {
+  const progress = await fetchProgress();
+  const live = typeof progress?.overall_percent === "number";
+  const overall = live ? progress!.overall_percent! : MANIFEST.overall;
   return (
     <AppShell crumb="Diagnostics" runState="idle">
       <div className="page-wide">
@@ -21,17 +26,29 @@ export default function DiagnosticsPage() {
           eyebrow="Diagnostics / Archive"
           title="Project progress, recovery & raw verifiers"
           subtitle="This — and only this — is where project-status percentages and recovery bundles live. Kept off Home and Workbench by design."
+          actions={live ? <Badge tone="green">● Live · /api/v1/project/progress</Badge> : <Badge tone="amber">manifest snapshot</Badge>}
         />
 
-        <Note variant="warn">
-          Manifest snapshot <span className="mono">{MANIFEST.snapshot}</span> — live values project
-          from <span className="mono">GET /api/v1/project/progress</span> and{" "}
-          <span className="mono">/project/progress/layers</span>. Legacy values (82 / 95 / 97) are
-          historical; see <Link href="/evidence" style={{ color: "var(--cyan)" }}>Evidence</Link> for current proofs.
+        <Note variant={live ? "info" : "warn"}>
+          {live ? (
+            <>
+              Live projection from <span className="mono">GET /api/v1/project/progress</span> —{" "}
+              source <span className="mono">{progress!.progress_source ?? "manifest"}</span>, last verified{" "}
+              <span className="mono">{progress!.last_verified ?? "—"}</span>. Evidence-based, never fabricated.
+            </>
+          ) : (
+            <>
+              Manifest snapshot <span className="mono">{MANIFEST.snapshot}</span> — live values project
+              from <span className="mono">GET /api/v1/project/progress</span> and{" "}
+              <span className="mono">/project/progress/layers</span> when the runtime is reachable. Legacy
+              values (82 / 95 / 97) are historical; see{" "}
+              <Link href="/evidence" style={{ color: "var(--cyan)" }}>Evidence</Link> for current proofs.
+            </>
+          )}
         </Note>
 
         <div className="grid cols-3" style={{ margin: "16px 0" }}>
-          <Metric label="Overall progress" value={`${MANIFEST.overall}%`} foot={<Badge tone="amber">manifest</Badge>} />
+          <Metric label="Overall progress" value={`${overall}%`} foot={<Badge tone={live ? "green" : "amber"}>{live ? "live" : "manifest"}</Badge>} />
           <Metric label="Progress integrity" value="verified" foot={<Badge tone="green">contract</Badge>} />
           <Metric label="Production deploy" value="blocked" foot={<Badge tone="red">gate closed</Badge>} />
         </div>
