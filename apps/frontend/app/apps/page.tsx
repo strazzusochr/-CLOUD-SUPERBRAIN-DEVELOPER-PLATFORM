@@ -1,6 +1,6 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
-import { PageHeader, Badge } from "../../components/ui";
+import { PageHeader, Badge, SpecModeBadge } from "../../components/ui";
 
 export const metadata = { title: "Apps / Generated Output — Cloud Superbrain" };
 
@@ -22,7 +22,12 @@ export default function AppsPage() {
           eyebrow="Apps / Generated Output"
           title="Generated apps"
           subtitle="Generated app cards, preview frame and route inspector. Open in Workbench or send to Review — honest status per card."
-          actions={<Link href="/workbench" className="btn btn-sm btn-primary">New from Workbench</Link>}
+          actions={
+            <>
+              <SpecModeBadge mode="demo" />
+              <Link href="/workbench" className="btn btn-sm btn-primary">New from Workbench</Link>
+            </>
+          }
         />
         <div className="card-grid">
           {APPS.map((a) => (

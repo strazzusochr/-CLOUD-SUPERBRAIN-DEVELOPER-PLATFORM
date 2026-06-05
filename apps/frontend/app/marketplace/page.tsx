@@ -1,7 +1,9 @@
 import AppShell from "../../components/shell/AppShell";
-import { PageHeader, Badge } from "../../components/ui";
+import { PageHeader, Badge, StatusDot } from "../../components/ui";
 import { SKILLS, MODELS, AGENTS, MCP_TOOLS } from "../../lib/platform";
+import { fetchProviders } from "../../lib/agentApi";
 
+export const dynamic = "force-dynamic";
 export const metadata = { title: "Marketplace — Cloud Superbrain" };
 
 type Kind = "Skill" | "Agent" | "MCP" | "Model";
@@ -19,16 +21,32 @@ const ITEMS: { name: string; kind: Kind; desc: string }[] = [
   ...MODELS.map((m) => ({ name: m.id, kind: "Model" as const, desc: m.role })),
 ];
 
-export default function MarketplacePage() {
+export default async function MarketplacePage() {
   const counts = { Skill: SKILLS.length, Agent: AGENTS.length, MCP: MCP_TOOLS.length, Model: MODELS.length };
+  const readiness = await fetchProviders();
+  const live = !!readiness;
   return (
     <AppShell crumb="Marketplace" runState="idle">
       <div className="page-wide">
         <PageHeader
           eyebrow="Marketplace"
           title="Skills, agents, MCP tools & models"
-          subtitle="The real building blocks this platform composes — deterministic skills, agent profiles, MCP tools and pinned models. Install is a dry-run until the owner gate is opened."
+          subtitle="The real building blocks this platform composes — deterministic skills, agent profiles, MCP tools and pinned models. Model & MCP availability is backed by the cloud providers below (L4/L5); install is a dry-run until the owner gate is opened."
+          actions={live ? <Badge tone="green">● Live · {readiness!.liveCount}/{readiness!.total} providers verified</Badge> : <Badge tone="amber">dry-run · spec catalog</Badge>}
         />
+
+        {live ? (
+          <div className="readiness" style={{ marginBottom: 16 }}>
+            {readiness!.providers.map((p) => (
+              <div key={p.id} className="rd-row">
+                <StatusDot tone={/verified|live/.test(p.status) ? "green" : /partial|configured/.test(p.status) ? "amber" : "violet"} pulse={p.liveVerified} />
+                <span className="rd-name">{p.label}</span>
+                <span className="rd-layers mono">{p.layers.map((l) => l.replace("layer_", "L")).join(" ")}</span>
+                <Badge tone={/verified|live/.test(p.status) ? "green" : "amber"}>{p.status.replace(/_/g, " ")}</Badge>
+              </div>
+            ))}
+          </div>
+        ) : null}
         <div className="chips" style={{ marginBottom: 16 }}>
           <span className="chip active">All ({ITEMS.length})</span>
           <span className="chip">Skills ({counts.Skill})</span>
