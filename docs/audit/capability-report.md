@@ -5,10 +5,15 @@ No claim here is made without evidence from this build session or the repo.
 ## Agents (Claude subagents / workflows) — USED ✅
 - **3 Explore subagents** (read-only) ran the platform audit: backend/API/audit-infra,
   22-route map, and /organism 3D quality. Evidence: this session's transcript + agent logs.
-- **1 Workflow** `platform-quality-audit` (run `wf_1a072565-c0d`): 6 parallel dimension
-  auditors (a11y, responsive, design, code, honesty, nav) + 1 synthesis agent —
-  7 agents, ~694k subagent tokens, 250 tool uses. Findings were applied in commit `53d8b83`.
-- Status: **PASS** — agents demonstrably used to build/audit this platform.
+- **Workflow #1** `platform-quality-audit` (`wf_1a072565-c0d`): 6 parallel dimension
+  auditors + 1 synthesis — 7 agents, ~694k tokens, 250 tool uses. Applied in `53d8b83`.
+- **Workflow #2** `platform-quality-audit` (`wf_36841338-681`): 6 parallel read-only Explore
+  auditors (design-consistency, accessibility, content-honesty, responsive, code-quality,
+  organism-3d) + 1 synthesis agent — **7 agents, ~514k subagent tokens, 251 tool uses**.
+  Produced a verified 19-item punch-list (9 false positives self-dropped); items 1–18
+  applied in `5d46705`, item 19 in `a5b8a5f`. Findings included a real fake-live badge, a
+  901–1279px responsive dead zone, and 3D state-colour binding gaps — all fixed + verified.
+- Status: **PASS** — agents demonstrably used to build *and* harden this platform.
 
 ## Skills — NOT used this session ⛔
 - No `anthropic-skills` (frontend-design, verify, code-review, etc.) were invoked.
