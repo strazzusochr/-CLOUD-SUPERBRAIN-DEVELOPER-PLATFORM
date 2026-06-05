@@ -39,11 +39,7 @@ export default function LoginPage() {
                 </Link>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 12, color: "var(--text-dim)", fontSize: 12 }}>
-                <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
-                or
-                <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
-              </div>
+              <div className="or-divider">or</div>
 
               <Link href="/workbench" className="btn btn-primary" style={{ justifyContent: "center" }}>
                 Continue as Guest → Start Workbench
