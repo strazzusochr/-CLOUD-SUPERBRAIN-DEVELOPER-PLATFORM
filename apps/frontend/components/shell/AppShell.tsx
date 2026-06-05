@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { Icon, railGroups } from "../../lib/nav";
+import LayerVerifyPill from "./LayerVerifyPill";
 
 function railActive(pathname: string, route: string) {
   if (route === "/home") return pathname === "/home";
@@ -77,6 +78,7 @@ export default function AppShell({
           <kbd>⌘K</kbd>
         </div>
         <div className="grow" />
+        <LayerVerifyPill />
         <span className="runpill" title="Active run state">
           <span className="dot pulse" style={{ background: runColor[runState] }} />
           {runState.toUpperCase()}
