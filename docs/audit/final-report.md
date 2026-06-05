@@ -1,8 +1,14 @@
 # Final Report — Cloud Superbrain (industrial /organism pass)
 
 ## Overall status
-- **Frontend: PASS** — `next build` green (31 routes), `eslint .` 0 findings (ESLint 9 +
-  next/typescript), all routes HTTP 200, Playwright WebGL render proof + screenshot.
+- **Frontend: PASS** — `next build` green (33 routes), `eslint .` 0 findings (ESLint 9 +
+  next/typescript), all 25 routes HTTP 200 with a document-outline h1 and 0 console errors
+  (full-page sweep), Playwright 6/6 (incl. WebGL render proof + screenshot).
+- **All 22 pages real, no shortcuts** — the three former re-export aliases (`/technology`,
+  `/responsive`, `/open-source`) are now real, distinct, canonical pages (toolstack /
+  breakpoint matrix + a11y / 14-component license table); the nested duplicates were deleted
+  (404, asserted) and all internal links repointed. `/observe`, `/diagnostics`, `/files`,
+  `/organism/replay` are live-bound to the local agent-api with honest spec/mock fallback.
 - **/organism: PASS** — industrial collective-organism (glowing neural core + 8 PBR-faceted
   capability hubs, wireframe asset shell, vignette/bloom, layer + agent filters, FPS HUD,
   OPA gate badges) with a real contract API. No console errors under headless WebGL.
