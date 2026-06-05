@@ -7,7 +7,11 @@ no route over-claims live status in a way that survives source inspection.
 7 layers: **L1** Frontend · **L2** Orchestrator/LangGraph · **L3** Agent Pool ·
 **L4** LLM Gateway · **L5** MCP Gateway · **L6** Memory/pgvector · **L7** Observability.
 Runtime probe at audit time: `/api/v1/clouds/layers` → **L1…L7 all `live_verified`**,
-`/api/v1/project/progress` → **100 %**, `/api/v1/health` → **6/6 services healthy**.
+`/api/v1/health` → **6/6 services healthy**. ⚠️ **Progress caveat:** the committed ledger
+`docs/project-progress.manifest.json` is **overall 70 %** (P6 Scale & 3D = 0 %, P3 = 40 %,
+P5 = 67 %, P2 = 86 %; L4 = 54 %, L5 = 55 %, L3 = 68 %, L6 = 72 %). The local runtime serves a
+divergent 100 % from a stale manifest mount — the **70 % committed value is the evidence-based
+truth**; cloud-layer-readiness (`live_verified`) is a separate, genuinely-passing signal.
 
 Every workspace page also shows the global **`N/7 layers verified`** pill (AppShell topbar,
 `/api/v1/platform/verify`). "live+fallback" = live when the runtime is reachable, honest

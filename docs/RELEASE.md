@@ -23,9 +23,16 @@ registry pushes stay gate-closed.
 
 ## Verified across all 7 layers (localhost:8081)
 
-`GET /api/v1/clouds/layers` → **layer_1 … layer_7 all `live_verified`**.
-`GET /api/v1/project/progress` → **overall 100 %, evidence-based**, all 7 phases verified.
+`GET /api/v1/clouds/layers` → **layer_1 … layer_7 all `live_verified`** (cloud-layer readiness).
 `GET /api/v1/health` → **all six runtime services healthy**.
+
+> **Honest progress caveat (do not read 100 % as project completion).** The committed
+> source-of-truth ledger `docs/project-progress.manifest.json` (truth-policy: evidence-based
+> only) is at **overall 70 %**: P0/P1/P4 = 100 %, **P2 = 86 %, P3 = 40 %, P5 = 67 %, P6 (Scale & 3D) = 0 %**;
+> layers L3 = 68 %, L4 = 54 %, L5 = 55 %, L6 = 72 %. The local dev runtime currently *serves* a
+> divergent 100 % from a different manifest mount — that 100 % is **not** backed by the committed
+> ledger and must be reconciled before any human production sign-off. `live_verified` /
+> cloud-layer-readiness and the 6 external gates are a separate, genuinely-passing signal.
 
 | Layer | Name | Status | Surfaced on |
 |-------|------|--------|-------------|
