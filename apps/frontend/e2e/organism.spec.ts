@@ -36,6 +36,27 @@ test.describe("Cloud Superbrain platform", () => {
     }
   });
 
+  test("consolidated pages render real content (not re-export shortcuts)", async ({ page }) => {
+    await page.goto("/technology", { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("Capabilities by category")).toBeVisible();
+    await expect(page.getByText("Cloud provider inventory")).toBeVisible();
+
+    await page.goto("/responsive", { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("Breakpoint matrix")).toBeVisible();
+    await expect(page.getByText("Accessibility & reduced motion")).toBeVisible();
+
+    await page.goto("/open-source", { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("core components")).toBeVisible();
+    await expect(page.getByText("MIT").first()).toBeVisible();
+  });
+
+  test("removed alias/duplicate routes are gone (404)", async ({ page }) => {
+    for (const dead of ["/about/stack", "/about/open-source", "/design-system/responsive"]) {
+      const resp = await page.goto(dead, { waitUntil: "domcontentloaded" });
+      expect(resp?.status(), `dead route ${dead}`).toBe(404);
+    }
+  });
+
   test("organism 3D renders a WebGL canvas with no console errors (+ screenshot proof)", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
