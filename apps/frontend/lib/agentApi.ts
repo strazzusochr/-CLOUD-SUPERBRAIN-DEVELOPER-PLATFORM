@@ -60,3 +60,35 @@ export async function fetchProgress(): Promise<Progress | null> {
     return null;
   }
 }
+
+export type LiveAgent = { id: string; name: string; role: string; hasSession: boolean; model: string | null };
+export type LiveRoster = { agents: LiveAgent[]; defaultModel: string | null; runtimeSource: string | null };
+
+/** Live agent-pool roster (agent-pool layer). Exposes only non-secret role metadata
+ *  — no session ids, no tokens. Returns null → caller shows the static profile spec. */
+export async function fetchLiveAgents(): Promise<LiveRoster | null> {
+  const res = await get("/api/v1/live-agents/status");
+  if (!res) return null;
+  try {
+    const d = (await res.json()) as {
+      agents?: Array<{ agent_id?: string; display_name?: string; execution_role?: string; has_session?: boolean; model?: string | null }>;
+      default_model?: string;
+      runtime_source?: string;
+    };
+    const raw = Array.isArray(d.agents) ? d.agents : [];
+    if (!raw.length) return null;
+    return {
+      agents: raw.map((a) => ({
+        id: String(a.agent_id ?? ""),
+        name: String(a.display_name ?? a.agent_id ?? ""),
+        role: String(a.execution_role ?? ""),
+        hasSession: !!a.has_session,
+        model: a.model ?? null,
+      })),
+      defaultModel: d.default_model ?? null,
+      runtimeSource: d.runtime_source ?? null,
+    };
+  } catch {
+    return null;
+  }
+}

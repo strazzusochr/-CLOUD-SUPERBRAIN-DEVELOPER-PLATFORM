@@ -963,6 +963,13 @@ p {
 .rule-list li { margin-bottom: 3px; }
 /* Accessibility: screen-reader-only (keeps a document-outline h1 on app pages) */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+/* Live agent roster */
+.roster { display: flex; flex-direction: column; }
+.roster-row { display: grid; grid-template-columns: 14px 1.2fr auto 1.6fr auto; gap: 10px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.roster-row:last-child { border-bottom: none; }
+.roster-name { font-weight: 600; color: var(--text-pri); }
+.roster-model { font-size: 11.5px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roster-sess { font-size: 11px; color: var(--text-mut); text-align: right; min-width: 48px; }
 
 /* Tokens swatches */
 .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
