@@ -39,9 +39,10 @@
   both layers run together at 60 fps = the "video glow + PBR/HDR as one" look.
 
 ## BLOCKED (honest limits)
-- **Hosted production organism state** — on Vercel (no reachable agent-api) `live-state` returns
-  the labelled mock; `events`/`replay` stay mock until a backend serves `/api/v1/organism/*`.
-  Live binding is proven locally only (dry-run), never against a live provider.
+- **Hosted production organism state** — on Vercel (no reachable agent-api) `live-state`,
+  `events` and `replay` all return their labelled deterministic mocks. Live binding
+  (`live-state` ← `cloud-layer-readiness`, `events`/`replay` ← `agent-activity-trace`) is
+  proven locally only (dry-run), never against a live provider.
 - **Memory consolidation worker** — `memory-worker` heartbeat is down; the pgvector store is
   healthy but background consolidation is not running in this compose session.
 - **Production GLB / Blender pipeline** — asset-slot infra + procedural fallback shipped;
@@ -53,6 +54,7 @@
    `/organism` bound to `/api/v1/organism/live-state` (LIVE when reachable, mock fallback).
 2. Bring up the `memory-worker` heartbeat (lift MEM from WARN → PASS) and run
    `scripts/00-run-full-audit.ps1 -RunRuntime -RuntimeRepeat 5 -ProbeMcp`.
-3. Drop a licensed GLB into `/public/organism/core.glb` to activate the asset slot (PBR/HDR
+3. ✅ **Done** — `events`/`replay` now derive from agent-api `/api/v1/agent-activity/recent`
+   (`agent-activity-trace-v1`, event_type only — no identifiers) when reachable, mock otherwise.
+4. Drop a licensed GLB into `/public/organism/core.glb` to activate the asset slot (PBR/HDR
    on hardware GPU); current path is the procedural faceted fallback.
-4. Extend live binding to `events`/`replay` once the agent-api exposes an organism event log.

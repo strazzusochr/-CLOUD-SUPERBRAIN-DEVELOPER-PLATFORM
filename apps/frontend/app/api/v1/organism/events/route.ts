@@ -1,12 +1,15 @@
-export const dynamic = "force-static";
+import { fetchActivityKinds, mapKind } from "../agentApi";
 
-/** GET /api/v1/organism/events — MOCK event feed (no hosted backend here). */
-export function GET() {
-  return Response.json({
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+/** Deterministic mock event feed — used whenever no agent-api is reachable. */
+function mockFeed() {
+  return {
     contract_version: "organism-events-v1",
     source: "mock",
     live: false,
-    note: "Deterministic mock until the hosted agent-api serves /api/v1/organism/events.",
+    note: "Deterministic mock — no reachable agent-api. Never a live provider call.",
     events: [
       { seq: 1, offset_s: 0.0, kind: "plan_created", hub: "workbench", run_state: "planning" },
       { seq: 2, offset_s: 1.2, kind: "agent_dispatched", hub: "agents", run_state: "executing" },
@@ -17,5 +20,24 @@ export function GET() {
       { seq: 7, offset_s: 7.8, kind: "checks_passed", hub: "observe", run_state: "idle" },
     ],
     non_claims: ["mock data, never a live provider call", "no secret values"],
+  };
+}
+
+/** GET /api/v1/organism/events — derived from the agent-api activity trace
+ *  (`agent-activity-trace-v1`, event_type only) when reachable, else the mock. */
+export async function GET() {
+  const kinds = await fetchActivityKinds(12);
+  if (!kinds) return Response.json(mockFeed());
+  const events = kinds.map((kind, i) => {
+    const { hub, run_state } = mapKind(kind);
+    return { seq: i + 1, offset_s: +(i * 1.2).toFixed(1), kind, hub, run_state };
+  });
+  return Response.json({
+    contract_version: "organism-events-v1",
+    source: "agent-api",
+    live: true,
+    note: "Derived from agent-api /api/v1/agent-activity/recent (agent-activity-trace-v1; local dry-run, event_type only — no session/user identifiers).",
+    events,
+    non_claims: ["local dry-run runtime, no live provider call", "no secret values"],
   });
 }
