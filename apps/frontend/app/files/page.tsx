@@ -62,8 +62,8 @@ export default async function FilesPage() {
             <svg viewBox="0 0 400 240" width="100%" height="240" role="img" aria-label="Knowledge graph">
               <defs>
                 <radialGradient id="kg" cx="50%" cy="50%">
-                  <stop offset="0%" stopColor="#00e5ff" />
-                  <stop offset="100%" stopColor="#3b82f6" />
+                  <stop offset="0%" stopColor="var(--cyan)" />
+                  <stop offset="100%" stopColor="var(--blue)" />
                 </radialGradient>
               </defs>
               {[[200, 120], [110, 70], [300, 80], [120, 180], [290, 175], [200, 40]].map((p, i) =>
@@ -72,7 +72,7 @@ export default async function FilesPage() {
                 ),
               )}
               {[[200, 120, 16], [110, 70, 9], [300, 80, 9], [120, 180, 8], [290, 175, 8], [200, 40, 7]].map((p, i) => (
-                <circle key={i} cx={p[0]} cy={p[1]} r={p[2]} fill={i === 0 ? "url(#kg)" : "#8b5cf6"} opacity={i === 0 ? 1 : 0.85} />
+                <circle key={i} cx={p[0]} cy={p[1]} r={p[2]} fill={i === 0 ? "url(#kg)" : "var(--violet)"} opacity={i === 0 ? 1 : 0.85} />
               ))}
             </svg>
           </Panel>

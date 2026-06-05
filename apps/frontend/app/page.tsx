@@ -75,6 +75,9 @@ export default function Landing() {
             <div className="stat"><div className="v">10</div><div className="l">Cortex regions</div></div>
             <div className="stat"><div className="v">100%</div><div className="l">Open source</div></div>
           </div>
+          <p style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 8, textAlign: "center" }}>
+            Canonical platform specification — not live runtime metrics.
+          </p>
 
           <div className="feature-grid">
             {FEATURES.map((f) => (

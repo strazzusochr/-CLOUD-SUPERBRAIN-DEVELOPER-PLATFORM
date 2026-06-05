@@ -41,7 +41,7 @@ export function SafetyBadgeRow() {
   );
 }
 
-export function StatusDot({ tone = "mut", pulse = false }: { tone?: Tone; pulse?: boolean }) {
+export function StatusDot({ tone = "mut", pulse = false, label }: { tone?: Tone; pulse?: boolean; label?: string }) {
   const colors: Record<Tone, string> = {
     mut: "var(--text-mut)",
     cyan: "var(--cyan)",
@@ -50,7 +50,15 @@ export function StatusDot({ tone = "mut", pulse = false }: { tone?: Tone; pulse?
     red: "var(--red)",
     violet: "var(--violet)",
   };
-  return <span className={`dot${pulse ? " pulse" : ""}`} style={{ background: colors[tone] }} />;
+  return (
+    <span
+      className={`dot${pulse ? " pulse" : ""}`}
+      style={{ background: colors[tone] }}
+      role={label ? "img" : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+    />
+  );
 }
 
 export function PageHeader({

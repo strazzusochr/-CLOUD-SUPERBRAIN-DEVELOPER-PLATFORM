@@ -86,8 +86,8 @@ export default async function ObservePage() {
             ))}
             <defs>
               <linearGradient id="g11" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#00e5ff" />
-                <stop offset="100%" stopColor="#3b82f6" />
+                <stop offset="0%" stopColor="var(--cyan)" />
+                <stop offset="100%" stopColor="var(--blue)" />
               </linearGradient>
             </defs>
           </svg>

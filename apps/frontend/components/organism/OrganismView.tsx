@@ -31,7 +31,9 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
   // reachable (source: "agent-api"), honest deterministic mock otherwise.
   useEffect(() => {
     let alive = true;
-    fetch("/api/v1/organism/live-state", { cache: "no-store" })
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 1500);
+    fetch("/api/v1/organism/live-state", { cache: "no-store", signal: ctrl.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { source?: string; live?: boolean; run_state?: string; hubs?: Array<{ id: string; status: string }> } | null) => {
         if (!alive || !d) return;
@@ -40,9 +42,13 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
         setFeed({ source: d.source ?? "mock", live: !!d.live, hubs });
         if (d.run_state && STATES.includes(d.run_state as RunState)) setRunState(d.run_state as RunState);
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (process.env.NODE_ENV !== "production") console.error("organism live-state fetch failed:", err);
+      })
+      .finally(() => clearTimeout(timer));
     return () => {
       alive = false;
+      ctrl.abort();
     };
   }, []);
 

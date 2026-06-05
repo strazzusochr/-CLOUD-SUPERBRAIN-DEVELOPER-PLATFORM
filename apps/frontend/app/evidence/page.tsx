@@ -15,7 +15,7 @@ const EVIDENCE: { name: string; status: string; tone: Tone; ref: string }[] = [
   { name: "E2E (Playwright)", status: "PASS", tone: "green", ref: "7 / 7 green" },
   { name: "3D cortex render", status: "PASS", tone: "green", ref: "WebGL + GLB · 0 console errors" },
   { name: "Secret scan", status: "CLEAN", tone: "green", ref: "gitleaks · no token values" },
-  { name: "Production deploy", status: "BLOCKED", tone: "red", ref: "gate closed" },
+  { name: "Production deploy", status: "BLOCKED", tone: "red", ref: "OPA gate closed (policy, not a failure)" },
 ];
 
 export default async function EvidencePage() {

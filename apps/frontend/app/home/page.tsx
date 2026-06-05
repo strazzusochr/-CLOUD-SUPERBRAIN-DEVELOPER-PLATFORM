@@ -40,7 +40,7 @@ export default async function HomePage() {
             value={agentValue}
             foot={live ? <><StatusDot tone="green" pulse /> live roster</> : <><StatusDot tone="mut" /> planner/coder/tester/devops</>}
           />
-          <Metric label="Cloud layers" value="7" foot={<>8 providers</>} />
+          <Metric label="Cloud layers" value="7" foot={<><StatusDot tone="mut" /> spec · 8 providers</>} />
           <Metric label="Gates" value="CLOSED" foot={<><StatusDot tone="green" /> safe by default</>} />
         </div>
 

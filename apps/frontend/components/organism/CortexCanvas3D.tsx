@@ -12,12 +12,24 @@
  * runState / activeRegion. CortexCanvas (2D) is the reduced-motion fallback.
  */
 
-import { useMemo, useRef, useState, useEffect, Suspense, Component, type ReactNode } from "react";
+import { useMemo, useRef, useState, useEffect, memo, Suspense, Component, type ReactNode } from "react";
 import { Canvas, useFrame, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls, Html, Environment, Lightformer, useGLTF } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { HUBS, STATE_COLOR, STATE_LABEL, type RunState } from "./regionMap";
+
+/** Single source of truth for the 3D palette — mirrors the CSS design tokens
+ *  (--cyan/--violet/--magenta/--blue/--bg) so the cortex never drifts from the UI. */
+const ORGANISM_COLORS = {
+  cyan: "#00e5ff",
+  violet: "#8b5cf6",
+  magenta: "#ec4899",
+  blue: "#3b82f6",
+  ice: "#36d3ff",
+  coreGlow: "#eafbff",
+  bg: "#04060d",
+} as const;
 
 function useGlow() {
   return useMemo(() => {
@@ -68,21 +80,32 @@ function detectHardwareGPU(): boolean {
   }
 }
 
-/** PBR node on hardware GPUs (reflective, env-lit) · emissive basic in software. */
-function NodeMaterial({ color, pbr, emissive = 1.4 }: { color: string; pbr: boolean; emissive?: number }) {
+/** PBR node on hardware GPUs (reflective, env-lit) · emissive basic in software.
+ *  `on` sharpens the highlight (lower roughness) when a node is active. */
+const NodeMaterial = memo(function NodeMaterial({
+  color,
+  pbr,
+  emissive = 1.4,
+  on = false,
+}: {
+  color: string;
+  pbr: boolean;
+  emissive?: number;
+  on?: boolean;
+}) {
   if (pbr) {
-    return <meshStandardMaterial color={color} emissive={color} emissiveIntensity={emissive} metalness={0.5} roughness={0.22} />;
+    return <meshStandardMaterial color={color} emissive={color} emissiveIntensity={emissive} metalness={0.75} roughness={on ? 0.15 : 0.24} />;
   }
   return <meshBasicMaterial color={color} toneMapped={false} />;
-}
+});
 
 function useBrain(count: number) {
   return useMemo(() => {
     const pos = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
-    const cyan = new THREE.Color("#00e5ff");
-    const violet = new THREE.Color("#8b5cf6");
-    const magenta = new THREE.Color("#ec4899");
+    const cyan = new THREE.Color(ORGANISM_COLORS.cyan);
+    const violet = new THREE.Color(ORGANISM_COLORS.violet);
+    const magenta = new THREE.Color(ORGANISM_COLORS.magenta);
     const tmp = new THREE.Color();
     const golden = Math.PI * (3 - Math.sqrt(5));
     for (let i = 0; i < count; i++) {
@@ -144,7 +167,7 @@ function Brain({ count, tex }: { count: number; tex: THREE.Texture }) {
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[line, 3]} />
         </bufferGeometry>
-        <lineBasicMaterial color="#36d3ff" transparent opacity={0.09} blending={THREE.AdditiveBlending} depthWrite={false} />
+        <lineBasicMaterial color={ORGANISM_COLORS.ice} transparent opacity={0.09} blending={THREE.AdditiveBlending} depthWrite={false} />
       </lineSegments>
     </group>
   );
@@ -154,9 +177,8 @@ function Brain({ count, tex }: { count: number; tex: THREE.Texture }) {
  *  Rendered with NodeMaterial so software GL gets the verifiable basic path and
  *  hardware GPUs get full PBR. Falls back to procedural geometry on load failure. */
 const CORE_GLB = "/organism/core.glb";
-useGLTF.preload(CORE_GLB);
 
-function CrystalGLB({ pbr }: { pbr: boolean }) {
+function CrystalGLB({ pbr, color }: { pbr: boolean; color: string }) {
   const gltf = useGLTF(CORE_GLB);
   const geometry = useMemo(() => {
     let g: THREE.BufferGeometry | null = null;
@@ -166,19 +188,19 @@ function CrystalGLB({ pbr }: { pbr: boolean }) {
     });
     return g;
   }, [gltf]);
-  if (!geometry) return <ProceduralCrystal pbr={pbr} />;
+  if (!geometry) return <ProceduralCrystal pbr={pbr} color={color} />;
   return (
     <mesh geometry={geometry}>
-      <NodeMaterial color="#eafbff" pbr={pbr} emissive={1.8} />
+      <NodeMaterial color={color} pbr={pbr} emissive={1.8} on />
     </mesh>
   );
 }
 
-function ProceduralCrystal({ pbr }: { pbr: boolean }) {
+function ProceduralCrystal({ pbr, color }: { pbr: boolean; color: string }) {
   return (
     <mesh>
       <icosahedronGeometry args={[1, 4]} />
-      <NodeMaterial color="#eafbff" pbr={pbr} emissive={1.8} />
+      <NodeMaterial color={color} pbr={pbr} emissive={1.8} on />
     </mesh>
   );
 }
@@ -218,7 +240,12 @@ function Core({ color, tex, pbr }: { color: string; tex: THREE.Texture; pbr: boo
       ringB.current.rotation.y += dt * 0.3;
     }
   });
-  const procedural = <ProceduralCrystal pbr={pbr} />;
+  // Core glows ice-white but tints toward the run-state colour (state-coherent).
+  const coreColor = useMemo(
+    () => new THREE.Color(color).lerp(new THREE.Color(ORGANISM_COLORS.coreGlow), 0.55).getStyle(),
+    [color],
+  );
+  const procedural = <ProceduralCrystal pbr={pbr} color={coreColor} />;
   return (
     <group>
       <sprite scale={5.4}>
@@ -239,13 +266,13 @@ function Core({ color, tex, pbr }: { color: string; tex: THREE.Texture; pbr: boo
       </mesh>
       <mesh ref={ringB}>
         <torusGeometry args={[0.88, 0.008, 8, 96]} />
-        <meshBasicMaterial color="#36d3ff" transparent opacity={0.4} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} />
+        <meshBasicMaterial color={ORGANISM_COLORS.ice} transparent opacity={0.4} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
       {/* Real GLB crystal core (procedural fallback on load failure) */}
       <group ref={core}>
         <CrystalBoundary fallback={procedural}>
           <Suspense fallback={procedural}>
-            <CrystalGLB pbr={pbr} />
+            <CrystalGLB pbr={pbr} color={coreColor} />
           </Suspense>
         </CrystalBoundary>
       </group>
@@ -322,7 +349,7 @@ function Hub({
         <spriteMaterial map={tex} color={hub.color} transparent opacity={0.9} blending={THREE.AdditiveBlending} depthWrite={false} />
       </sprite>
       <sprite ref={pulse2} scale={0.2}>
-        <spriteMaterial map={tex} color="#eafbff" transparent opacity={0.5} blending={THREE.AdditiveBlending} depthWrite={false} />
+        <spriteMaterial map={tex} color={ORGANISM_COLORS.coreGlow} transparent opacity={0.5} blending={THREE.AdditiveBlending} depthWrite={false} />
       </sprite>
       <group position={[end.x, end.y, end.z]}>
         <sprite scale={on ? 0.95 : 0.7}>
@@ -342,7 +369,7 @@ function Hub({
           onPointerOut={() => setHover(false)}
         >
           <icosahedronGeometry args={[0.15, 0]} />
-          <NodeMaterial color={hub.color} pbr={pbr} emissive={on ? 2.4 : 1.5} />
+          <NodeMaterial color={hub.color} pbr={pbr} emissive={on ? 2.0 : 1.4} on={on} />
         </mesh>
         <mesh ref={ring} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[0.24, 0.007, 6, 40]} />
@@ -430,18 +457,18 @@ function Scene({
   const sc = STATE_COLOR[runState];
   return (
     <>
-      <color attach="background" args={["#04060d"]} />
-      <fog attach="fog" args={["#04060d", 6.5, 15]} />
+      <color attach="background" args={[ORGANISM_COLORS.bg]} />
+      <fog attach="fog" args={[ORGANISM_COLORS.bg, 6.5, 15]} />
       {pbr ? (
         <>
           <ambientLight intensity={0.35} />
-          <pointLight position={[0, 3.5, 3]} intensity={9} distance={14} color="#00e5ff" />
-          <pointLight position={[-4, -2, 2.5]} intensity={7} distance={14} color="#8b5cf6" />
-          <pointLight position={[4, -2, 2.5]} intensity={7} distance={14} color="#ec4899" />
+          <pointLight position={[0, 3.5, 3]} intensity={9} distance={14} color={ORGANISM_COLORS.cyan} />
+          <pointLight position={[-4, -2, 2.5]} intensity={7} distance={14} color={ORGANISM_COLORS.violet} />
+          <pointLight position={[4, -2, 2.5]} intensity={7} distance={14} color={ORGANISM_COLORS.magenta} />
           <Environment resolution={128} frames={1}>
-            <Lightformer form="circle" intensity={3} color="#00e5ff" position={[0, 3, 2]} scale={3} />
-            <Lightformer form="circle" intensity={2.4} color="#8b5cf6" position={[-3, -1, 2]} scale={2.5} />
-            <Lightformer form="circle" intensity={2.4} color="#ec4899" position={[3, -1, 2]} scale={2.5} />
+            <Lightformer form="circle" intensity={3} color={ORGANISM_COLORS.cyan} position={[0, 3, 2]} scale={3} />
+            <Lightformer form="circle" intensity={2.4} color={ORGANISM_COLORS.violet} position={[-3, -1, 2]} scale={2.5} />
+            <Lightformer form="circle" intensity={2.4} color={ORGANISM_COLORS.magenta} position={[3, -1, 2]} scale={2.5} />
           </Environment>
         </>
       ) : null}
@@ -466,7 +493,7 @@ function Scene({
         maxPolarAngle={Math.PI * 0.8}
       />
       <EffectComposer>
-        <Bloom intensity={1.3} luminanceThreshold={0.12} luminanceSmoothing={0.5} mipmapBlur radius={0.75} />
+        <Bloom intensity={1.25} luminanceThreshold={0.18} luminanceSmoothing={0.6} mipmapBlur radius={0.75} />
         <Vignette eskil={false} offset={0.25} darkness={0.85} />
       </EffectComposer>
     </>
@@ -497,6 +524,9 @@ export default function CortexCanvas3D({
   const [pbr, setPbr] = useState(false);
   useEffect(() => {
     setPbr(detectHardwareGPU());
+    // Preload the GLB only when the 3D canvas actually mounts (not at import time,
+    // so the 2D reduced-motion / no-WebGL path never triggers the fetch).
+    useGLTF.preload(CORE_GLB);
   }, []);
   return (
     <div className="cortex-wrap">

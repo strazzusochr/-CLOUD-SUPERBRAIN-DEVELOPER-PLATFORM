@@ -7,14 +7,16 @@ const base = () => process.env.AGENT_API_INTERNAL_URL?.replace(/\/$/, "");
 async function get(path: string): Promise<Response | null> {
   const b = base();
   if (!b) return null;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 1500);
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 1500);
     const res = await fetch(`${b}${path}`, { cache: "no-store", signal: ctrl.signal });
-    clearTimeout(timer);
     return res.ok ? res : null;
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") console.error(`agent-api ${path} unreachable:`, err);
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -63,7 +65,8 @@ export async function fetchProgress(): Promise<Progress | null> {
   if (!res) return null;
   try {
     return (await res.json()) as Progress;
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") console.error("agent-api response parse failed:", err);
     return null;
   }
 }
@@ -96,7 +99,8 @@ export async function fetchProviders(): Promise<CloudReadiness | null> {
       liveCount: Number(d.live_verified_count ?? 0),
       total: Number(d.total_count ?? raw.length),
     };
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") console.error("agent-api response parse failed:", err);
     return null;
   }
 }
@@ -128,7 +132,8 @@ export async function fetchLiveAgents(): Promise<LiveRoster | null> {
       defaultModel: d.default_model ?? null,
       runtimeSource: d.runtime_source ?? null,
     };
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") console.error("agent-api response parse failed:", err);
     return null;
   }
 }

@@ -23,9 +23,7 @@ export default function LoginPage() {
           <div className="grid cols-2" style={{ alignItems: "stretch" }}>
             <section className="panel panel-pad" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <div className="eyebrow" style={{ color: "var(--cyan)", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>
-                  Welcome back
-                </div>
+                <div className="eyebrow">Welcome back</div>
                 <h1 style={{ fontSize: 24, marginTop: 6 }}>Sign in to your workspace</h1>
               </div>
 

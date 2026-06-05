@@ -8,7 +8,7 @@ type Tone = "green" | "amber" | "violet";
 const APPS: { name: string; kind: string; status: string; tone: Tone }[] = [
   { name: "Superbrain Game Engine", kind: "Game", status: "local preview", tone: "green" },
   { name: "Crisis Dashboard", kind: "App", status: "local preview", tone: "green" },
-  { name: "Cortex Visualizer", kind: "App", status: "live", tone: "green" },
+  { name: "Cortex Visualizer", kind: "App", status: "local preview", tone: "green" },
   { name: "Verifier Suite", kind: "Tool", status: "verified", tone: "green" },
   { name: "Media Studio", kind: "App", status: "spec-only", tone: "amber" },
   { name: "Corona Control", kind: "App", status: "planned", tone: "violet" },
