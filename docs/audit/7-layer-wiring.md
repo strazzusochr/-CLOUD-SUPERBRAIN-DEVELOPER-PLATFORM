@@ -7,9 +7,10 @@ tests, evidence, and status. Source of truth for the cloud mapping:
 Local runtime evidence (`docker-compose.dev.yml`, no secrets, LLM `deterministic_dry_run`):
 `/api/v1/health` → agent-api **healthy**; postgres **healthy** (`superbrain_prod`, 6 tables,
 4 checkpoint tables, extensions `pgcrypto` + `vector`); redis healthy; agent-worker healthy;
-mcp-gateway + llm-gateway healthy (`live_provider_calls: false`). `/api/v1/clouds/layers`
+mcp-gateway + llm-gateway healthy (`live_provider_calls: false`); **memory-worker healthy**
+(rebuilt from current `services/memory-worker`, redis heartbeat live). `/api/v1/clouds/layers`
 (`cloud-layer-readiness-v1`) reports **layer_1…layer_7 all `live_verified`**. Raw capture:
-`docs/audit/backend-runtime-evidence.md`. (memory-worker consolidation loop = down → MEM partial.)
+`docs/audit/backend-runtime-evidence.md`. **All six runtime services healthy.**
 
 | Layer | Source files | Runtime / API | Tests | Evidence | Status |
 |-------|--------------|---------------|-------|----------|--------|
@@ -18,7 +19,7 @@ mcp-gateway + llm-gateway healthy (`live_provider_calls: false`). `/api/v1/cloud
 | **AP** Agent Pool | `services/agent-api/app/models.py` (`AGENT_PROFILES`), `tasks.py`, `orchestrator.py` | **local**: `/api/v1/live-agents/status` serves 12 agents; agent-worker heartbeat healthy | `e2e`, live status probe | layer_3 `live_verified`, `/agents` UI mirrors agent-profiles-v1 | **PASS** (local + UI) |
 | **LLM** LLM Gateway | `services/llm-gateway/**`, `models.py` MODEL_ROUTES, `clouds.py` layer_4 → Cloudflare + HF | **local**: llm-gateway healthy, `mode: deterministic_dry_run`, `live_provider_calls: false` | `/llm/api/v1/health` | layer_4 `live_verified` (dry-run), no live call | **PASS** (local dry-run; live calls gated) |
 | **MCP** MCP Gateway / Tools | `services/mcp-gateway/**`, `clouds.py` layer_5 → GitHub/GHCR/GitLab/GitKraken | **local**: mcp-gateway healthy; `/tools` UI lists allowed_tools | `/mcp/api/v1/health`, audit feed | layer_5 `live_verified`, `/tools` UI | **PASS** (local; writes gated) |
-| **MEM** Memory / Data | `services/agent-api/app/main.py` memory routes, `clouds.py` layer_6 → Hetzner pgvector | **local**: postgres + pgvector (`vector` ext) healthy, memory routes live; consolidation worker down | `/api/v1/health` (postgres), memory probes | layer_6 `live_verified`, pgvector extension present | **WARN** (store live; consolidation worker down) |
+| **MEM** Memory / Data | `services/agent-api/app/main.py` memory routes, `services/memory-worker/app/worker.py`, `clouds.py` layer_6 → Hetzner pgvector | **local**: postgres + pgvector (`vector` ext) healthy; memory-worker rebuilt from current code, heartbeat live | `/api/v1/health` → `memory_worker: healthy` | layer_6 `live_verified`, 978 entries, pgvector ext | **PASS** (local; consolidation worker healthy) |
 | **OBS** Observability / Evidence | `services/agent-api` metrics/costs/audit, `apps/frontend/app/{observe,evidence,diagnostics}` | **local**: `/api/v1/metrics`, health surface live; `/observe`,`/evidence`,`/diagnostics` UI | `verify_project_progress_manifest.py`, `e2e` | layer_7 `live_verified`, `/evidence` proofs | **PASS** (local + UI) |
 
 **Cloud providers (8) backing the layers** (clouds.py): Vercel(L1,7) · Hetzner(L2,3,6,7) ·

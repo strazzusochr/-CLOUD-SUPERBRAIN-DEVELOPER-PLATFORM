@@ -57,6 +57,22 @@ test.describe("Cloud Superbrain platform", () => {
     }
   });
 
+  test("organism GLB core asset is served and fetched by the canvas", async ({ page, request }) => {
+    const glb = await request.get("/organism/core.glb");
+    expect(glb.status()).toBe(200);
+    const bytes = await glb.body();
+    expect(bytes.length, "core.glb byte size").toBeGreaterThan(1000);
+    expect(bytes.subarray(0, 4).toString("ascii"), "glTF magic").toBe("glTF");
+
+    const fetched: string[] = [];
+    page.on("requestfinished", (r) => {
+      if (r.url().includes("core.glb")) fetched.push(r.url());
+    });
+    await page.goto("/organism", { waitUntil: "networkidle" });
+    await page.waitForTimeout(3000);
+    expect(fetched.length, "canvas fetched core.glb").toBeGreaterThan(0);
+  });
+
   test("organism 3D renders a WebGL canvas with no console errors (+ screenshot proof)", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));

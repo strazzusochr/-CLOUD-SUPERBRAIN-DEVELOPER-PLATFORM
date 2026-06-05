@@ -12,9 +12,9 @@
  * runState / activeRegion. CortexCanvas (2D) is the reduced-motion fallback.
  */
 
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useMemo, useRef, useState, useEffect, Suspense, Component, type ReactNode } from "react";
 import { Canvas, useFrame, type ThreeEvent } from "@react-three/fiber";
-import { OrbitControls, Html, Environment, Lightformer } from "@react-three/drei";
+import { OrbitControls, Html, Environment, Lightformer, useGLTF } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { HUBS, STATE_COLOR, STATE_LABEL, type RunState } from "./regionMap";
@@ -150,17 +150,66 @@ function Brain({ count, tex }: { count: number; tex: THREE.Texture }) {
   );
 }
 
-/** Central PBR core mesh — the GLB asset slot (procedural fallback shown until a
- *  GLB is supplied at /public/organism/core.glb). Lit by the environment. */
+/** Real GLB core asset at /organism/core.glb (faceted crystalline icosphere).
+ *  Rendered with NodeMaterial so software GL gets the verifiable basic path and
+ *  hardware GPUs get full PBR. Falls back to procedural geometry on load failure. */
+const CORE_GLB = "/organism/core.glb";
+useGLTF.preload(CORE_GLB);
+
+function CrystalGLB({ pbr }: { pbr: boolean }) {
+  const gltf = useGLTF(CORE_GLB);
+  const geometry = useMemo(() => {
+    let g: THREE.BufferGeometry | null = null;
+    gltf.scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh && m.geometry && !g) g = m.geometry as THREE.BufferGeometry;
+    });
+    return g;
+  }, [gltf]);
+  if (!geometry) return <ProceduralCrystal pbr={pbr} />;
+  return (
+    <mesh geometry={geometry}>
+      <NodeMaterial color="#eafbff" pbr={pbr} emissive={1.8} />
+    </mesh>
+  );
+}
+
+function ProceduralCrystal({ pbr }: { pbr: boolean }) {
+  return (
+    <mesh>
+      <icosahedronGeometry args={[1, 4]} />
+      <NodeMaterial color="#eafbff" pbr={pbr} emissive={1.8} />
+    </mesh>
+  );
+}
+
+/** Render-error boundary: if the GLB fails to load/parse, show procedural geometry. */
+class CrystalBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
+  constructor(props: { fallback: ReactNode; children: ReactNode }) {
+    super(props);
+    this.state = { failed: false };
+  }
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
+/** Central core: real GLB crystal + reactor rings + multi-layer additive glow. */
 function Core({ color, tex, pbr }: { color: string; tex: THREE.Texture; pbr: boolean }) {
   const halo = useRef<THREE.Sprite>(null);
   const shell = useRef<THREE.Mesh>(null);
-  const core = useRef<THREE.Mesh>(null);
+  const core = useRef<THREE.Group>(null);
   const ringA = useRef<THREE.Mesh>(null);
   const ringB = useRef<THREE.Mesh>(null);
   useFrame((s, dt) => {
     const p = 1 + Math.sin(s.clock.elapsedTime * 1.7) * 0.13;
-    if (core.current) core.current.scale.setScalar(0.3 * p);
+    if (core.current) {
+      core.current.scale.setScalar(0.3 * p);
+      core.current.rotation.y += dt * 0.18;
+    }
     if (halo.current) halo.current.scale.setScalar(3.1 * p);
     if (shell.current) shell.current.rotation.y -= dt * 0.25;
     if (ringA.current) ringA.current.rotation.z += dt * 0.6;
@@ -169,6 +218,7 @@ function Core({ color, tex, pbr }: { color: string; tex: THREE.Texture; pbr: boo
       ringB.current.rotation.y += dt * 0.3;
     }
   });
+  const procedural = <ProceduralCrystal pbr={pbr} />;
   return (
     <group>
       <sprite scale={5.4}>
@@ -177,7 +227,7 @@ function Core({ color, tex, pbr }: { color: string; tex: THREE.Texture; pbr: boo
       <sprite ref={halo}>
         <spriteMaterial map={tex} color={color} transparent opacity={0.5} blending={THREE.AdditiveBlending} depthWrite={false} />
       </sprite>
-      {/* Faceted asset shell (GLB slot, procedural fallback) — wireframe icosahedron */}
+      {/* Faceted wireframe shell around the asset */}
       <mesh ref={shell} scale={0.62}>
         <icosahedronGeometry args={[1, 1]} />
         <meshBasicMaterial color={color} wireframe transparent opacity={0.5} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} />
@@ -191,10 +241,14 @@ function Core({ color, tex, pbr }: { color: string; tex: THREE.Texture; pbr: boo
         <torusGeometry args={[0.88, 0.008, 8, 96]} />
         <meshBasicMaterial color="#36d3ff" transparent opacity={0.4} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
-      <mesh ref={core}>
-        <sphereGeometry args={[1, 32, 32]} />
-        <NodeMaterial color="#eafbff" pbr={pbr} emissive={1.8} />
-      </mesh>
+      {/* Real GLB crystal core (procedural fallback on load failure) */}
+      <group ref={core}>
+        <CrystalBoundary fallback={procedural}>
+          <Suspense fallback={procedural}>
+            <CrystalGLB pbr={pbr} />
+          </Suspense>
+        </CrystalBoundary>
+      </group>
     </group>
   );
 }
