@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cloud Superbrain — Developer Platform</title>
+    <meta name="description" content="Workbench-first AI developer organism. The application is served by the apps/frontend deployment." />
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        color: #eaf2ff;
+        background:
+          radial-gradient(60% 60% at 50% 38%, rgba(11, 16, 32, 0.6), #05070d 78%),
+          #05070d;
+        padding: 24px;
+      }
+      .card {
+        max-width: 640px;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        padding: 44px 38px;
+        background: linear-gradient(180deg, rgba(18, 26, 50, 0.5), rgba(11, 16, 32, 0.3));
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+      }
+      .glyph {
+        width: 46px; height: 46px; margin: 0 auto 18px;
+        border-radius: 12px;
+        background: conic-gradient(from 210deg, #00e5ff, #3b82f6, #8b5cf6, #ec4899, #00e5ff);
+        box-shadow: 0 0 28px rgba(0, 229, 255, 0.45);
+      }
+      h1 { font-size: 26px; letter-spacing: -0.02em; margin-bottom: 10px; }
+      .grad { background: linear-gradient(110deg, #eaf2ff 30%, #00e5ff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+      p { color: #8fa6c9; font-size: 14.5px; line-height: 1.6; margin-bottom: 8px; }
+      .layers { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; margin: 22px 0; }
+      .chip {
+        font-size: 11px; font-family: ui-monospace, monospace;
+        padding: 3px 10px; border-radius: 999px;
+        border: 1px solid rgba(0, 229, 255, 0.3); color: #bfe9ff;
+        background: rgba(0, 229, 255, 0.06);
+      }
+      .note { font-size: 12px; color: #61759a; margin-top: 18px; }
+      code { color: #bfe9ff; font-family: ui-monospace, monospace; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="glyph"></div>
+      <h1>The Living Cloud <span class="grad">Developer Organism</span></h1>
+      <p>
+        Cloud Superbrain — a workbench-first, multi-cloud AI developer platform with a real-time
+        3D cortex across a 7-layer architecture.
+      </p>
+      <div class="layers">
+        <span class="chip">Vercel</span>
+        <span class="chip">Hetzner</span>
+        <span class="chip">Cloudflare</span>
+        <span class="chip">GitHub</span>
+        <span class="chip">GHCR</span>
+        <span class="chip">Hugging Face</span>
+        <span class="chip">GitLab</span>
+        <span class="chip">GitKraken</span>
+      </div>
+      <p class="note">
+        This is the monorepo root. The application is built and served from
+        <code>apps/frontend</code> (the <code>frontend</code> deployment).
+      </p>
+    </main>
+  </body>
+</html>
