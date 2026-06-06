@@ -98,4 +98,37 @@ test.describe("Cloud Superbrain platform", () => {
     const box = await page.locator(".cortex-wrap").first().boundingBox();
     await page.screenshot({ path: "e2e/__artifacts__/organism.png", clip: box ?? undefined });
   });
+
+  test("organism Phase-6 3D controls: capability, frame-budget HUD, keyboard, reduced-motion", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+
+    await page.goto("/organism", { waitUntil: "networkidle" });
+    await page.waitForTimeout(4000);
+
+    // GPU capability badge (WebGPU detection with WebGL fallback)
+    await expect(page.locator(".cap-badge")).toBeVisible();
+    // frame-budget perf overlay (FPS + ms/frame)
+    const hud = await page.locator(".org-hud").innerText();
+    expect(hud).toMatch(/FPS/);
+    expect(hud).toMatch(/ms/);
+    // scene controls present
+    await expect(page.getByRole("button", { name: /Reset camera/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Reduced motion/ })).toBeVisible();
+
+    // keyboard interaction loop must not error
+    for (const k of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Equal", "Minus", "r"]) {
+      await page.keyboard.press(k);
+    }
+    await page.waitForTimeout(200);
+
+    // reduced-motion (motion-sickness guard) switches to the 2D fallback
+    await page.getByRole("button", { name: /Reduced motion/ }).click();
+    await page.waitForTimeout(800);
+    const hud2 = await page.locator(".org-hud").innerText();
+    expect(hud2, "HUD shows 2D after reduced-motion").toMatch(/2D/);
+
+    expect(errors, "no console/page errors during 3D control interaction").toEqual([]);
+  });
 });

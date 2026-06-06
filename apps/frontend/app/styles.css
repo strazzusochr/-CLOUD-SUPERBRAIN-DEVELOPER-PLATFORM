@@ -696,6 +696,23 @@ p {
   background: #34d399;
   box-shadow: 0 0 7px rgba(52, 211, 153, 0.9);
 }
+/* Phase-6 3D capability badge */
+.cap-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-mut);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.cap-dot { width: 7px; height: 7px; border-radius: 999px; background: var(--text-dim); }
+.cap-dot.gpu { background: #a855f7; box-shadow: 0 0 7px rgba(168, 85, 247, 0.9); }
+.cap-dot.ok { background: #34d399; box-shadow: 0 0 7px rgba(52, 211, 153, 0.85); }
+.cap-dot.soft { background: var(--amber); }
+.state-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .org-gates {
   position: absolute;
   right: 12px;

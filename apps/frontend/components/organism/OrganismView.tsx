@@ -24,8 +24,31 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
   const [active, setActive] = useState<string>("workbench");
   const [layers, setLayers] = useState<string[]>(LAYERS.map((l) => l.code));
   const [agents, setAgents] = useState<string[]>([...ORGANISM_AGENTS]);
-  const [stats, setStats] = useState<{ fps: number; nodes: number }>({ fps: 0, nodes: 0 });
+  const [stats, setStats] = useState<{ fps: number; nodes: number; ms: number }>({ fps: 0, nodes: 0, ms: 0 });
   const [feed, setFeed] = useState<{ source: string; live: boolean; hubs: Record<string, string> } | null>(null);
+  // Phase-6 (Scale & 3D) frontend controls
+  const [autoRotate, setAutoRotate] = useState(true);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [resetSignal, setResetSignal] = useState(0);
+  const [renderMode, setRenderMode] = useState<"2d" | "3d">("3d");
+  const [caps, setCaps] = useState<{ webgpu: boolean; webgl2: boolean; gpu: string }>({ webgpu: false, webgl2: false, gpu: "detecting…" });
+
+  // GPU capability probe (WebGPU detection with WebGL fallback indicator).
+  useEffect(() => {
+    let webgl2 = false;
+    let gpu = "WebGL";
+    try {
+      const c = document.createElement("canvas");
+      const gl = (c.getContext("webgl2") || c.getContext("webgl")) as WebGLRenderingContext | null;
+      webgl2 = !!c.getContext("webgl2");
+      const dbg = gl?.getExtension("WEBGL_debug_renderer_info");
+      if (gl && dbg) gpu = String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || "WebGL").replace(/^ANGLE \(([^,]+),.*$/, "$1").slice(0, 38);
+    } catch {
+      webgl2 = false;
+    }
+    const webgpu = typeof navigator !== "undefined" && "gpu" in navigator;
+    setCaps({ webgpu, webgl2, gpu });
+  }, []);
 
   // Bind to the organism live-state feed: real when the local agent-api is
   // reachable (source: "agent-api"), honest deterministic mock otherwise.
@@ -53,7 +76,9 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
   }, []);
 
   const hub = HUBS.find((h) => h.id === active);
-  const onStats = useCallback((fps: number, nodes: number) => setStats({ fps, nodes }), []);
+  const onStats = useCallback((fps: number, nodes: number, ms: number) => setStats({ fps, nodes, ms }), []);
+  const onMode = useCallback((m: "2d" | "3d") => setRenderMode(m), []);
+  const toggleAutoRotate = useCallback(() => setAutoRotate((v) => !v), []);
   const toggleLayer = (c: string) => setLayers((p) => (p.includes(c) ? p.filter((x) => x !== c) : [...p, c]));
   const toggleAgent = (a: string) => setAgents((p) => (p.includes(a) ? p.filter((x) => x !== a) : [...p, a]));
 
@@ -87,12 +112,19 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
               visibleLayers={layers}
               visibleAgents={agents}
               onStats={onStats}
+              autoRotate={autoRotate}
+              paused={reducedMotion}
+              resetSignal={resetSignal}
+              onToggleAutoRotate={toggleAutoRotate}
+              forceReducedMotion={reducedMotion}
+              onMode={onMode}
             />
-            {/* Debug / performance HUD overlay */}
+            {/* Debug / performance HUD overlay (frame budget = Phase-6 perf slice) */}
             <div className="org-hud" aria-hidden="true">
               <span className="mono">{stats.fps} FPS</span>
+              <span className="mono">{stats.ms}ms</span>
               <span className="mono">{stats.nodes} nodes</span>
-              <span className="mono">hub:{active}</span>
+              <span className="mono">{renderMode === "3d" ? (caps.webgpu ? "WebGPU✓" : "WebGL2") : "2D"}</span>
               {feed ? (
                 <span className={`org-feed ${feed.live ? "live" : "mock"}`} title={`live-state source: ${feed.source}`}>
                   {feed.live ? `LIVE · ${feed.source}` : `MOCK · ${feed.source}`}
@@ -116,6 +148,30 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Phase-6 (Scale & 3D Platform) — scene controls + capability + perf budget */}
+          <div className="panel panel-pad" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span className="panel-title">3D scene</span>
+            <div className="state-row">
+              <button className={`state-btn${autoRotate && !reducedMotion ? " active" : ""}`} onClick={toggleAutoRotate} disabled={reducedMotion} title="Space">
+                {autoRotate ? "Auto-rotate ⏸" : "Auto-rotate ▶"}
+              </button>
+              <button className="state-btn" onClick={() => setResetSignal((n) => n + 1)} title="R">Reset camera</button>
+              <button className={`state-btn${reducedMotion ? " active" : ""}`} onClick={() => setReducedMotion((v) => !v)} title="Motion-sickness guard">
+                {reducedMotion ? "Reduced motion ✓" : "Reduced motion"}
+              </button>
+            </div>
+            <span className="cap-badge" title={`renderer: ${caps.gpu}`}>
+              <span className={`cap-dot ${caps.webgpu ? "gpu" : caps.webgl2 ? "ok" : "soft"}`} />
+              {renderMode === "2d" ? "2D fallback" : caps.webgpu ? "WebGPU available · WebGL2 active" : "WebGL2"}
+            </span>
+            <span className="mono" style={{ fontSize: 11, color: "var(--text-dim)", marginLeft: "auto" }}>
+              {stats.fps} FPS · {stats.ms}ms/frame
+            </span>
+            <span className="mono" style={{ fontSize: 10.5, color: "var(--text-dim)", flexBasis: "100%" }}>
+              Keyboard: ←→ rotate · ↑↓ tilt · +/- zoom · R reset · Space auto-rotate
+            </span>
           </div>
 
           <div className="panel panel-pad">

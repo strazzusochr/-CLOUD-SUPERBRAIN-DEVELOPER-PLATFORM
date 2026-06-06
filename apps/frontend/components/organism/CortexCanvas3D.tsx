@@ -13,7 +13,7 @@
  */
 
 import { useMemo, useRef, useState, useEffect, memo, Suspense, Component, type ReactNode } from "react";
-import { Canvas, useFrame, type ThreeEvent } from "@react-three/fiber";
+import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls, Html, Environment, Lightformer, useGLTF } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
@@ -409,19 +409,86 @@ function Stars({ tex }: { tex: THREE.Texture }) {
   );
 }
 
-function Stats({ onStats, nodes }: { onStats?: (fps: number, nodes: number) => void; nodes: number }) {
+function Stats({ onStats, nodes }: { onStats?: (fps: number, nodes: number, ms: number) => void; nodes: number }) {
   const acc = useRef(0);
   const frames = useRef(0);
   useFrame((_, dt) => {
     acc.current += dt;
     frames.current += 1;
     if (acc.current >= 0.5) {
-      onStats?.(Math.round(frames.current / acc.current), nodes);
+      const fps = Math.round(frames.current / acc.current);
+      onStats?.(fps, nodes, fps > 0 ? Math.round((1000 / fps) * 10) / 10 : 0);
       acc.current = 0;
       frames.current = 0;
     }
   });
   return null;
+}
+
+/** Phase-6 camera rig: OrbitControls + keyboard interaction loop (arrows rotate,
+ *  +/- dolly, R reset, Space toggle auto-rotate) and a reset signal. */
+function CameraRig({
+  interactive,
+  autoRotate,
+  resetSignal,
+  onToggleAutoRotate,
+}: {
+  interactive: boolean;
+  autoRotate: boolean;
+  resetSignal: number;
+  onToggleAutoRotate?: () => void;
+}) {
+  const controls = useRef<React.ComponentRef<typeof OrbitControls>>(null);
+  const { camera } = useThree();
+
+  useEffect(() => {
+    controls.current?.reset();
+  }, [resetSignal]);
+
+  useEffect(() => {
+    if (!interactive) return;
+    const onKey = (e: KeyboardEvent) => {
+      const c = controls.current;
+      if (!c) return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      const dolly = (factor: number) => {
+        const t = c.target;
+        const d = Math.min(12, Math.max(4.5, camera.position.distanceTo(t) * factor));
+        camera.position.sub(t).setLength(d).add(t);
+        c.update();
+      };
+      switch (e.key) {
+        case "ArrowLeft": c.setAzimuthalAngle(c.getAzimuthalAngle() - 0.12); c.update(); break;
+        case "ArrowRight": c.setAzimuthalAngle(c.getAzimuthalAngle() + 0.12); c.update(); break;
+        case "ArrowUp": c.setPolarAngle(Math.max(Math.PI * 0.2, c.getPolarAngle() - 0.1)); c.update(); break;
+        case "ArrowDown": c.setPolarAngle(Math.min(Math.PI * 0.8, c.getPolarAngle() + 0.1)); c.update(); break;
+        case "+": case "=": dolly(0.88); break;
+        case "-": case "_": dolly(1.14); break;
+        case "r": case "R": c.reset(); break;
+        case " ": onToggleAutoRotate?.(); break;
+        default: return;
+      }
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [interactive, camera, onToggleAutoRotate]);
+
+  return (
+    <OrbitControls
+      ref={controls}
+      enablePan={false}
+      enableZoom={interactive}
+      enableRotate={interactive}
+      autoRotate={autoRotate}
+      autoRotateSpeed={0.5}
+      minDistance={4.5}
+      maxDistance={12}
+      minPolarAngle={Math.PI * 0.2}
+      maxPolarAngle={Math.PI * 0.8}
+    />
+  );
 }
 
 function hubVisible(hub: (typeof HUBS)[number], layers?: string[], agents?: string[]) {
@@ -441,6 +508,10 @@ function Scene({
   visibleAgents,
   onStats,
   pbr,
+  autoRotate,
+  paused,
+  resetSignal,
+  onToggleAutoRotate,
 }: {
   runState: RunState;
   nodeCount: number;
@@ -450,8 +521,12 @@ function Scene({
   showLabels: boolean;
   visibleLayers?: string[];
   visibleAgents?: string[];
-  onStats?: (fps: number, nodes: number) => void;
+  onStats?: (fps: number, nodes: number, ms: number) => void;
   pbr: boolean;
+  autoRotate: boolean;
+  paused: boolean;
+  resetSignal: number;
+  onToggleAutoRotate?: () => void;
 }) {
   const tex = useGlow();
   const sc = STATE_COLOR[runState];
@@ -481,16 +556,11 @@ function Scene({
           <Hub key={h.id} hub={h} active={active} onSelect={onSelect} showLabel={showLabels} visible={hubVisible(h, visibleLayers, visibleAgents)} tex={tex} pbr={pbr} />
         ))}
       </group>
-      <OrbitControls
-        enablePan={false}
-        enableZoom={interactive}
-        enableRotate={interactive}
-        autoRotate={!interactive}
-        autoRotateSpeed={0.5}
-        minDistance={4.5}
-        maxDistance={12}
-        minPolarAngle={Math.PI * 0.2}
-        maxPolarAngle={Math.PI * 0.8}
+      <CameraRig
+        interactive={interactive}
+        autoRotate={autoRotate && !paused}
+        resetSignal={resetSignal}
+        onToggleAutoRotate={onToggleAutoRotate}
       />
       <EffectComposer>
         <Bloom intensity={1.25} luminanceThreshold={0.18} luminanceSmoothing={0.6} mipmapBlur radius={0.75} />
@@ -510,6 +580,10 @@ export default function CortexCanvas3D({
   visibleLayers,
   visibleAgents,
   onStats,
+  autoRotate = false,
+  paused = false,
+  resetSignal = 0,
+  onToggleAutoRotate,
 }: {
   runState?: RunState;
   nodeCount?: number;
@@ -519,7 +593,11 @@ export default function CortexCanvas3D({
   showRegions?: boolean;
   visibleLayers?: string[];
   visibleAgents?: string[];
-  onStats?: (fps: number, nodes: number) => void;
+  onStats?: (fps: number, nodes: number, ms: number) => void;
+  autoRotate?: boolean;
+  paused?: boolean;
+  resetSignal?: number;
+  onToggleAutoRotate?: () => void;
 }) {
   const [pbr, setPbr] = useState(false);
   useEffect(() => {
@@ -547,9 +625,13 @@ export default function CortexCanvas3D({
           visibleAgents={visibleAgents}
           onStats={onStats}
           pbr={pbr}
+          autoRotate={autoRotate}
+          paused={paused}
+          resetSignal={resetSignal}
+          onToggleAutoRotate={onToggleAutoRotate}
         />
       </Canvas>
-      <span className="cortex-badge">LIVE · ORGANISM · WEBGL</span>
+      <span className="cortex-badge">LIVE · ORGANISM · {pbr ? "PBR/WEBGL" : "WEBGL"}</span>
       <span className="cortex-state">
         <span className="dot" style={{ background: STATE_COLOR[runState] }} />
         {STATE_LABEL[runState]}
