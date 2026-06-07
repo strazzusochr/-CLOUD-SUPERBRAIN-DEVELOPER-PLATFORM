@@ -2,7 +2,7 @@ import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, Badge, EmptyState } from "../../components/ui";
 import { Icon } from "../../lib/nav";
-import { fetchMasterPlan, fetchRecentSessions } from "../../lib/agentApi";
+import { fetchRecentSessions } from "../../lib/agentApi";
 
 export const metadata = { title: "Documents Workflow — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -14,27 +14,27 @@ function previewText(raw: string) {
 }
 
 export default async function DocsOutputPage() {
-  const [master, sessions] = await Promise.all([fetchMasterPlan(), fetchRecentSessions()]);
-  const live = !!master;
+  const sessions = await fetchRecentSessions();
+  const live = !!sessions;
   const withOutput = sessions?.filter((s) => !!(s.assistantResult && String(s.assistantResult).trim())).slice(0, 12) ?? [];
   const selected = withOutput.length ? withOutput[0] : null;
   return (
     <AppShell crumb="Documents" runState="idle">
       <div className="page-wide">
         <PageHeader
-          eyebrow="Documents Workflow"
-          title="Markdown & document output"
-          subtitle="Run output projection (assistant results). This surface shows what the runtime produced; file export stays gated."
+          eyebrow="Dokumente"
+          title="Markdown- & Dokument-Output"
+          subtitle="Projection von echten Run-Outputs (assistant results). Export bleibt gated."
           actions={
             <>
-              {live ? <Badge tone="green">● Live · {master!.overallPercent}%</Badge> : <Badge tone="mut">offline</Badge>}
+              {live ? <Badge tone="green">● Live</Badge> : <Badge tone="mut">offline</Badge>}
               {sessions ? <Badge tone="violet">{sessions.length} sessions</Badge> : null}
-              <Link href="/workbench" className="btn btn-sm btn-primary">Open Workbench</Link>
+              <Link href="/workbench" className="btn btn-sm btn-primary">Werkbank öffnen</Link>
             </>
           }
         />
         <div className="grid" style={{ gridTemplateColumns: "240px 1fr 300px" }}>
-          <Panel title="Documents">
+          <Panel title="Dokumente">
             <div className="list">
               {withOutput.length ? withOutput.map((s, i) => (
                 <div key={s.id} className={`tnode${i === 0 ? " sel" : ""}`} style={{ padding: "8px 12px", display: "flex", alignItems: "center", gap: 8 }}>
@@ -44,29 +44,29 @@ export default async function DocsOutputPage() {
                 </div>
               )) : (
                 <div className="tnode" style={{ padding: "8px 12px", color: "var(--text-mut)" }}>
-                  {Icon.docs({ size: 14 })} No document outputs yet
+                  {Icon.docs({ size: 14 })} Noch keine Dokument-Outputs
                 </div>
               )}
             </div>
           </Panel>
-          <Panel title={selected ? "Preview · latest run output" : "Preview"}>
+          <Panel title={selected ? "Preview · letzter Run-Output" : "Preview"}>
             <div className="wb-pad">
               {selected?.assistantResult ? (
                 <pre className="code" style={{ whiteSpace: "pre-wrap" }}>{previewText(String(selected.assistantResult))}</pre>
               ) : (
                 <EmptyState
-                  title="Nothing to preview"
-                  body="Start a run from the Workbench. This page only shows real session outputs."
-                  action={<Link href="/workbench" className="btn btn-sm btn-primary">Open Workbench</Link>}
+                  title="Nichts zum Anzeigen"
+                  body="Starte einen Run in der Werkbank. Diese Seite zeigt nur echte Session-Outputs."
+                  action={<Link href="/workbench" className="btn btn-sm btn-primary">Werkbank öffnen</Link>}
                 />
               )}
             </div>
           </Panel>
-          <Panel title="Cite · Export">
+          <Panel title="Zitate · Export">
             <div className="wb-pad stack" style={{ gap: 10 }}>
-              <button className="btn btn-sm">Export PDF <Badge tone="violet">planned</Badge></button>
+              <button className="btn btn-sm">Export PDF <Badge tone="violet">geplant</Badge></button>
               <button className="btn btn-sm">Export MD</button>
-              <p style={{ fontSize: 12, color: "var(--text-dim)" }}>Source collector and citations appear here.</p>
+              <p style={{ fontSize: 12, color: "var(--text-dim)" }}>Source-Collector und Zitate erscheinen hier.</p>
             </div>
           </Panel>
         </div>

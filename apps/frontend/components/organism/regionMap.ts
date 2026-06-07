@@ -47,11 +47,11 @@ export const STATE_COLOR: Record<RunState, string> = {
 };
 
 export const STATE_LABEL: Record<RunState, string> = {
-  idle: "IDLE",
-  planning: "PLANNING",
-  executing: "EXECUTING",
-  verifying: "VERIFYING",
-  blocked: "BLOCKED",
+  idle: "RUHE",
+  planning: "PLANUNG",
+  executing: "AUSFÜHRUNG",
+  verifying: "PRÜFUNG",
+  blocked: "BLOCKIERT",
 };
 
 export interface Hub {
@@ -75,11 +75,11 @@ export const ORGANISM_AGENTS = ["planner", "coder", "tester", "devops"] as const
  * (collective-organism view — central brain + radial data/control links).
  */
 export const HUBS: Hub[] = [
-  { id: "workbench", label: "WORKBENCH", color: C.cyan, route: "/workbench", layer: "FE", agents: ["planner", "coder", "tester", "devops"], pos: [0, 2.35, 0.35] },
-  { id: "agents", label: "AGENTS", color: C.violet, route: "/agents", layer: "AP", agents: ["planner", "coder", "tester", "devops"], pos: [1.66, 1.66, -0.35] },
+  { id: "workbench", label: "WERKBANK", color: C.cyan, route: "/workbench", layer: "FE", agents: ["planner", "coder", "tester", "devops"], pos: [0, 2.35, 0.35] },
+  { id: "agents", label: "AGENTEN", color: C.violet, route: "/agents", layer: "AP", agents: ["planner", "coder", "tester", "devops"], pos: [1.66, 1.66, -0.35] },
   { id: "tools", label: "TOOLS / MCP", color: C.amber, route: "/tools", layer: "MCP", agents: ["coder", "tester", "devops"], pos: [2.35, 0, 0.35] },
-  { id: "models", label: "MODELS", color: C.green, route: "/marketplace", layer: "LLM", agents: ["planner", "coder", "tester", "devops"], pos: [1.66, -1.66, -0.35] },
-  { id: "marketplace", label: "MARKETPLACE", color: C.magenta, route: "/marketplace", layer: "MCP", agents: ["planner"], pos: [0, -2.35, 0.35] },
+  { id: "models", label: "MODELLE", color: C.green, route: "/marketplace", layer: "LLM", agents: ["planner", "coder", "tester", "devops"], pos: [1.66, -1.66, -0.35] },
+  { id: "marketplace", label: "MARKTPLATZ", color: C.magenta, route: "/marketplace", layer: "MCP", agents: ["planner"], pos: [0, -2.35, 0.35] },
   { id: "observe", label: "OBSERVABILITY", color: "#fbbf24", route: "/observe", layer: "OBS", agents: ["tester", "devops"], pos: [-1.66, -1.66, -0.35] },
   { id: "memory", label: "MEMORY", color: C.blue, route: "/files", layer: "MEM", agents: ["planner", "coder", "tester", "devops"], pos: [-2.35, 0, 0.35] },
   { id: "cloud", label: "CLOUD", color: C.cyan, route: "/technology", layer: "ORC", agents: ["devops"], pos: [-1.66, 1.66, -0.35] },

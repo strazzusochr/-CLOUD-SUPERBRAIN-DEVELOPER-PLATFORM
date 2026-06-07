@@ -32,10 +32,18 @@ export default function AppShell({
     blocked: "var(--red)",
   };
 
+  const runLabel: Record<string, string> = {
+    idle: "RUHE",
+    planning: "PLANUNG",
+    executing: "AUSFÜHRUNG",
+    verifying: "PRÜFUNG",
+    blocked: "BLOCKIERT",
+  };
+
   return (
     <div className="app-shell">
-      <nav className="rail" aria-label="Primary">
-        <Link href="/home" className="rail-logo" aria-label="Cloud Superbrain home" />
+      <nav className="rail" aria-label="Primär">
+        <Link href="/home" className="rail-logo" aria-label="Cloud Superbrain Start" />
         {railGroups.map((group, gi) => (
           <div key={gi} style={{ display: "contents" }}>
             {gi > 0 ? <div className="rail-divider" /> : null}
@@ -74,17 +82,17 @@ export default function AppShell({
         </div>
         <div className="cmdk" role="search">
           {Icon.search({ size: 15 })}
-          <span>Search or run a command</span>
+          <span>Suchen oder Kommando ausführen</span>
           <kbd>⌘K</kbd>
         </div>
         <div className="grow" />
         <LayerVerifyPill />
-        <span className="runpill" title="Active run state">
+        <span className="runpill" title="Aktueller Run-Status">
           <span className="dot pulse" style={{ background: runColor[runState] }} />
-          {runState.toUpperCase()}
+          {runLabel[runState]}
         </span>
-        <span className="badge badge-mut" title="All write/deploy gates closed">
-          {Icon.shield({ size: 13 })} Gates: CLOSED
+        <span className="badge badge-mut" title="Alle Write/Deploy-Gates geschlossen">
+          {Icon.shield({ size: 13 })} Gates: GESCHLOSSEN
         </span>
         <div className="avatar" aria-hidden="true">
           AI

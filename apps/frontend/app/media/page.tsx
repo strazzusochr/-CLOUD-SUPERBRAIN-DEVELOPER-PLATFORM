@@ -1,26 +1,26 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, EmptyState, Badge } from "../../components/ui";
-import { fetchMasterPlan, fetchRecentTasks } from "../../lib/agentApi";
+import { fetchRecentTasks } from "../../lib/agentApi";
 
 export const metadata = { title: "Media Workflow — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
 
 export default async function MediaPage() {
-  const [master, tasks] = await Promise.all([fetchMasterPlan(), fetchRecentTasks()]);
-  const live = !!master;
+  const tasks = await fetchRecentTasks();
+  const live = !!tasks;
   const list = tasks?.tasks ?? [];
   const filtered = list.filter((t) => /(media|image|video|audio|voice|speech|music)/i.test(`${t.taskType} ${t.description}`));
   return (
     <AppShell crumb="Media" runState="idle">
       <div className="page-wide">
         <PageHeader
-          eyebrow="Media Workflow"
+          eyebrow="Medien"
           title="Images · Video · Audio"
-          subtitle="Media-oriented work area. This surface is read-only: it shows media-related tasks when present and stays empty otherwise."
+          subtitle="Medien-orientierter Arbeitsbereich. Read-only: zeigt media-nahe Tasks, wenn vorhanden, sonst bleibt es leer."
           actions={
             <>
-              {live ? <Badge tone="green">● Live · {master!.overallPercent}%</Badge> : <Badge tone="mut">offline</Badge>}
+              {live ? <Badge tone="green">● Live</Badge> : <Badge tone="mut">offline</Badge>}
               {tasks ? <Badge tone="mut">queue {tasks.queueDepth}</Badge> : null}
             </>
           }
@@ -38,7 +38,7 @@ export default async function MediaPage() {
                 </div>
               )) : (
                 <div className="frame-body" style={{ height: 64, borderRadius: 8, border: "1px solid var(--border)", display: "flex", alignItems: "center", padding: 10, color: "var(--text-mut)" }}>
-                  No media tasks yet
+                  Noch keine Medien-Tasks
                 </div>
               )}
             </div>
@@ -46,21 +46,21 @@ export default async function MediaPage() {
           <Panel title="Media stage">
             <div className="wb-pad">
               <div className="chips" style={{ marginBottom: 12 }}>
-                <span className="chip active">Image</span>
+                <span className="chip active">Bild</span>
                 <span className="chip">Video</span>
                 <span className="chip">Audio</span>
               </div>
               <EmptyState
-                title={filtered.length ? "Media tasks exist" : "No media generated yet"}
-                body={filtered.length ? "Create output through the Workbench; this page only projects task metadata." : "Start a brief from the Workbench with mode=Media. This page does not fabricate previews."}
-                action={<Link href="/workbench" className="btn btn-sm btn-primary">Open Workbench</Link>}
+                title={filtered.length ? "Medien-Tasks vorhanden" : "Noch keine Medien generiert"}
+                body={filtered.length ? "Erzeuge Output über die Werkbank; diese Seite projiziert nur Task-Metadaten." : "Starte ein Briefing in der Werkbank mit mode=Media. Diese Seite erfindet keine Previews."}
+                action={<Link href="/workbench" className="btn btn-sm btn-primary">Werkbank öffnen</Link>}
               />
             </div>
           </Panel>
-          <Panel title="Prompt brief">
+          <Panel title="Prompt-Brief">
             <div className="wb-pad">
               <p style={{ fontSize: 13, color: "var(--text-mut)" }}>
-                Describe the image, video or audio you want. Imports and previews appear here first.
+                Beschreibe das Bild/Video/Audio. Imports und Previews erscheinen hier zuerst.
               </p>
             </div>
           </Panel>

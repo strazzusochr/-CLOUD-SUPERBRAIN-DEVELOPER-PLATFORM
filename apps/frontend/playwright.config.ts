@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import path from "node:path";
 
 const PORT = 4040;
 
@@ -13,6 +14,7 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
+    reducedMotion: "no-preference",
   },
   projects: [
     {
@@ -21,7 +23,12 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
         launchOptions: {
           // Software WebGL so the 3D organism renders in headless CI.
-          args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+          args: [
+            "--use-gl=swiftshader",
+            "--ignore-gpu-blocklist",
+            "--enable-logging=stderr",
+            `--log-file=${path.join(process.cwd(), "test-results", "chromium-debug.log")}`,
+          ],
         },
       },
     },
@@ -30,6 +37,6 @@ export default defineConfig({
     command: `node node_modules/next/dist/bin/next start -p ${PORT}`,
     url: `http://localhost:${PORT}/`,
     timeout: 120_000,
-    reuseExistingServer: true,
+    reuseExistingServer: false,
   },
 });

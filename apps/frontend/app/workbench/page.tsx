@@ -4,7 +4,7 @@ import CortexCanvas from "../../components/organism/CortexCanvas";
 import { Panel, Badge, StatusDot, Note } from "../../components/ui";
 import { Icon, WORKSPACE_PAGES } from "../../lib/nav";
 import { LAYERS } from "../../components/organism/regionMap";
-import { fetchAuditRecent, fetchCompletionGate, fetchLiveAgents, fetchMasterPlan, fetchRecentSessions, fetchRecentTasks } from "../../lib/agentApi";
+import { fetchAuditRecent, fetchCompletionGate, fetchLiveAgents, fetchRecentSessions, fetchRecentTasks } from "../../lib/agentApi";
 
 export const metadata = { title: "Workbench — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -20,15 +20,14 @@ function shortTime(ts: string | null) {
 }
 
 export default async function WorkbenchPage() {
-  const [master, tasks, sessions, audit, roster, completion] = await Promise.all([
-    fetchMasterPlan(),
+  const [tasks, sessions, audit, roster, completion] = await Promise.all([
     fetchRecentTasks(),
     fetchRecentSessions(),
     fetchAuditRecent(),
     fetchLiveAgents(),
     fetchCompletionGate(),
   ]);
-  const live = !!master;
+  const live = !!tasks || !!sessions || !!audit || !!roster;
   const topSession = sessions && sessions.length ? sessions[0] : null;
   const topTask = tasks?.tasks?.length ? tasks.tasks[0] : null;
   const layerMeta = Object.fromEntries(LAYERS.map((l) => [l.code, l])) as Record<string, (typeof LAYERS)[number]>;
@@ -47,13 +46,12 @@ export default async function WorkbenchPage() {
         <div className="panel panel-head" style={{ marginBottom: 16, borderRadius: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Badge tone="cyan">{Icon.workbench({ size: 13 })} superbrain-game-engine</Badge>
-            {live ? <Badge tone="green">● Live · {master!.overallPercent}%</Badge> : <Badge tone="mut">offline</Badge>}
-            {master?.integrityStatus ? <Badge tone={master.integrityStatus === "verified" ? "green" : "amber"}>{master.integrityStatus}</Badge> : null}
+            {live ? <Badge tone="green">● Live</Badge> : <Badge tone="mut">offline</Badge>}
             {tasks ? <Badge tone="mut">queue {tasks.queueDepth}</Badge> : null}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Link href="/organism?run_id=active" className="btn btn-sm btn-ghost">
-              {Icon.organism({ size: 14 })} Open cortex
+              {Icon.organism({ size: 14 })} Cortex öffnen
             </Link>
             {roster ? <Badge tone="violet">{roster.agents.filter((a) => a.hasSession).length} active</Badge> : <Badge tone="mut">roster</Badge>}
           </div>
@@ -67,7 +65,7 @@ export default async function WorkbenchPage() {
             </div>
             <div className="wb-pad tree">
               {!sessions ? (
-                <div className="note">Runtime unreachable. Start the dev stack and reload.</div>
+                <div className="note">Runtime nicht erreichbar. Dev-Stack starten und neu laden.</div>
               ) : sessions.length ? (
                 sessions.slice(0, 10).map((s) => (
                   <div key={s.id} className="tnode" style={{ paddingLeft: 8 }}>
@@ -78,7 +76,7 @@ export default async function WorkbenchPage() {
                   </div>
                 ))
               ) : (
-                <div className="note">No sessions yet.</div>
+                <div className="note">Noch keine Sessions.</div>
               )}
             </div>
           </aside>
@@ -90,7 +88,7 @@ export default async function WorkbenchPage() {
             </div>
             <div className="wb-pad" style={{ flex: 1 }}>
               {!tasks ? (
-                <div className="note">Tasks feed unavailable.</div>
+                <div className="note">Task-Feed nicht verfügbar.</div>
               ) : tasks.tasks.length ? (
                 <div className="list">
                   {tasks.tasks.slice(0, 12).map((t) => (
@@ -103,7 +101,7 @@ export default async function WorkbenchPage() {
                   ))}
                 </div>
               ) : (
-                <div className="note">No tasks yet.</div>
+                <div className="note">Noch keine Tasks.</div>
               )}
             </div>
           </main>
@@ -117,7 +115,7 @@ export default async function WorkbenchPage() {
                 <CortexCanvas runState="planning" nodeCount={420} interactive={false} showRegions={false} />
               </div>
               {!audit ? (
-                <div className="note">Audit feed unavailable.</div>
+                <div className="note">Audit-Feed nicht verfügbar.</div>
               ) : audit.length ? (
                 <div className="list">
                   {audit.slice(0, 6).map((e) => (
@@ -129,55 +127,17 @@ export default async function WorkbenchPage() {
                   ))}
                 </div>
               ) : (
-                <div className="note">No audit events yet.</div>
+                <div className="note">Noch keine Audit-Events.</div>
               )}
             </div>
           </aside>
         </div>
 
         <div className="wb-dock">
-          <Panel title="Master Plan (live)">
-            <div className="wb-pad">
-              {!master ? (
-                <Note>Runtime unreachable: master plan not loaded.</Note>
-              ) : (
-                <>
-                  <div className="list" style={{ marginTop: 4 }}>
-                    <div className="lrow" style={{ padding: "7px 0" }}>Overall <span className="meta"><Badge tone="cyan">{master.overallPercent}%</Badge></span></div>
-                    <div className="lrow" style={{ padding: "7px 0" }}>Integrity <span className="meta"><Badge tone={master.integrityStatus === "verified" ? "green" : "amber"}>{master.integrityStatus}</Badge></span></div>
-                    <div className="lrow" style={{ padding: "7px 0" }}>Binding doc <span className="meta mono">{master.bindingDocument ?? ""}</span></div>
-                  </div>
-                  <div className="chips" style={{ marginTop: 10 }}>
-                    {master.logicalRoles.slice(0, 6).map((r) => <span key={r} className="chip active">{r}</span>)}
-                  </div>
-                </>
-              )}
-            </div>
-          </Panel>
-
-          <Panel title="Dispatch endpoints">
-            <div className="wb-pad">
-              {!master ? (
-                <Note>Unavailable.</Note>
-              ) : master.dispatchEndpoints.length ? (
-                <div className="list">
-                  {master.dispatchEndpoints.slice(0, 10).map((e) => (
-                    <div key={e} className="lrow" style={{ padding: "7px 0" }}>
-                      {Icon.tools({ size: 14 })}
-                      <span className="mono">{e}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <Note>No endpoints reported.</Note>
-              )}
-            </div>
-          </Panel>
-
-          <Panel title="Completion gate">
+          <Panel title="Completion-Gate">
             <div className="wb-pad">
               {!completion ? (
-                <Note>Unavailable.</Note>
+                <Note>Nicht verfügbar.</Note>
               ) : (
                 <>
                   <Note>Fail-closed by design.</Note>
@@ -197,7 +157,7 @@ export default async function WorkbenchPage() {
           </Panel>
 
           <Panel
-            title="Workspace surfaces (22)"
+            title="Workspace-Surfaces (22)"
             actions={
               <Badge tone={WORKSPACE_PAGES.length === 22 ? "green" : "amber"}>
                 {WORKSPACE_PAGES.length}/22

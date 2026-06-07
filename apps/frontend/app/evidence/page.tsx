@@ -2,39 +2,36 @@ import AppShell from "../../components/shell/AppShell";
 import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Badge, StatusDot } from "../../components/ui";
 import { VERIFIERS, CLOSED_GATES } from "../../lib/platform";
-import { fetchMetrics, fetchProgress } from "../../lib/agentApi";
+import { fetchMetrics } from "../../lib/agentApi";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Proof / Evidence — Cloud Superbrain" };
+export const metadata = { title: "Nachweise — Cloud Superbrain" };
 
 export default async function EvidencePage() {
-  const [metrics, progress] = await Promise.all([fetchMetrics(), fetchProgress()]);
+  const metrics = await fetchMetrics();
   const live = !!metrics;
-  const overall = typeof progress?.overall_percent === "number" ? progress.overall_percent : null;
 
   return (
     <AppShell crumb="Evidence" runState="verifying">
       <div className="page-wide">
         <PageHeader
-          eyebrow="Proof / Evidence"
-          title="Verifier results & claim guard"
-          subtitle="Every claim must map to a verifier or runtime evidence. This UI shows live runtime signals when reachable and stays unverified for local-only checks until a verifier run exists."
+          eyebrow="Nachweise"
+          title="Verifier-Ergebnisse & Claim-Guard"
+          subtitle="Jede Aussage muss durch Verifier oder Runtime-Evidence belegt sein. Wenn die Runtime erreichbar ist, zeigt diese Seite live Signale; sonst bleibt alles ehrlich unverified."
           actions={
             <>
-              {live ? <Badge tone="green">● Live · runtime metrics</Badge> : <Badge tone="mut">offline</Badge>}
-              {typeof overall === "number" ? <Badge tone="cyan">{overall}% progress</Badge> : null}
-              {progress?.last_verified ? <Badge tone="mut">last verified {progress.last_verified}</Badge> : null}
+              {live ? <Badge tone="green">● Live · Runtime-Metriken</Badge> : <Badge tone="mut">offline</Badge>}
             </>
           }
         />
 
-        <SevenLayerBar title="Every claim verified across 7 cloud layers" />
+        <SevenLayerBar title="Jeder Claim: verifiziert über 7 Cloud-Layer" />
 
         {live ? (
-          <Panel title="Live runtime verification (GET /api/v1/metrics)" style={{ marginBottom: 16 }} actions={<Badge tone="cyan">read-only · no token values</Badge>}>
+          <Panel title="Live Runtime-Verification (GET /api/v1/metrics)" style={{ marginBottom: 16 }} actions={<Badge tone="cyan">read-only · keine Token-Werte</Badge>}>
             <div className="grid cols-2" style={{ gap: "0 24px" }}>
               <div>
-                <p className="inspect-label" style={{ marginTop: 0 }}>External gates ({metrics!.gates.filter((g) => g.ok).length}/{metrics!.gates.length} verified)</p>
+                <p className="inspect-label" style={{ marginTop: 0 }}>Externe Gates ({metrics!.gates.filter((g) => g.ok).length}/{metrics!.gates.length} verifiziert)</p>
                 <div className="ev-grid">
                   {metrics!.gates.map((g) => (
                     <div key={g.name} className="ev-row">
@@ -46,7 +43,7 @@ export default async function EvidencePage() {
                 </div>
               </div>
               <div>
-                <p className="inspect-label" style={{ marginTop: 0 }}>Runtime services ({metrics!.services.filter((s) => s.up).length}/{metrics!.services.length} healthy)</p>
+                <p className="inspect-label" style={{ marginTop: 0 }}>Runtime-Services ({metrics!.services.filter((s) => s.up).length}/{metrics!.services.length} healthy)</p>
                 <div className="ev-grid">
                   {metrics!.services.map((s) => (
                     <div key={s.name} className="ev-row">
@@ -62,9 +59,9 @@ export default async function EvidencePage() {
         ) : null}
 
         <div className="grid" style={{ gridTemplateColumns: "1.2fr 0.8fr" }}>
-          <Panel title="Verifier scripts (not executed by this UI)">
+          <Panel title="Verifier-Skripte (werden nicht von dieser UI ausgeführt)">
             <table className="tbl">
-              <thead><tr><th>Script</th><th>Status</th></tr></thead>
+              <thead><tr><th>Skript</th><th>Status</th></tr></thead>
               <tbody>
                 {VERIFIERS.map((v) => (
                   <tr key={v}>
@@ -76,30 +73,14 @@ export default async function EvidencePage() {
             </table>
             <div className="wb-pad" style={{ paddingTop: 10 }}>
               <span style={{ fontSize: 12, color: "var(--text-dim)" }}>
-                Run verifiers locally to generate evidence artifacts. This page does not claim PASS without a run.
+                Verifier lokal ausführen, um Evidence-Artefakte zu erzeugen. Diese Seite claimt kein PASS ohne Run.
               </span>
             </div>
           </Panel>
           <aside className="stack">
-            <Panel title="Progress snapshot" pad>
-              <div className="stack" style={{ gap: 6 }}>
-                <div className="row" style={{ justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-mut)" }}>Overall</span>
-                  <span className="mono">{typeof overall === "number" ? `${overall}%` : "—"}</span>
-                </div>
-                <div className="row" style={{ justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-mut)" }}>Source</span>
-                  <span className="mono">{progress?.progress_source ?? "—"}</span>
-                </div>
-                <div className="row" style={{ justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-mut)" }}>Integrity</span>
-                  <span className="mono">{progress ? "manifest-backed" : "—"}</span>
-                </div>
-              </div>
-            </Panel>
-            <Panel title="Claim guard" pad>
+            <Panel title="Claim-Guard" pad>
               <div className="note blocked">
-                Hard non-claims until a new proof exists:
+                Hard Non-Claims bis neue Proofs existieren:
               </div>
               <div className="chip-wrap" style={{ marginTop: 8 }}>
                 {CLOSED_GATES.map((g) => (

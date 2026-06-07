@@ -28,18 +28,18 @@ const TOOLSTACK: { group: string; items: string[] }[] = [
 
 export default function TechnologyPage() {
   return (
-    <AppShell crumb="Technology" runState="idle">
+    <AppShell crumb="Technologie" runState="idle">
       <div className="page-wide">
         <PageHeader
-          eyebrow="Architecture"
-          title={`7 Layers × ${PROVIDERS.length} Cloud Providers`}
-          subtitle="The seven architecture layers and the real cloud providers that back each one. The mapping mirrors the backend cloud inventory (GET /api/v1/clouds); every provider read is read-only and token-gated, and tokens under .codex/secrets are surfaced as status only — never printed."
-          actions={<Badge tone="green">layers live_verified · local runtime</Badge>}
+          eyebrow="Architektur"
+          title={`7 Layer × ${PROVIDERS.length} Cloud-Provider`}
+          subtitle="Die sieben Architektur-Layer und die realen Provider dahinter. Mapping spiegelt das Backend-Inventar (GET /api/v1/clouds). Provider-Reads sind read-only; es werden nur Status-Metadaten angezeigt (keine Token-Werte)."
+          actions={<Badge tone="green">Layer live_verified · lokale Runtime</Badge>}
         />
 
         <SevenLayerBar />
 
-        <Panel title="Seven-layer cloud stack">
+        <Panel title="7-Layer Cloud-Stack">
           <div className="stack-list">
             {LAYERS.map((l) => (
               <div key={l.code} className="layer-row layer-row-flat">
@@ -61,18 +61,17 @@ export default function TechnologyPage() {
         </Panel>
 
         <Note>
-          Live provider status (<span className="mono">live_verified</span> /{" "}
-          <span className="mono">configured</span> / <span className="mono">action_required</span>) is
-          projected by the backend cloud inventory at <span className="mono">GET /api/v1/clouds/layers</span>.
-          In the local docker-compose runtime all seven layers report{" "}
-          <span className="mono">live_verified</span> (dry-run, no live provider call). No token value
-          is ever returned; production deploy, registry push and provider writes stay gate-closed.
+          Live Provider-Status (<span className="mono">live_verified</span> /{" "}
+          <span className="mono">configured</span> / <span className="mono">action_required</span>) kommt aus{" "}
+          <span className="mono">GET /api/v1/clouds/layers</span>. In der lokalen docker-compose Runtime
+          melden alle sieben Layer <span className="mono">live_verified</span> (dry-run, keine live Provider-Calls).
+          Token-Werte werden nie zurückgegeben; Deploy/Registry/Provider-Writes bleiben gate-closed.
         </Note>
 
         <div className="page-head" style={{ margin: "22px 0 12px" }}>
           <div>
-            <div className="eyebrow">Cloud provider inventory</div>
-            <h2 style={{ fontSize: 17 }}>{PROVIDERS.length} non-secret provider surfaces</h2>
+            <div className="eyebrow">Cloud-Provider Inventar</div>
+            <h2 style={{ fontSize: 17 }}>{PROVIDERS.length} Provider-Surfaces (ohne Secrets)</h2>
           </div>
           <Badge tone="cyan">read-only · token-gated</Badge>
         </div>
@@ -82,7 +81,7 @@ export default function TechnologyPage() {
               <div className="prov-head">
                 <span className="prov-dot" style={{ background: p.color }} />
                 <h3>{p.label}</h3>
-                <Badge tone={p.optional ? "violet" : "green"}>{p.optional ? "optional" : "core"}</Badge>
+                <Badge tone={p.optional ? "violet" : "green"}>{p.optional ? "optional" : "kern"}</Badge>
               </div>
               <p className="prov-role">{p.role}</p>
               <div className="prov-layers">
@@ -101,8 +100,8 @@ export default function TechnologyPage() {
 
         <div className="page-head" style={{ margin: "22px 0 12px" }}>
           <div>
-            <div className="eyebrow">Runtime technologies</div>
-            <h2 style={{ fontSize: 17 }}>What actually runs in this repo</h2>
+            <div className="eyebrow">Runtime-Technologien</div>
+            <h2 style={{ fontSize: 17 }}>Was hier wirklich läuft</h2>
           </div>
         </div>
         <div className="grid cols-3" style={{ marginBottom: 22 }}>
@@ -122,7 +121,7 @@ export default function TechnologyPage() {
         <div className="page-head" style={{ margin: "22px 0 12px" }}>
           <div>
             <div className="eyebrow">Toolstack</div>
-            <h2 style={{ fontSize: 17 }}>Capabilities by category</h2>
+            <h2 style={{ fontSize: 17 }}>Fähigkeiten nach Kategorie</h2>
           </div>
         </div>
         <div className="grid cols-4">

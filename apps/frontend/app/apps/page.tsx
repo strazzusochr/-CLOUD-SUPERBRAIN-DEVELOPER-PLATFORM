@@ -1,7 +1,7 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Badge, EmptyState } from "../../components/ui";
-import { fetchMasterPlan, fetchRecentTasks, fetchRecentSessions } from "../../lib/agentApi";
+import { fetchRecentTasks, fetchRecentSessions } from "../../lib/agentApi";
 
 export const metadata = { title: "Apps / Generated Output — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -15,8 +15,8 @@ function appHint(t: { taskType: string; description: string }) {
 }
 
 export default async function AppsPage() {
-  const [master, tasks, sessions] = await Promise.all([fetchMasterPlan(), fetchRecentTasks(), fetchRecentSessions()]);
-  const live = !!master;
+  const [tasks, sessions] = await Promise.all([fetchRecentTasks(), fetchRecentSessions()]);
+  const live = !!tasks || !!sessions;
   const list = tasks?.tasks ?? [];
   const filtered = list.filter((t) => /(app|ui|dashboard|frontend|next|react)/i.test(`${t.taskType} ${t.description}`));
   const shown = (filtered.length ? filtered : list).slice(0, 12);
@@ -24,15 +24,15 @@ export default async function AppsPage() {
     <AppShell crumb="Apps" runState="idle">
       <div className="page-wide">
         <PageHeader
-          eyebrow="Apps / Generated Output"
-          title="Generated apps"
-          subtitle="Runtime-projected output index: recent sessions and recent tasks (read-only). No fake cards — if nothing exists yet, the list stays empty."
+          eyebrow="Apps / Output"
+          title="Generierte Apps"
+          subtitle="Read-only Output-Index aus echten Tasks/Sessions. Keine Fake-Karten: wenn nichts existiert, bleibt die Liste leer."
           actions={
             <>
-              {live ? <Badge tone="green">● Live · {master!.overallPercent}%</Badge> : <Badge tone="mut">offline</Badge>}
+              {live ? <Badge tone="green">● Live</Badge> : <Badge tone="mut">offline</Badge>}
               {tasks ? <Badge tone="mut">queue {tasks.queueDepth}</Badge> : null}
               {sessions ? <Badge tone="violet">{sessions.length} sessions</Badge> : null}
-              <Link href="/workbench" className="btn btn-sm btn-primary">New from Workbench</Link>
+              <Link href="/workbench" className="btn btn-sm btn-primary">Neu in der Werkbank</Link>
             </>
           }
         />
@@ -50,7 +50,7 @@ export default async function AppsPage() {
                     <Badge tone="mut">{t.agentType}</Badge>
                   </div>
                   <div className="actions">
-                    <Link href="/workbench" className="btn btn-sm btn-primary">Open</Link>
+                    <Link href="/workbench" className="btn btn-sm btn-primary">Öffnen</Link>
                     <Link href="/evidence" className="btn btn-sm btn-ghost">Review</Link>
                   </div>
                 </div>
@@ -59,9 +59,9 @@ export default async function AppsPage() {
           }) : (
             <div className="panel panel-pad" style={{ gridColumn: "1 / -1" }}>
               <EmptyState
-                title="No app outputs yet"
-                body="Start from the Workbench. This surface lists real tasks/sessions only."
-                action={<Link href="/workbench" className="btn btn-sm btn-primary">Open Workbench</Link>}
+                title="Noch keine App-Outputs"
+                body="Starte in der Werkbank. Diese Surface listet nur echte Tasks/Sessions."
+                action={<Link href="/workbench" className="btn btn-sm btn-primary">Werkbank öffnen</Link>}
               />
             </div>
           )}

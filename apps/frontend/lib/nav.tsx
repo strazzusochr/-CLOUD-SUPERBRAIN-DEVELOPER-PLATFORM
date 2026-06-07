@@ -66,28 +66,28 @@ export type NavItem = {
 /** Primary rail — workbench-first, evidence/diagnostics intentionally low. */
 export const railGroups: NavItem[][] = [
   [
-    { id: "home", no: 3, label: "Home", route: "/home", icon: "home", layer: "FE" },
-    { id: "workbench", no: 4, label: "Workbench", route: "/workbench", icon: "workbench", layer: "FE" },
-    { id: "organism", no: 7, label: "Organism", route: "/organism", icon: "organism", layer: "FE" },
-    { id: "agents", no: 8, label: "Agents", route: "/agents", icon: "agents", layer: "AP" },
-    { id: "files", no: 6, label: "Files & Knowledge", route: "/files", icon: "files", layer: "MEM" },
-    { id: "files-local", no: 5, label: "Local Files (read-only)", route: "/files/local", icon: "filesLocal", layer: "MEM" },
-    { id: "tools", no: 9, label: "Tools / Cloud Hub", route: "/tools", icon: "tools", layer: "MCP" },
-    { id: "marketplace", no: 10, label: "Marketplace", route: "/marketplace", icon: "marketplace", layer: "LLM" },
-    { id: "observe", no: 11, label: "Observe", route: "/observe", icon: "observe", layer: "OBS" },
+    { id: "home", no: 3, label: "Start", route: "/home", icon: "home", layer: "FE" },
+    { id: "workbench", no: 4, label: "Werkbank", route: "/workbench", icon: "workbench", layer: "FE" },
+    { id: "organism", no: 7, label: "Organismus", route: "/organism", icon: "organism", layer: "FE" },
+    { id: "agents", no: 8, label: "Agenten", route: "/agents", icon: "agents", layer: "AP" },
+    { id: "files", no: 6, label: "Dateien & Wissen", route: "/files", icon: "files", layer: "MEM" },
+    { id: "files-local", no: 5, label: "Lokale Dateien (nur lesen)", route: "/files/local", icon: "filesLocal", layer: "MEM" },
+    { id: "tools", no: 9, label: "Tools / Cloud-Hub", route: "/tools", icon: "tools", layer: "MCP" },
+    { id: "marketplace", no: 10, label: "Marktplatz", route: "/marketplace", icon: "marketplace", layer: "LLM" },
+    { id: "observe", no: 11, label: "Beobachten", route: "/observe", icon: "observe", layer: "OBS" },
   ],
   [
-    { id: "games", no: 19, label: "Games", route: "/games", icon: "games", layer: "FE" },
+    { id: "games", no: 19, label: "Spiele", route: "/games", icon: "games", layer: "FE" },
     { id: "apps", no: 22, label: "Apps", route: "/apps", icon: "apps", layer: "FE" },
-    { id: "media", no: 20, label: "Media", route: "/media", icon: "media", layer: "FE" },
-    { id: "docs-output", no: 21, label: "Documents", route: "/docs-output", icon: "docs", layer: "OBS" },
+    { id: "media", no: 20, label: "Medien", route: "/media", icon: "media", layer: "FE" },
+    { id: "docs-output", no: 21, label: "Dokumente", route: "/docs-output", icon: "docs", layer: "OBS" },
   ],
   [
-    { id: "evidence", no: 12, label: "Evidence", route: "/evidence", icon: "evidence", layer: "OBS" },
-    { id: "diagnostics", no: 14, label: "Diagnostics / Archive", route: "/diagnostics", icon: "diagnostics", layer: "OBS" },
+    { id: "evidence", no: 12, label: "Nachweise", route: "/evidence", icon: "evidence", layer: "OBS" },
+    { id: "diagnostics", no: 14, label: "Diagnose / Archiv", route: "/diagnostics", icon: "diagnostics", layer: "OBS" },
     { id: "design-system", no: 15, label: "Design System", route: "/design-system", icon: "design", layer: "FE" },
-    { id: "stack", no: 17, label: "Technology", route: "/technology", icon: "stack", layer: "ORC" },
-    { id: "settings", no: 13, label: "Settings", route: "/settings", icon: "settings", layer: "ORC" },
+    { id: "stack", no: 17, label: "Technologie", route: "/technology", icon: "stack", layer: "ORC" },
+    { id: "settings", no: 13, label: "Einstellungen", route: "/settings", icon: "settings", layer: "ORC" },
   ],
 ];
 
@@ -95,8 +95,8 @@ export const WORKSPACE_PAGES: NavItem[] = [
   ...railGroups.flat(),
   { id: "open-source", no: 18, label: "Open Source", route: "/open-source", icon: "open", layer: "FE" },
   { id: "login", no: 16, label: "Login / Onboarding", route: "/login", icon: "login", layer: "FE" },
-  { id: "organism-map", no: 1, label: "Organism · Map", route: "/organism/map", icon: "organism", layer: "FE" },
-  { id: "organism-replay", no: 2, label: "Organism · Replay", route: "/organism/replay", icon: "evidence", layer: "OBS" },
+  { id: "organism-map", no: 1, label: "Organismus · Karte", route: "/organism/map", icon: "organism", layer: "FE" },
+  { id: "organism-replay", no: 2, label: "Organismus · Replay", route: "/organism/replay", icon: "evidence", layer: "OBS" },
 ];
 
-export const SLOGAN = ["Build anything.", "Automate everything.", "Own your workflow."];
+export const SLOGAN = ["Bau alles.", "Automatisiere alles.", "Behalte Kontrolle."];

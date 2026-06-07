@@ -2,7 +2,7 @@ import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, Badge, EmptyState } from "../../components/ui";
 import { Icon } from "../../lib/nav";
-import { fetchMasterPlan, fetchRecentTasks } from "../../lib/agentApi";
+import { fetchRecentTasks } from "../../lib/agentApi";
 
 export const metadata = { title: "Games Workflow — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -10,22 +10,22 @@ export const dynamic = "force-dynamic";
 const TEMPLATES = ["Top-down", "Platformer", "Third-person", "Puzzle"];
 
 export default async function GamesPage() {
-  const [master, tasks] = await Promise.all([fetchMasterPlan(), fetchRecentTasks()]);
-  const live = !!master;
+  const tasks = await fetchRecentTasks();
+  const live = !!tasks;
   const list = tasks?.tasks ?? [];
   const filtered = list.filter((t) => /(game|r3f|three|webgl|scene|physics)/i.test(`${t.taskType} ${t.description}`));
   return (
     <AppShell crumb="Games" runState="idle">
       <div className="page-wide">
         <PageHeader
-          eyebrow="Games Workflow"
-          title="Game projects"
-          subtitle="Game-oriented work area. When the runtime is reachable, the panels project recent game-related tasks from the queue; otherwise they stay offline."
+          eyebrow="Spiele"
+          title="Spiele-Projekte"
+          subtitle="Game-orientierter Arbeitsbereich. Wenn die Runtime erreichbar ist, werden echte game-nahe Tasks angezeigt; sonst bleibt alles offline."
           actions={
             <>
-              {live ? <Badge tone="green">● Live · {master!.overallPercent}%</Badge> : <Badge tone="mut">offline</Badge>}
+              {live ? <Badge tone="green">● Live</Badge> : <Badge tone="mut">offline</Badge>}
               {tasks ? <Badge tone="mut">queue {tasks.queueDepth}</Badge> : null}
-              <Link href="/workbench" className="btn btn-sm">Open in Workbench</Link>
+              <Link href="/workbench" className="btn btn-sm">In Werkbank öffnen</Link>
             </>
           }
         />
@@ -37,7 +37,7 @@ export default async function GamesPage() {
               ))}
             </div>
           </Panel>
-          <Panel title="Scene preview · superbrain-game-engine">
+          <Panel title="Scene-Preview · superbrain-game-engine">
             <div className="wb-pad">
               {filtered.length ? (
                 <div className="stack" style={{ gap: 10 }}>
@@ -49,15 +49,15 @@ export default async function GamesPage() {
                     </div>
                   ))}
                   <div className="row" style={{ gap: 8 }}>
-                    <Link href="/workbench" className="btn btn-sm btn-primary">{Icon.play({ size: 13 })} Open Workbench</Link>
+                    <Link href="/workbench" className="btn btn-sm btn-primary">{Icon.play({ size: 13 })} Werkbank öffnen</Link>
                     <Link href="/organism" className="btn btn-sm btn-ghost">Cortex</Link>
                   </div>
                 </div>
               ) : (
                 <EmptyState
-                  title="No game tasks yet"
-                  body="Create a game task from the Workbench. This surface stays read-only and does not fabricate previews."
-                  action={<Link href="/workbench" className="btn btn-sm btn-primary">Open Workbench</Link>}
+                  title="Noch keine Game-Tasks"
+                  body="Erstelle einen Game-Task in der Werkbank. Diese Surface bleibt read-only und erfindet keine Previews."
+                  action={<Link href="/workbench" className="btn btn-sm btn-primary">Werkbank öffnen</Link>}
                 />
               )}
             </div>
@@ -65,9 +65,9 @@ export default async function GamesPage() {
           <Panel title="Assets">
             <div className="wb-pad">
               <EmptyState
-                title="No assets indexed here"
-                body="Asset inventory is not wired in this build. Use Files & Knowledge for the memory-backed view."
-                action={<Link href="/files" className="btn btn-sm btn-ghost">Open Files</Link>}
+                title="Keine Assets indiziert"
+                body="Asset-Inventar ist in diesem Build nicht verdrahtet. Nutze Dateien & Wissen für die memory-backed Ansicht."
+                action={<Link href="/files" className="btn btn-sm btn-ghost">Dateien öffnen</Link>}
               />
             </div>
           </Panel>

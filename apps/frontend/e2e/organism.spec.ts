@@ -38,12 +38,12 @@ test.describe("Cloud Superbrain platform", () => {
 
   test("consolidated pages render real content (not re-export shortcuts)", async ({ page }) => {
     await page.goto("/technology", { waitUntil: "domcontentloaded" });
-    await expect(page.getByText("Capabilities by category")).toBeVisible();
-    await expect(page.getByText("Cloud provider inventory")).toBeVisible();
+    await expect(page.getByText("Fähigkeiten nach Kategorie")).toBeVisible();
+    await expect(page.getByText("Cloud-Provider Inventar")).toBeVisible();
 
     await page.goto("/responsive", { waitUntil: "domcontentloaded" });
-    await expect(page.getByText("Breakpoint matrix")).toBeVisible();
-    await expect(page.getByText("Accessibility & reduced motion")).toBeVisible();
+    await expect(page.getByText("Breakpoint-Matrix")).toBeVisible();
+    await expect(page.getByText("Accessibility & Reduced Motion")).toBeVisible();
 
     await page.goto("/open-source", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("core components")).toBeVisible();
@@ -114,8 +114,8 @@ test.describe("Cloud Superbrain platform", () => {
     expect(hud).toMatch(/FPS/);
     expect(hud).toMatch(/ms/);
     // scene controls present
-    await expect(page.getByRole("button", { name: /Reset camera/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Reduced motion/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Kamera zurücksetzen/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Weniger Bewegung/ })).toBeVisible();
 
     // keyboard interaction loop must not error
     for (const k of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Equal", "Minus", "r"]) {
@@ -124,7 +124,7 @@ test.describe("Cloud Superbrain platform", () => {
     await page.waitForTimeout(200);
 
     // reduced-motion (motion-sickness guard) switches to the 2D fallback
-    await page.getByRole("button", { name: /Reduced motion/ }).click();
+    await page.getByRole("button", { name: /Weniger Bewegung/ }).click();
     await page.waitForTimeout(800);
     const hud2 = await page.locator(".org-hud").innerText();
     expect(hud2, "HUD shows 2D after reduced-motion").toMatch(/2D/);
