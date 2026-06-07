@@ -2,7 +2,8 @@ import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
 import CortexCanvas from "../../components/organism/CortexCanvas";
 import { Panel, Badge, StatusDot, Note } from "../../components/ui";
-import { Icon } from "../../lib/nav";
+import { Icon, WORKSPACE_PAGES } from "../../lib/nav";
+import { LAYERS } from "../../components/organism/regionMap";
 import { fetchAuditRecent, fetchCompletionGate, fetchLiveAgents, fetchMasterPlan, fetchRecentSessions, fetchRecentTasks } from "../../lib/agentApi";
 
 export const metadata = { title: "Workbench — Cloud Superbrain" };
@@ -30,6 +31,14 @@ export default async function WorkbenchPage() {
   const live = !!master;
   const topSession = sessions && sessions.length ? sessions[0] : null;
   const topTask = tasks?.tasks?.length ? tasks.tasks[0] : null;
+  const layerMeta = Object.fromEntries(LAYERS.map((l) => [l.code, l])) as Record<string, (typeof LAYERS)[number]>;
+  const pagesByLayer = WORKSPACE_PAGES.reduce(
+    (acc, p) => {
+      (acc[p.layer] ||= []).push(p);
+      return acc;
+    },
+    {} as Record<string, typeof WORKSPACE_PAGES>,
+  );
 
   return (
     <AppShell crumb="Workbench" runState="planning">
@@ -184,6 +193,44 @@ export default async function WorkbenchPage() {
                   </div>
                 </>
               )}
+            </div>
+          </Panel>
+
+          <Panel
+            title="Workspace surfaces (22)"
+            actions={
+              <Badge tone={WORKSPACE_PAGES.length === 22 ? "green" : "amber"}>
+                {WORKSPACE_PAGES.length}/22
+              </Badge>
+            }
+          >
+            <div className="wb-pad stack" style={{ gap: 14 }}>
+              {Object.entries(pagesByLayer).map(([layer, pages]) => {
+                const meta = layerMeta[layer];
+                const layerNo = meta ? meta.no : 0;
+                const layerColor = meta ? meta.color : "var(--text-mut)";
+                return (
+                  <div key={layer} className="panel" style={{ padding: 12, borderRadius: 12 }}>
+                    <div className="lrow" style={{ padding: "2px 0", gap: 10 }}>
+                      <span className="layer-tag" style={{ background: layerColor }}>
+                        L{layerNo || "?"}
+                      </span>
+                      <span style={{ fontWeight: 600 }}>
+                        {meta ? meta.label : layer}
+                      </span>
+                      <span className="meta mono">{layer}</span>
+                      <span className="meta" style={{ marginLeft: "auto" }}>{pages?.length ?? 0}</span>
+                    </div>
+                    <div className="chips" style={{ marginTop: 10 }}>
+                      {(pages ?? []).map((p) => (
+                        <Link key={p.id} href={p.route} className="chip active">
+                          {p.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </Panel>
         </div>
