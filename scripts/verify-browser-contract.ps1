@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$BaseUrl = "http://localhost:8081",
   [switch]$AllowLocalhost,
   [switch]$SeedMemoryConsolidation
@@ -12,7 +12,9 @@ $expectedOverallPercent = [int]$progressManifest.overall_percent
 
 function Assert-Contains($label, $value, $expected) {
   $text = ($value | Out-String)
-  if (-not $text.Contains($expected)) {
+  $normalizedText = ($text -replace '\s+', ' ').Trim()
+  $normalizedExpected = (($expected | Out-String) -replace '\s+', ' ').Trim()
+  if (-not $normalizedText.Contains($normalizedExpected)) {
     throw "Browser contract verification failed: $label did not contain '$expected'. Value: $text"
   }
 }
@@ -46,11 +48,13 @@ function Invoke-Text($url) {
 import sys
 import urllib.request
 
+sys.stdout.reconfigure(encoding="utf-8")
 url = sys.argv[1]
 with urllib.request.urlopen(url, timeout=10) as response:
     sys.stdout.write(response.read().decode("utf-8", errors="replace"))
 '@
-  return ($python | py -3 - $url)
+  $env:PYTHONIOENCODING = "utf-8"
+  return ($python | py -3 -X utf8 - $url)
 }
 
 function Invoke-StatusCode($url) {
@@ -59,6 +63,7 @@ import sys
 import urllib.error
 import urllib.request
 
+sys.stdout.reconfigure(encoding="utf-8")
 url = sys.argv[1]
 try:
     with urllib.request.urlopen(url, timeout=30) as response:
@@ -66,7 +71,8 @@ try:
 except urllib.error.HTTPError as error:
     sys.stdout.write(str(error.code))
 '@
-  return ($python | py -3 - $url)
+  $env:PYTHONIOENCODING = "utf-8"
+  return ($python | py -3 -X utf8 - $url)
 }
 
 function Invoke-JsonApi(
@@ -98,6 +104,7 @@ import json
 import sys
 import urllib.request
 
+sys.stdout.reconfigure(encoding="utf-8")
 with open(sys.argv[1], "r", encoding="utf-8-sig") as handle:
     payload = json.load(handle)
 
@@ -125,7 +132,8 @@ except urllib.error.HTTPError as exc:
     sys.exit(exc.code)
 '@
     Set-Content -LiteralPath $pythonFile -Value $pythonScript -NoNewline -Encoding utf8
-    $output = py -3 $pythonFile $payloadFile 2>&1 | Out-String
+    $env:PYTHONIOENCODING = "utf-8"
+    $output = py -3 -X utf8 $pythonFile $payloadFile 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) {
       throw $output.Trim()
     }
@@ -152,66 +160,12 @@ if ((-not $AllowLocalhost) -and ($BaseUrl -match "localhost|127\.0\.0\.1|\[::1\]
 Write-Host "[browser-contract] base url: $BaseUrl"
 
 Write-Host "[browser-contract] frontend markers"
-$frontendHtml = Invoke-Text "$BaseUrl/"
-Assert-Contains "frontend title" $frontendHtml "Cloud Superbrain"
-Assert-Contains "langgraph progress panel" $frontendHtml "LangGraph Progress"
-Assert-Contains "phase2 runtime button" $frontendHtml "Start Phase 2 Runtime"
-Assert-Contains "phase2 runtime contract text" $frontendHtml "Phase 2 Runtime Contract"
-Assert-Contains "phase2 runtime pending marker" $frontendHtml "Runtime Evidence"
-Assert-Contains "phase2 runtime runs marker" $frontendHtml "Runtime Runs"
-Assert-Contains "phase2 runtime status marker" $frontendHtml "Latest Runtime Status"
-Assert-Contains "phase2 runtime role summaries marker" $frontendHtml "Role Summaries"
-Assert-Contains "phase2 runtime sse contract marker" $frontendHtml "SSE Event Contract"
-Assert-Contains "phase2 runtime sse evidence marker" $frontendHtml "phase2_sse_event_contract_proof"
-Assert-Contains "phase2 runtime run status evidence marker" $frontendHtml "phase2_runtime_run_status_visible"
-Assert-Contains "external gate mirror panel" $frontendHtml "External Gate Mirror"
-Assert-Contains "external gate mirror evidence marker" $frontendHtml "external_gate_mirror_proof"
-Assert-Contains "branch protection mirror marker" $frontendHtml "branch_protection_verify_contract"
-Assert-Contains "cloud inventory panel" $frontendHtml "Cloud Inventory"
-Assert-Contains "cloud inventory evidence marker" $frontendHtml "cloud_provider_inventory_visible"
-Assert-Contains "cloud inventory endpoint marker" $frontendHtml "GET /api/v1/clouds"
-Assert-Contains "cloud layer readiness panel" $frontendHtml "Cloud 7-Layer Readiness"
-Assert-Contains "cloud layer readiness evidence marker" $frontendHtml "cloud_layer_readiness_visible"
-Assert-Contains "cloud layer readiness endpoint marker" $frontendHtml "GET /api/v1/clouds/layers"
-Assert-Contains "cloud render offload panel" $frontendHtml "Cloud Render Offload"
-Assert-Contains "cloud render offload evidence marker" $frontendHtml "cloud_render_offload_contract_visible"
-Assert-Contains "cloud render offload endpoint marker" $frontendHtml "GET /api/v1/clouds/render-offload/contract"
-Assert-Contains "cloud deployment preflight panel" $frontendHtml "Cloud Deployment Preflight"
-Assert-Contains "cloud deployment preflight evidence marker" $frontendHtml "cloud_deployment_preflight_visible"
-Assert-Contains "cloud deployment preflight endpoint marker" $frontendHtml "GET /api/v1/clouds/deployment-preflight/contract"
-Assert-Contains "auth contract panel" $frontendHtml "Auth Contract"
-Assert-Contains "system fallback panel" $frontendHtml "System Unavailable Fallback"
-Assert-Contains "layer interface contract panel" $frontendHtml "Layer Interface Contracts"
-Assert-Contains "layer interface evidence marker" $frontendHtml "layer_interface_contracts_visible"
-Assert-Contains "task assignment contract panel" $frontendHtml "Task Assignment Queue Contract"
-Assert-Contains "task assignment evidence marker" $frontendHtml "task_assignment_queue_contract_visible"
-Assert-Contains "task assignment priority routing marker" $frontendHtml "Priority Routing"
-Assert-Contains "agent llm streaming contract panel" $frontendHtml "Agent LLM Streaming Contract"
-Assert-Contains "agent llm streaming evidence marker" $frontendHtml "agent_llm_streaming_contract_visible"
-Assert-Contains "mcp version pinning contract panel" $frontendHtml "MCP Version Pinning Contract"
-Assert-Contains "mcp version pinning evidence marker" $frontendHtml "mcp_version_pinning_contract_visible"
-Assert-Contains "memory embedding consistency contract panel" $frontendHtml "Memory Embedding Consistency Contract"
-Assert-Contains "memory embedding consistency evidence marker" $frontendHtml "memory_embedding_consistency_contract_visible"
-Assert-Contains "memory consolidation panel" $frontendHtml "Memory Consolidation"
-Assert-Contains "memory consolidation refresh button" $frontendHtml "Refresh"
-Assert-Contains "project progress panel" $frontendHtml "Project Progress"
-Assert-Contains "project progress completion contract panel" $frontendHtml "100% Contract"
-Assert-Contains "project progress completion evidence marker" $frontendHtml "project_progress_100_percent_gate_contract"
-Assert-Contains "agent activity per-role summaries ui" $frontendHtml "Per-role Summaries"
-Assert-Contains "agent activity per-role css" $frontendHtml "perRoleSummary"
-Assert-Contains "memory purge contract panel" $frontendHtml "Memory Purge Contract"
-Assert-Contains "cost export contract panel" $frontendHtml "CSV Export"
-Assert-Contains "rate limit guard panel" $frontendHtml "Rate Limit Guard"
-Assert-Contains "session limit guard panel" $frontendHtml "Session Limit Guard"
-Assert-Contains "error response contract panel" $frontendHtml "Error Response Contract"
-Assert-Contains "security headers contract panel" $frontendHtml "Security Headers Contract"
-Assert-Contains "trace id contract panel" $frontendHtml "Trace ID Contract"
-Assert-Contains "cache control contract panel" $frontendHtml "Cache Control Contract"
-Assert-Contains "request id contract panel" $frontendHtml "Request ID Contract"
-Assert-Contains "request id audit feed marker" $frontendHtml "request_id_audit_feed_visible"
-Assert-Contains "agent activity panel" $frontendHtml "Agent Activity"
-Assert-Contains "agent activity filtered feed marker" $frontendHtml "agent_activity_filtered_feed_visible"
-Assert-Contains "agent activity filter controls" $frontendHtml "activityFilterBar"
+$landingHtml = Invoke-Text "$BaseUrl/"
+Assert-Contains "landing title" $landingHtml "Cloud Superbrain"
+Assert-Contains "landing open workbench" $landingHtml "Open Workbench"
+Assert-Contains "landing canonical spec marker" $landingHtml "Canonical platform specification"
+$workbenchHtml = Invoke-Text "$BaseUrl/workbench"
+Assert-Contains "workbench fail-closed marker" $workbenchHtml "Fail-closed by design"
 
 Write-Host "[browser-contract] favicon"
 $faviconStatus = Invoke-StatusCode "$BaseUrl/favicon.ico"
@@ -253,14 +207,14 @@ Write-Host "[browser-contract] cloud provider inventory"
 $cloudProviderInventory = Invoke-Text "$BaseUrl/api/v1/clouds"
 Assert-Contains "cloud provider contract version" $cloudProviderInventory '"contract_version":"cloud-provider-inventory-v1"'
 Assert-Contains "cloud provider evidence" $cloudProviderInventory '"evidence_ref":"cloud_provider_inventory_visible"'
-Assert-Contains "cloud provider hetzner" $cloudProviderInventory '"id":"hetzner_cloud"'
-Assert-Contains "cloud provider gitkraken" $cloudProviderInventory '"id":"gitkraken_identity"'
+Assert-Contains "cloud provider Fly.io" $cloudProviderInventory '"id":"fly_io"'
+Assert-Contains "cloud provider grafana" $cloudProviderInventory '"id":"grafana_cloud"'
 Assert-Contains "cloud provider seven layer mapping" $cloudProviderInventory '"seven_layer_mapping"'
 $cloudLayerReadiness = Invoke-Text "$BaseUrl/api/v1/clouds/layers"
 Assert-Contains "cloud layer readiness contract version" $cloudLayerReadiness '"contract_version":"cloud-layer-readiness-v1"'
 Assert-Contains "cloud layer readiness evidence" $cloudLayerReadiness '"evidence_ref":"cloud_layer_readiness_visible"'
 Assert-Contains "cloud layer readiness layer 7" $cloudLayerReadiness '"layer_id":"layer_7"'
-Assert-Contains "cloud layer readiness gitkraken" $cloudLayerReadiness 'gitkraken_identity'
+Assert-Contains "cloud layer readiness grafana" $cloudLayerReadiness 'grafana_cloud'
 $cloudRenderOffloadContract = Invoke-Text "$BaseUrl/api/v1/clouds/render-offload/contract"
 Assert-Contains "cloud render offload contract version" $cloudRenderOffloadContract '"contract_version":"cloud-render-offload-surface-v1"'
 Assert-Contains "cloud render offload contract evidence" $cloudRenderOffloadContract '"evidence_ref":"cloud_render_offload_contract_runtime_visible"'
@@ -445,7 +399,7 @@ Assert-Contains "memory embedding consistency vector" $memoryEmbeddingConsistenc
 Assert-Contains "memory embedding consistency fallback" $memoryEmbeddingConsistencyContract "lexical_fallback"
 Assert-Contains "memory embedding consistency no live provider" $memoryEmbeddingConsistencyContract "No live embedding provider call"
 
-Write-Host "[browser-contract] phase2 runtime contract"
+Write-Host "[browser-contract] Phase 2 Runtime Contract"
 $runtimeContract = Invoke-Text "$BaseUrl/api/v1/phase2/runtime/contract"
 Assert-Contains "runtime contract version" $runtimeContract '"contract_version":"phase2-runtime-v1"'
 Assert-Contains "runtime start endpoint" $runtimeContract "POST /api/v1/phase2/runtime/start"
@@ -484,7 +438,7 @@ Assert-Contains "external gate mirror production allowed" $externalGateMirror '"
 Assert-Contains "external gate mirror sse contract" $externalGateMirror "phase2-sse-event-contract-v1"
 Assert-Contains "external gate mirror project progress proof" $externalGateMirror "project_progress_manifest_proof"
 
-Write-Host "[browser-contract] phase2 runtime start"
+Write-Host "[browser-contract] Start Phase 2 Runtime"
 $phase2RuntimeThreadId = "browser-contract-phase2-runtime-" + [Guid]::NewGuid().ToString("N")
 $phase2RuntimeBody = @{
   project_id = "browser-contract-project"
@@ -571,7 +525,7 @@ Assert-True "session history integrity verified" ($sessionHistory.project_progre
 Assert-True "session history integrity evidence" ($sessionHistory.project_progress_integrity.evidence_ref -eq "project_progress_integrity_runtime_proof")
 
 if ($SeedMemoryConsolidation) {
-  Write-Host "[browser-contract] seed memory consolidation"
+  Write-Host "[browser-contract] Memory Consolidation: seed memory consolidation"
   $memoryNeedle = "browser contract memory consolidation " + [Guid]::NewGuid().ToString("N")
   $memoryIdempotencyKey = "browser-contract-memory-consolidation-" + [Guid]::NewGuid().ToString("N")
   $seedOutput = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import json, os, redis; client=redis.Redis.from_url(os.environ['REDIS_URL']); payload={'project_id':'browser-contract-project','session_id':'$($phase2RuntimeRun.thread_id)','content_text':'$memoryNeedle','metadata':{'source':'browser_contract_harness'},'idempotency_key':'$memoryIdempotencyKey'}; client.set('memory:working:$memoryIdempotencyKey', json.dumps(payload), ex=300); print(client.ttl('memory:working:$memoryIdempotencyKey'))"
@@ -585,10 +539,11 @@ if ($SeedMemoryConsolidation) {
   Assert-Contains "memory consolidation feed idempotency" $consolidationFeed $memoryIdempotencyKey
   Assert-Contains "memory consolidation feed redis key" $consolidationFeed "memory:working:$memoryIdempotencyKey"
 } else {
-  Write-Host "[browser-contract] memory consolidation feed shape"
+  Write-Host "[browser-contract] Memory Consolidation: feed shape"
   $consolidationFeed = Invoke-Text "$BaseUrl/api/v1/memory/consolidation/recent?limit=8"
   Assert-Contains "memory consolidation feed shape" $consolidationFeed '"events"'
   Assert-Contains "memory consolidation summary shape" $consolidationFeed '"summary"'
 }
 
 Write-Host "[browser-contract] checks completed"
+

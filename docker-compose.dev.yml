@@ -15,6 +15,8 @@ services:
       - "3000"
     volumes:
       - ./apps/frontend/app:/app/app:ro
+      - ./apps/frontend/components:/app/components:ro
+      - ./apps/frontend/lib:/app/lib:ro
       - ./apps/frontend/next.config.mjs:/app/next.config.mjs:ro
     depends_on:
       agent-api:
@@ -22,10 +24,10 @@ services:
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 20s
-      timeout: 5s
-      retries: 5
-    mem_limit: 512m
-    cpus: "0.75"
+      timeout: 15s
+      retries: 10
+    mem_limit: 1024m
+    cpus: "1.25"
     cap_drop:
       - ALL
     security_opt:
@@ -66,17 +68,9 @@ services:
       AUTONOMOUS_TEAM_EXTERNAL_AGENTS_URL: ${AUTONOMOUS_TEAM_EXTERNAL_AGENTS_URL:-http://host.docker.internal:8000/agents}
       AUTONOMOUS_TEAM_EXTERNAL_TIMEOUT_SECONDS: ${AUTONOMOUS_TEAM_EXTERNAL_TIMEOUT_SECONDS:-5}
       CLOUD_PROVIDER_INVENTORY_ENABLED: ${CLOUD_PROVIDER_INVENTORY_ENABLED:-true}
-      HETZNER_API_TOKEN: ${HETZNER_API_TOKEN:-}
-      HETZNER_PROJECT_ID: ${HETZNER_PROJECT_ID:-}
-      HETZNER_SERVER_ID: ${HETZNER_SERVER_ID:-}
-      HETZNER_SERVER_NAME: ${HETZNER_SERVER_NAME:-}
-      HETZNER_SERVER_TYPE: ${HETZNER_SERVER_TYPE:-}
-      HETZNER_SERVER_LOCATION: ${HETZNER_SERVER_LOCATION:-}
-      HETZNER_SERVER_IPV4: ${HETZNER_SERVER_IPV4:-}
-      HETZNER_SERVER_IPV6_CIDR: ${HETZNER_SERVER_IPV6_CIDR:-}
-      HETZNER_PRIMARY_IPV4_ID: ${HETZNER_PRIMARY_IPV4_ID:-}
-      HETZNER_PRIMARY_IPV6_ID: ${HETZNER_PRIMARY_IPV6_ID:-}
-      HETZNER_VOLUME_ID: ${HETZNER_VOLUME_ID:-}
+      FLY_API_TOKEN: ${FLY_API_TOKEN:-}
+      GRAFANA_CLOUD_API_KEY: ${GRAFANA_CLOUD_API_KEY:-}
+      GRAFANA_CLOUD_URL: ${GRAFANA_CLOUD_URL:-}
       STAGING_BASE_URL: ${STAGING_BASE_URL:-}
       BRANCH_PROTECTION_TOKEN: ${BRANCH_PROTECTION_TOKEN:-}
       VERCEL_TOKEN: ${VERCEL_TOKEN:-}
@@ -185,9 +179,10 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import os, psycopg, redis; redis.Redis.from_url(os.environ['REDIS_URL'], socket_timeout=2).ping(); psycopg.connect(os.environ['DATABASE_URL']).close()"]
+      test: ["CMD", "python", "-m", "app.worker", "--healthcheck"]
       interval: 20s
-      timeout: 5s
+      timeout: 15s
+      start_period: 30s
       retries: 5
     mem_limit: 384m
     cpus: "0.35"

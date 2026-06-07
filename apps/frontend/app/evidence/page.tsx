@@ -2,26 +2,15 @@ import AppShell from "../../components/shell/AppShell";
 import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Badge, StatusDot } from "../../components/ui";
 import { VERIFIERS, CLOSED_GATES } from "../../lib/platform";
-import { fetchMetrics } from "../../lib/agentApi";
+import { fetchMetrics, fetchProgress } from "../../lib/agentApi";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Proof / Evidence — Cloud Superbrain" };
 
-type Tone = "green" | "amber" | "red" | "mut";
-const EVIDENCE: { name: string; status: string; tone: Tone; ref: string }[] = [
-  { name: "Production build", status: "PASS", tone: "green", ref: "next build · 33 routes" },
-  { name: "Type check (strict)", status: "PASS", tone: "green", ref: "tsc · 0 errors" },
-  { name: "ESLint audit", status: "CLEAN", tone: "green", ref: "0 findings (app/components/lib)" },
-  { name: "Route smoke", status: "PASS", tone: "green", ref: "25 / 25 HTTP 200 + h1" },
-  { name: "E2E (Playwright)", status: "PASS", tone: "green", ref: "7 / 7 green" },
-  { name: "3D cortex render", status: "PASS", tone: "green", ref: "WebGL + GLB · 0 console errors" },
-  { name: "Secret scan", status: "CLEAN", tone: "green", ref: "gitleaks · no token values" },
-  { name: "Production deploy", status: "BLOCKED", tone: "red", ref: "OPA gate closed (policy, not a failure)" },
-];
-
 export default async function EvidencePage() {
-  const metrics = await fetchMetrics();
+  const [metrics, progress] = await Promise.all([fetchMetrics(), fetchProgress()]);
   const live = !!metrics;
+  const overall = typeof progress?.overall_percent === "number" ? progress.overall_percent : null;
 
   return (
     <AppShell crumb="Evidence" runState="verifying">
@@ -29,8 +18,14 @@ export default async function EvidencePage() {
         <PageHeader
           eyebrow="Proof / Evidence"
           title="Verifier results & claim guard"
-          subtitle="Every claim maps to a verifier or proof. Honest PASS / PARTIAL / BLOCKED — no faked green. Gate & service rows project live from the runtime when reachable."
-          actions={live ? <Badge tone="green">● Live · runtime verified</Badge> : <Badge tone="amber">static proofs</Badge>}
+          subtitle="Every claim must map to a verifier or runtime evidence. This UI shows live runtime signals when reachable and stays unverified for local-only checks until a verifier run exists."
+          actions={
+            <>
+              {live ? <Badge tone="green">● Live · runtime metrics</Badge> : <Badge tone="mut">offline</Badge>}
+              {typeof overall === "number" ? <Badge tone="cyan">{overall}% progress</Badge> : null}
+              {progress?.last_verified ? <Badge tone="mut">last verified {progress.last_verified}</Badge> : null}
+            </>
+          }
         />
 
         <SevenLayerBar title="Every claim verified across 7 cloud layers" />
@@ -67,26 +62,39 @@ export default async function EvidencePage() {
         ) : null}
 
         <div className="grid" style={{ gridTemplateColumns: "1.2fr 0.8fr" }}>
-          <Panel title="Current proofs (this branch)">
+          <Panel title="Verifier scripts (not executed by this UI)">
             <table className="tbl">
-              <thead><tr><th>Check</th><th>Status</th><th>Reference</th></tr></thead>
+              <thead><tr><th>Script</th><th>Status</th></tr></thead>
               <tbody>
-                {EVIDENCE.map((e) => (
-                  <tr key={e.name}>
-                    <td style={{ fontWeight: 500 }}>{e.name}</td>
-                    <td><Badge tone={e.tone}>{e.status}</Badge></td>
-                    <td className="mono" style={{ color: "var(--text-mut)", fontSize: 12 }}>{e.ref}</td>
+                {VERIFIERS.map((v) => (
+                  <tr key={v}>
+                    <td className="mono" style={{ fontSize: 12 }}>{v}</td>
+                    <td><Badge tone="mut">unverified</Badge></td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            <div className="wb-pad" style={{ paddingTop: 10 }}>
+              <span style={{ fontSize: 12, color: "var(--text-dim)" }}>
+                Run verifiers locally to generate evidence artifacts. This page does not claim PASS without a run.
+              </span>
+            </div>
           </Panel>
           <aside className="stack">
-            <Panel title="Verifier scripts" pad>
+            <Panel title="Progress snapshot" pad>
               <div className="stack" style={{ gap: 6 }}>
-                {VERIFIERS.map((v) => (
-                  <span key={v} className="mono" style={{ fontSize: 11.5, color: "var(--text-mut)" }}>{v}</span>
-                ))}
+                <div className="row" style={{ justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-mut)" }}>Overall</span>
+                  <span className="mono">{typeof overall === "number" ? `${overall}%` : "—"}</span>
+                </div>
+                <div className="row" style={{ justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-mut)" }}>Source</span>
+                  <span className="mono">{progress?.progress_source ?? "—"}</span>
+                </div>
+                <div className="row" style={{ justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-mut)" }}>Integrity</span>
+                  <span className="mono">{progress ? "manifest-backed" : "—"}</span>
+                </div>
               </div>
             </Panel>
             <Panel title="Claim guard" pad>

@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$BaseUrl = "https://188-34-191-140.sslip.io"
 )
 
@@ -130,15 +130,15 @@ foreach ($needle in @(
 $cloudProviderInventory = Invoke-Text "$BaseUrl/api/v1/clouds"
 Assert-Contains "cloud provider contract version" $cloudProviderInventory '"contract_version":"cloud-provider-inventory-v1"'
 Assert-Contains "cloud provider evidence" $cloudProviderInventory '"evidence_ref":"cloud_provider_inventory_visible"'
-Assert-Contains "cloud provider hetzner" $cloudProviderInventory '"id":"hetzner_cloud"'
-Assert-Contains "cloud provider gitkraken" $cloudProviderInventory '"id":"gitkraken_identity"'
+Assert-Contains "cloud provider Fly.io" $cloudProviderInventory '"id":"fly_io"'
+Assert-Contains "cloud provider grafana" $cloudProviderInventory '"id":"grafana_cloud"'
 Assert-Contains "cloud provider seven layer mapping" $cloudProviderInventory '"seven_layer_mapping"'
 
 $cloudLayerReadiness = Invoke-Text "$BaseUrl/api/v1/clouds/layers"
 Assert-Contains "cloud layer readiness contract version" $cloudLayerReadiness '"contract_version":"cloud-layer-readiness-v1"'
 Assert-Contains "cloud layer readiness evidence" $cloudLayerReadiness '"evidence_ref":"cloud_layer_readiness_visible"'
 Assert-Contains "cloud layer readiness layer 7" $cloudLayerReadiness '"layer_id":"layer_7"'
-Assert-Contains "cloud layer readiness gitkraken" $cloudLayerReadiness 'gitkraken_identity'
+Assert-Contains "cloud layer readiness grafana" $cloudLayerReadiness 'grafana_cloud'
 
 $cloudRenderOffloadContract = Invoke-Text "$BaseUrl/api/v1/clouds/render-offload/contract"
 Assert-Contains "cloud render offload contract version" $cloudRenderOffloadContract '"contract_version":"cloud-render-offload-surface-v1"'
@@ -187,3 +187,4 @@ Assert-Contains "project completion no external gates missing" $projectCompletio
 Assert-Contains "project completion local blockers only" $projectCompletion "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 
 Write-Host "[phase4-hosted-cloud-surfaces] checks completed"
+

@@ -29,25 +29,25 @@ The layer readiness endpoint projects the same provider inventory into all seven
 | Layer | Cloud responsibility | Providers |
 | --- | --- | --- |
 | `layer_1` Frontend / Next.js | Hosted frontend and staging proof origin | Vercel / hosted frontend |
-| `layer_2` Orchestrator / LangGraph | Runtime host and API service boundary | Hetzner Cloud |
-| `layer_3` Agent Pool | Agent worker runtime host | Hetzner Cloud |
+| `layer_2` Orchestrator / LangGraph | Runtime host and API service boundary | Fly.io |
+| `layer_3` Agent Pool | Agent worker runtime host | Fly.io |
 | `layer_4` LLM Gateway | Edge, AI gateway, and optional model identity | Cloudflare, Hugging Face |
-| `layer_5` MCP Gateway / Tools | CI, registry, branch protection, optional mirror and developer-workspace identity | GitHub Actions, GHCR, GitLab, GitKraken |
-| `layer_6` Memory / PostgreSQL pgvector | PostgreSQL/pgvector home | Hetzner Cloud |
-| `layer_7` Observability / Evidence | Hosted proof, live budget proof, audit gate visibility | Vercel, Hetzner, Cloudflare, GitHub Actions, GitKraken |
+| `layer_5` MCP Gateway / Tools | CI, registry, branch protection, optional mirror and developer-workspace identity | GitHub Actions, GHCR, GitLab |
+| `layer_6` Memory / PostgreSQL pgvector | PostgreSQL/pgvector home | Fly.io |
+| `layer_7` Observability / Evidence | Hosted proof, live budget proof, audit gate visibility | Vercel, Fly.io, Cloudflare, GitHub Actions, Grafana Cloud |
 
 ## Providers
 
-The local contract exposes eight provider slots:
+The local contract exposes seven provider slots:
 
 1. `vercel_frontend`
-2. `hetzner_cloud`
+2. `fly_io`
 3. `cloudflare_edge`
 4. `github_actions`
 5. `ghcr_registry`
 6. `huggingface_identity`
 7. `gitlab_identity`
-8. `gitkraken_identity`
+8. `grafana_cloud`
 
 Every provider record includes:
 
@@ -98,16 +98,15 @@ Rules:
 - Project reads may produce `partial_verified` while account verification can still remain live-verified.
 - No deployment, environment variable, alias, domain, or rollback write is performed.
 
-### Hetzner Live Read
+### Fly.io Live Read
 
-If `HETZNER_API_TOKEN` is configured, the Agent API calls Hetzner Cloud read-only endpoints for servers, volumes, primary IPs, and floating IPs.
+If `FLY_API_TOKEN` is configured, the Agent API calls Fly.io read-only endpoints for apps, machines, and volumes.
 
 Rules:
 
 - The token is never returned.
 - Public IP addresses are masked in the dashboard payload.
-- Server monthly gross prices from the Hetzner API feed the infrastructure budget as `hetzner_api_readonly`.
-- Volume resources are listed, but volume pricing is not added unless a verified cost source exposes it.
+- Server monthly gross prices from the Fly API feed the infrastructure budget as `fly_api_readonly`.
 - If the API call fails, the endpoint reports `api_error` and the infrastructure budget falls back to the configured Phase-1 projection.
 
 ### Cloudflare Live Read
@@ -168,16 +167,16 @@ Rules:
 - GitLab identity is optional and not a production-release gate in the patched architecture.
 - No project, mirror, issue, pipeline, repository, group, or user write is performed.
 
-### GitKraken Live Read
+### Grafana Cloud Live Read
 
-If `GITKRAKEN_API_TOKEN` is configured, the Agent API calls the GitKraken/GitClear read-only token-status endpoint `GET /api_tokens` against `GITKRAKEN_API_URL` or `https://gitkraken.gitclear.com/api/v1`.
+If `GRAFANA_CLOUD_API_KEY` is configured, the Agent API calls the Grafana Cloud read-only token-status endpoints or validates the OTLP connectivity.
 
 Rules:
 
 - The token is never returned.
-- `GITKRAKEN_ORG_ID`, `GITKRAKEN_ORG_NAME`, and `GITKRAKEN_DASHBOARD_URL` are treated as optional metadata only.
-- GitKraken identity is optional and does not replace GitHub branch protection or GHCR image proof.
-- No organization, user, billing, team, workspace, repository, issue, or integration write is performed.
+- `GRAFANA_CLOUD_URL` is treated as metadata only.
+- Grafana Cloud identity ensures Observability (Layer 7) is wired up correctly.
+- No dashboard creation, log mutation, alert modification, or team configuration write is performed.
 
 ## Fail-Closed Rules
 
@@ -186,14 +185,14 @@ Rules:
 - No cloud-only success is claimed if the frontend is deployed without hosted Agent API, MCP Gateway, and LLM Gateway rewrites.
 - No protected-main success is claimed without `BRANCH_PROTECTION_TOKEN` or an equivalent verified GitHub token.
 - No Vercel hosted frontend state is claimed without `VERCEL_TOKEN`.
-- No Hetzner live infrastructure state is claimed without `HETZNER_API_TOKEN`.
+- No Fly.io live infrastructure state is claimed without `FLY_API_TOKEN`.
 - No Cloudflare live edge state is claimed without `CLOUDFLARE_API_TOKEN`.
 - No GitHub CI/CD state is claimed without `GITHUB_TOKEN`.
 - No GHCR registry state is claimed without `GHCR_TOKEN`.
 - No Hugging Face identity state is claimed without `HF_TOKEN`.
 - No GitLab identity state is claimed without `GITLAB_TOKEN`.
-- No GitKraken identity state is claimed without `GITKRAKEN_API_TOKEN`.
-- No Cloudflare DNS, AI Gateway, GitHub, GHCR, GitLab, GitKraken, Hugging Face, or Vercel write is performed by this endpoint.
+- No Grafana Cloud observability state is claimed without `GRAFANA_CLOUD_API_KEY`.
+- No Cloudflare DNS, AI Gateway, GitHub, GHCR, GitLab, Grafana Cloud, Hugging Face, Vercel, or Fly.io write is performed by this endpoint.
 - The dashboard may show configured/missing status, never raw token material.
 
 ## Verification

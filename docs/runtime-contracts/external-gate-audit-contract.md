@@ -31,6 +31,7 @@ No secret values are written by this verifier.
 - Hetzner live budget: `scripts/check_hetzner_infra_budget.py` must pass with `HETZNER_API_TOKEN` configured.
 - Optional GitLab identity: `GITLAB_TOKEN` can verify access to the configured GitLab profile URL, but this is not a production-release gate in the current patched architecture.
 - Optional Hugging Face identity: `HF_TOKEN` can verify access to the configured Hugging Face profile URL, but this is not a production-release gate in the current patched architecture.
+- Optional grafana identity: `GRAFANA_CLOUD_API_KEY` can verify access to the configured Grafana Cloud URL, but this is not a production-release gate in the current patched architecture.
 - Optional GitKraken identity: `GITKRAKEN_API_TOKEN` can verify read-only GitKraken/GitClear token status, and optional organization metadata can be shown without secrets; this is not a production-release gate in the current patched architecture.
 
 ## Fail-Closed Rules
@@ -44,6 +45,7 @@ No secret values are written by this verifier.
 - Generated artifacts are non-secret JSON files under `.phase1-artifacts/`.
 - The optional GitLab identity proof may include the username and profile URL, never the token.
 - The optional Hugging Face identity proof may include the username and profile URL, never the token.
+- The optional grafana identity proof may include the org/stack URL, never the token.
 - The optional GitKraken identity proof may include non-secret organization metadata and token status markers, never the token.
 
 ## Current Non-Claims

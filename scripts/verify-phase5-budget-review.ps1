@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$ReleaseId = "prod-candidate-2026-05-05-rc1",
   [string]$BaseUrl = "https://188-34-191-140.sslip.io"
 )
@@ -62,7 +62,7 @@ if ($budget.allow_new_calls -ne $true) { throw "Verification failed: call budget
 Assert-Equal "infra level" $infra.level "ok"
 if ($infra.allow_new_infra -ne $true) { throw "Verification failed: infra budget must allow new infra." }
 if ($infra.live_verified -ne $true) { throw "Verification failed: infra budget must remain live verified." }
-Assert-Equal "infra source" $infra.source "hetzner_api_readonly"
+Assert-Equal "infra source" $infra.source "fly_api_readonly"
 Assert-Equal "costs level" $costs.level "ok"
 Assert-Equal "external gates status" $gates.status "verified"
 Assert-Equal "hosted overall percent" $progress.overall_percent $expectedOverall
@@ -71,3 +71,4 @@ Assert-Equal "hosted phase5 percent" $phase5.percent $expectedPhase5
 Assert-Equal "hosted integrity status" $integrity.status "verified"
 
 Write-Host "[phase5-budget-review] verified"
+

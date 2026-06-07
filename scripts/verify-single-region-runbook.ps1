@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 function Assert-Contains($label, $value, $expected) {
   $text = ($value | Out-String)
@@ -24,7 +24,7 @@ $index = Get-Content -Path $indexPath -Raw
 foreach ($required in @(
   'F21',
   'single-region',
-  'Hetzner `fsn1`',
+  'Fly.io `fsn1`',
   '20 EUR/month',
   'manual',
   'Do not claim production recovery before hosted health is re-proven',
@@ -43,6 +43,7 @@ foreach ($required in @(
 }
 
 Assert-Contains "runbook index" $index "single-region-frankfurt-outage.md"
-Assert-Contains "runbook index" $index "Hetzner-Frankfurt"
+Assert-Contains "runbook index" $index "Fly.io-Frankfurt"
 
 Write-Host "[verify-single-region-runbook] ok"
+

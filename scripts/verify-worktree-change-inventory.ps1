@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$OutputPath = ".phase1-artifacts\worktree-change-inventory-20260510.json",
   [switch]$ReportOnly,
   [switch]$JsonOnly
@@ -63,7 +63,7 @@ function Get-ChangeScope([string]$Path) {
 }
 
 function Get-ReviewTier([string]$Path, [string]$Scope, [string]$State) {
-  if ($Path -match '(?i)(token|secret|password|credential|vercel_storage|hetzner_.*\.(json|png|html)|\.local\.env|\.secrets\.baseline)') {
+  if ($Path -match '(?i)(token|secret|password|credential|vercel_storage|Fly.io_.*\.(json|png|html)|\.local\.env|\.secrets\.baseline)') {
     return "security-review"
   }
   if ($State -eq "staged_and_modified") {
@@ -187,3 +187,4 @@ try {
 } finally {
   Pop-Location
 }
+

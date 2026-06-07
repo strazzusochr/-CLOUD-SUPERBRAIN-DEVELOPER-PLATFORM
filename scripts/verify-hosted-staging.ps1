@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$BaseUrl = $env:STAGING_BASE_URL,
   [switch]$AllowLocalhost,
   [switch]$StopAfterCoreContracts,
@@ -496,8 +496,8 @@ $cloudProviderInventory = Invoke-Text "$BaseUrl/api/v1/clouds"
 Assert-Contains "cloud provider contract version" $cloudProviderInventory '"contract_version":"cloud-provider-inventory-v1"'
 Assert-Contains "cloud provider evidence" $cloudProviderInventory '"evidence_ref":"cloud_provider_inventory_visible"'
 Assert-Contains "cloud provider endpoint" $cloudProviderInventory '"endpoint":"GET /api/v1/clouds"'
-Assert-Contains "cloud provider hetzner" $cloudProviderInventory '"id":"hetzner_cloud"'
-Assert-Contains "cloud provider gitkraken" $cloudProviderInventory '"id":"gitkraken_identity"'
+Assert-Contains "cloud provider Fly.io" $cloudProviderInventory '"id":"fly_io"'
+Assert-Contains "cloud provider grafana" $cloudProviderInventory '"id":"grafana_cloud"'
 Assert-Contains "cloud provider seven layer map" $cloudProviderInventory '"seven_layer_mapping"'
 Assert-Contains "cloud provider no production claim" $cloudProviderInventory "It does not claim production deployment."
 $cloudLayerReadiness = Invoke-Text "$BaseUrl/api/v1/clouds/layers"
@@ -505,7 +505,7 @@ Assert-Contains "cloud layer readiness version" $cloudLayerReadiness '"contract_
 Assert-Contains "cloud layer readiness evidence" $cloudLayerReadiness '"evidence_ref":"cloud_layer_readiness_visible"'
 Assert-Contains "cloud layer readiness endpoint" $cloudLayerReadiness '"endpoint":"GET /api/v1/clouds/layers"'
 Assert-Contains "cloud layer readiness layer 7" $cloudLayerReadiness '"layer_id":"layer_7"'
-Assert-Contains "cloud layer readiness gitkraken" $cloudLayerReadiness 'gitkraken_identity'
+Assert-Contains "cloud layer readiness grafana" $cloudLayerReadiness 'grafana_cloud'
 Assert-Contains "cloud layer readiness blockers" $cloudLayerReadiness '"blockers"'
 $cloudRenderOffloadContract = Invoke-Text "$BaseUrl/api/v1/clouds/render-offload/contract"
 Assert-Contains "cloud render offload contract version" $cloudRenderOffloadContract '"contract_version":"cloud-render-offload-surface-v1"'
@@ -1503,9 +1503,9 @@ $infraBudget = Invoke-JsonApi -url "$BaseUrl/api/v1/infra/budget" -method "GET" 
 if ($infraBudget.level -ne "ok") { throw "Hosted staging verification failed: infra budget level was '$($infraBudget.level)'" }
 if ([int]$infraBudget.budget_limit_cents -ne 2000) { throw "Hosted staging verification failed: infra budget limit was '$($infraBudget.budget_limit_cents)'" }
 if ([int]$infraBudget.projected_cost_cents -le 0) { throw "Hosted staging verification failed: infra budget projected cost was not positive" }
-if ($infraBudget.source -eq "hetzner_api_readonly") {
+if ($infraBudget.source -eq "fly_api_readonly") {
   if ($infraBudget.live_verified -ne $true) { throw "Hosted staging verification failed: live infra budget was not marked live_verified" }
-  if (-not (($infraBudget.items | ConvertTo-Json -Compress) -match 'hetzner_cloud')) { throw "Hosted staging verification failed: live infra budget missing hetzner_cloud item" }
+  if (-not (($infraBudget.items | ConvertTo-Json -Compress) -match 'fly_io')) { throw "Hosted staging verification failed: live infra budget missing fly_io item" }
 } elseif ($infraBudget.source -eq "configured_phase1_projection") {
   if ($infraBudget.live_verified -ne $false) { throw "Hosted staging verification failed: projected infra budget unexpectedly marked live_verified" }
 } else {
@@ -1521,7 +1521,7 @@ Assert-Contains "external gates status" $externalGates '"status":"verified"'
 Assert-Contains "external gates local allowed" $externalGates '"local_execution_allowed":true'
 Assert-Contains "external gates branch token" $externalGates '"id":"branch_protection_token"'
 Assert-Contains "external gates staging url" $externalGates '"id":"staging_base_url"'
-Assert-Contains "external gates hetzner token" $externalGates '"id":"hetzner_api_token"'
+Assert-Contains "external gates Fly.io token" $externalGates '"id":"FLY_API_TOKEN"'
 Assert-Contains "external gates ghcr digest" $externalGates '"id":"ghcr_image_digest_proof"'
 Assert-Contains "external gates vercel origins" $externalGates '"id":"vercel_backend_origins"'
 Assert-Contains "external gates gitleaks" $externalGates '"id":"gitleaks_binary"'
@@ -2109,3 +2109,4 @@ Assert-Contains "rotation events contract" $rotationEvents '"contract_version":"
 Assert-Contains "rotation events evidence" $rotationEvents '"evidence_ref":"provider_fallback_structured_event"'
 
 Write-Host "[hosted] hosted staging checks completed"
+

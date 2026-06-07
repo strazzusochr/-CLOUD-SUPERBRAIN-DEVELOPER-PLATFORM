@@ -89,7 +89,7 @@ export const HUBS: Hub[] = [
  * 7-layer cloud architecture × cloud providers.
  * Source of truth: services/agent-api/app/clouds.py
  *   - cloud_provider_state().seven_layer_mapping  (layer → providers)
- *   - vercel/hetzner/cloudflare/github/ghcr/huggingface/gitlab/gitkraken provider()
+ *   - vercel/fly/cloudflare/github/ghcr/huggingface/gitlab/grafana provider()
  * Tokens for every provider live under .codex/secrets — status only, never shown.
  * ------------------------------------------------------------------ */
 
@@ -112,14 +112,14 @@ export interface CloudProvider {
 
 /** The 8 non-secret cloud-provider surfaces (clouds.py provider IDs). */
 export const PROVIDERS: CloudProvider[] = [
-  { id: "vercel", label: "Vercel", role: "Hosted frontend · staging proof origin", layers: [1, 7], color: C.cyan, optional: false, api: "api.vercel.com" },
-  { id: "hetzner", label: "Hetzner Cloud", role: "Runtime host · PostgreSQL pgvector · live infra budget", layers: [2, 3, 6, 7], color: C.red, optional: false, api: "api.hetzner.cloud" },
-  { id: "cloudflare", label: "Cloudflare", role: "Edge · DNS · AI gateway · provider cache", layers: [4, 7], color: C.amber, optional: false, api: "api.cloudflare.com" },
-  { id: "github", label: "GitHub Actions", role: "CI/CD · branch protection · deploy gate", layers: [5, 7], color: C.blue, optional: false, api: "api.github.com" },
-  { id: "ghcr", label: "GHCR", role: "Container artifact registry (pull-based deploy)", layers: [5], color: C.violet, optional: false, api: "ghcr.io" },
-  { id: "huggingface", label: "Hugging Face", role: "Model / provider identity check (not prod runtime)", layers: [4, 7], color: "#fbbf24", optional: true, api: "huggingface.co" },
-  { id: "gitlab", label: "GitLab", role: "External identity / mirror proof", layers: [5, 7], color: C.magenta, optional: true, api: "gitlab.com" },
-  { id: "gitkraken", label: "GitKraken", role: "Dev-workspace / organization identity", layers: [5, 7], color: C.green, optional: true, api: "gitkraken.gitclear.com" },
+  { id: "vercel_frontend", label: "Vercel", role: "Hosted frontend · staging proof origin", layers: [1, 7], color: C.cyan, optional: false, api: "api.vercel.com" },
+  { id: "fly_io", label: "Fly.io", role: "Layer 2/3/6 runtime host for Orchestrator, Agent Pool, and PostgreSQL.", layers: [2, 3, 6, 7], color: C.violet, optional: false, api: "api.fly.io" },
+  { id: "cloudflare_edge", label: "Cloudflare Edge / AI Gateway", role: "Layer 4 edge, DNS, AI gateway, and provider-cache boundary.", layers: [4, 7], color: C.amber, optional: false, api: "api.cloudflare.com" },
+  { id: "github_actions", label: "GitHub Actions", role: "CI/CD · branch protection · deploy gate", layers: [5, 7], color: C.blue, optional: false, api: "api.github.com" },
+  { id: "ghcr_registry", label: "GHCR", role: "Container artifact registry (pull-based deploy)", layers: [5], color: C.magenta, optional: false, api: "ghcr.io" },
+  { id: "huggingface_identity", label: "Hugging Face", role: "Model / provider identity check (not prod runtime)", layers: [4, 7], color: "#fbbf24", optional: true, api: "huggingface.co" },
+  { id: "gitlab_identity", label: "GitLab", role: "External identity / mirror proof", layers: [5, 7], color: C.green, optional: true, api: "gitlab.com" },
+  { id: "grafana_cloud", label: "Grafana Cloud", role: "Layer 7 hosted observability, logs, metrics, and traces.", layers: [7], color: C.red, optional: true, api: "grafana.com" },
 ];
 
 export interface CloudLayer {
@@ -134,13 +134,13 @@ export interface CloudLayer {
 
 /** The seven architecture layers, each backed by real cloud providers. */
 export const LAYERS: CloudLayer[] = [
-  { no: 1, code: "FE", label: "Frontend / Next.js", providers: ["vercel"], color: C.cyan },
-  { no: 2, code: "ORC", label: "Orchestrator / LangGraph", providers: ["hetzner"], color: C.blue },
-  { no: 3, code: "AP", label: "Agent Pool", providers: ["hetzner"], color: C.violet },
-  { no: 4, code: "LLM", label: "LLM Gateway", providers: ["cloudflare", "huggingface"], color: C.magenta },
-  { no: 5, code: "MCP", label: "MCP Gateway / Tools", providers: ["github", "ghcr", "gitlab", "gitkraken"], color: C.amber },
-  { no: 6, code: "MEM", label: "Memory / PostgreSQL pgvector", providers: ["hetzner"], color: C.green },
-  { no: 7, code: "OBS", label: "Observability / Evidence", providers: ["vercel", "hetzner", "cloudflare", "github", "gitkraken"], color: "#fbbf24" },
+  { no: 1, code: "FE", label: "Frontend / Next.js", providers: ["vercel_frontend"], color: C.cyan },
+  { no: 2, code: "ORC", label: "Orchestrator / LangGraph", providers: ["fly_io"], color: C.blue },
+  { no: 3, code: "AP", label: "Agent Pool", providers: ["fly_io"], color: C.violet },
+  { no: 4, code: "LLM", label: "LLM Gateway", providers: ["cloudflare_edge", "huggingface_identity"], color: C.magenta },
+  { no: 5, code: "MCP", label: "MCP Gateway / Tools", providers: ["github_actions", "ghcr_registry", "gitlab_identity"], color: C.amber },
+  { no: 6, code: "MEM", label: "Memory / PostgreSQL pgvector", providers: ["fly_io"], color: C.green },
+  { no: 7, code: "OBS", label: "Observability / Evidence", providers: ["vercel_frontend", "fly_io", "cloudflare_edge", "github_actions", "grafana_cloud"], color: "#fbbf24" },
 ];
 
 /** Lookup helper: provider objects backing a given layer number. */

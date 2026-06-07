@@ -37,12 +37,12 @@ export default async function ObservePage() {
         />
 
         <div className="grid cols-3" style={{ marginBottom: 16 }}>
-          <Metric label="Projects" value={live ? fmt(s.superbrain_projects_total) : "190"} foot={live ? "live" : "spec_only"} />
-          <Metric label="Agent sessions" value={live ? fmt(s.superbrain_agent_sessions_total) : "1,284"} foot={live ? "live" : "spec_only"} />
-          <Metric label="Agent messages" value={live ? fmt(s.superbrain_agent_messages_total) : "3,413"} foot={live ? "live" : "spec_only"} />
-          <Metric label="Memory entries" value={live ? fmt(s.superbrain_memory_entries_total) : "978"} foot="pgvector" />
-          <Metric label="Task queue depth" value={live ? fmt(s.superbrain_task_queue_depth) : "0"} foot={live ? "live" : "spec_only"} />
-          <Metric label="LLM budget spent" value={`${live ? (s.superbrain_budget_spent_percentage ?? 0) : 0}%`} foot="dry-run · no live call" />
+          <Metric label="Projects" value={live ? fmt(s.superbrain_projects_total) : "—"} foot={live ? "live" : "unavailable"} />
+          <Metric label="Agent sessions" value={live ? fmt(s.superbrain_agent_sessions_total) : "—"} foot={live ? "live" : "unavailable"} />
+          <Metric label="Agent messages" value={live ? fmt(s.superbrain_agent_messages_total) : "—"} foot={live ? "live" : "unavailable"} />
+          <Metric label="Memory entries" value={live ? fmt(s.superbrain_memory_entries_total) : "—"} foot="pgvector" />
+          <Metric label="Task queue depth" value={live ? fmt(s.superbrain_task_queue_depth) : "—"} foot={live ? "live" : "unavailable"} />
+          <Metric label="LLM budget spent" value={live ? `${s.superbrain_budget_spent_percentage ?? 0}%` : "—"} foot="dry-run · no live call" />
         </div>
 
         <div className="grid cols-2">

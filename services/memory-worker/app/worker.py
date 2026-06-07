@@ -261,11 +261,28 @@ def run_once(force: bool = False) -> dict[str, int]:
     return stats
 
 
+def healthcheck() -> None:
+    import sys
+    try:
+        r = redis.Redis.from_url(redis_url(), socket_timeout=2, socket_connect_timeout=2)
+        r.ping()
+        psycopg.connect(database_url()).close()
+        sys.exit(0)
+    except Exception as exc:  # noqa: BLE001
+        print(f"healthcheck failed: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Cloud Superbrain memory consolidation worker")
     parser.add_argument("--once", action="store_true", help="Run one consolidation pass then exit.")
     parser.add_argument("--force", action="store_true", help="Consolidate matching keys regardless of TTL.")
+    parser.add_argument("--healthcheck", action="store_true", help="Probe Redis+PostgreSQL connectivity and exit 0/1.")
     args = parser.parse_args()
+
+    if args.healthcheck:
+        healthcheck()
+        return
 
     if args.once:
         print(json.dumps(run_once(force=args.force), sort_keys=True))

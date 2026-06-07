@@ -12,12 +12,12 @@ Status: Phase 4 local contract implemented, external execution still gated
 
 This contract exposes the exact external actions that must be completed before any cloud deployment, hosted staging success, or production release claim is allowed.
 
-Environment variables, installed tools, and static workflow files are only prerequisites. They never count as proof that GHCR images were published, Hetzner pulled and started the stack, Vercel uses hosted backend origins, branch protection is current, or secrets were scanned.
+Environment variables, installed tools, and static workflow files are only prerequisites. They never count as proof that GHCR images were published, Fly.io pulled and started the stack, Vercel uses hosted backend origins, branch protection is current, or secrets were scanned.
 
 ## Required Sequence
 
 1. `publish_ghcr_images`
-2. `start_hetzner_pull_based_stack`
+2. `start_fly_pull_based_stack`
 3. `configure_vercel_backend_origins`
 4. `run_hosted_staging_verifier`
 5. `verify_branch_protection`
@@ -29,7 +29,7 @@ Environment variables, installed tools, and static workflow files are only prere
 | Gate | Required env | Required verifier | Evidence |
 | --- | --- | --- | --- |
 | `ghcr_images` | `GITHUB_TOKEN`, `GHCR_TOKEN` | `docker manifest inspect` for all service images | `ghcr_image_digest_proof` |
-| `hetzner_cloud_stack` | `HETZNER_API_TOKEN` | `scripts/check_hetzner_infra_budget.py` plus hosted health | `hetzner_live_budget_check` |
+| `fly_cloud_stack` | `FLY_API_TOKEN` | `scripts/check_fly_infra_budget.py` plus hosted health | `fly_live_budget_check` |
 | `hosted_backend_origins` | `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, `LLM_GATEWAY_BASE_URL` | `scripts/verify-cloud-only-staging.ps1` | `hosted_backend_origin_env_required` |
 | `hosted_staging` | `STAGING_BASE_URL` | `scripts/verify-hosted-staging.ps1` against HTTPS non-local URL | `hosted_staging_base_url_required` |
 | `branch_protection` | `BRANCH_PROTECTION_TOKEN` | `scripts/apply_github_branch_protection.py --verify-only --branch main` | `branch_protection_verify_contract` |

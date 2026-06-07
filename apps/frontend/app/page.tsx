@@ -120,8 +120,8 @@ export default function Landing() {
               ))}
             </div>
             <p style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 10 }}>
-              Each layer is backed by real cloud providers (Vercel · Hetzner · Cloudflare · GitHub ·
-              GHCR · Hugging Face · GitLab · GitKraken). Tokens live under{" "}
+              Each layer is backed by real cloud providers (Vercel · Fly.io · Cloudflare · GitHub Actions ·
+              GHCR · Hugging Face · GitLab · Grafana Cloud). Tokens live under{" "}
               <span className="mono">.codex/secrets</span> — surfaced only as status
               (configured / verified / blocked), never printed.
             </p>

@@ -67,7 +67,7 @@ export default async function AgentsPage() {
         <Note>
           Profiles are deterministic runtime contracts — they do not imply live provider credentials
           are configured, and production-deploy actions stay human-review gated. All four agents run
-          on Layer 3 (Agent Pool · Hetzner); global max-retry is 5.
+          on Layer 3 (Agent Pool · Fly.io); global max-retry is 5.
         </Note>
       </div>
     </AppShell>

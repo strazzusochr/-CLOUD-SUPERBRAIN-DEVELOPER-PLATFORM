@@ -206,7 +206,7 @@ export const MODELS = [
 /** Read-only scoped roots for the local files surface. */
 export const FILE_ROOTS = ["project", "workspace", "documents", "codex_runs", "codex_skills"];
 
-/** Real top-level project tree (read-only; .git/.env/secrets blocked). */
+/** Spec top-level project tree (read-only intent; runtime wiring may be unavailable). */
 export const PROJECT_TREE: { d: number; name: string; folder?: boolean }[] = [
   { d: 0, name: "-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM", folder: true },
   { d: 1, name: "apps", folder: true },

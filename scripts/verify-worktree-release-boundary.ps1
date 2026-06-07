@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$ReleaseId = "",
   [string]$CurrentReleaseCandidatePath = "docs\release-artifacts\current-release-candidate.json",
   [string]$OutputPath = ".phase1-artifacts\worktree-release-boundary-20260510.json",
@@ -45,7 +45,7 @@ function Test-RiskyArtifactPath([string]$Path) {
   $normalized = $Path -replace '\\', '/'
   $patterns = @(
     '(^|/)vercel_storage\.json$',
-    '(^|/)hetzner_.*\.(json|png|html)$',
+    '(^|/)Fly.io_.*\.(json|png|html)$',
     '(^|/)cf_.*\.(png|html)$',
     '(^|/)github_.*\.(png|html)$',
     '(^|/)gitlab_.*\.(png|html)$',
@@ -265,3 +265,4 @@ try {
 } finally {
   Pop-Location
 }
+

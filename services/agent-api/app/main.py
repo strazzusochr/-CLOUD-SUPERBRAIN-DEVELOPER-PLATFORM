@@ -592,7 +592,7 @@ def external_gate_verification_flags(progress: dict[str, object] | None = None) 
         "ghcr_images": "ghcr_image_digest_verified" in markers,
         "branch_protection": "branch_protection_verified" in markers,
         "hosted_backend_origins": "hosted_backend_origin_verified" in markers,
-        "hetzner_cloud_stack": "hetzner_live_budget_verified" in markers,
+        "fly_cloud_stack": "fly_live_budget_verified" in markers or "hetzner_live_budget_verified" in markers,
         "canonical_secret_scan": "canonical_gitleaks_verified" in markers,
         "production_gate_claim_allowed": "production_gate_claim_allowed" in markers,
         "external_gate_audit_verified": "external_gate_audit_verified" in markers,
@@ -628,13 +628,13 @@ def external_gate_state() -> dict[str, object]:
             "fallback": "Local proof may run only with explicit -AllowLocalhost.",
         },
         {
-            "id": "hetzner_api_token",
-            "preflight_gate_id": "hetzner_cloud_stack",
-            "label": "Hetzner API token",
-            "configured": bool(os.getenv("HETZNER_API_TOKEN")) or verified_flags["hetzner_cloud_stack"],
-            "verified": verified_flags["hetzner_cloud_stack"],
-            "required_env": ["HETZNER_API_TOKEN"],
-            "evidence_ref": "hetzner_live_budget_check",
+            "id": "fly_api_token",
+            "preflight_gate_id": "fly_cloud_stack",
+            "label": "Fly.io API token",
+            "configured": bool(os.getenv("FLY_API_TOKEN")) or verified_flags["fly_cloud_stack"],
+            "verified": verified_flags["fly_cloud_stack"],
+            "required_env": ["FLY_API_TOKEN"],
+            "evidence_ref": "fly_live_budget_check",
             "required_for": "Live infrastructure invoice/cost verification.",
             "fallback": "Configured Phase-1 projection is used; live invoice proof is not claimed.",
         },
@@ -3562,7 +3562,7 @@ def project_progress_completion_payload() -> dict[str, object]:
         "staging_base_url": "hosted_staging_proof_requires_STAGING_BASE_URL",
         "branch_protection_token": "protected_main_proof_requires_BRANCH_PROTECTION_TOKEN",
         "gitleaks_binary": "canonical_secret_scan_requires_gitleaks_binary",
-        "hetzner_api_token": "live_infra_budget_refresh_requires_HETZNER_API_TOKEN",
+        "fly_api_token": "live_infra_budget_refresh_requires_FLY_API_TOKEN",
     }
     missing_external_gate_blockers = [
         blocker for gate_id, blocker in missing_gate_blocker_map.items() if gate_id in missing_gate_ids
@@ -3588,7 +3588,7 @@ def project_progress_completion_payload() -> dict[str, object]:
             for blocker, enabled in [
                 ("hosted_staging_proof_requires_STAGING_BASE_URL", not verified_flags["hosted_staging"]),
                 ("protected_main_proof_requires_BRANCH_PROTECTION_TOKEN", not verified_flags["branch_protection"]),
-                ("live_infra_budget_refresh_requires_HETZNER_API_TOKEN", not verified_flags["hetzner_cloud_stack"]),
+                ("live_infra_budget_refresh_requires_FLY_API_TOKEN", not verified_flags["fly_cloud_stack"]),
             ]
             if enabled
         ],
@@ -3776,7 +3776,7 @@ def cloud_render_offload_state() -> dict[str, object]:
         "AGENT_API_BASE_URL",
         "MCP_GATEWAY_BASE_URL",
         "LLM_GATEWAY_BASE_URL",
-        "HETZNER_API_TOKEN",
+        "FLY_API_TOKEN",
     ]
     optional_env = [
         "VERCEL_TOKEN",
@@ -3828,10 +3828,10 @@ def cloud_render_offload_state() -> dict[str, object]:
                 "evidence_ref": "cloud_llm_gateway_health",
             },
             {
-                "id": "hetzner_runtime_budget",
-                "required_env": "HETZNER_API_TOKEN",
-                "configured": bool(os.getenv("HETZNER_API_TOKEN")),
-                "evidence_ref": "hetzner_live_budget_check",
+                "id": "fly_runtime_budget",
+                "required_env": "FLY_API_TOKEN",
+                "configured": bool(os.getenv("FLY_API_TOKEN")),
+                "evidence_ref": "fly_live_budget_check",
             },
         ],
         "workloads": [
@@ -3946,17 +3946,17 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
             "next_action": "dispatch_main_deploy_workflow_after_github_auth_is_repaired",
         },
         {
-            "id": "hetzner_cloud_stack",
-            "label": "Hetzner pull-based cloud stack",
-            "required_env": ["HETZNER_API_TOKEN"],
+            "id": "fly_cloud_stack",
+            "label": "Fly.io pull-based cloud stack",
+            "required_env": ["FLY_API_TOKEN"],
             "required_artifact": "docker-compose.cloud.yml",
-            "verifier": "scripts/check_hetzner_infra_budget.py",
-            "environment_configured": env_ready(["HETZNER_API_TOKEN"]),
-            "configured": verified_flags["hetzner_cloud_stack"],
-            "verified": verified_flags["hetzner_cloud_stack"],
-            "evidence_ref": "hetzner_live_budget_check",
-            "required_evidence_artifact": "current Hetzner budget proof plus reachable cloud compose health checks",
-            "next_action": "run_cloud_compose_pull_and_up_on_hetzner_host_with_environment_only_secrets",
+            "verifier": "scripts/check_fly_infra_budget.py",
+            "environment_configured": env_ready(["FLY_API_TOKEN"]),
+            "configured": verified_flags["fly_cloud_stack"],
+            "verified": verified_flags["fly_cloud_stack"],
+            "evidence_ref": "fly_live_budget_check",
+            "required_evidence_artifact": "current Fly.io budget proof plus reachable cloud compose health checks",
+            "next_action": "run_cloud_compose_pull_and_up_on_fly_host_with_environment_only_secrets",
         },
         {
             "id": "hosted_backend_origins",
@@ -3969,7 +3969,7 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
             "verified": verified_flags["hosted_backend_origins"],
             "evidence_ref": "hosted_backend_origin_env_required",
             "required_evidence_artifact": "cloud-only staging proof with hosted backend origin URLs",
-            "next_action": "configure_vercel_backend_origin_urls_after_hetzner_stack_is_reachable",
+            "next_action": "configure_vercel_backend_origin_urls_after_fly_stack_is_reachable",
         },
         {
             "id": "hosted_staging",
@@ -6019,7 +6019,7 @@ def layer_interface_contract_payload() -> dict[str, object]:
         "non_claims": [
             "No hosted staging success is claimed without STAGING_BASE_URL.",
             "No GitHub branch protection success is claimed without BRANCH_PROTECTION_TOKEN.",
-            "No Hetzner live infrastructure state is claimed without HETZNER_API_TOKEN.",
+            "No Fly.io live infrastructure state is claimed without FLY_API_TOKEN.",
         ],
     }
 
@@ -6363,7 +6363,7 @@ def infra_budget() -> dict[str, object]:
         "source": state.source,
         "items": state.items,
         "non_claims": [
-            "This endpoint is a configured Phase-1 projection unless HETZNER_API_TOKEN is configured.",
+            "This endpoint is a configured Phase-1 projection unless FLY_API_TOKEN is configured.",
             "LLM/API provider spend is tracked separately and is not counted in the 20 EUR infrastructure limit.",
         ],
     }

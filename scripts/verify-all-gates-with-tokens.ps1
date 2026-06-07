@@ -13,11 +13,49 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
 $importScript = Join-Path $PSScriptRoot "import-local-env.ps1"
+$externalGateScript = Join-Path $PSScriptRoot "verify-external-gates.ps1"
 if (-not (Test-Path -LiteralPath $importScript)) {
   throw "Missing env import helper: $importScript"
 }
+if (-not (Test-Path -LiteralPath $externalGateScript)) {
+  throw "Missing external gate verifier: $externalGateScript"
+}
 
 & $importScript -EnvFilePath $EnvFilePath -Quiet -Overwrite:$OverwriteEnv
+
+function Assert-ExternalGateVerifierPreflight([string]$ScriptPath) {
+  $parseErrors = $null
+  [System.Management.Automation.Language.Parser]::ParseFile(
+    $ScriptPath,
+    [ref]$null,
+    [ref]$parseErrors
+  ) | Out-Null
+  if ($parseErrors -and $parseErrors.Count -gt 0) {
+    $messages = @($parseErrors | ForEach-Object { $_.Message }) -join "; "
+    throw "External gate verifier has parse errors: $messages"
+  }
+
+  $raw = Get-Content -Path $ScriptPath -Raw
+  if (-not $raw.Contains('$global:LASTEXITCODE = 0')) {
+    throw "External gate verifier preflight failed: successful exit code reset is missing"
+  }
+
+  $requiredBlockMatch = [regex]::Match($raw, '(?s)\$hostedApiRequiredIds\s*=\s*@\((.*?)\)')
+  if (-not $requiredBlockMatch.Success) {
+    throw "External gate verifier preflight failed: hosted API required id block is missing"
+  }
+  $probeBlockMatch = [regex]::Match($raw, '(?s)\$hostedProbes\s*=\s*@\((.*?)\)\s*\}')
+  if (-not $probeBlockMatch.Success) {
+    throw "External gate verifier preflight failed: hosted probe block is missing"
+  }
+
+  $requiredIds = [regex]::Matches($requiredBlockMatch.Groups[1].Value, '"([^"]+)"') | ForEach-Object { $_.Groups[1].Value }
+  $definedHostedProbeIds = [regex]::Matches($probeBlockMatch.Groups[1].Value, 'New-Probe\s+"([^"]+)"') | ForEach-Object { $_.Groups[1].Value }
+  $missingHostedProbeIds = @($requiredIds | Where-Object { $definedHostedProbeIds -notcontains $_ })
+  if ($missingHostedProbeIds.Count -gt 0) {
+    throw "External gate verifier preflight failed: missing hosted probe definitions for $($missingHostedProbeIds -join ', ')"
+  }
+}
 
 function Normalize-BaseUrl([string]$Value) {
   if ([string]::IsNullOrWhiteSpace($Value)) {
@@ -67,10 +105,6 @@ if ([string]::IsNullOrWhiteSpace($env:BRANCH_PROTECTION_TOKEN) -and -not [string
   $env:BRANCH_PROTECTION_TOKEN = $env:GITHUB_TOKEN
 }
 
-if ([string]::IsNullOrWhiteSpace($env:HETZNER_API_TOKEN) -and -not [string]::IsNullOrWhiteSpace($env:HCLOUD_TOKEN)) {
-  $env:HETZNER_API_TOKEN = $env:HCLOUD_TOKEN
-}
-
 if ($missing.Count -gt 0) {
   throw "Required environment variable(s) missing for external gate verification: $($missing -join ', ')"
 }
@@ -90,13 +124,16 @@ if ($RequireAllClosed) {
 
 Write-Host "[verify-all-gates-with-tokens] running external gate verification with private env bootstrap"
 Write-Host "[verify-all-gates-with-tokens] optional identity tokens are evaluated by verify-external-gates.ps1, not pre-required here"
+Write-Host "[verify-all-gates-with-tokens] preflight-checking verify-external-gates.ps1"
+Assert-ExternalGateVerifierPreflight $externalGateScript
 
 Push-Location $repoRoot
 try {
-  & (Join-Path $PSScriptRoot "verify-external-gates.ps1") @externalArgs
+  & $externalGateScript @externalArgs
   if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
   }
 } finally {
   Pop-Location
 }
+

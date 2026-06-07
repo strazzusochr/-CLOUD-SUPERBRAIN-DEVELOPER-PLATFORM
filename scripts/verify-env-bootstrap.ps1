@@ -1,4 +1,4 @@
-param()
+﻿param()
 
 $ErrorActionPreference = "Stop"
 
@@ -17,7 +17,7 @@ $namesToRestore = @(
   "VERCEL_TEAM_ID",
   "VERCEL_ORG_ID",
   "HCLOUD_TOKEN",
-  "HETZNER_API_TOKEN",
+  "FLY_API_TOKEN",
   "GITHUB_TOKEN",
   "BRANCH_PROTECTION_TOKEN",
   "EXTRA_DUMMY",
@@ -61,7 +61,7 @@ try {
   Assert-Equal "VERCEL_TEAM_ID" ([Environment]::GetEnvironmentVariable("VERCEL_TEAM_ID", "Process")) "team_dummy_123"
   Assert-Equal "VERCEL_ORG_ID no-overwrite" ([Environment]::GetEnvironmentVariable("VERCEL_ORG_ID", "Process")) "preexisting_org_dummy"
   Assert-Equal "HCLOUD_TOKEN" ([Environment]::GetEnvironmentVariable("HCLOUD_TOKEN", "Process")) "hcloud_dummy_secret"
-  Assert-Equal "HETZNER_API_TOKEN alias" ([Environment]::GetEnvironmentVariable("HETZNER_API_TOKEN", "Process")) "hcloud_dummy_secret"
+  Assert-Equal "FLY_API_TOKEN alias" ([Environment]::GetEnvironmentVariable("FLY_API_TOKEN", "Process")) "hcloud_dummy_secret"
   Assert-Equal "GITHUB_TOKEN" ([Environment]::GetEnvironmentVariable("GITHUB_TOKEN", "Process")) "github_dummy_secret"
   Assert-Equal "BRANCH_PROTECTION_TOKEN alias" ([Environment]::GetEnvironmentVariable("BRANCH_PROTECTION_TOKEN", "Process")) "github_dummy_secret"
   Assert-Equal "QUOTED_VALUE" ([Environment]::GetEnvironmentVariable("QUOTED_VALUE", "Process")) "quoted dummy value"
@@ -80,3 +80,4 @@ try {
     [Environment]::SetEnvironmentVariable($name, $previousValues[$name], "Process")
   }
 }
+
