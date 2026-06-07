@@ -10,6 +10,10 @@ const PAGE_ROUTES = [
 ];
 
 test.describe("Cloud Superbrain platform", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+  });
+
   test("all page routes return 200", async ({ page }) => {
     for (const route of PAGE_ROUTES) {
       const resp = await page.goto(route, { waitUntil: "domcontentloaded" });
