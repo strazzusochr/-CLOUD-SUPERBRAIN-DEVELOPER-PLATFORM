@@ -8,6 +8,8 @@ if (!process.env.VERCEL) {
 const resolveBaseUrl = (envKey) => {
   const direct = process.env[envKey];
   if (direct) return direct;
+  const stagingFallbackEnabled = (process.env.STAGING_REWRITES_ENABLED || "").toLowerCase() === "true";
+  if (!stagingFallbackEnabled) return null;
   const staging = process.env.STAGING_BASE_URL;
   if (!staging) return null;
   if (envKey === "AGENT_API_BASE_URL") return staging;
