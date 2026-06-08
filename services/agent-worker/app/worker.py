@@ -217,6 +217,38 @@ def validated_session_id(task: TaskRecord) -> str:
     return str(UUID(task.session_id))
 
 
+def ensure_project_and_session(cur: psycopg.Cursor, *, project_external_id: str, session_id: str) -> str:
+    existing = cur.execute(
+        "SELECT id FROM projects WHERE metadata->>'external_id' = %s LIMIT 1",
+        (project_external_id,),
+    ).fetchone()
+    if existing:
+        project_uuid = str(existing[0])
+    else:
+        created = cur.execute(
+            """
+            INSERT INTO projects(name, owner_id, metadata)
+            VALUES (%s, %s, %s::jsonb)
+            RETURNING id
+            """,
+            (project_external_id, "phase1-local", Json({"external_id": project_external_id})),
+        ).fetchone()
+        if not created:
+            raise RuntimeError("project insert did not return an id")
+        project_uuid = str(created[0])
+
+    cur.execute(
+        """
+        INSERT INTO agent_sessions(id, project_id, agent_list, metadata)
+        VALUES (%s, %s, %s, %s::jsonb)
+        ON CONFLICT (id) DO UPDATE
+        SET metadata = agent_sessions.metadata || EXCLUDED.metadata
+        """,
+        (session_id, project_uuid, ["planner", "coder", "tester", "devops"], Json({"source": "agent-worker"})),
+    )
+    return project_uuid
+
+
 def persist_completion(task: TaskRecord, result: str, result_envelope: dict[str, Any], done_validation: dict[str, bool]) -> None:
     session_id = validated_session_id(task)
     trace_id = task.trace_id or session_id
@@ -231,6 +263,7 @@ def persist_completion(task: TaskRecord, result: str, result_envelope: dict[str,
     }
     with psycopg.connect(database_url()) as conn:
         with conn.cursor() as cur:
+            ensure_project_and_session(cur, project_external_id=task.project_id, session_id=session_id)
             cur.execute(
                 """
                 INSERT INTO agent_messages (

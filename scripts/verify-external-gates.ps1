@@ -131,6 +131,9 @@ fetch(url).then(async (response) => {
     $result = New-Probe $Id $(if ($ok) { "verified" } else { "failed" }) $true $ok $EvidenceRef $Url $statusCode $message $errorText
     $result["bytes"] = [int]$probe.bytes
     $result["has_required_text"] = [bool]$probe.hasRequiredText
+    if ($probe.snippet) {
+      $result["snippet"] = [string]$probe.snippet
+    }
     return $result
   } catch {
     return New-Probe $Id "failed" $true $false $EvidenceRef $Url 0 "node fetch probe failed" ($raw.Trim())
@@ -343,6 +346,38 @@ function Invoke-ProcessProbe([string]$Id, [string]$EvidenceRef, [scriptblock]$Co
   }
 }
 
+function Invoke-GhcrDigestProbe([string]$Namespace, [string]$Tag) {
+  $dockerAvailable = [bool](Get-Command docker -ErrorAction SilentlyContinue)
+  if (-not $dockerAvailable) {
+    return New-Probe "ghcr_image_digest_verify" "missing_secret_or_binary" $false $false "ghcr_image_digest_proof" "" 0 "docker is required to verify GHCR image digests" ""
+  }
+  if ([string]::IsNullOrWhiteSpace($Namespace)) {
+    return New-Probe "ghcr_image_digest_verify" "missing_secret_or_url" $false $false "ghcr_image_digest_proof" "" 0 "GHCR image namespace is not configured. Set env:GHCR_IMAGE_NAMESPACE (example: ghcr.io/<owner>/<repo>)" ""
+  }
+
+  $services = @("frontend", "agent-api", "agent-worker", "memory-worker", "mcp-gateway", "llm-gateway")
+  $digests = @()
+  foreach ($service in $services) {
+    $imageRef = "$Namespace/$service`:$Tag"
+    $raw = (& docker buildx imagetools inspect $imageRef 2>&1 | Out-String)
+    if ($LASTEXITCODE -ne 0) {
+      if ($raw -match "unauthorized|denied|authentication|forbidden") {
+        return New-Probe "ghcr_image_digest_verify" "missing_secret_or_token" $true $false "ghcr_image_digest_proof" "" 0 "GHCR digest verification is BLOCKED. Authenticate Docker for GHCR (docker login ghcr.io) with a token that has read:packages, then re-run verify:external-gates." ($raw.Trim())
+      }
+      return New-Probe "ghcr_image_digest_verify" "failed" $true $false "ghcr_image_digest_proof" "" 0 "GHCR digest inspection failed" ($raw.Trim())
+    }
+    $match = [regex]::Match($raw, "Digest:\s*(sha256:[0-9a-f]{64})", [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    if (-not $match.Success) {
+      return New-Probe "ghcr_image_digest_verify" "failed" $true $false "ghcr_image_digest_proof" "" 0 "GHCR digest inspection did not return a digest" ($raw.Trim())
+    }
+    $digests += "$service=$($match.Groups[1].Value)"
+  }
+
+  $result = New-Probe "ghcr_image_digest_verify" "verified" $true $true "ghcr_image_digest_proof" "" 200 "GHCR digests resolved for all service images" ""
+  $result["digests"] = $digests
+  return $result
+}
+
 function Invoke-RemoteBranchProtectionProbe(
   [string]$Repository,
   [string]$Branch,
@@ -352,10 +387,10 @@ function Invoke-RemoteBranchProtectionProbe(
   [string]$AppDir
 ) {
   if ([string]::IsNullOrWhiteSpace($SshHost) -or [string]::IsNullOrWhiteSpace($User) -or [string]::IsNullOrWhiteSpace($KeyPath) -or [string]::IsNullOrWhiteSpace($AppDir)) {
-    return New-Probe "github_branch_protection_verify" "missing_secret_or_binary" $false $false "branch_protection_verify_contract" "" 0 "remote branch protection fallback is not configured" ""
+    return New-Probe "github_branch_protection_verify" "missing_secret_or_token" $false $false "branch_protection_verify_contract" "" 0 "Branch protection verify is BLOCKED. Set env:BRANCH_PROTECTION_TOKEN (recommended) to verify via GitHub API, or configure env:STAGING_SSH_HOST/env:STAGING_SSH_USER/env:STAGING_SSH_KEY_PATH/env:STAGING_APP_DIR for remote --verify-only." ""
   }
   if (-not (Test-Path $KeyPath)) {
-    return New-Probe "github_branch_protection_verify" "missing_secret_or_binary" $false $false "branch_protection_verify_contract" "" 0 "remote branch protection fallback key is missing" ""
+    return New-Probe "github_branch_protection_verify" "missing_secret_or_binary" $false $false "branch_protection_verify_contract" "" 0 "Branch protection verify remote key missing. Set env:STAGING_SSH_KEY_PATH to an existing private key or set env:BRANCH_PROTECTION_TOKEN to verify via API." ""
   }
   $localVerifierScript = Join-Path $PSScriptRoot "apply_github_branch_protection.py"
   if (-not (Test-Path $localVerifierScript)) {
@@ -422,19 +457,19 @@ $localProbes = @(
 
 if ($hostedBase) {
   $hostedProbes = @(
-    (New-Probe "hosted_frontend_root" "verified" $true $true "hosted_frontend_preview_visible" "$hostedBase/" 200 "mock verified" ""),
-    (New-Probe "hosted_frontend_health" "verified" $true $true "hosted_frontend_health_visible" "$hostedBase/health" 200 "mock verified" ""),
-    (New-Probe "hosted_agent_api_health" "verified" $true $true "hosted_agent_api_health_required" "$hostedBase/api/v1/health" 200 "mock verified" ""),
-    (New-Probe "hosted_cloud_provider_inventory" "verified" $true $true "hosted_cloud_provider_inventory_required" "$hostedBase/api/v1/clouds" 200 "mock verified" ""),
-    (New-Probe "hosted_cloud_layer_readiness" "verified" $true $true "hosted_cloud_layer_readiness_required" "$hostedBase/api/v1/clouds/layers" 200 "mock verified" ""),
-    (New-Probe "hosted_cloud_deployment_preflight" "verified" $true $true "hosted_cloud_deployment_preflight_required" "$hostedBase/api/v1/clouds/deployment-preflight/contract" 200 "mock verified" ""),
-    (New-Probe "hosted_project_progress_integrity" "verified" $true $true "hosted_progress_integrity_contract_required" "$hostedBase/api/v1/project/progress/integrity" 200 "mock verified" ""),
-    (New-Probe "hosted_project_progress_completion" "verified" $true $true "hosted_project_progress_completion_required" "$hostedBase/api/v1/project/progress/completion" 200 "mock verified" ""),
-    (New-Probe "hosted_external_gates" "verified" $true $true "hosted_external_gate_state_required" "$hostedBase/api/v1/external-gates" 200 "mock verified" "")
+    (Invoke-HttpProbe "hosted_frontend_root" "$hostedBase/" "" "hosted_frontend_preview_visible"),
+    (Invoke-HttpProbe "hosted_frontend_health" "$hostedBase/health" "" "hosted_frontend_health_visible"),
+    (Invoke-HttpProbe "hosted_agent_api_health" "$hostedBase/api/v1/health" "agent-api" "hosted_agent_api_health_required"),
+    (Invoke-HttpProbe "hosted_cloud_provider_inventory" "$hostedBase/api/v1/clouds" "cloud-provider-inventory-v1" "hosted_cloud_provider_inventory_required"),
+    (Invoke-HttpProbe "hosted_cloud_layer_readiness" "$hostedBase/api/v1/clouds/layers" "cloud-layer-readiness-v1" "hosted_cloud_layer_readiness_required"),
+    (Invoke-HttpProbe "hosted_cloud_deployment_preflight" "$hostedBase/api/v1/clouds/deployment-preflight/contract" "cloud-deployment-preflight-v1" "hosted_cloud_deployment_preflight_required"),
+    (Invoke-HttpProbe "hosted_project_progress_integrity" "$hostedBase/api/v1/project/progress/integrity" "project-progress-integrity-v1" "hosted_progress_integrity_contract_required"),
+    (Invoke-HttpProbe "hosted_project_progress_completion" "$hostedBase/api/v1/project/progress/completion" "project-progress-100-percent-contract-v1" "hosted_progress_completion_contract_required"),
+    (Invoke-HttpProbe "hosted_external_gates" "$hostedBase/api/v1/external-gates" "external-gates-state-v1" "hosted_external_gate_state_required")
   )
 } else {
   $hostedProbes = @(
-    (New-Probe "hosted_staging_base_url" "missing_secret_or_url" $false $false "hosted_staging_base_url_required" "" 0 "STAGING_BASE_URL is not configured" "")
+    (New-Probe "hosted_staging_base_url" "missing_secret_or_url" $false $false "hosted_staging_base_url_required" "" 0 "Hosted staging is BLOCKED. Set env:STAGING_BASE_URL to the real HTTPS staging base URL (example: https://staging.example.com)." "")
   )
 }
 
@@ -454,14 +489,7 @@ if ($branchTokenConfigured) {
   $branchProtectionProbe = Invoke-RemoteBranchProtectionProbe $Repository $Branch $StagingSshHost $StagingSshUser $StagingSshKeyPath $StagingAppDir
 }
 
-$dockerManifestAvailable = [bool](Get-Command docker -ErrorAction SilentlyContinue)
-$ghcrProbeConfigured = $dockerManifestAvailable -and (-not [string]::IsNullOrWhiteSpace($GhcrImageNamespace))
-$ghcrProbe = Invoke-ProcessProbe "ghcr_image_digest_verify" "ghcr_image_digest_proof" {
-  $services = @("frontend", "agent-api", "agent-worker", "memory-worker", "mcp-gateway", "llm-gateway")
-  foreach ($service in $services) {
-    Write-Output "mock verified $GhcrImageNamespace/$service`:$ImageTag" | Out-Null
-  }
-} $ghcrProbeConfigured
+$ghcrProbe = Invoke-GhcrDigestProbe $GhcrImageNamespace $ImageTag
 
 $originUrls = @(
   @{ id = "vercel_agent_api_origin"; url = $env:AGENT_API_BASE_URL; prefix = "/api"; health = "/v1/health"; marker = "agent-api" },
@@ -476,12 +504,18 @@ foreach ($origin in $originUrls) {
   $originMarker = [string]$origin["marker"]
   $normalizedOrigin = Normalize-BaseUrl $origin["url"]
   if (-not $normalizedOrigin) {
-    $vercelOriginProbes += New-Probe $originId "missing_secret_or_url" $false $false "vercel_backend_origin_required" "" 0 "$originId is not configured" ""
+    $requiredEnv = switch ($originId) {
+      "vercel_agent_api_origin" { "AGENT_API_BASE_URL" }
+      "vercel_mcp_gateway_origin" { "MCP_GATEWAY_BASE_URL" }
+      "vercel_llm_gateway_origin" { "LLM_GATEWAY_BASE_URL" }
+      default { "AGENT_API_BASE_URL / MCP_GATEWAY_BASE_URL / LLM_GATEWAY_BASE_URL" }
+    }
+    $vercelOriginProbes += New-Probe $originId "missing_secret_or_url" $false $false "vercel_backend_origin_required" "" 0 "Vercel origin is BLOCKED. Set env:$requiredEnv to the real HTTPS origin URL for $originId." ""
     continue
   }
   Assert-HostedBaseUrlSafe $normalizedOrigin
   $originHealthUrl = Join-OriginProbeUrl $normalizedOrigin $originPrefix $originHealthPath
-  $vercelOriginProbes += New-Probe $originId "verified" $true $true "vercel_backend_origin_required" $originHealthUrl 200 "mock verified" ""
+  $vercelOriginProbes += Invoke-HttpProbe $originId $originHealthUrl $originMarker "vercel_backend_origin_required"
 }
 $vercelOriginsClaimAllowed = @($vercelOriginProbes | Where-Object { $_.claim_allowed }).Count -eq $originUrls.Count
 
@@ -491,7 +525,7 @@ if ($flyTokenConfigured) {
     node -e "const t=process.env.FLY_API_TOKEN;if(!t){console.log(JSON.stringify({ok:false}));process.exit(1)}fetch('https://api.fly.io/graphql',{method:'POST',headers:{Authorization:'Bearer '+t,'Content-Type':'application/json'},body:JSON.stringify({query:'{viewer{email}}'})}).then(async r=>{const b=await r.json();const ok=r.ok&&b.data&&b.data.viewer;console.log(JSON.stringify({ok,status:r.status}));if(!ok)process.exit(1)}).catch(e=>{console.log(JSON.stringify({ok:false,error:e.message}));process.exit(1)})"
   } $true
 } else {
-  $flyProbe = New-Probe "fly_live_budget_check" "missing_secret_or_token" $false $false "fly_live_budget_check" "" 0 "FLY_API_TOKEN is required for live Fly.io budget proof" ""
+  $flyProbe = New-Probe "fly_live_budget_check" "missing_secret_or_token" $false $false "fly_live_budget_check" "" 0 "Fly.io live budget is BLOCKED. Set env:FLY_API_TOKEN to a real Fly.io API token." ""
 }
 
 $hostedApiRequiredIds = @(
@@ -530,7 +564,7 @@ if (-not $flyClaimAllowed) { $missing += "fly_live_budget_check" }
 
 $summary = [ordered]@{
   contract_version = "external-gate-audit-v1"
-  status = if ($missing.Count -eq 0) { "verified" } else { "action_required" }
+  status = if ($missing.Count -eq 0) { "verified" } else { "blocked" }
   evidence_ref = "external_gate_audit_proof"
   generated_at_utc = (Get-Date).ToUniversalTime().ToString("o")
   local_base_url = $localBase

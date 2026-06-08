@@ -20,6 +20,10 @@ coverage/
 docs/*Token*.txt
 docs/*Tokens*.txt
 secrets/
+/.trae/
+/.rules/
+trae-hermes-test.log
+AGENTS.codex-backup.md
 /*_token.txt
 /*token*.png
 /*token*.html

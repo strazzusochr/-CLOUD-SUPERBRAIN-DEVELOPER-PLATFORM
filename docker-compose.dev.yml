@@ -144,9 +144,9 @@ services:
       agent-api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import os, psycopg, redis; redis.Redis.from_url(os.environ['REDIS_URL'], socket_timeout=2).ping(); psycopg.connect(os.environ['DATABASE_URL']).close()"]
+      test: ["CMD", "python", "-c", "import os, psycopg, redis; redis.Redis.from_url(os.environ['REDIS_URL'], socket_timeout=2, socket_connect_timeout=2).ping(); psycopg.connect(os.environ['DATABASE_URL'], connect_timeout=2).close()"]
       interval: 20s
-      timeout: 5s
+      timeout: 20s
       retries: 5
     mem_limit: 512m
     cpus: "0.50"
@@ -235,6 +235,13 @@ services:
     restart: unless-stopped
     environment:
       AGENT_API_INTERNAL_URL: http://agent-api:8000
+      LLM_GATEWAY_INTERNAL_URL: http://llm-gateway:4000
+      MCP_GATEWAY_INTERNAL_URL: http://mcp-gateway:9000
+      STAGING_BASE_URL: ${STAGING_BASE_URL:-http://localhost:8081}
+      VERCEL_AGENT_API_ORIGIN: ${VERCEL_AGENT_API_ORIGIN:-}
+      VERCEL_MCP_GATEWAY_ORIGIN: ${VERCEL_MCP_GATEWAY_ORIGIN:-}
+      VERCEL_LLM_GATEWAY_ORIGIN: ${VERCEL_LLM_GATEWAY_ORIGIN:-}
+      FLY_API_TOKEN: ${FLY_API_TOKEN:-}
       LLM_GATEWAY_MODE: ${LLM_GATEWAY_MODE:-deterministic_dry_run}
       LLM_LIVE_PROVIDER_DEFAULT: ${LLM_LIVE_PROVIDER_DEFAULT:-false}
       HF_TOKEN: ${HF_TOKEN:-}

@@ -1,4 +1,18 @@
-# AGENTS.md - CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM
+# HERMES AGENT INSTRUCTIONS
+# Hermes liest diesen Block automatisch.
+# Patched: 2026-06-07
+
+## Projektauftrag fuer Hermes
+Plattform: D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM
+Stack: Next.js 15, LangGraph, FastAPI, pgvector
+
+## Verhalten
+- Multi-Datei-Tasks: Subagents spawnen (3 Worktrees bereits verfuegbar)
+- Worktrees: git worktree list zeigt 3 aktive Umgebungen
+- MCP verfuegbar: hermes_mcp, filesystem_mcp, github_mcp
+- Planner zuerst, dann Coder + Tester parallel
+
+---# AGENTS.md - CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM
 # Active supervisor instructions for Codex GPT-5.5 and local/cloud agents.
 # Patched: 2026-04-29
 # Path: D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\AGENTS.md
@@ -148,3 +162,4 @@ Use short progress updates while working. Do not create meta-documents unless th
 ---
 
 *AGENTS.md - Version 4.0 | 2026-04-29 | GPT-5.5 / Codex config drift cleanup*
+

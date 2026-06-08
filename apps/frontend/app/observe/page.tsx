@@ -4,6 +4,7 @@ import { PageHeader, Panel, Badge, SpecModeBadge, Metric, StatusDot } from "../.
 import { SERVICES, API_SURFACES } from "../../lib/platform";
 import { LAYERS } from "../../components/organism/regionMap";
 import { fetchMetrics } from "../../lib/agentApi";
+import { paidCapabilityVisible } from "../../lib/paidCapabilities";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Beobachten / Monitoring — Cloud Superbrain" };
@@ -15,11 +16,26 @@ const STREAM_SURFACE = HEALTH.endpoints[5] ?? "/api/v1/session/{id}/stream";
 const BARS = [40, 62, 48, 70, 55, 80, 60, 74, 52, 66, 90, 58];
 const fmt = (n: number | undefined) => (typeof n === "number" ? n.toLocaleString("de-DE") : "—");
 
-export default async function ObservePage() {
+type SearchParams = Record<string, string | string[] | undefined>;
+type ObservePageProps = {
+  searchParams?: Promise<SearchParams>;
+};
+
+async function resolveSearchParams(searchParams: ObservePageProps["searchParams"]): Promise<SearchParams> {
+  if (!searchParams) return {};
+  return searchParams;
+}
+
+export default async function ObservePage({ searchParams }: ObservePageProps) {
+  const resolvedSearchParams = await resolveSearchParams(searchParams);
+  const showBudget = paidCapabilityVisible(resolvedSearchParams);
   const metrics = await fetchMetrics();
   const live = !!metrics;
   const s = metrics?.scalars ?? {};
   const services = metrics?.services.length ? metrics.services : SERVICES.map((x) => ({ name: x.name, up: true }));
+  const observabilityEndpoints = showBudget
+    ? OBS.endpoints
+    : OBS.endpoints.filter((endpoint) => !/\/api\/v1\/(budget|costs)/.test(endpoint));
 
   return (
     <AppShell crumb="Observe" runState="executing">
@@ -42,7 +58,9 @@ export default async function ObservePage() {
           <Metric label="Agent-Messages" value={live ? fmt(s.superbrain_agent_messages_total) : "—"} foot={live ? "live" : "nicht verfügbar"} />
           <Metric label="Memory-Einträge" value={live ? fmt(s.superbrain_memory_entries_total) : "—"} foot="pgvector" />
           <Metric label="Task-Queue Tiefe" value={live ? fmt(s.superbrain_task_queue_depth) : "—"} foot={live ? "live" : "nicht verfügbar"} />
-          <Metric label="LLM Budget (spent)" value={live ? `${s.superbrain_budget_spent_percentage ?? 0}%` : "—"} foot="dry-run · keine live Calls" />
+          {showBudget ? (
+            <Metric label="LLM Budget (spent)" value={live ? `${s.superbrain_budget_spent_percentage ?? 0}%` : "—"} foot="paid capability" />
+          ) : null}
         </div>
 
         <div className="grid cols-2">
@@ -68,7 +86,7 @@ export default async function ObservePage() {
 
           <Panel title="Observability-Surfaces">
             <div className="wb-pad stack" style={{ gap: 6 }}>
-              {OBS.endpoints.map((e) => (
+              {observabilityEndpoints.map((e) => (
                 <div key={e} className="surface-row">
                   <span className="mono" style={{ fontSize: 12.5 }}>{e}</span>
                   <Badge tone="cyan">nur lesen</Badge>

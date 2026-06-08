@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 
 function Assert-LastExitCode($label) {
   if ($LASTEXITCODE -ne 0) {
@@ -659,9 +659,14 @@ foreach ($required in @("Canonical platform specification", "not live runtime me
   }
 }
 $workbenchSource = Get-Content -Path "apps\frontend\app\workbench\page.tsx" -Raw
-foreach ($required in @("fetchMasterPlan", "fetchRecentTasks", "fetchRecentSessions", "fetchAuditRecent", "fetchLiveAgents", "fetchCompletionGate", "Runtime unreachable")) {
+foreach ($required in @("fetchRecentTasks", "fetchRecentSessions", "fetchAuditRecent", "fetchLiveAgents", "fetchCompletionGate", "Runtime nicht erreichbar", "Workspace-Surfaces (22)")) {
   if (-not $workbenchSource.Contains($required)) {
     throw "Missing workbench runtime projection guard: $required"
+  }
+}
+foreach ($forbidden in @("fetchMasterPlan", "Master Plan (live)", "Dispatch endpoints")) {
+  if ($workbenchSource.Contains($forbidden)) {
+    throw "Workbench must not surface project-plan dashboard elements: $forbidden"
   }
 }
 foreach ($required in @("SSE_BUFFER_LIMIT = 50", "Last-Event-ID", "record_sse_event", "replay_sse_events")) {

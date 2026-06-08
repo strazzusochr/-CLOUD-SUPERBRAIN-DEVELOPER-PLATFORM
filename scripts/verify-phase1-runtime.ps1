@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 
 & (Join-Path $PSScriptRoot "require-docker-readiness.ps1") -GateName "phase1-runtime compose verification"
 
@@ -22,6 +22,13 @@ function Assert-Contains($label, $value, $expected) {
     $tailLen = [Math]::Min(500, $trimmed.Length)
     $tail = $trimmed.Substring([Math]::Max(0, $trimmed.Length - $tailLen), $tailLen)
     throw "Runtime verification failed: $label did not contain '$expected'. head=$head tail=$tail"
+  }
+}
+
+function Assert-NotContains($label, $value, $forbidden) {
+  $text = ($value | Out-String)
+  if ($text.Contains($forbidden)) {
+    throw "Runtime verification failed: $label contained forbidden '$forbidden'."
   }
 }
 
@@ -196,8 +203,20 @@ foreach ($container in $appContainers) {
 
 Write-Host "[runtime] refresh nginx upstream resolution"
 $env:NGINX_HTTP_PORT = $port
-docker compose -f docker-compose.dev.yml up -d --no-deps --force-recreate nginx
-Assert-LastExitCode "refresh nginx upstream resolution"
+$previousErrorActionPreference = $ErrorActionPreference
+$previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
+$ErrorActionPreference = "Continue"
+$PSNativeCommandUseErrorActionPreference = $false
+try {
+  $nginxRecreateOutput = docker compose -f docker-compose.dev.yml up -d --no-deps --force-recreate nginx 2>&1 | Out-String
+  $nginxRecreateExitCode = $LASTEXITCODE
+} finally {
+  $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
+  $ErrorActionPreference = $previousErrorActionPreference
+}
+if ($nginxRecreateExitCode -ne 0) {
+  throw "Runtime verification failed: refresh nginx upstream resolution. output=$($nginxRecreateOutput.Trim())"
+}
 
 Write-Host "[runtime] nginx health"
 $nginxHealth = Wait-UrlContains "nginx health" "$baseUrl/health" "ok"
@@ -217,10 +236,11 @@ Assert-Contains "workbench page title" $workbenchHtml "Workbench"
 Assert-Contains "workbench sessions panel" $workbenchHtml "Sessions"
 Assert-Contains "workbench tasks panel" $workbenchHtml "Tasks"
 Assert-Contains "workbench audit panel" $workbenchHtml "Audit"
-Assert-Contains "workbench master plan panel" $workbenchHtml "Master Plan"
-Assert-Contains "workbench completion gate panel" $workbenchHtml "Completion gate"
+Assert-Contains "workbench workspace surfaces panel" $workbenchHtml "Workspace-Surfaces (22)"
+Assert-NotContains "workbench forbidden master plan panel" $workbenchHtml "Master Plan"
+Assert-Contains "workbench completion gate panel" $workbenchHtml "Completion-Gate"
 Assert-Contains "workbench fail-closed gate" $workbenchHtml "Fail-closed by design"
-Assert-Contains "workbench dispatch endpoints panel" $workbenchHtml "Dispatch endpoints"
+Assert-NotContains "workbench forbidden dispatch endpoints panel" $workbenchHtml "Dispatch endpoints"
 
 Write-Host "[runtime] agent-api health"
 $apiHealth = Wait-UrlContains "agent-api health" "$baseUrl/api/v1/health" '"status":"healthy"'
@@ -1405,8 +1425,12 @@ $infraBudget = curl.exe -sS "$baseUrl/api/v1/infra/budget"
 Assert-Contains "infra budget level" $infraBudget '"level":"ok"'
 Assert-Contains "infra budget projected" $infraBudget '"projected_cost_cents":900'
 Assert-Contains "infra budget limit" $infraBudget '"budget_limit_cents":2000'
-Assert-Contains "infra budget source" $infraBudget '"source":"configured_phase1_projection"'
-Assert-Contains "infra budget live verified false" $infraBudget '"live_verified":false'
+if (($infraBudget | Out-String).Contains('"live_verified":true')) {
+  Assert-Contains "infra budget source" $infraBudget '"source":"fly_api_readonly_plus_plan_projection"'
+} else {
+  Assert-Contains "infra budget source" $infraBudget '"source":"configured_phase1_projection"'
+  Assert-Contains "infra budget live verified false" $infraBudget '"live_verified":false'
+}
 Assert-Contains "infra budget production item" $infraBudget "fly-production-shared-cpu-1x"
 
 Write-Host "[runtime] external gates endpoint"

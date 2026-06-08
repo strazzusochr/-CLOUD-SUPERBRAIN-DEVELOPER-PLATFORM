@@ -1,5 +1,4 @@
 import { defineConfig, devices } from "@playwright/test";
-import path from "node:path";
 
 const PORT = 4040;
 
@@ -21,12 +20,11 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
-          // Software WebGL so the 3D organism renders in headless CI.
           args: [
+            "--disable-gpu",
+            "--disable-gpu-compositing",
             "--use-gl=swiftshader",
             "--ignore-gpu-blocklist",
-            "--enable-logging=stderr",
-            `--log-file=${path.join(process.cwd(), "test-results", "chromium-debug.log")}`,
           ],
         },
       },
