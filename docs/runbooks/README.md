@@ -17,7 +17,7 @@ Dieses Verzeichnis ist der Einstiegspunkt fuer operative Runbooks. Die Pflichtka
 | `rollback-deploy.md` | Ruecknahme eines fehlerhaften Releases | vor erster produktiver Pipeline |
 | `provider-failover.md` | Wechsel auf alternativen LLM- oder Tool-Provider | vor Multi-Provider-Betrieb |
 | `memory-recovery.md` | Umgang mit fehlerhaften Memory-Indizes oder Retention-Problemen | vor persistentem Langzeit-Memory |
-| `single-region-frankfurt-outage.md` | manuelle Ausweichprozedur bei Hetzner-Frankfurt- oder Primaerhost-Ausfall | vor erster laenger laufender Hosted-Nutzung |
+| `single-region-frankfurt-outage.md` | historisches Hetzner-Runbook; retired, nicht aktiver Cloud-Gate-Pfad | nur fuer Legacy-Audit |
 | `docker-desktop-wsl2-readiness.md` | lokaler Docker-Desktop/WSL2-Health-Check fuer dockerbasierte Gates | vor lokalen Docker-/Compose-Verifikationen |
 
 ## 3. Regeln

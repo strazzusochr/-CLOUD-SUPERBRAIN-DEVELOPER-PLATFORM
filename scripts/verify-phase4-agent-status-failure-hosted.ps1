@@ -1,12 +1,26 @@
 param(
-  [string]$BaseUrl = "https://188-34-191-140.sslip.io",
-  [string]$KeyPath = "C:\Users\immer\.ssh\oracle_key",
-  [string]$StagingHost = "188.34.191.140",
+  [string]$BaseUrl = $(if ($env:STAGING_BASE_URL) { $env:STAGING_BASE_URL } else { "" }),
+  [string]$KeyPath = $env:STAGING_SSH_KEY_PATH,
+  [string]$StagingHost = $env:STAGING_SSH_HOST,
   [string]$RemoteUser = "root",
   [string]$RemoteRootPath = "/app"
 )
 
 $ErrorActionPreference = "Stop"
+
+function Assert-HostedBaseUrlConfigured {
+  if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
+    throw "Hosted verifier requires -BaseUrl or env:STAGING_BASE_URL (HTTPS, non-localhost)."
+  }
+  if ($BaseUrl -notmatch '^https://') {
+    throw "Hosted verifier requires an HTTPS BaseUrl."
+  }
+  if ($BaseUrl -match 'localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0|host\.docker\.internal') {
+    throw "Hosted verifier refuses localhost and loopback BaseUrl values."
+  }
+}
+Assert-HostedBaseUrlConfigured
+
 
 function Assert-True($label, $condition) {
   if (-not $condition) {

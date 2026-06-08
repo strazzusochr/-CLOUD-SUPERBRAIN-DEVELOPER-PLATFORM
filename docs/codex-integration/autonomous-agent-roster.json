@@ -135,7 +135,7 @@
         "environment setup"
       ],
       "task_types": [
-        "hetzner staging",
+        "vercel/fly.io staging",
         "deploy scripts",
         "container drift"
       ],

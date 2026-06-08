@@ -37,18 +37,18 @@ Observed root cause:
 - Vercel frontend is live.
 - The frontend now supports cloud rewrites via `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, and `LLM_GATEWAY_BASE_URL`.
 - No Vercel environment variables are configured for those cloud backend URLs.
-- The known Hetzner IP answers over HTTPS, but currently serves an `OpenHands` frontend instead of the Cloud Superbrain Agent API.
-- SSH to the Hetzner host was reachable on port 22 but rejected the available local keys.
+- Historical note: the old Hetzner path is not an active staging gate.
+- Active staging proof must use Vercel/Fly.io HTTPS targets.
 - `hcloud` is installed but has no active context or token.
 - GitHub CLI has an invalid stored token, so workflow dispatch and branch-protection verification are blocked.
 
 Follow-up substrate patch:
 
-- `docker-compose.cloud.yml` now defines the pull-based Hetzner/GHCR stack for `frontend`, `agent-api`, `agent-worker`, `memory-worker`, `mcp-gateway`, `llm-gateway`, `postgres`, `redis`, and `nginx`.
+- `docker-compose.cloud.yml` now defines the pull-based Fly.io/GHCR stack for `frontend`, `agent-api`, `agent-worker`, `memory-worker`, `mcp-gateway`, `llm-gateway`, `postgres`, `redis`, and `nginx`.
 - `.github/workflows/main-deploy.yml` now publishes all six application images to the stable lowercase namespace `ghcr.io/${{ github.repository_owner }}/cloud-superbrain-developer-platform/<service>`.
 - `infrastructure/nginx/cloud.conf` routes `/`, `/api/`, `/mcp/`, `/llm/`, and `/health` inside the cloud stack.
-- Hetzner usage expects a repo checkout or release bundle with `docs/project-progress.manifest.json`, then `GHCR_IMAGE_NAMESPACE=ghcr.io/strazzusochr/cloud-superbrain-developer-platform` and `IMAGE_TAG=staging` before `docker compose -f docker-compose.cloud.yml pull` and `docker compose -f docker-compose.cloud.yml up -d`.
-- After the Hetzner backend is reachable, set Vercel `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, and `LLM_GATEWAY_BASE_URL` to that cloud origin, then rerun `scripts/verify-cloud-only-staging.ps1` without `-AllowLocalhost`.
+- Fly.io usage expects a repo checkout or release bundle with `docs/project-progress.manifest.json`, then `GHCR_IMAGE_NAMESPACE=ghcr.io/strazzusochr/cloud-superbrain-developer-platform` and `IMAGE_TAG=staging` before `docker compose -f docker-compose.cloud.yml pull` and `docker compose -f docker-compose.cloud.yml up -d`.
+- After the Fly.io backend is reachable, set Vercel `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, and `LLM_GATEWAY_BASE_URL` to that cloud origin, then rerun `scripts/verify-cloud-only-staging.ps1` without `-AllowLocalhost`.
 
 Non-claims:
 

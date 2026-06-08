@@ -724,9 +724,9 @@ $mcpVersionPinningContract = Invoke-Text "$BaseUrl/mcp/api/v1/version-pinning/co
 Assert-Contains "mcp version pinning contract version" $mcpVersionPinningContract '"contract_version":"mcp-version-pinning-v1"'
 Assert-Contains "mcp version pinning evidence" $mcpVersionPinningContract '"evidence_ref":"mcp_version_pinning_contract_visible"'
 Assert-Contains "mcp version pinning gap" $mcpVersionPinningContract '"audit_gap":"L-08"'
-Assert-Contains "mcp version pinning fastapi" $mcpVersionPinningContract "fastapi==0.115.8"
-Assert-Contains "mcp version pinning uvicorn" $mcpVersionPinningContract "uvicorn[standard]==0.34.0"
-Assert-Contains "mcp version pinning pydantic" $mcpVersionPinningContract "pydantic==2.10.6"
+Assert-Contains "mcp version pinning fastapi" $mcpVersionPinningContract "fastapi==0.136.3"
+Assert-Contains "mcp version pinning uvicorn" $mcpVersionPinningContract "uvicorn[standard]==0.49.0"
+Assert-Contains "mcp version pinning pydantic" $mcpVersionPinningContract "pydantic==2.13.4"
 Assert-Contains "mcp version pinning github contract" $mcpVersionPinningContract "github-branch-pr-plan-v1"
 Assert-Contains "mcp version pinning e2b contract" $mcpVersionPinningContract "e2b-sandbox-lifecycle-v1"
 Assert-Contains "mcp version pinning drift policy" $mcpVersionPinningContract "exact == pinning"

@@ -2,16 +2,17 @@
 
 Stand: 2026-05-09
 Status: Active baseline
-Scope: Phase 1-5 single-region Hetzner runtime risk
+Scope: Legacy Phase 1-5 single-region Hetzner runtime risk
+Status: retired; active cloud target is Vercel/Fly.io/GHCR/Grafana
 
 ## Purpose
 
 This runbook covers the explicit `F21` risk from the Cloud Superbrain analysis:
-the Phase 1-5 runtime is intentionally single-region on Hetzner `fsn1`
+the retired Phase 1-5 runtime was single-region on Hetzner `fsn1`
 Frankfurt to stay inside the 20 EUR/month infrastructure budget.
 
 It does not claim automatic multi-region failover. It defines the manual
-operator path when Frankfurt or the primary Hetzner host is unavailable.
+legacy operator path when Frankfurt or the historical primary Hetzner host is unavailable.
 
 ## Trigger
 

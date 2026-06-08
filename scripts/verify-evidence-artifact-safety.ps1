@@ -28,7 +28,7 @@ try {
     (New-SecretPattern "github_token" "gh[pousr]_[A-Za-z0-9_]{20,}"),
     (New-SecretPattern "jwt_token" "eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}"),
     (New-SecretPattern "private_key_block" "-----BEGIN ([A-Z0-9 ]+ )?PRIVATE KEY-----"),
-    (New-SecretPattern "sensitive_env_assignment" "(?i)(OPENAI_API_KEY|VERCEL_TOKEN|CLOUDFLARE_API_TOKEN|HCLOUD_TOKEN|GITHUB_TOKEN|HUGGINGFACE_TOKEN|HF_TOKEN)\s*[:=]\s*[`"']?[^`"',\s]{8,}")
+    (New-SecretPattern "sensitive_env_assignment" "(?i)(OPENAI_API_KEY|VERCEL_TOKEN|CLOUDFLARE_API_TOKEN|FLY_API_TOKEN|FLY_TOKEN|GITHUB_TOKEN|HUGGINGFACE_TOKEN|HF_TOKEN)\s*[:=]\s*[`"']?[^`"',\s]{8,}")
   )
 
   $artifactFiles = @(

@@ -28,10 +28,10 @@ Diese Dateien sind keine Runtime-Implementierung und kein Release-Claim.
 | [memory-embedding-consistency-contract.md](memory-embedding-consistency-contract.md) | Phase 4 / Audit L-09 | `implemented-local` | Memory Embedding-Version, pgvector-Dimension, Re-Embedding-Policy und Fail-Closed-Suchmodus |
 | [project-progress-integrity-contract.md](project-progress-integrity-contract.md) | Phase 4 / L-09 | `implemented-local` | Runtime-Guard gegen erfundene Fortschrittszahlen, mit Manifest-/Durchschnitts-Pruefung und Evidence |
 | [project-progress-completion-contract.md](project-progress-completion-contract.md) | Phase 4 / External gates | `implemented-local` | 100-Prozent-Fail-Closed-Vertrag mit fehlenden External-Gate-Blockern |
-| [external-gate-audit-contract.md](external-gate-audit-contract.md) | Phase 4 / External gates | `implemented-local` | Nicht-geheimer Audit fuer Vercel-Frontend, Hosted `/api/v1`, Branch Protection, Gitleaks und Hetzner |
+| [external-gate-audit-contract.md](external-gate-audit-contract.md) | Phase 4 / External gates | `implemented-local` | Nicht-geheimer Audit fuer Vercel-Frontend, Hosted `/api/v1`, Branch Protection, Gitleaks und Fly.io |
 | [cloud-provider-inventory-contract.md](cloud-provider-inventory-contract.md) | Phase 4 / External gates | `implemented-local` | Nicht-geheimes Cloud-Inventar und Cloud-Readiness-Matrix ueber sieben Provider und die sieben Architektur-Schichten |
 | [cloud-render-offload-contract.md](cloud-render-offload-contract.md) | Phase 4 / Cloud runtime | `implemented-local` | Localhost bleibt Dev-Control-Plane; schwere Grafik-/3D-/GPU-Browserlast bleibt cloud-only |
-| [cloud-deployment-preflight-contract.md](cloud-deployment-preflight-contract.md) | Phase 4 / External gates | `implemented-local` | Fail-closed Vorflug fuer GHCR, Hetzner, Vercel origins, Hosted Staging, Branch Protection, Secret Scan und Owner Review |
+| [cloud-deployment-preflight-contract.md](cloud-deployment-preflight-contract.md) | Phase 4 / External gates | `implemented-local` | Fail-closed Vorflug fuer GHCR, Fly.io, Vercel origins, Hosted Staging, Branch Protection, Secret Scan und Owner Review |
 
 Ergaenzendes Schema-Artefakt:
 

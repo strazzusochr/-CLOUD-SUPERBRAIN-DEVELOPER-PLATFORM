@@ -1,7 +1,7 @@
 # Staging Environment Baseline
 
-Stand: 2026-04-23
-Status: Phase-1 design only
+Stand: 2026-06-08
+Status: active cloud baseline
 
 ## Ziel
 
@@ -10,11 +10,25 @@ Jede aenderungsrelevante Pipeline laeuft zuerst ueber `staging`.
 
 ## Zielumgebung
 
-- Hetzner `CX22`
-- Region `fsn1`
-- dauerhaft aktiv
+- Vercel Frontend mit HTTPS Preview/Staging
+- Fly.io Runtime-Services fuer Agent API, Worker, MCP Gateway, LLM Gateway, Redis und PostgreSQL/pgvector
+- GHCR als Image Registry
+- Grafana Cloud als Observability-Ziel
 - gleiche logische Servicetopologie wie spaeter `production`
 - kleinere Ressourcenlimits als `production`
+- Retired legacy providers sind keine aktiven Staging-Defaults
+
+## Aktive Fly-Origin-Apps
+
+Die drei oeffentlichen Origin-Gates werden durch getrennte Fly.io Apps vorbereitet:
+
+| Gate | App | Config | Health |
+| --- | --- | --- | --- |
+| `AGENT_API_BASE_URL` | `cloud-superbrain-agent-api` | `fly.agent-api.toml` | `/api/v1/health` |
+| `MCP_GATEWAY_BASE_URL` | `cloud-superbrain-mcp-gateway` | `fly.mcp-gateway.toml` | `/api/v1/health` |
+| `LLM_GATEWAY_BASE_URL` | `cloud-superbrain-llm-gateway` | `fly.llm-gateway.toml` | `/api/v1/health` |
+
+`fly.toml` bleibt als Default-/Compatibility-Config fuer die Agent-API erhalten; neue Gate-Runs sollen die expliziten `fly.*.toml` Dateien verwenden.
 
 ## Zugriffsregeln
 
@@ -46,6 +60,7 @@ Staging muss vor `production` die Referenz sein fuer:
 - geringere Datenmenge
 - keine Produktivdaten
 - keine Production-Secrets
+- keine retired-legacy-provider-Abhaengigkeit als Gate-Ersatz
 
 ## Definition of Done fuer dieses Artefakt
 

@@ -1,6 +1,6 @@
 param(
   [string]$SecretPath = "C:\Users\immer\.codex\secrets\cloud-superbrain.local.env",
-  [string]$KnownFlyTokenPath = "D:\PLATTFORM\HCLOUD_TOKEN.txt",
+  [string]$KnownFlyTokenPath = "C:\Users\immer\.codex\secrets\fly-api-token.txt",
   [string]$VercelProjectJsonPath = "apps\frontend\.vercel\project.json",
   [string]$OutputPath = "",
   [switch]$RequireOptionalIdentities,

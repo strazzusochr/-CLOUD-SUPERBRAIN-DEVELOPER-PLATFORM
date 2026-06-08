@@ -30,7 +30,7 @@ Optional provider bindings may enrich proof but do not replace the required gate
 - `CLOUDFLARE_API_TOKEN`
 - `GITHUB_TOKEN`
 - `GHCR_TOKEN`
-- `GITKRAKEN_API_TOKEN`
+- `GRAFANA_CLOUD_API_KEY`
 
 ## Workload Policy
 

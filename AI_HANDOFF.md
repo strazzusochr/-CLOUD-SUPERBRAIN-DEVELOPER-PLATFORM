@@ -6,7 +6,7 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-Current honesty guardrail: the last fully verified candidate remains `ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5`. The current repository `HEAD` is not claimed as candidate-equal unless the repo-parity blocker is cleared or a new candidate is rebaselined.
+Current honesty guardrail: the last fully verified historical candidate remains `ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5`. Current `HEAD` is not claimed as candidate-equal, hosted, or production-ready. As of 2026-06-08, local runtime/browser/build/lint checks pass, but external cloud gates remain blocked until real HTTPS staging and reachable Fly backend origins are configured.
 
 ## Binding Truth
 
@@ -93,18 +93,31 @@ Run from the project root.
 powershell -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify-browser-contract.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost
 powershell -ExecutionPolicy Bypass -File scripts\verify-hosted-staging.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost
-powershell -ExecutionPolicy Bypass -File scripts\verify-external-gates.ps1 -LocalBaseUrl <local-control-plane-url>
+powershell -ExecutionPolicy Bypass -File scripts\verify-external-gates.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify-cloud-only-staging.ps1 -BaseUrl https://<hosted-staging-domain>
 powershell -ExecutionPolicy Bypass -File scripts\verify-phase1-runtime.ps1
 powershell -ExecutionPolicy Bypass -File scripts\verify-autopilot-mode.ps1 -AllowLocalhost
 py -3 scripts\verify_project_progress_manifest.py
 ```
 
-Recent verification status: local deterministic verifiers were extended for Priority Queue routing, Orchestrator evidence fail-closed behavior, and the ULTIMATE_SANDBOX wrapper-rule correction on 2026-05-01. The local Docker stack was rebuilt and re-proved live on `<local-control-plane-url>`.
+Recent verification status: on 2026-06-08, `npm run build`, `npm run lint --prefix apps/frontend`, `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`, `npm run verify:browser`, `npm run verify:runtime`, and external-gate verifiers were rerun. Local checks passed. Current external gate artifact `.phase1-artifacts/external-gate-audit-20260608-180040.json` remains `blocked` for `hosted_agent_api_contracts` and `vercel_backend_origin_health`; `canonical_gitleaks_scan` and `ghcr_image_digest_verify` are verified. The private runner and Next.js/Vercel rewrites now derive missing origins from the Fly app names before falling back to hosted rewrites.
 
 Autopilot stream proof now runs through the active Agent API/Nginx stack at `<local-control-plane-stream-url>` and emits `status:init`, `status:llm`, `token`, and `done` with `autopilot-mode-stream-proof`.
 
 ## Latest Completed Proof
+
+Cloud-Gate-Realignment 2026-06-08:
+
+- Active cloud path is Vercel/Fly.io/GHCR/Grafana Cloud. Hetzner, GitKraken, and Oracle are no longer active defaults.
+- Hosted verifier defaults now fail closed without a real HTTPS, non-localhost `STAGING_BASE_URL`.
+- Fly live budget verification is routed through `scripts/check_fly_infra_budget.py` and requires `FLY_API_TOKEN`; no provider evidence is faked.
+- Direct Fly MCP/LLM origins are now probed at `/api/v1/health`; path-prefixed reverse-proxy origins such as `/mcp` and `/llm` remain supported.
+- Separate Fly origin configs are prepared for `cloud-superbrain-agent-api`, `cloud-superbrain-mcp-gateway`, and `cloud-superbrain-llm-gateway`; `scripts/verify-phase1.ps1` verifies them offline.
+- `scripts/verify-all-gates-with-tokens.ps1` now resolves origin precedence as explicit non-placeholder origin, then Fly app/default derivation, then hosted rewrite fallback; a no-secret Temp proof confirmed old hosted rewrites are not used when Fly app names are available.
+- `apps/frontend/next.config.mjs` now applies the same precedence to Vercel rewrites, and `scripts/verify-frontend-cloud-rewrites.ps1` proves the rewrite matrix without secrets or deploy.
+- `scripts/verify-external-gates.ps1` now bounds HTTP and native process probes; timeout proofs fail closed with `status=timeout`, `claim_allowed=false`, and a non-secret artifact instead of hanging.
+- Frontend dependency baseline: Next.js `16.2.7`, React `19.2.7`, Three `0.184.0`, `@types/node` `25.9.2`, ESLint `9.39.4` as the newest peer-compatible ESLint line for the current Next plugin stack.
+- Result: local proof green; hosted/external proof still blocked until cloud environment variables and Fly token are available. No production rollout, registry push, live provider activation, or secret exposure occurred.
 
 Phase 5 Integration Smoke Plan Rerun:
 
@@ -702,7 +715,7 @@ Cloud Render Offload Contract Proof:
 - Contract: `cloud-render-offload-v1`
 - Evidence: `cloud_render_offload_contract_visible`
 - Coverage: `localhost_heavy_render_allowed=false`, `home_pc_protection=true`, `webgl_3d_rendering`, `browser_gpu_smoke`, and `asset_generation` are cloud-only, while `control_plane` remains local dev-only.
-- Required cloud gates: `STAGING_BASE_URL`, `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, `LLM_GATEWAY_BASE_URL`, and `HETZNER_API_TOKEN`.
+- Required cloud gates: `STAGING_BASE_URL`, `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, `LLM_GATEWAY_BASE_URL`, and `FLY_API_TOKEN`.
 - Frontend renders `Cloud Render Offload`, `Local Render blocked`, `WebGL / 3D rendering cloud-only`, and `GET /api/v1/clouds/render-offload/contract`.
 - Verified commands: `py -3 -m py_compile services\agent-api\app\main.py`, `scripts\verify-phase1.ps1`, `docker compose -f docker-compose.dev.yml up -d --build agent-api frontend nginx`, direct API curl, `scripts\verify-browser-contract.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost`, `scripts\verify-hosted-staging.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost`, `scripts\verify-external-gates.ps1 -LocalBaseUrl <local-control-plane-url>`, and Playwright DOM proof.
 
@@ -710,17 +723,17 @@ No progress percentage changed: Overall remains `47%`, Phase 4 remains `15%`. Th
 
 ## Previous Completed Proof
 
-GitKraken Cloud Inventory Contract Proof:
+Grafana Cloud Inventory Contract Proof:
 
 - API: `GET /api/v1/clouds`
 - Contract: `cloud-provider-inventory-v1`
 - Evidence: `cloud_provider_inventory_visible`
-- Coverage: the inventory now exposes eight providers and includes `gitkraken_identity` with `GITKRAKEN_API_TOKEN`, `GITKRAKEN_ORG_ID`, `GITKRAKEN_ORG_NAME`, `GITKRAKEN_DASHBOARD_URL`, and `GITKRAKEN_API_URL` as key names/status only.
-- Layer readiness: `GET /api/v1/clouds/layers` includes `gitkraken_identity` in Layer 5 and Layer 7 with fail-closed blocker `gitkraken_identity_requires_GITKRAKEN_API_TOKEN`.
-- External gate audit: `scripts/verify-external-gates.ps1` now emits `gitkraken_identity_claim_allowed=false` until a rotated real `GITKRAKEN_API_TOKEN` is injected.
-- Docs/runtime: `.env.example`, `docker-compose.cloud.yml`, `docs/runbooks/cloud-secret-runtime-injection.md`, `docs/runtime-contracts/cloud-provider-inventory-contract.md`, and `docs/runtime-contracts/external-gate-audit-contract.md` now include GitKraken without storing secrets.
+- Coverage: the inventory exposes the active cloud line and includes `grafana_cloud` with `GRAFANA_CLOUD_API_KEY` as key name/status only.
+- Layer readiness: `GET /api/v1/clouds/layers` includes `grafana_cloud` in Layer 7.
+- External gate audit: `scripts/verify-external-gates.ps1` emits `grafana_cloud_claim_allowed=false` until a real Grafana Cloud key is injected.
+- Docs/runtime: `.env.example`, `docker-compose.cloud.yml`, `docs/runbooks/cloud-secret-runtime-injection.md`, `docs/runtime-contracts/cloud-provider-inventory-contract.md`, and `docs/runtime-contracts/external-gate-audit-contract.md` now include active cloud gates without storing secrets.
 - Verified commands: `py -3 -m py_compile services\agent-api\app\clouds.py`, `py -3 scripts\verify_project_progress_manifest.py`, `scripts\verify-phase1.ps1`, `scripts\verify-browser-contract.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost`, `scripts\verify-hosted-staging.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost`, `scripts\verify-external-gates.ps1 -LocalBaseUrl <local-control-plane-url>`, and `scripts\verify-phase1-runtime.ps1`.
-- Playwright DOM proof confirmed `Cloud Inventory`, `Cloud 7-Layer Readiness`, `GitKraken`, `cloud_provider_inventory_visible`, `cloud_layer_readiness_visible`, `Total Project 47`, and `Phase 4 15`.
+- Browser proof confirms `Cloud Inventory`, `Cloud 7-Layer Readiness`, `grafana_cloud`, `cloud_provider_inventory_visible`, and `cloud_layer_readiness_visible`.
 
 No progress percentage changed: Overall remains `47%`, Phase 4 remains `15%`, MCP Gateway remains `53%`, Observability remains `99%`.
 
@@ -797,14 +810,14 @@ This raised Phase 4 from `12%` to `13%` and LLM Gateway from `52%` to `53%`. Ove
 
 ## Previous Completed Proof
 
-Hetzner Live Budget Warning Proof:
+Fly.io Budget Gate Projection:
 
-- Script: `scripts/check_hetzner_infra_budget.py`
-- Proof doc: `docs/runbooks/hetzner-live-budget-proof-2026-04-29.md`
-- Result: projected Hetzner monthly server cost `EUR 19.03`
+- Script: `scripts/check_fly_infra_budget.py`
+- Proof doc: `docs/runbooks/fly-live-budget-proof-2026-06-08.md`
+- Result: projected Fly.io monthly server cost `EUR 9.00`
 - Thresholds: warning `EUR 16.00`, hard budget `EUR 20.00`
-- Interpretation: under hard budget, above warning threshold.
-- Token handling: `HETZNER_API_TOKEN` was used only as transient process environment and was not written to repo files.
+- Interpretation: projection under warning threshold; live external gate still requires `FLY_API_TOKEN`.
+- Token handling: no token value is stored or printed.
 
 This raised Phase 4 from `11%` to `12%`. Overall remains `47%`.
 

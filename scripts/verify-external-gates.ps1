@@ -8,8 +8,8 @@ param(
   [string]$grafanaDashboardUrl = $(if ($env:GRAFANA_CLOUD_URL) { $env:GRAFANA_CLOUD_URL } else { "https://cordialtrout569.grafana.net" }),
   [string]$GhcrImageNamespace = $(if ($env:GHCR_IMAGE_NAMESPACE) { $env:GHCR_IMAGE_NAMESPACE } else { "ghcr.io/strazzusochr/cloud-superbrain-developer-platform" }),
   [string]$ImageTag = $(if ($env:IMAGE_TAG) { $env:IMAGE_TAG } else { "staging" }),
-  [string]$StagingSshHost = $(if ($env:STAGING_SSH_HOST) { $env:STAGING_SSH_HOST } else { "188.34.191.140" }),
-  [string]$StagingSshUser = $(if ($env:STAGING_SSH_USER) { $env:STAGING_SSH_USER } else { "root" }),
+  [string]$StagingSshHost = $(if ($env:STAGING_SSH_HOST) { $env:STAGING_SSH_HOST } else { "" }),
+  [string]$StagingSshUser = $(if ($env:STAGING_SSH_USER) { $env:STAGING_SSH_USER } else { "" }),
   [string]$StagingSshKeyPath = $(if ($env:STAGING_SSH_KEY_PATH) { $env:STAGING_SSH_KEY_PATH } else { "" }),
   [string]$StagingAppDir = $(if ($env:STAGING_APP_DIR) { $env:STAGING_APP_DIR } else { "/app" }),
   [string]$ArtifactDirectory = ".phase1-artifacts",
@@ -58,18 +58,27 @@ function Assert-HostedBaseUrlSafe([string]$value) {
   }
 }
 
-function Join-OriginProbeUrl([string]$BaseUrl, [string]$ExpectedPrefix, [string]$HealthPath) {
+function Join-OriginProbeUrl([string]$BaseUrl, [string]$OptionalPrefix, [string]$RootHealthPath, [string]$PrefixedHealthPath) {
   $normalized = Normalize-BaseUrl $BaseUrl
   if ([string]::IsNullOrWhiteSpace($normalized)) {
     return $null
   }
 
-  $prefix = $ExpectedPrefix.TrimEnd("/")
+  $prefix = $OptionalPrefix.TrimEnd("/")
   if ($prefix -and $normalized.EndsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-    return "$normalized$HealthPath"
+    return "$normalized$PrefixedHealthPath"
   }
 
-  return "$normalized$ExpectedPrefix$HealthPath"
+  return "$normalized$RootHealthPath"
+}
+
+function Get-TimeoutSeconds([string]$EnvName, [int]$DefaultSeconds) {
+  $raw = [Environment]::GetEnvironmentVariable($EnvName, "Process")
+  $parsed = 0
+  if ([int]::TryParse($raw, [ref]$parsed) -and $parsed -gt 0) {
+    return $parsed
+  }
+  return $DefaultSeconds
 }
 
 function New-Probe(
@@ -100,7 +109,9 @@ function Invoke-HttpProbe([string]$Id, [string]$Url, [string]$RequiredText, [str
   $nodeScript = @'
 const url = process.argv[1];
 const requiredText = process.argv[2] || '';
-fetch(url).then(async (response) => {
+const timeoutMs = Number(process.env.EXTERNAL_GATE_HTTP_TIMEOUT_MS || '12000');
+const signal = AbortSignal.timeout(timeoutMs);
+fetch(url, { signal }).then(async (response) => {
   const body = await response.text();
   const hasRequiredText = requiredText ? body.includes(requiredText) : true;
   console.log(JSON.stringify({
@@ -143,7 +154,9 @@ fetch(url).then(async (response) => {
 function Invoke-JsonProbe([string]$Url) {
   $nodeScript = @'
 const url = process.argv[1];
-fetch(url).then(async (response) => {
+const timeoutMs = Number(process.env.EXTERNAL_GATE_HTTP_TIMEOUT_MS || '12000');
+const signal = AbortSignal.timeout(timeoutMs);
+fetch(url, { signal }).then(async (response) => {
   const body = await response.text();
   let payload = null;
   try { payload = JSON.parse(body); } catch {}
@@ -180,8 +193,11 @@ function Invoke-GitLabIdentityProbe([string]$ProfileUrl) {
   $nodeScript = @'
 const profileUrl = process.argv[1];
 const token = process.env.GITLAB_TOKEN;
+const timeoutMs = Number(process.env.EXTERNAL_GATE_HTTP_TIMEOUT_MS || '12000');
+const signal = AbortSignal.timeout(timeoutMs);
 fetch('https://gitlab.com/api/v4/user', {
-  headers: { 'PRIVATE-TOKEN': token }
+  headers: { 'PRIVATE-TOKEN': token },
+  signal
 }).then(async (response) => {
   const body = await response.text();
   let payload = {};
@@ -229,8 +245,11 @@ function Invoke-HuggingFaceIdentityProbe([string]$ProfileUrl) {
   $nodeScript = @'
 const profileUrl = process.argv[1];
 const token = process.env.HF_TOKEN;
+const timeoutMs = Number(process.env.EXTERNAL_GATE_HTTP_TIMEOUT_MS || '12000');
+const signal = AbortSignal.timeout(timeoutMs);
 fetch('https://huggingface.co/api/whoami-v2', {
-  headers: { Authorization: `Bearer ${token}` }
+  headers: { Authorization: `Bearer ${token}` },
+  signal
 }).then(async (response) => {
   const body = await response.text();
   let payload = {};
@@ -346,6 +365,84 @@ function Invoke-ProcessProbe([string]$Id, [string]$EvidenceRef, [scriptblock]$Co
   }
 }
 
+function Invoke-BoundedNativeCommand([string]$FilePath, [string[]]$Arguments, [int]$TimeoutSeconds) {
+  $timeout = [Math]::Max(1, $TimeoutSeconds)
+  $argumentText = (@($Arguments) | ForEach-Object {
+    $value = [string]$_
+    if ($value -match '[\s"]') {
+      '"' + ($value -replace '"', '\"') + '"'
+    } else {
+      $value
+    }
+  }) -join " "
+
+  $stdoutPath = [System.IO.Path]::GetTempFileName()
+  $stderrPath = [System.IO.Path]::GetTempFileName()
+  $process = $null
+  try {
+    $process = Start-Process -FilePath $FilePath -ArgumentList $argumentText -WorkingDirectory (Get-Location).Path -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath -WindowStyle Hidden -PassThru
+    $completed = $process.WaitForExit($timeout * 1000)
+    if (-not $completed) {
+      try {
+        $process.Kill($true)
+      } catch {
+        try { $process.Kill() } catch {}
+      }
+      $output = "$(Get-Content -Raw -LiteralPath $stdoutPath -ErrorAction SilentlyContinue) $(Get-Content -Raw -LiteralPath $stderrPath -ErrorAction SilentlyContinue)".Trim()
+      return [ordered]@{
+        exit_code = 124
+        timed_out = $true
+        output = "timed out after ${timeout}s $output".Trim()
+      }
+    }
+    $output = "$(Get-Content -Raw -LiteralPath $stdoutPath -ErrorAction SilentlyContinue) $(Get-Content -Raw -LiteralPath $stderrPath -ErrorAction SilentlyContinue)".Trim()
+    return [ordered]@{
+      exit_code = [int]$process.ExitCode
+      timed_out = $false
+      output = $output
+    }
+  } catch {
+    return [ordered]@{
+      exit_code = 1
+      timed_out = $false
+      output = $_.Exception.Message
+    }
+  } finally {
+    if ($process) {
+      $process.Dispose()
+    }
+    Remove-Item -LiteralPath $stdoutPath -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $stderrPath -Force -ErrorAction SilentlyContinue
+  }
+}
+
+function Invoke-NativeProcessProbe(
+  [string]$Id,
+  [string]$EvidenceRef,
+  [string]$FilePath,
+  [string[]]$Arguments,
+  [bool]$Configured,
+  [int]$TimeoutSeconds
+) {
+  if (-not $Configured) {
+    return New-Probe $Id "missing_secret_or_binary" $false $false $EvidenceRef "" 0 "required input is not configured" ""
+  }
+
+  $nativeResult = Invoke-BoundedNativeCommand $FilePath $Arguments $TimeoutSeconds
+  $ok = ([int]$nativeResult.exit_code -eq 0) -and -not [bool]$nativeResult.timed_out
+  $excerpt = ([string]$nativeResult.output -replace "\r?\n", " ").Trim()
+  return [ordered]@{
+    id = $Id
+    status = if ($nativeResult.timed_out) { "timeout" } elseif ($ok) { "verified" } else { "failed" }
+    configured = $true
+    claim_allowed = $ok
+    evidence_ref = $EvidenceRef
+    exit_code = [int]$nativeResult.exit_code
+    timeout_seconds = $TimeoutSeconds
+    output_excerpt = $excerpt.Substring(0, [Math]::Min(600, $excerpt.Length))
+  }
+}
+
 function Invoke-GhcrDigestProbe([string]$Namespace, [string]$Tag) {
   $dockerAvailable = [bool](Get-Command docker -ErrorAction SilentlyContinue)
   if (-not $dockerAvailable) {
@@ -357,10 +454,16 @@ function Invoke-GhcrDigestProbe([string]$Namespace, [string]$Tag) {
 
   $services = @("frontend", "agent-api", "agent-worker", "memory-worker", "mcp-gateway", "llm-gateway")
   $digests = @()
+  $inspectTimeoutSeconds = Get-TimeoutSeconds "EXTERNAL_GATE_DOCKER_TIMEOUT_SECONDS" 45
   foreach ($service in $services) {
     $imageRef = "$Namespace/$service`:$Tag"
-    $raw = (& docker buildx imagetools inspect $imageRef 2>&1 | Out-String)
-    if ($LASTEXITCODE -ne 0) {
+    $dockerResult = Invoke-BoundedNativeCommand "docker" @("buildx", "imagetools", "inspect", $imageRef) $inspectTimeoutSeconds
+    $raw = [string]$dockerResult.output
+    $dockerExitCode = [int]$dockerResult.exit_code
+    if ($dockerResult.timed_out) {
+      return New-Probe "ghcr_image_digest_verify" "timeout" $true $false "ghcr_image_digest_proof" "" 0 "GHCR digest inspection timed out for $service after ${inspectTimeoutSeconds}s" ($raw.Trim())
+    }
+    if ($dockerExitCode -ne 0) {
       if ($raw -match "unauthorized|denied|authentication|forbidden") {
         return New-Probe "ghcr_image_digest_verify" "missing_secret_or_token" $true $false "ghcr_image_digest_proof" "" 0 "GHCR digest verification is BLOCKED. Authenticate Docker for GHCR (docker login ghcr.io) with a token that has read:packages, then re-run verify:external-gates." ($raw.Trim())
       }
@@ -476,15 +579,11 @@ if ($hostedBase) {
 $gitleaksCommand = Get-Command gitleaks -ErrorAction SilentlyContinue
 $repoLocalGitleaks = Join-Path ".tools\gitleaks" "gitleaks.exe"
 $gitleaksExecutable = if ($gitleaksCommand) { "gitleaks" } elseif (Test-Path $repoLocalGitleaks) { $repoLocalGitleaks } else { $null }
-$gitleaksProbe = Invoke-ProcessProbe "canonical_gitleaks_scan" "canonical_gitleaks_scan_clean" {
-  & $gitleaksExecutable detect --no-git --source . --config .gitleaks.toml --redact
-} ([bool]$gitleaksExecutable)
+$gitleaksProbe = Invoke-NativeProcessProbe "canonical_gitleaks_scan" "canonical_gitleaks_scan_clean" $gitleaksExecutable @("detect", "--no-git", "--source", ".", "--config", ".gitleaks.toml", "--redact") ([bool]$gitleaksExecutable) (Get-TimeoutSeconds "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS" 300)
 
 $branchTokenConfigured = [bool]$env:BRANCH_PROTECTION_TOKEN
 if ($branchTokenConfigured) {
-  $branchProtectionProbe = Invoke-ProcessProbe "github_branch_protection_verify" "branch_protection_verify_contract" {
-    py -3 scripts\apply_github_branch_protection.py --verify-only --repo $Repository --branch $Branch
-  } $true
+  $branchProtectionProbe = Invoke-NativeProcessProbe "github_branch_protection_verify" "branch_protection_verify_contract" "py" @("-3", "scripts\apply_github_branch_protection.py", "--verify-only", "--repo", $Repository, "--branch", $Branch) $true (Get-TimeoutSeconds "EXTERNAL_GATE_BRANCH_TIMEOUT_SECONDS" 60)
 } else {
   $branchProtectionProbe = Invoke-RemoteBranchProtectionProbe $Repository $Branch $StagingSshHost $StagingSshUser $StagingSshKeyPath $StagingAppDir
 }
@@ -492,15 +591,16 @@ if ($branchTokenConfigured) {
 $ghcrProbe = Invoke-GhcrDigestProbe $GhcrImageNamespace $ImageTag
 
 $originUrls = @(
-  @{ id = "vercel_agent_api_origin"; url = $env:AGENT_API_BASE_URL; prefix = "/api"; health = "/v1/health"; marker = "agent-api" },
-  @{ id = "vercel_mcp_gateway_origin"; url = $env:MCP_GATEWAY_BASE_URL; prefix = "/mcp"; health = "/api/v1/health"; marker = "mcp-gateway" },
-  @{ id = "vercel_llm_gateway_origin"; url = $env:LLM_GATEWAY_BASE_URL; prefix = "/llm"; health = "/api/v1/health"; marker = "llm-gateway" }
+  @{ id = "vercel_agent_api_origin"; url = $env:AGENT_API_BASE_URL; prefix = "/api"; root_health = "/api/v1/health"; prefixed_health = "/v1/health"; marker = "agent-api" },
+  @{ id = "vercel_mcp_gateway_origin"; url = $env:MCP_GATEWAY_BASE_URL; prefix = "/mcp"; root_health = "/api/v1/health"; prefixed_health = "/api/v1/health"; marker = "mcp-gateway" },
+  @{ id = "vercel_llm_gateway_origin"; url = $env:LLM_GATEWAY_BASE_URL; prefix = "/llm"; root_health = "/api/v1/health"; prefixed_health = "/api/v1/health"; marker = "llm-gateway" }
 )
 $vercelOriginProbes = @()
 foreach ($origin in $originUrls) {
   $originId = [string]$origin["id"]
   $originPrefix = [string]$origin["prefix"]
-  $originHealthPath = [string]$origin["health"]
+  $originRootHealthPath = [string]$origin["root_health"]
+  $originPrefixedHealthPath = [string]$origin["prefixed_health"]
   $originMarker = [string]$origin["marker"]
   $normalizedOrigin = Normalize-BaseUrl $origin["url"]
   if (-not $normalizedOrigin) {
@@ -514,16 +614,17 @@ foreach ($origin in $originUrls) {
     continue
   }
   Assert-HostedBaseUrlSafe $normalizedOrigin
-  $originHealthUrl = Join-OriginProbeUrl $normalizedOrigin $originPrefix $originHealthPath
+  $originHealthUrl = Join-OriginProbeUrl $normalizedOrigin $originPrefix $originRootHealthPath $originPrefixedHealthPath
   $vercelOriginProbes += Invoke-HttpProbe $originId $originHealthUrl $originMarker "vercel_backend_origin_required"
 }
 $vercelOriginsClaimAllowed = @($vercelOriginProbes | Where-Object { $_.claim_allowed }).Count -eq $originUrls.Count
 
 $flyTokenConfigured = [bool]$env:FLY_API_TOKEN
-if ($flyTokenConfigured) {
-  $flyProbe = Invoke-ProcessProbe "fly_live_budget_check" "fly_live_budget_check" {
-    node -e "const t=process.env.FLY_API_TOKEN;if(!t){console.log(JSON.stringify({ok:false}));process.exit(1)}fetch('https://api.fly.io/graphql',{method:'POST',headers:{Authorization:'Bearer '+t,'Content-Type':'application/json'},body:JSON.stringify({query:'{viewer{email}}'})}).then(async r=>{const b=await r.json();const ok=r.ok&&b.data&&b.data.viewer;console.log(JSON.stringify({ok,status:r.status}));if(!ok)process.exit(1)}).catch(e=>{console.log(JSON.stringify({ok:false,error:e.message}));process.exit(1)})"
-  } $true
+$flyBudgetScript = Join-Path $PSScriptRoot "check_fly_infra_budget.py"
+if (-not (Test-Path -LiteralPath $flyBudgetScript)) {
+  $flyProbe = New-Probe "fly_live_budget_check" "missing_secret_or_binary" $false $false "fly_live_budget_check" "" 0 "Fly.io live budget verifier script is missing." ""
+} elseif ($flyTokenConfigured) {
+  $flyProbe = Invoke-NativeProcessProbe "fly_live_budget_check" "fly_live_budget_check" "py" @("-3", $flyBudgetScript) $true (Get-TimeoutSeconds "EXTERNAL_GATE_FLY_TIMEOUT_SECONDS" 60)
 } else {
   $flyProbe = New-Probe "fly_live_budget_check" "missing_secret_or_token" $false $false "fly_live_budget_check" "" 0 "Fly.io live budget is BLOCKED. Set env:FLY_API_TOKEN to a real Fly.io API token." ""
 }

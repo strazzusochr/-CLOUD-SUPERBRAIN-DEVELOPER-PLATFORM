@@ -20,9 +20,51 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Check Hetzner projected monthly infra cost
+      - name: Check Vercel Fly.io GHCR Grafana Cloud projected monthly infra cost
         env:
-          HETZNER_API_TOKEN: ${{ secrets.HETZNER_API_TOKEN }}
           INFRA_BUDGET_EUR: '20'
           INFRA_WARN_EUR: '16'
-        run: python scripts/check_hetzner_infra_budget.py
+          VERCEL_PROJECTED_MONTHLY_EUR: ${{ vars.VERCEL_PROJECTED_MONTHLY_EUR }}
+          FLY_PROJECTED_MONTHLY_EUR: ${{ vars.FLY_PROJECTED_MONTHLY_EUR }}
+          GHCR_PROJECTED_MONTHLY_EUR: ${{ vars.GHCR_PROJECTED_MONTHLY_EUR }}
+          GRAFANA_CLOUD_PROJECTED_MONTHLY_EUR: ${{ vars.GRAFANA_CLOUD_PROJECTED_MONTHLY_EUR }}
+        run: |
+          python - <<'PY'
+          from decimal import Decimal, InvalidOperation
+          import os
+          import sys
+
+          providers = {
+              "Vercel": os.getenv("VERCEL_PROJECTED_MONTHLY_EUR", "").strip(),
+              "Fly.io": os.getenv("FLY_PROJECTED_MONTHLY_EUR", "").strip(),
+              "GHCR": os.getenv("GHCR_PROJECTED_MONTHLY_EUR", "").strip(),
+              "Grafana Cloud": os.getenv("GRAFANA_CLOUD_PROJECTED_MONTHLY_EUR", "").strip(),
+          }
+          missing = [name for name, value in providers.items() if value == ""]
+          if missing:
+              print("Missing projected monthly EUR vars for: " + ", ".join(missing))
+              print("Configure repository variables before treating this as a current budget proof.")
+              sys.exit(2)
+
+          try:
+              costs = {name: Decimal(value) for name, value in providers.items()}
+              budget = Decimal(os.environ["INFRA_BUDGET_EUR"])
+              warn = Decimal(os.environ["INFRA_WARN_EUR"])
+          except (InvalidOperation, KeyError) as exc:
+              print(f"Invalid projected cost or budget value: {exc}")
+              sys.exit(3)
+
+          total = sum(costs.values(), Decimal("0"))
+          for name, cost in costs.items():
+              print(f"{name} projected monthly cost: EUR {cost:.2f}")
+          print(f"Projected monthly infra cost: EUR {total:.2f}")
+          print(f"Infra warning threshold: EUR {warn:.2f}")
+          print(f"Hard infrastructure budget: EUR {budget:.2f}")
+          if total >= budget:
+              print("Result: over hard budget")
+              sys.exit(4)
+          if total >= warn:
+              print("Result: under hard budget, above warning threshold")
+          else:
+              print("Result: under warning threshold")
+          PY

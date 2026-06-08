@@ -7,7 +7,7 @@ Dieses Dokument ist das EINZIGE GÜLTIGE GESETZ für die Plattform. Alle vorigen
 
 ## 1. PROJECT GOAL LOCK & BUDGET (RD-01)
 - **Budgetkonformer Start (Phase 1):** Es wird in Phase 1 klein gestartet. KEIN CPX51 in Phase 1!
-- **Infrastruktur-Basis:** CX21 (oder vergleichbarer kleiner Hetzner-Start).
+- **Infrastruktur-Basis:** Vercel Frontend plus Fly.io shared-cpu Runtime; retired legacy providers sind keine aktiven Defaults.
 - **Upgrade-Regel:** Upgrades auf größere Server-Typen erfolgen NUR nach empirisch gemessenen und belegten Ressourcen-Limits (Messwerten). Das Infrastruktur-Limit von 20€/Monat ist strikt einzuhalten.
 
 ## 2. DATENBANK & MEMORY ARCHITEKTUR (RD-02, RD-03)

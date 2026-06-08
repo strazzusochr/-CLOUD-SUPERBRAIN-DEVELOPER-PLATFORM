@@ -29,7 +29,7 @@ Dieses Dokument definiert den kontrollierten Umgang mit Secrets fuer MVP und fru
 | `production/SESSION_ENCRYPTION_KEY` | GitHub Environment Secret `production` | verschluesselte Sitzungsdaten |
 | `production/DATABASE_URL` | GitHub Environment Secret `production` | Datenbankverbindung |
 | `production/EMBEDDING_PROVIDER_API_KEY` | GitHub Environment Secret `production` | optionale Live-Embedding-Erzeugung nach Gate D |
-| `production/HETZNER_API_TOKEN` | GitHub Environment Secret `production` | Infrastrukturautomation |
+| `production/FLY_API_TOKEN` | GitHub Environment Secret `production` | Fly.io Infrastrukturautomation |
 | `production/VERCEL_DEPLOY_HOOK_SECRET` | GitHub Environment Secret `production` | kontrollierte Deploy-Triggers |
 | `production/MCP_INTERNAL_SHARED_SECRET` | GitHub Environment Secret `production` | interne Tool-Authentisierung |
 | `preview/*` Secrets | GitHub Environment Secret `preview` | isolierte Preview-Laufzeiten |

@@ -68,7 +68,9 @@ if ($RunRuntime) {
     "/organism/live","/organism/replay","/organism/map","/agents","/tools","/marketplace",
     "/observe","/evidence","/settings","/diagnostics","/design-system","/responsive",
     "/technology","/open-source","/games","/media","/docs-output","/apps",
-    "/api/v1/organism/contract","/api/v1/organism/live-state","/api/v1/organism/events","/api/v1/organism/replay")
+    "/api/v1/organism/contract","/api/v1/organism/topology","/api/v1/organism/live-state",
+    "/api/v1/organism/events","/api/v1/organism/replay","/api/v1/organism/regions",
+    "/api/v1/organism/safety")
   $bad = 0; $ok = 0
   for ($i = 0; $i -lt $RuntimeRepeat; $i++) {
     foreach ($r in $routes) {

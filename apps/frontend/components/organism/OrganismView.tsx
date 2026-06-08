@@ -19,6 +19,24 @@ const HUB_DESC: Record<string, string> = {
   cloud: "Sieben-Layer Multi-Cloud Architektur über mehrere Provider.",
 };
 
+function detectCaps() {
+  let webgl2 = false;
+  let gpu = "WebGL";
+  try {
+    if (typeof document !== "undefined") {
+      const c = document.createElement("canvas");
+      const gl = (c.getContext("webgl2") || c.getContext("webgl")) as WebGLRenderingContext | null;
+      webgl2 = !!c.getContext("webgl2");
+      const dbg = gl?.getExtension("WEBGL_debug_renderer_info");
+      if (gl && dbg) gpu = String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || "WebGL").replace(/^ANGLE \(([^,]+),.*$/, "$1").slice(0, 38);
+    }
+  } catch {
+    webgl2 = false;
+  }
+  const webgpu = typeof navigator !== "undefined" && "gpu" in navigator;
+  return { webgpu, webgl2, gpu };
+}
+
 export default function OrganismView({ mode = "live" }: { mode?: "live" | "replay" | "map" }) {
   const [runState, setRunState] = useState<RunState>("planning");
   const [active, setActive] = useState<string>("workbench");
@@ -31,27 +49,10 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
   const [reducedMotion, setReducedMotion] = useState(false);
   const [resetSignal, setResetSignal] = useState(0);
   const [renderMode, setRenderMode] = useState<"2d" | "3d">("3d");
-  const [caps, setCaps] = useState<{ webgpu: boolean; webgl2: boolean; gpu: string }>({ webgpu: false, webgl2: false, gpu: "detecting…" });
+  const [caps] = useState(detectCaps);
 
-  // GPU capability probe (WebGPU detection with WebGL fallback indicator).
-  useEffect(() => {
-    let webgl2 = false;
-    let gpu = "WebGL";
-    try {
-      const c = document.createElement("canvas");
-      const gl = (c.getContext("webgl2") || c.getContext("webgl")) as WebGLRenderingContext | null;
-      webgl2 = !!c.getContext("webgl2");
-      const dbg = gl?.getExtension("WEBGL_debug_renderer_info");
-      if (gl && dbg) gpu = String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || "WebGL").replace(/^ANGLE \(([^,]+),.*$/, "$1").slice(0, 38);
-    } catch {
-      webgl2 = false;
-    }
-    const webgpu = typeof navigator !== "undefined" && "gpu" in navigator;
-    setCaps({ webgpu, webgl2, gpu });
-  }, []);
-
-  // Bind to the organism live-state feed: real when the local agent-api is
-  // reachable (source: "agent-api"), honest deterministic mock otherwise.
+  // Bind to the organism live-state feed: real when the configured agent-api is
+  // reachable (source: "agent-api"), honest deterministic spec-only otherwise.
   useEffect(() => {
     let alive = true;
     const ctrl = new AbortController();
@@ -62,7 +63,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
         if (!alive || !d) return;
         const hubs: Record<string, string> = {};
         (d.hubs ?? []).forEach((h) => (hubs[h.id] = h.status));
-        setFeed({ source: d.source ?? "mock", live: !!d.live, hubs });
+        setFeed({ source: d.source ?? "spec_only", live: !!d.live, hubs });
         if (d.run_state && STATES.includes(d.run_state as RunState)) setRunState(d.run_state as RunState);
       })
       .catch((err) => {
@@ -118,6 +119,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
               onToggleAutoRotate={toggleAutoRotate}
               forceReducedMotion={reducedMotion}
               onMode={onMode}
+              sourceLabel={feed?.live ? "LIVE · ORGANISM" : "SPEC · ORGANISM"}
             />
             {/* Debug / performance HUD overlay (frame budget = Phase-6 perf slice) */}
             <div className="org-hud" aria-hidden="true">
@@ -126,8 +128,8 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
               <span className="mono">{stats.nodes} nodes</span>
               <span className="mono">{renderMode === "3d" ? (caps.webgpu ? "WebGPU✓" : "WebGL2") : "2D"}</span>
               {feed ? (
-                <span className={`org-feed ${feed.live ? "live" : "mock"}`} title={`live-state source: ${feed.source}`}>
-                  {feed.live ? `LIVE · ${feed.source}` : `MOCK · ${feed.source}`}
+                <span className={`org-feed ${feed.live ? "live" : "spec"}`} title={`live-state source: ${feed.source}`}>
+                  {feed.live ? `LIVE · ${feed.source}` : `SPEC · ${feed.source}`}
                 </span>
               ) : null}
             </div>
@@ -243,9 +245,9 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
           <div className="note">
             Data-driven, niemals fake-live. Der HUD-Badge zeigt die{" "}
             <span className="mono">/api/v1/organism/live-state</span>-Quelle:{" "}
-            <span className="mono">LIVE · agent-api</span>, wenn die lokale Cloud-Layer-Runtime erreichbar ist,{" "}
-            <span className="mono">MOCK</span> sonst (z.B. auf Vercel). Hub-State kommt aus dem agent-api{" "}
-            <span className="mono">cloud-layer-readiness</span>-Contract; LLM bleibt deterministisch im dry-run.
+            <span className="mono">LIVE · agent-api</span>, wenn eine konfigurierte Runtime erreichbar ist,{" "}
+            <span className="mono">SPEC</span> sonst. Hub-State kommt aus dem agent-api{" "}
+            <span className="mono">cloud-layer-readiness</span>-Contract; LLM bleibt Gateway-bound und write-gated.
             Weniger Bewegung zeigt eine statische 2D-Topologie.
           </div>
         </aside>

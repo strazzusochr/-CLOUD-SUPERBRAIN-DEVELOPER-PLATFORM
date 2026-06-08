@@ -42,7 +42,7 @@ Nicht Bestandteil dieses Vertrags:
 1. Live-Provider-Calls
 2. Live-Provider- und Tool-State ausserhalb des deterministischen Dry-Runs
 3. direkte MCP-Write-Tool-Ausfuehrung
-4. Deployment nach Vercel oder Hetzner
+4. Deployment nach Vercel oder Fly.io
 5. Secrets, Auth-Flows oder Token-Rotation
 
 ## Phase-1-Runtime-Surface
@@ -51,8 +51,8 @@ Implementiert:
 
 1. `GET /api/v1/orchestrator/manifest`
 2. `POST /api/v1/orchestrator/dry-run`
-3. echte LangGraph-Engine (`langgraph==1.1.9`)
-4. offizieller PostgreSQL-Checkpointer (`langgraph-checkpoint-postgres==3.0.5`)
+3. echte LangGraph-Engine (`langgraph==1.2.4`)
+4. offizieller PostgreSQL-Checkpointer (`langgraph-checkpoint-postgres==3.1.0`)
 5. Node-Pfad: `intent_parser -> budget_guard -> task_router -> agent_executor -> result_aggregator -> memory_updater`
 6. Policy-/Budget-Hard-Stop-Pfad ueber `error_handler`
 7. Checkpoint-Recovery ueber `GET /api/v1/orchestrator/checkpoints/{thread_id}`
@@ -256,7 +256,7 @@ Nicht erlaubt:
 
 Gate-Bedingung:
 
-Die aktive Phase-1-Runtime nutzt `langgraph-checkpoint-postgres==3.0.5` fuer den deterministischen Dry-Run. Fuer Live-Provider- und Tool-State bleibt dieser Abschnitt weiterhin Vertrag und Testplan.
+Die aktive Phase-1-Runtime nutzt `langgraph-checkpoint-postgres==3.1.0` fuer den deterministischen Dry-Run. Fuer Live-Provider- und Tool-State bleibt dieser Abschnitt weiterhin Vertrag und Testplan.
 
 ## Streaming-Events
 

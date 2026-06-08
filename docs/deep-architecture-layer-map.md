@@ -12,7 +12,7 @@ Es laufen:
 - LangGraph Orchestrator
 - FastAPI Agent API / MCP Gateway / LLM Gateway
 - PostgreSQL 16 + pgvector, Redis
-- Hetzner Hetzner-Staging unter `https://188-34-191-140.sslip.io`
+- Cloud-Staging ist nur ueber `STAGING_BASE_URL` claimbar; aktive Zielverdrahtung ist Vercel Frontend plus Fly.io Runtime.
 - Lokale DEV-Runtime auf `http://localhost:8081`
 
 Die **22 Seiten** sind der Benutzer-Workbereich (`/workbench`, `/organism`, `/agents`, `/technology`, `/files`, `/docs-output`, `/home`, `/diagnostics`, `/evidence`, `/tools`, `/marketplace`, `/apps`, `/settings`, `/audit`, `/monitoring`, `/docs`, `/runtime`, `/clouds`, `/memory`, `/budget`, `/security`, `/inbox` / äquivalent).
@@ -28,7 +28,7 @@ Die **22 Seiten** sind der Benutzer-Workbereich (`/workbench`, `/organism`, `/ag
 | L3 | Agent Pool & Worker | agent-worker, memory-worker | Tasks, Memory-Konsolidierung |
 | L4 | API & Gateways | agent-api, mcp-gateway, nginx | REST/SSE-Surfaces, Security, Auth |
 | L5 | Frontend & UI | frontend, nginx `:8081` | Workbereich, Organism, Diagnose |
-| L6 | Cloud & Infrastruktur | docker-comose.cloud, caddy, hetzner | Deployment, Routing, Container |
+| L6 | Cloud & Infrastruktur | docker-compose.cloud, Vercel, Fly.io, GHCR | Deployment, Routing, Container |
 | L7 | Integration & Verification | verify-*, docs/* | Runtime-Contracts, Evidence, Gates |
 
 ---
@@ -38,9 +38,8 @@ Die **22 Seiten** sind der Benutzer-Workbereich (`/workbench`, `/organism`, `/ag
 | Provider | Dienste |
 |---|---|
 | **Vercel** | Frontend-Routing, Edge JWT (geplant über `STAGING_BASE_URL`) |
-| **Hetzner** | Gesamter Runtime-Stack (`188-34-191-140.sslip.io`) |
+| **Fly.io** | Runtime-Stack fuer Agent API, Worker, Gateways und Memory-Services (`FLY_API_TOKEN`, aktuell blocked) |
 | **Cloudflare** | DNS, Cache, optional AI-Gateway (noch nicht aktiv geschaltet) |
-| **Fly.io** | Cloud-Run-Maschine für Worker-Skalierung, Memory-Run, Memory (geplant über `FLY_API_TOKEN`, aktuell blocked) |
 | **GitHub / GHCR** | Repo, CI, Image-Registry (`ghcr.io/strazzusochr/cloud-superbrain-developer-platform/...`) |
 | **Grafana Cloud / Langfuse** | Observability, Traces, Audit |
 
@@ -145,7 +144,7 @@ Erreichbar über `http://localhost:8081/*`, optisch eigenständig:
 | **L3** Agent Pool & Worker | `agent-worker`, `memory-worker` | intern | ✅ |
 | **L4** API & Gateways | `agent-api`, `mcp-gateway`, `nginx` | `/api/`, `/mcp/` | ⚠️ (API-Surfaces sind sichtbar, aber nicht der Worker selbst) |
 | **L5** Frontend & UI | `frontend`, `nginx:8081` | `http://localhost:8081` | ⚠️ (Frontend ist der Arbeitsbereich, aber getrennt von den Workers) |
-| **L6** Cloud & Infrastruktur | `docker-compose.cloud`, `caddy`, `hetzner` | `https://188-34-191-140.sslip.io` | ✅ |
+| **L6** Cloud & Infrastruktur | `docker-compose.cloud`, Vercel, Fly.io, GHCR | `STAGING_BASE_URL` / Fly HTTPS origins | ✅ |
 | **L7** Integration & Verification | `scripts/verify-*`, `docs/` | lokal | ✅ |
 
 ### Verschachtelungsmatrix (Verdrahtung)
@@ -171,27 +170,25 @@ L7 Verification (scripts, docs)
 | Provider | Layer | Zweck |
 |---|---|---|
 | **Vercel** | L5 | Frontend Hosting, Edge-Routing |
-| **Hetzner** | L1, L2, L3, L4, L6 | Runtime-System |
+| **Fly.io** | L1, L2, L3, L4, L6 | Runtime-System |
 | **Cloudflare** | L4, L6 | DNS, Cache, optional AI-Gateway |
-| **Fly.io** | L3 | Worker-Skalierung (geplant) |
 | **GitHub** | L6 | CI/CD |
 | **GHCR** | L6 | Image-Registry |
-| **Langfuse** | L7 | Observability/Traces |
+| **Grafana Cloud / Langfuse** | L7 | Observability/Traces |
 
 ### Fazit
 
 - Der **22-Seiten-Arbeitsbereich** ist optisch vollständig getrennt über `apps/frontend/app/*`.
-- Das **7-Layer-Cloud-System** läuft über Provider (Vercel, Hetzner, Cloudflare, Fly.io, GitHub, Langfuse), ohne den Arbeitsbereich optisch zu durchbrechen.
+- Das **7-Layer-Cloud-System** läuft über Provider (Vercel, Fly.io, Cloudflare, GitHub/GHCR, Grafana Cloud/Langfuse), ohne den Arbeitsbereich optisch zu durchbrechen.
 - Die Verdrahtung erfolgt ausschließlich über klare API-/SSE-/Queue-Schnittstellen.
 - Lokal bleibt `localhost:8081` reiner **Dev-Control-Plane**; alle Cloud-Seiten sind auf echtes Hosting via `STAGING_BASE_URL` gated.
 
 | Gate | Status | Wo sichtbar |
 |---|---|---|
 | Hosted staging via `STAGING_BASE_URL` | BLOCKED (kein echte HTTPS-URL) | `verify-external-gates.ps1` |
-| Branch protection via `GITHUB_TOKEN` | BLOCKED (kein Token) | `apply_github_branch_protection.py` |
+| Branch protection via `GITHUB_TOKEN` / `BRANCH_PROTECTION_TOKEN` | BLOCKED (kein Token) | `apply_github_branch_protection.py` |
 | Vercel Backend Origins | BLOCKED (leer) | `VERCEL_*_ORIGIN` |
 | Fly-Live-Budget via `FLY_API_TOKEN` | BLOCKED (kein Token) | `check_fly_infra_budget.py` |
-| Hetzner-Budget via `HETZNER_API_TOKEN` | HISTORISCH VERIFIZIERT | `docs/runbooks/hetzner-live-budget-proof-2026-04-29.md` |
 | GitHub CI / GHCR | HISTORISCH VERIFIZIERT | `verification-register.md` |
 
 ---
@@ -199,7 +196,6 @@ L7 Verification (scripts, docs)
 ## 7. Was ab jetzt *nicht* lokal laufen soll
 
 - Keine Fake-Credentials in `docker-compose.*.yml`.
-- Keine Hetzner-/Fly-/Vercel-/Branch-Protection-Claims ohne echte Tokens.
+- Keine Fly-/Vercel-/Branch-Protection-Claims ohne echte Tokens.
 - Lokale DEV-Runtime bleibt auf `localhost:8081` beschränkt.
 - Alle Cloud-Anbindungen laufen über die offiziellen Provider-Kanäle.
-

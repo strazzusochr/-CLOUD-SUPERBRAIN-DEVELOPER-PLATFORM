@@ -46,12 +46,12 @@ only, `last_verified: 2026-05-07`):
 ## (b) Opens only via OWNER action with real cloud credentials (the AI is forbidden)
 Ordered owner steps (every token is a gate-closed secret the AI must never read/print):
 1. Reconcile the manifest truth (finish the work, or correct every 100 % claim to 70 %).
-2. Configure live env vars only: `GITHUB_TOKEN`, `GHCR_TOKEN`, `HETZNER_API_TOKEN`,
+2. Configure live env vars only: `GITHUB_TOKEN`, `GHCR_TOKEN`, `FLY_API_TOKEN`,
    `BRANCH_PROTECTION_TOKEN`, `STAGING_BASE_URL` (public HTTPS), `AGENT_API_BASE_URL`,
    `MCP_GATEWAY_BASE_URL`, `LLM_GATEWAY_BASE_URL`, `VERCEL_TOKEN`.
 3. `gitleaks detect --no-git --source . --redact` (exit 0) — hard-block.
 4. `gh workflow run main-deploy.yml` → publish 6 images to GHCR; verify digests.
-5. On the Hetzner host: `docker compose -f docker-compose.cloud.yml pull && up -d` (pull-based).
+5. On the Fly.io runtime: deploy the approved image set through the Fly release path and verify health.
 6. Point Vercel frontend at the hosted HTTPS backend origins; confirm 2xx health.
 7. `scripts/verify-hosted-staging.ps1` against the non-localhost HTTPS URL.
 8. `scripts/apply_github_branch_protection.py` (apply protected-main, then `--verify-only`).

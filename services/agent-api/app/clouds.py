@@ -299,10 +299,6 @@ def fly_live_budget_items() -> list[dict[str, object]] | None:
     return []
 
 
-def hetzner_live_budget_items() -> list[dict[str, object]] | None:
-    return None
-
-
 def _fetch_grafana_cloud_snapshot() -> dict[str, Any]:
     token = os.getenv("GRAFANA_CLOUD_API_KEY")
     url = os.getenv("GRAFANA_CLOUD_URL")

@@ -9,7 +9,7 @@ Status: Binding operative architecture, synchronized with `docs/CLOUD_SUPERBRAIN
 
 ## 2. Phase 1 Architecture Locks
 
-- Infrastructure starts small: CX21 or comparable small Hetzner instance. No CPX51 in Phase 1.
+- Infrastructure starts small on Vercel Frontend plus Fly.io shared-cpu runtime services. No CPX51 in Phase 1.
 - Infrastructure budget remains capped at 20 EUR/month.
 - One PostgreSQL instance is the primary source of truth.
 - Separate databases inside the same instance: `superbrain_prod` for app state and `langfuse` for observability state.
@@ -27,7 +27,7 @@ Status: Binding operative architecture, synchronized with `docs/CLOUD_SUPERBRAIN
 | Layer | Owner | Inputs | Outputs | Responsibilities | Forbidden |
 | --- | --- | --- | --- | --- | --- |
 | 1 Frontend | Vercel/Next.js | User prompt, session state from API | REST/SSE calls to agent-api | Prompt UI, streaming output, agent status, budget banner | Direct DB calls, direct provider calls, secrets |
-| 2 Orchestration | Hetzner/FastAPI/LangGraph | REST/SSE requests | Task assignments, SSE events | Intent parsing, routing, graph state, budget guard, recovery | Provider bypass, schema changes without ADR |
+| 2 Orchestration | Fly.io/FastAPI/LangGraph | REST/SSE requests | Task assignments, SSE events | Intent parsing, routing, graph state, budget guard, recovery | Provider bypass, schema changes without ADR |
 | 3 Agent Pool | Docker containers | Task assignments | Result envelopes | Planner, Coder, Tester, DevOps execution | Main writes, production deploys, uncontrolled loops |
 | 4 LLM Gateway | LiteLLM | Generic LLM requests | Model responses, cost/provider events | Routing, rate limits, fallback, caching policy | Direct provider calls, sensitive prompt caching |
 | 5 Tool MCP | MCP gateway | Tool requests | Tool results with audit data | GitHub, E2B, Playwright, Filesystem, Postgres readonly | Untimed tool calls, unlogged tool calls |
@@ -39,7 +39,7 @@ Status: Binding operative architecture, synchronized with `docs/CLOUD_SUPERBRAIN
 | Target | Role | Phase 1 Limit |
 | --- | --- | --- |
 | Vercel | Frontend only | No DB connections, no agent runtime |
-| Hetzner CX21-class | API, agents, MCP, Redis, PostgreSQL, gateway | Must stay within 20 EUR/month total infra |
+| Fly.io shared-cpu runtime | API, agents, MCP, Redis/PostgreSQL clients, gateway services | Must stay within 20 EUR/month total infra |
 | Cloudflare Free Tier | DNS, CDN, optional AI Gateway caching | No DB responsibility |
 
 ## 5. Data Flow
@@ -63,4 +63,5 @@ User -> Next.js Frontend -> REST/SSE -> FastAPI Agent API
 - No Qdrant before Phase 6.
 - No CPX51 before measured resource need and budget proof.
 - No Supabase-as-active-MVP-DB claim after PATCHED; ADR-007 supersedes ADR-004.
+- No retired legacy provider as an active default after the 2026-06-08 cloud rewiring; historical references do not satisfy active gates.
 - No release-ready claim without CI, tests, observability evidence, rollback note, and release checklist.

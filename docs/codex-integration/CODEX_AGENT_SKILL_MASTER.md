@@ -31,7 +31,7 @@ Genau eines:
 
 - `CODE` — Implementierung
 - `FIX` — Bug/Drift
-- `INFRA` — Docker/CI/CD/Hetzner/Vercel/Cloudflare
+- `INFRA` — Docker/CI/CD/Vercel/Fly.io/GHCR/Grafana/Cloudflare
 - `VERIFY` — Tests, Runtime-Proof, Secret-Scan
 - `DOC` — Doku mit Runtime-/Gate-Fortschritt
 - `AUDIT` — Zustand vs. Regeln vs. Evidenz
@@ -138,13 +138,13 @@ DB:             eine PostgreSQL-Instanz, getrennte DB/Schemas für App/Langfuse
 MCP:            Gateway mit Scopes, Timeouts, Audit und Write-Gates
 GitHub MCP:     offizieller ghcr.io/github/github-mcp-server
 Observability:  audit_log + metrics; Langfuse/Grafana gated
-Deployment:     Vercel + Hetzner + Cloudflare nach Gates
+Deployment:     Vercel + Fly.io + GHCR + Grafana Cloud + Cloudflare nach Gates
 ```
 
 Gesperrt Phase 1-5:
 
 ```text
-Supabase · Qdrant · LanceDB · Ollama · Railway · HuggingFace · CPX51+ · deprecated GitHub npm MCP
+Supabase · Qdrant · LanceDB · Ollama · Railway · HuggingFace Spaces · retired legacy providers · CPX51+ · deprecated GitHub npm MCP
 ```
 
 ---

@@ -26,7 +26,7 @@ It does not raise progress by itself. It reads the canonical manifest-backed pro
 - No hosted staging success without `STAGING_BASE_URL`.
 - No protected-main success without `BRANCH_PROTECTION_TOKEN` or equivalent GitHub token.
 - No canonical gitleaks success without the `gitleaks` binary.
-- No live infrastructure budget refresh without `HETZNER_API_TOKEN`.
+- No live infrastructure budget refresh without `FLY_API_TOKEN`.
 - No production deployment, live LLM provider calls, or live MCP writes from this contract.
 
 ## Verifier Coverage

@@ -18,6 +18,8 @@ services:
       - ./apps/frontend/components:/app/components:ro
       - ./apps/frontend/lib:/app/lib:ro
       - ./apps/frontend/next.config.mjs:/app/next.config.mjs:ro
+      - ./apps/frontend/next-env.d.ts:/app/next-env.d.ts
+      - ./apps/frontend/tsconfig.json:/app/tsconfig.json
     depends_on:
       agent-api:
         condition: service_healthy

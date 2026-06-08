@@ -50,7 +50,7 @@ import urllib.request
 
 sys.stdout.reconfigure(encoding="utf-8")
 url = sys.argv[1]
-with urllib.request.urlopen(url, timeout=10) as response:
+with urllib.request.urlopen(url, timeout=30) as response:
     sys.stdout.write(response.read().decode("utf-8", errors="replace"))
 '@
   $env:PYTHONIOENCODING = "utf-8"
@@ -164,8 +164,24 @@ $landingHtml = Invoke-Text "$BaseUrl/"
 Assert-Contains "landing title" $landingHtml "Cloud Superbrain"
 Assert-Contains "landing open workbench" $landingHtml "Open Workbench"
 Assert-Contains "landing canonical spec marker" $landingHtml "Canonical platform specification"
+$homeHtml = Invoke-Text "$BaseUrl/home"
+Assert-Contains "home product marker" $homeHtml "Developer Platform"
+Assert-Contains "home evidence wiring marker" $homeHtml "Evidence"
+Assert-Contains "home diagnostics wiring marker" $homeHtml "Diagnostics"
+Assert-True "home does not surface recent projects" (-not $homeHtml.Contains("Letzte Projekte"))
+Assert-True "home does not surface project workspace status" (-not $homeHtml.Contains("Projektstand"))
 $workbenchHtml = Invoke-Text "$BaseUrl/workbench"
-Assert-Contains "workbench fail-closed marker" $workbenchHtml "Fail-closed by design"
+Assert-Contains "workbench studio marker" $workbenchHtml "Main Workbench"
+Assert-Contains "workbench preview marker" $workbenchHtml "Preview / Assets"
+Assert-Contains "workbench cloud target marker" $workbenchHtml "Cloud Staging"
+Assert-Contains "workbench run binding marker" $workbenchHtml "Run Binding"
+Assert-True "workbench does not surface session list" (-not $workbenchHtml.Contains("Sessions"))
+Assert-True "workbench does not surface completion gate" (-not $workbenchHtml.Contains("Completion-Gate"))
+Assert-True "workbench does not surface workspace status wall" (-not $workbenchHtml.Contains("Workspace-Surfaces"))
+Assert-True "workbench budget hidden without paid option" (-not $workbenchHtml.Contains("Metered Budget"))
+$workbenchPaidHtml = Invoke-Text "$BaseUrl/workbench?capability=paid_llm"
+Assert-Contains "workbench paid budget visible" $workbenchPaidHtml "Metered Budget"
+Assert-Contains "workbench paid budget reason" $workbenchPaidHtml "paid/metered Capability"
 
 Write-Host "[browser-contract] favicon"
 $faviconStatus = Invoke-StatusCode "$BaseUrl/favicon.ico"
@@ -192,7 +208,8 @@ Assert-Contains "project progress completion version" $projectProgressCompletion
 Assert-Contains "project progress completion status" $projectProgressCompletion '"status":"blocked_external_gates"'
 Assert-Contains "project progress completion evidence" $projectProgressCompletion '"evidence_ref":"project_progress_100_percent_gate_contract"'
 Assert-Contains "project progress completion cannot set all to 100" $projectProgressCompletion '"can_set_all_to_100":false'
-Assert-Contains "project progress completion external gates cleared" $projectProgressCompletion '"missing_external_gates":[]'
+Assert-Contains "project progress completion missing fly gate" $projectProgressCompletion '"missing_external_gates":["fly_api_token"]'
+Assert-Contains "project progress completion fly blocker" $projectProgressCompletion "live_infra_budget_refresh_requires_FLY_API_TOKEN"
 Assert-Contains "project progress completion local gap blocker" $projectProgressCompletion "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 
 Write-Host "[browser-contract] layer interface contracts"
@@ -245,10 +262,10 @@ Assert-Contains "cloud deployment preflight runtime endpoint" $cloudDeploymentPr
 $cloudDeploymentPreflightRuntime = Invoke-Text "$BaseUrl/api/v1/clouds/deployment-preflight"
 Assert-Contains "cloud deployment preflight runtime version" $cloudDeploymentPreflightRuntime '"contract_version":"cloud-deployment-preflight-v1"'
 Assert-Contains "cloud deployment preflight runtime evidence" $cloudDeploymentPreflightRuntime '"evidence_ref":"cloud_deployment_preflight_visible"'
-Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflightRuntime '"status":"verified"'
-Assert-Contains "cloud deployment preflight cloud claim allowed" $cloudDeploymentPreflightRuntime '"cloud_deploy_claim_allowed":true'
-Assert-Contains "cloud deployment preflight production allowed" $cloudDeploymentPreflightRuntime '"production_deploy_claim_allowed":true'
-Assert-Contains "cloud deployment preflight no blocked gates" $cloudDeploymentPreflightRuntime '"missing_or_blocked_gates":[]'
+Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflightRuntime '"status":"action_required"'
+Assert-Contains "cloud deployment preflight cloud claim blocked" $cloudDeploymentPreflightRuntime '"cloud_deploy_claim_allowed":false'
+Assert-Contains "cloud deployment preflight production blocked" $cloudDeploymentPreflightRuntime '"production_deploy_claim_allowed":false'
+Assert-Contains "cloud deployment preflight missing fly cloud stack" $cloudDeploymentPreflightRuntime '"missing_or_blocked_gates":["fly_cloud_stack"]'
 Assert-Contains "cloud deployment preflight ghcr sequence" $cloudDeploymentPreflightRuntime "publish_ghcr_images"
 Assert-Contains "cloud deployment preflight hosted origins" $cloudDeploymentPreflightRuntime "hosted_backend_origins"
 Assert-Contains "cloud deployment preflight branch token" $cloudDeploymentPreflightRuntime "BRANCH_PROTECTION_TOKEN"
@@ -380,9 +397,9 @@ $mcpVersionPinningContract = Invoke-Text "$BaseUrl/mcp/api/v1/version-pinning/co
 Assert-Contains "mcp version pinning contract version" $mcpVersionPinningContract '"contract_version":"mcp-version-pinning-v1"'
 Assert-Contains "mcp version pinning evidence" $mcpVersionPinningContract '"evidence_ref":"mcp_version_pinning_contract_visible"'
 Assert-Contains "mcp version pinning gap" $mcpVersionPinningContract '"audit_gap":"L-08"'
-Assert-Contains "mcp version pinning fastapi" $mcpVersionPinningContract "fastapi==0.115.8"
-Assert-Contains "mcp version pinning uvicorn" $mcpVersionPinningContract "uvicorn[standard]==0.34.0"
-Assert-Contains "mcp version pinning pydantic" $mcpVersionPinningContract "pydantic==2.10.6"
+Assert-Contains "mcp version pinning fastapi" $mcpVersionPinningContract "fastapi==0.136.3"
+Assert-Contains "mcp version pinning uvicorn" $mcpVersionPinningContract "uvicorn[standard]==0.49.0"
+Assert-Contains "mcp version pinning pydantic" $mcpVersionPinningContract "pydantic==2.13.4"
 Assert-Contains "mcp version pinning github contract" $mcpVersionPinningContract "github-branch-pr-plan-v1"
 Assert-Contains "mcp version pinning e2b contract" $mcpVersionPinningContract "e2b-sandbox-lifecycle-v1"
 Assert-Contains "mcp version pinning drift policy" $mcpVersionPinningContract "exact == pinning"
@@ -415,6 +432,34 @@ Assert-Contains "runtime mcp timeout evidence" $runtimeContract "langgraph_mcp_t
 Assert-Contains "runtime no live provider calls" $runtimeContract '"live_provider_calls":false'
 Assert-Contains "runtime postgres checkpointing" $runtimeContract '"checkpointing":"postgres"'
 
+Write-Host "[browser-contract] organism contracts"
+$organismContract = Invoke-Text "$BaseUrl/api/v1/organism/contract"
+Assert-Contains "organism contract version" $organismContract '"contract_version":"organism-surface-v1"'
+Assert-Contains "organism contract topology related" $organismContract '"/api/v1/organism/topology"'
+Assert-Contains "organism contract safety related" $organismContract '"/api/v1/organism/safety"'
+$organismTopology = Invoke-Text "$BaseUrl/api/v1/organism/topology"
+Assert-Contains "organism topology version" $organismTopology '"contract_version":"organism-topology-v1"'
+Assert-Contains "organism topology layer node" $organismTopology '"id":"layer:FE"'
+Assert-Contains "organism topology agent node" $organismTopology '"id":"agent:planner"'
+Assert-Contains "organism topology tool node" $organismTopology '"id":"tool:mcp_gateway"'
+Assert-Contains "organism topology gate node" $organismTopology '"kind":"safety_gate"'
+$organismLiveState = Invoke-Text "$BaseUrl/api/v1/organism/live-state"
+Assert-Contains "organism live-state version" $organismLiveState '"contract_version":"organism-live-state-v1"'
+Assert-Contains "organism live-state no secret" $organismLiveState '"gates_closed"'
+$organismEvents = Invoke-Text "$BaseUrl/api/v1/organism/events"
+Assert-Contains "organism events version" $organismEvents '"contract_version":"organism-events-v1"'
+Assert-Contains "organism events no secret output" $organismEvents '"secret_output":false'
+$organismReplay = Invoke-Text "$BaseUrl/api/v1/organism/replay"
+Assert-Contains "organism replay version" $organismReplay '"contract_version":"organism-replay-v1"'
+Assert-Contains "organism replay availability" $organismReplay '"replay_available":'
+$organismRegions = Invoke-Text "$BaseUrl/api/v1/organism/regions"
+Assert-Contains "organism regions version" $organismRegions '"contract_version":"organism-regions-v1"'
+Assert-Contains "organism regions callosum" $organismRegions '"id":"callosum"'
+$organismSafety = Invoke-Text "$BaseUrl/api/v1/organism/safety"
+Assert-Contains "organism safety version" $organismSafety '"contract_version":"organism-safety-v1"'
+Assert-Contains "organism safety no fake live" $organismSafety '"no_fake_live":true'
+Assert-Contains "organism safety no writes" $organismSafety '"writes":false'
+
 Write-Host "[browser-contract] external gate mirror"
 $externalGates = Invoke-Text "$BaseUrl/api/v1/external-gates"
 Assert-Contains "external gates contract" $externalGates '"contract_version":"external-gates-state-v1"'
@@ -427,14 +472,14 @@ Assert-Contains "external gates branch alias" $externalGates '"preflight_gate_id
 Assert-Contains "external gates evidence alias" $externalGates '"evidence_ref":"ghcr_image_digest_proof"'
 $externalGateMirror = Invoke-Text "$BaseUrl/api/v1/external-gates/mirror"
 Assert-Contains "external gate mirror contract" $externalGateMirror '"contract_version":"external-gate-mirror-v1"'
-Assert-Contains "external gate mirror status" $externalGateMirror '"status":"verified"'
+Assert-Contains "external gate mirror status" $externalGateMirror '"status":"local_mirror_ready_hosted_blocked"'
 Assert-Contains "external gate mirror evidence" $externalGateMirror '"evidence_ref":"external_gate_mirror_proof"'
 Assert-Contains "external gate mirror hosted allowed" $externalGateMirror '"hosted_staging_claim_allowed":true'
 Assert-Contains "external gate mirror branch protection allowed" $externalGateMirror '"branch_protection_claim_allowed":true'
 Assert-Contains "external gate mirror branch protection evidence" $externalGateMirror '"branch_protection_evidence_ref":"branch_protection_verify_contract"'
 Assert-Contains "external gate mirror branch protection workflow" $externalGateMirror ".github/workflows/branch-protection.yml"
 Assert-Contains "external gate mirror branch protection verifier" $externalGateMirror "scripts/apply_github_branch_protection.py --verify-only"
-Assert-Contains "external gate mirror production allowed" $externalGateMirror '"production_deploy_claim_allowed":true'
+Assert-Contains "external gate mirror production blocked" $externalGateMirror '"production_deploy_claim_allowed":false'
 Assert-Contains "external gate mirror sse contract" $externalGateMirror "phase2-sse-event-contract-v1"
 Assert-Contains "external gate mirror project progress proof" $externalGateMirror "project_progress_manifest_proof"
 

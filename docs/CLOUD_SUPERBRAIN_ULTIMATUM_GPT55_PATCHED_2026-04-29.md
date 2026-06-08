@@ -18,7 +18,7 @@ Teil 1 und Teil 2 bleiben Historie. Dieses Dokument ist die **aktive Arbeitswahr
 - Der aktuelle Codex-Key für Sandbox ist `sandbox_mode`, nicht `sandbox`.
 - Für interaktive Arbeit ist `approval_policy = "on-request"` sicherer als `never`; `never` bleibt nur für read-only/noninteractive Auditprofile.
 - `@modelcontextprotocol/server-github` ist nicht mehr der aktive GitHub-MCP-Standard; der offizielle GitHub MCP Server läuft über `ghcr.io/github/github-mcp-server` oder GitHubs hosted MCP.
-- Hetzner hat zum 01.04.2026 Preisänderungen vorgenommen. Budgetentscheidungen müssen deshalb nicht aus alten Blueprint-Zahlen, sondern aus aktueller Preiskalkulation oder realer Rechnung abgeleitet werden.
+- Cloud-Budgetentscheidungen werden ab 2026-06-08 gegen Vercel, Fly.io, GHCR und Grafana Cloud aus aktueller Preiskalkulation oder realer Rechnung abgeleitet.
 
 ---
 
@@ -65,7 +65,7 @@ Teil 1 und Teil 2 bleiben Historie. Dieses Dokument ist die **aktive Arbeitswahr
 
 ## 4. Phase-1 Infrastruktur
 
-**Startklasse:** Hetzner CX22/CX23 oder vergleichbar kleiner Shared-vCPU-Server. Kein CPX51. Kein zusätzlicher Staging-Server ohne Budgetbeweis.
+**Startklasse:** Vercel Frontend plus Fly.io shared-cpu Runtime. Kein CPX51/CPX31/GPU. Kein zusätzlicher Staging-Server ohne Budgetbeweis.
 
 **Datenbank:** eine PostgreSQL-Instanz; getrennte DB/Schemas für App-State und Langfuse. pgvector ist Vektorstandard Phase 1-5.
 
@@ -104,7 +104,7 @@ Weiterhin blockiert:
 
 1. Hosted Staging URL fehlt.
 2. GitHub Branch Protection muss real gesetzt und geprüft werden.
-3. Hetzner-Kosten müssen über echte Rechnung/API oder aktuellen Kalkulator verifiziert werden.
+3. Fly.io/Vercel/GHCR/Grafana-Kosten müssen über echte Rechnung/API oder aktuellen Kalkulator verifiziert werden.
 4. gitleaks muss als echter Secret-Scanner in CI und lokal nachweisbar laufen.
 5. Live LLM Provider bleiben geschlossen, bis Budget-Guard + Audit + Owner-Gate aktiv sind.
 

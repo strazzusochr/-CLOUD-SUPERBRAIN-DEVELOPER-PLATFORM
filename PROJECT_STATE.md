@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-05-07 11:55 Uhr
+Letzte Aktualisierung: 2026-06-08 16:40 Uhr
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `70%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Project Progress Integrity `verified`; Task-Assignment nutzt echte high/mid/low-Priority-Queues; Cloud Inventory umfasst Vercel, Hetzner, Cloudflare, GitHub, GHCR, Hugging Face, GitLab und GitKraken als nicht-geheime Provider-Oberflaechen; Cloud Render Offload und Cloud Deployment Preflight sind als eigene gehostete Runtime-Surfaces mit dedizierten Contracts auf `<hosted-staging-url>` verifiziert; die Layer-Interface-Register-Surface, die Phase-2-Runtime-Contract-, Phase-2-Runtime-Start- und Phase-2-Runs-Surfaces, die Orchestrator-Manifest-, Orchestrator-Dry-Run-, Orchestrator-Dry-Run-Stream- und Orchestrator-Checkpoint-Surfaces, die DevOps-Workflow-Plan- und DevOps-Workflow-Validate-Surfaces, die Session-Stream-Surface, die Memory-Purge-Job-Status-Surface, die Memory-Embedding-Consistency-Surface, die Task-Assignment-Surface, die Agent-LLM-Streaming-Surface, die Cache-Control-Surface, die Cost-Export-Surface, die System-Fallback-Surface, die Project-Progress-Completion-Surface, die Project-Progress-Hauptsurface und die Project-Progress-Layer-Surface sind jetzt ebenfalls gehostet gegen echte Runtime-Projektion gebunden; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert; External-Gate-Audit, GHCR-Digest, Branch-Protection, Hosted Backend Origins, canonical Gitleaks und Hetzner-Live-Budget sind evidenzbasiert geschlossen. Phase 4 ist manifestseitig `100%`; die AI-Browser-Reruns fuer den letzten verifizierten Candidate, die Post-Rollback-Revalidation und der finale lokale-plus-hosted Browser-E2E-Recheck sind auf `2026-05-07` live verifiziert. Der letzte verifizierte Candidate bleibt an `overall=70`, `phase_4=100`, `phase_5=67`, `integrity=verified`, `external_gates=verified`, weiter fail-closed `completion=false`, unveraendertem `no-release`, explizit blockierter `staging`-zu-immutable-Digest-Paritaet und aktuell blockierter Repo-Worktree-Paritaet zu `source_commit_sha=ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5` gebunden. Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt ausschliesslich `DEV-ONLY` Control-Plane; Gesamtfortschritt laut bindendem Manifest `70%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Project Progress Integrity `verified`; Task-Assignment nutzt echte high/mid/low-Priority-Queues. Aktive Cloud-/Tool-Defaults sind Vercel, Fly.io, GHCR und Grafana Cloud; Hetzner, GitKraken und Oracle sind aus dem aktiven Pfad entfernt oder als historische Altlast markiert. Am 2026-06-08 wurden lokale Runtime, Browser-Contract, Build, Frontend-Lint und Phase-1-Suite erneut gruen verifiziert. Fly-Origin-Configs fuer `cloud-superbrain-agent-api`, `cloud-superbrain-mcp-gateway` und `cloud-superbrain-llm-gateway` sind repo-seitig vorbereitet; der private Gate-Runner und die Next.js/Vercel-Rewrites leiten fehlende Origin-URLs fail-closed aus diesen Fly-App-Namen ab. External Gates bleiben repo-ehrlich `blocked`: `.phase1-artifacts/external-gate-audit-20260608-180040.json` meldet `hosted_agent_api_contracts` und `vercel_backend_origin_health` als offen; `canonical_gitleaks_scan` und `ghcr_image_digest_verify` sind verified. Hosted-/Production-Claims sind ohne echte erreichbare HTTPS-`STAGING_BASE_URL` und live erreichbare Backend-Origins fail-closed. Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -22,7 +22,7 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 
 ## HARTE CONSTRAINTS (NIEMALS BRECHEN)
 
-1. **Budget:** Max €20/Monat Infrastruktur (Hetzner CX21 + Cloudflare)
+1. **Budget:** Max €20/Monat Infrastruktur (Vercel/Fly.io/GHCR/Grafana Cloud; keine retired-legacy-provider Active Defaults)
 2. **Kein Localhost in Produktion:** Alles muss Cloud-fähig sein
 3. **Orchestrierung:** LangGraph als Haupt-Orchestrator mit PostgreSQL-Checkpointer
 4. **Open-Source-First:** LangGraph, LiteLLM, Langfuse, pgvector
@@ -70,11 +70,23 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Staging-Tag-Paritaet explizit blockiert halten oder sauber aufloesen** — Phase 4 ist jetzt manifestseitig `100%`; der naechste harte Pfad ist die repo-ehrliche Aufloesung der bekannten Luecke zwischen mutablem `IMAGE_TAG=staging` und dem immutable Candidate-SHA
-- danach folgen weitere `P5`-Slices statt eines Rollouts
-- lokal und hosted bleiben weiterhin deterministische Proofs ohne Live-Provider und ohne Live-MCP-Writes; `production_deploy_claim_allowed=true` ist kein Deployment-Nachweis
+- **Cloud-Gates echt oeffnen** — echte HTTPS-`STAGING_BASE_URL` bereitstellen, die drei Fly-Origin-Apps erreichbar machen oder explizite `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, `LLM_GATEWAY_BASE_URL` setzen, dann `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-all-gates-with-tokens.ps1` erneut laufen lassen.
+- Danach weitere `P5`-Slices statt Rollout; `production_deploy_claim_allowed=true` ist weiterhin kein Deployment-Nachweis.
+- Localhost bleibt nur `DEV-ONLY`; Hosted-Proof muss HTTPS und non-localhost sein.
 
 ## ZULETZT ABGESCHLOSSEN
+
+**Cloud-Gate-Realignment 2026-06-08** — aktive Gates und Verifier sind auf Vercel/Fly.io/GHCR/Grafana ausgerichtet:
+
+- `scripts/verify-external-gates.ps1` nutzt fuer das Fly-Live-Budget den kanonischen `scripts/check_fly_infra_budget.py`-Pfad und bleibt ohne `FLY_API_TOKEN` fail-closed.
+- Direkte MCP-/LLM-Fly-Origin-URLs werden jetzt korrekt an `/api/v1/health` geprueft; path-prefixed Reverse-Proxy-URLs wie `/mcp` und `/llm` bleiben unter diesem Prefix gueltig.
+- `fly.agent-api.toml`, `fly.mcp-gateway.toml` und `fly.llm-gateway.toml` bereiten die drei origin health gates getrennt vor; `scripts/verify-phase1.ps1` prueft diese Configs offline.
+- `apps/frontend/next.config.mjs` nutzt dieselbe Origin-Prioritaet fuer Vercel-Rewrites: explizite HTTPS-Origin, Fly-App-Name/Fly-Default, dann Hosted-Rewrite-Fallback; `scripts/verify-frontend-cloud-rewrites.ps1` prueft diese Matrix ohne Secrets und ohne Deploy.
+- `scripts/verify-external-gates.ps1` begrenzt HTTP- und native Prozess-Probes fail-closed; Timeout-Proof erzeugte ein nicht-geheimes blocked Artifact statt haengender Ausfuehrung.
+- Hosted-Verifier ohne echte HTTPS-`STAGING_BASE_URL` brechen fail-closed ab; localhost kann keine Cloud-Gates schliessen.
+- Frontend-Stack ist auf Next.js `16.2.7`, React `19.2.7`, Three `0.184.0` und `@types/node` `25.9.2`; ESLint bleibt bewusst auf kompatiblem `9.39.4`, weil `eslint@10` Peer-Konflikte im aktuellen Next-Plugin-Stack erzeugt.
+- Verifiziert: `npm run build`, `npm run lint --prefix apps/frontend`, `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`, `npm run verify:browser`, `npm run verify:runtime`, `npm run verify:external-gates`.
+- Ergebnis: lokale Checks gruen; External Gates bleiben mit `.phase1-artifacts/external-gate-audit-20260608-180040.json` blocked auf `hosted_agent_api_contracts` und `vercel_backend_origin_health`. Die Origin-Probes verwenden jetzt `https://cloud-superbrain-agent-api.fly.dev/api/v1/health`, `https://cloud-superbrain-mcp-gateway.fly.dev/api/v1/health` und `https://cloud-superbrain-llm-gateway.fly.dev/api/v1/health`; sie koennen erst nach real erreichbaren Fly-Apps schliessen.
 
 **Phase 5 Integration Smoke Plan Rerun** — der aktuelle `RC1`-Truth ist jetzt nochmals gegen den gehosteten Integration-/Smoke-Pfad auf `overall=70`, `phase_5=67` nachgezogen:
 
@@ -743,19 +755,19 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 
 - `GET /api/v1/clouds/render-offload/contract` liefert `cloud-render-offload-v1`, `cloud_render_offload_contract_visible`, `localhost_heavy_render_allowed=false` und `home_pc_protection=true`
 - Workloads `webgl_3d_rendering`, `browser_gpu_smoke` and `asset_generation` sind `cloud-only`; nur `control_plane` bleibt lokal erlaubt
-- fehlende Cloud-Server-Gates bleiben explizit: `STAGING_BASE_URL`, `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, `LLM_GATEWAY_BASE_URL`, `HETZNER_API_TOKEN`
+- fehlende Cloud-Server-Gates bleiben explizit: `STAGING_BASE_URL`, `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, `LLM_GATEWAY_BASE_URL`, `FLY_API_TOKEN`
 - Frontend rendert `Cloud Render Offload` mit `Local Render blocked`, `WebGL / 3D rendering cloud-only` und dem Endpoint `GET /api/v1/clouds/render-offload/contract`
 - Verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `scripts/verify-phase1.ps1`, `docker compose -f docker-compose.dev.yml up -d --build agent-api frontend nginx`, `GET /api/v1/clouds/render-offload/contract`, `scripts/verify-browser-contract.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost`, `scripts/verify-hosted-staging.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost`, `scripts/verify-external-gates.ps1 -LocalBaseUrl <local-control-plane-url>` und Playwright-DOM-Proof
 - Keine Prozent-Erhoehung: Gesamt bleibt `47%`, Phase 4 bleibt `15%`; ohne echte gehostete Server und rotierte Secrets bleibt Cloud-Runtime `action_required`
 
-**GitKraken Cloud Inventory Contract Proof** — der in der Cloud/API-Analyse gefundene GitKraken-Gap ist jetzt lokal und sichtbar geschlossen:
+**Grafana Cloud Inventory Contract Proof** — die aktive Observability-Cloud ist lokal und sichtbar verdrahtet:
 
-- `GET /api/v1/clouds` liefert `total_count=8` und den neuen Provider `gitkraken_identity` mit `GITKRAKEN_API_TOKEN`, `GITKRAKEN_ORG_ID`, `GITKRAKEN_ORG_NAME`, `GITKRAKEN_DASHBOARD_URL` und `GITKRAKEN_API_URL` als Namen/Status, niemals als Werte
-- `GET /api/v1/clouds/layers` fuehrt `gitkraken_identity` in Layer 5 und Layer 7 mit expliziten Blockern `gitkraken_identity_requires_GITKRAKEN_API_TOKEN`
-- `docker-compose.cloud.yml`, `.env.example`, `docs/runbooks/cloud-secret-runtime-injection.md`, `docs/runtime-contracts/cloud-provider-inventory-contract.md` und `docs/runtime-contracts/external-gate-audit-contract.md` kennen die GitKraken-Keys und Non-Claims
-- `scripts/verify-phase1.ps1`, `scripts/verify-browser-contract.ps1`, `scripts/verify-hosted-staging.ps1`, `scripts/verify-phase1-runtime.ps1` und `scripts/verify-external-gates.ps1` pruefen GitKraken jetzt fail-closed
+- `GET /api/v1/clouds` liefert die aktive Provider-Linie mit `grafana_cloud` und `GRAFANA_CLOUD_API_KEY` als Namen/Status, niemals als Wert.
+- `GET /api/v1/clouds/layers` fuehrt `grafana_cloud` in Layer 7 mit fail-closed Optional-Identity-Probe.
+- `docker-compose.cloud.yml`, `.env.example`, `docs/runbooks/cloud-secret-runtime-injection.md`, `docs/runtime-contracts/cloud-provider-inventory-contract.md` und `docs/runtime-contracts/external-gate-audit-contract.md` kennen die aktiven Vercel/Fly.io/GHCR/Grafana Gates und Non-Claims.
+- `scripts/verify-phase1.ps1`, `scripts/verify-browser-contract.ps1`, `scripts/verify-hosted-staging.ps1`, `scripts/verify-phase1-runtime.ps1` und `scripts/verify-external-gates.ps1` pruefen diese Gates fail-closed.
 - Verifiziert: Python compile, `scripts/verify_project_progress_manifest.py`, `scripts/verify-phase1.ps1`, `scripts/verify-browser-contract.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost`, `scripts/verify-hosted-staging.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost`, `scripts/verify-external-gates.ps1 -LocalBaseUrl <local-control-plane-url>`, `scripts/verify-phase1-runtime.ps1` und Playwright-DOM-Proof auf `<local-control-plane-url>/`
-- Keine Prozent-Erhoehung: Gesamt bleibt `47%`, Phase 4 bleibt `15%`, MCP Gateway bleibt `53%`, Observability bleibt `99%`; ohne rotierten echten GitKraken-Token bleibt the Live-Identity-Claim geschlossen
+- Keine Prozent-Erhoehung: Gesamt bleibt manifestgefuehrt; ohne echte Cloud-Tokens bleiben Live-Identity- und Budget-Claims geschlossen.
 
 **Local Rebuild + Runtime Re-Proof** — der zuvor alte laufende Containerstand wurde neu gebaut und nach Recreate live verifiziert:
 
@@ -809,13 +821,12 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 - Dokumentiert in `docs/runtime-contracts/agent-llm-streaming-contract.md`
 - Fortschritt bleibt Gesamt `47%`, Phase 4 steigt evidenzbasiert auf `13%`, LLM Gateway auf `53%`
 
-**Hetzner Live Budget Warning Proof** — der bereitgestellte Hetzner-Token wurde einmalig als Prozess-Environment genutzt, nicht gespeichert:
+**Fly.io Budget Gate Projection** — aktiver Budgetpfad ist Fly.io/Vercel/GHCR/Grafana, live weiter token-gated:
 
-- `scripts/check_hetzner_infra_budget.py` meldete `EUR 19.03` projizierte monatliche Serverkosten
+- `scripts/check_fly_infra_budget.py` ist der aktive Budget-Verifier.
+- `docs/runbooks/fly-live-budget-proof-2026-06-08.md` dokumentiert nur eine Projektion; der Live-Gate bleibt ohne `FLY_API_TOKEN` blockiert.
 - Budget: Warnschwelle `EUR 16.00`, hartes Limit `EUR 20.00`
-- Ergebnis: unter hartem Limit, aber Warning aktiv; keine weitere Hetzner-Erweiterung ohne neuen Live-Budgetbeweis
-- Dokumentiert in `docs/runbooks/hetzner-live-budget-proof-2026-04-29.md`
-- Fortschritt bleibt Gesamt `47%`, Phase 4 steigt evidenzbasiert auf `12%`
+- Fortschritt bleibt unveraendert; kein Live-Budget-Claim ohne externen Token-Beweis.
 
 **L-06 Task Assignment Queue Contract Proof** — die Schicht 2→3 Task-Uebergabe ist jetzt als sichtbarer, versionierter Contract geschlossen:
 

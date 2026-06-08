@@ -30,14 +30,47 @@ test.describe("Cloud Superbrain platform", () => {
     expect(json.hubs.length).toBe(8);
   });
 
-  test("organism live-state / events / replay are mock-labelled (no fake-live)", async ({ request }) => {
+  test("organism live-state / events / replay are spec-only when no backend is configured", async ({ request }) => {
     for (const path of ["live-state", "events", "replay"]) {
       const resp = await request.get(`/api/v1/organism/${path}`);
       expect(resp.status(), path).toBe(200);
       const json = await resp.json();
-      expect(json.source, path).toBe("mock");
+      expect(json.source, path).toBe("spec_only");
       expect(json.live, path).toBe(false);
+      expect(json.non_claims.join(" "), path).toMatch(/no secret|no live provider/i);
     }
+  });
+
+  test("organism topology / regions / safety contracts are wired and read-only", async ({ request }) => {
+    const topologyResp = await request.get("/api/v1/organism/topology");
+    expect(topologyResp.status()).toBe(200);
+    const topology = await topologyResp.json();
+    expect(topology.contract_version).toBe("organism-topology-v1");
+    const nodeIds = new Set((topology.nodes as Array<{ id: string }>).map((node) => node.id));
+    expect(nodeIds.has("layer:FE")).toBeTruthy();
+    expect(nodeIds.has("agent:planner")).toBeTruthy();
+    expect(nodeIds.has("tool:mcp_gateway")).toBeTruthy();
+    expect(nodeIds.has("model:deepseek-ai/DeepSeek-V4-Pro")).toBeTruthy();
+    for (const edge of topology.edges as Array<{ from: string; to: string }>) {
+      expect(nodeIds.has(edge.from), `edge source ${edge.from}`).toBeTruthy();
+      expect(nodeIds.has(edge.to), `edge target ${edge.to}`).toBeTruthy();
+    }
+    expect((topology.nodes as Array<{ writes: boolean }>).every((node) => node.writes === false)).toBeTruthy();
+
+    const regionsResp = await request.get("/api/v1/organism/regions");
+    expect(regionsResp.status()).toBe(200);
+    const regions = await regionsResp.json();
+    expect(regions.contract_version).toBe("organism-regions-v1");
+    expect(regions.regions.length).toBeGreaterThanOrEqual(10);
+    expect(regions.regions.every((region: { secret_output: boolean; writes: boolean }) => !region.secret_output && !region.writes)).toBeTruthy();
+
+    const safetyResp = await request.get("/api/v1/organism/safety");
+    expect(safetyResp.status()).toBe(200);
+    const safety = await safetyResp.json();
+    expect(safety.contract_version).toBe("organism-safety-v1");
+    expect(safety.data_rules.no_fake_live).toBe(true);
+    expect(safety.data_rules.secret_output).toBe(false);
+    expect(safety.data_rules.provider_write).toBe(false);
   });
 
   test("consolidated pages render real content (not re-export shortcuts)", async ({ page }) => {

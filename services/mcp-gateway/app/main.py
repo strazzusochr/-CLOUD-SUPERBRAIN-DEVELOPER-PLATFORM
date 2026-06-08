@@ -390,14 +390,14 @@ def mcp_version_pinning_contract() -> dict[str, object]:
         "gateway": {
             "service": "mcp-gateway",
             "app_version": MCP_GATEWAY_VERSION,
-            "runtime": "python:3.12-slim",
+            "runtime": "python:3.14-slim",
             "requirements_file": "services/mcp-gateway/requirements.txt",
             "dependency_pin_policy": "exact_version_required",
         },
         "pinned_dependencies": [
-            {"name": "fastapi", "version": "0.115.8", "pin": "fastapi==0.115.8"},
-            {"name": "uvicorn[standard]", "version": "0.34.0", "pin": "uvicorn[standard]==0.34.0"},
-            {"name": "pydantic", "version": "2.10.6", "pin": "pydantic==2.10.6"},
+            {"name": "fastapi", "version": "0.136.3", "pin": "fastapi==0.136.3"},
+            {"name": "uvicorn[standard]", "version": "0.49.0", "pin": "uvicorn[standard]==0.49.0"},
+            {"name": "pydantic", "version": "2.13.4", "pin": "pydantic==2.13.4"},
         ],
         "pinned_tool_contracts": [
             {

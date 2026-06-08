@@ -4,7 +4,7 @@
  * FRONTEND client-runtime slices delivered on this branch. Truth-policy: this proves
  * the slices exist and pass locally; it does NOT credit the committed manifest
  * percentage (that increases only after the owner's HOSTED verifier run against the
- * real Hetzner stack — the project's established evidence standard). It is honest
+ * real hosted cloud stack — the project's established evidence standard). It is honest
  * local evidence, not a hosted/production claim.
  *
  *   node scripts/verify-phase6-frontend.mjs

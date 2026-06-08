@@ -14,29 +14,24 @@ The Agent API can consume these environment variable names:
 
 - `VERCEL_TOKEN`
 - `STAGING_BASE_URL`
-- `HETZNER_API_TOKEN`
+- `FLY_API_TOKEN`
 - `CLOUDFLARE_API_TOKEN`
 - `GITHUB_TOKEN`
 - `BRANCH_PROTECTION_TOKEN`
 - `GHCR_TOKEN`
 - `HF_TOKEN`
 - `GITLAB_TOKEN`
-- `GITKRAKEN_API_TOKEN`
+- `GRAFANA_CLOUD_API_KEY`
 
 Optional metadata keys:
 
 - `VERCEL_PROJECT_ID`
 - `VERCEL_ORG_ID`
-- `HETZNER_PROJECT_ID`
-- `HETZNER_SERVER_ID`
-- `HETZNER_SERVER_NAME`
-- `HETZNER_SERVER_TYPE`
-- `HETZNER_SERVER_LOCATION`
-- `HETZNER_SERVER_IPV4`
-- `HETZNER_SERVER_IPV6_CIDR`
-- `HETZNER_PRIMARY_IPV4_ID`
-- `HETZNER_PRIMARY_IPV6_ID`
-- `HETZNER_VOLUME_ID`
+- `FLY_ORG_SLUG`
+- `FLY_APP_NAME`
+- `FLY_MACHINE_ID`
+- `FLY_REGION`
+- `FLY_DASHBOARD_URL`
 - `CLOUDFLARE_ACCOUNT_ID`
 - `CLOUDFLARE_ZONE_ID`
 - `CLOUDFLARE_AI_GATEWAY_URL`
@@ -47,10 +42,7 @@ Optional metadata keys:
 - `HF_PROFILE_URL`
 - `GITLAB_PROFILE_URL`
 - `GITLAB_API_URL`
-- `GITKRAKEN_ORG_ID`
-- `GITKRAKEN_ORG_NAME`
-- `GITKRAKEN_DASHBOARD_URL`
-- `GITKRAKEN_API_URL`
+- `GRAFANA_CLOUD_URL`
 
 ## Local Rule
 
@@ -66,8 +58,7 @@ By default it reads `C:\Users\<user>\.codex\secrets\cloud-superbrain.local.env`,
 
 - `VERCEL_TEAM_ID -> VERCEL_ORG_ID`
 - `VERCEL_ORG_ID -> VERCEL_TEAM_ID`
-- `HCLOUD_TOKEN -> HETZNER_API_TOKEN`
-- `HETZNER_API_TOKEN -> HCLOUD_TOKEN`
+- `FLY_TOKEN -> FLY_API_TOKEN`
 - `GITHUB_TOKEN -> BRANCH_PROTECTION_TOKEN`
 
 Use `scripts\verify-all-gates-with-tokens.ps1` for external gate verification with the same private env bootstrap. Optional identity provider tokens remain optional unless the verifier is run with an explicit strict identity policy.

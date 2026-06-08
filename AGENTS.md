@@ -67,14 +67,14 @@ When the user says `weiter`, `go`, `mach weiter`, or gives a concrete task, cont
 | Database | One PostgreSQL instance, `superbrain_prod` app DB, `langfuse` DB/schema separated, pgvector enabled |
 | Memory | Redis working memory + PostgreSQL/pgvector long-term memory |
 | Tool layer | MCP Gateway safe envelopes with audit, timeout, scope and policy gates |
-| Observability | Audit log and metrics locally; Langfuse/Grafana remain gated deployment targets |
-| Deployment | Docker Compose for dev/runtime proof; Hetzner CX22/CX23-class target; Cloudflare/Vercel where phase-gated |
+| Observability | Audit log and metrics locally; Grafana Cloud remains the gated observability target |
+| Deployment | Docker Compose for dev/runtime proof; Vercel frontend, Fly.io container runtime, GHCR image registry where phase-gated |
 | CI/CD | GitHub Actions with branch protection and secret scanning gates |
 | GitHub MCP | Official `ghcr.io/github/github-mcp-server`; never use deprecated `@modelcontextprotocol/server-github` |
 
 Hard constraints:
 
-- Infrastructure budget: max 20 EUR/month unless Owner approves a measured upgrade.
+- Infrastructure budget: max 20 EUR/month across Vercel, Fly.io, GHCR, and Grafana Cloud unless Owner approves a measured upgrade.
 - No Qdrant in Phase 1-5.
 - No Supabase, LanceDB, Ollama, Railway, or HuggingFace Spaces as active MVP runtime defaults.
 - No CPX51/CPX31/GPU server before the documented phase gate and ADR.
@@ -131,6 +131,7 @@ Stop and require explicit Owner/review approval before:
 - Live LLM provider activation or direct provider bypass.
 - MCP tool activation with write access.
 - Architecture deviation from the seven-layer model or budget baseline.
+- Reintroducing Hetzner, GitKraken, or Oracle as active cloud/tool defaults.
 - Any reintroduction of Supabase, Qdrant, LanceDB, Ollama, Railway, HuggingFace Spaces, CPX51, CPX31, or GPU servers before the documented phase gate and ADR.
 
 ---

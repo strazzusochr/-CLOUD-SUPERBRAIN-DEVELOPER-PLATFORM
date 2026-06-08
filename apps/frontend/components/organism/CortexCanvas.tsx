@@ -19,6 +19,11 @@ import { REGIONS, STATE_COLOR, STATE_LABEL, type RunState } from "./regionMap";
 
 type Vec3 = { x: number; y: number; z: number };
 
+function seededUnit(seed: number) {
+  const value = Math.sin(seed * 12.9898) * 43758.5453;
+  return value - Math.floor(value);
+}
+
 function hexToRgb(hex: string): [number, number, number] {
   const n = parseInt(hex.replace("#", ""), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
@@ -67,10 +72,10 @@ function useBrain(nodeCount: number) {
         }
       }
     }
-    const pulses = Array.from({ length: 54 }, () => ({
-      seg: Math.floor(Math.random() * Math.max(1, segs.length)),
-      t: Math.random(),
-      speed: 0.4 + Math.random() * 0.8,
+    const pulses = Array.from({ length: 54 }, (_, i) => ({
+      seg: Math.floor(seededUnit(i + 1) * Math.max(1, segs.length)),
+      t: seededUnit(i + 101),
+      speed: 0.4 + seededUnit(i + 201) * 0.8,
     }));
     return { pts, colors, sizes, segs, pulses };
   }, [nodeCount]);
@@ -83,6 +88,7 @@ export default function CortexCanvas({
   onSelectRegion,
   interactive = true,
   showRegions = true,
+  sourceLabel = "SPEC · ORGANISM",
   className,
 }: {
   runState?: RunState;
@@ -91,23 +97,28 @@ export default function CortexCanvas({
   onSelectRegion?: (id: string) => void;
   interactive?: boolean;
   showRegions?: boolean;
+  sourceLabel?: string;
   className?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const brain = useBrain(nodeCount);
-  const [reduced, setReduced] = useState(false);
+  const [reduced, setReduced] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   const stateRef = useRef(runState);
   const activeRef = useRef(activeRegion);
   const hoverRef = useRef<string | null>(null);
   const regionScreen = useRef<{ id: string; x: number; y: number }[]>([]);
 
-  stateRef.current = runState;
-  activeRef.current = activeRegion;
+  useEffect(() => {
+    stateRef.current = runState;
+  }, [runState]);
+
+  useEffect(() => {
+    activeRef.current = activeRegion;
+  }, [activeRegion]);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(mq.matches);
     const on = () => setReduced(mq.matches);
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
@@ -207,11 +218,12 @@ export default function CortexCanvas({
       }
 
       // pulses
-      for (const pd of brain.pulses) {
+      for (let i = 0; i < brain.pulses.length; i++) {
+        const pd = brain.pulses[i];
         pd.t += pd.speed * dt;
         if (pd.t > 1) {
           pd.t = 0;
-          pd.seg = Math.floor(Math.random() * Math.max(1, brain.segs.length));
+          pd.seg = (pd.seg + 17 + i) % Math.max(1, brain.segs.length);
         }
         const seg = brain.segs[pd.seg];
         if (!seg) continue;
@@ -337,7 +349,7 @@ export default function CortexCanvas({
   if (reduced) {
     return (
       <div ref={wrapRef} className={`cortex-wrap ${className ?? ""}`}>
-        <span className="cortex-badge">TOPOLOGY · REDUCED MOTION</span>
+        <span className="cortex-badge">{sourceLabel} · REDUCED MOTION</span>
         <div className="cortex-fallback" style={{ alignItems: "stretch" }}>
           <ul style={{ listStyle: "none", margin: 0, padding: 0, width: "100%", maxWidth: 360 }}>
             {REGIONS.map((rg) => (
@@ -367,7 +379,7 @@ export default function CortexCanvas({
         role="img"
         aria-label={`Living cortex organism, run state ${runState}`}
       />
-      <span className="cortex-badge">LIVE · ORGANISM</span>
+      <span className="cortex-badge">{sourceLabel}</span>
       <span className="cortex-state">
         <span className="dot" style={{ background: STATE_COLOR[runState] }} />
         {STATE_LABEL[runState]}

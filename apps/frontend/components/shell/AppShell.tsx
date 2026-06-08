@@ -80,6 +80,12 @@ export default function AppShell({
         <div className="crumb">
           Cloud Superbrain&nbsp;/&nbsp;<b>{crumb}</b>
         </div>
+        <span className="topbar-chip" title="Projektkontext">
+          {Icon.workbench({ size: 14 })} Superbrain Platform
+        </span>
+        <span className="topbar-chip" title="Cloud-only Zielumgebung">
+          {Icon.stack({ size: 14 })} Vercel/Fly
+        </span>
         <div className="cmdk" role="search">
           {Icon.search({ size: 15 })}
           <span>Suchen oder Kommando ausführen</span>
@@ -91,8 +97,8 @@ export default function AppShell({
           <span className="dot pulse" style={{ background: runColor[runState] }} />
           {runLabel[runState]}
         </span>
-        <span className="badge badge-mut" title="Alle Write/Deploy-Gates geschlossen">
-          {Icon.shield({ size: 13 })} Gates: GESCHLOSSEN
+        <span className="topbar-chip safe" title="Keine Provider-Writes, keine Secrets, kein Production Deploy">
+          {Icon.shield({ size: 13 })} Read-only safe
         </span>
         <div className="avatar" aria-hidden="true">
           AI

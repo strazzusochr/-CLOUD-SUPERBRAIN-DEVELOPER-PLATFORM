@@ -592,7 +592,7 @@ def external_gate_verification_flags(progress: dict[str, object] | None = None) 
         "ghcr_images": "ghcr_image_digest_verified" in markers,
         "branch_protection": "branch_protection_verified" in markers,
         "hosted_backend_origins": "hosted_backend_origin_verified" in markers,
-        "fly_cloud_stack": "fly_live_budget_verified" in markers or "hetzner_live_budget_verified" in markers,
+        "fly_cloud_stack": "fly_live_budget_verified" in markers,
         "canonical_secret_scan": "canonical_gitleaks_verified" in markers,
         "production_gate_claim_allowed": "production_gate_claim_allowed" in markers,
         "external_gate_audit_verified": "external_gate_audit_verified" in markers,
@@ -783,7 +783,7 @@ def external_gate_mirror_state() -> dict[str, object]:
         "branch_protection_env_configured": branch_token_configured,
         "branch_protection_evidence_ref": BRANCH_PROTECTION_VERIFY_EVIDENCE_REF,
         "cloud_deployment_preflight_evidence_ref": CLOUD_DEPLOYMENT_PREFLIGHT_EVIDENCE_REF,
-        "production_deploy_claim_allowed": verified_flags["production_gate_claim_allowed"],
+        "production_deploy_claim_allowed": verified_flags["production_gate_claim_allowed"] and gates["status"] == "verified",
         "evidence_ref": EXTERNAL_GATE_MIRROR_EVIDENCE_REF,
         "non_claims": [
             "Local mirror proof is not a hosted staging success claim.",
@@ -1853,7 +1853,7 @@ def health_contract_payload() -> dict[str, object]:
         "supported_gate_statuses": ["verified", "action_required"],
         "budget_limit_cents": budget_state.budget_limit_cents,
         "infra_budget_limit_cents": infra_budget_state.budget_limit_cents,
-        "infra_supported_sources": ["projection", "hetzner_api_readonly"],
+        "infra_supported_sources": ["projection", "fly_api_readonly", "fly_api_readonly_plus_plan_projection"],
         "expected_external_gate_status": gates["status"],
         "evidence_ref": "health_contract_runtime_visible",
         "policy_checks": [
@@ -3783,7 +3783,8 @@ def cloud_render_offload_state() -> dict[str, object]:
         "CLOUDFLARE_API_TOKEN",
         "GITHUB_TOKEN",
         "GHCR_TOKEN",
-        "GITKRAKEN_API_TOKEN",
+        "GRAFANA_CLOUD_API_KEY",
+        "GRAFANA_CLOUD_URL",
     ]
     env_status = [{"key": key, "configured": bool(os.getenv(key))} for key in [*required_env, *optional_env]]
     missing_required = [key for key in required_env if not os.getenv(key)]
@@ -3867,7 +3868,7 @@ def cloud_render_offload_state() -> dict[str, object]:
         "policy_checks": [
             "Localhost may run lightweight API and dashboard checks only.",
             "3D/WebGL rendering, browser GPU smoke, screenshots, and generated asset workloads require hosted cloud runtime proof.",
-            "Cloud render offload does not bypass the Hetzner budget guard.",
+            "Cloud render offload does not bypass the Vercel/Fly.io/GHCR/Grafana Cloud budget guard.",
             "The cloud-only staging verifier remains the release gate for hosted frontend/API/MCP/LLM proof.",
         ],
         "non_claims": [
@@ -4013,15 +4014,16 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
         },
     ]
     missing_or_blocked = [gate["id"] for gate in gates if not gate["verified"]]
+    preflight_ready = not missing_or_blocked
     production_gate_claim_allowed = verified_flags["production_gate_claim_allowed"]
     return {
         "contract_version": CLOUD_DEPLOYMENT_PREFLIGHT_CONTRACT_VERSION,
-        "status": "verified" if production_gate_claim_allowed else ("ready_for_external_execution" if not missing_or_blocked else "action_required"),
+        "status": "verified" if production_gate_claim_allowed and preflight_ready else ("ready_for_external_execution" if preflight_ready else "action_required"),
         "endpoint": "GET /api/v1/clouds/deployment-preflight",
         "evidence_ref": CLOUD_DEPLOYMENT_PREFLIGHT_EVIDENCE_REF,
         "required_sequence": [
             "publish_ghcr_images",
-            "start_hetzner_pull_based_stack",
+            "start_fly_runtime_stack",
             "configure_vercel_backend_origins",
             "run_hosted_staging_verifier",
             "verify_branch_protection",
@@ -4030,15 +4032,15 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
         ],
         "gates": gates,
         "missing_or_blocked_gates": missing_or_blocked,
-        "preflight_ready": not missing_or_blocked,
-        "external_execution_ready": not missing_or_blocked,
-        "cloud_deploy_claim_allowed": not missing_or_blocked,
-        "production_deploy_claim_allowed": production_gate_claim_allowed,
+        "preflight_ready": preflight_ready,
+        "external_execution_ready": preflight_ready,
+        "cloud_deploy_claim_allowed": preflight_ready,
+        "production_deploy_claim_allowed": production_gate_claim_allowed and preflight_ready,
         "localhost_role": "dev_control_plane_only",
         "manual_external_actions": [
             "gh workflow run main-deploy.yml",
-            "docker compose -f docker-compose.cloud.yml pull",
-            "docker compose -f docker-compose.cloud.yml up -d",
+            "fly deploy --remote-only",
+            "fly status",
             "powershell -ExecutionPolicy Bypass -File scripts\\verify-hosted-staging.ps1",
             "py -3 scripts\\apply_github_branch_protection.py --verify-only",
             "gitleaks detect --no-git --source .",
@@ -4046,7 +4048,7 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
         "claim_policy": "environment presence only never creates a cloud, hosted staging, or production deployment claim",
         "policy_checks": [
             "All secrets are referenced by environment variable name only.",
-            "GHCR image publication, Hetzner compose execution, Vercel env writes, and branch-protection writes remain external gated actions.",
+            "GHCR image publication, Fly.io runtime execution, Vercel env writes, and branch-protection writes remain external gated actions.",
             "Localhost proof is development-only and cannot satisfy hosted staging.",
             "Production deployment requires hosted staging, branch protection, canonical secret scan, budget proof, and owner review.",
         ],
@@ -4144,6 +4146,393 @@ def cloud_layers() -> dict[str, object]:
 @app.get("/api/v1/clouds/layers/contract")
 def cloud_layers_contract() -> dict[str, object]:
     return cloud_layers_contract_payload()
+
+
+ORGANISM_REGIONS = [
+    {"id": "prefrontal", "name": "Prefrontal Cortex", "cap": "Planning / Goals / Architecture", "layer": "ORC"},
+    {"id": "thalamus", "name": "Thalamus", "cap": "Routing / Context / Approvals", "layer": "ORC"},
+    {"id": "hippocampus", "name": "Hippocampus", "cap": "Memory / Resume / Knowledge", "layer": "MEM"},
+    {"id": "amygdala", "name": "Amygdala", "cap": "Security / Risk / Secret protection", "layer": "OBS"},
+    {"id": "basal", "name": "Basal Ganglia", "cap": "Tool / Skill / Model selection", "layer": "MCP"},
+    {"id": "cerebellum", "name": "Cerebellum", "cap": "Tests / Verifier / Self-correction", "layer": "OBS"},
+    {"id": "motor", "name": "Motor Cortex", "cap": "CLI / Browser / Git / Cloud actions", "layer": "AP"},
+    {"id": "sensory", "name": "Sensory Cortex", "cap": "Files / Logs / Providers / MCP", "layer": "MCP"},
+    {"id": "autonomic", "name": "Autonomic NS", "cap": "Watchdog / Health / Retries", "layer": "AP"},
+    {"id": "callosum", "name": "Corpus Callosum", "cap": "Event Bus / Cross-agent sync", "layer": "ORC"},
+]
+
+ORGANISM_LAYERS = [
+    {"no": 1, "code": "FE", "label": "Frontend / Next.js", "providers": ["vercel_frontend"]},
+    {"no": 2, "code": "ORC", "label": "Orchestrator / LangGraph", "providers": ["fly_io"]},
+    {"no": 3, "code": "AP", "label": "Agent Pool", "providers": ["fly_io"]},
+    {"no": 4, "code": "LLM", "label": "LLM Gateway", "providers": ["cloudflare_edge", "huggingface_identity"]},
+    {"no": 5, "code": "MCP", "label": "MCP Gateway / Tools", "providers": ["github_actions", "ghcr_registry", "gitlab_identity"]},
+    {"no": 6, "code": "MEM", "label": "Memory / PostgreSQL pgvector", "providers": ["fly_io"]},
+    {"no": 7, "code": "OBS", "label": "Observability / Evidence", "providers": ["vercel_frontend", "fly_io", "cloudflare_edge", "github_actions", "grafana_cloud"]},
+]
+
+ORGANISM_HUBS = [
+    {"id": "workbench", "label": "WORKBENCH", "layer": "FE", "route": "/workbench", "agents": ["planner", "coder", "tester", "devops"]},
+    {"id": "agents", "label": "AGENTS", "layer": "AP", "route": "/agents", "agents": ["planner", "coder", "tester", "devops"]},
+    {"id": "tools", "label": "TOOLS / MCP", "layer": "MCP", "route": "/tools", "agents": ["coder", "tester", "devops"]},
+    {"id": "models", "label": "MODELS", "layer": "LLM", "route": "/marketplace", "agents": ["planner", "coder", "tester", "devops"]},
+    {"id": "marketplace", "label": "MARKETPLACE", "layer": "MCP", "route": "/marketplace", "agents": ["planner"]},
+    {"id": "observe", "label": "OBSERVABILITY", "layer": "OBS", "route": "/observe", "agents": ["tester", "devops"]},
+    {"id": "memory", "label": "MEMORY", "layer": "MEM", "route": "/files", "agents": ["planner", "coder", "tester", "devops"]},
+    {"id": "cloud", "label": "CLOUD", "layer": "ORC", "route": "/technology", "agents": ["devops"]},
+]
+
+ORGANISM_PAGES = [
+    (1, "home", "/home", "Home / Overview", "FE"),
+    (2, "login", "/login", "Login / Onboarding", "FE"),
+    (3, "workbench", "/workbench", "Main Workbench", "FE"),
+    (4, "organism", "/organism", "Organism / Live", "OBS"),
+    (5, "organism-replay", "/organism/replay", "Organism / Replay", "MEM"),
+    (6, "organism-map", "/organism/map", "Organism / Map", "ORC"),
+    (7, "agents", "/agents", "Agents", "AP"),
+    (8, "files", "/files", "Files / Knowledge", "MEM"),
+    (9, "files-local", "/files/local", "Local Files API", "MCP"),
+    (10, "tools", "/tools", "MCP / Tools", "MCP"),
+    (11, "marketplace", "/marketplace", "Marketplace", "LLM"),
+    (12, "observe", "/observe", "Observe / Monitoring", "OBS"),
+    (13, "games", "/games", "Games", "AP"),
+    (14, "apps", "/apps", "Apps", "AP"),
+    (15, "media", "/media", "Media", "LLM"),
+    (16, "docs-output", "/docs-output", "Documents", "MEM"),
+    (17, "evidence", "/evidence", "Proof / Evidence", "OBS"),
+    (18, "diagnostics", "/diagnostics", "Diagnostics", "OBS"),
+    (19, "design-system", "/design-system", "Design System", "FE"),
+    (20, "technology", "/technology", "Technology Stack", "ORC"),
+    (21, "settings", "/settings", "Settings / Governance", "MCP"),
+    (22, "open-source", "/open-source", "Open Source", "FE"),
+]
+
+ORGANISM_TOOLS = [
+    {"id": "memory_read", "label": "Memory Read", "layer": 6, "scope": "read"},
+    {"id": "task_router", "label": "Task Router", "layer": 2, "scope": "read"},
+    {"id": "langgraph", "label": "LangGraph", "layer": 2, "scope": "read"},
+    {"id": "mcp_gateway", "label": "MCP Gateway", "layer": 5, "scope": "gated"},
+    {"id": "github_mcp", "label": "GitHub MCP", "layer": 5, "scope": "scoped_write"},
+    {"id": "filesystem_mcp", "label": "Filesystem MCP", "layer": 5, "scope": "scoped_write"},
+    {"id": "playwright_mcp", "label": "Playwright MCP", "layer": 5, "scope": "gated"},
+    {"id": "e2b_mcp", "label": "E2B Sandbox MCP", "layer": 5, "scope": "gated"},
+]
+
+ORGANISM_SKILLS = [
+    "strict-project-gate",
+    "product-ux-guardian",
+    "live-3d-organism-architect",
+    "r3f-three-engineer",
+    "blender-gltf-pipeline",
+    "mcp-safety-auditor",
+    "visual-verifier",
+    "accessibility-reduced-motion",
+    "telemetry-binding-engineer",
+    "opa-gate-engineer",
+]
+
+ORGANISM_CLOSED_GATES = [
+    "Production deploy",
+    "Release promotion",
+    "Provider writes",
+    "Main push",
+    "Registry push",
+    "Live MCP write",
+    "Live LLM call",
+    "Secret output",
+]
+
+
+def _organism_gate_id(label: str) -> str:
+    return label.lower().replace(" ", "_")
+
+
+def _organism_region_for_hub(hub_id: str) -> str:
+    return {
+        "memory": "hippocampus",
+        "observe": "cerebellum",
+        "tools": "basal",
+        "models": "basal",
+        "agents": "motor",
+        "cloud": "thalamus",
+    }.get(hub_id, "prefrontal")
+
+
+def _organism_layer_code(layer_no: int) -> str:
+    for layer in ORGANISM_LAYERS:
+        if layer["no"] == layer_no:
+            return str(layer["code"])
+    return "MCP"
+
+
+def _safe_run_id(run_id: str | None) -> str | None:
+    if not run_id:
+        return None
+    run_id = run_id.strip()
+    allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.:-")
+    if 0 < len(run_id) <= 96 and all(ch in allowed for ch in run_id):
+        return run_id
+    return None
+
+
+def organism_contract_payload() -> dict[str, object]:
+    registry = agent_profile_registry()
+    profiles = list(registry.get("profiles", []))
+    models = [{"id": str(profile.get("primary_model", "")).split(":")[0], "role": f"{profile.get('agent_type')} primary"} for profile in profiles]
+    return {
+        "contract_version": "organism-surface-v1",
+        "endpoint": "/api/v1/organism/contract",
+        "evidence_ref": "organism_canvas_visible",
+        "source": "agent-api-static-contract",
+        "live": False,
+        "run_states": ["idle", "planning", "executing", "verifying", "blocked"],
+        "event_kinds": ["planning", "executing", "tool_call", "llm_call", "memory_read", "memory_write", "verifying", "blocked"],
+        "central": {"kind": "neural_core", "particles_default": 1600, "asset_slot": "/public/organism/core.glb (optional)"},
+        "hubs": ORGANISM_HUBS,
+        "layers": ORGANISM_LAYERS,
+        "agents": [{"type": p.get("agent_type"), "tools": p.get("allowed_tools"), "model": p.get("primary_model")} for p in profiles],
+        "tools": ORGANISM_TOOLS,
+        "models": models,
+        "skills": [{"id": skill} for skill in ORGANISM_SKILLS],
+        "gates_closed": ORGANISM_CLOSED_GATES,
+        "related": [
+            "/api/v1/organism/topology",
+            "/api/v1/organism/live-state",
+            "/api/v1/organism/events",
+            "/api/v1/organism/replay",
+            "/api/v1/organism/regions",
+            "/api/v1/organism/safety",
+        ],
+        "policy_checks": [
+            "No secret values are returned by this endpoint.",
+            "Topology edges must reference existing nodes.",
+            "No provider write, deploy, push, live LLM call, or live MCP write is performed.",
+        ],
+        "non_claims": [
+            "Live events and replay are spec-only until a recorded runtime event source is connected.",
+            "No provider write, deploy, push or live LLM/MCP call is performed.",
+        ],
+    }
+
+
+def organism_topology_payload() -> dict[str, object]:
+    providers = [item for item in cloud_provider_state().get("providers", []) if isinstance(item, dict)]
+    registry = agent_profile_registry()
+    profiles = [item for item in registry.get("profiles", []) if isinstance(item, dict)]
+    models = [{"id": str(profile.get("primary_model", "")).split(":")[0], "role": f"{profile.get('agent_type')} primary"} for profile in profiles]
+    nodes: list[dict[str, object]] = []
+    nodes.extend({**r, "id": f"region:{r['id']}", "kind": "brain_region", "secret_output": False, "writes": False} for r in ORGANISM_REGIONS)
+    nodes.extend({"id": f"layer:{l['code']}", "kind": "architecture_layer", **l, "secret_output": False, "writes": False} for l in ORGANISM_LAYERS)
+    nodes.extend({**h, "id": f"hub:{h['id']}", "kind": "capability_hub", "secret_output": False, "writes": False} for h in ORGANISM_HUBS)
+    nodes.extend({"id": f"agent:{p.get('agent_type')}", "kind": "agent_profile", "label": p.get("agent_type"), "model": p.get("primary_model"), "tools": p.get("allowed_tools", []), "secret_output": False, "writes": False} for p in profiles)
+    nodes.extend({**t, "id": f"tool:{t['id']}", "kind": "mcp_tool", "secret_output": False, "writes": False, "write_capability": t["scope"] != "read", "gate_required": t["scope"] != "read"} for t in ORGANISM_TOOLS)
+    nodes.extend({**m, "id": f"model:{m['id']}", "kind": "llm_model", "layer": 4, "secret_output": False, "writes": False, "gateway_only": True} for m in models)
+    nodes.extend({"id": f"skill:{skill}", "kind": "skill", "label": skill, "layer": 5, "secret_output": False, "writes": False} for skill in ORGANISM_SKILLS)
+    nodes.extend({"id": f"provider:{p.get('id')}", "kind": "cloud_provider", "label": p.get("label"), "layers": p.get("layers", []), "secret_output": False, "writes": False} for p in providers)
+    nodes.extend({"id": f"gate:{_organism_gate_id(gate)}", "kind": "safety_gate", "label": gate, "status": "closed", "secret_output": False, "writes": False} for gate in ORGANISM_CLOSED_GATES)
+    nodes.extend({"id": f"page:{page_id}", "kind": "workspace_page", "no": no, "label": label, "route": route, "layer": layer, "secret_output": False, "writes": False} for no, page_id, route, label, layer in ORGANISM_PAGES)
+
+    edges: list[dict[str, str]] = []
+    edges.extend({"from": "region:callosum", "to": f"region:{r['id']}", "kind": "neural_bus"} for r in ORGANISM_REGIONS if r["id"] != "callosum")
+    edges.extend({"from": f"hub:{h['id']}", "to": f"region:{_organism_region_for_hub(str(h['id']))}", "kind": "capability_to_region"} for h in ORGANISM_HUBS)
+    edges.extend({"from": f"hub:{h['id']}", "to": f"layer:{h['layer']}", "kind": "hub_to_layer"} for h in ORGANISM_HUBS)
+    for profile in profiles:
+        agent_type = str(profile.get("agent_type"))
+        tools = profile.get("allowed_tools") or []
+        for hub in ORGANISM_HUBS:
+            if agent_type in hub["agents"]:
+                edges.append({"from": f"agent:{agent_type}", "to": f"hub:{hub['id']}", "kind": "agent_to_hub"})
+        for tool in tools:
+            edges.append({"from": f"agent:{agent_type}", "to": f"tool:{tool}", "kind": "agent_to_tool"})
+        model_id = str(profile.get("primary_model", "")).split(":")[0]
+        edges.append({"from": f"agent:{agent_type}", "to": f"model:{model_id}", "kind": "agent_to_model"})
+    edges.extend({"from": f"tool:{t['id']}", "to": f"layer:{_organism_layer_code(int(t['layer']))}", "kind": "tool_to_layer"} for t in ORGANISM_TOOLS)
+    edges.extend({"from": f"model:{m['id']}", "to": "layer:LLM", "kind": "model_to_gateway_layer"} for m in models)
+    edges.extend({"from": f"skill:{skill}", "to": "hub:tools", "kind": "skill_to_tool_hub"} for skill in ORGANISM_SKILLS)
+    edges.extend({"from": f"page:{page_id}", "to": f"layer:{layer}", "kind": "page_to_layer"} for _, page_id, _, _, layer in ORGANISM_PAGES)
+    for layer in ORGANISM_LAYERS:
+        for provider_id in layer["providers"]:
+            edges.append({"from": f"layer:{layer['code']}", "to": f"provider:{provider_id}", "kind": "layer_to_provider"})
+    edges.extend({"from": f"gate:{_organism_gate_id(gate)}", "to": "region:amygdala", "kind": "gate_to_security_region"} for gate in ORGANISM_CLOSED_GATES)
+    return {
+        "contract_version": "organism-topology-v1",
+        "endpoint": "/api/v1/organism/topology",
+        "source": "agent-api-static-contract",
+        "live": False,
+        "source_kind": "contract",
+        "nodes": nodes,
+        "edges": edges,
+        "non_claims": ["static topology contract", "no provider write", "no secret values"],
+    }
+
+
+def organism_live_state_payload() -> dict[str, object]:
+    layer_state = cloud_layer_readiness_state()
+    layers = [item for item in layer_state.get("layers", []) if isinstance(item, dict)]
+    status_by_layer_id = {str(item.get("layer_id")): str(item.get("status")) for item in layers}
+    layer_id_by_code = {"FE": "layer_1", "ORC": "layer_2", "AP": "layer_3", "LLM": "layer_4", "MCP": "layer_5", "MEM": "layer_6", "OBS": "layer_7"}
+    return {
+        "contract_version": "organism-live-state-v1",
+        "source": "agent-api",
+        "source_kind": "agent_api_redacted",
+        "live": True,
+        "note": "Hub state derived from agent-api cloud-layer-readiness. No provider write or direct provider call is performed.",
+        "run_state": "verifying",
+        "core": {"visual_pulse": "contract_default", "visual_intensity": "contract_default"},
+        "hubs": [
+            {
+                "id": hub["id"],
+                "layer": hub["layer"],
+                "status": "active" if status_by_layer_id.get(layer_id_by_code.get(str(hub["layer"]), "")) == "live_verified" else "idle",
+                "visual_weight_pct": 18 + ((index * 11) % 70),
+                "source_kind": "synthetic_visual_weight",
+            }
+            for index, hub in enumerate(ORGANISM_HUBS)
+        ],
+        "layers": layers,
+        "gates_closed": ["production_deploy", "provider_writes", "secret_output", "main_push"],
+        "non_claims": ["redacted runtime status only, no live provider call", "no secret values"],
+    }
+
+
+def organism_events_payload(run_id: str | None = None) -> dict[str, object]:
+    run_id = _safe_run_id(run_id)
+    return {
+        "contract_version": "organism-events-v1",
+        "source": "spec_only",
+        "source_kind": "spec_only",
+        "live": False,
+        "run_id": run_id,
+        "note": "Spec-only event contract until a recorded runtime event source is connected.",
+        "events": [
+            {"seq": 1, "offset_s": 0.0, "page_id": "workbench", "route": "/workbench", "kind": "plan_created", "hub": "workbench", "regions": ["prefrontal", "thalamus", "callosum"], "run_state": "planning", "source_kind": "spec_only", "evidence_files": [], "secret_output": False, "writes": False},
+            {"seq": 2, "offset_s": 1.2, "page_id": "agents", "route": "/agents", "agent": "planner", "kind": "agent_dispatched", "hub": "agents", "regions": ["basal", "motor", "callosum"], "run_state": "executing", "source_kind": "spec_only", "evidence_files": [], "secret_output": False, "writes": False},
+            {"seq": 3, "offset_s": 2.6, "page_id": "tools", "route": "/tools", "tool": "mcp_gateway", "kind": "tool_call", "hub": "tools", "regions": ["basal", "sensory", "motor", "callosum"], "run_state": "executing", "source_kind": "spec_only", "evidence_files": [], "secret_output": False, "writes": False},
+            {"seq": 4, "offset_s": 3.9, "page_id": "files", "route": "/files", "kind": "memory_read", "hub": "memory", "regions": ["hippocampus", "callosum"], "run_state": "executing", "source_kind": "spec_only", "evidence_files": [], "secret_output": False, "writes": False},
+            {"seq": 5, "offset_s": 5.1, "page_id": "marketplace", "route": "/marketplace", "model": "llm_gateway", "kind": "llm_call", "hub": "models", "regions": ["basal", "thalamus", "callosum"], "run_state": "executing", "source_kind": "spec_only", "evidence_files": [], "secret_output": False, "writes": False},
+            {"seq": 6, "offset_s": 6.4, "page_id": "observe", "route": "/observe", "kind": "verifying", "hub": "observe", "regions": ["cerebellum", "sensory", "callosum"], "run_state": "verifying", "source_kind": "spec_only", "evidence_files": [], "secret_output": False, "writes": False},
+        ],
+        "non_claims": ["spec-only data, never a live provider call", "no secret values"],
+    }
+
+
+def organism_replay_payload(run_id: str | None = None) -> dict[str, object]:
+    run_id = _safe_run_id(run_id)
+    return {
+        "contract_version": "organism-replay-v1",
+        "source": "spec_only",
+        "source_kind": "spec_only",
+        "live": False,
+        "run_id": run_id,
+        "replay_available": False,
+        "note": "Spec-only replay contract until recorded runtime frames are connected.",
+        "duration_s": 8,
+        "fps": 30,
+        "frames": [
+            {"t": 0.0, "run_state": "planning", "active": ["workbench"]},
+            {"t": 2.0, "run_state": "executing", "active": ["agents", "tools"]},
+            {"t": 4.0, "run_state": "executing", "active": ["models", "memory"]},
+            {"t": 6.0, "run_state": "verifying", "active": ["observe"]},
+            {"t": 8.0, "run_state": "idle", "active": []},
+        ],
+        "non_claims": ["spec-only data, never a live provider call", "no secret values"],
+    }
+
+
+def organism_regions_payload() -> dict[str, object]:
+    signals = {
+        "prefrontal": ["planning", "architecture", "goal_selection"],
+        "thalamus": ["routing", "approval", "context_switch"],
+        "hippocampus": ["memory_read", "memory_write", "resume"],
+        "amygdala": ["blocked", "risk", "secret_guard"],
+        "basal": ["tool_selection", "model_selection", "skill_selection"],
+        "cerebellum": ["verifying", "self_correction", "checks_passed"],
+        "motor": ["executing", "cli_action", "cloud_action"],
+        "sensory": ["file_read", "provider_status", "logs"],
+        "autonomic": ["health", "retry", "watchdog"],
+        "callosum": ["event_bus", "cross_agent_sync", "replay"],
+    }
+    layer_no_by_code = {str(layer["code"]): layer["no"] for layer in ORGANISM_LAYERS}
+    return {
+        "contract_version": "organism-regions-v1",
+        "endpoint": "/api/v1/organism/regions",
+        "source": "agent-api-static-contract",
+        "live": False,
+        "regions": [
+            {
+                **region,
+                "layer_no": layer_no_by_code.get(str(region["layer"])),
+                "signals": signals.get(str(region["id"]), []),
+                "hubs": [hub["id"] for hub in ORGANISM_HUBS if hub["layer"] == region["layer"]],
+                "secret_output": False,
+                "writes": False,
+            }
+            for region in ORGANISM_REGIONS
+        ],
+        "non_claims": ["region definitions only", "no provider calls", "no secret values"],
+    }
+
+
+def organism_safety_payload() -> dict[str, object]:
+    return {
+        "contract_version": "organism-safety-v1",
+        "endpoint": "/api/v1/organism/safety",
+        "source": "agent-api-policy-contract",
+        "live": False,
+        "source_kind": "policy_contract",
+        "gates": [
+            {"id": "secret_output", "status": "closed", "reason": "No endpoint may return token or secret values."},
+            {"id": "provider_writes", "status": "closed", "reason": "Cloud provider writes require explicit owner gate."},
+            {"id": "live_llm_calls", "status": "closed", "reason": "Direct provider calls are forbidden outside the LLM Gateway."},
+            {"id": "live_mcp_writes", "status": "closed", "reason": "MCP write tools require explicit owner gate."},
+            {"id": "production_deploy", "status": "closed", "reason": "Production deploy/release promotion is not claimed."},
+            {"id": "main_push", "status": "closed", "reason": "Main-branch writes require review gate."},
+        ],
+        "data_rules": {
+            "no_fake_live": True,
+            "missing_backend_state": "spec_only_or_blocked",
+            "secret_output": False,
+            "writes": False,
+            "provider_write": False,
+            "production_deploy_claimed": False,
+        },
+        "non_claims": ["policy status only", "no permission expansion", "no live provider call"],
+    }
+
+
+@app.get("/api/v1/organism/contract")
+def organism_contract() -> dict[str, object]:
+    return organism_contract_payload()
+
+
+@app.get("/api/v1/organism/topology")
+def organism_topology() -> dict[str, object]:
+    return organism_topology_payload()
+
+
+@app.get("/api/v1/organism/live-state")
+def organism_live_state() -> dict[str, object]:
+    return organism_live_state_payload()
+
+
+@app.get("/api/v1/organism/events")
+def organism_events(run_id: str | None = Query(default=None, max_length=96)) -> dict[str, object]:
+    return organism_events_payload(run_id)
+
+
+@app.get("/api/v1/organism/replay")
+def organism_replay(run_id: str | None = Query(default=None, max_length=96)) -> dict[str, object]:
+    return organism_replay_payload(run_id)
+
+
+@app.get("/api/v1/organism/regions")
+def organism_regions() -> dict[str, object]:
+    return organism_regions_payload()
+
+
+@app.get("/api/v1/organism/safety")
+def organism_safety() -> dict[str, object]:
+    return organism_safety_payload()
 
 
 @app.get("/api/v1/clouds/render-offload")
@@ -6391,12 +6780,12 @@ def infra_budget_contract_payload() -> dict[str, object]:
         "supported_levels": ["ok", "warning", "critical"],
         "budget_limit_cents": state.budget_limit_cents,
         "warning_limit_cents": state.warning_limit_cents,
-        "supported_sources": ["projection", "hetzner_api_readonly"],
+        "supported_sources": ["projection", "fly_api_readonly", "fly_api_readonly_plus_plan_projection"],
         "required_item_fields": ["name", "monthly_cost_cents"],
         "evidence_ref": "infra_budget_contract_runtime_visible",
         "policy_checks": [
             "Infrastructure budget surface remains read-only.",
-            "Infra budget source stays visible as projection or readonly Hetzner API evidence.",
+            "Infra budget source stays visible as projection or readonly Fly.io API evidence.",
             "Infra budget does not include LLM provider spend.",
         ],
         "non_claims": [

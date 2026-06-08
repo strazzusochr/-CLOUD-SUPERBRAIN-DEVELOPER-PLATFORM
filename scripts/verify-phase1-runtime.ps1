@@ -233,13 +233,21 @@ Assert-Contains "frontend title" $frontendHtml "Cloud Superbrain"
 Assert-Contains "frontend canonical spec marker" $frontendHtml "Canonical platform specification"
 $workbenchHtml = curl.exe -sS "$baseUrl/workbench"
 Assert-Contains "workbench page title" $workbenchHtml "Workbench"
-Assert-Contains "workbench sessions panel" $workbenchHtml "Sessions"
-Assert-Contains "workbench tasks panel" $workbenchHtml "Tasks"
-Assert-Contains "workbench audit panel" $workbenchHtml "Audit"
-Assert-Contains "workbench workspace surfaces panel" $workbenchHtml "Workspace-Surfaces (22)"
+Assert-Contains "workbench studio title" $workbenchHtml "Main Workbench"
+Assert-Contains "workbench preview tabs" $workbenchHtml "Game View"
+Assert-Contains "workbench app preview mode" $workbenchHtml "App Preview"
+Assert-Contains "workbench video preview mode" $workbenchHtml "Video Preview"
+Assert-Contains "workbench doc preview mode" $workbenchHtml "Doc Preview"
+Assert-Contains "workbench run binding" $workbenchHtml "Run Binding"
+Assert-NotContains "workbench forbidden sessions panel" $workbenchHtml "Sessions"
+Assert-NotContains "workbench forbidden tasks panel" $workbenchHtml "Tasks"
+Assert-NotContains "workbench forbidden audit panel" $workbenchHtml "Audit"
+Assert-NotContains "workbench forbidden workspace surfaces panel" $workbenchHtml "Workspace-Surfaces"
 Assert-NotContains "workbench forbidden master plan panel" $workbenchHtml "Master Plan"
-Assert-Contains "workbench completion gate panel" $workbenchHtml "Completion-Gate"
-Assert-Contains "workbench fail-closed gate" $workbenchHtml "Fail-closed by design"
+Assert-NotContains "workbench forbidden completion gate panel" $workbenchHtml "Completion-Gate"
+Assert-NotContains "workbench forbidden project gate wall" $workbenchHtml "Gate-Matrix"
+Assert-NotContains "workbench forbidden recovery history" $workbenchHtml "Recovery-Historie"
+Assert-NotContains "workbench budget hidden by default" $workbenchHtml "Budget Control"
 Assert-NotContains "workbench forbidden dispatch endpoints panel" $workbenchHtml "Dispatch endpoints"
 
 Write-Host "[runtime] agent-api health"
@@ -277,7 +285,8 @@ Assert-Contains "project progress completion version" $projectProgressCompletion
 Assert-Contains "project progress completion status" $projectProgressCompletion '"status":"blocked_external_gates"'
 Assert-Contains "project progress completion evidence" $projectProgressCompletion '"evidence_ref":"project_progress_100_percent_gate_contract"'
 Assert-Contains "project progress completion cannot set all to 100" $projectProgressCompletion '"can_set_all_to_100":false'
-Assert-Contains "project progress completion external gates cleared" $projectProgressCompletion '"missing_external_gates":[]'
+Assert-Contains "project progress completion missing fly gate" $projectProgressCompletion '"missing_external_gates":["fly_api_token"]'
+Assert-Contains "project progress completion fly blocker" $projectProgressCompletion "live_infra_budget_refresh_requires_FLY_API_TOKEN"
 Assert-Contains "project progress completion local gap blocker" $projectProgressCompletion "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 
 Write-Host "[runtime] layer interface contracts"
@@ -322,10 +331,10 @@ Assert-Contains "cloud deployment preflight runtime endpoint" $cloudDeploymentPr
 $cloudDeploymentPreflightRuntime = curl.exe -sS "$baseUrl/api/v1/clouds/deployment-preflight"
 Assert-Contains "cloud deployment preflight runtime version" $cloudDeploymentPreflightRuntime '"contract_version":"cloud-deployment-preflight-v1"'
 Assert-Contains "cloud deployment preflight runtime evidence" $cloudDeploymentPreflightRuntime '"evidence_ref":"cloud_deployment_preflight_visible"'
-Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflightRuntime '"status":"verified"'
-Assert-Contains "cloud deployment preflight cloud claim allowed" $cloudDeploymentPreflightRuntime '"cloud_deploy_claim_allowed":true'
-Assert-Contains "cloud deployment preflight production allowed" $cloudDeploymentPreflightRuntime '"production_deploy_claim_allowed":true'
-Assert-Contains "cloud deployment preflight no blocked gates" $cloudDeploymentPreflightRuntime '"missing_or_blocked_gates":[]'
+Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflightRuntime '"status":"action_required"'
+Assert-Contains "cloud deployment preflight cloud claim blocked" $cloudDeploymentPreflightRuntime '"cloud_deploy_claim_allowed":false'
+Assert-Contains "cloud deployment preflight production blocked" $cloudDeploymentPreflightRuntime '"production_deploy_claim_allowed":false'
+Assert-Contains "cloud deployment preflight missing fly cloud stack" $cloudDeploymentPreflightRuntime '"missing_or_blocked_gates":["fly_cloud_stack"]'
 Assert-Contains "cloud deployment preflight ghcr sequence" $cloudDeploymentPreflightRuntime "publish_ghcr_images"
 Assert-Contains "cloud deployment preflight hosted origins" $cloudDeploymentPreflightRuntime "hosted_backend_origins"
 Assert-Contains "cloud deployment preflight branch token" $cloudDeploymentPreflightRuntime "BRANCH_PROTECTION_TOKEN"
@@ -422,9 +431,9 @@ $mcpVersionPinningContract = curl.exe -sS "$baseUrl/mcp/api/v1/version-pinning/c
 Assert-Contains "mcp version pinning contract version" $mcpVersionPinningContract '"contract_version":"mcp-version-pinning-v1"'
 Assert-Contains "mcp version pinning evidence" $mcpVersionPinningContract '"evidence_ref":"mcp_version_pinning_contract_visible"'
 Assert-Contains "mcp version pinning gap" $mcpVersionPinningContract '"audit_gap":"L-08"'
-Assert-Contains "mcp version pinning fastapi" $mcpVersionPinningContract "fastapi==0.115.8"
-Assert-Contains "mcp version pinning uvicorn" $mcpVersionPinningContract "uvicorn[standard]==0.34.0"
-Assert-Contains "mcp version pinning pydantic" $mcpVersionPinningContract "pydantic==2.10.6"
+Assert-Contains "mcp version pinning fastapi" $mcpVersionPinningContract "fastapi==0.136.3"
+Assert-Contains "mcp version pinning uvicorn" $mcpVersionPinningContract "uvicorn[standard]==0.49.0"
+Assert-Contains "mcp version pinning pydantic" $mcpVersionPinningContract "pydantic==2.13.4"
 Assert-Contains "mcp version pinning github contract" $mcpVersionPinningContract "github-branch-pr-plan-v1"
 Assert-Contains "mcp version pinning e2b contract" $mcpVersionPinningContract "e2b-sandbox-lifecycle-v1"
 Assert-Contains "mcp version pinning drift policy" $mcpVersionPinningContract "exact == pinning"
@@ -1439,7 +1448,7 @@ Assert-Contains "external gates contract" $externalGates '"contract_version":"ex
 Assert-Contains "external gates endpoint" $externalGates '"endpoint":"GET /api/v1/external-gates"'
 Assert-Contains "external gates evidence" $externalGates '"evidence_ref":"external_gates_state_visible"'
 Assert-Contains "external gates aligned with preflight" $externalGates '"aligned_with_deployment_preflight":true'
-Assert-Contains "external gates status" $externalGates '"status":"verified"'
+Assert-Contains "external gates status" $externalGates '"status":"action_required"'
 Assert-Contains "external gates local allowed" $externalGates '"local_execution_allowed":true'
 Assert-Contains "external gates branch token" $externalGates '"id":"branch_protection_token"'
 Assert-Contains "external gates staging url" $externalGates '"id":"staging_base_url"'
@@ -1447,18 +1456,19 @@ Assert-Contains "external gates Fly.io token" $externalGates '"id":"fly_api_toke
 Assert-Contains "external gates ghcr digest" $externalGates '"id":"ghcr_image_digest_proof"'
 Assert-Contains "external gates vercel origins" $externalGates '"id":"vercel_backend_origins"'
 Assert-Contains "external gates gitleaks" $externalGates '"id":"gitleaks_binary"'
-Assert-Contains "external gates blocked ghcr" $externalGates '"ghcr_images"'
-Assert-Contains "external gates blocked hosted origins" $externalGates '"hosted_backend_origins"'
+Assert-Contains "external gates ghcr mapping" $externalGates '"ghcr_images"'
+Assert-Contains "external gates hosted origins mapping" $externalGates '"hosted_backend_origins"'
+Assert-Contains "external gates blocked fly stack" $externalGates '"blocked_release_gates":["fly_cloud_stack"]'
 $externalGateMirror = curl.exe -sS "$baseUrl/api/v1/external-gates/mirror"
 Assert-Contains "external gate mirror contract" $externalGateMirror '"contract_version":"external-gate-mirror-v1"'
-Assert-Contains "external gate mirror status" $externalGateMirror '"status":"verified"'
+Assert-Contains "external gate mirror status" $externalGateMirror '"status":"local_mirror_ready_hosted_blocked"'
 Assert-Contains "external gate mirror evidence" $externalGateMirror '"evidence_ref":"external_gate_mirror_proof"'
 Assert-Contains "external gate mirror hosted allowed" $externalGateMirror '"hosted_staging_claim_allowed":true'
 Assert-Contains "external gate mirror branch protection allowed" $externalGateMirror '"branch_protection_claim_allowed":true'
 Assert-Contains "external gate mirror branch protection evidence" $externalGateMirror '"branch_protection_evidence_ref":"branch_protection_verify_contract"'
 Assert-Contains "external gate mirror branch protection workflow" $externalGateMirror ".github/workflows/branch-protection.yml"
 Assert-Contains "external gate mirror branch protection verifier" $externalGateMirror "scripts/apply_github_branch_protection.py --verify-only"
-Assert-Contains "external gate mirror production allowed" $externalGateMirror '"production_deploy_claim_allowed":true'
+Assert-Contains "external gate mirror production blocked" $externalGateMirror '"production_deploy_claim_allowed":false'
 Assert-Contains "external gate mirror workflow" $externalGateMirror ".github/workflows/hosted-staging-proof.yml"
 Assert-Contains "external gate mirror phase2 runtime" $externalGateMirror "phase2-runtime-v1"
 Assert-Contains "external gate mirror phase2 sse" $externalGateMirror "phase2-sse-event-contract-v1"

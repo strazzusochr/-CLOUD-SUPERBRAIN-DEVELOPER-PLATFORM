@@ -25,7 +25,7 @@ User
      -> Schicht 5: Tool-MCP-Schicht
      -> Schicht 6: Memory-Schicht
      -> Schicht 7: Observability
-  -> Deployment Targets: Vercel, Hetzner, Cloudflare
+  -> Deployment Targets: Vercel, Fly.io, GHCR, Grafana Cloud, Cloudflare
 ```
 
 ## 4. Hauptbausteine
@@ -93,7 +93,7 @@ User
 `docs/system-architecture.md` ist die operative Checkliste fuer:
 
 1. Besitzer, Inputs, Outputs, Aufgaben und Verbote je Schicht,
-2. Deployment-Grenzen fuer Vercel, Hetzner und Cloudflare,
+2. Deployment-Grenzen fuer Vercel, Fly.io, GHCR, Grafana Cloud und Cloudflare,
 3. den vollstaendigen Datenfluss inklusive LLM-Gateway, MCP, Memory und Observability,
 4. den Open-Source-Standard-Stack und teure Ausnahmeoptionen,
 5. aktive Architektur-Gates fuer Observability, Datenbank, Budget und Release.
