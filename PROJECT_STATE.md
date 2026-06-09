@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-06-08 16:40 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt ausschliesslich `DEV-ONLY` Control-Plane; Gesamtfortschritt laut bindendem Manifest `70%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Project Progress Integrity `verified`; Task-Assignment nutzt echte high/mid/low-Priority-Queues. Aktive Cloud-/Tool-Defaults sind Vercel, Fly.io, GHCR und Grafana Cloud; Hetzner, GitKraken und Oracle sind aus dem aktiven Pfad entfernt oder als historische Altlast markiert. Am 2026-06-08 wurden lokale Runtime, Browser-Contract, Build, Frontend-Lint und Phase-1-Suite erneut gruen verifiziert. Fly-Origin-Configs fuer `cloud-superbrain-agent-api`, `cloud-superbrain-mcp-gateway` und `cloud-superbrain-llm-gateway` sind repo-seitig vorbereitet; der private Gate-Runner und die Next.js/Vercel-Rewrites leiten fehlende Origin-URLs fail-closed aus diesen Fly-App-Namen ab. External Gates bleiben repo-ehrlich `blocked`: `.phase1-artifacts/external-gate-audit-20260608-180040.json` meldet `hosted_agent_api_contracts` und `vercel_backend_origin_health` als offen; `canonical_gitleaks_scan` und `ghcr_image_digest_verify` sind verified. Hosted-/Production-Claims sind ohne echte erreichbare HTTPS-`STAGING_BASE_URL` und live erreichbare Backend-Origins fail-closed. Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt ausschliesslich `DEV-ONLY` Control-Plane; Gesamtfortschritt laut bindendem Manifest `70%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Project Progress Integrity `verified`; Task-Assignment nutzt echte high/mid/low-Priority-Queues. Aktive Cloud-/Tool-Defaults sind Vercel, Fly.io, GHCR und Grafana Cloud; Hetzner, GitKraken und Oracle sind aus dem aktiven Pfad entfernt oder als historische Altlast markiert. Am 2026-06-09 wurden lokale Verifier, Phase-1-Suite und External-Gate-Diagnose erneut gruen/blockiert-ehrlich verifiziert. Fly-Origin-Configs fuer `cloud-superbrain-agent-api`, `cloud-superbrain-mcp-gateway` und `cloud-superbrain-llm-gateway` sind repo-seitig vorbereitet; der private Gate-Runner und die Next.js/Vercel-Rewrites leiten fehlende Origin-URLs fail-closed aus diesen Fly-App-Namen ab. External Gates bleiben repo-ehrlich `blocked`: `.phase1-artifacts/external-gate-audit-20260609-061928.json` meldet `hosted_agent_api_contracts` und `vercel_backend_origin_health` als offen; `canonical_gitleaks_scan`, `ghcr_image_digest_verify`, `github_branch_protection_current_verify` und `fly_live_budget_check` sind verified. Das alte `sslip.io`/Hetzner-Ziel wird als `retired_provider_url` blockiert; die drei Fly-Origin-Namen liefern DNS `ENOTFOUND`. Hosted-/Production-Claims sind ohne echte Vercel-HTTPS-`STAGING_BASE_URL` und live erreichbare Backend-Origins fail-closed. Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -40,7 +40,7 @@ Letzte Aktualisierung: 2026-06-08 16:40 Uhr
 | P1   | 100%   |
 | P2   | 86%    |
 | P3   | 40%    |
-| P4   | 100%   |
+| P4   | 99%    |
 | P5   | 67%    |
 | P6   | 0%     |
 
@@ -86,7 +86,7 @@ Letzte Aktualisierung: 2026-06-08 16:40 Uhr
 - Hosted-Verifier ohne echte HTTPS-`STAGING_BASE_URL` brechen fail-closed ab; localhost kann keine Cloud-Gates schliessen.
 - Frontend-Stack ist auf Next.js `16.2.7`, React `19.2.7`, Three `0.184.0` und `@types/node` `25.9.2`; ESLint bleibt bewusst auf kompatiblem `9.39.4`, weil `eslint@10` Peer-Konflikte im aktuellen Next-Plugin-Stack erzeugt.
 - Verifiziert: `npm run build`, `npm run lint --prefix apps/frontend`, `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`, `npm run verify:browser`, `npm run verify:runtime`, `npm run verify:external-gates`.
-- Ergebnis: lokale Checks gruen; External Gates bleiben mit `.phase1-artifacts/external-gate-audit-20260608-180040.json` blocked auf `hosted_agent_api_contracts` und `vercel_backend_origin_health`. Die Origin-Probes verwenden jetzt `https://cloud-superbrain-agent-api.fly.dev/api/v1/health`, `https://cloud-superbrain-mcp-gateway.fly.dev/api/v1/health` und `https://cloud-superbrain-llm-gateway.fly.dev/api/v1/health`; sie koennen erst nach real erreichbaren Fly-Apps schliessen.
+- Ergebnis: lokale Checks gruen; External Gates bleiben mit `.phase1-artifacts/external-gate-audit-20260609-061928.json` blocked auf `hosted_agent_api_contracts` und `vercel_backend_origin_health`. Die Hosted-Probe blockiert das alte `sslip.io`/Hetzner-Ziel als `retired_provider_url`; die Origin-Probes verwenden `https://cloud-superbrain-agent-api.fly.dev/api/v1/health`, `https://cloud-superbrain-mcp-gateway.fly.dev/api/v1/health` und `https://cloud-superbrain-llm-gateway.fly.dev/api/v1/health`, aktuell mit DNS `ENOTFOUND`; sie koennen erst nach real existierenden/erreichbaren Fly-Apps schliessen.
 
 **Phase 5 Integration Smoke Plan Rerun** — der aktuelle `RC1`-Truth ist jetzt nochmals gegen den gehosteten Integration-/Smoke-Pfad auf `overall=70`, `phase_5=67` nachgezogen:
 

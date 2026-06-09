@@ -11,6 +11,7 @@ Wichtig:
 
 - Variable: `STAGING_BASE_URL`
 - Erwartung: echte HTTPS Base-URL deiner Staging-Instanz (Frontend + API Rewrites erreichbar)
+- Darf kein retired `sslip.io`/Hetzner-era Ziel sein; aktive Hosted-Gates erwarten die Vercel HTTPS-Staging-/Preview-Domain.
 - Beispiel:
   - `STAGING_BASE_URL=https://staging.example.com`
 

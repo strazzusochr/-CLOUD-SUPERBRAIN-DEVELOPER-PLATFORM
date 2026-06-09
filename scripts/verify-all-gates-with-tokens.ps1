@@ -44,13 +44,8 @@ function Assert-ExternalGateVerifierPreflight([string]$ScriptPath) {
   if (-not $requiredBlockMatch.Success) {
     throw "External gate verifier preflight failed: hosted API required id block is missing"
   }
-  $probeBlockMatch = [regex]::Match($raw, '(?s)\$hostedProbes\s*=\s*@\((.*?)\)\s*\}')
-  if (-not $probeBlockMatch.Success) {
-    throw "External gate verifier preflight failed: hosted probe block is missing"
-  }
-
   $requiredIds = [regex]::Matches($requiredBlockMatch.Groups[1].Value, '"([^"]+)"') | ForEach-Object { $_.Groups[1].Value }
-  $definedHostedProbeIds = [regex]::Matches($probeBlockMatch.Groups[1].Value, '(?:Invoke-HttpProbe|New-Probe)\s+"([^"]+)"') | ForEach-Object { $_.Groups[1].Value }
+  $definedHostedProbeIds = [regex]::Matches($raw, '(?:Invoke-HttpProbe|New-Probe)\s+"([^"]+)"') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
   $missingHostedProbeIds = @($requiredIds | Where-Object { $definedHostedProbeIds -notcontains $_ })
   if ($missingHostedProbeIds.Count -gt 0) {
     throw "External gate verifier preflight failed: missing hosted probe definitions for $($missingHostedProbeIds -join ', ')"

@@ -58,6 +58,19 @@ function Assert-HostedBaseUrlSafe([string]$value) {
   }
 }
 
+function Test-RetiredHostedBaseUrl([string]$value) {
+  if ([string]::IsNullOrWhiteSpace($value)) {
+    return $false
+  }
+  try {
+    $uri = [System.Uri]$value
+    $uriHost = $uri.Host.ToLowerInvariant()
+    return ($uriHost -eq "188-34-191-140.sslip.io" -or $uriHost.EndsWith(".sslip.io"))
+  } catch {
+    return $false
+  }
+}
+
 function Join-OriginProbeUrl([string]$BaseUrl, [string]$OptionalPrefix, [string]$RootHealthPath, [string]$PrefixedHealthPath) {
   $normalized = Normalize-BaseUrl $BaseUrl
   if ([string]::IsNullOrWhiteSpace($normalized)) {
@@ -110,7 +123,20 @@ function Invoke-HttpProbe([string]$Id, [string]$Url, [string]$RequiredText, [str
 const url = process.argv[1];
 const requiredText = process.argv[2] || '';
 const timeoutMs = Number(process.env.EXTERNAL_GATE_HTTP_TIMEOUT_MS || '12000');
+const startedAt = Date.now();
 const signal = AbortSignal.timeout(timeoutMs);
+function classifyNetworkError(error) {
+  const code = error?.cause?.code || error?.code || '';
+  const name = error?.name || '';
+  const message = error?.message || '';
+  if (name === 'TimeoutError' || name === 'AbortError' || code === 'UND_ERR_CONNECT_TIMEOUT' || code === 'ETIMEDOUT') return 'timeout';
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') return 'dns';
+  if (code === 'ECONNREFUSED') return 'connection_refused';
+  if (code === 'ECONNRESET' || code === 'EPIPE') return 'connection_reset';
+  if (code.includes('CERT') || message.toLowerCase().includes('certificate')) return 'tls';
+  if (message.toLowerCase().includes('fetch failed')) return 'network_error';
+  return 'unknown_network_error';
+}
 fetch(url, { signal }).then(async (response) => {
   const body = await response.text();
   const hasRequiredText = requiredText ? body.includes(requiredText) : true;
@@ -119,10 +145,24 @@ fetch(url, { signal }).then(async (response) => {
     ok: response.status >= 200 && response.status < 300 && hasRequiredText,
     hasRequiredText,
     bytes: body.length,
+    elapsedMs: Date.now() - startedAt,
+    responseUrl: response.url,
+    contentType: response.headers.get('content-type') || '',
     snippet: body.slice(0, 160).replace(/\s+/g, ' ')
   }));
 }).catch((error) => {
-  console.log(JSON.stringify({ status: 0, ok: false, hasRequiredText: false, bytes: 0, error: error.message }));
+  console.log(JSON.stringify({
+    status: 0,
+    ok: false,
+    hasRequiredText: false,
+    bytes: 0,
+    elapsedMs: Date.now() - startedAt,
+    responseUrl: url,
+    error: error.message,
+    errorName: error.name || '',
+    errorCode: error?.cause?.code || error.code || '',
+    networkClassification: classifyNetworkError(error)
+  }));
   process.exitCode = 2;
 });
 '@
@@ -139,9 +179,29 @@ fetch(url, { signal }).then(async (response) => {
     $ok = [bool]$probe.ok
     $message = if ($ok) { "required contract visible" } else { "required contract missing or non-2xx response" }
     $errorText = if ($probe.error) { [string]$probe.error } else { "" }
-    $result = New-Probe $Id $(if ($ok) { "verified" } else { "failed" }) $true $ok $EvidenceRef $Url $statusCode $message $errorText
+    $networkClassification = if ($probe.networkClassification) { [string]$probe.networkClassification } else { "" }
+    $probeStatus = if ($ok) { "verified" } elseif ($networkClassification -eq "timeout") { "timeout" } else { "failed" }
+    $result = New-Probe $Id $probeStatus $true $ok $EvidenceRef $Url $statusCode $message $errorText
     $result["bytes"] = [int]$probe.bytes
     $result["has_required_text"] = [bool]$probe.hasRequiredText
+    if ($null -ne $probe.elapsedMs) {
+      $result["elapsed_ms"] = [int]$probe.elapsedMs
+    }
+    if ($probe.responseUrl) {
+      $result["response_url"] = [string]$probe.responseUrl
+    }
+    if ($probe.contentType) {
+      $result["content_type"] = [string]$probe.contentType
+    }
+    if ($networkClassification) {
+      $result["network_classification"] = $networkClassification
+    }
+    if ($probe.errorName) {
+      $result["error_name"] = [string]$probe.errorName
+    }
+    if ($probe.errorCode) {
+      $result["error_code"] = [string]$probe.errorCode
+    }
     if ($probe.snippet) {
       $result["snippet"] = [string]$probe.snippet
     }
@@ -558,7 +618,11 @@ $localProbes = @(
   (Invoke-HttpProbe "local_external_gates" "$localBase/api/v1/external-gates" "external-gates-state-v1" "cloud_layer_readiness_visible")
 )
 
-if ($hostedBase) {
+if ($hostedBase -and (Test-RetiredHostedBaseUrl $hostedBase)) {
+  $hostedProbes = @(
+    (New-Probe "hosted_staging_base_url" "retired_provider_url" $true $false "hosted_staging_base_url_required" $hostedBase 0 "Hosted staging is BLOCKED. The configured STAGING_BASE_URL is a retired sslip.io/Hetzner-era target; set it to the real Vercel HTTPS staging URL." "")
+  )
+} elseif ($hostedBase) {
   $hostedProbes = @(
     (Invoke-HttpProbe "hosted_frontend_root" "$hostedBase/" "" "hosted_frontend_preview_visible"),
     (Invoke-HttpProbe "hosted_frontend_health" "$hostedBase/health" "" "hosted_frontend_health_visible"),
@@ -644,6 +708,11 @@ $hostedFrontendIds = @(
 
 $hostedApiClaimAllowed = @($hostedProbes | Where-Object { $hostedApiRequiredIds -contains $_.id -and $_.claim_allowed }).Count -eq $hostedApiRequiredIds.Count
 $hostedFrontendClaimAllowed = @($hostedProbes | Where-Object { $hostedFrontendIds -contains $_.id -and $_.claim_allowed }).Count -eq $hostedFrontendIds.Count
+$failedHostedRequiredIds = @($hostedApiRequiredIds | Where-Object {
+  $requiredId = $_
+  @($hostedProbes | Where-Object { $_.id -eq $requiredId -and $_.claim_allowed }).Count -eq 0
+})
+$failedVercelOriginIds = @($vercelOriginProbes | Where-Object { -not $_.claim_allowed } | ForEach-Object { [string]$_.id })
 $branchProtectionClaimAllowed = [bool]$branchProtectionProbe.claim_allowed
 $ghcrClaimAllowed = [bool]$ghcrProbe.claim_allowed
 $gitleaksClaimAllowed = [bool]$gitleaksProbe.claim_allowed
@@ -684,6 +753,8 @@ $summary = [ordered]@{
   grafana_cloud_claim_allowed = $grafanaIdentityClaimAllowed
   production_deploy_claim_allowed = ($missing.Count -eq 0)
   missing_or_failed_gates = $missing
+  failed_hosted_required_probe_ids = $failedHostedRequiredIds
+  failed_vercel_origin_probe_ids = $failedVercelOriginIds
   non_claims = @(
     "Frontend preview reachability is not hosted staging unless /api/v1 contracts pass.",
     "Branch protection is not current unless scripts/apply_github_branch_protection.py --verify-only passes with a configured token.",

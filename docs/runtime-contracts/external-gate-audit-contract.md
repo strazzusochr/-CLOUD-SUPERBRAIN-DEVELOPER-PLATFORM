@@ -38,10 +38,12 @@ No secret values are written by this verifier.
 - `frontend_preview_claim_allowed=true` does not imply hosted staging.
 - `cloud-only-staging-proof-v1` refuses localhost, loopback, non-HTTPS, and frontend-only success as full platform success.
 - `verify-external-gates.ps1` also refuses localhost, loopback, `host.docker.internal`, and non-HTTPS hosted URLs.
+- `verify-external-gates.ps1` treats retired `sslip.io`/Hetzner-era hosted targets as `retired_provider_url`; they remain configured evidence, but they cannot satisfy active hosted staging.
 - `hosted_staging_claim_allowed=true` requires the hosted `/api/v1` contracts.
 - `production_deploy_claim_allowed=true` requires hosted staging, cloud deployment preflight visibility, current branch-protection verification, GHCR image digest proof, Vercel backend origin health, canonical gitleaks, and Fly.io live budget proof.
 - Missing tokens produce `action_required`; they are not counted as verified.
 - Bounded HTTP and native process probes time out fail-closed with `status=timeout` and `claim_allowed=false`; the verifier must still write a non-secret audit artifact.
+- HTTP probes include non-secret reachability diagnostics such as `elapsed_ms`, `response_url`, and `network_classification` so `fetch failed` is distinguishable from DNS, TLS, timeout, connection reset, or HTTP marker mismatch.
 - Generated artifacts are non-secret JSON files under `.phase1-artifacts/`.
 - The optional GitLab identity proof may include the username and profile URL, never the token.
 - The optional Hugging Face identity proof may include the username and profile URL, never the token.

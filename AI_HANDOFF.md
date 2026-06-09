@@ -41,7 +41,7 @@ Horizontal:
 - P1: `100%`
 - P2: `86%`
 - P3: `40%`
-- P4: `100%`
+- P4: `99%`
 - P5: `67%`
 - P6: `0%`
 
@@ -100,7 +100,7 @@ powershell -ExecutionPolicy Bypass -File scripts\verify-autopilot-mode.ps1 -Allo
 py -3 scripts\verify_project_progress_manifest.py
 ```
 
-Recent verification status: on 2026-06-08, `npm run build`, `npm run lint --prefix apps/frontend`, `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`, `npm run verify:browser`, `npm run verify:runtime`, and external-gate verifiers were rerun. Local checks passed. Current external gate artifact `.phase1-artifacts/external-gate-audit-20260608-180040.json` remains `blocked` for `hosted_agent_api_contracts` and `vercel_backend_origin_health`; `canonical_gitleaks_scan` and `ghcr_image_digest_verify` are verified. The private runner and Next.js/Vercel rewrites now derive missing origins from the Fly app names before falling back to hosted rewrites.
+Recent verification status: on 2026-06-09, `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1` and the private external-gate runner were rerun. Local checks passed. Current external gate artifact `.phase1-artifacts/external-gate-audit-20260609-061928.json` remains `blocked` for `hosted_agent_api_contracts` and `vercel_backend_origin_health`; `canonical_gitleaks_scan`, `ghcr_image_digest_verify`, branch protection, and Fly budget are verified. The old `sslip.io`/Hetzner hosted URL is now classified as `retired_provider_url`; the Fly origin defaults resolve to DNS `ENOTFOUND` until the apps exist and are reachable.
 
 Autopilot stream proof now runs through the active Agent API/Nginx stack at `<local-control-plane-stream-url>` and emits `status:init`, `status:llm`, `token`, and `done` with `autopilot-mode-stream-proof`.
 
@@ -897,8 +897,8 @@ Do not rely on `git clone` alone unless these local changes have been committed 
 
 ## Current Verified Progress
 
-- Overall: `63%`
-- Horizontal `P0 100 | P1 100 | P2 86 | P3 40 | P4 84 | P5 28 | P6 0`
+- Overall: `70%`
+- Horizontal `P0 100 | P1 100 | P2 86 | P3 40 | P4 99 | P5 67 | P6 0`
 - Vertical `Frontend 97 | Orchestrator 99 | Agent Pool 68 | LLM 54 | MCP 55 | Memory 72 | Observability 99`
 
 ## Latest Completed Hosted Proofs
