@@ -1,0 +1,25 @@
+{
+  "feature": "F1",
+  "route": "/workbench",
+  "status": "ECHT",
+  "observed_action": "click run -> local llm response visible",
+  "network_or_state_actions_observed": 2,
+  "actions": [
+    "POST /llm/v1/chat/completions",
+    "POST /api/v1/workspace/artifacts"
+  ],
+  "functional_percent_observed": 100,
+  "artifacts": [
+    "llm-response.json",
+    "workbench-before.png",
+    "workbench-after.png",
+    "workbench-f1.har",
+    "workbench-result.txt",
+    "report.md"
+  ],
+  "non_claims": [
+    "This inventory covers F1 only.",
+    "It does not claim F2-F11 completion.",
+    "DEV-ONLY; hosted proof still blocked."
+  ]
+}

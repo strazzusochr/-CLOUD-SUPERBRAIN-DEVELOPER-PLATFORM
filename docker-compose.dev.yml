@@ -10,6 +10,7 @@ services:
     environment:
       NEXT_PUBLIC_AGENT_API_URL: /api
       AGENT_API_INTERNAL_URL: http://agent-api:8000
+      EVIDENCE_DIR: /workspace/evidence
       WATCHPACK_POLLING: "true"
     expose:
       - "3000"
@@ -20,6 +21,7 @@ services:
       - ./apps/frontend/next.config.mjs:/app/next.config.mjs:ro
       - ./apps/frontend/next-env.d.ts:/app/next-env.d.ts
       - ./apps/frontend/tsconfig.json:/app/tsconfig.json
+      - ./.codex/runs/CURRENT/endziel:/workspace/evidence
     depends_on:
       agent-api:
         condition: service_healthy
@@ -63,7 +65,9 @@ services:
       PROMPT_RATE_LIMIT_CAPACITY: ${PROMPT_RATE_LIMIT_CAPACITY:-20}
       PROMPT_RATE_LIMIT_WINDOW_SECONDS: ${PROMPT_RATE_LIMIT_WINDOW_SECONDS:-3600}
       PROJECT_PROGRESS_MANIFEST_PATH: /app/progress/project-progress.manifest.json
+      EXTERNAL_GATE_SUMMARY_PATH: /app/progress/external-gate-summary.json
       PROJECT_STATE_PATH: /app/PROJECT_STATE.md
+      EVIDENCE_DIR: /workspace/evidence
       AUTONOMOUS_AGENT_ROSTER_PATH: /app/docs/codex-integration/autonomous-agent-roster.json
       AUTONOMOUS_TEAM_EXTERNAL_PROVIDER: ${AUTONOMOUS_TEAM_EXTERNAL_PROVIDER:-dopiert}
       AUTONOMOUS_TEAM_EXTERNAL_STATUS_URL: ${AUTONOMOUS_TEAM_EXTERNAL_STATUS_URL:-http://host.docker.internal:8000/status}
@@ -97,9 +101,11 @@ services:
       - "8000"
     volumes:
       - ./docs/project-progress.manifest.json:/app/progress/project-progress.manifest.json:ro
+      - ./docs/runtime-state/external-gate-summary.json:/app/progress/external-gate-summary.json:ro
       - ./PROJECT_STATE.md:/app/PROJECT_STATE.md:ro
       - ./docs/codex-integration/autonomous-agent-roster.json:/app/docs/codex-integration/autonomous-agent-roster.json:ro
       - ./services/agent-api/app:/app/app:ro
+      - ./.codex/runs/CURRENT/endziel:/workspace/evidence
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -244,8 +250,10 @@ services:
       VERCEL_MCP_GATEWAY_ORIGIN: ${VERCEL_MCP_GATEWAY_ORIGIN:-}
       VERCEL_LLM_GATEWAY_ORIGIN: ${VERCEL_LLM_GATEWAY_ORIGIN:-}
       FLY_API_TOKEN: ${FLY_API_TOKEN:-}
-      LLM_GATEWAY_MODE: ${LLM_GATEWAY_MODE:-deterministic_dry_run}
-      LLM_LIVE_PROVIDER_DEFAULT: ${LLM_LIVE_PROVIDER_DEFAULT:-false}
+      LLM_GATEWAY_MODE: ${LLM_GATEWAY_MODE:-local_openai_live}
+      LLM_LIVE_PROVIDER_DEFAULT: ${LLM_LIVE_PROVIDER_DEFAULT:-true}
+      LOCAL_LLM_BASE_URL: ${LOCAL_LLM_BASE_URL:-http://local-llm:8080/v1}
+      LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-gemma-3-1b-it}
       HF_TOKEN: ${HF_TOKEN:-}
       HF_ROUTER_BASE_URL: ${HF_ROUTER_BASE_URL:-https://router.huggingface.co/v1}
       HF_DEFAULT_CHAT_MODEL: ${HF_DEFAULT_CHAT_MODEL:-deepseek-ai/DeepSeek-V4-Flash:fastest}
@@ -268,6 +276,41 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+    networks:
+      - platform
+
+  local-llm:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    restart: unless-stopped
+    command:
+      - -hf
+      - ggml-org/gemma-3-1b-it-GGUF
+      - --alias
+      - gemma-3-1b-it
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --ctx-size
+      - "4096"
+      - --threads
+      - "4"
+      - --parallel
+      - "1"
+      - --batch-size
+      - "128"
+    expose:
+      - "8080"
+    volumes:
+      - local_llm_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+    mem_limit: 4096m
+    cpus: "2.00"
     networks:
       - platform
 
@@ -357,3 +400,4 @@ volumes:
   postgres_data:
   redis_data:
   mcp_workspace:
+  local_llm_cache:
