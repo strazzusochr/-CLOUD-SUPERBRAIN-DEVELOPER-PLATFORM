@@ -328,8 +328,6 @@ p {
   grid-area: topbar;
   border-bottom: 1px solid var(--border);
   background: rgba(6, 12, 24, 0.86);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -956,8 +954,6 @@ p {
   border-radius: 6px;
   padding: 3px 8px;
   white-space: nowrap;
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
   transition: color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .hub3d-label.active {
@@ -977,9 +973,22 @@ p {
   border: 1px solid var(--border);
   border-radius: 7px;
   padding: 5px 10px;
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
   pointer-events: none;
+}
+
+@supports ((-webkit-backdrop-filter: blur(0)) or (backdrop-filter: blur(0))) {
+  .topbar {
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+  .hub3d-label {
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+  .org-hud {
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
 }
 .org-feed {
   font-weight: 700;
