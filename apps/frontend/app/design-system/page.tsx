@@ -6,10 +6,18 @@ import { DesignSystemProbe } from "../../components/batch5-actions";
 export const metadata = { title: "Design System — Cloud Superbrain" };
 
 const COLORS = [
-  ["Deep", "#05070D"], ["Surface 1", "#0B1020"], ["Surface 2", "#121A32"],
-  ["Neuro Cyan", "#00E5FF"], ["Ion Blue", "#3B82F6"], ["Plasma Violet", "#8B5CF6"],
-  ["Synapse Magenta", "#EC4899"], ["Memory Gold", "#FBBF24"], ["Success", "#22C55E"],
-  ["Warning", "#F59E0B"], ["Danger", "#EF4444"], ["Text Primary", "#EAF2FF"],
+  { name: "Deep", hex: "#05070D", swatchClass: "color-deep" },
+  { name: "Surface 1", hex: "#0B1020", swatchClass: "color-surface-1" },
+  { name: "Surface 2", hex: "#121A32", swatchClass: "color-surface-2" },
+  { name: "Neuro Cyan", hex: "#00E5FF", swatchClass: "color-neuro-cyan" },
+  { name: "Ion Blue", hex: "#3B82F6", swatchClass: "color-ion-blue" },
+  { name: "Plasma Violet", hex: "#8B5CF6", swatchClass: "color-plasma-violet" },
+  { name: "Synapse Magenta", hex: "#EC4899", swatchClass: "color-synapse-magenta" },
+  { name: "Memory Gold", hex: "#FBBF24", swatchClass: "color-memory-gold" },
+  { name: "Success", hex: "#22C55E", swatchClass: "color-success" },
+  { name: "Warning", hex: "#F59E0B", swatchClass: "color-warning" },
+  { name: "Danger", hex: "#EF4444", swatchClass: "color-danger" },
+  { name: "Text Primary", hex: "#EAF2FF", swatchClass: "color-text-primary" },
 ];
 const TYPE = [
   ["Display", "36 / 44"], ["H1", "28 / 36"], ["H2", "22 / 30"],
@@ -27,16 +35,16 @@ export default function DesignSystemPage() {
           actions={<Link href="/responsive" className="btn btn-sm btn-ghost">Responsive preview →</Link>}
         />
 
-        <div style={{ marginBottom: 16 }}>
+        <div className="block-gap-16">
           <DesignSystemProbe />
         </div>
 
         <div className="grid cols-2">
           <Panel title="Color palette" pad>
             <div className="swatches">
-              {COLORS.map(([name, hex]) => (
+              {COLORS.map(({ name, hex, swatchClass }) => (
                 <div key={name} className="sw">
-                  <div className="chip-color" style={{ background: hex }} />
+                  <div className={`chip-color ${swatchClass}`} />
                   <div className="sw-meta"><b>{name}</b><span>{hex}</span></div>
                 </div>
               ))}
@@ -45,17 +53,17 @@ export default function DesignSystemPage() {
 
           <div className="stack">
             <Panel title="Typography" pad>
-              <div className="stack" style={{ gap: 8 }}>
+              <div className="stack typography-list">
                 {TYPE.map(([name, size]) => (
-                  <div key={name} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                  <div key={name} className="type-row">
                     <span>{name}</span>
-                    <span className="mono" style={{ color: "var(--text-mut)" }}>{size}</span>
+                    <span className="mono type-row-value">{size}</span>
                   </div>
                 ))}
               </div>
             </Panel>
             <Panel title="Components" pad>
-              <div className="stack" style={{ gap: 12 }}>
+              <div className="stack stack-gap-12">
                 <div className="chips">
                   <span className="btn btn-primary btn-sm">Primary</span>
                   <span className="btn btn-sm">Secondary</span>
@@ -68,10 +76,10 @@ export default function DesignSystemPage() {
                   <Badge tone="red">blocked</Badge>
                   <Badge tone="green">verified</Badge>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}><StatusDot tone="cyan" pulse /> executing</span>
-                  <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}><StatusDot tone="green" /> done</span>
-                  <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}><StatusDot tone="red" /> blocked</span>
+                <div className="status-inline-row">
+                  <span className="status-inline-item"><StatusDot tone="cyan" pulse /> executing</span>
+                  <span className="status-inline-item"><StatusDot tone="green" /> done</span>
+                  <span className="status-inline-item"><StatusDot tone="red" /> blocked</span>
                 </div>
                 <Bar pct={64} />
               </div>

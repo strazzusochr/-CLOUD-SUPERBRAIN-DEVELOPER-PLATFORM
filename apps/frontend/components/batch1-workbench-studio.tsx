@@ -208,9 +208,9 @@ export default function Batch1WorkbenchStudio({ showBudget }: { showBudget: bool
         <div className="tool-select">{Icon.workbench({ size: 16 })}<span>Superbrain Developer Engine</span></div>
         <div className="tool-select mono">{Icon.open({ size: 15 })}<span>main</span></div>
         <div className="tool-actions" aria-label="Gated toolbar actions">
-          <button className="icon-btn" title="Cloud write requires owner gate" disabled>{Icon.tools({ size: 15 })}</button>
-          <button className="icon-btn" title="Registry push requires owner gate" disabled>{Icon.apps({ size: 15 })}</button>
-          <button className="icon-btn" title="Production deploy requires owner gate" disabled>{Icon.bolt({ size: 15 })}</button>
+          <button type="button" className="icon-btn" title="Cloud write requires owner gate" disabled>{Icon.tools({ size: 15 })}</button>
+          <button type="button" className="icon-btn" title="Registry push requires owner gate" disabled>{Icon.apps({ size: 15 })}</button>
+          <button type="button" className="icon-btn" title="Production deploy requires owner gate" disabled>{Icon.bolt({ size: 15 })}</button>
         </div>
         <span className="tool-gate-note">local-only runtime · danger gates disabled</span>
         <span className="tool-gate-note">Cloud Staging · blocked external gates</span>
@@ -234,8 +234,7 @@ export default function Batch1WorkbenchStudio({ showBudget }: { showBudget: bool
                 <button
                   key={file}
                   type="button"
-                  className={`tree-file wb-file-button${activeFile === file ? " selected" : ""}`}
-                  style={{ paddingLeft: 22 }}
+                  className={`tree-file wb-file-button tree-file-indent${activeFile === file ? " selected" : ""}`}
                   onClick={() => openFile(file)}
                   data-testid={`batch1-open-file-${index}`}
                 >
@@ -246,7 +245,7 @@ export default function Batch1WorkbenchStudio({ showBudget }: { showBudget: bool
             <div className="tree-group">
               <div className="tree-folder">assets</div>
               {["character.glb", "environment.exr", "ui_hud.png"].map((asset) => (
-                <span key={asset} className="tree-file" style={{ paddingLeft: 22 }}>{Icon.files({ size: 13 })}{asset}</span>
+                <span key={asset} className="tree-file tree-file-indent">{Icon.files({ size: 13 })}{asset}</span>
               ))}
             </div>
           </div>
@@ -267,9 +266,29 @@ export default function Batch1WorkbenchStudio({ showBudget }: { showBudget: bool
           <div className="wb-pane-head"><span>Preview / Assets</span><Badge tone="cyan">{selectedPreview.label}</Badge></div>
           <div className="preview-tabs" role="tablist" aria-label="Preview modes" data-testid="batch1-preview-tabs">
             {PREVIEWS.map((tab) => (
-              <button key={tab.id} type="button" role="tab" aria-selected={preview === tab.id} className={preview === tab.id ? "active" : ""} onClick={() => switchPreview(tab.id)}>
-                {tab.label}
-              </button>
+              preview === tab.id ? (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected="true"
+                  className="preview-tab active"
+                  onClick={() => switchPreview(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ) : (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected="false"
+                  className="preview-tab"
+                  onClick={() => switchPreview(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              )
             ))}
           </div>
           <div className="game-preview batch1-preview" aria-label="Industrial template preview" data-testid="batch1-preview-result">
@@ -288,7 +307,7 @@ export default function Batch1WorkbenchStudio({ showBudget }: { showBudget: bool
 
       <section className={`wb-bottom-grid${showBudget ? " with-budget" : ""}`}>
         <Panel title="Prompt Composer">
-          <div className="wb-pad stack" style={{ gap: 10 }}>
+          <div className="wb-pad stack stack-gap-10">
             <div className="goalb-row">
               <input
                 aria-label="Batch 1 workbench prompt"
@@ -311,7 +330,7 @@ export default function Batch1WorkbenchStudio({ showBudget }: { showBudget: bool
         <Panel title="Agent Assistance" actions={<Badge tone="cyan">dry-run</Badge>}>
           <div className="wb-pad">
             <div className="agent-now"><span className="agent-glyph">{Icon.agents({ size: 16 })}</span><div><strong>Architect Agent</strong><p>Planner/Coder/Tester/DevOps sequence</p></div></div>
-            <div className="steps" style={{ marginTop: 12 }} data-testid="batch1-agent-steps">
+            <div className="steps with-top-gap" data-testid="batch1-agent-steps">
               {["Analyze requirements", "Plan architecture", "Generate artifact", "Collect evidence"].map((step, idx) => (
                 <div key={step} className={`step${steps[idx] === "done" ? " done" : steps[idx] === "active" ? " active" : ""}`}><StatusDot tone={steps[idx] === "pending" ? "mut" : "cyan"} />{step}</div>
               ))}
@@ -340,8 +359,8 @@ export default function Batch1WorkbenchStudio({ showBudget }: { showBudget: bool
 
         {showBudget ? (
           <Panel title="Metered Budget" actions={<Badge tone="amber">paid/metered Capability</Badge>}>
-            <div className="wb-pad stack" style={{ gap: 8 }}>
-              <p className="muted-copy" style={{ margin: 0 }}>
+            <div className="wb-pad stack stack-gap-8">
+              <p className="muted-copy budget-note">
                 Budget controls are visible because a paid or metered LLM/tool option is selected.
               </p>
               <pre className="goalb-result mono">
@@ -360,7 +379,8 @@ export default function Batch1WorkbenchStudio({ showBudget }: { showBudget: bool
         <div className="workspace-mini-grid">
           {workspacePages.map((page) => {
             const layer = LAYERS.find((item) => item.code === page.layer);
-            return <Link key={page.id} href={page.route} className="workspace-tile"><span className="workspace-no">{page.no}.</span><span>{page.label}</span><small style={{ color: layer?.color }}>{layer ? `L${layer.no} ${layer.code}` : page.layer}</small></Link>;
+            const layerClass = layer ? `workspace-layer-label layer-${layer.code.toLowerCase()}` : "workspace-layer-label";
+            return <Link key={page.id} href={page.route} className="workspace-tile"><span className="workspace-no">{page.no}.</span><span>{page.label}</span><small className={layerClass}>{layer ? `L${layer.no} ${layer.code}` : page.layer}</small></Link>;
           })}
         </div>
       </section>

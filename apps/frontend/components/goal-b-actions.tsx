@@ -428,7 +428,7 @@ export function MarketplaceCardGrid({ items }: { items: MarketplaceCardItem[] })
   const safeItems = useMemo(() => items.slice(0, 160), [items]);
 
   return (
-    <div className="stack" style={{ gap: 12 }}>
+    <div className="stack marketplace-card-grid">
       <div className="card-grid" data-testid="marketplace-card-grid">
         {safeItems.map((it) => {
           const key = `${it.kind}:${it.name}`;
@@ -438,8 +438,8 @@ export function MarketplaceCardGrid({ items }: { items: MarketplaceCardItem[] })
                 <MiniBadge tone="mut">{it.kind}</MiniBadge>
               </div>
               <div className="body">
-                <h3 className="mono" style={{ fontSize: 13.5 }}>{it.name}</h3>
-                <div className="sub" style={{ minHeight: 32 }}>{it.desc}</div>
+                <h3 className="mono marketplace-card-title">{it.name}</h3>
+                <div className="sub marketplace-card-sub">{it.desc}</div>
                 <div className="actions" aria-label="Catalog item status">
                   <MiniBadge tone="cyan">catalog</MiniBadge>
                   <MiniBadge tone="amber">install via selector</MiniBadge>

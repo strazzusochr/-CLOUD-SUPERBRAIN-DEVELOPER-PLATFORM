@@ -27,19 +27,19 @@ export default async function DiagnosticsPage() {
         />
 
         <SevenLayerBar title="7 Layer Architektur (UI-Surfaces, read-only)" />
-        <div style={{ marginTop: 16 }}>
+        <div className="block-gap-16">
           <DiagnosticsProbe />
         </div>
 
-        <div className="grid cols-2" style={{ marginTop: 16 }}>
+        <div className="grid cols-2 block-gap-16">
           <Panel title="Verifier (Rohliste)">
             <table className="tbl">
-              <thead><tr><th>Skript</th><th /></tr></thead>
+              <thead><tr><th>Skript</th><th className="tbl-actions-col">Aktion</th></tr></thead>
               <tbody>
                 {VERIFIERS.map((v) => (
                   <tr key={v}>
-                    <td className="mono" style={{ fontSize: 12 }}>{v}</td>
-                    <td style={{ textAlign: "right" }}>
+                    <td className="mono tbl-mono-sm">{v}</td>
+                    <td className="tbl-cell-right">
                       <Link href="/evidence" className="btn btn-sm btn-ghost">Nachweise</Link>
                     </td>
                   </tr>
@@ -50,14 +50,14 @@ export default async function DiagnosticsPage() {
 
           <Panel title="Archiv & Recovery">
             <table className="tbl">
-              <thead><tr><th>Item</th><th>Typ</th><th>Datum</th><th /></tr></thead>
+              <thead><tr><th>Item</th><th>Typ</th><th>Datum</th><th className="tbl-actions-col">Aktion</th></tr></thead>
               <tbody>
                 {ARCHIVE.map((a) => (
                   <tr key={a.name}>
                     <td>{a.name}</td>
                     <td><Badge tone="mut">{a.kind}</Badge></td>
-                    <td className="mono" style={{ color: "var(--text-mut)", fontSize: 12 }}>{a.date}</td>
-                    <td style={{ textAlign: "right" }}>
+                    <td className="mono muted-copy tbl-mono-sm">{a.date}</td>
+                    <td className="tbl-cell-right">
                       <Link href={`/evidence?archive=${encodeURIComponent(a.name)}`} className="btn btn-sm btn-ghost">
                         Öffnen
                       </Link>

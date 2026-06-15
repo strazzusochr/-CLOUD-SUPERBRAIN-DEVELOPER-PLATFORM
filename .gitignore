@@ -48,3 +48,9 @@ AGENTS.codex-backup.md
 /gitkraken_*.png
 /debug-artifacts/
 /.secrets.baseline
+
+.vercel
+.env*.local
+.fly/
+.playwright-mcp/
+.codex/runs/

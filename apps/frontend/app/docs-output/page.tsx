@@ -36,17 +36,17 @@ export default async function DocsOutputPage() {
             </>
           }
         />
-        <div className="grid" style={{ gridTemplateColumns: "240px 1fr 300px" }}>
+        <div className="grid docs-output-grid">
           <Panel title="Dokumente">
             <div className="list">
               {withOutput.length ? withOutput.map((s, i) => (
-                <div key={s.id} className={`tnode${i === 0 ? " sel" : ""}`} style={{ padding: "8px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+                <div key={s.id} className={`tnode docs-output-node${i === 0 ? " sel" : ""}`}>
                   {Icon.docs({ size: 14 })}
-                  <span className="mono" style={{ fontSize: 11.5 }}>{s.projectId || "project"}</span>
-                  <span className="meta" style={{ marginLeft: "auto" }}>{s.startedAt ? s.startedAt.slice(0, 19).replace("T", " ") : ""}</span>
+                  <span className="mono docs-output-project">{s.projectId || "project"}</span>
+                  <span className="meta docs-output-meta">{s.startedAt ? s.startedAt.slice(0, 19).replace("T", " ") : ""}</span>
                 </div>
               )) : (
-                <div className="tnode" style={{ padding: "8px 12px", color: "var(--text-mut)" }}>
+                <div className="tnode docs-output-empty">
                   {Icon.docs({ size: 14 })} Noch keine Dokument-Outputs
                 </div>
               )}
@@ -55,7 +55,7 @@ export default async function DocsOutputPage() {
           <Panel title={selected ? "Preview · letzter Run-Output" : "Preview"}>
             <div className="wb-pad">
               {selected?.assistantResult ? (
-                <pre className="code" style={{ whiteSpace: "pre-wrap" }}>{previewText(String(selected.assistantResult))}</pre>
+                <pre className="code code-prewrap">{previewText(String(selected.assistantResult))}</pre>
               ) : (
                 <EmptyState
                   title="Nichts zum Anzeigen"
@@ -66,7 +66,7 @@ export default async function DocsOutputPage() {
             </div>
           </Panel>
           <Panel title="Zitate · Export">
-            <div className="wb-pad stack" style={{ gap: 10 }}>
+            <div className="wb-pad stack stack-gap-10">
               <WorkspaceModeActionPanel mode="docs-output" label="Document" />
               <DocsExportPanel
                 exportTitle={exportTitle}
@@ -74,7 +74,7 @@ export default async function DocsOutputPage() {
                 projectId={selected?.projectId ?? "goal-b-local"}
                 sessionId={selected?.id ?? null}
               />
-              <p style={{ fontSize: 12, color: "var(--text-dim)" }}>
+              <p className="helper-copy">
                 Ohne Session-Output faellt der Export ehrlich auf die lokale End-Ziel-Spec zurueck.
               </p>
             </div>

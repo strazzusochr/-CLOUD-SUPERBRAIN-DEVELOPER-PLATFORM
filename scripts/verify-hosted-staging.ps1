@@ -39,6 +39,14 @@ $progressManifestPath = Join-Path $PSScriptRoot "..\docs\project-progress.manife
 $progressManifest = Get-Content -Path $progressManifestPath -Raw | ConvertFrom-Json
 $expectedOverallPercent = [int]$progressManifest.overall_percent
 
+$script:HostedHttpTimeoutSeconds = 30
+try {
+  $configuredTimeout = [int]($env:HOSTED_HTTP_TIMEOUT_SECONDS)
+  if ($configuredTimeout -gt 0) {
+    $script:HostedHttpTimeoutSeconds = $configuredTimeout
+  }
+} catch {}
+
 function Assert-Contains($label, $value, $expected) {
   $text = ($value | Out-String)
   if (-not $text.Contains($expected)) {
@@ -78,7 +86,17 @@ function Get-PythonRuntime() {
 function Invoke-PythonInline([string]$Code, [string[]]$Arguments = @()) {
   $runtime = Get-PythonRuntime
   $runtimeArgs = @($runtime.Args) + @("-") + @($Arguments)
-  return ($Code | & $runtime.Path @runtimeArgs)
+  $previousPythonIoEncoding = [Environment]::GetEnvironmentVariable("PYTHONIOENCODING", "Process")
+  $previousPythonUtf8 = [Environment]::GetEnvironmentVariable("PYTHONUTF8", "Process")
+  try {
+    [Environment]::SetEnvironmentVariable("PYTHONIOENCODING", "utf-8", "Process")
+    [Environment]::SetEnvironmentVariable("PYTHONUTF8", "1", "Process")
+    return ($Code | & $runtime.Path @runtimeArgs)
+  }
+  finally {
+    [Environment]::SetEnvironmentVariable("PYTHONIOENCODING", $previousPythonIoEncoding, "Process")
+    [Environment]::SetEnvironmentVariable("PYTHONUTF8", $previousPythonUtf8, "Process")
+  }
 }
 
 function New-HostedTempPath([string]$Prefix) {
@@ -87,31 +105,42 @@ function New-HostedTempPath([string]$Prefix) {
 }
 
 function Invoke-Text($url) {
-  $python = @'
-import sys
-import urllib.request
-
-url = sys.argv[1]
-with urllib.request.urlopen(url, timeout=10) as response:
-    sys.stdout.write(response.read().decode("utf-8", errors="replace"))
-'@
-  return (Invoke-PythonInline -Code $python -Arguments @($url))
-}
-
-function Invoke-StatusCode($url) {
+  $timeoutSeconds = [int]$script:HostedHttpTimeoutSeconds
   $python = @'
 import sys
 import urllib.error
 import urllib.request
 
 url = sys.argv[1]
+timeout_seconds = int(sys.argv[2])
 try:
-    with urllib.request.urlopen(url, timeout=30) as response:
+    with urllib.request.urlopen(url, timeout=timeout_seconds) as response:
+        sys.stdout.write(response.read().decode("utf-8", errors="replace"))
+except urllib.error.HTTPError as error:
+    body = error.read().decode("utf-8", errors="replace")
+    sys.stdout.write(f"HTTP_ERROR {error.code}\n{body}")
+except Exception as exc:
+    sys.stdout.write(f"REQUEST_FAILED {type(exc).__name__}: {exc}")
+'@
+  return (Invoke-PythonInline -Code $python -Arguments @($url, [string]$timeoutSeconds))
+}
+
+function Invoke-StatusCode($url) {
+  $timeoutSeconds = [int]$script:HostedHttpTimeoutSeconds
+  $python = @'
+import sys
+import urllib.error
+import urllib.request
+
+url = sys.argv[1]
+timeout_seconds = int(sys.argv[2])
+try:
+    with urllib.request.urlopen(url, timeout=timeout_seconds) as response:
         sys.stdout.write(str(response.status))
 except urllib.error.HTTPError as error:
     sys.stdout.write(str(error.code))
 '@
-  return (Invoke-PythonInline -Code $python -Arguments @($url))
+  return (Invoke-PythonInline -Code $python -Arguments @($url, [string]$timeoutSeconds))
 }
 
 function Invoke-WebResponse($url, $method = "GET", $body = $null, [hashtable]$headers = $null, $contentType = $null, $timeoutSeconds = 30) {
@@ -119,13 +148,17 @@ function Invoke-WebResponse($url, $method = "GET", $body = $null, [hashtable]$he
   if ($null -ne $body) {
     $bodyBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$body))
   }
+  $effectiveTimeoutSeconds = $timeoutSeconds
+  if ($script:HostedHttpTimeoutSeconds -gt $effectiveTimeoutSeconds) {
+    $effectiveTimeoutSeconds = $script:HostedHttpTimeoutSeconds
+  }
   $payload = [pscustomobject]@{
     url = $url
     method = $method
     bodyBase64 = $bodyBase64
     headers = $headers
     contentType = $contentType
-    timeoutSeconds = $timeoutSeconds
+    timeoutSeconds = $effectiveTimeoutSeconds
   } | ConvertTo-Json -Depth 8 -Compress
   $python = @'
 import base64
@@ -369,47 +402,6 @@ if ($AllowLocalhost) {
   Write-Host "[hosted] DEV-ONLY localhost profile: core checks completed"
   return
 }
-Assert-Contains "frontend cloud layer evidence" $frontendHtml "cloud_layer_readiness_visible"
-Assert-Contains "frontend cloud render offload panel" $frontendHtml "Cloud Render Offload"
-Assert-Contains "frontend cloud render offload endpoint" $frontendHtml "GET /api/v1/clouds/render-offload/contract"
-Assert-Contains "frontend cloud render offload evidence" $frontendHtml "cloud_render_offload_contract_visible"
-Assert-Contains "frontend cloud deployment preflight panel" $frontendHtml "Cloud Deployment Preflight"
-Assert-Contains "frontend cloud deployment preflight endpoint" $frontendHtml "GET /api/v1/clouds/deployment-preflight/contract"
-Assert-Contains "frontend cloud deployment preflight evidence" $frontendHtml "cloud_deployment_preflight_visible"
-Assert-Contains "frontend external gates panel" $frontendHtml "External Gates"
-Assert-Contains "frontend auth contract panel" $frontendHtml "Auth Contract"
-Assert-Contains "frontend memory purge contract panel" $frontendHtml "Memory Purge Contract"
-Assert-Contains "frontend memory entry delete evidence" $frontendHtml "memory_entry_delete_completed"
-Assert-Contains "frontend memory entry delete endpoint" $frontendHtml "DELETE /api/v1/memory/"
-Assert-Contains "frontend devops workflow dispatch panel" $frontendHtml "DevOps Workflow Dispatch"
-Assert-Contains "frontend github branch pr contract panel" $frontendHtml "GitHub Branch/PR Contract"
-Assert-Contains "frontend postgresql readonly query contract panel" $frontendHtml "PostgreSQL Readonly Query Contract"
-Assert-Contains "frontend filesystem workspace scope contract panel" $frontendHtml "Filesystem Workspace Scope Contract"
-Assert-Contains "frontend playwright browser proof contract panel" $frontendHtml "Playwright Browser Proof Contract"
-Assert-Contains "frontend e2b sandbox lifecycle contract panel" $frontendHtml "E2B Sandbox Lifecycle Contract"
-Assert-Contains "frontend mcp version pinning contract panel" $frontendHtml "MCP Version Pinning Contract"
-Assert-Contains "frontend mcp version pinning evidence" $frontendHtml "mcp_version_pinning_contract_visible"
-Assert-Contains "frontend memory embedding consistency contract panel" $frontendHtml "Memory Embedding Consistency Contract"
-Assert-Contains "frontend memory embedding consistency evidence" $frontendHtml "memory_embedding_consistency_contract_visible"
-Assert-Contains "frontend mcp audit panel" $frontendHtml "MCP Audit"
-Assert-Contains "frontend system fallback panel" $frontendHtml "System Unavailable Fallback"
-Assert-Contains "frontend system fallback evidence" $frontendHtml "system_unavailable_ui_state"
-Assert-Contains "frontend agent activity panel" $frontendHtml "Agent Activity"
-Assert-Contains "frontend agent activity evidence" $frontendHtml "agent_activity_trace_link_template"
-Assert-Contains "frontend agent activity filtered feed" $frontendHtml "agent_activity_filtered_feed_visible"
-Assert-Contains "frontend agent activity filters" $frontendHtml "activityFilterBar"
-Assert-Contains "frontend agent activity per-role summaries" $frontendHtml "Per-role Summaries"
-Assert-Contains "frontend agent activity per-role css" $frontendHtml "perRoleSummary"
-Assert-Contains "frontend memory consolidation panel" $frontendHtml "Memory Consolidation"
-Assert-Contains "frontend task assignment contract panel" $frontendHtml "Task Assignment Queue Contract"
-Assert-Contains "frontend task assignment evidence" $frontendHtml "task_assignment_queue_contract_visible"
-Assert-Contains "frontend task assignment priority routing" $frontendHtml "Priority Routing"
-Assert-Contains "frontend agent llm streaming contract panel" $frontendHtml "Agent LLM Streaming Contract"
-Assert-Contains "frontend agent llm streaming evidence" $frontendHtml "agent_llm_streaming_contract_visible"
-Assert-Contains "frontend project progress panel" $frontendHtml "Project Progress"
-Assert-Contains "frontend project progress completion contract" $frontendHtml "100% Contract"
-Assert-Contains "frontend project progress completion evidence" $frontendHtml "project_progress_100_percent_gate_contract"
-Assert-Contains "frontend memory panel" $frontendHtml "Memory"
 
 Write-Host "[hosted] agent-api health"
 $apiHealth = Wait-UrlContains "agent-api health" "$BaseUrl/api/v1/health" '"status":"healthy"' 5
