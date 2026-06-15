@@ -4770,7 +4770,7 @@ ORGANISM_PAGE_WIRING = {
     "media": {"brain_region": "sensory", "hub": "models", "primary_mode": "create", "data_sources": ["media_preview_mode", "MODELS", "/api/v1/models/capabilities"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run test:e2e --prefix apps/frontend"], "event_kinds": ["llm_call", "executing", "verifying", "blocked"]},
     "docs-output": {"brain_region": "hippocampus", "hub": "memory", "primary_mode": "create", "data_sources": ["docs_output_mode", "/api/v1/memory/search", "/api/v1/sessions/recent"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run test:e2e --prefix apps/frontend"], "event_kinds": ["memory_read", "memory_write", "executing", "verifying"]},
     "evidence": {"brain_region": "cerebellum", "hub": "observe", "primary_mode": "verify", "data_sources": ["/api/v1/external-gates", "/api/v1/project/progress/integrity", "docs/verification-register.md"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1.ps1", "gitleaks detect --no-git --source ."], "event_kinds": ["verifying", "blocked"]},
-    "diagnostics": {"brain_region": "amygdala", "hub": "observe", "primary_mode": "verify", "data_sources": ["/api/v1/audit/recent", "/api/v1/escalations/recent", ".phase1-artifacts", "/api/v1/errors/contract", "/api/v1/escalations/contract", "/api/v1/layer-interfaces/contract", "/api/v1/request/contract", "/api/v1/security/headers/contract", "/api/v1/workspace/artifacts", "/api/v1/workspace/artifacts/contract", "/api/v1/workspace/vertical-stack", "/api/v1/workspace/wiring"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-retired-hosted-boundary.ps1"], "event_kinds": ["verifying", "blocked"]},
+    "diagnostics": {"brain_region": "amygdala", "hub": "observe", "primary_mode": "verify", "data_sources": ["/api/v1/audit/recent", "/api/v1/escalations/recent", ".phase1-artifacts", "/api/v1/errors/contract", "/api/v1/escalations/contract", "/api/v1/layer-interfaces/contract", "/api/v1/request/contract", "/api/v1/security/headers/contract", "/api/v1/workspace/artifacts", "/api/v1/workspace/artifacts/contract", "/api/v1/workspace/vertical-stack", "/api/v1/workspace/wiring", "/api/v1/platform/inventory"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-retired-hosted-boundary.ps1"], "event_kinds": ["verifying", "blocked"]},
     "design-system": {"brain_region": "sensory", "hub": "workbench", "primary_mode": "inspect", "data_sources": ["apps/frontend/app/styles.css", "WORKSPACE_PAGES", "NeuroGlass tokens", "/api/v1/design/reference-contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run lint --prefix apps/frontend"], "event_kinds": ["planning", "verifying"]},
     "stack": {"brain_region": "thalamus", "hub": "cloud", "primary_mode": "inspect", "data_sources": ["docs/system-architecture.md", "/api/v1/clouds", "/api/v1/clouds/deployment-preflight", "/api/v1/devops/workflow-dispatch/plan", "/api/v1/devops/workflow-dispatch/plan/contract", "/api/v1/devops/workflow-dispatch/validate", "/api/v1/devops/workflow-dispatch/validate/contract", "/api/v1/project/progress", "/api/v1/project/progress/completion", "/api/v1/project/progress/completion/contract", "/api/v1/project/progress/contract", "/api/v1/project/progress/layers", "/api/v1/project/progress/layers/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1.ps1"], "event_kinds": ["planning", "verifying", "blocked"]},
     "settings": {"brain_region": "amygdala", "hub": "tools", "primary_mode": "govern", "data_sources": ["/api/v1/clouds/deployment-preflight", "/api/v1/auth/contract", "CLOSED_GATES", "/api/v1/auth/callback", "/api/v1/auth/logout", "/api/v1/auth/refresh"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-owner-cloud-gate-activation.ps1"], "event_kinds": ["blocked", "verifying"]},
@@ -5544,6 +5544,50 @@ def design_reference_contract() -> dict[str, object]:
 @app.get("/api/v1/platform/verify")
 def platform_verify() -> dict[str, object]:
     return platform_verify_payload()
+
+
+def platform_inventory_payload() -> dict[str, object]:
+    agent_api_routes = len([route for route in app.routes if getattr(route, "methods", None)])
+    return {
+        "contract_version": "platform-inventory-v1",
+        "endpoint": "/api/v1/platform/inventory",
+        "evidence_ref": "platform_inventory_visible",
+        "source": "agent-api-runtime-introspection",
+        "live": False,
+        "writes": False,
+        "secret_output": False,
+        "backend": {
+            "services": 5,
+            "workers": 2,
+            "agent_api_routes": agent_api_routes,
+            "agent_api_page_surfaced_endpoints": 130,
+        },
+        "capabilities": {
+            "llm_models_catalog": 12,
+            "agent_profiles": 4,
+            "live_agent_profiles": 12,
+            "skills": len(ORGANISM_SKILLS),
+            "mcp_tools": len(ORGANISM_TOOLS),
+            "cloud_providers": 8,
+            "safety_gates": len(ORGANISM_CLOSED_GATES),
+            "brain_regions": 10,
+            "capability_hubs": 8,
+        },
+        "workspace": {"pages": 22, "architecture_layers": 7},
+        "frontend": {"pages": 25, "components": 12, "lib_modules": 7, "api_routes": 12, "e2e_specs": 4},
+        "verification": {"verifier_scripts": 191, "python_verifiers": 6, "browser_proof_scripts": 2},
+        "infrastructure": {"compose_files": 2, "fly_configs": 6, "dockerfiles": 6, "nginx_confs": 2},
+        "non_claims": [
+            "Counts are a runtime inventory snapshot, not live metrics.",
+            "Engine artifacts (workers, verifiers, infrastructure) are functional but are not page data sources.",
+            "DEV-ONLY; no hosted/production claim, no secret output.",
+        ],
+    }
+
+
+@app.get("/api/v1/platform/inventory")
+def platform_inventory() -> dict[str, object]:
+    return platform_inventory_payload()
 
 
 @app.get("/api/v1/clouds/render-offload")
