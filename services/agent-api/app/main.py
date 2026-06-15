@@ -5199,6 +5199,24 @@ def organism_topology_payload() -> dict[str, object]:
     edges.extend({"from": f"page:{page['pageId']}", "to": f"hub:{page['hub']}", "kind": "page_to_capability_hub"} for page in workspace_pages)
     edges.extend({"from": f"page:{page['pageId']}", "to": f"source:{_organism_node_slug(str(source))}", "kind": "page_to_data_source"} for page in workspace_pages for source in page["dataSources"])
     edges.extend({"from": f"page:{page['pageId']}", "to": f"verifier:{_organism_node_slug(str(verifier))}", "kind": "page_to_verifier"} for page in workspace_pages for verifier in page["verifierRefs"])
+    # Direct page-to-capability wiring: surface every built capability on the pages that own it (by
+    # hub / security region), so the 22 pages explicitly expose models, skills, MCP tools, cloud
+    # providers, agent profiles and safety gates — not only transitively via layers/hubs.
+    _agent_types = [str(profile.get("agent_type")) for profile in profiles]
+    _provider_ids = sorted({pid for layer in ORGANISM_LAYERS for pid in layer["providers"]})
+    for page in workspace_pages:
+        _pid = page["pageId"]
+        if page["hub"] == "models":
+            edges.extend({"from": f"page:{_pid}", "to": f"model:{m['id']}", "kind": "page_to_llm_model"} for m in models)
+        if page["hub"] == "tools":
+            edges.extend({"from": f"page:{_pid}", "to": f"tool:{t['id']}", "kind": "page_to_mcp_tool"} for t in ORGANISM_TOOLS)
+            edges.extend({"from": f"page:{_pid}", "to": f"skill:{skill}", "kind": "page_to_skill"} for skill in ORGANISM_SKILLS)
+        if page["hub"] == "agents":
+            edges.extend({"from": f"page:{_pid}", "to": f"agent:{agent_type}", "kind": "page_to_agent_profile"} for agent_type in _agent_types)
+        if page["hub"] == "cloud":
+            edges.extend({"from": f"page:{_pid}", "to": f"provider:{provider_id}", "kind": "page_to_cloud_provider"} for provider_id in _provider_ids)
+        if page["brainRegion"] == "amygdala":
+            edges.extend({"from": f"page:{_pid}", "to": f"gate:{_organism_gate_id(gate)}", "kind": "page_to_safety_gate"} for gate in ORGANISM_CLOSED_GATES)
     for layer in ORGANISM_LAYERS:
         for provider_id in layer["providers"]:
             edges.append({"from": f"layer:{layer['code']}", "to": f"provider:{provider_id}", "kind": "layer_to_provider"})

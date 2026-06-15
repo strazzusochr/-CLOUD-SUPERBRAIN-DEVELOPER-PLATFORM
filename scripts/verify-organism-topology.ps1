@@ -229,6 +229,12 @@ foreach ($requiredKind in @(
   "page_to_capability_hub",
   "page_to_data_source",
   "page_to_verifier",
+  "page_to_llm_model",
+  "page_to_skill",
+  "page_to_mcp_tool",
+  "page_to_cloud_provider",
+  "page_to_agent_profile",
+  "page_to_safety_gate",
   "layer_to_provider",
   "gate_to_security_region"
 )) {
