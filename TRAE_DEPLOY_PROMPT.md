@@ -12,17 +12,33 @@
 ═══════════════════════════════════════════════════════════════════════════════
 
 DONE and verified:
-- Branch `fly-cloud-redirect`, commit **`42c8447d`** pushed to origin (full locally-tested code state).
-- All **6 GHCR images are built & pushed**, each tagged `42c8447d` **and** `staging`:
-  `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/{agent-api,llm-gateway,mcp-gateway,agent-worker,memory-worker,frontend}:staging`
+- Branch `fly-cloud-redirect`, **current HEAD `8826805c`** pushed to origin (full locally-tested code state).
 - All local/DEV gates green: `verify-phase1` (incl. gitleaks, no leaks), `verify-phase1-runtime`,
   `npm run verify:browser` (22 pages + phase2 + organism + memory), lint, build (21/21).
-- Read-only token gate check ran: tokens authenticate (HF, GitLab identity OK), but external
-  gates are **blocked only because nothing is deployed yet**:
+- **Cloud compose stack validated locally: 10/10 containers healthy** with the GHCR `:staging` images
+  + `docker-compose.cloud.yml`. Three cloud-deploy bugs were fixed while bringing it up (commit `8826805c`):
+  1. llm-gateway `/api/v1/health` only probes `local_llm_health()` when local is enabled (otherwise it
+     blocked ~4s on the missing local-llm host and failed the healthcheck).
+  2. agent-api manifest bind-mount source fixed `./progress` -> `./docs` (wrong path made Docker create a
+     directory -> `IsADirectoryError`).
+  3. Caddy site address defaults to `:80` when `STAGING_HOSTNAME` is empty (was crash-looping).
+- Read-only token gate check ran: tokens authenticate (HF, GitLab identity OK), but external gates are
+  **blocked only because nothing is publicly deployed yet**:
   `missing_or_failed_gates = hosted_agent_api_contracts, vercel_backend_origin_health`.
 
-YOUR JOB: execute ROLLOUT STEPS 4→6 (deploy + prove), then 7→8, and guide the owner through the
-owner-only STEP 9 (manual GitHub UI). Keep STEP 10 (post-rollout verify) green.
+TWO STALENESS ITEMS TO FIX FIRST:
+- **GHCR images are stale**: the last successful build was commit `42c8447d` (tags `42c8447d`,`staging`),
+  which is BEFORE the llm-gateway health fix. Re-dispatch the build so `:staging` = HEAD `8826805c`:
+  `gh workflow run main-deploy.yml --ref fly-cloud-redirect` (staging only; production job stays skipped).
+- **The current Vercel deployment is stale**: `frontend-cn3c6w99n-…vercel.app` still shows retired nav
+  routes `/about/stack` and `/about/open-source` and old labels ("Open by Design", "Tools / Cloud Hub").
+  The committed code uses `/technology`, `/open-source`, "MCP / Tools", "Open Source". Redeploy the frontend
+  from `fly-cloud-redirect` (HEAD `8826805c`) so the nav matches the corrected, tested code.
+
+YOUR JOB: (a) re-dispatch the GHCR build for HEAD, (b) execute ROLLOUT STEPS 4→6 (deploy backend to a
+public HTTPS host + redeploy frontend + prove), then 7→8, and guide the owner through owner-only STEP 9
+(manual GitHub UI). Keep STEP 10 (post-rollout verify) green. NOTE: a backend running only on the owner's
+localhost cannot close the hosted gates — the Fly origins must be public HTTPS.
 
 ═══════════════════════════════════════════════════════════════════════════════
 ## 1. SECRETS & SAFETY (absolute — never break)
@@ -83,6 +99,19 @@ Keep `LLM_GATEWAY_MODE=deterministic_dry_run` (default; local llama stays opt-in
 as a Fly secret only if/when live LLM is explicitly wanted.
 
 After step 4: each origin must answer `GET /api/v1/health` over HTTPS.
+
+**KNOWN FLY PER-APP GAPS (Path B) — handle these or the deploy fails:**
+- The agent-api Dockerfile only does `COPY app ./app`; it does NOT bake the files that
+  `docker-compose.cloud.yml` bind-mounts: `docs/project-progress.manifest.json`,
+  `docs/runtime-state/external-gate-summary.json`, `PROJECT_STATE.md`,
+  `docs/codex-integration/autonomous-agent-roster.json`. On Fly there are no bind-mounts, so either
+  (a) bake these into the image (COPY them in the Dockerfile with a repo-root build context), or
+  (b) ship them another way. Health no longer 500s without them (it degrades — commit `f5adbe05`),
+  but progress/gate DATA will be empty until the manifest is present, so the gate verifiers stay red.
+- `fly.agent-api.toml [env]` has no `DATABASE_URL` / `REDIS_URL`. Provide Postgres (Fly Managed
+  Postgres / pgvector) + Redis and set `flyctl secrets set DATABASE_URL=... REDIS_URL=...` per app.
+- Path A (compose on a Fly runtime VM) keeps the bind-mounts and avoids both gaps, but needs a VM
+  with the repo checked out. The compose stack is already proven healthy locally (10/10).
 
 ═══════════════════════════════════════════════════════════════════════════════
 ## 3. ROLLOUT STEP 5 — Vercel frontend + backend origins
