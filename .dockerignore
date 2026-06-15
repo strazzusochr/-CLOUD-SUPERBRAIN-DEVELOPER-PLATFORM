@@ -1,0 +1,33 @@
+# Root build-context hygiene.
+# Only the agent-api image builds from repo root (to bake the manifest/state
+# files the app reads). Keep that context small — exclude heavy, irrelevant trees.
+.git
+.gitattributes
+.github
+.claude
+.codex
+.vscode
+node_modules
+**/node_modules
+.next
+**/.next
+.turbo
+**/.turbo
+.venv
+**/.venv
+**/__pycache__
+*.pyc
+.pytest_cache
+**/.pytest_cache
+coverage
+**/coverage
+.phase1-artifacts
+.local-backup-*
+**/.local-backup-*
+# Frontend app is not part of the agent-api image
+apps
+# Large reference media (not needed by agent-api)
+docs/reference
+# Browser/e2e artifacts
+**/e2e/__artifacts__
+*.log

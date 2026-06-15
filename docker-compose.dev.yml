@@ -45,8 +45,10 @@ services:
 
   agent-api:
     build:
-      context: ./services/agent-api
-      dockerfile: Dockerfile
+      # Root context so the Dockerfile can bake the manifest/state files
+      # (matches .github/workflows/main-deploy.yml).
+      context: .
+      dockerfile: services/agent-api/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-superbrain}:${POSTGRES_PASSWORD:-change-me-now}@postgres:5432/${POSTGRES_DB:-superbrain_prod}
