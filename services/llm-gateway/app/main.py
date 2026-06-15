@@ -966,7 +966,10 @@ def health() -> dict[str, object]:
         "provider_model_count_visible": router["model_count_visible"],
         "local_llm": {
             "enabled": local_llm_enabled(),
-            "healthy": local_llm_health(),
+            # Only probe the optional local provider when it is actually enabled. In cloud /
+            # deterministic_dry_run mode there is no local-llm host, and an unconditional probe
+            # blocks on the connect timeout (~3s) and fails the container healthcheck.
+            "healthy": local_llm_health() if local_llm_enabled() else False,
             "base_url": LOCAL_LLM_BASE_URL,
             "model": LOCAL_LLM_MODEL,
         },

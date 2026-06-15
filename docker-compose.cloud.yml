@@ -84,7 +84,7 @@ services:
     expose:
       - "8000"
     volumes:
-      - ./progress/project-progress.manifest.json:/app/progress/project-progress.manifest.json:ro
+      - ./docs/project-progress.manifest.json:/app/progress/project-progress.manifest.json:ro
       - ./docs/runtime-state/external-gate-summary.json:/app/progress/external-gate-summary.json:ro
       - ./PROJECT_STATE.md:/app/PROJECT_STATE.md:ro
       - ./docs/codex-integration/autonomous-agent-roster.json:/app/docs/codex-integration/autonomous-agent-roster.json:ro
@@ -284,7 +284,9 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      STAGING_HOSTNAME: ${STAGING_HOSTNAME:-}
+      # Default to ":80" (plain HTTP edge) when no public hostname is provided, so Caddy does not
+      # misparse an empty site address as a global options block. Set a real host for HTTPS/ACME.
+      STAGING_HOSTNAME: ${STAGING_HOSTNAME:-:80}
       CADDY_EMAIL: ${CADDY_EMAIL:-}
     volumes:
       - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
