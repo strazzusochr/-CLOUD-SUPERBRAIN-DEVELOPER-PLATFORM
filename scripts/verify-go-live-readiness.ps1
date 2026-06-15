@@ -120,8 +120,11 @@ Write-Host "[go-live-readiness] sanitized external gate summary"
 $summary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
 Assert-NoSecretPattern "sanitized external gate summary" $summary
 Assert-True "summary contract" ($summary.contract_version -eq "external-gate-summary-v1")
+Assert-True "summary source contract parity" ($summary.source_contract_version -eq $audit.contract_version)
 Assert-True "summary status" ($summary.status -eq $audit.status)
 Assert-True "summary production claim parity" ($summary.production_deploy_claim_allowed -eq $audit.production_deploy_claim_allowed)
+Assert-True "summary audit timestamp parity" ($summary.generated_at_utc -eq $audit.generated_at_utc)
+Assert-True "summary source artifact points to latest audit" ([System.IO.Path]::GetFileName([string]$summary.source_artifact) -eq $latestAudit.Name)
 Assert-Contains "summary missing gate" $summary.missing_or_failed_gates "hosted_agent_api_contracts"
 Assert-Contains "summary missing gate" $summary.missing_or_failed_gates "vercel_backend_origin_health"
 if ($summary.branch_protection_claim_allowed -eq $false) {
