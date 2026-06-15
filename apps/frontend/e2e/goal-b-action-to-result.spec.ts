@@ -20,13 +20,16 @@ test.describe("Goal B action-to-result runtime proof", () => {
     expect(seen.some((url) => url.includes("/api/v1/workspace/artifacts"))).toBeTruthy();
   });
 
-  test("agents start/reset/status produce visible dry-run state", async ({ page }) => {
+  test("agents start/reset/status produce visible real local state", async ({ page }) => {
     const seen: string[] = [];
     page.on("requestfinished", (request) => seen.push(request.url()));
     await goto(page, "/agents");
     await page.getByTestId("goal-b-agent-start").click();
     await expect(page.getByTestId("goal-b-agent-result")).toContainText("PASS agent_steer", { timeout: 90_000 });
     await expect(page.getByTestId("goal-b-agent-result")).toContainText("live_provider_calls=false");
+    await expect(page.getByTestId("goal-b-agent-result")).toContainText("local_model_calls=true");
+    await expect(page.getByTestId("goal-b-agent-result")).toContainText("action=file_written");
+    await expect(page.getByTestId("goal-b-agent-result")).toContainText("output=F2/planner/");
     await page.getByTestId("goal-b-agent-reset").click();
     await expect(page.getByTestId("goal-b-agent-result")).toContainText("PASS agent_reset");
     await page.getByTestId("goal-b-agent-status").click();

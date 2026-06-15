@@ -1,5 +1,6 @@
 import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, Badge, Note } from "../../components/ui";
+import { OpenSourceProbe } from "../../components/batch5-actions";
 import { Icon } from "../../lib/nav";
 
 export const metadata = { title: "Open Source — Cloud Superbrain" };
@@ -38,6 +39,10 @@ export default function OpenSourcePage() {
           subtitle="Cloud Superbrain is open-source, independent and free-first. Use it, fork it, self-host it, and own your workflow end to end."
           actions={<Badge tone="green">no vendor lock-in</Badge>}
         />
+
+        <div style={{ marginBottom: 16 }}>
+          <OpenSourceProbe />
+        </div>
 
         <div className="grid cols-3">
           {PRINCIPLES.map((p) => (

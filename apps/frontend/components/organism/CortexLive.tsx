@@ -8,7 +8,7 @@
  */
 
 import dynamic from "next/dynamic";
-import { Component, type ReactNode, useEffect } from "react";
+import { Component, type ReactNode, useEffect, useState } from "react";
 import CortexCanvas from "./CortexCanvas";
 import type { RunState } from "./regionMap";
 
@@ -61,7 +61,15 @@ function detectMode(forceReducedMotion?: boolean): "2d" | "3d" {
 
 export default function CortexLive(props: Props) {
   const { forceReducedMotion, onMode } = props;
-  const mode = detectMode(forceReducedMotion);
+  const [mode, setMode] = useState<"2d" | "3d">("2d");
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setMode(detectMode(forceReducedMotion));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [forceReducedMotion]);
+
   useEffect(() => {
     onMode?.(mode);
   }, [mode, onMode]);

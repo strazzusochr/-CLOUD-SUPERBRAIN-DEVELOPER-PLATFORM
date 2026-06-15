@@ -2,6 +2,7 @@ import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, Metric, Badge, StatusDot } from "../../components/ui";
 import { Icon } from "../../lib/nav";
+import { HomeCortexHero, HomeHeroProofPanel } from "../../components/batch4-actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Home — Cloud Superbrain" };
@@ -10,32 +11,38 @@ export default async function HomePage() {
   return (
     <AppShell crumb="Home" runState="idle">
       <div className="page">
-        <PageHeader
-          eyebrow="Cloud Superbrain"
-          title="Developer Platform"
-          subtitle="Saubere Produktfläche für Games, Apps, Media und Docs. Nachweise, Verifier und externe Laufdaten bleiben getrennt in Evidence, Diagnostics und Organism verdrahtet."
-          actions={
-            <Link href="/workbench" className="btn btn-primary">
-              {Icon.workbench({ size: 16 })} Werkbank öffnen
-            </Link>
-          }
-        />
+        <div className="home-hero-shell">
+          <div className="home-hero-copy">
+            <PageHeader
+              eyebrow="Cloud Superbrain"
+              title="Developer Platform"
+              subtitle="Saubere Produktfläche für Games, Apps, Media und Docs. Nachweise, Verifier und externe Laufdaten bleiben getrennt in Evidence, Diagnostics und Organism verdrahtet."
+              actions={
+                <Link href="/workbench" className="btn btn-primary">
+                  {Icon.workbench({ size: 16 })} Werkbank öffnen
+                </Link>
+              }
+            />
+            <HomeHeroProofPanel />
+          </div>
+          <HomeCortexHero />
+        </div>
 
         <div className="grid cols-4" style={{ marginBottom: 16 }}>
           <Metric
             label="Studio-Modi"
             value="4"
-            foot={<><StatusDot tone="cyan" /> Game · App · Media · Docs</>}
+            foot={<><StatusDot tone="cyan" /> Produkt-Konstante</>}
           />
           <Metric
             label="Core Pages"
             value="22"
-            foot={<><StatusDot tone="green" /> 7-Layer Navigation</>}
+            foot={<><StatusDot tone="green" /> kanonische Navigation</>}
           />
           <Metric
             label="Cloud-Layer"
             value="7"
-            foot={<><StatusDot tone="cyan" /> Vercel · Fly · GHCR · Grafana</>}
+            foot={<><StatusDot tone="cyan" /> Architektur-Konstante</>}
           />
           <Metric
             label="Live Claims"

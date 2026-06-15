@@ -3,6 +3,7 @@ import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, Badge, EmptyState } from "../../components/ui";
 import { Icon } from "../../lib/nav";
 import { fetchRecentSessions } from "../../lib/agentApi";
+import { WorkspaceModeActionPanel, DocsExportPanel } from "../../components/goal-b-actions";
 
 export const metadata = { title: "Documents Workflow — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -18,13 +19,15 @@ export default async function DocsOutputPage() {
   const live = !!sessions;
   const withOutput = sessions?.filter((s) => !!(s.assistantResult && String(s.assistantResult).trim())).slice(0, 12) ?? [];
   const selected = withOutput.length ? withOutput[0] : null;
+  const exportTitle = selected ? `${selected.projectId || "project"}-${selected.id.slice(0, 8)}` : "cloud-superbrain-export";
+  const exportContent = selected?.assistantResult ? String(selected.assistantResult) : "";
   return (
     <AppShell crumb="Documents" runState="idle">
       <div className="page-wide">
         <PageHeader
           eyebrow="Dokumente"
           title="Markdown- & Dokument-Output"
-          subtitle="Projection von echten Run-Outputs (assistant results). Export bleibt gated."
+          subtitle="Projection von echten Run-Outputs (assistant results) mit lokalem Markdown-/PDF-Export."
           actions={
             <>
               {live ? <Badge tone="green">● Live</Badge> : <Badge tone="mut">offline</Badge>}
@@ -64,9 +67,16 @@ export default async function DocsOutputPage() {
           </Panel>
           <Panel title="Zitate · Export">
             <div className="wb-pad stack" style={{ gap: 10 }}>
-              <button className="btn btn-sm">Export PDF <Badge tone="violet">geplant</Badge></button>
-              <button className="btn btn-sm">Export MD</button>
-              <p style={{ fontSize: 12, color: "var(--text-dim)" }}>Source-Collector und Zitate erscheinen hier.</p>
+              <WorkspaceModeActionPanel mode="docs-output" label="Document" />
+              <DocsExportPanel
+                exportTitle={exportTitle}
+                exportContent={exportContent}
+                projectId={selected?.projectId ?? "goal-b-local"}
+                sessionId={selected?.id ?? null}
+              />
+              <p style={{ fontSize: 12, color: "var(--text-dim)" }}>
+                Ohne Session-Output faellt der Export ehrlich auf die lokale End-Ziel-Spec zurueck.
+              </p>
             </div>
           </Panel>
         </div>

@@ -3,6 +3,7 @@
 // deliberately exposes ONLY the generic event_type — no session/user identifiers.
 
 type RawEvent = { event_type?: unknown };
+type OrganismProjectionKind = "events" | "replay";
 
 /** Ordered: more specific event-type keywords win (e.g. "completed" before "task"). */
 const HUB_BY_KIND: Array<[RegExp, string, string, string[]]> = [
@@ -45,5 +46,28 @@ export async function fetchActivityKinds(limit = 12, traceId?: string | null): P
     return kinds.length ? kinds : null;
   } catch {
     return null;
+  }
+}
+
+/** Prefer the Agent API's explicit organism projection when available. It is
+ * already redacted by contract, and callers still keep their spec-only fallback. */
+export async function fetchOrganismProjection(kind: OrganismProjectionKind, runId?: string | null): Promise<Record<string, unknown> | null> {
+  const base = process.env.AGENT_API_INTERNAL_URL?.replace(/\/$/, "");
+  if (!base) return null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    const ctrl = new AbortController();
+    timer = setTimeout(() => ctrl.abort(), 1500);
+    const path = new URL(`${base}/api/v1/organism/${kind}`);
+    if (runId) path.searchParams.set("run_id", runId);
+    const res = await fetch(path, { cache: "no-store", signal: ctrl.signal });
+    if (!res.ok) return null;
+    const body = (await res.json()) as Record<string, unknown>;
+    if (body?.source !== "agent-api" || body?.source_kind !== "agent_api_redacted") return null;
+    return body;
+  } catch {
+    return null;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }

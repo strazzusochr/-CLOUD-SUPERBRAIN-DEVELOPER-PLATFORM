@@ -1,10 +1,20 @@
 import { HUBS, LAYERS, PROVIDERS, REGIONS } from "../../../../../components/organism/regionMap";
-import { WORKSPACE_PAGES } from "../../../../../lib/nav";
 import { AGENTS, CLOSED_GATES, MCP_TOOLS, MODELS, SKILLS } from "../../../../../lib/platform";
+import { workspaceWiringSurfaces } from "../../../../../lib/workspaceWiring";
 
 export const dynamic = "force-static";
 
+const nodeSlug = (value: string) => {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "ref";
+};
+
+const uniqueStrings = (items: string[]) => Array.from(new Set(items)).sort((a, b) => a.localeCompare(b));
+
 export function GET() {
+  const workspacePages = workspaceWiringSurfaces();
+  const workspaceDataSources = uniqueStrings(workspacePages.flatMap((page) => page.dataSources));
+  const workspaceVerifierRefs = uniqueStrings(workspacePages.flatMap((page) => page.verifierRefs));
+
   return Response.json({
     contract_version: "organism-topology-v1",
     endpoint: "/api/v1/organism/topology",
@@ -88,15 +98,35 @@ export function GET() {
         secret_output: false,
         writes: false,
       })),
-      ...WORKSPACE_PAGES.map((page) => ({
-        id: `page:${page.id}`,
+      ...workspacePages.map((page) => ({
+        id: `page:${page.pageId}`,
         kind: "workspace_page",
         no: page.no,
         label: page.label,
         route: page.route,
         layer: page.layer,
+        brain_region: page.brainRegion,
+        hub: page.hub,
+        data_sources: page.dataSources,
+        verifier_refs: page.verifierRefs,
+        event_kinds: page.eventKinds,
         secret_output: false,
         writes: false,
+      })),
+      ...workspaceDataSources.map((source) => ({
+        id: `source:${nodeSlug(source)}`,
+        kind: "workspace_data_source",
+        label: source,
+        secret_output: false,
+        writes: false,
+      })),
+      ...workspaceVerifierRefs.map((verifier) => ({
+        id: `verifier:${nodeSlug(verifier)}`,
+        kind: "workspace_verifier",
+        label: verifier,
+        secret_output: false,
+        writes: false,
+        executes: false,
       })),
       ...PROVIDERS.map((provider) => ({
         id: `provider:${provider.id}`,
@@ -157,11 +187,31 @@ export function GET() {
         to: "hub:tools",
         kind: "skill_to_tool_hub",
       })),
-      ...WORKSPACE_PAGES.map((page) => ({
-        from: `page:${page.id}`,
+      ...workspacePages.map((page) => ({
+        from: `page:${page.pageId}`,
         to: `layer:${page.layer}`,
         kind: "page_to_layer",
       })),
+      ...workspacePages.map((page) => ({
+        from: `page:${page.pageId}`,
+        to: `region:${page.brainRegion}`,
+        kind: "page_to_brain_region",
+      })),
+      ...workspacePages.map((page) => ({
+        from: `page:${page.pageId}`,
+        to: `hub:${page.hub}`,
+        kind: "page_to_capability_hub",
+      })),
+      ...workspacePages.flatMap((page) => page.dataSources.map((source) => ({
+        from: `page:${page.pageId}`,
+        to: `source:${nodeSlug(source)}`,
+        kind: "page_to_data_source",
+      }))),
+      ...workspacePages.flatMap((page) => page.verifierRefs.map((verifier) => ({
+        from: `page:${page.pageId}`,
+        to: `verifier:${nodeSlug(verifier)}`,
+        kind: "page_to_verifier",
+      }))),
       ...LAYERS.flatMap((layer) => layer.providers.map((providerId) => ({
         from: `layer:${layer.code}`,
         to: `provider:${providerId}`,

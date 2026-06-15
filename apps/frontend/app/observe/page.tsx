@@ -5,6 +5,7 @@ import { SERVICES, API_SURFACES } from "../../lib/platform";
 import { LAYERS } from "../../components/organism/regionMap";
 import { fetchMetrics } from "../../lib/agentApi";
 import { paidCapabilityVisible } from "../../lib/paidCapabilities";
+import { ObserveRuntimeProbe } from "../../components/batch4-actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Beobachten / Monitoring — Cloud Superbrain" };
@@ -98,6 +99,9 @@ export default async function ObservePage({ searchParams }: ObservePageProps) {
 
         <Panel title="Traffic (OpenTelemetry)" style={{ marginTop: 16 }} pad>
           <SpecModeBadge mode="spec_only" />
+          <div style={{ marginTop: 10, marginBottom: 10 }}>
+            <ObserveRuntimeProbe />
+          </div>
           <svg viewBox="0 0 320 120" width="100%" height="120" style={{ marginTop: 10 }} role="img" aria-label="Traffic chart (spec-only)">
             {BARS.map((b, i) => (
               <rect key={i} x={i * 26 + 6} y={120 - b} width="16" height={b} rx="3" fill="url(#g11)" opacity="0.85" />

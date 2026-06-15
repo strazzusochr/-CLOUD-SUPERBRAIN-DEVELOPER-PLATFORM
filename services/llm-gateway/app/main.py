@@ -22,6 +22,8 @@ HF_ROUTER_TIMEOUT_SECONDS = float(os.getenv("HF_ROUTER_TIMEOUT_SECONDS", "90"))
 LOCAL_LLM_BASE_URL = os.getenv("LOCAL_LLM_BASE_URL", "http://local-llm:8080/v1").rstrip("/")
 LOCAL_LLM_MODEL = os.getenv("LOCAL_LLM_MODEL", "gemma-3-1b-it").strip() or "gemma-3-1b-it"
 LOCAL_LLM_TIMEOUT_SECONDS = float(os.getenv("LOCAL_LLM_TIMEOUT_SECONDS", "180"))
+# Bound local CPU generation so an unbounded request cannot run away (and time out callers).
+LOCAL_LLM_MAX_TOKENS_DEFAULT = int(os.getenv("LOCAL_LLM_MAX_TOKENS_DEFAULT", "256") or "256")
 LLM_LIVE_PROVIDER_DEFAULT = os.getenv("LLM_LIVE_PROVIDER_DEFAULT", "false").strip().lower() in {
     "1",
     "true",
@@ -662,8 +664,9 @@ def call_local_chat_completion(request: ChatCompletionRequest) -> dict[str, Any]
     }
     if request.temperature is not None:
         upstream_payload["temperature"] = request.temperature
-    if request.max_tokens is not None:
-        upstream_payload["max_tokens"] = request.max_tokens
+    upstream_payload["max_tokens"] = (
+        request.max_tokens if request.max_tokens is not None else LOCAL_LLM_MAX_TOKENS_DEFAULT
+    )
 
     try:
         with httpx.Client(timeout=LOCAL_LLM_TIMEOUT_SECONDS) as client:
@@ -1070,13 +1073,18 @@ def routing_resolve(request: RoutingResolveRequest) -> dict[str, object]:
 def chat_completions(request: ChatCompletionRequest):
     created = int(time.time())
     live_allowed = request_allows_live_provider(request.metadata)
-    local_live_call = local_llm_enabled()
-    live_call = live_allowed and hf_router_available()
+    # Local llama.cpp is an optional, open-source, local-CPU provider. When it is enabled but
+    # unavailable/unhealthy (still loading model, saturated, or down), degrade gracefully to the
+    # deterministic dry-run path instead of hard-failing — a missing optional local provider must
+    # not turn a Phase-2 orchestration run into a 500.
+    # A caller (e.g. the Phase-2 LangGraph orchestrator) can demand the deterministic dry-run path
+    # explicitly; it must not be routed through the slow local model or any live provider.
+    deterministic_only = isinstance(request.metadata, dict) and request.metadata.get("deterministic_dry_run") is True
+    local_live_call = local_llm_enabled() and local_llm_health() and not deterministic_only
+    live_call = live_allowed and hf_router_available() and not deterministic_only
     completion_id = f"chatcmpl-{'local' if local_live_call else 'hf' if live_call else 'dryrun'}-{uuid4()}"
 
     if local_live_call:
-        if not local_llm_health():
-            raise HTTPException(status_code=503, detail="Local llama.cpp service is not healthy")
         response_payload = call_local_chat_completion(request)
         content = extract_chat_content(response_payload)
         usage = usage_from_chat_payload(request, response_payload, content)
@@ -1119,7 +1127,7 @@ def chat_completions(request: ChatCompletionRequest):
         response_payload["cost_cents"] = 0
         response_payload["model_downloads"] = False
     else:
-        if live_allowed and not hf_router_available() and not local_live_call:
+        if live_allowed and not hf_router_available() and not local_live_call and not deterministic_only:
             raise HTTPException(status_code=503, detail="HF_TOKEN is required for live Hugging Face router calls")
         content = deterministic_content(request)
         usage = chat_usage(request, content)
@@ -1187,9 +1195,7 @@ def create_response(payload: dict[str, Any]) -> dict[str, Any]:
         metadata=normalized.get("metadata") if isinstance(normalized.get("metadata"), dict) else {},
     )
     live_allowed = request_allows_live_provider(chat_request.metadata)
-    if local_llm_enabled():
-        if not local_llm_health():
-            raise HTTPException(status_code=503, detail="Local llama.cpp service is not healthy")
+    if local_llm_enabled() and local_llm_health():
         chat_payload = call_local_chat_completion(chat_request)
         content = extract_chat_content(chat_payload)
         usage = usage_from_chat_payload(chat_request, chat_payload, content)

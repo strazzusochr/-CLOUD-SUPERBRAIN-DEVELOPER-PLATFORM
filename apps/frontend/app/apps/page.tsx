@@ -2,6 +2,7 @@ import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Badge, EmptyState } from "../../components/ui";
 import { fetchRecentTasks, fetchRecentSessions } from "../../lib/agentApi";
+import { WorkspaceModeActionPanel } from "../../components/goal-b-actions";
 
 export const metadata = { title: "Apps / Generated Output — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -36,6 +37,9 @@ export default async function AppsPage() {
             </>
           }
         />
+        <div style={{ marginBottom: 16 }}>
+          <WorkspaceModeActionPanel mode="apps" label="App" />
+        </div>
         <div className="card-grid">
           {shown.length ? shown.map((t) => {
             const hint = appHint(t);

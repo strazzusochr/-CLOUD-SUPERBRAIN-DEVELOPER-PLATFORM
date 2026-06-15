@@ -1,4 +1,4 @@
-import { fetchActivityKinds, mapKind } from "../agentApi";
+import { fetchActivityKinds, fetchOrganismProjection, mapKind } from "../agentApi";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -35,6 +35,14 @@ function specOnlyFeed(runId: string | null) {
  *  (`agent-activity-trace-v1`, event_type only) when reachable, else spec-only. */
 export async function GET(request: Request) {
   const runId = safeTraceId(new URL(request.url).searchParams.get("run_id"));
+  const projection = await fetchOrganismProjection("events", runId);
+  if (
+    projection?.contract_version === "organism-events-v1" &&
+    Array.isArray(projection.events) &&
+    projection.live === true
+  ) {
+    return Response.json(projection);
+  }
   const kinds = await fetchActivityKinds(12, runId);
   if (!kinds) return Response.json(specOnlyFeed(runId));
   const events = kinds.map((kind, i) => {
@@ -63,6 +71,6 @@ export async function GET(request: Request) {
     run_id: runId,
     note: "Derived from configured agent-api /api/v1/agent-activity/recent (agent-activity-trace-v1; event_type only, no session/user identifiers).",
     events,
-    non_claims: ["redacted runtime events only, no live provider call", "no secret values"],
+    non_claims: ["redacted runtime events only, no live provider call", "no secret values", "read-only audit projection"],
   });
 }

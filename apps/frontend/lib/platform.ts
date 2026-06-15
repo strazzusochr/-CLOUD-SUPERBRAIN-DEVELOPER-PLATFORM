@@ -154,7 +154,7 @@ export const MANIFEST = {
     { id: "P1", pct: 100 },
     { id: "P2", pct: 86 },
     { id: "P3", pct: 40 },
-    { id: "P4", pct: 100 },
+    { id: "P4", pct: 99 },
     { id: "P5", pct: 67 },
     { id: "P6", pct: 0 },
   ],

@@ -8,8 +8,6 @@ import LayerVerifyPill from "./LayerVerifyPill";
 
 function railActive(pathname: string, route: string) {
   if (route === "/home") return pathname === "/home";
-  if (route === "/files") return pathname === "/files";
-  if (route === "/files/local") return pathname.startsWith("/files/local");
   return pathname === route || pathname.startsWith(route + "/");
 }
 
@@ -66,11 +64,21 @@ export default function AppShell({
         ))}
         <div className="rail-spacer" />
         <div className="rail-divider" />
-        <Link href="/open-source" className="rail-item" aria-label="Open Source">
+        <Link
+          href="/open-source"
+          className={`rail-item${railActive(pathname, "/open-source") ? " active" : ""}`}
+          aria-label="Open Source"
+          aria-current={railActive(pathname, "/open-source") ? "page" : undefined}
+        >
           {Icon.open()}
           <span className="rail-tip">Open Source</span>
         </Link>
-        <Link href="/login" className="rail-item" aria-label="Login / Onboarding">
+        <Link
+          href="/login"
+          className={`rail-item${railActive(pathname, "/login") ? " active" : ""}`}
+          aria-label="Login / Onboarding"
+          aria-current={railActive(pathname, "/login") ? "page" : undefined}
+        >
           {Icon.login()}
           <span className="rail-tip">Login</span>
         </Link>

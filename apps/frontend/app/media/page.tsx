@@ -2,6 +2,7 @@ import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, EmptyState, Badge } from "../../components/ui";
 import { fetchRecentTasks } from "../../lib/agentApi";
+import { WorkspaceModeActionPanel } from "../../components/goal-b-actions";
 
 export const metadata = { title: "Media Workflow — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -59,6 +60,7 @@ export default async function MediaPage() {
           </Panel>
           <Panel title="Prompt-Brief">
             <div className="wb-pad">
+              <WorkspaceModeActionPanel mode="media" label="Media" />
               <p style={{ fontSize: 13, color: "var(--text-mut)" }}>
                 Beschreibe das Bild/Video/Audio. Imports und Previews erscheinen hier zuerst.
               </p>

@@ -3,6 +3,7 @@ import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Badge, StatusDot } from "../../components/ui";
 import { VERIFIERS, CLOSED_GATES } from "../../lib/platform";
 import { fetchMetrics } from "../../lib/agentApi";
+import { EvidenceVerifierProbe } from "../../components/batch4-actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Nachweise — Cloud Superbrain" };
@@ -26,6 +27,10 @@ export default async function EvidencePage() {
         />
 
         <SevenLayerBar title="Jeder Claim: verifiziert über 7 Cloud-Layer" />
+
+        <Panel title="Read-only Verifier Probe" style={{ marginBottom: 16 }} pad>
+          <EvidenceVerifierProbe />
+        </Panel>
 
         {live ? (
           <Panel title="Live Runtime-Verification (GET /api/v1/metrics)" style={{ marginBottom: 16 }} actions={<Badge tone="cyan">read-only · keine Token-Werte</Badge>}>

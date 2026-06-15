@@ -451,6 +451,9 @@ def call_llm_gateway_for_task(state: GraphState, task: dict[str, object]) -> dic
             "project_id": state["project_id"],
             "session_id": state["session_id"],
             "run_id": state["run_id"],
+            # Phase-2 is a deterministic dry-run: force the gateway's deterministic path so the
+            # graph never blocks on slow local inference or any live provider.
+            "deterministic_dry_run": True,
         },
     }
     with httpx.Client(timeout=8.0) as client:
@@ -507,17 +510,45 @@ def call_llm_gateway_for_task(state: GraphState, task: dict[str, object]) -> dic
         payload["model"] = selected_model
         stream_chunks: list[dict[str, object]] = []
         done_seen = False
-        with client.stream("POST", f"{llm_gateway_url()}/v1/chat/completions", json=payload) as response:
-            response.raise_for_status()
-            for line in response.iter_lines():
-                if not line:
-                    continue
-                if line.strip() == "data: [DONE]":
-                    done_seen = True
-                    continue
-                chunk = parse_llm_gateway_sse_line(line)
-                if chunk is not None:
-                    stream_chunks.append(chunk)
+        try:
+            with client.stream("POST", f"{llm_gateway_url()}/v1/chat/completions", json=payload) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if not line:
+                        continue
+                    if line.strip() == "data: [DONE]":
+                        done_seen = True
+                        continue
+                    chunk = parse_llm_gateway_sse_line(line)
+                    if chunk is not None:
+                        stream_chunks.append(chunk)
+        except httpx.HTTPError as exc:
+            # A gateway hiccup/timeout must degrade to a structured envelope, never crash the graph.
+            return {
+                "trace_id": trace_id,
+                "agent_type": agent_type,
+                "routing": route,
+                "routing_policy": routing_policy,
+                "routing_policy_checked": True,
+                "routing_policy_decision": routing_policy.get("decision"),
+                "routing_policy_contract_version": routing_policy.get("contract_version"),
+                "routing_policy_evidence_ref": routing_policy.get("evidence_ref"),
+                "model": selected_model,
+                "status": "gateway_unavailable",
+                "content": f"LLM gateway streaming unavailable: {type(exc).__name__}",
+                "usage": {},
+                "cost_cents": 0,
+                "streaming_used": False,
+                "streaming_protocol": "openai_compatible_sse",
+                "stream_chunk_count": 0,
+                "stream_done_seen": False,
+                "live_provider_calls": False,
+                "live_provider_calls_proven_false": True,
+                "audit_persisted": False,
+                "memory_context_injected": bool(state.get("memory_context")),
+                "memory_context_count": len(state.get("memory_context", [])),
+                "memory_context_budget": state.get("memory_context_budget", {}),
+            }
 
     content_parts: list[str] = []
     for chunk in stream_chunks:

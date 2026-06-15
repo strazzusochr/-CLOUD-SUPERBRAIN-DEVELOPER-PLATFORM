@@ -73,6 +73,49 @@ test.describe("Cloud Superbrain platform", () => {
     expect(safety.data_rules.provider_write).toBe(false);
   });
 
+  test("workspace wiring maps all 22 pages to organism regions and verifiers", async ({ request }) => {
+    const resp = await request.get("/api/v1/workspace/wiring");
+    expect(resp.status()).toBe(200);
+    const json = await resp.json();
+    expect(json.contract_version).toBe("workspace-surface-wiring-v1");
+    expect(json.evidence_ref).toBe("workspace_surface_wiring_visible");
+    expect(json.page_count).toBe(22);
+    expect(json.surfaces.length).toBe(22);
+    const routes = new Set(json.surfaces.map((surface: { route: string }) => surface.route));
+    for (const route of ["/home", "/workbench", "/organism", "/agents", "/files", "/tools", "/evidence", "/open-source"]) {
+      expect(routes.has(route), route).toBeTruthy();
+    }
+    for (const surface of json.surfaces as Array<{
+      brainRegion: string;
+      hub: string;
+      dataSources: string[];
+      verifierRefs: string[];
+      live: boolean;
+      writes: boolean;
+      secretOutput: boolean;
+    }>) {
+      expect(surface.brainRegion).toBeTruthy();
+      expect(surface.hub).toBeTruthy();
+      expect(surface.dataSources.length).toBeGreaterThan(0);
+      expect(surface.verifierRefs.length).toBeGreaterThan(0);
+      expect(surface.live).toBe(false);
+      expect(surface.writes).toBe(false);
+      expect(surface.secretOutput).toBe(false);
+    }
+  });
+
+  test("workbench hides budget until a paid or metered option is selected", async ({ page }) => {
+    await page.goto("/workbench", { waitUntil: "networkidle" });
+    await expect(page.getByText("Metered Budget")).toHaveCount(0);
+    await expect(page.getByText("paid/metered Capability")).toHaveCount(0);
+    await expect(page.getByText("Prompt Composer")).toBeVisible();
+    await expect(page.getByText("Preview / Assets")).toBeVisible();
+
+    await page.goto("/workbench?billing=paid", { waitUntil: "networkidle" });
+    await expect(page.getByText("Metered Budget")).toBeVisible();
+    await expect(page.getByText("paid/metered Capability")).toBeVisible();
+  });
+
   test("consolidated pages render real content (not re-export shortcuts)", async ({ page }) => {
     await page.goto("/technology", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Fähigkeiten nach Kategorie")).toBeVisible();
@@ -167,5 +210,82 @@ test.describe("Cloud Superbrain platform", () => {
     expect(hud2, "HUD shows 2D after reduced-motion").toMatch(/2D/);
 
     expect(errors, "no console/page errors during 3D control interaction").toEqual([]);
+  });
+
+  test("organism UI renders redaction-aware runtime feed and replay surface", async ({ page }) => {
+    await page.goto("/organism", { waitUntil: "networkidle" });
+    const feed = page.getByTestId("organism-runtime-feed");
+    await expect(feed).toBeVisible();
+    await expect(feed).toHaveAttribute("data-source-kind", /spec_only|agent_api_redacted/);
+    await expect(feed).toContainText(/events/);
+    await expect(feed).toContainText(/read-only audit projection/);
+    await expect(feed).toContainText(/no raw details/);
+    await expect(feed).not.toContainText(/"details"/);
+    await expect(feed).not.toContainText(/user_id/);
+    await expect(feed).not.toContainText(/session_id/);
+
+    await page.goto("/organism/replay", { waitUntil: "networkidle" });
+    await expect(page.getByTestId("organism-runtime-feed")).toBeVisible();
+    await expect(page.getByTestId("organism-replay-frames")).toBeVisible();
+  });
+
+  test("organism runtime feed forwards run_id to events and replay APIs", async ({ page }) => {
+    const runId = "ui-proof-run-20260610";
+    const seen = { events: false, replay: false };
+
+    await page.route("**/api/v1/organism/events?**", async (route) => {
+      const url = new URL(route.request().url());
+      seen.events = url.searchParams.get("run_id") === runId;
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          contract_version: "organism-events-v1",
+          source: "agent-api",
+          source_kind: "agent_api_redacted",
+          live: true,
+          run_id: runId,
+          note: "redacted ui run proof",
+          events: [{
+            seq: 1,
+            kind: "planning",
+            hub: "workbench",
+            run_state: "planning",
+            severity: "info",
+            source_kind: "agent_api_redacted",
+            secret_output: false,
+            writes: false,
+          }],
+          non_claims: ["read-only audit projection", "no raw details", "no secret values"],
+        }),
+      });
+    });
+
+    await page.route("**/api/v1/organism/replay?**", async (route) => {
+      const url = new URL(route.request().url());
+      seen.replay = url.searchParams.get("run_id") === runId;
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          contract_version: "organism-replay-v1",
+          source: "agent-api",
+          source_kind: "agent_api_redacted",
+          live: true,
+          run_id: runId,
+          replay_available: true,
+          frames: [{ t: 0, run_state: "planning", active: ["workbench"], regions: ["prefrontal_cortex"], source_kind: "agent_api_redacted" }],
+          non_claims: ["read-only audit projection", "no raw details", "no secret values"],
+        }),
+      });
+    });
+
+    await page.goto(`/organism/replay?run_id=${encodeURIComponent(runId)}`, { waitUntil: "networkidle" });
+    const feed = page.getByTestId("organism-runtime-feed");
+    await expect(feed).toHaveAttribute("data-source-kind", "agent_api_redacted");
+    await expect(feed).toHaveAttribute("data-live", "true");
+    await expect(feed).toHaveAttribute("data-run-id", runId);
+    await expect(feed).toContainText(`run_id=${runId}`);
+    await expect(page.getByTestId("organism-replay-frames")).toBeVisible();
+    expect(seen.events).toBe(true);
+    expect(seen.replay).toBe(true);
   });
 });

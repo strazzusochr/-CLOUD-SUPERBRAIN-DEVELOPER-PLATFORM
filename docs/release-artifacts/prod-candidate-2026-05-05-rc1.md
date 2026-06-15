@@ -48,14 +48,14 @@ risk_review_recheck_proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1
 provenance_review_proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-provenance-review.md`
 smoke_recheck_proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-smoke-recheck.md`
 observability_recheck_proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-observability-recheck.md`
-browser_evidence_reactivation_proof: `.phase1-artifacts/phase5-browser-evidence-reactivation-20260507.md`
-browser_proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-browser-proof.md`
-post_rollback_browser_revalidation_proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md`
-final_browser_e2e_recheck_proof: `.phase1-artifacts/phase5-final-browser-e2e-recheck-20260507.md`
-full_verifier_sweep_proof: `.phase1-artifacts/phase5-full-verifier-sweep-20260507.md`
-truth_mirror_rebaseline_proof: `.phase1-artifacts/phase5-truth-mirror-rebaseline-20260507.md`
+historical_browser_evidence_reactivation_proof: `.phase1-artifacts/phase5-browser-evidence-reactivation-20260507.md`
+historical_browser_proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-browser-proof.md`
+historical_post_rollback_browser_revalidation_proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md`
+historical_final_browser_e2e_recheck_proof: `.phase1-artifacts/phase5-final-browser-e2e-recheck-20260507.md`
+historical_full_verifier_sweep_proof: `.phase1-artifacts/phase5-full-verifier-sweep-20260507.md`
+historical_truth_mirror_rebaseline_proof: `.phase1-artifacts/phase5-truth-mirror-rebaseline-20260507.md`
 release_readiness_rerun_proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-release-readiness-rerun.md`
-browser_rerun_status: `verified via browser-use iab on 2026-05-07; current browser artifacts active candidate evidence`
+browser_rerun_status: `superseded; historical sslip/Hetzner browser artifacts retained for provenance only; current browser evidence requires Vercel HTTPS STAGING_BASE_URL plus reachable Fly origins`
 review_gate: `reviewed`
 owner_decision: `no-release`
 
@@ -134,12 +134,12 @@ owner_decision: `no-release`
 - Provenance review proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-provenance-review.md`
 - Smoke recheck proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-smoke-recheck.md`
 - Observability recheck proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-observability-recheck.md`
-- Browser evidence reactivation proof: `.phase1-artifacts/phase5-browser-evidence-reactivation-20260507.md`
-- Browser proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-browser-proof.md`
-- Post-rollback browser revalidation proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md`
-- Final browser E2E recheck proof: `.phase1-artifacts/phase5-final-browser-e2e-recheck-20260507.md`
-- Full verifier sweep proof: `.phase1-artifacts/phase5-full-verifier-sweep-20260507.md`
-- Truth mirror rebaseline proof: `.phase1-artifacts/phase5-truth-mirror-rebaseline-20260507.md`
+- Historical browser evidence reactivation proof: `.phase1-artifacts/phase5-browser-evidence-reactivation-20260507.md`
+- Historical browser proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-browser-proof.md`
+- Historical post-rollback browser revalidation proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md`
+- Historical final browser E2E recheck proof: `.phase1-artifacts/phase5-final-browser-e2e-recheck-20260507.md`
+- Historical full verifier sweep proof: `.phase1-artifacts/phase5-full-verifier-sweep-20260507.md`
+- Historical truth mirror rebaseline proof: `.phase1-artifacts/phase5-truth-mirror-rebaseline-20260507.md`
 - Release readiness rerun proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-release-readiness-rerun.md`
 - Hosted URL: `https://188-34-191-140.sslip.io`
 - Workflow run: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/25392582005`
@@ -179,6 +179,6 @@ owner_decision: `no-release`
 - The executed rollback lane and the post-rollback requalification lane were rerun again on `2026-05-07` against the current hosted truth.
 - Hosted staging currently follows the mutable selector `IMAGE_TAG=staging`; digest parity against the immutable candidate tag set is blocked and is not claimed. Service hot-mounts can also override image-contained code, so runtime parity requires an image-filesystem deploy or a freshly built immutable candidate.
 - Current repository `HEAD` and worktree are not claimed as candidate-equal; repo/worktree parity to `ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5` remains explicitly blocked.
-- AI-browser reruns were reactivated on `2026-05-07` through `browser-use` IAB; current browser evidence is active candidate evidence again.
+- AI-browser reruns from `2026-05-07` are historical sslip/Hetzner provenance only; current browser evidence requires Vercel HTTPS `STAGING_BASE_URL` plus reachable Fly origins.
 - Release readiness was rerun again on `2026-05-07` against the same active candidate and hosted truth.
 - `no-release` means this candidate remains a verified production-candidate artifact only; it is not promoted to a rollout artifact.

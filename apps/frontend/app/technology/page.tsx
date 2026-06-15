@@ -1,13 +1,14 @@
 import AppShell from "../../components/shell/AppShell";
 import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Badge, Note } from "../../components/ui";
+import { TechnologyProbe } from "../../components/batch5-actions";
 import { LAYERS, PROVIDERS, providersForLayer } from "../../components/organism/regionMap";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Technology — 7 Layers × 8 Providers — Cloud Superbrain" };
 
 const RUNTIME: { group: string; items: string[] }[] = [
-  { group: "Frontend", items: ["Next.js 15 · App Router", "React 19", "Canvas Cortex (R3F / three.js)"] },
+  { group: "Frontend", items: ["Next.js 16 · App Router", "React 19", "Canvas Cortex (R3F / three.js)"] },
   { group: "Orchestration", items: ["LangGraph", "PostgreSQL checkpointer", "Agent role pool"] },
   { group: "AI / Gateway", items: ["LLM gateway (dry-run default)", "Cloudflare AI Gateway", "Langfuse traces"] },
   { group: "Data / Memory", items: ["PostgreSQL", "pgvector", "Redis"] },
@@ -34,10 +35,13 @@ export default function TechnologyPage() {
           eyebrow="Architektur"
           title={`7 Layer × ${PROVIDERS.length} Cloud-Provider`}
           subtitle="Die sieben Architektur-Layer und die realen Provider dahinter. Mapping spiegelt das Backend-Inventar (GET /api/v1/clouds). Provider-Reads sind read-only; es werden nur Status-Metadaten angezeigt (keine Token-Werte)."
-          actions={<Badge tone="green">Layer live_verified · lokale Runtime</Badge>}
+          actions={<Badge tone="amber">Layer action_required · read-only</Badge>}
         />
 
         <SevenLayerBar />
+        <div style={{ marginTop: 16, marginBottom: 16 }}>
+          <TechnologyProbe />
+        </div>
 
         <Panel title="7-Layer Cloud-Stack">
           <div className="stack-list">
@@ -61,10 +65,10 @@ export default function TechnologyPage() {
         </Panel>
 
         <Note>
-          Live Provider-Status (<span className="mono">live_verified</span> /{" "}
+          Cloud Provider-Status (<span className="mono">live_verified</span> /{" "}
           <span className="mono">configured</span> / <span className="mono">action_required</span>) kommt aus{" "}
-          <span className="mono">GET /api/v1/clouds/layers</span>. In der lokalen docker-compose Runtime
-          melden alle sieben Layer <span className="mono">live_verified</span> (dry-run, keine live Provider-Calls).
+          <span className="mono">GET /api/v1/clouds/layers</span>. Localhost ist nur DEV-ONLY:
+          ohne Owner-Tokens und HTTPS-Staging melden die Layer <span className="mono">action_required</span>.
           Token-Werte werden nie zurückgegeben; Deploy/Registry/Provider-Writes bleiben gate-closed.
         </Note>
 

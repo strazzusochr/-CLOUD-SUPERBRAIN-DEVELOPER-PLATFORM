@@ -25,6 +25,12 @@ function Assert-Contains($label, $value, $expected) {
   }
 }
 
+function Assert-True($label, $condition) {
+  if (-not $condition) {
+    throw "Runtime verification failed: $label"
+  }
+}
+
 function Assert-NotContains($label, $value, $forbidden) {
   $text = ($value | Out-String)
   if ($text.Contains($forbidden)) {
@@ -127,7 +133,8 @@ $resourceReport = powershell -ExecutionPolicy Bypass -File scripts\measure-compo
 Assert-Contains "resource report project" $resourceReport '"project":"cloud-superbrain-phase1-dev"'
 Assert-Contains "resource report upgrade rule" $resourceReport "No Fly.io upgrade without empirical CPU/RAM pressure"
 Assert-Contains "resource report agent-api" $resourceReport '"service":"agent-api"'
-Assert-Contains "resource report container count" $resourceReport '"container_count":9'
+Assert-Contains "resource report container count" $resourceReport '"container_count":10'
+Assert-Contains "resource report local-llm" $resourceReport '"service":"local-llm"'
 Assert-Contains "resource report agent worker" $resourceReport '"service":"agent-worker"'
 Assert-Contains "resource report memory worker" $resourceReport '"service":"memory-worker"'
 Assert-Contains "resource report llm gateway" $resourceReport '"service":"llm-gateway"'
@@ -285,8 +292,12 @@ Assert-Contains "project progress completion version" $projectProgressCompletion
 Assert-Contains "project progress completion status" $projectProgressCompletion '"status":"blocked_external_gates"'
 Assert-Contains "project progress completion evidence" $projectProgressCompletion '"evidence_ref":"project_progress_100_percent_gate_contract"'
 Assert-Contains "project progress completion cannot set all to 100" $projectProgressCompletion '"can_set_all_to_100":false'
-Assert-Contains "project progress completion missing fly gate" $projectProgressCompletion '"missing_external_gates":["fly_api_token"]'
+$projectProgressCompletionJson = $projectProgressCompletion | ConvertFrom-Json
+$projectProgressCompletionMissingGates = @($projectProgressCompletionJson.missing_external_gates | ForEach-Object { [string]$_ })
+Assert-True "project progress completion missing fly gate" ($projectProgressCompletionMissingGates -contains "fly_api_token")
+Assert-True "project progress completion missing vercel backend origins gate" ($projectProgressCompletionMissingGates -contains "vercel_backend_origins")
 Assert-Contains "project progress completion fly blocker" $projectProgressCompletion "live_infra_budget_refresh_requires_FLY_API_TOKEN"
+Assert-Contains "project progress completion vercel origins blocker" $projectProgressCompletion "vercel_backend_origins"
 Assert-Contains "project progress completion local gap blocker" $projectProgressCompletion "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 
 Write-Host "[runtime] layer interface contracts"
@@ -334,7 +345,10 @@ Assert-Contains "cloud deployment preflight runtime evidence" $cloudDeploymentPr
 Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflightRuntime '"status":"action_required"'
 Assert-Contains "cloud deployment preflight cloud claim blocked" $cloudDeploymentPreflightRuntime '"cloud_deploy_claim_allowed":false'
 Assert-Contains "cloud deployment preflight production blocked" $cloudDeploymentPreflightRuntime '"production_deploy_claim_allowed":false'
-Assert-Contains "cloud deployment preflight missing fly cloud stack" $cloudDeploymentPreflightRuntime '"missing_or_blocked_gates":["fly_cloud_stack"]'
+$cloudDeploymentPreflightRuntimeJson = $cloudDeploymentPreflightRuntime | ConvertFrom-Json
+$cloudDeploymentPreflightBlockedGates = @($cloudDeploymentPreflightRuntimeJson.missing_or_blocked_gates | ForEach-Object { [string]$_ })
+Assert-True "cloud deployment preflight missing fly cloud stack" ($cloudDeploymentPreflightBlockedGates -contains "fly_cloud_stack")
+Assert-True "cloud deployment preflight missing hosted backend origins gate" ($cloudDeploymentPreflightBlockedGates -contains "hosted_backend_origins")
 Assert-Contains "cloud deployment preflight ghcr sequence" $cloudDeploymentPreflightRuntime "publish_ghcr_images"
 Assert-Contains "cloud deployment preflight hosted origins" $cloudDeploymentPreflightRuntime "hosted_backend_origins"
 Assert-Contains "cloud deployment preflight branch token" $cloudDeploymentPreflightRuntime "BRANCH_PROTECTION_TOKEN"
@@ -1458,7 +1472,10 @@ Assert-Contains "external gates vercel origins" $externalGates '"id":"vercel_bac
 Assert-Contains "external gates gitleaks" $externalGates '"id":"gitleaks_binary"'
 Assert-Contains "external gates ghcr mapping" $externalGates '"ghcr_images"'
 Assert-Contains "external gates hosted origins mapping" $externalGates '"hosted_backend_origins"'
-Assert-Contains "external gates blocked fly stack" $externalGates '"blocked_release_gates":["fly_cloud_stack"]'
+$externalGatesJson = $externalGates | ConvertFrom-Json
+$externalGatesBlockedRelease = @($externalGatesJson.blocked_release_gates | ForEach-Object { [string]$_ })
+Assert-True "external gates blocked fly stack" ($externalGatesBlockedRelease -contains "fly_cloud_stack")
+Assert-True "external gates blocked hosted origins" ($externalGatesBlockedRelease -contains "hosted_backend_origins")
 $externalGateMirror = curl.exe -sS "$baseUrl/api/v1/external-gates/mirror"
 Assert-Contains "external gate mirror contract" $externalGateMirror '"contract_version":"external-gate-mirror-v1"'
 Assert-Contains "external gate mirror status" $externalGateMirror '"status":"local_mirror_ready_hosted_blocked"'
@@ -1933,6 +1950,9 @@ if ($phase2RuntimeRunStatus.aggregation_evidence_ref -ne "agent_result_aggregati
 if ($phase2RuntimeRunStatus.live_provider_calls -ne $false) { throw "Runtime verification failed: phase2 runtime run status claimed live provider calls" }
 if ($phase2RuntimeRunStatus.live_mcp_writes -ne $false) { throw "Runtime verification failed: phase2 runtime run status claimed live MCP writes" }
 if ($phase2RuntimeRunStatus.production_deploy -ne $false) { throw "Runtime verification failed: phase2 runtime run status claimed production deploy" }
+
+Write-Host "[runtime] organism runtime event projection"
+& (Join-Path $PSScriptRoot "verify-organism-runtime-events.ps1") -BaseUrl $baseUrl -AllowLocalhost -RunId $phase2RuntimeRun.thread_id
 
 Write-Host "[runtime] langgraph policy hard-stop dry-run"
 $blockedThreadId = [Guid]::NewGuid().ToString()

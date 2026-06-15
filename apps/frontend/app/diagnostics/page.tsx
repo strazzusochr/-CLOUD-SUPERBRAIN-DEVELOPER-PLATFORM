@@ -2,6 +2,7 @@ import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
 import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Badge } from "../../components/ui";
+import { DiagnosticsProbe } from "../../components/batch5-actions";
 import { VERIFIERS } from "../../lib/platform";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +27,9 @@ export default async function DiagnosticsPage() {
         />
 
         <SevenLayerBar title="7 Layer Architektur (UI-Surfaces, read-only)" />
+        <div style={{ marginTop: 16 }}>
+          <DiagnosticsProbe />
+        </div>
 
         <div className="grid cols-2" style={{ marginTop: 16 }}>
           <Panel title="Verifier (Rohliste)">
@@ -53,7 +57,11 @@ export default async function DiagnosticsPage() {
                     <td>{a.name}</td>
                     <td><Badge tone="mut">{a.kind}</Badge></td>
                     <td className="mono" style={{ color: "var(--text-mut)", fontSize: 12 }}>{a.date}</td>
-                    <td style={{ textAlign: "right" }}><button className="btn btn-sm btn-ghost">Öffnen</button></td>
+                    <td style={{ textAlign: "right" }}>
+                      <Link href={`/evidence?archive=${encodeURIComponent(a.name)}`} className="btn btn-sm btn-ghost">
+                        Öffnen
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -5,20 +5,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-function Assert-HostedBaseUrlConfigured {
-  if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
-    throw "Hosted verifier requires -BaseUrl or env:STAGING_BASE_URL (HTTPS, non-localhost)."
-  }
-  if ($BaseUrl -notmatch '^https://') {
-    throw "Hosted verifier requires an HTTPS BaseUrl."
-  }
-  if ($BaseUrl -match 'localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0|host\.docker\.internal') {
-    throw "Hosted verifier refuses localhost and loopback BaseUrl values."
-  }
-}
-Assert-HostedBaseUrlConfigured
-
-
 function Assert-Contains($label, $value, $expected) {
   $text = ($value | Out-String)
   if (-not $text.Contains($expected)) {
@@ -26,23 +12,35 @@ function Assert-Contains($label, $value, $expected) {
   }
 }
 
-function Get-Json($url) {
-  @"
-import json, ssl, urllib.request
-ctx = ssl.create_default_context()
-with urllib.request.urlopen(r"$url", context=ctx, timeout=20) as r:
-    print(json.dumps(json.load(r)))
-"@ | py -3 -
+function Assert-NotContains($label, $value, $unexpected) {
+  $text = ($value | Out-String)
+  if ($text.Contains($unexpected)) {
+    throw "Verification failed: $label unexpectedly contained '$unexpected'."
+  }
 }
 
-function Get-Text($url) {
-  @"
-import ssl, urllib.request
-ctx = ssl.create_default_context()
-with urllib.request.urlopen(r"$url", context=ctx, timeout=20) as r:
-    print(r.read().decode("utf-8", errors="replace"))
-"@ | py -3 -
+function Assert-NotMatches($label, $value, $pattern) {
+  $text = ($value | Out-String)
+  if ($text -match $pattern) {
+    throw "Verification failed: $label unexpectedly matched '$pattern'."
+  }
 }
+
+function Assert-OptionalHostedBoundary {
+  if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
+    return
+  }
+  if ($BaseUrl -notmatch '^https://') {
+    throw "Hosted verifier requires an HTTPS BaseUrl when -BaseUrl is supplied."
+  }
+  if ($BaseUrl -match 'localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0|host\.docker\.internal') {
+    throw "Hosted verifier refuses localhost and loopback BaseUrl values."
+  }
+  if ($BaseUrl -match 'sslip\.io|188\.34\.191\.140|hetzner') {
+    throw "Hosted verifier refuses retired sslip.io/Hetzner BaseUrl values."
+  }
+}
+Assert-OptionalHostedBoundary
 
 $artifactPath = "docs\release-artifacts\prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md"
 if (-not (Test-Path $artifactPath)) {
@@ -51,44 +49,31 @@ if (-not (Test-Path $artifactPath)) {
 
 $artifact = Get-Content $artifactPath -Raw
 foreach ($required in @(
-  'Status: `verified`',
+  'Status: `superseded`',
   "release_id: ``$ReleaseId``",
+  'historical_base_url: `https://188-34-191-140.sslip.io`',
+  'retired_boundary: `sslip_io_hetzner`',
+  'current_candidate_evidence: `false`',
+  'current_hosted_gate_status: `blocked_pending_vercel_fly`',
   'browser_tool: `browser-use iab via mcp__node_repl__.js`',
   'rollback_context_proof: `.phase1-artifacts/phase5-executed-rollback-prod-candidate-20260505-rc1.md`',
   'host_selector_after_revalidation: `IMAGE_TAG=staging`',
   'browser_logs_warnings_or_errors: `0`',
   'Phase 5 - Release Readiness',
-  'Progress Integrity'
+  'Progress Integrity',
+  'This is historical provenance only and does not close current hosted browser, staged, or external gates.'
 )) {
   Assert-Contains "post-rollback browser artifact" $artifact $required
 }
+Assert-NotContains "post-rollback browser artifact" $artifact 'Status: `verified`'
 
 $candidatePath = "docs\release-artifacts\$ReleaseId.md"
 $candidate = Get-Content $candidatePath -Raw
-Assert-Contains "candidate browser status" $candidate 'browser_rerun_status: `verified via browser-use iab on 2026-05-07; current browser artifacts active candidate evidence`'
-Assert-Contains "candidate browser revalidation field" $candidate 'post_rollback_browser_revalidation_proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md`'
-Assert-Contains "candidate browser revalidation bullet" $candidate 'Post-rollback browser revalidation proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md`'
+Assert-Contains "candidate browser status" $candidate 'browser_rerun_status: `superseded; historical sslip/Hetzner browser artifacts retained for provenance only; current browser evidence requires Vercel HTTPS STAGING_BASE_URL plus reachable Fly origins`'
+Assert-Contains "candidate browser revalidation field" $candidate 'historical_post_rollback_browser_revalidation_proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md`'
+Assert-Contains "candidate browser revalidation bullet" $candidate 'Historical post-rollback browser revalidation proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md`'
+Assert-NotMatches "candidate active browser revalidation field" $candidate '(?m)^post_rollback_browser_revalidation_proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation\.md`$'
+Assert-NotContains "candidate active browser revalidation bullet" $candidate 'Post-rollback browser revalidation proof: `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md`'
+Assert-NotContains "candidate active browser status" $candidate 'current browser artifacts active candidate evidence'
 
-$html = Get-Text "$BaseUrl/"
-foreach ($required in @(
-  '<title>Cloud Superbrain</title>',
-  'Project Progress',
-  'External Gates',
-  'Phase 5 - Release Readiness',
-  'Progress Integrity',
-  'Error Response Contract',
-  'System Unavailable Fallback'
-)) {
-  Assert-Contains "hosted html" $html $required
-}
-
-$manifest = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
-$expectedOverall = [int]$manifest.overall_percent
-$expectedPhase5 = [int](($manifest.horizontal.items | Where-Object { $_.id -eq "phase_5" }).percent)
-$progress = Get-Json "$BaseUrl/api/v1/project/progress"
-Assert-Contains "hosted progress overall" $progress """overall_percent"": $expectedOverall"
-Assert-Contains "hosted progress phase5" $progress """percent"": $expectedPhase5"
-$integrity = Get-Json "$BaseUrl/api/v1/project/progress/integrity"
-Assert-Contains "integrity" $integrity '"status": "verified"'
-
-Write-Host "[phase5-post-rollback-browser-revalidation] live hosted browser revalidation verified"
+Write-Host "[phase5-post-rollback-browser-revalidation] historical browser revalidation retired; current hosted browser gate remains blocked"

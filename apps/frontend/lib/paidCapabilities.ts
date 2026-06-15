@@ -18,10 +18,6 @@ const PAID_OPTION_ENV_KEYS = [
   "PAID_LLM_ENABLED",
   "ENABLE_PAID_TOOL_OPTIONS",
   "LIVE_LLM_TEST_CALL_APPROVED",
-  "OPENAI_API_KEY",
-  "ANTHROPIC_API_KEY",
-  "AZURE_OPENAI_API_KEY",
-  "E2B_API_KEY",
 ];
 
 function firstValue(value: SearchParamValue): string {

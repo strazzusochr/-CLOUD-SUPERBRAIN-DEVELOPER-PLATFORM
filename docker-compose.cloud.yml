@@ -55,6 +55,7 @@ services:
       PROMPT_RATE_LIMIT_CAPACITY: ${PROMPT_RATE_LIMIT_CAPACITY:-20}
       PROMPT_RATE_LIMIT_WINDOW_SECONDS: ${PROMPT_RATE_LIMIT_WINDOW_SECONDS:-3600}
       PROJECT_PROGRESS_MANIFEST_PATH: /app/progress/project-progress.manifest.json
+      EXTERNAL_GATE_SUMMARY_PATH: /app/progress/external-gate-summary.json
       AUTONOMOUS_AGENT_ROSTER_PATH: /app/docs/codex-integration/autonomous-agent-roster.json
       CLOUD_PROVIDER_INVENTORY_ENABLED: ${CLOUD_PROVIDER_INVENTORY_ENABLED:-true}
       FLY_API_TOKEN: ${FLY_API_TOKEN:-}
@@ -84,6 +85,7 @@ services:
       - "8000"
     volumes:
       - ./progress/project-progress.manifest.json:/app/progress/project-progress.manifest.json:ro
+      - ./docs/runtime-state/external-gate-summary.json:/app/progress/external-gate-summary.json:ro
       - ./PROJECT_STATE.md:/app/PROJECT_STATE.md:ro
       - ./docs/codex-integration/autonomous-agent-roster.json:/app/docs/codex-integration/autonomous-agent-roster.json:ro
       - ./services/agent-api/app:/app/app:ro

@@ -1,5 +1,6 @@
 import AppShell from "../../../components/shell/AppShell";
 import { PageHeader, Panel, SafetyBadgeRow, SpecModeBadge } from "../../../components/ui";
+import { FilesLocalContractProbe } from "../../../components/batch5-actions";
 import { Icon } from "../../../lib/nav";
 import { FILE_ROOTS, PROJECT_TREE } from "../../../lib/platform";
 
@@ -15,6 +16,10 @@ export default function LocalFilesPage() {
           subtitle="This is a safe, read-only intent surface. In this runtime, local file roots are not mounted into the frontend container, so file listing/search stays unavailable instead of fabricating results."
           actions={<SpecModeBadge mode="read_only_redacted" />}
         />
+
+        <div style={{ marginBottom: 16 }}>
+          <FilesLocalContractProbe />
+        </div>
 
         <div className="panel panel-pad" style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <span className="panel-title">Root</span>
@@ -55,14 +60,23 @@ Provider writes, deploy, push remain CLOSED gates.`}</pre>
 
           <Panel title="Search (unavailable)">
             <div className="wb-pad stack">
-              <div className="row" style={{ gap: 8 }}>
-                <input
+              <div className="row local-search-row">
+                <div
+                  className="local-search-input"
                   aria-label="Search project files"
-                  placeholder="Search is not wired in this runtime"
+                  aria-disabled="true"
+                  role="searchbox"
+                >
+                  Search is not wired in this runtime
+                </div>
+                <button
+                  className="btn btn-sm"
+                  aria-label="Search disabled read-only no live filesystem reads"
+                  title="Search disabled: read-only contract, no live filesystem reads in this runtime"
                   disabled
-                  style={{ flex: 1, background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 9, padding: "8px 12px", fontSize: 13 }}
-                />
-                <button className="btn btn-sm" aria-label="Search" disabled>{Icon.search({ size: 14 })}</button>
+                >
+                  {Icon.search({ size: 14 })}
+                </button>
               </div>
               <div className="list" style={{ border: "1px solid var(--border)", borderRadius: 10 }}>
                 <div className="lrow" style={{ fontSize: 12.5, color: "var(--text-mut)" }}>No results<span className="meta">unavailable</span></div>

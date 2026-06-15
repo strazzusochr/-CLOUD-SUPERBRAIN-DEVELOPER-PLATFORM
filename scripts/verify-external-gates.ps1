@@ -13,6 +13,7 @@ param(
   [string]$StagingSshKeyPath = $(if ($env:STAGING_SSH_KEY_PATH) { $env:STAGING_SSH_KEY_PATH } else { "" }),
   [string]$StagingAppDir = $(if ($env:STAGING_APP_DIR) { $env:STAGING_APP_DIR } else { "/app" }),
   [string]$ArtifactDirectory = ".phase1-artifacts",
+  [string]$SummaryPath = "docs\runtime-state\external-gate-summary.json",
   [switch]$RequireAllClosed
 )
 
@@ -354,45 +355,43 @@ function Invoke-GrafanaCloudIdentityProbe([string]$GrafanaUrl) {
     return New-Probe "grafana_cloud" "missing_secret_or_token" $false $false "grafana_cloud_optional_proof" $GrafanaUrl 0 "GRAFANA_CLOUD_API_KEY is not configured" ""
   }
 
-  $nodeScript = @'
-const grafanaUrl = process.argv[1];
-const token = process.env.GRAFANA_CLOUD_API_KEY;
-if (token.startsWith("glc_")) {
   try {
-    const payload = Buffer.from(token.substring(4), "base64").toString("utf-8");
-    const parsed = JSON.parse(payload);
-    console.log(JSON.stringify({
-      status: 200,
-      ok: true,
-      org_name: parsed.n || parsed.o || '',
-      org_id: parsed.o || null,
-      grafana_url: grafanaUrl
-    }));
-  } catch (e) {
-    console.log(JSON.stringify({ status: 0, ok: false, error: "invalid token structure" }));
-    process.exitCode = 2;
+    $uri = [System.Uri]$GrafanaUrl
+  } catch {
+    return New-Probe "grafana_cloud" "failed" $true $false "grafana_cloud_optional_proof" $GrafanaUrl 0 "Grafana Cloud URL is invalid" "invalid_url"
   }
-} else {
-  console.log(JSON.stringify({ status: 401, ok: false, error: "token must start with glc_" }));
-  process.exitCode = 2;
-}
-'@
-  $previousErrorActionPreference = $ErrorActionPreference
-  $ErrorActionPreference = "Continue"
-  try {
-    $raw = node -e $nodeScript $GrafanaUrl 2>&1 | Out-String
-  } finally {
-    $ErrorActionPreference = $previousErrorActionPreference
+  if ($uri.Scheme -ne "https") {
+    return New-Probe "grafana_cloud" "failed" $true $false "grafana_cloud_optional_proof" $GrafanaUrl 0 "Grafana Cloud URL must use HTTPS" "non_https_url"
   }
+
+  $token = [string]$env:GRAFANA_CLOUD_API_KEY
+  $orgUrl = "$($GrafanaUrl.TrimEnd('/'))/api/org"
   try {
-    $probe = $raw | ConvertFrom-Json
-    $ok = [bool]$probe.ok
-    $result = New-Probe "grafana_cloud" $(if ($ok) { "verified" } else { "failed" }) $true $ok "grafana_cloud_optional_proof" $GrafanaUrl ([int]$probe.status) "Grafana Cloud org checked without storing token" $(if ($probe.error) { [string]$probe.error } else { "" })
-    $result["org_name"] = [string]$probe.org_name
-    $result["org_id"] = $probe.org_id
+    $response = Invoke-RestMethod -Method Get -Uri $orgUrl -Headers @{
+      Authorization = "Bearer $token"
+      Accept = "application/json"
+    } -TimeoutSec 20 -ErrorAction Stop
+
+    $orgName = ""
+    if ($response.name) { $orgName = [string]$response.name }
+    elseif ($response.orgName) { $orgName = [string]$response.orgName }
+
+    $orgId = $null
+    if ($response.id) { $orgId = $response.id }
+    elseif ($response.orgId) { $orgId = $response.orgId }
+
+    $result = New-Probe "grafana_cloud" "verified" $true $true "grafana_cloud_optional_proof" $GrafanaUrl 200 "Grafana Cloud org checked without storing token" ""
+    $result["org_name"] = $orgName
+    $result["org_id"] = $orgId
     return $result
   } catch {
-    return New-Probe "grafana_cloud" "failed" $true $false "grafana_cloud_optional_proof" $GrafanaUrl 0 "Grafana Cloud identity probe failed" ($raw.Trim())
+    $statusCode = 0
+    try { $statusCode = [int]$_.Exception.Response.StatusCode } catch { $statusCode = 0 }
+    $errorText = [string]$_.Exception.Message
+    if (-not [string]::IsNullOrWhiteSpace($token)) {
+      $errorText = $errorText.Replace($token, "[redacted-token]")
+    }
+    return New-Probe "grafana_cloud" "failed" $true $false "grafana_cloud_optional_proof" $GrafanaUrl $statusCode "Grafana Cloud identity probe failed" $errorText
   }
 }
 
@@ -643,7 +642,7 @@ if ($hostedBase -and (Test-RetiredHostedBaseUrl $hostedBase)) {
 $gitleaksCommand = Get-Command gitleaks -ErrorAction SilentlyContinue
 $repoLocalGitleaks = Join-Path ".tools\gitleaks" "gitleaks.exe"
 $gitleaksExecutable = if ($gitleaksCommand) { "gitleaks" } elseif (Test-Path $repoLocalGitleaks) { $repoLocalGitleaks } else { $null }
-$gitleaksProbe = Invoke-NativeProcessProbe "canonical_gitleaks_scan" "canonical_gitleaks_scan_clean" $gitleaksExecutable @("detect", "--no-git", "--source", ".", "--config", ".gitleaks.toml", "--redact") ([bool]$gitleaksExecutable) (Get-TimeoutSeconds "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS" 300)
+$gitleaksProbe = Invoke-NativeProcessProbe "canonical_gitleaks_scan" "canonical_gitleaks_scan_clean" $gitleaksExecutable @("detect", "--no-git", "--source", ".", "--config", ".gitleaks.toml", "--redact") ([bool]$gitleaksExecutable) (Get-TimeoutSeconds "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS" 1200)
 
 $branchTokenConfigured = [bool]$env:BRANCH_PROTECTION_TOKEN
 if ($branchTokenConfigured) {
@@ -781,7 +780,40 @@ New-Item -ItemType Directory -Force -Path $ArtifactDirectory | Out-Null
 $artifactPath = Join-Path $ArtifactDirectory ("external-gate-audit-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
 $summary | ConvertTo-Json -Depth 10 | Set-Content -Path $artifactPath -Encoding UTF8
 
+$runtimeSummary = [ordered]@{
+  contract_version = "external-gate-summary-v1"
+  source_contract_version = [string]$summary.contract_version
+  source_artifact = $artifactPath
+  generated_at_utc = [string]$summary.generated_at_utc
+  status = [string]$summary.status
+  frontend_preview_claim_allowed = [bool]$summary.frontend_preview_claim_allowed
+  hosted_staging_claim_allowed = [bool]$summary.hosted_staging_claim_allowed
+  branch_protection_claim_allowed = [bool]$summary.branch_protection_claim_allowed
+  ghcr_image_digest_claim_allowed = [bool]$summary.ghcr_image_digest_claim_allowed
+  vercel_backend_origins_claim_allowed = [bool]$summary.vercel_backend_origins_claim_allowed
+  canonical_gitleaks_claim_allowed = [bool]$summary.canonical_gitleaks_claim_allowed
+  fly_live_budget_claim_allowed = [bool]$summary.fly_live_budget_claim_allowed
+  gitlab_identity_claim_allowed = [bool]$summary.gitlab_identity_claim_allowed
+  huggingface_identity_claim_allowed = [bool]$summary.huggingface_identity_claim_allowed
+  grafana_cloud_claim_allowed = [bool]$summary.grafana_cloud_claim_allowed
+  production_deploy_claim_allowed = [bool]$summary.production_deploy_claim_allowed
+  missing_or_failed_gates = @($summary.missing_or_failed_gates | ForEach-Object { [string]$_ })
+  failed_hosted_required_probe_ids = @($summary.failed_hosted_required_probe_ids | ForEach-Object { [string]$_ })
+  failed_vercel_origin_probe_ids = @($summary.failed_vercel_origin_probe_ids | ForEach-Object { [string]$_ })
+  non_claims = @(
+    "This is a sanitized runtime summary, not the full audit artifact.",
+    "Probe snippets, URLs, logs, and token values are not included.",
+    "No hosted, production, branch-protection, Fly budget, or Vercel-origin claim is allowed while missing_or_failed_gates is non-empty."
+  )
+}
+$summaryDir = Split-Path -Parent $SummaryPath
+if (-not [string]::IsNullOrWhiteSpace($summaryDir)) {
+  New-Item -ItemType Directory -Force -Path $summaryDir | Out-Null
+}
+$runtimeSummary | ConvertTo-Json -Depth 6 | Set-Content -Path $SummaryPath -Encoding UTF8
+
 Write-Host "[external-gates] artifact=$artifactPath"
+Write-Host "[external-gates] summary=$SummaryPath"
 Write-Host "[external-gates] status=$($summary.status)"
 Write-Host "[external-gates] frontend_preview_claim_allowed=$($summary.frontend_preview_claim_allowed)"
 Write-Host "[external-gates] hosted_staging_claim_allowed=$($summary.hosted_staging_claim_allowed)"

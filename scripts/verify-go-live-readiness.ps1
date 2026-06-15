@@ -1,0 +1,124 @@
+param(
+  [string]$BaseUrl = "http://localhost:8081",
+  [switch]$AllowLocalhost
+)
+
+$ErrorActionPreference = "Stop"
+
+function Assert-True($label, $condition) {
+  if (-not $condition) {
+    throw "Go-live readiness verification failed: $label"
+  }
+}
+
+function Assert-Contains($label, $items, [string]$expected) {
+  $values = @($items | ForEach-Object { [string]$_ })
+  if (-not ($values -contains $expected)) {
+    throw "Go-live readiness verification failed: $label missing '$expected'. Actual: $($values -join ', ')"
+  }
+}
+
+function Assert-NoSecretPattern($label, $value) {
+  $text = $value | ConvertTo-Json -Depth 20 -Compress
+  foreach ($pattern in @(
+    "sk-[A-Za-z0-9_-]{20,}",
+    "sk-ant-[A-Za-z0-9_-]{20,}",
+    "xai-[A-Za-z0-9_-]{20,}",
+    "vck_[A-Za-z0-9_-]{20,}",
+    "ghp_[A-Za-z0-9_]{20,}",
+    "BEGIN (RSA|OPENSSH|EC|PRIVATE) KEY"
+  )) {
+    if ([regex]::IsMatch($text, $pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)) {
+      throw "Go-live readiness verification failed: $label exposed forbidden secret-like pattern"
+    }
+  }
+}
+
+function Invoke-Json($url) {
+  try {
+    return Invoke-RestMethod -Uri $url -Method GET -TimeoutSec 30
+  } catch {
+    throw "Go-live readiness verification failed: GET $url failed: $($_.Exception.Message)"
+  }
+}
+
+if (-not $BaseUrl) {
+  throw "BaseUrl is required"
+}
+
+$BaseUrl = $BaseUrl.TrimEnd("/")
+if ((-not $AllowLocalhost) -and ($BaseUrl -match "localhost|127\.0\.0\.1|\[::1\]")) {
+  throw "Go-live readiness proof refuses localhost unless -AllowLocalhost is set"
+}
+
+$progressManifest = Get-Content -Path "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
+$expectedOverall = [int]$progressManifest.overall_percent
+
+Write-Host "[go-live-readiness] runtime contract"
+$readiness = Invoke-Json "$BaseUrl/api/v1/clouds/go-live-readiness"
+$contract = Invoke-Json "$BaseUrl/api/v1/clouds/go-live-readiness/contract"
+Assert-NoSecretPattern "runtime readiness" $readiness
+Assert-NoSecretPattern "runtime readiness contract" $contract
+
+Assert-True "readiness contract version" ($readiness.contract_version -eq "go-live-readiness-v1")
+Assert-True "readiness status supported" (@("blocked_external_gates", "ready_for_owner_cloud_execution") -contains [string]$readiness.status)
+Assert-True "overall percent parity" ([int]$readiness.overall_percent -eq $expectedOverall)
+Assert-True "workspace page count" ([int]$readiness.workspace_page_count -eq 22)
+Assert-True "cloud layer count" ([int]$readiness.cloud_layer_total_count -eq 7)
+Assert-True "external audit required" ($readiness.external_audit_required -eq $true)
+Assert-True "owner activation plan-only" ($readiness.owner_activation.default_mode -eq "PlanOnly")
+Assert-True "owner apply not allowed in Codex" ($readiness.owner_activation.apply_allowed_in_codex -eq $false)
+Assert-Contains "required owner inputs" $readiness.required_owner_inputs "FLY_API_TOKEN"
+Assert-Contains "required owner inputs" $readiness.required_owner_inputs "STAGING_BASE_URL"
+Assert-Contains "required owner inputs" $readiness.required_owner_inputs "BRANCH_PROTECTION_TOKEN"
+Assert-Contains "required owner inputs" $readiness.required_owner_inputs "AGENT_API_BASE_URL"
+Assert-Contains "required owner inputs" $readiness.required_owner_inputs "MCP_GATEWAY_BASE_URL"
+Assert-Contains "required owner inputs" $readiness.required_owner_inputs "LLM_GATEWAY_BASE_URL"
+Assert-Contains "runtime preflight blockers" $readiness.runtime_preflight_missing_or_blocked_gates "fly_cloud_stack"
+Assert-Contains "runtime preflight blockers" $readiness.runtime_preflight_missing_or_blocked_gates "hosted_backend_origins"
+Assert-Contains "runtime external blockers" $readiness.runtime_external_blocked_release_gates "fly_cloud_stack"
+Assert-Contains "runtime external blockers" $readiness.runtime_external_blocked_release_gates "hosted_backend_origins"
+Assert-True "external audit summary configured" ($readiness.external_audit_summary.configured -eq $true)
+Assert-True "external audit summary contract" ($readiness.external_audit_summary.contract_version -eq "external-gate-summary-v1")
+Assert-True "external audit summary status" ($readiness.external_audit_summary_status -eq "blocked")
+Assert-True "external audit production blocked" ($readiness.external_audit_claims.production_deploy_claim_allowed -eq $false)
+Assert-Contains "runtime external audit missing gate" $readiness.external_audit_missing_or_failed_gates "hosted_agent_api_contracts"
+Assert-Contains "runtime external audit missing gate" $readiness.external_audit_missing_or_failed_gates "github_branch_protection_current_verify"
+Assert-Contains "runtime external audit missing gate" $readiness.external_audit_missing_or_failed_gates "vercel_backend_origin_health"
+Assert-Contains "runtime external audit missing gate" $readiness.external_audit_missing_or_failed_gates "fly_live_budget_check"
+
+Assert-True "contract version" ($contract.contract_version -eq "go-live-readiness-surface-v1")
+Assert-True "contract runtime endpoint" ($contract.runtime_endpoint -eq "GET /api/v1/clouds/go-live-readiness")
+Assert-Contains "contract guarded endpoint" $contract.guarded_endpoints "GET /api/v1/project/progress/completion"
+Assert-Contains "contract guarded endpoint" $contract.guarded_endpoints "GET /api/v1/external-gates"
+Assert-Contains "contract required verifier" $contract.required_verifiers "scripts/verify-external-gates.ps1"
+
+Write-Host "[go-live-readiness] latest external gate audit"
+$latestAudit = Get-ChildItem -Path ".phase1-artifacts\external-gate-audit-*.json" |
+  Sort-Object LastWriteTime -Descending |
+  Select-Object -First 1
+Assert-True "latest external audit artifact exists" ($null -ne $latestAudit)
+$audit = Get-Content -Path $latestAudit.FullName -Raw | ConvertFrom-Json
+Assert-NoSecretPattern "external gate audit" $audit
+Assert-True "external audit contract" ($audit.contract_version -eq "external-gate-audit-v1")
+Assert-True "external audit blocked" ($audit.status -eq "blocked")
+Assert-True "external audit production claim blocked" ($audit.production_deploy_claim_allowed -eq $false)
+Assert-Contains "external audit missing gate" $audit.missing_or_failed_gates "hosted_agent_api_contracts"
+Assert-Contains "external audit missing gate" $audit.missing_or_failed_gates "github_branch_protection_current_verify"
+Assert-Contains "external audit missing gate" $audit.missing_or_failed_gates "vercel_backend_origin_health"
+Assert-Contains "external audit missing gate" $audit.missing_or_failed_gates "fly_live_budget_check"
+
+Write-Host "[go-live-readiness] sanitized external gate summary"
+$summary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
+Assert-NoSecretPattern "sanitized external gate summary" $summary
+Assert-True "summary contract" ($summary.contract_version -eq "external-gate-summary-v1")
+Assert-True "summary status" ($summary.status -eq $audit.status)
+Assert-True "summary production claim parity" ($summary.production_deploy_claim_allowed -eq $audit.production_deploy_claim_allowed)
+Assert-Contains "summary missing gate" $summary.missing_or_failed_gates "hosted_agent_api_contracts"
+Assert-Contains "summary missing gate" $summary.missing_or_failed_gates "github_branch_protection_current_verify"
+Assert-Contains "summary missing gate" $summary.missing_or_failed_gates "vercel_backend_origin_health"
+Assert-Contains "summary missing gate" $summary.missing_or_failed_gates "fly_live_budget_check"
+
+Write-Host "[go-live-readiness] artifact=$($latestAudit.FullName)"
+Write-Host "[go-live-readiness] status=$($readiness.status)"
+Write-Host "[go-live-readiness] checks completed"

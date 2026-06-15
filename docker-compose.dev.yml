@@ -68,6 +68,7 @@ services:
       EXTERNAL_GATE_SUMMARY_PATH: /app/progress/external-gate-summary.json
       PROJECT_STATE_PATH: /app/PROJECT_STATE.md
       EVIDENCE_DIR: /workspace/evidence
+      LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-gemma-3-1b-it}
       AUTONOMOUS_AGENT_ROSTER_PATH: /app/docs/codex-integration/autonomous-agent-roster.json
       AUTONOMOUS_TEAM_EXTERNAL_PROVIDER: ${AUTONOMOUS_TEAM_EXTERNAL_PROVIDER:-dopiert}
       AUTONOMOUS_TEAM_EXTERNAL_STATUS_URL: ${AUTONOMOUS_TEAM_EXTERNAL_STATUS_URL:-http://host.docker.internal:8000/status}
@@ -250,8 +251,10 @@ services:
       VERCEL_MCP_GATEWAY_ORIGIN: ${VERCEL_MCP_GATEWAY_ORIGIN:-}
       VERCEL_LLM_GATEWAY_ORIGIN: ${VERCEL_LLM_GATEWAY_ORIGIN:-}
       FLY_API_TOKEN: ${FLY_API_TOKEN:-}
-      LLM_GATEWAY_MODE: ${LLM_GATEWAY_MODE:-local_openai_live}
-      LLM_LIVE_PROVIDER_DEFAULT: ${LLM_LIVE_PROVIDER_DEFAULT:-true}
+      # Default posture is deterministic dry-run (documented architecture). Local llama.cpp is
+      # opt-in on demand: set LLM_GATEWAY_MODE=local_openai_live to run the workbench F1 proof.
+      LLM_GATEWAY_MODE: ${LLM_GATEWAY_MODE:-deterministic_dry_run}
+      LLM_LIVE_PROVIDER_DEFAULT: ${LLM_LIVE_PROVIDER_DEFAULT:-false}
       LOCAL_LLM_BASE_URL: ${LOCAL_LLM_BASE_URL:-http://local-llm:8080/v1}
       LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-gemma-3-1b-it}
       HF_TOKEN: ${HF_TOKEN:-}
@@ -304,7 +307,7 @@ services:
     volumes:
       - local_llm_cache:/root/.cache/huggingface
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health >/dev/null 2>&1"]
       interval: 30s
       timeout: 10s
       retries: 20

@@ -44,8 +44,14 @@ const convertFlyAppNameToBaseUrl = (value) => {
   return null;
 };
 
+const isStagingRewritesEnabled = () => {
+  return /^(1|true|yes|on)$/i.test(process.env.STAGING_REWRITES_ENABLED || "");
+};
+
 const getFlyAppNameOrDefault = (flyAppEnvKey) => {
-  return process.env[flyAppEnvKey] || flyOriginAppDefaults[flyAppEnvKey] || "";
+  const configured = process.env[flyAppEnvKey];
+  if (configured) return configured;
+  return isStagingRewritesEnabled() ? flyOriginAppDefaults[flyAppEnvKey] || "" : "";
 };
 
 const hostedRewriteFallbackFor = (envKey, stagingBaseUrl) => {
@@ -76,8 +82,7 @@ const resolveBaseUrl = (envKey) => {
   const flyOrigin = flyAppEnvKey ? convertFlyAppNameToBaseUrl(getFlyAppNameOrDefault(flyAppEnvKey)) : null;
   if (flyOrigin) return flyOrigin;
 
-  const stagingFallbackEnabled = (process.env.STAGING_REWRITES_ENABLED || "").toLowerCase() === "true";
-  if (!stagingFallbackEnabled) return null;
+  if (!isStagingRewritesEnabled()) return null;
   const fallback = hostedRewriteFallbackFor(envKey, process.env.STAGING_BASE_URL);
   return isSafeHttpsOrigin(fallback) ? fallback : null;
 };

@@ -1,4 +1,4 @@
-import { fetchActivityKinds, mapKind } from "../agentApi";
+import { fetchActivityKinds, fetchOrganismProjection, mapKind } from "../agentApi";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -36,6 +36,14 @@ function specOnlyReplay(runId: string | null) {
  *  activity trace (event_type → hub/run_state) when reachable, else spec-only. */
 export async function GET(request: Request) {
   const runId = safeTraceId(new URL(request.url).searchParams.get("run_id"));
+  const projection = await fetchOrganismProjection("replay", runId);
+  if (
+    projection?.contract_version === "organism-replay-v1" &&
+    Array.isArray(projection.frames) &&
+    projection.live === true
+  ) {
+    return Response.json(projection);
+  }
   const kinds = await fetchActivityKinds(8, runId);
   if (!kinds) return Response.json(specOnlyReplay(runId));
   const step = 1.2;
@@ -54,6 +62,6 @@ export async function GET(request: Request) {
     duration_s: +(kinds.length * step).toFixed(1),
     fps: 30,
     frames,
-    non_claims: ["redacted runtime replay only, no live provider call", "no secret values"],
+    non_claims: ["redacted runtime replay only, no live provider call", "no secret values", "read-only audit projection"],
   });
 }

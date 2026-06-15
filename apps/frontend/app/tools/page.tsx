@@ -4,6 +4,7 @@ import { PageHeader, Panel, Badge, StatusDot } from "../../components/ui";
 import { MCP_TOOLS } from "../../lib/platform";
 import { PROVIDERS, LAYERS } from "../../components/organism/regionMap";
 import { fetchProviders } from "../../lib/agentApi";
+import { ToolsReadOnlyPanel } from "../../components/goal-b-actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Tools / Cloud-Hub — Cloud Superbrain" };
@@ -99,6 +100,12 @@ export default async function ToolsPage() {
             </div>
           </Panel>
         ) : null}
+
+        <Panel title="Goal B safe execute (read-only tools)" style={{ marginBottom: 16 }} actions={<Badge tone="green">memory_read / task_router</Badge>}>
+          <div className="wb-pad">
+            <ToolsReadOnlyPanel />
+          </div>
+        </Panel>
 
         <Panel title="MCP-Tools (agent allowed_tools)" style={{ marginBottom: 16 }}>
           <table className="tbl">

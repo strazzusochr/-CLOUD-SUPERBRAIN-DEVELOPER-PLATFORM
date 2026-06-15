@@ -71,6 +71,13 @@ const destinationFor = (rewrites, source) => {
   return match.destination;
 };
 
+const assertNoRewrite = (label, rewrites, source) => {
+  const match = rewrites.find((rewrite) => rewrite.source === source);
+  if (match) {
+    throw new Error(`${label}: expected no rewrite for ${source}, got ${match.destination}`);
+  }
+};
+
 const assertEqual = (label, actual, expected) => {
   if (actual !== expected) {
     throw new Error(`${label}: expected ${expected}, got ${actual}`);
@@ -78,7 +85,13 @@ const assertEqual = (label, actual, expected) => {
 };
 
 try {
-  let rewrites = await loadRewrites({
+  let rewrites = await loadRewrites({});
+  assertNoRewrite("plain local agent rewrite disabled", rewrites, "/api/v1/:path*");
+  assertNoRewrite("plain local stream rewrite disabled", rewrites, "/api/stream");
+  assertNoRewrite("plain local mcp rewrite disabled", rewrites, "/mcp/:path*");
+  assertNoRewrite("plain local llm rewrite disabled", rewrites, "/llm/:path*");
+
+  rewrites = await loadRewrites({
     STAGING_REWRITES_ENABLED: "true",
     STAGING_BASE_URL: "https://old-hosted-rewrite.example.invalid",
   });
@@ -113,9 +126,19 @@ try {
     MCP_GATEWAY_BASE_URL: "https://<placeholder>",
     LLM_GATEWAY_BASE_URL: "http://llm.example.com",
   });
-  assertEqual("unsafe agent origin rejected", destinationFor(rewrites, "/api/v1/:path*"), "https://cloud-superbrain-agent-api.fly.dev/api/v1/:path*");
-  assertEqual("unsafe mcp origin rejected", destinationFor(rewrites, "/mcp/:path*"), "https://cloud-superbrain-mcp-gateway.fly.dev/:path*");
-  assertEqual("unsafe llm origin rejected", destinationFor(rewrites, "/llm/:path*"), "https://cloud-superbrain-llm-gateway.fly.dev/:path*");
+  assertNoRewrite("unsafe local agent origin rejected", rewrites, "/api/v1/:path*");
+  assertNoRewrite("unsafe placeholder mcp origin rejected", rewrites, "/mcp/:path*");
+  assertNoRewrite("unsafe http llm origin rejected", rewrites, "/llm/:path*");
+
+  rewrites = await loadRewrites({
+    STAGING_REWRITES_ENABLED: "true",
+    AGENT_API_BASE_URL: "http://localhost:8000",
+    MCP_GATEWAY_BASE_URL: "https://<placeholder>",
+    LLM_GATEWAY_BASE_URL: "http://llm.example.com",
+  });
+  assertEqual("unsafe cloud-mode agent origin falls back", destinationFor(rewrites, "/api/v1/:path*"), "https://cloud-superbrain-agent-api.fly.dev/api/v1/:path*");
+  assertEqual("unsafe cloud-mode mcp origin falls back", destinationFor(rewrites, "/mcp/:path*"), "https://cloud-superbrain-mcp-gateway.fly.dev/:path*");
+  assertEqual("unsafe cloud-mode llm origin falls back", destinationFor(rewrites, "/llm/:path*"), "https://cloud-superbrain-llm-gateway.fly.dev/:path*");
 
   rewrites = await loadRewrites({
     FLY_APP_AGENT_API: "custom-agent-api",

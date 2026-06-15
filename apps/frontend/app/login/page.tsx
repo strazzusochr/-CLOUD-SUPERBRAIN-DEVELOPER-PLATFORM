@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Badge, SafetyBadgeRow } from "../../components/ui";
-import { Icon } from "../../lib/nav";
+import { LoginDryRunPanel } from "../../components/batch4-actions";
 
 export const metadata = { title: "Login / Onboarding — Cloud Superbrain" };
 
@@ -27,25 +27,13 @@ export default function LoginPage() {
                 <h1 style={{ fontSize: 24, marginTop: 6 }}>Sign in to your workspace</h1>
               </div>
 
-              <div className="stack" style={{ gap: 10 }}>
-                <Link href="/home" className="btn" style={{ justifyContent: "center" }}>
-                  {Icon.open({ size: 16 })} Continue with GitHub
-                </Link>
-                <Link href="/home" className="btn" style={{ justifyContent: "center" }}>
-                  Continue with Google
-                </Link>
-                <Link href="/home" className="btn" style={{ justifyContent: "center" }}>
-                  Continue with Email
-                </Link>
-              </div>
-
-              <div className="or-divider">or</div>
+              <LoginDryRunPanel />
 
               <Link href="/workbench" className="btn btn-primary" style={{ justifyContent: "center" }}>
-                Continue as Guest → Start Workbench
+                Open Workbench after dry-run
               </Link>
               <p style={{ fontSize: 12, color: "var(--text-dim)" }}>
-                Guest mode runs fully local. No account required to use the Workbench.
+                OAuth and email providers stay dry-run in this proof. No live provider write, no secret output.
               </p>
             </section>
 

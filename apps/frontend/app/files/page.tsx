@@ -3,6 +3,7 @@ import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, Badge, SpecModeBadge } from "../../components/ui";
 import { Icon } from "../../lib/nav";
 import { fetchMetrics } from "../../lib/agentApi";
+import { FilesSearchPanel } from "../../components/goal-b-actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Files & Knowledge — Cloud Superbrain" };
@@ -44,6 +45,12 @@ export default async function FilesPage() {
           <span className="chip">Vectors</span>
           <span className="chip">Graph</span>
         </div>
+
+        <Panel title="Goal B memory search (pgvector lexical fallback)" actions={<Badge tone="cyan">read-only</Badge>} style={{ marginBottom: 16 }}>
+          <div className="wb-pad">
+            <FilesSearchPanel />
+          </div>
+        </Panel>
 
         <div className="grid" style={{ gridTemplateColumns: "1fr 1.3fr 300px" }}>
           <Panel title="Knowledge bases">

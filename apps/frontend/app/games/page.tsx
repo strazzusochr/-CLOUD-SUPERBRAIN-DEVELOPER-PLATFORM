@@ -3,6 +3,7 @@ import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, Badge, EmptyState } from "../../components/ui";
 import { Icon } from "../../lib/nav";
 import { fetchRecentTasks } from "../../lib/agentApi";
+import { WorkspaceModeActionPanel } from "../../components/goal-b-actions";
 
 export const metadata = { title: "Games Workflow — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -35,6 +36,9 @@ export default async function GamesPage() {
               {TEMPLATES.map((t, i) => (
                 <div key={t} className={`lrow${i === 2 ? "" : ""}`} style={{ fontSize: 13 }}>{t}</div>
               ))}
+            </div>
+            <div className="wb-pad">
+              <WorkspaceModeActionPanel mode="games" label="Game" />
             </div>
           </Panel>
           <Panel title="Scene-Preview · superbrain-game-engine">

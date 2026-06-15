@@ -1,5 +1,5 @@
 param(
-    [string]$StagingIp = "188.34.191.140",
+    [string]$StagingIp = "",
     [string]$KeyPath = "",
     [string]$RemoteAppDir = "/app",
     [string]$RemoteUser = "root",
@@ -9,7 +9,8 @@ param(
     [string]$SourceRef = "",
     [switch]$UseImageFilesystem,
     [switch]$PlanOnly,
-    [switch]$RequireHttps = $true
+    [switch]$RequireHttps = $true,
+    [switch]$RetiredLegacyPlanOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -107,7 +108,7 @@ function Assert-SourceFile([string]$RelativePath) {
 }
 
 function Get-DefaultHostname([string]$Ip) {
-    return ($Ip -replace '\.', '-') + ".sslip.io"
+    throw "Retired staging hostname derivation is disabled. Use Vercel/Fly owner activation instead of sslip.io/Hetzner defaults."
 }
 
 function Invoke-HostedGet([string]$Url) {
@@ -177,12 +178,32 @@ if ([string]::IsNullOrWhiteSpace($ImageTag)) {
     $ImageTag = "staging"
 }
 
+if ($PlanOnly) {
+    if ([string]::IsNullOrWhiteSpace($StagingIp)) {
+        $StagingIp = "plan-only"
+    }
+    if ([string]::IsNullOrWhiteSpace($StagingHostname)) {
+        $StagingHostname = "retired-plan.invalid"
+    }
+    if ([string]::IsNullOrWhiteSpace($StagingBaseUrl)) {
+        $StagingBaseUrl = "https://retired-plan.invalid"
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($StagingHostname)) {
-    $StagingHostname = Get-DefaultHostname $StagingIp
+    throw "STAGING_HOSTNAME is required. The retired sslip.io/Hetzner default is disabled."
 }
 
 if ([string]::IsNullOrWhiteSpace($StagingBaseUrl)) {
-    $StagingBaseUrl = "https://$StagingHostname"
+    throw "STAGING_BASE_URL is required. Use a real non-local HTTPS staging URL."
+}
+
+if ($StagingHostname.ToLowerInvariant().EndsWith(".sslip.io") -or $StagingBaseUrl.ToLowerInvariant().Contains(".sslip.io")) {
+    throw "Retired sslip.io/Hetzner staging target is blocked. Use the Vercel/Fly owner activation path."
+}
+
+if (-not $PlanOnly) {
+    throw "scripts/deploy-to-staging.ps1 is retired for active cloud mutation. Use scripts/owner-cloud-gate-activation.ps1 for the owner-reviewed Vercel/Fly plan."
 }
 
 if ($RequireHttps) {

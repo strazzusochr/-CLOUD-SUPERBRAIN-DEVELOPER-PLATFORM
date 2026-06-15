@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, Badge, StatusDot, Bar } from "../../components/ui";
+import { DesignSystemProbe } from "../../components/batch5-actions";
 
 export const metadata = { title: "Design System — Cloud Superbrain" };
 
@@ -25,6 +26,10 @@ export default function DesignSystemPage() {
           subtitle="Tokens, typography, components and data-viz. WCAG 2.2: 4.5:1 text, 3:1 non-text. Status is never colour-only."
           actions={<Link href="/responsive" className="btn btn-sm btn-ghost">Responsive preview →</Link>}
         />
+
+        <div style={{ marginBottom: 16 }}>
+          <DesignSystemProbe />
+        </div>
 
         <div className="grid cols-2">
           <Panel title="Color palette" pad>
@@ -52,10 +57,10 @@ export default function DesignSystemPage() {
             <Panel title="Components" pad>
               <div className="stack" style={{ gap: 12 }}>
                 <div className="chips">
-                  <button className="btn btn-primary btn-sm">Primary</button>
-                  <button className="btn btn-sm">Secondary</button>
-                  <button className="btn btn-ghost btn-sm">Ghost</button>
-                  <button className="btn btn-danger btn-sm">Danger</button>
+                  <span className="btn btn-primary btn-sm">Primary</span>
+                  <span className="btn btn-sm">Secondary</span>
+                  <span className="btn btn-ghost btn-sm">Ghost</span>
+                  <span className="btn btn-danger btn-sm">Danger</span>
                 </div>
                 <div className="safety-row">
                   <Badge tone="cyan">live</Badge>
