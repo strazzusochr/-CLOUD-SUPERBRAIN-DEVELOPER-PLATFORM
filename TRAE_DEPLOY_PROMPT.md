@@ -113,6 +113,22 @@ After step 4: each origin must answer `GET /api/v1/health` over HTTPS.
 - Path A (compose on a Fly runtime VM) keeps the bind-mounts and avoids both gaps, but needs a VM
   with the repo checked out. The compose stack is already proven healthy locally (10/10).
 
+**CLOUD/FLY CONFIG AUDIT (2026-06-15, by the dev agent) — RECOMMENDATION: prefer Path A.**
+Verified consistent: container ports (agent-api 8000, llm-gateway 4000, mcp-gateway 9000 all match
+`internal_port`/`EXPOSE`/uvicorn), and all cloud-compose bind-mount sources now exist. Path B (three
+standalone Fly apps) is currently INCOMPLETE — fix all of these before using it:
+- `fly.agent-api.toml [env]` lacks `DATABASE_URL`, `REDIS_URL`, `LLM_GATEWAY_INTERNAL_URL`,
+  `MCP_GATEWAY_INTERNAL_URL`; agent-api runs DB migrations at startup and will crash without DB/Redis.
+- No Fly config exists for `agent-worker` or `memory-worker` (no hosted task/memory processing) and
+  no managed Postgres/Redis is declared.
+- Build-from-source on Fly fails (Dockerfile `COPY` paths are relative to `services/<svc>/`, Fly's
+  context is the repo root) → you MUST deploy with `--image ghcr.io/...:staging`, never a source build.
+- `fly.toml` duplicates agent-api (app `cloud-superbrain`) — pick one, avoid double-deploy.
+- Fly `[http_service]` blocks have no HTTP health-check path (TCP-only); add an `[[http_service.checks]]`
+  hitting `/api/v1/health` so a degraded backend is detected.
+Path A (compose on a single Fly runtime VM) sidesteps all five (workers + Postgres + Redis + bind-mounts
+included) and is already proven healthy locally. Use Path A unless you intend to fully build out Path B.
+
 ═══════════════════════════════════════════════════════════════════════════════
 ## 3. ROLLOUT STEP 5 — Vercel frontend + backend origins
 ═══════════════════════════════════════════════════════════════════════════════
