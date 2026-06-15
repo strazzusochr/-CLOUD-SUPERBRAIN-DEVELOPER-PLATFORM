@@ -8,7 +8,7 @@ export const metadata = { title: "Organism · Live — Cloud Superbrain" };
 export default function OrganismLivePage() {
   return (
     <AppShell crumb="Organism · Live" runState="planning">
-      <div className="page-wide" style={{ paddingBottom: 0 }}>
+      <div className="page-wide pb-0">
         <SevenLayerBar title="Organism state verified across 7 cloud layers" />
       </div>
       <OrganismView mode="live" />

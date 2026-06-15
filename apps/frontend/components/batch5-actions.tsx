@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { Icon } from "../lib/nav";
+import { Panel, SafetyBadgeRow, Badge } from "./ui";
 
 type JsonValue = Record<string, unknown>;
 
@@ -191,5 +193,131 @@ export function FilesLocalContractProbe() {
         ].join("\n");
       }}
     />
+  );
+}
+
+export type LocalTreeNode = { d: number; name: string; folder?: boolean };
+
+export function LocalFilesInteractivePanel({ roots, tree }: { roots: string[]; tree: LocalTreeNode[] }) {
+  const [root, setRoot] = useState(roots[0] ?? "project");
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState(tree.find((n) => !n.folder)?.name ?? tree[0]?.name ?? "");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return tree;
+    return tree.filter((n) => n.name.toLowerCase().includes(q));
+  }, [query, tree]);
+
+  const preview = useMemo(() => {
+    if (!selected) return "No selection";
+    const node = tree.find((n) => n.name === selected);
+    const kind = node?.folder ? "folder" : "file";
+    return [
+      `selection=${selected}`,
+      `kind=${kind}`,
+      `root=${root}`,
+      "mode=spec_only",
+      "host_filesystem_mounted=false",
+      "live_filesystem_reads=false",
+      "provider_writes=false",
+      "secret_output=false",
+    ].join("\n");
+  }, [root, selected, tree]);
+
+  return (
+    <div className="stack">
+      <Panel title="Root" className="mb-16" actions={<SafetyBadgeRow />}>
+        <div className="wb-pad row wrap">
+          <div className="chips">
+            {roots.map((r) => (
+              <button
+                key={r}
+                type="button"
+                className={`chip${r === root ? " active" : ""}`}
+                onClick={() => setRoot(r)}
+                aria-label={`Root ${r}`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          <div className="ml-auto row">
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => setQuery("")}>Reset search</button>
+            <Badge tone="cyan">interaktiv · spec</Badge>
+          </div>
+        </div>
+      </Panel>
+
+      <div className="local-files-grid">
+        <Panel title="Tree (interactive spec)">
+          <div className="wb-pad tree">
+            {(filtered.length ? filtered : tree).map((n, i) => (
+              <button
+                key={`${n.name}:${i}`}
+                type="button"
+                className={`tnode tnode-btn indent-${Math.min(6, Math.max(0, n.d))}${n.name === selected ? " sel" : ""}`}
+                onClick={() => setSelected(n.name)}
+              >
+                {n.folder ? Icon.files({ size: 13 }) : Icon.docs({ size: 13 })}
+                <span>{n.name}</span>
+              </button>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel title="Preview (spec)">
+          <div className="wb-pad stack">
+            <div className="row">
+              <button
+                type="button"
+                className="btn btn-sm btn-primary"
+                onClick={() => { void navigator.clipboard?.writeText(preview); }}
+                disabled={!selected}
+              >
+                Copy selection
+              </button>
+              <button type="button" className="btn btn-sm" onClick={() => setSelected("")}>Clear</button>
+            </div>
+            <pre className="code">{preview}</pre>
+          </div>
+        </Panel>
+
+        <Panel title="Search (spec-only, local filter)">
+          <div className="wb-pad stack">
+            <div className="row local-search-row">
+              <input
+                className="local-search-input"
+                aria-label="Search project tree"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Filter tree nodes…"
+              />
+              <button className="btn btn-sm" aria-label="Clear search" onClick={() => setQuery("")} disabled={!query}>
+                {Icon.search({ size: 14 })}
+              </button>
+            </div>
+            <div className="list">
+              {(query ? filtered : []).slice(0, 8).map((n) => (
+                <button key={n.name} type="button" className="lrow" onClick={() => setSelected(n.name)}>
+                  {n.folder ? Icon.files({ size: 16 }) : Icon.docs({ size: 16 })}
+                  <span className="lrow-title">{n.name}</span>
+                  <span className="meta">select</span>
+                </button>
+              ))}
+              {query && !filtered.length ? (
+                <div className="lrow muted-copy">No results<span className="meta">spec</span></div>
+              ) : null}
+              {!query ? (
+                <div className="lrow muted-copy">Type to filter…<span className="meta">local only</span></div>
+              ) : null}
+            </div>
+            <div className="muted-copy text-12">
+              <span className="mono">.env</span>, <span className="mono">.git</span> and secret paths never appear; binaries surface as metadata only.
+            </div>
+          </div>
+        </Panel>
+      </div>
+    </div>
   );
 }

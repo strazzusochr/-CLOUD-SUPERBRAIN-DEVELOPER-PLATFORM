@@ -272,11 +272,11 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
 
   return (
     <div className="page-wide">
-      <div className="page-head" style={{ marginBottom: 14 }}>
+      <div className="page-head organism-head">
         <div>
           <div className="eyebrow">Cortex Canvas{mode !== "live" ? ` · ${mode}` : ""}</div>
-          <h1 style={{ fontSize: 22 }}>Kollektiver Organismus</h1>
-          <p style={{ fontSize: 13.5, color: "var(--text-mut)", marginTop: 4, maxWidth: "62ch" }}>
+          <h1 className="organism-title">Kollektiver Organismus</h1>
+          <p className="organism-subtitle">
             Eine live 3D-Karte des Superbrain: ein glühender Neural-Core mit Capability-Hubs in Umlaufbahnen.
             Filtere nach Architektur-Layer oder Agent; der Inspector öffnet jeden Hub.
           </p>
@@ -288,9 +288,9 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
         </div>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: "1fr 300px" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ height: 600, position: "relative" }}>
+      <div className="grid organism-layout-grid">
+        <div className="stack stack-gap-12">
+          <div className="organism-canvas-shell">
             <CortexLive
               runState={runState}
               nodeCount={1600}
@@ -333,7 +333,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
             </div>
           </div>
 
-          <div className="panel panel-pad" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <div className="panel panel-pad organism-mode-bar">
             <span className="panel-title">Run-State</span>
             <div className="state-row">
               {STATES.map((s) => (
@@ -345,7 +345,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
           </div>
 
           {/* Phase-6 (Scale & 3D Platform) — scene controls + capability + perf budget */}
-          <div className="panel panel-pad" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div className="panel panel-pad organism-scene-bar">
             <span className="panel-title">3D-Szene</span>
             <div className="state-row">
               <button
@@ -365,27 +365,26 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
               <span className={`cap-dot ${caps.webgpu ? "gpu" : caps.webgl2 ? "ok" : "soft"}`} />
               {renderMode === "2d" ? "2D-Fallback" : caps.webgpu ? "WebGPU verfügbar · WebGL2 aktiv" : "WebGL2"}
             </span>
-            <span className="mono" style={{ fontSize: 11, color: "var(--text-dim)", marginLeft: "auto" }}>
+            <span className="mono organism-fps">
               {stats.fps} FPS · {stats.ms}ms/frame
             </span>
-            <span className="mono" style={{ fontSize: 10.5, color: "var(--text-dim)", flexBasis: "100%" }}>
+            <span className="mono organism-hints">
               Tastatur: ←→ rotieren · ↑↓ kippen · +/- zoomen · R reset · Space auto-rotate
             </span>
-            <pre className="goalb-result mono" data-testid="batch1-organism-action-result" aria-live="polite" style={{ flexBasis: "100%", marginTop: 0 }}>
+            <pre className="goalb-result mono organism-action-result" data-testid="batch1-organism-action-result" aria-live="polite">
               {interactionStatus}
             </pre>
           </div>
 
           <div className="panel panel-pad">
-            <div className="row" style={{ gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
+            <div className="row organism-filters-row">
               <div>
-                <span className="panel-title" style={{ display: "block", marginBottom: 6 }}>Layer-Filter</span>
+                <div className="panel-title mb-6">Layer-Filter</div>
                 <div className="chip-wrap">
                   {LAYERS.map((l) => (
                     <button
                       key={l.code}
-                      className={`filter-chip${layers.includes(l.code) ? " on" : ""}`}
-                      style={layers.includes(l.code) ? { color: l.color, borderColor: l.color } : undefined}
+                      className={`filter-chip layer-chip layer-${l.code}${layers.includes(l.code) ? " on" : ""}`}
                       onClick={() => toggleLayer(l.code)}
                     >
                       L{l.no} {l.code}
@@ -394,7 +393,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
                 </div>
               </div>
               <div>
-                <span className="panel-title" style={{ display: "block", marginBottom: 6 }}>Agent-Filter</span>
+                <div className="panel-title mb-6">Agent-Filter</div>
                 <div className="chip-wrap">
                   {ORGANISM_AGENTS.map((a) => (
                     <button
@@ -470,13 +469,13 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
 
           <section className="panel">
             <div className="panel-head"><span className="panel-title">Capability-Hubs</span></div>
-            <div className="legend" style={{ padding: 6 }}>
+            <div className="legend legend-pad">
               {HUBS.map((h) => (
                 <button key={h.id} className={`lg-row${h.id === active ? " active" : ""}`} onClick={() => selectHub(h.id)}>
-                  <span className="lg-dot" style={{ background: h.color }} />
+                  <span className={`lg-dot hub-dot hub-${h.id}`} />
                   <span>{h.label}</span>
-                  {feed?.hubs[h.id] === "active" ? <span className="lg-pip" title="feed: active" style={{ marginLeft: "auto" }} /> : null}
-                  <span className="lg-cap" style={feed?.hubs[h.id] === "active" ? { marginLeft: 6 } : { marginLeft: "auto" }}>L{LAYERS.find((l) => l.code === h.layer)?.no}</span>
+                  {feed?.hubs[h.id] === "active" ? <span className="lg-pip ml-auto" title="feed: active" /> : null}
+                  <span className={`lg-cap ${feed?.hubs[h.id] === "active" ? "ml-6" : "ml-auto"}`}>L{LAYERS.find((l) => l.code === h.layer)?.no}</span>
                 </button>
               ))}
             </div>
@@ -484,17 +483,17 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
 
           {hub ? (
             <section className="panel panel-pad">
-              <span className="panel-title" style={{ display: "block", marginBottom: 8 }}>Inspector</span>
-              <div className="row" style={{ alignItems: "center", gap: 8 }}>
-                <span className="lg-dot" style={{ background: hub.color }} />
-                <h3 style={{ fontSize: 15 }}>{hub.label}</h3>
+              <div className="panel-title mb-8">Inspector</div>
+              <div className="row align-center gap-8">
+                <span className={`lg-dot hub-dot hub-${hub.id}`} />
+                <h3 className="organism-hub-title">{hub.label}</h3>
               </div>
-              <p style={{ fontSize: 13, color: "var(--text-mut)", marginTop: 8 }}>{HUB_DESC[hub.id]}</p>
+              <p className="organism-hub-desc">{HUB_DESC[hub.id]}</p>
               <p className="inspect-label">Agenten</p>
               <div className="chip-wrap">
                 {hub.agents.map((a) => <span key={a} className="tool-chip mono">{a}</span>)}
               </div>
-              <Link href={hub.route} className="btn btn-sm" style={{ marginTop: 12 }}>{hub.label} öffnen →</Link>
+              <Link href={hub.route} className="btn btn-sm mt-12">{hub.label} öffnen →</Link>
             </section>
           ) : null}
 

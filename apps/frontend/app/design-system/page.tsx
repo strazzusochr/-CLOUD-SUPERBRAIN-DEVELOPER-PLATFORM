@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
+import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, Badge, StatusDot, Bar } from "../../components/ui";
 import { DesignSystemProbe } from "../../components/batch5-actions";
 
@@ -40,6 +41,11 @@ export default function DesignSystemPage() {
         </div>
 
         <div className="grid cols-2">
+          <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+            <div className="wb-pad">
+              <LiveConsole endpoints={[{ label: "Reference design contract", path: "/api/v1/design/reference-contract" }]} />
+            </div>
+          </Panel>
           <Panel title="Color palette" pad>
             <div className="swatches">
               {COLORS.map(({ name, hex, swatchClass }) => (

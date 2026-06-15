@@ -42,23 +42,11 @@ export function SafetyBadgeRow() {
 }
 
 export function StatusDot({ tone = "mut", pulse = false, label }: { tone?: Tone; pulse?: boolean; label?: string }) {
-  const colors: Record<Tone, string> = {
-    mut: "var(--text-mut)",
-    cyan: "var(--cyan)",
-    green: "var(--green)",
-    amber: "var(--amber)",
-    red: "var(--red)",
-    violet: "var(--violet)",
-  };
-  return (
-    <span
-      className={`dot${pulse ? " pulse" : ""}`}
-      style={{ background: colors[tone] }}
-      role={label ? "img" : undefined}
-      aria-label={label}
-      aria-hidden={label ? undefined : true}
-    />
-  );
+  const className = `dot dot-${tone}${pulse ? " pulse" : ""}`;
+  if (label) {
+    return <span className={className} role="img" aria-label={label} />;
+  }
+  return <span className={className} aria-hidden="true" />;
 }
 
 export function PageHeader({
@@ -90,17 +78,15 @@ export function Panel({
   children,
   pad = false,
   className = "",
-  style,
 }: {
   title?: string;
   actions?: ReactNode;
   children: ReactNode;
   pad?: boolean;
   className?: string;
-  style?: React.CSSProperties;
 }) {
   return (
-    <section className={`panel ${className}`} style={style}>
+    <section className={`panel ${className}`}>
       {title ? (
         <div className="panel-head">
           <span className="panel-title">{title}</span>
@@ -160,9 +146,8 @@ export function Note({
 }
 
 export function Bar({ pct }: { pct: number }) {
+  const clamped = Math.max(0, Math.min(100, pct));
   return (
-    <div className="bar">
-      <span style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
-    </div>
+    <progress className="bar" value={clamped} max={100} aria-label={`${clamped}%`} />
   );
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
+import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, Badge, EmptyState } from "../../components/ui";
 import { Icon } from "../../lib/nav";
 import { fetchRecentTasks } from "../../lib/agentApi";
@@ -30,11 +31,16 @@ export default async function GamesPage() {
             </>
           }
         />
-        <div className="grid" style={{ gridTemplateColumns: "240px 1fr 300px" }}>
+        <div className="grid grid-games">
+          <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+            <div className="wb-pad">
+              <LiveConsole endpoints={[{ label: "Platform verify", path: "/api/v1/platform/verify" }]} />
+            </div>
+          </Panel>
           <Panel title="Templates">
             <div className="list">
-              {TEMPLATES.map((t, i) => (
-                <div key={t} className={`lrow${i === 2 ? "" : ""}`} style={{ fontSize: 13 }}>{t}</div>
+              {TEMPLATES.map((t) => (
+                <div key={t} className="lrow text-13">{t}</div>
               ))}
             </div>
             <div className="wb-pad">
@@ -44,15 +50,15 @@ export default async function GamesPage() {
           <Panel title="Scene-Preview · superbrain-game-engine">
             <div className="wb-pad">
               {filtered.length ? (
-                <div className="stack" style={{ gap: 10 }}>
+                <div className="stack gap-10">
                   {filtered.slice(0, 6).map((t) => (
                     <div key={t.id} className="svc-row">
                       <Badge tone={t.status === "completed" ? "green" : t.status === "failed" ? "red" : "mut"}>{t.status}</Badge>
-                      <span className="mono" style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{t.taskType}</span>
-                      <span style={{ color: "var(--text-mut)", fontSize: 12 }}>{t.description}</span>
+                      <span className="mono text-115 text-dim">{t.taskType}</span>
+                      <span className="text-12 text-mut">{t.description}</span>
                     </div>
                   ))}
-                  <div className="row" style={{ gap: 8 }}>
+                  <div className="row gap-8">
                     <Link href="/workbench" className="btn btn-sm btn-primary">{Icon.play({ size: 13 })} Werkbank öffnen</Link>
                     <Link href="/organism" className="btn btn-sm btn-ghost">Cortex</Link>
                   </div>

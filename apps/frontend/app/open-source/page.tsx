@@ -1,4 +1,5 @@
 import AppShell from "../../components/shell/AppShell";
+import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, Badge, Note } from "../../components/ui";
 import { OpenSourceProbe } from "../../components/batch5-actions";
 import { Icon } from "../../lib/nav";
@@ -40,14 +41,25 @@ export default function OpenSourcePage() {
           actions={<Badge tone="green">no vendor lock-in</Badge>}
         />
 
-        <div style={{ marginBottom: 16 }}>
+        <div className="mb-16">
           <OpenSourceProbe />
         </div>
+
+        <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+          <div className="wb-pad">
+            <LiveConsole
+              endpoints={[
+                { label: "Workspace wiring", path: "/api/v1/workspace/wiring" },
+                { label: "Platform inventory", path: "/api/v1/platform/inventory" },
+              ]}
+            />
+          </div>
+        </Panel>
 
         <div className="grid cols-3">
           {PRINCIPLES.map((p) => (
             <Panel key={p.title} pad>
-              <div className="feature" style={{ border: "none", padding: 0, background: "transparent" }}>
+              <div className="feature feature-plain">
                 <div className="ico">{Icon[p.icon]({ size: 18 })}</div>
                 <h3>{p.title}</h3>
                 <p>{p.body}</p>
@@ -56,10 +68,10 @@ export default function OpenSourcePage() {
           ))}
         </div>
 
-        <div className="page-head" style={{ margin: "22px 0 12px" }}>
+        <div className="page-head open-source-subhead">
           <div>
             <div className="eyebrow">Built on open source</div>
-            <h2 style={{ fontSize: 17 }}>{OSS.length} core components &amp; their licenses</h2>
+            <h2 className="open-source-h2">{OSS.length} core components &amp; their licenses</h2>
           </div>
           <Badge tone="cyan">licenses respected</Badge>
         </div>
@@ -72,9 +84,9 @@ export default function OpenSourcePage() {
             </div>
             {OSS.map((o) => (
               <div key={o.name} className="oss-row">
-                <span className="mono" style={{ color: "var(--text-pri)" }}>{o.name}</span>
+                <span className="mono oss-name">{o.name}</span>
                 <span><Badge tone="violet">{o.license}</Badge></span>
-                <span style={{ color: "var(--text-mut)", fontSize: 13 }}>{o.role}</span>
+                <span className="oss-role">{o.role}</span>
               </div>
             ))}
           </div>

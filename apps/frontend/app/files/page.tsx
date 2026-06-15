@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
+import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, Badge, SpecModeBadge } from "../../components/ui";
 import { Icon } from "../../lib/nav";
 import { fetchMetrics } from "../../lib/agentApi";
@@ -8,6 +9,15 @@ import { FilesSearchPanel } from "../../components/goal-b-actions";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Files & Knowledge — Cloud Superbrain" };
 
+type SearchParams = Record<string, string | string[] | undefined>;
+type FilesPageProps = {
+  searchParams?: Promise<SearchParams>;
+};
+async function resolveSearchParams(searchParams: FilesPageProps["searchParams"]): Promise<SearchParams> {
+  if (!searchParams) return {};
+  return searchParams;
+}
+
 const KB = [
   { name: "Vector store · pgvector", kind: "vector(1536)", count: "memory/search" },
   { name: "Memory consolidation", kind: "job", count: "consolidation/recent" },
@@ -15,13 +25,16 @@ const KB = [
   { name: "Purge lifecycle", kind: "gated", count: "purge/jobs" },
 ];
 
-export default async function FilesPage() {
+export default async function FilesPage({ searchParams }: FilesPageProps) {
+  const resolvedSearchParams = await resolveSearchParams(searchParams);
   const metrics = await fetchMetrics();
   const entries = metrics?.scalars.superbrain_memory_entries_total;
   const live = typeof entries === "number";
   const kb = KB.map((k) =>
     k.name.startsWith("Vector store") && live ? { ...k, count: `${entries.toLocaleString("en-US")} entries` } : k,
   );
+  const srcRaw = resolvedSearchParams.src;
+  const src = (Array.isArray(srcRaw) ? srcRaw[0] : srcRaw) ?? "all";
   return (
     <AppShell crumb="Files & Knowledge" runState="idle">
       <div className="page-wide">
@@ -37,28 +50,33 @@ export default async function FilesPage() {
           }
         />
 
-        <div className="chips" style={{ marginBottom: 16 }}>
-          <span className="chip active">All Sources</span>
-          <span className="chip">Docs</span>
-          <span className="chip">Code</span>
-          <span className="chip">Datasets</span>
-          <span className="chip">Vectors</span>
-          <span className="chip">Graph</span>
+        <div className="chips mb-16">
+          <Link href="/files?src=all" className={`chip${src === "all" ? " active" : ""}`}>All Sources</Link>
+          <Link href="/files?src=docs" className={`chip${src === "docs" ? " active" : ""}`}>Docs</Link>
+          <Link href="/files?src=code" className={`chip${src === "code" ? " active" : ""}`}>Code</Link>
+          <Link href="/files?src=datasets" className={`chip${src === "datasets" ? " active" : ""}`}>Datasets</Link>
+          <Link href="/files?src=vectors" className={`chip${src === "vectors" ? " active" : ""}`}>Vectors</Link>
+          <Link href="/files?src=graph" className={`chip${src === "graph" ? " active" : ""}`}>Graph</Link>
         </div>
+        <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+          <div className="wb-pad">
+            <LiveConsole endpoints={[{ label: "Memory consolidation", path: "/api/v1/memory/consolidation/recent" }, { label: "Embedding consistency", path: "/api/v1/memory/embedding-consistency/contract" }]} />
+          </div>
+        </Panel>
 
-        <Panel title="Goal B memory search (pgvector lexical fallback)" actions={<Badge tone="cyan">read-only</Badge>} style={{ marginBottom: 16 }}>
+        <Panel title="Goal B memory search (pgvector lexical fallback)" actions={<Badge tone="cyan">read-only</Badge>} className="mb-16">
           <div className="wb-pad">
             <FilesSearchPanel />
           </div>
         </Panel>
 
-        <div className="grid" style={{ gridTemplateColumns: "1fr 1.3fr 300px" }}>
+        <div className="grid grid-files">
           <Panel title="Knowledge bases">
             <div className="list">
               {kb.map((k) => (
                 <div key={k.name} className="lrow">
                   {Icon.files({ size: 16 })}
-                  <span style={{ fontWeight: 500 }}>{k.name}</span>
+                  <span className="lrow-title">{k.name}</span>
                   <span className="meta">{k.count}</span>
                 </div>
               ))}
@@ -87,10 +105,10 @@ export default async function FilesPage() {
           <Panel title="Inspector">
             <div className="wb-pad stack">
               <div>
-                <span className="panel-title" style={{ display: "block", marginBottom: 8 }}>Embeddings</span>
+                <div className="panel-title mb-8">Embeddings</div>
                 <Badge tone="cyan">pgvector</Badge> <Badge tone="mut">1536-dim</Badge>
               </div>
-              <p style={{ fontSize: 12.5, color: "var(--text-mut)" }}>
+              <p className="agent-role">
                 Source labels and relationships are shown per node. Generation runs only on real
                 indexed content — no fake embeddings.
               </p>

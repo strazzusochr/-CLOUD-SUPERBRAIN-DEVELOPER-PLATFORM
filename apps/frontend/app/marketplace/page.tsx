@@ -31,7 +31,7 @@ export default async function MarketplacePage() {
         />
 
         {live ? (
-          <div className="readiness" style={{ marginBottom: 16 }}>
+          <div className="readiness mb-16">
             {readiness!.providers.map((p) => (
               <div key={p.id} className="rd-row">
                 <StatusDot tone={/verified|live/.test(p.status) ? "green" : /partial|configured/.test(p.status) ? "amber" : "violet"} pulse={p.liveVerified} />
@@ -42,18 +42,18 @@ export default async function MarketplacePage() {
             ))}
           </div>
         ) : null}
-        <div className="chips" style={{ marginBottom: 16 }}>
+        <div className="chips mb-16">
           <span className="chip active">All ({ITEMS.length})</span>
           <span className="chip">Skills ({counts.Skill})</span>
           <span className="chip">Agents ({counts.Agent})</span>
           <span className="chip">MCP ({counts.MCP})</span>
           <span className="chip">Models ({counts.Model})</span>
         </div>
-        <div style={{ marginBottom: 16 }}>
+        <div className="mb-16">
           <MarketplaceActionPanel itemNames={ITEMS.map((it) => `${it.kind}:${it.name}`)} />
         </div>
         <MarketplaceCardGrid items={ITEMS} />
-        <p style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 12 }}>
+        <p className="login-foot mt-12">
           <Badge tone="amber">dry-run</Badge> Installs are simulated until the owner gate is opened —
           no provider write, no registry pull.
         </p>

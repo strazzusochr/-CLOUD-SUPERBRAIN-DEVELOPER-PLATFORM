@@ -390,7 +390,7 @@ function Hub({
           <meshBasicMaterial color={hub.color} transparent opacity={on ? 0.7 : 0.4} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} />
         </mesh>
         {showLabel ? (
-          <Html center distanceFactor={9} position={[0, 0.36, 0]} style={{ pointerEvents: "none" }} zIndexRange={[20, 0]}>
+          <Html center distanceFactor={9} position={[0, 0.36, 0]} className="cortex3d-html" zIndexRange={[20, 0]}>
             <div className={`hub3d-label${on ? " active" : ""}`}>{hub.label}</div>
           </Html>
         ) : null}
@@ -627,7 +627,7 @@ export default function CortexCanvas3D({
         camera={{ position: [0, 0.6, 7], fov: 48 }}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
-        style={{ position: "absolute", inset: 0 }}
+        className="cortex3d-canvas"
       >
         <Scene
           runState={runState}
@@ -648,7 +648,7 @@ export default function CortexCanvas3D({
       </Canvas>
       <span className="cortex-badge">{sourceLabel} · {pbr ? "PBR/WEBGL" : "WEBGL"}</span>
       <span className="cortex-state">
-        <span className="dot" style={{ background: STATE_COLOR[runState] }} />
+        <span className={`dot dot-state-${runState}`} />
         {STATE_LABEL[runState]}
       </span>
     </div>

@@ -5,6 +5,7 @@ import { MCP_TOOLS } from "../../lib/platform";
 import { PROVIDERS, LAYERS } from "../../components/organism/regionMap";
 import { fetchProviders } from "../../lib/agentApi";
 import { ToolsReadOnlyPanel } from "../../components/goal-b-actions";
+import { LiveConsole } from "../../components/live-console";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Tools / Cloud-Hub — Cloud Superbrain" };
@@ -44,7 +45,7 @@ export default async function ToolsPage() {
 
         <Panel
           title="Cloud-Verdrahtung (Frontend → Runtime)"
-          style={{ marginBottom: 16 }}
+          className="mb-16"
           actions={<Badge tone={stagingEnabled ? "green" : "amber"}>{stagingEnabled ? "aktiv" : "inaktiv"}</Badge>}
         >
           <div className="wb-pad">
@@ -80,14 +81,14 @@ export default async function ToolsPage() {
                 <Badge tone={hasLlm ? "green" : "violet"}>{hasLlm ? "gesetzt" : "fehlt"}</Badge>
               </div>
             </div>
-            <p style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 10 }}>
+            <p className="text-12 text-dim mt-10">
               Hinweis: Das sind reine Verdrahtungs-Flags/URLs (Status only). Gefährliche Write/Deploy-Gates bleiben separat geschlossen.
             </p>
           </div>
         </Panel>
 
         {live ? (
-          <Panel title="Live Cloud-Readiness (GET /api/v1/clouds)" style={{ marginBottom: 16 }} actions={<Badge tone="cyan">read-only · keine Token-Werte</Badge>}>
+          <Panel title="Live Cloud-Readiness (GET /api/v1/clouds)" className="mb-16" actions={<Badge tone="cyan">read-only · keine Token-Werte</Badge>}>
             <div className="readiness">
               {readiness!.providers.map((p) => (
                 <div key={p.id} className="rd-row">
@@ -101,13 +102,27 @@ export default async function ToolsPage() {
           </Panel>
         ) : null}
 
-        <Panel title="Goal B safe execute (read-only tools)" style={{ marginBottom: 16 }} actions={<Badge tone="green">memory_read / task_router</Badge>}>
+        <Panel title="Live MCP / Tools console" className="mb-16" actions={<Badge tone="cyan">interaktiv · read-only</Badge>}>
+          <div className="wb-pad">
+            <LiveConsole
+              label="MCP/Tools"
+              endpoints={[
+                { label: "MCP version-pinning contract", path: "/mcp/api/v1/version-pinning/contract" },
+                { label: "MCP audit", path: "/api/v1/audit/mcp" },
+                { label: "Read-only tool contract", path: "/api/v1/tools/read-only/execute/contract" },
+                { label: "Prompt contract", path: "/api/v1/prompt/contract" },
+              ]}
+            />
+          </div>
+        </Panel>
+
+        <Panel title="Goal B safe execute (read-only tools)" className="mb-16" actions={<Badge tone="green">memory_read / task_router</Badge>}>
           <div className="wb-pad">
             <ToolsReadOnlyPanel />
           </div>
         </Panel>
 
-        <Panel title="MCP-Tools (agent allowed_tools)" style={{ marginBottom: 16 }}>
+        <Panel title="MCP-Tools (agent allowed_tools)" className="mb-16">
           <table className="tbl">
             <thead>
               <tr><th>Tool</th><th>Layer</th><th>Scope</th></tr>
@@ -119,8 +134,8 @@ export default async function ToolsPage() {
                   <tr key={m.id}>
                     <td className="mono">{m.id}</td>
                     <td>
-                      <span className="layer-tag" style={{ background: layer.color, padding: "2px 7px", fontSize: 10.5 }}>L{m.layer}</span>{" "}
-                      <span style={{ fontSize: 12, color: "var(--text-mut)" }}>{layer.label}</span>
+                      <span className={`layer-tag layer-tag-${m.layer}`}>L{m.layer}</span>{" "}
+                      <span className="layer-sub">{layer.label}</span>
                     </td>
                     <td><Badge tone={SCOPE_TONE[m.scope]}>{SCOPE_LABEL[m.scope]}</Badge></td>
                   </tr>
@@ -134,16 +149,19 @@ export default async function ToolsPage() {
           <div className="wb-pad">
             <div className="card-grid">
               {PROVIDERS.map((p) => (
-                <div key={p.id} className="panel panel-pad" style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                    <span className="prov-dot" style={{ background: p.color }} />
-                    <strong style={{ fontSize: 13.5 }}>{p.label}</strong>
-                  </div>
-                  <span style={{ fontSize: 11.5, color: "var(--text-mut)", minHeight: 30 }}>{p.role}</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div key={p.id} className="prov-card">
+                  <div className="prov-head">
+                    <span className={`prov-dot prov-${p.id}`} />
+                    <h3>{p.label}</h3>
                     <Badge tone={p.optional ? "violet" : "green"}>{p.optional ? "optional" : "kern"}</Badge>
-                    <span className="mono" style={{ fontSize: 10.5, color: "var(--text-dim)" }}>{p.api}</span>
                   </div>
+                  <div className="prov-role">{p.role}</div>
+                  <div className="prov-layers">
+                    {p.layers.map((l) => (
+                      <span key={l} className={`prov-layer layer-tag-${l}`}>L{l}</span>
+                    ))}
+                  </div>
+                  <div className="mono prov-api">{p.api}</div>
                 </div>
               ))}
             </div>

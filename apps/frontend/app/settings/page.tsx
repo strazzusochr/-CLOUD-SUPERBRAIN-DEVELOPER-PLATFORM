@@ -1,4 +1,5 @@
 import AppShell from "../../components/shell/AppShell";
+import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, Badge } from "../../components/ui";
 import { SettingsGatePlanPanel } from "../../components/goal-b-actions";
 
@@ -31,11 +32,16 @@ export default function SettingsPage() {
           title="Profile, gates & policies"
           subtitle="Local API, providers, accessibility and the security gate matrix. All dangerous gates are closed by default."
         />
-        <div className="grid" style={{ gridTemplateColumns: "200px 1fr 300px" }}>
+        <div className="grid grid-settings">
+          <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+            <div className="wb-pad">
+              <LiveConsole endpoints={[{ label: "Deployment preflight", path: "/api/v1/clouds/deployment-preflight" }, { label: "Auth contract", path: "/api/v1/auth/contract" }]} />
+            </div>
+          </Panel>
           <Panel title="Settings">
             <div className="list">
-              {["General", "Security", "Local API", "Providers", "Accessibility", "Team policies"].map((s, i) => (
-                <div key={s} className={`lrow${i === 1 ? "" : ""}`} style={{ fontSize: 13 }}>{s}</div>
+              {["General", "Security", "Local API", "Providers", "Accessibility", "Team policies"].map((s) => (
+                <div key={s} className="lrow text-13">{s}</div>
               ))}
             </div>
           </Panel>
@@ -61,13 +67,13 @@ export default function SettingsPage() {
             <div className="list">
               {ROLES.map((r) => (
                 <div key={r.role} className="lrow">
-                  <span style={{ fontWeight: 500 }}>{r.role}</span>
+                  <span className="lrow-title">{r.role}</span>
                   <span className="meta">{r.scope}</span>
                 </div>
               ))}
             </div>
             <div className="wb-pad">
-              <p style={{ fontSize: 12, color: "var(--text-dim)" }}>
+              <p className="text-12 text-dim">
                 Tokens live under <span className="mono">.codex/secrets</span> — status only, never
                 shown.
               </p>

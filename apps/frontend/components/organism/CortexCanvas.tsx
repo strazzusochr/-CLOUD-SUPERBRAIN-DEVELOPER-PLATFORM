@@ -350,16 +350,20 @@ export default function CortexCanvas({
     return (
       <div ref={wrapRef} className={`cortex-wrap ${className ?? ""}`}>
         <span className="cortex-badge">{sourceLabel} · REDUCED MOTION</span>
-        <div className="cortex-fallback" style={{ alignItems: "stretch" }}>
-          <ul style={{ listStyle: "none", margin: 0, padding: 0, width: "100%", maxWidth: 360 }}>
+        <div className="cortex-fallback cortex-fallback-stretch">
+          <ul className="cortex-fallback-list">
             {REGIONS.map((rg) => (
-              <li
-                key={rg.id}
-                style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", fontSize: 12.5 }}
-              >
-                <span className="lg-dot" style={{ background: rg.color }} />
-                <strong style={{ color: "var(--text-pri)", fontWeight: 600 }}>{rg.name}</strong>
-                <span style={{ color: "var(--text-dim)", marginLeft: "auto" }}>{rg.cap}</span>
+              <li key={rg.id}>
+                <button
+                  type="button"
+                  className={`lg-row${activeRegion === rg.id ? " active" : ""}`}
+                  disabled={!interactive || !onSelectRegion}
+                  onClick={() => onSelectRegion?.(rg.id)}
+                >
+                  <span className={`lg-dot rg-${rg.id}`} />
+                  <strong>{rg.name}</strong>
+                  <span className="lg-cap ml-auto">{rg.cap}</span>
+                </button>
               </li>
             ))}
           </ul>
@@ -372,16 +376,15 @@ export default function CortexCanvas({
     <div ref={wrapRef} className={`cortex-wrap ${className ?? ""}`}>
       <canvas
         ref={canvasRef}
-        className="cortex-canvas"
+        className={`cortex-canvas${interactive ? " interactive" : ""}`}
         onPointerDown={handlePointer}
         onPointerMove={handleMove}
-        style={{ cursor: interactive ? "pointer" : "default" }}
         role="img"
         aria-label={`Living cortex organism, run state ${runState}`}
       />
       <span className="cortex-badge">{sourceLabel}</span>
       <span className="cortex-state">
-        <span className="dot" style={{ background: STATE_COLOR[runState] }} />
+        <span className={`dot dot-state-${runState}`} />
         {STATE_LABEL[runState]}
       </span>
     </div>

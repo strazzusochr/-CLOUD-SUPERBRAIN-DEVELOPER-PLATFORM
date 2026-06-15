@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
+import { LiveConsole } from "../../components/live-console";
 import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Badge } from "../../components/ui";
 import { DiagnosticsProbe } from "../../components/batch5-actions";
@@ -32,6 +33,11 @@ export default async function DiagnosticsPage() {
         </div>
 
         <div className="grid cols-2 block-gap-16">
+          <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+            <div className="wb-pad">
+              <LiveConsole endpoints={[{ label: "Audit recent", path: "/api/v1/audit/recent" }, { label: "Escalations recent", path: "/api/v1/escalations/recent" }, { label: "Platform inventory", path: "/api/v1/platform/inventory" }]} />
+            </div>
+          </Panel>
           <Panel title="Verifier (Rohliste)">
             <table className="tbl">
               <thead><tr><th>Skript</th><th className="tbl-actions-col">Aktion</th></tr></thead>
