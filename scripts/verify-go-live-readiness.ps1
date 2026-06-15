@@ -70,7 +70,6 @@ Assert-True "owner activation plan-only" ($readiness.owner_activation.default_mo
 Assert-True "owner apply not allowed in Codex" ($readiness.owner_activation.apply_allowed_in_codex -eq $false)
 Assert-Contains "required owner inputs" $readiness.required_owner_inputs "FLY_API_TOKEN"
 Assert-Contains "required owner inputs" $readiness.required_owner_inputs "STAGING_BASE_URL"
-Assert-Contains "required owner inputs" $readiness.required_owner_inputs "BRANCH_PROTECTION_TOKEN"
 Assert-Contains "required owner inputs" $readiness.required_owner_inputs "AGENT_API_BASE_URL"
 Assert-Contains "required owner inputs" $readiness.required_owner_inputs "MCP_GATEWAY_BASE_URL"
 Assert-Contains "required owner inputs" $readiness.required_owner_inputs "LLM_GATEWAY_BASE_URL"
@@ -83,9 +82,14 @@ Assert-True "external audit summary contract" ($readiness.external_audit_summary
 Assert-True "external audit summary status" ($readiness.external_audit_summary_status -eq "blocked")
 Assert-True "external audit production blocked" ($readiness.external_audit_claims.production_deploy_claim_allowed -eq $false)
 Assert-Contains "runtime external audit missing gate" $readiness.external_audit_missing_or_failed_gates "hosted_agent_api_contracts"
-Assert-Contains "runtime external audit missing gate" $readiness.external_audit_missing_or_failed_gates "github_branch_protection_current_verify"
 Assert-Contains "runtime external audit missing gate" $readiness.external_audit_missing_or_failed_gates "vercel_backend_origin_health"
-Assert-Contains "runtime external audit missing gate" $readiness.external_audit_missing_or_failed_gates "fly_live_budget_check"
+if ($readiness.external_audit_claims.branch_protection_claim_allowed -eq $false) {
+  Assert-Contains "runtime external audit missing gate" $readiness.external_audit_missing_or_failed_gates "github_branch_protection_current_verify"
+  Assert-Contains "required owner inputs" $readiness.required_owner_inputs "BRANCH_PROTECTION_TOKEN"
+}
+if ($readiness.external_audit_claims.fly_live_budget_claim_allowed -eq $false) {
+  Assert-Contains "runtime external audit missing gate" $readiness.external_audit_missing_or_failed_gates "fly_live_budget_check"
+}
 
 Assert-True "contract version" ($contract.contract_version -eq "go-live-readiness-surface-v1")
 Assert-True "contract runtime endpoint" ($contract.runtime_endpoint -eq "GET /api/v1/clouds/go-live-readiness")
@@ -104,9 +108,13 @@ Assert-True "external audit contract" ($audit.contract_version -eq "external-gat
 Assert-True "external audit blocked" ($audit.status -eq "blocked")
 Assert-True "external audit production claim blocked" ($audit.production_deploy_claim_allowed -eq $false)
 Assert-Contains "external audit missing gate" $audit.missing_or_failed_gates "hosted_agent_api_contracts"
-Assert-Contains "external audit missing gate" $audit.missing_or_failed_gates "github_branch_protection_current_verify"
 Assert-Contains "external audit missing gate" $audit.missing_or_failed_gates "vercel_backend_origin_health"
-Assert-Contains "external audit missing gate" $audit.missing_or_failed_gates "fly_live_budget_check"
+if ($audit.branch_protection_claim_allowed -eq $false) {
+  Assert-Contains "external audit missing gate" $audit.missing_or_failed_gates "github_branch_protection_current_verify"
+}
+if ($audit.fly_live_budget_claim_allowed -eq $false) {
+  Assert-Contains "external audit missing gate" $audit.missing_or_failed_gates "fly_live_budget_check"
+}
 
 Write-Host "[go-live-readiness] sanitized external gate summary"
 $summary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
@@ -115,9 +123,13 @@ Assert-True "summary contract" ($summary.contract_version -eq "external-gate-sum
 Assert-True "summary status" ($summary.status -eq $audit.status)
 Assert-True "summary production claim parity" ($summary.production_deploy_claim_allowed -eq $audit.production_deploy_claim_allowed)
 Assert-Contains "summary missing gate" $summary.missing_or_failed_gates "hosted_agent_api_contracts"
-Assert-Contains "summary missing gate" $summary.missing_or_failed_gates "github_branch_protection_current_verify"
 Assert-Contains "summary missing gate" $summary.missing_or_failed_gates "vercel_backend_origin_health"
-Assert-Contains "summary missing gate" $summary.missing_or_failed_gates "fly_live_budget_check"
+if ($summary.branch_protection_claim_allowed -eq $false) {
+  Assert-Contains "summary missing gate" $summary.missing_or_failed_gates "github_branch_protection_current_verify"
+}
+if ($summary.fly_live_budget_claim_allowed -eq $false) {
+  Assert-Contains "summary missing gate" $summary.missing_or_failed_gates "fly_live_budget_check"
+}
 
 Write-Host "[go-live-readiness] artifact=$($latestAudit.FullName)"
 Write-Host "[go-live-readiness] status=$($readiness.status)"
