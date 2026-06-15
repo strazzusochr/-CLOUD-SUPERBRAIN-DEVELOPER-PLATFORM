@@ -119,8 +119,11 @@ Verified consistent: container ports (agent-api 8000, llm-gateway 4000, mcp-gate
 standalone Fly apps) is currently INCOMPLETE — fix all of these before using it:
 - `fly.agent-api.toml [env]` lacks `DATABASE_URL`, `REDIS_URL`, `LLM_GATEWAY_INTERNAL_URL`,
   `MCP_GATEWAY_INTERNAL_URL`; agent-api runs DB migrations at startup and will crash without DB/Redis.
-- No Fly config exists for `agent-worker` or `memory-worker` (no hosted task/memory processing) and
-  no managed Postgres/Redis is declared.
+- Fly configs for the workers NOW EXIST (`fly.agent-worker.toml`, `fly.memory-worker.toml`, created
+  by the dev agent — no `[http_service]`, `.flycast` inter-service URLs, secrets via `flyctl secrets set`).
+  Still TODO: provide managed Postgres (pgvector) + Redis and set `DATABASE_URL`/`REDIS_URL` secrets per app.
+  `fly.agent-api.toml` now has the correct `LLM_GATEWAY_URL`/`MCP_GATEWAY_URL` (`.flycast`) + an HTTP
+  health check; the three gateway/api configs all have `[[http_service.checks]]` on `/api/v1/health`.
 - Build-from-source on Fly fails (Dockerfile `COPY` paths are relative to `services/<svc>/`, Fly's
   context is the repo root) → you MUST deploy with `--image ghcr.io/...:staging`, never a source build.
 - `fly.toml` duplicates agent-api (app `cloud-superbrain`) — pick one, avoid double-deploy.

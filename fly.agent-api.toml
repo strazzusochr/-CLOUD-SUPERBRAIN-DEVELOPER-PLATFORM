@@ -1,6 +1,17 @@
 app = "cloud-superbrain-agent-api"
 primary_region = "fra"
 
+# Secrets — set BEFORE deploy (agent-api runs DB migrations at startup; it crashes without DB/Redis):
+#   flyctl secrets set -a cloud-superbrain-agent-api \
+#     DATABASE_URL="postgresql://USER:PASS@HOST:5432/DB" \
+#     REDIS_URL="redis://HOST:6379/0"
+# Deploy the prebuilt GHCR image (Fly source-build fails on the repo-root build context):
+#   flyctl deploy -c fly.agent-api.toml \
+#     --image ghcr.io/strazzusochr/cloud-superbrain-developer-platform/agent-api:staging
+# NOTE: the agent-api image does NOT bake docs/project-progress.manifest.json, PROJECT_STATE.md, the
+# agent roster, or external-gate-summary.json (those are bind-mounts in docker-compose.cloud.yml).
+# Hosted health degrades gracefully without them, but progress/gate DATA stays empty until baked in.
+
 [build]
   dockerfile = "services/agent-api/Dockerfile"
 
@@ -12,6 +23,13 @@ primary_region = "fra"
   min_machines_running = 1
   processes = ["app"]
 
+  [[http_service.checks]]
+    method = "GET"
+    path = "/api/v1/health"
+    interval = "20s"
+    timeout = "5s"
+    grace_period = "30s"
+
 [[vm]]
   size = "shared-cpu-1x"
   memory = "1gb"
@@ -22,3 +40,9 @@ primary_region = "fra"
   PORT = "8000"
   CLOUD_PROVIDER_INVENTORY_ENABLED = "true"
   LLM_GATEWAY_MODE = "deterministic_dry_run"
+  # Inter-service calls use <app>.flycast (Fly proxy private address) — unlike <app>.internal it
+  # wakes auto-stopped gateway machines (they run min_machines_running=0). Env names match what the
+  # agent-api actually reads (services/agent-api/app/db.py: LLM_GATEWAY_URL / MCP_GATEWAY_URL).
+  # DATABASE_URL / REDIS_URL are provided via `flyctl secrets set` (see header), not here.
+  LLM_GATEWAY_URL = "http://cloud-superbrain-llm-gateway.flycast:4000"
+  MCP_GATEWAY_URL = "http://cloud-superbrain-mcp-gateway.flycast:9000"

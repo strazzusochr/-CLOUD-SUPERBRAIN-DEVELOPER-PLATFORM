@@ -1,0 +1,33 @@
+app = "cloud-superbrain-memory-worker"
+primary_region = "fra"
+
+# Background memory consolidation worker (no public HTTP service). Runs `python -m app.worker`.
+#
+# Secrets — set BEFORE deploy (contain credentials, never commit):
+#   flyctl secrets set -a cloud-superbrain-memory-worker \
+#     DATABASE_URL="postgresql://USER:PASS@HOST:5432/DB" \
+#     REDIS_URL="redis://HOST:6379/0"
+#
+# Deploy the prebuilt GHCR image (Fly source-build fails on the repo-root build context):
+#   flyctl deploy -c fly.memory-worker.toml \
+#     --image ghcr.io/strazzusochr/cloud-superbrain-developer-platform/memory-worker:staging
+
+[build]
+  dockerfile = "services/memory-worker/Dockerfile"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[env]
+  PYTHONUNBUFFERED = "1"
+  # DATABASE_URL and REDIS_URL come from `flyctl secrets set` (see header).
+  # Inter-service calls use <app>.flycast (Fly proxy private address) so auto-stopped machines wake.
+  AGENT_API_INTERNAL_URL = "http://cloud-superbrain-agent-api.flycast:8000"
+  LLM_GATEWAY_INTERNAL_URL = "http://cloud-superbrain-llm-gateway.flycast:4000"
+  MCP_GATEWAY_INTERNAL_URL = "http://cloud-superbrain-mcp-gateway.flycast:9000"
+  MEMORY_CONSOLIDATION_INTERVAL_SECONDS = "300"
+  MEMORY_CONSOLIDATION_TTL_THRESHOLD_SECONDS = "480"
+  WORKING_MEMORY_PATTERN = "memory:working:*"
