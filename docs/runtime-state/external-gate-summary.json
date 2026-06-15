@@ -1,9 +1,15 @@
-﻿{
+{
     "contract_version":  "external-gate-summary-v1",
     "source_contract_version":  "external-gate-audit-v1",
     "source_artifact":  ".phase1-artifacts\\external-gate-audit-20260615-015637.json",
     "generated_at_utc":  "2026-06-14T23:56:37.1991505Z",
     "status":  "blocked",
+    "gate_ids":  [
+                     "hosted_agent_api_contracts",
+                     "github_branch_protection_current_verify",
+                     "vercel_backend_origin_health",
+                     "fly_live_budget_check"
+                 ],
     "frontend_preview_claim_allowed":  false,
     "hosted_staging_claim_allowed":  false,
     "branch_protection_claim_allowed":  true,
