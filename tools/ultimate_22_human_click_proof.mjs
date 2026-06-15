@@ -638,8 +638,8 @@ async function classifyInteractive(page, baseUrl) {
         }
         const className = element.getAttribute("class") || "";
         const localFilesWidget = localFilesMode && (
-          /(^|\\s)(chip|tnode-btn|lrow|tnode)(\\s|$)/.test(className)
-          || /^Root\\s/i.test(ariaLabel)
+          /(^|\s)(chip|tnode-btn|lrow|tnode)(\s|$)/.test(className)
+          || /^Root\s/i.test(ariaLabel)
           || ariaLabel === "Search project tree"
           || /^(Reset search|Copy selection|Clear)$/.test(text)
           || Boolean(element.closest(".local-files-grid, .tree, .local-search-row"))
