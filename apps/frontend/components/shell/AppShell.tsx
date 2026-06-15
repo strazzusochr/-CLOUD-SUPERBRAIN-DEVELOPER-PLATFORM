@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { Icon, railGroups } from "../../lib/nav";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Icon, type NavItem, railGroups, WORKSPACE_PAGES } from "../../lib/nav";
 import LayerVerifyPill from "./LayerVerifyPill";
 
 function railActive(pathname: string, route: string) {
@@ -21,14 +22,10 @@ export default function AppShell({
   children: ReactNode;
 }) {
   const pathname = usePathname() || "/home";
-
-  const runColor: Record<string, string> = {
-    idle: "var(--blue)",
-    planning: "var(--cyan)",
-    executing: "var(--blue)",
-    verifying: "var(--green)",
-    blocked: "var(--red)",
-  };
+  const router = useRouter();
+  const [cmdkOpen, setCmdkOpen] = useState(false);
+  const [cmdkQuery, setCmdkQuery] = useState("");
+  const cmdkInputRef = useRef<HTMLInputElement | null>(null);
 
   const runLabel: Record<string, string> = {
     idle: "RUHE",
@@ -38,12 +35,66 @@ export default function AppShell({
     blocked: "BLOCKIERT",
   };
 
+  const runDotClass = `is-${runState}`;
+
+  const cmdkItems = useMemo(() => {
+    const items: NavItem[] = railGroups.flatMap((group) => group.map((item) => item));
+    const extra = WORKSPACE_PAGES.filter((item) => item.id === "login" || item.id === "open-source");
+    for (const item of extra) {
+      if (!items.some((existing) => existing.id === item.id)) {
+        items.push(item);
+      }
+    }
+    return items;
+  }, []);
+
+  const filteredCmdkItems = useMemo(() => {
+    const query = cmdkQuery.trim().toLowerCase();
+    if (!query) return cmdkItems;
+    return cmdkItems.filter((item) => {
+      const haystack = `${item.label} ${item.route} ${item.id}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [cmdkItems, cmdkQuery]);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const key = event.key.toLowerCase();
+      const wantsCmdk = key === "k" && (event.metaKey || event.ctrlKey);
+      if (wantsCmdk) {
+        event.preventDefault();
+        setCmdkOpen(true);
+      }
+      if (key === "escape") {
+        setCmdkOpen(false);
+      }
+      if (cmdkOpen && key === "enter") {
+        const first = filteredCmdkItems[0];
+        if (first) {
+          event.preventDefault();
+          setCmdkOpen(false);
+          setCmdkQuery("");
+          router.push(first.route);
+        }
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [cmdkOpen, filteredCmdkItems, router]);
+
+  useEffect(() => {
+    if (!cmdkOpen) return;
+    const t = window.setTimeout(() => cmdkInputRef.current?.focus(), 0);
+    return () => window.clearTimeout(t);
+  }, [cmdkOpen]);
+
   return (
     <div className="app-shell">
       <nav className="rail" aria-label="Primär">
         <Link href="/home" className="rail-logo" aria-label="Cloud Superbrain Start" />
         {railGroups.map((group, gi) => (
-          <div key={gi} style={{ display: "contents" }}>
+          <div key={gi} className="rail-group">
             {gi > 0 ? <div className="rail-divider" /> : null}
             {group.map((item) => {
               const active = railActive(pathname, item.route);
@@ -94,15 +145,20 @@ export default function AppShell({
         <span className="topbar-chip" title="Cloud-only Zielumgebung">
           {Icon.stack({ size: 14 })} Vercel/Fly
         </span>
-        <div className="cmdk" role="search">
+        <button
+          type="button"
+          className="cmdk"
+          aria-label="Suchen oder Kommando ausführen"
+          onClick={() => setCmdkOpen(true)}
+        >
           {Icon.search({ size: 15 })}
           <span>Suchen oder Kommando ausführen</span>
           <kbd>⌘K</kbd>
-        </div>
+        </button>
         <div className="grow" />
         <LayerVerifyPill />
         <span className="runpill" title="Aktueller Run-Status">
-          <span className="dot pulse" style={{ background: runColor[runState] }} />
+          <span className={`dot pulse run-dot ${runDotClass}`} />
           {runLabel[runState]}
         </span>
         <span className="topbar-chip safe" title="Keine Provider-Writes, keine Secrets, kein Production Deploy">
@@ -114,6 +170,63 @@ export default function AppShell({
       </header>
 
       <main className="main">{children}</main>
+
+      {cmdkOpen ? (
+        <div
+          className="cmdk-overlay"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setCmdkOpen(false);
+            }
+          }}
+        >
+          <div className="cmdk-modal" role="dialog" aria-modal="true" aria-label="Command palette">
+            <div className="cmdk-input-row">
+              {Icon.search({ size: 16 })}
+              <input
+                ref={cmdkInputRef}
+                className="cmdk-input"
+                value={cmdkQuery}
+                onChange={(event) => setCmdkQuery(event.target.value)}
+                placeholder="Search pages…"
+                aria-label="Search pages"
+              />
+              <kbd className="cmdk-hint">Enter</kbd>
+              <button type="button" className="cmdk-close" onClick={() => setCmdkOpen(false)} aria-label="Close command palette">
+                Esc
+              </button>
+            </div>
+            <div className="cmdk-list" role="listbox" aria-label="Commands">
+              {filteredCmdkItems.length ? (
+                filteredCmdkItems.slice(0, 20).map((item) => {
+                  const CmdIcon = (Icon as Record<string, (opts?: { size?: number }) => ReactNode>)[item.icon];
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="cmdk-item"
+                      onClick={() => {
+                        setCmdkOpen(false);
+                        setCmdkQuery("");
+                        router.push(item.route);
+                      }}
+                      role="option"
+                      aria-selected="false"
+                    >
+                      <span className="cmdk-item-icon">{CmdIcon ? CmdIcon({ size: 16 }) : null}</span>
+                      <span className="cmdk-item-label">{item.label}</span>
+                      <span className="cmdk-item-route mono">{item.route}</span>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="cmdk-empty">No matches</div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

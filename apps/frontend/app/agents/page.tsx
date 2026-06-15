@@ -1,4 +1,5 @@
 import AppShell from "../../components/shell/AppShell";
+import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, Badge, Note, StatusDot } from "../../components/ui";
 import { AGENTS } from "../../lib/platform";
 import { fetchLiveAgents } from "../../lib/agentApi";
@@ -20,8 +21,22 @@ export default async function AgentsPage() {
           actions={live ? <Badge tone="green">● Live · {roster!.agents.length} agents</Badge> : <Badge tone="cyan">agent-profiles-v1</Badge>}
         />
 
+        <Panel title="Live agent API" className="mb-16" actions={<Badge tone="cyan">interaktiv · read-only</Badge>}>
+          <div className="wb-pad">
+            <LiveConsole
+              label="Agents"
+              endpoints={[
+                { label: "Health", path: "/api/v1/health" },
+                { label: "Agents status", path: "/api/v1/agents/status" },
+                { label: "Live agents status", path: "/api/v1/live-agents/status" },
+                { label: "Recent tasks", path: "/api/v1/tasks/recent" },
+              ]}
+            />
+          </div>
+        </Panel>
+
         {live ? (
-          <Panel title={`Live agent roster (runtime)`} actions={<Badge tone="green">● {roster!.runtimeSource ?? "live-agent-steering-v1"}</Badge>} style={{ marginBottom: 16 }}>
+          <Panel title={`Live agent roster (runtime)`} actions={<Badge tone="green">● {roster!.runtimeSource ?? "live-agent-steering-v1"}</Badge>} className="mb-16">
             <div className="roster">
               {roster!.agents.map((a) => (
                 <div key={a.id} className="roster-row">
@@ -35,7 +50,7 @@ export default async function AgentsPage() {
             </div>
           </Panel>
         ) : null}
-        <Panel title="Goal B live-agent steering (local real run)" actions={<Badge tone="green">local_model_calls=true</Badge>} style={{ marginBottom: 16 }}>
+        <Panel title="Goal B live-agent steering (local real run)" actions={<Badge tone="green">local_model_calls=true</Badge>} className="mb-16">
           <div className="wb-pad">
             <AgentSteeringPanel agents={(roster?.agents ?? []).map((a) => ({ id: a.id, name: a.name, role: a.role }))} />
           </div>

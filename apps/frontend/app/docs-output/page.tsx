@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
+import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, Badge, EmptyState } from "../../components/ui";
 import { Icon } from "../../lib/nav";
 import { fetchRecentSessions } from "../../lib/agentApi";
@@ -37,6 +38,11 @@ export default async function DocsOutputPage() {
           }
         />
         <div className="grid docs-output-grid">
+          <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+            <div className="wb-pad">
+              <LiveConsole endpoints={[{ label: "Memory consolidation", path: "/api/v1/memory/consolidation/recent" }]} />
+            </div>
+          </Panel>
           <Panel title="Dokumente">
             <div className="list">
               {withOutput.length ? withOutput.map((s, i) => (

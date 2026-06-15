@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
+import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, EmptyState, Badge } from "../../components/ui";
 import { fetchRecentTasks } from "../../lib/agentApi";
 import { WorkspaceModeActionPanel } from "../../components/goal-b-actions";
@@ -7,11 +8,23 @@ import { WorkspaceModeActionPanel } from "../../components/goal-b-actions";
 export const metadata = { title: "Media Workflow — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
 
-export default async function MediaPage() {
+type SearchParams = Record<string, string | string[] | undefined>;
+type MediaPageProps = {
+  searchParams?: Promise<SearchParams>;
+};
+async function resolveSearchParams(searchParams: MediaPageProps["searchParams"]): Promise<SearchParams> {
+  if (!searchParams) return {};
+  return searchParams;
+}
+
+export default async function MediaPage({ searchParams }: MediaPageProps) {
+  const resolvedSearchParams = await resolveSearchParams(searchParams);
   const tasks = await fetchRecentTasks();
   const live = !!tasks;
   const list = tasks?.tasks ?? [];
   const filtered = list.filter((t) => /(media|image|video|audio|voice|speech|music)/i.test(`${t.taskType} ${t.description}`));
+  const typeRaw = resolvedSearchParams.type;
+  const type = (Array.isArray(typeRaw) ? typeRaw[0] : typeRaw) ?? "image";
   return (
     <AppShell crumb="Media" runState="idle">
       <div className="page-wide">
@@ -26,19 +39,24 @@ export default async function MediaPage() {
             </>
           }
         />
-        <div className="grid" style={{ gridTemplateColumns: "240px 1fr 300px" }}>
+        <div className="grid grid-games">
+          <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+            <div className="wb-pad">
+              <LiveConsole endpoints={[{ label: "Model capabilities", path: "/api/v1/models/capabilities" }]} />
+            </div>
+          </Panel>
           <Panel title="Storyboard">
-            <div className="wb-pad stack" style={{ gap: 8 }}>
+            <div className="wb-pad stack gap-8">
               {filtered.length ? filtered.slice(0, 6).map((t) => (
-                <div key={t.id} className="frame-body" style={{ borderRadius: 8, border: "1px solid var(--border)", padding: 10 }}>
-                  <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                <div key={t.id} className="frame-body frame-card">
+                  <div className="row gap-8 wrap">
                     <Badge tone={t.status === "completed" ? "green" : t.status === "failed" ? "red" : "mut"}>{t.status}</Badge>
-                    <span className="mono" style={{ fontSize: 11.5, color: "var(--text-dim)" }}>{t.taskType}</span>
+                    <span className="mono text-115 text-dim">{t.taskType}</span>
                   </div>
-                  <div style={{ marginTop: 6, fontSize: 12.5, color: "var(--text-mut)" }}>{t.description}</div>
+                  <div className="agent-role mt-8">{t.description}</div>
                 </div>
               )) : (
-                <div className="frame-body" style={{ height: 64, borderRadius: 8, border: "1px solid var(--border)", display: "flex", alignItems: "center", padding: 10, color: "var(--text-mut)" }}>
+                <div className="frame-body frame-card frame-empty">
                   Noch keine Medien-Tasks
                 </div>
               )}
@@ -46,10 +64,10 @@ export default async function MediaPage() {
           </Panel>
           <Panel title="Media stage">
             <div className="wb-pad">
-              <div className="chips" style={{ marginBottom: 12 }}>
-                <span className="chip active">Bild</span>
-                <span className="chip">Video</span>
-                <span className="chip">Audio</span>
+              <div className="chips mb-12">
+                <Link href="/media?type=image" className={`chip${type === "image" ? " active" : ""}`}>Bild</Link>
+                <Link href="/media?type=video" className={`chip${type === "video" ? " active" : ""}`}>Video</Link>
+                <Link href="/media?type=audio" className={`chip${type === "audio" ? " active" : ""}`}>Audio</Link>
               </div>
               <EmptyState
                 title={filtered.length ? "Medien-Tasks vorhanden" : "Noch keine Medien generiert"}
@@ -61,7 +79,7 @@ export default async function MediaPage() {
           <Panel title="Prompt-Brief">
             <div className="wb-pad">
               <WorkspaceModeActionPanel mode="media" label="Media" />
-              <p style={{ fontSize: 13, color: "var(--text-mut)" }}>
+              <p className="text-13 text-mut">
                 Beschreibe das Bild/Video/Audio. Imports und Previews erscheinen hier zuerst.
               </p>
             </div>

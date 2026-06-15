@@ -1,4 +1,5 @@
 import AppShell from "../../components/shell/AppShell";
+import { LiveConsole } from "../../components/live-console";
 import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Badge, Note } from "../../components/ui";
 import { TechnologyProbe } from "../../components/batch5-actions";
@@ -39,22 +40,27 @@ export default function TechnologyPage() {
         />
 
         <SevenLayerBar />
-        <div style={{ marginTop: 16, marginBottom: 16 }}>
+        <div className="mt-16 mb-16">
           <TechnologyProbe />
         </div>
+        <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+          <div className="wb-pad">
+            <LiveConsole endpoints={[{ label: "Clouds", path: "/api/v1/clouds" }, { label: "Deployment preflight", path: "/api/v1/clouds/deployment-preflight" }]} />
+          </div>
+        </Panel>
 
         <Panel title="7-Layer Cloud-Stack">
           <div className="stack-list">
             {LAYERS.map((l) => (
               <div key={l.code} className="layer-row layer-row-flat">
-                <span className="layer-tag" style={{ background: l.color }}>L{l.no}</span>
+                <span className={`layer-tag layer-tag-${l.no}`}>L{l.no}</span>
                 <span className="layer-name">
                   {l.label}{" "}
-                  <span className="mono" style={{ color: "var(--text-dim)" }}>· {l.code}</span>
+                  <span className="mono text-dim">· {l.code}</span>
                 </span>
                 <span className="layer-providers">
                   {providersForLayer(l.no).map((p) => (
-                    <span key={p.id} className="layer-chip" style={{ color: p.color, borderColor: p.color }} title={p.role}>
+                    <span key={p.id} className={`layer-chip chip-${p.id}`} title={p.role}>
                       {p.label}
                     </span>
                   ))}
@@ -72,10 +78,10 @@ export default function TechnologyPage() {
           Token-Werte werden nie zurückgegeben; Deploy/Registry/Provider-Writes bleiben gate-closed.
         </Note>
 
-        <div className="page-head" style={{ margin: "22px 0 12px" }}>
+        <div className="page-head section-head">
           <div>
             <div className="eyebrow">Cloud-Provider Inventar</div>
-            <h2 style={{ fontSize: 17 }}>{PROVIDERS.length} Provider-Surfaces (ohne Secrets)</h2>
+            <h2 className="section-h2">{PROVIDERS.length} Provider-Surfaces (ohne Secrets)</h2>
           </div>
           <Badge tone="cyan">read-only · token-gated</Badge>
         </div>
@@ -83,14 +89,14 @@ export default function TechnologyPage() {
           {PROVIDERS.map((p) => (
             <div key={p.id} className="prov-card">
               <div className="prov-head">
-                <span className="prov-dot" style={{ background: p.color }} />
+                <span className={`prov-dot prov-${p.id}`} />
                 <h3>{p.label}</h3>
                 <Badge tone={p.optional ? "violet" : "green"}>{p.optional ? "optional" : "kern"}</Badge>
               </div>
               <p className="prov-role">{p.role}</p>
               <div className="prov-layers">
                 {p.layers.map((n) => (
-                  <span key={n} className="prov-layer" style={{ borderColor: LAYERS[n - 1].color, color: LAYERS[n - 1].color }}>
+                  <span key={n} className={`prov-layer layer-tag-${n}`}>
                     L{n}
                   </span>
                 ))}
@@ -102,19 +108,19 @@ export default function TechnologyPage() {
           ))}
         </div>
 
-        <div className="page-head" style={{ margin: "22px 0 12px" }}>
+        <div className="page-head section-head">
           <div>
             <div className="eyebrow">Runtime-Technologien</div>
-            <h2 style={{ fontSize: 17 }}>Was hier wirklich läuft</h2>
+            <h2 className="section-h2">Was hier wirklich läuft</h2>
           </div>
         </div>
-        <div className="grid cols-3" style={{ marginBottom: 22 }}>
+        <div className="grid cols-3 mb-22">
           {RUNTIME.map((g) => (
             <Panel key={g.group} title={g.group}>
               <div className="list">
                 {g.items.map((name) => (
                   <div key={name} className="lrow">
-                    <span style={{ fontSize: 13 }}>{name}</span>
+                    <span className="text-13">{name}</span>
                   </div>
                 ))}
               </div>
@@ -122,16 +128,16 @@ export default function TechnologyPage() {
           ))}
         </div>
 
-        <div className="page-head" style={{ margin: "22px 0 12px" }}>
+        <div className="page-head section-head">
           <div>
             <div className="eyebrow">Toolstack</div>
-            <h2 style={{ fontSize: 17 }}>Fähigkeiten nach Kategorie</h2>
+            <h2 className="section-h2">Fähigkeiten nach Kategorie</h2>
           </div>
         </div>
         <div className="grid cols-4">
           {TOOLSTACK.map((cat) => (
             <Panel key={cat.group} title={cat.group}>
-              <div className="chip-wrap" style={{ padding: "2px 4px 6px" }}>
+              <div className="chip-wrap chip-pad">
                 {cat.items.map((t) => (
                   <span key={t} className="tool-chip mono">{t}</span>
                 ))}

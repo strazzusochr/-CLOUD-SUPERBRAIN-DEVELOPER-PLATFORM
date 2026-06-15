@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
-import { PageHeader, Badge, EmptyState } from "../../components/ui";
+import { LiveConsole } from "../../components/live-console";
+import { PageHeader, Panel, Badge, EmptyState } from "../../components/ui";
 import { fetchRecentTasks, fetchRecentSessions } from "../../lib/agentApi";
 import { WorkspaceModeActionPanel } from "../../components/goal-b-actions";
 
@@ -37,7 +38,20 @@ export default async function AppsPage() {
             </>
           }
         />
-        <div style={{ marginBottom: 16 }}>
+        <Panel title="Live app surfaces" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+          <div className="wb-pad">
+            <LiveConsole
+              label="Apps"
+              endpoints={[
+                { label: "Health", path: "/api/v1/health" },
+                { label: "Recent tasks", path: "/api/v1/tasks/recent" },
+                { label: "Recent sessions", path: "/api/v1/sessions/recent" },
+                { label: "Deployment preflight", path: "/api/v1/clouds/deployment-preflight" },
+              ]}
+            />
+          </div>
+        </Panel>
+        <div className="mb-16">
           <WorkspaceModeActionPanel mode="apps" label="App" />
         </div>
         <div className="card-grid">
@@ -47,9 +61,9 @@ export default async function AppsPage() {
               <div key={t.id} className="gcard">
                 <div className="preview"><Badge tone={hint.tone}>{hint.kind}</Badge></div>
                 <div className="body">
-                  <h3 className="mono" style={{ fontSize: 13.5 }}>{t.taskType}</h3>
-                  <div className="sub" style={{ minHeight: 32 }}>{t.description}</div>
-                  <div className="actions" style={{ gap: 6 }}>
+                  <h3 className="mono gcard-title">{t.taskType}</h3>
+                  <div className="sub gcard-sub">{t.description}</div>
+                  <div className="actions gcard-actions-tight">
                     <Badge tone={t.status === "completed" ? "green" : t.status === "failed" ? "red" : "mut"}>{t.status}</Badge>
                     <Badge tone="mut">{t.agentType}</Badge>
                   </div>
@@ -61,7 +75,7 @@ export default async function AppsPage() {
               </div>
             );
           }) : (
-            <div className="panel panel-pad" style={{ gridColumn: "1 / -1" }}>
+            <div className="panel panel-pad grid-span-all">
               <EmptyState
                 title="Noch keine App-Outputs"
                 body="Starte in der Werkbank. Diese Surface listet nur echte Tasks/Sessions."

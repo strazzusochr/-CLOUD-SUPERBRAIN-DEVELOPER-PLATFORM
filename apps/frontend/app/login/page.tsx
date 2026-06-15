@@ -19,27 +19,27 @@ export default function LoginPage() {
       </header>
 
       <main className="main">
-        <div className="page" style={{ maxWidth: 880, paddingTop: 24 }}>
-          <div className="grid cols-2" style={{ alignItems: "stretch" }}>
-            <section className="panel panel-pad" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className="page login-page">
+          <div className="grid cols-2 login-grid">
+            <section className="panel panel-pad login-panel">
               <div>
                 <div className="eyebrow">Welcome back</div>
-                <h1 style={{ fontSize: 24, marginTop: 6 }}>Sign in to your workspace</h1>
+                <h1 className="login-h1">Sign in to your workspace</h1>
               </div>
 
               <LoginDryRunPanel />
 
-              <Link href="/workbench" className="btn btn-primary" style={{ justifyContent: "center" }}>
+              <Link href="/workbench" className="btn btn-primary login-center">
                 Open Workbench after dry-run
               </Link>
-              <p style={{ fontSize: 12, color: "var(--text-dim)" }}>
+              <p className="login-foot">
                 OAuth and email providers stay dry-run in this proof. No live provider write, no secret output.
               </p>
             </section>
 
-            <section className="panel panel-pad" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <section className="panel panel-pad login-panel">
               <span className="panel-title">Workspace readiness</span>
-              <div className="list" style={{ border: "1px solid var(--border)", borderRadius: 10 }}>
+              <div className="list login-readiness-list">
                 <div className="lrow">
                   Self-host or Cloud <span className="meta"><Badge tone="green">ready</Badge></span>
                 </div>
@@ -54,10 +54,10 @@ export default function LoginPage() {
                 </div>
               </div>
               <div>
-                <span className="panel-title" style={{ display: "block", marginBottom: 8 }}>Safety</span>
+                <span className="panel-title login-panel-title">Safety</span>
                 <SafetyBadgeRow />
               </div>
-              <p style={{ fontSize: 12, color: "var(--text-dim)", marginTop: "auto" }}>
+              <p className="login-foot login-foot-spacer">
                 You own your workflow. Build anything. Automate everything.
               </p>
             </section>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
+import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, Badge, SpecModeBadge, Metric, StatusDot } from "../../components/ui";
 import { SERVICES, API_SURFACES } from "../../lib/platform";
 import { LAYERS } from "../../components/organism/regionMap";
@@ -53,7 +54,7 @@ export default async function ObservePage({ searchParams }: ObservePageProps) {
           }
         />
 
-        <div className="grid cols-3" style={{ marginBottom: 16 }}>
+        <div className="grid cols-3 mb-16">
           <Metric label="Projekte" value={live ? fmt(s.superbrain_projects_total) : "—"} foot={live ? "live" : "nicht verfügbar"} />
           <Metric label="Agent-Sessions" value={live ? fmt(s.superbrain_agent_sessions_total) : "—"} foot={live ? "live" : "nicht verfügbar"} />
           <Metric label="Agent-Messages" value={live ? fmt(s.superbrain_agent_messages_total) : "—"} foot={live ? "live" : "nicht verfügbar"} />
@@ -65,8 +66,13 @@ export default async function ObservePage({ searchParams }: ObservePageProps) {
         </div>
 
         <div className="grid cols-2">
+          <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+            <div className="wb-pad">
+              <LiveConsole endpoints={[{ label: "Metrics", path: "/api/v1/metrics" }, { label: "Health", path: "/api/v1/health" }, { label: "Cloud layers", path: "/api/v1/clouds/layers" }]} />
+            </div>
+          </Panel>
           <Panel title="Runtime-Service Health" actions={live ? <Badge tone="green">● live</Badge> : <SpecModeBadge mode="spec_only" />}>
-            <div className="wb-pad stack" style={{ gap: 9 }}>
+            <div className="wb-pad stack gap-9">
               {services.map((svc, i) => {
                 const norm = (n: string) => n.replace(/[-_]/g, "");
                 const meta = SERVICES.find((x) => norm(x.name) === norm(svc.name)) ?? SERVICES[i];
@@ -74,22 +80,22 @@ export default async function ObservePage({ searchParams }: ObservePageProps) {
                 return (
                   <div key={svc.name} className="svc-row">
                     <StatusDot tone={svc.up ? "green" : "red"} pulse={svc.up} />
-                    <span className="mono" style={{ fontSize: 13 }}>{svc.name}</span>
+                    <span className="mono text-13">{svc.name}</span>
                     <span className="svc-meta">{svc.up ? "healthy" : "down"} · {layer.label}</span>
                   </div>
                 );
               })}
-              <p style={{ fontSize: 11.5, color: "var(--text-dim)", marginTop: 4 }}>
+              <p className="text-115 text-dim mt-6">
                 Health kommt aus <span className="mono">GET /api/v1/health</span> · <span className="mono">/metrics</span>.
               </p>
             </div>
           </Panel>
 
           <Panel title="Observability-Surfaces">
-            <div className="wb-pad stack" style={{ gap: 6 }}>
+            <div className="wb-pad stack gap-6">
               {observabilityEndpoints.map((e) => (
                 <div key={e} className="surface-row">
-                  <span className="mono" style={{ fontSize: 12.5 }}>{e}</span>
+                  <span className="mono text-125">{e}</span>
                   <Badge tone="cyan">nur lesen</Badge>
                 </div>
               ))}
@@ -97,12 +103,12 @@ export default async function ObservePage({ searchParams }: ObservePageProps) {
           </Panel>
         </div>
 
-        <Panel title="Traffic (OpenTelemetry)" style={{ marginTop: 16 }} pad>
+        <Panel title="Traffic (OpenTelemetry)" className="mt-16" pad>
           <SpecModeBadge mode="spec_only" />
-          <div style={{ marginTop: 10, marginBottom: 10 }}>
+          <div className="mt-10 mb-10">
             <ObserveRuntimeProbe />
           </div>
-          <svg viewBox="0 0 320 120" width="100%" height="120" style={{ marginTop: 10 }} role="img" aria-label="Traffic chart (spec-only)">
+          <svg viewBox="0 0 320 120" width="100%" height="120" className="mt-10" role="img" aria-label="Traffic chart (spec-only)">
             {BARS.map((b, i) => (
               <rect key={i} x={i * 26 + 6} y={120 - b} width="16" height={b} rx="3" fill="url(#g11)" opacity="0.85" />
             ))}
@@ -113,7 +119,7 @@ export default async function ObservePage({ searchParams }: ObservePageProps) {
               </linearGradient>
             </defs>
           </svg>
-          <p style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 6 }}>
+          <p className="text-12 text-dim mt-6">
             Spec-only Zeitreihe. Verdrahte einen live OTel-Collector, um echte Traffic-Daten zu sehen; Run-State
             und Traces korrelieren über <span className="mono">{STREAM_SURFACE}</span>.
           </p>

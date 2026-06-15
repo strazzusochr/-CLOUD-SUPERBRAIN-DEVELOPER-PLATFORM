@@ -1,4 +1,5 @@
 import AppShell from "../../components/shell/AppShell";
+import { LiveConsole } from "../../components/live-console";
 import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Badge, StatusDot } from "../../components/ui";
 import { VERIFIERS, CLOSED_GATES } from "../../lib/platform";
@@ -27,16 +28,21 @@ export default async function EvidencePage() {
         />
 
         <SevenLayerBar title="Jeder Claim: verifiziert über 7 Cloud-Layer" />
+        <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+          <div className="wb-pad">
+            <LiveConsole endpoints={[{ label: "External gates", path: "/api/v1/external-gates" }, { label: "Progress integrity", path: "/api/v1/project/progress/integrity" }]} />
+          </div>
+        </Panel>
 
-        <Panel title="Read-only Verifier Probe" style={{ marginBottom: 16 }} pad>
+        <Panel title="Read-only Verifier Probe" className="mb-16" pad>
           <EvidenceVerifierProbe />
         </Panel>
 
         {live ? (
-          <Panel title="Live Runtime-Verification (GET /api/v1/metrics)" style={{ marginBottom: 16 }} actions={<Badge tone="cyan">read-only · keine Token-Werte</Badge>}>
-            <div className="grid cols-2" style={{ gap: "0 24px" }}>
+          <Panel title="Live Runtime-Verification (GET /api/v1/metrics)" className="mb-16" actions={<Badge tone="cyan">read-only · keine Token-Werte</Badge>}>
+            <div className="grid cols-2 ev-split">
               <div>
-                <p className="inspect-label" style={{ marginTop: 0 }}>Externe Gates ({metrics!.gates.filter((g) => g.ok).length}/{metrics!.gates.length} verifiziert)</p>
+                <p className="inspect-label mt-0">Externe Gates ({metrics!.gates.filter((g) => g.ok).length}/{metrics!.gates.length} verifiziert)</p>
                 <div className="ev-grid">
                   {metrics!.gates.map((g) => (
                     <div key={g.name} className="ev-row">
@@ -48,7 +54,7 @@ export default async function EvidencePage() {
                 </div>
               </div>
               <div>
-                <p className="inspect-label" style={{ marginTop: 0 }}>Runtime-Services ({metrics!.services.filter((s) => s.up).length}/{metrics!.services.length} healthy)</p>
+                <p className="inspect-label mt-0">Runtime-Services ({metrics!.services.filter((s) => s.up).length}/{metrics!.services.length} healthy)</p>
                 <div className="ev-grid">
                   {metrics!.services.map((s) => (
                     <div key={s.name} className="ev-row">
@@ -63,21 +69,21 @@ export default async function EvidencePage() {
           </Panel>
         ) : null}
 
-        <div className="grid" style={{ gridTemplateColumns: "1.2fr 0.8fr" }}>
+        <div className="grid grid-evidence">
           <Panel title="Verifier-Skripte (werden nicht von dieser UI ausgeführt)">
             <table className="tbl">
               <thead><tr><th>Skript</th><th>Status</th></tr></thead>
               <tbody>
                 {VERIFIERS.map((v) => (
                   <tr key={v}>
-                    <td className="mono" style={{ fontSize: 12 }}>{v}</td>
+                    <td className="mono tbl-mono-sm">{v}</td>
                     <td><Badge tone="mut">unverified</Badge></td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div className="wb-pad" style={{ paddingTop: 10 }}>
-              <span style={{ fontSize: 12, color: "var(--text-dim)" }}>
+            <div className="wb-pad pt-10">
+              <span className="text-12 text-dim">
                 Verifier lokal ausführen, um Evidence-Artefakte zu erzeugen. Diese Seite claimt kein PASS ohne Run.
               </span>
             </div>
@@ -87,9 +93,9 @@ export default async function EvidencePage() {
               <div className="note blocked">
                 Hard Non-Claims bis neue Proofs existieren:
               </div>
-              <div className="chip-wrap" style={{ marginTop: 8 }}>
+              <div className="chip-wrap mt-8">
                 {CLOSED_GATES.map((g) => (
-                  <span key={g} className="review-chip" style={{ fontSize: 10.5 }}>{g}</span>
+                  <span key={g} className="review-chip">{g}</span>
                 ))}
               </div>
             </Panel>

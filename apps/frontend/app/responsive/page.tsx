@@ -47,10 +47,10 @@ export default function ResponsivePage() {
           ))}
         </div>
 
-        <div className="page-head" style={{ margin: "22px 0 12px" }}>
+        <div className="page-head section-head">
           <div>
             <div className="eyebrow">Breakpoint-Matrix</div>
-            <h2 style={{ fontSize: 17 }}>Wie sich die Shell anpasst</h2>
+            <h2 className="section-h2">Wie sich die Shell anpasst</h2>
           </div>
         </div>
         <Panel>
@@ -63,16 +63,16 @@ export default function ResponsivePage() {
             </div>
             {BREAKPOINTS.map((b) => (
               <div key={b.bp} className="bp-row">
-                <span className="mono" style={{ color: "var(--text-pri)" }}>{b.bp}</span>
+                <span className="mono">{b.bp}</span>
                 <span>{b.rail}</span>
                 <span>{b.grid}</span>
-                <span style={{ color: "var(--text-mut)" }}>{b.cortex}</span>
+                <span className="text-mut">{b.cortex}</span>
               </div>
             ))}
           </div>
         </Panel>
 
-        <div className="grid cols-2" style={{ marginTop: 16 }}>
+        <div className="grid cols-2 mt-16">
           <Panel title="Collapse-Regeln" pad>
             <ul className="rule-list">
               <li>&lt; 1280px — rechter Inspector klappt ein, Grids auf 2 Spalten.</li>
