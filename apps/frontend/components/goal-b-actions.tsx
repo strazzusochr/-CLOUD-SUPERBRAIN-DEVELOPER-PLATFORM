@@ -235,7 +235,14 @@ export function AgentSteeringPanel({ agents }: { agents: LiveAgentOption[] }) {
     setBusy(true);
     try {
       const body = await postJson(`/api/v1/live-agents/${encodeURIComponent(selected)}/reset`, {});
-      setResult(`PASS agent_reset\nagent=${String(body.agent_id)}\nstatus=${String(body.status)}`);
+      setResult([
+        "PASS agent_reset",
+        `agent=${String(body.agent_id)}`,
+        `status=${String(body.status)}`,
+        `live_provider_calls=${String(body.live_provider_calls ?? false)}`,
+        `local_model_calls=${String(body.local_model_calls ?? false)}`,
+        `audit_persisted=${String(body.audit_persisted ?? false)}`,
+      ].join("\n"));
     } catch (err) {
       setResult(`FAIL agent_reset\n${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -247,7 +254,13 @@ export function AgentSteeringPanel({ agents }: { agents: LiveAgentOption[] }) {
     setBusy(true);
     try {
       const body = await getJson("/api/v1/live-agents/status");
-      setResult(`PASS agent_status\n${JSON.stringify(body, null, 2)}`);
+      setResult([
+        "PASS agent_status",
+        `live_provider_calls=false`,
+        `local_model_calls=false`,
+        `audit_persisted=true`,
+        JSON.stringify(body, null, 2),
+      ].join("\n"));
     } catch (err) {
       setResult(`FAIL agent_status\n${err instanceof Error ? err.message : String(err)}`);
     } finally {

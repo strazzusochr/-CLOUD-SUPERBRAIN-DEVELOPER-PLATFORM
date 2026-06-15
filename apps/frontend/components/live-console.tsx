@@ -16,6 +16,12 @@ export function LiveConsole({ endpoints, label = "Live-Daten" }: { endpoints: Li
   const [meta, setMeta] = useState("");
   const [busy, setBusy] = useState(false);
 
+  function persist(key: string, value: string) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {}
+  }
+
   async function load() {
     if (!selected) return;
     setBusy(true);
@@ -49,7 +55,16 @@ export function LiveConsole({ endpoints, label = "Live-Daten" }: { endpoints: Li
     <div className="live-console" data-testid="live-console">
       <div className="lc-controls">
         {endpoints.length > 1 ? (
-          <select aria-label={`${label} Endpoint`} value={selected} onChange={(e) => setSelected(e.target.value)} disabled={busy}>
+          <select
+            aria-label={`${label} Endpoint`}
+            value={selected}
+            onChange={(e) => {
+              setSelected(e.target.value);
+              persist(`live-console:selected:${label}`, e.target.value);
+              persist("live-console:last_select", String(Date.now()));
+            }}
+            disabled={busy}
+          >
             {endpoints.map((ep) => (
               <option key={ep.path} value={ep.path}>{ep.label}</option>
             ))}
@@ -63,7 +78,11 @@ export function LiveConsole({ endpoints, label = "Live-Daten" }: { endpoints: Li
         <button
           type="button"
           className="btn btn-sm btn-ghost"
-          onClick={() => { void navigator.clipboard?.writeText(out); }}
+          onClick={() => {
+            const op = navigator.clipboard?.writeText(out);
+            if (op && typeof op.catch === "function") op.catch(() => undefined);
+            persist("live-console:last_copy", String(Date.now()));
+          }}
           disabled={busy}
         >
           Kopieren

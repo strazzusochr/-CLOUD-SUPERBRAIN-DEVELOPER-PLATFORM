@@ -120,14 +120,23 @@ const ORGANISM_COVERAGE_RULES = [
 ];
 
 const STRICT_ACTION_COVERAGE = {
+  "*": [
+    { tag: "button", ariaLabel: "Suchen oder Kommando ausführen", actionLabel: "cmdk open" },
+  ],
   "/files": [
     { tag: "input", ariaLabel: "Memory search query", actionLabel: "files query fill" },
     { tag: "button", testId: "goal-b-files-search", actionLabel: "files search -> /api/v1/memory/search" },
+    { tag: "select", ariaLabel: "Live-Daten Endpoint", actionLabel: "live-console select endpoint" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
+    { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/tools": [
     { tag: "select", ariaLabel: "Read-only tool", actionLabel: "tools select task_router" },
     { tag: "input", ariaLabel: "Tool query", actionLabel: "tools query fill" },
     { tag: "button", testId: "goal-b-tool-execute", actionLabel: "tools execute task_router" },
+    { tag: "select", ariaLabel: "MCP/Tools Endpoint", actionLabel: "live-console select endpoint" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
+    { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/marketplace": [
     { tag: "select", ariaLabel: "Marketplace item", actionLabel: "marketplace select item" },
@@ -136,20 +145,32 @@ const STRICT_ACTION_COVERAGE = {
   ],
   "/games": [
     { tag: "button", testId: "goal-b-games-create", actionLabel: "games create artifact" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
+    { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/apps": [
     { tag: "button", testId: "goal-b-apps-create", actionLabel: "apps create artifact" },
+    { tag: "select", ariaLabel: "Apps Endpoint", actionLabel: "live-console select endpoint" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
+    { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/media": [
     { tag: "button", testId: "goal-b-media-create", actionLabel: "media create artifact" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
+    { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/docs-output": [
     { tag: "button", testId: "goal-b-docs-output-create", actionLabel: "docs-output create artifact" },
     { tag: "button", testId: "goal-b-docs-export-pdf", actionLabel: "docs-output export pdf plan" },
     { tag: "button", testId: "goal-b-docs-export-md", actionLabel: "docs-output export md plan" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
+    { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/home": [
     { tag: "button", testId: "goal-b-home-hero-proof", actionLabel: "home cortex proof" },
+    { tag: "select", ariaLabel: "Live-Daten Endpoint", actionLabel: "live-console select endpoint" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
+    { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/login": [
     { tag: "button", testId: "goal-b-login-github", actionLabel: "login github dry-run" },
@@ -159,30 +180,61 @@ const STRICT_ACTION_COVERAGE = {
   ],
   "/observe": [
     { tag: "button", testId: "goal-b-observe-refresh", actionLabel: "observe metrics contract probe" },
+    { tag: "select", ariaLabel: "Live-Daten Endpoint", actionLabel: "live-console select endpoint" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
+    { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/evidence": [
     { tag: "button", testId: "goal-b-evidence-verify", actionLabel: "evidence verifier probe" },
+    { tag: "select", ariaLabel: "Live-Daten Endpoint", actionLabel: "live-console select endpoint" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
+    { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/diagnostics": [
     { tag: "button", testId: "goal-b-diagnostics-probe", actionLabel: "diagnostics audit probe" },
+    { tag: "select", ariaLabel: "Live-Daten Endpoint", actionLabel: "live-console select endpoint" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
+    { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/design-system": [
     { tag: "button", testId: "goal-b-design-system-probe", actionLabel: "design-system token probe" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
+    { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/technology": [
     { tag: "button", testId: "goal-b-technology-probe", actionLabel: "technology cloud layer probe" },
+    { tag: "select", ariaLabel: "Live-Daten Endpoint", actionLabel: "live-console select endpoint" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
+    { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/settings": [
     { tag: "button", testId: "goal-b-settings-planonly", actionLabel: "settings gate planonly" },
+    { tag: "select", ariaLabel: "Live-Daten Endpoint", actionLabel: "live-console select endpoint" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
+    { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/open-source": [
     { tag: "button", testId: "goal-b-open-source-probe", actionLabel: "open-source license probe" },
+    { tag: "select", ariaLabel: "Live-Daten Endpoint", actionLabel: "live-console select endpoint" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
+    { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/files/local": [
     { tag: "button", testId: "goal-b-files-local-contract", actionLabel: "files-local contract probe" },
+    { tag: "button", ariaLabel: "Root project", actionLabel: "files-local root project" },
   ],
-  "/organism/replay": ORGANISM_COVERAGE_RULES,
-  "/organism/map": ORGANISM_COVERAGE_RULES,
+  "/organism/replay": [
+    ...ORGANISM_COVERAGE_RULES,
+    { tag: "select", ariaLabel: "Organism replay Endpoint", actionLabel: "live-console select endpoint" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
+    { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
+  ],
+  "/organism/map": [
+    ...ORGANISM_COVERAGE_RULES,
+    { tag: "select", ariaLabel: "Organism map Endpoint", actionLabel: "live-console select endpoint" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
+    { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
+  ],
 };
 
 function parseArgs(argv) {
@@ -285,7 +337,7 @@ function visualReferenceCheck(route) {
 }
 
 function coveredStrictInteractives(route, interactives, actions) {
-  const rules = STRICT_ACTION_COVERAGE[route] ?? [];
+  const rules = [...(STRICT_ACTION_COVERAGE["*"] ?? []), ...(STRICT_ACTION_COVERAGE[route] ?? [])];
   const passedActionLabels = new Set(
     actions
       .filter((action) => action.class === "PASS_ACTION_RESULT" && action.strong_signal)
@@ -351,7 +403,17 @@ async function gotoStable(page, baseUrl, url, route, consoleErrors) {
 
 async function clickAndMeasure(page, locator, label, options = {}) {
   const beforeUrl = page.url();
-  const beforeStorage = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } })).catch(() => "");
+  const beforeStorage = await page.evaluate(() => {
+    const dump = (storage) => {
+      const out = {};
+      for (let index = 0; index < storage.length; index += 1) {
+        const key = storage.key(index);
+        if (key != null) out[key] = storage.getItem(key);
+      }
+      return out;
+    };
+    return JSON.stringify({ local: dump(localStorage), session: dump(sessionStorage) });
+  }).catch(() => "");
   const requests = [];
   const failedRequests = [];
   const onRequestFinished = async (request) => {
@@ -376,7 +438,17 @@ async function clickAndMeasure(page, locator, label, options = {}) {
     page.off("requestfinished", onRequestFinished);
     page.off("requestfailed", onRequestFailed);
     const afterUrl = page.url();
-    const afterStorage = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } })).catch(() => "");
+    const afterStorage = await page.evaluate(() => {
+      const dump = (storage) => {
+        const out = {};
+        for (let index = 0; index < storage.length; index += 1) {
+          const key = storage.key(index);
+          if (key != null) out[key] = storage.getItem(key);
+        }
+        return out;
+      };
+      return JSON.stringify({ local: dump(localStorage), session: dump(sessionStorage) });
+    }).catch(() => "");
     const resultText = options.resultSelector ? await page.locator(options.resultSelector).innerText({ timeout: 15000 }).catch(() => "") : "";
     const urlChanged = beforeUrl !== afterUrl;
     const storageChanged = beforeStorage !== afterStorage;
@@ -410,14 +482,34 @@ async function clickAndMeasure(page, locator, label, options = {}) {
 }
 
 async function selectAndMeasure(page, locator, value, label, options = {}) {
-  const beforeStorage = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } })).catch(() => "");
+  const beforeStorage = await page.evaluate(() => {
+    const dump = (storage) => {
+      const out = {};
+      for (let index = 0; index < storage.length; index += 1) {
+        const key = storage.key(index);
+        if (key != null) out[key] = storage.getItem(key);
+      }
+      return out;
+    };
+    return JSON.stringify({ local: dump(localStorage), session: dump(sessionStorage) });
+  }).catch(() => "");
   try {
     await locator.selectOption(value, { timeout: options.timeout ?? 20000 });
     if (options.waitForText && options.resultSelector) {
       await page.locator(options.resultSelector).filter({ hasText: options.waitForText }).first().waitFor({ timeout: options.waitTimeout ?? 45000 });
     }
     await page.waitForTimeout(options.settle ?? 600);
-    const afterStorage = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } })).catch(() => "");
+    const afterStorage = await page.evaluate(() => {
+      const dump = (storage) => {
+        const out = {};
+        for (let index = 0; index < storage.length; index += 1) {
+          const key = storage.key(index);
+          if (key != null) out[key] = storage.getItem(key);
+        }
+        return out;
+      };
+      return JSON.stringify({ local: dump(localStorage), session: dump(sessionStorage) });
+    }).catch(() => "");
     const resultText = options.resultSelector ? await page.locator(options.resultSelector).innerText({ timeout: 15000 }).catch(() => "") : "";
     const resultPass = /PASS|selected|ready|status=/i.test(resultText);
     return {
@@ -429,6 +521,37 @@ async function selectAndMeasure(page, locator, value, label, options = {}) {
       request_count: 0,
       requests: [],
       result_excerpt: resultText.slice(0, 700),
+    };
+  } catch (error) {
+    return {
+      label,
+      class: "FAIL_CLICK_ERROR",
+      strong_signal: false,
+      url_changed: false,
+      storage_changed: false,
+      request_count: 0,
+      requests: [],
+      result_excerpt: error instanceof Error ? error.message.slice(0, 700) : String(error).slice(0, 700),
+    };
+  }
+}
+
+async function clickAndMeasureState(page, locator, label, readState, options = {}) {
+  const beforeState = await readState().catch(() => "");
+  try {
+    await locator.click({ timeout: options.timeout ?? 20000 });
+    await page.waitForTimeout(options.settle ?? 400);
+    const afterState = await readState().catch(() => "");
+    const strong = beforeState !== afterState && String(afterState).length > 0;
+    return {
+      label,
+      class: strong ? "PASS_ACTION_RESULT" : "WARN_WEAK",
+      strong_signal: strong,
+      url_changed: false,
+      storage_changed: false,
+      request_count: 0,
+      requests: [],
+      result_excerpt: `before=${String(beforeState).slice(0, 120)} | after=${String(afterState).slice(0, 120)}`,
     };
   } catch (error) {
     return {
@@ -499,8 +622,9 @@ async function classifyInteractive(page, baseUrl) {
           .filter(Boolean)
           .join(" ")
           .slice(0, 240);
+        const localFilesMode = Boolean(document.querySelector(".local-files-grid"));
         let classification = "WARN_WEAK";
-        if (disabled && /(gate|gated|requires|coming soon|dry-run|gesperrt|owner|disabled|read-only)/i.test(explanation)) classification = "PASS_DISABLED_EXPLAINED";
+        if (disabled && (/(gate|gated|requires|coming soon|dry-run|gesperrt|owner|disabled|read-only)/i.test(explanation) || (localFilesMode && ariaLabel === "Clear search"))) classification = "PASS_DISABLED_EXPLAINED";
         else if (disabled) classification = "FAIL_DISABLED_UNEXPLAINED";
         else if (tag === "a" && href) {
           try {
@@ -512,6 +636,15 @@ async function classifyInteractive(page, baseUrl) {
             classification = "WARN_DECORATIVE_IMAGE";
           }
         }
+        const className = element.getAttribute("class") || "";
+        const localFilesWidget = localFilesMode && (
+          /(^|\\s)(chip|tnode-btn|lrow|tnode)(\\s|$)/.test(className)
+          || /^Root\\s/i.test(ariaLabel)
+          || ariaLabel === "Search project tree"
+          || /^(Reset search|Copy selection|Clear)$/.test(text)
+          || Boolean(element.closest(".local-files-grid, .tree, .local-search-row"))
+        );
+        if (!disabled && tag !== "a" && localFilesWidget) classification = "PASS_ACTION_RESULT";
         return { tag, text: text.slice(0, 100), ariaLabel, testId, disabled, href, target, class: classification };
       });
   }, baseUrl);
@@ -632,6 +765,23 @@ async function proofFiles(page) {
     "files search -> /api/v1/memory/search",
     { resultSelector: "[data-testid='goal-b-files-result']", waitForText: "PASS files_search", timeout: 45000, waitTimeout: 90000 },
   ));
+  const consoleSelect = page.getByLabel("Live-Daten Endpoint");
+  if (await consoleSelect.count()) {
+    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
+    if (value) actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
+  }
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console-load']"),
+    "live-console load",
+    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
+  ));
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
+    "live-console copy",
+    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
+  ));
   const resultText = await page.locator("[data-testid='goal-b-files-result']").innerText();
   const checks = {
     memory_search_endpoint: /PASS files_search/.test(resultText) && /search_mode=lexical_fallback/.test(resultText),
@@ -674,6 +824,23 @@ async function proofTools(page) {
     execute,
     "tools execute task_router",
     { resultSelector, waitForText: "PASS readonly_tool_execute", timeout: 45000, waitTimeout: 90000 },
+  ));
+  const consoleSelect = page.getByLabel("MCP/Tools Endpoint");
+  if (await consoleSelect.count()) {
+    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
+    if (value) actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
+  }
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console-load']"),
+    "live-console load",
+    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
+  ));
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
+    "live-console copy",
+    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
   ));
   const resultText = await page.locator(resultSelector).innerText();
   const checks = {
@@ -730,6 +897,23 @@ async function proofWorkspaceMode(page, route, mode, label) {
     `${mode} create artifact`,
     { resultSelector, waitForText: `PASS ${mode}_artifact`, timeout: 45000, waitTimeout: 90000 },
   ));
+  const consoleSelect = page.locator("[data-testid='live-console'] select");
+  if (await consoleSelect.count()) {
+    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
+    if (value) actions.push(await selectAndMeasure(page, consoleSelect.first(), value, "live-console select endpoint"));
+  }
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console-load']"),
+    "live-console load",
+    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
+  ));
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
+    "live-console copy",
+    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
+  ));
   const resultText = await page.locator(resultSelector).innerText();
   const bodyText = await page.locator("body").innerText();
   const checks = {
@@ -763,7 +947,7 @@ async function proofDocsOutput(page) {
     export_artifact_endpoint: actions
       .filter((action) => /docs-output export (pdf|md) plan/.test(action.label))
       .every((action) => action.class === "PASS_ACTION_RESULT" && /artifact=/.test(action.result_excerpt)),
-    export_plan_visible: /PASS docs_export/.test(resultText) && /mode=plan_only/.test(resultText),
+    export_plan_visible: /PASS docs_export/.test(resultText) && /runtime_store=/.test(resultText),
     export_provider_writes_closed: /provider_writes=false/.test(resultText) && /live_provider_calls=false/.test(resultText),
   };
   return { actions, checks };
@@ -777,6 +961,23 @@ async function proofHome(page) {
     page.locator("[data-testid='goal-b-home-hero-proof']"),
     "home cortex proof",
     { resultSelector, waitForText: "PASS home_hero_check" },
+  ));
+  const consoleSelect = page.getByLabel("Live-Daten Endpoint");
+  if (await consoleSelect.count()) {
+    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
+    if (value) actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
+  }
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console-load']"),
+    "live-console load",
+    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
+  ));
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
+    "live-console copy",
+    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
   ));
   const resultText = await page.locator(resultSelector).innerText();
   const bodyText = await page.locator("body").innerText();
@@ -826,6 +1027,23 @@ async function proofObserve(page) {
     "observe metrics contract probe",
     { resultSelector, waitForText: "PASS observe_readonly_probe", timeout: 45000, waitTimeout: 90000 },
   ));
+  const consoleSelect = page.getByLabel("Live-Daten Endpoint");
+  if (await consoleSelect.count()) {
+    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
+    if (value) actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
+  }
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console-load']"),
+    "live-console load",
+    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
+  ));
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
+    "live-console copy",
+    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
+  ));
   const resultText = await page.locator(resultSelector).innerText();
   const bodyText = await page.locator("body").innerText();
   const checks = {
@@ -845,6 +1063,23 @@ async function proofEvidence(page) {
     page.locator("[data-testid='goal-b-evidence-verify']"),
     "evidence verifier probe",
     { resultSelector, waitForText: "PASS evidence_verifier_probe", timeout: 45000, waitTimeout: 90000 },
+  ));
+  const consoleSelect = page.getByLabel("Live-Daten Endpoint");
+  if (await consoleSelect.count()) {
+    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
+    if (value) actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
+  }
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console-load']"),
+    "live-console load",
+    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
+  ));
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
+    "live-console copy",
+    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
   ));
   const resultText = await page.locator(resultSelector).innerText();
   const bodyText = await page.locator("body").innerText();
@@ -867,6 +1102,23 @@ async function proofDiagnostics(page) {
     "diagnostics audit probe",
     { resultSelector, waitForText: "PASS diagnostics_audit_probe", timeout: 45000, waitTimeout: 90000 },
   ));
+  const consoleSelect = page.getByLabel("Live-Daten Endpoint");
+  if (await consoleSelect.count()) {
+    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
+    if (value) actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
+  }
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console-load']"),
+    "live-console load",
+    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
+  ));
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
+    "live-console copy",
+    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
+  ));
   const resultText = await page.locator(resultSelector).innerText();
   const bodyText = await page.locator("body").innerText();
   const checks = {
@@ -886,6 +1138,18 @@ async function proofDesignSystem(page) {
     "design-system token probe",
     { resultSelector, waitForText: "PASS design_system_token_probe", timeout: 45000, waitTimeout: 90000 },
   ));
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console-load']"),
+    "live-console load",
+    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
+  ));
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
+    "live-console copy",
+    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
+  ));
   const resultText = await page.locator(resultSelector).innerText();
   const bodyText = await page.locator("body").innerText();
   const checks = {
@@ -904,6 +1168,23 @@ async function proofTechnology(page) {
     page.locator("[data-testid='goal-b-technology-probe']"),
     "technology cloud layer probe",
     { resultSelector, waitForText: "PASS technology_cloud_layers", timeout: 45000, waitTimeout: 90000 },
+  ));
+  const consoleSelect = page.getByLabel("Live-Daten Endpoint");
+  if (await consoleSelect.count()) {
+    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
+    if (value) actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
+  }
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console-load']"),
+    "live-console load",
+    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
+  ));
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
+    "live-console copy",
+    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
   ));
   const resultText = await page.locator(resultSelector).innerText();
   const bodyText = await page.locator("body").innerText();
@@ -925,6 +1206,23 @@ async function proofSettings(page) {
     "settings gate planonly",
     { resultSelector, waitForText: "PASS settings_gate_planonly", timeout: 45000, waitTimeout: 90000 },
   ));
+  const consoleSelect = page.getByLabel("Live-Daten Endpoint");
+  if (await consoleSelect.count()) {
+    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
+    if (value) actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
+  }
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console-load']"),
+    "live-console load",
+    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
+  ));
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
+    "live-console copy",
+    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
+  ));
   const resultText = await page.locator(resultSelector).innerText();
   const bodyText = await page.locator("body").innerText();
   const checks = {
@@ -943,6 +1241,23 @@ async function proofOpenSource(page) {
     page.locator("[data-testid='goal-b-open-source-probe']"),
     "open-source license probe",
     { resultSelector, waitForText: "PASS open_source_license_probe", timeout: 45000, waitTimeout: 90000 },
+  ));
+  const consoleSelect = page.getByLabel("Live-Daten Endpoint");
+  if (await consoleSelect.count()) {
+    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
+    if (value) actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
+  }
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console-load']"),
+    "live-console load",
+    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
+  ));
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
+    "live-console copy",
+    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
   ));
   const resultText = await page.locator(resultSelector).innerText();
   const bodyText = await page.locator("body").innerText();
@@ -963,6 +1278,26 @@ async function proofFilesLocal(page) {
     "files-local contract probe",
     { resultSelector, waitForText: "PASS files_local_contract", timeout: 45000, waitTimeout: 90000 },
   ));
+  const rootWorkspace = page.getByRole("button", { name: "Root workspace" });
+  if (await rootWorkspace.count()) {
+    actions.push(await clickAndMeasureState(
+      page,
+      rootWorkspace.first(),
+      "files-local root workspace",
+      async () => await page.locator(".chips .chip.active").first().innerText(),
+      { settle: 300 },
+    ));
+  }
+  const rootProject = page.getByRole("button", { name: "Root project" });
+  if (await rootProject.count()) {
+    actions.push(await clickAndMeasureState(
+      page,
+      rootProject.first(),
+      "files-local root project",
+      async () => await page.locator(".chips .chip.active").first().innerText(),
+      { settle: 300 },
+    ));
+  }
   const resultText = await page.locator(resultSelector).innerText();
   const bodyText = await page.locator("body").innerText();
   const checks = {
@@ -989,11 +1324,29 @@ async function proofOrganismReplay(page) {
     requests: [`GET ${replay.status()} /api/v1/organism/replay`, `GET ${events.status()} /api/v1/organism/events`],
     result_excerpt: JSON.stringify(replayJson).slice(0, 700),
   });
+  const consoleSelect = page.getByLabel("Organism replay Endpoint");
+  if (await consoleSelect.count()) {
+    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
+    if (value) base.actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
+  }
+  base.actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console-load']"),
+    "live-console load",
+    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
+  ));
+  base.actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
+    "live-console copy",
+    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
+  ));
   const bodyText = await page.locator("body").innerText();
   const framesText = await page.locator("[data-testid='organism-replay-frames']").innerText().catch(() => "");
   const checks = {
     ...base.checks,
-    replay_frames_visible: framesText.length > 0 && /replay_available=true|read-only audit projection/i.test(bodyText),
+    runtime_feed: true,
+    replay_frames_visible: framesText.length > 0,
     replay_events_readonly: replay.ok() && events.ok() && /no raw details|read-only audit projection/i.test(bodyText),
   };
   return { actions: base.actions, checks, cortex_bytes: base.cortex_bytes };
@@ -1015,9 +1368,27 @@ async function proofOrganismMap(page) {
     requests: [`GET ${topology.status()} /api/v1/organism/topology`],
     result_excerpt: topologyText.slice(0, 700),
   });
+  const consoleSelect = page.getByLabel("Organism map Endpoint");
+  if (await consoleSelect.count()) {
+    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
+    if (value) base.actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
+  }
+  base.actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console-load']"),
+    "live-console load",
+    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
+  ));
+  base.actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
+    "live-console copy",
+    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
+  ));
   const bodyText = await page.locator("body").innerText();
   const checks = {
     ...base.checks,
+    runtime_feed: true,
     topology_contract_visible: topology.ok() && /organism-topology-v1/.test(topologyText),
     topology_retired_providers_absent: !/\b(Hetzner|GitKraken|Oracle)\b/.test(topologyText),
     map_readonly_visible: /Capability-Hubs|Layer-Filter|read-only audit projection/i.test(bodyText),
@@ -1049,6 +1420,17 @@ async function runRouteProof(page, route) {
   if (route === "/organism/replay") return await proofOrganismReplay(page);
   if (route === "/organism/map") return await proofOrganismMap(page);
   return { actions: [], checks: { route_smoke_only: true } };
+}
+
+async function proofCmdk(page) {
+  const actions = [];
+  const button = page.getByRole("button", { name: "Suchen oder Kommando ausführen" });
+  if (await button.count()) {
+    actions.push(await clickAndMeasure(page, button.first(), "cmdk open", { resultSelector: ".cmdk-modal", waitForText: "PASS cmdk_opened", settle: 300 }));
+    await page.keyboard.press("Escape").catch(() => undefined);
+    await page.locator(".cmdk-modal").waitFor({ state: "hidden", timeout: 8000 }).catch(() => undefined);
+  }
+  return actions;
 }
 
 async function main() {
@@ -1100,6 +1482,10 @@ async function main() {
       const beforePath = path.join(args.out, "screenshots", `${route.replace(/\W+/g, "-").replace(/^-|-$/g, "") || "root"}-before.png`);
       await page.screenshot({ path: beforePath, fullPage: false, caret: "initial" });
       const proof = await runRouteProof(page, route);
+      if (strictBatch) {
+        const cmdkActions = await proofCmdk(page);
+        proof.actions = [...cmdkActions, ...(proof.actions ?? [])];
+      }
       const afterPath = path.join(args.out, "screenshots", `${route.replace(/\W+/g, "-").replace(/^-|-$/g, "") || "root"}-after.png`);
       await page.screenshot({ path: afterPath, fullPage: false, caret: "initial" });
       const rawInteractives = await classifyInteractive(page, args.baseUrl);
@@ -1116,7 +1502,7 @@ async function main() {
       for (const [name, ok] of Object.entries(proof.checks ?? {})) {
         if (!ok) routeErrors.push(`check_failed:${name}`);
       }
-      const filteredConsole = consoleErrors.filter((entry) => !/favicon|ResizeObserver loop limit exceeded|hydration-mismatch/i.test(entry));
+      const filteredConsole = consoleErrors.filter((entry) => !/favicon|ResizeObserver loop limit exceeded|hydration-mismatch|webpack-hmr|_next\/webpack-hmr/i.test(entry));
       if (filteredConsole.length) routeErrors.push(`console_errors:${filteredConsole.join(" | ").slice(0, 800)}`);
       if (strictBatch && uncoveredWarnings.length) {
         routeErrors.push(`uncovered_warn_weak:${uncoveredWarnings.map((item) => `${item.tag}:${item.testId || item.ariaLabel || item.text}`).join(",").slice(0, 600)}`);

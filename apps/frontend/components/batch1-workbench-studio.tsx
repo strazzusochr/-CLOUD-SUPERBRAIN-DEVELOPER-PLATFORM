@@ -119,7 +119,7 @@ export default function Batch1WorkbenchStudio({ showBudget }: { showBudget: bool
           source_page: "workbench",
           trace_id: `batch1-workbench-${Date.now()}`,
           agent_type: "planner",
-          live_provider_calls_allowed: true,
+          live_provider_calls_allowed: false,
         },
         messages: [
           { role: "system", content: "You are a local developer assistant inside Cloud Superbrain. Answer briefly and concretely." },

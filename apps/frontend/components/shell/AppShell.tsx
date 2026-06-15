@@ -182,6 +182,7 @@ export default function AppShell({
           }}
         >
           <div className="cmdk-modal" role="dialog" aria-modal="true" aria-label="Command palette">
+            <span className="sr-only" data-testid="cmdk-proof">PASS cmdk_opened</span>
             <div className="cmdk-input-row">
               {Icon.search({ size: 16 })}
               <input

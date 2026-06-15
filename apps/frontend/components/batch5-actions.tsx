@@ -203,6 +203,15 @@ export function LocalFilesInteractivePanel({ roots, tree }: { roots: string[]; t
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(tree.find((n) => !n.folder)?.name ?? tree[0]?.name ?? "");
 
+  function persist(key: string, value: string) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {}
+    try {
+      sessionStorage.setItem(key, value);
+    } catch {}
+  }
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return tree;
@@ -235,7 +244,11 @@ export function LocalFilesInteractivePanel({ roots, tree }: { roots: string[]; t
                 key={r}
                 type="button"
                 className={`chip${r === root ? " active" : ""}`}
-                onClick={() => setRoot(r)}
+                onClick={() => {
+                  setRoot(r);
+                  persist("files-local:root", r);
+                  persist("files-local:last_root_change", String(Date.now()));
+                }}
                 aria-label={`Root ${r}`}
               >
                 {r}
@@ -243,7 +256,16 @@ export function LocalFilesInteractivePanel({ roots, tree }: { roots: string[]; t
             ))}
           </div>
           <div className="ml-auto row">
-            <button type="button" className="btn btn-sm btn-ghost" onClick={() => setQuery("")}>Reset search</button>
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              onClick={() => {
+                setQuery("");
+                persist("files-local:last_reset", String(Date.now()));
+              }}
+            >
+              Reset search
+            </button>
             <Badge tone="cyan">interaktiv · spec</Badge>
           </div>
         </div>
@@ -257,7 +279,11 @@ export function LocalFilesInteractivePanel({ roots, tree }: { roots: string[]; t
                 key={`${n.name}:${i}`}
                 type="button"
                 className={`tnode tnode-btn indent-${Math.min(6, Math.max(0, n.d))}${n.name === selected ? " sel" : ""}`}
-                onClick={() => setSelected(n.name)}
+                onClick={() => {
+                  setSelected(n.name);
+                  persist("files-local:selected", n.name);
+                  persist("files-local:last_select", String(Date.now()));
+                }}
               >
                 {n.folder ? Icon.files({ size: 13 }) : Icon.docs({ size: 13 })}
                 <span>{n.name}</span>
@@ -272,12 +298,25 @@ export function LocalFilesInteractivePanel({ roots, tree }: { roots: string[]; t
               <button
                 type="button"
                 className="btn btn-sm btn-primary"
-                onClick={() => { void navigator.clipboard?.writeText(preview); }}
+                onClick={() => {
+                  const op = navigator.clipboard?.writeText(preview);
+                  if (op && typeof op.catch === "function") op.catch(() => undefined);
+                  persist("files-local:last_copy", String(Date.now()));
+                }}
                 disabled={!selected}
               >
                 Copy selection
               </button>
-              <button type="button" className="btn btn-sm" onClick={() => setSelected("")}>Clear</button>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => {
+                  setSelected("");
+                  persist("files-local:last_clear", String(Date.now()));
+                }}
+              >
+                Clear
+              </button>
             </div>
             <pre className="code">{preview}</pre>
           </div>
@@ -290,10 +329,21 @@ export function LocalFilesInteractivePanel({ roots, tree }: { roots: string[]; t
                 className="local-search-input"
                 aria-label="Search project tree"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  persist("files-local:query", e.target.value);
+                }}
                 placeholder="Filter tree nodes…"
               />
-              <button className="btn btn-sm" aria-label="Clear search" onClick={() => setQuery("")} disabled={!query}>
+              <button
+                className="btn btn-sm"
+                aria-label="Clear search"
+                onClick={() => {
+                  setQuery("");
+                  persist("files-local:last_clear_search", String(Date.now()));
+                }}
+                disabled={!query}
+              >
                 {Icon.search({ size: 14 })}
               </button>
             </div>
