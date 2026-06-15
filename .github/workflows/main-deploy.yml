@@ -44,18 +44,26 @@ jobs:
     strategy:
       matrix:
         include:
+          # agent-api builds from the repo root so it can bake the manifest/
+          # state files it reads at runtime (no bind-mounts on Fly).
           - name: agent-api
-            context: services/agent-api
+            context: .
+            dockerfile: services/agent-api/Dockerfile
           - name: mcp-gateway
             context: services/mcp-gateway
+            dockerfile: services/mcp-gateway/Dockerfile
           - name: frontend
             context: apps/frontend
+            dockerfile: apps/frontend/Dockerfile
           - name: llm-gateway
             context: services/llm-gateway
+            dockerfile: services/llm-gateway/Dockerfile
           - name: agent-worker
             context: services/agent-worker
+            dockerfile: services/agent-worker/Dockerfile
           - name: memory-worker
             context: services/memory-worker
+            dockerfile: services/memory-worker/Dockerfile
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -77,6 +85,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
