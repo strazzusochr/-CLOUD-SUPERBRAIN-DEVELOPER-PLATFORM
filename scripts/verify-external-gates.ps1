@@ -786,6 +786,12 @@ $runtimeSummary = [ordered]@{
   source_artifact = $artifactPath
   generated_at_utc = [string]$summary.generated_at_utc
   status = [string]$summary.status
+  gate_ids = @(
+    "hosted_agent_api_contracts",
+    "github_branch_protection_current_verify",
+    "vercel_backend_origin_health",
+    "fly_live_budget_check"
+  )
   frontend_preview_claim_allowed = [bool]$summary.frontend_preview_claim_allowed
   hosted_staging_claim_allowed = [bool]$summary.hosted_staging_claim_allowed
   branch_protection_claim_allowed = [bool]$summary.branch_protection_claim_allowed
