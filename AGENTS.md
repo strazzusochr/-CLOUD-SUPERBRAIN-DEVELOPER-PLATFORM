@@ -1,4 +1,18 @@
-# AGENTS.md - CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM
+# HERMES AGENT INSTRUCTIONS
+# Hermes liest diesen Block automatisch.
+# Patched: 2026-06-07
+
+## Projektauftrag fuer Hermes
+Plattform: D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM
+Stack: Next.js 15, LangGraph, FastAPI, pgvector
+
+## Verhalten
+- Multi-Datei-Tasks: Subagents spawnen (3 Worktrees bereits verfuegbar)
+- Worktrees: git worktree list zeigt 3 aktive Umgebungen
+- MCP verfuegbar: hermes_mcp, filesystem_mcp, github_mcp
+- Planner zuerst, dann Coder + Tester parallel
+
+---# AGENTS.md - CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM
 # Active supervisor instructions for Codex GPT-5.5 and local/cloud agents.
 # Patched: 2026-04-29
 # Path: D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\AGENTS.md
@@ -53,14 +67,14 @@ When the user says `weiter`, `go`, `mach weiter`, or gives a concrete task, cont
 | Database | One PostgreSQL instance, `superbrain_prod` app DB, `langfuse` DB/schema separated, pgvector enabled |
 | Memory | Redis working memory + PostgreSQL/pgvector long-term memory |
 | Tool layer | MCP Gateway safe envelopes with audit, timeout, scope and policy gates |
-| Observability | Audit log and metrics locally; Langfuse/Grafana remain gated deployment targets |
-| Deployment | Docker Compose for dev/runtime proof; Hetzner CX22/CX23-class target; Cloudflare/Vercel where phase-gated |
+| Observability | Audit log and metrics locally; Grafana Cloud remains the gated observability target |
+| Deployment | Docker Compose for dev/runtime proof; Vercel frontend, Fly.io container runtime, GHCR image registry where phase-gated |
 | CI/CD | GitHub Actions with branch protection and secret scanning gates |
 | GitHub MCP | Official `ghcr.io/github/github-mcp-server`; never use deprecated `@modelcontextprotocol/server-github` |
 
 Hard constraints:
 
-- Infrastructure budget: max 20 EUR/month unless Owner approves a measured upgrade.
+- Infrastructure budget: max 20 EUR/month across Vercel, Fly.io, GHCR, and Grafana Cloud unless Owner approves a measured upgrade.
 - No Qdrant in Phase 1-5.
 - No Supabase, LanceDB, Ollama, Railway, or HuggingFace Spaces as active MVP runtime defaults.
 - No CPX51/CPX31/GPU server before the documented phase gate and ADR.
@@ -117,6 +131,7 @@ Stop and require explicit Owner/review approval before:
 - Live LLM provider activation or direct provider bypass.
 - MCP tool activation with write access.
 - Architecture deviation from the seven-layer model or budget baseline.
+- Reintroducing Hetzner, GitKraken, or Oracle as active cloud/tool defaults.
 - Any reintroduction of Supabase, Qdrant, LanceDB, Ollama, Railway, HuggingFace Spaces, CPX51, CPX31, or GPU servers before the documented phase gate and ADR.
 
 ---
@@ -148,3 +163,4 @@ Use short progress updates while working. Do not create meta-documents unless th
 ---
 
 *AGENTS.md - Version 4.0 | 2026-04-29 | GPT-5.5 / Codex config drift cleanup*
+

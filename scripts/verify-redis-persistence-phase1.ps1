@@ -49,8 +49,20 @@ if ($setResult -ne "OK") {
 Invoke-Redis @("SAVE") | Out-Null
 
 $env:NGINX_HTTP_PORT = if ($env:NGINX_HTTP_PORT) { $env:NGINX_HTTP_PORT } else { "8081" }
-docker compose -f $ComposeFile up -d --force-recreate $Service | Out-Null
-Assert-LastExitCode "force-recreate redis"
+$previousErrorActionPreference = $ErrorActionPreference
+$previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
+$ErrorActionPreference = "Continue"
+$PSNativeCommandUseErrorActionPreference = $false
+try {
+  $composeOutput = docker compose -f $ComposeFile up -d --force-recreate $Service 2>&1 | Out-String
+  $composeExitCode = $LASTEXITCODE
+} finally {
+  $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
+  $ErrorActionPreference = $previousErrorActionPreference
+}
+if ($composeExitCode -ne 0) {
+  throw "Redis persistence proof failed: force-recreate redis. output=$($composeOutput.Trim())"
+}
 
 for ($i = 0; $i -lt 30; $i++) {
   try {

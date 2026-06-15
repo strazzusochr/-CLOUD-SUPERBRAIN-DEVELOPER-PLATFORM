@@ -31,6 +31,20 @@ const ORGANISM_COLORS = {
   bg: "#04060d",
 } as const;
 
+function seededUnit(seed: number) {
+  const value = Math.sin(seed * 12.9898) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+function stringSeed(value: string) {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
 function useGlow() {
   return useMemo(() => {
     const s = 128;
@@ -112,7 +126,7 @@ function useBrain(count: number) {
       const y = 1 - (i / (count - 1)) * 2;
       const r = Math.sqrt(Math.max(0, 1 - y * y));
       const th = golden * i;
-      const rad = 0.66 + 0.34 * Math.sqrt(Math.random());
+      const rad = 0.66 + 0.34 * Math.sqrt(seededUnit(i + 1));
       let x = Math.cos(th) * r * rad * 1.28;
       const z = Math.sin(th) * r * rad * 0.96;
       const yy = y * rad * 0.96;
@@ -307,7 +321,7 @@ function Hub({
   const pulse2 = useRef<THREE.Sprite>(null);
   const node = useRef<THREE.Mesh>(null);
   const ring = useRef<THREE.Mesh>(null);
-  const t = useRef(Math.random());
+  const t = useRef(seededUnit(stringSeed(hub.id)));
   const [hover, setHover] = useState(false);
   const on = active === hub.id || hover;
 
@@ -390,9 +404,9 @@ function Stars({ tex }: { tex: THREE.Texture }) {
     const n = 420;
     const p = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
-      const r = 7 + Math.random() * 9;
-      const th = Math.random() * Math.PI * 2;
-      const ph = Math.acos(2 * Math.random() - 1);
+      const r = 7 + seededUnit(i + 1) * 9;
+      const th = seededUnit(i + 421) * Math.PI * 2;
+      const ph = Math.acos(2 * seededUnit(i + 841) - 1);
       p[i * 3] = r * Math.sin(ph) * Math.cos(th);
       p[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th);
       p[i * 3 + 2] = r * Math.cos(ph);
@@ -584,6 +598,7 @@ export default function CortexCanvas3D({
   paused = false,
   resetSignal = 0,
   onToggleAutoRotate,
+  sourceLabel = "SPEC · ORGANISM",
 }: {
   runState?: RunState;
   nodeCount?: number;
@@ -598,10 +613,10 @@ export default function CortexCanvas3D({
   paused?: boolean;
   resetSignal?: number;
   onToggleAutoRotate?: () => void;
+  sourceLabel?: string;
 }) {
-  const [pbr, setPbr] = useState(false);
+  const [pbr] = useState(() => detectHardwareGPU());
   useEffect(() => {
-    setPbr(detectHardwareGPU());
     // Preload the GLB only when the 3D canvas actually mounts (not at import time,
     // so the 2D reduced-motion / no-WebGL path never triggers the fetch).
     useGLTF.preload(CORE_GLB);
@@ -631,7 +646,7 @@ export default function CortexCanvas3D({
           onToggleAutoRotate={onToggleAutoRotate}
         />
       </Canvas>
-      <span className="cortex-badge">LIVE · ORGANISM · {pbr ? "PBR/WEBGL" : "WEBGL"}</span>
+      <span className="cortex-badge">{sourceLabel} · {pbr ? "PBR/WEBGL" : "WEBGL"}</span>
       <span className="cortex-state">
         <span className="dot" style={{ background: STATE_COLOR[runState] }} />
         {STATE_LABEL[runState]}

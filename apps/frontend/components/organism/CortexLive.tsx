@@ -34,6 +34,7 @@ type Props = {
   onToggleAutoRotate?: () => void;
   forceReducedMotion?: boolean;
   onMode?: (mode: "2d" | "3d") => void;
+  sourceLabel?: string;
 };
 
 class GLErrorBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
@@ -46,24 +47,32 @@ class GLErrorBoundary extends Component<{ fallback: ReactNode; children: ReactNo
   }
 }
 
+function detectMode(forceReducedMotion?: boolean): "2d" | "3d" {
+  if (forceReducedMotion) return "2d";
+  if (typeof window === "undefined" || typeof document === "undefined") return "2d";
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduced) return "2d";
+  try {
+    return document.createElement("canvas").getContext("webgl2") ? "3d" : "2d";
+  } catch {
+    return "2d";
+  }
+}
+
 export default function CortexLive(props: Props) {
-  const [mode, setMode] = useState<"pending" | "2d" | "3d">("pending");
   const { forceReducedMotion, onMode } = props;
+  const [mode, setMode] = useState<"2d" | "3d">("2d");
 
   useEffect(() => {
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches || !!forceReducedMotion;
-    let webgl2 = false;
-    try {
-      webgl2 = !!document.createElement("canvas").getContext("webgl2");
-    } catch {
-      webgl2 = false;
-    }
-    const next = webgl2 && !reduced ? "3d" : "2d";
-    setMode(next);
-    onMode?.(next);
-  }, [forceReducedMotion, onMode]);
+    const frame = window.requestAnimationFrame(() => {
+      setMode(detectMode(forceReducedMotion));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [forceReducedMotion]);
 
-  if (mode === "pending") return <div className={`cortex-wrap ${props.className ?? ""}`} />;
+  useEffect(() => {
+    onMode?.(mode);
+  }, [mode, onMode]);
 
   if (mode === "3d") {
     return (
@@ -82,6 +91,7 @@ export default function CortexLive(props: Props) {
           paused={props.paused}
           resetSignal={props.resetSignal}
           onToggleAutoRotate={props.onToggleAutoRotate}
+          sourceLabel={props.sourceLabel}
         />
       </GLErrorBoundary>
     );

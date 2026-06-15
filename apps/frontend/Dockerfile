@@ -1,10 +1,10 @@
-FROM node:22.13.1-alpine AS deps
+FROM node:24.16.0-alpine AS deps
 
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM node:22.13.1-alpine AS builder
+FROM node:24.16.0-alpine AS builder
 
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -12,7 +12,7 @@ COPY . .
 RUN npm run build
 RUN npm prune --omit=dev
 
-FROM node:22.13.1-alpine AS dev-runner
+FROM node:24.16.0-alpine AS dev-runner
 
 WORKDIR /app
 ENV NODE_ENV=development
@@ -26,7 +26,7 @@ USER appuser
 EXPOSE 3000
 CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0", "--port", "3000"]
 
-FROM node:22.13.1-alpine AS runner
+FROM node:24.16.0-alpine AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production

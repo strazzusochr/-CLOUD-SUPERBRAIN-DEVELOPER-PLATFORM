@@ -53,6 +53,23 @@ def find_project_uuid(conn: psycopg.Connection, project_id: str) -> str | None:
     return str(row[0]) if row else None
 
 
+def find_or_create_project_uuid(conn: psycopg.Connection, project_id: str) -> str:
+    existing = find_project_uuid(conn, project_id)
+    if existing:
+        return existing
+    row = conn.execute(
+        """
+        INSERT INTO projects(name, owner_id, metadata)
+        VALUES (%s, 'langgraph-memory-updater', %s::jsonb)
+        RETURNING id
+        """,
+        (project_id, Json({"external_id": project_id, "source": "langgraph_memory_updater"})),
+    ).fetchone()
+    if not row:
+        raise RuntimeError("project insert did not return id")
+    return str(row[0])
+
+
 def insert_memory_entry(
     conn: psycopg.Connection,
     project_uuid: str,

@@ -1,8 +1,22 @@
 param(
   [string]$ReleaseId = "prod-candidate-2026-05-05-rc1",
-  [string]$BaseUrl = "https://188-34-191-140.sslip.io"
+  [string]$BaseUrl = $(if ($env:STAGING_BASE_URL) { $env:STAGING_BASE_URL } else { "" })
 )
 $ErrorActionPreference = "Stop"
+
+function Assert-HostedBaseUrlConfigured {
+  if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
+    throw "Hosted verifier requires -BaseUrl or env:STAGING_BASE_URL (HTTPS, non-localhost)."
+  }
+  if ($BaseUrl -notmatch '^https://') {
+    throw "Hosted verifier requires an HTTPS BaseUrl."
+  }
+  if ($BaseUrl -match 'localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0|host\.docker\.internal') {
+    throw "Hosted verifier refuses localhost and loopback BaseUrl values."
+  }
+}
+Assert-HostedBaseUrlConfigured
+
 function Assert-Contains($label, $value, $expected) {
   $text = ($value | Out-String)
   if (-not $text.Contains($expected)) { throw "Verification failed: $label did not contain '$expected'." }

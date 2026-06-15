@@ -5,7 +5,7 @@ Status: Implementation-ready design, synchronized with PATCHED
 
 ## Goal
 
-Define the Phase 1 app stack for a small Hetzner CX21-class start while staying below 20 EUR/month. This is the target for the executable `docker-compose.dev.yml`.
+Define the Phase 1 app stack for the local Docker control plane and the Fly.io/Vercel cloud target while staying below 20 EUR/month. This is the target for the executable `docker-compose.dev.yml`.
 
 ## Services
 

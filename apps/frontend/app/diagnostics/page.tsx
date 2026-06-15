@@ -1,13 +1,12 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
 import SevenLayerBar from "../../components/shell/SevenLayerBar";
-import { PageHeader, Panel, Badge, Metric, Bar, Note } from "../../components/ui";
-import { MANIFEST } from "../../lib/platform";
-import { LAYERS } from "../../components/organism/regionMap";
-import { fetchProgress } from "../../lib/agentApi";
+import { PageHeader, Panel, Badge } from "../../components/ui";
+import { DiagnosticsProbe } from "../../components/batch5-actions";
+import { VERIFIERS } from "../../lib/platform";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Diagnostics / Archive — Cloud Superbrain" };
+export const metadata = { title: "Diagnose / Archiv — Cloud Superbrain" };
 
 const ARCHIVE = [
   { name: "Owner Approval Storage Dry-Run", date: "2026-05-27", kind: "Run" },
@@ -17,90 +16,58 @@ const ARCHIVE = [
 ];
 
 export default async function DiagnosticsPage() {
-  const progress = await fetchProgress();
-  const live = typeof progress?.overall_percent === "number";
-  const overall = live ? progress!.overall_percent! : MANIFEST.overall;
   return (
     <AppShell crumb="Diagnostics" runState="idle">
       <div className="page-wide">
         <PageHeader
-          eyebrow="Diagnostics / Archive"
-          title="Project progress, recovery & raw verifiers"
-          subtitle="This — and only this — is where project-status percentages and recovery bundles live. Kept off Home and Workbench by design."
-          actions={live ? <Badge tone="green">● Live · /api/v1/project/progress</Badge> : <Badge tone="amber">manifest snapshot</Badge>}
+          eyebrow="Diagnose / Archiv"
+          title="Recovery, Archiv & Verifier-Rohdaten"
+          subtitle="Saubere Entwicklerplattform: Projektplan läuft separat im Hintergrund. Diese UI zeigt keine Plan-/Progress-Prozente, nur Archive/Verifier."
+          actions={<Badge tone="mut">read-only</Badge>}
         />
 
-        <SevenLayerBar title="Project plan verified across 7 cloud layers" />
-
-        <Note variant={live ? "info" : "warn"}>
-          {live ? (
-            <>
-              Live project plan from <span className="mono">GET /api/v1/project/progress</span> —{" "}
-              binding document <span className="mono">{progress!.binding_document ?? "—"}</span>, last verified{" "}
-              <span className="mono">{progress!.last_verified ?? "—"}</span>.{" "}
-              {progress!.truth_policy ?? "Evidence-based only — percentages increase only after code + runtime proof + verifier update."}
-            </>
-          ) : (
-            <>
-              Manifest snapshot <span className="mono">{MANIFEST.snapshot}</span> — the live 7×7 project
-              plan projects from <span className="mono">GET /api/v1/project/progress</span> when the runtime
-              is reachable. See <Link href="/evidence" style={{ color: "var(--cyan)" }}>Evidence</Link> for proofs.
-            </>
-          )}
-        </Note>
-
-        <div className="grid cols-3" style={{ margin: "16px 0" }}>
-          <Metric label="Overall progress" value={`${overall}%`} foot={<Badge tone={live ? "green" : "amber"}>{live ? "live · evidence-based" : "manifest"}</Badge>} />
-          <Metric label="Plan coverage" value={live ? `${progress!.phases.length} × ${progress!.layers.length}` : "7 × 7"} foot={<Badge tone="cyan">phases × layers</Badge>} />
-          <Metric label="Production deploy" value="blocked" foot={<Badge tone="red">OPA gate (policy)</Badge>} />
+        <SevenLayerBar title="7 Layer Architektur (UI-Surfaces, read-only)" />
+        <div className="block-gap-16">
+          <DiagnosticsProbe />
         </div>
 
-        <div className="grid cols-2">
-          <Panel title={`Roadmap — ${live ? progress!.phases.length : 7} phases`}>
-            <div className="wb-pad stack" style={{ gap: 9 }}>
-              {(live ? progress!.phases : MANIFEST.phases.map((p) => ({ id: p.id, label: p.id, status: p.pct >= 100 ? "verified" : "in progress", percent: p.pct }))).map((p) => (
-                <div key={p.id} className="svc-row">
-                  <span className="mono" style={{ fontSize: 11.5, minWidth: 52, color: "var(--text-dim)" }}>{p.id}</span>
-                  <span style={{ fontSize: 12.5, minWidth: 150, flex: 1 }}>{p.label}</span>
-                  <Bar pct={p.percent} />
-                  <Badge tone={p.percent >= 100 ? "green" : "amber"}>{p.status}</Badge>
-                </div>
-              ))}
-            </div>
+        <div className="grid cols-2 block-gap-16">
+          <Panel title="Verifier (Rohliste)">
+            <table className="tbl">
+              <thead><tr><th>Skript</th><th className="tbl-actions-col">Aktion</th></tr></thead>
+              <tbody>
+                {VERIFIERS.map((v) => (
+                  <tr key={v}>
+                    <td className="mono tbl-mono-sm">{v}</td>
+                    <td className="tbl-cell-right">
+                      <Link href="/evidence" className="btn btn-sm btn-ghost">Nachweise</Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </Panel>
 
-          <Panel title={`Layer readiness — ${live ? progress!.layers.length : 7} layers`}>
-            <div className="wb-pad stack" style={{ gap: 9 }}>
-              {(live ? progress!.layers : MANIFEST.modules.map((m, i) => ({ id: `layer_${i + 1}`, label: m.name, status: m.pct >= 100 ? "verified" : "in progress", percent: m.pct }))).map((l, i) => {
-                const layer = LAYERS[i] ?? LAYERS[0];
-                return (
-                  <div key={l.id} className="svc-row">
-                    <span className="layer-tag" style={{ background: layer.color, padding: "2px 7px", fontSize: 10.5, minWidth: 26 }}>L{i + 1}</span>
-                    <span style={{ fontSize: 12.5, minWidth: 150, flex: 1 }}>{l.label}</span>
-                    <Bar pct={l.percent} />
-                    <Badge tone={l.percent >= 100 ? "green" : "amber"}>{l.status}</Badge>
-                  </div>
-                );
-              })}
-            </div>
+          <Panel title="Archiv & Recovery">
+            <table className="tbl">
+              <thead><tr><th>Item</th><th>Typ</th><th>Datum</th><th className="tbl-actions-col">Aktion</th></tr></thead>
+              <tbody>
+                {ARCHIVE.map((a) => (
+                  <tr key={a.name}>
+                    <td>{a.name}</td>
+                    <td><Badge tone="mut">{a.kind}</Badge></td>
+                    <td className="mono muted-copy tbl-mono-sm">{a.date}</td>
+                    <td className="tbl-cell-right">
+                      <Link href={`/evidence?archive=${encodeURIComponent(a.name)}`} className="btn btn-sm btn-ghost">
+                        Öffnen
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </Panel>
         </div>
-
-        <Panel title="Archive & recovery" style={{ marginTop: 16 }}>
-          <table className="tbl">
-            <thead><tr><th>Item</th><th>Kind</th><th>Date</th><th /></tr></thead>
-            <tbody>
-              {ARCHIVE.map((a) => (
-                <tr key={a.name}>
-                  <td>{a.name}</td>
-                  <td><Badge tone="mut">{a.kind}</Badge></td>
-                  <td className="mono" style={{ color: "var(--text-mut)", fontSize: 12 }}>{a.date}</td>
-                  <td style={{ textAlign: "right" }}><button className="btn btn-sm btn-ghost">Open</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Panel>
       </div>
     </AppShell>
   );

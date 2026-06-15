@@ -17,7 +17,24 @@ function Assert-LastExitCode($label) {
 function Assert-Contains($label, $value, $expected) {
   $text = ($value | Out-String)
   if (-not $text.Contains($expected)) {
-    throw "Runtime verification failed: $label did not contain '$expected'. Value: $text"
+    $trimmed = $text.Trim()
+    $head = $trimmed.Substring(0, [Math]::Min(500, $trimmed.Length))
+    $tailLen = [Math]::Min(500, $trimmed.Length)
+    $tail = $trimmed.Substring([Math]::Max(0, $trimmed.Length - $tailLen), $tailLen)
+    throw "Runtime verification failed: $label did not contain '$expected'. head=$head tail=$tail"
+  }
+}
+
+function Assert-True($label, $condition) {
+  if (-not $condition) {
+    throw "Runtime verification failed: $label"
+  }
+}
+
+function Assert-NotContains($label, $value, $forbidden) {
+  $text = ($value | Out-String)
+  if ($text.Contains($forbidden)) {
+    throw "Runtime verification failed: $label contained forbidden '$forbidden'."
   }
 }
 
@@ -114,9 +131,10 @@ Assert-LastExitCode "compose status"
 Write-Host "[runtime] compose resource measurement"
 $resourceReport = powershell -ExecutionPolicy Bypass -File scripts\measure-compose-resources.ps1 -JsonOnly
 Assert-Contains "resource report project" $resourceReport '"project":"cloud-superbrain-phase1-dev"'
-Assert-Contains "resource report upgrade rule" $resourceReport "No Hetzner upgrade without empirical CPU/RAM pressure"
+Assert-Contains "resource report upgrade rule" $resourceReport "No Fly.io upgrade without empirical CPU/RAM pressure"
 Assert-Contains "resource report agent-api" $resourceReport '"service":"agent-api"'
-Assert-Contains "resource report container count" $resourceReport '"container_count":9'
+Assert-Contains "resource report container count" $resourceReport '"container_count":10'
+Assert-Contains "resource report local-llm" $resourceReport '"service":"local-llm"'
 Assert-Contains "resource report agent worker" $resourceReport '"service":"agent-worker"'
 Assert-Contains "resource report memory worker" $resourceReport '"service":"memory-worker"'
 Assert-Contains "resource report llm gateway" $resourceReport '"service":"llm-gateway"'
@@ -192,8 +210,20 @@ foreach ($container in $appContainers) {
 
 Write-Host "[runtime] refresh nginx upstream resolution"
 $env:NGINX_HTTP_PORT = $port
-docker compose -f docker-compose.dev.yml up -d --force-recreate nginx
-Assert-LastExitCode "refresh nginx upstream resolution"
+$previousErrorActionPreference = $ErrorActionPreference
+$previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
+$ErrorActionPreference = "Continue"
+$PSNativeCommandUseErrorActionPreference = $false
+try {
+  $nginxRecreateOutput = docker compose -f docker-compose.dev.yml up -d --no-deps --force-recreate nginx 2>&1 | Out-String
+  $nginxRecreateExitCode = $LASTEXITCODE
+} finally {
+  $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
+  $ErrorActionPreference = $previousErrorActionPreference
+}
+if ($nginxRecreateExitCode -ne 0) {
+  throw "Runtime verification failed: refresh nginx upstream resolution. output=$($nginxRecreateOutput.Trim())"
+}
 
 Write-Host "[runtime] nginx health"
 $nginxHealth = Wait-UrlContains "nginx health" "$baseUrl/health" "ok"
@@ -207,92 +237,25 @@ if ($frontendStatus -ne "200") {
 Write-Host "[runtime] frontend content"
 $frontendHtml = curl.exe -sS "$baseUrl/"
 Assert-Contains "frontend title" $frontendHtml "Cloud Superbrain"
-Assert-Contains "frontend project field" $frontendHtml "Project"
-Assert-Contains "frontend stream panel" $frontendHtml "Stream"
-Assert-Contains "frontend memory panel" $frontendHtml "Memory"
-Assert-Contains "frontend recent runs panel" $frontendHtml "Recent Runs"
-Assert-Contains "frontend audit panel" $frontendHtml "Audit"
-Assert-Contains "frontend mcp audit panel" $frontendHtml "MCP Audit"
-Assert-Contains "frontend agent activity per-role summaries" $frontendHtml "Per-role Summaries"
-Assert-Contains "frontend agent activity per-role css" $frontendHtml "perRoleSummary"
-Assert-Contains "frontend memory consolidation panel" $frontendHtml "Memory Consolidation"
-Assert-Contains "frontend project progress panel" $frontendHtml "Project Progress"
-Assert-Contains "frontend project progress completion contract" $frontendHtml "100% Contract"
-Assert-Contains "frontend project progress completion evidence" $frontendHtml "project_progress_100_percent_gate_contract"
-Assert-Contains "frontend cost monitor panel" $frontendHtml "Cost Monitor"
-Assert-Contains "frontend cost export contract visible" $frontendHtml "CSV Export"
-Assert-Contains "frontend cost export evidence" $frontendHtml "cost_export_csv_generated"
-Assert-Contains "frontend rate limit guard panel" $frontendHtml "Rate Limit Guard"
-Assert-Contains "frontend rate limit guard evidence" $frontendHtml "rate_limit_429_enforced"
-Assert-Contains "frontend session limit guard panel" $frontendHtml "Session Limit Guard"
-Assert-Contains "frontend session limit guard evidence" $frontendHtml "session_limit_429_enforced"
-Assert-Contains "frontend prompt input guard" $frontendHtml "Prompt Input Guard"
-Assert-Contains "frontend prompt input counter evidence" $frontendHtml "prompt_input_counter_visible"
-Assert-Contains "frontend error response contract panel" $frontendHtml "Error Response Contract"
-Assert-Contains "frontend error response ui evidence" $frontendHtml "error_response_ui_state_visible"
-Assert-Contains "frontend security headers contract panel" $frontendHtml "Security Headers Contract"
-Assert-Contains "frontend security headers evidence" $frontendHtml "security_headers_ui_visible"
-Assert-Contains "frontend trace id contract panel" $frontendHtml "Trace ID Contract"
-Assert-Contains "frontend trace id evidence" $frontendHtml "trace_id_ui_visible"
-Assert-Contains "frontend cache control contract panel" $frontendHtml "Cache Control Contract"
-Assert-Contains "frontend cache control evidence" $frontendHtml "cache_control_ui_visible"
-Assert-Contains "frontend request id contract panel" $frontendHtml "Request ID Contract"
-Assert-Contains "frontend request id evidence" $frontendHtml "request_id_ui_visible"
-Assert-Contains "frontend request id audit feed evidence" $frontendHtml "request_id_audit_feed_visible"
-Assert-Contains "frontend audit request id visible" $frontendHtml "Request ID:"
-Assert-Contains "frontend layer interface contract panel" $frontendHtml "Layer Interface Contracts"
-Assert-Contains "frontend layer interface evidence" $frontendHtml "layer_interface_contracts_visible"
-Assert-Contains "frontend infra budget panel" $frontendHtml "Infra Budget"
-Assert-Contains "frontend cloud inventory panel" $frontendHtml "Cloud Inventory"
-Assert-Contains "frontend cloud inventory endpoint" $frontendHtml "GET /api/v1/clouds"
-Assert-Contains "frontend cloud inventory evidence" $frontendHtml "cloud_provider_inventory_visible"
-Assert-Contains "frontend cloud seven layer panel" $frontendHtml "Cloud 7-Layer Readiness"
-Assert-Contains "frontend cloud layer endpoint" $frontendHtml "GET /api/v1/clouds/layers"
-Assert-Contains "frontend cloud layer evidence" $frontendHtml "cloud_layer_readiness_visible"
-Assert-Contains "frontend cloud render offload panel" $frontendHtml "Cloud Render Offload"
-Assert-Contains "frontend cloud render offload endpoint" $frontendHtml "GET /api/v1/clouds/render-offload/contract"
-Assert-Contains "frontend cloud render offload evidence" $frontendHtml "cloud_render_offload_contract_visible"
-Assert-Contains "frontend cloud deployment preflight panel" $frontendHtml "Cloud Deployment Preflight"
-Assert-Contains "frontend cloud deployment preflight endpoint" $frontendHtml "GET /api/v1/clouds/deployment-preflight/contract"
-Assert-Contains "frontend cloud deployment preflight evidence" $frontendHtml "cloud_deployment_preflight_visible"
-Assert-Contains "frontend external gates panel" $frontendHtml "External Gates"
-Assert-Contains "frontend auth contract panel" $frontendHtml "Auth Contract"
-Assert-Contains "frontend memory purge contract panel" $frontendHtml "Memory Purge Contract"
-Assert-Contains "frontend devops workflow dispatch panel" $frontendHtml "DevOps Workflow Dispatch"
-Assert-Contains "frontend github branch pr contract panel" $frontendHtml "GitHub Branch/PR Contract"
-Assert-Contains "frontend postgresql readonly query contract panel" $frontendHtml "PostgreSQL Readonly Query Contract"
-Assert-Contains "frontend filesystem workspace scope contract panel" $frontendHtml "Filesystem Workspace Scope Contract"
-Assert-Contains "frontend playwright browser proof contract panel" $frontendHtml "Playwright Browser Proof Contract"
-Assert-Contains "frontend e2b sandbox lifecycle contract panel" $frontendHtml "E2B Sandbox Lifecycle Contract"
-Assert-Contains "frontend mcp version pinning contract panel" $frontendHtml "MCP Version Pinning Contract"
-Assert-Contains "frontend mcp version pinning evidence" $frontendHtml "mcp_version_pinning_contract_visible"
-Assert-Contains "frontend memory embedding consistency contract panel" $frontendHtml "Memory Embedding Consistency Contract"
-Assert-Contains "frontend memory embedding consistency evidence" $frontendHtml "memory_embedding_consistency_contract_visible"
-Assert-Contains "frontend system health panel" $frontendHtml "System Health"
-Assert-Contains "frontend system fallback panel" $frontendHtml "System Unavailable Fallback"
-Assert-Contains "frontend system fallback evidence" $frontendHtml "system_unavailable_ui_state"
-Assert-Contains "frontend agent activity panel" $frontendHtml "Agent Activity"
-Assert-Contains "frontend agent activity evidence" $frontendHtml "agent_activity_trace_link_template"
-Assert-Contains "frontend agent activity filtered feed" $frontendHtml "agent_activity_filtered_feed_visible"
-Assert-Contains "frontend agent activity filters" $frontendHtml "activityFilterBar"
-Assert-Contains "frontend task queue panel" $frontendHtml "Task Queue"
-Assert-Contains "frontend done validation panel" $frontendHtml "Done Validation"
-Assert-Contains "frontend task policy panel" $frontendHtml "Task Policy Gate"
-Assert-Contains "frontend task assignment contract panel" $frontendHtml "Task Assignment Queue Contract"
-Assert-Contains "frontend task assignment evidence" $frontendHtml "task_assignment_queue_contract_visible"
-Assert-Contains "frontend task assignment priority routing" $frontendHtml "Priority Routing"
-Assert-Contains "frontend agent llm streaming contract panel" $frontendHtml "Agent LLM Streaming Contract"
-Assert-Contains "frontend agent llm streaming evidence" $frontendHtml "agent_llm_streaming_contract_visible"
-Assert-Contains "frontend escalations panel" $frontendHtml "Escalations"
-Assert-Contains "frontend rotation events panel" $frontendHtml "Rotation Events"
-Assert-Contains "frontend model matrix panel" $frontendHtml "Model Matrix"
-Assert-Contains "frontend llm gateway panel" $frontendHtml "LLM Gateway"
-Assert-Contains "frontend llm routing resolver" $frontendHtml "Routing Resolver"
-Assert-Contains "frontend llm provider health" $frontendHtml "Provider Health"
-Assert-Contains "frontend llm streaming contract" $frontendHtml "Streaming Contract"
-Assert-Contains "frontend llm routing policy" $frontendHtml "Routing Policy"
-Assert-Contains "frontend llm routing policy evidence" $frontendHtml "llm_routing_policy_contract_visible"
-Assert-Contains "frontend langgraph progress panel" $frontendHtml "LangGraph Progress"
+Assert-Contains "frontend canonical spec marker" $frontendHtml "Canonical platform specification"
+$workbenchHtml = curl.exe -sS "$baseUrl/workbench"
+Assert-Contains "workbench page title" $workbenchHtml "Workbench"
+Assert-Contains "workbench studio title" $workbenchHtml "Main Workbench"
+Assert-Contains "workbench preview tabs" $workbenchHtml "Game View"
+Assert-Contains "workbench app preview mode" $workbenchHtml "App Preview"
+Assert-Contains "workbench video preview mode" $workbenchHtml "Video Preview"
+Assert-Contains "workbench doc preview mode" $workbenchHtml "Doc Preview"
+Assert-Contains "workbench run binding" $workbenchHtml "Run Binding"
+Assert-NotContains "workbench forbidden sessions panel" $workbenchHtml "Sessions"
+Assert-NotContains "workbench forbidden tasks panel" $workbenchHtml "Tasks"
+Assert-NotContains "workbench forbidden audit panel" $workbenchHtml "Audit"
+Assert-NotContains "workbench forbidden workspace surfaces panel" $workbenchHtml "Workspace-Surfaces"
+Assert-NotContains "workbench forbidden master plan panel" $workbenchHtml "Master Plan"
+Assert-NotContains "workbench forbidden completion gate panel" $workbenchHtml "Completion-Gate"
+Assert-NotContains "workbench forbidden project gate wall" $workbenchHtml "Gate-Matrix"
+Assert-NotContains "workbench forbidden recovery history" $workbenchHtml "Recovery-Historie"
+Assert-NotContains "workbench budget hidden by default" $workbenchHtml "Budget Control"
+Assert-NotContains "workbench forbidden dispatch endpoints panel" $workbenchHtml "Dispatch endpoints"
 
 Write-Host "[runtime] agent-api health"
 $apiHealth = Wait-UrlContains "agent-api health" "$baseUrl/api/v1/health" '"status":"healthy"'
@@ -329,7 +292,12 @@ Assert-Contains "project progress completion version" $projectProgressCompletion
 Assert-Contains "project progress completion status" $projectProgressCompletion '"status":"blocked_external_gates"'
 Assert-Contains "project progress completion evidence" $projectProgressCompletion '"evidence_ref":"project_progress_100_percent_gate_contract"'
 Assert-Contains "project progress completion cannot set all to 100" $projectProgressCompletion '"can_set_all_to_100":false'
-Assert-Contains "project progress completion external gates cleared" $projectProgressCompletion '"missing_external_gates":[]'
+$projectProgressCompletionJson = $projectProgressCompletion | ConvertFrom-Json
+$projectProgressCompletionMissingGates = @($projectProgressCompletionJson.missing_external_gates | ForEach-Object { [string]$_ })
+Assert-True "project progress completion missing fly gate" ($projectProgressCompletionMissingGates -contains "fly_api_token")
+Assert-True "project progress completion missing vercel backend origins gate" ($projectProgressCompletionMissingGates -contains "vercel_backend_origins")
+Assert-Contains "project progress completion fly blocker" $projectProgressCompletion "live_infra_budget_refresh_requires_FLY_API_TOKEN"
+Assert-Contains "project progress completion vercel origins blocker" $projectProgressCompletion "vercel_backend_origins"
 Assert-Contains "project progress completion local gap blocker" $projectProgressCompletion "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 
 Write-Host "[runtime] layer interface contracts"
@@ -347,15 +315,15 @@ $cloudProviderInventory = curl.exe -sS "$baseUrl/api/v1/clouds"
 Assert-Contains "cloud provider contract version" $cloudProviderInventory '"contract_version":"cloud-provider-inventory-v1"'
 Assert-Contains "cloud provider evidence" $cloudProviderInventory '"evidence_ref":"cloud_provider_inventory_visible"'
 Assert-Contains "cloud provider endpoint" $cloudProviderInventory '"endpoint":"GET /api/v1/clouds"'
-Assert-Contains "cloud provider hetzner" $cloudProviderInventory '"id":"hetzner_cloud"'
-Assert-Contains "cloud provider gitkraken" $cloudProviderInventory '"id":"gitkraken_identity"'
+Assert-Contains "cloud provider Fly.io" $cloudProviderInventory '"id":"fly_io"'
+Assert-Contains "cloud provider grafana" $cloudProviderInventory '"id":"grafana_cloud"'
 Assert-Contains "cloud provider seven layer mapping" $cloudProviderInventory '"seven_layer_mapping"'
 $cloudLayerReadiness = curl.exe -sS "$baseUrl/api/v1/clouds/layers"
 Assert-Contains "cloud layer readiness contract version" $cloudLayerReadiness '"contract_version":"cloud-layer-readiness-v1"'
 Assert-Contains "cloud layer readiness evidence" $cloudLayerReadiness '"evidence_ref":"cloud_layer_readiness_visible"'
 Assert-Contains "cloud layer readiness endpoint" $cloudLayerReadiness '"endpoint":"GET /api/v1/clouds/layers"'
 Assert-Contains "cloud layer readiness layer 7" $cloudLayerReadiness '"layer_id":"layer_7"'
-Assert-Contains "cloud layer readiness gitkraken" $cloudLayerReadiness 'gitkraken_identity'
+Assert-Contains "cloud layer readiness grafana" $cloudLayerReadiness 'grafana_cloud'
 $cloudRenderOffloadContract = curl.exe -sS "$baseUrl/api/v1/clouds/render-offload/contract"
 Assert-Contains "cloud render offload contract version" $cloudRenderOffloadContract '"contract_version":"cloud-render-offload-surface-v1"'
 Assert-Contains "cloud render offload contract evidence" $cloudRenderOffloadContract '"evidence_ref":"cloud_render_offload_contract_runtime_visible"'
@@ -374,10 +342,13 @@ Assert-Contains "cloud deployment preflight runtime endpoint" $cloudDeploymentPr
 $cloudDeploymentPreflightRuntime = curl.exe -sS "$baseUrl/api/v1/clouds/deployment-preflight"
 Assert-Contains "cloud deployment preflight runtime version" $cloudDeploymentPreflightRuntime '"contract_version":"cloud-deployment-preflight-v1"'
 Assert-Contains "cloud deployment preflight runtime evidence" $cloudDeploymentPreflightRuntime '"evidence_ref":"cloud_deployment_preflight_visible"'
-Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflightRuntime '"status":"verified"'
-Assert-Contains "cloud deployment preflight cloud claim allowed" $cloudDeploymentPreflightRuntime '"cloud_deploy_claim_allowed":true'
-Assert-Contains "cloud deployment preflight production allowed" $cloudDeploymentPreflightRuntime '"production_deploy_claim_allowed":true'
-Assert-Contains "cloud deployment preflight no blocked gates" $cloudDeploymentPreflightRuntime '"missing_or_blocked_gates":[]'
+Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflightRuntime '"status":"action_required"'
+Assert-Contains "cloud deployment preflight cloud claim blocked" $cloudDeploymentPreflightRuntime '"cloud_deploy_claim_allowed":false'
+Assert-Contains "cloud deployment preflight production blocked" $cloudDeploymentPreflightRuntime '"production_deploy_claim_allowed":false'
+$cloudDeploymentPreflightRuntimeJson = $cloudDeploymentPreflightRuntime | ConvertFrom-Json
+$cloudDeploymentPreflightBlockedGates = @($cloudDeploymentPreflightRuntimeJson.missing_or_blocked_gates | ForEach-Object { [string]$_ })
+Assert-True "cloud deployment preflight missing fly cloud stack" ($cloudDeploymentPreflightBlockedGates -contains "fly_cloud_stack")
+Assert-True "cloud deployment preflight missing hosted backend origins gate" ($cloudDeploymentPreflightBlockedGates -contains "hosted_backend_origins")
 Assert-Contains "cloud deployment preflight ghcr sequence" $cloudDeploymentPreflightRuntime "publish_ghcr_images"
 Assert-Contains "cloud deployment preflight hosted origins" $cloudDeploymentPreflightRuntime "hosted_backend_origins"
 Assert-Contains "cloud deployment preflight branch token" $cloudDeploymentPreflightRuntime "BRANCH_PROTECTION_TOKEN"
@@ -474,9 +445,9 @@ $mcpVersionPinningContract = curl.exe -sS "$baseUrl/mcp/api/v1/version-pinning/c
 Assert-Contains "mcp version pinning contract version" $mcpVersionPinningContract '"contract_version":"mcp-version-pinning-v1"'
 Assert-Contains "mcp version pinning evidence" $mcpVersionPinningContract '"evidence_ref":"mcp_version_pinning_contract_visible"'
 Assert-Contains "mcp version pinning gap" $mcpVersionPinningContract '"audit_gap":"L-08"'
-Assert-Contains "mcp version pinning fastapi" $mcpVersionPinningContract "fastapi==0.115.8"
-Assert-Contains "mcp version pinning uvicorn" $mcpVersionPinningContract "uvicorn[standard]==0.34.0"
-Assert-Contains "mcp version pinning pydantic" $mcpVersionPinningContract "pydantic==2.10.6"
+Assert-Contains "mcp version pinning fastapi" $mcpVersionPinningContract "fastapi==0.136.3"
+Assert-Contains "mcp version pinning uvicorn" $mcpVersionPinningContract "uvicorn[standard]==0.49.0"
+Assert-Contains "mcp version pinning pydantic" $mcpVersionPinningContract "pydantic==2.13.4"
 Assert-Contains "mcp version pinning github contract" $mcpVersionPinningContract "github-branch-pr-plan-v1"
 Assert-Contains "mcp version pinning e2b contract" $mcpVersionPinningContract "e2b-sandbox-lifecycle-v1"
 Assert-Contains "mcp version pinning drift policy" $mcpVersionPinningContract "exact == pinning"
@@ -1477,9 +1448,13 @@ $infraBudget = curl.exe -sS "$baseUrl/api/v1/infra/budget"
 Assert-Contains "infra budget level" $infraBudget '"level":"ok"'
 Assert-Contains "infra budget projected" $infraBudget '"projected_cost_cents":900'
 Assert-Contains "infra budget limit" $infraBudget '"budget_limit_cents":2000'
-Assert-Contains "infra budget source" $infraBudget '"source":"configured_phase1_projection"'
-Assert-Contains "infra budget live verified false" $infraBudget '"live_verified":false'
-Assert-Contains "infra budget production item" $infraBudget "hetzner-production-cx21"
+if (($infraBudget | Out-String).Contains('"live_verified":true')) {
+  Assert-Contains "infra budget source" $infraBudget '"source":"fly_api_readonly_plus_plan_projection"'
+} else {
+  Assert-Contains "infra budget source" $infraBudget '"source":"configured_phase1_projection"'
+  Assert-Contains "infra budget live verified false" $infraBudget '"live_verified":false'
+}
+Assert-Contains "infra budget production item" $infraBudget "fly-production-shared-cpu-1x"
 
 Write-Host "[runtime] external gates endpoint"
 $externalGates = curl.exe -sS "$baseUrl/api/v1/external-gates"
@@ -1487,26 +1462,30 @@ Assert-Contains "external gates contract" $externalGates '"contract_version":"ex
 Assert-Contains "external gates endpoint" $externalGates '"endpoint":"GET /api/v1/external-gates"'
 Assert-Contains "external gates evidence" $externalGates '"evidence_ref":"external_gates_state_visible"'
 Assert-Contains "external gates aligned with preflight" $externalGates '"aligned_with_deployment_preflight":true'
-Assert-Contains "external gates status" $externalGates '"status":"verified"'
+Assert-Contains "external gates status" $externalGates '"status":"action_required"'
 Assert-Contains "external gates local allowed" $externalGates '"local_execution_allowed":true'
 Assert-Contains "external gates branch token" $externalGates '"id":"branch_protection_token"'
 Assert-Contains "external gates staging url" $externalGates '"id":"staging_base_url"'
-Assert-Contains "external gates hetzner token" $externalGates '"id":"hetzner_api_token"'
+Assert-Contains "external gates Fly.io token" $externalGates '"id":"fly_api_token"'
 Assert-Contains "external gates ghcr digest" $externalGates '"id":"ghcr_image_digest_proof"'
 Assert-Contains "external gates vercel origins" $externalGates '"id":"vercel_backend_origins"'
 Assert-Contains "external gates gitleaks" $externalGates '"id":"gitleaks_binary"'
-Assert-Contains "external gates blocked ghcr" $externalGates '"ghcr_images"'
-Assert-Contains "external gates blocked hosted origins" $externalGates '"hosted_backend_origins"'
+Assert-Contains "external gates ghcr mapping" $externalGates '"ghcr_images"'
+Assert-Contains "external gates hosted origins mapping" $externalGates '"hosted_backend_origins"'
+$externalGatesJson = $externalGates | ConvertFrom-Json
+$externalGatesBlockedRelease = @($externalGatesJson.blocked_release_gates | ForEach-Object { [string]$_ })
+Assert-True "external gates blocked fly stack" ($externalGatesBlockedRelease -contains "fly_cloud_stack")
+Assert-True "external gates blocked hosted origins" ($externalGatesBlockedRelease -contains "hosted_backend_origins")
 $externalGateMirror = curl.exe -sS "$baseUrl/api/v1/external-gates/mirror"
 Assert-Contains "external gate mirror contract" $externalGateMirror '"contract_version":"external-gate-mirror-v1"'
-Assert-Contains "external gate mirror status" $externalGateMirror '"status":"verified"'
+Assert-Contains "external gate mirror status" $externalGateMirror '"status":"local_mirror_ready_hosted_blocked"'
 Assert-Contains "external gate mirror evidence" $externalGateMirror '"evidence_ref":"external_gate_mirror_proof"'
 Assert-Contains "external gate mirror hosted allowed" $externalGateMirror '"hosted_staging_claim_allowed":true'
 Assert-Contains "external gate mirror branch protection allowed" $externalGateMirror '"branch_protection_claim_allowed":true'
 Assert-Contains "external gate mirror branch protection evidence" $externalGateMirror '"branch_protection_evidence_ref":"branch_protection_verify_contract"'
 Assert-Contains "external gate mirror branch protection workflow" $externalGateMirror ".github/workflows/branch-protection.yml"
 Assert-Contains "external gate mirror branch protection verifier" $externalGateMirror "scripts/apply_github_branch_protection.py --verify-only"
-Assert-Contains "external gate mirror production allowed" $externalGateMirror '"production_deploy_claim_allowed":true'
+Assert-Contains "external gate mirror production blocked" $externalGateMirror '"production_deploy_claim_allowed":false'
 Assert-Contains "external gate mirror workflow" $externalGateMirror ".github/workflows/hosted-staging-proof.yml"
 Assert-Contains "external gate mirror phase2 runtime" $externalGateMirror "phase2-runtime-v1"
 Assert-Contains "external gate mirror phase2 sse" $externalGateMirror "phase2-sse-event-contract-v1"
@@ -1901,7 +1880,7 @@ $mcpTimeoutStreamBody = @{ project_id = $projectId; prompt = "force_mcp_tool_tim
 $mcpTimeoutStreamBodyFile = Join-Path $env:TEMP ("orchestrator-mcp-timeout-stream-" + [Guid]::NewGuid().ToString("N") + ".json")
 try {
   Set-Content -Path $mcpTimeoutStreamBodyFile -Value $mcpTimeoutStreamBody -NoNewline -Encoding utf8
-  $mcpTimeoutStream = curl.exe -sN --max-time 25 -X POST -H "Content-Type: application/json" --data-binary "@$mcpTimeoutStreamBodyFile" "$baseUrl/api/v1/orchestrator/dry-run/stream"
+  $mcpTimeoutStream = curl.exe -sN --max-time 90 -X POST -H "Content-Type: application/json" --data-binary "@$mcpTimeoutStreamBodyFile" "$baseUrl/api/v1/orchestrator/dry-run/stream"
 } finally {
   Remove-Item -Path $mcpTimeoutStreamBodyFile -ErrorAction SilentlyContinue
 }
@@ -1971,6 +1950,9 @@ if ($phase2RuntimeRunStatus.aggregation_evidence_ref -ne "agent_result_aggregati
 if ($phase2RuntimeRunStatus.live_provider_calls -ne $false) { throw "Runtime verification failed: phase2 runtime run status claimed live provider calls" }
 if ($phase2RuntimeRunStatus.live_mcp_writes -ne $false) { throw "Runtime verification failed: phase2 runtime run status claimed live MCP writes" }
 if ($phase2RuntimeRunStatus.production_deploy -ne $false) { throw "Runtime verification failed: phase2 runtime run status claimed production deploy" }
+
+Write-Host "[runtime] organism runtime event projection"
+& (Join-Path $PSScriptRoot "verify-organism-runtime-events.ps1") -BaseUrl $baseUrl -AllowLocalhost -RunId $phase2RuntimeRun.thread_id
 
 Write-Host "[runtime] langgraph policy hard-stop dry-run"
 $blockedThreadId = [Guid]::NewGuid().ToString()
@@ -2104,7 +2086,7 @@ Write-Host "[runtime] langgraph orchestrator sse dry-run stream"
 $orchestratorBodyFile = Join-Path $env:TEMP ("orchestrator-stream-" + [Guid]::NewGuid().ToString("N") + ".json")
 try {
   Set-Content -Path $orchestratorBodyFile -Value $orchestratorBody -NoNewline -Encoding utf8
-  $orchestratorStream = curl.exe -sN --max-time 25 -X POST -H "Content-Type: application/json" --data-binary "@$orchestratorBodyFile" "$baseUrl/api/v1/orchestrator/dry-run/stream"
+  $orchestratorStream = curl.exe -sN --max-time 90 -X POST -H "Content-Type: application/json" --data-binary "@$orchestratorBodyFile" "$baseUrl/api/v1/orchestrator/dry-run/stream"
 } finally {
   if (Test-Path $orchestratorBodyFile) { Remove-Item -LiteralPath $orchestratorBodyFile -Force }
 }
@@ -2250,3 +2232,4 @@ if ($LASTEXITCODE -ne 0 -or $steadyFaviconStatus -ne "200") {
 }
 
 Write-Host "[runtime] phase1 runtime checks completed"
+

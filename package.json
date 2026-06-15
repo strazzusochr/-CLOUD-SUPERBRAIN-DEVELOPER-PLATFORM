@@ -9,6 +9,13 @@
     "verify:browser": "powershell -ExecutionPolicy Bypass -File scripts\\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
     "verify:hosted-local": "powershell -ExecutionPolicy Bypass -File scripts\\verify-hosted-staging.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
     "verify:external-gates": "powershell -ExecutionPolicy Bypass -File scripts\\verify-external-gates.ps1",
-    "verify:autopilot": "powershell -ExecutionPolicy Bypass -File scripts\\verify-autopilot-mode.ps1 -AllowLocalhost"
+    "verify:autopilot": "powershell -ExecutionPolicy Bypass -File scripts\\verify-autopilot-mode.ps1 -AllowLocalhost",
+    "verify:autonomous-release-workflow": "powershell -ExecutionPolicy Bypass -File scripts\\verify-autonomous-release-workflow.ps1",
+    "verify:release-boundary": "powershell -ExecutionPolicy Bypass -File scripts\\verify.ps1 -Suite release-boundary -FailFast",
+    "verify:release-candidate": "powershell -ExecutionPolicy Bypass -File scripts\\verify.ps1 -Suite release-candidate -FailFast",
+    "verify:release": "powershell -ExecutionPolicy Bypass -File scripts\\verify.ps1 -Suite release -FailFast",
+    "verify:prepush": "powershell -ExecutionPolicy Bypass -File scripts\\run-autonomous-release-workflow.ps1",
+    "verify:prepush:plan": "powershell -ExecutionPolicy Bypass -File scripts\\run-autonomous-release-workflow.ps1 -PlanOnly",
+    "verify:prepush:dev": "powershell -ExecutionPolicy Bypass -File scripts\\run-autonomous-release-workflow.ps1 -AllowNonCandidateHead"
   }
 }

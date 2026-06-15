@@ -8,8 +8,6 @@ import LayerVerifyPill from "./LayerVerifyPill";
 
 function railActive(pathname: string, route: string) {
   if (route === "/home") return pathname === "/home";
-  if (route === "/files") return pathname === "/files";
-  if (route === "/files/local") return pathname.startsWith("/files/local");
   return pathname === route || pathname.startsWith(route + "/");
 }
 
@@ -32,10 +30,18 @@ export default function AppShell({
     blocked: "var(--red)",
   };
 
+  const runLabel: Record<string, string> = {
+    idle: "RUHE",
+    planning: "PLANUNG",
+    executing: "AUSFÜHRUNG",
+    verifying: "PRÜFUNG",
+    blocked: "BLOCKIERT",
+  };
+
   return (
     <div className="app-shell">
-      <nav className="rail" aria-label="Primary">
-        <Link href="/home" className="rail-logo" aria-label="Cloud Superbrain home" />
+      <nav className="rail" aria-label="Primär">
+        <Link href="/home" className="rail-logo" aria-label="Cloud Superbrain Start" />
         {railGroups.map((group, gi) => (
           <div key={gi} style={{ display: "contents" }}>
             {gi > 0 ? <div className="rail-divider" /> : null}
@@ -58,11 +64,21 @@ export default function AppShell({
         ))}
         <div className="rail-spacer" />
         <div className="rail-divider" />
-        <Link href="/open-source" className="rail-item" aria-label="Open Source">
+        <Link
+          href="/open-source"
+          className={`rail-item${railActive(pathname, "/open-source") ? " active" : ""}`}
+          aria-label="Open Source"
+          aria-current={railActive(pathname, "/open-source") ? "page" : undefined}
+        >
           {Icon.open()}
           <span className="rail-tip">Open Source</span>
         </Link>
-        <Link href="/login" className="rail-item" aria-label="Login / Onboarding">
+        <Link
+          href="/login"
+          className={`rail-item${railActive(pathname, "/login") ? " active" : ""}`}
+          aria-label="Login / Onboarding"
+          aria-current={railActive(pathname, "/login") ? "page" : undefined}
+        >
           {Icon.login()}
           <span className="rail-tip">Login</span>
         </Link>
@@ -72,19 +88,25 @@ export default function AppShell({
         <div className="crumb">
           Cloud Superbrain&nbsp;/&nbsp;<b>{crumb}</b>
         </div>
+        <span className="topbar-chip" title="Projektkontext">
+          {Icon.workbench({ size: 14 })} Superbrain Platform
+        </span>
+        <span className="topbar-chip" title="Cloud-only Zielumgebung">
+          {Icon.stack({ size: 14 })} Vercel/Fly
+        </span>
         <div className="cmdk" role="search">
           {Icon.search({ size: 15 })}
-          <span>Search or run a command</span>
+          <span>Suchen oder Kommando ausführen</span>
           <kbd>⌘K</kbd>
         </div>
         <div className="grow" />
         <LayerVerifyPill />
-        <span className="runpill" title="Active run state">
+        <span className="runpill" title="Aktueller Run-Status">
           <span className="dot pulse" style={{ background: runColor[runState] }} />
-          {runState.toUpperCase()}
+          {runLabel[runState]}
         </span>
-        <span className="badge badge-mut" title="All write/deploy gates closed">
-          {Icon.shield({ size: 13 })} Gates: CLOSED
+        <span className="topbar-chip safe" title="Keine Provider-Writes, keine Secrets, kein Production Deploy">
+          {Icon.shield({ size: 13 })} Read-only safe
         </span>
         <div className="avatar" aria-hidden="true">
           AI

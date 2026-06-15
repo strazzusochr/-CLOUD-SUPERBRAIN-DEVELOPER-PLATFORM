@@ -67,7 +67,7 @@ foreach ($forbiddenMemoryTerm in @("qdrant_point_id", "Qdrant ist im MVP", "Qdra
   }
 }
 $codexSkillMaster = Get-Content -Path "docs\codex-integration\CODEX_AGENT_SKILL_MASTER.md" -Raw
-foreach ($forbiddenCodexTerm in @("MVP-Embeddings:  Supabase Free Tier", "supabase-keepalive", "CPX31 (~10", "Embeddings→Supabase")) {
+foreach ($forbiddenCodexTerm in @("MVP-Embeddings:  Supabase Free Tier", "supabase-keepalive", "CPX31 (~10", "Embeddingsâ†’Supabase")) {
   if ($codexSkillMaster.Contains($forbiddenCodexTerm)) {
     throw "Codex skill master contains superseded governance term: $forbiddenCodexTerm"
   }
@@ -94,6 +94,115 @@ py -3 -m py_compile `
   services\agent-worker\app\worker.py `
   services\mcp-gateway\app\main.py
 Assert-LastExitCode "python syntax"
+
+Write-Host "[verify] llm responses adapter contract guard"
+if (-not (Test-Path "scripts\verify-llm-responses-contract.ps1")) {
+  throw "Missing LLM responses adapter verifier"
+}
+$llmResponsesParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-llm-responses-contract.ps1",
+  [ref]$null,
+  [ref]$llmResponsesParseErrors
+) | Out-Null
+if ($llmResponsesParseErrors -and $llmResponsesParseErrors.Count -gt 0) {
+  $llmResponsesParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "LLM responses adapter verifier has parse errors"
+}
+$llmResponsesVerifier = Get-Content -Path "scripts\verify-llm-responses-contract.ps1" -Raw
+$llmGatewaySource = Get-Content -Path "services\llm-gateway\app\main.py" -Raw
+$agentApiSourceForLlmResponses = Get-Content -Path "services\agent-api\app\main.py" -Raw
+foreach ($required in @(
+  "llm-responses-adapter-contract-v1",
+  "llm_responses_adapter_contract_visible",
+  "POST /llm/v1/responses",
+  "GET /llm/api/v1/responses/contract",
+  "audit_persisted",
+  "stream true rejected",
+  "metadata object required",
+  "No direct provider URL is called by the Agent API"
+)) {
+  if (-not $llmResponsesVerifier.Contains($required)) {
+    throw "LLM responses verifier missing required guard: $required"
+  }
+}
+foreach ($required in @(
+  "LLM_RESPONSES_ADAPTER_CONTRACT_VERSION",
+  "responses_adapter_contract_snapshot",
+  '@app.get("/api/v1/responses/contract")',
+  '@app.post("/v1/responses")',
+  "stream=true is not supported on this /v1/responses proxy",
+  "metadata must be an object",
+  '"secret_output": False'
+)) {
+  if (-not $llmGatewaySource.Contains($required)) {
+    throw "LLM gateway source missing responses adapter guard: $required"
+  }
+}
+foreach ($required in @(
+  "LLM_RESPONSES_ADAPTER_CONTRACT_VERSION",
+  "GET /llm/api/v1/responses/contract",
+  "POST /llm/v1/responses",
+  "required_llm_response_fields",
+  "No direct provider URL is called by the Agent API"
+)) {
+  if (-not $agentApiSourceForLlmResponses.Contains($required)) {
+    throw "Agent API source missing responses adapter guard: $required"
+  }
+}
+
+Write-Host "[verify] live agent steering contract guard"
+if (-not (Test-Path "scripts\verify-live-agent-steering-contract.ps1")) {
+  throw "Missing live agent steering verifier"
+}
+$liveAgentSteeringParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-live-agent-steering-contract.ps1",
+  [ref]$null,
+  [ref]$liveAgentSteeringParseErrors
+) | Out-Null
+if ($liveAgentSteeringParseErrors -and $liveAgentSteeringParseErrors.Count -gt 0) {
+  $liveAgentSteeringParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Live agent steering verifier has parse errors"
+}
+$liveAgentSteeringVerifier = Get-Content -Path "scripts\verify-live-agent-steering-contract.ps1" -Raw
+$agentApiSourceForLiveAgentSteering = Get-Content -Path "services\agent-api\app\main.py" -Raw
+foreach ($required in @(
+  "live-agent-steering-v1",
+  "live_agent_steering_contract_visible",
+  "POST /llm/v1/responses",
+  "GET /llm/api/v1/responses/contract",
+  "llm-responses-adapter-contract-v1",
+  "live_provider_calls",
+  "model_downloads",
+  "audit_persisted",
+  "secret_output",
+  "unknown agent rejected",
+  "empty message rejected",
+  "compatibility route"
+)) {
+  if (-not $liveAgentSteeringVerifier.Contains($required)) {
+    throw "Live agent steering verifier missing required guard: $required"
+  }
+}
+foreach ($required in @(
+  "LIVE_AGENT_STEERING_CONTRACT_VERSION",
+  '@app.get("/api/v1/live-agents/contract")',
+  '@app.post("/api/v1/live-agents/steer")',
+  '@app.post("/api/steer-agent")',
+  '@app.post("/api/v1/live-agents/{agent_id}/reset")',
+  "call_llm_gateway_responses",
+  "llm_gateway_contract_version",
+  "llm_gateway_evidence_ref",
+  "live_provider_calls",
+  "model_downloads",
+  "audit_persisted",
+  "secret_output"
+)) {
+  if (-not $agentApiSourceForLiveAgentSteering.Contains($required)) {
+    throw "Agent API source missing live agent steering guard: $required"
+  }
+}
 
 Write-Host "[verify] migration files"
 if (-not (Test-Path "services\agent-api\app\migrations\001_foundation_schema.sql")) {
@@ -133,6 +242,407 @@ node -e "JSON.parse(require('fs').readFileSync('apps/frontend/package.json','utf
 Assert-LastExitCode "frontend package json"
 if (-not (Test-Path "apps\frontend\app\favicon.ico\route.ts")) {
   throw "Missing frontend favicon route for browser console clean proof"
+}
+if (-not (Test-Path "scripts\verify-frontend-cloud-rewrites.ps1")) {
+  throw "Missing frontend cloud rewrite verifier"
+}
+$frontendNextConfig = Get-Content -Path "apps\frontend\next.config.mjs" -Raw
+foreach ($required in @("convertFlyAppNameToBaseUrl", "resolveBaseUrl", "FLY_APP_AGENT_API", "FLY_APP_MCP_GATEWAY", "FLY_APP_LLM_GATEWAY", "cloud-superbrain-agent-api", "cloud-superbrain-mcp-gateway", "cloud-superbrain-llm-gateway", "hostedRewriteFallbackFor")) {
+  if (-not $frontendNextConfig.Contains($required)) {
+    throw "Frontend Next.js config missing Fly rewrite guard: $required"
+  }
+}
+
+Write-Host "[verify] frontend cloud rewrites"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-frontend-cloud-rewrites.ps1
+Assert-LastExitCode "frontend cloud rewrites"
+
+Write-Host "[verify] workspace pages layer map"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-workspace-pages-layer-map.ps1
+Assert-LastExitCode "workspace pages layer map"
+
+Write-Host "[verify] workspace vertical stack guard"
+if (-not (Test-Path "scripts\verify-workspace-vertical-stack.ps1")) {
+  throw "Missing workspace vertical stack verifier"
+}
+if (-not (Test-Path "apps\frontend\lib\workspaceVerticalStack.ts")) {
+  throw "Missing workspace vertical stack contract source"
+}
+if (-not (Test-Path "apps\frontend\app\api\v1\workspace\vertical-stack\route.ts")) {
+  throw "Missing workspace vertical stack frontend route"
+}
+$workspaceVerticalStackParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-workspace-vertical-stack.ps1",
+  [ref]$null,
+  [ref]$workspaceVerticalStackParseErrors
+) | Out-Null
+if ($workspaceVerticalStackParseErrors -and $workspaceVerticalStackParseErrors.Count -gt 0) {
+  $workspaceVerticalStackParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Workspace vertical stack verifier has parse errors"
+}
+$workspaceVerticalSource = Get-Content -Path "apps\frontend\lib\workspaceVerticalStack.ts" -Raw
+$workspaceVerticalRoute = Get-Content -Path "apps\frontend\app\api\v1\workspace\vertical-stack\route.ts" -Raw
+$workspaceVerticalVerifier = Get-Content -Path "scripts\verify-workspace-vertical-stack.ps1" -Raw
+$workspaceVerticalAgentApi = Get-Content -Path "services\agent-api\app\main.py" -Raw
+foreach ($required in @(
+  "workspace-vertical-stack-v1",
+  "workspace_vertical_stack_visible",
+  "expected_page_count: 22",
+  "layers_required: 7",
+  "ui",
+  "api",
+  "data",
+  "verification",
+  "deploy",
+  "safety",
+  "blocked_external_gates",
+  "productionDeployClaimAllowed: false",
+  "Localhost evidence remains DEV-ONLY"
+)) {
+  if (-not $workspaceVerticalSource.Contains($required)) {
+    throw "Workspace vertical stack source missing guard: $required"
+  }
+}
+foreach ($required in @("workspaceVerticalStackContract", "/api/v1/workspace/vertical-stack")) {
+  if (-not (($workspaceVerticalRoute.Contains($required)) -or ($workspaceVerticalSource.Contains($required)))) {
+    throw "Workspace vertical stack route/source missing guard: $required"
+  }
+}
+foreach ($required in @(
+  "workspace-vertical-stack-v1",
+  "workspace_vertical_stack_visible",
+  "page_count) 22",
+  "layers_required) 7",
+  "directProviderCalls",
+  "hostedProofRequiredForRelease",
+  "fly-agent-api",
+  "fly-mcp-gateway",
+  "fly-llm-gateway",
+  "ghcr",
+  "Hetzner",
+  "GitKraken",
+  "Oracle"
+)) {
+  if (-not $workspaceVerticalVerifier.Contains($required)) {
+    throw "Workspace vertical stack verifier missing guard: $required"
+  }
+}
+foreach ($required in @(
+  "WORKSPACE_VERTICAL_STACK_CONTRACT_VERSION",
+  "WORKSPACE_VERTICAL_STACK_EVIDENCE_REF",
+  "workspace_vertical_stack_payload",
+  '@app.get("/api/v1/workspace/vertical-stack")',
+  "GET /api/v1/workspace/vertical-stack",
+  "/api/v1/workspace/vertical-stack"
+)) {
+  if (-not $workspaceVerticalAgentApi.Contains($required)) {
+    throw "Agent API missing workspace vertical stack guard: $required"
+  }
+}
+
+Write-Host "[verify] workspace data source integrity guard"
+if (-not (Test-Path "scripts\verify-workspace-data-sources.ps1")) {
+  throw "Missing workspace data source verifier"
+}
+$workspaceDataSourceParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-workspace-data-sources.ps1",
+  [ref]$null,
+  [ref]$workspaceDataSourceParseErrors
+) | Out-Null
+if ($workspaceDataSourceParseErrors -and $workspaceDataSourceParseErrors.Count -gt 0) {
+  $workspaceDataSourceParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Workspace data source verifier has parse errors"
+}
+$workspaceDataSourceVerifier = Get-Content -Path "scripts\verify-workspace-data-sources.ps1" -Raw
+$workspaceDataSourceWiring = Get-Content -Path "apps\frontend\lib\workspaceWiring.ts" -Raw
+$workspaceDataSourceAgentApi = Get-Content -Path "services\agent-api\app\main.py" -Raw
+foreach ($required in @(
+  "local-files-readonly-contract-v1",
+  "/api/v1/models/capabilities",
+  "/api/v1/files/local/contract",
+  "api_refs=$",
+  "host_filesystem_mounted",
+  "live_filesystem_reads",
+  "Test-AgentApiRoute",
+  "Workspace data source proof refuses localhost unless -AllowLocalhost"
+)) {
+  if (-not $workspaceDataSourceVerifier.Contains($required)) {
+    throw "Workspace data source verifier missing guard: $required"
+  }
+}
+foreach ($required in @(
+  "/api/v1/models/capabilities",
+  "/api/v1/files/local/contract"
+)) {
+  if (-not $workspaceDataSourceWiring.Contains($required)) {
+    throw "Workspace wiring missing data source guard: $required"
+  }
+}
+if ($workspaceDataSourceWiring.Contains("/api/v1/model-capabilities")) {
+  throw "Workspace wiring contains stale singular model-capabilities data source"
+}
+foreach ($required in @(
+  "local-files-readonly-contract-v1",
+  "local_files_readonly_contract_payload",
+  '@app.get("/api/v1/files/local/contract")',
+  '@app.get("/api/v1/models/capabilities")',
+  "host_filesystem_mounted",
+  "live_filesystem_reads",
+  "GET /mcp/api/v1/filesystem/workspace-scope/contract"
+)) {
+  if (-not $workspaceDataSourceAgentApi.Contains($required)) {
+    throw "Agent API missing workspace data source guard: $required"
+  }
+}
+if ($workspaceDataSourceAgentApi.Contains("/api/v1/model-capabilities")) {
+  throw "Agent API contains stale singular model-capabilities data source"
+}
+
+Write-Host "[verify] platform UI status boundary guard"
+if (-not (Test-Path "scripts\verify-platform-ui-status-boundary.ps1")) {
+  throw "Missing platform UI status boundary verifier"
+}
+$platformUiBoundaryParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-platform-ui-status-boundary.ps1",
+  [ref]$null,
+  [ref]$platformUiBoundaryParseErrors
+) | Out-Null
+if ($platformUiBoundaryParseErrors -and $platformUiBoundaryParseErrors.Count -gt 0) {
+  $platformUiBoundaryParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Platform UI status boundary verifier has parse errors"
+}
+$platformUiBoundaryVerifier = Get-Content -Path "scripts\verify-platform-ui-status-boundary.ps1" -Raw
+foreach ($required in @(
+  "fetchProgress",
+  "fetchMasterPlan",
+  "fetchCompletionGate",
+  "MANIFEST",
+  "/api/v1/project/progress",
+  "Project Progress",
+  "Projektstand",
+  "Completion-Gate",
+  "Workspace-Surfaces",
+  "Gate-Matrix",
+  "Recovery-Historie",
+  "product_surfaces=$",
+  "Platform UI status boundary proof refuses localhost unless -AllowLocalhost"
+)) {
+  if (-not $platformUiBoundaryVerifier.Contains($required)) {
+    throw "Platform UI status boundary verifier missing guard: $required"
+  }
+}
+foreach ($productSurface in @(
+  "apps\frontend\app\home\page.tsx",
+  "apps\frontend\app\workbench\page.tsx",
+  "apps\frontend\app\games\page.tsx",
+  "apps\frontend\app\apps\page.tsx",
+  "apps\frontend\app\media\page.tsx",
+  "apps\frontend\app\docs-output\page.tsx",
+  "apps\frontend\components\shell\AppShell.tsx"
+)) {
+  $productSource = Get-Content -Path $productSurface -Raw
+  foreach ($forbidden in @(
+    "fetchProgress",
+    "fetchMasterPlan",
+    "fetchCompletionGate",
+    "MANIFEST",
+    "/api/v1/project/progress",
+    "overall_percent",
+    "Project Progress",
+    "Projektstand",
+    "Completion-Gate",
+    "Workspace-Surfaces",
+    "Gate-Matrix",
+    "Recovery-Historie",
+    "go-live-readiness"
+  )) {
+    if ($productSource.Contains($forbidden)) {
+      throw "Product platform surface $productSurface contains project-status boundary leak: $forbidden"
+    }
+  }
+}
+
+Write-Host "[verify] organism topology integrity guard"
+if (-not (Test-Path "scripts\verify-organism-topology.ps1")) {
+  throw "Missing organism topology verifier"
+}
+$organismTopologyParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-organism-topology.ps1",
+  [ref]$null,
+  [ref]$organismTopologyParseErrors
+) | Out-Null
+if ($organismTopologyParseErrors -and $organismTopologyParseErrors.Count -gt 0) {
+  $organismTopologyParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Organism topology verifier has parse errors"
+}
+$organismTopologyVerifier = Get-Content -Path "scripts\verify-organism-topology.ps1" -Raw
+$organismTopologyFrontend = Get-Content -Path "apps\frontend\app\api\v1\organism\topology\route.ts" -Raw
+$organismTopologyContract = Get-Content -Path "apps\frontend\app\api\v1\organism\contract\route.ts" -Raw
+$organismPlatformSource = Get-Content -Path "apps\frontend\lib\platform.ts" -Raw
+$organismAgentApiSource = Get-Content -Path "services\agent-api\app\main.py" -Raw
+foreach ($required in @(
+  "organism-topology-v1",
+  "workspace-surface-wiring-v1",
+  "workspace-vertical-stack-v1",
+  "node kind count",
+  "edge from exists",
+  "edge to exists",
+  "agent_to_tool",
+  "agent_to_model",
+  "page_to_data_source",
+  "page_to_verifier",
+  "layer_to_provider",
+  "gate_to_security_region",
+  "Localhost topology proof requires -AllowLocalhost and remains DEV-ONLY"
+)) {
+  if (-not $organismTopologyVerifier.Contains($required)) {
+    throw "Organism topology verifier missing guard: $required"
+  }
+}
+foreach ($required in @(
+  "organism-topology-v1",
+  "workspace_data_source",
+  "workspace_verifier",
+  "page_to_data_source",
+  "page_to_verifier",
+  "layer_to_provider",
+  "secret_output: false",
+  "writes: false"
+)) {
+  if (-not $organismTopologyFrontend.Contains($required)) {
+    throw "Frontend organism topology source missing guard: $required"
+  }
+}
+foreach ($required in @(
+  "workspace_page_count",
+  "Topology edges must reference existing layer, region, hub, agent, tool, model, skill, provider, and gate nodes.",
+  "/api/v1/workspace/vertical-stack"
+)) {
+  if (-not $organismTopologyContract.Contains($required)) {
+    throw "Frontend organism contract source missing guard: $required"
+  }
+}
+foreach ($required in @(
+  '{ id: "P4", pct: 99 }',
+  "AGENTS",
+  "MCP_TOOLS",
+  "MODELS",
+  "SKILLS",
+  "CLOSED_GATES"
+)) {
+  if (-not $organismPlatformSource.Contains($required)) {
+    throw "Platform source missing manifest/topology guard: $required"
+  }
+}
+foreach ($required in @(
+  "def organism_topology_payload",
+  "organism-topology-v1",
+  '"kind": "agent_to_tool"',
+  '"kind": "page_to_verifier"',
+  '"kind": "layer_to_provider"',
+  '@app.get("/api/v1/organism/topology")'
+)) {
+  if (-not $organismAgentApiSource.Contains($required)) {
+    throw "Agent API organism topology source missing guard: $required"
+  }
+}
+
+Write-Host "[verify] reference design contract"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-reference-design-contract.ps1
+Assert-LastExitCode "reference design contract"
+if (-not (Test-Path "scripts\verify-workspace-pages-browser.ps1")) {
+  throw "Missing workspace pages browser verifier wrapper"
+}
+if (-not (Test-Path "scripts\verify-workspace-pages-browser.cjs")) {
+  throw "Missing workspace pages browser verifier runner"
+}
+$workspacePagesBrowserParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-workspace-pages-browser.ps1",
+  [ref]$null,
+  [ref]$workspacePagesBrowserParseErrors
+) | Out-Null
+if ($workspacePagesBrowserParseErrors -and $workspacePagesBrowserParseErrors.Count -gt 0) {
+  $workspacePagesBrowserParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Workspace pages browser verifier has parse errors"
+}
+$workspacePagesBrowserRunner = Get-Content -Path "scripts\verify-workspace-pages-browser.cjs" -Raw
+foreach ($required in @(
+  "workspace-pages-browser-proof-v1",
+  "workspace-pages-browser-proof-latest.json",
+  "workspace-surface-wiring-v1",
+  "reference-design-conformance-v1",
+  "page_count === 22",
+  "gotoWorkspaceRoute",
+  '"502", "503", "504"',
+  "Browser console errors on",
+  "screenshots_dir",
+  "activeRail",
+  "maxLargePanelRadius",
+  "retiredProvidersHidden",
+  "projectStatusWallHidden",
+  "unpaidBudgetHidden",
+  "Hetzner|GitKraken|Oracle",
+  "Localhost proof remains DEV-ONLY",
+  "No cloud mutation, deploy, live provider call, MCP write, or secret output"
+)) {
+  if (-not $workspacePagesBrowserRunner.Contains($required)) {
+    throw "Workspace pages browser runner missing guard: $required"
+  }
+}
+if (-not (Test-Path "scripts\verify-reference-design-browser.ps1")) {
+  throw "Missing reference design browser verifier wrapper"
+}
+if (-not (Test-Path "scripts\verify-reference-design-browser.cjs")) {
+  throw "Missing reference design browser verifier runner"
+}
+$referenceDesignBrowserParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-reference-design-browser.ps1",
+  [ref]$null,
+  [ref]$referenceDesignBrowserParseErrors
+) | Out-Null
+if ($referenceDesignBrowserParseErrors -and $referenceDesignBrowserParseErrors.Count -gt 0) {
+  $referenceDesignBrowserParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Reference design browser verifier has parse errors"
+}
+$referenceDesignBrowserRunner = Get-Content -Path "scripts\verify-reference-design-browser.cjs" -Raw
+foreach ($required in @(
+  "reference-design-browser-proof-v1",
+  "reference-design-workbench.png",
+  "reference-design-organism.png",
+  "reference-design-browser-proof-latest.json",
+  "industrial-developer-workbench",
+  "waitForBodyText",
+  "Workspace-Surfaces",
+  "Metered Budget",
+  "readPixels",
+  "pngVisualStats",
+  "uniqueColorBuckets",
+  "accentPixels",
+  "no_fake_live",
+  "Localhost proof remains DEV-ONLY",
+  "No cloud mutation, live provider call, MCP write, or secret output"
+)) {
+  if (-not $referenceDesignBrowserRunner.Contains($required)) {
+    throw "Reference design browser runner missing guard: $required"
+  }
+}
+$referenceDesignAgentApiSource = Get-Content -Path "services\agent-api\app\main.py" -Raw
+foreach ($required in @(
+  "platform_verify_payload",
+  'platform-verify-readiness-v1',
+  '@app.get("/api/v1/platform/verify")',
+  "cloud_layer_readiness_state",
+  "Localhost remains DEV-ONLY"
+)) {
+  if (-not $referenceDesignAgentApiSource.Contains($required)) {
+    throw "Agent API missing platform verify mirror guard: $required"
+  }
 }
 
 Write-Host "[verify] app dockerfiles non-root"
@@ -190,7 +700,7 @@ foreach ($required in @(
   "nginx",
   "infrastructure/nginx/cloud.conf",
   "PROJECT_PROGRESS_MANIFEST_PATH",
-  "HETZNER_API_TOKEN",
+  "FLY_API_TOKEN",
   "CLOUDFLARE_API_TOKEN",
   "VERCEL_TOKEN",
   "GITHUB_TOKEN",
@@ -228,8 +738,34 @@ npm audit --audit-level=moderate --prefix apps/frontend
 Assert-LastExitCode "frontend npm audit"
 
 Write-Host "[verify] ci budget script"
-py -3 -m py_compile scripts\check_hetzner_infra_budget.py
+py -3 -m py_compile scripts\check_fly_infra_budget.py
 Assert-LastExitCode "ci budget script"
+
+Write-Host "[verify] fly origin configs"
+$flyOriginConfigs = @(
+  @{ path = "fly.agent-api.toml"; app = "cloud-superbrain-agent-api"; dockerfile = "services/agent-api/Dockerfile"; port = "8000"; memory = "1gb" },
+  @{ path = "fly.mcp-gateway.toml"; app = "cloud-superbrain-mcp-gateway"; dockerfile = "services/mcp-gateway/Dockerfile"; port = "9000"; memory = "512mb" },
+  @{ path = "fly.llm-gateway.toml"; app = "cloud-superbrain-llm-gateway"; dockerfile = "services/llm-gateway/Dockerfile"; port = "4000"; memory = "512mb" }
+)
+foreach ($config in $flyOriginConfigs) {
+  if (-not (Test-Path $config.path)) {
+    throw "Missing Fly.io origin config: $($config.path)"
+  }
+  $flyConfig = Get-Content -Path $config.path -Raw
+  foreach ($required in @(
+    "app = `"$($config.app)`"",
+    "primary_region = `"fra`"",
+    "dockerfile = `"$($config.dockerfile)`"",
+    "internal_port = $($config.port)",
+    "force_https = true",
+    "size = `"shared-cpu-1x`"",
+    "memory = `"$($config.memory)`""
+  )) {
+    if (-not $flyConfig.Contains($required)) {
+      throw "Fly.io origin config $($config.path) missing guard: $required"
+    }
+  }
+}
 
 Write-Host "[verify] project progress manifest"
 py -3 -m py_compile scripts\verify_project_progress_manifest.py
@@ -282,6 +818,15 @@ foreach ($requiredBrowserMcpTerm in @(
 )) {
   if (-not $verificationRegister.Contains($requiredBrowserMcpTerm)) {
     throw "Verification register missing current Browser MCP evidence marker: $requiredBrowserMcpTerm"
+  }
+}
+foreach ($requiredHostedBoundaryTerm in @(
+  'Current Hosted Boundary',
+  'historical provenance only',
+  'Current hosted gate truth is the latest `external-gate-audit-*` artifact plus a future real Vercel HTTPS `STAGING_BASE_URL` and reachable Fly origins'
+)) {
+  if (-not $verificationRegister.Contains($requiredHostedBoundaryTerm)) {
+    throw "Verification register missing current hosted boundary marker: $requiredHostedBoundaryTerm"
   }
 }
 foreach ($forbiddenProgressRegisterTerm in @(
@@ -394,7 +939,7 @@ $apiTaskPolicySource = Get-Content -Path "services\agent-api\app\main.py" -Raw
 if (-not $apiTaskPolicySource.Contains("task_policy_blocked")) { throw "Missing task policy audit event" }
 if (-not $apiTaskPolicySource.Contains("/api/v1/tasks/policy/validate")) { throw "Missing public task policy validation endpoint" }
 $cloudProviderSource = Get-Content -Path "services\agent-api\app\clouds.py" -Raw
-foreach ($required in @("cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "GET /api/v1/clouds", "GET /api/v1/clouds/layers", "seven_layer_mapping", "cloud_layer_readiness_state", "HETZNER_API_TOKEN", "hetzner_api_readonly", "CLOUDFLARE_API_TOKEN", "cloudflare_api_readonly", "CLOUDFLARE_DASHBOARD_URL", "VERCEL_TOKEN", "vercel_api_readonly", "GITHUB_TOKEN", "github_api_readonly", "GHCR_TOKEN", "ghcr_api_readonly", "HF_TOKEN", "huggingface_api_readonly", "GITLAB_TOKEN", "gitlab_api_readonly", "GITKRAKEN_API_TOKEN", "gitkraken_api_readonly", "No secret values", "mask_ip", "vercel_frontend", "cloudflare_edge", "github_actions", "ghcr_registry", "huggingface_identity", "gitlab_identity", "gitkraken_identity")) {
+foreach ($required in @("cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "GET /api/v1/clouds", "GET /api/v1/clouds/layers", "seven_layer_mapping", "cloud_layer_readiness_state", "FLY_API_TOKEN", "fly_api_readonly", "CLOUDFLARE_API_TOKEN", "cloudflare_api_readonly", "CLOUDFLARE_DASHBOARD_URL", "VERCEL_TOKEN", "vercel_api_readonly", "GITHUB_TOKEN", "github_api_readonly", "GHCR_TOKEN", "ghcr_api_readonly", "HF_TOKEN", "huggingface_api_readonly", "GITLAB_TOKEN", "gitlab_api_readonly", "GRAFANA_CLOUD_API_KEY", "grafana_api_readonly", "No secret values", "mask_ip", "vercel_frontend", "cloudflare_edge", "github_actions", "ghcr_registry", "huggingface_identity", "gitlab_identity", "grafana_cloud")) {
   if (-not $cloudProviderSource.Contains($required)) {
     throw "Missing cloud provider inventory source guard: $required"
   }
@@ -646,155 +1191,42 @@ foreach ($required in @(
     throw "Missing DevOps workflow dispatch contract guard: $required"
   }
 }
-$frontendSource = Get-Content -Path "apps\frontend\app\page.tsx" -Raw
-foreach ($required in @("Auth Contract", "loadAuthContract", "AuthContract", "/api/v1/auth/contract", "auth_refresh_rotated", "auth_refresh_reuse_blocked", "SameSite")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing Auth Contract UI guard: $required"
+$navSource = Get-Content -Path "apps\frontend\lib\nav.tsx" -Raw
+foreach ($required in @("Route registry", "canonical 22 pages", "/workbench", "/organism", "/tools", "/marketplace", "/observe", "/evidence", "/diagnostics")) {
+  if (-not $navSource.Contains($required)) {
+    throw "Missing nav registry guard: $required"
   }
 }
-foreach ($required in @("Memory Purge Contract", "loadMemoryPurgeContract", "MemoryPurgeContract", "/api/v1/memory/purge/contract", "GET /api/v1/memory/purge/jobs/{job_id}", "Job Status", "DELETE /api/v1/memory", "memory_purge_completed", "memory_purge_job_status_visible", "memory_purge_confirmation_required")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing Memory Purge Contract UI guard: $required"
+$landingSource = Get-Content -Path "apps\frontend\app\page.tsx" -Raw
+foreach ($required in @("Canonical platform specification", "not live runtime metrics", "never printed")) {
+  if (-not $landingSource.Contains($required)) {
+    throw "Missing landing non-claim guard: $required"
   }
 }
-foreach ($required in @("deleteMemoryEntry", "memoryDeleteStatus", "DELETE /api/v1/memory/", "memory_entry_delete_completed", "memory_entry_delete_confirmation_required", "dangerButton")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing single memory entry delete UI guard: $required"
+$homeSource = Get-Content -Path "apps\frontend\app\home\page.tsx" -Raw
+foreach ($required in @("Developer Platform", "Produktfläche", "Evidence", "Diagnostics", "Organism", "Studio-Modi", "Core Pages", "Live Claims")) {
+  if (-not $homeSource.Contains($required)) {
+    throw "Missing clean home product-surface guard: $required"
   }
 }
-foreach ($required in @("CostExportContract", "loadCostExportContract", "/api/v1/costs/export/contract", "/api/v1/costs/export?format=csv", "cost_export_contract_visible", "cost_export_csv_generated", "cost_export_audit_persisted", "CSV Export")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing Cost Monitor Export UI guard: $required"
+foreach ($forbidden in @("fetchRecentTasks", "fetchRecentSessions", "fetchAuditRecent", "fetchLiveAgents", "fetchLayers", "Letzte Projekte", "Projektstand", "Gate-Matrix", "Recovery-Historie")) {
+  if ($homeSource.Contains($forbidden)) {
+    throw "Home must not surface project workspace state: $forbidden"
   }
 }
-foreach ($required in @("RateLimitContract", "RateLimitStatus", "Rate Limit Guard", "loadRateLimitContract", "loadRateLimitStatus", "/api/v1/rate-limit/contract", "/api/v1/rate-limit/status", "rate_limit_contract_visible", "rate_limit_status_visible", "rate_limit_429_enforced")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing Rate Limit Guard UI guard: $required"
+# The workbench surface is split between the route wrapper (page.tsx) and the studio component
+# (batch1-workbench-studio.tsx). Validate the combined surface so the guard tracks the real layout.
+$workbenchSource = Get-Content -Path "apps\frontend\app\workbench\page.tsx" -Raw
+$workbenchStudioSource = Get-Content -Path "apps\frontend\components\batch1-workbench-studio.tsx" -Raw
+$workbenchSurface = $workbenchSource + "`n" + $workbenchStudioSource
+foreach ($required in @("runId", "paidCapabilityVisible", "Metered Budget", "Preview / Assets", "22 Seiten", "CortexCanvas", "Run Binding", "terminal-feed")) {
+  if (-not $workbenchSurface.Contains($required)) {
+    throw "Missing clean workbench platform guard: $required"
   }
 }
-foreach ($required in @("SessionLimitContract", "SessionLimitStatus", "Session Limit Guard", "loadSessionLimitContract", "loadSessionLimitStatus", "/api/v1/session-limits/contract", "/api/v1/session-limits/status", "session_limit_contract_visible", "session_limit_status_visible", "session_limit_429_enforced")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing Session Limit Guard UI guard: $required"
-  }
-}
-foreach ($required in @("PromptContract", "Prompt Input Guard", "loadPromptContract", "/api/v1/prompt/contract", "maxLength", "prompt_input_contract_visible", "prompt_input_counter_visible", "prompt_input_422_enforced")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing Prompt Input Guard UI guard: $required"
-  }
-}
-foreach ($required in @("ErrorResponseContract", "Error Response Contract", "loadErrorResponseContract", "/api/v1/errors/contract", "error_response_contract_visible", "error_response_422_visible", "error_response_429_visible", "error_response_ui_state_visible", "error_response_envelope_enforced")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing Error Response Contract UI guard: $required"
-  }
-}
-foreach ($required in @("SecurityHeadersContract", "Security Headers Contract", "loadSecurityHeadersContract", "/api/v1/security/headers/contract", "security_headers_contract_visible", "security_headers_enforced", "security_headers_same_origin_policy", "security_headers_ui_visible")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing Security Headers Contract UI guard: $required"
-  }
-}
-foreach ($required in @("TraceIdContract", "Trace ID Contract", "loadTraceIdContract", "/api/v1/trace/contract", "trace_id_contract_visible", "trace_id_header_roundtrip", "trace_id_generated_visible", "trace_id_ui_visible")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing Trace ID Contract UI guard: $required"
-  }
-}
-foreach ($required in @("CacheControlContract", "Cache Control Contract", "loadCacheControlContract", "/api/v1/cache/contract", "cache_control_contract_visible", "cache_control_headers_enforced", "cache_control_sensitive_payload_no_store", "cache_control_ui_visible")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing Cache Control Contract UI guard: $required"
-  }
-}
-foreach ($required in @("RequestIdContract", "Request ID Contract", "loadRequestIdContract", "/api/v1/request/contract", "request_id_contract_visible", "request_id_header_roundtrip", "request_id_error_envelope_correlation", "request_id_audit_correlation", "request_id_audit_feed_visible", "Request ID:", "Trace ID:", "request_id_ui_visible")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing Request ID Contract UI guard: $required"
-  }
-}
-foreach ($required in @("SystemFallbackContract", "loadSystemFallbackContract", "/api/v1/system/fallback/contract", "System Unavailable Fallback", "system_fallback_contract_visible", "system_unavailable_ui_state", "system_degraded_service_visible", "Retry Health")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing system unavailable fallback UI guard: $required"
-  }
-}
-foreach ($required in @("AgentActivityContract", "AgentActivityEvent", "loadAgentActivityContract", "loadAgentActivityEvents", "/api/v1/agent-activity/contract", "/api/v1/agent-activity/recent", "Agent Activity", "agent_activity_contract_visible", "agent_activity_trace_link_template", "agent_activity_filtered_feed_visible", "langfuse_auth_proxy_required", "Trace Deep-Link", "activityFilterBar")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing agent activity trace UI guard: $required"
-  }
-}
-foreach ($required in @("DevOps Workflow Dispatch", "loadWorkflowDispatch", "WorkflowDispatchPlan", "live_github_call")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing DevOps workflow dispatch UI guard: $required"
-  }
-}
-foreach ($required in @("GitHub Branch/PR Contract", "loadGithubBranchPrContract", "GithubBranchPrContract", "/mcp/api/v1/github/branch-pr/contract", "github_branch_pr_plan", "github_branch_pr_policy")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing GitHub Branch/PR Contract UI guard: $required"
-  }
-}
-foreach ($required in @("PostgreSQL Readonly Query Contract", "loadPostgresqlReadonlyContract", "PostgresqlReadonlyContract", "/mcp/api/v1/postgresql/readonly-query/contract", "postgresql_readonly_query_plan", "postgresql_write_policy")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing PostgreSQL Readonly Query Contract UI guard: $required"
-  }
-}
-foreach ($required in @("Filesystem Workspace Scope Contract", "loadFilesystemWorkspaceContract", "FilesystemWorkspaceContract", "/mcp/api/v1/filesystem/workspace-scope/contract", "filesystem_workspace_access_plan", "filesystem_scope_policy")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing Filesystem Workspace Scope Contract UI guard: $required"
-  }
-}
-foreach ($required in @("Playwright Browser Proof Contract", "loadPlaywrightBrowserProofContract", "PlaywrightBrowserProofContract", "/mcp/api/v1/playwright/browser-proof/contract", "playwright_browser_proof_plan", "playwright_browser_policy")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing Playwright Browser Proof Contract UI guard: $required"
-  }
-}
-foreach ($required in @("E2B Sandbox Lifecycle Contract", "loadE2bSandboxLifecycleContract", "E2bSandboxLifecycleContract", "/mcp/api/v1/e2b/sandbox-lifecycle/contract", "e2b_sandbox_lifecycle_plan", "e2b_sandbox_policy")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing E2B Sandbox Lifecycle Contract UI guard: $required"
-  }
-}
-foreach ($required in @("MCP Version Pinning Contract", "loadMcpVersionPinningContract", "McpVersionPinningContract", "/mcp/api/v1/version-pinning/contract", "mcp-version-pinning-v1", "mcp_version_pinning_contract_visible", "exact_version_required")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing MCP Version Pinning Contract UI guard: $required"
-  }
-}
-foreach ($required in @("Memory Embedding Consistency Contract", "loadMemoryEmbeddingConsistencyContract", "MemoryEmbeddingConsistencyContract", "/api/v1/memory/embedding-consistency/contract", "memory-embedding-consistency-v1", "memory_embedding_consistency_contract_visible", "embedding_model_version", "reembedding_policy")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing Memory Embedding Consistency Contract UI guard: $required"
-  }
-}
-foreach ($required in @("Progress Integrity", "loadProjectProgressIntegrity", "ProjectProgressIntegrity", "/api/v1/project/progress/integrity", "project-progress-integrity-v1", "project_progress_integrity_runtime_proof")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing project progress integrity UI guard: $required"
-  }
-}
-foreach ($required in @("ProjectProgressCompletion", "loadProjectProgressCompletion", "/api/v1/project/progress/completion", "project-progress-100-percent-contract-v1", "project_progress_100_percent_gate_contract", "100% Contract", "can_set_all_to_100")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing project progress completion UI guard: $required"
-  }
-}
-foreach ($required in @("CloudProviderState", "CloudLayerReadinessState", "Cloud Inventory", "Cloud 7-Layer Readiness", "loadClouds", "loadCloudLayers", "/api/v1/clouds", "/api/v1/clouds/layers", "cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "7 Layer Map", "No secret values")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing cloud provider inventory UI guard: $required"
-  }
-}
-foreach ($required in @("CloudDeploymentPreflightContract", "CloudDeploymentPreflightGate", "loadCloudDeploymentPreflight", "Cloud Deployment Preflight", "/api/v1/clouds/deployment-preflight/contract", "cloud-deployment-preflight-v1", "cloud_deployment_preflight_visible", "publish_ghcr_images", "hosted_backend_origins", "Cloud deploy claim")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing cloud deployment preflight UI guard: $required"
-  }
-}
-foreach ($required in @("External Gates", "external-gates-state-v1", "external_gates_state_visible", "/api/v1/external-gates", "deployment_preflight_endpoint", "blocked_release_gates", "preflight_gate_id", "required_env", "evidence_ref")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing external gates alignment UI guard: $required"
-  }
-}
-foreach ($required in @("LlmRoutingPolicyContract", "Routing Policy", "Policy Decisions", "llm-routing-policy-v1", "llm_routing_policy_contract_visible", "llm_routing_policy_direct_provider_blocked", "llm_routing_policy_fallback_limit_blocked", "llm_routing_policy_retry_limit_blocked", "llm_routing_policy_sensitive_cache_blocked")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing LLM routing policy UI guard: $required"
-  }
-}
-foreach ($required in @("RotationEvent", "Rotation Events", "provider_fallback_structured_event", "fallback_index", "routing_policy_decision", "cost_metadata", "live_provider_calls")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing provider fallback UI guard: $required"
-  }
-}
-foreach ($required in @("Start Phase 2 Runtime", "loadPhase2RuntimeContract", "loadPhase2RuntimeRuns", "/api/v1/phase2/runtime/contract", "/api/v1/phase2/runtime/start", "/api/v1/phase2/runtime/runs", "/api/v1/orchestrator/dry-run/stream", "phase2-runtime-v1", "phase2_runtime_graph_started", "phase2_runtime_run_status_visible", "phase2-sse-event-contract-v1", "phase2_sse_event_contract_proof", "required_event_types", "SSE Event Contract", "Runtime Runs", "Latest Runtime Status", "Role Summaries", "External Gate Mirror", "external_gate_mirror_proof", "branch_protection_verify_contract", "branch_protection_claim_allowed", "/api/v1/external-gates/mirror", "external-gate-mirror-v1", "Layer Interface Contracts", "loadLayerInterfaceContract", "/api/v1/layer-interfaces/contract", "layer_interface_contracts_visible", "Task Assignment Queue Contract", "TaskAssignmentContract", "loadTaskAssignmentContract", "/api/v1/tasks/assignment-contract", "task_assignment_queue_contract_visible", "Agent LLM Streaming Contract", "AgentLlmStreamingContract", "loadAgentLlmStreamingContract", "/api/v1/agents/llm-streaming-contract", "agent_llm_streaming_contract_visible")) {
-  if (-not $frontendSource.Contains($required)) {
-    throw "Missing Phase 2 runtime UI guard: $required"
+foreach ($forbidden in @("fetchMasterPlan", "Master Plan (live)", "Dispatch endpoints", "fetchCompletionGate", "fetchRecentTasks", "fetchRecentSessions", "fetchAuditRecent", "fetchLiveAgents", "Completion-Gate", "Workspace-Surfaces (22)", "Fail-closed by design", "Gate-Matrix", "Recovery-Historie")) {
+  if ($workbenchSource.Contains($forbidden)) {
+    throw "Workbench must not surface project-plan dashboard elements: $forbidden"
   }
 }
 foreach ($required in @("SSE_BUFFER_LIMIT = 50", "Last-Event-ID", "record_sse_event", "replay_sse_events")) {
@@ -1019,7 +1451,10 @@ foreach ($required in @(
   "/api/v1/project/progress/completion",
   '"status":"blocked_external_gates"',
   '"can_set_all_to_100":false',
-  '"missing_external_gates":[]',
+  "missing_external_gates",
+  "fly_api_token",
+  "vercel_backend_origins",
+  "live_infra_budget_refresh_requires_FLY_API_TOKEN",
   "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 )) {
   if (-not $runtimeVerifier.Contains($required)) {
@@ -1035,10 +1470,11 @@ foreach ($required in @(
   "cloud-deployment-preflight-v1",
   "cloud_deployment_preflight_visible",
   "/api/v1/clouds/deployment-preflight/contract",
-  '"status":"verified"',
-  '"cloud_deploy_claim_allowed":true',
-  '"production_deploy_claim_allowed":true',
-  '"missing_or_blocked_gates":[]',
+  '"status":"action_required"',
+  '"cloud_deploy_claim_allowed":false',
+  '"production_deploy_claim_allowed":false',
+  "missing_or_blocked_gates",
+  "fly_cloud_stack",
   "publish_ghcr_images",
   "hosted_backend_origins",
   "BRANCH_PROTECTION_TOKEN",
@@ -1105,7 +1541,7 @@ foreach ($required in @(
 }
 $mcpGatewaySource = Get-Content -Path "services\mcp-gateway\app\main.py" -Raw
 $mcpRequirements = Get-Content -Path "services\mcp-gateway\requirements.txt" -Raw
-foreach ($required in @("fastapi==0.115.8", "uvicorn[standard]==0.34.0", "pydantic==2.10.6")) {
+foreach ($required in @("fastapi==0.136.3", "uvicorn[standard]==0.49.0", "pydantic==2.13.4")) {
   if (-not $mcpRequirements.Contains($required)) {
     throw "Missing exact MCP dependency pin: $required"
   }
@@ -1123,9 +1559,9 @@ foreach ($required in @(
   "/api/v1/version-pinning/contract",
   "deterministic_local_mcp_version_pinning_contract",
   "exact_version_required",
-  "fastapi==0.115.8",
-  "uvicorn[standard]==0.34.0",
-  "pydantic==2.10.6",
+  "fastapi==0.136.3",
+  "uvicorn[standard]==0.49.0",
+  "pydantic==2.13.4",
   "github-branch-pr-plan-v1",
   "postgresql-readonly-query-v1",
   "filesystem-workspace-scope-v1",
@@ -1268,7 +1704,7 @@ if (-not (Test-Path "docs\runtime-contracts\mcp-version-pinning-contract.md")) {
   throw "Missing L-08 MCP version pinning contract document"
 }
 $mcpVersionPinningDoc = Get-Content -Path "docs\runtime-contracts\mcp-version-pinning-contract.md" -Raw
-foreach ($required in @("L-08", "mcp_version_pinning_contract_visible", "/mcp/api/v1/version-pinning/contract", "mcp-version-pinning-v1", "fastapi==0.115.8", "uvicorn[standard]==0.34.0", "pydantic==2.10.6", "github-branch-pr-plan-v1", "No live MCP write")) {
+foreach ($required in @("L-08", "mcp_version_pinning_contract_visible", "/mcp/api/v1/version-pinning/contract", "mcp-version-pinning-v1", "fastapi==0.136.3", "uvicorn[standard]==0.49.0", "pydantic==2.13.4", "github-branch-pr-plan-v1", "No live MCP write")) {
   if (-not $mcpVersionPinningDoc.Contains($required)) {
     throw "MCP version pinning contract document missing guard: $required"
   }
@@ -1353,14 +1789,23 @@ if (-not (Test-Path "scripts\verify-external-gates.ps1")) {
 if (-not (Test-Path "docs\runtime-contracts\external-gate-audit-contract.md")) {
   throw "Missing external gate audit contract document"
 }
+if (-not (Test-Path "scripts\verify-all-gates-with-tokens.ps1")) {
+  throw "Missing private env external gate runner"
+}
 $externalGateAuditScript = Get-Content -Path "scripts\verify-external-gates.ps1" -Raw
-foreach ($required in @("external-gate-audit-v1", "external_gate_audit_proof", "hosted_staging_claim_allowed", "frontend_preview_claim_allowed", "production_deploy_claim_allowed", "Assert-HostedBaseUrlSafe", "External gate hosted proof requires HTTPS", "hosted_cloud_deployment_preflight", "cloud_deployment_preflight_visible", "ghcr_image_digest_verify", "ghcr_image_digest_proof", "vercel_backend_origin_health_required", "hosted_agent_api_health", "cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "github_branch_protection_verify", "canonical_gitleaks_scan", "hetzner_live_budget_check", "gitlab_identity_claim_allowed", "huggingface_identity_claim_allowed", "gitkraken_identity_claim_allowed", "GITLAB_TOKEN", "HF_TOKEN", "GITKRAKEN_API_TOKEN")) {
+foreach ($required in @("external-gate-audit-v1", "external_gate_audit_proof", "hosted_staging_claim_allowed", "frontend_preview_claim_allowed", "production_deploy_claim_allowed", "Assert-HostedBaseUrlSafe", "External gate hosted proof requires HTTPS", "Test-RetiredHostedBaseUrl", "retired_provider_url", "network_classification", "elapsed_ms", "response_url", "failed_hosted_required_probe_ids", "failed_vercel_origin_probe_ids", "hosted_cloud_deployment_preflight", "cloud_deployment_preflight_visible", "ghcr_image_digest_verify", "ghcr_image_digest_proof", "Invoke-BoundedNativeCommand", "WaitForExit", "EXTERNAL_GATE_HTTP_TIMEOUT_MS", "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS", "EXTERNAL_GATE_DOCKER_TIMEOUT_SECONDS", '"timeout"', "dockerExitCode", "vercel_backend_origin_required", "vercel_backend_origin_health", "hosted_agent_api_health", "hosted_agent_api_health_required", "cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "github_branch_protection_verify", "canonical_gitleaks_scan", "fly_live_budget_check", "root_health", "prefixed_health", "Join-OriginProbeUrl", "gitlab_identity_claim_allowed", "huggingface_identity_claim_allowed", "grafana_cloud_claim_allowed", "Invoke-RestMethod", "GITLAB_TOKEN", "HF_TOKEN", "GRAFANA_CLOUD_API_KEY")) {
   if (-not $externalGateAuditScript.Contains($required)) {
     throw "External gate audit verifier missing guard: $required"
   }
 }
+$privateGateRunner = Get-Content -Path "scripts\verify-all-gates-with-tokens.ps1" -Raw
+foreach ($required in @("Convert-FlyAppNameToBaseUrl", "Resolve-OriginEnv", "Test-HostedRewriteFallbackValue", "Get-FlyAppNameOrDefault", "FLY_APP_AGENT_API", "FLY_APP_MCP_GATEWAY", "FLY_APP_LLM_GATEWAY", "cloud-superbrain-agent-api", "cloud-superbrain-mcp-gateway", "cloud-superbrain-llm-gateway", ".fly.dev")) {
+  if (-not $privateGateRunner.Contains($required)) {
+    throw "Private env external gate runner missing Fly origin derivation guard: $required"
+  }
+}
 $externalGateAuditDoc = Get-Content -Path "docs\runtime-contracts\external-gate-audit-contract.md" -Raw
-foreach ($required in @("external-gate-audit-v1", "cloud-only-staging-proof-v1", "Frontend preview reachability is not hosted staging", "hosted_staging_claim_allowed", "production_deploy_claim_allowed", "No secret values", "Optional GitLab identity", "Optional Hugging Face identity", "Optional GitKraken identity", "never the token")) {
+foreach ($required in @("external-gate-audit-v1", "cloud-only-staging-proof-v1", "Frontend preview reachability is not hosted staging", "hosted_staging_claim_allowed", "production_deploy_claim_allowed", "No secret values", "Optional GitLab identity", "Optional Hugging Face identity", "Optional grafana identity", "Fly app names", "never the token")) {
   if (-not $externalGateAuditDoc.Contains($required)) {
     throw "External gate audit contract document missing guard: $required"
   }
@@ -1378,7 +1823,7 @@ if (-not (Test-Path "docs\runtime-contracts\cloud-provider-inventory-contract.md
   throw "Missing cloud provider inventory contract document"
 }
 $cloudProviderInventoryDoc = Get-Content -Path "docs\runtime-contracts\cloud-provider-inventory-contract.md" -Raw
-foreach ($required in @("cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "GET /api/v1/clouds", "GET /api/v1/clouds/layers", "Seven-Layer Mapping", "Cloud Layer Readiness", "No secret values", "Vercel Live Read", "Hetzner Live Read", "Cloudflare Live Read", "GitHub Live Read", "GHCR Live Read", "Hugging Face Live Read", "GitLab Live Read", "GitKraken Live Read", "HETZNER_API_TOKEN", "CLOUDFLARE_API_TOKEN", "VERCEL_TOKEN", "GITHUB_TOKEN", "GHCR_TOKEN", "HF_TOKEN", "GITLAB_TOKEN", "GITKRAKEN_API_TOKEN", "vercel_frontend", "ghcr_registry", "gitkraken_identity")) {
+foreach ($required in @("cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "GET /api/v1/clouds", "GET /api/v1/clouds/layers", "Seven-Layer Mapping", "Cloud Layer Readiness", "No secret values", "Vercel Live Read", "Fly.io Live Read", "Cloudflare Live Read", "GitHub Live Read", "GHCR Live Read", "Hugging Face Live Read", "GitLab Live Read", "Grafana Cloud Live Read", "FLY_API_TOKEN", "CLOUDFLARE_API_TOKEN", "VERCEL_TOKEN", "GITHUB_TOKEN", "GHCR_TOKEN", "HF_TOKEN", "GITLAB_TOKEN", "GRAFANA_CLOUD_API_KEY", "vercel_frontend", "ghcr_registry", "grafana_cloud")) {
   if (-not $cloudProviderInventoryDoc.Contains($required)) {
     throw "Cloud provider inventory contract document missing guard: $required"
   }
@@ -1387,7 +1832,7 @@ if (-not (Test-Path "docs\runtime-contracts\cloud-render-offload-contract.md")) 
   throw "Missing cloud render offload contract document"
 }
 $cloudRenderOffloadDoc = Get-Content -Path "docs\runtime-contracts\cloud-render-offload-contract.md" -Raw
-foreach ($required in @("cloud-render-offload-v1", "cloud_render_offload_contract_visible", "GET /api/v1/clouds/render-offload/contract", "localhost_heavy_render_allowed", "STAGING_BASE_URL", "HETZNER_API_TOKEN", "webgl_3d_rendering", "control_plane")) {
+foreach ($required in @("cloud-render-offload-v1", "cloud_render_offload_contract_visible", "GET /api/v1/clouds/render-offload/contract", "localhost_heavy_render_allowed", "STAGING_BASE_URL", "FLY_API_TOKEN", "webgl_3d_rendering", "control_plane")) {
   if (-not $cloudRenderOffloadDoc.Contains($required)) {
     throw "Cloud render offload contract document missing guard: $required"
   }
@@ -1396,7 +1841,7 @@ if (-not (Test-Path "docs\runtime-contracts\cloud-deployment-preflight-contract.
   throw "Missing cloud deployment preflight contract document"
 }
 $cloudDeploymentPreflightDoc = Get-Content -Path "docs\runtime-contracts\cloud-deployment-preflight-contract.md" -Raw
-foreach ($required in @("cloud-deployment-preflight-v1", "cloud_deployment_preflight_visible", "GET /api/v1/clouds/deployment-preflight/contract", "publish_ghcr_images", "GITHUB_TOKEN", "GHCR_TOKEN", "HETZNER_API_TOKEN", "AGENT_API_BASE_URL", "BRANCH_PROTECTION_TOKEN", "cloud_deploy_claim_allowed", "production_deploy_claim_allowed", "manual_external_actions")) {
+foreach ($required in @("cloud-deployment-preflight-v1", "cloud_deployment_preflight_visible", "GET /api/v1/clouds/deployment-preflight/contract", "publish_ghcr_images", "GITHUB_TOKEN", "GHCR_TOKEN", "FLY_API_TOKEN", "AGENT_API_BASE_URL", "BRANCH_PROTECTION_TOKEN", "cloud_deploy_claim_allowed", "production_deploy_claim_allowed", "manual_external_actions")) {
   if (-not $cloudDeploymentPreflightDoc.Contains($required)) {
     throw "Cloud deployment preflight contract document missing guard: $required"
   }
@@ -1411,6 +1856,110 @@ if ($externalGateAuditParseErrors) {
   $externalGateAuditParseErrors | ForEach-Object { Write-Error $_.Message }
   throw "External gate audit verifier has parse errors"
 }
+
+Write-Host "[verify] owner cloud gate activation guard"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-owner-cloud-gate-activation.ps1
+Assert-LastExitCode "owner cloud gate activation guard"
+
+Write-Host "[verify] go-live readiness guard"
+if (-not (Test-Path "scripts\verify-go-live-readiness.ps1")) {
+  throw "Missing go-live readiness verifier"
+}
+$goLiveVerifier = Get-Content -Path "scripts\verify-go-live-readiness.ps1" -Raw
+foreach ($required in @(
+  "go-live-readiness-v1",
+  "go-live-readiness-surface-v1",
+  "external-gate-audit-v1",
+  "hosted_agent_api_contracts",
+  "github_branch_protection_current_verify",
+  "vercel_backend_origin_health",
+  "fly_live_budget_check",
+  "FLY_API_TOKEN",
+  "STAGING_BASE_URL",
+  "BRANCH_PROTECTION_TOKEN",
+  "AGENT_API_BASE_URL",
+  "MCP_GATEWAY_BASE_URL",
+  "LLM_GATEWAY_BASE_URL",
+  "external-gate-summary-v1",
+  "external_audit_missing_or_failed_gates",
+  "production_deploy_claim_allowed",
+  "Assert-NoSecretPattern",
+  "AllowLocalhost"
+)) {
+  if (-not $goLiveVerifier.Contains($required)) {
+    throw "Go-live readiness verifier missing guard: $required"
+  }
+}
+$goLiveParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-go-live-readiness.ps1",
+  [ref]$null,
+  [ref]$goLiveParseErrors
+) | Out-Null
+if ($goLiveParseErrors -and $goLiveParseErrors.Count -gt 0) {
+  $goLiveParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Go-live readiness verifier has parse errors"
+}
+$goLiveAgentApi = Get-Content -Path "services\agent-api\app\main.py" -Raw
+foreach ($required in @(
+  "EXTERNAL_GATE_SUMMARY_PATH",
+  "external_gate_summary_state",
+  "external-gate-summary-v1",
+  "external_audit_summary_status",
+  "external_audit_missing_or_failed_gates",
+  "github_branch_protection_current_verify",
+  "vercel_backend_origin_health"
+)) {
+  if (-not $goLiveAgentApi.Contains($required)) {
+    throw "Go-live readiness Agent API missing guard: $required"
+  }
+}
+if (-not (Test-Path "docs\runtime-state\external-gate-summary.json")) {
+  throw "Missing sanitized external gate summary"
+}
+$externalGateSummary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw
+foreach ($required in @(
+  "external-gate-summary-v1",
+  "external-gate-audit-v1",
+  "hosted_agent_api_contracts",
+  "github_branch_protection_current_verify",
+  "vercel_backend_origin_health",
+  "fly_live_budget_check",
+  "Probe snippets, URLs, logs, and token values are not included"
+)) {
+  if (-not $externalGateSummary.Contains($required)) {
+    throw "Sanitized external gate summary missing guard: $required"
+  }
+}
+foreach ($composePath in @("docker-compose.dev.yml", "docker-compose.cloud.yml")) {
+  $composeWithSummary = Get-Content -Path $composePath -Raw
+  foreach ($required in @("EXTERNAL_GATE_SUMMARY_PATH", "external-gate-summary.json", "docs/runtime-state/external-gate-summary.json")) {
+    if (-not $composeWithSummary.Contains($required)) {
+      throw "$composePath missing external gate summary mount/env: $required"
+    }
+  }
+}
+
+Write-Host "[verify] Superbrain go-live runbook guard"
+if (-not (Test-Path "scripts\verify-superbrain-go-live-runbook.ps1")) {
+  throw "Missing Superbrain go-live runbook verifier"
+}
+$goLiveRunbookParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-superbrain-go-live-runbook.ps1",
+  [ref]$null,
+  [ref]$goLiveRunbookParseErrors
+) | Out-Null
+if ($goLiveRunbookParseErrors -and $goLiveRunbookParseErrors.Count -gt 0) {
+  $goLiveRunbookParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Superbrain go-live runbook verifier has parse errors"
+}
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-superbrain-go-live-runbook.ps1
+Assert-LastExitCode "Superbrain go-live runbook guard"
+
+Write-Host "[verify] retired hosted boundary guard"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-retired-hosted-boundary.ps1
+Assert-LastExitCode "retired hosted boundary guard"
 
 Write-Host "[verify] hosted staging verifier syntax"
 if (-not (Test-Path "scripts\verify-hosted-staging.ps1")) {
@@ -1447,6 +1996,12 @@ foreach ($required in @(
   "/api/v1/memory/consolidation/recent",
   "SeedMemoryConsolidation",
   "browser_contract_harness",
+  "llm responses adapter contract",
+  "verify-llm-responses-contract.ps1",
+  "llm-responses-adapter-contract-v1",
+  "live agent steering contract",
+  "verify-live-agent-steering-contract.ps1",
+  "live-agent-steering-v1",
   "/api/v1/memory/embedding-consistency/contract",
   "memory-embedding-consistency-v1",
   "memory_embedding_consistency_contract_visible",
@@ -1490,13 +2045,13 @@ foreach ($required in @(
   }
 }
 
-if (-not (Test-Path "docs\runbooks\hetzner-live-budget-proof-2026-04-29.md")) {
-  throw "Missing Hetzner live budget proof document"
+if (-not (Test-Path "docs\runbooks\fly-live-budget-proof-2026-06-08.md")) {
+  throw "Missing Fly.io/Vercel/GHCR/Grafana budget proof document"
 }
-$hetznerBudgetProof = Get-Content -Path "docs\runbooks\hetzner-live-budget-proof-2026-04-29.md" -Raw
-foreach ($required in @("EUR 19.03", "EUR 16.00", "EUR 20.00", "cax31", "under hard budget", "above warning threshold", "token is not persisted")) {
-  if (-not $hetznerBudgetProof.Contains($required)) {
-    throw "Hetzner live budget proof document missing guard: $required"
+$flyBudgetProof = Get-Content -Path "docs\runbooks\fly-live-budget-proof-2026-06-08.md" -Raw
+foreach ($required in @("Projected Fly.io monthly server cost", "EUR 9.00", "EUR 16.00", "EUR 20.00", "Live Fly.io token probe: external-gated", "under warning threshold", "token is not persisted", "Vercel/Fly.io/GHCR/Grafana Cloud")) {
+  if (-not $flyBudgetProof.Contains($required)) {
+    throw "Fly.io/Vercel/GHCR/Grafana budget proof document missing guard: $required"
   }
 }
 $backupParseErrors = $null
@@ -1562,16 +2117,35 @@ if ($resourceParseErrors -and $resourceParseErrors.Count -gt 0) {
 }
 
 Write-Host "[verify] git diff whitespace"
-git diff --check
-Assert-LastExitCode "git diff whitespace"
+$prevEap = $ErrorActionPreference
+$prevNative = $PSNativeCommandUseErrorActionPreference
+$ErrorActionPreference = "Continue"
+$PSNativeCommandUseErrorActionPreference = $false
+try {
+  $gitDiffWhitespace = git diff --check 2>&1
+} finally {
+  $PSNativeCommandUseErrorActionPreference = $prevNative
+  $ErrorActionPreference = $prevEap
+}
+$meaningfulWhitespaceIssues = @($gitDiffWhitespace | Where-Object {
+  $_ -and
+  ($_ -notmatch "new blank line at EOF") -and
+  ($_ -notmatch "^warning: in the working copy of ")
+})
+if ($meaningfulWhitespaceIssues.Count -gt 0) {
+  $meaningfulWhitespaceIssues | ForEach-Object { Write-Host $_ }
+  throw "Verification failed: git diff whitespace"
+}
 
 $repoLocalGitleaks = Join-Path ".tools\gitleaks" "gitleaks.exe"
 $gitleaksCommand = Get-Command gitleaks -ErrorAction SilentlyContinue
 if ($gitleaksCommand -or (Test-Path $repoLocalGitleaks)) {
   Write-Host "[verify] gitleaks scan"
   $gitleaksExecutable = if ($gitleaksCommand) { "gitleaks" } else { $repoLocalGitleaks }
+  $prevEap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
   & $gitleaksExecutable detect --no-git --source . --config .gitleaks.toml --redact
-  Assert-LastExitCode "gitleaks scan"
+  $gitleaksExit = $LASTEXITCODE; $ErrorActionPreference = $prevEap
+  if ($gitleaksExit -ne 0) { throw "Verification failed: gitleaks scan exited $gitleaksExit" }
 } else {
   Write-Host "[verify] fallback secret scan"
   py -3 scripts\secret_scan_fallback.py
@@ -1579,3 +2153,4 @@ if ($gitleaksCommand -or (Test-Path $repoLocalGitleaks)) {
 }
 
 Write-Host "[verify] phase1 checks completed"
+

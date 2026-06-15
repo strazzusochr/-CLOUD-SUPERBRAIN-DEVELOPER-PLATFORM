@@ -1,5 +1,8 @@
 .env
 *.local.env
+.vscode/
+.claude/
+MASTER_PROJECT_ROADMAP.md
 .venv/
 __pycache__/
 *.pyc
@@ -17,6 +20,10 @@ coverage/
 docs/*Token*.txt
 docs/*Tokens*.txt
 secrets/
+/.trae/
+/.rules/
+trae-hermes-test.log
+AGENTS.codex-backup.md
 /*_token.txt
 /*token*.png
 /*token*.html
@@ -41,3 +48,9 @@ secrets/
 /gitkraken_*.png
 /debug-artifacts/
 /.secrets.baseline
+
+.vercel
+.env*.local
+.fly/
+.playwright-mcp/
+.codex/runs/

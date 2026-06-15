@@ -1,13 +1,30 @@
 param(
   [string]$ReleaseId = "prod-candidate-2026-05-05-rc1",
-  [string]$BaseUrl = "https://188-34-191-140.sslip.io"
+  [string]$BaseUrl = $(if ($env:STAGING_BASE_URL) { $env:STAGING_BASE_URL } else { "" }),
+  [switch]$SkipHostedProbes
 )
 
 $ErrorActionPreference = "Stop"
 
+function Assert-HostedBaseUrlConfigured {
+  if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
+    throw "Hosted verifier requires -BaseUrl or env:STAGING_BASE_URL (HTTPS, non-localhost)."
+  }
+  if ($BaseUrl -notmatch '^https://') {
+    throw "Hosted verifier requires an HTTPS BaseUrl."
+  }
+  if ($BaseUrl -match 'localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0|host\.docker\.internal') {
+    throw "Hosted verifier refuses localhost and loopback BaseUrl values."
+  }
+}
+Assert-HostedBaseUrlConfigured
+
+
 function Assert-Contains($label, $value, $expected) {
   $text = ($value | Out-String)
-  if (-not $text.Contains($expected)) {
+  $normalizedText = ($text -replace '\s+', ' ').Trim()
+  $normalizedExpected = (($expected | Out-String) -replace '\s+', ' ').Trim()
+  if (-not $normalizedText.Contains($normalizedExpected)) {
     throw "Verification failed: $label did not contain '$expected'."
   }
 }
@@ -214,15 +231,19 @@ if ($runtimeDrift.Count -lt 1) {
   throw "Verification failed: runtime source no longer drifts from immutable candidate source; blocker artifact must be retired or rewritten."
 }
 
-$progress = Get-Json "$BaseUrl/api/v1/project/progress" | ConvertFrom-Json
-$integrity = Get-Json "$BaseUrl/api/v1/project/progress/integrity" | ConvertFrom-Json
-$completion = Get-Json "$BaseUrl/api/v1/project/progress/completion" | ConvertFrom-Json
-$phase5 = $progress.horizontal.items | Where-Object { $_.id -eq "phase_5" } | Select-Object -First 1
-Assert-Equal "hosted overall percent" $progress.overall_percent $expectedOverall
-Assert-Equal "hosted phase5 percent" $phase5.percent $expectedPhase5
-Assert-Equal "hosted integrity status" $integrity.status "verified"
-if ($completion.can_set_all_to_100 -ne $false) {
-  throw "Verification failed: completion gate must remain fail-closed."
+if (-not $SkipHostedProbes) {
+  $progress = Get-Json "$BaseUrl/api/v1/project/progress" | ConvertFrom-Json
+  $integrity = Get-Json "$BaseUrl/api/v1/project/progress/integrity" | ConvertFrom-Json
+  $completion = Get-Json "$BaseUrl/api/v1/project/progress/completion" | ConvertFrom-Json
+  $phase5 = $progress.horizontal.items | Where-Object { $_.id -eq "phase_5" } | Select-Object -First 1
+  Assert-Equal "hosted overall percent" $progress.overall_percent $expectedOverall
+  Assert-Equal "hosted phase5 percent" $phase5.percent $expectedPhase5
+  Assert-Equal "hosted integrity status" $integrity.status "verified"
+  if ($completion.can_set_all_to_100 -ne $false) {
+    throw "Verification failed: completion gate must remain fail-closed."
+  }
+} else {
+  Write-Host "[phase5-staging-parity-blocked] hosted probes skipped"
 }
 
 Write-Host "[phase5-staging-parity-blocked] verified"

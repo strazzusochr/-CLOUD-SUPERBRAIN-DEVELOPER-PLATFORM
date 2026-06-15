@@ -2,6 +2,7 @@ import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, Badge, Note, StatusDot } from "../../components/ui";
 import { AGENTS } from "../../lib/platform";
 import { fetchLiveAgents } from "../../lib/agentApi";
+import { AgentSteeringPanel } from "../../components/goal-b-actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Agent Control Center — Cloud Superbrain" };
@@ -14,8 +15,8 @@ export default async function AgentsPage() {
       <div className="page-wide">
         <PageHeader
           eyebrow="Agent Control Center"
-          title={`${AGENTS.length} deterministic agent profiles`}
-          subtitle="Real role pool from the backend contract agent-profiles-v1. Each profile pins its model, fallbacks, allowed MCP tools, execution limits and human-review actions. The live roster below projects from GET /api/v1/live-agents/status when the runtime is reachable."
+          title={`${AGENTS.length} local agent profiles`}
+          subtitle="Real role pool from the backend contract agent-profiles-v1. Each profile pins its model, fallbacks, allowed MCP tools, execution limits and human-review actions. The live roster below projects from GET /api/v1/live-agents/status and now exposes the latest local result path/command when a role was actually run."
           actions={live ? <Badge tone="green">● Live · {roster!.agents.length} agents</Badge> : <Badge tone="cyan">agent-profiles-v1</Badge>}
         />
 
@@ -34,6 +35,11 @@ export default async function AgentsPage() {
             </div>
           </Panel>
         ) : null}
+        <Panel title="Goal B live-agent steering (local real run)" actions={<Badge tone="green">local_model_calls=true</Badge>} style={{ marginBottom: 16 }}>
+          <div className="wb-pad">
+            <AgentSteeringPanel agents={(roster?.agents ?? []).map((a) => ({ id: a.id, name: a.name, role: a.role }))} />
+          </div>
+        </Panel>
         <div className="grid cols-2">
           {AGENTS.map((a) => (
             <Panel key={a.type} pad>
@@ -65,9 +71,9 @@ export default async function AgentsPage() {
         </div>
 
         <Note>
-          Profiles are deterministic runtime contracts — they do not imply live provider credentials
-          are configured, and production-deploy actions stay human-review gated. All four agents run
-          on Layer 3 (Agent Pool · Hetzner); global max-retry is 5.
+          Profiles are runtime contracts backed by the local LLM path. External providers remain closed,
+          production-deploy actions stay human-review gated, and all four agents run on Layer 3
+          (Agent Pool). DEV-ONLY; hosted proof still blocked.
         </Note>
       </div>
     </AppShell>

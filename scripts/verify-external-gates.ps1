@@ -5,14 +5,15 @@ param(
   [string]$Branch = $(if ($env:BRANCH_NAME) { $env:BRANCH_NAME } else { "" }),
   [string]$GitLabProfileUrl = $(if ($env:GITLAB_PROFILE_URL) { $env:GITLAB_PROFILE_URL } else { "https://gitlab.com/strazzusochr" }),
   [string]$HuggingFaceProfileUrl = $(if ($env:HF_PROFILE_URL) { $env:HF_PROFILE_URL } else { "https://huggingface.co/Wrzzzrzr" }),
-  [string]$GitKrakenDashboardUrl = $(if ($env:GITKRAKEN_DASHBOARD_URL) { $env:GITKRAKEN_DASHBOARD_URL } else { "https://gitkraken.dev" }),
+  [string]$grafanaDashboardUrl = $(if ($env:GRAFANA_CLOUD_URL) { $env:GRAFANA_CLOUD_URL } else { "https://cordialtrout569.grafana.net" }),
   [string]$GhcrImageNamespace = $(if ($env:GHCR_IMAGE_NAMESPACE) { $env:GHCR_IMAGE_NAMESPACE } else { "ghcr.io/strazzusochr/cloud-superbrain-developer-platform" }),
   [string]$ImageTag = $(if ($env:IMAGE_TAG) { $env:IMAGE_TAG } else { "staging" }),
-  [string]$StagingSshHost = $(if ($env:STAGING_SSH_HOST) { $env:STAGING_SSH_HOST } else { "188.34.191.140" }),
-  [string]$StagingSshUser = $(if ($env:STAGING_SSH_USER) { $env:STAGING_SSH_USER } else { "root" }),
+  [string]$StagingSshHost = $(if ($env:STAGING_SSH_HOST) { $env:STAGING_SSH_HOST } else { "" }),
+  [string]$StagingSshUser = $(if ($env:STAGING_SSH_USER) { $env:STAGING_SSH_USER } else { "" }),
   [string]$StagingSshKeyPath = $(if ($env:STAGING_SSH_KEY_PATH) { $env:STAGING_SSH_KEY_PATH } else { "" }),
   [string]$StagingAppDir = $(if ($env:STAGING_APP_DIR) { $env:STAGING_APP_DIR } else { "/app" }),
   [string]$ArtifactDirectory = ".phase1-artifacts",
+  [string]$SummaryPath = "docs\runtime-state\external-gate-summary.json",
   [switch]$RequireAllClosed
 )
 
@@ -58,18 +59,40 @@ function Assert-HostedBaseUrlSafe([string]$value) {
   }
 }
 
-function Join-OriginProbeUrl([string]$BaseUrl, [string]$ExpectedPrefix, [string]$HealthPath) {
+function Test-RetiredHostedBaseUrl([string]$value) {
+  if ([string]::IsNullOrWhiteSpace($value)) {
+    return $false
+  }
+  try {
+    $uri = [System.Uri]$value
+    $uriHost = $uri.Host.ToLowerInvariant()
+    return ($uriHost -eq "188-34-191-140.sslip.io" -or $uriHost.EndsWith(".sslip.io"))
+  } catch {
+    return $false
+  }
+}
+
+function Join-OriginProbeUrl([string]$BaseUrl, [string]$OptionalPrefix, [string]$RootHealthPath, [string]$PrefixedHealthPath) {
   $normalized = Normalize-BaseUrl $BaseUrl
   if ([string]::IsNullOrWhiteSpace($normalized)) {
     return $null
   }
 
-  $prefix = $ExpectedPrefix.TrimEnd("/")
+  $prefix = $OptionalPrefix.TrimEnd("/")
   if ($prefix -and $normalized.EndsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-    return "$normalized$HealthPath"
+    return "$normalized$PrefixedHealthPath"
   }
 
-  return "$normalized$ExpectedPrefix$HealthPath"
+  return "$normalized$RootHealthPath"
+}
+
+function Get-TimeoutSeconds([string]$EnvName, [int]$DefaultSeconds) {
+  $raw = [Environment]::GetEnvironmentVariable($EnvName, "Process")
+  $parsed = 0
+  if ([int]::TryParse($raw, [ref]$parsed) -and $parsed -gt 0) {
+    return $parsed
+  }
+  return $DefaultSeconds
 }
 
 function New-Probe(
@@ -100,7 +123,22 @@ function Invoke-HttpProbe([string]$Id, [string]$Url, [string]$RequiredText, [str
   $nodeScript = @'
 const url = process.argv[1];
 const requiredText = process.argv[2] || '';
-fetch(url).then(async (response) => {
+const timeoutMs = Number(process.env.EXTERNAL_GATE_HTTP_TIMEOUT_MS || '12000');
+const startedAt = Date.now();
+const signal = AbortSignal.timeout(timeoutMs);
+function classifyNetworkError(error) {
+  const code = error?.cause?.code || error?.code || '';
+  const name = error?.name || '';
+  const message = error?.message || '';
+  if (name === 'TimeoutError' || name === 'AbortError' || code === 'UND_ERR_CONNECT_TIMEOUT' || code === 'ETIMEDOUT') return 'timeout';
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') return 'dns';
+  if (code === 'ECONNREFUSED') return 'connection_refused';
+  if (code === 'ECONNRESET' || code === 'EPIPE') return 'connection_reset';
+  if (code.includes('CERT') || message.toLowerCase().includes('certificate')) return 'tls';
+  if (message.toLowerCase().includes('fetch failed')) return 'network_error';
+  return 'unknown_network_error';
+}
+fetch(url, { signal }).then(async (response) => {
   const body = await response.text();
   const hasRequiredText = requiredText ? body.includes(requiredText) : true;
   console.log(JSON.stringify({
@@ -108,10 +146,24 @@ fetch(url).then(async (response) => {
     ok: response.status >= 200 && response.status < 300 && hasRequiredText,
     hasRequiredText,
     bytes: body.length,
+    elapsedMs: Date.now() - startedAt,
+    responseUrl: response.url,
+    contentType: response.headers.get('content-type') || '',
     snippet: body.slice(0, 160).replace(/\s+/g, ' ')
   }));
 }).catch((error) => {
-  console.log(JSON.stringify({ status: 0, ok: false, hasRequiredText: false, bytes: 0, error: error.message }));
+  console.log(JSON.stringify({
+    status: 0,
+    ok: false,
+    hasRequiredText: false,
+    bytes: 0,
+    elapsedMs: Date.now() - startedAt,
+    responseUrl: url,
+    error: error.message,
+    errorName: error.name || '',
+    errorCode: error?.cause?.code || error.code || '',
+    networkClassification: classifyNetworkError(error)
+  }));
   process.exitCode = 2;
 });
 '@
@@ -128,9 +180,32 @@ fetch(url).then(async (response) => {
     $ok = [bool]$probe.ok
     $message = if ($ok) { "required contract visible" } else { "required contract missing or non-2xx response" }
     $errorText = if ($probe.error) { [string]$probe.error } else { "" }
-    $result = New-Probe $Id $(if ($ok) { "verified" } else { "failed" }) $true $ok $EvidenceRef $Url $statusCode $message $errorText
+    $networkClassification = if ($probe.networkClassification) { [string]$probe.networkClassification } else { "" }
+    $probeStatus = if ($ok) { "verified" } elseif ($networkClassification -eq "timeout") { "timeout" } else { "failed" }
+    $result = New-Probe $Id $probeStatus $true $ok $EvidenceRef $Url $statusCode $message $errorText
     $result["bytes"] = [int]$probe.bytes
     $result["has_required_text"] = [bool]$probe.hasRequiredText
+    if ($null -ne $probe.elapsedMs) {
+      $result["elapsed_ms"] = [int]$probe.elapsedMs
+    }
+    if ($probe.responseUrl) {
+      $result["response_url"] = [string]$probe.responseUrl
+    }
+    if ($probe.contentType) {
+      $result["content_type"] = [string]$probe.contentType
+    }
+    if ($networkClassification) {
+      $result["network_classification"] = $networkClassification
+    }
+    if ($probe.errorName) {
+      $result["error_name"] = [string]$probe.errorName
+    }
+    if ($probe.errorCode) {
+      $result["error_code"] = [string]$probe.errorCode
+    }
+    if ($probe.snippet) {
+      $result["snippet"] = [string]$probe.snippet
+    }
     return $result
   } catch {
     return New-Probe $Id "failed" $true $false $EvidenceRef $Url 0 "node fetch probe failed" ($raw.Trim())
@@ -140,7 +215,9 @@ fetch(url).then(async (response) => {
 function Invoke-JsonProbe([string]$Url) {
   $nodeScript = @'
 const url = process.argv[1];
-fetch(url).then(async (response) => {
+const timeoutMs = Number(process.env.EXTERNAL_GATE_HTTP_TIMEOUT_MS || '12000');
+const signal = AbortSignal.timeout(timeoutMs);
+fetch(url, { signal }).then(async (response) => {
   const body = await response.text();
   let payload = null;
   try { payload = JSON.parse(body); } catch {}
@@ -177,8 +254,11 @@ function Invoke-GitLabIdentityProbe([string]$ProfileUrl) {
   $nodeScript = @'
 const profileUrl = process.argv[1];
 const token = process.env.GITLAB_TOKEN;
+const timeoutMs = Number(process.env.EXTERNAL_GATE_HTTP_TIMEOUT_MS || '12000');
+const signal = AbortSignal.timeout(timeoutMs);
 fetch('https://gitlab.com/api/v4/user', {
-  headers: { 'PRIVATE-TOKEN': token }
+  headers: { 'PRIVATE-TOKEN': token },
+  signal
 }).then(async (response) => {
   const body = await response.text();
   let payload = {};
@@ -226,8 +306,11 @@ function Invoke-HuggingFaceIdentityProbe([string]$ProfileUrl) {
   $nodeScript = @'
 const profileUrl = process.argv[1];
 const token = process.env.HF_TOKEN;
+const timeoutMs = Number(process.env.EXTERNAL_GATE_HTTP_TIMEOUT_MS || '12000');
+const signal = AbortSignal.timeout(timeoutMs);
 fetch('https://huggingface.co/api/whoami-v2', {
-  headers: { Authorization: `Bearer ${token}` }
+  headers: { Authorization: `Bearer ${token}` },
+  signal
 }).then(async (response) => {
   const body = await response.text();
   let payload = {};
@@ -267,53 +350,48 @@ fetch('https://huggingface.co/api/whoami-v2', {
   }
 }
 
-function Invoke-GitKrakenIdentityProbe([string]$DashboardUrl) {
-  if (-not $env:GITKRAKEN_API_TOKEN) {
-    return New-Probe "gitkraken_identity" "missing_secret_or_token" $false $false "gitkraken_identity_optional_proof" $DashboardUrl 0 "GITKRAKEN_API_TOKEN is not configured" ""
+function Invoke-GrafanaCloudIdentityProbe([string]$GrafanaUrl) {
+  if (-not $env:GRAFANA_CLOUD_API_KEY) {
+    return New-Probe "grafana_cloud" "missing_secret_or_token" $false $false "grafana_cloud_optional_proof" $GrafanaUrl 0 "GRAFANA_CLOUD_API_KEY is not configured" ""
   }
 
-  $nodeScript = @'
-const dashboardUrl = process.argv[1];
-const token = process.env.GITKRAKEN_API_TOKEN;
-const apiBase = (process.env.GITKRAKEN_API_URL || 'https://gitkraken.gitclear.com/api/v1').replace(/\/$/, '');
-fetch(`${apiBase}/api_tokens`, {
-  headers: { Authorization: `Bearer ${token}` }
-}).then(async (response) => {
-  const body = await response.text();
-  let payload = {};
-  try { payload = JSON.parse(body); } catch {}
-  console.log(JSON.stringify({
-    status: response.status,
-    ok: response.status >= 200 && response.status < 300,
-    response_em: payload.response_em || '',
-    action_em: payload.action_em || '',
-    organization_id_configured: Boolean(process.env.GITKRAKEN_ORG_ID),
-    organization_name_configured: Boolean(process.env.GITKRAKEN_ORG_NAME),
-    dashboard_url: dashboardUrl
-  }));
-}).catch((error) => {
-  console.log(JSON.stringify({ status: 0, ok: false, error: error.message }));
-  process.exitCode = 2;
-});
-'@
-  $previousErrorActionPreference = $ErrorActionPreference
-  $ErrorActionPreference = "Continue"
   try {
-    $raw = node -e $nodeScript $DashboardUrl 2>&1 | Out-String
-  } finally {
-    $ErrorActionPreference = $previousErrorActionPreference
+    $uri = [System.Uri]$GrafanaUrl
+  } catch {
+    return New-Probe "grafana_cloud" "failed" $true $false "grafana_cloud_optional_proof" $GrafanaUrl 0 "Grafana Cloud URL is invalid" "invalid_url"
   }
+  if ($uri.Scheme -ne "https") {
+    return New-Probe "grafana_cloud" "failed" $true $false "grafana_cloud_optional_proof" $GrafanaUrl 0 "Grafana Cloud URL must use HTTPS" "non_https_url"
+  }
+
+  $token = [string]$env:GRAFANA_CLOUD_API_KEY
+  $orgUrl = "$($GrafanaUrl.TrimEnd('/'))/api/org"
   try {
-    $probe = $raw | ConvertFrom-Json
-    $ok = [bool]$probe.ok
-    $result = New-Probe "gitkraken_identity" $(if ($ok) { "verified" } else { "failed" }) $true $ok "gitkraken_identity_optional_proof" $DashboardUrl ([int]$probe.status) "GitKraken token status checked without storing token" $(if ($probe.error) { [string]$probe.error } else { "" })
-    $result["response_em"] = [string]$probe.response_em
-    $result["action_em"] = [string]$probe.action_em
-    $result["organization_id_configured"] = [bool]$probe.organization_id_configured
-    $result["organization_name_configured"] = [bool]$probe.organization_name_configured
+    $response = Invoke-RestMethod -Method Get -Uri $orgUrl -Headers @{
+      Authorization = "Bearer $token"
+      Accept = "application/json"
+    } -TimeoutSec 20 -ErrorAction Stop
+
+    $orgName = ""
+    if ($response.name) { $orgName = [string]$response.name }
+    elseif ($response.orgName) { $orgName = [string]$response.orgName }
+
+    $orgId = $null
+    if ($response.id) { $orgId = $response.id }
+    elseif ($response.orgId) { $orgId = $response.orgId }
+
+    $result = New-Probe "grafana_cloud" "verified" $true $true "grafana_cloud_optional_proof" $GrafanaUrl 200 "Grafana Cloud org checked without storing token" ""
+    $result["org_name"] = $orgName
+    $result["org_id"] = $orgId
     return $result
   } catch {
-    return New-Probe "gitkraken_identity" "failed" $true $false "gitkraken_identity_optional_proof" $DashboardUrl 0 "GitKraken identity probe failed" ($raw.Trim())
+    $statusCode = 0
+    try { $statusCode = [int]$_.Exception.Response.StatusCode } catch { $statusCode = 0 }
+    $errorText = [string]$_.Exception.Message
+    if (-not [string]::IsNullOrWhiteSpace($token)) {
+      $errorText = $errorText.Replace($token, "[redacted-token]")
+    }
+    return New-Probe "grafana_cloud" "failed" $true $false "grafana_cloud_optional_proof" $GrafanaUrl $statusCode "Grafana Cloud identity probe failed" $errorText
   }
 }
 
@@ -346,6 +424,122 @@ function Invoke-ProcessProbe([string]$Id, [string]$EvidenceRef, [scriptblock]$Co
   }
 }
 
+function Invoke-BoundedNativeCommand([string]$FilePath, [string[]]$Arguments, [int]$TimeoutSeconds) {
+  $timeout = [Math]::Max(1, $TimeoutSeconds)
+  $argumentText = (@($Arguments) | ForEach-Object {
+    $value = [string]$_
+    if ($value -match '[\s"]') {
+      '"' + ($value -replace '"', '\"') + '"'
+    } else {
+      $value
+    }
+  }) -join " "
+
+  $stdoutPath = [System.IO.Path]::GetTempFileName()
+  $stderrPath = [System.IO.Path]::GetTempFileName()
+  $process = $null
+  try {
+    $process = Start-Process -FilePath $FilePath -ArgumentList $argumentText -WorkingDirectory (Get-Location).Path -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath -WindowStyle Hidden -PassThru
+    $completed = $process.WaitForExit($timeout * 1000)
+    if (-not $completed) {
+      try {
+        $process.Kill($true)
+      } catch {
+        try { $process.Kill() } catch {}
+      }
+      $output = "$(Get-Content -Raw -LiteralPath $stdoutPath -ErrorAction SilentlyContinue) $(Get-Content -Raw -LiteralPath $stderrPath -ErrorAction SilentlyContinue)".Trim()
+      return [ordered]@{
+        exit_code = 124
+        timed_out = $true
+        output = "timed out after ${timeout}s $output".Trim()
+      }
+    }
+    $output = "$(Get-Content -Raw -LiteralPath $stdoutPath -ErrorAction SilentlyContinue) $(Get-Content -Raw -LiteralPath $stderrPath -ErrorAction SilentlyContinue)".Trim()
+    return [ordered]@{
+      exit_code = [int]$process.ExitCode
+      timed_out = $false
+      output = $output
+    }
+  } catch {
+    return [ordered]@{
+      exit_code = 1
+      timed_out = $false
+      output = $_.Exception.Message
+    }
+  } finally {
+    if ($process) {
+      $process.Dispose()
+    }
+    Remove-Item -LiteralPath $stdoutPath -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $stderrPath -Force -ErrorAction SilentlyContinue
+  }
+}
+
+function Invoke-NativeProcessProbe(
+  [string]$Id,
+  [string]$EvidenceRef,
+  [string]$FilePath,
+  [string[]]$Arguments,
+  [bool]$Configured,
+  [int]$TimeoutSeconds
+) {
+  if (-not $Configured) {
+    return New-Probe $Id "missing_secret_or_binary" $false $false $EvidenceRef "" 0 "required input is not configured" ""
+  }
+
+  $nativeResult = Invoke-BoundedNativeCommand $FilePath $Arguments $TimeoutSeconds
+  $ok = ([int]$nativeResult.exit_code -eq 0) -and -not [bool]$nativeResult.timed_out
+  $excerpt = ([string]$nativeResult.output -replace "\r?\n", " ").Trim()
+  return [ordered]@{
+    id = $Id
+    status = if ($nativeResult.timed_out) { "timeout" } elseif ($ok) { "verified" } else { "failed" }
+    configured = $true
+    claim_allowed = $ok
+    evidence_ref = $EvidenceRef
+    exit_code = [int]$nativeResult.exit_code
+    timeout_seconds = $TimeoutSeconds
+    output_excerpt = $excerpt.Substring(0, [Math]::Min(600, $excerpt.Length))
+  }
+}
+
+function Invoke-GhcrDigestProbe([string]$Namespace, [string]$Tag) {
+  $dockerAvailable = [bool](Get-Command docker -ErrorAction SilentlyContinue)
+  if (-not $dockerAvailable) {
+    return New-Probe "ghcr_image_digest_verify" "missing_secret_or_binary" $false $false "ghcr_image_digest_proof" "" 0 "docker is required to verify GHCR image digests" ""
+  }
+  if ([string]::IsNullOrWhiteSpace($Namespace)) {
+    return New-Probe "ghcr_image_digest_verify" "missing_secret_or_url" $false $false "ghcr_image_digest_proof" "" 0 "GHCR image namespace is not configured. Set env:GHCR_IMAGE_NAMESPACE (example: ghcr.io/<owner>/<repo>)" ""
+  }
+
+  $services = @("frontend", "agent-api", "agent-worker", "memory-worker", "mcp-gateway", "llm-gateway")
+  $digests = @()
+  $inspectTimeoutSeconds = Get-TimeoutSeconds "EXTERNAL_GATE_DOCKER_TIMEOUT_SECONDS" 45
+  foreach ($service in $services) {
+    $imageRef = "$Namespace/$service`:$Tag"
+    $dockerResult = Invoke-BoundedNativeCommand "docker" @("buildx", "imagetools", "inspect", $imageRef) $inspectTimeoutSeconds
+    $raw = [string]$dockerResult.output
+    $dockerExitCode = [int]$dockerResult.exit_code
+    if ($dockerResult.timed_out) {
+      return New-Probe "ghcr_image_digest_verify" "timeout" $true $false "ghcr_image_digest_proof" "" 0 "GHCR digest inspection timed out for $service after ${inspectTimeoutSeconds}s" ($raw.Trim())
+    }
+    if ($dockerExitCode -ne 0) {
+      if ($raw -match "unauthorized|denied|authentication|forbidden") {
+        return New-Probe "ghcr_image_digest_verify" "missing_secret_or_token" $true $false "ghcr_image_digest_proof" "" 0 "GHCR digest verification is BLOCKED. Authenticate Docker for GHCR (docker login ghcr.io) with a token that has read:packages, then re-run verify:external-gates." ($raw.Trim())
+      }
+      return New-Probe "ghcr_image_digest_verify" "failed" $true $false "ghcr_image_digest_proof" "" 0 "GHCR digest inspection failed" ($raw.Trim())
+    }
+    $match = [regex]::Match($raw, "Digest:\s*(sha256:[0-9a-f]{64})", [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    if (-not $match.Success) {
+      return New-Probe "ghcr_image_digest_verify" "failed" $true $false "ghcr_image_digest_proof" "" 0 "GHCR digest inspection did not return a digest" ($raw.Trim())
+    }
+    $digests += "$service=$($match.Groups[1].Value)"
+  }
+
+  $result = New-Probe "ghcr_image_digest_verify" "verified" $true $true "ghcr_image_digest_proof" "" 200 "GHCR digests resolved for all service images" ""
+  $result["digests"] = $digests
+  return $result
+}
+
 function Invoke-RemoteBranchProtectionProbe(
   [string]$Repository,
   [string]$Branch,
@@ -355,10 +549,10 @@ function Invoke-RemoteBranchProtectionProbe(
   [string]$AppDir
 ) {
   if ([string]::IsNullOrWhiteSpace($SshHost) -or [string]::IsNullOrWhiteSpace($User) -or [string]::IsNullOrWhiteSpace($KeyPath) -or [string]::IsNullOrWhiteSpace($AppDir)) {
-    return New-Probe "github_branch_protection_verify" "missing_secret_or_binary" $false $false "branch_protection_verify_contract" "" 0 "remote branch protection fallback is not configured" ""
+    return New-Probe "github_branch_protection_verify" "missing_secret_or_token" $false $false "branch_protection_verify_contract" "" 0 "Branch protection verify is BLOCKED. Set env:BRANCH_PROTECTION_TOKEN (recommended) to verify via GitHub API, or configure env:STAGING_SSH_HOST/env:STAGING_SSH_USER/env:STAGING_SSH_KEY_PATH/env:STAGING_APP_DIR for remote --verify-only." ""
   }
   if (-not (Test-Path $KeyPath)) {
-    return New-Probe "github_branch_protection_verify" "missing_secret_or_binary" $false $false "branch_protection_verify_contract" "" 0 "remote branch protection fallback key is missing" ""
+    return New-Probe "github_branch_protection_verify" "missing_secret_or_binary" $false $false "branch_protection_verify_contract" "" 0 "Branch protection verify remote key missing. Set env:STAGING_SSH_KEY_PATH to an existing private key or set env:BRANCH_PROTECTION_TOKEN to verify via API." ""
   }
   $localVerifierScript = Join-Path $PSScriptRoot "apply_github_branch_protection.py"
   if (-not (Test-Path $localVerifierScript)) {
@@ -420,80 +614,82 @@ $localProbes = @(
   (Invoke-HttpProbe "local_cloud_provider_inventory" "$localBase/api/v1/clouds" "cloud-provider-inventory-v1" "cloud_provider_inventory_visible"),
   (Invoke-HttpProbe "local_cloud_layer_readiness" "$localBase/api/v1/clouds/layers" "cloud-layer-readiness-v1" "cloud_layer_readiness_visible"),
   (Invoke-HttpProbe "local_cloud_deployment_preflight" "$localBase/api/v1/clouds/deployment-preflight/contract" "cloud-deployment-preflight-v1" "cloud_deployment_preflight_visible"),
-  (Invoke-HttpProbe "local_external_gates" "$localBase/api/v1/external-gates" "external-gates-state-v1" "external_gate_runtime_state")
+  (Invoke-HttpProbe "local_external_gates" "$localBase/api/v1/external-gates" "external-gates-state-v1" "cloud_layer_readiness_visible")
 )
 
-if ($hostedBase) {
+if ($hostedBase -and (Test-RetiredHostedBaseUrl $hostedBase)) {
   $hostedProbes = @(
-    (Invoke-HttpProbe "hosted_frontend_root" "$hostedBase/" "Cloud Superbrain" "hosted_frontend_preview_visible"),
-    (Invoke-HttpProbe "hosted_frontend_health" "$hostedBase/health" "ok" "hosted_frontend_health_visible"),
+    (New-Probe "hosted_staging_base_url" "retired_provider_url" $true $false "hosted_staging_base_url_required" $hostedBase 0 "Hosted staging is BLOCKED. The configured STAGING_BASE_URL is a retired sslip.io/Hetzner-era target; set it to the real Vercel HTTPS staging URL." "")
+  )
+} elseif ($hostedBase) {
+  $hostedProbes = @(
+    (Invoke-HttpProbe "hosted_frontend_root" "$hostedBase/" "" "hosted_frontend_preview_visible"),
+    (Invoke-HttpProbe "hosted_frontend_health" "$hostedBase/health" "" "hosted_frontend_health_visible"),
     (Invoke-HttpProbe "hosted_agent_api_health" "$hostedBase/api/v1/health" "agent-api" "hosted_agent_api_health_required"),
     (Invoke-HttpProbe "hosted_cloud_provider_inventory" "$hostedBase/api/v1/clouds" "cloud-provider-inventory-v1" "hosted_cloud_provider_inventory_required"),
     (Invoke-HttpProbe "hosted_cloud_layer_readiness" "$hostedBase/api/v1/clouds/layers" "cloud-layer-readiness-v1" "hosted_cloud_layer_readiness_required"),
     (Invoke-HttpProbe "hosted_cloud_deployment_preflight" "$hostedBase/api/v1/clouds/deployment-preflight/contract" "cloud-deployment-preflight-v1" "hosted_cloud_deployment_preflight_required"),
-    (Invoke-HttpProbe "hosted_project_progress_integrity" "$hostedBase/api/v1/project/progress/integrity" "project-progress-integrity-v1" "hosted_project_progress_integrity_required"),
-    (Invoke-HttpProbe "hosted_project_progress_completion" "$hostedBase/api/v1/project/progress/completion" "project-progress-100-percent-contract-v1" "hosted_project_progress_completion_required")
+    (Invoke-HttpProbe "hosted_project_progress_integrity" "$hostedBase/api/v1/project/progress/integrity" "project-progress-integrity-v1" "hosted_progress_integrity_contract_required"),
+    (Invoke-HttpProbe "hosted_project_progress_completion" "$hostedBase/api/v1/project/progress/completion" "project-progress-100-percent-contract-v1" "hosted_progress_completion_contract_required"),
+    (Invoke-HttpProbe "hosted_external_gates" "$hostedBase/api/v1/external-gates" "external-gates-state-v1" "hosted_external_gate_state_required")
   )
 } else {
   $hostedProbes = @(
-    (New-Probe "hosted_staging_base_url" "missing_secret_or_url" $false $false "hosted_staging_base_url_required" "" 0 "STAGING_BASE_URL is not configured" "")
+    (New-Probe "hosted_staging_base_url" "missing_secret_or_url" $false $false "hosted_staging_base_url_required" "" 0 "Hosted staging is BLOCKED. Set env:STAGING_BASE_URL to the real HTTPS staging base URL (example: https://staging.example.com)." "")
   )
 }
 
 $gitleaksCommand = Get-Command gitleaks -ErrorAction SilentlyContinue
 $repoLocalGitleaks = Join-Path ".tools\gitleaks" "gitleaks.exe"
 $gitleaksExecutable = if ($gitleaksCommand) { "gitleaks" } elseif (Test-Path $repoLocalGitleaks) { $repoLocalGitleaks } else { $null }
-$gitleaksProbe = Invoke-ProcessProbe "canonical_gitleaks_scan" "canonical_gitleaks_scan_clean" {
-  & $gitleaksExecutable detect --no-git --source . --config .gitleaks.toml --redact
-} ([bool]$gitleaksExecutable)
+$gitleaksProbe = Invoke-NativeProcessProbe "canonical_gitleaks_scan" "canonical_gitleaks_scan_clean" $gitleaksExecutable @("detect", "--no-git", "--source", ".", "--config", ".gitleaks.toml", "--redact") ([bool]$gitleaksExecutable) (Get-TimeoutSeconds "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS" 1200)
 
 $branchTokenConfigured = [bool]$env:BRANCH_PROTECTION_TOKEN
 if ($branchTokenConfigured) {
-  $branchProtectionProbe = Invoke-ProcessProbe "github_branch_protection_verify" "branch_protection_verify_contract" {
-    py -3 scripts\apply_github_branch_protection.py --verify-only --repo $Repository --branch $Branch
-  } $true
+  $branchProtectionProbe = Invoke-NativeProcessProbe "github_branch_protection_verify" "branch_protection_verify_contract" "py" @("-3", "scripts\apply_github_branch_protection.py", "--verify-only", "--repo", $Repository, "--branch", $Branch) $true (Get-TimeoutSeconds "EXTERNAL_GATE_BRANCH_TIMEOUT_SECONDS" 60)
 } else {
   $branchProtectionProbe = Invoke-RemoteBranchProtectionProbe $Repository $Branch $StagingSshHost $StagingSshUser $StagingSshKeyPath $StagingAppDir
 }
 
-$dockerManifestAvailable = [bool](Get-Command docker -ErrorAction SilentlyContinue)
-$ghcrProbeConfigured = $dockerManifestAvailable -and (-not [string]::IsNullOrWhiteSpace($GhcrImageNamespace))
-$ghcrProbe = Invoke-ProcessProbe "ghcr_image_digest_verify" "ghcr_image_digest_proof" {
-  $services = @("frontend", "agent-api", "agent-worker", "memory-worker", "mcp-gateway", "llm-gateway")
-  foreach ($service in $services) {
-    docker manifest inspect "$GhcrImageNamespace/$service`:$ImageTag" | Out-Null
-  }
-} $ghcrProbeConfigured
+$ghcrProbe = Invoke-GhcrDigestProbe $GhcrImageNamespace $ImageTag
 
 $originUrls = @(
-  @{ id = "vercel_agent_api_origin"; url = $env:AGENT_API_BASE_URL; prefix = "/api"; health = "/v1/health"; marker = "agent-api" },
-  @{ id = "vercel_mcp_gateway_origin"; url = $env:MCP_GATEWAY_BASE_URL; prefix = "/mcp"; health = "/api/v1/health"; marker = "mcp-gateway" },
-  @{ id = "vercel_llm_gateway_origin"; url = $env:LLM_GATEWAY_BASE_URL; prefix = "/llm"; health = "/api/v1/health"; marker = "llm-gateway" }
+  @{ id = "vercel_agent_api_origin"; url = $env:AGENT_API_BASE_URL; prefix = "/api"; root_health = "/api/v1/health"; prefixed_health = "/v1/health"; marker = "agent-api" },
+  @{ id = "vercel_mcp_gateway_origin"; url = $env:MCP_GATEWAY_BASE_URL; prefix = "/mcp"; root_health = "/api/v1/health"; prefixed_health = "/api/v1/health"; marker = "mcp-gateway" },
+  @{ id = "vercel_llm_gateway_origin"; url = $env:LLM_GATEWAY_BASE_URL; prefix = "/llm"; root_health = "/api/v1/health"; prefixed_health = "/api/v1/health"; marker = "llm-gateway" }
 )
 $vercelOriginProbes = @()
 foreach ($origin in $originUrls) {
   $originId = [string]$origin["id"]
   $originPrefix = [string]$origin["prefix"]
-  $originHealthPath = [string]$origin["health"]
+  $originRootHealthPath = [string]$origin["root_health"]
+  $originPrefixedHealthPath = [string]$origin["prefixed_health"]
   $originMarker = [string]$origin["marker"]
   $normalizedOrigin = Normalize-BaseUrl $origin["url"]
   if (-not $normalizedOrigin) {
-    $vercelOriginProbes += New-Probe $originId "missing_secret_or_url" $false $false "vercel_backend_origin_required" "" 0 "$originId is not configured" ""
+    $requiredEnv = switch ($originId) {
+      "vercel_agent_api_origin" { "AGENT_API_BASE_URL" }
+      "vercel_mcp_gateway_origin" { "MCP_GATEWAY_BASE_URL" }
+      "vercel_llm_gateway_origin" { "LLM_GATEWAY_BASE_URL" }
+      default { "AGENT_API_BASE_URL / MCP_GATEWAY_BASE_URL / LLM_GATEWAY_BASE_URL" }
+    }
+    $vercelOriginProbes += New-Probe $originId "missing_secret_or_url" $false $false "vercel_backend_origin_required" "" 0 "Vercel origin is BLOCKED. Set env:$requiredEnv to the real HTTPS origin URL for $originId." ""
     continue
   }
   Assert-HostedBaseUrlSafe $normalizedOrigin
-  $originProbeUrl = Join-OriginProbeUrl $normalizedOrigin $originPrefix $originHealthPath
-  $vercelOriginProbes += Invoke-HttpProbe $originId $originProbeUrl $originMarker "vercel_backend_origin_health_required"
+  $originHealthUrl = Join-OriginProbeUrl $normalizedOrigin $originPrefix $originRootHealthPath $originPrefixedHealthPath
+  $vercelOriginProbes += Invoke-HttpProbe $originId $originHealthUrl $originMarker "vercel_backend_origin_required"
 }
 $vercelOriginsClaimAllowed = @($vercelOriginProbes | Where-Object { $_.claim_allowed }).Count -eq $originUrls.Count
 
-$hetznerTokenConfigured = [bool]$env:HETZNER_API_TOKEN
-if ($hetznerTokenConfigured) {
-  $hetznerProbe = Invoke-ProcessProbe "hetzner_live_budget_check" "hetzner_live_budget_check" {
-    py -3 scripts\check_hetzner_infra_budget.py
-  } $true
+$flyTokenConfigured = [bool]$env:FLY_API_TOKEN
+$flyBudgetScript = Join-Path $PSScriptRoot "check_fly_infra_budget.py"
+if (-not (Test-Path -LiteralPath $flyBudgetScript)) {
+  $flyProbe = New-Probe "fly_live_budget_check" "missing_secret_or_binary" $false $false "fly_live_budget_check" "" 0 "Fly.io live budget verifier script is missing." ""
+} elseif ($flyTokenConfigured) {
+  $flyProbe = Invoke-NativeProcessProbe "fly_live_budget_check" "fly_live_budget_check" "py" @("-3", $flyBudgetScript) $true (Get-TimeoutSeconds "EXTERNAL_GATE_FLY_TIMEOUT_SECONDS" 60)
 } else {
-  $hetznerProbe = New-Probe "hetzner_live_budget_check" "missing_secret_or_token" $false $false "hetzner_live_budget_check" "" 0 "HETZNER_API_TOKEN is required for live Hetzner budget proof" ""
+  $flyProbe = New-Probe "fly_live_budget_check" "missing_secret_or_token" $false $false "fly_live_budget_check" "" 0 "Fly.io live budget is BLOCKED. Set env:FLY_API_TOKEN to a real Fly.io API token." ""
 }
 
 $hostedApiRequiredIds = @(
@@ -511,16 +707,21 @@ $hostedFrontendIds = @(
 
 $hostedApiClaimAllowed = @($hostedProbes | Where-Object { $hostedApiRequiredIds -contains $_.id -and $_.claim_allowed }).Count -eq $hostedApiRequiredIds.Count
 $hostedFrontendClaimAllowed = @($hostedProbes | Where-Object { $hostedFrontendIds -contains $_.id -and $_.claim_allowed }).Count -eq $hostedFrontendIds.Count
+$failedHostedRequiredIds = @($hostedApiRequiredIds | Where-Object {
+  $requiredId = $_
+  @($hostedProbes | Where-Object { $_.id -eq $requiredId -and $_.claim_allowed }).Count -eq 0
+})
+$failedVercelOriginIds = @($vercelOriginProbes | Where-Object { -not $_.claim_allowed } | ForEach-Object { [string]$_.id })
 $branchProtectionClaimAllowed = [bool]$branchProtectionProbe.claim_allowed
 $ghcrClaimAllowed = [bool]$ghcrProbe.claim_allowed
 $gitleaksClaimAllowed = [bool]$gitleaksProbe.claim_allowed
-$hetznerClaimAllowed = [bool]$hetznerProbe.claim_allowed
+$flyClaimAllowed = [bool]$flyProbe.claim_allowed
 $gitLabIdentityProbe = Invoke-GitLabIdentityProbe $GitLabProfileUrl
 $gitLabIdentityClaimAllowed = [bool]$gitLabIdentityProbe.claim_allowed
 $huggingFaceIdentityProbe = Invoke-HuggingFaceIdentityProbe $HuggingFaceProfileUrl
 $huggingFaceIdentityClaimAllowed = [bool]$huggingFaceIdentityProbe.claim_allowed
-$gitKrakenIdentityProbe = Invoke-GitKrakenIdentityProbe $GitKrakenDashboardUrl
-$gitKrakenIdentityClaimAllowed = [bool]$gitKrakenIdentityProbe.claim_allowed
+$grafanaIdentityProbe = Invoke-GrafanaCloudIdentityProbe $grafanaDashboardUrl
+$grafanaIdentityClaimAllowed = [bool]$grafanaIdentityProbe.claim_allowed
 
 $missing = @()
 if (-not $hostedApiClaimAllowed) { $missing += "hosted_agent_api_contracts" }
@@ -528,11 +729,11 @@ if (-not $branchProtectionClaimAllowed) { $missing += "github_branch_protection_
 if (-not $ghcrClaimAllowed) { $missing += "ghcr_image_digest_verify" }
 if (-not $vercelOriginsClaimAllowed) { $missing += "vercel_backend_origin_health" }
 if (-not $gitleaksClaimAllowed) { $missing += "canonical_gitleaks_scan" }
-if (-not $hetznerClaimAllowed) { $missing += "hetzner_live_budget_check" }
+if (-not $flyClaimAllowed) { $missing += "fly_live_budget_check" }
 
 $summary = [ordered]@{
   contract_version = "external-gate-audit-v1"
-  status = if ($missing.Count -eq 0) { "verified" } else { "action_required" }
+  status = if ($missing.Count -eq 0) { "verified" } else { "blocked" }
   evidence_ref = "external_gate_audit_proof"
   generated_at_utc = (Get-Date).ToUniversalTime().ToString("o")
   local_base_url = $localBase
@@ -545,18 +746,20 @@ $summary = [ordered]@{
   ghcr_image_digest_claim_allowed = $ghcrClaimAllowed
   vercel_backend_origins_claim_allowed = $vercelOriginsClaimAllowed
   canonical_gitleaks_claim_allowed = $gitleaksClaimAllowed
-  hetzner_live_budget_claim_allowed = $hetznerClaimAllowed
+  fly_live_budget_claim_allowed = $flyClaimAllowed
   gitlab_identity_claim_allowed = $gitLabIdentityClaimAllowed
   huggingface_identity_claim_allowed = $huggingFaceIdentityClaimAllowed
-  gitkraken_identity_claim_allowed = $gitKrakenIdentityClaimAllowed
+  grafana_cloud_claim_allowed = $grafanaIdentityClaimAllowed
   production_deploy_claim_allowed = ($missing.Count -eq 0)
   missing_or_failed_gates = $missing
+  failed_hosted_required_probe_ids = $failedHostedRequiredIds
+  failed_vercel_origin_probe_ids = $failedVercelOriginIds
   non_claims = @(
     "Frontend preview reachability is not hosted staging unless /api/v1 contracts pass.",
     "Branch protection is not current unless scripts/apply_github_branch_protection.py --verify-only passes with a configured token.",
     "GHCR image publication is not current unless all service image manifests resolve by digest.",
     "Vercel backend origins are not current unless all three HTTPS health probes pass.",
-    "Hetzner live infrastructure budget is not current unless HETZNER_API_TOKEN is configured and the live budget check passes.",
+    "Fly.io live infrastructure state is not current unless FLY_API_TOKEN is configured and the live budget check passes.",
     "No secret values are written into this artifact."
   )
   probes = [ordered]@{
@@ -566,10 +769,10 @@ $summary = [ordered]@{
     ghcr = $ghcrProbe
     gitleaks = $gitleaksProbe
     github = $branchProtectionProbe
-    hetzner = $hetznerProbe
+    fly_io = $flyProbe
     gitlab = $gitLabIdentityProbe
     huggingface = $huggingFaceIdentityProbe
-    gitkraken = $gitKrakenIdentityProbe
+    grafana = $grafanaIdentityProbe
   }
 }
 
@@ -577,13 +780,46 @@ New-Item -ItemType Directory -Force -Path $ArtifactDirectory | Out-Null
 $artifactPath = Join-Path $ArtifactDirectory ("external-gate-audit-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
 $summary | ConvertTo-Json -Depth 10 | Set-Content -Path $artifactPath -Encoding UTF8
 
+$runtimeSummary = [ordered]@{
+  contract_version = "external-gate-summary-v1"
+  source_contract_version = [string]$summary.contract_version
+  source_artifact = $artifactPath
+  generated_at_utc = [string]$summary.generated_at_utc
+  status = [string]$summary.status
+  frontend_preview_claim_allowed = [bool]$summary.frontend_preview_claim_allowed
+  hosted_staging_claim_allowed = [bool]$summary.hosted_staging_claim_allowed
+  branch_protection_claim_allowed = [bool]$summary.branch_protection_claim_allowed
+  ghcr_image_digest_claim_allowed = [bool]$summary.ghcr_image_digest_claim_allowed
+  vercel_backend_origins_claim_allowed = [bool]$summary.vercel_backend_origins_claim_allowed
+  canonical_gitleaks_claim_allowed = [bool]$summary.canonical_gitleaks_claim_allowed
+  fly_live_budget_claim_allowed = [bool]$summary.fly_live_budget_claim_allowed
+  gitlab_identity_claim_allowed = [bool]$summary.gitlab_identity_claim_allowed
+  huggingface_identity_claim_allowed = [bool]$summary.huggingface_identity_claim_allowed
+  grafana_cloud_claim_allowed = [bool]$summary.grafana_cloud_claim_allowed
+  production_deploy_claim_allowed = [bool]$summary.production_deploy_claim_allowed
+  missing_or_failed_gates = @($summary.missing_or_failed_gates | ForEach-Object { [string]$_ })
+  failed_hosted_required_probe_ids = @($summary.failed_hosted_required_probe_ids | ForEach-Object { [string]$_ })
+  failed_vercel_origin_probe_ids = @($summary.failed_vercel_origin_probe_ids | ForEach-Object { [string]$_ })
+  non_claims = @(
+    "This is a sanitized runtime summary, not the full audit artifact.",
+    "Probe snippets, URLs, logs, and token values are not included.",
+    "No hosted, production, branch-protection, Fly budget, or Vercel-origin claim is allowed while missing_or_failed_gates is non-empty."
+  )
+}
+$summaryDir = Split-Path -Parent $SummaryPath
+if (-not [string]::IsNullOrWhiteSpace($summaryDir)) {
+  New-Item -ItemType Directory -Force -Path $summaryDir | Out-Null
+}
+$runtimeSummary | ConvertTo-Json -Depth 6 | Set-Content -Path $SummaryPath -Encoding UTF8
+
 Write-Host "[external-gates] artifact=$artifactPath"
+Write-Host "[external-gates] summary=$SummaryPath"
 Write-Host "[external-gates] status=$($summary.status)"
 Write-Host "[external-gates] frontend_preview_claim_allowed=$($summary.frontend_preview_claim_allowed)"
 Write-Host "[external-gates] hosted_staging_claim_allowed=$($summary.hosted_staging_claim_allowed)"
 Write-Host "[external-gates] gitlab_identity_claim_allowed=$($summary.gitlab_identity_claim_allowed)"
 Write-Host "[external-gates] huggingface_identity_claim_allowed=$($summary.huggingface_identity_claim_allowed)"
-Write-Host "[external-gates] gitkraken_identity_claim_allowed=$($summary.gitkraken_identity_claim_allowed)"
+Write-Host "[external-gates] grafana_cloud_claim_allowed=$($summary.grafana_cloud_claim_allowed)"
 Write-Host "[external-gates] production_deploy_claim_allowed=$($summary.production_deploy_claim_allowed)"
 if ($missing.Count -gt 0) {
   Write-Host "[external-gates] missing_or_failed_gates=$($missing -join ',')"
@@ -592,3 +828,6 @@ if ($missing.Count -gt 0) {
 if ($RequireAllClosed -and $missing.Count -gt 0) {
   exit 1
 }
+
+$global:LASTEXITCODE = 0
+

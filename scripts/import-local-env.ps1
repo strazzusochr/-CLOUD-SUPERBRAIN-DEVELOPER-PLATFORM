@@ -56,8 +56,7 @@ foreach ($name in ($values.Keys | Sort-Object)) {
 $aliasPairs = @(
   @{ Source = "VERCEL_TEAM_ID"; Target = "VERCEL_ORG_ID" },
   @{ Source = "VERCEL_ORG_ID"; Target = "VERCEL_TEAM_ID" },
-  @{ Source = "HCLOUD_TOKEN"; Target = "HETZNER_API_TOKEN" },
-  @{ Source = "HETZNER_API_TOKEN"; Target = "HCLOUD_TOKEN" },
+  @{ Source = "FLY_TOKEN"; Target = "FLY_API_TOKEN" },
   @{ Source = "GITHUB_TOKEN"; Target = "BRANCH_PROTECTION_TOKEN" }
 )
 

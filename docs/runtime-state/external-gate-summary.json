@@ -1,0 +1,40 @@
+﻿{
+    "contract_version":  "external-gate-summary-v1",
+    "source_contract_version":  "external-gate-audit-v1",
+    "source_artifact":  ".phase1-artifacts\\external-gate-audit-20260615-015637.json",
+    "generated_at_utc":  "2026-06-14T23:56:37.1991505Z",
+    "status":  "blocked",
+    "frontend_preview_claim_allowed":  false,
+    "hosted_staging_claim_allowed":  false,
+    "branch_protection_claim_allowed":  true,
+    "ghcr_image_digest_claim_allowed":  true,
+    "vercel_backend_origins_claim_allowed":  false,
+    "canonical_gitleaks_claim_allowed":  true,
+    "fly_live_budget_claim_allowed":  true,
+    "gitlab_identity_claim_allowed":  true,
+    "huggingface_identity_claim_allowed":  true,
+    "grafana_cloud_claim_allowed":  false,
+    "production_deploy_claim_allowed":  false,
+    "missing_or_failed_gates":  [
+                                    "hosted_agent_api_contracts",
+                                    "vercel_backend_origin_health"
+                                ],
+    "failed_hosted_required_probe_ids":  [
+                                             "hosted_agent_api_health",
+                                             "hosted_cloud_provider_inventory",
+                                             "hosted_cloud_layer_readiness",
+                                             "hosted_cloud_deployment_preflight",
+                                             "hosted_project_progress_integrity",
+                                             "hosted_project_progress_completion"
+                                         ],
+    "failed_vercel_origin_probe_ids":  [
+                                           "vercel_agent_api_origin",
+                                           "vercel_mcp_gateway_origin",
+                                           "vercel_llm_gateway_origin"
+                                       ],
+    "non_claims":  [
+                       "This is a sanitized runtime summary, not the full audit artifact.",
+                       "Probe snippets, URLs, logs, and token values are not included.",
+                       "No hosted, production, branch-protection, Fly budget, or Vercel-origin claim is allowed while missing_or_failed_gates is non-empty."
+                   ]
+}

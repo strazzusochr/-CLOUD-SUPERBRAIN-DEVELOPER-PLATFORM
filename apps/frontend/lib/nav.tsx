@@ -60,34 +60,41 @@ export type NavItem = {
   label: string;
   route: string;
   icon: keyof typeof Icon;
+  layer: "FE" | "ORC" | "AP" | "LLM" | "MCP" | "MEM" | "OBS";
 };
+
+export const WORKSPACE_PAGES: NavItem[] = [
+  { id: "home", no: 1, label: "Home", route: "/home", icon: "home", layer: "FE" },
+  { id: "login", no: 2, label: "Login / Onboarding", route: "/login", icon: "login", layer: "FE" },
+  { id: "workbench", no: 3, label: "Main Workbench", route: "/workbench", icon: "workbench", layer: "FE" },
+  { id: "organism", no: 4, label: "Organism / Live", route: "/organism", icon: "organism", layer: "FE" },
+  { id: "organism-replay", no: 5, label: "Organism / Replay", route: "/organism/replay", icon: "evidence", layer: "OBS" },
+  { id: "organism-map", no: 6, label: "Organism / Map", route: "/organism/map", icon: "organism", layer: "FE" },
+  { id: "agents", no: 7, label: "Agents", route: "/agents", icon: "agents", layer: "AP" },
+  { id: "files", no: 8, label: "Files & Knowledge", route: "/files", icon: "files", layer: "MEM" },
+  { id: "files-local", no: 9, label: "Local Files", route: "/files/local", icon: "filesLocal", layer: "MEM" },
+  { id: "tools", no: 10, label: "MCP / Tools", route: "/tools", icon: "tools", layer: "MCP" },
+  { id: "marketplace", no: 11, label: "Marketplace", route: "/marketplace", icon: "marketplace", layer: "LLM" },
+  { id: "observe", no: 12, label: "Observe", route: "/observe", icon: "observe", layer: "OBS" },
+  { id: "games", no: 13, label: "Games", route: "/games", icon: "games", layer: "AP" },
+  { id: "apps", no: 14, label: "Apps", route: "/apps", icon: "apps", layer: "AP" },
+  { id: "media", no: 15, label: "Media", route: "/media", icon: "media", layer: "LLM" },
+  { id: "docs-output", no: 16, label: "Documents", route: "/docs-output", icon: "docs", layer: "MEM" },
+  { id: "evidence", no: 17, label: "Proof / Evidence", route: "/evidence", icon: "evidence", layer: "OBS" },
+  { id: "diagnostics", no: 18, label: "Diagnostics / Archive", route: "/diagnostics", icon: "diagnostics", layer: "OBS" },
+  { id: "design-system", no: 19, label: "Design System", route: "/design-system", icon: "design", layer: "FE" },
+  { id: "stack", no: 20, label: "Technology Stack", route: "/technology", icon: "stack", layer: "ORC" },
+  { id: "settings", no: 21, label: "Settings / Governance", route: "/settings", icon: "settings", layer: "MCP" },
+  { id: "open-source", no: 22, label: "Open Source", route: "/open-source", icon: "open", layer: "FE" },
+];
+
+const byId = Object.fromEntries(WORKSPACE_PAGES.map((item) => [item.id, item])) as Record<string, NavItem>;
 
 /** Primary rail — workbench-first, evidence/diagnostics intentionally low. */
 export const railGroups: NavItem[][] = [
-  [
-    { id: "home", no: 3, label: "Home", route: "/home", icon: "home" },
-    { id: "workbench", no: 4, label: "Workbench", route: "/workbench", icon: "workbench" },
-    { id: "organism", no: 7, label: "Organism", route: "/organism", icon: "organism" },
-    { id: "agents", no: 8, label: "Agents", route: "/agents", icon: "agents" },
-    { id: "files", no: 6, label: "Files & Knowledge", route: "/files", icon: "files" },
-    { id: "files-local", no: 5, label: "Local Files (read-only)", route: "/files/local", icon: "filesLocal" },
-    { id: "tools", no: 9, label: "Tools / Cloud Hub", route: "/tools", icon: "tools" },
-    { id: "marketplace", no: 10, label: "Marketplace", route: "/marketplace", icon: "marketplace" },
-    { id: "observe", no: 11, label: "Observe", route: "/observe", icon: "observe" },
-  ],
-  [
-    { id: "games", no: 19, label: "Games", route: "/games", icon: "games" },
-    { id: "apps", no: 22, label: "Apps", route: "/apps", icon: "apps" },
-    { id: "media", no: 20, label: "Media", route: "/media", icon: "media" },
-    { id: "docs-output", no: 21, label: "Documents", route: "/docs-output", icon: "docs" },
-  ],
-  [
-    { id: "evidence", no: 12, label: "Evidence", route: "/evidence", icon: "evidence" },
-    { id: "diagnostics", no: 14, label: "Diagnostics / Archive", route: "/diagnostics", icon: "diagnostics" },
-    { id: "design-system", no: 15, label: "Design System", route: "/design-system", icon: "design" },
-    { id: "stack", no: 17, label: "Technology", route: "/technology", icon: "stack" },
-    { id: "settings", no: 13, label: "Settings", route: "/settings", icon: "settings" },
-  ],
+  [byId.home, byId.workbench, byId.organism, byId.agents, byId.files, byId.tools, byId.marketplace, byId.observe],
+  [byId.games, byId.apps, byId.media, byId["docs-output"]],
+  [byId.evidence, byId.diagnostics, byId["design-system"], byId.stack, byId.settings],
 ];
 
-export const SLOGAN = ["Build anything.", "Automate everything.", "Own your workflow."];
+export const SLOGAN = ["Bau alles.", "Automatisiere alles.", "Behalte Kontrolle."];

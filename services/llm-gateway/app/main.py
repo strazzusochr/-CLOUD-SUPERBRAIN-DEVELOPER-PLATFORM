@@ -19,6 +19,11 @@ LIVE_PROVIDER_CALLS = False
 HF_ROUTER_BASE_URL = os.getenv("HF_ROUTER_BASE_URL", "https://router.huggingface.co/v1").rstrip("/")
 HF_DEFAULT_CHAT_MODEL = os.getenv("HF_DEFAULT_CHAT_MODEL", "deepseek-ai/DeepSeek-V4-Flash:fastest")
 HF_ROUTER_TIMEOUT_SECONDS = float(os.getenv("HF_ROUTER_TIMEOUT_SECONDS", "90"))
+LOCAL_LLM_BASE_URL = os.getenv("LOCAL_LLM_BASE_URL", "http://local-llm:8080/v1").rstrip("/")
+LOCAL_LLM_MODEL = os.getenv("LOCAL_LLM_MODEL", "gemma-3-1b-it").strip() or "gemma-3-1b-it"
+LOCAL_LLM_TIMEOUT_SECONDS = float(os.getenv("LOCAL_LLM_TIMEOUT_SECONDS", "180"))
+# Bound local CPU generation so an unbounded request cannot run away (and time out callers).
+LOCAL_LLM_MAX_TOKENS_DEFAULT = int(os.getenv("LOCAL_LLM_MAX_TOKENS_DEFAULT", "256") or "256")
 LLM_LIVE_PROVIDER_DEFAULT = os.getenv("LLM_LIVE_PROVIDER_DEFAULT", "false").strip().lower() in {
     "1",
     "true",
@@ -28,6 +33,8 @@ ROTATION_BACKOFF_SECONDS = [30, 60, 120, 300]
 PROVIDER_RESET_AFTER_SECONDS = 900
 STREAMING_PROTOCOL = "openai_compatible_sse"
 ROUTING_POLICY_CONTRACT_VERSION = "llm-routing-policy-v1"
+LLM_RESPONSES_ADAPTER_CONTRACT_VERSION = "llm-responses-adapter-contract-v1"
+LLM_RESPONSES_ADAPTER_EVIDENCE_REF = "llm_responses_adapter_contract_visible"
 MAX_FALLBACKS_PER_REQUEST = 2
 MAX_RETRY_CYCLES_PER_RUN = 5
 
@@ -211,8 +218,22 @@ def model_ids() -> list[str]:
 
 def normalize_model_id(model: str | None) -> str:
     if not model:
-        return HF_DEFAULT_CHAT_MODEL
+        return LOCAL_LLM_MODEL if GATEWAY_MODE == "local_openai_live" else HF_DEFAULT_CHAT_MODEL
     return LEGACY_MODEL_ALIASES.get(model, model)
+
+
+def local_llm_enabled() -> bool:
+    return GATEWAY_MODE == "local_openai_live"
+
+
+def local_llm_health() -> bool:
+    try:
+        with httpx.Client(timeout=3) as client:
+            response = client.get(f"{LOCAL_LLM_BASE_URL.removesuffix('/v1')}/health")
+            response.raise_for_status()
+        return True
+    except Exception:
+        return False
 
 
 def model_family(model: str) -> str:
@@ -237,6 +258,8 @@ def model_family(model: str) -> str:
 
 
 def provider_for_model(model: str) -> str:
+    if local_llm_enabled():
+        return "local_llama_cpp"
     return "huggingface_inference_router"
 
 
@@ -288,6 +311,7 @@ def hf_router_model_snapshot(limit: int = 20) -> dict[str, object]:
 
 def provider_status_snapshot() -> dict[str, object]:
     router = hf_router_model_snapshot()
+    local_status = "healthy" if local_llm_health() else "starting_or_unavailable"
 
     return {
         "mode": GATEWAY_MODE,
@@ -302,6 +326,21 @@ def provider_status_snapshot() -> dict[str, object]:
             "requires_request_metadata": "metadata.live_provider_calls_allowed=true",
         },
         "providers": [
+            {
+                "provider": "local_llama_cpp",
+                "status": local_status,
+                "live_verified": local_llm_enabled() and local_llm_health(),
+                "live_provider_calls": False,
+                "live_provider_calls_available": local_llm_enabled(),
+                "model_count_visible": 1 if local_llm_enabled() else 0,
+                "configured_models": [LOCAL_LLM_MODEL],
+                "visible_models_sample": [LOCAL_LLM_MODEL] if local_llm_enabled() else [],
+                "backoff_seconds": [],
+                "reset_after_seconds": None,
+                "model_downloads": True,
+                "open_source_first": True,
+                "non_claim": "Local CPU model path; no external provider token is required.",
+            },
             {
                 "provider": "huggingface_inference_router",
                 "status": router["status"],
@@ -617,6 +656,37 @@ def call_hf_chat_completion(request: ChatCompletionRequest) -> dict[str, Any]:
     return response_payload
 
 
+def call_local_chat_completion(request: ChatCompletionRequest) -> dict[str, Any]:
+    upstream_payload: dict[str, Any] = {
+        "model": normalize_model_id(request.model) or LOCAL_LLM_MODEL,
+        "messages": chat_message_payloads(request.messages),
+        "stream": False,
+    }
+    if request.temperature is not None:
+        upstream_payload["temperature"] = request.temperature
+    upstream_payload["max_tokens"] = (
+        request.max_tokens if request.max_tokens is not None else LOCAL_LLM_MAX_TOKENS_DEFAULT
+    )
+
+    try:
+        with httpx.Client(timeout=LOCAL_LLM_TIMEOUT_SECONDS) as client:
+            response = client.post(f"{LOCAL_LLM_BASE_URL}/chat/completions", json=upstream_payload)
+            response.raise_for_status()
+        response_payload = response.json()
+    except httpx.HTTPStatusError as exc:
+        try:
+            detail: object = exc.response.json()
+        except ValueError:
+            detail = exc.response.text or "local llama.cpp request failed"
+        raise HTTPException(status_code=exc.response.status_code, detail=detail) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"local llama.cpp request failed: {type(exc).__name__}") from exc
+
+    if not isinstance(response_payload, dict):
+        raise HTTPException(status_code=502, detail="local llama.cpp returned an invalid payload")
+    return response_payload
+
+
 def chat_usage(request: ChatCompletionRequest, content: str) -> dict[str, int]:
     prompt_tokens = count_text_tokens(request.messages)
     completion_tokens = len(content.split())
@@ -724,7 +794,7 @@ def normalize_responses_request(payload: dict[str, Any]) -> dict[str, Any]:
     if "input" not in normalized and "prompt" not in normalized:
         raise HTTPException(status_code=422, detail="input or prompt is required")
     if not normalized.get("model"):
-        normalized["model"] = HF_DEFAULT_CHAT_MODEL
+        normalized["model"] = normalize_model_id(None)
     normalized.setdefault("store", True)
     metadata = normalized.get("metadata")
     if metadata is None:
@@ -764,11 +834,16 @@ def responses_input_to_messages(payload: dict[str, Any]) -> list[ChatMessage]:
 
 def responses_adapter_payload(normalized: dict[str, Any], content: str, live_call: bool, usage: dict[str, int]) -> dict[str, Any]:
     created = int(time.time())
+    metadata = normalized.get("metadata") if isinstance(normalized.get("metadata"), dict) else {}
+    local_call = local_llm_enabled() and not live_call
     return {
-        "id": f"resp_hf_{uuid4()}",
+        "id": f"resp_{'local' if local_call else 'hf'}_{uuid4()}",
         "object": "response",
         "created_at": created,
         "status": "completed",
+        "contract_version": LLM_RESPONSES_ADAPTER_CONTRACT_VERSION,
+        "evidence_ref": LLM_RESPONSES_ADAPTER_EVIDENCE_REF,
+        "trace_id": str(metadata.get("trace_id") or ""),
         "model": normalize_model_id(str(normalized.get("model") or HF_DEFAULT_CHAT_MODEL)),
         "output": [
             {
@@ -781,14 +856,92 @@ def responses_adapter_payload(normalized: dict[str, Any], content: str, live_cal
         ],
         "output_text": content,
         "gateway_mode": GATEWAY_MODE,
-        "provider_name": "huggingface_inference_router" if live_call else "deterministic-dry-run",
+        "provider_name": "huggingface_inference_router" if live_call else "local_llama_cpp" if local_call else "deterministic-dry-run",
         "live_provider_calls": live_call,
+        "local_model_calls": local_call,
         "model_downloads": False,
         "usage": {
             "input_tokens": usage.get("prompt_tokens", 0),
             "output_tokens": usage.get("completion_tokens", 0),
             "total_tokens": usage.get("total_tokens", 0),
         },
+    }
+
+
+def responses_adapter_contract_snapshot() -> dict[str, object]:
+    return {
+        "contract_version": LLM_RESPONSES_ADAPTER_CONTRACT_VERSION,
+        "evidence_ref": LLM_RESPONSES_ADAPTER_EVIDENCE_REF,
+        "status": "verified_local_dry_run_contract",
+        "mode": "openai_responses_compatible_gateway_adapter",
+        "endpoint": "GET /llm/api/v1/responses/contract",
+        "runtime_endpoint": "POST /llm/v1/responses",
+        "service_route": "GET /api/v1/responses/contract",
+        "service_runtime_route": "POST /v1/responses",
+        "covered_boundary": "L3 live-agent steering to L4 LLM Gateway Responses adapter",
+        "adapter": {
+            "upstream_provider": "huggingface_inference_router",
+            "upstream_chat_endpoint": "/v1/chat/completions",
+            "dry_run_provider": "deterministic-dry-run",
+            "stream_passthrough": False,
+            "stateful_sessions_supported": True,
+            "model_downloads": False,
+            "openai_key_required": False,
+        },
+        "request_schema": {
+            "model": "string model id or gateway default",
+            "input": "string or Responses-style message array",
+            "instructions": "optional string",
+            "store": "boolean, default true",
+            "previous_response_id": "optional response id for caller-managed continuity",
+            "metadata.trace_id": "required for audited agent path",
+            "metadata.agent_type": "planner|coder|tester|devops|unknown",
+            "metadata.live_provider_calls_allowed": "must be explicitly true before live gateway attempt",
+            "stream": "must be false; stream=true returns 501 on this adapter",
+        },
+        "response_schema": {
+            "id": "resp_hf_*",
+            "object": "response",
+            "status": "completed",
+            "contract_version": LLM_RESPONSES_ADAPTER_CONTRACT_VERSION,
+            "evidence_ref": LLM_RESPONSES_ADAPTER_EVIDENCE_REF,
+            "trace_id": "metadata.trace_id echo when supplied",
+            "output": "Responses-style message array",
+            "output_text": "flattened assistant text",
+            "gateway_mode": GATEWAY_MODE,
+            "provider_name": "deterministic-dry-run unless live gate and token allow HF router",
+            "live_provider_calls": "false in default local and hosted gate-closed mode",
+            "model_downloads": False,
+            "audit_persisted": "true when Agent API audit sink is reachable",
+            "usage": "input_tokens, output_tokens, total_tokens",
+        },
+        "negative_cases": [
+            {"request": {"stream": True}, "expected_status": 501, "reason": "streaming is covered by /v1/chat/completions SSE contract"},
+            {"request": {"metadata": "not-an-object"}, "expected_status": 422, "reason": "metadata must stay structured for trace/audit policy"},
+        ],
+        "policy_checks": [
+            "Agent API calls POST /llm/v1/responses through the LLM Gateway only.",
+            "The adapter never uses an OpenAI API key or direct provider URL.",
+            "Live provider calls require both provider token availability and explicit metadata.live_provider_calls_allowed=true.",
+            "Default local and gate-closed hosted proofs keep live_provider_calls=false and cost_cents=0.",
+            "Audit payloads are redacted by the Agent API sink before persistence.",
+        ],
+        "evidence_refs": [
+            LLM_RESPONSES_ADAPTER_EVIDENCE_REF,
+            "llm_gateway_dry_run",
+            "llm_gateway_responses_audit_persisted",
+            "live_agent_steering_contract_visible",
+        ],
+        "non_claims": [
+            "This contract does not open a live LLM provider call.",
+            "This contract does not expose provider credentials or secrets.",
+            "This contract does not download local models.",
+            "This contract does not claim production deployment or hosted staging completion.",
+        ],
+        "live_provider_calls": LIVE_PROVIDER_CALLS,
+        "model_downloads": False,
+        "production_deploy": False,
+        "secret_output": False,
     }
 
 
@@ -804,13 +957,22 @@ def health() -> dict[str, object]:
         "openai_compatible": True,
         "open_source_first": True,
         "model_downloads": False,
-        "provider": "huggingface_inference_router",
+        "provider": "local_llama_cpp" if local_llm_enabled() else "huggingface_inference_router",
         "routing_resolver": True,
         "routing_policy": True,
         "provider_health": True,
         "provider_live_verified": bool(router["live_verified"]),
         "provider_status": router["status"],
         "provider_model_count_visible": router["model_count_visible"],
+        "local_llm": {
+            "enabled": local_llm_enabled(),
+            # Only probe the optional local provider when it is actually enabled. In cloud /
+            # deterministic_dry_run mode there is no local-llm host, and an unconditional probe
+            # blocks on the connect timeout (~3s) and fails the container healthcheck.
+            "healthy": local_llm_health() if local_llm_enabled() else False,
+            "base_url": LOCAL_LLM_BASE_URL,
+            "model": LOCAL_LLM_MODEL,
+        },
         "streaming_sse": True,
         "streaming_protocol": STREAMING_PROTOCOL,
         "models_configured": len(model_ids()),
@@ -826,6 +988,26 @@ def health() -> dict[str, object]:
 
 @app.get("/v1/models")
 def models() -> dict[str, object]:
+    if local_llm_enabled():
+        merged = [LOCAL_LLM_MODEL]
+        return {
+            "object": "list",
+            "data": [
+                {
+                    "id": LOCAL_LLM_MODEL,
+                    "object": "model",
+                    "owned_by": "local_llama_cpp",
+                    "configured_route": True,
+                    "open_source_first": True,
+                    "live_verified": local_llm_health(),
+                }
+            ],
+            "live_provider_calls": False,
+            "live_provider_calls_available": True,
+            "provider": "local_llama_cpp",
+            "router_status": "not_applicable_local_mode",
+            "model_downloads": True,
+        }
     router = hf_router_model_snapshot(limit=200)
     route_models = set(model_ids())
     visible = router["models"] if router["live_verified"] else []
@@ -870,6 +1052,11 @@ def streaming_contract() -> dict[str, object]:
     return streaming_contract_snapshot()
 
 
+@app.get("/api/v1/responses/contract")
+def responses_adapter_contract() -> dict[str, object]:
+    return responses_adapter_contract_snapshot()
+
+
 @app.get("/api/v1/routing/policy/contract")
 def routing_policy_contract() -> dict[str, object]:
     return routing_policy_contract_snapshot()
@@ -889,13 +1076,39 @@ def routing_resolve(request: RoutingResolveRequest) -> dict[str, object]:
 def chat_completions(request: ChatCompletionRequest):
     created = int(time.time())
     live_allowed = request_allows_live_provider(request.metadata)
-    live_call = live_allowed and hf_router_available()
-    completion_id = f"chatcmpl-{'hf' if live_call else 'dryrun'}-{uuid4()}"
+    # Local llama.cpp is an optional, open-source, local-CPU provider. When it is enabled but
+    # unavailable/unhealthy (still loading model, saturated, or down), degrade gracefully to the
+    # deterministic dry-run path instead of hard-failing — a missing optional local provider must
+    # not turn a Phase-2 orchestration run into a 500.
+    # A caller (e.g. the Phase-2 LangGraph orchestrator) can demand the deterministic dry-run path
+    # explicitly; it must not be routed through the slow local model or any live provider.
+    deterministic_only = isinstance(request.metadata, dict) and request.metadata.get("deterministic_dry_run") is True
+    local_live_call = local_llm_enabled() and local_llm_health() and not deterministic_only
+    live_call = live_allowed and hf_router_available() and not deterministic_only
+    completion_id = f"chatcmpl-{'local' if local_live_call else 'hf' if live_call else 'dryrun'}-{uuid4()}"
 
-    if live_allowed and not hf_router_available():
-        raise HTTPException(status_code=503, detail="HF_TOKEN is required for live Hugging Face router calls")
-
-    if live_call:
+    if local_live_call:
+        response_payload = call_local_chat_completion(request)
+        content = extract_chat_content(response_payload)
+        usage = usage_from_chat_payload(request, response_payload, content)
+        audit_persisted = audit_event(
+            request,
+            content,
+            usage,
+            provider_name="local_llama_cpp",
+            status="success",
+            live_provider_calls=False,
+        )
+        response_payload["gateway_mode"] = GATEWAY_MODE
+        response_payload["provider_name"] = "local_llama_cpp"
+        response_payload["requested_model"] = request.model
+        response_payload["model"] = response_payload.get("model") or normalize_model_id(request.model)
+        response_payload["live_provider_calls"] = False
+        response_payload["local_model_calls"] = True
+        response_payload["audit_persisted"] = audit_persisted
+        response_payload["cost_cents"] = 0
+        response_payload["model_downloads"] = False
+    elif live_call:
         response_payload = call_hf_chat_completion(request)
         content = extract_chat_content(response_payload)
         usage = usage_from_chat_payload(request, response_payload, content)
@@ -912,10 +1125,13 @@ def chat_completions(request: ChatCompletionRequest):
         response_payload["requested_model"] = request.model
         response_payload["model"] = response_payload.get("model") or normalize_model_id(request.model)
         response_payload["live_provider_calls"] = True
+        response_payload["local_model_calls"] = False
         response_payload["audit_persisted"] = audit_persisted
         response_payload["cost_cents"] = 0
         response_payload["model_downloads"] = False
     else:
+        if live_allowed and not hf_router_available() and not local_live_call and not deterministic_only:
+            raise HTTPException(status_code=503, detail="HF_TOKEN is required for live Hugging Face router calls")
         content = deterministic_content(request)
         usage = chat_usage(request, content)
         audit_persisted = audit_event(request, content, usage)
@@ -933,6 +1149,7 @@ def chat_completions(request: ChatCompletionRequest):
             ],
             "usage": usage,
             "live_provider_calls": LIVE_PROVIDER_CALLS,
+            "local_model_calls": False,
             "live_provider_calls_available": hf_router_available(),
             "audit_persisted": audit_persisted,
             "cost_cents": 0,
@@ -973,7 +1190,7 @@ def chat_completions(request: ChatCompletionRequest):
 def create_response(payload: dict[str, Any]) -> dict[str, Any]:
     normalized = normalize_responses_request(payload)
     chat_request = ChatCompletionRequest(
-        model=str(normalized.get("model") or HF_DEFAULT_CHAT_MODEL),
+        model=str(normalized.get("model") or normalize_model_id(None)),
         messages=responses_input_to_messages(normalized),
         stream=False,
         temperature=normalized.get("temperature") if isinstance(normalized.get("temperature"), (int, float)) else None,
@@ -981,10 +1198,14 @@ def create_response(payload: dict[str, Any]) -> dict[str, Any]:
         metadata=normalized.get("metadata") if isinstance(normalized.get("metadata"), dict) else {},
     )
     live_allowed = request_allows_live_provider(chat_request.metadata)
-    if live_allowed and not hf_router_available():
+    if local_llm_enabled() and local_llm_health():
+        chat_payload = call_local_chat_completion(chat_request)
+        content = extract_chat_content(chat_payload)
+        usage = usage_from_chat_payload(chat_request, chat_payload, content)
+        response_payload = responses_adapter_payload(normalized, content, False, usage)
+    elif live_allowed and not hf_router_available():
         raise HTTPException(status_code=503, detail="HF_TOKEN is required for live Hugging Face router calls")
-
-    if live_allowed:
+    elif live_allowed:
         chat_payload = call_hf_chat_completion(chat_request)
         content = extract_chat_content(chat_payload)
         usage = usage_from_chat_payload(chat_request, chat_payload, content)

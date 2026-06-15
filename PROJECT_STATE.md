@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-05-07 11:55 Uhr
+Letzte Aktualisierung: 2026-06-11 04:00 Uhr
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,11 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `70%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Project Progress Integrity `verified`; Task-Assignment nutzt echte high/mid/low-Priority-Queues; Cloud Inventory umfasst Vercel, Hetzner, Cloudflare, GitHub, GHCR, Hugging Face, GitLab und GitKraken als nicht-geheime Provider-Oberflaechen; Cloud Render Offload und Cloud Deployment Preflight sind als eigene gehostete Runtime-Surfaces mit dedizierten Contracts auf `<hosted-staging-url>` verifiziert; die Layer-Interface-Register-Surface, die Phase-2-Runtime-Contract-, Phase-2-Runtime-Start- und Phase-2-Runs-Surfaces, die Orchestrator-Manifest-, Orchestrator-Dry-Run-, Orchestrator-Dry-Run-Stream- und Orchestrator-Checkpoint-Surfaces, die DevOps-Workflow-Plan- und DevOps-Workflow-Validate-Surfaces, die Session-Stream-Surface, die Memory-Purge-Job-Status-Surface, die Memory-Embedding-Consistency-Surface, die Task-Assignment-Surface, die Agent-LLM-Streaming-Surface, die Cache-Control-Surface, die Cost-Export-Surface, die System-Fallback-Surface, die Project-Progress-Completion-Surface, die Project-Progress-Hauptsurface und die Project-Progress-Layer-Surface sind jetzt ebenfalls gehostet gegen echte Runtime-Projektion gebunden; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert; External-Gate-Audit, GHCR-Digest, Branch-Protection, Hosted Backend Origins, canonical Gitleaks und Hetzner-Live-Budget sind evidenzbasiert geschlossen. Phase 4 ist manifestseitig `100%`; die AI-Browser-Reruns fuer den letzten verifizierten Candidate, die Post-Rollback-Revalidation und der finale lokale-plus-hosted Browser-E2E-Recheck sind auf `2026-05-07` live verifiziert. Der letzte verifizierte Candidate bleibt an `overall=70`, `phase_4=100`, `phase_5=67`, `integrity=verified`, `external_gates=verified`, weiter fail-closed `completion=false`, unveraendertem `no-release`, explizit blockierter `staging`-zu-immutable-Digest-Paritaet und aktuell blockierter Repo-Worktree-Paritaet zu `source_commit_sha=ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5` gebunden. Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt ausschliesslich `DEV-ONLY` Control-Plane; Gesamtfortschritt laut bindendem Manifest `70%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Project Progress Integrity `verified`; Task-Assignment nutzt echte high/mid/low-Priority-Queues. Aktive Cloud-/Tool-Defaults sind Vercel, Fly.io, GHCR und Grafana Cloud; Hetzner, GitKraken und Oracle sind aus dem aktiven Pfad entfernt oder als historische Altlast markiert. Am 2026-06-11 wurden lokale Topology-, Browser-, Manifest- und Diff-Guards erneut gruen verifiziert. Die kanonischen 22 Workbench-Seiten sind als `workspace-surface-wiring-v1` zwischen Frontend, Agent API, Organism Contract und Organism Topology verdrahtet. `workspace-vertical-stack-v1` legt jetzt fuer jede der 22 Seiten die UI-, API-, Data-, Verification-, Deploy- und Safety-Stufe fest und ist im Frontend, Agent API, Browser-Contract und Phase-1-Guard gespiegelt. `scripts/verify-organism-topology.ps1` beweist jetzt die Organism-Topologie mit `151` Nodes, `308` Edges, 22 Workspace-Pages, 7 Architektur-Layern, 10 Brain-Regions, Agent-/Tool-/LLM-/Skill-/Provider-/Gate-Knoten, Edge-Referenzintegritaet, Retired-Provider-Ausschluss und geschlossenem Secret-/Write-/Production-Claim; der Frontend-Manifest-Spiegel nutzt wieder `P4=99` statt eines falschen `100%`-Snapshots. `scripts/verify-workspace-pages-browser.ps1` erzeugt jetzt DEV-ONLY Screenshots fuer alle 22 kanonischen Seiten und prueft Browser-DOM, aktive Rail, Design-Tokens, Panel-Radius, No-Fake-Live-Flags, Retired-Provider-Ausblendung und unbezahlte Budget-Ausblendung (`workspace-pages-browser-proof-v1`). `GET /api/v1/organism/events` und `GET /api/v1/organism/replay` koennen jetzt fuer echte lokale Phase-2-Runtime-Runs redaktierte `audit_log`-Projektionen liefern: nur `event_type`, `severity` und `created_at` werden auf Organism-Hubs/Brain-Regions gemappt; `details`, `user_id`, `session_id` und Prompts werden nicht ausgegeben. Die Organism-UI reicht `run_id` aus `/organism?run_id=...` und `/organism/replay?run_id=...` an beide Projektionen durch. Die Workbench zeigt `Metered Budget` jetzt nur noch bei expliziter paid/metered Auswahl oder expliziter paid Capability/Gateway-Konfiguration; rohe Provider-Key-Umgebungsvariablen allein schalten den Budgetbereich nicht mehr frei. `GET /api/v1/clouds/go-live-readiness` fuehrt Project Completion, External Gates, Cloud Layer Readiness, Deployment Preflight, 22-Seiten-Wiring und Owner-Activation-Plan read-only zusammen; `scripts/verify-go-live-readiness.ps1` prueft zusaetzlich das aktuelle External-Gate-Audit `.phase1-artifacts/external-gate-audit-20260611-011938.json`. `GET /api/v1/platform/verify` ist jetzt auch im Agent API gespiegelt, damit die Shell-7-Layer-Pill hinter nginx keinen Frontend-only-404 erzeugt. `scripts/verify-reference-design-browser.ps1` erzeugt DEV-ONLY Workbench-/Organism-Screenshots, prueft die Industrial-Workbench-DOM-Regeln, WebGL, Runtime-Feed und PNG-Pixelvarianz (`reference-design-browser-proof-v1`). Fly-Origin-Configs fuer `cloud-superbrain-agent-api`, `cloud-superbrain-mcp-gateway` und `cloud-superbrain-llm-gateway` sind repo-seitig vorbereitet; die Next.js/Vercel-Rewrites leiten fehlende Origin-URLs nur im expliziten Cloud-Rewrite-Modus oder bei expliziten `FLY_APP_*`-Origins auf Fly um, damit lokale E2E-Routen nicht von Backend-Origin-Proxies ueberschattet werden. Die 3D-Organismus-Hydration startet deterministisch und schaltet erst nach Client-Mount auf GPU-Erkennung. Nginx leitet WebSocket-Upgrades fuer die Frontend-Route weiter, damit Next/HMR-Hydration im lokalen DEV-Proof nicht durch Proxy-404s gestoert wird. External Gates bleiben repo-ehrlich `blocked`: `.phase1-artifacts/external-gate-audit-20260611-011938.json` ist der aktuelle Basislauf und meldet `hosted_agent_api_contracts`, `github_branch_protection_current_verify`, `vercel_backend_origin_health` und `fly_live_budget_check` als offen; `canonical_gitleaks_scan` und `ghcr_image_digest_verify` sind verified. GitLab, Hugging Face und Grafana sind im Basislauf ohne Token fail-closed `missing_secret_or_token`. Hosted-/Production-Claims sind ohne echte Vercel-HTTPS-`STAGING_BASE_URL`, konfigurierte Branch-/Fly-Gates und live erreichbare Backend-Origins fail-closed. Production bleibt weiterhin nicht ausgerollt.
+- **Aktueller lokaler Zusatzbeweis:** `workspace-data-sources-v1` ist jetzt als Guard in `scripts/verify-workspace-data-sources.ps1`, `scripts/verify-browser-contract.ps1` und `scripts/verify-phase1.ps1` eingebunden. Die falschen Singular-Refs `/api/v1/model-capabilities` wurden in Frontend-Wiring und Agent-API-Mirror auf `/api/v1/models/capabilities` korrigiert. `GET /api/v1/files/local/contract` existiert jetzt als read-only Agent-API-Contract ohne Host-Filesystem-Mount, ohne Live-Filesystem-Reads, ohne Writes und ohne Secret Output. DEV-ONLY Runtime-Proof: `api_refs=32`, Browser-Contract gruen.
+- **Aktueller lokaler Boundary-Beweis:** `scripts/verify-platform-ui-status-boundary.ps1` trennt Produkt-/Workbench-Flächen von Projektstatus-/Gate-/Manifest-Oberflächen. Home, Workbench, Games, Apps, Media, Docs-Output und AppShell duerfen keine `fetchProgress`, `fetchMasterPlan`, `fetchCompletionGate`, `MANIFEST`, `/api/v1/project/progress`, `overall_percent`, `Project Progress`, `Projektstand`, `Completion-Gate`, `Workspace-Surfaces`, `Gate-Matrix`, `Recovery-Historie` oder Go-Live-/External-Gate-Audit-Marker rendern/importieren. Runtime-Proof: `product_surfaces=7`, `routes=6`, Browser-Contract gruen.
+- **Aktueller lokaler LLM-Beweis:** `GET /llm/api/v1/responses/contract` liefert jetzt `llm-responses-adapter-contract-v1` mit `llm_responses_adapter_contract_visible`. `POST /llm/v1/responses` gibt Responses-kompatibel `output`, `output_text`, `trace_id`, `live_provider_calls=false`, `model_downloads=false` und `audit_persisted=true` zurueck; `stream=true` fail-closed mit HTTP `501`, nicht-strukturierte `metadata` mit HTTP `422`. `scripts/verify-llm-responses-contract.ps1` ist in `npm run verify:browser` und `scripts/verify-phase1.ps1` eingebunden. DEV-ONLY; kein Live-Provider-Call, kein lokaler Model-Download, kein Hosted-Proof, keine Prozentsteigerung.
+- **Aktueller lokaler Live-Agent-Beweis:** `GET /api/v1/live-agents/contract`, `POST /api/v1/live-agents/steer`, `POST /api/steer-agent`, `GET /api/v1/live-agents/status` und `POST /api/v1/live-agents/{agent_id}/reset` sind jetzt ueber `live-agent-steering-v1` abgesichert. Steering-Antworten spiegeln `trace_id`, `llm_gateway_contract_version=llm-responses-adapter-contract-v1`, `live_provider_calls=false`, `model_downloads=false`, `audit_persisted=true` und `secret_output=false`. `scripts/verify-live-agent-steering-contract.ps1` prueft Runtime, Session-State, Kompatibilitaetsroute, Audit-Trace, `unknown agent -> 404` und `empty message -> 422`; der Guard ist in Browser-Contract und Phase1 eingebunden. DEV-ONLY; kein Live-Provider-Call, kein Hosted-Proof, keine Prozentsteigerung.
 
 ## PROJEKT-IDENTITÄT
 
@@ -22,7 +26,7 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 
 ## HARTE CONSTRAINTS (NIEMALS BRECHEN)
 
-1. **Budget:** Max €20/Monat Infrastruktur (Hetzner CX21 + Cloudflare)
+1. **Budget:** Max €20/Monat Infrastruktur (Vercel/Fly.io/GHCR/Grafana Cloud; keine retired-legacy-provider Active Defaults)
 2. **Kein Localhost in Produktion:** Alles muss Cloud-fähig sein
 3. **Orchestrierung:** LangGraph als Haupt-Orchestrator mit PostgreSQL-Checkpointer
 4. **Open-Source-First:** LangGraph, LiteLLM, Langfuse, pgvector
@@ -40,7 +44,7 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 | P1   | 100%   |
 | P2   | 86%    |
 | P3   | 40%    |
-| P4   | 100%   |
+| P4   | 99%    |
 | P5   | 67%    |
 | P6   | 0%     |
 
@@ -70,18 +74,193 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Staging-Tag-Paritaet explizit blockiert halten oder sauber aufloesen** — Phase 4 ist jetzt manifestseitig `100%`; der naechste harte Pfad ist die repo-ehrliche Aufloesung der bekannten Luecke zwischen mutablem `IMAGE_TAG=staging` und dem immutable Candidate-SHA
-- danach folgen weitere `P5`-Slices statt eines Rollouts
-- lokal und hosted bleiben weiterhin deterministische Proofs ohne Live-Provider und ohne Live-MCP-Writes; `production_deploy_claim_allowed=true` ist kein Deployment-Nachweis
+- **Cloud-Gates echt oeffnen** — echte HTTPS-`STAGING_BASE_URL` bereitstellen, die drei Fly-Origin-Apps erreichbar machen oder explizite `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, `LLM_GATEWAY_BASE_URL` setzen, dann `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-all-gates-with-tokens.ps1` erneut laufen lassen.
+- Danach weitere `P5`-Slices statt Rollout; `production_deploy_claim_allowed=true` ist weiterhin kein Deployment-Nachweis.
+- Localhost bleibt nur `DEV-ONLY`; Hosted-Proof muss HTTPS und non-localhost sein.
 
 ## ZULETZT ABGESCHLOSSEN
 
-**Phase 5 Integration Smoke Plan Rerun** — der aktuelle `RC1`-Truth ist jetzt nochmals gegen den gehosteten Integration-/Smoke-Pfad auf `overall=70`, `phase_5=67` nachgezogen:
+**Live Agent Steering Contract Guard** — der L3/L4 Live-Agent-Steering-Pfad ist jetzt explizit gegen den Responses-Adapter und Runtime-Session-State abgesichert:
+
+- `services/agent-api/app/main.py` importiert den bestehenden `llm_gateway_url`-Helper, nutzt `httpx` explizit und gibt Steering-Antworten mit `trace_id`, `evidence_ref`, `llm_gateway_contract_version`, `llm_gateway_evidence_ref`, `live_provider_calls`, `model_downloads`, `audit_persisted` und `secret_output` aus.
+- `scripts/verify-live-agent-steering-contract.ps1` prueft Source-Guards, Contract, LLM-Gateway-Contract, Reset, Steering, Redis-Session-State, Audit-Trace, ZIP-Kompatibilitaetsroute, `unknown agent -> 404` und `empty message -> 422`.
+- `scripts/verify-browser-contract.ps1` ruft den Guard im Browserlauf auf; `scripts/verify-phase1.ps1` prueft Parser und Pflichtmarker statisch.
+- `docs/runtime-contracts/live-agent-steering-contract.md` dokumentiert die Boundary und Non-Claims.
+- Verifiziert mit `py -3 -m py_compile services\agent-api\app\main.py`, Docker DEV rebuild/restart, `scripts\verify-live-agent-steering-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `npm run verify:browser` und `scripts\verify-phase1.ps1` inklusive gitleaks ohne Leaks.
+- Localhost bleibt `DEV-ONLY`; kein Hosted-Proof, keine Cloud-Mutation, kein Deploy, kein Production-Claim, kein Live-Provider-Call, kein Live-MCP-Write, keine Secret-Nutzung und keine Prozentsteigerung.
+
+**LLM Responses Adapter Contract Guard** — der L3/L4 Responses-Pfad ist jetzt explizit vertraglich und per Runtime-Negativtest abgesichert:
+
+- `services/llm-gateway/app/main.py` exponiert `GET /api/v1/responses/contract` als `llm-responses-adapter-contract-v1` und markiert `POST /v1/responses` mit `llm_responses_adapter_contract_visible`.
+- `services/agent-api/app/main.py` verlinkt den Contract im Live-Agent-Steering-Vertrag ueber `GET /llm/api/v1/responses/contract` und verlangt die Responses-Felder `output_text`, `trace_id`, `live_provider_calls`, `model_downloads` und `audit_persisted`.
+- `scripts/verify-llm-responses-contract.ps1` prueft Source-Guards, Contract, Live-Agent-Vertrag, dry-run Runtime-Call, Audit-Trace, `stream=true -> 501` und `metadata`-Shape `422`.
+- `scripts/verify-browser-contract.ps1` ruft den Guard im Browserlauf auf; `scripts/verify-phase1.ps1` prueft Parser und Pflichtmarker statisch.
+- Verifiziert mit `py -3 -m py_compile services\llm-gateway\app\main.py services\agent-api\app\main.py`, Docker DEV rebuild/restart, `scripts\verify-llm-responses-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `npm run verify:browser` und `scripts\verify-phase1.ps1`.
+- Localhost bleibt `DEV-ONLY`; kein Hosted-Proof, keine Cloud-Mutation, kein Deploy, kein Production-Claim, kein Live-Provider-Call, kein Live-MCP-Write, keine Secret-Nutzung und keine Prozentsteigerung.
+
+**Platform UI Status Boundary Guard** — Entwicklerplattform und Projektstatus bleiben getrennte, aber verdrahtete Flächen:
+
+- `scripts/verify-platform-ui-status-boundary.ps1` prueft Home, Workbench, Games, Apps, Media, Docs-Output und `AppShell.tsx` statisch gegen direkte Projektstatus-/Gate-/Manifest-Fetches und sichtbare Statuswand-Marker.
+- Der Guard erlaubt Projektstatus nur in den dafuer vorgesehenen Evidence-/Diagnostics-/Organism-/non-rendering Wiring-Kontexten; Produktflächen bleiben sauber und verweisen nur auf getrennte Nachweisflächen.
+- `scripts/verify-browser-contract.ps1` ruft den Guard im Browserlauf auf; `scripts/verify-phase1.ps1` prueft Parser und verbotene Marker statisch.
+- Verifiziert mit `scripts\verify-platform-ui-status-boundary.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` und `npm run verify:browser`.
+- Localhost bleibt `DEV-ONLY`; kein Hosted-Proof, keine Cloud-Mutation, kein Deploy, kein Production-Claim, kein Live-Provider-Call, kein Live-MCP-Write, keine Secret-Nutzung und keine Prozentsteigerung.
+
+**Workspace Data Source Integrity Guard** — die 22-Seiten-Datenquellen sind jetzt gegen reale Runtime-Contracts und Source-Routen abgesichert:
+
+- `apps/frontend/lib/workspaceWiring.ts` und `services/agent-api/app/main.py` nutzen fuer Marketplace/Media jetzt die echte Route `GET /api/v1/models/capabilities`; der stale Ref `/api/v1/model-capabilities` ist verboten.
+- `services/agent-api/app/main.py` stellt `GET /api/v1/files/local/contract` als `local-files-readonly-contract-v1` bereit: keine Host-Filesystem-Mounts, keine Live-Filesystem-Reads, keine Writes, keine Secret-Ausgabe.
+- `scripts/verify-workspace-data-sources.ps1` prueft `workspace-surface-wiring-v1`, `workspace-vertical-stack-v1`, `organism-topology-v1`, Model-Capabilities, Local-Files-Contract, Source-Routen und 32 API-like Data-Source-Refs.
+- `scripts/verify-browser-contract.ps1` ruft den Guard nach dem Vertical-Stack-Guard auf; `scripts/verify-phase1.ps1` prueft Parser, Pflichtmarker und verbietet die stale Singular-Route statisch.
+- Verifiziert mit `py -3 -m py_compile services\agent-api\app\main.py`, `npm run lint --prefix apps/frontend`, `npm run build --prefix apps/frontend`, `docker compose -f docker-compose.dev.yml up -d --build frontend agent-api nginx`, `scripts\verify-workspace-data-sources.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` und `npm run verify:browser`.
+- Localhost bleibt `DEV-ONLY`; kein Hosted-Proof, keine Cloud-Mutation, kein Deploy, kein Production-Claim, kein Live-Provider-Call, kein Live-MCP-Write, keine Secret-Nutzung und keine Prozentsteigerung.
+
+**Organism Topology Integrity Guard** — die 3D-Organismus-Verdrahtung ist jetzt als harter Runtime- und Source-Guard abgesichert:
+
+- `scripts/verify-organism-topology.ps1` prueft `GET /api/v1/organism/topology`, `GET /api/v1/organism/contract`, `GET /api/v1/workspace/wiring` und `GET /api/v1/workspace/vertical-stack` gegen konsistente Versionen, Node-Arten, Edge-Arten, 22 Workbench-Seiten und geschlossene Non-Claims.
+- Der Guard beweist aktuell `151` Nodes und `308` Edges mit referenziell gueltigen Kanten fuer Brain-Regions, Architektur-Layer, Agenten, MCP-Tools, LLM-Modelle, Skills, Cloud-Provider, Safety-Gates, Workspace-Pages, Data-Sources und Verifier.
+- `scripts/verify-browser-contract.ps1` ruft den Topology-Guard im Browser-Contract auf; `scripts/verify-phase1.ps1` prueft Parser, Frontend-Route, Organism-Contract-Route, Agent-API-Mirror und den `P4=99`-Manifest-Spiegel in `apps/frontend/lib/platform.ts`.
+- `apps/frontend/lib/platform.ts` spiegelt Phase `P4` wieder mit `99%` und vermeidet damit einen falschen `100%`-Snapshot im Frontend-Diagnosevertrag.
+- Verifiziert mit `scripts\verify-organism-topology.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `npm run verify:browser`, `py -3 scripts\verify_project_progress_manifest.py` und `git diff --check`.
+- Localhost bleibt `DEV-ONLY`; kein Hosted-Proof, keine Cloud-Mutation, kein Deploy, kein Production-Claim, kein Live-Provider-Call, kein Live-MCP-Write, keine Secret-Nutzung und keine Prozentsteigerung.
+
+**Workspace Vertical Stack Contract** — alle 22 Workbench-Seiten haben jetzt eine maschinenlesbare Vertikal-Verdrahtung ueber UI, API, Data, Verification, Deploy und Safety:
+
+- `apps/frontend/lib/workspaceVerticalStack.ts` erzeugt `workspace-vertical-stack-v1` aus der kanonischen `workspace-surface-wiring-v1` Registry, mit `page_count=22`, `layers_required=7`, `workspace_vertical_stack_visible` und fail-closed Non-Claims.
+- `GET /api/v1/workspace/vertical-stack` existiert im Frontend und ist im Agent API gespiegelt; der Organism Contract referenziert den neuen Stack-Endpoint.
+- `scripts/verify-workspace-vertical-stack.ps1` prueft pro Seite Route/Component, API-Gateway-Bindung, Datenquelle, Verifier-Refs, Vercel/Fly/GHCR Deploy-Zuordnung, `hostedProofStatus=blocked_external_gates`, keine direkten Provider-Calls, keine Default-Writes, keine Secret-Ausgabe und keine Production-Claims.
+- `scripts/verify-browser-contract.ps1` ruft den Runtime-Guard auf; `scripts/verify-phase1.ps1` enthaelt einen statischen Guard fuer Source, Route, Agent-API-Mirror und Verifier.
+- `/files/local` nutzt fuer die read-only Suche jetzt ein statisches `role=searchbox` statt eines disabled Inputs, damit der 22-Seiten-Browserproof keine Hydration-Drift erzeugt.
+- Verifiziert mit `npm run lint --prefix apps/frontend`, `npm run build --prefix apps/frontend`, `py -3 -m py_compile services\agent-api\app\main.py`, `docker compose -f docker-compose.dev.yml up -d --build frontend nginx`, `scripts\verify-workspace-vertical-stack.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-workspace-pages-browser.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` und `npm run verify:browser`.
+- Localhost bleibt `DEV-ONLY`; kein Hosted-Proof, keine Cloud-Mutation, kein Deploy, kein Production-Claim, kein Live-Provider-Call, kein Live-MCP-Write, keine Secret-Nutzung und keine Prozentsteigerung.
+
+**Workspace Pages Browser Proof** — alle 22 kanonischen Workbench-Seiten sind jetzt mit echtem DEV-ONLY Browser-/Screenshot-Nachweis an die 7-Layer-/Organismus-Verdrahtung gebunden:
+
+- `scripts/verify-workspace-pages-browser.ps1` und `scripts/verify-workspace-pages-browser.cjs` lesen `GET /api/v1/workspace/wiring` und `GET /api/v1/design/reference-contract`, pruefen exakt 22 Seiten, eindeutige Routen/Nummern, Layer, Brain-Regions, Hubs, Datenquellen, Verifier-Refs, Eventarten und die Non-Claims `live=false`, `writes=false`, `secretOutput=false`.
+- Der Proof oeffnet jede kanonische Route im Browser, prueft `.app-shell`, `.main`, `.topbar`, aktive Rail-Navigation, sichtbaren Text, Design-Tokens, maximalen Panel-Radius, ausgeblendete Retired Provider `Hetzner|GitKraken|Oracle`, ausgeblendete Projektstatus-/Gate-Matrix-Marker und ausgeblendetes `Metered Budget` auf dem unbezahlten Defaultpfad.
+- Der Proof erzeugt `.phase1-artifacts/workspace-pages-browser-proof-latest.json` und 22 Screenshots unter `apps/frontend/e2e/__artifacts__/workspace-pages/`.
+- `apps/frontend/components/shell/AppShell.tsx` markiert Parent-/Bottom-Rail-Routen stabil aktiv; `/files/local` aktiviert jetzt korrekt den Files-Bereich.
+- `apps/frontend/app/files/local/page.tsx` und `apps/frontend/app/styles.css` vermeiden eine Hydration-Drift durch stabile Klassen fuer die lokale Read-only-Suche.
+- `scripts/verify-browser-contract.ps1` ruft erst den Reference-Design-Proof und danach den langen 22-Seiten-Proof auf; temporare Windows-Verifier-Dateien werden retry-faehig entfernt.
+- `scripts/verify-reference-design-browser.cjs` prueft jetzt echte HTTP-Statuscodes mit transientem 502/503/504-Retry und sichtbare Browsertexte inklusive CSS-transformiertem `RUN BINDING`.
+- Verifiziert mit `npm run lint --prefix apps/frontend`, `npm run build --prefix apps/frontend`, Node-Syntaxchecks, PowerShell-Parsercheck, `scripts\verify-reference-design-browser.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-workspace-pages-browser.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` und `npm run verify:browser`.
+- Localhost bleibt `DEV-ONLY`; kein Hosted-Proof, keine Pixel-Perfect-Completion-Behauptung, kein Cloud-Deploy, keine Cloud-Mutation, kein Production-Claim und keine Prozentsteigerung.
+
+**Reference Design Browser Proof** — die 1:1-Blueprint-Richtung ist jetzt mit echtem DEV-ONLY Browser-/Screenshot-Nachweis an die Workbench und den 3D-Organismus gebunden:
+
+- `scripts/verify-reference-design-browser.ps1` und `scripts/verify-reference-design-browser.cjs` pruefen `/workbench`, `/organism` und `GET /api/v1/design/reference-contract` mit Playwright.
+- Der Proof erzeugt `apps/frontend/e2e/__artifacts__/reference-design-workbench.png`, `apps/frontend/e2e/__artifacts__/reference-design-organism.png` und `.phase1-artifacts/reference-design-browser-proof-latest.json`.
+- Der Workbench-Proof prueft `Main Workbench`, Preview-Tabs fuer Game/App/Video/Docs, `Run Binding`, maximalen Panel-Radius, Design-Tokens und das Fehlen von Projektstatuswand-/Gate-Matrix-/Budget-Markern.
+- Der Organismus-Proof prueft Canvas-Groesse, WebGL-Kontext, Runtime-Feed `agent_api_redacted`, Screenshot-Groesse und PNG-Pixelvarianz (`uniqueColorBuckets`, `visiblePixels`, `accentPixels`).
+- `GET /api/v1/platform/verify` wurde im Agent API gespiegelt, weil nginx `/api/*` an den Agent API routet und die Shell-Pill sonst einen Frontend-only-404 erzeugte.
+- `infrastructure/nginx/dev.conf` und `infrastructure/nginx/cloud.conf` leiten Frontend-WebSocket-Upgrades weiter, damit Browser-Hydration und Client-Fetches stabil bleiben.
+- Verifiziert mit `py -3 -m py_compile services\agent-api\app\main.py`, `node --check scripts\verify-reference-design-browser.cjs`, PowerShell-Parserchecks, `docker compose -f docker-compose.dev.yml up -d --build agent-api nginx`, direktem `GET /api/v1/platform/verify`, `scripts\verify-reference-design-browser.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `npm run verify:browser` und `scripts\verify-phase1.ps1`.
+- Localhost bleibt `DEV-ONLY`; kein Hosted-Proof, keine Pixel-Perfect-Completion-Behauptung, kein Cloud-Deploy, keine Cloud-Mutation, kein Production-Claim und keine Prozentsteigerung.
+
+**Reference Design Contract** — die 22-Seiten-/Organismus-Referenz ist jetzt maschinenlesbar an echte Assets, Frontend und Agent API gebunden:
+
+- `apps/frontend/lib/referenceDesign.ts` definiert `reference-design-conformance-v1` mit Designregeln, Reference-Asset-Inventar, 22 Seiten, Organism-Eventarten und Non-Claims.
+- `GET /api/v1/design/reference-contract` existiert im Frontend und als Agent-API-Mirror in `services/agent-api/app/main.py`.
+- `scripts/verify-reference-design-contract.ps1` prueft die vorhandenen `docs/reference` Assets, mindestens 4 Root-Bilder, 15 aktuelle Design-Screenshots, 1 Motion-Referenzvideo, Frontend-Route, Agent-API-Mirror und Browser-Contract-Anbindung.
+- `scripts/verify-browser-contract.ps1` prueft den Runtime-Endpoint; `scripts/verify-phase1.ps1` ruft den statischen Guard auf.
+- Verifiziert mit `py -3 -m py_compile services\agent-api\app\main.py`, `npm run lint --prefix apps/frontend`, `npm run build --prefix apps/frontend`, `docker compose -f docker-compose.dev.yml up -d --build frontend agent-api nginx`, `scripts\verify-reference-design-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` und `npm run verify:browser`.
+- Localhost bleibt `DEV-ONLY`; kein Hosted-Proof, keine Pixel-Perfect-Completion-Behauptung, kein Cloud-Deploy, keine Cloud-Mutation, kein Production-Claim und keine Prozentsteigerung.
+
+**Go-Live Runbook Guard** — `docs/SUPERBRAIN_GO_LIVE.md` ist jetzt owner-gated und read-only abgesichert:
+
+- Das Runbook ueberschreibt die Projekt-AGENTS.md nicht und erlaubt daraus keine Cloud-Mutation, keinen Deploy, keinen Registry-Push, keine Live-Provider-Aktivierung, keinen MCP-Write und keinen Production-Claim.
+- Es spiegelt die aktuelle External-Gate-Wahrheit: `.phase1-artifacts/external-gate-audit-20260611-011938.json`, `external-gate-summary-v1`, `GET /api/v1/clouds/go-live-readiness` und die vier offenen Gates.
+- Es spiegelt die aktuelle Frontend-Version-Baseline aus `apps/frontend/package.json`, ohne Latest-Claim und ohne Upgrade-Behauptung.
+- Neuer Guard: `scripts/verify-superbrain-go-live-runbook.ps1`; in `scripts/verify-phase1.ps1` eingebunden.
+- Verifiziert mit `scripts\verify-superbrain-go-live-runbook.ps1`; Localhost bleibt `DEV-ONLY`; kein Cloud-Deploy, keine Cloud-Mutation, kein Hosted-Proof, kein Production-Claim und keine Prozentsteigerung.
+
+**Go-Live Readiness Contract** — der aktuelle 100%-Go-Live-Pfad ist jetzt als read-only Runtime-Vertrag und Verifier abgesichert:
+
+- `GET /api/v1/clouds/go-live-readiness` aggregiert Project Completion, External Gates, Cloud Layer Readiness, Deployment Preflight, 22-Seiten-Wiring und Owner-Activation-Plan zu einem einzigen Statusvertrag.
+- `GET /api/v1/clouds/go-live-readiness/contract` beschreibt die Pflichtfelder, guarded endpoints und Verifier, ohne eine Workbench-Projektstatuswand zu rendern.
+- `scripts/verify-go-live-readiness.ps1` prueft Runtime-Vertrag, Contract-Endpoint, Pflicht-Owner-Inputs, 22 Seiten, 7 Layer, PlanOnly-Owner-Aktivierung und das neueste External-Gate-Audit auf die vier real offenen Gates.
+- `scripts/verify-browser-contract.ps1` ruft den neuen Verifier im laufenden DEV-/Hosted-Kontext auf; `scripts/verify-phase1.ps1` prueft ihn statisch auf Pflichtmarker und PowerShell-Parser.
+- Verifiziert mit `py -3 -m py_compile services\agent-api\app\main.py`, PowerShell Parser-Checks, `docker compose -f docker-compose.dev.yml up -d --build agent-api nginx`, `scripts\verify-go-live-readiness.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `npm run verify:browser` und `scripts\verify-phase1.ps1`.
+- Status bleibt `blocked_external_gates`; Localhost-Proofs bleiben `DEV-ONLY`; kein Cloud-Deploy, keine Cloud-Mutation, kein Hosted-Proof, kein Production-Claim und keine Prozentsteigerung.
+
+**Workbench Budget Visibility Guard** — der Workbereich blendet Budget vollstaendig aus, solange keine paid/metered Option aktiv oder explizit verfuegbar ist:
+
+- `apps/frontend/lib/paidCapabilities.ts` wertet rohe Provider-Key-Umgebungsvariablen wie OpenAI/Anthropic/Azure/E2B nicht mehr als Workbench-UI-Freigabe fuer Budget-Anzeigen.
+- Budget wird weiterhin sichtbar, wenn eine paid/metered Auswahl gesetzt ist, z. B. `/workbench?billing=paid`, oder wenn explizite paid Capability Flags bzw. ein nicht lokaler LLM-Gateway-Modus konfiguriert sind.
+- `apps/frontend/e2e/organism.spec.ts` beweist den UI-Vertrag: `/workbench` enthaelt weder `Metered Budget` noch `paid/metered Capability`, `/workbench?billing=paid` zeigt beides.
+- Docker DEV Frontend/Nginx wurden neu gebaut; gezielter HTTP-Proof bestaetigte `defaultContainsMeteredBudget=false`, `defaultContainsPaidCapability=false`, `paidContainsMeteredBudget=true`, `paidContainsPaidCapability=true`.
+- Verifiziert mit `npm run lint --prefix apps/frontend`, `npm run build --prefix apps/frontend`, kompletter Organism-E2E-Datei (`13 passed`), `docker compose -f docker-compose.dev.yml up -d --build frontend nginx`, `npm run verify:browser`, `py -3 scripts\verify_project_progress_manifest.py`, `git diff --check`, `scripts\verify-phase1.ps1` und `npm run verify:external-gates` (`.phase1-artifacts/external-gate-audit-20260611-011938.json`, blocked-ehrlich).
+- Localhost-Proofs bleiben `DEV-ONLY`; kein Cloud-Deploy, keine Cloud-Mutation, kein Hosted-Proof, kein Production-Claim und keine Prozentsteigerung.
+
+**Organism UI Runtime Run Binding** — die Organism-UI reicht `run_id` jetzt bis in beide Runtime-Projektionen durch:
+
+- `apps/frontend/components/organism/OrganismView.tsx` liest einen validierten `run_id` aus der Browser-URL und ruft `GET /api/v1/organism/events?run_id=...` sowie `GET /api/v1/organism/replay?run_id=...` mit demselben Wert auf.
+- Das Runtime-Panel zeigt den gebundenen `run_id` als `data-run-id` und sichtbaren `run_id=...` Marker, ohne raw `details`, `user_id`, `session_id`, Prompts oder Secret-Werte zu rendern.
+- `apps/frontend/e2e/organism.spec.ts` beweist per Playwright-Request-Intercept, dass `/organism/replay?run_id=...` beide Runtime-API-Requests mit identischem `run_id` ausloest und weiterhin `agent_api_redacted`, `data-live=true`, Replay-Frames und Redaktionsmarker rendert.
+- Verifiziert mit `npm run lint --prefix apps/frontend`, `npm run build --prefix apps/frontend`, fokussiertem `npx playwright test e2e/organism.spec.ts --project=chromium --grep "forwards run_id"`, kompletter Organism-E2E-Datei (`12 passed`), `scripts\verify-organism-runtime-events.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `npm run verify:browser`, `npm run verify:runtime`, `py -3 scripts\verify_project_progress_manifest.py` und `git diff --check`.
+- `npm run verify` fand initial eine Handoff-Truth-String-Drift beim no-token External-Baseline-Satz; der Spiegel wurde repariert. Danach wurde ein gitleaks-Blocker in lokalen `.claude`-Secret-/Session-Kopien redigiert, `scripts/verify-external-gates.ps1` fuer den realen 4.19-GB-Scan auf `1200s` Default-Timeout gehoben und `scripts\verify-phase1.ps1` sowie `npm run verify:external-gates` erneut gruen/blockiert-ehrlich ausgefuehrt. Keine Cloud-Mutation, kein Hosted-Proof, kein Production-Claim und keine Prozentsteigerung.
+
+**Organism Runtime Event Projection** — `/organism` ist fuer lokale Runtime-Runs nicht mehr nur Spec-Contract, sondern kann echte redaktierte Audit-Aktivitaet projizieren:
+
+- `services/agent-api/app/main.py` mappt `audit_log.event_type` aus `phase2_runtime_graph_started`, Tool-, LLM-, Memory-, Verifier- und Blocker-Events auf Organism-Eventarten, Capability-Hubs, Brain-Regions und Replay-Frames.
+- Die Runtime-Projektion liest nur `event_type`, `severity` und `created_at`; raw `details`, `user_id`, `session_id`, Prompts und Secret-Werte werden nicht serialisiert.
+- `run_id`/`thread_id`-Filter sind exakt gegen `details->>'trace_id'`, `details->>'thread_id'`, `details->>'run_id'` und `session_id`, damit der Verifier nicht alte Audit-Zeilen als Beweis nutzt.
+- Neuer Verifier `scripts/verify-organism-runtime-events.ps1` startet bei Bedarf einen lokalen deterministischen Phase-2-Run oder nutzt einen uebergebenen Run, prueft `source=agent-api`, `source_kind=agent_api_redacted`, `live=true`, `replay_available=true`, Events/Frames, `writes=false`, `secret_output=false` und keine raw `details`/`user_id`/`session_id`/`prompt`-Felder.
+- `scripts/verify-browser-contract.ps1` und `scripts/verify-phase1-runtime.ps1` rufen den neuen Verifier nach dem bestehenden Phase-2-Runtime-Status auf.
+- Verifiziert mit `py -3 -m py_compile services\agent-api\app\main.py`, PowerShell Parser-Checks fuer die geaenderten Verifier, `docker compose -f docker-compose.dev.yml up -d --build agent-api nginx`, `scripts\verify-organism-runtime-events.ps1`, `npm run verify:browser`, `npm run verify:runtime`, `npm run verify`, `py -3 scripts\verify_project_progress_manifest.py`, `git diff --check` und `npm run verify:external-gates`.
+- Ergebnis: lokale DEV-ONLY Organism-Events/Replays sind belegt; External Gates bleiben mit `.phase1-artifacts/external-gate-audit-20260610-143257.json` blocked. Kein Deploy, keine Cloud-Mutation, kein Production-Claim und keine Prozentsteigerung.
+
+**22-Seiten Organism Wiring Contract** — alle kanonischen Workbench-Seiten sind jetzt typed mit Gehirnregionen, Capability-Hubs, Datenquellen und Verifiern verdrahtet:
+
+- `apps/frontend/lib/workspaceWiring.ts` definiert `workspace-surface-wiring-v1` fuer exakt 22 Seiten mit `brainRegion`, `hub`, `dataSources`, `verifierRefs`, `eventKinds` und den Non-Claims `live=false`, `writes=false`, `secretOutput=false`.
+- `GET /api/v1/workspace/wiring` existiert im Frontend und als Agent-API-Mirror in `services/agent-api/app/main.py`; beide liefern `workspace_surface_wiring_visible` und `page_count=22`.
+- `GET /api/v1/organism/contract` und `GET /api/v1/organism/topology` enthalten jetzt `workspace_page_count=22`, Page-Nodes und Kanten `page_to_brain_region`, `page_to_capability_hub`, `page_to_data_source` und `page_to_verifier`.
+- `scripts/verify-workspace-pages-layer-map.ps1`, `scripts/verify-browser-contract.ps1` und `apps/frontend/e2e/organism.spec.ts` pruefen das Wiring, die Backend-Spiegelung und die 22 Seiten gegen das Organism-Modell.
+- Verifiziert mit `py -3 -m py_compile services\agent-api\app\main.py`, `npm run lint --prefix apps/frontend`, `npm run build --prefix apps/frontend`, `npm run test:e2e --prefix apps/frontend` (`10 passed`), `scripts/verify-workspace-pages-layer-map.ps1`, `npm run verify:runtime`, `npm run verify:browser`, `scripts\verify-phase1.ps1`, `py -3 scripts\verify_project_progress_manifest.py`, `git diff --check` und `npm run verify:external-gates`.
+- kein Deploy, keine Cloud-Mutation, kein Production-Claim und keine Prozentsteigerung.
+
+**Frontend Local E2E Rewrite/Hydration Recovery** — lokale Workbench-/Organismus-Tests sind wieder von Cloud-Origin-Proxies entkoppelt:
+
+- `apps/frontend/next.config.mjs` nutzt Default-Fly-Rewrites nur noch bei explizitem `STAGING_REWRITES_ENABLED` oder expliziten `FLY_APP_*`-Origins; ohne Cloud-Gate bleiben lokale `/api/v1/*`-Routes lokal.
+- `scripts/verify-frontend-cloud-rewrites.ps1` prueft jetzt zusaetzlich, dass Plain-Local keine Cloud-Rewrites erzeugt, unsichere Origins ohne Cloud-Modus fail-closed bleiben und Cloud-Modus weiterhin auf Fly-Defaults fallen kann.
+- `apps/frontend/components/organism/CortexLive.tsx` und `apps/frontend/components/organism/OrganismView.tsx` vermeiden SSR/Client-Hydration-Drift, indem 3D-/GPU-Erkennung erst nach Client-Mount erfolgt.
+- `scripts/verify-browser-contract.ps1`, `scripts/verify-phase1-runtime.ps1` und `scripts/verify-phase1.ps1` pruefen die aktuelle Completion-/Preflight-Truth listenbasiert: `fly_api_token` plus `vercel_backend_origins`, `fly_cloud_stack` plus `hosted_backend_origins`.
+- Verifiziert mit `scripts/verify-frontend-cloud-rewrites.ps1`, `scripts/verify-workspace-pages-layer-map.ps1`, `npm run lint --prefix apps/frontend`, `npm run build --prefix apps/frontend`, `npm run test:e2e --prefix apps/frontend` (`9 passed`), `npm run verify:browser`, `npm run verify:runtime`, `scripts/verify-phase1.ps1` und `npm run verify:external-gates`.
+- kein Deploy, keine Cloud-Mutation, kein Production-Claim und keine Prozentsteigerung.
+
+**22-Seiten-/7-Layer-Registry Guard** — die Workbench-Seitenstruktur ist lokal gegen die bindende Layer-Taxonomie abgesichert:
+
+- neuer Verifier `scripts/verify-workspace-pages-layer-map.ps1`
+- prueft exakt 22 `WORKSPACE_PAGES`, reale `page.tsx`-Routen, keine Rueckkehr der alten Aliase `/about/stack`, `/about/open-source`, `/design-system/responsive`
+- supplemental Routes `/`, `/organism/live` und `/responsive` bleiben erlaubt, aber nicht Teil der kanonischen 22
+- Layer-Codes werden gegen `docs/system-architecture.md` gemappt: Frontend, Orchestration, Agent Pool, LLM Gateway, Tool MCP, Memory, Observability
+- in `scripts/verify-phase1.ps1` eingebunden; kein UI-Projektstatus, kein Deploy, kein Production-Claim
+
+**Phase-5 Browser Manifest Retire Guard** — der Manifest-Status traegt keine aktive Browser-Evidence mehr fuer retired `sslip.io`/Hetzner-Proofs:
+
+- `docs/project-progress.manifest.json` markiert die alten Browser-Bridge-, Browser-Proof-, Post-Rollback-Browser-, Final-Browser-, Full-Sweep- und Truth-Mirror-Browser-Tokens als retired/current-hosted-blocked
+- `scripts/verify-retired-hosted-boundary.ps1` prueft diese Manifest-Tokens jetzt zusaetzlich zu Candidate- und Proof-Artefakten
+- Verifiziert mit `py -3 scripts\verify_project_progress_manifest.py` und `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-retired-hosted-boundary.ps1`
+- keine Prozentsteigerung, kein Deploy, keine Cloud-Mutation, kein Production-Claim
+
+**Cloud-Gate-Realignment 2026-06-08** — aktive Gates und Verifier sind auf Vercel/Fly.io/GHCR/Grafana ausgerichtet:
+
+- `scripts/verify-external-gates.ps1` nutzt fuer das Fly-Live-Budget den kanonischen `scripts/check_fly_infra_budget.py`-Pfad und bleibt ohne `FLY_API_TOKEN` fail-closed.
+- Direkte MCP-/LLM-Fly-Origin-URLs werden jetzt korrekt an `/api/v1/health` geprueft; path-prefixed Reverse-Proxy-URLs wie `/mcp` und `/llm` bleiben unter diesem Prefix gueltig.
+- `fly.agent-api.toml`, `fly.mcp-gateway.toml` und `fly.llm-gateway.toml` bereiten die drei origin health gates getrennt vor; `scripts/verify-phase1.ps1` prueft diese Configs offline.
+- `apps/frontend/next.config.mjs` nutzt dieselbe Origin-Prioritaet fuer Vercel-Rewrites: explizite HTTPS-Origin, Fly-App-Name/Fly-Default, dann Hosted-Rewrite-Fallback; `scripts/verify-frontend-cloud-rewrites.ps1` prueft diese Matrix ohne Secrets und ohne Deploy.
+- `scripts/verify-external-gates.ps1` begrenzt HTTP- und native Prozess-Probes fail-closed; Timeout-Proof erzeugte ein nicht-geheimes blocked Artifact statt haengender Ausfuehrung.
+- Hosted-Verifier ohne echte HTTPS-`STAGING_BASE_URL` brechen fail-closed ab; localhost kann keine Cloud-Gates schliessen.
+- Frontend-Stack ist auf Next.js `16.2.7`, React `19.2.7`, Three `0.184.0` und `@types/node` `25.9.2`; ESLint bleibt bewusst auf kompatiblem `9.39.4`, weil `eslint@10` Peer-Konflikte im aktuellen Next-Plugin-Stack erzeugt.
+- Verifiziert: `npm run build`, `npm run lint --prefix apps/frontend`, `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`, `npm run verify:browser`, `npm run verify:runtime`, `npm run verify:external-gates`.
+- Ergebnis: lokale Checks gruen; External Gates bleiben mit `.phase1-artifacts/external-gate-audit-20260609-202428.json` blocked auf `hosted_agent_api_contracts`, `github_branch_protection_current_verify`, `vercel_backend_origin_health` und `fly_live_budget_check`. `canonical_gitleaks_scan` und `ghcr_image_digest_verify` sind verified; GitLab-, Hugging-Face- und Grafana-Identity bleiben im Basislauf ohne Token fail-closed. Hosted-Proof ist ohne echte HTTPS-`STAGING_BASE_URL` blockiert; Vercel-Origin-Probes bleiben ohne `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL` und `LLM_GATEWAY_BASE_URL` blockiert.
+
+**Historischer Phase 5 Integration Smoke Plan Rerun** — dieser `RC1`-Truth bleibt als historische Candidate-Evidence erhalten, ist aber kein aktueller Hosted-Gate-Proof mehr:
 
 - `docs/release-artifacts/prod-candidate-2026-05-05-rc1-integration-smoke-plan-rerun.md` dokumentiert einen frischen candidate-scoped Hosted-Smoke-Lauf gegen Root, API-, MCP- und LLM-Health, Project Progress, Integrity, Completion, External Gates, External-Gates-Mirror und Deployment-Preflight
-- `scripts/verify-phase5-integration-smoke-plan-rerun.ps1` bindet denselben Proof an die aktuelle Manifest-Truth, den aktiven Candidate und die reale Hosted-Surface auf `https://188-34-191-140.sslip.io`
+- `scripts/verify-phase5-integration-smoke-plan-rerun.ps1` band denselben Proof damals an die inzwischen retired `sslip.io`/Hetzner-Surface; aktuelle Hosted-Gates muessen ueber eine Vercel-HTTPS-`STAGING_BASE_URL` neu bewiesen werden
 - der Rerun fuehrt weiter `IMAGE_TAG=staging` als aktuellen Selector und `IMAGE_TAG=ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5` als immutable Rollback-Selector
-- Hosted Truth bleibt nach Hetzner-Sync deckungsgleich: `overall=70`, `phase4=100`, `phase5=67`, `integrity=verified`
+- Der damalige Hetzner-Sync ist historische Provenance; aktuelle External Gates bleiben laut `.phase1-artifacts/external-gate-audit-20260609-202428.json` blocked.
 - dies ist ein weiterer Release-Readiness-/Smoke-Rerun-Batch, kein Rollout-Claim und kein Production-Deploy
 
 **Vorheriger Abschluss — Phase 5 Executed Rollback + Post-Rollback Requalification + Release Readiness Rerun** — der aktuelle `RC1`-Truth ist jetzt nochmals gegen den Rollback-Lane- und Release-Readiness-Pfad auf `overall=70`, `phase_5=66` nachgezogen:
@@ -90,7 +269,7 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 - `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-requalification-rerun.md` bestaetigt denselben Hosted-Selector, dieselbe aktuelle Progress-/Integrity-Truth, fail-closed `completion=false` und weiter `external_gates=verified`
 - `docs/release-artifacts/prod-candidate-2026-05-05-rc1-release-readiness-rerun.md` zieht den aktiven Candidate, die Runbooks, die Hosted-Truth und die aktive Browser-Evidence nochmals in einen frischen Candidate-scoped Release-Readiness-Rerun zusammen
 - `.phase1-artifacts/phase5-owner-decision-no-release-20260505.md`, `.phase1-artifacts/phase5-rollback-readiness-20260505.md` und `.phase1-artifacts/phase5-release-baseline-refresh-20260507.md` sind im selben Batch vom alten Truth auf den aktuellen Stand repariert
-- Hosted Truth bleibt nach Hetzner-Sync deckungsgleich: `overall=70`, `phase4=100`, `phase5=66`, `integrity=verified`
+- Der damalige Hetzner-Sync ist historische Provenance; aktuelle Hosted-Gate-Wahrheit kommt aus dem Vercel/Fly External-Gate-Audit und bleibt blocked.
 - dies ist ein weiterer Release-Readiness-/Truth-Repair-Batch, kein Rollout-Claim und kein Production-Deploy
 
 **Vorheriger Abschluss — Phase 5 Final Browser E2E + Full Verifier Sweep + Truth Mirror Rebaseline** — der aktuelle `RC1`-Truth ist jetzt auf `overall=70`, `phase_5=63` sauber geschlossen:
@@ -98,17 +277,16 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 - `.phase1-artifacts/phase5-final-browser-e2e-recheck-20260507.md` belegt einen frischen lokalen und gehosteten AI-Browser-Lauf mit sichtbaren Markern `Cloud Superbrain`, `Project Progress`, `External Gates`, `Phase 5 - Release Readiness`, `Progress Integrity`, `Error Response Contract` und `System Unavailable Fallback`
 - `.phase1-artifacts/phase5-full-verifier-sweep-20260507.md` belegt den kompletten grünen Sweep aus `py -3 scripts\verify_project_progress_manifest.py`, dem vollen `verify-phase5*.ps1`-Lauf, `verify-phase1.ps1` und `gitleaks`
 - `.phase1-artifacts/phase5-truth-mirror-rebaseline-20260507.md` belegt den synchronen Truth-Mirror-Zustand fuer `docs/project-progress.manifest.json`, `docs/verification-register.md`, `PROJECT_STATE.md`, `AI_HANDOFF.md` und den aktiven Candidate
-- Hosted Truth ist nach Hetzner-Sync wieder deckungsgleich: `overall=70`, `phase4=100`, `phase5=63`, `integrity=verified`
+- Der damalige Hetzner-Sync ist historische Provenance; er darf nicht als aktueller Hosted-Gate-Proof wiederverwendet werden.
 - dies ist ein Verifier-/Mirror-Abschlussbatch, kein Rollout-Claim und kein Production-Deploy
 
-**Vorheriger Abschluss — Phase 5 Browser Evidence Reactivation** — die aktuelle Browser-Evidence-Kette fuer `RC1` ist wieder live und verifiziert:
+**Vorheriger Abschluss — Phase 5 Browser Evidence Retire Repair** — die alte `sslip.io`/Hetzner-Browser-Evidence-Kette fuer `RC1` ist wieder fail-closed und nur historische Provenance:
 
-- `docs/release-artifacts/prod-candidate-2026-05-05-rc1-browser-proof.md` ist wieder `verified` statt `superseded`
-- `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md` ist wieder `verified` statt `superseded`
-- neuer Reaktivierungsbeleg: `.phase1-artifacts/phase5-browser-evidence-reactivation-20260507.md`
-- `scripts/verify-phase5-browser-proof.ps1` und `scripts/verify-phase5-post-rollback-browser-revalidation.ps1` pruefen jetzt Live-HTML-Marker plus Candidate-Links statt den alten fail-closed Blockerzustand
-- `scripts/verify-phase5-candidate.ps1` verlangt die aktive Browser-Evidence-Kette wieder
-- der Candidate fuehrt wieder aktuelle Browser-Felder statt der alten Blocker-Notiz
+- `docs/release-artifacts/prod-candidate-2026-05-05-rc1-browser-proof.md` ist `superseded` und `current_candidate_evidence=false`
+- `docs/release-artifacts/prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md` ist `superseded` und `current_candidate_evidence=false`
+- `docs/release-artifacts/prod-candidate-2026-05-05-rc1.md` fuehrt historische Browser-Felder; aktuelle Browser-Evidence erfordert Vercel HTTPS `STAGING_BASE_URL` plus erreichbare Fly Origins
+- `scripts/verify-phase5-browser-proof.ps1` und `scripts/verify-phase5-post-rollback-browser-revalidation.ps1` pruefen fail-closed den historischen Zustand statt einen aktuellen Live-Browser-Claim weiterzutragen
+- `scripts/verify-retired-hosted-boundary.ps1` schuetzt diese Grenze im Phase-1-Verifier
 
 **Vorheriger Abschluss — Phase 5 Full Verifier Rebaseline Sweep** — die komplette `verify-phase5*.ps1`-Kette ist gegen den damaligen fail-closed Candidate-Truth `overall=69`, `phase_5=57` neu ausgerichtet und einmal voll gruen durchgelaufen:
 
@@ -687,30 +865,30 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 - Verifiziert: `powershell -ExecutionPolicy Bypass -File scripts\verify-phase5-release-readiness.ps1`, `py -3 scripts\verify_project_progress_manifest.py`
 - Der Basissatz allein erhoehte den Fortschritt noch nicht; die Prozent-Erhoehung erfolgte erst mit dem konkreten Production-Candidate-Artefakt und dem nachgezogenen Candidate-Verifier
 
-**Hosted Runtime Truth Alignment Proof** — die gehosteten Gate-Panels sprechen jetzt dieselbe Wahrheit wie Audit und Manifest:
+**Retired Hosted Runtime Truth Alignment Proof** — historische Hetzner-Gate-Panels; fuer aktuelle Gates superseded:
 
 - `services/agent-api/app/main.py` liest die evidenzbasierten Gate-Schliessungen jetzt aus dem bindenden Progress-Manifest statt nur aus der aktuellen Env-Praesenz; `GET /api/v1/external-gates`, `GET /api/v1/external-gates/mirror`, `GET /api/v1/clouds/deployment-preflight/contract` und `GET /api/v1/project/progress/completion` laufen damit fail-closed, aber ohne alte Runtime-Drift
-- nach Remote-Sync und gezieltem `docker compose --env-file .env -f docker-compose.cloud.yml up -d --force-recreate agent-api` auf Hetzner liefert Hosted jetzt `external-gates status=verified`, `verified_count=6`, `deployment-preflight status=verified`, `missing_or_blocked_gates=[]`, `cloud_deploy_claim_allowed=true` und `production_deploy_claim_allowed=true`
-- `GET <hosted-staging-url>/api/v1/external-gates/mirror` liefert jetzt ebenfalls `status=verified`, `hosted_staging_claim_allowed=true`, `branch_protection_claim_allowed=true` und `production_deploy_claim_allowed=true`
+- die damaligen Hetzner-Werte `external-gates status=verified` und `production_deploy_claim_allowed=true` sind retired historical evidence und duerfen aktuell nicht als Hosted-/Production-Claim genutzt werden
+- aktueller Mirror-Massstab ist ein realer Vercel-HTTPS-Hosted-Proof plus erreichbare Fly-Origin-Probes; bis dahin bleibt `hosted_staging_claim_allowed=false`
 - Verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `scripts/deploy-to-staging.ps1`, `scripts/verify-cloud-only-staging.ps1 -BaseUrl <hosted-staging-url>`, `scripts/verify-external-gates.ps1 -HostedBaseUrl <hosted-staging-url> -LocalBaseUrl <local-control-plane-url>`, direkte Hosted-API-Pruefung von `/api/v1/external-gates`, `/api/v1/external-gates/mirror`, `/api/v1/clouds/deployment-preflight/contract` und `/api/v1/project/progress/completion`
 - Fortschritt steigt evidenzbasiert: Gesamt bleibt `49%`, Phase 4 steigt auf `24%`; dies ist die abgeschlossene Runtime-Truth-Angleichung nach der Gate-Schliessung, aber weiterhin kein ausgerollter Production-Stack
 
-**External Gate Audit Closure Proof** — der komplette externe Gate-Satz ist jetzt evidenzbasiert geschlossen:
+**Retired External Gate Audit Closure Proof** — historische Hetzner-Gate-Schliessung; fuer aktuelle Gates superseded:
 
-- `scripts/verify-external-gates.ps1 -HostedBaseUrl <hosted-staging-url> -LocalBaseUrl <local-control-plane-url>` erzeugte `.phase1-artifacts\external-gate-audit-20260504-212633.json` mit `status=verified`, `frontend_preview_claim_allowed=True`, `hosted_staging_claim_allowed=True` und `production_deploy_claim_allowed=True`
+- `scripts/verify-external-gates.ps1 -HostedBaseUrl <hosted-staging-url> -LocalBaseUrl <local-control-plane-url>` erzeugte damals `.phase1-artifacts\external-gate-audit-20260504-212633.json`; dieses Artefakt ist retired und wird durch `.phase1-artifacts\external-gate-audit-20260609-202428.json` ersetzt
 - der Verifier prueft jetzt GHCR-Digests ohne unnoetigen lokalen Token-Zwang, hosted Backend Origins ueber echte non-local HTTPS-Probes, Hetzner Live Budget ueber den gehosteten Health-Contract und Branch Protection ueber einen Remote-Fallback, der `scripts/apply_github_branch_protection.py --verify-only` mit dem vorhandenen Remote-`.env` auf dem Hetzner-Host ausfuehrt
 - Live-Beweise: `docker manifest inspect` fuer alle sechs GHCR-Images, Hosted-Health-Probes gegen `/api/v1/health`, `/mcp/api/v1/health`, `/llm/api/v1/health`, gehosteter `infra_budget.live_verified=true`, und Remote-GitHub-Verify-Only-Output fuer Branch Protection auf `chore/repo-bootstrap`
 - Verifiziert: `scripts/verify-phase1.ps1`, `scripts/verify-cloud-only-staging.ps1 -BaseUrl <hosted-staging-url>`, `scripts/verify-external-gates.ps1 -HostedBaseUrl <hosted-staging-url> -LocalBaseUrl <local-control-plane-url>`, Remote `python3 /tmp/apply_github_branch_protection.py --verify-only --repo strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM --branch chore/repo-bootstrap`, GHCR manifest probes und canonical `gitleaks`
 - Fortschritt steigt evidenzbasiert: Gesamt geht auf `49%`, Phase 4 auf `23%`; dies ist Gate-Schliessung und Release-Readiness-Hardening, aber weiterhin kein ausgerollter Production-Stack
 
-**Hosted HTTPS Staging Proof** — echtes non-local HTTPS Staging ist jetzt auf Hetzner live und fail-closed nachgewiesen:
+**Retired Hosted HTTPS Staging Proof** — altes non-local HTTPS Staging auf Hetzner; nicht mehr aktiver Proof:
 
-- Deploy-Skript `scripts/deploy-to-staging.ps1` kopiert nur nicht-geheime Artefakte, verlangt ein bestehendes Remote-`.env`, setzt `STAGING_HOSTNAME=<hosted-staging-hostname>`, `STAGING_BASE_URL=<hosted-staging-url>` sowie die drei non-local Backend-Origins und deployed den Pull-basierten Cloud-Stack nach `/app`
+- Deploy-Skript `scripts/deploy-to-staging.ps1` bleibt nur als historische Referenz/Plan-Kompatibilitaet erhalten; aktive Cloud-Aktivierung laeuft ueber `scripts/owner-cloud-gate-activation.ps1` und Vercel/Fly
 - `docker-compose.cloud.yml` enthaelt jetzt den TLS-Proxy `caddy`, `infrastructure/caddy/Caddyfile` terminiert HTTPS vor `nginx`, und `infrastructure/nginx/cloud.conf` bewahrt `X-Forwarded-Proto`/`X-Forwarded-Host` aus der aeusseren TLS-Schicht
 - Live-Host-Beweis: `<hosted-staging-url>/` liefert `200`, `<hosted-staging-url>/api/v1/health` liefert `status=healthy`, `<hosted-staging-url>/api/v1/project/progress` liefert `overall_percent=48`, und der Remote-Compose-Status meldet `caddy`, `nginx`, `agent-api`, `mcp-gateway`, `llm-gateway`, `frontend`, `postgres`, `redis`, `agent-worker` und `memory-worker` als gesund
 - Verifiziert: `scripts/verify-phase1.ps1`, `scripts/verify-cloud-only-staging.ps1 -BaseUrl <hosted-staging-url>`, `scripts/verify-external-gates.ps1 -HostedBaseUrl <hosted-staging-url> -LocalBaseUrl <local-control-plane-url>`, Python/OpenSSL-GET-Probes gegen Hosted Root/API und Remote-`curl -k` via SSH gegen Root, Agent API, MCP Gateway und LLM Gateway
 - Browser-Live-Beweis: Puppeteer navigierte zu `<hosted-staging-url>/` und bestaetigte `Cloud Superbrain`, `Project Progress`, `External Gates`, sichtbares `48%` und die echte Hosted-URL. Playwright/Chrome-DevTools Screenshot-Proof blieb lokal durch fehlende Chrome-Installation blockiert.
-- Fortschritt steigt minimal evidenzbasiert: Gesamt bleibt `48%`, Phase 4 steigt auf `16%`; dies schliesst `hosted_staging_claim_allowed=true`, aber nicht GHCR, Branch Protection, Vercel Backend Origins oder Production
+- Diese historische Evidence schliesst heute kein Gate mehr; aktueller Status bleibt `hosted_staging_claim_allowed=false`, bis Vercel/Fly-Proofs bestehen.
 
 **External Gates Alignment Contract Proof** — die lokale External-Gates-Sicht und der Cloud-Deployment-Preflight sprechen jetzt dieselbe Gate-Sprache:
 
@@ -743,19 +921,19 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 
 - `GET /api/v1/clouds/render-offload/contract` liefert `cloud-render-offload-v1`, `cloud_render_offload_contract_visible`, `localhost_heavy_render_allowed=false` und `home_pc_protection=true`
 - Workloads `webgl_3d_rendering`, `browser_gpu_smoke` and `asset_generation` sind `cloud-only`; nur `control_plane` bleibt lokal erlaubt
-- fehlende Cloud-Server-Gates bleiben explizit: `STAGING_BASE_URL`, `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, `LLM_GATEWAY_BASE_URL`, `HETZNER_API_TOKEN`
+- fehlende Cloud-Server-Gates bleiben explizit: `STAGING_BASE_URL`, `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, `LLM_GATEWAY_BASE_URL`, `FLY_API_TOKEN`
 - Frontend rendert `Cloud Render Offload` mit `Local Render blocked`, `WebGL / 3D rendering cloud-only` und dem Endpoint `GET /api/v1/clouds/render-offload/contract`
 - Verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `scripts/verify-phase1.ps1`, `docker compose -f docker-compose.dev.yml up -d --build agent-api frontend nginx`, `GET /api/v1/clouds/render-offload/contract`, `scripts/verify-browser-contract.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost`, `scripts/verify-hosted-staging.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost`, `scripts/verify-external-gates.ps1 -LocalBaseUrl <local-control-plane-url>` und Playwright-DOM-Proof
 - Keine Prozent-Erhoehung: Gesamt bleibt `47%`, Phase 4 bleibt `15%`; ohne echte gehostete Server und rotierte Secrets bleibt Cloud-Runtime `action_required`
 
-**GitKraken Cloud Inventory Contract Proof** — der in der Cloud/API-Analyse gefundene GitKraken-Gap ist jetzt lokal und sichtbar geschlossen:
+**Grafana Cloud Inventory Contract Proof** — die aktive Observability-Cloud ist lokal und sichtbar verdrahtet:
 
-- `GET /api/v1/clouds` liefert `total_count=8` und den neuen Provider `gitkraken_identity` mit `GITKRAKEN_API_TOKEN`, `GITKRAKEN_ORG_ID`, `GITKRAKEN_ORG_NAME`, `GITKRAKEN_DASHBOARD_URL` und `GITKRAKEN_API_URL` als Namen/Status, niemals als Werte
-- `GET /api/v1/clouds/layers` fuehrt `gitkraken_identity` in Layer 5 und Layer 7 mit expliziten Blockern `gitkraken_identity_requires_GITKRAKEN_API_TOKEN`
-- `docker-compose.cloud.yml`, `.env.example`, `docs/runbooks/cloud-secret-runtime-injection.md`, `docs/runtime-contracts/cloud-provider-inventory-contract.md` und `docs/runtime-contracts/external-gate-audit-contract.md` kennen die GitKraken-Keys und Non-Claims
-- `scripts/verify-phase1.ps1`, `scripts/verify-browser-contract.ps1`, `scripts/verify-hosted-staging.ps1`, `scripts/verify-phase1-runtime.ps1` und `scripts/verify-external-gates.ps1` pruefen GitKraken jetzt fail-closed
+- `GET /api/v1/clouds` liefert die aktive Provider-Linie mit `grafana_cloud` und `GRAFANA_CLOUD_API_KEY` als Namen/Status, niemals als Wert.
+- `GET /api/v1/clouds/layers` fuehrt `grafana_cloud` in Layer 7 mit fail-closed Optional-Identity-Probe.
+- `docker-compose.cloud.yml`, `.env.example`, `docs/runbooks/cloud-secret-runtime-injection.md`, `docs/runtime-contracts/cloud-provider-inventory-contract.md` und `docs/runtime-contracts/external-gate-audit-contract.md` kennen die aktiven Vercel/Fly.io/GHCR/Grafana Gates und Non-Claims.
+- `scripts/verify-phase1.ps1`, `scripts/verify-browser-contract.ps1`, `scripts/verify-hosted-staging.ps1`, `scripts/verify-phase1-runtime.ps1` und `scripts/verify-external-gates.ps1` pruefen diese Gates fail-closed.
 - Verifiziert: Python compile, `scripts/verify_project_progress_manifest.py`, `scripts/verify-phase1.ps1`, `scripts/verify-browser-contract.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost`, `scripts/verify-hosted-staging.ps1 -BaseUrl <local-control-plane-url> -AllowLocalhost`, `scripts/verify-external-gates.ps1 -LocalBaseUrl <local-control-plane-url>`, `scripts/verify-phase1-runtime.ps1` und Playwright-DOM-Proof auf `<local-control-plane-url>/`
-- Keine Prozent-Erhoehung: Gesamt bleibt `47%`, Phase 4 bleibt `15%`, MCP Gateway bleibt `53%`, Observability bleibt `99%`; ohne rotierten echten GitKraken-Token bleibt the Live-Identity-Claim geschlossen
+- Keine Prozent-Erhoehung: Gesamt bleibt manifestgefuehrt; ohne echte Cloud-Tokens bleiben Live-Identity- und Budget-Claims geschlossen.
 
 **Local Rebuild + Runtime Re-Proof** — der zuvor alte laufende Containerstand wurde neu gebaut und nach Recreate live verifiziert:
 
@@ -809,13 +987,12 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 - Dokumentiert in `docs/runtime-contracts/agent-llm-streaming-contract.md`
 - Fortschritt bleibt Gesamt `47%`, Phase 4 steigt evidenzbasiert auf `13%`, LLM Gateway auf `53%`
 
-**Hetzner Live Budget Warning Proof** — der bereitgestellte Hetzner-Token wurde einmalig als Prozess-Environment genutzt, nicht gespeichert:
+**Fly.io Budget Gate Projection** — aktiver Budgetpfad ist Fly.io/Vercel/GHCR/Grafana, live weiter token-gated:
 
-- `scripts/check_hetzner_infra_budget.py` meldete `EUR 19.03` projizierte monatliche Serverkosten
+- `scripts/check_fly_infra_budget.py` ist der aktive Budget-Verifier.
+- `docs/runbooks/fly-live-budget-proof-2026-06-08.md` dokumentiert nur eine Projektion; der Live-Gate bleibt ohne `FLY_API_TOKEN` blockiert.
 - Budget: Warnschwelle `EUR 16.00`, hartes Limit `EUR 20.00`
-- Ergebnis: unter hartem Limit, aber Warning aktiv; keine weitere Hetzner-Erweiterung ohne neuen Live-Budgetbeweis
-- Dokumentiert in `docs/runbooks/hetzner-live-budget-proof-2026-04-29.md`
-- Fortschritt bleibt Gesamt `47%`, Phase 4 steigt evidenzbasiert auf `12%`
+- Fortschritt bleibt unveraendert; kein Live-Budget-Claim ohne externen Token-Beweis.
 
 **L-06 Task Assignment Queue Contract Proof** — die Schicht 2→3 Task-Uebergabe ist jetzt als sichtbarer, versionierter Contract geschlossen:
 
@@ -964,13 +1141,13 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 
 ## ZULETZT ABGESCHLOSSEN (STAGING)
 
-**Hetzner Staging Server Provisioning** — die externe Laufzeitbasis fuer Phase 2 steht:
+**Retired Hetzner Staging Server Provisioning** — historische Laufzeitbasis, nicht mehr aktiver Cloud-Pfad:
 
-- CX21-Server `superbrain-staging-fsn1` in Frankfurt bereitgestellt (IP: <staging-host>)
+- CX21-Server `superbrain-staging-fsn1` in Frankfurt war historisch bereitgestellt (IP: <retired-staging-host>)
 - SSH-Zugriff mit extern injiziertem `STAGING_SSH_KEY_PATH` verifiziert
 - Docker Engine & Compose Plugin installiert
 - Firewall (UFW) auf 22, 80, 443 beschraenkt
-- Phase 1 Foundation Package ist damit zu 100% abgeschlossen (Staging-Deployment und API-Kontrakte verifiziert)
+- Phase 1 Foundation bleibt lokal/manifestevident `100%`; aktueller Hosted-Proof ist auf Vercel/Fly neu zu erbringen.
 
 ## BEHOBENE BLOCKER (zum Nachschlagen)
 

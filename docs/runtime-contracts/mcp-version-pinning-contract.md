@@ -21,15 +21,15 @@ This contract closes audit gap `L-08`: MCP Gateway dependencies and tool contrac
 | --- | --- |
 | Service | `mcp-gateway` |
 | App version | `0.1.0` |
-| Runtime | `python:3.12-slim` |
+| Runtime | `python:3.14-slim` |
 | Requirements file | `services/mcp-gateway/requirements.txt` |
 | Dependency pin policy | `exact_version_required` |
 
 Pinned dependencies:
 
-- `fastapi==0.115.8`
-- `uvicorn[standard]==0.34.0`
-- `pydantic==2.10.6`
+- `fastapi==0.136.3`
+- `uvicorn[standard]==0.49.0`
+- `pydantic==2.13.4`
 
 ## Pinned Tool Contracts
 

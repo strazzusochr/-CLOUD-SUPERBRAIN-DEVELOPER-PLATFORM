@@ -1,5 +1,6 @@
 import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, Badge } from "../../components/ui";
+import { SettingsGatePlanPanel } from "../../components/goal-b-actions";
 
 export const metadata = { title: "Settings / Governance — Cloud Superbrain" };
 
@@ -51,6 +52,9 @@ export default function SettingsPage() {
                 ))}
               </tbody>
             </table>
+            <div className="wb-pad">
+              <SettingsGatePlanPanel />
+            </div>
           </Panel>
 
           <Panel title="Role management">

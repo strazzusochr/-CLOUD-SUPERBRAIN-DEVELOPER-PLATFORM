@@ -70,7 +70,7 @@ In Scope:
 
 Out of Scope:
 
-- Redis-, Supabase-, Qdrant-, Neo4j- oder Hetzner-Deployment
+- Redis-, Supabase-, Qdrant-, Neo4j- oder Cloud-Deployment
 - Datenbankmigrationen oder produktive Schema-Aenderungen
 - Live-Embeddings oder produktive Retrieval-Tests
 - Memory-Purge oder Loeschjobs
@@ -81,7 +81,7 @@ Out of Scope:
 | Tier | Ziel | Status | Regel |
 | --- | --- | --- | --- |
 | Working Memory | Redis, TTL 30 Minuten | Phase-1 aktiv | Nur fluechtiger Run-Kontext, keine Secrets |
-| Long-Term Memory | Hetzner PostgreSQL/pgvector | Phase-1 aktiv ohne Embeddings | Nur validierte, referenzierte und konsolidierte Inhalte |
+| Long-Term Memory | Fly.io PostgreSQL/pgvector Ziel, lokal via Docker | Phase-1 aktiv ohne Embeddings | Nur validierte, referenzierte und konsolidierte Inhalte |
 | Retrieval Index | pgvector, Embeddings spaeter | Phase-1 lexical fallback | Nur retrieval-relevante Inhalte, keine Rohlogs |
 | Knowledge Graph | Neo4j optional | Nicht Phase-2-aktiv | Nur nach ADR und Owner-Freigabe |
 

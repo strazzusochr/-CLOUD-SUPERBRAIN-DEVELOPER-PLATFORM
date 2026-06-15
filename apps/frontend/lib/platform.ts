@@ -154,7 +154,7 @@ export const MANIFEST = {
     { id: "P1", pct: 100 },
     { id: "P2", pct: 86 },
     { id: "P3", pct: 40 },
-    { id: "P4", pct: 100 },
+    { id: "P4", pct: 99 },
     { id: "P5", pct: 67 },
     { id: "P6", pct: 0 },
   ],
@@ -206,7 +206,7 @@ export const MODELS = [
 /** Read-only scoped roots for the local files surface. */
 export const FILE_ROOTS = ["project", "workspace", "documents", "codex_runs", "codex_skills"];
 
-/** Real top-level project tree (read-only; .git/.env/secrets blocked). */
+/** Spec top-level project tree (read-only intent; runtime wiring may be unavailable). */
 export const PROJECT_TREE: { d: number; name: string; folder?: boolean }[] = [
   { d: 0, name: "-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM", folder: true },
   { d: 1, name: "apps", folder: true },

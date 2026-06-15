@@ -55,19 +55,12 @@ services:
       PROMPT_RATE_LIMIT_CAPACITY: ${PROMPT_RATE_LIMIT_CAPACITY:-20}
       PROMPT_RATE_LIMIT_WINDOW_SECONDS: ${PROMPT_RATE_LIMIT_WINDOW_SECONDS:-3600}
       PROJECT_PROGRESS_MANIFEST_PATH: /app/progress/project-progress.manifest.json
+      EXTERNAL_GATE_SUMMARY_PATH: /app/progress/external-gate-summary.json
       AUTONOMOUS_AGENT_ROSTER_PATH: /app/docs/codex-integration/autonomous-agent-roster.json
       CLOUD_PROVIDER_INVENTORY_ENABLED: ${CLOUD_PROVIDER_INVENTORY_ENABLED:-true}
-      HETZNER_API_TOKEN: ${HETZNER_API_TOKEN:-}
-      HETZNER_PROJECT_ID: ${HETZNER_PROJECT_ID:-}
-      HETZNER_SERVER_ID: ${HETZNER_SERVER_ID:-}
-      HETZNER_SERVER_NAME: ${HETZNER_SERVER_NAME:-}
-      HETZNER_SERVER_TYPE: ${HETZNER_SERVER_TYPE:-}
-      HETZNER_SERVER_LOCATION: ${HETZNER_SERVER_LOCATION:-}
-      HETZNER_SERVER_IPV4: ${HETZNER_SERVER_IPV4:-}
-      HETZNER_SERVER_IPV6_CIDR: ${HETZNER_SERVER_IPV6_CIDR:-}
-      HETZNER_PRIMARY_IPV4_ID: ${HETZNER_PRIMARY_IPV4_ID:-}
-      HETZNER_PRIMARY_IPV6_ID: ${HETZNER_PRIMARY_IPV6_ID:-}
-      HETZNER_VOLUME_ID: ${HETZNER_VOLUME_ID:-}
+      FLY_API_TOKEN: ${FLY_API_TOKEN:-}
+      GRAFANA_CLOUD_API_KEY: ${GRAFANA_CLOUD_API_KEY:-}
+      GRAFANA_CLOUD_URL: ${GRAFANA_CLOUD_URL:-}
       STAGING_BASE_URL: ${STAGING_BASE_URL:-}
       BRANCH_PROTECTION_TOKEN: ${BRANCH_PROTECTION_TOKEN:-}
       VERCEL_TOKEN: ${VERCEL_TOKEN:-}
@@ -88,15 +81,11 @@ services:
       GITLAB_TOKEN: ${GITLAB_TOKEN:-}
       GITLAB_PROFILE_URL: ${GITLAB_PROFILE_URL:-}
       GITLAB_API_URL: ${GITLAB_API_URL:-}
-      GITKRAKEN_API_TOKEN: ${GITKRAKEN_API_TOKEN:-}
-      GITKRAKEN_ORG_ID: ${GITKRAKEN_ORG_ID:-}
-      GITKRAKEN_ORG_NAME: ${GITKRAKEN_ORG_NAME:-}
-      GITKRAKEN_DASHBOARD_URL: ${GITKRAKEN_DASHBOARD_URL:-}
-      GITKRAKEN_API_URL: ${GITKRAKEN_API_URL:-}
     expose:
       - "8000"
     volumes:
-      - ./progress/project-progress.manifest.json:/app/progress/project-progress.manifest.json:ro
+      - ./docs/project-progress.manifest.json:/app/progress/project-progress.manifest.json:ro
+      - ./docs/runtime-state/external-gate-summary.json:/app/progress/external-gate-summary.json:ro
       - ./PROJECT_STATE.md:/app/PROJECT_STATE.md:ro
       - ./docs/codex-integration/autonomous-agent-roster.json:/app/docs/codex-integration/autonomous-agent-roster.json:ro
       - ./services/agent-api/app:/app/app:ro
@@ -134,9 +123,9 @@ services:
       agent-api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import os, psycopg, redis; redis.Redis.from_url(os.environ['REDIS_URL'], socket_timeout=2).ping(); psycopg.connect(os.environ['DATABASE_URL']).close()"]
+      test: ["CMD", "python", "-c", "import os, psycopg, redis; redis.Redis.from_url(os.environ['REDIS_URL'], socket_timeout=2, socket_connect_timeout=2).ping(); psycopg.connect(os.environ['DATABASE_URL'], connect_timeout=2).close()"]
       interval: 20s
-      timeout: 5s
+      timeout: 20s
       retries: 5
     mem_limit: 512m
     cpus: "0.50"
@@ -148,6 +137,13 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-superbrain}:${POSTGRES_PASSWORD:-change-me-now}@postgres:5432/${POSTGRES_DB:-superbrain_prod}
       REDIS_URL: redis://redis:6379/0
+      AGENT_API_INTERNAL_URL: http://agent-api:8000
+      LLM_GATEWAY_INTERNAL_URL: http://llm-gateway:4000
+      MCP_GATEWAY_INTERNAL_URL: http://mcp-gateway:9000
+      STAGING_BASE_URL: ${STAGING_BASE_URL:-http://localhost:8081}
+      VERCEL_AGENT_API_ORIGIN: ${VERCEL_AGENT_API_ORIGIN:-}
+      VERCEL_MCP_GATEWAY_ORIGIN: ${VERCEL_MCP_GATEWAY_ORIGIN:-}
+      VERCEL_LLM_GATEWAY_ORIGIN: ${VERCEL_LLM_GATEWAY_ORIGIN:-}
       MEMORY_CONSOLIDATION_INTERVAL_SECONDS: ${MEMORY_CONSOLIDATION_INTERVAL_SECONDS:-300}
       MEMORY_CONSOLIDATION_TTL_THRESHOLD_SECONDS: ${MEMORY_CONSOLIDATION_TTL_THRESHOLD_SECONDS:-480}
       WORKING_MEMORY_PATTERN: memory:working:*
@@ -159,9 +155,9 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import os, psycopg, redis; redis.Redis.from_url(os.environ['REDIS_URL'], socket_timeout=2).ping(); psycopg.connect(os.environ['DATABASE_URL']).close()"]
+      test: ["CMD", "python", "-c", "import os, psycopg, redis; redis.Redis.from_url(os.environ['REDIS_URL'], socket_timeout=2, socket_connect_timeout=2).ping(); psycopg.connect(os.environ['DATABASE_URL'], connect_timeout=2).close()"]
       interval: 20s
-      timeout: 5s
+      timeout: 20s
       retries: 5
     mem_limit: 384m
     cpus: "0.35"
@@ -288,7 +284,9 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      STAGING_HOSTNAME: ${STAGING_HOSTNAME:-}
+      # Default to ":80" (plain HTTP edge) when no public hostname is provided, so Caddy does not
+      # misparse an empty site address as a global options block. Set a real host for HTTPS/ACME.
+      STAGING_HOSTNAME: ${STAGING_HOSTNAME:-:80}
       CADDY_EMAIL: ${CADDY_EMAIL:-}
     volumes:
       - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro

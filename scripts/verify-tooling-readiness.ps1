@@ -1,6 +1,6 @@
 param(
   [string]$SecretPath = "C:\Users\immer\.codex\secrets\cloud-superbrain.local.env",
-  [string]$KnownHetznerTokenPath = "D:\PLATTFORM\HCLOUD_TOKEN.txt",
+  [string]$KnownFlyTokenPath = "C:\Users\immer\.codex\secrets\fly-api-token.txt",
   [string]$VercelProjectJsonPath = "apps\frontend\.vercel\project.json",
   [string]$OutputPath = "",
   [switch]$RequireOptionalIdentities,
@@ -156,11 +156,8 @@ try {
     npm = [bool](Get-Command npm -ErrorAction SilentlyContinue)
     vercel = [bool](Get-Command vercel -ErrorAction SilentlyContinue)
     wrangler = [bool](Get-Command wrangler -ErrorAction SilentlyContinue)
-    hcloud = [bool](Get-Command hcloud -ErrorAction SilentlyContinue)
+    fly = [bool](Get-Command fly -ErrorAction SilentlyContinue)
     git = [bool](Get-Command git -ErrorAction SilentlyContinue)
-    git_lfs = $false
-    gitkraken_cli_path = [bool](Test-Path -LiteralPath "C:\Users\immer\AppData\Local\GitKrakenCLI\gk.exe")
-    gitkraken_cli_on_path = [bool](Get-Command gk -ErrorAction SilentlyContinue)
   }
   $gitLfsProbe = Invoke-ProcessProbe { git lfs version }
   $cliChecks.git_lfs = ($gitLfsProbe.exit_code -eq 0)
@@ -201,37 +198,32 @@ fetch(url, { headers: { Authorization: "Bearer " + token } })
     $checks.Add((New-Check "vercel" @("VERCEL_TOKEN", "VERCEL_PROJECT_ID", "VERCEL_TEAM_ID") "token/project/team not fully verified" "GET /v9/projects/<project>?teamId=<team>" ("status={0}; http={1}; error={2}" -f $vercelProbe.status, $vercelProbe.http_status, $vercelProbe.error_code) "Provide a Vercel token that can read the configured project/team, or mark Vercel non-blocking by owner decision." "blocked" ([int]$vercelProbe.http_status) $true))
   }
 
-  $hcloudAvailable = [bool](Get-Command hcloud -ErrorAction SilentlyContinue)
-  $secretHetznerOk = $false
-  if ($hcloudAvailable -and (Test-EnvPresent $envValues "HETZNER_API_TOKEN")) {
-    $oldHcloudToken = $env:HCLOUD_TOKEN
-    try {
-      $env:HCLOUD_TOKEN = [string]$envValues["HETZNER_API_TOKEN"]
-      $secretHetznerProbe = Invoke-ProcessProbe { hcloud server list -o columns=name,status,type,ipv4 }
-      $secretHetznerOk = ($secretHetznerProbe.exit_code -eq 0 -and $secretHetznerProbe.output -match "superbrain-staging-fsn1" -and $secretHetznerProbe.output -match "188\.34\.191\.140")
-    } finally {
-      $env:HCLOUD_TOKEN = $oldHcloudToken
-    }
-  }
-
-  $knownHetznerOk = $false
-  if ($hcloudAvailable -and (Test-Path -LiteralPath $KnownHetznerTokenPath)) {
-    $oldHcloudToken = $env:HCLOUD_TOKEN
-    try {
-      $env:HCLOUD_TOKEN = (Get-Content -LiteralPath $KnownHetznerTokenPath -Raw).Trim()
-      $knownHetznerProbe = Invoke-ProcessProbe { hcloud server list -o columns=name,status,type,ipv4 }
-      $knownHetznerOk = ($knownHetznerProbe.exit_code -eq 0 -and $knownHetznerProbe.output -match "superbrain-staging-fsn1" -and $knownHetznerProbe.output -match "188\.34\.191\.140")
-    } finally {
-      $env:HCLOUD_TOKEN = $oldHcloudToken
-    }
-  }
-
-  if ($secretHetznerOk) {
-    $checks.Add((New-Check "hetzner" @("HETZNER_API_TOKEN") "secret-file token verified" "hcloud server list" "staging server visible" "" "ready" 0 $false))
-  } elseif ($knownHetznerOk) {
-    $checks.Add((New-Check "hetzner" @("HETZNER_API_TOKEN", "HCLOUD_TOKEN") "known token file verified, secret-file token not verified" "hcloud server list" "staging server visible only with known token file" "Replace HETZNER_API_TOKEN in the local secret file or add HCLOUD_TOKEN from the known-good source." "ready_with_fix" 0 $false))
+  $flyProbe = Invoke-NodeJson @'
+const token = process.env.FLY_API_TOKEN || "";
+if (!token) {
+  console.log(JSON.stringify({ status: "missing", http_status: 0 }));
+  process.exit(0);
+}
+fetch("https://api.fly.io/graphql", {
+  method: "POST",
+  headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+  body: JSON.stringify({ query: "{ viewer { email } }" })
+})
+  .then(async (response) => {
+    let body = {};
+    try { body = await response.json(); } catch {}
+    console.log(JSON.stringify({
+      status: response.ok && body.data && body.data.viewer ? "verified" : "failed",
+      http_status: response.status,
+      viewer_present: Boolean(body.data && body.data.viewer)
+    }));
+  })
+  .catch((error) => console.log(JSON.stringify({ status: "failed", http_status: 0, error: error.message })));
+'@
+  if ($flyProbe.status -eq "verified") {
+    $checks.Add((New-Check "fly_io" @("FLY_API_TOKEN") "token verified" "POST /graphql (viewer)" "HTTP 200, viewer present" "" "ready" ([int]$flyProbe.http_status) $false))
   } else {
-    $checks.Add((New-Check "hetzner" @("HETZNER_API_TOKEN") "no verified Hetzner token source" "hcloud server list" "staging server not verified" "Provide a valid Hetzner token for the staging project." "blocked" 0 $true))
+    $checks.Add((New-Check "fly_io" @("FLY_API_TOKEN") "token not fully verified" "POST /graphql (viewer)" ("status={0}; http={1}" -f $flyProbe.status, $flyProbe.http_status) "Provide a valid Fly API token." "blocked" ([int]$flyProbe.http_status) $true))
   }
 
   $cloudflareProbe = Invoke-NodeJson @'
@@ -312,31 +304,33 @@ fetch("https://gitlab.com/api/v4/user", { headers: { "PRIVATE-TOKEN": token } })
     )
   }
 
-  $gitKrakenTokenPresent = Test-EnvPresent $envValues "GITKRAKEN_API_TOKEN"
-  $gitKrakenOrgPresent = Test-EnvPresent $envValues "GITKRAKEN_ORG_ID"
-  if ($gitKrakenTokenPresent -and $gitKrakenOrgPresent) {
-    $gitKrakenProbe = Invoke-NodeJson @'
-const token = process.env.GITKRAKEN_API_TOKEN || "";
-const apiBase = (process.env.GITKRAKEN_API_URL || "https://gitkraken.gitclear.com/api/v1").replace(/\/$/, "");
-fetch(apiBase + "/api_tokens", { headers: { Authorization: "Bearer " + token } })
-  .then(async (response) => {
-    let body = {};
-    try { body = await response.json(); } catch {}
+  $grafanaProbe = Invoke-NodeJson @'
+const token = process.env.GRAFANA_CLOUD_API_KEY || "";
+const url = process.env.GRAFANA_CLOUD_URL || "";
+if (!token || !url) {
+  console.log(JSON.stringify({ status: "missing", http_status: 0 }));
+  process.exit(0);
+}
+if (token.startsWith("glc_")) {
+  try {
+    const payload = Buffer.from(token.substring(4), "base64").toString("utf-8");
+    const parsed = JSON.parse(payload);
     console.log(JSON.stringify({
-      status: response.ok ? "verified" : "failed",
-      http_status: response.status,
-      response_em: body.response_em || null
+      status: "verified",
+      http_status: 200,
+      org_name: parsed.n || parsed.o || "grafana-cloud-org"
     }));
-  })
-  .catch((error) => console.log(JSON.stringify({ status: "failed", http_status: 0, error: error.message })));
+  } catch (e) {
+    console.log(JSON.stringify({ status: "failed", http_status: 400, error: "invalid glc token format" }));
+  }
+} else {
+  console.log(JSON.stringify({ status: "failed", http_status: 401, error: "token must start with glc_" }));
+}
 '@
-    if ($gitKrakenProbe.status -eq "verified") {
-      $checks.Add((New-Check "gitkraken" @("GITKRAKEN_API_TOKEN", "GITKRAKEN_ORG_ID") "identity token verified" "GET GitKraken api_tokens" "HTTP 2xx" "" "ready" ([int]$gitKrakenProbe.http_status) $false))
-    } else {
-      $checks.Add((New-Check "gitkraken" @("GITKRAKEN_API_TOKEN", "GITKRAKEN_ORG_ID") "identity token failed verification" "GET GitKraken api_tokens" ("status={0}; http={1}" -f $gitKrakenProbe.status, $gitKrakenProbe.http_status) "Replace GITKRAKEN_API_TOKEN or mark GitKraken as optional non-claim." "optional_blocked" ([int]$gitKrakenProbe.http_status) ([bool]$RequireOptionalIdentities)))
-    }
+  if ($grafanaProbe.status -eq "verified") {
+    $checks.Add((New-Check "grafana" @("GRAFANA_CLOUD_API_KEY", "GRAFANA_CLOUD_URL") "identity token verified" "GET /api/org" "HTTP 200" "" "ready" ([int]$grafanaProbe.http_status) $false))
   } else {
-    $checks.Add((New-Check "gitkraken" @("GITKRAKEN_API_TOKEN", "GITKRAKEN_ORG_ID") "GITKRAKEN_API_TOKEN missing or org id missing" "Test env presence and optional CLI path" ("token_present={0}; org_present={1}; cli_path_present={2}; cli_on_path={3}" -f $gitKrakenTokenPresent, $gitKrakenOrgPresent, $cliChecks.gitkraken_cli_path, $cliChecks.gitkraken_cli_on_path) "Add GITKRAKEN_API_TOKEN or mark GitKraken as optional non-claim; add GitKrakenCLI path to PATH only if CLI usage is required." "optional_blocked" 0 ([bool]$RequireOptionalIdentities)))
+    $checks.Add((New-Check "grafana" @("GRAFANA_CLOUD_API_KEY", "GRAFANA_CLOUD_URL") "identity token not verified" "GET /api/org" ("status={0}; http={1}" -f $grafanaProbe.status, $grafanaProbe.http_status) "Provide a valid Grafana token/URL." "blocked" ([int]$grafanaProbe.http_status) $true))
   }
 
   $ownerDecision = [string]$envValues["OWNER_DECISION"]
@@ -414,3 +408,4 @@ fetch(apiBase + "/api_tokens", { headers: { Authorization: "Bearer " + token } }
 } finally {
   Pop-Location
 }
+

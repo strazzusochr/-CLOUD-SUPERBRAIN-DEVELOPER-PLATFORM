@@ -150,7 +150,7 @@ These roles remain part of the persistent roster. Until native launch validation
 ### `cloud_infra_devops`
 
 - Core strengths: deployment, CI/CD, cloud runtime, compose flows, environment wiring.
-- Best uses in this repo: Hetzner staging sync, GHCR image flow, deploy scripts, runtime drift on hosted stack.
+- Best uses in this repo: Vercel/Fly.io staging sync, GHCR image flow, deploy scripts, runtime drift on hosted stack.
 - Constraints / not for: not the first choice for app-only logic bugs.
 - Inputs needed: target environment, deploy path, gate constraints, expected health/progress endpoints.
 - Evidence expected: deploy logs, health checks, hosted verifier output, rollback note.

@@ -1,0 +1,10 @@
+.codex/
+.phase1-artifacts/
+.playwright-mcp/
+.claude/
+.agents/
+.rules/
+.tmp-*/
+docs/7 layer 22 seiten Wörkbereich docs/
+infrastructure/
+services/

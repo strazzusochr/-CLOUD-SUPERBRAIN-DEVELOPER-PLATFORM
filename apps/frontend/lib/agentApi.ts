@@ -207,3 +207,165 @@ export async function fetchLiveAgents(): Promise<LiveRoster | null> {
     return null;
   }
 }
+
+export type RecentTask = {
+  id: string;
+  projectId: string;
+  sessionId: string | null;
+  agentType: string;
+  taskType: string;
+  description: string;
+  status: string;
+  priority: number;
+  createdAt: string | null;
+};
+
+export type RecentTasks = {
+  queueDepth: number;
+  queueDepthByPriority: Record<string, number>;
+  tasks: RecentTask[];
+};
+
+export async function fetchRecentTasks(): Promise<RecentTasks | null> {
+  const res = await get("/api/v1/tasks/recent");
+  if (!res) return null;
+  try {
+    const d = (await res.json()) as {
+      queue_depth?: number;
+      queue_depth_by_priority?: Record<string, number>;
+      tasks?: Array<{
+        task_id?: string;
+        project_id?: string;
+        session_id?: string | null;
+        agent_type?: string;
+        task_type?: string;
+        task_description?: string;
+        status?: string;
+        priority?: number;
+        created_at?: string;
+      }>;
+    };
+    const raw = Array.isArray(d.tasks) ? d.tasks : [];
+    return {
+      queueDepth: Number(d.queue_depth ?? 0),
+      queueDepthByPriority: typeof d.queue_depth_by_priority === "object" && d.queue_depth_by_priority ? d.queue_depth_by_priority : {},
+      tasks: raw.map((t) => ({
+        id: String(t.task_id ?? ""),
+        projectId: String(t.project_id ?? ""),
+        sessionId: t.session_id ?? null,
+        agentType: String(t.agent_type ?? ""),
+        taskType: String(t.task_type ?? ""),
+        description: String(t.task_description ?? ""),
+        status: String(t.status ?? ""),
+        priority: Number(t.priority ?? 0),
+        createdAt: t.created_at ?? null,
+      })),
+    };
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") console.error("agent-api response parse failed:", err);
+    return null;
+  }
+}
+
+export type RecentSession = {
+  id: string;
+  projectId: string;
+  startedAt: string | null;
+  status: string;
+  latestTaskId: string | null;
+  latestTaskStatus: string | null;
+  latestError: string | null;
+  assistantResult: string | null;
+};
+
+export async function fetchRecentSessions(): Promise<RecentSession[] | null> {
+  const res = await get("/api/v1/sessions/recent");
+  if (!res) return null;
+  try {
+    const d = (await res.json()) as { sessions?: Array<Record<string, unknown>> };
+    const raw = Array.isArray(d.sessions) ? d.sessions : [];
+    if (!raw.length) return [];
+    return raw.map((s) => ({
+      id: String(s.session_id ?? ""),
+      projectId: String(s.project_id ?? ""),
+      startedAt: (s.started_at as string | undefined) ?? null,
+      status: String(s.status ?? ""),
+      latestTaskId: (s.latest_task_id as string | undefined) ?? null,
+      latestTaskStatus: (s.latest_task_status as string | undefined) ?? null,
+      latestError: (s.latest_error as string | undefined) ?? null,
+      assistantResult: (s.assistant_result as string | undefined) ?? null,
+    }));
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") console.error("agent-api response parse failed:", err);
+    return null;
+  }
+}
+
+export type AuditEvent = { id: string; type: string; sessionId: string | null; occurredAt: string | null };
+
+export async function fetchAuditRecent(): Promise<AuditEvent[] | null> {
+  const res = await get("/api/v1/audit/recent");
+  if (!res) return null;
+  try {
+    const d = (await res.json()) as { events?: Array<Record<string, unknown>> };
+    const raw = Array.isArray(d.events) ? d.events : [];
+    return raw.map((e) => ({
+      id: String(e.id ?? ""),
+      type: String(e.event_type ?? ""),
+      sessionId: (e.session_id as string | undefined) ?? null,
+      occurredAt: (e.occurred_at as string | undefined) ?? null,
+    }));
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") console.error("agent-api response parse failed:", err);
+    return null;
+  }
+}
+
+export type MasterPlan = {
+  contractVersion: string;
+  overallPercent: number;
+  integrityStatus: string;
+  phasePercentages: Record<string, number>;
+  layerPercentages: Record<string, number>;
+  logicalRoles: string[];
+  dispatchEndpoints: string[];
+  bindingDocument: string | null;
+};
+
+export async function fetchMasterPlan(): Promise<MasterPlan | null> {
+  const res = await get("/api/v1/team/master-plan");
+  if (!res) return null;
+  try {
+    const d = (await res.json()) as Record<string, unknown>;
+    return {
+      contractVersion: String(d.contract_version ?? ""),
+      overallPercent: Number(d.overall_percent ?? 0),
+      integrityStatus: String(d.integrity_status ?? ""),
+      phasePercentages: (d.phase_percentages as Record<string, number> | undefined) ?? {},
+      layerPercentages: (d.layer_percentages as Record<string, number> | undefined) ?? {},
+      logicalRoles: Array.isArray(d.logical_roles) ? d.logical_roles.map(String) : [],
+      dispatchEndpoints: Array.isArray(d.dispatch_endpoints) ? d.dispatch_endpoints.map(String) : [],
+      bindingDocument: (d.binding_document as string | undefined) ?? null,
+    };
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") console.error("agent-api response parse failed:", err);
+    return null;
+  }
+}
+
+export type CompletionGate = { canSetAllTo100: boolean; reason: string | null };
+
+export async function fetchCompletionGate(): Promise<CompletionGate | null> {
+  const res = await get("/api/v1/project/progress/completion");
+  if (!res) return null;
+  try {
+    const d = (await res.json()) as Record<string, unknown>;
+    return {
+      canSetAllTo100: !!d.can_set_all_to_100,
+      reason: (d.reason as string | undefined) ?? null,
+    };
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") console.error("agent-api response parse failed:", err);
+    return null;
+  }
+}

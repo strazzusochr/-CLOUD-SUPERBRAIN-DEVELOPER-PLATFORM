@@ -1,0 +1,377 @@
+
+<h2 class="sr-only">Cloud Superbrain neural organism wiring plan v2 — live localhost:8081 data, Fly.io architecture, 5 agents, real gate status June 2026</h2>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+.ht{font-size:18px;font-weight:500;color:var(--color-text-primary);margin:0 0 2px;}
+.hs{font-size:12px;color:var(--color-text-secondary);margin:0 0 .75rem;}
+.tabs{display:flex;gap:4px;margin:.5rem 0 .75rem;flex-wrap:wrap;}
+.tab{font-size:12px;padding:4px 13px;border-radius:6px;cursor:pointer;border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);font-family:var(--font-sans);transition:all .15s;}
+.tab.on{background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info);}
+/* status bar */
+.srow{display:flex;gap:5px;flex-wrap:wrap;margin:.5rem 0 .75rem;}
+.sp{font-size:11px;padding:2px 9px;border-radius:99px;display:inline-flex;align-items:center;gap:4px;}
+.spg{background:#EAF3DE;color:#27500A;}.spr{background:#FCEBEB;color:#A32D2D;}.spa{background:#FAEEDA;color:#854F0B;}.spb{background:#EEEDFE;color:#3C3489;}
+.d{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.dg{background:#639922;}.dr{background:#E24B4A;}.da{background:#BA7517;}.db{background:#8B5CF6;}
+/* brain canvas */
+.bcv{background:#05070D;border-radius:var(--border-radius-lg);overflow:hidden;margin-bottom:.75rem;}
+.bsvg{width:100%;display:block;}
+/* hub grid */
+.hg{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:6px;}
+.hc{border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:.6rem .7rem;background:var(--color-background-primary);}
+.hh{display:flex;align-items:center;gap:7px;margin-bottom:3px;}
+.hd{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.hn{font-size:12px;font-weight:500;color:var(--color-text-primary);}
+.hr{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px;}
+.hlg{display:flex;gap:2px;flex-wrap:wrap;margin-bottom:3px;}
+.lt{font-size:10px;padding:1px 5px;border-radius:2px;font-weight:500;}
+.l1t{background:#E6F1FB;color:#0C447C;}.l2t{background:#EEEDFE;color:#3C3489;}.l3t{background:#FAEEDA;color:#633806;}
+.l4t{background:#EAF3DE;color:#27500A;}.l5t{background:#E1F5EE;color:#085041;}
+.l6t{background:#FAECE7;color:#712B13;}.l7t{background:#F1EFE8;color:#444441;}
+.ht2{font-size:10px;color:var(--color-text-tertiary);}
+.sdiv{height:.5px;background:var(--color-border-tertiary);margin:.75rem 0;}
+.shdr{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);font-weight:500;margin-bottom:.5rem;}
+/* port map */
+.port-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:5px;margin-bottom:.75rem;}
+.port-card{border-radius:var(--border-radius-md);padding:.5rem .65rem;border:.5px solid var(--color-border-tertiary);}
+.port-internal{background:var(--color-background-secondary);}
+.port-external{background:#EAF3DE;}
+.port-lane{background:#EEEDFE;}
+.port-num{font-size:15px;font-weight:500;margin-bottom:2px;font-family:monospace;}
+.port-lbl{font-size:11px;color:var(--color-text-primary);margin-bottom:2px;}
+.port-sub{font-size:10px;color:var(--color-text-secondary);}
+/* gate table */
+.gt{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:.75rem;}
+.gt th{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--color-text-tertiary);text-align:left;padding:4px 8px;border-bottom:.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);}
+.gt td{padding:5px 8px;border-bottom:.5px solid var(--color-border-tertiary);vertical-align:middle;}
+.gt tr:last-child td{border-bottom:none;}
+.gv{color:#27500A;background:#EAF3DE;font-size:10px;padding:1px 6px;border-radius:3px;}
+.gb{color:#A32D2D;background:#FCEBEB;font-size:10px;padding:1px 6px;border-radius:3px;}
+.ga{color:#854F0B;background:#FAEEDA;font-size:10px;padding:1px 6px;border-radius:3px;}
+/* agent table */
+.atbl{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:.75rem;}
+.atbl th{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--color-text-tertiary);text-align:left;padding:4px 8px;border-bottom:.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);}
+.atbl td{padding:5px 8px;border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-primary);vertical-align:middle;}
+.atbl tr:last-child td{border-bottom:none;}
+.ch{font-size:10px;padding:1px 5px;border-radius:2px;font-weight:500;display:inline-block;margin:1px;}
+.cc{background:#00E5FF15;color:#0891B2;border:.5px solid #00E5FF33;}
+.cb{background:#8B5CF615;color:#7C3AED;border:.5px solid #8B5CF633;}
+.cg{background:#22C55E15;color:#16A34A;border:.5px solid #22C55E33;}
+/* plan */
+.imp-grid{display:grid;grid-template-columns:65px 1fr;gap:8px;margin-bottom:.75rem;}
+.imp-p{font-size:11px;font-weight:500;padding:2px 8px;border-radius:3px;text-align:center;align-self:start;margin-top:1px;}
+.p0{background:#FCEBEB;color:#991B1B;}.p1{background:#FAEEDA;color:#92400E;}.p2{background:#EEEDFE;color:#5B21B6;}.p3{background:#EAF3DE;color:#166534;}
+.imp-steps{display:flex;flex-direction:column;gap:4px;}
+.is{font-size:11px;color:var(--color-text-primary);padding:4px 8px;background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:5px;}
+.is-sub{font-size:10px;color:var(--color-text-tertiary);margin-top:1px;}
+.is-env{font-size:10px;font-family:monospace;color:#0891B2;background:#00E5FF08;border:.5px solid #00E5FF22;border-radius:3px;padding:1px 5px;margin-top:2px;display:inline-block;}
+/* env block */
+.env-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:.75rem;}
+.env-row{background:var(--color-background-secondary);border:.5px solid var(--color-border-tertiary);border-radius:5px;padding:.45rem .65rem;}
+.env-key{font-family:monospace;font-size:11px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px;}
+.env-state{font-size:10px;}
+.env-ok{color:#27500A;}.env-miss{color:#A32D2D;}.env-opt{color:#854F0B;}
+/* signal flows */
+.op-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:.75rem;}
+.op{background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:.65rem .75rem;}
+.op-t{font-size:12px;font-weight:500;margin-bottom:6px;}
+.op-s{display:flex;flex-direction:column;gap:3px;}
+.os{display:flex;align-items:flex-start;gap:6px;font-size:11px;color:var(--color-text-secondary);}
+.osd{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:3px;}
+</style>
+
+<p class="ht">Collective Organism — Neural Wiring Plan v2 <span style="font-size:13px;font-weight:400;color:var(--color-text-secondary)">· live data localhost:8081</span></p>
+<p class="hs">22 workspaces · 5 agents · 7 layers · Fly.io architecture · real gate status · June 2026</p>
+
+<!-- Status bar — updated from live API -->
+<div class="srow">
+  <span class="sp spr"><span class="d dr"></span>L2/L3/L6 — FLY_API_TOKEN fehlt</span>
+  <span class="sp spr"><span class="d dr"></span>STAGING_BASE_URL fehlt</span>
+  <span class="sp spr"><span class="d dr"></span>Vercel Preview — 401</span>
+  <span class="sp spg"><span class="d dg"></span>L1 FE — Vercel live ✓</span>
+  <span class="sp spg"><span class="d dg"></span>GHCR 6/6 Digests ✓</span>
+  <span class="sp spg"><span class="d dg"></span>gitleaks clean ✓</span>
+  <span class="sp spg"><span class="d dg"></span>Branch protection ✓</span>
+  <span class="sp spg"><span class="d dg"></span>Fly budget €9/€20 ✓</span>
+  <span class="sp spg"><span class="d dg"></span>localhost:8081 healthy ✓</span>
+  <span class="sp spa"><span class="d da"></span>L4 LLM — dry-run, HF_TOKEN fehlt</span>
+  <span class="sp spb"><span class="d db"></span>5 agents · research NEU</span>
+</div>
+
+<div class="tabs">
+  <button class="tab on" onclick="sv('topo',this)">Brain topology</button>
+  <button class="tab" onclick="sv('ports',this)">Port-Topologie</button>
+  <button class="tab" onclick="sv('gates',this)">Gate-Status</button>
+  <button class="tab" onclick="sv('agents',this)">5 Agents</button>
+  <button class="tab" onclick="sv('plan',this)">Build plan</button>
+</div>
+
+<!-- TOPOLOGY -->
+<div id="v-topo">
+<div class="bcv">
+<svg class="bsvg" viewBox="0 0 680 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cloud Superbrain neural topology: 8 brain regions mapped to 7 layers, Fly.io as L2/L3/L6 runtime">
+<title>Cloud Superbrain neural topology v2 — Fly.io architecture</title>
+<ellipse cx="340" cy="162" rx="295" ry="140" fill="#0A0F1E" opacity=".98"/>
+<ellipse cx="340" cy="162" rx="290" ry="135" fill="none" stroke="#00E5FF" stroke-width=".4" opacity=".15"/>
+<line x1="340" y1="162" x2="155" y2="95" stroke="#8B5CF6" stroke-width="1" opacity=".4" stroke-dasharray="5,3"/>
+<line x1="340" y1="162" x2="525" y2="95" stroke="#3B82F6" stroke-width="1" opacity=".4" stroke-dasharray="5,3"/>
+<line x1="340" y1="162" x2="155" y2="230" stroke="#EC4899" stroke-width="1" opacity=".4" stroke-dasharray="5,3"/>
+<line x1="340" y1="162" x2="525" y2="230" stroke="#00E5FF" stroke-width="1" opacity=".4" stroke-dasharray="5,3"/>
+<line x1="340" y1="162" x2="340" y2="48" stroke="#FBBF24" stroke-width="1" opacity=".4" stroke-dasharray="5,3"/>
+<line x1="340" y1="162" x2="340" y2="278" stroke="#22C55E" stroke-width="1" opacity=".4" stroke-dasharray="5,3"/>
+<line x1="340" y1="162" x2="82" y2="158" stroke="#F59E0B" stroke-width="1" opacity=".4" stroke-dasharray="5,3"/>
+<line x1="340" y1="162" x2="598" y2="158" stroke="#EF4444" stroke-width=".7" opacity=".3" stroke-dasharray="3,4"/>
+<line x1="155" y1="95" x2="525" y2="95" stroke="#fff" stroke-width=".3" opacity=".06"/>
+<line x1="155" y1="230" x2="525" y2="230" stroke="#fff" stroke-width=".3" opacity=".06"/>
+<line x1="155" y1="95" x2="155" y2="230" stroke="#fff" stroke-width=".3" opacity=".06"/>
+<line x1="525" y1="95" x2="525" y2="230" stroke="#fff" stroke-width=".3" opacity=".06"/>
+<!-- CORE -->
+<circle cx="340" cy="162" r="38" fill="#0D1225" stroke="#8B5CF6" stroke-width="1.5"/>
+<circle cx="340" cy="162" r="32" fill="#121A32" stroke="#8B5CF6" stroke-width=".5" opacity=".5"/>
+<circle cx="340" cy="162" r="6" fill="#8B5CF6" opacity=".8"/>
+<text x="340" y="155" text-anchor="middle" fill="#A78BFA" font-size="9" font-family="monospace">CORE NUCLEUS</text>
+<text x="340" y="165" text-anchor="middle" fill="#C4B5FD" font-size="8" font-family="monospace">LangGraph</text>
+<text x="340" y="174" text-anchor="middle" fill="#8B5CF6" font-size="7.5" font-family="monospace">+ Redis WM</text>
+<!-- L2 FRONTAL - Fly.io -->
+<circle cx="340" cy="48" r="30" fill="#0D1225" stroke="#FBBF24" stroke-width="1.3"/>
+<circle cx="340" cy="48" r="5" fill="#FBBF24" opacity=".85"/>
+<text x="340" y="43" text-anchor="middle" fill="#FCD34D" font-size="8.5" font-family="monospace">FRONTAL — L2</text>
+<text x="340" y="53" text-anchor="middle" fill="#EAF2FF" font-size="7.5" font-family="monospace">Orchestrator</text>
+<text x="340" y="62" text-anchor="middle" fill="#FBBF24" font-size="7" font-family="monospace">Fly.io machine</text>
+<!-- L3 PREFRONTAL - Fly.io -->
+<circle cx="155" cy="95" r="32" fill="#0D1225" stroke="#8B5CF6" stroke-width="1.3"/>
+<circle cx="155" cy="95" r="5" fill="#8B5CF6" opacity=".85"/>
+<text x="155" y="89" text-anchor="middle" fill="#C4B5FD" font-size="8.5" font-family="monospace">PREFRONTAL</text>
+<text x="155" y="99" text-anchor="middle" fill="#EAF2FF" font-size="7.5" font-family="monospace">5 Agents L3</text>
+<text x="155" y="108" text-anchor="middle" fill="#8B5CF6" font-size="7" font-family="monospace">Fly.io machine</text>
+<!-- L4 CORPUS CALLOSUM -->
+<circle cx="525" cy="95" r="32" fill="#0D1225" stroke="#3B82F6" stroke-width="1.3"/>
+<circle cx="525" cy="95" r="5" fill="#3B82F6" opacity=".85"/>
+<text x="525" y="89" text-anchor="middle" fill="#93C5FD" font-size="8.5" font-family="monospace">CORPUS CALL.</text>
+<text x="525" y="99" text-anchor="middle" fill="#EAF2FF" font-size="7.5" font-family="monospace">LLM Gateway L4</text>
+<text x="525" y="108" text-anchor="middle" fill="#3B82F6" font-size="7" font-family="monospace">HF Router · 12 models</text>
+<!-- L6 HIPPOCAMPUS - Fly.io -->
+<circle cx="155" cy="230" r="32" fill="#0D1225" stroke="#EC4899" stroke-width="1.3"/>
+<circle cx="155" cy="230" r="5" fill="#EC4899" opacity=".85"/>
+<text x="155" y="224" text-anchor="middle" fill="#F9A8D4" font-size="8.5" font-family="monospace">HIPPOCAMPUS</text>
+<text x="155" y="234" text-anchor="middle" fill="#EAF2FF" font-size="7.5" font-family="monospace">Memory L6</text>
+<text x="155" y="243" text-anchor="middle" fill="#EC4899" font-size="7" font-family="monospace">Fly.io · pgvector</text>
+<!-- L5 THALAMUS -->
+<circle cx="525" cy="230" r="32" fill="#0D1225" stroke="#00E5FF" stroke-width="1.3"/>
+<circle cx="525" cy="230" r="5" fill="#00E5FF" opacity=".85"/>
+<text x="525" y="224" text-anchor="middle" fill="#67E8F9" font-size="8.5" font-family="monospace">THALAMUS</text>
+<text x="525" y="234" text-anchor="middle" fill="#EAF2FF" font-size="7.5" font-family="monospace">MCP Gateway L5</text>
+<text x="525" y="243" text-anchor="middle" fill="#00E5FF" font-size="7" font-family="monospace">GH Actions · GHCR</text>
+<!-- L7 CEREBELLUM -->
+<circle cx="340" cy="278" r="30" fill="#0D1225" stroke="#22C55E" stroke-width="1.3"/>
+<circle cx="340" cy="278" r="4.5" fill="#22C55E" opacity=".85"/>
+<text x="340" y="273" text-anchor="middle" fill="#86EFAC" font-size="8.5" font-family="monospace">CEREBELLUM</text>
+<text x="340" y="283" text-anchor="middle" fill="#EAF2FF" font-size="7.5" font-family="monospace">Observability L7</text>
+<text x="340" y="292" text-anchor="middle" fill="#22C55E" font-size="7" font-family="monospace">Grafana Cloud · OTel</text>
+<!-- L1 SENSORY -->
+<circle cx="82" cy="158" r="32" fill="#0D1225" stroke="#F59E0B" stroke-width="1.3"/>
+<circle cx="82" cy="158" r="5" fill="#F59E0B" opacity=".85"/>
+<text x="82" y="152" text-anchor="middle" fill="#FCD34D" font-size="8.5" font-family="monospace">SENSORY CX</text>
+<text x="82" y="162" text-anchor="middle" fill="#EAF2FF" font-size="7.5" font-family="monospace">Frontend L1</text>
+<text x="82" y="171" text-anchor="middle" fill="#F59E0B" font-size="7" font-family="monospace">Vercel · Next.js</text>
+<!-- L3 MOTOR (research agent added) -->
+<circle cx="598" cy="158" r="30" fill="#0D1225" stroke="#EF4444" stroke-width="1.3" stroke-dasharray="4,2"/>
+<circle cx="598" cy="158" r="4.5" fill="#EF4444" opacity=".7"/>
+<text x="598" y="150" text-anchor="middle" fill="#FCA5A5" font-size="8" font-family="monospace">MOTOR CX</text>
+<text x="598" y="160" text-anchor="middle" fill="#EAF2FF" font-size="7.5" font-family="monospace">Coder+Test+Research</text>
+<text x="598" y="169" text-anchor="middle" fill="#EF4444" font-size="7" font-family="monospace">Fly.io · token needed</text>
+<!-- Budget badge -->
+<rect x="550" y="295" width="118" height="26" rx="4" fill="#121A32" stroke="#22C55E" stroke-width=".5"/>
+<text x="609" y="305" text-anchor="middle" fill="#22C55E" font-size="7.5" font-family="monospace">Infra budget</text>
+<text x="609" y="315" text-anchor="middle" fill="#86EFAC" font-size="8" font-family="monospace" font-weight="bold">€9 / €20 · 45% · ok</text>
+<text x="20" y="318" fill="#fff" font-size="6.5" opacity=".2" font-family="monospace">dashed = token needed  ·  solid = active  ·  Fly.io = L2/L3/L6 runtime</text>
+</svg>
+</div>
+<div class="shdr">8 brain regions — updated: Fly.io replaces Hetzner</div>
+<div class="hg" id="hubGrid"></div>
+</div>
+
+<!-- PORT TOPOLOGY -->
+<div id="v-ports">
+<div class="shdr">Docker-interne Ports (nur 8081 am Host sichtbar)</div>
+<div class="port-grid">
+  <div class="port-card port-external"><div class="port-num" style="color:#F59E0B;">:8081</div><div class="port-lbl">nginx → Host</div><div class="port-sub">einzige öffentliche Zugangsport lokal · proxied alle Layer</div></div>
+  <div class="port-card port-internal"><div class="port-num" style="color:#F59E0B;">:3000</div><div class="port-lbl">frontend (Next.js)</div><div class="port-sub">Docker-intern · L1 · exposed nur über nginx</div></div>
+  <div class="port-card port-internal"><div class="port-num" style="color:#FBBF24;">:8000</div><div class="port-lbl">agent-api (FastAPI)</div><div class="port-sub">Docker-intern · L2 ORC · healthy ✓</div></div>
+  <div class="port-card port-internal"><div class="port-num" style="color:#3B82F6;">:4000</div><div class="port-lbl">llm-gateway</div><div class="port-sub">Docker-intern · L4 LLM · dry-run mode</div></div>
+  <div class="port-card port-internal"><div class="port-num" style="color:#00E5FF;">:9000</div><div class="port-lbl">mcp-gateway</div><div class="port-sub">Docker-intern · L5 MCP · playwright✓ github✗ e2b✗</div></div>
+  <div class="port-card port-internal"><div class="port-num" style="color:#EC4899;">:5432</div><div class="port-lbl">postgres pgvector</div><div class="port-sub">Docker-intern · L6 · 6 tables · vector ext ✓</div></div>
+  <div class="port-card port-internal"><div class="port-num" style="color:#EC4899;">:6379</div><div class="port-lbl">redis</div><div class="port-sub">Docker-intern · L6 · 256MB · allkeys-lru</div></div>
+  <div class="port-card port-lane"><div class="port-num" style="color:#8B5CF6;">8000–8005</div><div class="port-lbl">externe Multiagenten-Lanes</div><div class="port-sub">NICHT Produkt-Runtime · separate Codex-Lanes · DEV-ONLY</div></div>
+</div>
+<div class="sdiv"></div>
+<div class="shdr">nginx routing-regeln (aus dev.conf)</div>
+<div style="background:var(--color-background-secondary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:.75rem 1rem;font-family:monospace;font-size:11px;color:var(--color-text-primary);line-height:1.7;">
+  /api/* → agent-api:8000 &nbsp;&nbsp;<span style="color:var(--color-text-tertiary);"># L2 ORC</span><br>
+  /mcp/* → mcp-gateway:9000 &nbsp;&nbsp;<span style="color:var(--color-text-tertiary);"># L5 MCP</span><br>
+  /llm/* → llm-gateway:4000 &nbsp;&nbsp;<span style="color:var(--color-text-tertiary);"># L4 LLM</span><br>
+  /* &nbsp;&nbsp;&nbsp;&nbsp;→ frontend:3000 &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--color-text-tertiary);"># L1 FE</span>
+</div>
+</div>
+
+<!-- GATE STATUS -->
+<div id="v-gates">
+<div class="shdr">Live gate-status aus external-gate-audit — Juni 2026</div>
+<table class="gt">
+<thead><tr><th>Gate</th><th>Status</th><th>Blocker / Env-Key</th><th>Aktion</th></tr></thead>
+<tbody id="gateBody"></tbody>
+</table>
+<div class="sdiv"></div>
+<div class="shdr">Benötigte ENV-Keys — vollständige Liste</div>
+<div class="env-grid" id="envGrid"></div>
+</div>
+
+<!-- 5 AGENTS -->
+<div id="v-agents">
+<div class="shdr">5 deterministische Agent-Profile — aus /api/v1/models/capabilities</div>
+<table class="atbl">
+<thead><tr><th>Agent</th><th>Primary model</th><th>Fallbacks</th><th>MCP tools</th><th>Tokens</th></tr></thead>
+<tbody id="agentBody"></tbody>
+</table>
+<div class="sdiv"></div>
+<div class="shdr">12 konfigurierte Modelle via HuggingFace Router</div>
+<div style="display:flex;flex-wrap:wrap;gap:4px;" id="modelGrid"></div>
+</div>
+
+<!-- BUILD PLAN -->
+<div id="v-plan">
+<div class="shdr">Konkrete Build-Plan — von lokalem Stand zu live Fly.io</div>
+<div class="imp-grid" id="planGrid"></div>
+</div>
+
+<script>
+const LC={l1:'l1t',l2:'l2t',l3:'l3t',l4:'l4t',l5:'l5t',l6:'l6t',l7:'l7t'};
+const LL={l1:'L1',l2:'L2',l3:'L3',l4:'L4',l5:'L5',l6:'L6',l7:'L7'};
+
+const hubs=[
+  {c:'#FBBF24',n:'Frontal — L2 ORC',r:'Orchestrator · LangGraph state machine · Fly.io machine',ls:['l2'],t:'task_router · langgraph · PostgreSQL checkpoint'},
+  {c:'#8B5CF6',n:'Prefrontal — L3 Planner',r:'Task decomposition · planning · Fly.io machine',ls:['l3','l4'],t:'DeepSeek-V4-Pro → Qwen3.6-35B → Kimi-K2.6'},
+  {c:'#3B82F6',n:'Corpus Callosum — L4 LLM',r:'12 models via HF Router · unified gateway',ls:['l4'],t:'deterministic_dry_run · HF_TOKEN benötigt für live'},
+  {c:'#EC4899',n:'Hippocampus — L6 MEM',r:'PostgreSQL pgvector · Redis · Fly.io Volume',ls:['l6'],t:'6 tables · pgcrypto · vector · 256MB Redis'},
+  {c:'#00E5FF',n:'Thalamus — L5 MCP',r:'8 MCP tools · playwright✓ · e2b✗ · github✗',ls:['l5'],t:'GHCR 6/6 ✓ · gitleaks clean · branch protection ✓'},
+  {c:'#22C55E',n:'Cerebellum — L7 OBS',r:'Grafana Cloud · OTel · Langfuse · GRAFANA_CLOUD_API_KEY fehlt',ls:['l7'],t:'target: cordialtrout569.grafana.net'},
+  {c:'#F59E0B',n:'Sensory Cortex — L1 FE',r:'Vercel · Next.js 15 · R3F cortex · 25 routes',ls:['l1'],t:'Production: frontend-seven-psi-78.vercel.app'},
+  {c:'#EF4444',n:'Motor Cortex — L3 AP',r:'coder+tester+devops+research · Fly.io · token needed',ls:['l3','l5'],t:'Qwen3-Coder / Gemma4 / DSFlash / GLM-5.1'}
+];
+const hg=document.getElementById('hubGrid');
+hubs.forEach(h=>{
+  const d=document.createElement('div');d.className='hc';
+  d.innerHTML=`<div class="hh"><div class="hd" style="background:${h.c}"></div><span class="hn">${h.n}</span></div><div class="hr">${h.r}</div><div class="hlg">${h.ls.map(l=>`<span class="lt ${LC[l]}">${LL[l]}</span>`).join('')}</div><div class="ht2">${h.t}</div>`;
+  hg.appendChild(d);
+});
+
+const gates=[
+  {name:'GHCR image digests',status:'verified',blocker:'—',action:'6/6 services ✓ (sha256 alle vorhanden)'},
+  {name:'gitleaks secret scan',status:'verified',blocker:'—',action:'1.76GB gescannt · no leaks · clean ✓'},
+  {name:'branch protection',status:'verified',blocker:'—',action:'chore/repo-bootstrap · verify context ✓'},
+  {name:'Fly.io budget check',status:'verified',blocker:'—',action:'€9/€20 · 45% · allow_new_infra=true ✓'},
+  {name:'localhost:8081 health',status:'verified',blocker:'—',action:'7 services healthy · postgres/redis/workers ✓'},
+  {name:'STAGING_BASE_URL',status:'blocked',blocker:'STAGING_BASE_URL nicht gesetzt',action:'Fly.io HTTPS App-URL setzen'},
+  {name:'Vercel Preview',status:'blocked',blocker:'401 Unauthorized (Deployment Protection)',action:'Protection Bypass Header konfigurieren'},
+  {name:'Hosted agent-api',status:'blocked',blocker:'AGENT_API_BASE_URL → Fly.io URL fehlt',action:'flyctl deploy → URL in Vercel env setzen'},
+  {name:'FLY_API_TOKEN (container)',status:'blocked',blocker:'FLY_API_TOKEN nicht im Container',action:'flyctl auth login → .env lokal setzen'},
+  {name:'HF_TOKEN (LLM live)',status:'missing',blocker:'LLM bleibt dry-run bis Token gesetzt',action:'HF_TOKEN setzen → live_provider_calls freischalten'},
+  {name:'GRAFANA_CLOUD_API_KEY',status:'missing',blocker:'L7 OBS nicht live-verified',action:'Grafana API key → cordialtrout569.grafana.net'},
+  {name:'GITHUB_TOKEN (container)',status:'missing',blocker:'github_mcp tool locked',action:'gh auth status OK → Token in Docker-env eintragen'}
+];
+const gb2=document.getElementById('gateBody');
+gates.forEach(g=>{
+  const tr=document.createElement('tr');
+  const cls=g.status==='verified'?'gv':g.status==='blocked'?'gb':'ga';
+  tr.innerHTML=`<td style="font-weight:500;font-size:11px;">${g.name}</td><td><span class="${cls}">${g.status}</span></td><td style="font-size:10px;color:var(--color-text-secondary);">${g.blocker}</td><td style="font-size:10px;color:var(--color-text-primary);">${g.action}</td>`;
+  gb2.appendChild(tr);
+});
+
+const envs=[
+  {k:'FLY_API_TOKEN',s:'missing',d:'Fly.io runtime L2/L3/L6'},
+  {k:'STAGING_BASE_URL',s:'missing',d:'Fly.io HTTPS app URL'},
+  {k:'AGENT_API_BASE_URL',s:'missing',d:'Fly.io /api endpoint'},
+  {k:'MCP_GATEWAY_BASE_URL',s:'missing',d:'Fly.io /mcp endpoint'},
+  {k:'LLM_GATEWAY_BASE_URL',s:'missing',d:'Fly.io /llm endpoint'},
+  {k:'HF_TOKEN',s:'missing',d:'LLM live inference'},
+  {k:'GRAFANA_CLOUD_API_KEY',s:'missing',d:'L7 observability'},
+  {k:'GITHUB_TOKEN',s:'missing',d:'MCP github_mcp tool'},
+  {k:'GHCR_TOKEN',s:'missing',d:'Registry read (GHCR)'},
+  {k:'CLOUDFLARE_API_TOKEN',s:'opt',d:'L4 CF AI Gateway'},
+  {k:'VERCEL_TOKEN',s:'opt',d:'Staging verification'},
+  {k:'LANGFUSE_PUBLIC_KEY',s:'opt',d:'LLM trace logging'}
+];
+const eg=document.getElementById('envGrid');
+envs.forEach(e=>{
+  const cls=e.s==='missing'?'env-miss':e.s==='opt'?'env-opt':'env-ok';
+  const lbl=e.s==='missing'?'❌ fehlt':e.s==='opt'?'⚠ optional':'✓ ok';
+  const d=document.createElement('div');d.className='env-row';
+  d.innerHTML=`<div class="env-key">${e.k}</div><div class="env-state ${cls}">${lbl} · ${e.d}</div>`;
+  eg.appendChild(d);
+});
+
+const agents=[
+  {n:'planner',col:'#8B5CF6',model:'DeepSeek-V4-Pro:fastest',fb:'Qwen3.6-35B-A3B → Kimi-K2.6',tools:'memory_read · task_router · langgraph',tok:'4096'},
+  {n:'coder',col:'#3B82F6',model:'Qwen3-Coder-Next:fastest',fb:'DeepSeek-V4-Flash → Gemma-4-31B',tools:'memory_read · github_mcp · filesystem_mcp · mcp_gateway',tok:'8192'},
+  {n:'tester',col:'#22C55E',model:'Gemma-4-26B-A4B:cheapest',fb:'Qwen3.5-9B → Llama-3.1-8B',tools:'memory_read · e2b_mcp · playwright_mcp · filesystem_mcp · mcp_gateway',tok:'4096'},
+  {n:'devops',col:'#F59E0B',model:'DeepSeek-V4-Flash:fastest',fb:'Qwen3.6-35B-A3B → Gemma-4-31B',tools:'memory_read · github_mcp · mcp_gateway',tok:'4096'},
+  {n:'research 🆕',col:'#A78BFA',model:'zai-org/GLM-5.1:fastest',fb:'DeepSeek-V4-Pro → inclusionAI/Ling-2.6-1T',tools:'memory_read · mcp_gateway',tok:'4096'}
+];
+const ab=document.getElementById('agentBody');
+agents.forEach(a=>{
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><span style="color:${a.col};font-weight:500;">${a.n}</span></td><td><span class="ch cb" style="font-size:10px;">${a.model}</span></td><td style="color:var(--color-text-secondary);font-size:10px;">${a.fb}</td><td>${a.tools.split(' · ').map(t=>`<span class="ch cc">${t}</span>`).join('')}</td><td style="font-family:monospace;font-size:10px;">${a.tok}</td>`;
+  ab.appendChild(tr);
+});
+
+const models=['Qwen/Qwen3-Coder-Next:fastest','Qwen/Qwen3.5-9B:cheapest','Qwen/Qwen3.6-35B-A3B:fastest','deepseek-ai/DeepSeek-V4-Flash:fastest','deepseek-ai/DeepSeek-V4-Pro:fastest','google/gemma-4-26B-A4B-it:cheapest','google/gemma-4-31B-it:fastest','inclusionAI/Ling-2.6-1T:fastest','meta-llama/Llama-3.1-8B-Instruct:cheapest','meta-llama/Llama-3.1-8B-Instruct:fastest','moonshotai/Kimi-K2.6:fastest','zai-org/GLM-5.1:fastest'];
+const mg=document.getElementById('modelGrid');
+models.forEach(m=>{
+  const s=document.createElement('span');
+  s.className='ch cb';s.style.fontSize='10px';s.style.margin='1px';s.textContent=m;
+  mg.appendChild(s);
+});
+
+const plan=[
+  {p:'P0',cls:'p0',label:'SOFORT',steps:[
+    {t:'flyctl auth login → FLY_API_TOKEN in .env',s:'Token transient in Prozess-Env setzen · NIEMALS ins Repo committen · .env ist in .gitignore',env:'FLY_API_TOKEN'},
+    {t:'fly app create cloud-superbrain → fly.toml prüfen',s:'app="cloud-superbrain" · primary_region="fra" · shared-cpu-1x · 1GB RAM · fly.toml bereits vorhanden'},
+    {t:'flyctl deploy → STAGING_BASE_URL ermitteln',s:'docker-compose.cloud.yml als Basis · 6 GHCR Images bereits vorhanden · Digests verified',env:'STAGING_BASE_URL'}
+  ]},
+  {p:'P1',cls:'p1',label:'WIRING',steps:[
+    {t:'Vercel env: AGENT_API_BASE_URL / MCP / LLM auf Fly.io setzen',s:'vercel env add AGENT_API_BASE_URL preview/production → Fly HTTPS URL · aktuell auf alte Hetzner-IP',env:'AGENT_API_BASE_URL, MCP_GATEWAY_BASE_URL, LLM_GATEWAY_BASE_URL'},
+    {t:'Vercel Deployment Protection: bypass konfigurieren',s:'x-vercel-protection-bypass Header in verify-external-gates.ps1 · oder Protection für staging branch deaktivieren'},
+    {t:'GITHUB_TOKEN in Docker-Env → github_mcp freischalten',s:'gh auth status zeigt Token ✓ · muss aber in docker-compose.dev.yml ENV gesetzt werden',env:'GITHUB_TOKEN'}
+  ]},
+  {p:'P2',cls:'p2',label:'LLM LIVE',steps:[
+    {t:'HF_TOKEN setzen → live_provider_calls freischalten',s:'HuggingFace Router hat 12 Modelle konfiguriert · wartet nur auf Token · requires_request_metadata aktivieren',env:'HF_TOKEN'},
+    {t:'Cloudflare AI Gateway als LLM-Cache vorschalten',s:'CLOUDFLARE_AI_GATEWAY_URL → LiteLLM oder direkter HF Router via CF Edge · 100K req/day free',env:'CLOUDFLARE_AI_GATEWAY_URL'},
+    {t:'Langfuse aktivieren → LANGFUSE_ENABLED=true',s:'LANGFUSE_ENABLED=false in docker-compose · DB-Schema bereits vorbereitet (langfuse DB in postgres)',env:'LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY'}
+  ]},
+  {p:'P3',cls:'p3',label:'OBS LIVE',steps:[
+    {t:'Grafana Cloud API Key setzen → L7 live',s:'cordialtrout569.grafana.net · GRAFANA_CLOUD_API_KEY → OTel Collector → Prometheus metrics · Langfuse traces',env:'GRAFANA_CLOUD_API_KEY, GRAFANA_CLOUD_URL'},
+    {t:'Organism SSE-Stream: /api/v1/organism/live-state binden',s:'Fly.io HTTPS → Vercel rewrite → R3F brain regions reagieren auf agent_state_change Events · 5 Agenten leuchten auf'},
+    {t:'Research-Agent aktivieren: GLM-5.1 im Organism sichtbar',s:'5. Brain-Region im R3F Canvas hinzufügen · Corpus-Callosum-Routing für research-Slot · zai-org/GLM-5.1'}
+  ]}
+];
+const pg=document.getElementById('planGrid');
+plan.forEach(p=>{
+  const label=document.createElement('div');label.className=`imp-p ${p.cls}`;label.innerHTML=`<div>${p.p}</div><div style="font-size:9px;margin-top:2px;">${p.label}</div>`;
+  const steps=document.createElement('div');steps.className='imp-steps';
+  p.steps.forEach(s=>{
+    const d=document.createElement('div');d.className='is';
+    d.innerHTML=`<div style="font-weight:500;">${s.t}</div><div class="is-sub">${s.s}</div>${s.env?`<div class="is-env">${s.env}</div>`:''}`;
+    steps.appendChild(d);
+  });
+  pg.appendChild(label);pg.appendChild(steps);
+});
+
+const vs=['topo','ports','gates','agents','plan'];
+const ids={topo:'v-topo',ports:'v-ports',gates:'v-gates',agents:'v-agents',plan:'v-plan'};
+function sv(name,btn){
+  vs.forEach(v=>{document.getElementById(ids[v]).style.display=v===name?'':'none';});
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  if(btn)btn.classList.add('on');
+}
+sv('topo',document.querySelector('.tab.on'));
+</script>

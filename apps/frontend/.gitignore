@@ -2,3 +2,6 @@
 playwright-report/
 test-results/
 e2e/__artifacts__/
+
+.vercel
+.env*.local

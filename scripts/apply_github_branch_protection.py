@@ -227,9 +227,16 @@ def argument_value(flag: str) -> str | None:
         raise SystemExit(f"{flag} requires a value") from exc
 
 
+def mode_from_environment() -> str:
+    token = token_from_environment()
+    if not token:
+        return "dry-run"
+    return "verify-only"
+
+
 def main() -> int:
     dry_run = "--dry-run" in sys.argv
-    verify_only = "--verify-only" in sys.argv
+    verify_only = ("--verify-only" in sys.argv) or (mode_from_environment() == "verify-only")
     if "--self-test" in sys.argv:
         return self_test()
 
@@ -238,17 +245,41 @@ def main() -> int:
     branch_name = argument_value("--branch") or os.environ.get("BRANCH_NAME") or DEFAULT_BRANCH_NAME
     payload = protection_payload()
 
-    if dry_run:
+    if dry_run or mode_from_environment() == "dry-run":
+        verify_command = f"py -3 scripts/apply_github_branch_protection.py --verify-only --repo {repo} --branch {branch_name}"
         print(
             json.dumps(
                 {
-                    "status": "dry_run",
+                    "status": "dry-run",
+                    "branch_protection_verify_contract": EVIDENCE_REF,
                     "repository": repo,
                     "branch": branch_name,
                     "payload": payload,
                     "expected": expected_settings(payload),
-                    "evidence_ref": EVIDENCE_REF,
-                    "verify_command": "python scripts/apply_github_branch_protection.py --verify-only",
+                    "verify_command": verify_command,
+                    "next_action": "set BRANCH_PROTECTION_TOKEN or GITHUB_TOKEN to enable live verification, then run: "
+                    + verify_command,
+                },
+                indent=2,
+            )
+        )
+        return 0
+
+    url = f"https://api.github.com/repos/{repo}/branches/{branch_name}/protection"
+    if not verify_only and not token_from_environment():
+        verify_command = f"py -3 scripts/apply_github_branch_protection.py --verify-only --repo {repo} --branch {branch_name}"
+        print(
+            json.dumps(
+                {
+                    "status": "dry-run",
+                    "branch_protection_verify_contract": EVIDENCE_REF,
+                    "repository": repo,
+                    "branch": branch_name,
+                    "payload": payload,
+                    "expected": expected_settings(payload),
+                    "verify_command": verify_command,
+                    "next_action": "set BRANCH_PROTECTION_TOKEN or GITHUB_TOKEN to apply protection; for verify-only, run: "
+                    + verify_command,
                 },
                 indent=2,
             )

@@ -11,9 +11,9 @@
   run this script or supply the secrets; only the human owner may.
 
   Set the env vars first (e.g. from your secrets store), then run:
-    $env:GITHUB_TOKEN="…"; $env:GHCR_TOKEN="…"; $env:HETZNER_API_TOKEN="…"
+    $env:GITHUB_TOKEN="…"; $env:GHCR_TOKEN="…"; $env:FLY_API_TOKEN="…"
     $env:BRANCH_PROTECTION_TOKEN="…"; $env:VERCEL_TOKEN="…"
-    $env:STAGING_BASE_URL="https://188-34-191-140.sslip.io"
+    $env:STAGING_BASE_URL="https://<vercel-or-fly-staging-host>"
     $env:AGENT_API_BASE_URL="…"; $env:MCP_GATEWAY_BASE_URL="…"; $env:LLM_GATEWAY_BASE_URL="…"
     powershell -ExecutionPolicy Bypass -File scripts\owner-production-rollout.ps1
 
@@ -24,7 +24,7 @@
 #>
 [CmdletBinding()]
 param(
-  [string]$HetznerSshKeyPath = $env:HETZNER_SSH_KEY_PATH,
+  [string]$FlyRuntimeOperator = $env:FLY_RUNTIME_OPERATOR,
   [string]$ReleaseId = ("prod-candidate-{0}-rc1" -f (Get-Date -Format 'yyyy-MM-dd')),
   [switch]$DryRun
 )
@@ -54,7 +54,7 @@ py -3 "$repo\scripts\verify_project_progress_manifest.py"
 
 # 1. Credentials present (values never printed)
 Step 1 "Owner credentials present as env vars"
-$haveCreds = NeedEnv @('GITHUB_TOKEN','GHCR_TOKEN','HETZNER_API_TOKEN','BRANCH_PROTECTION_TOKEN','VERCEL_TOKEN','STAGING_BASE_URL')
+$haveCreds = NeedEnv @('GITHUB_TOKEN','GHCR_TOKEN','FLY_API_TOKEN','BRANCH_PROTECTION_TOKEN','VERCEL_TOKEN','STAGING_BASE_URL')
 
 # 2. Canonical secret scan (hard-block)
 Step 2 "Canonical secret scan (gitleaks hard-block)"
@@ -70,15 +70,14 @@ if (Confirm "Dispatch main-deploy.yml (staging tags) now?") {
   Write-Host "  Then verify all 6 digests with: docker manifest inspect ghcr.io/<owner>/cloud-superbrain-developer-platform/<svc>:staging"
 }
 
-# 4. Start pull-based stack on the Hetzner host (infra mutation)
-Step 4 "Start pull-based stack on Hetzner host"
+# 4. Start pull-based stack on the Fly.io runtime (infra mutation)
+Step 4 "Start pull-based stack on Fly.io runtime"
 $pullCmd = "docker compose -f docker-compose.cloud.yml pull && docker compose -f docker-compose.cloud.yml up -d"
-if ($HetznerSshKeyPath -and (Confirm "SSH to Hetzner host and run pull/up?")) {
-  Write-Host "  (run on host) $pullCmd"
-  # ssh -i $HetznerSshKeyPath <user>@<host> $pullCmd   # owner fills host; left manual for safety
-  Write-Host "  Left as a manual host command for safety — run it on the Hetzner host." -ForegroundColor Yellow
+if ($FlyRuntimeOperator -and (Confirm "Use Fly.io operator path and run pull/up?")) {
+  Write-Host "  (run on Fly.io runtime/operator shell) $pullCmd"
+  Write-Host "  Left as a manual Fly.io operator command for safety." -ForegroundColor Yellow
 } else {
-  Write-Host "  Run on the Hetzner host: $pullCmd" -ForegroundColor Yellow
+  Write-Host "  Run on the Fly.io runtime/operator shell: $pullCmd" -ForegroundColor Yellow
 }
 
 # 5. Point Vercel frontend at hosted HTTPS backend origins (Vercel env write)

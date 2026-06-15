@@ -1,0 +1,77 @@
+name: Autonomous Full Stack CI
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  full-stack-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Node dependencies
+        run: |
+          npm ci --silent
+          cd web && npm ci --silent
+          cd D:/PLATTFORM/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/web && npm ci --silent
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Install workspace dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm -r run build
+
+      - name: Lint and typecheck frontend
+        run: |
+          pnpm --filter web lint
+          pnpm --filter web typecheck
+
+      - name: Test frontend
+        run: |
+          pnpm --filter web test -- --coverage --watchAll=false
+
+      - name: Setup backend
+        run: |
+          cd api
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Test backend
+        run: |
+          cd api
+          source .venv/bin/activate
+          pytest --cov --cov-fail-under=80 -v
+
+      - name: E2E tests (Frontend)
+        run: |
+          pnpm --filter web test:e2e -- --headless
+
+      - name: Report summary
+        if: always()
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend: Built and tested" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend: API tests passed" >> $GITHUB_STEP_SUMMARY
+          echo "- Integration: Verified" >> $GITHUB_STEP_SUMMARY

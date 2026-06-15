@@ -8,8 +8,10 @@ import hmac
 import io
 import json
 import os
+import re
 import secrets
 import shutil
+import subprocess
 import time
 import urllib.error
 import urllib.request
@@ -17,6 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID, uuid4
 
+import httpx
 import psycopg
 import redis
 from fastapi import Cookie, FastAPI, Header, HTTPException, Query, Request
@@ -39,12 +42,13 @@ from app.budget import (
     session_llm_call_limit,
 )
 from app.clouds import cloud_layer_readiness_state, cloud_provider_state
-from app.db import check_agent_worker, check_llm_gateway, check_mcp, check_memory_worker, check_postgres, check_redis, database_url, redis_url, run_migrations
+from app.db import check_agent_worker, check_llm_gateway, check_mcp, check_memory_worker, check_postgres, check_redis, database_url, llm_gateway_url, redis_url, run_migrations
 from app.memory import (
     EMBEDDING_SEARCH_MODE,
     MemoryWriteRequest,
     current_embedding_dimensions,
     current_embedding_model_version,
+    find_or_create_project_uuid,
     insert_memory_entry,
     search_memory,
     store_memory,
@@ -106,6 +110,8 @@ TASK_ASSIGNMENT_CONTRACT_VERSION = "task-assignment-queue-contract-v1"
 TASK_ASSIGNMENT_EVIDENCE_REF = "task_assignment_queue_contract_visible"
 AGENT_LLM_STREAMING_CONTRACT_VERSION = "agent-llm-streaming-contract-v1"
 AGENT_LLM_STREAMING_EVIDENCE_REF = "agent_llm_streaming_contract_visible"
+LLM_RESPONSES_ADAPTER_CONTRACT_VERSION = "llm-responses-adapter-contract-v1"
+LLM_RESPONSES_ADAPTER_EVIDENCE_REF = "llm_responses_adapter_contract_visible"
 MEMORY_EMBEDDING_CONSISTENCY_CONTRACT_VERSION = "memory-embedding-consistency-v1"
 MEMORY_EMBEDDING_CONSISTENCY_EVIDENCE_REF = "memory_embedding_consistency_contract_visible"
 MEMORY_CONSOLIDATION_CONTRACT_VERSION = "memory-consolidation-feed-v1"
@@ -145,6 +151,10 @@ CLOUD_RENDER_OFFLOAD_CONTRACT_VERSION = "cloud-render-offload-v1"
 CLOUD_RENDER_OFFLOAD_EVIDENCE_REF = "cloud_render_offload_contract_visible"
 CLOUD_DEPLOYMENT_PREFLIGHT_CONTRACT_VERSION = "cloud-deployment-preflight-v1"
 CLOUD_DEPLOYMENT_PREFLIGHT_EVIDENCE_REF = "cloud_deployment_preflight_visible"
+GO_LIVE_READINESS_CONTRACT_VERSION = "go-live-readiness-v1"
+GO_LIVE_READINESS_EVIDENCE_REF = "go_live_readiness_contract_visible"
+GO_LIVE_READINESS_SURFACE_CONTRACT_VERSION = "go-live-readiness-surface-v1"
+GO_LIVE_READINESS_SURFACE_EVIDENCE_REF = "go_live_readiness_surface_contract_visible"
 ORCHESTRATOR_MANIFEST_CONTRACT_VERSION = "orchestrator-manifest-surface-v1"
 ORCHESTRATOR_MANIFEST_EVIDENCE_REF = "orchestrator_manifest_contract_runtime_visible"
 ORCHESTRATOR_CHECKPOINT_SURFACE_CONTRACT_VERSION = "orchestrator-checkpoint-surface-v1"
@@ -592,7 +602,7 @@ def external_gate_verification_flags(progress: dict[str, object] | None = None) 
         "ghcr_images": "ghcr_image_digest_verified" in markers,
         "branch_protection": "branch_protection_verified" in markers,
         "hosted_backend_origins": "hosted_backend_origin_verified" in markers,
-        "hetzner_cloud_stack": "hetzner_live_budget_verified" in markers,
+        "fly_cloud_stack": "fly_live_budget_verified" in markers,
         "canonical_secret_scan": "canonical_gitleaks_verified" in markers,
         "production_gate_claim_allowed": "production_gate_claim_allowed" in markers,
         "external_gate_audit_verified": "external_gate_audit_verified" in markers,
@@ -628,13 +638,13 @@ def external_gate_state() -> dict[str, object]:
             "fallback": "Local proof may run only with explicit -AllowLocalhost.",
         },
         {
-            "id": "hetzner_api_token",
-            "preflight_gate_id": "hetzner_cloud_stack",
-            "label": "Hetzner API token",
-            "configured": bool(os.getenv("HETZNER_API_TOKEN")) or verified_flags["hetzner_cloud_stack"],
-            "verified": verified_flags["hetzner_cloud_stack"],
-            "required_env": ["HETZNER_API_TOKEN"],
-            "evidence_ref": "hetzner_live_budget_check",
+            "id": "fly_api_token",
+            "preflight_gate_id": "fly_cloud_stack",
+            "label": "Fly.io API token",
+            "configured": bool(os.getenv("FLY_API_TOKEN")) or verified_flags["fly_cloud_stack"],
+            "verified": verified_flags["fly_cloud_stack"],
+            "required_env": ["FLY_API_TOKEN"],
+            "evidence_ref": "fly_live_budget_check",
             "required_for": "Live infrastructure invoice/cost verification.",
             "fallback": "Configured Phase-1 projection is used; live invoice proof is not claimed.",
         },
@@ -783,7 +793,7 @@ def external_gate_mirror_state() -> dict[str, object]:
         "branch_protection_env_configured": branch_token_configured,
         "branch_protection_evidence_ref": BRANCH_PROTECTION_VERIFY_EVIDENCE_REF,
         "cloud_deployment_preflight_evidence_ref": CLOUD_DEPLOYMENT_PREFLIGHT_EVIDENCE_REF,
-        "production_deploy_claim_allowed": verified_flags["production_gate_claim_allowed"],
+        "production_deploy_claim_allowed": verified_flags["production_gate_claim_allowed"] and gates["status"] == "verified",
         "evidence_ref": EXTERNAL_GATE_MIRROR_EVIDENCE_REF,
         "non_claims": [
             "Local mirror proof is not a hosted staging success claim.",
@@ -994,6 +1004,25 @@ class MemoryEntryDeleteRequest(BaseModel):
     trace_id: str | None = Field(default=None, max_length=255)
 
 
+class WorkspaceArtifactRequest(BaseModel):
+    project_id: str = Field(default="goal-b-local", min_length=1, max_length=255)
+    source_page: str = Field(..., min_length=1, max_length=80, pattern="^[a-z0-9_/-]+$")
+    artifact_type: str = Field(..., min_length=1, max_length=80, pattern="^[a-z0-9_-]+$")
+    title: str = Field(..., min_length=1, max_length=160)
+    summary: str = Field(..., min_length=1, max_length=1000)
+    session_id: str | None = Field(default=None, max_length=120)
+    run_id: str | None = Field(default=None, max_length=120)
+    status: str = Field(default="ready", pattern="^(ready|planned|dry_run|blocked)$")
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class ReadOnlyToolExecuteRequest(BaseModel):
+    project_id: str = Field(default="goal-b-local", min_length=1, max_length=255)
+    tool_id: str = Field(..., pattern="^(memory_read|task_router)$")
+    query: str = Field(default="phase2 runtime", min_length=1, max_length=500)
+    trace_id: str | None = Field(default=None, max_length=255)
+
+
 AUTH_ACCESS_TOKEN_TTL_SECONDS = 15 * 60
 AUTH_REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60
 AUTH_BLACKLIST_PREFIX = "auth:refresh:blacklist:"
@@ -1004,6 +1033,10 @@ AGENT_ACTIVITY_CONTRACT_VERSION = "agent-activity-trace-v1"
 HEALTH_CONTRACT_VERSION = "health-surface-v1"
 LIVE_AGENT_STEERING_CONTRACT_VERSION = "live-agent-steering-v1"
 LIVE_AGENT_STEERING_EVIDENCE_REF = "live_agent_steering_contract_visible"
+WORKSPACE_ARTIFACT_CONTRACT_VERSION = "goal-b-workspace-artifact-registry-v1"
+WORKSPACE_ARTIFACT_EVIDENCE_REF = "goal_b_workspace_artifact_registry_visible"
+READ_ONLY_TOOL_EXECUTE_CONTRACT_VERSION = "goal-b-readonly-tool-execute-v1"
+READ_ONLY_TOOL_EXECUTE_EVIDENCE_REF = "goal_b_readonly_tool_execute_visible"
 LIVE_AGENT_SESSION_PREFIX = "live-agent:responses:"
 LIVE_AGENT_SESSION_TTL_SECONDS = TASK_TTL_SECONDS
 LIVE_AGENT_LLM_TIMEOUT_SECONDS = 120
@@ -1081,7 +1114,7 @@ def b64url_bytes(raw: bytes) -> str:
 
 
 def live_agent_default_model() -> str:
-    return os.getenv("HF_DEFAULT_CHAT_MODEL", "deepseek-ai/DeepSeek-V4-Flash:fastest")
+    return os.getenv("LOCAL_LLM_MODEL", os.getenv("HF_DEFAULT_CHAT_MODEL", "deepseek-ai/DeepSeek-V4-Flash:fastest"))
 
 
 def live_agent_session_key(agent_id: str) -> str:
@@ -1114,6 +1147,7 @@ def set_live_agent_session(
     project_id: str,
     model: str,
     execution_role: str,
+    extra: dict[str, object] | None = None,
 ) -> dict[str, object]:
     payload = {
         "agent_id": agent_id,
@@ -1123,6 +1157,8 @@ def set_live_agent_session(
         "execution_role": execution_role,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
+    if extra:
+        payload.update(extra)
     redis_client().set(
         live_agent_session_key(agent_id),
         json.dumps(payload, separators=(",", ":"), default=str),
@@ -1196,6 +1232,8 @@ def live_agent_contract_payload() -> dict[str, object]:
         "reset_endpoint": "POST /api/v1/live-agents/{agent_id}/reset",
         "compatibility_endpoint": "POST /api/steer-agent",
         "llm_gateway_endpoint": "POST /llm/v1/responses",
+        "llm_gateway_contract_endpoint": "GET /llm/api/v1/responses/contract",
+        "llm_gateway_contract_version": LLM_RESPONSES_ADAPTER_CONTRACT_VERSION,
         "session_store": {
             "type": "redis",
             "key_pattern": "live-agent:responses:<agent_id>",
@@ -1216,6 +1254,7 @@ def live_agent_contract_payload() -> dict[str, object]:
             "metadata",
         ],
         "response_fields": [
+            "contract_version",
             "response_id",
             "responseId",
             "text",
@@ -1223,6 +1262,27 @@ def live_agent_contract_payload() -> dict[str, object]:
             "model",
             "usage",
             "runtime_source",
+            "trace_id",
+            "evidence_ref",
+            "llm_gateway_contract_version",
+            "llm_gateway_evidence_ref",
+            "live_provider_calls",
+            "model_downloads",
+            "audit_persisted",
+            "secret_output",
+        ],
+        "required_llm_response_fields": [
+            "id",
+            "object",
+            "status",
+            "contract_version",
+            "evidence_ref",
+            "trace_id",
+            "output",
+            "output_text",
+            "live_provider_calls",
+            "model_downloads",
+            "audit_persisted",
         ],
         "agents": [
             {
@@ -1238,10 +1298,14 @@ def live_agent_contract_payload() -> dict[str, object]:
         },
         "evidence_refs": {
             "contract_visible": LIVE_AGENT_STEERING_EVIDENCE_REF,
+            "llm_responses_adapter": LLM_RESPONSES_ADAPTER_EVIDENCE_REF,
+            "llm_gateway_audit": "llm_gateway_responses_audit_persisted",
         },
         "non_claims": [
             "No API key is stored by this contract surface.",
             "Responses streaming passthrough is not exposed on this path.",
+            "No direct provider URL is called by the Agent API.",
+            "No live provider call is claimed unless the LLM Gateway policy and owner gate allow it.",
         ],
     }
 
@@ -1259,6 +1323,11 @@ def live_agent_status_payload() -> dict[str, object]:
                 "previous_response_id": session.get("previous_response_id") if session else None,
                 "updated_at": session.get("updated_at") if session else None,
                 "model": session.get("model") if session else None,
+                "last_trace_id": session.get("last_trace_id") if session else None,
+                "last_result_type": session.get("last_result_type") if session else None,
+                "last_output_path": session.get("last_output_path") if session else None,
+                "last_command": session.get("last_command") if session else None,
+                "last_exit_code": session.get("last_exit_code") if session else None,
             }
         )
     return {
@@ -1269,6 +1338,174 @@ def live_agent_status_payload() -> dict[str, object]:
         "agent_count": len(agents),
         "agents": agents,
         "evidence_ref": LIVE_AGENT_STEERING_EVIDENCE_REF,
+    }
+
+
+def evidence_dir() -> Path:
+    return Path(os.getenv("EVIDENCE_DIR", "/tmp"))
+
+
+def live_agent_feature_dir() -> Path:
+    path = evidence_dir() / "F2"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def live_agent_workspace_dir() -> Path:
+    path = live_agent_feature_dir() / "workspace"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def safe_file_token(value: str) -> str:
+    token = re.sub(r"[^a-z0-9_-]+", "-", value.strip().lower())
+    token = re.sub(r"-{2,}", "-", token).strip("-")
+    return token or "agent"
+
+
+def evidence_rel(path: Path) -> str:
+    try:
+        return path.relative_to(evidence_dir()).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def timestamp_token() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
+def write_agent_text_file(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def run_local_tester_command(compiled_path: Path) -> tuple[str, int, str]:
+    command = (
+        'python -c "import py_compile; '
+        + f"py_compile.compile('/app/app/main.py', cfile=r'{compiled_path.as_posix()}', doraise=True)"
+        + '"'
+    )
+    completed = subprocess.run(
+        [
+            "python",
+            "-c",
+            "import py_compile; "
+            + f"py_compile.compile('/app/app/main.py', cfile=r'{compiled_path.as_posix()}', doraise=True)",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    output = "\n".join(part for part in [completed.stdout.strip(), completed.stderr.strip()] if part).strip()
+    return command, int(completed.returncode), output
+
+
+def build_devops_health_snapshot(trace_id: str) -> dict[str, object]:
+    checks: list[dict[str, object]] = []
+    probes = [
+        ("agent_api", lambda: {"status": "healthy", "service": "agent-api"}),
+        ("llm_gateway", check_llm_gateway),
+        ("mcp_gateway", check_mcp),
+    ]
+    for name, probe in probes:
+        last_error: str | None = None
+        for _ in range(3):
+            try:
+                body = probe()
+                checks.append(
+                    {
+                        "service": name,
+                        "ok": True,
+                        "status": body.get("status"),
+                        "mode": body.get("mode"),
+                        "openai_compatible": body.get("openai_compatible"),
+                    }
+                )
+                last_error = None
+                break
+            except Exception as exc:
+                last_error = type(exc).__name__
+                time.sleep(1)
+        if last_error:
+            checks.append({"service": name, "ok": False, "error": last_error})
+    return {
+        "trace_id": trace_id,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "checks": checks,
+    }
+
+
+def perform_live_agent_result(
+    *,
+    agent_id: str,
+    execution_role: str,
+    project_id: str,
+    trace_id: str,
+    llm_text: str,
+) -> dict[str, object]:
+    ts = timestamp_token()
+    agent_dir = live_agent_feature_dir() / safe_file_token(agent_id)
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    workspace_dir = live_agent_workspace_dir()
+    summary = llm_text.strip() or "No visible output"
+
+    if execution_role == "planner":
+        output_path = agent_dir / f"{ts}-plan.md"
+        write_agent_text_file(
+            output_path,
+            f"# Planner Result\n\nProject: {project_id}\nTrace: {trace_id}\n\n{summary}\n",
+        )
+        return {
+            "result_type": "file_written",
+            "output_path": str(output_path),
+            "output_rel": evidence_rel(output_path),
+            "command": None,
+            "exit_code": None,
+        }
+
+    if execution_role == "coder":
+        output_path = workspace_dir / f"{ts}-coder-output.ts"
+        file_text = (
+            "export const coderAgentOutput = "
+            + json.dumps(summary[:1200], ensure_ascii=True)
+            + ";\n"
+            + f'export const coderAgentTraceId = "{trace_id}";\n'
+        )
+        write_agent_text_file(output_path, file_text)
+        return {
+            "result_type": "file_written",
+            "output_path": str(output_path),
+            "output_rel": evidence_rel(output_path),
+            "command": None,
+            "exit_code": None,
+        }
+
+    if execution_role == "tester":
+        compiled_path = agent_dir / f"{ts}-main.pyc"
+        command, exit_code, output = run_local_tester_command(compiled_path)
+        output_path = agent_dir / f"{ts}-tester-command.log"
+        write_agent_text_file(
+            output_path,
+            f"command={command}\nexit_code={exit_code}\ntrace_id={trace_id}\ncompiled_artifact={compiled_path.as_posix()}\n\n{output}\n",
+        )
+        return {
+            "result_type": "command_executed",
+            "output_path": str(output_path),
+            "output_rel": evidence_rel(output_path),
+            "command": command,
+            "exit_code": exit_code,
+        }
+
+    output_path = agent_dir / f"{ts}-devops-report.json"
+    snapshot = build_devops_health_snapshot(trace_id)
+    output_path.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
+    return {
+        "result_type": "ops_report",
+        "output_path": str(output_path),
+        "output_rel": evidence_rel(output_path),
+        "command": "http_health_checks",
+        "exit_code": 0 if all(item.get("ok") for item in snapshot["checks"] if isinstance(item, dict)) else 1,
     }
 
 
@@ -1853,7 +2090,7 @@ def health_contract_payload() -> dict[str, object]:
         "supported_gate_statuses": ["verified", "action_required"],
         "budget_limit_cents": budget_state.budget_limit_cents,
         "infra_budget_limit_cents": infra_budget_state.budget_limit_cents,
-        "infra_supported_sources": ["projection", "hetzner_api_readonly"],
+        "infra_supported_sources": ["projection", "fly_api_readonly", "fly_api_readonly_plus_plan_projection"],
         "expected_external_gate_status": gates["status"],
         "evidence_ref": "health_contract_runtime_visible",
         "policy_checks": [
@@ -3562,7 +3799,7 @@ def project_progress_completion_payload() -> dict[str, object]:
         "staging_base_url": "hosted_staging_proof_requires_STAGING_BASE_URL",
         "branch_protection_token": "protected_main_proof_requires_BRANCH_PROTECTION_TOKEN",
         "gitleaks_binary": "canonical_secret_scan_requires_gitleaks_binary",
-        "hetzner_api_token": "live_infra_budget_refresh_requires_HETZNER_API_TOKEN",
+        "fly_api_token": "live_infra_budget_refresh_requires_FLY_API_TOKEN",
     }
     missing_external_gate_blockers = [
         blocker for gate_id, blocker in missing_gate_blocker_map.items() if gate_id in missing_gate_ids
@@ -3588,7 +3825,7 @@ def project_progress_completion_payload() -> dict[str, object]:
             for blocker, enabled in [
                 ("hosted_staging_proof_requires_STAGING_BASE_URL", not verified_flags["hosted_staging"]),
                 ("protected_main_proof_requires_BRANCH_PROTECTION_TOKEN", not verified_flags["branch_protection"]),
-                ("live_infra_budget_refresh_requires_HETZNER_API_TOKEN", not verified_flags["hetzner_cloud_stack"]),
+                ("live_infra_budget_refresh_requires_FLY_API_TOKEN", not verified_flags["fly_cloud_stack"]),
             ]
             if enabled
         ],
@@ -3776,14 +4013,15 @@ def cloud_render_offload_state() -> dict[str, object]:
         "AGENT_API_BASE_URL",
         "MCP_GATEWAY_BASE_URL",
         "LLM_GATEWAY_BASE_URL",
-        "HETZNER_API_TOKEN",
+        "FLY_API_TOKEN",
     ]
     optional_env = [
         "VERCEL_TOKEN",
         "CLOUDFLARE_API_TOKEN",
         "GITHUB_TOKEN",
         "GHCR_TOKEN",
-        "GITKRAKEN_API_TOKEN",
+        "GRAFANA_CLOUD_API_KEY",
+        "GRAFANA_CLOUD_URL",
     ]
     env_status = [{"key": key, "configured": bool(os.getenv(key))} for key in [*required_env, *optional_env]]
     missing_required = [key for key in required_env if not os.getenv(key)]
@@ -3828,10 +4066,10 @@ def cloud_render_offload_state() -> dict[str, object]:
                 "evidence_ref": "cloud_llm_gateway_health",
             },
             {
-                "id": "hetzner_runtime_budget",
-                "required_env": "HETZNER_API_TOKEN",
-                "configured": bool(os.getenv("HETZNER_API_TOKEN")),
-                "evidence_ref": "hetzner_live_budget_check",
+                "id": "fly_runtime_budget",
+                "required_env": "FLY_API_TOKEN",
+                "configured": bool(os.getenv("FLY_API_TOKEN")),
+                "evidence_ref": "fly_live_budget_check",
             },
         ],
         "workloads": [
@@ -3867,7 +4105,7 @@ def cloud_render_offload_state() -> dict[str, object]:
         "policy_checks": [
             "Localhost may run lightweight API and dashboard checks only.",
             "3D/WebGL rendering, browser GPU smoke, screenshots, and generated asset workloads require hosted cloud runtime proof.",
-            "Cloud render offload does not bypass the Hetzner budget guard.",
+            "Cloud render offload does not bypass the Vercel/Fly.io/GHCR/Grafana Cloud budget guard.",
             "The cloud-only staging verifier remains the release gate for hosted frontend/API/MCP/LLM proof.",
         ],
         "non_claims": [
@@ -3946,17 +4184,17 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
             "next_action": "dispatch_main_deploy_workflow_after_github_auth_is_repaired",
         },
         {
-            "id": "hetzner_cloud_stack",
-            "label": "Hetzner pull-based cloud stack",
-            "required_env": ["HETZNER_API_TOKEN"],
+            "id": "fly_cloud_stack",
+            "label": "Fly.io pull-based cloud stack",
+            "required_env": ["FLY_API_TOKEN"],
             "required_artifact": "docker-compose.cloud.yml",
-            "verifier": "scripts/check_hetzner_infra_budget.py",
-            "environment_configured": env_ready(["HETZNER_API_TOKEN"]),
-            "configured": verified_flags["hetzner_cloud_stack"],
-            "verified": verified_flags["hetzner_cloud_stack"],
-            "evidence_ref": "hetzner_live_budget_check",
-            "required_evidence_artifact": "current Hetzner budget proof plus reachable cloud compose health checks",
-            "next_action": "run_cloud_compose_pull_and_up_on_hetzner_host_with_environment_only_secrets",
+            "verifier": "scripts/check_fly_infra_budget.py",
+            "environment_configured": env_ready(["FLY_API_TOKEN"]),
+            "configured": verified_flags["fly_cloud_stack"],
+            "verified": verified_flags["fly_cloud_stack"],
+            "evidence_ref": "fly_live_budget_check",
+            "required_evidence_artifact": "current Fly.io budget proof plus reachable cloud compose health checks",
+            "next_action": "run_cloud_compose_pull_and_up_on_fly_host_with_environment_only_secrets",
         },
         {
             "id": "hosted_backend_origins",
@@ -3969,7 +4207,7 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
             "verified": verified_flags["hosted_backend_origins"],
             "evidence_ref": "hosted_backend_origin_env_required",
             "required_evidence_artifact": "cloud-only staging proof with hosted backend origin URLs",
-            "next_action": "configure_vercel_backend_origin_urls_after_hetzner_stack_is_reachable",
+            "next_action": "configure_vercel_backend_origin_urls_after_fly_stack_is_reachable",
         },
         {
             "id": "hosted_staging",
@@ -4013,15 +4251,16 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
         },
     ]
     missing_or_blocked = [gate["id"] for gate in gates if not gate["verified"]]
+    preflight_ready = not missing_or_blocked
     production_gate_claim_allowed = verified_flags["production_gate_claim_allowed"]
     return {
         "contract_version": CLOUD_DEPLOYMENT_PREFLIGHT_CONTRACT_VERSION,
-        "status": "verified" if production_gate_claim_allowed else ("ready_for_external_execution" if not missing_or_blocked else "action_required"),
+        "status": "verified" if production_gate_claim_allowed and preflight_ready else ("ready_for_external_execution" if preflight_ready else "action_required"),
         "endpoint": "GET /api/v1/clouds/deployment-preflight",
         "evidence_ref": CLOUD_DEPLOYMENT_PREFLIGHT_EVIDENCE_REF,
         "required_sequence": [
             "publish_ghcr_images",
-            "start_hetzner_pull_based_stack",
+            "start_fly_runtime_stack",
             "configure_vercel_backend_origins",
             "run_hosted_staging_verifier",
             "verify_branch_protection",
@@ -4030,15 +4269,15 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
         ],
         "gates": gates,
         "missing_or_blocked_gates": missing_or_blocked,
-        "preflight_ready": not missing_or_blocked,
-        "external_execution_ready": not missing_or_blocked,
-        "cloud_deploy_claim_allowed": not missing_or_blocked,
-        "production_deploy_claim_allowed": production_gate_claim_allowed,
+        "preflight_ready": preflight_ready,
+        "external_execution_ready": preflight_ready,
+        "cloud_deploy_claim_allowed": preflight_ready,
+        "production_deploy_claim_allowed": production_gate_claim_allowed and preflight_ready,
         "localhost_role": "dev_control_plane_only",
         "manual_external_actions": [
             "gh workflow run main-deploy.yml",
-            "docker compose -f docker-compose.cloud.yml pull",
-            "docker compose -f docker-compose.cloud.yml up -d",
+            "fly deploy --remote-only",
+            "fly status",
             "powershell -ExecutionPolicy Bypass -File scripts\\verify-hosted-staging.ps1",
             "py -3 scripts\\apply_github_branch_protection.py --verify-only",
             "gitleaks detect --no-git --source .",
@@ -4046,7 +4285,7 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
         "claim_policy": "environment presence only never creates a cloud, hosted staging, or production deployment claim",
         "policy_checks": [
             "All secrets are referenced by environment variable name only.",
-            "GHCR image publication, Hetzner compose execution, Vercel env writes, and branch-protection writes remain external gated actions.",
+            "GHCR image publication, Fly.io runtime execution, Vercel env writes, and branch-protection writes remain external gated actions.",
             "Localhost proof is development-only and cannot satisfy hosted staging.",
             "Production deployment requires hosted staging, branch protection, canonical secret scan, budget proof, and owner review.",
         ],
@@ -4106,6 +4345,287 @@ def cloud_deployment_preflight_payload() -> dict[str, object]:
     }
 
 
+def external_gate_summary_path() -> Path:
+    configured = os.getenv("EXTERNAL_GATE_SUMMARY_PATH", "/app/progress/external-gate-summary.json")
+    return Path(configured)
+
+
+def external_gate_summary_state() -> dict[str, object]:
+    path = external_gate_summary_path()
+    if not path.exists():
+        return {
+            "contract_version": "external-gate-summary-v1",
+            "source_contract_version": "external-gate-audit-v1",
+            "source_artifact": "",
+            "status": "missing_summary",
+            "configured": False,
+            "production_deploy_claim_allowed": False,
+            "missing_or_failed_gates": [],
+            "failed_hosted_required_probe_ids": [],
+            "failed_vercel_origin_probe_ids": [],
+            "non_claims": [
+                "External gate summary is not mounted in this runtime.",
+                "Hosted, production, branch-protection, Fly budget, and Vercel-origin claims remain blocked without a current external-gate audit summary.",
+            ],
+        }
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except Exception as exc:
+        return {
+            "contract_version": "external-gate-summary-v1",
+            "source_contract_version": "external-gate-audit-v1",
+            "source_artifact": str(path),
+            "status": "invalid_summary",
+            "configured": True,
+            "production_deploy_claim_allowed": False,
+            "missing_or_failed_gates": ["external_gate_summary_invalid"],
+            "failed_hosted_required_probe_ids": [],
+            "failed_vercel_origin_probe_ids": [],
+            "error": type(exc).__name__,
+            "non_claims": [
+                "External gate summary could not be parsed.",
+                "Hosted, production, branch-protection, Fly budget, and Vercel-origin claims remain blocked.",
+            ],
+        }
+
+    allowed_keys = {
+        "contract_version",
+        "source_contract_version",
+        "source_artifact",
+        "generated_at_utc",
+        "status",
+        "frontend_preview_claim_allowed",
+        "hosted_staging_claim_allowed",
+        "branch_protection_claim_allowed",
+        "ghcr_image_digest_claim_allowed",
+        "vercel_backend_origins_claim_allowed",
+        "canonical_gitleaks_claim_allowed",
+        "fly_live_budget_claim_allowed",
+        "gitlab_identity_claim_allowed",
+        "huggingface_identity_claim_allowed",
+        "grafana_cloud_claim_allowed",
+        "production_deploy_claim_allowed",
+        "missing_or_failed_gates",
+        "failed_hosted_required_probe_ids",
+        "failed_vercel_origin_probe_ids",
+        "non_claims",
+    }
+    sanitized = {key: payload.get(key) for key in allowed_keys if key in payload}
+    sanitized["configured"] = True
+    sanitized["source_path"] = str(path)
+    sanitized["missing_or_failed_gates"] = [
+        str(item) for item in sanitized.get("missing_or_failed_gates", []) if str(item).strip()
+    ]
+    sanitized["failed_hosted_required_probe_ids"] = [
+        str(item) for item in sanitized.get("failed_hosted_required_probe_ids", []) if str(item).strip()
+    ]
+    sanitized["failed_vercel_origin_probe_ids"] = [
+        str(item) for item in sanitized.get("failed_vercel_origin_probe_ids", []) if str(item).strip()
+    ]
+    return sanitized
+
+
+def go_live_readiness_state() -> dict[str, object]:
+    progress = project_progress_payload()
+    completion = project_progress_completion_payload()
+    external_gates = external_gate_state()
+    preflight = cloud_deployment_preflight_state()
+    cloud_layers = cloud_layer_readiness_state()
+    workspace = workspace_wiring_payload()
+    external_audit_summary = external_gate_summary_state()
+
+    preflight_gates = [gate for gate in preflight.get("gates", []) if isinstance(gate, dict)]
+    audit_missing_gates = [str(item) for item in external_audit_summary.get("missing_or_failed_gates", [])]
+    audit_required_env_map = {
+        "hosted_agent_api_contracts": ["STAGING_BASE_URL", "AGENT_API_BASE_URL"],
+        "github_branch_protection_current_verify": ["BRANCH_PROTECTION_TOKEN"],
+        "vercel_backend_origin_health": ["AGENT_API_BASE_URL", "MCP_GATEWAY_BASE_URL", "LLM_GATEWAY_BASE_URL"],
+        "fly_live_budget_check": ["FLY_API_TOKEN"],
+    }
+    audit_required_inputs = [
+        env_name
+        for gate_id in audit_missing_gates
+        for env_name in audit_required_env_map.get(gate_id, [])
+    ]
+    required_owner_inputs = sorted({
+        str(env_name)
+        for gate in preflight_gates
+        if not bool(gate.get("verified"))
+        for env_name in gate.get("required_env", [])
+        if str(env_name).strip()
+    } | {str(env_name) for env_name in audit_required_inputs if str(env_name).strip()})
+    missing_or_blocked_gates = [str(item) for item in preflight.get("missing_or_blocked_gates", [])]
+    hard_blockers = [str(item) for item in completion.get("hard_blockers", [])]
+    cloud_layer_items = [item for item in cloud_layers.get("layers", []) if isinstance(item, dict)]
+    blocked_layers = [
+        {
+            "layer_id": str(layer.get("layer_id")),
+            "label": str(layer.get("label")),
+            "status": str(layer.get("status")),
+            "blockers": [str(blocker) for blocker in layer.get("blockers", [])],
+            "next_safe_action": str(layer.get("next_safe_action", "")),
+        }
+        for layer in cloud_layer_items
+        if str(layer.get("status")) != "live_verified"
+    ]
+    status = (
+        "ready_for_owner_cloud_execution"
+        if bool(preflight.get("preflight_ready")) and not hard_blockers and not audit_missing_gates
+        else "blocked_external_gates"
+    )
+
+    return {
+        "contract_version": GO_LIVE_READINESS_CONTRACT_VERSION,
+        "status": status,
+        "endpoint": "GET /api/v1/clouds/go-live-readiness",
+        "evidence_ref": GO_LIVE_READINESS_EVIDENCE_REF,
+        "objective": "100_percent_live_across_7_layers_22_pages",
+        "overall_percent": int(progress["overall_percent"]),
+        "completion_status": completion.get("status"),
+        "completion_can_set_all_to_100": bool(completion.get("can_set_all_to_100")),
+        "workspace_page_count": int(workspace.get("page_count", 0)),
+        "workspace_contract": workspace.get("contract_version"),
+        "cloud_layer_status": cloud_layers.get("status"),
+        "cloud_layer_ready_count": int(cloud_layers.get("ready_layer_count", 0)),
+        "cloud_layer_total_count": int(cloud_layers.get("total_layer_count", 0)),
+        "blocked_layers": blocked_layers,
+        "runtime_external_gate_status": external_gates.get("status"),
+        "runtime_external_blocked_release_gates": [str(item) for item in external_gates.get("blocked_release_gates", [])],
+        "runtime_preflight_status": preflight.get("status"),
+        "runtime_preflight_missing_or_blocked_gates": missing_or_blocked_gates,
+        "external_audit_summary": external_audit_summary,
+        "external_audit_summary_status": external_audit_summary.get("status"),
+        "external_audit_missing_or_failed_gates": audit_missing_gates,
+        "external_audit_claims": {
+            "frontend_preview_claim_allowed": bool(external_audit_summary.get("frontend_preview_claim_allowed")),
+            "hosted_staging_claim_allowed": bool(external_audit_summary.get("hosted_staging_claim_allowed")),
+            "branch_protection_claim_allowed": bool(external_audit_summary.get("branch_protection_claim_allowed")),
+            "ghcr_image_digest_claim_allowed": bool(external_audit_summary.get("ghcr_image_digest_claim_allowed")),
+            "vercel_backend_origins_claim_allowed": bool(external_audit_summary.get("vercel_backend_origins_claim_allowed")),
+            "canonical_gitleaks_claim_allowed": bool(external_audit_summary.get("canonical_gitleaks_claim_allowed")),
+            "fly_live_budget_claim_allowed": bool(external_audit_summary.get("fly_live_budget_claim_allowed")),
+            "production_deploy_claim_allowed": bool(external_audit_summary.get("production_deploy_claim_allowed")),
+        },
+        "hard_blockers": hard_blockers,
+        "required_owner_inputs": required_owner_inputs,
+        "external_audit_required": True,
+        "external_audit_summary_path": str(external_gate_summary_path()),
+        "external_audit_verifier": "scripts/verify-external-gates.ps1",
+        "external_audit_expected_missing_or_failed_gates": [
+            "hosted_agent_api_contracts",
+            "github_branch_protection_current_verify",
+            "vercel_backend_origin_health",
+            "fly_live_budget_check",
+        ],
+        "owner_activation": {
+            "script": "scripts/owner-cloud-gate-activation.ps1",
+            "runbook": "docs/runbooks/cloud-gate-owner-activation-2026-06-09.md",
+            "plan_contract": "owner-cloud-gate-activation-plan-v1",
+            "default_mode": "PlanOnly",
+            "apply_allowed_in_codex": False,
+        },
+        "owner_sequence": [
+            {
+                "step": "deploy_fly_origins",
+                "layers": ["L2", "L3", "L4", "L5", "L6"],
+                "gate": "owner_deploy_gate",
+                "mutation": True,
+                "status": "blocked_until_owner_gate",
+                "verifier_after": "GET /api/v1/health on each Fly HTTPS origin",
+            },
+            {
+                "step": "configure_vercel_backend_origins",
+                "layers": ["L1", "L2", "L4", "L5"],
+                "gate": "owner_env_gate",
+                "mutation": True,
+                "status": "blocked_until_owner_gate",
+                "required_env": ["STAGING_REWRITES_ENABLED", "AGENT_API_BASE_URL", "MCP_GATEWAY_BASE_URL", "LLM_GATEWAY_BASE_URL"],
+            },
+            {
+                "step": "run_hosted_verifiers",
+                "layers": ["L1", "L7"],
+                "gate": "hosted_staging_proof",
+                "mutation": False,
+                "status": "waiting_for_https_staging",
+                "commands": [
+                    "scripts\\verify-browser-contract.ps1 -BaseUrl <STAGING_BASE_URL>",
+                    "scripts\\verify-external-gates.ps1",
+                ],
+            },
+            {
+                "step": "verify_branch_and_budget",
+                "layers": ["L6", "L7"],
+                "gate": "owner_token_gate",
+                "mutation": False,
+                "status": "waiting_for_token_scoped_verify_only",
+                "required_env": ["BRANCH_PROTECTION_TOKEN", "FLY_API_TOKEN"],
+            },
+        ],
+        "claim_policy": "runtime_status_and_env_presence_are_not_hosted_or_production_proof",
+        "policy_checks": [
+            "This readiness contract composes existing runtime contracts and does not execute cloud commands.",
+            "External audit artifacts remain the source of truth for hosted, Vercel-origin, branch-protection, Fly-budget, and production claims.",
+            "The 22-page Workbench contract is referenced without rendering project-state walls inside the Workbench UI.",
+            "Secret values are never returned; required owner inputs are environment variable names only.",
+        ],
+        "non_claims": [
+            "No cloud resource was created, mutated, deployed, or deleted.",
+            "No production deployment, release promotion, registry push, live LLM call, or live MCP write is claimed.",
+            "Localhost remains DEV-ONLY and cannot close hosted staging or production gates.",
+            "This endpoint does not make the project 100 percent complete.",
+        ],
+    }
+
+
+def go_live_readiness_contract_payload() -> dict[str, object]:
+    state = go_live_readiness_state()
+    return {
+        "contract_version": GO_LIVE_READINESS_SURFACE_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/clouds/go-live-readiness/contract",
+        "runtime_endpoint": "GET /api/v1/clouds/go-live-readiness",
+        "runtime_contract_version": state.get("contract_version"),
+        "evidence_ref": GO_LIVE_READINESS_SURFACE_EVIDENCE_REF,
+        "required_top_level_fields": [
+            "contract_version",
+            "status",
+            "objective",
+            "overall_percent",
+            "completion_can_set_all_to_100",
+            "workspace_page_count",
+            "cloud_layer_total_count",
+            "runtime_preflight_missing_or_blocked_gates",
+            "external_audit_summary_status",
+            "external_audit_missing_or_failed_gates",
+            "external_audit_claims",
+            "hard_blockers",
+            "required_owner_inputs",
+            "external_audit_required",
+            "external_audit_summary_path",
+            "owner_activation",
+            "owner_sequence",
+            "claim_policy",
+            "policy_checks",
+            "non_claims",
+        ],
+        "expected_runtime_contract_version": GO_LIVE_READINESS_CONTRACT_VERSION,
+        "supported_statuses": ["blocked_external_gates", "ready_for_owner_cloud_execution"],
+        "guarded_endpoints": [
+            "GET /api/v1/project/progress/completion",
+            "GET /api/v1/external-gates",
+            "GET /api/v1/clouds/layers",
+            "GET /api/v1/clouds/deployment-preflight",
+            "GET /api/v1/workspace/wiring",
+            "GET /api/v1/workspace/vertical-stack",
+        ],
+        "required_verifiers": [
+            "scripts/verify-go-live-readiness.ps1",
+            "scripts/verify-external-gates.ps1",
+            "scripts/verify-browser-contract.ps1",
+        ],
+        "non_claims": list(state.get("non_claims", [])),
+    }
+
+
 @app.get("/api/v1/external-gates")
 def external_gates() -> dict[str, object]:
     return external_gate_state()
@@ -4146,6 +4666,930 @@ def cloud_layers_contract() -> dict[str, object]:
     return cloud_layers_contract_payload()
 
 
+ORGANISM_REGIONS = [
+    {"id": "prefrontal", "name": "Prefrontal Cortex", "cap": "Planning / Goals / Architecture", "layer": "ORC"},
+    {"id": "thalamus", "name": "Thalamus", "cap": "Routing / Context / Approvals", "layer": "ORC"},
+    {"id": "hippocampus", "name": "Hippocampus", "cap": "Memory / Resume / Knowledge", "layer": "MEM"},
+    {"id": "amygdala", "name": "Amygdala", "cap": "Security / Risk / Secret protection", "layer": "OBS"},
+    {"id": "basal", "name": "Basal Ganglia", "cap": "Tool / Skill / Model selection", "layer": "MCP"},
+    {"id": "cerebellum", "name": "Cerebellum", "cap": "Tests / Verifier / Self-correction", "layer": "OBS"},
+    {"id": "motor", "name": "Motor Cortex", "cap": "CLI / Browser / Git / Cloud actions", "layer": "AP"},
+    {"id": "sensory", "name": "Sensory Cortex", "cap": "Files / Logs / Providers / MCP", "layer": "MCP"},
+    {"id": "autonomic", "name": "Autonomic NS", "cap": "Watchdog / Health / Retries", "layer": "AP"},
+    {"id": "callosum", "name": "Corpus Callosum", "cap": "Event Bus / Cross-agent sync", "layer": "ORC"},
+]
+
+ORGANISM_LAYERS = [
+    {"no": 1, "code": "FE", "label": "Frontend / Next.js", "providers": ["vercel_frontend"]},
+    {"no": 2, "code": "ORC", "label": "Orchestrator / LangGraph", "providers": ["fly_io"]},
+    {"no": 3, "code": "AP", "label": "Agent Pool", "providers": ["fly_io"]},
+    {"no": 4, "code": "LLM", "label": "LLM Gateway", "providers": ["cloudflare_edge", "huggingface_identity"]},
+    {"no": 5, "code": "MCP", "label": "MCP Gateway / Tools", "providers": ["github_actions", "ghcr_registry", "gitlab_identity"]},
+    {"no": 6, "code": "MEM", "label": "Memory / PostgreSQL pgvector", "providers": ["fly_io"]},
+    {"no": 7, "code": "OBS", "label": "Observability / Evidence", "providers": ["vercel_frontend", "fly_io", "cloudflare_edge", "github_actions", "grafana_cloud"]},
+]
+
+ORGANISM_HUBS = [
+    {"id": "workbench", "label": "WORKBENCH", "layer": "FE", "route": "/workbench", "agents": ["planner", "coder", "tester", "devops"]},
+    {"id": "agents", "label": "AGENTS", "layer": "AP", "route": "/agents", "agents": ["planner", "coder", "tester", "devops"]},
+    {"id": "tools", "label": "TOOLS / MCP", "layer": "MCP", "route": "/tools", "agents": ["coder", "tester", "devops"]},
+    {"id": "models", "label": "MODELS", "layer": "LLM", "route": "/marketplace", "agents": ["planner", "coder", "tester", "devops"]},
+    {"id": "marketplace", "label": "MARKETPLACE", "layer": "MCP", "route": "/marketplace", "agents": ["planner"]},
+    {"id": "observe", "label": "OBSERVABILITY", "layer": "OBS", "route": "/observe", "agents": ["tester", "devops"]},
+    {"id": "memory", "label": "MEMORY", "layer": "MEM", "route": "/files", "agents": ["planner", "coder", "tester", "devops"]},
+    {"id": "cloud", "label": "CLOUD", "layer": "ORC", "route": "/technology", "agents": ["devops"]},
+]
+
+ORGANISM_PAGES = [
+    (1, "home", "/home", "Home / Overview", "FE"),
+    (2, "login", "/login", "Login / Onboarding", "FE"),
+    (3, "workbench", "/workbench", "Main Workbench", "FE"),
+    (4, "organism", "/organism", "Organism / Live", "FE"),
+    (5, "organism-replay", "/organism/replay", "Organism / Replay", "OBS"),
+    (6, "organism-map", "/organism/map", "Organism / Map", "FE"),
+    (7, "agents", "/agents", "Agents", "AP"),
+    (8, "files", "/files", "Files / Knowledge", "MEM"),
+    (9, "files-local", "/files/local", "Local Files API", "MEM"),
+    (10, "tools", "/tools", "MCP / Tools", "MCP"),
+    (11, "marketplace", "/marketplace", "Marketplace", "LLM"),
+    (12, "observe", "/observe", "Observe / Monitoring", "OBS"),
+    (13, "games", "/games", "Games", "AP"),
+    (14, "apps", "/apps", "Apps", "AP"),
+    (15, "media", "/media", "Media", "LLM"),
+    (16, "docs-output", "/docs-output", "Documents", "MEM"),
+    (17, "evidence", "/evidence", "Proof / Evidence", "OBS"),
+    (18, "diagnostics", "/diagnostics", "Diagnostics", "OBS"),
+    (19, "design-system", "/design-system", "Design System", "FE"),
+    (20, "stack", "/technology", "Technology Stack", "ORC"),
+    (21, "settings", "/settings", "Settings / Governance", "MCP"),
+    (22, "open-source", "/open-source", "Open Source", "FE"),
+]
+
+WORKSPACE_WIRING_CONTRACT_VERSION = "workspace-surface-wiring-v1"
+WORKSPACE_WIRING_EVIDENCE_REF = "workspace_surface_wiring_visible"
+WORKSPACE_VERTICAL_STACK_CONTRACT_VERSION = "workspace-vertical-stack-v1"
+WORKSPACE_VERTICAL_STACK_EVIDENCE_REF = "workspace_vertical_stack_visible"
+WORKSPACE_COMMON_VERIFIERS = ["scripts/verify-workspace-pages-layer-map.ps1", "scripts/verify-browser-contract.ps1"]
+REFERENCE_DESIGN_CONTRACT_VERSION = "reference-design-conformance-v1"
+REFERENCE_DESIGN_EVIDENCE_REF = "reference_design_conformance_visible"
+REFERENCE_ASSET_REQUIREMENTS = {
+    "rootImagesMin": 3,
+    "currentDesignScreenshotsMin": 15,
+    "motionVideosMin": 1,
+}
+REFERENCE_DESIGN_RULES = {
+    "visualLanguage": "industrial-developer-workbench",
+    "cornerRadiusMaxPx": 16,
+    "cardRadiusMaxPx": 12,
+    "typography": ["Geist/Inter UI", "JetBrains Mono telemetry"],
+    "requiredSurfaces": ["22 canonical pages", "central workbench", "3D organism", "replay", "topology", "evidence"],
+    "forbidden": [
+        "project-status-wall-on-workbench",
+        "fake-live-data",
+        "secret-output",
+        "cartoon-bubble-cards",
+        "retired-provider-defaults",
+    ],
+}
+
+ORGANISM_PAGE_WIRING = {
+    "home": {"brain_region": "sensory", "hub": "workbench", "primary_mode": "navigate", "data_sources": ["WORKSPACE_PAGES", "/api/v1/clouds", "/api/v1/project/progress/integrity"], "verifier_refs": WORKSPACE_COMMON_VERIFIERS, "event_kinds": ["planning", "blocked"]},
+    "login": {"brain_region": "amygdala", "hub": "workbench", "primary_mode": "govern", "data_sources": ["/api/v1/auth/contract", "/api/v1/auth/github", "/api/v1/audit/recent"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1-runtime.ps1"], "event_kinds": ["verifying", "blocked"]},
+    "workbench": {"brain_region": "prefrontal", "hub": "workbench", "primary_mode": "create", "data_sources": ["/api/v1/phase2/runtime/contract", "/api/v1/orchestrator/manifest/contract", "/api/v1/platform/verify", "/api/v1/orchestrator/checkpoints/contract", "/api/v1/orchestrator/dry-run", "/api/v1/orchestrator/dry-run/contract", "/api/v1/orchestrator/dry-run/stream", "/api/v1/orchestrator/dry-run/stream/contract", "/api/v1/orchestrator/manifest", "/api/v1/phase2/runtime/runs", "/api/v1/phase2/runtime/runs/contract", "/api/v1/phase2/runtime/start", "/api/v1/phase2/runtime/start/contract", "/api/v1/trace/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["planning", "executing", "verifying"]},
+    "organism": {"brain_region": "callosum", "hub": "workbench", "primary_mode": "inspect", "data_sources": ["/api/v1/organism/contract", "/api/v1/organism/live-state", "/organism/core.glb"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["planning", "executing", "tool_call", "llm_call", "memory_read", "memory_write", "verifying", "blocked"]},
+    "organism-replay": {"brain_region": "hippocampus", "hub": "observe", "primary_mode": "inspect", "data_sources": ["/api/v1/organism/replay", "/api/v1/organism/events"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["memory_read", "verifying", "blocked"]},
+    "organism-map": {"brain_region": "thalamus", "hub": "cloud", "primary_mode": "inspect", "data_sources": ["/api/v1/organism/topology", "/api/v1/organism/regions", "/api/v1/organism/safety"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["planning", "verifying", "blocked"]},
+    "agents": {"brain_region": "motor", "hub": "agents", "primary_mode": "inspect", "data_sources": ["/api/v1/agents/status", "/api/v1/agent-activity/recent", "/api/v1/tasks/assignment-contract", "/api/v1/agent-activity/contract", "/api/v1/agents/llm-streaming-contract", "/api/v1/agents/profiles", "/api/v1/agents/profiles/contract", "/api/v1/live-agents/contract", "/api/v1/live-agents/status", "/api/v1/live-agents/steer", "/api/v1/task/dispatch/contract", "/api/v1/task/dispatches/recent", "/api/v1/tasks/policy", "/api/v1/tasks/policy/contract", "/api/v1/tasks/policy/validate", "/api/v1/tasks/recent", "/api/v1/tasks/recent/contract", "/api/v1/team/master-plan", "/api/v1/team/master-plan/contract", "/api/v1/team/roster", "/api/v1/team/roster/contract", "/api/v1/team/status", "/api/v1/team/status/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1-runtime.ps1"], "event_kinds": ["planning", "executing", "verifying", "blocked"]},
+    "files": {"brain_region": "hippocampus", "hub": "memory", "primary_mode": "inspect", "data_sources": ["/api/v1/memory/search", "/api/v1/memory/consolidation/recent", "/api/v1/memory/embedding-consistency/contract", "/api/v1/cache/contract", "/api/v1/memory/consolidation/contract", "/api/v1/memory/purge/contract", "/api/v1/memory/purge/jobs/contract", "/api/v1/session-limits/contract", "/api/v1/session-limits/status", "/api/v1/session/stream/contract", "/api/v1/sessions/history/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1-runtime.ps1"], "event_kinds": ["memory_read", "memory_write", "verifying"]},
+    "files-local": {"brain_region": "sensory", "hub": "memory", "primary_mode": "inspect", "data_sources": ["/api/v1/files/local/contract", "filesystem_workspace_scope_contract", "read_only_file_tree"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1.ps1"], "event_kinds": ["memory_read", "tool_call", "blocked"]},
+    "tools": {"brain_region": "basal", "hub": "tools", "primary_mode": "inspect", "data_sources": ["/mcp/api/v1/version-pinning/contract", "/api/v1/audit/mcp", "MCP_TOOLS", "/api/v1/prompt/contract", "/api/v1/tools/read-only/execute", "/api/v1/tools/read-only/execute/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1-runtime.ps1"], "event_kinds": ["tool_call", "verifying", "blocked"]},
+    "marketplace": {"brain_region": "basal", "hub": "models", "primary_mode": "inspect", "data_sources": ["MODELS", "SKILLS", "/api/v1/models/capabilities"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1-runtime.ps1"], "event_kinds": ["llm_call", "tool_call", "blocked"]},
+    "observe": {"brain_region": "autonomic", "hub": "observe", "primary_mode": "inspect", "data_sources": ["/api/v1/metrics", "/api/v1/health", "/api/v1/clouds/layers", "/api/v1/budget", "/api/v1/budget/contract", "/api/v1/costs", "/api/v1/costs/contract", "/api/v1/costs/export", "/api/v1/costs/export/contract", "/api/v1/infra/budget", "/api/v1/infra/budget/contract", "/api/v1/rate-limit/contract", "/api/v1/rate-limit/status", "/api/v1/rotation/events", "/api/v1/rotation/events/contract", "/api/v1/rotation/policy", "/api/v1/rotation/policy/contract", "/api/v1/system/fallback/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1-runtime.ps1"], "event_kinds": ["verifying", "blocked"]},
+    "games": {"brain_region": "motor", "hub": "workbench", "primary_mode": "create", "data_sources": ["/workbench", "/organism/core.glb", "game_preview_mode"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run test:e2e --prefix apps/frontend"], "event_kinds": ["planning", "executing", "tool_call", "verifying"]},
+    "apps": {"brain_region": "motor", "hub": "workbench", "primary_mode": "create", "data_sources": ["/workbench", "app_preview_mode", "/api/v1/platform/verify"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run test:e2e --prefix apps/frontend"], "event_kinds": ["planning", "executing", "tool_call", "verifying"]},
+    "media": {"brain_region": "sensory", "hub": "models", "primary_mode": "create", "data_sources": ["media_preview_mode", "MODELS", "/api/v1/models/capabilities"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run test:e2e --prefix apps/frontend"], "event_kinds": ["llm_call", "executing", "verifying", "blocked"]},
+    "docs-output": {"brain_region": "hippocampus", "hub": "memory", "primary_mode": "create", "data_sources": ["docs_output_mode", "/api/v1/memory/search", "/api/v1/sessions/recent"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run test:e2e --prefix apps/frontend"], "event_kinds": ["memory_read", "memory_write", "executing", "verifying"]},
+    "evidence": {"brain_region": "cerebellum", "hub": "observe", "primary_mode": "verify", "data_sources": ["/api/v1/external-gates", "/api/v1/project/progress/integrity", "docs/verification-register.md"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1.ps1", "gitleaks detect --no-git --source ."], "event_kinds": ["verifying", "blocked"]},
+    "diagnostics": {"brain_region": "amygdala", "hub": "observe", "primary_mode": "verify", "data_sources": ["/api/v1/audit/recent", "/api/v1/escalations/recent", ".phase1-artifacts", "/api/v1/errors/contract", "/api/v1/escalations/contract", "/api/v1/layer-interfaces/contract", "/api/v1/request/contract", "/api/v1/security/headers/contract", "/api/v1/workspace/artifacts", "/api/v1/workspace/artifacts/contract", "/api/v1/workspace/vertical-stack", "/api/v1/workspace/wiring", "/api/v1/platform/inventory"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-retired-hosted-boundary.ps1"], "event_kinds": ["verifying", "blocked"]},
+    "design-system": {"brain_region": "sensory", "hub": "workbench", "primary_mode": "inspect", "data_sources": ["apps/frontend/app/styles.css", "WORKSPACE_PAGES", "NeuroGlass tokens", "/api/v1/design/reference-contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run lint --prefix apps/frontend"], "event_kinds": ["planning", "verifying"]},
+    "stack": {"brain_region": "thalamus", "hub": "cloud", "primary_mode": "inspect", "data_sources": ["docs/system-architecture.md", "/api/v1/clouds", "/api/v1/clouds/deployment-preflight", "/api/v1/devops/workflow-dispatch/plan", "/api/v1/devops/workflow-dispatch/plan/contract", "/api/v1/devops/workflow-dispatch/validate", "/api/v1/devops/workflow-dispatch/validate/contract", "/api/v1/project/progress", "/api/v1/project/progress/completion", "/api/v1/project/progress/completion/contract", "/api/v1/project/progress/contract", "/api/v1/project/progress/layers", "/api/v1/project/progress/layers/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1.ps1"], "event_kinds": ["planning", "verifying", "blocked"]},
+    "settings": {"brain_region": "amygdala", "hub": "tools", "primary_mode": "govern", "data_sources": ["/api/v1/clouds/deployment-preflight", "/api/v1/auth/contract", "CLOSED_GATES", "/api/v1/auth/callback", "/api/v1/auth/logout", "/api/v1/auth/refresh"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-owner-cloud-gate-activation.ps1"], "event_kinds": ["blocked", "verifying"]},
+    "open-source": {"brain_region": "callosum", "hub": "cloud", "primary_mode": "navigate", "data_sources": ["package.json", "LICENSE", "docs/verification-register.md"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1.ps1"], "event_kinds": ["planning", "verifying"]},
+}
+
+ORGANISM_TOOLS = [
+    {"id": "memory_read", "label": "Memory Read", "layer": 6, "scope": "read"},
+    {"id": "task_router", "label": "Task Router", "layer": 2, "scope": "read"},
+    {"id": "langgraph", "label": "LangGraph", "layer": 2, "scope": "read"},
+    {"id": "mcp_gateway", "label": "MCP Gateway", "layer": 5, "scope": "gated"},
+    {"id": "github_mcp", "label": "GitHub MCP", "layer": 5, "scope": "scoped_write"},
+    {"id": "filesystem_mcp", "label": "Filesystem MCP", "layer": 5, "scope": "scoped_write"},
+    {"id": "playwright_mcp", "label": "Playwright MCP", "layer": 5, "scope": "gated"},
+    {"id": "e2b_mcp", "label": "E2B Sandbox MCP", "layer": 5, "scope": "gated"},
+]
+
+ORGANISM_SKILLS = [
+    "strict-project-gate",
+    "product-ux-guardian",
+    "live-3d-organism-architect",
+    "r3f-three-engineer",
+    "blender-gltf-pipeline",
+    "mcp-safety-auditor",
+    "visual-verifier",
+    "accessibility-reduced-motion",
+    "telemetry-binding-engineer",
+    "opa-gate-engineer",
+]
+
+ORGANISM_CLOSED_GATES = [
+    "Production deploy",
+    "Release promotion",
+    "Provider writes",
+    "Main push",
+    "Registry push",
+    "Live MCP write",
+    "Live LLM call",
+    "Secret output",
+]
+
+
+def _organism_gate_id(label: str) -> str:
+    return label.lower().replace(" ", "_")
+
+
+def _organism_region_for_hub(hub_id: str) -> str:
+    return {
+        "memory": "hippocampus",
+        "observe": "cerebellum",
+        "tools": "basal",
+        "models": "basal",
+        "agents": "motor",
+        "cloud": "thalamus",
+    }.get(hub_id, "prefrontal")
+
+
+def _organism_layer_code(layer_no: int) -> str:
+    for layer in ORGANISM_LAYERS:
+        if layer["no"] == layer_no:
+            return str(layer["code"])
+    return "MCP"
+
+
+def _organism_node_slug(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
+    return slug or "ref"
+
+
+def workspace_wiring_surfaces() -> list[dict[str, object]]:
+    surfaces: list[dict[str, object]] = []
+    region_ids = {str(region["id"]) for region in ORGANISM_REGIONS}
+    hub_ids = {str(hub["id"]) for hub in ORGANISM_HUBS}
+    for no, page_id, route, label, layer in ORGANISM_PAGES:
+        wiring = dict(ORGANISM_PAGE_WIRING.get(page_id, {}))
+        if not wiring:
+            raise RuntimeError(f"Workspace wiring missing page '{page_id}'.")
+        if str(wiring.get("brain_region")) not in region_ids:
+            raise RuntimeError(f"Workspace wiring page '{page_id}' has invalid brain region.")
+        if str(wiring.get("hub")) not in hub_ids:
+            raise RuntimeError(f"Workspace wiring page '{page_id}' has invalid hub.")
+        surfaces.append({
+            "pageId": page_id,
+            "no": no,
+            "label": label,
+            "route": route,
+            "layer": layer,
+            "brainRegion": wiring["brain_region"],
+            "hub": wiring["hub"],
+            "primaryMode": wiring["primary_mode"],
+            "dataSources": list(wiring["data_sources"]),
+            "verifierRefs": list(wiring["verifier_refs"]),
+            "eventKinds": list(wiring["event_kinds"]),
+            "live": False,
+            "writes": False,
+            "secretOutput": False,
+            "evidenceRef": WORKSPACE_WIRING_EVIDENCE_REF,
+        })
+    return surfaces
+
+
+def workspace_wiring_payload() -> dict[str, object]:
+    surfaces = workspace_wiring_surfaces()
+    return {
+        "contract_version": WORKSPACE_WIRING_CONTRACT_VERSION,
+        "endpoint": "/api/v1/workspace/wiring",
+        "evidence_ref": WORKSPACE_WIRING_EVIDENCE_REF,
+        "source": "agent-api-static-contract",
+        "live": False,
+        "page_count": len(surfaces),
+        "surfaces": surfaces,
+        "policy_checks": [
+            "Each canonical workspace page maps to one architecture layer, one brain region, and one capability hub.",
+            "Every page exposes deterministic data source and verifier references.",
+            "All entries are read-only: writes=false, live=false, secretOutput=false.",
+            "Topology edges must reference existing page, layer, region, hub, data-source, and verifier nodes.",
+        ],
+        "non_claims": [
+            "This endpoint does not execute verifier commands.",
+            "This endpoint does not call live providers, mutate cloud state, or expose secrets.",
+            "Local evidence remains DEV-ONLY and cannot close hosted staging or production gates.",
+        ],
+    }
+
+
+def _workspace_api_like_ref(value: str) -> bool:
+    return value.startswith("/api/") or value.startswith("/mcp/") or value.startswith("/llm/")
+
+
+def _workspace_component_path(route: str) -> str:
+    if route == "/":
+        return "apps/frontend/app/page.tsx"
+    return f"apps/frontend/app/{route.lstrip('/')}/page.tsx"
+
+
+def _workspace_data_plane(layer: str, hub: str) -> str:
+    if hub == "memory" or layer == "MEM":
+        return "postgres-pgvector-and-redis-memory"
+    if hub == "observe" or layer == "OBS":
+        return "audit-log-metrics-evidence-artifacts"
+    if hub == "tools" or layer == "MCP":
+        return "mcp-gateway-safe-envelope"
+    if hub == "models" or layer == "LLM":
+        return "llm-gateway-contract"
+    if hub == "agents" or layer == "AP":
+        return "agent-pool-task-queue"
+    if hub == "cloud" or layer == "ORC":
+        return "cloud-readiness-and-deployment-preflight"
+    return "frontend-static-contract-and-runtime-fetches"
+
+
+def workspace_vertical_stack_payload() -> dict[str, object]:
+    stacks: list[dict[str, object]] = []
+    for surface in workspace_wiring_surfaces():
+        data_sources = [str(source) for source in surface["dataSources"]]
+        api_contracts = [source for source in data_sources if _workspace_api_like_ref(source)]
+        static_refs = [source for source in data_sources if not _workspace_api_like_ref(source)]
+        verifier_refs = list(dict.fromkeys([
+            *[str(ref) for ref in surface["verifierRefs"]],
+            "scripts/verify-workspace-vertical-stack.ps1",
+            "scripts/verify-workspace-pages-browser.ps1",
+        ]))
+        route = str(surface["route"])
+        layer = str(surface["layer"])
+        hub = str(surface["hub"])
+        stacks.append({
+            "pageId": surface["pageId"],
+            "no": surface["no"],
+            "label": surface["label"],
+            "route": route,
+            "layer": layer,
+            "brainRegion": surface["brainRegion"],
+            "hub": hub,
+            "primaryMode": surface["primaryMode"],
+            "ui": {
+                "route": route,
+                "componentPath": _workspace_component_path(route),
+                "shellRequired": True,
+                "activeRailRequired": True,
+            },
+            "api": {
+                "contracts": api_contracts,
+                "staticRefs": static_refs,
+                "gatewayBound": True,
+                "directProviderCalls": False,
+            },
+            "data": {
+                "plane": _workspace_data_plane(layer, hub),
+                "sources": data_sources,
+                "writesAllowedByDefault": False,
+                "secretOutputAllowed": False,
+            },
+            "verification": {
+                "refs": verifier_refs,
+                "browserProofRequired": True,
+                "phase1GuardRequired": True,
+                "hostedProofRequiredForRelease": True,
+            },
+            "deploy": {
+                "frontendTarget": "vercel",
+                "backendTargets": ["fly-agent-api", "fly-mcp-gateway", "fly-llm-gateway"],
+                "registry": "ghcr",
+                "hostedProofStatus": "blocked_external_gates",
+            },
+            "safety": {
+                "live": False,
+                "writes": False,
+                "secretOutput": False,
+                "productionDeployClaimAllowed": False,
+                "localProofOnly": True,
+            },
+            "eventKinds": surface["eventKinds"],
+        })
+    return {
+        "contract_version": WORKSPACE_VERTICAL_STACK_CONTRACT_VERSION,
+        "endpoint": "/api/v1/workspace/vertical-stack",
+        "evidence_ref": WORKSPACE_VERTICAL_STACK_EVIDENCE_REF,
+        "source": "agent-api-static-contract",
+        "page_count": len(stacks),
+        "expected_page_count": 22,
+        "layers_required": 7,
+        "stacks": stacks,
+        "required_stage_keys": ["ui", "api", "data", "verification", "deploy", "safety"],
+        "policy_checks": [
+            "Every canonical page must expose UI, API, data, verification, deploy, and safety stages.",
+            "Every page remains local-proof-only until hosted Vercel/Fly/GHCR/Grafana gates pass.",
+            "No stack entry may enable provider bypass, secret output, production deploy, or live MCP writes.",
+            "Budget UI remains hidden unless a paid/metered capability is selected or explicitly available.",
+        ],
+        "non_claims": [
+            "This contract does not execute deploys, provider calls, MCP writes, or verifier commands.",
+            "This contract is not hosted staging proof and cannot close external gates by itself.",
+            "Localhost evidence remains DEV-ONLY.",
+        ],
+    }
+
+
+def reference_design_contract_payload() -> dict[str, object]:
+    pages = [
+        {"id": page_id, "no": no, "route": route, "layer": layer}
+        for no, page_id, route, _label, layer in ORGANISM_PAGES
+    ]
+    return {
+        "contract_version": REFERENCE_DESIGN_CONTRACT_VERSION,
+        "endpoint": "/api/v1/design/reference-contract",
+        "evidence_ref": REFERENCE_DESIGN_EVIDENCE_REF,
+        "source": "agent-api-static-contract",
+        "live": False,
+        "reference_roots": ["docs/reference", "docs/reference/aktuell desin"],
+        "required_asset_inventory": REFERENCE_ASSET_REQUIREMENTS,
+        "design_rules": REFERENCE_DESIGN_RULES,
+        "page_count": len(pages),
+        "expected_page_count": 22,
+        "pages": pages,
+        "organism_requirements": {
+            "canvas": "real-time 3D cognitive organism",
+            "regions": [str(region["id"]) for region in ORGANISM_REGIONS],
+            "event_kinds": ["planning", "executing", "tool_call", "llm_call", "memory_read", "memory_write", "verifying", "blocked"],
+            "replay_required": True,
+            "no_fake_live": True,
+        },
+        "non_claims": [
+            "This contract does not claim pixel-perfect visual completion.",
+            "This contract does not execute browser screenshots or image comparison.",
+            "This contract does not mutate cloud state, call live providers, or expose secrets.",
+            "Local evidence remains DEV-ONLY until hosted staging verification exists.",
+        ],
+    }
+
+
+def platform_verify_payload() -> dict[str, object]:
+    state = cloud_layer_readiness_state()
+    layers = [
+        {
+            "id": str(layer.get("layer_id") or ""),
+            "label": str(layer.get("label") or layer.get("layer_id") or ""),
+            "status": str(layer.get("status") or "unknown"),
+            "verified": str(layer.get("status") or "") == "live_verified",
+        }
+        for layer in state.get("layers", [])
+        if isinstance(layer, dict)
+    ]
+    return {
+        "contract_version": "platform-verify-readiness-v1",
+        "endpoint": "/api/v1/platform/verify",
+        "source": "agent-api",
+        "live": bool(layers),
+        "verified": sum(1 for layer in layers if bool(layer["verified"])),
+        "total": len(layers),
+        "layers": layers,
+        "evidence_ref": "cloud_layer_readiness_visible",
+        "non_claims": [
+            "Read-only projection of cloud layer readiness.",
+            "No provider write, deploy, live LLM call, live MCP write, or secret output.",
+            "Localhost remains DEV-ONLY and cannot close hosted gates.",
+        ],
+    }
+
+
+def _safe_run_id(run_id: str | None) -> str | None:
+    if not run_id:
+        return None
+    run_id = run_id.strip()
+    allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.:-")
+    if 0 < len(run_id) <= 96 and all(ch in allowed for ch in run_id):
+        return run_id
+    return None
+
+
+def organism_contract_payload() -> dict[str, object]:
+    registry = agent_profile_registry()
+    profiles = list(registry.get("profiles", []))
+    models = [{"id": str(profile.get("primary_model", "")).split(":")[0], "role": f"{profile.get('agent_type')} primary"} for profile in profiles]
+    workspace_pages = workspace_wiring_surfaces()
+    return {
+        "contract_version": "organism-surface-v1",
+        "endpoint": "/api/v1/organism/contract",
+        "evidence_ref": "organism_canvas_visible",
+        "source": "agent-api-static-contract",
+        "live": False,
+        "run_states": ["idle", "planning", "executing", "verifying", "blocked"],
+        "event_kinds": ["planning", "executing", "tool_call", "llm_call", "memory_read", "memory_write", "verifying", "blocked"],
+        "central": {"kind": "neural_core", "particles_default": 1600, "asset_slot": "/public/organism/core.glb (optional)"},
+        "hubs": ORGANISM_HUBS,
+        "layers": ORGANISM_LAYERS,
+        "workspace_pages": [
+            {
+                "id": page["pageId"],
+                "no": page["no"],
+                "route": page["route"],
+                "layer": page["layer"],
+                "brain_region": page["brainRegion"],
+                "hub": page["hub"],
+                "data_sources": page["dataSources"],
+                "verifier_refs": page["verifierRefs"],
+                "live": page["live"],
+                "writes": page["writes"],
+                "secret_output": page["secretOutput"],
+            }
+            for page in workspace_pages
+        ],
+        "workspace_page_count": len(workspace_pages),
+        "agents": [{"type": p.get("agent_type"), "tools": p.get("allowed_tools"), "model": p.get("primary_model")} for p in profiles],
+        "tools": ORGANISM_TOOLS,
+        "models": models,
+        "skills": [{"id": skill} for skill in ORGANISM_SKILLS],
+        "gates_closed": ORGANISM_CLOSED_GATES,
+        "related": [
+            "/api/v1/organism/topology",
+            "/api/v1/organism/live-state",
+            "/api/v1/organism/events",
+            "/api/v1/organism/replay",
+            "/api/v1/organism/regions",
+            "/api/v1/organism/safety",
+            "/api/v1/workspace/wiring",
+            "/api/v1/workspace/vertical-stack",
+        ],
+        "policy_checks": [
+            "No secret values are returned by this endpoint.",
+            "All 22 workspace pages map onto layer, brain-region, hub, data-source, and verifier references.",
+            "Topology edges must reference existing nodes.",
+            "No provider write, deploy, push, live LLM call, or live MCP write is performed.",
+        ],
+        "non_claims": [
+            "Live events and replay are spec-only until a recorded runtime event source is connected.",
+            "No provider write, deploy, push or live LLM/MCP call is performed.",
+        ],
+    }
+
+
+def organism_topology_payload() -> dict[str, object]:
+    providers = [item for item in cloud_provider_state().get("providers", []) if isinstance(item, dict)]
+    registry = agent_profile_registry()
+    profiles = [item for item in registry.get("profiles", []) if isinstance(item, dict)]
+    models = [{"id": str(profile.get("primary_model", "")).split(":")[0], "role": f"{profile.get('agent_type')} primary"} for profile in profiles]
+    workspace_pages = workspace_wiring_surfaces()
+    workspace_data_sources = sorted({source for page in workspace_pages for source in page["dataSources"]})
+    workspace_verifier_refs = sorted({verifier for page in workspace_pages for verifier in page["verifierRefs"]})
+    nodes: list[dict[str, object]] = []
+    nodes.extend({**r, "id": f"region:{r['id']}", "kind": "brain_region", "secret_output": False, "writes": False} for r in ORGANISM_REGIONS)
+    nodes.extend({"id": f"layer:{l['code']}", "kind": "architecture_layer", **l, "secret_output": False, "writes": False} for l in ORGANISM_LAYERS)
+    nodes.extend({**h, "id": f"hub:{h['id']}", "kind": "capability_hub", "secret_output": False, "writes": False} for h in ORGANISM_HUBS)
+    nodes.extend({"id": f"agent:{p.get('agent_type')}", "kind": "agent_profile", "label": p.get("agent_type"), "model": p.get("primary_model"), "tools": p.get("allowed_tools", []), "secret_output": False, "writes": False} for p in profiles)
+    nodes.extend({**t, "id": f"tool:{t['id']}", "kind": "mcp_tool", "secret_output": False, "writes": False, "write_capability": t["scope"] != "read", "gate_required": t["scope"] != "read"} for t in ORGANISM_TOOLS)
+    nodes.extend({**m, "id": f"model:{m['id']}", "kind": "llm_model", "layer": 4, "secret_output": False, "writes": False, "gateway_only": True} for m in models)
+    nodes.extend({"id": f"skill:{skill}", "kind": "skill", "label": skill, "layer": 5, "secret_output": False, "writes": False} for skill in ORGANISM_SKILLS)
+    nodes.extend({"id": f"provider:{p.get('id')}", "kind": "cloud_provider", "label": p.get("label"), "layers": p.get("layers", []), "secret_output": False, "writes": False} for p in providers)
+    nodes.extend({"id": f"gate:{_organism_gate_id(gate)}", "kind": "safety_gate", "label": gate, "status": "closed", "secret_output": False, "writes": False} for gate in ORGANISM_CLOSED_GATES)
+    nodes.extend({
+        "id": f"page:{page['pageId']}",
+        "kind": "workspace_page",
+        "no": page["no"],
+        "label": page["label"],
+        "route": page["route"],
+        "layer": page["layer"],
+        "brain_region": page["brainRegion"],
+        "hub": page["hub"],
+        "data_sources": page["dataSources"],
+        "verifier_refs": page["verifierRefs"],
+        "event_kinds": page["eventKinds"],
+        "secret_output": False,
+        "writes": False,
+    } for page in workspace_pages)
+    nodes.extend({"id": f"source:{_organism_node_slug(str(source))}", "kind": "workspace_data_source", "label": source, "secret_output": False, "writes": False} for source in workspace_data_sources)
+    nodes.extend({"id": f"verifier:{_organism_node_slug(str(verifier))}", "kind": "workspace_verifier", "label": verifier, "secret_output": False, "writes": False, "executes": False} for verifier in workspace_verifier_refs)
+
+    edges: list[dict[str, str]] = []
+    edges.extend({"from": "region:callosum", "to": f"region:{r['id']}", "kind": "neural_bus"} for r in ORGANISM_REGIONS if r["id"] != "callosum")
+    edges.extend({"from": f"hub:{h['id']}", "to": f"region:{_organism_region_for_hub(str(h['id']))}", "kind": "capability_to_region"} for h in ORGANISM_HUBS)
+    edges.extend({"from": f"hub:{h['id']}", "to": f"layer:{h['layer']}", "kind": "hub_to_layer"} for h in ORGANISM_HUBS)
+    for profile in profiles:
+        agent_type = str(profile.get("agent_type"))
+        tools = profile.get("allowed_tools") or []
+        for hub in ORGANISM_HUBS:
+            if agent_type in hub["agents"]:
+                edges.append({"from": f"agent:{agent_type}", "to": f"hub:{hub['id']}", "kind": "agent_to_hub"})
+        for tool in tools:
+            edges.append({"from": f"agent:{agent_type}", "to": f"tool:{tool}", "kind": "agent_to_tool"})
+        model_id = str(profile.get("primary_model", "")).split(":")[0]
+        edges.append({"from": f"agent:{agent_type}", "to": f"model:{model_id}", "kind": "agent_to_model"})
+    edges.extend({"from": f"tool:{t['id']}", "to": f"layer:{_organism_layer_code(int(t['layer']))}", "kind": "tool_to_layer"} for t in ORGANISM_TOOLS)
+    edges.extend({"from": f"model:{m['id']}", "to": "layer:LLM", "kind": "model_to_gateway_layer"} for m in models)
+    edges.extend({"from": f"skill:{skill}", "to": "hub:tools", "kind": "skill_to_tool_hub"} for skill in ORGANISM_SKILLS)
+    edges.extend({"from": f"page:{page['pageId']}", "to": f"layer:{page['layer']}", "kind": "page_to_layer"} for page in workspace_pages)
+    edges.extend({"from": f"page:{page['pageId']}", "to": f"region:{page['brainRegion']}", "kind": "page_to_brain_region"} for page in workspace_pages)
+    edges.extend({"from": f"page:{page['pageId']}", "to": f"hub:{page['hub']}", "kind": "page_to_capability_hub"} for page in workspace_pages)
+    edges.extend({"from": f"page:{page['pageId']}", "to": f"source:{_organism_node_slug(str(source))}", "kind": "page_to_data_source"} for page in workspace_pages for source in page["dataSources"])
+    edges.extend({"from": f"page:{page['pageId']}", "to": f"verifier:{_organism_node_slug(str(verifier))}", "kind": "page_to_verifier"} for page in workspace_pages for verifier in page["verifierRefs"])
+    # Direct page-to-capability wiring: surface every built capability on the pages that own it (by
+    # hub / security region), so the 22 pages explicitly expose models, skills, MCP tools, cloud
+    # providers, agent profiles and safety gates — not only transitively via layers/hubs.
+    _agent_types = [str(profile.get("agent_type")) for profile in profiles]
+    _provider_ids = sorted({pid for layer in ORGANISM_LAYERS for pid in layer["providers"]})
+    for page in workspace_pages:
+        _pid = page["pageId"]
+        if page["hub"] == "models":
+            edges.extend({"from": f"page:{_pid}", "to": f"model:{m['id']}", "kind": "page_to_llm_model"} for m in models)
+        if page["hub"] == "tools":
+            edges.extend({"from": f"page:{_pid}", "to": f"tool:{t['id']}", "kind": "page_to_mcp_tool"} for t in ORGANISM_TOOLS)
+            edges.extend({"from": f"page:{_pid}", "to": f"skill:{skill}", "kind": "page_to_skill"} for skill in ORGANISM_SKILLS)
+        if page["hub"] == "agents":
+            edges.extend({"from": f"page:{_pid}", "to": f"agent:{agent_type}", "kind": "page_to_agent_profile"} for agent_type in _agent_types)
+        if page["hub"] == "cloud":
+            edges.extend({"from": f"page:{_pid}", "to": f"provider:{provider_id}", "kind": "page_to_cloud_provider"} for provider_id in _provider_ids)
+        if page["brainRegion"] == "amygdala":
+            edges.extend({"from": f"page:{_pid}", "to": f"gate:{_organism_gate_id(gate)}", "kind": "page_to_safety_gate"} for gate in ORGANISM_CLOSED_GATES)
+    for layer in ORGANISM_LAYERS:
+        for provider_id in layer["providers"]:
+            edges.append({"from": f"layer:{layer['code']}", "to": f"provider:{provider_id}", "kind": "layer_to_provider"})
+    edges.extend({"from": f"gate:{_organism_gate_id(gate)}", "to": "region:amygdala", "kind": "gate_to_security_region"} for gate in ORGANISM_CLOSED_GATES)
+    return {
+        "contract_version": "organism-topology-v1",
+        "endpoint": "/api/v1/organism/topology",
+        "source": "agent-api-static-contract",
+        "live": False,
+        "source_kind": "contract",
+        "nodes": nodes,
+        "edges": edges,
+        "non_claims": ["static topology contract", "no provider write", "no secret values"],
+    }
+
+
+def organism_live_state_payload() -> dict[str, object]:
+    layer_state = cloud_layer_readiness_state()
+    layers = [item for item in layer_state.get("layers", []) if isinstance(item, dict)]
+    status_by_layer_id = {str(item.get("layer_id")): str(item.get("status")) for item in layers}
+    layer_id_by_code = {"FE": "layer_1", "ORC": "layer_2", "AP": "layer_3", "LLM": "layer_4", "MCP": "layer_5", "MEM": "layer_6", "OBS": "layer_7"}
+    return {
+        "contract_version": "organism-live-state-v1",
+        "source": "agent-api",
+        "source_kind": "agent_api_redacted",
+        "live": True,
+        "note": "Hub state derived from agent-api cloud-layer-readiness. No provider write or direct provider call is performed.",
+        "run_state": "verifying",
+        "core": {"visual_pulse": "contract_default", "visual_intensity": "contract_default"},
+        "hubs": [
+            {
+                "id": hub["id"],
+                "layer": hub["layer"],
+                "status": "active" if status_by_layer_id.get(layer_id_by_code.get(str(hub["layer"]), "")) == "live_verified" else "idle",
+                "visual_weight_pct": 18 + ((index * 11) % 70),
+                "source_kind": "synthetic_visual_weight",
+            }
+            for index, hub in enumerate(ORGANISM_HUBS)
+        ],
+        "layers": layers,
+        "gates_closed": ["production_deploy", "provider_writes", "secret_output", "main_push"],
+        "non_claims": ["redacted runtime status only, no live provider call", "no secret values"],
+    }
+
+
+def _organism_map_event_kind(event_type: str) -> tuple[str, str, str, list[str]]:
+    event_type = event_type or "runtime_event"
+    lowered = event_type.lower()
+    if "tool" in lowered or "mcp" in lowered:
+        return "tool_call", "tools", "executing", ["basal", "sensory", "motor", "callosum"]
+    if "valid" in lowered or "verif" in lowered or "check" in lowered or "test" in lowered:
+        return "verifying", "observe", "verifying", ["cerebellum", "sensory", "callosum"]
+    if "memory" in lowered or "embed" in lowered or "vector" in lowered:
+        return "memory_write" if "write" in lowered or "consolidat" in lowered else "memory_read", "memory", "executing", ["hippocampus", "callosum"]
+    if "model" in lowered or "llm" in lowered or "inference" in lowered or "rotation" in lowered:
+        return "llm_call", "models", "executing", ["basal", "thalamus", "callosum"]
+    if "plan" in lowered or "orchestrator" in lowered or "langgraph" in lowered:
+        return "planning", "workbench", "planning", ["prefrontal", "thalamus", "callosum"]
+    if "complete" in lowered or "passed" in lowered or "done" in lowered or "success" in lowered:
+        return "verifying", "observe", "idle", ["cerebellum", "autonomic", "callosum"]
+    if "block" in lowered or "fail" in lowered or "error" in lowered or "escalat" in lowered:
+        return "blocked", "observe", "blocked", ["amygdala", "cerebellum", "callosum"]
+    if "exec" in lowered or "task" in lowered or "dispatch" in lowered or "agent" in lowered:
+        return "executing", "agents", "executing", ["motor", "basal", "callosum"]
+    return "executing", "workbench", "executing", ["sensory", "prefrontal", "callosum"]
+
+
+def _organism_route_for_hub(hub: str) -> str:
+    return {
+        "workbench": "/workbench",
+        "agents": "/agents",
+        "tools": "/tools",
+        "models": "/marketplace",
+        "observe": "/observe",
+        "memory": "/files",
+        "cloud": "/technology",
+    }.get(hub, "/workbench")
+
+
+def _organism_redacted_audit_events(run_id: str | None = None, limit: int = 12) -> list[dict[str, object]]:
+    conditions: list[str] = []
+    params: list[object] = []
+    if run_id:
+        conditions.append(
+            "(details->>'trace_id' = %s OR details->>'thread_id' = %s OR details->>'run_id' = %s OR CAST(session_id AS TEXT) = %s)"
+        )
+        params.extend([run_id, run_id, run_id, run_id])
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    params.append(limit)
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        rows = conn.execute(
+            f"""
+            SELECT event_type, severity, created_at
+            FROM audit_log
+            {where_clause}
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            tuple(params),
+        ).fetchall()
+    events: list[dict[str, object]] = []
+    if not rows:
+        return events
+    ordered = list(reversed(rows))
+    first_ts = ordered[0][2]
+    for index, row in enumerate(ordered, start=1):
+        event_type = str(row[0] or "runtime_event")
+        kind, hub, run_state, regions = _organism_map_event_kind(event_type)
+        created_at = row[2]
+        offset_s = 0.0
+        if first_ts and created_at:
+            offset_s = max(0.0, round((created_at - first_ts).total_seconds(), 1))
+        events.append({
+            "seq": index,
+            "offset_s": offset_s,
+            "page_id": hub,
+            "route": _organism_route_for_hub(hub),
+            "kind": kind,
+            "event_type": event_type,
+            "hub": hub,
+            "regions": regions,
+            "run_state": run_state,
+            "severity": str(row[1] or "info"),
+            "source_kind": "agent_api_redacted",
+            "evidence_files": [],
+            "secret_output": False,
+            "writes": False,
+        })
+    return events
+
+
+def organism_events_payload(run_id: str | None = None) -> dict[str, object]:
+    run_id = _safe_run_id(run_id)
+    runtime_events = _organism_redacted_audit_events(run_id=run_id, limit=12)
+    if runtime_events:
+        return {
+            "contract_version": "organism-events-v1",
+            "source": "agent-api",
+            "source_kind": "agent_api_redacted",
+            "live": True,
+            "run_id": run_id,
+            "note": "Derived from audit_log event_type/severity/timestamp only. Session/user/details are intentionally omitted.",
+            "events": runtime_events,
+            "non_claims": ["redacted runtime events only, no live provider call", "no secret values", "read-only audit projection"],
+        }
+    return {
+        "contract_version": "organism-events-v1",
+        "source": "spec_only",
+        "source_kind": "spec_only",
+        "live": False,
+        "run_id": run_id,
+        "note": "Spec-only event contract until a recorded runtime event source is connected.",
+        "events": [
+            {"seq": 1, "offset_s": 0.0, "page_id": "workbench", "route": "/workbench", "kind": "plan_created", "hub": "workbench", "regions": ["prefrontal", "thalamus", "callosum"], "run_state": "planning", "source_kind": "spec_only", "evidence_files": [], "secret_output": False, "writes": False},
+            {"seq": 2, "offset_s": 1.2, "page_id": "agents", "route": "/agents", "agent": "planner", "kind": "agent_dispatched", "hub": "agents", "regions": ["basal", "motor", "callosum"], "run_state": "executing", "source_kind": "spec_only", "evidence_files": [], "secret_output": False, "writes": False},
+            {"seq": 3, "offset_s": 2.6, "page_id": "tools", "route": "/tools", "tool": "mcp_gateway", "kind": "tool_call", "hub": "tools", "regions": ["basal", "sensory", "motor", "callosum"], "run_state": "executing", "source_kind": "spec_only", "evidence_files": [], "secret_output": False, "writes": False},
+            {"seq": 4, "offset_s": 3.9, "page_id": "files", "route": "/files", "kind": "memory_read", "hub": "memory", "regions": ["hippocampus", "callosum"], "run_state": "executing", "source_kind": "spec_only", "evidence_files": [], "secret_output": False, "writes": False},
+            {"seq": 5, "offset_s": 5.1, "page_id": "marketplace", "route": "/marketplace", "model": "llm_gateway", "kind": "llm_call", "hub": "models", "regions": ["basal", "thalamus", "callosum"], "run_state": "executing", "source_kind": "spec_only", "evidence_files": [], "secret_output": False, "writes": False},
+            {"seq": 6, "offset_s": 6.4, "page_id": "observe", "route": "/observe", "kind": "verifying", "hub": "observe", "regions": ["cerebellum", "sensory", "callosum"], "run_state": "verifying", "source_kind": "spec_only", "evidence_files": [], "secret_output": False, "writes": False},
+        ],
+        "non_claims": ["spec-only data, never a live provider call", "no secret values"],
+    }
+
+
+def organism_replay_payload(run_id: str | None = None) -> dict[str, object]:
+    run_id = _safe_run_id(run_id)
+    runtime_events = _organism_redacted_audit_events(run_id=run_id, limit=8)
+    if runtime_events:
+        frames = [
+            {
+                "t": event["offset_s"],
+                "run_state": event["run_state"],
+                "active": [event["hub"]],
+                "regions": event["regions"],
+                "source_kind": "agent_api_redacted",
+            }
+            for event in runtime_events
+        ]
+        duration = max(float(frames[-1]["t"]) if frames else 0.0, 1.0)
+        return {
+            "contract_version": "organism-replay-v1",
+            "source": "agent-api",
+            "source_kind": "agent_api_redacted",
+            "live": True,
+            "run_id": run_id,
+            "replay_available": True,
+            "note": "Reconstructed from audit_log event_type/severity/timestamp only. Session/user/details are intentionally omitted.",
+            "duration_s": round(duration, 1),
+            "fps": 30,
+            "frames": frames,
+            "non_claims": ["redacted runtime replay only, no live provider call", "no secret values", "read-only audit projection"],
+        }
+    return {
+        "contract_version": "organism-replay-v1",
+        "source": "spec_only",
+        "source_kind": "spec_only",
+        "live": False,
+        "run_id": run_id,
+        "replay_available": False,
+        "note": "Spec-only replay contract until recorded runtime frames are connected.",
+        "duration_s": 8,
+        "fps": 30,
+        "frames": [
+            {"t": 0.0, "run_state": "planning", "active": ["workbench"]},
+            {"t": 2.0, "run_state": "executing", "active": ["agents", "tools"]},
+            {"t": 4.0, "run_state": "executing", "active": ["models", "memory"]},
+            {"t": 6.0, "run_state": "verifying", "active": ["observe"]},
+            {"t": 8.0, "run_state": "idle", "active": []},
+        ],
+        "non_claims": ["spec-only data, never a live provider call", "no secret values"],
+    }
+
+
+def organism_regions_payload() -> dict[str, object]:
+    signals = {
+        "prefrontal": ["planning", "architecture", "goal_selection"],
+        "thalamus": ["routing", "approval", "context_switch"],
+        "hippocampus": ["memory_read", "memory_write", "resume"],
+        "amygdala": ["blocked", "risk", "secret_guard"],
+        "basal": ["tool_selection", "model_selection", "skill_selection"],
+        "cerebellum": ["verifying", "self_correction", "checks_passed"],
+        "motor": ["executing", "cli_action", "cloud_action"],
+        "sensory": ["file_read", "provider_status", "logs"],
+        "autonomic": ["health", "retry", "watchdog"],
+        "callosum": ["event_bus", "cross_agent_sync", "replay"],
+    }
+    layer_no_by_code = {str(layer["code"]): layer["no"] for layer in ORGANISM_LAYERS}
+    return {
+        "contract_version": "organism-regions-v1",
+        "endpoint": "/api/v1/organism/regions",
+        "source": "agent-api-static-contract",
+        "live": False,
+        "regions": [
+            {
+                **region,
+                "layer_no": layer_no_by_code.get(str(region["layer"])),
+                "signals": signals.get(str(region["id"]), []),
+                "hubs": [hub["id"] for hub in ORGANISM_HUBS if hub["layer"] == region["layer"]],
+                "secret_output": False,
+                "writes": False,
+            }
+            for region in ORGANISM_REGIONS
+        ],
+        "non_claims": ["region definitions only", "no provider calls", "no secret values"],
+    }
+
+
+def organism_safety_payload() -> dict[str, object]:
+    return {
+        "contract_version": "organism-safety-v1",
+        "endpoint": "/api/v1/organism/safety",
+        "source": "agent-api-policy-contract",
+        "live": False,
+        "source_kind": "policy_contract",
+        "gates": [
+            {"id": "secret_output", "status": "closed", "reason": "No endpoint may return token or secret values."},
+            {"id": "provider_writes", "status": "closed", "reason": "Cloud provider writes require explicit owner gate."},
+            {"id": "live_llm_calls", "status": "closed", "reason": "Direct provider calls are forbidden outside the LLM Gateway."},
+            {"id": "live_mcp_writes", "status": "closed", "reason": "MCP write tools require explicit owner gate."},
+            {"id": "production_deploy", "status": "closed", "reason": "Production deploy/release promotion is not claimed."},
+            {"id": "main_push", "status": "closed", "reason": "Main-branch writes require review gate."},
+        ],
+        "data_rules": {
+            "no_fake_live": True,
+            "missing_backend_state": "spec_only_or_blocked",
+            "secret_output": False,
+            "writes": False,
+            "provider_write": False,
+            "production_deploy_claimed": False,
+        },
+        "non_claims": ["policy status only", "no permission expansion", "no live provider call"],
+    }
+
+
+@app.get("/api/v1/organism/contract")
+def organism_contract() -> dict[str, object]:
+    return organism_contract_payload()
+
+
+@app.get("/api/v1/organism/topology")
+def organism_topology() -> dict[str, object]:
+    return organism_topology_payload()
+
+
+@app.get("/api/v1/organism/live-state")
+def organism_live_state() -> dict[str, object]:
+    return organism_live_state_payload()
+
+
+@app.get("/api/v1/organism/events")
+def organism_events(run_id: str | None = Query(default=None, max_length=96)) -> dict[str, object]:
+    return organism_events_payload(run_id)
+
+
+@app.get("/api/v1/organism/replay")
+def organism_replay(run_id: str | None = Query(default=None, max_length=96)) -> dict[str, object]:
+    return organism_replay_payload(run_id)
+
+
+@app.get("/api/v1/organism/regions")
+def organism_regions() -> dict[str, object]:
+    return organism_regions_payload()
+
+
+@app.get("/api/v1/organism/safety")
+def organism_safety() -> dict[str, object]:
+    return organism_safety_payload()
+
+
+@app.get("/api/v1/workspace/wiring")
+def workspace_wiring() -> dict[str, object]:
+    return workspace_wiring_payload()
+
+
+@app.get("/api/v1/workspace/vertical-stack")
+def workspace_vertical_stack() -> dict[str, object]:
+    return workspace_vertical_stack_payload()
+
+
+@app.get("/api/v1/design/reference-contract")
+def design_reference_contract() -> dict[str, object]:
+    return reference_design_contract_payload()
+
+
+@app.get("/api/v1/platform/verify")
+def platform_verify() -> dict[str, object]:
+    return platform_verify_payload()
+
+
+def platform_inventory_payload() -> dict[str, object]:
+    agent_api_routes = len([route for route in app.routes if getattr(route, "methods", None)])
+    return {
+        "contract_version": "platform-inventory-v1",
+        "endpoint": "/api/v1/platform/inventory",
+        "evidence_ref": "platform_inventory_visible",
+        "source": "agent-api-runtime-introspection",
+        "live": False,
+        "writes": False,
+        "secret_output": False,
+        "backend": {
+            "services": 5,
+            "workers": 2,
+            "agent_api_routes": agent_api_routes,
+            "agent_api_page_surfaced_endpoints": 130,
+        },
+        "capabilities": {
+            "llm_models_catalog": 12,
+            "agent_profiles": 4,
+            "live_agent_profiles": 12,
+            "skills": len(ORGANISM_SKILLS),
+            "mcp_tools": len(ORGANISM_TOOLS),
+            "cloud_providers": 8,
+            "safety_gates": len(ORGANISM_CLOSED_GATES),
+            "brain_regions": 10,
+            "capability_hubs": 8,
+        },
+        "workspace": {"pages": 22, "architecture_layers": 7},
+        "frontend": {"pages": 25, "components": 12, "lib_modules": 7, "api_routes": 12, "e2e_specs": 4},
+        "verification": {"verifier_scripts": 191, "python_verifiers": 6, "browser_proof_scripts": 2},
+        "infrastructure": {"compose_files": 2, "fly_configs": 6, "dockerfiles": 6, "nginx_confs": 2},
+        "non_claims": [
+            "Counts are a runtime inventory snapshot, not live metrics.",
+            "Engine artifacts (workers, verifiers, infrastructure) are functional but are not page data sources.",
+            "DEV-ONLY; no hosted/production claim, no secret output.",
+        ],
+    }
+
+
+@app.get("/api/v1/platform/inventory")
+def platform_inventory() -> dict[str, object]:
+    return platform_inventory_payload()
+
+
 @app.get("/api/v1/clouds/render-offload")
 def cloud_render_offload() -> dict[str, object]:
     return cloud_render_offload_state()
@@ -4164,6 +5608,16 @@ def cloud_deployment_preflight() -> dict[str, object]:
 @app.get("/api/v1/clouds/deployment-preflight/contract")
 def cloud_deployment_preflight_contract() -> dict[str, object]:
     return cloud_deployment_preflight_payload()
+
+
+@app.get("/api/v1/clouds/go-live-readiness")
+def cloud_go_live_readiness() -> dict[str, object]:
+    return go_live_readiness_state()
+
+
+@app.get("/api/v1/clouds/go-live-readiness/contract")
+def cloud_go_live_readiness_contract() -> dict[str, object]:
+    return go_live_readiness_contract_payload()
 
 
 @app.get("/api/v1/auth/contract")
@@ -4367,7 +5821,19 @@ def health() -> dict[str, object]:
 
     budget_state = get_budget_state()
     infra_budget_state = get_infra_budget_state()
-    gates = external_gate_state()
+    # Liveness must never 500 because the progress manifest / gate data is missing or unreadable
+    # (e.g. a hosted image without the bind-mounted manifest). Degrade instead of crashing.
+    try:
+        gates = external_gate_state()
+    except Exception as exc:
+        overall = "degraded"
+        gates = {
+            "status": "unavailable",
+            "configured_count": 0,
+            "total_count": 0,
+            "local_execution_allowed": False,
+            "error": str(exc),
+        }
     return {
         "status": overall,
         "service": "agent-api",
@@ -5152,6 +6618,222 @@ def memory_search(
     return {
         "results": [item for item in results if item["relevance_score"] >= threshold],
         "search_mode": "lexical_fallback",
+    }
+
+
+def workspace_artifact_row(row: tuple[object, ...]) -> dict[str, object]:
+    details = row[3] if isinstance(row[3], dict) else {}
+    return {
+        "id": str(row[0]),
+        "created_at": row[1].isoformat() if row[1] else None,
+        "session_id": str(row[2]) if row[2] else None,
+        "project_id": str(details.get("project_id", "")),
+        "source_page": str(details.get("source_page", "")),
+        "artifact_type": str(details.get("artifact_type", "")),
+        "title": str(details.get("title", "")),
+        "summary": str(details.get("summary", "")),
+        "run_id": details.get("run_id"),
+        "status": str(details.get("status", "ready")),
+        "evidence_ref": str(details.get("evidence_ref", WORKSPACE_ARTIFACT_EVIDENCE_REF)),
+        "metadata": details.get("metadata", {}),
+    }
+
+
+@app.get("/api/v1/workspace/artifacts/contract")
+def workspace_artifacts_contract() -> dict[str, object]:
+    return {
+        "contract_version": WORKSPACE_ARTIFACT_CONTRACT_VERSION,
+        "endpoint": "GET /api/v1/workspace/artifacts",
+        "runtime_endpoint": "POST /api/v1/workspace/artifacts",
+        "evidence_ref": WORKSPACE_ARTIFACT_EVIDENCE_REF,
+        "storage": "audit_log",
+        "event_type": "workspace_artifact_created",
+        "mode": "DEV-ONLY local artifact registry",
+        "writes": "audit-only local persistence",
+        "live_provider_calls": False,
+        "live_mcp_writes": False,
+        "secret_output": False,
+        "production_deploy": False,
+    }
+
+
+@app.get("/api/v1/workspace/artifacts")
+def workspace_artifacts(
+    project_id: str = Query(default="goal-b-local", min_length=1, max_length=255),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> dict[str, object]:
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        rows = conn.execute(
+            """
+            SELECT id, created_at, session_id, details
+            FROM audit_log
+            WHERE event_type = 'workspace_artifact_created'
+              AND COALESCE(details->>'project_id', '') = %s
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            (project_id, limit),
+        ).fetchall()
+    return {
+        "contract_version": WORKSPACE_ARTIFACT_CONTRACT_VERSION,
+        "evidence_ref": WORKSPACE_ARTIFACT_EVIDENCE_REF,
+        "mode": "DEV-ONLY local artifact registry",
+        "artifacts": [workspace_artifact_row(row) for row in rows],
+        "non_claims": [
+            "Artifact registry entries are local audit evidence only.",
+            "No cloud mutation, provider write, registry push, or production deployment is performed.",
+            "Secret values are redacted before persistence.",
+        ],
+    }
+
+
+@app.post("/api/v1/workspace/artifacts", status_code=201)
+def create_workspace_artifact(request: WorkspaceArtifactRequest, http_request: Request) -> dict[str, object]:
+    try:
+        session_id: str | None = str(UUID(str(request.session_id))) if request.session_id else None
+    except (TypeError, ValueError):
+        session_id = None
+    trace_id = getattr(http_request.state, "trace_id", None) or request.run_id or f"workspace-artifact-{uuid4()}"
+    details = redact_json(
+        {
+            "contract_version": WORKSPACE_ARTIFACT_CONTRACT_VERSION,
+            "project_id": request.project_id,
+            "source_page": request.source_page,
+            "artifact_type": request.artifact_type,
+            "title": redact_text(request.title),
+            "summary": redact_text(request.summary),
+            "session_id": session_id,
+            "run_id": request.run_id,
+            "status": request.status,
+            "metadata": request.metadata,
+            "trace_id": trace_id,
+            "evidence_ref": WORKSPACE_ARTIFACT_EVIDENCE_REF,
+            "live_provider_calls": False,
+            "live_mcp_writes": False,
+            "secret_output": False,
+            "production_deploy": False,
+        }
+    )
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        project_uuid = find_or_create_project_uuid(conn, request.project_id)
+        memory_id = insert_memory_entry(
+            conn,
+            project_uuid,
+            session_id,
+            f"Goal B artifact {request.source_page} {request.artifact_type}: {request.title}. {request.summary}",
+            {
+                "source": "goal_b_workspace_artifact_registry",
+                "artifact_type": request.artifact_type,
+                "source_page": request.source_page,
+                "run_id": request.run_id,
+            },
+        )
+        details["memory_id"] = memory_id
+        row = conn.execute(
+            """
+            INSERT INTO audit_log(event_type, session_id, details, severity)
+            VALUES ('workspace_artifact_created', %s, %s::jsonb, 'info')
+            RETURNING id, created_at
+            """,
+            (session_id, Json(details)),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=503, detail="workspace artifact insert failed")
+    return {
+        "artifact": workspace_artifact_row((row[0], row[1], session_id, details)),
+        "contract_version": WORKSPACE_ARTIFACT_CONTRACT_VERSION,
+        "evidence_ref": WORKSPACE_ARTIFACT_EVIDENCE_REF,
+        "audit_persisted": True,
+        "live_provider_calls": False,
+        "live_mcp_writes": False,
+        "secret_output": False,
+        "production_deploy": False,
+    }
+
+
+@app.get("/api/v1/tools/read-only/execute/contract")
+def read_only_tool_execute_contract() -> dict[str, object]:
+    return {
+        "contract_version": READ_ONLY_TOOL_EXECUTE_CONTRACT_VERSION,
+        "endpoint": "POST /api/v1/tools/read-only/execute",
+        "supported_tools": ["memory_read", "task_router"],
+        "evidence_ref": READ_ONLY_TOOL_EXECUTE_EVIDENCE_REF,
+        "mode": "read-only local tool execution",
+        "audit_event_type": "read_only_tool_executed",
+        "live_mcp_writes": False,
+        "writes": "audit-only local persistence",
+        "secret_output": False,
+        "production_deploy": False,
+    }
+
+
+@app.post("/api/v1/tools/read-only/execute")
+def execute_read_only_tool(request: ReadOnlyToolExecuteRequest, http_request: Request) -> dict[str, object]:
+    trace_id = getattr(http_request.state, "trace_id", None) or request.trace_id or f"readonly-tool-{uuid4()}"
+    if request.tool_id == "memory_read":
+        payload: dict[str, object] = {
+            "tool_id": request.tool_id,
+            "query": redact_text(request.query),
+            "results": [item.model_dump() for item in search_memory(request.project_id, request.query, 5)],
+            "search_mode": "lexical_fallback",
+        }
+    else:
+        payload = {
+            "tool_id": request.tool_id,
+            "query": redact_text(request.query),
+            "queue_depth": queue_depth(),
+            "queue_depth_by_priority": queue_depth_by_priority(),
+            "recent_tasks": [
+                {
+                    "task_id": record.task_id,
+                    "agent_type": record.agent_type,
+                    "task_type": record.task_type,
+                    "status": record.status,
+                    "priority": record.priority,
+                }
+                for record in list_recent_tasks(limit=8)
+            ],
+        }
+    details = redact_json(
+        {
+            "contract_version": READ_ONLY_TOOL_EXECUTE_CONTRACT_VERSION,
+            "project_id": request.project_id,
+            "tool_id": request.tool_id,
+            "trace_id": trace_id,
+            "evidence_ref": READ_ONLY_TOOL_EXECUTE_EVIDENCE_REF,
+            "live_mcp_writes": False,
+            "secret_output": False,
+            "payload_summary": {
+                "result_count": len(payload.get("results", [])) if request.tool_id == "memory_read" else len(payload.get("recent_tasks", [])),
+                "query": redact_text(request.query),
+            },
+        }
+    )
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        row = conn.execute(
+            """
+            INSERT INTO audit_log(event_type, details, severity)
+            VALUES ('read_only_tool_executed', %s::jsonb, 'info')
+            RETURNING id, created_at
+            """,
+            (Json(details),),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=503, detail="read-only tool audit insert failed")
+    return {
+        "contract_version": READ_ONLY_TOOL_EXECUTE_CONTRACT_VERSION,
+        "status": "success",
+        "tool_id": request.tool_id,
+        "trace_id": trace_id,
+        "evidence_ref": READ_ONLY_TOOL_EXECUTE_EVIDENCE_REF,
+        "audit_event_id": str(row[0]),
+        "audit_created_at": row[1].isoformat() if row[1] else None,
+        "audit_persisted": True,
+        "live_provider_calls": False,
+        "live_mcp_writes": False,
+        "secret_output": False,
+        "production_deploy": False,
+        "result": payload,
     }
 
 
@@ -6019,7 +7701,7 @@ def layer_interface_contract_payload() -> dict[str, object]:
         "non_claims": [
             "No hosted staging success is claimed without STAGING_BASE_URL.",
             "No GitHub branch protection success is claimed without BRANCH_PROTECTION_TOKEN.",
-            "No Hetzner live infrastructure state is claimed without HETZNER_API_TOKEN.",
+            "No Fly.io live infrastructure state is claimed without FLY_API_TOKEN.",
         ],
     }
 
@@ -6363,7 +8045,7 @@ def infra_budget() -> dict[str, object]:
         "source": state.source,
         "items": state.items,
         "non_claims": [
-            "This endpoint is a configured Phase-1 projection unless HETZNER_API_TOKEN is configured.",
+            "This endpoint is a configured Phase-1 projection unless FLY_API_TOKEN is configured.",
             "LLM/API provider spend is tracked separately and is not counted in the 20 EUR infrastructure limit.",
         ],
     }
@@ -6391,12 +8073,12 @@ def infra_budget_contract_payload() -> dict[str, object]:
         "supported_levels": ["ok", "warning", "critical"],
         "budget_limit_cents": state.budget_limit_cents,
         "warning_limit_cents": state.warning_limit_cents,
-        "supported_sources": ["projection", "hetzner_api_readonly"],
+        "supported_sources": ["projection", "fly_api_readonly", "fly_api_readonly_plus_plan_projection"],
         "required_item_fields": ["name", "monthly_cost_cents"],
         "evidence_ref": "infra_budget_contract_runtime_visible",
         "policy_checks": [
             "Infrastructure budget surface remains read-only.",
-            "Infra budget source stays visible as projection or readonly Hetzner API evidence.",
+            "Infra budget source stays visible as projection or readonly Fly.io API evidence.",
             "Infra budget does not include LLM provider spend.",
         ],
         "non_claims": [
@@ -7580,6 +9262,9 @@ def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> d
         "instructions": build_live_agent_instructions(agent_id, profile, sanitized_instructions),
         "input": sanitized_message,
         "store": True,
+        # Keep local DEV-ONLY role runs concise so the four-agent browser proof
+        # completes predictably on the CPU llama.cpp path.
+        "max_output_tokens": 96,
         "text": {
             "format": {"type": "text"},
             "verbosity": "low",
@@ -7598,6 +9283,14 @@ def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> d
 
     response_payload = call_llm_gateway_responses(payload)
     response_id = str(response_payload.get("id") or "")
+    text = extract_live_agent_text(response_payload)
+    action_result = perform_live_agent_result(
+        agent_id=agent_id,
+        execution_role=str(profile["execution_role"]),
+        project_id=request.project_id,
+        trace_id=str(response_payload.get("trace_id") or trace_id),
+        llm_text=text,
+    )
     if response_id:
         set_live_agent_session(
             agent_id,
@@ -7605,9 +9298,14 @@ def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> d
             project_id=request.project_id,
             model=str(response_payload.get("model") or model),
             execution_role=str(profile["execution_role"]),
+            extra={
+                "last_trace_id": str(response_payload.get("trace_id") or trace_id),
+                "last_result_type": action_result.get("result_type"),
+                "last_output_path": action_result.get("output_rel"),
+                "last_command": action_result.get("command"),
+                "last_exit_code": action_result.get("exit_code"),
+            },
         )
-
-    text = extract_live_agent_text(response_payload)
     return {
         "contract_version": LIVE_AGENT_STEERING_CONTRACT_VERSION,
         "runtime_source": "openai_responses_via_llm_gateway",
@@ -7619,8 +9317,21 @@ def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> d
         "model": response_payload.get("model") or model,
         "text": text,
         "usage": response_payload.get("usage"),
+        "trace_id": response_payload.get("trace_id") or trace_id,
+        "evidence_ref": LIVE_AGENT_STEERING_EVIDENCE_REF,
+        "llm_gateway_contract_version": response_payload.get("contract_version"),
+        "llm_gateway_evidence_ref": response_payload.get("evidence_ref"),
+        "live_provider_calls": response_payload.get("live_provider_calls", False),
+        "local_model_calls": response_payload.get("local_model_calls", False),
+        "model_downloads": response_payload.get("model_downloads", False),
+        "audit_persisted": response_payload.get("audit_persisted", False),
+        "secret_output": response_payload.get("secret_output", False),
         "execution_role": profile["execution_role"],
         "project_id": request.project_id,
+        "action": action_result.get("result_type"),
+        "output_path": action_result.get("output_rel"),
+        "command": action_result.get("command"),
+        "exit_code": action_result.get("exit_code"),
         "budget": {
             "level": budget_state.level,
             "spent_percentage": budget_state.spent_percentage,
@@ -8014,6 +9725,41 @@ def orchestrator_checkpoint(thread_id: str) -> dict[str, object]:
         "checkpointing": "postgres",
         "snapshot": snapshot,
     }
+
+
+def local_files_readonly_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": "local-files-readonly-contract-v1",
+        "mode": "frontend_readonly_intent_surface",
+        "endpoint": "GET /api/v1/files/local/contract",
+        "page_route": "/files/local",
+        "evidence_ref": "local_files_readonly_contract_visible",
+        "live": False,
+        "writes": False,
+        "secret_output": False,
+        "host_filesystem_mounted": False,
+        "live_filesystem_reads": False,
+        "mcp_contract_ref": "GET /mcp/api/v1/filesystem/workspace-scope/contract",
+        "allowed_runtime_operations": [],
+        "required_ui_state": "read-only unavailable fallback",
+        "policy_checks": [
+            "The frontend may show only a read-only intent surface when no scoped file mount is present.",
+            "No host filesystem path is listed from this endpoint.",
+            "No file content, secret value, token cache, or private path is exposed.",
+            "Any future filesystem access must go through MCP scope guard and audit.",
+        ],
+        "non_claims": [
+            "This endpoint does not read the host filesystem.",
+            "This endpoint does not mount local project files into the platform UI.",
+            "This endpoint does not enable MCP filesystem writes.",
+            "Localhost evidence remains DEV-ONLY and cannot close hosted gates.",
+        ],
+    }
+
+
+@app.get("/api/v1/files/local/contract")
+def local_files_readonly_contract() -> dict[str, object]:
+    return local_files_readonly_contract_payload()
 
 
 @app.get("/api/v1/models/capabilities")

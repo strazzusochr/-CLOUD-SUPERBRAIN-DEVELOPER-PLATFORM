@@ -15,9 +15,12 @@ CLOUD_PROVIDER_CONTRACT_VERSION = "cloud-provider-inventory-v1"
 CLOUD_PROVIDER_EVIDENCE_REF = "cloud_provider_inventory_visible"
 CLOUD_LAYER_CONTRACT_VERSION = "cloud-layer-readiness-v1"
 CLOUD_LAYER_EVIDENCE_REF = "cloud_layer_readiness_visible"
-HCLOUD_API_URL = "https://api.hetzner.cloud/v1"
-HCLOUD_TIMEOUT_SECONDS = 5.0
-HCLOUD_CACHE_TTL_SECONDS = 60
+FLY_API_URL = "https://api.fly.io"
+FLY_GRAPHQL_URL = "https://api.fly.io/graphql"
+FLY_TIMEOUT_SECONDS = 5.0
+FLY_CACHE_TTL_SECONDS = 60
+GRAFANA_CLOUD_TIMEOUT_SECONDS = 5.0
+GRAFANA_CLOUD_CACHE_TTL_SECONDS = 60
 CLOUDFLARE_API_URL = "https://api.cloudflare.com/client/v4"
 CLOUDFLARE_TIMEOUT_SECONDS = 5.0
 CLOUDFLARE_CACHE_TTL_SECONDS = 60
@@ -25,13 +28,14 @@ VERCEL_API_URL = "https://api.vercel.com"
 GITHUB_API_URL = "https://api.github.com"
 HUGGINGFACE_API_URL = "https://huggingface.co"
 GITLAB_DEFAULT_API_URL = "https://gitlab.com/api/v4"
-GITKRAKEN_DEFAULT_API_URL = "https://gitkraken.gitclear.com/api/v1"
 PROVIDER_TIMEOUT_SECONDS = 5.0
 PROVIDER_CACHE_TTL_SECONDS = 60
 GITHUB_API_VERSION = "2022-11-28"
 
-_hetzner_cache: dict[str, Any] | None = None
-_hetzner_cache_time = 0.0
+_fly_cache: dict[str, Any] | None = None
+_fly_cache_time = 0.0
+_grafana_cache: dict[str, Any] | None = None
+_grafana_cache_time = 0.0
 _cloudflare_cache: dict[str, Any] | None = None
 _cloudflare_cache_time = 0.0
 _vercel_cache: dict[str, Any] | None = None
@@ -44,8 +48,6 @@ _huggingface_cache: dict[str, Any] | None = None
 _huggingface_cache_time = 0.0
 _gitlab_cache: dict[str, Any] | None = None
 _gitlab_cache_time = 0.0
-_gitkraken_cache: dict[str, Any] | None = None
-_gitkraken_cache_time = 0.0
 
 
 def utc_now() -> str:
@@ -112,26 +114,19 @@ def gitlab_api_url() -> str:
     return (os.getenv("GITLAB_API_URL") or GITLAB_DEFAULT_API_URL).rstrip("/")
 
 
-def gitkraken_api_url() -> str:
-    return (os.getenv("GITKRAKEN_API_URL") or GITKRAKEN_DEFAULT_API_URL).rstrip("/")
+def _fly_graphql(client: httpx.Client, token: str, query: str) -> dict[str, Any]:
+    response = client.post(
+        FLY_GRAPHQL_URL,
+        headers={"Authorization": f"Bearer {token}"},
+        json={"query": query},
+    )
+    response.raise_for_status()
+    return response.json()
 
 
-def server_monthly_gross(server: dict[str, Any]) -> Decimal:
-    location = ((server.get("datacenter") or {}).get("location") or {}).get("name")
-    prices = ((server.get("server_type") or {}).get("prices") or [])
-    selected = None
-    for price in prices:
-        if price.get("location") == location:
-            selected = price
-            break
-    selected = selected or (prices[0] if prices else {})
-    gross = (selected.get("price_monthly") or {}).get("gross")
-    return money(gross)
-
-
-def _hcloud_get(client: httpx.Client, token: str, path: str) -> dict[str, Any]:
+def _grafana_cloud_get(client: httpx.Client, token: str, url: str, path: str) -> dict[str, Any]:
     response = client.get(
-        f"{HCLOUD_API_URL}{path}",
+        f"{url}{path}",
         headers={"Authorization": f"Bearer {token}"},
     )
     response.raise_for_status()
@@ -203,147 +198,79 @@ def _gitlab_get(client: httpx.Client, token: str, path: str) -> dict[str, Any]:
     return response.json()
 
 
-def _gitkraken_get(client: httpx.Client, token: str, path: str) -> dict[str, Any]:
-    response = client.get(
-        f"{gitkraken_api_url()}{path}",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    response.raise_for_status()
-    return response.json()
-
-
-def _server_resource(server: dict[str, Any]) -> dict[str, object]:
-    public_net = server.get("public_net") or {}
-    ipv4 = public_net.get("ipv4") or {}
-    ipv6 = public_net.get("ipv6") or {}
-    server_type = server.get("server_type") or {}
-    datacenter = server.get("datacenter") or {}
-    location = datacenter.get("location") or {}
-    monthly = server_monthly_gross(server)
+def _fly_app_resource(app: dict[str, Any]) -> dict[str, object]:
     return {
-        "kind": "server",
-        "id": server.get("id"),
-        "name": server.get("name"),
-        "status": server.get("status"),
-        "type": server_type.get("name"),
-        "architecture": server_type.get("architecture"),
-        "location": location.get("name"),
-        "datacenter": datacenter.get("name"),
-        "ipv4_masked": mask_ip(ipv4.get("ip")),
-        "ipv6_cidr_masked": mask_ip(ipv6.get("ip")),
-        "monthly_cost_cents": eur_to_cents(monthly),
-        "source": "hetzner_api_readonly",
+        "kind": "app",
+        "id": app.get("id"),
+        "name": app.get("name"),
+        "status": app.get("status"),
+        "hostname": app.get("hostname"),
+        "organization": (app.get("organization") or {}).get("slug"),
+        "source": "fly_api_readonly",
     }
 
 
-def _volume_resource(volume: dict[str, Any]) -> dict[str, object]:
-    location = volume.get("location") or {}
-    server = volume.get("server")
-    return {
-        "kind": "volume",
-        "id": volume.get("id"),
-        "name": volume.get("name"),
-        "size_gb": volume.get("size"),
-        "location": location.get("name"),
-        "server_id": server,
-        "source": "hetzner_api_readonly",
-    }
-
-
-def _primary_ip_resource(primary_ip: dict[str, Any]) -> dict[str, object]:
-    datacenter = primary_ip.get("datacenter") or {}
-    return {
-        "kind": "primary_ip",
-        "id": primary_ip.get("id"),
-        "name": primary_ip.get("name"),
-        "type": primary_ip.get("type"),
-        "ip_masked": mask_ip(primary_ip.get("ip")),
-        "datacenter": datacenter.get("name"),
-        "assignee_id": primary_ip.get("assignee_id"),
-        "source": "hetzner_api_readonly",
-    }
-
-
-def _floating_ip_resource(floating_ip: dict[str, Any]) -> dict[str, object]:
-    home_location = floating_ip.get("home_location") or {}
-    return {
-        "kind": "floating_ip",
-        "id": floating_ip.get("id"),
-        "name": floating_ip.get("name"),
-        "type": floating_ip.get("type"),
-        "ip_masked": mask_ip(floating_ip.get("ip")),
-        "home_location": home_location.get("name"),
-        "server_id": floating_ip.get("server"),
-        "source": "hetzner_api_readonly",
-    }
-
-
-def _hetzner_env_resource() -> dict[str, object] | None:
-    keys = [
-        "HETZNER_PROJECT_ID",
-        "HETZNER_SERVER_ID",
-        "HETZNER_SERVER_NAME",
-        "HETZNER_SERVER_TYPE",
-        "HETZNER_SERVER_LOCATION",
-        "HETZNER_SERVER_IPV4",
-        "HETZNER_SERVER_IPV6_CIDR",
-        "HETZNER_PRIMARY_IPV4_ID",
-        "HETZNER_PRIMARY_IPV6_ID",
-        "HETZNER_VOLUME_ID",
-    ]
-    if not env_any(keys):
-        return None
-    return {
-        "kind": "configured_target",
-        "project_id": os.getenv("HETZNER_PROJECT_ID"),
-        "server_id": os.getenv("HETZNER_SERVER_ID"),
-        "server_name": os.getenv("HETZNER_SERVER_NAME"),
-        "server_type": os.getenv("HETZNER_SERVER_TYPE"),
-        "location": os.getenv("HETZNER_SERVER_LOCATION"),
-        "ipv4_masked": mask_ip(os.getenv("HETZNER_SERVER_IPV4")),
-        "ipv6_cidr_masked": mask_ip(os.getenv("HETZNER_SERVER_IPV6_CIDR")),
-        "primary_ipv4_id": os.getenv("HETZNER_PRIMARY_IPV4_ID"),
-        "primary_ipv6_id": os.getenv("HETZNER_PRIMARY_IPV6_ID"),
-        "volume_id": os.getenv("HETZNER_VOLUME_ID"),
-        "source": "env_metadata_no_secret",
-    }
-
-
-def _fetch_hetzner_snapshot() -> dict[str, Any]:
-    token = os.getenv("HETZNER_API_TOKEN")
+def _fetch_fly_snapshot() -> dict[str, Any]:
+    token = os.getenv("FLY_API_TOKEN")
     if not token:
         return {
             "status": "missing_token",
             "live_verified": False,
             "resources": [],
-            "monthly_cost_cents": 0,
             "last_checked_at": utc_now(),
             "error": None,
         }
 
-    global _hetzner_cache, _hetzner_cache_time
+    global _fly_cache, _fly_cache_time
     now = time.monotonic()
-    if _hetzner_cache and now - _hetzner_cache_time < HCLOUD_CACHE_TTL_SECONDS:
-        return dict(_hetzner_cache)
+    if _fly_cache and now - _fly_cache_time < FLY_CACHE_TTL_SECONDS:
+        return dict(_fly_cache)
 
     try:
-        with httpx.Client(timeout=HCLOUD_TIMEOUT_SECONDS) as client:
-            servers_payload = _hcloud_get(client, token, "/servers")
-            volumes_payload = _hcloud_get(client, token, "/volumes")
-            primary_ips_payload = _hcloud_get(client, token, "/primary_ips")
-            floating_ips_payload = _hcloud_get(client, token, "/floating_ips")
-        servers = [_server_resource(server) for server in servers_payload.get("servers", [])]
-        volumes = [_volume_resource(volume) for volume in volumes_payload.get("volumes", [])]
-        primary_ips = [_primary_ip_resource(primary_ip) for primary_ip in primary_ips_payload.get("primary_ips", [])]
-        floating_ips = [
-            _floating_ip_resource(floating_ip) for floating_ip in floating_ips_payload.get("floating_ips", [])
-        ]
-        monthly_cost_cents = sum(int(server.get("monthly_cost_cents") or 0) for server in servers)
+        query = """
+        {
+            viewer {
+                email
+                organizations {
+                    nodes {
+                        slug
+                    }
+                }
+            }
+            apps {
+                nodes {
+                    id
+                    name
+                    status
+                    hostname
+                    organization {
+                        slug
+                    }
+                }
+            }
+        }
+        """
+        with httpx.Client(timeout=FLY_TIMEOUT_SECONDS) as client:
+            payload = _fly_graphql(client, token, query)
+        data = payload.get("data") or {}
+        apps_nodes = (data.get("apps") or {}).get("nodes") or []
+        viewer = data.get("viewer") or {}
+        resources: list[dict[str, object]] = []
+        if viewer.get("email"):
+            orgs = (viewer.get("organizations") or {}).get("nodes") or []
+            resources.append({
+                "kind": "authenticated_viewer",
+                "email_configured": True,
+                "org_count": len(orgs),
+                "source": "fly_api_readonly",
+            })
+        for app in apps_nodes:
+            if isinstance(app, dict):
+                resources.append(_fly_app_resource(app))
         snapshot = {
             "status": "verified",
             "live_verified": True,
-            "resources": [*servers, *volumes, *primary_ips, *floating_ips],
-            "monthly_cost_cents": monthly_cost_cents,
+            "resources": resources,
             "last_checked_at": utc_now(),
             "error": None,
         }
@@ -352,36 +279,80 @@ def _fetch_hetzner_snapshot() -> dict[str, Any]:
             "status": "api_error",
             "live_verified": False,
             "resources": [],
-            "monthly_cost_cents": 0,
             "last_checked_at": utc_now(),
             "error": sanitize_error(exc),
         }
 
-    _hetzner_cache = dict(snapshot)
-    _hetzner_cache_time = now
+    _fly_cache = dict(snapshot)
+    _fly_cache_time = now
     return snapshot
 
 
-def hetzner_live_budget_items() -> list[dict[str, object]] | None:
-    if not os.getenv("HETZNER_API_TOKEN"):
+def fly_live_budget_items() -> list[dict[str, object]] | None:
+    if not os.getenv("FLY_API_TOKEN"):
         return None
-    snapshot = _fetch_hetzner_snapshot()
+    snapshot = _fetch_fly_snapshot()
     if not snapshot.get("live_verified"):
         return None
-    items: list[dict[str, object]] = []
-    for resource in snapshot.get("resources", []):
-        if not isinstance(resource, dict) or resource.get("kind") != "server":
-            continue
-        items.append(
-            {
-                "name": f"hetzner-{resource.get('name') or resource.get('id')}-{resource.get('type') or 'server'}",
-                "monthly_cost_cents": int(resource.get("monthly_cost_cents") or 0),
-                "source": "hetzner_api_readonly",
-                "provider": "hetzner_cloud",
-                "resource_id": resource.get("id"),
-            }
-        )
-    return items
+    # Fly.io does not expose per-machine pricing via GraphQL;
+    # return an empty list so the budget pipeline stays consistent.
+    return []
+
+
+def _fetch_grafana_cloud_snapshot() -> dict[str, Any]:
+    token = os.getenv("GRAFANA_CLOUD_API_KEY")
+    url = os.getenv("GRAFANA_CLOUD_URL")
+    if not token or not url:
+        return {
+            "status": "missing_token",
+            "live_verified": False,
+            "resources": [],
+            "last_checked_at": utc_now(),
+            "error": None,
+        }
+
+    global _grafana_cache, _grafana_cache_time
+    now = time.monotonic()
+    if _grafana_cache and now - _grafana_cache_time < GRAFANA_CLOUD_CACHE_TTL_SECONDS:
+        return dict(_grafana_cache)
+
+    try:
+        if token.startswith("glc_"):
+            import base64
+            import json
+            padding = len(token[4:]) % 4
+            b64 = token[4:] + ("=" * padding)
+            payload = json.loads(base64.b64decode(b64).decode("utf-8"))
+            org_id = payload.get("o")
+            name = payload.get("n")
+        else:
+            raise ValueError("Token must start with glc_")
+
+        resources = [{
+            "kind": "organization",
+            "id": org_id,
+            "name": name,
+            "source": "grafana_api_readonly",
+        }]
+        snapshot = {
+            "status": "verified",
+            "live_verified": True,
+            "resources": resources,
+            "last_checked_at": utc_now(),
+            "error": None,
+        }
+    except Exception as exc:  # pragma: no cover
+        snapshot = {
+            "status": "api_error",
+            "live_verified": False,
+            "resources": [],
+            "last_checked_at": utc_now(),
+            "error": sanitize_error(exc),
+        }
+
+    _grafana_cache = dict(snapshot)
+    _grafana_cache_time = now
+    return snapshot
 
 
 def _cloudflare_env_resource() -> dict[str, object] | None:
@@ -887,75 +858,7 @@ def _fetch_gitlab_snapshot() -> dict[str, Any]:
     return snapshot
 
 
-def _gitkraken_env_resource() -> dict[str, object] | None:
-    keys = [
-        "GITKRAKEN_ORG_ID",
-        "GITKRAKEN_ORG_NAME",
-        "GITKRAKEN_DASHBOARD_URL",
-        "GITKRAKEN_API_URL",
-    ]
-    if not env_any(keys):
-        return None
-    dashboard = os.getenv("GITKRAKEN_DASHBOARD_URL") or ""
-    return {
-        "kind": "configured_organization",
-        "organization_id": os.getenv("GITKRAKEN_ORG_ID"),
-        "organization_name": os.getenv("GITKRAKEN_ORG_NAME"),
-        "dashboard_host": urlparse(dashboard).netloc if dashboard else None,
-        "dashboard_configured": bool(dashboard),
-        "api_url_configured": bool(os.getenv("GITKRAKEN_API_URL")),
-        "source": "env_metadata_no_secret",
-    }
 
-
-def _gitkraken_token_resource(payload: dict[str, Any]) -> dict[str, object]:
-    return {
-        "kind": "api_token_status",
-        "action": payload.get("action_em"),
-        "response": payload.get("response_em"),
-        "detail_present": bool(payload.get("response_detail")),
-        "source": "gitkraken_api_readonly",
-    }
-
-
-def _fetch_gitkraken_snapshot() -> dict[str, Any]:
-    token = os.getenv("GITKRAKEN_API_TOKEN")
-    if not token:
-        return {
-            "status": "missing_token",
-            "live_verified": False,
-            "resources": [],
-            "last_checked_at": utc_now(),
-            "error": None,
-        }
-
-    global _gitkraken_cache, _gitkraken_cache_time
-    now = time.monotonic()
-    if _gitkraken_cache and now - _gitkraken_cache_time < PROVIDER_CACHE_TTL_SECONDS:
-        return dict(_gitkraken_cache)
-
-    try:
-        with httpx.Client(timeout=PROVIDER_TIMEOUT_SECONDS) as client:
-            resources = [_gitkraken_token_resource(_gitkraken_get(client, token, "/api_tokens"))]
-        snapshot = {
-            "status": "verified",
-            "live_verified": True,
-            "resources": resources,
-            "last_checked_at": utc_now(),
-            "error": None,
-        }
-    except Exception as exc:  # pragma: no cover - token scopes and GitKraken products vary.
-        snapshot = {
-            "status": "api_error",
-            "live_verified": False,
-            "resources": [],
-            "last_checked_at": utc_now(),
-            "error": sanitize_error(exc),
-        }
-
-    _gitkraken_cache = dict(snapshot)
-    _gitkraken_cache_time = now
-    return snapshot
 
 
 def provider(
@@ -995,52 +898,72 @@ def provider(
     }
 
 
-def hetzner_provider() -> dict[str, object]:
-    metadata = _hetzner_env_resource()
-    snapshot = _fetch_hetzner_snapshot()
+def fly_provider() -> dict[str, object]:
+    snapshot = _fetch_fly_snapshot()
     resources = list(snapshot.get("resources") or [])
-    if metadata and not resources:
-        resources.append(metadata)
-    token_configured = bool(os.getenv("HETZNER_API_TOKEN"))
-    metadata_configured = metadata is not None
-    configured = token_configured or metadata_configured
+    token_configured = bool(os.getenv("FLY_API_TOKEN"))
+    configured = token_configured
     live_verified = bool(snapshot.get("live_verified"))
     if live_verified:
         status = "live_verified"
     elif token_configured:
         status = "api_error"
-    elif metadata_configured:
+    else:
+        status = "action_required"
+    item = provider(
+        provider_id="fly_io",
+        label="Fly.io",
+        role="Layer 2/3/6 runtime host for Orchestrator, Agent Pool, and PostgreSQL.",
+        layers=["layer_2", "layer_3", "layer_6", "layer_7"],
+        required_env=["FLY_API_TOKEN"],
+        resources=resources,
+        live_verified=live_verified,
+        status=status,
+        monthly_cost_cents=0 if live_verified else None,
+        last_checked_at=str(snapshot.get("last_checked_at") or utc_now()),
+        non_claims=[
+            "No Fly.io token value is returned by this endpoint.",
+            "Live Fly.io state is claimed only when FLY_API_TOKEN is present and the read-only GraphQL call succeeds.",
+            "No Fly.io app, machine, volume, or secret write is performed by this endpoint.",
+        ],
+    )
+    item["configured"] = configured
+    if snapshot.get("error"):
+        item["error"] = snapshot["error"]
+    return item
+
+
+def grafana_cloud_provider() -> dict[str, object]:
+    snapshot = _fetch_grafana_cloud_snapshot()
+    resources = list(snapshot.get("resources") or [])
+    token_configured = bool(os.getenv("GRAFANA_CLOUD_API_KEY"))
+    url_configured = bool(os.getenv("GRAFANA_CLOUD_URL"))
+    configured = token_configured or url_configured
+    live_verified = bool(snapshot.get("live_verified"))
+    if live_verified:
+        status = str(snapshot.get("status") or "verified")
+    elif token_configured:
+        status = "api_error"
+    elif url_configured:
         status = "metadata_only"
     else:
         status = "action_required"
     item = provider(
-        provider_id="hetzner_cloud",
-        label="Hetzner Cloud",
-        role="Layer 2/6 runtime host, PostgreSQL pgvector home, and live infrastructure budget source.",
-        layers=["layer_2", "layer_6", "layer_7"],
-        required_env=["HETZNER_API_TOKEN"],
-        optional_env=[
-            "HETZNER_PROJECT_ID",
-            "HETZNER_SERVER_ID",
-            "HETZNER_SERVER_NAME",
-            "HETZNER_SERVER_TYPE",
-            "HETZNER_SERVER_LOCATION",
-            "HETZNER_SERVER_IPV4",
-            "HETZNER_SERVER_IPV6_CIDR",
-            "HETZNER_PRIMARY_IPV4_ID",
-            "HETZNER_PRIMARY_IPV6_ID",
-            "HETZNER_VOLUME_ID",
-        ],
+        provider_id="grafana_cloud",
+        label="Grafana Cloud",
+        role="Layer 7 hosted observability, logs, metrics, and traces.",
+        layers=["layer_7"],
+        required_env=["GRAFANA_CLOUD_API_KEY"],
+        optional_env=["GRAFANA_CLOUD_URL"],
         resources=resources,
         live_verified=live_verified,
         status=status,
-        monthly_cost_cents=int(snapshot.get("monthly_cost_cents") or 0) if live_verified else None,
+        monthly_cost_cents=0 if live_verified else None,
         last_checked_at=str(snapshot.get("last_checked_at") or utc_now()),
         non_claims=[
-            "No Hetzner token value is returned by this endpoint.",
-            "IP addresses are masked in the public dashboard payload.",
-            "Live Hetzner state is claimed only when HETZNER_API_TOKEN is present and the read-only API call succeeds.",
-            "Volume pricing is not added unless a verified cost source exposes it; server monthly prices drive the live budget item.",
+            "No Grafana Cloud API key value is returned by this endpoint.",
+            "Grafana Cloud identity is read-only and does not modify dashboards, alerts, or data sources.",
+            "No organization, stack, dashboard, alert, or data-source write is performed.",
         ],
     )
     item["configured"] = configured
@@ -1308,63 +1231,19 @@ def gitlab_provider() -> dict[str, object]:
     return item
 
 
-def gitkraken_provider() -> dict[str, object]:
-    metadata = _gitkraken_env_resource()
-    snapshot = _fetch_gitkraken_snapshot()
-    resources = list(snapshot.get("resources") or [])
-    if metadata:
-        resources.append(metadata)
-    token_configured = bool(os.getenv("GITKRAKEN_API_TOKEN"))
-    metadata_configured = metadata is not None
-    configured = token_configured or metadata_configured
-    live_verified = bool(snapshot.get("live_verified"))
-    if live_verified:
-        status = str(snapshot.get("status") or "verified")
-    elif token_configured:
-        status = "api_error"
-    elif metadata_configured:
-        status = "metadata_only"
-    else:
-        status = "action_required"
-    item = provider(
-        provider_id="gitkraken_identity",
-        label="GitKraken",
-        role="Optional Layer 5 developer-workspace and organization identity proof.",
-        layers=["layer_5", "layer_7"],
-        required_env=["GITKRAKEN_API_TOKEN"],
-        optional_env=[
-            "GITKRAKEN_ORG_ID",
-            "GITKRAKEN_ORG_NAME",
-            "GITKRAKEN_DASHBOARD_URL",
-            "GITKRAKEN_API_URL",
-        ],
-        resources=resources,
-        live_verified=live_verified,
-        status=status,
-        monthly_cost_cents=0 if live_verified else None,
-        last_checked_at=str(snapshot.get("last_checked_at") or utc_now()),
-        non_claims=[
-            "No GitKraken token value is returned by this endpoint.",
-            "GitKraken identity is optional and does not replace GitHub branch protection or GHCR image proof.",
-            "No organization, user, billing, team, workspace, repository, issue, or integration write is performed.",
-        ],
-    )
-    item["configured"] = configured
-    if snapshot.get("error"):
-        item["error"] = snapshot["error"]
-    return item
+
 
 
 def cloud_provider_state() -> dict[str, object]:
     providers = [
         vercel_provider(),
-        hetzner_provider(),
+        fly_provider(),
         cloudflare_provider(),
         github_provider(),
         ghcr_provider(),
         huggingface_provider(),
         gitlab_provider(),
-        gitkraken_provider(),
+        grafana_cloud_provider(),
     ]
     configured = sum(1 for item in providers if bool(item.get("configured")))
     live_verified = sum(1 for item in providers if bool(item.get("live_verified")))
@@ -1378,13 +1257,13 @@ def cloud_provider_state() -> dict[str, object]:
         {
             "layer_id": "layer_2",
             "label": "Orchestrator / LangGraph",
-            "providers": ["hetzner_cloud"],
+            "providers": ["fly_io"],
             "evidence_ref": CLOUD_PROVIDER_EVIDENCE_REF,
         },
         {
             "layer_id": "layer_3",
             "label": "Agent Pool",
-            "providers": ["hetzner_cloud"],
+            "providers": ["fly_io"],
             "evidence_ref": CLOUD_PROVIDER_EVIDENCE_REF,
         },
         {
@@ -1396,13 +1275,13 @@ def cloud_provider_state() -> dict[str, object]:
         {
             "layer_id": "layer_5",
             "label": "MCP Gateway / Tools",
-            "providers": ["github_actions", "ghcr_registry", "gitlab_identity", "gitkraken_identity"],
+            "providers": ["github_actions", "ghcr_registry", "gitlab_identity"],
             "evidence_ref": CLOUD_PROVIDER_EVIDENCE_REF,
         },
         {
             "layer_id": "layer_6",
             "label": "Memory / PostgreSQL pgvector",
-            "providers": ["hetzner_cloud"],
+            "providers": ["fly_io"],
             "evidence_ref": CLOUD_PROVIDER_EVIDENCE_REF,
         },
         {
@@ -1410,10 +1289,10 @@ def cloud_provider_state() -> dict[str, object]:
             "label": "Observability / Evidence",
             "providers": [
                 "vercel_frontend",
-                "hetzner_cloud",
+                "fly_io",
                 "cloudflare_edge",
                 "github_actions",
-                "gitkraken_identity",
+                "grafana_cloud",
             ],
             "evidence_ref": CLOUD_PROVIDER_EVIDENCE_REF,
         },
@@ -1431,8 +1310,8 @@ def cloud_provider_state() -> dict[str, object]:
         "policy_checks": [
             "No secret values are returned by the cloud inventory endpoint.",
             "Cloud providers map to the existing seven architecture layers.",
-            "Live Hetzner reads are read-only and token-gated.",
-            "Vercel, GitHub, GHCR, Hugging Face, GitLab, and GitKraken live checks are read-only and token-gated.",
+            "Live Fly.io reads are read-only and token-gated.",
+            "Vercel, GitHub, GHCR, Hugging Face, GitLab, and Grafana Cloud live checks are read-only and token-gated.",
             "Budget guard remains the source of truth for new infrastructure permission.",
             "Production deployment remains blocked until hosted staging, branch protection, secret scan, and owner review pass.",
         ],

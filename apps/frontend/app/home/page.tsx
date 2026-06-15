@@ -1,95 +1,110 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
-import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Metric, Badge, StatusDot } from "../../components/ui";
 import { Icon } from "../../lib/nav";
-import { fetchLiveAgents } from "../../lib/agentApi";
+import { HomeCortexHero, HomeHeroProofPanel } from "../../components/batch4-actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Home — Cloud Superbrain" };
 
-const RECENT = [
-  { name: "superbrain-game-engine", kind: "Game", route: "/games", when: "2m ago" },
-  { name: "crisis-dashboard", kind: "App", route: "/apps", when: "1h ago" },
-  { name: "platform-architecture.md", kind: "Doc", route: "/docs-output", when: "3h ago" },
-];
-
 export default async function HomePage() {
-  const roster = await fetchLiveAgents();
-  const live = !!roster;
-  const sessions = roster ? roster.agents.filter((a) => a.hasSession).length : 0;
-  const agentValue = live ? `${sessions} / ${roster!.agents.length}` : "0 / 4";
-
   return (
     <AppShell crumb="Home" runState="idle">
       <div className="page">
-        <PageHeader
-          eyebrow="Overview"
-          title="Welcome back"
-          subtitle="Continue where you left off. Pick up a recent project or start a new run from the Workbench."
-          actions={
-            <Link href="/workbench" className="btn btn-primary">
-              {Icon.workbench({ size: 16 })} Open Workbench
-            </Link>
-          }
-        />
+        <div className="home-hero-shell">
+          <div className="home-hero-copy">
+            <PageHeader
+              eyebrow="Cloud Superbrain"
+              title="Developer Platform"
+              subtitle="Saubere Produktfläche für Games, Apps, Media und Docs. Nachweise, Verifier und externe Laufdaten bleiben getrennt in Evidence, Diagnostics und Organism verdrahtet."
+              actions={
+                <Link href="/workbench" className="btn btn-primary">
+                  {Icon.workbench({ size: 16 })} Werkbank öffnen
+                </Link>
+              }
+            />
+            <HomeHeroProofPanel />
+          </div>
+          <HomeCortexHero />
+        </div>
 
         <div className="grid cols-4" style={{ marginBottom: 16 }}>
-          <Metric label="Recent projects" value="3" foot={<><StatusDot tone="cyan" /> local</>} />
           <Metric
-            label="Agents active"
-            value={agentValue}
-            foot={live ? <><StatusDot tone="green" pulse /> live roster</> : <><StatusDot tone="mut" /> planner/coder/tester/devops</>}
+            label="Studio-Modi"
+            value="4"
+            foot={<><StatusDot tone="cyan" /> Produkt-Konstante</>}
           />
-          <Metric label="Cloud layers" value="7" foot={<><StatusDot tone="mut" /> spec · 8 providers</>} />
-          <Metric label="Gates" value="CLOSED" foot={<><StatusDot tone="green" /> safe by default</>} />
+          <Metric
+            label="Core Pages"
+            value="22"
+            foot={<><StatusDot tone="green" /> kanonische Navigation</>}
+          />
+          <Metric
+            label="Cloud-Layer"
+            value="7"
+            foot={<><StatusDot tone="cyan" /> Architektur-Konstante</>}
+          />
+          <Metric
+            label="Live Claims"
+            value="0"
+            foot={<><StatusDot tone="amber" /> nur mit Datenquelle</>}
+          />
         </div>
 
         <div className="grid cols-2">
           <Panel
-            title="Recent projects"
-            actions={<Link href="/apps" className="btn btn-sm btn-ghost">All →</Link>}
+            title="Produktflächen"
+            actions={<Link href="/workbench" className="btn btn-sm btn-ghost">Öffnen →</Link>}
           >
             <div className="list">
-              {RECENT.map((r) => (
-                <Link key={r.name} href={r.route} className="lrow">
-                  {Icon.files({ size: 16 })}
-                  <span style={{ fontWeight: 500 }}>{r.name}</span>
-                  <Badge tone="mut">{r.kind}</Badge>
-                  <span className="meta">{r.when}</span>
-                </Link>
-              ))}
+              <Link href="/games" className="lrow">
+                {Icon.games({ size: 16 })}
+                <span style={{ fontWeight: 500 }}>Games</span>
+                <Badge tone="cyan">Workbench</Badge>
+                <span className="meta">Code · Preview · Assets</span>
+              </Link>
+              <Link href="/apps" className="lrow">
+                {Icon.apps({ size: 16 })}
+                <span style={{ fontWeight: 500 }}>Apps</span>
+                <Badge tone="cyan">Workbench</Badge>
+                <span className="meta">UI · API · Deploy</span>
+              </Link>
+              <Link href="/media" className="lrow">
+                {Icon.media({ size: 16 })}
+                <span style={{ fontWeight: 500 }}>Media</span>
+                <Badge tone="cyan">Workbench</Badge>
+                <span className="meta">Video · Bild · Audio</span>
+              </Link>
+              <Link href="/docs-output" className="lrow">
+                {Icon.docs({ size: 16 })}
+                <span style={{ fontWeight: 500 }}>Docs</span>
+                <Badge tone="cyan">Workbench</Badge>
+                <span className="meta">Specs · Guides · Evidence Links</span>
+              </Link>
             </div>
           </Panel>
 
-          <Panel title="Next safe action" pad>
+          <Panel title="Verdrahtung" pad>
             <div className="stack">
-              <div className="note">
-                Your last slice landed. The next safe step is a dry-run eligibility check before any
-                local apply — no writes, owner gate stays closed.
-              </div>
+              <div className="note">Die Plattform bleibt produktklar. Laufdaten, Verifier und externe Blocker erscheinen nur in den dedizierten Nachweisflächen.</div>
               <div className="row" style={{ gap: 10 }}>
-                <Link href="/workbench" className="btn btn-primary">Continue run</Link>
-                <Link href="/organism" className="btn">View cortex</Link>
-                <Link href="/evidence" className="btn btn-ghost">Open evidence</Link>
+                <Link href="/workbench" className="btn btn-primary">Werkbank öffnen</Link>
+                <Link href="/organism" className="btn">Cortex ansehen</Link>
+                <Link href="/evidence" className="btn btn-ghost">Nachweise öffnen</Link>
               </div>
               <div>
                 <span className="panel-title" style={{ display: "block", marginBottom: 8 }}>
-                  Output shortcuts
+                  Output-Shortcuts
                 </span>
                 <div className="chips">
-                  <Link href="/games" className="chip">Games</Link>
+                  <Link href="/games" className="chip">Spiele</Link>
                   <Link href="/apps" className="chip">Apps</Link>
-                  <Link href="/media" className="chip">Media</Link>
-                  <Link href="/docs-output" className="chip">Documents</Link>
+                  <Link href="/media" className="chip">Medien</Link>
+                  <Link href="/docs-output" className="chip">Dokumente</Link>
                 </div>
               </div>
             </div>
           </Panel>
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <SevenLayerBar />
         </div>
       </div>
     </AppShell>

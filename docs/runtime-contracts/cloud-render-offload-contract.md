@@ -22,7 +22,7 @@ The contract remains `action_required` until these environment bindings exist in
 - `AGENT_API_BASE_URL`
 - `MCP_GATEWAY_BASE_URL`
 - `LLM_GATEWAY_BASE_URL`
-- `HETZNER_API_TOKEN`
+- `FLY_API_TOKEN`
 
 Optional provider bindings may enrich proof but do not replace the required gates:
 
@@ -30,7 +30,7 @@ Optional provider bindings may enrich proof but do not replace the required gate
 - `CLOUDFLARE_API_TOKEN`
 - `GITHUB_TOKEN`
 - `GHCR_TOKEN`
-- `GITKRAKEN_API_TOKEN`
+- `GRAFANA_CLOUD_API_KEY`
 
 ## Workload Policy
 
@@ -47,7 +47,7 @@ Optional provider bindings may enrich proof but do not replace the required gate
 - Missing cloud env bindings are emitted as `cloud_render_offload_requires_<ENV_KEY>` blockers.
 - The contract does not start cloud servers.
 - The contract does not claim production deployment.
-- The contract does not bypass the Hetzner budget guard.
+- The contract does not bypass the Fly.io budget guard.
 - The contract does not store or return provider token values.
 
 ## Verification

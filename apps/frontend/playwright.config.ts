@@ -20,8 +20,12 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
-          // Software WebGL so the 3D organism renders in headless CI.
-          args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+          args: [
+            "--disable-gpu",
+            "--disable-gpu-compositing",
+            "--use-gl=swiftshader",
+            "--ignore-gpu-blocklist",
+          ],
         },
       },
     },
@@ -30,6 +34,6 @@ export default defineConfig({
     command: `node node_modules/next/dist/bin/next start -p ${PORT}`,
     url: `http://localhost:${PORT}/`,
     timeout: 120_000,
-    reuseExistingServer: true,
+    reuseExistingServer: false,
   },
 });

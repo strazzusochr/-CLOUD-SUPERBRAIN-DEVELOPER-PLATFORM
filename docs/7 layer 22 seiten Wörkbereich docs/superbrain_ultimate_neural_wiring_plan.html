@@ -1,0 +1,382 @@
+
+<h2 class="sr-only">Cloud Superbrain: ultimate neural organism wiring plan — 8 brain regions, 22 workspaces, 7 layers, full signal topology</h2>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+.ht{font-size:18px;font-weight:500;color:var(--color-text-primary);margin:0 0 3px;}
+.hs{font-size:12px;color:var(--color-text-secondary);margin:0 0 .75rem;}
+.tabs{display:flex;gap:4px;margin:.5rem 0 1rem;flex-wrap:wrap;}
+.tab{font-size:12px;padding:4px 13px;border-radius:6px;cursor:pointer;border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-secondary);font-family:var(--font-sans);transition:all .15s;}
+.tab.on{background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info);}
+.bcv{background:#05070D;border-radius:var(--border-radius-lg);overflow:hidden;margin-bottom:.75rem;}
+.bsvg{width:100%;display:block;}
+.hg{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:6px;}
+.hc{border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:.6rem .7rem;background:var(--color-background-primary);}
+.hh{display:flex;align-items:center;gap:7px;margin-bottom:3px;}
+.hd{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.hn{font-size:12px;font-weight:500;color:var(--color-text-primary);}
+.hr{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px;}
+.hlg{display:flex;gap:2px;flex-wrap:wrap;margin-bottom:3px;}
+.lt{font-size:10px;padding:1px 5px;border-radius:2px;font-weight:500;}
+.l1t{background:#E6F1FB;color:#0C447C;}.l2t{background:#EEEDFE;color:#3C3489;}.l3t{background:#FAEEDA;color:#633806;}
+.l4t{background:#EAF3DE;color:#27500A;}.l5t{background:#E1F5EE;color:#085041;}
+.l6t{background:#FAECE7;color:#712B13;}.l7t{background:#F1EFE8;color:#444441;}
+.ht2{font-size:10px;color:var(--color-text-tertiary);}
+.sdiv{height:.5px;background:var(--color-border-tertiary);margin:.75rem 0;}
+.shdr{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);font-weight:500;margin-bottom:.5rem;}
+.op-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:.75rem;}
+.op{background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:.65rem .75rem;}
+.op-t{font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:6px;}
+.op-s{display:flex;flex-direction:column;gap:3px;}
+.os{display:flex;align-items:flex-start;gap:6px;font-size:11px;color:var(--color-text-secondary);}
+.osd{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:3px;}
+.wg{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:5px;margin-bottom:.75rem;}
+.wc{background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:6px;padding:7px 9px;}
+.wn{font-size:11px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px;}
+.wt{display:flex;gap:2px;flex-wrap:wrap;}
+.atbl{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:.75rem;}
+.atbl th{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--color-text-tertiary);text-align:left;padding:4px 8px;border-bottom:.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);}
+.atbl td{padding:5px 8px;border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-primary);vertical-align:middle;}
+.atbl tr:last-child td{border-bottom:none;}
+.ch{font-size:10px;padding:1px 5px;border-radius:2px;font-weight:500;display:inline-block;margin:1px;}
+.cc{background:#00E5FF15;color:#0891B2;border:.5px solid #00E5FF33;}
+.cb{background:#8B5CF615;color:#7C3AED;border:.5px solid #8B5CF633;}
+.cg{background:#22C55E15;color:#16A34A;border:.5px solid #22C55E33;}
+.cm{background:#EC489915;color:#DB2777;border:.5px solid #EC489933;}
+.ca{background:#F59E0B15;color:#D97706;border:.5px solid #F59E0B33;}
+.ph{font-size:11px;font-weight:500;color:var(--color-text-primary);margin-bottom:.4rem;margin-top:.75rem;}
+.pb{background:var(--color-background-secondary);border:.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:.6rem .75rem;margin-bottom:.5rem;}
+.pc{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:4px;}
+.pn{font-size:11px;padding:3px 8px;border-radius:4px;border:.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary);}
+.pn.fire{background:#EAF3DE;border-color:#22C55E55;color:#166534;}
+.pn.hot{background:#EEEDFE;border-color:#8B5CF655;color:#5B21B6;}
+.pn.blk{background:#FCEBEB;border-color:#EF444455;color:#991B1B;text-decoration:line-through;}
+.pa{color:var(--color-text-tertiary);font-size:12px;}
+.pd{font-size:10px;color:var(--color-text-secondary);}
+.imp-grid{display:grid;grid-template-columns:60px 1fr;gap:8px;margin-bottom:.75rem;}
+.imp-p{font-size:11px;font-weight:500;padding:2px 8px;border-radius:3px;text-align:center;align-self:start;margin-top:1px;}
+.p0{background:#FCEBEB;color:#991B1B;}.p1{background:#FAEEDA;color:#92400E;}.p2{background:#EEEDFE;color:#5B21B6;}.p3{background:#EAF3DE;color:#166534;}
+.imp-steps{display:flex;flex-direction:column;gap:4px;}
+.is{font-size:11px;color:var(--color-text-primary);padding:4px 8px;background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:5px;}
+.is-sub{font-size:10px;color:var(--color-text-tertiary);margin-top:1px;}
+.badge{font-size:9px;padding:1px 4px;border-radius:2px;font-weight:500;}
+.bg{background:#EAF3DE;color:#166534;}.br{background:#FCEBEB;color:#991B1B;}.bbl{background:#EEEDFE;color:#5B21B6;}
+</style>
+
+<p class="ht">Collective Organism Brain — Ultimate Neural Wiring Plan</p>
+<p class="hs">22 workspaces · 8 brain regions · 7 layers · 4 agents · 10 skills · full signal topology · June 2026</p>
+
+<div class="tabs">
+  <button class="tab on" onclick="sv('topo',this)">Brain topology</button>
+  <button class="tab" onclick="sv('signals',this)">Signal flows</button>
+  <button class="tab" onclick="sv('wiring',this)">Wiring spec</button>
+  <button class="tab" onclick="sv('plan',this)">Build plan</button>
+</div>
+
+<div id="v-topo">
+<div class="bcv">
+<svg class="bsvg" viewBox="0 0 680 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cloud Superbrain: 8 brain regions mapped to 7 cloud layers with synaptic connection pathways">
+<title>Cloud Superbrain neural topology — 8 regions × 7 layers</title>
+<ellipse cx="340" cy="162" rx="295" ry="140" fill="#0A0F1E" opacity=".98"/>
+<ellipse cx="340" cy="162" rx="290" ry="135" fill="none" stroke="#00E5FF" stroke-width=".4" opacity=".18"/>
+<line x1="340" y1="162" x2="155" y2="95" stroke="#8B5CF6" stroke-width="1" opacity=".45" stroke-dasharray="5,3"/>
+<line x1="340" y1="162" x2="525" y2="95" stroke="#3B82F6" stroke-width="1" opacity=".45" stroke-dasharray="5,3"/>
+<line x1="340" y1="162" x2="155" y2="230" stroke="#EC4899" stroke-width="1" opacity=".45" stroke-dasharray="5,3"/>
+<line x1="340" y1="162" x2="525" y2="230" stroke="#00E5FF" stroke-width="1" opacity=".45" stroke-dasharray="5,3"/>
+<line x1="340" y1="162" x2="340" y2="48" stroke="#FBBF24" stroke-width="1" opacity=".45" stroke-dasharray="5,3"/>
+<line x1="340" y1="162" x2="340" y2="278" stroke="#22C55E" stroke-width="1" opacity=".45" stroke-dasharray="5,3"/>
+<line x1="340" y1="162" x2="82" y2="158" stroke="#F59E0B" stroke-width="1" opacity=".45" stroke-dasharray="5,3"/>
+<line x1="340" y1="162" x2="598" y2="158" stroke="#EF4444" stroke-width=".7" opacity=".35" stroke-dasharray="3,4"/>
+<line x1="155" y1="95" x2="525" y2="95" stroke="#FFFFFF" stroke-width=".3" opacity=".07"/>
+<line x1="155" y1="230" x2="525" y2="230" stroke="#FFFFFF" stroke-width=".3" opacity=".07"/>
+<line x1="155" y1="95" x2="155" y2="230" stroke="#FFFFFF" stroke-width=".3" opacity=".07"/>
+<line x1="525" y1="95" x2="525" y2="230" stroke="#FFFFFF" stroke-width=".3" opacity=".07"/>
+<line x1="82" y1="158" x2="155" y2="95" stroke="#F59E0B" stroke-width=".5" opacity=".25" stroke-dasharray="3,3"/>
+<line x1="82" y1="158" x2="155" y2="230" stroke="#F59E0B" stroke-width=".5" opacity=".25" stroke-dasharray="3,3"/>
+<line x1="525" y1="95" x2="598" y2="158" stroke="#3B82F6" stroke-width=".5" opacity=".25" stroke-dasharray="3,3"/>
+<line x1="525" y1="230" x2="598" y2="158" stroke="#00E5FF" stroke-width=".5" opacity=".25" stroke-dasharray="3,3"/>
+<circle cx="340" cy="162" r="38" fill="#0D1225" stroke="#8B5CF6" stroke-width="1.5"/>
+<circle cx="340" cy="162" r="32" fill="#121A32" stroke="#8B5CF6" stroke-width=".5" opacity=".5"/>
+<circle cx="340" cy="162" r="6" fill="#8B5CF6" opacity=".8"/>
+<text x="340" y="155" text-anchor="middle" fill="#A78BFA" font-size="9" font-family="monospace">CORE NUCLEUS</text>
+<text x="340" y="165" text-anchor="middle" fill="#C4B5FD" font-size="8" font-family="monospace">LangGraph</text>
+<text x="340" y="174" text-anchor="middle" fill="#8B5CF6" font-size="7.5" font-family="monospace">+ Redis WM</text>
+<circle cx="340" cy="48" r="30" fill="#0D1225" stroke="#FBBF24" stroke-width="1.3"/>
+<circle cx="340" cy="48" r="5" fill="#FBBF24" opacity=".85"/>
+<text x="340" y="43" text-anchor="middle" fill="#FCD34D" font-size="8.5" font-family="monospace">FRONTAL LOBE</text>
+<text x="340" y="53" text-anchor="middle" fill="#EAF2FF" font-size="7.5" font-family="monospace">Orchestrator L2</text>
+<text x="340" y="62" text-anchor="middle" fill="#FBBF24" font-size="7" font-family="monospace">state machine</text>
+<circle cx="155" cy="95" r="32" fill="#0D1225" stroke="#8B5CF6" stroke-width="1.3"/>
+<circle cx="155" cy="95" r="5" fill="#8B5CF6" opacity=".85"/>
+<text x="155" y="89" text-anchor="middle" fill="#C4B5FD" font-size="8.5" font-family="monospace">PREFRONTAL</text>
+<text x="155" y="99" text-anchor="middle" fill="#EAF2FF" font-size="7.5" font-family="monospace">Planner Agent L3</text>
+<text x="155" y="108" text-anchor="middle" fill="#8B5CF6" font-size="7" font-family="monospace">DeepSeek-V4-Pro</text>
+<circle cx="525" cy="95" r="32" fill="#0D1225" stroke="#3B82F6" stroke-width="1.3"/>
+<circle cx="525" cy="95" r="5" fill="#3B82F6" opacity=".85"/>
+<text x="525" y="89" text-anchor="middle" fill="#93C5FD" font-size="8.5" font-family="monospace">CORPUS CALL.</text>
+<text x="525" y="99" text-anchor="middle" fill="#EAF2FF" font-size="7.5" font-family="monospace">LLM Gateway L4</text>
+<text x="525" y="108" text-anchor="middle" fill="#3B82F6" font-size="7" font-family="monospace">CF + LiteLLM</text>
+<circle cx="155" cy="230" r="32" fill="#0D1225" stroke="#EC4899" stroke-width="1.3"/>
+<circle cx="155" cy="230" r="5" fill="#EC4899" opacity=".85"/>
+<text x="155" y="224" text-anchor="middle" fill="#F9A8D4" font-size="8.5" font-family="monospace">HIPPOCAMPUS</text>
+<text x="155" y="234" text-anchor="middle" fill="#EAF2FF" font-size="7.5" font-family="monospace">Memory L6</text>
+<text x="155" y="243" text-anchor="middle" fill="#EC4899" font-size="7" font-family="monospace">pgvector 1536-dim</text>
+<circle cx="525" cy="230" r="32" fill="#0D1225" stroke="#00E5FF" stroke-width="1.3"/>
+<circle cx="525" cy="230" r="5" fill="#00E5FF" opacity=".85"/>
+<text x="525" y="224" text-anchor="middle" fill="#67E8F9" font-size="8.5" font-family="monospace">THALAMUS</text>
+<text x="525" y="234" text-anchor="middle" fill="#EAF2FF" font-size="7.5" font-family="monospace">MCP Gateway L5</text>
+<text x="525" y="243" text-anchor="middle" fill="#00E5FF" font-size="7" font-family="monospace">8 tools relay</text>
+<circle cx="340" cy="278" r="30" fill="#0D1225" stroke="#22C55E" stroke-width="1.3"/>
+<circle cx="340" cy="278" r="4.5" fill="#22C55E" opacity=".85"/>
+<text x="340" y="273" text-anchor="middle" fill="#86EFAC" font-size="8.5" font-family="monospace">CEREBELLUM</text>
+<text x="340" y="283" text-anchor="middle" fill="#EAF2FF" font-size="7.5" font-family="monospace">Observability L7</text>
+<text x="340" y="292" text-anchor="middle" fill="#22C55E" font-size="7" font-family="monospace">OTel + Langfuse</text>
+<circle cx="82" cy="158" r="32" fill="#0D1225" stroke="#F59E0B" stroke-width="1.3"/>
+<circle cx="82" cy="158" r="5" fill="#F59E0B" opacity=".85"/>
+<text x="82" y="152" text-anchor="middle" fill="#FCD34D" font-size="8.5" font-family="monospace">SENSORY CX</text>
+<text x="82" y="162" text-anchor="middle" fill="#EAF2FF" font-size="7.5" font-family="monospace">Frontend L1</text>
+<text x="82" y="171" text-anchor="middle" fill="#F59E0B" font-size="7" font-family="monospace">Next.js + R3F</text>
+<circle cx="598" cy="158" r="30" fill="#0D1225" stroke="#EF4444" stroke-width="1.3" stroke-dasharray="4,2"/>
+<circle cx="598" cy="158" r="4.5" fill="#EF4444" opacity=".6"/>
+<text x="598" y="152" text-anchor="middle" fill="#FCA5A5" font-size="8.5" font-family="monospace">MOTOR CX</text>
+<text x="598" y="162" text-anchor="middle" fill="#EAF2FF" font-size="7.5" font-family="monospace">AP — Coder+Test</text>
+<text x="598" y="171" text-anchor="middle" fill="#EF4444" font-size="7" font-family="monospace">Qwen3 / Gemma4</text>
+<text x="20" y="318" fill="#FFFFFF" font-size="6.5" opacity=".25" font-family="monospace">dashed line = synaptic pathway  ·  dot = nucleus  ·  dashed circle = gated/blocked region</text>
+</svg>
+</div>
+<div class="shdr">8 brain regions — layer × tool mapping</div>
+<div class="hg" id="hubGrid"></div>
+</div>
+
+<div id="v-signals">
+<div class="shdr">Signal flows — which regions fire per operation</div>
+<div class="op-grid" id="opGrid"></div>
+<div class="sdiv"></div>
+<div class="shdr">22 workspaces — layer activation map</div>
+<div class="wg" id="wsGrid"></div>
+</div>
+
+<div id="v-wiring">
+<div class="shdr">Agent wiring — model chains + MCP tool access</div>
+<table class="atbl" id="agentTbl">
+<thead><tr><th>Agent</th><th>Primary model</th><th>Fallbacks</th><th>MCP tools</th><th>Human gate</th></tr></thead>
+<tbody id="agentBody"></tbody>
+</table>
+<div class="sdiv"></div>
+<div class="shdr">10 skills — layer assignment</div>
+<table class="atbl" id="skillTbl">
+<thead><tr><th>Skill</th><th>Layer</th><th>Function</th><th>Organism region</th></tr></thead>
+<tbody id="skillBody"></tbody>
+</table>
+<div class="sdiv"></div>
+<div class="shdr">Signal pathways — complete data flow specification</div>
+<div id="pathDiv"></div>
+</div>
+
+<div id="v-plan">
+<div class="shdr">Implementation plan — from current state to living brain</div>
+<div class="imp-grid" id="planGrid"></div>
+<div class="sdiv"></div>
+<div class="shdr">Brain real-time event binding spec</div>
+<table class="atbl">
+<thead><tr><th>Event</th><th>Source</th><th>Brain region fires</th><th>Animation</th></tr></thead>
+<tbody id="eventBody"></tbody>
+</table>
+</div>
+
+<script>
+const LC={l1:'l1t',l2:'l2t',l3:'l3t',l4:'l4t',l5:'l5t',l6:'l6t',l7:'l7t'};
+const LL={l1:'L1',l2:'L2',l3:'L3',l4:'L4',l5:'L5',l6:'L6',l7:'L7'};
+
+const hubs=[
+  {c:'#FBBF24',n:'Frontal Lobe — L2 ORC',r:'Orchestrator · LangGraph state machine',ls:['l2'],t:'task_router · langgraph · PostgreSQL checkpoint · run streaming'},
+  {c:'#8B5CF6',n:'Prefrontal — L3 Planner',r:'Task decomposition · intent classification · route planning',ls:['l3','l4'],t:'DeepSeek-V4-Pro → Qwen3.6-35B → Kimi-K2.6'},
+  {c:'#3B82F6',n:'Corpus Callosum — L4 LLM',r:'Bridges all agents to all models · unified gateway',ls:['l4'],t:'Cloudflare AI Gateway + LiteLLM · 4 models + fallbacks'},
+  {c:'#EC4899',n:'Hippocampus — L6 MEM',r:'Long-term memory · pgvector 1536-dim · knowledge graph',ls:['l6'],t:'PostgreSQL pgvector · Redis working memory · 978 entries'},
+  {c:'#00E5FF',n:'Thalamus — L5 MCP',r:'Signal relay · tool routing · scope enforcement',ls:['l5'],t:'8 MCP tools · github_mcp · filesystem · playwright · e2b'},
+  {c:'#22C55E',n:'Cerebellum — L7 OBS',r:'Coordination · verification · telemetry · OPA gate',ls:['l7'],t:'OTel → Grafana · Langfuse traces · Sentry · gitleaks'},
+  {c:'#F59E0B',n:'Sensory Cortex — L1 FE',r:'User I/O · 22 workspace surfaces · 3D cortex canvas',ls:['l1'],t:'Next.js 15 App Router · R3F / three.js · WebGL2 · GSAP'},
+  {c:'#EF4444',n:'Motor Cortex — L3 Coder+Test',r:'Execution · code gen · browser test · sandbox proof',ls:['l3','l5'],t:'Qwen3-Coder / Gemma4 / DeepSeek-Flash · e2b · playwright'}
+];
+const hg=document.getElementById('hubGrid');
+hubs.forEach(h=>{
+  const d=document.createElement('div');d.className='hc';
+  d.innerHTML=`<div class="hh"><div class="hd" style="background:${h.c}"></div><span class="hn">${h.n}</span></div><div class="hr">${h.r}</div><div class="hlg">${h.ls.map(l=>`<span class="lt ${LC[l]}">${LL[l]}</span>`).join('')}</div><div class="ht2">${h.t}</div>`;
+  hg.appendChild(d);
+});
+
+const ops=[
+  {t:'User prompt → response',c:'#FBBF24',steps:[
+    {c:'#F59E0B',t:'L1 FE receives prompt · WebSocket to nginx'},
+    {c:'#FBBF24',t:'L2 LangGraph routes · planner wakes'},
+    {c:'#8B5CF6',t:'L4 DeepSeek-V4-Pro · intent classification'},
+    {c:'#EC4899',t:'L6 memory_read · pgvector similarity search'},
+    {c:'#00E5FF',t:'L5 task_router · subtask decomposition'},
+    {c:'#EC4899',t:'L6 Redis queue · task enqueue'},
+    {c:'#22C55E',t:'L7 Langfuse · trace captured'}
+  ]},
+  {t:'Code generation run',c:'#8B5CF6',steps:[
+    {c:'#FBBF24',t:'L2 LangGraph · planner→coder handoff'},
+    {c:'#EF4444',t:'L3 Coder agent wakes · Qwen3-Coder-Next'},
+    {c:'#3B82F6',t:'L4 LLM stream · code generation'},
+    {c:'#00E5FF',t:'L5 filesystem_mcp · read project context'},
+    {c:'#00E5FF',t:'L5 github_mcp · branch creation (gated)'},
+    {c:'#EC4899',t:'L6 memory_write · embed + store in pgvector'},
+    {c:'#22C55E',t:'L7 evidence captured · diff recorded'}
+  ]},
+  {t:'Test & verification',c:'#22C55E',steps:[
+    {c:'#FBBF24',t:'L2 coder→tester handoff via LangGraph'},
+    {c:'#EF4444',t:'L3 Tester agent · Gemma-4-26B-A4B'},
+    {c:'#00E5FF',t:'L5 playwright_mcp · browser render proof'},
+    {c:'#00E5FF',t:'L5 e2b_mcp · sandbox execution (gated)'},
+    {c:'#22C55E',t:'L7 OPA gate check · WebGL render proof'},
+    {c:'#F59E0B',t:'L1 evidence page updated · screenshots'}
+  ]},
+  {t:'Memory consolidation',c:'#EC4899',steps:[
+    {c:'#EC4899',t:'L6 Redis working memory flush trigger'},
+    {c:'#EC4899',t:'L6 memory-worker embeds → pgvector write'},
+    {c:'#3B82F6',t:'L4 embedding model call · 1536-dim vector'},
+    {c:'#EC4899',t:'L6 knowledge graph · node + relationship update'},
+    {c:'#22C55E',t:'L7 consolidation trace · Langfuse logged'},
+    {c:'#F59E0B',t:'L1 organism map · hippocampus glow update'}
+  ]}
+];
+const og=document.getElementById('opGrid');
+ops.forEach(op=>{
+  const d=document.createElement('div');d.className='op';
+  d.innerHTML=`<div class="op-t" style="color:${op.c}">⬡ ${op.t}</div><div class="op-s">${op.steps.map(s=>`<div class="os"><div class="osd" style="background:${s.c}"></div><span>${s.t}</span></div>`).join('')}</div>`;
+  og.appendChild(d);
+});
+
+const wss=[
+  {n:'Home',ls:['l1']},{n:'Workbench',ls:['l2','l3']},
+  {n:'Organism / Live',ls:['l2','l7']},{n:'Organism / Replay',ls:['l6','l7']},
+  {n:'Organism / Map',ls:['l1','l7']},{n:'Agents',ls:['l3','l4']},
+  {n:'Files & Knowledge',ls:['l6']},{n:'Local Files',ls:['l5']},
+  {n:'Tools / Cloud Hub',ls:['l5']},{n:'Marketplace',ls:['l4','l5']},
+  {n:'Observe',ls:['l7']},{n:'Games',ls:['l1']},
+  {n:'Apps',ls:['l1','l3']},{n:'Media',ls:['l1']},
+  {n:'Documents',ls:['l1','l6']},{n:'Evidence',ls:['l7']},
+  {n:'Diagnostics',ls:['l7']},{n:'Design System',ls:['l1']},
+  {n:'Technology',ls:['l1','l2','l3','l4','l5','l6','l7']},
+  {n:'Settings',ls:['l1','l5']},{n:'Open Source',ls:['l1']},{n:'Login',ls:['l1','l5']}
+];
+const blk=new Set(['l2','l3','l6']);
+const wg=document.getElementById('wsGrid');
+wss.forEach(w=>{
+  const hb=w.ls.some(l=>blk.has(l));
+  const d=document.createElement('div');d.className='wc';
+  if(hb)d.style.borderColor='#F09595';
+  d.innerHTML=`<div class="wn" style="${hb?'color:#A32D2D;':''}">${w.n}</div><div class="wt">${w.ls.map(l=>`<span class="lt ${LC[l]}">${LL[l]}</span>`).join('')}</div>`;
+  wg.appendChild(d);
+});
+
+const agents=[
+  {n:'planner',col:'#8B5CF6',model:'DeepSeek-V4-Pro',fb:'Qwen3.6-35B-A3B → Kimi-K2.6',tools:'memory_read · task_router · langgraph',gate:'architecture_change · budget_limit_change'},
+  {n:'coder',col:'#3B82F6',model:'Qwen3-Coder-Next',fb:'DeepSeek-V4-Flash → Gemma-4-31B',tools:'memory_read · github_mcp · filesystem_mcp · mcp_gateway',gate:'merge_main · production_deploy · schema_change'},
+  {n:'tester',col:'#22C55E',model:'Gemma-4-26B-A4B-it',fb:'Qwen3.5-9B → Llama-3.1-8B',tools:'memory_read · e2b_mcp · playwright_mcp · filesystem_mcp · mcp_gateway',gate:'release_approval · security_exception'},
+  {n:'devops',col:'#F59E0B',model:'DeepSeek-V4-Flash',fb:'Qwen3.6-35B-A3B → Gemma-4-31B',tools:'memory_read · github_mcp · mcp_gateway',gate:'workflow_dispatch_prod · rollback_prod · resource_limit'}
+];
+const ab=document.getElementById('agentBody');
+agents.forEach(a=>{
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><span style="color:${a.col};font-weight:500;">${a.n}</span></td><td><span class="ch cb">${a.model}</span></td><td style="color:var(--color-text-secondary);font-size:10px;">${a.fb}</td><td>${a.tools.split(' · ').map(t=>`<span class="ch cc">${t}</span>`).join('')}</td><td style="color:var(--color-text-tertiary);font-size:10px;">${a.gate}</td>`;
+  ab.appendChild(tr);
+});
+
+const skills=[
+  {n:'strict-project-gate',ls:['l5'],fn:'Gate enforcement — no write without explicit gate',reg:'Thalamus/Amygdala'},
+  {n:'product-ux-guardian',ls:['l1'],fn:'Home/Workbench stay product surfaces',reg:'Sensory Cortex'},
+  {n:'live-3d-organism-architect',ls:['l1','l7'],fn:'Cortex canvas · brain regions · synapse flows',reg:'Sensory + Cerebellum'},
+  {n:'r3f-three-engineer',ls:['l1'],fn:'R3F/three.js · canvas · GLB loader · bloom',reg:'Sensory Cortex'},
+  {n:'blender-gltf-pipeline',ls:['l1'],fn:'Blender → GLB → glTF Transform → gltfjsx',reg:'Sensory Cortex (assets)'},
+  {n:'mcp-safety-auditor',ls:['l5'],fn:'MCP servers · scopes · secrets review',reg:'Thalamus'},
+  {n:'visual-verifier',ls:['l7'],fn:'Playwright screenshots · visual diff · responsive',reg:'Cerebellum'},
+  {n:'accessibility-reduced-motion',ls:['l1'],fn:'A11y · reduced motion · keyboard · contrast',reg:'Sensory Cortex'},
+  {n:'telemetry-binding-engineer',ls:['l7'],fn:'OpenTelemetry → cortex visual signals',reg:'Cerebellum'},
+  {n:'opa-gate-engineer',ls:['l5','l7'],fn:'can_write / can_deploy / can_push local policy',reg:'Thalamus + Cerebellum'}
+];
+const sb=document.getElementById('skillBody');
+skills.forEach(s=>{
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td style="font-family:monospace;font-size:10px;color:var(--color-text-primary);">${s.n}</td><td>${s.ls.map(l=>`<span class="lt ${LC[l]}">${LL[l]}</span>`).join(' ')}</td><td style="font-size:11px;color:var(--color-text-secondary);">${s.fn}</td><td style="font-size:11px;color:var(--color-text-tertiary);">${s.reg}</td>`;
+  sb.appendChild(tr);
+});
+
+const paths=[
+  {t:'User → Brain (afferent pathway)',desc:'User input enters via L1 WebSocket → nginx → agent-api → LangGraph L2 → planner wakes → LLM L4 → tools L5 → memory L6 → response streams back L1',nodes:['User input','L1 WebSocket','nginx proxy','agent-api L2','LangGraph ORC','Planner L3','LLM L4 / DeepSeek','memory_read L6','MCP tools L5','stream back L1'],types:['fire','fire','fire','fire','fire','hot','hot','hot','hot','fire']},
+  {t:'Nerve bundle: agent→model (myelinated pathway)',desc:'Each agent maintains a primary + 2 fallback models. LiteLLM or Cloudflare AI Gateway handles routing transparently. Budget tracked per agent.',nodes:['Agent pool L3','LiteLLM proxy','CF AI Gateway','Primary model','Fallback 1','Fallback 2','Response','Langfuse trace L7'],types:['hot','fire','fire','fire','fire','fire','fire','fire']},
+  {t:'Memory pathway (consolidation circuit)',desc:'Redis (working) → memory-worker → pgvector embed → knowledge graph → agent context retrieval via memory_read MCP tool',nodes:['Redis working','memory-worker','embed model L4','pgvector L6','knowledge graph','memory_read MCP','agent context'],types:['hot','fire','fire','hot','hot','fire','fire']}
+];
+const pd=document.getElementById('pathDiv');
+paths.forEach(p=>{
+  const div=document.createElement('div');div.className='pb';
+  div.innerHTML=`<div class="ph">${p.t}</div><div class="pc">${p.nodes.map((n,i)=>`<span class="pn ${p.types[i]}">${n}</span>${i<p.nodes.length-1?'<span class="pa">→</span>':''}`).join('')}</div><div class="pd">${p.desc}</div>`;
+  pd.appendChild(div);
+});
+
+const plan=[
+  {p:'P0',cls:'p0',label:'CRITICAL',steps:[
+    {t:'Migrate L6 MEM to Supabase free',s:'Supabase Frankfurt · PostgreSQL 16 + pgvector 0.8 · 500MB free · same connection string format · export Hetzner dump → pg_restore'},
+    {t:'Add Upstash Redis free',s:'Upstash Redis 256MB free · replace Hetzner Redis · update REDIS_URL in .codex/secrets'},
+    {t:'Deploy L2 ORC via Aegra + GCP Cloud Run',s:'Aegra (MIT) = drop-in LangGraph Platform · Docker image → Cloud Run · same SDK · LangGraph checkpoint → Supabase PostgreSQL'},
+    {t:'Deploy L3 AP 4 agent containers on GCP Cloud Run',s:'4 containers: planner / coder / tester / devops · each gets Cloud Run service URL · max-concurrency 1 per agent · auto-scale to 0'}
+  ]},
+  {p:'P1',cls:'p1',label:'WIRING',steps:[
+    {t:'Wire LiteLLM in front of all 4 model endpoints',s:'LiteLLM v1.83.0+ · unified /v1/chat/completions · routes to DeepSeek/Qwen/Gemma/HF · budget per agent · Cloudflare AI Gateway upstream cache'},
+    {t:'Add Groq free tier as fast fallback',s:'Groq: 14,400 req/day · llama-3.3-70b as tester/devops fallback · near-zero latency · configure in LiteLLM router'},
+    {t:'Wire Langfuse for all LLM traces',s:'Langfuse self-hosted (MIT) OR free cloud · LANGFUSE_HOST + keys in .codex/secrets · instrument all 4 agents with opentelemetry-sdk'},
+    {t:'Wire Grafana Cloud free OTel collector',s:'10K metrics + 50GB logs/month · Grafana Alloy as collector sidecar · receives from all 7 layers · dashboards per layer'}
+  ]},
+  {p:'P2',cls:'p2',label:'ORGANISM',steps:[
+    {t:'SSE event stream: /api/v1/organism/live-state',s:'Backend pushes agent state changes as Server-Sent Events · each event = {layer, hub, state, agent, model, tool} · frontend subscribes'},
+    {t:'Brain region glow binding in R3F cortex',s:'Each SSE event → THREE.PointLight intensity pulse on matching brain region · useFrame animation · color matches design system: Synapse Magenta for memory, Neuro Cyan for MCP, Plasma Violet for LLM'},
+    {t:'Synapse trail animation for tool calls',s:'tool_call event → ParticleSystem trail from Thalamus to target hub · Draco-compressed GLB for particle mesh · bloom postprocessing'},
+    {t:'Memory consolidation pulse',s:'memory_write event → Hippocampus region pulses #EC4899 · pgvector upsert counter displayed as Memory Gold badge in HUD'}
+  ]},
+  {p:'P3',cls:'p3',label:'ENHANCE',steps:[
+    {t:'Add Ollama for local model fallback (L4)',s:'Ollama on localhost:11434 · Qwen3:8b + Gemma4:4b · LiteLLM routes to Ollama when HF/Groq rate-limited · full privacy mode'},
+    {t:'Tembo pgvector stack for dedicated vector search',s:'Tembo free shared tier · pgvector preconfigured · better for RAG than Supabase at scale · pg_cron for consolidation jobs'},
+    {t:'Forgejo self-hosted as L5 backup',s:'Forgejo (Apache-2.0) on local machine · GitHub mirror · Woodpecker CI for local test runs · GHCR remains primary registry'},
+    {t:'SigNoz for full APM (L7)',s:'SigNoz open-source (Apache-2.0) · ClickHouse backend · full OTel: traces + metrics + logs · replaces need for separate Grafana stack'}
+  ]}
+];
+const pg=document.getElementById('planGrid');
+plan.forEach(p=>{
+  const label=document.createElement('div');label.className=`imp-p ${p.cls}`;label.innerHTML=`<div>${p.p}</div><div style="font-size:9px;margin-top:2px;">${p.label}</div>`;
+  const steps=document.createElement('div');steps.className='imp-steps';
+  p.steps.forEach(s=>{
+    const d=document.createElement('div');d.className='is';
+    d.innerHTML=`<div style="font-weight:500;">${s.t}</div><div class="is-sub">${s.s}</div>`;
+    steps.appendChild(d);
+  });
+  pg.appendChild(label);pg.appendChild(steps);
+});
+
+const events=[
+  {ev:'agent_state_change',src:'/api/v1/organism/live-state SSE',region:'All hubs — matching layer',anim:'PointLight pulse 200ms · color by hub'},
+  {ev:'llm_call_start',src:'LiteLLM middleware hook',region:'Corpus Callosum — L4 blue',anim:'Intensity ramp 0→2 over 50ms'},
+  {ev:'tool_call',src:'MCP gateway event',region:'Thalamus — L5 cyan',anim:'Particle trail L5→target hub 400ms'},
+  {ev:'memory_read',src:'pgvector query trace',region:'Hippocampus — L6 magenta',anim:'Ring expand 150ms · fade out'},
+  {ev:'memory_write',src:'pgvector upsert',region:'Hippocampus — L6 magenta',anim:'Pulse + HUD counter increment'},
+  {ev:'gate_check',src:'OPA policy eval',region:'Cerebellum — L7 green',anim:'Flash green (PASS) or red (BLOCK)'},
+  {ev:'agent_error',src:'agent-api error event',region:'Motor Cortex — L3 red',anim:'Warning strobe 3× 100ms'},
+  {ev:'user_prompt',src:'Workbench WebSocket',region:'Sensory Cortex — L1 amber',anim:'Bloom spike then settle'},
+  {ev:'evidence_captured',src:'Playwright screenshot',region:'Cerebellum — L7 green',anim:'Checkpoint checkmark overlay'},
+  {ev:'consolidation_run',src:'memory-worker cron',region:'Hippocampus full glow',anim:'Slow 2s pulse · Memory Gold'}
+];
+const eb=document.getElementById('eventBody');
+events.forEach(e=>{
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td style="font-family:monospace;font-size:10px;color:var(--color-text-primary);">${e.ev}</td><td style="font-size:10px;color:var(--color-text-secondary);">${e.src}</td><td style="font-size:11px;">${e.region}</td><td style="font-size:10px;color:var(--color-text-tertiary);">${e.anim}</td>`;
+  eb.appendChild(tr);
+});
+
+const vs=['topo','signals','wiring','plan'];
+const ids={topo:'v-topo',signals:'v-signals',wiring:'v-wiring',plan:'v-plan'};
+function sv(name,btn){
+  vs.forEach(v=>{document.getElementById(ids[v]).style.display=v===name?'':'none';});
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  if(btn)btn.classList.add('on');
+}
+sv('topo',document.querySelector('.tab.on'));
+</script>

@@ -1,0 +1,6 @@
+# Trae Agent Rules -- Cloud Superbrain x Hermes
+# Fuer alle Coding-Aufgaben: Hermes via Terminal nutzen
+## CLI
+- Multi-File: hermes "Refaktoriere [Datei]"
+- Tests: hermes "Schreibe Tests fuer [Modul]"
+- Debug: hermes "Debug: [Fehlermeldung]"

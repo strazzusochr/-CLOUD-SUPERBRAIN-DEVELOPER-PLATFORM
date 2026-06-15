@@ -12,7 +12,7 @@ SECRET_PATTERNS = [
     re.compile(r"\bvck_[A-Za-z0-9_-]{24,}\b"),
     re.compile(r"\bhf_[A-Za-z0-9_-]{24,}\b"),
     re.compile(r"\bglpat-[A-Za-z0-9_.-]{20,}\b"),
-    re.compile(r"(?i)\b(hetzner|hcloud|cloud)\s+token\s+[A-Za-z0-9_-]{32,}\b"),
+    re.compile(r"(?i)\b(?:cloud|provider)\s+token\s+[A-Za-z0-9_-]{32,}\b"),
     re.compile(r"(?i)\b(api[_-]?key|secret|token|password)\s*[:=]\s*[^\s,;]{8,}"),
 ]
 

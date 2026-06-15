@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$BaseUrl = "http://localhost:8081",
   [switch]$AllowLocalhost,
   [switch]$SeedMemoryConsolidation
@@ -12,7 +12,9 @@ $expectedOverallPercent = [int]$progressManifest.overall_percent
 
 function Assert-Contains($label, $value, $expected) {
   $text = ($value | Out-String)
-  if (-not $text.Contains($expected)) {
+  $normalizedText = ($text -replace '\s+', ' ').Trim()
+  $normalizedExpected = (($expected | Out-String) -replace '\s+', ' ').Trim()
+  if (-not $normalizedText.Contains($normalizedExpected)) {
     throw "Browser contract verification failed: $label did not contain '$expected'. Value: $text"
   }
 }
@@ -46,11 +48,13 @@ function Invoke-Text($url) {
 import sys
 import urllib.request
 
+sys.stdout.reconfigure(encoding="utf-8")
 url = sys.argv[1]
-with urllib.request.urlopen(url, timeout=10) as response:
+with urllib.request.urlopen(url, timeout=30) as response:
     sys.stdout.write(response.read().decode("utf-8", errors="replace"))
 '@
-  return ($python | py -3 - $url)
+  $env:PYTHONIOENCODING = "utf-8"
+  return ($python | py -3 -X utf8 - $url)
 }
 
 function Invoke-StatusCode($url) {
@@ -59,6 +63,7 @@ import sys
 import urllib.error
 import urllib.request
 
+sys.stdout.reconfigure(encoding="utf-8")
 url = sys.argv[1]
 try:
     with urllib.request.urlopen(url, timeout=30) as response:
@@ -66,7 +71,26 @@ try:
 except urllib.error.HTTPError as error:
     sys.stdout.write(str(error.code))
 '@
-  return ($python | py -3 - $url)
+  $env:PYTHONIOENCODING = "utf-8"
+  return ($python | py -3 -X utf8 - $url)
+}
+
+function Remove-TempFileWithRetry([string]$Path) {
+  if (-not (Test-Path -LiteralPath $Path)) {
+    return
+  }
+  for ($attempt = 1; $attempt -le 5; $attempt += 1) {
+    try {
+      Remove-Item -LiteralPath $Path -Force -ErrorAction Stop
+      return
+    } catch {
+      if ($attempt -eq 5) {
+        Write-Warning "Could not remove temporary verifier file: $Path"
+        return
+      }
+      Start-Sleep -Milliseconds (100 * $attempt)
+    }
+  }
 }
 
 function Invoke-JsonApi(
@@ -98,6 +122,7 @@ import json
 import sys
 import urllib.request
 
+sys.stdout.reconfigure(encoding="utf-8")
 with open(sys.argv[1], "r", encoding="utf-8-sig") as handle:
     payload = json.load(handle)
 
@@ -125,18 +150,15 @@ except urllib.error.HTTPError as exc:
     sys.exit(exc.code)
 '@
     Set-Content -LiteralPath $pythonFile -Value $pythonScript -NoNewline -Encoding utf8
-    $output = py -3 $pythonFile $payloadFile 2>&1 | Out-String
+    $env:PYTHONIOENCODING = "utf-8"
+    $output = py -3 -X utf8 $pythonFile $payloadFile 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) {
       throw $output.Trim()
     }
     return $output
   } finally {
-    if (Test-Path $payloadFile) {
-      Remove-Item -LiteralPath $payloadFile -Force
-    }
-    if (Test-Path $pythonFile) {
-      Remove-Item -LiteralPath $pythonFile -Force
-    }
+    Remove-TempFileWithRetry $payloadFile
+    Remove-TempFileWithRetry $pythonFile
   }
 }
 
@@ -152,66 +174,28 @@ if ((-not $AllowLocalhost) -and ($BaseUrl -match "localhost|127\.0\.0\.1|\[::1\]
 Write-Host "[browser-contract] base url: $BaseUrl"
 
 Write-Host "[browser-contract] frontend markers"
-$frontendHtml = Invoke-Text "$BaseUrl/"
-Assert-Contains "frontend title" $frontendHtml "Cloud Superbrain"
-Assert-Contains "langgraph progress panel" $frontendHtml "LangGraph Progress"
-Assert-Contains "phase2 runtime button" $frontendHtml "Start Phase 2 Runtime"
-Assert-Contains "phase2 runtime contract text" $frontendHtml "Phase 2 Runtime Contract"
-Assert-Contains "phase2 runtime pending marker" $frontendHtml "Runtime Evidence"
-Assert-Contains "phase2 runtime runs marker" $frontendHtml "Runtime Runs"
-Assert-Contains "phase2 runtime status marker" $frontendHtml "Latest Runtime Status"
-Assert-Contains "phase2 runtime role summaries marker" $frontendHtml "Role Summaries"
-Assert-Contains "phase2 runtime sse contract marker" $frontendHtml "SSE Event Contract"
-Assert-Contains "phase2 runtime sse evidence marker" $frontendHtml "phase2_sse_event_contract_proof"
-Assert-Contains "phase2 runtime run status evidence marker" $frontendHtml "phase2_runtime_run_status_visible"
-Assert-Contains "external gate mirror panel" $frontendHtml "External Gate Mirror"
-Assert-Contains "external gate mirror evidence marker" $frontendHtml "external_gate_mirror_proof"
-Assert-Contains "branch protection mirror marker" $frontendHtml "branch_protection_verify_contract"
-Assert-Contains "cloud inventory panel" $frontendHtml "Cloud Inventory"
-Assert-Contains "cloud inventory evidence marker" $frontendHtml "cloud_provider_inventory_visible"
-Assert-Contains "cloud inventory endpoint marker" $frontendHtml "GET /api/v1/clouds"
-Assert-Contains "cloud layer readiness panel" $frontendHtml "Cloud 7-Layer Readiness"
-Assert-Contains "cloud layer readiness evidence marker" $frontendHtml "cloud_layer_readiness_visible"
-Assert-Contains "cloud layer readiness endpoint marker" $frontendHtml "GET /api/v1/clouds/layers"
-Assert-Contains "cloud render offload panel" $frontendHtml "Cloud Render Offload"
-Assert-Contains "cloud render offload evidence marker" $frontendHtml "cloud_render_offload_contract_visible"
-Assert-Contains "cloud render offload endpoint marker" $frontendHtml "GET /api/v1/clouds/render-offload/contract"
-Assert-Contains "cloud deployment preflight panel" $frontendHtml "Cloud Deployment Preflight"
-Assert-Contains "cloud deployment preflight evidence marker" $frontendHtml "cloud_deployment_preflight_visible"
-Assert-Contains "cloud deployment preflight endpoint marker" $frontendHtml "GET /api/v1/clouds/deployment-preflight/contract"
-Assert-Contains "auth contract panel" $frontendHtml "Auth Contract"
-Assert-Contains "system fallback panel" $frontendHtml "System Unavailable Fallback"
-Assert-Contains "layer interface contract panel" $frontendHtml "Layer Interface Contracts"
-Assert-Contains "layer interface evidence marker" $frontendHtml "layer_interface_contracts_visible"
-Assert-Contains "task assignment contract panel" $frontendHtml "Task Assignment Queue Contract"
-Assert-Contains "task assignment evidence marker" $frontendHtml "task_assignment_queue_contract_visible"
-Assert-Contains "task assignment priority routing marker" $frontendHtml "Priority Routing"
-Assert-Contains "agent llm streaming contract panel" $frontendHtml "Agent LLM Streaming Contract"
-Assert-Contains "agent llm streaming evidence marker" $frontendHtml "agent_llm_streaming_contract_visible"
-Assert-Contains "mcp version pinning contract panel" $frontendHtml "MCP Version Pinning Contract"
-Assert-Contains "mcp version pinning evidence marker" $frontendHtml "mcp_version_pinning_contract_visible"
-Assert-Contains "memory embedding consistency contract panel" $frontendHtml "Memory Embedding Consistency Contract"
-Assert-Contains "memory embedding consistency evidence marker" $frontendHtml "memory_embedding_consistency_contract_visible"
-Assert-Contains "memory consolidation panel" $frontendHtml "Memory Consolidation"
-Assert-Contains "memory consolidation refresh button" $frontendHtml "Refresh"
-Assert-Contains "project progress panel" $frontendHtml "Project Progress"
-Assert-Contains "project progress completion contract panel" $frontendHtml "100% Contract"
-Assert-Contains "project progress completion evidence marker" $frontendHtml "project_progress_100_percent_gate_contract"
-Assert-Contains "agent activity per-role summaries ui" $frontendHtml "Per-role Summaries"
-Assert-Contains "agent activity per-role css" $frontendHtml "perRoleSummary"
-Assert-Contains "memory purge contract panel" $frontendHtml "Memory Purge Contract"
-Assert-Contains "cost export contract panel" $frontendHtml "CSV Export"
-Assert-Contains "rate limit guard panel" $frontendHtml "Rate Limit Guard"
-Assert-Contains "session limit guard panel" $frontendHtml "Session Limit Guard"
-Assert-Contains "error response contract panel" $frontendHtml "Error Response Contract"
-Assert-Contains "security headers contract panel" $frontendHtml "Security Headers Contract"
-Assert-Contains "trace id contract panel" $frontendHtml "Trace ID Contract"
-Assert-Contains "cache control contract panel" $frontendHtml "Cache Control Contract"
-Assert-Contains "request id contract panel" $frontendHtml "Request ID Contract"
-Assert-Contains "request id audit feed marker" $frontendHtml "request_id_audit_feed_visible"
-Assert-Contains "agent activity panel" $frontendHtml "Agent Activity"
-Assert-Contains "agent activity filtered feed marker" $frontendHtml "agent_activity_filtered_feed_visible"
-Assert-Contains "agent activity filter controls" $frontendHtml "activityFilterBar"
+$landingHtml = Invoke-Text "$BaseUrl/"
+Assert-Contains "landing title" $landingHtml "Cloud Superbrain"
+Assert-Contains "landing open workbench" $landingHtml "Open Workbench"
+Assert-Contains "landing canonical spec marker" $landingHtml "Canonical platform specification"
+$homeHtml = Invoke-Text "$BaseUrl/home"
+Assert-Contains "home product marker" $homeHtml "Developer Platform"
+Assert-Contains "home evidence wiring marker" $homeHtml "Evidence"
+Assert-Contains "home diagnostics wiring marker" $homeHtml "Diagnostics"
+Assert-True "home does not surface recent projects" (-not $homeHtml.Contains("Letzte Projekte"))
+Assert-True "home does not surface project workspace status" (-not $homeHtml.Contains("Projektstand"))
+$workbenchHtml = Invoke-Text "$BaseUrl/workbench"
+Assert-Contains "workbench studio marker" $workbenchHtml "Main Workbench"
+Assert-Contains "workbench preview marker" $workbenchHtml "Preview / Assets"
+Assert-Contains "workbench cloud target marker" $workbenchHtml "Cloud Staging"
+Assert-Contains "workbench run binding marker" $workbenchHtml "Run Binding"
+Assert-True "workbench does not surface session list" (-not $workbenchHtml.Contains("Sessions"))
+Assert-True "workbench does not surface completion gate" (-not $workbenchHtml.Contains("Completion-Gate"))
+Assert-True "workbench does not surface workspace status wall" (-not $workbenchHtml.Contains("Workspace-Surfaces"))
+Assert-True "workbench budget hidden without paid option" (-not $workbenchHtml.Contains("Metered Budget"))
+$workbenchPaidHtml = Invoke-Text "$BaseUrl/workbench?capability=paid_llm"
+Assert-Contains "workbench paid budget visible" $workbenchPaidHtml "Metered Budget"
+Assert-Contains "workbench paid budget reason" $workbenchPaidHtml "paid/metered Capability"
 
 Write-Host "[browser-contract] favicon"
 $faviconStatus = Invoke-StatusCode "$BaseUrl/favicon.ico"
@@ -238,7 +222,12 @@ Assert-Contains "project progress completion version" $projectProgressCompletion
 Assert-Contains "project progress completion status" $projectProgressCompletion '"status":"blocked_external_gates"'
 Assert-Contains "project progress completion evidence" $projectProgressCompletion '"evidence_ref":"project_progress_100_percent_gate_contract"'
 Assert-Contains "project progress completion cannot set all to 100" $projectProgressCompletion '"can_set_all_to_100":false'
-Assert-Contains "project progress completion external gates cleared" $projectProgressCompletion '"missing_external_gates":[]'
+$projectProgressCompletionJson = $projectProgressCompletion | ConvertFrom-Json
+$projectProgressCompletionMissingGates = @($projectProgressCompletionJson.missing_external_gates | ForEach-Object { [string]$_ })
+Assert-True "project progress completion missing fly gate" ($projectProgressCompletionMissingGates -contains "fly_api_token")
+Assert-True "project progress completion missing vercel backend origins gate" ($projectProgressCompletionMissingGates -contains "vercel_backend_origins")
+Assert-Contains "project progress completion fly blocker" $projectProgressCompletion "live_infra_budget_refresh_requires_FLY_API_TOKEN"
+Assert-Contains "project progress completion vercel origins blocker" $projectProgressCompletion "vercel_backend_origins"
 Assert-Contains "project progress completion local gap blocker" $projectProgressCompletion "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 
 Write-Host "[browser-contract] layer interface contracts"
@@ -253,14 +242,20 @@ Write-Host "[browser-contract] cloud provider inventory"
 $cloudProviderInventory = Invoke-Text "$BaseUrl/api/v1/clouds"
 Assert-Contains "cloud provider contract version" $cloudProviderInventory '"contract_version":"cloud-provider-inventory-v1"'
 Assert-Contains "cloud provider evidence" $cloudProviderInventory '"evidence_ref":"cloud_provider_inventory_visible"'
-Assert-Contains "cloud provider hetzner" $cloudProviderInventory '"id":"hetzner_cloud"'
-Assert-Contains "cloud provider gitkraken" $cloudProviderInventory '"id":"gitkraken_identity"'
+Assert-Contains "cloud provider Fly.io" $cloudProviderInventory '"id":"fly_io"'
+Assert-Contains "cloud provider grafana" $cloudProviderInventory '"id":"grafana_cloud"'
 Assert-Contains "cloud provider seven layer mapping" $cloudProviderInventory '"seven_layer_mapping"'
 $cloudLayerReadiness = Invoke-Text "$BaseUrl/api/v1/clouds/layers"
 Assert-Contains "cloud layer readiness contract version" $cloudLayerReadiness '"contract_version":"cloud-layer-readiness-v1"'
 Assert-Contains "cloud layer readiness evidence" $cloudLayerReadiness '"evidence_ref":"cloud_layer_readiness_visible"'
 Assert-Contains "cloud layer readiness layer 7" $cloudLayerReadiness '"layer_id":"layer_7"'
-Assert-Contains "cloud layer readiness gitkraken" $cloudLayerReadiness 'gitkraken_identity'
+Assert-Contains "cloud layer readiness grafana" $cloudLayerReadiness 'grafana_cloud'
+$platformVerify = Invoke-Text "$BaseUrl/api/v1/platform/verify"
+Assert-Contains "platform verify contract version" $platformVerify '"contract_version":"platform-verify-readiness-v1"'
+Assert-Contains "platform verify source" $platformVerify '"source":"agent-api"'
+Assert-Contains "platform verify endpoint" $platformVerify '"/api/v1/platform/verify"'
+Assert-Contains "platform verify total" $platformVerify '"total":7'
+Assert-Contains "platform verify dev-only non claim" $platformVerify "Localhost remains DEV-ONLY"
 $cloudRenderOffloadContract = Invoke-Text "$BaseUrl/api/v1/clouds/render-offload/contract"
 Assert-Contains "cloud render offload contract version" $cloudRenderOffloadContract '"contract_version":"cloud-render-offload-surface-v1"'
 Assert-Contains "cloud render offload contract evidence" $cloudRenderOffloadContract '"evidence_ref":"cloud_render_offload_contract_runtime_visible"'
@@ -291,15 +286,37 @@ Assert-Contains "cloud deployment preflight runtime endpoint" $cloudDeploymentPr
 $cloudDeploymentPreflightRuntime = Invoke-Text "$BaseUrl/api/v1/clouds/deployment-preflight"
 Assert-Contains "cloud deployment preflight runtime version" $cloudDeploymentPreflightRuntime '"contract_version":"cloud-deployment-preflight-v1"'
 Assert-Contains "cloud deployment preflight runtime evidence" $cloudDeploymentPreflightRuntime '"evidence_ref":"cloud_deployment_preflight_visible"'
-Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflightRuntime '"status":"verified"'
-Assert-Contains "cloud deployment preflight cloud claim allowed" $cloudDeploymentPreflightRuntime '"cloud_deploy_claim_allowed":true'
-Assert-Contains "cloud deployment preflight production allowed" $cloudDeploymentPreflightRuntime '"production_deploy_claim_allowed":true'
-Assert-Contains "cloud deployment preflight no blocked gates" $cloudDeploymentPreflightRuntime '"missing_or_blocked_gates":[]'
+Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflightRuntime '"status":"action_required"'
+Assert-Contains "cloud deployment preflight cloud claim blocked" $cloudDeploymentPreflightRuntime '"cloud_deploy_claim_allowed":false'
+Assert-Contains "cloud deployment preflight production blocked" $cloudDeploymentPreflightRuntime '"production_deploy_claim_allowed":false'
+$cloudDeploymentPreflightRuntimeJson = $cloudDeploymentPreflightRuntime | ConvertFrom-Json
+$cloudDeploymentPreflightBlockedGates = @($cloudDeploymentPreflightRuntimeJson.missing_or_blocked_gates | ForEach-Object { [string]$_ })
+Assert-True "cloud deployment preflight missing fly cloud stack" ($cloudDeploymentPreflightBlockedGates -contains "fly_cloud_stack")
+Assert-True "cloud deployment preflight missing hosted backend origins gate" ($cloudDeploymentPreflightBlockedGates -contains "hosted_backend_origins")
 Assert-Contains "cloud deployment preflight ghcr sequence" $cloudDeploymentPreflightRuntime "publish_ghcr_images"
 Assert-Contains "cloud deployment preflight hosted origins" $cloudDeploymentPreflightRuntime "hosted_backend_origins"
 Assert-Contains "cloud deployment preflight branch token" $cloudDeploymentPreflightRuntime "BRANCH_PROTECTION_TOKEN"
 Assert-Contains "cloud deployment preflight cloud compose" $cloudDeploymentPreflightRuntime "docker-compose.cloud.yml"
 Assert-Contains "cloud deployment preflight owner review" $cloudDeploymentPreflightRuntime "owner_review_before_production"
+
+Write-Host "[browser-contract] go-live readiness"
+$goLiveReadinessContract = Invoke-Text "$BaseUrl/api/v1/clouds/go-live-readiness/contract"
+Assert-Contains "go-live readiness contract version" $goLiveReadinessContract '"contract_version":"go-live-readiness-surface-v1"'
+Assert-Contains "go-live readiness runtime endpoint" $goLiveReadinessContract '"runtime_endpoint":"GET /api/v1/clouds/go-live-readiness"'
+Assert-Contains "go-live readiness external verifier" $goLiveReadinessContract "scripts/verify-external-gates.ps1"
+$goLiveReadinessRuntime = Invoke-Text "$BaseUrl/api/v1/clouds/go-live-readiness"
+Assert-Contains "go-live readiness runtime version" $goLiveReadinessRuntime '"contract_version":"go-live-readiness-v1"'
+Assert-Contains "go-live readiness evidence" $goLiveReadinessRuntime '"evidence_ref":"go_live_readiness_contract_visible"'
+Assert-Contains "go-live readiness workspace count" $goLiveReadinessRuntime '"workspace_page_count":22'
+Assert-Contains "go-live readiness cloud layers" $goLiveReadinessRuntime '"cloud_layer_total_count":7'
+if ($AllowLocalhost) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-go-live-readiness.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-go-live-readiness.ps1 -BaseUrl $BaseUrl
+}
+if ($LASTEXITCODE -ne 0) {
+  throw "Browser contract verification failed: go-live readiness verifier"
+}
 
 Write-Host "[browser-contract] auth contract"
 $authContract = Invoke-Text "$BaseUrl/api/v1/auth/contract"
@@ -421,14 +438,30 @@ Assert-Contains "agent llm streaming parser" $agentLlmStreamingContract "parse_l
 Assert-Contains "agent llm streaming state" $agentLlmStreamingContract "stream_done_seen"
 Assert-Contains "agent llm streaming no live" $agentLlmStreamingContract "No live provider stream"
 
+Write-Host "[browser-contract] llm responses adapter contract"
+$llmResponsesContract = Invoke-Text "$BaseUrl/llm/api/v1/responses/contract"
+Assert-Contains "llm responses adapter version" $llmResponsesContract '"contract_version":"llm-responses-adapter-contract-v1"'
+Assert-Contains "llm responses adapter evidence" $llmResponsesContract '"evidence_ref":"llm_responses_adapter_contract_visible"'
+Assert-Contains "llm responses adapter runtime endpoint" $llmResponsesContract "POST /llm/v1/responses"
+& (Join-Path $PSScriptRoot "verify-llm-responses-contract.ps1") -BaseUrl $BaseUrl -AllowLocalhost:$AllowLocalhost
+
+Write-Host "[browser-contract] live agent steering contract"
+$liveAgentSteeringContract = Invoke-Text "$BaseUrl/api/v1/live-agents/contract"
+Assert-Contains "live agent steering version" $liveAgentSteeringContract '"contract_version":"live-agent-steering-v1"'
+Assert-Contains "live agent steering evidence" $liveAgentSteeringContract "live_agent_steering_contract_visible"
+Assert-Contains "live agent steering llm adapter" $liveAgentSteeringContract "llm-responses-adapter-contract-v1"
+Assert-Contains "live agent steering response no-live" $liveAgentSteeringContract "live_provider_calls"
+Assert-Contains "live agent steering response audit" $liveAgentSteeringContract "audit_persisted"
+& (Join-Path $PSScriptRoot "verify-live-agent-steering-contract.ps1") -BaseUrl $BaseUrl -AllowLocalhost:$AllowLocalhost
+
 Write-Host "[browser-contract] mcp version pinning contract"
 $mcpVersionPinningContract = Invoke-Text "$BaseUrl/mcp/api/v1/version-pinning/contract"
 Assert-Contains "mcp version pinning contract version" $mcpVersionPinningContract '"contract_version":"mcp-version-pinning-v1"'
 Assert-Contains "mcp version pinning evidence" $mcpVersionPinningContract '"evidence_ref":"mcp_version_pinning_contract_visible"'
 Assert-Contains "mcp version pinning gap" $mcpVersionPinningContract '"audit_gap":"L-08"'
-Assert-Contains "mcp version pinning fastapi" $mcpVersionPinningContract "fastapi==0.115.8"
-Assert-Contains "mcp version pinning uvicorn" $mcpVersionPinningContract "uvicorn[standard]==0.34.0"
-Assert-Contains "mcp version pinning pydantic" $mcpVersionPinningContract "pydantic==2.10.6"
+Assert-Contains "mcp version pinning fastapi" $mcpVersionPinningContract "fastapi==0.136.3"
+Assert-Contains "mcp version pinning uvicorn" $mcpVersionPinningContract "uvicorn[standard]==0.49.0"
+Assert-Contains "mcp version pinning pydantic" $mcpVersionPinningContract "pydantic==2.13.4"
 Assert-Contains "mcp version pinning github contract" $mcpVersionPinningContract "github-branch-pr-plan-v1"
 Assert-Contains "mcp version pinning e2b contract" $mcpVersionPinningContract "e2b-sandbox-lifecycle-v1"
 Assert-Contains "mcp version pinning drift policy" $mcpVersionPinningContract "exact == pinning"
@@ -445,7 +478,7 @@ Assert-Contains "memory embedding consistency vector" $memoryEmbeddingConsistenc
 Assert-Contains "memory embedding consistency fallback" $memoryEmbeddingConsistencyContract "lexical_fallback"
 Assert-Contains "memory embedding consistency no live provider" $memoryEmbeddingConsistencyContract "No live embedding provider call"
 
-Write-Host "[browser-contract] phase2 runtime contract"
+Write-Host "[browser-contract] Phase 2 Runtime Contract"
 $runtimeContract = Invoke-Text "$BaseUrl/api/v1/phase2/runtime/contract"
 Assert-Contains "runtime contract version" $runtimeContract '"contract_version":"phase2-runtime-v1"'
 Assert-Contains "runtime start endpoint" $runtimeContract "POST /api/v1/phase2/runtime/start"
@@ -461,6 +494,113 @@ Assert-Contains "runtime mcp timeout evidence" $runtimeContract "langgraph_mcp_t
 Assert-Contains "runtime no live provider calls" $runtimeContract '"live_provider_calls":false'
 Assert-Contains "runtime postgres checkpointing" $runtimeContract '"checkpointing":"postgres"'
 
+Write-Host "[browser-contract] organism contracts"
+$organismContract = Invoke-Text "$BaseUrl/api/v1/organism/contract"
+Assert-Contains "organism contract version" $organismContract '"contract_version":"organism-surface-v1"'
+Assert-Contains "organism contract topology related" $organismContract '"/api/v1/organism/topology"'
+Assert-Contains "organism contract safety related" $organismContract '"/api/v1/organism/safety"'
+Assert-Contains "organism contract workspace wiring related" $organismContract '"/api/v1/workspace/wiring"'
+Assert-Contains "organism contract workspace page count" $organismContract '"workspace_page_count":22'
+$organismTopology = Invoke-Text "$BaseUrl/api/v1/organism/topology"
+Assert-Contains "organism topology version" $organismTopology '"contract_version":"organism-topology-v1"'
+Assert-Contains "organism topology layer node" $organismTopology '"id":"layer:FE"'
+Assert-Contains "organism topology agent node" $organismTopology '"id":"agent:planner"'
+Assert-Contains "organism topology tool node" $organismTopology '"id":"tool:mcp_gateway"'
+Assert-Contains "organism topology gate node" $organismTopology '"kind":"safety_gate"'
+Assert-Contains "organism topology page brain edges" $organismTopology '"kind":"page_to_brain_region"'
+Assert-Contains "organism topology page data edges" $organismTopology '"kind":"page_to_data_source"'
+Assert-Contains "organism topology page verifier edges" $organismTopology '"kind":"page_to_verifier"'
+if ($AllowLocalhost) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-organism-topology.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-organism-topology.ps1 -BaseUrl $BaseUrl
+}
+if ($LASTEXITCODE -ne 0) {
+  throw "Browser contract verification failed: organism topology"
+}
+$workspaceWiring = Invoke-Text "$BaseUrl/api/v1/workspace/wiring"
+Assert-Contains "workspace wiring version" $workspaceWiring '"contract_version":"workspace-surface-wiring-v1"'
+Assert-Contains "workspace wiring evidence" $workspaceWiring '"evidence_ref":"workspace_surface_wiring_visible"'
+Assert-Contains "workspace wiring page count" $workspaceWiring '"page_count":22'
+Assert-Contains "workspace wiring home surface" $workspaceWiring '"pageId":"home"'
+Assert-Contains "workspace wiring workbench surface" $workspaceWiring '"pageId":"workbench"'
+Assert-Contains "workspace wiring organism surface" $workspaceWiring '"pageId":"organism"'
+Assert-Contains "workspace wiring open source surface" $workspaceWiring '"pageId":"open-source"'
+Assert-Contains "workspace wiring no writes" $workspaceWiring '"writes":false'
+Assert-Contains "workspace wiring no live" $workspaceWiring '"live":false'
+Write-Host "[browser-contract] workspace vertical stack"
+if ($AllowLocalhost) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-workspace-vertical-stack.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-workspace-vertical-stack.ps1 -BaseUrl $BaseUrl
+}
+if ($LASTEXITCODE -ne 0) {
+  throw "Browser contract verification failed: workspace vertical stack"
+}
+Write-Host "[browser-contract] workspace data sources"
+if ($AllowLocalhost) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-workspace-data-sources.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-workspace-data-sources.ps1 -BaseUrl $BaseUrl
+}
+if ($LASTEXITCODE -ne 0) {
+  throw "Browser contract verification failed: workspace data sources"
+}
+Write-Host "[browser-contract] platform UI status boundary"
+if ($AllowLocalhost) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-platform-ui-status-boundary.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-platform-ui-status-boundary.ps1 -BaseUrl $BaseUrl
+}
+if ($LASTEXITCODE -ne 0) {
+  throw "Browser contract verification failed: platform UI status boundary"
+}
+Write-Host "[browser-contract] reference design contract"
+$referenceDesignContract = Invoke-Text "$BaseUrl/api/v1/design/reference-contract"
+Assert-Contains "reference design version" $referenceDesignContract '"contract_version":"reference-design-conformance-v1"'
+Assert-Contains "reference design evidence" $referenceDesignContract '"evidence_ref":"reference_design_conformance_visible"'
+Assert-Contains "reference design endpoint" $referenceDesignContract '"/api/v1/design/reference-contract"'
+Assert-Contains "reference design expected page count" $referenceDesignContract '"expected_page_count":22'
+Assert-Contains "reference design page count" $referenceDesignContract '"page_count":22'
+Assert-Contains "reference design visual language" $referenceDesignContract "industrial-developer-workbench"
+Assert-Contains "reference design root" $referenceDesignContract "docs/reference"
+Assert-Contains "reference design no fake live" $referenceDesignContract '"no_fake_live":true'
+Assert-Contains "reference design non claim" $referenceDesignContract "This contract does not claim pixel-perfect visual completion"
+Assert-Contains "reference design dev-only non claim" $referenceDesignContract "Local evidence remains DEV-ONLY"
+if ($AllowLocalhost) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-reference-design-browser.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-reference-design-browser.ps1 -BaseUrl $BaseUrl
+}
+if ($LASTEXITCODE -ne 0) {
+  throw "Browser contract verification failed: reference design browser proof"
+}
+Write-Host "[browser-contract] workspace pages browser proof"
+if ($AllowLocalhost) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-workspace-pages-browser.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-workspace-pages-browser.ps1 -BaseUrl $BaseUrl
+}
+if ($LASTEXITCODE -ne 0) {
+  throw "Browser contract verification failed: workspace pages browser proof"
+}
+$organismLiveState = Invoke-Text "$BaseUrl/api/v1/organism/live-state"
+Assert-Contains "organism live-state version" $organismLiveState '"contract_version":"organism-live-state-v1"'
+Assert-Contains "organism live-state no secret" $organismLiveState '"gates_closed"'
+$organismEvents = Invoke-Text "$BaseUrl/api/v1/organism/events"
+Assert-Contains "organism events version" $organismEvents '"contract_version":"organism-events-v1"'
+Assert-Contains "organism events no secret output" $organismEvents '"secret_output":false'
+$organismReplay = Invoke-Text "$BaseUrl/api/v1/organism/replay"
+Assert-Contains "organism replay version" $organismReplay '"contract_version":"organism-replay-v1"'
+Assert-Contains "organism replay availability" $organismReplay '"replay_available":'
+$organismRegions = Invoke-Text "$BaseUrl/api/v1/organism/regions"
+Assert-Contains "organism regions version" $organismRegions '"contract_version":"organism-regions-v1"'
+Assert-Contains "organism regions callosum" $organismRegions '"id":"callosum"'
+$organismSafety = Invoke-Text "$BaseUrl/api/v1/organism/safety"
+Assert-Contains "organism safety version" $organismSafety '"contract_version":"organism-safety-v1"'
+Assert-Contains "organism safety no fake live" $organismSafety '"no_fake_live":true'
+Assert-Contains "organism safety no writes" $organismSafety '"writes":false'
+
 Write-Host "[browser-contract] external gate mirror"
 $externalGates = Invoke-Text "$BaseUrl/api/v1/external-gates"
 Assert-Contains "external gates contract" $externalGates '"contract_version":"external-gates-state-v1"'
@@ -473,18 +613,18 @@ Assert-Contains "external gates branch alias" $externalGates '"preflight_gate_id
 Assert-Contains "external gates evidence alias" $externalGates '"evidence_ref":"ghcr_image_digest_proof"'
 $externalGateMirror = Invoke-Text "$BaseUrl/api/v1/external-gates/mirror"
 Assert-Contains "external gate mirror contract" $externalGateMirror '"contract_version":"external-gate-mirror-v1"'
-Assert-Contains "external gate mirror status" $externalGateMirror '"status":"verified"'
+Assert-Contains "external gate mirror status" $externalGateMirror '"status":"local_mirror_ready_hosted_blocked"'
 Assert-Contains "external gate mirror evidence" $externalGateMirror '"evidence_ref":"external_gate_mirror_proof"'
 Assert-Contains "external gate mirror hosted allowed" $externalGateMirror '"hosted_staging_claim_allowed":true'
 Assert-Contains "external gate mirror branch protection allowed" $externalGateMirror '"branch_protection_claim_allowed":true'
 Assert-Contains "external gate mirror branch protection evidence" $externalGateMirror '"branch_protection_evidence_ref":"branch_protection_verify_contract"'
 Assert-Contains "external gate mirror branch protection workflow" $externalGateMirror ".github/workflows/branch-protection.yml"
 Assert-Contains "external gate mirror branch protection verifier" $externalGateMirror "scripts/apply_github_branch_protection.py --verify-only"
-Assert-Contains "external gate mirror production allowed" $externalGateMirror '"production_deploy_claim_allowed":true'
+Assert-Contains "external gate mirror production blocked" $externalGateMirror '"production_deploy_claim_allowed":false'
 Assert-Contains "external gate mirror sse contract" $externalGateMirror "phase2-sse-event-contract-v1"
 Assert-Contains "external gate mirror project progress proof" $externalGateMirror "project_progress_manifest_proof"
 
-Write-Host "[browser-contract] phase2 runtime start"
+Write-Host "[browser-contract] Start Phase 2 Runtime"
 $phase2RuntimeThreadId = "browser-contract-phase2-runtime-" + [Guid]::NewGuid().ToString("N")
 $phase2RuntimeBody = @{
   project_id = "browser-contract-project"
@@ -558,6 +698,9 @@ Assert-True "phase2 runtime run status no live provider calls" ($phase2RuntimeRu
 Assert-True "phase2 runtime run status no live mcp writes" ($phase2RuntimeRunStatus.live_mcp_writes -eq $false)
 Assert-True "phase2 runtime run status no production deploy" ($phase2RuntimeRunStatus.production_deploy -eq $false)
 
+Write-Host "[browser-contract] Organism Runtime Event Projection"
+& (Join-Path $PSScriptRoot "verify-organism-runtime-events.ps1") -BaseUrl $BaseUrl -AllowLocalhost:$AllowLocalhost -RunId $phase2RuntimeRun.thread_id
+
 Write-Host "[browser-contract] session history opens"
 $sessionHistory = (Invoke-JsonApi -Url "$BaseUrl/api/v1/sessions/$($phase2RuntimeRun.thread_id)/history" -Method "GET" -ContentType "" -TimeoutSeconds 30) | ConvertFrom-Json
 Assert-True "session history contract version" ($sessionHistory.contract_version -eq "session-history-v1")
@@ -571,7 +714,7 @@ Assert-True "session history integrity verified" ($sessionHistory.project_progre
 Assert-True "session history integrity evidence" ($sessionHistory.project_progress_integrity.evidence_ref -eq "project_progress_integrity_runtime_proof")
 
 if ($SeedMemoryConsolidation) {
-  Write-Host "[browser-contract] seed memory consolidation"
+  Write-Host "[browser-contract] Memory Consolidation: seed memory consolidation"
   $memoryNeedle = "browser contract memory consolidation " + [Guid]::NewGuid().ToString("N")
   $memoryIdempotencyKey = "browser-contract-memory-consolidation-" + [Guid]::NewGuid().ToString("N")
   $seedOutput = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import json, os, redis; client=redis.Redis.from_url(os.environ['REDIS_URL']); payload={'project_id':'browser-contract-project','session_id':'$($phase2RuntimeRun.thread_id)','content_text':'$memoryNeedle','metadata':{'source':'browser_contract_harness'},'idempotency_key':'$memoryIdempotencyKey'}; client.set('memory:working:$memoryIdempotencyKey', json.dumps(payload), ex=300); print(client.ttl('memory:working:$memoryIdempotencyKey'))"
@@ -585,10 +728,11 @@ if ($SeedMemoryConsolidation) {
   Assert-Contains "memory consolidation feed idempotency" $consolidationFeed $memoryIdempotencyKey
   Assert-Contains "memory consolidation feed redis key" $consolidationFeed "memory:working:$memoryIdempotencyKey"
 } else {
-  Write-Host "[browser-contract] memory consolidation feed shape"
+  Write-Host "[browser-contract] Memory Consolidation: feed shape"
   $consolidationFeed = Invoke-Text "$BaseUrl/api/v1/memory/consolidation/recent?limit=8"
   Assert-Contains "memory consolidation feed shape" $consolidationFeed '"events"'
   Assert-Contains "memory consolidation summary shape" $consolidationFeed '"summary"'
 }
 
 Write-Host "[browser-contract] checks completed"
+

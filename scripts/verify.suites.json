@@ -141,6 +141,13 @@
     ]
   },
   {
+    "id": "autonomous-release-workflow",
+    "description": "Self-verification for the fail-closed autonomous release workflow.",
+    "patterns": [
+      "verify-autonomous-release-workflow.ps1"
+    ]
+  },
+  {
     "id": "phase3",
     "description": "Phase 3 hosted contract suite.",
     "patterns": [
