@@ -8,8 +8,8 @@ import { Badge } from "../ui";
 export default async function SevenLayerBar({ title = "Verified across 7 cloud layers" }: { title?: string }) {
   const live = await fetchLayers();
   const rows = live
-    ? live.map((l, i) => ({ no: i + 1, code: LAYERS[i]?.code ?? l.id, label: LAYERS[i]?.label ?? l.label, color: LAYERS[i]?.color ?? "#00e5ff", status: l.status, verified: l.verified }))
-    : LAYERS.map((l) => ({ no: l.no, code: l.code, label: l.label, color: l.color, status: "spec", verified: false }));
+    ? live.map((l, i) => ({ no: i + 1, code: LAYERS[i]?.code ?? l.id, label: LAYERS[i]?.label ?? l.label, status: l.status, verified: l.verified }))
+    : LAYERS.map((l) => ({ no: l.no, code: l.code, label: l.label, status: "spec", verified: false }));
   const verifiedCount = rows.filter((r) => r.verified).length;
 
   return (
@@ -25,7 +25,7 @@ export default async function SevenLayerBar({ title = "Verified across 7 cloud l
       <div className="layerbar-row">
         {rows.map((r) => (
           <div key={r.no} className={`layerbar-cell${r.verified ? " on" : ""}`} title={`${r.label} — ${r.status}`}>
-            <span className="layerbar-tag" style={{ background: r.color }}>L{r.no}</span>
+            <span className={`layerbar-tag ${`bg-layer-${r.code}`}`}>L{r.no}</span>
             <span className="layerbar-code">{r.code}</span>
             <span className={`layerbar-dot ${r.verified ? "ok" : "spec"}`} aria-hidden="true" />
           </div>

@@ -12,6 +12,50 @@ const FEATURES = [
   { icon: "workbench" as const, title: "Workbench First", body: "Build · Create · Collaborate. Prompt to artifact, with honest run state and evidence." },
 ];
 
+function layerBgClass(code: string) {
+  switch (code) {
+    case "FE":
+      return "bg-cyan";
+    case "ORC":
+      return "bg-blue";
+    case "AP":
+      return "bg-violet";
+    case "LLM":
+      return "bg-magenta";
+    case "MCP":
+      return "bg-amber";
+    case "MEM":
+      return "bg-green";
+    case "OBS":
+      return "bg-gold";
+    default:
+      return "bg-cyan";
+  }
+}
+
+function providerFgClass(providerId: string) {
+  switch (providerId) {
+    case "vercel_frontend":
+      return "fg-cyan";
+    case "fly_io":
+      return "fg-violet";
+    case "cloudflare_edge":
+      return "fg-amber";
+    case "github_actions":
+      return "fg-blue";
+    case "ghcr_registry":
+      return "fg-magenta";
+    case "huggingface_identity":
+      return "fg-gold";
+    case "gitlab_identity":
+      return "fg-green";
+    case "grafana_cloud":
+      return "fg-red";
+    default:
+      return "fg-cyan";
+  }
+}
+
 export default function Landing() {
   return (
     <div className="app-shell marketing">
@@ -40,7 +84,7 @@ export default function Landing() {
         <div className="page">
           <section className="hero">
             <div>
-              <div className="chips" style={{ marginBottom: 16 }}>
+              <div className="chips chips-mb-16">
                 <span className="badge badge-cyan">Open Source</span>
                 <span className="badge badge-violet">Independent</span>
                 <span className="badge badge-green">Free</span>
@@ -75,7 +119,7 @@ export default function Landing() {
             <div className="stat"><div className="v">10</div><div className="l">Cortex regions</div></div>
             <div className="stat"><div className="v">100%</div><div className="l">Open source</div></div>
           </div>
-          <p style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 8, textAlign: "center" }}>
+          <p className="landing-note-center">
             Canonical platform specification — not live runtime metrics.
           </p>
 
@@ -89,11 +133,11 @@ export default function Landing() {
             ))}
           </div>
 
-          <section style={{ marginTop: 32 }}>
-            <div className="page-head" style={{ marginBottom: 12 }}>
+          <section className="landing-arch-section">
+            <div className="page-head landing-arch-head">
               <div>
                 <div className="eyebrow">Architecture</div>
-                <h2 style={{ fontSize: 20 }}>7 Layers · {PROVIDERS.length} Cloud Providers</h2>
+                <h2 className="landing-arch-title">7 Layers · {PROVIDERS.length} Cloud Providers</h2>
               </div>
               <Link href="/technology" className="btn btn-sm btn-ghost">
                 Technology stack →
@@ -102,14 +146,13 @@ export default function Landing() {
             <div className="layer-strip">
               {LAYERS.map((l) => (
                 <div key={l.code} className="layer-row">
-                  <span className="layer-tag" style={{ background: l.color }}>L{l.no}</span>
+                  <span className={`layer-tag ${layerBgClass(l.code)}`}>L{l.no}</span>
                   <span className="layer-name">{l.label}</span>
                   <span className="layer-providers">
                     {providersForLayer(l.no).map((p) => (
                       <span
                         key={p.id}
-                        className="layer-chip"
-                        style={{ color: p.color, borderColor: p.color }}
+                        className={`layer-chip ${providerFgClass(p.id)}`}
                         title={p.role}
                       >
                         {p.label}
@@ -119,7 +162,7 @@ export default function Landing() {
                 </div>
               ))}
             </div>
-            <p style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 10 }}>
+            <p className="landing-arch-note">
               Each layer is backed by real cloud providers (Vercel · Fly.io · Cloudflare · GitHub Actions ·
               GHCR · Hugging Face · GitLab · Grafana Cloud). Tokens live under{" "}
               <span className="mono">.codex/secrets</span> — surfaced only as status
@@ -131,7 +174,7 @@ export default function Landing() {
             {SLOGAN.map((s) => (
               <span key={s}>{s}</span>
             ))}
-            <span style={{ marginLeft: "auto", color: "var(--text-dim)" }}>
+            <span className="footer-slogan-spacer">
               Open · Independent · Free · Forever
             </span>
           </footer>

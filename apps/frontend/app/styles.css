@@ -540,6 +540,7 @@ p {
 
 /* Chips / tabs */
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chips-mb-16 { margin-bottom: 16px; }
 .chip {
   border: 1px solid var(--border);
   background: transparent;
@@ -1042,6 +1043,30 @@ p {
   text-transform: uppercase;
   color: var(--text-mut);
 }
+.footer-slogan-spacer { margin-left: auto; color: var(--text-dim); }
+
+.landing-note-center { font-size: 12px; color: var(--text-dim); margin-top: 8px; text-align: center; }
+.landing-arch-section { margin-top: 32px; }
+.landing-arch-head { margin-bottom: 12px; }
+.landing-arch-title { font-size: 20px; }
+.landing-arch-note { font-size: 12px; color: var(--text-dim); margin-top: 10px; }
+
+.bg-cyan { background: var(--cyan); }
+.bg-blue { background: var(--blue); }
+.bg-violet { background: var(--violet); }
+.bg-magenta { background: var(--magenta); }
+.bg-green { background: var(--green); }
+.bg-amber { background: var(--amber); }
+.bg-gold { background: #fbbf24; }
+
+.fg-cyan { color: var(--cyan); }
+.fg-blue { color: var(--blue); }
+.fg-violet { color: var(--violet); }
+.fg-magenta { color: var(--magenta); }
+.fg-green { color: var(--green); }
+.fg-amber { color: var(--amber); }
+.fg-gold { color: #fbbf24; }
+.fg-red { color: var(--red); }
 
 /* 7-layer strip */
 .layer-strip { display: flex; flex-direction: column; gap: 6px; }
@@ -1651,6 +1676,13 @@ p {
 .layerbar-cell { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); opacity: 0.55; }
 .layerbar-cell.on { opacity: 1; border-color: rgba(16, 185, 129, 0.4); }
 .layerbar-tag { font-size: 10px; font-weight: 700; color: #04060d; border-radius: 5px; padding: 1px 5px; }
+.bg-layer-FE { background: var(--cyan); }
+.bg-layer-ORC { background: var(--blue); }
+.bg-layer-AP { background: var(--violet); }
+.bg-layer-LLM { background: var(--magenta); }
+.bg-layer-MCP { background: var(--amber); }
+.bg-layer-MEM { background: var(--green); }
+.bg-layer-OBS { background: #fbbf24; }
 .layerbar-code { font-size: 11px; color: var(--text-pri); font-family: var(--mono, monospace); }
 .layerbar-dot { width: 7px; height: 7px; border-radius: 999px; margin-left: auto; }
 .layerbar-dot.ok { background: #34d399; box-shadow: 0 0 7px rgba(52, 211, 153, 0.9); }
