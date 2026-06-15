@@ -15,6 +15,28 @@ This runbook is complementary to:
 - `TRAE_DEPLOY_PROMPT.md`
 - `docs/runbooks/OWNER_GO_LIVE_CHECKLIST.md`
 
+## Fly Infra (stateful, budget-relevant)
+
+Minimum components needed to close the two hosted gates:
+
+- `cloud-superbrain-agent-api` (needs Postgres + Redis)
+- `cloud-superbrain-mcp-gateway`
+- `cloud-superbrain-llm-gateway`
+
+Workers are optional for the two-gate closure:
+
+- `cloud-superbrain-agent-worker` (optional)
+- `cloud-superbrain-memory-worker` (optional)
+
+### Postgres + pgvector requirement
+
+Agent API migrations require `CREATE EXTENSION vector;` (pgvector).
+
+Decision order:
+
+1. Prefer Fly Managed Postgres only if it can run `CREATE EXTENSION IF NOT EXISTS vector;`
+2. If not supported, use a dedicated Postgres image that includes pgvector (example in the local cloud compose: `pgvector/pgvector:0.8.2-pg16`) with a Fly volume, then point `DATABASE_URL` to that instance.
+
 ## Gate 1 — hosted_agent_api_contracts
 
 Pass condition (minimal):
