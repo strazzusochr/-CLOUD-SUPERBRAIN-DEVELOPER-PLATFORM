@@ -5759,7 +5759,19 @@ def health() -> dict[str, object]:
 
     budget_state = get_budget_state()
     infra_budget_state = get_infra_budget_state()
-    gates = external_gate_state()
+    # Liveness must never 500 because the progress manifest / gate data is missing or unreadable
+    # (e.g. a hosted image without the bind-mounted manifest). Degrade instead of crashing.
+    try:
+        gates = external_gate_state()
+    except Exception as exc:
+        overall = "degraded"
+        gates = {
+            "status": "unavailable",
+            "configured_count": 0,
+            "total_count": 0,
+            "local_execution_allowed": False,
+            "error": str(exc),
+        }
     return {
         "status": overall,
         "service": "agent-api",
