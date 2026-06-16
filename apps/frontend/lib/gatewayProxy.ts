@@ -13,6 +13,25 @@ export async function gatewayHandle(
 ): Promise<Response> {
   const pathname = `${prefix}/${(slug ?? []).join("/")}`;
   const base = process.env[originEnv]?.replace(/\/$/, "");
+
+  // Free real LLM via Cloudflare Workers AI when no gateway origin is set but CF
+  // creds are present. Covers the OpenAI-style chat endpoint the buttons call.
+  if (!base && prefix === "/llm" && req.method === "POST" && pathname.includes("chat/completions")) {
+    const { cfConfigured, cfChatCompletion } = await import("./cfWorkersAi");
+    if (cfConfigured()) {
+      try {
+        const payload = JSON.parse((await req.text()) || "{}");
+        const out = await cfChatCompletion(payload);
+        return Response.json(out, { headers: { "x-superbrain-source": "cloudflare-workers-ai" } });
+      } catch (err) {
+        return Response.json(
+          { status: "llm_provider_error", endpoint: pathname, note: err instanceof Error ? err.message : String(err) },
+          { status: 502, headers: { "x-superbrain-source": "cloudflare-workers-ai" } },
+        );
+      }
+    }
+  }
+
   if (!base) {
     return Response.json(
       {
