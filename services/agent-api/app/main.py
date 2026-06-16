@@ -3963,8 +3963,23 @@ def project_progress_completion_surface_contract_payload() -> dict[str, object]:
 
 @app.on_event("startup")
 def startup() -> None:
-    app.state.applied_migrations = run_migrations()
-    ensure_postgres_checkpointer()
+    # DB-optional boot: on a free/hostless deploy there may be no managed
+    # Postgres/Redis. The read/contract/organism/clouds/inventory/metrics
+    # surfaces need no DB, so the app must still come up — DB-backed actions
+    # degrade honestly (their own connect() raises a clear 5xx) instead of
+    # crashing the whole process at startup.
+    app.state.applied_migrations = []
+    app.state.db_available = False
+    app.state.db_error = None
+    if not os.getenv("DATABASE_URL"):
+        app.state.db_error = "DATABASE_URL unset (degraded: DB-backed actions unavailable)"
+        return
+    try:
+        app.state.applied_migrations = run_migrations()
+        ensure_postgres_checkpointer()
+        app.state.db_available = True
+    except Exception as exc:  # noqa: BLE001 — never let DB outage block liveness
+        app.state.db_error = f"{type(exc).__name__}: {exc}"
 
 
 @app.get("/api/v1/project/progress")

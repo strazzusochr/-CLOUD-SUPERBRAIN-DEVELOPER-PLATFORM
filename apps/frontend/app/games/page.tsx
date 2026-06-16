@@ -5,6 +5,7 @@ import { PageHeader, Panel, Badge, EmptyState } from "../../components/ui";
 import { Icon } from "../../lib/nav";
 import { fetchRecentTasks } from "../../lib/agentApi";
 import { WorkspaceModeActionPanel } from "../../components/goal-b-actions";
+import { RealGame } from "../../components/real-game";
 
 export const metadata = { title: "Games Workflow — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -31,6 +32,11 @@ export default async function GamesPage() {
             </>
           }
         />
+        <Panel title="Live 3D Game · superbrain-arena" className="mb-16" actions={<Badge tone="green">echt spielbar</Badge>}>
+          <div className="wb-pad">
+            <RealGame />
+          </div>
+        </Panel>
         <div className="grid grid-games">
           <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
             <div className="wb-pad">

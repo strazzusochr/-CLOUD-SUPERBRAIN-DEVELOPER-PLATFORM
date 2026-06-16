@@ -2343,3 +2343,18 @@ p {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Real 3D game (components/real-game.tsx) */
+.real-game { display: flex; flex-direction: column; gap: 10px; }
+.real-game .rg-hud {
+  display: flex; gap: 18px; flex-wrap: wrap; align-items: center;
+  font-size: 12px; color: var(--text-dim, #9fb3c8);
+}
+.real-game .rg-hud b { color: var(--text, #e8f0fb); }
+.real-game .rg-hud .rg-state { margin-left: auto; color: #37f5b5; }
+.real-game .rg-canvas {
+  width: 100%; min-height: 380px; border-radius: 12px; overflow: hidden;
+  background: radial-gradient(120% 120% at 50% 0%, #0b1226 0%, #05060f 70%);
+  border: 1px solid rgba(43,209,254,0.18);
+}
+.real-game .rg-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
