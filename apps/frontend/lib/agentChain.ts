@@ -75,9 +75,10 @@ export async function runDeepResearch(goal: string): Promise<AgentRun> {
   );
   steps.push({ role: "planner", label: "Planner (LLM)", content: plan, ms: Date.now() - t });
 
-  // 2) Researcher — real web sources
+  // 2) Researcher — real web sources (German first, English fallback)
   t = Date.now();
-  const sources = await wikiResearch(goal);
+  let sources = await wikiResearch(goal, "de");
+  if (!sources.length) sources = await wikiResearch(goal, "en");
   steps.push({
     role: "researcher",
     label: "Researcher (Wikipedia, echt)",
