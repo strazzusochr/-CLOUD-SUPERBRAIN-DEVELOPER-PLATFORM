@@ -5,6 +5,7 @@ import { PageHeader, Panel, Badge, EmptyState } from "../../components/ui";
 import { Icon } from "../../lib/nav";
 import { fetchRecentSessions } from "../../lib/agentApi";
 import { WorkspaceModeActionPanel, DocsExportPanel } from "../../components/goal-b-actions";
+import { CreatorStudio } from "../../components/creator-studio";
 
 export const metadata = { title: "Documents Workflow — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -37,6 +38,11 @@ export default async function DocsOutputPage() {
             </>
           }
         />
+        <Panel title="Doc Studio · echte Markdown/HTML-Generierung" className="mb-16" actions={<Badge tone="green">echt · Download</Badge>}>
+          <div className="wb-pad">
+            <CreatorStudio only="doc" />
+          </div>
+        </Panel>
         <div className="grid docs-output-grid">
           <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
             <div className="wb-pad">
