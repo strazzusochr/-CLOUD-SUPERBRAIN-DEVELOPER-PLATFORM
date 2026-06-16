@@ -4,6 +4,7 @@ import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, EmptyState, Badge } from "../../components/ui";
 import { fetchRecentTasks } from "../../lib/agentApi";
 import { WorkspaceModeActionPanel } from "../../components/goal-b-actions";
+import { CreatorStudio } from "../../components/creator-studio";
 
 export const metadata = { title: "Media Workflow — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -39,6 +40,11 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
             </>
           }
         />
+        <Panel title="Creator Studio · echte Medien-Generierung" className="mb-16" actions={<Badge tone="green">echt · Download</Badge>}>
+          <div className="wb-pad">
+            <CreatorStudio />
+          </div>
+        </Panel>
         <div className="grid grid-games">
           <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
             <div className="wb-pad">

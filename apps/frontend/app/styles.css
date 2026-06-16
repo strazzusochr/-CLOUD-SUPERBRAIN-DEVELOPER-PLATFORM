@@ -2358,3 +2358,24 @@ p {
   border: 1px solid rgba(43,209,254,0.18);
 }
 .real-game .rg-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+/* Creator Studio (components/creator-studio.tsx) */
+.creator-studio { display: flex; flex-direction: column; gap: 12px; }
+.creator-studio .cs-tabs { display: flex; gap: 8px; }
+.creator-studio .cs-tool { display: flex; flex-direction: column; gap: 10px; }
+.creator-studio .cs-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.creator-studio .cs-input,
+.creator-studio .cs-textarea {
+  width: 100%; background: rgba(10,16,34,0.6); border: 1px solid rgba(43,209,254,0.18);
+  border-radius: 8px; color: var(--text, #e8f0fb); padding: 8px 10px; font-size: 13px;
+}
+.creator-studio .cs-textarea { resize: vertical; min-height: 120px; }
+.creator-studio .cs-preview {
+  background: #fff; color: #1a2230; border-radius: 10px; padding: 14px 18px;
+  max-height: 320px; overflow: auto; font-size: 14px; line-height: 1.55;
+}
+.creator-studio .cs-preview code { background: #eef; padding: 1px 5px; border-radius: 4px; }
+.creator-studio .cs-canvas {
+  width: 100%; max-width: 480px; border-radius: 10px; border: 1px solid rgba(43,209,254,0.18);
+  background: #05060f; display: block;
+}
