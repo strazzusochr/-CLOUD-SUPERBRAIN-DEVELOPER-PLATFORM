@@ -4,6 +4,7 @@ import { PageHeader, Panel, Badge, Note, StatusDot } from "../../components/ui";
 import { AGENTS } from "../../lib/platform";
 import { fetchLiveAgents } from "../../lib/agentApi";
 import { AgentSteeringPanel } from "../../components/goal-b-actions";
+import { AgentRun } from "../../components/agent-run";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Agent Control Center — Cloud Superbrain" };
@@ -20,6 +21,12 @@ export default async function AgentsPage() {
           subtitle="Real role pool from the backend contract agent-profiles-v1. Each profile pins its model, fallbacks, allowed MCP tools, execution limits and human-review actions. The live roster below projects from GET /api/v1/live-agents/status and now exposes the latest local result path/command when a role was actually run."
           actions={live ? <Badge tone="green">● Live · {roster!.agents.length} agents</Badge> : <Badge tone="cyan">agent-profiles-v1</Badge>}
         />
+
+        <Panel title="Multi-Agent Deep-Research · live LLM" className="mb-16" actions={<Badge tone="green">echt · CF Workers AI</Badge>}>
+          <div className="wb-pad">
+            <AgentRun />
+          </div>
+        </Panel>
 
         <Panel title="Live agent API" className="mb-16" actions={<Badge tone="cyan">interaktiv · read-only</Badge>}>
           <div className="wb-pad">
