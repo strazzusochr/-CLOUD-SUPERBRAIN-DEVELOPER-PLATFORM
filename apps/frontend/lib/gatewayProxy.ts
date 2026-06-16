@@ -1,9 +1,26 @@
 // Shared honest proxy for the /mcp and /llm gateway surfaces.
 //
-// LIVE PASSTHROUGH when the gateway origin env is set; otherwise an honest
-// no-backend 503. Gateways are runtime services (MCP dry-run contracts / LLM
-// provider calls) — there is no deterministic file projection for them, so we
-// never synthesize a response. No fake-live.
+// Priority: live passthrough to a *reachable* gateway origin → else free real LLM
+// via Cloudflare Workers AI (for /llm chat) → else honest no-backend 503. A dead
+// configured origin (network error / >=500 / 404) gracefully falls back instead of
+// hard-502, so production stays functional even with a stale origin env set. No
+// fake-live: MCP has no projection, so it degrades to an honest 503.
+
+async function cfLlmChat(req: Request, pathname: string, body: string | undefined): Promise<Response | null> {
+  if (!(pathname.includes("chat/completions") && req.method === "POST")) return null;
+  const { cfConfigured, cfChatCompletion } = await import("./cfWorkersAi");
+  if (!cfConfigured()) return null;
+  try {
+    const payload = JSON.parse(body || "{}");
+    const out = await cfChatCompletion(payload);
+    return Response.json(out, { headers: { "x-superbrain-source": "cloudflare-workers-ai" } });
+  } catch (err) {
+    return Response.json(
+      { status: "llm_provider_error", endpoint: pathname, note: err instanceof Error ? err.message : String(err) },
+      { status: 502, headers: { "x-superbrain-source": "cloudflare-workers-ai" } },
+    );
+  }
+}
 
 export async function gatewayHandle(
   req: Request,
@@ -13,62 +30,51 @@ export async function gatewayHandle(
 ): Promise<Response> {
   const pathname = `${prefix}/${(slug ?? []).join("/")}`;
   const base = process.env[originEnv]?.replace(/\/$/, "");
+  const body = req.method !== "GET" && req.method !== "HEAD" ? await req.text() : undefined;
 
-  // Free real LLM via Cloudflare Workers AI when no gateway origin is set but CF
-  // creds are present. Covers the OpenAI-style chat endpoint the buttons call.
-  if (!base && prefix === "/llm" && req.method === "POST" && pathname.includes("chat/completions")) {
-    const { cfConfigured, cfChatCompletion } = await import("./cfWorkersAi");
-    if (cfConfigured()) {
-      try {
-        const payload = JSON.parse((await req.text()) || "{}");
-        const out = await cfChatCompletion(payload);
-        return Response.json(out, { headers: { "x-superbrain-source": "cloudflare-workers-ai" } });
-      } catch (err) {
-        return Response.json(
-          { status: "llm_provider_error", endpoint: pathname, note: err instanceof Error ? err.message : String(err) },
-          { status: 502, headers: { "x-superbrain-source": "cloudflare-workers-ai" } },
-        );
+  // 1) Live passthrough to a reachable origin (null = dead → fall through).
+  if (base) {
+    const url = new URL(req.url);
+    const forwardPath = pathname.slice(prefix.length) || "/";
+    const target = `${base}${forwardPath}${url.search}`;
+    const init: RequestInit = {
+      method: req.method,
+      headers: { accept: "application/json", "content-type": req.headers.get("content-type") ?? "application/json" },
+      cache: "no-store",
+    };
+    if (body !== undefined) init.body = body;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const res = await fetch(target, { ...init, signal: ctrl.signal });
+      if (res.status < 500 && res.status !== 404) {
+        const text = await res.text();
+        return new Response(text, {
+          status: res.status,
+          headers: { "content-type": res.headers.get("content-type") ?? "application/json", "x-superbrain-source": "live-gateway" },
+        });
       }
+    } catch {
+      /* unreachable → fall through */
+    } finally {
+      clearTimeout(timer);
     }
   }
 
-  if (!base) {
-    return Response.json(
-      {
-        status: "no_live_backend",
-        endpoint: `${req.method} ${pathname}`,
-        live_backend: false,
-        note: `This ${prefix === "/llm" ? "LLM gateway" : "MCP gateway"} call needs a running gateway service. No ${originEnv} origin is configured for this deployment, so no live data is returned.`,
-      },
-      { status: 503, headers: { "x-superbrain-source": "frontend-no-backend" } },
-    );
+  // 2) Free real LLM via Cloudflare Workers AI (chat completions).
+  if (prefix === "/llm") {
+    const cf = await cfLlmChat(req, pathname, body);
+    if (cf) return cf;
   }
-  const url = new URL(req.url);
-  // The gateway origins are mounted at their service root, so the /mcp|/llm
-  // prefix is stripped before forwarding (matches next.config rewrite shape).
-  const forwardPath = pathname.slice(prefix.length) || "/";
-  const target = `${base}${forwardPath}${url.search}`;
-  const init: RequestInit = {
-    method: req.method,
-    headers: { accept: "application/json", "content-type": req.headers.get("content-type") ?? "application/json" },
-    cache: "no-store",
-  };
-  if (req.method !== "GET" && req.method !== "HEAD") init.body = await req.text();
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 12000);
-  try {
-    const res = await fetch(target, { ...init, signal: ctrl.signal });
-    const body = await res.text();
-    return new Response(body, {
-      status: res.status,
-      headers: { "content-type": res.headers.get("content-type") ?? "application/json", "x-superbrain-source": "live-gateway" },
-    });
-  } catch (err) {
-    return Response.json(
-      { status: "backend_unreachable", endpoint: pathname, note: `configured ${originEnv} origin did not respond: ${err instanceof Error ? err.message : String(err)}` },
-      { status: 502, headers: { "x-superbrain-source": "live-gateway" } },
-    );
-  } finally {
-    clearTimeout(timer);
-  }
+
+  // 3) Honest no-backend.
+  return Response.json(
+    {
+      status: "no_live_backend",
+      endpoint: `${req.method} ${pathname}`,
+      live_backend: false,
+      note: `This ${prefix === "/llm" ? "LLM gateway" : "MCP gateway"} call needs a running gateway service or a configured free provider. None is available in this deployment, so no live data is returned.`,
+    },
+    { status: 503, headers: { "x-superbrain-source": "frontend-no-backend" } },
+  );
 }

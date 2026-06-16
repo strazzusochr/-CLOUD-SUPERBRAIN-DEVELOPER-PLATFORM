@@ -100,17 +100,15 @@ const cloudRewrite = (source, envKey, pathPrefix = "") => {
   };
 };
 
-nextConfig.rewrites = async () => {
-  const rewrites = [
-    cloudRewrite("/api/v1/:path*", "AGENT_API_BASE_URL", "/api/v1"),
-    cloudRewrite("/api/stream", "AGENT_API_BASE_URL", "/api/stream"),
-    cloudRewrite("/mcp/:path*", "MCP_GATEWAY_BASE_URL"),
-    cloudRewrite("/llm/:path*", "LLM_GATEWAY_BASE_URL"),
-  ].filter(Boolean);
-
-  return {
-    beforeFiles: rewrites,
-  };
-};
+// NOTE: edge rewrites to external backend origins are intentionally disabled.
+// The app's own route handlers (app/api/v1/[...slug], app/llm, app/mcp) own these
+// paths now: they serve real project-state projection data + the Cloudflare
+// Workers AI LLM for free, AND do live passthrough to AGENT_API_BASE_URL /
+// MCP_GATEWAY_BASE_URL / LLM_GATEWAY_BASE_URL when those point to a *reachable*
+// origin — with graceful fallback to projection/CF if the origin is dead. A
+// beforeFiles rewrite would intercept at the edge before the handler runs and
+// hard-502 on a dead origin, so we keep routing in the handlers instead.
+// `cloudRewrite` and the origin resolvers above are retained for reference.
+void cloudRewrite;
 
 export default nextConfig;

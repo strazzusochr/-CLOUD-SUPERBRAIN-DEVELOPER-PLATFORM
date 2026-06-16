@@ -27,7 +27,9 @@ function liveBase(): string | null {
   return b ? b.replace(/\/$/, "") : null;
 }
 
-async function proxy(req: Request, base: string, pathname: string): Promise<Response> {
+// Returns the live response, or null if the configured origin is dead/erroring
+// (network failure or >=500) so the caller can gracefully fall back to projection.
+async function proxy(req: Request, base: string, pathname: string, body: string | undefined): Promise<Response | null> {
   const url = new URL(req.url);
   const target = `${base}${pathname}${url.search}`;
   const init: RequestInit = {
@@ -35,24 +37,19 @@ async function proxy(req: Request, base: string, pathname: string): Promise<Resp
     headers: { accept: "application/json", "content-type": req.headers.get("content-type") ?? "application/json" },
     cache: "no-store",
   };
-  if (req.method !== "GET" && req.method !== "HEAD") init.body = await req.text();
+  if (body !== undefined) init.body = body;
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 8000);
+  const timer = setTimeout(() => ctrl.abort(), 6000);
   try {
     const res = await fetch(target, { ...init, signal: ctrl.signal });
-    const body = await res.text();
-    return new Response(body, {
+    if (res.status >= 500 || res.status === 404) return null; // dead/placeholder origin → fall back
+    const text = await res.text();
+    return new Response(text, {
       status: res.status,
-      headers: {
-        "content-type": res.headers.get("content-type") ?? "application/json",
-        "x-superbrain-source": "live-agent-api",
-      },
+      headers: { "content-type": res.headers.get("content-type") ?? "application/json", "x-superbrain-source": "live-agent-api" },
     });
-  } catch (err) {
-    return Response.json(
-      { status: "backend_unreachable", endpoint: pathname, note: `configured agent-api origin did not respond: ${err instanceof Error ? err.message : String(err)}` },
-      { status: 502, headers: { "x-superbrain-source": "live-agent-api" } },
-    );
+  } catch {
+    return null; // unreachable origin → fall back
   } finally {
     clearTimeout(timer);
   }
@@ -76,7 +73,12 @@ function noBackend(pathname: string, method: string): Response {
 async function handle(req: Request, slug: string[] | undefined, method: string): Promise<Response> {
   const pathname = `/api/v1/${(slug ?? []).join("/")}`;
   const base = liveBase();
-  if (base) return proxy(req, base, pathname);
+  // Read the body once so we can both proxy and (if needed) fall back without re-reading.
+  const body = method !== "GET" && method !== "HEAD" ? await req.text() : undefined;
+  if (base) {
+    const live = await proxy(req, base, pathname, body);
+    if (live) return live; // origin reachable → real live data; else fall through to projection
+  }
   if (method === "GET" && pathname in SNAP) {
     return Response.json(SNAP[pathname], {
       headers: { "x-superbrain-source": "project-state-projection", "cache-control": "no-store" },
