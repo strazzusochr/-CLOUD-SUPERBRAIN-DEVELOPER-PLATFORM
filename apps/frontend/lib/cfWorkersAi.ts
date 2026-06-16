@@ -60,14 +60,15 @@ export async function cfChatCompletion(payload: {
     );
     const data = (await res.json()) as {
       success?: boolean;
-      result?: { response?: string };
+      result?: { response?: string; choices?: Array<{ message?: { content?: string } }> };
       errors?: Array<{ message?: string }>;
     };
     if (!res.ok || !data.success) {
       const msg = data.errors?.map((e) => e.message).join("; ") || `HTTP ${res.status}`;
       throw new Error(`Cloudflare Workers AI error: ${msg}`);
     }
-    const content = data.result?.response ?? "";
+    // Newer Workers AI returns OpenAI-shaped result.choices[]; older returns result.response.
+    const content = data.result?.choices?.[0]?.message?.content ?? data.result?.response ?? "";
     const now = Math.floor(Date.now() / 1000);
     return {
       id: `cf-${now}`,
