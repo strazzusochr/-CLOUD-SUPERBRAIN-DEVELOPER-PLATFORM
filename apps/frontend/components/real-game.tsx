@@ -23,8 +23,13 @@ export function RealGame() {
   const [score, setScore] = useState(0);
   const [time, setTime] = useState(GAME_SECONDS);
   const [best, setBest] = useState(0);
-  // GPU-load watchdog: auto-throttles + warns if a game overloads the graphics card.
-  const guard = useGpuGuard(30);
+  // GPU-load watchdog: target 60 FPS (no restriction for capable GPUs); only
+  // throttles down when a weak GPU genuinely can't keep up. Developer override
+  // ("full performance") disables throttling so development is never capped.
+  const guard = useGpuGuard(60);
+  const [fullPower, setFullPower] = useState(false);
+  const fullPowerRef = useRef(false);
+  useEffect(() => { fullPowerRef.current = fullPower; }, [fullPower]);
 
   // Mutable game state shared with the animation loop (avoids re-renders per frame).
   const api = useRef<{ start: () => void; stop: () => void } | null>(null);
@@ -118,7 +123,7 @@ export function RealGame() {
 
     const vel = new THREE.Vector3();
     const sampleLoad = guard.sample;
-    let capFps = 30;
+    let capFps = 60;
     let raf = 0;
     let last = performance.now();
     let countdown = GAME_SECONDS;
@@ -203,8 +208,10 @@ export function RealGame() {
       camera.position.lerp(new THREE.Vector3(player.position.x * 0.4, 26, player.position.z * 0.4 + 18), 0.05);
       camera.lookAt(player.position.x * 0.3, 0, player.position.z * 0.3);
       renderer.render(scene, camera);
-      // Measure this frame's work time and let the watchdog adapt the cap.
-      capFps = sampleLoad(performance.now() - workStart);
+      // Measure this frame's work time; watchdog adapts the cap unless the
+      // developer chose full performance (then it stays at 60, no restriction).
+      const recommended = sampleLoad(performance.now() - workStart);
+      capFps = fullPowerRef.current ? 60 : recommended;
     };
 
     window.addEventListener("keydown", onDown);
@@ -250,13 +257,19 @@ export function RealGame() {
         <span>Best <b>{best}</b></span>
         <span className="rg-state">{phase === "playing" ? "● läuft" : phase === "over" ? "Game Over" : "bereit"}</span>
       </div>
-      {guard.level !== "ok" ? (
-        <div className={`rg-gpuwarn rg-gpuwarn-${guard.level}`} role="alert" data-testid="rg-gpuwarn">
+      {guard.level !== "ok" || fullPower ? (
+        <div className={`rg-gpuwarn rg-gpuwarn-${fullPower ? "dev" : guard.level}`} role="alert" data-testid="rg-gpuwarn">
           <span>
-            ⚠ Hohe GPU-Last erkannt (~{guard.measuredFps} FPS möglich) — automatisch auf {guard.fps} FPS gedrosselt, um deine Grafikkarte zu schützen.
-            {guard.level === "critical" ? " Empfehlung: Spiel stoppen." : ""}
+            {fullPower
+              ? "Entwicklermodus: volle Leistung, kein FPS-Limit. Höhere GPU-Last möglich — bewusst gewählt."
+              : `⚠ Hohe GPU-Last (~${guard.measuredFps} FPS möglich) — automatisch auf ${guard.fps} FPS gedrosselt, um die Grafikkarte zu schützen.${guard.level === "critical" ? " Empfehlung: stoppen." : ""}`}
           </span>
-          <button type="button" className="btn btn-sm" onClick={stop} data-testid="rg-gpustop">■ Stoppen</button>
+          <span className="rg-warn-actions">
+            <button type="button" className="btn btn-sm" onClick={() => setFullPower((v) => !v)} data-testid="rg-fullpower">
+              {fullPower ? "Schutz aktivieren" : "Volle Leistung (Dev)"}
+            </button>
+            <button type="button" className="btn btn-sm" onClick={stop} data-testid="rg-gpustop">■ Stoppen</button>
+          </span>
         </div>
       ) : null}
       <div ref={mountRef} className="rg-canvas" />

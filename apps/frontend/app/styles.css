@@ -2414,3 +2414,5 @@ p {
 .real-game .rg-gpuwarn-critical {
   border-color: rgba(255,90,90,0.6); background: rgba(255,71,71,0.14); color: #ffc1c1;
 }
+.real-game .rg-gpuwarn-dev { border-color: rgba(120,200,255,0.5); background: rgba(80,170,255,0.12); color: #cfe8ff; }
+.real-game .rg-warn-actions { display: flex; gap: 8px; flex-shrink: 0; }
