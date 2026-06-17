@@ -28,6 +28,24 @@ function mapModel(model: unknown): string {
   return DEFAULT_MODEL;
 }
 
+/** Real free embedding via Cloudflare Workers AI (bge-base-en-v1.5, 768-dim). */
+export async function cfEmbed(text: string): Promise<number[]> {
+  const token = process.env.CF_WORKERS_AI_TOKEN || process.env.CLOUDFLARE_API_TOKEN;
+  const account = process.env.CLOUDFLARE_ACCOUNT_ID?.replace(/^["']|["']$/g, "");
+  if (!token || !account) throw new Error("CF Workers AI not configured");
+  const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/ai/run/@cf/baai/bge-base-en-v1.5`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ text: [text] }),
+    signal: AbortSignal.timeout(20000),
+  });
+  const data = (await res.json()) as { success?: boolean; result?: { data?: number[][] }; errors?: Array<{ message?: string }> };
+  if (!res.ok || !data.success || !data.result?.data?.[0]) {
+    throw new Error(`CF embedding error: ${data.errors?.map((e) => e.message).join("; ") || res.status}`);
+  }
+  return data.result.data[0];
+}
+
 /** Returns an OpenAI-shaped chat completion, or throws with a clear message. */
 export async function cfChatCompletion(payload: {
   model?: unknown;

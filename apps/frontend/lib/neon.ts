@@ -7,6 +7,11 @@ import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 
 let _sql: NeonQueryFunction<false, false> | null = null;
 let _schemaReady = false;
+let _vectorReady = false;
+
+export function vectorReady(): boolean {
+  return _vectorReady;
+}
 
 export function dbConfigured(): boolean {
   return !!process.env.DATABASE_URL;
@@ -55,6 +60,21 @@ export async function ensureSchema(): Promise<void> {
       session_id UUID,
       detail TEXT NOT NULL DEFAULT ''
     )`;
+  // pgvector-backed long-term memory. Embeddings are 768-dim (CF bge-base-en-v1.5).
+  try {
+    await db`CREATE EXTENSION IF NOT EXISTS vector`;
+    await db`
+      CREATE TABLE IF NOT EXISTS memory_items (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        project_id TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        content TEXT NOT NULL,
+        embedding vector(768)
+      )`;
+    _vectorReady = true;
+  } catch {
+    _vectorReady = false; // pgvector unavailable → memory-search degrades honestly
+  }
   _schemaReady = true;
 }
 
