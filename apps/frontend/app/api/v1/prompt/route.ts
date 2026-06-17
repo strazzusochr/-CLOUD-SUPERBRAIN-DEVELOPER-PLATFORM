@@ -4,6 +4,7 @@
 import { dbConfigured, ensureSchema, sql, audit } from "../../../../lib/neon";
 import { cfConfigured, cfChatCompletion } from "../../../../lib/cfWorkersAi";
 import * as cf from "../../../../lib/cfBackend";
+import * as gh from "../../../../lib/ghStore";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -38,6 +39,30 @@ export async function POST(req: Request): Promise<Response> {
       );
     } catch (err) {
       return Response.json({ status: "db_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
+    }
+  }
+
+  // GitHub-store persistence (free): run LLM, persist the session record.
+  if (gh.ghConfigured()) {
+    const id = gh.uuid();
+    if (!cfConfigured()) {
+      return Response.json({ status: "ok", session_id: id, persisted: false, result: "", note: "No LLM configured." });
+    }
+    try {
+      const out = await cfChatCompletion({ model: "default", messages: [{ role: "user", content: prompt }], max_tokens: 512 });
+      const choices = out.choices as Array<{ message?: { content?: string } }> | undefined;
+      const result = choices?.[0]?.message?.content ?? "";
+      await gh.append("sessions.json", {
+        session_id: id, project_id: projectId, started_at: new Date().toISOString(), status: "completed",
+        latest_task_status: "completed", prompt, result, model: out.model, assistant_result: result.slice(0, 600),
+      }, 500);
+      await gh.audit("prompt_completed", id, `${result.length} chars`);
+      return Response.json(
+        { session_id: id, status: "completed", persisted: true, model: out.model, provider: out.provider, result },
+        { headers: { "x-superbrain-source": "github-store+workers-ai" } },
+      );
+    } catch (err) {
+      return Response.json({ status: "store_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
     }
   }
 

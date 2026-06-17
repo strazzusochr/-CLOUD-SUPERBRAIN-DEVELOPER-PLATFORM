@@ -4,6 +4,7 @@
 
 import { dbConfigured, ensureSchema as neonEnsure, sql, audit as neonAudit } from "../../../../../lib/neon";
 import * as cf from "../../../../../lib/cfBackend";
+import * as gh from "../../../../../lib/ghStore";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,14 @@ export async function GET(req: Request): Promise<Response> {
       return Response.json({ artifacts: rows, count: rows.length }, { headers: { "x-superbrain-source": "neon-postgres" } });
     } catch (err) {
       return Response.json({ status: "db_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
+    }
+  }
+  if (gh.ghConfigured()) {
+    try {
+      const rows = await gh.list("artifacts.json", limit, (a) => a.project_id === projectId);
+      return Response.json({ artifacts: rows, count: rows.length }, { headers: { "x-superbrain-source": "github-store" } });
+    } catch (err) {
+      return Response.json({ status: "store_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
     }
   }
   return emptyGet();
@@ -109,8 +118,22 @@ export async function POST(req: Request): Promise<Response> {
       return Response.json({ status: "db_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
     }
   }
+  if (gh.ghConfigured()) {
+    try {
+      const row = {
+        id: gh.uuid(), project_id: a.projectId, created_at: new Date().toISOString(),
+        source_page: a.sourcePage, artifact_type: a.artifactType, title: a.title, summary: a.summary,
+        run_id: a.runId, status: a.status, evidence_ref: a.evidenceRef,
+      };
+      await gh.append("artifacts.json", row, 1000);
+      await gh.audit("artifact_created", null, `${a.sourcePage}/${a.artifactType}`);
+      return Response.json({ artifact: row }, { status: 201, headers: { "x-superbrain-source": "github-store" } });
+    } catch (err) {
+      return Response.json({ status: "store_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
+    }
+  }
   return Response.json(
-    { artifact: null, persisted: false, live_backend: false, source: "frontend-projection", note: "Accepted but not persisted — set CF_BACKEND_TOKEN+CF_D1_DATABASE_ID (free Cloudflare D1)." },
+    { artifact: null, persisted: false, live_backend: false, source: "frontend-projection", note: "Accepted but not persisted — no store configured." },
     { headers: { "x-superbrain-source": "frontend-projection" } },
   );
 }

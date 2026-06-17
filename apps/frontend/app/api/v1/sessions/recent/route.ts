@@ -1,6 +1,7 @@
 // Real recent sessions from Neon. Honest 503 without DATABASE_URL.
 import { dbConfigured, ensureSchema, sql } from "../../../../../lib/neon";
 import * as cf from "../../../../../lib/cfBackend";
+import * as gh from "../../../../../lib/ghStore";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,14 @@ export async function GET(req: Request): Promise<Response> {
       return Response.json({ sessions }, { headers: { "x-superbrain-source": "cloudflare-d1" } });
     } catch (err) {
       return Response.json({ status: "db_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
+    }
+  }
+  if (gh.ghConfigured()) {
+    try {
+      const rows = await gh.list("sessions.json", lim);
+      return Response.json({ sessions: rows }, { headers: { "x-superbrain-source": "github-store" } });
+    } catch (err) {
+      return Response.json({ status: "store_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
     }
   }
   if (!dbConfigured()) {

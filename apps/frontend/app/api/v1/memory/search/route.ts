@@ -5,6 +5,9 @@
 import { dbConfigured, ensureSchema, sql, vectorReady } from "../../../../../lib/neon";
 import { cfConfigured, cfEmbed } from "../../../../../lib/cfWorkersAi";
 import * as cf from "../../../../../lib/cfBackend";
+import * as gh from "../../../../../lib/ghStore";
+
+const BGE_QUERY_PREFIX = "Represent this sentence for searching relevant passages: ";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -51,6 +54,17 @@ export async function POST(req: Request): Promise<Response> {
       return Response.json({ status: "db_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
     }
   }
+
+  if (gh.ghConfigured() && cfConfigured()) {
+    try {
+      const vec = gh.normalize(await cfEmbed(content)); // passage embedding (no query prefix)
+      const id = gh.uuid();
+      await gh.append("memory.json", { id, project_id: projectId, content, created_at: new Date().toISOString(), vec }, 500);
+      return Response.json({ stored: { id }, persisted: true }, { status: 201, headers: { "x-superbrain-source": "github-store" } });
+    } catch (err) {
+      return Response.json({ status: "store_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
+    }
+  }
   return empty("POST");
 }
 
@@ -84,6 +98,20 @@ export async function GET(req: Request): Promise<Response> {
       return Response.json({ query: q, results }, { headers: { "x-superbrain-source": "neon-pgvector" } });
     } catch (err) {
       return Response.json({ status: "db_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
+    }
+  }
+
+  if (gh.ghConfigured() && cfConfigured()) {
+    try {
+      const qvec = gh.normalize(await cfEmbed(BGE_QUERY_PREFIX + q));
+      const rows = await gh.list("memory.json", 1000, (m) => m.project_id === projectId);
+      const results = rows
+        .map((m) => ({ id: m.id, content: m.content, score: gh.cosine(qvec, (m.vec as number[]) ?? []) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit);
+      return Response.json({ query: q, results }, { headers: { "x-superbrain-source": "github-store" } });
+    } catch (err) {
+      return Response.json({ status: "store_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
     }
   }
   return empty("GET");
