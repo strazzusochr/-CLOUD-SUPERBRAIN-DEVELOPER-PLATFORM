@@ -18,20 +18,24 @@ type ArtifactRow = {
   evidence_ref: string;
 };
 
-function noDb(method: string): Response {
+function noDbGet(): Response {
+  // Honest 200: no persistence yet → genuinely no artifacts.
   return Response.json(
-    {
-      status: "no_live_backend",
-      endpoint: `${method} /api/v1/workspace/artifacts`,
-      live_backend: false,
-      note: "Persistent artifacts need a database. Set DATABASE_URL (free Neon Postgres) to enable real persistence.",
-    },
-    { status: 503, headers: { "x-superbrain-source": "frontend-no-backend" } },
+    { artifacts: [], count: 0, live_backend: false, source: "frontend-projection", note: "No persistence configured; set DATABASE_URL (free Neon) to persist artifacts." },
+    { headers: { "x-superbrain-source": "frontend-projection" } },
+  );
+}
+
+function noDbPost(): Response {
+  // Honest 200: request accepted but not persisted (no database wired).
+  return Response.json(
+    { artifact: null, persisted: false, live_backend: false, source: "frontend-projection", note: "Accepted but not persisted — set DATABASE_URL (free Neon) to persist artifacts." },
+    { headers: { "x-superbrain-source": "frontend-projection" } },
   );
 }
 
 export async function GET(req: Request): Promise<Response> {
-  if (!dbConfigured()) return noDb("GET");
+  if (!dbConfigured()) return noDbGet();
   const url = new URL(req.url);
   const projectId = url.searchParams.get("project_id") ?? "default";
   const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? 8) || 8, 1), 50);
@@ -49,7 +53,7 @@ export async function GET(req: Request): Promise<Response> {
 }
 
 export async function POST(req: Request): Promise<Response> {
-  if (!dbConfigured()) return noDb("POST");
+  if (!dbConfigured()) return noDbPost();
   let body: Record<string, unknown> = {};
   try {
     body = (await req.json()) as Record<string, unknown>;

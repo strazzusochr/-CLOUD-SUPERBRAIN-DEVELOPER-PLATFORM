@@ -5,9 +5,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request): Promise<Response> {
   if (!dbConfigured()) {
+    // Honest 200: no persistence yet → genuinely no sessions.
     return Response.json(
-      { status: "no_live_backend", endpoint: "GET /api/v1/sessions/recent", live_backend: false, note: "Set DATABASE_URL (free Neon) to enable persisted sessions." },
-      { status: 503, headers: { "x-superbrain-source": "frontend-no-backend" } },
+      { sessions: [], live_backend: false, source: "frontend-projection", note: "No persistence configured; set DATABASE_URL (free Neon) to persist sessions." },
+      { headers: { "x-superbrain-source": "frontend-projection" } },
     );
   }
   const limit = Math.min(Math.max(Number(new URL(req.url).searchParams.get("limit") ?? 10) || 10, 1), 50);

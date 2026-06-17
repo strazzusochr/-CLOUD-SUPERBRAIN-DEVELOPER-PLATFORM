@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request): Promise<Response> {
   if (!dbConfigured()) {
     return Response.json(
-      { status: "no_live_backend", endpoint: "GET /api/v1/audit/recent", live_backend: false, note: "Set DATABASE_URL (free Neon) to enable the persisted audit log." },
-      { status: 503, headers: { "x-superbrain-source": "frontend-no-backend" } },
+      { events: [], live_backend: false, source: "frontend-projection", note: "No persistence configured; set DATABASE_URL (free Neon) for a persisted audit log." },
+      { headers: { "x-superbrain-source": "frontend-projection" } },
     );
   }
   const limit = Math.min(Math.max(Number(new URL(req.url).searchParams.get("limit") ?? 20) || 20, 1), 100);
