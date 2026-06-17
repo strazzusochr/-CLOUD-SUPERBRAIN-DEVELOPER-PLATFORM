@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { useGpuGuard } from "../lib/useGpuGuard";
 
 // A real, playable in-browser 3D game — no backend, no LLM, no network.
 // Top-down neon arena: move the orb with WASD / arrow keys, collect the glowing
@@ -22,6 +23,8 @@ export function RealGame() {
   const [score, setScore] = useState(0);
   const [time, setTime] = useState(GAME_SECONDS);
   const [best, setBest] = useState(0);
+  // GPU-load watchdog: auto-throttles + warns if a game overloads the graphics card.
+  const guard = useGpuGuard(30);
 
   // Mutable game state shared with the animation loop (avoids re-renders per frame).
   const api = useRef<{ start: () => void; stop: () => void } | null>(null);
@@ -114,6 +117,8 @@ export function RealGame() {
     const onUp = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = false; };
 
     const vel = new THREE.Vector3();
+    const sampleLoad = guard.sample;
+    let capFps = 30;
     let raf = 0;
     let last = performance.now();
     let countdown = GAME_SECONDS;
@@ -134,10 +139,12 @@ export function RealGame() {
     const loop = () => {
       raf = requestAnimationFrame(loop);
       const now = performance.now();
-      // GPU-safety: cap to ~30 FPS and fully pause work in a hidden/background tab.
-      if (document.hidden || now - last < 1000 / 30) return;
+      // GPU-safety: pause in a hidden/background tab; honor the watchdog's adaptive
+      // FPS cap (drops to 30→20 if the GPU can't keep up) instead of a fixed rate.
+      if (document.hidden || now - last < 1000 / capFps) return;
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
+      const workStart = now;
 
       const playing = phaseRef.current === "playing";
 
@@ -196,6 +203,8 @@ export function RealGame() {
       camera.position.lerp(new THREE.Vector3(player.position.x * 0.4, 26, player.position.z * 0.4 + 18), 0.05);
       camera.lookAt(player.position.x * 0.3, 0, player.position.z * 0.3);
       renderer.render(scene, camera);
+      // Measure this frame's work time and let the watchdog adapt the cap.
+      capFps = sampleLoad(performance.now() - workStart);
     };
 
     window.addEventListener("keydown", onDown);
@@ -222,9 +231,15 @@ export function RealGame() {
   }, []);
 
   const start = () => {
+    guard.reset();
     api.current?.start();
     phaseRef.current = "playing";
     setPhase("playing");
+  };
+
+  const stop = () => {
+    phaseRef.current = "over";
+    setPhase("over");
   };
 
   return (
@@ -235,6 +250,15 @@ export function RealGame() {
         <span>Best <b>{best}</b></span>
         <span className="rg-state">{phase === "playing" ? "● läuft" : phase === "over" ? "Game Over" : "bereit"}</span>
       </div>
+      {guard.level !== "ok" ? (
+        <div className={`rg-gpuwarn rg-gpuwarn-${guard.level}`} role="alert" data-testid="rg-gpuwarn">
+          <span>
+            ⚠ Hohe GPU-Last erkannt (~{guard.measuredFps} FPS möglich) — automatisch auf {guard.fps} FPS gedrosselt, um deine Grafikkarte zu schützen.
+            {guard.level === "critical" ? " Empfehlung: Spiel stoppen." : ""}
+          </span>
+          <button type="button" className="btn btn-sm" onClick={stop} data-testid="rg-gpustop">■ Stoppen</button>
+        </div>
+      ) : null}
       <div ref={mountRef} className="rg-canvas" />
       <div className="rg-controls">
         <button type="button" className="btn btn-sm btn-primary" onClick={start} data-testid="rg-start">

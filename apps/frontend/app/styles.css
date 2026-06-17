@@ -2404,3 +2404,13 @@ p {
 }
 .agent-run .ar-answer-body { white-space: pre-wrap; line-height: 1.6; font-size: 14px; }
 .agent-run .ar-sources { display: flex; flex-direction: column; gap: 4px; }
+
+/* GPU-load watchdog banner (components/real-game.tsx) */
+.real-game .rg-gpuwarn {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 12px; border-radius: 10px; font-size: 12.5px;
+  border: 1px solid rgba(255,179,71,0.5); background: rgba(255,159,67,0.12); color: #ffd9a8;
+}
+.real-game .rg-gpuwarn-critical {
+  border-color: rgba(255,90,90,0.6); background: rgba(255,71,71,0.14); color: #ffc1c1;
+}
