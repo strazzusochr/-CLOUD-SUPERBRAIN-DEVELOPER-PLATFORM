@@ -9,9 +9,13 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 function noDb(method: string): Response {
+  // Honest 200: no pgvector memory configured → genuinely empty.
+  const empty = method === "POST"
+    ? { stored: null, persisted: false }
+    : { results: [] };
   return Response.json(
-    { status: "no_live_backend", endpoint: `${method} /api/v1/memory/search`, live_backend: false, note: "Set DATABASE_URL (free Neon) + CF_WORKERS_AI_TOKEN to enable pgvector memory." },
-    { status: 503, headers: { "x-superbrain-source": "frontend-no-backend" } },
+    { ...empty, live_backend: false, source: "frontend-projection", note: "Set DATABASE_URL (free Neon) + CF_WORKERS_AI_TOKEN to enable pgvector memory." },
+    { headers: { "x-superbrain-source": "frontend-projection" } },
   );
 }
 

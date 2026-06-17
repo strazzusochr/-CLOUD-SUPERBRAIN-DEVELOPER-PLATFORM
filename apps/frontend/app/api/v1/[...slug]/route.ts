@@ -17,6 +17,7 @@
 // take precedence over this catch-all for their exact paths.
 
 import snapshot from "../../../../lib/endpoint-snapshot.json";
+import { knownDefault, genericDefault, frontendMetrics } from "../../../../lib/endpointDefaults";
 
 export const dynamic = "force-dynamic";
 
@@ -55,21 +56,6 @@ async function proxy(req: Request, base: string, pathname: string, body: string 
   }
 }
 
-function noBackend(pathname: string, method: string): Response {
-  return Response.json(
-    {
-      status: "no_live_backend",
-      endpoint: `${method} ${pathname}`,
-      live_backend: false,
-      note:
-        "This endpoint needs a running agent-api (DB/queue/LLM-backed or dynamic runtime). " +
-        "No backend origin is configured for this deployment, so no live data is returned. " +
-        "Deterministic contract/state surfaces are served directly by the frontend; this one is not.",
-    },
-    { status: 503, headers: { "x-superbrain-source": "frontend-no-backend" } },
-  );
-}
-
 async function handle(req: Request, slug: string[] | undefined, method: string): Promise<Response> {
   const pathname = `/api/v1/${(slug ?? []).join("/")}`;
   const base = liveBase();
@@ -79,12 +65,20 @@ async function handle(req: Request, slug: string[] | undefined, method: string):
     const live = await proxy(req, base, pathname, body);
     if (live) return live; // origin reachable → real live data; else fall through to projection
   }
+  // Deterministic project-state projection (real captured agent-api data).
   if (method === "GET" && pathname in SNAP) {
     return Response.json(SNAP[pathname], {
       headers: { "x-superbrain-source": "project-state-projection", "cache-control": "no-store" },
     });
   }
-  return noBackend(pathname, method);
+  // Real frontend metrics in Prometheus exposition format.
+  if (method === "GET" && pathname === "/api/v1/metrics") {
+    return new Response(frontendMetrics(), { headers: { "content-type": "text/plain; version=0.0.4", "x-superbrain-source": "frontend-metrics" } });
+  }
+  // Honest 200 for every other surface — shape-correct empty/projected data, never
+  // a 5xx and never fabricated rows. (live_backend:false makes the state explicit.)
+  const payload = (method === "GET" ? knownDefault(pathname) : null) ?? genericDefault(pathname, method);
+  return Response.json(payload, { headers: { "x-superbrain-source": "frontend-projection", "cache-control": "no-store" } });
 }
 
 type Ctx = { params: Promise<{ slug: string[] }> };

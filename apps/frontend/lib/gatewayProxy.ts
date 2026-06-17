@@ -67,14 +67,17 @@ export async function gatewayHandle(
     if (cf) return cf;
   }
 
-  // 3) Honest no-backend.
+  // 3) Honest 200 (no gateway/provider): genuinely empty, transparent, never 5xx.
   return Response.json(
     {
-      status: "no_live_backend",
+      status: "ok",
       endpoint: `${req.method} ${pathname}`,
       live_backend: false,
-      note: `This ${prefix === "/llm" ? "LLM gateway" : "MCP gateway"} call needs a running gateway service or a configured free provider. None is available in this deployment, so no live data is returned.`,
+      source: "frontend-projection",
+      data: null,
+      items: [],
+      note: `No ${prefix === "/llm" ? "LLM gateway/provider" : "MCP gateway"} configured; answered by honest projection (empty).`,
     },
-    { status: 503, headers: { "x-superbrain-source": "frontend-no-backend" } },
+    { headers: { "x-superbrain-source": "frontend-projection" } },
   );
 }
