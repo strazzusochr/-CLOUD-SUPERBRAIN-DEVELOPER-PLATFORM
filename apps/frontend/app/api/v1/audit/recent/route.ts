@@ -1,6 +1,7 @@
 // Real recent audit events from Neon. Honest 503 without DATABASE_URL.
 import { dbConfigured, ensureSchema, sql } from "../../../../../lib/neon";
 import * as cf from "../../../../../lib/cfBackend";
+import * as gh from "../../../../../lib/ghStore";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +19,17 @@ export async function GET(req: Request): Promise<Response> {
       return Response.json({ status: "db_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
     }
   }
+  if (gh.ghConfigured()) {
+    try {
+      const events = await gh.list("audit.json", lim);
+      return Response.json({ events }, { headers: { "x-superbrain-source": "github-store" } });
+    } catch (err) {
+      return Response.json({ status: "store_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
+    }
+  }
   if (!dbConfigured()) {
     return Response.json(
-      { events: [], live_backend: false, source: "frontend-projection", note: "No persistence configured; set DATABASE_URL (free Neon) for a persisted audit log." },
+      { events: [], live_backend: false, source: "frontend-projection", note: "No persistence configured; connect a store for a persisted audit log." },
       { headers: { "x-superbrain-source": "frontend-projection" } },
     );
   }
