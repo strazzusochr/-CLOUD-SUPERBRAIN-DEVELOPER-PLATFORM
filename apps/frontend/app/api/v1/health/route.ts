@@ -5,8 +5,9 @@
 export const dynamic = "force-dynamic";
 
 export function GET(): Response {
-  const llm = !!((process.env.CF_WORKERS_AI_TOKEN || process.env.CLOUDFLARE_API_TOKEN) && process.env.CLOUDFLARE_ACCOUNT_ID);
-  const db = !!process.env.DATABASE_URL;
+  const llm = !!((process.env.CF_WORKERS_AI_TOKEN || process.env.CF_BACKEND_TOKEN || process.env.CLOUDFLARE_API_TOKEN) && process.env.CLOUDFLARE_ACCOUNT_ID);
+  const d1 = !!(process.env.CF_BACKEND_TOKEN && process.env.CF_D1_DATABASE_ID && process.env.CLOUDFLARE_ACCOUNT_ID);
+  const db = !!process.env.DATABASE_URL || d1;
   const agentApi = !!(process.env.AGENT_API_BASE_URL || process.env.AGENT_API_INTERNAL_URL);
   return Response.json(
     {
@@ -16,7 +17,7 @@ export function GET(): Response {
       time: new Date().toISOString(),
       capabilities: {
         llm_provider: llm ? "cloudflare_workers_ai" : null,
-        persistence: db ? "neon_postgres" : null,
+        persistence: d1 ? "cloudflare_d1" : process.env.DATABASE_URL ? "neon_postgres" : null,
         live_agent_api: agentApi,
         client_3d: true,
       },

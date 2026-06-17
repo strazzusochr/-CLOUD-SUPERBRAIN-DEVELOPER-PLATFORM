@@ -9,7 +9,7 @@
 const DEFAULT_MODEL = "@cf/meta/llama-3.1-8b-instruct";
 
 export function cfConfigured(): boolean {
-  const tok = process.env.CF_WORKERS_AI_TOKEN || process.env.CLOUDFLARE_API_TOKEN;
+  const tok = process.env.CF_WORKERS_AI_TOKEN || process.env.CF_BACKEND_TOKEN || process.env.CLOUDFLARE_API_TOKEN;
   return !!(tok && process.env.CLOUDFLARE_ACCOUNT_ID);
 }
 
@@ -30,7 +30,7 @@ function mapModel(model: unknown): string {
 
 /** Real free embedding via Cloudflare Workers AI (bge-base-en-v1.5, 768-dim). */
 export async function cfEmbed(text: string): Promise<number[]> {
-  const token = process.env.CF_WORKERS_AI_TOKEN || process.env.CLOUDFLARE_API_TOKEN;
+  const token = process.env.CF_WORKERS_AI_TOKEN || process.env.CF_BACKEND_TOKEN || process.env.CLOUDFLARE_API_TOKEN;
   const account = process.env.CLOUDFLARE_ACCOUNT_ID?.replace(/^["']|["']$/g, "");
   if (!token || !account) throw new Error("CF Workers AI not configured");
   const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/ai/run/@cf/baai/bge-base-en-v1.5`, {
@@ -54,7 +54,7 @@ export async function cfChatCompletion(payload: {
   temperature?: number;
   stream?: boolean;
 }): Promise<Record<string, unknown>> {
-  const token = process.env.CF_WORKERS_AI_TOKEN || process.env.CLOUDFLARE_API_TOKEN;
+  const token = process.env.CF_WORKERS_AI_TOKEN || process.env.CF_BACKEND_TOKEN || process.env.CLOUDFLARE_API_TOKEN;
   const account = process.env.CLOUDFLARE_ACCOUNT_ID?.replace(/^["']|["']$/g, "");
   if (!token || !account) throw new Error("CF Workers AI not configured");
 

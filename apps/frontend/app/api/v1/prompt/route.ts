@@ -3,6 +3,7 @@
 
 import { dbConfigured, ensureSchema, sql, audit } from "../../../../lib/neon";
 import { cfConfigured, cfChatCompletion } from "../../../../lib/cfWorkersAi";
+import * as cf from "../../../../lib/cfBackend";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -13,6 +14,32 @@ export async function POST(req: Request): Promise<Response> {
   const prompt = String(body.prompt ?? body.text ?? "").trim();
   const projectId = String(body.project_id ?? "default");
   if (!prompt) return Response.json({ status: "bad_request", note: "Feld 'prompt' erforderlich." }, { status: 400 });
+
+  // Cloudflare D1 persistence (free): persist session → run LLM → store result.
+  if (cf.d1Configured()) {
+    try {
+      await cf.ensureSchema();
+      const id = cf.uuid();
+      await cf.d1(`INSERT INTO agent_sessions (id, project_id, started_at, status, prompt) VALUES (?,?,?,?,?)`, [
+        id, projectId, new Date().toISOString(), "running", prompt,
+      ]);
+      if (!cfConfigured()) {
+        await cf.d1(`UPDATE agent_sessions SET status='failed', result=? WHERE id=?`, ["LLM not configured", id]);
+        return Response.json({ status: "ok", session_id: id, persisted: true, result: "", note: "No LLM configured." });
+      }
+      const out = await cfChatCompletion({ model: "default", messages: [{ role: "user", content: prompt }], max_tokens: 512 });
+      const choices = out.choices as Array<{ message?: { content?: string } }> | undefined;
+      const result = choices?.[0]?.message?.content ?? "";
+      await cf.d1(`UPDATE agent_sessions SET status='completed', result=?, model=? WHERE id=?`, [result, String(out.model ?? ""), id]);
+      await cf.audit("prompt_completed", id, `${result.length} chars`);
+      return Response.json(
+        { session_id: id, status: "completed", persisted: true, model: out.model, provider: out.provider, result },
+        { headers: { "x-superbrain-source": "cloudflare-d1+workers-ai" } },
+      );
+    } catch (err) {
+      return Response.json({ status: "db_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
+    }
+  }
 
   // No persistence configured: still execute the prompt for real via the free LLM,
   // just without storing the session. Honest 200 (persisted:false), never a 5xx.
