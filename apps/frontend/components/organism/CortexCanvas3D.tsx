@@ -18,6 +18,22 @@ import { OrbitControls, Html, Environment, Lightformer, useGLTF } from "@react-t
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { HUBS, STATE_COLOR, STATE_LABEL, type RunState } from "./regionMap";
+import { useRenderActive } from "../../lib/useRenderActive";
+
+// GPU-safety: caps the render loop to ~30 FPS via R3F demand mode + throttled
+// invalidate, and only runs while `active` (visible tab + on-screen + not paused).
+// OrbitControls still invalidates on user interaction. This stops the GPU from
+// being pinned at full framerate (or running at all in a background tab).
+const SAFE_FPS = 30;
+function FrameThrottle({ active }: { active: boolean }) {
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    if (!active) return;
+    const interval = setInterval(() => invalidate(), 1000 / SAFE_FPS);
+    return () => clearInterval(interval);
+  }, [active, invalidate]);
+  return null;
+}
 
 /** Single source of truth for the 3D palette — mirrors the CSS design tokens
  *  (--cyan/--violet/--magenta/--blue/--bg) so the cortex never drifts from the UI. */
@@ -616,19 +632,24 @@ export default function CortexCanvas3D({
   sourceLabel?: string;
 }) {
   const [pbr] = useState(() => detectHardwareGPU());
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const onScreen = useRenderActive(wrapRef);
+  const renderActive = onScreen && !paused;
   useEffect(() => {
     // Preload the GLB only when the 3D canvas actually mounts (not at import time,
     // so the 2D reduced-motion / no-WebGL path never triggers the fetch).
     useGLTF.preload(CORE_GLB);
   }, []);
   return (
-    <div className="cortex-wrap">
+    <div className="cortex-wrap" ref={wrapRef}>
       <Canvas
         camera={{ position: [0, 0.6, 7], fov: 48 }}
-        dpr={[1, 2]}
-        gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
+        dpr={[1, 1.5]}
+        frameloop="demand"
+        gl={{ antialias: true, alpha: false, powerPreference: "low-power" }}
         className="cortex3d-canvas"
       >
+        <FrameThrottle active={renderActive} />
         <Scene
           runState={runState}
           nodeCount={nodeCount}

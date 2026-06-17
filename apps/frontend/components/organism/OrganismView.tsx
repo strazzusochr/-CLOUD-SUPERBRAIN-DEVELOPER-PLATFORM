@@ -371,6 +371,9 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
             <span className="mono organism-hints">
               Tastatur: ←→ rotieren · ↑↓ kippen · +/- zoomen · R reset · Space auto-rotate
             </span>
+            <span className="mono organism-hints">
+              GPU-sicher: 30 FPS-Limit · low-power · pausiert automatisch im Hintergrund/außerhalb des Sichtfelds · «Weniger Bewegung» friert die Szene ein
+            </span>
             <pre className="goalb-result mono organism-action-result" data-testid="batch1-organism-action-result" aria-live="polite">
               {interactionStatus}
             </pre>

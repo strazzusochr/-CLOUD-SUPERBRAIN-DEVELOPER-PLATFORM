@@ -46,7 +46,9 @@ export function RealGame() {
 
     let renderer: THREE.WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      // GPU-safety: prefer the low-power GPU so a normal/integrated card is not
+      // pushed onto the discrete GPU at full tilt.
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
     } catch {
       return; // no WebGL — the page still works, the game just won't mount
     }
@@ -132,6 +134,8 @@ export function RealGame() {
     const loop = () => {
       raf = requestAnimationFrame(loop);
       const now = performance.now();
+      // GPU-safety: cap to ~30 FPS and fully pause work in a hidden/background tab.
+      if (document.hidden || now - last < 1000 / 30) return;
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
 
@@ -236,7 +240,7 @@ export function RealGame() {
         <button type="button" className="btn btn-sm btn-primary" onClick={start} data-testid="rg-start">
           {phase === "idle" ? "▶ Spiel starten" : phase === "over" ? "↻ Nochmal" : "↻ Neustart"}
         </button>
-        <span className="rg-hint text-12 text-mut">Steuerung: WASD / Pfeiltasten · sammle die grünen Orbs</span>
+        <span className="rg-hint text-12 text-mut">Steuerung: WASD / Pfeiltasten · sammle die grünen Orbs · 3D läuft auf deiner GPU (30 FPS-Limit, pausiert im Hintergrund)</span>
       </div>
     </div>
   );
