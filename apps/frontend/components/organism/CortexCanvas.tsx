@@ -164,6 +164,15 @@ export default function CortexCanvas({
     const projected = new Array(brain.pts.length).fill(null).map(() => ({ sx: 0, sy: 0, d: 0 }));
 
     const frame = (now: number) => {
+      // GPU/CPU-safety: cap to ~30 FPS and skip work in a hidden/background tab.
+      if (typeof document !== "undefined" && document.hidden) {
+        raf = requestAnimationFrame(frame);
+        return;
+      }
+      if (now - t0 < 1000 / 30) {
+        raf = requestAnimationFrame(frame);
+        return;
+      }
       const dt = Math.min((now - t0) / 1000, 0.05);
       t0 = now;
       rot += dt * 0.18;
