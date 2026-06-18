@@ -50,7 +50,7 @@ export function LiveConsole({ endpoints, label = "Live-Daten" }: { endpoints: Li
   }
 
   // Auto-load real data on mount so internals pages show live data immediately.
-  useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { const t = setTimeout(() => { void load(); }, 0); return () => clearTimeout(t); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   const tone = status.includes("OK") ? "lc-ok" : status === "Fehler" || /^[45]/.test(status) ? "lc-err" : "lc-idle";
 
