@@ -2478,3 +2478,9 @@ p {
 .builds-gallery .bg-edit { color: #9b6bff; }
 .builds-gallery .bg-open:hover, .builds-gallery .bg-edit:hover { text-decoration: underline; }
 .ai-builder .ab-trunc { color: #ffd9a8; background: rgba(255,159,67,0.1); border: 1px solid rgba(255,179,71,0.4); border-radius: 8px; padding: 7px 11px; }
+
+/* Real login (components/real-login.tsx) */
+.real-login { display: flex; flex-direction: column; gap: 10px; }
+.real-login .rl-input { background: rgba(10,16,34,0.6); border: 1px solid rgba(43,209,254,0.22); border-radius: 8px; color: var(--text, #e8f0fb); padding: 10px 12px; font-size: 14px; }
+.real-login .rl-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.real-login .rl-signed { font-size: 14px; color: #37f5b5; }

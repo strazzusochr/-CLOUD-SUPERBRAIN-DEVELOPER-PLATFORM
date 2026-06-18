@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Badge, SafetyBadgeRow } from "../../components/ui";
-import { LoginDryRunPanel } from "../../components/batch4-actions";
+import { RealLogin } from "../../components/real-login";
 
 export const metadata = { title: "Login / Onboarding — Cloud Superbrain" };
 
@@ -27,13 +27,10 @@ export default function LoginPage() {
                 <h1 className="login-h1">Sign in to your workspace</h1>
               </div>
 
-              <LoginDryRunPanel />
+              <RealLogin />
 
-              <Link href="/workbench" className="btn btn-primary login-center">
-                Open Workbench after dry-run
-              </Link>
               <p className="login-foot">
-                OAuth and email providers stay dry-run in this proof. No live provider write, no secret output.
+                Echte Sitzung mit httpOnly-Cookie und persistierter Session — kein Dry-run. Externe OAuth-Provider würden eine OAuth-App brauchen.
               </p>
             </section>
 
