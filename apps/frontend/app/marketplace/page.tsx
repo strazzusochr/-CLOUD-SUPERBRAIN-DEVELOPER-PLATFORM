@@ -26,8 +26,8 @@ export default async function MarketplacePage() {
         <PageHeader
           eyebrow="Marketplace"
           title="Skills, agents, MCP tools & models"
-          subtitle="The real building blocks this platform composes — deterministic skills, agent profiles, MCP tools and pinned models. Model & MCP availability is backed by the cloud providers below (L4/L5); install is a dry-run until the owner gate is opened."
-          actions={live ? <Badge tone="green">● Live · {readiness!.liveCount}/{readiness!.total} providers verified</Badge> : <Badge tone="amber">dry-run · spec catalog</Badge>}
+          subtitle="Die Bausteine, aus denen die Plattform komponiert — Skills, Agent-Profile, MCP-Tools und Modelle. Modell-/MCP-Verfügbarkeit ist von den Cloud-Providern unten gedeckt (L4/L5)."
+          actions={live ? <Badge tone="green">● Live · {readiness!.liveCount}/{readiness!.total} Provider verifiziert</Badge> : <Badge tone="cyan">Katalog</Badge>}
         />
 
         {live ? (
@@ -54,8 +54,7 @@ export default async function MarketplacePage() {
         </div>
         <MarketplaceCardGrid items={ITEMS} />
         <p className="login-foot mt-12">
-          <Badge tone="amber">dry-run</Badge> Installs are simulated until the owner gate is opened —
-          no provider write, no registry pull.
+          <Badge tone="green">echt</Badge> „Installieren" legt ein echtes, persistiertes Artefakt an — keine externen Provider-Writes.
         </p>
       </div>
     </AppShell>
