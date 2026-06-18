@@ -5,6 +5,7 @@ import { PageHeader, Panel, Badge, EmptyState } from "../../components/ui";
 import { fetchRecentTasks, fetchRecentSessions } from "../../lib/agentApi";
 import { WorkspaceModeActionPanel } from "../../components/goal-b-actions";
 import { AiBuilder } from "../../components/ai-builder";
+import { BuildsGallery } from "../../components/builds-gallery";
 
 export const metadata = { title: "Apps / Generated Output — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -53,6 +54,9 @@ export default async function AppsPage() {
               ]}
             />
           </div>
+        </Panel>
+        <Panel title="Meine Apps · gebaut & teilbar" className="mb-16" actions={<Badge tone="cyan">persistiert</Badge>}>
+          <BuildsGallery />
         </Panel>
         <Panel title="Live app surfaces" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
           <div className="wb-pad">

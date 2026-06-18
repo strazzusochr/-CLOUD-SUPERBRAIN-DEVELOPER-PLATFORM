@@ -7,6 +7,7 @@ import { fetchRecentTasks } from "../../lib/agentApi";
 import { WorkspaceModeActionPanel } from "../../components/goal-b-actions";
 import { RealGame } from "../../components/real-game";
 import { AiBuilder } from "../../components/ai-builder";
+import { BuildsGallery } from "../../components/builds-gallery";
 
 export const metadata = { title: "Games Workflow — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -46,6 +47,9 @@ export default async function GamesPage() {
               ]}
             />
           </div>
+        </Panel>
+        <Panel title="Meine Spiele · gebaut & teilbar" className="mb-16" actions={<Badge tone="cyan">persistiert</Badge>}>
+          <BuildsGallery />
         </Panel>
         <Panel title="Live 3D Game · superbrain-arena" className="mb-16" actions={<Badge tone="green">echt spielbar</Badge>}>
           <div className="wb-pad">
