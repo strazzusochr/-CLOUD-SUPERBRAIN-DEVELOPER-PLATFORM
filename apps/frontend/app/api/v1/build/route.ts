@@ -41,11 +41,13 @@ async function generate(prompt: string): Promise<{ html: string; model: unknown 
     { role: "system", content: SYSTEM },
     { role: "user", content: prompt },
   ];
-  const models = ["@cf/qwen/qwen2.5-coder-32b-instruct", "@cf/meta/llama-3.1-8b-instruct"];
+  // Give the strong code model (Qwen Coder) a long budget so it isn't cut off;
+  // the fast Llama fallback gets the remaining time if Qwen errors.
+  const models: Array<[string, number]> = [["@cf/qwen/qwen2.5-coder-32b-instruct", 45000], ["@cf/meta/llama-3.1-8b-instruct", 12000]];
   let lastErr: unknown = null;
-  for (const model of models) {
+  for (const [model, timeoutMs] of models) {
     try {
-      const out = await cfChatCompletion({ model, messages, max_tokens: 4000, temperature: 0.3 });
+      const out = await cfChatCompletion({ model, messages, max_tokens: 4000, temperature: 0.3, timeoutMs });
       const choices = out.choices as Array<{ message?: { content?: string } }> | undefined;
       const html = extractHtml(choices?.[0]?.message?.content ?? "");
       if (html && /<.*>/.test(html)) return { html, model: out.model };

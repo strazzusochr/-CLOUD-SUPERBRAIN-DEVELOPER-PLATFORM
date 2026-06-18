@@ -53,6 +53,7 @@ export async function cfChatCompletion(payload: {
   max_tokens?: number;
   temperature?: number;
   stream?: boolean;
+  timeoutMs?: number;
 }): Promise<Record<string, unknown>> {
   const token = process.env.CF_WORKERS_AI_TOKEN || process.env.CF_BACKEND_TOKEN || process.env.CLOUDFLARE_API_TOKEN;
   const account = process.env.CLOUDFLARE_ACCOUNT_ID?.replace(/^["']|["']$/g, "");
@@ -65,7 +66,7 @@ export async function cfChatCompletion(payload: {
   if (typeof payload.temperature === "number") body.temperature = payload.temperature;
 
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 30000);
+  const timer = setTimeout(() => ctrl.abort(), payload.timeoutMs ?? 30000);
   try {
     const res = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${account}/ai/run/${model}`,
