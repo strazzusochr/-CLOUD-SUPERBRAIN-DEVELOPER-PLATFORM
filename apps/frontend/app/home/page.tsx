@@ -4,6 +4,7 @@ import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, Metric, Badge, StatusDot } from "../../components/ui";
 import { Icon } from "../../lib/nav";
 import { HomeCortexHero, HomeHeroProofPanel } from "../../components/batch4-actions";
+import { AiBuilder } from "../../components/ai-builder";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Home — Cloud Superbrain" };
@@ -12,6 +13,15 @@ export default async function HomePage() {
   return (
     <AppShell crumb="Home" runState="idle">
       <div className="page">
+        <div className="build-hero">
+          <h1 className="build-hero-title">Beschreibe es. Die KI baut es. Es läuft sofort.</h1>
+          <p className="build-hero-sub">
+            Cloud Superbrain ist eine KI-Entwickler-Plattform: Sag, welche App oder welches Spiel du willst —
+            ein echtes Code-Modell baut es, und es läuft live in der Vorschau. Teilbar per Link, kostenlos.
+          </p>
+          <AiBuilder />
+        </div>
+
         <div className="home-hero-shell">
           <div className="home-hero-copy">
             <PageHeader
