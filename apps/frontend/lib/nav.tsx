@@ -66,12 +66,12 @@ export type NavItem = {
 export const WORKSPACE_PAGES: NavItem[] = [
   { id: "home", no: 1, label: "Home", route: "/home", icon: "home", layer: "FE" },
   { id: "login", no: 2, label: "Login / Onboarding", route: "/login", icon: "login", layer: "FE" },
-  { id: "workbench", no: 3, label: "Main Workbench", route: "/workbench", icon: "workbench", layer: "FE" },
-  { id: "organism", no: 4, label: "Organism / Live", route: "/organism", icon: "organism", layer: "FE" },
+  { id: "workbench", no: 3, label: "Bauen", route: "/workbench", icon: "workbench", layer: "FE" },
+  { id: "organism", no: 4, label: "Cortex", route: "/organism", icon: "organism", layer: "FE" },
   { id: "organism-replay", no: 5, label: "Organism / Replay", route: "/organism/replay", icon: "evidence", layer: "OBS" },
   { id: "organism-map", no: 6, label: "Organism / Map", route: "/organism/map", icon: "organism", layer: "FE" },
-  { id: "agents", no: 7, label: "Agents", route: "/agents", icon: "agents", layer: "AP" },
-  { id: "files", no: 8, label: "Files & Knowledge", route: "/files", icon: "files", layer: "MEM" },
+  { id: "agents", no: 7, label: "Agenten", route: "/agents", icon: "agents", layer: "AP" },
+  { id: "files", no: 8, label: "Wissen & Memory", route: "/files", icon: "files", layer: "MEM" },
   { id: "files-local", no: 9, label: "Local Files", route: "/files/local", icon: "filesLocal", layer: "MEM" },
   { id: "tools", no: 10, label: "MCP / Tools", route: "/tools", icon: "tools", layer: "MCP" },
   { id: "marketplace", no: 11, label: "Marketplace", route: "/marketplace", icon: "marketplace", layer: "LLM" },
@@ -90,11 +90,15 @@ export const WORKSPACE_PAGES: NavItem[] = [
 
 const byId = Object.fromEntries(WORKSPACE_PAGES.map((item) => [item.id, item])) as Record<string, NavItem>;
 
-/** Primary rail — workbench-first, evidence/diagnostics intentionally low. */
+/** Professional rail: product surfaces first, the cortex visualization, then a
+ *  clearly-separated platform/internals group. */
 export const railGroups: NavItem[][] = [
-  [byId.home, byId.workbench, byId.organism, byId.agents, byId.files, byId.tools, byId.marketplace, byId.observe],
-  [byId.games, byId.apps, byId.media, byId["docs-output"]],
-  [byId.evidence, byId.diagnostics, byId["design-system"], byId.stack, byId.settings],
+  // Build & create — what you actually do
+  [byId.home, byId.workbench, byId.agents, byId.apps, byId.games, byId.media, byId["docs-output"], byId.files],
+  // Visualize the running organism
+  [byId.organism],
+  // Platform & internals
+  [byId.tools, byId.marketplace, byId.observe, byId.evidence, byId.diagnostics, byId.stack, byId["design-system"], byId.settings, byId["open-source"]],
 ];
 
 export const SLOGAN = ["Bau alles.", "Automatisiere alles.", "Behalte Kontrolle."];
