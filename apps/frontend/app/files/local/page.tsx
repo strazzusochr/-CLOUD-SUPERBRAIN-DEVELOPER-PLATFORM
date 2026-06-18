@@ -1,6 +1,6 @@
 import AppShell from "../../../components/shell/AppShell";
 import { PageHeader, SpecModeBadge } from "../../../components/ui";
-import { FilesLocalContractProbe, LocalFilesInteractivePanel } from "../../../components/batch5-actions";
+import { LocalFilesInteractivePanel } from "../../../components/batch5-actions";
 import { FILE_ROOTS, PROJECT_TREE } from "../../../lib/platform";
 
 export const metadata = { title: "Local Files (read-only) — Cloud Superbrain" };
@@ -16,9 +16,6 @@ export default function LocalFilesPage() {
           actions={<SpecModeBadge mode="read_only_redacted" />}
         />
 
-        <div className="mb-16">
-          <FilesLocalContractProbe />
-        </div>
         <LocalFilesInteractivePanel roots={FILE_ROOTS} tree={PROJECT_TREE} />
       </div>
     </AppShell>

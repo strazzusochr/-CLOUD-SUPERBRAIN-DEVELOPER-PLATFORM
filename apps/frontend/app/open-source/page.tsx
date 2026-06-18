@@ -1,7 +1,6 @@
 import AppShell from "../../components/shell/AppShell";
 import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, Badge, Note } from "../../components/ui";
-import { OpenSourceProbe } from "../../components/batch5-actions";
 import { Icon } from "../../lib/nav";
 
 export const metadata = { title: "Open Source — Cloud Superbrain" };
@@ -41,9 +40,6 @@ export default function OpenSourcePage() {
           actions={<Badge tone="green">no vendor lock-in</Badge>}
         />
 
-        <div className="mb-16">
-          <OpenSourceProbe />
-        </div>
 
         <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
           <div className="wb-pad">

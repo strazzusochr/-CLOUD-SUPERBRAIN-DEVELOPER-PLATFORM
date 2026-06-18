@@ -2,7 +2,6 @@ import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
 import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, Badge, StatusDot, Bar } from "../../components/ui";
-import { DesignSystemProbe } from "../../components/batch5-actions";
 
 export const metadata = { title: "Design System — Cloud Superbrain" };
 
@@ -36,9 +35,6 @@ export default function DesignSystemPage() {
           actions={<Link href="/responsive" className="btn btn-sm btn-ghost">Responsive preview →</Link>}
         />
 
-        <div className="block-gap-16">
-          <DesignSystemProbe />
-        </div>
 
         <div className="grid cols-2">
           <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
