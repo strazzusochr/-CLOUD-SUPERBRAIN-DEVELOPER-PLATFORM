@@ -2521,3 +2521,5 @@ p {
 .wb-studio .ws-log .terminal-row span.info { color: var(--text-mut,#9fb3c8); }
 .wb-studio .ws-actions { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid rgba(54,126,205,0.22); }
 .wb-studio .ws-iterate { width: 100%; font-size: 13px; }
+.wb-studio .ws-log .terminal-row { white-space: normal; }
+.wb-studio .ws-log .terminal-row span { white-space: normal; word-break: break-word; display: inline; }
