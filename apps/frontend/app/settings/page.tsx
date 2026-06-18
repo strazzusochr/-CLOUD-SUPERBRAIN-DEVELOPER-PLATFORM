@@ -1,5 +1,4 @@
 import AppShell from "../../components/shell/AppShell";
-import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, Badge } from "../../components/ui";
 import { SettingsGatePlanPanel } from "../../components/goal-b-actions";
 
@@ -33,11 +32,6 @@ export default function SettingsPage() {
           subtitle="Local API, providers, accessibility and the security gate matrix. All dangerous gates are closed by default."
         />
         <div className="grid grid-settings">
-          <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
-            <div className="wb-pad">
-              <LiveConsole endpoints={[{ label: "Deployment preflight", path: "/api/v1/clouds/deployment-preflight" }, { label: "Auth contract", path: "/api/v1/auth/contract" }]} />
-            </div>
-          </Panel>
           <Panel title="Settings">
             <div className="list">
               {["General", "Security", "Local API", "Providers", "Accessibility", "Team policies"].map((s) => (
