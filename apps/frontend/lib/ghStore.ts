@@ -104,6 +104,21 @@ export async function putRaw(path: string, content: string): Promise<void> {
   throw new Error(`gh putRaw ${path}: conflict`);
 }
 
+/** Delete a stored file (best-effort; ignores missing). */
+export async function deleteRaw(path: string): Promise<void> {
+  const cur = await fetch(`${API}/repos/${repo()}/contents/${path}?ref=${branch()}`, { headers: headers(), cache: "no-store", signal: AbortSignal.timeout(12000) });
+  if (cur.status === 404) return;
+  if (!cur.ok) throw new Error(`gh delete stat ${path}: ${cur.status}`);
+  const sha = ((await cur.json()) as { sha?: string }).sha;
+  const res = await fetch(`${API}/repos/${repo()}/contents/${path}`, {
+    method: "DELETE",
+    headers: headers(),
+    body: JSON.stringify({ message: `app: delete ${path}`, sha, branch: branch() }),
+    signal: AbortSignal.timeout(12000),
+  });
+  if (!res.ok && res.status !== 404) throw new Error(`gh delete ${path}: ${res.status}`);
+}
+
 /** Read a raw file's text content, or null if missing. */
 export async function getRaw(path: string): Promise<string | null> {
   const res = await fetch(`${API}/repos/${repo()}/contents/${path}?ref=${branch()}`, { headers: headers(), cache: "no-store", signal: AbortSignal.timeout(12000) });

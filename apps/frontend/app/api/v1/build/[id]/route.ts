@@ -27,3 +27,17 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     return Response.json({ status: "store_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
   }
 }
+
+export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
+  const { id } = await ctx.params;
+  const clean = safeId(id);
+  if (!clean || !gh.ghConfigured()) return Response.json({ status: "not_found" }, { status: 404 });
+  try {
+    await gh.mutate("builds.json", (rows) => (rows as Array<Record<string, unknown>>).filter((b) => b.id !== clean));
+    await gh.deleteRaw(`builds/${clean}.html`);
+    await gh.audit("app_deleted", clean, "");
+    return Response.json({ status: "deleted", id: clean }, { headers: { "x-superbrain-source": "github-store" } });
+  } catch (err) {
+    return Response.json({ status: "store_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
+  }
+}
