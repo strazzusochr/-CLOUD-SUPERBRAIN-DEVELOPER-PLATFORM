@@ -1,6 +1,5 @@
 import AppShell from "../../components/shell/AppShell";
 import { LiveConsole } from "../../components/live-console";
-import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Badge, Note } from "../../components/ui";
 import { LAYERS, PROVIDERS, providersForLayer } from "../../components/organism/regionMap";
 
@@ -37,9 +36,7 @@ export default function TechnologyPage() {
           subtitle="Die sieben Architektur-Layer und die realen Provider dahinter. Mapping spiegelt das Backend-Inventar (GET /api/v1/clouds). Provider-Reads sind read-only; es werden nur Status-Metadaten angezeigt (keine Token-Werte)."
           actions={<Badge tone="amber">Layer action_required · read-only</Badge>}
         />
-
-        <SevenLayerBar />
-        <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+        <Panel title="Live-Daten" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
           <div className="wb-pad">
             <LiveConsole endpoints={[{ label: "Clouds", path: "/api/v1/clouds" }, { label: "Deployment preflight", path: "/api/v1/clouds/deployment-preflight" }]} />
           </div>

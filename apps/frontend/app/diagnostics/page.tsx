@@ -1,7 +1,6 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
 import { LiveConsole } from "../../components/live-console";
-import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Badge } from "../../components/ui";
 import { VERIFIERS } from "../../lib/platform";
 
@@ -26,10 +25,8 @@ export default async function DiagnosticsPage() {
           actions={<Badge tone="mut">read-only</Badge>}
         />
 
-        <SevenLayerBar title="7 Layer Architektur (UI-Surfaces, read-only)" />
-
         <div className="grid cols-2 block-gap-16">
-          <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+          <Panel title="Live-Daten" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
             <div className="wb-pad">
               <LiveConsole endpoints={[{ label: "Audit recent", path: "/api/v1/audit/recent" }, { label: "Escalations recent", path: "/api/v1/escalations/recent" }, { label: "Platform inventory", path: "/api/v1/platform/inventory" }]} />
             </div>
