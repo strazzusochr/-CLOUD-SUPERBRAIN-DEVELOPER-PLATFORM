@@ -11,7 +11,7 @@ type Build = { id: string; title: string; model: string; html: string; share_pat
 type VFile = { name: string; lang: string; content: string };
 type LogRow = { kind: "run" | "ok" | "info" | "err"; text: string };
 
-const EXAMPLES = [
+const DEFAULT_EXAMPLES = [
   "Ein 3D-Weltraum-Shooter mit Sternenfeld und Maus-Steuerung",
   "Eine Todo-App mit Dark Mode und LocalStorage",
   "Eine Partikel-Animation, die der Maus folgt",
@@ -27,7 +27,8 @@ function parseFiles(html: string): VFile[] {
   return files;
 }
 
-export function WorkbenchStudio() {
+export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { examples?: string[]; placeholder?: string } = {}) {
+  const EXAMPLES = examples;
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -97,7 +98,7 @@ export function WorkbenchStudio() {
       <div className="wb-composer">
         <textarea
           className="wb-composer-input"
-          placeholder="Beschreibe, was du bauen willst — z. B. „ein 3D-Weltraum-Shooter mit Maus-Steuerung“"
+          placeholder={placeholder ?? "Beschreibe, was du bauen willst — z. B. „ein 3D-Weltraum-Shooter mit Maus-Steuerung“"}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(prompt); }}
