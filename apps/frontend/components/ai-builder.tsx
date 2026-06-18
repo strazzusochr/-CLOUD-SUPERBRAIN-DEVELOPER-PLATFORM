@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 // it runs LIVE in a sandboxed preview. No code to read, no setup — you get a
 // working thing. (v0/Bolt/Lovable-style, on the free Cloudflare Workers AI stack.)
 
-const EXAMPLES = [
+const DEFAULT_EXAMPLES = [
   "Ein 3D-Weltraum-Shooter mit Sternenfeld und Maus-Steuerung",
   "Ein Pong-Spiel für zwei Spieler mit Punktestand",
   "Eine Todo-App mit Dark Mode und LocalStorage",
@@ -17,7 +17,8 @@ const EXAMPLES = [
 
 type Build = { id: string; title: string; model: string; html: string; share_path?: string | null };
 
-export function AiBuilder() {
+export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { examples?: string[]; placeholder?: string } = {}) {
+  const EXAMPLES = examples;
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [build, setBuild] = useState<Build | null>(null);
@@ -73,7 +74,7 @@ export function AiBuilder() {
       <div className="ab-prompt">
         <textarea
           className="ab-input"
-          placeholder="Beschreibe, was du bauen willst — z. B. „ein 3D-Weltraum-Shooter mit Maus-Steuerung“"
+          placeholder={placeholder ?? "Beschreibe, was du bauen willst — z. B. „ein 3D-Weltraum-Shooter mit Maus-Steuerung“"}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(prompt); }}

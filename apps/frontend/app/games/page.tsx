@@ -6,6 +6,7 @@ import { Icon } from "../../lib/nav";
 import { fetchRecentTasks } from "../../lib/agentApi";
 import { WorkspaceModeActionPanel } from "../../components/goal-b-actions";
 import { RealGame } from "../../components/real-game";
+import { AiBuilder } from "../../components/ai-builder";
 
 export const metadata = { title: "Games Workflow — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -32,6 +33,20 @@ export default async function GamesPage() {
             </>
           }
         />
+        <Panel title="Spiel bauen mit KI · beschreibe es, spiel es sofort" className="mb-16" actions={<Badge tone="green">echt · live</Badge>}>
+          <div className="wb-pad">
+            <AiBuilder
+              placeholder="Beschreibe dein Spiel — z. B. „ein 3D-Asteroiden-Spiel mit Maus-Steuerung und Punktestand“"
+              examples={[
+                "Ein 3D-Asteroiden-Spiel mit Maus-Steuerung und Punktestand",
+                "Ein Snake-Spiel mit Neon-Design und steigender Geschwindigkeit",
+                "Ein Plattformer mit springender Figur und Hindernissen",
+                "Ein Tower-Defense-Mini-Spiel auf Canvas",
+                "Ein Flappy-Bird-Klon mit Highscore",
+              ]}
+            />
+          </div>
+        </Panel>
         <Panel title="Live 3D Game · superbrain-arena" className="mb-16" actions={<Badge tone="green">echt spielbar</Badge>}>
           <div className="wb-pad">
             <RealGame />
