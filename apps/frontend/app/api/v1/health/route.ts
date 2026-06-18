@@ -8,7 +8,6 @@ export function GET(): Response {
   const llm = !!((process.env.CF_WORKERS_AI_TOKEN || process.env.CF_BACKEND_TOKEN || process.env.CLOUDFLARE_API_TOKEN) && process.env.CLOUDFLARE_ACCOUNT_ID);
   const d1 = !!(process.env.CF_BACKEND_TOKEN && process.env.CF_D1_DATABASE_ID && process.env.CLOUDFLARE_ACCOUNT_ID);
   const ghStore = !!((process.env.GH_STORE_TOKEN || process.env.GITHUB_TOKEN) && process.env.GH_STORE_REPO);
-  const db = !!process.env.DATABASE_URL || d1 || ghStore;
   const agentApi = !!(process.env.AGENT_API_BASE_URL || process.env.AGENT_API_INTERNAL_URL);
   return Response.json(
     {

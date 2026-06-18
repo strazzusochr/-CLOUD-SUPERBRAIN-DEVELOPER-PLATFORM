@@ -15,7 +15,7 @@ const EXAMPLES = [
   "Ein wissenschaftlicher Taschenrechner",
 ];
 
-type Build = { id: string; title: string; model: string; html: string };
+type Build = { id: string; title: string; model: string; html: string; share_path?: string | null };
 
 export function AiBuilder() {
   const [prompt, setPrompt] = useState("");
@@ -23,6 +23,7 @@ export function AiBuilder() {
   const [build, setBuild] = useState<Build | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [showCode, setShowCode] = useState(false);
+  const [copied, setCopied] = useState(false);
   const startedRef = useRef(0);
   const [elapsed, setElapsed] = useState(0);
 
@@ -109,6 +110,12 @@ export function AiBuilder() {
             <span className="ab-title">▶ {build.title}</span>
             <span className="ab-actions">
               <button type="button" className="btn btn-sm" onClick={openFull}>⤢ Vollbild</button>
+              {build.share_path ? (
+                <button type="button" className="btn btn-sm" onClick={() => {
+                  const link = `${location.origin}${build.share_path}`;
+                  navigator.clipboard?.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
+                }}>{copied ? "✓ Link kopiert" : "🔗 Teilen"}</button>
+              ) : null}
               <button type="button" className="btn btn-sm" onClick={download}>↓ Download</button>
               <button type="button" className="btn btn-sm" onClick={() => setShowCode((v) => !v)}>{showCode ? "Vorschau" : "Code"}</button>
               <span className="mono text-12 text-mut">{String(build.model).replace("@cf/", "")}</span>

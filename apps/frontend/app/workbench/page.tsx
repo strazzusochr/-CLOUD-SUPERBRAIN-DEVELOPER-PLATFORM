@@ -3,6 +3,7 @@ import Batch1WorkbenchStudio from "../../components/batch1-workbench-studio";
 import { LiveConsole } from "../../components/live-console";
 import { WorkbenchActionPanel } from "../../components/goal-b-actions";
 import { AiBuilder } from "../../components/ai-builder";
+import { BuildsGallery } from "../../components/builds-gallery";
 import { Panel, Badge } from "../../components/ui";
 import { paidCapabilityVisible } from "../../lib/paidCapabilities";
 
@@ -31,6 +32,9 @@ export default async function WorkbenchPage({ searchParams }: WorkbenchPageProps
             <div className="wb-pad">
               <AiBuilder />
             </div>
+          </Panel>
+          <Panel title="Meine Apps · gebaut & teilbar" className="mb-16" actions={<Badge tone="cyan">persistiert</Badge>}>
+            <BuildsGallery />
           </Panel>
         </div>
         <Batch1WorkbenchStudio showBudget={showBudget} />

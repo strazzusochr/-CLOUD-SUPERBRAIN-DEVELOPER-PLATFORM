@@ -72,14 +72,18 @@ export async function POST(req: Request): Promise<Response> {
     const { html, model } = await generate(prompt.slice(0, 2000));
     const title = prompt.slice(0, 70);
     const id = (cf.d1Configured() ? cf.uuid : gh.uuid)();
-    // Persist the build as an artifact (best-effort, never blocks the response).
+    // Persist the runnable app + its metadata so it gets a shareable link and
+    // shows in the gallery (best-effort, never blocks the response).
+    let shared = false;
     try {
       if (gh.ghConfigured()) {
-        await gh.append("builds.json", { id, project_id: projectId, created_at: new Date().toISOString(), title, prompt, model: String(model), bytes: html.length }, 200);
+        await gh.putRaw(`builds/${id}.html`, html);
+        await gh.append("builds.json", { id, project_id: projectId, created_at: new Date().toISOString(), title, prompt: prompt.slice(0, 300), model: String(model), bytes: html.length }, 200);
         await gh.audit("app_built", id, title);
+        shared = true;
       }
     } catch { /* best-effort */ }
-    return Response.json({ id, title, model, html, persisted: gh.ghConfigured() }, { headers: { "x-superbrain-source": "ai-builder" } });
+    return Response.json({ id, title, model, html, persisted: shared, share_path: shared ? `/run/${id}` : null }, { headers: { "x-superbrain-source": "ai-builder" } });
   } catch (err) {
     return Response.json({ status: "build_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
   }
