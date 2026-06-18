@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // The platform's core experience: describe an app or game → the AI builds it →
 // it runs LIVE in a sandboxed preview. No code to read, no setup — you get a
@@ -27,6 +27,22 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
   const [copied, setCopied] = useState(false);
   const startedRef = useRef(0);
   const [elapsed, setElapsed] = useState(0);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Load an existing build into the builder (?build=<id>) to keep iterating on it.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("build");
+    if (!id) return;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/v1/build/${id}`, { cache: "no-store" });
+        const body = await res.json();
+        if (alive && res.ok && body.html) setBuild(body as Build);
+      } catch { /* ignore */ }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   async function run(p: string, baseHtml?: string) {
     const text = p.trim();
@@ -35,21 +51,29 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
     startedRef.current = Date.now();
     setElapsed(0);
     const tick = setInterval(() => setElapsed(Math.round((Date.now() - startedRef.current) / 1000)), 1000);
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
     try {
       const res = await fetch("/api/v1/build", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(baseHtml ? { prompt: text, base_html: baseHtml } : { prompt: text }),
+        signal: ctrl.signal,
       });
       const body = await res.json();
       if (!res.ok || !body.html) setErr(String(body.note ?? `Fehler ${res.status}`));
       else setBuild(body as Build);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+      if (!(e instanceof DOMException && e.name === "AbortError")) setErr(e instanceof Error ? e.message : String(e));
     } finally {
       clearInterval(tick);
+      abortRef.current = null;
       setBusy(false);
     }
+  }
+
+  function cancel() {
+    abortRef.current?.abort();
   }
 
   function download() {
@@ -104,6 +128,7 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
             <span className="text-12 text-mut">{elapsed}s</span>
             <div className="text-12 text-mut">echtes Code-Modell · deine App läuft gleich live in der Vorschau</div>
           </div>
+          <button type="button" className="btn btn-sm" onClick={cancel} style={{ marginLeft: "auto" }}>Abbrechen</button>
         </div>
       ) : null}
 

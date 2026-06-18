@@ -28,11 +28,14 @@ export function BuildsGallery() {
   return (
     <div className="builds-gallery" data-testid="builds-gallery">
       {builds.map((b) => (
-        <a key={b.id} className="bg-card" href={`/run/${b.id}`} target="_blank" rel="noopener noreferrer">
+        <div key={b.id} className="bg-card">
           <span className="bg-title">{b.title || "App"}</span>
           {b.model ? <span className="bg-model mono">{String(b.model).replace("@cf/", "")}</span> : null}
-          <span className="bg-open">▶ Öffnen</span>
-        </a>
+          <span className="bg-links">
+            <a className="bg-open" href={`/run/${b.id}`} target="_blank" rel="noopener noreferrer">▶ Öffnen</a>
+            <a className="bg-edit" href={`/workbench?build=${b.id}`}>✎ Bearbeiten</a>
+          </span>
+        </div>
       ))}
     </div>
   );
