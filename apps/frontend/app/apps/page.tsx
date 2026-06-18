@@ -4,6 +4,7 @@ import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, Badge, EmptyState } from "../../components/ui";
 import { fetchRecentTasks, fetchRecentSessions } from "../../lib/agentApi";
 import { WorkspaceModeActionPanel } from "../../components/goal-b-actions";
+import { AiBuilder } from "../../components/ai-builder";
 
 export const metadata = { title: "Apps / Generated Output — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -38,6 +39,21 @@ export default async function AppsPage() {
             </>
           }
         />
+        <Panel title="App bauen mit KI · beschreibe es, nutze es sofort" className="mb-16" actions={<Badge tone="green">echt · live</Badge>}>
+          <div className="wb-pad">
+            <AiBuilder
+              placeholder="Beschreibe deine App — z. B. „eine Notizen-App mit Suche und Dark Mode“"
+              examples={[
+                "Eine Notizen-App mit Suche, Tags und Dark Mode",
+                "Ein Pomodoro-Timer mit Statistik",
+                "Ein Markdown-Editor mit Live-Vorschau",
+                "Ein Einheiten-Umrechner (Länge, Gewicht, Temperatur)",
+                "Ein Kanban-Board mit Drag & Drop",
+                "Ein QR-Code-Generator",
+              ]}
+            />
+          </div>
+        </Panel>
         <Panel title="Live app surfaces" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
           <div className="wb-pad">
             <LiveConsole
