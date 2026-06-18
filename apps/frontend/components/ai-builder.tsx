@@ -151,6 +151,9 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
               <span className="mono text-12 text-mut">{String(build.model).replace("@cf/", "")}</span>
             </span>
           </div>
+          {!/<\/html>/i.test(build.html) ? (
+            <div className="ab-trunc text-12">Hinweis: Die App ist evtl. unvollständig generiert. Tippe unten eine kleine Änderung und drücke Enter — sie wird vervollständigt.</div>
+          ) : null}
           {showCode ? (
             <pre className="ab-code mono">{build.html}</pre>
           ) : (
