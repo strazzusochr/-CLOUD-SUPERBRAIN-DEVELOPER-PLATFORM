@@ -22,6 +22,12 @@ export function BuildsGallery() {
     return () => { alive = false; };
   }, []);
 
+  async function remove(id: string) {
+    if (!confirm("Diese App wirklich löschen?")) return;
+    setBuilds((prev) => (prev ? prev.filter((b) => b.id !== id) : prev));
+    try { await fetch(`/api/v1/build/${id}`, { method: "DELETE" }); } catch { /* ignore */ }
+  }
+
   if (builds === null) return <div className="text-13 text-mut wb-pad">Lädt…</div>;
   if (!builds.length) return <div className="text-13 text-mut wb-pad">Noch keine Apps gebaut — oben beschreiben und „Bauen“.</div>;
 
@@ -34,6 +40,7 @@ export function BuildsGallery() {
           <span className="bg-links">
             <a className="bg-open" href={`/run/${b.id}`} target="_blank" rel="noopener noreferrer">▶ Öffnen</a>
             <a className="bg-edit" href={`/workbench?build=${b.id}`}>✎ Bearbeiten</a>
+            <button type="button" className="bg-del" onClick={() => remove(b.id)} title="Löschen">🗑</button>
           </span>
         </div>
       ))}
