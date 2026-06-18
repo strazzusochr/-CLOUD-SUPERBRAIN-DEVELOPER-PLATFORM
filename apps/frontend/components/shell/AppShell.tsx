@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type NavItem, railGroups, WORKSPACE_PAGES } from "../../lib/nav";
-import LayerVerifyPill from "./LayerVerifyPill";
 
 function railActive(pathname: string, route: string) {
   if (route === "/home") return pathname === "/home";
@@ -26,16 +25,6 @@ export default function AppShell({
   const [cmdkOpen, setCmdkOpen] = useState(false);
   const [cmdkQuery, setCmdkQuery] = useState("");
   const cmdkInputRef = useRef<HTMLInputElement | null>(null);
-
-  const runLabel: Record<string, string> = {
-    idle: "RUHE",
-    planning: "PLANUNG",
-    executing: "AUSFÜHRUNG",
-    verifying: "PRÜFUNG",
-    blocked: "BLOCKIERT",
-  };
-
-  const runDotClass = `is-${runState}`;
 
   const cmdkItems = useMemo(() => {
     const items: NavItem[] = railGroups.flatMap((group) => group.map((item) => item));
@@ -139,12 +128,6 @@ export default function AppShell({
         <div className="crumb">
           Cloud Superbrain&nbsp;/&nbsp;<b>{crumb}</b>
         </div>
-        <span className="topbar-chip" title="Projektkontext">
-          {Icon.workbench({ size: 14 })} Superbrain Platform
-        </span>
-        <span className="topbar-chip" title="Cloud-only Zielumgebung">
-          {Icon.stack({ size: 14 })} Vercel/Fly
-        </span>
         <button
           type="button"
           className="cmdk"
@@ -156,14 +139,6 @@ export default function AppShell({
           <kbd>⌘K</kbd>
         </button>
         <div className="grow" />
-        <LayerVerifyPill />
-        <span className="runpill" title="Aktueller Run-Status">
-          <span className={`dot pulse run-dot ${runDotClass}`} />
-          {runLabel[runState]}
-        </span>
-        <span className="topbar-chip safe" title="Keine Provider-Writes, keine Secrets, kein Production Deploy">
-          {Icon.shield({ size: 13 })} Read-only safe
-        </span>
         <div className="avatar" aria-hidden="true">
           AI
         </div>
