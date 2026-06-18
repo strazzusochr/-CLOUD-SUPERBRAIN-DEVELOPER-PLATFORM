@@ -5,7 +5,6 @@ import { MCP_TOOLS } from "../../lib/platform";
 import { PROVIDERS, LAYERS } from "../../components/organism/regionMap";
 import { fetchProviders } from "../../lib/agentApi";
 import { ToolsReadOnlyPanel } from "../../components/goal-b-actions";
-import { LiveConsole } from "../../components/live-console";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Tools / Cloud-Hub — Cloud Superbrain" };
@@ -102,21 +101,7 @@ export default async function ToolsPage() {
           </Panel>
         ) : null}
 
-        <Panel title="Live MCP / Tools console" className="mb-16" actions={<Badge tone="cyan">interaktiv · read-only</Badge>}>
-          <div className="wb-pad">
-            <LiveConsole
-              label="MCP/Tools"
-              endpoints={[
-                { label: "MCP version-pinning contract", path: "/mcp/api/v1/version-pinning/contract" },
-                { label: "MCP audit", path: "/api/v1/audit/mcp" },
-                { label: "Read-only tool contract", path: "/api/v1/tools/read-only/execute/contract" },
-                { label: "Prompt contract", path: "/api/v1/prompt/contract" },
-              ]}
-            />
-          </div>
-        </Panel>
-
-        <Panel title="Goal B safe execute (read-only tools)" className="mb-16" actions={<Badge tone="green">memory_read / task_router</Badge>}>
+        <Panel title="Tools sicher ausführen (read-only)" className="mb-16" actions={<Badge tone="green">memory_read / task_router</Badge>}>
           <div className="wb-pad">
             <ToolsReadOnlyPanel />
           </div>
