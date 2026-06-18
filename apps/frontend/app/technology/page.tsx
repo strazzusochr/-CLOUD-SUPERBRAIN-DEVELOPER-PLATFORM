@@ -2,7 +2,6 @@ import AppShell from "../../components/shell/AppShell";
 import { LiveConsole } from "../../components/live-console";
 import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Badge, Note } from "../../components/ui";
-import { TechnologyProbe } from "../../components/batch5-actions";
 import { LAYERS, PROVIDERS, providersForLayer } from "../../components/organism/regionMap";
 
 export const dynamic = "force-dynamic";
@@ -40,9 +39,6 @@ export default function TechnologyPage() {
         />
 
         <SevenLayerBar />
-        <div className="mt-16 mb-16">
-          <TechnologyProbe />
-        </div>
         <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
           <div className="wb-pad">
             <LiveConsole endpoints={[{ label: "Clouds", path: "/api/v1/clouds" }, { label: "Deployment preflight", path: "/api/v1/clouds/deployment-preflight" }]} />

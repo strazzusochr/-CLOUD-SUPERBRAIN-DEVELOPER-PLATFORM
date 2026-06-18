@@ -3,7 +3,7 @@ import AppShell from "../../components/shell/AppShell";
 import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, Metric, Badge, StatusDot } from "../../components/ui";
 import { Icon } from "../../lib/nav";
-import { HomeCortexHero, HomeHeroProofPanel } from "../../components/batch4-actions";
+import { HomeCortexHero } from "../../components/batch4-actions";
 import { AiBuilder } from "../../components/ai-builder";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +34,6 @@ export default async function HomePage() {
                 </Link>
               }
             />
-            <HomeHeroProofPanel />
           </div>
           <HomeCortexHero />
         </div>

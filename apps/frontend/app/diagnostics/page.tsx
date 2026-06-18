@@ -3,7 +3,6 @@ import AppShell from "../../components/shell/AppShell";
 import { LiveConsole } from "../../components/live-console";
 import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Badge } from "../../components/ui";
-import { DiagnosticsProbe } from "../../components/batch5-actions";
 import { VERIFIERS } from "../../lib/platform";
 
 export const dynamic = "force-dynamic";
@@ -28,9 +27,6 @@ export default async function DiagnosticsPage() {
         />
 
         <SevenLayerBar title="7 Layer Architektur (UI-Surfaces, read-only)" />
-        <div className="block-gap-16">
-          <DiagnosticsProbe />
-        </div>
 
         <div className="grid cols-2 block-gap-16">
           <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
