@@ -2,6 +2,7 @@ import AppShell from "../../components/shell/AppShell";
 import Batch1WorkbenchStudio from "../../components/batch1-workbench-studio";
 import { LiveConsole } from "../../components/live-console";
 import { WorkbenchActionPanel } from "../../components/goal-b-actions";
+import { AiBuilder } from "../../components/ai-builder";
 import { Panel, Badge } from "../../components/ui";
 import { paidCapabilityVisible } from "../../lib/paidCapabilities";
 
@@ -25,6 +26,13 @@ export default async function WorkbenchPage({ searchParams }: WorkbenchPageProps
   return (
     <AppShell crumb="Main Workbench" runState="idle">
       <div className="stack">
+        <div className="page-wide">
+          <Panel title="Bauen mit KI · beschreibe es, es läuft sofort" className="mb-16" actions={<Badge tone="green">echt · live</Badge>}>
+            <div className="wb-pad">
+              <AiBuilder />
+            </div>
+          </Panel>
+        </div>
         <Batch1WorkbenchStudio showBudget={showBudget} />
         <div className="page-wide">
           <Panel title="Quick run (dry-run only)" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
