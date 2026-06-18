@@ -83,7 +83,7 @@ export async function POST(req: Request): Promise<Response> {
 
   try {
     const { html, model } = await generate(prompt.slice(0, 2000), baseHtml);
-    const title = prompt.slice(0, 70);
+    const title = prompt.replace(/�/g, "").slice(0, 70);
     const id = (cf.d1Configured() ? cf.uuid : gh.uuid)();
     // Persist the runnable app + its metadata so it gets a shareable link and
     // shows in the gallery (best-effort, never blocks the response).
