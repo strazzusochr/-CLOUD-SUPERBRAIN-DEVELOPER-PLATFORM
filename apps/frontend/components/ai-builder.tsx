@@ -28,10 +28,10 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
   const startedRef = useRef(0);
   const [elapsed, setElapsed] = useState(0);
 
-  async function run(p: string) {
+  async function run(p: string, baseHtml?: string) {
     const text = p.trim();
     if (!text || busy) return;
-    setBusy(true); setErr(null); setBuild(null); setShowCode(false);
+    setBusy(true); setErr(null); if (!baseHtml) setBuild(null); setShowCode(false);
     startedRef.current = Date.now();
     setElapsed(0);
     const tick = setInterval(() => setElapsed(Math.round((Date.now() - startedRef.current) / 1000)), 1000);
@@ -39,7 +39,7 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
       const res = await fetch("/api/v1/build", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ prompt: text }),
+        body: JSON.stringify(baseHtml ? { prompt: text, base_html: baseHtml } : { prompt: text }),
       });
       const body = await res.json();
       if (!res.ok || !body.html) setErr(String(body.note ?? `Fehler ${res.status}`));
@@ -140,8 +140,14 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
           <div className="ab-iterate">
             <input
               className="ab-input ab-iter-input"
-              placeholder="Ändern/erweitern — z. B. „mache es schneller und füge Highscore hinzu“"
-              onKeyDown={(e) => { if (e.key === "Enter") { const v = (e.target as HTMLInputElement).value; if (v.trim()) run(`${prompt}\n\nÄnderung: ${v}`); } }}
+              placeholder="Ändern/erweitern — z. B. „mache es schneller und füge Highscore hinzu“ (ändert die bestehende App)"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const el = e.target as HTMLInputElement;
+                  const v = el.value.trim();
+                  if (v && build) { run(v, build.html); el.value = ""; }
+                }
+              }}
               disabled={busy}
               aria-label="Iterieren"
             />

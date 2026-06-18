@@ -36,11 +36,23 @@ function extractHtml(raw: string): string {
   return s;
 }
 
-async function generate(prompt: string): Promise<{ html: string; model: unknown }> {
-  const messages = [
-    { role: "system", content: SYSTEM },
-    { role: "user", content: prompt },
-  ];
+const MODIFY_SYSTEM = `You are modifying an existing self-contained HTML web app.
+Apply ONLY the requested change and return the COMPLETE updated HTML document.
+HARD RULES:
+- Output ONLY the full HTML document. Start with <!doctype html>, finish with </body></html>. No markdown, no prose.
+- Keep everything that already works; change only what the request asks for.
+- Same constraints: inline CSS/JS, CDN scripts only (e.g. three.min.js global THREE), no backend, must run immediately, dark modern UI.`;
+
+async function generate(prompt: string, baseHtml?: string): Promise<{ html: string; model: unknown }> {
+  const messages = baseHtml
+    ? [
+        { role: "system", content: MODIFY_SYSTEM },
+        { role: "user", content: `Aktuelle App (vollständiges HTML):\n\n${baseHtml.slice(0, 14000)}\n\nÄnderungswunsch: ${prompt}\n\nGib das KOMPLETTE aktualisierte HTML-Dokument zurück.` },
+      ]
+    : [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: prompt },
+      ];
   // Give the strong code model (Qwen Coder) a long budget so it isn't cut off;
   // the fast Llama fallback gets the remaining time if Qwen errors.
   const models: Array<[string, number]> = [["@cf/qwen/qwen2.5-coder-32b-instruct", 45000], ["@cf/meta/llama-3.1-8b-instruct", 12000]];
@@ -66,10 +78,11 @@ export async function POST(req: Request): Promise<Response> {
   try { body = (await req.json()) as Record<string, unknown>; } catch { /* empty */ }
   const prompt = String(body.prompt ?? "").trim();
   const projectId = String(body.project_id ?? "default");
+  const baseHtml = typeof body.base_html === "string" && body.base_html.length < 60000 ? body.base_html : undefined;
   if (!prompt) return Response.json({ status: "bad_request", note: "Beschreibe, was gebaut werden soll." }, { status: 400 });
 
   try {
-    const { html, model } = await generate(prompt.slice(0, 2000));
+    const { html, model } = await generate(prompt.slice(0, 2000), baseHtml);
     const title = prompt.slice(0, 70);
     const id = (cf.d1Configured() ? cf.uuid : gh.uuid)();
     // Persist the runnable app + its metadata so it gets a shareable link and
