@@ -2490,3 +2490,34 @@ p {
 .agent-team-card .agent-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 6px; }
 .agent-team-card .agent-type { font-weight: 600; text-transform: capitalize; }
 .agent-team-card .agent-role { font-size: 13px; color: var(--text-dim, #9fb3c8); margin: 0; line-height: 1.5; }
+
+/* Real IDE build studio (components/workbench-studio.tsx) */
+.workbench-studio { display: flex; flex-direction: column; gap: 12px; }
+.wb-composer { display: flex; gap: 10px; align-items: stretch; }
+.wb-composer-input {
+  flex: 1; background: rgba(8,14,28,0.7); border: 1px solid rgba(43,209,254,0.22);
+  border-radius: 10px; color: var(--text, #e8f0fb); padding: 11px 13px; font-size: 14px; resize: vertical; line-height: 1.4;
+}
+.wb-composer-input:focus { outline: none; border-color: rgba(43,209,254,0.55); }
+.wb-composer-go { white-space: nowrap; min-width: 120px; font-size: 14px; }
+.wb-examples { display: flex; flex-wrap: wrap; gap: 8px; }
+.wb-studio .ws-file { width: 100%; justify-content: space-between; background: transparent; border: none; cursor: pointer; color: var(--text-mut,#9fb3c8); }
+.wb-studio .ws-file:hover { background: rgba(43,209,254,0.08); color: var(--text,#e8f0fb); }
+.wb-studio .ws-file.sel { background: rgba(43,209,254,0.14); color: var(--text,#e8f0fb); }
+.wb-studio .ws-file-bytes { font-size: 10.5px; opacity: 0.55; }
+.wb-studio .ws-empty { padding: 6px 4px; line-height: 1.5; }
+.wb-studio .wb-editor { display: flex; flex-direction: column; }
+.wb-studio .ws-tabs { display: inline-grid; grid-auto-flow: column; gap: 0; height: 30px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(43,209,254,0.18); }
+.wb-studio .ws-tabs button { background: transparent; border: none; color: var(--text-mut,#9fb3c8); padding: 0 14px; font-size: 12.5px; cursor: pointer; }
+.wb-studio .ws-tabs button.active { background: rgba(43,209,254,0.16); color: var(--text,#e8f0fb); }
+.wb-studio .ws-frame { flex: 1; width: 100%; border: none; background: #0b1020; min-height: 460px; }
+.wb-studio .ws-code { flex: 1; margin: 0; overflow: auto; background: #05060f; color: #cfe0f5; padding: 14px; font-size: 12px; white-space: pre; line-height: 1.5; min-height: 460px; }
+.wb-studio .ws-stage-empty { flex: 1; display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center; min-height: 460px; color: var(--text-mut,#9fb3c8); }
+.wb-studio .wb-preview { display: flex; flex-direction: column; }
+.wb-studio .ws-log { flex: 1; overflow: auto; min-height: 220px; }
+.wb-studio .ws-log .terminal-row span.run { color: #2bd1fe; }
+.wb-studio .ws-log .terminal-row span.ok { color: #37f5b5; }
+.wb-studio .ws-log .terminal-row span.err { color: #ff7a7a; }
+.wb-studio .ws-log .terminal-row span.info { color: var(--text-mut,#9fb3c8); }
+.wb-studio .ws-actions { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid rgba(54,126,205,0.22); }
+.wb-studio .ws-iterate { width: 100%; font-size: 13px; }
