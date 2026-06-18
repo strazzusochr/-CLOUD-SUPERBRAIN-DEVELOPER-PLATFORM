@@ -1,7 +1,43 @@
 import { fetchActivityKinds, fetchOrganismProjection, mapKind } from "../agentApi";
+import * as gh from "../../../../../lib/ghStore";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+// Map real audit events → organism hubs/brain-regions so genuine platform activity
+// (building apps, running prompts, storing memory, sessions) lights up the cortex.
+const AUDIT_MAP: Record<string, { hub: string; regions: string[]; run_state: string }> = {
+  app_built: { hub: "workbench", regions: ["prefrontal", "motor", "callosum"], run_state: "executing" },
+  artifact_created: { hub: "workbench", regions: ["motor", "callosum"], run_state: "executing" },
+  app_deleted: { hub: "workbench", regions: ["motor"], run_state: "idle" },
+  prompt_completed: { hub: "agents", regions: ["prefrontal", "thalamus", "callosum"], run_state: "executing" },
+  prompt_failed: { hub: "agents", regions: ["basal"], run_state: "blocked" },
+  session_started: { hub: "memory", regions: ["hippocampus", "callosum"], run_state: "idle" },
+};
+
+async function realAuditFeed(runId: string | null) {
+  if (!gh.ghConfigured()) return null;
+  try {
+    const rows = (await gh.list("audit.json", 14)) as Array<Record<string, unknown>>;
+    if (!rows.length) return null;
+    const events = rows.map((r, i) => {
+      const kind = String(r.event_type ?? "event");
+      const m = AUDIT_MAP[kind] ?? { hub: "observe", regions: ["cerebellum", "callosum"], run_state: "idle" };
+      return {
+        seq: i + 1, offset_s: +(i * 1.2).toFixed(1), kind, event_type: kind, hub: m.hub,
+        route: `/${m.hub}`, regions: m.regions, run_state: m.run_state, source_kind: "platform_audit",
+        severity: "info", occurred_at: r.occurred_at ?? null, evidence_files: [], secret_output: false, writes: false,
+      };
+    });
+    return {
+      contract_version: "organism-events-v1", source: "platform-audit", source_kind: "platform_audit",
+      live: true, run_id: runId, note: "Echte Plattform-Aktivität aus dem Audit-Log (Builds, Prompts, Memory, Sessions).",
+      events, non_claims: ["read-only audit projection", "no secret values"],
+    };
+  } catch {
+    return null;
+  }
+}
 
 function safeTraceId(value: string | null): string | null {
   if (!value) return null;
@@ -44,7 +80,11 @@ export async function GET(request: Request) {
     return Response.json(projection);
   }
   const kinds = await fetchActivityKinds(12, runId);
-  if (!kinds) return Response.json(specOnlyFeed(runId));
+  if (!kinds) {
+    // Prefer REAL platform activity from the audit log; spec-only is the last resort.
+    const audit = await realAuditFeed(runId);
+    return Response.json(audit ?? specOnlyFeed(runId));
+  }
   const events = kinds.map((kind, i) => {
     const { hub, run_state, regions } = mapKind(kind);
     return {
