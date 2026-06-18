@@ -98,7 +98,11 @@ export function AiBuilder() {
       {busy ? (
         <div className="ab-loading">
           <div className="ab-spinner" />
-          <div>Die Agenten bauen deine App… <b>{elapsed}s</b><div className="text-12 text-mut">echtes Code-Modell (Qwen2.5-Coder) · läuft gleich live</div></div>
+          <div>
+            <b>{elapsed < 3 ? "Anfrage analysieren…" : elapsed < 9 ? "Code generieren (Qwen2.5-Coder)…" : elapsed < 16 ? "App zusammenbauen & GPU-absichern…" : "Live-Vorschau rendern…"}</b>{" "}
+            <span className="text-12 text-mut">{elapsed}s</span>
+            <div className="text-12 text-mut">echtes Code-Modell · deine App läuft gleich live in der Vorschau</div>
+          </div>
         </div>
       ) : null}
 
