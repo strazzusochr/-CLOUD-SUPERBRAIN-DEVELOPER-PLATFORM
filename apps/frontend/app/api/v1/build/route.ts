@@ -19,7 +19,7 @@ HARD RULES:
 - Allowed external resources: CDN scripts only (e.g. https://unpkg.com/three@0.160.0/build/three.min.js for 3D, using the global THREE). No other network calls, no API keys, no backend.
 - It MUST run immediately when opened in a browser. Make it actually work and look polished (dark, modern UI).
 - For games/animations: use requestAnimationFrame, keep it performant, and stop the loop when document.hidden.
-- Keep it focused and complete within ~300 lines so nothing is cut off.`;
+- Keep it focused and COMPLETE within ~300 lines, and ALWAYS finish the document with </body></html>. Never cut off mid-tag.`;
 
 const GPU_GUARD = `<script>(function(){var _r=window.requestAnimationFrame.bind(window),last=0;window.requestAnimationFrame=function(cb){return _r(function(t){if(document.hidden){window.requestAnimationFrame(cb);return;}if(t-last<15){window.requestAnimationFrame(cb);return;}last=t;cb(t);});};})();</script>`;
 
@@ -47,7 +47,7 @@ async function generate(prompt: string): Promise<{ html: string; model: unknown 
   let lastErr: unknown = null;
   for (const [model, timeoutMs] of models) {
     try {
-      const out = await cfChatCompletion({ model, messages, max_tokens: 4000, temperature: 0.3, timeoutMs });
+      const out = await cfChatCompletion({ model, messages, max_tokens: 5200, temperature: 0.3, timeoutMs });
       const choices = out.choices as Array<{ message?: { content?: string } }> | undefined;
       const html = extractHtml(choices?.[0]?.message?.content ?? "");
       if (html && /<.*>/.test(html)) return { html, model: out.model };
