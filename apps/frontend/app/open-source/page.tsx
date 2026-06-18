@@ -1,5 +1,4 @@
 import AppShell from "../../components/shell/AppShell";
-import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, Badge, Note } from "../../components/ui";
 import { Icon } from "../../lib/nav";
 
@@ -40,17 +39,6 @@ export default function OpenSourcePage() {
           actions={<Badge tone="green">no vendor lock-in</Badge>}
         />
 
-
-        <Panel title="Live-Daten" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
-          <div className="wb-pad">
-            <LiveConsole
-              endpoints={[
-                { label: "Workspace wiring", path: "/api/v1/workspace/wiring" },
-                { label: "Platform inventory", path: "/api/v1/platform/inventory" },
-              ]}
-            />
-          </div>
-        </Panel>
 
         <div className="grid cols-3">
           {PRINCIPLES.map((p) => (
