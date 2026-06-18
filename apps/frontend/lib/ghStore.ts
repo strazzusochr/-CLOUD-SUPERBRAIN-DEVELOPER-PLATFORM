@@ -86,6 +86,33 @@ export async function list(file: string, limit = 20, filter?: (x: Record<string,
   return rows.slice(0, limit);
 }
 
+/** Write a raw (non-JSON) file, e.g. a built app's HTML. Optimistic-lock retry. */
+export async function putRaw(path: string, content: string): Promise<void> {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const cur = await fetch(`${API}/repos/${repo()}/contents/${path}?ref=${branch()}`, { headers: headers(), cache: "no-store", signal: AbortSignal.timeout(12000) });
+    const sha = cur.ok ? ((await cur.json()) as { sha?: string }).sha : undefined;
+    const res = await fetch(`${API}/repos/${repo()}/contents/${path}`, {
+      method: "PUT",
+      headers: headers(),
+      body: JSON.stringify({ message: `app: ${path}`, content: Buffer.from(content).toString("base64"), sha, branch: branch() }),
+      signal: AbortSignal.timeout(12000),
+    });
+    if (res.ok) return;
+    if (res.status !== 409 && res.status !== 422) throw new Error(`gh putRaw ${path}: ${res.status}`);
+    await new Promise((r) => setTimeout(r, 120 * (attempt + 1)));
+  }
+  throw new Error(`gh putRaw ${path}: conflict`);
+}
+
+/** Read a raw file's text content, or null if missing. */
+export async function getRaw(path: string): Promise<string | null> {
+  const res = await fetch(`${API}/repos/${repo()}/contents/${path}?ref=${branch()}`, { headers: headers(), cache: "no-store", signal: AbortSignal.timeout(12000) });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`gh getRaw ${path}: ${res.status}`);
+  const body = (await res.json()) as { content?: string };
+  return Buffer.from(body.content ?? "", "base64").toString("utf-8");
+}
+
 export async function audit(eventType: string, sessionId: string | null, detail = ""): Promise<void> {
   try {
     await append("audit.json", { id: uuid(), occurred_at: new Date().toISOString(), event_type: eventType, session_id: sessionId, detail }, 500);
