@@ -126,7 +126,7 @@ function ArtifactList({ artifacts }: { artifacts: Artifact[] }) {
 }
 
 export function WorkbenchActionPanel() {
-  const [prompt, setPrompt] = useState("Create a local Goal B game/app artifact with evidence, dry-run only.");
+  const [prompt, setPrompt] = useState("Erstellt ein echtes, persistiertes Artefakt mit Evidenz.");
   const [mode, setMode] = useState("game");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState("waiting_for_click");
@@ -424,7 +424,7 @@ export function MarketplaceActionPanel({ itemNames }: { itemNames: string[] }) {
           {options.map((name) => <option key={name} value={name}>{name}</option>)}
         </select>
         <button className="btn btn-sm btn-ghost" type="button" data-testid="goal-b-marketplace-details" onClick={details}>Details</button>
-        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-marketplace-install" onClick={install} disabled={busy}>Install dry-run</button>
+        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-marketplace-install" onClick={install} disabled={busy}>Installieren</button>
       </div>
       <ActionResult state={result} testId="goal-b-marketplace-result" />
     </div>
@@ -509,7 +509,7 @@ export function WorkspaceModeActionPanel({ mode, label }: { mode: "games" | "app
           onClick={create}
           disabled={busy}
         >
-          Create local dry-run artifact
+          Artefakt anlegen
         </button>
         <MiniBadge tone="cyan">common artifact pipeline</MiniBadge>
       </div>
