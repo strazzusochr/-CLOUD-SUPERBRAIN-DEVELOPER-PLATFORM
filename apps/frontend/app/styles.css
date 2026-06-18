@@ -2486,3 +2486,7 @@ p {
 .real-login .rl-signed { font-size: 14px; color: #37f5b5; }
 .builds-gallery .bg-del { background: transparent; border: none; color: #ff8a8a; cursor: pointer; font-size: 12px; margin-left: auto; padding: 0 2px; }
 .builds-gallery .bg-del:hover { color: #ff5a5a; }
+.agent-team-card { background: rgba(10,16,34,0.5); border: 1px solid rgba(43,209,254,0.14); border-radius: 10px; padding: 14px 16px; }
+.agent-team-card .agent-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.agent-team-card .agent-type { font-weight: 600; text-transform: capitalize; }
+.agent-team-card .agent-role { font-size: 13px; color: var(--text-dim, #9fb3c8); margin: 0; line-height: 1.5; }
