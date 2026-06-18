@@ -11,7 +11,7 @@ export type LiveEndpoint = { label: string; path: string };
  */
 export function LiveConsole({ endpoints, label = "Live-Daten" }: { endpoints: LiveEndpoint[]; label?: string }) {
   const [selected, setSelected] = useState(endpoints[0]?.path ?? "");
-  const [out, setOut] = useState('Klick "● Live laden", um den Endpoint real abzurufen.');
+  const [out, setOut] = useState('Klick „Aktualisieren" für Live-Daten.');
   const [status, setStatus] = useState("idle");
   const [meta, setMeta] = useState("");
   const [busy, setBusy] = useState(false);
@@ -73,7 +73,7 @@ export function LiveConsole({ endpoints, label = "Live-Daten" }: { endpoints: Li
           <span className="lc-ep mono">{endpoints[0]?.label}</span>
         )}
         <button type="button" className="btn btn-sm btn-primary" onClick={load} disabled={busy} data-testid="live-console-load">
-          {busy ? "lädt…" : "● Live laden"}
+          {busy ? "lädt…" : "↻ Aktualisieren"}
         </button>
         <button
           type="button"
