@@ -66,7 +66,7 @@ export default async function ObservePage({ searchParams }: ObservePageProps) {
         </div>
 
         <div className="grid cols-2">
-          <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+          <Panel title="Live-Daten" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
             <div className="wb-pad">
               <LiveConsole endpoints={[{ label: "Metrics", path: "/api/v1/metrics" }, { label: "Health", path: "/api/v1/health" }, { label: "Cloud layers", path: "/api/v1/clouds/layers" }]} />
             </div>

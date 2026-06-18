@@ -37,7 +37,7 @@ export default function DesignSystemPage() {
 
 
         <div className="grid cols-2">
-          <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+          <Panel title="Live-Daten" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
             <div className="wb-pad">
               <LiveConsole endpoints={[{ label: "Reference design contract", path: "/api/v1/design/reference-contract" }]} />
             </div>

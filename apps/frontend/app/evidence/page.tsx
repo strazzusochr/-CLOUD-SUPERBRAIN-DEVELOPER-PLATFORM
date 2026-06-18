@@ -1,6 +1,5 @@
 import AppShell from "../../components/shell/AppShell";
 import { LiveConsole } from "../../components/live-console";
-import SevenLayerBar from "../../components/shell/SevenLayerBar";
 import { PageHeader, Panel, Badge, StatusDot } from "../../components/ui";
 import { VERIFIERS, CLOSED_GATES } from "../../lib/platform";
 import { fetchMetrics } from "../../lib/agentApi";
@@ -26,9 +25,7 @@ export default async function EvidencePage() {
             </>
           }
         />
-
-        <SevenLayerBar title="Jeder Claim: verifiziert über 7 Cloud-Layer" />
-        <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+        <Panel title="Live-Daten" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
           <div className="wb-pad">
             <LiveConsole endpoints={[{ label: "External gates", path: "/api/v1/external-gates" }, { label: "Progress integrity", path: "/api/v1/project/progress/integrity" }]} />
           </div>

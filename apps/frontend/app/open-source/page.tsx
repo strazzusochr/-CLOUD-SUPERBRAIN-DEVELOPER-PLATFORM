@@ -41,7 +41,7 @@ export default function OpenSourcePage() {
         />
 
 
-        <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
+        <Panel title="Live-Daten" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
           <div className="wb-pad">
             <LiveConsole
               endpoints={[
