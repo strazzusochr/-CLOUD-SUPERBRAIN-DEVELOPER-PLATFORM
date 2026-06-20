@@ -337,15 +337,16 @@ export function ToolsReadOnlyPanel() {
 
   async function execute() {
     setBusy(true);
+    setResult("läuft…");
     try {
-      const body = await postJson("/api/v1/tools/read-only/execute", {
-        project_id: PROJECT_ID,
-        tool_id: tool,
-        query,
-      });
-      setResult(`PASS readonly_tool_execute\ntool=${String(body.tool_id)}\naudit=${String(body.audit_event_id)}\nlive_mcp_writes=${String(body.live_mcp_writes)}\n${shortJson(body.result, 900)}`);
+      const body = await postJson("/api/v1/tools/read-only/execute", { tool, query });
+      setResult(
+        body.executed
+          ? `✓ ausgeführt · tool=${String(body.tool)} · ${String(body.ms)}ms\n${shortJson(body.result, 1400)}`
+          : `nicht ausgeführt\n${shortJson(body, 600)}`,
+      );
     } catch (err) {
-      setResult(`FAIL readonly_tool_execute\n${err instanceof Error ? err.message : String(err)}`);
+      setResult(`Fehler\n${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setBusy(false);
     }
@@ -357,21 +358,16 @@ export function ToolsReadOnlyPanel() {
         <select
           aria-label="Read-only tool"
           value={tool}
-          onChange={(event) => {
-            setTool(event.target.value);
-            setResult(`PASS readonly_tool_selected\ntool=${event.target.value}\nlive_mcp_writes=false`);
-          }}
+          onChange={(event) => { setTool(event.target.value); setResult("bereit"); }}
         >
           <option value="memory_read">memory_read</option>
           <option value="task_router">task_router</option>
+          <option value="web_fetch">web_fetch (URL)</option>
         </select>
         <input
           aria-label="Tool query"
           value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setResult(`PASS readonly_tool_query_updated\nquery=${event.target.value}\nlive_mcp_writes=false`);
-          }}
+          onChange={(event) => setQuery(event.target.value)}
         />
         <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-tool-execute" onClick={execute} disabled={busy}>Execute</button>
       </div>
