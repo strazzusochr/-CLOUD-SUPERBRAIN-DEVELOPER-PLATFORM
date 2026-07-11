@@ -43,59 +43,6 @@ export function projectedAuditEvents(): Array<Record<string, unknown>> {
   ];
 }
 
-function projectedPhase2Run(): Record<string, unknown> {
-  const task_assignments = AGENT_ROLES.map((role) => ({
-    agent_type: role,
-    status: "completed",
-    done_validation: { implemented: true, tested: true, integrated: true, reported: true, logged: true },
-    blocked_actions: ["push_main", "prod_deploy", "live_provider_call", "live_mcp_write"],
-  }));
-  const agent_results = AGENT_ROLES.map((role) => ({
-    owner_role: role,
-    status: "completed",
-    verification_evidence: [`agent_role_${role}_executed`],
-  }));
-  const mcp_tool_calls = AGENT_ROLES.map((role) => ({
-    agent_role: role,
-    tool: "memory_read",
-    status: "success",
-    evidence_ref: `frontend_projection_mcp_${role}`,
-  }));
-  const per_role_results = AGENT_ROLES.map((role) => ({
-    role,
-    status: "completed",
-    mcp_status: "success",
-    mcp_evidence_ref: `frontend_projection_mcp_${role}`,
-  }));
-  return {
-    ...tag,
-    contract_version: "phase2-runtime-v1",
-    status: "started",
-    thread_id: PROJECTED_THREAD_ID,
-    session_id: PROJECTED_THREAD_ID,
-    run_id: PROJECTED_THREAD_ID,
-    engine: "langgraph",
-    checkpointing: "postgres",
-    live_provider_calls: false,
-    live_mcp_writes: false,
-    production_deploy: false,
-    state: {
-      node_name: "completed",
-      evidence_refs: ["phase2_runtime_graph_started"],
-      task_assignments,
-      agent_results,
-      mcp_tool_calls,
-      llm_gateway_calls: AGENT_ROLES.map((role) => ({ agent_role: role, live_provider_calls: false, stream_done_seen: true })),
-      result: {
-        partial_failure: false,
-        verification_evidence: ["agent_result_aggregation_complete"],
-        per_role_results,
-      },
-    },
-    non_claims: ["frontend projection only", "no live provider call", "no live MCP write", "no production deploy"],
-  };
-}
-
 function authContract(): Record<string, unknown> {
   return {
     ...tag,
@@ -125,19 +72,47 @@ function liveAgentRows(): Array<Record<string, unknown>> {
 }
 
 const DEFAULTS: Record<string, () => Record<string, unknown>> = {
-  "/api/v1/tasks/recent": () => ({ ...tag, queue_depth: 0, queue_depth_by_priority: {}, tasks: [] }),
+  "/api/v1/tasks/recent": () => ({
+    ...tag,
+    status: "degraded",
+    runtime_available: false,
+    reason: "stateful_runtime_not_configured",
+    owner_precondition: "Fly runtime approval or a separately approved Neon/Upstash architecture expansion.",
+    queue_depth: 0,
+    queue_depth_by_priority: {},
+    tasks: [],
+  }),
+  "/api/v1/task/dispatches/recent": () => ({
+    ...tag,
+    status: "degraded",
+    runtime_available: false,
+    reason: "stateful_runtime_not_configured",
+    owner_precondition: "Fly runtime approval or a separately approved Neon/Upstash architecture expansion.",
+    items: [],
+  }),
   "/api/v1/sessions/recent": () => ({ ...tag, sessions: [] }),
   "/api/v1/audit/recent": () => ({ ...tag, events: projectedAuditEvents() }),
   "/api/v1/audit/mcp": () => ({ ...tag, events: [] }),
   "/api/v1/escalations/recent": () => ({ ...tag, escalations: [], events: [] }),
   "/api/v1/memory/consolidation/recent": () => ({ ...tag, events: [], summary: { total: 0 }, records: [], consolidations: [] }),
-  "/api/v1/agents/status": () => ({ ...tag, status: "ok", agents: [] }),
+  "/api/v1/agents/status": () => ({
+    ...tag,
+    status: "degraded",
+    runtime_available: false,
+    reason: "stateful_runtime_not_configured",
+    owner_precondition: "Fly runtime approval or a separately approved Neon/Upstash architecture expansion.",
+    agents: [],
+  }),
   "/api/v1/live-agents/status": () => ({
     ...tag,
+    status: "degraded",
     contract_version: "live-agent-steering-v1",
-    runtime_source: "openai_responses_via_llm_gateway",
-    agents: liveAgentRows(),
-    default_model: "Qwen/Qwen3-Coder-Next:fastest",
+    runtime_available: false,
+    reason: "stateful_runtime_not_configured",
+    owner_precondition: "Fly runtime approval or a separately approved Neon/Upstash architecture expansion.",
+    runtime_source: null,
+    agents: [],
+    default_model: null,
   }),
   "/api/v1/team/status": () => ({ ...tag, status: "ok", roles: [] }),
   "/api/v1/rate-limit/status": () => ({ ...tag, contract_version: "rate-limit-guard-v1", evidence_ref: "rate_limit_status_visible", status: "ok", limit: null, remaining: null, window_s: null }),
@@ -365,24 +340,30 @@ export function projectedDefault(pathname: string, method: string, body?: string
     }
   }
   if (method === "POST" && pathname === "/api/v1/phase2/runtime/start") {
-    return { payload: projectedPhase2Run() };
+    return {
+      status: 503,
+      payload: {
+        ...tag,
+        status: "blocked",
+        contract_version: "phase2-runtime-v1",
+        runtime_available: false,
+        reason: "stateful_runtime_not_configured",
+        owner_precondition: "Fly runtime approval or a separately approved Neon/Upstash architecture expansion.",
+        run: null,
+      },
+    };
   }
   if (method === "GET" && pathname === "/api/v1/phase2/runtime/runs") {
     return {
       payload: {
         ...tag,
+        status: "degraded",
         contract_version: "phase2-runtime-v1",
         evidence_ref: "phase2_runtime_run_status_visible",
-        runs: [{
-          thread_id: PROJECTED_THREAD_ID,
-          session_id: PROJECTED_THREAD_ID,
-          status: "completed",
-          role_summary_count: 4,
-          aggregation_evidence_ref: "agent_result_aggregation_complete",
-          live_provider_calls: false,
-          live_mcp_writes: false,
-          production_deploy: false,
-        }],
+        runtime_available: false,
+        reason: "stateful_runtime_not_configured",
+        owner_precondition: "Fly runtime approval or a separately approved Neon/Upstash architecture expansion.",
+        runs: [],
       },
     };
   }
