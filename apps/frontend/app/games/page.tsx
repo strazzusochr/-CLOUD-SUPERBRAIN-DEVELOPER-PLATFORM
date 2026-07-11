@@ -2,6 +2,7 @@ import AppShell from "../../components/shell/AppShell";
 import { Panel, Badge } from "../../components/ui";
 import { RealGame } from "../../components/real-game";
 import { WorkbenchStudio } from "../../components/workbench-studio";
+import { BuildsGallery } from "../../components/builds-gallery";
 
 export const metadata = { title: "Spiele — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -23,6 +24,12 @@ export default function GamesPage() {
         <Panel title="Demo · spielbares 3D-Arena-Game" className="mt-16" actions={<Badge tone="green">sofort spielbar</Badge>}>
           <div className="wb-pad">
             <RealGame />
+          </div>
+        </Panel>
+
+        <Panel title="Deine gebauten Spiele & Apps (persistiert)" className="mt-16" actions={<Badge tone="cyan">GitHub-Store · echt</Badge>}>
+          <div className="wb-pad">
+            <BuildsGallery />
           </div>
         </Panel>
       </div>

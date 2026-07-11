@@ -2606,3 +2606,11 @@ p {
 .wb-studio-secondary .wb-tree {
   min-height: 78px;
 }
+
+/* Store-backed artifact library (media/docs/games follow-up of S2) */
+.artifact-library { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+.artifact-library .al-row { display: flex; gap: 10px; align-items: baseline; border: 1px solid var(--border, rgba(54,126,205,0.2)); border-radius: 8px; padding: 8px 12px; }
+.artifact-library .al-type { font-size: 11px; color: #2bd1fe; border: 1px solid rgba(43,209,254,0.35); border-radius: 6px; padding: 0 6px; white-space: nowrap; }
+.artifact-library .al-title { font-size: 13px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.artifact-library .al-meta { display: flex; gap: 10px; font-size: 11px; color: var(--text-dim, #8aa0b8); white-space: nowrap; }
+.artifact-library .al-status { color: #37f5b5; }
