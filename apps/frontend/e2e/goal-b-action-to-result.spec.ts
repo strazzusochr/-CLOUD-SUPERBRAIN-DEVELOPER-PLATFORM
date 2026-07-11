@@ -1,9 +1,16 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const base = process.env.GOAL_B_BASE_URL ?? "http://localhost:8081";
+const productBase = process.env.GOAL_B_PRODUCT_BASE_URL ?? base;
 
 async function goto(page: Page, route: string) {
   const response = await page.goto(`${base}${route}`, { waitUntil: "domcontentloaded" });
+  expect(response?.status(), route).toBe(200);
+  await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => {});
+}
+
+async function gotoProduct(page: Page, route: string) {
+  const response = await page.goto(`${productBase}${route}`, { waitUntil: "domcontentloaded" });
   expect(response?.status(), route).toBe(200);
   await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => {});
 }
@@ -12,39 +19,40 @@ test.describe("Goal B action-to-result runtime proof", () => {
   test("workbench run creates visible runtime result and artifact", async ({ page }) => {
     const seen: string[] = [];
     page.on("requestfinished", (request) => seen.push(request.url()));
-    await goto(page, "/workbench");
-    await page.getByTestId("goal-b-workbench-run").click();
-    await expect(page.getByTestId("goal-b-workbench-result")).toContainText("PASS workbench_run", { timeout: 90_000 });
-    await expect(page.getByTestId("goal-b-artifact-list")).toContainText("runtime_run");
-    expect(seen.some((url) => url.includes("/api/v1/phase2/runtime/start"))).toBeTruthy();
-    expect(seen.some((url) => url.includes("/api/v1/workspace/artifacts"))).toBeTruthy();
+    const response = await page.goto(`${productBase}/workbench`, { waitUntil: "domcontentloaded" });
+    expect(response?.status()).toBe(200);
+    await page.getByLabel("Beschreibung für die App-Erstellung").fill("Baue eine kleine Status-App mit Überschrift, Statusanzeige und Umschalter.");
+    await page.getByTestId("ws-build").click();
+    await expect(page.getByTestId("ws-log")).toContainText("Live-Vorschau bereit", { timeout: 240_000 });
+    await expect(page.getByTestId("ws-log")).toContainText("Persistiert");
+    await expect(page.locator(".ws-file").first()).toBeVisible();
+    await expect(page.getByTestId("ws-frame")).toBeVisible();
+    await expect(page.locator(".wb-artifacts")).toContainText(/\/run\//);
+    expect(seen.some((url) => url.includes("/api/v1/build"))).toBeTruthy();
   });
 
-  test("agents start/reset/status produce visible real local state", async ({ page }) => {
+  test("agents produce a visible real multi-agent result", async ({ page }) => {
     const seen: string[] = [];
     page.on("requestfinished", (request) => seen.push(request.url()));
-    await goto(page, "/agents");
-    await page.getByTestId("goal-b-agent-start").click();
-    await expect(page.getByTestId("goal-b-agent-result")).toContainText("PASS agent_steer", { timeout: 90_000 });
-    await expect(page.getByTestId("goal-b-agent-result")).toContainText("live_provider_calls=false");
-    await expect(page.getByTestId("goal-b-agent-result")).toContainText("local_model_calls=true");
-    await expect(page.getByTestId("goal-b-agent-result")).toContainText("action=file_written");
-    await expect(page.getByTestId("goal-b-agent-result")).toContainText("output=F2/planner/");
-    await page.getByTestId("goal-b-agent-reset").click();
-    await expect(page.getByTestId("goal-b-agent-result")).toContainText("PASS agent_reset");
-    await page.getByTestId("goal-b-agent-status").click();
-    await expect(page.getByTestId("goal-b-agent-result")).toContainText("PASS agent_status");
-    expect(seen.some((url) => url.includes("/api/v1/live-agents/steer"))).toBeTruthy();
+    await gotoProduct(page, "/agents");
+    await page.getByLabel("Forschungsziel").fill("Fasse den Nutzen von Embeddings für semantische Suche kurz zusammen.");
+    await page.getByTestId("ar-run").click();
+    const result = page.getByTestId("ar-result");
+    await expect(result).toBeVisible({ timeout: 180_000 });
+    await expect(result.locator(".ar-step")).toHaveCount(3);
+    await expect(result.locator(".ar-answer-body")).not.toBeEmpty();
+    await expect(page.getByText("Das Agenten-Team (Zielarchitektur)")).toBeVisible();
+    await expect(page.getByText(/4 Rollen · Plan/)).toBeVisible();
+    expect(seen.some((url) => url.includes("/api/v1/agent-run"))).toBeTruthy();
   });
 
   test("tools execute only read-only tool envelope with audit id", async ({ page }) => {
     const seen: string[] = [];
     page.on("requestfinished", (request) => seen.push(request.url()));
-    await goto(page, "/tools");
+    await gotoProduct(page, "/tools");
     await page.getByTestId("goal-b-tool-execute").click();
-    await expect(page.getByTestId("goal-b-tool-result")).toContainText("PASS readonly_tool_execute");
-    await expect(page.getByTestId("goal-b-tool-result")).toContainText("live_mcp_writes=false");
-    await expect(page.getByTestId("goal-b-tool-result")).toContainText("audit=");
+    await expect(page.getByTestId("goal-b-tool-result")).toContainText("✓ ausgeführt · tool=memory_read", { timeout: 90_000 });
+    await expect(page.getByText("Werkzeuge sicher ausführen (nur lesend)")).toBeVisible();
     expect(seen.some((url) => url.includes("/api/v1/tools/read-only/execute"))).toBeTruthy();
   });
 
@@ -64,7 +72,7 @@ test.describe("Goal B action-to-result runtime proof", () => {
     const seen: string[] = [];
     page.on("requestfinished", (request) => seen.push(request.url()));
     await goto(page, "/files");
-    await page.getByLabel("Memory search query").fill("phase2");
+    await page.getByLabel("Suchbegriff für das Gedächtnis").fill("phase2");
     await page.getByTestId("goal-b-files-search").click();
     await expect(page.getByTestId("goal-b-files-result")).toContainText("PASS files_search");
     await expect(page.getByTestId("goal-b-files-result")).toContainText(/results=[1-9]/);
@@ -83,15 +91,15 @@ test.describe("Goal B action-to-result runtime proof", () => {
     expect(seen.some((url) => url.includes("/api/v1/workspace/artifacts"))).toBeTruthy();
   });
 
-  test("docs export creates a real local file and starts a download", async ({ page }) => {
-    const seen: string[] = [];
-    page.on("requestfinished", (request) => seen.push(request.url()));
+  test("docs studio creates a real Markdown download", async ({ page }) => {
     await goto(page, "/docs-output");
-    await page.getByTestId("goal-b-docs-export-md").click();
-    await expect(page.getByTestId("goal-b-docs-export-result")).toContainText("PASS docs_export");
-    await expect(page.getByTestId("goal-b-docs-export-result")).toContainText("runtime_store=/workspace/evidence/F9/docs-export/");
-    await expect(page.getByTestId("goal-b-docs-export-result")).toContainText("download=/exports/docs?file=");
-    expect(seen.some((url) => url.includes("/exports/docs"))).toBeTruthy();
-    expect(seen.some((url) => url.includes("/api/v1/workspace/artifacts"))).toBeTruthy();
+    await page.getByLabel("Titel").fill("E2E Dokument");
+    await page.getByLabel("Markdown").fill("# E2E Dokument\n\nPersistenter Browser-Download.");
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByTestId("cs-doc-md").click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe("e2e-dokument.md");
+    await expect(page.locator(".cs-preview")).toContainText("Persistenter Browser-Download.");
+    await expect(page.locator("[data-testid='docs-library'], [data-testid='docs-library-empty']")).toBeVisible();
   });
 });

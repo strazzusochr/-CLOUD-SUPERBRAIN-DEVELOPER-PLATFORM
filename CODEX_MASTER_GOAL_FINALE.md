@@ -40,9 +40,11 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   echte agent-api als Vercel-Python-Function (`/api/v1/health` degraded-ehrlich,
   `/llm/...` + `/mcp/...`-Contracts live). Frontend-Origins umgebogen
   (`X-Superbrain-Source: live-agent-api`).
-- **External Gates: ALLE VERIFIED** — Audit `.phase1-artifacts/external-gate-audit-20260711-124931.json`,
-  `status=verified`, `missing_or_failed=[]`, `production_deploy_claim_allowed=true`.
-  Nur `grafana_cloud=false` (optional, blockiert nicht).
+- **External-Gate-Wahrheit:** Audit `.phase1-artifacts/external-gate-audit-20260711-124931.json`
+  war zum Erzeugungszeitpunkt mit Owner-Tokens `verified`. Der aktuelle no-token Audit
+  `.phase1-artifacts/external-gate-audit-20260711-194215.json` ist `blocked`; aktuelle
+  Produktions-Claims bleiben deshalb false. Der historische Audit ist nur Evidence, keine
+  gegenwärtige Freigabe.
 - **Phase 1 ✔ (1.1–1.5), Phase 2 ✔ (2.1–2.3).** Class-Matrix A=85/B=0/C=5/D=4.
 - **Phase 3 deployt (~80 %):** S1 Build-Log-Grid, S2 Media/Docs-Entflechtung,
   S3 Apps-Kuration, S4 ehrliche Idle-Texte, S5 Hero-Labels, S6 /observe-Ehrlichkeit,
@@ -56,44 +58,45 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
 # ✅ RESTLICHE CHECKLISTE (in dieser Reihenfolge bis grün)
 
 ## PHASE 3 — Rest der Frontend-Politur
-- [ ] **3.5a S7 Sprach-Konsistenz**: DE als Produktsprache durchziehen — verbleibende
+- [x] **3.5a S7 Sprach-Konsistenz**: DE als Produktsprache durchziehen — verbleibende
       EN-Reste in App-Shell/Seitentiteln/Buttons finden und übersetzen; Beweis: Playwright-
       Body-Text-Scan über alle 22 Seiten ohne gemischte EN/DE-Kernbegriffe.
-- [ ] **3.5b S9 Marketplace-Politur**: Karten-Kopfflächen bekommen Icons/Typ-Badges statt
+- [x] **3.5b S9 Marketplace-Politur**: Karten-Kopfflächen bekommen Icons/Typ-Badges statt
       leerer Flächen; Detail/Install-Ergebnis als echtes UI statt Roh-`<pre>`. Beweis:
       Screenshot + Klickpfad (select → details → install dry-run, `provider_writes=false`).
-- [ ] **3.5c Stale-Chip Organism**: `data-source-kind`-Chip dynamisch aus `payload.source_kind`
+- [x] **3.5c Stale-Chip Organism**: `data-source-kind`-Chip dynamisch aus `payload.source_kind`
       rendern (nicht mehr statisch `agent_api_redacted`). Beweis: /organism zeigt korrektes
       Label je Quelle (platform_audit vs. frontend_projection).
 
 ## PHASE 3 — Store-backed Bibliotheken (Kern des „unstrukturiert"-Befunds)
-- [ ] **3.7 Media-Bibliothek**: /media zeigt neben dem Studio eine echte Galerie der im
+- [x] **3.7 Media-Bibliothek**: /media zeigt neben dem Studio eine echte Galerie der im
       GH-Store persistierten Media-/Artifact-Einträge (öffnen/löschen), analog BuildsGallery.
       Beweis: Artifact erzeugen → erscheint in der Galerie (Store-Roundtrip).
-- [ ] **3.8 Dokument-Bibliothek**: /docs-output zeigt neben dem Editor die Liste echter
+- [x] **3.8 Dokument-Bibliothek**: /docs-output zeigt neben dem Editor die Liste echter
       Session-/Dokument-Outputs aus dem Store. Beweis: Store-Roundtrip.
-- [ ] **3.9 /games-Galerie**: gebaute Spiele aus dem Store als Bibliothek listen
+- [x] **3.9 /games-Galerie**: gebaute Spiele aus dem Store als Bibliothek listen
       („In Workbench öffnen" / „Öffnen" → /run/<id>). Beweis: Spiel bauen → gelistet.
 
 ## PHASE 4 — Finale & Wahrheit
-- [ ] **4.1 22-Seiten-Endproof 2.0**: kompletter Hosted-Human-Click-Proof nach allen
+- [x] **4.1 22-Seiten-Endproof 2.0**: kompletter Hosted-Human-Click-Proof nach allen
       Fixes, FAIL=0, PNG+HAR pro Route, gegen die Live-URL.
-- [ ] **4.2 Verifier-Suite grün**: `verify-phase1.ps1`, `verify-browser-contract.ps1`
+- [x] **4.2 Verifier-Suite grün**: `verify-phase1.ps1`, `verify-browser-contract.ps1`
       (DEV), `npm run lint/build`, `npm run test:e2e`, gitleaks — alle grün.
-- [ ] **4.3 Manifest + Spiegel**: `docs/project-progress.manifest.json` NUR mit den neuen
-      Beweisen aktualisieren (Prozente contract-konform, `production_deploy_claim_allowed=true`
-      aus Audit `124931` gespiegelt). PROJECT_STATE/AI_HANDOFF/verification-register synchron.
-- [ ] **4.4 END_ZIEL_GESAMTSPEC §4** „Jetzt"-Zeilen mit dem echten Stand aktualisieren
+- [x] **4.3 Manifest + Spiegel**: `docs/project-progress.manifest.json` NUR mit den neuen
+      Beweisen aktualisieren (Prozente contract-konform; aktuelle Claims aus no-token Audit
+      `194215` gespiegelt). PROJECT_STATE/AI_HANDOFF/verification-register synchron.
+- [x] **4.4 END_ZIEL_GESAMTSPEC §4** „Jetzt"-Zeilen mit dem echten Stand aktualisieren
       (mehrere Seiten übertreffen die alte Spec — belegen).
-- [ ] **4.5 `master-goal-final.md`** schreiben: Vorher/Nachher pro Seite, Evidence-Index,
+- [x] **4.5 `master-goal-final.md`** schreiben: Vorher/Nachher pro Seite, Evidence-Index,
       verbleibende Owner-only-Punkte exakt benannt.
 
 ---
 
 ## ENDZUSTAND (nur diese zwei zählen)
 1. **Alle Haken grün** → `master-goal-final.md` mit Evidence-Index. FERTIG.
-2. Alles Erreichbare grün + Rest NACHWEISLICH owner-only (aktuell: nichts mehr — alle Gates
-   verified; Production-Release-Promotion bleibt bewusste Owner-Entscheidung, kein Bug) →
+2. Alles Erreichbare grün + Rest NACHWEISLICH owner-only (aktueller no-token Audit ist auf
+   Hosted-Agent-API, Branch Protection, Vercel-Origins und Fly-Budget geblockt;
+   Production-Release-Promotion bleibt bewusste Owner-Entscheidung, kein Bug) →
    exakt in `master-goal-final.md` auflisten. Nichts anderes ist ein Ende.
 
 ## DETAIL-REFERENZEN (nur bei Bedarf)

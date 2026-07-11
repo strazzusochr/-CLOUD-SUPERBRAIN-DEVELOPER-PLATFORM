@@ -239,13 +239,15 @@ $frontendHtml = curl.exe -sS "$baseUrl/"
 Assert-Contains "frontend title" $frontendHtml "Cloud Superbrain"
 Assert-Contains "frontend canonical spec marker" $frontendHtml "Canonical platform specification"
 $workbenchHtml = curl.exe -sS "$baseUrl/workbench"
-Assert-Contains "workbench page title" $workbenchHtml "Workbench"
-Assert-Contains "workbench studio title" $workbenchHtml "Main Workbench"
-Assert-Contains "workbench preview tabs" $workbenchHtml "Game View"
-Assert-Contains "workbench app preview mode" $workbenchHtml "App Preview"
-Assert-Contains "workbench video preview mode" $workbenchHtml "Video Preview"
-Assert-Contains "workbench doc preview mode" $workbenchHtml "Doc Preview"
-Assert-Contains "workbench run binding" $workbenchHtml "Run Binding"
+Assert-Contains "workbench page title" $workbenchHtml "Bauen"
+Assert-Contains "workbench studio" $workbenchHtml 'data-testid="workbench-studio"'
+Assert-Contains "workbench preview tab" $workbenchHtml "Vorschau"
+Assert-Contains "workbench code tab" $workbenchHtml "Code"
+Assert-Contains "workbench prompt" $workbenchHtml "App-Erstellung"
+Assert-Contains "workbench build control" $workbenchHtml 'data-testid="ws-build"'
+Assert-Contains "workbench build log" $workbenchHtml "Build-Protokoll"
+Assert-Contains "workbench agent assistance" $workbenchHtml "Agentenhilfe"
+Assert-Contains "workbench mini cortex" $workbenchHtml "Mini-Cortex"
 Assert-NotContains "workbench forbidden sessions panel" $workbenchHtml "Sessions"
 Assert-NotContains "workbench forbidden tasks panel" $workbenchHtml "Tasks"
 Assert-NotContains "workbench forbidden audit panel" $workbenchHtml "Audit"
@@ -294,7 +296,8 @@ Assert-Contains "project progress completion evidence" $projectProgressCompletio
 Assert-Contains "project progress completion cannot set all to 100" $projectProgressCompletion '"can_set_all_to_100":false'
 $projectProgressCompletionJson = $projectProgressCompletion | ConvertFrom-Json
 $projectProgressCompletionMissingGates = @($projectProgressCompletionJson.missing_external_gates | ForEach-Object { [string]$_ })
-Assert-True "project progress completion missing fly gate" ($projectProgressCompletionMissingGates -contains "fly_api_token")
+$projectProgressCompletionUnexpectedGates = @($projectProgressCompletionMissingGates | Where-Object { $_ -notin @("fly_api_token", "vercel_backend_origins") })
+Assert-True "project progress completion missing gates supported" ($projectProgressCompletionUnexpectedGates.Count -eq 0)
 Assert-True "project progress completion missing vercel backend origins gate" ($projectProgressCompletionMissingGates -contains "vercel_backend_origins")
 Assert-Contains "project progress completion fly blocker" $projectProgressCompletion "live_infra_budget_refresh_requires_FLY_API_TOKEN"
 Assert-Contains "project progress completion vercel origins blocker" $projectProgressCompletion "vercel_backend_origins"

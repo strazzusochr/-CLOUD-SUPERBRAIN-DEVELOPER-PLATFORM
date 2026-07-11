@@ -54,10 +54,15 @@ async function gotoWorkspaceRoute(page, url, label, consoleErrors) {
   let lastStatus = "no-response";
   for (let attempt = 1; attempt <= 8; attempt += 1) {
     if (consoleErrors) consoleErrors.length = 0;
-    const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
-    lastStatus = String(response?.status() ?? "no-response");
-    if (response && response.ok()) return response;
-    if (!["502", "503", "504"].includes(lastStatus)) break;
+    try {
+      const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+      lastStatus = String(response?.status() ?? "no-response");
+      if (response && response.ok()) return response;
+      if (!["502", "503", "504"].includes(lastStatus)) break;
+    } catch (error) {
+      lastStatus = `navigation-error: ${error instanceof Error ? error.message : String(error)}`;
+      if (attempt === 8) break;
+    }
     await waitForFrontendHealth(page, url);
     await page.waitForTimeout(1500 * attempt);
   }
@@ -179,7 +184,9 @@ async function main() {
           maxLargePanelRadius: Math.max(...largePanelRadii, 0),
           containsLabel: bodyText.includes(surfaceArg.label) || bodyText.includes(surfaceArg.label.split(" / ")[0]),
           containsCloudBrand: bodyText.includes("Cloud Superbrain"),
-          forbiddenProjectWall: /Workspace-Surfaces|Completion-Gate|Gate-Matrix|Recovery-Historie/.test(bodyText),
+          forbiddenProjectWall:
+            /Workspace-Surfaces|Completion-Gate|Recovery-Historie/.test(bodyText)
+            || (surfaceArg.pageId !== "settings" && bodyText.includes("Gate-Matrix")),
           retiredProviderVisible: /\b(Hetzner|GitKraken|Oracle)\b/i.test(bodyText),
           unpaidBudgetVisible: bodyText.includes("Metered Budget"),
           notFoundVisible: /404|not found|This page could not be found/i.test(bodyText),

@@ -109,7 +109,7 @@ const ORGANISM_COVERAGE_RULES = [
   { tag: "button", textPattern: /^OBSERVABILITY\s+L7$/i, actionLabel: "organism hub OBSERVABILITY" },
   { tag: "button", textPattern: /^MEMORY\s+L6$/i, actionLabel: "organism hub MEMORY" },
   { tag: "button", textPattern: /^CLOUD\s+L2$/i, actionLabel: "organism hub CLOUD" },
-  { tag: "button", textPattern: /Auto-rotate/i, actionLabel: "organism control /Auto-rotate/i" },
+  { tag: "button", textPattern: /Automatisch drehen/i, actionLabel: "organism control /Automatisch drehen/i" },
   { tag: "button", textPattern: /Kamera zurücksetzen/i, actionLabel: "organism control /Kamera zurücksetzen/i" },
   { tag: "button", textPattern: /Weniger Bewegung/i, actionLabel: "organism control /Weniger Bewegung/i" },
   ...["L1 FE", "L2 ORC", "L3 AP", "L4 LLM", "L5 MCP", "L6 MEM", "L7 OBS", "planner", "coder", "tester", "devops"].map((text, index) => ({
@@ -121,25 +121,25 @@ const ORGANISM_COVERAGE_RULES = [
 
 const STRICT_ACTION_COVERAGE = {
   "*": [
-    { tag: "button", ariaLabel: "Suchen oder Kommando ausführen", actionLabel: "cmdk open" },
+    { tag: "button", ariaLabel: "Suchen oder Befehl ausführen", actionLabel: "cmdk open" },
   ],
   "/files": [
-    { tag: "input", ariaLabel: "Memory search query", actionLabel: "files query fill" },
+    { tag: "input", ariaLabel: "Suchbegriff für das Gedächtnis", actionLabel: "files query fill" },
     { tag: "button", testId: "goal-b-files-search", actionLabel: "files search -> /api/v1/memory/search" },
     { tag: "select", ariaLabel: "Live-Daten Endpoint", actionLabel: "live-console select endpoint" },
     { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
     { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/tools": [
-    { tag: "select", ariaLabel: "Read-only tool", actionLabel: "tools select task_router" },
-    { tag: "input", ariaLabel: "Tool query", actionLabel: "tools query fill" },
+    { tag: "select", ariaLabel: "Nur lesendes Tool", actionLabel: "tools select task_router" },
+    { tag: "input", ariaLabel: "Tool-Anfrage", actionLabel: "tools query fill" },
     { tag: "button", testId: "goal-b-tool-execute", actionLabel: "tools execute task_router" },
     { tag: "select", ariaLabel: "MCP/Tools Endpoint", actionLabel: "live-console select endpoint" },
     { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
     { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/marketplace": [
-    { tag: "select", ariaLabel: "Marketplace item", actionLabel: "marketplace select item" },
+    { tag: "select", ariaLabel: "Marktplatz-Eintrag", actionLabel: "marketplace select item" },
     { tag: "button", testId: "goal-b-marketplace-details", actionLabel: "marketplace details dry-run plan" },
     { tag: "button", testId: "goal-b-marketplace-install", actionLabel: "marketplace install dry-run artifact" },
   ],
@@ -220,7 +220,7 @@ const STRICT_ACTION_COVERAGE = {
   ],
   "/files/local": [
     { tag: "button", testId: "goal-b-files-local-contract", actionLabel: "files-local contract probe" },
-    { tag: "button", ariaLabel: "Root project", actionLabel: "files-local root project" },
+    { tag: "button", ariaLabel: "Stammverzeichnis project", actionLabel: "files-local root project" },
   ],
   "/organism/replay": [
     ...ORGANISM_COVERAGE_RULES,
@@ -654,7 +654,7 @@ async function classifyInteractive(page, baseUrl) {
           .slice(0, 240);
         const localFilesMode = Boolean(document.querySelector(".local-files-grid"));
         let classification = "WARN_WEAK";
-        if (disabled && (/(gate|gated|requires|coming soon|dry-run|gesperrt|owner|disabled|read-only)/i.test(explanation) || (localFilesMode && ariaLabel === "Clear search"))) classification = "PASS_DISABLED_EXPLAINED";
+        if (disabled && (/(gate|gated|requires|coming soon|dry-run|gesperrt|deaktiviert|owner|disabled|read-only|nur lesend)/i.test(explanation) || (localFilesMode && ariaLabel === "Suche leeren"))) classification = "PASS_DISABLED_EXPLAINED";
         else if (disabled) classification = "FAIL_DISABLED_UNEXPLAINED";
         else if (tag === "a" && href) {
           try {
@@ -669,9 +669,9 @@ async function classifyInteractive(page, baseUrl) {
         const className = element.getAttribute("class") || "";
         const localFilesWidget = localFilesMode && (
           /(^|\s)(chip|tnode-btn|lrow|tnode)(\s|$)/.test(className)
-          || /^Root\s/i.test(ariaLabel)
-          || ariaLabel === "Search project tree"
-          || /^(Reset search|Copy selection|Clear)$/.test(text)
+          || /^Stammverzeichnis\s/i.test(ariaLabel)
+          || ariaLabel === "Projektbaum durchsuchen"
+          || /^(Suche zurücksetzen|Auswahl kopieren|Leeren)$/.test(text)
           || Boolean(element.closest(".local-files-grid, .tree, .local-search-row"))
         );
         if (!disabled && tag !== "a" && localFilesWidget) classification = "PASS_ACTION_RESULT";
@@ -735,7 +735,7 @@ async function proofWorkbench(page) {
     preview_visible: await studio.locator("[data-testid='ws-frame']").count().then((count) => count === 1),
     terminal_result: /Bytes in \d+s generiert/.test(logText) && /Live-Vorschau bereit/.test(logText),
     artifact_persisted: /(\/run\/|\/builds\/)/.test(artifactText) && /Persistiert/.test(logText),
-    agent_assistance: /Prompt-to-Code/.test(agentText) && /live_provider_calls=false/.test(agentText),
+    agent_assistance: /Prompt-zu-Code/.test(agentText) && /live_provider_calls=false/.test(agentText),
     mini_cortex: /L1-L7/.test(cortexText) && /writes=false/.test(cortexText),
   };
   return { actions, checks };
@@ -754,7 +754,7 @@ async function proofOrganism(page) {
     const button = page.getByRole("button", { name });
     if (await button.count()) actions.push(await clickAndMeasure(page, button.first(), `organism hub ${name}`, { resultSelector, waitForText: "PASS organism_control" }));
   }
-  for (const name of [/Auto-rotate/i, /Kamera zurücksetzen/i, /Weniger Bewegung/i]) {
+  for (const name of [/Automatisch drehen/i, /Kamera zurücksetzen/i, /Weniger Bewegung/i]) {
     const button = page.getByRole("button", { name });
     if (await button.count()) actions.push(await clickAndMeasure(page, button.first(), `organism control ${name}`, { resultSelector, waitForText: "PASS organism_control" }));
   }
@@ -766,7 +766,7 @@ async function proofOrganism(page) {
   const checks = {
     cortex_visible: pixelProbe > 12000,
     runtime_feed: await page.locator("[data-testid='organism-runtime-feed']").count().then((count) => count > 0),
-    no_fake_live: /SPEC|DEV|read-only|no raw details|LIVE/.test(await page.locator("body").innerText()),
+    no_fake_live: /SPEC|DEV|nur lesend|keine Rohdetails|LIVE/i.test(await page.locator("body").innerText()),
   };
   return { actions, checks, cortex_bytes: pixelProbe };
 }
@@ -811,7 +811,7 @@ async function proofFiles(page) {
   await page.waitForTimeout(4000); // GH-store contents API is eventually consistent
   actions.push(await fillAndMeasure(
     page,
-    page.getByLabel("Memory search query"),
+    page.getByLabel("Suchbegriff für das Gedächtnis"),
     "batch2 phase2",
     "files query fill",
     { resultSelector: "[data-testid='goal-b-files-result']", waitForText: "PASS files_query_updated" },
@@ -850,8 +850,8 @@ async function proofFiles(page) {
 
 async function proofTools(page) {
   const actions = [];
-  const selector = page.locator("[data-testid='goal-b-tools-panel'] select[aria-label='Read-only tool']");
-  const input = page.getByLabel("Tool query");
+  const selector = page.locator("[data-testid='goal-b-tools-panel'] select[aria-label='Nur lesendes Tool']");
+  const input = page.getByLabel("Tool-Anfrage");
   const execute = page.locator("[data-testid='goal-b-tool-execute']");
   const resultSelector = "[data-testid='goal-b-tool-result']";
   actions.push(await clickAndMeasure(
@@ -883,14 +883,14 @@ async function proofTools(page) {
   const checks = {
     read_only_execute_endpoint: /✓ ausgeführt · tool=/.test(resultText),
     second_tool_executed: /tool=task_router/.test(resultText),
-    live_mcp_writes_closed: /read-only/i.test(bodyText),
+    live_mcp_writes_closed: /read-only|nur lesend/i.test(bodyText),
   };
   return { actions, checks };
 }
 
 async function proofMarketplace(page) {
   const actions = [];
-  const selector = page.locator("[data-testid='goal-b-marketplace-panel'] select[aria-label='Marketplace item']");
+  const selector = page.locator("[data-testid='goal-b-marketplace-panel'] select[aria-label='Marktplatz-Eintrag']");
   const resultSelector = "[data-testid='goal-b-marketplace-result']";
   if (await selector.count()) {
     const optionValue = await selector.locator("option").nth(1).getAttribute("value").catch(() => null);
@@ -919,7 +919,7 @@ async function proofMarketplace(page) {
   const resultText = await page.locator(resultSelector).innerText();
   const checks = {
     details_visible: /PASS marketplace_details|PASS marketplace_install/.test(resultText),
-    install_artifact_visible: /artifact=/.test(resultText),
+    install_artifact_visible: /Artefakt\s+[0-9a-f-]{36}/i.test(resultText) && /persisted=true/.test(resultText),
     provider_writes_closed: /provider_writes=false/.test(resultText),
   };
   return { actions, checks };
@@ -1238,7 +1238,7 @@ async function proofEvidence(page) {
     progress_integrity_visible: /integrity=verified/.test(resultText),
     evidence_ref_visible: /evidence_ref=/.test(resultText),
     no_secret_or_provider_write: /provider_writes=false/.test(resultText) && /secret_output=false/.test(resultText),
-    claim_guard_visible: /Hard Non-Claims|Claim-Guard|Verifier-Ergebnisse/i.test(bodyText),
+    claim_guard_visible: /Aussage-Schutz|Harte Nichtaussagen|Prüfergebnisse/i.test(bodyText),
   };
   return { actions, checks };
 }
@@ -1291,7 +1291,7 @@ async function proofDesignSystem(page) {
   const bodyText = await page.locator("body").innerText();
   const checks = {
     design_contract_visible: /reference-design-conformance-v1|design.*contract/i.test(resultText),
-    token_board_visible: /Color palette|Typography|Components/i.test(bodyText),
+    token_board_visible: /Farbpalette/i.test(bodyText) && /Typografie/i.test(bodyText) && /Komponenten/i.test(bodyText),
     live_read_completed: actions.some((action) => action.label === "live-console load" && action.class === "PASS_ACTION_RESULT"),
     command_surface_works: actions.some((action) => action.label === "cmdk open" && action.class === "PASS_ACTION_RESULT"),
   };
@@ -1302,8 +1302,8 @@ async function proofTechnology(page) {
   const actions = await proofCmdk(page);
   const bodyText = await page.locator("body").innerText();
   const checks = {
-    seven_layers_visible: /L1/.test(bodyText) && /L7/.test(bodyText) && /7 Layer/.test(bodyText),
-    provider_inventory_visible: /Provider-Surfaces|Cloud-Provider Inventar/.test(bodyText),
+    seven_layers_visible: /L1/.test(bodyText) && /L7/.test(bodyText) && /7 Schichten|7-Schichten/.test(bodyText),
+    provider_inventory_visible: /Provider-Oberflächen|Cloud-Provider-Inventar/.test(bodyText),
     retired_providers_absent: !/\b(Hetzner|GitKraken|Oracle)\b/.test(bodyText),
     command_surface_works: actions.some((action) => action.label === "cmdk open" && action.class === "PASS_ACTION_RESULT"),
   };
@@ -1343,8 +1343,8 @@ async function proofSettings(page) {
   const bodyText = await page.locator("body").innerText();
   const checks = {
     planonly_artifact_visible: /artifact=/.test(resultText) && /apply_allowed=false/.test(resultText),
-    danger_gates_closed: /all_danger_gates=disabled/.test(resultText) && /closed · false/i.test(bodyText),
-    apply_disabled_explained: /Apply gesperrt/i.test(bodyText),
+    danger_gates_closed: /all_danger_gates=disabled/.test(resultText) && /geschlossen · false/i.test(bodyText),
+    apply_disabled_explained: /Anwenden gesperrt/i.test(bodyText),
   };
   return { actions, checks };
 }
@@ -1353,9 +1353,9 @@ async function proofOpenSource(page) {
   const actions = await proofCmdk(page);
   const bodyText = await page.locator("body").innerText();
   const checks = {
-    license_inventory_visible: /core components|licenses|MIT|Apache/i.test(bodyText),
-    open_source_principles_visible: /Self-Hostable|Extensible|Community Powered/.test(bodyText),
-    no_secret_surface: /secrets.*never/i.test(bodyText),
+    license_inventory_visible: /Kernkomponenten/.test(bodyText) && /Lizenzen/.test(bodyText) && /MIT|Apache/i.test(bodyText),
+    open_source_principles_visible: /Selbst hostbar/.test(bodyText) && /Erweiterbar/.test(bodyText) && /Von der Gemeinschaft getragen/.test(bodyText),
+    no_secret_surface: /Provider-Tokens und Secrets gehören nie/i.test(bodyText),
     command_surface_works: actions.some((action) => action.label === "cmdk open" && action.class === "PASS_ACTION_RESULT"),
   };
   return { actions, checks };
@@ -1363,7 +1363,7 @@ async function proofOpenSource(page) {
 
 async function proofFilesLocal(page) {
   const actions = [];
-  const rootWorkspace = page.getByRole("button", { name: "Root workspace" });
+  const rootWorkspace = page.getByRole("button", { name: "Stammverzeichnis workspace" });
   if (await rootWorkspace.count()) {
     actions.push(await clickAndMeasureState(
       page,
@@ -1373,7 +1373,7 @@ async function proofFilesLocal(page) {
       { settle: 300 },
     ));
   }
-  const rootProject = page.getByRole("button", { name: "Root project" });
+  const rootProject = page.getByRole("button", { name: "Stammverzeichnis project" });
   if (await rootProject.count()) {
     actions.push(await clickAndMeasureState(
       page,
@@ -1384,7 +1384,7 @@ async function proofFilesLocal(page) {
     ));
   }
 
-  const search = page.getByLabel("Search project tree");
+  const search = page.getByLabel("Projektbaum durchsuchen");
   actions.push(await fillAndMeasure(page, search, "PROJECT_STATE", "files-local search filter"));
   const searchResult = page.locator(".local-search-row + .list .lrow").filter({ hasText: "PROJECT_STATE.md" }).first();
   if (await searchResult.count()) {
@@ -1396,7 +1396,7 @@ async function proofFilesLocal(page) {
       { settle: 300 },
     ));
   }
-  const copy = page.getByRole("button", { name: "Copy selection" });
+  const copy = page.getByRole("button", { name: "Auswahl kopieren" });
   actions.push(await clickAndMeasureState(
     page,
     copy,
@@ -1410,7 +1410,7 @@ async function proofFilesLocal(page) {
   const checks = {
     local_files_spec_visible: /mode=spec_only/.test(previewText),
     no_host_filesystem_reads: /host_filesystem_mounted=false/.test(previewText) && /live_filesystem_reads=false/.test(previewText),
-    read_only_no_secrets: /provider_writes=false/.test(previewText) && /secret_output=false/.test(previewText) && /\.env|secret paths|read-only/i.test(bodyText),
+    read_only_no_secrets: /provider_writes=false/.test(previewText) && /secret_output=false/.test(previewText) && /\.env|geheime Pfade|nur lesend/i.test(bodyText),
     search_result_selected: /selection=PROJECT_STATE\.md/.test(previewText),
   };
   return { actions, checks };
@@ -1455,7 +1455,7 @@ async function proofOrganismReplay(page) {
     ...base.checks,
     runtime_feed: true,
     replay_frames_visible: framesText.length > 0,
-    replay_events_readonly: replay.ok() && events.ok() && /no raw details|read-only audit projection/i.test(bodyText),
+    replay_events_readonly: replay.ok() && events.ok() && /keine Rohdetails|nur lesende Audit-Projektion/i.test(bodyText),
   };
   return { actions: base.actions, checks, cortex_bytes: base.cortex_bytes };
 }
@@ -1499,7 +1499,7 @@ async function proofOrganismMap(page) {
     runtime_feed: true,
     topology_contract_visible: topology.ok() && /organism-topology-v1/.test(topologyText),
     topology_retired_providers_absent: !/\b(Hetzner|GitKraken|Oracle)\b/.test(topologyText),
-    map_readonly_visible: /Capability-Hubs|Layer-Filter|read-only audit projection/i.test(bodyText),
+    map_readonly_visible: /Fähigkeitszentren|Schichtfilter|nur lesende Audit-Projektion/i.test(bodyText),
   };
   return { actions: base.actions, checks, cortex_bytes: base.cortex_bytes };
 }
@@ -1532,7 +1532,7 @@ async function runRouteProof(page, route) {
 
 async function proofCmdk(page) {
   const actions = [];
-  const button = page.getByRole("button", { name: "Suchen oder Kommando ausführen" });
+  const button = page.getByRole("button", { name: "Suchen oder Befehl ausführen" });
   if (await button.count()) {
     actions.push(await clickAndMeasure(page, button.first(), "cmdk open", { resultSelector: ".cmdk-modal", waitForText: "PASS cmdk_opened", settle: 300 }));
     await page.keyboard.press("Escape").catch(() => undefined);

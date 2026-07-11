@@ -202,7 +202,7 @@ async function main() {
 
   try {
     await gotoWithRetry(page, `${baseUrl}/workbench`, "Workbench page");
-    for (const requiredText of ["Explorer", "Vorschau", "Code", "Build-Log", "Bauen"]) {
+    for (const requiredText of ["Dateien", "Vorschau", "Code", "Build-Protokoll", "Bauen"]) {
       await waitForBodyText(page, requiredText);
     }
     for (const forbiddenText of ["Workspace-Surfaces", "Completion-Gate", "Gate-Matrix", "Recovery-Historie", "Metered Budget"]) {
@@ -242,7 +242,7 @@ async function main() {
       const sourceKind = feed?.getAttribute("data-source-kind") || "";
       return /spec_only|agent_api_redacted|platform_audit/.test(sourceKind);
     }, undefined, { timeout: 15000 });
-    for (const requiredText of ["Kollektiver Organismus", "Live", "Replay", "Karte"]) {
+    for (const requiredText of ["Kollektiver Organismus", "Live", "Wiedergabe", "Karte"]) {
       await waitForBodyText(page, requiredText);
     }
     const organismProbe = await page.evaluate(() => {

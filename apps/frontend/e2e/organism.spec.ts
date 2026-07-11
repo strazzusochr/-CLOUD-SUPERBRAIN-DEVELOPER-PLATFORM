@@ -122,8 +122,8 @@ test.describe("Cloud Superbrain platform", () => {
     await expect(page.getByText("Metered Budget")).toHaveCount(0);
     await expect(page.getByText("paid/metered Capability")).toHaveCount(0);
     await expect(page.getByTestId("workbench-studio")).toBeVisible();
-    await expect(page.getByText("Explorer")).toBeVisible();
-    await expect(page.getByText("Build-Log")).toBeVisible();
+    await expect(page.getByText("Dateien", { exact: true })).toBeVisible();
+    await expect(page.getByText("Build-Protokoll", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Vorschau" })).toBeVisible();
 
     await page.goto("/workbench?billing=paid", { waitUntil: "networkidle" });
@@ -135,14 +135,14 @@ test.describe("Cloud Superbrain platform", () => {
   test("consolidated pages render real content (not re-export shortcuts)", async ({ page }) => {
     await page.goto("/technology", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Fähigkeiten nach Kategorie")).toBeVisible();
-    await expect(page.getByText("Cloud-Provider Inventar")).toBeVisible();
+    await expect(page.getByText("Cloud-Provider-Inventar")).toBeVisible();
 
     await page.goto("/responsive", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Breakpoint-Matrix")).toBeVisible();
     await expect(page.getByText("Accessibility & Reduced Motion")).toBeVisible();
 
     await page.goto("/open-source", { waitUntil: "domcontentloaded" });
-    await expect(page.getByText("core components")).toBeVisible();
+    await expect(page.getByText(/Kernkomponenten und ihre Lizenzen/)).toBeVisible();
     await expect(page.getByText("MIT").first()).toBeVisible();
   });
 
@@ -233,9 +233,9 @@ test.describe("Cloud Superbrain platform", () => {
     const feed = page.getByTestId("organism-runtime-feed");
     await expect(feed).toBeVisible();
     await expect(feed).toHaveAttribute("data-source-kind", /spec_only|agent_api_redacted|platform_audit/);
-    await expect(feed).toContainText(/events/);
-    await expect(feed).toContainText(/read-only audit projection/);
-    await expect(feed).toContainText(/no raw details/);
+    await expect(feed).toContainText(/Runtime-Ereignisse/);
+    await expect(feed).toContainText(/nur lesende Audit-Projektion/);
+    await expect(feed).toContainText(/keine Rohdetails/);
     await expect(feed).not.toContainText(/"details"/);
     await expect(feed).not.toContainText(/user_id/);
     await expect(feed).not.toContainText(/session_id/);

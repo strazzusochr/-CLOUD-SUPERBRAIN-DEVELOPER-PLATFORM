@@ -1208,7 +1208,7 @@ foreach ($required in @("Canonical platform specification", "not live runtime me
   }
 }
 $homeSource = Get-Content -Path "apps\frontend\app\home\page.tsx" -Raw
-foreach ($required in @("Developer Platform", "Produktfläche", "Evidence", "Diagnostics", "Organism", "Studio-Modi", "Core Pages", "Live Claims")) {
+foreach ($required in @("Entwicklerplattform", "Produktfläche", "Nachweise", "Diagnose", "Organismus", "Studio-Modi", "Kernseiten", "Live-Aussagen")) {
   if (-not $homeSource.Contains($required)) {
     throw "Missing clean home product-surface guard: $required"
   }
@@ -1223,7 +1223,7 @@ foreach ($forbidden in @("fetchRecentTasks", "fetchRecentSessions", "fetchAuditR
 $workbenchSource = Get-Content -Path "apps\frontend\app\workbench\page.tsx" -Raw
 $workbenchStudioSource = Get-Content -Path "apps\frontend\components\workbench-studio.tsx" -Raw
 $workbenchSurface = $workbenchSource + "`n" + $workbenchStudioSource
-foreach ($required in @("WorkbenchStudio", "workbench-studio", "wb-composer", "/api/v1/build", "Explorer", "Vorschau", "Build-Log", "terminal-feed", "ws-frame")) {
+foreach ($required in @("WorkbenchStudio", "workbench-studio", "wb-composer", "/api/v1/build", "Dateien", "Vorschau", "Build-Protokoll", "terminal-feed", "ws-frame")) {
   if (-not $workbenchSurface.Contains($required)) {
     throw "Missing clean workbench platform guard: $required"
   }

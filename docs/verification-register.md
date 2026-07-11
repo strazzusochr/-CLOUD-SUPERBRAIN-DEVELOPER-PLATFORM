@@ -11,7 +11,7 @@ Current progress claims are authoritative only when they match `docs/project-pro
 
 Entries below that mention `https://188-34-191-140.sslip.io`, `sslip.io`, or Hetzner-hosted runtime evidence are historical provenance only. They do not close current hosted, Vercel backend-origin, production, release, or cloud-deploy gates. Current hosted gate truth is the latest `external-gate-audit-*` artifact plus a future real Vercel HTTPS `STAGING_BASE_URL` and reachable Fly origins.
 
-Latest current external audit artifact: `.phase1-artifacts/external-gate-audit-20260711-124931.json` — `status=verified`, missing/failed empty. All required external gates including GitHub branch protection (owner PAT, --verify-only) are verified; `production_deploy_claim_allowed=true`. Grafana Cloud optional/unavailable.
+Latest current external audit artifact: `.phase1-artifacts/external-gate-audit-20260711-194215.json` - `status=blocked` in the no-token baseline. Open gates: `hosted_agent_api_contracts`, `github_branch_protection_current_verify`, `vercel_backend_origin_health`, and `fly_live_budget_check`; `production_deploy_claim_allowed=false`. Historical owner-token audit `.phase1-artifacts/external-gate-audit-20260711-124931.json` passed at that time but is not the current reproducible claim.
 
 ## Status Values
 

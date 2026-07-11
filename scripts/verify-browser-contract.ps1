@@ -46,12 +46,29 @@ function Assert-ArrayEquivalent($label, $actual, $expected) {
 function Invoke-Text($url) {
   $python = @'
 import sys
+import time
+import urllib.error
 import urllib.request
 
 sys.stdout.reconfigure(encoding="utf-8")
 url = sys.argv[1]
-with urllib.request.urlopen(url, timeout=30) as response:
-    sys.stdout.write(response.read().decode("utf-8", errors="replace"))
+last_error = None
+for attempt in range(1, 7):
+    try:
+        with urllib.request.urlopen(url, timeout=30) as response:
+            sys.stdout.write(response.read().decode("utf-8", errors="replace"))
+        break
+    except urllib.error.HTTPError as error:
+        last_error = error
+        if error.code not in (502, 503, 504) or attempt == 6:
+            raise
+    except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
+        last_error = error
+        if attempt == 6:
+            raise
+    time.sleep(1.5 * attempt)
+else:
+    raise RuntimeError(f"request failed after retries: {last_error}")
 '@
   $env:PYTHONIOENCODING = "utf-8"
   return ($python | py -3 -X utf8 - $url)
@@ -180,16 +197,16 @@ Assert-Contains "landing title" $landingHtml "Cloud Superbrain"
 Assert-Contains "landing open workbench" $landingHtml "Open Workbench"
 Assert-Contains "landing canonical spec marker" $landingHtml "Canonical platform specification"
 $homeHtml = Invoke-Text "$BaseUrl/home"
-Assert-Contains "home product marker" $homeHtml "Developer Platform"
-Assert-Contains "home evidence wiring marker" $homeHtml "Evidence"
-Assert-Contains "home diagnostics wiring marker" $homeHtml "Diagnostics"
+Assert-Contains "home product marker" $homeHtml "Entwicklerplattform"
+Assert-Contains "home evidence wiring marker" $homeHtml "Nachweise"
+Assert-Contains "home diagnostics wiring marker" $homeHtml "Diagnose"
 Assert-True "home does not surface recent projects" (-not $homeHtml.Contains("Letzte Projekte"))
 Assert-True "home does not surface project workspace status" (-not $homeHtml.Contains("Projektstand"))
 $workbenchHtml = Invoke-Text "$BaseUrl/workbench"
 Assert-Contains "workbench studio marker" $workbenchHtml "workbench-studio"
-Assert-Contains "workbench explorer marker" $workbenchHtml "Explorer"
+Assert-Contains "workbench files marker" $workbenchHtml "Dateien"
 Assert-Contains "workbench preview marker" $workbenchHtml "Vorschau"
-Assert-Contains "workbench build log marker" $workbenchHtml "Build-Log"
+Assert-Contains "workbench build log marker" $workbenchHtml "Build-Protokoll"
 Assert-True "workbench does not surface session list" (-not $workbenchHtml.Contains("Sessions"))
 Assert-True "workbench does not surface completion gate" (-not $workbenchHtml.Contains("Completion-Gate"))
 Assert-True "workbench does not surface workspace status wall" (-not $workbenchHtml.Contains("Workspace-Surfaces"))
@@ -225,7 +242,8 @@ Assert-Contains "project progress completion evidence" $projectProgressCompletio
 Assert-Contains "project progress completion cannot set all to 100" $projectProgressCompletion '"can_set_all_to_100":false'
 $projectProgressCompletionJson = $projectProgressCompletion | ConvertFrom-Json
 $projectProgressCompletionMissingGates = @($projectProgressCompletionJson.missing_external_gates | ForEach-Object { [string]$_ })
-Assert-True "project progress completion missing fly gate" ($projectProgressCompletionMissingGates -contains "fly_api_token")
+$projectProgressCompletionUnexpectedGates = @($projectProgressCompletionMissingGates | Where-Object { $_ -notin @("fly_api_token", "vercel_backend_origins") })
+Assert-True "project progress completion missing gates supported" ($projectProgressCompletionUnexpectedGates.Count -eq 0)
 Assert-Contains "project progress completion fly blocker" $projectProgressCompletion "live_infra_budget_refresh_requires_FLY_API_TOKEN"
 if ($isLocalProof) {
   Assert-True "project progress completion missing local vercel backend origins gate" ($projectProgressCompletionMissingGates -contains "vercel_backend_origins")
