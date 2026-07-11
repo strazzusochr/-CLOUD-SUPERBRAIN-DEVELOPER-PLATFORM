@@ -208,9 +208,9 @@ function VideoTool() {
   );
 }
 
-export function CreatorStudio({ only }: { only?: Tab }) {
-  const [tab, setTab] = useState<Tab>(only ?? "doc");
-  const tabs: Tab[] = only ? [only] : ["doc", "music", "video"];
+export function CreatorStudio({ only, tabs: tabsProp }: { only?: Tab; tabs?: Tab[] }) {
+  const tabs: Tab[] = only ? [only] : (tabsProp && tabsProp.length ? tabsProp : ["doc", "music", "video"]);
+  const [tab, setTab] = useState<Tab>(tabs[0]);
   const labels: Record<Tab, string> = { doc: "Dokument", music: "Musik", video: "Video" };
   return (
     <div className="creator-studio" data-testid="creator-studio">

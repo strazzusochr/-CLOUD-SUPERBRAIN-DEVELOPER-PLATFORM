@@ -12,12 +12,12 @@ export default function MediaPage() {
       <div className="page-wide">
         <PageHeader
           eyebrow="Medien"
-          title="Dokumente · Musik · Video"
-          subtitle="Echte Generierung direkt im Browser — erzeugen und als Datei herunterladen."
+          title="Musik · Video"
+          subtitle="Echte Generierung direkt im Browser — Audio-Synth und Canvas-Clips, als Datei exportierbar. Dokumente entstehen unter Documents."
         />
         <Panel title="Creator Studio" actions={<Badge tone="green">echt · Download</Badge>}>
           <div className="wb-pad">
-            <CreatorStudio />
+            <CreatorStudio tabs={["music", "video"]} />
           </div>
         </Panel>
       </div>

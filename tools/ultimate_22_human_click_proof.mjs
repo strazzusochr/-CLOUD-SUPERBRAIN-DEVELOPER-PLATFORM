@@ -1056,6 +1056,38 @@ async function proofCreatorStudio(page, label) {
   };
 }
 
+async function proofMedia(page) {
+  const actions = [];
+  const studio = page.locator("[data-testid='creator-studio']");
+  const musicTab = studio.locator("[data-testid='cs-tab-music']");
+  if (await musicTab.count()) {
+    actions.push(await clickAndMeasureState(
+      page,
+      musicTab,
+      "media select music tool",
+      async () => await studio.locator("[data-testid='cs-music']").count(),
+      { settle: 250 },
+    ));
+  }
+  const play = studio.locator("[data-testid='cs-music-play']");
+  actions.push(await clickAndMeasureState(
+    page,
+    play,
+    "media music play toggle",
+    async () => /■ Stop/.test(await play.innerText().catch(() => "")),
+    { settle: 500 },
+  ));
+  await play.click().catch(() => undefined);
+  actions.push(await clickAndMeasureDownload(page, studio.locator("[data-testid='cs-music-rec']"), "media music record download"));
+  const checks = {
+    creator_studio_visible: (await studio.count()) === 1,
+    music_engine_ran: actions.some((a) => a.label === "media music play toggle" && a.class === "PASS_ACTION_RESULT"),
+    real_export_downloaded: actions.some((a) => a.label === "media music record download" && a.class === "PASS_ACTION_RESULT"),
+    no_document_duplication: (await studio.locator("[data-testid='cs-tab-doc']").count()) === 0,
+  };
+  return { actions, checks };
+}
+
 async function proofDocsOutput(page) {
   return await proofCreatorStudio(page, "Dokumente");
 }
@@ -1473,7 +1505,7 @@ async function runRouteProof(page, route) {
   if (route === "/marketplace") return await proofMarketplace(page);
   if (route === "/games") return await proofGames(page);
   if (route === "/apps") return await proofApps(page);
-  if (route === "/media") return await proofCreatorStudio(page, "Medien");
+  if (route === "/media") return await proofMedia(page);
   if (route === "/docs-output") return await proofDocsOutput(page);
   if (route === "/observe") return await proofObserve(page);
   if (route === "/evidence") return await proofEvidence(page);
