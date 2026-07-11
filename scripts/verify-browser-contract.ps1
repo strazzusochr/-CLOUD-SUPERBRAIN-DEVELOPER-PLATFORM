@@ -464,7 +464,15 @@ Assert-Contains "live agent steering evidence" $liveAgentSteeringContract "live_
 Assert-Contains "live agent steering llm adapter" $liveAgentSteeringContract "llm-responses-adapter-contract-v1"
 Assert-Contains "live agent steering response no-live" $liveAgentSteeringContract "live_provider_calls"
 Assert-Contains "live agent steering response audit" $liveAgentSteeringContract "audit_persisted"
-& (Join-Path $PSScriptRoot "verify-live-agent-steering-contract.ps1") -BaseUrl $BaseUrl -AllowLocalhost:$AllowLocalhost
+if ($isLocalProof) {
+  & (Join-Path $PSScriptRoot "verify-live-agent-steering-contract.ps1") -BaseUrl $BaseUrl -AllowLocalhost:$AllowLocalhost
+} else {
+  $hostedLiveAgentStatus = Invoke-Text "$BaseUrl/api/v1/live-agents/status"
+  Assert-Contains "hosted live agent status degraded" $hostedLiveAgentStatus '"status":"degraded"'
+  Assert-Contains "hosted live agent status non-live" $hostedLiveAgentStatus '"live_backend":false'
+  Assert-Contains "hosted live agent status empty" $hostedLiveAgentStatus '"agents":[]'
+  Assert-Contains "hosted live agent owner precondition" $hostedLiveAgentStatus "Fly runtime approval or a separately approved Neon/Upstash architecture expansion"
+}
 
 Write-Host "[browser-contract] mcp version pinning contract"
 $mcpVersionPinningContract = Invoke-Text "$BaseUrl/mcp/api/v1/version-pinning/contract"
