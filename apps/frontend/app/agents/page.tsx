@@ -18,19 +18,19 @@ export default function AgentsPage() {
           subtitle="Gib ein Ziel ein — mehrere Agenten arbeiten zusammen (Planner → Researcher → Writer) und liefern eine fundierte, mit Quellen belegte Antwort."
         />
 
-        <Panel title="Deep-Research starten" className="mb-16" actions={<Badge tone="green">echt · live LLM</Badge>}>
+        <Panel title="Deep-Research starten" className="mb-16" actions={<Badge tone="green">echt · Workers AI</Badge>}>
           <div className="wb-pad">
             <AgentRun />
           </div>
         </Panel>
 
-        <Panel title="Das Agenten-Team" actions={<Badge tone="cyan">{AGENTS.length} Rollen</Badge>}>
+        <Panel title="Das Agenten-Team (Zielarchitektur)" actions={<Badge tone="cyan">{AGENTS.length} Rollen · Plan</Badge>}>
           <div className="grid cols-2">
             {AGENTS.map((a) => (
               <div key={a.type} className="agent-team-card">
                 <div className="agent-head">
                   <span className="agent-type">{a.type}</span>
-                  <span className="agent-model mono text-12 text-mut">{a.model}</span>
+                  <span className="agent-model mono text-12 text-mut" title="Ziel-Modell laut Orchestrator-Plan — nicht der aktuell aktive Provider">Ziel: {a.model}</span>
                 </div>
                 <p className="agent-role">{a.role}</p>
               </div>

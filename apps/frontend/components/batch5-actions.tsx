@@ -86,7 +86,7 @@ export function DiagnosticsProbe() {
       label="Audit read-only pruefen"
       testId="goal-b-diagnostics-probe"
       resultId="goal-b-diagnostics-result"
-      initial="waiting_for_diagnostics_probe"
+      initial="Bereit — noch keine Diagnose abgerufen."
       onRun={async () => {
         const body = await getJson("/api/v1/audit/recent");
         const events = Array.isArray(body.events) ? body.events.length : 0;
@@ -110,7 +110,7 @@ export function DesignSystemProbe() {
       label="Design-Contract pruefen"
       testId="goal-b-design-system-probe"
       resultId="goal-b-design-system-result"
-      initial="waiting_for_design_system_probe"
+      initial="Bereit — noch kein Design-Contract gelesen."
       onRun={async () => {
         const body = await getJson("/api/v1/design/reference-contract");
         return [
@@ -132,7 +132,7 @@ export function TechnologyProbe() {
       label="Cloud-Layer pruefen"
       testId="goal-b-technology-probe"
       resultId="goal-b-technology-result"
-      initial="waiting_for_technology_probe"
+      initial="Bereit — noch kein Layer-Status gelesen."
       onRun={async () => {
         const body = await getJson("/api/v1/clouds/layers");
         const text = JSON.stringify(body);
@@ -158,7 +158,7 @@ export function OpenSourceProbe() {
       label="OSS-Wiring pruefen"
       testId="goal-b-open-source-probe"
       resultId="goal-b-open-source-result"
-      initial="waiting_for_open_source_probe"
+      initial="Bereit — noch keine Lizenzdaten gelesen."
       onRun={async () => {
         const body = await getJson("/api/v1/workspace/wiring");
         return [
@@ -180,7 +180,7 @@ export function FilesLocalContractProbe() {
       label="Local-Files Contract pruefen"
       testId="goal-b-files-local-contract"
       resultId="goal-b-files-local-result"
-      initial="waiting_for_files_local_contract"
+      initial="Bereit — noch kein Contract gelesen."
       onRun={async () => {
         const body = await getJson("/api/v1/files/local/contract");
         return [

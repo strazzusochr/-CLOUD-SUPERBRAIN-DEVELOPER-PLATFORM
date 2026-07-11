@@ -642,7 +642,56 @@ if ($hostedBase -and (Test-RetiredHostedBaseUrl $hostedBase)) {
 $gitleaksCommand = Get-Command gitleaks -ErrorAction SilentlyContinue
 $repoLocalGitleaks = Join-Path ".tools\gitleaks" "gitleaks.exe"
 $gitleaksExecutable = if ($gitleaksCommand) { "gitleaks" } elseif (Test-Path $repoLocalGitleaks) { $repoLocalGitleaks } else { $null }
-$gitleaksProbe = Invoke-NativeProcessProbe "canonical_gitleaks_scan" "canonical_gitleaks_scan_clean" $gitleaksExecutable @("detect", "--no-git", "--source", ".", "--config", ".gitleaks.toml", "--redact") ([bool]$gitleaksExecutable) (Get-TimeoutSeconds "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS" 1200)
+if ($gitleaksExecutable) {
+  $gitleaksScanRoot = $null
+  try {
+    $repoRoot = (Resolve-Path ".").Path
+    $tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+    $gitleaksScanRoot = Join-Path $tempRoot ("superbrain-external-gitleaks-scan-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $gitleaksScanRoot | Out-Null
+    $trackedAndUntrackedFiles = git ls-files -z --cached --others --exclude-standard
+    if ($LASTEXITCODE -ne 0) {
+      throw "git ls-files for external gitleaks scan failed"
+    }
+    $scanFileCount = 0
+    foreach ($relativePath in ($trackedAndUntrackedFiles -split "`0")) {
+      if ([string]::IsNullOrWhiteSpace($relativePath)) { continue }
+      $sourcePath = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $relativePath))
+      if (-not $sourcePath.StartsWith($repoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "gitleaks source escaped repo root: $relativePath"
+      }
+      if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) { continue }
+      $targetPath = [System.IO.Path]::GetFullPath((Join-Path $gitleaksScanRoot $relativePath))
+      if (-not $targetPath.StartsWith($gitleaksScanRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "gitleaks target escaped scan root: $relativePath"
+      }
+      $targetParent = Split-Path -Parent $targetPath
+      if (-not (Test-Path -LiteralPath $targetParent)) {
+        New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
+      }
+      Copy-Item -LiteralPath $sourcePath -Destination $targetPath -Force
+      $scanFileCount += 1
+    }
+    if ($scanFileCount -lt 100) {
+      throw "external gitleaks scan mirror unexpectedly small: $scanFileCount files"
+    }
+    $gitleaksProbe = Invoke-NativeProcessProbe "canonical_gitleaks_scan" "canonical_gitleaks_scan_clean" $gitleaksExecutable @("detect", "--no-git", "--source", $gitleaksScanRoot, "--config", ".gitleaks.toml", "--redact", "--timeout", "600") $true (Get-TimeoutSeconds "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS" 900)
+    $gitleaksProbe["scan_file_count"] = $scanFileCount
+  } catch {
+    $gitleaksProbe = New-Probe "canonical_gitleaks_scan" "failed" $true $false "canonical_gitleaks_scan_clean" "" 0 "canonical gitleaks scan preparation failed" $_.Exception.Message
+  } finally {
+    if ($gitleaksScanRoot -and (Test-Path -LiteralPath $gitleaksScanRoot)) {
+      $resolvedScanRoot = (Resolve-Path -LiteralPath $gitleaksScanRoot).Path
+      $tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+      if (-not $resolvedScanRoot.StartsWith($tempRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove non-temp external gitleaks scan root: $resolvedScanRoot"
+      }
+      Remove-Item -LiteralPath $resolvedScanRoot -Recurse -Force
+    }
+  }
+} else {
+  $gitleaksProbe = Invoke-NativeProcessProbe "canonical_gitleaks_scan" "canonical_gitleaks_scan_clean" $gitleaksExecutable @("detect", "--no-git", "--source", ".", "--config", ".gitleaks.toml", "--redact") $false (Get-TimeoutSeconds "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS" 900)
+}
 
 $branchTokenConfigured = [bool]$env:BRANCH_PROTECTION_TOKEN
 if ($branchTokenConfigured) {

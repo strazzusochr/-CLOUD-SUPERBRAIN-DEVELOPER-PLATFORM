@@ -2462,6 +2462,9 @@ p {
 .builds-gallery .bg-card:hover { border-color: rgba(43,209,254,0.5); background: rgba(43,209,254,0.07); }
 .builds-gallery .bg-title { font-size: 13px; font-weight: 600; line-height: 1.3; max-height: 2.6em; overflow: hidden; }
 .builds-gallery .bg-model { font-size: 11px; color: var(--text-dim, #8aa0b8); }
+.builds-gallery .bg-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 11px; color: var(--text-dim, #8aa0b8); }
+.builds-gallery .bg-date { color: var(--text-dim, #8aa0b8); }
+.builds-gallery .bg-versions { border: 1px solid rgba(43, 209, 254, 0.35); border-radius: 6px; padding: 0 6px; color: #2bd1fe; }
 .builds-gallery .bg-open { font-size: 12px; color: #2bd1fe; margin-top: 2px; }
 
 /* Home build hero (app/home/page.tsx) */
@@ -2515,6 +2518,9 @@ p {
 .wb-studio .ws-stage-empty { flex: 1; display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center; min-height: 460px; color: var(--text-mut,#9fb3c8); }
 .wb-studio .wb-preview { display: flex; flex-direction: column; }
 .wb-studio .ws-log { flex: 1; overflow: auto; min-height: 220px; }
+/* Studio build log rows hold a single span — the 4-column runtime grid would
+   squeeze it into the 52px time column and break every word (S1). */
+.wb-studio .ws-log .terminal-row { display: block; overflow-wrap: anywhere; }
 .wb-studio .ws-log .terminal-row span.run { color: #2bd1fe; }
 .wb-studio .ws-log .terminal-row span.ok { color: #37f5b5; }
 .wb-studio .ws-log .terminal-row span.err { color: #ff7a7a; }

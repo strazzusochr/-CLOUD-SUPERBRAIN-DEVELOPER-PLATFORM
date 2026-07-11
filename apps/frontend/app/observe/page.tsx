@@ -34,7 +34,12 @@ export default async function ObservePage({ searchParams }: ObservePageProps) {
   const metrics = await fetchMetrics();
   const live = !!metrics;
   const s = metrics?.scalars ?? {};
-  const services = metrics?.services.length ? metrics.services : SERVICES.map((x) => ({ name: x.name, up: true }));
+  // Honest fallback: without real per-service metrics we show the spec list
+  // WITHOUT inventing health (up: null = no live measurement, S6 fix).
+  const servicesLive = (metrics?.services.length ?? 0) > 0;
+  const services: { name: string; up: boolean | null }[] = servicesLive
+    ? metrics!.services
+    : SERVICES.map((x) => ({ name: x.name, up: null }));
   const observabilityEndpoints = showBudget
     ? OBS.endpoints
     : OBS.endpoints.filter((endpoint) => !/\/api\/v1\/(budget|costs)/.test(endpoint));
@@ -71,7 +76,7 @@ export default async function ObservePage({ searchParams }: ObservePageProps) {
               <LiveConsole endpoints={[{ label: "Metrics", path: "/api/v1/metrics" }, { label: "Health", path: "/api/v1/health" }, { label: "Cloud layers", path: "/api/v1/clouds/layers" }]} />
             </div>
           </Panel>
-          <Panel title="Runtime-Service Health" actions={live ? <Badge tone="green">● live</Badge> : <SpecModeBadge mode="spec_only" />}>
+          <Panel title="Runtime-Service Health" actions={servicesLive ? <Badge tone="green">● live</Badge> : <SpecModeBadge mode="spec_only" />}>
             <div className="wb-pad stack gap-9">
               {services.map((svc, i) => {
                 const norm = (n: string) => n.replace(/[-_]/g, "");
@@ -79,9 +84,9 @@ export default async function ObservePage({ searchParams }: ObservePageProps) {
                 const layer = meta ? LAYERS[meta.layer - 1] : LAYERS[0];
                 return (
                   <div key={svc.name} className="svc-row">
-                    <StatusDot tone={svc.up ? "green" : "red"} pulse={svc.up} />
+                    <StatusDot tone={svc.up === true ? "green" : svc.up === false ? "red" : "mut"} pulse={svc.up === true} />
                     <span className="mono text-13">{svc.name}</span>
-                    <span className="svc-meta">{svc.up ? "healthy" : "down"} · {layer.label}</span>
+                    <span className="svc-meta">{svc.up === true ? "healthy" : svc.up === false ? "down" : "Spec · keine Live-Messung"} · {layer.label}</span>
                   </div>
                 );
               })}

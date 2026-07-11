@@ -38,26 +38,26 @@ export function HomeCortexHero() {
         interactive={false}
         showRegions={false}
         nodeCount={520}
-        sourceLabel="DEV-ONLY · HOME CORTEX HERO"
+        sourceLabel="CLIENT-3D · CORTEX HERO"
         className="home-cortex-canvas"
       />
       <div className="home-cortex-footer">
         <span className="badge badge-cyan">glowing 3D cortex</span>
-        <span className="badge badge-amber">DEV-ONLY</span>
-        <span className="badge badge-green">fake_stats=false</span>
+        <span className="badge badge-amber">client-lokal</span>
+        <span className="badge badge-green">keine Fake-Daten</span>
       </div>
     </div>
   );
 }
 
 export function HomeHeroProofPanel() {
-  const [result, setResult] = useState("waiting_for_home_hero_check");
+  const [result, setResult] = useState("Bereit — Prüfung noch nicht gestartet.");
 
   function checkHero() {
     setResult([
       "PASS home_hero_check",
       "visual=glowing_3d_cortex",
-      "source=DEV-ONLY",
+      "source=client_3d",
       "fake_stats=false",
       "live_provider_calls=false",
       "provider_writes=false",
@@ -85,7 +85,7 @@ export function HomeHeroProofPanel() {
 }
 
 export function LoginDryRunPanel() {
-  const [result, setResult] = useState("waiting_for_login_dry_run");
+  const [result, setResult] = useState("Bereit — noch kein Login-Durchlauf.");
 
   function choose(provider: "github" | "google" | "email" | "guest") {
     setResult([
@@ -113,7 +113,7 @@ export function LoginDryRunPanel() {
 }
 
 export function ObserveRuntimeProbe() {
-  const [result, setResult] = useState("waiting_for_observe_probe");
+  const [result, setResult] = useState("Bereit — noch keine Messung abgerufen.");
   const [busy, setBusy] = useState(false);
 
   async function probe() {
@@ -151,7 +151,7 @@ export function ObserveRuntimeProbe() {
 }
 
 export function EvidenceVerifierProbe() {
-  const [result, setResult] = useState("waiting_for_evidence_probe");
+  const [result, setResult] = useState("Bereit — noch kein Verifier-Status gelesen.");
   const [busy, setBusy] = useState(false);
 
   async function probe() {

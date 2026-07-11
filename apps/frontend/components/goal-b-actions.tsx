@@ -129,7 +129,7 @@ export function WorkbenchActionPanel() {
   const [prompt, setPrompt] = useState("Erstellt ein echtes, persistiertes Artefakt mit Evidenz.");
   const [mode, setMode] = useState("game");
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState("waiting_for_click");
+  const [result, setResult] = useState("Bereit — noch keine Aktion ausgeführt.");
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
 
   useEffect(() => {
@@ -197,7 +197,7 @@ export function AgentSteeringPanel({ agents }: { agents: LiveAgentOption[] }) {
     { id: "devops", name: "DevOps", role: "devops" },
   ];
   const [selected, setSelected] = useState(options[0]?.id ?? "planner");
-  const [result, setResult] = useState("waiting_for_agent_click");
+  const [result, setResult] = useState("Bereit — wähle eine Agent-Aktion.");
   const [busy, setBusy] = useState(false);
 
   async function steer() {
@@ -295,7 +295,7 @@ export function AgentSteeringPanel({ agents }: { agents: LiveAgentOption[] }) {
 
 export function FilesSearchPanel() {
   const [query, setQuery] = useState("phase2");
-  const [result, setResult] = useState("waiting_for_search_click");
+  const [result, setResult] = useState("Bereit — gib einen Suchbegriff ein und starte die Suche.");
   const [busy, setBusy] = useState(false);
 
   async function search() {
@@ -332,7 +332,7 @@ export function FilesSearchPanel() {
 export function ToolsReadOnlyPanel() {
   const [tool, setTool] = useState("memory_read");
   const [query, setQuery] = useState("phase2 runtime");
-  const [result, setResult] = useState("waiting_for_tool_execute_click");
+  const [result, setResult] = useState("Bereit — wähle ein Tool und führe es read-only aus.");
   const [busy, setBusy] = useState(false);
 
   async function execute() {
@@ -379,7 +379,7 @@ export function ToolsReadOnlyPanel() {
 export function MarketplaceActionPanel({ itemNames }: { itemNames: string[] }) {
   const first = itemNames[0] ?? "planner";
   const [item, setItem] = useState(first);
-  const [result, setResult] = useState("waiting_for_marketplace_click");
+  const [result, setResult] = useState("Bereit — wähle einen Eintrag für Details oder Install (dry-run).");
   const [busy, setBusy] = useState(false);
   const options = useMemo(() => Array.from(new Set([first, ...itemNames])).slice(0, 24), [first, itemNames]);
 
@@ -463,7 +463,7 @@ export function MarketplaceCardGrid({ items }: { items: MarketplaceCardItem[] })
 }
 
 export function WorkspaceModeActionPanel({ mode, label }: { mode: "games" | "apps" | "media" | "docs-output"; label: string }) {
-  const [result, setResult] = useState(`waiting_for_${mode}_action`);
+  const [result, setResult] = useState("Bereit — starte eine Aktion.");
   const [busy, setBusy] = useState(false);
 
   async function create() {
@@ -533,7 +533,7 @@ export function DocsExportPanel({
   projectId?: string;
   sessionId?: string | null;
 }) {
-  const [result, setResult] = useState("waiting_for_export_click");
+  const [result, setResult] = useState("Bereit — wähle ein Export-Format.");
   const [busy, setBusy] = useState(false);
 
   async function exportFile(format: "pdf" | "md") {
@@ -621,7 +621,7 @@ export function DocsExportPanel({
 }
 
 export function SettingsGatePlanPanel() {
-  const [result, setResult] = useState("waiting_for_planonly_click");
+  const [result, setResult] = useState("Bereit — PlanOnly-Prüfung noch nicht gestartet.");
   const [busy, setBusy] = useState(false);
 
   async function plan() {
