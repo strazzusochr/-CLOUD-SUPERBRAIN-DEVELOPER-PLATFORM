@@ -58,7 +58,13 @@ try {
   $startPayload = $startResponse.Content | ConvertFrom-Json
 } catch {
   $startStatus = [int]$_.Exception.Response.StatusCode
-  $startPayload = $_.ErrorDetails.Message | ConvertFrom-Json
+  $errorBody = [string]$_.ErrorDetails.Message
+  if (-not $errorBody -and $null -ne $_.Exception.Response) {
+    $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+    try { $errorBody = $reader.ReadToEnd() } finally { $reader.Dispose() }
+  }
+  if (-not $errorBody) { throw "Phase-2 start guard returned HTTP $startStatus without a JSON body." }
+  $startPayload = $errorBody | ConvertFrom-Json
 }
 $startPassed = (
   $startStatus -eq 503 -and
