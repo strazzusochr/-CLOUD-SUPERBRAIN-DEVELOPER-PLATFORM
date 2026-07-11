@@ -167,7 +167,8 @@ if (-not $BaseUrl) {
 }
 
 $BaseUrl = $BaseUrl.TrimEnd("/")
-if ((-not $AllowLocalhost) -and ($BaseUrl -match "localhost|127\.0\.0\.1|\[::1\]")) {
+$isLocalProof = $BaseUrl -match "localhost|127\.0\.0\.1|\[::1\]"
+if ((-not $AllowLocalhost) -and $isLocalProof) {
   throw "Browser contract proof refuses localhost unless -AllowLocalhost is set"
 }
 
@@ -225,9 +226,13 @@ Assert-Contains "project progress completion cannot set all to 100" $projectProg
 $projectProgressCompletionJson = $projectProgressCompletion | ConvertFrom-Json
 $projectProgressCompletionMissingGates = @($projectProgressCompletionJson.missing_external_gates | ForEach-Object { [string]$_ })
 Assert-True "project progress completion missing fly gate" ($projectProgressCompletionMissingGates -contains "fly_api_token")
-Assert-True "project progress completion missing vercel backend origins gate" ($projectProgressCompletionMissingGates -contains "vercel_backend_origins")
 Assert-Contains "project progress completion fly blocker" $projectProgressCompletion "live_infra_budget_refresh_requires_FLY_API_TOKEN"
-Assert-Contains "project progress completion vercel origins blocker" $projectProgressCompletion "vercel_backend_origins"
+if ($isLocalProof) {
+  Assert-True "project progress completion missing local vercel backend origins gate" ($projectProgressCompletionMissingGates -contains "vercel_backend_origins")
+  Assert-Contains "project progress completion local vercel origins blocker" $projectProgressCompletion "vercel_backend_origins"
+} else {
+  Assert-True "project progress completion hosted vercel backend origins gate closed" (-not ($projectProgressCompletionMissingGates -contains "vercel_backend_origins"))
+}
 Assert-Contains "project progress completion local gap blocker" $projectProgressCompletion "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 
 Write-Host "[browser-contract] layer interface contracts"
@@ -411,8 +416,15 @@ $agentActivityContract = Invoke-Text "$BaseUrl/api/v1/agent-activity/contract"
 Assert-Contains "agent activity contract version" $agentActivityContract '"contract_version":"agent-activity-trace-v1"'
 Assert-Contains "agent activity filtered feed evidence" $agentActivityContract "agent_activity_filtered_feed_visible"
 $agentActivityFeed = Invoke-Text "$BaseUrl/api/v1/agent-activity/recent?limit=5&severity=info"
-Assert-Contains "agent activity feed contract" $agentActivityFeed '"contract_version":"agent-activity-trace-v1"'
-Assert-Contains "agent activity feed mode" $agentActivityFeed '"mode":"audit_log_backed_filtered_feed"'
+if ($isLocalProof) {
+  Assert-Contains "agent activity feed contract" $agentActivityFeed '"contract_version":"agent-activity-trace-v1"'
+  Assert-Contains "agent activity feed mode" $agentActivityFeed '"mode":"audit_log_backed_filtered_feed"'
+} else {
+  Assert-Contains "hosted agent activity projection contract" $agentActivityFeed '"contract_version":"agent-activity-github-audit-projection-v1"'
+  Assert-Contains "hosted agent activity projection source" $agentActivityFeed '"source":"github-store"'
+  Assert-Contains "hosted agent activity projection read-only" $agentActivityFeed '"read_only":true'
+  Assert-Contains "hosted agent activity projection non-live" $agentActivityFeed '"live_backend":false'
+}
 
 Write-Host "[browser-contract] task assignment queue contract"
 $taskAssignmentContract = Invoke-Text "$BaseUrl/api/v1/tasks/assignment-contract"
@@ -470,7 +482,12 @@ Assert-Contains "mcp version pinning no live write" $mcpVersionPinningContract "
 Write-Host "[browser-contract] memory embedding consistency contract"
 $memoryEmbeddingConsistencyContract = Invoke-Text "$BaseUrl/api/v1/memory/embedding-consistency/contract"
 Assert-Contains "memory embedding consistency version" $memoryEmbeddingConsistencyContract '"contract_version":"memory-embedding-consistency-v1"'
-Assert-Contains "memory embedding consistency status" $memoryEmbeddingConsistencyContract '"status":"verified"'
+if ($isLocalProof) {
+  Assert-Contains "memory embedding consistency status" $memoryEmbeddingConsistencyContract '"status":"verified"'
+} else {
+  Assert-Contains "hosted memory embedding consistency honest blocked status" $memoryEmbeddingConsistencyContract '"status":"blocked"'
+  Assert-Contains "hosted memory embedding consistency no database" $memoryEmbeddingConsistencyContract '"generation_mode":"disabled_until_live_embedding_gate"'
+}
 Assert-Contains "memory embedding consistency evidence" $memoryEmbeddingConsistencyContract '"evidence_ref":"memory_embedding_consistency_contract_visible"'
 Assert-Contains "memory embedding consistency gap" $memoryEmbeddingConsistencyContract '"audit_gap":"L-09"'
 Assert-Contains "memory embedding consistency column" $memoryEmbeddingConsistencyContract '"embedding_model_version"'
@@ -624,6 +641,7 @@ Assert-Contains "external gate mirror production blocked" $externalGateMirror '"
 Assert-Contains "external gate mirror sse contract" $externalGateMirror "phase2-sse-event-contract-v1"
 Assert-Contains "external gate mirror project progress proof" $externalGateMirror "project_progress_manifest_proof"
 
+if ($isLocalProof) {
 Write-Host "[browser-contract] Start Phase 2 Runtime"
 $phase2RuntimeThreadId = "browser-contract-phase2-runtime-" + [Guid]::NewGuid().ToString("N")
 $phase2RuntimeBody = @{
@@ -712,6 +730,12 @@ Assert-True "session history audit events visible" (@($sessionHistory.audit_even
 Assert-True "session history project progress visible" ($sessionHistory.project_progress.overall_percent -eq $expectedOverallPercent)
 Assert-True "session history integrity verified" ($sessionHistory.project_progress_integrity.status -eq "verified")
 Assert-True "session history integrity evidence" ($sessionHistory.project_progress_integrity.evidence_ref -eq "project_progress_integrity_runtime_proof")
+} else {
+  Write-Host "[browser-contract] Hosted Phase 2 Runtime mutation skipped (stateless read-only contract origin)"
+  $hostedPhase2RuntimeContract = Invoke-Text "$BaseUrl/api/v1/phase2/runtime/contract"
+  Assert-Contains "hosted phase2 runtime contract version" $hostedPhase2RuntimeContract '"contract_version":"phase2-runtime-v1"'
+  Assert-Contains "hosted phase2 runtime no live provider" $hostedPhase2RuntimeContract '"live_provider_calls":false'
+}
 
 if ($SeedMemoryConsolidation) {
   Write-Host "[browser-contract] Memory Consolidation: seed memory consolidation"

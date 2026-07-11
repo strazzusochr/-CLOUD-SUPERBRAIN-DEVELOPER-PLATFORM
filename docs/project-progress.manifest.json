@@ -97,10 +97,10 @@
   },
   "truth_policy": "Evidence-based only: percentages increase only after code, runtime proof, and verifier/doc update.",
   "binding_document": "docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md",
-  "last_verified": "2026-06-09",
+  "last_verified": "2026-07-11",
   "non_claims": [
-    "No live LLM provider calls are verified.",
-    "No production deployment is verified.",
+    "No live LLM provider calls are enabled in the stateless backend gateway; hosted Cloudflare Workers AI has separate frontend proof.",
+    "No production release readiness or release promotion is verified.",
     "No Phase 2 full runtime is complete.",
     "Unexpected response type is not a completion or failure claim; backend smoke/status evidence is still required."
   ]
