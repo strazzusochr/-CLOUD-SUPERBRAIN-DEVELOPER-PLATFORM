@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { Icon } from "../lib/nav";
 
 const PROJECT_ID = "goal-b-local";
 
@@ -379,18 +380,38 @@ export function ToolsReadOnlyPanel() {
 export function MarketplaceActionPanel({ itemNames }: { itemNames: string[] }) {
   const first = itemNames[0] ?? "planner";
   const [item, setItem] = useState(first);
-  const [result, setResult] = useState("Bereit — wähle einen Eintrag für Details oder eine Installation im Dry-Run.");
+  const [result, setResult] = useState<MarketplaceResult>({
+    state: "idle",
+    marker: "Bereit",
+    item: first,
+    message: "Wähle einen Eintrag und öffne seine Einzelheiten oder plane die Installation im Dry-Run.",
+    providerWrites: false,
+  });
   const [busy, setBusy] = useState(false);
   const options = useMemo(() => Array.from(new Set([first, ...itemNames])).slice(0, 24), [first, itemNames]);
 
   async function details() {
-    setResult(`PASS marketplace_details\nitem=${item}\nmode=dry_run_plan\nprovider_writes=false`);
+    setResult({
+      state: "details",
+      marker: "PASS marketplace_details",
+      item,
+      message: "Katalogdetails geladen. Diese Ansicht liest nur lokale Katalogdaten und führt keine Provider-Aktion aus.",
+      providerWrites: false,
+    });
   }
 
   async function install() {
     setBusy(true);
+    setResult({
+      state: "installing",
+      marker: "Installationsplan wird erstellt",
+      item,
+      message: "Der lokale Dry-Run-Plan wird als Artefakt gespeichert.",
+      providerWrites: false,
+    });
     try {
-      const artifact = await createArtifact({
+      const body = await postJson("/api/v1/workspace/artifacts", {
+        project_id: PROJECT_ID,
         source_page: "marketplace",
         artifact_type: "marketplace_install_plan",
         title: `Installationsplan: ${item}`,
@@ -398,9 +419,30 @@ export function MarketplaceActionPanel({ itemNames }: { itemNames: string[] }) {
         status: "planned",
         metadata: { item, provider_writes: false, registry_pull: false },
       });
-      setResult(`PASS marketplace_install\nitem=${item}\nartifact=${artifact.id}\nstatus=${artifact.status}\nprovider_writes=false`);
+      const artifact = body.artifact && typeof body.artifact === "object" ? body.artifact as Artifact : null;
+      const persisted = Boolean(artifact?.id);
+      const source = String(body.source ?? (persisted ? "workspace-store" : "frontend-projection"));
+      setResult({
+        state: "installed",
+        marker: "PASS marketplace_install",
+        item,
+        message: persisted
+          ? "Installationsplan gespeichert. Es wurde nichts bei einem externen Provider verändert."
+          : "Installationsplan angenommen, aber ohne konfigurierten Store nicht persistiert.",
+        artifactId: artifact?.id,
+        artifactStatus: artifact?.status,
+        persisted,
+        source,
+        providerWrites: false,
+      });
     } catch (err) {
-      setResult(`FAIL marketplace_install\n${err instanceof Error ? err.message : String(err)}`);
+      setResult({
+        state: "error",
+        marker: "FAIL marketplace_install",
+        item,
+        message: err instanceof Error ? err.message : String(err),
+        providerWrites: false,
+      });
     } finally {
       setBusy(false);
     }
@@ -414,16 +456,87 @@ export function MarketplaceActionPanel({ itemNames }: { itemNames: string[] }) {
           value={item}
           onChange={(event) => {
             setItem(event.target.value);
-            setResult(`PASS marketplace_select\nitem=${event.target.value}\nmode=dry_run_plan\nprovider_writes=false`);
+            setResult({
+              state: "selected",
+              marker: "PASS marketplace_select",
+              item: event.target.value,
+              message: "Eintrag ausgewählt. Einzelheiten und Installationsplan stehen bereit.",
+              providerWrites: false,
+            });
           }}
         >
           {options.map((name) => <option key={name} value={name}>{name}</option>)}
         </select>
-        <button className="btn btn-sm btn-ghost" type="button" data-testid="goal-b-marketplace-details" onClick={details}>Einzelheiten</button>
-        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-marketplace-install" onClick={install} disabled={busy}>Installieren</button>
+        <button className="btn btn-sm btn-ghost" type="button" data-testid="goal-b-marketplace-details" onClick={details}>
+          {Icon.search({ size: 14 })} Einzelheiten
+        </button>
+        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-marketplace-install" onClick={install} disabled={busy}>
+          {Icon.bolt({ size: 14 })} {busy ? "Wird geplant" : "Installieren"}
+        </button>
       </div>
-      <ActionResult state={result} testId="goal-b-marketplace-result" />
+      <MarketplaceResultPanel result={result} />
     </div>
+  );
+}
+
+type MarketplaceResult = {
+  state: "idle" | "selected" | "details" | "installing" | "installed" | "error";
+  marker: string;
+  item: string;
+  message: string;
+  artifactId?: string;
+  artifactStatus?: string;
+  persisted?: boolean;
+  source?: string;
+  providerWrites: false;
+};
+
+const MARKETPLACE_KIND: Record<string, { icon: keyof typeof Icon; tone: "cyan" | "green" | "amber" | "violet"; label: string }> = {
+  Skill: { icon: "bolt", tone: "cyan", label: "Skill" },
+  Agent: { icon: "agents", tone: "violet", label: "Agent" },
+  MCP: { icon: "tools", tone: "amber", label: "MCP" },
+  Modell: { icon: "organism", tone: "green", label: "Modell" },
+};
+
+function marketplaceItemParts(item: string) {
+  const separator = item.indexOf(":");
+  const kind = separator >= 0 ? item.slice(0, separator) : "Skill";
+  const name = separator >= 0 ? item.slice(separator + 1) : item;
+  return { kind, name, visual: MARKETPLACE_KIND[kind] ?? MARKETPLACE_KIND.Skill };
+}
+
+function MarketplaceResultPanel({ result }: { result: MarketplaceResult }) {
+  const { kind, name, visual } = marketplaceItemParts(result.item);
+  const tone = result.state === "error" ? "red" : result.state === "installed" ? "green" : visual.tone;
+  return (
+    <section
+      className={`marketplace-result marketplace-result-${result.state}`}
+      data-testid="goal-b-marketplace-result"
+      data-result-state={result.state}
+      aria-live="polite"
+    >
+      <div className="marketplace-result-head">
+        <span className={`marketplace-result-icon marketplace-tone-${tone}`} aria-hidden="true">
+          {Icon[visual.icon]({ size: 20 })}
+        </span>
+        <div className="marketplace-result-copy">
+          <span className="marketplace-result-marker mono">{result.marker}</span>
+          <strong>{name || result.item}</strong>
+        </div>
+        <MiniBadge tone={tone}>{visual.label}</MiniBadge>
+      </div>
+      <p>{result.message}</p>
+      <dl className="marketplace-result-grid">
+        <div><dt>Eintrag</dt><dd className="mono">{result.item}</dd></div>
+        <div><dt>Modus</dt><dd>Dry-Run-Plan</dd></div>
+        <div><dt>Provider-Schreibzugriffe</dt><dd className="mono">provider_writes={String(result.providerWrites)}</dd></div>
+        {result.artifactId ? <div><dt>Artefakt</dt><dd className="mono">{result.artifactId}</dd></div> : null}
+        {result.artifactStatus ? <div><dt>Artefaktstatus</dt><dd>{result.artifactStatus}</dd></div> : null}
+        {typeof result.persisted === "boolean" ? <div><dt>Persistenz</dt><dd className="mono">persisted={String(result.persisted)}</dd></div> : null}
+        {result.source ? <div><dt>Datenquelle</dt><dd className="mono">{result.source}</dd></div> : null}
+        <div><dt>Kategorie</dt><dd>{kind}</dd></div>
+      </dl>
+    </section>
   );
 }
 
@@ -441,10 +554,14 @@ export function MarketplaceCardGrid({ items }: { items: MarketplaceCardItem[] })
       <div className="card-grid" data-testid="marketplace-card-grid">
         {safeItems.map((it) => {
           const key = `${it.kind}:${it.name}`;
+          const visual = MARKETPLACE_KIND[it.kind] ?? MARKETPLACE_KIND.Skill;
           return (
             <div key={key} className="gcard">
-              <div className="preview">
-                <MiniBadge tone="mut">{it.kind}</MiniBadge>
+              <div className={`preview marketplace-card-preview marketplace-kind-${it.kind.toLowerCase()}`}>
+                <span className={`marketplace-card-icon marketplace-tone-${visual.tone}`} aria-hidden="true">
+                  {Icon[visual.icon]({ size: 28 })}
+                </span>
+                <MiniBadge tone={visual.tone}>{visual.label}</MiniBadge>
               </div>
               <div className="body">
                 <h3 className="mono marketplace-card-title">{it.name}</h3>

@@ -36,10 +36,16 @@ const MODEL_DESCRIPTIONS: Record<string, string> = {
   "deepseek-ai/DeepSeek-V4-Flash": "Primärmodell für DevOps.",
 };
 
+const MCP_SCOPE_DESCRIPTIONS = {
+  read: "nur lesend",
+  scoped_write: "begrenztes Schreiben",
+  gated: "durch Gate geschützt",
+} as const;
+
 const ITEMS: { name: string; kind: Kind; desc: string }[] = [
   ...SKILLS.map((s) => ({ name: s.id, kind: "Skill" as const, desc: SKILL_DESCRIPTIONS[s.id] ?? s.purpose })),
   ...AGENTS.map((a) => ({ name: a.type, kind: "Agent" as const, desc: AGENT_DESCRIPTIONS[a.type] ?? a.role })),
-  ...MCP_TOOLS.map((t) => ({ name: t.id, kind: "MCP" as const, desc: `Schicht ${t.layer} · ${t.scope.replace("_", " ")}` })),
+  ...MCP_TOOLS.map((t) => ({ name: t.id, kind: "MCP" as const, desc: `Schicht ${t.layer} · ${MCP_SCOPE_DESCRIPTIONS[t.scope]}` })),
   ...MODELS.map((m) => ({ name: m.id, kind: "Modell" as const, desc: MODEL_DESCRIPTIONS[m.id] ?? m.role })),
 ];
 
