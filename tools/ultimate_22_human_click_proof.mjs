@@ -167,7 +167,8 @@ const STRICT_ACTION_COVERAGE = {
     { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/home": [
-    { tag: "button", testId: "goal-b-home-hero-proof", actionLabel: "home cortex proof" },
+    { tag: "select", ariaLabel: "Live-Daten Endpoint", actionLabel: "live-console select endpoint" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
     { tag: "select", ariaLabel: "Live-Daten Endpoint", actionLabel: "live-console select endpoint" },
     { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
     { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
@@ -684,8 +685,10 @@ async function proofWorkbench(page) {
 async function proofOrganism(page) {
   const actions = [];
   const resultSelector = "[data-testid='batch1-organism-action-result']";
-  for (const name of ["RUHE", "PLANUNG", "AUSFÜHRUNG", "PRÜFUNG", "BLOCKIERT"]) {
-    const button = page.getByRole("button", { name });
+  for (const [state, name] of [["idle", "RUHE"], ["planning", "PLANUNG"], ["executing", "AUSFÜHRUNG"], ["verifying", "PRÜFUNG"], ["blocked", "BLOCKIERT"]]) {
+    const button = (await page.locator(`[data-testid='organism-run-state-${state}']`).count())
+      ? page.locator(`[data-testid='organism-run-state-${state}']`)
+      : page.locator(".organism-mode-bar .state-btn").filter({ hasText: name });
     if (await button.count()) actions.push(await clickAndMeasure(page, button.first(), `organism run-state ${name}`, { resultSelector, waitForText: "PASS organism_control" }));
   }
   for (const name of ["WERKBANK", "AGENTEN", "TOOLS / MCP", "MODELLE", "MARKTPLATZ", "OBSERVABILITY", "MEMORY", "CLOUD"]) {
@@ -955,13 +958,6 @@ async function proofDocsOutput(page) {
 
 async function proofHome(page) {
   const actions = [];
-  const resultSelector = "[data-testid='goal-b-home-result']";
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='goal-b-home-hero-proof']"),
-    "home cortex proof",
-    { resultSelector, waitForText: "PASS home_hero_check" },
-  ));
   const consoleSelect = page.getByLabel("Live-Daten Endpoint");
   if (await consoleSelect.count()) {
     const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
@@ -979,14 +975,14 @@ async function proofHome(page) {
     "live-console copy",
     { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
   ));
-  const resultText = await page.locator(resultSelector).innerText();
+  const consoleText = await page.locator("[data-testid='live-console'] .lc-out").innerText();
   const bodyText = await page.locator("body").innerText();
   const heroBytes = await page.locator("[data-testid='batch4-home-cortex-hero']").screenshot().then((buffer) => buffer.length).catch(() => 0);
   const checks = {
     glowing_cortex_hero_visible: heroBytes > 12000,
-    dev_only_no_fake_stats: /DEV-ONLY/.test(bodyText) && /fake_stats=false/.test(`${bodyText}\n${resultText}`),
+    dev_only_no_fake_stats: /DEV-ONLY/.test(bodyText) && /fake_stats=false/.test(bodyText),
     no_project_status_wall: !/Project Progress|Projektstand|Gate-Matrix|Recovery-Historie|Workspace-Surfaces/.test(bodyText),
-    home_action_result: /PASS home_hero_check/.test(resultText) && /live_provider_calls=false/.test(resultText),
+    home_action_result: actions.some((action) => action.label === "live-console load" && action.class === "PASS_ACTION_RESULT") && consoleText.length > 0,
   };
   return { actions, checks, hero_bytes: heroBytes };
 }
@@ -1436,6 +1432,9 @@ async function proofCmdk(page) {
 async function main() {
   const args = parseArgs(process.argv);
   const batchName = batchNameFromOut(args.out);
+  const evidenceRoot = path.relative(repoRoot, args.out).replace(/\\/g, "/");
+  const localBaseUrl = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/|$)/i.test(args.baseUrl);
+  const proofScope = localBaseUrl ? "DEV-ONLY localhost proof." : "HTTPS hosted proof.";
   ensureCanonicalRoutes(args.routes, batchName, args.selfCheck);
   if (args.selfCheck) {
     writeJson(path.join(args.out, "tool-contract.json"), CONTRACT);
@@ -1469,7 +1468,7 @@ async function main() {
     routes: [],
     fail_count: 0,
     generated_at: new Date().toISOString(),
-    non_claims: ["DEV-ONLY localhost proof.", "No cloud mutation.", "No live LLM call.", "No live MCP write.", "No secret output."],
+    non_claims: [proofScope, "No cloud mutation.", "No live LLM call.", "No live MCP write.", "No secret output."],
   };
 
   try {
@@ -1567,7 +1566,7 @@ async function main() {
     return `| ${route.route} | ${route.http_status} | ${route.visual_reference_checked ? "true" : "false"} | ${route.readiness_percent}% | ${route.action_readiness_percent}% | ${route.fail_count} | ${counts.pass_action} | ${counts.pass_navigation} | ${counts.disabled_explained} | ${counts.warnings} | ${counts.action_covered_warnings ?? 0} |`;
   });
   const reportMd = [
-    `# Goal D2 ${batchName.replace(/^batch/, "Batch ")} Human Click Proof`,
+    `# ${batchName.replace(/^batch/, "Batch ")} Human Click Proof`,
     "",
     `Base URL: ${args.baseUrl}`,
     `Routes: ${args.routes.join(", ")}`,
@@ -1575,8 +1574,7 @@ async function main() {
     "",
     "## Step 0 Evidence",
     "",
-    `- Cloud-layer resync: \`.codex/runs/CURRENT/goal-d2/${batchName}/cloud-layers-resync.json\``,
-    `- K1-K6 tool contract: \`.codex/runs/CURRENT/goal-d2/${batchName}/tool-contract.json\``,
+    `- K1-K6 tool contract: \`${evidenceRoot}/tool-contract.json\``,
     "- Stability: health retry, 60s navigation timeout, networkidle best-effort, retry for 502/503/504/net errors.",
     "",
     "## Route Readiness",
@@ -1606,7 +1604,7 @@ async function main() {
     ...(args.routes.includes("/apps") ? ["- `/apps`: common artifact pipeline creates a local app artifact with `provider_writes=false`."] : []),
     ...(args.routes.includes("/media") ? ["- `/media`: common artifact pipeline creates a local media artifact with `provider_writes=false`; no fake media generation."] : []),
     ...(args.routes.includes("/docs-output") ? ["- `/docs-output`: common document artifact plus PDF/MD export PlanOnly artifacts through `/api/v1/workspace/artifacts`, `provider_writes=false`."] : []),
-    ...(args.routes.includes("/home") ? ["- `/home`: DEV-ONLY glowing cortex hero screenshot plus visible `PASS home_hero_check`; no fake live stats or project-status wall."] : []),
+    ...(args.routes.includes("/home") ? ["- `/home`: cortex hero screenshot plus a real read-only Live Console request; no fake live stats or project-status wall."] : []),
     ...(args.routes.includes("/login") ? ["- `/login`: GitHub, Google, Email, and Guest buttons are dry-run controls with `live_oauth=false`, `provider_writes=false`, and `secret_output=false`."] : []),
     ...(args.routes.includes("/observe") ? ["- `/observe`: read-only metrics contract probe calls `GET /api/v1/metrics/contract`; traffic chart remains explicitly spec-only."] : []),
     ...(args.routes.includes("/evidence") ? ["- `/evidence`: read-only verifier probe calls `GET /api/v1/platform/verify` and `GET /api/v1/project/progress/integrity`."] : []),
@@ -1621,7 +1619,7 @@ async function main() {
     "",
     "## Evidence Artifacts",
     "",
-    `- HAR: \`.codex/runs/CURRENT/goal-d2/${batchName}/har/${batchName}-human-click-proof.har\``,
+    `- HAR: \`${evidenceRoot}/har/${batchName}-human-click-proof.har\``,
     ...report.routes.flatMap((route) => [
       `- ${route.route} before: \`${route.screenshots.before}\``,
       `- ${route.route} after: \`${route.screenshots.after}\``,
@@ -1629,13 +1627,13 @@ async function main() {
     "",
     "## Remaining Owner/Cloud Blockers",
     "",
-    "- Hosted staging proof remains blocked until real HTTPS `STAGING_BASE_URL` exists.",
+    ...(localBaseUrl ? ["- Hosted proof remains separate from this DEV-ONLY run."] : ["- This report proves only the inspected HTTPS frontend surface; backend-origin and owner gates remain independently fail-closed."]),
     "- Vercel backend origin health remains blocked until `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, and `LLM_GATEWAY_BASE_URL` are live HTTPS origins.",
     "- GitHub branch-protection verification requires the owner-approved token gate.",
     "- Fly live budget check requires the owner-approved `FLY_API_TOKEN` gate.",
     "- Live LLM calls and live MCP writes remain closed; this proof is dry-run/read-only.",
     "",
-    "Non-Claims: DEV-ONLY, no cloud mutation, no live LLM, no live MCP write, no secret output.",
+    `Non-Claims: ${proofScope} No cloud mutation, no live LLM, no live MCP write, no secret output.`,
     "",
   ].join("\n");
   fs.writeFileSync(path.join(args.out, "report.md"), reportMd, "utf8");

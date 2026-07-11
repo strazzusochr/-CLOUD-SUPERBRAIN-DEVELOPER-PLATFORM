@@ -45,6 +45,25 @@ function safeTraceId(value: string | null): string | null {
   return /^[A-Za-z0-9_.:-]{1,96}$/.test(trimmed) ? trimmed : null;
 }
 
+function projectedRuntimeFeed(runId: string | null) {
+  if (!runId?.startsWith("frontend-projection")) return null;
+  const events = [
+    { seq: 1, offset_s: 0.0, kind: "phase2_runtime_graph_started", hub: "workbench", regions: ["prefrontal", "callosum"], run_state: "planning", source_kind: "frontend_projection", evidence_files: [], secret_output: false, writes: false },
+    { seq: 2, offset_s: 1.2, kind: "agent_result_aggregation_complete", hub: "agents", regions: ["motor", "callosum"], run_state: "executing", source_kind: "frontend_projection", evidence_files: [], secret_output: false, writes: false },
+    { seq: 3, offset_s: 2.4, kind: "memory_update_persisted", hub: "memory", regions: ["hippocampus", "callosum"], run_state: "verifying", source_kind: "frontend_projection", evidence_files: [], secret_output: false, writes: false },
+  ];
+  return {
+    contract_version: "organism-events-v1",
+    source: "frontend-projection",
+    source_kind: "frontend_projection",
+    live: false,
+    run_id: runId,
+    note: "Deterministic frontend projection of the Phase-2 runtime event contract; no agent-api involved.",
+    events,
+    non_claims: ["frontend projection only, no agent-api call", "no live provider call", "no secret values"],
+  };
+}
+
 /** Deterministic spec-only event feed — used whenever no agent-api is reachable. */
 function specOnlyFeed(runId: string | null) {
   return {
@@ -71,6 +90,8 @@ function specOnlyFeed(runId: string | null) {
  *  (`agent-activity-trace-v1`, event_type only) when reachable, else spec-only. */
 export async function GET(request: Request) {
   const runId = safeTraceId(new URL(request.url).searchParams.get("run_id"));
+  const projectedRuntime = projectedRuntimeFeed(runId);
+  if (projectedRuntime) return Response.json(projectedRuntime);
   const projection = await fetchOrganismProjection("events", runId);
   if (
     projection?.contract_version === "organism-events-v1" &&

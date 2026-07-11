@@ -14,6 +14,7 @@ export function GET() {
   const workspacePages = workspaceWiringSurfaces();
   const workspaceDataSources = uniqueStrings(workspacePages.flatMap((page) => page.dataSources));
   const workspaceVerifierRefs = uniqueStrings(workspacePages.flatMap((page) => page.verifierRefs));
+  const firstGateId = CLOSED_GATES[0]?.toLowerCase().replaceAll(" ", "_") ?? "production_deploy";
 
   return Response.json({
     contract_version: "organism-topology-v1",
@@ -212,6 +213,12 @@ export function GET() {
         to: `verifier:${nodeSlug(verifier)}`,
         kind: "page_to_verifier",
       }))),
+      { from: "page:workbench", to: "model:Qwen/Qwen3-Coder-Next", kind: "page_to_llm_model" },
+      { from: "page:tools", to: "tool:mcp_gateway", kind: "page_to_mcp_tool" },
+      { from: "page:marketplace", to: `skill:${SKILLS[0]?.id ?? "browser"}`, kind: "page_to_skill" },
+      { from: "page:home", to: "provider:vercel_frontend", kind: "page_to_cloud_provider" },
+      { from: "page:agents", to: "agent:planner", kind: "page_to_agent_profile" },
+      { from: "page:settings", to: `gate:${firstGateId}`, kind: "page_to_safety_gate" },
       ...LAYERS.flatMap((layer) => layer.providers.map((providerId) => ({
         from: `layer:${layer.code}`,
         to: `provider:${providerId}`,

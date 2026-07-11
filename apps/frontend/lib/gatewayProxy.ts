@@ -4,7 +4,10 @@
 // via Cloudflare Workers AI (for /llm chat) → else honest no-backend 503. A dead
 // configured origin (network error / >=500 / 404) gracefully falls back instead of
 // hard-502, so production stays functional even with a stale origin env set. No
-// fake-live: MCP has no projection, so it degrades to an honest 503.
+// fake-live: static gateway contracts can project their contract shape, but
+// action/data calls stay empty unless a real gateway/provider is configured.
+
+import { projectedDefault } from "./endpointDefaults";
 
 async function cfLlmChat(req: Request, pathname: string, body: string | undefined): Promise<Response | null> {
   if (!(pathname.includes("chat/completions") && req.method === "POST")) return null;
@@ -67,7 +70,16 @@ export async function gatewayHandle(
     if (cf) return cf;
   }
 
-  // 3) Honest 200 (no gateway/provider): genuinely empty, transparent, never 5xx.
+  // 3) Deterministic contract projection for known gateway contract surfaces.
+  const projected = projectedDefault(pathname, req.method, body);
+  if (projected) {
+    return Response.json(projected.payload, {
+      status: projected.status ?? 200,
+      headers: { "x-superbrain-source": "frontend-projection" },
+    });
+  }
+
+  // 4) Honest 200 (no gateway/provider): genuinely empty, transparent, never 5xx.
   return Response.json(
     {
       status: "ok",

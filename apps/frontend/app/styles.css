@@ -2523,3 +2523,10 @@ p {
 .wb-studio .ws-iterate { width: 100%; font-size: 13px; }
 .wb-studio .ws-log .terminal-row { white-space: normal; }
 .wb-studio .ws-log .terminal-row span { white-space: normal; word-break: break-word; display: inline; }
+.wb-studio-secondary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-height: 128px;
+}
+.wb-studio-secondary .wb-tree {
+  min-height: 78px;
+}

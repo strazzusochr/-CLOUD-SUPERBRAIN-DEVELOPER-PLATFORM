@@ -202,7 +202,7 @@ async function main() {
 
   try {
     await gotoWithRetry(page, `${baseUrl}/workbench`, "Workbench page");
-    for (const requiredText of ["Main Workbench", "Preview / Assets", "Game View", "App Preview", "Video Preview", "Doc Preview", "RUN BINDING"]) {
+    for (const requiredText of ["Explorer", "Vorschau", "Code", "Build-Log", "Bauen"]) {
       await waitForBodyText(page, requiredText);
     }
     for (const forbiddenText of ["Workspace-Surfaces", "Completion-Gate", "Gate-Matrix", "Recovery-Historie", "Metered Budget"]) {
@@ -210,8 +210,8 @@ async function main() {
     }
 
     const workbenchProbe = await page.evaluate(() => {
-      const shell = document.querySelector(".workbench-blueprint");
-      const panes = Array.from(document.querySelectorAll(".workbench-blueprint .wb-pane, .workbench-blueprint .panel, .workbench-blueprint .wb-layer-board"));
+      const shell = document.querySelector(".workbench-studio");
+      const panes = Array.from(document.querySelectorAll(".workbench-studio .wb-pane, .workbench-studio .panel"));
       const radii = panes.map((element) => Number.parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0);
       const root = getComputedStyle(document.documentElement);
       const text = document.body.innerText;
@@ -240,7 +240,7 @@ async function main() {
     await page.waitForFunction(() => {
       const feed = document.querySelector('[data-testid="organism-runtime-feed"]');
       const sourceKind = feed?.getAttribute("data-source-kind") || "";
-      return /spec_only|agent_api_redacted/.test(sourceKind);
+      return /spec_only|agent_api_redacted|platform_audit/.test(sourceKind);
     }, undefined, { timeout: 15000 });
     for (const requiredText of ["Kollektiver Organismus", "Live", "Replay", "Karte"]) {
       await waitForBodyText(page, requiredText);
@@ -297,7 +297,7 @@ async function main() {
     assert(organismProbe.height >= 400, `Organism canvas height too small: ${organismProbe.height}`);
     assert(organismProbe.webgl, "Organism canvas does not expose a WebGL context.");
     assert(organismProbe.runtimeFeedVisible, "Organism runtime feed missing.");
-    assert(/spec_only|agent_api_redacted/.test(organismProbe.runtimeSourceKind), `Unexpected runtime source kind: ${organismProbe.runtimeSourceKind}`);
+    assert(/spec_only|agent_api_redacted|platform_audit/.test(organismProbe.runtimeSourceKind), `Unexpected runtime source kind: ${organismProbe.runtimeSourceKind}`);
     await page.screenshot({ path: organismPath, fullPage: true });
     assert(fs.statSync(organismPath).size > 25000, "Organism screenshot is too small to be a useful proof artifact.");
     const organismPngStats = pngVisualStats(organismPath);

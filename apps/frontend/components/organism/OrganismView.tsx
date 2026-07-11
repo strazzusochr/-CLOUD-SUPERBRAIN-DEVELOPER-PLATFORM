@@ -337,7 +337,13 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
             <span className="panel-title">Run-State</span>
             <div className="state-row">
               {STATES.map((s) => (
-                <button key={s} className={`state-btn${s === runState ? " active" : ""}`} onClick={() => selectRunState(s)}>
+                <button
+                  key={s}
+                  type="button"
+                  data-testid={`organism-run-state-${s}`}
+                  className={`state-btn${s === runState ? " active" : ""}`}
+                  onClick={() => selectRunState(s)}
+                >
                   {STATE_LABEL[s]}
                 </button>
               ))}
@@ -424,7 +430,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
             <div className="panel-head">
               <span className="panel-title">Runtime Events</span>
               <span className={`org-feed ${runtimeFeed?.live ? "live" : "spec"}`}>
-                {runtimeFeed?.live ? "agent_api_redacted" : runtimeFeed?.sourceKind ?? "loading"}
+                {runtimeFeed?.sourceKind ?? "loading"}
               </span>
             </div>
             <div className="runtime-meta">

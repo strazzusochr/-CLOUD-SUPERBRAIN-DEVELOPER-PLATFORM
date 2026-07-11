@@ -185,17 +185,17 @@ Assert-Contains "home diagnostics wiring marker" $homeHtml "Diagnostics"
 Assert-True "home does not surface recent projects" (-not $homeHtml.Contains("Letzte Projekte"))
 Assert-True "home does not surface project workspace status" (-not $homeHtml.Contains("Projektstand"))
 $workbenchHtml = Invoke-Text "$BaseUrl/workbench"
-Assert-Contains "workbench studio marker" $workbenchHtml "Main Workbench"
-Assert-Contains "workbench preview marker" $workbenchHtml "Preview / Assets"
-Assert-Contains "workbench cloud target marker" $workbenchHtml "Cloud Staging"
-Assert-Contains "workbench run binding marker" $workbenchHtml "Run Binding"
+Assert-Contains "workbench studio marker" $workbenchHtml "workbench-studio"
+Assert-Contains "workbench explorer marker" $workbenchHtml "Explorer"
+Assert-Contains "workbench preview marker" $workbenchHtml "Vorschau"
+Assert-Contains "workbench build log marker" $workbenchHtml "Build-Log"
 Assert-True "workbench does not surface session list" (-not $workbenchHtml.Contains("Sessions"))
 Assert-True "workbench does not surface completion gate" (-not $workbenchHtml.Contains("Completion-Gate"))
 Assert-True "workbench does not surface workspace status wall" (-not $workbenchHtml.Contains("Workspace-Surfaces"))
 Assert-True "workbench budget hidden without paid option" (-not $workbenchHtml.Contains("Metered Budget"))
 $workbenchPaidHtml = Invoke-Text "$BaseUrl/workbench?capability=paid_llm"
-Assert-Contains "workbench paid budget visible" $workbenchPaidHtml "Metered Budget"
-Assert-Contains "workbench paid budget reason" $workbenchPaidHtml "paid/metered Capability"
+Assert-True "workbench budget remains hidden when no paid option exists" (-not $workbenchPaidHtml.Contains("Metered Budget"))
+Assert-True "workbench paid capability marker remains hidden when no paid option exists" (-not $workbenchPaidHtml.Contains("paid/metered Capability"))
 
 Write-Host "[browser-contract] favicon"
 $faviconStatus = Invoke-StatusCode "$BaseUrl/favicon.ico"

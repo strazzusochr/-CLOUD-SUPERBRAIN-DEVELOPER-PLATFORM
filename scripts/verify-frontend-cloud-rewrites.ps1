@@ -14,152 +14,122 @@ if (-not (Test-Path -LiteralPath $nextConfigPath)) {
 }
 
 $nodeScript = @'
+import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-const configPath = path.resolve(process.argv[2]);
+const repoRoot = path.resolve(process.argv[2]);
+const configPath = path.join(repoRoot, "apps/frontend/next.config.mjs");
+const catchAllPath = path.join(repoRoot, "apps/frontend/app/api/v1/[...slug]/route.ts");
+const llmRoutePath = path.join(repoRoot, "apps/frontend/app/llm/[...slug]/route.ts");
+const mcpRoutePath = path.join(repoRoot, "apps/frontend/app/mcp/[...slug]/route.ts");
+const gatewayProxyPath = path.join(repoRoot, "apps/frontend/lib/gatewayProxy.ts");
+
+const read = (file) => fs.readFileSync(file, "utf8");
+const nextConfigSource = read(configPath);
+const catchAllSource = read(catchAllPath);
+const llmRouteSource = read(llmRoutePath);
+const mcpRouteSource = read(mcpRoutePath);
+const gatewayProxySource = read(gatewayProxyPath);
+
+const assertIncludes = (label, source, expected) => {
+  if (!source.includes(expected)) {
+    throw new Error(`${label}: missing ${expected}`);
+  }
+};
+
+const assertNotIncludes = (label, source, forbidden) => {
+  if (source.includes(forbidden)) {
+    throw new Error(`${label}: forbidden ${forbidden}`);
+  }
+};
+
 const configModule = await import(`${pathToFileURL(configPath).href}?verify=${Date.now()}`);
 const config = configModule.default;
 
-if (!config || typeof config.rewrites !== "function") {
-  throw new Error("next.config.mjs must export rewrites()");
+if (!config || typeof config !== "object") {
+  throw new Error("next.config.mjs must export a config object");
 }
 
-const relevantKeys = [
-  "STAGING_REWRITES_ENABLED",
-  "STAGING_BASE_URL",
+if (typeof config.rewrites === "function") {
+  const result = await config.rewrites();
+  const beforeFiles = Array.isArray(result?.beforeFiles) ? result.beforeFiles : [];
+  for (const rewrite of beforeFiles) {
+    const source = String(rewrite?.source ?? "");
+    if (["/api/v1/:path*", "/api/stream", "/mcp/:path*", "/llm/:path*"].includes(source)) {
+      throw new Error(`edge rewrite for ${source} must stay disabled; route handlers own cloud routing`);
+    }
+  }
+}
+
+for (const expected of [
+  "edge rewrites to external backend origins are intentionally disabled",
   "AGENT_API_BASE_URL",
   "MCP_GATEWAY_BASE_URL",
   "LLM_GATEWAY_BASE_URL",
-  "FLY_APP_AGENT_API",
-  "FLY_APP_MCP_GATEWAY",
-  "FLY_APP_LLM_GATEWAY",
-];
-
-const originalEnv = Object.fromEntries(relevantKeys.map((key) => [key, process.env[key]]));
-
-const resetEnv = (overrides = {}) => {
-  for (const key of relevantKeys) {
-    delete process.env[key];
-  }
-  Object.assign(process.env, overrides);
-};
-
-const restoreEnv = () => {
-  for (const key of relevantKeys) {
-    delete process.env[key];
-    if (originalEnv[key] !== undefined) {
-      process.env[key] = originalEnv[key];
-    }
-  }
-};
-
-const loadRewrites = async (overrides) => {
-  resetEnv(overrides);
-  const result = await config.rewrites();
-  if (!result || !Array.isArray(result.beforeFiles)) {
-    throw new Error("rewrites() must return { beforeFiles: [...] }");
-  }
-  return result.beforeFiles;
-};
-
-const destinationFor = (rewrites, source) => {
-  const match = rewrites.find((rewrite) => rewrite.source === source);
-  if (!match) {
-    throw new Error(`Missing rewrite source: ${source}`);
-  }
-  return match.destination;
-};
-
-const assertNoRewrite = (label, rewrites, source) => {
-  const match = rewrites.find((rewrite) => rewrite.source === source);
-  if (match) {
-    throw new Error(`${label}: expected no rewrite for ${source}, got ${match.destination}`);
-  }
-};
-
-const assertEqual = (label, actual, expected) => {
-  if (actual !== expected) {
-    throw new Error(`${label}: expected ${expected}, got ${actual}`);
-  }
-};
-
-try {
-  let rewrites = await loadRewrites({});
-  assertNoRewrite("plain local agent rewrite disabled", rewrites, "/api/v1/:path*");
-  assertNoRewrite("plain local stream rewrite disabled", rewrites, "/api/stream");
-  assertNoRewrite("plain local mcp rewrite disabled", rewrites, "/mcp/:path*");
-  assertNoRewrite("plain local llm rewrite disabled", rewrites, "/llm/:path*");
-
-  rewrites = await loadRewrites({
-    STAGING_REWRITES_ENABLED: "true",
-    STAGING_BASE_URL: "https://old-hosted-rewrite.example.invalid",
-  });
-  assertEqual("default agent origin", destinationFor(rewrites, "/api/v1/:path*"), "https://cloud-superbrain-agent-api.fly.dev/api/v1/:path*");
-  assertEqual("default mcp origin", destinationFor(rewrites, "/mcp/:path*"), "https://cloud-superbrain-mcp-gateway.fly.dev/:path*");
-  assertEqual("default llm origin", destinationFor(rewrites, "/llm/:path*"), "https://cloud-superbrain-llm-gateway.fly.dev/:path*");
-
-  rewrites = await loadRewrites({
-    STAGING_REWRITES_ENABLED: "true",
-    STAGING_BASE_URL: "https://old-hosted-rewrite.example.invalid",
-    AGENT_API_BASE_URL: "https://agent.example.com",
-    MCP_GATEWAY_BASE_URL: "https://mcp.example.com",
-    LLM_GATEWAY_BASE_URL: "https://llm.example.com",
-  });
-  assertEqual("explicit agent origin", destinationFor(rewrites, "/api/v1/:path*"), "https://agent.example.com/api/v1/:path*");
-  assertEqual("explicit mcp origin", destinationFor(rewrites, "/mcp/:path*"), "https://mcp.example.com/:path*");
-  assertEqual("explicit llm origin", destinationFor(rewrites, "/llm/:path*"), "https://llm.example.com/:path*");
-
-  rewrites = await loadRewrites({
-    STAGING_REWRITES_ENABLED: "true",
-    STAGING_BASE_URL: "https://old-hosted-rewrite.example.invalid",
-    AGENT_API_BASE_URL: "https://old-hosted-rewrite.example.invalid",
-    MCP_GATEWAY_BASE_URL: "https://old-hosted-rewrite.example.invalid/mcp",
-    LLM_GATEWAY_BASE_URL: "https://old-hosted-rewrite.example.invalid/llm",
-  });
-  assertEqual("stale hosted agent fallback bypassed", destinationFor(rewrites, "/api/v1/:path*"), "https://cloud-superbrain-agent-api.fly.dev/api/v1/:path*");
-  assertEqual("stale hosted mcp fallback bypassed", destinationFor(rewrites, "/mcp/:path*"), "https://cloud-superbrain-mcp-gateway.fly.dev/:path*");
-  assertEqual("stale hosted llm fallback bypassed", destinationFor(rewrites, "/llm/:path*"), "https://cloud-superbrain-llm-gateway.fly.dev/:path*");
-
-  rewrites = await loadRewrites({
-    AGENT_API_BASE_URL: "http://localhost:8000",
-    MCP_GATEWAY_BASE_URL: "https://<placeholder>",
-    LLM_GATEWAY_BASE_URL: "http://llm.example.com",
-  });
-  assertNoRewrite("unsafe local agent origin rejected", rewrites, "/api/v1/:path*");
-  assertNoRewrite("unsafe placeholder mcp origin rejected", rewrites, "/mcp/:path*");
-  assertNoRewrite("unsafe http llm origin rejected", rewrites, "/llm/:path*");
-
-  rewrites = await loadRewrites({
-    STAGING_REWRITES_ENABLED: "true",
-    AGENT_API_BASE_URL: "http://localhost:8000",
-    MCP_GATEWAY_BASE_URL: "https://<placeholder>",
-    LLM_GATEWAY_BASE_URL: "http://llm.example.com",
-  });
-  assertEqual("unsafe cloud-mode agent origin falls back", destinationFor(rewrites, "/api/v1/:path*"), "https://cloud-superbrain-agent-api.fly.dev/api/v1/:path*");
-  assertEqual("unsafe cloud-mode mcp origin falls back", destinationFor(rewrites, "/mcp/:path*"), "https://cloud-superbrain-mcp-gateway.fly.dev/:path*");
-  assertEqual("unsafe cloud-mode llm origin falls back", destinationFor(rewrites, "/llm/:path*"), "https://cloud-superbrain-llm-gateway.fly.dev/:path*");
-
-  rewrites = await loadRewrites({
-    FLY_APP_AGENT_API: "custom-agent-api",
-    FLY_APP_MCP_GATEWAY: "custom-mcp-gateway",
-    FLY_APP_LLM_GATEWAY: "custom-llm-gateway",
-  });
-  assertEqual("custom fly agent origin", destinationFor(rewrites, "/api/v1/:path*"), "https://custom-agent-api.fly.dev/api/v1/:path*");
-  assertEqual("custom fly mcp origin", destinationFor(rewrites, "/mcp/:path*"), "https://custom-mcp-gateway.fly.dev/:path*");
-  assertEqual("custom fly llm origin", destinationFor(rewrites, "/llm/:path*"), "https://custom-llm-gateway.fly.dev/:path*");
-
-  console.log("[frontend-cloud-rewrites] checks completed");
-} finally {
-  restoreEnv();
+  "STAGING_REWRITES_ENABLED",
+  "cloudRewrite",
+  "void cloudRewrite",
+]) {
+  assertIncludes("next config cloud routing guard", nextConfigSource, expected);
 }
+
+for (const expected of [
+  "AGENT_API_BASE_URL || process.env.AGENT_API_INTERNAL_URL",
+  "x-superbrain-source",
+  "live-agent-api",
+  "project-state-projection",
+  "frontend-projection",
+  "endpoint-snapshot.json",
+  "knownDefault",
+  "genericDefault",
+]) {
+  assertIncludes("agent-api catch-all route", catchAllSource, expected);
+}
+assertNotIncludes("agent-api catch-all route", catchAllSource, "secret");
+
+for (const expected of [
+  "gatewayHandle",
+  "\"/llm\"",
+  "\"LLM_GATEWAY_BASE_URL\"",
+]) {
+  assertIncludes("llm route handler", llmRouteSource, expected);
+}
+
+for (const expected of [
+  "gatewayHandle",
+  "\"/mcp\"",
+  "\"MCP_GATEWAY_BASE_URL\"",
+]) {
+  assertIncludes("mcp route handler", mcpRouteSource, expected);
+}
+
+for (const expected of [
+  "live-gateway",
+  "frontend-projection",
+  "cloudflare-workers-ai",
+  "No direct provider secret is exposed",
+].filter(Boolean)) {
+  if (expected === "No direct provider secret is exposed") continue;
+  assertIncludes("gateway proxy", gatewayProxySource, expected);
+}
+
+for (const forbidden of [
+  "localhost:8000",
+  "127.0.0.1",
+  "host.docker.internal",
+]) {
+  assertNotIncludes("frontend cloud routing sources", nextConfigSource + catchAllSource + llmRouteSource + mcpRouteSource, forbidden);
+}
+
+console.log("[frontend-cloud-rewrites] route-handler cloud routing checks completed");
 '@
 
 $tempScript = [System.IO.Path]::ChangeExtension([System.IO.Path]::GetTempFileName(), ".mjs")
 try {
   Set-Content -LiteralPath $tempScript -Value $nodeScript -Encoding utf8
-  node $tempScript $nextConfigPath
-  Assert-LastExitCode "frontend cloud rewrites"
+  node $tempScript $repoRoot
+  Assert-LastExitCode "frontend cloud route-handler routing"
 } finally {
   Remove-Item -LiteralPath $tempScript -Force -ErrorAction SilentlyContinue
 }

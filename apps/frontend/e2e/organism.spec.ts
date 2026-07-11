@@ -30,8 +30,8 @@ test.describe("Cloud Superbrain platform", () => {
     expect(json.hubs.length).toBe(8);
   });
 
-  test("organism live-state / events / replay are spec-only when no backend is configured", async ({ request }) => {
-    for (const path of ["live-state", "events", "replay"]) {
+  test("organism live-state / replay are spec-only when no backend is configured", async ({ request }) => {
+    for (const path of ["live-state", "replay"]) {
       const resp = await request.get(`/api/v1/organism/${path}`);
       expect(resp.status(), path).toBe(200);
       const json = await resp.json();
@@ -39,6 +39,19 @@ test.describe("Cloud Superbrain platform", () => {
       expect(json.live, path).toBe(false);
       expect(json.non_claims.join(" "), path).toMatch(/no secret|no live provider/i);
     }
+  });
+
+  test("organism events stay honest: backend/platform-audit when configured, spec-only otherwise", async ({ request }) => {
+    const resp = await request.get("/api/v1/organism/events");
+    expect(resp.status()).toBe(200);
+    const json = await resp.json();
+    expect(json.contract_version).toBe("organism-events-v1");
+    expect(json.source).toMatch(/agent-api|platform-audit|spec_only/);
+    expect(json.source_kind).toMatch(/agent_api_redacted|platform_audit|spec_only/);
+    expect(typeof json.live).toBe("boolean");
+    expect(json.events.length).toBeGreaterThan(0);
+    expect(JSON.stringify(json)).not.toMatch(/session_id|user_id|"details"/);
+    expect(json.non_claims.join(" ")).toMatch(/no secret|no live provider/i);
   });
 
   test("organism topology / regions / safety contracts are wired and read-only", async ({ request }) => {
@@ -108,12 +121,15 @@ test.describe("Cloud Superbrain platform", () => {
     await page.goto("/workbench", { waitUntil: "networkidle" });
     await expect(page.getByText("Metered Budget")).toHaveCount(0);
     await expect(page.getByText("paid/metered Capability")).toHaveCount(0);
-    await expect(page.getByText("Prompt Composer")).toBeVisible();
-    await expect(page.getByText("Preview / Assets")).toBeVisible();
+    await expect(page.getByTestId("workbench-studio")).toBeVisible();
+    await expect(page.getByText("Explorer")).toBeVisible();
+    await expect(page.getByText("Build-Log")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Vorschau" })).toBeVisible();
 
     await page.goto("/workbench?billing=paid", { waitUntil: "networkidle" });
-    await expect(page.getByText("Metered Budget")).toBeVisible();
-    await expect(page.getByText("paid/metered Capability")).toBeVisible();
+    await expect(page.getByTestId("workbench-studio")).toBeVisible();
+    await expect(page.getByText("Metered Budget")).toHaveCount(0);
+    await expect(page.getByText("paid/metered Capability")).toHaveCount(0);
   });
 
   test("consolidated pages render real content (not re-export shortcuts)", async ({ page }) => {
@@ -216,7 +232,7 @@ test.describe("Cloud Superbrain platform", () => {
     await page.goto("/organism", { waitUntil: "networkidle" });
     const feed = page.getByTestId("organism-runtime-feed");
     await expect(feed).toBeVisible();
-    await expect(feed).toHaveAttribute("data-source-kind", /spec_only|agent_api_redacted/);
+    await expect(feed).toHaveAttribute("data-source-kind", /spec_only|agent_api_redacted|platform_audit/);
     await expect(feed).toContainText(/events/);
     await expect(feed).toContainText(/read-only audit projection/);
     await expect(feed).toContainText(/no raw details/);

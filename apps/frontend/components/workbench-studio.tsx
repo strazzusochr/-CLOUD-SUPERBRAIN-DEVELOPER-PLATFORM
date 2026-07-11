@@ -182,6 +182,28 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
           ) : null}
         </aside>
       </section>
+      <section className="wb-studio wb-studio-secondary" aria-label="Workbench runtime lanes">
+        <aside className="wb-pane wb-agent">
+          <div className="wb-pane-head"><span>Agent Assistance</span><span className="mono muted-copy">{busy ? "run" : "idle"}</span></div>
+          <div className="wb-tree">
+            <div className="terminal-row"><span className={busy ? "run" : "info"}>{busy ? "Planung und Code-Erzeugung aktiv" : "Bereit fuer Prompt-to-Code"}</span></div>
+            <div className="terminal-row"><span className="ok">live_provider_calls=false</span></div>
+          </div>
+        </aside>
+        <aside className="wb-pane wb-cortex">
+          <div className="wb-pane-head"><span>Mini Cortex</span><span className="mono muted-copy">L1-L7</span></div>
+          <div className="wb-tree">
+            <div className="terminal-row"><span className="info">Workbench → Agent Pool → LLM/MCP → Evidence</span></div>
+            <div className="terminal-row"><span className="ok">writes=false · secret_output=false</span></div>
+          </div>
+        </aside>
+        <aside className="wb-pane wb-artifacts">
+          <div className="wb-pane-head"><span>Artifacts</span><span className="mono muted-copy">{build ? "ready" : "empty"}</span></div>
+          <div className="wb-tree">
+            <div className="terminal-row"><span className="info">{build?.share_path ?? "Noch kein Build-Artefakt"}</span></div>
+          </div>
+        </aside>
+      </section>
     </div>
   );
 }

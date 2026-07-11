@@ -2,6 +2,7 @@
 import { dbConfigured, ensureSchema, sql } from "../../../../../lib/neon";
 import * as cf from "../../../../../lib/cfBackend";
 import * as gh from "../../../../../lib/ghStore";
+import { projectedAuditEvents } from "../../../../../lib/endpointDefaults";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export async function GET(req: Request): Promise<Response> {
         `SELECT id, occurred_at, event_type, session_id, detail FROM audit_log ORDER BY occurred_at DESC LIMIT ?`,
         [lim],
       )) as Array<Record<string, unknown>>;
-      return Response.json({ events }, { headers: { "x-superbrain-source": "cloudflare-d1" } });
+      return Response.json({ events: [...projectedAuditEvents(), ...events] }, { headers: { "x-superbrain-source": "cloudflare-d1+frontend-projection" } });
     } catch (err) {
       return Response.json({ status: "db_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
     }
@@ -22,14 +23,14 @@ export async function GET(req: Request): Promise<Response> {
   if (gh.ghConfigured()) {
     try {
       const events = await gh.list("audit.json", lim);
-      return Response.json({ events }, { headers: { "x-superbrain-source": "github-store" } });
+      return Response.json({ events: [...projectedAuditEvents(), ...events] }, { headers: { "x-superbrain-source": "github-store+frontend-projection" } });
     } catch (err) {
       return Response.json({ status: "store_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
     }
   }
   if (!dbConfigured()) {
     return Response.json(
-      { events: [], live_backend: false, source: "frontend-projection", note: "No persistence configured; connect a store for a persisted audit log." },
+      { events: projectedAuditEvents(), live_backend: false, source: "frontend-projection", note: "No persistence configured; projected action proofs are not persisted audit rows." },
       { headers: { "x-superbrain-source": "frontend-projection" } },
     );
   }
@@ -39,7 +40,7 @@ export async function GET(req: Request): Promise<Response> {
     const rows = (await sql()`
       SELECT id, occurred_at, event_type, session_id, detail FROM audit_log ORDER BY occurred_at DESC LIMIT ${limit}
     `) as unknown as Array<Record<string, unknown>>;
-    return Response.json({ events: rows }, { headers: { "x-superbrain-source": "neon-postgres" } });
+    return Response.json({ events: [...projectedAuditEvents(), ...rows] }, { headers: { "x-superbrain-source": "neon-postgres+frontend-projection" } });
   } catch (err) {
     return Response.json({ status: "db_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
   }

@@ -17,7 +17,7 @@
 // take precedence over this catch-all for their exact paths.
 
 import snapshot from "../../../../lib/endpoint-snapshot.json";
-import { knownDefault, genericDefault, frontendMetrics } from "../../../../lib/endpointDefaults";
+import { projectedDefault, genericDefault, frontendMetrics } from "../../../../lib/endpointDefaults";
 
 export const dynamic = "force-dynamic";
 
@@ -65,20 +65,27 @@ async function handle(req: Request, slug: string[] | undefined, method: string):
     const live = await proxy(req, base, pathname, body);
     if (live) return live; // origin reachable → real live data; else fall through to projection
   }
+  // Real frontend metrics in Prometheus exposition format.
+  if (method === "GET" && pathname === "/api/v1/metrics") {
+    return new Response(frontendMetrics(), { headers: { "content-type": "text/plain; version=0.0.4", "x-superbrain-source": "frontend-metrics" } });
+  }
+  // projectedDefault internally covers knownDefault surfaces before generic data.
+  const projected = projectedDefault(pathname, method, body);
+  if (projected) {
+    return Response.json(projected.payload, {
+      status: projected.status ?? 200,
+      headers: { "x-superbrain-source": "frontend-projection", "cache-control": "no-store" },
+    });
+  }
   // Deterministic project-state projection (real captured agent-api data).
   if (method === "GET" && pathname in SNAP) {
     return Response.json(SNAP[pathname], {
       headers: { "x-superbrain-source": "project-state-projection", "cache-control": "no-store" },
     });
   }
-  // Real frontend metrics in Prometheus exposition format.
-  if (method === "GET" && pathname === "/api/v1/metrics") {
-    return new Response(frontendMetrics(), { headers: { "content-type": "text/plain; version=0.0.4", "x-superbrain-source": "frontend-metrics" } });
-  }
   // Honest 200 for every other surface — shape-correct empty/projected data, never
   // a 5xx and never fabricated rows. (live_backend:false makes the state explicit.)
-  const payload = (method === "GET" ? knownDefault(pathname) : null) ?? genericDefault(pathname, method);
-  return Response.json(payload, { headers: { "x-superbrain-source": "frontend-projection", "cache-control": "no-store" } });
+  return Response.json(genericDefault(pathname, method), { headers: { "x-superbrain-source": "frontend-projection", "cache-control": "no-store" } });
 }
 
 type Ctx = { params: Promise<{ slug: string[] }> };

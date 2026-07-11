@@ -767,6 +767,10 @@ foreach ($config in $flyOriginConfigs) {
   }
 }
 
+Write-Host "[verify] fly source-build context"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-fly-build-context.ps1
+Assert-LastExitCode "fly source-build context"
+
 Write-Host "[verify] project progress manifest"
 py -3 -m py_compile scripts\verify_project_progress_manifest.py
 Assert-LastExitCode "project progress manifest syntax"
@@ -1215,17 +1219,17 @@ foreach ($forbidden in @("fetchRecentTasks", "fetchRecentSessions", "fetchAuditR
   }
 }
 # The workbench surface is split between the route wrapper (page.tsx) and the studio component
-# (batch1-workbench-studio.tsx). Validate the combined surface so the guard tracks the real layout.
+# (workbench-studio.tsx). Validate the combined surface so the guard tracks the real layout.
 $workbenchSource = Get-Content -Path "apps\frontend\app\workbench\page.tsx" -Raw
-$workbenchStudioSource = Get-Content -Path "apps\frontend\components\batch1-workbench-studio.tsx" -Raw
+$workbenchStudioSource = Get-Content -Path "apps\frontend\components\workbench-studio.tsx" -Raw
 $workbenchSurface = $workbenchSource + "`n" + $workbenchStudioSource
-foreach ($required in @("runId", "paidCapabilityVisible", "Metered Budget", "Preview / Assets", "22 Seiten", "CortexCanvas", "Run Binding", "terminal-feed")) {
+foreach ($required in @("WorkbenchStudio", "workbench-studio", "wb-composer", "/api/v1/build", "Explorer", "Vorschau", "Build-Log", "terminal-feed", "ws-frame")) {
   if (-not $workbenchSurface.Contains($required)) {
     throw "Missing clean workbench platform guard: $required"
   }
 }
 foreach ($forbidden in @("fetchMasterPlan", "Master Plan (live)", "Dispatch endpoints", "fetchCompletionGate", "fetchRecentTasks", "fetchRecentSessions", "fetchAuditRecent", "fetchLiveAgents", "Completion-Gate", "Workspace-Surfaces (22)", "Fail-closed by design", "Gate-Matrix", "Recovery-Historie")) {
-  if ($workbenchSource.Contains($forbidden)) {
+  if ($workbenchSurface.Contains($forbidden)) {
     throw "Workbench must not surface project-plan dashboard elements: $forbidden"
   }
 }
@@ -2142,10 +2146,49 @@ $gitleaksCommand = Get-Command gitleaks -ErrorAction SilentlyContinue
 if ($gitleaksCommand -or (Test-Path $repoLocalGitleaks)) {
   Write-Host "[verify] gitleaks scan"
   $gitleaksExecutable = if ($gitleaksCommand) { "gitleaks" } else { $repoLocalGitleaks }
-  $prevEap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
-  & $gitleaksExecutable detect --no-git --source . --config .gitleaks.toml --redact
-  $gitleaksExit = $LASTEXITCODE; $ErrorActionPreference = $prevEap
-  if ($gitleaksExit -ne 0) { throw "Verification failed: gitleaks scan exited $gitleaksExit" }
+  $repoRoot = (Resolve-Path ".").Path
+  $tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+  $gitleaksScanRoot = Join-Path $tempRoot ("superbrain-gitleaks-scan-" + [guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Path $gitleaksScanRoot | Out-Null
+  try {
+    $trackedAndUntrackedFiles = git ls-files -z --cached --others --exclude-standard
+    Assert-LastExitCode "git ls-files for gitleaks scan"
+    $scanFileCount = 0
+    foreach ($relativePath in ($trackedAndUntrackedFiles -split "`0")) {
+      if ([string]::IsNullOrWhiteSpace($relativePath)) { continue }
+      $sourcePath = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $relativePath))
+      if (-not $sourcePath.StartsWith($repoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Verification failed: gitleaks source escaped repo root: $relativePath"
+      }
+      if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) { continue }
+      $targetPath = [System.IO.Path]::GetFullPath((Join-Path $gitleaksScanRoot $relativePath))
+      if (-not $targetPath.StartsWith($gitleaksScanRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Verification failed: gitleaks target escaped scan root: $relativePath"
+      }
+      $targetParent = Split-Path -Parent $targetPath
+      if (-not (Test-Path -LiteralPath $targetParent)) {
+        New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
+      }
+      Copy-Item -LiteralPath $sourcePath -Destination $targetPath -Force
+      $scanFileCount += 1
+    }
+    if ($scanFileCount -lt 100) {
+      throw "Verification failed: gitleaks scan mirror unexpectedly small: $scanFileCount files"
+    }
+    Write-Host "[verify] gitleaks scan files=$scanFileCount"
+    $prevEap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+    & $gitleaksExecutable detect --no-git --source $gitleaksScanRoot --config .gitleaks.toml --redact --timeout 600
+    $gitleaksExit = $LASTEXITCODE; $ErrorActionPreference = $prevEap
+    if ($gitleaksExit -ne 0) { throw "Verification failed: gitleaks scan exited $gitleaksExit" }
+  } finally {
+    if (Test-Path -LiteralPath $gitleaksScanRoot) {
+      $resolvedScanRoot = (Resolve-Path -LiteralPath $gitleaksScanRoot).Path
+      if (-not $resolvedScanRoot.StartsWith($tempRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove non-temp gitleaks scan root: $resolvedScanRoot"
+      }
+      Remove-Item -LiteralPath $resolvedScanRoot -Recurse -Force
+    }
+  }
 } else {
   Write-Host "[verify] fallback secret scan"
   py -3 scripts\secret_scan_fallback.py
