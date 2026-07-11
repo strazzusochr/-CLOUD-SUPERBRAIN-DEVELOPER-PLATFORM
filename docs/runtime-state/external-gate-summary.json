@@ -1,9 +1,9 @@
 ﻿{
     "contract_version":  "external-gate-summary-v1",
     "source_contract_version":  "external-gate-audit-v1",
-    "source_artifact":  ".phase1-artifacts\\external-gate-audit-20260711-090337.json",
-    "generated_at_utc":  "2026-07-11T07:03:37.2426859Z",
-    "status":  "blocked",
+    "source_artifact":  ".phase1-artifacts\\external-gate-audit-20260711-124931.json",
+    "generated_at_utc":  "2026-07-11T10:49:31.7720758Z",
+    "status":  "verified",
     "gate_ids":  [
                      "hosted_agent_api_contracts",
                      "github_branch_protection_current_verify",
@@ -12,7 +12,7 @@
                  ],
     "frontend_preview_claim_allowed":  true,
     "hosted_staging_claim_allowed":  true,
-    "branch_protection_claim_allowed":  false,
+    "branch_protection_claim_allowed":  true,
     "ghcr_image_digest_claim_allowed":  true,
     "vercel_backend_origins_claim_allowed":  true,
     "canonical_gitleaks_claim_allowed":  true,
@@ -20,9 +20,9 @@
     "gitlab_identity_claim_allowed":  true,
     "huggingface_identity_claim_allowed":  true,
     "grafana_cloud_claim_allowed":  false,
-    "production_deploy_claim_allowed":  false,
+    "production_deploy_claim_allowed":  true,
     "missing_or_failed_gates":  [
-                                    "github_branch_protection_current_verify"
+
                                 ],
     "failed_hosted_required_probe_ids":  [
 
