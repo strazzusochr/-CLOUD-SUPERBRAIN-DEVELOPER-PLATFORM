@@ -4,11 +4,34 @@
 
 export const dynamic = "force-dynamic";
 
-export function GET(): Response {
+export async function GET(): Promise<Response> {
+  const agentApiBase = (process.env.AGENT_API_BASE_URL || process.env.AGENT_API_INTERNAL_URL)?.replace(/\/$/, "");
+  if (agentApiBase) {
+    try {
+      const response = await fetch(`${agentApiBase}/api/v1/health`, {
+        cache: "no-store",
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (response.ok) {
+        const body = await response.text();
+        return new Response(body, {
+          status: response.status,
+          headers: {
+            "content-type": response.headers.get("content-type") ?? "application/json",
+            "x-superbrain-source": "live-agent-api",
+          },
+        });
+      }
+    } catch {
+      // Fall through to the explicit frontend projection below.
+    }
+  }
+
   const llm = !!((process.env.CF_WORKERS_AI_TOKEN || process.env.CF_BACKEND_TOKEN || process.env.CLOUDFLARE_API_TOKEN) && process.env.CLOUDFLARE_ACCOUNT_ID);
   const d1 = !!(process.env.CF_BACKEND_TOKEN && process.env.CF_D1_DATABASE_ID && process.env.CLOUDFLARE_ACCOUNT_ID);
   const ghStore = !!((process.env.GH_STORE_TOKEN || process.env.GITHUB_TOKEN) && process.env.GH_STORE_REPO);
-  const agentApi = !!(process.env.AGENT_API_BASE_URL || process.env.AGENT_API_INTERNAL_URL);
+  const agentApi = !!agentApiBase;
   return Response.json(
     {
       status: "ok",
