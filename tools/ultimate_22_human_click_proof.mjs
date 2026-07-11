@@ -787,7 +787,7 @@ async function proofAgents(page) {
   const checks = {
     research_answer_rendered: hasResult > 0 && resultText.length > 40,
     real_provider_named: /Workers AI/i.test(bodyText),
-    team_targets_labeled_plan: /Zielarchitektur/.test(bodyText) && /Ziel:/.test(bodyText),
+    team_targets_labeled_plan: /Ziel:/.test(bodyText) && /Rollen · Plan/.test(bodyText),
   };
   return { actions, checks };
 }
@@ -808,6 +808,7 @@ async function proofFiles(page) {
     requests: [`POST ${origin}/api/v1/memory/search`],
     result_excerpt: `status=${seed.status()}`,
   });
+  await page.waitForTimeout(4000); // GH-store contents API is eventually consistent
   actions.push(await fillAndMeasure(
     page,
     page.getByLabel("Memory search query"),
@@ -821,6 +822,15 @@ async function proofFiles(page) {
     "files search -> /api/v1/memory/search",
     { resultSelector: "[data-testid='goal-b-files-result']", waitForText: "PASS files_search", timeout: 45000, waitTimeout: 90000 },
   ));
+  if (!/results=[1-9]/.test(await page.locator("[data-testid='goal-b-files-result']").innerText())) {
+    await page.waitForTimeout(6000); // one honest retry for store propagation
+    actions.push(await clickAndMeasure(
+      page,
+      page.locator("[data-testid='goal-b-files-search']"),
+      "files search retry (store propagation)",
+      { resultSelector: "[data-testid='goal-b-files-result']", waitForText: "PASS files_search", timeout: 45000, waitTimeout: 90000 },
+    ));
+  }
   if (await page.locator("[data-testid='live-console-load']").count()) {
     actions.push(await clickAndMeasure(
       page,
