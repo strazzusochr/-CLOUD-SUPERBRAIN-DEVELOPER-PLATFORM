@@ -104,7 +104,7 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(prompt); }}
           rows={2}
           disabled={busy}
-          aria-label="Build-Beschreibung"
+          aria-label="Beschreibung für den Build"
         />
         <button type="button" className="btn btn-primary ab-go" onClick={() => run(prompt)} disabled={busy} data-testid="ab-build">
           {busy ? `Baut… ${elapsed}s` : "✨ Bauen"}
@@ -146,7 +146,7 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
                   navigator.clipboard?.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }).catch(() => {});
                 }}>{copied ? "✓ Link kopiert" : "🔗 Teilen"}</button>
               ) : null}
-              <button type="button" className="btn btn-sm" onClick={download}>↓ Download</button>
+              <button type="button" className="btn btn-sm" onClick={download}>↓ Herunterladen</button>
               <button type="button" className="btn btn-sm" onClick={() => setShowCode((v) => !v)}>{showCode ? "Vorschau" : "Code"}</button>
               <span className="mono text-12 text-mut">{String(build.model).replace("@cf/", "")}</span>
             </span>

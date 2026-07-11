@@ -45,12 +45,12 @@ export default async function ObservePage({ searchParams }: ObservePageProps) {
     : OBS.endpoints.filter((endpoint) => !/\/api\/v1\/(budget|costs)/.test(endpoint));
 
   return (
-    <AppShell crumb="Observe" runState="executing">
+    <AppShell crumb="Beobachten" runState="executing">
       <div className="page-wide">
         <PageHeader
           eyebrow="Beobachten / Monitoring"
-          title="Runtime-Signale"
-          subtitle="Health, Runs, Latenz, Traces und Logs: verdrahtet an echte Backend-Surfaces. Headline-Zahlen kommen live aus GET /api/v1/metrics; Traffic bleibt spec-only bis OTel verdrahtet ist."
+          title="Laufzeitsignale"
+          subtitle="Systemzustand, Läufe, Latenz, Traces und Protokolle sind mit echten Backend-Oberflächen verbunden. Die Kennzahlen kommen live aus GET /api/v1/metrics; der Datenverkehr bleibt bis zur OTel-Anbindung eine Spezifikation."
           actions={
             <>
               {live ? <Badge tone="green">● Live · /api/v1/metrics</Badge> : <SpecModeBadge mode="spec_only" />}
@@ -61,22 +61,22 @@ export default async function ObservePage({ searchParams }: ObservePageProps) {
 
         <div className="grid cols-3 mb-16">
           <Metric label="Projekte" value={live ? fmt(s.superbrain_projects_total) : "—"} foot={live ? "live" : "nicht verfügbar"} />
-          <Metric label="Agent-Sessions" value={live ? fmt(s.superbrain_agent_sessions_total) : "—"} foot={live ? "live" : "nicht verfügbar"} />
-          <Metric label="Agent-Messages" value={live ? fmt(s.superbrain_agent_messages_total) : "—"} foot={live ? "live" : "nicht verfügbar"} />
-          <Metric label="Memory-Einträge" value={live ? fmt(s.superbrain_memory_entries_total) : "—"} foot="pgvector" />
-          <Metric label="Task-Queue Tiefe" value={live ? fmt(s.superbrain_task_queue_depth) : "—"} foot={live ? "live" : "nicht verfügbar"} />
+          <Metric label="Agenten-Sitzungen" value={live ? fmt(s.superbrain_agent_sessions_total) : "—"} foot={live ? "live" : "nicht verfügbar"} />
+          <Metric label="Agenten-Nachrichten" value={live ? fmt(s.superbrain_agent_messages_total) : "—"} foot={live ? "live" : "nicht verfügbar"} />
+          <Metric label="Gedächtniseinträge" value={live ? fmt(s.superbrain_memory_entries_total) : "—"} foot="pgvector" />
+          <Metric label="Tiefe der Aufgabenwarteschlange" value={live ? fmt(s.superbrain_task_queue_depth) : "—"} foot={live ? "live" : "nicht verfügbar"} />
           {showBudget ? (
-            <Metric label="LLM Budget (spent)" value={live ? `${s.superbrain_budget_spent_percentage ?? 0}%` : "—"} foot="paid capability" />
+            <Metric label="LLM-Budget (verbraucht)" value={live ? `${s.superbrain_budget_spent_percentage ?? 0}%` : "—"} foot="kostenpflichtige Fähigkeit" />
           ) : null}
         </div>
 
         <div className="grid cols-2">
           <Panel title="Live-Daten" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
             <div className="wb-pad">
-              <LiveConsole endpoints={[{ label: "Metrics", path: "/api/v1/metrics" }, { label: "Health", path: "/api/v1/health" }, { label: "Cloud layers", path: "/api/v1/clouds/layers" }]} />
+              <LiveConsole endpoints={[{ label: "Metriken", path: "/api/v1/metrics" }, { label: "Systemzustand", path: "/api/v1/health" }, { label: "Cloud-Schichten", path: "/api/v1/clouds/layers" }]} />
             </div>
           </Panel>
-          <Panel title="Runtime-Service Health" actions={servicesLive ? <Badge tone="green">● live</Badge> : <SpecModeBadge mode="spec_only" />}>
+          <Panel title="Zustand der Laufzeitdienste" actions={servicesLive ? <Badge tone="green">● live</Badge> : <SpecModeBadge mode="spec_only" />}>
             <div className="wb-pad stack gap-9">
               {services.map((svc, i) => {
                 const norm = (n: string) => n.replace(/[-_]/g, "");
@@ -86,17 +86,17 @@ export default async function ObservePage({ searchParams }: ObservePageProps) {
                   <div key={svc.name} className="svc-row">
                     <StatusDot tone={svc.up === true ? "green" : svc.up === false ? "red" : "mut"} pulse={svc.up === true} />
                     <span className="mono text-13">{svc.name}</span>
-                    <span className="svc-meta">{svc.up === true ? "healthy" : svc.up === false ? "down" : "Spec · keine Live-Messung"} · {layer.label}</span>
+                    <span className="svc-meta">{svc.up === true ? "gesund" : svc.up === false ? "nicht erreichbar" : "Spezifikation · keine Live-Messung"} · {layer.label}</span>
                   </div>
                 );
               })}
               <p className="text-115 text-dim mt-6">
-                Health kommt aus <span className="mono">GET /api/v1/health</span> · <span className="mono">/metrics</span>.
+                Der Systemzustand kommt aus <span className="mono">GET /api/v1/health</span> · <span className="mono">/metrics</span>.
               </p>
             </div>
           </Panel>
 
-          <Panel title="Observability-Surfaces">
+          <Panel title="Observability-Oberflächen">
             <div className="wb-pad stack gap-6">
               {observabilityEndpoints.map((e) => (
                 <div key={e} className="surface-row">
@@ -108,12 +108,12 @@ export default async function ObservePage({ searchParams }: ObservePageProps) {
           </Panel>
         </div>
 
-        <Panel title="Traffic (OpenTelemetry)" className="mt-16" pad>
+        <Panel title="Datenverkehr (OpenTelemetry)" className="mt-16" pad>
           <SpecModeBadge mode="spec_only" />
           <div className="mt-10 mb-10">
             <ObserveRuntimeProbe />
           </div>
-          <svg viewBox="0 0 320 120" width="100%" height="120" className="mt-10" role="img" aria-label="Traffic chart (spec-only)">
+          <svg viewBox="0 0 320 120" width="100%" height="120" className="mt-10" role="img" aria-label="Diagramm des Datenverkehrs (nur Spezifikation)">
             {BARS.map((b, i) => (
               <rect key={i} x={i * 26 + 6} y={120 - b} width="16" height={b} rx="3" fill="url(#g11)" opacity="0.85" />
             ))}
@@ -125,7 +125,7 @@ export default async function ObservePage({ searchParams }: ObservePageProps) {
             </defs>
           </svg>
           <p className="text-12 text-dim mt-6">
-            Spec-only Zeitreihe. Verdrahte einen live OTel-Collector, um echte Traffic-Daten zu sehen; Run-State
+            Zeitreihe aus der Spezifikation. Binde einen Live-OTel-Collector an, um echte Daten zum Datenverkehr zu sehen; Ausführungsstatus
             und Traces korrelieren über <span className="mono">{STREAM_SURFACE}</span>.
           </p>
         </Panel>

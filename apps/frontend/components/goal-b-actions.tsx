@@ -126,7 +126,7 @@ function ArtifactList({ artifacts }: { artifacts: Artifact[] }) {
 }
 
 export function WorkbenchActionPanel() {
-  const [prompt, setPrompt] = useState("Erstellt ein echtes, persistiertes Artefakt mit Evidenz.");
+  const [prompt, setPrompt] = useState("Erstelle ein echtes, persistiertes Artefakt mit Nachweis.");
   const [mode, setMode] = useState("game");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState("Bereit — noch keine Aktion ausgeführt.");
@@ -147,7 +147,7 @@ export function WorkbenchActionPanel() {
       const artifact = await createArtifact({
         source_page: "workbench",
         artifact_type: `${mode}_runtime_run`,
-        title: `Workbench ${mode} dry-run`,
+        title: `Werkbank ${mode} Dry-Run`,
         summary: runSummary(body),
         session_id: String(body.thread_id ?? ""),
         run_id: String(body.run_id ?? ""),
@@ -172,15 +172,15 @@ export function WorkbenchActionPanel() {
   return (
     <div className="goalb-action-panel" data-testid="goal-b-workbench-panel">
       <div className="goalb-row">
-        <select aria-label="Workbench mode" value={mode} onChange={(event) => setMode(event.target.value)}>
-          <option value="game">Game</option>
+        <select aria-label="Werkbank-Modus" value={mode} onChange={(event) => setMode(event.target.value)}>
+          <option value="game">Spiel</option>
           <option value="app">App</option>
-          <option value="media">Media</option>
-          <option value="doc">Doc</option>
+          <option value="media">Medien</option>
+          <option value="doc">Dokument</option>
         </select>
-        <input aria-label="Workbench prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} />
+        <input aria-label="Werkbank-Prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} />
         <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-workbench-run" onClick={run} disabled={busy}>
-          {busy ? "Running" : "Run"}
+          {busy ? "Wird ausgeführt" : "Ausführen"}
         </button>
       </div>
       <ActionResult state={result} testId="goal-b-workbench-result" />
@@ -207,7 +207,7 @@ export function AgentSteeringPanel({ agents }: { agents: LiveAgentOption[] }) {
       const body = await postJson("/api/v1/live-agents/steer", {
         agent_id: selected,
         project_id: PROJECT_ID,
-        message: `Goal B local real steering for ${selected}. Produce a concise visible result for your role and summarize the action you completed.`,
+        message: `Lokaler echter Goal-B-Lauf für ${selected}. Erzeuge ein kurzes sichtbares Ergebnis für deine Rolle und fasse die abgeschlossene Aktion zusammen.`,
         metadata: { source_page: "agents", goal: "goal-b", local_real_agent_run: true },
       });
       setResult([
@@ -281,13 +281,13 @@ export function AgentSteeringPanel({ agents }: { agents: LiveAgentOption[] }) {
         >
           {options.map((agent) => <option key={agent.id} value={agent.id}>{agent.name} / {agent.role}</option>)}
         </select>
-        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-agent-start" onClick={steer} disabled={busy}>Start</button>
-        <button className="btn btn-sm" type="button" data-testid="goal-b-agent-reset" onClick={reset} disabled={busy}>Reset</button>
+        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-agent-start" onClick={steer} disabled={busy}>Starten</button>
+        <button className="btn btn-sm" type="button" data-testid="goal-b-agent-reset" onClick={reset} disabled={busy}>Zurücksetzen</button>
         <button className="btn btn-sm btn-ghost" type="button" data-testid="goal-b-agent-status" onClick={refresh} disabled={busy}>Status</button>
-        <button className="btn btn-sm" type="button" disabled title="Requires live agent gate; dry-run only">Pause · requires live gate</button>
-        <button className="btn btn-sm" type="button" disabled title="Requires owner gate; no process kill in DEV-only proof">Kill · owner gate</button>
+        <button className="btn btn-sm" type="button" disabled title="Erfordert das Live-Agent-Gate; nur Dry-Run">Pausieren · Live-Gate erforderlich</button>
+        <button className="btn btn-sm" type="button" disabled title="Erfordert das Owner-Gate; im DEV-ONLY-Nachweis wird kein Prozess beendet">Beenden · Owner-Gate</button>
       </div>
-      <MiniNote>Start fuehrt jetzt einen echten lokalen Rollenlauf aus. Pause/Kill bleiben sichtbar gesperrt: Owner-Gate erforderlich, keine externe Runtime-Mutation.</MiniNote>
+      <MiniNote>„Starten“ führt einen echten lokalen Rollenlauf aus. Pausieren und Beenden bleiben sichtbar gesperrt: Das Owner-Gate ist erforderlich, externe Runtime-Mutationen finden nicht statt.</MiniNote>
       <ActionResult state={result} testId="goal-b-agent-result" />
     </div>
   );
@@ -315,14 +315,14 @@ export function FilesSearchPanel() {
     <div className="goalb-action-panel" data-testid="goal-b-files-panel">
       <div className="goalb-row">
         <input
-          aria-label="Memory search query"
+          aria-label="Suchbegriff für das Gedächtnis"
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
             setResult(`PASS files_query_updated\nquery=${event.target.value}\nendpoint=/api/v1/memory/search`);
           }}
         />
-        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-files-search" onClick={search} disabled={busy}>Search</button>
+        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-files-search" onClick={search} disabled={busy}>Suchen</button>
       </div>
       <ActionResult state={result} testId="goal-b-files-result" />
     </div>
@@ -332,7 +332,7 @@ export function FilesSearchPanel() {
 export function ToolsReadOnlyPanel() {
   const [tool, setTool] = useState("memory_read");
   const [query, setQuery] = useState("phase2 runtime");
-  const [result, setResult] = useState("Bereit — wähle ein Tool und führe es read-only aus.");
+  const [result, setResult] = useState("Bereit — wähle ein Tool und führe es nur lesend aus.");
   const [busy, setBusy] = useState(false);
 
   async function execute() {
@@ -356,7 +356,7 @@ export function ToolsReadOnlyPanel() {
     <div className="goalb-action-panel" data-testid="goal-b-tools-panel">
       <div className="goalb-row">
         <select
-          aria-label="Read-only tool"
+          aria-label="Nur lesendes Tool"
           value={tool}
           onChange={(event) => { setTool(event.target.value); setResult("bereit"); }}
         >
@@ -365,11 +365,11 @@ export function ToolsReadOnlyPanel() {
           <option value="web_fetch">web_fetch (URL)</option>
         </select>
         <input
-          aria-label="Tool query"
+          aria-label="Tool-Anfrage"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
-        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-tool-execute" onClick={execute} disabled={busy}>Execute</button>
+        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-tool-execute" onClick={execute} disabled={busy}>Ausführen</button>
       </div>
       <ActionResult state={result} testId="goal-b-tool-result" />
     </div>
@@ -379,7 +379,7 @@ export function ToolsReadOnlyPanel() {
 export function MarketplaceActionPanel({ itemNames }: { itemNames: string[] }) {
   const first = itemNames[0] ?? "planner";
   const [item, setItem] = useState(first);
-  const [result, setResult] = useState("Bereit — wähle einen Eintrag für Details oder Install (dry-run).");
+  const [result, setResult] = useState("Bereit — wähle einen Eintrag für Details oder eine Installation im Dry-Run.");
   const [busy, setBusy] = useState(false);
   const options = useMemo(() => Array.from(new Set([first, ...itemNames])).slice(0, 24), [first, itemNames]);
 
@@ -393,8 +393,8 @@ export function MarketplaceActionPanel({ itemNames }: { itemNames: string[] }) {
       const artifact = await createArtifact({
         source_page: "marketplace",
         artifact_type: "marketplace_install_plan",
-        title: `Install plan: ${item}`,
-        summary: `Dry-run activation plan for ${item}; provider writes remain false.`,
+        title: `Installationsplan: ${item}`,
+        summary: `Aktivierungsplan im Dry-Run für ${item}; Provider-Schreibzugriffe bleiben deaktiviert.`,
         status: "planned",
         metadata: { item, provider_writes: false, registry_pull: false },
       });
@@ -410,7 +410,7 @@ export function MarketplaceActionPanel({ itemNames }: { itemNames: string[] }) {
     <div className="goalb-action-panel" data-testid="goal-b-marketplace-panel">
       <div className="goalb-row">
         <select
-          aria-label="Marketplace item"
+          aria-label="Marktplatz-Eintrag"
           value={item}
           onChange={(event) => {
             setItem(event.target.value);
@@ -419,7 +419,7 @@ export function MarketplaceActionPanel({ itemNames }: { itemNames: string[] }) {
         >
           {options.map((name) => <option key={name} value={name}>{name}</option>)}
         </select>
-        <button className="btn btn-sm btn-ghost" type="button" data-testid="goal-b-marketplace-details" onClick={details}>Details</button>
+        <button className="btn btn-sm btn-ghost" type="button" data-testid="goal-b-marketplace-details" onClick={details}>Einzelheiten</button>
         <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-marketplace-install" onClick={install} disabled={busy}>Installieren</button>
       </div>
       <ActionResult state={result} testId="goal-b-marketplace-result" />
@@ -449,9 +449,9 @@ export function MarketplaceCardGrid({ items }: { items: MarketplaceCardItem[] })
               <div className="body">
                 <h3 className="mono marketplace-card-title">{it.name}</h3>
                 <div className="sub marketplace-card-sub">{it.desc}</div>
-                <div className="actions" aria-label="Catalog item status">
-                  <MiniBadge tone="cyan">catalog</MiniBadge>
-                  <MiniBadge tone="amber">install via selector</MiniBadge>
+                <div className="actions" aria-label="Status des Katalogeintrags">
+                  <MiniBadge tone="cyan">Katalog</MiniBadge>
+                  <MiniBadge tone="amber">Installation über Auswahl</MiniBadge>
                 </div>
               </div>
             </div>
@@ -472,8 +472,8 @@ export function WorkspaceModeActionPanel({ mode, label }: { mode: "games" | "app
       const artifact = await createArtifact({
         source_page: mode,
         artifact_type: `${mode.replace("-", "_")}_artifact`,
-        title: `${label} local artifact`,
-        summary: `${label} artifact created by common Goal B artifact pipeline; dry-run only.`,
+        title: `${label}: lokales Artefakt`,
+        summary: `${label}-Artefakt aus der gemeinsamen Goal-B-Artefakt-Pipeline; nur Dry-Run.`,
         status: "ready",
         metadata: { mode, common_pipeline: "workspace_artifacts", live_provider_calls: false },
       });
@@ -498,7 +498,7 @@ export function WorkspaceModeActionPanel({ mode, label }: { mode: "games" | "app
     <div className="goalb-action-panel" data-testid={`goal-b-${mode}-panel`}>
       <div className="goalb-row">
         <button
-          aria-label={`${label} create local dry-run artifact`}
+          aria-label={`Lokales Dry-Run-Artefakt für ${label} anlegen`}
           className="btn btn-sm btn-primary"
           type="button"
           data-testid={`goal-b-${mode}-create`}
@@ -507,7 +507,7 @@ export function WorkspaceModeActionPanel({ mode, label }: { mode: "games" | "app
         >
           Artefakt anlegen
         </button>
-        <MiniBadge tone="cyan">common artifact pipeline</MiniBadge>
+        <MiniBadge tone="cyan">gemeinsame Artefakt-Pipeline</MiniBadge>
       </div>
       <ActionResult state={result} testId={`goal-b-${mode}-result`} />
     </div>
@@ -550,7 +550,7 @@ export function DocsExportPanel({
         source_page: "docs-output",
         artifact_type: `export_${format}_file`,
         title: `Export ${format.toUpperCase()} ${body.file_name}`,
-        summary: `Real local export created in runtime temp store ${body.runtime_store} (${body.bytes} bytes).`,
+        summary: `Echter lokaler Export im temporären Runtime-Speicher ${body.runtime_store} erstellt (${body.bytes} Bytes).`,
         session_id: sessionId,
         status: "ready",
         metadata: {
@@ -592,27 +592,27 @@ export function DocsExportPanel({
 
   return (
     <div className="goalb-action-panel" data-testid="goal-b-docs-export-panel">
-      <MiniNote>Export erzeugt jetzt echte lokale Download-Dateien im Runtime-Temp-Store und startet direkt den Browser-Download.</MiniNote>
+      <MiniNote>Der Export erzeugt echte lokale Dateien im temporären Runtime-Speicher und startet den Download direkt im Browser.</MiniNote>
       <div className="goalb-row">
         <button
-          aria-label="Export PDF file"
+          aria-label="PDF-Datei exportieren"
           className="btn btn-sm btn-primary"
           type="button"
           data-testid="goal-b-docs-export-pdf"
           onClick={() => void exportFile("pdf")}
           disabled={busy}
         >
-          Export PDF <MiniBadge tone="green">Local File</MiniBadge>
+          PDF exportieren <MiniBadge tone="green">lokale Datei</MiniBadge>
         </button>
         <button
-          aria-label="Export MD file"
+          aria-label="MD-Datei exportieren"
           className="btn btn-sm"
           type="button"
           data-testid="goal-b-docs-export-md"
           onClick={() => void exportFile("md")}
           disabled={busy}
         >
-          Export MD <MiniBadge tone="green">Local File</MiniBadge>
+          MD exportieren <MiniBadge tone="green">lokale Datei</MiniBadge>
         </button>
       </div>
       <ActionResult state={result} testId="goal-b-docs-export-result" />
@@ -630,8 +630,8 @@ export function SettingsGatePlanPanel() {
       const artifact = await createArtifact({
         source_page: "settings",
         artifact_type: "owner_gate_planonly",
-        title: "Owner gate PlanOnly",
-        summary: "PlanOnly review of eight dangerous gates; no gate mutation was performed.",
+        title: "Owner-Gate PlanOnly",
+        summary: "PlanOnly-Prüfung von acht gefährlichen Gates; kein Gate wurde verändert.",
         status: "blocked",
         metadata: {
           gates: ["production_deploy", "release_promotion", "provider_writes", "main_push", "registry_push", "live_mcp_write", "live_llm_call", "secret_output"],
@@ -648,10 +648,10 @@ export function SettingsGatePlanPanel() {
 
   return (
     <div className="goalb-action-panel" data-testid="goal-b-settings-panel">
-      <MiniNote>Danger gates bleiben geschlossen; dieser Button erzeugt nur einen lokalen PlanOnly-Nachweis.</MiniNote>
+      <MiniNote>Gefährliche Gates bleiben geschlossen; diese Schaltfläche erzeugt nur einen lokalen PlanOnly-Nachweis.</MiniNote>
       <div className="goalb-row">
-        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-settings-planonly" onClick={plan} disabled={busy}>PlanOnly pruefen</button>
-        <button className="btn btn-sm" type="button" disabled>Apply gesperrt</button>
+        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-settings-planonly" onClick={plan} disabled={busy}>PlanOnly prüfen</button>
+        <button className="btn btn-sm" type="button" disabled>Anwenden gesperrt</button>
       </div>
       <ActionResult state={result} testId="goal-b-settings-result" />
     </div>

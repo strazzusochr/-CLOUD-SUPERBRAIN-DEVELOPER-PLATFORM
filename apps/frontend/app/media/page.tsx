@@ -13,9 +13,9 @@ export default function MediaPage() {
         <PageHeader
           eyebrow="Medien"
           title="Musik · Video"
-          subtitle="Echte Generierung direkt im Browser — Audio-Synth und Canvas-Clips, als Datei exportierbar. Dokumente entstehen unter Documents."
+          subtitle="Echte Generierung direkt im Browser — Audio-Synth und Canvas-Clips, als Datei exportierbar. Dokumente entstehen unter Dokumente."
         />
-        <Panel title="Creator Studio" actions={<Badge tone="green">echt · Download</Badge>}>
+        <Panel title="Medienstudio" actions={<Badge tone="green">echt · Herunterladen</Badge>}>
           <div className="wb-pad">
             <CreatorStudio tabs={["music", "video"]} />
           </div>

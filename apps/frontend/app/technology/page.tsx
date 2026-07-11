@@ -3,14 +3,14 @@ import { PageHeader, Panel, Badge, Note } from "../../components/ui";
 import { LAYERS, PROVIDERS, providersForLayer } from "../../components/organism/regionMap";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Technology — 7 Layers × 8 Providers — Cloud Superbrain" };
+export const metadata = { title: "Technologie — 7 Schichten × 8 Provider — Cloud Superbrain" };
 
 const RUNTIME: { group: string; items: string[] }[] = [
   { group: "Frontend", items: ["Next.js 16 · App Router", "React 19", "Canvas Cortex (R3F / three.js)"] },
-  { group: "Orchestration", items: ["LangGraph", "PostgreSQL checkpointer", "Agent role pool"] },
-  { group: "AI / Gateway", items: ["LLM gateway (dry-run default)", "Cloudflare AI Gateway", "Langfuse traces"] },
-  { group: "Data / Memory", items: ["PostgreSQL", "pgvector", "Redis"] },
-  { group: "Delivery / Gates", items: ["Docker", "GHCR images", "GitHub Actions", "OPA / gitleaks"] },
+  { group: "Orchestrierung", items: ["LangGraph", "PostgreSQL-Checkpointer", "Agenten-Rollenpool"] },
+  { group: "KI / Gateway", items: ["LLM-Gateway (Dry-Run als Standard)", "Cloudflare AI Gateway", "Langfuse-Traces"] },
+  { group: "Daten / Gedächtnis", items: ["PostgreSQL", "pgvector", "Redis"] },
+  { group: "Bereitstellung / Gates", items: ["Docker", "GHCR-Images", "GitHub Actions", "OPA / gitleaks"] },
 ];
 
 /** The real toolstack that backs the platform, grouped by capability. */
@@ -18,11 +18,11 @@ const TOOLSTACK: { group: string; items: string[] }[] = [
   { group: "3D / WebGL", items: ["three.js", "@react-three/fiber", "@react-three/drei", "postprocessing", "glTF / GLB", "Draco / meshopt"] },
   { group: "Frontend", items: ["Next.js App Router", "React 19", "TypeScript (strict)", "CSS design tokens", "GSAP / motion"] },
   { group: "Backend / API", items: ["FastAPI", "Uvicorn", "Pydantic v2", "LangGraph", "httpx"] },
-  { group: "Data", items: ["PostgreSQL 16", "pgvector 0.8", "Redis 7", "langgraph-checkpoint-postgres"] },
+  { group: "Daten", items: ["PostgreSQL 16", "pgvector 0.8", "Redis 7", "langgraph-checkpoint-postgres"] },
   { group: "Observability", items: ["OpenTelemetry", "Prometheus", "Grafana", "Langfuse", "Sentry"] },
-  { group: "Testing / Proof", items: ["Playwright", "WebGL render proof", "axe-core (a11y)", "Lighthouse"] },
-  { group: "Security / Gates", items: ["OPA / Conftest", "gitleaks", "Trivy", "Secret scanning"] },
-  { group: "Delivery", items: ["Docker / Compose", "GHCR", "GitHub Actions", "Vercel"] },
+  { group: "Tests / Nachweise", items: ["Playwright", "WebGL-Rendernachweis", "axe-core (Barrierefreiheit)", "Lighthouse"] },
+  { group: "Sicherheit / Gates", items: ["OPA / Conftest", "gitleaks", "Trivy", "Secret-Prüfung"] },
+  { group: "Bereitstellung", items: ["Docker / Compose", "GHCR", "GitHub Actions", "Vercel"] },
 ];
 
 export default function TechnologyPage() {
@@ -31,11 +31,11 @@ export default function TechnologyPage() {
       <div className="page-wide">
         <PageHeader
           eyebrow="Architektur"
-          title={`7 Layer × ${PROVIDERS.length} Cloud-Provider`}
-          subtitle="Die sieben Architektur-Layer und die realen Provider dahinter. Mapping spiegelt das Backend-Inventar (GET /api/v1/clouds). Provider-Reads sind read-only; es werden nur Status-Metadaten angezeigt (keine Token-Werte)."
-          actions={<Badge tone="amber">Layer action_required · read-only</Badge>}
+          title={`7 Schichten × ${PROVIDERS.length} Cloud-Provider`}
+          subtitle="Die sieben Architekturschichten und die realen Provider dahinter. Die Zuordnung spiegelt das Backend-Inventar (GET /api/v1/clouds). Provider-Lesezugriffe sind nur lesend; angezeigt werden ausschließlich Status-Metadaten ohne Token-Werte."
+          actions={<Badge tone="amber">Schicht: Aktion erforderlich · nur lesend</Badge>}
         />
-        <Panel title="7-Layer Cloud-Stack">
+        <Panel title="7-Schichten-Cloud-Stack">
           <div className="stack-list">
             {LAYERS.map((l) => (
               <div key={l.code} className="layer-row layer-row-flat">
@@ -57,19 +57,19 @@ export default function TechnologyPage() {
         </Panel>
 
         <Note>
-          Cloud Provider-Status (<span className="mono">live_verified</span> /{" "}
+          Der Status der Cloud-Provider (<span className="mono">live_verified</span> /{" "}
           <span className="mono">configured</span> / <span className="mono">action_required</span>) kommt aus{" "}
           <span className="mono">GET /api/v1/clouds/layers</span>. Localhost ist nur DEV-ONLY:
-          ohne Owner-Tokens und HTTPS-Staging melden die Layer <span className="mono">action_required</span>.
-          Token-Werte werden nie zurückgegeben; Deploy/Registry/Provider-Writes bleiben gate-closed.
+          ohne Owner-Tokens und HTTPS-Staging melden die Schichten <span className="mono">action_required</span>.
+          Token-Werte werden nie zurückgegeben; Bereitstellung, Registry und Provider-Schreibzugriffe bleiben durch Gates geschlossen.
         </Note>
 
         <div className="page-head section-head">
           <div>
-            <div className="eyebrow">Cloud-Provider Inventar</div>
-            <h2 className="section-h2">{PROVIDERS.length} Provider-Surfaces (ohne Secrets)</h2>
+            <div className="eyebrow">Cloud-Provider-Inventar</div>
+            <h2 className="section-h2">{PROVIDERS.length} Provider-Oberflächen (ohne Secrets)</h2>
           </div>
-          <Badge tone="cyan">read-only · token-gated</Badge>
+          <Badge tone="cyan">nur lesend · Token-gesteuert</Badge>
         </div>
         <div className="grid cols-4">
           {PROVIDERS.map((p) => (

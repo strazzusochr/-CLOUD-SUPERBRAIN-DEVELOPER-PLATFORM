@@ -42,7 +42,7 @@ export function HomeCortexHero() {
         className="home-cortex-canvas"
       />
       <div className="home-cortex-footer">
-        <span className="badge badge-cyan">glowing 3D cortex</span>
+        <span className="badge badge-cyan">leuchtender 3D-Cortex</span>
         <span className="badge badge-amber">client-lokal</span>
         <span className="badge badge-green">keine Fake-Daten</span>
       </div>
@@ -69,15 +69,15 @@ export function HomeHeroProofPanel() {
     <div className="goalb-action-panel" data-testid="goal-b-home-panel">
       <div className="goalb-row">
         <button
-          aria-label="Check DEV-only cortex hero"
+          aria-label="DEV-ONLY-Cortex-Hero prüfen"
           className="btn btn-sm btn-primary"
           type="button"
           data-testid="goal-b-home-hero-proof"
           onClick={checkHero}
         >
-          Cortex proof
+          Cortex-Nachweis
         </button>
-        <span className="badge badge-cyan">local visual contract</span>
+        <span className="badge badge-cyan">lokaler visueller Vertrag</span>
       </div>
       <ActionResult state={result} testId="goal-b-home-result" />
     </div>
@@ -102,10 +102,10 @@ export function LoginDryRunPanel() {
   return (
     <div className="goalb-action-panel" data-testid="goal-b-login-panel">
       <div className="goalb-row">
-        <button className="btn btn-sm" type="button" data-testid="goal-b-login-github" onClick={() => choose("github")}>GitHub dry-run</button>
-        <button className="btn btn-sm" type="button" data-testid="goal-b-login-google" onClick={() => choose("google")}>Google dry-run</button>
-        <button className="btn btn-sm" type="button" data-testid="goal-b-login-email" onClick={() => choose("email")}>Email dry-run</button>
-        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-login-guest" onClick={() => choose("guest")}>Guest dry-run</button>
+        <button className="btn btn-sm" type="button" data-testid="goal-b-login-github" onClick={() => choose("github")}>GitHub-Dry-Run</button>
+        <button className="btn btn-sm" type="button" data-testid="goal-b-login-google" onClick={() => choose("google")}>Google-Dry-Run</button>
+        <button className="btn btn-sm" type="button" data-testid="goal-b-login-email" onClick={() => choose("email")}>E-Mail-Dry-Run</button>
+        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-login-guest" onClick={() => choose("guest")}>Gast-Dry-Run</button>
       </div>
       <ActionResult state={result} testId="goal-b-login-result" />
     </div>
@@ -140,10 +140,10 @@ export function ObserveRuntimeProbe() {
     <div className="goalb-action-panel" data-testid="goal-b-observe-panel">
       <div className="goalb-row">
         <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-observe-refresh" onClick={probe} disabled={busy}>
-          Verify metrics contract
+          Metrikvertrag prüfen
         </button>
-        <span className="badge badge-cyan">read-only</span>
-        <span className="badge badge-amber">traffic chart spec-only</span>
+        <span className="badge badge-cyan">nur lesend</span>
+        <span className="badge badge-amber">Datenverkehrsdiagramm als Spezifikation</span>
       </div>
       <ActionResult state={result} testId="goal-b-observe-result" />
     </div>
@@ -183,9 +183,9 @@ export function EvidenceVerifierProbe() {
     <div className="goalb-action-panel" data-testid="goal-b-evidence-panel">
       <div className="goalb-row">
         <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-evidence-verify" onClick={probe} disabled={busy}>
-          Read verifier status
+          Verifier-Status lesen
         </button>
-        <span className="badge badge-cyan">read-only evidence</span>
+        <span className="badge badge-cyan">nur lesender Nachweis</span>
       </div>
       <ActionResult state={result} testId="goal-b-evidence-result" />
     </div>

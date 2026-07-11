@@ -80,7 +80,7 @@ export default function AppShell({
 
   return (
     <div className="app-shell">
-      <nav className="rail" aria-label="Primär">
+      <nav className="rail" aria-label="Primärnavigation">
         <Link href="/home" className="rail-logo" aria-label="Cloud Superbrain Start" />
         {railGroups.map((group, gi) => (
           <div key={gi} className="rail-group">
@@ -116,11 +116,11 @@ export default function AppShell({
         <Link
           href="/login"
           className={`rail-item${railActive(pathname, "/login") ? " active" : ""}`}
-          aria-label="Login / Onboarding"
+          aria-label="Anmeldung / Einstieg"
           aria-current={railActive(pathname, "/login") ? "page" : undefined}
         >
           {Icon.login()}
-          <span className="rail-tip">Login</span>
+          <span className="rail-tip">Anmeldung</span>
         </Link>
       </nav>
 
@@ -131,11 +131,11 @@ export default function AppShell({
         <button
           type="button"
           className="cmdk"
-          aria-label="Suchen oder Kommando ausführen"
+          aria-label="Suchen oder Befehl ausführen"
           onClick={() => setCmdkOpen(true)}
         >
           {Icon.search({ size: 15 })}
-          <span>Suchen oder Kommando ausführen</span>
+          <span>Suchen oder Befehl ausführen</span>
           <kbd>⌘K</kbd>
         </button>
         <div className="grow" />
@@ -156,7 +156,7 @@ export default function AppShell({
             }
           }}
         >
-          <div className="cmdk-modal" role="dialog" aria-modal="true" aria-label="Command palette">
+          <div className="cmdk-modal" role="dialog" aria-modal="true" aria-label="Befehlspalette">
             <span className="sr-only" data-testid="cmdk-proof">PASS cmdk_opened</span>
             <div className="cmdk-input-row">
               {Icon.search({ size: 16 })}
@@ -165,15 +165,15 @@ export default function AppShell({
                 className="cmdk-input"
                 value={cmdkQuery}
                 onChange={(event) => setCmdkQuery(event.target.value)}
-                placeholder="Search pages…"
-                aria-label="Search pages"
+                placeholder="Seiten durchsuchen…"
+                aria-label="Seiten durchsuchen"
               />
               <kbd className="cmdk-hint">Enter</kbd>
-              <button type="button" className="cmdk-close" onClick={() => setCmdkOpen(false)} aria-label="Close command palette">
+              <button type="button" className="cmdk-close" onClick={() => setCmdkOpen(false)} aria-label="Befehlspalette schließen">
                 Esc
               </button>
             </div>
-            <div className="cmdk-list" role="listbox" aria-label="Commands">
+            <div className="cmdk-list" role="listbox" aria-label="Befehle">
               {filteredCmdkItems.length ? (
                 filteredCmdkItems.slice(0, 20).map((item) => {
                   const CmdIcon = (Icon as Record<string, (opts?: { size?: number }) => ReactNode>)[item.icon];
@@ -197,7 +197,7 @@ export default function AppShell({
                   );
                 })
               ) : (
-                <div className="cmdk-empty">No matches</div>
+                <div className="cmdk-empty">Keine Treffer</div>
               )}
             </div>
           </div>

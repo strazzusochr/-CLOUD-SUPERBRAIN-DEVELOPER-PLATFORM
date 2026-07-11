@@ -2,52 +2,52 @@ import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, Badge } from "../../components/ui";
 import { SettingsGatePlanPanel } from "../../components/goal-b-actions";
 
-export const metadata = { title: "Settings / Governance — Cloud Superbrain" };
+export const metadata = { title: "Einstellungen / Governance — Cloud Superbrain" };
 
 const GATES = [
-  "Production deploy",
-  "Release promotion",
-  "Provider writes",
-  "Main push",
-  "Registry push",
-  "Live MCP write",
-  "Live LLM call",
-  "Secret output",
+  "Produktionsbereitstellung",
+  "Release-Freigabe",
+  "Provider-Schreibzugriffe",
+  "Push auf Main",
+  "Push in die Registry",
+  "Live-MCP-Schreibzugriff",
+  "Live-LLM-Aufruf",
+  "Ausgabe von Secrets",
 ];
 
 const ROLES = [
-  { role: "Admin", scope: "Full governance" },
-  { role: "Architect", scope: "Plan + design" },
-  { role: "Developer", scope: "Build + run" },
-  { role: "Viewer", scope: "Read-only" },
+  { role: "Administration", scope: "Vollständige Governance" },
+  { role: "Architektur", scope: "Planung und Design" },
+  { role: "Entwicklung", scope: "Bauen und ausführen" },
+  { role: "Betrachtung", scope: "Nur lesend" },
 ];
 
 export default function SettingsPage() {
   return (
-    <AppShell crumb="Settings" runState="idle">
+    <AppShell crumb="Einstellungen" runState="idle">
       <div className="page-wide">
         <PageHeader
-          eyebrow="Settings / Governance"
-          title="Profile, gates & policies"
-          subtitle="Local API, providers, accessibility and the security gate matrix. All dangerous gates are closed by default."
+          eyebrow="Einstellungen / Governance"
+          title="Profile, Gates und Richtlinien"
+          subtitle="Lokale API, Provider, Barrierefreiheit und Sicherheits-Gate-Matrix. Alle gefährlichen Gates sind standardmäßig geschlossen."
         />
         <div className="grid grid-settings">
-          <Panel title="Settings">
+          <Panel title="Einstellungen">
             <div className="list">
-              {["General", "Security", "Local API", "Providers", "Accessibility", "Team policies"].map((s) => (
+              {["Allgemein", "Sicherheit", "Lokale API", "Provider", "Barrierefreiheit", "Teamrichtlinien"].map((s) => (
                 <div key={s} className="lrow text-13">{s}</div>
               ))}
             </div>
           </Panel>
 
-          <Panel title="Security gates">
+          <Panel title="Sicherheits-Gates">
             <table className="tbl">
-              <thead><tr><th>Gate</th><th>State</th></tr></thead>
+              <thead><tr><th>Gate</th><th>Status</th></tr></thead>
               <tbody>
                 {GATES.map((g) => (
                   <tr key={g}>
                     <td>{g}</td>
-                    <td><Badge tone="red">closed · false</Badge></td>
+                    <td><Badge tone="red">geschlossen · false</Badge></td>
                   </tr>
                 ))}
               </tbody>
@@ -57,7 +57,7 @@ export default function SettingsPage() {
             </div>
           </Panel>
 
-          <Panel title="Role management">
+          <Panel title="Rollenverwaltung">
             <div className="list">
               {ROLES.map((r) => (
                 <div key={r.role} className="lrow">
@@ -68,8 +68,7 @@ export default function SettingsPage() {
             </div>
             <div className="wb-pad">
               <p className="text-12 text-dim">
-                Tokens live under <span className="mono">.codex/secrets</span> — status only, never
-                shown.
+                Tokens liegen unter <span className="mono">.codex/secrets</span> — es wird nur ihr Status angezeigt, niemals ihr Wert.
               </p>
             </div>
           </Panel>

@@ -7,16 +7,16 @@ import { HomeCortexHero } from "../../components/batch4-actions";
 import { AiBuilder } from "../../components/ai-builder";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Home — Cloud Superbrain" };
+export const metadata = { title: "Start — Cloud Superbrain" };
 
 export default async function HomePage() {
   return (
-    <AppShell crumb="Home" runState="idle">
+    <AppShell crumb="Start" runState="idle">
       <div className="page">
         <div className="build-hero">
           <h1 className="build-hero-title">Beschreibe es. Die KI baut es. Es läuft sofort.</h1>
           <p className="build-hero-sub">
-            Cloud Superbrain ist eine KI-Entwickler-Plattform: Sag, welche App oder welches Spiel du willst —
+            Cloud Superbrain ist eine KI-Entwicklungsplattform: Sag, welche App oder welches Spiel du willst —
             ein echtes Code-Modell baut es, und es läuft live in der Vorschau. Teilbar per Link, kostenlos.
           </p>
           <AiBuilder />
@@ -26,8 +26,8 @@ export default async function HomePage() {
           <div className="home-hero-copy">
             <PageHeader
               eyebrow="Cloud Superbrain"
-              title="Developer Platform"
-              subtitle="Saubere Produktfläche für Games, Apps, Media und Docs. Nachweise, Verifier und externe Laufdaten bleiben getrennt in Evidence, Diagnostics und Organism verdrahtet."
+              title="Entwicklerplattform"
+              subtitle="Klare Produktoberfläche für Spiele, Apps, Medien und Dokumente. Nachweise, Prüfungen und externe Laufzeitdaten bleiben getrennt unter Nachweise, Diagnose und Organismus eingebunden."
               actions={
                 <Link href="/workbench" className="btn btn-primary">
                   {Icon.workbench({ size: 16 })} Werkbank öffnen
@@ -45,7 +45,7 @@ export default async function HomePage() {
             foot={<><StatusDot tone="cyan" /> Produkt-Konstante</>}
           />
           <Metric
-            label="Core Pages"
+            label="Kernseiten"
             value="22"
             foot={<><StatusDot tone="green" /> kanonische Navigation</>}
           />
@@ -55,7 +55,7 @@ export default async function HomePage() {
             foot={<><StatusDot tone="cyan" /> Architektur-Konstante</>}
           />
           <Metric
-            label="Live Claims"
+            label="Live-Aussagen"
             value="0"
             foot={<><StatusDot tone="amber" /> nur mit Datenquelle</>}
           />
@@ -66,9 +66,9 @@ export default async function HomePage() {
             <div className="wb-pad">
               <LiveConsole
                 endpoints={[
-                  { label: "Health", path: "/api/v1/health" },
-                  { label: "Clouds", path: "/api/v1/clouds" },
-                  { label: "Platform verify", path: "/api/v1/platform/verify" },
+                  { label: "Systemzustand", path: "/api/v1/health" },
+                  { label: "Cloud-Provider", path: "/api/v1/clouds" },
+                  { label: "Plattformprüfung", path: "/api/v1/platform/verify" },
                 ]}
               />
             </div>
@@ -80,27 +80,27 @@ export default async function HomePage() {
             <div className="list">
               <Link href="/games" className="lrow">
                 {Icon.games({ size: 16 })}
-                <span className="lrow-title">Games</span>
-                <Badge tone="cyan">Workbench</Badge>
-                <span className="meta">Code · Preview · Assets</span>
+                <span className="lrow-title">Spiele</span>
+                <Badge tone="cyan">Werkbank</Badge>
+                <span className="meta">Code · Vorschau · Assets</span>
               </Link>
               <Link href="/apps" className="lrow">
                 {Icon.apps({ size: 16 })}
                 <span className="lrow-title">Apps</span>
-                <Badge tone="cyan">Workbench</Badge>
-                <span className="meta">UI · API · Deploy</span>
+                <Badge tone="cyan">Werkbank</Badge>
+                <span className="meta">UI · API · Bereitstellung</span>
               </Link>
               <Link href="/media" className="lrow">
                 {Icon.media({ size: 16 })}
-                <span className="lrow-title">Media</span>
-                <Badge tone="cyan">Workbench</Badge>
+                <span className="lrow-title">Medien</span>
+                <Badge tone="cyan">Werkbank</Badge>
                 <span className="meta">Video · Bild · Audio</span>
               </Link>
               <Link href="/docs-output" className="lrow">
                 {Icon.docs({ size: 16 })}
-                <span className="lrow-title">Docs</span>
-                <Badge tone="cyan">Workbench</Badge>
-                <span className="meta">Specs · Guides · Evidence Links</span>
+                <span className="lrow-title">Dokumente</span>
+                <Badge tone="cyan">Werkbank</Badge>
+                <span className="meta">Spezifikationen · Leitfäden · Nachweislinks</span>
               </Link>
             </div>
           </Panel>
@@ -114,7 +114,7 @@ export default async function HomePage() {
                 <Link href="/evidence" className="btn btn-ghost">Nachweise öffnen</Link>
               </div>
               <div>
-                <div className="panel-title mb-8">Output-Shortcuts</div>
+                <div className="panel-title mb-8">Schnellzugriffe für Ausgaben</div>
                 <div className="chips">
                   <Link href="/games" className="chip">Spiele</Link>
                   <Link href="/apps" className="chip">Apps</Link>

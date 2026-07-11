@@ -8,16 +8,28 @@ import { CLOSED_GATES } from "../../lib/platform";
 
 const STATES: RunState[] = ["idle", "planning", "executing", "verifying", "blocked"];
 const DEFAULT_CAPS = { webgpu: false, webgl2: false, gpu: "WebGL" };
+const MODE_LABEL = { live: "Live", replay: "Wiedergabe", map: "Karte" } as const;
+
+const HUB_LABEL_DE: Record<string, string> = {
+  workbench: "WERKBANK",
+  agents: "AGENTEN",
+  tools: "WERKZEUGE / MCP",
+  models: "MODELLE",
+  marketplace: "MARKTPLATZ",
+  observe: "BEOBACHTUNG",
+  memory: "GEDÄCHTNIS",
+  cloud: "CLOUD",
+};
 
 const HUB_DESC: Record<string, string> = {
-  workbench: "Bauen · Erstellen · Kollaborieren — prompt zu Artefakt, mit ehrlichem Run-State.",
-  agents: "4 deterministische Agent-Profile — planner, coder, tester, devops.",
-  tools: "MCP-Tools + Provider-Zugriff — Write-Scopes bleiben bis Freigabe gated.",
+  workbench: "Bauen · Erstellen · Zusammenarbeiten — vom Prompt zum Artefakt, mit ehrlichem Ausführungsstatus.",
+  agents: "Vier deterministische Agentenprofile — planner, coder, tester, devops.",
+  tools: "MCP-Tools und Provider-Zugriff — Schreibbereiche bleiben bis zur Freigabe durch Gates gesperrt.",
   models: "LLM-Routing, Fallbacks, Safety und Kostenkontrolle.",
-  marketplace: "Skills, Agents, MCP-Tools und Modelle zum Komponieren.",
-  observe: "Health, Traces, Metriken, Kosten und Evidence.",
-  memory: "PostgreSQL pgvector Long-Term Memory und Wissen.",
-  cloud: "Sieben-Layer Multi-Cloud Architektur über mehrere Provider.",
+  marketplace: "Skills, Agenten, MCP-Tools und Modelle zum Zusammenstellen.",
+  observe: "Systemzustand, Traces, Metriken, Kosten und Nachweise.",
+  memory: "Langzeitgedächtnis und Wissen mit PostgreSQL und pgvector.",
+  cloud: "Sieben-Schichten-Multi-Cloud-Architektur über mehrere Provider.",
 };
 
 type OrganismRuntimeEvent = {
@@ -268,22 +280,22 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
       ? `LIVE · ${feed.source}`
       : runtimeFeed
         ? `SPEC · ${runtimeFeed.sourceKind}`
-        : "SPEC · ORGANISM";
+        : "SPEC · ORGANISMUS";
 
   return (
     <div className="page-wide">
       <div className="page-head organism-head">
         <div>
-          <div className="eyebrow">Cortex Canvas{mode !== "live" ? ` · ${mode}` : ""}</div>
+          <div className="eyebrow">Cortex-Ansicht{mode !== "live" ? ` · ${MODE_LABEL[mode]}` : ""}</div>
           <h1 className="organism-title">Kollektiver Organismus</h1>
           <p className="organism-subtitle">
-            Eine live 3D-Karte des Superbrain: ein glühender Neural-Core mit Capability-Hubs in Umlaufbahnen.
-            Filtere nach Architektur-Layer oder Agent; der Inspector öffnet jeden Hub.
+            Eine interaktive 3D-Live-Karte des Superbrain: ein leuchtender neuronaler Kern mit Fähigkeitszentren in Umlaufbahnen.
+            Filtere nach Architekturschicht oder Agent; die Detailansicht öffnet jedes Zentrum.
           </p>
         </div>
         <div className="chips">
           <Link href="/organism" className={`chip${mode === "live" ? " active" : ""}`}>Live</Link>
-          <Link href="/organism/replay" className={`chip${mode === "replay" ? " active" : ""}`}>Replay</Link>
+          <Link href="/organism/replay" className={`chip${mode === "replay" ? " active" : ""}`}>Wiedergabe</Link>
           <Link href="/organism/map" className={`chip${mode === "map" ? " active" : ""}`}>Karte</Link>
         </div>
       </div>
@@ -312,16 +324,16 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
             <div className="org-hud" aria-hidden="true">
               <span className="mono">{stats.fps} FPS</span>
               <span className="mono">{stats.ms}ms</span>
-              <span className="mono">{stats.nodes} nodes</span>
+              <span className="mono">{stats.nodes} Knoten</span>
               <span className="mono">{renderMode === "3d" ? (caps.webgpu ? "WebGPU✓" : "WebGL2") : "2D"}</span>
               {feed ? (
-                <span className={`org-feed ${feed.live ? "live" : "spec"}`} title={`live-state source: ${feed.source}`}>
+                <span className={`org-feed ${feed.live ? "live" : "spec"}`} title={`Datenquelle des Live-Status: ${feed.source}`}>
                   {feed.live ? `LIVE · ${feed.source}` : `SPEC · ${feed.source}`}
                 </span>
               ) : null}
               {runtimeFeed ? (
-                <span className={`org-feed ${runtimeFeed.live ? "live" : "spec"}`} title={`runtime source: ${runtimeFeed.sourceKind}`}>
-                  {runtimeFeed.live ? "EVENTS · LIVE" : "EVENTS · SPEC"}
+                <span className={`org-feed ${runtimeFeed.live ? "live" : "spec"}`} title={`Runtime-Datenquelle: ${runtimeFeed.sourceKind}`}>
+                  {runtimeFeed.live ? "EREIGNISSE · LIVE" : "EREIGNISSE · SPEC"}
                 </span>
               ) : null}
             </div>
@@ -334,7 +346,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
           </div>
 
           <div className="panel panel-pad organism-mode-bar">
-            <span className="panel-title">Run-State</span>
+            <span className="panel-title">Ausführungsstatus</span>
             <div className="state-row">
               {STATES.map((s) => (
                 <button
@@ -358,27 +370,27 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
                 className={`state-btn${autoRotate && !reducedMotion ? " active" : ""}`}
                 onClick={toggleAutoRotate}
                 disabled={reducedMotion}
-                title={reducedMotion ? "Disabled while reduced-motion mode is active" : "Space"}
+                title={reducedMotion ? "Deaktiviert, solange der Modus für weniger Bewegung aktiv ist" : "Leertaste"}
               >
-                {autoRotate ? "Auto-rotate ⏸" : "Auto-rotate ▶"}
+                {autoRotate ? "Automatisch drehen ⏸" : "Automatisch drehen ▶"}
               </button>
               <button className="state-btn" onClick={resetCamera} title="R">Kamera zurücksetzen</button>
-              <button className={`state-btn${reducedMotion ? " active" : ""}`} onClick={toggleReducedMotion} title="Motion-sickness guard">
+              <button className={`state-btn${reducedMotion ? " active" : ""}`} onClick={toggleReducedMotion} title="Schutz bei Bewegungsempfindlichkeit">
                 {reducedMotion ? "Weniger Bewegung ✓" : "Weniger Bewegung"}
               </button>
             </div>
-            <span className="cap-badge" title={`renderer: ${caps.gpu}`}>
+            <span className="cap-badge" title={`Renderer: ${caps.gpu}`}>
               <span className={`cap-dot ${caps.webgpu ? "gpu" : caps.webgl2 ? "ok" : "soft"}`} />
               {renderMode === "2d" ? "2D-Fallback" : caps.webgpu ? "WebGPU verfügbar · WebGL2 aktiv" : "WebGL2"}
             </span>
             <span className="mono organism-fps">
-              {stats.fps} FPS · {stats.ms}ms/frame
+              {stats.fps} FPS · {stats.ms} ms/Frame
             </span>
             <span className="mono organism-hints">
-              Tastatur: ←→ rotieren · ↑↓ kippen · +/- zoomen · R reset · Space auto-rotate
+              Tastatur: ←→ rotieren · ↑↓ kippen · +/- zoomen · R zurücksetzen · Leertaste automatisch drehen
             </span>
             <span className="mono organism-hints">
-              GPU-sicher: 30 FPS-Limit · low-power · pausiert automatisch im Hintergrund/außerhalb des Sichtfelds · «Weniger Bewegung» friert die Szene ein
+              GPU-sicher: 30-FPS-Limit · Energiesparmodus · pausiert automatisch im Hintergrund/außerhalb des Sichtfelds · „Weniger Bewegung“ friert die Szene ein
             </span>
             <pre className="goalb-result mono organism-action-result" data-testid="batch1-organism-action-result" aria-live="polite">
               {interactionStatus}
@@ -388,7 +400,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
           <div className="panel panel-pad">
             <div className="row organism-filters-row">
               <div>
-                <div className="panel-title mb-6">Layer-Filter</div>
+                <div className="panel-title mb-6">Schichtfilter</div>
                 <div className="chip-wrap">
                   {LAYERS.map((l) => (
                     <button
@@ -402,7 +414,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
                 </div>
               </div>
               <div>
-                <div className="panel-title mb-6">Agent-Filter</div>
+                <div className="panel-title mb-6">Agentenfilter</div>
                 <div className="chip-wrap">
                   {ORGANISM_AGENTS.map((a) => (
                     <button
@@ -428,14 +440,14 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
             data-run-id={runtimeFeed?.runId ?? ""}
           >
             <div className="panel-head">
-              <span className="panel-title">Runtime Events</span>
+              <span className="panel-title">Runtime-Ereignisse</span>
               <span className={`org-feed ${runtimeFeed?.live ? "live" : "spec"}`}>
                 {runtimeFeed?.sourceKind ?? "loading"}
               </span>
             </div>
             <div className="runtime-meta">
-              <span className="mono">{runtimeFeed?.events.length ?? 0} events</span>
-              <span className="mono">{runtimeFeed?.frames.length ?? 0} frames</span>
+              <span className="mono">{runtimeFeed?.events.length ?? 0} Ereignisse</span>
+              <span className="mono">{runtimeFeed?.frames.length ?? 0} Frames</span>
               <span className="mono">{runtimeFeed?.replayAvailable ? "replay_available=true" : "replay_available=false"}</span>
               {runtimeFeed?.runId ? <span className="mono">run_id={runtimeFeed.runId}</span> : null}
             </div>
@@ -456,7 +468,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
                   </div>
                 </div>
               )) : (
-                <div className="runtime-empty">runtime feed pending</div>
+                <div className="runtime-empty">Runtime-Feed wird geladen</div>
               )}
             </div>
             {mode === "replay" ? (
@@ -471,19 +483,19 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
               </div>
             ) : null}
             <div className="runtime-guard">
-              <span>read-only audit projection</span>
-              <span>no raw details</span>
+              <span>nur lesende Audit-Projektion</span>
+              <span>keine Rohdetails</span>
             </div>
           </section>
 
           <section className="panel">
-            <div className="panel-head"><span className="panel-title">Capability-Hubs</span></div>
+            <div className="panel-head"><span className="panel-title">Fähigkeitszentren</span></div>
             <div className="legend legend-pad">
               {HUBS.map((h) => (
                 <button key={h.id} className={`lg-row${h.id === active ? " active" : ""}`} onClick={() => selectHub(h.id)}>
                   <span className={`lg-dot hub-dot hub-${h.id}`} />
-                  <span>{h.label}</span>
-                  {feed?.hubs[h.id] === "active" ? <span className="lg-pip ml-auto" title="feed: active" /> : null}
+                  <span>{HUB_LABEL_DE[h.id] ?? h.label}</span>
+                  {feed?.hubs[h.id] === "active" ? <span className="lg-pip ml-auto" title="Feed: aktiv" /> : null}
                   <span className={`lg-cap ${feed?.hubs[h.id] === "active" ? "ml-6" : "ml-auto"}`}>L{LAYERS.find((l) => l.code === h.layer)?.no}</span>
                 </button>
               ))}
@@ -492,25 +504,25 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
 
           {hub ? (
             <section className="panel panel-pad">
-              <div className="panel-title mb-8">Inspector</div>
+              <div className="panel-title mb-8">Inspektion</div>
               <div className="row align-center gap-8">
                 <span className={`lg-dot hub-dot hub-${hub.id}`} />
-                <h3 className="organism-hub-title">{hub.label}</h3>
+                <h3 className="organism-hub-title">{HUB_LABEL_DE[hub.id] ?? hub.label}</h3>
               </div>
               <p className="organism-hub-desc">{HUB_DESC[hub.id]}</p>
               <p className="inspect-label">Agenten</p>
               <div className="chip-wrap">
                 {hub.agents.map((a) => <span key={a} className="tool-chip mono">{a}</span>)}
               </div>
-              <Link href={hub.route} className="btn btn-sm mt-12">{hub.label} öffnen →</Link>
+              <Link href={hub.route} className="btn btn-sm mt-12">{HUB_LABEL_DE[hub.id] ?? hub.label} öffnen →</Link>
             </section>
           ) : null}
 
           <div className="note">
-            Data-driven, niemals fake-live. Live-State kommt aus{" "}
-            <span className="mono">/api/v1/organism/live-state</span>; Events und Replay kommen aus{" "}
+            Datengetrieben, niemals vorgetäuscht live. Der Live-Status kommt aus{" "}
+            <span className="mono">/api/v1/organism/live-state</span>; Ereignisse und Wiedergaben kommen aus{" "}
             <span className="mono">/api/v1/organism/events</span> und{" "}
-            <span className="mono">/api/v1/organism/replay</span>. LLM bleibt Gateway-bound und write-gated.
+            <span className="mono">/api/v1/organism/replay</span>. LLM bleibt an das Gateway gebunden; Schreibzugriffe sind durch Gates geschützt.
           </div>
         </aside>
       </div>

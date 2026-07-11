@@ -16,19 +16,19 @@ const ARCHIVE = [
 
 export default async function DiagnosticsPage() {
   return (
-    <AppShell crumb="Diagnostics" runState="idle">
+    <AppShell crumb="Diagnose" runState="idle">
       <div className="page-wide">
         <PageHeader
           eyebrow="Diagnose / Archiv"
-          title="Recovery, Archiv & Verifier-Rohdaten"
-          subtitle="Saubere Entwicklerplattform: Projektplan läuft separat im Hintergrund. Diese UI zeigt keine Plan-/Progress-Prozente, nur Archive/Verifier."
-          actions={<Badge tone="mut">read-only</Badge>}
+          title="Wiederherstellung, Archiv und Verifier-Rohdaten"
+          subtitle="Klare Entwicklerplattform: Der Projektplan läuft getrennt im Hintergrund. Diese Oberfläche zeigt keine Plan- oder Fortschrittsprozente, sondern nur Archive und Verifier."
+          actions={<Badge tone="mut">nur lesend</Badge>}
         />
 
         <div className="grid cols-2 block-gap-16">
           <Panel title="Live-Daten" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
             <div className="wb-pad">
-              <LiveConsole endpoints={[{ label: "Audit recent", path: "/api/v1/audit/recent" }, { label: "Escalations recent", path: "/api/v1/escalations/recent" }, { label: "Platform inventory", path: "/api/v1/platform/inventory" }]} />
+              <LiveConsole endpoints={[{ label: "Neueste Audits", path: "/api/v1/audit/recent" }, { label: "Neueste Eskalationen", path: "/api/v1/escalations/recent" }, { label: "Plattforminventar", path: "/api/v1/platform/inventory" }]} />
             </div>
           </Panel>
           <Panel title="Verifier (Rohliste)">
@@ -47,9 +47,9 @@ export default async function DiagnosticsPage() {
             </table>
           </Panel>
 
-          <Panel title="Archiv & Recovery">
+          <Panel title="Archiv und Wiederherstellung">
             <table className="tbl">
-              <thead><tr><th>Item</th><th>Typ</th><th>Datum</th><th className="tbl-actions-col">Aktion</th></tr></thead>
+              <thead><tr><th>Eintrag</th><th>Typ</th><th>Datum</th><th className="tbl-actions-col">Aktion</th></tr></thead>
               <tbody>
                 {ARCHIVE.map((a) => (
                   <tr key={a.name}>

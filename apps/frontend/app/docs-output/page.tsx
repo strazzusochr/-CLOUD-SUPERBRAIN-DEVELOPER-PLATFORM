@@ -15,7 +15,7 @@ export default function DocsOutputPage() {
           title="Dokumente erstellen"
           subtitle="Schreibe Markdown, sieh die Live-Vorschau und lade als .md oder .html herunter."
         />
-        <Panel title="Doc Studio" actions={<Badge tone="green">echt · Download</Badge>}>
+        <Panel title="Dokumentenstudio" actions={<Badge tone="green">echt · Herunterladen</Badge>}>
           <div className="wb-pad">
             <CreatorStudio only="doc" />
           </div>

@@ -99,6 +99,7 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
         <textarea
           className="wb-composer-input"
           placeholder={placeholder ?? "Beschreibe, was du bauen willst — z. B. „ein 3D-Weltraum-Shooter mit Maus-Steuerung“"}
+          aria-label="Beschreibung für die App-Erstellung"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(prompt); }}
@@ -118,7 +119,7 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
       <section className="wb-studio">
         {/* Explorer — the real generated files */}
         <aside className="wb-pane wb-explorer">
-          <div className="wb-pane-head"><span>Explorer</span>{files.length ? <span className="mono muted-copy">{files.length}</span> : null}</div>
+          <div className="wb-pane-head"><span>Dateien</span>{files.length ? <span className="mono muted-copy">{files.length}</span> : null}</div>
           <div className="wb-tree">
             {files.length ? (
               <>
@@ -131,7 +132,7 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
                 ))}
               </>
             ) : (
-              <div className="ws-empty text-12 text-mut">Beschreibe oben etwas und «Bauen» — die generierten Dateien erscheinen hier.</div>
+              <div className="ws-empty text-12 text-mut">Beschreibe oben deine Idee und wähle „Bauen“ — die generierten Dateien erscheinen hier.</div>
             )}
           </div>
         </aside>
@@ -146,7 +147,7 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
           </div>
           {tab === "preview" ? (
             build ? (
-              <iframe className="ws-frame" title="preview" srcDoc={build.html} sandbox="allow-scripts allow-pointer-lock allow-popups allow-modals" data-testid="ws-frame" />
+              <iframe className="ws-frame" title="Vorschau" srcDoc={build.html} sandbox="allow-scripts allow-pointer-lock allow-popups allow-modals" data-testid="ws-frame" />
             ) : (
               <div className="ws-stage-empty">
                 {busy ? <><div className="ab-spinner" /><div>Baut deine App… <b>{elapsed}s</b></div></> : <div className="text-mut">Hier läuft gleich deine gebaute App.</div>}
@@ -159,7 +160,7 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
 
         {/* Build log + actions */}
         <aside className="wb-pane wb-preview">
-          <div className="wb-pane-head"><span>Build-Log</span>{build ? <span className="mono muted-copy">{String(build.model).replace("@cf/", "")}</span> : null}</div>
+          <div className="wb-pane-head"><span>Build-Protokoll</span>{build ? <span className="mono muted-copy">{String(build.model).replace("@cf/", "")}</span> : null}</div>
           <div className="terminal-feed ws-log" data-testid="ws-log">
             {busy ? <div className="terminal-row"><span className="run">▸ Generiere… {elapsed}s</span></div> : null}
             {log.map((r, i) => <div key={i} className="terminal-row"><span className={r.kind}>{r.text}</span></div>)}
@@ -170,11 +171,12 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
               <div className="row gap-8 wrap">
                 <button type="button" className="btn btn-sm" onClick={() => { const w = window.open(); if (w) { w.document.write(build.html); w.document.close(); } }}>⤢ Vollbild</button>
                 {build.share_path ? <button type="button" className="btn btn-sm" onClick={() => navigator.clipboard?.writeText(`${location.origin}${build.share_path}`)}>🔗 Teilen</button> : null}
-                <button type="button" className="btn btn-sm" onClick={download}>↓ Download</button>
+                <button type="button" className="btn btn-sm" onClick={download}>↓ Herunterladen</button>
               </div>
               <input
                 className="wb-composer-input ws-iterate"
                 placeholder="Ändern/erweitern — z. B. „füge Highscore hinzu“"
+                aria-label="App ändern oder erweitern"
                 onKeyDown={(e) => { if (e.key === "Enter") { const v = (e.target as HTMLInputElement).value.trim(); if (v && build) { run(v, build.html); (e.target as HTMLInputElement).value = ""; } } }}
                 disabled={busy}
               />
@@ -182,23 +184,23 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
           ) : null}
         </aside>
       </section>
-      <section className="wb-studio wb-studio-secondary" aria-label="Workbench runtime lanes">
+      <section className="wb-studio wb-studio-secondary" aria-label="Workbench-Laufzeitbereiche">
         <aside className="wb-pane wb-agent">
-          <div className="wb-pane-head"><span>Agent Assistance</span><span className="mono muted-copy">{busy ? "run" : "idle"}</span></div>
+          <div className="wb-pane-head"><span>Agentenhilfe</span><span className="mono muted-copy">{busy ? "läuft" : "bereit"}</span></div>
           <div className="wb-tree">
-            <div className="terminal-row"><span className={busy ? "run" : "info"}>{busy ? "Planung und Code-Erzeugung aktiv" : "Bereit fuer Prompt-to-Code"}</span></div>
+            <div className="terminal-row"><span className={busy ? "run" : "info"}>{busy ? "Planung und Code-Erzeugung aktiv" : "Bereit für Prompt-zu-Code"}</span></div>
             <div className="terminal-row"><span className="ok">live_provider_calls=false</span></div>
           </div>
         </aside>
         <aside className="wb-pane wb-cortex">
-          <div className="wb-pane-head"><span>Mini Cortex</span><span className="mono muted-copy">L1-L7</span></div>
+          <div className="wb-pane-head"><span>Mini-Cortex</span><span className="mono muted-copy">L1-L7</span></div>
           <div className="wb-tree">
-            <div className="terminal-row"><span className="info">Workbench → Agent Pool → LLM/MCP → Evidence</span></div>
+            <div className="terminal-row"><span className="info">Werkbank → Agentenpool → LLM/MCP → Nachweise</span></div>
             <div className="terminal-row"><span className="ok">writes=false · secret_output=false</span></div>
           </div>
         </aside>
         <aside className="wb-pane wb-artifacts">
-          <div className="wb-pane-head"><span>Artifacts</span><span className="mono muted-copy">{build ? "ready" : "empty"}</span></div>
+          <div className="wb-pane-head"><span>Artefakte</span><span className="mono muted-copy">{build ? "bereit" : "leer"}</span></div>
           <div className="wb-tree">
             <div className="terminal-row"><span className="info">{build?.share_path ?? "Noch kein Build-Artefakt"}</span></div>
           </div>

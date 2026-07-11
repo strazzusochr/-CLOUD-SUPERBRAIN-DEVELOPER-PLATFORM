@@ -143,7 +143,7 @@ function MusicTool() {
     <div className="cs-tool" data-testid="cs-music">
       <p className="text-13 text-mut">Generativer Web-Audio-Synth (pentatonisch). Echte Audioausgabe, 6 s Aufnahme als Datei.</p>
       <div className="cs-row">
-        <button type="button" className="btn btn-sm btn-primary" data-testid="cs-music-play" onClick={toggle}>{playing ? "■ Stop" : "▶ Play"}</button>
+        <button type="button" className="btn btn-sm btn-primary" data-testid="cs-music-play" onClick={toggle}>{playing ? "■ Stoppen" : "▶ Abspielen"}</button>
         <button type="button" className="btn btn-sm" data-testid="cs-music-rec" onClick={record} disabled={recording}>{recording ? "● nimmt auf… (6s)" : "● 6s aufnehmen + ↓"}</button>
       </div>
     </div>

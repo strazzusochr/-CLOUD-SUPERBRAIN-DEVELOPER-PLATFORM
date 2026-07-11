@@ -14,11 +14,11 @@ export default function AgentsPage() {
       <div className="page-wide">
         <PageHeader
           eyebrow="Agenten"
-          title="Multi-Agent Deep-Research"
+          title="Tiefenrecherche mit mehreren Agenten"
           subtitle="Gib ein Ziel ein — mehrere Agenten arbeiten zusammen (Planner → Researcher → Writer) und liefern eine fundierte, mit Quellen belegte Antwort."
         />
 
-        <Panel title="Deep-Research starten" className="mb-16" actions={<Badge tone="green">echt · Workers AI</Badge>}>
+        <Panel title="Tiefenrecherche starten" className="mb-16" actions={<Badge tone="green">echt · Workers AI</Badge>}>
           <div className="wb-pad">
             <AgentRun />
           </div>

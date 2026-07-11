@@ -70,9 +70,9 @@ function ReadOnlyProbe({
     <div className="goalb-action-panel" data-testid={`${testId}-panel`}>
       <div className="goalb-row">
         <button className="btn btn-sm btn-primary" type="button" data-testid={testId} onClick={run} disabled={busy}>
-          {busy ? "Checking" : label}
+          {busy ? "Wird geprüft" : label}
         </button>
-        <MiniBadge>read-only</MiniBadge>
+        <MiniBadge>nur lesend</MiniBadge>
         <MiniBadge tone="mut">provider_writes=false</MiniBadge>
       </div>
       <ActionResult state={result} testId={resultId} />
@@ -83,7 +83,7 @@ function ReadOnlyProbe({
 export function DiagnosticsProbe() {
   return (
     <ReadOnlyProbe
-      label="Audit read-only pruefen"
+      label="Audit nur lesend prüfen"
       testId="goal-b-diagnostics-probe"
       resultId="goal-b-diagnostics-result"
       initial="Bereit — noch keine Diagnose abgerufen."
@@ -107,10 +107,10 @@ export function DiagnosticsProbe() {
 export function DesignSystemProbe() {
   return (
     <ReadOnlyProbe
-      label="Design-Contract pruefen"
+      label="Designvertrag prüfen"
       testId="goal-b-design-system-probe"
       resultId="goal-b-design-system-result"
-      initial="Bereit — noch kein Design-Contract gelesen."
+      initial="Bereit — noch kein Designvertrag gelesen."
       onRun={async () => {
         const body = await getJson("/api/v1/design/reference-contract");
         return [
@@ -129,7 +129,7 @@ export function DesignSystemProbe() {
 export function TechnologyProbe() {
   return (
     <ReadOnlyProbe
-      label="Cloud-Layer pruefen"
+      label="Cloud-Schichten prüfen"
       testId="goal-b-technology-probe"
       resultId="goal-b-technology-result"
       initial="Bereit — noch kein Layer-Status gelesen."
@@ -155,7 +155,7 @@ export function TechnologyProbe() {
 export function OpenSourceProbe() {
   return (
     <ReadOnlyProbe
-      label="OSS-Wiring pruefen"
+      label="Open-Source-Verdrahtung prüfen"
       testId="goal-b-open-source-probe"
       resultId="goal-b-open-source-result"
       initial="Bereit — noch keine Lizenzdaten gelesen."
@@ -177,10 +177,10 @@ export function OpenSourceProbe() {
 export function FilesLocalContractProbe() {
   return (
     <ReadOnlyProbe
-      label="Local-Files Contract pruefen"
+      label="Vertrag für lokale Dateien prüfen"
       testId="goal-b-files-local-contract"
       resultId="goal-b-files-local-result"
-      initial="Bereit — noch kein Contract gelesen."
+      initial="Bereit — noch kein Vertrag gelesen."
       onRun={async () => {
         const body = await getJson("/api/v1/files/local/contract");
         return [
@@ -236,7 +236,7 @@ export function LocalFilesInteractivePanel({ roots, tree }: { roots: string[]; t
 
   return (
     <div className="stack">
-      <Panel title="Root" className="mb-16" actions={<SafetyBadgeRow />}>
+      <Panel title="Stammverzeichnis" className="mb-16" actions={<SafetyBadgeRow />}>
         <div className="wb-pad row wrap">
           <div className="chips">
             {roots.map((r) => (
@@ -249,7 +249,7 @@ export function LocalFilesInteractivePanel({ roots, tree }: { roots: string[]; t
                   persist("files-local:root", r);
                   persist("files-local:last_root_change", String(Date.now()));
                 }}
-                aria-label={`Root ${r}`}
+                aria-label={`Stammverzeichnis ${r}`}
               >
                 {r}
               </button>
@@ -264,15 +264,15 @@ export function LocalFilesInteractivePanel({ roots, tree }: { roots: string[]; t
                 persist("files-local:last_reset", String(Date.now()));
               }}
             >
-              Reset search
+              Suche zurücksetzen
             </button>
-            <Badge tone="cyan">interaktiv · spec</Badge>
+            <Badge tone="cyan">interaktiv · Spezifikation</Badge>
           </div>
         </div>
       </Panel>
 
       <div className="local-files-grid">
-        <Panel title="Tree (interactive spec)">
+        <Panel title="Dateibaum (interaktive Spezifikation)">
           <div className="wb-pad tree">
             {(filtered.length ? filtered : tree).map((n, i) => (
               <button
@@ -292,7 +292,7 @@ export function LocalFilesInteractivePanel({ roots, tree }: { roots: string[]; t
           </div>
         </Panel>
 
-        <Panel title="Preview (spec)">
+        <Panel title="Vorschau (Spezifikation)">
           <div className="wb-pad stack">
             <div className="row">
               <button
@@ -305,7 +305,7 @@ export function LocalFilesInteractivePanel({ roots, tree }: { roots: string[]; t
                 }}
                 disabled={!selected}
               >
-                Copy selection
+                Auswahl kopieren
               </button>
               <button
                 type="button"
@@ -315,29 +315,29 @@ export function LocalFilesInteractivePanel({ roots, tree }: { roots: string[]; t
                   persist("files-local:last_clear", String(Date.now()));
                 }}
               >
-                Clear
+                Leeren
               </button>
             </div>
             <pre className="code">{preview}</pre>
           </div>
         </Panel>
 
-        <Panel title="Search (spec-only, local filter)">
+        <Panel title="Suche (nur Spezifikation, lokaler Filter)">
           <div className="wb-pad stack">
             <div className="row local-search-row">
               <input
                 className="local-search-input"
-                aria-label="Search project tree"
+                aria-label="Projektbaum durchsuchen"
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
                   persist("files-local:query", e.target.value);
                 }}
-                placeholder="Filter tree nodes…"
+                placeholder="Baumknoten filtern…"
               />
               <button
                 className="btn btn-sm"
-                aria-label="Clear search"
+                aria-label="Suche leeren"
                 onClick={() => {
                   setQuery("");
                   persist("files-local:last_clear_search", String(Date.now()));
@@ -352,18 +352,18 @@ export function LocalFilesInteractivePanel({ roots, tree }: { roots: string[]; t
                 <button key={n.name} type="button" className="lrow" onClick={() => setSelected(n.name)}>
                   {n.folder ? Icon.files({ size: 16 }) : Icon.docs({ size: 16 })}
                   <span className="lrow-title">{n.name}</span>
-                  <span className="meta">select</span>
+                  <span className="meta">auswählen</span>
                 </button>
               ))}
               {query && !filtered.length ? (
-                <div className="lrow muted-copy">No results<span className="meta">spec</span></div>
+                <div className="lrow muted-copy">Keine Ergebnisse<span className="meta">Spezifikation</span></div>
               ) : null}
               {!query ? (
-                <div className="lrow muted-copy">Type to filter…<span className="meta">local only</span></div>
+                <div className="lrow muted-copy">Zum Filtern tippen…<span className="meta">nur lokal</span></div>
               ) : null}
             </div>
             <div className="muted-copy text-12">
-              <span className="mono">.env</span>, <span className="mono">.git</span> and secret paths never appear; binaries surface as metadata only.
+              <span className="mono">.env</span>, <span className="mono">.git</span> und geheime Pfade werden nie angezeigt; Binärdateien erscheinen nur als Metadaten.
             </div>
           </div>
         </Panel>
