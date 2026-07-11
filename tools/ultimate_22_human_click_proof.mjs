@@ -796,7 +796,7 @@ async function proofFiles(page) {
   const actions = [];
   const origin = new URL(page.url()).origin;
   const seed = await page.request.post(`${origin}/api/v1/memory/search`, {
-    data: { content: "goal-d4 hosted memory seed batch2 phase2 search proof", project_id: "default" },
+    data: { content: "goal-d4 hosted memory seed batch2 phase2 search proof", project_id: "goal-b-local" },
   });
   actions.push({
     label: "files seed memory entry (POST /api/v1/memory/search)",
