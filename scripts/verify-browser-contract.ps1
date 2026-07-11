@@ -484,16 +484,20 @@ $memoryEmbeddingConsistencyContract = Invoke-Text "$BaseUrl/api/v1/memory/embedd
 Assert-Contains "memory embedding consistency version" $memoryEmbeddingConsistencyContract '"contract_version":"memory-embedding-consistency-v1"'
 if ($isLocalProof) {
   Assert-Contains "memory embedding consistency status" $memoryEmbeddingConsistencyContract '"status":"verified"'
+  Assert-Contains "memory embedding consistency gap" $memoryEmbeddingConsistencyContract '"audit_gap":"L-09"'
+  Assert-Contains "memory embedding consistency column" $memoryEmbeddingConsistencyContract '"embedding_model_version"'
+  Assert-Contains "memory embedding consistency vector" $memoryEmbeddingConsistencyContract "vector(1536)"
+  Assert-Contains "memory embedding consistency fallback" $memoryEmbeddingConsistencyContract "lexical_fallback"
+  Assert-Contains "memory embedding consistency no live provider" $memoryEmbeddingConsistencyContract "No live embedding provider call"
 } else {
-  Assert-Contains "hosted memory embedding consistency honest blocked status" $memoryEmbeddingConsistencyContract '"status":"blocked"'
-  Assert-Contains "hosted memory embedding consistency no database" $memoryEmbeddingConsistencyContract '"generation_mode":"disabled_until_live_embedding_gate"'
+  Assert-Contains "hosted memory embedding consistency verified" $memoryEmbeddingConsistencyContract '"status":"verified"'
+  Assert-Contains "hosted memory embedding model" $memoryEmbeddingConsistencyContract '"model_version":"@cf/baai/bge-base-en-v1.5"'
+  Assert-Contains "hosted memory embedding dimensions" $memoryEmbeddingConsistencyContract '"dimensions":768'
+  Assert-Contains "hosted memory embedding vector" $memoryEmbeddingConsistencyContract "vector(768)"
+  Assert-Contains "hosted memory semantic search" $memoryEmbeddingConsistencyContract '"search_mode":"semantic_cosine"'
+  Assert-Contains "hosted memory contract no provider call" $memoryEmbeddingConsistencyContract "This GET contract does not call Workers AI"
 }
 Assert-Contains "memory embedding consistency evidence" $memoryEmbeddingConsistencyContract '"evidence_ref":"memory_embedding_consistency_contract_visible"'
-Assert-Contains "memory embedding consistency gap" $memoryEmbeddingConsistencyContract '"audit_gap":"L-09"'
-Assert-Contains "memory embedding consistency column" $memoryEmbeddingConsistencyContract '"embedding_model_version"'
-Assert-Contains "memory embedding consistency vector" $memoryEmbeddingConsistencyContract "vector(1536)"
-Assert-Contains "memory embedding consistency fallback" $memoryEmbeddingConsistencyContract "lexical_fallback"
-Assert-Contains "memory embedding consistency no live provider" $memoryEmbeddingConsistencyContract "No live embedding provider call"
 
 Write-Host "[browser-contract] Phase 2 Runtime Contract"
 $runtimeContract = Invoke-Text "$BaseUrl/api/v1/phase2/runtime/contract"

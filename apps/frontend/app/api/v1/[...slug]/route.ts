@@ -58,16 +58,17 @@ async function proxy(req: Request, base: string, pathname: string, body: string 
 
 async function handle(req: Request, slug: string[] | undefined, method: string): Promise<Response> {
   const pathname = `/api/v1/${(slug ?? []).join("/")}`;
+  // Frontend-owned metrics must describe this deployment even when the Agent API
+  // origin is reachable. Backend metrics remain available at their own origin.
+  if (method === "GET" && pathname === "/api/v1/metrics") {
+    return new Response(frontendMetrics(), { headers: { "content-type": "text/plain; version=0.0.4", "x-superbrain-source": "frontend-metrics" } });
+  }
   const base = liveBase();
   // Read the body once so we can both proxy and (if needed) fall back without re-reading.
   const body = method !== "GET" && method !== "HEAD" ? await req.text() : undefined;
   if (base) {
     const live = await proxy(req, base, pathname, body);
     if (live) return live; // origin reachable → real live data; else fall through to projection
-  }
-  // Real frontend metrics in Prometheus exposition format.
-  if (method === "GET" && pathname === "/api/v1/metrics") {
-    return new Response(frontendMetrics(), { headers: { "content-type": "text/plain; version=0.0.4", "x-superbrain-source": "frontend-metrics" } });
   }
   // projectedDefault internally covers knownDefault surfaces before generic data.
   const projected = projectedDefault(pathname, method, body);
