@@ -548,7 +548,12 @@ export function genericDefault(pathname: string, method: string): Record<string,
 
 /** Real Prometheus-format frontend metrics (always 200, never fabricated). */
 export function frontendMetrics(): string {
-  const up = process.env.DATABASE_URL ? 1 : 0;
+  const persistence = !!(
+    process.env.DATABASE_URL ||
+    (process.env.CF_BACKEND_TOKEN && process.env.CF_D1_DATABASE_ID && process.env.CLOUDFLARE_ACCOUNT_ID) ||
+    ((process.env.GH_STORE_TOKEN || process.env.GITHUB_TOKEN) && process.env.GH_STORE_REPO)
+  );
+  const up = persistence ? 1 : 0;
   const llm = (process.env.CF_WORKERS_AI_TOKEN || process.env.CLOUDFLARE_API_TOKEN) && process.env.CLOUDFLARE_ACCOUNT_ID ? 1 : 0;
   return [
     "# HELP superbrain_frontend_up Frontend liveness (1=up).",

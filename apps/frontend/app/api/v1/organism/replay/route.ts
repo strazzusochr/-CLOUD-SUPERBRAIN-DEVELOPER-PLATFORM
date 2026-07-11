@@ -4,6 +4,14 @@ import * as gh from "../../../../../lib/ghStore";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+function organismResponse<T>(payload: T): Response {
+  const record = payload as Record<string, unknown>;
+  const source = String(record.source_kind ?? record.source ?? "unknown");
+  return Response.json(payload, {
+    headers: { "x-superbrain-source": source, "cache-control": "no-store" },
+  });
+}
+
 function safeTraceId(value: string | null): string | null {
   if (!value) return null;
   const trimmed = value.trim();
@@ -87,23 +95,23 @@ async function realAuditReplay(runId: string | null) {
 export async function GET(request: Request) {
   const runId = safeTraceId(new URL(request.url).searchParams.get("run_id"));
   const projectedRuntime = projectedRuntimeReplay(runId);
-  if (projectedRuntime) return Response.json(projectedRuntime);
+  if (projectedRuntime) return organismResponse(projectedRuntime);
   const projection = await fetchOrganismProjection("replay", runId);
   if (
     projection?.contract_version === "organism-replay-v1" &&
     Array.isArray(projection.frames) &&
     projection.live === true
   ) {
-    return Response.json(projection);
+    return organismResponse(projection);
   }
   const kinds = await fetchActivityKinds(8, runId);
-  if (!kinds) return Response.json((await realAuditReplay(runId)) ?? specOnlyReplay(runId));
+  if (!kinds) return organismResponse((await realAuditReplay(runId)) ?? specOnlyReplay(runId));
   const step = 1.2;
   const frames = kinds.map((kind, i) => {
     const { hub, run_state, regions } = mapKind(kind);
     return { t: +(i * step).toFixed(1), run_state, active: [hub], regions, source_kind: "agent_api_redacted" };
   });
-  return Response.json({
+  return organismResponse({
     contract_version: "organism-replay-v1",
     source: "agent-api",
     source_kind: "agent_api_redacted",

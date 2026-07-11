@@ -4,6 +4,14 @@ import * as gh from "../../../../../lib/ghStore";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+function organismResponse<T>(payload: T): Response {
+  const record = payload as Record<string, unknown>;
+  const source = String(record.source_kind ?? record.source ?? "unknown");
+  return Response.json(payload, {
+    headers: { "x-superbrain-source": source, "cache-control": "no-store" },
+  });
+}
+
 // Map real audit events → organism hubs/brain-regions so genuine platform activity
 // (building apps, running prompts, storing memory, sessions) lights up the cortex.
 const AUDIT_MAP: Record<string, { hub: string; regions: string[]; run_state: string }> = {
@@ -91,20 +99,20 @@ function specOnlyFeed(runId: string | null) {
 export async function GET(request: Request) {
   const runId = safeTraceId(new URL(request.url).searchParams.get("run_id"));
   const projectedRuntime = projectedRuntimeFeed(runId);
-  if (projectedRuntime) return Response.json(projectedRuntime);
+  if (projectedRuntime) return organismResponse(projectedRuntime);
   const projection = await fetchOrganismProjection("events", runId);
   if (
     projection?.contract_version === "organism-events-v1" &&
     Array.isArray(projection.events) &&
     projection.live === true
   ) {
-    return Response.json(projection);
+    return organismResponse(projection);
   }
   const kinds = await fetchActivityKinds(12, runId);
   if (!kinds) {
     // Prefer REAL platform activity from the audit log; spec-only is the last resort.
     const audit = await realAuditFeed(runId);
-    return Response.json(audit ?? specOnlyFeed(runId));
+    return organismResponse(audit ?? specOnlyFeed(runId));
   }
   const events = kinds.map((kind, i) => {
     const { hub, run_state, regions } = mapKind(kind);
@@ -124,7 +132,7 @@ export async function GET(request: Request) {
       writes: false,
     };
   });
-  return Response.json({
+  return organismResponse({
     contract_version: "organism-events-v1",
     source: "agent-api",
     source_kind: "agent_api_redacted",

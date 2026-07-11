@@ -37,7 +37,7 @@ $redactionContractPaths = @("/api/v1/organism/events", "/api/v1/organism/replay"
 
 function Invoke-Probe([string]$Path) {
   $response = Invoke-WebRequest -UseBasicParsing -Uri "$($BaseUrl.TrimEnd('/'))$Path" -Headers @{ Accept = "application/json" } -TimeoutSec 20
-  $source = $response.Headers["x-superbrain-source"]
+  $source = (@($response.Headers["x-superbrain-source"]) -join ",")
   $payload = $response.Content | ConvertFrom-Json
   $violations = @()
   if ($response.Content -match $globalForbiddenKeys) { $violations += "secret_key:$($Matches[1])" }
@@ -45,12 +45,29 @@ function Invoke-Probe([string]$Path) {
   if ($redactionContractPaths -contains $Path -and $response.Content -match $redactedForbiddenKeys) {
     $violations += "redaction_contract:$($Matches[1])"
   }
+  if (-not $source) { $violations += "missing_source_header" }
+  if ($redactionContractPaths -contains $Path -and [string]$payload.source_kind -ne $source) {
+    $violations += "source_header_mismatch"
+  }
+  if ($Path -eq "/api/v1/memory/embedding-consistency/contract") {
+    if ([string]$payload.current_embedding.model_version -ne "@cf/baai/bge-base-en-v1.5") {
+      $violations += "embedding_model_mismatch"
+    }
+    if ([int]$payload.current_embedding.dimensions -ne 768) {
+      $violations += "embedding_dimensions_mismatch"
+    }
+    if ([string]$payload.status -ne "verified") {
+      $violations += "embedding_contract_not_verified"
+    }
+  }
   [pscustomobject]@{
     path = $Path
     http_status = [int]$response.StatusCode
     source = $source
     source_kind = if ($null -ne $payload.PSObject.Properties["source_kind"]) { [string]$payload.source_kind } else { $null }
     live_backend = if ($null -ne $payload.PSObject.Properties["live_backend"]) { $payload.live_backend } else { $null }
+    embedding_model = if ($Path -eq "/api/v1/memory/embedding-consistency/contract") { [string]$payload.current_embedding.model_version } else { $null }
+    embedding_dimensions = if ($Path -eq "/api/v1/memory/embedding-consistency/contract") { [int]$payload.current_embedding.dimensions } else { $null }
     secret_fields_present = ($violations.Count -gt 0)
     secret_violations = $violations
   }
