@@ -5820,22 +5820,69 @@ def validate_workflow_dispatch(request: WorkflowDispatchRequest) -> dict[str, ob
 def health() -> dict[str, object]:
     services: dict[str, object] = {}
     overall = "healthy"
-    for name, checker in {
-        "postgres": check_postgres,
-        "redis": check_redis,
-        "agent_worker": check_agent_worker,
-        "memory_worker": check_memory_worker,
-        "mcp_gateway": check_mcp,
-        "llm_gateway": check_llm_gateway,
-    }.items():
+    configured_checks = {
+        "postgres": (check_postgres, bool(os.getenv("DATABASE_URL"))),
+        "redis": (check_redis, bool(os.getenv("REDIS_URL"))),
+        "agent_worker": (check_agent_worker, bool(os.getenv("REDIS_URL"))),
+        "memory_worker": (check_memory_worker, bool(os.getenv("REDIS_URL"))),
+        "mcp_gateway": (check_mcp, bool(os.getenv("MCP_GATEWAY_URL"))),
+        "llm_gateway": (check_llm_gateway, bool(os.getenv("LLM_GATEWAY_URL"))),
+    }
+    for name, (checker, configured) in configured_checks.items():
+        if not configured:
+            overall = "degraded"
+            services[name] = {"status": "unavailable", "reason": "not_configured"}
+            continue
         try:
             services[name] = checker()
         except Exception as exc:
             overall = "degraded"
-            services[name] = {"status": "down", "error": str(exc)}
+            services[name] = {"status": "down", "error_type": type(exc).__name__}
 
-    budget_state = get_budget_state()
-    infra_budget_state = get_infra_budget_state()
+    try:
+        budget_state = get_budget_state()
+        budget_payload: dict[str, object] = {
+            "level": budget_state.level,
+            "spent_percentage": budget_state.spent_percentage,
+            "total_cost_cents": budget_state.total_cost_cents,
+            "budget_limit_cents": budget_state.budget_limit_cents,
+            "allow_new_calls": budget_state.allow_new_calls,
+        }
+    except Exception as exc:
+        overall = "degraded"
+        budget_payload = {
+            "level": "unavailable",
+            "spent_percentage": None,
+            "total_cost_cents": None,
+            "budget_limit_cents": None,
+            "allow_new_calls": False,
+            "source_kind": "database_unavailable",
+            "error_type": type(exc).__name__,
+        }
+
+    try:
+        infra_budget_state = get_infra_budget_state()
+        infra_budget_payload: dict[str, object] = {
+            "level": infra_budget_state.level,
+            "spent_percentage": infra_budget_state.spent_percentage,
+            "projected_cost_cents": infra_budget_state.projected_cost_cents,
+            "budget_limit_cents": infra_budget_state.budget_limit_cents,
+            "allow_new_infra": infra_budget_state.allow_new_infra,
+            "live_verified": infra_budget_state.live_verified,
+            "source": infra_budget_state.source,
+        }
+    except Exception as exc:
+        overall = "degraded"
+        infra_budget_payload = {
+            "level": "unavailable",
+            "spent_percentage": None,
+            "projected_cost_cents": None,
+            "budget_limit_cents": None,
+            "allow_new_infra": False,
+            "live_verified": False,
+            "source": "unavailable",
+            "error_type": type(exc).__name__,
+        }
     # Liveness must never 500 because the progress manifest / gate data is missing or unreadable
     # (e.g. a hosted image without the bind-mounted manifest). Degrade instead of crashing.
     try:
@@ -5855,22 +5902,8 @@ def health() -> dict[str, object]:
         "time": datetime.now(timezone.utc).isoformat(),
         "applied_migrations": getattr(app.state, "applied_migrations", []),
         "services": services,
-        "budget": {
-            "level": budget_state.level,
-            "spent_percentage": budget_state.spent_percentage,
-            "total_cost_cents": budget_state.total_cost_cents,
-            "budget_limit_cents": budget_state.budget_limit_cents,
-            "allow_new_calls": budget_state.allow_new_calls,
-        },
-        "infra_budget": {
-            "level": infra_budget_state.level,
-            "spent_percentage": infra_budget_state.spent_percentage,
-            "projected_cost_cents": infra_budget_state.projected_cost_cents,
-            "budget_limit_cents": infra_budget_state.budget_limit_cents,
-            "allow_new_infra": infra_budget_state.allow_new_infra,
-            "live_verified": infra_budget_state.live_verified,
-            "source": infra_budget_state.source,
-        },
+        "budget": budget_payload,
+        "infra_budget": infra_budget_payload,
         "external_gates": {
             "status": gates["status"],
             "configured_count": gates["configured_count"],
