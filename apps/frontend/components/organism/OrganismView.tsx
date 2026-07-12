@@ -9,6 +9,54 @@ import { CLOSED_GATES } from "../../lib/platform";
 const STATES: RunState[] = ["idle", "planning", "executing", "verifying", "blocked"];
 const DEFAULT_CAPS = { webgpu: false, webgl2: false, gpu: "WebGL" };
 const MODE_LABEL = { live: "Live", replay: "Wiedergabe", map: "Karte" } as const;
+type CameraPreset = "wide" | "close" | "top";
+type LightingProfile = "studio" | "night" | "sunrise";
+type GameplayObjective = "collect" | "checkpoint" | "survive";
+type AssetProfile = "cube" | "beacon" | "ring";
+type MaterialVariant = "cyan" | "amber" | "rose";
+type Phase6SceneSnapshot = {
+  autoRotate: boolean;
+  reducedMotion: boolean;
+  cameraPreset: CameraPreset;
+  fovDegrees: (typeof FOV_STEPS)[number];
+  lightingProfile: LightingProfile;
+  exposure: number;
+  gameplayObjective: GameplayObjective;
+  gameplayScore: number;
+  gameplayCheckpoints: number;
+  gameplayCompletions: number;
+  gameplayInputEvents: number;
+  gameplayTicks: number;
+  gameplayPaused: boolean;
+  assetProfile: AssetProfile;
+  materialVariant: MaterialVariant;
+};
+const CAMERA_PRESETS: Array<{ id: CameraPreset; label: string }> = [
+  { id: "wide", label: "Weit" },
+  { id: "close", label: "Nah" },
+  { id: "top", label: "Oben" },
+];
+const LIGHTING_PROFILES: Array<{ id: LightingProfile; label: string; exposure: number }> = [
+  { id: "studio", label: "Studio", exposure: 1 },
+  { id: "night", label: "Nacht", exposure: 0.82 },
+  { id: "sunrise", label: "Morgen", exposure: 1.12 },
+];
+const FOV_STEPS = [38, 45, 58] as const;
+const GAMEPLAY_OBJECTIVES: Record<GameplayObjective, { label: string; next: GameplayObjective; scoreDelta: number; checkpointDelta: number }> = {
+  collect: { label: "Signal sammeln", next: "checkpoint", scoreDelta: 10, checkpointDelta: 0 },
+  checkpoint: { label: "Checkpoint sichern", next: "survive", scoreDelta: 0, checkpointDelta: 1 },
+  survive: { label: "Stabilitaet halten", next: "collect", scoreDelta: 10, checkpointDelta: 0 },
+};
+const ASSET_PROFILES: Array<{ id: AssetProfile; label: string; geometry: string }> = [
+  { id: "cube", label: "Wuerfel", geometry: "boxGeometry" },
+  { id: "beacon", label: "Signal", geometry: "coneGeometry" },
+  { id: "ring", label: "Ring", geometry: "torusGeometry" },
+];
+const MATERIAL_VARIANTS: Array<{ id: MaterialVariant; label: string; color: string }> = [
+  { id: "cyan", label: "Cyan", color: "#00e5ff" },
+  { id: "amber", label: "Amber", color: "#f59e0b" },
+  { id: "rose", label: "Rose", color: "#fb7185" },
+];
 
 const HUB_LABEL_DE: Record<string, string> = {
   workbench: "WERKBANK",
@@ -120,10 +168,37 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
   // Phase-6 (Scale & 3D) frontend controls
   const [autoRotate, setAutoRotate] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [systemReducedMotion, setSystemReducedMotion] = useState(false);
+  const [accessibilityAnnouncement, setAccessibilityAnnouncement] = useState("3D-Szene mit Standardbewegung aktiv");
   const [resetSignal, setResetSignal] = useState(0);
+  const [cameraPreset, setCameraPreset] = useState<CameraPreset>("wide");
+  const [fovDegrees, setFovDegrees] = useState<(typeof FOV_STEPS)[number]>(45);
+  const [lightingProfile, setLightingProfile] = useState<LightingProfile>("studio");
+  const [exposure, setExposure] = useState(1);
   const [renderMode, setRenderMode] = useState<"2d" | "3d">("3d");
   const [caps, setCaps] = useState(DEFAULT_CAPS);
   const [interactionStatus, setInteractionStatus] = useState("waiting_for_organism_interaction");
+  const [gameplayObjective, setGameplayObjective] = useState<GameplayObjective>("collect");
+  const [gameplayScore, setGameplayScore] = useState(0);
+  const [gameplayCheckpoints, setGameplayCheckpoints] = useState(0);
+  const [gameplayCompletions, setGameplayCompletions] = useState(0);
+  const [gameplayInputEvents, setGameplayInputEvents] = useState(0);
+  const [gameplayTicks, setGameplayTicks] = useState(0);
+  const [gameplayPaused, setGameplayPaused] = useState(false);
+  const [assetProfile, setAssetProfile] = useState<AssetProfile>("cube");
+  const [materialVariant, setMaterialVariant] = useState<MaterialVariant>("cyan");
+  const [savedSnapshot, setSavedSnapshot] = useState<Phase6SceneSnapshot | null>(null);
+  const [snapshotRevision, setSnapshotRevision] = useState(0);
+  const [snapshotStatus, setSnapshotStatus] = useState<"empty" | "saved" | "restored">("empty");
+  const [netcodeSessionActive, setNetcodeSessionActive] = useState(false);
+  const [netcodeGuestConnected, setNetcodeGuestConnected] = useState(false);
+  const [netcodeHostReady, setNetcodeHostReady] = useState(false);
+  const [netcodeGuestReady, setNetcodeGuestReady] = useState(false);
+  const [netcodeRunning, setNetcodeRunning] = useState(false);
+  const [netcodeTicks, setNetcodeTicks] = useState(0);
+  const [netcodePackets, setNetcodePackets] = useState(0);
+  const [netcodeSequence, setNetcodeSequence] = useState(0);
+  const [netcodeDisconnects, setNetcodeDisconnects] = useState(0);
 
   // Bind to the organism live-state feed: real when the configured agent-api is
   // reachable (source: "agent-api"), honest deterministic spec-only otherwise.
@@ -219,7 +294,21 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const applyPreference = () => {
+      setSystemReducedMotion(query.matches);
+      setAccessibilityAnnouncement(query.matches
+        ? "Systempraeferenz fuer reduzierte Bewegung aktiv, statische 2D-Ansicht wird verwendet"
+        : "Systempraeferenz fuer Standardbewegung aktiv");
+    };
+    applyPreference();
+    query.addEventListener("change", applyPreference);
+    return () => query.removeEventListener("change", applyPreference);
+  }, []);
+
   const hub = HUBS.find((h) => h.id === active);
+  const effectiveReducedMotion = reducedMotion || systemReducedMotion;
   const onStats = useCallback((fps: number, nodes: number, ms: number) => setStats({ fps, nodes, ms }), []);
   const onMode = useCallback((m: "2d" | "3d") => setRenderMode(m), []);
   const markInteraction = useCallback((kind: string, value: string) => {
@@ -238,6 +327,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
   }, [markInteraction]);
   const selectHub = useCallback((hubId: string) => {
     setActive(hubId);
+    setAccessibilityAnnouncement(`Fokuszentrum ${HUB_LABEL_DE[hubId] ?? hubId} ausgewaehlt`);
     markInteraction("hub", hubId);
   }, [markInteraction]);
   const toggleAutoRotate = useCallback(() => {
@@ -251,13 +341,204 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
     setResetSignal((n) => n + 1);
     markInteraction("camera_reset", "requested");
   }, [markInteraction]);
+  const selectCameraPreset = useCallback((preset: CameraPreset) => {
+    setCameraPreset(preset);
+    markInteraction("camera_preset", preset);
+  }, [markInteraction]);
+  const selectFov = useCallback((value: number) => {
+    const safeFov = FOV_STEPS.includes(value as (typeof FOV_STEPS)[number])
+      ? value as (typeof FOV_STEPS)[number]
+      : 45;
+    setFovDegrees(safeFov);
+    markInteraction("camera_fov", String(safeFov));
+  }, [markInteraction]);
+  const selectLightingProfile = useCallback((profile: LightingProfile) => {
+    const nextExposure = LIGHTING_PROFILES.find((item) => item.id === profile)?.exposure ?? 1;
+    setLightingProfile(profile);
+    setExposure(nextExposure);
+    markInteraction("lighting_profile", `${profile}:${nextExposure.toFixed(2)}`);
+  }, [markInteraction]);
+  const selectExposure = useCallback((value: number) => {
+    const safeExposure = Math.min(1.18, Math.max(0.72, Math.round(value * 50) / 50));
+    setExposure(safeExposure);
+    markInteraction("lighting_exposure", safeExposure.toFixed(2));
+  }, [markInteraction]);
   const toggleReducedMotion = useCallback(() => {
     setReducedMotion((value) => {
       const next = !value;
+      setAccessibilityAnnouncement(next
+        ? "Reduzierte Bewegung aktiv, statische 2D-Ansicht wird verwendet"
+        : "Manuelle Reduzierung deaktiviert, Systempraeferenz bleibt massgeblich");
       markInteraction("reduced_motion", String(next));
       return next;
     });
   }, [markInteraction]);
+  const focusCortexSurface = useCallback(() => {
+    document.getElementById("organism-cortex-surface")?.focus();
+    setAccessibilityAnnouncement("Organismus-Szene fokussiert");
+    markInteraction("accessibility_focus", "organism-cortex-surface");
+  }, [markInteraction]);
+  const completeGameplayObjective = useCallback((input: "pointer" | "keyboard") => {
+    const transition = GAMEPLAY_OBJECTIVES[gameplayObjective];
+    setGameplayScore((value) => value + transition.scoreDelta);
+    setGameplayCheckpoints((value) => value + transition.checkpointDelta);
+    setGameplayCompletions((value) => value + 1);
+    setGameplayInputEvents((value) => value + 1);
+    setGameplayObjective(transition.next);
+    markInteraction("gameplay_objective", `${gameplayObjective}->${transition.next}:${input}`);
+  }, [gameplayObjective, markInteraction]);
+  const toggleGameplayPause = useCallback(() => {
+    setGameplayPaused((value) => {
+      const next = !value;
+      markInteraction("gameplay_pause", String(next));
+      return next;
+    });
+  }, [markInteraction]);
+  const resetGameplay = useCallback(() => {
+    setGameplayObjective("collect");
+    setGameplayScore(0);
+    setGameplayCheckpoints(0);
+    setGameplayCompletions(0);
+    setGameplayInputEvents(0);
+    setGameplayTicks(0);
+    markInteraction("gameplay_reset", "collect:0:0");
+  }, [markInteraction]);
+  const selectAssetProfile = useCallback((profile: AssetProfile) => {
+    setAssetProfile(profile);
+    markInteraction("asset_profile", profile);
+  }, [markInteraction]);
+  const selectMaterialVariant = useCallback((variant: MaterialVariant) => {
+    setMaterialVariant(variant);
+    markInteraction("material_variant", variant);
+  }, [markInteraction]);
+  const resetAssetPolicy = useCallback(() => {
+    setAssetProfile("cube");
+    setMaterialVariant("cyan");
+    markInteraction("asset_policy_reset", "cube:cyan");
+  }, [markInteraction]);
+  const saveSceneSnapshot = useCallback(() => {
+    const snapshot: Phase6SceneSnapshot = {
+      autoRotate,
+      reducedMotion,
+      cameraPreset,
+      fovDegrees,
+      lightingProfile,
+      exposure,
+      gameplayObjective,
+      gameplayScore,
+      gameplayCheckpoints,
+      gameplayCompletions,
+      gameplayInputEvents,
+      gameplayTicks,
+      gameplayPaused,
+      assetProfile,
+      materialVariant,
+    };
+    setSavedSnapshot(snapshot);
+    setSnapshotRevision((value) => value + 1);
+    setSnapshotStatus("saved");
+    markInteraction("scene_snapshot_save", "react_memory:15_fields");
+  }, [assetProfile, autoRotate, cameraPreset, exposure, fovDegrees, gameplayCheckpoints, gameplayCompletions, gameplayInputEvents, gameplayObjective, gameplayPaused, gameplayScore, gameplayTicks, lightingProfile, markInteraction, materialVariant, reducedMotion]);
+  const loadSceneSnapshot = useCallback(() => {
+    if (!savedSnapshot) return;
+    setAutoRotate(savedSnapshot.autoRotate);
+    setReducedMotion(savedSnapshot.reducedMotion);
+    setCameraPreset(savedSnapshot.cameraPreset);
+    setFovDegrees(savedSnapshot.fovDegrees);
+    setLightingProfile(savedSnapshot.lightingProfile);
+    setExposure(savedSnapshot.exposure);
+    setGameplayObjective(savedSnapshot.gameplayObjective);
+    setGameplayScore(savedSnapshot.gameplayScore);
+    setGameplayCheckpoints(savedSnapshot.gameplayCheckpoints);
+    setGameplayCompletions(savedSnapshot.gameplayCompletions);
+    setGameplayInputEvents(savedSnapshot.gameplayInputEvents);
+    setGameplayTicks(savedSnapshot.gameplayTicks);
+    setGameplayPaused(savedSnapshot.gameplayPaused);
+    setAssetProfile(savedSnapshot.assetProfile);
+    setMaterialVariant(savedSnapshot.materialVariant);
+    setResetSignal((value) => value + 1);
+    setSnapshotStatus("restored");
+    markInteraction("scene_snapshot_load", "react_memory:15_fields");
+  }, [markInteraction, savedSnapshot]);
+  const clearSceneSnapshot = useCallback(() => {
+    setSavedSnapshot(null);
+    setSnapshotStatus("empty");
+    markInteraction("scene_snapshot_clear", "react_memory:empty");
+  }, [markInteraction]);
+  const createLoopbackSession = useCallback(() => {
+    setNetcodeSessionActive(true);
+    setNetcodeGuestConnected(false);
+    setNetcodeHostReady(false);
+    setNetcodeGuestReady(false);
+    setNetcodeRunning(false);
+    setNetcodeTicks(0);
+    setNetcodePackets(0);
+    setNetcodeSequence(0);
+    markInteraction("netcode_session", "created:loopback");
+  }, [markInteraction]);
+  const joinLoopbackGuest = useCallback(() => {
+    if (!netcodeSessionActive || netcodeGuestConnected) return;
+    setNetcodeGuestConnected(true);
+    setNetcodePackets((value) => value + 1);
+    setNetcodeSequence((value) => value + 1);
+    markInteraction("netcode_peer", "guest_joined");
+  }, [markInteraction, netcodeGuestConnected, netcodeSessionActive]);
+  const toggleNetcodeHostReady = useCallback(() => {
+    if (!netcodeSessionActive) return;
+    setNetcodeHostReady((value) => !value);
+    setNetcodeRunning(false);
+    markInteraction("netcode_ready", "host");
+  }, [markInteraction, netcodeSessionActive]);
+  const toggleNetcodeGuestReady = useCallback(() => {
+    if (!netcodeGuestConnected) return;
+    setNetcodeGuestReady((value) => !value);
+    setNetcodeRunning(false);
+    markInteraction("netcode_ready", "guest");
+  }, [markInteraction, netcodeGuestConnected]);
+  const startLoopbackLockstep = useCallback(() => {
+    if (!netcodeSessionActive || !netcodeGuestConnected || !netcodeHostReady || !netcodeGuestReady) return;
+    setNetcodeRunning(true);
+    markInteraction("netcode_lockstep", "running");
+  }, [markInteraction, netcodeGuestConnected, netcodeGuestReady, netcodeHostReady, netcodeSessionActive]);
+  const advanceLoopbackTick = useCallback(() => {
+    if (!netcodeRunning || !netcodeGuestConnected) return;
+    setNetcodeTicks((value) => value + 1);
+    setNetcodePackets((value) => value + 2);
+    setNetcodeSequence((value) => value + 2);
+    markInteraction("netcode_tick", "lockstep:+1");
+  }, [markInteraction, netcodeGuestConnected, netcodeRunning]);
+  const disconnectLoopbackGuest = useCallback(() => {
+    if (!netcodeGuestConnected) return;
+    setNetcodeGuestConnected(false);
+    setNetcodeGuestReady(false);
+    setNetcodeRunning(false);
+    setNetcodeDisconnects((value) => value + 1);
+    markInteraction("netcode_disconnect", "guest:fail_closed");
+  }, [markInteraction, netcodeGuestConnected]);
+  const closeLoopbackSession = useCallback(() => {
+    setNetcodeSessionActive(false);
+    setNetcodeGuestConnected(false);
+    setNetcodeHostReady(false);
+    setNetcodeGuestReady(false);
+    setNetcodeRunning(false);
+    markInteraction("netcode_session", "closed");
+  }, [markInteraction]);
+  useEffect(() => {
+    if (gameplayPaused || effectiveReducedMotion) return;
+    const interval = window.setInterval(() => setGameplayTicks((value) => value + 1), 1000);
+    return () => window.clearInterval(interval);
+  }, [effectiveReducedMotion, gameplayPaused]);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)) return;
+      if (event.code !== "KeyG" || event.altKey || event.ctrlKey || event.metaKey) return;
+      event.preventDefault();
+      completeGameplayObjective("keyboard");
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [completeGameplayObjective]);
   const toggleLayer = (c: string) => {
     setLayers((p) => {
       const next = p.includes(c) ? p.filter((x) => x !== c) : [...p, c];
@@ -302,7 +583,15 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
 
       <div className="grid organism-layout-grid">
         <div className="stack stack-gap-12">
-          <div className="organism-canvas-shell">
+          <div
+            id="organism-cortex-surface"
+            className="organism-canvas-shell"
+            role="region"
+            aria-label="Interaktive Organismus-Szene"
+            aria-describedby="phase6-accessibility-status"
+            tabIndex={0}
+            data-testid="phase6-accessible-scene"
+          >
             <CortexLive
               runState={runState}
               nodeCount={1600}
@@ -313,10 +602,24 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
               visibleAgents={agents}
               onStats={onStats}
               autoRotate={autoRotate}
-              paused={reducedMotion}
+              paused={effectiveReducedMotion}
               resetSignal={resetSignal}
+              cameraPreset={cameraPreset}
+              fovDegrees={fovDegrees}
+              lightingProfile={lightingProfile}
+              exposure={exposure}
+              gameplayObjective={gameplayObjective}
+              gameplayScore={gameplayScore}
+              gameplayCheckpoints={gameplayCheckpoints}
+              gameplayPaused={gameplayPaused || effectiveReducedMotion}
+              gameplayTicks={gameplayTicks}
+              assetProfile={assetProfile}
+              materialVariant={materialVariant}
+              netcodeGuestConnected={netcodeGuestConnected}
+              netcodeRunning={netcodeRunning}
+              netcodeSequence={netcodeSequence}
               onToggleAutoRotate={toggleAutoRotate}
-              forceReducedMotion={reducedMotion}
+              forceReducedMotion={effectiveReducedMotion}
               onMode={onMode}
               sourceLabel={runtimeSourceLabel}
             />
@@ -367,17 +670,250 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
             <span className="panel-title">3D-Szene</span>
             <div className="state-row">
               <button
-                className={`state-btn${autoRotate && !reducedMotion ? " active" : ""}`}
+                className={`state-btn${autoRotate && !effectiveReducedMotion ? " active" : ""}`}
                 onClick={toggleAutoRotate}
-                disabled={reducedMotion}
-                title={reducedMotion ? "Deaktiviert, solange der Modus für weniger Bewegung aktiv ist" : "Leertaste"}
+                disabled={effectiveReducedMotion}
+                title={effectiveReducedMotion ? "Deaktiviert, solange der Modus für weniger Bewegung aktiv ist" : "Leertaste"}
               >
                 {autoRotate ? "Automatisch drehen ⏸" : "Automatisch drehen ▶"}
               </button>
               <button className="state-btn" onClick={resetCamera} title="R">Kamera zurücksetzen</button>
-              <button className={`state-btn${reducedMotion ? " active" : ""}`} onClick={toggleReducedMotion} title="Schutz bei Bewegungsempfindlichkeit">
-                {reducedMotion ? "Weniger Bewegung ✓" : "Weniger Bewegung"}
+              <button
+                type="button"
+                className={`state-btn${effectiveReducedMotion ? " active" : ""}`}
+                onClick={toggleReducedMotion}
+                title="Schutz bei Bewegungsempfindlichkeit"
+                aria-pressed={effectiveReducedMotion}
+                aria-controls="organism-cortex-surface"
+                data-testid="phase6-reduced-motion-toggle"
+              >
+                {effectiveReducedMotion ? "Weniger Bewegung ✓" : "Weniger Bewegung"}
               </button>
+            </div>
+            <div className="organism-camera-lighting" data-testid="phase6-camera-lighting-controls">
+              <div className="organism-control-group">
+                <span className="organism-control-label">Kamera</span>
+                <div className="state-row" role="group" aria-label="Kamerapreset">
+                  {CAMERA_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      className={`state-btn${cameraPreset === preset.id ? " active" : ""}`}
+                      aria-pressed={cameraPreset === preset.id}
+                      data-testid={`phase6-camera-preset-${preset.id}`}
+                      onClick={() => selectCameraPreset(preset.id)}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label className="organism-control-group organism-compact-control">
+                <span className="organism-control-label">Sichtfeld</span>
+                <select
+                  aria-label="Sichtfeld in Grad"
+                  value={fovDegrees}
+                  data-testid="phase6-camera-fov"
+                  onChange={(event) => selectFov(Number(event.target.value))}
+                >
+                  {FOV_STEPS.map((value) => <option key={value} value={value}>{value}°</option>)}
+                </select>
+              </label>
+              <div className="organism-control-group">
+                <span className="organism-control-label">Licht</span>
+                <div className="state-row" role="group" aria-label="Lichtprofil">
+                  {LIGHTING_PROFILES.map((profile) => (
+                    <button
+                      key={profile.id}
+                      type="button"
+                      className={`state-btn${lightingProfile === profile.id ? " active" : ""}`}
+                      aria-pressed={lightingProfile === profile.id}
+                      data-testid={`phase6-lighting-profile-${profile.id}`}
+                      onClick={() => selectLightingProfile(profile.id)}
+                    >
+                      {profile.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label className="organism-control-group organism-exposure-control">
+                <span className="organism-control-label">Belichtung</span>
+                <span className="organism-range-row">
+                  <input
+                    id="phase6-lighting-exposure"
+                    type="range"
+                    aria-label="Belichtung"
+                    min="0.72"
+                    max="1.18"
+                    step="0.02"
+                    value={exposure}
+                    data-testid="phase6-lighting-exposure"
+                    onChange={(event) => selectExposure(Number(event.target.value))}
+                  />
+                  <output className="mono" htmlFor="phase6-lighting-exposure">{exposure.toFixed(2)}</output>
+                </span>
+              </label>
+              <div
+                className="organism-camera-lighting-state mono"
+                data-testid="phase6-camera-lighting-state"
+                aria-live="polite"
+              >
+                camera_preset={cameraPreset} · fov={fovDegrees}° · lighting_profile={lightingProfile} · exposure={exposure.toFixed(2)} · local_state_only=true
+              </div>
+            </div>
+            <div className="organism-gameplay" data-testid="phase6-gameplay-state-controls">
+              <div className="organism-gameplay-heading">
+                <span className="organism-control-label">Gameplay State</span>
+                <span className="mono">browser-local</span>
+              </div>
+              <div className="organism-gameplay-hud" aria-live="polite">
+                <div><span>Ziel</span><strong data-testid="phase6-gameplay-objective">{GAMEPLAY_OBJECTIVES[gameplayObjective].label}</strong></div>
+                <div><span>Score</span><strong data-testid="phase6-gameplay-score">{gameplayScore}</strong></div>
+                <div><span>Checkpoints</span><strong data-testid="phase6-gameplay-checkpoints">{gameplayCheckpoints}</strong></div>
+                <div><span>Abgeschlossen</span><strong data-testid="phase6-gameplay-completions">{gameplayCompletions}</strong></div>
+              </div>
+              <div className="state-row organism-gameplay-actions">
+                <button
+                  type="button"
+                  className="state-btn active"
+                  data-testid="phase6-gameplay-complete"
+                  onClick={() => completeGameplayObjective("pointer")}
+                  title="Aktuelles Ziel abschliessen (G)"
+                >
+                  Ziel abschliessen
+                </button>
+                <button
+                  type="button"
+                  className={`state-btn${gameplayPaused ? " active" : ""}`}
+                  data-testid="phase6-gameplay-pause"
+                  aria-pressed={gameplayPaused}
+                  onClick={toggleGameplayPause}
+                >
+                  {gameplayPaused ? "Loop fortsetzen" : "Loop pausieren"}
+                </button>
+                <button type="button" className="state-btn" data-testid="phase6-gameplay-reset" onClick={resetGameplay}>
+                  Gameplay zuruecksetzen
+                </button>
+              </div>
+              <div className="organism-gameplay-state mono" data-testid="phase6-gameplay-state" aria-live="polite">
+                objective={gameplayObjective} · score={gameplayScore} · checkpoints={gameplayCheckpoints} · completions={gameplayCompletions} · input_events={gameplayInputEvents} · loop_ticks={gameplayTicks} · paused={String(gameplayPaused || effectiveReducedMotion)} · local_state_only=true
+              </div>
+            </div>
+            <div className="organism-asset-policy" data-testid="phase6-asset-policy-controls">
+              <div className="organism-gameplay-heading">
+                <span className="organism-control-label">Asset Policy</span>
+                <span className="mono">procedural-only</span>
+              </div>
+              <div className="organism-asset-policy-grid">
+                <div className="organism-control-group">
+                  <span className="organism-control-label">Primitive</span>
+                  <div className="state-row" role="group" aria-label="Prozedurales Asset-Profil">
+                    {ASSET_PROFILES.map((profile) => (
+                      <button
+                        key={profile.id}
+                        type="button"
+                        className={`state-btn${assetProfile === profile.id ? " active" : ""}`}
+                        aria-pressed={assetProfile === profile.id}
+                        data-testid={`phase6-asset-profile-${profile.id}`}
+                        onClick={() => selectAssetProfile(profile.id)}
+                      >
+                        {profile.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="organism-control-group">
+                  <span className="organism-control-label">Material</span>
+                  <div className="state-row" role="group" aria-label="Materialvariante">
+                    {MATERIAL_VARIANTS.map((variant) => (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        className={`state-btn organism-material-button${materialVariant === variant.id ? " active" : ""}`}
+                        aria-pressed={materialVariant === variant.id}
+                        data-testid={`phase6-material-variant-${variant.id}`}
+                        onClick={() => selectMaterialVariant(variant.id)}
+                      >
+                        <span className="organism-material-swatch" style={{ backgroundColor: variant.color }} aria-hidden="true" />
+                        {variant.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button type="button" className="state-btn organism-asset-reset" data-testid="phase6-asset-policy-reset" onClick={resetAssetPolicy}>
+                  Asset Policy zuruecksetzen
+                </button>
+              </div>
+              <div className="organism-asset-manifest mono" data-testid="phase6-asset-manifest" aria-live="polite">
+                asset_profile={assetProfile} · geometry={ASSET_PROFILES.find((item) => item.id === assetProfile)?.geometry} · material_variant={materialVariant} · primitives=3 · materials=3 · remote_assets=0 · uploads=0 · external_fetch=false · binary_upload=false · local_only=true
+              </div>
+            </div>
+            <div className="organism-save-load" data-testid="phase6-save-load-controls">
+              <div className="organism-gameplay-heading">
+                <span className="organism-control-label">Szenen-Snapshot</span>
+                <span className="mono">volatile browser-memory</span>
+              </div>
+              <div className="state-row organism-save-load-actions">
+                <button type="button" className="state-btn active" data-testid="phase6-save-snapshot" onClick={saveSceneSnapshot}>
+                  Snapshot speichern
+                </button>
+                <button type="button" className="state-btn" data-testid="phase6-load-snapshot" onClick={loadSceneSnapshot} disabled={!savedSnapshot}>
+                  Snapshot laden
+                </button>
+                <button type="button" className="state-btn" data-testid="phase6-clear-snapshot" onClick={clearSceneSnapshot} disabled={!savedSnapshot}>
+                  Snapshot verwerfen
+                </button>
+              </div>
+              <div className="organism-save-load-state mono" data-testid="phase6-save-load-state" aria-live="polite">
+                snapshot_status={snapshotStatus} · revision={snapshotRevision} · slots={savedSnapshot ? 1 : 0}/1 · fields=15 · storage=react_state · reload_persistence=false · local_storage=false · indexeddb=false · cookies=false · cache=false · cloud_sync=false · upload=false · network=false
+              </div>
+            </div>
+            <div className="organism-accessibility" data-testid="phase6-accessibility-controls">
+              <div className="organism-gameplay-heading">
+                <span className="organism-control-label">Accessibility</span>
+                <span className="mono">system-aware</span>
+              </div>
+              <div className="state-row organism-accessibility-actions">
+                <button type="button" className="state-btn" data-testid="phase6-focus-scene" onClick={focusCortexSurface}>
+                  Szene fokussieren
+                </button>
+              </div>
+              <div
+                id="phase6-accessibility-status"
+                className="organism-accessibility-state mono"
+                data-testid="phase6-accessibility-state"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                motion_mode={effectiveReducedMotion ? "reduced" : "standard"} · user_override={String(reducedMotion)} · system_preference={String(systemReducedMotion)} · render_mode={renderMode} · keyboard_navigation=true · focus_visible=true · semantic_region=true · live_region=true · local_state_only=true
+              </div>
+              <span className="sr-only" data-testid="phase6-accessibility-announcement">{accessibilityAnnouncement}</span>
+            </div>
+            <div className="organism-netcode" data-testid="phase6-netcode-controls">
+              <div className="organism-gameplay-heading">
+                <span className="organism-control-label">Multiplayer Loopback</span>
+                <span className="mono">2 peers · browser-local</span>
+              </div>
+              <div className="state-row organism-netcode-actions">
+                <button type="button" className="state-btn active" data-testid="phase6-netcode-create" onClick={createLoopbackSession} disabled={netcodeSessionActive}>Session erstellen</button>
+                <button type="button" className="state-btn" data-testid="phase6-netcode-join" onClick={joinLoopbackGuest} disabled={!netcodeSessionActive || netcodeGuestConnected}>Guest beitreten</button>
+                <button type="button" className={`state-btn${netcodeHostReady ? " active" : ""}`} data-testid="phase6-netcode-host-ready" onClick={toggleNetcodeHostReady} disabled={!netcodeSessionActive} aria-pressed={netcodeHostReady}>Host bereit</button>
+                <button type="button" className={`state-btn${netcodeGuestReady ? " active" : ""}`} data-testid="phase6-netcode-guest-ready" onClick={toggleNetcodeGuestReady} disabled={!netcodeGuestConnected} aria-pressed={netcodeGuestReady}>Guest bereit</button>
+                <button type="button" className="state-btn" data-testid="phase6-netcode-start" onClick={startLoopbackLockstep} disabled={!netcodeHostReady || !netcodeGuestReady || !netcodeGuestConnected}>Lockstep starten</button>
+                <button type="button" className="state-btn" data-testid="phase6-netcode-tick" onClick={advanceLoopbackTick} disabled={!netcodeRunning}>Simulationsschritt</button>
+                <button type="button" className="state-btn" data-testid="phase6-netcode-disconnect" onClick={disconnectLoopbackGuest} disabled={!netcodeGuestConnected}>Guest trennen</button>
+                <button type="button" className="state-btn" data-testid="phase6-netcode-close" onClick={closeLoopbackSession} disabled={!netcodeSessionActive}>Session schliessen</button>
+              </div>
+              <div className="organism-gameplay-hud" aria-live="polite">
+                <div><span>Session</span><strong data-testid="phase6-netcode-session">{netcodeSessionActive ? (netcodeRunning ? "running" : "forming") : "idle"}</strong></div>
+                <div><span>Peers</span><strong data-testid="phase6-netcode-peers">{netcodeGuestConnected ? 2 : netcodeSessionActive ? 1 : 0}/2</strong></div>
+                <div><span>Ticks</span><strong data-testid="phase6-netcode-ticks">{netcodeTicks}</strong></div>
+                <div><span>Sequenz</span><strong data-testid="phase6-netcode-sequence">{netcodeSequence}</strong></div>
+              </div>
+              <div className="organism-netcode-state mono" data-testid="phase6-netcode-state" aria-live="polite">
+                transport=loopback · session_active={String(netcodeSessionActive)} · guest_connected={String(netcodeGuestConnected)} · host_ready={String(netcodeHostReady)} · guest_ready={String(netcodeGuestReady)} · running={String(netcodeRunning)} · ticks={netcodeTicks} · packets={netcodePackets} · sequence={netcodeSequence} · disconnects={netcodeDisconnects} · websocket=false · server_sync=false · public_lobby=false · local_only=true
+              </div>
             </div>
             <span className="cap-badge" title={`Renderer: ${caps.gpu}`}>
               <span className={`cap-dot ${caps.webgpu ? "gpu" : caps.webgl2 ? "ok" : "soft"}`} />
@@ -387,7 +923,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
               {stats.fps} FPS · {stats.ms} ms/Frame
             </span>
             <span className="mono organism-hints">
-              Tastatur: ←→ rotieren · ↑↓ kippen · +/- zoomen · R zurücksetzen · Leertaste automatisch drehen
+              Tastatur: ←→ rotieren · ↑↓ kippen · +/- zoomen · R zurücksetzen · Leertaste automatisch drehen · G Ziel abschliessen
             </span>
             <span className="mono organism-hints">
               GPU-sicher: 30-FPS-Limit · Energiesparmodus · pausiert automatisch im Hintergrund/außerhalb des Sichtfelds · „Weniger Bewegung“ friert die Szene ein

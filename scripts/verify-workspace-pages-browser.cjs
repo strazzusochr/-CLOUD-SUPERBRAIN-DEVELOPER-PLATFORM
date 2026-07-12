@@ -189,7 +189,7 @@ async function main() {
             || (surfaceArg.pageId !== "settings" && bodyText.includes("Gate-Matrix")),
           retiredProviderVisible: /\b(Hetzner|GitKraken|Oracle)\b/i.test(bodyText),
           unpaidBudgetVisible: bodyText.includes("Metered Budget"),
-          notFoundVisible: /404|not found|This page could not be found/i.test(bodyText),
+          notFoundVisible: /\b404\b|not found|This page could not be found/i.test(bodyText),
         };
       }, surface);
 

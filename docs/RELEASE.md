@@ -1,68 +1,89 @@
-# Cloud Superbrain — Release v1.0.0
+# Cloud Superbrain Release Status
 
-Workbench-first AI developer organism platform. Release build wired to the local
-**7-layer runtime** at `http://localhost:8081`, with every page projecting live,
-layer-verified data and an honest spec/mock fallback when the runtime is unreachable.
+Updated: 2026-07-12
 
-## Run the release (against the 7-layer runtime)
+Status: **not released**. This repository has a healthy local development runtime and
+hosted frontend evidence, but it does not yet have the external proof or Owner approvals
+required for production deployment or release promotion.
 
-```bash
-# 1. The 7-layer runtime (postgres/pgvector · redis · agent-api · agent-worker ·
-#    memory-worker · mcp-gateway · llm-gateway, behind nginx :8081), dry-run, no secrets:
+## Local Development Runtime
+
+```powershell
 docker compose -f docker-compose.dev.yml up -d
-
-# 2. Build + start the release frontend, wired to http://localhost:8081:
-cd apps/frontend
-npm run release:build
-npm run release            # → http://localhost:3000  (override PORT / AGENT_API_INTERNAL_URL)
+npm run verify
+npm run verify:runtime
+npm run verify:browser
 ```
 
-The launcher (`apps/frontend/release.mjs`) defaults `AGENT_API_INTERNAL_URL=http://localhost:8081`.
-No secret/token value is ever read or printed; production deploy, provider writes and
-registry pushes stay gate-closed.
+Local URL: `http://localhost:8081`
 
-## Verified across all 7 layers (localhost:8081)
+Localhost is `DEV-ONLY`. It may prove deterministic runtime, API, audit, and browser
+behavior, but it cannot close hosted staging, backend-origin, production, or release
+gates.
 
-`GET /api/v1/clouds/layers` → **layer_1 … layer_7 all `live_verified`** (cloud-layer readiness).
-`GET /api/v1/health` → **all six runtime services healthy**.
+## Current Evidence Snapshot
 
-> **Honest progress caveat (do not read 100 % as project completion).** The committed
-> source-of-truth ledger `docs/project-progress.manifest.json` (truth-policy: evidence-based
-> only) is at **overall 70 %**: P0/P1/P4 = 100 %, **P2 = 86 %, P3 = 40 %, P5 = 67 %, P6 (Scale & 3D) = 0 %**;
-> layers L3 = 68 %, L4 = 54 %, L5 = 55 %, L6 = 72 %. The local dev runtime currently *serves* a
-> divergent 100 % from a different manifest mount — that 100 % is **not** backed by the committed
-> ledger and must be reconciled before any human production sign-off. `live_verified` /
-> cloud-layer-readiness and the 6 external gates are a separate, genuinely-passing signal.
+| Scope | Current verified value |
+| --- | --- |
+| Overall progress | 82 percent |
+| Horizontal | P0 100, P1 100, P2 86, P3 42, P4 99, P5 67, P6 80 |
+| Vertical | Frontend 97, Orchestrator 99, Agent Pool 68, LLM 54, MCP 55, Memory 72, Observability 99 |
+| Project progress integrity | `verified` |
+| Canonical workspace pages | 22/22 local browser-functional |
+| Docker services | 10/10 healthy in the latest local check |
+| Canonical secret scan | gitleaks pass, no leaks found |
+| Production deployment | blocked / not performed |
 
-| Layer | Name | Status | Surfaced on |
-|-------|------|--------|-------------|
-| **L1** | Frontend / Next.js | `live_verified` | every page · `/technology` |
-| **L2** | Orchestrator / LangGraph | `live_verified` | `/organism` live-state · `/diagnostics` |
-| **L3** | Agent Pool | `live_verified` | `/agents` live roster (12) |
-| **L4** | LLM Gateway (dry-run) | `live_verified` | `/observe` · `/marketplace` |
-| **L5** | MCP Gateway / Tools | `live_verified` | `/tools` cloud readiness (8/8) |
-| **L6** | Memory / pgvector | `live_verified` | `/files` (live entry count) |
-| **L7** | Observability / Evidence | `live_verified` | `/observe` · `/evidence` · `/diagnostics` |
+Percentages come only from `docs/project-progress.manifest.json` and must match
+`GET /api/v1/project/progress` plus `GET /api/v1/project/progress/integrity`.
 
-The project plan itself (**7 phases × 7 layers**, binding document
-`docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md`, truth policy *evidence-based only*)
-is embedded live on `/diagnostics`, and the `SevenLayerBar` shows `N/7 live_verified` on
-`/technology`, `/evidence`, `/organism`, `/diagnostics` and `/home`.
+## External Gate Status
 
-## Release verification (this branch)
+Latest standard direct audit:
+`.phase1-artifacts/external-gate-audit-20260712-145800.json`
 
-- `next build` green (33 routes) · `eslint .` 0 findings · `tsc` strict 0 errors.
-- Playwright **7/7** green incl. WebGL + GLB render proof and the dead-route 404 guard.
-- Full-page sweep **25/25** routes HTTP 200 with a document-outline `<h1>` and **0 console errors**
-  (with the live runtime connected).
-- `gitleaks` — **no leaks** (no token value in the repo or UI).
-- CI green: Vercel `frontend` + `cloud-superbrain-developer-platform` + GitHub `verify`.
+Status: `blocked`
 
-## Honest scope
+- `hosted_agent_api_contracts`
+- `github_branch_protection_current_verify`
+- `vercel_backend_origin_health`
+- `fly_live_budget_check`
 
-- Live data is proven on the **local docker-compose runtime** (LLM in
-  `deterministic_dry_run`, `live_provider_calls: false`). On Vercel (no reachable
-  agent-api) the pages render their labelled spec/mock fallback — never fake-live.
-- `/games`, `/media`, `/docs-output` remain honest preview/spec/demo surfaces (their
-  generators are not provider-wired).
-- Production deploy / provider writes / pushes remain OPA-gate-closed by policy.
+`production_deploy_claim_allowed=false`. Earlier private/custom audits are provenance,
+not the current standard release truth.
+
+## Candidate And Release Requirements
+
+A release claim requires all of the following against the exact approved immutable
+candidate:
+
+1. Complete and credited phase/layer work according to the binding rubric.
+2. Green static, runtime, browser, progress-integrity, and canonical gitleaks checks.
+3. Reachable HTTPS hosted Agent API, MCP Gateway, and LLM Gateway origins.
+4. Fresh hosted browser and API proof against the configured staging URL.
+5. Current verify-only branch-protection proof.
+6. Current Fly budget proof within the 20 EUR/month ceiling.
+7. Immutable source/image provenance and tested rollback evidence.
+8. Explicit Owner review of commit scope, permissions, budget, rollback, and promotion.
+9. Separate Owner authorization for registry publication, deployment, and release
+   promotion.
+
+## Stop Gates
+
+Without explicit Owner approval, do not:
+
+- use or expand provider credentials;
+- push container images or publish registry artifacts;
+- mutate Vercel, Fly, GitHub, Grafana, or production database state;
+- dispatch production workflows;
+- write or merge to `main`;
+- enable live LLM provider calls or live MCP writes;
+- deploy to production or promote a release.
+
+## Current Non-Claims
+
+- The hosted frontend alone is not hosted backend proof.
+- Temporary environment overrides do not replace the standard external audit.
+- A green local runtime is not production readiness.
+- No production deployment, registry push, release promotion, live provider call, live
+  MCP write, or secret output is claimed.

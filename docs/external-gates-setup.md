@@ -56,7 +56,7 @@ flyctl deploy --config fly.llm-gateway.toml
 Option A (empfohlen, API-basiert):
 - Variable: `BRANCH_PROTECTION_TOKEN`
 - Erwartung: GitHub Token mit Rechten, Branch Protection für das Repo zu lesen (verify-only)
-- Beispiel: `BRANCH_PROTECTION_TOKEN=<your_token>`
+- Den Wert ausschließlich in einer privaten Owner-Shell bereitstellen; dieses Dokument enthält bewusst keine Inline-Zuweisung.
 
 Option B (Remote Verify-only via SSH auf Staging):
 - Variablen:
@@ -69,4 +69,4 @@ Option B (Remote Verify-only via SSH auf Staging):
 
 - Variable: `FLY_API_TOKEN`
 - Erwartung: echter Fly.io API Token (wird nur für Live-State Probe verwendet)
-- Beispiel: `FLY_API_TOKEN=<your_token>`
+- Den Wert ausschließlich in einer privaten Owner-Shell bereitstellen; dieses Dokument enthält bewusst keine Inline-Zuweisung.

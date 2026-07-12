@@ -12,9 +12,9 @@
  * runState / activeRegion. CortexCanvas (2D) is the reduced-motion fallback.
  */
 
-import { useMemo, useRef, useState, useEffect, memo, Suspense, Component, type ReactNode } from "react";
+import { useMemo, useRef, useState, useEffect, useCallback, memo, Suspense, Component, type ReactNode } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { OrbitControls, Html, Environment, Lightformer, useGLTF } from "@react-three/drei";
+import { OrbitControls, PerspectiveCamera, Html, Environment, Lightformer, useGLTF } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { HUBS, STATE_COLOR, STATE_LABEL, type RunState } from "./regionMap";
@@ -46,6 +46,78 @@ const ORGANISM_COLORS = {
   coreGlow: "#eafbff",
   bg: "#04060d",
 } as const;
+
+type CameraPreset = "wide" | "close" | "top";
+type LightingProfile = "studio" | "night" | "sunrise";
+type GameplayObjective = "collect" | "checkpoint" | "survive";
+type AssetProfile = "cube" | "beacon" | "ring";
+type MaterialVariant = "cyan" | "amber" | "rose";
+
+const CAMERA_PRESETS: Record<CameraPreset, { position: [number, number, number]; target: [number, number, number] }> = {
+  wide: { position: [0, 0.6, 7], target: [0, 0, 0] },
+  close: { position: [0, 0.35, 5], target: [0, 0, 0] },
+  top: { position: [0.2, 6.8, 1.4], target: [0, 0, 0] },
+};
+
+const LIGHTING_PROFILES: Record<LightingProfile, {
+  ambient: number;
+  key: number;
+  fill: number;
+  bloom: number;
+  keyColor: string;
+  leftColor: string;
+  rightColor: string;
+}> = {
+  studio: {
+    ambient: 0.35,
+    key: 9,
+    fill: 7,
+    bloom: 1.25,
+    keyColor: ORGANISM_COLORS.cyan,
+    leftColor: ORGANISM_COLORS.violet,
+    rightColor: ORGANISM_COLORS.magenta,
+  },
+  night: {
+    ambient: 0.2,
+    key: 6.4,
+    fill: 5.2,
+    bloom: 1.05,
+    keyColor: ORGANISM_COLORS.ice,
+    leftColor: ORGANISM_COLORS.blue,
+    rightColor: ORGANISM_COLORS.violet,
+  },
+  sunrise: {
+    ambient: 0.42,
+    key: 8.2,
+    fill: 6.2,
+    bloom: 1.38,
+    keyColor: "#f59e0b",
+    leftColor: "#fb7185",
+    rightColor: "#a78bfa",
+  },
+};
+
+const GAMEPLAY_BEACONS: Record<GameplayObjective, { color: string; position: [number, number, number] }> = {
+  collect: { color: ORGANISM_COLORS.cyan, position: [-2.4, 0.4, 0.8] },
+  checkpoint: { color: "#f59e0b", position: [0, 2.15, 0.35] },
+  survive: { color: ORGANISM_COLORS.magenta, position: [2.4, 0.4, 0.8] },
+};
+const ASSET_MATERIALS: Record<MaterialVariant, string> = {
+  cyan: ORGANISM_COLORS.cyan,
+  amber: "#f59e0b",
+  rose: "#fb7185",
+};
+
+type CameraAppliedState = {
+  preset: CameraPreset;
+  fov: number;
+  position: string;
+};
+
+type LightingAppliedState = {
+  profile: LightingProfile;
+  exposure: number;
+};
 
 function seededUnit(seed: number) {
   const value = Math.sin(seed * 12.9898) * 43758.5453;
@@ -455,25 +527,35 @@ function Stats({ onStats, nodes }: { onStats?: (fps: number, nodes: number, ms: 
   return null;
 }
 
-/** Phase-6 camera rig: OrbitControls + keyboard interaction loop (arrows rotate,
- *  +/- dolly, R reset, Space toggle auto-rotate) and a reset signal. */
+/** Phase-6 camera rig: preset/FOV application plus the bounded keyboard loop. */
 function CameraRig({
   interactive,
   autoRotate,
   resetSignal,
+  cameraPreset,
+  fovDegrees,
   onToggleAutoRotate,
+  onApplied,
 }: {
   interactive: boolean;
   autoRotate: boolean;
   resetSignal: number;
+  cameraPreset: CameraPreset;
+  fovDegrees: number;
   onToggleAutoRotate?: () => void;
+  onApplied?: (state: CameraAppliedState) => void;
 }) {
   const controls = useRef<React.ComponentRef<typeof OrbitControls>>(null);
   const { camera } = useThree();
+  const preset = CAMERA_PRESETS[cameraPreset];
 
   useEffect(() => {
-    controls.current?.reset();
-  }, [resetSignal]);
+    onApplied?.({
+      preset: cameraPreset,
+      fov: fovDegrees,
+      position: preset.position.map((value) => value.toFixed(2)).join(","),
+    });
+  }, [cameraPreset, fovDegrees, onApplied, preset.position]);
 
   useEffect(() => {
     if (!interactive) return;
@@ -506,25 +588,142 @@ function CameraRig({
   }, [interactive, camera, onToggleAutoRotate]);
 
   return (
-    <OrbitControls
-      ref={controls}
-      enablePan={false}
-      enableZoom={interactive}
-      enableRotate={interactive}
-      autoRotate={autoRotate}
-      autoRotateSpeed={0.5}
-      minDistance={4.5}
-      maxDistance={12}
-      minPolarAngle={Math.PI * 0.2}
-      maxPolarAngle={Math.PI * 0.8}
-    />
+    <>
+      <PerspectiveCamera
+        key={`camera-${cameraPreset}-${fovDegrees}-${resetSignal}`}
+        makeDefault
+        position={preset.position}
+        fov={fovDegrees}
+        near={0.1}
+        far={100}
+      />
+      <OrbitControls
+        key={`controls-${cameraPreset}-${resetSignal}`}
+        ref={controls}
+        target={preset.target}
+        enablePan={false}
+        enableZoom={interactive}
+        enableRotate={interactive}
+        autoRotate={autoRotate}
+        autoRotateSpeed={0.5}
+        minDistance={4.5}
+        maxDistance={12}
+        minPolarAngle={cameraPreset === "top" ? Math.PI * 0.05 : Math.PI * 0.2}
+        maxPolarAngle={Math.PI * 0.8}
+      />
+    </>
   );
+}
+
+function LightingRig({
+  profile,
+  exposure,
+  onApplied,
+}: {
+  profile: LightingProfile;
+  exposure: number;
+  onApplied?: (state: LightingAppliedState) => void;
+}) {
+  const renderer = useThree((state) => state.gl);
+  const invalidate = useThree((state) => state.invalidate);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  useEffect(() => {
+    rendererRef.current = renderer;
+  }, [renderer]);
+  useEffect(() => {
+    const current = rendererRef.current;
+    if (!current) return;
+    current.toneMapping = THREE.ACESFilmicToneMapping;
+    current.toneMappingExposure = exposure;
+    invalidate();
+    onApplied?.({ profile, exposure });
+  }, [exposure, invalidate, onApplied, profile]);
+  return null;
 }
 
 function hubVisible(hub: (typeof HUBS)[number], layers?: string[], agents?: string[]) {
   if (layers && layers.length && !layers.includes(hub.layer)) return false;
   if (agents && agents.length && !hub.agents.some((a) => agents.includes(a))) return false;
   return true;
+}
+
+function GameplayBeacon({ objective, paused }: { objective: GameplayObjective; paused: boolean }) {
+  const group = useRef<THREE.Group>(null);
+  const beacon = GAMEPLAY_BEACONS[objective];
+  useFrame((state, delta) => {
+    if (!group.current || paused) return;
+    group.current.rotation.y += delta * 0.8;
+    group.current.position.y = beacon.position[1] + Math.sin(state.clock.elapsedTime * 1.8) * 0.08;
+  });
+  return (
+    <group ref={group} position={beacon.position}>
+      <mesh>
+        <octahedronGeometry args={[0.16, 0]} />
+        <meshBasicMaterial color={beacon.color} toneMapped={false} />
+      </mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.28, 0.025, 8, 32]} />
+        <meshBasicMaterial color={beacon.color} transparent opacity={0.7} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function AssetPolicyPreview({
+  profile,
+  variant,
+  paused,
+  pbr,
+}: {
+  profile: AssetProfile;
+  variant: MaterialVariant;
+  paused: boolean;
+  pbr: boolean;
+}) {
+  const preview = useRef<THREE.Group>(null);
+  const color = ASSET_MATERIALS[variant];
+  useFrame((state, delta) => {
+    if (!preview.current || paused) return;
+    preview.current.rotation.y += delta * 0.55;
+    preview.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.55) * 0.12;
+  });
+  return (
+    <group ref={preview} position={[0, -1.65, 0.55]}>
+      <mesh>
+        {profile === "cube" ? <boxGeometry args={[0.34, 0.34, 0.34]} /> : null}
+        {profile === "beacon" ? <coneGeometry args={[0.25, 0.52, 6]} /> : null}
+        {profile === "ring" ? <torusGeometry args={[0.25, 0.07, 12, 36]} /> : null}
+        <NodeMaterial color={color} pbr={pbr} emissive={1.65} on />
+      </mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -0.31, 0]}>
+        <ringGeometry args={[0.23, 0.33, 40]} />
+        <meshBasicMaterial color={color} transparent opacity={0.24} side={THREE.DoubleSide} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function LoopbackPeer({ connected, running, sequence, paused }: { connected: boolean; running: boolean; sequence: number; paused: boolean }) {
+  const peer = useRef<THREE.Group>(null);
+  useFrame((state, delta) => {
+    if (!peer.current || paused || !connected) return;
+    peer.current.rotation.y += delta * (running ? 1.1 : 0.35);
+    peer.current.position.y = -1.15 + Math.sin(state.clock.elapsedTime * 1.4 + sequence * 0.1) * 0.06;
+  });
+  if (!connected) return null;
+  const color = running ? "#22c55e" : "#8b5cf6";
+  return (
+    <group ref={peer} position={[1.15, -1.15, 0.65]}>
+      <mesh>
+        <icosahedronGeometry args={[0.2, 1]} />
+        <meshBasicMaterial color={color} toneMapped={false} />
+      </mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.32, 0.025, 8, 32]} />
+        <meshBasicMaterial color={color} transparent opacity={0.65} toneMapped={false} />
+      </mesh>
+    </group>
+  );
 }
 
 function Scene({
@@ -541,7 +740,20 @@ function Scene({
   autoRotate,
   paused,
   resetSignal,
+  cameraPreset,
+  fovDegrees,
+  lightingProfile,
+  exposure,
+  gameplayObjective,
+  gameplayPaused,
+  assetProfile,
+  materialVariant,
+  netcodeGuestConnected,
+  netcodeRunning,
+  netcodeSequence,
   onToggleAutoRotate,
+  onCameraApplied,
+  onLightingApplied,
 }: {
   runState: RunState;
   nodeCount: number;
@@ -556,24 +768,39 @@ function Scene({
   autoRotate: boolean;
   paused: boolean;
   resetSignal: number;
+  cameraPreset: CameraPreset;
+  fovDegrees: number;
+  lightingProfile: LightingProfile;
+  exposure: number;
+  gameplayObjective: GameplayObjective;
+  gameplayPaused: boolean;
+  assetProfile: AssetProfile;
+  materialVariant: MaterialVariant;
+  netcodeGuestConnected: boolean;
+  netcodeRunning: boolean;
+  netcodeSequence: number;
   onToggleAutoRotate?: () => void;
+  onCameraApplied?: (state: CameraAppliedState) => void;
+  onLightingApplied?: (state: LightingAppliedState) => void;
 }) {
   const tex = useGlow();
   const sc = STATE_COLOR[runState];
+  const lighting = LIGHTING_PROFILES[lightingProfile];
   return (
     <>
       <color attach="background" args={[ORGANISM_COLORS.bg]} />
       <fog attach="fog" args={[ORGANISM_COLORS.bg, 6.5, 15]} />
+      <LightingRig profile={lightingProfile} exposure={exposure} onApplied={onLightingApplied} />
       {pbr ? (
         <>
-          <ambientLight intensity={0.35} />
-          <pointLight position={[0, 3.5, 3]} intensity={9} distance={14} color={ORGANISM_COLORS.cyan} />
-          <pointLight position={[-4, -2, 2.5]} intensity={7} distance={14} color={ORGANISM_COLORS.violet} />
-          <pointLight position={[4, -2, 2.5]} intensity={7} distance={14} color={ORGANISM_COLORS.magenta} />
+          <ambientLight intensity={lighting.ambient * exposure} />
+          <pointLight position={[0, 3.5, 3]} intensity={lighting.key * exposure} distance={14} color={lighting.keyColor} />
+          <pointLight position={[-4, -2, 2.5]} intensity={lighting.fill * exposure} distance={14} color={lighting.leftColor} />
+          <pointLight position={[4, -2, 2.5]} intensity={lighting.fill * exposure} distance={14} color={lighting.rightColor} />
           <Environment resolution={128} frames={1}>
-            <Lightformer form="circle" intensity={3} color={ORGANISM_COLORS.cyan} position={[0, 3, 2]} scale={3} />
-            <Lightformer form="circle" intensity={2.4} color={ORGANISM_COLORS.violet} position={[-3, -1, 2]} scale={2.5} />
-            <Lightformer form="circle" intensity={2.4} color={ORGANISM_COLORS.magenta} position={[3, -1, 2]} scale={2.5} />
+            <Lightformer form="circle" intensity={3 * exposure} color={lighting.keyColor} position={[0, 3, 2]} scale={3} />
+            <Lightformer form="circle" intensity={2.4 * exposure} color={lighting.leftColor} position={[-3, -1, 2]} scale={2.5} />
+            <Lightformer form="circle" intensity={2.4 * exposure} color={lighting.rightColor} position={[3, -1, 2]} scale={2.5} />
           </Environment>
         </>
       ) : null}
@@ -586,14 +813,20 @@ function Scene({
           <Hub key={h.id} hub={h} active={active} onSelect={onSelect} showLabel={showLabels} visible={hubVisible(h, visibleLayers, visibleAgents)} tex={tex} pbr={pbr} />
         ))}
       </group>
+      <GameplayBeacon objective={gameplayObjective} paused={gameplayPaused} />
+      <AssetPolicyPreview profile={assetProfile} variant={materialVariant} paused={paused} pbr={pbr} />
+      <LoopbackPeer connected={netcodeGuestConnected} running={netcodeRunning} sequence={netcodeSequence} paused={paused} />
       <CameraRig
         interactive={interactive}
         autoRotate={autoRotate && !paused}
         resetSignal={resetSignal}
+        cameraPreset={cameraPreset}
+        fovDegrees={fovDegrees}
         onToggleAutoRotate={onToggleAutoRotate}
+        onApplied={onCameraApplied}
       />
       <EffectComposer>
-        <Bloom intensity={1.25} luminanceThreshold={0.18} luminanceSmoothing={0.6} mipmapBlur radius={0.75} />
+        <Bloom intensity={lighting.bloom * exposure} luminanceThreshold={0.18} luminanceSmoothing={0.6} mipmapBlur radius={0.75} />
         <Vignette eskil={false} offset={0.25} darkness={0.85} />
       </EffectComposer>
     </>
@@ -613,6 +846,20 @@ export default function CortexCanvas3D({
   autoRotate = false,
   paused = false,
   resetSignal = 0,
+  cameraPreset = "wide",
+  fovDegrees = 45,
+  lightingProfile = "studio",
+  exposure = 1,
+  gameplayObjective = "collect",
+  gameplayScore = 0,
+  gameplayCheckpoints = 0,
+  gameplayPaused = false,
+  gameplayTicks = 0,
+  assetProfile = "cube",
+  materialVariant = "cyan",
+  netcodeGuestConnected = false,
+  netcodeRunning = false,
+  netcodeSequence = 0,
   onToggleAutoRotate,
   sourceLabel = "SPEC · ORGANISM",
 }: {
@@ -628,22 +875,72 @@ export default function CortexCanvas3D({
   autoRotate?: boolean;
   paused?: boolean;
   resetSignal?: number;
+  cameraPreset?: CameraPreset;
+  fovDegrees?: number;
+  lightingProfile?: LightingProfile;
+  exposure?: number;
+  gameplayObjective?: GameplayObjective;
+  gameplayScore?: number;
+  gameplayCheckpoints?: number;
+  gameplayPaused?: boolean;
+  gameplayTicks?: number;
+  assetProfile?: AssetProfile;
+  materialVariant?: MaterialVariant;
+  netcodeGuestConnected?: boolean;
+  netcodeRunning?: boolean;
+  netcodeSequence?: number;
   onToggleAutoRotate?: () => void;
   sourceLabel?: string;
 }) {
+  const boundedFov = [38, 45, 58].includes(fovDegrees) ? fovDegrees : 45;
+  const boundedExposure = Math.min(1.18, Math.max(0.72, exposure));
   const [pbr] = useState(() => detectHardwareGPU());
+  const [cameraApplied, setCameraApplied] = useState<CameraAppliedState>({ preset: cameraPreset, fov: boundedFov, position: "pending" });
+  const [lightingApplied, setLightingApplied] = useState<LightingAppliedState>({ profile: lightingProfile, exposure: boundedExposure });
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const onScreen = useRenderActive(wrapRef);
   const renderActive = onScreen && !paused;
+  const onCameraApplied = useCallback((state: CameraAppliedState) => setCameraApplied(state), []);
+  const onLightingApplied = useCallback((state: LightingAppliedState) => setLightingApplied(state), []);
   useEffect(() => {
     // Preload the GLB only when the 3D canvas actually mounts (not at import time,
     // so the 2D reduced-motion / no-WebGL path never triggers the fetch).
     useGLTF.preload(CORE_GLB);
   }, []);
   return (
-    <div className="cortex-wrap" ref={wrapRef}>
+    <div
+      className="cortex-wrap"
+      ref={wrapRef}
+      data-camera-preset={cameraApplied.preset}
+      data-camera-fov={cameraApplied.fov}
+      data-camera-position={cameraApplied.position}
+      data-lighting-profile={lightingApplied.profile}
+      data-tone-exposure={lightingApplied.exposure.toFixed(2)}
+      data-camera-lighting-local-only="true"
+      data-gameplay-objective={gameplayObjective}
+      data-gameplay-score={gameplayScore}
+      data-gameplay-checkpoints={gameplayCheckpoints}
+      data-gameplay-paused={String(gameplayPaused)}
+      data-gameplay-ticks={gameplayTicks}
+      data-gameplay-local-only="true"
+      data-asset-profile={assetProfile}
+      data-material-variant={materialVariant}
+      data-asset-catalog-count="3"
+      data-material-variant-count="3"
+      data-remote-asset-count="0"
+      data-uploaded-asset-count="0"
+      data-external-asset-fetch="false"
+      data-binary-asset-upload="false"
+      data-asset-policy-local-only="true"
+      data-netcode-transport="loopback"
+      data-netcode-guest-connected={String(netcodeGuestConnected)}
+      data-netcode-running={String(netcodeRunning)}
+      data-netcode-sequence={netcodeSequence}
+      data-netcode-websocket="false"
+      data-netcode-server-sync="false"
+    >
       <Canvas
-        camera={{ position: [0, 0.6, 7], fov: 48 }}
+        camera={{ position: CAMERA_PRESETS[cameraPreset].position, fov: boundedFov }}
         dpr={[1, 1.5]}
         frameloop="demand"
         gl={{ antialias: true, alpha: false, powerPreference: "low-power" }}
@@ -664,7 +961,20 @@ export default function CortexCanvas3D({
           autoRotate={autoRotate}
           paused={paused}
           resetSignal={resetSignal}
+          cameraPreset={cameraPreset}
+          fovDegrees={boundedFov}
+          lightingProfile={lightingProfile}
+          exposure={boundedExposure}
+          gameplayObjective={gameplayObjective}
+          gameplayPaused={gameplayPaused}
+          assetProfile={assetProfile}
+          materialVariant={materialVariant}
+          netcodeGuestConnected={netcodeGuestConnected}
+          netcodeRunning={netcodeRunning}
+          netcodeSequence={netcodeSequence}
           onToggleAutoRotate={onToggleAutoRotate}
+          onCameraApplied={onCameraApplied}
+          onLightingApplied={onLightingApplied}
         />
       </Canvas>
       <span className="cortex-badge">{sourceLabel} · {pbr ? "PBR/WEBGL" : "WEBGL"}</span>

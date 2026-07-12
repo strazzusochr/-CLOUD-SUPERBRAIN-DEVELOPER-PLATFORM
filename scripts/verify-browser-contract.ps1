@@ -421,6 +421,31 @@ Assert-Contains "error contract envelope evidence" $errorContract "error_respons
 $securityHeadersContract = Invoke-Text "$BaseUrl/api/v1/security/headers/contract"
 Assert-Contains "security headers contract version" $securityHeadersContract '"contract_version":"security-headers-v1"'
 Assert-Contains "security headers evidence" $securityHeadersContract "security_headers_enforced"
+Write-Host "[browser-contract] CSP report audit contract"
+$cspReportContract = Invoke-Text "$BaseUrl/api/v1/security/csp/contract"
+Assert-Contains "CSP report contract version" $cspReportContract '"contract_version":"csp-report-contract-v1"'
+Assert-Contains "CSP report contract evidence" $cspReportContract "csp_report_contract_visible"
+Assert-Contains "CSP report audit evidence" $cspReportContract "csp_report_audit_persisted"
+if ($isLocalProof) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-csp-report-contract.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-csp-report-contract.ps1 -BaseUrl $BaseUrl -ReadOnly
+}
+if ($LASTEXITCODE -ne 0) {
+  throw "Browser contract verification failed: CSP report audit contract verifier"
+}
+Write-Host "[browser-contract] CSRF origin guard contract"
+$csrfOriginContract = Invoke-Text "$BaseUrl/api/v1/security/csrf/contract"
+Assert-Contains "CSRF origin contract version" $csrfOriginContract '"contract_version":"csrf-origin-guard-v1"'
+Assert-Contains "CSRF origin evidence" $csrfOriginContract '"evidence_ref":"csrf_origin_guard_visible"'
+Assert-Contains "CSRF origin audit evidence" $csrfOriginContract '"audit_evidence_ref":"csrf_origin_rejection_audited"'
+Assert-Contains "CSRF origin rejection status" $csrfOriginContract '"rejection_status_code":403'
+if ($isLocalProof) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-csrf-origin-guard.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-csrf-origin-guard.ps1 -BaseUrl $BaseUrl -ReadOnly
+}
+if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: CSRF origin guard verifier" }
 $traceContract = Invoke-Text "$BaseUrl/api/v1/trace/contract"
 Assert-Contains "trace contract version" $traceContract '"contract_version":"trace-id-propagation-v1"'
 Assert-Contains "trace contract evidence" $traceContract "trace_id_header_roundtrip"
@@ -548,6 +573,84 @@ Assert-Contains "organism contract topology related" $organismContract '"/api/v1
 Assert-Contains "organism contract safety related" $organismContract '"/api/v1/organism/safety"'
 Assert-Contains "organism contract workspace wiring related" $organismContract '"/api/v1/workspace/wiring"'
 Assert-Contains "organism contract workspace page count" $organismContract '"workspace_page_count":22'
+$phase6CameraLightingContract = Invoke-Text "$BaseUrl/api/v1/phase6/3d-camera-lighting/contract"
+Assert-Contains "phase6 camera lighting contract version" $phase6CameraLightingContract '"contract_version":"phase6-3d-camera-lighting-runtime-v1"'
+Assert-Contains "phase6 camera lighting evidence" $phase6CameraLightingContract '"evidence_ref":"phase6_3d_camera_lighting_runtime_visible"'
+Assert-Contains "phase6 camera presets" $phase6CameraLightingContract '"camera_presets"'
+Assert-Contains "phase6 lighting profiles" $phase6CameraLightingContract '"lighting_profiles"'
+Assert-Contains "phase6 safe exposure" $phase6CameraLightingContract '"safe_exposure_range":{"min":0.72,"max":1.18,"step":0.02}'
+if ($isLocalProof) {
+  Write-Host "[browser-contract] Phase 6 3D camera and lighting controls"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase6-3d-camera-lighting-runtime.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) {
+    throw "Browser contract verification failed: Phase 6 camera and lighting verifier"
+  }
+}
+$phase6GameplayStateContract = Invoke-Text "$BaseUrl/api/v1/phase6/3d-gameplay-state/contract"
+Assert-Contains "phase6 gameplay state contract version" $phase6GameplayStateContract '"contract_version":"phase6-3d-gameplay-state-runtime-v1"'
+Assert-Contains "phase6 gameplay state evidence" $phase6GameplayStateContract '"evidence_ref":"phase6_3d_gameplay_state_runtime_visible"'
+Assert-Contains "phase6 gameplay state objectives" $phase6GameplayStateContract '"objectives":["collect","checkpoint","survive"]'
+Assert-Contains "phase6 gameplay state transitions" $phase6GameplayStateContract '"objective_transitions"'
+Assert-Contains "phase6 gameplay state local only" $phase6GameplayStateContract '"local_gameplay_state_only_required":true'
+if ($isLocalProof) {
+  Write-Host "[browser-contract] Phase 6 3D gameplay state controls"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase6-3d-gameplay-state-runtime.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) {
+    throw "Browser contract verification failed: Phase 6 gameplay state verifier"
+  }
+}
+$phase6AssetPolicyContract = Invoke-Text "$BaseUrl/api/v1/phase6/3d-asset-policy/contract"
+Assert-Contains "phase6 asset policy contract version" $phase6AssetPolicyContract '"contract_version":"phase6-3d-asset-policy-runtime-v1"'
+Assert-Contains "phase6 asset policy evidence" $phase6AssetPolicyContract '"evidence_ref":"phase6_3d_asset_policy_runtime_visible"'
+Assert-Contains "phase6 asset profiles" $phase6AssetPolicyContract '"asset_profiles"'
+Assert-Contains "phase6 material variants" $phase6AssetPolicyContract '"material_variants"'
+Assert-Contains "phase6 asset policy local only" $phase6AssetPolicyContract '"local_asset_manifest_only_required":true'
+Assert-Contains "phase6 external asset fetch blocked" $phase6AssetPolicyContract '"external_asset_fetch_allowed":false'
+if ($isLocalProof) {
+  Write-Host "[browser-contract] Phase 6 3D asset policy controls"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase6-3d-asset-policy-runtime.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) {
+    throw "Browser contract verification failed: Phase 6 asset policy verifier"
+  }
+}
+$phase6SaveLoadContract = Invoke-Text "$BaseUrl/api/v1/phase6/3d-save-load/contract"
+Assert-Contains "phase6 save load contract version" $phase6SaveLoadContract '"contract_version":"phase6-3d-save-load-runtime-v1"'
+Assert-Contains "phase6 save load evidence" $phase6SaveLoadContract '"evidence_ref":"phase6_3d_save_load_runtime_visible"'
+Assert-Contains "phase6 save load field count" $phase6SaveLoadContract '"snapshot_field_count":15'
+Assert-Contains "phase6 save load volatile only" $phase6SaveLoadContract '"volatile_browser_memory_only_required":true'
+Assert-Contains "phase6 save load cloud sync blocked" $phase6SaveLoadContract '"cloud_save_sync_allowed":false'
+Assert-Contains "phase6 save load network blocked" $phase6SaveLoadContract '"network_calls_required":false'
+if ($isLocalProof) {
+  Write-Host "[browser-contract] Phase 6 3D save and load controls"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase6-3d-save-load-runtime.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) {
+    throw "Browser contract verification failed: Phase 6 save and load verifier"
+  }
+}
+$phase6AccessibilityContract = Invoke-Text "$BaseUrl/api/v1/phase6/3d-accessibility/contract"
+Assert-Contains "phase6 accessibility contract version" $phase6AccessibilityContract '"contract_version":"phase6-3d-accessibility-runtime-v1"'
+Assert-Contains "phase6 accessibility evidence" $phase6AccessibilityContract '"evidence_ref":"phase6_3d_accessibility_runtime_visible"'
+Assert-Contains "phase6 accessibility system preference" $phase6AccessibilityContract '"system_preference_detection_required":true'
+Assert-Contains "phase6 accessibility keyboard" $phase6AccessibilityContract '"accessible_item_count":10'
+Assert-Contains "phase6 accessibility no network" $phase6AccessibilityContract '"network_calls_required":false'
+if ($isLocalProof) {
+  Write-Host "[browser-contract] Phase 6 3D accessibility controls"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase6-3d-accessibility-runtime.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: Phase 6 accessibility verifier" }
+}
+$phase6NetcodeContract = Invoke-Text "$BaseUrl/api/v1/phase6/3d-netcode/contract"
+Assert-Contains "phase6 netcode contract version" $phase6NetcodeContract '"contract_version":"phase6-3d-netcode-loopback-runtime-v1"'
+Assert-Contains "phase6 netcode evidence" $phase6NetcodeContract '"evidence_ref":"phase6_3d_netcode_loopback_runtime_visible"'
+Assert-Contains "phase6 netcode transport" $phase6NetcodeContract '"transport":"loopback"'
+Assert-Contains "phase6 netcode peers" $phase6NetcodeContract '"maximum_peers":2'
+Assert-Contains "phase6 netcode packets" $phase6NetcodeContract '"packets_per_tick":2'
+Assert-Contains "phase6 netcode no websocket" $phase6NetcodeContract '"websocket_allowed":false'
+Assert-Contains "phase6 netcode no server sync" $phase6NetcodeContract '"server_authoritative_sync_allowed":false'
+if ($isLocalProof) {
+  Write-Host "[browser-contract] Phase 6 3D netcode loopback controls"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase6-3d-netcode-loopback-runtime.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: Phase 6 netcode loopback verifier" }
+}
 $organismTopology = Invoke-Text "$BaseUrl/api/v1/organism/topology"
 Assert-Contains "organism topology version" $organismTopology '"contract_version":"organism-topology-v1"'
 Assert-Contains "organism topology layer node" $organismTopology '"id":"layer:FE"'

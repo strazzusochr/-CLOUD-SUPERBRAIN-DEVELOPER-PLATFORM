@@ -139,8 +139,8 @@ services:
 
   agent-worker:
     build:
-      context: ./services/agent-worker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/agent-worker/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-superbrain}:${POSTGRES_PASSWORD:-change-me-now}@postgres:5432/${POSTGRES_DB:-superbrain_prod}
@@ -173,8 +173,8 @@ services:
 
   memory-worker:
     build:
-      context: ./services/memory-worker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/memory-worker/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-superbrain}:${POSTGRES_PASSWORD:-change-me-now}@postgres:5432/${POSTGRES_DB:-superbrain_prod}
@@ -209,8 +209,8 @@ services:
 
   mcp-gateway:
     build:
-      context: ./services/mcp-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/mcp-gateway/Dockerfile
     restart: unless-stopped
     environment:
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
@@ -241,8 +241,8 @@ services:
 
   llm-gateway:
     build:
-      context: ./services/llm-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/llm-gateway/Dockerfile
     restart: unless-stopped
     environment:
       AGENT_API_INTERNAL_URL: http://agent-api:8000

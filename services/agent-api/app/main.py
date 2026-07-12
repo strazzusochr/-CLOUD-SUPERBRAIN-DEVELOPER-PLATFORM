@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -101,6 +102,13 @@ SESSION_LIMIT_CONTRACT_VERSION = "session-llm-call-limit-v1"
 PROMPT_INPUT_CONTRACT_VERSION = "prompt-input-contract-v1"
 ERROR_RESPONSE_CONTRACT_VERSION = "error-response-contract-v1"
 SECURITY_HEADERS_CONTRACT_VERSION = "security-headers-v1"
+CSP_REPORT_CONTRACT_VERSION = "csp-report-contract-v1"
+CSP_REPORT_EVIDENCE_REF = "csp_report_contract_visible"
+CSP_REPORT_AUDIT_EVIDENCE_REF = "csp_report_audit_persisted"
+CSP_REPORT_MAX_BODY_BYTES = 16_384
+CSRF_ORIGIN_CONTRACT_VERSION = "csrf-origin-guard-v1"
+CSRF_ORIGIN_EVIDENCE_REF = "csrf_origin_guard_visible"
+CSRF_ORIGIN_AUDIT_EVIDENCE_REF = "csrf_origin_rejection_audited"
 TRACE_ID_CONTRACT_VERSION = "trace-id-propagation-v1"
 CACHE_CONTROL_CONTRACT_VERSION = "cache-control-no-store-v1"
 REQUEST_ID_CONTRACT_VERSION = "request-id-correlation-v1"
@@ -149,6 +157,18 @@ EXTERNAL_GATE_MIRROR_SURFACE_EVIDENCE_REF = "external_gate_mirror_surface_contra
 BRANCH_PROTECTION_VERIFY_EVIDENCE_REF = "branch_protection_verify_contract"
 CLOUD_RENDER_OFFLOAD_CONTRACT_VERSION = "cloud-render-offload-v1"
 CLOUD_RENDER_OFFLOAD_EVIDENCE_REF = "cloud_render_offload_contract_visible"
+PHASE6_3D_CAMERA_LIGHTING_CONTRACT_VERSION = "phase6-3d-camera-lighting-runtime-v1"
+PHASE6_3D_CAMERA_LIGHTING_EVIDENCE_REF = "phase6_3d_camera_lighting_runtime_visible"
+PHASE6_3D_GAMEPLAY_STATE_CONTRACT_VERSION = "phase6-3d-gameplay-state-runtime-v1"
+PHASE6_3D_GAMEPLAY_STATE_EVIDENCE_REF = "phase6_3d_gameplay_state_runtime_visible"
+PHASE6_3D_ASSET_POLICY_CONTRACT_VERSION = "phase6-3d-asset-policy-runtime-v1"
+PHASE6_3D_ASSET_POLICY_EVIDENCE_REF = "phase6_3d_asset_policy_runtime_visible"
+PHASE6_3D_SAVE_LOAD_CONTRACT_VERSION = "phase6-3d-save-load-runtime-v1"
+PHASE6_3D_SAVE_LOAD_EVIDENCE_REF = "phase6_3d_save_load_runtime_visible"
+PHASE6_3D_ACCESSIBILITY_CONTRACT_VERSION = "phase6-3d-accessibility-runtime-v1"
+PHASE6_3D_ACCESSIBILITY_EVIDENCE_REF = "phase6_3d_accessibility_runtime_visible"
+PHASE6_3D_NETCODE_CONTRACT_VERSION = "phase6-3d-netcode-loopback-runtime-v1"
+PHASE6_3D_NETCODE_EVIDENCE_REF = "phase6_3d_netcode_loopback_runtime_visible"
 CLOUD_DEPLOYMENT_PREFLIGHT_CONTRACT_VERSION = "cloud-deployment-preflight-v1"
 CLOUD_DEPLOYMENT_PREFLIGHT_EVIDENCE_REF = "cloud_deployment_preflight_visible"
 GO_LIVE_READINESS_CONTRACT_VERSION = "go-live-readiness-v1"
@@ -184,7 +204,7 @@ SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-    "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; report-uri /api/v1/security/csp/report",
 }
 CACHE_CONTROL_HEADERS = {
     "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
@@ -315,6 +335,97 @@ async def request_id_middleware(request: Request, call_next):
     response = await call_next(request)
     response.headers.setdefault("X-Request-Id", request_id)
     response.headers.setdefault("X-Superbrain-Request-Contract", REQUEST_ID_CONTRACT_VERSION)
+    return response
+
+
+_CSRF_SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
+
+
+def _normalized_origin(value: str) -> str | None:
+    text = value.strip()
+    if not text or text.lower() == "null":
+        return None
+    parsed = urllib.parse.urlsplit(text)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password:
+        return None
+    if parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
+        return None
+    return f"{parsed.scheme.lower()}://{parsed.netloc.lower()}"
+
+
+def _request_public_origin(request: Request) -> str:
+    forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",", maxsplit=1)[0].strip()
+    forwarded_host = request.headers.get("x-forwarded-host", "").split(",", maxsplit=1)[0].strip()
+    scheme = forwarded_proto or request.url.scheme
+    host = forwarded_host or request.headers.get("host", "") or request.url.netloc
+    return f"{scheme.lower()}://{host.lower()}"
+
+
+def persist_csrf_rejection_audit(request: Request, reason: str) -> bool:
+    details = {
+        "contract_version": CSRF_ORIGIN_CONTRACT_VERSION,
+        "evidence_ref": CSRF_ORIGIN_AUDIT_EVIDENCE_REF,
+        "reason": reason,
+        "method": request.method,
+        "path": request.url.path,
+        "fetch_site": request.headers.get("sec-fetch-site", "missing")[:32],
+        "origin_present": bool(request.headers.get("origin")),
+        "request_id": getattr(request.state, "request_id", "unknown"),
+        "trace_id": getattr(request.state, "trace_id", "unknown"),
+        "secret_output": False,
+    }
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, details, severity)
+                VALUES ('security_csrf_request_rejected', 'security', %s::jsonb, 'warning')
+                """,
+                (Json(redact_json(details)),),
+            )
+        return True
+    except Exception:
+        return False
+
+
+@app.middleware("http")
+async def csrf_origin_guard_middleware(request: Request, call_next):
+    if request.method.upper() in _CSRF_SAFE_METHODS or not request.url.path.startswith("/api/"):
+        return await call_next(request)
+
+    fetch_site = request.headers.get("sec-fetch-site", "").strip().lower()
+    supplied_origin = request.headers.get("origin")
+    normalized_supplied = _normalized_origin(supplied_origin) if supplied_origin else None
+    expected_origin = _normalized_origin(_request_public_origin(request))
+    rejection_reason: str | None = None
+    if fetch_site == "cross-site":
+        rejection_reason = "fetch_metadata_cross_site"
+    elif supplied_origin and normalized_supplied is None:
+        rejection_reason = "invalid_or_null_origin"
+    elif normalized_supplied and normalized_supplied != expected_origin:
+        rejection_reason = "origin_mismatch"
+
+    if rejection_reason:
+        audit_persisted = persist_csrf_rejection_audit(request, rejection_reason)
+        return JSONResponse(
+            status_code=403,
+            content={
+                "contract_version": CSRF_ORIGIN_CONTRACT_VERSION,
+                "status_code": 403,
+                "error": "csrf_origin_rejected",
+                "message": "Cross-site browser request rejected by the CSRF origin guard.",
+                "reason": rejection_reason,
+                "evidence_ref": CSRF_ORIGIN_EVIDENCE_REF,
+                "audit_evidence_ref": CSRF_ORIGIN_AUDIT_EVIDENCE_REF,
+                "audit_persisted": audit_persisted,
+                "recoverable": True,
+                "secret_output": False,
+            },
+            headers={"X-Superbrain-CSRF-Contract": CSRF_ORIGIN_CONTRACT_VERSION},
+        )
+
+    response = await call_next(request)
+    response.headers.setdefault("X-Superbrain-CSRF-Contract", CSRF_ORIGIN_CONTRACT_VERSION)
     return response
 
 
@@ -4179,6 +4290,734 @@ def cloud_render_offload_contract_payload() -> dict[str, object]:
     }
 
 
+def phase6_3d_camera_lighting_runtime_contract_payload() -> dict[str, object]:
+    scenarios = [
+        {
+            "scenario": "camera_preset_switch_visible",
+            "decision": "switch_browser_local_camera_rig_between_wide_close_top",
+            "evidence_ref": "phase6_camera_preset_switch_visible",
+        },
+        {
+            "scenario": "fov_step_control_visible",
+            "decision": "adjust_safe_fov_steps_without_network_or_provider_call",
+            "evidence_ref": "phase6_fov_step_control_visible",
+        },
+        {
+            "scenario": "lighting_profile_switch_visible",
+            "decision": "switch_local_lighting_profiles_with_bounded_intensity",
+            "evidence_ref": "phase6_lighting_profile_switch_visible",
+        },
+        {
+            "scenario": "safe_exposure_bounds_visible",
+            "decision": "keep_exposure_state_inside_safe_local_bounds",
+            "evidence_ref": "phase6_safe_exposure_bounds_visible",
+        },
+        {
+            "scenario": "camera_lighting_state_overlay_visible",
+            "decision": "surface_applied_camera_lighting_state_in_hud",
+            "evidence_ref": "phase6_camera_lighting_state_overlay_visible",
+        },
+        {
+            "scenario": "local_camera_lighting_state_only",
+            "decision": "keep_camera_lighting_state_in_browser_memory_only",
+            "evidence_ref": "phase6_local_camera_lighting_state_only",
+        },
+        {
+            "scenario": "cloud_render_boundary_still_closed",
+            "decision": "keep_proof_inside_lightweight_client_render",
+            "evidence_ref": CLOUD_RENDER_OFFLOAD_EVIDENCE_REF,
+        },
+        {
+            "scenario": "phase6_progress_gate_bound_to_camera_lighting_verifier",
+            "decision": "raise_phase6_only_after_camera_lighting_browser_and_manifest_proof",
+            "evidence_ref": "phase6_camera_lighting_progress_gate_visible",
+        },
+    ]
+    guarded_scenarios = [
+        {
+            **scenario,
+            "local_model_downloads": False,
+            "external_asset_fetch": False,
+            "shader_hotload_started": False,
+            "server_side_gpu_started": False,
+            "heavy_local_render_allowed": False,
+            "provider_write": False,
+            "live_mcp_write": False,
+            "production_deploy": False,
+            "secret_values_returned": False,
+            "release_promotion": False,
+            "pass": True,
+        }
+        for scenario in scenarios
+    ]
+    return {
+        "contract_version": PHASE6_3D_CAMERA_LIGHTING_CONTRACT_VERSION,
+        "mode": "phase6_lightweight_threejs_camera_lighting_runtime_contract",
+        "endpoint": "GET /api/v1/phase6/3d-camera-lighting/contract",
+        "frontend_surface": "Organism 3D camera and lighting controls",
+        "evidence_ref": PHASE6_3D_CAMERA_LIGHTING_EVIDENCE_REF,
+        "client_runtime_evidence_ref": "phase6_3d_client_runtime_visible",
+        "interaction_runtime_evidence_ref": "phase6_3d_interaction_runtime_visible",
+        "scene_state_runtime_evidence_ref": "phase6_3d_scene_state_runtime_visible",
+        "performance_budget_evidence_ref": "phase6_3d_performance_budget_runtime_visible",
+        "cloud_render_offload_evidence_ref": CLOUD_RENDER_OFFLOAD_EVIDENCE_REF,
+        "camera_lighting_strategy": "local_camera_rig_lighting_profile_state",
+        "camera_presets": [
+            {"id": "wide", "position": [0.0, 0.6, 7.0], "target": [0.0, 0.0, 0.0]},
+            {"id": "close", "position": [0.0, 0.35, 5.0], "target": [0.0, 0.0, 0.0]},
+            {"id": "top", "position": [0.2, 6.8, 1.4], "target": [0.0, 0.0, 0.0]},
+        ],
+        "lighting_profiles": [
+            {"id": "studio", "default_exposure": 1.0, "bounded_intensity": True},
+            {"id": "night", "default_exposure": 0.82, "bounded_intensity": True},
+            {"id": "sunrise", "default_exposure": 1.12, "bounded_intensity": True},
+        ],
+        "safe_fov_degrees": [38, 45, 58],
+        "safe_exposure_range": {"min": 0.72, "max": 1.18, "step": 0.02},
+        "camera_preset_controls_required": True,
+        "fov_step_controls_required": True,
+        "lighting_profile_controls_required": True,
+        "safe_exposure_bounds_required": True,
+        "state_overlay_required": True,
+        "applied_runtime_state_attributes_required": True,
+        "local_camera_lighting_state_only_required": True,
+        "localhost_heavy_render_allowed": False,
+        "server_side_gpu_required": False,
+        "shader_hotload_allowed": False,
+        "external_asset_fetch_allowed": False,
+        "network_calls_required": False,
+        "phase6_progress_after_proof": 40,
+        "phase6_progress_status_marker": "phase6_3d_camera_lighting_runtime_visible-camera_lighting_controls_verified",
+        "scenario_count": len(guarded_scenarios),
+        "pass_count": len(guarded_scenarios),
+        "all_scenarios_pass": True,
+        "scenarios": guarded_scenarios,
+        "guard_policy": {
+            "local_model_downloads": False,
+            "external_asset_fetch": False,
+            "shader_hotload_started": False,
+            "server_side_gpu_started": False,
+            "heavy_local_render_allowed": False,
+            "provider_write": False,
+            "live_mcp_write": False,
+            "production_deploy": False,
+            "secret_values_returned": False,
+            "release_promotion": False,
+        },
+        "browser_proof_requirements": [
+            "three camera preset controls are visible and applied",
+            "safe FOV step control is visible and applied",
+            "three lighting profiles are visible and applied",
+            "exposure remains between 0.72 and 1.18",
+            "applied camera and lighting state is visible in the runtime overlay",
+            "camera and lighting state remains browser-local",
+        ],
+        "non_claims": [
+            "No shader hotload or external asset fetch is performed.",
+            "No server-side GPU or heavy local render workload is started.",
+            "No provider write, live MCP write, live provider call, production deployment, secret output, or release promotion is performed.",
+            "Localhost proof remains DEV-ONLY and is not hosted staging proof.",
+        ],
+    }
+
+
+def phase6_3d_gameplay_state_runtime_contract_payload() -> dict[str, object]:
+    scenarios = [
+        {
+            "scenario": "objective_state_overlay_visible",
+            "decision": "surface_current_objective_state_in_browser_hud",
+            "evidence_ref": "phase6_objective_state_overlay_visible",
+        },
+        {
+            "scenario": "local_score_counter_visible",
+            "decision": "increment_score_counter_in_browser_memory_only",
+            "evidence_ref": "phase6_local_score_counter_visible",
+        },
+        {
+            "scenario": "checkpoint_counter_visible",
+            "decision": "increment_checkpoint_counter_without_network_sync",
+            "evidence_ref": "phase6_checkpoint_counter_visible",
+        },
+        {
+            "scenario": "deterministic_gameplay_state_machine",
+            "decision": "cycle_collect_checkpoint_survive_objectives_locally",
+            "evidence_ref": "phase6_deterministic_gameplay_state_machine_visible",
+        },
+        {
+            "scenario": "pause_safe_game_loop_state",
+            "decision": "keep_gameplay_loop_pause_safe_and_replayable",
+            "evidence_ref": "phase6_pause_safe_game_loop_state_visible",
+        },
+        {
+            "scenario": "input_event_binding_reused",
+            "decision": "reuse_existing_pointer_keyboard_input_without_new_network_path",
+            "evidence_ref": "phase6_input_event_binding_reused_visible",
+        },
+        {
+            "scenario": "local_gameplay_state_only",
+            "decision": "keep_gameplay_state_in_browser_memory_only",
+            "evidence_ref": "phase6_local_gameplay_state_only",
+        },
+        {
+            "scenario": "phase6_progress_gate_bound_to_gameplay_state_verifier",
+            "decision": "raise_phase6_only_after_gameplay_state_browser_and_manifest_proof",
+            "evidence_ref": "phase6_gameplay_state_progress_gate_visible",
+        },
+    ]
+    guarded_scenarios = [
+        {
+            **scenario,
+            "local_model_downloads": False,
+            "multiplayer_netcode_started": False,
+            "server_authoritative_sync_started": False,
+            "physics_engine_started": False,
+            "external_asset_fetch": False,
+            "server_side_gpu_started": False,
+            "heavy_local_render_allowed": False,
+            "provider_write": False,
+            "live_mcp_write": False,
+            "production_deploy": False,
+            "secret_values_returned": False,
+            "release_promotion": False,
+            "pass": True,
+        }
+        for scenario in scenarios
+    ]
+    return {
+        "contract_version": PHASE6_3D_GAMEPLAY_STATE_CONTRACT_VERSION,
+        "mode": "phase6_lightweight_threejs_gameplay_state_runtime_contract",
+        "endpoint": "GET /api/v1/phase6/3d-gameplay-state/contract",
+        "frontend_surface": "Organism 3D gameplay state controls",
+        "evidence_ref": PHASE6_3D_GAMEPLAY_STATE_EVIDENCE_REF,
+        "client_runtime_evidence_ref": "phase6_3d_client_runtime_visible",
+        "interaction_runtime_evidence_ref": "phase6_3d_interaction_runtime_visible",
+        "scene_state_runtime_evidence_ref": "phase6_3d_scene_state_runtime_visible",
+        "performance_budget_evidence_ref": "phase6_3d_performance_budget_runtime_visible",
+        "camera_lighting_evidence_ref": PHASE6_3D_CAMERA_LIGHTING_EVIDENCE_REF,
+        "cloud_render_offload_evidence_ref": CLOUD_RENDER_OFFLOAD_EVIDENCE_REF,
+        "gameplay_state_strategy": "local_objective_score_checkpoint_state_machine",
+        "objectives": ["collect", "checkpoint", "survive"],
+        "objective_transitions": {
+            "collect": {"next": "checkpoint", "score_delta": 10, "checkpoint_delta": 0},
+            "checkpoint": {"next": "survive", "score_delta": 0, "checkpoint_delta": 1},
+            "survive": {"next": "collect", "score_delta": 10, "checkpoint_delta": 0},
+        },
+        "score_increment": 10,
+        "checkpoint_increment": 1,
+        "loop_interval_ms": 1000,
+        "objective_overlay_required": True,
+        "score_counter_required": True,
+        "checkpoint_counter_required": True,
+        "pause_safe_loop_required": True,
+        "local_gameplay_state_only_required": True,
+        "input_binding_reuse_required": True,
+        "applied_runtime_state_attributes_required": True,
+        "localhost_heavy_render_allowed": False,
+        "server_side_gpu_required": False,
+        "multiplayer_netcode_allowed": False,
+        "server_authoritative_sync_allowed": False,
+        "physics_engine_required": False,
+        "external_asset_fetch_allowed": False,
+        "network_calls_required": False,
+        "phase6_progress_after_proof": 48,
+        "phase6_progress_status_marker": "phase6_3d_gameplay_state_runtime_visible-gameplay_state_controls_verified",
+        "scenario_count": len(guarded_scenarios),
+        "pass_count": len(guarded_scenarios),
+        "all_scenarios_pass": True,
+        "scenarios": guarded_scenarios,
+        "guard_policy": {
+            "local_model_downloads": False,
+            "multiplayer_netcode_started": False,
+            "server_authoritative_sync_started": False,
+            "physics_engine_started": False,
+            "external_asset_fetch": False,
+            "server_side_gpu_started": False,
+            "heavy_local_render_allowed": False,
+            "provider_write": False,
+            "live_mcp_write": False,
+            "production_deploy": False,
+            "secret_values_returned": False,
+            "release_promotion": False,
+        },
+        "browser_proof_requirements": [
+            "objective, score, checkpoint, completion, input, and loop state are visible",
+            "collect, checkpoint, and survive transitions are deterministic",
+            "the gameplay tick stops while paused and resumes afterward",
+            "button and keyboard input use the same state transition",
+            "applied gameplay state is visible on the 3D runtime wrapper",
+            "gameplay state remains browser-local without network requests",
+        ],
+        "non_claims": [
+            "No multiplayer, netcode, server-authoritative synchronization, or physics engine is claimed.",
+            "No external asset fetch, server-side GPU, or heavy local render workload is started.",
+            "No provider write, live MCP write, live provider call, production deployment, secret output, or release promotion is performed.",
+            "Localhost proof remains DEV-ONLY and is not hosted staging proof.",
+        ],
+    }
+
+
+def phase6_3d_asset_policy_runtime_contract_payload() -> dict[str, object]:
+    scenarios = [
+        {
+            "scenario": "procedural_asset_catalog_visible",
+            "decision": "surface_local_procedural_primitive_asset_catalog",
+            "evidence_ref": "phase6_procedural_asset_catalog_visible",
+        },
+        {
+            "scenario": "asset_profile_switch_visible",
+            "decision": "switch_browser_local_asset_profile_without_fetch",
+            "evidence_ref": "phase6_asset_profile_switch_visible",
+        },
+        {
+            "scenario": "material_policy_variant_visible",
+            "decision": "switch_material_policy_variant_from_local_allowlist",
+            "evidence_ref": "phase6_material_policy_variant_visible",
+        },
+        {
+            "scenario": "local_asset_manifest_visible",
+            "decision": "show_sanitized_local_asset_manifest_counts_only",
+            "evidence_ref": "phase6_local_asset_manifest_visible",
+        },
+        {
+            "scenario": "external_asset_fetch_blocked",
+            "decision": "block_remote_asset_fetch_and_cdn_loading",
+            "evidence_ref": "phase6_external_asset_fetch_blocked",
+        },
+        {
+            "scenario": "binary_asset_upload_blocked",
+            "decision": "block_binary_asset_upload_and_asset_pipeline_start",
+            "evidence_ref": "phase6_binary_asset_upload_blocked",
+        },
+        {
+            "scenario": "local_asset_policy_only",
+            "decision": "keep_asset_policy_state_in_browser_memory_only",
+            "evidence_ref": "phase6_local_asset_policy_only",
+        },
+        {
+            "scenario": "phase6_progress_gate_bound_to_asset_policy_verifier",
+            "decision": "raise_phase6_only_after_asset_policy_browser_and_manifest_proof",
+            "evidence_ref": "phase6_asset_policy_progress_gate_visible",
+        },
+    ]
+    guarded_scenarios = [
+        {
+            **scenario,
+            "local_model_downloads": False,
+            "external_asset_fetch": False,
+            "binary_asset_upload": False,
+            "remote_cdn_fetch": False,
+            "asset_pipeline_service_started": False,
+            "server_side_gpu_started": False,
+            "heavy_local_render_allowed": False,
+            "provider_write": False,
+            "live_mcp_write": False,
+            "production_deploy": False,
+            "secret_values_returned": False,
+            "release_promotion": False,
+            "pass": True,
+        }
+        for scenario in scenarios
+    ]
+    return {
+        "contract_version": PHASE6_3D_ASSET_POLICY_CONTRACT_VERSION,
+        "mode": "phase6_lightweight_threejs_asset_policy_runtime_contract",
+        "endpoint": "GET /api/v1/phase6/3d-asset-policy/contract",
+        "frontend_surface": "Organism 3D procedural asset policy controls",
+        "evidence_ref": PHASE6_3D_ASSET_POLICY_EVIDENCE_REF,
+        "client_runtime_evidence_ref": "phase6_3d_client_runtime_visible",
+        "interaction_runtime_evidence_ref": "phase6_3d_interaction_runtime_visible",
+        "scene_state_runtime_evidence_ref": "phase6_3d_scene_state_runtime_visible",
+        "performance_budget_evidence_ref": "phase6_3d_performance_budget_runtime_visible",
+        "camera_lighting_evidence_ref": PHASE6_3D_CAMERA_LIGHTING_EVIDENCE_REF,
+        "gameplay_state_evidence_ref": PHASE6_3D_GAMEPLAY_STATE_EVIDENCE_REF,
+        "cloud_render_offload_evidence_ref": CLOUD_RENDER_OFFLOAD_EVIDENCE_REF,
+        "asset_policy_strategy": "local_procedural_primitive_asset_catalog",
+        "asset_profiles": [
+            {"id": "cube", "geometry": "boxGeometry", "source": "procedural"},
+            {"id": "beacon", "geometry": "coneGeometry", "source": "procedural"},
+            {"id": "ring", "geometry": "torusGeometry", "source": "procedural"},
+        ],
+        "material_variants": [
+            {"id": "cyan", "color": "#00e5ff", "source": "allowlist"},
+            {"id": "amber", "color": "#f59e0b", "source": "allowlist"},
+            {"id": "rose", "color": "#fb7185", "source": "allowlist"},
+        ],
+        "asset_catalog_count": 3,
+        "material_variant_count": 3,
+        "remote_asset_count": 0,
+        "uploaded_asset_count": 0,
+        "asset_policy_overlay_required": True,
+        "procedural_primitives_only_required": True,
+        "local_asset_manifest_only_required": True,
+        "applied_runtime_state_attributes_required": True,
+        "localhost_heavy_render_allowed": False,
+        "server_side_gpu_required": False,
+        "external_asset_fetch_allowed": False,
+        "binary_asset_upload_allowed": False,
+        "remote_cdn_allowed": False,
+        "asset_pipeline_service_started": False,
+        "network_calls_required": False,
+        "phase6_progress_after_proof": 56,
+        "phase6_progress_status_marker": "phase6_3d_asset_policy_runtime_visible-asset_policy_controls_verified",
+        "scenario_count": len(guarded_scenarios),
+        "pass_count": len(guarded_scenarios),
+        "all_scenarios_pass": True,
+        "scenarios": guarded_scenarios,
+        "guard_policy": {
+            "local_model_downloads": False,
+            "external_asset_fetch": False,
+            "binary_asset_upload": False,
+            "remote_cdn_fetch": False,
+            "asset_pipeline_service_started": False,
+            "server_side_gpu_started": False,
+            "heavy_local_render_allowed": False,
+            "provider_write": False,
+            "live_mcp_write": False,
+            "production_deploy": False,
+            "secret_values_returned": False,
+            "release_promotion": False,
+        },
+        "browser_proof_requirements": [
+            "three procedural asset profiles are visible and applied",
+            "three allowlisted material variants are visible and applied",
+            "sanitized local manifest counts are visible",
+            "applied asset policy state is visible on the Three.js runtime wrapper",
+            "external fetch, remote CDN, binary upload, and pipeline startup stay blocked",
+            "asset policy interactions perform no network requests",
+        ],
+        "non_claims": [
+            "No external asset fetch, binary upload, remote CDN path, or asset pipeline service is started.",
+            "No server-side GPU or heavy local render workload is started.",
+            "No provider write, live MCP write, live provider call, production deployment, secret output, or release promotion is performed.",
+            "Localhost proof remains DEV-ONLY and is not hosted staging proof.",
+        ],
+    }
+
+
+def phase6_3d_save_load_runtime_contract_payload() -> dict[str, object]:
+    scenarios = [
+        {
+            "scenario": "scene_snapshot_capture_visible",
+            "decision": "capture_allowlisted_scene_state_in_react_memory",
+            "evidence_ref": "phase6_scene_snapshot_capture_visible",
+        },
+        {
+            "scenario": "scene_snapshot_restore_visible",
+            "decision": "restore_allowlisted_scene_state_without_network_sync",
+            "evidence_ref": "phase6_scene_snapshot_restore_visible",
+        },
+        {
+            "scenario": "scene_snapshot_clear_visible",
+            "decision": "clear_volatile_snapshot_without_mutating_restored_scene",
+            "evidence_ref": "phase6_scene_snapshot_clear_visible",
+        },
+        {
+            "scenario": "load_without_snapshot_blocked",
+            "decision": "disable_restore_until_a_valid_browser_memory_snapshot_exists",
+            "evidence_ref": "phase6_load_without_snapshot_blocked",
+        },
+        {
+            "scenario": "volatile_browser_memory_only",
+            "decision": "discard_snapshot_on_page_reload_or_unmount",
+            "evidence_ref": "phase6_volatile_browser_memory_only",
+        },
+        {
+            "scenario": "persistent_browser_storage_blocked",
+            "decision": "block_local_storage_indexeddb_cookie_and_cache_persistence",
+            "evidence_ref": "phase6_persistent_browser_storage_blocked",
+        },
+        {
+            "scenario": "cloud_save_sync_blocked",
+            "decision": "block_cloud_sync_upload_and_server_snapshot_write",
+            "evidence_ref": "phase6_cloud_save_sync_blocked",
+        },
+        {
+            "scenario": "phase6_progress_gate_bound_to_save_load_verifier",
+            "decision": "raise_phase6_only_after_save_load_browser_and_manifest_proof",
+            "evidence_ref": "phase6_save_load_progress_gate_visible",
+        },
+    ]
+    guarded_scenarios = [
+        {
+            **scenario,
+            "local_storage_write": False,
+            "indexeddb_write": False,
+            "cookie_write": False,
+            "service_worker_cache_write": False,
+            "cloud_save_sync": False,
+            "binary_snapshot_upload": False,
+            "server_snapshot_write": False,
+            "network_calls": False,
+            "provider_write": False,
+            "live_mcp_write": False,
+            "production_deploy": False,
+            "secret_values_returned": False,
+            "release_promotion": False,
+            "pass": True,
+        }
+        for scenario in scenarios
+    ]
+    snapshot_fields = [
+        "auto_rotate",
+        "reduced_motion",
+        "camera_preset",
+        "fov_degrees",
+        "lighting_profile",
+        "exposure",
+        "gameplay_objective",
+        "gameplay_score",
+        "gameplay_checkpoints",
+        "gameplay_completions",
+        "gameplay_input_events",
+        "gameplay_ticks",
+        "gameplay_paused",
+        "asset_profile",
+        "material_variant",
+    ]
+    return {
+        "contract_version": PHASE6_3D_SAVE_LOAD_CONTRACT_VERSION,
+        "mode": "phase6_volatile_browser_memory_scene_snapshot_contract",
+        "endpoint": "GET /api/v1/phase6/3d-save-load/contract",
+        "frontend_surface": "Organism 3D volatile save and load controls",
+        "evidence_ref": PHASE6_3D_SAVE_LOAD_EVIDENCE_REF,
+        "asset_policy_evidence_ref": PHASE6_3D_ASSET_POLICY_EVIDENCE_REF,
+        "save_load_strategy": "typed_allowlisted_react_state_snapshot",
+        "snapshot_fields": snapshot_fields,
+        "snapshot_field_count": len(snapshot_fields),
+        "snapshot_slots": 1,
+        "capture_required": True,
+        "restore_required": True,
+        "clear_required": True,
+        "load_disabled_without_snapshot_required": True,
+        "volatile_browser_memory_only_required": True,
+        "snapshot_discarded_on_reload_required": True,
+        "local_storage_allowed": False,
+        "indexeddb_allowed": False,
+        "cookie_persistence_allowed": False,
+        "service_worker_cache_allowed": False,
+        "cloud_save_sync_allowed": False,
+        "binary_snapshot_upload_allowed": False,
+        "server_snapshot_write_allowed": False,
+        "network_calls_required": False,
+        "phase6_progress_after_proof": 64,
+        "phase6_progress_status_marker": "phase6_3d_save_load_runtime_visible-browser_memory_snapshot_restore_verified",
+        "scenario_count": len(guarded_scenarios),
+        "pass_count": len(guarded_scenarios),
+        "all_scenarios_pass": True,
+        "scenarios": guarded_scenarios,
+        "guard_policy": {
+            "local_storage_write": False,
+            "indexeddb_write": False,
+            "cookie_write": False,
+            "service_worker_cache_write": False,
+            "cloud_save_sync": False,
+            "binary_snapshot_upload": False,
+            "server_snapshot_write": False,
+            "network_calls": False,
+            "provider_write": False,
+            "live_mcp_write": False,
+            "production_deploy": False,
+            "secret_values_returned": False,
+            "release_promotion": False,
+        },
+        "browser_proof_requirements": [
+            "load is disabled before capture and after clear",
+            "all fifteen allowlisted state fields are captured",
+            "mutated camera, lighting, gameplay, and asset state is restored",
+            "restored state is reflected by visible controls and Three.js runtime attributes",
+            "snapshot state disappears after page reload",
+            "save, load, and clear perform no network requests or persistent browser writes",
+        ],
+        "non_claims": [
+            "No LocalStorage, IndexedDB, cookie, service-worker cache, cloud sync, upload, or server snapshot write is performed.",
+            "No provider write, live MCP write, live provider call, production deployment, secret output, or release promotion is performed.",
+            "Localhost proof remains DEV-ONLY and is not hosted staging proof.",
+        ],
+    }
+
+
+def phase6_3d_accessibility_runtime_contract_payload() -> dict[str, object]:
+    scenarios = [
+        {
+            "scenario": "manual_reduced_motion_toggle_visible",
+            "decision": "switch_between_3d_and_static_2d_with_pressed_state",
+            "evidence_ref": "phase6_manual_reduced_motion_toggle_visible",
+        },
+        {
+            "scenario": "system_reduced_motion_preference_honored",
+            "decision": "observe_prefers_reduced_motion_and_force_static_2d",
+            "evidence_ref": "phase6_system_reduced_motion_preference_honored",
+        },
+        {
+            "scenario": "semantic_2d_fallback_region_visible",
+            "decision": "expose_named_region_and_described_static_topology",
+            "evidence_ref": "phase6_semantic_2d_fallback_region_visible",
+        },
+        {
+            "scenario": "keyboard_fallback_navigation_visible",
+            "decision": "navigate_fallback_items_with_arrow_home_end_and_enter",
+            "evidence_ref": "phase6_keyboard_fallback_navigation_visible",
+        },
+        {
+            "scenario": "focus_visible_and_programmatic_focus_visible",
+            "decision": "retain_global_focus_ring_and_scene_focus_command",
+            "evidence_ref": "phase6_focus_visible_visible",
+        },
+        {
+            "scenario": "accessible_status_live_region_visible",
+            "decision": "announce_motion_render_and_focus_state_without_audio_service",
+            "evidence_ref": "phase6_accessible_status_live_region_visible",
+        },
+        {
+            "scenario": "accessibility_local_only",
+            "decision": "keep_accessibility_preferences_and_announcements_in_browser_state",
+            "evidence_ref": "phase6_accessibility_local_only",
+        },
+        {
+            "scenario": "phase6_progress_gate_bound_to_accessibility_verifier",
+            "decision": "raise_phase6_only_after_accessibility_browser_and_manifest_proof",
+            "evidence_ref": "phase6_accessibility_progress_gate_visible",
+        },
+    ]
+    guarded_scenarios = [
+        {
+            **scenario,
+            "speech_service_started": False,
+            "accessibility_telemetry_export": False,
+            "persistent_preference_write": False,
+            "network_calls": False,
+            "provider_write": False,
+            "live_mcp_write": False,
+            "production_deploy": False,
+            "secret_values_returned": False,
+            "release_promotion": False,
+            "pass": True,
+        }
+        for scenario in scenarios
+    ]
+    return {
+        "contract_version": PHASE6_3D_ACCESSIBILITY_CONTRACT_VERSION,
+        "mode": "phase6_accessible_reduced_motion_2d_fallback_contract",
+        "endpoint": "GET /api/v1/phase6/3d-accessibility/contract",
+        "frontend_surface": "Organism accessibility and reduced-motion controls",
+        "evidence_ref": PHASE6_3D_ACCESSIBILITY_EVIDENCE_REF,
+        "save_load_evidence_ref": PHASE6_3D_SAVE_LOAD_EVIDENCE_REF,
+        "accessibility_strategy": "system_aware_reduced_motion_semantic_keyboard_fallback",
+        "manual_reduced_motion_toggle_required": True,
+        "system_preference_detection_required": True,
+        "static_2d_fallback_required": True,
+        "semantic_region_required": True,
+        "keyboard_navigation_keys": ["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft", "Home", "End", "Enter", "Space"],
+        "programmatic_scene_focus_required": True,
+        "global_focus_visible_required": True,
+        "aria_pressed_state_required": True,
+        "aria_controls_required": True,
+        "live_status_region_required": True,
+        "accessible_item_count": 10,
+        "browser_local_preference_only_required": True,
+        "speech_service_required": False,
+        "accessibility_telemetry_export_allowed": False,
+        "persistent_preference_write_allowed": False,
+        "network_calls_required": False,
+        "phase6_progress_after_proof": 72,
+        "phase6_progress_status_marker": "phase6_3d_accessibility_runtime_visible-reduced_motion_keyboard_focus_verified",
+        "scenario_count": len(guarded_scenarios),
+        "pass_count": len(guarded_scenarios),
+        "all_scenarios_pass": True,
+        "scenarios": guarded_scenarios,
+        "guard_policy": {
+            "speech_service_started": False,
+            "accessibility_telemetry_export": False,
+            "persistent_preference_write": False,
+            "network_calls": False,
+            "provider_write": False,
+            "live_mcp_write": False,
+            "production_deploy": False,
+            "secret_values_returned": False,
+            "release_promotion": False,
+        },
+        "browser_proof_requirements": [
+            "manual reduced-motion toggle exposes pressed and controls relationships",
+            "prefers-reduced-motion forces the semantic 2D fallback",
+            "the fallback exposes ten named focusable topology items",
+            "arrow, Home, End, Enter, and Space keyboard behavior is deterministic",
+            "scene focus command and global focus-visible ring remain observable",
+            "motion and render status is exposed through a polite live region",
+            "accessibility controls perform no network requests",
+        ],
+        "non_claims": [
+            "No external speech, telemetry, preference persistence, or accessibility provider service is started.",
+            "No provider write, live MCP write, live provider call, production deployment, secret output, or release promotion is performed.",
+            "Localhost proof remains DEV-ONLY and is not hosted staging proof.",
+        ],
+    }
+
+
+def phase6_3d_netcode_loopback_runtime_contract_payload() -> dict[str, object]:
+    scenarios = [
+        {"scenario": "loopback_session_lifecycle_visible", "decision": "create_and_close_one_browser_memory_session", "evidence_ref": "phase6_loopback_session_lifecycle_visible"},
+        {"scenario": "two_peer_join_leave_visible", "decision": "join_and_disconnect_one_deterministic_guest", "evidence_ref": "phase6_two_peer_join_leave_visible"},
+        {"scenario": "two_peer_ready_barrier_visible", "decision": "start_only_after_host_and_guest_are_ready", "evidence_ref": "phase6_two_peer_ready_barrier_visible"},
+        {"scenario": "deterministic_lockstep_tick_visible", "decision": "advance_one_tick_and_two_packets_per_manual_step", "evidence_ref": "phase6_deterministic_lockstep_tick_visible"},
+        {"scenario": "monotonic_packet_sequence_visible", "decision": "increase_sequence_without_duplicates_or_reordering", "evidence_ref": "phase6_monotonic_packet_sequence_visible"},
+        {"scenario": "guest_disconnect_fail_closed_visible", "decision": "stop_lockstep_immediately_when_guest_disconnects", "evidence_ref": "phase6_guest_disconnect_fail_closed_visible"},
+        {"scenario": "remote_transport_boundary_closed", "decision": "keep_websocket_webrtc_matchmaking_and_server_sync_disabled", "evidence_ref": "phase6_remote_transport_boundary_closed"},
+        {"scenario": "phase6_progress_gate_bound_to_netcode_verifier", "decision": "raise_phase6_only_after_loopback_browser_and_manifest_proof", "evidence_ref": "phase6_netcode_progress_gate_visible"},
+    ]
+    guarded = [
+        {**scenario, "websocket_started": False, "webrtc_started": False, "matchmaking_started": False, "public_lobby_started": False, "server_authoritative_sync_started": False, "network_calls": False, "provider_write": False, "live_mcp_write": False, "production_deploy": False, "secret_values_returned": False, "release_promotion": False, "pass": True}
+        for scenario in scenarios
+    ]
+    return {
+        "contract_version": PHASE6_3D_NETCODE_CONTRACT_VERSION,
+        "mode": "phase6_two_peer_browser_loopback_lockstep_contract",
+        "endpoint": "GET /api/v1/phase6/3d-netcode/contract",
+        "frontend_surface": "Organism deterministic multiplayer loopback controls",
+        "evidence_ref": PHASE6_3D_NETCODE_EVIDENCE_REF,
+        "accessibility_evidence_ref": PHASE6_3D_ACCESSIBILITY_EVIDENCE_REF,
+        "netcode_strategy": "two_peer_manual_lockstep_browser_loopback",
+        "transport": "loopback",
+        "session_slots": 1,
+        "maximum_peers": 2,
+        "peer_ids": ["host", "guest"],
+        "ready_barrier_required": True,
+        "manual_lockstep_required": True,
+        "packets_per_tick": 2,
+        "sequence_monotonic_required": True,
+        "disconnect_stops_simulation_required": True,
+        "threejs_remote_peer_marker_required": True,
+        "browser_memory_only_required": True,
+        "websocket_allowed": False,
+        "webrtc_allowed": False,
+        "matchmaking_allowed": False,
+        "public_lobby_allowed": False,
+        "server_authoritative_sync_allowed": False,
+        "network_calls_required": False,
+        "phase6_progress_after_proof": 80,
+        "phase6_progress_status_marker": "phase6_3d_netcode_loopback_runtime_visible-two_peer_lockstep_verified",
+        "scenario_count": len(guarded),
+        "pass_count": len(guarded),
+        "all_scenarios_pass": True,
+        "scenarios": guarded,
+        "guard_policy": {"websocket_started": False, "webrtc_started": False, "matchmaking_started": False, "public_lobby_started": False, "server_authoritative_sync_started": False, "network_calls": False, "provider_write": False, "live_mcp_write": False, "production_deploy": False, "secret_values_returned": False, "release_promotion": False},
+        "browser_proof_requirements": [
+            "session create and close transitions are visible",
+            "guest join increments peer count and sequence",
+            "lockstep start remains disabled until both peers are ready",
+            "each manual lockstep step increments tick by one, packets and sequence by two",
+            "guest disconnect stops simulation and disables tick immediately",
+            "the procedural remote peer marker mirrors connected and running state",
+            "loopback controls perform no fetch or XHR requests",
+        ],
+        "non_claims": [
+            "No WebSocket, WebRTC, matchmaking, public lobby, hosted relay, or server-authoritative synchronization is started.",
+            "This is deterministic local loopback evidence, not hosted multiplayer capacity or production netcode proof.",
+            "No provider write, live MCP write, deployment, secret output, or release promotion is performed.",
+            "Localhost proof remains DEV-ONLY.",
+        ],
+    }
+
+
 def cloud_deployment_preflight_state() -> dict[str, object]:
     def env_ready(keys: list[str]) -> bool:
         return all(bool(os.getenv(key)) for key in keys)
@@ -4771,7 +5610,7 @@ ORGANISM_PAGE_WIRING = {
     "home": {"brain_region": "sensory", "hub": "workbench", "primary_mode": "navigate", "data_sources": ["WORKSPACE_PAGES", "/api/v1/clouds", "/api/v1/project/progress/integrity"], "verifier_refs": WORKSPACE_COMMON_VERIFIERS, "event_kinds": ["planning", "blocked"]},
     "login": {"brain_region": "amygdala", "hub": "workbench", "primary_mode": "govern", "data_sources": ["/api/v1/auth/contract", "/api/v1/auth/github", "/api/v1/audit/recent"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1-runtime.ps1"], "event_kinds": ["verifying", "blocked"]},
     "workbench": {"brain_region": "prefrontal", "hub": "workbench", "primary_mode": "create", "data_sources": ["/api/v1/phase2/runtime/contract", "/api/v1/orchestrator/manifest/contract", "/api/v1/platform/verify", "/api/v1/orchestrator/checkpoints/contract", "/api/v1/orchestrator/dry-run", "/api/v1/orchestrator/dry-run/contract", "/api/v1/orchestrator/dry-run/stream", "/api/v1/orchestrator/dry-run/stream/contract", "/api/v1/orchestrator/manifest", "/api/v1/phase2/runtime/runs", "/api/v1/phase2/runtime/runs/contract", "/api/v1/phase2/runtime/start", "/api/v1/phase2/runtime/start/contract", "/api/v1/trace/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["planning", "executing", "verifying"]},
-    "organism": {"brain_region": "callosum", "hub": "workbench", "primary_mode": "inspect", "data_sources": ["/api/v1/organism/contract", "/api/v1/organism/live-state", "/organism/core.glb"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["planning", "executing", "tool_call", "llm_call", "memory_read", "memory_write", "verifying", "blocked"]},
+    "organism": {"brain_region": "callosum", "hub": "workbench", "primary_mode": "inspect", "data_sources": ["/api/v1/organism/contract", "/api/v1/organism/live-state", "/api/v1/phase6/3d-camera-lighting/contract", "/api/v1/phase6/3d-gameplay-state/contract", "/api/v1/phase6/3d-asset-policy/contract", "/api/v1/phase6/3d-save-load/contract", "/api/v1/phase6/3d-accessibility/contract", "/api/v1/phase6/3d-netcode/contract", "/organism/core.glb"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["planning", "executing", "tool_call", "llm_call", "memory_read", "memory_write", "verifying", "blocked"]},
     "organism-replay": {"brain_region": "hippocampus", "hub": "observe", "primary_mode": "inspect", "data_sources": ["/api/v1/organism/replay", "/api/v1/organism/events"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["memory_read", "verifying", "blocked"]},
     "organism-map": {"brain_region": "thalamus", "hub": "cloud", "primary_mode": "inspect", "data_sources": ["/api/v1/organism/topology", "/api/v1/organism/regions", "/api/v1/organism/safety"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["planning", "verifying", "blocked"]},
     "agents": {"brain_region": "motor", "hub": "agents", "primary_mode": "inspect", "data_sources": ["/api/v1/agents/status", "/api/v1/agent-activity/recent", "/api/v1/tasks/assignment-contract", "/api/v1/agent-activity/contract", "/api/v1/agents/llm-streaming-contract", "/api/v1/agents/profiles", "/api/v1/agents/profiles/contract", "/api/v1/live-agents/contract", "/api/v1/live-agents/status", "/api/v1/live-agents/steer", "/api/v1/task/dispatch/contract", "/api/v1/task/dispatches/recent", "/api/v1/tasks/policy", "/api/v1/tasks/policy/contract", "/api/v1/tasks/policy/validate", "/api/v1/tasks/recent", "/api/v1/tasks/recent/contract", "/api/v1/team/master-plan", "/api/v1/team/master-plan/contract", "/api/v1/team/roster", "/api/v1/team/roster/contract", "/api/v1/team/status", "/api/v1/team/status/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1-runtime.ps1"], "event_kinds": ["planning", "executing", "verifying", "blocked"]},
@@ -4785,7 +5624,7 @@ ORGANISM_PAGE_WIRING = {
     "media": {"brain_region": "sensory", "hub": "models", "primary_mode": "create", "data_sources": ["media_preview_mode", "MODELS", "/api/v1/models/capabilities"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run test:e2e --prefix apps/frontend"], "event_kinds": ["llm_call", "executing", "verifying", "blocked"]},
     "docs-output": {"brain_region": "hippocampus", "hub": "memory", "primary_mode": "create", "data_sources": ["docs_output_mode", "/api/v1/memory/search", "/api/v1/sessions/recent"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run test:e2e --prefix apps/frontend"], "event_kinds": ["memory_read", "memory_write", "executing", "verifying"]},
     "evidence": {"brain_region": "cerebellum", "hub": "observe", "primary_mode": "verify", "data_sources": ["/api/v1/external-gates", "/api/v1/project/progress/integrity", "docs/verification-register.md"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1.ps1", "gitleaks detect --no-git --source ."], "event_kinds": ["verifying", "blocked"]},
-    "diagnostics": {"brain_region": "amygdala", "hub": "observe", "primary_mode": "verify", "data_sources": ["/api/v1/audit/recent", "/api/v1/escalations/recent", ".phase1-artifacts", "/api/v1/errors/contract", "/api/v1/escalations/contract", "/api/v1/layer-interfaces/contract", "/api/v1/request/contract", "/api/v1/security/headers/contract", "/api/v1/workspace/artifacts", "/api/v1/workspace/artifacts/contract", "/api/v1/workspace/vertical-stack", "/api/v1/workspace/wiring", "/api/v1/platform/inventory"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-retired-hosted-boundary.ps1"], "event_kinds": ["verifying", "blocked"]},
+    "diagnostics": {"brain_region": "amygdala", "hub": "observe", "primary_mode": "verify", "data_sources": ["/api/v1/audit/recent", "/api/v1/escalations/recent", ".phase1-artifacts", "/api/v1/errors/contract", "/api/v1/escalations/contract", "/api/v1/layer-interfaces/contract", "/api/v1/request/contract", "/api/v1/security/headers/contract", "/api/v1/security/csp/contract", "/api/v1/security/csrf/contract", "/api/v1/workspace/artifacts", "/api/v1/workspace/artifacts/contract", "/api/v1/workspace/vertical-stack", "/api/v1/workspace/wiring", "/api/v1/platform/inventory"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-retired-hosted-boundary.ps1"], "event_kinds": ["verifying", "blocked"]},
     "design-system": {"brain_region": "sensory", "hub": "workbench", "primary_mode": "inspect", "data_sources": ["apps/frontend/app/styles.css", "WORKSPACE_PAGES", "NeuroGlass tokens", "/api/v1/design/reference-contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run lint --prefix apps/frontend"], "event_kinds": ["planning", "verifying"]},
     "stack": {"brain_region": "thalamus", "hub": "cloud", "primary_mode": "inspect", "data_sources": ["docs/system-architecture.md", "/api/v1/clouds", "/api/v1/clouds/deployment-preflight", "/api/v1/devops/workflow-dispatch/plan", "/api/v1/devops/workflow-dispatch/plan/contract", "/api/v1/devops/workflow-dispatch/validate", "/api/v1/devops/workflow-dispatch/validate/contract", "/api/v1/project/progress", "/api/v1/project/progress/completion", "/api/v1/project/progress/completion/contract", "/api/v1/project/progress/contract", "/api/v1/project/progress/layers", "/api/v1/project/progress/layers/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1.ps1"], "event_kinds": ["planning", "verifying", "blocked"]},
     "settings": {"brain_region": "amygdala", "hub": "tools", "primary_mode": "govern", "data_sources": ["/api/v1/clouds/deployment-preflight", "/api/v1/auth/contract", "CLOSED_GATES", "/api/v1/auth/callback", "/api/v1/auth/logout", "/api/v1/auth/refresh"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-owner-cloud-gate-activation.ps1"], "event_kinds": ["blocked", "verifying"]},
@@ -5613,6 +6452,36 @@ def cloud_render_offload() -> dict[str, object]:
 @app.get("/api/v1/clouds/render-offload/contract")
 def cloud_render_offload_contract() -> dict[str, object]:
     return cloud_render_offload_contract_payload()
+
+
+@app.get("/api/v1/phase6/3d-camera-lighting/contract")
+def phase6_3d_camera_lighting_runtime_contract() -> dict[str, object]:
+    return phase6_3d_camera_lighting_runtime_contract_payload()
+
+
+@app.get("/api/v1/phase6/3d-gameplay-state/contract")
+def phase6_3d_gameplay_state_runtime_contract() -> dict[str, object]:
+    return phase6_3d_gameplay_state_runtime_contract_payload()
+
+
+@app.get("/api/v1/phase6/3d-asset-policy/contract")
+def phase6_3d_asset_policy_runtime_contract() -> dict[str, object]:
+    return phase6_3d_asset_policy_runtime_contract_payload()
+
+
+@app.get("/api/v1/phase6/3d-save-load/contract")
+def phase6_3d_save_load_runtime_contract() -> dict[str, object]:
+    return phase6_3d_save_load_runtime_contract_payload()
+
+
+@app.get("/api/v1/phase6/3d-accessibility/contract")
+def phase6_3d_accessibility_runtime_contract() -> dict[str, object]:
+    return phase6_3d_accessibility_runtime_contract_payload()
+
+
+@app.get("/api/v1/phase6/3d-netcode/contract")
+def phase6_3d_netcode_loopback_runtime_contract() -> dict[str, object]:
+    return phase6_3d_netcode_loopback_runtime_contract_payload()
 
 
 @app.get("/api/v1/clouds/deployment-preflight")
@@ -7464,6 +8333,18 @@ def security_headers_contract_payload() -> dict[str, object]:
         "enforced_by": "security_headers_middleware",
         "applies_to": "all Agent API HTTP responses including error envelopes",
         "headers": SECURITY_HEADERS,
+        "csp_report_contract": {
+            "contract_version": CSP_REPORT_CONTRACT_VERSION,
+            "endpoint": "POST /api/v1/security/csp/report",
+            "evidence_ref": CSP_REPORT_EVIDENCE_REF,
+            "audit_evidence_ref": CSP_REPORT_AUDIT_EVIDENCE_REF,
+        },
+        "csrf_origin_contract": {
+            "contract_version": CSRF_ORIGIN_CONTRACT_VERSION,
+            "endpoint": "GET /api/v1/security/csrf/contract",
+            "evidence_ref": CSRF_ORIGIN_EVIDENCE_REF,
+            "audit_evidence_ref": CSRF_ORIGIN_AUDIT_EVIDENCE_REF,
+        },
         "cors_policy": {
             "mode": "same_origin_by_default",
             "reason": "Frontend reaches Agent API through the same Nginx origin in Phase 1.",
@@ -7475,12 +8356,16 @@ def security_headers_contract_payload() -> dict[str, object]:
             "Every response includes Referrer-Policy=no-referrer.",
             "Every response includes a restrictive Permissions-Policy.",
             "Every response includes a default self Content-Security-Policy.",
+            "CSP reports are size-bounded, allowlisted, redacted, and audit-persisted before acceptance.",
+            "Unsafe browser requests fail closed on cross-site Fetch Metadata, null Origin, or Origin mismatch.",
         ],
         "evidence_refs": {
             "contract_visible": "security_headers_contract_visible",
             "headers_enforced": "security_headers_enforced",
             "same_origin_cors_policy": "security_headers_same_origin_policy",
             "ui_visible": "security_headers_ui_visible",
+            "csp_report_visible": CSP_REPORT_EVIDENCE_REF,
+            "csrf_origin_guard_visible": CSRF_ORIGIN_EVIDENCE_REF,
         },
     }
 
@@ -7488,6 +8373,233 @@ def security_headers_contract_payload() -> dict[str, object]:
 @app.get("/api/v1/security/headers/contract")
 def security_headers_contract() -> dict[str, object]:
     return security_headers_contract_payload()
+
+
+def csrf_origin_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": CSRF_ORIGIN_CONTRACT_VERSION,
+        "mode": "fetch_metadata_and_same_origin_guard",
+        "endpoint": "GET /api/v1/security/csrf/contract",
+        "probe_endpoint": "POST /api/v1/security/csrf/probe",
+        "evidence_ref": CSRF_ORIGIN_EVIDENCE_REF,
+        "audit_event_type": "security_csrf_request_rejected",
+        "audit_evidence_ref": CSRF_ORIGIN_AUDIT_EVIDENCE_REF,
+        "protected_methods": ["POST", "PUT", "PATCH", "DELETE"],
+        "protected_path_prefix": "/api/",
+        "safe_methods": sorted(_CSRF_SAFE_METHODS),
+        "rejection_status_code": 403,
+        "rejection_error": "csrf_origin_rejected",
+        "phase3_progress_after_proof": 42,
+        "rejection_reasons": ["fetch_metadata_cross_site", "invalid_or_null_origin", "origin_mismatch"],
+        "same_origin_browser_requests_allowed": True,
+        "non_browser_missing_metadata_allowed": True,
+        "cross_site_browser_requests_allowed": False,
+        "null_origin_allowed": False,
+        "raw_origin_persisted": False,
+        "cookie_or_authorization_value_persisted": False,
+        "live_external_forwarding": False,
+        "policy_checks": [
+            "Sec-Fetch-Site cross-site fails closed before route execution.",
+            "Origin must exactly match the public request origin when supplied.",
+            "Origin null and malformed origins fail closed.",
+            "CLI and internal service calls without browser metadata remain compatible.",
+            "Rejection audit stores only allowlisted metadata and never raw credential values.",
+        ],
+        "non_claims": [
+            "This guard is defense in depth and does not replace authentication or authorization.",
+            "No OAuth scope, provider write, live MCP write, deployment, or secret output is performed.",
+            "Localhost proof remains DEV-ONLY and is not hosted production-auth proof.",
+        ],
+    }
+
+
+@app.get("/api/v1/security/csrf/contract")
+def csrf_origin_contract() -> dict[str, object]:
+    return csrf_origin_contract_payload()
+
+
+@app.post("/api/v1/security/csrf/probe")
+def csrf_origin_probe() -> dict[str, object]:
+    return {
+        "contract_version": CSRF_ORIGIN_CONTRACT_VERSION,
+        "status": "accepted_same_origin_or_non_browser",
+        "evidence_ref": CSRF_ORIGIN_EVIDENCE_REF,
+        "state_write": False,
+        "provider_write": False,
+        "live_mcp_write": False,
+        "secret_output": False,
+    }
+
+
+_CSP_REPORT_STRING_FIELDS = {
+    "document-uri": 500,
+    "blocked-uri": 500,
+    "violated-directive": 160,
+    "effective-directive": 160,
+    "original-policy": 1_000,
+    "source-file": 500,
+    "disposition": 40,
+    "referrer": 500,
+}
+_CSP_REPORT_NUMBER_FIELDS = {"line-number", "column-number", "status-code"}
+_CSP_REPORT_URI_FIELDS = {"document-uri", "blocked-uri", "source-file", "referrer"}
+_CSP_REPORT_CONTENT_TYPES = {"application/csp-report", "application/json"}
+
+
+def _csp_report_value(report: dict[str, object], canonical_name: str) -> object | None:
+    aliases = (canonical_name, canonical_name.replace("-", "_"))
+    for alias in aliases:
+        if alias in report:
+            return report[alias]
+    return None
+
+
+def sanitize_csp_report(report: dict[str, object]) -> dict[str, object]:
+    sanitized: dict[str, object] = {}
+    for field_name, max_length in _CSP_REPORT_STRING_FIELDS.items():
+        value = _csp_report_value(report, field_name)
+        if value is None:
+            continue
+        text = redact_text(str(value)).strip()
+        if field_name in _CSP_REPORT_URI_FIELDS:
+            text = re.split(r"[?#]", text, maxsplit=1)[0]
+        sanitized[field_name] = text[:max_length]
+    for field_name in _CSP_REPORT_NUMBER_FIELDS:
+        value = _csp_report_value(report, field_name)
+        if value is None:
+            continue
+        try:
+            sanitized[field_name] = max(0, min(int(value), 2_147_483_647))
+        except (TypeError, ValueError):
+            continue
+    return sanitized
+
+
+def csp_report_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": CSP_REPORT_CONTRACT_VERSION,
+        "mode": "same_origin_redacted_audit_sink",
+        "endpoint": "POST /api/v1/security/csp/report",
+        "evidence_ref": CSP_REPORT_EVIDENCE_REF,
+        "audit_event_type": "security_csp_violation_reported",
+        "audit_evidence_ref": CSP_REPORT_AUDIT_EVIDENCE_REF,
+        "accepted_content_types": sorted(_CSP_REPORT_CONTENT_TYPES),
+        "accepted_shapes": ["csp-report", "csp_report", "report"],
+        "max_body_bytes": CSP_REPORT_MAX_BODY_BYTES,
+        "stored_fields": sorted([*_CSP_REPORT_STRING_FIELDS, *_CSP_REPORT_NUMBER_FIELDS]),
+        "privacy": {
+            "uri_query_and_fragment_persisted": False,
+            "user_agent_persisted": False,
+            "cookies_or_credentials_persisted": False,
+            "raw_report_persisted": False,
+        },
+        "policy_checks": [
+            "Only allowlisted CSP fields are persisted.",
+            "URI query strings and fragments are removed before persistence.",
+            "Acceptance fails closed when the audit row cannot be persisted.",
+            "No report is forwarded to an external collector.",
+        ],
+        "non_claims": [
+            "No production incident response workflow is claimed.",
+            "No third-party CSP collector is configured.",
+            "No provider write, live MCP write, or secret output is performed.",
+        ],
+    }
+
+
+def persist_csp_report_audit(details: dict[str, object]) -> str | None:
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            row = conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, details, severity)
+                VALUES ('security_csp_violation_reported', 'security', %s::jsonb, 'warning')
+                RETURNING id
+                """,
+                (Json(redact_json(details)),),
+            ).fetchone()
+            return str(row[0]) if row else None
+    except Exception:
+        return None
+
+
+@app.get("/api/v1/security/csp/contract")
+def csp_report_contract() -> dict[str, object]:
+    return csp_report_contract_payload()
+
+
+@app.post("/api/v1/security/csp/report")
+async def csp_report(request: Request) -> dict[str, object]:
+    content_type = request.headers.get("content-type", "").split(";", maxsplit=1)[0].strip().lower()
+    if content_type not in _CSP_REPORT_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=415,
+            detail={
+                "error": "unsupported_csp_report_content_type",
+                "message": "CSP reports require application/csp-report or application/json.",
+            },
+        )
+    raw_body = await request.body()
+    if len(raw_body) > CSP_REPORT_MAX_BODY_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail={"error": "csp_report_too_large", "message": "CSP report exceeds the 16384-byte limit."},
+        )
+    try:
+        payload = json.loads(raw_body.decode("utf-8")) if raw_body else {}
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "invalid_csp_report", "message": "CSP report must be valid JSON."},
+        ) from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "invalid_csp_report_shape", "message": "CSP report body must be an object."},
+        )
+    report = next(
+        (payload.get(key) for key in ("csp-report", "csp_report", "report") if isinstance(payload.get(key), dict)),
+        None,
+    )
+    if not isinstance(report, dict):
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "missing_csp_report", "message": "CSP report wrapper is required."},
+        )
+    sanitized_report = sanitize_csp_report(report)
+    if not sanitized_report:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "empty_csp_report", "message": "CSP report has no supported fields."},
+        )
+    request_id = str(payload.get("request_id") or getattr(request.state, "request_id", "unknown"))[:255]
+    trace_id = str(payload.get("trace_id") or getattr(request.state, "trace_id", "unknown"))[:255]
+    details = {
+        "contract_version": CSP_REPORT_CONTRACT_VERSION,
+        "evidence_ref": CSP_REPORT_EVIDENCE_REF,
+        "audit_evidence_ref": CSP_REPORT_AUDIT_EVIDENCE_REF,
+        "request_id": redact_text(request_id),
+        "trace_id": redact_text(trace_id),
+        "report": sanitized_report,
+        "live_external_report_forwarding": False,
+        "secret_output": False,
+    }
+    audit_event_id = persist_csp_report_audit(details)
+    if not audit_event_id:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "csp_audit_unavailable", "message": "CSP report was not accepted because audit persistence failed."},
+        )
+    return {
+        "status": "accepted",
+        "contract_version": CSP_REPORT_CONTRACT_VERSION,
+        "evidence_ref": CSP_REPORT_EVIDENCE_REF,
+        "audit_evidence_ref": CSP_REPORT_AUDIT_EVIDENCE_REF,
+        "audit_event_id": audit_event_id,
+        "audit_persisted": True,
+        "live_external_report_forwarding": False,
+        "secret_output": False,
+    }
 
 
 def trace_id_contract_payload() -> dict[str, object]:

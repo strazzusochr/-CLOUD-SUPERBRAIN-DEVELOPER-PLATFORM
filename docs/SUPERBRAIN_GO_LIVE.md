@@ -15,11 +15,12 @@ keine Live-Provider-Aktivierung, keinen MCP-Write, kein Production-Claim.
 - Aktiver Cloud-Pfad: Vercel Frontend, Fly.io Runtime, GHCR Registry, Grafana Cloud Observability.
 - Retired/historical only: Hetzner, GitKraken, Oracle, sslip.io hosted proofs.
 - Localhost bleibt DEV-ONLY und kann keine Hosted-, External-, Budget- oder Release-Gates schliessen.
-- Aktuelles External-Audit: `.phase1-artifacts/external-gate-audit-20260611-011938.json`.
+- Aktuelles External-Audit: `.phase1-artifacts/external-gate-audit-20260712-034356.json` (direkter No-Token-Lauf, `blocked` auf vier externen Gates; keine Tokenwerte im Artefakt).
+- Private Read-only-Bootstrap-Referenz: `20260712-000113` (nur Hosted-Agent-API und Vercel-Origins offen; kein Production-Claim).
 - Sanitized Runtime Mirror: `docs/runtime-state/external-gate-summary.json`, contract `external-gate-summary-v1`.
 - Runtime Readiness Endpoint: `GET /api/v1/clouds/go-live-readiness`.
 
-Aktuelle offene Gates:
+Gate-IDs und private Inputs fuer die Standard-Bootstrap-Reproduktion:
 
 - `hosted_agent_api_contracts`
 - `github_branch_protection_current_verify`

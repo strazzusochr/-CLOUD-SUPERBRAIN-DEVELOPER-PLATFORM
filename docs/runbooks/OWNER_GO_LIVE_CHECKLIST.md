@@ -134,12 +134,13 @@ Copyable staged template:
 
 ```powershell
 & $env:USERPROFILE\.fly\bin\flyctl.exe secrets set --app cloud-superbrain-mcp-gateway --stage `
-  AGENT_API_INTERNAL_URL="https://<STAGING_HOST>" `
-  GITHUB_TOKEN="<OWNER_GITHUB_MCP_TOKEN_IF_SCOPED_GITHUB_MCP_IS_APPROVED>"
+  AGENT_API_INTERNAL_URL="https://<STAGING_HOST>"
 ```
 
 If GitHub MCP scope is not approved, omit `GITHUB_TOKEN`. Live MCP writes remain
 closed until the project write gate explicitly opens them.
+If it is approved, set `GITHUB_TOKEN` in a separate private Owner-shell command
+without recording the value in this runbook or terminal evidence.
 
 ### LLM Gateway
 
@@ -164,13 +165,15 @@ Copyable staged template:
 ```powershell
 & $env:USERPROFILE\.fly\bin\flyctl.exe secrets set --app cloud-superbrain-llm-gateway --stage `
   AGENT_API_INTERNAL_URL="https://<STAGING_HOST>" `
-  HF_TOKEN="<OWNER_HUGGINGFACE_ROUTER_TOKEN>" `
   HF_ROUTER_BASE_URL="https://router.huggingface.co/v1" `
   HF_DEFAULT_CHAT_MODEL="<OWNER_APPROVED_MODEL_ID>" `
   HF_ROUTER_TIMEOUT_SECONDS="90" `
   LLM_GATEWAY_MODE="deterministic_dry_run" `
   LLM_LIVE_PROVIDER_DEFAULT="false"
 ```
+
+Set `HF_TOKEN` only after the live-provider Owner gate opens, using a separate
+private Owner-shell command that does not record the value in evidence.
 
 For strict dry-run, omit `HF_TOKEN` and keep `LLM_LIVE_PROVIDER_DEFAULT=false`.
 
@@ -246,7 +249,7 @@ artifacts.
 If a private automation shell is used instead:
 
 ```powershell
-$env:FLY_API_TOKEN="<OWNER_PRIVATE_FLY_TOKEN>"
+# FLY_API_TOKEN vor diesem Schritt in der privaten Owner-Shell bereitstellen; nie inline dokumentieren.
 & $env:USERPROFILE\.fly\bin\flyctl.exe apps list
 ```
 

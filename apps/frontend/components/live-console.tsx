@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export type LiveEndpoint = { label: string; path: string };
 
@@ -22,7 +22,7 @@ export function LiveConsole({ endpoints, label = "Live-Daten" }: { endpoints: Li
     } catch {}
   }
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!selected) return;
     setBusy(true);
     setStatus("lädt…");
@@ -47,10 +47,10 @@ export function LiveConsole({ endpoints, label = "Live-Daten" }: { endpoints: Li
     } finally {
       setBusy(false);
     }
-  }
+  }, [selected]);
 
   // Auto-load real data on mount so internals pages show live data immediately.
-  useEffect(() => { const t = setTimeout(() => { void load(); }, 0); return () => clearTimeout(t); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { const t = setTimeout(() => { void load(); }, 0); return () => clearTimeout(t); }, [load]);
 
   const tone = status.includes("OK") ? "lc-ok" : status === "Fehler" || /^[45]/.test(status) ? "lc-err" : "lc-idle";
 

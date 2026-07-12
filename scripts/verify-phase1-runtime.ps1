@@ -337,6 +337,63 @@ Assert-Contains "cloud render offload runtime version" $cloudRenderOffloadRuntim
 Assert-Contains "cloud render offload runtime evidence" $cloudRenderOffloadRuntime '"evidence_ref":"cloud_render_offload_contract_visible"'
 Assert-Contains "cloud render offload local block" $cloudRenderOffloadRuntime '"localhost_heavy_render_allowed":false'
 Assert-Contains "cloud render offload staging blocker" $cloudRenderOffloadRuntime "cloud_render_offload_requires_STAGING_BASE_URL"
+Write-Host "[runtime] phase6 camera lighting contract"
+$phase6CameraLightingContract = curl.exe -sS "$baseUrl/api/v1/phase6/3d-camera-lighting/contract"
+Assert-Contains "phase6 camera lighting contract version" $phase6CameraLightingContract '"contract_version":"phase6-3d-camera-lighting-runtime-v1"'
+Assert-Contains "phase6 camera lighting evidence" $phase6CameraLightingContract '"evidence_ref":"phase6_3d_camera_lighting_runtime_visible"'
+Assert-Contains "phase6 camera lighting presets" $phase6CameraLightingContract '"camera_presets"'
+Assert-Contains "phase6 camera lighting profiles" $phase6CameraLightingContract '"lighting_profiles"'
+Assert-Contains "phase6 camera lighting exposure bounds" $phase6CameraLightingContract '"safe_exposure_range":{"min":0.72,"max":1.18,"step":0.02}'
+Assert-Contains "phase6 camera lighting all scenarios" $phase6CameraLightingContract '"all_scenarios_pass":true'
+Assert-Contains "phase6 camera lighting no provider write" $phase6CameraLightingContract '"provider_write":false'
+Write-Host "[runtime] phase6 gameplay state contract"
+$phase6GameplayStateContract = curl.exe -sS "$baseUrl/api/v1/phase6/3d-gameplay-state/contract"
+Assert-Contains "phase6 gameplay state contract version" $phase6GameplayStateContract '"contract_version":"phase6-3d-gameplay-state-runtime-v1"'
+Assert-Contains "phase6 gameplay state evidence" $phase6GameplayStateContract '"evidence_ref":"phase6_3d_gameplay_state_runtime_visible"'
+Assert-Contains "phase6 gameplay state objectives" $phase6GameplayStateContract '"objectives":["collect","checkpoint","survive"]'
+Assert-Contains "phase6 gameplay state transition" $phase6GameplayStateContract '"collect":{"next":"checkpoint","score_delta":10,"checkpoint_delta":0}'
+Assert-Contains "phase6 gameplay state pause safe" $phase6GameplayStateContract '"pause_safe_loop_required":true'
+Assert-Contains "phase6 gameplay state all scenarios" $phase6GameplayStateContract '"all_scenarios_pass":true'
+Assert-Contains "phase6 gameplay state no multiplayer" $phase6GameplayStateContract '"multiplayer_netcode_started":false'
+Assert-Contains "phase6 gameplay state no provider write" $phase6GameplayStateContract '"provider_write":false'
+Write-Host "[runtime] phase6 asset policy contract"
+$phase6AssetPolicyContract = curl.exe -sS "$baseUrl/api/v1/phase6/3d-asset-policy/contract"
+Assert-Contains "phase6 asset policy contract version" $phase6AssetPolicyContract '"contract_version":"phase6-3d-asset-policy-runtime-v1"'
+Assert-Contains "phase6 asset policy evidence" $phase6AssetPolicyContract '"evidence_ref":"phase6_3d_asset_policy_runtime_visible"'
+Assert-Contains "phase6 asset policy catalog count" $phase6AssetPolicyContract '"asset_catalog_count":3'
+Assert-Contains "phase6 asset policy material count" $phase6AssetPolicyContract '"material_variant_count":3'
+Assert-Contains "phase6 asset policy no external fetch" $phase6AssetPolicyContract '"external_asset_fetch_allowed":false'
+Assert-Contains "phase6 asset policy no binary upload" $phase6AssetPolicyContract '"binary_asset_upload_allowed":false'
+Assert-Contains "phase6 asset policy all scenarios" $phase6AssetPolicyContract '"all_scenarios_pass":true'
+Assert-Contains "phase6 asset policy no provider write" $phase6AssetPolicyContract '"provider_write":false'
+Write-Host "[runtime] phase6 save load contract"
+$phase6SaveLoadContract = curl.exe -sS "$baseUrl/api/v1/phase6/3d-save-load/contract"
+Assert-Contains "phase6 save load contract version" $phase6SaveLoadContract '"contract_version":"phase6-3d-save-load-runtime-v1"'
+Assert-Contains "phase6 save load evidence" $phase6SaveLoadContract '"evidence_ref":"phase6_3d_save_load_runtime_visible"'
+Assert-Contains "phase6 save load field count" $phase6SaveLoadContract '"snapshot_field_count":15'
+Assert-Contains "phase6 save load volatile only" $phase6SaveLoadContract '"volatile_browser_memory_only_required":true'
+Assert-Contains "phase6 save load reload discard" $phase6SaveLoadContract '"snapshot_discarded_on_reload_required":true'
+Assert-Contains "phase6 save load no local storage" $phase6SaveLoadContract '"local_storage_allowed":false'
+Assert-Contains "phase6 save load no cloud sync" $phase6SaveLoadContract '"cloud_save_sync_allowed":false'
+Assert-Contains "phase6 save load all scenarios" $phase6SaveLoadContract '"all_scenarios_pass":true'
+Write-Host "[runtime] phase6 accessibility contract"
+$phase6AccessibilityContract = curl.exe -sS "$baseUrl/api/v1/phase6/3d-accessibility/contract"
+Assert-Contains "phase6 accessibility version" $phase6AccessibilityContract '"contract_version":"phase6-3d-accessibility-runtime-v1"'
+Assert-Contains "phase6 accessibility evidence" $phase6AccessibilityContract '"evidence_ref":"phase6_3d_accessibility_runtime_visible"'
+Assert-Contains "phase6 accessibility system preference" $phase6AccessibilityContract '"system_preference_detection_required":true'
+Assert-Contains "phase6 accessibility items" $phase6AccessibilityContract '"accessible_item_count":10'
+Assert-Contains "phase6 accessibility no telemetry" $phase6AccessibilityContract '"accessibility_telemetry_export_allowed":false'
+Assert-Contains "phase6 accessibility scenarios" $phase6AccessibilityContract '"all_scenarios_pass":true'
+Write-Host "[runtime] phase6 netcode loopback contract"
+$phase6NetcodeContract = curl.exe -sS "$baseUrl/api/v1/phase6/3d-netcode/contract"
+Assert-Contains "phase6 netcode version" $phase6NetcodeContract '"contract_version":"phase6-3d-netcode-loopback-runtime-v1"'
+Assert-Contains "phase6 netcode evidence" $phase6NetcodeContract '"evidence_ref":"phase6_3d_netcode_loopback_runtime_visible"'
+Assert-Contains "phase6 netcode transport" $phase6NetcodeContract '"transport":"loopback"'
+Assert-Contains "phase6 netcode peers" $phase6NetcodeContract '"maximum_peers":2'
+Assert-Contains "phase6 netcode packets" $phase6NetcodeContract '"packets_per_tick":2'
+Assert-Contains "phase6 netcode no websocket" $phase6NetcodeContract '"websocket_allowed":false'
+Assert-Contains "phase6 netcode no server sync" $phase6NetcodeContract '"server_authoritative_sync_allowed":false'
+Assert-Contains "phase6 netcode scenarios" $phase6NetcodeContract '"all_scenarios_pass":true'
 $cloudDeploymentPreflightContract = curl.exe -sS "$baseUrl/api/v1/clouds/deployment-preflight/contract"
 Assert-Contains "cloud deployment preflight contract version" $cloudDeploymentPreflightContract '"contract_version":"cloud-deployment-preflight-surface-v1"'
 Assert-Contains "cloud deployment preflight contract evidence" $cloudDeploymentPreflightContract '"evidence_ref":"cloud_deployment_preflight_contract_runtime_visible"'
@@ -1094,6 +1151,13 @@ Assert-Contains "security headers contract middleware" $securityHeadersContract 
 Assert-Contains "security headers contract x content type" $securityHeadersContract "X-Content-Type-Options"
 Assert-Contains "security headers contract csp" $securityHeadersContract "Content-Security-Policy"
 Assert-Contains "security headers contract evidence" $securityHeadersContract "security_headers_enforced"
+Write-Host "[runtime] CSRF origin guard contract"
+$csrfOriginContract = curl.exe -sS "$baseUrl/api/v1/security/csrf/contract"
+Assert-Contains "CSRF origin contract version" $csrfOriginContract '"contract_version":"csrf-origin-guard-v1"'
+Assert-Contains "CSRF origin evidence" $csrfOriginContract '"evidence_ref":"csrf_origin_guard_visible"'
+Assert-Contains "CSRF origin audit evidence" $csrfOriginContract '"audit_evidence_ref":"csrf_origin_rejection_audited"'
+Assert-Contains "CSRF cross-site blocked" $csrfOriginContract '"cross_site_browser_requests_allowed":false'
+Assert-Contains "CSRF null origin blocked" $csrfOriginContract '"null_origin_allowed":false'
 $securityHeaderProbe = curl.exe -sS -D - -o NUL "$baseUrl/api/v1/health"
 Assert-Contains "security header nosniff" $securityHeaderProbe "x-content-type-options: nosniff"
 Assert-Contains "security header frame deny" $securityHeaderProbe "x-frame-options: DENY"

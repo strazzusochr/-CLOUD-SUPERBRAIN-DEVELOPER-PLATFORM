@@ -31,6 +31,20 @@ type Props = {
   autoRotate?: boolean;
   paused?: boolean;
   resetSignal?: number;
+  cameraPreset?: "wide" | "close" | "top";
+  fovDegrees?: number;
+  lightingProfile?: "studio" | "night" | "sunrise";
+  exposure?: number;
+  gameplayObjective?: "collect" | "checkpoint" | "survive";
+  gameplayScore?: number;
+  gameplayCheckpoints?: number;
+  gameplayPaused?: boolean;
+  gameplayTicks?: number;
+  assetProfile?: "cube" | "beacon" | "ring";
+  materialVariant?: "cyan" | "amber" | "rose";
+  netcodeGuestConnected?: boolean;
+  netcodeRunning?: boolean;
+  netcodeSequence?: number;
   onToggleAutoRotate?: () => void;
   forceReducedMotion?: boolean;
   onMode?: (mode: "2d" | "3d") => void;
@@ -64,10 +78,9 @@ export default function CortexLive(props: Props) {
   const [mode, setMode] = useState<"2d" | "3d">("2d");
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      setMode(detectMode(forceReducedMotion));
-    });
-    return () => window.cancelAnimationFrame(frame);
+    const nextMode = detectMode(forceReducedMotion);
+    const timer = window.setTimeout(() => setMode(nextMode), nextMode === "2d" ? 0 : 75);
+    return () => window.clearTimeout(timer);
   }, [forceReducedMotion]);
 
   useEffect(() => {
@@ -90,6 +103,20 @@ export default function CortexLive(props: Props) {
           autoRotate={props.autoRotate}
           paused={props.paused}
           resetSignal={props.resetSignal}
+          cameraPreset={props.cameraPreset}
+          fovDegrees={props.fovDegrees}
+          lightingProfile={props.lightingProfile}
+          exposure={props.exposure}
+          gameplayObjective={props.gameplayObjective}
+          gameplayScore={props.gameplayScore}
+          gameplayCheckpoints={props.gameplayCheckpoints}
+          gameplayPaused={props.gameplayPaused}
+          gameplayTicks={props.gameplayTicks}
+          assetProfile={props.assetProfile}
+          materialVariant={props.materialVariant}
+          netcodeGuestConnected={props.netcodeGuestConnected}
+          netcodeRunning={props.netcodeRunning}
+          netcodeSequence={props.netcodeSequence}
           onToggleAutoRotate={props.onToggleAutoRotate}
           sourceLabel={props.sourceLabel}
         />

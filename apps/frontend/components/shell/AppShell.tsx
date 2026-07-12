@@ -28,8 +28,7 @@ export default function AppShell({
 
   const cmdkItems = useMemo(() => {
     const items: NavItem[] = railGroups.flatMap((group) => group.map((item) => item));
-    const extra = WORKSPACE_PAGES.filter((item) => item.id === "login" || item.id === "open-source");
-    for (const item of extra) {
+    for (const item of WORKSPACE_PAGES) {
       if (!items.some((existing) => existing.id === item.id)) {
         items.push(item);
       }
@@ -79,7 +78,7 @@ export default function AppShell({
   }, [cmdkOpen]);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-run-state={runState}>
       <nav className="rail" aria-label="Primärnavigation">
         <Link href="/home" className="rail-logo" aria-label="Cloud Superbrain Start" />
         {railGroups.map((group, gi) => (

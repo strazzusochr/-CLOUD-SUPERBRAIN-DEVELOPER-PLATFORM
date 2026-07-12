@@ -528,6 +528,7 @@ foreach ($required in @(
 }
 foreach ($required in @(
   '{ id: "P4", pct: 99 }',
+  '{ id: "P6", pct: 80 }',
   "AGENTS",
   "MCP_TOOLS",
   "MODELS",
@@ -772,6 +773,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-fly-build-con
 Assert-LastExitCode "fly source-build context"
 
 Write-Host "[verify] project progress manifest"
+node scripts\verify-phase6-frontend.mjs --source-only
+Assert-LastExitCode "phase6 frontend source markers"
 py -3 -m py_compile scripts\verify_project_progress_manifest.py
 Assert-LastExitCode "project progress manifest syntax"
 py -3 scripts\verify_project_progress_manifest.py
@@ -792,7 +795,9 @@ foreach ($item in $projectProgress.vertical.items) {
 $currentOverall = [int]$projectProgress.overall_percent
 $currentPhase1 = $horizontalById["phase_1"]
 $currentPhase2 = $horizontalById["phase_2"]
+$currentPhase3 = $horizontalById["phase_3"]
 $currentPhase4 = $horizontalById["phase_4"]
+$currentPhase6 = $horizontalById["phase_6"]
 $currentFrontend = $verticalByLabel["Frontend / Next.js"]
 $currentAgentPool = $verticalByLabel["Agent Pool"]
 $currentLlmGateway = $verticalByLabel["LLM Gateway"]
@@ -850,7 +855,9 @@ foreach ($requiredProgressRegisterTerm in @(
   "Current verified progress is total ``$currentOverall%``",
   "Phase 1 ``$currentPhase1%``",
   "Phase 2 ``$currentPhase2%``",
+  "Phase 3 ``$currentPhase3%``",
   "Phase 4 ``$currentPhase4%``",
+  "Phase 6 ``$currentPhase6%``",
   "Frontend ``$currentFrontend%``",
   "Agent Pool ``$currentAgentPool%``",
   "LLM Gateway ``$currentLlmGateway%``",
@@ -884,7 +891,9 @@ foreach ($requiredProjectStateTerm in @(
   "AKTUELLER FORTSCHRITT: $currentOverall%",
   '| P1   |',
   '| P2   |',
+  '| P3   |',
   '| P4   |',
+  '| P6   |',
   '| Memory        |'
 )) {
   if (-not $projectState.Contains($requiredProjectStateTerm)) {
@@ -893,7 +902,9 @@ foreach ($requiredProjectStateTerm in @(
 }
 Assert-RegexContains "PROJECT_STATE.md phase 1 row" $projectState "\|\s*P1\s*\|\s*$currentPhase1%\s*\|"
 Assert-RegexContains "PROJECT_STATE.md phase 2 row" $projectState "\|\s*P2\s*\|\s*$currentPhase2%\s*\|"
+Assert-RegexContains "PROJECT_STATE.md phase 3 row" $projectState "\|\s*P3\s*\|\s*$currentPhase3%\s*\|"
 Assert-RegexContains "PROJECT_STATE.md phase 4 row" $projectState "\|\s*P4\s*\|\s*$currentPhase4%\s*\|"
+Assert-RegexContains "PROJECT_STATE.md phase 6 row" $projectState "\|\s*P6\s*\|\s*$currentPhase6%\s*\|"
 Assert-RegexContains "PROJECT_STATE.md frontend row" $projectState "\|\s*Frontend\s*\|\s*$currentFrontend%\s*\|"
 Assert-RegexContains "PROJECT_STATE.md agent pool row" $projectState "\|\s*Agent Pool\s*\|\s*$currentAgentPool%\s*\|"
 Assert-RegexContains "PROJECT_STATE.md memory row" $projectState "\|\s*Memory\s*\|\s*$currentMemory%\s*\|"
@@ -914,7 +925,9 @@ foreach ($requiredAiHandoffTerm in @(
   "Overall: ``$currentOverall%``",
   "- P1: ``$currentPhase1%``",
   "- P2: ``$currentPhase2%``",
+  "- P3: ``$currentPhase3%``",
   "- P4: ``$currentPhase4%``",
+  "- P6: ``$currentPhase6%``",
   "- Frontend / Next.js: ``$currentFrontend%``",
   "- Agent Pool: ``$currentAgentPool%``",
   "- Memory: ``$currentMemory%``",
@@ -1233,6 +1246,125 @@ foreach ($forbidden in @("fetchMasterPlan", "Master Plan (live)", "Dispatch endp
     throw "Workbench must not surface project-plan dashboard elements: $forbidden"
   }
 }
+foreach ($required in @(
+  "CSP_REPORT_CONTRACT_VERSION",
+  "CSP_REPORT_EVIDENCE_REF",
+  "CSP_REPORT_AUDIT_EVIDENCE_REF",
+  "CSP_REPORT_MAX_BODY_BYTES",
+  "CSP_REPORT_CONTENT_TYPES",
+  "sanitize_csp_report",
+  "persist_csp_report_audit",
+  "/api/v1/security/csp/contract",
+  "/api/v1/security/csp/report",
+  "csp-report-contract-v1",
+  "csp_report_contract_visible",
+  "csp_report_audit_persisted",
+  "security_csp_violation_reported",
+  "csp_report_too_large",
+  "unsupported_csp_report_content_type",
+  "uri_query_and_fragment_persisted",
+  "live_external_report_forwarding"
+)) {
+  if (-not $apiTaskPolicySource.Contains($required)) {
+    throw "Missing CSP report audit contract guard: $required"
+  }
+}
+foreach ($required in @(
+  "CSRF_ORIGIN_CONTRACT_VERSION",
+  "CSRF_ORIGIN_EVIDENCE_REF",
+  "CSRF_ORIGIN_AUDIT_EVIDENCE_REF",
+  "csrf_origin_guard_middleware",
+  "persist_csrf_rejection_audit",
+  "/api/v1/security/csrf/contract",
+  "/api/v1/security/csrf/probe",
+  "csrf-origin-guard-v1",
+  "csrf_origin_guard_visible",
+  "csrf_origin_rejection_audited",
+  "security_csrf_request_rejected",
+  "fetch_metadata_cross_site",
+  "invalid_or_null_origin",
+  "origin_mismatch"
+)) {
+  if (-not $apiTaskPolicySource.Contains($required)) { throw "Missing CSRF origin guard: $required" }
+}
+foreach ($required in @(
+  "PHASE6_3D_CAMERA_LIGHTING_CONTRACT_VERSION",
+  "PHASE6_3D_CAMERA_LIGHTING_EVIDENCE_REF",
+  "phase6_3d_camera_lighting_runtime_contract_payload",
+  "/api/v1/phase6/3d-camera-lighting/contract",
+  "phase6-3d-camera-lighting-runtime-v1",
+  "phase6_3d_camera_lighting_runtime_visible",
+  "local_camera_rig_lighting_profile_state",
+  "camera_preset_switch_visible",
+  "fov_step_control_visible",
+  "lighting_profile_switch_visible",
+  "safe_exposure_bounds_visible",
+  "applied_runtime_state_attributes_required",
+  "network_calls_required"
+)) {
+  if (-not $apiTaskPolicySource.Contains($required)) {
+    throw "Missing Phase 6 camera and lighting contract guard: $required"
+  }
+}
+foreach ($required in @(
+  "PHASE6_3D_GAMEPLAY_STATE_CONTRACT_VERSION",
+  "PHASE6_3D_GAMEPLAY_STATE_EVIDENCE_REF",
+  "phase6_3d_gameplay_state_runtime_contract_payload",
+  "/api/v1/phase6/3d-gameplay-state/contract",
+  "phase6-3d-gameplay-state-runtime-v1",
+  "phase6_3d_gameplay_state_runtime_visible",
+  "local_objective_score_checkpoint_state_machine",
+  "deterministic_gameplay_state_machine",
+  "pause_safe_game_loop_state",
+  "applied_runtime_state_attributes_required",
+  "network_calls_required"
+)) {
+  if (-not $apiTaskPolicySource.Contains($required)) {
+    throw "Missing Phase 6 gameplay state contract guard: $required"
+  }
+}
+foreach ($required in @(
+  "PHASE6_3D_ASSET_POLICY_CONTRACT_VERSION",
+  "PHASE6_3D_ASSET_POLICY_EVIDENCE_REF",
+  "phase6_3d_asset_policy_runtime_contract_payload",
+  "/api/v1/phase6/3d-asset-policy/contract",
+  "phase6-3d-asset-policy-runtime-v1",
+  "phase6_3d_asset_policy_runtime_visible",
+  "local_procedural_primitive_asset_catalog",
+  "procedural_asset_catalog_visible",
+  "asset_profile_switch_visible",
+  "material_policy_variant_visible",
+  "external_asset_fetch_allowed",
+  "binary_asset_upload_allowed"
+)) {
+  if (-not $apiTaskPolicySource.Contains($required)) {
+    throw "Missing Phase 6 asset policy contract guard: $required"
+  }
+}
+foreach ($required in @(
+  "PHASE6_3D_SAVE_LOAD_CONTRACT_VERSION",
+  "PHASE6_3D_SAVE_LOAD_EVIDENCE_REF",
+  "phase6_3d_save_load_runtime_contract_payload",
+  "/api/v1/phase6/3d-save-load/contract",
+  "phase6-3d-save-load-runtime-v1",
+  "phase6_3d_save_load_runtime_visible",
+  "typed_allowlisted_react_state_snapshot",
+  "scene_snapshot_capture_visible",
+  "scene_snapshot_restore_visible",
+  "persistent_browser_storage_blocked",
+  "cloud_save_sync_allowed",
+  "server_snapshot_write_allowed"
+)) {
+  if (-not $apiTaskPolicySource.Contains($required)) {
+    throw "Missing Phase 6 save and load contract guard: $required"
+  }
+}
+foreach ($required in @("PHASE6_3D_ACCESSIBILITY_CONTRACT_VERSION","PHASE6_3D_ACCESSIBILITY_EVIDENCE_REF","phase6_3d_accessibility_runtime_contract_payload","/api/v1/phase6/3d-accessibility/contract","phase6-3d-accessibility-runtime-v1","phase6_3d_accessibility_runtime_visible","system_aware_reduced_motion_semantic_keyboard_fallback","keyboard_fallback_navigation_visible","accessibility_telemetry_export_allowed")) {
+  if (-not $apiTaskPolicySource.Contains($required)) { throw "Missing Phase 6 accessibility contract guard: $required" }
+}
+foreach ($required in @("PHASE6_3D_NETCODE_CONTRACT_VERSION","PHASE6_3D_NETCODE_EVIDENCE_REF","phase6_3d_netcode_loopback_runtime_contract_payload","/api/v1/phase6/3d-netcode/contract","phase6-3d-netcode-loopback-runtime-v1","phase6_3d_netcode_loopback_runtime_visible","two_peer_manual_lockstep_browser_loopback","remote_transport_boundary_closed","websocket_allowed","server_authoritative_sync_allowed")) {
+  if (-not $apiTaskPolicySource.Contains($required)) { throw "Missing Phase 6 netcode loopback contract guard: $required" }
+}
 foreach ($required in @("SSE_BUFFER_LIMIT = 50", "Last-Event-ID", "record_sse_event", "replay_sse_events")) {
   if (-not $apiTaskPolicySource.Contains($required)) {
     throw "Missing SSE replay guard: $required"
@@ -1469,6 +1601,32 @@ foreach ($required in @("cloud-render-offload-v1", "cloud_render_offload_contrac
   if (-not $runtimeVerifier.Contains($required)) {
     throw "Runtime verifier missing cloud render offload proof marker: $required"
   }
+}
+foreach ($required in @("phase6-3d-camera-lighting-runtime-v1", "phase6_3d_camera_lighting_runtime_visible", "/api/v1/phase6/3d-camera-lighting/contract", '"safe_exposure_range":{"min":0.72,"max":1.18,"step":0.02}', '"all_scenarios_pass":true')) {
+  if (-not $runtimeVerifier.Contains($required)) {
+    throw "Runtime verifier missing Phase 6 camera and lighting proof marker: $required"
+  }
+}
+foreach ($required in @("phase6-3d-gameplay-state-runtime-v1", "phase6_3d_gameplay_state_runtime_visible", "/api/v1/phase6/3d-gameplay-state/contract", '"objectives":["collect","checkpoint","survive"]', '"pause_safe_loop_required":true')) {
+  if (-not $runtimeVerifier.Contains($required)) {
+    throw "Runtime verifier missing Phase 6 gameplay state proof marker: $required"
+  }
+}
+foreach ($required in @("phase6-3d-asset-policy-runtime-v1", "phase6_3d_asset_policy_runtime_visible", "/api/v1/phase6/3d-asset-policy/contract", '"asset_catalog_count":3', '"external_asset_fetch_allowed":false')) {
+  if (-not $runtimeVerifier.Contains($required)) {
+    throw "Runtime verifier missing Phase 6 asset policy proof marker: $required"
+  }
+}
+foreach ($required in @("phase6-3d-save-load-runtime-v1", "phase6_3d_save_load_runtime_visible", "/api/v1/phase6/3d-save-load/contract", '"snapshot_field_count":15', '"cloud_save_sync_allowed":false')) {
+  if (-not $runtimeVerifier.Contains($required)) {
+    throw "Runtime verifier missing Phase 6 save and load proof marker: $required"
+  }
+}
+foreach ($required in @("phase6-3d-accessibility-runtime-v1","phase6_3d_accessibility_runtime_visible","/api/v1/phase6/3d-accessibility/contract",'"accessible_item_count":10','"accessibility_telemetry_export_allowed":false')) {
+  if (-not $runtimeVerifier.Contains($required)) { throw "Runtime verifier missing Phase 6 accessibility marker: $required" }
+}
+foreach ($required in @("phase6-3d-netcode-loopback-runtime-v1","phase6_3d_netcode_loopback_runtime_visible","/api/v1/phase6/3d-netcode/contract",'"maximum_peers":2','"websocket_allowed":false','"server_authoritative_sync_allowed":false')) {
+  if (-not $runtimeVerifier.Contains($required)) { throw "Runtime verifier missing Phase 6 netcode loopback marker: $required" }
 }
 foreach ($required in @(
   "cloud-deployment-preflight-v1",
@@ -1731,6 +1889,350 @@ foreach ($required in @("project_progress_100_percent_gate_contract", "/api/v1/p
     throw "Project progress completion contract document missing guard: $required"
   }
 }
+if (-not (Test-Path "docs\runtime-contracts\security-csp-report-contract.md")) {
+  throw "Missing Phase 3 CSP report audit contract document"
+}
+$cspReportContractDoc = Get-Content -Path "docs\runtime-contracts\security-csp-report-contract.md" -Raw
+foreach ($required in @(
+  "csp-report-contract-v1",
+  "csp_report_contract_visible",
+  "csp_report_audit_persisted",
+  "security_csp_violation_reported",
+  "/api/v1/security/csp/report",
+  "16384",
+  "Query strings and fragments are removed",
+  "DEV-ONLY",
+  "No live provider call",
+  "No production incident-response workflow is claimed"
+)) {
+  if (-not $cspReportContractDoc.Contains($required)) {
+    throw "CSP report audit contract document missing guard: $required"
+  }
+}
+if (-not (Test-Path "scripts\verify-phase3-csp-report-contract.ps1")) {
+  throw "Missing Phase 3 CSP report audit verifier"
+}
+$cspVerifierParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-phase3-csp-report-contract.ps1",
+  [ref]$null,
+  [ref]$cspVerifierParseErrors
+) | Out-Null
+if ($cspVerifierParseErrors -and $cspVerifierParseErrors.Count -gt 0) {
+  $cspVerifierParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Phase 3 CSP report audit verifier has parse errors"
+}
+$cspVerifierSource = Get-Content -Path "scripts\verify-phase3-csp-report-contract.ps1" -Raw
+foreach ($required in @(
+  "application/csp-report",
+  "csp_report_too_large",
+  "unsupported_csp_report_content_type",
+  "must-not-persist",
+  "security_csp_violation_reported",
+  "csp_report_audit_persisted",
+  "proof_scope=DEV-ONLY",
+  "use -ReadOnly for non-local targets"
+)) {
+  if (-not $cspVerifierSource.Contains($required)) {
+    throw "Phase 3 CSP report audit verifier missing guard: $required"
+  }
+}
+$cspDiagnosticsSource = Get-Content -Path "apps\frontend\app\diagnostics\page.tsx" -Raw
+foreach ($required in @("CSP Report Contract", "/api/v1/security/csp/contract")) {
+  if (-not $cspDiagnosticsSource.Contains($required)) {
+    throw "Diagnostics CSP report surface missing guard: $required"
+  }
+}
+if (-not (Test-Path "apps\frontend\e2e\phase3-csp-report.spec.ts")) {
+  throw "Missing Phase 3 CSP report browser click proof"
+}
+$cspBrowserProof = Get-Content -Path "apps\frontend\e2e\phase3-csp-report.spec.ts" -Raw
+foreach ($required in @("/diagnostics", "selectOption", "live-console-load", "200 OK", "csp_report_contract_visible", "csp_report_audit_persisted")) {
+  if (-not $cspBrowserProof.Contains($required)) {
+    throw "Phase 3 CSP report browser click proof missing guard: $required"
+  }
+}
+if (-not (Test-Path "docs\runtime-contracts\security-csrf-origin-guard.md")) { throw "Missing Phase 3 CSRF origin guard document" }
+$csrfOriginDoc = Get-Content -Path "docs\runtime-contracts\security-csrf-origin-guard.md" -Raw
+foreach ($required in @("csrf-origin-guard-v1","csrf_origin_guard_visible","csrf_origin_rejection_audited","security_csrf_request_rejected","/api/v1/security/csrf/probe","Raw Origin values","DEV-ONLY")) {
+  if (-not $csrfOriginDoc.Contains($required)) { throw "CSRF origin guard document missing: $required" }
+}
+if (-not (Test-Path "scripts\verify-phase3-csrf-origin-guard.ps1")) { throw "Missing Phase 3 CSRF origin verifier" }
+$csrfOriginParseErrors=$null
+[System.Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase3-csrf-origin-guard.ps1",[ref]$null,[ref]$csrfOriginParseErrors)|Out-Null
+if($csrfOriginParseErrors){$csrfOriginParseErrors|ForEach-Object{Write-Error $_.Message};throw "CSRF origin verifier parse errors"}
+$csrfOriginVerifier=Get-Content -Path "scripts\verify-phase3-csrf-origin-guard.ps1" -Raw
+foreach($required in @("manifest phase3 42","fetch_metadata_cross_site","invalid_or_null_origin","origin_mismatch","diagnostics-csrf-origin-guard.png","raw attacker origin absent")) {
+  if(-not $csrfOriginVerifier.Contains($required)){throw "CSRF origin verifier missing: $required"}
+}
+foreach($required in @("CSRF Origin Guard","/api/v1/security/csrf/contract")){if(-not $cspDiagnosticsSource.Contains($required)){throw "Diagnostics CSRF surface missing: $required"}}
+if(-not(Test-Path "apps\frontend\e2e\phase3-csrf-origin.spec.ts")){throw "Missing Phase 3 CSRF browser click proof"}
+$csrfOriginBrowser=Get-Content -Path "apps\frontend\e2e\phase3-csrf-origin.spec.ts" -Raw
+foreach($required in @("/diagnostics","selectOption","same-origin browser POST","csrf_origin_guard_visible","x-superbrain-csrf-contract")){if(-not $csrfOriginBrowser.Contains($required)){throw "CSRF browser proof missing: $required"}}
+if (-not (Test-Path "docs\runtime-contracts\phase6-3d-camera-lighting-runtime.md")) {
+  throw "Missing Phase 6 3D camera and lighting contract document"
+}
+$phase6CameraLightingDoc = Get-Content -Path "docs\runtime-contracts\phase6-3d-camera-lighting-runtime.md" -Raw
+foreach ($required in @(
+  "phase6-3d-camera-lighting-runtime-v1",
+  "phase6_3d_camera_lighting_runtime_visible",
+  "/api/v1/phase6/3d-camera-lighting/contract",
+  "camera_preset_switch_visible",
+  "fov_step_control_visible",
+  "lighting_profile_switch_visible",
+  "safe_exposure_bounds_visible",
+  "local_camera_lighting_state_only",
+  'Phase 6 to move from `32%` to `40%`',
+  "DEV-ONLY",
+  "No shader hotload"
+)) {
+  if (-not $phase6CameraLightingDoc.Contains($required)) {
+    throw "Phase 6 camera and lighting document missing guard: $required"
+  }
+}
+if (-not (Test-Path "scripts\verify-phase6-3d-camera-lighting-runtime.ps1")) {
+  throw "Missing Phase 6 camera and lighting verifier"
+}
+$phase6CameraLightingParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-phase6-3d-camera-lighting-runtime.ps1",
+  [ref]$null,
+  [ref]$phase6CameraLightingParseErrors
+) | Out-Null
+if ($phase6CameraLightingParseErrors -and $phase6CameraLightingParseErrors.Count -gt 0) {
+  $phase6CameraLightingParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Phase 6 camera and lighting verifier has parse errors"
+}
+$phase6CameraLightingVerifier = Get-Content -Path "scripts\verify-phase6-3d-camera-lighting-runtime.ps1" -Raw
+foreach ($required in @(
+  "phase6-3d-camera-lighting-runtime-v1",
+  "camera_preset_switch_visible",
+  "lighting_profile_switch_visible",
+  "safe exposure min",
+  "manifest phase6 40",
+  "Phase-6 camera and lighting controls",
+  "phase6-camera-lighting.png"
+)) {
+  if (-not $phase6CameraLightingVerifier.Contains($required)) {
+    throw "Phase 6 camera and lighting verifier missing guard: $required"
+  }
+}
+if (-not (Test-Path "docs\runtime-contracts\phase6-3d-gameplay-state-runtime.md")) {
+  throw "Missing Phase 6 3D gameplay state contract document"
+}
+$phase6GameplayStateDoc = Get-Content -Path "docs\runtime-contracts\phase6-3d-gameplay-state-runtime.md" -Raw
+foreach ($required in @(
+  "phase6-3d-gameplay-state-runtime-v1",
+  "phase6_3d_gameplay_state_runtime_visible",
+  "/api/v1/phase6/3d-gameplay-state/contract",
+  "objective_state_overlay_visible",
+  "deterministic_gameplay_state_machine",
+  "pause_safe_game_loop_state",
+  'Phase 6 may move from `40%` to `48%`',
+  "DEV-ONLY",
+  "No multiplayer or netcode"
+)) {
+  if (-not $phase6GameplayStateDoc.Contains($required)) {
+    throw "Phase 6 gameplay state document missing guard: $required"
+  }
+}
+if (-not (Test-Path "scripts\verify-phase6-3d-gameplay-state-runtime.ps1")) {
+  throw "Missing Phase 6 gameplay state verifier"
+}
+$phase6GameplayStateParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-phase6-3d-gameplay-state-runtime.ps1",
+  [ref]$null,
+  [ref]$phase6GameplayStateParseErrors
+) | Out-Null
+if ($phase6GameplayStateParseErrors -and $phase6GameplayStateParseErrors.Count -gt 0) {
+  $phase6GameplayStateParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Phase 6 gameplay state verifier has parse errors"
+}
+$phase6GameplayStateVerifier = Get-Content -Path "scripts\verify-phase6-3d-gameplay-state-runtime.ps1" -Raw
+foreach ($required in @(
+  "phase6-3d-gameplay-state-runtime-v1",
+  "deterministic_gameplay_state_machine",
+  "pause_safe_game_loop_state",
+  "manifest phase6 48",
+  "Phase-6 gameplay state is deterministic",
+  "phase6-gameplay-state.png"
+)) {
+  if (-not $phase6GameplayStateVerifier.Contains($required)) {
+    throw "Phase 6 gameplay state verifier missing guard: $required"
+  }
+}
+if (-not (Test-Path "docs\runtime-contracts\phase6-3d-asset-policy-runtime.md")) {
+  throw "Missing Phase 6 3D asset policy contract document"
+}
+$phase6AssetPolicyDoc = Get-Content -Path "docs\runtime-contracts\phase6-3d-asset-policy-runtime.md" -Raw
+foreach ($required in @(
+  "phase6-3d-asset-policy-runtime-v1",
+  "phase6_3d_asset_policy_runtime_visible",
+  "/api/v1/phase6/3d-asset-policy/contract",
+  "procedural_asset_catalog_visible",
+  "asset_profile_switch_visible",
+  "material_policy_variant_visible",
+  'Phase 6 may move from `48%` to `56%`',
+  "DEV-ONLY",
+  "No external asset fetch"
+)) {
+  if (-not $phase6AssetPolicyDoc.Contains($required)) {
+    throw "Phase 6 asset policy document missing guard: $required"
+  }
+}
+if (-not (Test-Path "scripts\verify-phase6-3d-asset-policy-runtime.ps1")) {
+  throw "Missing Phase 6 asset policy verifier"
+}
+$phase6AssetPolicyParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-phase6-3d-asset-policy-runtime.ps1",
+  [ref]$null,
+  [ref]$phase6AssetPolicyParseErrors
+) | Out-Null
+if ($phase6AssetPolicyParseErrors -and $phase6AssetPolicyParseErrors.Count -gt 0) {
+  $phase6AssetPolicyParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Phase 6 asset policy verifier has parse errors"
+}
+$phase6AssetPolicyVerifier = Get-Content -Path "scripts\verify-phase6-3d-asset-policy-runtime.ps1" -Raw
+foreach ($required in @(
+  "phase6-3d-asset-policy-runtime-v1",
+  "procedural_asset_catalog_visible",
+  "external_asset_fetch_blocked",
+  "manifest phase6 56",
+  "Phase-6 asset policy applies procedural profiles",
+  "phase6-asset-policy.png"
+)) {
+  if (-not $phase6AssetPolicyVerifier.Contains($required)) {
+    throw "Phase 6 asset policy verifier missing guard: $required"
+  }
+}
+if (-not (Test-Path "docs\runtime-contracts\phase6-3d-save-load-runtime.md")) {
+  throw "Missing Phase 6 3D save and load contract document"
+}
+$phase6SaveLoadDoc = Get-Content -Path "docs\runtime-contracts\phase6-3d-save-load-runtime.md" -Raw
+foreach ($required in @(
+  "phase6-3d-save-load-runtime-v1",
+  "phase6_3d_save_load_runtime_visible",
+  "/api/v1/phase6/3d-save-load/contract",
+  "scene_snapshot_capture_visible",
+  "scene_snapshot_restore_visible",
+  "persistent_browser_storage_blocked",
+  'Phase 6 may move from `56%` to `64%`',
+  "DEV-ONLY",
+  "No persistent browser storage"
+)) {
+  if (-not $phase6SaveLoadDoc.Contains($required)) {
+    throw "Phase 6 save and load document missing guard: $required"
+  }
+}
+if (-not (Test-Path "scripts\verify-phase6-3d-save-load-runtime.ps1")) {
+  throw "Missing Phase 6 save and load verifier"
+}
+$phase6SaveLoadParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-phase6-3d-save-load-runtime.ps1",
+  [ref]$null,
+  [ref]$phase6SaveLoadParseErrors
+) | Out-Null
+if ($phase6SaveLoadParseErrors -and $phase6SaveLoadParseErrors.Count -gt 0) {
+  $phase6SaveLoadParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Phase 6 save and load verifier has parse errors"
+}
+$phase6SaveLoadVerifier = Get-Content -Path "scripts\verify-phase6-3d-save-load-runtime.ps1" -Raw
+foreach ($required in @(
+  "phase6-3d-save-load-runtime-v1",
+  "scene_snapshot_restore_visible",
+  "persistent_browser_storage_blocked",
+  "manifest phase6 64",
+  "Phase-6 save and load restores",
+  "phase6-save-load.png"
+)) {
+  if (-not $phase6SaveLoadVerifier.Contains($required)) {
+    throw "Phase 6 save and load verifier missing guard: $required"
+  }
+}
+$phase6OrganismView = Get-Content -Path "apps\frontend\components\organism\OrganismView.tsx" -Raw
+$phase6FallbackSource = Get-Content -Path "apps\frontend\components\organism\CortexCanvas.tsx" -Raw
+$phase6CanvasSource = Get-Content -Path "apps\frontend\components\organism\CortexCanvas3D.tsx" -Raw
+$phase6OrganismTest = Get-Content -Path "apps\frontend\e2e\organism.spec.ts" -Raw
+foreach ($required in @("phase6-camera-lighting-controls", 'id: "top"', 'id: "sunrise"', 'phase6-camera-preset-${preset.id}', 'phase6-lighting-profile-${profile.id}', "phase6-camera-fov", "phase6-lighting-exposure", "local_state_only=true")) {
+  if (-not $phase6OrganismView.Contains($required)) {
+    throw "Phase 6 camera and lighting UI missing guard: $required"
+  }
+}
+foreach ($required in @("PerspectiveCamera", "ACESFilmicToneMapping", "data-camera-position", "data-tone-exposure", "CAMERA_PRESETS", "LIGHTING_PROFILES")) {
+  if (-not $phase6CanvasSource.Contains($required)) {
+    throw "Phase 6 camera and lighting Three.js source missing guard: $required"
+  }
+}
+foreach ($required in @("Phase-6 camera and lighting controls", "0.72", "1.18", "browser-local", "phase6-camera-lighting.png")) {
+  if (-not $phase6OrganismTest.Contains($required)) {
+    throw "Phase 6 camera and lighting browser proof missing guard: $required"
+  }
+}
+foreach ($required in @("phase6-gameplay-state-controls", "GAMEPLAY_OBJECTIVES", "completeGameplayObjective", "KeyG", "gameplayTicks", "local_state_only=true")) {
+  if (-not $phase6OrganismView.Contains($required)) {
+    throw "Phase 6 gameplay state UI missing guard: $required"
+  }
+}
+foreach ($required in @("GAMEPLAY_BEACONS", "GameplayBeacon", "data-gameplay-objective", "data-gameplay-paused", "data-gameplay-local-only")) {
+  if (-not $phase6CanvasSource.Contains($required)) {
+    throw "Phase 6 gameplay state Three.js source missing guard: $required"
+  }
+}
+foreach ($required in @("Phase-6 gameplay state is deterministic", "data-gameplay-ticks", "gameplay controls remain browser-local", "phase6-gameplay-state.png")) {
+  if (-not $phase6OrganismTest.Contains($required)) {
+    throw "Phase 6 gameplay state browser proof missing guard: $required"
+  }
+}
+foreach ($required in @("phase6-asset-policy-controls", "ASSET_PROFILES", "MATERIAL_VARIANTS", "selectAssetProfile", "selectMaterialVariant", "remote_assets=0", "binary_upload=false")) {
+  if (-not $phase6OrganismView.Contains($required)) {
+    throw "Phase 6 asset policy UI missing guard: $required"
+  }
+}
+foreach ($required in @("AssetPolicyPreview", "boxGeometry", "coneGeometry", "torusGeometry", "data-asset-profile", "data-binary-asset-upload", "data-asset-policy-local-only")) {
+  if (-not $phase6CanvasSource.Contains($required)) {
+    throw "Phase 6 asset policy Three.js source missing guard: $required"
+  }
+}
+foreach ($required in @("Phase-6 asset policy applies procedural profiles", "data-remote-asset-count", "asset policy controls remain browser-local", "phase6-asset-policy.png")) {
+  if (-not $phase6OrganismTest.Contains($required)) {
+    throw "Phase 6 asset policy browser proof missing guard: $required"
+  }
+}
+foreach ($required in @("phase6-save-load-controls", "Phase6SceneSnapshot", "savedSnapshot", "saveSceneSnapshot", "loadSceneSnapshot", "clearSceneSnapshot", "storage=react_state", "reload_persistence=false")) {
+  if (-not $phase6OrganismView.Contains($required)) {
+    throw "Phase 6 save and load UI missing guard: $required"
+  }
+}
+foreach ($required in @("Phase-6 save and load restores", "snapshot_status=restored", "save load controls remain browser-local", "phase6-save-load.png")) {
+  if (-not $phase6OrganismTest.Contains($required)) {
+    throw "Phase 6 save and load browser proof missing guard: $required"
+  }
+}
+if (-not (Test-Path "docs\runtime-contracts\phase6-3d-accessibility-runtime.md")) { throw "Missing Phase 6 accessibility document" }
+$phase6AccessibilityDoc = Get-Content "docs\runtime-contracts\phase6-3d-accessibility-runtime.md" -Raw
+foreach ($required in @("phase6-3d-accessibility-runtime-v1","phase6_3d_accessibility_runtime_visible",'Phase 6 may move from `64%` to `72%`',"DEV-ONLY")) { if(-not $phase6AccessibilityDoc.Contains($required)){throw "Accessibility document missing: $required"} }
+if (-not (Test-Path "scripts\verify-phase6-3d-accessibility-runtime.ps1")) { throw "Missing Phase 6 accessibility verifier" }
+$phase6AccessibilityParseErrors=$null; [Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase6-3d-accessibility-runtime.ps1",[ref]$null,[ref]$phase6AccessibilityParseErrors)|Out-Null
+if($phase6AccessibilityParseErrors){$phase6AccessibilityParseErrors|%{Write-Error $_.Message};throw "Accessibility verifier parse errors"}
+$phase6AccessibilityVerifier=Get-Content "scripts\verify-phase6-3d-accessibility-runtime.ps1" -Raw
+foreach($required in @("manifest phase6 minimum 72","Phase-6 accessibility honors","phase6-accessibility.png")){if(-not $phase6AccessibilityVerifier.Contains($required)){throw "Accessibility verifier missing: $required"}}
+foreach($required in @("phase6-accessibility-controls","systemReducedMotion","focusCortexSurface",'role="status"')){if(-not $phase6OrganismView.Contains($required)){throw "Accessibility UI missing: $required"}}
+foreach($required in @("phase6-reduced-motion-fallback","handleFallbackKeyDown","aria-current")){if(-not $phase6FallbackSource.Contains($required)){throw "Accessibility fallback missing: $required"}}
+foreach($required in @("Phase-6 accessibility honors",'reducedMotion: "reduce"',"accessibility controls remain browser-local")){if(-not $phase6OrganismTest.Contains($required)){throw "Accessibility test missing: $required"}}
+if (-not (Test-Path "docs\runtime-contracts\phase6-3d-netcode-loopback-runtime.md")) { throw "Missing Phase 6 netcode loopback document" }
+$phase6NetcodeDoc = Get-Content "docs\runtime-contracts\phase6-3d-netcode-loopback-runtime.md" -Raw
+foreach ($required in @("phase6-3d-netcode-loopback-runtime-v1","phase6_3d_netcode_loopback_runtime_visible",'Phase 6 may move from `72%` to `80%`',"WebSocket","server-authoritative","DEV-ONLY")) { if(-not $phase6NetcodeDoc.Contains($required)){throw "Netcode loopback document missing: $required"} }
+if (-not (Test-Path "scripts\verify-phase6-3d-netcode-loopback-runtime.ps1")) { throw "Missing Phase 6 netcode loopback verifier" }
+$phase6NetcodeParseErrors=$null; [Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase6-3d-netcode-loopback-runtime.ps1",[ref]$null,[ref]$phase6NetcodeParseErrors)|Out-Null
+if($phase6NetcodeParseErrors){$phase6NetcodeParseErrors|%{Write-Error $_.Message};throw "Netcode loopback verifier parse errors"}
+$phase6NetcodeVerifier=Get-Content "scripts\verify-phase6-3d-netcode-loopback-runtime.ps1" -Raw
+foreach($required in @("manifest phase6 80","manifest overall 82","Phase-6 netcode loopback enforces","phase6-netcode-loopback.png")){if(-not $phase6NetcodeVerifier.Contains($required)){throw "Netcode loopback verifier missing: $required"}}
+foreach($required in @("phase6-netcode-controls","netcodeSessionActive","startLoopbackLockstep","advanceLoopbackTick","websocket=false","server_sync=false")){if(-not $phase6OrganismView.Contains($required)){throw "Netcode loopback UI missing: $required"}}
+foreach($required in @("function LoopbackPeer","data-netcode-transport","data-netcode-guest-connected","data-netcode-sequence","data-netcode-websocket")){if(-not $phase6CanvasSource.Contains($required)){throw "Netcode loopback Three.js source missing: $required"}}
+foreach($required in @("Phase-6 netcode loopback enforces","packets=5","sequence=5","phase6-netcode-loopback.png","websocket_allowed")){if(-not $phase6OrganismTest.Contains($required)){throw "Netcode loopback test missing: $required"}}
 
 Write-Host "[verify] branch protection script"
 py -3 -m py_compile scripts\apply_github_branch_protection.py
@@ -2012,6 +2514,38 @@ foreach ($required in @(
   "/api/v1/project/progress/completion",
   "project-progress-100-percent-contract-v1",
   "project_progress_100_percent_gate_contract",
+  "CSP report audit contract",
+  "verify-phase3-csp-report-contract.ps1",
+  "csp-report-contract-v1",
+  "csp_report_audit_persisted",
+  "CSRF origin guard contract",
+  "verify-phase3-csrf-origin-guard.ps1",
+  "csrf-origin-guard-v1",
+  "csrf_origin_rejection_audited",
+  "Phase 6 3D camera and lighting controls",
+  "verify-phase6-3d-camera-lighting-runtime.ps1",
+  "phase6-3d-camera-lighting-runtime-v1",
+  "phase6_3d_camera_lighting_runtime_visible",
+  "Phase 6 3D gameplay state controls",
+  "verify-phase6-3d-gameplay-state-runtime.ps1",
+  "phase6-3d-gameplay-state-runtime-v1",
+  "phase6_3d_gameplay_state_runtime_visible",
+  "Phase 6 3D asset policy controls",
+  "verify-phase6-3d-asset-policy-runtime.ps1",
+  "phase6-3d-asset-policy-runtime-v1",
+  "phase6_3d_asset_policy_runtime_visible",
+  "Phase 6 3D save and load controls",
+  "verify-phase6-3d-save-load-runtime.ps1",
+  "phase6-3d-save-load-runtime-v1",
+  "phase6_3d_save_load_runtime_visible",
+  "Phase 6 3D accessibility controls",
+  "verify-phase6-3d-accessibility-runtime.ps1",
+  "phase6-3d-accessibility-runtime-v1",
+  "phase6_3d_accessibility_runtime_visible",
+  "Phase 6 3D netcode loopback controls",
+  "verify-phase6-3d-netcode-loopback-runtime.ps1",
+  "phase6-3d-netcode-loopback-runtime-v1",
+  "phase6_3d_netcode_loopback_runtime_visible",
   '"can_set_all_to_100":false'
 )) {
   if (-not $browserContractScript.Contains($required)) {

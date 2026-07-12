@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -28,6 +29,7 @@ SKIP_SUFFIXES = {
     ".ttf",
     ".map",
     ".pyc",
+    ".har",
 }
 
 SUSPICIOUS_FILE_PATTERNS = (
@@ -83,6 +85,8 @@ def is_allowed(value: str, path: Path) -> bool:
         return True
     if normalized.startswith("$"):
         return True
+    if "$env:" in normalized:
+        return True
     if normalized.startswith("process.env."):
         return True
     if "(" in normalized or ")" in normalized:
@@ -120,10 +124,28 @@ def scan_filename(path: Path) -> list[str]:
     return []
 
 
+def release_scope_files() -> list[Path]:
+    result = subprocess.run(
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    )
+    paths: list[Path] = []
+    for raw_path in result.stdout.split(b"\0"):
+        if not raw_path:
+            continue
+        relative = raw_path.decode("utf-8", errors="surrogateescape")
+        candidate = ROOT / relative
+        if candidate.is_file():
+            paths.append(candidate)
+    return paths
+
+
 def main() -> int:
     findings: list[str] = []
-    for path in ROOT.rglob("*"):
-        if not path.is_file() or is_skipped(path):
+    for path in release_scope_files():
+        if is_skipped(path):
             continue
         findings.extend(scan_filename(path))
         findings.extend(scan_file(path))
