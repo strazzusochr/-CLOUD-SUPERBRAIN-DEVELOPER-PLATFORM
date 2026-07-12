@@ -68,17 +68,19 @@ export default async function EvidencePage() {
 
         <div className="grid grid-evidence">
           <Panel title="Verifier-Skripte (werden nicht von dieser UI ausgeführt)">
-            <table className="tbl">
-              <thead><tr><th>Skript</th><th>Status</th></tr></thead>
-              <tbody>
-                {VERIFIERS.map((v) => (
-                  <tr key={v}>
-                    <td className="mono tbl-mono-sm">{v}</td>
-                    <td><Badge tone="mut">unverifiziert</Badge></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="table-scroll">
+              <table className="tbl">
+                <thead><tr><th>Skript</th><th>Status</th></tr></thead>
+                <tbody>
+                  {VERIFIERS.map((v) => (
+                    <tr key={v}>
+                      <td className="mono tbl-mono-sm">{v}</td>
+                      <td><Badge tone="mut">unverifiziert</Badge></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <div className="wb-pad pt-10">
               <span className="text-12 text-dim">
                 Verifier lokal ausführen, um Nachweisartefakte zu erzeugen. Diese Seite meldet ohne Lauf kein PASS.

@@ -30,7 +30,7 @@ services:
       interval: 20s
       timeout: 15s
       retries: 10
-    mem_limit: 1024m
+    mem_limit: 2048m
     cpus: "1.25"
     cap_drop:
       - ALL

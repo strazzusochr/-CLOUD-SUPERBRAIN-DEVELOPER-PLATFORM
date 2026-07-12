@@ -492,7 +492,9 @@ Latest external audit artifact: `.phase1-artifacts/external-gate-audit-20260712-
 ## Current Next Verification
 
 Current verified progress is total `82%`, Phase 1 `100%`, Phase 2 `86%`, Phase 3 `42%`, Phase 4 `99%`, Phase 5 `67%`, and Phase 6 `80%`.
-Current vertical layer snapshot remains Frontend `97%`, Orchestrator `99%`, Agent Pool `68%`, LLM Gateway `54%`, MCP Gateway `55%`, Memory `72%`, and Observability `99%`.
+Current vertical layer snapshot is Frontend `99%`, Orchestrator `99%`, Agent Pool `68%`, LLM Gateway `54%`, MCP Gateway `55%`, Memory `72%`, and Observability `99%`.
+
+- Frontend 22x2 responsive click proof: `npm run verify:responsive` opened all 22 canonical routes by real command-palette clicks at desktop `1440x960` and mobile `390x844`. The proof drove fixes for mobile command navigation, organism/file grid stacking, table scroll boundaries, aspect-ratio-aware Three.js framing, and a measured Next-dev OOM by raising only the local frontend Compose memory limit from 1 GiB to 2 GiB. Evidence `.codex/runs/CURRENT/frontend/responsive-22/report.json` records 44 clicks, `overflow_failures=0`, `console_errors=0`, and four PNGs. This raises Frontend `97% -> 99%`; Overall remains `82%`. DEV-ONLY; no provider write, deployment, release promotion, or production claim.
 
 1. Current browser evidence is not open. The old `sslip.io`/Hetzner browser artifacts are historical provenance only; current browser proof requires Vercel HTTPS `STAGING_BASE_URL` plus reachable Fly origins.
 2. Phase 5 is no longer waiting on workflow linkage, rollback drill, owner decision, candidate integration-plan evidence, browser rerun evidence, full verifier sweep evidence, truth-mirror rebaseline evidence, or the fresh integration-smoke rerun; the next concrete step is the next candidate-scoped non-rollout proof slice on the active RC1 truth.

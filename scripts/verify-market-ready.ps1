@@ -55,13 +55,21 @@ try {
 } catch { $cellDetail = "parse error: $($_.Exception.Message)" }
 Add-Result "manifest-all-100" $allHundred $cellDetail
 
-# PROOF_LEDGER: keine OPEN-Zeile fuer ausgelieferte Punkte
+# PROOF_LEDGER: der jeweils neueste append-only Status pro Item darf nicht OPEN sein.
 $ledgerPath = Join-Path $repoRoot ".codex\runs\CURRENT\master-goal\PROOF_LEDGER.md"
 $ledgerOk = $false; $ledgerDetail = "missing"
 if (Test-Path $ledgerPath) {
-  $open = @(Select-String -Path $ledgerPath -Pattern "\|\s*OPEN\s*\|" -SimpleMatch:$false)
-  $ledgerOk = ($open.Count -eq 0)
-  $ledgerDetail = if ($ledgerOk) { "no OPEN rows" } else { "$($open.Count) OPEN row(s) remain" }
+  $latestStatus = @{}
+  foreach ($line in Get-Content $ledgerPath) {
+    if ($line -notmatch '^\|') { continue }
+    $cells = @($line.Trim('|').Split('|') | ForEach-Object { $_.Trim() })
+    if ($cells.Count -lt 8 -or $cells[0] -eq 'item' -or $cells[0] -match '^-+$') { continue }
+    $status = $cells[$cells.Count - 1]
+    if ($status -in @('PASS', 'OPEN', 'REVOKED')) { $latestStatus[$cells[0]] = $status }
+  }
+  $openItems = @($latestStatus.GetEnumerator() | Where-Object { $_.Value -eq 'OPEN' } | ForEach-Object { $_.Key })
+  $ledgerOk = ($openItems.Count -eq 0)
+  $ledgerDetail = if ($ledgerOk) { "no latest OPEN status" } else { "latest OPEN: " + ($openItems -join ', ') }
 }
 Add-Result "proof-ledger-clean" $ledgerOk $ledgerDetail
 

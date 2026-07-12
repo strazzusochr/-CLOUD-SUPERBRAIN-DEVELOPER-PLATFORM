@@ -19,6 +19,10 @@ function isLocalhost(url) {
   return /(^|\/\/)(localhost|127\.0\.0\.1|\[::1\])(?::|\/|$)/i.test(url);
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function normalizeSurfaces(payload) {
   return [...(Array.isArray(payload.surfaces) ? payload.surfaces : [])]
     .map((surface) => ({
@@ -37,7 +41,10 @@ async function clickRoute(page, surface, baseUrl) {
   await dialog.waitFor({ state: "visible" });
   const input = dialog.getByRole("textbox", { name: "Seiten durchsuchen" });
   await input.fill(surface.route);
-  const option = dialog.locator(".cmdk-item").filter({ hasText: surface.route });
+  const routeLabel = dialog.locator(".cmdk-item-route").filter({
+    hasText: new RegExp(`^\\s*${escapeRegExp(surface.route)}\\s*$`),
+  });
+  const option = routeLabel.locator("..");
   assert(await option.count() === 1, `Command palette route is not unique or missing: ${surface.route}`);
   await Promise.all([
     page.waitForURL((url) => url.pathname === surface.route, { timeout: 60000 }),
@@ -82,7 +89,9 @@ async function probeLayout(page, surface, profile) {
     const commandButton = document.querySelector('button[aria-label="Suchen oder Befehl ausführen"]');
     const main = document.querySelector(".main");
     const topbar = document.querySelector(".topbar");
+    const rail = document.querySelector(".rail");
     const mainRect = main?.getBoundingClientRect();
+    const railRect = rail?.getBoundingClientRect();
     return {
       pageId: surfaceArg.pageId,
       route: surfaceArg.route,
@@ -95,6 +104,7 @@ async function probeLayout(page, surface, profile) {
       hasMain: Boolean(main),
       hasTopbar: Boolean(topbar),
       hasCommandButton: Boolean(commandButton),
+      navigationRailVisible: Boolean(railRect && railRect.width > 1 && railRect.height > 1),
       mainRight: Math.round(mainRect?.right || 0),
       mainLeft: Math.round(mainRect?.left || 0),
       horizontalDocumentOverflow: Math.max(0, document.documentElement.scrollWidth - viewportWidth),
@@ -121,23 +131,40 @@ async function runProfile(browser, profile, surfaces, baseUrl, artifactDir) {
 
   const checks = [];
   try {
-    const bootstrap = await page.goto(`${baseUrl}/home`, { waitUntil: "domcontentloaded", timeout: 60000 });
+    const bootstrap = await page.goto(`${baseUrl}/home`, { waitUntil: "networkidle", timeout: 120000 });
     assert(bootstrap && bootstrap.ok(), `${profile.id} bootstrap did not return 200`);
-    const clickOrder = [...surfaces.slice(1), surfaces[0]];
+    await page.waitForTimeout(1000);
+    const homeSurface = surfaces.find((surface) => surface.route === "/home");
+    const loginSurface = surfaces.find((surface) => surface.route === "/login");
+    assert(homeSurface && loginSurface, "Workspace wiring must include /home and /login");
+    const clickOrder = [
+      ...surfaces.filter((surface) => !["/home", "/login"].includes(surface.route)),
+      homeSurface,
+      loginSurface,
+    ];
     for (const surface of clickOrder) {
       console.log(`[responsive-22] profile=${profile.id} click=${surface.route}`);
       errors.length = 0;
       await clickRoute(page, surface, baseUrl);
       const probe = await probeLayout(page, surface, profile.id);
-      assert(probe.hasShell && probe.hasMain && probe.hasTopbar, `${profile.id} shell missing on ${surface.route}`);
-      assert(probe.hasCommandButton, `${profile.id} command button missing on ${surface.route}`);
+      const isLogin = surface.route === "/login";
+      if (isLogin) {
+        assert(probe.hasShell && probe.hasMain && probe.hasTopbar, `${profile.id} login shell missing`);
+        assert(!probe.hasCommandButton, `${profile.id} login unexpectedly renders the workspace command button`);
+        assert(!probe.navigationRailVisible, `${profile.id} login unexpectedly renders the workspace navigation rail`);
+        assert(await page.getByRole("link", { name: "Zum Start" }).count() === 1, `${profile.id} login return link missing`);
+      } else {
+        assert(probe.hasShell && probe.hasMain && probe.hasTopbar, `${profile.id} shell missing on ${surface.route}`);
+        assert(probe.hasCommandButton, `${profile.id} command button missing on ${surface.route}`);
+      }
       assert(probe.visibleTextLength >= 80, `${profile.id} visible content too small on ${surface.route}`);
       assert(!probe.notFoundVisible, `${profile.id} not-found marker on ${surface.route}`);
       assert(probe.horizontalDocumentOverflow <= 2, `${profile.id} document overflow ${probe.horizontalDocumentOverflow}px on ${surface.route}`);
       assert(probe.overflowElements.length === 0, `${profile.id} incoherent overflow on ${surface.route}: ${JSON.stringify(probe.overflowElements)}`);
       if (profile.mobile) {
         assert(probe.mainRight <= probe.viewportWidth + 2, `Mobile main exceeds viewport on ${surface.route}`);
-        assert(probe.mainLeft >= 68, `Mobile main overlaps the navigation rail on ${surface.route}: ${probe.mainLeft}`);
+        assert(probe.mainLeft >= -2, `Mobile main starts outside the viewport on ${surface.route}: ${probe.mainLeft}`);
+        assert(!probe.navigationRailVisible, `Mobile navigation rail must be collapsed on ${surface.route}`);
       }
       const routeErrors = errors.filter((entry) => !/favicon|ResizeObserver loop limit exceeded/i.test(entry));
       assert(routeErrors.length === 0, `${profile.id} console errors on ${surface.route}: ${routeErrors.join(" | ")}`);

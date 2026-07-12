@@ -108,26 +108,28 @@ export default async function ToolsPage() {
         </Panel>
 
         <Panel title="MCP-Werkzeuge (erlaubte Agentenwerkzeuge)" className="mb-16">
-          <table className="tbl">
-            <thead>
-              <tr><th>Werkzeug</th><th>Schicht</th><th>Bereich</th></tr>
-            </thead>
-            <tbody>
-              {MCP_TOOLS.map((m) => {
-                const layer = LAYERS[m.layer - 1];
-                return (
-                  <tr key={m.id}>
-                    <td className="mono">{m.id}</td>
-                    <td>
-                      <span className={`layer-tag layer-tag-${m.layer}`}>L{m.layer}</span>{" "}
-                      <span className="layer-sub">{layer.label}</span>
-                    </td>
-                    <td><Badge tone={SCOPE_TONE[m.scope]}>{SCOPE_LABEL[m.scope]}</Badge></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="table-scroll">
+            <table className="tbl">
+              <thead>
+                <tr><th>Werkzeug</th><th>Schicht</th><th>Bereich</th></tr>
+              </thead>
+              <tbody>
+                {MCP_TOOLS.map((m) => {
+                  const layer = LAYERS[m.layer - 1];
+                  return (
+                    <tr key={m.id}>
+                      <td className="mono">{m.id}</td>
+                      <td>
+                        <span className={`layer-tag layer-tag-${m.layer}`}>L{m.layer}</span>{" "}
+                        <span className="layer-sub">{layer.label}</span>
+                      </td>
+                      <td><Badge tone={SCOPE_TONE[m.scope]}>{SCOPE_LABEL[m.scope]}</Badge></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </Panel>
 
         <Panel title={`Cloud-Provider (${PROVIDERS.length})`}>

@@ -112,6 +112,7 @@ type CameraAppliedState = {
   preset: CameraPreset;
   fov: number;
   position: string;
+  framingScale: number;
 };
 
 type LightingAppliedState = {
@@ -547,15 +548,23 @@ function CameraRig({
 }) {
   const controls = useRef<React.ComponentRef<typeof OrbitControls>>(null);
   const { camera } = useThree();
+  const size = useThree((state) => state.size);
   const preset = CAMERA_PRESETS[cameraPreset];
+  const aspect = size.width / Math.max(1, size.height);
+  const framingScale = aspect < 0.8 ? Math.min(2, 1.1 / Math.max(0.55, aspect)) : 1;
+  const framedPosition = useMemo(
+    () => preset.position.map((value) => value * framingScale) as [number, number, number],
+    [framingScale, preset.position],
+  );
 
   useEffect(() => {
     onApplied?.({
       preset: cameraPreset,
       fov: fovDegrees,
-      position: preset.position.map((value) => value.toFixed(2)).join(","),
+      position: framedPosition.map((value) => value.toFixed(2)).join(","),
+      framingScale,
     });
-  }, [cameraPreset, fovDegrees, onApplied, preset.position]);
+  }, [cameraPreset, fovDegrees, framedPosition, framingScale, onApplied]);
 
   useEffect(() => {
     if (!interactive) return;
@@ -590,9 +599,9 @@ function CameraRig({
   return (
     <>
       <PerspectiveCamera
-        key={`camera-${cameraPreset}-${fovDegrees}-${resetSignal}`}
+        key={`camera-${cameraPreset}-${fovDegrees}-${framingScale.toFixed(3)}-${resetSignal}`}
         makeDefault
-        position={preset.position}
+        position={framedPosition}
         fov={fovDegrees}
         near={0.1}
         far={100}
@@ -607,7 +616,7 @@ function CameraRig({
         autoRotate={autoRotate}
         autoRotateSpeed={0.5}
         minDistance={4.5}
-        maxDistance={12}
+        maxDistance={14}
         minPolarAngle={cameraPreset === "top" ? Math.PI * 0.05 : Math.PI * 0.2}
         maxPolarAngle={Math.PI * 0.8}
       />
@@ -895,7 +904,7 @@ export default function CortexCanvas3D({
   const boundedFov = [38, 45, 58].includes(fovDegrees) ? fovDegrees : 45;
   const boundedExposure = Math.min(1.18, Math.max(0.72, exposure));
   const [pbr] = useState(() => detectHardwareGPU());
-  const [cameraApplied, setCameraApplied] = useState<CameraAppliedState>({ preset: cameraPreset, fov: boundedFov, position: "pending" });
+  const [cameraApplied, setCameraApplied] = useState<CameraAppliedState>({ preset: cameraPreset, fov: boundedFov, position: "pending", framingScale: 1 });
   const [lightingApplied, setLightingApplied] = useState<LightingAppliedState>({ profile: lightingProfile, exposure: boundedExposure });
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const onScreen = useRenderActive(wrapRef);
@@ -914,6 +923,7 @@ export default function CortexCanvas3D({
       data-camera-preset={cameraApplied.preset}
       data-camera-fov={cameraApplied.fov}
       data-camera-position={cameraApplied.position}
+      data-camera-framing-scale={cameraApplied.framingScale.toFixed(3)}
       data-lighting-profile={lightingApplied.profile}
       data-tone-exposure={lightingApplied.exposure.toFixed(2)}
       data-camera-lighting-local-only="true"

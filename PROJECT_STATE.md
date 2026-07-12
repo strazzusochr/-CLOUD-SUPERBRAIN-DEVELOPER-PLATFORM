@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-07-12
+Letzte Aktualisierung: 2026-07-13
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-07-12
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt ausschliesslich `DEV-ONLY` Control-Plane; Gesamtfortschritt laut bindendem Manifest `82%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Project Progress Integrity `verified`. Die 22 kanonischen Seiten und sieben Schichten sind verdrahtet. Phase 3 steht nach dem CSRF-Origin-Guard bei `42%`; Phase 6 steht nach dem deterministischen Zwei-Peer-Loopback-Beweis bei `80%`. External Gates bleiben laut `.phase1-artifacts/external-gate-audit-20260712-145800.json` auf vier Gates `blocked`; Production ist nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt ausschliesslich `DEV-ONLY` Control-Plane; Gesamtfortschritt laut bindendem Manifest `82%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Project Progress Integrity `verified`. Die 22 kanonischen Seiten und sieben Schichten sind verdrahtet. Frontend steht nach dem echten 22-Routen-Beweis bei Desktop 1440 und Mobile 390 bei `99%`; Phase 3 steht bei `42%`, Phase 6 bei `80%`. External Gates bleiben laut `.phase1-artifacts/external-gate-audit-20260712-145800.json` auf vier Gates `blocked`; Production ist nicht ausgerollt.
 - Hetzner, GitKraken und Oracle sind aus dem aktiven Pfad entfernt oder als historische Altlast markiert.
 - **Master Goal External-Gate-Spiegel (CURRENT DIRECT RUN BLOCKED):** `.phase1-artifacts/external-gate-audit-20260712-145800.json` meldet `status=blocked` auf `hosted_agent_api_contracts`, `github_branch_protection_current_verify`, `vercel_backend_origin_health` und `fly_live_budget_check`; `production_deploy_claim_allowed=false`. Kein Audit enthaelt Tokenwerte; Production wurde nicht ausgerollt und der Manifest-Fortschritt steht bei `82%`.
 - **Aktueller gehosteter Phase-6-Basisbeweis:** `scripts/verify-phase6-frontend.mjs` bestand lokal und gegen `https://frontend-seven-psi-78.vercel.app` mit 7/7 Slice-Markern, sichtbarem nichtleerem WebGL-Canvas, Kamera-/Tastatursteuerung, Frame-Budget-HUD, Reduced-Motion-zu-2D-Umschaltung, zwei PNG-Beweisen und null Console-Fehlern. Evidence liegt unter `.codex/runs/CURRENT/phase6/frontend-local` und `.codex/runs/CURRENT/phase6/frontend-hosted`; diese Basis kreditiert die ersten vier Rubrikbloecke bis `32%`.
@@ -20,6 +20,7 @@ Letzte Aktualisierung: 2026-07-12
 - **Aktueller lokaler Phase-6-Netcode-Loopback-Beweis:** `phase6-3d-netcode-loopback-runtime-v1` bindet eine fluechtige Zwei-Peer-Session, Host-/Guest-Ready-Barriere, manuelle deterministische Lockstep-Ticks, monotone Paketfolge, sofortiges Disconnect-Fail-Closed und einen prozeduralen Three.js-Guest-Marker. Der Chromium-Beweis prueft Create, Join, Ready, Start, zwei Ticks (`ticks=2`, `packets=5`, `sequence=5`), Disconnect, Close, ein nichtleeres PNG, null Fetch/XHR/WebSocket und null Console-Fehler. Evidence: `.codex/runs/CURRENT/phase6/netcode-local`. Dies erhoeht Phase 6 von `72%` auf `80%` und Overall auf `82%`. DEV-ONLY; kein Remote-Transport, WebSocket, WebRTC, Matchmaking, Public Lobby, Server-Sync, Deploy oder Production-Claim.
 - **Aktueller lokaler Phase-3-CSP-Beweis:** `csp-report-contract-v1` exponiert den same-origin Sink `POST /api/v1/security/csp/report` mit 16-KB-Grenze, Content-Type-Guard, allowlist-basierter Redaktion, Query-/Fragment-Entfernung und fail-closed Audit-Persistenz. `scripts/verify-phase3-csp-report-contract.ps1` bestand inklusive 413/415/422-Negativpfaden; `apps/frontend/e2e/phase3-csp-report.spec.ts` klickte auf `/diagnostics` den CSP-Vertrag und belegte sichtbar HTTP `200`. Screenshot: `.codex/runs/CURRENT/phase3/csp-report-contract/diagnostics-csp-report-contract.png`. Dies erhoeht Phase 3 auf `41%`. DEV-ONLY; kein Hosted-, Provider-, MCP-, Deploy- oder Production-Claim.
 - **Aktueller lokaler Phase-3-CSRF-Beweis:** `csrf-origin-guard-v1` schützt unsichere `/api/`-Methoden mit Fetch Metadata und exaktem Origin-Abgleich. Ein echter Chromium-POST gleicher Herkunft liefert `200`; Cross-Site, Origin-Mismatch und `Origin: null` liefern jeweils `403`, werden redigiert auditiert und persistieren weder Raw-Origin noch Credentials. Evidence: `.codex/runs/CURRENT/phase3/csrf-origin-guard`. Dies erhoeht Phase 3 von `41%` auf `42%`; Overall bleibt gerundet `82%`. DEV-ONLY; kein Hosted-OAuth-, Provider-, Deploy- oder Production-Claim.
+- **Aktueller lokaler 22x2-Responsive-Beweis:** `npm run verify:responsive` navigiert per echter Command-Palette durch alle 22 kanonischen Routen bei Desktop `1440x960` und Mobile `390x844`. Der Nachweis umfasst 44 Routenklicks, vier PNGs, `overflow_failures=0`, `console_errors=0`, eine mobile Command-Palette, einspaltige Organismus-/Datei-Grids, begrenzte Tabellen und aspect-ratio-sensitives 3D-Framing. Evidence: `.codex/runs/CURRENT/frontend/responsive-22/report.json`. Dies erhoeht Frontend von `97%` auf `99%`; Overall bleibt `82%`. DEV-ONLY; kein Hosted-, Deploy-, Release- oder Production-Claim.
 - **Aktueller lokaler Zusatzbeweis:** `workspace-data-sources-v1` ist jetzt als Guard in `scripts/verify-workspace-data-sources.ps1`, `scripts/verify-browser-contract.ps1` und `scripts/verify-phase1.ps1` eingebunden. Die falschen Singular-Refs `/api/v1/model-capabilities` wurden in Frontend-Wiring und Agent-API-Mirror auf `/api/v1/models/capabilities` korrigiert. `GET /api/v1/files/local/contract` existiert jetzt als read-only Agent-API-Contract ohne Host-Filesystem-Mount, ohne Live-Filesystem-Reads, ohne Writes und ohne Secret Output. DEV-ONLY Runtime-Proof: `api_refs=32`, Browser-Contract gruen.
 - **Aktueller lokaler Boundary-Beweis:** `scripts/verify-platform-ui-status-boundary.ps1` trennt Produkt-/Workbench-Flächen von Projektstatus-/Gate-/Manifest-Oberflächen. Home, Workbench, Games, Apps, Media, Docs-Output und AppShell duerfen keine `fetchProgress`, `fetchMasterPlan`, `fetchCompletionGate`, `MANIFEST`, `/api/v1/project/progress`, `overall_percent`, `Project Progress`, `Projektstand`, `Completion-Gate`, `Workspace-Surfaces`, `Gate-Matrix`, `Recovery-Historie` oder Go-Live-/External-Gate-Audit-Marker rendern/importieren. Runtime-Proof: `product_surfaces=7`, `routes=6`, Browser-Contract gruen.
 - **Aktueller lokaler LLM-Beweis:** `GET /llm/api/v1/responses/contract` liefert jetzt `llm-responses-adapter-contract-v1` mit `llm_responses_adapter_contract_visible`. `POST /llm/v1/responses` gibt Responses-kompatibel `output`, `output_text`, `trace_id`, `live_provider_calls=false`, `model_downloads=false` und `audit_persisted=true` zurueck; `stream=true` fail-closed mit HTTP `501`, nicht-strukturierte `metadata` mit HTTP `422`. `scripts/verify-llm-responses-contract.ps1` ist in `npm run verify:browser` und `scripts/verify-phase1.ps1` eingebunden. DEV-ONLY; kein Live-Provider-Call, kein lokaler Model-Download, kein Hosted-Proof, keine Prozentsteigerung.
@@ -62,7 +63,7 @@ Letzte Aktualisierung: 2026-07-12
 
 | Modul         | Status |
 |---------------|--------|
-| Frontend      | 97%    |
+| Frontend      | 99%    |
 | Orchestrator  | 99%    |
 | Agent Pool    | 68%    |
 | LLM Gateway   | 54%    |
@@ -85,11 +86,13 @@ Letzte Aktualisierung: 2026-07-12
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Naechsten evidence-basierten Nicht-Rollout-Slice fortsetzen** — Phase 3 steht nach CSRF-Hardening bei `42%`, Phase 6 nach lokalem Netcode-Loopback bei `80%`; der direkte No-Token-Audit `145800` bleibt auf vier externen Gates blockiert. Der lokale `go-live-readiness-v1` Vertrag spiegelt `overall=82`, `status=blocked_external_gates` und weiterhin vier von sieben Cloud-Layern.
+- **Naechsten evidence-basierten Nicht-Rollout-Slice fortsetzen** — Frontend steht nach dem 22x2-Responsive-Beweis bei `99%`, Phase 3 bei `42%`, Phase 6 bei `80%`; der direkte No-Token-Audit `145800` bleibt auf vier externen Gates blockiert. Der lokale `go-live-readiness-v1` Vertrag spiegelt `overall=82`, `status=blocked_external_gates` und weiterhin vier von sieben Cloud-Layern.
 - Den naechsten evidence-basierten P5-Slice aus Release-Readiness, Runtime-Truth und Rollback-Proof bearbeiten; `production_deploy_claim_allowed=true` ist weiterhin kein Deployment-Nachweis.
 - Localhost bleibt nur `DEV-ONLY`; ein spaeterer Rollout braucht zusaetzlich Owner-Freigabe, aktuellen Commit-Scope, Hosted-Proof und Rollback-Evidence.
 
 ## ZULETZT ABGESCHLOSSEN
+
+**Frontend 22x2 Responsive Click Proof** — alle 22 kanonischen Routen wurden bei `1440x960` und `390x844` durch echte Command-Palette-Klicks geoeffnet. Mobile Navigation, Organismus-Framing, Datei-Grids und Tabellen-Scrollgrenzen wurden dabei real repariert. Report: `.codex/runs/CURRENT/frontend/responsive-22/report.json`; 44 Klicks, Overflow 0, Console Errors 0, vier PNGs. Fortschritt: Frontend `97% -> 99%`, Overall bleibt `82%`. DEV-ONLY; Hosted-Proof bleibt separat blockiert.
 
 **Phase 3 CSRF Origin Guard** — Fetch-Metadata- und Origin-basierte Browsergrenze, redigierter Reject-Audit, schreibfreier Probe-Endpunkt und echter Diagnostics-Klick sind verifiziert. `npm run verify`, `npm run verify:runtime`, `npm run verify:browser`, Frontend-Lint und der Produktionsbuild mit 21/21 statischen Seiten sind gruen; gitleaks meldet keinen Fund. Evidence: `.codex/runs/CURRENT/phase3/csrf-origin-guard`. Fortschritt: Phase 3 `41% -> 42%`, Overall bleibt `82%`. DEV-ONLY; kein Hosted-OAuth-, Provider-, Deploy- oder Production-Claim.
 
@@ -1242,4 +1245,4 @@ Letzte Aktualisierung: 2026-07-12
 
 - Gesamt `63%`
 - Horizontal `P0 100 | P1 100 | P2 86 | P3 40 | P4 84 | P5 28 | P6 0`
-- Vertikal `Frontend 97 | Orchestrator 99 | Agent Pool 68 | LLM 54 | MCP 55 | Memory 72 | Observability 99`
+- Vertikal `Frontend 99 | Orchestrator 99 | Agent Pool 68 | LLM 54 | MCP 55 | Memory 72 | Observability 99`

@@ -47,7 +47,7 @@ Horizontal:
 
 Vertical:
 
-- Frontend / Next.js: `97%`
+- Frontend / Next.js: `99%`
 - Orchestrator / LangGraph: `99%`
 - Agent Pool: `68%`
 - LLM Gateway: `54%`
@@ -57,7 +57,7 @@ Vertical:
 
 Older percentage lines below are historical proof points only. Current percentages must come from this section and `docs/project-progress.manifest.json`.
 
-Latest bounded proof: `csrf-origin-guard-v1` passed same-origin Chromium POST, non-browser compatibility, Cross-Site Fetch-Metadata rejection, Origin mismatch rejection, null-Origin rejection, redacted audit persistence, Diagnostics click, console guard, and screenshot proof. Phase 3 increased from `41%` to `42%`; Overall remains `82%`. Evidence: `.codex/runs/CURRENT/phase3/csrf-origin-guard`. All local evidence is `DEV-ONLY` and does not prove hosted OAuth, release, or production readiness.
+Latest bounded proof: `frontend-22-page-responsive-browser-v1` passed all 22 canonical routes at desktop `1440x960` and mobile `390x844` through 44 real command-palette clicks, with four screenshots, zero overflow failures, and zero console errors. Frontend increased from `97%` to `99%`; Overall remains `82%`. Evidence: `.codex/runs/CURRENT/frontend/responsive-22`. All local evidence is `DEV-ONLY` and does not prove hosted staging, release, or production readiness.
 
 ## Current Runtime
 
@@ -1068,7 +1068,7 @@ Do not rely on `git clone` alone unless these local changes have been committed 
 
 - Overall: `70%`
 - Horizontal `P0 100 | P1 100 | P2 86 | P3 40 | P4 99 | P5 67 | P6 0`
-- Vertical `Frontend 97 | Orchestrator 99 | Agent Pool 68 | LLM 54 | MCP 55 | Memory 72 | Observability 99`
+- Vertical `Frontend 99 | Orchestrator 99 | Agent Pool 68 | LLM 54 | MCP 55 | Memory 72 | Observability 99`
 
 ## Latest Completed Hosted Proofs
 
