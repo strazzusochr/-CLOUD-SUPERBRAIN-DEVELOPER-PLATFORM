@@ -595,6 +595,36 @@ foreach ($required in @(
     throw "Workspace pages browser runner missing guard: $required"
   }
 }
+if (-not (Test-Path "scripts\verify-workspace-responsive-browser.cjs")) {
+  throw "Missing workspace responsive browser verifier runner"
+}
+$workspaceResponsiveRunner = Get-Content -Path "scripts\verify-workspace-responsive-browser.cjs" -Raw
+foreach ($required in @(
+  "frontend-22-page-responsive-browser-v1",
+  "frontend_22_page_responsive_click_proof",
+  "Expected 22 routes",
+  "click_navigation_count: 44",
+  "overflow_failures: 0",
+  "console_errors: 0",
+  'width: 1440, height: 960',
+  'width: 390, height: 844',
+  "Suchen oder Befehl ausführen",
+  "Localhost evidence remains DEV-ONLY"
+)) {
+  if (-not $workspaceResponsiveRunner.Contains($required)) {
+    throw "Workspace responsive browser runner missing guard: $required"
+  }
+}
+$browserContractSource = Get-Content -Path "scripts\verify-browser-contract.ps1" -Raw
+foreach ($required in @(
+  "verify-workspace-responsive-browser.cjs",
+  "workspace responsive browser proof",
+  "--allow-localhost"
+)) {
+  if (-not $browserContractSource.Contains($required)) {
+    throw "Browser contract missing responsive integration guard: $required"
+  }
+}
 if (-not (Test-Path "scripts\verify-reference-design-browser.ps1")) {
   throw "Missing reference design browser verifier wrapper"
 }
@@ -937,6 +967,30 @@ foreach ($requiredAiHandoffTerm in @(
   if (-not $aiHandoff.Contains($requiredAiHandoffTerm)) {
     throw "AI_HANDOFF.md missing current progress marker: $requiredAiHandoffTerm"
   }
+}
+Write-Host "[verify] current truth mirror audit alignment"
+$currentAuditName = "external-gate-audit-20260712-145800.json"
+$masterGoal = Get-Content -Path "CODEX_MASTER_GOAL_FINALE.md" -Raw
+$currentTruthMirrors = @(
+  @{ name = "PROJECT_STATE.md"; content = $projectState },
+  @{ name = "AI_HANDOFF.md"; content = $aiHandoff },
+  @{ name = "docs/verification-register.md"; content = $verificationRegister },
+  @{ name = "CODEX_MASTER_GOAL_FINALE.md"; content = $masterGoal }
+)
+foreach ($mirror in $currentTruthMirrors) {
+  if (-not $mirror.content.Contains($currentAuditName)) {
+    throw "$($mirror.name) missing current external gate audit: $currentAuditName"
+  }
+}
+if (-not $masterGoal.Contains('`overall=82`')) {
+  throw "CODEX_MASTER_GOAL_FINALE.md missing current overall=82 marker"
+}
+$externalGateSummary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
+if (-not ([string]$externalGateSummary.source_artifact).Contains($currentAuditName)) {
+  throw "External gate summary does not reference current audit: $currentAuditName"
+}
+if ([string]$externalGateSummary.status -ne "blocked" -or [bool]$externalGateSummary.production_deploy_claim_allowed) {
+  throw "External gate summary must remain fail-closed for current blocked audit"
 }
 py -3 -m py_compile scripts\verify-phase-transition-gate.py
 Assert-LastExitCode "phase transition gate syntax"

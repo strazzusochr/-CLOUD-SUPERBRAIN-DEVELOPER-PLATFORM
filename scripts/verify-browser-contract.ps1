@@ -734,6 +734,19 @@ if ($AllowLocalhost) {
 if ($LASTEXITCODE -ne 0) {
   throw "Browser contract verification failed: workspace pages browser proof"
 }
+Write-Host "[browser-contract] workspace responsive browser proof"
+$responsiveArgs = @(
+  "scripts\verify-workspace-responsive-browser.cjs",
+  "--base-url",
+  $BaseUrl
+)
+if ($AllowLocalhost) {
+  $responsiveArgs += "--allow-localhost"
+}
+node @responsiveArgs
+if ($LASTEXITCODE -ne 0) {
+  throw "Browser contract verification failed: workspace responsive browser proof"
+}
 $organismLiveState = Invoke-Text "$BaseUrl/api/v1/organism/live-state"
 Assert-Contains "organism live-state version" $organismLiveState '"contract_version":"organism-live-state-v1"'
 Assert-Contains "organism live-state no secret" $organismLiveState '"gates_closed"'
