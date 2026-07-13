@@ -614,6 +614,7 @@ foreach ($required in @(
   'width: 1440, height: 960',
   'width: 390, height: 844',
   "Suchen oder Befehl ausführen",
+  'waitUntil: "commit"',
   "Localhost evidence remains DEV-ONLY"
 )) {
   if (-not $workspaceResponsiveRunner.Contains($required)) {
@@ -980,7 +981,7 @@ foreach ($requiredAiHandoffTerm in @(
   }
 }
 Write-Host "[verify] current truth mirror audit alignment"
-$currentAuditName = "external-gate-audit-20260713-111016.json"
+$currentAuditName = "external-gate-audit-20260713-122705.json"
 $masterGoal = Get-Content -Path "CODEX_MASTER_GOAL_FINALE.md" -Raw
 $currentTruthMirrors = @(
   @{ name = "PROJECT_STATE.md"; content = $projectState },
@@ -1000,13 +1001,10 @@ $externalGateSummary = Get-Content -Path "docs\runtime-state\external-gate-summa
 if (-not ([string]$externalGateSummary.source_artifact).Contains($currentAuditName)) {
   throw "External gate summary does not reference current audit: $currentAuditName"
 }
-if ([string]$externalGateSummary.status -ne "blocked" -or [bool]$externalGateSummary.production_deploy_claim_allowed) {
-  throw "External gate summary must remain fail-closed for current blocked audit"
+if ([string]$externalGateSummary.status -ne "verified" -or -not [bool]$externalGateSummary.production_deploy_claim_allowed) {
+  throw "External gate summary must preserve the current verified audit"
 }
-$expectedMissingExternalGates = @(
-  "hosted_agent_api_contracts",
-  "vercel_backend_origin_health"
-)
+$expectedMissingExternalGates = @()
 $actualMissingExternalGates = @($externalGateSummary.missing_or_failed_gates | ForEach-Object { [string]$_ })
 $expectedMissingExternalGateKey = ($expectedMissingExternalGates | Sort-Object) -join ","
 $actualMissingExternalGateKey = ($actualMissingExternalGates | Sort-Object) -join ","

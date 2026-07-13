@@ -48,7 +48,10 @@ async function clickRoute(page, surface, baseUrl) {
   const option = routeLabel.locator("..");
   assert(await option.count() === 1, `Command palette route is not unique or missing: ${surface.route}`);
   await Promise.all([
-    page.waitForURL((url) => url.pathname === surface.route, { timeout: 60000 }),
+    page.waitForURL((url) => url.pathname === surface.route, {
+      timeout: 60000,
+      waitUntil: "commit",
+    }),
     option.click(),
   ]);
   await page.waitForLoadState("domcontentloaded");

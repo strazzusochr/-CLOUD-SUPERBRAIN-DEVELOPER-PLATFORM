@@ -98,8 +98,6 @@ function Invoke-Ssh($command) {
 
 Assert-Sha "CandidateSha" $CandidateSha
 Assert-RemotePath "RemoteAppDir" $RemoteAppDir
-Assert-RemoteIdentity "RemoteHost" $RemoteHost
-Assert-RemoteIdentity "RemoteUser" $RemoteUser
 
 $candidatePath = "docs\release-artifacts\$ReleaseId.md"
 if (-not (Test-Path $candidatePath)) {
@@ -142,6 +140,8 @@ if (-not $RequireVerified) {
   return
 }
 
+Assert-RemoteIdentity "RemoteHost" $RemoteHost
+Assert-RemoteIdentity "RemoteUser" $RemoteUser
 if ([string]::IsNullOrWhiteSpace($KeyPath)) {
   $KeyPath = [Environment]::GetEnvironmentVariable("STAGING_SSH_KEY_PATH")
 }

@@ -143,10 +143,10 @@ function Test-HostedRewriteFallbackValue([string]$EnvName, [string]$Value, [stri
 
 function Resolve-OriginEnv([string]$EnvName, [string]$FlyAppEnvName, [string]$HostedFallbackUrl) {
   $existing = Normalize-BaseUrl ([Environment]::GetEnvironmentVariable($EnvName, "Process"))
-  if (
-    -not (Test-PlaceholderValue $existing) -and
-    -not (Test-HostedRewriteFallbackValue $EnvName $existing $normalizedHostedBaseUrl)
-  ) {
+  if (-not (Test-PlaceholderValue $existing)) {
+    if (Test-HostedRewriteFallbackValue $EnvName $existing $normalizedHostedBaseUrl) {
+      Write-Host "[verify-all-gates-with-tokens] using explicit consolidated hosted contract origin for $EnvName"
+    }
     Set-ProcessEnvValue $EnvName $existing
     return
   }

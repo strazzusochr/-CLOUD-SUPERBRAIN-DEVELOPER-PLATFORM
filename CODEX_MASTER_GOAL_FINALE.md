@@ -44,13 +44,11 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   `/llm/...` + `/mcp/...`-Contracts live). Frontend-Origins umgebogen
   (`X-Superbrain-Source: live-agent-api`).
 - **External-Gate-Wahrheit:** Der neueste freigegebene Read-only-Audit
-  `.phase1-artifacts/external-gate-audit-20260713-111016.json` ist auf den zwei externen
-  Gates `hosted_agent_api_contracts` und `vercel_backend_origin_health` `blocked`.
-  Verify-only Branch Protection, GHCR, Gitleaks und Fly Budget sind in diesem Lauf gruen;
-  bestehende Credentials wurden nur transient geladen, ohne Ausgabe, Persistenz oder
-  Provider-Mutation. Der temporaer
-  konfigurierte Read-only-Lauf `20260711-215936` war vollstaendig gruen und beweist die
-  Kandidaten-Endpunkte, ist aber nicht der Standardzustand. Das bindende Manifest steht bei
+  `.phase1-artifacts/external-gate-audit-20260713-122705.json` ist `verified`, ohne fehlende
+  Gates und mit `production_deploy_claim_allowed=true`. Hosted Agent API, die drei
+  konsolidierten Vercel Backend Origins, verify-only Branch Protection, GHCR, Gitleaks und
+  Fly Budget sind gruen; bestehende Credentials wurden nur transient geladen, ohne Ausgabe,
+  Persistenz oder Audit-seitige Provider-Mutation. Das bindende Manifest steht bei
   `overall=84`; das Frontend ist bereitgestellt, die Backend-Gesamtplattform wurde nicht
   als Production Release ausgerollt.
 - **Phase 1 ✔ (1.1–1.5), Phase 2 ✔ (2.1–2.3).** Class-Matrix A=85/B=0/C=5/D=4.

@@ -32,7 +32,7 @@ gates.
 | Canonical workspace pages | 22/22 local and 22/22 hosted in real Google Chrome at desktop and mobile |
 | Docker services | 10/10 healthy in the latest local check |
 | Canonical secret scan | gitleaks pass, no leaks found |
-| Deployment | Vercel frontend verified; hosted backend stack and full-platform release blocked / not performed |
+| Deployment | Vercel frontend and read-only backend contract origin verified; full-platform production release not performed |
 
 Percentages come only from `docs/project-progress.manifest.json` and must match
 `GET /api/v1/project/progress` plus `GET /api/v1/project/progress/integrity`.
@@ -40,20 +40,19 @@ Percentages come only from `docs/project-progress.manifest.json` and must match
 ## External Gate Status
 
 Latest read-only audit:
-`.phase1-artifacts/external-gate-audit-20260713-111016.json`
+`.phase1-artifacts/external-gate-audit-20260713-122705.json`
 
-Status: `blocked`
+Status: `verified`
 
-- `hosted_agent_api_contracts`
-- `vercel_backend_origin_health`
+Missing or failed gates: none.
 
-The current verify-only branch-protection, GHCR, canonical gitleaks, and Fly budget checks
-pass. Hosted Agent API contracts and all three Vercel backend origins remain blocked.
+Hosted Agent API, all three explicitly configured consolidated Vercel backend origins,
+verify-only branch protection, GHCR, canonical gitleaks, and Fly budget checks pass.
 Existing credentials were loaded only into the audit process; no values were printed or
-persisted and no provider mutation was performed.
+persisted and the audit performed no provider mutation.
 
-`production_deploy_claim_allowed=false`. Earlier private/custom audits are provenance,
-not the current standard release truth.
+`production_deploy_claim_allowed=true` is permission from the gate bundle, not evidence
+that a production rollout or release promotion occurred.
 
 ## Current Hosted Frontend Proof
 
