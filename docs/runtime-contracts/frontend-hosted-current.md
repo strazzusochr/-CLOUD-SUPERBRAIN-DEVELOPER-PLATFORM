@@ -18,8 +18,8 @@ Evidence:
 
 - State: `docs/runtime-state/frontend-hosted-current.json`
 - Verifier: `scripts/verify-frontend-hosted-current.ps1`
-- Report: `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-09b9830f-chrome/report.json`
-- Verification: `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-09b9830f-chrome/verification.json`
+- Report: `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-eabdf208-chrome/report.json`
+- Verification: `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-eabdf208-chrome/verification.json`
 
 Non-claims:
 
