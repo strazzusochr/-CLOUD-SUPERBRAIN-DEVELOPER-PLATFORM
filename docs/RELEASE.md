@@ -1,6 +1,6 @@
 # Cloud Superbrain Release Status
 
-Updated: 2026-07-12
+Updated: 2026-07-13
 
 Status: **not released**. This repository has a healthy local development runtime and
 hosted frontend evidence, but it does not yet have the external proof or Owner approvals
@@ -25,9 +25,9 @@ gates.
 
 | Scope | Current verified value |
 | --- | --- |
-| Overall progress | 82 percent |
-| Horizontal | P0 100, P1 100, P2 86, P3 42, P4 99, P5 67, P6 80 |
-| Vertical | Frontend 97, Orchestrator 99, Agent Pool 68, LLM 54, MCP 55, Memory 72, Observability 99 |
+| Overall progress | 84 percent |
+| Horizontal | P0 100, P1 100, P2 86, P3 43, P4 99, P5 68, P6 90 |
+| Vertical | Frontend 99, Orchestrator 100, Agent Pool 68, LLM 54, MCP 55, Memory 72, Observability 99 |
 | Project progress integrity | `verified` |
 | Canonical workspace pages | 22/22 local browser-functional |
 | Docker services | 10/10 healthy in the latest local check |
@@ -39,18 +39,30 @@ Percentages come only from `docs/project-progress.manifest.json` and must match
 
 ## External Gate Status
 
-Latest standard direct audit:
-`.phase1-artifacts/external-gate-audit-20260712-145800.json`
+Latest read-only audit:
+`.phase1-artifacts/external-gate-audit-20260713-083839.json`
 
 Status: `blocked`
 
 - `hosted_agent_api_contracts`
-- `github_branch_protection_current_verify`
 - `vercel_backend_origin_health`
-- `fly_live_budget_check`
+
+The current verify-only branch-protection and Fly budget checks pass. Hosted Agent API
+contracts and Vercel backend origins remain blocked.
 
 `production_deploy_claim_allowed=false`. Earlier private/custom audits are provenance,
 not the current standard release truth.
+
+## Local Production Candidate Preparation
+
+Candidate `prod-candidate-2026-07-13-local-rc1` is locally verified against source
+commit `c451fa8ff2b631685ad07ebcfcf4dc4a5b418e81`. Six production targets were built
+only from a committed Git archive; local image IDs, OCI labels, embedded source hashes,
+the frontend build ID, the read-only API contract, and a real Diagnostics Chromium click
+passed. This raises P5 from 67 to 68 while Overall remains 84.
+
+The GHCR tag set is planned and unpublished. Hosted parity, Owner approval, registry
+publication, production deploy, and release promotion remain false.
 
 ## Candidate And Release Requirements
 

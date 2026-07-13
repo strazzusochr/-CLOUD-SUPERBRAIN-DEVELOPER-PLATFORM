@@ -1,7 +1,7 @@
 {
-  "active_release_id": "dev-candidate-2026-06-15-rc1",
-  "updated_at": "2026-06-15T04:05:00Z",
-  "updated_by": "codex-autonomous-release-workflow-20260615",
-  "reason": "Rebaseline active release candidate to the current repository head for DEV-ONLY proof. This updates release-boundary head parity and records local runtime + browser verifier evidence for 22 pages and 7 layers. No hosted staging, production rollout, registry push, or live provider claim is made by this candidate.",
+  "active_release_id": "prod-candidate-2026-07-13-local-rc1",
+  "updated_at": "2026-07-13T06:54:44Z",
+  "updated_by": "codex-phase5-local-candidate-proof",
+  "reason": "Prepare six content-addressed production service images from the last committed green source through a strict local Git-archive boundary. GHCR publication, hosted parity, Owner approval, release promotion, and production rollout remain explicitly blocked.",
   "production_rollout_claimed": false
 }

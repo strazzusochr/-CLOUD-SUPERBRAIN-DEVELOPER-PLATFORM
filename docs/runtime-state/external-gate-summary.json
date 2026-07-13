@@ -1,8 +1,8 @@
 ﻿{
     "contract_version":  "external-gate-summary-v1",
     "source_contract_version":  "external-gate-audit-v1",
-    "source_artifact":  ".phase1-artifacts\\external-gate-audit-20260713-030814.json",
-    "generated_at_utc":  "2026-07-13T01:08:14.8101232Z",
+    "source_artifact":  ".phase1-artifacts\\external-gate-audit-20260713-083839.json",
+    "generated_at_utc":  "2026-07-13T06:38:39.8494422Z",
     "status":  "blocked",
     "gate_ids":  [
                      "hosted_agent_api_contracts",
@@ -12,20 +12,18 @@
                  ],
     "frontend_preview_claim_allowed":  false,
     "hosted_staging_claim_allowed":  false,
-    "branch_protection_claim_allowed":  false,
+    "branch_protection_claim_allowed":  true,
     "ghcr_image_digest_claim_allowed":  true,
     "vercel_backend_origins_claim_allowed":  false,
     "canonical_gitleaks_claim_allowed":  true,
-    "fly_live_budget_claim_allowed":  false,
-    "gitlab_identity_claim_allowed":  false,
-    "huggingface_identity_claim_allowed":  false,
+    "fly_live_budget_claim_allowed":  true,
+    "gitlab_identity_claim_allowed":  true,
+    "huggingface_identity_claim_allowed":  true,
     "grafana_cloud_claim_allowed":  false,
     "production_deploy_claim_allowed":  false,
     "missing_or_failed_gates":  [
                                     "hosted_agent_api_contracts",
-                                    "github_branch_protection_current_verify",
-                                    "vercel_backend_origin_health",
-                                    "fly_live_budget_check"
+                                    "vercel_backend_origin_health"
                                 ],
     "failed_hosted_required_probe_ids":  [
                                              "hosted_agent_api_health",

@@ -2324,5 +2324,9 @@ if ($LASTEXITCODE -ne 0 -or $steadyFaviconStatus -ne "200") {
   throw "Runtime verification failed: post-recreate favicon returned HTTP $steadyFaviconStatus"
 }
 
+Write-Host "[runtime] phase5 local production candidate proof"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-production-candidate-local.ps1 -BaseUrl $baseUrl -AllowLocalhost -SkipBrowser
+Assert-LastExitCode "phase5 local production candidate proof"
+
 Write-Host "[runtime] phase1 runtime checks completed"
 

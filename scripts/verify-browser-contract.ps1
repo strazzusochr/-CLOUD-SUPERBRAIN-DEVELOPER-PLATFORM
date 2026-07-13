@@ -470,6 +470,18 @@ if ($isLocalProof) {
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-orchestrator-completion-evidence.ps1 -BaseUrl $BaseUrl -AllowLocalhost
   if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: orchestrator completion evidence verifier" }
 }
+
+Write-Host "[browser-contract] phase5 local production candidate"
+$phase5CandidateContract = Invoke-Text "$BaseUrl/api/v1/release-candidate/local/contract"
+Assert-Contains "phase5 candidate contract version" $phase5CandidateContract '"contract_version":"phase5-production-candidate-local-v1"'
+Assert-Contains "phase5 candidate evidence" $phase5CandidateContract '"evidence_ref":"phase5_local_production_candidate_verified"'
+Assert-Contains "phase5 candidate service count" $phase5CandidateContract '"service_count":6'
+Assert-Contains "phase5 candidate progress" $phase5CandidateContract '"phase5_progress_after_proof":68'
+Assert-Contains "phase5 candidate registry closed" $phase5CandidateContract '"registry_publish":false'
+Assert-Contains "phase5 candidate hosted closed" $phase5CandidateContract '"hosted_staging_parity":false'
+Assert-Contains "phase5 candidate deploy closed" $phase5CandidateContract '"production_deploy":false'
+Assert-Contains "phase5 candidate promotion closed" $phase5CandidateContract '"release_promotion":false'
+Assert-Contains "phase5 candidate secret output closed" $phase5CandidateContract '"secret_output":false'
 $traceContract = Invoke-Text "$BaseUrl/api/v1/trace/contract"
 Assert-Contains "trace contract version" $traceContract '"contract_version":"trace-id-propagation-v1"'
 Assert-Contains "trace contract evidence" $traceContract "trace_id_header_roundtrip"

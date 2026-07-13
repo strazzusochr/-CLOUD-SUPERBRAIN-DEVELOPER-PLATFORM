@@ -827,6 +827,7 @@ $currentPhase1 = $horizontalById["phase_1"]
 $currentPhase2 = $horizontalById["phase_2"]
 $currentPhase3 = $horizontalById["phase_3"]
 $currentPhase4 = $horizontalById["phase_4"]
+$currentPhase5 = $horizontalById["phase_5"]
 $currentPhase6 = $horizontalById["phase_6"]
 $currentFrontend = $verticalByLabel["Frontend / Next.js"]
 $currentAgentPool = $verticalByLabel["Agent Pool"]
@@ -887,6 +888,7 @@ foreach ($requiredProgressRegisterTerm in @(
   "Phase 2 ``$currentPhase2%``",
   "Phase 3 ``$currentPhase3%``",
   "Phase 4 ``$currentPhase4%``",
+  "Phase 5 ``$currentPhase5%``",
   "Phase 6 ``$currentPhase6%``",
   "Frontend ``$currentFrontend%``",
   "Agent Pool ``$currentAgentPool%``",
@@ -923,6 +925,7 @@ foreach ($requiredProjectStateTerm in @(
   '| P2   |',
   '| P3   |',
   '| P4   |',
+  '| P5   |',
   '| P6   |',
   '| Memory        |'
 )) {
@@ -934,6 +937,7 @@ Assert-RegexContains "PROJECT_STATE.md phase 1 row" $projectState "\|\s*P1\s*\|\
 Assert-RegexContains "PROJECT_STATE.md phase 2 row" $projectState "\|\s*P2\s*\|\s*$currentPhase2%\s*\|"
 Assert-RegexContains "PROJECT_STATE.md phase 3 row" $projectState "\|\s*P3\s*\|\s*$currentPhase3%\s*\|"
 Assert-RegexContains "PROJECT_STATE.md phase 4 row" $projectState "\|\s*P4\s*\|\s*$currentPhase4%\s*\|"
+Assert-RegexContains "PROJECT_STATE.md phase 5 row" $projectState "\|\s*P5\s*\|\s*$currentPhase5%\s*\|"
 Assert-RegexContains "PROJECT_STATE.md phase 6 row" $projectState "\|\s*P6\s*\|\s*$currentPhase6%\s*\|"
 Assert-RegexContains "PROJECT_STATE.md frontend row" $projectState "\|\s*Frontend\s*\|\s*$currentFrontend%\s*\|"
 Assert-RegexContains "PROJECT_STATE.md agent pool row" $projectState "\|\s*Agent Pool\s*\|\s*$currentAgentPool%\s*\|"
@@ -957,6 +961,7 @@ foreach ($requiredAiHandoffTerm in @(
   "- P2: ``$currentPhase2%``",
   "- P3: ``$currentPhase3%``",
   "- P4: ``$currentPhase4%``",
+  "- P5: ``$currentPhase5%``",
   "- P6: ``$currentPhase6%``",
   "- Frontend / Next.js: ``$currentFrontend%``",
   "- Agent Pool: ``$currentAgentPool%``",
@@ -969,7 +974,7 @@ foreach ($requiredAiHandoffTerm in @(
   }
 }
 Write-Host "[verify] current truth mirror audit alignment"
-$currentAuditName = "external-gate-audit-20260713-030814.json"
+$currentAuditName = "external-gate-audit-20260713-083839.json"
 $masterGoal = Get-Content -Path "CODEX_MASTER_GOAL_FINALE.md" -Raw
 $currentTruthMirrors = @(
   @{ name = "PROJECT_STATE.md"; content = $projectState },
@@ -991,6 +996,19 @@ if (-not ([string]$externalGateSummary.source_artifact).Contains($currentAuditNa
 }
 if ([string]$externalGateSummary.status -ne "blocked" -or [bool]$externalGateSummary.production_deploy_claim_allowed) {
   throw "External gate summary must remain fail-closed for current blocked audit"
+}
+$expectedMissingExternalGates = @(
+  "hosted_agent_api_contracts",
+  "vercel_backend_origin_health"
+)
+$actualMissingExternalGates = @($externalGateSummary.missing_or_failed_gates | ForEach-Object { [string]$_ })
+$expectedMissingExternalGateKey = ($expectedMissingExternalGates | Sort-Object) -join ","
+$actualMissingExternalGateKey = ($actualMissingExternalGates | Sort-Object) -join ","
+if ($actualMissingExternalGateKey -ne $expectedMissingExternalGateKey) {
+  throw "External gate summary missing set drift: expected=$expectedMissingExternalGateKey actual=$actualMissingExternalGateKey"
+}
+if (-not [bool]$externalGateSummary.branch_protection_claim_allowed -or -not [bool]$externalGateSummary.fly_live_budget_claim_allowed) {
+  throw "Current verify-only Branch Protection and Fly budget checks must remain proven"
 }
 py -3 -m py_compile scripts\verify-phase-transition-gate.py
 Assert-LastExitCode "phase transition gate syntax"
@@ -2771,6 +2789,10 @@ if ($resourceParseErrors -and $resourceParseErrors.Count -gt 0) {
   $resourceParseErrors | ForEach-Object { Write-Error $_.Message }
   throw "Resource measurement script syntax failed"
 }
+
+Write-Host "[verify] phase5 local production candidate contract"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-production-candidate-local.ps1 -StaticOnly
+Assert-LastExitCode "phase5 local production candidate static contract"
 
 Write-Host "[verify] git diff whitespace"
 $prevEap = $ErrorActionPreference
