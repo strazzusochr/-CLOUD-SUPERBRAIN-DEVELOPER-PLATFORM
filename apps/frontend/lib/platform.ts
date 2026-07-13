@@ -137,12 +137,12 @@ export const API_SURFACES: SurfaceGroup[] = [
  * only on /diagnostics (never on Home/Workbench as a hero).
  * ------------------------------------------------------------------ */
 export const MANIFEST = {
-  snapshot: "2026-07-12",
-  overall: 82,
+  snapshot: "2026-07-13",
+  overall: 84,
   integrity: "verified",
   modules: [
-    { name: "Frontend", layer: 1, pct: 97 },
-    { name: "Orchestrator", layer: 2, pct: 99 },
+    { name: "Frontend", layer: 1, pct: 100 },
+    { name: "Orchestrator", layer: 2, pct: 100 },
     { name: "Agent Pool", layer: 3, pct: 68 },
     { name: "LLM Gateway", layer: 4, pct: 54 },
     { name: "MCP Gateway", layer: 5, pct: 55 },
@@ -153,9 +153,9 @@ export const MANIFEST = {
     { id: "P0", pct: 100 },
     { id: "P1", pct: 100 },
     { id: "P2", pct: 86 },
-    { id: "P3", pct: 42 },
+    { id: "P3", pct: 43 },
     { id: "P4", pct: 99 },
-    { id: "P5", pct: 67 },
+    { id: "P5", pct: 68 },
     { id: "P6", pct: 90 },
   ],
 } as const;

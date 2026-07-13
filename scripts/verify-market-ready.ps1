@@ -93,6 +93,7 @@ if (-not $StaticOnly) {
   Invoke-Npm "verify:browser"          "verify:browser"
   Invoke-Npm "verify:csrf"             "verify:csrf"
   Invoke-Npm "verify:responsive"       "verify:responsive"
+  Invoke-Npm "frontend-hosted-current" "verify:frontend-hosted-current"
   Invoke-Npm "verify:phase6-frontend"  "verify:phase6-frontend"
   Invoke-Npm "build(full-pages)"       "build"
   Invoke-Npm "verify:release-candidate" "verify:release-candidate"

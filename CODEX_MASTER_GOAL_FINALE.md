@@ -31,11 +31,14 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
 7. Budget: Workers AI 10.000 Neurons/Tag → LLM-Beweise = 1 Mini-Prompt.
 
 ## VERIFIZIERTE BASELINE (2026-07-11 — nicht neu herleiten, nur fortführen)
-- **Frontend-Produktion** `https://frontend-seven-psi-78.vercel.app`: 22/22 Routen 200.
-  Hosted-22-Human-Click-Proof `hosted22-final-r5` = **22/22 FAIL=0, exit 0** (echte
-  Klickpfade: Multi-Agent-Lauf via Workers AI, Build-Roundtrip, Memory-Seed+Hit,
-  Musik-Export). Deploy aus REPO-ROOT: `vercel deploy --prod --yes` (Root-Link vorhanden,
-  rootDirectory=apps/frontend).
+- **Frontend-Produktion** `https://frontend-seven-psi-78.vercel.app`: aktueller
+  source- und deploymentgebundener `frontend-hosted-current-proof-v1`. Echtes Google
+  Chrome `148.0.7778.96` bestand 22 Desktop- und 22 Mobile-Routen mit 44
+  Command-Palette-Klicks, vier PNGs, Overflow 0, sichtbaren Not-Found-Zustaenden 0 und
+  Console Errors 0. Immutable Deployment und Production Alias lieferten HTTP `200` und
+  identische Root-/Workspace-Wiring-Inhalte. Evidence:
+  `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-3d806315-chrome`; Frontend `100%`.
+  Dies ist kein Hosted-Backend- oder Gesamtplattform-Release-Claim.
 - **Backend-Projekt 2** `https://cloud-superbrain-developer-platform.vercel.app`:
   echte agent-api als Vercel-Python-Function (`/api/v1/health` degraded-ehrlich,
   `/llm/...` + `/mcp/...`-Contracts live). Frontend-Origins umgebogen
@@ -46,7 +49,8 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   Verify-only Branch Protection und Fly Budget sind in diesem Lauf gruen. Der temporaer
   konfigurierte Read-only-Lauf `20260711-215936` war vollstaendig gruen und beweist die
   Kandidaten-Endpunkte, ist aber nicht der Standardzustand. Das bindende Manifest steht bei
-  `overall=84`; Production wurde nicht ausgerollt.
+  `overall=84`; das Frontend ist bereitgestellt, die Backend-Gesamtplattform wurde nicht
+  als Production Release ausgerollt.
 - **Phase 1 ✔ (1.1–1.5), Phase 2 ✔ (2.1–2.3).** Class-Matrix A=85/B=0/C=5/D=4.
 - **Phase 3 deployt (~80 %):** S1 Build-Log-Grid, S2 Media/Docs-Entflechtung,
   S3 Apps-Kuration, S4 ehrliche Idle-Texte, S5 Hero-Labels, S6 /observe-Ehrlichkeit,

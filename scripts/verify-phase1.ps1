@@ -527,7 +527,12 @@ foreach ($required in @(
   }
 }
 foreach ($required in @(
+  'overall: 84',
+  '{ name: "Frontend", layer: 1, pct: 100 }',
+  '{ name: "Orchestrator", layer: 2, pct: 100 }',
+  '{ id: "P3", pct: 43 }',
   '{ id: "P4", pct: 99 }',
+  '{ id: "P5", pct: 68 }',
   '{ id: "P6", pct: 90 }',
   "AGENTS",
   "MCP_TOOLS",
@@ -863,7 +868,8 @@ foreach ($requiredBrowserMcpTerm in @(
 foreach ($requiredHostedBoundaryTerm in @(
   'Current Hosted Boundary',
   'historical provenance only',
-  'Current hosted gate truth is the latest `external-gate-audit-*` artifact plus a future real Vercel HTTPS `STAGING_BASE_URL` and reachable Fly origins'
+  'Current frontend truth is `frontend-hosted-current-proof-v1`',
+  'backend and release truth remains the latest `external-gate-audit-*` artifact plus reachable Agent API, MCP Gateway, and LLM Gateway HTTPS origins'
 )) {
   if (-not $verificationRegister.Contains($requiredHostedBoundaryTerm)) {
     throw "Verification register missing current hosted boundary marker: $requiredHostedBoundaryTerm"
@@ -2793,6 +2799,10 @@ if ($resourceParseErrors -and $resourceParseErrors.Count -gt 0) {
 Write-Host "[verify] phase5 local production candidate contract"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-production-candidate-local.ps1 -StaticOnly
 Assert-LastExitCode "phase5 local production candidate static contract"
+
+Write-Host "[verify] current hosted frontend proof"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-frontend-hosted-current.ps1 -StaticOnly
+Assert-LastExitCode "current hosted frontend static proof"
 
 Write-Host "[verify] git diff whitespace"
 $prevEap = $ErrorActionPreference

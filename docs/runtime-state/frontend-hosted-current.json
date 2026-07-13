@@ -1,0 +1,24 @@
+{
+  "contract_version": "frontend-hosted-current-proof-v1",
+  "status": "verified",
+  "source_commit_sha": "3d8063155240107dc63a11c071142884eb2f9a63",
+  "deployment_id": "dpl_FFxPoLHgeuA87ghwpdochKTnj1Lh",
+  "immutable_deployment_url": "https://frontend-hz84xi3nh-strazzusochrs-projects.vercel.app",
+  "production_alias": "https://frontend-seven-psi-78.vercel.app",
+  "proof_artifact": ".codex/runs/CURRENT/master-goal/frontend/hosted-22x2-3d806315-chrome/report.json",
+  "proof_generated_at": "2026-07-13T08:09:41.45Z",
+  "browser_channel": "chrome",
+  "browser_version": "148.0.7778.96",
+  "page_count": 22,
+  "viewport_count": 2,
+  "click_navigation_count": 44,
+  "overflow_failures": 0,
+  "console_errors": 0,
+  "frontend_progress_before": 99,
+  "frontend_progress_after": 100,
+  "production_release_claimed": false,
+  "non_claims": [
+    "This proves the hosted frontend deployment and production alias, not the full backend staging stack.",
+    "This does not claim a platform production release, registry publication, live MCP write, or live LLM provider activation."
+  ]
+}

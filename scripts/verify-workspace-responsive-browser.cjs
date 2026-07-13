@@ -7,6 +7,7 @@ function parseArgs(argv) {
     if (argv[index] === "--allow-localhost") args.allowLocalhost = true;
     else if (argv[index] === "--base-url") args.baseUrl = argv[++index];
     else if (argv[index] === "--out") args.outDir = argv[++index];
+    else if (argv[index] === "--browser-channel") args.browserChannel = argv[++index];
   }
   return args;
 }
@@ -198,6 +199,7 @@ async function main() {
   const { chromium } = require(path.join(repoRoot, "apps", "frontend", "node_modules", "playwright"));
   const browser = await chromium.launch({
     headless: true,
+    ...(args.browserChannel ? { channel: args.browserChannel } : {}),
     args: ["--disable-gpu", "--disable-gpu-compositing", "--use-gl=swiftshader", "--ignore-gpu-blocklist"],
   });
   try {
@@ -224,6 +226,8 @@ async function main() {
       evidence_ref: "frontend_22_page_responsive_click_proof",
       base_url: baseUrl,
       scope: isLocalhost(baseUrl) ? "DEV-ONLY" : "hosted_https",
+      browser_channel: args.browserChannel || "playwright-bundled-chromium",
+      browser_version: browser.version(),
       page_count: 22,
       viewport_count: 2,
       click_navigation_count: 44,
