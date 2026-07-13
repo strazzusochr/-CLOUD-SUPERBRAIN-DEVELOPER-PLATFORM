@@ -93,6 +93,22 @@ async function probeLayout(page, surface, profile) {
     const rail = document.querySelector(".rail");
     const mainRect = main?.getBoundingClientRect();
     const railRect = rail?.getBoundingClientRect();
+    const overlayCollisions = [];
+    for (const [leftSelector, rightSelector] of [[".org-hud", ".org-gates"]]) {
+      const left = document.querySelector(leftSelector)?.getBoundingClientRect();
+      const right = document.querySelector(rightSelector)?.getBoundingClientRect();
+      if (!left || !right || left.width <= 1 || left.height <= 1 || right.width <= 1 || right.height <= 1) continue;
+      const overlapWidth = Math.min(left.right, right.right) - Math.max(left.left, right.left);
+      const overlapHeight = Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top);
+      if (overlapWidth > 1 && overlapHeight > 1) {
+        overlayCollisions.push({
+          left: leftSelector,
+          right: rightSelector,
+          width: Math.round(overlapWidth),
+          height: Math.round(overlapHeight),
+        });
+      }
+    }
     return {
       pageId: surfaceArg.pageId,
       route: surfaceArg.route,
@@ -110,6 +126,7 @@ async function probeLayout(page, surface, profile) {
       mainLeft: Math.round(mainRect?.left || 0),
       horizontalDocumentOverflow: Math.max(0, document.documentElement.scrollWidth - viewportWidth),
       overflowElements,
+      overlayCollisions,
       notFoundVisible: /\b404\b|not found|This page could not be found/i.test(bodyText),
     };
   }, { surfaceArg: surface, profileArg: profile });
@@ -162,6 +179,7 @@ async function runProfile(browser, profile, surfaces, baseUrl, artifactDir) {
       assert(!probe.notFoundVisible, `${profile.id} not-found marker on ${surface.route}`);
       assert(probe.horizontalDocumentOverflow <= 2, `${profile.id} document overflow ${probe.horizontalDocumentOverflow}px on ${surface.route}`);
       assert(probe.overflowElements.length === 0, `${profile.id} incoherent overflow on ${surface.route}: ${JSON.stringify(probe.overflowElements)}`);
+      assert(probe.overlayCollisions.length === 0, `${profile.id} overlay collision on ${surface.route}: ${JSON.stringify(probe.overlayCollisions)}`);
       if (profile.mobile) {
         assert(probe.mainRight <= probe.viewportWidth + 2, `Mobile main exceeds viewport on ${surface.route}`);
         assert(probe.mainLeft >= -2, `Mobile main starts outside the viewport on ${surface.route}: ${probe.mainLeft}`);
@@ -232,6 +250,7 @@ async function main() {
       viewport_count: 2,
       click_navigation_count: 44,
       overflow_failures: 0,
+      overlay_collision_failures: 0,
       console_errors: 0,
       profiles,
       results,

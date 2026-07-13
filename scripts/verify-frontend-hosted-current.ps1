@@ -94,6 +94,7 @@ try {
   Assert-Equal ([int]$proof.viewport_count) 2 "proof viewport count"
   Assert-Equal ([int]$proof.click_navigation_count) 44 "proof click count"
   Assert-Equal ([int]$proof.overflow_failures) 0 "proof overflow failures"
+  Assert-Equal ([int]$proof.overlay_collision_failures) 0 "proof overlay collision failures"
   Assert-Equal ([int]$proof.console_errors) 0 "proof console errors"
 
   $desktop = @($proof.results.desktop)
@@ -104,6 +105,7 @@ try {
     Assert-True ([bool]$entry.clickNavigation) "Route was not reached by a real command-palette click: $($entry.route)"
     Assert-True ([int]$entry.horizontalDocumentOverflow -le 2) "Route overflow exceeded 2px: $($entry.route)"
     Assert-Equal @($entry.overflowElements).Count 0 "route overflow elements $($entry.route)"
+    Assert-Equal @($entry.overlayCollisions).Count 0 "route overlay collisions $($entry.route)"
     Assert-Equal @($entry.consoleErrors).Count 0 "route console errors $($entry.route)"
     Assert-True (-not [bool]$entry.notFoundVisible) "Not-found marker visible on $($entry.route)"
   }
@@ -144,6 +146,7 @@ try {
     viewport_count = 2
     click_navigation_count = 44
     overflow_failures = 0
+    overlay_collision_failures = 0
     console_errors = 0
     deployment_alias_content_parity = $true
     production_release_claimed = $false

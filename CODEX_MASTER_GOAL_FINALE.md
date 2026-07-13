@@ -37,7 +37,7 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   Command-Palette-Klicks, vier PNGs, Overflow 0, sichtbaren Not-Found-Zustaenden 0 und
   Console Errors 0. Immutable Deployment und Production Alias lieferten HTTP `200` und
   identische Root-/Workspace-Wiring-Inhalte. Evidence:
-  `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-3d806315-chrome`; Frontend `100%`.
+  `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-09b9830f-chrome`; Frontend `100%`.
   Dies ist kein Hosted-Backend- oder Gesamtplattform-Release-Claim.
 - **Backend-Projekt 2** `https://cloud-superbrain-developer-platform.vercel.app`:
   echte agent-api als Vercel-Python-Function (`/api/v1/health` degraded-ehrlich,

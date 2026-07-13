@@ -15,7 +15,7 @@ Latest external audit artifact: `.phase1-artifacts/external-gate-audit-20260713-
 
 ## Current Hosted Frontend Evidence
 
-`frontend-hosted-current-proof-v1` verifies a source-bound immutable Vercel deployment plus Production Alias parity. Google Chrome `148.0.7778.96` opened all 22 canonical routes at desktop `1440x960` and mobile `390x844` through 44 real command-palette clicks. The report records four screenshots, `overflow_failures=0`, `console_errors=0`, and no visible not-found state; the wrapper additionally requires HTTP `200` and content parity for root and `/api/v1/workspace/wiring`. Evidence: `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-3d806315-chrome`. This raises Frontend `99% -> 100%`; Overall remains `84%`. It is not hosted Agent API/MCP/LLM parity, a registry publication, a live-provider claim, release promotion, or a full-platform production release.
+`frontend-hosted-current-proof-v1` verifies a source-bound immutable Vercel deployment plus Production Alias parity. Google Chrome `148.0.7778.96` opened all 22 canonical routes at desktop `1440x960` and mobile `390x844` through 44 real command-palette clicks. The report records four screenshots, `overflow_failures=0`, `console_errors=0`, and no visible not-found state; the wrapper additionally requires HTTP `200` and content parity for root and `/api/v1/workspace/wiring`. Evidence: `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-09b9830f-chrome`. This raises Frontend `99% -> 100%`; Overall remains `84%`. It is not hosted Agent API/MCP/LLM parity, a registry publication, a live-provider claim, release promotion, or a full-platform production release.
 
 ## Current Phase 5 Local Candidate Evidence
 

@@ -61,7 +61,7 @@ routes through 44 command-palette clicks at desktop `1440x960` and mobile `390x8
 Overflow failures, visible not-found states, and console errors were zero. The verifier
 also requires HTTP `200` and byte-identical root and workspace-wiring content between the
 immutable deployment and Production Alias. Evidence is under
-`.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-3d806315-chrome`.
+`.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-09b9830f-chrome`.
 
 This closes the Frontend / Next.js layer proof only. It does not close Hosted Agent API,
 MCP Gateway, LLM Gateway, registry, release-promotion, or full-platform production gates.

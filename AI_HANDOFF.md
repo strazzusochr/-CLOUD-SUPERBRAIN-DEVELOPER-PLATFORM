@@ -57,7 +57,7 @@ Vertical:
 
 Older percentage lines below are historical proof points only. Current percentages must come from this section and `docs/project-progress.manifest.json`.
 
-Latest bounded proof: `frontend-hosted-current-proof-v1` verifies the active Vercel frontend with a source-bound immutable deployment, Production Alias parity, and real Google Chrome `148.0.7778.96`. All 22 routes were opened by command-palette clicks at desktop and mobile for 44 clicks total; overflow failures, visible not-found states, and console errors were zero, and four screenshots are present. Evidence is under `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-3d806315-chrome`; configuration and non-claims live in `docs/runtime-state/frontend-hosted-current.json`. Frontend increased from `99%` to `100%`; Overall remains `84%`. This proves the hosted frontend only, not hosted Agent API/MCP/LLM parity, registry publication, live provider activation, release promotion, or a full-platform production release.
+Latest bounded proof: `frontend-hosted-current-proof-v1` verifies the active Vercel frontend with a source-bound immutable deployment, Production Alias parity, and real Google Chrome `148.0.7778.96`. All 22 routes were opened by command-palette clicks at desktop and mobile for 44 clicks total; overflow failures, visible not-found states, and console errors were zero, and four screenshots are present. Evidence is under `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-09b9830f-chrome`; configuration and non-claims live in `docs/runtime-state/frontend-hosted-current.json`. Frontend increased from `99%` to `100%`; Overall remains `84%`. This proves the hosted frontend only, not hosted Agent API/MCP/LLM parity, registry publication, live provider activation, release promotion, or a full-platform production release.
 
 ## Current Runtime
 
@@ -1053,7 +1053,7 @@ Do not claim these until external evidence exists:
 1. Keep localhost as a dev control plane only; the current frontend truth comes from the source-bound Vercel HTTPS proof, while hosted backend gate truth still requires reachable Agent API, MCP Gateway, and LLM Gateway origins.
 2. Keep extending candidate-scoped Phase-5 evidence after the integration-plan proof instead of switching to rollout.
 3. If rollout is approved later, treat `.phase1-artifacts/phase5-rollback-drill-prod-candidate-20260505-rc1.md` as the rollback starting point, not the floating `:staging` alias.
-4. Treat `.phase1-artifacts/hosted-browser-proof-20260504-235540.md` as historical provenance only. Current frontend evidence is the fresh Google Chrome report under `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-3d806315-chrome`; the unavailable Codex in-app Chrome bridge is not claimed.
+4. Treat `.phase1-artifacts/hosted-browser-proof-20260504-235540.md` as historical provenance only. Current frontend evidence is the fresh Google Chrome report under `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-09b9830f-chrome`; the unavailable Codex in-app Chrome bridge is not claimed.
 
 ## Git State Warning
 
