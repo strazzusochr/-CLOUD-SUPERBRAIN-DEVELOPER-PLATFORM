@@ -29,11 +29,11 @@ Follow `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` over older planning f
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 
-Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as historical resume context. Their `70%` snapshot is provenance only; the canonical manifest and the Current Verified Progress section below now record `82%`, including the Phase-6 netcode loopback proof. Continue evidence-based work without treating the historical candidate as current release parity.
+Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as historical resume context. Their `70%` snapshot is provenance only; the canonical manifest and the Current Verified Progress section below now record `84%`, including the Phase-6 local scoreboard and performance-classification proof. Continue evidence-based work without treating the historical candidate as current release parity.
 
 ## Current Verified Progress
 
-Overall: `82%`
+Overall: `84%`
 
 Horizontal:
 
@@ -43,7 +43,7 @@ Horizontal:
 - P3: `43%`
 - P4: `99%`
 - P5: `67%`
-- P6: `80%`
+- P6: `90%`
 
 Vertical:
 
@@ -57,7 +57,7 @@ Vertical:
 
 Older percentage lines below are historical proof points only. Current percentages must come from this section and `docs/project-progress.manifest.json`.
 
-Latest bounded proof: `cross-origin-response-guard-v1` enforces same-origin COOP/CORP headers on success and error responses, does not reflect an untrusted Origin into CORS allow headers, and is visible through a real Diagnostics Chromium click. Phase 3 increased from `42%` to `43%`; Overall remains `82%`. Evidence: `.codex/runs/CURRENT/phase3/cross-origin-response-guard`. All local evidence is `DEV-ONLY` and does not prove hosted staging, release, or production readiness.
+Latest bounded proof: `phase6-local-scoreboard-performance-runtime-v1` captures a volatile deterministic Top 3 from real gameplay state and classifies twelve live renderer-stat samples without persistence or network use. The observed headless DEV result is honestly `fail` at `4.0 FPS` and `252.8 ms` derived frame interval; pixel proof reports 1024 visible samples and 117 color buckets, while all network/persistence guard counters are zero. Phase 6 increased from `80%` to `90%`; Overall increased from `82%` to `84%`; Frontend remains `99%`. Evidence: `.codex/runs/CURRENT/phase6/scoreboard-performance-local`. This is `DEV-ONLY` interaction/classification evidence, not a GPU benchmark, capacity, hosted staging, release, or production-readiness claim.
 
 ## Current Runtime
 
@@ -105,7 +105,7 @@ py -3 scripts\verify_project_progress_manifest.py
 
 Recent verification status: on 2026-06-11, the Platform UI Status Boundary Guard was added and passed `scripts\verify-platform-ui-status-boundary.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` with `product_surfaces=7` and `routes=6`, then passed through `npm run verify:browser`. It blocks project-status helpers, manifest snapshots, project progress endpoints, completion/gate/recovery wall markers, and go-live/external-gate audit markers from Home, Workbench, Games, Apps, Media, Docs-Output, and AppShell while keeping Evidence/Diagnostics/Organism/non-rendering wiring available. The Workspace Data Source Integrity Guard corrected stale `/api/v1/model-capabilities` refs to `/api/v1/models/capabilities`, added `GET /api/v1/files/local/contract`, and passed `scripts\verify-workspace-data-sources.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` with `api_refs=32`. It is now included in `npm run verify:browser` after the vertical-stack guard. The same session passed `py -3 -m py_compile services\agent-api\app\main.py`, `npm run lint --prefix apps/frontend`, `npm run build --prefix apps/frontend`, Docker DEV rebuild for frontend/agent-api/nginx, and `npm run verify:browser`. Earlier on 2026-06-11, the Organism Topology Integrity Guard passed `scripts\verify-organism-topology.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` with `151` nodes and `308` edges, then passed through `npm run verify:browser`; manifest validation and `git diff --check` also passed, with only line-ending warnings. The topology guard is part of `scripts\verify-browser-contract.ps1` and statically guarded by `scripts\verify-phase1.ps1`; `apps/frontend/lib/platform.ts` now mirrors Phase `P4` as `99%` instead of a stale `100%` snapshot. `scripts\verify-phase1.ps1` passed fully, including gitleaks over ~4.27 GB, and `npm run verify:external-gates` produced `.phase1-artifacts/external-gate-audit-20260615-121905.json` with the same external blockers. Earlier on 2026-06-10, the frontend runtime binding slice passed `npm run lint --prefix apps/frontend`, `npm run build --prefix apps/frontend`, focused `npx playwright test e2e/organism.spec.ts --project=chromium --grep "forwards run_id"`, full `npx playwright test e2e/organism.spec.ts --project=chromium` (`12 passed`), `scripts\verify-organism-runtime-events.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `npm run verify:browser`, `npm run verify:runtime`, `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`, `npm run verify:external-gates`, `py -3 scripts\verify_project_progress_manifest.py`, and `git diff --check`. `npm run verify` initially caught and blocked a missing exact no-token baseline phrase in this handoff; that mirror text was repaired. A later gitleaks block was traced to local `.claude` Secret/Session copies, redacted without printing secret values, and then gitleaks/Phase-1 verified clean. The Workbench budget-visibility slice passed lint, build, full Organism E2E (`13 passed`), Docker DEV frontend/nginx rebuild, `npm run verify:browser`, targeted Workbench HTTP proof, manifest validation, `git diff --check`, `scripts\verify-phase1.ps1`, and `npm run verify:external-gates`; `/workbench` hides `Metered Budget` unless a paid/metered option is selected or explicitly configured. The last external gate artifact is `.phase1-artifacts/external-gate-audit-20260615-121905.json`, blocked for `hosted_agent_api_contracts` and `vercel_backend_origin_health`; `canonical_gitleaks_scan` and `ghcr_image_digest_verify` are verified. GitLab, Hugging Face, and Grafana identity checks are fail-closed in this no-token baseline. Current hosted proof requires Vercel HTTPS `STAGING_BASE_URL` plus reachable Fly origins.
 
-Current Master Goal external gate mirror: `.phase1-artifacts/external-gate-audit-20260712-145800.json` is the latest direct no-token audit. It is `blocked` on `hosted_agent_api_contracts`, `github_branch_protection_current_verify`, `vercel_backend_origin_health`, and `fly_live_budget_check`; `production_deploy_claim_allowed=false`. Earlier private read-only bootstrap audit `20260712-000113` reduced the open set to hosted Agent API and Vercel origins. Custom process-input audit `20260711-215936` was fully verified, but is not the standard state. No token values are persisted; no rollout, promotion, push, provider write, or progress increase is claimed.
+Current Master Goal external gate mirror: `.phase1-artifacts/external-gate-audit-20260713-030814.json` is the latest direct no-token audit. It is `blocked` on `hosted_agent_api_contracts`, `github_branch_protection_current_verify`, `vercel_backend_origin_health`, and `fly_live_budget_check`; `production_deploy_claim_allowed=false`. Earlier private read-only bootstrap audit `20260712-000113` reduced the open set to hosted Agent API and Vercel origins. Custom process-input audit `20260711-215936` was fully verified, but is not the standard state. No token values are persisted; no rollout, promotion, push, provider write, or hosted/production claim is made.
 
 Autopilot stream proof now runs through the active Agent API/Nginx stack at `<local-control-plane-stream-url>` and emits `status:init`, `status:llm`, `token`, and `done` with `autopilot-mode-stream-proof`.
 

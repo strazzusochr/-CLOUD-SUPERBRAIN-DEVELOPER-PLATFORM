@@ -2,7 +2,7 @@
 
 Real frontend work on this branch with local and hosted runtime proof. **Honest scope:**
 these are the **frontend client-runtime** slices of Phase 6. The verifier exercises a
-real WebGL canvas, camera presets, bounded lighting controls, deterministic gameplay state, a procedural asset policy, volatile scene save/load, deterministic two-peer browser loopback, keyboard input, frame-budget HUD, and the 2D
+real WebGL canvas, camera presets, bounded lighting controls, deterministic gameplay state, a procedural asset policy, volatile scene save/load, deterministic two-peer browser loopback, a volatile local Top 3, bounded frame-budget classification, keyboard input, frame-budget HUD, and the 2D
 reduced-motion fallback with zero browser-console errors. The current hosted proof ran
 against `https://frontend-seven-psi-78.vercel.app`; it does not claim that every Phase-6
 scale capability or any production release is complete.
@@ -21,6 +21,7 @@ scale capability or any production release is complete.
 | Scene state (auto-rotate / pause) | `phase6_3d_scene_state_runtime_visible` | Auto-rotate toggle (controlled), pause via reduced-motion |
 | Accessibility runtime | `phase6_3d_accessibility_runtime_visible`, `reduced_motion_keyboard_focus_verified` | Manual/system Reduced Motion, semantic 2D fallback, ten focus targets, keyboard navigation, scene focus and live status |
 | Netcode loopback runtime | `phase6_3d_netcode_loopback_runtime_visible`, `two_peer_lockstep_verified` | One volatile session, host/guest join-leave, ready barrier, manual lockstep ticks, monotonic packet sequence, disconnect stop and procedural remote peer marker |
+| Local scoreboard + frame classification | `phase6_local_scoreboard_performance_runtime_visible`, `phase6_deterministic_top3_ordering_verified`, `phase6_frame_budget_classification_verified` | Volatile Top 3 from gameplay snapshots plus twelve real renderer-stat samples, recomputed averages, terminal pass/fail classification, reload loss, pixel variance and zero network/persistence guards |
 | three.js WebGL smoke + non-blank canvas | `threejs_webgl_smoke_verified`, `nonblank_canvas_pixel_proof` | e2e renders WebGL2 canvas, 0 console errors |
 
 ## Runtime proof
@@ -54,13 +55,18 @@ scale capability or any production release is complete.
   `phase6-netcode-loopback.png` prove create/join/ready/start/tick/disconnect/close,
   deterministic packet accounting, applied Three.js state, no fetch/XHR/WebSocket,
   and zero browser-console errors.
+- Local scoreboard/performance evidence: `scripts/verify-phase6-local-scoreboard-performance-runtime.ps1`
+  plus `.codex/runs/CURRENT/phase6/scoreboard-performance-local` prove four gameplay captures,
+  deterministic Top 3, reset/reload loss, twelve finite renderer samples, recomputed classification,
+  pixel variance, and zero network/persistence guard counters. The observed headless DEV result is
+  `fail` at `4.0 FPS` and `252.8 ms`; it is not a performance-success or GPU-benchmark claim.
 
 ## Progress credit
 - The established project rubric credits client-runtime, interaction, scene-state,
   performance-budget, full camera/lighting, gameplay-state, procedural asset-policy,
-  volatile save/load, full accessibility, and local netcode loopback slices as **Phase 6 = 80%**.
-- The rounded phase average is now **82%**.
-- Vertical layer percentages stay unchanged. In particular, Frontend remains **97%**
+  volatile save/load, full accessibility, local netcode loopback, local Top-3, and bounded classification slices as **Phase 6 = 90%**.
+- The rounded phase average is now **84%**.
+- Vertical layer percentages stay unchanged. In particular, Frontend remains **99%**
   because this proof does not close every frontend/release gap.
 
 ## Explicitly NOT claimed (honest, gate-respecting)

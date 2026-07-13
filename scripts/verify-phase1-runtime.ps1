@@ -394,6 +394,16 @@ Assert-Contains "phase6 netcode packets" $phase6NetcodeContract '"packets_per_ti
 Assert-Contains "phase6 netcode no websocket" $phase6NetcodeContract '"websocket_allowed":false'
 Assert-Contains "phase6 netcode no server sync" $phase6NetcodeContract '"server_authoritative_sync_allowed":false'
 Assert-Contains "phase6 netcode scenarios" $phase6NetcodeContract '"all_scenarios_pass":true'
+Write-Host "[runtime] phase6 local scoreboard and performance contract"
+$phase6ScoreboardContract = curl.exe -sS "$baseUrl/api/v1/phase6/local-scoreboard-performance/contract"
+Assert-Contains "phase6 scoreboard version" $phase6ScoreboardContract '"contract_version":"phase6-local-scoreboard-performance-runtime-v1"'
+Assert-Contains "phase6 scoreboard evidence" $phase6ScoreboardContract '"evidence_ref":"phase6_local_scoreboard_performance_runtime_visible"'
+Assert-Contains "phase6 scoreboard maximum" $phase6ScoreboardContract '"leaderboard_maximum_entries":3'
+Assert-Contains "phase6 scoreboard sample count" $phase6ScoreboardContract '"performance_sample_count":12'
+Assert-Contains "phase6 scoreboard no sync" $phase6ScoreboardContract '"leaderboard_sync_allowed":false'
+Assert-Contains "phase6 scoreboard no persistence" $phase6ScoreboardContract '"persistent_storage_allowed":false'
+Assert-Contains "phase6 scoreboard no capacity claim" $phase6ScoreboardContract '"scale_capacity_claim_allowed":false'
+Assert-Contains "phase6 scoreboard scenarios" $phase6ScoreboardContract '"all_scenarios_pass":true'
 $cloudDeploymentPreflightContract = curl.exe -sS "$baseUrl/api/v1/clouds/deployment-preflight/contract"
 Assert-Contains "cloud deployment preflight contract version" $cloudDeploymentPreflightContract '"contract_version":"cloud-deployment-preflight-surface-v1"'
 Assert-Contains "cloud deployment preflight contract evidence" $cloudDeploymentPreflightContract '"evidence_ref":"cloud_deployment_preflight_contract_runtime_visible"'

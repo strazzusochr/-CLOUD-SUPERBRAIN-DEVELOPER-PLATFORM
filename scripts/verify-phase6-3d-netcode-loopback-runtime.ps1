@@ -76,8 +76,8 @@ foreach ($required in @("phase6-3d-netcode-loopback-runtime-v1",'Phase 6 may mov
 
 $manifest = Get-Content (Join-Path $repoRoot "docs\project-progress.manifest.json") -Raw | ConvertFrom-Json
 $phase6 = @($manifest.horizontal.items) | Where-Object id -eq "phase_6" | Select-Object -First 1
-Assert-True "manifest phase6 80" ([int]$phase6.percent -eq 80)
-Assert-True "manifest overall 82" ([int]$manifest.overall_percent -eq 82)
+Assert-True "manifest phase6 minimum 80" ([int]$phase6.percent -ge 80)
+Assert-True "manifest overall minimum 82" ([int]$manifest.overall_percent -ge 82)
 Assert-Contains "manifest marker" $phase6.status "phase6_3d_netcode_loopback_runtime_visible"
 Assert-Contains "manifest lockstep marker" $phase6.status "two_peer_lockstep_verified"
 Assert-Contains "manifest remote boundary" $phase6.status "remote_transport_boundary_closed"

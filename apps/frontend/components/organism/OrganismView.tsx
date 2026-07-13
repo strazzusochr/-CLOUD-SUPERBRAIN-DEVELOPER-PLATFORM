@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import CortexLive from "./CortexLive";
 import { HUBS, LAYERS, ORGANISM_AGENTS, STATE_LABEL, type RunState } from "./regionMap";
@@ -14,6 +14,19 @@ type LightingProfile = "studio" | "night" | "sunrise";
 type GameplayObjective = "collect" | "checkpoint" | "survive";
 type AssetProfile = "cube" | "beacon" | "ring";
 type MaterialVariant = "cyan" | "amber" | "rose";
+type LocalLeaderboardRun = {
+  captureSequence: number;
+  score: number;
+  completions: number;
+};
+type PerformanceSample = { fps: number; ms: number };
+type PerformanceSampleResult = {
+  status: "pass" | "fail";
+  reason: "budget" | "timeout" | "reduced_motion" | null;
+  sampleCount: number;
+  averageFps: number;
+  averageMs: number;
+};
 type Phase6SceneSnapshot = {
   autoRotate: boolean;
   reducedMotion: boolean;
@@ -57,6 +70,35 @@ const MATERIAL_VARIANTS: Array<{ id: MaterialVariant; label: string; color: stri
   { id: "amber", label: "Amber", color: "#f59e0b" },
   { id: "rose", label: "Rose", color: "#fb7185" },
 ];
+const LEADERBOARD_MAXIMUM_ENTRIES = 3;
+const PERFORMANCE_SAMPLE_COUNT = 12;
+const PERFORMANCE_MINIMUM_FPS = 25;
+const PERFORMANCE_MAXIMUM_MS = 40;
+const PERFORMANCE_SAMPLE_TIMEOUT_MS = 10_000;
+
+function rankLocalRuns(a: LocalLeaderboardRun, b: LocalLeaderboardRun): number {
+  return b.score - a.score
+    || b.completions - a.completions
+    || a.captureSequence - b.captureSequence;
+}
+
+function summarizePerformanceSamples(samples: PerformanceSample[]): PerformanceSampleResult {
+  const sampleCount = samples.length;
+  const averageFps = Math.round((samples.reduce((total, sample) => total + sample.fps, 0) / sampleCount) * 10) / 10;
+  const averageMs = Math.round((samples.reduce((total, sample) => total + sample.ms, 0) / sampleCount) * 10) / 10;
+  return {
+    status: averageFps >= PERFORMANCE_MINIMUM_FPS && averageMs <= PERFORMANCE_MAXIMUM_MS ? "pass" : "fail",
+    reason: averageFps >= PERFORMANCE_MINIMUM_FPS && averageMs <= PERFORMANCE_MAXIMUM_MS ? null : "budget",
+    sampleCount,
+    averageFps,
+    averageMs,
+  };
+}
+
+function failPerformanceSamples(samples: PerformanceSample[], reason: "timeout" | "reduced_motion"): PerformanceSampleResult {
+  if (samples.length === 0) return { status: "fail", reason, sampleCount: 0, averageFps: 0, averageMs: 0 };
+  return { ...summarizePerformanceSamples(samples), status: "fail", reason };
+}
 
 const HUB_LABEL_DE: Record<string, string> = {
   workbench: "WERKBANK",
@@ -199,6 +241,12 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
   const [netcodePackets, setNetcodePackets] = useState(0);
   const [netcodeSequence, setNetcodeSequence] = useState(0);
   const [netcodeDisconnects, setNetcodeDisconnects] = useState(0);
+  const [leaderboardRuns, setLeaderboardRuns] = useState<LocalLeaderboardRun[]>([]);
+  const [leaderboardCaptureSequence, setLeaderboardCaptureSequence] = useState(1);
+  const [performanceSamples, setPerformanceSamples] = useState<PerformanceSample[]>([]);
+  const [performanceSamplingActive, setPerformanceSamplingActive] = useState(false);
+  const [performanceResult, setPerformanceResult] = useState<PerformanceSampleResult | null>(null);
+  const performanceSamplesRef = useRef<PerformanceSample[]>([]);
 
   // Bind to the organism live-state feed: real when the configured agent-api is
   // reachable (source: "agent-api"), honest deterministic spec-only otherwise.
@@ -309,7 +357,6 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
 
   const hub = HUBS.find((h) => h.id === active);
   const effectiveReducedMotion = reducedMotion || systemReducedMotion;
-  const onStats = useCallback((fps: number, nodes: number, ms: number) => setStats({ fps, nodes, ms }), []);
   const onMode = useCallback((m: "2d" | "3d") => setRenderMode(m), []);
   const markInteraction = useCallback((kind: string, value: string) => {
     setInteractionStatus([
@@ -321,6 +368,17 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
       "live_mcp_writes=false",
     ].join("\n"));
   }, []);
+  const onStats = useCallback((fps: number, nodes: number, ms: number) => {
+    if (!Number.isFinite(fps) || !Number.isFinite(ms) || fps <= 0 || ms <= 0) return;
+    setStats({ fps, nodes, ms });
+    if (!performanceSamplingActive) return;
+    setPerformanceSamples((samples) => {
+      if (samples.length >= PERFORMANCE_SAMPLE_COUNT) return samples;
+      const next = [...samples, { fps, ms }];
+      performanceSamplesRef.current = next;
+      return next;
+    });
+  }, [performanceSamplingActive]);
   const selectRunState = useCallback((state: RunState) => {
     setRunState(state);
     markInteraction("run_state", state);
@@ -523,6 +581,59 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
     setNetcodeRunning(false);
     markInteraction("netcode_session", "closed");
   }, [markInteraction]);
+  const captureLeaderboardRun = useCallback(() => {
+    if (gameplayCompletions <= 0) return;
+    const run: LocalLeaderboardRun = {
+      captureSequence: leaderboardCaptureSequence,
+      score: gameplayScore,
+      completions: gameplayCompletions,
+    };
+    setLeaderboardRuns((runs) => [...runs, run].sort(rankLocalRuns).slice(0, LEADERBOARD_MAXIMUM_ENTRIES));
+    setLeaderboardCaptureSequence((sequence) => sequence + 1);
+    markInteraction("local_leaderboard_capture", `L${String(run.captureSequence).padStart(3, "0")}:${run.score}:${run.completions}`);
+  }, [gameplayCompletions, gameplayScore, leaderboardCaptureSequence, markInteraction]);
+  const resetLeaderboard = useCallback(() => {
+    setLeaderboardRuns([]);
+    setLeaderboardCaptureSequence(1);
+    markInteraction("local_leaderboard_reset", "volatile_top3:empty");
+  }, [markInteraction]);
+  const startPerformanceSampling = useCallback(() => {
+    if (!Number.isFinite(stats.fps) || !Number.isFinite(stats.ms) || stats.fps <= 0 || stats.ms <= 0 || effectiveReducedMotion) return;
+    performanceSamplesRef.current = [];
+    setPerformanceSamples([]);
+    setPerformanceResult(null);
+    setPerformanceSamplingActive(true);
+    markInteraction("performance_sample", "sampling:0/12");
+  }, [effectiveReducedMotion, markInteraction, stats.fps, stats.ms]);
+  const finishPerformanceSampling = useCallback(() => {
+    if (!performanceSamplingActive || performanceSamples.length !== PERFORMANCE_SAMPLE_COUNT) return;
+    const result = summarizePerformanceSamples(performanceSamples);
+    setPerformanceResult(result);
+    setPerformanceSamplingActive(false);
+    markInteraction("performance_sample", `${result.status}:${result.sampleCount}/12`);
+  }, [markInteraction, performanceSamples, performanceSamplingActive]);
+  const resetPerformanceSampling = useCallback(() => {
+    performanceSamplesRef.current = [];
+    setPerformanceSamplingActive(false);
+    setPerformanceSamples([]);
+    setPerformanceResult(null);
+    markInteraction("performance_sample", "idle:0/12");
+  }, [markInteraction]);
+  useEffect(() => {
+    if (!performanceSamplingActive) return;
+    const failSampling = (reason: "timeout" | "reduced_motion") => {
+      const result = failPerformanceSamples(performanceSamplesRef.current, reason);
+      setPerformanceResult(result);
+      setPerformanceSamplingActive(false);
+      markInteraction("performance_sample", `fail:${reason}:${result.sampleCount}/12`);
+    };
+    if (effectiveReducedMotion) {
+      failSampling("reduced_motion");
+      return;
+    }
+    const timeout = window.setTimeout(() => failSampling("timeout"), PERFORMANCE_SAMPLE_TIMEOUT_MS);
+    return () => window.clearTimeout(timeout);
+  }, [effectiveReducedMotion, markInteraction, performanceSamplingActive]);
   useEffect(() => {
     if (gameplayPaused || effectiveReducedMotion) return;
     const interval = window.setInterval(() => setGameplayTicks((value) => value + 1), 1000);
@@ -555,6 +666,8 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
   };
   const visibleEvents = runtimeFeed?.events.slice(-6).reverse() ?? [];
   const visibleFrames = runtimeFeed?.frames.slice(-4).reverse() ?? [];
+  const performanceStatus = performanceSamplingActive ? "sampling" : performanceResult?.status ?? "idle";
+  const rendererStatsReady = Number.isFinite(stats.fps) && Number.isFinite(stats.ms) && stats.fps > 0 && stats.ms > 0;
   const runtimeSourceLabel = runtimeFeed?.live
     ? `LIVE · ${runtimeFeed.sourceKind}`
     : feed?.live
@@ -914,6 +1027,136 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
               <div className="organism-netcode-state mono" data-testid="phase6-netcode-state" aria-live="polite">
                 transport=loopback · session_active={String(netcodeSessionActive)} · guest_connected={String(netcodeGuestConnected)} · host_ready={String(netcodeHostReady)} · guest_ready={String(netcodeGuestReady)} · running={String(netcodeRunning)} · ticks={netcodeTicks} · packets={netcodePackets} · sequence={netcodeSequence} · disconnects={netcodeDisconnects} · websocket=false · server_sync=false · public_lobby=false · local_only=true
               </div>
+            </div>
+            <div
+              className="organism-scoreboard-performance"
+              data-testid="phase6-scoreboard-performance-controls"
+              data-sync="false"
+              data-storage="false"
+              data-network="false"
+            >
+              <section className="organism-local-scoreboard" aria-labelledby="phase6-local-scoreboard-title">
+                <div className="organism-gameplay-heading">
+                  <span id="phase6-local-scoreboard-title" className="organism-control-label">Lokale Bestenliste</span>
+                  <span className="mono">Top 3 · volatile</span>
+                </div>
+                <div className="state-row organism-scoreboard-actions">
+                  <button
+                    type="button"
+                    className="state-btn active"
+                    data-testid="phase6-leaderboard-capture"
+                    onClick={captureLeaderboardRun}
+                    disabled={gameplayCompletions <= 0}
+                  >
+                    Run erfassen
+                  </button>
+                  <button
+                    type="button"
+                    className="state-btn"
+                    data-testid="phase6-leaderboard-reset"
+                    onClick={resetLeaderboard}
+                    disabled={leaderboardRuns.length === 0}
+                  >
+                    Bestenliste leeren
+                  </button>
+                </div>
+                <ol
+                  className="organism-leaderboard-list"
+                  data-testid="phase6-leaderboard-list"
+                  aria-label="Top drei lokale Gameplay-Runs"
+                  aria-describedby="phase6-leaderboard-order"
+                >
+                  {leaderboardRuns.length === 0 ? (
+                    <li className="organism-leaderboard-empty">Noch keine Runs erfasst</li>
+                  ) : leaderboardRuns.map((run, index) => (
+                    <li
+                      key={run.captureSequence}
+                      className="organism-leaderboard-entry"
+                      data-run-id={`L${String(run.captureSequence).padStart(3, "0")}`}
+                      data-capture-sequence={run.captureSequence}
+                      data-score={run.score}
+                      data-completions={run.completions}
+                    >
+                      <strong className="organism-leaderboard-rank">#{index + 1}</strong>
+                      <span className="mono organism-leaderboard-id">L{String(run.captureSequence).padStart(3, "0")}</span>
+                      <span><small>Score</small><strong>{run.score}</strong></span>
+                      <span><small>Ziele</small><strong>{run.completions}</strong></span>
+                    </li>
+                  ))}
+                </ol>
+                <span id="phase6-leaderboard-order" className="sr-only">
+                  Sortierung nach Score absteigend, abgeschlossenen Zielen absteigend und Erfassungsfolge aufsteigend.
+                </span>
+                <div className="organism-scoreboard-state mono" data-testid="phase6-leaderboard-state" role="status" aria-live="polite">
+                  entries={leaderboardRuns.length}/3 · sort=score_desc,completions_desc,capture_sequence_asc · sync=false · storage=false · network=false · local_only=true
+                </div>
+              </section>
+              <section className="organism-performance-sample" aria-labelledby="phase6-performance-sample-title">
+                <div className="organism-gameplay-heading">
+                  <span id="phase6-performance-sample-title" className="organism-control-label">Performance-Stichprobe</span>
+                  <span className="mono">12 Samples · client-only</span>
+                </div>
+                <div className="state-row organism-performance-actions">
+                  <button
+                    type="button"
+                    className="state-btn active"
+                    data-testid="phase6-performance-start"
+                    onClick={startPerformanceSampling}
+                    disabled={performanceSamplingActive || !rendererStatsReady || effectiveReducedMotion}
+                  >
+                    Messung starten
+                  </button>
+                  <button
+                    type="button"
+                    className="state-btn"
+                    data-testid="phase6-performance-finish"
+                    onClick={finishPerformanceSampling}
+                    disabled={!performanceSamplingActive || performanceSamples.length !== PERFORMANCE_SAMPLE_COUNT}
+                  >
+                    Messung abschliessen
+                  </button>
+                  <button
+                    type="button"
+                    className="state-btn"
+                    data-testid="phase6-performance-reset"
+                    onClick={resetPerformanceSampling}
+                    disabled={performanceStatus === "idle" && performanceSamples.length === 0}
+                  >
+                    Messung leeren
+                  </button>
+                </div>
+                <div className="organism-performance-metrics" aria-live="polite">
+                  <div><span>Aktuell</span><strong>{stats.fps} FPS</strong></div>
+                  <div><span>Frame-Intervall</span><strong>{stats.ms} ms</strong></div>
+                  <div><span>Samples</span><strong>{performanceSamples.length}/12</strong></div>
+                  <div><span>Budget</span><strong>≥25 FPS · ≤40 ms</strong></div>
+                </div>
+                <div
+                  className="organism-performance-state mono"
+                  data-testid="phase6-performance-state"
+                  data-samples={JSON.stringify(performanceSamples)}
+                  role="status"
+                  aria-live="polite"
+                >
+                  status={performanceStatus} · reason={performanceResult?.reason ?? "none"} · samples={performanceSamples.length}/12 · source=existing_renderer_stats · frame_ms=derived_from_fps · arithmetic_mean=true · rounding=1_decimal · min_fps=25 · max_ms=40 · timeout_ms=10000 · renderer_ready={String(rendererStatsReady)} · gpu_benchmark=false · evidence=local_interaction · capacity_claim=false · scale_claim=false · network=false · local_only=true
+                </div>
+                <output
+                  className={`organism-performance-result ${performanceResult ? performanceResult.status : "idle"}`}
+                  data-testid="phase6-performance-result"
+                  data-result={performanceStatus}
+                  data-reason={performanceResult?.reason ?? "none"}
+                  data-sample-count={performanceResult?.sampleCount ?? 0}
+                  data-average-fps={performanceResult?.averageFps.toFixed(1) ?? "0.0"}
+                  data-average-ms={performanceResult?.averageMs.toFixed(1) ?? "0.0"}
+                  aria-live="polite"
+                >
+                  {performanceResult
+                    ? `${performanceResult.status.toUpperCase()} · ${performanceResult.sampleCount} Samples · Ø ${performanceResult.averageFps.toFixed(1)} FPS · Ø ${performanceResult.averageMs.toFixed(1)} ms Frame-Intervall · ${performanceResult.reason ?? "budget_met"} · kein GPU-Benchmark`
+                    : performanceSamplingActive
+                      ? `SAMPLING · ${performanceSamples.length}/12`
+                      : "IDLE · keine abgeschlossene Stichprobe"}
+                </output>
+              </section>
             </div>
             <span className="cap-badge" title={`Renderer: ${caps.gpu}`}>
               <span className={`cap-dot ${caps.webgpu ? "gpu" : caps.webgl2 ? "ok" : "soft"}`} />

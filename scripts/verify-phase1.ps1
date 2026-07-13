@@ -528,7 +528,7 @@ foreach ($required in @(
 }
 foreach ($required in @(
   '{ id: "P4", pct: 99 }',
-  '{ id: "P6", pct: 80 }',
+  '{ id: "P6", pct: 90 }',
   "AGENTS",
   "MCP_TOOLS",
   "MODELS",
@@ -969,7 +969,7 @@ foreach ($requiredAiHandoffTerm in @(
   }
 }
 Write-Host "[verify] current truth mirror audit alignment"
-$currentAuditName = "external-gate-audit-20260712-145800.json"
+$currentAuditName = "external-gate-audit-20260713-030814.json"
 $masterGoal = Get-Content -Path "CODEX_MASTER_GOAL_FINALE.md" -Raw
 $currentTruthMirrors = @(
   @{ name = "PROJECT_STATE.md"; content = $projectState },
@@ -982,8 +982,8 @@ foreach ($mirror in $currentTruthMirrors) {
     throw "$($mirror.name) missing current external gate audit: $currentAuditName"
   }
 }
-if (-not $masterGoal.Contains('`overall=82`')) {
-  throw "CODEX_MASTER_GOAL_FINALE.md missing current overall=82 marker"
+if (-not $masterGoal.Contains('`overall=84`')) {
+  throw "CODEX_MASTER_GOAL_FINALE.md missing current overall=84 marker"
 }
 $externalGateSummary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
 if (-not ([string]$externalGateSummary.source_artifact).Contains($currentAuditName)) {
@@ -1419,6 +1419,9 @@ foreach ($required in @("PHASE6_3D_ACCESSIBILITY_CONTRACT_VERSION","PHASE6_3D_AC
 foreach ($required in @("PHASE6_3D_NETCODE_CONTRACT_VERSION","PHASE6_3D_NETCODE_EVIDENCE_REF","phase6_3d_netcode_loopback_runtime_contract_payload","/api/v1/phase6/3d-netcode/contract","phase6-3d-netcode-loopback-runtime-v1","phase6_3d_netcode_loopback_runtime_visible","two_peer_manual_lockstep_browser_loopback","remote_transport_boundary_closed","websocket_allowed","server_authoritative_sync_allowed")) {
   if (-not $apiTaskPolicySource.Contains($required)) { throw "Missing Phase 6 netcode loopback contract guard: $required" }
 }
+foreach ($required in @("PHASE6_LOCAL_SCOREBOARD_CONTRACT_VERSION","PHASE6_LOCAL_SCOREBOARD_EVIDENCE_REF","phase6_local_scoreboard_performance_runtime_contract_payload","/api/v1/phase6/local-scoreboard-performance/contract","phase6-local-scoreboard-performance-runtime-v1","phase6_local_scoreboard_performance_runtime_visible","volatile_top_three_runs_visible","bounded_frame_sample_visible","leaderboard_sync_allowed","persistent_storage_allowed","scale_capacity_claim_allowed")) {
+  if (-not $apiTaskPolicySource.Contains($required)) { throw "Missing Phase 6 local scoreboard/performance contract guard: $required" }
+}
 foreach ($required in @("SSE_BUFFER_LIMIT = 50", "Last-Event-ID", "record_sse_event", "replay_sse_events")) {
   if (-not $apiTaskPolicySource.Contains($required)) {
     throw "Missing SSE replay guard: $required"
@@ -1681,6 +1684,9 @@ foreach ($required in @("phase6-3d-accessibility-runtime-v1","phase6_3d_accessib
 }
 foreach ($required in @("phase6-3d-netcode-loopback-runtime-v1","phase6_3d_netcode_loopback_runtime_visible","/api/v1/phase6/3d-netcode/contract",'"maximum_peers":2','"websocket_allowed":false','"server_authoritative_sync_allowed":false')) {
   if (-not $runtimeVerifier.Contains($required)) { throw "Runtime verifier missing Phase 6 netcode loopback marker: $required" }
+}
+foreach ($required in @("phase6-local-scoreboard-performance-runtime-v1","phase6_local_scoreboard_performance_runtime_visible","/api/v1/phase6/local-scoreboard-performance/contract",'"leaderboard_maximum_entries":3','"performance_sample_count":12','"leaderboard_sync_allowed":false','"persistent_storage_allowed":false','"scale_capacity_claim_allowed":false')) {
+  if (-not $runtimeVerifier.Contains($required)) { throw "Runtime verifier missing Phase 6 local scoreboard/performance marker: $required" }
 }
 foreach ($required in @(
   "cloud-deployment-preflight-v1",
@@ -2304,10 +2310,20 @@ if (-not (Test-Path "scripts\verify-phase6-3d-netcode-loopback-runtime.ps1")) { 
 $phase6NetcodeParseErrors=$null; [Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase6-3d-netcode-loopback-runtime.ps1",[ref]$null,[ref]$phase6NetcodeParseErrors)|Out-Null
 if($phase6NetcodeParseErrors){$phase6NetcodeParseErrors|%{Write-Error $_.Message};throw "Netcode loopback verifier parse errors"}
 $phase6NetcodeVerifier=Get-Content "scripts\verify-phase6-3d-netcode-loopback-runtime.ps1" -Raw
-foreach($required in @("manifest phase6 80","manifest overall 82","Phase-6 netcode loopback enforces","phase6-netcode-loopback.png")){if(-not $phase6NetcodeVerifier.Contains($required)){throw "Netcode loopback verifier missing: $required"}}
+foreach($required in @("manifest phase6 minimum 80","manifest overall minimum 82","Phase-6 netcode loopback enforces","phase6-netcode-loopback.png")){if(-not $phase6NetcodeVerifier.Contains($required)){throw "Netcode loopback verifier missing: $required"}}
 foreach($required in @("phase6-netcode-controls","netcodeSessionActive","startLoopbackLockstep","advanceLoopbackTick","websocket=false","server_sync=false")){if(-not $phase6OrganismView.Contains($required)){throw "Netcode loopback UI missing: $required"}}
 foreach($required in @("function LoopbackPeer","data-netcode-transport","data-netcode-guest-connected","data-netcode-sequence","data-netcode-websocket")){if(-not $phase6CanvasSource.Contains($required)){throw "Netcode loopback Three.js source missing: $required"}}
 foreach($required in @("Phase-6 netcode loopback enforces","packets=5","sequence=5","phase6-netcode-loopback.png","websocket_allowed")){if(-not $phase6OrganismTest.Contains($required)){throw "Netcode loopback test missing: $required"}}
+if (-not (Test-Path "docs\runtime-contracts\phase6-local-scoreboard-performance-runtime.md")) { throw "Missing Phase 6 local scoreboard/performance document" }
+$phase6ScoreboardDoc = Get-Content "docs\runtime-contracts\phase6-local-scoreboard-performance-runtime.md" -Raw
+foreach ($required in @("phase6-local-scoreboard-performance-runtime-v1","phase6_local_scoreboard_performance_runtime_visible",'Phase 6 may move from `80%` to `90%`',"twelve-sample","DEV-ONLY")) { if(-not $phase6ScoreboardDoc.Contains($required)){throw "Local scoreboard/performance document missing: $required"} }
+if (-not (Test-Path "scripts\verify-phase6-local-scoreboard-performance-runtime.ps1")) { throw "Missing Phase 6 local scoreboard/performance verifier" }
+$phase6ScoreboardParseErrors=$null; [Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase6-local-scoreboard-performance-runtime.ps1",[ref]$null,[ref]$phase6ScoreboardParseErrors)|Out-Null
+if($phase6ScoreboardParseErrors){$phase6ScoreboardParseErrors|%{Write-Error $_.Message};throw "Local scoreboard/performance verifier parse errors"}
+$phase6ScoreboardVerifier=Get-Content "scripts\verify-phase6-local-scoreboard-performance-runtime.ps1" -Raw
+foreach($required in @("manifest phase6 90","manifest overall 84","Phase-6 local scoreboard and performance sample stay browser-local","phase6-local-scoreboard-performance.png")){if(-not $phase6ScoreboardVerifier.Contains($required)){throw "Local scoreboard/performance verifier missing: $required"}}
+foreach($required in @("phase6-scoreboard-performance-controls","phase6-leaderboard-capture","phase6-leaderboard-reset","phase6-performance-start","local_only=true","sync=false","storage=false","network=false")){if(-not $phase6OrganismView.Contains($required)){throw "Local scoreboard/performance UI missing: $required"}}
+foreach($required in @("Phase-6 local scoreboard and performance sample stay browser-local","phase6-local-scoreboard-performance.png","localStorage","indexedDB")){if(-not $phase6OrganismTest.Contains($required)){throw "Local scoreboard/performance test missing: $required"}}
 
 Write-Host "[verify] branch protection script"
 py -3 -m py_compile scripts\apply_github_branch_protection.py
@@ -2621,6 +2637,10 @@ foreach ($required in @(
   "verify-phase6-3d-netcode-loopback-runtime.ps1",
   "phase6-3d-netcode-loopback-runtime-v1",
   "phase6_3d_netcode_loopback_runtime_visible",
+  "Phase 6 local scoreboard and performance controls",
+  "verify-phase6-local-scoreboard-performance-runtime.ps1",
+  "phase6-local-scoreboard-performance-runtime-v1",
+  "phase6_local_scoreboard_performance_runtime_visible",
   '"can_set_all_to_100":false'
 )) {
   if (-not $browserContractScript.Contains($required)) {

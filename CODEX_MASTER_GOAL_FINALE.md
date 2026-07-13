@@ -41,12 +41,12 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   `/llm/...` + `/mcp/...`-Contracts live). Frontend-Origins umgebogen
   (`X-Superbrain-Source: live-agent-api`).
 - **External-Gate-Wahrheit:** Der neueste direkte No-Token-Audit
-  `.phase1-artifacts/external-gate-audit-20260712-145800.json` ist auf vier externen
+  `.phase1-artifacts/external-gate-audit-20260713-030814.json` ist auf vier externen
   Gates `blocked`. Der private Read-only-Bootstrap `000113` reduzierte die offene Menge
   auf Hosted-Staging und Vercel-Origins. Der temporaer
   konfigurierte Read-only-Lauf `20260711-215936` war vollstaendig gruen und beweist die
   Kandidaten-Endpunkte, ist aber nicht der Standardzustand. Das bindende Manifest steht bei
-  `overall=82`; Production wurde nicht ausgerollt.
+  `overall=84`; Production wurde nicht ausgerollt.
 - **Phase 1 ✔ (1.1–1.5), Phase 2 ✔ (2.1–2.3).** Class-Matrix A=85/B=0/C=5/D=4.
 - **Phase 3 deployt (~80 %):** S1 Build-Log-Grid, S2 Media/Docs-Entflechtung,
   S3 Apps-Kuration, S4 ehrliche Idle-Texte, S5 Hero-Labels, S6 /observe-Ehrlichkeit,

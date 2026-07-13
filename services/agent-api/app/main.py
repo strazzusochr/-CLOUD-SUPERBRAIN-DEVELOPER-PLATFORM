@@ -171,6 +171,8 @@ PHASE6_3D_ACCESSIBILITY_CONTRACT_VERSION = "phase6-3d-accessibility-runtime-v1"
 PHASE6_3D_ACCESSIBILITY_EVIDENCE_REF = "phase6_3d_accessibility_runtime_visible"
 PHASE6_3D_NETCODE_CONTRACT_VERSION = "phase6-3d-netcode-loopback-runtime-v1"
 PHASE6_3D_NETCODE_EVIDENCE_REF = "phase6_3d_netcode_loopback_runtime_visible"
+PHASE6_LOCAL_SCOREBOARD_CONTRACT_VERSION = "phase6-local-scoreboard-performance-runtime-v1"
+PHASE6_LOCAL_SCOREBOARD_EVIDENCE_REF = "phase6_local_scoreboard_performance_runtime_visible"
 CLOUD_DEPLOYMENT_PREFLIGHT_CONTRACT_VERSION = "cloud-deployment-preflight-v1"
 CLOUD_DEPLOYMENT_PREFLIGHT_EVIDENCE_REF = "cloud_deployment_preflight_visible"
 GO_LIVE_READINESS_CONTRACT_VERSION = "go-live-readiness-v1"
@@ -5023,6 +5025,104 @@ def phase6_3d_netcode_loopback_runtime_contract_payload() -> dict[str, object]:
     }
 
 
+def phase6_local_scoreboard_performance_runtime_contract_payload() -> dict[str, object]:
+    scenarios = [
+        {"scenario": "volatile_top_three_runs_visible", "decision": "rank_at_most_three_captured_gameplay_runs_in_browser_memory", "evidence_ref": "phase6_local_leaderboard_runtime_visible"},
+        {"scenario": "deterministic_score_ordering_visible", "decision": "sort_by_score_descending_then_completion_descending_then_capture_sequence_ascending", "evidence_ref": "phase6_deterministic_top3_ordering_verified"},
+        {"scenario": "leaderboard_reset_visible", "decision": "clear_all_volatile_entries_without_persistent_or_network_write", "evidence_ref": "phase6_local_leaderboard_reset_verified"},
+        {"scenario": "bounded_frame_sample_visible", "decision": "aggregate_existing_renderer_fps_and_frame_time_over_twelve_samples", "evidence_ref": "phase6_performance_sample_runtime_visible"},
+        {"scenario": "frame_budget_result_visible", "decision": "classify_pass_only_when_average_fps_is_at_least_twenty_five_and_average_frame_time_is_at_most_forty_ms", "evidence_ref": "phase6_frame_budget_classification_verified"},
+        {"scenario": "remote_score_sync_boundary_closed", "decision": "keep_leaderboard_sync_accounts_telemetry_and_persistent_storage_disabled", "evidence_ref": "phase6_leaderboard_sync_blocked"},
+        {"scenario": "capacity_claim_boundary_closed", "decision": "treat_client_frame_sample_as_local_interaction_evidence_not_scale_capacity", "evidence_ref": "phase6_capacity_claim_blocked"},
+        {"scenario": "phase6_progress_gate_bound_to_scoreboard_verifier", "decision": "raise_phase6_only_after_local_scoreboard_browser_and_manifest_proof", "evidence_ref": "phase6_local_scoreboard_progress_gate_visible"},
+    ]
+    guarded = [
+        {
+            **scenario,
+            "leaderboard_sync_started": False,
+            "persistent_storage_started": False,
+            "telemetry_started": False,
+            "network_calls": False,
+            "provider_write": False,
+            "live_mcp_write": False,
+            "production_deploy": False,
+            "secret_values_returned": False,
+            "release_promotion": False,
+            "scale_capacity_claimed": False,
+            "pass": True,
+        }
+        for scenario in scenarios
+    ]
+    return {
+        "contract_version": PHASE6_LOCAL_SCOREBOARD_CONTRACT_VERSION,
+        "mode": "phase6_volatile_scoreboard_bounded_frame_sample_contract",
+        "endpoint": "GET /api/v1/phase6/local-scoreboard-performance/contract",
+        "frontend_surface": "Organism local leaderboard and bounded performance sample controls",
+        "evidence_ref": PHASE6_LOCAL_SCOREBOARD_EVIDENCE_REF,
+        "netcode_evidence_ref": PHASE6_3D_NETCODE_EVIDENCE_REF,
+        "leaderboard_scope": "volatile_browser_memory",
+        "leaderboard_maximum_entries": 3,
+        "leaderboard_sort_order": ["score_desc", "completions_desc", "capture_sequence_asc"],
+        "leaderboard_entry_fields": ["capture_sequence", "score", "completions"],
+        "leaderboard_user_input_fields": [],
+        "score_source": "current_deterministic_gameplay_state",
+        "performance_sample_source": "existing_threejs_renderer_stats",
+        "performance_sample_count": 12,
+        "performance_sample_cadence": "renderer_stats_update_approximately_500ms",
+        "performance_aggregation": "arithmetic_mean_rounded_to_one_decimal",
+        "performance_frame_interval_semantics": "derived_from_fps_not_independent_gpu_timing",
+        "performance_invalid_sample_policy": "ignore_non_finite_zero_or_negative_samples",
+        "performance_timeout_seconds": 10,
+        "performance_timeout_result": "fail_renderer_inactive_timeout",
+        "performance_restart_policy": "discard_previous_samples_and_restart_at_zero",
+        "performance_minimum_fps": 25,
+        "performance_maximum_frame_ms": 40,
+        "performance_result_values": ["idle", "sampling", "pass", "fail"],
+        "browser_memory_only_required": True,
+        "leaderboard_sync_allowed": False,
+        "persistent_storage_allowed": False,
+        "account_identity_required": False,
+        "telemetry_allowed": False,
+        "network_calls_required": False,
+        "scale_capacity_claim_allowed": False,
+        "phase6_progress_after_proof": 90,
+        "phase6_progress_status_marker": "phase6_local_scoreboard_performance_runtime_visible-local_top3_frame_sample_verified",
+        "scenario_semantics": "static_policy_requirements_not_runtime_evidence",
+        "runtime_browser_evidence_required": True,
+        "scenario_count": len(guarded),
+        "pass_count": len(guarded),
+        "all_scenarios_pass": True,
+        "scenarios": guarded,
+        "guard_policy": {
+            "leaderboard_sync_started": False,
+            "persistent_storage_started": False,
+            "telemetry_started": False,
+            "network_calls": False,
+            "provider_write": False,
+            "live_mcp_write": False,
+            "production_deploy": False,
+            "secret_values_returned": False,
+            "release_promotion": False,
+            "scale_capacity_claimed": False,
+        },
+        "browser_proof_requirements": [
+            "captured gameplay runs are ranked deterministically and capped at three entries",
+            "leaderboard reset clears every volatile entry",
+            "bounded performance sampling reaches a terminal pass or fail result from real renderer stats",
+            "the sample result exposes count average fps average frame time and budget thresholds",
+            "scoreboard and sampling controls perform no fetch XHR WebSocket or persistent browser write",
+            "the Three.js canvas remains nonblank and browser console errors remain zero",
+        ],
+        "non_claims": [
+            "No account-backed, remote, hosted, or production leaderboard synchronization is started.",
+            "No LocalStorage, IndexedDB, cookie, cache, telemetry, provider, or server write is performed.",
+            "The bounded client frame sample is interaction evidence, not scale, load, concurrency, capacity, or production performance proof.",
+            "No provider write, live MCP write, deployment, secret output, or release promotion is performed.",
+            "Localhost proof remains DEV-ONLY.",
+        ],
+    }
+
+
 def cloud_deployment_preflight_state() -> dict[str, object]:
     def env_ready(keys: list[str]) -> bool:
         return all(bool(os.getenv(key)) for key in keys)
@@ -5615,7 +5715,7 @@ ORGANISM_PAGE_WIRING = {
     "home": {"brain_region": "sensory", "hub": "workbench", "primary_mode": "navigate", "data_sources": ["WORKSPACE_PAGES", "/api/v1/clouds", "/api/v1/project/progress/integrity"], "verifier_refs": WORKSPACE_COMMON_VERIFIERS, "event_kinds": ["planning", "blocked"]},
     "login": {"brain_region": "amygdala", "hub": "workbench", "primary_mode": "govern", "data_sources": ["/api/v1/auth/contract", "/api/v1/auth/github", "/api/v1/audit/recent"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1-runtime.ps1"], "event_kinds": ["verifying", "blocked"]},
     "workbench": {"brain_region": "prefrontal", "hub": "workbench", "primary_mode": "create", "data_sources": ["/api/v1/phase2/runtime/contract", "/api/v1/orchestrator/manifest/contract", "/api/v1/platform/verify", "/api/v1/orchestrator/checkpoints/contract", "/api/v1/orchestrator/dry-run", "/api/v1/orchestrator/dry-run/contract", "/api/v1/orchestrator/dry-run/stream", "/api/v1/orchestrator/dry-run/stream/contract", "/api/v1/orchestrator/manifest", "/api/v1/phase2/runtime/runs", "/api/v1/phase2/runtime/runs/contract", "/api/v1/phase2/runtime/start", "/api/v1/phase2/runtime/start/contract", "/api/v1/trace/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["planning", "executing", "verifying"]},
-    "organism": {"brain_region": "callosum", "hub": "workbench", "primary_mode": "inspect", "data_sources": ["/api/v1/organism/contract", "/api/v1/organism/live-state", "/api/v1/phase6/3d-camera-lighting/contract", "/api/v1/phase6/3d-gameplay-state/contract", "/api/v1/phase6/3d-asset-policy/contract", "/api/v1/phase6/3d-save-load/contract", "/api/v1/phase6/3d-accessibility/contract", "/api/v1/phase6/3d-netcode/contract", "/organism/core.glb"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["planning", "executing", "tool_call", "llm_call", "memory_read", "memory_write", "verifying", "blocked"]},
+    "organism": {"brain_region": "callosum", "hub": "workbench", "primary_mode": "inspect", "data_sources": ["/api/v1/organism/contract", "/api/v1/organism/live-state", "/api/v1/phase6/3d-camera-lighting/contract", "/api/v1/phase6/3d-gameplay-state/contract", "/api/v1/phase6/3d-asset-policy/contract", "/api/v1/phase6/3d-save-load/contract", "/api/v1/phase6/3d-accessibility/contract", "/api/v1/phase6/3d-netcode/contract", "/api/v1/phase6/local-scoreboard-performance/contract", "/organism/core.glb"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["planning", "executing", "tool_call", "llm_call", "memory_read", "memory_write", "verifying", "blocked"]},
     "organism-replay": {"brain_region": "hippocampus", "hub": "observe", "primary_mode": "inspect", "data_sources": ["/api/v1/organism/replay", "/api/v1/organism/events"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["memory_read", "verifying", "blocked"]},
     "organism-map": {"brain_region": "thalamus", "hub": "cloud", "primary_mode": "inspect", "data_sources": ["/api/v1/organism/topology", "/api/v1/organism/regions", "/api/v1/organism/safety"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["planning", "verifying", "blocked"]},
     "agents": {"brain_region": "motor", "hub": "agents", "primary_mode": "inspect", "data_sources": ["/api/v1/agents/status", "/api/v1/agent-activity/recent", "/api/v1/tasks/assignment-contract", "/api/v1/agent-activity/contract", "/api/v1/agents/llm-streaming-contract", "/api/v1/agents/profiles", "/api/v1/agents/profiles/contract", "/api/v1/live-agents/contract", "/api/v1/live-agents/status", "/api/v1/live-agents/steer", "/api/v1/task/dispatch/contract", "/api/v1/task/dispatches/recent", "/api/v1/tasks/policy", "/api/v1/tasks/policy/contract", "/api/v1/tasks/policy/validate", "/api/v1/tasks/recent", "/api/v1/tasks/recent/contract", "/api/v1/team/master-plan", "/api/v1/team/master-plan/contract", "/api/v1/team/roster", "/api/v1/team/roster/contract", "/api/v1/team/status", "/api/v1/team/status/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1-runtime.ps1"], "event_kinds": ["planning", "executing", "verifying", "blocked"]},
@@ -6487,6 +6587,11 @@ def phase6_3d_accessibility_runtime_contract() -> dict[str, object]:
 @app.get("/api/v1/phase6/3d-netcode/contract")
 def phase6_3d_netcode_loopback_runtime_contract() -> dict[str, object]:
     return phase6_3d_netcode_loopback_runtime_contract_payload()
+
+
+@app.get("/api/v1/phase6/local-scoreboard-performance/contract")
+def phase6_local_scoreboard_performance_runtime_contract() -> dict[str, object]:
+    return phase6_local_scoreboard_performance_runtime_contract_payload()
 
 
 @app.get("/api/v1/clouds/deployment-preflight")

@@ -69,7 +69,7 @@ export const WORKSPACE_WIRING: WorkspaceSurfaceWiring[] = [
     brainRegion: "callosum",
     hub: "workbench",
     primaryMode: "inspect",
-    dataSources: ["/api/v1/organism/contract", "/api/v1/organism/live-state", "/api/v1/phase6/3d-camera-lighting/contract", "/api/v1/phase6/3d-gameplay-state/contract", "/api/v1/phase6/3d-asset-policy/contract", "/api/v1/phase6/3d-save-load/contract", "/api/v1/phase6/3d-accessibility/contract", "/api/v1/phase6/3d-netcode/contract", "/organism/core.glb"],
+    dataSources: ["/api/v1/organism/contract", "/api/v1/organism/live-state", "/api/v1/phase6/3d-camera-lighting/contract", "/api/v1/phase6/3d-gameplay-state/contract", "/api/v1/phase6/3d-asset-policy/contract", "/api/v1/phase6/3d-save-load/contract", "/api/v1/phase6/3d-accessibility/contract", "/api/v1/phase6/3d-netcode/contract", "/api/v1/phase6/local-scoreboard-performance/contract", "/organism/core.glb"],
     verifierRefs: [...commonVerifierRefs, "apps/frontend/e2e/organism.spec.ts"],
     eventKinds: ["planning", "executing", "tool_call", "llm_call", "memory_read", "memory_write", "verifying", "blocked"],
     live: false,

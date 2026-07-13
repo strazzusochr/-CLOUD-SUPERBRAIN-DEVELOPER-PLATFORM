@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const phase6ArtifactDir = process.env.PHASE6_ARTIFACT_DIR?.trim();
@@ -817,6 +817,331 @@ test.describe("Cloud Superbrain platform", () => {
 
     expect(netcodeRequests, "netcode loopback controls perform no network transport").toEqual([]);
     expect(errors, "no console/page errors during netcode loopback interactions").toEqual([]);
+  });
+
+  test("organism Phase-6 local scoreboard and performance sample stay browser-local", async ({ page }) => {
+    test.setTimeout(240_000);
+    const contractResponse = await page.request.get("/api/v1/phase6/local-scoreboard-performance/contract");
+    expect(contractResponse.status()).toBe(200);
+    const contract = await contractResponse.json();
+    expect(contract.contract_version).toBe("phase6-local-scoreboard-performance-runtime-v1");
+    expect(contract.leaderboard_maximum_entries).toBe(3);
+    expect(contract.leaderboard_sort_order).toEqual(["score_desc", "completions_desc", "capture_sequence_asc"]);
+    expect(contract.score_source).toBe("current_deterministic_gameplay_state");
+    expect(contract.performance_sample_source).toBe("existing_threejs_renderer_stats");
+    expect(contract.performance_sample_count).toBe(12);
+    expect(contract.performance_minimum_fps).toBe(25);
+    expect(contract.performance_maximum_frame_ms).toBe(40);
+    expect(contract.leaderboard_sync_allowed).toBe(false);
+    expect(contract.persistent_storage_allowed).toBe(false);
+    expect(contract.telemetry_allowed).toBe(false);
+    expect(contract.network_calls_required).toBe(false);
+    expect(contract.scale_capacity_claim_allowed).toBe(false);
+
+    const errors: string[] = [];
+    const localRequests: string[] = [];
+    const webSockets: string[] = [];
+    let captureLocalRequests = false;
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("console", (message) => message.type() === "error" && errors.push(message.text()));
+    page.on("request", (request) => {
+      if (captureLocalRequests && ["fetch", "xhr"].includes(request.resourceType())) localRequests.push(request.url());
+    });
+    page.on("websocket", (socket) => {
+      if (captureLocalRequests) webSockets.push(socket.url());
+    });
+
+    await page.goto("/organism", { waitUntil: "networkidle" });
+    const controls = page.getByTestId("phase6-scoreboard-performance-controls");
+    const leaderboard = page.getByTestId("phase6-leaderboard-list");
+    const leaderboardState = page.getByTestId("phase6-leaderboard-state");
+    const capture = page.getByTestId("phase6-leaderboard-capture");
+    const performanceState = page.getByTestId("phase6-performance-state");
+    const performanceResult = page.getByTestId("phase6-performance-result");
+    await expect(controls).toBeVisible();
+    await expect(controls).toHaveAttribute("data-sync", "false");
+    await expect(controls).toHaveAttribute("data-storage", "false");
+    await expect(controls).toHaveAttribute("data-network", "false");
+    await expect(capture).toBeDisabled();
+    await expect(leaderboard).toContainText("Noch keine Runs erfasst");
+    await expect(leaderboardState).toContainText("entries=0/3");
+    await expect(leaderboardState).toContainText("sync=false");
+    await expect(performanceState).toContainText("status=idle");
+    await expect(performanceResult).toHaveAttribute("data-result", "idle");
+
+    const cookieBefore = await page.evaluate(() => document.cookie);
+    const persistenceBefore = await page.evaluate(async () => ({
+      localStorage: Object.fromEntries(Array.from({ length: window.localStorage.length }, (_, index) => {
+        const key = window.localStorage.key(index) ?? "";
+        return [key, window.localStorage.getItem(key)];
+      })),
+      sessionStorage: Object.fromEntries(Array.from({ length: window.sessionStorage.length }, (_, index) => {
+        const key = window.sessionStorage.key(index) ?? "";
+        return [key, window.sessionStorage.getItem(key)];
+      })),
+      indexedDbNames: typeof indexedDB.databases === "function"
+        ? (await indexedDB.databases()).map((database) => database.name ?? "").sort()
+        : [],
+    }));
+    await page.evaluate(() => {
+      const counters = {
+        fetch: 0,
+        xhr: 0,
+        websocket: 0,
+        eventsource: 0,
+        sendBeacon: 0,
+        webrtc: 0,
+        storageSetItem: 0,
+        storageRemoveItem: 0,
+        storageClear: 0,
+        indexedDbOpen: 0,
+        indexedDbDelete: 0,
+        cacheStorage: 0,
+        serviceWorkerRegister: 0,
+        cookieWrite: 0,
+      };
+      type CounterKey = keyof typeof counters;
+      const guardedWindow = window as Window & { __phase6GuardCalls?: typeof counters };
+      guardedWindow.__phase6GuardCalls = counters;
+      const record = (key: CounterKey) => { counters[key] += 1; };
+      const wrapMethod = (target: object, property: string, key: CounterKey) => {
+        const original = Reflect.get(target, property);
+        if (typeof original !== "function") return;
+        Object.defineProperty(target, property, {
+          configurable: true,
+          writable: true,
+          value: function guardedMethod(this: unknown, ...args: unknown[]) {
+            record(key);
+            return Reflect.apply(original, this, args);
+          },
+        });
+      };
+      const wrapConstructor = (target: object, property: string, key: CounterKey) => {
+        const original = Reflect.get(target, property);
+        if (typeof original !== "function") return;
+        const guarded = new Proxy(original, {
+          construct(constructor, args, newTarget) {
+            record(key);
+            return Reflect.construct(constructor, args, newTarget);
+          },
+        });
+        Reflect.set(target, property, guarded);
+      };
+
+      wrapMethod(window, "fetch", "fetch");
+      wrapMethod(XMLHttpRequest.prototype, "open", "xhr");
+      wrapConstructor(window, "WebSocket", "websocket");
+      wrapConstructor(window, "EventSource", "eventsource");
+      wrapMethod(navigator, "sendBeacon", "sendBeacon");
+      wrapConstructor(window, "RTCPeerConnection", "webrtc");
+      wrapConstructor(window, "webkitRTCPeerConnection", "webrtc");
+      wrapMethod(Storage.prototype, "setItem", "storageSetItem");
+      wrapMethod(Storage.prototype, "removeItem", "storageRemoveItem");
+      wrapMethod(Storage.prototype, "clear", "storageClear");
+      wrapMethod(IDBFactory.prototype, "open", "indexedDbOpen");
+      wrapMethod(IDBFactory.prototype, "deleteDatabase", "indexedDbDelete");
+      if ("caches" in window) {
+        const cachePrototype = Object.getPrototypeOf(window.caches) as object;
+        for (const method of ["open", "delete", "match", "keys"]) wrapMethod(cachePrototype, method, "cacheStorage");
+      }
+      if (navigator.serviceWorker) wrapMethod(Object.getPrototypeOf(navigator.serviceWorker) as object, "register", "serviceWorkerRegister");
+      const cookieDescriptor = Object.getOwnPropertyDescriptor(Document.prototype, "cookie");
+      if (cookieDescriptor?.configurable && cookieDescriptor.get && cookieDescriptor.set) {
+        Object.defineProperty(Document.prototype, "cookie", {
+          configurable: true,
+          enumerable: cookieDescriptor.enumerable,
+          get: cookieDescriptor.get,
+          set(value: string) {
+            record("cookieWrite");
+            cookieDescriptor.set?.call(this, value);
+          },
+        });
+      }
+    });
+
+    captureLocalRequests = true;
+    await page.getByTestId("phase6-gameplay-pause").click();
+    await expect(page.getByTestId("phase6-gameplay-state")).toContainText("paused=true");
+
+    await page.getByTestId("phase6-gameplay-complete").click();
+    await expect(page.getByTestId("phase6-gameplay-state")).toContainText("completions=1");
+    await capture.click();
+
+    await page.getByTestId("phase6-gameplay-reset").click();
+    await page.getByTestId("phase6-gameplay-complete").click();
+    await page.getByTestId("phase6-gameplay-complete").click();
+    await expect(page.getByTestId("phase6-gameplay-state")).toContainText("score=10");
+    await expect(page.getByTestId("phase6-gameplay-state")).toContainText("completions=2");
+    await capture.click();
+
+    await page.getByTestId("phase6-gameplay-reset").click();
+    await page.getByTestId("phase6-gameplay-complete").click();
+    await page.getByTestId("phase6-gameplay-complete").click();
+    await page.getByTestId("phase6-gameplay-complete").click();
+    await expect(page.getByTestId("phase6-gameplay-state")).toContainText("score=20");
+    await expect(page.getByTestId("phase6-gameplay-state")).toContainText("completions=3");
+    await capture.click();
+    await capture.click();
+
+    await expect(leaderboard.locator("li")).toHaveCount(3);
+    await expect(leaderboardState).toContainText("entries=3/3");
+    await expect(leaderboardState).toContainText("sort=score_desc,completions_desc,capture_sequence_asc");
+    const rankedRunIds = await leaderboard.locator("li").evaluateAll((entries) => entries.map((entry) => entry.getAttribute("data-run-id")));
+    expect(rankedRunIds, "score, completion, then capture-sequence ordering").toEqual(["L003", "L004", "L002"]);
+    await expect(leaderboard.locator("li").nth(0)).toContainText("#1");
+    await expect(leaderboard.locator("li").nth(0)).toContainText("Score20");
+    await expect(leaderboard.locator("li").nth(1)).toContainText("L004");
+
+    const observedTop3 = await leaderboard.locator("li").evaluateAll((entries) => entries.map((entry, index) => ({
+      rank: index + 1,
+      runId: entry.getAttribute("data-run-id"),
+      captureSequence: Number(entry.getAttribute("data-capture-sequence")),
+      score: Number(entry.getAttribute("data-score")),
+      completions: Number(entry.getAttribute("data-completions")),
+    })));
+    await page.getByTestId("phase6-gameplay-reset").click();
+    await page.getByTestId("phase6-gameplay-complete").click();
+    expect(await leaderboard.locator("li").evaluateAll((entries) => entries.map((entry) => entry.getAttribute("data-run-id"))), "captured run snapshots do not follow later gameplay mutations").toEqual(["L003", "L004", "L002"]);
+    await expect(leaderboard.locator("li").nth(0)).toHaveAttribute("data-score", "20");
+
+    const performanceStart = page.getByTestId("phase6-performance-start");
+    await expect(performanceState).toContainText("renderer_ready=true", { timeout: 10_000 });
+    await expect(performanceStart).toBeEnabled();
+    await performanceStart.click();
+    await expect(performanceState).toContainText("status=sampling");
+    await expect(performanceState).toContainText("min_fps=25");
+    await expect(performanceState).toContainText("max_ms=40");
+    await expect(performanceState).toContainText("capacity_claim=false");
+    await expect(performanceState).toContainText("scale_claim=false");
+    await expect(performanceState).toContainText("gpu_benchmark=false");
+    await expect(performanceState).toContainText("frame_ms=derived_from_fps");
+    await expect(performanceState).toContainText("samples=12/12", { timeout: 18_000 });
+    await page.getByTestId("phase6-performance-finish").click();
+    await expect(performanceState).toContainText(/status=(pass|fail)/);
+    await expect(performanceResult).toHaveAttribute("data-result", /pass|fail/);
+    await expect(performanceResult).toContainText("12 Samples");
+
+    const rawSamples = JSON.parse(await performanceState.getAttribute("data-samples") ?? "[]") as Array<{ fps: number; ms: number }>;
+    expect(rawSamples).toHaveLength(12);
+    expect(rawSamples.every((sample) => Number.isFinite(sample.fps) && Number.isFinite(sample.ms) && sample.fps > 0 && sample.ms > 0)).toBeTruthy();
+    const averageFps = Number(await performanceResult.getAttribute("data-average-fps"));
+    const averageMs = Number(await performanceResult.getAttribute("data-average-ms"));
+    expect((await performanceResult.getAttribute("data-average-fps")) ?? "").toMatch(/^\d+\.\d$/);
+    expect((await performanceResult.getAttribute("data-average-ms")) ?? "").toMatch(/^\d+\.\d$/);
+    const expectedAverageFps = Math.round((rawSamples.reduce((sum, sample) => sum + sample.fps, 0) / 12) * 10) / 10;
+    const expectedAverageMs = Math.round((rawSamples.reduce((sum, sample) => sum + sample.ms, 0) / 12) * 10) / 10;
+    expect(averageFps).toBe(expectedAverageFps);
+    expect(averageMs).toBe(expectedAverageMs);
+    const expectedClassification = averageFps >= 25 && averageMs <= 40 ? "pass" : "fail";
+    expect(await performanceResult.getAttribute("data-result")).toBe(expectedClassification);
+
+    const canvas = page.locator("canvas").first();
+    const canvasProof = await canvas.screenshot();
+    expect(canvasProof.length, "scoreboard performance canvas screenshot bytes").toBeGreaterThan(25_000);
+    const canvasPngDataUrl = `data:image/png;base64,${canvasProof.toString("base64")}`;
+    const pixelStats = await page.evaluate(async (pngDataUrl) => {
+      const source = new Image();
+      source.src = pngDataUrl;
+      await source.decode();
+      const raster = document.createElement("canvas");
+      raster.width = 32;
+      raster.height = 32;
+      const context = raster.getContext("2d", { willReadFrequently: true });
+      if (!context) throw new Error("2D pixel probe unavailable");
+      context.drawImage(source, 0, 0, raster.width, raster.height);
+      const pixels = context.getImageData(0, 0, raster.width, raster.height).data;
+      let nonZeroSamples = 0;
+      const buckets = new Set<string>();
+      for (let offset = 0; offset < pixels.length; offset += 4) {
+        const red = pixels[offset];
+        const green = pixels[offset + 1];
+        const blue = pixels[offset + 2];
+        const alpha = pixels[offset + 3];
+        if (alpha > 0 && red + green + blue > 0) nonZeroSamples += 1;
+        if (alpha > 0) buckets.add(`${red >> 4}:${green >> 4}:${blue >> 4}:${alpha >> 6}`);
+      }
+      return { width: raster.width, height: raster.height, nonZeroSamples, uniqueColorBuckets: buckets.size };
+    }, canvasPngDataUrl);
+    expect(pixelStats.nonZeroSamples, "canvas pixel raster contains visible color samples").toBeGreaterThan(100);
+    expect(pixelStats.uniqueColorBuckets, "canvas pixel raster has varied color buckets").toBeGreaterThan(8);
+
+    const artifactPath = phase6ArtifactPath("phase6-local-scoreboard-performance.png");
+    if (artifactPath) {
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({ path: artifactPath, fullPage: true });
+    }
+
+    await page.getByTestId("phase6-performance-reset").click();
+    await performanceStart.click();
+    await expect(performanceState).toContainText(/samples=[01]\/12/);
+    await page.getByTestId("phase6-reduced-motion-toggle").click();
+    await expect(performanceState).toContainText("status=fail");
+    await expect(performanceState).toContainText("reason=reduced_motion");
+    await expect(performanceResult).toHaveAttribute("data-reason", "reduced_motion");
+    await page.getByTestId("phase6-reduced-motion-toggle").click();
+    await expect(page.locator("canvas").first()).toBeVisible();
+    await page.getByTestId("phase6-performance-reset").click();
+
+    await page.getByTestId("phase6-leaderboard-reset").click();
+    await expect(leaderboard).toContainText("Noch keine Runs erfasst");
+    await expect(leaderboardState).toContainText("entries=0/3");
+    await expect(page.getByTestId("phase6-leaderboard-reset")).toBeDisabled();
+    await capture.click();
+    await expect(leaderboard.locator("li")).toHaveCount(1);
+    await expect(leaderboard.locator("li").first()).toHaveAttribute("data-run-id", "L001");
+
+    const cookieAfterControls = await page.evaluate(() => document.cookie);
+    expect(cookieAfterControls, "controls do not mutate document.cookie").toBe(cookieBefore);
+    const persistenceAfter = await page.evaluate(async () => ({
+      localStorage: Object.fromEntries(Array.from({ length: window.localStorage.length }, (_, index) => {
+        const key = window.localStorage.key(index) ?? "";
+        return [key, window.localStorage.getItem(key)];
+      })),
+      sessionStorage: Object.fromEntries(Array.from({ length: window.sessionStorage.length }, (_, index) => {
+        const key = window.sessionStorage.key(index) ?? "";
+        return [key, window.sessionStorage.getItem(key)];
+      })),
+      indexedDbNames: typeof indexedDB.databases === "function"
+        ? (await indexedDB.databases()).map((database) => database.name ?? "").sort()
+        : [],
+    }));
+    expect(persistenceAfter, "controls do not alter LocalStorage, SessionStorage, or IndexedDB names").toEqual(persistenceBefore);
+    const guardCounters = await page.evaluate(() => {
+      const guardedWindow = window as Window & { __phase6GuardCalls?: Record<string, number> };
+      return guardedWindow.__phase6GuardCalls ?? {};
+    });
+    expect(Object.values(guardCounters).every((count) => count === 0), "network and persistence API guard counters remain zero").toBeTruthy();
+
+    const observedPath = phase6ArtifactPath("phase6-local-scoreboard-performance-observed.json");
+    if (observedPath) {
+      writeFileSync(observedPath, JSON.stringify({
+        contractVersion: contract.contract_version,
+        leaderboard: { maximumEntries: 3, observedTop3 },
+        performance: {
+          samples: rawSamples,
+          averages: { fps: averageFps, frameIntervalMs: averageMs },
+          terminalClassification: expectedClassification,
+          thresholds: { minimumFps: 25, maximumFrameIntervalMs: 40 },
+          frameIntervalSource: "derived_from_fps",
+          evidenceScope: "local_interaction",
+          gpuBenchmarkClaimed: false,
+        },
+        guards: { ...guardCounters, playwrightFetchXhr: localRequests.length, playwrightWebsocket: webSockets.length },
+        pixelStats,
+        viewport: page.viewportSize(),
+        nonClaims: { sync: false, storage: false, network: false, capacityClaim: false, scaleClaim: false },
+      }, null, 2), "utf8");
+    }
+
+    captureLocalRequests = false;
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 });
+    await expect(page.getByTestId("phase6-leaderboard-list")).toContainText("Noch keine Runs erfasst");
+    await expect(page.getByTestId("phase6-leaderboard-state")).toContainText("entries=0/3");
+    expect(await page.evaluate(() => document.cookie), "reload creates no scoreboard cookie persistence").toBe(cookieBefore);
+
+    expect(localRequests, "scoreboard and performance controls perform no fetch or XHR").toEqual([]);
+    expect(webSockets, "scoreboard and performance controls open no WebSocket").toEqual([]);
+    expect(errors, "no console/page errors during scoreboard and performance interactions").toEqual([]);
   });
 
   test("organism UI renders redaction-aware runtime feed and replay surface", async ({ page }) => {

@@ -662,6 +662,19 @@ if ($isLocalProof) {
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase6-3d-netcode-loopback-runtime.ps1 -BaseUrl $BaseUrl -AllowLocalhost
   if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: Phase 6 netcode loopback verifier" }
 }
+$phase6ScoreboardContract = Invoke-Text "$BaseUrl/api/v1/phase6/local-scoreboard-performance/contract"
+Assert-Contains "phase6 scoreboard contract version" $phase6ScoreboardContract '"contract_version":"phase6-local-scoreboard-performance-runtime-v1"'
+Assert-Contains "phase6 scoreboard evidence" $phase6ScoreboardContract '"evidence_ref":"phase6_local_scoreboard_performance_runtime_visible"'
+Assert-Contains "phase6 scoreboard maximum" $phase6ScoreboardContract '"leaderboard_maximum_entries":3'
+Assert-Contains "phase6 scoreboard sample count" $phase6ScoreboardContract '"performance_sample_count":12'
+Assert-Contains "phase6 scoreboard no sync" $phase6ScoreboardContract '"leaderboard_sync_allowed":false'
+Assert-Contains "phase6 scoreboard no persistence" $phase6ScoreboardContract '"persistent_storage_allowed":false'
+Assert-Contains "phase6 scoreboard no capacity claim" $phase6ScoreboardContract '"scale_capacity_claim_allowed":false'
+if ($isLocalProof) {
+  Write-Host "[browser-contract] Phase 6 local scoreboard and performance controls"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase6-local-scoreboard-performance-runtime.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: Phase 6 local scoreboard/performance verifier" }
+}
 $organismTopology = Invoke-Text "$BaseUrl/api/v1/organism/topology"
 Assert-Contains "organism topology version" $organismTopology '"contract_version":"organism-topology-v1"'
 Assert-Contains "organism topology layer node" $organismTopology '"id":"layer:FE"'

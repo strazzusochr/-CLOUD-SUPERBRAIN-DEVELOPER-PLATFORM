@@ -1367,16 +1367,136 @@ p {
   color: var(--cyan);
   font-size: 10.5px;
 }
+.organism-scoreboard-performance {
+  flex-basis: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.organism-local-scoreboard,
+.organism-performance-sample {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+}
+.organism-local-scoreboard { padding-right: 16px; }
+.organism-performance-sample {
+  padding-left: 16px;
+  border-left: 1px solid var(--border);
+}
+.organism-scoreboard-actions,
+.organism-performance-actions {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.organism-leaderboard-list {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.organism-leaderboard-entry {
+  display: grid;
+  grid-template-columns: 30px 48px repeat(2, minmax(48px, 1fr));
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--panel) 78%, transparent);
+}
+.organism-leaderboard-rank { color: var(--cyan); font-size: 13px; }
+.organism-leaderboard-id { color: var(--text-mut); font-size: 10.5px; }
+.organism-leaderboard-entry > span:not(.organism-leaderboard-id) {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.organism-leaderboard-entry small {
+  color: var(--text-dim);
+  font-size: 9px;
+}
+.organism-leaderboard-entry span strong {
+  color: var(--text-pri);
+  font-size: 12px;
+}
+.organism-leaderboard-empty {
+  min-height: 44px;
+  padding: 12px 10px;
+  border: 1px dashed var(--border);
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.organism-scoreboard-state,
+.organism-performance-state {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--cyan);
+  font-size: 10.5px;
+}
+.organism-performance-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.organism-performance-metrics > div {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--border);
+}
+.organism-performance-metrics span,
+.organism-performance-metrics strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.organism-performance-metrics span { color: var(--text-dim); font-size: 9px; }
+.organism-performance-metrics strong { margin-top: 3px; color: var(--text-pri); font-size: 11px; }
+.organism-performance-result {
+  display: block;
+  min-width: 0;
+  padding: 9px 10px;
+  border-left: 3px solid var(--border-hi);
+  background: color-mix(in srgb, var(--panel) 78%, transparent);
+  color: var(--text-mut);
+  font-size: 11px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.organism-performance-result.pass {
+  border-left-color: var(--green);
+  color: var(--green);
+}
+.organism-performance-result.fail {
+  border-left-color: var(--red);
+  color: var(--red);
+}
 @media (max-width: 980px) {
   .organism-camera-lighting { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .organism-gameplay-hud { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .organism-asset-policy-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .organism-asset-reset { justify-self: start; }
+  .organism-scoreboard-performance { grid-template-columns: minmax(0, 1fr); }
+  .organism-local-scoreboard { padding-right: 0; padding-bottom: 14px; }
+  .organism-performance-sample {
+    padding-top: 14px;
+    padding-left: 0;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
 }
 @media (max-width: 560px) {
   .organism-camera-lighting { grid-template-columns: minmax(0, 1fr); }
   .organism-gameplay-hud { grid-template-columns: minmax(0, 1fr); }
   .organism-asset-policy-grid { grid-template-columns: minmax(0, 1fr); }
+  .organism-leaderboard-entry { grid-template-columns: 28px 46px repeat(2, minmax(48px, 1fr)); }
+  .organism-leaderboard-entry > span:nth-last-child(-n + 2) { grid-column: span 1; }
+  .organism-performance-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .organism-filters-row { gap: 16px; flex-wrap: wrap; align-items: flex-start; }
 

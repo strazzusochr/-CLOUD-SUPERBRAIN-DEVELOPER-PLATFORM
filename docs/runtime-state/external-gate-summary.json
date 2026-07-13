@@ -1,8 +1,8 @@
 ﻿{
     "contract_version":  "external-gate-summary-v1",
     "source_contract_version":  "external-gate-audit-v1",
-    "source_artifact":  ".phase1-artifacts\\external-gate-audit-20260712-145800.json",
-    "generated_at_utc":  "2026-07-12T12:58:00.6170519Z",
+    "source_artifact":  ".phase1-artifacts\\external-gate-audit-20260713-030814.json",
+    "generated_at_utc":  "2026-07-13T01:08:14.8101232Z",
     "status":  "blocked",
     "gate_ids":  [
                      "hosted_agent_api_contracts",
