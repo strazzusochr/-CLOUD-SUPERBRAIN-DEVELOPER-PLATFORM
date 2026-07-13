@@ -531,7 +531,7 @@ foreach ($required in @(
   '{ name: "Frontend", layer: 1, pct: 100 }',
   '{ name: "Orchestrator", layer: 2, pct: 100 }',
   '{ id: "P3", pct: 43 }',
-  '{ id: "P4", pct: 99 }',
+  '{ id: "P4", pct: 100 }',
   '{ id: "P5", pct: 68 }',
   '{ id: "P6", pct: 90 }',
   "AGENTS",
@@ -870,7 +870,8 @@ foreach ($requiredHostedBoundaryTerm in @(
   'Current Hosted Boundary',
   'historical provenance only',
   'Current frontend truth is `frontend-hosted-current-proof-v1`',
-  'backend and release truth remains the latest `external-gate-audit-*` artifact plus reachable Agent API, MCP Gateway, and LLM Gateway HTTPS origins'
+  'current contract-origin truth is the latest `external-gate-audit-*` artifact plus reachable Agent API, MCP Gateway, and LLM Gateway HTTPS origins',
+  'Neither one proves a stateful full-backend rollout, release promotion, or full-platform production release'
 )) {
   if (-not $verificationRegister.Contains($requiredHostedBoundaryTerm)) {
     throw "Verification register missing current hosted boundary marker: $requiredHostedBoundaryTerm"

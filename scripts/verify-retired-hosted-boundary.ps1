@@ -49,13 +49,14 @@ Assert-NotContains "PROJECT_STATE next safe work" $projectState "authoritative h
 Assert-Contains "AI_HANDOFF current external audit" $aiHandoff $latestExternalGateAuditRef
 Assert-Contains "AI_HANDOFF no-token external baseline" $aiHandoff "GitLab, Hugging Face, and Grafana identity checks are fail-closed in this no-token baseline"
 Assert-Contains "AI_HANDOFF current frontend proof" $aiHandoff 'frontend-hosted-current-proof-v1'
-Assert-Contains "AI_HANDOFF next safe backend work" $aiHandoff 'hosted backend gate truth still requires reachable Agent API, MCP Gateway, and LLM Gateway origins'
+Assert-Contains "AI_HANDOFF current contract origin" $aiHandoff 'frontend and the stateless read-only Backend Contract Origin are deployed on Vercel'
 Assert-NotContains "AI_HANDOFF active Hetzner next safe work" $aiHandoff "authoritative hosted gate truth is on the Hetzner staging URL"
 
 Assert-Contains "verification register hosted boundary" $verificationRegister "Current Hosted Boundary"
 Assert-Contains "verification register historical boundary" $verificationRegister "historical provenance only"
 Assert-Contains "verification register current frontend authority" $verificationRegister 'Current frontend truth is `frontend-hosted-current-proof-v1`'
-Assert-Contains "verification register current backend authority" $verificationRegister 'backend and release truth remains the latest `external-gate-audit-*` artifact plus reachable Agent API, MCP Gateway, and LLM Gateway HTTPS origins'
+Assert-Contains "verification register current backend authority" $verificationRegister 'current contract-origin truth is the latest `external-gate-audit-*` artifact plus reachable Agent API, MCP Gateway, and LLM Gateway HTTPS origins'
+Assert-Contains "verification register stateful backend non-claim" $verificationRegister 'Neither one proves a stateful full-backend rollout, release promotion, or full-platform production release'
 Assert-Contains "verification register current external audit" $verificationRegister $latestExternalGateAuditRef
 
 Assert-NotContains "deploy-to-staging active default IP" $deployScript '[string]$StagingIp = "188.34.191.140"'

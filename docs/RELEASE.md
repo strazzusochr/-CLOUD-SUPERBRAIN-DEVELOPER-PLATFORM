@@ -2,9 +2,10 @@
 
 Updated: 2026-07-13
 
-Status: **not released**. This repository has a healthy local development runtime and a
-verified Vercel frontend deployment, but it does not yet have the hosted backend proof or
-Owner approvals required for a full-platform production release or release promotion.
+Status: **not released**. This repository has a healthy local development runtime, a
+verified Vercel frontend deployment, and a reachable stateless read-only Backend Contract
+Origin. It does not yet have the stateful hosted Docker-stack proof or Owner approvals
+required for a full-platform production release or release promotion.
 
 ## Local Development Runtime
 
@@ -26,7 +27,7 @@ gates.
 | Scope | Current verified value |
 | --- | --- |
 | Overall progress | 84 percent |
-| Horizontal | P0 100, P1 100, P2 86, P3 43, P4 99, P5 68, P6 90 |
+| Horizontal | P0 100, P1 100, P2 86, P3 43, P4 100, P5 68, P6 90 |
 | Vertical | Frontend 100, Orchestrator 100, Agent Pool 68, LLM 54, MCP 55, Memory 72, Observability 99 |
 | Project progress integrity | `verified` |
 | Canonical workspace pages | 22/22 local and 22/22 hosted in real Google Chrome at desktop and mobile |
@@ -111,5 +112,5 @@ Without explicit Owner approval, or outside an already recorded scope-specific a
 - The hosted frontend alone is not hosted backend proof.
 - Temporary environment overrides do not replace the standard external audit.
 - A green local runtime is not production readiness.
-- No hosted backend production deployment, full-platform release, registry push, release
+- No stateful full-backend rollout, full-platform release, registry push, release
   promotion, live provider call, live MCP write, or secret output is claimed.

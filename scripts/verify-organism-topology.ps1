@@ -115,7 +115,7 @@ foreach ($required in @(
   "MODELS",
   "SKILLS",
   "CLOSED_GATES",
-  "{ id: `"P4`", pct: 99 }"
+  "{ id: `"P4`", pct: 100 }"
 )) {
   Assert-Contains "platform source" $platformSource $required
 }

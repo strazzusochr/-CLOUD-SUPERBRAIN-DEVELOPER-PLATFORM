@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-07-13
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt ausschliesslich `DEV-ONLY` Control-Plane; Gesamtfortschritt laut bindendem Manifest `84%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Project Progress Integrity `verified`. Die 22 kanonischen Seiten und sieben Schichten sind verdrahtet. Frontend steht nach aktuellem Hosted-HTTPS-Beweis bei `100%`, Orchestrator / LangGraph bei `100%`, Phase 3 bei `43%`, Phase 5 nach dem lokalen archivbasierten Production-Candidate-Beweis bei `68%` und Phase 6 bei `90%`. Der aktuelle Read-only External-Gate-Audit `.phase1-artifacts/external-gate-audit-20260713-122705.json` ist `verified`; Hosted Agent API und alle drei konsolidierten Vercel Backend Origins wurden ueber ihre echten HTTPS-Vertraege belegt. Frontend und Backend-Contract-Origin sind auf Vercel erreichbar, die Gesamtplattform wurde nicht als Production Release ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt ausschliesslich `DEV-ONLY` Control-Plane; Gesamtfortschritt laut bindendem Manifest `84%`; Phase 1 Foundation Runtime und Phase 4 Integration & Hardening sind manifestseitig `100%`; Project Progress Integrity ist `verified`. Die 22 kanonischen Seiten und sieben Schichten sind verdrahtet. Frontend steht nach aktuellem Hosted-HTTPS-Beweis bei `100%`, Orchestrator / LangGraph bei `100%`, Phase 3 bei `43%`, Phase 5 nach dem lokalen archivbasierten Production-Candidate-Beweis bei `68%` und Phase 6 bei `90%`. Der aktuelle Read-only External-Gate-Audit `.phase1-artifacts/external-gate-audit-20260713-122705.json` ist `verified`; Hosted Agent API und alle drei konsolidierten Vercel Backend Origins wurden ueber ihre echten HTTPS-Vertraege belegt. Frontend und der zustandslose Read-only Backend-Contract-Origin sind auf Vercel erreichbar; die Gesamtplattform wurde nicht als Production Release ausgerollt.
 - Hetzner, GitKraken und Oracle sind aus dem aktiven Pfad entfernt oder als historische Altlast markiert.
 - **Master Goal External-Gate-Spiegel (CURRENT READ-ONLY RUN VERIFIED):** `.phase1-artifacts/external-gate-audit-20260713-122705.json` meldet `status=verified`, keine fehlenden Gates und `production_deploy_claim_allowed=true`. Hosted Agent API, Vercel Backend Origins, verify-only Branch Protection, GHCR, Gitleaks und Fly Budget sind gruen. Bestehende Credentials wurden nur transient im Audit-Prozess geladen; keine Tokenwerte wurden ausgegeben oder persistiert und keine Provider-Mutation wurde durch den Audit ausgefuehrt. Die Freigabe ist kein Production-Rollout-Nachweis; Manifest-Fortschritt bleibt `84%`.
 - **Aktueller gehosteter Phase-6-Basisbeweis:** `scripts/verify-phase6-frontend.mjs` bestand lokal und gegen `https://frontend-seven-psi-78.vercel.app` mit 7/7 Slice-Markern, sichtbarem nichtleerem WebGL-Canvas, Kamera-/Tastatursteuerung, Frame-Budget-HUD, Reduced-Motion-zu-2D-Umschaltung, zwei PNG-Beweisen und null Console-Fehlern. Evidence liegt unter `.codex/runs/CURRENT/phase6/frontend-local` und `.codex/runs/CURRENT/phase6/frontend-hosted`; diese Basis kreditiert die ersten vier Rubrikbloecke bis `32%`.
@@ -60,7 +60,7 @@ Letzte Aktualisierung: 2026-07-13
 | P1   | 100%   |
 | P2   | 86%    |
 | P3   | 43%    |
-| P4   | 99%    |
+| P4   | 100%   |
 | P5   | 68%    |
 | P6   | 90%    |
 
@@ -91,7 +91,7 @@ Letzte Aktualisierung: 2026-07-13
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Aktuellen Backend-Contract-Origin commit-genau nachziehen** — Orchestrator / LangGraph und Frontend sind bei `100%`, Phase 3 bei `43%`, Phase 5 bei `68%` und Phase 6 bei `90%`; Audit `122705` ist verified. Als naechstes den aktuellen `overall=84`-Quellstand auf das bestehende Vercel-Backend-Projekt deployen und Hosted-Progress-/Candidate-Paritaet erneut beweisen.
+- **Phase-4-Wahrheit commit-genau auf den Backend-Contract-Origin bringen** — der Vercel-Origin liefert den Quellstand `d14b4ce` bereits mit `overall=84`, HTTP `200` fuer Agent/MCP/LLM und `integrity=verified`. Als naechstes den jetzt belegten `P4=100`-Manifeststand committen, erneut als zustandslosen Read-only Contract-Origin deployen und danach Hosted-Progress-/External-Gate-/Candidate-Paritaet beweisen.
 - Den naechsten candidate-spezifischen P5-Slice aus Hosted-Paritaet und Rollback-Proof erst nach erreichbaren HTTPS-Origins bearbeiten; `production_deploy_claim_allowed=true` waere weiterhin kein Deployment-Nachweis.
 - Localhost bleibt nur `DEV-ONLY`; ein spaeterer Rollout braucht zusaetzlich Owner-Freigabe, aktuellen Commit-Scope, Hosted-Proof und Rollback-Evidence.
 
@@ -194,8 +194,8 @@ Letzte Aktualisierung: 2026-07-13
 
 - `scripts/verify-organism-topology.ps1` prueft `GET /api/v1/organism/topology`, `GET /api/v1/organism/contract`, `GET /api/v1/workspace/wiring` und `GET /api/v1/workspace/vertical-stack` gegen konsistente Versionen, Node-Arten, Edge-Arten, 22 Workbench-Seiten und geschlossene Non-Claims.
 - Der Guard beweist aktuell `151` Nodes und `308` Edges mit referenziell gueltigen Kanten fuer Brain-Regions, Architektur-Layer, Agenten, MCP-Tools, LLM-Modelle, Skills, Cloud-Provider, Safety-Gates, Workspace-Pages, Data-Sources und Verifier.
-- `scripts/verify-browser-contract.ps1` ruft den Topology-Guard im Browser-Contract auf; `scripts/verify-phase1.ps1` prueft Parser, Frontend-Route, Organism-Contract-Route, Agent-API-Mirror und den `P4=99`-Manifest-Spiegel in `apps/frontend/lib/platform.ts`.
-- `apps/frontend/lib/platform.ts` spiegelt Phase `P4` wieder mit `99%` und vermeidet damit einen falschen `100%`-Snapshot im Frontend-Diagnosevertrag.
+- `scripts/verify-browser-contract.ps1` ruft den Topology-Guard im Browser-Contract auf; `scripts/verify-phase1.ps1` prueft Parser, Frontend-Route, Organism-Contract-Route, Agent-API-Mirror und den jeweils manifestgleichen P4-Spiegel in `apps/frontend/lib/platform.ts`.
+- Der historische Topology-Slice korrigierte den damaligen Spiegel auf `P4=99`; nach dem verifizierten Audit `122705` spiegeln Manifest, Frontend und Verifier den belegten Abschlussstand `P4=100`.
 - Verifiziert mit `scripts\verify-organism-topology.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `npm run verify:browser`, `py -3 scripts\verify_project_progress_manifest.py` und `git diff --check`.
 - Localhost bleibt `DEV-ONLY`; kein Hosted-Proof, keine Cloud-Mutation, kein Deploy, kein Production-Claim, kein Live-Provider-Call, kein Live-MCP-Write, keine Secret-Nutzung und keine Prozentsteigerung.
 

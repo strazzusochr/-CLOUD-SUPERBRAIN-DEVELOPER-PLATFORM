@@ -6,7 +6,7 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-Current honesty guardrail: active candidate `prod-candidate-2026-07-13-local-rc1` is a locally verified backend preparation artifact bound to source commit `c451fa8ff2b631685ad07ebcfcf4dc4a5b418e81`; its six Docker image identities are local only and the planned GHCR tags are unpublished. Separately, the frontend is deployed on Vercel and has a current 22x2 Google Chrome proof. This does not prove hosted backend parity, Owner release approval, registry publication, full-platform deployment, or release promotion. The latest read-only cloud audit remains blocked on Hosted Agent API contracts and Vercel backend origins.
+Current honesty guardrail: active candidate `prod-candidate-2026-07-13-local-rc1` is a locally verified backend preparation artifact bound to source commit `c451fa8ff2b631685ad07ebcfcf4dc4a5b418e81`; its six Docker image identities are local only and the planned GHCR tags are unpublished. Separately, the frontend and the stateless read-only Backend Contract Origin are deployed on Vercel. The frontend has a current 22x2 Google Chrome proof, and the latest standard read-only cloud audit is `verified`. This does not prove the stateful Docker backend stack, Owner release approval, registry publication, full-platform deployment, or release promotion.
 
 ## Binding Truth
 
@@ -41,7 +41,7 @@ Horizontal:
 - P1: `100%`
 - P2: `86%`
 - P3: `43%`
-- P4: `99%`
+- P4: `100%`
 - P5: `68%`
 - P6: `90%`
 
@@ -153,7 +153,7 @@ Organism topology integrity guard:
 - Runtime proof currently reports `151` nodes and `308` edges, with exact coverage for 22 workspace pages, 7 architecture layers, 10 brain regions, agents, tools, LLM models, skills, cloud providers, safety gates, data sources, and verifiers.
 - Every topology edge must reference an existing node; every workspace page must have layer, brain-region, hub, data-source, and verifier edges.
 - The guard forbids active `Hetzner`, `GitKraken`, `Oracle`, secret output, write claims, and production deployment claims.
-- `scripts/verify-browser-contract.ps1` runs the topology guard, and `scripts/verify-phase1.ps1` statically checks parser, route, contract, Agent API mirror, and the `P4=99` frontend progress mirror.
+- `scripts/verify-browser-contract.ps1` runs the topology guard, and `scripts/verify-phase1.ps1` statically checks parser, route, contract, Agent API mirror, and the current manifest-aligned `P4=100` frontend progress mirror.
 - Verified by isolated topology proof, full `npm run verify:browser`, manifest validation, and `git diff --check`.
 - Localhost evidence is `DEV-ONLY`; no hosted proof, cloud mutation, deploy, release promotion, live provider call, live MCP write, secret use, or progress increase.
 
@@ -1045,13 +1045,13 @@ Do not claim these until external evidence exists:
 
 - No live LLM provider calls are verified.
 - No live MCP writes are verified.
-- No full-platform or hosted-backend production deployment is verified; only the scoped Vercel frontend deployment is verified.
+- No stateful full-backend or full-platform production release is verified; the scoped Vercel frontend and stateless read-only Backend Contract Origin are verified separately.
 - `production_deploy_claim_allowed=true` is only a gate-closure statement, not a deploy statement.
 
 ## Next Safe Work
 
-1. Keep localhost as a dev control plane only; the current frontend truth comes from the source-bound Vercel HTTPS proof, while hosted backend gate truth still requires reachable Agent API, MCP Gateway, and LLM Gateway origins.
-2. Keep extending candidate-scoped Phase-5 evidence after the integration-plan proof instead of switching to rollout.
+1. Keep localhost as a dev control plane only; current Vercel truth consists of the source-bound frontend proof plus the reachable stateless Agent API/MCP/LLM Contract Origin, not a stateful full-backend rollout.
+2. Deploy the manifest-aligned `P4=100` source to the existing Contract Origin, bind it to a current hosted proof, and then extend candidate-scoped Phase-5 evidence instead of switching to rollout.
 3. If rollout is approved later, treat `.phase1-artifacts/phase5-rollback-drill-prod-candidate-20260505-rc1.md` as the rollback starting point, not the floating `:staging` alias.
 4. Treat `.phase1-artifacts/hosted-browser-proof-20260504-235540.md` as historical provenance only. Current frontend evidence is the fresh Google Chrome report under `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-eabdf208-chrome`; the unavailable Codex in-app Chrome bridge is not claimed.
 
