@@ -197,6 +197,8 @@ ORCHESTRATOR_DRY_RUN_STREAM_SURFACE_CONTRACT_VERSION = "orchestrator-dry-run-str
 ORCHESTRATOR_DRY_RUN_STREAM_SURFACE_EVIDENCE_REF = "orchestrator_dry_run_stream_surface_contract_visible"
 ORCHESTRATOR_COMPLETION_EVIDENCE_CONTRACT_VERSION = "orchestrator-completion-evidence-v1"
 ORCHESTRATOR_COMPLETION_EVIDENCE_REF = "orchestrator_completion_evidence_verified"
+PHASE5_PRODUCTION_CANDIDATE_LOCAL_CONTRACT_VERSION = "phase5-production-candidate-local-v1"
+PHASE5_PRODUCTION_CANDIDATE_LOCAL_EVIDENCE_REF = "phase5_local_production_candidate_verified"
 DEVOPS_WORKFLOW_DISPATCH_PLAN_SURFACE_CONTRACT_VERSION = "devops-workflow-dispatch-plan-surface-v1"
 DEVOPS_WORKFLOW_DISPATCH_PLAN_SURFACE_EVIDENCE_REF = "devops_workflow_dispatch_plan_surface_contract_visible"
 DEVOPS_WORKFLOW_DISPATCH_VALIDATE_SURFACE_CONTRACT_VERSION = "devops-workflow-dispatch-validate-surface-v1"
@@ -5731,7 +5733,7 @@ ORGANISM_PAGE_WIRING = {
     "media": {"brain_region": "sensory", "hub": "models", "primary_mode": "create", "data_sources": ["media_preview_mode", "MODELS", "/api/v1/models/capabilities"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run test:e2e --prefix apps/frontend"], "event_kinds": ["llm_call", "executing", "verifying", "blocked"]},
     "docs-output": {"brain_region": "hippocampus", "hub": "memory", "primary_mode": "create", "data_sources": ["docs_output_mode", "/api/v1/memory/search", "/api/v1/sessions/recent"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run test:e2e --prefix apps/frontend"], "event_kinds": ["memory_read", "memory_write", "executing", "verifying"]},
     "evidence": {"brain_region": "cerebellum", "hub": "observe", "primary_mode": "verify", "data_sources": ["/api/v1/external-gates", "/api/v1/project/progress/integrity", "docs/verification-register.md"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1.ps1", "gitleaks detect --no-git --source ."], "event_kinds": ["verifying", "blocked"]},
-    "diagnostics": {"brain_region": "amygdala", "hub": "observe", "primary_mode": "verify", "data_sources": ["/api/v1/audit/recent", "/api/v1/escalations/recent", ".phase1-artifacts", "/api/v1/errors/contract", "/api/v1/escalations/contract", "/api/v1/layer-interfaces/contract", "/api/v1/request/contract", "/api/v1/security/headers/contract", "/api/v1/security/csp/contract", "/api/v1/security/csrf/contract", "/api/v1/security/cross-origin/contract", "/api/v1/orchestrator/completion/contract", "/api/v1/workspace/artifacts", "/api/v1/workspace/artifacts/contract", "/api/v1/workspace/vertical-stack", "/api/v1/workspace/wiring", "/api/v1/platform/inventory"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-retired-hosted-boundary.ps1"], "event_kinds": ["verifying", "blocked"]},
+    "diagnostics": {"brain_region": "amygdala", "hub": "observe", "primary_mode": "verify", "data_sources": ["/api/v1/audit/recent", "/api/v1/escalations/recent", ".phase1-artifacts", "/api/v1/errors/contract", "/api/v1/escalations/contract", "/api/v1/layer-interfaces/contract", "/api/v1/request/contract", "/api/v1/security/headers/contract", "/api/v1/security/csp/contract", "/api/v1/security/csrf/contract", "/api/v1/security/cross-origin/contract", "/api/v1/orchestrator/completion/contract", "/api/v1/release-candidate/local/contract", "/api/v1/workspace/artifacts", "/api/v1/workspace/artifacts/contract", "/api/v1/workspace/vertical-stack", "/api/v1/workspace/wiring", "/api/v1/platform/inventory"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-retired-hosted-boundary.ps1", "scripts/verify-phase5-production-candidate-local.ps1"], "event_kinds": ["verifying", "blocked"]},
     "design-system": {"brain_region": "sensory", "hub": "workbench", "primary_mode": "inspect", "data_sources": ["apps/frontend/app/styles.css", "WORKSPACE_PAGES", "NeuroGlass tokens", "/api/v1/design/reference-contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run lint --prefix apps/frontend"], "event_kinds": ["planning", "verifying"]},
     "stack": {"brain_region": "thalamus", "hub": "cloud", "primary_mode": "inspect", "data_sources": ["docs/system-architecture.md", "/api/v1/clouds", "/api/v1/clouds/deployment-preflight", "/api/v1/devops/workflow-dispatch/plan", "/api/v1/devops/workflow-dispatch/plan/contract", "/api/v1/devops/workflow-dispatch/validate", "/api/v1/devops/workflow-dispatch/validate/contract", "/api/v1/project/progress", "/api/v1/project/progress/completion", "/api/v1/project/progress/completion/contract", "/api/v1/project/progress/contract", "/api/v1/project/progress/layers", "/api/v1/project/progress/layers/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1.ps1"], "event_kinds": ["planning", "verifying", "blocked"]},
     "settings": {"brain_region": "amygdala", "hub": "tools", "primary_mode": "govern", "data_sources": ["/api/v1/clouds/deployment-preflight", "/api/v1/auth/contract", "CLOSED_GATES", "/api/v1/auth/callback", "/api/v1/auth/logout", "/api/v1/auth/refresh"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-owner-cloud-gate-activation.ps1"], "event_kinds": ["blocked", "verifying"]},
@@ -9892,6 +9894,64 @@ def orchestrator_completion_evidence_contract_payload() -> dict[str, object]:
     }
 
 
+def phase5_production_candidate_local_contract_payload() -> dict[str, object]:
+    services = [
+        {"id": "frontend", "dockerfile": "apps/frontend/Dockerfile", "target": "runner"},
+        {"id": "agent-api", "dockerfile": "services/agent-api/Dockerfile"},
+        {"id": "agent-worker", "dockerfile": "services/agent-worker/Dockerfile"},
+        {"id": "memory-worker", "dockerfile": "services/memory-worker/Dockerfile"},
+        {"id": "mcp-gateway", "dockerfile": "services/mcp-gateway/Dockerfile"},
+        {"id": "llm-gateway", "dockerfile": "services/llm-gateway/Dockerfile"},
+    ]
+    return {
+        "contract_version": PHASE5_PRODUCTION_CANDIDATE_LOCAL_CONTRACT_VERSION,
+        "evidence_ref": PHASE5_PRODUCTION_CANDIDATE_LOCAL_EVIDENCE_REF,
+        "endpoint": "GET /api/v1/release-candidate/local/contract",
+        "phase_id": "phase_5",
+        "phase5_progress_before_proof": 67,
+        "phase5_progress_after_proof": 68,
+        "proof_scope": "local_content_addressed_production_candidate_preparation",
+        "source_boundary": "committed_git_archive_only",
+        "service_count": len(services),
+        "services": services,
+        "required_image_labels": [
+            "org.opencontainers.image.revision",
+            "org.opencontainers.image.source",
+            "org.opencontainers.image.version",
+        ],
+        "required_proofs": [
+            "git_archive_sha256",
+            "local_docker_image_ids",
+            "oci_revision_label_parity",
+            "embedded_source_hash_parity",
+            "frontend_build_id_present",
+            "candidate_scoped_rollback_target",
+            "real_chromium_diagnostics_click",
+        ],
+        "registry_publish": False,
+        "hosted_staging_parity": False,
+        "production_deploy": False,
+        "release_promotion": False,
+        "owner_review_approved": False,
+        "live_provider_calls": False,
+        "live_mcp_writes": False,
+        "secret_output": False,
+        "browser_proof": {
+            "route": "/diagnostics",
+            "label": "Phase 5 Production Candidate",
+            "real_click_required": True,
+            "screenshot_required": True,
+        },
+        "verifier": "scripts/verify-phase5-production-candidate-local.ps1",
+        "non_claims": [
+            "This is a local content-addressed candidate preparation proof, not a GHCR publication proof.",
+            "Localhost evidence remains DEV-ONLY and does not prove hosted staging parity.",
+            "No production deployment, release promotion, owner approval, live provider call, live MCP write, or secret output is authorized.",
+            "The hosted release-candidate gate remains fail-closed until its external and Owner gates pass.",
+        ],
+    }
+
+
 def phase2_runtime_start_surface_contract_payload() -> dict[str, object]:
     runtime = phase2_runtime_contract_payload()
     return {
@@ -10980,6 +11040,11 @@ def orchestrator_dry_run_contract() -> dict[str, object]:
 @app.get("/api/v1/orchestrator/completion/contract")
 def orchestrator_completion_evidence_contract() -> dict[str, object]:
     return orchestrator_completion_evidence_contract_payload()
+
+
+@app.get("/api/v1/release-candidate/local/contract")
+def phase5_production_candidate_local_contract() -> dict[str, object]:
+    return phase5_production_candidate_local_contract_payload()
 
 
 @app.post("/api/v1/orchestrator/dry-run")
