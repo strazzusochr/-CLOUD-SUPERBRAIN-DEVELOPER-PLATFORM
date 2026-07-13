@@ -120,6 +120,7 @@ try {
   if (-not $SkipBrowser) {
     $env:PHASE5_CANDIDATE_BASE_URL = $BaseUrl
     $env:PHASE5_CANDIDATE_ARTIFACT_DIR = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $ArtifactDir))
+    $env:PHASE6_BASE_URL = $BaseUrl
     npm run test:e2e --prefix apps/frontend -- --project=chromium e2e/phase5-production-candidate.spec.ts
     Assert-True "Playwright candidate proof" ($LASTEXITCODE -eq 0)
   }
