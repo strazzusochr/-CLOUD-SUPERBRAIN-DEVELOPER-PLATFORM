@@ -981,8 +981,14 @@ foreach ($requiredAiHandoffTerm in @(
     throw "AI_HANDOFF.md missing current progress marker: $requiredAiHandoffTerm"
   }
 }
-Write-Host "[verify] current truth mirror audit alignment"
-$currentAuditName = "external-gate-audit-20260713-125413.json"
+Write-Host "[verify] current truth mirror audit alignment (R0: canonical = token-free standard bootstrap)"
+# R0 (CODEX_UEBERGABE_2026-07-13.md, unverhandelbar): the canonical external-gate summary MUST
+# mirror the reproducible token-free standard bootstrap (currently `blocked`). Token/origin-injected
+# `verified` audits (e.g. 20260713-125413 / 20260713-122705) are owner-assisted candidate-only
+# evidence: they must NEVER be set as the current summary and must NEVER emit
+# production_deploy_claim_allowed=true as current authority. "Freigabe-erlaubt" != "deployt".
+$currentAuditName = "external-gate-audit-20260713-122529.json"
+$candidateAuditName = "external-gate-audit-20260713-125413.json"
 $masterGoal = Get-Content -Path "CODEX_MASTER_GOAL_FINALE.md" -Raw
 $currentTruthMirrors = @(
   @{ name = "PROJECT_STATE.md"; content = $projectState },
@@ -992,7 +998,7 @@ $currentTruthMirrors = @(
 )
 foreach ($mirror in $currentTruthMirrors) {
   if (-not $mirror.content.Contains($currentAuditName)) {
-    throw "$($mirror.name) missing current external gate audit: $currentAuditName"
+    throw "$($mirror.name) missing current token-free standard external gate audit: $currentAuditName"
   }
 }
 if (-not $masterGoal.Contains('`overall=84`')) {
@@ -1000,20 +1006,32 @@ if (-not $masterGoal.Contains('`overall=84`')) {
 }
 $externalGateSummary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
 if (-not ([string]$externalGateSummary.source_artifact).Contains($currentAuditName)) {
-  throw "External gate summary does not reference current audit: $currentAuditName"
+  throw "External gate summary does not reference current token-free standard audit: $currentAuditName"
 }
-if ([string]$externalGateSummary.status -ne "verified" -or -not [bool]$externalGateSummary.production_deploy_claim_allowed) {
-  throw "External gate summary must preserve the current verified audit"
+if (([string]$externalGateSummary.source_artifact).Contains($candidateAuditName)) {
+  throw "R0 violation: token-injected candidate audit $candidateAuditName must never be the canonical summary source"
 }
-$expectedMissingExternalGates = @()
+if ([string]$externalGateSummary.status -ne "blocked" -or [bool]$externalGateSummary.production_deploy_claim_allowed) {
+  throw "R0 violation: canonical external gate summary must mirror the token-free standard bootstrap (status=blocked, production_deploy_claim_allowed=false)"
+}
 $actualMissingExternalGates = @($externalGateSummary.missing_or_failed_gates | ForEach-Object { [string]$_ })
-$expectedMissingExternalGateKey = ($expectedMissingExternalGates | Sort-Object) -join ","
-$actualMissingExternalGateKey = ($actualMissingExternalGates | Sort-Object) -join ","
-if ($actualMissingExternalGateKey -ne $expectedMissingExternalGateKey) {
-  throw "External gate summary missing set drift: expected=$expectedMissingExternalGateKey actual=$actualMissingExternalGateKey"
+if ($actualMissingExternalGates.Count -lt 1) {
+  throw "R0 violation: blocked standard summary must list at least one missing/failed external gate"
 }
-if (-not [bool]$externalGateSummary.branch_protection_claim_allowed -or -not [bool]$externalGateSummary.fly_live_budget_claim_allowed) {
-  throw "Current verify-only Branch Protection and Fly budget checks must remain proven"
+# The token/origin-injected verified run may exist ONLY as a clearly-labeled, non-current candidate.
+$candidateSummaryPath = "docs\runtime-state\external-gate-summary.candidate-125413.json"
+if (-not (Test-Path $candidateSummaryPath)) {
+  throw "Missing owner-assisted candidate summary for $candidateAuditName (R0 candidate-only evidence)"
+}
+$candidateSummary = Get-Content -Path $candidateSummaryPath -Raw | ConvertFrom-Json
+if (-not ([string]$candidateSummary.source_artifact).Contains($candidateAuditName)) {
+  throw "Owner-assisted candidate summary must reference $candidateAuditName"
+}
+if ([bool]$candidateSummary.is_current -or -not [bool]$candidateSummary.owner_assisted_candidate) {
+  throw "R0 violation: 125413 candidate must be labeled is_current=false and owner_assisted_candidate=true"
+}
+if ([bool]$candidateSummary.supersedes_canonical) {
+  throw "R0 violation: owner-assisted candidate must not claim to supersede the canonical standard summary"
 }
 py -3 -m py_compile scripts\verify-phase-transition-gate.py
 Assert-LastExitCode "phase transition gate syntax"

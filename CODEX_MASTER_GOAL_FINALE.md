@@ -47,11 +47,14 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   MCP/LLM `healthy` und Agent API `degraded`-ehrlich; POST bleibt mit HTTP 503
   `stateless_contract_origin_read_only` geschlossen. Dies ist ein zustandsloser
   Contract-Origin, nicht der stateful Docker-Stack und kein Gesamtplattform-Release.
-- **External-Gate-Wahrheit:** Der neueste freigegebene Read-only-Audit
-  `.phase1-artifacts/external-gate-audit-20260713-125413.json` ist `verified`, ohne fehlende
-  Gates und mit `production_deploy_claim_allowed=true`. Hosted Agent API, die drei
-  konsolidierten Vercel Backend Origins, verify-only Branch Protection, GHCR, Gitleaks und
-  Fly Budget sind gruen; bestehende Credentials wurden nur transient geladen, ohne Ausgabe,
+- **External-Gate-Wahrheit:** Der kanonische reproduzierbare Standard-Bootstrap-Audit (ohne
+  Owner-Origin-Injektion) `.phase1-artifacts/external-gate-audit-20260713-122529.json` ist
+  `blocked` mit `production_deploy_claim_allowed=false`; offen ist `vercel_backend_origin_health`
+  (die konsolidierten Vercel MCP-/LLM-Origins bestehen die Health-Probe nicht). Der
+  owner-assistierte Token-/Origin-Lauf `.phase1-artifacts/external-gate-audit-20260713-125413.json`
+  meldete `verified` mit `production_deploy_claim_allowed=true`, wird aber gemaess R0 ausschliesslich
+  als nicht-aktueller Kandidat gefuehrt (`docs/runtime-state/external-gate-summary.candidate-125413.json`)
+  und ersetzt niemals den Standard; bestehende Credentials wurden nur transient geladen, ohne Ausgabe,
   Persistenz oder Audit-seitige Provider-Mutation. Das bindende Manifest steht bei
   `overall=84`; das Frontend ist bereitgestellt, die Backend-Gesamtplattform wurde nicht
   als Production Release ausgerollt.
