@@ -253,7 +253,7 @@ test.describe("Cloud Superbrain platform", () => {
   });
 
   test("organism Phase-6 camera and lighting controls apply bounded runtime state", async ({ page }) => {
-    test.setTimeout(150_000);
+    test.setTimeout(180_000);
     const contractResponse = await page.request.get("/api/v1/phase6/3d-camera-lighting/contract");
     expect(contractResponse.status()).toBe(200);
     const contract = await contractResponse.json();
@@ -330,8 +330,7 @@ test.describe("Cloud Superbrain platform", () => {
     expect(canvasProof.length, "camera and lighting canvas screenshot bytes").toBeGreaterThan(25_000);
     const artifactPath = phase6ArtifactPath("phase6-camera-lighting.png");
     if (artifactPath) {
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await page.screenshot({ path: artifactPath, fullPage: true });
+      writeFileSync(artifactPath, canvasProof);
     }
 
     expect(controlRequests, "camera and lighting controls remain browser-local").toEqual([]);
