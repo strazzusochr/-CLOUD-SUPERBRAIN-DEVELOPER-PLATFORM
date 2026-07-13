@@ -56,7 +56,7 @@ foreach($required in @("same-origin browser POST","PHASE3_CSRF_ARTIFACT_DIR","x-
 foreach($required in @("csrf-origin-guard-v1","csrf_origin_rejection_audited","Raw Origin values","DEV-ONLY")){Assert-Contains "contract doc" $docSource $required}
 $manifest=Get-Content (Join-Path $repoRoot "docs\project-progress.manifest.json") -Raw|ConvertFrom-Json
 $phase3=@($manifest.horizontal.items)|Where-Object id -eq "phase_3"|Select-Object -First 1
-Assert-True "manifest phase3 42" ([int]$phase3.percent -eq 42)
+Assert-True "manifest phase3 at least 42" ([int]$phase3.percent -ge 42)
 Assert-Contains "manifest CSRF marker" $phase3.status "csrf_origin_guard_visible"
 
 if($ReadOnly){Write-Host "[phase3-csrf] status=verified_read_only"; exit 0}

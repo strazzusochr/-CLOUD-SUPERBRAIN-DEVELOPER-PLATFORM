@@ -102,6 +102,8 @@ SESSION_LIMIT_CONTRACT_VERSION = "session-llm-call-limit-v1"
 PROMPT_INPUT_CONTRACT_VERSION = "prompt-input-contract-v1"
 ERROR_RESPONSE_CONTRACT_VERSION = "error-response-contract-v1"
 SECURITY_HEADERS_CONTRACT_VERSION = "security-headers-v1"
+CROSS_ORIGIN_RESPONSE_CONTRACT_VERSION = "cross-origin-response-guard-v1"
+CROSS_ORIGIN_RESPONSE_EVIDENCE_REF = "cross_origin_response_guard_visible"
 CSP_REPORT_CONTRACT_VERSION = "csp-report-contract-v1"
 CSP_REPORT_EVIDENCE_REF = "csp_report_contract_visible"
 CSP_REPORT_AUDIT_EVIDENCE_REF = "csp_report_audit_persisted"
@@ -205,6 +207,9 @@ SECURITY_HEADERS = {
     "Referrer-Policy": "no-referrer",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; report-uri /api/v1/security/csp/report",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "X-Permitted-Cross-Domain-Policies": "none",
 }
 CACHE_CONTROL_HEADERS = {
     "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
@@ -5624,7 +5629,7 @@ ORGANISM_PAGE_WIRING = {
     "media": {"brain_region": "sensory", "hub": "models", "primary_mode": "create", "data_sources": ["media_preview_mode", "MODELS", "/api/v1/models/capabilities"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run test:e2e --prefix apps/frontend"], "event_kinds": ["llm_call", "executing", "verifying", "blocked"]},
     "docs-output": {"brain_region": "hippocampus", "hub": "memory", "primary_mode": "create", "data_sources": ["docs_output_mode", "/api/v1/memory/search", "/api/v1/sessions/recent"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run test:e2e --prefix apps/frontend"], "event_kinds": ["memory_read", "memory_write", "executing", "verifying"]},
     "evidence": {"brain_region": "cerebellum", "hub": "observe", "primary_mode": "verify", "data_sources": ["/api/v1/external-gates", "/api/v1/project/progress/integrity", "docs/verification-register.md"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1.ps1", "gitleaks detect --no-git --source ."], "event_kinds": ["verifying", "blocked"]},
-    "diagnostics": {"brain_region": "amygdala", "hub": "observe", "primary_mode": "verify", "data_sources": ["/api/v1/audit/recent", "/api/v1/escalations/recent", ".phase1-artifacts", "/api/v1/errors/contract", "/api/v1/escalations/contract", "/api/v1/layer-interfaces/contract", "/api/v1/request/contract", "/api/v1/security/headers/contract", "/api/v1/security/csp/contract", "/api/v1/security/csrf/contract", "/api/v1/workspace/artifacts", "/api/v1/workspace/artifacts/contract", "/api/v1/workspace/vertical-stack", "/api/v1/workspace/wiring", "/api/v1/platform/inventory"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-retired-hosted-boundary.ps1"], "event_kinds": ["verifying", "blocked"]},
+    "diagnostics": {"brain_region": "amygdala", "hub": "observe", "primary_mode": "verify", "data_sources": ["/api/v1/audit/recent", "/api/v1/escalations/recent", ".phase1-artifacts", "/api/v1/errors/contract", "/api/v1/escalations/contract", "/api/v1/layer-interfaces/contract", "/api/v1/request/contract", "/api/v1/security/headers/contract", "/api/v1/security/csp/contract", "/api/v1/security/csrf/contract", "/api/v1/security/cross-origin/contract", "/api/v1/workspace/artifacts", "/api/v1/workspace/artifacts/contract", "/api/v1/workspace/vertical-stack", "/api/v1/workspace/wiring", "/api/v1/platform/inventory"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-retired-hosted-boundary.ps1"], "event_kinds": ["verifying", "blocked"]},
     "design-system": {"brain_region": "sensory", "hub": "workbench", "primary_mode": "inspect", "data_sources": ["apps/frontend/app/styles.css", "WORKSPACE_PAGES", "NeuroGlass tokens", "/api/v1/design/reference-contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run lint --prefix apps/frontend"], "event_kinds": ["planning", "verifying"]},
     "stack": {"brain_region": "thalamus", "hub": "cloud", "primary_mode": "inspect", "data_sources": ["docs/system-architecture.md", "/api/v1/clouds", "/api/v1/clouds/deployment-preflight", "/api/v1/devops/workflow-dispatch/plan", "/api/v1/devops/workflow-dispatch/plan/contract", "/api/v1/devops/workflow-dispatch/validate", "/api/v1/devops/workflow-dispatch/validate/contract", "/api/v1/project/progress", "/api/v1/project/progress/completion", "/api/v1/project/progress/completion/contract", "/api/v1/project/progress/contract", "/api/v1/project/progress/layers", "/api/v1/project/progress/layers/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1.ps1"], "event_kinds": ["planning", "verifying", "blocked"]},
     "settings": {"brain_region": "amygdala", "hub": "tools", "primary_mode": "govern", "data_sources": ["/api/v1/clouds/deployment-preflight", "/api/v1/auth/contract", "CLOSED_GATES", "/api/v1/auth/callback", "/api/v1/auth/logout", "/api/v1/auth/refresh"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-owner-cloud-gate-activation.ps1"], "event_kinds": ["blocked", "verifying"]},
@@ -8345,6 +8350,11 @@ def security_headers_contract_payload() -> dict[str, object]:
             "evidence_ref": CSRF_ORIGIN_EVIDENCE_REF,
             "audit_evidence_ref": CSRF_ORIGIN_AUDIT_EVIDENCE_REF,
         },
+        "cross_origin_response_contract": {
+            "contract_version": CROSS_ORIGIN_RESPONSE_CONTRACT_VERSION,
+            "endpoint": "GET /api/v1/security/cross-origin/contract",
+            "evidence_ref": CROSS_ORIGIN_RESPONSE_EVIDENCE_REF,
+        },
         "cors_policy": {
             "mode": "same_origin_by_default",
             "reason": "Frontend reaches Agent API through the same Nginx origin in Phase 1.",
@@ -8356,6 +8366,7 @@ def security_headers_contract_payload() -> dict[str, object]:
             "Every response includes Referrer-Policy=no-referrer.",
             "Every response includes a restrictive Permissions-Policy.",
             "Every response includes a default self Content-Security-Policy.",
+            "Every response keeps opener and resource access same-origin by default.",
             "CSP reports are size-bounded, allowlisted, redacted, and audit-persisted before acceptance.",
             "Unsafe browser requests fail closed on cross-site Fetch Metadata, null Origin, or Origin mismatch.",
         ],
@@ -8366,6 +8377,7 @@ def security_headers_contract_payload() -> dict[str, object]:
             "ui_visible": "security_headers_ui_visible",
             "csp_report_visible": CSP_REPORT_EVIDENCE_REF,
             "csrf_origin_guard_visible": CSRF_ORIGIN_EVIDENCE_REF,
+            "cross_origin_response_guard_visible": CROSS_ORIGIN_RESPONSE_EVIDENCE_REF,
         },
     }
 
@@ -8373,6 +8385,43 @@ def security_headers_contract_payload() -> dict[str, object]:
 @app.get("/api/v1/security/headers/contract")
 def security_headers_contract() -> dict[str, object]:
     return security_headers_contract_payload()
+
+
+def cross_origin_response_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": CROSS_ORIGIN_RESPONSE_CONTRACT_VERSION,
+        "mode": "same_origin_opener_and_resource_guard",
+        "endpoint": "GET /api/v1/security/cross-origin/contract",
+        "evidence_ref": CROSS_ORIGIN_RESPONSE_EVIDENCE_REF,
+        "enforced_by": "security_headers_middleware",
+        "applies_to": "all Agent API HTTP responses including error envelopes",
+        "headers": {
+            "Cross-Origin-Opener-Policy": SECURITY_HEADERS["Cross-Origin-Opener-Policy"],
+            "Cross-Origin-Resource-Policy": SECURITY_HEADERS["Cross-Origin-Resource-Policy"],
+            "X-Permitted-Cross-Domain-Policies": SECURITY_HEADERS["X-Permitted-Cross-Domain-Policies"],
+        },
+        "cors_policy": {
+            "public_cross_origin_enabled": False,
+            "attacker_origin_reflected": False,
+            "credentials_allowed_cross_origin": False,
+        },
+        "phase3_progress_after_proof": 43,
+        "policy_checks": [
+            "Same-origin requests receive the expected COOP and CORP headers.",
+            "Error responses receive the same cross-origin response headers.",
+            "Untrusted Origin values are never reflected in Access-Control-Allow-Origin.",
+            "The guard performs no provider, MCP, state, or production write.",
+        ],
+        "provider_write": False,
+        "live_mcp_write": False,
+        "state_write": False,
+        "production_deploy": False,
+    }
+
+
+@app.get("/api/v1/security/cross-origin/contract")
+def cross_origin_response_contract() -> dict[str, object]:
+    return cross_origin_response_contract_payload()
 
 
 def csrf_origin_contract_payload() -> dict[str, object]:

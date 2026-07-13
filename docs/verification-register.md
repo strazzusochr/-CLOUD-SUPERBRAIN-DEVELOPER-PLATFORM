@@ -1,11 +1,11 @@
 # Verification Register - PATCHED
 
-Stand: 2026-07-12
+Stand: 2026-07-13
 Status: Active
 
 ## Current Progress Authority
 
-Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `82%`, Phase 1 `100%`, Phase 2 `86%`, Phase 3 `42%`, Phase 4 `99%`, Phase 5 `67%`, Phase 6 `80%`, Frontend `97%`, Agent Pool `68%`, LLM Gateway `54%`, MCP Gateway `55%`, Memory `72%`, and Observability `99%`.
+Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `82%`, Phase 1 `100%`, Phase 2 `86%`, Phase 3 `43%`, Phase 4 `99%`, Phase 5 `67%`, Phase 6 `80%`, Frontend `99%`, Agent Pool `68%`, LLM Gateway `54%`, MCP Gateway `55%`, Memory `72%`, and Observability `99%`.
 
 ## Current Hosted Boundary
 
@@ -491,10 +491,11 @@ Latest external audit artifact: `.phase1-artifacts/external-gate-audit-20260712-
 
 ## Current Next Verification
 
-Current verified progress is total `82%`, Phase 1 `100%`, Phase 2 `86%`, Phase 3 `42%`, Phase 4 `99%`, Phase 5 `67%`, and Phase 6 `80%`.
+Current verified progress is total `82%`, Phase 1 `100%`, Phase 2 `86%`, Phase 3 `43%`, Phase 4 `99%`, Phase 5 `67%`, and Phase 6 `80%`.
 Current vertical layer snapshot is Frontend `99%`, Orchestrator `99%`, Agent Pool `68%`, LLM Gateway `54%`, MCP Gateway `55%`, Memory `72%`, and Observability `99%`.
 
 - Frontend 22x2 responsive click proof: `npm run verify:responsive` opened all 22 canonical routes by real command-palette clicks at desktop `1440x960` and mobile `390x844`. The proof drove fixes for mobile command navigation, organism/file grid stacking, table scroll boundaries, aspect-ratio-aware Three.js framing, and a measured Next-dev OOM by raising only the local frontend Compose memory limit from 1 GiB to 2 GiB. The runner is fail-closed in `scripts/verify-phase1.ps1` and executes as part of `npm run verify:browser`. Evidence `.codex/runs/CURRENT/frontend/responsive-22/report.json` records 44 clicks, `overflow_failures=0`, `console_errors=0`, and four PNGs. This raises Frontend `97% -> 99%`; Overall remains `82%`. DEV-ONLY; no provider write, deployment, release promotion, or production claim.
+- Phase 3 cross-origin response guard: `cross-origin-response-guard-v1` enforces same-origin COOP/CORP plus `X-Permitted-Cross-Domain-Policies: none` on success and error responses. The verifier proves an untrusted Origin is not reflected into CORS allow headers and loads the visible Diagnostics contract through Chromium. Evidence `.codex/runs/CURRENT/phase3/cross-origin-response-guard/report.json` plus PNG. This raises Phase 3 `42% -> 43%`; Overall remains `82%`. DEV-ONLY; no provider, MCP, state, deployment, release, or production write.
 
 1. Current browser evidence is not open. The old `sslip.io`/Hetzner browser artifacts are historical provenance only; current browser proof requires Vercel HTTPS `STAGING_BASE_URL` plus reachable Fly origins.
 2. Phase 5 is no longer waiting on workflow linkage, rollback drill, owner decision, candidate integration-plan evidence, browser rerun evidence, full verifier sweep evidence, truth-mirror rebaseline evidence, or the fresh integration-smoke rerun; the next concrete step is the next candidate-scoped non-rollout proof slice on the active RC1 truth.

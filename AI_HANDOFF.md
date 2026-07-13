@@ -40,7 +40,7 @@ Horizontal:
 - P0: `100%`
 - P1: `100%`
 - P2: `86%`
-- P3: `42%`
+- P3: `43%`
 - P4: `99%`
 - P5: `67%`
 - P6: `80%`
@@ -57,7 +57,7 @@ Vertical:
 
 Older percentage lines below are historical proof points only. Current percentages must come from this section and `docs/project-progress.manifest.json`.
 
-Latest bounded proof: `frontend-22-page-responsive-browser-v1` passed all 22 canonical routes at desktop `1440x960` and mobile `390x844` through 44 real command-palette clicks, with four screenshots, zero overflow failures, and zero console errors. Frontend increased from `97%` to `99%`; Overall remains `82%`. Evidence: `.codex/runs/CURRENT/frontend/responsive-22`. All local evidence is `DEV-ONLY` and does not prove hosted staging, release, or production readiness.
+Latest bounded proof: `cross-origin-response-guard-v1` enforces same-origin COOP/CORP headers on success and error responses, does not reflect an untrusted Origin into CORS allow headers, and is visible through a real Diagnostics Chromium click. Phase 3 increased from `42%` to `43%`; Overall remains `82%`. Evidence: `.codex/runs/CURRENT/phase3/cross-origin-response-guard`. All local evidence is `DEV-ONLY` and does not prove hosted staging, release, or production readiness.
 
 ## Current Runtime
 
@@ -1064,7 +1064,7 @@ The current workspace is intentionally not clean. Many files are modified or unt
 
 Do not rely on `git clone` alone unless these local changes have been committed and pushed.
 
-## Current Verified Progress
+## Historical Hosted Snapshot (superseded by Current Verified Progress at the top)
 
 - Overall: `70%`
 - Horizontal `P0 100 | P1 100 | P2 86 | P3 40 | P4 99 | P5 67 | P6 0`

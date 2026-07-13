@@ -1163,6 +1163,14 @@ Assert-Contains "security header nosniff" $securityHeaderProbe "x-content-type-o
 Assert-Contains "security header frame deny" $securityHeaderProbe "x-frame-options: DENY"
 Assert-Contains "security header referrer" $securityHeaderProbe "referrer-policy: no-referrer"
 Assert-Contains "security header contract marker" $securityHeaderProbe "x-superbrain-security-contract: security-headers-v1"
+Write-Host "[runtime] cross-origin response guard contract"
+$crossOriginContract = curl.exe -sS "$baseUrl/api/v1/security/cross-origin/contract"
+Assert-Contains "cross-origin contract version" $crossOriginContract '"contract_version":"cross-origin-response-guard-v1"'
+Assert-Contains "cross-origin contract evidence" $crossOriginContract '"evidence_ref":"cross_origin_response_guard_visible"'
+Assert-Contains "cross-origin attacker reflection blocked" $crossOriginContract '"attacker_origin_reflected":false'
+Assert-Contains "security header COOP" $securityHeaderProbe "cross-origin-opener-policy: same-origin"
+Assert-Contains "security header CORP" $securityHeaderProbe "cross-origin-resource-policy: same-origin"
+Assert-Contains "security header cross-domain policy" $securityHeaderProbe "x-permitted-cross-domain-policies: none"
 
 Write-Host "[runtime] trace id propagation contract"
 $traceContract = curl.exe -sS "$baseUrl/api/v1/trace/contract"

@@ -2016,13 +2016,34 @@ $csrfOriginParseErrors=$null
 [System.Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase3-csrf-origin-guard.ps1",[ref]$null,[ref]$csrfOriginParseErrors)|Out-Null
 if($csrfOriginParseErrors){$csrfOriginParseErrors|ForEach-Object{Write-Error $_.Message};throw "CSRF origin verifier parse errors"}
 $csrfOriginVerifier=Get-Content -Path "scripts\verify-phase3-csrf-origin-guard.ps1" -Raw
-foreach($required in @("manifest phase3 42","fetch_metadata_cross_site","invalid_or_null_origin","origin_mismatch","diagnostics-csrf-origin-guard.png","raw attacker origin absent")) {
+foreach($required in @("manifest phase3 at least 42","fetch_metadata_cross_site","invalid_or_null_origin","origin_mismatch","diagnostics-csrf-origin-guard.png","raw attacker origin absent")) {
   if(-not $csrfOriginVerifier.Contains($required)){throw "CSRF origin verifier missing: $required"}
 }
 foreach($required in @("CSRF Origin Guard","/api/v1/security/csrf/contract")){if(-not $cspDiagnosticsSource.Contains($required)){throw "Diagnostics CSRF surface missing: $required"}}
 if(-not(Test-Path "apps\frontend\e2e\phase3-csrf-origin.spec.ts")){throw "Missing Phase 3 CSRF browser click proof"}
 $csrfOriginBrowser=Get-Content -Path "apps\frontend\e2e\phase3-csrf-origin.spec.ts" -Raw
 foreach($required in @("/diagnostics","selectOption","same-origin browser POST","csrf_origin_guard_visible","x-superbrain-csrf-contract")){if(-not $csrfOriginBrowser.Contains($required)){throw "CSRF browser proof missing: $required"}}
+if (-not (Test-Path "docs\runtime-contracts\security-cross-origin-response-guard.md")) { throw "Missing Phase 3 cross-origin response guard document" }
+$crossOriginDoc = Get-Content -Path "docs\runtime-contracts\security-cross-origin-response-guard.md" -Raw
+foreach ($required in @("cross-origin-response-guard-v1", "cross_origin_response_guard_visible", "Cross-Origin-Opener-Policy", "reflected attacker origins", "DEV-ONLY")) {
+  if (-not $crossOriginDoc.Contains($required)) { throw "Cross-origin response guard document missing: $required" }
+}
+if (-not (Test-Path "scripts\verify-phase3-cross-origin-response-guard.ps1")) { throw "Missing Phase 3 cross-origin response verifier" }
+$crossOriginParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase3-cross-origin-response-guard.ps1", [ref]$null, [ref]$crossOriginParseErrors) | Out-Null
+if ($crossOriginParseErrors) { $crossOriginParseErrors | ForEach-Object { Write-Error $_.Message }; throw "Cross-origin response verifier parse errors" }
+$crossOriginVerifier = Get-Content -Path "scripts\verify-phase3-cross-origin-response-guard.ps1" -Raw
+foreach ($required in @("manifest phase3 43", "attacker origin not reflected", "diagnostics-cross-origin-response-guard.png", "cross-origin-resource-policy: same-origin")) {
+  if (-not $crossOriginVerifier.Contains($required)) { throw "Cross-origin response verifier missing: $required" }
+}
+foreach ($required in @("Cross-Origin Response Guard", "/api/v1/security/cross-origin/contract")) {
+  if (-not $cspDiagnosticsSource.Contains($required)) { throw "Diagnostics cross-origin surface missing: $required" }
+}
+if (-not (Test-Path "apps\frontend\e2e\phase3-cross-origin-response.spec.ts")) { throw "Missing Phase 3 cross-origin browser click proof" }
+$crossOriginBrowser = Get-Content -Path "apps\frontend\e2e\phase3-cross-origin-response.spec.ts" -Raw
+foreach ($required in @("/diagnostics", "selectOption", "real click", "cross-origin-response-guard-v1", "attacker_origin_reflected")) {
+  if (-not $crossOriginBrowser.Contains($required)) { throw "Cross-origin browser proof missing: $required" }
+}
 if (-not (Test-Path "docs\runtime-contracts\phase6-3d-camera-lighting-runtime.md")) {
   throw "Missing Phase 6 3D camera and lighting contract document"
 }

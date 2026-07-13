@@ -10,6 +10,7 @@
     "verify:phase6-frontend": "node scripts/verify-phase6-frontend.mjs",
     "verify:phase6-frontend:source": "node scripts/verify-phase6-frontend.mjs --source-only",
     "verify:csrf": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase3-csrf-origin-guard.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
+    "verify:cross-origin": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase3-cross-origin-response-guard.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
     "verify:responsive": "node scripts/verify-workspace-responsive-browser.cjs --base-url http://localhost:8081 --allow-localhost",
     "verify:market-ready": "powershell -ExecutionPolicy Bypass -File scripts\\verify-market-ready.ps1",
     "verify:market-ready:static": "powershell -ExecutionPolicy Bypass -File scripts\\verify-market-ready.ps1 -StaticOnly",

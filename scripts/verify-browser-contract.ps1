@@ -446,6 +446,17 @@ if ($isLocalProof) {
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-csrf-origin-guard.ps1 -BaseUrl $BaseUrl -ReadOnly
 }
 if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: CSRF origin guard verifier" }
+Write-Host "[browser-contract] cross-origin response guard contract"
+$crossOriginContract = Invoke-Text "$BaseUrl/api/v1/security/cross-origin/contract"
+Assert-Contains "cross-origin contract version" $crossOriginContract '"contract_version":"cross-origin-response-guard-v1"'
+Assert-Contains "cross-origin evidence" $crossOriginContract '"evidence_ref":"cross_origin_response_guard_visible"'
+Assert-Contains "cross-origin attacker reflection blocked" $crossOriginContract '"attacker_origin_reflected":false'
+if ($isLocalProof) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-cross-origin-response-guard.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-cross-origin-response-guard.ps1 -BaseUrl $BaseUrl -ReadOnly
+}
+if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: cross-origin response guard verifier" }
 $traceContract = Invoke-Text "$BaseUrl/api/v1/trace/contract"
 Assert-Contains "trace contract version" $traceContract '"contract_version":"trace-id-propagation-v1"'
 Assert-Contains "trace contract evidence" $traceContract "trace_id_header_roundtrip"
