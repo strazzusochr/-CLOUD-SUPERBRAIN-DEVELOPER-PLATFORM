@@ -980,7 +980,7 @@ foreach ($requiredAiHandoffTerm in @(
   }
 }
 Write-Host "[verify] current truth mirror audit alignment"
-$currentAuditName = "external-gate-audit-20260713-083839.json"
+$currentAuditName = "external-gate-audit-20260713-111016.json"
 $masterGoal = Get-Content -Path "CODEX_MASTER_GOAL_FINALE.md" -Raw
 $currentTruthMirrors = @(
   @{ name = "PROJECT_STATE.md"; content = $projectState },

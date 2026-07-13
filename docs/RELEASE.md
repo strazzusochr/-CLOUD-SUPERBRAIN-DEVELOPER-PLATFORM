@@ -40,15 +40,17 @@ Percentages come only from `docs/project-progress.manifest.json` and must match
 ## External Gate Status
 
 Latest read-only audit:
-`.phase1-artifacts/external-gate-audit-20260713-083839.json`
+`.phase1-artifacts/external-gate-audit-20260713-111016.json`
 
 Status: `blocked`
 
 - `hosted_agent_api_contracts`
 - `vercel_backend_origin_health`
 
-The current verify-only branch-protection and Fly budget checks pass. Hosted Agent API
-contracts and Vercel backend origins remain blocked.
+The current verify-only branch-protection, GHCR, canonical gitleaks, and Fly budget checks
+pass. Hosted Agent API contracts and all three Vercel backend origins remain blocked.
+Existing credentials were loaded only into the audit process; no values were printed or
+persisted and no provider mutation was performed.
 
 `production_deploy_claim_allowed=false`. Earlier private/custom audits are provenance,
 not the current standard release truth.
