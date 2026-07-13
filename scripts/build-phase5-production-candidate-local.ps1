@@ -41,6 +41,20 @@ function Get-ContainerSha256([string]$Image, [string]$Path) {
   return $Matches[1]
 }
 
+function Get-FileSha256([string]$Path) {
+  $stream = [System.IO.File]::OpenRead($Path)
+  try {
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+      return ([System.BitConverter]::ToString($sha256.ComputeHash($stream))).Replace("-", "").ToLowerInvariant()
+    } finally {
+      $sha256.Dispose()
+    }
+  } finally {
+    $stream.Dispose()
+  }
+}
+
 Assert-SafeName "ReleaseId" $ReleaseId
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Push-Location $repoRoot
@@ -80,7 +94,7 @@ try {
     New-Item -ItemType Directory -Force -Path $sourcePath | Out-Null
     Invoke-Native "git archive" "git" @("archive", "--format=tar", "--output=$archivePath", $resolvedSourceSha)
     Invoke-Native "git archive extraction" "tar.exe" @("-xf", $archivePath, "-C", $sourcePath)
-    $archiveSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $archivePath).Hash.ToLowerInvariant()
+    $archiveSha256 = Get-FileSha256 $archivePath
 
     $serviceDefinitions = @(
       [ordered]@{ id = "frontend"; dockerfile = "apps/frontend/Dockerfile"; context = "apps/frontend"; target = "runner"; source_file = "apps/frontend/package.json"; embedded_file = "/app/package.json" },
@@ -123,7 +137,7 @@ try {
       }
 
       $sourceFilePath = Join-Path $sourcePath $service.source_file
-      $sourceFileSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $sourceFilePath).Hash.ToLowerInvariant()
+      $sourceFileSha256 = Get-FileSha256 $sourceFilePath
       $embeddedFileSha256 = Get-ContainerSha256 -Image $imageTag -Path $service.embedded_file
       if ($sourceFileSha256 -ne $embeddedFileSha256) {
         throw "Embedded source hash mismatch for $($service.id)"
@@ -143,7 +157,7 @@ try {
         image_id = [string]$inspect.Id
         image_size_bytes = [int64]$inspect.Size
         dockerfile = $service.dockerfile
-        dockerfile_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $dockerfilePath).Hash.ToLowerInvariant()
+        dockerfile_sha256 = Get-FileSha256 $dockerfilePath
         source_file = $service.source_file
         embedded_file = $service.embedded_file
         source_file_sha256 = $sourceFileSha256
