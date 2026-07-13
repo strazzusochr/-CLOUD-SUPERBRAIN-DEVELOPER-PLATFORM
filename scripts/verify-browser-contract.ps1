@@ -457,6 +457,19 @@ if ($isLocalProof) {
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-cross-origin-response-guard.ps1 -BaseUrl $BaseUrl -ReadOnly
 }
 if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: cross-origin response guard verifier" }
+
+Write-Host "[browser-contract] orchestrator completion evidence"
+$orchestratorCompletionContract = Invoke-Text "$BaseUrl/api/v1/orchestrator/completion/contract"
+Assert-Contains "orchestrator completion version" $orchestratorCompletionContract '"contract_version":"orchestrator-completion-evidence-v1"'
+Assert-Contains "orchestrator completion evidence" $orchestratorCompletionContract '"evidence_ref":"orchestrator_completion_evidence_verified"'
+Assert-Contains "orchestrator completion target" $orchestratorCompletionContract '"layer_progress_after_proof":100'
+Assert-Contains "orchestrator completion no live provider" $orchestratorCompletionContract '"live_provider_calls":false'
+Assert-Contains "orchestrator completion no live MCP writes" $orchestratorCompletionContract '"live_mcp_writes":false'
+Assert-Contains "orchestrator completion no production deploy" $orchestratorCompletionContract '"production_deploy":false'
+if ($isLocalProof) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-orchestrator-completion-evidence.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: orchestrator completion evidence verifier" }
+}
 $traceContract = Invoke-Text "$BaseUrl/api/v1/trace/contract"
 Assert-Contains "trace contract version" $traceContract '"contract_version":"trace-id-propagation-v1"'
 Assert-Contains "trace contract evidence" $traceContract "trace_id_header_roundtrip"

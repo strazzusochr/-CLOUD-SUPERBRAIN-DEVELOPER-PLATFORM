@@ -1422,6 +1422,9 @@ foreach ($required in @("PHASE6_3D_NETCODE_CONTRACT_VERSION","PHASE6_3D_NETCODE_
 foreach ($required in @("PHASE6_LOCAL_SCOREBOARD_CONTRACT_VERSION","PHASE6_LOCAL_SCOREBOARD_EVIDENCE_REF","phase6_local_scoreboard_performance_runtime_contract_payload","/api/v1/phase6/local-scoreboard-performance/contract","phase6-local-scoreboard-performance-runtime-v1","phase6_local_scoreboard_performance_runtime_visible","volatile_top_three_runs_visible","bounded_frame_sample_visible","leaderboard_sync_allowed","persistent_storage_allowed","scale_capacity_claim_allowed")) {
   if (-not $apiTaskPolicySource.Contains($required)) { throw "Missing Phase 6 local scoreboard/performance contract guard: $required" }
 }
+foreach ($required in @("ORCHESTRATOR_COMPLETION_EVIDENCE_CONTRACT_VERSION","ORCHESTRATOR_COMPLETION_EVIDENCE_REF","orchestrator_completion_evidence_contract_payload","/api/v1/orchestrator/completion/contract","orchestrator-completion-evidence-v1","orchestrator_completion_evidence_verified","required_runtime_proofs_not_precomputed_results","parent_sse_replay_and_restart_recovery")) {
+  if (-not $apiTaskPolicySource.Contains($required)) { throw "Missing Orchestrator completion contract guard: $required" }
+}
 foreach ($required in @("SSE_BUFFER_LIMIT = 50", "Last-Event-ID", "record_sse_event", "replay_sse_events")) {
   if (-not $apiTaskPolicySource.Contains($required)) {
     throw "Missing SSE replay guard: $required"
@@ -1687,6 +1690,9 @@ foreach ($required in @("phase6-3d-netcode-loopback-runtime-v1","phase6_3d_netco
 }
 foreach ($required in @("phase6-local-scoreboard-performance-runtime-v1","phase6_local_scoreboard_performance_runtime_visible","/api/v1/phase6/local-scoreboard-performance/contract",'"leaderboard_maximum_entries":3','"performance_sample_count":12','"leaderboard_sync_allowed":false','"persistent_storage_allowed":false','"scale_capacity_claim_allowed":false')) {
   if (-not $runtimeVerifier.Contains($required)) { throw "Runtime verifier missing Phase 6 local scoreboard/performance marker: $required" }
+}
+foreach ($required in @("orchestrator-completion-evidence-v1","orchestrator_completion_evidence_verified","/api/v1/orchestrator/completion/contract",'"layer_progress_after_proof":100','"live_provider_calls":false','"live_mcp_writes":false','"production_deploy":false')) {
+  if (-not $runtimeVerifier.Contains($required)) { throw "Runtime verifier missing Orchestrator completion marker: $required" }
 }
 foreach ($required in @(
   "cloud-deployment-preflight-v1",
@@ -2325,6 +2331,19 @@ foreach($required in @("manifest phase6 90","manifest overall 84","Phase-6 local
 foreach($required in @("phase6-scoreboard-performance-controls","phase6-leaderboard-capture","phase6-leaderboard-reset","phase6-performance-start","local_only=true","sync=false","storage=false","network=false")){if(-not $phase6OrganismView.Contains($required)){throw "Local scoreboard/performance UI missing: $required"}}
 foreach($required in @("Phase-6 local scoreboard and performance sample stay browser-local","phase6-local-scoreboard-performance.png","localStorage","indexedDB")){if(-not $phase6OrganismTest.Contains($required)){throw "Local scoreboard/performance test missing: $required"}}
 
+if (-not (Test-Path "docs\runtime-contracts\orchestrator-completion-evidence.md")) { throw "Missing Orchestrator completion evidence document" }
+$orchestratorCompletionDoc = Get-Content "docs\runtime-contracts\orchestrator-completion-evidence.md" -Raw
+foreach ($required in @("orchestrator-completion-evidence-v1","orchestrator_completion_evidence_verified","99%","100%","MCP timeout","DEV-ONLY")) { if(-not $orchestratorCompletionDoc.Contains($required)){throw "Orchestrator completion document missing: $required"} }
+if (-not (Test-Path "scripts\verify-orchestrator-completion-evidence.ps1")) { throw "Missing Orchestrator completion evidence verifier" }
+$orchestratorCompletionParseErrors=$null; [Management.Automation.Language.Parser]::ParseFile("scripts\verify-orchestrator-completion-evidence.ps1",[ref]$null,[ref]$orchestratorCompletionParseErrors)|Out-Null
+if($orchestratorCompletionParseErrors){$orchestratorCompletionParseErrors|%{Write-Error $_.Message};throw "Orchestrator completion verifier parse errors"}
+$orchestratorCompletionVerifier=Get-Content "scripts\verify-orchestrator-completion-evidence.ps1" -Raw
+foreach($required in @("manifest orchestrator 100","deterministic four-role success","policy hard-stop","controlled MCP timeout","Chromium diagnostics click","diagnostics-orchestrator-completion-evidence.png","parent_sse_replay_and_restart_recovery")){if(-not $orchestratorCompletionVerifier.Contains($required)){throw "Orchestrator completion verifier missing: $required"}}
+$orchestratorCompletionTest=Get-Content "apps\frontend\e2e\orchestrator-completion.spec.ts" -Raw
+foreach($required in @("diagnostics loads orchestrator completion evidence through a real click","orchestrator-completion-evidence-v1","layer_progress_after_proof","diagnostics-orchestrator-completion-evidence.png")){if(-not $orchestratorCompletionTest.Contains($required)){throw "Orchestrator completion browser test missing: $required"}}
+$diagnosticsPage=Get-Content "apps\frontend\app\diagnostics\page.tsx" -Raw
+foreach($required in @("Orchestrator Completion Evidence","/api/v1/orchestrator/completion/contract")){if(-not $diagnosticsPage.Contains($required)){throw "Diagnostics Orchestrator completion wiring missing: $required"}}
+
 Write-Host "[verify] branch protection script"
 py -3 -m py_compile scripts\apply_github_branch_protection.py
 Assert-LastExitCode "branch protection script"
@@ -2641,6 +2660,10 @@ foreach ($required in @(
   "verify-phase6-local-scoreboard-performance-runtime.ps1",
   "phase6-local-scoreboard-performance-runtime-v1",
   "phase6_local_scoreboard_performance_runtime_visible",
+  "orchestrator completion evidence",
+  "verify-orchestrator-completion-evidence.ps1",
+  "orchestrator-completion-evidence-v1",
+  "orchestrator_completion_evidence_verified",
   '"can_set_all_to_100":false'
 )) {
   if (-not $browserContractScript.Contains($required)) {

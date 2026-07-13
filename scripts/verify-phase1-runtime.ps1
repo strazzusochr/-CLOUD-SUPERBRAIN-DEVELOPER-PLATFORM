@@ -1821,6 +1821,14 @@ Assert-Contains "orchestrator engine" $orchestratorManifest '"engine":"langgraph
 Assert-Contains "orchestrator node" $orchestratorManifest "budget_guard"
 Assert-Contains "orchestrator no live calls" $orchestratorManifest '"live_provider_calls":false'
 Assert-Contains "orchestrator postgres checkpointing" $orchestratorManifest '"checkpointing":"postgres"'
+$orchestratorCompletionContract = curl.exe -sS "$baseUrl/api/v1/orchestrator/completion/contract"
+Assert-Contains "orchestrator completion contract version" $orchestratorCompletionContract '"contract_version":"orchestrator-completion-evidence-v1"'
+Assert-Contains "orchestrator completion evidence" $orchestratorCompletionContract '"evidence_ref":"orchestrator_completion_evidence_verified"'
+Assert-Contains "orchestrator completion target" $orchestratorCompletionContract '"layer_progress_after_proof":100'
+Assert-Contains "orchestrator completion postgres checkpointing" $orchestratorCompletionContract '"checkpointing":"postgres"'
+Assert-Contains "orchestrator completion no live provider" $orchestratorCompletionContract '"live_provider_calls":false'
+Assert-Contains "orchestrator completion no live MCP writes" $orchestratorCompletionContract '"live_mcp_writes":false'
+Assert-Contains "orchestrator completion no production deploy" $orchestratorCompletionContract '"production_deploy":false'
 $orchestratorBody = @{ project_id = $projectId; prompt = "phase2 langgraph dry run verifier postgres write"; session_id = $response.session_id } | ConvertTo-Json -Compress
 $orchestratorRun = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/orchestrator/dry-run" -ContentType "application/json" -Body $orchestratorBody
 if ($orchestratorRun.engine -ne "langgraph") { throw "Runtime verification failed: orchestrator engine was not langgraph" }

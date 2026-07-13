@@ -28,7 +28,7 @@ export default async function DiagnosticsPage() {
         <div className="grid cols-2 block-gap-16 diagnostics-grid">
           <Panel title="Live-Daten" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
             <div className="wb-pad">
-            <LiveConsole endpoints={[{ label: "Neueste Audits", path: "/api/v1/audit/recent" }, { label: "Neueste Eskalationen", path: "/api/v1/escalations/recent" }, { label: "CSP Report Contract", path: "/api/v1/security/csp/contract" }, { label: "CSRF Origin Guard", path: "/api/v1/security/csrf/contract" }, { label: "Cross-Origin Response Guard", path: "/api/v1/security/cross-origin/contract" }, { label: "Plattforminventar", path: "/api/v1/platform/inventory" }]} />
+            <LiveConsole endpoints={[{ label: "Neueste Audits", path: "/api/v1/audit/recent" }, { label: "Neueste Eskalationen", path: "/api/v1/escalations/recent" }, { label: "CSP Report Contract", path: "/api/v1/security/csp/contract" }, { label: "CSRF Origin Guard", path: "/api/v1/security/csrf/contract" }, { label: "Cross-Origin Response Guard", path: "/api/v1/security/cross-origin/contract" }, { label: "Orchestrator Completion Evidence", path: "/api/v1/orchestrator/completion/contract" }, { label: "Plattforminventar", path: "/api/v1/platform/inventory" }]} />
             </div>
           </Panel>
           <Panel title="Verifier (Rohliste)">

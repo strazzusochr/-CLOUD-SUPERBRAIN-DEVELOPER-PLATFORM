@@ -48,7 +48,7 @@ Horizontal:
 Vertical:
 
 - Frontend / Next.js: `99%`
-- Orchestrator / LangGraph: `99%`
+- Orchestrator / LangGraph: `100%`
 - Agent Pool: `68%`
 - LLM Gateway: `54%`
 - MCP Gateway: `55%`
@@ -57,7 +57,7 @@ Vertical:
 
 Older percentage lines below are historical proof points only. Current percentages must come from this section and `docs/project-progress.manifest.json`.
 
-Latest bounded proof: `phase6-local-scoreboard-performance-runtime-v1` captures a volatile deterministic Top 3 from real gameplay state and classifies twelve live renderer-stat samples without persistence or network use. The observed headless DEV result is honestly `fail` at `4.0 FPS` and `252.8 ms` derived frame interval; pixel proof reports 1024 visible samples and 117 color buckets, while all network/persistence guard counters are zero. Phase 6 increased from `80%` to `90%`; Overall increased from `82%` to `84%`; Frontend remains `99%`. Evidence: `.codex/runs/CURRENT/phase6/scoreboard-performance-local`. This is `DEV-ONLY` interaction/classification evidence, not a GPU benchmark, capacity, hosted staging, release, or production-readiness claim.
+Latest bounded proof: `orchestrator-completion-evidence-v1` executed fresh deterministic LangGraph success, policy-hard-stop, and controlled tester-MCP-timeout runs; verified four-role aggregation, dry-run LLM stream completion, PostgreSQL checkpoints, correlated audits, and a real Diagnostics Chromium click. Evidence `.codex/runs/CURRENT/orchestrator/completion-local` includes JSON, Markdown, source hashes, and a 164195-byte PNG. The integrated source state also passed `npm run verify`, `npm run verify:runtime`, `npm run verify:browser`, Frontend lint, and an isolated Production build with TypeScript plus 21/21 static pages. Orchestrator / LangGraph increased from `99%` to `100%`; Overall remains `84%` and horizontal phases remain unchanged. `verify:market-ready:static` remains fail-closed with `MARKET_READY: false`. This is `DEV-ONLY` local orchestrator evidence, not hosted staging, live-provider activation, live MCP write, deployment, release, or production proof.
 
 ## Current Runtime
 
