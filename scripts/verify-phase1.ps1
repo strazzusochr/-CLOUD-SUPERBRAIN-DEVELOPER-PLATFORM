@@ -1671,9 +1671,10 @@ foreach ($required in @(
   '"status":"blocked_external_gates"',
   '"can_set_all_to_100":false',
   "missing_external_gates",
-  "fly_api_token",
-  "vercel_backend_origins",
-  "live_infra_budget_refresh_requires_FLY_API_TOKEN",
+  "project progress completion Phase 4 external gates closed",
+  "live_llm_provider_calls_require_owner_gate_and_budget_guard",
+  "production_auth_identity_requires_owner_configured_oauth_and_hosted_url",
+  "docker_registry_publish_requires_owner_release_gate",
   "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 )) {
   if (-not $runtimeVerifier.Contains($required)) {
@@ -1714,6 +1715,10 @@ foreach ($required in @("phase6-3d-netcode-loopback-runtime-v1","phase6_3d_netco
 foreach ($required in @("phase6-local-scoreboard-performance-runtime-v1","phase6_local_scoreboard_performance_runtime_visible","/api/v1/phase6/local-scoreboard-performance/contract",'"leaderboard_maximum_entries":3','"performance_sample_count":12','"leaderboard_sync_allowed":false','"persistent_storage_allowed":false','"scale_capacity_claim_allowed":false')) {
   if (-not $runtimeVerifier.Contains($required)) { throw "Runtime verifier missing Phase 6 local scoreboard/performance marker: $required" }
 }
+$scoreboardPerformanceVerifier = Get-Content -Path "scripts\verify-phase6-local-scoreboard-performance-runtime.ps1" -Raw
+foreach ($required in @("performance_timeout_seconds -eq 20", "observed twelve samples", "observed finite positive samples")) {
+  if (-not $scoreboardPerformanceVerifier.Contains($required)) { throw "Scoreboard/performance verifier missing bounded sample guard: $required" }
+}
 foreach ($required in @("orchestrator-completion-evidence-v1","orchestrator_completion_evidence_verified","/api/v1/orchestrator/completion/contract",'"layer_progress_after_proof":100','"live_provider_calls":false','"live_mcp_writes":false','"production_deploy":false')) {
   if (-not $runtimeVerifier.Contains($required)) { throw "Runtime verifier missing Orchestrator completion marker: $required" }
 }
@@ -1721,15 +1726,17 @@ foreach ($required in @(
   "cloud-deployment-preflight-v1",
   "cloud_deployment_preflight_visible",
   "/api/v1/clouds/deployment-preflight/contract",
-  '"status":"action_required"',
-  '"cloud_deploy_claim_allowed":false',
-  '"production_deploy_claim_allowed":false',
+  '"status":"verified"',
+  '"cloud_deploy_claim_allowed":true',
+  '"production_deploy_claim_allowed":true',
   "missing_or_blocked_gates",
+  "cloud deployment preflight has no blocked Phase 4 gates",
   "fly_cloud_stack",
   "publish_ghcr_images",
   "hosted_backend_origins",
   "BRANCH_PROTECTION_TOKEN",
-  "canonical_secret_scan"
+  "canonical_secret_scan",
+  "This endpoint does not create, mutate, deploy, or delete cloud resources."
 )) {
   if (-not $runtimeVerifier.Contains($required)) {
     throw "Runtime verifier missing cloud deployment preflight proof marker: $required"

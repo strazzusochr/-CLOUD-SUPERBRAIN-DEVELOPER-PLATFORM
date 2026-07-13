@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon, type NavItem, railGroups, WORKSPACE_PAGES } from "../../lib/nav";
 
 function railActive(pathname: string, route: string) {
@@ -25,6 +25,7 @@ export default function AppShell({
   const [cmdkOpen, setCmdkOpen] = useState(false);
   const [cmdkQuery, setCmdkQuery] = useState("");
   const cmdkInputRef = useRef<HTMLInputElement | null>(null);
+  const navigationFallbackRef = useRef<number | null>(null);
 
   const cmdkItems = useMemo(() => {
     const items: NavItem[] = railGroups.flatMap((group) => group.map((item) => item));
@@ -45,6 +46,32 @@ export default function AppShell({
     });
   }, [cmdkItems, cmdkQuery]);
 
+  const navigateFromCommandPalette = useCallback((route: string) => {
+    setCmdkOpen(false);
+    setCmdkQuery("");
+    if (window.location.pathname === route) return;
+    router.push(route);
+    if (navigationFallbackRef.current !== null) {
+      window.clearTimeout(navigationFallbackRef.current);
+    }
+    navigationFallbackRef.current = window.setTimeout(() => {
+      if (window.location.pathname !== route) window.location.assign(route);
+    }, 5_000);
+  }, [router]);
+
+  useEffect(() => {
+    if (navigationFallbackRef.current !== null) {
+      window.clearTimeout(navigationFallbackRef.current);
+      navigationFallbackRef.current = null;
+    }
+  }, [pathname]);
+
+  useEffect(() => () => {
+    if (navigationFallbackRef.current !== null) {
+      window.clearTimeout(navigationFallbackRef.current);
+    }
+  }, []);
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const key = event.key.toLowerCase();
@@ -60,16 +87,14 @@ export default function AppShell({
         const first = filteredCmdkItems[0];
         if (first) {
           event.preventDefault();
-          setCmdkOpen(false);
-          setCmdkQuery("");
-          router.push(first.route);
+          navigateFromCommandPalette(first.route);
         }
       }
     }
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cmdkOpen, filteredCmdkItems, router]);
+  }, [cmdkOpen, filteredCmdkItems, navigateFromCommandPalette]);
 
   useEffect(() => {
     if (!cmdkOpen) return;
@@ -181,11 +206,7 @@ export default function AppShell({
                       key={item.id}
                       type="button"
                       className="cmdk-item"
-                      onClick={() => {
-                        setCmdkOpen(false);
-                        setCmdkQuery("");
-                        router.push(item.route);
-                      }}
+                      onClick={() => navigateFromCommandPalette(item.route)}
                       role="option"
                       aria-selected="false"
                     >

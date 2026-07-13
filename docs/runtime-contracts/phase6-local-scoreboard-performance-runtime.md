@@ -12,7 +12,7 @@ This contract closes one bounded Phase-6 client-runtime rubric block. The Organi
 
 The leaderboard ordering is deterministic: score descending, completed objectives descending, then capture sequence ascending. Entries contain only capture sequence, score, and completions; there is no player-controlled name or identity field. The frame sample reports count, average FPS, the frame interval derived from FPS, and a local budget result against `25 FPS` minimum and `40 ms` maximum average interval.
 
-Samples arrive on the existing renderer-stat update at approximately 500 ms, non-finite or non-positive values are ignored, and averages are arithmetic means rounded to one decimal. Restart discards the prior sample set. A ten-second timeout terminates an inactive-renderer sample as a visible failure instead of hanging.
+Samples arrive on the existing renderer-stat update at approximately 500 ms, non-finite or non-positive values are ignored, and averages are arithmetic means rounded to one decimal. Restart discards the prior sample set. A twenty-second timeout terminates an inactive-renderer sample as a visible failure instead of hanging while leaving enough headroom for twelve samples on a constrained software renderer.
 
 ## Required Proof
 

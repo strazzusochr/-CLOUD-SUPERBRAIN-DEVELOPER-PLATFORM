@@ -49,7 +49,7 @@ Assert-True "sample cadence" ($contract.performance_sample_cadence -eq "renderer
 Assert-True "sample aggregation" ($contract.performance_aggregation -eq "arithmetic_mean_rounded_to_one_decimal")
 Assert-True "derived interval" ($contract.performance_frame_interval_semantics -eq "derived_from_fps_not_independent_gpu_timing")
 Assert-True "invalid sample guard" ($contract.performance_invalid_sample_policy -eq "ignore_non_finite_zero_or_negative_samples")
-Assert-True "sample timeout" ([int]$contract.performance_timeout_seconds -eq 10 -and $contract.performance_timeout_result -eq "fail_renderer_inactive_timeout")
+Assert-True "sample timeout" ([int]$contract.performance_timeout_seconds -eq 20 -and $contract.performance_timeout_result -eq "fail_renderer_inactive_timeout")
 Assert-True "sample restart" ($contract.performance_restart_policy -eq "discard_previous_samples_and_restart_at_zero")
 Assert-True "minimum fps" ([int]$contract.performance_minimum_fps -eq 25)
 Assert-True "maximum frame time" ([int]$contract.performance_maximum_frame_ms -eq 40)

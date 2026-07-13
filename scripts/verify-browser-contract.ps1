@@ -242,14 +242,20 @@ Assert-Contains "project progress completion evidence" $projectProgressCompletio
 Assert-Contains "project progress completion cannot set all to 100" $projectProgressCompletion '"can_set_all_to_100":false'
 $projectProgressCompletionJson = $projectProgressCompletion | ConvertFrom-Json
 $projectProgressCompletionMissingGates = @($projectProgressCompletionJson.missing_external_gates | ForEach-Object { [string]$_ })
-$projectProgressCompletionUnexpectedGates = @($projectProgressCompletionMissingGates | Where-Object { $_ -notin @("fly_api_token", "vercel_backend_origins") })
-Assert-True "project progress completion missing gates supported" ($projectProgressCompletionUnexpectedGates.Count -eq 0)
-Assert-Contains "project progress completion fly blocker" $projectProgressCompletion "live_infra_budget_refresh_requires_FLY_API_TOKEN"
-if ($isLocalProof) {
-  Assert-True "project progress completion missing local vercel backend origins gate" ($projectProgressCompletionMissingGates -contains "vercel_backend_origins")
-  Assert-Contains "project progress completion local vercel origins blocker" $projectProgressCompletion "vercel_backend_origins"
-} else {
-  Assert-True "project progress completion hosted vercel backend origins gate closed" (-not ($projectProgressCompletionMissingGates -contains "vercel_backend_origins"))
+$projectProgressCompletionHardBlockers = @($projectProgressCompletionJson.hard_blockers | ForEach-Object { [string]$_ })
+Assert-True "project progress completion Phase 4 external gates closed" ($projectProgressCompletionMissingGates.Count -eq 0)
+foreach ($closedBlocker in @(
+  "live_infra_budget_refresh_requires_FLY_API_TOKEN",
+  "vercel_backend_origins"
+)) {
+  Assert-True "project progress completion closed blocker absent: $closedBlocker" (-not ($projectProgressCompletionHardBlockers -contains $closedBlocker))
+}
+foreach ($requiredBlocker in @(
+  "live_llm_provider_calls_require_owner_gate_and_budget_guard",
+  "production_auth_identity_requires_owner_configured_oauth_and_hosted_url",
+  "docker_registry_publish_requires_owner_release_gate"
+)) {
+  Assert-True "project progress completion current blocker present: $requiredBlocker" ($projectProgressCompletionHardBlockers -contains $requiredBlocker)
 }
 Assert-Contains "project progress completion local gap blocker" $projectProgressCompletion "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 
@@ -309,18 +315,22 @@ Assert-Contains "cloud deployment preflight runtime endpoint" $cloudDeploymentPr
 $cloudDeploymentPreflightRuntime = Invoke-Text "$BaseUrl/api/v1/clouds/deployment-preflight"
 Assert-Contains "cloud deployment preflight runtime version" $cloudDeploymentPreflightRuntime '"contract_version":"cloud-deployment-preflight-v1"'
 Assert-Contains "cloud deployment preflight runtime evidence" $cloudDeploymentPreflightRuntime '"evidence_ref":"cloud_deployment_preflight_visible"'
-Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflightRuntime '"status":"action_required"'
-Assert-Contains "cloud deployment preflight cloud claim blocked" $cloudDeploymentPreflightRuntime '"cloud_deploy_claim_allowed":false'
-Assert-Contains "cloud deployment preflight production blocked" $cloudDeploymentPreflightRuntime '"production_deploy_claim_allowed":false'
+Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflightRuntime '"status":"verified"'
+Assert-Contains "cloud deployment preflight cloud claim allowed" $cloudDeploymentPreflightRuntime '"cloud_deploy_claim_allowed":true'
+Assert-Contains "cloud deployment preflight production claim allowed" $cloudDeploymentPreflightRuntime '"production_deploy_claim_allowed":true'
 $cloudDeploymentPreflightRuntimeJson = $cloudDeploymentPreflightRuntime | ConvertFrom-Json
 $cloudDeploymentPreflightBlockedGates = @($cloudDeploymentPreflightRuntimeJson.missing_or_blocked_gates | ForEach-Object { [string]$_ })
-Assert-True "cloud deployment preflight missing fly cloud stack" ($cloudDeploymentPreflightBlockedGates -contains "fly_cloud_stack")
-Assert-True "cloud deployment preflight missing hosted backend origins gate" ($cloudDeploymentPreflightBlockedGates -contains "hosted_backend_origins")
+Assert-True "cloud deployment preflight has no blocked Phase 4 gates" ($cloudDeploymentPreflightBlockedGates.Count -eq 0)
+foreach ($requiredGateId in @("ghcr_images", "fly_cloud_stack", "hosted_backend_origins", "hosted_staging", "branch_protection", "canonical_secret_scan")) {
+  $requiredGate = @($cloudDeploymentPreflightRuntimeJson.gates | Where-Object { [string]$_.id -eq $requiredGateId })
+  Assert-True "cloud deployment preflight gate verified: $requiredGateId" ($requiredGate.Count -eq 1 -and [bool]$requiredGate[0].verified)
+}
 Assert-Contains "cloud deployment preflight ghcr sequence" $cloudDeploymentPreflightRuntime "publish_ghcr_images"
 Assert-Contains "cloud deployment preflight hosted origins" $cloudDeploymentPreflightRuntime "hosted_backend_origins"
 Assert-Contains "cloud deployment preflight branch token" $cloudDeploymentPreflightRuntime "BRANCH_PROTECTION_TOKEN"
 Assert-Contains "cloud deployment preflight cloud compose" $cloudDeploymentPreflightRuntime "docker-compose.cloud.yml"
 Assert-Contains "cloud deployment preflight owner review" $cloudDeploymentPreflightRuntime "owner_review_before_production"
+Assert-Contains "cloud deployment preflight no mutation claim" $cloudDeploymentPreflightRuntime "This endpoint does not create, mutate, deploy, or delete cloud resources."
 
 Write-Host "[browser-contract] go-live readiness"
 $goLiveReadinessContract = Invoke-Text "$BaseUrl/api/v1/clouds/go-live-readiness/contract"
@@ -819,20 +829,25 @@ Assert-Contains "external gates contract" $externalGates '"contract_version":"ex
 Assert-Contains "external gates endpoint" $externalGates '"endpoint":"GET /api/v1/external-gates"'
 Assert-Contains "external gates evidence" $externalGates '"evidence_ref":"external_gates_state_visible"'
 Assert-Contains "external gates aligned with preflight" $externalGates '"aligned_with_deployment_preflight":true'
-Assert-Contains "external gates blocked ghcr" $externalGates '"ghcr_images"'
-Assert-Contains "external gates blocked hosted origins" $externalGates '"hosted_backend_origins"'
+Assert-Contains "external gates status" $externalGates '"status":"verified"'
+Assert-Contains "external gates verified count" $externalGates '"verified_count":6'
+Assert-Contains "external gates total count" $externalGates '"total_count":6'
+Assert-Contains "external gates ghcr mapping" $externalGates '"ghcr_images"'
+Assert-Contains "external gates hosted origins mapping" $externalGates '"hosted_backend_origins"'
 Assert-Contains "external gates branch alias" $externalGates '"preflight_gate_id":"branch_protection"'
 Assert-Contains "external gates evidence alias" $externalGates '"evidence_ref":"ghcr_image_digest_proof"'
+$externalGatesJson = $externalGates | ConvertFrom-Json
+Assert-True "external gates release blockers closed" (@($externalGatesJson.blocked_release_gates).Count -eq 0)
 $externalGateMirror = Invoke-Text "$BaseUrl/api/v1/external-gates/mirror"
 Assert-Contains "external gate mirror contract" $externalGateMirror '"contract_version":"external-gate-mirror-v1"'
-Assert-Contains "external gate mirror status" $externalGateMirror '"status":"local_mirror_ready_hosted_blocked"'
+Assert-Contains "external gate mirror status" $externalGateMirror '"status":"verified"'
 Assert-Contains "external gate mirror evidence" $externalGateMirror '"evidence_ref":"external_gate_mirror_proof"'
 Assert-Contains "external gate mirror hosted allowed" $externalGateMirror '"hosted_staging_claim_allowed":true'
 Assert-Contains "external gate mirror branch protection allowed" $externalGateMirror '"branch_protection_claim_allowed":true'
 Assert-Contains "external gate mirror branch protection evidence" $externalGateMirror '"branch_protection_evidence_ref":"branch_protection_verify_contract"'
 Assert-Contains "external gate mirror branch protection workflow" $externalGateMirror ".github/workflows/branch-protection.yml"
 Assert-Contains "external gate mirror branch protection verifier" $externalGateMirror "scripts/apply_github_branch_protection.py --verify-only"
-Assert-Contains "external gate mirror production blocked" $externalGateMirror '"production_deploy_claim_allowed":false'
+Assert-Contains "external gate mirror production claim allowed" $externalGateMirror '"production_deploy_claim_allowed":true'
 Assert-Contains "external gate mirror sse contract" $externalGateMirror "phase2-sse-event-contract-v1"
 Assert-Contains "external gate mirror project progress proof" $externalGateMirror "project_progress_manifest_proof"
 

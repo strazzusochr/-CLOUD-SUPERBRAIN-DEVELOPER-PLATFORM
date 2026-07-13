@@ -86,10 +86,10 @@ if ($readiness.external_audit_claims.vercel_backend_origins_claim_allowed -eq $f
   Assert-Contains "required owner inputs" $readiness.required_owner_inputs "MCP_GATEWAY_BASE_URL"
   Assert-Contains "required owner inputs" $readiness.required_owner_inputs "LLM_GATEWAY_BASE_URL"
 }
-Assert-Contains "runtime preflight blockers" $readiness.runtime_preflight_missing_or_blocked_gates "fly_cloud_stack"
-Assert-Contains "runtime preflight blockers" $readiness.runtime_preflight_missing_or_blocked_gates "hosted_backend_origins"
-Assert-Contains "runtime external blockers" $readiness.runtime_external_blocked_release_gates "fly_cloud_stack"
-Assert-Contains "runtime external blockers" $readiness.runtime_external_blocked_release_gates "hosted_backend_origins"
+Assert-True "runtime preflight status verified" ($readiness.runtime_preflight_status -eq "verified")
+Assert-True "runtime preflight Phase 4 blockers closed" (@($readiness.runtime_preflight_missing_or_blocked_gates).Count -eq 0)
+Assert-True "runtime external gate status verified" ($readiness.runtime_external_gate_status -eq "verified")
+Assert-True "runtime external release blockers closed" (@($readiness.runtime_external_blocked_release_gates).Count -eq 0)
 Assert-True "external audit summary configured" ($readiness.external_audit_summary.configured -eq $true)
 Assert-True "external audit summary contract" ($readiness.external_audit_summary.contract_version -eq "external-gate-summary-v1")
 Assert-True "external audit summary status supported" (@("blocked", "verified") -contains [string]$readiness.external_audit_summary_status)

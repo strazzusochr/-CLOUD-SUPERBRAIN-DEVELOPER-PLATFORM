@@ -74,7 +74,7 @@ const LEADERBOARD_MAXIMUM_ENTRIES = 3;
 const PERFORMANCE_SAMPLE_COUNT = 12;
 const PERFORMANCE_MINIMUM_FPS = 25;
 const PERFORMANCE_MAXIMUM_MS = 40;
-const PERFORMANCE_SAMPLE_TIMEOUT_MS = 10_000;
+const PERFORMANCE_SAMPLE_TIMEOUT_MS = 20_000;
 
 function rankLocalRuns(a: LocalLeaderboardRun, b: LocalLeaderboardRun): number {
   return b.score - a.score
@@ -1138,7 +1138,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
                   role="status"
                   aria-live="polite"
                 >
-                  status={performanceStatus} · reason={performanceResult?.reason ?? "none"} · samples={performanceSamples.length}/12 · source=existing_renderer_stats · frame_ms=derived_from_fps · arithmetic_mean=true · rounding=1_decimal · min_fps=25 · max_ms=40 · timeout_ms=10000 · renderer_ready={String(rendererStatsReady)} · gpu_benchmark=false · evidence=local_interaction · capacity_claim=false · scale_claim=false · network=false · local_only=true
+                  status={performanceStatus} · reason={performanceResult?.reason ?? "none"} · samples={performanceSamples.length}/12 · source=existing_renderer_stats · frame_ms=derived_from_fps · arithmetic_mean=true · rounding=1_decimal · min_fps=25 · max_ms=40 · timeout_ms=20000 · renderer_ready={String(rendererStatsReady)} · gpu_benchmark=false · evidence=local_interaction · capacity_claim=false · scale_claim=false · network=false · local_only=true
                 </div>
                 <output
                   className={`organism-performance-result ${performanceResult ? performanceResult.status : "idle"}`}
@@ -1253,7 +1253,10 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
             {mode === "replay" ? (
               <div className="runtime-frames" data-testid="organism-replay-frames">
                 {visibleFrames.map((frame, index) => (
-                  <div key={`${frame.t ?? index}-${frame.active?.join("-") ?? "frame"}`} className="runtime-frame-row">
+                  <div
+                    key={`${runtimeFeed?.runId ?? "runtime"}-${(runtimeFeed?.frames.length ?? visibleFrames.length) - 1 - index}`}
+                    className="runtime-frame-row"
+                  >
                     <span className="mono">{Number(frame.t ?? 0).toFixed(1)}s</span>
                     <span>{frame.active?.join(", ") || "idle"}</span>
                     <span className="mono">{frame.run_state ?? "idle"}</span>

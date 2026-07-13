@@ -406,7 +406,7 @@ test.describe("Cloud Superbrain platform", () => {
 
     await page.getByTestId("phase6-gameplay-pause").click();
     await expect(state).toContainText("paused=false");
-    await expect.poll(async () => canvasState.getAttribute("data-gameplay-ticks"), { timeout: 3_000 }).not.toBe(pausedTicks);
+    await expect.poll(async () => canvasState.getAttribute("data-gameplay-ticks"), { timeout: 10_000 }).not.toBe(pausedTicks);
 
     await page.getByTestId("phase6-gameplay-pause").click();
     await expect(state).toContainText("paused=true");

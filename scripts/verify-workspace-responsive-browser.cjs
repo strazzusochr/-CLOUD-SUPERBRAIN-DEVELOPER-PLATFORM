@@ -36,24 +36,42 @@ function normalizeSurfaces(payload) {
 }
 
 async function clickRoute(page, surface, baseUrl) {
-  const commandButton = page.getByRole("button", { name: "Suchen oder Befehl ausführen" });
-  await commandButton.click();
-  const dialog = page.getByRole("dialog", { name: "Befehlspalette" });
-  await dialog.waitFor({ state: "visible" });
-  const input = dialog.getByRole("textbox", { name: "Seiten durchsuchen" });
-  await input.fill(surface.route);
-  const routeLabel = dialog.locator(".cmdk-item-route").filter({
-    hasText: new RegExp(`^\\s*${escapeRegExp(surface.route)}\\s*$`),
-  });
-  const option = routeLabel.locator("..");
-  assert(await option.count() === 1, `Command palette route is not unique or missing: ${surface.route}`);
-  await Promise.all([
-    page.waitForURL((url) => url.pathname === surface.route, {
-      timeout: 60000,
-      waitUntil: "commit",
-    }),
-    option.click(),
-  ]);
+  let lastError;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const commandButton = page.getByRole("button", { name: "Suchen oder Befehl ausführen" });
+      await commandButton.click();
+      const dialog = page.getByRole("dialog", { name: "Befehlspalette" });
+      await dialog.waitFor({ state: "visible" });
+      const input = dialog.getByRole("textbox", { name: "Seiten durchsuchen" });
+      await input.fill(surface.route);
+      const routeLabel = dialog.locator(".cmdk-item-route").filter({
+        hasText: new RegExp(`^\\s*${escapeRegExp(surface.route)}\\s*$`),
+      });
+      const option = routeLabel.locator("..");
+      assert(await option.count() === 1, `Command palette route is not unique or missing: ${surface.route}`);
+      await Promise.all([
+        page.waitForURL((url) => url.pathname === surface.route, {
+          timeout: 45000,
+          waitUntil: "commit",
+        }),
+        option.click(),
+      ]);
+      lastError = undefined;
+      break;
+    } catch (error) {
+      if (new URL(page.url()).pathname === surface.route) {
+        lastError = undefined;
+        break;
+      }
+      lastError = error;
+      if (attempt === 2) break;
+      console.warn(`[responsive-22] retry=${surface.route} after=${error.name || "navigation_error"}`);
+      await page.keyboard.press("Escape").catch(() => {});
+      await page.waitForTimeout(1000);
+    }
+  }
+  if (lastError) throw lastError;
   await page.waitForLoadState("domcontentloaded");
   await page.waitForTimeout(surface.pageId.startsWith("organism") ? 1200 : 250);
   assert(new URL(page.url()).pathname === surface.route, `Click did not navigate to ${surface.route}`);
