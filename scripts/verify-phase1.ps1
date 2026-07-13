@@ -982,7 +982,7 @@ foreach ($requiredAiHandoffTerm in @(
   }
 }
 Write-Host "[verify] current truth mirror audit alignment"
-$currentAuditName = "external-gate-audit-20260713-122705.json"
+$currentAuditName = "external-gate-audit-20260713-125413.json"
 $masterGoal = Get-Content -Path "CODEX_MASTER_GOAL_FINALE.md" -Raw
 $currentTruthMirrors = @(
   @{ name = "PROJECT_STATE.md"; content = $projectState },
@@ -2799,9 +2799,37 @@ Write-Host "[verify] phase5 local production candidate contract"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-production-candidate-local.ps1 -StaticOnly
 Assert-LastExitCode "phase5 local production candidate static contract"
 
+Write-Host "[verify] market-ready hosted proof classification"
+$marketReadyParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-market-ready.ps1",
+  [ref]$null,
+  [ref]$marketReadyParseErrors
+) | Out-Null
+if ($marketReadyParseErrors -and $marketReadyParseErrors.Count -gt 0) {
+  $marketReadyParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Market-ready verifier syntax failed"
+}
+$marketReadyScript = Get-Content -Path "scripts\verify-market-ready.ps1" -Raw
+foreach ($required in @(
+  'verify:frontend-hosted-current',
+  'verify:backend-hosted-current',
+  'verify:current-release-candidate',
+  'requires owner-gated stateful hosted runtime',
+  '^B\d+-|owner[-_ ]gated|owner[-_ ]gate'
+)) {
+  if (-not $marketReadyScript.Contains($required)) {
+    throw "Market-ready verifier missing current gate guard: $required"
+  }
+}
+
 Write-Host "[verify] current hosted frontend proof"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-frontend-hosted-current.ps1 -StaticOnly
 Assert-LastExitCode "current hosted frontend static proof"
+
+Write-Host "[verify] current hosted backend contract-origin proof"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-backend-hosted-current.ps1 -StaticOnly
+Assert-LastExitCode "current hosted backend contract-origin static proof"
 
 Write-Host "[verify] git diff whitespace"
 $prevEap = $ErrorActionPreference

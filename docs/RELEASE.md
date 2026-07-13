@@ -41,7 +41,7 @@ Percentages come only from `docs/project-progress.manifest.json` and must match
 ## External Gate Status
 
 Latest read-only audit:
-`.phase1-artifacts/external-gate-audit-20260713-122705.json`
+`.phase1-artifacts/external-gate-audit-20260713-125413.json`
 
 Status: `verified`
 
@@ -67,6 +67,19 @@ immutable deployment and Production Alias. Evidence is under
 
 This closes the Frontend / Next.js layer proof only. It does not close Hosted Agent API,
 MCP Gateway, LLM Gateway, registry, release-promotion, or full-platform production gates.
+
+## Current Hosted Backend Contract Origin
+
+`backend-hosted-current-proof-v1` binds the active Vercel backend deployment to source
+`72e829357ed20e818f228e61af745c7fba43f445` and its committed archive SHA-256.
+Authenticated read-only Vercel metadata proves READY state and Production Alias assignment;
+the immutable URL is SSO-protected. The public alias proves `overall=84`, `P4=100`,
+integrity `verified`, external gates `6/6 verified`, MCP/LLM `healthy`, expected stateless
+Agent API `degraded`, and a fail-closed HTTP 503 response for mutation-shaped requests.
+
+This proves the stateless read-only Contract Origin only. It does not prove the stateful
+Docker stack, persistent PostgreSQL/Redis workers, registry publication, release promotion,
+or a full-platform production release.
 
 ## Local Production Candidate Preparation
 

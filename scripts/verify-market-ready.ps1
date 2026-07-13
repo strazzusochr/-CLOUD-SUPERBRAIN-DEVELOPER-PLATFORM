@@ -28,11 +28,16 @@ function Add-Result([string]$name, [bool]$ok, [string]$detail, [bool]$required =
   Write-Host ("[market-ready] {0,-34} {1}  {2}" -f $name, $tag, $detail)
 }
 
-function Invoke-Npm([string]$name, [string]$script, [bool]$required = $true) {
+function Invoke-Npm(
+  [string]$name,
+  [string]$script,
+  [bool]$required = $true,
+  [bool]$ownerGated = $false
+) {
   Write-Host "[market-ready] running: npm run $script"
   & npm run $script 2>&1 | ForEach-Object { Write-Host "    $_" }
   $code = $LASTEXITCODE; if ($null -eq $code) { $code = 0 }
-  Add-Result $name ($code -eq 0) "exit=$code" $required
+  Add-Result $name ($code -eq 0) "exit=$code" $required $ownerGated
 }
 
 Write-Host "=== MARKET-READY AGGREGATE GATE ==="
@@ -58,6 +63,7 @@ Add-Result "manifest-all-100" $allHundred $cellDetail
 # PROOF_LEDGER: der jeweils neueste append-only Status pro Item darf nicht OPEN sein.
 $ledgerPath = Join-Path $repoRoot ".codex\runs\CURRENT\master-goal\PROOF_LEDGER.md"
 $ledgerOk = $false; $ledgerDetail = "missing"
+$ledgerOwnerGated = $false
 if (Test-Path $ledgerPath) {
   $latestStatus = @{}
   foreach ($line in Get-Content $ledgerPath) {
@@ -68,10 +74,12 @@ if (Test-Path $ledgerPath) {
     if ($status -in @('PASS', 'OPEN', 'REVOKED')) { $latestStatus[$cells[0]] = $status }
   }
   $openItems = @($latestStatus.GetEnumerator() | Where-Object { $_.Value -eq 'OPEN' } | ForEach-Object { $_.Key })
+  $autonomousOpenItems = @($openItems | Where-Object { $_ -notmatch '^B\d+-|owner[-_ ]gated|owner[-_ ]gate' })
+  $ledgerOwnerGated = ($openItems.Count -gt 0 -and $autonomousOpenItems.Count -eq 0)
   $ledgerOk = ($openItems.Count -eq 0)
   $ledgerDetail = if ($ledgerOk) { "no latest OPEN status" } else { "latest OPEN: " + ($openItems -join ', ') }
 }
-Add-Result "proof-ledger-clean" $ledgerOk $ledgerDetail
+Add-Result "proof-ledger-clean" $ledgerOk $ledgerDetail $true $ledgerOwnerGated
 
 # Lint-Warnungen (marktreif = 0). Advisory-Zaehler, geht in die Pflicht ein.
 $lintOk = $false; $lintDetail = "not run"
@@ -94,9 +102,20 @@ if (-not $StaticOnly) {
   Invoke-Npm "verify:csrf"             "verify:csrf"
   Invoke-Npm "verify:responsive"       "verify:responsive"
   Invoke-Npm "frontend-hosted-current" "verify:frontend-hosted-current"
+  Invoke-Npm "backend-hosted-current"  "verify:backend-hosted-current"
   Invoke-Npm "verify:phase6-frontend"  "verify:phase6-frontend"
   Invoke-Npm "build(full-pages)"       "build"
-  Invoke-Npm "verify:release-candidate" "verify:release-candidate"
+  Invoke-Npm "current-release-candidate" "verify:current-release-candidate"
+  if ($IncludeExternalGates) {
+    Invoke-Npm "verify:release-candidate(stateful)" "verify:release-candidate" $true $true
+  } else {
+    Add-Result `
+      "verify:release-candidate(stateful)" `
+      $false `
+      "SKIPPED: requires owner-gated stateful hosted runtime; use -IncludeExternalGates" `
+      $true `
+      $true
+  }
 } else {
   Add-Result "runtime-verifiers" $false "SKIPPED via -StaticOnly (kein MARKET_READY moeglich)" $true
 }

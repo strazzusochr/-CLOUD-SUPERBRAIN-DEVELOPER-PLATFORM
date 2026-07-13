@@ -40,11 +40,15 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-eabdf208-chrome`; Frontend `100%`.
   Dies ist kein Hosted-Backend- oder Gesamtplattform-Release-Claim.
 - **Backend-Projekt 2** `https://cloud-superbrain-developer-platform.vercel.app`:
-  echte agent-api als Vercel-Python-Function (`/api/v1/health` degraded-ehrlich,
-  `/llm/...` + `/mcp/...`-Contracts live). Frontend-Origins umgebogen
-  (`X-Superbrain-Source: live-agent-api`).
+  `backend-hosted-current-proof-v1` bindet das READY-Deployment
+  `dpl_EVWUDmSH57FsNT6r6JdXtzTWJdK1` an Source
+  `72e829357ed20e818f228e61af745c7fba43f445` und den Git-Archiv-Hash. Der oeffentliche
+  Alias liefert `overall=84`, `P4=100`, Integritaet `verified`, External Gates `6/6`,
+  MCP/LLM `healthy` und Agent API `degraded`-ehrlich; POST bleibt mit HTTP 503
+  `stateless_contract_origin_read_only` geschlossen. Dies ist ein zustandsloser
+  Contract-Origin, nicht der stateful Docker-Stack und kein Gesamtplattform-Release.
 - **External-Gate-Wahrheit:** Der neueste freigegebene Read-only-Audit
-  `.phase1-artifacts/external-gate-audit-20260713-122705.json` ist `verified`, ohne fehlende
+  `.phase1-artifacts/external-gate-audit-20260713-125413.json` ist `verified`, ohne fehlende
   Gates und mit `production_deploy_claim_allowed=true`. Hosted Agent API, die drei
   konsolidierten Vercel Backend Origins, verify-only Branch Protection, GHCR, Gitleaks und
   Fly Budget sind gruen; bestehende Credentials wurden nur transient geladen, ohne Ausgabe,

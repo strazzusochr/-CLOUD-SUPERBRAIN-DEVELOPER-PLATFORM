@@ -17,6 +17,8 @@
     "verify:phase6-scoreboard": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase6-local-scoreboard-performance-runtime.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
     "verify:responsive": "node scripts/verify-workspace-responsive-browser.cjs --base-url http://localhost:8081 --allow-localhost",
     "verify:frontend-hosted-current": "powershell -ExecutionPolicy Bypass -File scripts\\verify-frontend-hosted-current.ps1",
+    "verify:backend-hosted-current": "powershell -ExecutionPolicy Bypass -File scripts\\verify-backend-hosted-current.ps1",
+    "verify:current-release-candidate": "powershell -ExecutionPolicy Bypass -File scripts\\verify.ps1 -Suite current-release-candidate -FailFast",
     "verify:market-ready": "powershell -ExecutionPolicy Bypass -File scripts\\verify-market-ready.ps1",
     "verify:market-ready:static": "powershell -ExecutionPolicy Bypass -File scripts\\verify-market-ready.ps1 -StaticOnly",
     "verify:hosted-local": "powershell -ExecutionPolicy Bypass -File scripts\\verify-hosted-staging.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",

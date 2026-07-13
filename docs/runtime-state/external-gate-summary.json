@@ -1,8 +1,8 @@
 ﻿{
     "contract_version":  "external-gate-summary-v1",
     "source_contract_version":  "external-gate-audit-v1",
-    "source_artifact":  ".phase1-artifacts\\external-gate-audit-20260713-122705.json",
-    "generated_at_utc":  "2026-07-13T10:27:05.1047434Z",
+    "source_artifact":  ".phase1-artifacts\\external-gate-audit-20260713-125413.json",
+    "generated_at_utc":  "2026-07-13T10:54:13.5872006Z",
     "status":  "verified",
     "gate_ids":  [
                      "hosted_agent_api_contracts",
