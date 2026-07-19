@@ -60,6 +60,19 @@ if ((-not $AllowLocalhost) -and ($BaseUrl -match "localhost|127\.0\.0\.1|\[::1\]
 
 $progressManifest = Get-Content -Path "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
 $expectedOverall = [int]$progressManifest.overall_percent
+$summary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
+$expectedRuntimeGateClaims = [ordered]@{
+  ghcr_images = [bool]$summary.ghcr_image_digest_claim_allowed
+  fly_cloud_stack = [bool]$summary.fly_live_budget_claim_allowed
+  hosted_backend_origins = [bool]$summary.vercel_backend_origins_claim_allowed
+  hosted_staging = [bool]$summary.hosted_staging_claim_allowed
+  branch_protection = [bool]$summary.branch_protection_claim_allowed
+  canonical_secret_scan = [bool]$summary.canonical_gitleaks_claim_allowed
+}
+$expectedRuntimeBlockedGates = @($expectedRuntimeGateClaims.GetEnumerator() | Where-Object { -not $_.Value } | ForEach-Object { [string]$_.Key })
+$summaryVerified = [string]$summary.status -eq "verified" -and @($summary.missing_or_failed_gates).Count -eq 0
+$expectedRuntimeGateStatus = if ($summaryVerified -and $expectedRuntimeBlockedGates.Count -eq 0) { "verified" } else { "action_required" }
+$expectedRuntimePreflightStatus = if ($expectedRuntimeBlockedGates.Count -gt 0) { "action_required" } elseif ($summaryVerified -and [bool]$summary.production_deploy_claim_allowed) { "verified" } else { "ready_for_external_execution" }
 
 Write-Host "[go-live-readiness] runtime contract"
 $readiness = Invoke-Json "$BaseUrl/api/v1/clouds/go-live-readiness"
@@ -86,10 +99,10 @@ if ($readiness.external_audit_claims.vercel_backend_origins_claim_allowed -eq $f
   Assert-Contains "required owner inputs" $readiness.required_owner_inputs "MCP_GATEWAY_BASE_URL"
   Assert-Contains "required owner inputs" $readiness.required_owner_inputs "LLM_GATEWAY_BASE_URL"
 }
-Assert-True "runtime preflight status verified" ($readiness.runtime_preflight_status -eq "verified")
-Assert-True "runtime preflight Phase 4 blockers closed" (@($readiness.runtime_preflight_missing_or_blocked_gates).Count -eq 0)
-Assert-True "runtime external gate status verified" ($readiness.runtime_external_gate_status -eq "verified")
-Assert-True "runtime external release blockers closed" (@($readiness.runtime_external_blocked_release_gates).Count -eq 0)
+Assert-True "runtime preflight status follows canonical summary" ([string]$readiness.runtime_preflight_status -eq $expectedRuntimePreflightStatus)
+Assert-True "runtime preflight blocker parity" ((@($readiness.runtime_preflight_missing_or_blocked_gates | Sort-Object) -join ",") -eq (@($expectedRuntimeBlockedGates | Sort-Object) -join ","))
+Assert-True "runtime external gate status follows canonical summary" ([string]$readiness.runtime_external_gate_status -eq $expectedRuntimeGateStatus)
+Assert-True "runtime external blocker parity" ((@($readiness.runtime_external_blocked_release_gates | Sort-Object) -join ",") -eq (@($expectedRuntimeBlockedGates | Sort-Object) -join ","))
 Assert-True "external audit summary configured" ($readiness.external_audit_summary.configured -eq $true)
 Assert-True "external audit summary contract" ($readiness.external_audit_summary.contract_version -eq "external-gate-summary-v1")
 Assert-True "external audit summary status supported" (@("blocked", "verified") -contains [string]$readiness.external_audit_summary_status)
@@ -122,12 +135,11 @@ Assert-Contains "contract guarded endpoint" $contract.guarded_endpoints "GET /ap
 Assert-Contains "contract guarded endpoint" $contract.guarded_endpoints "GET /api/v1/external-gates"
 Assert-Contains "contract required verifier" $contract.required_verifiers "scripts/verify-external-gates.ps1"
 
-Write-Host "[go-live-readiness] latest external gate audit"
-$latestAudit = Get-ChildItem -Path ".phase1-artifacts\external-gate-audit-*.json" |
-  Sort-Object LastWriteTime -Descending |
-  Select-Object -First 1
-Assert-True "latest external audit artifact exists" ($null -ne $latestAudit)
-$audit = Get-Content -Path $latestAudit.FullName -Raw | ConvertFrom-Json
+Write-Host "[go-live-readiness] canonical standard external gate audit"
+$canonicalAuditPath = Join-Path (Get-Location) ([string]$summary.source_artifact)
+Assert-True "canonical external audit artifact exists" (Test-Path -LiteralPath $canonicalAuditPath)
+$canonicalAudit = Get-Item -LiteralPath $canonicalAuditPath
+$audit = Get-Content -LiteralPath $canonicalAudit.FullName -Raw | ConvertFrom-Json
 Assert-NoSecretPattern "external gate audit" $audit
 Assert-True "external audit contract" ($audit.contract_version -eq "external-gate-audit-v1")
 Assert-True "external audit status supported" (@("blocked", "verified") -contains [string]$audit.status)
@@ -156,14 +168,13 @@ if ($audit.fly_live_budget_claim_allowed -eq $false) {
 }
 
 Write-Host "[go-live-readiness] sanitized external gate summary"
-$summary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
 Assert-NoSecretPattern "sanitized external gate summary" $summary
 Assert-True "summary contract" ($summary.contract_version -eq "external-gate-summary-v1")
 Assert-True "summary source contract parity" ($summary.source_contract_version -eq $audit.contract_version)
 Assert-True "summary status" ($summary.status -eq $audit.status)
 Assert-True "summary production claim parity" ($summary.production_deploy_claim_allowed -eq $audit.production_deploy_claim_allowed)
 Assert-True "summary audit timestamp parity" ($summary.generated_at_utc -eq $audit.generated_at_utc)
-Assert-True "summary source artifact points to latest audit" ([System.IO.Path]::GetFileName([string]$summary.source_artifact) -eq $latestAudit.Name)
+Assert-True "summary source artifact points to canonical audit" ([System.IO.Path]::GetFileName([string]$summary.source_artifact) -eq $canonicalAudit.Name)
 if ($summary.hosted_staging_claim_allowed -eq $true) {
   Assert-NotContains "summary hosted Agent API gate closed" $summary.missing_or_failed_gates "hosted_agent_api_contracts"
 } else {
@@ -185,6 +196,6 @@ if ($summary.fly_live_budget_claim_allowed -eq $false) {
   Assert-NotContains "summary Fly budget gate closed" $summary.missing_or_failed_gates "fly_live_budget_check"
 }
 
-Write-Host "[go-live-readiness] artifact=$($latestAudit.FullName)"
+Write-Host "[go-live-readiness] artifact=$($canonicalAudit.FullName)"
 Write-Host "[go-live-readiness] status=$($readiness.status)"
 Write-Host "[go-live-readiness] checks completed"

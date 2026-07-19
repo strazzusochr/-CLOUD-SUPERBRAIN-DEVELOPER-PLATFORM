@@ -297,13 +297,6 @@ Assert-Contains "project progress completion cannot set all to 100" $projectProg
 $projectProgressCompletionJson = $projectProgressCompletion | ConvertFrom-Json
 $projectProgressCompletionMissingGates = @($projectProgressCompletionJson.missing_external_gates | ForEach-Object { [string]$_ })
 $projectProgressCompletionHardBlockers = @($projectProgressCompletionJson.hard_blockers | ForEach-Object { [string]$_ })
-Assert-True "project progress completion Phase 4 external gates closed" ($projectProgressCompletionMissingGates.Count -eq 0)
-foreach ($closedBlocker in @(
-  "live_infra_budget_refresh_requires_FLY_API_TOKEN",
-  "vercel_backend_origins"
-)) {
-  Assert-True "project progress completion closed blocker absent: $closedBlocker" (-not ($projectProgressCompletionHardBlockers -contains $closedBlocker))
-}
 foreach ($requiredBlocker in @(
   "live_llm_provider_calls_require_owner_gate_and_budget_guard",
   "production_auth_identity_requires_owner_configured_oauth_and_hosted_url",
@@ -422,15 +415,37 @@ Assert-Contains "cloud deployment preflight runtime endpoint" $cloudDeploymentPr
 $cloudDeploymentPreflightRuntime = curl.exe -sS "$baseUrl/api/v1/clouds/deployment-preflight"
 Assert-Contains "cloud deployment preflight runtime version" $cloudDeploymentPreflightRuntime '"contract_version":"cloud-deployment-preflight-v1"'
 Assert-Contains "cloud deployment preflight runtime evidence" $cloudDeploymentPreflightRuntime '"evidence_ref":"cloud_deployment_preflight_visible"'
-Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflightRuntime '"status":"verified"'
-Assert-Contains "cloud deployment preflight cloud claim allowed" $cloudDeploymentPreflightRuntime '"cloud_deploy_claim_allowed":true'
-Assert-Contains "cloud deployment preflight production claim allowed" $cloudDeploymentPreflightRuntime '"production_deploy_claim_allowed":true'
+$canonicalExternalGateSummary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
+$expectedExternalGateClaims = [ordered]@{
+  ghcr_images = [bool]$canonicalExternalGateSummary.ghcr_image_digest_claim_allowed
+  fly_cloud_stack = [bool]$canonicalExternalGateSummary.fly_live_budget_claim_allowed
+  hosted_backend_origins = [bool]$canonicalExternalGateSummary.vercel_backend_origins_claim_allowed
+  hosted_staging = [bool]$canonicalExternalGateSummary.hosted_staging_claim_allowed
+  branch_protection = [bool]$canonicalExternalGateSummary.branch_protection_claim_allowed
+  canonical_secret_scan = [bool]$canonicalExternalGateSummary.canonical_gitleaks_claim_allowed
+}
+$expectedBlockedExternalGates = @($expectedExternalGateClaims.GetEnumerator() | Where-Object { -not $_.Value } | ForEach-Object { [string]$_.Key })
+$expectedExternalVerifiedCount = @($expectedExternalGateClaims.GetEnumerator() | Where-Object { $_.Value }).Count
+$canonicalExternalGateSummaryVerified = (
+  [string]$canonicalExternalGateSummary.status -eq "verified" -and
+  @($canonicalExternalGateSummary.missing_or_failed_gates).Count -eq 0
+)
+$expectedExternalGateStatus = if ($canonicalExternalGateSummaryVerified -and $expectedExternalVerifiedCount -eq $expectedExternalGateClaims.Count) { "verified" } else { "action_required" }
+$expectedPreflightStatus = if ($expectedBlockedExternalGates.Count -gt 0) { "action_required" } elseif ([bool]$canonicalExternalGateSummary.production_deploy_claim_allowed -and $canonicalExternalGateSummaryVerified) { "verified" } else { "ready_for_external_execution" }
+$expectedCloudDeployClaim = $expectedBlockedExternalGates.Count -eq 0
+$expectedProductionDeployClaim = $expectedCloudDeployClaim -and $canonicalExternalGateSummaryVerified -and [bool]$canonicalExternalGateSummary.production_deploy_claim_allowed
+$expectedMirrorStatus = if ($expectedExternalGateStatus -eq "verified") { "verified" } else { "local_mirror_ready_hosted_blocked" }
 $cloudDeploymentPreflightRuntimeJson = $cloudDeploymentPreflightRuntime | ConvertFrom-Json
 $cloudDeploymentPreflightBlockedGates = @($cloudDeploymentPreflightRuntimeJson.missing_or_blocked_gates | ForEach-Object { [string]$_ })
-Assert-True "cloud deployment preflight has no blocked Phase 4 gates" ($cloudDeploymentPreflightBlockedGates.Count -eq 0)
+Assert-True "cloud deployment preflight status follows canonical summary" ([string]$cloudDeploymentPreflightRuntimeJson.status -eq $expectedPreflightStatus)
+Assert-True "cloud deployment preflight cloud claim follows canonical summary" ([bool]$cloudDeploymentPreflightRuntimeJson.cloud_deploy_claim_allowed -eq $expectedCloudDeployClaim)
+Assert-True "cloud deployment preflight production claim follows canonical summary" ([bool]$cloudDeploymentPreflightRuntimeJson.production_deploy_claim_allowed -eq $expectedProductionDeployClaim)
+Assert-True "cloud deployment preflight canonical summary status" ([string]$cloudDeploymentPreflightRuntimeJson.canonical_summary_status -eq [string]$canonicalExternalGateSummary.status)
+Assert-True "cloud deployment preflight blocker parity" ((@($cloudDeploymentPreflightBlockedGates | Sort-Object) -join ",") -eq (@($expectedBlockedExternalGates | Sort-Object) -join ","))
 foreach ($requiredGateId in @("ghcr_images", "fly_cloud_stack", "hosted_backend_origins", "hosted_staging", "branch_protection", "canonical_secret_scan")) {
   $requiredGate = @($cloudDeploymentPreflightRuntimeJson.gates | Where-Object { [string]$_.id -eq $requiredGateId })
-  Assert-True "cloud deployment preflight gate verified: $requiredGateId" ($requiredGate.Count -eq 1 -and [bool]$requiredGate[0].verified)
+  Assert-True "cloud deployment preflight gate present: $requiredGateId" ($requiredGate.Count -eq 1)
+  Assert-True "cloud deployment preflight gate summary parity: $requiredGateId" ([bool]$requiredGate[0].verified -eq [bool]$expectedExternalGateClaims[$requiredGateId])
 }
 Assert-Contains "cloud deployment preflight ghcr sequence" $cloudDeploymentPreflightRuntime "publish_ghcr_images"
 Assert-Contains "cloud deployment preflight hosted origins" $cloudDeploymentPreflightRuntime "hosted_backend_origins"
@@ -1561,8 +1576,6 @@ Assert-Contains "external gates contract" $externalGates '"contract_version":"ex
 Assert-Contains "external gates endpoint" $externalGates '"endpoint":"GET /api/v1/external-gates"'
 Assert-Contains "external gates evidence" $externalGates '"evidence_ref":"external_gates_state_visible"'
 Assert-Contains "external gates aligned with preflight" $externalGates '"aligned_with_deployment_preflight":true'
-Assert-Contains "external gates status" $externalGates '"status":"verified"'
-Assert-Contains "external gates verified count" $externalGates '"verified_count":6'
 Assert-Contains "external gates total count" $externalGates '"total_count":6'
 Assert-Contains "external gates local allowed" $externalGates '"local_execution_allowed":true'
 Assert-Contains "external gates branch token" $externalGates '"id":"branch_protection_token"'
@@ -1575,17 +1588,27 @@ Assert-Contains "external gates ghcr mapping" $externalGates '"ghcr_images"'
 Assert-Contains "external gates hosted origins mapping" $externalGates '"hosted_backend_origins"'
 $externalGatesJson = $externalGates | ConvertFrom-Json
 $externalGatesBlockedRelease = @($externalGatesJson.blocked_release_gates | ForEach-Object { [string]$_ })
-Assert-True "external gates release blockers closed" ($externalGatesBlockedRelease.Count -eq 0)
+$expectedMissingConfiguredGateIds = @($externalGatesJson.gates | Where-Object { -not [bool]$_.configured } | ForEach-Object { [string]$_.id })
+Assert-True "external gates status follows canonical summary" ([string]$externalGatesJson.status -eq $expectedExternalGateStatus)
+Assert-True "external gates verified count follows canonical summary" ([int]$externalGatesJson.verified_count -eq $expectedExternalVerifiedCount)
+Assert-True "external gates canonical summary status" ([string]$externalGatesJson.canonical_summary_status -eq [string]$canonicalExternalGateSummary.status)
+Assert-True "external gates release blocker parity" ((@($externalGatesBlockedRelease | Sort-Object) -join ",") -eq (@($expectedBlockedExternalGates | Sort-Object) -join ","))
+Assert-True "project progress completion missing external gate parity" ((@($projectProgressCompletionMissingGates | Sort-Object) -join ",") -eq (@($expectedMissingConfiguredGateIds | Sort-Object) -join ","))
+foreach ($expectedMissingGateId in $expectedMissingConfiguredGateIds) {
+  Assert-True "project progress completion hard blocker present: $expectedMissingGateId" ($projectProgressCompletionHardBlockers -contains $expectedMissingGateId)
+}
 $externalGateMirror = curl.exe -sS "$baseUrl/api/v1/external-gates/mirror"
+$externalGateMirrorJson = $externalGateMirror | ConvertFrom-Json
 Assert-Contains "external gate mirror contract" $externalGateMirror '"contract_version":"external-gate-mirror-v1"'
-Assert-Contains "external gate mirror status" $externalGateMirror '"status":"verified"'
 Assert-Contains "external gate mirror evidence" $externalGateMirror '"evidence_ref":"external_gate_mirror_proof"'
-Assert-Contains "external gate mirror hosted allowed" $externalGateMirror '"hosted_staging_claim_allowed":true'
-Assert-Contains "external gate mirror branch protection allowed" $externalGateMirror '"branch_protection_claim_allowed":true'
+Assert-True "external gate mirror status follows canonical summary" ([string]$externalGateMirrorJson.status -eq $expectedMirrorStatus)
+Assert-True "external gate mirror canonical summary status" ([string]$externalGateMirrorJson.canonical_summary_status -eq [string]$canonicalExternalGateSummary.status)
+Assert-True "external gate mirror hosted claim parity" ([bool]$externalGateMirrorJson.hosted_staging_claim_allowed -eq [bool]$canonicalExternalGateSummary.hosted_staging_claim_allowed)
+Assert-True "external gate mirror branch protection claim parity" ([bool]$externalGateMirrorJson.branch_protection_claim_allowed -eq [bool]$canonicalExternalGateSummary.branch_protection_claim_allowed)
 Assert-Contains "external gate mirror branch protection evidence" $externalGateMirror '"branch_protection_evidence_ref":"branch_protection_verify_contract"'
 Assert-Contains "external gate mirror branch protection workflow" $externalGateMirror ".github/workflows/branch-protection.yml"
 Assert-Contains "external gate mirror branch protection verifier" $externalGateMirror "scripts/apply_github_branch_protection.py --verify-only"
-Assert-Contains "external gate mirror production claim allowed" $externalGateMirror '"production_deploy_claim_allowed":true'
+Assert-True "external gate mirror production claim parity" ([bool]$externalGateMirrorJson.production_deploy_claim_allowed -eq $expectedProductionDeployClaim)
 Assert-Contains "external gate mirror workflow" $externalGateMirror ".github/workflows/hosted-staging-proof.yml"
 Assert-Contains "external gate mirror phase2 runtime" $externalGateMirror "phase2-runtime-v1"
 Assert-Contains "external gate mirror phase2 sse" $externalGateMirror "phase2-sse-event-contract-v1"

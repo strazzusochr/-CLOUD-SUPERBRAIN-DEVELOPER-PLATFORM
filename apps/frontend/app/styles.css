@@ -969,7 +969,9 @@ p {
   left: 12px;
   bottom: 12px;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
+  max-width: 42%;
   font-size: 10.5px;
   color: var(--text-mut);
   background: rgba(5, 7, 13, 0.62);
@@ -2714,7 +2716,6 @@ p {
   .org-hud {
     right: 12px;
     max-width: calc(100% - 24px);
-    flex-wrap: wrap;
   }
   .org-gates {
     top: 48px;

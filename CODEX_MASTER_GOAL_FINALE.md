@@ -1,5 +1,5 @@
 # 🏁 CODEX MASTER GOAL — FINALE (bis Vollendung + fehlerfreier Beweis)
-# Version: 2026-07-11 (Claude-Supervisor-Baseline nach Codex-Token-Ende)
+# Version: 2026-07-19 (R0 Runtime-Truth- und Browser-Gate-Stand)
 # Führt CODEX_MASTER_GOAL.md zu Ende. Dieses Dokument ist der aktuelle Einstieg.
 
 ## DAS ZIEL IN EINEM SATZ
@@ -58,6 +58,12 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   Persistenz oder Audit-seitige Provider-Mutation. Das bindende Manifest steht bei
   `overall=84`; das Frontend ist bereitgestellt, die Backend-Gesamtplattform wurde nicht
   als Production Release ausgerollt.
+- **R0 Runtime-Bindung:** Die lokalen Runtime-Endpunkte fuer External Gates, Mirror,
+  Deployment Preflight, Completion und Go-live Readiness lesen die kanonische Summary und
+  zeigen den Standard deshalb einheitlich als geblockt. `npm run verify`,
+  `npm run verify:runtime` und `npm run verify:browser` sind gruen; letzterer umfasst 22
+  Seiten, zwei Viewports und 44 Klicks ohne Overflow-, Overlay- oder Console-Fehler.
+  Evidence: `.codex/runs/CURRENT/master-goal/r0-canonical-runtime-truth-20260719.md`.
 - **Phase 1 ✔ (1.1–1.5), Phase 2 ✔ (2.1–2.3).** Class-Matrix A=85/B=0/C=5/D=4.
 - **Phase 3 deployt (~80 %):** S1 Build-Log-Grid, S2 Media/Docs-Entflechtung,
   S3 Apps-Kuration, S4 ehrliche Idle-Texte, S5 Hero-Labels, S6 /observe-Ehrlichkeit,

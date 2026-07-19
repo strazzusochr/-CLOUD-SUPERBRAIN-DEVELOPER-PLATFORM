@@ -718,22 +718,33 @@ def project_phase_status_markers(
 
 
 def external_gate_verification_flags(progress: dict[str, object] | None = None) -> dict[str, bool]:
-    markers = project_phase_status_markers(progress)
+    # The canonical, token-free summary is the runtime authority. Manifest
+    # markers describe accumulated implementation evidence and must not turn a
+    # blocked external standard into a current deployment claim.
+    del progress
+    summary = external_gate_summary_state()
+    summary_verified = (
+        str(summary.get("status", "")) == "verified"
+        and not summary.get("missing_or_failed_gates")
+    )
     return {
-        "hosted_staging": "cloud_only_staging_verified" in markers or "hosted_staging_https_proof" in markers,
-        "ghcr_images": "ghcr_image_digest_verified" in markers,
-        "branch_protection": "branch_protection_verified" in markers,
-        "hosted_backend_origins": "hosted_backend_origin_verified" in markers,
-        "fly_cloud_stack": "fly_live_budget_verified" in markers,
-        "canonical_secret_scan": "canonical_gitleaks_verified" in markers,
-        "production_gate_claim_allowed": "production_gate_claim_allowed" in markers,
-        "external_gate_audit_verified": "external_gate_audit_verified" in markers,
+        "hosted_staging": bool(summary.get("hosted_staging_claim_allowed", False)),
+        "ghcr_images": bool(summary.get("ghcr_image_digest_claim_allowed", False)),
+        "branch_protection": bool(summary.get("branch_protection_claim_allowed", False)),
+        "hosted_backend_origins": bool(summary.get("vercel_backend_origins_claim_allowed", False)),
+        "fly_cloud_stack": bool(summary.get("fly_live_budget_claim_allowed", False)),
+        "canonical_secret_scan": bool(summary.get("canonical_gitleaks_claim_allowed", False)),
+        "production_gate_claim_allowed": (
+            summary_verified and bool(summary.get("production_deploy_claim_allowed", False))
+        ),
+        "external_gate_audit_verified": summary_verified,
     }
 
 
 def external_gate_state() -> dict[str, object]:
     progress = project_progress_payload()
     verified_flags = external_gate_verification_flags(progress)
+    summary = external_gate_summary_state()
     repo_gitleaks_path = Path(".tools") / "gitleaks" / "gitleaks.exe"
     gitleaks_available = shutil.which("gitleaks") is not None or repo_gitleaks_path.exists()
     gates = [
@@ -812,7 +823,7 @@ def external_gate_state() -> dict[str, object]:
     blocked_release_gates = [str(gate["preflight_gate_id"]) for gate in gates if not gate["verified"]]
     return {
         "contract_version": EXTERNAL_GATES_CONTRACT_VERSION,
-        "status": "verified" if verified == len(gates) else "action_required",
+        "status": "verified" if verified == len(gates) and verified_flags["external_gate_audit_verified"] else "action_required",
         "endpoint": "GET /api/v1/external-gates",
         "evidence_ref": EXTERNAL_GATES_EVIDENCE_REF,
         "configured_count": configured,
@@ -822,6 +833,8 @@ def external_gate_state() -> dict[str, object]:
         "aligned_with_deployment_preflight": True,
         "deployment_preflight_endpoint": "GET /api/v1/clouds/deployment-preflight/contract",
         "blocked_release_gates": blocked_release_gates,
+        "canonical_summary_status": str(summary.get("status", "missing_summary")),
+        "canonical_summary_source_artifact": str(summary.get("source_artifact", "")),
         "gates": gates,
         "non_claims": [
             "Missing external gates are reported explicitly and are not treated as verified.",
@@ -869,6 +882,7 @@ def external_gates_surface_contract_payload() -> dict[str, object]:
 def external_gate_mirror_state() -> dict[str, object]:
     gates = external_gate_state()
     verified_flags = external_gate_verification_flags(project_progress_payload())
+    summary = external_gate_summary_state()
     gate_items = list(gates["gates"])
     staging_configured = any(gate["id"] == "staging_base_url" and gate["configured"] for gate in gate_items)
     branch_token_configured = any(
@@ -885,6 +899,8 @@ def external_gate_mirror_state() -> dict[str, object]:
         "local_mirror_command": "powershell -ExecutionPolicy Bypass -File scripts\\verify-hosted-staging.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
         "hosted_command": "powershell -ExecutionPolicy Bypass -File scripts\\verify-hosted-staging.ps1",
         "external_gate_status": gates["status"],
+        "canonical_summary_status": str(summary.get("status", "missing_summary")),
+        "canonical_summary_source_artifact": str(summary.get("source_artifact", "")),
         "configured_count": gates["configured_count"],
         "total_count": gates["total_count"],
         "required_external_gates": [gate["id"] for gate in gate_items],
@@ -5132,6 +5148,7 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
         return all(bool(os.getenv(key)) for key in keys)
 
     verified_flags = external_gate_verification_flags(project_progress_payload())
+    summary = external_gate_summary_state()
     gates = [
         {
             "id": "ghcr_images",
@@ -5236,6 +5253,8 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
         "external_execution_ready": preflight_ready,
         "cloud_deploy_claim_allowed": preflight_ready,
         "production_deploy_claim_allowed": production_gate_claim_allowed and preflight_ready,
+        "canonical_summary_status": str(summary.get("status", "missing_summary")),
+        "canonical_summary_source_artifact": str(summary.get("source_artifact", "")),
         "localhost_role": "dev_control_plane_only",
         "manual_external_actions": [
             "gh workflow run main-deploy.yml",

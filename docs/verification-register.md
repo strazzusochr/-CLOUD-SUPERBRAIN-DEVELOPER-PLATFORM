@@ -1,6 +1,6 @@
 # Verification Register - PATCHED
 
-Stand: 2026-07-13
+Stand: 2026-07-19
 Status: Active
 
 ## Current Progress Authority
@@ -13,13 +13,17 @@ Entries below that mention `https://188-34-191-140.sslip.io`, `sslip.io`, or Het
 
 Latest external audit truth: the canonical reproducible token-free standard bootstrap audit `.phase1-artifacts/external-gate-audit-20260713-122529.json` is `status=blocked` with `production_deploy_claim_allowed=false`; the open gate is `vercel_backend_origin_health` (the consolidated Vercel MCP/LLM backend-origin probes fail). The token/origin-injected run `.phase1-artifacts/external-gate-audit-20260713-125413.json` reported `status=verified` with `production_deploy_claim_allowed=true`, but per R0 (CODEX_UEBERGABE_2026-07-13.md) it is recorded ONLY as a non-current, owner-assisted candidate (`docs/runtime-state/external-gate-summary.candidate-125413.json`) and must never be shown as current gate truth. Existing credentials were loaded only into the audit process; no values were printed or persisted and the audit performed no provider mutation. This does not claim a full-platform production rollout or release promotion; current manifest progress remains `84%`.
 
+## Current R0 Runtime Truth Evidence
+
+`r0-canonical-runtime-truth-v1` makes `docs/runtime-state/external-gate-summary.json` authoritative for runtime release claims. The local Agent API now reports External Gates `action_required` with `5/6` configured and blocker `hosted_backend_origins`; the mirror reports `local_mirror_ready_hosted_blocked`; Deployment Preflight reports `action_required` with cloud and production claims `false`; Completion and Go-live Readiness report `blocked_external_gates`. Full static, runtime, and browser gates passed. The browser proof records 22 canonical pages, two viewports, 44 command-palette clicks, `overflow_failures=0`, `overlay_collision_failures=0`, and `console_errors=0`. Evidence: `.codex/runs/CURRENT/master-goal/r0-canonical-runtime-truth-20260719.md`. This is DEV-ONLY and changes no percentage.
+
 ## Current Hosted Frontend Evidence
 
 `frontend-hosted-current-proof-v1` verifies a source-bound immutable Vercel deployment plus Production Alias parity. Google Chrome `148.0.7778.96` opened all 22 canonical routes at desktop `1440x960` and mobile `390x844` through 44 real command-palette clicks. The report records four screenshots, `overflow_failures=0`, `overlay_collision_failures=0`, `console_errors=0`, and no visible not-found state; the wrapper additionally requires HTTP `200` and content parity for root and `/api/v1/workspace/wiring`. Evidence: `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-eabdf208-chrome`. This raises Frontend `99% -> 100%`; Overall remains `84%`. It is not hosted Agent API/MCP/LLM parity, a registry publication, a live-provider claim, release promotion, or a full-platform production release.
 
 ## Current Hosted Backend Contract-Origin Evidence
 
-`backend-hosted-current-proof-v1` binds Vercel deployment `dpl_EVWUDmSH57FsNT6r6JdXtzTWJdK1` to source `72e829357ed20e818f228e61af745c7fba43f445` and archive SHA-256 `cfeabc024621d300d930c03f6c1251e002dfd569f03b0a2b6fe08f44c522206c`. `scripts/verify-backend-hosted-current.ps1` checks authenticated read-only Vercel metadata for READY state, exact source/archive metadata, and Production Alias assignment; the immutable deployment remains SSO-protected with HTTP 302. The public alias returns HTTP 200 with `overall=84`, Phase 4 `100`, progress integrity `verified`, external gates `6/6 verified`, MCP/LLM `healthy`, and expected stateless Agent API `degraded`. A mutation-shaped request is rejected with HTTP 503 and `stateless_contract_origin_read_only`. Evidence: `.codex/runs/CURRENT/master-goal/backend/hosted-contract-origin-72e8293/verification.json`. This does not prove the stateful Docker backend stack, persistent workers, a registry publication, release promotion, or a full-platform production release.
+`backend-hosted-current-proof-v1` binds Vercel deployment `dpl_EVWUDmSH57FsNT6r6JdXtzTWJdK1` to source `72e829357ed20e818f228e61af745c7fba43f445` and archive SHA-256 `cfeabc024621d300d930c03f6c1251e002dfd569f03b0a2b6fe08f44c522206c`. `scripts/verify-backend-hosted-current.ps1` checked authenticated read-only Vercel metadata for READY state, exact source/archive metadata, and Production Alias assignment; the immutable deployment remains SSO-protected with HTTP 302. That prior public snapshot returned external gates `6/6 verified`, but it predates the R0 source correction and is not current gate authority. The canonical standard remains `blocked`; this hosted contract-origin proof must be regenerated after redeploy. A mutation-shaped request remained fail-closed with HTTP 503 and `stateless_contract_origin_read_only`. Evidence: `.codex/runs/CURRENT/master-goal/backend/hosted-contract-origin-72e8293/verification.json`. This does not prove the stateful Docker backend stack, persistent workers, a registry publication, release promotion, or a full-platform production release.
 
 ## Current Phase 5 Local Candidate Evidence
 

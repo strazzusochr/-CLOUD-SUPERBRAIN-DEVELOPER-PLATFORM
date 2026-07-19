@@ -73,6 +73,7 @@ async function clickRoute(page, surface, baseUrl) {
   }
   if (lastError) throw lastError;
   await page.waitForLoadState("domcontentloaded");
+  await page.locator(".app-shell").waitFor({ state: "visible", timeout: 45000 });
   await page.waitForTimeout(surface.pageId.startsWith("organism") ? 1200 : 250);
   assert(new URL(page.url()).pathname === surface.route, `Click did not navigate to ${surface.route}`);
   assert(page.url().startsWith(baseUrl), `Navigation escaped the configured origin: ${page.url()}`);

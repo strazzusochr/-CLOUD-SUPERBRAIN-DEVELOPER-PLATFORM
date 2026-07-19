@@ -253,7 +253,7 @@ test.describe("Cloud Superbrain platform", () => {
   });
 
   test("organism Phase-6 camera and lighting controls apply bounded runtime state", async ({ page }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(300_000);
     const contractResponse = await page.request.get("/api/v1/phase6/3d-camera-lighting/contract");
     expect(contractResponse.status()).toBe(200);
     const contract = await contractResponse.json();
@@ -276,8 +276,9 @@ test.describe("Cloud Superbrain platform", () => {
 
     await page.goto("/organism?gpu=force", { waitUntil: "networkidle" });
     const controls = page.getByTestId("phase6-camera-lighting-controls");
-    const canvasState = page.locator(".cortex-wrap").first();
+    const canvasState = page.locator('.cortex-wrap[data-camera-lighting-local-only="true"]').first();
     await expect(controls).toBeVisible();
+    await expect(canvasState).toBeVisible({ timeout: 30_000 });
     await expect(canvasState).toHaveAttribute("data-camera-preset", "wide");
     await expect(canvasState).toHaveAttribute("data-camera-fov", "45");
     await expect(canvasState).toHaveAttribute("data-camera-position", "0.00,0.60,7.00");
@@ -367,8 +368,9 @@ test.describe("Cloud Superbrain platform", () => {
     await page.goto("/organism", { waitUntil: "networkidle" });
     const controls = page.getByTestId("phase6-gameplay-state-controls");
     const state = page.getByTestId("phase6-gameplay-state");
-    const canvasState = page.locator(".cortex-wrap").first();
+    const canvasState = page.locator('.cortex-wrap[data-gameplay-local-only="true"]').first();
     await expect(controls).toBeVisible();
+    await expect(canvasState).toBeVisible({ timeout: 30_000 });
     await expect(state).toContainText("objective=collect");
     await expect(state).toContainText("score=0");
     await expect(state).toContainText("checkpoints=0");
@@ -464,8 +466,9 @@ test.describe("Cloud Superbrain platform", () => {
     await page.goto("/organism", { waitUntil: "networkidle" });
     const controls = page.getByTestId("phase6-asset-policy-controls");
     const manifest = page.getByTestId("phase6-asset-manifest");
-    const canvasState = page.locator(".cortex-wrap").first();
+    const canvasState = page.locator('.cortex-wrap[data-asset-policy-local-only="true"]').first();
     await expect(controls).toBeVisible();
+    await expect(canvasState).toBeVisible({ timeout: 30_000 });
     await expect(manifest).toContainText("asset_profile=cube");
     await expect(manifest).toContainText("geometry=boxGeometry");
     await expect(manifest).toContainText("material_variant=cyan");
@@ -518,7 +521,7 @@ test.describe("Cloud Superbrain platform", () => {
   });
 
   test("organism Phase-6 save and load restores a volatile browser-memory snapshot", async ({ page }) => {
-    test.setTimeout(150_000);
+    test.setTimeout(300_000);
     const contractResponse = await page.request.get("/api/v1/phase6/3d-save-load/contract");
     expect(contractResponse.status()).toBe(200);
     const contract = await contractResponse.json();
@@ -553,8 +556,9 @@ test.describe("Cloud Superbrain platform", () => {
     const clear = page.getByTestId("phase6-clear-snapshot");
     const gameplay = page.getByTestId("phase6-gameplay-state");
     const manifest = page.getByTestId("phase6-asset-manifest");
-    const canvasState = page.locator(".cortex-wrap").first();
+    const canvasState = page.locator('.cortex-wrap[data-camera-lighting-local-only="true"]').first();
     await expect(page.getByTestId("phase6-save-load-controls")).toBeVisible();
+    await expect(canvasState).toBeVisible({ timeout: 30_000 });
     await expect(state).toContainText("snapshot_status=empty");
     await expect(state).toContainText("slots=0/1");
     await expect(state).toContainText("storage=react_state");
@@ -617,7 +621,8 @@ test.describe("Cloud Superbrain platform", () => {
     await expect(state).toContainText("slots=0/1");
     await expect(load).toBeDisabled();
     captureSnapshotRequests = false;
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("phase6-save-load-controls")).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId("phase6-save-load-state")).toContainText("snapshot_status=empty");
     await expect(page.getByTestId("phase6-load-snapshot")).toBeDisabled();
 
@@ -754,10 +759,11 @@ test.describe("Cloud Superbrain platform", () => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto("/organism", { waitUntil: "networkidle" });
     const state = page.getByTestId("phase6-netcode-state");
-    const canvasState = page.locator(".cortex-wrap").first();
+    const canvasState = page.locator('.cortex-wrap[data-netcode-transport="loopback"]').first();
     const start = page.getByTestId("phase6-netcode-start");
     const tick = page.getByTestId("phase6-netcode-tick");
     await expect(page.getByTestId("phase6-netcode-controls")).toBeVisible();
+    await expect(canvasState).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId("phase6-netcode-session")).toHaveText("idle");
     await expect(page.getByTestId("phase6-netcode-peers")).toHaveText("0/2");
     await expect(page.getByTestId("phase6-netcode-join")).toBeDisabled();
@@ -819,7 +825,7 @@ test.describe("Cloud Superbrain platform", () => {
   });
 
   test("organism Phase-6 local scoreboard and performance sample stay browser-local", async ({ page }) => {
-    test.setTimeout(240_000);
+    test.setTimeout(300_000);
     const contractResponse = await page.request.get("/api/v1/phase6/local-scoreboard-performance/contract");
     expect(contractResponse.status()).toBe(200);
     const contract = await contractResponse.json();

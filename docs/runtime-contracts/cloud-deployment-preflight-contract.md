@@ -37,8 +37,9 @@ Environment variables, installed tools, and static workflow files are only prere
 
 ## Fail-Closed Rules
 
-- `cloud_deploy_claim_allowed` is always `false` in the local contract.
-- `production_deploy_claim_allowed` is always `false` in the local contract.
+- Runtime gate claims are derived from the sanitized canonical external-gate summary; progress-manifest integration markers are never release-gate authority.
+- `cloud_deploy_claim_allowed` is `true` only when every required canonical gate is verified and the summary allows the hosted staging claim.
+- `production_deploy_claim_allowed` is `true` only when the canonical summary is `verified`, has no missing gates, and explicitly allows the production claim.
 - `configured` remains `false` until verifier artifacts prove the gate, even when env keys are present.
 - `environment_configured` only means the process can see required env-key names.
 - `manual_external_actions` are instructions for owner-gated execution, not commands the API runs.
@@ -52,7 +53,7 @@ Static, runtime, hosted-local, cloud-only, and external-gate verifiers must asse
 - API contract version `cloud-deployment-preflight-v1`.
 - Endpoint `GET /api/v1/clouds/deployment-preflight/contract`.
 - Evidence ref `cloud_deployment_preflight_visible`.
-- `cloud_deploy_claim_allowed=false`.
-- `production_deploy_claim_allowed=false`.
+- `canonical_summary_status` and `canonical_summary_source_artifact` match the sanitized summary.
+- Cloud and production claims equal the canonical summary-derived expected values; they remain `false` for the current blocked standard bootstrap.
 - Required sequence contains `publish_ghcr_images`, `hosted_backend_origins`, and `owner_review_before_production`.
 - `BRANCH_PROTECTION_TOKEN`, `docker-compose.cloud.yml`, and `canonical_secret_scan` remain visible as gates.
