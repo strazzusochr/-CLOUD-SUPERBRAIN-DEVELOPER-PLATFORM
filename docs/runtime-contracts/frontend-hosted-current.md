@@ -5,7 +5,7 @@ Contract: `frontend-hosted-current-proof-v1`
 Status: `verified`
 
 The active Vercel frontend deployment is bound to committed source
-`3d8063155240107dc63a11c071142884eb2f9a63`. A real Google Chrome 148 run opened all
+`e1a3ec1f7942e54058e56915f4fb29636c5c4f3e`. A real Google Chrome 148 run opened all
 22 canonical routes by command-palette clicks at desktop `1440x960` and mobile
 `390x844`. The verifier requires 44 clicks, no visible not-found state, no console
 errors, no incoherent overflow, no collision between the Organism performance HUD and
@@ -18,8 +18,8 @@ Evidence:
 
 - State: `docs/runtime-state/frontend-hosted-current.json`
 - Verifier: `scripts/verify-frontend-hosted-current.ps1`
-- Report: `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-eabdf208-chrome/report.json`
-- Verification: `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-eabdf208-chrome/verification.json`
+- Report: `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-e1a3ec1f-chrome/report.json`
+- Verification: `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-e1a3ec1f-chrome/verification.json`
 
 Non-claims:
 

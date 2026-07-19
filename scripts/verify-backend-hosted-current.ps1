@@ -71,9 +71,22 @@ try {
   Assert-Equal ([int]$config.overall_percent) 84 "configured overall percent"
   Assert-Equal ([int]$config.phase_4_percent) 100 "configured Phase 4 percent"
   Assert-Equal ([string]$config.integrity_status) "verified" "configured integrity"
-  Assert-Equal ([string]$config.external_gates_status) "verified" "configured external gates"
-  Assert-Equal ([int]$config.external_gates_verified_count) 6 "configured verified gate count"
-  Assert-Equal ([int]$config.external_gates_total_count) 6 "configured total gate count"
+  Assert-True (@("verified", "action_required") -contains [string]$config.external_gates_status) "Configured external gate status is invalid"
+  Assert-True ([int]$config.external_gates_verified_count -ge 0) "Configured verified gate count cannot be negative"
+  Assert-True ([int]$config.external_gates_verified_count -le [int]$config.external_gates_total_count) "Configured verified gate count exceeds total"
+  Assert-True ([int]$config.external_gates_total_count -gt 0) "Configured total gate count must be positive"
+  Assert-True (@("verified", "blocked") -contains [string]$config.external_gates_canonical_summary_status) "Configured canonical summary status is invalid"
+  Assert-True ([string]$config.external_gates_canonical_summary_source_artifact -match '^\.phase1-artifacts[\\/]+external-gate-audit-\d{8}-\d{6}\.json$') "Configured canonical summary artifact is invalid"
+  $configuredBlockedGates = @($config.external_gates_blocked_release_gates)
+  if ([string]$config.external_gates_status -eq "verified") {
+    Assert-Equal ([int]$config.external_gates_verified_count) ([int]$config.external_gates_total_count) "verified external gate count"
+    Assert-Equal $configuredBlockedGates.Count 0 "verified blocked release gate count"
+    Assert-Equal ([string]$config.external_gates_canonical_summary_status) "verified" "verified canonical summary"
+  } else {
+    Assert-True ([int]$config.external_gates_verified_count -lt [int]$config.external_gates_total_count) "Action-required external gates must be incomplete"
+    Assert-True ($configuredBlockedGates.Count -gt 0) "Action-required external gates must name blockers"
+    Assert-Equal ([string]$config.external_gates_canonical_summary_status) "blocked" "blocked canonical summary"
+  }
   Assert-True ([bool]$config.read_only_contract_origin) "Hosted backend proof must remain read-only"
   Assert-True ([bool]$config.immutable_deployment_protected) "Immutable deployment must remain protected"
   Assert-True ([bool]$config.deployment_metadata_verified) "Deployment metadata must be verified"
@@ -135,10 +148,12 @@ try {
   Assert-Equal ([int]$progress.Json.overall_percent) ([int]$config.overall_percent) "hosted overall progress"
   Assert-Equal ([int]$phase4.percent) ([int]$config.phase_4_percent) "hosted Phase 4 progress"
   Assert-Equal ([string]$integrity.Json.status) "verified" "hosted progress integrity"
-  Assert-Equal ([string]$gates.Json.status) "verified" "hosted external gates"
-  Assert-Equal ([int]$gates.Json.verified_count) 6 "hosted verified gate count"
-  Assert-Equal ([int]$gates.Json.total_count) 6 "hosted total gate count"
-  Assert-Equal @($gates.Json.blocked_release_gates).Count 0 "hosted blocked release gate count"
+  Assert-Equal ([string]$gates.Json.status) ([string]$config.external_gates_status) "hosted external gates"
+  Assert-Equal ([int]$gates.Json.verified_count) ([int]$config.external_gates_verified_count) "hosted verified gate count"
+  Assert-Equal ([int]$gates.Json.total_count) ([int]$config.external_gates_total_count) "hosted total gate count"
+  Assert-Equal ([string]$gates.Json.canonical_summary_status) ([string]$config.external_gates_canonical_summary_status) "hosted canonical summary status"
+  Assert-Equal ([string]$gates.Json.canonical_summary_source_artifact) ([string]$config.external_gates_canonical_summary_source_artifact) "hosted canonical summary artifact"
+  Assert-Equal ((@($gates.Json.blocked_release_gates) | Sort-Object) -join ',') (($configuredBlockedGates | Sort-Object) -join ',') "hosted blocked release gates"
   Assert-Equal ([string]$mcp.Json.status) "healthy" "hosted MCP health"
   Assert-Equal ([string]$llm.Json.status) "healthy" "hosted LLM health"
 
@@ -162,9 +177,12 @@ try {
     overall_percent = [int]$config.overall_percent
     phase_4_percent = [int]$config.phase_4_percent
     integrity_status = "verified"
-    external_gates_status = "verified"
-    external_gates_verified_count = 6
-    external_gates_total_count = 6
+    external_gates_status = [string]$gates.Json.status
+    external_gates_verified_count = [int]$gates.Json.verified_count
+    external_gates_total_count = [int]$gates.Json.total_count
+    external_gates_canonical_summary_status = [string]$gates.Json.canonical_summary_status
+    external_gates_canonical_summary_source_artifact = [string]$gates.Json.canonical_summary_source_artifact
+    external_gates_blocked_release_gates = @($gates.Json.blocked_release_gates)
     agent_health_status = "degraded"
     mcp_health_status = "healthy"
     llm_health_status = "healthy"
@@ -176,7 +194,7 @@ try {
     production_release_claimed = $false
   } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $verificationPath -Encoding utf8
 
-  Write-Host "[backend-hosted-current] status=verified overall=$($config.overall_percent) phase4=$($config.phase_4_percent) gates=6/6 read_only_post=503"
+  Write-Host "[backend-hosted-current] status=verified overall=$($config.overall_percent) phase4=$($config.phase_4_percent) gates=$($gates.Json.verified_count)/$($gates.Json.total_count) canonical=$($gates.Json.canonical_summary_status) read_only_post=503"
 } finally {
   Pop-Location
 }

@@ -37,14 +37,16 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   Command-Palette-Klicks, vier PNGs, Overflow 0, sichtbaren Not-Found-Zustaenden 0 und
   Console Errors 0. Immutable Deployment und Production Alias lieferten HTTP `200` und
   identische Root-/Workspace-Wiring-Inhalte. Evidence:
-  `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-eabdf208-chrome`; Frontend `100%`.
+  `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-e1a3ec1f-chrome`; Frontend `100%`.
   Dies ist kein Hosted-Backend- oder Gesamtplattform-Release-Claim.
 - **Backend-Projekt 2** `https://cloud-superbrain-developer-platform.vercel.app`:
   `backend-hosted-current-proof-v1` bindet das READY-Deployment
-  `dpl_EVWUDmSH57FsNT6r6JdXtzTWJdK1` an Source
-  `72e829357ed20e818f228e61af745c7fba43f445` und den Git-Archiv-Hash. Der oeffentliche
-  Alias liefert `overall=84`, `P4=100`, Integritaet `verified`, External Gates `6/6`,
-  MCP/LLM `healthy` und Agent API `degraded`-ehrlich; POST bleibt mit HTTP 503
+  `dpl_3Rb2rRJbPQdFCiLiu9mLdSaNhVBY` an Source
+  `e1a3ec1f7942e54058e56915f4fb29636c5c4f3e` und Archiv-SHA-256
+  `c1106b6cb2a36f643664a3f428483685f27231f8e0128f5581925ab2196ea1cb`. Der oeffentliche
+  Alias liefert `overall=84`, `P4=100`, Integritaet `verified`, External Gates
+  `5/6 action_required` mit einzigem Blocker `hosted_backend_origins`, MCP/LLM `healthy`
+  und Agent API `degraded`-ehrlich; POST bleibt mit HTTP 503
   `stateless_contract_origin_read_only` geschlossen. Dies ist ein zustandsloser
   Contract-Origin, nicht der stateful Docker-Stack und kein Gesamtplattform-Release.
 - **External-Gate-Wahrheit:** Der kanonische reproduzierbare Standard-Bootstrap-Audit (ohne
