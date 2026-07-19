@@ -39,6 +39,12 @@ function Assert-False($label, $value) {
   }
 }
 
+function Assert-True($label, $value) {
+  if (-not [bool]$value) {
+    throw "Verification failed: $label expected true."
+  }
+}
+
 function Assert-Sha($label, $value) {
   if ([string]::IsNullOrWhiteSpace($value) -or $value -notmatch '^[0-9a-f]{40}$') {
     throw "Verification failed: $label is not a lowercase 40-character SHA."
@@ -157,7 +163,27 @@ Assert-Equal "hosted integrity status" $integrity.status "verified"
 $completion = Get-Json "$BaseUrl/api/v1/project/progress/completion" | ConvertFrom-Json
 Assert-False "hosted completion can_set_all_to_100" $completion.can_set_all_to_100
 
-$externalGates = Get-Json "$BaseUrl/api/v1/external-gates" | ConvertFrom-Json
-Assert-Equal "hosted external gates status" $externalGates.status "verified"
+$canonicalSummary = Get-Content "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
+$canonicalMissing = @($canonicalSummary.missing_or_failed_gates)
+$canonicalVerified = ([string]$canonicalSummary.status -eq "verified" -and $canonicalMissing.Count -eq 0)
+$expectedExternalStatus = if ($canonicalVerified) { "verified" } else { "action_required" }
+if (-not $canonicalVerified) {
+  Assert-Equal "hosted completion status" ([string]$completion.status) "blocked_external_gates"
+}
 
-Write-Host "[current-release-candidate] verified"
+$externalGates = Get-Json "$BaseUrl/api/v1/external-gates" | ConvertFrom-Json
+$externalMirror = Get-Json "$BaseUrl/api/v1/external-gates/mirror" | ConvertFrom-Json
+Assert-Equal "hosted external gates status" ([string]$externalGates.status) $expectedExternalStatus
+Assert-Equal "hosted canonical summary status" ([string]$externalGates.canonical_summary_status) ([string]$canonicalSummary.status)
+Assert-Equal "hosted canonical summary artifact" ([string]$externalGates.canonical_summary_source_artifact) ([string]$canonicalSummary.source_artifact)
+Assert-Equal "hosted mirror canonical summary status" ([string]$externalMirror.canonical_summary_status) ([string]$canonicalSummary.status)
+Assert-Equal "hosted production claim" ([bool]$externalMirror.production_deploy_claim_allowed) ([bool]$canonicalSummary.production_deploy_claim_allowed)
+if ($canonicalVerified) {
+  Assert-Equal "hosted blocked release gate count" @($externalGates.blocked_release_gates).Count 0
+} else {
+  Assert-True "hosted blocked release gates visible" (@($externalGates.blocked_release_gates).Count -gt 0)
+  Assert-False "canonical production claim remains closed" $canonicalSummary.production_deploy_claim_allowed
+}
+
+$promotionEligible = ($canonicalVerified -and [bool]$canonicalSummary.production_deploy_claim_allowed)
+Write-Host "[current-release-candidate] verified candidate_technical=true promotion_eligible=$($promotionEligible.ToString().ToLowerInvariant()) canonical=$($canonicalSummary.status)"

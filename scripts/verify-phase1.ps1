@@ -2836,6 +2836,28 @@ if ($resourceParseErrors -and $resourceParseErrors.Count -gt 0) {
 Write-Host "[verify] phase5 local production candidate contract"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-production-candidate-local.ps1 -StaticOnly
 Assert-LastExitCode "phase5 local production candidate static contract"
+$phase5LocalCandidateVerifier = Get-Content -Path "scripts\verify-phase5-production-candidate-local.ps1" -Raw
+foreach ($required in @(
+  'verification-runtime.json',
+  'verification_scope',
+  'runtime_without_browser',
+  'full_with_browser'
+)) {
+  if (-not $phase5LocalCandidateVerifier.Contains($required)) {
+    throw "Phase5 local candidate verifier missing artifact-isolation guard: $required"
+  }
+}
+$currentReleaseCandidateVerifier = Get-Content -Path "scripts\verify-current-release-candidate.ps1" -Raw
+foreach ($required in @(
+  'docs\runtime-state\external-gate-summary.json',
+  '/api/v1/external-gates/mirror',
+  'candidate_technical=true',
+  'promotion_eligible='
+)) {
+  if (-not $currentReleaseCandidateVerifier.Contains($required)) {
+    throw "Current release candidate verifier missing canonical gate classification: $required"
+  }
+}
 
 Write-Host "[verify] market-ready hosted proof classification"
 $marketReadyParseErrors = $null

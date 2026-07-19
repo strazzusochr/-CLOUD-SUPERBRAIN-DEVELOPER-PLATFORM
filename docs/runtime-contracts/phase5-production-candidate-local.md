@@ -18,6 +18,14 @@ The report records the Git archive SHA256, local Docker image IDs, OCI source/re
 version labels, Dockerfile hashes, embedded source-file hash parity, and the frontend
 Next.js `BUILD_ID`. The dedicated verifier re-inspects the existing images, checks the
 read-only API methods, and drives a real Chromium selection and click in Diagnostics.
+Runtime integration may use `-SkipBrowser`, but that bounded run writes a separate
+`verification-runtime.json`; it cannot replace or downgrade the canonical full-browser
+`verification.json`.
+
+The current-candidate boundary verifier treats technical candidate verification and
+promotion eligibility as separate claims. Its hosted external-gate expectation follows
+the canonical sanitized summary. A blocked canonical summary can therefore verify the
+candidate boundary while promotion remains explicitly false.
 
 ## Evidence
 
@@ -26,6 +34,7 @@ read-only API methods, and drives a real Chromium selection and click in Diagnos
 - Verifier: `scripts/verify-phase5-production-candidate-local.ps1`
 - Report: `.codex/runs/CURRENT/master-goal/phase5/production-candidate-local/candidate-images.json`
 - Verification: `.codex/runs/CURRENT/master-goal/phase5/production-candidate-local/verification.json`
+- Runtime-only verification: `.codex/runs/CURRENT/master-goal/phase5/production-candidate-local/verification-runtime.json`
 - Screenshot: `.codex/runs/CURRENT/master-goal/phase5/production-candidate-local/diagnostics-phase5-production-candidate.png`
 
 ## Non-Claims

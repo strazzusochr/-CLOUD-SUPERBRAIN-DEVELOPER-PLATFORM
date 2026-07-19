@@ -129,6 +129,7 @@ try {
     contract_version = "phase5-production-candidate-local-verification-v1"
     evidence_ref = "phase5_local_production_candidate_verified"
     status = "verified"
+    verification_scope = $(if ($SkipBrowser) { "runtime_without_browser" } else { "full_with_browser" })
     generated_at = (Get-Date).ToUniversalTime().ToString("o")
     source_commit_sha = $report.source_commit_sha
     service_count = 6
@@ -143,8 +144,9 @@ try {
     secret_output = $false
   }
   New-Item -ItemType Directory -Force -Path $ArtifactDir | Out-Null
-  $verification | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $ArtifactDir "verification.json") -Encoding utf8
-  Write-Host "[phase5-candidate-local] status=verified service_count=6 browser_click_verified=$(-not $SkipBrowser)"
+  $verificationFile = if ($SkipBrowser) { "verification-runtime.json" } else { "verification.json" }
+  $verification | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $ArtifactDir $verificationFile) -Encoding utf8
+  Write-Host "[phase5-candidate-local] status=verified service_count=6 browser_click_verified=$(-not $SkipBrowser) artifact=$verificationFile"
 } finally {
   Pop-Location
 }
