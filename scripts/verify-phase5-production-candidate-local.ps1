@@ -31,7 +31,7 @@ function Get-ContainerSha256([string]$Image, [string]$Path) {
 Push-Location $repoRoot
 try {
   $candidateConfig = Get-Content "docs\release-artifacts\current-release-candidate.json" -Raw | ConvertFrom-Json
-  Assert-Equal "active release id" $candidateConfig.active_release_id "prod-candidate-2026-07-13-local-rc1"
+  Assert-True "active release id" ([string]$candidateConfig.active_release_id -match '^prod-candidate-\d{4}-\d{2}-\d{2}-local-rc\d+$')
   Assert-Equal "production rollout claimed" ([bool]$candidateConfig.production_rollout_claimed) $false
   $candidatePath = "docs\release-artifacts\$($candidateConfig.active_release_id).md"
   Assert-True "candidate artifact exists" (Test-Path -LiteralPath $candidatePath)

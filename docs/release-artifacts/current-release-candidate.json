@@ -1,7 +1,7 @@
 {
-  "active_release_id": "prod-candidate-2026-07-13-local-rc1",
-  "updated_at": "2026-07-13T06:54:44Z",
-  "updated_by": "codex-phase5-local-candidate-proof",
-  "reason": "Prepare six content-addressed production service images from the last committed green source through a strict local Git-archive boundary. GHCR publication, hosted parity, Owner approval, release promotion, and production rollout remain explicitly blocked.",
+  "active_release_id": "prod-candidate-2026-07-20-local-rc2",
+  "updated_at": "2026-07-19T22:02:06Z",
+  "updated_by": "codex-phase5-current-candidate-requalification",
+  "reason": "Requalify six content-addressed production service images from commit 1d8304456a6a95a2a05de65cf0d576ee68c20733 after candidate evidence isolation and canonical gate classification. GHCR publication, hosted stateful parity, Owner approval, release promotion, and production rollout remain explicitly blocked.",
   "production_rollout_claimed": false
 }

@@ -1,6 +1,6 @@
 # Cloud Superbrain Release Status
 
-Updated: 2026-07-13
+Updated: 2026-07-19
 
 Status: **not released**. This repository has a healthy local development runtime, a
 verified Vercel frontend deployment, and a reachable stateless read-only Backend Contract
@@ -40,20 +40,19 @@ Percentages come only from `docs/project-progress.manifest.json` and must match
 
 ## External Gate Status
 
-Latest read-only audit:
-`.phase1-artifacts/external-gate-audit-20260713-125413.json`
+Canonical reproducible standard-bootstrap audit:
+`.phase1-artifacts/external-gate-audit-20260713-122529.json`
 
-Status: `verified`
+Status: `blocked`
 
-Missing or failed gates: none.
+Missing or failed gate: `vercel_backend_origin_health`.
 
-Hosted Agent API, all three explicitly configured consolidated Vercel backend origins,
-verify-only branch protection, GHCR, canonical gitleaks, and Fly budget checks pass.
-Existing credentials were loaded only into the audit process; no values were printed or
-persisted and the audit performed no provider mutation.
+The token/origin-injected audit `20260713-125413` reported `verified`, but it is retained
+only as a non-current owner-assisted candidate and cannot replace the reproducible standard.
+The canonical standard allows no production-deploy claim while the consolidated Vercel
+MCP/LLM origin health probes fail.
 
-`production_deploy_claim_allowed=true` is permission from the gate bundle, not evidence
-that a production rollout or release promotion occurred.
+`production_deploy_claim_allowed=false`; no production rollout or release promotion occurred.
 
 ## Current Hosted Frontend Proof
 
@@ -63,7 +62,7 @@ routes through 44 command-palette clicks at desktop `1440x960` and mobile `390x8
 Overflow failures, visible not-found states, and console errors were zero. The verifier
 also requires HTTP `200` and byte-identical root and workspace-wiring content between the
 immutable deployment and Production Alias. Evidence is under
-`.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-eabdf208-chrome`.
+`.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-e1a3ec1f-chrome`.
 
 This closes the Frontend / Next.js layer proof only. It does not close Hosted Agent API,
 MCP Gateway, LLM Gateway, registry, release-promotion, or full-platform production gates.
@@ -71,11 +70,13 @@ MCP Gateway, LLM Gateway, registry, release-promotion, or full-platform producti
 ## Current Hosted Backend Contract Origin
 
 `backend-hosted-current-proof-v1` binds the active Vercel backend deployment to source
-`72e829357ed20e818f228e61af745c7fba43f445` and its committed archive SHA-256.
+`e1a3ec1f7942e54058e56915f4fb29636c5c4f3e` and archive SHA-256
+`c1106b6cb2a36f643664a3f428483685f27231f8e0128f5581925ab2196ea1cb`.
 Authenticated read-only Vercel metadata proves READY state and Production Alias assignment;
 the immutable URL is SSO-protected. The public alias proves `overall=84`, `P4=100`,
-integrity `verified`, external gates `6/6 verified`, MCP/LLM `healthy`, expected stateless
-Agent API `degraded`, and a fail-closed HTTP 503 response for mutation-shaped requests.
+integrity `verified`, external gates `5/6 action_required`, canonical summary `blocked`,
+MCP/LLM `healthy`, expected stateless Agent API `degraded`, and a fail-closed HTTP 503
+response for mutation-shaped requests.
 
 This proves the stateless read-only Contract Origin only. It does not prove the stateful
 Docker stack, persistent PostgreSQL/Redis workers, registry publication, release promotion,
@@ -83,11 +84,13 @@ or a full-platform production release.
 
 ## Local Production Candidate Preparation
 
-Candidate `prod-candidate-2026-07-13-local-rc1` is locally verified against source
-commit `c451fa8ff2b631685ad07ebcfcf4dc4a5b418e81`. Six production targets were built
+Candidate `prod-candidate-2026-07-20-local-rc2` is locally verified against source
+commit `1d8304456a6a95a2a05de65cf0d576ee68c20733`. Six production targets were built
 only from a committed Git archive; local image IDs, OCI labels, embedded source hashes,
 the frontend build ID, the read-only API contract, and a real Diagnostics Chromium click
-passed. This raises P5 from 67 to 68 while Overall remains 84.
+passed. Runtime-only verification cannot overwrite the full-browser artifact. The hosted
+boundary passes technically and keeps promotion ineligible under the blocked canonical
+summary. P5 remains 68 and Overall remains 84.
 
 The GHCR tag set is planned and unpublished. Hosted parity, Owner approval, registry
 publication, production deploy, and release promotion remain false.

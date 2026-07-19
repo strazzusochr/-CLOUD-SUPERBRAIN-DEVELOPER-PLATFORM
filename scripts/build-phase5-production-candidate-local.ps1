@@ -1,6 +1,6 @@
 param(
   [string]$SourceSha = "",
-  [string]$ReleaseId = "prod-candidate-2026-07-13-local-rc1",
+  [string]$ReleaseId = "prod-candidate-2026-07-20-local-rc2",
   [string]$OutputDir = ".codex\runs\CURRENT\master-goal\phase5\production-candidate-local"
 )
 

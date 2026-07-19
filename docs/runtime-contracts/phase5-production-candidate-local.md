@@ -29,7 +29,7 @@ candidate boundary while promotion remains explicitly false.
 
 ## Evidence
 
-- Candidate: `docs/release-artifacts/prod-candidate-2026-07-13-local-rc1.md`
+- Candidate: `docs/release-artifacts/prod-candidate-2026-07-20-local-rc2.md`
 - Builder: `scripts/build-phase5-production-candidate-local.ps1`
 - Verifier: `scripts/verify-phase5-production-candidate-local.ps1`
 - Report: `.codex/runs/CURRENT/master-goal/phase5/production-candidate-local/candidate-images.json`
