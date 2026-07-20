@@ -12,6 +12,7 @@
     "verify:csrf": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase3-csrf-origin-guard.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
     "verify:cross-origin": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase3-cross-origin-response-guard.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
     "verify:auth-session": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase3-auth-session-integrity.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
+    "verify:memory-secret-guard": "powershell -ExecutionPolicy Bypass -File scripts\\verify-memory-worker-secret-guard.ps1",
     "verify:orchestrator-completion": "powershell -ExecutionPolicy Bypass -File scripts\\verify-orchestrator-completion-evidence.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
     "build:phase5-candidate-local": "powershell -ExecutionPolicy Bypass -File scripts\\build-phase5-production-candidate-local.ps1",
     "verify:phase5-candidate-local": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase5-production-candidate-local.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",

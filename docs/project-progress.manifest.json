@@ -84,8 +84,8 @@
       {
         "id": "layer_6",
         "label": "Memory",
-        "percent": 72,
-        "status": "repeatable-browser-contract-memory-consolidation-proof-pgvector-consolidation-postgres-backup-restore-redis-persistence-runtime-redaction-proof-scoped-dsgvo-purge-proof-single-entry-soft-delete-proof-langgraph-context-injection-memory-updater-persisted-dry-run-session-foreign-key-guard-proof-browser-memory-consolidation-refresh-proof-memory_embedding_consistency_contract_visible-hosted_session_memory_memory_worker_parity_proof-memory_consolidation_contract_runtime_visible-memory_search_contract_runtime_visible-hosted_memory_embedding_consistency_runtime_parity_proof"
+        "percent": 73,
+        "status": "repeatable-browser-contract-memory-consolidation-proof-pgvector-consolidation-postgres-backup-restore-redis-persistence-runtime-redaction-proof-scoped-dsgvo-purge-proof-single-entry-soft-delete-proof-langgraph-context-injection-memory-updater-persisted-dry-run-session-foreign-key-guard-proof-browser-memory-consolidation-refresh-proof-memory_embedding_consistency_contract_visible-hosted_session_memory_memory_worker_parity_proof-memory_consolidation_contract_runtime_visible-memory_search_contract_runtime_visible-hosted_memory_embedding_consistency_runtime_parity_proof-memory_worker_metadata_secret_guard_verified"
       },
       {
         "id": "layer_7",

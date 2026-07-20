@@ -52,10 +52,18 @@ Vertical:
 - Agent Pool: `68%`
 - LLM Gateway: `54%`
 - MCP Gateway: `55%`
-- Memory: `72%`
+- Memory: `73%`
 - Observability: `99%`
 
 Older percentage lines below are historical proof points only. Current percentages must come from this section and `docs/project-progress.manifest.json`.
+
+Latest local memory-safety proof: `memory-worker-secret-guard-v1` recursively inspects
+working-memory text plus nested metadata keys and values before persistence. A generated
+credential-shaped value located only under nested metadata was blocked without a memory row
+or raw audit value; the Redis key was consumed, a sanitized `memory_consolidation_blocked`
+audit was persisted, and safe nested metadata still consolidated. Evidence:
+`.codex/runs/CURRENT/memory/worker-secret-guard/report.json`. Memory rises `72% -> 73%`;
+Overall remains `84%`. DEV-ONLY; no live embedding, provider, MCP, deploy, or production claim.
 
 Latest bounded proof: `frontend-hosted-current-proof-v1` verifies the active Vercel frontend from source `e1a3ec1f7942e54058e56915f4fb29636c5c4f3e` with a source-bound immutable deployment, Production Alias parity, and real Google Chrome `148.0.7778.96`. All 22 routes were opened by command-palette clicks at desktop and mobile for 44 clicks total; overflow failures, Organism HUD/gate collisions, visible not-found states, and console errors were zero, and four screenshots are present. Evidence is under `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-e1a3ec1f-chrome`; configuration and non-claims live in `docs/runtime-state/frontend-hosted-current.json`. Frontend remains `100%`; Overall remains `84%`. This proves the hosted frontend only, not hosted Agent API/MCP/LLM parity, registry publication, live provider activation, release promotion, or a full-platform production release.
 

@@ -714,6 +714,10 @@ foreach ($service in @("frontend", "agent-api", "agent-worker", "memory-worker",
   }
 }
 
+Write-Host "[verify] memory worker metadata secret guard"
+& (Join-Path $PSScriptRoot "verify-memory-worker-secret-guard.ps1") -StaticOnly
+Assert-LastExitCode "memory worker metadata secret guard"
+
 Write-Host "[verify] cloud compose pull-based substrate"
 if (-not (Test-Path "docker-compose.cloud.yml")) {
   throw "Missing cloud pull-based compose file"

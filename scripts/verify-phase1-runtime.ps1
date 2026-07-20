@@ -1441,6 +1441,10 @@ $memoryConsolidationFeed = curl.exe -sS "$baseUrl/api/v1/memory/consolidation/re
 Assert-Contains "memory consolidation feed event" $memoryConsolidationFeed "memory_consolidated"
 Assert-Contains "memory consolidation feed idempotency" $memoryConsolidationFeed $memoryIdempotencyKey
 
+Write-Host "[runtime] memory worker metadata secret guard"
+& (Join-Path $PSScriptRoot "verify-memory-worker-secret-guard.ps1")
+Assert-LastExitCode "memory worker metadata secret guard"
+
 Write-Host "[runtime] internal task queue"
 $manualTask = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import json, urllib.request; data=json.dumps({'project_id':'runtime-task','session_id':'$($response.session_id)','agent_type':'planner','task_type':'runtime_smoke','task_description':'runtime internal task smoke','priority':5,'max_retries':5}).encode(); req=urllib.request.Request('http://127.0.0.1:8000/api/v1/internal/tasks', data=data, headers={'Content-Type':'application/json'}, method='POST'); print(urllib.request.urlopen(req, timeout=5).read().decode())"
 Assert-Contains "internal task queue depth" $manualTask '"queue_depth"'
