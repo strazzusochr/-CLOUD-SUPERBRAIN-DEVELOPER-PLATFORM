@@ -100,6 +100,18 @@ export async function proxyToBoundary(
   }
 }
 
+export async function proxyReadToBoundary(
+  req: Request,
+  kind: BoundaryKind,
+  targetPath: string,
+  timeoutMs = 8_000,
+): Promise<Response | null> {
+  const method = req.method.toUpperCase();
+  if (method !== "GET" && method !== "HEAD") return null;
+  const response = await proxyToBoundary(req, kind, targetPath, timeoutMs);
+  return response?.ok ? response : null;
+}
+
 export function boundaryUnavailable(
   endpoint: string,
   kind: BoundaryKind,

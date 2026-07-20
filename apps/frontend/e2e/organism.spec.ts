@@ -661,7 +661,14 @@ test.describe("Cloud Superbrain platform", () => {
     });
 
     await page.emulateMedia({ reducedMotion: "no-preference" });
+    const coreAssetResponsePromise = page.waitForResponse(
+      (response) => new URL(response.url()).pathname === "/organism/core.glb",
+      { timeout: 30_000 },
+    );
     await page.goto("/organism", { waitUntil: "networkidle" });
+    const coreAssetResponse = await coreAssetResponsePromise;
+    expect(coreAssetResponse.ok(), "core GLB is loaded before accessibility request capture").toBeTruthy();
+    expect(await coreAssetResponse.finished(), "core GLB response finishes before accessibility request capture").toBeNull();
     const controls = page.getByTestId("phase6-accessibility-controls");
     const state = page.getByTestId("phase6-accessibility-state");
     const toggle = page.getByTestId("phase6-reduced-motion-toggle");

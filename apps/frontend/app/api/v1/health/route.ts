@@ -1,9 +1,9 @@
-import { proxyToBoundary } from "../../../../lib/frontendBoundary";
+import { proxyReadToBoundary } from "../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request): Promise<Response> {
-  const response = await proxyToBoundary(req, "agent-api", "/api/v1/health");
+  const response = await proxyReadToBoundary(req, "agent-api", "/api/v1/health");
   if (response) return response;
   return Response.json(
     {

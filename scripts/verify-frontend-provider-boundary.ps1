@@ -72,6 +72,7 @@ foreach ($required in @(
   "AGENT_API_INTERNAL_URL",
   "LLM_GATEWAY_BASE_URL",
   "MCP_GATEWAY_BASE_URL",
+  "proxyReadToBoundary",
   "configured_boundary_unavailable",
   "accepted: false",
   "persisted: false",
@@ -101,6 +102,28 @@ foreach ($relative in $actionRoutes) {
   $route = Get-Content -LiteralPath $path -Raw
   Assert-Contains "$relative gateway proxy" $route "proxyToBoundary"
   Assert-Contains "$relative fail closed" $route "boundaryUnavailable"
+}
+
+$readProjectionRoutes = @(
+  "app\api\v1\[...slug]\route.ts",
+  "app\api\v1\agent-activity\recent\route.ts",
+  "app\api\v1\audit\mcp\route.ts",
+  "app\api\v1\audit\recent\route.ts",
+  "app\api\v1\build\[id]\route.ts",
+  "app\api\v1\builds\route.ts",
+  "app\api\v1\escalations\recent\route.ts",
+  "app\api\v1\health\route.ts",
+  "app\api\v1\memory\consolidation\recent\route.ts",
+  "app\api\v1\memory\embedding-consistency\contract\route.ts",
+  "app\api\v1\memory\search\route.ts",
+  "app\api\v1\rotation\events\route.ts",
+  "app\api\v1\sessions\recent\route.ts",
+  "app\api\v1\workspace\artifacts\route.ts"
+)
+foreach ($relative in $readProjectionRoutes) {
+  $path = Join-Path $frontendRoot $relative
+  $route = Get-Content -LiteralPath $path -Raw
+  Assert-Contains "$relative successful read boundary" $route "proxyReadToBoundary"
 }
 
 $memoryContract = Get-Content -LiteralPath (Join-Path $frontendRoot "app\api\v1\memory\embedding-consistency\contract\route.ts") -Raw
@@ -194,6 +217,7 @@ $report = [ordered]@{
   retired_module_count = @($retiredModules).Count
   forbidden_marker_count = @($forbiddenMarkers).Count
   guarded_action_route_count = @($actionRoutes).Count
+  guarded_read_projection_route_count = @($readProjectionRoutes).Count
   hosted_wrapper_count = 3
   direct_provider_paths_absent = $true
   mutations_fail_closed = $true

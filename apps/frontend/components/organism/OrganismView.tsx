@@ -265,7 +265,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
       })
       .catch((err) => {
         if (!alive || isExpectedAbort(err, ctrl)) return;
-        if (process.env.NODE_ENV !== "production") console.error("organism live-state fetch failed:", err);
+        if (process.env.NODE_ENV !== "production") console.warn("organism live-state unavailable; using spec-only state:", err);
       })
       .finally(() => clearTimeout(timer));
     return () => {
@@ -325,7 +325,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
       })
       .catch((err) => {
         if (!alive || isExpectedAbort(err, ctrl)) return;
-        if (process.env.NODE_ENV !== "production") console.error("organism runtime projection fetch failed:", err);
+        if (process.env.NODE_ENV !== "production") console.warn("organism runtime projection unavailable; using spec-only state:", err);
       })
       .finally(() => clearTimeout(timer));
     return () => {

@@ -1,9 +1,9 @@
-import { projectionResponse, proxyToBoundary } from "../../../../../lib/frontendBoundary";
+import { projectionResponse, proxyReadToBoundary } from "../../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request): Promise<Response> {
-  const response = await proxyToBoundary(req, "agent-api", "/api/v1/agent-activity/recent");
+  const response = await proxyReadToBoundary(req, "agent-api", "/api/v1/agent-activity/recent");
   return response ?? projectionResponse({
     contract_version: "agent-activity-trace-v1",
     status: "degraded",

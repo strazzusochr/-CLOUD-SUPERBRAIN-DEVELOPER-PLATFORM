@@ -1,9 +1,9 @@
-import { boundaryUnavailable, projectionResponse, proxyToBoundary } from "../../../../../lib/frontendBoundary";
+import { boundaryUnavailable, projectionResponse, proxyReadToBoundary, proxyToBoundary } from "../../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request): Promise<Response> {
-  const response = await proxyToBoundary(req, "agent-api", "/api/v1/workspace/artifacts");
+  const response = await proxyReadToBoundary(req, "agent-api", "/api/v1/workspace/artifacts");
   return response ?? projectionResponse({
     contract_version: "workspace-artifact-registry-v1",
     status: "degraded",

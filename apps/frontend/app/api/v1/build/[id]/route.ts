@@ -1,4 +1,4 @@
-import { boundaryUnavailable, proxyToBoundary } from "../../../../../lib/frontendBoundary";
+import { boundaryUnavailable, proxyReadToBoundary, proxyToBoundary } from "../../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,7 @@ function safeId(value: string): string {
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
   const clean = safeId((await ctx.params).id);
   if (!clean) return Response.json({ status: "not_found" }, { status: 404 });
-  const response = await proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`);
+  const response = await proxyReadToBoundary(req, "agent-api", `/api/v1/build/${clean}`);
   return response ?? Response.json(
     {
       status: "not_found",

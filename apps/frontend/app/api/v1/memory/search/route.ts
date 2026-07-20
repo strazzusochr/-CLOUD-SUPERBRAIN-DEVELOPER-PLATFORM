@@ -1,10 +1,10 @@
-import { boundaryUnavailable, projectionResponse, proxyToBoundary } from "../../../../../lib/frontendBoundary";
+import { boundaryUnavailable, projectionResponse, proxyReadToBoundary, proxyToBoundary } from "../../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 export async function GET(req: Request): Promise<Response> {
-  const response = await proxyToBoundary(req, "agent-api", "/api/v1/memory/search", 30_000);
+  const response = await proxyReadToBoundary(req, "agent-api", "/api/v1/memory/search", 30_000);
   return response ?? projectionResponse({
     contract_version: "memory-search-v1",
     status: "degraded",

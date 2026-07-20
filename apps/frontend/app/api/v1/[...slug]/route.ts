@@ -15,7 +15,7 @@
 
 import snapshot from "../../../../lib/endpoint-snapshot.json";
 import { projectedDefault, genericDefault, frontendMetrics } from "../../../../lib/endpointDefaults";
-import { boundaryUnavailable, proxyToBoundary } from "../../../../lib/frontendBoundary";
+import { boundaryUnavailable, proxyReadToBoundary, proxyToBoundary } from "../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 
@@ -28,9 +28,11 @@ async function handle(req: Request, slug: string[] | undefined, method: string):
   if (method === "GET" && pathname === "/api/v1/metrics") {
     return new Response(frontendMetrics(), { headers: { "content-type": "text/plain; version=0.0.4", "x-superbrain-source": "frontend-metrics" } });
   }
-  const live = await proxyToBoundary(req, "agent-api", pathname, 6_000);
-  if (live) return live;
   const isRead = method === "GET" || method === "HEAD";
+  const live = isRead
+    ? await proxyReadToBoundary(req, "agent-api", pathname, 6_000)
+    : await proxyToBoundary(req, "agent-api", pathname, 6_000);
+  if (live) return live;
   // projectedDefault internally covers knownDefault surfaces before generic data.
   const projected = projectedDefault(pathname, method);
   if (projected) {

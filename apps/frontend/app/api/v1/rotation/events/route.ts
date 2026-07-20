@@ -1,9 +1,9 @@
-import { projectionResponse, proxyToBoundary } from "../../../../../lib/frontendBoundary";
+import { projectionResponse, proxyReadToBoundary } from "../../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request): Promise<Response> {
-  const response = await proxyToBoundary(req, "agent-api", "/api/v1/rotation/events");
+  const response = await proxyReadToBoundary(req, "agent-api", "/api/v1/rotation/events");
   return response ?? projectionResponse({
     contract_version: "provider-fallback-event-v1",
     evidence_ref: "provider_rotation_feed_unavailable",

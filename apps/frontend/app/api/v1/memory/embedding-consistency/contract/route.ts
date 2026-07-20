@@ -1,9 +1,9 @@
-import { projectionResponse, proxyToBoundary } from "../../../../../../lib/frontendBoundary";
+import { projectionResponse, proxyReadToBoundary } from "../../../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request): Promise<Response> {
-  const response = await proxyToBoundary(req, "agent-api", "/api/v1/memory/embedding-consistency/contract");
+  const response = await proxyReadToBoundary(req, "agent-api", "/api/v1/memory/embedding-consistency/contract");
   return response ?? projectionResponse({
     contract_version: "memory-embedding-consistency-v1",
     mode: "stateless_frontend_memory_contract",
