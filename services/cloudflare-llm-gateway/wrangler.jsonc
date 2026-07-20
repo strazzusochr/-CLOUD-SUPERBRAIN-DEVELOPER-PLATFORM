@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cloud-superbrain-llm-gateway",
+  "main": "src/index.js",
+  "compatibility_date": "2026-07-20",
+  "workers_dev": true,
+  "ai": {
+    "binding": "AI"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  },
+  "vars": {
+    "GATEWAY_MODE": "cloudflare_workers_ai_live"
+  },
+  "env": {
+    "preview": {
+      "name": "cloud-superbrain-llm-gateway-preview",
+      "workers_dev": true,
+      "ai": {
+        "binding": "AI"
+      },
+      "vars": {
+        "GATEWAY_MODE": "cloudflare_workers_ai_live"
+      }
+    }
+  }
+}

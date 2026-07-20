@@ -40,7 +40,15 @@ HARD RULES:
 - Keep everything that already works; change only what the request asks for.
 - Same constraints: inline CSS/JS, CDN scripts only (e.g. three.min.js global THREE), no backend, must run immediately, dark modern UI.`;
 
-async function generate(req: Request, prompt: string, baseHtml?: string): Promise<{ html: string; model: unknown } | null> {
+type GeneratedBuild = {
+  html: string;
+  model: unknown;
+  liveProviderCalls: boolean;
+  gatewayMode: unknown;
+  provider: unknown;
+};
+
+async function generate(req: Request, prompt: string, baseHtml?: string): Promise<GeneratedBuild | null> {
   const messages = baseHtml
     ? [
         { role: "system", content: MODIFY_SYSTEM },
@@ -50,9 +58,8 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
         { role: "system", content: SYSTEM },
         { role: "user", content: prompt },
       ];
-  // Give the strong code model (Qwen Coder) a long budget so it isn't cut off;
-  // the fast Llama fallback gets the remaining time if Qwen errors.
-  const models: Array<[string, number]> = [["@cf/qwen/qwen2.5-coder-32b-instruct", 45000], ["@cf/meta/llama-3.1-8b-instruct", 12000]];
+  // Free-only hosted generation gets one bounded provider attempt per user prompt.
+  const models: Array<[string, number]> = [["@cf/qwen/qwen2.5-coder-32b-instruct", 50000]];
   let lastErr: unknown = null;
   let gatewayReached = false;
   for (const [model, timeoutMs] of models) {
@@ -69,7 +76,15 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
       if (!response.ok) throw new Error(String(out.error ?? out.detail ?? `LLM Gateway HTTP ${response.status}`));
       const choices = out.choices as Array<{ message?: { content?: string } }> | undefined;
       const html = extractHtml(choices?.[0]?.message?.content ?? "");
-      if (html && /<.*>/.test(html)) return { html, model: out.model };
+      if (html && /<.*>/.test(html)) {
+        return {
+          html,
+          model: out.model,
+          liveProviderCalls: out.live_provider_calls === true,
+          gatewayMode: out.gateway_mode,
+          provider: out.provider,
+        };
+      }
     } catch (err) {
       lastErr = err;
     }
@@ -95,7 +110,7 @@ export async function POST(req: Request): Promise<Response> {
         "App generation requires the configured LLM Gateway; no direct provider call was attempted.",
       );
     }
-    const { html, model } = generated;
+    const { html, model, liveProviderCalls, gatewayMode, provider } = generated;
     const title = prompt.replace(/�/g, "").slice(0, 70);
     const id = globalThis.crypto.randomUUID();
     void projectId;
@@ -105,6 +120,9 @@ export async function POST(req: Request): Promise<Response> {
         title,
         model,
         html,
+        gateway_mode: gatewayMode,
+        gateway_provider: provider,
+        live_provider_calls: liveProviderCalls,
         persisted: false,
         share_path: null,
         direct_provider_calls: false,

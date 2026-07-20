@@ -5,7 +5,14 @@ import { useEffect, useRef, useState } from "react";
 // IDE-style build studio backed exclusively by /api/v1/build. That route reaches
 // models through the LLM Gateway and fails closed when no gateway is configured.
 
-type Build = { id: string; title: string; model: string; html: string; share_path?: string | null };
+type Build = {
+  id: string;
+  title: string;
+  model: string;
+  html: string;
+  live_provider_calls?: boolean;
+  share_path?: string | null;
+};
 type VFile = { name: string; lang: string; content: string };
 type LogRow = { kind: "run" | "ok" | "info" | "err"; text: string };
 
@@ -187,7 +194,9 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
           <div className="wb-pane-head"><span>Agentenhilfe</span><span className="mono muted-copy">{busy ? "läuft" : "bereit"}</span></div>
           <div className="wb-tree">
             <div className="terminal-row"><span className={busy ? "run" : "info"}>{busy ? "Planung und Code-Erzeugung aktiv" : "Bereit für Prompt-zu-Code"}</span></div>
-            <div className="terminal-row"><span className="ok">live_provider_calls=false</span></div>
+            <div className="terminal-row">
+              <span className="ok">{build?.live_provider_calls === true ? "live_provider_calls=true" : "live_provider_calls=false"}</span>
+            </div>
           </div>
         </aside>
         <aside className="wb-pane wb-cortex">

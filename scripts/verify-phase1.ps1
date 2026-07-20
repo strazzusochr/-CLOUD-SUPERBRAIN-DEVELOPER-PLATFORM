@@ -2958,6 +2958,10 @@ foreach ($required in @(
   }
 }
 
+Write-Host "[verify] Cloudflare Workers AI LLM Gateway static contract"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-cloudflare-llm-gateway.ps1 -StaticOnly
+Assert-LastExitCode "Cloudflare Workers AI LLM Gateway static contract"
+
 Write-Host "[verify] current hosted frontend proof"
 $frontendHostedVerifierSource = Get-Content -Path "scripts\verify-frontend-hosted-current.ps1" -Raw
 foreach ($required in @(

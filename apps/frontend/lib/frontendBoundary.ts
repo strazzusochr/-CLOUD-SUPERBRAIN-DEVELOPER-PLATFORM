@@ -3,6 +3,8 @@ type BoundaryKind = "agent-api" | "llm-gateway" | "mcp-gateway";
 type BoundaryConfig = {
   envNames: string[];
   responseSource: string;
+  authEnvName?: string;
+  authHeaderName?: string;
 };
 
 const BOUNDARIES: Record<BoundaryKind, BoundaryConfig> = {
@@ -13,6 +15,8 @@ const BOUNDARIES: Record<BoundaryKind, BoundaryConfig> = {
   "llm-gateway": {
     envNames: ["LLM_GATEWAY_BASE_URL"],
     responseSource: "llm-gateway-boundary",
+    authEnvName: "LLM_GATEWAY_AUTH_TOKEN",
+    authHeaderName: "x-superbrain-gateway-token",
   },
   "mcp-gateway": {
     envNames: ["MCP_GATEWAY_BASE_URL"],
@@ -78,12 +82,16 @@ export async function proxyToBoundary(
 
   const method = req.method.toUpperCase();
   const body = method === "GET" || method === "HEAD" ? undefined : await req.text();
+  const headers = copyRequestHeaders(req);
+  const config = BOUNDARIES[kind];
+  const gatewayToken = config.authEnvName ? process.env[config.authEnvName]?.trim() : "";
+  if (gatewayToken && config.authHeaderName) headers.set(config.authHeaderName, gatewayToken);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(target, {
       method,
-      headers: copyRequestHeaders(req),
+      headers,
       body,
       cache: "no-store",
       redirect: "manual",
