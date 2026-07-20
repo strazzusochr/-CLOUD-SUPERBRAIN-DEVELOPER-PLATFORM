@@ -63,41 +63,42 @@ or GitHub Store execution paths. Mutation and persistence routes cross only the 
 Agent API, LLM Gateway, or MCP Gateway boundaries and fail closed when unavailable. The
 stateless hosted wrappers remain read-only. The local T4 report is
 `.codex/runs/CURRENT/master-goal/t4/frontend-provider-boundary/report.json`; it is integrated
-into `npm run verify` and was followed by green runtime, browser, lint, and production-build
-checks. This is DEV-ONLY until a new source-bound hosted proof is recorded and does not
-activate a live provider or close a production gate.
+into `npm run verify` and was followed by green runtime, browser, lint, production-build,
+and T1 source-bound Production checks. T4 does not activate a live provider; the scoped
+operational deploy remains distinct from release-candidate promotion.
 
 ## Current Hosted Frontend Proof
 
-`frontend-hosted-current-proof-v1` binds immutable Vercel preview
-`dpl_J7BC3uPPUcQBgZckU29kKHXc5Wm9` to source
-`2e0f57179956ad88657567be65ebe33f1da0d255` and archive SHA-256
-`deae678aafe375251023401c06c5b65e8891c3350e542e51ecf8413aaff0253b`.
+`frontend-hosted-current-proof-v1` binds Vercel Production deployment
+`dpl_9KPqcjNPnV9irpJ9W8tyjff8LMbX` to source
+`21913f8c3ef13949ca962980c143e757ca87a7cc` and archive SHA-256
+`314bd1d9c7830dc5ac9077398025fed4ab48041b31fefae491916e838d5f7080`.
 Real Google Chrome `148.0.7778.96` opened all 22 canonical routes through 44
 command-palette clicks at desktop `1440x960` and mobile `390x844`. Overflow failures,
 overlay collisions, visible not-found states, and console errors were zero. The verifier
-also requires exact Vercel metadata plus HTTP `200` for root and workspace wiring.
-Evidence is under `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-2e0f5717-preview-chrome`.
+also requires exact Vercel metadata, byte-identical immutable/Alias root and workspace
+wiring, and HTTP `200` for 32 read endpoints including all eight former HTTP-500 routes.
+Evidence is under `.codex/runs/CURRENT/master-goal/production/t1-21913f8c`.
 
-This closes the Frontend / Next.js layer proof only. It does not close Hosted Agent API,
-MCP Gateway, LLM Gateway, registry, release-promotion, or full-platform production gates.
+This is a scoped operational Production repair, not release-candidate promotion. It does
+not close the stateful Agent API, registry, live-provider, or full-platform release gates.
 
 ## Current Hosted Backend Contract Origin
 
-`backend-hosted-current-proof-v1` binds immutable Vercel preview
-`dpl_32rFKVF1W4rkVqq6rPhPsqtPvXEZ` to the same source and archive hash. Authenticated
-read-only Vercel metadata proves READY state and target `preview`. Direct unsafe requests
-remain deployment-protected with HTTP 401; the authenticated automation bypass proves
-the immutable deployment snapshot at `overall=84`, `P4=100`, integrity `verified`,
+`backend-hosted-current-proof-v1` binds Vercel Production deployment
+`dpl_AQaBJxdQwHLcQKid8xYXkNJ3wva2` to the same source and archive hash. Authenticated
+read-only Vercel metadata proves READY state, target `production`, and Alias assignment.
+The immutable URL remains deployment-protected; public Alias reads prove the source-bound
+snapshot at `overall=84`, `P4=100`, integrity `verified`,
 external gates `5/6 action_required`, summary `blocked`, MCP/LLM `healthy`, expected stateless Agent API `degraded`,
 and a fail-closed application HTTP 503 response for mutation-shaped requests.
 
 That `5/6` value is embedded in the deployed source commit. The current local canonical
 standard is tracked separately by audit `20260720-191532` and reports `5/6`.
 
-This proves the stateless read-only Preview Contract Origin only. It does not prove
-Production Alias parity, the stateful Docker stack, persistent PostgreSQL/Redis workers,
-registry publication, release promotion, or a full-platform production release.
+This proves the stateless read-only operational Production Contract Origin only. It does
+not prove the stateful Docker stack, persistent PostgreSQL/Redis workers, registry
+publication, release-candidate promotion, or a full-platform production release.
 
 ## Local Production Candidate Preparation
 

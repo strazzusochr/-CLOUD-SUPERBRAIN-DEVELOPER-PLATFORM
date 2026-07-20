@@ -176,6 +176,9 @@ try {
   Assert-True ([bool]$config.deployment_metadata_verified) "Deployment metadata must be verified"
   Assert-True (-not [bool]$config.deployment_alias_content_parity) "Protected immutable content parity cannot be claimed"
   Assert-True (-not [bool]$config.stateful_backend_verified) "Hosted contract origin cannot claim the stateful backend"
+  if ($vercelTarget -eq "production") {
+    Assert-True ([bool]$config.production_operational_deploy_verified) "Production target requires operational deploy proof"
+  }
   Assert-True (-not [bool]$config.production_release_claimed) "Hosted contract origin cannot claim a platform production release"
 
   git cat-file -e "$($config.source_commit_sha)^{commit}" 2>$null
@@ -301,6 +304,7 @@ try {
     deployment_metadata_verified = $true
     deployment_alias_content_parity = $false
     stateful_backend_verified = $false
+    production_operational_deploy_verified = ($vercelTarget -eq "production")
     production_release_claimed = $false
   } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $verificationPath -Encoding utf8
 

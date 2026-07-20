@@ -7,7 +7,7 @@ Beide Matrizen **100 %** (P0–P6 + FE/ORC/AP/LLM/MCP/MEM/OBS), jede Zelle mit e
 `master-goal-final.md` + FERTIG. Owner-gated Reste bleiben ehrlich OWNER-BLOCKED, nie gefaked.
 
 ## ✅ REALITÄT 2026-07-20 (Supervisor live gemessen, nicht zitiert)
-HEAD `4fa2426d` = origin, 0 unpushed · Manifest **84 %** · `MARKET_READY:false` (korrekt)
+Production-Source `21913f8c` · Manifest **84 %** · `MARKET_READY:false` (korrekt)
 `P0 100 · P1 100 · P2 86 · P3 44 · P4 100 · P5 68 · P6 90`
 `FE 100 · ORC 100 · AP 68 · LLM 54 · MCP 55 · MEM 73 · OBS 99`
 
@@ -20,11 +20,11 @@ HEAD `4fa2426d` = origin, 0 unpushed · Manifest **84 %** · `MARKET_READY:false
   einziges Asset `public/organism/core.glb`, real im 3D-Organismus genutzt.
 - **R0 intakt:** Summary `blocked`, `production_deploy_claim_allowed=false`.
 
-## 🔴 DREI ECHTE DEFEKTE (heute gefunden — vor allem anderen fixen)
-- **D1 · Production ist 2 Commits alt.** Beide Aliase auf `38af05d6`, HEAD `4fa2426d`.
-  Folge: **8 Endpunkte liefern HTTP 500** (`agent-activity/recent`, `audit/mcp`, `audit/recent`,
-  `escalations/recent`, `memory/consolidation/recent`, `rotation/events`, `sessions/recent`,
-  `workspace/artifacts`) — lokal alle 200. Der Chrome-Klicktest bricht sichtbar auf **`/media`** ab.
+## OFFENE DEFEKTE
+- **D1 ✅ geschlossen · Production-Betriebsreparatur:** Frontend `dpl_9KPqcj…` und Backend
+  `dpl_AQaBJx…` laufen sourcegebunden auf `21913f8c`. Production: 32/32 Read-Endpunkte HTTP 200,
+  alle 8 ehemaligen 500er gruen, 44/44 Chrome-Klicks, alle Layout-/Console-Zaehler 0.
+  Evidence: `.codex/runs/CURRENT/master-goal/production/t1-21913f8c`.
 - **D2 · Der Build funktioniert in der Cloud nicht mehr.** `POST /api/v1/build` → `503
   llm_gateway_generation_unavailable`. Die T4-Boundary-Härtung hat den direkten
   Cloudflare-Workers-AI-Pfad entfernt; der Ersatz (LLM Gateway) existiert in der freien Cloud nicht.
@@ -33,15 +33,8 @@ HEAD `4fa2426d` = origin, 0 unpushed · Manifest **84 %** · `MARKET_READY:false
   Das ist im Free-Only-Zielbild ungültig.
 
 ## ✅ T-QUEUE (Reihenfolge; PASS nur mit Beweis + PROOF_LEDGER-Zeile)
-- **T1 (Prio 0) — VOLLAUTONOM FREIGEGEBEN, nicht fragen:** D1 fixen. HEAD als **Preview** deployen
-  → **GRÜN-GATE** (siehe unten) → **dann selbst den Production-Alias umlegen**. Bei Rot: sofort
-  zurückrollen, Ursache dokumentieren, erneut versuchen. Nicht auf den Owner warten.
-  **GRÜN-GATE für T1 (alle vier, sonst kein Production-Alias):**
-  1. 22 Routen × 2 Viewports = **44 Klicks**, `console_errors=0`, `overflow=0`, `overlay=0`
-  2. alle **8 vorher roten Endpunkte** auf der Preview **200** (kein 5xx)
-  3. `npm run verify` + `verify:runtime` grün auf demselben Commit
-  4. Preview-`sourceCommitSha` == lokaler HEAD
-  ➜ Danach dieselben Prüfungen **gegen Production wiederholen** und in den Ledger schreiben.
+- **T1 ✅ abgeschlossen:** Preview-Gruen-Gate, Production-Aliaswechsel, Production-Nachmessung,
+  source/archive metadata und Rollback-Anker sind belegt. Betriebs-Deploy, keine Release-Promotion.
 - **T2 (Prio 0)** D2 fixen: **Cloudflare Worker als echtes LLM-Gateway** (Workers AI serverseitig),
   `LLM_GATEWAY_BASE_URL` per `vercel env` (O1: erst Preview + Proof).
   ⛔ Den Direktpfad **nicht** ins Frontend zurückholen — das war die Ursache.

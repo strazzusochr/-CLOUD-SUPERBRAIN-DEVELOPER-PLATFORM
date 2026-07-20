@@ -57,6 +57,11 @@ try {
   } elseif (-not [string]::IsNullOrWhiteSpace($productionAlias)) {
     Assert-True ($productionAlias -match '^https://[^/]+\.vercel\.app$') "Invalid contextual production alias"
   }
+  $browserBaseUrl = if ($vercelTarget -eq "production") {
+    $productionAlias
+  } else {
+    [string]$config.immutable_deployment_url
+  }
   $hasArchiveSha = -not [string]::IsNullOrWhiteSpace([string]$config.source_archive_sha256)
   if ($vercelTarget -eq "preview") {
     Assert-True $hasArchiveSha "Preview proof requires a source archive SHA-256"
@@ -76,6 +81,11 @@ try {
   Assert-Equal ([int]$config.click_navigation_count) 44 "configured click count"
   Assert-Equal ([int]$config.frontend_progress_before) 99 "frontend progress before"
   Assert-Equal ([int]$config.frontend_progress_after) 100 "frontend progress after"
+  if ($vercelTarget -eq "production") {
+    Assert-True ([bool]$config.production_operational_deploy_verified) "Production target requires operational deploy proof"
+    Assert-Equal ([int]$config.read_endpoint_count) 32 "configured production read endpoint count"
+    Assert-Equal ([int]$config.former_500_endpoint_count) 8 "configured former-500 endpoint count"
+  }
   Assert-True (-not [bool]$config.production_release_claimed) "Hosted frontend proof cannot claim a platform production release"
 
   git cat-file -e "$($config.source_commit_sha)^{commit}" 2>$null
@@ -119,7 +129,7 @@ try {
   $proofDir = Split-Path -Parent $proofPath
   if (-not $SkipBrowser) {
     & node "scripts\verify-workspace-responsive-browser.cjs" `
-      --base-url ([string]$config.immutable_deployment_url) `
+      --base-url $browserBaseUrl `
       --out ([string](Split-Path -Parent ([string]$config.proof_artifact))) `
       --browser-channel chrome
     Assert-True ($LASTEXITCODE -eq 0) "Hosted Google Chrome 22x2 proof failed"
@@ -130,7 +140,7 @@ try {
   Assert-Equal ([string]$proof.contract_version) "frontend-22-page-responsive-browser-v1" "proof contract"
   Assert-Equal ([string]$proof.status) "verified" "proof status"
   Assert-Equal ([string]$proof.scope) "hosted_https" "proof scope"
-  Assert-Equal ([string]$proof.base_url) ([string]$config.immutable_deployment_url) "proof URL"
+  Assert-Equal ([string]$proof.base_url) $browserBaseUrl "proof URL"
   Assert-Equal ([string]$proof.browser_channel) "chrome" "proof browser channel"
   Assert-True ([string]$proof.browser_version -match '^\d+\.\d+\.\d+\.\d+$') "Proof browser version is invalid"
   Assert-Equal ([int]$proof.page_count) 22 "proof page count"
@@ -182,6 +192,48 @@ try {
   Assert-Equal ([string]$wiring.contract_version) "workspace-surface-wiring-v1" "hosted wiring contract"
   Assert-Equal @($wiring.surfaces).Count 22 "hosted wiring page count"
 
+  $former500Paths = @(
+    "/api/v1/agent-activity/recent",
+    "/api/v1/audit/mcp",
+    "/api/v1/audit/recent",
+    "/api/v1/escalations/recent",
+    "/api/v1/memory/consolidation/recent",
+    "/api/v1/rotation/events",
+    "/api/v1/sessions/recent",
+    "/api/v1/workspace/artifacts"
+  )
+  $requiredReadPaths = @($former500Paths) + @(
+    "/api/v1/health",
+    "/api/v1/builds",
+    "/api/v1/memory/embedding-consistency/contract",
+    "/api/v1/organism/contract",
+    "/api/v1/organism/events",
+    "/api/v1/organism/live-state",
+    "/api/v1/organism/replay",
+    "/api/v1/organism/topology",
+    "/api/v1/organism/regions",
+    "/api/v1/organism/safety",
+    "/api/v1/auth/session",
+    "/api/v1/auth/contract",
+    "/api/health",
+    "/api/v1/design/reference-contract",
+    "/api/v1/workspace/wiring",
+    "/api/v1/workspace/vertical-stack",
+    "/api/v1/platform/verify",
+    "/api/v1/models/capabilities",
+    "/api/v1/project/progress",
+    "/api/v1/project/progress/integrity",
+    "/api/v1/clouds",
+    "/api/v1/clouds/layers",
+    "/api/v1/metrics",
+    "/api/v1/agents/status"
+  )
+  Assert-Equal $requiredReadPaths.Count 32 "hosted read endpoint inventory"
+  foreach ($path in $requiredReadPaths) {
+    $response = Get-HttpText "$browserBaseUrl$path"
+    Assert-Equal ([int]$response.StatusCode) 200 "hosted read endpoint $path"
+  }
+
   $verification = [ordered]@{
     contract_version = "frontend-hosted-current-verification-v1"
     status = "verified"
@@ -202,6 +254,11 @@ try {
     console_errors = 0
     deployment_metadata_verified = $deploymentMetadataVerified
     deployment_alias_content_parity = $deploymentAliasContentParity
+    browser_base_url = $browserBaseUrl
+    read_endpoint_count = $requiredReadPaths.Count
+    former_500_endpoint_count = $former500Paths.Count
+    read_endpoint_failures = 0
+    production_operational_deploy_verified = ($vercelTarget -eq "production")
     production_release_claimed = $false
   }
   $verification | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $proofDir "verification.json") -Encoding utf8

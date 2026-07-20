@@ -10,7 +10,7 @@
 |---|---|
 | Repo | `github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM` (**public**) |
 | Arbeitsbranch | `claude/cloud-superbrain-analysis-127d2e` — **einziger** Push-Ziel |
-| HEAD = origin | `4fa2426d` (Supervisor: External Gates tokenfrei geöffnet) |
+| Production source | `21913f8c3ef13949ca962980c143e757ca87a7cc` (T1 operational repair) |
 | Default-Branch | `chore/repo-bootstrap` (origin/HEAD) — Branch-Protection sitzt HIER |
 | Lokal | `http://localhost:8081` = **DEV-ONLY**, 10 Docker-Dienste |
 | Frontend prod | `https://frontend-seven-psi-78.vercel.app` |
@@ -21,6 +21,18 @@
 
 `P0 100 · P1 100 · P2 86 · P3 44 · P4 100 · P5 68 · P6 90`
 `Frontend 100 · Orchestrator 100 · Agent Pool 68 · LLM 54 · MCP 55 · Memory 73 · Observability 99`
+
+### CURRENT EXECUTION UPDATE — T1 CLOSED
+
+The D1/T1 measurements below are retained as the before-state. T1 is now complete:
+clean-archive previews from `21913f8c` passed 44 Chrome clicks, the eight former-500
+endpoints, `npm run verify`, `npm run verify:runtime`, and exact Vercel source metadata.
+Both operational Production aliases were then promoted and independently rechecked:
+32/32 read endpoints returned HTTP 200 and Production passed 44/44 Chrome clicks with
+zero console, overflow, and overlay failures. Evidence:
+`.codex/runs/CURRENT/master-goal/production/t1-21913f8c`. This was an operational repair,
+not release-candidate promotion. The next open P0 item is T2, the free Cloudflare Workers
+AI LLM-Gateway path for hosted `POST /api/v1/build`.
 
 ---
 
@@ -137,7 +149,7 @@ Der lokale `agent-api`-Container läuft mit **10 Tokens im Env**: `BRANCH_PROTEC
 
 ## 5. WORKBENCH / TOOLS / FUNKTIONEN — jeder der 32 API-Endpunkte einzeln getestet
 
-### 🔴 D1 — 8 Endpunkte liefern auf Production **HTTP 500** (lokal alle 200)
+### ✅ D1 — Historical before-state; fixed by T1 on 2026-07-20
 
 | Endpunkt | hosted | lokal |
 |---|---|---|
@@ -218,7 +230,7 @@ funktionierende freie Live-LLM-Pfad **ersatzlos weggefallen**.
 
 | # | Schwere | Befund | Fix |
 |---|---|---|---|
-| **D1** | 🔴 P0 | Production 2 Commits alt → 8 Endpunkte 500, `/media` sichtbar kaputt | HEAD deployen (Preview → 22×2 → Production) |
+| **D1** | ✅ closed | Production source `21913f8c`; 32/32 reads and 44/44 Chrome clicks green | Evidence `production/t1-21913f8c` |
 | **D2** | 🔴 P0 | Freier Live-LLM-Pfad in der Cloud entfernt → Build 503 | LLM-Gateway **frei** bereitstellen (Cloudflare Worker) |
 | **D3** | 🟠 P1 | Layer-Readiness nur token-assistiert; L2/L3/L6 „live" über **bezahltes** Fly | O7: Neon Free / CF D1 statt Fly |
 | **D4** | 🟡 P2 | `fly_live_budget_check` = letztes offenes Gate | Owner-Wand (Kreditkarte) **oder** Gate durch Free-Tier-Budget-Gate ersetzen |
@@ -246,7 +258,7 @@ OWNER-BLOCKED benannt und begründet.
 
 ## T-QUEUE — strikt in dieser Reihenfolge
 
-### T1 — Production reparieren (D1) · Prio 0 · 🔓 **VOLLAUTONOM FREIGEGEBEN**
+### T1 — ✅ completed: Production repaired (D1)
 Production läuft auf `38af05d6`, HEAD ist `4fa2426d`. 8 Endpunkte liefern 500, `/media` ist kaputt.
 
 > **Owner-Freigabe 2026-07-20:** Der Production-Alias darf **selbst** umgelegt werden — **aber

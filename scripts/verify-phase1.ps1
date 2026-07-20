@@ -2959,6 +2959,18 @@ foreach ($required in @(
 }
 
 Write-Host "[verify] current hosted frontend proof"
+$frontendHostedVerifierSource = Get-Content -Path "scripts\verify-frontend-hosted-current.ps1" -Raw
+foreach ($required in @(
+  'former500Paths',
+  'requiredReadPaths',
+  'hosted read endpoint inventory',
+  'production_operational_deploy_verified',
+  'browserBaseUrl'
+)) {
+  if (-not $frontendHostedVerifierSource.Contains($required)) {
+    throw "Current hosted frontend verifier missing T1 Production guard: $required"
+  }
+}
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-frontend-hosted-current.ps1 -StaticOnly
 Assert-LastExitCode "current hosted frontend static proof"
 
@@ -3042,4 +3054,3 @@ if ($gitleaksCommand -or (Test-Path $repoLocalGitleaks)) {
 }
 
 Write-Host "[verify] phase1 checks completed"
-
