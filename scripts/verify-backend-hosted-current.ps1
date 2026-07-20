@@ -55,6 +55,80 @@ function Get-JsonResponse([string]$BaseUrl, [string]$Path) {
   }
 }
 
+function Initialize-VercelVerifierLink([string]$Root, [string]$OrgId, [string]$ProjectId) {
+  $linkDir = Join-Path $Root ".vercel"
+  New-Item -ItemType Directory -Force -Path $linkDir | Out-Null
+  [ordered]@{
+    orgId = $OrgId
+    projectId = $ProjectId
+  } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $linkDir "project.json") -Encoding ascii
+}
+
+function Invoke-VercelProtectedHttp(
+  [string]$LinkRoot,
+  [string]$DeploymentUrl,
+  [string]$Method,
+  [string]$Path
+) {
+  $responseDir = Join-Path $LinkRoot "responses"
+  New-Item -ItemType Directory -Force -Path $responseDir | Out-Null
+  $slug = ($Path -replace '[^A-Za-z0-9]+', '-').Trim('-')
+  if ([string]::IsNullOrWhiteSpace($slug)) { $slug = "root" }
+  $bodyPath = Join-Path $responseDir "$($Method.ToLowerInvariant())-$slug.body"
+  $headerPath = Join-Path $responseDir "$($Method.ToLowerInvariant())-$slug.headers"
+  foreach ($pathToReset in @($bodyPath, $headerPath)) {
+    if (Test-Path -LiteralPath $pathToReset) { Remove-Item -LiteralPath $pathToReset -Force }
+  }
+
+  $arguments = @(
+    "curl", $Path,
+    "--deployment", $DeploymentUrl,
+    "--",
+    "--silent", "--show-error",
+    "--dump-header", $headerPath,
+    "--output", $bodyPath,
+    "--request", $Method
+  )
+  if ($Method -eq "POST") {
+    $arguments += @("--header", "Content-Type: application/json", "--data", "{}")
+  }
+
+  Push-Location $LinkRoot
+  $previousErrorAction = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    & vercel.cmd @arguments
+    $curlExit = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorAction
+    Pop-Location
+  }
+  Assert-True ($curlExit -eq 0) "Authenticated Vercel curl failed for $Method $Path"
+  Assert-True (Test-Path -LiteralPath $bodyPath) "Vercel curl body missing for $Method $Path"
+  Assert-True (Test-Path -LiteralPath $headerPath) "Vercel curl headers missing for $Method $Path"
+  $statusMatches = @(Get-Content -LiteralPath $headerPath | Select-String -Pattern '^HTTP/\S+\s+(\d{3})')
+  Assert-True ($statusMatches.Count -gt 0) "Vercel curl status missing for $Method $Path"
+  $statusCode = [int]$statusMatches[-1].Matches[0].Groups[1].Value
+  $content = Get-Content -LiteralPath $bodyPath -Raw
+  return [pscustomobject]@{
+    StatusCode = $statusCode
+    Content = $content
+  }
+}
+
+function Get-VercelProtectedJson(
+  [string]$LinkRoot,
+  [string]$DeploymentUrl,
+  [string]$Path
+) {
+  $response = Invoke-VercelProtectedHttp $LinkRoot $DeploymentUrl "GET" $Path
+  Assert-Equal ([int]$response.StatusCode) 200 "protected GET $DeploymentUrl$Path"
+  return [pscustomobject]@{
+    Content = $response.Content
+    Json = ($response.Content | ConvertFrom-Json)
+  }
+}
+
 try {
   Assert-True (Test-Path -LiteralPath $ConfigPath) "Hosted backend proof config missing: $ConfigPath"
   $config = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
@@ -64,9 +138,19 @@ try {
   Assert-True ([string]$config.source_archive_sha256 -match '^[0-9a-f]{64}$') "Invalid hosted backend archive SHA-256"
   Assert-True ([string]$config.deployment_id -match '^dpl_[A-Za-z0-9]+$') "Invalid Vercel deployment id"
   Assert-True ([string]$config.immutable_deployment_url -match '^https://[^/]+\.vercel\.app$') "Invalid immutable deployment URL"
-  Assert-True ([string]$config.production_alias -match '^https://[^/]+\.vercel\.app$') "Invalid production alias"
   Assert-True ([string]$config.immutable_deployment_url -notmatch 'localhost|127\.0\.0\.1') "Hosted proof cannot use localhost"
-  Assert-Equal ([string]$config.vercel_target) "production" "Vercel target"
+  $vercelTarget = [string]$config.vercel_target
+  Assert-True (@("preview", "production") -contains $vercelTarget) "Invalid Vercel target"
+  $productionAlias = [string]$config.production_alias
+  if ($vercelTarget -eq "production") {
+    Assert-True ($productionAlias -match '^https://[^/]+\.vercel\.app$') "Invalid production alias"
+  } elseif (-not [string]::IsNullOrWhiteSpace($productionAlias)) {
+    Assert-True ($productionAlias -match '^https://[^/]+\.vercel\.app$') "Invalid contextual production alias"
+  }
+  if ($vercelTarget -eq "preview") {
+    Assert-True ([string]$config.vercel_org_id -match '^team_[A-Za-z0-9]+$') "Preview proof requires a Vercel org id"
+    Assert-True ([string]$config.vercel_project_id -match '^prj_[A-Za-z0-9]+$') "Preview proof requires a Vercel project id"
+  }
   Assert-Equal ([string]$config.vercel_scope) "strazzusochrs-projects" "Vercel scope"
   Assert-Equal ([int]$config.overall_percent) 84 "configured overall percent"
   Assert-Equal ([int]$config.phase_4_percent) 100 "configured Phase 4 percent"
@@ -76,7 +160,7 @@ try {
   Assert-True ([int]$config.external_gates_verified_count -le [int]$config.external_gates_total_count) "Configured verified gate count exceeds total"
   Assert-True ([int]$config.external_gates_total_count -gt 0) "Configured total gate count must be positive"
   Assert-True (@("verified", "blocked") -contains [string]$config.external_gates_canonical_summary_status) "Configured canonical summary status is invalid"
-  Assert-True ([string]$config.external_gates_canonical_summary_source_artifact -match '^\.phase1-artifacts[\\/]+external-gate-audit-\d{8}-\d{6}\.json$') "Configured canonical summary artifact is invalid"
+  Assert-True ([string]$config.external_gates_deployment_snapshot_source_artifact -match '^\.phase1-artifacts[\\/]+external-gate-audit-\d{8}-\d{6}\.json$') "Configured deployment snapshot artifact is invalid"
   $configuredBlockedGates = @($config.external_gates_blocked_release_gates)
   if ([string]$config.external_gates_status -eq "verified") {
     Assert-Equal ([int]$config.external_gates_verified_count) ([int]$config.external_gates_total_count) "verified external gate count"
@@ -120,25 +204,50 @@ try {
   }
   Assert-True ($deploymentLookupExit -eq 0) "Authenticated Vercel deployment metadata lookup failed"
   $deployment = ($deploymentRaw -join "`n") | ConvertFrom-Json
+  $actualTarget = if ([string]::IsNullOrWhiteSpace([string]$deployment.target)) { "preview" } else { [string]$deployment.target }
   Assert-Equal ([string]$deployment.readyState) "READY" "Vercel deployment state"
-  Assert-Equal ([string]$deployment.target) "production" "Vercel deployment target"
+  Assert-Equal $actualTarget $vercelTarget "Vercel deployment target"
   Assert-Equal ([string]$deployment.meta.sourceCommitSha) ([string]$config.source_commit_sha) "Vercel source SHA"
   Assert-Equal ([string]$deployment.meta.sourceArchiveSha256) ([string]$config.source_archive_sha256) "Vercel archive SHA-256"
-  Assert-True (@($deployment.alias) -contains ([Uri]$config.production_alias).Host) "Production Alias is not assigned to the deployment"
+  if ($vercelTarget -eq "production") {
+    Assert-True (@($deployment.alias) -contains ([Uri]$productionAlias).Host) "Production Alias is not assigned to the deployment"
+  }
 
-  $immutableProbe = Invoke-Http "GET" "$($config.immutable_deployment_url)/api/v1/health"
-  Assert-Equal ([int]$immutableProbe.StatusCode) 302 "protected immutable deployment response"
-  Assert-True ([string]$immutableProbe.Location -match '^https://vercel\.com/') "Immutable deployment did not redirect to Vercel protection"
+  $protectedUnsafeHttp = $null
+  if ($vercelTarget -eq "preview") {
+    $immutableProbe = Invoke-Http "POST" "$($config.immutable_deployment_url)/api/v1/prompt"
+    Assert-Equal ([int]$immutableProbe.StatusCode) 401 "protected preview mutation response"
+    Assert-True ([string]$immutableProbe.Content -match 'Protected deployment') "Preview mutation did not hit Vercel protection"
+    $protectedUnsafeHttp = 401
 
-  $base = [string]$config.production_alias
-  $root = Invoke-Http "GET" "$base/"
-  Assert-Equal ([int]$root.StatusCode) 200 "GET $base/"
-  $health = Get-JsonResponse $base "/api/v1/health"
-  $progress = Get-JsonResponse $base "/api/v1/project/progress"
-  $integrity = Get-JsonResponse $base "/api/v1/project/progress/integrity"
-  $gates = Get-JsonResponse $base "/api/v1/external-gates"
-  $mcp = Get-JsonResponse $base "/mcp/api/v1/health"
-  $llm = Get-JsonResponse $base "/llm/api/v1/health"
+    $vercelLinkRoot = Join-Path $repoRoot ".codex\tmp\backend-hosted-verifier-link"
+    Initialize-VercelVerifierLink $vercelLinkRoot ([string]$config.vercel_org_id) ([string]$config.vercel_project_id)
+    $base = [string]$config.immutable_deployment_url
+    $root = Invoke-VercelProtectedHttp $vercelLinkRoot $base "GET" "/"
+    Assert-Equal ([int]$root.StatusCode) 200 "protected GET $base/"
+    $health = Get-VercelProtectedJson $vercelLinkRoot $base "/api/v1/health"
+    $progress = Get-VercelProtectedJson $vercelLinkRoot $base "/api/v1/project/progress"
+    $integrity = Get-VercelProtectedJson $vercelLinkRoot $base "/api/v1/project/progress/integrity"
+    $gates = Get-VercelProtectedJson $vercelLinkRoot $base "/api/v1/external-gates"
+    $mcp = Get-VercelProtectedJson $vercelLinkRoot $base "/mcp/api/v1/health"
+    $llm = Get-VercelProtectedJson $vercelLinkRoot $base "/llm/api/v1/health"
+    $writeProbe = Invoke-VercelProtectedHttp $vercelLinkRoot $base "POST" "/api/v1/prompt"
+  } else {
+    $immutableProbe = Invoke-Http "GET" "$($config.immutable_deployment_url)/api/v1/health"
+    Assert-Equal ([int]$immutableProbe.StatusCode) 302 "protected immutable deployment response"
+    Assert-True ([string]$immutableProbe.Location -match '^https://vercel\.com/') "Immutable deployment did not redirect to Vercel protection"
+
+    $base = $productionAlias
+    $root = Invoke-Http "GET" "$base/"
+    Assert-Equal ([int]$root.StatusCode) 200 "GET $base/"
+    $health = Get-JsonResponse $base "/api/v1/health"
+    $progress = Get-JsonResponse $base "/api/v1/project/progress"
+    $integrity = Get-JsonResponse $base "/api/v1/project/progress/integrity"
+    $gates = Get-JsonResponse $base "/api/v1/external-gates"
+    $mcp = Get-JsonResponse $base "/mcp/api/v1/health"
+    $llm = Get-JsonResponse $base "/llm/api/v1/health"
+    $writeProbe = Invoke-Http "POST" "$base/api/v1/prompt"
+  }
   $phase4 = $progress.Json.horizontal.items | Where-Object { $_.id -eq "phase_4" } | Select-Object -First 1
 
   Assert-Equal ([string]$health.Json.service) "agent-api" "Agent API service marker"
@@ -152,12 +261,11 @@ try {
   Assert-Equal ([int]$gates.Json.verified_count) ([int]$config.external_gates_verified_count) "hosted verified gate count"
   Assert-Equal ([int]$gates.Json.total_count) ([int]$config.external_gates_total_count) "hosted total gate count"
   Assert-Equal ([string]$gates.Json.canonical_summary_status) ([string]$config.external_gates_canonical_summary_status) "hosted canonical summary status"
-  Assert-Equal ([string]$gates.Json.canonical_summary_source_artifact) ([string]$config.external_gates_canonical_summary_source_artifact) "hosted canonical summary artifact"
+  Assert-Equal ([string]$gates.Json.canonical_summary_source_artifact) ([string]$config.external_gates_deployment_snapshot_source_artifact) "hosted deployment snapshot artifact"
   Assert-Equal ((@($gates.Json.blocked_release_gates) | Sort-Object) -join ',') (($configuredBlockedGates | Sort-Object) -join ',') "hosted blocked release gates"
   Assert-Equal ([string]$mcp.Json.status) "healthy" "hosted MCP health"
   Assert-Equal ([string]$llm.Json.status) "healthy" "hosted LLM health"
 
-  $writeProbe = Invoke-Http "POST" "$base/api/v1/prompt"
   Assert-Equal ([int]$writeProbe.StatusCode) 503 "read-only POST boundary"
   $writePayload = $writeProbe.Content | ConvertFrom-Json
   Assert-Equal ([string]$writePayload.reason) "stateless_contract_origin_read_only" "read-only POST reason"
@@ -173,7 +281,8 @@ try {
     source_archive_sha256 = [string]$config.source_archive_sha256
     deployment_id = [string]$config.deployment_id
     immutable_deployment_url = [string]$config.immutable_deployment_url
-    production_alias = [string]$config.production_alias
+    production_alias = $productionAlias
+    vercel_target = $vercelTarget
     overall_percent = [int]$config.overall_percent
     phase_4_percent = [int]$config.phase_4_percent
     integrity_status = "verified"
@@ -181,12 +290,13 @@ try {
     external_gates_verified_count = [int]$gates.Json.verified_count
     external_gates_total_count = [int]$gates.Json.total_count
     external_gates_canonical_summary_status = [string]$gates.Json.canonical_summary_status
-    external_gates_canonical_summary_source_artifact = [string]$gates.Json.canonical_summary_source_artifact
+    external_gates_deployment_snapshot_source_artifact = [string]$gates.Json.canonical_summary_source_artifact
     external_gates_blocked_release_gates = @($gates.Json.blocked_release_gates)
     agent_health_status = "degraded"
     mcp_health_status = "healthy"
     llm_health_status = "healthy"
     read_only_post_boundary_http = 503
+    protected_unsafe_http = $protectedUnsafeHttp
     immutable_deployment_protected = $true
     deployment_metadata_verified = $true
     deployment_alias_content_parity = $false
@@ -194,7 +304,7 @@ try {
     production_release_claimed = $false
   } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $verificationPath -Encoding utf8
 
-  Write-Host "[backend-hosted-current] status=verified overall=$($config.overall_percent) phase4=$($config.phase_4_percent) gates=$($gates.Json.verified_count)/$($gates.Json.total_count) canonical=$($gates.Json.canonical_summary_status) read_only_post=503"
+  Write-Host "[backend-hosted-current] status=verified target=$vercelTarget overall=$($config.overall_percent) phase4=$($config.phase_4_percent) gates=$($gates.Json.verified_count)/$($gates.Json.total_count) canonical=$($gates.Json.canonical_summary_status) read_only_post=503"
 } finally {
   Pop-Location
 }

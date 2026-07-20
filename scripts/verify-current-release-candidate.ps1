@@ -55,6 +55,7 @@ function Assert-Sha($label, $value) {
 }
 
 $hostedBoundarySource = "explicit"
+$backendState = $null
 if (-not $baseUrlExplicit) {
   $environmentBaseUrl = [string][Environment]::GetEnvironmentVariable("STAGING_BASE_URL")
   if (-not [string]::IsNullOrWhiteSpace($environmentBaseUrl) -and $environmentBaseUrl -notmatch '(?i)\.sslip\.io(?:/|$)') {
@@ -70,6 +71,7 @@ if (-not $baseUrlExplicit) {
     Assert-True "backend contract-origin read-only flag" $backendState.read_only_contract_origin
     Assert-False "backend contract-origin stateful flag" $backendState.stateful_backend_verified
     Assert-False "backend contract-origin production release flag" $backendState.production_release_claimed
+    Assert-Equal "backend contract-origin snapshot scope" ([string]$backendState.external_gates_snapshot_scope) "embedded_at_source_commit"
     $BaseUrl = [string]$backendState.production_alias
     $hostedBoundarySource = "canonical_read_only_contract_origin"
   }
@@ -200,10 +202,17 @@ if (-not $canonicalVerified) {
 $externalGates = Get-Json "$BaseUrl/api/v1/external-gates" | ConvertFrom-Json
 $externalMirror = Get-Json "$BaseUrl/api/v1/external-gates/mirror" | ConvertFrom-Json
 Assert-Equal "hosted external gates status" ([string]$externalGates.status) $expectedExternalStatus
-Assert-Equal "hosted canonical summary status" ([string]$externalGates.canonical_summary_status) ([string]$canonicalSummary.status)
-Assert-Equal "hosted canonical summary artifact" ([string]$externalGates.canonical_summary_source_artifact) ([string]$canonicalSummary.source_artifact)
-Assert-Equal "hosted mirror canonical summary status" ([string]$externalMirror.canonical_summary_status) ([string]$canonicalSummary.status)
-Assert-Equal "hosted production claim" ([bool]$externalMirror.production_deploy_claim_allowed) ([bool]$canonicalSummary.production_deploy_claim_allowed)
+if ($hostedBoundarySource -eq "canonical_read_only_contract_origin") {
+  Assert-Equal "hosted deployment snapshot status" ([string]$externalGates.canonical_summary_status) ([string]$backendState.external_gates_canonical_summary_status)
+  Assert-Equal "hosted deployment snapshot artifact" ([string]$externalGates.canonical_summary_source_artifact) ([string]$backendState.external_gates_deployment_snapshot_source_artifact)
+  Assert-Equal "hosted mirror deployment snapshot status" ([string]$externalMirror.canonical_summary_status) ([string]$backendState.external_gates_canonical_summary_status)
+  Assert-False "read-only boundary production claim" $externalMirror.production_deploy_claim_allowed
+} else {
+  Assert-Equal "hosted canonical summary status" ([string]$externalGates.canonical_summary_status) ([string]$canonicalSummary.status)
+  Assert-Equal "hosted canonical summary artifact" ([string]$externalGates.canonical_summary_source_artifact) ([string]$canonicalSummary.source_artifact)
+  Assert-Equal "hosted mirror canonical summary status" ([string]$externalMirror.canonical_summary_status) ([string]$canonicalSummary.status)
+  Assert-Equal "hosted production claim" ([bool]$externalMirror.production_deploy_claim_allowed) ([bool]$canonicalSummary.production_deploy_claim_allowed)
+}
 if ($canonicalVerified) {
   Assert-Equal "hosted blocked release gate count" @($externalGates.blocked_release_gates).Count 0
 } else {

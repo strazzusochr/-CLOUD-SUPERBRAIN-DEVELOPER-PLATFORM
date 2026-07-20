@@ -999,7 +999,7 @@ Write-Host "[verify] current truth mirror audit alignment (R0: canonical = token
 # `verified` audits (e.g. 20260713-125413 / 20260713-122705) are owner-assisted candidate-only
 # evidence: they must NEVER be set as the current summary and must NEVER emit
 # production_deploy_claim_allowed=true as current authority. "Freigabe-erlaubt" != "deployt".
-$currentAuditName = "external-gate-audit-20260713-122529.json"
+$currentAuditName = "external-gate-audit-20260720-191532.json"
 $candidateAuditName = "external-gate-audit-20260713-125413.json"
 $masterGoal = Get-Content -Path "CODEX_MASTER_GOAL_FINALE.md" -Raw
 $currentTruthMirrors = @(
@@ -2520,7 +2520,7 @@ if (-not (Test-Path "scripts\verify-all-gates-with-tokens.ps1")) {
   throw "Missing private env external gate runner"
 }
 $externalGateAuditScript = Get-Content -Path "scripts\verify-external-gates.ps1" -Raw
-foreach ($required in @("external-gate-audit-v1", "external_gate_audit_proof", "hosted_staging_claim_allowed", "frontend_preview_claim_allowed", "production_deploy_claim_allowed", "Assert-HostedBaseUrlSafe", "External gate hosted proof requires HTTPS", "Test-RetiredHostedBaseUrl", "retired_provider_url", "network_classification", "elapsed_ms", "response_url", "failed_hosted_required_probe_ids", "failed_vercel_origin_probe_ids", "hosted_cloud_deployment_preflight", "cloud_deployment_preflight_visible", "ghcr_image_digest_verify", "ghcr_image_digest_proof", "Invoke-BoundedNativeCommand", "WaitForExit", "EXTERNAL_GATE_HTTP_TIMEOUT_MS", "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS", "EXTERNAL_GATE_DOCKER_TIMEOUT_SECONDS", '"timeout"', "dockerExitCode", "vercel_backend_origin_required", "vercel_backend_origin_health", "hosted_agent_api_health", "hosted_agent_api_health_required", "cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "github_branch_protection_verify", "canonical_gitleaks_scan", "fly_live_budget_check", "root_health", "prefixed_health", "Join-OriginProbeUrl", "gitlab_identity_claim_allowed", "huggingface_identity_claim_allowed", "grafana_cloud_claim_allowed", "Invoke-RestMethod", "GITLAB_TOKEN", "HF_TOKEN", "GRAFANA_CLOUD_API_KEY")) {
+foreach ($required in @("external-gate-audit-v1", "external_gate_audit_proof", "hosted_staging_claim_allowed", "frontend_preview_claim_allowed", "production_deploy_claim_allowed", "Assert-HostedBaseUrlSafe", "External gate hosted proof requires HTTPS", "Test-RetiredHostedBaseUrl", "retired_provider_url", "network_classification", "elapsed_ms", "response_url", "failed_hosted_required_probe_ids", "failed_vercel_origin_probe_ids", "hosted_cloud_deployment_preflight", "cloud_deployment_preflight_visible", "ghcr_image_digest_verify", "ghcr_image_digest_proof", "Invoke-BoundedNativeCommand", "WaitForExit", "EXTERNAL_GATE_HTTP_TIMEOUT_MS", "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS", "EXTERNAL_GATE_DOCKER_TIMEOUT_SECONDS", '"timeout"', "dockerExitCode", "vercel_backend_origin_required", "vercel_backend_origin_health", "hosted_agent_api_health", "hosted_agent_api_health_required", "cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "github_branch_protection_verify", "canonical_gitleaks_scan", "fly_live_budget_check", "root_health", "prefixed_health", "Join-OriginProbeUrl", "gitlab_identity_claim_allowed", "huggingface_identity_claim_allowed", "grafana_cloud_claim_allowed", "Invoke-RestMethod", "GITLAB_TOKEN", "HF_TOKEN", "GRAFANA_CLOUD_API_KEY", "Invoke-PublicBranchProtectionProbe", "public_anonymous_subset", "publicBackendOrigin", "cloud-superbrain-developer-platform.vercel.app")) {
   if (-not $externalGateAuditScript.Contains($required)) {
     throw "External gate audit verifier missing guard: $required"
   }
@@ -2911,7 +2911,10 @@ foreach ($required in @(
   'canonical_read_only_contract_origin',
   'read_only_contract_origin',
   'stateful_backend_verified',
-  'production_release_claimed'
+  'production_release_claimed',
+  'external_gates_snapshot_scope',
+  'external_gates_deployment_snapshot_source_artifact',
+  'embedded_at_source_commit'
 )) {
   if (-not $currentReleaseCandidateVerifier.Contains($required)) {
     throw "Current release candidate verifier missing canonical gate classification: $required"

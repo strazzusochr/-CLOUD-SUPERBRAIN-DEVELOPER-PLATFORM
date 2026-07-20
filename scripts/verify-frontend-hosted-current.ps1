@@ -47,8 +47,29 @@ try {
   Assert-True ([string]$config.source_commit_sha -match '^[0-9a-f]{40}$') "Invalid hosted frontend source SHA"
   Assert-True ([string]$config.deployment_id -match '^dpl_[A-Za-z0-9]+$') "Invalid Vercel deployment id"
   Assert-True ([string]$config.immutable_deployment_url -match '^https://[^/]+\.vercel\.app$') "Invalid immutable deployment URL"
-  Assert-True ([string]$config.production_alias -match '^https://[^/]+\.vercel\.app$') "Invalid production alias"
   Assert-True ([string]$config.immutable_deployment_url -notmatch 'localhost|127\.0\.0\.1') "Hosted proof cannot use localhost"
+  $vercelTarget = [string]$config.vercel_target
+  if ([string]::IsNullOrWhiteSpace($vercelTarget)) { $vercelTarget = "production" }
+  Assert-True (@("preview", "production") -contains $vercelTarget) "Invalid Vercel target"
+  $productionAlias = [string]$config.production_alias
+  if ($vercelTarget -eq "production") {
+    Assert-True ($productionAlias -match '^https://[^/]+\.vercel\.app$') "Invalid production alias"
+  } elseif (-not [string]::IsNullOrWhiteSpace($productionAlias)) {
+    Assert-True ($productionAlias -match '^https://[^/]+\.vercel\.app$') "Invalid contextual production alias"
+  }
+  $hasArchiveSha = -not [string]::IsNullOrWhiteSpace([string]$config.source_archive_sha256)
+  if ($vercelTarget -eq "preview") {
+    Assert-True $hasArchiveSha "Preview proof requires a source archive SHA-256"
+  }
+  if ($hasArchiveSha) {
+    Assert-True ([string]$config.source_archive_sha256 -match '^[0-9a-f]{64}$') "Invalid hosted frontend archive SHA-256"
+  }
+  $aliasParityRequired = if ($null -ne $config.PSObject.Properties["deployment_alias_content_parity"]) {
+    [bool]$config.deployment_alias_content_parity
+  } else {
+    $vercelTarget -eq "production"
+  }
+  Assert-Equal $aliasParityRequired ($vercelTarget -eq "production") "target/alias parity contract"
   Assert-Equal ([string]$config.browser_channel) "chrome" "browser channel"
   Assert-Equal ([int]$config.page_count) 22 "configured page count"
   Assert-Equal ([int]$config.viewport_count) 2 "configured viewport count"
@@ -70,6 +91,28 @@ try {
   if ($StaticOnly) {
     Write-Host "[frontend-hosted-current] static checks completed"
     exit 0
+  }
+
+  $deploymentMetadataVerified = $false
+  if ($hasArchiveSha) {
+    $vercelScope = if ([string]::IsNullOrWhiteSpace([string]$config.vercel_scope)) { "strazzusochrs-projects" } else { [string]$config.vercel_scope }
+    $previousErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+      $deploymentRaw = & vercel.cmd api "/v13/deployments/$($config.deployment_id)" `
+        --scope $vercelScope --raw 2>$null
+      $deploymentLookupExit = $LASTEXITCODE
+    } finally {
+      $ErrorActionPreference = $previousErrorAction
+    }
+    Assert-True ($deploymentLookupExit -eq 0) "Authenticated Vercel frontend deployment metadata lookup failed"
+    $deployment = ($deploymentRaw -join "`n") | ConvertFrom-Json
+    $actualTarget = if ([string]::IsNullOrWhiteSpace([string]$deployment.target)) { "preview" } else { [string]$deployment.target }
+    Assert-Equal ([string]$deployment.readyState) "READY" "Vercel frontend deployment state"
+    Assert-Equal $actualTarget $vercelTarget "Vercel frontend deployment target"
+    Assert-Equal ([string]$deployment.meta.sourceCommitSha) ([string]$config.source_commit_sha) "Vercel frontend source SHA"
+    Assert-Equal ([string]$deployment.meta.sourceArchiveSha256) ([string]$config.source_archive_sha256) "Vercel frontend archive SHA-256"
+    $deploymentMetadataVerified = $true
   }
 
   $proofPath = Join-Path $repoRoot ([string]$config.proof_artifact)
@@ -120,14 +163,21 @@ try {
   }
 
   $deploymentRoot = Get-HttpText "$($config.immutable_deployment_url)/"
-  $aliasRoot = Get-HttpText "$($config.production_alias)/"
   $deploymentWiring = Get-HttpText "$($config.immutable_deployment_url)/api/v1/workspace/wiring"
-  $aliasWiring = Get-HttpText "$($config.production_alias)/api/v1/workspace/wiring"
-  foreach ($response in @($deploymentRoot, $aliasRoot, $deploymentWiring, $aliasWiring)) {
+  foreach ($response in @($deploymentRoot, $deploymentWiring)) {
     Assert-Equal ([int]$response.StatusCode) 200 "hosted response status"
   }
-  Assert-Equal (Get-ContentSha $deploymentRoot.Content) (Get-ContentSha $aliasRoot.Content) "deployment/alias root parity"
-  Assert-Equal (Get-ContentSha $deploymentWiring.Content) (Get-ContentSha $aliasWiring.Content) "deployment/alias wiring parity"
+  $deploymentAliasContentParity = $false
+  if ($aliasParityRequired) {
+    $aliasRoot = Get-HttpText "$productionAlias/"
+    $aliasWiring = Get-HttpText "$productionAlias/api/v1/workspace/wiring"
+    foreach ($response in @($aliasRoot, $aliasWiring)) {
+      Assert-Equal ([int]$response.StatusCode) 200 "hosted alias response status"
+    }
+    Assert-Equal (Get-ContentSha $deploymentRoot.Content) (Get-ContentSha $aliasRoot.Content) "deployment/alias root parity"
+    Assert-Equal (Get-ContentSha $deploymentWiring.Content) (Get-ContentSha $aliasWiring.Content) "deployment/alias wiring parity"
+    $deploymentAliasContentParity = $true
+  }
   $wiring = $deploymentWiring.Content | ConvertFrom-Json
   Assert-Equal ([string]$wiring.contract_version) "workspace-surface-wiring-v1" "hosted wiring contract"
   Assert-Equal @($wiring.surfaces).Count 22 "hosted wiring page count"
@@ -137,9 +187,11 @@ try {
     status = "verified"
     generated_at = (Get-Date).ToUniversalTime().ToString("o")
     source_commit_sha = [string]$config.source_commit_sha
+    source_archive_sha256 = if ($hasArchiveSha) { [string]$config.source_archive_sha256 } else { $null }
     deployment_id = [string]$config.deployment_id
     immutable_deployment_url = [string]$config.immutable_deployment_url
-    production_alias = [string]$config.production_alias
+    production_alias = $productionAlias
+    vercel_target = $vercelTarget
     browser_channel = [string]$proof.browser_channel
     browser_version = [string]$proof.browser_version
     page_count = 22
@@ -148,11 +200,12 @@ try {
     overflow_failures = 0
     overlay_collision_failures = 0
     console_errors = 0
-    deployment_alias_content_parity = $true
+    deployment_metadata_verified = $deploymentMetadataVerified
+    deployment_alias_content_parity = $deploymentAliasContentParity
     production_release_claimed = $false
   }
   $verification | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $proofDir "verification.json") -Encoding utf8
-  Write-Host "[frontend-hosted-current] status=verified pages=22 viewports=2 clicks=44 browser=$($proof.browser_version)"
+  Write-Host "[frontend-hosted-current] status=verified target=$vercelTarget pages=22 viewports=2 clicks=44 browser=$($proof.browser_version)"
 } finally {
   Pop-Location
 }

@@ -245,6 +245,19 @@ async function main() {
     for (const requiredText of ["Kollektiver Organismus", "Live", "Wiedergabe", "Karte"]) {
       await waitForBodyText(page, requiredText);
     }
+    // CortexLive briefly renders a dynamic-import placeholder while switching
+    // from its initial 2D state to the WebGL surface under sustained test load.
+    await page.waitForFunction(() => {
+      const canvas = document.querySelector(".cortex-wrap canvas");
+      if (!(canvas instanceof HTMLCanvasElement)) return false;
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width < 500 || rect.height < 400) return false;
+      try {
+        return Boolean(canvas.getContext("webgl2") || canvas.getContext("webgl"));
+      } catch {
+        return false;
+      }
+    }, undefined, { timeout: 120000, polling: 500 });
     const organismProbe = await page.evaluate(() => {
       const canvas = document.querySelector(".cortex-wrap canvas") || document.querySelector("canvas");
       const rect = canvas ? canvas.getBoundingClientRect() : null;

@@ -1,5 +1,5 @@
 # 🏁 CODEX MASTER GOAL — FINALE (bis Vollendung + fehlerfreier Beweis)
-# Version: 2026-07-19 (R0 Runtime-Truth- und Browser-Gate-Stand)
+# Version: 2026-07-20 (T4 Exact-Source Preview- und Browser-Gate-Stand)
 # Führt CODEX_MASTER_GOAL.md zu Ende. Dieses Dokument ist der aktuelle Einstieg.
 
 ## DAS ZIEL IN EINEM SATZ
@@ -21,9 +21,10 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
 2. **No Secrets** — Tokens nur aus `C:\Users\immer\.claude\secrets\cloud-superbrain.local.env`
    transient laden, presence-only loggen, nie Werte ausgeben/committen. (Konvention:
    `BRANCH_PROTECTION_TOKEN` = `GITHUB_TOKEN`.)
-3. **Free-Only** — kein Fly-Deploy, nichts Bezahltes. Owner-Freigabe (2026-07-11) deckt:
-   `vercel deploy`/`vercel env` für die zwei bestehenden Projekte, lokale Commits,
-   read-only Gate-Audits mit vorhandenen Tokens. **KEIN `git push`.**
+3. **Free-Only** — kein Fly-Deploy, nichts Bezahltes. Owner-Freigabe deckt
+   `vercel deploy`/`vercel env` fuer die zwei bestehenden Projekte, Commits, read-only
+   Gate-Audits und Push ausschliesslich auf `claude/cloud-superbrain-analysis-127d2e`.
+   Kein Force-Push, kein Main-Push und keine Production-Promotion vor `MARKET_READY: true`.
 4. **Localhost = DEV-ONLY** — jeder Hosted-Beweis ist HTTPS non-localhost, kein `-AllowLocalhost`.
 5. **UI-Checks nur mit Playwright nach Hydration.** Proof-Tool: `node tools\ultimate_22_human_click_proof.mjs`
    IMMER aus PowerShell starten (Git-Bash zerstört `/routen`-Argumente).
@@ -31,28 +32,37 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
 7. Budget: Workers AI 10.000 Neurons/Tag → LLM-Beweise = 1 Mini-Prompt.
 
 ## VERIFIZIERTE BASELINE (2026-07-11 — nicht neu herleiten, nur fortführen)
-- **Frontend-Produktion** `https://frontend-seven-psi-78.vercel.app`: aktueller
-  source- und deploymentgebundener `frontend-hosted-current-proof-v1`. Echtes Google
-  Chrome `148.0.7778.96` bestand 22 Desktop- und 22 Mobile-Routen mit 44
-  Command-Palette-Klicks, vier PNGs, Overflow 0, sichtbaren Not-Found-Zustaenden 0 und
-  Console Errors 0. Immutable Deployment und Production Alias lieferten HTTP `200` und
-  identische Root-/Workspace-Wiring-Inhalte. Evidence:
-  `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-0555b0bd-chrome`; Frontend `100%`.
-  Dies ist kein Hosted-Backend- oder Gesamtplattform-Release-Claim.
-- **Backend-Projekt 2** `https://cloud-superbrain-developer-platform.vercel.app`:
-  `backend-hosted-current-proof-v1` bindet das READY-Deployment
-  `dpl_3Rb2rRJbPQdFCiLiu9mLdSaNhVBY` an Source
-  `e1a3ec1f7942e54058e56915f4fb29636c5c4f3e` und Archiv-SHA-256
-  `c1106b6cb2a36f643664a3f428483685f27231f8e0128f5581925ab2196ea1cb`. Der oeffentliche
-  Alias liefert `overall=84`, `P4=100`, Integritaet `verified`, External Gates
-  `5/6 action_required` mit einzigem Blocker `hosted_backend_origins`, MCP/LLM `healthy`
-  und Agent API `degraded`-ehrlich; POST bleibt mit HTTP 503
-  `stateless_contract_origin_read_only` geschlossen. Dies ist ein zustandsloser
-  Contract-Origin, nicht der stateful Docker-Stack und kein Gesamtplattform-Release.
+- **Frontend-Preview** `https://frontend-b4udxzvqq-strazzusochrs-projects.vercel.app`:
+  `frontend-hosted-current-proof-v1` bindet READY-Preview `dpl_J7BC3uPPUcQBgZckU29kKHXc5Wm9`
+  an Source `2e0f57179956ad88657567be65ebe33f1da0d255` und Archiv-SHA-256
+  `deae678aafe375251023401c06c5b65e8891c3350e542e51ecf8413aaff0253b`. Echtes Google
+  Chrome `148.0.7778.96` bestand 22 Desktop- und 22 Mobile-Routen mit 44 Klicks,
+  vier PNGs, Overflow 0, Overlay-Kollisionen 0 und Console Errors 0. Evidence:
+  `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-2e0f5717-preview-chrome`;
+  Frontend `100%`. Production Alias-Paritaet und Promotion sind nicht beansprucht.
+- **Backend-Preview** `https://cloud-superbrain-developer-platform-5utmryrpq.vercel.app`:
+  `backend-hosted-current-proof-v1` bindet READY-Preview
+  `dpl_32rFKVF1W4rkVqq6rPhPsqtPvXEZ` an dieselbe Source und denselben Archivhash.
+  Direkte unsichere Requests bleiben mit HTTP 401 deployment-geschuetzt; der
+  authentifizierte Automation-Probe belegt `overall=84`, `P4=100`, Integritaet
+  `verified`, den im Source-Commit eingebetteten External-Gate-Snapshot `5/6 action_required`,
+  Blocker `hosted_backend_origins`,
+  MCP/LLM `healthy`, Agent API `degraded` und App-POST HTTP 503
+  `stateless_contract_origin_read_only`. Dies ist ein zustandsloser Preview-Contract-Origin,
+  nicht der stateful Docker-Stack, keine Alias-Paritaet und kein Gesamtplattform-Release.
 - **External-Gate-Wahrheit:** Der kanonische reproduzierbare Standard-Bootstrap-Audit (ohne
-  Owner-Origin-Injektion) `.phase1-artifacts/external-gate-audit-20260713-122529.json` ist
-  `blocked` mit `production_deploy_claim_allowed=false`; offen ist `vercel_backend_origin_health`
-  (die konsolidierten Vercel MCP-/LLM-Origins bestehen die Health-Probe nicht). Der
+  Owner-Origin-Injektion) `.phase1-artifacts/external-gate-audit-20260720-191532.json` ist
+  `blocked` mit `production_deploy_claim_allowed=false`; offen ist nur noch
+  `fly_live_budget_check` (Fly.io verlangt Zahlungsdaten - Owner-Wand unter Free-Only).
+  `hosted_agent_api_contracts`, `vercel_backend_origin_health` und
+  `github_branch_protection_current_verify` sind seit Audit `20260720-191532` tokenfrei
+  reproduzierbar `verified`: die oeffentlichen Vercel-Origins sind als nicht-geheime
+  Defaults im Verifier hinterlegt, und die Branch-Protection wird auf dem oeffentlichen
+  Repository anonym als `protected=true` mit Pflicht-Check `verify` belegt
+  (`verification_scope=public_anonymous_subset`; Review-/Force-Push-/Deletion-Settings
+  sind anonym nicht lesbar und werden ausdruecklich NICHT beansprucht - dafuer bleibt
+  `BRANCH_PROTECTION_TOKEN` die staerkere Pruefung). Jede Probe bleibt eine anonyme
+  HTTPS-GET mit Pflicht-Marker und faellt bei Drift wieder fail-closed. Der
   owner-assistierte Token-/Origin-Lauf `.phase1-artifacts/external-gate-audit-20260713-125413.json`
   meldete `verified` mit `production_deploy_claim_allowed=true`, wird aber gemaess R0 ausschliesslich
   als nicht-aktueller Kandidat gefuehrt (`docs/runtime-state/external-gate-summary.candidate-125413.json`)
@@ -70,8 +80,9 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   Frontend sind entfernt. Acht Action-Routen nutzen nur Agent API, LLM Gateway oder MCP
   Gateway und bleiben ohne konfigurierte Grenze fail-closed; drei Vercel-Wrapper bleiben
   zustandslos und read-only. Static-, Runtime-, Browser-, Lint- und Build-Gates sind gruen.
-  Evidence: `.codex/runs/CURRENT/master-goal/t4/frontend-provider-boundary/report.json`.
-  Overall bleibt `84%`; Hosted-Source-Paritaet und Live-Provider-Aktivierung sind unbeansprucht.
+  Evidence: `.codex/runs/CURRENT/master-goal/t4/frontend-provider-boundary/report.json` und
+  `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-2e0f5717-preview-chrome`.
+  Overall bleibt `84%`; Production-Promotion und Live-Provider-Aktivierung sind unbeansprucht.
 - **Phase 1 ✔ (1.1–1.5), Phase 2 ✔ (2.1–2.3).** Class-Matrix A=85/B=0/C=5/D=4.
 - **Phase 3 deployt (~80 %):** S1 Build-Log-Grid, S2 Media/Docs-Entflechtung,
   S3 Apps-Kuration, S4 ehrliche Idle-Texte, S5 Hero-Labels, S6 /observe-Ehrlichkeit,

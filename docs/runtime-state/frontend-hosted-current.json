@@ -1,12 +1,15 @@
 {
   "contract_version": "frontend-hosted-current-proof-v1",
   "status": "verified",
-  "source_commit_sha": "0555b0bd2152f4256e723820ff085a1184c67260",
-  "deployment_id": "dpl_HidW1Y7vvJvy1GKcM16NNYne8TKe",
-  "immutable_deployment_url": "https://frontend-226spyyek-strazzusochrs-projects.vercel.app",
+  "source_commit_sha": "2e0f57179956ad88657567be65ebe33f1da0d255",
+  "source_archive_sha256": "deae678aafe375251023401c06c5b65e8891c3350e542e51ecf8413aaff0253b",
+  "deployment_id": "dpl_J7BC3uPPUcQBgZckU29kKHXc5Wm9",
+  "immutable_deployment_url": "https://frontend-b4udxzvqq-strazzusochrs-projects.vercel.app",
   "production_alias": "https://frontend-seven-psi-78.vercel.app",
-  "proof_artifact": ".codex/runs/CURRENT/master-goal/frontend/hosted-22x2-0555b0bd-chrome/report.json",
-  "proof_generated_at": "2026-07-20T05:15:52.442Z",
+  "vercel_target": "preview",
+  "vercel_scope": "strazzusochrs-projects",
+  "proof_artifact": ".codex/runs/CURRENT/master-goal/frontend/hosted-22x2-2e0f5717-preview-chrome/report.json",
+  "proof_generated_at": "2026-07-20T13:36:00.539Z",
   "browser_channel": "chrome",
   "browser_version": "148.0.7778.96",
   "page_count": 22,
@@ -17,9 +20,12 @@
   "console_errors": 0,
   "frontend_progress_before": 99,
   "frontend_progress_after": 100,
+  "deployment_metadata_verified": true,
+  "deployment_alias_content_parity": false,
   "production_release_claimed": false,
   "non_claims": [
-    "This proves the hosted frontend deployment and production alias, not the full backend staging stack.",
-    "This does not claim a platform production release, registry publication, live MCP write, or live LLM provider activation."
+    "This proves the immutable Vercel preview deployment, not Production Alias parity or release promotion.",
+    "The preview uses deployment-local HTTPS boundary origins; it does not change canonical project or production environment variables.",
+    "This does not claim the stateful hosted backend, registry publication, live MCP writes, or a production release."
   ]
 }

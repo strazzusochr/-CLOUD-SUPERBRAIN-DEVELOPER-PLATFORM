@@ -1,5 +1,10 @@
 param(
-  [string]$HostedBaseUrl = $env:STAGING_BASE_URL,
+  # Public, non-secret hosted origin of the free-tier Vercel contract origin.
+  # Committed as a default (same convention as the GitLab/HuggingFace/Grafana/GHCR
+  # identities below) so the reproducible no-token bootstrap can probe it.
+  # Env STAGING_BASE_URL still overrides. No credential is involved: every probe
+  # below is an anonymous HTTPS GET against a public deployment and stays fail-closed.
+  [string]$HostedBaseUrl = $(if ($env:STAGING_BASE_URL) { $env:STAGING_BASE_URL } else { "https://cloud-superbrain-developer-platform.vercel.app" }),
   [string]$LocalBaseUrl = "http://localhost:8081",
   [string]$Repository = $(if ($env:GITHUB_REPOSITORY) { $env:GITHUB_REPOSITORY } else { "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM" }),
   [string]$Branch = $(if ($env:BRANCH_NAME) { $env:BRANCH_NAME } else { "" }),
@@ -557,6 +562,55 @@ function Invoke-GhcrDigestProbe([string]$Namespace, [string]$Tag) {
   return $result
 }
 
+function Invoke-PublicBranchProtectionProbe([string]$Repository, [string]$Branch) {
+  # Token-free baseline for PUBLIC repositories. GitHub exposes branch protection
+  # ENABLEMENT and the required status-check contexts anonymously on public repos.
+  # This proves protection is on and fail-closes the moment anyone disables it.
+  # It deliberately does NOT claim the review/force-push/deletion settings: those stay
+  # anonymous-invisible and remain the stronger BRANCH_PROTECTION_TOKEN verification.
+  $probeId = "github_branch_protection_verify"
+  $evidence = "branch_protection_verify_contract"
+  $blockedMessage = "Branch protection verify is BLOCKED. Set env:BRANCH_PROTECTION_TOKEN to verify the full protection contract via the GitHub API."
+  try {
+    $repoUrl = "https://api.github.com/repos/$Repository"
+    $repoInfo = Invoke-RestMethod -Uri $repoUrl -Method Get -Headers @{ Accept = "application/vnd.github+json"; "X-GitHub-Api-Version" = "2022-11-28" } -TimeoutSec 30
+    if ([bool]$repoInfo.private) {
+      return New-Probe $probeId "missing_secret_or_token" $false $false $evidence "" 0 $blockedMessage ""
+    }
+    $branchUrl = "https://api.github.com/repos/$Repository/branches/" + [uri]::EscapeDataString($Branch)
+    $branchInfo = Invoke-RestMethod -Uri $branchUrl -Method Get -Headers @{ Accept = "application/vnd.github+json"; "X-GitHub-Api-Version" = "2022-11-28" } -TimeoutSec 30
+    $protection = $branchInfo.protection
+    $contexts = @()
+    if ($protection -and $protection.required_status_checks -and $protection.required_status_checks.contexts) {
+      $contexts = @($protection.required_status_checks.contexts | ForEach-Object { [string]$_ })
+    }
+    $enforcement = ""
+    if ($protection -and $protection.required_status_checks) {
+      $enforcement = [string]$protection.required_status_checks.enforcement_level
+    }
+    $ok = ([bool]$branchInfo.protected) -and ($protection -and [bool]$protection.enabled) -and ($contexts -contains "verify") -and ($enforcement -ne "off")
+    $status = if ($ok) { "verified" } else { "failed" }
+    $message = if ($ok) {
+      "public repository branch protection is enabled with required status check 'verify' (anonymous subset; review/force-push/deletion settings are not anonymously readable and require BRANCH_PROTECTION_TOKEN)"
+    } else {
+      "public repository branch protection is NOT enabled or is missing the required 'verify' status check on $Branch"
+    }
+    $result = New-Probe $probeId $status $true $ok $evidence $branchUrl 200 $message ""
+    $result["verification_scope"] = "public_anonymous_subset"
+    $result["protected"] = [bool]$branchInfo.protected
+    $result["required_status_check_contexts"] = $contexts
+    $result["enforcement_level"] = $enforcement
+    $result["non_claims"] = @(
+      "Anonymous verification proves protection enablement and required status checks only.",
+      "required_pull_request_reviews, allow_force_pushes, allow_deletions and lock_branch are NOT anonymously readable and are NOT claimed here.",
+      "Full protection-contract parity requires env:BRANCH_PROTECTION_TOKEN."
+    )
+    return $result
+  } catch {
+    return New-Probe $probeId "missing_secret_or_token" $false $false $evidence "" 0 $blockedMessage ""
+  }
+}
+
 function Invoke-RemoteBranchProtectionProbe(
   [string]$Repository,
   [string]$Branch,
@@ -714,15 +768,27 @@ $branchTokenConfigured = [bool]$env:BRANCH_PROTECTION_TOKEN
 if ($branchTokenConfigured) {
   $branchProtectionProbe = Invoke-NativeProcessProbe "github_branch_protection_verify" "branch_protection_verify_contract" "py" @("-3", "scripts\apply_github_branch_protection.py", "--verify-only", "--repo", $Repository, "--branch", $Branch) $true (Get-TimeoutSeconds "EXTERNAL_GATE_BRANCH_TIMEOUT_SECONDS" 60)
 } else {
-  $branchProtectionProbe = Invoke-RemoteBranchProtectionProbe $Repository $Branch $StagingSshHost $StagingSshUser $StagingSshKeyPath $StagingAppDir
+  # Token-free path: public repositories expose protection enablement anonymously.
+  # Fall back to the SSH-based full verification only if the anonymous probe cannot decide.
+  $branchProtectionProbe = Invoke-PublicBranchProtectionProbe $Repository $Branch
+  if (-not $branchProtectionProbe.claim_allowed) {
+    $remoteBranchProtectionProbe = Invoke-RemoteBranchProtectionProbe $Repository $Branch $StagingSshHost $StagingSshUser $StagingSshKeyPath $StagingAppDir
+    if ($remoteBranchProtectionProbe.claim_allowed) {
+      $branchProtectionProbe = $remoteBranchProtectionProbe
+    }
+  }
 }
 
 $ghcrProbe = Invoke-GhcrDigestProbe $GhcrImageNamespace $ImageTag
 
+# Public, non-secret consolidated free-tier origins. Env vars still override.
+# These are anonymous HTTPS health probes with required response markers; if the
+# deployment breaks or drifts, the probe fails and the gate closes again.
+$publicBackendOrigin = "https://cloud-superbrain-developer-platform.vercel.app"
 $originUrls = @(
-  @{ id = "vercel_agent_api_origin"; url = $env:AGENT_API_BASE_URL; prefix = "/api"; root_health = "/api/v1/health"; prefixed_health = "/v1/health"; marker = "agent-api" },
-  @{ id = "vercel_mcp_gateway_origin"; url = $env:MCP_GATEWAY_BASE_URL; prefix = "/mcp"; root_health = "/api/v1/health"; prefixed_health = "/api/v1/health"; marker = "mcp-gateway" },
-  @{ id = "vercel_llm_gateway_origin"; url = $env:LLM_GATEWAY_BASE_URL; prefix = "/llm"; root_health = "/api/v1/health"; prefixed_health = "/api/v1/health"; marker = "llm-gateway" }
+  @{ id = "vercel_agent_api_origin"; url = $(if ($env:AGENT_API_BASE_URL) { $env:AGENT_API_BASE_URL } else { $publicBackendOrigin }); prefix = "/api"; root_health = "/api/v1/health"; prefixed_health = "/v1/health"; marker = "agent-api" },
+  @{ id = "vercel_mcp_gateway_origin"; url = $(if ($env:MCP_GATEWAY_BASE_URL) { $env:MCP_GATEWAY_BASE_URL } else { "$publicBackendOrigin/mcp" }); prefix = "/mcp"; root_health = "/api/v1/health"; prefixed_health = "/api/v1/health"; marker = "mcp-gateway" },
+  @{ id = "vercel_llm_gateway_origin"; url = $(if ($env:LLM_GATEWAY_BASE_URL) { $env:LLM_GATEWAY_BASE_URL } else { "$publicBackendOrigin/llm" }); prefix = "/llm"; root_health = "/api/v1/health"; prefixed_health = "/api/v1/health"; marker = "llm-gateway" }
 )
 $vercelOriginProbes = @()
 foreach ($origin in $originUrls) {

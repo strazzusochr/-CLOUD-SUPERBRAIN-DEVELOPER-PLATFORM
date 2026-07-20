@@ -1,15 +1,17 @@
 {
   "contract_version": "backend-hosted-current-proof-v1",
   "status": "verified",
-  "source_commit_sha": "e1a3ec1f7942e54058e56915f4fb29636c5c4f3e",
-  "source_archive_sha256": "c1106b6cb2a36f643664a3f428483685f27231f8e0128f5581925ab2196ea1cb",
-  "deployment_id": "dpl_3Rb2rRJbPQdFCiLiu9mLdSaNhVBY",
-  "immutable_deployment_url": "https://cloud-superbrain-developer-platform-hqouvvvti.vercel.app",
+  "source_commit_sha": "2e0f57179956ad88657567be65ebe33f1da0d255",
+  "source_archive_sha256": "deae678aafe375251023401c06c5b65e8891c3350e542e51ecf8413aaff0253b",
+  "deployment_id": "dpl_32rFKVF1W4rkVqq6rPhPsqtPvXEZ",
+  "immutable_deployment_url": "https://cloud-superbrain-developer-platform-5utmryrpq.vercel.app",
   "production_alias": "https://cloud-superbrain-developer-platform.vercel.app",
-  "vercel_target": "production",
+  "vercel_target": "preview",
   "vercel_scope": "strazzusochrs-projects",
-  "proof_generated_at": "2026-07-19T21:28:05.013Z",
-  "verification_artifact": ".codex/runs/CURRENT/master-goal/backend/hosted-contract-origin-e1a3ec1f/verification.json",
+  "vercel_org_id": "team_v9yzEnXKNsbQMEIrdf0pd4RT",
+  "vercel_project_id": "prj_mMDGW9UtybBGj3AHloWfk3CF3Scr",
+  "proof_generated_at": "2026-07-20T13:24:29.907Z",
+  "verification_artifact": ".codex/runs/CURRENT/master-goal/backend/hosted-contract-origin-2e0f5717-preview/verification.json",
   "overall_percent": 84,
   "phase_4_percent": 100,
   "integrity_status": "verified",
@@ -17,7 +19,9 @@
   "external_gates_verified_count": 5,
   "external_gates_total_count": 6,
   "external_gates_canonical_summary_status": "blocked",
-  "external_gates_canonical_summary_source_artifact": ".phase1-artifacts\\external-gate-audit-20260713-122529.json",
+  "external_gates_deployment_snapshot_source_artifact": ".phase1-artifacts\\external-gate-audit-20260713-122529.json",
+  "external_gates_snapshot_scope": "embedded_at_source_commit",
+  "current_local_canonical_summary_path": "docs/runtime-state/external-gate-summary.json",
   "external_gates_blocked_release_gates": [
     "hosted_backend_origins"
   ],
@@ -31,10 +35,10 @@
   "stateful_backend_verified": false,
   "production_release_claimed": false,
   "non_claims": [
-    "The Vercel production target hosts a stateless read-only contract origin, not the stateful Docker backend stack.",
-    "The immutable deployment URL is protected by Vercel SSO; runtime content parity with the public alias is not claimed.",
-    "Degraded Agent API health is expected because PostgreSQL, Redis, agent-worker, and memory-worker are intentionally not configured on this target.",
-    "The canonical standard external-gate summary remains blocked at 5/6; this proof preserves that state instead of promoting the owner-assisted candidate.",
-    "This does not claim a full-platform production release, registry publication, live MCP write, or live LLM provider activation."
+    "The Vercel preview hosts a stateless read-only contract origin, not the stateful Docker backend stack.",
+    "Vercel Deployment Protection is bypassed only by the authenticated verifier; direct unsafe requests remain protected.",
+    "The deployment-embedded external-gate summary snapshot remains blocked at 5/6 with hosted_backend_origins open.",
+    "The 5/6 value is the immutable deployment snapshot; the current local canonical standard is tracked separately.",
+    "This does not claim Production Alias parity, release promotion, live MCP writes, or a production release."
   ]
 }
