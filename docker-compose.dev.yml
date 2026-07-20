@@ -70,6 +70,7 @@ services:
       PROMPT_RATE_LIMIT_WINDOW_SECONDS: ${PROMPT_RATE_LIMIT_WINDOW_SECONDS:-3600}
       PROJECT_PROGRESS_MANIFEST_PATH: /app/progress/project-progress.manifest.json
       EXTERNAL_GATE_SUMMARY_PATH: /app/progress/external-gate-summary.json
+      CAPABILITY_GATE_STATE_PATH: /app/progress/capability-gates.json
       PROJECT_STATE_PATH: /app/PROJECT_STATE.md
       EVIDENCE_DIR: /workspace/evidence
       LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-gemma-3-1b-it}
@@ -107,6 +108,7 @@ services:
     volumes:
       - ./docs/project-progress.manifest.json:/app/progress/project-progress.manifest.json:ro
       - ./docs/runtime-state/external-gate-summary.json:/app/progress/external-gate-summary.json:ro
+      - ./docs/runtime-state/capability-gates.json:/app/progress/capability-gates.json:ro
       - ./PROJECT_STATE.md:/app/PROJECT_STATE.md:ro
       - ./docs/codex-integration/autonomous-agent-roster.json:/app/docs/codex-integration/autonomous-agent-roster.json:ro
       - ./services/agent-api/app:/app/app:ro

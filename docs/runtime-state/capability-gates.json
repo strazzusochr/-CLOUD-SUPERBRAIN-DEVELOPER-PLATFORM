@@ -1,0 +1,99 @@
+﻿{
+    "contract_version":  "capability-gate-state-v1",
+    "status":  "configured",
+    "policy":  "Only a verifier may set live_verified=true, and only after proving the capability against a live runtime. Hand edits are a No-Fake-Done violation. A paid provider never satisfies the free-only policy: paid_provider=true keeps the gate closed regardless of the other fields.",
+    "gates":  {
+                  "live_llm_provider_calls":  {
+                                                  "owner_granted":  true,
+                                                  "owner_grant_ref":  "CODEX_UEBERGABE_2026-07-13.md :: OWNER-FREIGABE B1 (Cloudflare Workers AI = freier Live-Provider)",
+                                                  "live_verified":  true,
+                                                  "evidence_artifact":  ".codex/runs/CURRENT/capability/live-llm-free-provider/report-20260720-224943.json",
+                                                  "verified_at_utc":  "2026-07-20T22:49:44.0224068Z",
+                                                  "provider":  "cloudflare_workers_ai",
+                                                  "paid_provider":  false,
+                                                  "verifier":  "scripts/verify-live-llm-free-provider.ps1"
+                                              },
+                  "production_auth_identity":  {
+                                                   "owner_granted":  false,
+                                                   "owner_grant_ref":  "",
+                                                   "live_verified":  false,
+                                                   "evidence_artifact":  "",
+                                                   "verified_at_utc":  "",
+                                                   "provider":  "",
+                                                   "paid_provider":  false,
+                                                   "verifier":  "",
+                                                   "note":  "Needs an owner-configured OAuth provider plus a hosted callback URL. The signed anonymous session is implemented and live, but is not a production identity claim."
+                                               },
+                  "docker_registry_publish":  {
+                                                  "owner_granted":  false,
+                                                  "owner_grant_ref":  "",
+                                                  "live_verified":  false,
+                                                  "evidence_artifact":  "",
+                                                  "verified_at_utc":  "",
+                                                  "provider":  "ghcr",
+                                                  "paid_provider":  false,
+                                                  "verifier":  "",
+                                                  "note":  "Requires an owner release gate before any image is pushed to GHCR."
+                                              },
+                  "phase6_scale_runtime":  {
+                                               "owner_granted":  false,
+                                               "owner_grant_ref":  "",
+                                               "live_verified":  false,
+                                               "evidence_artifact":  "",
+                                               "verified_at_utc":  "",
+                                               "provider":  "",
+                                               "paid_provider":  false,
+                                               "verifier":  "",
+                                               "note":  "Requires a separate scale budget and a real runtime proof under load."
+                                           },
+                  "live_mcp_writes":  {
+                                          "owner_granted":  false,
+                                          "owner_grant_ref":  "",
+                                          "live_verified":  false,
+                                          "evidence_artifact":  "",
+                                          "verified_at_utc":  "",
+                                          "provider":  "",
+                                          "paid_provider":  false,
+                                          "verifier":  "",
+                                          "note":  "Requires an owner gate plus branch protection plus an audit trail before any live MCP write."
+                                      },
+                  "live_agent_tool_writes":  {
+                                                 "owner_granted":  false,
+                                                 "owner_grant_ref":  "",
+                                                 "live_verified":  false,
+                                                 "evidence_artifact":  "",
+                                                 "verified_at_utc":  "",
+                                                 "provider":  "",
+                                                 "paid_provider":  false,
+                                                 "verifier":  "",
+                                                 "note":  "Requires an owner gate before agents may perform live tool writes."
+                                             },
+                  "live_memory_provider":  {
+                                               "owner_granted":  true,
+                                               "owner_grant_ref":  "CODEX_UEBERGABE_2026-07-13.md :: OWNER-FREIGABE O7 (freier stateful Weg: Neon Free / Cloudflare D1 statt Fly)",
+                                               "live_verified":  false,
+                                               "evidence_artifact":  "",
+                                               "verified_at_utc":  "",
+                                               "provider":  "",
+                                               "paid_provider":  false,
+                                               "verifier":  "",
+                                               "note":  "Owner granted the free path. Still needs a real free provider (Neon Free or Cloudflare D1 plus pgvector-compatible embeddings) with a live proof."
+                                           },
+                  "hosted_observability_endpoint":  {
+                                                        "owner_granted":  true,
+                                                        "owner_grant_ref":  "GRAFANA_CLOUD_API_KEY liegt vor; Grafana Cloud free tier",
+                                                        "live_verified":  false,
+                                                        "evidence_artifact":  "",
+                                                        "verified_at_utc":  "",
+                                                        "provider":  "grafana_cloud",
+                                                        "paid_provider":  false,
+                                                        "verifier":  "",
+                                                        "note":  "Grafana Cloud identity reads verify, but no hosted telemetry ingestion has been proven yet."
+                                                    }
+              },
+    "non_claims":  [
+                       "owner_granted alone never opens a gate; a live proof artifact is required as well.",
+                       "This file is runtime truth for capability gates only. External gate truth stays in external-gate-summary.json.",
+                       "No percentage may be raised from this file alone; the manifest still requires its own referenced evidence."
+                   ]
+}

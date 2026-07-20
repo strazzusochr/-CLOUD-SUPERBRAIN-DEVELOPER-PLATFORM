@@ -3930,6 +3930,7 @@ def _completion_status(percent: int, blockers: list[str]) -> str:
 def project_progress_completion_payload() -> dict[str, object]:
     progress = project_progress_payload()
     verified_flags = external_gate_verification_flags(progress)
+    capability_gates = capability_gate_state()
     gates = external_gate_state()
     gate_items = list(gates["gates"])
     missing_gate_ids = [str(gate["id"]) for gate in gate_items if not gate["configured"]]
@@ -3956,8 +3957,16 @@ def project_progress_completion_payload() -> dict[str, object]:
             ]
             if enabled
         ],
-        "phase_2": ["live_llm_provider_calls_require_owner_gate_and_budget_guard"],
-        "phase_3": ["production_auth_identity_requires_owner_configured_oauth_and_hosted_url"],
+        "phase_2": (
+            []
+            if capability_gate_open("live_llm_provider_calls", capability_gates)
+            else ["live_llm_provider_calls_require_owner_gate_and_budget_guard"]
+        ),
+        "phase_3": (
+            []
+            if capability_gate_open("production_auth_identity", capability_gates)
+            else ["production_auth_identity_requires_owner_configured_oauth_and_hosted_url"]
+        ),
         "phase_4": [
             blocker
             for blocker, enabled in [
@@ -3974,23 +3983,56 @@ def project_progress_completion_payload() -> dict[str, object]:
                     "production_release_requires_hosted_staging_branch_protection_secret_scan_and_owner_review",
                     not verified_flags["production_gate_claim_allowed"],
                 ),
-                ("docker_registry_publish_requires_owner_release_gate", True),
+                (
+                    "docker_registry_publish_requires_owner_release_gate",
+                    not capability_gate_open("docker_registry_publish", capability_gates),
+                ),
             ]
             if enabled
         ],
         "phase_6": [
-            "phase6_scale_3d_platform_requires_separate_scale_budget_and_runtime_proof",
-            "live_mcp_writes_require_owner_gate_branch_protection_and_audit",
+            blocker
+            for blocker, enabled in [
+                (
+                    "phase6_scale_3d_platform_requires_separate_scale_budget_and_runtime_proof",
+                    not capability_gate_open("phase6_scale_runtime", capability_gates),
+                ),
+                (
+                    "live_mcp_writes_require_owner_gate_branch_protection_and_audit",
+                    not capability_gate_open("live_mcp_writes", capability_gates),
+                ),
+            ]
+            if enabled
         ],
     }
     layer_blockers: dict[str, list[str]] = {
         "layer_1": [] if verified_flags["hosted_staging"] else ["hosted_browser_proof_requires_STAGING_BASE_URL"],
         "layer_2": [],
-        "layer_3": ["live_agent_tool_writes_require_owner_gate"],
-        "layer_4": ["live_llm_provider_calls_require_owner_gate_and_budget_guard"],
-        "layer_5": ["live_mcp_writes_require_owner_gate_branch_protection_and_audit"],
-        "layer_6": ["live_embeddings_or_external_memory_provider_requires_owner_gate"],
-        "layer_7": ["hosted_langfuse_or_grafana_proof_requires_owner_configured_endpoint"],
+        "layer_3": (
+            []
+            if capability_gate_open("live_agent_tool_writes", capability_gates)
+            else ["live_agent_tool_writes_require_owner_gate"]
+        ),
+        "layer_4": (
+            []
+            if capability_gate_open("live_llm_provider_calls", capability_gates)
+            else ["live_llm_provider_calls_require_owner_gate_and_budget_guard"]
+        ),
+        "layer_5": (
+            []
+            if capability_gate_open("live_mcp_writes", capability_gates)
+            else ["live_mcp_writes_require_owner_gate_branch_protection_and_audit"]
+        ),
+        "layer_6": (
+            []
+            if capability_gate_open("live_memory_provider", capability_gates)
+            else ["live_embeddings_or_external_memory_provider_requires_owner_gate"]
+        ),
+        "layer_7": (
+            []
+            if capability_gate_open("hosted_observability_endpoint", capability_gates)
+            else ["hosted_langfuse_or_grafana_proof_requires_owner_configured_endpoint"]
+        ),
     }
 
     phases = []
@@ -5325,6 +5367,103 @@ def cloud_deployment_preflight_payload() -> dict[str, object]:
         "policy_checks": list(state.get("policy_checks", [])),
         "non_claims": list(state.get("non_claims", [])),
     }
+
+
+CAPABILITY_GATE_IDS = (
+    "live_llm_provider_calls",
+    "production_auth_identity",
+    "docker_registry_publish",
+    "phase6_scale_runtime",
+    "live_mcp_writes",
+    "live_agent_tool_writes",
+    "live_memory_provider",
+    "hosted_observability_endpoint",
+)
+
+
+def capability_gate_path() -> Path:
+    configured = os.getenv("CAPABILITY_GATE_STATE_PATH", "/app/progress/capability-gates.json")
+    return Path(configured)
+
+
+def capability_gate_state() -> dict[str, object]:
+    """Evidence-driven owner-capability gates.
+
+    Previously the phase/layer blockers for live provider, auth, registry, scale,
+    MCP-write, agent-write, memory-provider and hosted-observability capabilities
+    were hardcoded constants. They could never clear, so the completion contract
+    could never reach 100 percent even when the owner granted the capability and
+    a real live proof existed. This reads a canonical artifact that ONLY a
+    verifier may write after proving the capability against a live runtime.
+
+    Fail-closed: a missing, unreadable or stale entry keeps the gate blocked.
+    """
+    path = capability_gate_path()
+    blocked = {
+        gate_id: {
+            "id": gate_id,
+            "owner_granted": False,
+            "live_verified": False,
+            "evidence_artifact": "",
+            "verified_at_utc": "",
+            "provider": "",
+            "paid_provider": False,
+        }
+        for gate_id in CAPABILITY_GATE_IDS
+    }
+    if not path.exists():
+        return {
+            "contract_version": "capability-gate-state-v1",
+            "status": "missing_state",
+            "gates": blocked,
+            "non_claims": [
+                "No capability-gate evidence is mounted in this runtime.",
+                "Every owner-gated capability stays blocked without a verifier-written proof.",
+            ],
+        }
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except Exception:
+        return {
+            "contract_version": "capability-gate-state-v1",
+            "status": "unreadable_state",
+            "gates": blocked,
+            "non_claims": ["Capability-gate evidence could not be parsed; all capabilities stay blocked."],
+        }
+    gates = dict(blocked)
+    for gate_id, entry in (payload.get("gates") or {}).items():
+        if gate_id not in blocked or not isinstance(entry, dict):
+            continue
+        # A capability counts as open only when the owner granted it AND a
+        # verifier proved it live AND the proof names a concrete artifact.
+        # A paid provider never satisfies the free-only policy.
+        owner_granted = bool(entry.get("owner_granted", False))
+        live_verified = bool(entry.get("live_verified", False))
+        artifact = str(entry.get("evidence_artifact", "") or "")
+        paid = bool(entry.get("paid_provider", False))
+        gates[gate_id] = {
+            "id": gate_id,
+            "owner_granted": owner_granted,
+            "live_verified": live_verified and bool(artifact) and not paid,
+            "evidence_artifact": artifact,
+            "verified_at_utc": str(entry.get("verified_at_utc", "") or ""),
+            "provider": str(entry.get("provider", "") or ""),
+            "paid_provider": paid,
+        }
+    return {
+        "contract_version": "capability-gate-state-v1",
+        "status": str(payload.get("status", "configured")),
+        "gates": gates,
+        "non_claims": list(payload.get("non_claims", [])),
+    }
+
+
+def capability_gate_open(gate_id: str, state: dict[str, object] | None = None) -> bool:
+    gates = (state or capability_gate_state()).get("gates", {})
+    entry = gates.get(gate_id) if isinstance(gates, dict) else None
+    if not isinstance(entry, dict):
+        return False
+    return bool(entry.get("owner_granted")) and bool(entry.get("live_verified"))
 
 
 def external_gate_summary_path() -> Path:
