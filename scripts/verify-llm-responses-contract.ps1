@@ -77,8 +77,50 @@ function Invoke-StatusPost([string]$Url, $Body) {
   }
 }
 
+function Invoke-JsonPostResult([string]$Url, $Body) {
+  Add-Type -AssemblyName System.Net.Http
+  $handler = New-Object System.Net.Http.HttpClientHandler
+  $client = New-Object System.Net.Http.HttpClient($handler)
+  $client.Timeout = [TimeSpan]::FromSeconds(60)
+  $request = New-Object System.Net.Http.HttpRequestMessage(
+    [System.Net.Http.HttpMethod]::Post,
+    $Url
+  )
+  $response = $null
+  try {
+    $json = $Body | ConvertTo-Json -Depth 16
+    $request.Content = New-Object System.Net.Http.StringContent(
+      $json,
+      [System.Text.Encoding]::UTF8,
+      "application/json"
+    )
+    $response = $client.SendAsync($request).GetAwaiter().GetResult()
+    $content = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+    $payload = $null
+    if (-not [string]::IsNullOrWhiteSpace($content)) {
+      try {
+        $payload = $content | ConvertFrom-Json
+      } catch {
+        throw "POST $Url returned non-JSON content: $content"
+      }
+    }
+    return [pscustomobject]@{
+      StatusCode = [int]$response.StatusCode
+      Content = $content
+      Payload = $payload
+    }
+  } finally {
+    if ($null -ne $response) { $response.Dispose() }
+    $request.Dispose()
+    $client.Dispose()
+    $handler.Dispose()
+  }
+}
+
 $base = Normalize-BaseUrl $BaseUrl
 Assert-BaseUrlAllowed $base ([bool]$AllowLocalhost)
+$baseUri = [System.Uri]$base
+$isLocalProof = $baseUri.Host -in @("localhost", "127.0.0.1", "::1")
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
 $llmGatewayPath = Join-Path $repoRoot "services\llm-gateway\app\main.py"
@@ -153,53 +195,82 @@ Assert-Equal "live agent llm contract endpoint" $liveAgentContract.llm_gateway_c
 Assert-True "live agent required output_text" (@($liveAgentContract.required_llm_response_fields) -contains "output_text")
 Assert-True "live agent required audit" (@($liveAgentContract.required_llm_response_fields) -contains "audit_persisted")
 
-Write-Host "[llm-responses] runtime dry-run"
-$traceId = "llm-responses-contract-" + [Guid]::NewGuid().ToString("N")
-$responsePayload = Invoke-JsonPost "$base/llm/v1/responses" @{
-  model = "Qwen/Qwen3-Coder-Next:fastest"
-  input = "verify llm responses adapter contract"
-  store = $true
-  metadata = @{
-    trace_id = $traceId
-    agent_type = "coder"
-    run_id = $traceId
+if ($isLocalProof) {
+  Write-Host "[llm-responses] local runtime dry-run"
+  $traceId = "llm-responses-contract-" + [Guid]::NewGuid().ToString("N")
+  $responsePayload = Invoke-JsonPost "$base/llm/v1/responses" @{
+    model = "Qwen/Qwen3-Coder-Next:fastest"
+    input = "verify llm responses adapter contract"
+    store = $true
+    metadata = @{
+      trace_id = $traceId
+      agent_type = "coder"
+      run_id = $traceId
+    }
+    stream = $false
   }
-  stream = $false
+
+  Assert-Equal "response object" $responsePayload.object "response"
+  Assert-Equal "response status" $responsePayload.status "completed"
+  Assert-Equal "response contract version" $responsePayload.contract_version "llm-responses-adapter-contract-v1"
+  Assert-Equal "response evidence ref" $responsePayload.evidence_ref "llm_responses_adapter_contract_visible"
+  Assert-Equal "response trace id" $responsePayload.trace_id $traceId
+  Assert-True "response output text present" (-not [string]::IsNullOrWhiteSpace([string]$responsePayload.output_text))
+  Assert-True "response output array present" (@($responsePayload.output).Count -ge 1)
+  Assert-True "response live provider calls false" ($responsePayload.live_provider_calls -eq $false)
+  Assert-True "response model downloads false" ($responsePayload.model_downloads -eq $false)
+  Assert-True "response audit persisted" ($responsePayload.audit_persisted -eq $true)
+  Assert-True "response usage visible" ([int]$responsePayload.usage.total_tokens -gt 0)
+
+  $audit = Invoke-JsonGet "$base/api/v1/audit/recent?limit=100"
+  $auditJson = $audit | ConvertTo-Json -Depth 24
+  Assert-Contains "audit contains trace id" $auditJson $traceId
+  Assert-Contains "audit contains llm event" $auditJson "llm_gateway_request"
+
+  Write-Host "[llm-responses] local negative cases"
+  $streamStatus = Invoke-StatusPost "$base/llm/v1/responses" @{
+    model = "Qwen/Qwen3-Coder-Next:fastest"
+    input = "stream should be rejected"
+    metadata = @{ trace_id = "$traceId-stream"; agent_type = "tester" }
+    stream = $true
+  }
+  Assert-Equal "stream true rejected" $streamStatus 501
+
+  $metadataStatus = Invoke-StatusPost "$base/llm/v1/responses" @{
+    model = "Qwen/Qwen3-Coder-Next:fastest"
+    input = "metadata should be structured"
+    metadata = "not-an-object"
+    stream = $false
+  }
+  Assert-Equal "metadata object required" $metadataStatus 422
+} else {
+  Write-Host "[llm-responses] hosted read-only boundary"
+  $traceId = "llm-responses-hosted-boundary-" + [Guid]::NewGuid().ToString("N")
+  $blocked = Invoke-JsonPostResult "$base/llm/v1/responses" @{
+    model = "Qwen/Qwen3-Coder-Next:fastest"
+    input = "verify hosted read-only LLM boundary"
+    store = $true
+    metadata = @{ trace_id = $traceId; agent_type = "tester" }
+    stream = $false
+  }
+  Assert-Equal "hosted response blocked status" $blocked.StatusCode 503
+  Assert-True "hosted response JSON present" ($null -ne $blocked.Payload)
+  Assert-Equal "hosted response state" $blocked.Payload.status "blocked"
+  Assert-True "hosted response reason" (
+    [string]$blocked.Payload.reason -in @(
+      "stateless_contract_origin_read_only",
+      "configured_boundary_unavailable"
+    )
+  )
+  Assert-True "hosted response not accepted" ($blocked.Payload.accepted -eq $false)
+  Assert-True "hosted response not persisted" ($blocked.Payload.persisted -eq $false)
+  Assert-True "hosted response audit not persisted" ($blocked.Payload.audit_persisted -eq $false)
+  Assert-True "hosted response no direct provider" ($blocked.Payload.direct_provider_calls -eq $false)
+  Assert-True "hosted response no live provider" ($blocked.Payload.live_provider_calls -eq $false)
+  Assert-True "hosted response no secret output" ($blocked.Payload.secret_output -eq $false)
+  Assert-NotContains "hosted response no completion claim" $blocked.Content '"status":"completed"'
+  Assert-NotContains "hosted response no audit claim" $blocked.Content '"audit_persisted":true'
 }
-
-Assert-Equal "response object" $responsePayload.object "response"
-Assert-Equal "response status" $responsePayload.status "completed"
-Assert-Equal "response contract version" $responsePayload.contract_version "llm-responses-adapter-contract-v1"
-Assert-Equal "response evidence ref" $responsePayload.evidence_ref "llm_responses_adapter_contract_visible"
-Assert-Equal "response trace id" $responsePayload.trace_id $traceId
-Assert-True "response output text present" (-not [string]::IsNullOrWhiteSpace([string]$responsePayload.output_text))
-Assert-True "response output array present" (@($responsePayload.output).Count -ge 1)
-Assert-True "response live provider calls false" ($responsePayload.live_provider_calls -eq $false)
-Assert-True "response model downloads false" ($responsePayload.model_downloads -eq $false)
-Assert-True "response audit persisted" ($responsePayload.audit_persisted -eq $true)
-Assert-True "response usage visible" ([int]$responsePayload.usage.total_tokens -gt 0)
-
-$audit = Invoke-JsonGet "$base/api/v1/audit/recent?limit=100"
-$auditJson = $audit | ConvertTo-Json -Depth 24
-Assert-Contains "audit contains trace id" $auditJson $traceId
-Assert-Contains "audit contains llm event" $auditJson "llm_gateway_request"
-
-Write-Host "[llm-responses] negative cases"
-$streamStatus = Invoke-StatusPost "$base/llm/v1/responses" @{
-  model = "Qwen/Qwen3-Coder-Next:fastest"
-  input = "stream should be rejected"
-  metadata = @{ trace_id = "$traceId-stream"; agent_type = "tester" }
-  stream = $true
-}
-Assert-Equal "stream true rejected" $streamStatus 501
-
-$metadataStatus = Invoke-StatusPost "$base/llm/v1/responses" @{
-  model = "Qwen/Qwen3-Coder-Next:fastest"
-  input = "metadata should be structured"
-  metadata = "not-an-object"
-  stream = $false
-}
-Assert-Equal "metadata object required" $metadataStatus 422
 
 Write-Host "[llm-responses] trace=$traceId"
 Write-Host "[llm-responses] checks completed"

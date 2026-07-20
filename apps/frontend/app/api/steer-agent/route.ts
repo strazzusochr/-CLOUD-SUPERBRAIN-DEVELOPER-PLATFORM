@@ -1,13 +1,8 @@
-import { projectedDefault, genericDefault } from "../../../lib/endpointDefaults";
+import { boundaryUnavailable, proxyToBoundary } from "../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request): Promise<Response> {
-  const body = await req.text();
-  const projected = projectedDefault("/api/steer-agent", "POST", body);
-  const payload = projected?.payload ?? genericDefault("/api/steer-agent", "POST");
-  return Response.json(payload, {
-    status: projected?.status ?? 200,
-    headers: { "x-superbrain-source": "frontend-projection", "cache-control": "no-store" },
-  });
+  const response = await proxyToBoundary(req, "agent-api", "/api/steer-agent", 60_000);
+  return response ?? boundaryUnavailable("POST /api/steer-agent", "agent-api");
 }

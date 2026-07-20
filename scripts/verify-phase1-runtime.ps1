@@ -1568,11 +1568,22 @@ $infraBudget = curl.exe -sS "$baseUrl/api/v1/infra/budget"
 Assert-Contains "infra budget level" $infraBudget '"level":"ok"'
 Assert-Contains "infra budget projected" $infraBudget '"projected_cost_cents":900'
 Assert-Contains "infra budget limit" $infraBudget '"budget_limit_cents":2000'
-if (($infraBudget | Out-String).Contains('"live_verified":true')) {
-  Assert-Contains "infra budget source" $infraBudget '"source":"fly_api_readonly_plus_plan_projection"'
+$infraBudgetJson = $infraBudget | ConvertFrom-Json
+if ($infraBudgetJson.live_verified -eq $true) {
+  if ([string]$infraBudgetJson.source -ne "fly_api_readonly_plus_plan_projection") {
+    throw "Runtime verification failed: live infra budget source was '$($infraBudgetJson.source)'."
+  }
 } else {
-  Assert-Contains "infra budget source" $infraBudget '"source":"configured_phase1_projection"'
-  Assert-Contains "infra budget live verified false" $infraBudget '"live_verified":false'
+  $projectionSources = @(
+    "configured_phase1_projection",
+    "configured_phase1_projection_fly_api_unavailable"
+  )
+  if ([string]$infraBudgetJson.source -notin $projectionSources) {
+    throw "Runtime verification failed: projected infra budget source was '$($infraBudgetJson.source)'."
+  }
+  if ($infraBudgetJson.live_verified -ne $false) {
+    throw "Runtime verification failed: projected infra budget did not report live_verified=false."
+  }
 }
 Assert-Contains "infra budget production item" $infraBudget "fly-production-shared-cpu-1x"
 

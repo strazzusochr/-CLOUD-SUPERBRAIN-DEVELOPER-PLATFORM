@@ -6,9 +6,8 @@ type Source = { title: string; url: string; extract: string };
 type Step = { role: string; label: string; content: string; ms: number };
 type Run = { goal: string; provider: string; steps: Step[]; sources: Source[]; answer: string };
 
-// Real multi-agent deep-research runner. Posts a goal to /api/v1/agent-run, which
-// executes Planner→Researcher(Wikipedia)→Writer against the live LLM, and renders
-// every genuine role output, source, and timing. Honest error/503 surfacing.
+// Multi-agent runner. The server route forwards only to the Agent API boundary;
+// an unavailable stateful runtime is surfaced as an explicit error.
 export function AgentRun() {
   const [goal, setGoal] = useState("Was ist eine Vektordatenbank und wofür nutzt man sie?");
   const [busy, setBusy] = useState(false);

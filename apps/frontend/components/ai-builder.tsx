@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// The platform's core experience: describe an app or game → the AI builds it →
-// it runs LIVE in a sandboxed preview. No code to read, no setup — you get a
-// working thing. (v0/Bolt/Lovable-style, on the free Cloudflare Workers AI stack.)
+// Prompt-to-code experience through the LLM Gateway. Generated HTML is rendered
+// only after a successful gateway response and remains downloadable in-browser.
 
 const DEFAULT_EXAMPLES = [
   "Ein 3D-Weltraum-Shooter mit Sternenfeld und Maus-Steuerung",
@@ -61,7 +60,7 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
         signal: ctrl.signal,
       });
       const body = await res.json();
-      if (!res.ok || !body.html) setErr(String(body.note ?? `Fehler ${res.status}`));
+      if (!res.ok || !body.html) setErr(String(body.note ?? body.reason ?? body.error ?? `Fehler ${res.status}`));
       else setBuild(body as Build);
     } catch (e) {
       if (!(e instanceof DOMException && e.name === "AbortError")) setErr(e instanceof Error ? e.message : String(e));
@@ -124,9 +123,9 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
         <div className="ab-loading">
           <div className="ab-spinner" />
           <div>
-            <b>{elapsed < 3 ? "Anfrage analysieren…" : elapsed < 9 ? "Code generieren (Qwen2.5-Coder)…" : elapsed < 16 ? "App zusammenbauen & GPU-absichern…" : "Live-Vorschau rendern…"}</b>{" "}
+            <b>{elapsed < 3 ? "Anfrage analysieren…" : elapsed < 9 ? "Code über das LLM-Gateway erzeugen…" : elapsed < 16 ? "App zusammenbauen & GPU-absichern…" : "Vorschau rendern…"}</b>{" "}
             <span className="text-12 text-mut">{elapsed}s</span>
-            <div className="text-12 text-mut">echtes Code-Modell · deine App läuft gleich live in der Vorschau</div>
+            <div className="text-12 text-mut">Gateway-gebunden · Vorschau erst nach erfolgreicher Modellantwort</div>
           </div>
           <button type="button" className="btn btn-sm" onClick={cancel} style={{ marginLeft: "auto" }}>Abbrechen</button>
         </div>

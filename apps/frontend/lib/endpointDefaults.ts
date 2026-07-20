@@ -1,17 +1,9 @@
-// Honest 200 defaults for agent-api surfaces that have no live backend in this
-// deployment. HTTP 200 = "request handled; here is the (empty/projected) resource".
-// Every payload is transparent: live_backend:false + source:"frontend-projection"
-// and genuinely-empty collections (there are really none yet) — never fabricated
-// rows. This lets the whole 22-page surface answer 200 without a hosted backend,
-// while staying truthful. Specific shapes match what lib/agentApi.ts readers expect.
+// Read-only contract projections for a stateless frontend deployment. Runtime
+// mutations are blocked unless their Agent API, LLM Gateway, or MCP Gateway
+// boundary is reachable.
 
 const tag = { live_backend: false, source: "frontend-projection" as const };
-const PROJECTED_THREAD_ID = "frontend-projection-phase2-runtime";
-const PROJECT_PROGRESS_OVERALL = 70;
 const AGENT_ROLES = ["planner", "coder", "tester", "devops"];
-const usedRefreshTokens = new Set<string>();
-const runtimeAuditEvents: Array<Record<string, unknown>> = [];
-const liveAgentSessions = new Map<string, { previous_response_id: string; trace_id: string }>();
 
 type DefaultResult = {
   payload: Record<string, unknown>;
@@ -24,23 +16,7 @@ function envNum(name: string, fallback: number): number {
 }
 
 export function projectedAuditEvents(): Array<Record<string, unknown>> {
-  return [
-    ...runtimeAuditEvents.slice(-20).reverse(),
-    {
-      id: "frontend-projection-phase2-runtime",
-      occurred_at: "2026-07-10T00:00:00.000Z",
-      event_type: "phase2_runtime_graph_started",
-      session_id: PROJECTED_THREAD_ID,
-      trace_id: PROJECTED_THREAD_ID,
-      contract_version: "phase2-runtime-v1",
-      source_kind: "frontend_projection",
-      audit_persisted: false,
-      secret_output: false,
-    },
-    { id: "frontend-projection-auth-refresh", event_type: "auth_refresh_rotated", source_kind: "frontend_projection", audit_persisted: false },
-    { id: "frontend-projection-auth-reuse", event_type: "auth_refresh_reuse_blocked", source_kind: "frontend_projection", audit_persisted: false },
-    { id: "frontend-projection-auth-logout", event_type: "auth_logout_revoked", source_kind: "frontend_projection", audit_persisted: false },
-  ];
+  return [];
 }
 
 function authContract(): Record<string, unknown> {
@@ -58,17 +34,14 @@ function authContract(): Record<string, unknown> {
 }
 
 function liveAgentRows(): Array<Record<string, unknown>> {
-  return AGENT_ROLES.map((role) => {
-    const session = liveAgentSessions.get(role);
-    return {
-      agent_id: role,
-      display_name: `${role[0].toUpperCase()}${role.slice(1)} Agent`,
-      execution_role: role,
-      has_session: !!session,
-      previous_response_id: session?.previous_response_id ?? null,
-      model: "Qwen/Qwen3-Coder-Next:fastest",
-    };
-  });
+  return AGENT_ROLES.map((role) => ({
+    agent_id: role,
+    display_name: `${role[0].toUpperCase()}${role.slice(1)} Agent`,
+    execution_role: role,
+    has_session: false,
+    previous_response_id: null,
+    model: null,
+  }));
 }
 
 const DEFAULTS: Record<string, () => Record<string, unknown>> = {
@@ -175,9 +148,9 @@ const DEFAULTS: Record<string, () => Record<string, unknown>> = {
     audit_gap: "L-09",
     schema: { expected_columns: { embedding_model_version: "character varying(100)", content_embedding: "vector(1536)" } },
     current_embedding: { model_version: "text-embedding-3-small", dimensions: 1536, search_mode: "lexical_fallback" },
-    cloud_embedding: { model_version: "@cf/baai/bge-base-en-v1.5", vector_type: "vector(768)", dimensions: 768, search_mode: "semantic_when_configured_else_lexical_fallback" },
-    cloud_memory_path: "Cloudflare Workers AI embedding plus Vectorize, Neon pgvector, or GitHub-store fallback; legacy PostgreSQL contract remains 1536-dimensional.",
-    non_claims: ["No live embedding provider call is claimed until the configured source header proves it."],
+    frontend_memory_path: "none; stateful memory remains behind the Agent API PostgreSQL/pgvector boundary",
+    direct_provider_calls: false,
+    non_claims: ["No live embedding provider call or frontend persistence path is claimed."],
   }),
   "/api/v1/files/local/contract": () => ({
     ...tag,
@@ -382,15 +355,10 @@ const DEFAULTS: Record<string, () => Record<string, unknown>> = {
   "/api/v1/agent-activity/recent": () => ({
     ...tag,
     contract_version: "agent-activity-trace-v1",
-    mode: "audit_log_backed_filtered_feed",
-    events: [{
-      trace_id: PROJECTED_THREAD_ID,
-      session_id: PROJECTED_THREAD_ID,
-      role_summary_count: 4,
-      partial_failure: false,
-      aggregation_evidence_ref: "agent_result_aggregation_complete",
-      per_role_results: AGENT_ROLES.map((role) => ({ role, status: "completed" })),
-    }],
+    mode: "stateless_frontend_projection",
+    status: "degraded",
+    events: [],
+    audit_persisted: false,
   }),
   "/api/v1/tasks/assignment-contract": () => ({
     ...tag,
@@ -470,35 +438,43 @@ export function knownDefault(pathname: string): Record<string, unknown> | null {
   return fn ? fn() : null;
 }
 
-export function projectedDefault(pathname: string, method: string, body?: string): DefaultResult | null {
+export function projectedDefault(pathname: string, method: string): DefaultResult | null {
   if (method === "GET") {
     const exact = knownDefault(pathname);
     if (exact) return { payload: exact };
     const checkpoint = pathname.match(/^\/api\/v1\/orchestrator\/checkpoints\/([^/]+)$/);
     if (checkpoint) {
       return {
+        status: 503,
         payload: {
           ...tag,
           contract_version: "phase2-runtime-v1",
           thread_id: checkpoint[1],
-          checkpointing: "postgres",
-          state: { evidence_refs: ["phase2_runtime_graph_started"], node_name: "completed" },
+          status: "blocked",
+          runtime_available: false,
+          checkpointing: "unavailable_without_agent_api",
+          state: null,
+          accepted: false,
+          audit_persisted: false,
         },
       };
     }
     const history = pathname.match(/^\/api\/v1\/sessions\/([^/]+)\/history$/);
     if (history) {
       return {
+        status: 503,
         payload: {
           ...tag,
           contract_version: "session-history-v1",
-          evidence_ref: "session_history_openable_project_state",
-          session: { session_id: history[1], status: "completed" },
-          messages: AGENT_ROLES.map((role) => ({ role, content: "frontend projection" })),
-          tasks: AGENT_ROLES.map((role) => ({ agent_type: role, status: "completed" })),
-          audit_events: projectedAuditEvents(),
-          project_progress: { overall_percent: PROJECT_PROGRESS_OVERALL },
-          project_progress_integrity: { status: "verified", evidence_ref: "project_progress_integrity_runtime_proof" },
+          status: "blocked",
+          runtime_available: false,
+          requested_session_id: history[1],
+          session: null,
+          messages: [],
+          tasks: [],
+          audit_events: [],
+          accepted: false,
+          audit_persisted: false,
         },
       };
     }
@@ -532,147 +508,67 @@ export function projectedDefault(pathname: string, method: string, body?: string
     };
   }
   if (method === "GET" && pathname === "/api/v1/auth/callback") {
-    return { payload: { ...authContract(), status: "authenticated", cookie: { SameSite: "Strict" } } };
-  }
-  if (method === "POST" && pathname === "/api/v1/auth/refresh") {
-    let token = "";
-    try {
-      token = String((JSON.parse(body || "{}") as { refresh_token?: unknown }).refresh_token ?? "");
-    } catch {
-      token = "";
-    }
-    if (token && usedRefreshTokens.has(token)) {
-      return { status: 401, payload: { ...authContract(), error: "refresh_token_invalid", status: "blocked" } };
-    }
-    if (token) usedRefreshTokens.add(token);
     return {
+      status: 503,
       payload: {
         ...authContract(),
-        status: "rotated",
-        refresh_token_rotated: true,
-        old_refresh_token_blacklisted: true,
+        status: "blocked",
+        error: "stateful_auth_boundary_unavailable",
+        authenticated: false,
+        accepted: false,
+        audit_persisted: false,
+      },
+    };
+  }
+  if (method === "POST" && pathname === "/api/v1/auth/refresh") {
+    return {
+      status: 503,
+      payload: {
+        ...authContract(),
+        status: "blocked",
+        error: "stateful_auth_boundary_unavailable",
+        refresh_token_rotated: false,
+        old_refresh_token_blacklisted: false,
+        accepted: false,
+        audit_persisted: false,
       },
     };
   }
   if (method === "POST" && pathname === "/api/v1/auth/logout") {
-    return { payload: { ...authContract(), status: "logged_out", refresh_token_revoked: true } };
-  }
-  const reset = pathname.match(/^\/api\/v1\/live-agents\/([^/]+)\/reset$/);
-  if (method === "POST" && reset) {
-    const agentId = reset[1];
-    if (!AGENT_ROLES.includes(agentId)) return { status: 404, payload: { ...tag, error: "agent_not_found" } };
-    liveAgentSessions.delete(agentId);
     return {
+      status: 503,
       payload: {
-        ...tag,
-        contract_version: "live-agent-steering-v1",
-        status: "reset",
-        agent_id: agentId,
+        ...authContract(),
+        status: "blocked",
+        error: "stateful_auth_boundary_unavailable",
+        refresh_token_revoked: false,
+        accepted: false,
+        audit_persisted: false,
       },
     };
   }
-  if (method === "POST" && (pathname === "/api/v1/live-agents/steer" || pathname === "/api/steer-agent")) {
-    let parsed: Record<string, unknown> = {};
-    try {
-      parsed = JSON.parse(body || "{}") as Record<string, unknown>;
-    } catch {
-      parsed = {};
-    }
-    const agentId = String(parsed.agent_id ?? parsed.agentId ?? "");
-    const message = String(parsed.message ?? "");
-    if (!AGENT_ROLES.includes(agentId)) return { status: 404, payload: { ...tag, error: "agent_not_found" } };
-    if (!message.trim()) return { status: 422, payload: { ...tag, error: "message_required" } };
-    const metadata = (parsed.metadata && typeof parsed.metadata === "object" && !Array.isArray(parsed.metadata)) ? parsed.metadata as Record<string, unknown> : {};
-    const traceId = String(metadata.trace_id ?? `live-agent-${Date.now()}`);
-    const responseId = `resp_${agentId}_${traceId}`;
-    liveAgentSessions.set(agentId, { previous_response_id: responseId, trace_id: traceId });
-    runtimeAuditEvents.push({
-      id: `llm-${traceId}`,
-      occurred_at: new Date().toISOString(),
-      event_type: "llm_gateway_request",
-      trace_id: traceId,
-      session_id: traceId,
-      contract_version: "live-agent-steering-v1",
-      source_kind: "frontend_projection",
-      audit_persisted: false,
-      secret_output: false,
-    });
+  if (method !== "GET" && method !== "HEAD") {
+    const requiredBoundary = pathname.startsWith("/llm/")
+      ? "llm-gateway"
+      : pathname.startsWith("/mcp/")
+        ? "mcp-gateway"
+        : "agent-api";
     return {
+      status: 503,
       payload: {
         ...tag,
-        contract_version: "live-agent-steering-v1",
-        runtime_source: "openai_responses_via_llm_gateway",
-        agent_id: agentId,
-        trace_id: traceId,
-        llm_gateway_contract_version: "llm-responses-adapter-contract-v1",
-        llm_gateway_evidence_ref: "llm_responses_adapter_contract_visible",
-        evidence_ref: "live_agent_steering_contract_visible",
-        response_id: responseId,
-        responseId,
-        text: "Deterministic frontend projection steering response.",
-        status: "completed",
+        contract_version: "frontend-provider-boundary-v1",
+        status: "blocked",
+        error: "configured_boundary_unavailable",
+        endpoint: `${method} ${pathname}`,
+        required_boundary: requiredBoundary,
+        accepted: false,
+        persisted: false,
+        direct_provider_calls: false,
         live_provider_calls: false,
-        model_downloads: false,
-        audit_persisted: true,
+        live_mcp_writes: false,
+        audit_persisted: false,
         secret_output: false,
-        usage: { input_tokens: 8, output_tokens: 7, total_tokens: 15 },
-      },
-    };
-  }
-  if (method === "POST" && pathname === "/llm/v1/responses") {
-    let parsed: Record<string, unknown> = {};
-    try {
-      parsed = JSON.parse(body || "{}") as Record<string, unknown>;
-    } catch {
-      parsed = {};
-    }
-    if (parsed.stream === true) {
-      return {
-        status: 501,
-        payload: {
-          ...tag,
-          error: "stream_true_not_supported",
-          message: "stream=true is not supported on this /v1/responses proxy",
-        },
-      };
-    }
-    if (parsed.metadata !== undefined && (typeof parsed.metadata !== "object" || parsed.metadata === null || Array.isArray(parsed.metadata))) {
-      return {
-        status: 422,
-        payload: {
-          ...tag,
-          error: "metadata must be an object",
-        },
-      };
-    }
-    const metadata = (parsed.metadata ?? {}) as Record<string, unknown>;
-    const traceId = String(metadata.trace_id ?? `frontend-projection-${Date.now()}`);
-    runtimeAuditEvents.push({
-      id: `llm-${traceId}`,
-      occurred_at: new Date().toISOString(),
-      event_type: "llm_gateway_request",
-      trace_id: traceId,
-      session_id: String(metadata.run_id ?? traceId),
-      contract_version: "llm-responses-adapter-contract-v1",
-      source_kind: "frontend_projection",
-      audit_persisted: false,
-      secret_output: false,
-    });
-    return {
-      payload: {
-        ...tag,
-        id: `resp_${traceId}`,
-        object: "response",
-        status: "completed",
-        contract_version: "llm-responses-adapter-contract-v1",
-        evidence_ref: "llm_responses_adapter_contract_visible",
-        trace_id: traceId,
-        output_text: "Deterministic frontend projection response.",
-        output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: "Deterministic frontend projection response." }] }],
-        live_provider_calls: false,
-        model_downloads: false,
-        audit_persisted: true,
-        usage: { input_tokens: 6, output_tokens: 5, total_tokens: 11 },
       },
     };
   }
@@ -693,23 +589,25 @@ export function genericDefault(pathname: string, method: string): Record<string,
 
 /** Real Prometheus-format frontend metrics (always 200, never fabricated). */
 export function frontendMetrics(): string {
-  const persistence = !!(
-    process.env.DATABASE_URL ||
-    (process.env.CF_BACKEND_TOKEN && process.env.CF_D1_DATABASE_ID && process.env.CLOUDFLARE_ACCOUNT_ID) ||
-    ((process.env.GH_STORE_TOKEN || process.env.GITHUB_TOKEN) && process.env.GH_STORE_REPO)
-  );
-  const up = persistence ? 1 : 0;
-  const llm = (process.env.CF_WORKERS_AI_TOKEN || process.env.CLOUDFLARE_API_TOKEN) && process.env.CLOUDFLARE_ACCOUNT_ID ? 1 : 0;
+  const agentApi = process.env.AGENT_API_BASE_URL || process.env.AGENT_API_INTERNAL_URL ? 1 : 0;
+  const llmGateway = process.env.LLM_GATEWAY_BASE_URL ? 1 : 0;
+  const mcpGateway = process.env.MCP_GATEWAY_BASE_URL ? 1 : 0;
   return [
     "# HELP superbrain_frontend_up Frontend liveness (1=up).",
     "# TYPE superbrain_frontend_up gauge",
     "superbrain_frontend_up 1",
-    "# HELP superbrain_llm_provider_configured Free LLM provider configured (1=yes).",
-    "# TYPE superbrain_llm_provider_configured gauge",
-    `superbrain_llm_provider_configured ${llm}`,
-    "# HELP superbrain_persistence_configured Persistence backend configured (1=yes).",
-    "# TYPE superbrain_persistence_configured gauge",
-    `superbrain_persistence_configured ${up}`,
+    "# HELP superbrain_agent_api_boundary_configured Agent API origin configured (1=yes).",
+    "# TYPE superbrain_agent_api_boundary_configured gauge",
+    `superbrain_agent_api_boundary_configured ${agentApi}`,
+    "# HELP superbrain_llm_gateway_boundary_configured LLM Gateway origin configured (1=yes).",
+    "# TYPE superbrain_llm_gateway_boundary_configured gauge",
+    `superbrain_llm_gateway_boundary_configured ${llmGateway}`,
+    "# HELP superbrain_mcp_gateway_boundary_configured MCP Gateway origin configured (1=yes).",
+    "# TYPE superbrain_mcp_gateway_boundary_configured gauge",
+    `superbrain_mcp_gateway_boundary_configured ${mcpGateway}`,
+    "# HELP superbrain_frontend_direct_provider_calls Frontend direct provider calls (always 0).",
+    "# TYPE superbrain_frontend_direct_provider_calls gauge",
+    "superbrain_frontend_direct_provider_calls 0",
     "# HELP superbrain_client_3d_safe Client 3D runs with GPU-safety guards (1=yes).",
     "# TYPE superbrain_client_3d_safe gauge",
     "superbrain_client_3d_safe 1",

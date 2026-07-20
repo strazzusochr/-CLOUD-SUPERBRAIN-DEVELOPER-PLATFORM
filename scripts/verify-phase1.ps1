@@ -261,6 +261,10 @@ Write-Host "[verify] frontend cloud rewrites"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-frontend-cloud-rewrites.ps1
 Assert-LastExitCode "frontend cloud rewrites"
 
+Write-Host "[verify] frontend provider boundary"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-frontend-provider-boundary.ps1
+Assert-LastExitCode "frontend provider boundary"
+
 Write-Host "[verify] workspace pages layer map"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-workspace-pages-layer-map.ps1
 Assert-LastExitCode "workspace pages layer map"
@@ -2900,12 +2904,30 @@ foreach ($required in @(
 $currentReleaseCandidateVerifier = Get-Content -Path "scripts\verify-current-release-candidate.ps1" -Raw
 foreach ($required in @(
   'docs\runtime-state\external-gate-summary.json',
+  'docs\runtime-state\backend-hosted-current.json',
   '/api/v1/external-gates/mirror',
   'candidate_technical=true',
-  'promotion_eligible='
+  'promotion_eligible=',
+  'canonical_read_only_contract_origin',
+  'read_only_contract_origin',
+  'stateful_backend_verified',
+  'production_release_claimed'
 )) {
   if (-not $currentReleaseCandidateVerifier.Contains($required)) {
     throw "Current release candidate verifier missing canonical gate classification: $required"
+  }
+}
+$phase5ImmutableParityVerifier = Get-Content -Path "scripts\manual\verify-phase5-staging-immutable-parity.ps1" -Raw
+foreach ($required in @(
+  '"-StagingIp"',
+  '"plan-only"',
+  '"-StagingHostname"',
+  '"plan-only.invalid"',
+  '"-StagingBaseUrl"',
+  '"https://plan-only.invalid"'
+)) {
+  if (-not $phase5ImmutableParityVerifier.Contains($required)) {
+    throw "Phase5 immutable parity verifier missing isolated plan-only boundary: $required"
   }
 }
 

@@ -1,10 +1,11 @@
 param(
   [string]$ReleaseId = "",
-  [string]$BaseUrl = $(if ($env:STAGING_BASE_URL) { $env:STAGING_BASE_URL } else { "" }),
+  [string]$BaseUrl = "",
   [string]$CandidateSha = ""
 )
 
 $ErrorActionPreference = "Stop"
+$baseUrlExplicit = $PSBoundParameters.ContainsKey("BaseUrl")
 
 function Assert-HostedBaseUrlConfigured {
   if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
@@ -16,8 +17,10 @@ function Assert-HostedBaseUrlConfigured {
   if ($BaseUrl -match 'localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0|host\.docker\.internal') {
     throw "Hosted verifier refuses localhost and loopback BaseUrl values."
   }
+  if ($BaseUrl -match '(?i)\.sslip\.io(?:/|$)') {
+    throw "Hosted verifier refuses the retired sslip.io/Hetzner boundary."
+  }
 }
-Assert-HostedBaseUrlConfigured
 
 
 function Assert-Contains($label, $value, $expected) {
@@ -50,6 +53,29 @@ function Assert-Sha($label, $value) {
     throw "Verification failed: $label is not a lowercase 40-character SHA."
   }
 }
+
+$hostedBoundarySource = "explicit"
+if (-not $baseUrlExplicit) {
+  $environmentBaseUrl = [string][Environment]::GetEnvironmentVariable("STAGING_BASE_URL")
+  if (-not [string]::IsNullOrWhiteSpace($environmentBaseUrl) -and $environmentBaseUrl -notmatch '(?i)\.sslip\.io(?:/|$)') {
+    $BaseUrl = $environmentBaseUrl
+    $hostedBoundarySource = "environment"
+  } else {
+    $backendStatePath = "docs\runtime-state\backend-hosted-current.json"
+    if (-not (Test-Path $backendStatePath)) {
+      throw "Hosted verifier needs a valid STAGING_BASE_URL or the canonical backend contract-origin state."
+    }
+    $backendState = Get-Content $backendStatePath -Raw | ConvertFrom-Json
+    Assert-Equal "backend contract-origin status" ([string]$backendState.status) "verified"
+    Assert-True "backend contract-origin read-only flag" $backendState.read_only_contract_origin
+    Assert-False "backend contract-origin stateful flag" $backendState.stateful_backend_verified
+    Assert-False "backend contract-origin production release flag" $backendState.production_release_claimed
+    $BaseUrl = [string]$backendState.production_alias
+    $hostedBoundarySource = "canonical_read_only_contract_origin"
+  }
+}
+$BaseUrl = $BaseUrl.TrimEnd('/')
+Assert-HostedBaseUrlConfigured
 
 function Get-Json($url) {
 @"
@@ -186,4 +212,4 @@ if ($canonicalVerified) {
 }
 
 $promotionEligible = ($canonicalVerified -and [bool]$canonicalSummary.production_deploy_claim_allowed)
-Write-Host "[current-release-candidate] verified candidate_technical=true promotion_eligible=$($promotionEligible.ToString().ToLowerInvariant()) canonical=$($canonicalSummary.status)"
+Write-Host "[current-release-candidate] verified candidate_technical=true promotion_eligible=$($promotionEligible.ToString().ToLowerInvariant()) canonical=$($canonicalSummary.status) boundary=$hostedBoundarySource"

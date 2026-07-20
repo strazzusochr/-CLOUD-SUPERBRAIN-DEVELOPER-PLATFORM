@@ -24,6 +24,7 @@ const catchAllPath = path.join(repoRoot, "apps/frontend/app/api/v1/[...slug]/rou
 const llmRoutePath = path.join(repoRoot, "apps/frontend/app/llm/[...slug]/route.ts");
 const mcpRoutePath = path.join(repoRoot, "apps/frontend/app/mcp/[...slug]/route.ts");
 const gatewayProxyPath = path.join(repoRoot, "apps/frontend/lib/gatewayProxy.ts");
+const frontendBoundaryPath = path.join(repoRoot, "apps/frontend/lib/frontendBoundary.ts");
 
 const read = (file) => fs.readFileSync(file, "utf8");
 const nextConfigSource = read(configPath);
@@ -31,6 +32,7 @@ const catchAllSource = read(catchAllPath);
 const llmRouteSource = read(llmRoutePath);
 const mcpRouteSource = read(mcpRoutePath);
 const gatewayProxySource = read(gatewayProxyPath);
+const frontendBoundarySource = read(frontendBoundaryPath);
 
 const assertIncludes = (label, source, expected) => {
   if (!source.includes(expected)) {
@@ -75,13 +77,13 @@ for (const expected of [
 }
 
 for (const expected of [
-  "AGENT_API_BASE_URL || process.env.AGENT_API_INTERNAL_URL",
+  "proxyToBoundary",
+  '"agent-api"',
+  "boundaryUnavailable",
   "x-superbrain-source",
-  "live-agent-api",
   "project-state-projection",
   "frontend-projection",
   "endpoint-snapshot.json",
-  "knownDefault",
   "genericDefault",
 ]) {
   assertIncludes("agent-api catch-all route", catchAllSource, expected);
@@ -105,13 +107,35 @@ for (const expected of [
 }
 
 for (const expected of [
-  "live-gateway",
+  "proxyToBoundary",
+  "boundaryUnavailable",
+  "llm-gateway",
+  "mcp-gateway",
   "frontend-projection",
-  "cloudflare-workers-ai",
-  "No direct provider secret is exposed",
-].filter(Boolean)) {
-  if (expected === "No direct provider secret is exposed") continue;
+  "direct_provider_calls",
+]) {
   assertIncludes("gateway proxy", gatewayProxySource, expected);
+}
+
+for (const expected of [
+  "AGENT_API_BASE_URL",
+  "AGENT_API_INTERNAL_URL",
+  "MCP_GATEWAY_BASE_URL",
+  "LLM_GATEWAY_BASE_URL",
+  "configured_boundary_unavailable",
+  "direct_provider_calls: false",
+]) {
+  assertIncludes("frontend boundary", frontendBoundarySource, expected);
+}
+
+for (const forbidden of [
+  "cfWorkersAi",
+  "cloudflare-workers-ai",
+  "api.cloudflare.com",
+  "api.github.com",
+  "@neondatabase/serverless",
+]) {
+  assertNotIncludes("frontend gateway boundary sources", gatewayProxySource + frontendBoundarySource, forbidden);
 }
 
 for (const forbidden of [

@@ -380,34 +380,59 @@ $authGithub = Invoke-Text "$BaseUrl/api/v1/auth/github"
 Assert-Contains "auth github contract version" $authGithub '"contract_version":"auth-github-jwt-refresh-v1"'
 Assert-Contains "auth github no live oauth" $authGithub '"live_github_oauth_call":false'
 Assert-Contains "auth github authorize url" $authGithub "github.com/login/oauth/authorize"
-$authCallback = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/callback?code=browser-auth-code&state=browser-auth-state" -Method "GET" -ContentType ""
-Assert-Contains "auth callback authenticated" $authCallback '"status":"authenticated"'
-Assert-Contains "auth callback no live oauth" $authCallback '"live_github_oauth_call":false'
-Assert-Contains "auth callback same site strict" $authCallback '"SameSite":"Strict"'
-$authRefreshToken = "browser-refresh-token-" + [Guid]::NewGuid().ToString("N")
-$authRefreshBody = @{ refresh_token = $authRefreshToken; trace_id = "browser-auth-refresh-rotated" } | ConvertTo-Json -Compress
-$authRefresh = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/refresh" -Method "POST" -Body $authRefreshBody -ContentType "application/json"
-Assert-Contains "auth refresh rotated status" $authRefresh '"status":"rotated"'
-Assert-Contains "auth refresh rotated flag" $authRefresh '"refresh_token_rotated":true'
-Assert-Contains "auth refresh blacklist flag" $authRefresh '"old_refresh_token_blacklisted":true'
-$authReuseOutput = ""
-$authReuseFailed = $false
-try {
-  $authReuseOutput = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/refresh" -Method "POST" -Body $authRefreshBody -ContentType "application/json"
-} catch {
-  $authReuseFailed = $true
-  $authReuseOutput = $_.Exception.Message
+if ($isLocalProof) {
+  $authCallback = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/callback?code=browser-auth-code&state=browser-auth-state" -Method "GET" -ContentType ""
+  Assert-Contains "auth callback authenticated" $authCallback '"status":"authenticated"'
+  Assert-Contains "auth callback no live oauth" $authCallback '"live_github_oauth_call":false'
+  Assert-Contains "auth callback same site strict" $authCallback '"SameSite":"Strict"'
+  $authRefreshToken = "browser-refresh-token-" + [Guid]::NewGuid().ToString("N")
+  $authRefreshBody = @{ refresh_token = $authRefreshToken; trace_id = "browser-auth-refresh-rotated" } | ConvertTo-Json -Compress
+  $authRefresh = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/refresh" -Method "POST" -Body $authRefreshBody -ContentType "application/json"
+  Assert-Contains "auth refresh rotated status" $authRefresh '"status":"rotated"'
+  Assert-Contains "auth refresh rotated flag" $authRefresh '"refresh_token_rotated":true'
+  Assert-Contains "auth refresh blacklist flag" $authRefresh '"old_refresh_token_blacklisted":true'
+  $authReuseOutput = ""
+  $authReuseFailed = $false
+  try {
+    $authReuseOutput = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/refresh" -Method "POST" -Body $authRefreshBody -ContentType "application/json"
+  } catch {
+    $authReuseFailed = $true
+    $authReuseOutput = $_.Exception.Message
+  }
+  Assert-True "auth refresh reuse blocked with non-2xx" $authReuseFailed
+  Assert-Contains "auth refresh reuse blocked" $authReuseOutput "refresh_token_invalid"
+  $authLogoutBody = @{ refresh_token = ("browser-logout-token-" + [Guid]::NewGuid().ToString("N")); trace_id = "browser-auth-logout-revoked" } | ConvertTo-Json -Compress
+  $authLogout = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/logout" -Method "POST" -Body $authLogoutBody -ContentType "application/json"
+  Assert-Contains "auth logout status" $authLogout '"status":"logged_out"'
+  Assert-Contains "auth logout revoked" $authLogout '"refresh_token_revoked":true'
+  $authAudit = Invoke-Text "$BaseUrl/api/v1/audit/recent?limit=60"
+  Assert-Contains "auth audit refresh rotated" $authAudit "auth_refresh_rotated"
+  Assert-Contains "auth audit refresh reuse blocked" $authAudit "auth_refresh_reuse_blocked"
+  Assert-Contains "auth audit logout revoked" $authAudit "auth_logout_revoked"
+} else {
+  foreach ($hostedAuthCall in @(
+    @{ label = "callback"; url = "$BaseUrl/api/v1/auth/callback?code=browser-auth-code&state=browser-auth-state"; method = "GET"; body = "" },
+    @{ label = "refresh"; url = "$BaseUrl/api/v1/auth/refresh"; method = "POST"; body = (@{ refresh_token = "hosted-read-only" } | ConvertTo-Json -Compress) },
+    @{ label = "logout"; url = "$BaseUrl/api/v1/auth/logout"; method = "POST"; body = (@{ refresh_token = "hosted-read-only" } | ConvertTo-Json -Compress) }
+  )) {
+    $hostedAuthFailed = $false
+    $hostedAuthOutput = ""
+    try {
+      $hostedAuthOutput = Invoke-JsonApi -Url $hostedAuthCall.url -Method $hostedAuthCall.method -Body $hostedAuthCall.body -ContentType "application/json"
+    } catch {
+      $hostedAuthFailed = $true
+      $hostedAuthOutput = $_.Exception.Message
+    }
+    Assert-True "hosted auth $($hostedAuthCall.label) fails closed" $hostedAuthFailed
+    Assert-True "hosted auth $($hostedAuthCall.label) boundary" (
+      $hostedAuthOutput.Contains("stateful_auth_boundary_unavailable") -or
+      $hostedAuthOutput.Contains("stateless_contract_origin_read_only") -or
+      $hostedAuthOutput.Contains("configured_boundary_unavailable")
+    )
+    Assert-Contains "hosted auth $($hostedAuthCall.label) not accepted" $hostedAuthOutput '"accepted":false'
+    Assert-Contains "hosted auth $($hostedAuthCall.label) no audit claim" $hostedAuthOutput '"audit_persisted":false'
+  }
 }
-Assert-True "auth refresh reuse blocked with non-2xx" $authReuseFailed
-Assert-Contains "auth refresh reuse blocked" $authReuseOutput "refresh_token_invalid"
-$authLogoutBody = @{ refresh_token = ("browser-logout-token-" + [Guid]::NewGuid().ToString("N")); trace_id = "browser-auth-logout-revoked" } | ConvertTo-Json -Compress
-$authLogout = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/logout" -Method "POST" -Body $authLogoutBody -ContentType "application/json"
-Assert-Contains "auth logout status" $authLogout '"status":"logged_out"'
-Assert-Contains "auth logout revoked" $authLogout '"refresh_token_revoked":true'
-$authAudit = Invoke-Text "$BaseUrl/api/v1/audit/recent?limit=60"
-Assert-Contains "auth audit refresh rotated" $authAudit "auth_refresh_rotated"
-Assert-Contains "auth audit refresh reuse blocked" $authAudit "auth_refresh_reuse_blocked"
-Assert-Contains "auth audit logout revoked" $authAudit "auth_logout_revoked"
 
 Write-Host "[browser-contract] signed auth-session integrity"
 $signedAuthSessionContract = Invoke-Text "$BaseUrl/api/v1/auth/session/contract"
@@ -614,12 +639,16 @@ if ($isLocalProof) {
   Assert-Contains "memory embedding consistency fallback" $memoryEmbeddingConsistencyContract "lexical_fallback"
   Assert-Contains "memory embedding consistency no live provider" $memoryEmbeddingConsistencyContract "No live embedding provider call"
 } else {
-  Assert-Contains "hosted memory embedding consistency verified" $memoryEmbeddingConsistencyContract '"status":"verified"'
-  Assert-Contains "hosted memory embedding model" $memoryEmbeddingConsistencyContract '"model_version":"@cf/baai/bge-base-en-v1.5"'
-  Assert-Contains "hosted memory embedding dimensions" $memoryEmbeddingConsistencyContract '"dimensions":768'
-  Assert-Contains "hosted memory embedding vector" $memoryEmbeddingConsistencyContract "vector(768)"
-  Assert-Contains "hosted memory semantic search" $memoryEmbeddingConsistencyContract '"search_mode":"semantic_cosine"'
-  Assert-Contains "hosted memory contract no provider call" $memoryEmbeddingConsistencyContract "This GET contract does not call Workers AI"
+  Assert-True "hosted memory embedding status honest" (
+    $memoryEmbeddingConsistencyContract.Contains('"status":"action_required"') -or
+    $memoryEmbeddingConsistencyContract.Contains('"status":"verified"')
+  )
+  Assert-Contains "hosted memory embedding model" $memoryEmbeddingConsistencyContract '"model_version":"text-embedding-3-small"'
+  Assert-Contains "hosted memory embedding dimensions" $memoryEmbeddingConsistencyContract '"dimensions":1536'
+  Assert-Contains "hosted memory embedding vector" $memoryEmbeddingConsistencyContract "vector(1536)"
+  Assert-Contains "hosted memory lexical fallback" $memoryEmbeddingConsistencyContract '"search_mode":"lexical_fallback"'
+  Assert-Contains "hosted memory no direct provider" $memoryEmbeddingConsistencyContract '"direct_provider_calls":false'
+  Assert-Contains "hosted memory contract no provider call" $memoryEmbeddingConsistencyContract "No live embedding provider call is performed"
 }
 Assert-Contains "memory embedding consistency evidence" $memoryEmbeddingConsistencyContract '"evidence_ref":"memory_embedding_consistency_contract_visible"'
 

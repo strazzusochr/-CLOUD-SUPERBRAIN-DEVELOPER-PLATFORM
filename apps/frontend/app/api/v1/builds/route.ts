@@ -1,18 +1,15 @@
-// Lists previously built apps (newest first) for the "Meine Apps" gallery.
-// Honest empty 200 when no store is configured.
-import * as gh from "../../../../lib/ghStore";
+import { projectionResponse, proxyToBoundary } from "../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request): Promise<Response> {
-  const limit = Math.min(Math.max(Number(new URL(req.url).searchParams.get("limit") ?? 24) || 24, 1), 100);
-  if (!gh.ghConfigured()) {
-    return Response.json({ builds: [], live_backend: false, source: "frontend-projection", note: "No store configured." }, { headers: { "x-superbrain-source": "frontend-projection" } });
-  }
-  try {
-    const builds = await gh.list("builds.json", limit);
-    return Response.json({ builds }, { headers: { "x-superbrain-source": "github-store" } });
-  } catch (err) {
-    return Response.json({ status: "store_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
-  }
+  const response = await proxyToBoundary(req, "agent-api", "/api/v1/builds");
+  if (response && response.status !== 404) return response;
+  return projectionResponse({
+    status: "degraded",
+    builds: [],
+    persisted: false,
+    reason: response?.status === 404 ? "agent_api_build_registry_not_implemented" : "agent_api_unavailable",
+    note: "No Agent API build registry is reachable; no builds are claimed.",
+  });
 }

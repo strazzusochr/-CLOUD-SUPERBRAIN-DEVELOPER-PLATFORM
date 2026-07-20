@@ -9323,6 +9323,7 @@ def memory_embedding_consistency_contract_payload() -> dict[str, object]:
             "dimensions": current_embedding_dimensions(),
             "search_mode": EMBEDDING_SEARCH_MODE,
             "generation_mode": "disabled_until_live_embedding_gate",
+            "direct_provider_calls": False,
             "live_embedding_provider_calls": False,
         },
         "write_policy": {
@@ -9355,6 +9356,10 @@ def memory_embedding_consistency_contract_payload() -> dict[str, object]:
             "embedding_vector_dimension_guard",
             "reembedding_strategy_fail_closed",
         ],
+        "direct_provider_calls": False,
+        "live_provider_calls": False,
+        "production_deploy": False,
+        "secret_output": False,
         "non_claims": [
             "No live embedding provider call is made by this contract.",
             "No vector search production claim is made while generation_mode is disabled_until_live_embedding_gate.",

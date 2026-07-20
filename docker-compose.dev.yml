@@ -10,6 +10,8 @@ services:
     environment:
       NEXT_PUBLIC_AGENT_API_URL: /api
       AGENT_API_INTERNAL_URL: http://agent-api:8000
+      LLM_GATEWAY_BASE_URL: http://llm-gateway:4000
+      MCP_GATEWAY_BASE_URL: http://mcp-gateway:9000
       EVIDENCE_DIR: /workspace/evidence
       WATCHPACK_POLLING: "true"
     expose:

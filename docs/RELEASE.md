@@ -1,6 +1,6 @@
 # Cloud Superbrain Release Status
 
-Updated: 2026-07-19
+Updated: 2026-07-20
 
 Status: **not released**. This repository has a healthy local development runtime, a
 verified Vercel frontend deployment, and a reachable stateless read-only Backend Contract
@@ -54,6 +54,17 @@ MCP/LLM origin health probes fail.
 
 `production_deploy_claim_allowed=false`; no production rollout or release promotion occurred.
 
+## Frontend Provider Boundary
+
+The active frontend no longer contains direct Neon, Cloudflare Workers AI/D1/Vectorize,
+or GitHub Store execution paths. Mutation and persistence routes cross only the configured
+Agent API, LLM Gateway, or MCP Gateway boundaries and fail closed when unavailable. The
+stateless hosted wrappers remain read-only. The local T4 report is
+`.codex/runs/CURRENT/master-goal/t4/frontend-provider-boundary/report.json`; it is integrated
+into `npm run verify` and was followed by green runtime, browser, lint, and production-build
+checks. This is DEV-ONLY until a new source-bound hosted proof is recorded and does not
+activate a live provider or close a production gate.
+
 ## Current Hosted Frontend Proof
 
 `frontend-hosted-current-proof-v1` binds the active Vercel frontend to an immutable
@@ -62,7 +73,7 @@ routes through 44 command-palette clicks at desktop `1440x960` and mobile `390x8
 Overflow failures, visible not-found states, and console errors were zero. The verifier
 also requires HTTP `200` and byte-identical root and workspace-wiring content between the
 immutable deployment and Production Alias. Evidence is under
-`.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-e1a3ec1f-chrome`.
+`.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-0555b0bd-chrome`.
 
 This closes the Frontend / Next.js layer proof only. It does not close Hosted Agent API,
 MCP Gateway, LLM Gateway, registry, release-promotion, or full-platform production gates.

@@ -11,9 +11,8 @@ type Artifact = {
   status?: string;
 };
 
-// Store-backed library: lists ONLY real persisted artifacts from
-// GET /api/v1/workspace/artifacts (GH-store / D1 / Neon chain). No fabrication —
-// an empty store renders an honest empty state.
+// Registry-backed library: lists only artifacts returned by the Agent API.
+// An unavailable or empty registry renders an honest empty state.
 export function ArtifactLibrary({ types, emptyText, testId }: { types?: string[]; emptyText: string; testId: string }) {
   const [items, setItems] = useState<Artifact[] | null>(null);
 

@@ -1,12 +1,9 @@
 // The core of the platform: describe an app/game → the AI builds a real,
 // self-contained, runnable web app → returned as HTML for a live preview.
-// Uses the best free code model on Cloudflare Workers AI (Qwen2.5-Coder-32B),
-// falling back to Llama 3.1. The build is persisted as an artifact when a store
-// is configured. No fabrication — this is a genuine generation + real preview.
+// Generation is allowed only through the configured LLM Gateway. The stateless
+// frontend never calls a provider or persistence service directly.
 
-import { cfConfigured, cfChatCompletion } from "../../../../lib/cfWorkersAi";
-import * as cf from "../../../../lib/cfBackend";
-import * as gh from "../../../../lib/ghStore";
+import { boundaryUnavailable, proxyToBoundary } from "../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -43,7 +40,7 @@ HARD RULES:
 - Keep everything that already works; change only what the request asks for.
 - Same constraints: inline CSS/JS, CDN scripts only (e.g. three.min.js global THREE), no backend, must run immediately, dark modern UI.`;
 
-async function generate(prompt: string, baseHtml?: string): Promise<{ html: string; model: unknown }> {
+async function generate(req: Request, prompt: string, baseHtml?: string): Promise<{ html: string; model: unknown } | null> {
   const messages = baseHtml
     ? [
         { role: "system", content: MODIFY_SYSTEM },
@@ -57,9 +54,19 @@ async function generate(prompt: string, baseHtml?: string): Promise<{ html: stri
   // the fast Llama fallback gets the remaining time if Qwen errors.
   const models: Array<[string, number]> = [["@cf/qwen/qwen2.5-coder-32b-instruct", 45000], ["@cf/meta/llama-3.1-8b-instruct", 12000]];
   let lastErr: unknown = null;
+  let gatewayReached = false;
   for (const [model, timeoutMs] of models) {
     try {
-      const out = await cfChatCompletion({ model, messages, max_tokens: 5200, temperature: 0.3, timeoutMs });
+      const gatewayRequest = new Request(req.url, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ model, messages, max_tokens: 5200, temperature: 0.3, stream: false }),
+      });
+      const response = await proxyToBoundary(gatewayRequest, "llm-gateway", "/v1/chat/completions", timeoutMs);
+      if (!response) continue;
+      gatewayReached = true;
+      const out = (await response.json()) as Record<string, unknown>;
+      if (!response.ok) throw new Error(String(out.error ?? out.detail ?? `LLM Gateway HTTP ${response.status}`));
       const choices = out.choices as Array<{ message?: { content?: string } }> | undefined;
       const html = extractHtml(choices?.[0]?.message?.content ?? "");
       if (html && /<.*>/.test(html)) return { html, model: out.model };
@@ -67,13 +74,11 @@ async function generate(prompt: string, baseHtml?: string): Promise<{ html: stri
       lastErr = err;
     }
   }
+  if (!gatewayReached) return null;
   throw new Error(lastErr instanceof Error ? lastErr.message : "generation failed");
 }
 
 export async function POST(req: Request): Promise<Response> {
-  if (!cfConfigured()) {
-    return Response.json({ status: "no_llm", note: "LLM provider not configured." }, { status: 503 });
-  }
   let body: Record<string, unknown> = {};
   try { body = (await req.json()) as Record<string, unknown>; } catch { /* empty */ }
   const prompt = String(body.prompt ?? "").trim();
@@ -82,22 +87,51 @@ export async function POST(req: Request): Promise<Response> {
   if (!prompt) return Response.json({ status: "bad_request", note: "Beschreibe, was gebaut werden soll." }, { status: 400 });
 
   try {
-    const { html, model } = await generate(prompt.slice(0, 2000), baseHtml);
+    const generated = await generate(req, prompt.slice(0, 2000), baseHtml);
+    if (!generated) {
+      return boundaryUnavailable(
+        "POST /api/v1/build",
+        "llm-gateway",
+        "App generation requires the configured LLM Gateway; no direct provider call was attempted.",
+      );
+    }
+    const { html, model } = generated;
     const title = prompt.replace(/�/g, "").slice(0, 70);
-    const id = (cf.d1Configured() ? cf.uuid : gh.uuid)();
-    // Persist the runnable app + its metadata so it gets a shareable link and
-    // shows in the gallery (best-effort, never blocks the response).
-    let shared = false;
-    try {
-      if (gh.ghConfigured()) {
-        await gh.putRaw(`builds/${id}.html`, html);
-        await gh.append("builds.json", { id, project_id: projectId, created_at: new Date().toISOString(), title, prompt: prompt.slice(0, 300), model: String(model), bytes: html.length }, 200);
-        await gh.audit("app_built", id, title);
-        shared = true;
-      }
-    } catch { /* best-effort */ }
-    return Response.json({ id, title, model, html, persisted: shared, share_path: shared ? `/run/${id}` : null }, { headers: { "x-superbrain-source": "ai-builder" } });
+    const id = globalThis.crypto.randomUUID();
+    void projectId;
+    return Response.json(
+      {
+        id,
+        title,
+        model,
+        html,
+        persisted: false,
+        share_path: null,
+        direct_provider_calls: false,
+        live_mcp_writes: false,
+        note: "Generated through the LLM Gateway; persistence requires the Agent API artifact registry.",
+      },
+      { headers: { "x-superbrain-source": "llm-gateway-boundary", "cache-control": "no-store" } },
+    );
   } catch (err) {
-    return Response.json({ status: "build_error", note: err instanceof Error ? err.message : String(err) }, { status: 502 });
+    return Response.json(
+      {
+        contract_version: "frontend-provider-boundary-v1",
+        status: "blocked",
+        error: "llm_gateway_generation_unavailable",
+        reason: "llm_gateway_did_not_return_complete_html",
+        required_boundary: "llm-gateway",
+        accepted: false,
+        persisted: false,
+        live_backend: false,
+        direct_provider_calls: false,
+        live_provider_calls: false,
+        live_mcp_writes: false,
+        production_deploy: false,
+        secret_output: false,
+        note: err instanceof Error ? err.message : String(err),
+      },
+      { status: 503, headers: { "cache-control": "no-store", "x-superbrain-source": "llm-gateway-boundary-blocked" } },
+    );
   }
 }

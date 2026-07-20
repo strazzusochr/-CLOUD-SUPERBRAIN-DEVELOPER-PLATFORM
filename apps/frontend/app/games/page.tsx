@@ -27,7 +27,7 @@ export default function GamesPage() {
           </div>
         </Panel>
 
-        <Panel title="Deine gebauten Spiele & Apps (persistiert)" className="mt-16" actions={<Badge tone="cyan">GitHub-Store · echt</Badge>}>
+        <Panel title="Build-Verlauf" className="mt-16" actions={<Badge tone="cyan">Agent API · Registry</Badge>}>
           <div className="wb-pad">
             <BuildsGallery />
           </div>

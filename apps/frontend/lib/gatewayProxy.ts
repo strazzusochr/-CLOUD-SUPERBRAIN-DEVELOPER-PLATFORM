@@ -1,29 +1,10 @@
 // Shared honest proxy for the /mcp and /llm gateway surfaces.
 //
-// Priority: live passthrough to a *reachable* gateway origin → else free real LLM
-// via Cloudflare Workers AI (for /llm chat) → else honest no-backend 503. A dead
-// configured origin (network error / >=500 / 404) gracefully falls back instead of
-// hard-502, so production stays functional even with a stale origin env set. No
-// fake-live: static gateway contracts can project their contract shape, but
-// action/data calls stay empty unless a real gateway/provider is configured.
+// Static contracts may be projected, but all runtime actions must cross the
+// configured LLM or MCP gateway. No frontend provider fallback exists.
 
 import { projectedDefault } from "./endpointDefaults";
-
-async function cfLlmChat(req: Request, pathname: string, body: string | undefined): Promise<Response | null> {
-  if (!(pathname.includes("chat/completions") && req.method === "POST")) return null;
-  const { cfConfigured, cfChatCompletion } = await import("./cfWorkersAi");
-  if (!cfConfigured()) return null;
-  try {
-    const payload = JSON.parse(body || "{}");
-    const out = await cfChatCompletion(payload);
-    return Response.json(out, { headers: { "x-superbrain-source": "cloudflare-workers-ai" } });
-  } catch (err) {
-    return Response.json(
-      { status: "llm_provider_error", endpoint: pathname, note: err instanceof Error ? err.message : String(err) },
-      { status: 502, headers: { "x-superbrain-source": "cloudflare-workers-ai" } },
-    );
-  }
-}
+import { boundaryUnavailable, proxyToBoundary } from "./frontendBoundary";
 
 export async function gatewayHandle(
   req: Request,
@@ -32,46 +13,13 @@ export async function gatewayHandle(
   originEnv: string,
 ): Promise<Response> {
   const pathname = `${prefix}/${(slug ?? []).join("/")}`;
-  const base = process.env[originEnv]?.replace(/\/$/, "");
-  const body = req.method !== "GET" && req.method !== "HEAD" ? await req.text() : undefined;
-
-  // 1) Live passthrough to a reachable origin (null = dead → fall through).
-  if (base) {
-    const url = new URL(req.url);
-    const forwardPath = pathname.slice(prefix.length) || "/";
-    const target = `${base}${forwardPath}${url.search}`;
-    const init: RequestInit = {
-      method: req.method,
-      headers: { accept: "application/json", "content-type": req.headers.get("content-type") ?? "application/json" },
-      cache: "no-store",
-    };
-    if (body !== undefined) init.body = body;
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000);
-    try {
-      const res = await fetch(target, { ...init, signal: ctrl.signal });
-      if (res.status < 500 && res.status !== 404) {
-        const text = await res.text();
-        return new Response(text, {
-          status: res.status,
-          headers: { "content-type": res.headers.get("content-type") ?? "application/json", "x-superbrain-source": "live-gateway" },
-        });
-      }
-    } catch {
-      /* unreachable → fall through */
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
-  // 2) Free real LLM via Cloudflare Workers AI (chat completions).
-  if (prefix === "/llm") {
-    const cf = await cfLlmChat(req, pathname, body);
-    if (cf) return cf;
-  }
+  const kind = prefix === "/llm" ? "llm-gateway" : "mcp-gateway";
+  const forwardPath = pathname.slice(prefix.length) || "/";
+  const live = await proxyToBoundary(req, kind, forwardPath);
+  if (live) return live;
 
   // 3) Deterministic contract projection for known gateway contract surfaces.
-  const projected = projectedDefault(pathname, req.method, body);
+  const projected = projectedDefault(pathname, req.method);
   if (projected) {
     return Response.json(projected.payload, {
       status: projected.status ?? 200,
@@ -79,17 +27,20 @@ export async function gatewayHandle(
     });
   }
 
-  // 4) Honest 200 (no gateway/provider): genuinely empty, transparent, never 5xx.
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return boundaryUnavailable(`${req.method} ${pathname}`, kind);
+  }
   return Response.json(
     {
-      status: "ok",
+      status: "degraded",
       endpoint: `${req.method} ${pathname}`,
       live_backend: false,
       source: "frontend-projection",
       data: null,
       items: [],
-      note: `No ${prefix === "/llm" ? "LLM gateway/provider" : "MCP gateway"} configured; answered by honest projection (empty).`,
+      direct_provider_calls: false,
+      note: `No configured ${originEnv} boundary is reachable.`,
     },
-    { headers: { "x-superbrain-source": "frontend-projection" } },
+    { headers: { "x-superbrain-source": "frontend-projection", "cache-control": "no-store" } },
   );
 }

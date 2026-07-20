@@ -22,9 +22,9 @@ export default function DocsOutputPage() {
           </div>
         </Panel>
 
-        <Panel title="Dokument-Bibliothek (persistiert)" className="mb-16" actions={<Badge tone="cyan">GitHub-Store · echt</Badge>}>
+        <Panel title="Dokument-Bibliothek" className="mb-16" actions={<Badge tone="cyan">Agent API · Registry</Badge>}>
           <div className="wb-pad">
-            <ArtifactLibrary types={["document", "doc", "markdown", "pdf_plan", "md_export"]} emptyText="Noch keine Dokumente im Store gespeichert — Editor-Exporte laden direkt als Datei herunter." testId="docs-library" />
+            <ArtifactLibrary types={["document", "doc", "markdown", "pdf_plan", "md_export"]} emptyText="Keine registrierten Dokumente. Editor-Exporte bleiben als direkter Browser-Download verfügbar." testId="docs-library" />
           </div>
         </Panel>
       </div>

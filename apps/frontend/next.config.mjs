@@ -102,12 +102,11 @@ const cloudRewrite = (source, envKey, pathPrefix = "") => {
 
 // NOTE: edge rewrites to external backend origins are intentionally disabled.
 // The app's own route handlers (app/api/v1/[...slug], app/llm, app/mcp) own these
-// paths now: they serve real project-state projection data + the Cloudflare
-// Workers AI LLM for free, AND do live passthrough to AGENT_API_BASE_URL /
-// MCP_GATEWAY_BASE_URL / LLM_GATEWAY_BASE_URL when those point to a *reachable*
-// origin — with graceful fallback to projection/CF if the origin is dead. A
+// paths now: they serve read-only project-state contract projections and forward
+// runtime requests only through AGENT_API_BASE_URL / MCP_GATEWAY_BASE_URL /
+// LLM_GATEWAY_BASE_URL when those point to a reachable approved origin. A
 // beforeFiles rewrite would intercept at the edge before the handler runs and
-// hard-502 on a dead origin, so we keep routing in the handlers instead.
+// hard-502 on a dead origin, so fail-closed routing stays in the handlers.
 // `cloudRewrite` and the origin resolvers above are retained for reference.
 void cloudRewrite;
 

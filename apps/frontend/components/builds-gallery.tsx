@@ -43,7 +43,7 @@ function curate(builds: Build[]): CardBuild[] {
   return order;
 }
 
-// "Meine Apps" — every app built on the platform, persisted and re-openable.
+// "Meine Apps" — persisted builds returned by the Agent API registry.
 export function BuildsGallery() {
   const [builds, setBuilds] = useState<Build[] | null>(null);
 

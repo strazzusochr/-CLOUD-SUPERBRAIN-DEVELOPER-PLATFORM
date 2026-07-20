@@ -14,10 +14,10 @@ export default async function HomePage() {
     <AppShell crumb="Start" runState="idle">
       <div className="page">
         <div className="build-hero">
-          <h1 className="build-hero-title">Beschreibe es. Die KI baut es. Es läuft sofort.</h1>
+          <h1 className="build-hero-title">Beschreibe es. Baue es über das LLM-Gateway. Prüfe es direkt.</h1>
           <p className="build-hero-sub">
-            Cloud Superbrain ist eine KI-Entwicklungsplattform: Sag, welche App oder welches Spiel du willst —
-            ein echtes Code-Modell baut es, und es läuft live in der Vorschau. Teilbar per Link, kostenlos.
+            Cloud Superbrain ist eine KI-Entwicklungsplattform: Bei verbundenem Gateway entsteht aus deiner Beschreibung
+            eine App oder ein Spiel für die isolierte Vorschau. Ohne Gateway bleibt der Build sichtbar und sicher gesperrt.
           </p>
           <AiBuilder />
         </div>

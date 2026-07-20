@@ -6,8 +6,7 @@ import { AgentRun } from "../../components/agent-run";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Agenten — Cloud Superbrain" };
 
-// Multi-agent deep research: a goal is split across roles (Planner → Researcher →
-// Writer), each a real LLM step, with real web sources. Plus the agent team.
+// Multi-agent research through the Agent API and LLM Gateway boundaries.
 export default function AgentsPage() {
   return (
     <AppShell crumb="Agenten" runState="idle">
@@ -15,10 +14,10 @@ export default function AgentsPage() {
         <PageHeader
           eyebrow="Agenten"
           title="Tiefenrecherche mit mehreren Agenten"
-          subtitle="Gib ein Ziel ein — mehrere Agenten arbeiten zusammen (Planner → Researcher → Writer) und liefern eine fundierte, mit Quellen belegte Antwort."
+          subtitle="Gib ein Ziel ein. Bei erreichbarer Agent API arbeiten Planner, Researcher und Writer zusammen; ohne Laufzeit bleibt der Auftrag fail-closed."
         />
 
-        <Panel title="Tiefenrecherche starten" className="mb-16" actions={<Badge tone="green">echt · Workers AI</Badge>}>
+        <Panel title="Tiefenrecherche starten" className="mb-16" actions={<Badge tone="cyan">Agent API · gated</Badge>}>
           <div className="wb-pad">
             <AgentRun />
           </div>

@@ -22,9 +22,9 @@ export default function MediaPage() {
           </div>
         </Panel>
 
-        <Panel title="Medien-Bibliothek (persistiert)" className="mb-16" actions={<Badge tone="cyan">GitHub-Store · echt</Badge>}>
+        <Panel title="Medien-Bibliothek" className="mb-16" actions={<Badge tone="cyan">Agent API · Registry</Badge>}>
           <div className="wb-pad">
-            <ArtifactLibrary types={["media", "audio", "video", "image"]} emptyText="Noch keine Medien im Store gespeichert — Studio-Exporte laden direkt als Datei herunter." testId="media-library" />
+            <ArtifactLibrary types={["media", "audio", "video", "image"]} emptyText="Keine registrierten Medien. Studio-Exporte bleiben als direkter Browser-Download verfügbar." testId="media-library" />
           </div>
         </Panel>
       </div>

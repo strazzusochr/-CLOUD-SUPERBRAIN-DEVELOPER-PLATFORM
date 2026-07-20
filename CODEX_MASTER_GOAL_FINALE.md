@@ -37,7 +37,7 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   Command-Palette-Klicks, vier PNGs, Overflow 0, sichtbaren Not-Found-Zustaenden 0 und
   Console Errors 0. Immutable Deployment und Production Alias lieferten HTTP `200` und
   identische Root-/Workspace-Wiring-Inhalte. Evidence:
-  `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-e1a3ec1f-chrome`; Frontend `100%`.
+  `.codex/runs/CURRENT/master-goal/frontend/hosted-22x2-0555b0bd-chrome`; Frontend `100%`.
   Dies ist kein Hosted-Backend- oder Gesamtplattform-Release-Claim.
 - **Backend-Projekt 2** `https://cloud-superbrain-developer-platform.vercel.app`:
   `backend-hosted-current-proof-v1` bindet das READY-Deployment
@@ -66,6 +66,12 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   `npm run verify:runtime` und `npm run verify:browser` sind gruen; letzterer umfasst 22
   Seiten, zwei Viewports und 44 Klicks ohne Overflow-, Overlay- oder Console-Fehler.
   Evidence: `.codex/runs/CURRENT/master-goal/r0-canonical-runtime-truth-20260719.md`.
+- **T4 Frontend-Providergrenze:** Direkte Neon-, Cloudflare- und GitHub-Store-Pfade im
+  Frontend sind entfernt. Acht Action-Routen nutzen nur Agent API, LLM Gateway oder MCP
+  Gateway und bleiben ohne konfigurierte Grenze fail-closed; drei Vercel-Wrapper bleiben
+  zustandslos und read-only. Static-, Runtime-, Browser-, Lint- und Build-Gates sind gruen.
+  Evidence: `.codex/runs/CURRENT/master-goal/t4/frontend-provider-boundary/report.json`.
+  Overall bleibt `84%`; Hosted-Source-Paritaet und Live-Provider-Aktivierung sind unbeansprucht.
 - **Phase 1 ✔ (1.1–1.5), Phase 2 ✔ (2.1–2.3).** Class-Matrix A=85/B=0/C=5/D=4.
 - **Phase 3 deployt (~80 %):** S1 Build-Log-Grid, S2 Media/Docs-Entflechtung,
   S3 Apps-Kuration, S4 ehrliche Idle-Texte, S5 Hero-Labels, S6 /observe-Ehrlichkeit,

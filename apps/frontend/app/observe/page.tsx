@@ -50,7 +50,7 @@ export default async function ObservePage({ searchParams }: ObservePageProps) {
         <PageHeader
           eyebrow="Beobachten / Monitoring"
           title="Laufzeitsignale"
-          subtitle="Systemzustand, Läufe, Latenz, Traces und Protokolle sind mit echten Backend-Oberflächen verbunden. Die Kennzahlen kommen live aus GET /api/v1/metrics; der Datenverkehr bleibt bis zur OTel-Anbindung eine Spezifikation."
+          subtitle="Systemzustand, Läufe, Latenz, Traces und Protokolle nutzen bei erreichbarer Laufzeit die Backend-Oberflächen. Ohne Backend zeigt die Seite gekennzeichnete Spezifikationsdaten; OTel bleibt bis zur Anbindung offen."
           actions={
             <>
               {live ? <Badge tone="green">● Live · /api/v1/metrics</Badge> : <SpecModeBadge mode="spec_only" />}

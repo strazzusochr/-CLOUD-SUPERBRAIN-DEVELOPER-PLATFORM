@@ -33,7 +33,7 @@ export default async function ToolsPage() {
         <PageHeader
           eyebrow="Werkzeuge / Cloud-Zentrum"
           title="MCP-Werkzeuge und Cloud-Provider"
-          subtitle="Nur lesende Verdrahtung: echte MCP-Werkzeuge und Provider hinter den sieben Schichten. Schreibbereiche bleiben durch Gates geschützt; der Provider-Status kommt aus GET /api/v1/clouds — Token-Werte werden nie angezeigt."
+          subtitle="Nur lesende Verdrahtung: MCP-Werkzeuge und Provider bleiben hinter den sieben Schichten. Schreibbereiche sind durch Gates geschützt; der Provider-Status kommt aus GET /api/v1/clouds — Token-Werte werden nie angezeigt."
           actions={
             <>
               {live ? <Badge tone="green">● Live · {readiness!.liveCount}/{readiness!.total} verifiziert</Badge> : null}

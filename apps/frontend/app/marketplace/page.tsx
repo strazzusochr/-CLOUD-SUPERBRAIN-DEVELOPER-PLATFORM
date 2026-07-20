@@ -87,7 +87,7 @@ export default async function MarketplacePage() {
         </div>
         <MarketplaceCardGrid items={ITEMS} />
         <p className="login-foot mt-12">
-          <Badge tone="green">echt</Badge> „Installieren“ legt ein echtes, persistiertes Artefakt an — ohne Schreibzugriffe auf externe Provider.
+          <Badge tone="cyan">Agent API</Badge> „Installieren“ registriert nur bei erreichbarer Laufzeit ein Artefakt; ohne Registry bleibt die Aktion fail-closed.
         </p>
       </div>
     </AppShell>

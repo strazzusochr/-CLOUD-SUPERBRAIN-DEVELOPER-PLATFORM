@@ -1,5 +1,4 @@
 import { fetchActivityKinds, fetchOrganismProjection, mapKind } from "../agentApi";
-import * as gh from "../../../../../lib/ghStore";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -62,34 +61,6 @@ function specOnlyReplay(runId: string | null) {
   };
 }
 
-async function realAuditReplay(runId: string | null) {
-  if (!gh.ghConfigured()) return null;
-  try {
-    const rows = await gh.list("audit.json", 14);
-    if (!rows.length) return null;
-    const step = 1.2;
-    const frames = rows.map((row, index) => {
-      const { hub, run_state, regions } = mapKind(String(row.event_type ?? "event"));
-      return { t: +(index * step).toFixed(1), run_state, active: [hub], regions, source_kind: "platform_audit" };
-    });
-    return {
-      contract_version: "organism-replay-v1",
-      source: "platform-audit",
-      source_kind: "platform_audit",
-      live: true,
-      run_id: runId,
-      replay_available: true,
-      note: "Redacted replay reconstructed from persisted platform audit event types.",
-      duration_s: +(frames.length * step).toFixed(1),
-      fps: 30,
-      frames,
-      non_claims: ["read-only audit projection", "no prompt or user identifiers", "no secret values"],
-    };
-  } catch {
-    return null;
-  }
-}
-
 /** GET /api/v1/organism/replay — a timeline reconstructed from the agent-api
  *  activity trace (event_type → hub/run_state) when reachable, else spec-only. */
 export async function GET(request: Request) {
@@ -105,7 +76,7 @@ export async function GET(request: Request) {
     return organismResponse(projection);
   }
   const kinds = await fetchActivityKinds(8, runId);
-  if (!kinds) return organismResponse((await realAuditReplay(runId)) ?? specOnlyReplay(runId));
+  if (!kinds) return organismResponse(specOnlyReplay(runId));
   const step = 1.2;
   const frames = kinds.map((kind, i) => {
     const { hub, run_state, regions } = mapKind(kind);

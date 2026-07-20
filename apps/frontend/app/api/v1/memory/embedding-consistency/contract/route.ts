@@ -1,65 +1,44 @@
-import * as cf from "../../../../../../lib/cfBackend";
-import { cfConfigured } from "../../../../../../lib/cfWorkersAi";
-import * as gh from "../../../../../../lib/ghStore";
-import { dbConfigured, vectorReady } from "../../../../../../lib/neon";
+import { projectionResponse, proxyToBoundary } from "../../../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 
-const MODEL = "@cf/baai/bge-base-en-v1.5";
-const DIMENSIONS = 768;
-
-export function GET(): Response {
-  const persistence = cf.vectorizeConfigured()
-    ? "cloudflare-vectorize"
-    : dbConfigured() && vectorReady()
-      ? "neon-pgvector"
-      : gh.ghConfigured()
-        ? "github-store"
-        : null;
-  const providerConfigured = cfConfigured();
-  const semanticReady = providerConfigured && persistence !== null;
-
-  return Response.json(
-    {
-      contract_version: "memory-embedding-consistency-v1",
-      mode: "hosted_cloud_embedding_consistency_contract",
-      endpoint: "GET /api/v1/memory/embedding-consistency/contract",
-      evidence_ref: "memory_embedding_consistency_contract_visible",
-      status: semanticReady ? "verified" : "action_required",
-      source: "frontend-cloud-memory-contract",
-      source_kind: "cloud_embedding_contract",
-      live_backend: false,
-      provider_configured: providerConfigured,
-      persistence_configured: persistence !== null,
-      persistence,
-      current_embedding: {
-        provider: "cloudflare-workers-ai",
-        model_version: MODEL,
-        dimensions: DIMENSIONS,
-        vector_type: `vector(${DIMENSIONS})`,
-        search_mode: semanticReady ? "semantic_cosine" : "disabled_until_provider_and_persistence_configured",
-        live_embedding_provider_calls: false,
-      },
-      consistency: {
-        passage_model: MODEL,
-        query_model: MODEL,
-        normalized_vectors: true,
-        expected_dimensions: DIMENSIONS,
-        mixed_dimensions_allowed: false,
-      },
-      policy_checks: [
-        "Cloud memory uses the same 768-dimensional BGE model for writes and queries.",
-        "The contract endpoint performs no embedding provider call.",
-        "A hosted write/search roundtrip is required before semantic memory completion is claimed.",
-      ],
-      non_claims: [
-        "This GET contract does not call Workers AI.",
-        "This GET contract does not write memory.",
-        "The legacy local PostgreSQL vector(1536) schema is not claimed as the hosted cloud embedding path.",
-      ],
+export async function GET(req: Request): Promise<Response> {
+  const response = await proxyToBoundary(req, "agent-api", "/api/v1/memory/embedding-consistency/contract");
+  return response ?? projectionResponse({
+    contract_version: "memory-embedding-consistency-v1",
+    mode: "stateless_frontend_memory_contract",
+    endpoint: "GET /api/v1/memory/embedding-consistency/contract",
+    evidence_ref: "memory_embedding_consistency_contract_visible",
+    status: "action_required",
+    audit_gap: "L-09",
+    persistence_configured: false,
+    current_embedding: {
+      model_version: "text-embedding-3-small",
+      dimensions: 1536,
+      vector_type: "vector(1536)",
+      search_mode: "lexical_fallback",
+      live_embedding_provider_calls: false,
     },
-    {
-      headers: { "x-superbrain-source": "cloud-memory-contract", "cache-control": "no-store" },
+    schema: {
+      expected_columns: {
+        embedding_model_version: "character varying(100)",
+        content_embedding: "vector(1536)",
+      },
     },
-  );
+    consistency: {
+      expected_dimensions: 1536,
+      mixed_dimensions_allowed: false,
+      frontend_schema_creation_allowed: false,
+    },
+    policy_checks: [
+      "The canonical PostgreSQL/pgvector schema remains 1536-dimensional.",
+      "The stateless frontend does not create tables, embeddings, or alternate vector stores.",
+      "A stateful Agent API roundtrip is required before semantic memory completion is claimed.",
+    ],
+    non_claims: [
+      "No live embedding provider call is performed.",
+      "No memory row or vector is written.",
+      "No alternate D1, Vectorize, GitHub-store, or frontend Neon path is claimed.",
+    ],
+  });
 }

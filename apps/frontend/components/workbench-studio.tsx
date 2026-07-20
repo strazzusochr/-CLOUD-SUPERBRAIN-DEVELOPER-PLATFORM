@@ -2,10 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// A real IDE-style build studio (the structure of a proper developer platform,
-// with REAL content): prompt composer + Explorer (the actually-generated files) +
-// Editor/Live-Preview tabs (the real running app & its code) + a real build log.
-// Backed by /api/v1/build (Qwen2.5-Coder on free Cloudflare Workers AI).
+// IDE-style build studio backed exclusively by /api/v1/build. That route reaches
+// models through the LLM Gateway and fails closed when no gateway is configured.
 
 type Build = { id: string; title: string; model: string; html: string; share_path?: string | null };
 type VFile = { name: string; lang: string; content: string };
@@ -60,7 +58,7 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
     const p = text.trim();
     if (!p || busy) return;
     setBusy(true); setTab("preview");
-    setLog(baseHtml ? [{ kind: "run", text: `▸ Ändere bestehende App…` }] : [{ kind: "run", text: `▸ Anfrage an Qwen2.5-Coder…` }]);
+    setLog(baseHtml ? [{ kind: "run", text: `▸ Ändere bestehende App…` }] : [{ kind: "run", text: `▸ Anfrage an das LLM-Gateway…` }]);
     startRef.current = Date.now(); setElapsed(0);
     const tick = setInterval(() => setElapsed(Math.round((Date.now() - startRef.current) / 1000)), 1000);
     const ctrl = new AbortController(); abortRef.current = ctrl;
@@ -71,7 +69,7 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
       });
       const b = await res.json();
       const secs = Math.round((Date.now() - startRef.current) / 1000);
-      if (!res.ok || !b.html) { addLog("err", `✗ ${b.note ?? res.status}`); }
+      if (!res.ok || !b.html) { addLog("err", `✗ ${b.note ?? b.reason ?? b.error ?? res.status}`); }
       else {
         const f = parseFiles(b.html);
         setBuild(b); setFiles(f); setActive(0);

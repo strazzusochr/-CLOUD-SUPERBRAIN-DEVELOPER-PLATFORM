@@ -50,10 +50,11 @@ async function waitForFrontendHealth(page, url) {
   return false;
 }
 
-async function gotoWorkspaceRoute(page, url, label, consoleErrors) {
+async function gotoWorkspaceRoute(page, url, label, consoleErrors, resourceErrors) {
   let lastStatus = "no-response";
   for (let attempt = 1; attempt <= 8; attempt += 1) {
     if (consoleErrors) consoleErrors.length = 0;
+    if (resourceErrors) resourceErrors.length = 0;
     try {
       const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
       lastStatus = String(response?.status() ?? "no-response");
@@ -67,6 +68,22 @@ async function gotoWorkspaceRoute(page, url, label, consoleErrors) {
     await page.waitForTimeout(1500 * attempt);
   }
   throw new Error(`Workspace route ${label} returned ${lastStatus}.`);
+}
+
+function filteredConsoleErrors(errors) {
+  return errors.filter((entry) => !/favicon|ResizeObserver loop limit exceeded/i.test(entry));
+}
+
+function isLocalNextChunkRace(baseUrl, consoleErrors, resourceErrors) {
+  if (!isLocalhost(baseUrl) || consoleErrors.length === 0 || resourceErrors.length === 0) return false;
+  if (!consoleErrors.every((entry) => /Failed to load resource.*404/i.test(entry))) return false;
+  const baseOrigin = new URL(baseUrl).origin;
+  return resourceErrors.every((entry) => {
+    const url = new URL(entry.url);
+    return entry.status === 404
+      && url.origin === baseOrigin
+      && url.pathname.startsWith("/_next/static/chunks/");
+  });
 }
 
 function normalizeSurfaces(workspaceWiring) {
@@ -114,9 +131,20 @@ async function main() {
   });
   const page = await context.newPage();
   const consoleErrors = [];
+  const resourceErrors = [];
   page.on("pageerror", (error) => consoleErrors.push(`pageerror: ${error.message}`));
   page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(`console: ${message.text()}`);
+    if (message.type() === "error") {
+      const location = message.location();
+      const source = location.url ? ` @ ${location.url}:${location.lineNumber ?? 0}` : "";
+      consoleErrors.push(`console: ${message.text()}${source}`);
+    }
+  });
+  page.on("response", (response) => {
+    const resourceType = response.request().resourceType();
+    if (response.status() >= 400) {
+      resourceErrors.push({ status: response.status(), url: response.url(), resourceType });
+    }
   });
 
   try {
@@ -150,8 +178,17 @@ async function main() {
       assert(surface.writes === false, `Workspace surface must not claim writes=true: ${surface.pageId}`);
       assert(surface.secretOutput === false, `Workspace surface must not claim secretOutput=true: ${surface.pageId}`);
 
-      await gotoWorkspaceRoute(page, routeUrl(baseUrl, surface.route), surface.route, consoleErrors);
+      const workspaceUrl = routeUrl(baseUrl, surface.route);
+      await gotoWorkspaceRoute(page, workspaceUrl, surface.route, consoleErrors, resourceErrors);
       await page.waitForTimeout(surface.pageId.startsWith("organism") ? 1500 : 350);
+
+      const initialConsoleErrors = filteredConsoleErrors(consoleErrors);
+      if (isLocalNextChunkRace(baseUrl, initialConsoleErrors, resourceErrors)) {
+        const failedUrls = resourceErrors.map((entry) => entry.url).join(", ");
+        console.log(`[workspace-pages-browser] retry local Next dev chunk race on ${surface.route}: ${failedUrls}`);
+        await gotoWorkspaceRoute(page, workspaceUrl, surface.route, consoleErrors, resourceErrors);
+        await page.waitForTimeout(surface.pageId.startsWith("organism") ? 1500 : 500);
+      }
 
       const probe = await page.evaluate((surfaceArg) => {
         const root = getComputedStyle(document.documentElement);
@@ -220,9 +257,21 @@ async function main() {
       await page.screenshot({ path: screenshotPath, fullPage: false, caret: "initial" });
       const screenshotBytes = fs.statSync(screenshotPath).size;
       assert(screenshotBytes > 12000, `Screenshot too small for ${surface.route}: ${screenshotBytes}`);
-      const routeErrors = consoleErrors.filter((entry) => !/favicon|ResizeObserver loop limit exceeded/i.test(entry));
-      assert(routeErrors.length === 0, `Browser console errors on ${surface.route}: ${routeErrors.join(" | ")}`);
+      const routeErrors = filteredConsoleErrors(consoleErrors);
+      const routeResourceErrors = resourceErrors.filter((entry) => (
+        ["document", "script", "stylesheet", "image", "font", "media", "manifest"].includes(entry.resourceType)
+        && !/favicon/i.test(entry.url)
+      ));
+      assert(
+        routeResourceErrors.length === 0,
+        `HTTP resource errors on ${surface.route}: ${routeResourceErrors.map((entry) => `${entry.status} ${entry.resourceType} ${entry.url}`).join(" | ")}`,
+      );
+      assert(
+        routeErrors.length === 0,
+        `Browser console errors on ${surface.route}: ${routeErrors.join(" | ")}; HTTP diagnostics: ${resourceErrors.map((entry) => `${entry.status} ${entry.resourceType} ${entry.url}`).join(" | ") || "none"}`,
+      );
       consoleErrors.length = 0;
+      resourceErrors.length = 0;
 
       pages.push({
         pageId: surface.pageId,
@@ -240,7 +289,7 @@ async function main() {
       });
     }
 
-    const filteredErrors = consoleErrors.filter((entry) => !/favicon|ResizeObserver loop limit exceeded/i.test(entry));
+    const filteredErrors = filteredConsoleErrors(consoleErrors);
     assert(filteredErrors.length === 0, `Browser console errors: ${filteredErrors.join(" | ")}`);
 
     const proof = {

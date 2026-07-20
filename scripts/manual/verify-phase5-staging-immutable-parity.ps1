@@ -129,7 +129,13 @@ $plan = Invoke-DeployPlan @(
   "-PlanOnly",
   "-UseImageFilesystem",
   "-ImageTag",
-  $CandidateSha
+  $CandidateSha,
+  "-StagingIp",
+  "plan-only",
+  "-StagingHostname",
+  "plan-only.invalid",
+  "-StagingBaseUrl",
+  "https://plan-only.invalid"
 )
 Assert-Contains "immutable plan image filesystem" $plan "Use image filesystem: True"
 Assert-Contains "immutable plan image tag" $plan "Image tag: $CandidateSha"
