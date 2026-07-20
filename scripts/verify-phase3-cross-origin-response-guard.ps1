@@ -78,7 +78,7 @@ foreach ($required in @("real click", "PHASE3_CROSS_ORIGIN_ARTIFACT_DIR", "cross
 foreach ($required in @("cross-origin-response-guard-v1", "reflected attacker origins", "DEV-ONLY")) { Assert-Contains "contract doc" $docSource $required }
 $manifest = Get-Content (Join-Path $repoRoot "docs\project-progress.manifest.json") -Raw | ConvertFrom-Json
 $phase3 = @($manifest.horizontal.items) | Where-Object id -eq "phase_3" | Select-Object -First 1
-Assert-True "manifest phase3 43" ([int]$phase3.percent -eq 43)
+Assert-True "manifest phase3 at least 43" ([int]$phase3.percent -ge 43)
 Assert-Contains "manifest cross-origin marker" $phase3.status "cross_origin_response_guard_visible"
 
 if ($ReadOnly) { Write-Host "[phase3-cross-origin] status=verified_read_only"; exit 0 }

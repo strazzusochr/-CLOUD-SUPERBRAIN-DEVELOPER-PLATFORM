@@ -409,6 +409,18 @@ Assert-Contains "auth audit refresh rotated" $authAudit "auth_refresh_rotated"
 Assert-Contains "auth audit refresh reuse blocked" $authAudit "auth_refresh_reuse_blocked"
 Assert-Contains "auth audit logout revoked" $authAudit "auth_logout_revoked"
 
+Write-Host "[browser-contract] signed auth-session integrity"
+$signedAuthSessionContract = Invoke-Text "$BaseUrl/api/v1/auth/session/contract"
+Assert-Contains "signed auth-session version" $signedAuthSessionContract '"contract_version":"auth-session-integrity-v1"'
+Assert-Contains "signed auth-session evidence" $signedAuthSessionContract '"evidence_ref":"auth_session_integrity_visible"'
+Assert-Contains "signed auth-session external writes blocked" $signedAuthSessionContract '"external_provider_write":false'
+if ($isLocalProof) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-auth-session-integrity.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-auth-session-integrity.ps1 -BaseUrl $BaseUrl -ReadOnly
+}
+if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: signed auth-session integrity verifier" }
+
 Write-Host "[browser-contract] system unavailable fallback contract"
 $systemFallbackContract = Invoke-Text "$BaseUrl/api/v1/system/fallback/contract"
 Assert-Contains "system fallback version" $systemFallbackContract '"contract_version":"system-unavailable-fallback-v1"'

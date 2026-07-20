@@ -27,7 +27,7 @@ gates.
 | Scope | Current verified value |
 | --- | --- |
 | Overall progress | 84 percent |
-| Horizontal | P0 100, P1 100, P2 86, P3 43, P4 100, P5 68, P6 90 |
+| Horizontal | P0 100, P1 100, P2 86, P3 44, P4 100, P5 68, P6 90 |
 | Vertical | Frontend 100, Orchestrator 100, Agent Pool 68, LLM 54, MCP 55, Memory 72, Observability 99 |
 | Project progress integrity | `verified` |
 | Canonical workspace pages | 22/22 local and 22/22 hosted in real Google Chrome at desktop and mobile |

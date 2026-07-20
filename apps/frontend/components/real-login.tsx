@@ -9,6 +9,7 @@ export function RealLogin() {
   const [user, setUser] = useState<User>(null);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -17,7 +18,9 @@ export function RealLogin() {
         const r = await fetch("/api/v1/auth/session", { cache: "no-store" });
         const d = await r.json();
         if (alive && d.user) setUser(d.user);
-      } catch { /* ignore */ }
+      } catch {
+        if (alive) setError("Sitzungsstatus ist momentan nicht erreichbar.");
+      }
     })();
     return () => { alive = false; };
   }, []);
@@ -25,6 +28,7 @@ export function RealLogin() {
   async function signIn(provider: string) {
     if (busy) return;
     setBusy(true);
+    setError("");
     try {
       const r = await fetch("/api/v1/auth/session", {
         method: "POST",
@@ -32,13 +36,23 @@ export function RealLogin() {
         body: JSON.stringify({ provider, name: name || undefined }),
       });
       const d = await r.json();
-      if (d.user) setUser(d.user);
-    } catch { /* ignore */ } finally { setBusy(false); }
+      if (!r.ok || !d.user) throw new Error("sign_in_failed");
+      setUser(d.user);
+    } catch {
+      setError("Anmeldung konnte nicht abgeschlossen werden.");
+    } finally { setBusy(false); }
   }
 
   async function signOut() {
     setBusy(true);
-    try { await fetch("/api/v1/auth/session", { method: "DELETE" }); setUser(null); } finally { setBusy(false); }
+    setError("");
+    try {
+      const response = await fetch("/api/v1/auth/session", { method: "DELETE" });
+      if (!response.ok) throw new Error("sign_out_failed");
+      setUser(null);
+    } catch {
+      setError("Abmeldung konnte nicht abgeschlossen werden.");
+    } finally { setBusy(false); }
   }
 
   if (user) {
@@ -49,6 +63,7 @@ export function RealLogin() {
           <a href="/workbench" className="btn btn-primary btn-sm">In die Werkbank →</a>
           <button type="button" className="btn btn-sm" onClick={signOut} disabled={busy} data-testid="rl-signout">Abmelden</button>
         </div>
+        {error ? <p className="text-12 status bad" role="alert">{error}</p> : null}
       </div>
     );
   }
@@ -69,7 +84,8 @@ export function RealLogin() {
           {busy ? "…" : name ? `Anmelden als ${name}` : "Als Gast fortfahren"}
         </button>
       </div>
-      <p className="text-12 text-mut">Echte Sitzung (Cookie + persistiert). Externe OAuth-Provider brauchen eine OAuth-App und sind in diesem freien Stack nicht aktiv.</p>
+      {error ? <p className="text-12 status bad" role="alert">{error}</p> : null}
+      <p className="text-12 text-mut">Signierte HttpOnly-Sitzung ohne externe Schreibzugriffe. OAuth-Provider sind erst nach separater Freigabe aktiv.</p>
     </div>
   );
 }

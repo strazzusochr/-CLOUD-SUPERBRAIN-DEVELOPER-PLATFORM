@@ -5,7 +5,7 @@ Status: Active
 
 ## Current Progress Authority
 
-Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `84%`, Phase 1 `100%`, Phase 2 `86%`, Phase 3 `43%`, Phase 4 `100%`, Phase 5 `68%`, Phase 6 `90%`, Frontend `100%`, Agent Pool `68%`, LLM Gateway `54%`, MCP Gateway `55%`, Memory `72%`, and Observability `99%`.
+Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `84%`, Phase 1 `100%`, Phase 2 `86%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `68%`, Phase 6 `90%`, Frontend `100%`, Agent Pool `68%`, LLM Gateway `54%`, MCP Gateway `55%`, Memory `72%`, and Observability `99%`.
 
 ## Current Hosted Boundary
 
@@ -28,6 +28,10 @@ Latest external audit truth: the canonical reproducible token-free standard boot
 ## Current Phase 5 Local Candidate Evidence
 
 `phase5-production-candidate-local-v1` is verified for active candidate `prod-candidate-2026-07-20-local-rc2` and source commit `1d8304456a6a95a2a05de65cf0d576ee68c20733`. Six production targets were built only from the committed Git archive with SHA-256 `d0defa377b9e0a345e7d2a407b5ecd3a0497a0a8b273869df0db2d435a81019a`. The proof records local Docker image IDs, OCI labels, embedded source hash parity and the frontend build ID, then rechecks the read-only API contract and a real Diagnostics Chromium click. Runtime-only checks write `verification-runtime.json` without replacing full `verification.json`; the hosted boundary verifies the candidate technically while promotion remains false under the blocked canonical summary. Evidence is under `.codex/runs/CURRENT/master-goal/phase5/production-candidate-local`. Phase 5 remains `68%`; Overall remains `84%`. DEV-ONLY; no GHCR publication, stateful hosted parity, Owner approval, deployment, release promotion, or production claim.
+
+## Current Phase 3 Auth Session Evidence
+
+`auth-session-integrity-v1` replaces the unsigned frontend session identifier and its optional GitHub-store write path with an HMAC-SHA256 signed, fixed-expiry `__Host-sb_session` cookie. Constant-time canonical-signature comparison, malformed/tampered/expired/future-issued rejection, local identity allowlisting, invalid-cookie clearing, and the absence of external writes are covered by deterministic Node tests, a token-safe HTTP probe, and a real Chromium login/tamper proof. Evidence is under `.codex/runs/CURRENT/phase3/auth-session-integrity`; the screenshot is 79434 bytes. Phase 3 rises `43% -> 44%`; Overall remains `84%`. DEV-ONLY; no live OAuth identity, provider write, database write, MCP write, deployment, release, or production claim.
 
 ## Status Values
 
@@ -508,7 +512,7 @@ Latest external audit truth: the canonical reproducible token-free standard boot
 
 ## Current Next Verification
 
-Current verified progress is total `84%`, Phase 1 `100%`, Phase 2 `86%`, Phase 3 `43%`, Phase 4 `100%`, Phase 5 `68%`, and Phase 6 `90%`.
+Current verified progress is total `84%`, Phase 1 `100%`, Phase 2 `86%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `68%`, and Phase 6 `90%`.
 Current vertical layer snapshot is Frontend `100%`, Orchestrator `100%`, Agent Pool `68%`, LLM Gateway `54%`, MCP Gateway `55%`, Memory `72%`, and Observability `99%`.
 
 - Frontend 22x2 responsive click proof: `npm run verify:responsive` opened all 22 canonical routes by real command-palette clicks at desktop `1440x960` and mobile `390x844`. The proof drove fixes for mobile command navigation, organism/file grid stacking, table scroll boundaries, aspect-ratio-aware Three.js framing, and a measured Next-dev OOM by raising only the local frontend Compose memory limit from 1 GiB to 2 GiB. The runner is fail-closed in `scripts/verify-phase1.ps1` and executes as part of `npm run verify:browser`. Evidence `.codex/runs/CURRENT/frontend/responsive-22/report.json` records 44 clicks, `overflow_failures=0`, `console_errors=0`, and four PNGs. This raises Frontend `97% -> 99%`; Overall remains `82%`. DEV-ONLY; no provider write, deployment, release promotion, or production claim.

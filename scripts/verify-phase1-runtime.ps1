@@ -1663,6 +1663,10 @@ Assert-Contains "auth audit refresh rotated" $authAudit "auth_refresh_rotated"
 Assert-Contains "auth audit refresh reuse blocked" $authAudit "auth_refresh_reuse_blocked"
 Assert-Contains "auth audit logout revoked" $authAudit "auth_logout_revoked"
 
+Write-Host "[runtime] signed auth-session integrity"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-auth-session-integrity.ps1 -BaseUrl $baseUrl -AllowLocalhost -SkipBrowser
+if ($LASTEXITCODE -ne 0) { throw "Runtime verification failed: signed auth-session integrity verifier" }
+
 Write-Host "[runtime] devops workflow dispatch contract"
 $workflowPlan = curl.exe -sS "$baseUrl/api/v1/devops/workflow-dispatch/plan"
 Assert-Contains "workflow dispatch contract version" $workflowPlan '"contract_version":"devops-workflow-dispatch-v1"'

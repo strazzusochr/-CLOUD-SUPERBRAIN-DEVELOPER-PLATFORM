@@ -530,7 +530,7 @@ foreach ($required in @(
   'overall: 84',
   '{ name: "Frontend", layer: 1, pct: 100 }',
   '{ name: "Orchestrator", layer: 2, pct: 100 }',
-  '{ id: "P3", pct: 43 }',
+  '{ id: "P3", pct: 44 }',
   '{ id: "P4", pct: 100 }',
   '{ id: "P5", pct: 68 }',
   '{ id: "P6", pct: 90 }',
@@ -2106,7 +2106,7 @@ $crossOriginParseErrors = $null
 [System.Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase3-cross-origin-response-guard.ps1", [ref]$null, [ref]$crossOriginParseErrors) | Out-Null
 if ($crossOriginParseErrors) { $crossOriginParseErrors | ForEach-Object { Write-Error $_.Message }; throw "Cross-origin response verifier parse errors" }
 $crossOriginVerifier = Get-Content -Path "scripts\verify-phase3-cross-origin-response-guard.ps1" -Raw
-foreach ($required in @("manifest phase3 43", "attacker origin not reflected", "diagnostics-cross-origin-response-guard.png", "cross-origin-resource-policy: same-origin")) {
+foreach ($required in @("manifest phase3 at least 43", "attacker origin not reflected", "diagnostics-cross-origin-response-guard.png", "cross-origin-resource-policy: same-origin")) {
   if (-not $crossOriginVerifier.Contains($required)) { throw "Cross-origin response verifier missing: $required" }
 }
 foreach ($required in @("Cross-Origin Response Guard", "/api/v1/security/cross-origin/contract")) {
@@ -2116,6 +2116,38 @@ if (-not (Test-Path "apps\frontend\e2e\phase3-cross-origin-response.spec.ts")) {
 $crossOriginBrowser = Get-Content -Path "apps\frontend\e2e\phase3-cross-origin-response.spec.ts" -Raw
 foreach ($required in @("/diagnostics", "selectOption", "real click", "cross-origin-response-guard-v1", "attacker_origin_reflected")) {
   if (-not $crossOriginBrowser.Contains($required)) { throw "Cross-origin browser proof missing: $required" }
+}
+if (-not (Test-Path "docs\runtime-contracts\auth-session-integrity.md")) { throw "Missing Phase 3 auth-session integrity document" }
+$authSessionDoc = Get-Content -Path "docs\runtime-contracts\auth-session-integrity.md" -Raw
+foreach ($required in @("auth-session-integrity-v1", "HMAC-SHA256", "AUTH_SESSION_SECRET", "DEV-ONLY")) {
+  if (-not $authSessionDoc.Contains($required)) { throw "Auth-session integrity document missing: $required" }
+}
+if (-not (Test-Path "scripts\verify-phase3-auth-session-integrity.ps1")) { throw "Missing Phase 3 auth-session integrity verifier" }
+$authSessionParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase3-auth-session-integrity.ps1", [ref]$null, [ref]$authSessionParseErrors) | Out-Null
+if ($authSessionParseErrors) { $authSessionParseErrors | ForEach-Object { Write-Error $_.Message }; throw "Auth-session integrity verifier parse errors" }
+$authSessionVerifier = Get-Content -Path "scripts\verify-phase3-auth-session-integrity.ps1" -Raw
+foreach ($required in @("deterministic token unit tests", "tampered_cookie_rejected", "unsupported_provider_rejected", "login-auth-session-integrity.png")) {
+  if (-not $authSessionVerifier.Contains($required)) { throw "Auth-session integrity verifier missing: $required" }
+}
+if (-not (Test-Path "scripts\verify-auth-session-http.mjs")) { throw "Missing auth-session token-safe HTTP probe" }
+$authSessionHttpProbe = Get-Content -Path "scripts\verify-auth-session-http.mjs" -Raw
+foreach ($required in @("valid_cookie_accepted", "tampered_cookie_rejected", "unsupported_provider_rejected", "token_output")) {
+  if (-not $authSessionHttpProbe.Contains($required)) { throw "Auth-session HTTP probe missing: $required" }
+}
+$authSessionHelper = Get-Content -Path "apps\frontend\lib\authSession.ts" -Raw
+foreach ($required in @("createHmac", "timingSafeEqual", "AUTH_SESSION_TTL_SECONDS", "verifySignedAuthSession")) {
+  if (-not $authSessionHelper.Contains($required)) { throw "Auth-session integrity helper missing: $required" }
+}
+$authSessionRoute = Get-Content -Path "apps\frontend\app\api\v1\auth\session\route.ts" -Raw
+foreach ($required in @("AUTH_SESSION_COOKIE", "external_provider_write: false", "jar.delete(AUTH_SESSION_COOKIE)")) {
+  if (-not $authSessionRoute.Contains($required)) { throw "Auth-session route missing: $required" }
+}
+if ($authSessionRoute.Contains("ghStore")) { throw "Auth-session route must not contain a GitHub write path" }
+if (-not (Test-Path "apps\frontend\e2e\phase3-auth-session-integrity.spec.ts")) { throw "Missing auth-session Chromium proof" }
+$authSessionBrowser = Get-Content -Path "apps\frontend\e2e\phase3-auth-session-integrity.spec.ts" -Raw
+foreach ($required in @("signed session", "tampered cookie", "session_invalidated", "external_provider_write")) {
+  if (-not $authSessionBrowser.Contains($required)) { throw "Auth-session Chromium proof missing: $required" }
 }
 if (-not (Test-Path "docs\runtime-contracts\phase6-3d-camera-lighting-runtime.md")) {
   throw "Missing Phase 6 3D camera and lighting contract document"
@@ -2693,6 +2725,10 @@ foreach ($required in @(
   "verify-phase3-csrf-origin-guard.ps1",
   "csrf-origin-guard-v1",
   "csrf_origin_rejection_audited",
+  "signed auth-session integrity",
+  "verify-phase3-auth-session-integrity.ps1",
+  "auth-session-integrity-v1",
+  "auth_session_integrity_visible",
   "Phase 6 3D camera and lighting controls",
   "verify-phase6-3d-camera-lighting-runtime.ps1",
   "phase6-3d-camera-lighting-runtime-v1",

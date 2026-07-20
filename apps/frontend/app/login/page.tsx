@@ -30,7 +30,7 @@ export default function LoginPage() {
               <RealLogin />
 
               <p className="login-foot">
-                Echte Sitzung mit httpOnly-Cookie und persistierter Session — kein Dry-Run. Externe OAuth-Provider benötigen eine OAuth-App.
+                Signierte Sitzung mit HttpOnly-Cookie und Ablaufprüfung. Externe OAuth-Provider bleiben separat freigabepflichtig.
               </p>
             </section>
 
