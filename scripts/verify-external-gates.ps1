@@ -365,24 +365,41 @@ function Invoke-GrafanaCloudIdentityProbe([string]$GrafanaUrl) {
   }
 
   $token = [string]$env:GRAFANA_CLOUD_API_KEY
-  $orgUrl = "$($GrafanaUrl.TrimEnd('/'))/api/org"
   try {
-    $response = Invoke-RestMethod -Method Get -Uri $orgUrl -Headers @{
+    $probeKind = ""
+    if ($token.StartsWith("glc_")) {
+      $encoded = $token.Substring(4).Replace("-", "+").Replace("_", "/")
+      switch ($encoded.Length % 4) {
+        0 { }
+        2 { $encoded += "==" }
+        3 { $encoded += "=" }
+        default { throw "Grafana Cloud token metadata has invalid base64 length" }
+      }
+      $metadataJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($encoded))
+      $metadata = $metadataJson | ConvertFrom-Json -ErrorAction Stop
+      $region = [string]$metadata.m.r
+      if ($region -notmatch '^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$') {
+        throw "Grafana Cloud token region is missing or invalid"
+      }
+      $probeUrl = "https://grafana.com/api/v1/accesspolicies?region=$([System.Uri]::EscapeDataString($region))&pageSize=1"
+      $probeKind = "cloud_access_policy"
+    } elseif ($token.StartsWith("glsa_")) {
+      if (-not $uri.Host.EndsWith(".grafana.net", [System.StringComparison]::OrdinalIgnoreCase) -or $uri.UserInfo -or ($uri.Port -notin @(443, -1))) {
+        throw "Grafana instance URL must be an HTTPS grafana.net host"
+      }
+      $probeUrl = "$($GrafanaUrl.TrimEnd('/'))/api/access-control/user/permissions"
+      $probeKind = "service_account"
+    } else {
+      throw "Grafana token must start with glc_ or glsa_"
+    }
+
+    $null = Invoke-RestMethod -Method Get -Uri $probeUrl -Headers @{
       Authorization = "Bearer $token"
       Accept = "application/json"
     } -TimeoutSec 20 -ErrorAction Stop
 
-    $orgName = ""
-    if ($response.name) { $orgName = [string]$response.name }
-    elseif ($response.orgName) { $orgName = [string]$response.orgName }
-
-    $orgId = $null
-    if ($response.id) { $orgId = $response.id }
-    elseif ($response.orgId) { $orgId = $response.orgId }
-
-    $result = New-Probe "grafana_cloud" "verified" $true $true "grafana_cloud_optional_proof" $GrafanaUrl 200 "Grafana Cloud org checked without storing token" ""
-    $result["org_name"] = $orgName
-    $result["org_id"] = $orgId
+    $result = New-Probe "grafana_cloud" "verified" $true $true "grafana_cloud_optional_proof" $GrafanaUrl 200 "Grafana Cloud identity checked without storing token" ""
+    $result["probe_kind"] = $probeKind
     return $result
   } catch {
     $statusCode = 0

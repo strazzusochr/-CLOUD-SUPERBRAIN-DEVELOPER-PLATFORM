@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import base64
+import binascii
+import json
 import os
+import re
 import time
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -21,6 +25,8 @@ FLY_TIMEOUT_SECONDS = 5.0
 FLY_CACHE_TTL_SECONDS = 60
 GRAFANA_CLOUD_TIMEOUT_SECONDS = 5.0
 GRAFANA_CLOUD_CACHE_TTL_SECONDS = 60
+GRAFANA_CLOUD_API_URL = "https://grafana.com"
+GRAFANA_CLOUD_REGION_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$")
 CLOUDFLARE_API_URL = "https://api.cloudflare.com/client/v4"
 CLOUDFLARE_TIMEOUT_SECONDS = 5.0
 CLOUDFLARE_CACHE_TTL_SECONDS = 60
@@ -124,13 +130,56 @@ def _fly_graphql(client: httpx.Client, token: str, query: str) -> dict[str, Any]
     return response.json()
 
 
-def _grafana_cloud_get(client: httpx.Client, token: str, url: str, path: str) -> dict[str, Any]:
+def _grafana_cloud_get(
+    client: httpx.Client,
+    token: str,
+    url: str,
+    path: str,
+    params: dict[str, str] | None = None,
+) -> dict[str, Any]:
     response = client.get(
         f"{url}{path}",
         headers={"Authorization": f"Bearer {token}"},
+        params=params,
     )
     response.raise_for_status()
     return response.json()
+
+
+def _grafana_cloud_token_metadata(token: str) -> dict[str, Any]:
+    if not token.startswith("glc_"):
+        raise ValueError("Grafana Cloud API token must start with glc_")
+    encoded = token[4:].replace("-", "+").replace("_", "/")
+    encoded += "=" * ((4 - len(encoded) % 4) % 4)
+    try:
+        payload = json.loads(base64.b64decode(encoded, validate=True).decode("utf-8"))
+    except (binascii.Error, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Grafana Cloud API token metadata is invalid") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("Grafana Cloud API token metadata must be an object")
+    return payload
+
+
+def _grafana_cloud_region(metadata: dict[str, Any]) -> str:
+    token_metadata = metadata.get("m")
+    region = token_metadata.get("r") if isinstance(token_metadata, dict) else None
+    if not isinstance(region, str) or not GRAFANA_CLOUD_REGION_PATTERN.fullmatch(region):
+        raise ValueError("Grafana Cloud API token region is missing or invalid")
+    return region
+
+
+def _grafana_instance_api_url(url: str) -> str:
+    parsed = urlparse(url)
+    hostname = (parsed.hostname or "").lower()
+    if (
+        parsed.scheme != "https"
+        or not hostname.endswith(".grafana.net")
+        or parsed.username
+        or parsed.password
+        or (parsed.port not in (None, 443))
+    ):
+        raise ValueError("Grafana instance URL must be an HTTPS grafana.net host")
+    return f"https://{parsed.netloc}"
 
 
 def _cloudflare_get(client: httpx.Client, token: str, path: str) -> dict[str, Any]:
@@ -302,7 +351,7 @@ def fly_live_budget_items() -> list[dict[str, object]] | None:
 def _fetch_grafana_cloud_snapshot() -> dict[str, Any]:
     token = os.getenv("GRAFANA_CLOUD_API_KEY")
     url = os.getenv("GRAFANA_CLOUD_URL")
-    if not token or not url:
+    if not token:
         return {
             "status": "missing_token",
             "live_verified": False,
@@ -317,23 +366,41 @@ def _fetch_grafana_cloud_snapshot() -> dict[str, Any]:
         return dict(_grafana_cache)
 
     try:
-        if token.startswith("glc_"):
-            import base64
-            import json
-            padding = len(token[4:]) % 4
-            b64 = token[4:] + ("=" * padding)
-            payload = json.loads(base64.b64decode(b64).decode("utf-8"))
-            org_id = payload.get("o")
-            name = payload.get("n")
-        else:
-            raise ValueError("Token must start with glc_")
-
-        resources = [{
-            "kind": "organization",
-            "id": org_id,
-            "name": name,
-            "source": "grafana_api_readonly",
-        }]
+        with httpx.Client(timeout=GRAFANA_CLOUD_TIMEOUT_SECONDS) as client:
+            if token.startswith("glc_"):
+                metadata = _grafana_cloud_token_metadata(token)
+                region = _grafana_cloud_region(metadata)
+                _grafana_cloud_get(
+                    client,
+                    token,
+                    GRAFANA_CLOUD_API_URL,
+                    "/api/v1/accesspolicies",
+                    params={"region": region, "pageSize": "1"},
+                )
+                resources = [
+                    {
+                        "kind": "cloud_access_policy_identity",
+                        "region": region,
+                        "source": "grafana_api_readonly",
+                    }
+                ]
+            elif token.startswith("glsa_"):
+                instance_api_url = _grafana_instance_api_url(url)
+                permissions = _grafana_cloud_get(
+                    client,
+                    token,
+                    instance_api_url,
+                    "/api/access-control/user/permissions",
+                )
+                resources = [
+                    {
+                        "kind": "service_account_identity",
+                        "permission_count": len(permissions),
+                        "source": "grafana_api_readonly",
+                    }
+                ]
+            else:
+                raise ValueError("Grafana token must start with glc_ or glsa_")
         snapshot = {
             "status": "verified",
             "live_verified": True,
@@ -962,8 +1029,9 @@ def grafana_cloud_provider() -> dict[str, object]:
         last_checked_at=str(snapshot.get("last_checked_at") or utc_now()),
         non_claims=[
             "No Grafana Cloud API key value is returned by this endpoint.",
-            "Grafana Cloud identity is read-only and does not modify dashboards, alerts, or data sources.",
+            "Grafana Cloud identity is verified by a real read-only provider API request.",
             "No organization, stack, dashboard, alert, or data-source write is performed.",
+            "The identity read does not claim telemetry ingestion or configured stack availability.",
         ],
     )
     item["configured"] = configured

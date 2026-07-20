@@ -1,6 +1,6 @@
 # Verification Register - PATCHED
 
-Stand: 2026-07-19
+Stand: 2026-07-20
 Status: Active
 
 ## Current Progress Authority
@@ -16,6 +16,10 @@ Latest external audit truth: the canonical reproducible token-free standard boot
 ## Current R0 Runtime Truth Evidence
 
 `r0-canonical-runtime-truth-v1` makes `docs/runtime-state/external-gate-summary.json` authoritative for runtime release claims. The local Agent API now reports External Gates `action_required` with `5/6` configured and blocker `hosted_backend_origins`; the mirror reports `local_mirror_ready_hosted_blocked`; Deployment Preflight reports `action_required` with cloud and production claims `false`; Completion and Go-live Readiness report `blocked_external_gates`. Full static, runtime, and browser gates passed. The browser proof records 22 canonical pages, two viewports, 44 command-palette clicks, `overflow_failures=0`, `overlay_collision_failures=0`, and `console_errors=0`. Evidence: `.codex/runs/CURRENT/master-goal/r0-canonical-runtime-truth-20260719.md`. This is DEV-ONLY and changes no percentage.
+
+## Current T3 Read-only Cloud Evidence
+
+`cloud-provider-live-read-proof-v1` removes the former false-live Grafana behavior: decoding a `glc_` token is routing metadata only, while live verification requires an HTTP-successful read against the fixed Grafana Cloud API; `glsa_` service accounts use the allowlisted `*.grafana.net` permissions endpoint. Cloudflare token verification, GitHub identity, GHCR package-list, and Grafana Cloud reads returned HTTP 200 in `.phase1-artifacts/tooling-readiness-cloud-live-20260720-050831.json`. The runtime-bound verifier produced `.phase1-artifacts/cloud-provider-live-read-20260720-032243.json` with local inventory `8/8` and layer readiness `7/7`; it is wired into `npm run verify:runtime`. The owner-assisted audit `.phase1-artifacts/external-gate-audit-20260720-060043.json` is `blocked`, `production_deploy_claim_allowed=false`, and isolated as `docs/runtime-state/external-gate-summary.candidate-20260720-060043.json`; the canonical token-free summary is unchanged. This is DEV-ONLY read-only identity/inventory evidence. It does not prove Grafana telemetry ingestion or hosted backend parity; the configured stack endpoint returns HTTP 503, so Observability remains `99%` and Overall remains `84%`.
 
 ## Current Hosted Frontend Evidence
 

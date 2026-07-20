@@ -169,13 +169,18 @@ Rules:
 
 ### Grafana Cloud Live Read
 
-If `GRAFANA_CLOUD_API_KEY` is configured, the Agent API calls the Grafana Cloud read-only token-status endpoints or validates the OTLP connectivity.
+If `GRAFANA_CLOUD_API_KEY` is configured, the Agent API performs one real provider read:
+
+- `glc_` Cloud Access Policy tokens call fixed host `https://grafana.com/api/v1/accesspolicies` with `pageSize=1` and the validated region from the token metadata.
+- `glsa_` service-account tokens call `GET /api/access-control/user/permissions` on the configured HTTPS `*.grafana.net` instance.
 
 Rules:
 
 - The token is never returned.
-- `GRAFANA_CLOUD_URL` is treated as metadata only.
-- Grafana Cloud identity ensures Observability (Layer 7) is wired up correctly.
+- Decoding `glc_` routing metadata alone is never accepted as live evidence; the provider request must succeed.
+- Cloud Access Policy tokens are never sent to the Grafana instance HTTP API.
+- A successful identity read proves credential/provider access, not telemetry ingestion or stack availability.
+- `GRAFANA_CLOUD_URL` is metadata for `glc_` tokens and the allowlisted instance target for `glsa_` tokens.
 - No dashboard creation, log mutation, alert modification, or team configuration write is performed.
 
 ## Fail-Closed Rules

@@ -330,6 +330,8 @@ Assert-Contains "cloud layer readiness evidence" $cloudLayerReadiness '"evidence
 Assert-Contains "cloud layer readiness endpoint" $cloudLayerReadiness '"endpoint":"GET /api/v1/clouds/layers"'
 Assert-Contains "cloud layer readiness layer 7" $cloudLayerReadiness '"layer_id":"layer_7"'
 Assert-Contains "cloud layer readiness grafana" $cloudLayerReadiness 'grafana_cloud'
+& (Join-Path $PSScriptRoot "verify-cloud-provider-live-read.ps1") -BaseUrl $baseUrl -AllowLocalhost
+Assert-LastExitCode "cloud provider live-read proof"
 $cloudRenderOffloadContract = curl.exe -sS "$baseUrl/api/v1/clouds/render-offload/contract"
 Assert-Contains "cloud render offload contract version" $cloudRenderOffloadContract '"contract_version":"cloud-render-offload-surface-v1"'
 Assert-Contains "cloud render offload contract evidence" $cloudRenderOffloadContract '"evidence_ref":"cloud_render_offload_contract_runtime_visible"'

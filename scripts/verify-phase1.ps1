@@ -95,6 +95,10 @@ py -3 -m py_compile `
   services\mcp-gateway\app\main.py
 Assert-LastExitCode "python syntax"
 
+Write-Host "[verify] Grafana Cloud real-read regression tests"
+py -3 scripts\verify-grafana-cloud-live-read.py
+Assert-LastExitCode "Grafana Cloud real-read regression tests"
+
 Write-Host "[verify] llm responses adapter contract guard"
 if (-not (Test-Path "scripts\verify-llm-responses-contract.ps1")) {
   throw "Missing LLM responses adapter verifier"
@@ -1055,7 +1059,7 @@ $apiTaskPolicySource = Get-Content -Path "services\agent-api\app\main.py" -Raw
 if (-not $apiTaskPolicySource.Contains("task_policy_blocked")) { throw "Missing task policy audit event" }
 if (-not $apiTaskPolicySource.Contains("/api/v1/tasks/policy/validate")) { throw "Missing public task policy validation endpoint" }
 $cloudProviderSource = Get-Content -Path "services\agent-api\app\clouds.py" -Raw
-foreach ($required in @("cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "GET /api/v1/clouds", "GET /api/v1/clouds/layers", "seven_layer_mapping", "cloud_layer_readiness_state", "FLY_API_TOKEN", "fly_api_readonly", "CLOUDFLARE_API_TOKEN", "cloudflare_api_readonly", "CLOUDFLARE_DASHBOARD_URL", "VERCEL_TOKEN", "vercel_api_readonly", "GITHUB_TOKEN", "github_api_readonly", "GHCR_TOKEN", "ghcr_api_readonly", "HF_TOKEN", "huggingface_api_readonly", "GITLAB_TOKEN", "gitlab_api_readonly", "GRAFANA_CLOUD_API_KEY", "grafana_api_readonly", "No secret values", "mask_ip", "vercel_frontend", "cloudflare_edge", "github_actions", "ghcr_registry", "huggingface_identity", "gitlab_identity", "grafana_cloud")) {
+foreach ($required in @("cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "GET /api/v1/clouds", "GET /api/v1/clouds/layers", "seven_layer_mapping", "cloud_layer_readiness_state", "FLY_API_TOKEN", "fly_api_readonly", "CLOUDFLARE_API_TOKEN", "cloudflare_api_readonly", "CLOUDFLARE_DASHBOARD_URL", "VERCEL_TOKEN", "vercel_api_readonly", "GITHUB_TOKEN", "github_api_readonly", "GHCR_TOKEN", "ghcr_api_readonly", "HF_TOKEN", "huggingface_api_readonly", "GITLAB_TOKEN", "gitlab_api_readonly", "GRAFANA_CLOUD_API_KEY", "GRAFANA_CLOUD_API_URL", "/api/v1/accesspolicies", "/api/access-control/user/permissions", "grafana_api_readonly", "real read-only provider API request", "No secret values", "mask_ip", "vercel_frontend", "cloudflare_edge", "github_actions", "ghcr_registry", "huggingface_identity", "gitlab_identity", "grafana_cloud")) {
   if (-not $cloudProviderSource.Contains($required)) {
     throw "Missing cloud provider inventory source guard: $required"
   }
@@ -1063,6 +1067,12 @@ foreach ($required in @("cloud-provider-inventory-v1", "cloud_provider_inventory
 foreach ($required in @("cloud_provider_state", "cloud_layer_readiness_state", "/api/v1/clouds", "/api/v1/clouds/layers", "cloud-render-offload-v1", "cloud_render_offload_contract_visible", "/api/v1/clouds/render-offload/contract", "localhost_heavy_render_allowed", "cloud_render_offload_requires_STAGING_BASE_URL")) {
   if (-not $apiTaskPolicySource.Contains($required)) {
     throw "Missing cloud provider inventory API guard: $required"
+  }
+}
+$cloudProviderLiveReadVerifier = Get-Content -Path "scripts\verify-cloud-provider-live-read.ps1" -Raw
+foreach ($required in @("cloud-provider-live-read-proof-v1", "RequireT3ProviderSet", "DEV-ONLY; hosted proof still blocked.", "CLOUDFLARE_API_TOKEN", "GITHUB_TOKEN", "GHCR_TOKEN", "GRAFANA_CLOUD_API_KEY", "artifact contains secret material")) {
+  if (-not $cloudProviderLiveReadVerifier.Contains($required)) {
+    throw "Missing cloud provider live-read verifier guard: $required"
   }
 }
 foreach ($required in @(

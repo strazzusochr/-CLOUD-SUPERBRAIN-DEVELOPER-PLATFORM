@@ -97,7 +97,7 @@
   },
   "truth_policy": "Evidence-based only: percentages increase only after code, runtime proof, and verifier/doc update.",
   "binding_document": "docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md",
-  "last_verified": "2026-07-19",
+  "last_verified": "2026-07-20",
   "non_claims": [
     "No live LLM provider calls are enabled in the stateless backend gateway; hosted Cloudflare Workers AI has separate frontend proof.",
     "No production release readiness or release promotion is verified.",
