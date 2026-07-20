@@ -246,18 +246,35 @@ OWNER-BLOCKED benannt und begründet.
 
 ## T-QUEUE — strikt in dieser Reihenfolge
 
-### T1 — Production reparieren (D1) · Prio 0
+### T1 — Production reparieren (D1) · Prio 0 · 🔓 **VOLLAUTONOM FREIGEGEBEN**
 Production läuft auf `38af05d6`, HEAD ist `4fa2426d`. 8 Endpunkte liefern 500, `/media` ist kaputt.
+
+> **Owner-Freigabe 2026-07-20:** Der Production-Alias darf **selbst** umgelegt werden — **aber
+> ausschließlich nachdem das GRÜN-GATE erfüllt ist.** Nicht fragen, nicht warten. Bei Rot:
+> zurückrollen, Ursache fixen, erneut versuchen.
+>
+> **Betriebs-Deploy ≠ Release-Promotion.** Eine kaputte Production zu reparieren und einen neuen
+> Commit auszurollen ist ein **Betriebs-Deploy** und ist frei. Die **Release-Promotion** eines
+> immutable Release-Candidates (O5) bleibt an `MARKET_READY: true` gebunden. Nicht verwechseln.
+
 1. Clean-Archive aus **HEAD** (`git archive` → Temp **außerhalb** jedes Git-Worktrees →
    `.vercel/project.json` mit orgId/projectId → **leeres** `git init` ohne Commit).
 2. **Preview** deployen (Frontend **und** Backend), `--meta sourceCommitSha=<HEAD>`.
-3. `node scripts\verify-workspace-responsive-browser.cjs --base-url <PREVIEW> --browser-channel chrome`
-   → muss **22×2 = 44 Klicks, 0 Console-Fehler** liefern.
-4. Zusätzlich alle 8 vorher roten Endpunkte auf der Preview auf **200** prüfen.
-5. **Erst dann** Production-Alias umlegen. Danach dieselben 8 Endpunkte + `/media` erneut prüfen.
-6. Bei Rot: **sofort zurückrollen** und Ursache dokumentieren.
-- **DoD:** 32/32 Endpunkte hosted ohne 5xx · 44/44 Klicks grün · beide Aliase auf HEAD ·
-  PROOF_LEDGER-Zeile · Truth-Spiegel aktualisiert.
+3. **GRÜN-GATE — alle vier Bedingungen, sonst kein Production-Alias:**
+   | # | Bedingung | Befehl / Prüfung |
+   |---|---|---|
+   | 1 | 22×2 = **44 Klicks**, `console_errors=0`, `overflow_failures=0`, `overlay_collision_failures=0` | `node scripts\verify-workspace-responsive-browser.cjs --base-url <PREVIEW> --browser-channel chrome` |
+   | 2 | Die **8 vorher roten** Endpunkte liefern **200** (kein 5xx) | `agent-activity/recent`, `audit/mcp`, `audit/recent`, `escalations/recent`, `memory/consolidation/recent`, `rotation/events`, `sessions/recent`, `workspace/artifacts` |
+   | 3 | `npm run verify` **und** `npm run verify:runtime` grün auf **demselben** Commit | Exit 0 |
+   | 4 | Preview-`sourceCommitSha` == lokaler HEAD | Vercel-API read-only |
+4. **Erst wenn alle vier grün sind:** Production-Alias für **beide** Projekte umlegen.
+5. **Danach dieselben Prüfungen gegen Production wiederholen** (nicht annehmen — messen):
+   44 Klicks grün, 8 Endpunkte 200, `/media` ohne Console-500.
+6. **Bei Rot in Schritt 5:** sofort auf das vorherige READY-Deployment zurück-aliasen,
+   Ursache im Ledger dokumentieren, fixen, Schleife wiederholen.
+- **DoD:** 32/32 Endpunkte hosted ohne 5xx · 44/44 Klicks grün auf **Production** ·
+  beide Aliase auf HEAD · PROOF_LEDGER-Zeile · Truth-Spiegel + `frontend-hosted-current.json` +
+  `backend-hosted-current.json` auf die neuen Deployment-IDs aktualisiert.
 
 ### T2 — Freien Live-LLM-Pfad wiederherstellen (D2) · Prio 0
 `POST /api/v1/build` liefert hosted `503 llm_gateway_generation_unavailable`. Die Plattform kann in
@@ -306,6 +323,72 @@ Nichts löschen. Danach `npm run verify`.
 ### T7 — Endproof
 `npm run verify` → `verify:runtime` → `verify:browser` → Hosted-22×2 → `verify:market-ready`
 bis `MARKET_READY: true`. Erst dann `master-goal-final.md` mit Evidence-Index.
+
+---
+
+## 🔁 ARBEITSSCHLEIFE BIS MARKTREIFE (so lange laufen lassen, bis FERTIG)
+
+Codex arbeitet **durchgehend**, ohne Rückfrage, in dieser Schleife. Ein Turn endet **nicht**, weil
+ein Slice fertig ist — er endet erst, wenn `MARKET_READY: true` steht oder eine Wand berührt wird.
+
+```
+SCHLEIFE:
+  1. PFLICHT-PROTOKOLL prüfen (HEAD, origin, fremde dirty Dateien, laufende Prozesse)
+  2. CODEX_ZIELVERFOLGUNG_KURZ.md lesen -> ersten NICHT-grünen T-Punkt nehmen
+  3. Kleinsten vollständig beweisbaren Slice schneiden
+  4. Contract -> Implementierung -> dedizierter Verifier -> echter Runtime-/Browser-Beweis
+  5. Beweis GRUEN?
+       nein -> Ursache finden, fixen, zurueck zu 4.
+               3x derselbe Fehler -> Ansatz wechseln, im Status begruenden, weiterarbeiten
+       ja   -> weiter
+  6. Manifest-% NUR mit referenziertem Artefakt + verify_project_progress_manifest.py gruen
+  7. Truth-Spiegel synchronisieren (PROJECT_STATE, AI_HANDOFF, verification-register,
+     CODEX_MASTER_GOAL_FINALE, docs/RELEASE)
+  8. PROOF_LEDGER-Zeile (append-only, niemals eine alte Zeile umschreiben)
+  9. npm run verify -> commit (nur eigene Dateien) -> push auf den Arbeitsbranch
+ 10. UI-Aenderung? -> Preview-Deploy -> GRUEN-GATE -> Production-Alias -> hosted nachmessen
+ 11. npm run verify:market-ready
+       MARKET_READY: false -> zurueck zu 2.
+       MARKET_READY: true  -> master-goal-final.md schreiben -> FERTIG
+```
+
+**Anti-Stillstand-Regeln**
+- Ein langer Verifier ist **kein** Hänger. Laufzeiten hier sind normal: `verify` ~6 min (Gitleaks
+  ~3 min), `verify:runtime` ~9 min, `verify:browser` ~25–30 min (7 WebGL-Slices je 2–4 min).
+  **Nicht abbrechen** — abbrechen entwertet den Beweis.
+- Transiente Fehler kennen und unterscheiden: Agent-API-Healthcheck-Timeout beim Compose-Recreate,
+  Next-Dev-Chunk-Race, Worker-Queue-Reststate. Erst **standalone** wiederholen, bevor Code geändert
+  wird. Wenn standalone grün → war transient, nicht „fixen".
+- Nie zwei Browser-/Runtime-Verifier oder Docker-Builds parallel.
+- Nach jedem grünen Slice **sofort** weiter. Kein Wartezustand, keine Rückfrage.
+
+**Wann Codex stoppen darf — genau drei Fälle**
+1. `MARKET_READY: true` → `master-goal-final.md` → FERTIG.
+2. Eine der **vier Wände** blockiert → Owner-Action-Paket schreiben, **am Rest weiterarbeiten**,
+   erst stoppen, wenn wirklich nur noch Wand-Punkte offen sind.
+3. Das PFLICHT-PROTOKOLL schlägt an (alter Checkout, origin unerreichbar) → melden, nicht raten.
+
+**Der Endbericht (`master-goal-final.md`) enthält zwingend**
+- Evidence-Index: pro Matrixzelle Artefaktpfad + Zeitstempel
+- Vorher/Nachher je Route (22) und je Layer (7)
+- Liste aller Deployments mit `sourceCommitSha` und Deployment-ID
+- Die verbleibenden OWNER-BLOCKED-Punkte, exakt benannt, mit Owner-Action-Paket
+- Ausdrücklich: was **nicht** beansprucht wird (No-Claims)
+
+## 🔓 OWNER-FREIGABEN (Stand 2026-07-20 — ausführen, nicht fragen)
+
+| Punkt | Status | Auftrag |
+|---|---|---|
+| **T1 Betriebs-Deploy inkl. Production-Alias** | ✅ **frei** | Preview → GRÜN-GATE → Production selbst umlegen; bei Rot zurückrollen |
+| **O1** `vercel env` (Origins, `LLM_GATEWAY_BASE_URL`) | ✅ frei | erst Preview + Proof, dann Production |
+| **O5** Release-Promotion | ⏳ self-gated | **erst** wenn `verify:market-ready` echt `MARKET_READY: true` druckt |
+| **O7** stateful Backend | ✅ frei (**freier** Weg) | Neon Free / CF D1 + Hyperdrive **statt** Fly |
+| **B1** Live-LLM | ✅ frei | **Cloudflare Workers AI** als freier Live-Provider |
+| GitHub Branch-Protection / Repo-Variablen / Actions | ✅ frei | Protection auf `chore/repo-bootstrap` ist bereits korrekt |
+| Push | ✅ frei | **nur** `claude/cloud-superbrain-analysis-127d2e`, kein Force, kein main |
+
+> **Nicht verwechseln:** *Betriebs-Deploy* (kaputte Production reparieren, neuen Commit ausrollen)
+> ist frei. *Release-Promotion* (O5) bleibt an `MARKET_READY: true` gebunden.
 
 ## HARTE REGELN (unverhandelbar)
 - **No-Fake-Done / No-Fake-Live** — `frontend-projection`, `live:false`, `blocked`, `DEV-ONLY`

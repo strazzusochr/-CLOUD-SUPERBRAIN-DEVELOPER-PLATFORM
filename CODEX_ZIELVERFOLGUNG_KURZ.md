@@ -33,8 +33,15 @@ HEAD `4fa2426d` = origin, 0 unpushed · Manifest **84 %** · `MARKET_READY:false
   Das ist im Free-Only-Zielbild ungültig.
 
 ## ✅ T-QUEUE (Reihenfolge; PASS nur mit Beweis + PROOF_LEDGER-Zeile)
-- **T1 (Prio 0)** D1 fixen: HEAD als **Preview** deployen → 22×2 + die 8 Endpunkte grün →
-  **erst dann** Production-Alias. Bei Rot sofort zurückrollen.
+- **T1 (Prio 0) — VOLLAUTONOM FREIGEGEBEN, nicht fragen:** D1 fixen. HEAD als **Preview** deployen
+  → **GRÜN-GATE** (siehe unten) → **dann selbst den Production-Alias umlegen**. Bei Rot: sofort
+  zurückrollen, Ursache dokumentieren, erneut versuchen. Nicht auf den Owner warten.
+  **GRÜN-GATE für T1 (alle vier, sonst kein Production-Alias):**
+  1. 22 Routen × 2 Viewports = **44 Klicks**, `console_errors=0`, `overflow=0`, `overlay=0`
+  2. alle **8 vorher roten Endpunkte** auf der Preview **200** (kein 5xx)
+  3. `npm run verify` + `verify:runtime` grün auf demselben Commit
+  4. Preview-`sourceCommitSha` == lokaler HEAD
+  ➜ Danach dieselben Prüfungen **gegen Production wiederholen** und in den Ledger schreiben.
 - **T2 (Prio 0)** D2 fixen: **Cloudflare Worker als echtes LLM-Gateway** (Workers AI serverseitig),
   `LLM_GATEWAY_BASE_URL` per `vercel env` (O1: erst Preview + Proof).
   ⛔ Den Direktpfad **nicht** ins Frontend zurückholen — das war die Ursache.
@@ -54,11 +61,20 @@ HEAD `4fa2426d` = origin, 0 unpushed · Manifest **84 %** · `MARKET_READY:false
 4. Nur Artefakte mit **aktuellem** Zeitstempel gelten (Mai/Juni = Historie).
 5. Kein Deploy, während ein Hosted-Proof läuft.
 
-## 🔓 OWNER-FREIGABE (gilt weiter, vollautonom)
-`vercel env` + Deploy der zwei bestehenden Projekte (O1: **erst Preview + 22×2-Proof**) ·
-Promotion (O5) **sobald** `MARKET_READY: true` · freier Stateful-Weg statt Fly (O7) ·
-**Cloudflare Workers AI = freier Live-Provider** (B1) · GitHub Branch-Protection/Variablen/Actions.
-Push weiterhin **nur** `claude/cloud-superbrain-analysis-127d2e`, kein Force, kein main.
+## 🔓 OWNER-FREIGABE 2026-07-20 (vollautonom — ausführen, nicht fragen)
+- **Betriebs-Deploy inkl. Production-Alias: FREI.** Preview + Production der zwei bestehenden
+  Vercel-Projekte, Alias umlegen, Rollback — **sobald das GRÜN-GATE erfüllt ist**.
+  ⚠️ **Unterscheidung, die Codex nicht verwechseln darf:**
+  **Betriebs-Deploy** (kaputte Production reparieren, neuen Commit ausrollen) = **frei**.
+  **Release-Promotion** (immutable Release-Candidate zum Release erklären, O5) = **erst** bei
+  `MARKET_READY: true`.
+- `vercel env` setzen (O1) — erst Preview + Proof, dann Production; sonst zurückrollen.
+- Freier Stateful-Weg statt Fly (O7) · **Cloudflare Workers AI = freier Live-Provider** (B1) ·
+  GitHub Branch-Protection / Repo-Variablen / Actions.
+- Push weiterhin **nur** `claude/cloud-superbrain-analysis-127d2e`, kein Force, kein main.
+
+**Arbeitsmodus:** durchlaufen bis `MARKET_READY: true`. Nach jedem grünen Slice **sofort** den
+nächsten T-Punkt beginnen. Kein Zwischenstopp zur Rückfrage, außer eine der vier Wände wird berührt.
 
 ## ⛔ VIER WÄNDE (bleiben Owner-Aktion)
 1. **Zahlungsdaten/Kreditkarte** · 2. **Accounts mit Passwort** · 3. **CAPTCHA** ·
