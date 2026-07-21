@@ -535,9 +535,10 @@ foreach ($required in @(
   }
 }
 foreach ($required in @(
-  'overall: 84',
+  'overall: 86',
   '{ name: "Frontend", layer: 1, pct: 100 }',
   '{ name: "Orchestrator", layer: 2, pct: 100 }',
+  '{ id: "P2", pct: 100 }',
   '{ id: "P3", pct: 44 }',
   '{ id: "P4", pct: 100 }',
   '{ id: "P5", pct: 68 }',
@@ -831,6 +832,9 @@ $projectProgressManifest = Get-Content -Path "docs\project-progress.manifest.jso
 if (-not $projectProgressManifest.Contains("runtime-post-recreate-steady-state-proof")) {
   throw "Project progress manifest missing runtime post-recreate steady-state proof marker"
 }
+if (-not $projectProgressManifest.Contains("langgraph-postgres-checkpoint-restart-recovery-proof")) {
+  throw "Project progress manifest missing Phase 2 checkpoint restart recovery proof marker"
+}
 $projectProgress = $projectProgressManifest | ConvertFrom-Json
 $horizontalById = @{}
 foreach ($item in $projectProgress.horizontal.items) {
@@ -1013,8 +1017,8 @@ foreach ($mirror in $currentTruthMirrors) {
     throw "$($mirror.name) missing current token-free standard external gate audit: $currentAuditName"
   }
 }
-if (-not $masterGoal.Contains('`overall=84`')) {
-  throw "CODEX_MASTER_GOAL_FINALE.md missing current overall=84 marker"
+if (-not $masterGoal.Contains("``overall=$currentOverall``")) {
+  throw "CODEX_MASTER_GOAL_FINALE.md missing current overall=$currentOverall marker"
 }
 $externalGateSummary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
 if (-not ([string]$externalGateSummary.source_artifact).Contains($currentAuditName)) {
@@ -2438,7 +2442,7 @@ if (-not (Test-Path "scripts\verify-phase6-local-scoreboard-performance-runtime.
 $phase6ScoreboardParseErrors=$null; [Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase6-local-scoreboard-performance-runtime.ps1",[ref]$null,[ref]$phase6ScoreboardParseErrors)|Out-Null
 if($phase6ScoreboardParseErrors){$phase6ScoreboardParseErrors|%{Write-Error $_.Message};throw "Local scoreboard/performance verifier parse errors"}
 $phase6ScoreboardVerifier=Get-Content "scripts\verify-phase6-local-scoreboard-performance-runtime.ps1" -Raw
-foreach($required in @("manifest phase6 90","manifest overall 84","Phase-6 local scoreboard and performance sample stay browser-local","phase6-local-scoreboard-performance.png")){if(-not $phase6ScoreboardVerifier.Contains($required)){throw "Local scoreboard/performance verifier missing: $required"}}
+foreach($required in @("manifest phase6 90","manifest overall equals rounded horizontal phase average","Phase-6 local scoreboard and performance sample stay browser-local","phase6-local-scoreboard-performance.png")){if(-not $phase6ScoreboardVerifier.Contains($required)){throw "Local scoreboard/performance verifier missing: $required"}}
 foreach($required in @("phase6-scoreboard-performance-controls","phase6-leaderboard-capture","phase6-leaderboard-reset","phase6-performance-start","local_only=true","sync=false","storage=false","network=false")){if(-not $phase6OrganismView.Contains($required)){throw "Local scoreboard/performance UI missing: $required"}}
 foreach($required in @("Phase-6 local scoreboard and performance sample stay browser-local","phase6-local-scoreboard-performance.png","localStorage","indexedDB")){if(-not $phase6OrganismTest.Contains($required)){throw "Local scoreboard/performance test missing: $required"}}
 

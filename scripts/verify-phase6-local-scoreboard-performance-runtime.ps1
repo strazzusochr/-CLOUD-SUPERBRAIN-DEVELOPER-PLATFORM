@@ -92,7 +92,8 @@ Assert-Contains "workspace wiring" $wiring "/api/v1/phase6/local-scoreboard-perf
 $manifest = Get-Content (Join-Path $repoRoot "docs\project-progress.manifest.json") -Raw | ConvertFrom-Json
 $phase6 = @($manifest.horizontal.items) | Where-Object id -eq "phase_6" | Select-Object -First 1
 Assert-True "manifest phase6 90" ($null -ne $phase6 -and [int]$phase6.percent -eq 90)
-Assert-True "manifest overall 84" ([int]$manifest.overall_percent -eq 84)
+$expectedOverall = [int][Math]::Round((@($manifest.horizontal.items) | Measure-Object -Property percent -Average).Average)
+Assert-True "manifest overall equals rounded horizontal phase average" ([int]$manifest.overall_percent -eq $expectedOverall)
 foreach ($marker in @("phase6_local_scoreboard_performance_runtime_visible","local_top3_frame_sample_verified","phase6_local_leaderboard_runtime_visible","phase6_deterministic_top3_ordering_verified","phase6_performance_sample_runtime_visible","phase6_frame_budget_classification_verified","phase6_leaderboard_sync_blocked","phase6_capacity_claim_blocked")) { Assert-Contains "manifest marker" $phase6.status $marker }
 
 Write-Host "[phase6-scoreboard-performance] Chromium interaction proof"

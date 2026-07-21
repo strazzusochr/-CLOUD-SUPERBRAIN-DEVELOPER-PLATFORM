@@ -1,4 +1,4 @@
-# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-07-21 (Session 2) — autonom bis 100 % MARKTREIF
+# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-07-21 (Session 3) — autonom bis 100 % MARKTREIF
 # In JEDER Session: (1) diese Datei → (2) CODEX_UEBERGABE_2026-07-21.md → (3) arbeiten.
 
 ## ENDZIEL
@@ -7,9 +7,9 @@ Beide Matrizen **100 %**, jede Zelle mit echtem Artefakt. FINISH-LINE:
 als OWNER-BLOCKED gelistet, **nie gefaked** (R0 unverhandelbar).
 
 ## ✅ REALITÄT 2026-07-21 (Supervisor live gemessen)
-HEAD `985f5779` = origin · Overall **84 %** · MARKET_READY:false
-- **6 Zellen verifiziert auf 100:** P0, P1, P4, Frontend, Orchestrator, **Observability (heute NEU)**
-- Horizontal: `P0 100 · P1 100 · P2 86 · P3 44 · P4 100 · P5 68 · P6 90`
+Source-Baseline `c738d71b` = origin · Overall **86 %** · MARKET_READY:false
+- **7 Zellen verifiziert auf 100:** P0, P1, **P2**, P4, Frontend, Orchestrator, Observability
+- Horizontal: `P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 68 · P6 90`
 - Vertikal: `FE 100 · ORC 100 · OBS 100 · MEM 90 · AP 68 · LLM 54 · MCP 55`
 
 ## 🟢 L6 MEMORY 73→90 — HOSTED CLOUDFLARE D1 LIVE (2026-07-21, Owner spielte D1-Token ein)
@@ -38,20 +38,19 @@ Offen (echter Hosted-Proof): `live_llm_provider_calls` (CF Workers AI), `hosted_
 - **L4 (54):** **architektonisch dry-run-gesperrt.** `verify-llm-responses-contract.ps1` erzwingt
   `live_provider_calls == false` und verbietet `"live_provider_calls": True`. Das Gateway macht
   bewusst KEINE Live-Calls. L4 NICHT mit „live provider" hochsetzen — bricht den Verifier + fakt.
-- **L6 (73):** braucht gehosteten DB-Provider. CF-Token = Workers-AI-only, **D1-Probe live = HTTP 401**.
+- **L6 (90):** D1 ist live; fuer die letzten 10 % fehlt Vectorize. Der aktuelle read-only
+  Index-List-Probe endet mit HTTP 403, bis der Token `Vectorize:Edit` erhaelt.
 - **P6 (90):** Scale braucht Zahlung. Local-Load-Test = Overclaim, nicht auf 100 setzen.
 
 ## ✅ T-QUEUE — echter Fortschritt = Per-Marker-Evidence-Slices (kein Doppelzählen, kein Fake)
 Muster: pro Zelle die **noch nicht gutgeschriebenen, aber live-beweisbaren** Marker finden →
 echten Verifier bauen → gegen `localhost:8081` beweisen → Manifest-Marker + % (nur mit Artefakt) →
 `verify`-Kette → Ledger → Commit → Push → (wenn UI) Deploy + hosted nachweisen.
-- **T1 (Owner, kostenlos):** D1-Token einspielen → dann **L6 73→100 vollautonom** (D1 anlegen,
-  Schema/pgvector, `services/cloudflare-stateful-runtime/` deployen, Persistenz-Roundtrip beweisen).
-  **Größter freier Sprung (+27).** Token: CF-Dashboard → API Tokens → Custom → `D1:Edit` +
-  `Workers Scripts:Edit` → in `cloud-superbrain.local.env` als `CLOUDFLARE_API_TOKEN`.
-- **T2 P2 (86):** deterministische Runtime-Marker, die in `verify:runtime` schon grün sind, aber in
-  P2 noch nicht gutgeschrieben — PRÜFEN welche (nicht doppelt zählen), dann crediten.
-- **T3 Agent-Pool (68):** 4-Rollen-Execution / Worker-Status / Priority-Queue Marker prüfen+creditren.
+- **T1 (Owner, kostenlos):** Token um `Vectorize:Edit` erweitern; danach Index, Workers-AI-
+  Embeddings, Write/Query-Roundtrip, Worker-Verdrahtung und Hosted-Verifier fuer **L6 90→100**.
+- **T2 P2: DONE 100.** Der fehlende PostgreSQL-Checkpoint-Restart-Marker ist durch echten
+  Recreate/Vollverifier belegt und ohne Doppelzaehlung gutgeschrieben. Overall `84→86`.
+- **T3 NEXT — Agent-Pool (68):** 4-Rollen-Execution / Worker-Status / Priority-Queue Marker pruefen+creditren.
 - **T4 L5 MCP (55):** Dry-run-Safety / Version-Pinning / Audit-Feed Marker (nur read-only/dry-run).
 - **T5 P5 (68):** GHCR-Push-Beweis (Token vorhanden, aber Owner-Release-Grant nötig) + Release-Slices.
 - **P3 OAuth (Owner), P6 Scale (Zahlung), R0 production_deploy** = Wände, ehrlich als OWNER-BLOCKED.

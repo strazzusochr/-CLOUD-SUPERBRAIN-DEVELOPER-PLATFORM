@@ -13,6 +13,7 @@
   "proof_generated_at": "2026-07-20T18:53:31.4028624Z",
   "verification_artifact": ".codex/runs/CURRENT/master-goal/production/t1-21913f8c/backend-verification.json",
   "overall_percent": 84,
+  "progress_snapshot_scope": "embedded_at_source_commit",
   "phase_4_percent": 100,
   "integrity_status": "verified",
   "external_gates_status": "action_required",
@@ -38,6 +39,7 @@
   "non_claims": [
     "The Vercel Production target hosts a stateless read-only contract origin, not the stateful Docker backend stack.",
     "The immutable deployment remains protected; public reads and the fail-closed POST proof use the assigned Production Alias.",
+    "The embedded progress snapshot remains bound to the deployed source commit while the local canonical manifest may advance independently.",
     "The deployment-embedded canonical summary remains blocked at 5/6 with fly_cloud_stack open.",
     "This operational deployment does not claim release-candidate promotion, persistent workers, live MCP writes, or a full-platform production release."
   ]

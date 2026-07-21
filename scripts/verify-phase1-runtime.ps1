@@ -298,11 +298,24 @@ $projectProgressCompletionJson = $projectProgressCompletion | ConvertFrom-Json
 $projectProgressCompletionMissingGates = @($projectProgressCompletionJson.missing_external_gates | ForEach-Object { [string]$_ })
 $projectProgressCompletionHardBlockers = @($projectProgressCompletionJson.hard_blockers | ForEach-Object { [string]$_ })
 foreach ($requiredBlocker in @(
-  "live_llm_provider_calls_require_owner_gate_and_budget_guard",
   "production_auth_identity_requires_owner_configured_oauth_and_hosted_url",
   "docker_registry_publish_requires_owner_release_gate"
 )) {
   Assert-True "project progress completion current blocker present: $requiredBlocker" ($projectProgressCompletionHardBlockers -contains $requiredBlocker)
+}
+$capabilityGateState = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\docs\runtime-state\capability-gates.json") -Raw | ConvertFrom-Json
+$liveLlmCapability = $capabilityGateState.gates.live_llm_provider_calls
+$liveLlmCapabilityOpen = (
+  [bool]$liveLlmCapability.owner_granted -and
+  [bool]$liveLlmCapability.live_verified -and
+  -not [string]::IsNullOrWhiteSpace([string]$liveLlmCapability.evidence_artifact) -and
+  $liveLlmCapability.paid_provider -is [bool] -and
+  -not [bool]$liveLlmCapability.paid_provider
+)
+if ($liveLlmCapabilityOpen) {
+  Assert-True "project progress completion clears verified free live LLM blocker" (-not ($projectProgressCompletionHardBlockers -contains "live_llm_provider_calls_require_owner_gate_and_budget_guard"))
+} else {
+  Assert-True "project progress completion retains unverified live LLM blocker" ($projectProgressCompletionHardBlockers -contains "live_llm_provider_calls_require_owner_gate_and_budget_guard")
 }
 Assert-Contains "project progress completion local gap blocker" $projectProgressCompletion "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 

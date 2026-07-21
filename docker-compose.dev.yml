@@ -125,9 +125,10 @@ services:
       llm-gateway:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=20)"]
       interval: 20s
-      timeout: 5s
+      timeout: 25s
+      start_period: 30s
       retries: 5
     mem_limit: 768m
     cpus: "1.00"

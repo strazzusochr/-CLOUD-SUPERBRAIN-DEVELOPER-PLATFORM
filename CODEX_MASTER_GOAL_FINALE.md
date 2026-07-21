@@ -1,5 +1,5 @@
 # 🏁 CODEX MASTER GOAL — FINALE (bis Vollendung + fehlerfreier Beweis)
-# Version: 2026-07-20 (T1 Production-Betriebsreparatur verifiziert)
+# Version: 2026-07-21 (Phase 2 Runtime lokal geschlossen)
 # Führt CODEX_MASTER_GOAL.md zu Ende. Dieses Dokument ist der aktuelle Einstieg.
 
 ## DAS ZIEL IN EINEM SATZ
@@ -71,7 +71,7 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   als nicht-aktueller Kandidat gefuehrt (`docs/runtime-state/external-gate-summary.candidate-125413.json`)
   und ersetzt niemals den Standard; bestehende Credentials wurden nur transient geladen, ohne Ausgabe,
   Persistenz oder Audit-seitige Provider-Mutation. Das bindende Manifest steht bei
-  `overall=84`; das Frontend ist bereitgestellt, die Backend-Gesamtplattform wurde nicht
+  `overall=86`; das Frontend ist bereitgestellt, die Backend-Gesamtplattform wurde nicht
   als Production Release ausgerollt.
 - **R0 Runtime-Bindung:** Die lokalen Runtime-Endpunkte fuer External Gates, Mirror,
   Deployment Preflight, Completion und Go-live Readiness lesen die kanonische Summary und
@@ -79,6 +79,11 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   `npm run verify:runtime` und `npm run verify:browser` sind gruen; letzterer umfasst 22
   Seiten, zwei Viewports und 44 Klicks ohne Overflow-, Overlay- oder Console-Fehler.
   Evidence: `.codex/runs/CURRENT/master-goal/r0-canonical-runtime-truth-20260719.md`.
+- **Phase 2 Runtime:** Der fehlende siebte Pflichtbeweis ist gutgeschrieben. Ein
+  abgeschlossener LangGraph-Checkpoint wurde vor und nach echter `agent-api`-/`nginx`-
+  Recreation unter demselben `thread_id` aus PostgreSQL gelesen. Der fokussierte
+  Recreate-Probe und `npm run verify:runtime` sind gruen. Phase 2 `100%`, Overall `86%`.
+  Evidence: `.codex/runs/CURRENT/master-goal/phase2/checkpoint-restart-recovery-20260721.md`.
 - **T4 Frontend-Providergrenze:** Direkte Neon-, Cloudflare- und GitHub-Store-Pfade im
   Frontend sind entfernt. Acht Action-Routen nutzen nur Agent API, LLM Gateway oder MCP
   Gateway und bleiben ohne konfigurierte Grenze fail-closed; drei Vercel-Wrapper bleiben

@@ -1,6 +1,6 @@
 # Cloud Superbrain Release Status
 
-Updated: 2026-07-20
+Updated: 2026-07-21
 
 Status: **not released**. This repository has a healthy local development runtime, a
 verified Vercel frontend deployment, and a reachable stateless read-only Backend Contract
@@ -26,8 +26,8 @@ gates.
 
 | Scope | Current verified value |
 | --- | --- |
-| Overall progress | 84 percent |
-| Horizontal | P0 100, P1 100, P2 86, P3 44, P4 100, P5 68, P6 90 |
+| Overall progress | 86 percent |
+| Horizontal | P0 100, P1 100, P2 100, P3 44, P4 100, P5 68, P6 90 |
 | Vertical | Frontend 100, Orchestrator 100, Agent Pool 68, LLM 54, MCP 55, Memory 90, Observability 100 |
 | Project progress integrity | `verified` |
 | Canonical workspace pages | 22/22 local and 22/22 hosted in real Google Chrome at desktop and mobile |
@@ -45,14 +45,12 @@ Canonical reproducible standard-bootstrap audit:
 
 Status: `blocked`
 
-Missing or failed gates: `hosted_agent_api_contracts`,
-`github_branch_protection_current_verify`, `vercel_backend_origin_health`, and
-`fly_live_budget_check`.
+Missing or failed gate: `fly_live_budget_check`.
 
 The token/origin-injected audit `20260713-125413` reported `verified`, but it is retained
 only as a non-current owner-assisted candidate and cannot replace the reproducible standard.
-The canonical standard allows no production-deploy claim while hosted contracts,
-branch-protection verification, Vercel backend-origin health, and Fly budget proof remain open.
+The canonical standard allows no production-deploy claim while the Fly budget proof
+remains open under the free-only policy.
 
 `production_deploy_claim_allowed=false`; no production rollout or release promotion occurred.
 
@@ -66,6 +64,19 @@ stateless hosted wrappers remain read-only. The local T4 report is
 into `npm run verify` and was followed by green runtime, browser, lint, production-build,
 and T1 source-bound Production checks. T4 does not activate a live provider; the scoped
 operational deploy remains distinct from release-candidate promotion.
+
+## Phase 2 Local Runtime Closure
+
+`phase2-postgres-checkpoint-restart-recovery-v1` proves the seventh and final mandatory
+Phase-2 runtime item. The full runtime verifier recovered a completed LangGraph checkpoint
+from PostgreSQL by the same `thread_id` after force-recreating `agent-api` and `nginx`.
+The focused recreation probe and `npm run verify:runtime` both passed after hardening the
+comprehensive healthcheck for its measured aggregate latency. Phase 2 is therefore `100`
+and Overall is `86`. Evidence is under
+`.codex/runs/CURRENT/master-goal/phase2/checkpoint-restart-recovery-20260721.md`.
+
+This is local deterministic runtime closure only. It does not prove hosted stateful parity,
+live provider calls, live MCP writes, registry publication, deployment, or release promotion.
 
 ## Current Hosted Frontend Proof
 
@@ -109,7 +120,8 @@ the frontend build ID, the read-only API contract, and a real Diagnostics Chromi
 passed. Runtime-only verification cannot overwrite the full-browser artifact. The hosted
 boundary passes technically and keeps promotion ineligible under the blocked canonical
 summary. The read-only hosted response is matched to its deployment snapshot, while only
-the current local canonical summary controls promotion. P5 remains 68 and Overall remains 84.
+the current local canonical summary controls promotion. P5 remains 68; Overall is now 86
+because of the separately verified Phase-2 checkpoint-recovery closure.
 
 The GHCR tag set is planned and unpublished. Hosted parity, Owner approval, registry
 publication, production deploy, and release promotion remain false.

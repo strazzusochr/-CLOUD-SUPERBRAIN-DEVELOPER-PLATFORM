@@ -153,6 +153,7 @@ try {
   }
   Assert-Equal ([string]$config.vercel_scope) "strazzusochrs-projects" "Vercel scope"
   Assert-Equal ([int]$config.overall_percent) 84 "configured overall percent"
+  Assert-Equal ([string]$config.progress_snapshot_scope) "embedded_at_source_commit" "configured progress snapshot scope"
   Assert-Equal ([int]$config.phase_4_percent) 100 "configured Phase 4 percent"
   Assert-Equal ([string]$config.integrity_status) "verified" "configured integrity"
   Assert-True (@("verified", "action_required") -contains [string]$config.external_gates_status) "Configured external gate status is invalid"
@@ -188,11 +189,12 @@ try {
 
   $manifest = Get-Content -LiteralPath "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
   $manifestPhase4 = $manifest.horizontal.items | Where-Object { $_.id -eq "phase_4" } | Select-Object -First 1
-  Assert-Equal ([int]$manifest.overall_percent) ([int]$config.overall_percent) "manifest/config overall parity"
-  Assert-Equal ([int]$manifestPhase4.percent) ([int]$config.phase_4_percent) "manifest/config Phase 4 parity"
+  Assert-True ([int]$manifest.overall_percent -ge [int]$config.overall_percent) "Current manifest overall cannot regress below the deployment snapshot"
+  Assert-True ([int]$manifestPhase4.percent -ge [int]$config.phase_4_percent) "Current manifest Phase 4 cannot regress below the deployment snapshot"
+  $deploymentProgressSnapshotStale = [int]$manifest.overall_percent -ne [int]$config.overall_percent
 
   if ($StaticOnly) {
-    Write-Host "[backend-hosted-current] static checks completed"
+    Write-Host "[backend-hosted-current] static checks completed deployment_overall=$($config.overall_percent) current_manifest_overall=$($manifest.overall_percent) snapshot_stale=$($deploymentProgressSnapshotStale.ToString().ToLowerInvariant())"
     exit 0
   }
 
@@ -287,6 +289,8 @@ try {
     production_alias = $productionAlias
     vercel_target = $vercelTarget
     overall_percent = [int]$config.overall_percent
+    current_manifest_overall_percent = [int]$manifest.overall_percent
+    deployment_progress_snapshot_stale = $deploymentProgressSnapshotStale
     phase_4_percent = [int]$config.phase_4_percent
     integrity_status = "verified"
     external_gates_status = [string]$gates.Json.status
@@ -308,7 +312,7 @@ try {
     production_release_claimed = $false
   } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $verificationPath -Encoding utf8
 
-  Write-Host "[backend-hosted-current] status=verified target=$vercelTarget overall=$($config.overall_percent) phase4=$($config.phase_4_percent) gates=$($gates.Json.verified_count)/$($gates.Json.total_count) canonical=$($gates.Json.canonical_summary_status) read_only_post=503"
+  Write-Host "[backend-hosted-current] status=verified target=$vercelTarget deployment_overall=$($config.overall_percent) current_manifest_overall=$($manifest.overall_percent) snapshot_stale=$($deploymentProgressSnapshotStale.ToString().ToLowerInvariant()) phase4=$($config.phase_4_percent) gates=$($gates.Json.verified_count)/$($gates.Json.total_count) canonical=$($gates.Json.canonical_summary_status) read_only_post=503"
 } finally {
   Pop-Location
 }

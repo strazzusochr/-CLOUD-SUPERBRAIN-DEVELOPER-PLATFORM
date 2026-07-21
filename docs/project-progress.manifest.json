@@ -1,5 +1,5 @@
 {
-  "overall_percent": 84,
+  "overall_percent": 86,
   "progress_source": "docs/project-progress.manifest.json",
   "horizontal": {
     "label": "Phase progress",
@@ -19,8 +19,8 @@
       {
         "id": "phase_2",
         "label": "Phase 2 - Core Runtime",
-        "percent": 86,
-        "status": "agent-activity-per-role-results-visible-agent-result-aggregation-complete-partial-failure-guarded-force-agent-partial-failure-probe-runtime-proof-force-agent-partial-failure-probe-activity-feed-proof-dry-run-session-guard-runtime-proof-dry-run-stream-session-guard-proof-worker-status-regression-harness-stream-bounded-partial-failure-contract-audited-worker-stale-queued-finalization-proof-stream-parity-restored-local-transition-gate-ready-deterministic-four-role-agent-pool-execution-repeatable-browser-contract-harness-phase2-runtime-memory-consolidation-phase2-runtime-graph-started-phase2-runtime-run-status-visible-langgraph-global-retry-limit-enforced-langgraph-node-failure-bounded-all-protected-nodes-browser-triggered-phase2-runtime-proof-browser-memory-consolidation-proof-sse-replay-buffered-langgraph-hard-stop-audited-orchestrator-llm-gateway-stream-consumption-orchestrator-llm-routing-policy-preflight-llm-routing-policy-deny-hard-stop-llm-routing-policy-contract-evaluated-memory-context-injection-memory-updater-persisted-typed-task-assignment-mcp-safe-tool-proof-agent-profiles-runtime-contract-agent-profile-policy-enforced-devops-workflow-dispatch-contract-mcp-github-branch-pr-dry-run-contract-postgresql-readonly-query-contract-filesystem-workspace-scope-contract-playwright-browser-proof-contract-e2b-sandbox-lifecycle-contract-visible-contract-endpoint-trace-id-propagation-contract-budget-warning-proof-budget-hard-stop-proof-provider-fallback-structured-event-proof-phase2-sse-event-contract-proof-langgraph-mcp-timeout-controlled-proof"
+        "percent": 100,
+        "status": "agent-activity-per-role-results-visible-agent-result-aggregation-complete-partial-failure-guarded-force-agent-partial-failure-probe-runtime-proof-force-agent-partial-failure-probe-activity-feed-proof-dry-run-session-guard-runtime-proof-dry-run-stream-session-guard-proof-worker-status-regression-harness-stream-bounded-partial-failure-contract-audited-worker-stale-queued-finalization-proof-stream-parity-restored-local-transition-gate-ready-deterministic-four-role-agent-pool-execution-repeatable-browser-contract-harness-phase2-runtime-memory-consolidation-phase2-runtime-graph-started-phase2-runtime-run-status-visible-langgraph-global-retry-limit-enforced-langgraph-node-failure-bounded-all-protected-nodes-browser-triggered-phase2-runtime-proof-browser-memory-consolidation-proof-sse-replay-buffered-langgraph-hard-stop-audited-orchestrator-llm-gateway-stream-consumption-orchestrator-llm-routing-policy-preflight-llm-routing-policy-deny-hard-stop-llm-routing-policy-contract-evaluated-memory-context-injection-memory-updater-persisted-typed-task-assignment-mcp-safe-tool-proof-agent-profiles-runtime-contract-agent-profile-policy-enforced-devops-workflow-dispatch-contract-mcp-github-branch-pr-dry-run-contract-postgresql-readonly-query-contract-filesystem-workspace-scope-contract-playwright-browser-proof-contract-e2b-sandbox-lifecycle-contract-visible-contract-endpoint-trace-id-propagation-contract-budget-warning-proof-budget-hard-stop-proof-provider-fallback-structured-event-proof-phase2-sse-event-contract-proof-langgraph-mcp-timeout-controlled-proof-langgraph-postgres-checkpoint-restart-recovery-proof"
       },
       {
         "id": "phase_3",
@@ -97,11 +97,11 @@
   },
   "truth_policy": "Evidence-based only: percentages increase only after code, runtime proof, and verifier/doc update.",
   "binding_document": "docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md",
-  "last_verified": "2026-07-20",
+  "last_verified": "2026-07-21",
   "non_claims": [
     "No live LLM provider calls are enabled in the stateless backend gateway; hosted Cloudflare Workers AI has separate frontend proof.",
     "No production release readiness or release promotion is verified.",
-    "No Phase 2 full runtime is complete.",
+    "No hosted stateful Phase 2 parity or production release is claimed.",
     "Unexpected response type is not a completion or failure claim; backend smoke/status evidence is still required."
   ]
 }

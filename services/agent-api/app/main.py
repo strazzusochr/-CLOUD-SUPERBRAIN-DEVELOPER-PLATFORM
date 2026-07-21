@@ -5463,7 +5463,14 @@ def capability_gate_open(gate_id: str, state: dict[str, object] | None = None) -
     entry = gates.get(gate_id) if isinstance(gates, dict) else None
     if not isinstance(entry, dict):
         return False
-    return bool(entry.get("owner_granted")) and bool(entry.get("live_verified"))
+    # A capability claim is valid only with an owner grant, verifier-produced
+    # evidence, and a free-tier provider. Missing or malformed fields fail closed.
+    return (
+        bool(entry.get("owner_granted"))
+        and bool(entry.get("live_verified"))
+        and bool(str(entry.get("evidence_artifact", "")).strip())
+        and entry.get("paid_provider") is False
+    )
 
 
 def external_gate_summary_path() -> Path:

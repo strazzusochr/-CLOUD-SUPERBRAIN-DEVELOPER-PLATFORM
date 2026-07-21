@@ -88,7 +88,8 @@ foreach ($required in @("phase2_sse_event_contract_proof", "Last-Event-ID", "lan
 $manifest = Get-Content (Join-Path $repoRoot "docs\project-progress.manifest.json") -Raw | ConvertFrom-Json
 $layer = @($manifest.vertical.items) | Where-Object id -eq "layer_2" | Select-Object -First 1
 Assert-True "manifest orchestrator 100" ($null -ne $layer -and [int]$layer.percent -eq 100)
-Assert-True "manifest overall remains evidence-weighted 84" ([int]$manifest.overall_percent -eq 84)
+$expectedOverall = [int][Math]::Round((@($manifest.horizontal.items) | Measure-Object -Property percent -Average).Average)
+Assert-True "manifest overall equals rounded horizontal phase average" ([int]$manifest.overall_percent -eq $expectedOverall)
 foreach ($marker in @("orchestrator_completion_evidence_verified", "orchestrator_completion_success_runtime_proof", "orchestrator_completion_policy_hard_stop_proof", "orchestrator_completion_mcp_timeout_proof", "orchestrator_completion_checkpoint_audit_proof", "orchestrator_completion_browser_click_proof")) { Assert-Contains "manifest marker" $layer.status $marker }
 
 $projectId = "orchestrator-completion-" + [Guid]::NewGuid().ToString("N")
