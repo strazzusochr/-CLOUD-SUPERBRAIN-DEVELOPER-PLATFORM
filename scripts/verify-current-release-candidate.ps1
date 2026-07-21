@@ -159,6 +159,23 @@ git merge-base --is-ancestor $sourceSha HEAD
 if ($LASTEXITCODE -ne 0) {
   throw "Verification failed: active release source is not an ancestor of current HEAD."
 }
+$runtimeSourcePaths = @(
+  ".dockerignore",
+  "apps/frontend",
+  "services/agent-api",
+  "services/agent-worker",
+  "services/memory-worker",
+  "services/mcp-gateway",
+  "services/llm-gateway",
+  "docs/project-progress.manifest.json",
+  "docs/runtime-state/external-gate-summary.json",
+  "docs/codex-integration/autonomous-agent-roster.json"
+)
+$runtimeDiffArgs = @("diff", "--quiet", "$sourceSha..HEAD", "--") + $runtimeSourcePaths
+& git @runtimeDiffArgs
+if ($LASTEXITCODE -ne 0) {
+  throw "Verification failed: active release candidate has committed runtime-source drift from HEAD."
+}
 
 $rolloutArtifacts = @(Get-ChildItem "docs\release-artifacts" -Filter "prod-release-*.md" -File -ErrorAction SilentlyContinue)
 if ($rolloutArtifacts.Count -gt 0) {
@@ -183,7 +200,12 @@ foreach ($url in @(
 
 $manifest = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
 $progress = Get-Json "$BaseUrl/api/v1/project/progress" | ConvertFrom-Json
-Assert-Equal "hosted overall progress" ([int]$progress.overall_percent) ([int]$manifest.overall_percent)
+$expectedHostedOverall = if ($hostedBoundarySource -eq "canonical_read_only_contract_origin") {
+  [int]$backendState.overall_percent
+} else {
+  [int]$manifest.overall_percent
+}
+Assert-Equal "hosted overall progress" ([int]$progress.overall_percent) $expectedHostedOverall
 
 $integrity = Get-Json "$BaseUrl/api/v1/project/progress/integrity" | ConvertFrom-Json
 Assert-Equal "hosted integrity status" $integrity.status "verified"
@@ -221,4 +243,5 @@ if ($canonicalVerified) {
 }
 
 $promotionEligible = ($canonicalVerified -and [bool]$canonicalSummary.production_deploy_claim_allowed)
-Write-Host "[current-release-candidate] verified candidate_technical=true promotion_eligible=$($promotionEligible.ToString().ToLowerInvariant()) canonical=$($canonicalSummary.status) boundary=$hostedBoundarySource"
+$snapshotStale = ($expectedHostedOverall -ne [int]$manifest.overall_percent)
+Write-Host "[current-release-candidate] verified candidate_technical=true runtime_source_parity=true promotion_eligible=$($promotionEligible.ToString().ToLowerInvariant()) canonical=$($canonicalSummary.status) boundary=$hostedBoundarySource hosted_snapshot_overall=$expectedHostedOverall current_manifest_overall=$([int]$manifest.overall_percent) snapshot_stale=$($snapshotStale.ToString().ToLowerInvariant())"

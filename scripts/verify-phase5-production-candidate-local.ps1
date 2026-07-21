@@ -42,6 +42,21 @@ try {
   Assert-True "candidate source commit exists" ($LASTEXITCODE -eq 0)
   git merge-base --is-ancestor $candidateSourceSha HEAD 2>$null
   Assert-True "candidate source is an ancestor of HEAD" ($LASTEXITCODE -eq 0)
+  $runtimeSourcePaths = @(
+    ".dockerignore",
+    "apps/frontend",
+    "services/agent-api",
+    "services/agent-worker",
+    "services/memory-worker",
+    "services/mcp-gateway",
+    "services/llm-gateway",
+    "docs/project-progress.manifest.json",
+    "docs/runtime-state/external-gate-summary.json",
+    "docs/codex-integration/autonomous-agent-roster.json"
+  )
+  $runtimeDiffArgs = @("diff", "--quiet", "$candidateSourceSha..HEAD", "--") + $runtimeSourcePaths
+  & git @runtimeDiffArgs
+  Assert-True "candidate runtime source matches HEAD" ($LASTEXITCODE -eq 0)
   foreach ($marker in @(
     'environment: `production-candidate`',
     "immutable_image_commit_sha: ``$candidateSourceSha``",
@@ -74,10 +89,19 @@ try {
   Assert-Equal "report contract" $report.contract_version "phase5-production-candidate-local-v1"
   Assert-Equal "report evidence" $report.evidence_ref "phase5_local_production_candidate_verified"
   Assert-Equal "report status" $report.status "verified"
+  Assert-Equal "report release id" $report.release_id ([string]$candidateConfig.active_release_id)
   Assert-Equal "report source" $report.source_commit_sha $candidateSourceSha
   Assert-Equal "report source boundary" $report.source_boundary "committed_git_archive_only"
   Assert-True "archive hash" ([string]$report.git_archive_sha256 -match '^[0-9a-f]{64}$')
   Assert-Equal "service count" ([int]$report.service_count) 6
+  $manifest = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
+  $currentPhase5 = [int](($manifest.horizontal.items | Where-Object { $_.id -eq "phase_5" }).percent)
+  Assert-Equal "report phase before" ([int]$report.phase5_progress_before_proof) $currentPhase5
+  Assert-Equal "report phase after" ([int]$report.phase5_progress_after_proof) $currentPhase5
+  Assert-Equal "report progress credit" ([bool]$report.progress_credit_claimed) $false
+  Assert-True "candidate rollback target" ($candidate -match '(?m)^rollback_target_commit_sha:\s*`([0-9a-f]{40})`\s*$')
+  $candidateRollbackTarget = $Matches[1]
+  Assert-Equal "report rollback target" ([string]$report.rollback_target) $candidateRollbackTarget
   Assert-Equal "registry publish" ([bool]$report.registry_publish) $false
   Assert-Equal "hosted staging parity" ([bool]$report.hosted_staging_parity) $false
   Assert-Equal "production deploy" ([bool]$report.production_deploy) $false
@@ -136,6 +160,8 @@ try {
     api_contract_verified = $true
     local_image_identity_verified = $true
     embedded_source_hash_parity_verified = $true
+    candidate_runtime_source_parity_verified = $true
+    rollback_target = $candidateRollbackTarget
     browser_click_verified = (-not $SkipBrowser)
     registry_publish = $false
     hosted_staging_parity = $false
@@ -146,7 +172,7 @@ try {
   New-Item -ItemType Directory -Force -Path $ArtifactDir | Out-Null
   $verificationFile = if ($SkipBrowser) { "verification-runtime.json" } else { "verification.json" }
   $verification | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $ArtifactDir $verificationFile) -Encoding utf8
-  Write-Host "[phase5-candidate-local] status=verified service_count=6 browser_click_verified=$(-not $SkipBrowser) artifact=$verificationFile"
+  Write-Host "[phase5-candidate-local] status=verified service_count=6 source_parity=true progress_credit=false browser_click_verified=$(-not $SkipBrowser) artifact=$verificationFile"
 } finally {
   Pop-Location
 }

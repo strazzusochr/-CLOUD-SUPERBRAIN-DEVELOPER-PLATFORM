@@ -126,15 +126,16 @@ publication, release-candidate promotion, or a full-platform production release.
 
 ## Local Production Candidate Preparation
 
-Candidate `prod-candidate-2026-07-20-local-rc2` is locally verified against source
-commit `1d8304456a6a95a2a05de65cf0d576ee68c20733`. Six production targets were built
-only from a committed Git archive; local image IDs, OCI labels, embedded source hashes,
-the frontend build ID, the read-only API contract, and a real Diagnostics Chromium click
-passed. Runtime-only verification cannot overwrite the full-browser artifact. The hosted
-boundary passes technically and keeps promotion ineligible under the blocked canonical
-summary. The read-only hosted response is matched to its deployment snapshot, while only
-the current local canonical summary controls promotion. P5 remains 68; Overall is now 86
-because of the separately verified Phase-2 checkpoint-recovery closure.
+Candidate `prod-candidate-2026-07-21-local-rc3` is locally verified against current runtime
+source commit `90b57ecaa54e0ab750a57d0e1acfb33779675f5a`. Six production targets were built
+only from a committed Git archive after the GHCR workflow's four invalid Python-service
+build contexts were repaired to repository-root contexts. Local image IDs, OCI labels,
+embedded source hashes, the frontend build ID, committed runtime-source parity, the RC2
+rollback target, the read-only API contract, and a real Diagnostics Chromium click passed.
+Runtime-only verification cannot overwrite the full-browser artifact. The read-only hosted
+response is matched to its embedded `overall=84` deployment snapshot and is explicitly stale
+against the current local `overall=86`; only the current canonical summary controls promotion.
+P5 remains 68 because freshness repair is not new percentage credit; Overall remains 86.
 
 The GHCR tag set is planned and unpublished. Hosted parity, Owner approval, registry
 publication, production deploy, and release promotion remain false.

@@ -7,7 +7,7 @@ Beide Matrizen **100 %**, jede Zelle mit echtem Artefakt. FINISH-LINE:
 als OWNER-BLOCKED gelistet, **nie gefaked** (R0 unverhandelbar).
 
 ## ✅ REALITÄT 2026-07-21 (Supervisor live gemessen)
-Source-Baseline `3617aa9` = origin · Overall **86 %** · MARKET_READY:false
+Source-Baseline `90b57ec` = origin · Overall **86 %** · MARKET_READY:false
 - **7 Zellen verifiziert auf 100:** P0, P1, **P2**, P4, Frontend, Orchestrator, Observability
 - Horizontal: `P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 68 · P6 90`
 - Vertikal: `FE 100 · ORC 100 · OBS 100 · MEM 90 · AP 69 · LLM 54 · MCP 56`
@@ -54,8 +54,10 @@ echten Verifier bauen → gegen `localhost:8081` beweisen → Manifest-Marker + 
   kreditiert. Neu und einmalig: tokenfreier Hosted-D1-Readback eines terminalen Vier-Rollen-Runs.
 - **T4 L5 MCP: DONE 56.** Source-gebundener aktueller Contract Origin: Health, fuenf Dry-run-
   Vertraege, exakte Pins und Audit-Contract per tokenfreiem HTTPS GET; kein Tool-Execute/Write.
-- **T5 NEXT — P5 (68):** autonome Release-Slices ohne Push/Promotion; GHCR-Push und Release-
-  Promotion bleiben Owner-Gates.
+- **T5 P5: CURRENT RC3 DONE, bleibt 68.** GHCR-Kontexte repariert; sechs Clean-Archive-Images
+  aus `90b57ec`, Runtime-Source-Paritaet, RC2-Rollback und Chromium belegt. Kein Doppelcredit.
+- **T6 NEXT — L4 (54):** Cloudflare Preview Health + Modellliste source-gebunden und tokenfrei
+  per HTTPS GET beweisen; kein Inferenz-/Live-Provider-Claim.
 - **P3 OAuth (Owner), P6 Scale (Zahlung), R0 production_deploy** = Wände, ehrlich als OWNER-BLOCKED.
 
 ## 🚨 CODEX' PAUSIERTE ARBEIT — nicht wegwerfen

@@ -2914,7 +2914,10 @@ foreach ($required in @(
   'verification-runtime.json',
   'verification_scope',
   'runtime_without_browser',
-  'full_with_browser'
+  'full_with_browser',
+  'candidate runtime source matches HEAD',
+  'progress_credit_claimed',
+  'candidate_runtime_source_parity_verified'
 )) {
   if (-not $phase5LocalCandidateVerifier.Contains($required)) {
     throw "Phase5 local candidate verifier missing artifact-isolation guard: $required"
@@ -2933,7 +2936,11 @@ foreach ($required in @(
   'production_release_claimed',
   'external_gates_snapshot_scope',
   'external_gates_deployment_snapshot_source_artifact',
-  'embedded_at_source_commit'
+  'embedded_at_source_commit',
+  'active release candidate has committed runtime-source drift from HEAD',
+  'backendState.overall_percent',
+  'runtime_source_parity=true',
+  'snapshot_stale='
 )) {
   if (-not $currentReleaseCandidateVerifier.Contains($required)) {
     throw "Current release candidate verifier missing canonical gate classification: $required"

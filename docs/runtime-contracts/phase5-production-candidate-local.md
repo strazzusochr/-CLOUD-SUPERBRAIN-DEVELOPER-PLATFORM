@@ -27,15 +27,23 @@ promotion eligibility as separate claims. Its hosted external-gate expectation f
 the canonical sanitized summary. A blocked canonical summary can therefore verify the
 candidate boundary while promotion remains explicitly false.
 
+The active RC3 additionally requires no committed drift from its source commit to HEAD
+across the six service source trees, the root Docker context policy, the canonical progress
+manifest, external-gate state, and autonomous roster. The Vercel Contract Origin is checked
+against its own source-bound progress snapshot, not falsely against a newer local manifest.
+This freshness repair carries no additional percentage credit.
+
 ## Evidence
 
-- Candidate: `docs/release-artifacts/prod-candidate-2026-07-20-local-rc2.md`
+- Candidate: `docs/release-artifacts/prod-candidate-2026-07-21-local-rc3.md`
 - Builder: `scripts/build-phase5-production-candidate-local.ps1`
 - Verifier: `scripts/verify-phase5-production-candidate-local.ps1`
 - Report: `.codex/runs/CURRENT/master-goal/phase5/production-candidate-local/candidate-images.json`
 - Verification: `.codex/runs/CURRENT/master-goal/phase5/production-candidate-local/verification.json`
 - Runtime-only verification: `.codex/runs/CURRENT/master-goal/phase5/production-candidate-local/verification-runtime.json`
 - Screenshot: `.codex/runs/CURRENT/master-goal/phase5/production-candidate-local/diagnostics-phase5-production-candidate.png`
+- Candidate report SHA-256: `D1FCBD53D601B4BEE726F57B6EE12426B8DED130C4023A898D97846CB8513FBD`
+- Full verification SHA-256: `E5361F5E0B888C69C31DA4F0EEAC8B2C115FFB690C26816CDBC23D3577DB9A61`
 
 ## Non-Claims
 

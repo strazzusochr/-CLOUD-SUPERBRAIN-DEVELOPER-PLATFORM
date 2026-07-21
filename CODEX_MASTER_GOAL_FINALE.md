@@ -98,6 +98,12 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   `67281BB2B9CE8A411D88954D7604D9205E13726644FDA21BA0DE5673A596D15C`. Nur der neue
   Marker wird kreditiert: MCP Gateway `55% -> 56%`, Overall bleibt `86%`. Kein Token,
   MCP-Execute, Audit-Write, Provider-Write, stateful Backend-, Release- oder Production-Claim.
+- **Phase 5 Current Candidate RC3:** Vier fehlerhafte GHCR-Python-Service-Kontexte sind auf
+  den Repository-Root korrigiert. Sechs Images wurden aus dem Clean-Archive von
+  `90b57ecaa54e0ab750a57d0e1acfb33779675f5a` gebaut und auf OCI-/Source-Identitaet,
+  Frontend-`BUILD_ID`, Runtime-Source-Paritaet, RC2-Rollback und echten Diagnostics-Klick
+  verifiziert. Der Vercel Contract Origin bleibt ein stale read-only Snapshot (`84` vs lokal
+  `86`) und berechtigt keine Promotion. P5 bleibt ohne Doppelcredit `68%`.
 - **T4 Frontend-Providergrenze:** Direkte Neon-, Cloudflare- und GitHub-Store-Pfade im
   Frontend sind entfernt. Acht Action-Routen nutzen nur Agent API, LLM Gateway oder MCP
   Gateway und bleiben ohne konfigurierte Grenze fail-closed; drei Vercel-Wrapper bleiben

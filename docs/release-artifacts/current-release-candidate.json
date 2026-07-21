@@ -1,7 +1,7 @@
 {
-  "active_release_id": "prod-candidate-2026-07-20-local-rc2",
-  "updated_at": "2026-07-19T22:02:06Z",
+  "active_release_id": "prod-candidate-2026-07-21-local-rc3",
+  "updated_at": "2026-07-21T13:39:17.8705574Z",
   "updated_by": "codex-phase5-current-candidate-requalification",
-  "reason": "Requalify six content-addressed production service images from commit 1d8304456a6a95a2a05de65cf0d576ee68c20733 after candidate evidence isolation and canonical gate classification. GHCR publication, hosted stateful parity, Owner approval, release promotion, and production rollout remain explicitly blocked.",
+  "reason": "Requalify six content-addressed production service images from current runtime source commit 90b57ecaa54e0ab750a57d0e1acfb33779675f5a after repository-root GHCR build-context repair. GHCR publication, hosted stateful parity, Owner approval, release promotion, and production rollout remain explicitly blocked.",
   "production_rollout_claimed": false
 }
