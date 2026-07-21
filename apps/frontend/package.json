@@ -2,6 +2,10 @@
   "name": "cloud-superbrain-frontend",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20.9 <26"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",

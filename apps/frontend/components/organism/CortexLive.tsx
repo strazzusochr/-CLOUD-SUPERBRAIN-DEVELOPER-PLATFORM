@@ -51,10 +51,17 @@ type Props = {
   sourceLabel?: string;
 };
 
-class GLErrorBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
+class GLErrorBoundary extends Component<{
+  fallback: ReactNode;
+  children: ReactNode;
+  onFallback: () => void;
+}, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() {
     return { failed: true };
+  }
+  componentDidCatch() {
+    this.props.onFallback();
   }
   render() {
     return this.state.failed ? this.props.fallback : this.props.children;
@@ -89,7 +96,7 @@ export default function CortexLive(props: Props) {
 
   if (mode === "3d") {
     return (
-      <GLErrorBoundary fallback={<CortexCanvas {...props} />}>
+      <GLErrorBoundary fallback={<CortexCanvas {...props} />} onFallback={() => setMode("2d")}>
         <CortexCanvas3D
           runState={props.runState}
           nodeCount={props.nodeCount}
