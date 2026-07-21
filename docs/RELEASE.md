@@ -143,11 +143,11 @@ publication, release-candidate promotion, or a full-platform production release.
 
 ## Local Production Candidate Preparation
 
-Candidate `prod-candidate-2026-07-21-local-rc3` is locally verified against current runtime
-source commit `90b57ecaa54e0ab750a57d0e1acfb33779675f5a`. Six production targets were built
-only from a committed Git archive after the GHCR workflow's four invalid Python-service
-build contexts were repaired to repository-root contexts. Local image IDs, OCI labels,
-embedded source hashes, the frontend build ID, committed runtime-source parity, the RC2
+Candidate `prod-candidate-2026-07-21-local-rc4` is locally verified against current runtime
+source commit `0679f6ffda099a6fcddf6830839a195ebe7d13a7`. Six production targets were built
+only from a committed Git archive after the hosted LLM 503 repair and frontend fallback
+hardening. Local image IDs, OCI labels, embedded source hashes, the frontend build ID,
+committed runtime-source parity, the RC3
 rollback target, the read-only API contract, and a real Diagnostics Chromium click passed.
 Runtime-only verification cannot overwrite the full-browser artifact. The read-only hosted
 response is matched to its embedded `overall=84` deployment snapshot and is explicitly stale

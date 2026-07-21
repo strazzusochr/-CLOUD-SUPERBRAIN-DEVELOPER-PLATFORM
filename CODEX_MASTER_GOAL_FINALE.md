@@ -98,10 +98,10 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   `67281BB2B9CE8A411D88954D7604D9205E13726644FDA21BA0DE5673A596D15C`. Nur der neue
   Marker wird kreditiert: MCP Gateway `55% -> 56%`, Overall bleibt `86%`. Kein Token,
   MCP-Execute, Audit-Write, Provider-Write, stateful Backend-, Release- oder Production-Claim.
-- **Phase 5 Current Candidate RC3:** Vier fehlerhafte GHCR-Python-Service-Kontexte sind auf
-  den Repository-Root korrigiert. Sechs Images wurden aus dem Clean-Archive von
-  `90b57ecaa54e0ab750a57d0e1acfb33779675f5a` gebaut und auf OCI-/Source-Identitaet,
-  Frontend-`BUILD_ID`, Runtime-Source-Paritaet, RC2-Rollback und echten Diagnostics-Klick
+- **Phase 5 Current Candidate RC4:** Sechs Images wurden nach LLM-503-Reparatur und
+  Frontend-Fallback-Haertung aus dem Clean-Archive von
+  `0679f6ffda099a6fcddf6830839a195ebe7d13a7` gebaut und auf OCI-/Source-Identitaet,
+  Frontend-`BUILD_ID`, Runtime-Source-Paritaet, RC3-Rollback und echten Diagnostics-Klick
   verifiziert. Der Vercel Contract Origin bleibt ein stale read-only Snapshot (`84` vs lokal
   `86`) und berechtigt keine Promotion. P5 bleibt ohne Doppelcredit `68%`.
 - **LLM Preview Read-only Source Parity:** Der oeffentliche Cloudflare Preview Worker liefert

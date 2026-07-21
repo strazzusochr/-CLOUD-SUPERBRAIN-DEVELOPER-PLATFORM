@@ -54,8 +54,8 @@ echten Verifier bauen → gegen `localhost:8081` beweisen → Manifest-Marker + 
   kreditiert. Neu und einmalig: tokenfreier Hosted-D1-Readback eines terminalen Vier-Rollen-Runs.
 - **T4 L5 MCP: DONE 56.** Source-gebundener aktueller Contract Origin: Health, fuenf Dry-run-
   Vertraege, exakte Pins und Audit-Contract per tokenfreiem HTTPS GET; kein Tool-Execute/Write.
-- **T5 P5: CURRENT RC3 DONE, bleibt 68.** GHCR-Kontexte repariert; sechs Clean-Archive-Images
-  aus `90b57ec`, Runtime-Source-Paritaet, RC2-Rollback und Chromium belegt. Kein Doppelcredit.
+- **T5 P5: CURRENT RC4 DONE, bleibt 68.** Sechs Clean-Archive-Images aus `0679f6ff`,
+  Runtime-Source-Paritaet, RC3-Rollback und Chromium belegt. Kein Doppelcredit.
 - **T6 L4: DONE 55.** Cloudflare Preview Health + exakte Modellliste source-gebunden und
   tokenfrei per HTTPS GET; keine Inferenz, kein Provider-Write, kein Production-Worker-Claim.
 - **LLM 503: FIXED.** Preview + Production Mini-Build HTTP `200`; je Real-Chrome 22x2 gruen.

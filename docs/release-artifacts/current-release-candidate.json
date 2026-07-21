@@ -1,7 +1,7 @@
 {
-  "active_release_id": "prod-candidate-2026-07-21-local-rc3",
-  "updated_at": "2026-07-21T13:39:17.8705574Z",
+  "active_release_id": "prod-candidate-2026-07-21-local-rc4",
+  "updated_at": "2026-07-21T21:13:09.0376176Z",
   "updated_by": "codex-phase5-current-candidate-requalification",
-  "reason": "Requalify six content-addressed production service images from current runtime source commit 90b57ecaa54e0ab750a57d0e1acfb33779675f5a after repository-root GHCR build-context repair. GHCR publication, hosted stateful parity, Owner approval, release promotion, and production rollout remain explicitly blocked.",
+  "reason": "Requalify six content-addressed production service images from current runtime source commit 0679f6ffda099a6fcddf6830839a195ebe7d13a7 after the hosted LLM 503 repair and frontend fallback hardening. GHCR publication, hosted stateful parity, Owner approval, release promotion, and production rollout remain explicitly blocked.",
   "production_rollout_claimed": false
 }
