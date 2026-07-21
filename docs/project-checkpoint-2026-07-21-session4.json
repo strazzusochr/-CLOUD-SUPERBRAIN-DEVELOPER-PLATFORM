@@ -1,0 +1,178 @@
+{
+  "checkpoint_version": "cloud-superbrain-project-checkpoint-v1",
+  "checkpoint_id": "cloud-superbrain-anchor-2026-07-21T23-48-28+02-00-session4",
+  "created_at": "2026-07-21T23:48:28+02:00",
+  "workspace": "D:\\PLATTFORM\\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+  "branch": "claude/cloud-superbrain-analysis-127d2e",
+  "base_commit_sha": "a80c35619bb1826b15f4a729267778c1869ba290",
+  "base_commit_subject": "verify(release): requalify runtime candidate rc4",
+  "base_commit_pushed": true,
+  "origin_reachable": true,
+  "market_ready": false,
+  "progress": {
+    "overall_percent": 86,
+    "horizontal": {
+      "phase_0": 100,
+      "phase_1": 100,
+      "phase_2": 100,
+      "phase_3": 44,
+      "phase_4": 100,
+      "phase_5": 68,
+      "phase_6": 90
+    },
+    "vertical": {
+      "frontend": 100,
+      "orchestrator": 100,
+      "agent_pool": 69,
+      "llm_gateway": 55,
+      "mcp_gateway": 56,
+      "memory": 90,
+      "observability": 100
+    }
+  },
+  "completed_commits": [
+    {
+      "sha": "76f46446",
+      "subject": "verify(llm): bind hosted preview read-only parity",
+      "pushed": true
+    },
+    {
+      "sha": "0679f6ff",
+      "subject": "fix(frontend): stabilize browser fallback runtime",
+      "pushed": true
+    },
+    {
+      "sha": "a80c3561",
+      "subject": "verify(release): requalify runtime candidate rc4",
+      "pushed": true
+    }
+  ],
+  "hosted_llm_503_repair": {
+    "status": "verified",
+    "preview_and_production_mini_build_http_status": 200,
+    "preview_browser_clicks": 44,
+    "production_browser_clicks": 44,
+    "console_errors": 0,
+    "evidence": ".codex/runs/CURRENT/llm-gateway/frontend-build-503-fix/report.json",
+    "sha256": "B66A02387CD5CCA631947DAC7E6A99BF9B1E0BC5A498F6828437018794F42F0A"
+  },
+  "release_candidate": {
+    "release_id": "prod-candidate-2026-07-21-local-rc4",
+    "source_commit_sha": "0679f6ffda099a6fcddf6830839a195ebe7d13a7",
+    "rollback_commit_sha": "90b57ecaa54e0ab750a57d0e1acfb33779675f5a",
+    "service_count": 6,
+    "candidate_report_sha256": "A471CB2DB722D5E37130B710D59D9FF47A8F31844239D4C3064AF3B212DE13A6",
+    "verification_sha256": "1348B1640C3DF630D57DA29202F3076348319496ECA007D12E0B291197315EF4",
+    "promotion_eligible": false,
+    "registry_publish": false,
+    "production_rollout_claimed": false,
+    "requires_rc5_after_auth_commit": true
+  },
+  "in_progress_slice": {
+    "id": "phase3-auth-credential-issuance-fail-closed-v1",
+    "status": "implemented_focused_verified_not_committed",
+    "reason": "Arbitrary callback code/state and arbitrary unseen refresh tokens previously minted credentials.",
+    "progress_credit_claimed": false,
+    "intended_files": [
+      "services/agent-api/app/main.py",
+      "services/agent-api/tests/test_auth_security.py",
+      "apps/frontend/lib/endpointDefaults.ts",
+      "scripts/verify-phase3-auth-fail-closed.ps1",
+      "scripts/verify-browser-contract.ps1",
+      "scripts/verify-phase1-runtime.ps1",
+      "scripts/verify-hosted-staging.ps1",
+      "scripts/verify-phase3-auth-hosted.ps1",
+      "scripts/verify-phase5-auth-gate-recheck.ps1",
+      "scripts/verify-phase1.ps1",
+      "docs/runtime-contracts/phase3-auth-credential-issuance-fail-closed.md",
+      "docs/project-progress.manifest.json"
+    ],
+    "evidence": {
+      "report": ".codex/runs/CURRENT/phase3/auth-fail-closed/report.json",
+      "sha256": "C7E0B8D30B0D6725645D855765403E14F1502A75676CA6813BE48B864C6AD9AF",
+      "unit_tests_passed": 10,
+      "callback_arbitrary_status": 503,
+      "body_refresh_status": 400,
+      "unknown_cookie_refresh_status": 401,
+      "unknown_cookie_logout_status": 200,
+      "credentials_issued": false,
+      "live_github_oauth_call": false,
+      "secret_output": false,
+      "localhost_dev_only": true
+    },
+    "remaining_verification": [
+      "Parse and inspect the latest phase5 auth recheck edit.",
+      "Remove or supersede remaining insecure auth verifier and documentation assumptions.",
+      "Update all current truth mirrors and ADR-009 without increasing Phase 3 percentage.",
+      "Run progress manifest verifier.",
+      "Run npm run verify.",
+      "Run npm run verify:runtime.",
+      "Run npm run verify:browser.",
+      "Stage mixed scripts/verify-phase1.ps1 by hunk and exclude the foreign D1 block.",
+      "Commit and push the auth slice.",
+      "Build and verify RC5 from the committed auth source."
+    ]
+  },
+  "last_green_commands": [
+    {
+      "command": "npm run verify",
+      "status": "passed_before_auth_edits",
+      "duration_seconds": 205.9
+    },
+    {
+      "command": "npm run verify:phase5-candidate-local",
+      "status": "passed_rc4",
+      "browser_tests": "1/1"
+    },
+    {
+      "command": "npm run verify:current-release-candidate",
+      "status": "passed_rc4",
+      "promotion_eligible": false
+    },
+    {
+      "command": "py -3 -m unittest discover -s services/agent-api/tests -v",
+      "status": "passed_current_worktree",
+      "tests": "10/10"
+    },
+    {
+      "command": "scripts/verify-phase3-auth-fail-closed.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
+      "status": "passed_current_worktree"
+    }
+  ],
+  "docker": {
+    "compose_file": "docker-compose.dev.yml",
+    "healthy_services": 10,
+    "total_services": 10,
+    "resource_saver_disabled": true
+  },
+  "foreign_dirty_files": [
+    ".gitignore",
+    "apps/frontend/app/api/v1/build/route.ts",
+    "apps/frontend/app/run/[id]/page.tsx",
+    "apps/frontend/components/goal-b-actions.tsx",
+    "apps/frontend/lib/frontendBoundary.ts",
+    "apps/frontend/tsconfig.tsbuildinfo",
+    "package.json",
+    "scripts/verify-cloudflare-llm-gateway.ps1",
+    "apps/frontend/components/run-build.tsx",
+    "scripts/verify-cloudflare-stateful-runtime-local.ps1",
+    "scripts/verify-cloudflare-stateful-runtime.ps1",
+    "scripts/verify-stateful-build-browser.cjs",
+    "services/cloudflare-stateful-runtime/.gitignore"
+  ],
+  "mixed_ownership_files": {
+    "scripts/verify-phase1.ps1": {
+      "owned_changes": "Phase 3 auth marker, source, and focused-verifier guards",
+      "foreign_changes": "Cloudflare D1 stateful runtime static contract invocation",
+      "required_action": "partial-stage only the owned auth hunks"
+    }
+  },
+  "owner_walls": [
+    "payment_or_credit_card",
+    "password_account_creation",
+    "captcha",
+    "secret_value_disclosure_or_commit"
+  ],
+  "next_step": "Finish and fully verify the uncommitted Phase 3 auth fail-closed slice, update truth mirrors without progress inflation, commit/push it cleanly, then requalify RC5.",
+  "start_prompt": "CODEX_START_PROMPT_2026-07-21_SESSION4.md"
+}
