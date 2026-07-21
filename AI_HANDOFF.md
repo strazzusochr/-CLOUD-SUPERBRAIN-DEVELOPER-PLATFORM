@@ -51,7 +51,7 @@ Vertical:
 - Orchestrator / LangGraph: `100%`
 - Agent Pool: `69%`
 - LLM Gateway: `54%`
-- MCP Gateway: `55%`
+- MCP Gateway: `56%`
 - Memory: `90%`
 - Observability: `100%`
 
@@ -60,6 +60,8 @@ Older percentage lines below are historical proof points only. Current percentag
 Latest Phase 2 closure proof: `phase2-postgres-checkpoint-restart-recovery-v1` executed a completed deterministic LangGraph run, read its PostgreSQL checkpoint, force-recreated `agent-api` and `nginx`, and recovered the same terminal checkpoint by the original `thread_id`. The Compose healthcheck was hardened for the real aggregate health latency; both a focused recreation probe and the subsequent full `npm run verify:runtime` passed. Evidence: `.codex/runs/CURRENT/master-goal/phase2/checkpoint-restart-recovery-20260721.md`. This credits the seventh and final mandatory Phase-2 proof, raising Phase 2 `86% -> 100%` and Overall `84% -> 86%`. DEV-ONLY; no hosted stateful parity, live provider, live MCP write, registry, deploy, release, or production claim.
 
 Latest hosted Agent Pool read-only proof: `hosted-agent-pool-readonly-v1` revalidates the current Cloudflare D1 runtime over unauthenticated HTTPS GET only. The contract, persisted run list, and concrete run readback agree on the exact four roles `planner`, `coder`, `tester`, and `devops`, four completed persisted task rows, D1 checkpointing, and false live-provider, live-MCP-write, deployment, and secret-output claims. Evidence: `.codex/runs/CURRENT/master-goal/t3/agent-pool-hosted-readonly/report-20260721-102425.json` (SHA-256 `1631A518300AA53A8CC0A302A1A0E6C82B64D3367C1644DCBF749454F1859C73`). Existing four-role, worker-status, and priority-queue markers were already credited; only the new current hosted D1 readback marker raises Agent Pool `68% -> 69%`. No token, mutation, new run, Redis worker scaling, live LLM, live MCP, release, or production claim.
+
+Latest current hosted MCP read-only proof: `mcp-hosted-current-readonly-v1` binds the public Vercel Contract Origin to its recorded Production deployment and source snapshot, verifies blob parity for all seven deployed MCP source paths, and reads health, five dry-run contracts, exact dependency/tool pins, and the MCP audit contract over unauthenticated HTTPS GET only. Evidence: `.codex/runs/CURRENT/mcp-gateway/hosted-readonly-contract/report.json` (SHA-256 `67281BB2B9CE8A411D88954D7604D9205E13726644FDA21BA0DE5673A596D15C`). This credits only `mcp_current_hosted_readonly_contract_parity_verified`, raising MCP Gateway `55% -> 56%`; Overall remains `86%`. No token, MCP execution, audit write, provider write, stateful backend, release, or production claim.
 
 Latest local memory-safety proof: `memory-worker-secret-guard-v1` recursively inspects
 working-memory text plus nested metadata keys and values before persistence. A generated

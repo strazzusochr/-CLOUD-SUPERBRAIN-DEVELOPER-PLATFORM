@@ -838,6 +838,9 @@ if (-not $projectProgressManifest.Contains("langgraph-postgres-checkpoint-restar
 if (-not $projectProgressManifest.Contains("hosted_cloudflare_d1_four_role_agent_pool_readback_proof")) {
   throw "Project progress manifest missing hosted Agent Pool D1 readback proof marker"
 }
+if (-not $projectProgressManifest.Contains("mcp_current_hosted_readonly_contract_parity_verified")) {
+  throw "Project progress manifest missing current hosted MCP read-only parity proof marker"
+}
 $projectProgress = $projectProgressManifest | ConvertFrom-Json
 $horizontalById = @{}
 foreach ($item in $projectProgress.horizontal.items) {
@@ -2963,6 +2966,19 @@ foreach ($required in @(
   if (-not $marketReadyScript.Contains($required)) {
     throw "Market-ready verifier missing current gate guard: $required"
   }
+}
+
+Write-Host "[verify] current hosted MCP read-only verifier"
+if (-not (Test-Path "scripts\verify-mcp-hosted-current-readonly.ps1")) { throw "Missing current hosted MCP read-only verifier" }
+$hostedMcpReadOnlyParseErrors = $null
+[Management.Automation.Language.Parser]::ParseFile("scripts\verify-mcp-hosted-current-readonly.ps1", [ref]$null, [ref]$hostedMcpReadOnlyParseErrors) | Out-Null
+if ($hostedMcpReadOnlyParseErrors) { $hostedMcpReadOnlyParseErrors | ForEach-Object { Write-Error $_.Message }; throw "Current hosted MCP read-only verifier parse errors" }
+$hostedMcpReadOnlyVerifier = Get-Content "scripts\verify-mcp-hosted-current-readonly.ps1" -Raw
+foreach ($required in @("mcp-hosted-current-readonly-v1", "mcp_current_hosted_readonly_contract_parity_verified", "/mcp/api/v1/version-pinning/contract", "/api/v1/audit/mcp/contract", "source-bound backend verification artifact exists", "token_used = `$false", "provider_write = `$false")) {
+  if (-not $hostedMcpReadOnlyVerifier.Contains($required)) { throw "Current hosted MCP read-only verifier missing: $required" }
+}
+foreach ($forbidden in @("x-superbrain-agent-token", "-Method Post", "-Method Put", "-Method Patch", "-Method Delete", "Bearer ")) {
+  if ($hostedMcpReadOnlyVerifier.Contains($forbidden)) { throw "Current hosted MCP read-only verifier contains write/auth marker: $forbidden" }
 }
 
 Write-Host "[verify] hosted Agent Pool read-only verifier"

@@ -1,5 +1,5 @@
 # 🏁 CODEX MASTER GOAL — FINALE (bis Vollendung + fehlerfreier Beweis)
-# Version: 2026-07-21 (Phase 2 geschlossen, Hosted Agent Pool read-only belegt)
+# Version: 2026-07-21 (Phase 2 geschlossen, Hosted Agent Pool und MCP read-only belegt)
 # Führt CODEX_MASTER_GOAL.md zu Ende. Dieses Dokument ist der aktuelle Einstieg.
 
 ## DAS ZIEL IN EINEM SATZ
@@ -90,6 +90,14 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   Vier-Rollen-/Worker-/Priority-Queue-Evidence wird nicht doppelt gezaehlt; nur der neue
   Hosted-D1-Readback-Marker hebt Agent Pool `68% -> 69%`. Evidence:
   `.codex/runs/CURRENT/master-goal/t3/agent-pool-hosted-readonly/report-20260721-102425.json`.
+- **MCP Hosted Read-only Contract Parity:** Der source-gebundene Vercel Contract Origin
+  liefert per oeffentlichem HTTPS GET Health, fuenf Dry-run-Vertraege, exakte Dependency-/
+  Tool-Pins und den MCP-Audit-Vertrag mit HTTP `200`. Sieben deployte MCP-Quellpfade sind
+  zwischen Source `21913f8c3ef13949ca962980c143e757ca87a7cc` und HEAD blob-identisch.
+  Evidence: `.codex/runs/CURRENT/mcp-gateway/hosted-readonly-contract/report.json`, SHA-256
+  `67281BB2B9CE8A411D88954D7604D9205E13726644FDA21BA0DE5673A596D15C`. Nur der neue
+  Marker wird kreditiert: MCP Gateway `55% -> 56%`, Overall bleibt `86%`. Kein Token,
+  MCP-Execute, Audit-Write, Provider-Write, stateful Backend-, Release- oder Production-Claim.
 - **T4 Frontend-Providergrenze:** Direkte Neon-, Cloudflare- und GitHub-Store-Pfade im
   Frontend sind entfernt. Acht Action-Routen nutzen nur Agent API, LLM Gateway oder MCP
   Gateway und bleiben ohne konfigurierte Grenze fail-closed; drei Vercel-Wrapper bleiben

@@ -1,7 +1,7 @@
 # MCP Toolsets Runtime Contract
 
-Stand: 2026-04-23
-Status: Phase 1 safe envelope, audit persistence, timeout, blocked, and degraded paths implemented
+Stand: 2026-07-21
+Status: Phase 1 safe envelope plus current hosted read-only contract parity verified
 Phase: Phase 2 / WP-06
 Owner-Schicht: Schicht 5 - Tool-MCP-Schicht
 
@@ -11,6 +11,25 @@ Dieser Vertrag definiert die erlaubten MCP-Toolsets fuer den ersten Runtime-Ausb
 Er legt Request-Envelope, Rechte, Timeouts, Audit-Pflichten, Fehlerklassen und Stop-Gates fest.
 
 Dieser Vertrag ist in Phase 1 fuer sichere Envelope-, Timeout-, Blocked-, Degraded- und Audit-Persistenz-Pfade im MCP-Gateway aktiviert. Er startet keine Browser-Automation, keine E2B-Sandbox, keine Docker-Publishes, keine GitHub-Schreibaktion und gibt dem MCP-Gateway keine direkten Datenbankcredentials.
+
+## Current Hosted Read-only Proof
+
+`scripts/verify-mcp-hosted-current-readonly.ps1` bindet den oeffentlichen Vercel Contract
+Origin an Deployment `dpl_AQaBJxdQwHLcQKid8xYXkNJ3wva2`, Source
+`21913f8c3ef13949ca962980c143e757ca87a7cc` und das aufgezeichnete Backend-Verifikationsartefakt.
+Der Verifier beweist blob-identische aktuelle MCP-Deploymentquellen und liest ausschliesslich per
+HTTPS GET:
+
+1. MCP Health.
+2. GitHub-, PostgreSQL-, Filesystem-, Playwright- und E2B-Dry-run-Vertraege.
+3. Exakte Dependency- und Tool-Contract-Pins.
+4. Den MCP-Audit-Vertrag.
+
+Evidence: `.codex/runs/CURRENT/mcp-gateway/hosted-readonly-contract/report.json`, SHA-256
+`67281BB2B9CE8A411D88954D7604D9205E13726644FDA21BA0DE5673A596D15C`, Marker
+`mcp_current_hosted_readonly_contract_parity_verified`. Der Beweis verwendet keinen Token,
+fuehrt kein MCP-Tool aus und schreibt weder Audit- noch Providerdaten. Er beansprucht kein
+stateful Hosted Backend, keine Release-Freigabe und keinen Production Rollout.
 
 ## Phase-1-Runtime-Surface
 

@@ -28,7 +28,7 @@ gates.
 | --- | --- |
 | Overall progress | 86 percent |
 | Horizontal | P0 100, P1 100, P2 100, P3 44, P4 100, P5 68, P6 90 |
-| Vertical | Frontend 100, Orchestrator 100, Agent Pool 69, LLM 54, MCP 55, Memory 90, Observability 100 |
+| Vertical | Frontend 100, Orchestrator 100, Agent Pool 69, LLM 54, MCP 56, Memory 90, Observability 100 |
 | Project progress integrity | `verified` |
 | Canonical workspace pages | 22/22 local and 22/22 hosted in real Google Chrome at desktop and mobile |
 | Docker services | 10/10 healthy in the latest local check |
@@ -43,6 +43,13 @@ revalidates one existing Cloudflare D1-backed terminal run with exactly four com
 It uses no token and performs no write. This credits only
 `hosted_cloudflare_d1_four_role_agent_pool_readback_proof`, moving Agent Pool `68 -> 69`;
 worker scaling, priority-queue parity, live LLM/MCP activity, release, and production remain unclaimed.
+
+The current hosted MCP proof is also read-only: `scripts/verify-mcp-hosted-current-readonly.ps1`
+binds the public Vercel Contract Origin to its recorded deployment and unchanged MCP source blobs,
+then reads health, five dry-run contracts, exact pins, and the audit contract over HTTPS GET only.
+Evidence `.codex/runs/CURRENT/mcp-gateway/hosted-readonly-contract/report.json` credits only
+`mcp_current_hosted_readonly_contract_parity_verified`, moving MCP Gateway `55 -> 56` while
+Overall remains `86`. It executes no tool and performs no token, audit, provider, or release write.
 
 ## External Gate Status
 
