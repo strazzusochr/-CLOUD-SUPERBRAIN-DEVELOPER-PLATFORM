@@ -80,7 +80,7 @@ Letzte Aktualisierung: 2026-07-20
 | Agent Pool    | 68%    |
 | LLM Gateway   | 54%    |
 | MCP Gateway   | 55%    |
-| Memory        | 73%    |
+| Memory        | 90%    |
 | Observability | 100%   |
 
 ## LAUFENDE DOCKER-CONTAINER (cloud-superbrain-phase1-dev)

@@ -10,7 +10,19 @@ als OWNER-BLOCKED gelistet, **nie gefaked** (R0 unverhandelbar).
 HEAD `985f5779` = origin · Overall **84 %** · MARKET_READY:false
 - **6 Zellen verifiziert auf 100:** P0, P1, P4, Frontend, Orchestrator, **Observability (heute NEU)**
 - Horizontal: `P0 100 · P1 100 · P2 86 · P3 44 · P4 100 · P5 68 · P6 90`
-- Vertikal: `FE 100 · ORC 100 · OBS 100 · AP 68 · LLM 54 · MCP 55 · MEM 73`
+- Vertikal: `FE 100 · ORC 100 · OBS 100 · MEM 90 · AP 68 · LLM 54 · MCP 55`
+
+## 🟢 L6 MEMORY 73→90 — HOSTED CLOUDFLARE D1 LIVE (2026-07-21, Owner spielte D1-Token ein)
+Der Owner erstellte im CF-Dashboard einen D1-gescopeten Token. Supervisor hat vollautonom:
+D1 `cloud-superbrain-state-prod` angelegt (id `91520f43-5d38-4a31-9d5a-6fca890e1dd6`),
+`0001_foundation.sql` remote migriert, Worker deployt →
+**`https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev`**, `AGENT_API_AUTH_TOKEN`-
+Secret gesetzt. Beide Verifier hosted grün (5+5 Proofs: D1-health, auth-gate 401, create-read-
+delete-roundtrip, LangGraph 4-Rollen persistiert run/tasks/checkpoint/memory/audit). Capability-Gate
+`live_memory_provider` offen. **EHRLICHE GRENZE:** LEXICAL D1-Persistenz, KEINE pgvector-Vektorsuche —
+die letzten 10 % = Hosted-Vektorsuche via **Cloudflare Vectorize** (frei, aber braucht Vectorize-Scope
+im Token). Neue Secrets in `cloud-superbrain.local.env`: `CLOUDFLARE_API_TOKEN` (jetzt D1+Workers),
+`AGENT_API_AUTH_TOKEN`.
 - Production auf HEAD (beide Vercel-Aliase `985f5779`, 22×2 hosted 44-Klick grün, 0 Console-Fehler)
 
 ## 🔑 DER MECHANISMUS (Session 1, Commit f2a27b1b) — WARUM 100 % JETZT ERREICHBAR IST

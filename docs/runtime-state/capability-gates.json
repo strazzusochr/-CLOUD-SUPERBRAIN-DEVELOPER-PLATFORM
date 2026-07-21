@@ -71,12 +71,12 @@
                   "live_memory_provider":  {
                                                "owner_granted":  true,
                                                "owner_grant_ref":  "CODEX_UEBERGABE_2026-07-13.md :: OWNER-FREIGABE O7 (freier stateful Weg: Neon Free / Cloudflare D1 statt Fly)",
-                                               "live_verified":  false,
-                                               "evidence_artifact":  "",
-                                               "verified_at_utc":  "",
-                                               "provider":  "",
+                                               "live_verified":  true,
+                                               "evidence_artifact":  ".codex/runs/CURRENT/capability/live-memory-provider/report-20260721-041032.json",
+                                               "verified_at_utc":  "2026-07-21T04:10:32.0400387Z",
+                                               "provider":  "cloudflare_d1",
                                                "paid_provider":  false,
-                                               "verifier":  "",
+                                               "verifier":  "scripts/verify-live-memory-provider.ps1",
                                                "note":  "Owner granted the free path. Still needs a real free provider (Neon Free or Cloudflare D1 plus pgvector-compatible embeddings) with a live proof."
                                            },
                   "hosted_observability_endpoint":  {

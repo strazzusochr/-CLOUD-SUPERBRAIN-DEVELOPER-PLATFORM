@@ -1,0 +1,40 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cloud-superbrain-stateful-runtime",
+  "main": "src/index.js",
+  "compatibility_date": "2026-07-20",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cloud-superbrain-state-prod",
+      "database_id": "91520f43-5d38-4a31-9d5a-6fca890e1dd6",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "RUNTIME_MODE": "cloudflare_workers_d1_live",
+    "CONTRACT_ORIGIN": "https://cloud-superbrain-developer-platform.vercel.app"
+  },
+  "env": {
+    "preview": {
+      "name": "cloud-superbrain-stateful-runtime-preview",
+      "workers_dev": true,
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "cloud-superbrain-state-preview",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "vars": {
+        "RUNTIME_MODE": "cloudflare_workers_d1_live",
+        "CONTRACT_ORIGIN": "https://cloud-superbrain-developer-platform.vercel.app"
+      }
+    }
+  }
+}

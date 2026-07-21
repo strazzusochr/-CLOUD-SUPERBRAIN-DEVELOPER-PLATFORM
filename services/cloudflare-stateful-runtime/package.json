@@ -1,0 +1,22 @@
+{
+  "name": "@cloud-superbrain/cloudflare-stateful-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/index.js",
+    "test": "node --test test/*.test.js",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local --env preview --persist-to .wrangler/state",
+    "dev:local": "wrangler dev --local --env preview --persist-to .wrangler/state",
+    "deploy:preview": "wrangler deploy --env preview",
+    "deploy:production": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.112.0"
+  },
+  "dependencies": {
+    "@langchain/core": "1.1.48",
+    "@langchain/langgraph": "1.4.8",
+    "zod": "4.2.0"
+  }
+}
