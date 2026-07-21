@@ -147,7 +147,7 @@ export const MANIFEST = {
     { name: "LLM Gateway", layer: 4, pct: 54 },
     { name: "MCP Gateway", layer: 5, pct: 55 },
     { name: "Memory", layer: 6, pct: 73 },
-    { name: "Observability", layer: 7, pct: 99 },
+    { name: "Observability", layer: 7, pct: 100 },
   ],
   phases: [
     { id: "P0", pct: 100 },

@@ -82,12 +82,12 @@
                   "hosted_observability_endpoint":  {
                                                         "owner_granted":  true,
                                                         "owner_grant_ref":  "GRAFANA_CLOUD_API_KEY liegt vor; Grafana Cloud free tier",
-                                                        "live_verified":  false,
-                                                        "evidence_artifact":  "",
-                                                        "verified_at_utc":  "",
+                                                        "live_verified":  true,
+                                                        "evidence_artifact":  ".codex/runs/CURRENT/capability/hosted-observability/report-20260721-013156.json",
+                                                        "verified_at_utc":  "2026-07-21T01:31:56.1762995Z",
                                                         "provider":  "grafana_cloud",
                                                         "paid_provider":  false,
-                                                        "verifier":  "",
+                                                        "verifier":  "scripts/verify-grafana-cloud-ingestion.ps1",
                                                         "note":  "Grafana Cloud identity reads verify, but no hosted telemetry ingestion has been proven yet."
                                                     }
               },
