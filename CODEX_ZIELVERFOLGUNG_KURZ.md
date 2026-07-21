@@ -1,85 +1,75 @@
-# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-07-21 — autonom bis 100 % MARKTREIF
+# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-07-21 (Session 2) — autonom bis 100 % MARKTREIF
 # In JEDER Session: (1) diese Datei → (2) CODEX_UEBERGABE_2026-07-21.md → (3) arbeiten.
 
 ## ENDZIEL
-Beide Matrizen **100 %** (P0–P6 + FE/ORC/AP/LLM/MCP/MEM/OBS), jede Zelle mit echtem Artefakt.
-**FINISH-LINE:** `npm run verify:market-ready` druckt `MARKET_READY: true` → dann
-`master-goal-final.md` + FERTIG.
+Beide Matrizen **100 %**, jede Zelle mit echtem Artefakt. FINISH-LINE:
+`npm run verify:market-ready` druckt `MARKET_READY: true`. Owner-gated/gewallte Reste ehrlich
+als OWNER-BLOCKED gelistet, **nie gefaked** (R0 unverhandelbar).
 
-## 🔴 DER DURCHBRUCH: 100 % WAR VORHER UNMÖGLICH
-Die Blocker für **P2, P3, P6, L3, L4, L5, L6, L7** waren **hartcodierte Konstanten** ohne
-Auswertungspfad. Sie konnten nie fallen — `can_set_all_to_100` konnte **niemals** `True` werden.
-**Behoben:** Capability-Gates sind jetzt evidenzgetrieben
-(`docs/runtime-state/capability-gates.json` + `capability_gate_state()` in `main.py`).
+## ✅ REALITÄT 2026-07-21 (Supervisor live gemessen)
+HEAD `985f5779` = origin · Overall **84 %** · MARKET_READY:false
+- **6 Zellen verifiziert auf 100:** P0, P1, P4, Frontend, Orchestrator, **Observability (heute NEU)**
+- Horizontal: `P0 100 · P1 100 · P2 86 · P3 44 · P4 100 · P5 68 · P6 90`
+- Vertikal: `FE 100 · ORC 100 · OBS 100 · AP 68 · LLM 54 · MCP 55 · MEM 73`
+- Production auf HEAD (beide Vercel-Aliase `985f5779`, 22×2 hosted 44-Klick grün, 0 Console-Fehler)
 
-Ein Gate öffnet nur bei: `owner_granted` **UND** `live_verified` (nur Verifier!) **UND**
-`evidence_artifact` **UND** `paid_provider=false`. Fail-closed. Handedit = No-Fake-Verstoß.
+## 🔑 DER MECHANISMUS (Session 1, Commit f2a27b1b) — WARUM 100 % JETZT ERREICHBAR IST
+100 % war vorher **bauartbedingt unmöglich** (hartcodierte Completion-Blocker P2/P3/P6/L3–L7).
+Jetzt evidenzgetrieben: `docs/runtime-state/capability-gates.json` + `capability_gate_state()`.
+Ein Gate öffnet nur bei `owner_granted` ∧ `live_verified` (**nur Verifier setzt das!**) ∧
+`evidence_artifact` ∧ `paid_provider=false`. Fail-closed. **Handedit von live_verified = Fake-Verstoß.**
+Offen (echter Hosted-Proof): `live_llm_provider_calls` (CF Workers AI), `hosted_observability_endpoint`.
 
-**Erstes Gate offen, mit Hosted-Beweis:** `live_llm_provider_calls` →
-`phase_2` und `layer_4` sind von `blocked_external_gate` auf **`ready_for_evidence_slice`**.
+## ⚠️ KONKRETE BEFUNDE — was NICHT einfach hochsetzbar ist (Supervisor live geprüft)
+- **P3 (44):** CSP/CSRF/Cross-Origin/Signed-Session sind **bereits gutgeschrieben**. Kein Crediting.
+  Terminal-Blocker = `production_auth_identity` (OAuth, Owner).
+- **L4 (54):** **architektonisch dry-run-gesperrt.** `verify-llm-responses-contract.ps1` erzwingt
+  `live_provider_calls == false` und verbietet `"live_provider_calls": True`. Das Gateway macht
+  bewusst KEINE Live-Calls. L4 NICHT mit „live provider" hochsetzen — bricht den Verifier + fakt.
+- **L6 (73):** braucht gehosteten DB-Provider. CF-Token = Workers-AI-only, **D1-Probe live = HTTP 401**.
+- **P6 (90):** Scale braucht Zahlung. Local-Load-Test = Overclaim, nicht auf 100 setzen.
 
-## ✅ LIVE GEMESSEN (Production)
-`22/22 Routen = 200` · `32 API-Endpunkte = 0× 5xx` · `0 Konsolenfehler` auf 9 handgeklickten
-Seiten · External Gates **5/6** tokenfrei · Docker **10/10 healthy** · npm audit **0** ·
-Lint **0/0** · Manifest **84 %**, `MARKET_READY:false`.
-
-**Echte Hand-Klicks bewiesen:** Workbench-Build erzeugt 3 Dateien, **Uhr tickt live**
-(00:22:17 → 00:22:36, `@cf/qwen/qwen2.5-coder-32b-instruct`) · Login/Logout-Roundtrip mit
-signierter Session · 3D-Cortex mit Live-Ereignissen · `/evidence` zeigt echte Gate-Wahrheit.
-
-## ✅ T-QUEUE — Muster für JEDE Zelle
-> Capability-Verifier bauen → Gate mit echtem Beweis öffnen → Evidence-Slices → Prozent + Artefakt
-
-| # | Zelle | % | Gate | Frei? |
-|---|---|---|---|---|
-| **T1** | L7 | 99 | `hosted_observability_endpoint` — echte Telemetrie nach Grafana Cloud (Key da) | ✅ |
-| **T2** | P5 | 68 | `docker_registry_publish` — GHCR-Push mit Release-Gate (Token da) | ✅ |
-| **T3** | L5 | 55 | `live_mcp_writes` — MCP-Write + Branch-Protection + Audit | ✅ |
-| **T4** | L3 | 68 | `live_agent_tool_writes` — Agent schreibt real, mit Audit | ✅ |
-| **T5** | P6 | 90 | `phase6_scale_runtime` — Scale-Budget + Runtime-Proof unter Last | ✅ |
-| **T6** | P2/L4 | 86/54 | Gate **offen** → nur noch Evidence-Slices | ✅ |
-| **T7** | L6 | 73 | `live_memory_provider` — Neon Free / CF D1 + Embeddings | ⚠️ Account (Wand 2) |
-| **T8** | P3 | 44 | `production_auth_identity` — OAuth + Callback-URL | ⚠️ Owner-Config |
-| **T9** | P4 | 100 | `fly_live_budget_check` — **Kreditkarte** | ⛔ Wand 1 |
-
-**T9-Empfehlung:** Fly-Budget-Gate durch **Free-Tier-Budget-Gate** ersetzen (ADR schreiben,
-nicht still löschen). Dann fällt die letzte External-Gate-Blockade strukturell weg.
+## ✅ T-QUEUE — echter Fortschritt = Per-Marker-Evidence-Slices (kein Doppelzählen, kein Fake)
+Muster: pro Zelle die **noch nicht gutgeschriebenen, aber live-beweisbaren** Marker finden →
+echten Verifier bauen → gegen `localhost:8081` beweisen → Manifest-Marker + % (nur mit Artefakt) →
+`verify`-Kette → Ledger → Commit → Push → (wenn UI) Deploy + hosted nachweisen.
+- **T1 (Owner, kostenlos):** D1-Token einspielen → dann **L6 73→100 vollautonom** (D1 anlegen,
+  Schema/pgvector, `services/cloudflare-stateful-runtime/` deployen, Persistenz-Roundtrip beweisen).
+  **Größter freier Sprung (+27).** Token: CF-Dashboard → API Tokens → Custom → `D1:Edit` +
+  `Workers Scripts:Edit` → in `cloud-superbrain.local.env` als `CLOUDFLARE_API_TOKEN`.
+- **T2 P2 (86):** deterministische Runtime-Marker, die in `verify:runtime` schon grün sind, aber in
+  P2 noch nicht gutgeschrieben — PRÜFEN welche (nicht doppelt zählen), dann crediten.
+- **T3 Agent-Pool (68):** 4-Rollen-Execution / Worker-Status / Priority-Queue Marker prüfen+creditren.
+- **T4 L5 MCP (55):** Dry-run-Safety / Version-Pinning / Audit-Feed Marker (nur read-only/dry-run).
+- **T5 P5 (68):** GHCR-Push-Beweis (Token vorhanden, aber Owner-Release-Grant nötig) + Release-Slices.
+- **P3 OAuth (Owner), P6 Scale (Zahlung), R0 production_deploy** = Wände, ehrlich als OWNER-BLOCKED.
 
 ## 🚨 CODEX' PAUSIERTE ARBEIT — nicht wegwerfen
 `services/cloudflare-stateful-runtime/`, `scripts/verify-cloudflare-stateful-runtime*.ps1`,
-`apps/frontend/components/run-build.tsx`, dazu Änderungen an `build/route.ts`,
-`frontendBoundary.ts`, `run/[id]/page.tsx`, `package.json`. Das ist die O7-Arbeit.
-Beim Wiederaufnehmen zuerst `verify-cloudflare-stateful-runtime-local.ps1` grün bekommen.
+`run-build.tsx`, + Änderungen an `build/route.ts`, `frontendBoundary.ts`, `run/[id]/page.tsx`,
+`package.json`, `verify-cloudflare-llm-gateway.ps1`. Das ist die O7/LLM-Gateway-Arbeit — der
+Kern für T1 (L6). Beim Wiederaufnehmen zuerst `verify-cloudflare-stateful-runtime-local.ps1` grün.
 
-## 🔒 PFLICHT-PROTOKOLL vor JEDER Arbeit
-1. `git log -1` ≥ aktuellem HEAD UND origin erreichbar — sonst **STOPP**.
-2. Fremde dirty Dateien laufender Sessions **nie** anfassen.
-3. Läuft `verify-*` / `playwright` / `docker build`? Keine parallelen Verifier/Rebuilds.
-4. Nur Artefakte mit **aktuellem** Zeitstempel gelten.
-5. Kein Deploy, während ein Hosted-Proof läuft.
+## 🔒 PFLICHT-PROTOKOLL
+1. `git log -1` ≥ `985f5779` UND origin erreichbar — sonst STOPP.
+2. Fremde dirty Dateien NIE anfassen. 3. Kein paralleler verify/playwright/docker-build (killt Läufe!).
+4. **TEMP außerhalb `.codex\tmp` setzen** (`D:\_sb_tmp`) — sonst gitleaks-Selbst-Rekursion
+   („Filename too long"). 5. Nur aktuelle Artefakt-Zeitstempel gelten.
 
-## 🔓 OWNER-FREIGABE (vollautonom — ausführen, nicht fragen)
-Betriebs-Deploy inkl. Production-Alias (nach Grün-Gate) · `vercel env` (O1: erst Preview+Proof) ·
-freier Stateful-Weg statt Fly (O7) · **Cloudflare Workers AI = freier Live-Provider** (B1) ·
-GitHub Branch-Protection/Variablen/Actions · Push nur auf den Arbeitsbranch.
-**Release-Promotion (O5) erst bei `MARKET_READY: true`.**
+## 🔓 OWNER-FREIGABE (vollautonom)
+Betriebs-Deploy inkl. Production-Alias (nach Grün-Gate: 44 Klicks + 8 Endpunkte 200 + verify grün) ·
+`vercel env` (O1) · freier Weg statt Fly (O7) · CF Workers AI = Live-Provider (B1) · GitHub.
+Push nur `claude/cloud-superbrain-analysis-127d2e`, kein Force/main. Release-Promotion (O5) erst
+bei `MARKET_READY: true`.
 
-## ⛔ VIER WÄNDE
-1. **Zahlungsdaten/Kreditkarte** · 2. **Accounts mit Passwort** · 3. **CAPTCHA** ·
-4. **Secret-Werte ausgeben/committen**
-→ Owner-Action-Paket schreiben, am Rest weiterarbeiten, **niemals faken**.
+## ⛔ VIER WÄNDE (kein Agent, auch nicht mit Root)
+1. Kreditkarte/Zahlung · 2. Passwort-Accounts · 3. CAPTCHA · 4. Secrets ausgeben/committen.
 
 ## HARTE REGELN
-No-Fake-Done/Live — `live_verified` nie handsetzen · R0: kanonisch = tokenfreier Bootstrap ·
-No Secrets (transient, presence-only) · Free-Only: `paid_provider=true` schließt immer ·
-Localhost = DEV-ONLY · Proof-Tools nur aus PowerShell · Vercel-Deploy nur per Clean-Archive ·
-Budget: 1 Mini-Prompt pro LLM-Beweis.
-
-## DONE heißt (sonst OFFEN)
-Ausgeführt (frischer Report, neuer als der Code) · reale Werte per Assert VOR Report-Write ·
-in `npm run verify:*` verdrahtet · Manifest-% nur mit referenziertem Artefakt · Ledger-Zeile ·
-committed + gepusht + (wenn UI) deployt **und hosted nachgewiesen**.
+No-Fake-Done/Live — `live_verified` nie handsetzen; Marker nur mit echtem Proof; keine Doppelzählung ·
+R0: kanonisch = tokenfreier Bootstrap, `production_deploy_claim_allowed` NICHT flippen ·
+Free-Only: `paid_provider=true` schließt immer · Localhost=DEV-ONLY · Proof-Tools nur aus PowerShell.
 
 ## FERTIG heißt exakt
-`MARKET_READY: true` → `master-goal-final.md` mit Evidence-Index. ODER: alles Autonome echt
-100 % + Rest exakt als OWNER-BLOCKED gelistet. Nichts anderes ist ein Ende.
+`MARKET_READY: true` → `master-goal-final.md`. ODER: alles Autonome echt 100 % + Rest exakt als
+OWNER-BLOCKED (mit Owner-Action-Paket). Nichts anderes.
