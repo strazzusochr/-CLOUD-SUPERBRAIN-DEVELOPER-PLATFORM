@@ -2,6 +2,29 @@
 # Ergänzt CODEX_UEBERGABE_2026-07-21.md. Alles gemessen, nichts zitiert.
 # Reihenfolge: (1) CODEX_ZIELVERFOLGUNG_KURZ.md → (2) diese Datei → (3) arbeiten.
 
+## ⭐ NEUESTER STAND (Session 2b, HEAD 807553b) — L6 HOSTED D1 LIVE
+- **L6 Memory 73 → 90 %** (Commit `807553b`). Owner spielte einen D1-gescopeten CF-Token ein.
+  Supervisor hat vollautonom das freie Hosted-Stateful-Backend gebaut+deployt:
+  - D1-DB `cloud-superbrain-state-prod` (id `91520f43-5d38-4a31-9d5a-6fca890e1dd6`) angelegt
+  - `0001_foundation.sql` remote migriert
+  - Worker deployt → **`https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev`**
+  - `AGENT_API_AUTH_TOKEN`-Secret auf Worker gesetzt (auch in `cloud-superbrain.local.env`)
+  - Beide Verifier hosted grün: `scripts/verify-cloudflare-stateful-runtime.ps1` (5 Tests) +
+    `scripts/verify-live-memory-provider.ps1` (Capability-Gate `live_memory_provider` geöffnet)
+- **Matrix jetzt:** Overall 84 % · FE 100 · ORC 100 · OBS 100 · **MEM 90** · AP 68 · LLM 54 · MCP 55.
+- **L6 letzte 10 % = Hosted-Vektorsuche (Cloudflare Vectorize).** D1 ist LEXICAL, kein pgvector.
+  Wenn der Owner dem Token `Vectorize:Edit` gibt (gleiches Dashboard): Vectorize-Index anlegen,
+  Embeddings (bge über Workers AI) schreiben+abfragen, im Worker verdrahten → L6 → 100.
+- **Neue Secrets in `cloud-superbrain.local.env`:** `CLOUDFLARE_API_TOKEN` (jetzt D1+Workers, `cfut_`),
+  `AGENT_API_AUTH_TOKEN`. **GOTCHA:** `CLOUDFLARE_ACCOUNT_ID` steht mit `"..."` → immer `.Trim('"')`.
+- **gitleaks-Bug (der „Hänger"):** IMMER `$env:TEMP='D:\_sb_tmp'` VOR verify setzen (außerhalb
+  Scan-Baum), sonst kopiert der Scan seinen eigenen Rest-Mirror rekursiv → „Filename too long".
+- **wrangler-Befehle:** `node services/cloudflare-stateful-runtime/node_modules/wrangler/bin/wrangler.js`,
+  Env `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` (getrimmt) + `CI=true` setzen.
+- **Owner-Redeploy-Sync offen:** platform.ts zeigt MEM 90; Hosted-`/evidence` erst nach Frontend-Redeploy.
+
+---
+
 ## 0. WAS DIESE SESSION REAL GELIEFERT HAT (committet + gepusht + hosted-getestet)
 
 | Ergebnis | Beweis / Commit |
