@@ -1,5 +1,5 @@
 # 🏁 CODEX MASTER GOAL — FINALE (bis Vollendung + fehlerfreier Beweis)
-# Version: 2026-07-21 (Phase 2 Runtime lokal geschlossen)
+# Version: 2026-07-21 (Phase 2 geschlossen, Hosted Agent Pool read-only belegt)
 # Führt CODEX_MASTER_GOAL.md zu Ende. Dieses Dokument ist der aktuelle Einstieg.
 
 ## DAS ZIEL IN EINEM SATZ
@@ -84,13 +84,19 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   Recreation unter demselben `thread_id` aus PostgreSQL gelesen. Der fokussierte
   Recreate-Probe und `npm run verify:runtime` sind gruen. Phase 2 `100%`, Overall `86%`.
   Evidence: `.codex/runs/CURRENT/master-goal/phase2/checkpoint-restart-recovery-20260721.md`.
+- **Agent Pool Hosted Readback:** Ein tokenfreier HTTPS-GET-Verifier liest den aktuellen
+  Cloudflare-D1-Contract, einen persistierten terminalen Lauf und exakt vier abgeschlossene
+  Rollen-Tasks (`planner`, `coder`, `tester`, `devops`) zurueck. Bereits kreditiertes lokales
+  Vier-Rollen-/Worker-/Priority-Queue-Evidence wird nicht doppelt gezaehlt; nur der neue
+  Hosted-D1-Readback-Marker hebt Agent Pool `68% -> 69%`. Evidence:
+  `.codex/runs/CURRENT/master-goal/t3/agent-pool-hosted-readonly/report-20260721-102425.json`.
 - **T4 Frontend-Providergrenze:** Direkte Neon-, Cloudflare- und GitHub-Store-Pfade im
   Frontend sind entfernt. Acht Action-Routen nutzen nur Agent API, LLM Gateway oder MCP
   Gateway und bleiben ohne konfigurierte Grenze fail-closed; drei Vercel-Wrapper bleiben
   zustandslos und read-only. Static-, Runtime-, Browser-, Lint- und Build-Gates sind gruen.
   Evidence: `.codex/runs/CURRENT/master-goal/t4/frontend-provider-boundary/report.json` und
   `.codex/runs/CURRENT/master-goal/production/t1-21913f8c`.
-  Overall bleibt `84%`; Release-Promotion und Live-Provider-Aktivierung sind unbeansprucht.
+  Overall bleibt `86%`; Release-Promotion und Live-Provider-Aktivierung sind unbeansprucht.
 - **Phase 1 ✔ (1.1–1.5), Phase 2 ✔ (2.1–2.3).** Class-Matrix A=85/B=0/C=5/D=4.
 - **Phase 3 deployt (~80 %):** S1 Build-Log-Grid, S2 Media/Docs-Entflechtung,
   S3 Apps-Kuration, S4 ehrliche Idle-Texte, S5 Hero-Labels, S6 /observe-Ehrlichkeit,

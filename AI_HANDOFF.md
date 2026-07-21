@@ -49,7 +49,7 @@ Vertical:
 
 - Frontend / Next.js: `100%`
 - Orchestrator / LangGraph: `100%`
-- Agent Pool: `68%`
+- Agent Pool: `69%`
 - LLM Gateway: `54%`
 - MCP Gateway: `55%`
 - Memory: `90%`
@@ -58,6 +58,8 @@ Vertical:
 Older percentage lines below are historical proof points only. Current percentages must come from this section and `docs/project-progress.manifest.json`.
 
 Latest Phase 2 closure proof: `phase2-postgres-checkpoint-restart-recovery-v1` executed a completed deterministic LangGraph run, read its PostgreSQL checkpoint, force-recreated `agent-api` and `nginx`, and recovered the same terminal checkpoint by the original `thread_id`. The Compose healthcheck was hardened for the real aggregate health latency; both a focused recreation probe and the subsequent full `npm run verify:runtime` passed. Evidence: `.codex/runs/CURRENT/master-goal/phase2/checkpoint-restart-recovery-20260721.md`. This credits the seventh and final mandatory Phase-2 proof, raising Phase 2 `86% -> 100%` and Overall `84% -> 86%`. DEV-ONLY; no hosted stateful parity, live provider, live MCP write, registry, deploy, release, or production claim.
+
+Latest hosted Agent Pool read-only proof: `hosted-agent-pool-readonly-v1` revalidates the current Cloudflare D1 runtime over unauthenticated HTTPS GET only. The contract, persisted run list, and concrete run readback agree on the exact four roles `planner`, `coder`, `tester`, and `devops`, four completed persisted task rows, D1 checkpointing, and false live-provider, live-MCP-write, deployment, and secret-output claims. Evidence: `.codex/runs/CURRENT/master-goal/t3/agent-pool-hosted-readonly/report-20260721-102425.json` (SHA-256 `1631A518300AA53A8CC0A302A1A0E6C82B64D3367C1644DCBF749454F1859C73`). Existing four-role, worker-status, and priority-queue markers were already credited; only the new current hosted D1 readback marker raises Agent Pool `68% -> 69%`. No token, mutation, new run, Redis worker scaling, live LLM, live MCP, release, or production claim.
 
 Latest local memory-safety proof: `memory-worker-secret-guard-v1` recursively inspects
 working-memory text plus nested metadata keys and values before persistence. A generated

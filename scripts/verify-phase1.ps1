@@ -835,6 +835,9 @@ if (-not $projectProgressManifest.Contains("runtime-post-recreate-steady-state-p
 if (-not $projectProgressManifest.Contains("langgraph-postgres-checkpoint-restart-recovery-proof")) {
   throw "Project progress manifest missing Phase 2 checkpoint restart recovery proof marker"
 }
+if (-not $projectProgressManifest.Contains("hosted_cloudflare_d1_four_role_agent_pool_readback_proof")) {
+  throw "Project progress manifest missing hosted Agent Pool D1 readback proof marker"
+}
 $projectProgress = $projectProgressManifest | ConvertFrom-Json
 $horizontalById = @{}
 foreach ($item in $projectProgress.horizontal.items) {
@@ -2442,7 +2445,7 @@ if (-not (Test-Path "scripts\verify-phase6-local-scoreboard-performance-runtime.
 $phase6ScoreboardParseErrors=$null; [Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase6-local-scoreboard-performance-runtime.ps1",[ref]$null,[ref]$phase6ScoreboardParseErrors)|Out-Null
 if($phase6ScoreboardParseErrors){$phase6ScoreboardParseErrors|%{Write-Error $_.Message};throw "Local scoreboard/performance verifier parse errors"}
 $phase6ScoreboardVerifier=Get-Content "scripts\verify-phase6-local-scoreboard-performance-runtime.ps1" -Raw
-foreach($required in @("manifest phase6 90","manifest overall equals rounded horizontal phase average","Phase-6 local scoreboard and performance sample stay browser-local","phase6-local-scoreboard-performance.png")){if(-not $phase6ScoreboardVerifier.Contains($required)){throw "Local scoreboard/performance verifier missing: $required"}}
+foreach($required in @("manifest phase6 90","manifest overall equals rounded horizontal phase average","MidpointRounding","Phase-6 local scoreboard and performance sample stay browser-local","phase6-local-scoreboard-performance.png")){if(-not $phase6ScoreboardVerifier.Contains($required)){throw "Local scoreboard/performance verifier missing: $required"}}
 foreach($required in @("phase6-scoreboard-performance-controls","phase6-leaderboard-capture","phase6-leaderboard-reset","phase6-performance-start","local_only=true","sync=false","storage=false","network=false")){if(-not $phase6OrganismView.Contains($required)){throw "Local scoreboard/performance UI missing: $required"}}
 foreach($required in @("Phase-6 local scoreboard and performance sample stay browser-local","phase6-local-scoreboard-performance.png","localStorage","indexedDB")){if(-not $phase6OrganismTest.Contains($required)){throw "Local scoreboard/performance test missing: $required"}}
 
@@ -2960,6 +2963,19 @@ foreach ($required in @(
   if (-not $marketReadyScript.Contains($required)) {
     throw "Market-ready verifier missing current gate guard: $required"
   }
+}
+
+Write-Host "[verify] hosted Agent Pool read-only verifier"
+if (-not (Test-Path "scripts\verify-agent-pool-hosted-readonly.ps1")) { throw "Missing hosted Agent Pool read-only verifier" }
+$hostedAgentPoolReadOnlyParseErrors = $null
+[Management.Automation.Language.Parser]::ParseFile("scripts\verify-agent-pool-hosted-readonly.ps1", [ref]$null, [ref]$hostedAgentPoolReadOnlyParseErrors) | Out-Null
+if ($hostedAgentPoolReadOnlyParseErrors) { $hostedAgentPoolReadOnlyParseErrors | ForEach-Object { Write-Error $_.Message }; throw "Hosted Agent Pool read-only verifier parse errors" }
+$hostedAgentPoolReadOnlyVerifier = Get-Content "scripts\verify-agent-pool-hosted-readonly.ps1" -Raw
+foreach ($required in @("hosted-agent-pool-readonly-v1", "hosted_cloudflare_d1_four_role_agent_pool_readback_proof", "/api/v1/phase2/runtime/contract", "/api/v1/phase2/runtime/runs", "exactly four persisted tasks", "token_used = `$false", "provider_write = `$false")) {
+  if (-not $hostedAgentPoolReadOnlyVerifier.Contains($required)) { throw "Hosted Agent Pool read-only verifier missing: $required" }
+}
+foreach ($forbidden in @("x-superbrain-agent-token", "-Method Post", "-Method Put", "-Method Patch", "-Method Delete")) {
+  if ($hostedAgentPoolReadOnlyVerifier.Contains($forbidden)) { throw "Hosted Agent Pool read-only verifier contains write/auth marker: $forbidden" }
 }
 
 Write-Host "[verify] Cloudflare Workers AI LLM Gateway static contract"

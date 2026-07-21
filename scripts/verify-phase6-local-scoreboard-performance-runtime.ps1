@@ -126,8 +126,8 @@ Assert-True "observed ranking values" ([int]$observedTop3[0].score -eq 20 -and [
 $observedSamples = @($observed.performance.samples)
 Assert-True "observed twelve samples" ($observedSamples.Count -eq 12)
 Assert-True "observed finite positive samples" (@($observedSamples | Where-Object { [double]::IsNaN([double]$_.fps) -or [double]::IsInfinity([double]$_.fps) -or [double]::IsNaN([double]$_.ms) -or [double]::IsInfinity([double]$_.ms) -or [double]$_.fps -le 0 -or [double]$_.ms -le 0 }).Count -eq 0)
-$calculatedFps = [math]::Round([double](($observedSamples | Measure-Object -Property fps -Average).Average), 1)
-$calculatedMs = [math]::Round([double](($observedSamples | Measure-Object -Property ms -Average).Average), 1)
+$calculatedFps = [math]::Round([double](($observedSamples | Measure-Object -Property fps -Average).Average), 1, [MidpointRounding]::AwayFromZero)
+$calculatedMs = [math]::Round([double](($observedSamples | Measure-Object -Property ms -Average).Average), 1, [MidpointRounding]::AwayFromZero)
 Assert-True "observed fps average" ([double]$observed.performance.averages.fps -eq $calculatedFps)
 Assert-True "observed frame average" ([double]$observed.performance.averages.frameIntervalMs -eq $calculatedMs)
 $expectedClassification = if ($calculatedFps -ge 25 -and $calculatedMs -le 40) { "pass" } else { "fail" }

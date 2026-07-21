@@ -7,10 +7,10 @@ Beide Matrizen **100 %**, jede Zelle mit echtem Artefakt. FINISH-LINE:
 als OWNER-BLOCKED gelistet, **nie gefaked** (R0 unverhandelbar).
 
 ## ✅ REALITÄT 2026-07-21 (Supervisor live gemessen)
-Source-Baseline `c738d71b` = origin · Overall **86 %** · MARKET_READY:false
+Source-Baseline `700e876` = origin · Overall **86 %** · MARKET_READY:false
 - **7 Zellen verifiziert auf 100:** P0, P1, **P2**, P4, Frontend, Orchestrator, Observability
 - Horizontal: `P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 68 · P6 90`
-- Vertikal: `FE 100 · ORC 100 · OBS 100 · MEM 90 · AP 68 · LLM 54 · MCP 55`
+- Vertikal: `FE 100 · ORC 100 · OBS 100 · MEM 90 · AP 69 · LLM 54 · MCP 55`
 
 ## 🟢 L6 MEMORY 73→90 — HOSTED CLOUDFLARE D1 LIVE (2026-07-21, Owner spielte D1-Token ein)
 Der Owner erstellte im CF-Dashboard einen D1-gescopeten Token. Supervisor hat vollautonom:
@@ -50,8 +50,9 @@ echten Verifier bauen → gegen `localhost:8081` beweisen → Manifest-Marker + 
   Embeddings, Write/Query-Roundtrip, Worker-Verdrahtung und Hosted-Verifier fuer **L6 90→100**.
 - **T2 P2: DONE 100.** Der fehlende PostgreSQL-Checkpoint-Restart-Marker ist durch echten
   Recreate/Vollverifier belegt und ohne Doppelzaehlung gutgeschrieben. Overall `84→86`.
-- **T3 NEXT — Agent-Pool (68):** 4-Rollen-Execution / Worker-Status / Priority-Queue Marker pruefen+creditren.
-- **T4 L5 MCP (55):** Dry-run-Safety / Version-Pinning / Audit-Feed Marker (nur read-only/dry-run).
+- **T3 Agent-Pool: DONE 69.** Vier-Rollen-, Worker-Status- und Priority-Queue-Marker waren bereits
+  kreditiert. Neu und einmalig: tokenfreier Hosted-D1-Readback eines terminalen Vier-Rollen-Runs.
+- **T4 NEXT — L5 MCP (55):** Dry-run-Safety / Version-Pinning / Audit-Feed Marker (nur read-only/dry-run).
 - **T5 P5 (68):** GHCR-Push-Beweis (Token vorhanden, aber Owner-Release-Grant nötig) + Release-Slices.
 - **P3 OAuth (Owner), P6 Scale (Zahlung), R0 production_deploy** = Wände, ehrlich als OWNER-BLOCKED.
 

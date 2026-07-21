@@ -28,7 +28,7 @@ gates.
 | --- | --- |
 | Overall progress | 86 percent |
 | Horizontal | P0 100, P1 100, P2 100, P3 44, P4 100, P5 68, P6 90 |
-| Vertical | Frontend 100, Orchestrator 100, Agent Pool 68, LLM 54, MCP 55, Memory 90, Observability 100 |
+| Vertical | Frontend 100, Orchestrator 100, Agent Pool 69, LLM 54, MCP 55, Memory 90, Observability 100 |
 | Project progress integrity | `verified` |
 | Canonical workspace pages | 22/22 local and 22/22 hosted in real Google Chrome at desktop and mobile |
 | Docker services | 10/10 healthy in the latest local check |
@@ -37,6 +37,12 @@ gates.
 
 Percentages come only from `docs/project-progress.manifest.json` and must match
 `GET /api/v1/project/progress` plus `GET /api/v1/project/progress/integrity`.
+
+The current hosted Agent Pool proof is read-only: `scripts/verify-agent-pool-hosted-readonly.ps1`
+revalidates one existing Cloudflare D1-backed terminal run with exactly four completed role tasks.
+It uses no token and performs no write. This credits only
+`hosted_cloudflare_d1_four_role_agent_pool_readback_proof`, moving Agent Pool `68 -> 69`;
+worker scaling, priority-queue parity, live LLM/MCP activity, release, and production remain unclaimed.
 
 ## External Gate Status
 
