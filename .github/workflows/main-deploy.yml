@@ -50,19 +50,19 @@ jobs:
             context: .
             dockerfile: services/agent-api/Dockerfile
           - name: mcp-gateway
-            context: services/mcp-gateway
+            context: .
             dockerfile: services/mcp-gateway/Dockerfile
           - name: frontend
             context: apps/frontend
             dockerfile: apps/frontend/Dockerfile
           - name: llm-gateway
-            context: services/llm-gateway
+            context: .
             dockerfile: services/llm-gateway/Dockerfile
           - name: agent-worker
-            context: services/agent-worker
+            context: .
             dockerfile: services/agent-worker/Dockerfile
           - name: memory-worker
-            context: services/memory-worker
+            context: .
             dockerfile: services/memory-worker/Dockerfile
     steps:
       - name: Checkout

@@ -1,6 +1,7 @@
 param(
   [string]$SourceSha = "",
   [string]$ReleaseId = "prod-candidate-2026-07-20-local-rc2",
+  [string]$RollbackTarget = "",
   [string]$OutputDir = ".codex\runs\CURRENT\master-goal\phase5\production-candidate-local"
 )
 
@@ -9,6 +10,16 @@ $ErrorActionPreference = "Stop"
 function Assert-SafeName([string]$Label, [string]$Value) {
   if ([string]::IsNullOrWhiteSpace($Value) -or $Value -notmatch '^[a-zA-Z0-9][a-zA-Z0-9._-]+$') {
     throw "$Label contains unsupported characters: $Value"
+  }
+}
+
+function Assert-CommitSha([string]$Label, [string]$Value) {
+  if ([string]::IsNullOrWhiteSpace($Value) -or $Value -notmatch '^[0-9a-f]{40}$') {
+    throw "$Label must be a lowercase 40-character commit SHA."
+  }
+  git cat-file -e "$Value^{commit}" 2>$null
+  if ($LASTEXITCODE -ne 0) {
+    throw "$Label is not a local commit: $Value"
   }
 }
 
@@ -74,6 +85,26 @@ try {
   if ($LASTEXITCODE -ne 0 -or $resolvedSourceSha -notmatch '^[0-9a-f]{40}$') {
     throw "SourceSha is not a local commit: $SourceSha"
   }
+
+  if ([string]::IsNullOrWhiteSpace($RollbackTarget)) {
+    $activeConfig = Get-Content "docs\release-artifacts\current-release-candidate.json" -Raw | ConvertFrom-Json
+    $activeArtifactPath = "docs\release-artifacts\$([string]$activeConfig.active_release_id).md"
+    if (-not (Test-Path -LiteralPath $activeArtifactPath)) {
+      throw "Cannot derive rollback target; active candidate artifact is missing: $activeArtifactPath"
+    }
+    $activeArtifact = Get-Content -LiteralPath $activeArtifactPath -Raw
+    if ($activeArtifact -notmatch '(?m)^immutable_image_commit_sha:\s*`([0-9a-f]{40})`\s*$') {
+      throw "Cannot derive rollback target from active candidate artifact."
+    }
+    $RollbackTarget = $Matches[1]
+  }
+  Assert-CommitSha "RollbackTarget" $RollbackTarget
+  if ($RollbackTarget -eq $resolvedSourceSha) {
+    throw "RollbackTarget must differ from the candidate source commit."
+  }
+
+  $manifest = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
+  $phase5Percent = [int](($manifest.horizontal.items | Where-Object { $_.id -eq "phase_5" }).percent)
 
   $outputPath = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $OutputDir))
   New-Item -ItemType Directory -Force -Path $outputPath | Out-Null
@@ -180,9 +211,11 @@ try {
       git_archive_sha256 = $archiveSha256
       service_count = $images.Count
       images = $images
-      rollback_target = "7be0ac03de2a5f435d98629de3d310253c00e3f3"
-      phase5_progress_before_proof = 67
-      phase5_progress_after_proof = 68
+      rollback_target = $RollbackTarget
+      rollback_target_source = "active_release_candidate"
+      phase5_progress_before_proof = $phase5Percent
+      phase5_progress_after_proof = $phase5Percent
+      progress_credit_claimed = $false
       registry_publish = $false
       hosted_staging_parity = $false
       production_deploy = $false
@@ -207,7 +240,9 @@ try {
 - Source boundary: committed Git archive only
 - Git archive SHA256: ``$archiveSha256``
 - Service images: $($images.Count)
-- Phase 5: 67 -> 68
+- Rollback target: ``$RollbackTarget``
+- Phase 5: $phase5Percent -> $phase5Percent (freshness proof; no new credit)
+- Progress credit claimed: false
 - Registry publish: false
 - Hosted staging parity: false
 - Production deploy: false

@@ -2518,6 +2518,15 @@ foreach ($required in @(
 if ($mainDeployWorkflow.Contains('ghcr.io/${{ github.repository }}/')) {
   throw "main-deploy workflow must not use github.repository for GHCR image paths because this repo name is not a stable lowercase image namespace"
 }
+foreach ($service in @("agent-api", "agent-worker", "memory-worker", "mcp-gateway", "llm-gateway")) {
+  $rootContextPattern = "(?ms)- name: $([regex]::Escape($service))\s+context: \.\s+dockerfile: services/$([regex]::Escape($service))/Dockerfile"
+  if ($mainDeployWorkflow -notmatch $rootContextPattern) {
+    throw "main-deploy workflow must build $service from repository-root context"
+  }
+}
+if ($mainDeployWorkflow -notmatch '(?ms)- name: frontend\s+context: apps/frontend\s+dockerfile: apps/frontend/Dockerfile') {
+  throw "main-deploy workflow must build frontend from apps/frontend context"
+}
 
 Write-Host "[verify] external gate audit contract"
 if (-not (Test-Path "scripts\verify-external-gates.ps1")) {
