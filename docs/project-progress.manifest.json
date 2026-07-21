@@ -72,8 +72,8 @@
       {
         "id": "layer_4",
         "label": "LLM Gateway",
-        "percent": 54,
-        "status": "openai-compatible-deterministic-dry-run-provider-snapshot-routing-streaming-contract-routing-policy-evaluator-allow-deny-proof-orchestrator-policy-preflight-deny-hard-stop-consumed-devops-route-no-live-provider-calls-agent-llm-streaming-contract-visible-llm_stream_done_fail_closed_proof-live_provider_nonclaim_fail_closed-hosted_agent_llm_streaming_contract_runtime_parity_proof"
+        "percent": 55,
+        "status": "openai-compatible-deterministic-dry-run-provider-snapshot-routing-streaming-contract-routing-policy-evaluator-allow-deny-proof-orchestrator-policy-preflight-deny-hard-stop-consumed-devops-route-no-live-provider-calls-agent-llm-streaming-contract-visible-llm_stream_done_fail_closed_proof-live_provider_nonclaim_fail_closed-hosted_agent_llm_streaming_contract_runtime_parity_proof-cloudflare_workers_ai_llm_gateway_preview_readonly_source_parity_verified"
       },
       {
         "id": "layer_5",

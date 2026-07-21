@@ -28,7 +28,7 @@ gates.
 | --- | --- |
 | Overall progress | 86 percent |
 | Horizontal | P0 100, P1 100, P2 100, P3 44, P4 100, P5 68, P6 90 |
-| Vertical | Frontend 100, Orchestrator 100, Agent Pool 69, LLM 54, MCP 56, Memory 90, Observability 100 |
+| Vertical | Frontend 100, Orchestrator 100, Agent Pool 69, LLM 55, MCP 56, Memory 90, Observability 100 |
 | Project progress integrity | `verified` |
 | Canonical workspace pages | 22/22 local and 22/22 hosted in real Google Chrome at desktop and mobile |
 | Docker services | 10/10 healthy in the latest local check |
@@ -50,6 +50,23 @@ then reads health, five dry-run contracts, exact pins, and the audit contract ov
 Evidence `.codex/runs/CURRENT/mcp-gateway/hosted-readonly-contract/report.json` credits only
 `mcp_current_hosted_readonly_contract_parity_verified`, moving MCP Gateway `55 -> 56` while
 Overall remains `86`. It executes no tool and performs no token, audit, provider, or release write.
+
+The current Cloudflare LLM Preview proof is read-only and source-bound:
+`scripts/verify-cloudflare-llm-gateway-hosted-readonly.ps1` reads health and the exact
+two-model allowlist over public HTTPS GET, then proves the deployed service tree is
+blob-identical to current HEAD. Evidence
+`.codex/runs/CURRENT/llm-gateway/cloudflare-hosted-readonly/report.json` credits only
+`cloudflare_workers_ai_llm_gateway_preview_readonly_source_parity_verified`, moving LLM
+Gateway `54 -> 55` while Overall remains `86`. It uses no token, sends no inference, and
+performs no provider, deployment, release, or promotion write.
+
+The reported Workbench `LLM Gateway HTTP 503` has been repaired operationally. Evidence
+`.codex/runs/CURRENT/llm-gateway/frontend-build-503-fix/report.json` records the reproduced
+failure, secret-value-free Cloudflare/Vercel configuration alignment, source-bound Preview and
+Production deployments, HTTP `200` live mini-builds, and real-Chrome `22 x 2` route proofs on
+both deployments. This adds no progress credit and is not a release-promotion claim: the
+frontend currently targets the Cloudflare Preview worker and the failed immutable URL remains
+a historical deployment.
 
 ## External Gate Status
 

@@ -841,6 +841,9 @@ if (-not $projectProgressManifest.Contains("hosted_cloudflare_d1_four_role_agent
 if (-not $projectProgressManifest.Contains("mcp_current_hosted_readonly_contract_parity_verified")) {
   throw "Project progress manifest missing current hosted MCP read-only parity proof marker"
 }
+if (-not $projectProgressManifest.Contains("cloudflare_workers_ai_llm_gateway_preview_readonly_source_parity_verified")) {
+  throw "Project progress manifest missing hosted Cloudflare LLM read-only parity proof marker"
+}
 $projectProgress = $projectProgressManifest | ConvertFrom-Json
 $horizontalById = @{}
 foreach ($item in $projectProgress.horizontal.items) {
@@ -2995,6 +2998,19 @@ foreach ($required in @("mcp-hosted-current-readonly-v1", "mcp_current_hosted_re
 }
 foreach ($forbidden in @("x-superbrain-agent-token", "-Method Post", "-Method Put", "-Method Patch", "-Method Delete", "Bearer ")) {
   if ($hostedMcpReadOnlyVerifier.Contains($forbidden)) { throw "Current hosted MCP read-only verifier contains write/auth marker: $forbidden" }
+}
+
+Write-Host "[verify] hosted Cloudflare LLM read-only verifier"
+if (-not (Test-Path "scripts\verify-cloudflare-llm-gateway-hosted-readonly.ps1")) { throw "Missing hosted Cloudflare LLM read-only verifier" }
+$hostedCloudflareLlmReadOnlyParseErrors = $null
+[Management.Automation.Language.Parser]::ParseFile("scripts\verify-cloudflare-llm-gateway-hosted-readonly.ps1", [ref]$null, [ref]$hostedCloudflareLlmReadOnlyParseErrors) | Out-Null
+if ($hostedCloudflareLlmReadOnlyParseErrors) { $hostedCloudflareLlmReadOnlyParseErrors | ForEach-Object { Write-Error $_.Message }; throw "Hosted Cloudflare LLM read-only verifier parse errors" }
+$hostedCloudflareLlmReadOnlyVerifier = Get-Content "scripts\verify-cloudflare-llm-gateway-hosted-readonly.ps1" -Raw
+foreach ($required in @("cloudflare-llm-gateway-hosted-readonly-v1", "cloudflare_workers_ai_llm_gateway_preview_readonly_source_parity_verified", "/api/v1/health", "/v1/models", "deployed source tree matches HEAD", "token_used = `$false", "inference_executed = `$false", "provider_write = `$false")) {
+  if (-not $hostedCloudflareLlmReadOnlyVerifier.Contains($required)) { throw "Hosted Cloudflare LLM read-only verifier missing: $required" }
+}
+foreach ($forbidden in @("x-superbrain-gateway-token", "GATEWAY_AUTH_TOKEN", "-Method Post", "-Method Put", "-Method Patch", "-Method Delete", "Bearer ")) {
+  if ($hostedCloudflareLlmReadOnlyVerifier.Contains($forbidden)) { throw "Hosted Cloudflare LLM read-only verifier contains write/auth marker: $forbidden" }
 }
 
 Write-Host "[verify] hosted Agent Pool read-only verifier"

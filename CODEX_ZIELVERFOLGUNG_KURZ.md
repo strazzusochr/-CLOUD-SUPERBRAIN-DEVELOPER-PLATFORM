@@ -10,7 +10,7 @@ als OWNER-BLOCKED gelistet, **nie gefaked** (R0 unverhandelbar).
 Source-Baseline `90b57ec` = origin · Overall **86 %** · MARKET_READY:false
 - **7 Zellen verifiziert auf 100:** P0, P1, **P2**, P4, Frontend, Orchestrator, Observability
 - Horizontal: `P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 68 · P6 90`
-- Vertikal: `FE 100 · ORC 100 · OBS 100 · MEM 90 · AP 69 · LLM 54 · MCP 56`
+- Vertikal: `FE 100 · ORC 100 · OBS 100 · MEM 90 · AP 69 · LLM 55 · MCP 56`
 
 ## 🟢 L6 MEMORY 73→90 — HOSTED CLOUDFLARE D1 LIVE (2026-07-21, Owner spielte D1-Token ein)
 Der Owner erstellte im CF-Dashboard einen D1-gescopeten Token. Supervisor hat vollautonom:
@@ -56,8 +56,11 @@ echten Verifier bauen → gegen `localhost:8081` beweisen → Manifest-Marker + 
   Vertraege, exakte Pins und Audit-Contract per tokenfreiem HTTPS GET; kein Tool-Execute/Write.
 - **T5 P5: CURRENT RC3 DONE, bleibt 68.** GHCR-Kontexte repariert; sechs Clean-Archive-Images
   aus `90b57ec`, Runtime-Source-Paritaet, RC2-Rollback und Chromium belegt. Kein Doppelcredit.
-- **T6 NEXT — L4 (54):** Cloudflare Preview Health + Modellliste source-gebunden und tokenfrei
-  per HTTPS GET beweisen; kein Inferenz-/Live-Provider-Claim.
+- **T6 L4: DONE 55.** Cloudflare Preview Health + exakte Modellliste source-gebunden und
+  tokenfrei per HTTPS GET; keine Inferenz, kein Provider-Write, kein Production-Worker-Claim.
+- **LLM 503: FIXED.** Preview + Production Mini-Build HTTP `200`; je Real-Chrome 22x2 gruen.
+  Evidence `.codex/runs/CURRENT/llm-gateway/frontend-build-503-fix/report.json`; kein Prozentcredit.
+- **T7 NEXT — P3 (44):** OAuth-Callback und Refresh-Issuance fail-closed haerten.
 - **P3 OAuth (Owner), P6 Scale (Zahlung), R0 production_deploy** = Wände, ehrlich als OWNER-BLOCKED.
 
 ## 🚨 CODEX' PAUSIERTE ARBEIT — nicht wegwerfen

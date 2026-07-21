@@ -1,5 +1,5 @@
 # 🏁 CODEX MASTER GOAL — FINALE (bis Vollendung + fehlerfreier Beweis)
-# Version: 2026-07-21 (Phase 2 geschlossen, Hosted Agent Pool und MCP read-only belegt)
+# Version: 2026-07-21 (Phase 2 geschlossen; Agent Pool, MCP und LLM read-only belegt)
 # Führt CODEX_MASTER_GOAL.md zu Ende. Dieses Dokument ist der aktuelle Einstieg.
 
 ## DAS ZIEL IN EINEM SATZ
@@ -104,6 +104,18 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   Frontend-`BUILD_ID`, Runtime-Source-Paritaet, RC2-Rollback und echten Diagnostics-Klick
   verifiziert. Der Vercel Contract Origin bleibt ein stale read-only Snapshot (`84` vs lokal
   `86`) und berechtigt keine Promotion. P5 bleibt ohne Doppelcredit `68%`.
+- **LLM Preview Read-only Source Parity:** Der oeffentliche Cloudflare Preview Worker liefert
+  tokenfrei Health und exakt zwei allowlist-basierte Modelle. Source `67f41ce` und der aktuelle
+  Service-Tree sind blob-identisch; alle Live-Call-/Write-Claims bleiben false. Evidence:
+  `.codex/runs/CURRENT/llm-gateway/cloudflare-hosted-readonly/report.json`, SHA-256
+  `D9DE8F7C46309F1FDA1EED43D4C2F14A65D99A2D77D60B01AAC449A1CAB83D71`. LLM Gateway
+  `54% -> 55%`, Overall bleibt `86%`; keine Inferenz, kein Production-Worker- oder Release-Claim.
+- **Workbench LLM-503 operational behoben:** Auth-/Origin-Paritaet zwischen Vercel und dem
+  Cloudflare Preview Worker ist wiederhergestellt. Preview und Production-Alias liefern echte
+  Mini-Builds mit HTTP `200`; beide bestanden Real-Chrome 22x2. Evidence:
+  `.codex/runs/CURRENT/llm-gateway/frontend-build-503-fix/report.json`, SHA-256
+  `B66A02387CD5CCA631947DAC7E6A99BF9B1E0BC5A498F6828437018794F42F0A`. Kein Prozentcredit
+  und kein Full-Platform-Production-Readiness-/Release-Promotion-Claim.
 - **T4 Frontend-Providergrenze:** Direkte Neon-, Cloudflare- und GitHub-Store-Pfade im
   Frontend sind entfernt. Acht Action-Routen nutzen nur Agent API, LLM Gateway oder MCP
   Gateway und bleiben ohne konfigurierte Grenze fail-closed; drei Vercel-Wrapper bleiben

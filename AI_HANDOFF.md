@@ -50,7 +50,7 @@ Vertical:
 - Frontend / Next.js: `100%`
 - Orchestrator / LangGraph: `100%`
 - Agent Pool: `69%`
-- LLM Gateway: `54%`
+- LLM Gateway: `55%`
 - MCP Gateway: `56%`
 - Memory: `90%`
 - Observability: `100%`
@@ -62,6 +62,10 @@ Latest Phase 2 closure proof: `phase2-postgres-checkpoint-restart-recovery-v1` e
 Latest hosted Agent Pool read-only proof: `hosted-agent-pool-readonly-v1` revalidates the current Cloudflare D1 runtime over unauthenticated HTTPS GET only. The contract, persisted run list, and concrete run readback agree on the exact four roles `planner`, `coder`, `tester`, and `devops`, four completed persisted task rows, D1 checkpointing, and false live-provider, live-MCP-write, deployment, and secret-output claims. Evidence: `.codex/runs/CURRENT/master-goal/t3/agent-pool-hosted-readonly/report-20260721-102425.json` (SHA-256 `1631A518300AA53A8CC0A302A1A0E6C82B64D3367C1644DCBF749454F1859C73`). Existing four-role, worker-status, and priority-queue markers were already credited; only the new current hosted D1 readback marker raises Agent Pool `68% -> 69%`. No token, mutation, new run, Redis worker scaling, live LLM, live MCP, release, or production claim.
 
 Latest current hosted MCP read-only proof: `mcp-hosted-current-readonly-v1` binds the public Vercel Contract Origin to its recorded Production deployment and source snapshot, verifies blob parity for all seven deployed MCP source paths, and reads health, five dry-run contracts, exact dependency/tool pins, and the MCP audit contract over unauthenticated HTTPS GET only. Evidence: `.codex/runs/CURRENT/mcp-gateway/hosted-readonly-contract/report.json` (SHA-256 `67281BB2B9CE8A411D88954D7604D9205E13726644FDA21BA0DE5673A596D15C`). This credits only `mcp_current_hosted_readonly_contract_parity_verified`, raising MCP Gateway `55% -> 56%`; Overall remains `86%`. No token, MCP execution, audit write, provider write, stateful backend, release, or production claim.
+
+Latest hosted LLM read-only proof: `cloudflare-llm-gateway-hosted-readonly-v1` binds the public Cloudflare Preview Worker to deployed source `67f41cecf38de109e762632ed971c9a7fdaff6ba` and a blob-identical current `services/cloudflare-llm-gateway` tree. Token-free HTTPS GET returned healthy AI/auth configuration and the exact two-model allowlist while `live_provider_calls=false`, `direct_provider_calls=false`, and `secret_output=false`. Evidence: `.codex/runs/CURRENT/llm-gateway/cloudflare-hosted-readonly/report.json` (SHA-256 `D9DE8F7C46309F1FDA1EED43D4C2F14A65D99A2D77D60B01AAC449A1CAB83D71`). Only `cloudflare_workers_ai_llm_gateway_preview_readonly_source_parity_verified` is credited, raising LLM Gateway `54% -> 55%`; Overall remains `86%`. No token, inference, provider write, Production Worker, release, or production claim.
+
+Latest hosted Workbench repair: the reported `LLM Gateway HTTP 503` was reproduced on immutable Preview deployment `dpl_5myh9Wmi2RYtJtZH9Te5x18MqDzr`. Cloudflare Preview and Vercel gateway authentication/origin configuration were aligned without reading or reporting secret values, source `67f41cecf38de109e762632ed971c9a7fdaff6ba` was redeployed, and both the new Preview and the Production alias returned HTTP `200` from a real mini-build through Cloudflare Workers AI. Real Google Chrome then passed all 22 routes at desktop and mobile on both deployments (`44/44`, zero console, overflow, or overlay failures). Evidence: `.codex/runs/CURRENT/llm-gateway/frontend-build-503-fix/report.json` (SHA-256 `B66A02387CD5CCA631947DAC7E6A99BF9B1E0BC5A498F6828437018794F42F0A`). This is an operational repair only: the immutable failed URL remains historical, the frontend currently uses the Cloudflare Preview worker, and no full-platform production-readiness or release-promotion claim is made.
 
 Latest local memory-safety proof: `memory-worker-secret-guard-v1` recursively inspects
 working-memory text plus nested metadata keys and values before persistence. A generated
