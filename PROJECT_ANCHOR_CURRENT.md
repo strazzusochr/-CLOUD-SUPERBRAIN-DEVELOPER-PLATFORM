@@ -1,6 +1,6 @@
 # Cloud Superbrain Project Anchor
 
-Anchor ID: `cloud-superbrain-anchor-2026-07-21T23-48-28+02-00-session4`
+Anchor ID: `cloud-superbrain-anchor-2026-07-22T06-42-53+02-00-session4-rc5`
 
 Status: `ACTIVE_RESUME_POINT`
 
@@ -8,7 +8,7 @@ Workspace: `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
 
 Branch: `claude/cloud-superbrain-analysis-127d2e`
 
-Committed reference before this anchor: `a80c35619bb1826b15f4a729267778c1869ba290`
+Committed runtime reference before this anchor: `255e328a76b3f84bf74358bc7258b9ffb797b339`
 
 Machine checkpoint: `docs/project-checkpoint-2026-07-21-session4.json`
 
@@ -19,7 +19,7 @@ Memory protocol: `docs/codex-integration/CODEX_MEMORY_PROTOCOL_2026-07-21_SESSIO
 ## Purpose
 
 This is the exact restart point for a new Codex chat. It preserves the completed hosted LLM
-repair and RC4 work, the current uncommitted Phase-3 auth hardening slice, all verified evidence,
+repair, the committed Phase-3 auth hardening, the locally verified RC5, all evidence,
 the dirty-worktree ownership boundary, and the next commands. It is a resume snapshot, not a new
 progress authority. Canonical percentages still come only from
 `docs/project-progress.manifest.json`, with `PROJECT_STATE.md` and
@@ -37,7 +37,7 @@ progress authority. Canonical percentages still come only from
    prerequisite fails.
 7. Set `$env:TEMP='D:\_sb_tmp'` and `$env:TMP='D:\_sb_tmp'` before every verifier.
 8. Inspect `git status --short`; preserve every foreign dirty file listed below.
-9. Continue the auth hardening slice at the exact next step below. Do not restart the project or
+9. Continue the remaining MARKET_READY/Owner-wall audit at the exact next step below. Do not restart the project or
    overwrite the current worktree.
 
 ## Current Canonical Progress
@@ -54,24 +54,25 @@ progress authority. Canonical percentages still come only from
   mirrors, and the documented Workbench LLM HTTP 503 repair.
 - `0679f6ff` - frontend WebGL fallback state synchronization plus supported Node runtime metadata.
 - `a80c3561` - RC4 local clean-archive candidate requalification.
-- All three commits were pushed to `origin/claude/cloud-superbrain-analysis-127d2e`.
+- `255e328a` - fail-closed auth issuance, persisted audit gate, query-safe logs, patched `sharp`.
+- All four commits were pushed to `origin/claude/cloud-superbrain-analysis-127d2e`.
 - Hosted Workbench mini-builds return HTTP `200` through Cloudflare Workers AI.
 - Preview and Production each passed real-Chrome 22 routes x 2 viewports (`44/44`) with zero
   console, overflow, or overlay failures.
-- RC4 built six Docker images from committed source
-  `0679f6ffda099a6fcddf6830839a195ebe7d13a7` and passed the focused Chromium candidate proof.
+- RC5 built six Docker images from committed source
+  `255e328a76b3f84bf74358bc7258b9ffb797b339` and passed the focused Chromium candidate proof.
 - `npm run verify:current-release-candidate` passed with
   `candidate_technical=true`, `runtime_source_parity=true`, `promotion_eligible=false`.
-- The full static `npm run verify` passed before the auth hardening edits (`205.9s`, gitleaks
-  clean, npm audit zero vulnerabilities).
+- The full static/runtime/browser gates passed after the auth hardening; gitleaks stayed clean and
+  npm audit reports zero vulnerabilities.
 
-## Current Verified Pending-Commit Slice
+## Current Verified Auth And RC5 Slice
 
 Phase 3 auth credential issuance is being hardened because the old implementation accepted any
 callback `code/state` and minted credentials, while any previously unseen refresh token could mint
 a new JWT. That was a real security defect and invalidated the old dry-run issuance proof.
 
-Implemented and fully verified, but not yet committed:
+Implemented, fully verified, committed, pushed, and requalified by RC5:
 
 - one-time Redis-backed OAuth state plus `__Host-sb_oauth_state` binding;
 - production credential issuance requires complete OAuth configuration, a strong signing secret,
@@ -110,12 +111,12 @@ Focused evidence already passed:
 
 ## Exact Next Step
 
-1. Review the diff, stage only the auth-owned changes, and partial-stage
-   `scripts/verify-phase1.ps1` so the foreign Cloudflare-D1 hunk is excluded.
-2. Commit and push only to `claude/cloud-superbrain-analysis-127d2e`.
-3. Requalify RC5 from the new committed runtime source because Agent API, frontend projection, and
-   the manifest changed after RC4. Do not claim RC4 as current runtime parity after that commit.
-4. Continue the market-ready audit and remaining autonomous slices.
+1. Commit/push only this RC5 truth/release-artifact update on
+   `claude/cloud-superbrain-analysis-127d2e`; keep all foreign dirty files excluded.
+2. Run the market-ready static audit and classify every remaining gate as autonomous work or an
+   explicit Owner/cloud wall.
+3. Continue only safe autonomous slices; do not publish GHCR, deploy, promote, widen permissions,
+   or activate live provider/MCP writes without the required Owner gates.
 
 ## Foreign Dirty Files: Never Stage, Revert, Or Rewrite
 

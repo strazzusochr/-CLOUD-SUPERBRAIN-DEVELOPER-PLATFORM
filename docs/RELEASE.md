@@ -49,9 +49,9 @@ static/runtime/browser suites passed sequentially. Evidence:
 `FB90E6D57FFBC6C646C583D6F5DD18F4EDB71D9E881B9B7090B3FFDD31FCADC1`. The run also
 closed the newly reported `sharp <0.35.0` advisory with exact override `0.35.3`; npm audit reports
 zero vulnerabilities. This supersedes historical RC1 auth evidence without duplicate progress
-credit; P3 remains `44%`, Overall `86%`. DEV-ONLY; hosted proof still blocked. RC4 is not source-
-current for this pending repair, so RC5 must be built from the resulting commit before current
-candidate parity is claimed.
+credit; P3 remains `44%`, Overall `86%`. The repair is committed as
+`255e328a76b3f84bf74358bc7258b9ffb797b339`, pushed on the working branch, and requalified as
+RC5. DEV-ONLY; hosted proof still blocked.
 
 The current hosted Agent Pool proof is read-only: `scripts/verify-agent-pool-hosted-readonly.ps1`
 revalidates one existing Cloudflare D1-backed terminal run with exactly four completed role tasks.
@@ -158,12 +158,11 @@ publication, release-candidate promotion, or a full-platform production release.
 
 ## Local Production Candidate Preparation
 
-Candidate `prod-candidate-2026-07-21-local-rc4` is locally verified against current runtime
-source commit `0679f6ffda099a6fcddf6830839a195ebe7d13a7`. Six production targets were built
-only from a committed Git archive after the hosted LLM 503 repair and frontend fallback
-hardening. Local image IDs, OCI labels, embedded source hashes, the frontend build ID,
-committed runtime-source parity, the RC3
-rollback target, the read-only API contract, and a real Diagnostics Chromium click passed.
+Candidate `prod-candidate-2026-07-22-local-rc5` is locally verified against auth/security runtime
+source commit `255e328a76b3f84bf74358bc7258b9ffb797b339`. Six production targets were built
+only from its committed Git archive. Local image IDs, OCI labels, embedded source hashes,
+the frontend build ID, committed runtime-source parity, the RC4 rollback target, the read-only API
+contract, and a real Diagnostics Chromium click passed.
 Runtime-only verification cannot overwrite the full-browser artifact. The read-only hosted
 response is matched to its embedded `overall=84` deployment snapshot and is explicitly stale
 against the current local `overall=86`; only the current canonical summary controls promotion.
@@ -171,6 +170,7 @@ P5 remains 68 because freshness repair is not new percentage credit; Overall rem
 
 The GHCR tag set is planned and unpublished. Hosted parity, Owner approval, registry
 publication, production deploy, and release promotion remain false.
+DEV-ONLY; hosted proof still blocked.
 
 ## Candidate And Release Requirements
 

@@ -27,15 +27,15 @@ At the beginning of the next chat:
 5. Follow the project `AGENTS.md` start protocol.
 6. Check the current branch, HEAD ancestry, and origin reachability.
 7. Set TEMP/TMP to `D:\_sb_tmp` before verification.
-8. Inspect current status and selectively commit the fully verified auth/security slice without resetting it.
+8. Inspect current status, preserve foreign changes, and continue the remaining MARKET_READY audit.
 
 ## Truth Memory
 
 - Overall is `86%`, not 100.
 - P3 is `44%` and remains `44%` after the current auth repair.
 - LLM Gateway is `55%` after the source-bound Cloudflare Preview read-only proof.
-- RC4 is locally verified but predates the auth worktree and will require RC5 after auth is
-  committed.
+- RC5 `prod-candidate-2026-07-22-local-rc5` is locally verified from auth/security commit
+  `255e328a76b3f84bf74358bc7258b9ffb797b339`; RC4 is its rollback target.
 - Production release promotion remains false.
 - The canonical token-free external summary remains authoritative.
 - Localhost evidence is always `DEV-ONLY; hosted proof still blocked`.
@@ -102,17 +102,17 @@ Current auth evidence:
 - Full `verify`, `verify:runtime`, and `verify:browser`: passed sequentially.
 - Frontend npm audit after `sharp 0.35.3` override: `0 vulnerabilities`.
 
-Current RC4 evidence:
+Current RC5 evidence:
 
-- Candidate SHA-256: `A471CB2DB722D5E37130B710D59D9FF47A8F31844239D4C3064AF3B212DE13A6`.
-- Verification SHA-256: `1348B1640C3DF630D57DA29202F3076348319496ECA007D12E0B291197315EF4`.
+- Candidate SHA-256: `906C202FF2A74D32E52DD3AD77D17910B7777C97C4B3A90A1A761A88603E54B9`.
+- Verification SHA-256: `BEA1898986560DE6B987B01752AA2A802EA8209FE171034FFB0E30FD03867EBC`.
 - Promotion eligible: false.
 
 ## Dirty-Tree Memory
 
-Owned in-progress auth files are listed in the machine checkpoint. Foreign dirty files must not be
-touched. The most dangerous mixed file is `scripts/verify-phase1.ps1`: auth hunks are owned, while
-the Cloudflare D1 static invocation is foreign. Partial staging is mandatory.
+The auth slice is committed. Foreign dirty files must not be touched. The remaining unstaged hunk
+in `scripts/verify-phase1.ps1` is the foreign Cloudflare D1 static invocation and must stay excluded
+from RC5 truth commits.
 
 Do not use:
 
@@ -146,13 +146,12 @@ Use explicit file lists and inspect the staged diff with `git --no-pager diff --
 
 ## Next-Action Memory
 
-The next agent should preserve the green auth state and finish its release hygiene before beginning
-Vectorize, Agent Pool, MCP write, GHCR, or a new UI slice:
+The next agent should preserve the green auth/RC5 state and resume the broader MARKET_READY queue:
 
-1. stage auth/security files precisely;
-2. commit and push;
-3. build/verify RC5;
-4. then resume the broader MARKET_READY queue.
+1. commit/push the RC5 truth artifact precisely;
+2. run the market-ready static audit;
+3. classify autonomous work versus explicit Owner/cloud walls;
+4. continue only safe ungated slices.
 
 ## Owner-Wall Memory
 

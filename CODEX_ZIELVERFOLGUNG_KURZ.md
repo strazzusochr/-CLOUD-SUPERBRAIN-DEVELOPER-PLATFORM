@@ -54,8 +54,8 @@ echten Verifier bauen → gegen `localhost:8081` beweisen → Manifest-Marker + 
   kreditiert. Neu und einmalig: tokenfreier Hosted-D1-Readback eines terminalen Vier-Rollen-Runs.
 - **T4 L5 MCP: DONE 56.** Source-gebundener aktueller Contract Origin: Health, fuenf Dry-run-
   Vertraege, exakte Pins und Audit-Contract per tokenfreiem HTTPS GET; kein Tool-Execute/Write.
-- **T5 P5: RC5 NEXT, bleibt 68.** RC4 ist fuer `0679f6ff` historisch gruen, deckt aber die
-  neue Auth-/Dependency-Source nicht ab. Nach Commit/Push RC5 als Clean-Archive bauen und pruefen.
+- **T5 P5: RC5 DONE, bleibt 68.** RC5 ist fuer Auth-/Security-Commit `255e328a` als Clean-Archive
+  mit sechs Images, Source-Paritaet und Chromium-Klick gruen. Hosted/Promotion bleiben geblockt.
 - **T6 L4: DONE 55.** Cloudflare Preview Health + exakte Modellliste source-gebunden und
   tokenfrei per HTTPS GET; keine Inferenz, kein Provider-Write, kein Production-Worker-Claim.
 - **LLM 503: FIXED.** Preview + Production Mini-Build HTTP `200`; je Real-Chrome 22x2 gruen.

@@ -1,12 +1,12 @@
 {
   "checkpoint_version": "cloud-superbrain-project-checkpoint-v1",
-  "checkpoint_id": "cloud-superbrain-anchor-2026-07-21T23-48-28+02-00-session4",
+  "checkpoint_id": "cloud-superbrain-anchor-2026-07-22T06-42-53+02-00-session4-rc5",
   "created_at": "2026-07-21T23:48:28+02:00",
-  "updated_at": "2026-07-22T03:56:22+02:00",
+  "updated_at": "2026-07-22T06:42:53+02:00",
   "workspace": "D:\\PLATTFORM\\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
   "branch": "claude/cloud-superbrain-analysis-127d2e",
-  "base_commit_sha": "a80c35619bb1826b15f4a729267778c1869ba290",
-  "base_commit_subject": "verify(release): requalify runtime candidate rc4",
+  "base_commit_sha": "255e328a76b3f84bf74358bc7258b9ffb797b339",
+  "base_commit_subject": "fix(security): enforce fail-closed auth issuance",
   "base_commit_pushed": true,
   "origin_reachable": true,
   "market_ready": false,
@@ -46,6 +46,11 @@
       "sha": "a80c3561",
       "subject": "verify(release): requalify runtime candidate rc4",
       "pushed": true
+    },
+    {
+      "sha": "255e328a",
+      "subject": "fix(security): enforce fail-closed auth issuance",
+      "pushed": true
     }
   ],
   "hosted_llm_503_repair": {
@@ -58,20 +63,23 @@
     "sha256": "B66A02387CD5CCA631947DAC7E6A99BF9B1E0BC5A498F6828437018794F42F0A"
   },
   "release_candidate": {
-    "release_id": "prod-candidate-2026-07-21-local-rc4",
-    "source_commit_sha": "0679f6ffda099a6fcddf6830839a195ebe7d13a7",
-    "rollback_commit_sha": "90b57ecaa54e0ab750a57d0e1acfb33779675f5a",
+    "release_id": "prod-candidate-2026-07-22-local-rc5",
+    "source_commit_sha": "255e328a76b3f84bf74358bc7258b9ffb797b339",
+    "rollback_commit_sha": "0679f6ffda099a6fcddf6830839a195ebe7d13a7",
+    "git_archive_sha256": "56630e8765093f50175966b6d6a8a3c796a06dd4dea420194c8d5a670cab00fb",
     "service_count": 6,
-    "candidate_report_sha256": "A471CB2DB722D5E37130B710D59D9FF47A8F31844239D4C3064AF3B212DE13A6",
-    "verification_sha256": "1348B1640C3DF630D57DA29202F3076348319496ECA007D12E0B291197315EF4",
+    "candidate_report_sha256": "906C202FF2A74D32E52DD3AD77D17910B7777C97C4B3A90A1A761A88603E54B9",
+    "verification_sha256": "BEA1898986560DE6B987B01752AA2A802EA8209FE171034FFB0E30FD03867EBC",
+    "runtime_source_parity": true,
     "promotion_eligible": false,
     "registry_publish": false,
     "production_rollout_claimed": false,
-    "requires_rc5_after_auth_commit": true
+    "requires_rc5_after_auth_commit": false
   },
   "in_progress_slice": {
     "id": "phase3-auth-credential-issuance-fail-closed-v1",
-    "status": "fully_verified_not_committed",
+    "status": "completed_committed_pushed_rc5_verified",
+    "commit_sha": "255e328a76b3f84bf74358bc7258b9ffb797b339",
     "reason": "Arbitrary callback code/state and arbitrary unseen refresh tokens previously minted credentials.",
     "progress_credit_claimed": false,
     "intended_files": [
@@ -115,46 +123,42 @@
       "full_runtime_passed": true,
       "full_browser_passed": true
     },
-    "remaining_verification": [
-      "Stage mixed scripts/verify-phase1.ps1 by hunk and exclude the foreign D1 block.",
-      "Commit and push the auth slice.",
-      "Build and verify RC5 from the committed auth source."
-    ]
+    "remaining_verification": []
   },
   "last_green_commands": [
     {
       "command": "npm run verify",
-      "status": "passed_current_worktree",
+      "status": "passed_auth_source",
       "duration_seconds": 576.2
     },
     {
       "command": "npm run verify:runtime",
-      "status": "passed_current_worktree",
+      "status": "passed_auth_source",
       "duration_seconds": 629.3
     },
     {
       "command": "npm run verify:browser",
-      "status": "passed_current_worktree",
+      "status": "passed_auth_source",
       "duration_seconds": 3071.1
     },
     {
       "command": "npm run verify:phase5-candidate-local",
-      "status": "passed_rc4",
+      "status": "passed_rc5",
       "browser_tests": "1/1"
     },
     {
       "command": "npm run verify:current-release-candidate",
-      "status": "passed_rc4",
+      "status": "passed_rc5",
       "promotion_eligible": false
     },
     {
       "command": "py -3.14 -m unittest discover -s services/agent-api/tests -p test_auth_security.py -v",
-      "status": "passed_current_worktree",
+      "status": "passed_auth_source",
       "tests": "19/19"
     },
     {
       "command": "scripts/verify-phase3-auth-fail-closed.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
-      "status": "passed_current_worktree"
+      "status": "passed_auth_source"
     }
   ],
   "docker": {
@@ -180,9 +184,9 @@
   ],
   "mixed_ownership_files": {
     "scripts/verify-phase1.ps1": {
-      "owned_changes": "Phase 3 auth marker, source, and focused-verifier guards",
+      "owned_changes": "Phase 3 auth marker, source, and focused-verifier guards committed in 255e328a",
       "foreign_changes": "Cloudflare D1 stateful runtime static contract invocation",
-      "required_action": "partial-stage only the owned auth hunks"
+      "required_action": "leave the remaining foreign D1 hunk unstaged unless its owner explicitly integrates it"
     }
   },
   "owner_walls": [
@@ -191,6 +195,6 @@
     "captcha",
     "secret_value_disclosure_or_commit"
   ],
-  "next_step": "Selectively stage and commit/push the fully verified Phase 3 auth/security slice, then requalify RC5 from that committed source.",
+  "next_step": "Commit/push the RC5 truth artifact, then run the market-ready static audit and classify remaining autonomous work versus explicit Owner/cloud walls.",
   "start_prompt": "CODEX_START_PROMPT_2026-07-21_SESSION4.md"
 }

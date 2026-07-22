@@ -1,7 +1,7 @@
 {
-  "active_release_id": "prod-candidate-2026-07-21-local-rc4",
-  "updated_at": "2026-07-21T21:13:09.0376176Z",
-  "updated_by": "codex-phase5-current-candidate-requalification",
-  "reason": "Requalify six content-addressed production service images from current runtime source commit 0679f6ffda099a6fcddf6830839a195ebe7d13a7 after the hosted LLM 503 repair and frontend fallback hardening. GHCR publication, hosted stateful parity, Owner approval, release promotion, and production rollout remain explicitly blocked.",
+  "active_release_id": "prod-candidate-2026-07-22-local-rc5",
+  "updated_at": "2026-07-22T04:42:53.2986911Z",
+  "updated_by": "codex-phase5-auth-security-requalification",
+  "reason": "Requalify six content-addressed production service images from committed source 255e328a76b3f84bf74358bc7258b9ffb797b339 after fail-closed OAuth/JWT issuance, persisted auth-audit enforcement, query-safe access logging, and the patched frontend sharp dependency. GHCR publication, hosted proof, Owner approval, release promotion, and production rollout remain explicitly blocked.",
   "production_rollout_claimed": false
 }

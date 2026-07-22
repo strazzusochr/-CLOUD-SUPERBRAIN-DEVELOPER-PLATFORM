@@ -3,10 +3,9 @@
 ## Executive Status
 
 Cloud Superbrain is at canonical Overall `86%`, with seven cells already at `100%`. The hosted
-Workbench LLM HTTP 503 has been repaired and proved in Preview and Production. A new local RC4 was
-built from committed source and verified. The current worktree then entered a security-critical
-Phase-3 auth repair. That auth slice has focused source, unit, and local runtime proof but has not
-yet received the full verifier chain, truth-mirror update, clean commit, push, or RC5 rebuild.
+Workbench LLM HTTP 503 has been repaired and proved in Preview and Production. The security-critical
+Phase-3 auth repair passed the full verifier chain, was committed and pushed as `255e328a`, and was
+requalified locally as RC5 from the exact clean Git archive.
 
 This document exists so a fresh Codex chat continues from that exact state without repeating old
 work, losing uncommitted changes, staging foreign files, or making a false completion claim.
@@ -19,8 +18,9 @@ concurrent one-winner consumption, HTTP negative paths, `npm run verify:runtime`
 `.codex/runs/CURRENT/phase3/auth-fail-closed/report.json`, SHA-256
 `FB90E6D57FFBC6C646C583D6F5DD18F4EDB71D9E881B9B7090B3FFDD31FCADC1`. The static run also
 detected a new `sharp <0.35.0` advisory; exact override `0.35.3` closes it and npm audit reports
-zero vulnerabilities. P3 remains `44%`, Overall `86%`; no duplicate credit. DEV-ONLY; hosted proof
-still blocked. The next step is selective commit/push, followed by RC5 clean-archive requalification.
+zero vulnerabilities. P3 remains `44%`, Overall `86%`; no duplicate credit. Commit `255e328a` is
+pushed, and RC5 `prod-candidate-2026-07-22-local-rc5` passed both focused candidate verifiers.
+DEV-ONLY; hosted proof still blocked.
 
 ## Authoritative Resume References
 
@@ -249,13 +249,16 @@ Observed negative statuses:
 
 Docker was restarted after the Agent API edit and all ten services are healthy.
 
-## Work Still Required Before RC5
+## RC5 Completion
 
-1. Review all diffs and stage only owned auth/security changes, excluding the foreign D1 hunk in
-   `scripts/verify-phase1.ps1`.
-2. Commit and push the verified repair to `claude/cloud-superbrain-analysis-127d2e`.
-3. Rebuild and verify RC5 because RC4 predates the Agent API, frontend projection, dependency lock,
-   and manifest changes.
+1. Auth/security changes were selectively committed; the foreign D1 hunk in
+   `scripts/verify-phase1.ps1` remained unstaged.
+2. Commit `255e328a76b3f84bf74358bc7258b9ffb797b339` was pushed to
+   `claude/cloud-superbrain-analysis-127d2e`.
+3. RC5 built six production images from that clean archive and passed
+   `verify:phase5-candidate-local` plus `verify:current-release-candidate`.
+4. Candidate report SHA-256: `906C202FF2A74D32E52DD3AD77D17910B7777C97C4B3A90A1A761A88603E54B9`;
+   verification SHA-256: `BEA1898986560DE6B987B01752AA2A802EA8209FE171034FFB0E30FD03867EBC`.
 
 ## Exact Verification Sequence
 

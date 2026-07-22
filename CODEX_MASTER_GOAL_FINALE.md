@@ -1,5 +1,5 @@
 # 🏁 CODEX MASTER GOAL — FINALE (bis Vollendung + fehlerfreier Beweis)
-# Version: 2026-07-22 (Auth fail-closed verifiziert; RC5-Requalifizierung als Naechstes)
+# Version: 2026-07-22 (Auth fail-closed committed; RC5 lokal requalifiziert)
 # Führt CODEX_MASTER_GOAL.md zu Ende. Dieses Dokument ist der aktuelle Einstieg.
 
 ## DAS ZIEL IN EINEM SATZ
@@ -87,8 +87,8 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   `.codex/runs/CURRENT/phase3/auth-fail-closed/report.json`, SHA-256
   `FB90E6D57FFBC6C646C583D6F5DD18F4EDB71D9E881B9B7090B3FFDD31FCADC1`. P3 bleibt ohne
   Doppelcredit `44%`; Overall `86%`. DEV-ONLY; hosted proof still blocked. Der neue `sharp`-
-  Advisory ist per `0.35.3`-Override geschlossen, npm audit `0`. RC4 deckt die neue Source nicht
-  ab; RC5 muss nach dem Commit neu qualifiziert werden.
+  Advisory ist per `0.35.3`-Override geschlossen, npm audit `0`. Commit `255e328a` ist gepusht;
+  RC5 deckt die neue Source per Clean-Archive-Beweis ab.
 - **Phase 2 Runtime:** Der fehlende siebte Pflichtbeweis ist gutgeschrieben. Ein
   abgeschlossener LangGraph-Checkpoint wurde vor und nach echter `agent-api`-/`nginx`-
   Recreation unter demselben `thread_id` aus PostgreSQL gelesen. Der fokussierte
@@ -108,12 +108,12 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   `67281BB2B9CE8A411D88954D7604D9205E13726644FDA21BA0DE5673A596D15C`. Nur der neue
   Marker wird kreditiert: MCP Gateway `55% -> 56%`, Overall bleibt `86%`. Kein Token,
   MCP-Execute, Audit-Write, Provider-Write, stateful Backend-, Release- oder Production-Claim.
-- **Phase 5 Current Candidate RC4:** Sechs Images wurden nach LLM-503-Reparatur und
-  Frontend-Fallback-Haertung aus dem Clean-Archive von
-  `0679f6ffda099a6fcddf6830839a195ebe7d13a7` gebaut und auf OCI-/Source-Identitaet,
-  Frontend-`BUILD_ID`, Runtime-Source-Paritaet, RC3-Rollback und echten Diagnostics-Klick
+- **Phase 5 Current Candidate RC5:** Sechs Images wurden aus dem Clean-Archive von Auth-/Security-
+  Commit `255e328a76b3f84bf74358bc7258b9ffb797b339` gebaut und auf OCI-/Source-Identitaet,
+  Frontend-`BUILD_ID`, Runtime-Source-Paritaet, RC4-Rollback und echten Diagnostics-Klick
   verifiziert. Der Vercel Contract Origin bleibt ein stale read-only Snapshot (`84` vs lokal
-  `86`) und berechtigt keine Promotion. P5 bleibt ohne Doppelcredit `68%`.
+  `86`) und berechtigt keine Promotion. P5 bleibt ohne Doppelcredit `68%`. DEV-ONLY; hosted proof
+  still blocked.
 - **LLM Preview Read-only Source Parity:** Der oeffentliche Cloudflare Preview Worker liefert
   tokenfrei Health und exakt zwei allowlist-basierte Modelle. Source `67f41ce` und der aktuelle
   Service-Tree sind blob-identisch; alle Live-Call-/Write-Claims bleiben false. Evidence:
