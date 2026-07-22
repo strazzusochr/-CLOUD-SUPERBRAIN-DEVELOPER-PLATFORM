@@ -11,6 +11,17 @@ yet received the full verifier chain, truth-mirror update, clean commit, push, o
 This document exists so a fresh Codex chat continues from that exact state without repeating old
 work, losing uncommitted changes, staging foreign files, or making a false completion claim.
 
+## Post-Handover Update — 2026-07-22
+
+The auth slice is now fully implemented and locally verified. Nineteen unit tests, real-Redis
+concurrent one-winner consumption, HTTP negative paths, `npm run verify:runtime`, the complete
+51-minute `npm run verify:browser`, and `npm run verify` passed sequentially. Evidence is
+`.codex/runs/CURRENT/phase3/auth-fail-closed/report.json`, SHA-256
+`FB90E6D57FFBC6C646C583D6F5DD18F4EDB71D9E881B9B7090B3FFDD31FCADC1`. The static run also
+detected a new `sharp <0.35.0` advisory; exact override `0.35.3` closes it and npm audit reports
+zero vulnerabilities. P3 remains `44%`, Overall `86%`; no duplicate credit. DEV-ONLY; hosted proof
+still blocked. The next step is selective commit/push, followed by RC5 clean-archive requalification.
+
 ## Authoritative Resume References
 
 - Stable anchor: `PROJECT_ANCHOR_CURRENT.md`
@@ -165,8 +176,8 @@ percentage increase.
 - `AUTH_OAUTH_STATE_PREFIX` and a ten-minute Redis state lifetime;
 - `__Host-sb_oauth_state`, `__Host-sb_access`, and `__Host-sb_refresh` cookies;
 - one-time transactional OAuth-state consumption;
-- complete configuration checks for client id, client secret, redirect URI, and a minimum 32-byte
-  signing secret before production credential issuance;
+- complete configuration checks for client id, client secret, redirect URI, and a non-placeholder
+  base64url signing secret carrying at least 256 bits before production credential issuance;
 - random process-local signing fallback when no strong secret is configured;
 - fixed GitHub token and user endpoints with no redirect following;
 - credential issuance only after a verified numeric GitHub user id;
@@ -175,11 +186,12 @@ percentage increase.
 - body refresh token rejection;
 - unknown, malformed, invalid-record, invalid-subject, and blacklisted rejection paths;
 - logout revocation only when the cookie token was active;
+- persisted PostgreSQL audit evidence before successful callback/refresh cookies;
 - no OAuth code/state, token value, or blacklist key in response/audit details.
 
 ### Tests And Contract
 
-- `services/agent-api/tests/test_auth_security.py`: ten unit tests.
+- `services/agent-api/tests/test_auth_security.py`: nineteen unit tests.
 - `scripts/verify-phase3-auth-fail-closed.ps1`: source guards, unit tests, and runtime negative probes.
 - `docs/runtime-contracts/phase3-auth-credential-issuance-fail-closed.md`: bounded contract and
   non-claims.
@@ -199,7 +211,7 @@ $env:PYTHONPATH='services\agent-api'
 py -3 -m unittest discover -s services\agent-api\tests -v
 ```
 
-Result: `10/10 passed`.
+Result: `19/19 passed`.
 
 Static focused verifier:
 
@@ -223,7 +235,7 @@ Evidence:
 `.codex/runs/CURRENT/phase3/auth-fail-closed/report.json`
 
 SHA-256:
-`C7E0B8D30B0D6725645D855765403E14F1502A75676CA6813BE48B864C6AD9AF`
+`FB90E6D57FFBC6C646C583D6F5DD18F4EDB71D9E881B9B7090B3FFDD31FCADC1`
 
 Observed negative statuses:
 
@@ -237,26 +249,13 @@ Observed negative statuses:
 
 Docker was restarted after the Agent API edit and all ten services are healthy.
 
-## Work Still Required Before Auth Commit
+## Work Still Required Before RC5
 
-1. Parse the recently modified `scripts/verify-phase5-auth-gate-recheck.ps1` and inspect its complete
-   semantics. It was the last auth verifier edited before this handoff and has not yet been rerun.
-2. Search all current scripts/docs for assumptions that arbitrary callback or refresh input must
-   authenticate. Historical evidence should be labeled superseded.
-3. Update `docs/adr/ADR-009-auth-design.md` to the new one-time state and active registry model.
-4. Update current truth mirrors and goal mirrors. Explicitly say that P3 stays `44%` and production
-   OAuth remains Owner-gated.
-5. Consider improving callback error responses so OAuth-state cookie deletion is carried by the
-   actual error response. Redis one-time state already prevents credential issuance, so this is a
-   cleanup issue rather than an issuance bypass.
-6. Consider splitting the logout audit event name when no active token is revoked. Current payload
-   remains truthful, but `auth_logout_revoked` with `refresh_token_revoked=false` is semantically
-   awkward.
-7. Run the manifest verifier and focused source checks.
-8. Run full static, runtime, and browser gates sequentially.
-9. Review all diffs and stage only owned auth changes.
-10. Commit/push auth hardening.
-11. Rebuild RC5 because RC4 predates the Agent API, frontend projection, and manifest changes.
+1. Review all diffs and stage only owned auth/security changes, excluding the foreign D1 hunk in
+   `scripts/verify-phase1.ps1`.
+2. Commit and push the verified repair to `claude/cloud-superbrain-analysis-127d2e`.
+3. Rebuild and verify RC5 because RC4 predates the Agent API, frontend projection, dependency lock,
+   and manifest changes.
 
 ## Exact Verification Sequence
 

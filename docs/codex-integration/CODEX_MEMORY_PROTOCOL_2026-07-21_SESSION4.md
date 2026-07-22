@@ -27,7 +27,7 @@ At the beginning of the next chat:
 5. Follow the project `AGENTS.md` start protocol.
 6. Check the current branch, HEAD ancestry, and origin reachability.
 7. Set TEMP/TMP to `D:\_sb_tmp` before verification.
-8. Inspect current status and continue the dirty auth slice without resetting it.
+8. Inspect current status and selectively commit the fully verified auth/security slice without resetting it.
 
 ## Truth Memory
 
@@ -38,7 +38,7 @@ At the beginning of the next chat:
   committed.
 - Production release promotion remains false.
 - The canonical token-free external summary remains authoritative.
-- Localhost evidence is always `DEV-ONLY`.
+- Localhost evidence is always `DEV-ONLY; hosted proof still blocked`.
 
 ## Incident Memory
 
@@ -64,20 +64,22 @@ lock and must not trigger a reset or process kill.
 ### Auth Credential-Minting Defect
 
 The old callback accepted arbitrary code/state and the old refresh route accepted arbitrary unseen
-tokens. The current dirty worktree fixes this. Never restore the old behavior to satisfy legacy
-tests. Update or supersede those tests instead.
+tokens. The current dirty worktree fixes this and passed the full local verifier chain. Never
+restore the old behavior to satisfy legacy tests; those claims are security-invalidated/superseded.
 
 ## Current Auth Design Memory
 
 - OAuth state is random, Redis-backed, cookie-bound, and consumed once.
 - Production issuance is disabled unless OAuth client id/secret, valid callback URL, and a strong
-  signing secret are configured.
+  base64url signing secret carrying at least 256 bits are configured.
 - Callback issuance requires a real GitHub token exchange and verified numeric user id.
 - Refresh tokens must be in the Redis active registry and bind to `github:<numeric-id>`.
 - Rotation transactionally consumes the old active token before issuing a replacement.
 - Unknown, malformed, blacklisted, or replayed refresh tokens fail closed.
 - JSON-body refresh tokens are rejected.
 - Logout never claims arbitrary-token revocation.
+- Successful callback/refresh cookies require a persisted PostgreSQL audit event.
+- Uvicorn access logging is disabled and Nginx access logs omit query parameters.
 - Responses and audits omit code/state values, token values, and blacklist keys.
 - Positive identity exchange is mocked only in unit tests. The focused runtime verifier makes no
   GitHub call and makes no production identity claim.
@@ -88,14 +90,17 @@ Current auth evidence:
 
 - Contract: `phase3-auth-credential-issuance-fail-closed-v1`.
 - Report: `.codex/runs/CURRENT/phase3/auth-fail-closed/report.json`.
-- SHA-256: `C7E0B8D30B0D6725645D855765403E14F1502A75676CA6813BE48B864C6AD9AF`.
-- Unit tests: `10/10`.
+- SHA-256: `FB90E6D57FFBC6C646C583D6F5DD18F4EDB71D9E881B9B7090B3FFDD31FCADC1`.
+- Unit tests: `19/19`.
+- Real Redis concurrent one-winner state/refresh consumption: verified.
 - Arbitrary callback: `503`, no credentials.
 - Body refresh token: `400`.
 - Unknown cookie refresh token: `401`.
 - Unknown cookie logout: `200`, revoked false.
 - Live GitHub call: false.
 - Secret output: false.
+- Full `verify`, `verify:runtime`, and `verify:browser`: passed sequentially.
+- Frontend npm audit after `sharp 0.35.3` override: `0 vulnerabilities`.
 
 Current RC4 evidence:
 
@@ -125,9 +130,8 @@ Use explicit file lists and inspect the staged diff with `git --no-pager diff --
 - Always export TEMP/TMP to `D:\_sb_tmp` before a verifier.
 - Prefer bundled Node 24 through the existing `D:\_sb_tmp\node24-bin` wrappers for npm/Playwright.
 - Never run `verify`, Playwright, or Docker builds concurrently.
-- The full static gate before auth was green. Full static/runtime/browser gates after auth are still
-  required.
-- Browser verification can take roughly 25 minutes. Silence while the process runs is not a hang;
+- Full static/runtime/browser gates after auth are green.
+- Browser verification can take roughly 51 minutes. Silence while the process runs is not a hang;
   poll the running cell and provide tiny status updates.
 
 ## Decision Memory
@@ -142,16 +146,13 @@ Use explicit file lists and inspect the staged diff with `git --no-pager diff --
 
 ## Next-Action Memory
 
-The next agent should finish auth hardening, not begin Vectorize, Agent Pool, MCP write, GHCR, or a
-new UI slice first. Specifically:
+The next agent should preserve the green auth state and finish its release hygiene before beginning
+Vectorize, Agent Pool, MCP write, GHCR, or a new UI slice:
 
-1. finish legacy verifier/document cleanup;
-2. update ADR and truth mirrors;
-3. run manifest/static/runtime/browser gates;
-4. stage auth files precisely;
-5. commit and push;
-6. build/verify RC5;
-7. then resume the broader MARKET_READY queue.
+1. stage auth/security files precisely;
+2. commit and push;
+3. build/verify RC5;
+4. then resume the broader MARKET_READY queue.
 
 ## Owner-Wall Memory
 

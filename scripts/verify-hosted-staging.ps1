@@ -1541,52 +1541,9 @@ Assert-Contains "external gate mirror phase2 runtime" $externalGateMirror "phase
 Assert-Contains "external gate mirror phase2 sse" $externalGateMirror "phase2-sse-event-contract-v1"
 Assert-Contains "external gate mirror project progress proof" $externalGateMirror "project_progress_manifest_proof"
 
-Write-Host "[hosted] auth contract and refresh rotation"
-$authContract = Invoke-Text "$BaseUrl/api/v1/auth/contract"
-Assert-Contains "auth contract version" $authContract '"contract_version":"auth-github-jwt-refresh-v1"'
-Assert-Contains "auth contract no live oauth" $authContract '"live_github_oauth_call":false'
-Assert-Contains "auth contract access ttl" $authContract '"access_token_ttl_seconds":900'
-Assert-Contains "auth contract refresh ttl" $authContract '"ttl_seconds":604800'
-Assert-Contains "auth contract rotation" $authContract '"rotation_required":true'
-Assert-Contains "auth contract redis blacklist" $authContract '"blacklist_store":"redis"'
-Assert-Contains "auth contract same site" $authContract '"SameSite":"Strict"'
-$authGithub = Invoke-Text "$BaseUrl/api/v1/auth/github"
-Assert-Contains "auth github contract version" $authGithub '"contract_version":"auth-github-jwt-refresh-v1"'
-Assert-Contains "auth github no live oauth" $authGithub '"live_github_oauth_call":false'
-Assert-Contains "auth github authorize url" $authGithub "github.com/login/oauth/authorize"
-$authCallback = Invoke-JsonApi -url "$BaseUrl/api/v1/auth/callback?code=hosted-auth-code&state=hosted-auth-state" -method "GET" -contentType $null -timeoutSeconds 15
-if ($authCallback.status -ne "authenticated") { throw "Hosted staging verification failed: auth callback did not authenticate" }
-if ($authCallback.live_github_oauth_call -ne $false) { throw "Hosted staging verification failed: auth callback attempted live GitHub OAuth" }
-if ($authCallback.cookie_flags.SameSite -ne "Strict") { throw "Hosted staging verification failed: auth callback cookie SameSite was not Strict" }
-$authRefreshToken = "hosted-refresh-token-" + [Guid]::NewGuid().ToString("N")
-$authRefreshBody = @{ refresh_token = $authRefreshToken; trace_id = "hosted-auth-refresh-rotated" } | ConvertTo-Json -Compress
-$authRefresh = Invoke-JsonApi -url "$BaseUrl/api/v1/auth/refresh" -method "POST" -body $authRefreshBody -contentType "application/json" -timeoutSeconds 15
-if ($authRefresh.status -ne "rotated") { throw "Hosted staging verification failed: auth refresh did not rotate" }
-if ($authRefresh.refresh_token_rotated -ne $true) { throw "Hosted staging verification failed: auth refresh did not mark rotation true" }
-if ($authRefresh.old_refresh_token_blacklisted -ne $true) { throw "Hosted staging verification failed: auth refresh did not blacklist old token" }
-$authReuseFile = New-HostedTempPath -Prefix "hosted-auth-refresh-reuse-"
-$authReuseOutFile = New-HostedTempPath -Prefix "hosted-auth-refresh-reuse-out-"
-try {
-  Set-Content -LiteralPath $authReuseFile -Value $authRefreshBody -NoNewline -Encoding utf8
-  $authReuseResponse = Invoke-WebResponse -url "$BaseUrl/api/v1/auth/refresh" -method "POST" -body (Get-Content -Path $authReuseFile -Raw) -contentType "application/json"
-  $authReuseStatus = [string]$authReuseResponse.StatusCode
-  if ($authReuseStatus -ne "401") {
-    $authReuseUnexpected = $authReuseResponse.Content
-    throw "Hosted staging verification failed: auth refresh reuse expected 401 but got $authReuseStatus. Value: $authReuseUnexpected"
-  }
-  $authReuseOut = $authReuseResponse.Content
-} finally {
-  if (Test-Path $authReuseFile) { Remove-Item -LiteralPath $authReuseFile -Force }
-}
-Assert-Contains "auth refresh reuse blocked" $authReuseOut "refresh_token_invalid"
-$authLogoutBody = @{ refresh_token = ("hosted-logout-token-" + [Guid]::NewGuid().ToString("N")); trace_id = "hosted-auth-logout-revoked" } | ConvertTo-Json -Compress
-$authLogout = Invoke-JsonApi -url "$BaseUrl/api/v1/auth/logout" -method "POST" -body $authLogoutBody -contentType "application/json" -timeoutSeconds 15
-if ($authLogout.status -ne "logged_out") { throw "Hosted staging verification failed: auth logout did not complete" }
-if ($authLogout.refresh_token_revoked -ne $true) { throw "Hosted staging verification failed: auth logout did not revoke refresh token" }
-$authAudit = Invoke-Text "$BaseUrl/api/v1/audit/recent?limit=60"
-Assert-Contains "auth audit refresh rotated" $authAudit "auth_refresh_rotated"
-Assert-Contains "auth audit refresh reuse blocked" $authAudit "auth_refresh_reuse_blocked"
-Assert-Contains "auth audit logout revoked" $authAudit "auth_logout_revoked"
+Write-Host "[hosted] auth credential issuance fail-closed"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-auth-fail-closed.ps1 -BaseUrl $BaseUrl
+if ($LASTEXITCODE -ne 0) { throw "Hosted staging verification failed: auth credential issuance fail-closed verifier" }
 
 Write-Host "[hosted] devops workflow dispatch contract"
 $workflowPlan = Invoke-Text "$BaseUrl/api/v1/devops/workflow-dispatch/plan"

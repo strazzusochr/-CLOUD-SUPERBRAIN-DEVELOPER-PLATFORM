@@ -1,4 +1,4 @@
-# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-07-21 (Session 3) — autonom bis 100 % MARKTREIF
+# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-07-22 (Session 4) — autonom bis 100 % MARKTREIF
 # In JEDER Session: (1) diese Datei → (2) CODEX_UEBERGABE_2026-07-21.md → (3) arbeiten.
 
 ## ENDZIEL
@@ -7,7 +7,7 @@ Beide Matrizen **100 %**, jede Zelle mit echtem Artefakt. FINISH-LINE:
 als OWNER-BLOCKED gelistet, **nie gefaked** (R0 unverhandelbar).
 
 ## ✅ REALITÄT 2026-07-21 (Supervisor live gemessen)
-Source-Baseline `90b57ec` = origin · Overall **86 %** · MARKET_READY:false
+Pre-Slice-Source `390a4ff3` = origin · Overall **86 %** · MARKET_READY:false
 - **7 Zellen verifiziert auf 100:** P0, P1, **P2**, P4, Frontend, Orchestrator, Observability
 - Horizontal: `P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 68 · P6 90`
 - Vertikal: `FE 100 · ORC 100 · OBS 100 · MEM 90 · AP 69 · LLM 55 · MCP 56`
@@ -54,13 +54,18 @@ echten Verifier bauen → gegen `localhost:8081` beweisen → Manifest-Marker + 
   kreditiert. Neu und einmalig: tokenfreier Hosted-D1-Readback eines terminalen Vier-Rollen-Runs.
 - **T4 L5 MCP: DONE 56.** Source-gebundener aktueller Contract Origin: Health, fuenf Dry-run-
   Vertraege, exakte Pins und Audit-Contract per tokenfreiem HTTPS GET; kein Tool-Execute/Write.
-- **T5 P5: CURRENT RC4 DONE, bleibt 68.** Sechs Clean-Archive-Images aus `0679f6ff`,
-  Runtime-Source-Paritaet, RC3-Rollback und Chromium belegt. Kein Doppelcredit.
+- **T5 P5: RC5 NEXT, bleibt 68.** RC4 ist fuer `0679f6ff` historisch gruen, deckt aber die
+  neue Auth-/Dependency-Source nicht ab. Nach Commit/Push RC5 als Clean-Archive bauen und pruefen.
 - **T6 L4: DONE 55.** Cloudflare Preview Health + exakte Modellliste source-gebunden und
   tokenfrei per HTTPS GET; keine Inferenz, kein Provider-Write, kein Production-Worker-Claim.
 - **LLM 503: FIXED.** Preview + Production Mini-Build HTTP `200`; je Real-Chrome 22x2 gruen.
   Evidence `.codex/runs/CURRENT/llm-gateway/frontend-build-503-fix/report.json`; kein Prozentcredit.
-- **T7 NEXT — P3 (44):** OAuth-Callback und Refresh-Issuance fail-closed haerten.
+- **T7 DONE — P3 bleibt 44:** `phase3-auth-credential-issuance-fail-closed-v1` ist lokal mit
+  19 Tests, echter Redis-Konkurrenz, HTTP-Negativpfaden sowie Static/Runtime/Browser gruen.
+  Evidence `.codex/runs/CURRENT/phase3/auth-fail-closed/report.json`, SHA-256
+  `FB90E6D57FFBC6C646C583D6F5DD18F4EDB71D9E881B9B7090B3FFDD31FCADC1`.
+  Alter RC1-Proof superseded; kein Doppelcredit. DEV-ONLY; hosted proof still blocked.
+- **Security Audit:** `sharp <0.35.0` durch Override `0.35.3` geschlossen; npm audit `0`.
 - **P3 OAuth (Owner), P6 Scale (Zahlung), R0 production_deploy** = Wände, ehrlich als OWNER-BLOCKED.
 
 ## 🚨 CODEX' PAUSIERTE ARBEIT — nicht wegwerfen

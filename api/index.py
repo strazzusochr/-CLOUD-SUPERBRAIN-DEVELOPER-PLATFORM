@@ -21,10 +21,14 @@ for provider_secret in (
     "CLOUDFLARE_API_TOKEN",
     "FLY_API_TOKEN",
     "GHCR_TOKEN",
+    "GITHUB_OAUTH_CLIENT_ID",
+    "GITHUB_OAUTH_CLIENT_SECRET",
+    "GITHUB_OAUTH_REDIRECT_URI",
     "GITHUB_TOKEN",
     "GITLAB_TOKEN",
     "GRAFANA_CLOUD_API_KEY",
     "HF_TOKEN",
+    "JWT_SIGNING_SECRET",
     "VERCEL_TOKEN",
 ):
     os.environ.pop(provider_secret, None)
@@ -53,7 +57,7 @@ app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 @app.middleware("http")
 async def read_only_contract_origin(request: Request, call_next):
-    mutation_get_paths = {"/api/v1/auth/callback"}
+    mutation_get_paths = {"/api/v1/auth/callback", "/api/v1/auth/github"}
     if request.method not in {"GET", "HEAD", "OPTIONS"} or request.url.path in mutation_get_paths:
         return JSONResponse(
             status_code=503,

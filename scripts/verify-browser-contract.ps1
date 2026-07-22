@@ -389,62 +389,46 @@ Assert-Contains "auth contract refresh ttl" $authContract '"ttl_seconds":604800'
 Assert-Contains "auth contract rotation" $authContract '"rotation_required":true'
 Assert-Contains "auth contract redis blacklist" $authContract '"blacklist_store":"redis"'
 Assert-Contains "auth contract same site" $authContract '"SameSite":"Strict"'
-$authGithub = Invoke-Text "$BaseUrl/api/v1/auth/github"
-Assert-Contains "auth github contract version" $authGithub '"contract_version":"auth-github-jwt-refresh-v1"'
-Assert-Contains "auth github no live oauth" $authGithub '"live_github_oauth_call":false'
-Assert-Contains "auth github authorize url" $authGithub "github.com/login/oauth/authorize"
+Assert-Contains "auth contract fail-closed mode" $authContract '"mode":"verified_identity_fail_closed"'
+Assert-Contains "auth contract one-time state" $authContract '"one_time":true'
+Assert-Contains "auth contract active refresh registry" $authContract '"active_registry_required":true'
+Assert-Contains "auth contract body refresh disabled" $authContract '"body_token_allowed":false'
+Assert-Contains "auth contract response body excludes state" $authContract '"response_body_contains_state":false'
+Assert-Contains "auth contract minimal scope" $authContract '"scope":"read:user"'
+Assert-Contains "auth contract strong signing format" $authContract '"signing_secret_format":"base64url_256_bit_minimum"'
+Assert-Contains "auth contract audit persistence gate" $authContract '"credential_issuance_requires_persistence":true'
+$authContractObject = $authContract | ConvertFrom-Json
 if ($isLocalProof) {
-  $authCallback = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/callback?code=browser-auth-code&state=browser-auth-state" -Method "GET" -ContentType ""
-  Assert-Contains "auth callback authenticated" $authCallback '"status":"authenticated"'
-  Assert-Contains "auth callback no live oauth" $authCallback '"live_github_oauth_call":false'
-  Assert-Contains "auth callback same site strict" $authCallback '"SameSite":"Strict"'
-  $authRefreshToken = "browser-refresh-token-" + [Guid]::NewGuid().ToString("N")
-  $authRefreshBody = @{ refresh_token = $authRefreshToken; trace_id = "browser-auth-refresh-rotated" } | ConvertTo-Json -Compress
-  $authRefresh = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/refresh" -Method "POST" -Body $authRefreshBody -ContentType "application/json"
-  Assert-Contains "auth refresh rotated status" $authRefresh '"status":"rotated"'
-  Assert-Contains "auth refresh rotated flag" $authRefresh '"refresh_token_rotated":true'
-  Assert-Contains "auth refresh blacklist flag" $authRefresh '"old_refresh_token_blacklisted":true'
-  $authReuseOutput = ""
-  $authReuseFailed = $false
-  try {
-    $authReuseOutput = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/refresh" -Method "POST" -Body $authRefreshBody -ContentType "application/json"
-  } catch {
-    $authReuseFailed = $true
-    $authReuseOutput = $_.Exception.Message
-  }
-  Assert-True "auth refresh reuse blocked with non-2xx" $authReuseFailed
-  Assert-Contains "auth refresh reuse blocked" $authReuseOutput "refresh_token_invalid"
-  $authLogoutBody = @{ refresh_token = ("browser-logout-token-" + [Guid]::NewGuid().ToString("N")); trace_id = "browser-auth-logout-revoked" } | ConvertTo-Json -Compress
-  $authLogout = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/logout" -Method "POST" -Body $authLogoutBody -ContentType "application/json"
-  Assert-Contains "auth logout status" $authLogout '"status":"logged_out"'
-  Assert-Contains "auth logout revoked" $authLogout '"refresh_token_revoked":true'
-  $authAudit = Invoke-Text "$BaseUrl/api/v1/audit/recent?limit=60"
-  Assert-Contains "auth audit refresh rotated" $authAudit "auth_refresh_rotated"
-  Assert-Contains "auth audit refresh reuse blocked" $authAudit "auth_refresh_reuse_blocked"
-  Assert-Contains "auth audit logout revoked" $authAudit "auth_logout_revoked"
-} else {
-  foreach ($hostedAuthCall in @(
-    @{ label = "callback"; url = "$BaseUrl/api/v1/auth/callback?code=browser-auth-code&state=browser-auth-state"; method = "GET"; body = "" },
-    @{ label = "refresh"; url = "$BaseUrl/api/v1/auth/refresh"; method = "POST"; body = (@{ refresh_token = "hosted-read-only" } | ConvertTo-Json -Compress) },
-    @{ label = "logout"; url = "$BaseUrl/api/v1/auth/logout"; method = "POST"; body = (@{ refresh_token = "hosted-read-only" } | ConvertTo-Json -Compress) }
-  )) {
-    $hostedAuthFailed = $false
-    $hostedAuthOutput = ""
+  if ([bool]$authContractObject.credential_issuance_ready) {
+    $authStartHeaders = Join-Path $env:TEMP ("browser-auth-start-headers-" + [Guid]::NewGuid().ToString("N") + ".txt")
+    $authStartBody = Join-Path $env:TEMP ("browser-auth-start-body-" + [Guid]::NewGuid().ToString("N") + ".txt")
     try {
-      $hostedAuthOutput = Invoke-JsonApi -Url $hostedAuthCall.url -Method $hostedAuthCall.method -Body $hostedAuthCall.body -ContentType "application/json"
-    } catch {
-      $hostedAuthFailed = $true
-      $hostedAuthOutput = $_.Exception.Message
+      $authStartStatus = curl.exe -sS --max-time 30 --dump-header $authStartHeaders --output $authStartBody --write-out "%{http_code}" "$BaseUrl/api/v1/auth/github"
+      Assert-True "auth github curl exit" ($LASTEXITCODE -eq 0)
+      Assert-True "auth github redirect status" ([int]$authStartStatus -in @(302, 303, 307))
+      $authStartHeaderText = Get-Content -LiteralPath $authStartHeaders -Raw
+      $authStartBodyText = Get-Content -LiteralPath $authStartBody -Raw
+      Assert-True "auth github fixed redirect" ($authStartHeaderText -match '(?im)^Location:\s*https://github\.com/login/oauth/authorize\?')
+      Assert-True "auth github minimal scope" ($authStartHeaderText.Contains("scope=read%3Auser"))
+      Assert-True "auth github no email scope" (-not $authStartHeaderText.Contains("user%3Aemail"))
+      Assert-True "auth github empty JSON body" ([string]::IsNullOrWhiteSpace($authStartBodyText))
+    } finally {
+      Remove-TempFileWithRetry $authStartHeaders
+      Remove-TempFileWithRetry $authStartBody
     }
-    Assert-True "hosted auth $($hostedAuthCall.label) fails closed" $hostedAuthFailed
-    Assert-True "hosted auth $($hostedAuthCall.label) boundary" (
-      $hostedAuthOutput.Contains("stateful_auth_boundary_unavailable") -or
-      $hostedAuthOutput.Contains("stateless_contract_origin_read_only") -or
-      $hostedAuthOutput.Contains("configured_boundary_unavailable")
-    )
-    Assert-Contains "hosted auth $($hostedAuthCall.label) not accepted" $hostedAuthOutput '"accepted":false'
-    Assert-Contains "hosted auth $($hostedAuthCall.label) no audit claim" $hostedAuthOutput '"audit_persisted":false'
+  } else {
+    $authGithub = Invoke-Text "$BaseUrl/api/v1/auth/github"
+    Assert-Contains "auth github contract version" $authGithub '"contract_version":"auth-github-jwt-refresh-v1"'
+    Assert-Contains "auth github no live oauth" $authGithub '"live_github_oauth_call":false'
+    Assert-Contains "auth github no credentials" $authGithub '"credentials_issued":false'
+    Assert-Contains "auth github state required" $authGithub '"state_required":true'
   }
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-auth-fail-closed.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: auth fail-closed verifier" }
+} else {
+  Write-Host "[browser-contract] hosted auth proof is read-only; OAuth start/callback/refresh/logout are not invoked"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-auth-fail-closed.ps1 -BaseUrl $BaseUrl
+  if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: hosted read-only auth contract verifier" }
 }
 
 Write-Host "[browser-contract] signed auth-session integrity"

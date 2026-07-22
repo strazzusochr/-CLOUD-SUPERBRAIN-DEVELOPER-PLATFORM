@@ -1,6 +1,6 @@
 # Cloud Superbrain Release Status
 
-Updated: 2026-07-21
+Updated: 2026-07-22
 
 Status: **not released**. This repository has a healthy local development runtime, a
 verified Vercel frontend deployment, and a reachable stateless read-only Backend Contract
@@ -18,7 +18,7 @@ npm run verify:browser
 
 Local URL: `http://localhost:8081`
 
-Localhost is `DEV-ONLY`. It may prove deterministic runtime, API, audit, and browser
+Localhost is `DEV-ONLY; hosted proof still blocked`. It may prove deterministic runtime, API, audit, and browser
 behavior, but it cannot close hosted staging, backend-origin, production, or release
 gates.
 
@@ -37,6 +37,21 @@ gates.
 
 Percentages come only from `docs/project-progress.manifest.json` and must match
 `GET /api/v1/project/progress` plus `GET /api/v1/project/progress/integrity`.
+
+The current Phase-3 credential-issuance replacement is locally verified under
+`phase3-auth-credential-issuance-fail-closed-v1`. It requires one-time Redis OAuth state,
+verified numeric GitHub identity, exactly `read:user`, a base64url 256-bit signing-secret floor,
+active-registry cookie-only refresh rotation, persisted audit evidence before successful auth
+cookies, truthful logout events, error-response state-cookie clearing, and query-safe access logs.
+Nineteen unit tests, a real-Redis concurrency probe, local HTTP negative paths, and the complete
+static/runtime/browser suites passed sequentially. Evidence:
+`.codex/runs/CURRENT/phase3/auth-fail-closed/report.json`, SHA-256
+`FB90E6D57FFBC6C646C583D6F5DD18F4EDB71D9E881B9B7090B3FFDD31FCADC1`. The run also
+closed the newly reported `sharp <0.35.0` advisory with exact override `0.35.3`; npm audit reports
+zero vulnerabilities. This supersedes historical RC1 auth evidence without duplicate progress
+credit; P3 remains `44%`, Overall `86%`. DEV-ONLY; hosted proof still blocked. RC4 is not source-
+current for this pending repair, so RC5 must be built from the resulting commit before current
+candidate parity is claimed.
 
 The current hosted Agent Pool proof is read-only: `scripts/verify-agent-pool-hosted-readonly.ps1`
 revalidates one existing Cloudflare D1-backed terminal run with exactly four completed role tasks.

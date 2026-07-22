@@ -844,6 +844,11 @@ if (-not $projectProgressManifest.Contains("mcp_current_hosted_readonly_contract
 if (-not $projectProgressManifest.Contains("cloudflare_workers_ai_llm_gateway_preview_readonly_source_parity_verified")) {
   throw "Project progress manifest missing hosted Cloudflare LLM read-only parity proof marker"
 }
+foreach ($marker in @("auth_credential_issuance_fail_closed", "oauth_state_one_time_enforced", "refresh_token_registry_enforced")) {
+  if (-not $projectProgressManifest.Contains($marker)) {
+    throw "Project progress manifest missing Phase 3 auth fail-closed marker: $marker"
+  }
+}
 $projectProgress = $projectProgressManifest | ConvertFrom-Json
 $horizontalById = @{}
 foreach ($item in $projectProgress.horizontal.items) {
@@ -1105,12 +1110,64 @@ foreach ($required in @(
   "auth_refresh_reuse_blocked",
   "auth_logout_revoked",
   "AUTH_BLACKLIST_PREFIX",
+  "AUTH_REFRESH_ACTIVE_PREFIX",
+  "AUTH_OAUTH_STATE_PREFIX",
+  "AUTH_OAUTH_STATE_PATTERN",
+  "AUTH_SIGNING_SECRET_PATTERN",
+  "auth_signing_secret_is_strong",
+  "auth_credential_issuance_fail_closed",
+  "oauth_state_one_time_enforced",
+  "refresh_token_registry_enforced",
+  "refresh_token_body_not_allowed",
+  "oauth_state_invalid",
+  "oauth_callback_parameters_invalid",
+  "oauth_provider_denied",
+  "auth_configuration_required",
+  "auth_audit_unavailable",
+  "credential_issuance_requires_persistence",
+  "auth_logout_no_active_token",
+  "oauth_state_cookie_clear_headers",
+  "RedirectResponse",
   "SameSite"
 )) {
   if (-not $apiTaskPolicySource.Contains($required)) {
     throw "Missing Auth JWT refresh contract guard: $required"
   }
 }
+foreach ($forbidden in @(
+  'create_access_jwt("github:local-contract-user"',
+  'supplied_token = (request.refresh_token if request else None) or refresh_token_cookie',
+  '"blacklist_key": blacklist_key',
+  'phase3-local-dry-run-signing-secret',
+  '"authorize_url": authorize_url',
+  '"scope": "read:user user:email"',
+  '"mode": "local_contract"',
+  'jwt_signing_configured = len(signing_secret.encode("utf-8")) >= 32'
+)) {
+  if ($apiTaskPolicySource.Contains($forbidden)) {
+    throw "Unsafe Auth credential-issuance source marker remains: $forbidden"
+  }
+}
+$agentApiDockerfile = Get-Content -LiteralPath "services\agent-api\Dockerfile" -Raw
+if (-not $agentApiDockerfile.Contains('"--no-access-log"')) {
+  throw "Agent API must disable raw Uvicorn access logging for OAuth callback query safety"
+}
+foreach ($nginxPath in @("infrastructure\nginx\dev.conf", "infrastructure\nginx\cloud.conf")) {
+  $authSafeNginx = Get-Content -LiteralPath $nginxPath -Raw
+  if (-not $authSafeNginx.Contains("log_format superbrain_path_only") -or
+      -not $authSafeNginx.Contains('$request_method $uri $server_protocol')) {
+    throw "Nginx auth-safe path-only access log missing: $nginxPath"
+  }
+  if ($authSafeNginx -match '(?m)^\s*log_format\s+superbrain_path_only[^;]*\$request(?:\s|''|"|;)') {
+    throw "Nginx auth-safe access log must not include raw request arguments: $nginxPath"
+  }
+}
+Write-Host "[verify] Phase 3 auth credential issuance fail-closed"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-auth-fail-closed.ps1 -StaticOnly
+Assert-LastExitCode "Phase 3 auth credential issuance fail-closed"
+Write-Host "[verify] Phase 5 historical auth supersession"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-auth-gate-recheck.ps1 -StaticOnly
+Assert-LastExitCode "Phase 5 historical auth supersession"
 foreach ($required in @(
   "MemoryPurgeRequest",
   "memory_purge_contract_payload",

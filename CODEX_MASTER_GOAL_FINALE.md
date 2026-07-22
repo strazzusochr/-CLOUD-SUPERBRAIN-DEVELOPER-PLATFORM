@@ -1,5 +1,5 @@
 # 🏁 CODEX MASTER GOAL — FINALE (bis Vollendung + fehlerfreier Beweis)
-# Version: 2026-07-21 (Phase 2 geschlossen; Agent Pool, MCP und LLM read-only belegt)
+# Version: 2026-07-22 (Auth fail-closed verifiziert; RC5-Requalifizierung als Naechstes)
 # Führt CODEX_MASTER_GOAL.md zu Ende. Dieses Dokument ist der aktuelle Einstieg.
 
 ## DAS ZIEL IN EINEM SATZ
@@ -79,6 +79,16 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   `npm run verify:runtime` und `npm run verify:browser` sind gruen; letzterer umfasst 22
   Seiten, zwei Viewports und 44 Klicks ohne Overflow-, Overlay- oder Console-Fehler.
   Evidence: `.codex/runs/CURRENT/master-goal/r0-canonical-runtime-truth-20260719.md`.
+- **Phase 3 Auth Fail-Closed:** `phase3-auth-credential-issuance-fail-closed-v1` ersetzt die
+  sicherheitsinvaliden RC1-Dry-run-Issuance-Claims. Einmaliger Redis-State, verifizierte numerische
+  GitHub-ID, exakt `read:user`, starkes base64url-256-Bit-Signing-Secret, aktive Cookie-Refresh-
+  Registry, Audit-before-Cookie, truthful Logout und query-sichere Access-Logs sind implementiert.
+  19 Tests, echte Redis-Konkurrenz sowie Static/Runtime/Browser sind seriell gruen. Evidence:
+  `.codex/runs/CURRENT/phase3/auth-fail-closed/report.json`, SHA-256
+  `FB90E6D57FFBC6C646C583D6F5DD18F4EDB71D9E881B9B7090B3FFDD31FCADC1`. P3 bleibt ohne
+  Doppelcredit `44%`; Overall `86%`. DEV-ONLY; hosted proof still blocked. Der neue `sharp`-
+  Advisory ist per `0.35.3`-Override geschlossen, npm audit `0`. RC4 deckt die neue Source nicht
+  ab; RC5 muss nach dem Commit neu qualifiziert werden.
 - **Phase 2 Runtime:** Der fehlende siebte Pflichtbeweis ist gutgeschrieben. Ein
   abgeschlossener LangGraph-Checkpoint wurde vor und nach echter `agent-api`-/`nginx`-
   Recreation unter demselben `thread_id` aus PostgreSQL gelesen. Der fokussierte

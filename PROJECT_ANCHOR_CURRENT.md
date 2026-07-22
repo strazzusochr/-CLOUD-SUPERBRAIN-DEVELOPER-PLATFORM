@@ -65,13 +65,13 @@ progress authority. Canonical percentages still come only from
 - The full static `npm run verify` passed before the auth hardening edits (`205.9s`, gitleaks
   clean, npm audit zero vulnerabilities).
 
-## Current In-Progress Slice
+## Current Verified Pending-Commit Slice
 
 Phase 3 auth credential issuance is being hardened because the old implementation accepted any
 callback `code/state` and minted credentials, while any previously unseen refresh token could mint
 a new JWT. That was a real security defect and invalidated the old dry-run issuance proof.
 
-Implemented but not yet committed:
+Implemented and fully verified, but not yet committed:
 
 - one-time Redis-backed OAuth state plus `__Host-sb_oauth_state` binding;
 - production credential issuance requires complete OAuth configuration, a strong signing secret,
@@ -86,40 +86,36 @@ Implemented but not yet committed:
 - token values, callback code/state, and blacklist keys removed from responses and audit details;
 - frontend stateless auth projection updated to the same fail-closed contract;
 - old local/hosted auth verifier paths changed away from arbitrary dry-run issuance;
-- ten backend unit tests and a dedicated runtime verifier added.
+- nineteen backend unit tests, real-Redis concurrency proof, and a dedicated runtime verifier added;
+- successful callback/refresh cookies require persisted PostgreSQL audit evidence;
+- JWT signing configuration requires non-placeholder base64url material carrying at least 256 bits;
+- Uvicorn access logging is disabled and Nginx logs path-only without callback query parameters;
+- hosted auth verification is contract-read-only and performs no OAuth/session mutation;
+- frontend `sharp` is overridden to patched `0.35.3` after the audit detected the new `<0.35.0` advisory.
 
 Focused evidence already passed:
 
-- `py -3 -m unittest discover -s services\agent-api\tests -v`: `10/10` passed.
+- `py -3.14 -m unittest discover -s services\agent-api\tests -p test_auth_security.py -v`: `19/19` passed.
 - `scripts\verify-phase3-auth-fail-closed.ps1 -StaticOnly`: passed.
 - `scripts\verify-phase3-auth-fail-closed.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`:
   passed against the restarted Docker runtime.
 - Runtime statuses: arbitrary callback `503`, body refresh `400`, unknown cookie refresh `401`,
   unknown cookie logout `200` with `refresh_token_revoked=false`.
 - Evidence: `.codex/runs/CURRENT/phase3/auth-fail-closed/report.json`.
-- Evidence SHA-256: `C7E0B8D30B0D6725645D855765403E14F1502A75676CA6813BE48B864C6AD9AF`.
+- Evidence SHA-256: `FB90E6D57FFBC6C646C583D6F5DD18F4EDB71D9E881B9B7090B3FFDD31FCADC1`.
 - Docker is currently `10/10 healthy`.
+- `npm run verify:runtime`, `npm run verify:browser`, and `npm run verify`: passed sequentially.
+- `npm audit --audit-level=high`: `0 vulnerabilities`.
+- Progress remains P3 `44%`, Overall `86%`; no duplicate credit. DEV-ONLY; hosted proof still blocked.
 
 ## Exact Next Step
 
-1. Parse and inspect all modified auth verifier scripts, especially the most recently changed
-   `scripts/verify-phase5-auth-gate-recheck.ps1`.
-2. Search for remaining current verifier assumptions that arbitrary OAuth callback or refresh input
-   authenticates. Historical documents must be explicitly marked superseded, not silently treated
-   as current evidence.
-3. Update `docs/adr/ADR-009-auth-design.md`, `PROJECT_STATE.md`, `AI_HANDOFF.md`,
-   `docs/verification-register.md`, `docs/RELEASE.md`, and the active goal mirrors. Keep P3 at `44%`;
-   this repair replaces invalid evidence and earns no duplicate credit.
-4. Run `py -3 scripts/verify_project_progress_manifest.py`.
-5. Run focused compile/unit/static auth checks.
-6. Run `npm run verify`, then `npm run verify:runtime`, then `npm run verify:browser` sequentially.
-   Never overlap those commands.
-7. Review the diff, stage only the auth-owned changes, and partial-stage
+1. Review the diff, stage only the auth-owned changes, and partial-stage
    `scripts/verify-phase1.ps1` so the foreign Cloudflare-D1 hunk is excluded.
-8. Commit and push only to `claude/cloud-superbrain-analysis-127d2e`.
-9. Requalify RC5 from the new committed runtime source because Agent API, frontend projection, and
+2. Commit and push only to `claude/cloud-superbrain-analysis-127d2e`.
+3. Requalify RC5 from the new committed runtime source because Agent API, frontend projection, and
    the manifest changed after RC4. Do not claim RC4 as current runtime parity after that commit.
-10. Continue the market-ready audit and remaining autonomous slices.
+4. Continue the market-ready audit and remaining autonomous slices.
 
 ## Foreign Dirty Files: Never Stage, Revert, Or Rewrite
 

@@ -1644,54 +1644,9 @@ Assert-Contains "external gate mirror phase2 runtime" $externalGateMirror "phase
 Assert-Contains "external gate mirror phase2 sse" $externalGateMirror "phase2-sse-event-contract-v1"
 Assert-Contains "external gate mirror project progress proof" $externalGateMirror "project_progress_manifest_proof"
 
-Write-Host "[runtime] auth contract and refresh rotation"
-$authContract = curl.exe -sS "$baseUrl/api/v1/auth/contract"
-Assert-Contains "auth contract version" $authContract '"contract_version":"auth-github-jwt-refresh-v1"'
-Assert-Contains "auth contract no live oauth" $authContract '"live_github_oauth_call":false'
-Assert-Contains "auth contract access ttl" $authContract '"access_token_ttl_seconds":900'
-Assert-Contains "auth contract refresh ttl" $authContract '"ttl_seconds":604800'
-Assert-Contains "auth contract rotation" $authContract '"rotation_required":true'
-Assert-Contains "auth contract redis blacklist" $authContract '"blacklist_store":"redis"'
-Assert-Contains "auth contract httponly" $authContract '"HttpOnly":true'
-Assert-Contains "auth contract secure" $authContract '"Secure":true'
-Assert-Contains "auth contract same site" $authContract '"SameSite":"Strict"'
-$authGithub = curl.exe -sS "$baseUrl/api/v1/auth/github"
-Assert-Contains "auth github contract version" $authGithub '"contract_version":"auth-github-jwt-refresh-v1"'
-Assert-Contains "auth github no live oauth" $authGithub '"live_github_oauth_call":false'
-Assert-Contains "auth github authorize url" $authGithub "github.com/login/oauth/authorize"
-$authCallback = Invoke-RestMethod -Method Get -Uri "$baseUrl/api/v1/auth/callback?code=runtime-auth-code&state=runtime-auth-state"
-if ($authCallback.status -ne "authenticated") { throw "Runtime verification failed: auth callback did not authenticate" }
-if ($authCallback.live_github_oauth_call -ne $false) { throw "Runtime verification failed: auth callback attempted live GitHub OAuth" }
-if ($authCallback.cookie_flags.SameSite -ne "Strict") { throw "Runtime verification failed: auth callback cookie SameSite was not Strict" }
-$authRefreshToken = "runtime-refresh-token-" + [Guid]::NewGuid().ToString("N")
-$authRefreshBody = @{ refresh_token = $authRefreshToken; trace_id = "runtime-auth-refresh-rotated" } | ConvertTo-Json -Compress
-$authRefresh = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/auth/refresh" -ContentType "application/json" -Body $authRefreshBody
-if ($authRefresh.status -ne "rotated") { throw "Runtime verification failed: auth refresh did not rotate" }
-if ($authRefresh.refresh_token_rotated -ne $true) { throw "Runtime verification failed: auth refresh did not mark rotation true" }
-if ($authRefresh.old_refresh_token_blacklisted -ne $true) { throw "Runtime verification failed: auth refresh did not blacklist old token" }
-$authReuseFile = Join-Path $env:TEMP ("auth-refresh-reuse-" + [Guid]::NewGuid().ToString("N") + ".json")
-$authReuseOutFile = Join-Path $env:TEMP ("auth-refresh-reuse-out-" + [Guid]::NewGuid().ToString("N") + ".json")
-try {
-  Set-Content -LiteralPath $authReuseFile -Value $authRefreshBody -NoNewline -Encoding utf8
-  $authReuseStatus = curl.exe -sS -o $authReuseOutFile -w "%{http_code}" -X POST -H "Content-Type: application/json" --data-binary "@$authReuseFile" "$baseUrl/api/v1/auth/refresh"
-  if ($authReuseStatus -ne "401") {
-    $authReuseUnexpected = Get-Content -Path $authReuseOutFile -Raw
-    throw "Runtime verification failed: auth refresh reuse expected 401 but got $authReuseStatus. Value: $authReuseUnexpected"
-  }
-  $authReuseOut = Get-Content -Path $authReuseOutFile -Raw
-} finally {
-  if (Test-Path $authReuseFile) { Remove-Item -LiteralPath $authReuseFile -Force }
-  if (Test-Path $authReuseOutFile) { Remove-Item -LiteralPath $authReuseOutFile -Force }
-}
-Assert-Contains "auth refresh reuse blocked" $authReuseOut "refresh_token_invalid"
-$authLogoutBody = @{ refresh_token = ("runtime-logout-token-" + [Guid]::NewGuid().ToString("N")); trace_id = "runtime-auth-logout-revoked" } | ConvertTo-Json -Compress
-$authLogout = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/auth/logout" -ContentType "application/json" -Body $authLogoutBody
-if ($authLogout.status -ne "logged_out") { throw "Runtime verification failed: auth logout did not complete" }
-if ($authLogout.refresh_token_revoked -ne $true) { throw "Runtime verification failed: auth logout did not revoke refresh token" }
-$authAudit = curl.exe -sS "$baseUrl/api/v1/audit/recent?limit=60"
-Assert-Contains "auth audit refresh rotated" $authAudit "auth_refresh_rotated"
-Assert-Contains "auth audit refresh reuse blocked" $authAudit "auth_refresh_reuse_blocked"
-Assert-Contains "auth audit logout revoked" $authAudit "auth_logout_revoked"
+Write-Host "[runtime] auth credential issuance fail-closed"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-auth-fail-closed.ps1 -BaseUrl $baseUrl -AllowLocalhost
+if ($LASTEXITCODE -ne 0) { throw "Runtime verification failed: auth credential issuance fail-closed verifier" }
 
 Write-Host "[runtime] signed auth-session integrity"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-auth-session-integrity.ps1 -BaseUrl $baseUrl -AllowLocalhost -SkipBrowser

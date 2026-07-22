@@ -8,6 +8,8 @@ Open this entire folder in the next IDE or AI-agent tool. Do not copy only track
 
 Current honesty guardrail: active candidate `prod-candidate-2026-07-21-local-rc4` is a locally verified backend preparation artifact bound to current runtime source commit `0679f6ffda099a6fcddf6830839a195ebe7d13a7`; its six Docker image identities are local only and the planned GHCR tags are unpublished. Runtime-only and full-browser candidate verification artifacts are isolated. The verifier proves committed runtime-source parity, binds rollback to RC3 `90b57ecaa54e0ab750a57d0e1acfb33779675f5a`, and reports `candidate_technical=true`, `runtime_source_parity=true`, `promotion_eligible=false`. Separately, the frontend and the stateless read-only Backend Contract Origin are deployed on Vercel. The frontend has a source-bound 22x2 Google Chrome proof. The canonical reproducible standard cloud audit is `blocked`; only an owner-assisted, non-current candidate audit is `verified`. This does not prove the stateful Docker backend stack, Owner release approval, registry publication, full-platform deployment, or release promotion.
 
+RC4 does not cover the verified but not-yet-committed Phase-3 auth and frontend dependency security repair described below. It remains historical local evidence only for its bound source; RC5 must be built from the new commit before current runtime-source parity can be claimed again.
+
 ## Binding Truth
 
 Primary project truth hierarchy:
@@ -56,6 +58,8 @@ Vertical:
 - Observability: `100%`
 
 Older percentage lines below are historical proof points only. Current percentages must come from this section and `docs/project-progress.manifest.json`.
+
+Latest Phase 3 credential-issuance repair: `phase3-auth-credential-issuance-fail-closed-v1` replaces the security-invalidated RC1 dry-run issuance path. One-time Redis OAuth state, exact `__Host-` binding, fixed GitHub exchange with positive numeric identity, minimal `read:user`, a base64url 256-bit signing-secret floor, active-registry refresh rotation, truthful logout, audit-before-cookie issuance, provider-payload shape checks, callback-cookie clearing, and query-safe access logging are implemented. Nineteen unit tests, a real-Redis concurrency probe, local HTTP negative paths, `npm run verify:runtime`, `npm run verify:browser`, and `npm run verify` passed sequentially. Evidence: `.codex/runs/CURRENT/phase3/auth-fail-closed/report.json`, SHA-256 `FB90E6D57FFBC6C646C583D6F5DD18F4EDB71D9E881B9B7090B3FFDD31FCADC1`. The same run resolved the new `sharp <0.35.0` advisory through exact override `0.35.3`; npm audit reports zero vulnerabilities. P3 remains `44%` and Overall `86%`; no duplicate credit. DEV-ONLY; hosted proof still blocked. Production identity and credential configuration remain Owner/review-gated.
 
 Latest Phase 2 closure proof: `phase2-postgres-checkpoint-restart-recovery-v1` executed a completed deterministic LangGraph run, read its PostgreSQL checkpoint, force-recreated `agent-api` and `nginx`, and recovered the same terminal checkpoint by the original `thread_id`. The Compose healthcheck was hardened for the real aggregate health latency; both a focused recreation probe and the subsequent full `npm run verify:runtime` passed. Evidence: `.codex/runs/CURRENT/master-goal/phase2/checkpoint-restart-recovery-20260721.md`. This credits the seventh and final mandatory Phase-2 proof, raising Phase 2 `86% -> 100%` and Overall `84% -> 86%`. DEV-ONLY; no hosted stateful parity, live provider, live MCP write, registry, deploy, release, or production claim.
 

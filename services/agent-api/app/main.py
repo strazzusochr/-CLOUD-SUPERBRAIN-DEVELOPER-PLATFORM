@@ -26,7 +26,7 @@ import redis
 from fastapi import Cookie, FastAPI, Header, HTTPException, Query, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response, StreamingResponse
 from psycopg.types.json import Json
 from pydantic import AliasChoices, BaseModel, Field, field_validator
 
@@ -1163,7 +1163,25 @@ class ReadOnlyToolExecuteRequest(BaseModel):
 
 AUTH_ACCESS_TOKEN_TTL_SECONDS = 15 * 60
 AUTH_REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60
+AUTH_OAUTH_STATE_TTL_SECONDS = 10 * 60
 AUTH_BLACKLIST_PREFIX = "auth:refresh:blacklist:"
+AUTH_REFRESH_ACTIVE_PREFIX = "auth:refresh:active:"
+AUTH_OAUTH_STATE_PREFIX = "auth:oauth:state:"
+AUTH_ACCESS_COOKIE = "__Host-sb_access"
+AUTH_REFRESH_COOKIE = "__Host-sb_refresh"
+AUTH_OAUTH_STATE_COOKIE = "__Host-sb_oauth_state"
+AUTH_REFRESH_TOKEN_PATTERN = re.compile(r"^csr_[A-Za-z0-9_-]{32,128}$")
+AUTH_OAUTH_STATE_PATTERN = re.compile(r"^phase3-auth-state-[A-Za-z0-9_-]{32}$")
+AUTH_SIGNING_SECRET_PATTERN = re.compile(r"^[A-Za-z0-9_-]{43,128}$")
+AUTH_SIGNING_SECRET_MIN_DECODED_BYTES = 32
+AUTH_SIGNING_SECRET_MIN_UNIQUE_BYTES = 16
+AUTH_REJECTED_SIGNING_SECRETS = frozenset(
+    {
+        "change-me",
+        "changeme",
+    }
+)
+_AUTH_EPHEMERAL_SIGNING_SECRET = secrets.token_bytes(32)
 DSGVO_PURGE_CONTRACT_VERSION = "memory-dsgvo-purge-v1"
 COST_EXPORT_CONTRACT_VERSION = "cost-monitor-export-v1"
 SYSTEM_FALLBACK_CONTRACT_VERSION = "system-unavailable-fallback-v1"
@@ -1647,8 +1665,67 @@ def perform_live_agent_result(
     }
 
 
+def auth_signing_secret_is_strong(signing_secret: str) -> bool:
+    if (
+        not AUTH_SIGNING_SECRET_PATTERN.fullmatch(signing_secret)
+        or signing_secret.lower() in AUTH_REJECTED_SIGNING_SECRETS
+    ):
+        return False
+    try:
+        decoded = base64.urlsafe_b64decode(signing_secret + ("=" * (-len(signing_secret) % 4)))
+    except (ValueError, TypeError):
+        return False
+    return (
+        len(decoded) >= AUTH_SIGNING_SECRET_MIN_DECODED_BYTES
+        and len(set(decoded)) >= AUTH_SIGNING_SECRET_MIN_UNIQUE_BYTES
+    )
+
+
+def auth_configuration() -> dict[str, object]:
+    client_id = os.getenv("GITHUB_OAUTH_CLIENT_ID", "").strip()
+    client_secret = os.getenv("GITHUB_OAUTH_CLIENT_SECRET", "").strip()
+    redirect_uri = os.getenv("GITHUB_OAUTH_REDIRECT_URI", "").strip()
+    signing_secret = os.getenv("JWT_SIGNING_SECRET", "").strip()
+    try:
+        parsed_redirect = urllib.parse.urlsplit(redirect_uri) if redirect_uri else None
+        redirect_uri_valid = bool(
+            parsed_redirect
+            and parsed_redirect.scheme in {"http", "https"}
+            and parsed_redirect.netloc
+            and not parsed_redirect.username
+            and not parsed_redirect.password
+            and not parsed_redirect.fragment
+            and (
+                parsed_redirect.scheme == "https"
+                or parsed_redirect.hostname in {"localhost", "127.0.0.1", "::1"}
+            )
+        )
+    except ValueError:
+        redirect_uri_valid = False
+    jwt_signing_configured = auth_signing_secret_is_strong(signing_secret)
+    missing = []
+    if not client_id:
+        missing.append("GITHUB_OAUTH_CLIENT_ID")
+    if not client_secret:
+        missing.append("GITHUB_OAUTH_CLIENT_SECRET")
+    if not redirect_uri_valid:
+        missing.append("GITHUB_OAUTH_REDIRECT_URI")
+    if not jwt_signing_configured:
+        missing.append("JWT_SIGNING_SECRET_BASE64URL_256_BIT_MINIMUM")
+    return {
+        "github_oauth_configured": bool(client_id and client_secret and redirect_uri_valid),
+        "jwt_signing_configured": jwt_signing_configured,
+        "credential_issuance_ready": not missing,
+        "missing_configuration": missing,
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": redirect_uri if redirect_uri_valid else "",
+    }
+
+
 def auth_secret() -> bytes:
-    return os.getenv("JWT_SIGNING_SECRET", "phase3-local-dry-run-signing-secret").encode("utf-8")
+    configured = os.getenv("JWT_SIGNING_SECRET", "").strip()
+    return configured.encode("ascii") if auth_signing_secret_is_strong(configured) else _AUTH_EPHEMERAL_SIGNING_SECRET
 
 
 def create_access_jwt(subject: str, trace_id: str | None = None) -> str:
@@ -1661,7 +1738,7 @@ def create_access_jwt(subject: str, trace_id: str | None = None) -> str:
         "iss": "cloud-superbrain-agent-api",
         "aud": "cloud-superbrain-frontend",
         "trace_id": trace_id or f"auth-{uuid4()}",
-        "mode": "local_contract",
+        "mode": "verified_github_identity",
     }
     signing_input = f"{b64url_json(header)}.{b64url_json(payload)}"
     signature = hmac.new(auth_secret(), signing_input.encode("ascii"), hashlib.sha256).digest()
@@ -1680,31 +1757,179 @@ def auth_blacklist_key(token: str) -> str:
     return AUTH_BLACKLIST_PREFIX + hash_token(token)
 
 
+def auth_refresh_active_key(token: str) -> str:
+    return AUTH_REFRESH_ACTIVE_PREFIX + hash_token(token)
+
+
+def auth_oauth_state_key(state: str) -> str:
+    return AUTH_OAUTH_STATE_PREFIX + hash_token(state)
+
+
+def register_oauth_state(client: redis.Redis, state: str) -> None:
+    client.setex(auth_oauth_state_key(state), AUTH_OAUTH_STATE_TTL_SECONDS, "pending")
+
+
+def consume_oauth_state(client: redis.Redis, state: str) -> bool:
+    with client.pipeline(transaction=True) as transaction:
+        transaction.get(auth_oauth_state_key(state))
+        transaction.delete(auth_oauth_state_key(state))
+        value, deleted = transaction.execute()
+    return value == "pending" and int(deleted or 0) == 1
+
+
+def register_refresh_token(client: redis.Redis, token: str, subject: str) -> None:
+    record = json.dumps(
+        {"subject": subject, "issued_at": int(time.time())},
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    client.setex(auth_refresh_active_key(token), AUTH_REFRESH_TOKEN_TTL_SECONDS, record)
+
+
+def consume_refresh_token(
+    client: redis.Redis,
+    token: str,
+    revocation_reason: str,
+) -> tuple[str | None, str | None]:
+    if not AUTH_REFRESH_TOKEN_PATTERN.fullmatch(token):
+        return None, "malformed"
+    blacklist_key = auth_blacklist_key(token)
+    if client.get(blacklist_key):
+        return None, "blacklisted"
+    with client.pipeline(transaction=True) as transaction:
+        transaction.get(auth_refresh_active_key(token))
+        transaction.delete(auth_refresh_active_key(token))
+        record_text, deleted = transaction.execute()
+    if not record_text or int(deleted or 0) != 1:
+        return None, "unknown"
+    try:
+        record = json.loads(record_text)
+        subject = str(record["subject"])
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        client.setex(blacklist_key, AUTH_REFRESH_TOKEN_TTL_SECONDS, "invalid_record")
+        return None, "invalid_record"
+    if not re.fullmatch(r"github:[0-9]+", subject):
+        client.setex(blacklist_key, AUTH_REFRESH_TOKEN_TTL_SECONDS, "invalid_subject")
+        return None, "invalid_subject"
+    client.setex(blacklist_key, AUTH_REFRESH_TOKEN_TTL_SECONDS, revocation_reason)
+    return subject, None
+
+
+def set_oauth_state_cookie(response: Response, state: str) -> None:
+    response.set_cookie(
+        AUTH_OAUTH_STATE_COOKIE,
+        state,
+        max_age=AUTH_OAUTH_STATE_TTL_SECONDS,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path="/",
+    )
+
+
+def clear_oauth_state_cookie(response: Response) -> None:
+    response.delete_cookie(AUTH_OAUTH_STATE_COOKIE, httponly=True, secure=True, samesite="lax", path="/")
+
+
+def oauth_state_cookie_clear_headers() -> dict[str, str]:
+    response = Response()
+    clear_oauth_state_cookie(response)
+    return {"Set-Cookie": response.headers["set-cookie"]}
+
+
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
     response.set_cookie(
-        "access_token",
+        AUTH_ACCESS_COOKIE,
         access_token,
         max_age=AUTH_ACCESS_TOKEN_TTL_SECONDS,
         httponly=True,
         secure=True,
         samesite="strict",
+        path="/",
     )
     response.set_cookie(
-        "refresh_token",
+        AUTH_REFRESH_COOKIE,
         refresh_token,
         max_age=AUTH_REFRESH_TOKEN_TTL_SECONDS,
         httponly=True,
         secure=True,
         samesite="strict",
+        path="/",
     )
 
 
 def clear_auth_cookies(response: Response) -> None:
-    response.delete_cookie("access_token", httponly=True, secure=True, samesite="strict")
-    response.delete_cookie("refresh_token", httponly=True, secure=True, samesite="strict")
+    response.delete_cookie(AUTH_ACCESS_COOKIE, httponly=True, secure=True, samesite="strict", path="/")
+    response.delete_cookie(AUTH_REFRESH_COOKIE, httponly=True, secure=True, samesite="strict", path="/")
 
 
-def persist_auth_audit(event_type: str, details: dict[str, object], severity: str = "info") -> None:
+def exchange_github_identity(code: str, configuration: dict[str, object]) -> str:
+    try:
+        with httpx.Client(timeout=10.0, follow_redirects=False) as client:
+            token_response = client.post(
+                "https://github.com/login/oauth/access_token",
+                headers={"Accept": "application/json", "User-Agent": "cloud-superbrain-agent-api"},
+                data={
+                    "client_id": str(configuration["client_id"]),
+                    "client_secret": str(configuration["client_secret"]),
+                    "code": code,
+                    "redirect_uri": str(configuration["redirect_uri"]),
+                },
+            )
+            if token_response.status_code != 200:
+                raise HTTPException(
+                    status_code=401,
+                    detail={"error": "oauth_code_exchange_failed", "credentials_issued": False},
+                )
+            token_payload = token_response.json()
+            if not isinstance(token_payload, dict):
+                raise HTTPException(
+                    status_code=401,
+                    detail={"error": "oauth_code_exchange_failed", "credentials_issued": False},
+                )
+            github_token = token_payload.get("access_token")
+            if not isinstance(github_token, str) or len(github_token) < 20:
+                raise HTTPException(
+                    status_code=401,
+                    detail={"error": "oauth_code_exchange_failed", "credentials_issued": False},
+                )
+            identity_response = client.get(
+                "https://api.github.com/user",
+                headers={
+                    "Accept": "application/vnd.github+json",
+                    "Authorization": f"Bearer {github_token}",
+                    "User-Agent": "cloud-superbrain-agent-api",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                },
+            )
+            if identity_response.status_code != 200:
+                raise HTTPException(
+                    status_code=401,
+                    detail={"error": "github_identity_verification_failed", "credentials_issued": False},
+                )
+            identity_payload = identity_response.json()
+            if not isinstance(identity_payload, dict):
+                raise HTTPException(
+                    status_code=401,
+                    detail={"error": "github_identity_verification_failed", "credentials_issued": False},
+                )
+            github_user_id = identity_payload.get("id")
+            if not isinstance(github_user_id, int) or github_user_id <= 0:
+                raise HTTPException(
+                    status_code=401,
+                    detail={"error": "github_identity_verification_failed", "credentials_issued": False},
+                )
+            return f"github:{github_user_id}"
+    except HTTPException:
+        raise
+    except (httpx.HTTPError, json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"error": "oauth_provider_unavailable", "credentials_issued": False},
+        ) from exc
+
+
+def persist_auth_audit(event_type: str, details: dict[str, object], severity: str = "info") -> bool:
     try:
         with psycopg.connect(database_url(), autocommit=True) as conn:
             conn.execute(
@@ -1714,32 +1939,60 @@ def persist_auth_audit(event_type: str, details: dict[str, object], severity: st
                 """,
                 (event_type, Json(redact_json(details)), severity),
             )
+        return True
     except Exception:
-        pass
+        return False
 
 
 def auth_contract_payload() -> dict[str, object]:
+    configuration = auth_configuration()
     return {
         "contract_version": "auth-github-jwt-refresh-v1",
-        "mode": "local_contract_with_dry_run_oauth",
+        "mode": "verified_identity_fail_closed",
         "live_github_oauth_call": False,
-        "github_oauth_configured": bool(os.getenv("GITHUB_OAUTH_CLIENT_ID") and os.getenv("GITHUB_OAUTH_CLIENT_SECRET")),
+        "github_oauth_configured": configuration["github_oauth_configured"],
+        "jwt_signing_configured": configuration["jwt_signing_configured"],
+        "credential_issuance_ready": configuration["credential_issuance_ready"],
+        "missing_configuration": configuration["missing_configuration"],
         "jwt": {
             "algorithm": "HS256",
             "access_token_ttl_seconds": AUTH_ACCESS_TOKEN_TTL_SECONDS,
             "issuer": "cloud-superbrain-agent-api",
             "audience": "cloud-superbrain-frontend",
+            "signing_secret_format": "base64url_256_bit_minimum",
+            "ephemeral_fallback": not bool(configuration["jwt_signing_configured"]),
+        },
+        "oauth_state": {
+            "ttl_seconds": AUTH_OAUTH_STATE_TTL_SECONDS,
+            "one_time": True,
+            "server_store": "redis",
+            "cookie_name": AUTH_OAUTH_STATE_COOKIE,
+            "cookie_same_site": "Lax",
+            "authorization_transport": "http_redirect_location",
+            "response_body_contains_state": False,
+            "scope": "read:user",
+            "state_format": "phase3-auth-state-<32_urlsafe_chars>",
         },
         "refresh_token": {
             "ttl_seconds": AUTH_REFRESH_TOKEN_TTL_SECONDS,
             "rotation_required": True,
             "blacklist_store": "redis",
             "blacklist_key_pattern": f"{AUTH_BLACKLIST_PREFIX}<sha256(refresh_token)>",
+            "active_registry_store": "redis",
+            "active_registry_required": True,
+            "body_token_allowed": False,
+            "signing_secret_required": True,
+            "complete_issuance_configuration_required": True,
         },
         "cookie_flags": {
             "HttpOnly": True,
             "Secure": True,
             "SameSite": "Strict",
+            "host_prefix": True,
+        },
+        "audit": {
+            "credential_issuance_requires_persistence": True,
+            "secret_material_allowed": False,
         },
         "endpoints": {
             "github_start": "/api/v1/auth/github",
@@ -1752,18 +2005,32 @@ def auth_contract_payload() -> dict[str, object]:
             "refresh_rotated": "auth_refresh_rotated",
             "refresh_reuse_blocked": "auth_refresh_reuse_blocked",
             "logout_revoked": "auth_logout_revoked",
+            "logout_no_active_token": "auth_logout_no_active_token",
+            "credential_issuance_fail_closed": "auth_credential_issuance_fail_closed",
+            "oauth_state_one_time": "oauth_state_one_time_enforced",
+            "refresh_registry": "refresh_token_registry_enforced",
         },
         "policy_checks": [
             "Access JWT expires after 900 seconds.",
             "Refresh token expires after 604800 seconds.",
+            "Credential issuance requires a one-time Redis-backed OAuth state and a verified GitHub user id.",
+            "OAuth start uses a GitHub redirect with minimal read:user scope and never returns state in a JSON body.",
+            "Callback failures clear the OAuth-state cookie on the actual error response.",
+            "Malformed or non-ASCII OAuth state and non-object provider JSON fail closed before credential issuance.",
             "Refresh token is rotated on every refresh request.",
+            "Only refresh tokens present in the active Redis registry can rotate or revoke.",
+            "A registered refresh token cannot mint credentials while complete OAuth/JWT issuance configuration is unavailable.",
+            "Successful callback and refresh credential issuance requires persisted audit evidence.",
+            "Refresh tokens in JSON request bodies are rejected.",
             "Old refresh token hash is stored in Redis blacklist.",
-            "Auth cookies are HttpOnly, Secure, and SameSite=Strict.",
-            "No live GitHub OAuth call is made in local contract mode.",
+            "Auth cookies use the __Host- prefix and are HttpOnly, Secure, and SameSite=Strict.",
+            "JWT signing configuration must be a non-placeholder base64url secret carrying at least 256 bits.",
+            "Missing or weak OAuth/signing configuration blocks credential issuance.",
         ],
         "non_claims": [
-            "No live GitHub OAuth exchange is claimed without GitHub OAuth credentials.",
-            "This local proof validates token lifecycle mechanics, not production identity ownership.",
+            "Reading this contract does not make a live GitHub OAuth call.",
+            "No production identity claim is made until a configured callback verifies GitHub identity.",
+            "The ephemeral signing fallback is process-local and never authorizes production credential issuance.",
         ],
     }
 
@@ -6788,54 +7055,181 @@ def auth_contract() -> dict[str, object]:
     return auth_contract_payload()
 
 
-@app.get("/api/v1/auth/github")
-@app.post("/api/v1/auth/github")
-def auth_github_start() -> dict[str, object]:
+@app.get("/api/v1/auth/github", response_model=None)
+@app.post("/api/v1/auth/github", response_model=None)
+def auth_github_start(response: Response) -> dict[str, object] | Response:
     contract = auth_contract_payload()
-    client_id = os.getenv("GITHUB_OAUTH_CLIENT_ID", "not-configured")
-    state = "phase3-auth-state-" + secrets.token_urlsafe(12)
-    authorize_url = (
-        "https://github.com/login/oauth/authorize"
-        f"?client_id={client_id}&scope=read:user%20user:email&state={state}"
+    configuration = auth_configuration()
+    if not bool(configuration["credential_issuance_ready"]):
+        clear_oauth_state_cookie(response)
+        return {
+            "contract_version": contract["contract_version"],
+            "status": "configuration_required",
+            "mode": contract["mode"],
+            "live_github_oauth_call": False,
+            "credential_issuance_ready": False,
+            "credentials_issued": False,
+            "state_required": True,
+            "state_issued": False,
+            "authorize_url": None,
+            "missing_configuration": configuration["missing_configuration"],
+            "non_claims": contract["non_claims"],
+        }
+    state = "phase3-auth-state-" + secrets.token_urlsafe(24)
+    register_oauth_state(redis_client(), state)
+    authorize_url = "https://github.com/login/oauth/authorize?" + urllib.parse.urlencode(
+        {
+            "client_id": str(configuration["client_id"]),
+            "redirect_uri": str(configuration["redirect_uri"]),
+            "scope": "read:user",
+            "state": state,
+        }
     )
-    return {
-        "contract_version": contract["contract_version"],
-        "status": "ready" if contract["github_oauth_configured"] else "configuration_required",
-        "mode": contract["mode"],
-        "live_github_oauth_call": False,
-        "authorize_url_template": authorize_url,
-        "state_required": True,
-        "non_claims": contract["non_claims"],
-    }
+    redirect = RedirectResponse(authorize_url, status_code=303)
+    set_oauth_state_cookie(redirect, state)
+    return redirect
 
 
 @app.get("/api/v1/auth/callback")
 def auth_callback(
     response: Response,
-    code: str = Query(..., min_length=1, max_length=255),
-    state: str = Query(..., min_length=1, max_length=255),
+    code: str | None = Query(default=None),
+    state: str | None = Query(default=None),
+    oauth_error: str | None = Query(default=None, alias="error"),
+    oauth_state_cookie: str | None = Cookie(default=None, alias=AUTH_OAUTH_STATE_COOKIE),
 ) -> dict[str, object]:
     trace_id = f"auth-callback-{uuid4()}"
-    access_token = create_access_jwt("github:local-contract-user", trace_id)
+    configuration = auth_configuration()
+    if not bool(configuration["credential_issuance_ready"]):
+        persist_auth_audit(
+            "auth_github_callback_blocked",
+            {"trace_id": trace_id, "reason": "configuration_required", "credentials_issued": False},
+            "warning",
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "github_oauth_not_configured",
+                "credentials_issued": False,
+                "live_github_oauth_call": False,
+                "secret_output": False,
+            },
+            headers=oauth_state_cookie_clear_headers(),
+        )
+    state_is_bounded = isinstance(state, str) and bool(AUTH_OAUTH_STATE_PATTERN.fullmatch(state))
+    cookie_is_bounded = isinstance(oauth_state_cookie, str) and bool(
+        AUTH_OAUTH_STATE_PATTERN.fullmatch(oauth_state_cookie)
+    )
+    state_matches_cookie = bool(
+        state_is_bounded
+        and cookie_is_bounded
+        and oauth_state_cookie
+        and state
+        and hmac.compare_digest(oauth_state_cookie, state)
+    )
+    state_consumed = bool(state_matches_cookie and state and consume_oauth_state(redis_client(), state))
+    if not state_consumed:
+        persist_auth_audit(
+            "auth_github_callback_blocked",
+            {"trace_id": trace_id, "reason": "oauth_state_invalid", "credentials_issued": False},
+            "warning",
+        )
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "oauth_state_invalid",
+                "credentials_issued": False,
+                "live_github_oauth_call": False,
+                "secret_output": False,
+            },
+            headers=oauth_state_cookie_clear_headers(),
+        )
+    if oauth_error:
+        persist_auth_audit(
+            "auth_github_callback_blocked",
+            {"trace_id": trace_id, "reason": "oauth_provider_denied", "credentials_issued": False},
+            "warning",
+        )
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "oauth_provider_denied",
+                "credentials_issued": False,
+                "live_github_oauth_call": False,
+                "secret_output": False,
+            },
+            headers=oauth_state_cookie_clear_headers(),
+        )
+    if not isinstance(code, str) or not 1 <= len(code) <= 255:
+        persist_auth_audit(
+            "auth_github_callback_blocked",
+            {"trace_id": trace_id, "reason": "oauth_callback_parameters_invalid", "credentials_issued": False},
+            "warning",
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "oauth_callback_parameters_invalid",
+                "credentials_issued": False,
+                "live_github_oauth_call": False,
+                "secret_output": False,
+            },
+            headers=oauth_state_cookie_clear_headers(),
+        )
+    try:
+        subject = exchange_github_identity(code, configuration)
+    except HTTPException as exc:
+        persist_auth_audit(
+            "auth_github_callback_blocked",
+            {
+                "trace_id": trace_id,
+                "reason": str(exc.detail.get("error", "oauth_exchange_failed")) if isinstance(exc.detail, dict) else "oauth_exchange_failed",
+                "credentials_issued": False,
+            },
+            "warning",
+        )
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=exc.detail,
+            headers=oauth_state_cookie_clear_headers(),
+        ) from exc
+    clear_oauth_state_cookie(response)
     refresh_token = create_refresh_token()
-    set_auth_cookies(response, access_token, refresh_token)
-    persist_auth_audit(
-        "auth_github_callback_contract",
+    client = redis_client()
+    register_refresh_token(client, refresh_token, subject)
+    audit_persisted = bool(persist_auth_audit(
+        "auth_github_callback_verified",
         {
             "trace_id": trace_id,
-            "state": state,
-            "code_present": bool(code),
-            "live_github_oauth_call": False,
+            "identity_verified": True,
+            "oauth_state_consumed": True,
+            "live_github_oauth_call": True,
             "cookie_flags": auth_contract_payload()["cookie_flags"],
         },
-    )
+    ))
+    if not audit_persisted:
+        client.delete(auth_refresh_active_key(refresh_token))
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "auth_audit_unavailable",
+                "credentials_issued": False,
+                "secret_output": False,
+            },
+            headers=oauth_state_cookie_clear_headers(),
+        )
+    access_token = create_access_jwt(subject, trace_id)
+    set_auth_cookies(response, access_token, refresh_token)
     return {
         "status": "authenticated",
         "contract_version": "auth-github-jwt-refresh-v1",
-        "mode": "local_contract_with_dry_run_oauth",
-        "live_github_oauth_call": False,
+        "mode": "verified_identity_fail_closed",
+        "identity_verified": True,
+        "oauth_state_consumed": True,
+        "live_github_oauth_call": True,
         "access_token_issued": True,
         "refresh_token_issued": True,
+        "audit_persisted": True,
         "access_token_expires_in": AUTH_ACCESS_TOKEN_TTL_SECONDS,
         "refresh_token_expires_in": AUTH_REFRESH_TOKEN_TTL_SECONDS,
         "cookie_flags": auth_contract_payload()["cookie_flags"],
@@ -6848,42 +7242,87 @@ def auth_callback(
 def auth_refresh(
     response: Response,
     request: AuthRefreshRequest | None = None,
-    refresh_token_cookie: str | None = Cookie(default=None, alias="refresh_token"),
+    refresh_token_cookie: str | None = Cookie(default=None, alias=AUTH_REFRESH_COOKIE),
 ) -> dict[str, object]:
-    supplied_token = (request.refresh_token if request else None) or refresh_token_cookie
-    if not supplied_token:
-        raise HTTPException(status_code=401, detail={"error": "refresh_token_missing"})
-    client = redis_client()
-    blacklist_key = auth_blacklist_key(supplied_token)
-    if client.get(blacklist_key):
-        persist_auth_audit(
-            "auth_refresh_reuse_blocked",
-            {"trace_id": request.trace_id if request else None, "blacklist_key": blacklist_key},
-            "critical",
-        )
-        raise HTTPException(status_code=401, detail={"error": "refresh_token_invalid", "reason": "blacklisted"})
-    client.setex(blacklist_key, AUTH_REFRESH_TOKEN_TTL_SECONDS, "rotated")
     trace_id = (request.trace_id if request else None) or f"auth-refresh-{uuid4()}"
-    access_token = create_access_jwt("github:local-contract-user", trace_id)
+    if request and request.refresh_token is not None:
+        persist_auth_audit(
+            "auth_refresh_rejected",
+            {"trace_id": trace_id, "reason": "body_token_not_allowed", "credentials_issued": False},
+            "warning",
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "refresh_token_body_not_allowed", "credentials_issued": False, "secret_output": False},
+        )
+    supplied_token = refresh_token_cookie
+    if not supplied_token:
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "refresh_token_missing", "credentials_issued": False, "secret_output": False},
+        )
+    client = redis_client()
+    token_is_registered_and_unrevoked = bool(
+        AUTH_REFRESH_TOKEN_PATTERN.fullmatch(supplied_token)
+        and not client.get(auth_blacklist_key(supplied_token))
+        and client.get(auth_refresh_active_key(supplied_token))
+    )
+    if token_is_registered_and_unrevoked and not bool(auth_configuration()["credential_issuance_ready"]):
+        persist_auth_audit(
+            "auth_refresh_rejected",
+            {"trace_id": trace_id, "reason": "credential_issuance_configuration_required", "credentials_issued": False},
+            "warning",
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "auth_configuration_required",
+                "credentials_issued": False,
+                "secret_output": False,
+            },
+        )
+    subject, rejection_reason = consume_refresh_token(client, supplied_token, "rotated")
+    if rejection_reason:
+        event_type = "auth_refresh_reuse_blocked" if rejection_reason == "blacklisted" else "auth_refresh_rejected"
+        persist_auth_audit(
+            event_type,
+            {"trace_id": trace_id, "reason": rejection_reason, "credentials_issued": False},
+            "critical" if rejection_reason == "blacklisted" else "warning",
+        )
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "refresh_token_invalid", "reason": rejection_reason, "credentials_issued": False, "secret_output": False},
+        )
+    if subject is None:
+        raise HTTPException(status_code=401, detail={"error": "refresh_token_invalid", "credentials_issued": False})
     new_refresh_token = create_refresh_token()
-    set_auth_cookies(response, access_token, new_refresh_token)
-    persist_auth_audit(
+    register_refresh_token(client, new_refresh_token, subject)
+    audit_persisted = bool(persist_auth_audit(
         "auth_refresh_rotated",
         {
             "trace_id": trace_id,
             "old_refresh_blacklisted": True,
-            "blacklist_key": blacklist_key,
             "new_refresh_issued": True,
+            "active_registry_verified": True,
             "cookie_flags": auth_contract_payload()["cookie_flags"],
         },
-    )
+    ))
+    if not audit_persisted:
+        client.delete(auth_refresh_active_key(new_refresh_token))
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "auth_audit_unavailable", "credentials_issued": False, "secret_output": False},
+        )
+    access_token = create_access_jwt(subject, trace_id)
+    set_auth_cookies(response, access_token, new_refresh_token)
     return {
         "status": "rotated",
         "contract_version": "auth-github-jwt-refresh-v1",
         "access_token_issued": True,
         "refresh_token_rotated": True,
         "old_refresh_token_blacklisted": True,
-        "blacklist_key": blacklist_key,
+        "active_registry_verified": True,
+        "audit_persisted": True,
         "access_token_expires_in": AUTH_ACCESS_TOKEN_TTL_SECONDS,
         "refresh_token_expires_in": AUTH_REFRESH_TOKEN_TTL_SECONDS,
         "cookie_flags": auth_contract_payload()["cookie_flags"],
@@ -6895,30 +7334,34 @@ def auth_refresh(
 def auth_logout(
     response: Response,
     request: AuthRefreshRequest | None = None,
-    refresh_token_cookie: str | None = Cookie(default=None, alias="refresh_token"),
+    refresh_token_cookie: str | None = Cookie(default=None, alias=AUTH_REFRESH_COOKIE),
 ) -> dict[str, object]:
-    supplied_token = (request.refresh_token if request else None) or refresh_token_cookie
-    blacklist_key = None
+    supplied_token = refresh_token_cookie
+    refresh_token_revoked = False
+    rejection_reason = None
     if supplied_token:
-        blacklist_key = auth_blacklist_key(supplied_token)
-        redis_client().setex(blacklist_key, AUTH_REFRESH_TOKEN_TTL_SECONDS, "logout")
+        subject, rejection_reason = consume_refresh_token(redis_client(), supplied_token, "logout")
+        refresh_token_revoked = subject is not None and rejection_reason is None
     clear_auth_cookies(response)
     trace_id = (request.trace_id if request else None) or f"auth-logout-{uuid4()}"
-    persist_auth_audit(
-        "auth_logout_revoked",
+    audit_persisted = bool(persist_auth_audit(
+        "auth_logout_revoked" if refresh_token_revoked else "auth_logout_no_active_token",
         {
             "trace_id": trace_id,
-            "refresh_token_revoked": bool(supplied_token),
-            "blacklist_key": blacklist_key,
+            "refresh_token_revoked": refresh_token_revoked,
+            "body_token_accepted": False,
+            "cookie_token_present": bool(supplied_token),
+            "rejection_reason": rejection_reason,
             "cookies_cleared": True,
         },
-    )
+    ))
     return {
         "status": "logged_out",
         "contract_version": "auth-github-jwt-refresh-v1",
-        "refresh_token_revoked": bool(supplied_token),
+        "refresh_token_revoked": refresh_token_revoked,
+        "body_token_accepted": False,
         "cookies_cleared": True,
-        "blacklist_key": blacklist_key,
+        "audit_persisted": audit_persisted,
         "trace_id": trace_id,
     }
 
