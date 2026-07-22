@@ -77,7 +77,21 @@
                                                "provider":  "cloudflare_d1",
                                                "paid_provider":  false,
                                                "verifier":  "scripts/verify-live-memory-provider.ps1",
-                                               "note":  "Owner granted the free path. Still needs a real free provider (Neon Free or Cloudflare D1 plus pgvector-compatible embeddings) with a live proof."
+                                               "note":  "Verified scope is hosted Cloudflare D1 lexical persistence (SQLite content and metadata) only. This gate does not prove embeddings, pgvector, Vectorize, vector search, or semantic retrieval."
+                                           },
+                  "live_vector_memory_search":  {
+                                                     "owner_granted":  false,
+                                                     "owner_grant_ref":  "",
+                                                     "owner_scope_approved":  false,
+                                                     "architecture_approved":  false,
+                                                     "hosted_semantic_search_verified":  false,
+                                                     "live_verified":  false,
+                                                     "evidence_artifact":  "",
+                                                     "verified_at_utc":  "",
+                                                     "provider":  "cloudflare_vectorize",
+                                                     "paid_provider":  false,
+                                                     "verifier":  "scripts/verify-live-vector-memory-search.ps1",
+                                                     "note":  "Requires Owner Vectorize scope, architecture approval, and hosted semantic retrieval proof."
                                            },
                   "hosted_observability_endpoint":  {
                                                         "owner_granted":  true,

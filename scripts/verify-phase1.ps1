@@ -727,6 +727,24 @@ Write-Host "[verify] memory worker metadata secret guard"
 & (Join-Path $PSScriptRoot "verify-memory-worker-secret-guard.ps1") -StaticOnly
 Assert-LastExitCode "memory worker metadata secret guard"
 
+Write-Host "[verify] fail-closed vector memory capability gate"
+$vectorMemoryVerifierPath = Join-Path $PSScriptRoot "verify-vector-memory-gate.ps1"
+if (-not (Test-Path -LiteralPath $vectorMemoryVerifierPath -PathType Leaf)) {
+  throw "Missing vector memory gate verifier"
+}
+$vectorMemoryParseErrors = $null
+[Management.Automation.Language.Parser]::ParseFile(
+  $vectorMemoryVerifierPath,
+  [ref]$null,
+  [ref]$vectorMemoryParseErrors
+) | Out-Null
+if ($vectorMemoryParseErrors) {
+  $vectorMemoryParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Vector memory gate verifier parse errors"
+}
+& $vectorMemoryVerifierPath
+Assert-LastExitCode "fail-closed vector memory capability gate"
+
 Write-Host "[verify] cloud compose pull-based substrate"
 if (-not (Test-Path "docker-compose.cloud.yml")) {
   throw "Missing cloud pull-based compose file"

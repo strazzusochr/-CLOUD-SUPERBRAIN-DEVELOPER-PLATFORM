@@ -91,7 +91,6 @@ $actionRoutes = @(
   "app\api\v1\memory\search\route.ts",
   "app\api\v1\tools\read-only\execute\route.ts",
   "app\api\v1\build\route.ts",
-  "app\api\v1\build\[id]\route.ts",
   "app\api\steer-agent\route.ts"
 )
 foreach ($relative in $actionRoutes) {
@@ -109,7 +108,6 @@ $readProjectionRoutes = @(
   "app\api\v1\agent-activity\recent\route.ts",
   "app\api\v1\audit\mcp\route.ts",
   "app\api\v1\audit\recent\route.ts",
-  "app\api\v1\build\[id]\route.ts",
   "app\api\v1\builds\route.ts",
   "app\api\v1\escalations\recent\route.ts",
   "app\api\v1\health\route.ts",
@@ -124,6 +122,85 @@ foreach ($relative in $readProjectionRoutes) {
   $path = Join-Path $frontendRoot $relative
   $route = Get-Content -LiteralPath $path -Raw
   Assert-Contains "$relative successful read boundary" $route "proxyReadToBoundary"
+}
+
+$buildItemRelative = "app\api\v1\build\[id]\route.ts"
+$buildItemPath = Join-Path $frontendRoot $buildItemRelative
+if (-not (Test-Path -LiteralPath $buildItemPath)) {
+  throw "Frontend provider boundary verification failed: missing build item route $buildItemRelative"
+}
+$buildItemRoute = Get-Content -LiteralPath $buildItemPath -Raw
+$buildItemGetStart = $buildItemRoute.IndexOf("export async function GET", [StringComparison]::Ordinal)
+$buildItemDeleteStart = $buildItemRoute.IndexOf("export async function DELETE", [StringComparison]::Ordinal)
+if ($buildItemGetStart -lt 0 -or $buildItemDeleteStart -le $buildItemGetStart) {
+  throw "Frontend provider boundary verification failed: build item route GET/DELETE sections are missing or out of order."
+}
+$buildItemGet = $buildItemRoute.Substring($buildItemGetStart, $buildItemDeleteStart - $buildItemGetStart)
+$buildItemDelete = $buildItemRoute.Substring($buildItemDeleteStart)
+
+foreach ($required in @(
+  'proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`)',
+  'response ?? Response.json',
+  'status: "not_found"',
+  'live_backend: false',
+  'direct_provider_calls: false',
+  '"cache-control": "no-store"',
+  '"x-superbrain-source": "frontend-projection"',
+  '{ status: 404'
+)) {
+  Assert-Contains "build item GET boundary" $buildItemGet $required
+}
+foreach ($forbidden in @("proxyReadToBoundary", "serviceAuth")) {
+  Assert-NotContains "build item GET boundary" $buildItemGet $forbidden
+}
+$buildItemGetIdRead = $buildItemGet.IndexOf("const clean = safeId((await ctx.params).id)", [StringComparison]::Ordinal)
+$buildItemGetProxy = $buildItemGet.IndexOf('proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`)', [StringComparison]::Ordinal)
+if ($buildItemGetIdRead -lt 0 -or $buildItemGetProxy -le $buildItemGetIdRead) {
+  throw "Frontend provider boundary verification failed: build item GET must sanitize the route id before constructing the exact Agent API upstream path."
+}
+
+foreach ($required in @(
+  'const writeBlock = authorizeBoundaryWrite(req)',
+  'if (writeBlock) return writeBlock',
+  'contract_version: "stateful-build-delete-guard-v1"',
+  'error: "build_delete_owner_identity_required"',
+  'accepted: false',
+  'persisted: false',
+  'deleted: false',
+  'resource_unchanged: true',
+  'owner_identity_verified: false',
+  'service_auth_forwarded: false',
+  'direct_provider_calls: false',
+  'secret_output: false',
+  '{ status: 403'
+)) {
+  Assert-Contains "build item DELETE owner guard" $buildItemDelete $required
+}
+foreach ($forbidden in @("proxyToBoundary", "proxyReadToBoundary", "serviceAuth", "fetch(")) {
+  Assert-NotContains "build item DELETE owner guard" $buildItemDelete $forbidden
+}
+$buildItemDeleteBodyMarker = "): Promise<Response> {"
+$buildItemDeleteGuardStatement = "const writeBlock = authorizeBoundaryWrite(req);"
+$buildItemDeleteGuardReturnStatement = "if (writeBlock) return writeBlock;"
+$buildItemDeleteBodyStart = $buildItemDelete.IndexOf($buildItemDeleteBodyMarker, [StringComparison]::Ordinal)
+$buildItemDeleteGuard = $buildItemDelete.IndexOf($buildItemDeleteGuardStatement, [StringComparison]::Ordinal)
+$buildItemDeleteGuardReturn = $buildItemDelete.IndexOf($buildItemDeleteGuardReturnStatement, [StringComparison]::Ordinal)
+$buildItemDeleteIdRead = $buildItemDelete.IndexOf("const clean = safeId((await ctx.params).id)", [StringComparison]::Ordinal)
+$buildItemDeletePreamble = if ($buildItemDeleteBodyStart -ge 0 -and $buildItemDeleteGuard -gt $buildItemDeleteBodyStart) {
+  $start = $buildItemDeleteBodyStart + $buildItemDeleteBodyMarker.Length
+  $buildItemDelete.Substring($start, $buildItemDeleteGuard - $start)
+} else { "invalid" }
+$buildItemDeleteBetweenGuardStatements = if ($buildItemDeleteGuard -ge 0 -and $buildItemDeleteGuardReturn -gt $buildItemDeleteGuard) {
+  $start = $buildItemDeleteGuard + $buildItemDeleteGuardStatement.Length
+  $buildItemDelete.Substring($start, $buildItemDeleteGuardReturn - $start)
+} else { "invalid" }
+if (
+  $buildItemDeleteBodyStart -lt 0 -or
+  -not [string]::IsNullOrWhiteSpace($buildItemDeletePreamble) -or
+  -not [string]::IsNullOrWhiteSpace($buildItemDeleteBetweenGuardStatements) -or
+  $buildItemDeleteIdRead -le ($buildItemDeleteGuardReturn + $buildItemDeleteGuardReturnStatement.Length)
+) {
+  throw "Frontend provider boundary verification failed: build item DELETE authorization must be the first operation and return before resource lookup or response projection."
 }
 
 $memoryContract = Get-Content -LiteralPath (Join-Path $frontendRoot "app\api\v1\memory\embedding-consistency\contract\route.ts") -Raw
@@ -208,6 +285,16 @@ Assert-Contains "frontend build POST route" $nginx "location = /api/v1/build {"
 Assert-Contains "frontend build artifact route" $nginx "location ^~ /api/v1/build/ {"
 Assert-Contains "frontend build registry projection route" $nginx "location = /api/v1/builds {"
 
+$progressManifestPath = Join-Path $repoRoot "docs\project-progress.manifest.json"
+if (-not (Test-Path -LiteralPath $progressManifestPath)) {
+  throw "Frontend provider boundary verification failed: missing canonical project progress manifest."
+}
+$progressManifest = Get-Content -LiteralPath $progressManifestPath -Raw | ConvertFrom-Json
+$currentOverallPercent = [int]$progressManifest.overall_percent
+if ($currentOverallPercent -lt 0 -or $currentOverallPercent -gt 100) {
+  throw "Frontend provider boundary verification failed: canonical overall progress is outside 0..100."
+}
+
 $reportPath = Join-Path $repoRoot ".codex\runs\CURRENT\master-goal\t4\frontend-provider-boundary\report.json"
 $report = [ordered]@{
   contract_version = "frontend-provider-boundary-proof-v1"
@@ -218,6 +305,7 @@ $report = [ordered]@{
   forbidden_marker_count = @($forbiddenMarkers).Count
   guarded_action_route_count = @($actionRoutes).Count
   guarded_read_projection_route_count = @($readProjectionRoutes).Count
+  dedicated_build_item_route_count = 1
   hosted_wrapper_count = 3
   direct_provider_paths_absent = $true
   mutations_fail_closed = $true
@@ -229,8 +317,9 @@ $report = [ordered]@{
   live_mcp_writes = $false
   production_deploy = $false
   secret_output = $false
-  overall_percent_before = 84
-  overall_percent_after = 84
+  overall_percent_before = $currentOverallPercent
+  overall_percent_after = $currentOverallPercent
+  progress_source = "docs/project-progress.manifest.json"
   proof_scope = "static_source_and_local_boundary_contract"
   non_claims = @(
     "This static proof does not establish hosted deployment parity.",

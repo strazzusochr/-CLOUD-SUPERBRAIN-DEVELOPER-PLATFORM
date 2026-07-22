@@ -4290,11 +4290,20 @@ def project_progress_completion_payload() -> dict[str, object]:
             if capability_gate_open("live_mcp_writes", capability_gates)
             else ["live_mcp_writes_require_owner_gate_branch_protection_and_audit"]
         ),
-        "layer_6": (
-            []
-            if capability_gate_open("live_memory_provider", capability_gates)
-            else ["live_embeddings_or_external_memory_provider_requires_owner_gate"]
-        ),
+        "layer_6": [
+            blocker
+            for blocker, enabled in [
+                (
+                    "live_memory_provider_requires_owner_gate_and_hosted_lexical_persistence_proof",
+                    not capability_gate_open("live_memory_provider", capability_gates),
+                ),
+                (
+                    "live_vector_memory_search_requires_owner_vectorize_scope_architecture_approval_and_hosted_proof",
+                    not capability_gate_open("live_vector_memory_search", capability_gates),
+                ),
+            ]
+            if enabled
+        ],
         "layer_7": (
             []
             if capability_gate_open("hosted_observability_endpoint", capability_gates)
@@ -5644,6 +5653,7 @@ CAPABILITY_GATE_IDS = (
     "live_mcp_writes",
     "live_agent_tool_writes",
     "live_memory_provider",
+    "live_vector_memory_search",
     "hosted_observability_endpoint",
 )
 
@@ -5675,6 +5685,10 @@ def capability_gate_state() -> dict[str, object]:
             "verified_at_utc": "",
             "provider": "",
             "paid_provider": False,
+            "verifier": "",
+            "owner_scope_approved": False,
+            "architecture_approved": False,
+            "hosted_semantic_search_verified": False,
         }
         for gate_id in CAPABILITY_GATE_IDS
     }
@@ -5708,14 +5722,41 @@ def capability_gate_state() -> dict[str, object]:
         live_verified = bool(entry.get("live_verified", False))
         artifact = str(entry.get("evidence_artifact", "") or "")
         paid = bool(entry.get("paid_provider", False))
+        provider = str(entry.get("provider", "") or "")
+        verifier = str(entry.get("verifier", "") or "")
+        owner_scope_approved = bool(entry.get("owner_scope_approved", False))
+        architecture_approved = bool(entry.get("architecture_approved", False))
+        hosted_semantic_search_verified = bool(entry.get("hosted_semantic_search_verified", False))
+        sanitized_live_verified = live_verified and bool(artifact) and not paid
+        if gate_id == "live_vector_memory_search":
+            owner_granted = entry.get("owner_granted") is True
+            owner_scope_approved = entry.get("owner_scope_approved") is True
+            architecture_approved = entry.get("architecture_approved") is True
+            hosted_semantic_search_verified = entry.get("hosted_semantic_search_verified") is True
+            sanitized_live_verified = (
+                entry.get("live_verified") is True
+                and owner_granted
+                and owner_scope_approved
+                and architecture_approved
+                and hosted_semantic_search_verified
+                and isinstance(entry.get("evidence_artifact"), str)
+                and bool(artifact.strip())
+                and entry.get("paid_provider") is False
+                and provider == "cloudflare_vectorize"
+                and verifier == "scripts/verify-live-vector-memory-search.ps1"
+            )
         gates[gate_id] = {
             "id": gate_id,
             "owner_granted": owner_granted,
-            "live_verified": live_verified and bool(artifact) and not paid,
+            "live_verified": sanitized_live_verified,
             "evidence_artifact": artifact,
             "verified_at_utc": str(entry.get("verified_at_utc", "") or ""),
-            "provider": str(entry.get("provider", "") or ""),
+            "provider": provider,
             "paid_provider": paid,
+            "verifier": verifier,
+            "owner_scope_approved": owner_scope_approved,
+            "architecture_approved": architecture_approved,
+            "hosted_semantic_search_verified": hosted_semantic_search_verified,
         }
     return {
         "contract_version": "capability-gate-state-v1",
@@ -5732,11 +5773,25 @@ def capability_gate_open(gate_id: str, state: dict[str, object] | None = None) -
         return False
     # A capability claim is valid only with an owner grant, verifier-produced
     # evidence, and a free-tier provider. Missing or malformed fields fail closed.
-    return (
+    base_open = (
         bool(entry.get("owner_granted"))
         and bool(entry.get("live_verified"))
         and bool(str(entry.get("evidence_artifact", "")).strip())
         and entry.get("paid_provider") is False
+    )
+    if gate_id != "live_vector_memory_search":
+        return base_open
+    return (
+        entry.get("owner_granted") is True
+        and entry.get("live_verified") is True
+        and isinstance(entry.get("evidence_artifact"), str)
+        and bool(entry.get("evidence_artifact", "").strip())
+        and entry.get("paid_provider") is False
+        and entry.get("owner_scope_approved") is True
+        and entry.get("architecture_approved") is True
+        and entry.get("hosted_semantic_search_verified") is True
+        and entry.get("provider") == "cloudflare_vectorize"
+        and entry.get("verifier") == "scripts/verify-live-vector-memory-search.ps1"
     )
 
 

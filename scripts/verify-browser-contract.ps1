@@ -263,6 +263,35 @@ if ($liveLlmCapabilityOpen) {
 } else {
   Assert-True "project progress completion retains unverified live LLM blocker" ($projectProgressCompletionHardBlockers -contains "live_llm_provider_calls_require_owner_gate_and_budget_guard")
 }
+$liveMemoryCapability = $capabilityGateState.gates.live_memory_provider
+$liveMemoryCapabilityOpen = (
+  [bool]$liveMemoryCapability.owner_granted -and
+  [bool]$liveMemoryCapability.live_verified -and
+  -not [string]::IsNullOrWhiteSpace([string]$liveMemoryCapability.evidence_artifact) -and
+  $liveMemoryCapability.paid_provider -is [bool] -and
+  -not [bool]$liveMemoryCapability.paid_provider
+)
+Assert-True "project progress completion keeps verified D1 lexical memory distinct" $liveMemoryCapabilityOpen
+Assert-True "project progress completion clears verified D1 lexical memory blocker" (-not ($projectProgressCompletionHardBlockers -contains "live_memory_provider_requires_owner_gate_and_hosted_lexical_persistence_proof"))
+$liveVectorMemoryCapability = $capabilityGateState.gates.live_vector_memory_search
+$liveVectorMemoryCapabilityOpen = (
+  [bool]$liveVectorMemoryCapability.owner_granted -and
+  [bool]$liveVectorMemoryCapability.owner_scope_approved -and
+  [bool]$liveVectorMemoryCapability.architecture_approved -and
+  [bool]$liveVectorMemoryCapability.hosted_semantic_search_verified -and
+  [bool]$liveVectorMemoryCapability.live_verified -and
+  -not [string]::IsNullOrWhiteSpace([string]$liveVectorMemoryCapability.evidence_artifact) -and
+  [string]$liveVectorMemoryCapability.provider -eq "cloudflare_vectorize" -and
+  [string]$liveVectorMemoryCapability.verifier -eq "scripts/verify-live-vector-memory-search.ps1" -and
+  $liveVectorMemoryCapability.paid_provider -is [bool] -and
+  -not [bool]$liveVectorMemoryCapability.paid_provider
+)
+$liveVectorMemoryBlocker = "live_vector_memory_search_requires_owner_vectorize_scope_architecture_approval_and_hosted_proof"
+if ($liveVectorMemoryCapabilityOpen) {
+  Assert-True "project progress completion clears fully verified vector memory blocker" (-not ($projectProgressCompletionHardBlockers -contains $liveVectorMemoryBlocker))
+} else {
+  Assert-True "project progress completion retains fail-closed vector memory blocker" ($projectProgressCompletionHardBlockers -contains $liveVectorMemoryBlocker)
+}
 Assert-Contains "project progress completion local gap blocker" $projectProgressCompletion "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 
 Write-Host "[browser-contract] layer interface contracts"
