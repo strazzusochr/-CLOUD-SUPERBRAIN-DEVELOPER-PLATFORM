@@ -1,8 +1,8 @@
 # 🔎 CODEX-ÜBERPRÜFUNG — RC5 / Auth-Requalification (2026-07-22)
 
 Reviewer: Claude (Opus 4.8) · Branch: `claude/codex-rc3-review-ronef1`
-Prüfmethode: Git-Ground-Truth (dieser Clone **und** der echte Arbeits-Branch) + Codex-Session-Logs (Session 2–4).
-Es wurde **nichts zitiert, alles gemessen.** Wo ich nur die Logs habe, ist es ausdrücklich als „berichtet" markiert.
+Prüfmethode: Git-Ground-Truth (dieser Clone **und** der echte Arbeits-Branch, **commit-für-commit** verifiziert) + die echten Codex-Übergabe-Dokumente (Master-Goal-Finale, Session-4-Handover, Anchor, Ziel-Kurz, AI-Handoff — vom Owner bereitgestellt), nicht mehr nur Session-Logs.
+Es wurde **nichts zitiert, alles gemessen.** Wo nur die Dokumente die Quelle sind (SHA-256-Evidenz-Hashes, Deployment-IDs), ist es als „dokumentiert" markiert; die %-Werte und die Commit-Kette sind git-verifiziert.
 Ich habe für diese Prüfung **keine** Verifier / Docker / Browser-Suiten laufen lassen — kein Fake-Evidence, nur Audit.
 
 ---
@@ -22,8 +22,8 @@ Ich habe für diese Prüfung **keine** Verifier / Docker / Browser-Suiten laufen
 | Ref | `claude/codex-rc3-review-ronef1` | `claude/cloud-superbrain-analysis-127d2e` |
 | HEAD | `48e86ce` · 2026-06-20 · „tools real output ui" | `115a67d1` · 2026-07-22 06:54 · „requalify auth source as rc5" |
 | `overall_percent` | **70** | **86** |
-| Aktive RC | `dev-candidate-2026-06-15-rc1` | `prod-candidate-2026-07-22-local-rc5` (source `255e328a`) |
-| Cloudflare D1 / LLM-Worker | **nicht vorhanden** | vorhanden (per Log deployt) |
+| Aktive RC | `dev-candidate-2026-06-15-rc1` | `prod-candidate-2026-07-22-local-rc5` (source `255e328a`, `production_rollout_claimed=false`) |
+| Cloudflare Stateful-/LLM-Worker-Service | **nicht vorhanden** (git-verifiziert) | `services/cloudflare-stateful-runtime` + `services/cloudflare-llm-gateway` vorhanden (git-verifiziert) |
 
 **Zellen-Delta (Juni-Klon → echter Juli-Stand), git-verifiziert aus beiden Manifesten:**
 
@@ -31,6 +31,25 @@ Ich habe für diese Prüfung **keine** Verifier / Docker / Browser-Suiten laufen
 - Vertikal: **L1 97→100** · **L2 99→100** · **L3 68→69** · **L4 54→55** · **L5 55→56** · **L6 72→90** · **L7 (neu) 100**
 
 > Konsequenz: Die Aussagen aus den Codex-Logs (86 %, P2 100, RC5, Auth-Requalifizierung, `sharp`-Patch) sind **1:1 durch das committete Manifest auf dem Arbeits-Branch belegt**. Codex war ehrlich; der Review-Branch ist nur stale.
+
+### 1b. COMMIT-KETTE — jetzt commit-für-commit git-verifiziert (nicht nur Log)
+
+Alle in den Übergabe-Dokumenten genannten Commits existieren im Repo mit **deckungsgleichem Subject**; keiner ist erfunden. `255e328a` ist nachweislich Vorfahre des Arbeits-Branch-HEAD `115a67d`.
+
+| Commit | Subject (git) | Zeitpunkt | belegt |
+|---|---|---|---|
+| `76f4644` | verify(llm): bind hosted preview read-only parity | 21.07. 22:49 | LLM 54→55 |
+| `0679f6f` | fix(frontend): stabilize browser fallback runtime | 21.07. 22:49 | WebGL-Fallback + Node-Metadaten |
+| `a80c356` | verify(release): requalify runtime candidate rc4 | 21.07. 23:23 | RC4 |
+| `255e328` | fix(security): enforce fail-closed auth issuance | 22.07. 04:02 | P3-Auth-Härtung |
+| `115a67d` (HEAD) | verify(release): requalify auth source as rc5 | 22.07. 06:54 | RC5 |
+| `985f577` | Close Observability layer to 100 percent with live ingestion proof | 21.07. 04:11 | L7/Obs 100 |
+
+> Upgrade dieser Prüfung: nicht mehr „Log-konsistent", sondern **commit-verifiziert**. Die RC5-Artefaktdatei auf dem HEAD nennt exakt `prod-candidate-2026-07-22-local-rc5`, source `255e328a`, `production_rollout_claimed=false` — die Anti-Fake-Grenze ist im Artefakt selbst codiert.
+
+### 1c. SMOKING GUN der Fragmentierung
+
+Die Übergabe-Dokumente, die der Owner mir für diese Prüfung **von Hand hochladen musste** — `PROJECT_ANCHOR_CURRENT.md`, `CODEX_MASTER_GOAL_FINALE.md`, `CODEX_UEBERGABE_2026-07-21-SESSION4.md`, `CODEX_ZIELVERFOLGUNG_KURZ.md` — **existieren auf diesem Review-Branch überhaupt nicht** (`git cat-file` = ABSENT), sondern nur auf `claude/cloud-superbrain-analysis-127d2e`. Genau deshalb wirkt das Projekt hier 16 Prozentpunkte schlechter: der Review-Träger sieht die Juli-Wahrheit gar nicht. Das ist der direkte, git-belegte Beweis für Befund #1 (Branch-Fragmentierung).
 
 ---
 
