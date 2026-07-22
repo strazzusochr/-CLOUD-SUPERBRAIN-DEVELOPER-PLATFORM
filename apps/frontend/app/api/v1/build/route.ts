@@ -3,7 +3,7 @@
 // Generation is allowed only through the configured LLM Gateway. The stateless
 // frontend never calls a provider or persistence service directly.
 
-import { boundaryUnavailable, proxyToBoundary } from "../../../../lib/frontendBoundary";
+import { authorizeBoundaryWrite, boundaryUnavailable, proxyToBoundary } from "../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -19,6 +19,27 @@ HARD RULES:
 - Keep it focused and COMPLETE within ~300 lines, and ALWAYS finish the document with </body></html>. Never cut off mid-tag.`;
 
 const GPU_GUARD = `<script>(function(){var _r=window.requestAnimationFrame.bind(window),last=0;window.requestAnimationFrame=function(cb){return _r(function(t){if(document.hidden){window.requestAnimationFrame(cb);return;}if(t-last<15){window.requestAnimationFrame(cb);return;}last=t;cb(t);});};})();</script>`;
+const MAX_PROMPT_CHARS = 2_000;
+const MAX_BASE_HTML_CHARS = 60_000;
+const MAX_PERSISTED_HTML_BYTES = 160 * 1024;
+const SECRET_PATTERNS = [
+  /\bsk-[A-Za-z0-9_-]{16,}\b/,
+  /\bghp_[A-Za-z0-9_]{16,}\b/,
+  /\bgithub_pat_[A-Za-z0-9_]{16,}\b/,
+  /\b(?:E2B|cfat|vck|hf)_[A-Za-z0-9_-]{16,}\b/,
+  /\bglpat-[A-Za-z0-9_.-]{20,}\b/,
+  /\b(?:api[_-]?key|secret|token|password)\s*[:=]\s*(?:"[^"\r\n]{8,}"|'[^'\r\n]{8,}'|[A-Za-z0-9_+=/-]{24,})/i,
+];
+
+function containsSecretMaterial(value: string): boolean {
+  return SECRET_PATTERNS.some((pattern) => pattern.test(value));
+}
+
+function completePersistableHtml(value: string): boolean {
+  return new TextEncoder().encode(value).byteLength <= MAX_PERSISTED_HTML_BYTES
+    && /^\s*<!doctype html/i.test(value)
+    && /<\/html>\s*$/i.test(value);
+}
 
 function extractHtml(raw: string): string {
   let s = raw.trim();
@@ -48,6 +69,18 @@ type GeneratedBuild = {
   provider: unknown;
 };
 
+type BuildRecord = {
+  id: string;
+  project_id: string;
+  title: string;
+  prompt: string;
+  model: string;
+  html: string;
+  gateway_mode: string;
+  gateway_provider: string;
+  live_provider_calls: boolean;
+};
+
 async function generate(req: Request, prompt: string, baseHtml?: string): Promise<GeneratedBuild | null> {
   const messages = baseHtml
     ? [
@@ -66,7 +99,12 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
     try {
       const gatewayRequest = new Request(req.url, {
         method: "POST",
-        headers: { "content-type": "application/json", accept: "application/json" },
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json",
+          ...(req.headers.get("x-request-id") ? { "x-request-id": req.headers.get("x-request-id") as string } : {}),
+          ...(req.headers.get("traceparent") ? { traceparent: req.headers.get("traceparent") as string } : {}),
+        },
         body: JSON.stringify({ model, messages, max_tokens: 5200, temperature: 0.3, stream: false }),
       });
       const response = await proxyToBoundary(gatewayRequest, "llm-gateway", "/v1/chat/completions", timeoutMs);
@@ -76,7 +114,7 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
       if (!response.ok) throw new Error(String(out.error ?? out.detail ?? `LLM Gateway HTTP ${response.status}`));
       const choices = out.choices as Array<{ message?: { content?: string } }> | undefined;
       const html = extractHtml(choices?.[0]?.message?.content ?? "");
-      if (html && /<.*>/.test(html)) {
+      if (completePersistableHtml(html) && !containsSecretMaterial(html)) {
         return {
           html,
           model: out.model,
@@ -93,16 +131,72 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
   throw new Error(lastErr instanceof Error ? lastErr.message : "generation failed");
 }
 
+async function persistBuild(req: Request, build: BuildRecord): Promise<Record<string, unknown> | null> {
+  const persistenceRequest = new Request(req.url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json",
+      ...(req.headers.get("x-request-id") ? { "x-request-id": req.headers.get("x-request-id") as string } : {}),
+    },
+    body: JSON.stringify(build),
+  });
+  const response = await proxyToBoundary(
+    persistenceRequest,
+    "agent-api",
+    "/api/v1/builds",
+    10_000,
+    { serviceAuth: true },
+  );
+  if (!response?.ok) return null;
+  let payload: Record<string, unknown>;
+  try {
+    payload = (await response.json()) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+  return payload.persisted === true
+    && payload.audit_persisted === true
+    && payload.id === build.id
+    && payload.html === build.html
+    && payload.direct_provider_calls === false
+    && payload.live_mcp_writes === false
+    && payload.secret_output === false
+    ? payload
+    : null;
+}
+
 export async function POST(req: Request): Promise<Response> {
+  const writeBlock = authorizeBoundaryWrite(req);
+  if (writeBlock) return writeBlock;
+
   let body: Record<string, unknown> = {};
   try { body = (await req.json()) as Record<string, unknown>; } catch { /* empty */ }
   const prompt = String(body.prompt ?? "").trim();
   const projectId = String(body.project_id ?? "default");
-  const baseHtml = typeof body.base_html === "string" && body.base_html.length < 60000 ? body.base_html : undefined;
+  const baseHtml = typeof body.base_html === "string" ? body.base_html : undefined;
   if (!prompt) return Response.json({ status: "bad_request", note: "Beschreibe, was gebaut werden soll." }, { status: 400 });
+  if (prompt.length > MAX_PROMPT_CHARS || containsSecretMaterial(prompt)) {
+    return Response.json(
+      { status: "bad_request", error: "prompt_rejected", accepted: false, persisted: false, secret_output: false },
+      { status: 400, headers: { "cache-control": "no-store" } },
+    );
+  }
+  if (!/^[A-Za-z0-9_.-]{1,80}$/.test(projectId)) {
+    return Response.json(
+      { status: "bad_request", error: "invalid_project_id", accepted: false, persisted: false, secret_output: false },
+      { status: 400, headers: { "cache-control": "no-store" } },
+    );
+  }
+  if (baseHtml !== undefined && (baseHtml.length > MAX_BASE_HTML_CHARS || !completePersistableHtml(baseHtml) || containsSecretMaterial(baseHtml))) {
+    return Response.json(
+      { status: "bad_request", error: "base_html_rejected", accepted: false, persisted: false, secret_output: false },
+      { status: 400, headers: { "cache-control": "no-store" } },
+    );
+  }
 
   try {
-    const generated = await generate(req, prompt.slice(0, 2000), baseHtml);
+    const generated = await generate(req, prompt, baseHtml);
     if (!generated) {
       return boundaryUnavailable(
         "POST /api/v1/build",
@@ -113,21 +207,62 @@ export async function POST(req: Request): Promise<Response> {
     const { html, model, liveProviderCalls, gatewayMode, provider } = generated;
     const title = prompt.replace(/�/g, "").slice(0, 70);
     const id = globalThis.crypto.randomUUID();
-    void projectId;
+    const buildRecord: BuildRecord = {
+      id,
+      project_id: projectId,
+      title,
+      prompt: prompt.slice(0, 2000),
+      model: String(model ?? "unknown"),
+      html,
+      gateway_mode: String(gatewayMode ?? "unknown"),
+      gateway_provider: String(provider ?? "unknown"),
+      live_provider_calls: liveProviderCalls,
+    };
+    const persistedBuild = await persistBuild(req, buildRecord);
+    const persisted = persistedBuild !== null;
+    if (!persistedBuild) {
+      return Response.json(
+        {
+          contract_version: "stateful-build-persistence-v1",
+          status: "blocked",
+          error: "build_persistence_unavailable",
+          accepted: false,
+          generated: true,
+          persisted: false,
+          share_path: null,
+          live_provider_calls: liveProviderCalls,
+          direct_provider_calls: false,
+          live_mcp_writes: false,
+          production_deploy: false,
+          secret_output: false,
+          note: "Generation completed, but audited build persistence was unavailable. No build output was returned.",
+        },
+        { status: 503, headers: { "x-superbrain-source": "agent-api-boundary-blocked", "cache-control": "no-store" } },
+      );
+    }
     return Response.json(
       {
-        id,
-        title,
-        model,
-        html,
-        gateway_mode: gatewayMode,
-        gateway_provider: provider,
-        live_provider_calls: liveProviderCalls,
-        persisted: false,
-        share_path: null,
+        contract_version: persistedBuild.contract_version,
+        status: persistedBuild.status,
+        source: persistedBuild.source,
+        id: persistedBuild.id,
+        project_id: persistedBuild.project_id,
+        title: persistedBuild.title,
+        prompt_sha256: persistedBuild.prompt_sha256,
+        model: persistedBuild.model,
+        html: persistedBuild.html,
+        gateway_mode: persistedBuild.gateway_mode,
+        gateway_provider: persistedBuild.gateway_provider,
+        live_provider_calls: persistedBuild.live_provider_calls === true,
+        created_at: persistedBuild.created_at,
+        updated_at: persistedBuild.updated_at,
+        audit_persisted: true,
+        persisted,
+        share_path: persisted ? `/run/${id}` : null,
         direct_provider_calls: false,
         live_mcp_writes: false,
-        note: "Generated through the LLM Gateway; persistence requires the Agent API artifact registry.",
+        secret_output: false,
+        note: "Generated through the LLM Gateway and audit-persisted through the Agent API D1 registry.",
       },
       { headers: { "x-superbrain-source": "llm-gateway-boundary", "cache-control": "no-store" } },
     );
@@ -147,7 +282,7 @@ export async function POST(req: Request): Promise<Response> {
         live_mcp_writes: false,
         production_deploy: false,
         secret_output: false,
-        note: err instanceof Error ? err.message : String(err),
+        note: "The LLM Gateway did not return a complete, secret-safe HTML document.",
       },
       { status: 503, headers: { "cache-control": "no-store", "x-superbrain-source": "llm-gateway-boundary-blocked" } },
     );
