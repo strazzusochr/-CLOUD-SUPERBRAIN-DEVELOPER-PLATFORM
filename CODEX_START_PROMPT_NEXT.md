@@ -33,7 +33,12 @@ AUFGABE 2 — HYGIENE (nur wenn kostenlos & autonom):
 - Truth-Mirror aus dem Manifest GENERIEREN statt handzupflegen (ein Skript, Manifest = Quelle).
 - Stale-%-Asserts in Verifiern immer aus dem Manifest lesen, nie hartkodieren.
 - Hosted-Env (Worker-URL, Gateway-Token-Bindung) reproduzierbar im Repo pinnen (503-Env-Drift-Schutz).
-- Preflight fixieren: Node-24-Pin, TEMP-Dir gesetzt, Resource-Saver aus.
+- Preflight fixieren: Node-24-Pin, TEMP-Dir gesetzt, Resource-Saver aus (verhindert D1-Local-/Turbopack-/Port-Kaempfe).
+
+VERIFIER-DISZIPLIN (Zeit ist der Flaschenhals — verify:browser ≈ 51 Min laut Checkpoint):
+- Pro Slice ZUERST nur den geaenderten Sub-Verifier laufen lassen; volle 22x2-Browser-Suite HOECHSTENS 1x am Slice-Ende, nicht 4x.
+- Langläufer strukturiert melden: Schritt X/Y + letzte gruene Marke + grobe ETA — kein nacktes "läuft".
+- Verifier/Playwright/Docker-Build NIE parallel (killt Läufe, invalidiert Beweise).
 
 R0 — NIE FAKEN:
 - live_verified nur nach echtem Verifier-Grün. Keine Doppelzählung von %-Markern.
