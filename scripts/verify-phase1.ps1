@@ -3091,6 +3091,10 @@ Write-Host "[verify] Cloudflare D1 stateful runtime static contract"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-cloudflare-stateful-runtime.ps1 -StaticOnly
 Assert-LastExitCode "Cloudflare D1 stateful runtime static contract"
 
+Write-Host "[verify] bounded live LLM evidence chain"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-live-llm-evidence-chain.ps1
+Assert-LastExitCode "bounded live LLM evidence chain"
+
 Write-Host "[verify] current hosted frontend proof"
 $frontendHostedVerifierSource = Get-Content -Path "scripts\verify-frontend-hosted-current.ps1" -Raw
 foreach ($required in @(
