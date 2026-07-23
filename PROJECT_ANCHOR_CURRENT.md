@@ -1,6 +1,6 @@
 # Cloud Superbrain Project Anchor
 
-Anchor ID: `cloud-superbrain-anchor-2026-07-22T06-42-53+02-00-session4-rc5`
+Anchor ID: `cloud-superbrain-anchor-2026-07-23T20-54-57+02-00-session8-s1-green-pre-rc8`
 
 Status: `ACTIVE_RESUME_POINT`
 
@@ -8,37 +8,26 @@ Workspace: `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
 
 Branch: `claude/cloud-superbrain-analysis-127d2e`
 
-Committed runtime reference before this anchor: `255e328a76b3f84bf74358bc7258b9ffb797b339`
+Committed runtime reference before S1: `6c344b37f2cef21d952c1f2b5235ae6c4c36dbf9`
 
-Machine checkpoint: `docs/project-checkpoint-2026-07-21-session4.json`
-
-Detailed handoff: `CODEX_UEBERGABE_2026-07-21-SESSION4.md`
-
-Memory protocol: `docs/codex-integration/CODEX_MEMORY_PROTOCOL_2026-07-21_SESSION4.md`
+Detailed handoff: `CODEX_UEBERGABE_2026-07-23-SESSION7.md`
 
 ## Purpose
 
-This is the exact restart point for a new Codex chat. It preserves the completed hosted LLM
-repair, the committed Phase-3 auth hardening, the locally verified RC5, all evidence,
-the dirty-worktree ownership boundary, and the next commands. It is a resume snapshot, not a new
-progress authority. Canonical percentages still come only from
-`docs/project-progress.manifest.json`, with `PROJECT_STATE.md` and
-`docs/verification-register.md` as truth mirrors.
+Exact resume point after the S1 Agent-Pool UI/verifier slice passed the full serial static,
+runtime, and browser gates. S1 is ready for an explicit-file commit and branch push. The current
+local production candidate remains RC7 until RC8 is built and verified from the new committed
+source. This anchor is a resume snapshot, not a progress authority.
 
 ## Required Resume Order
 
-1. Read this file completely.
-2. Read `CODEX_UEBERGABE_2026-07-21-SESSION4.md` completely.
-3. Read `docs/project-checkpoint-2026-07-21-session4.json`.
-4. Read `docs/codex-integration/CODEX_MEMORY_PROTOCOL_2026-07-21_SESSION4.md`.
-5. Read `PROJECT_STATE.md`, the two binding patched ultimatum files, and the autonomous roster
-   required by `AGENTS.md`.
-6. Verify `git log -1` is at least the anchor commit and `origin` is reachable. Stop if either
-   prerequisite fails.
-7. Set `$env:TEMP='D:\_sb_tmp'` and `$env:TMP='D:\_sb_tmp'` before every verifier.
-8. Inspect `git status --short`; preserve every foreign dirty file listed below.
-9. Continue the remaining MARKET_READY/Owner-wall audit at the exact next step below. Do not restart the project or
-   overwrite the current worktree.
+1. Read `CODEX_UEBERGABE_2026-07-23-SESSION7.md` completely.
+2. Read the active goal objective attachment and `AGENTS.md` start-protocol documents.
+3. Read `PROJECT_STATE.md`, `AI_HANDOFF.md`, `docs/verification-register.md`, and
+   `docs/project-progress.manifest.json`.
+4. Set `TEMP` and `TMP` to `D:\_sb_tmp` before every verifier.
+5. Inspect `git status --short`; preserve every foreign dirty file.
+6. Continue at the exact next step below. Do not restart the project or overwrite foreign work.
 
 ## Current Canonical Progress
 
@@ -46,112 +35,92 @@ progress authority. Canonical percentages still come only from
 - Horizontal: `P0 100 | P1 100 | P2 100 | P3 44 | P4 100 | P5 68 | P6 90`
 - Vertical: `Frontend 100 | Orchestrator 100 | Agent Pool 69 | LLM 55 | MCP 56 | Memory 90 | Observability 100`
 - `MARKET_READY: false`
-- Progress has not been increased for the auth repair.
+- S1 receives no percentage credit.
 
-## Completed And Pushed In This Session
+## S1 Verified Truth
 
-- `76f46446` - hosted Cloudflare LLM Preview read-only source parity, LLM `54 -> 55`, truth
-  mirrors, and the documented Workbench LLM HTTP 503 repair.
-- `0679f6ff` - frontend WebGL fallback state synchronization plus supported Node runtime metadata.
-- `a80c3561` - RC4 local clean-archive candidate requalification.
-- `255e328a` - fail-closed auth issuance, persisted audit gate, query-safe logs, patched `sharp`.
-- All four commits were pushed to `origin/claude/cloud-superbrain-analysis-127d2e`.
-- Hosted Workbench mini-builds return HTTP `200` through Cloudflare Workers AI.
-- Preview and Production each passed real-Chrome 22 routes x 2 viewports (`44/44`) with zero
-  console, overflow, or overlay failures.
-- RC5 built six Docker images from committed source
-  `255e328a76b3f84bf74358bc7258b9ffb797b339` and passed the focused Chromium candidate proof.
-- `npm run verify:current-release-candidate` passed with
-  `candidate_technical=true`, `runtime_source_parity=true`, `promotion_eligible=false`.
-- The full static/runtime/browser gates passed after the auth hardening; gitleaks stayed clean and
-  npm audit reports zero vulnerabilities.
-
-## Current Verified Auth And RC5 Slice
-
-Phase 3 auth credential issuance is being hardened because the old implementation accepted any
-callback `code/state` and minted credentials, while any previously unseen refresh token could mint
-a new JWT. That was a real security defect and invalidated the old dry-run issuance proof.
-
-Implemented, fully verified, committed, pushed, and requalified by RC5:
-
-- one-time Redis-backed OAuth state plus `__Host-sb_oauth_state` binding;
-- production credential issuance requires complete OAuth configuration, a strong signing secret,
-  successful GitHub code exchange, and a verified numeric GitHub user id;
-- process-random JWT signing fallback when no strong secret exists, with production issuance
-  disabled;
-- Redis active-refresh registry, transactional one-time consumption, rotation blacklist, and
-  verified subject binding;
-- JSON-body refresh tokens rejected;
-- unknown or arbitrary refresh values cannot mint credentials;
-- logout claims revocation only for an active registered cookie token;
-- token values, callback code/state, and blacklist keys removed from responses and audit details;
-- frontend stateless auth projection updated to the same fail-closed contract;
-- old local/hosted auth verifier paths changed away from arbitrary dry-run issuance;
-- nineteen backend unit tests, real-Redis concurrency proof, and a dedicated runtime verifier added;
-- successful callback/refresh cookies require persisted PostgreSQL audit evidence;
-- JWT signing configuration requires non-placeholder base64url material carrying at least 256 bits;
-- Uvicorn access logging is disabled and Nginx logs path-only without callback query parameters;
-- hosted auth verification is contract-read-only and performs no OAuth/session mutation;
-- frontend `sharp` is overridden to patched `0.35.3` after the audit detected the new `<0.35.0` advisory.
-
-Focused evidence already passed:
-
-- `py -3.14 -m unittest discover -s services\agent-api\tests -p test_auth_security.py -v`: `19/19` passed.
-- `scripts\verify-phase3-auth-fail-closed.ps1 -StaticOnly`: passed.
-- `scripts\verify-phase3-auth-fail-closed.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`:
-  passed against the restarted Docker runtime.
-- Runtime statuses: arbitrary callback `503`, body refresh `400`, unknown cookie refresh `401`,
-  unknown cookie logout `200` with `refresh_token_revoked=false`.
-- Evidence: `.codex/runs/CURRENT/phase3/auth-fail-closed/report.json`.
-- Evidence SHA-256: `FB90E6D57FFBC6C646C583D6F5DD18F4EDB71D9E881B9B7090B3FFDD31FCADC1`.
-- Docker is currently `10/10 healthy`.
-- `npm run verify:runtime`, `npm run verify:browser`, and `npm run verify`: passed sequentially.
-- `npm audit --audit-level=high`: `0 vulnerabilities`.
-- Progress remains P3 `44%`, Overall `86%`; no duplicate credit. DEV-ONLY; hosted proof still blocked.
+- Canonical UI: `/agents`.
+- Runtime contracts: `autonomous-agent-roster-v1`, `autonomous-master-plan-v1`,
+  `autonomous-coding-team-v1`, and `autonomous-task-dispatch-v1`.
+- Visible parity: 14 persisted roster roles; 7 phases; 7 layers; 5 operating-core roles;
+  3 dispatch endpoints; 5 UUIDv4-bound coding-team members with mappings and queue state.
+- Strict frontend parsing fails closed on contract/source/evidence/binding drift.
+- Focused roster, master-plan, coding-team, and release-workflow PlanOnly verifiers passed.
+- Frontend lint passed; production build passed `21/21`.
+- `npm run verify`, `npm run verify:runtime`, and `npm run verify:browser` passed serially.
+- Browser responsive proof passed 22 routes x 2 viewports = 44 clicks.
+- Runtime log SHA-256:
+  `B2C239B91BB9C41852A862EBEB3D8BAF12353E98330BA424A68A06EF8FE40541`.
+- Browser log SHA-256:
+  `CB720B156EB6248BB448181458CF569A1AA9D1A14013AE939275906BD5D644A5`.
+- Docker is `10/10 healthy`.
+- PostCSS exact override is `8.5.12`; npm audit reports zero vulnerabilities.
+- Fresh runtime cloud read without Owner inputs remained `5/8` providers and `4/7` layers.
 
 ## Exact Next Step
 
-1. Commit/push only this RC5 truth/release-artifact update on
-   `claude/cloud-superbrain-analysis-127d2e`; keep all foreign dirty files excluded.
-2. Run the market-ready static audit and classify every remaining gate as autonomous work or an
-   explicit Owner/cloud wall.
-3. Continue only safe autonomous slices; do not publish GHCR, deploy, promote, widen permissions,
-   or activate live provider/MCP writes without the required Owner gates.
+1. Explicitly stage only S1-owned implementation, verifier, manifest, RC6/RC7 artifact, and
+   canonical truth-mirror files.
+2. Inspect the staged diff and run the staged secret scan.
+3. Commit and push only `claude/cloud-superbrain-analysis-127d2e`.
+4. Build RC8 from the new committed SHA with rollback bound to RC7
+   `6c344b37f2cef21d952c1f2b5235ae6c4c36dbf9`.
+5. Verify RC8 locally with the focused candidate and current-candidate Chromium gates.
+6. Run the final MARKET_READY audit and produce the exact OWNER-BLOCKED packet.
+
+## Current Candidate Before RC8
+
+- Release: `prod-candidate-2026-07-23-local-rc7`
+- Source: `6c344b37f2cef21d952c1f2b5235ae6c4c36dbf9`
+- Rollback: RC6 at `60d48868fbcad29d010d348916b261760d6a74ed`
+- Candidate report SHA-256:
+  `E3F6106A636BD5F6FC059A5F8B9D75B36E9DB92ED4F2A480780A2775FE03842C`
+- Verification SHA-256:
+  `4227B5DCEB3AAACFBE5F8AC1863A1D52FDD91DD325F9FE797AF24CFDD5BE6957`
+- `candidate_technical=true`
+- `runtime_source_parity=true`
+- `promotion_eligible=false`
+- DEV-ONLY; hosted proof still blocked.
+
+## Explicit Non-Claims
+
+- `autonomous_release_workflow_verified` means parser plus PlanOnly validation only; no workflow
+  execution, push, publication, or release occurred.
+- Persisted roster does not mean Codex Desktop task persistence.
+- Local dispatch does not prove hosted or autonomous rollout.
+- `live_provider_calls=false`
+- `live_mcp_writes=false`
+- `model_downloads=false`
+- `production_deploy=false`
+- `production_rollout_claimed=false`
+- `secret_output=false`
+
+## Owner Walls
+
+- Production OAuth identity and credential configuration.
+- Cloudflare Vectorize edit scope, architecture approval, and hosted semantic-search proof.
+- Fly.io or Scale payment/billing activation.
+- GHCR publication and release promotion.
+- Live MCP writes and live agent/provider activation.
+- Password, CAPTCHA, secret disclosure, or permission expansion.
 
 ## Foreign Dirty Files: Never Stage, Revert, Or Rewrite
 
-- `.gitignore`
-- `apps/frontend/app/api/v1/build/route.ts`
-- `apps/frontend/app/run/[id]/page.tsx`
-- `apps/frontend/components/goal-b-actions.tsx`
-- `apps/frontend/lib/frontendBoundary.ts`
-- `apps/frontend/tsconfig.tsbuildinfo`
-- root `package.json`
-- `scripts/verify-cloudflare-llm-gateway.ps1`
-- the pre-existing Cloudflare stateful runtime files and verifier files
-- `apps/frontend/components/run-build.tsx`
-- all pre-existing untracked handoff/goal files, screenshots, Python environment files, and local
-  helper scripts visible in `git status` unless ownership is re-established from evidence.
-
-`scripts/verify-phase1.ps1` is mixed ownership: the Phase-3 auth additions belong to this slice;
-the uncommitted `Cloudflare D1 stateful runtime static contract` block is foreign and must remain
-unstaged unless its owner slice is deliberately resumed and verified.
+- `CODEX_ZIELVERFOLGUNG_KURZ.md`
+- `apps/frontend/next-env.d.ts`
+- `.codex/cache/`
+- `.codex/environments/`
+- `.codex/tmp/`
+- `.playwright-cli/`
+- all pre-existing untracked goal, handoff, screenshot, Python-environment, agent-api core/test,
+  model-registry, and local-helper files unless ownership is independently re-established.
 
 ## Non-Negotiable Rules
 
-- No fake completion, no hand-setting `live_verified`, no duplicate percentage credit.
-- No secret values in chat, files, reports, logs, commits, or screenshots.
-- No main push, force push, release promotion, registry publication, or production database write.
-- No parallel verifier, Playwright, or Docker build execution.
-- Localhost evidence must remain labeled `DEV-ONLY`.
-- Production auth identity remains Owner-gated until a real hosted callback verifies GitHub identity.
-- Payment, password-account creation, CAPTCHA, and secret disclosure are hard Owner walls.
-- Keep working on autonomous items; do not stop merely because one wall remains.
-
-## Git-Diff Hang Clarification
-
-The UI displayed an old `git diff --cached -- scripts/verify-phase1.ps1` command as running for a
-long time. No `git`, `git-remote-https`, or pager process existed. The safe command
-`git --no-pager diff --cached --no-ext-diff -- scripts/verify-phase1.ps1` completed with exit `0`
-and no output in about four seconds. This was stale UI state, not a repository lock or running Git
-operation. Use `--no-pager --no-ext-diff` for future diagnostic diffs.
+- No `git add -A`.
+- No fake completion or duplicate percentage credit.
+- No secret values in output, files, reports, logs, commits, or screenshots.
+- No main push, force push, registry publication, production deployment, or release promotion.
+- No parallel verifier, Playwright, or Docker-build execution.
+- Localhost evidence label: `DEV-ONLY; hosted proof still blocked`.
+- Keep working on autonomous items; stop only at a real Owner gate.

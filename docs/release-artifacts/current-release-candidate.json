@@ -1,7 +1,7 @@
 {
-  "active_release_id": "prod-candidate-2026-07-22-local-rc5",
-  "updated_at": "2026-07-22T04:42:53.2986911Z",
-  "updated_by": "codex-phase5-auth-security-requalification",
-  "reason": "Requalify six content-addressed production service images from committed source 255e328a76b3f84bf74358bc7258b9ffb797b339 after fail-closed OAuth/JWT issuance, persisted auth-audit enforcement, query-safe access logging, and the patched frontend sharp dependency. GHCR publication, hosted proof, Owner approval, release promotion, and production rollout remain explicitly blocked.",
+  "active_release_id": "prod-candidate-2026-07-23-local-rc7",
+  "updated_at": "2026-07-23T03:16:25.6091862Z",
+  "updated_by": "codex-session6-browser-next-requalification",
+  "reason": "Requalify six content-addressed production service images from committed source 6c344b37f2cef21d952c1f2b5235ae6c4c36dbf9 after deterministic browser-contract hardening, keyed run-build loading, and the Next.js 16.2.11 security update. Rollback remains bound to Session 5 RC6 at 60d48868fbcad29d010d348916b261760d6a74ed. GHCR publication, hosted proof, Owner approval, release promotion, and production rollout remain explicitly blocked.",
   "production_rollout_claimed": false
 }

@@ -83,7 +83,9 @@ Assert-True (-not $boundarySource.Contains("CLOUDFLARE_API_TOKEN")) "Frontend bo
 foreach ($marker in @(
   'proxyToBoundary(gatewayRequest, "llm-gateway", "/v1/chat/completions"',
   'live_provider_calls: liveProviderCalls',
-  'gateway_provider: provider',
+  'gateway_provider: String(provider ?? "unknown")',
+  'gateway_provider: persistedBuild.gateway_provider',
+  'live_provider_calls: persistedBuild.live_provider_calls === true',
   'const models: Array<[string, number]> = [["@cf/qwen/qwen2.5-coder-32b-instruct", 50000]]'
 )) {
   Assert-Contains "Frontend build route" $buildSource $marker

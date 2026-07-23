@@ -10,6 +10,30 @@ function Assert-True($label, $condition) {
   }
 }
 
+function Get-HtmlElementByTestId($html, $testId) {
+  $pattern = '(?is)<[^>]*\bdata-testid\s*=\s*["'']' + [Regex]::Escape([string]$testId) + '["''][^>]*>'
+  $match = [Regex]::Match([string]$html, $pattern)
+  Assert-True "agents page element $testId visible" $match.Success
+  return $match.Value
+}
+
+function Assert-HtmlAttribute($label, $element, $name, $expected) {
+  $pattern = '(?is)\b' + [Regex]::Escape([string]$name) + '\s*=\s*["'']' + [Regex]::Escape([string]$expected) + '["'']'
+  Assert-True $label ([Regex]::IsMatch([string]$element, $pattern))
+}
+
+function Assert-DevOnlyUiBoundaries($html) {
+  foreach ($required in @(
+    "DEV-ONLY; hosted proof still blocked",
+    "live_provider_calls=false",
+    "live_mcp_writes=false",
+    "production_deploy=false",
+    "secret_output=false"
+  )) {
+    Assert-True "agents page boundary $required visible" ([string]$html).Contains($required)
+  }
+}
+
 function Invoke-WebResponse($url, $method = "GET", $body = $null, [hashtable]$headers = $null, $contentType = $null, $timeoutSeconds = 30) {
   $bodyBase64 = $null
   if ($null -ne $body) {
@@ -96,10 +120,18 @@ Assert-True "prometheus surface available" ($roster.runtime_bindings.prometheus.
 Assert-True "crewai non-claim status visible" (-not [string]::IsNullOrWhiteSpace([string]$roster.runtime_bindings.crewai.status))
 Assert-True "validated startable visible" (@($roster.launcher_status.validated_startable).Count -ge 1)
 
-$homepage = Invoke-WebResponse -url "$BaseUrl/" -method "GET" -contentType $null -timeoutSeconds 20
-Assert-True "homepage returns 200" ($homepage.StatusCode -eq 200)
-Assert-True "homepage persisted agent roster marker" ($homepage.Content.Contains("Persisted Agent Roster"))
+$agentsPage = Invoke-WebResponse -url "$BaseUrl/agents" -method "GET" -contentType $null -timeoutSeconds 20
+Assert-True "agents page returns 200" ($agentsPage.StatusCode -eq 200)
+$rosterElement = Get-HtmlElementByTestId -html $agentsPage.Content -testId "autonomous-agent-roster"
+Assert-HtmlAttribute "agents page roster contract parity" $rosterElement "data-contract-version" $roster.contract_version
+Assert-HtmlAttribute "agents page roster status parity" $rosterElement "data-status" $roster.status
+Assert-HtmlAttribute "agents page roster source parity" $rosterElement "data-source-document" $roster.source_document
+Assert-HtmlAttribute "agents page roster role-count parity" $rosterElement "data-role-count" ([string][int]$roster.role_count)
+Assert-DevOnlyUiBoundaries $agentsPage.Content
 
 Write-Host "[autonomous-agent-roster] base_url=$BaseUrl"
 Write-Host "[autonomous-agent-roster] role_count=$($roster.role_count)"
+Write-Host "[autonomous-agent-roster] evidence_scope=DEV-ONLY"
+Write-Host "[autonomous-agent-roster] hosted_proof=false"
+Write-Host "[autonomous-agent-roster] production_deploy=false"
 Write-Host "[autonomous-agent-roster] result=verified"
