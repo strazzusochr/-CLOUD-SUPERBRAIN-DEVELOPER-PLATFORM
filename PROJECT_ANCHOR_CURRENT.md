@@ -1,6 +1,6 @@
 # Cloud Superbrain Project Anchor
 
-Anchor ID: `cloud-superbrain-anchor-2026-07-23T20-54-57+02-00-session8-s1-green-pre-rc8`
+Anchor ID: `cloud-superbrain-anchor-2026-07-23T21-24-18+02-00-session8-rc8-verified`
 
 Status: `ACTIVE_RESUME_POINT`
 
@@ -8,16 +8,17 @@ Workspace: `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
 
 Branch: `claude/cloud-superbrain-analysis-127d2e`
 
-Committed runtime reference before S1: `6c344b37f2cef21d952c1f2b5235ae6c4c36dbf9`
+Committed and pushed RC8 source: `3bd216f0296afb3bd7ad94e44b6540c6201ab845`
 
 Detailed handoff: `CODEX_UEBERGABE_2026-07-23-SESSION7.md`
 
 ## Purpose
 
 Exact resume point after the S1 Agent-Pool UI/verifier slice passed the full serial static,
-runtime, and browser gates. S1 is ready for an explicit-file commit and branch push. The current
-local production candidate remains RC7 until RC8 is built and verified from the new committed
-source. This anchor is a resume snapshot, not a progress authority.
+runtime, and browser gates, was explicitly committed and pushed, RC8 was rebuilt and verified,
+and the final MARKET_READY audit proved there are no remaining autonomous-open items. All seven
+below-100 cells now have exact Owner actions in `docs/runtime-state/owner-input-manifest.json`.
+This anchor is a resume snapshot, not a progress authority.
 
 ## Required Resume Order
 
@@ -59,24 +60,20 @@ source. This anchor is a resume snapshot, not a progress authority.
 
 ## Exact Next Step
 
-1. Explicitly stage only S1-owned implementation, verifier, manifest, RC6/RC7 artifact, and
-   canonical truth-mirror files.
-2. Inspect the staged diff and run the staged secret scan.
-3. Commit and push only `claude/cloud-superbrain-analysis-127d2e`.
-4. Build RC8 from the new committed SHA with rollback bound to RC7
-   `6c344b37f2cef21d952c1f2b5235ae6c4c36dbf9`.
-5. Verify RC8 locally with the focused candidate and current-candidate Chromium gates.
-6. Run the final MARKET_READY audit and produce the exact OWNER-BLOCKED packet.
+1. Do not raise percentages or activate a gate without the corresponding O1-O6 Owner input.
+2. After an Owner input changes, run its named verifier from
+   `docs/runtime-state/owner-input-manifest.json`.
+3. Re-run the full aggregate finish line only after every affected cell has new evidence.
 
-## Current Candidate Before RC8
+## Current Candidate
 
-- Release: `prod-candidate-2026-07-23-local-rc7`
-- Source: `6c344b37f2cef21d952c1f2b5235ae6c4c36dbf9`
-- Rollback: RC6 at `60d48868fbcad29d010d348916b261760d6a74ed`
+- Release: `prod-candidate-2026-07-23-local-rc8`
+- Source: `3bd216f0296afb3bd7ad94e44b6540c6201ab845`
+- Rollback: RC7 at `6c344b37f2cef21d952c1f2b5235ae6c4c36dbf9`
 - Candidate report SHA-256:
-  `E3F6106A636BD5F6FC059A5F8B9D75B36E9DB92ED4F2A480780A2775FE03842C`
+  `303F75382936576F1D36A2A45C2C388DC5D3964ED1C2AA1B6AA98B2AB8DE13B6`
 - Verification SHA-256:
-  `4227B5DCEB3AAACFBE5F8AC1863A1D52FDD91DD325F9FE797AF24CFDD5BE6957`
+  `0E1A4B94EE2AC2B81435A0903B7954115B89F5710AF1BAC48D6BFF98BDBE8800`
 - `candidate_technical=true`
 - `runtime_source_parity=true`
 - `promotion_eligible=false`
@@ -103,6 +100,16 @@ source. This anchor is a resume snapshot, not a progress authority.
 - GHCR publication and release promotion.
 - Live MCP writes and live agent/provider activation.
 - Password, CAPTCHA, secret disclosure, or permission expansion.
+
+## Final Audit
+
+- `owner-input-matrix=PASS`
+- Covered cells: `phase_3`, `phase_5`, `phase_6`, `layer_3`, `layer_4`, `layer_5`, `layer_6`
+- Autonomous-open items: none
+- Report SHA-256:
+  `C32B68F42BDB4E4043492AFEEDEDD28AA219E07967D38819529BD6EE1868A01A`
+- `MARKET_READY:false`
+- Final packet: `master-goal-final.md`
 
 ## Foreign Dirty Files: Never Stage, Revert, Or Rewrite
 

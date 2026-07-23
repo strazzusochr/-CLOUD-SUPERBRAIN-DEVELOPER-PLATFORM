@@ -1,0 +1,171 @@
+{
+  "contract_version": "owner-input-manifest-v1",
+  "status": "owner_blocked_autonomous_complete",
+  "generated_at_utc": "2026-07-23T19:28:31.6330092Z",
+  "canonical_progress_source": "docs/project-progress.manifest.json",
+  "canonical_overall_percent": 86,
+  "market_ready": false,
+  "autonomous_open_items": [],
+  "actions": [
+    {
+      "id": "O1",
+      "title": "Production OAuth identity",
+      "status": "owner_required",
+      "required_owner_action": "Create or select the production OAuth application, approve the hosted callback URL, and provide the required credential configuration through the approved secret channel.",
+      "required_scope_or_payment": [
+        "OAuth application administration",
+        "Hosted callback approval",
+        "Secret configuration without disclosure"
+      ],
+      "payment_required": false,
+      "affected_cells": [
+        "phase_3"
+      ],
+      "gate_ids": [
+        "production_auth_identity"
+      ],
+      "verifier_after": [
+        "scripts/verify-phase3-auth-fail-closed.ps1",
+        "npm run verify:browser"
+      ],
+      "codex_boundary": "No password-account creation, CAPTCHA handling, secret disclosure, or permission expansion."
+    },
+    {
+      "id": "O2",
+      "title": "Stateful hosted runtime and scale budget",
+      "status": "owner_required",
+      "required_owner_action": "Approve a measured stateful-host and scale budget. Under the current Fly path this requires billing/payment activation and a scoped FLY_API_TOKEN; an architecture-approved free replacement must provide equivalent hosted proof.",
+      "required_scope_or_payment": [
+        "Fly.io billing or approved free replacement",
+        "FLY_API_TOKEN for verify-only inventory and deployment gate",
+        "Scale/capacity budget approval"
+      ],
+      "payment_required": true,
+      "affected_cells": [
+        "phase_5",
+        "phase_6"
+      ],
+      "gate_ids": [
+        "fly_live_budget_check",
+        "phase6_scale_runtime"
+      ],
+      "verifier_after": [
+        "npm run verify:external-gates",
+        "scripts/verify-browser-contract.ps1 -BaseUrl <STAGING_BASE_URL>"
+      ],
+      "codex_boundary": "No payment entry, billing activation, or production deployment without the Owner gate."
+    },
+    {
+      "id": "O3",
+      "title": "GHCR publication and release promotion",
+      "status": "owner_required",
+      "required_owner_action": "Approve publication of the six immutable RC8 images, provide the scoped registry/repository authorization, and approve the release-candidate review gate before any promotion.",
+      "required_scope_or_payment": [
+        "GHCR package write",
+        "Protected-branch/release workflow authorization",
+        "Owner release review"
+      ],
+      "payment_required": false,
+      "affected_cells": [
+        "phase_5",
+        "layer_5"
+      ],
+      "gate_ids": [
+        "docker_registry_publish"
+      ],
+      "verifier_after": [
+        "npm run verify:release-candidate",
+        "npm run verify:current-release-candidate"
+      ],
+      "codex_boundary": "No registry push, main write, release promotion, or production rollout before MARKET_READY:true and the explicit Owner gate."
+    },
+    {
+      "id": "O4",
+      "title": "Live agent and MCP writes",
+      "status": "owner_required",
+      "required_owner_action": "Approve the exact write-capable tools and repositories, confirm protected-branch policy and audit retention, and authorize a bounded live-write verifier.",
+      "required_scope_or_payment": [
+        "MCP write allowlist",
+        "Agent tool-write allowlist",
+        "Protected-branch verification",
+        "Audit-trail approval"
+      ],
+      "payment_required": false,
+      "affected_cells": [
+        "phase_6",
+        "layer_3",
+        "layer_5"
+      ],
+      "gate_ids": [
+        "live_agent_tool_writes",
+        "live_mcp_writes"
+      ],
+      "verifier_after": [
+        "npm run verify:runtime",
+        "npm run verify:browser"
+      ],
+      "codex_boundary": "Current contracts remain dry-run/read-only; Codex must not silently activate writes."
+    },
+    {
+      "id": "O5",
+      "title": "Hosted semantic vector memory",
+      "status": "owner_required",
+      "required_owner_action": "Extend the Cloudflare token with Vectorize Edit for the approved account, approve the Vectorize architecture, and authorize index, embedding, roundtrip, worker, and hosted semantic-search proof.",
+      "required_scope_or_payment": [
+        "Cloudflare Vectorize Edit",
+        "Architecture approval",
+        "Hosted semantic-search proof"
+      ],
+      "payment_required": false,
+      "affected_cells": [
+        "layer_6"
+      ],
+      "gate_ids": [
+        "live_vector_memory_search"
+      ],
+      "verifier_after": [
+        "scripts/verify-live-vector-memory-search.ps1",
+        "scripts/verify-vector-memory-gate.ps1"
+      ],
+      "codex_boundary": "Do not hand-set live_verified; the current lexical D1 proof is not semantic vector search."
+    },
+    {
+      "id": "O6",
+      "title": "LLM Gateway live-runtime contract",
+      "status": "owner_required",
+      "required_owner_action": "Approve the architecture and bounded live-runtime path that replaces or extends the currently enforced dry-run response contract, while retaining the gateway-only, budget, audit, and no-direct-provider guards.",
+      "required_scope_or_payment": [
+        "Architecture decision for live Gateway execution",
+        "Provider/runtime activation approval",
+        "Bounded live-call verifier approval"
+      ],
+      "payment_required": false,
+      "affected_cells": [
+        "layer_4"
+      ],
+      "gate_ids": [
+        "live_llm_provider_calls"
+      ],
+      "verifier_after": [
+        "scripts/verify-llm-responses-contract.ps1",
+        "npm run verify:runtime",
+        "npm run verify:browser"
+      ],
+      "codex_boundary": "The separate Cloudflare Workers AI capability proof does not authorize changing the current dry-run gateway contract or granting percentage credit."
+    }
+  ],
+  "external_gate_truth": {
+    "source": "docs/runtime-state/external-gate-summary.json",
+    "status": "blocked",
+    "missing_or_failed_gates": [
+      "fly_live_budget_check"
+    ],
+    "production_deploy_claim_allowed": false
+  },
+  "non_claims": [
+    "This manifest does not open a capability gate or increase any percentage.",
+    "Owner-granted alone is insufficient; each action still requires its named verifier and evidence artifact.",
+    "No secret value, password, token, callback credential, or payment data is contained here.",
+    "MARKET_READY remains false until every matrix cell is evidence-backed at 100 and the aggregate verifier prints MARKET_READY:true."
+  ]
+}

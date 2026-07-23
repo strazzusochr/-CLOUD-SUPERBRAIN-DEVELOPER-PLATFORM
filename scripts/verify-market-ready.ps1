@@ -49,16 +49,70 @@ $manifestOk = ($LASTEXITCODE -eq 0)
 Add-Result "manifest-integrity" $manifestOk "verify_project_progress_manifest.py"
 
 # Manifest-Zellen: jede horizontale + vertikale Zelle muss == 100 sein
-$allHundred = $false; $cellDetail = "unreadable"
+$allHundred = $false; $cellDetail = "unreadable"; $below = @(); $cells = @()
 try {
   $m = Get-Content (Join-Path $repoRoot "docs\project-progress.manifest.json") -Raw | ConvertFrom-Json
-  $cells = @(); $cells += $m.horizontal.items; $cells += $m.vertical.items
+  $cells += $m.horizontal.items; $cells += $m.vertical.items
   $below = @($cells | Where-Object { [int]$_.percent -lt 100 })
   $allHundred = ($below.Count -eq 0)
   if ($allHundred) { $cellDetail = "all " + $cells.Count + " cells = 100" }
   else { $cellDetail = "below 100: " + (($below | ForEach-Object { "$($_.id)=$($_.percent)" }) -join ", ") }
 } catch { $cellDetail = "parse error: $($_.Exception.Message)" }
-Add-Result "manifest-all-100" $allHundred $cellDetail
+
+# The owner-input manifest makes the below-100 classification executable. It never raises
+# percentages; it only proves that every current gap has an explicit Owner action and verifier.
+$ownerInputPath = Join-Path $repoRoot "docs\runtime-state\owner-input-manifest.json"
+$ownerMatrixOk = $false
+$ownerMatrixDetail = "missing: docs/runtime-state/owner-input-manifest.json"
+$ownerBlockedCellIds = @()
+$ownerUncoveredCellIds = @($below | ForEach-Object { [string]$_.id })
+try {
+  if (Test-Path $ownerInputPath) {
+    $ownerInput = Get-Content $ownerInputPath -Raw | ConvertFrom-Json
+    $allCellIds = @($cells | ForEach-Object { [string]$_.id })
+    $belowCellIds = @($below | ForEach-Object { [string]$_.id })
+    $actions = @($ownerInput.actions)
+    $invalidActions = @(
+      $actions | Where-Object {
+        [string]$_.id -notmatch '^O\d+$' -or
+        [string]$_.status -ne 'owner_required' -or
+        [string]::IsNullOrWhiteSpace([string]$_.required_owner_action) -or
+        @($_.affected_cells).Count -eq 0 -or
+        @($_.verifier_after).Count -eq 0
+      }
+    )
+    $coveredIds = @(
+      $actions |
+        ForEach-Object { @($_.affected_cells) } |
+        ForEach-Object { [string]$_ } |
+        Sort-Object -Unique
+    )
+    $unknownIds = @($coveredIds | Where-Object { $_ -notin $allCellIds })
+    $ownerBlockedCellIds = @($belowCellIds | Where-Object { $_ -in $coveredIds })
+    $ownerUncoveredCellIds = @($belowCellIds | Where-Object { $_ -notin $coveredIds })
+    $sourceMatches = (
+      [int]$ownerInput.canonical_overall_percent -eq [int]$m.overall_percent -and
+      [bool]$ownerInput.market_ready -eq $false
+    )
+    $ownerMatrixOk = (
+      [string]$ownerInput.contract_version -eq "owner-input-manifest-v1" -and
+      [string]$ownerInput.status -eq "owner_blocked_autonomous_complete" -and
+      $invalidActions.Count -eq 0 -and
+      $unknownIds.Count -eq 0 -and
+      $ownerUncoveredCellIds.Count -eq 0 -and
+      $sourceMatches
+    )
+    $ownerMatrixDetail = if ($ownerMatrixOk) {
+      "covered below-100 cells: " + ($ownerBlockedCellIds -join ", ")
+    } else {
+      "invalid_actions=$($invalidActions.Count) unknown_cells=$($unknownIds -join ',') uncovered_cells=$($ownerUncoveredCellIds -join ',') source_matches=$sourceMatches"
+    }
+  }
+} catch {
+  $ownerMatrixDetail = "parse error: $($_.Exception.Message)"
+}
+Add-Result "owner-input-matrix" $ownerMatrixOk $ownerMatrixDetail
+Add-Result "manifest-all-100" $allHundred $cellDetail $true (-not $allHundred -and $ownerMatrixOk)
 
 # PROOF_LEDGER: der jeweils neueste append-only Status pro Item darf nicht OPEN sein.
 $ledgerPath = Join-Path $repoRoot ".codex\runs\CURRENT\master-goal\PROOF_LEDGER.md"
@@ -149,13 +203,31 @@ $results | ForEach-Object {
 Write-Host ""
 if (-not $marketReady) {
   $ownerBlocked = @($requiredFails | Where-Object { $_.owner_gated -or $_.step -eq "external-gates-verified" })
+  $auditSkipped = @(
+    $requiredFails | Where-Object {
+      $StaticOnly -and $_.step -eq "runtime-verifiers" -and $_.detail -match '^SKIPPED via -StaticOnly'
+    }
+  )
+  $autonomousOpen = @(
+    $requiredFails | Where-Object {
+      -not ($_.owner_gated -or $_.step -eq "external-gates-verified") -and
+      $_.step -notin @($auditSkipped | ForEach-Object { $_.step })
+    }
+  )
   if ($ownerBlocked.Count -gt 0) {
-    Write-Host "OWNER-BLOCKED (Spur B - siehe OWNER-INPUT-MANIFEST O1-O5):"
+    Write-Host "OWNER-BLOCKED (Spur B - siehe docs/runtime-state/owner-input-manifest.json):"
     $ownerBlocked | ForEach-Object { Write-Host "  - $($_.step): $($_.detail)" }
   }
+  if ($auditSkipped.Count -gt 0) {
+    Write-Host "AUDIT-MODUS (kein Implementierungsdefizit):"
+    $auditSkipped | ForEach-Object { Write-Host "  - $($_.step): $($_.detail)" }
+  }
   Write-Host "OFFEN (Spur A - autonom fixbar):"
-  @($requiredFails | Where-Object { -not ($_.owner_gated -or $_.step -eq "external-gates-verified") }) |
-    ForEach-Object { Write-Host "  - $($_.step): $($_.detail)" }
+  if ($autonomousOpen.Count -eq 0) {
+    Write-Host "  - keine"
+  } else {
+    $autonomousOpen | ForEach-Object { Write-Host "  - $($_.step): $($_.detail)" }
+  }
 }
 
 $report = [pscustomobject]@{
@@ -165,6 +237,10 @@ $report = [pscustomobject]@{
   included_external_gates = [bool]$IncludeExternalGates
   manifest_all_100 = $allHundred
   manifest_cells   = $cellDetail
+  owner_input_manifest = "docs/runtime-state/owner-input-manifest.json"
+  owner_input_matrix_verified = $ownerMatrixOk
+  owner_blocked_cells = $ownerBlockedCellIds
+  owner_uncovered_cells = $ownerUncoveredCellIds
   gates_status     = $gateStatus
   production_deploy_claim_allowed = $gateProd
   steps            = $results
