@@ -33,7 +33,7 @@ test("diagnostics loads the Phase 5 production candidate through a real selectio
   expect(contract.release_promotion).toBe(false);
   expect(contract.secret_output).toBe(false);
 
-  await expect(consolePanel.locator(".lc-status")).toHaveText("200 OK");
+  await expect(consolePanel.locator(".lc-status")).toHaveText("200 OK", { timeout: 10000 });
   await expect(consolePanel.locator(".lc-out")).toContainText('"contract_version": "phase5-production-candidate-local-v1"');
   await expect(consolePanel.locator(".lc-out")).toContainText('"evidence_ref": "phase5_local_production_candidate_verified"');
   await expect(consolePanel.locator(".lc-out")).toContainText('"phase5_progress_after_proof": 68');

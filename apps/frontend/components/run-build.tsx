@@ -29,19 +29,13 @@ function isPersistedBuild(payload: Partial<Build>, id: string): payload is Build
     && payload.secret_output === false;
 }
 
-export function RunBuild({ id }: { id: string }) {
+function RunBuildLoader({ id, validId }: { id: string; validId: boolean }) {
   const [build, setBuild] = useState<Build | null>(null);
-  const [failed, setFailed] = useState(!VALID_BUILD_ID.test(id));
+  const [failed, setFailed] = useState(!validId);
 
   useEffect(() => {
-    if (!VALID_BUILD_ID.test(id)) {
-      setBuild(null);
-      setFailed(true);
-      return;
-    }
+    if (!validId) return;
     let active = true;
-    setBuild(null);
-    setFailed(false);
     (async () => {
       try {
         const response = await fetch(`/api/v1/build/${encodeURIComponent(id)}`, { cache: "no-store" });
@@ -53,7 +47,7 @@ export function RunBuild({ id }: { id: string }) {
       }
     })();
     return () => { active = false; };
-  }, [id]);
+  }, [id, validId]);
 
   if (build) {
     return (
@@ -85,4 +79,9 @@ export function RunBuild({ id }: { id: string }) {
       </div>
     </main>
   );
+}
+
+export function RunBuild({ id }: { id: string }) {
+  const validId = VALID_BUILD_ID.test(id);
+  return <RunBuildLoader key={id} id={id} validId={validId} />;
 }

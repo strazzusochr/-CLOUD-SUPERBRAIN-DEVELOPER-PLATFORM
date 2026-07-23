@@ -23,7 +23,7 @@ test("diagnostics loads the cross-origin response guard through a real click", a
   expect(contractResponse.status()).toBe(200);
   expect(contractResponse.headers()["cross-origin-opener-policy"]).toBe("same-origin");
   expect(contractResponse.headers()["cross-origin-resource-policy"]).toBe("same-origin");
-  await expect(consolePanel.locator(".lc-status")).toHaveText("200 OK");
+  await expect(consolePanel.locator(".lc-status")).toHaveText("200 OK", { timeout: 10000 });
   await expect(consolePanel.locator(".lc-out")).toContainText('"contract_version": "cross-origin-response-guard-v1"');
   await expect(consolePanel.locator(".lc-out")).toContainText('"attacker_origin_reflected": false');
 

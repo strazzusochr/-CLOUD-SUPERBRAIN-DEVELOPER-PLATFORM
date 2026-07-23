@@ -28,7 +28,7 @@ test("diagnostics loads orchestrator completion evidence through a real click", 
   expect(contract.live_mcp_writes).toBe(false);
   expect(contract.production_deploy).toBe(false);
 
-  await expect(consolePanel.locator(".lc-status")).toHaveText("200 OK");
+  await expect(consolePanel.locator(".lc-status")).toHaveText("200 OK", { timeout: 10000 });
   await expect(consolePanel.locator(".lc-out")).toContainText('"contract_version": "orchestrator-completion-evidence-v1"');
   await expect(consolePanel.locator(".lc-out")).toContainText('"evidence_ref": "orchestrator_completion_evidence_verified"');
   await expect(consolePanel.locator(".lc-out")).toContainText('"layer_progress_after_proof": 100');

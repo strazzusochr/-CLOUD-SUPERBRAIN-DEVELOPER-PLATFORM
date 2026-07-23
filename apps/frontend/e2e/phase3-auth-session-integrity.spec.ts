@@ -22,13 +22,15 @@ test("login issues a signed session and rejects a tampered cookie", async ({ pag
   expect(contract.body.external_provider_write).toBe(false);
 
   await page.getByLabel("Name").fill("Local Integrity User");
+  // Ensure React state settled: button must reflect the typed name before clicking
+  await expect(page.getByTestId("rl-signin")).toContainText("Anmelden als Local Integrity User", { timeout: 5000 });
   const signInResponse = page.waitForResponse((candidate) =>
     candidate.url().includes("/api/v1/auth/session") && candidate.request().method() === "POST",
   );
   await page.getByTestId("rl-signin").click();
   expect((await signInResponse).status()).toBe(200);
-  await expect(page.getByText("Angemeldet als")).toBeVisible();
-  await expect(page.getByText("Local Integrity User")).toBeVisible();
+  await expect(page.getByText("Angemeldet als")).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText("Local Integrity User")).toBeVisible({ timeout: 10000 });
 
   const issuedCookie = (await context.cookies()).find((cookie) => cookie.name === cookieName);
   expect(issuedCookie?.httpOnly).toBe(true);

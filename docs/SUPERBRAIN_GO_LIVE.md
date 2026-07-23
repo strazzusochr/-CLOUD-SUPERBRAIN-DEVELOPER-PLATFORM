@@ -32,7 +32,7 @@ Gate-IDs und private Inputs fuer die Standard-Bootstrap-Reproduktion:
 Diese Versionen sind aus `apps/frontend/package.json` gespiegelt. Das ist keine
 Latest-Claim und kein Upgrade-Auftrag.
 
-- `next: ^16.2.7`
+- `next: 16.2.11`
 - `react: ^19.2.7`
 - `react-dom: ^19.2.7`
 - `three: ^0.184.0`

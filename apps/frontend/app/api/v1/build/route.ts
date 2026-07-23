@@ -266,7 +266,7 @@ export async function POST(req: Request): Promise<Response> {
       },
       { headers: { "x-superbrain-source": "llm-gateway-boundary", "cache-control": "no-store" } },
     );
-  } catch (err) {
+  } catch {
     return Response.json(
       {
         contract_version: "frontend-provider-boundary-v1",

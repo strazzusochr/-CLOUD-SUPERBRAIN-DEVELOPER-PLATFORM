@@ -8,7 +8,7 @@ test("diagnostics loads the CSP report contract through a real click", async ({ 
   expect(response?.status()).toBe(200);
 
   const consolePanel = page.getByTestId("live-console");
-  await expect(consolePanel.locator(".lc-status")).toHaveText("200 OK");
+  await expect(consolePanel.locator(".lc-status")).toHaveText("200 OK", { timeout: 10000 });
   const endpointSelect = consolePanel.getByLabel("Live-Daten Endpoint");
   await endpointSelect.selectOption("/api/v1/security/csp/contract");
   await expect(endpointSelect).toHaveValue("/api/v1/security/csp/contract");

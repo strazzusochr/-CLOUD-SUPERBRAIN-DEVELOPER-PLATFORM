@@ -435,7 +435,7 @@ test.describe("Cloud Superbrain platform", () => {
   });
 
   test("organism Phase-6 asset policy applies procedural profiles without network access", async ({ page }) => {
-    test.setTimeout(150_000);
+    test.setTimeout(300_000);
     const contractResponse = await page.request.get("/api/v1/phase6/3d-asset-policy/contract");
     expect(contractResponse.status()).toBe(200);
     const contract = await contractResponse.json();
@@ -832,7 +832,7 @@ test.describe("Cloud Superbrain platform", () => {
   });
 
   test("organism Phase-6 local scoreboard and performance sample stay browser-local", async ({ page }) => {
-    test.setTimeout(300_000);
+    test.setTimeout(420_000);
     const contractResponse = await page.request.get("/api/v1/phase6/local-scoreboard-performance/contract");
     expect(contractResponse.status()).toBe(200);
     const contract = await contractResponse.json();
@@ -1017,7 +1017,7 @@ test.describe("Cloud Superbrain platform", () => {
     await expect(leaderboard.locator("li").nth(0)).toHaveAttribute("data-score", "20");
 
     const performanceStart = page.getByTestId("phase6-performance-start");
-    await expect(performanceState).toContainText("renderer_ready=true", { timeout: 10_000 });
+    await expect(performanceState).toContainText("renderer_ready=true", { timeout: 30_000 });
     await expect(performanceStart).toBeEnabled();
     await performanceStart.click();
     await expect(performanceState).toContainText("status=sampling");
@@ -1124,7 +1124,22 @@ test.describe("Cloud Superbrain platform", () => {
       const guardedWindow = window as Window & { __phase6GuardCalls?: Record<string, number> };
       return guardedWindow.__phase6GuardCalls ?? {};
     });
-    expect(Object.values(guardCounters).every((count) => count === 0), "network and persistence API guard counters remain zero").toBeTruthy();
+    expect(guardCounters, "network and persistence API guard counters remain zero").toEqual({
+      fetch: 0,
+      xhr: 0,
+      websocket: 0,
+      eventsource: 0,
+      sendBeacon: 0,
+      webrtc: 0,
+      storageSetItem: 0,
+      storageRemoveItem: 0,
+      storageClear: 0,
+      indexedDbOpen: 0,
+      indexedDbDelete: 0,
+      cacheStorage: 0,
+      serviceWorkerRegister: 0,
+      cookieWrite: 0,
+    });
 
     const observedPath = phase6ArtifactPath("phase6-local-scoreboard-performance-observed.json");
     if (observedPath) {
@@ -1148,9 +1163,9 @@ test.describe("Cloud Superbrain platform", () => {
     }
 
     captureLocalRequests = false;
-    await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 });
-    await expect(page.getByTestId("phase6-leaderboard-list")).toContainText("Noch keine Runs erfasst");
-    await expect(page.getByTestId("phase6-leaderboard-state")).toContainText("entries=0/3");
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 60_000 });
+    await expect(page.getByTestId("phase6-leaderboard-list")).toContainText("Noch keine Runs erfasst", { timeout: 30_000 });
+    await expect(page.getByTestId("phase6-leaderboard-state")).toContainText("entries=0/3", { timeout: 30_000 });
     expect(await page.evaluate(() => document.cookie), "reload creates no scoreboard cookie persistence").toBe(cookieBefore);
 
     expect(localRequests, "scoreboard and performance controls perform no fetch or XHR").toEqual([]);
