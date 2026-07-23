@@ -90,6 +90,62 @@ try {
     $unknownIds = @($coveredIds | Where-Object { $_ -notin $allCellIds })
     $ownerBlockedCellIds = @($belowCellIds | Where-Object { $_ -in $coveredIds })
     $ownerUncoveredCellIds = @($belowCellIds | Where-Object { $_ -notin $coveredIds })
+    $expectedActionCells = @{
+      O1 = @("phase_3")
+      O2 = @("phase_5", "phase_6")
+      O3 = @("layer_5", "phase_5")
+      O4 = @("layer_3", "layer_5", "phase_6")
+      O5 = @("layer_6")
+      O6 = @("layer_4")
+    }
+    $actionIds = @($actions | ForEach-Object { [string]$_.id } | Sort-Object)
+    $actionMapOk = (($actionIds -join ",") -eq (($expectedActionCells.Keys | Sort-Object) -join ","))
+    foreach ($action in $actions) {
+      $actionId = [string]$action.id
+      $actualAffected = @($action.affected_cells | ForEach-Object { [string]$_ } | Sort-Object)
+      $expectedAffected = @($expectedActionCells[$actionId] | Sort-Object)
+      if (($actualAffected -join ",") -ne ($expectedAffected -join ",")) {
+        $actionMapOk = $false
+      }
+    }
+
+    $capabilityState = Get-Content (Join-Path $repoRoot "docs\runtime-state\capability-gates.json") -Raw | ConvertFrom-Json
+    $externalState = Get-Content (Join-Path $repoRoot "docs\runtime-state\external-gate-summary.json") -Raw | ConvertFrom-Json
+    $capabilityGateIds = @($capabilityState.gates.PSObject.Properties.Name)
+    $externalGateIds = @($externalState.gate_ids)
+    $knownGateIds = @($capabilityGateIds + $externalGateIds | Sort-Object -Unique)
+    $referencedGateIds = @(
+      $actions |
+        ForEach-Object { @($_.gate_ids) } |
+        ForEach-Object { [string]$_ } |
+        Sort-Object -Unique
+    )
+    $unknownGateIds = @($referencedGateIds | Where-Object { $_ -notin $knownGateIds })
+    $closedGateStateOk = $true
+    foreach ($gateId in @(
+      "production_auth_identity",
+      "docker_registry_publish",
+      "phase6_scale_runtime",
+      "live_mcp_writes",
+      "live_agent_tool_writes",
+      "live_vector_memory_search"
+    )) {
+      $gateProperty = $capabilityState.gates.PSObject.Properties[$gateId]
+      if ($null -eq $gateProperty -or [bool]$gateProperty.Value.live_verified) {
+        $closedGateStateOk = $false
+      }
+    }
+    $externalGateStateOk = (
+      [string]$externalState.status -eq "blocked" -and
+      [bool]$externalState.production_deploy_claim_allowed -eq $false -and
+      @($externalState.missing_or_failed_gates) -contains "fly_live_budget_check"
+    )
+    $llmResponseVerifier = Get-Content (Join-Path $repoRoot "scripts\verify-llm-responses-contract.ps1") -Raw
+    $llmDryRunLockOk = (
+      $llmResponseVerifier.Contains('Assert-True "contract live provider calls false"') -and
+      $llmResponseVerifier.Contains('Assert-True "response live provider calls false"') -and
+      $llmResponseVerifier.Contains('Assert-True "hosted response no live provider"')
+    )
     $sourceMatches = (
       [int]$ownerInput.canonical_overall_percent -eq [int]$m.overall_percent -and
       [bool]$ownerInput.market_ready -eq $false
@@ -100,12 +156,17 @@ try {
       $invalidActions.Count -eq 0 -and
       $unknownIds.Count -eq 0 -and
       $ownerUncoveredCellIds.Count -eq 0 -and
+      $actionMapOk -and
+      $unknownGateIds.Count -eq 0 -and
+      $closedGateStateOk -and
+      $externalGateStateOk -and
+      $llmDryRunLockOk -and
       $sourceMatches
     )
     $ownerMatrixDetail = if ($ownerMatrixOk) {
       "covered below-100 cells: " + ($ownerBlockedCellIds -join ", ")
     } else {
-      "invalid_actions=$($invalidActions.Count) unknown_cells=$($unknownIds -join ',') uncovered_cells=$($ownerUncoveredCellIds -join ',') source_matches=$sourceMatches"
+      "invalid_actions=$($invalidActions.Count) unknown_cells=$($unknownIds -join ',') uncovered_cells=$($ownerUncoveredCellIds -join ',') action_map=$actionMapOk unknown_gates=$($unknownGateIds -join ',') closed_gates=$closedGateStateOk external_gate=$externalGateStateOk llm_dry_run_lock=$llmDryRunLockOk source_matches=$sourceMatches"
     }
   }
 } catch {

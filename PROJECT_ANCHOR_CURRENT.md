@@ -107,7 +107,7 @@ This anchor is a resume snapshot, not a progress authority.
 - Covered cells: `phase_3`, `phase_5`, `phase_6`, `layer_3`, `layer_4`, `layer_5`, `layer_6`
 - Autonomous-open items: none
 - Report SHA-256:
-  `C32B68F42BDB4E4043492AFEEDEDD28AA219E07967D38819529BD6EE1868A01A`
+  `FE705A32379090EC85F313B64C95B49708A3A1B5F75945E23A86F7AD98C47173`
 - `MARKET_READY:false`
 - Final packet: `master-goal-final.md`
 
