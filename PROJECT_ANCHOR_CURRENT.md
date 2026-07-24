@@ -1,6 +1,6 @@
 # Cloud Superbrain Project Anchor
 
-Anchor ID: `cloud-superbrain-anchor-2026-07-23T21-24-18+02-00-session8-rc8-verified`
+Anchor ID: `cloud-superbrain-anchor-2026-07-24-session8-free-hardening-rc10-verified`
 
 Status: `ACTIVE_RESUME_POINT`
 
@@ -8,17 +8,19 @@ Workspace: `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
 
 Branch: `claude/cloud-superbrain-analysis-127d2e`
 
-Committed and pushed RC8 source: `3bd216f0296afb3bd7ad94e44b6540c6201ab845`
+Committed and pushed RC10 source: `2ae4c61aa876759abcaa83c36c0a3379206b91a4`
 
-Detailed handoff: `CODEX_UEBERGABE_2026-07-23-SESSION7.md`
+Detailed handoff: `CODEX_UEBERGABE_2026-07-23-SESSION8.md`
 
 ## Purpose
 
-Exact resume point after the S1 Agent-Pool UI/verifier slice passed the full serial static,
-runtime, and browser gates, was explicitly committed and pushed, RC8 was rebuilt and verified,
-and the final MARKET_READY audit proved there are no remaining autonomous-open items. All seven
-below-100 cells now have exact Owner actions in `docs/runtime-state/owner-input-manifest.json`.
-This anchor is a resume snapshot, not a progress authority.
+Exact resume point after the free supply-chain/error-redaction hardening passed the full serial
+static, runtime, and browser gates, the newly published PostCSS advisory was patched with exact
+override `8.5.23`, source was committed and pushed, and RC10 was rebuilt and verified from that
+clean archive. Re-audit found no additional autonomous percentage marker.
+All seven below-100 cells retain exact Owner actions in
+`docs/runtime-state/owner-input-manifest.json`. This anchor is a resume snapshot, not a progress
+authority.
 
 ## Required Resume Order
 
@@ -38,7 +40,18 @@ This anchor is a resume snapshot, not a progress authority.
 - `MARKET_READY: false`
 - S1 receives no percentage credit.
 
-## S1 Verified Truth
+## Session-8 Free-Hardening Truth
+
+- External Actions: `17` occurrences / `11` exact commit SHAs.
+- External images: `18` occurrences / `9` exact registry digests.
+- Internal GHCR release selectors: exactly `6`, allowlisted and fail-closed.
+- Security triage: `12` candidates; `11` false positives; `1` fixed `CWE-209`.
+- Backend security tests: `20/20`; npm audit: `0 vulnerabilities`.
+- `npm run verify`, `npm run verify:runtime`, and `npm run verify:browser` passed serially.
+- Docker: `10/10 healthy`; browser responsive proof: `22x2=44`.
+- No percentage or capability gate changed.
+
+## Prior S1 Verified Truth
 
 - Canonical UI: `/agents`.
 - Runtime contracts: `autonomous-agent-roster-v1`, `autonomous-master-plan-v1`,
@@ -55,7 +68,8 @@ This anchor is a resume snapshot, not a progress authority.
 - Browser log SHA-256:
   `CB720B156EB6248BB448181458CF569A1AA9D1A14013AE939275906BD5D644A5`.
 - Docker is `10/10 healthy`.
-- PostCSS exact override is `8.5.12`; npm audit reports zero vulnerabilities.
+- The historical PostCSS `8.5.12` override was superseded by fixed `8.5.23`; current npm audit
+  reports zero vulnerabilities.
 - Fresh runtime cloud read without Owner inputs remained `5/8` providers and `4/7` layers.
 
 ## Exact Next Step
@@ -67,13 +81,13 @@ This anchor is a resume snapshot, not a progress authority.
 
 ## Current Candidate
 
-- Release: `prod-candidate-2026-07-23-local-rc8`
-- Source: `3bd216f0296afb3bd7ad94e44b6540c6201ab845`
-- Rollback: RC7 at `6c344b37f2cef21d952c1f2b5235ae6c4c36dbf9`
+- Release: `prod-candidate-2026-07-24-local-rc10`
+- Source: `2ae4c61aa876759abcaa83c36c0a3379206b91a4`
+- Rollback: RC9 source `0cbe644c84812bbe72811516d58a70be8c27ffa5`
 - Candidate report SHA-256:
-  `303F75382936576F1D36A2A45C2C388DC5D3964ED1C2AA1B6AA98B2AB8DE13B6`
+  `F6DB74228773767857E301FE7A7E90C4B0D8FA5FA12E395C506EA6EE778C0078`
 - Verification SHA-256:
-  `0E1A4B94EE2AC2B81435A0903B7954115B89F5710AF1BAC48D6BFF98BDBE8800`
+  `75B226536EDCDB8DB68E4B4B036E6B6BDF4BA73DBC0796F273F86C078725691B`
 - `candidate_technical=true`
 - `runtime_source_parity=true`
 - `promotion_eligible=false`
@@ -107,7 +121,7 @@ This anchor is a resume snapshot, not a progress authority.
 - Covered cells: `phase_3`, `phase_5`, `phase_6`, `layer_3`, `layer_4`, `layer_5`, `layer_6`
 - Autonomous-open items: none
 - Report SHA-256:
-  `FE705A32379090EC85F313B64C95B49708A3A1B5F75945E23A86F7AD98C47173`
+  `2D32A3DBA09C18A9DC8334F829A605F9AA2A3FC8C21A1842362ADA1B9B3F6062`
 - `MARKET_READY:false`
 - Final packet: `master-goal-final.md`
 

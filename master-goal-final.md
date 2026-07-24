@@ -1,6 +1,6 @@
 # Cloud Superbrain Master Goal — Autonomous Finish / Owner Blocked
 
-Stand: 2026-07-23
+Stand: 2026-07-24
 
 ## Urteil
 
@@ -22,30 +22,29 @@ manuell auf 100 gesetzt und kein Live-, Hosted-, Release- oder Production-Claim 
 
 ## Letzte autonome Lieferung
 
-- S1 Agent-Pool API↔SSR↔Verifier-Parität auf `/agents`: 14 Roster-Rollen, 7 Phasen,
-  7 Schichten, 5 Operating-Core-Rollen, 3 Dispatch-Endpunkte und 5 UUIDv4-gebundene
-  Coding-Team-Mitglieder.
-- Exakter PostCSS-Security-Override `8.5.12`; npm audit `0 vulnerabilities`.
-- Commit `3bd216f0296afb3bd7ad94e44b6540c6201ab845` auf
+- `17/17` externe GitHub Actions auf `11` verifizierte Commit-SHAs fixiert.
+- `18/18` getrackte externe Image-Vorkommen auf `9` Registry-Digests fixiert;
+  exakt `6` interne GHCR-Release-Referenzen fail-closed geprüft.
+- Security-Triage: `12` Kandidaten, `11` False Positives, `1` bestätigter und behobener
+  `CWE-209`; Backend-Security-Tests `20/20`.
+- PostCSS-Path-Traversal-Advisory durch exakten Override `8.5.23` geschlossen;
+  npm audit `0 vulnerabilities`; Source-Commit
+  `2ae4c61aa876759abcaa83c36c0a3379206b91a4` auf
   `claude/cloud-superbrain-analysis-127d2e` gepusht.
-- Voller serieller Beweis vor Commit: `npm run verify`, `npm run verify:runtime`,
+- Voller serieller Beweis: `npm run verify`, `npm run verify:runtime`,
   `npm run verify:browser`; Docker `10/10 healthy`; Browser `22x2=44`.
-- Runtime-Log SHA-256:
-  `B2C239B91BB9C41852A862EBEB3D8BAF12353E98330BA424A68A06EF8FE40541`.
-- Browser-Log SHA-256:
-  `CB720B156EB6248BB448181458CF569A1AA9D1A14013AE939275906BD5D644A5`.
 
-## RC8
+## RC10
 
-- Release: `prod-candidate-2026-07-23-local-rc8`
-- Source: `3bd216f0296afb3bd7ad94e44b6540c6201ab845`
-- Rollback: RC7 `6c344b37f2cef21d952c1f2b5235ae6c4c36dbf9`
+- Release: `prod-candidate-2026-07-24-local-rc10`
+- Source: `2ae4c61aa876759abcaa83c36c0a3379206b91a4`
+- Rollback: RC9-Source `0cbe644c84812bbe72811516d58a70be8c27ffa5`
 - Sechs Clean-Archive-Images; Git-Archiv SHA-256:
-  `BB3336B424BCA9777E420F1ED7F3D7972B10761BD0E81AC10303D936DC645C6D`
+  `ACDDF0E7BACD117E4796D618722A4DAEDE9ED84F5813045C2C58AFD727F1EBD1`
 - Candidate-Report SHA-256:
-  `303F75382936576F1D36A2A45C2C388DC5D3964ED1C2AA1B6AA98B2AB8DE13B6`
+  `F6DB74228773767857E301FE7A7E90C4B0D8FA5FA12E395C506EA6EE778C0078`
 - Full-Chromium-Verifikation SHA-256:
-  `0E1A4B94EE2AC2B81435A0903B7954115B89F5710AF1BAC48D6BFF98BDBE8800`
+  `75B226536EDCDB8DB68E4B4B036E6B6BDF4BA73DBC0796F273F86C078725691B`
 - `candidate_technical=true`
 - `runtime_source_parity=true`
 - `promotion_eligible=false`
@@ -70,10 +69,10 @@ Exakte Scopes, Zahlungsbedarf, Gate-IDs und Nachverifier stehen maschinenlesbar 
 `npm run verify:market-ready:static` bleibt absichtlich fail-closed. Manifest-Integrität,
 Proof-Ledger und Lint bestehen; Matrix-100 und externe Gates scheitern ehrlich. Der StaticOnly-
 Lauf überspringt Runtime-Verifier als Auditmodus; das ist kein Implementierungsdefizit, weil die
-seriellen Vollverifier auf exakt der RC8-Quelle bereits grün sind.
+seriellen Vollverifier auf exakt der RC10-Quelle bereits grün sind.
 
 Report SHA-256:
-`FE705A32379090EC85F313B64C95B49708A3A1B5F75945E23A86F7AD98C47173`.
+`2D32A3DBA09C18A9DC8334F829A605F9AA2A3FC8C21A1842362ADA1B9B3F6062`.
 
 Finish-Line bleibt unverändert:
 
