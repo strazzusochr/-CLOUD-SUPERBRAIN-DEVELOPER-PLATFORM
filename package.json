@@ -5,6 +5,7 @@
   "scripts": {
     "build": "npm install --prefix apps/frontend && npm run build --prefix apps/frontend",
     "verify": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase1.ps1",
+    "verify:supply-chain-pins": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\verify-supply-chain-pins.ps1",
     "verify:runtime": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase1-runtime.ps1",
     "verify:browser": "powershell -ExecutionPolicy Bypass -File scripts\\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
     "verify:tooling-readiness": "powershell -ExecutionPolicy Bypass -File scripts\\verify-tooling-readiness.ps1",

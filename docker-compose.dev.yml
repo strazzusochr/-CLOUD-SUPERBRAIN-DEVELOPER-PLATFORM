@@ -290,7 +290,7 @@ services:
       - platform
 
   local-llm:
-    image: ghcr.io/ggml-org/llama.cpp:server
+    image: ghcr.io/ggml-org/llama.cpp:server@sha256:4f02c560799a1569be08b0183d52b94b0d4a6e4b88f52f20562d2334c73837d4
     restart: unless-stopped
     command:
       - -hf
@@ -325,7 +325,7 @@ services:
       - platform
 
   postgres:
-    image: pgvector/pgvector:0.8.2-pg16
+    image: pgvector/pgvector:0.8.2-pg16@sha256:00ba258a66dac104fd5171074a0084462a64a1369d8513f3d0a634e2f24d15bc
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-superbrain}
@@ -350,7 +350,7 @@ services:
       - platform
 
   redis:
-    image: redis:7.4.2-alpine
+    image: redis:7.4.2-alpine@sha256:02419de7eddf55aa5bcf49efb74e88fa8d931b4d77c07eff8a6b2144472b6952
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "${REDIS_MAXMEMORY:-256mb}", "--maxmemory-policy", "allkeys-lru"]
     expose:
@@ -368,7 +368,7 @@ services:
       - platform
 
   nginx:
-    image: nginxinc/nginx-unprivileged:1.27-alpine
+    image: nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0
     restart: unless-stopped
     ports:
       - "${NGINX_HTTP_PORT:-8081}:8080"

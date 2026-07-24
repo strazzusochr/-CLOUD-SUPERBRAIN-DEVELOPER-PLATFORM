@@ -20,6 +20,10 @@ function Assert-RegexContains($label, $value, $pattern) {
   }
 }
 
+Write-Host "[verify] supply-chain pins"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-supply-chain-pins.ps1
+Assert-LastExitCode "supply-chain pins"
+
 Write-Host "[verify] docker compose config"
 docker compose -f docker-compose.dev.yml config | Out-Null
 Assert-LastExitCode "docker compose config"

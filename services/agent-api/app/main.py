@@ -7668,7 +7668,7 @@ def create_prompt(request: PromptRequest) -> dict[str, object]:
                 (Json({"latest_task_id": task.task_id, "latest_memory_id": memory_id}), session_id),
             )
     except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"session persistence failed: {exc}") from exc
+        raise HTTPException(status_code=503, detail="session persistence failed") from exc
 
     return {
         "session_id": session_id,

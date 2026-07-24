@@ -91,6 +91,25 @@ class FakeRedis:
 
 
 class AuthSecurityTests(unittest.TestCase):
+    def test_prompt_persistence_failure_redacts_internal_exception(self) -> None:
+        sentinel = "postgresql://internal-user:internal-password@private-db.example/superbrain"
+        request = main.PromptRequest(project_id="security-test", prompt="redaction probe")
+        with (
+            patch.object(main, "check_budget_guard", return_value=MagicMock()),
+            patch.object(main, "rate_limit_prompt", return_value={"allowed": True}),
+            patch.object(main, "register_session_llm_call", return_value=1),
+            patch.object(main.psycopg, "connect", side_effect=RuntimeError(sentinel)),
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                main.create_prompt(request)
+
+        self.assertEqual(raised.exception.status_code, 503)
+        self.assertEqual(raised.exception.detail, "session persistence failed")
+        response = render_http_exception(raised.exception)
+        body = response.body.decode("utf-8")
+        self.assertNotIn(sentinel, body)
+        self.assertNotIn("internal-password", body)
+
     def test_oauth_state_is_server_registered_and_one_time(self) -> None:
         client = FakeRedis()
         state = "phase3-auth-state-test"
