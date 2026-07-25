@@ -1,7 +1,7 @@
 {
-  "contract_version": "owner-input-manifest-v1",
+  "contract_version": "owner-input-manifest-v2",
   "status": "owner_blocked_autonomous_complete",
-  "generated_at_utc": "2026-07-23T19:28:31.6330092Z",
+  "generated_at_utc": "2026-07-25T16:55:00.0000000Z",
   "canonical_progress_source": "docs/project-progress.manifest.json",
   "canonical_overall_percent": 86,
   "market_ready": false,
@@ -32,34 +32,39 @@
     },
     {
       "id": "O2",
-      "title": "Stateful hosted runtime and scale budget",
+      "display_id": "O2'",
+      "title": "Cloudflare-native hosted runtime, zero-card activation and scale proof",
       "status": "owner_required",
-      "required_owner_action": "Approve a measured stateful-host and scale budget. Under the current Fly path this requires billing/payment activation and a scoped FLY_API_TOKEN; an architecture-approved free replacement must provide equivalent hosted proof.",
+      "required_owner_action": "Provide or approve least-privilege Cloudflare scopes for Workers, D1, SQLite Durable Objects and Queues, and authorize a hosted source-parity, stateful-roundtrip and scale proof. Enable R2 only if the exact account can do so with no card, checkout, charge, or paid fallback; otherwise keep R2 disabled and amend ADR-010 to a genuine zero-card artifact adapter.",
       "required_scope_or_payment": [
-        "Fly.io billing or approved free replacement",
-        "FLY_API_TOKEN for verify-only inventory and deployment gate",
-        "Scale/capacity budget approval"
+        "Cloudflare Workers, D1, Durable Objects and Queues least-privilege scopes",
+        "R2 scope only after zero-card activation is proven",
+        "Hosted source-parity, stateful-roundtrip and scale/capacity proof",
+        "No card, checkout, payment, paid plan, or automatic overage"
       ],
-      "payment_required": true,
+      "payment_required": false,
+      "zero_card_required": true,
+      "paid_fallback_allowed": false,
       "affected_cells": [
         "phase_5",
         "phase_6"
       ],
       "gate_ids": [
-        "fly_live_budget_check",
+        "cloudflare_native_zero_card_hosted_runtime",
         "phase6_scale_runtime"
       ],
       "verifier_after": [
+        "scripts/verify-cloudflare-stateful-runtime.ps1 -BaseUrl <CLOUDFLARE_STATEFUL_BASE_URL> -AllowHostedWrites",
         "npm run verify:external-gates",
         "scripts/verify-browser-contract.ps1 -BaseUrl <STAGING_BASE_URL>"
       ],
-      "codex_boundary": "No payment entry, billing activation, or production deployment without the Owner gate."
+      "codex_boundary": "No card, checkout, payment, subscription activation, paid fallback, resource creation, hosted write, or production deployment without the exact Owner gate. A free quota is not a zero-card proof."
     },
     {
       "id": "O3",
       "title": "GHCR publication and release promotion",
       "status": "owner_required",
-      "required_owner_action": "Approve publication of the six immutable RC8 images, provide the scoped registry/repository authorization, and approve the release-candidate review gate before any promotion.",
+      "required_owner_action": "Approve publication of the six images from the active immutable release candidate, provide the scoped registry/repository authorization, and approve the release-candidate review gate before any promotion.",
       "required_scope_or_payment": [
         "GHCR package write",
         "Protected-branch/release workflow authorization",
@@ -155,15 +160,22 @@
     }
   ],
   "external_gate_truth": {
-    "source": "docs/runtime-state/external-gate-summary.json",
+    "legacy_source": "docs/runtime-state/external-gate-summary.json",
     "status": "blocked",
+    "active_target_gate": "cloudflare_native_zero_card_hosted_runtime",
     "missing_or_failed_gates": [
+      "cloudflare_native_zero_card_hosted_runtime"
+    ],
+    "legacy_missing_or_failed_gates": [
       "fly_live_budget_check"
     ],
+    "legacy_fly_path_status": "superseded_historical",
     "production_deploy_claim_allowed": false
   },
   "non_claims": [
     "This manifest does not open a capability gate or increase any percentage.",
+    "The verifier-generated external-gate-summary-v1 remains RC10 historical provenance until an external-gate-audit-v2 atomically replaces Fly semantics.",
+    "The local D1 + Durable Object + Queue + R2 adapter proof is DEV-ONLY and does not prove hosted zero-card resource activation.",
     "Owner-granted alone is insufficient; each action still requires its named verifier and evidence artifact.",
     "No secret value, password, token, callback credential, or payment data is contained here.",
     "MARKET_READY remains false until every matrix cell is evidence-backed at 100 and the aggregate verifier prints MARKET_READY:true."

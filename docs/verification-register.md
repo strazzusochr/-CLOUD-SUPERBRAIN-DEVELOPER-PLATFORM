@@ -1,11 +1,45 @@
 # Verification Register - PATCHED
 
-Stand: 2026-07-24
+Stand: 2026-07-25
 Status: Active
 
 ## Current Progress Authority
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `86%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `68%`, Phase 6 `90%`, Frontend `100%`, Agent Pool `69%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `90%`, and Observability `100%`.
+
+## Current Session-9 Cloudflare-Native Local Evidence
+
+`cloudflare-native-runtime-candidate-v1` implements Architecture A without replacing
+LangGraph.js. D1 remains custom persistence, a SQLite Durable Object coordinates idempotent
+probe state, a Queue carries only versioned IDs and hashes, and private local R2 stores only
+sanitized JSON metadata under server-generated keys. The focused proof passed 16/16 unit
+tests, Wrangler Preview dry-run, and a real local authenticated create -> Queue -> DO
+completion -> R2 Put/Get/Delete flow. Same-content replay did not enqueue again; duplicate
+delivery kept the effect count at `1`; conflicting content returned HTTP `409` while
+preserving the original terminal state. Unauthenticated, oversized and secret-bearing
+requests failed closed, the sentinel was absent from HTTP, logs and evidence, and cleanup
+left no listener or owned Worker process. Evidence:
+`.codex/runs/CURRENT/master-goal/t3/cloudflare-d1-local/report.json`, SHA-256
+`FFB9693896C26B7831BE60E2A2DE323B7B1243F7DACDDE91727706BAF3E06F80`;
+tracked state: `docs/runtime-state/cloudflare-native-local-candidate.json`.
+
+The newly published `brace-expansion` advisory was closed without moving the Next.js rule
+stack onto the currently incompatible ESLint 10 plugin set: the frontend uses ESLint
+`9.39.5`, `eslint-config-next` `16.2.11`, and a local CommonJS compatibility adapter that
+delegates expansion to fixed upstream `brace-expansion` `5.0.8`. A clean `npm ci`, adapter
+smoke test, zero-warning lint, Next.js production build (`21/21`) and npm audit
+(`0 vulnerabilities`) passed. The complete serial gates also passed: `npm run verify`
+including gitleaks (`no leaks found`), `npm run verify:runtime`, and
+`npm run verify:browser`; the browser log ends with `[browser-contract] checks completed`,
+including 22 routes x 2 viewports and all seven Phase-6 controls.
+
+No rubric delta exists: Overall stays `86%`. `owner-input-manifest-v2` maps O2' to
+`cloudflare_native_zero_card_hosted_runtime` and requires no card, checkout, payment, paid
+fallback or automatic overage. The gate remains closed. R2 free quota is not a zero-card
+activation proof because its current setup documentation requires a subscription checkout.
+The verifier-generated Fly summary remains RC10 historical provenance until a future
+external-gate-audit-v2 replaces every projection atomically. DEV-ONLY; hosted proof still
+blocked.
 
 ## Current Free-Hardening Evidence
 
@@ -27,7 +61,15 @@ Latest external audit truth: the canonical reproducible token-free standard boot
 
 ## Current MARKET_READY Owner-Blocked Evidence
 
-`owner-input-manifest-v1` makes the final below-100 classification executable without altering the canonical percentages. `docs/runtime-state/owner-input-manifest.json` covers exactly `phase_3`, `phase_5`, `phase_6`, `layer_3`, `layer_4`, `layer_5`, and `layer_6` through O1-O6, including OAuth identity, Fly/stateful scale budget, GHCR/release approval, live agent/MCP writes, Vectorize semantic memory, and the currently dry-run-locked LLM Gateway runtime contract. Every action includes required scope/payment, existing gate IDs, post-verifiers, and the Codex safety boundary. The amended aggregate verifier validates the exact O1-O6 cell map, known gate IDs, closed capability states, canonical Fly blocker, and enforced LLM dry-run assertions; it then reports `owner-input-matrix=PASS`, classifies Matrix-100 and external-gate failures as OWNER-BLOCKED, classifies StaticOnly runtime omission as audit mode, and reports `OFFEN (Spur A - autonom fixbar): keine`. Report: `.codex/runs/CURRENT/master-goal/market-ready/report.json`, SHA-256 `2D32A3DBA09C18A9DC8334F829A605F9AA2A3FC8C21A1842362ADA1B9B3F6062`. `MARKET_READY:false` remains mandatory; no percentage, capability gate, production claim, or Owner approval is created.
+`owner-input-manifest-v2` keeps the exact O1-O6 cell map while replacing O2's active target
+with O2' / `cloudflare_native_zero_card_hosted_runtime`. It validates
+`payment_required=false`, `zero_card_required=true`, `paid_fallback_allowed=false`, the
+closed Cloudflare hosted gate, the still-closed scale/write/vector/auth/release gates, and the
+separate dry-run LLM Gateway lock. `npm run verify:market-ready:static` reports
+`owner-input-matrix=PASS`, `autonomous-open-items=PASS`, Matrix and production gates honestly
+blocked, audit-mode runtime skip, `OFFEN (Spur A - autonom fixbar): keine`, and
+`MARKET_READY:false`. No percentage, hosted capability, production claim or Owner approval is
+created.
 
 ## Current Phase 2 Checkpoint Recovery Evidence
 

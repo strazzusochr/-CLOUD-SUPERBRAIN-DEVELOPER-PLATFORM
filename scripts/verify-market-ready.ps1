@@ -64,6 +64,8 @@ try {
 $ownerInputPath = Join-Path $repoRoot "docs\runtime-state\owner-input-manifest.json"
 $ownerMatrixOk = $false
 $ownerMatrixDetail = "missing: docs/runtime-state/owner-input-manifest.json"
+$autonomousOpenItemsOk = $false
+$autonomousOpenItemsDetail = "owner-input manifest unreadable"
 $ownerBlockedCellIds = @()
 $ownerUncoveredCellIds = @($below | ForEach-Object { [string]$_.id })
 try {
@@ -72,6 +74,13 @@ try {
     $allCellIds = @($cells | ForEach-Object { [string]$_.id })
     $belowCellIds = @($below | ForEach-Object { [string]$_.id })
     $actions = @($ownerInput.actions)
+    $autonomousOpenItems = @($ownerInput.autonomous_open_items | ForEach-Object { [string]$_ })
+    $autonomousOpenItemsOk = ($autonomousOpenItems.Count -eq 0)
+    $autonomousOpenItemsDetail = if ($autonomousOpenItemsOk) {
+      "none; local Cloudflare-native adapter and truth candidate are verified"
+    } else {
+      "open: " + ($autonomousOpenItems -join ", ")
+    }
     $invalidActions = @(
       $actions | Where-Object {
         [string]$_.id -notmatch '^O\d+$' -or
@@ -128,6 +137,7 @@ try {
       "phase6_scale_runtime",
       "live_mcp_writes",
       "live_agent_tool_writes",
+      "cloudflare_native_zero_card_hosted_runtime",
       "live_vector_memory_search"
     )) {
       $gateProperty = $capabilityState.gates.PSObject.Properties[$gateId]
@@ -135,10 +145,35 @@ try {
         $closedGateStateOk = $false
       }
     }
+    $cloudflareTargetGate = $capabilityState.gates.cloudflare_native_zero_card_hosted_runtime
+    $cloudflareTargetGateOk = (
+      $null -ne $cloudflareTargetGate -and
+      [bool]$cloudflareTargetGate.local_candidate_verified -eq $true -and
+      [bool]$cloudflareTargetGate.zero_card_verified -eq $false -and
+      [bool]$cloudflareTargetGate.r2_enabled -eq $false -and
+      [bool]$cloudflareTargetGate.live_verified -eq $false -and
+      [bool]$cloudflareTargetGate.paid_provider -eq $false
+    )
     $externalGateStateOk = (
       [string]$externalState.status -eq "blocked" -and
       [bool]$externalState.production_deploy_claim_allowed -eq $false -and
-      @($externalState.missing_or_failed_gates) -contains "fly_live_budget_check"
+      @($externalState.missing_or_failed_gates) -contains "fly_live_budget_check" -and
+      [string]$ownerInput.external_gate_truth.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime" -and
+      @($ownerInput.external_gate_truth.missing_or_failed_gates) -contains "cloudflare_native_zero_card_hosted_runtime" -and
+      [string]$ownerInput.external_gate_truth.legacy_fly_path_status -eq "superseded_historical" -and
+      [bool]$ownerInput.external_gate_truth.production_deploy_claim_allowed -eq $false -and
+      $cloudflareTargetGateOk
+    )
+    $o2 = @($actions | Where-Object { [string]$_.id -eq "O2" }) | Select-Object -First 1
+    $o2ZeroCardOk = (
+      $null -ne $o2 -and
+      [string]$o2.display_id -eq "O2'" -and
+      [bool]$o2.payment_required -eq $false -and
+      [bool]$o2.zero_card_required -eq $true -and
+      [bool]$o2.paid_fallback_allowed -eq $false -and
+      @($o2.gate_ids) -contains "cloudflare_native_zero_card_hosted_runtime" -and
+      @($o2.gate_ids) -contains "phase6_scale_runtime" -and
+      @($o2.gate_ids) -notcontains "fly_live_budget_check"
     )
     $llmResponseVerifier = Get-Content (Join-Path $repoRoot "scripts\verify-llm-responses-contract.ps1") -Raw
     $llmDryRunLockOk = (
@@ -151,8 +186,9 @@ try {
       [bool]$ownerInput.market_ready -eq $false
     )
     $ownerMatrixOk = (
-      [string]$ownerInput.contract_version -eq "owner-input-manifest-v1" -and
+      [string]$ownerInput.contract_version -eq "owner-input-manifest-v2" -and
       [string]$ownerInput.status -eq "owner_blocked_autonomous_complete" -and
+      $autonomousOpenItemsOk -and
       $invalidActions.Count -eq 0 -and
       $unknownIds.Count -eq 0 -and
       $ownerUncoveredCellIds.Count -eq 0 -and
@@ -160,19 +196,21 @@ try {
       $unknownGateIds.Count -eq 0 -and
       $closedGateStateOk -and
       $externalGateStateOk -and
+      $o2ZeroCardOk -and
       $llmDryRunLockOk -and
       $sourceMatches
     )
     $ownerMatrixDetail = if ($ownerMatrixOk) {
       "covered below-100 cells: " + ($ownerBlockedCellIds -join ", ")
     } else {
-      "invalid_actions=$($invalidActions.Count) unknown_cells=$($unknownIds -join ',') uncovered_cells=$($ownerUncoveredCellIds -join ',') action_map=$actionMapOk unknown_gates=$($unknownGateIds -join ',') closed_gates=$closedGateStateOk external_gate=$externalGateStateOk llm_dry_run_lock=$llmDryRunLockOk source_matches=$sourceMatches"
+      "invalid_actions=$($invalidActions.Count) autonomous_open=$($autonomousOpenItems.Count) unknown_cells=$($unknownIds -join ',') uncovered_cells=$($ownerUncoveredCellIds -join ',') action_map=$actionMapOk unknown_gates=$($unknownGateIds -join ',') closed_gates=$closedGateStateOk external_gate=$externalGateStateOk cloudflare_target=$cloudflareTargetGateOk o2_zero_card=$o2ZeroCardOk llm_dry_run_lock=$llmDryRunLockOk source_matches=$sourceMatches"
     }
   }
 } catch {
   $ownerMatrixDetail = "parse error: $($_.Exception.Message)"
 }
 Add-Result "owner-input-matrix" $ownerMatrixOk $ownerMatrixDetail
+Add-Result "autonomous-open-items" $autonomousOpenItemsOk $autonomousOpenItemsDetail
 Add-Result "manifest-all-100" $allHundred $cellDetail $true (-not $allHundred -and $ownerMatrixOk)
 
 # PROOF_LEDGER: der jeweils neueste append-only Status pro Item darf nicht OPEN sein.
@@ -300,6 +338,7 @@ $report = [pscustomobject]@{
   manifest_cells   = $cellDetail
   owner_input_manifest = "docs/runtime-state/owner-input-manifest.json"
   owner_input_matrix_verified = $ownerMatrixOk
+  autonomous_open_items_verified = $autonomousOpenItemsOk
   owner_blocked_cells = $ownerBlockedCellIds
   owner_uncovered_cells = $ownerUncoveredCellIds
   gates_status     = $gateStatus

@@ -1,7 +1,20 @@
 # System Architecture - PATCHED
 
-Stand: 2026-04-25
-Status: Binding operative architecture, synchronized with `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md`
+Stand: 2026-07-25
+Status: RC10 baseline plus Session-9 target transition
+
+## Session-9 Target Override
+
+`docs/adr/ADR-010-cloudflare-native-free-runtime.md` selects Architecture A as the
+zero-cost target: LangGraph.js on Workers with custom D1 persistence, SQLite Durable Objects,
+Queues and a private R2 adapter. Fly.io is OUT for new Session-9 work. The Fly/PostgreSQL/Redis
+tables below remain the last verified RC10 baseline and migration checklist, not an
+authorization to spend, deploy, or reactivate Fly.
+
+The Cloudflare adapter is initially `DEV-ONLY; hosted proof still blocked`. R2's published
+free quota is not treated as a zero-card proof because current setup documentation requires a
+subscription checkout. No legacy lock is removed from verification until O2' proves hosted
+Cloudflare parity without a card or paid plan.
 
 ## 1. Binding Source
 

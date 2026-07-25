@@ -16,10 +16,18 @@ $authToken = "local-proof-" + [Guid]::NewGuid().ToString("N")
 $guardedEnvironment = @{}
 foreach ($name in @(
   "AGENT_API_AUTH_TOKEN",
+  "CF_ACCOUNT_ID",
+  "CF_API_KEY",
+  "CF_API_TOKEN",
+  "CF_EMAIL",
   "CLOUDFLARE_API_TOKEN",
   "CLOUDFLARE_API_KEY",
   "CLOUDFLARE_EMAIL",
   "CLOUDFLARE_ACCOUNT_ID",
+  "CLOUDFLARE_AUTH_TOKEN",
+  "CLOUDFLARE_ZONE_ID",
+  "R2_ACCESS_KEY_ID",
+  "R2_SECRET_ACCESS_KEY",
   "WRANGLER_API_TOKEN",
   "WRANGLER_SEND_METRICS"
 )) {
@@ -28,19 +36,12 @@ foreach ($name in @(
 $workerProcess = $null
 
 function Stop-LocalWorker {
-  param([int]$ListenPort, [System.Diagnostics.Process]$StartedProcess)
+  param([System.Diagnostics.Process]$StartedProcess)
 
+  if ($null -eq $StartedProcess) { return }
   $processes = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
   $rootIds = [Collections.Generic.HashSet[int]]::new()
-  if ($null -ne $StartedProcess) { [void]$rootIds.Add($StartedProcess.Id) }
-  foreach ($ownerPid in @(Get-NetTCPConnection -LocalPort $ListenPort -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)) {
-    [void]$rootIds.Add([int]$ownerPid)
-  }
-  foreach ($process in $processes) {
-    if ([string]$process.CommandLine -match "cloudflare-stateful-runtime" -and [string]$process.CommandLine -match "--port\s+$ListenPort(?:\s|$)") {
-      [void]$rootIds.Add([int]$process.ProcessId)
-    }
-  }
+  [void]$rootIds.Add($StartedProcess.Id)
 
   $stopIds = [Collections.Generic.HashSet[int]]::new()
   $queue = [Collections.Generic.Queue[int]]::new()
@@ -62,7 +63,21 @@ try {
     throw "Port $Port is already in use; refusing to stop an unrelated process"
   }
 
-  foreach ($name in @("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_API_KEY", "CLOUDFLARE_EMAIL", "CLOUDFLARE_ACCOUNT_ID", "WRANGLER_API_TOKEN")) {
+  foreach ($name in @(
+    "CF_ACCOUNT_ID",
+    "CF_API_KEY",
+    "CF_API_TOKEN",
+    "CF_EMAIL",
+    "CLOUDFLARE_API_TOKEN",
+    "CLOUDFLARE_API_KEY",
+    "CLOUDFLARE_EMAIL",
+    "CLOUDFLARE_ACCOUNT_ID",
+    "CLOUDFLARE_AUTH_TOKEN",
+    "CLOUDFLARE_ZONE_ID",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+    "WRANGLER_API_TOKEN"
+  )) {
     [Environment]::SetEnvironmentVariable($name, $null, "Process")
   }
   $env:WRANGLER_SEND_METRICS = "false"
@@ -109,10 +124,20 @@ try {
 
   & (Join-Path $PSScriptRoot "verify-cloudflare-stateful-runtime.ps1") -BaseUrl $baseUrl -AllowLocalhost -SeedReportPath $SeedReportPath -EvidencePath $EvidencePath
 
+  $workerLogs = [string]((Get-Content -LiteralPath $stdoutPath -Raw -ErrorAction SilentlyContinue) + (Get-Content -LiteralPath $stderrPath -Raw -ErrorAction SilentlyContinue))
+  if ($workerLogs.Contains($authToken)) {
+    throw "Local Worker logs exposed the synthetic write-auth value"
+  }
+  foreach ($value in @($guardedEnvironment.Values | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) -and ([string]$_).Length -ge 12 })) {
+    if ($workerLogs.Contains([string]$value)) {
+      throw "Local Worker logs exposed a guarded management credential"
+    }
+  }
+
   Write-Host "[cloudflare-stateful-runtime-local] status=verified transport=DEV-ONLY provider_calls=0"
 } finally {
   try {
-    Stop-LocalWorker -ListenPort $Port -StartedProcess $workerProcess
+    Stop-LocalWorker -StartedProcess $workerProcess
     if ($null -ne $workerProcess) { $workerProcess.Dispose() }
   } finally {
     foreach ($name in $guardedEnvironment.Keys) {

@@ -10,6 +10,24 @@ Current honesty guardrail: active candidate `prod-candidate-2026-07-24-local-rc1
 
 RC10 covers the committed immutable Action/image pins, fail-closed pin verifier, prompt-persistence error redaction, and the fixed exact PostCSS `8.5.23` override. Current runtime-source parity is locally verified; DEV-ONLY; hosted proof still blocked.
 
+Session 9 selects Architecture A and removes Fly.io from new target work. The local
+`cloudflare-native-runtime-candidate-v1` keeps LangGraph.js, labels D1 as custom persistence,
+and adds SQLite Durable Object coordination, Queue dispatch and a private local R2 adapter.
+Sixteen unit tests, Wrangler Preview dry-run and the real local create/queue/DO/R2
+Put/Get/Delete flow pass, including effect-count `1`, replay/conflict, auth, oversize and
+secret-sentinel guards. Evidence:
+`.codex/runs/CURRENT/master-goal/t3/cloudflare-d1-local/report.json`, SHA-256
+`FFB9693896C26B7831BE60E2A2DE323B7B1243F7DACDDE91727706BAF3E06F80`; tracked state:
+`docs/runtime-state/cloudflare-native-local-candidate.json`. This earns zero percentage.
+The new `brace-expansion` advisory is closed through fixed upstream `5.0.8` behind a
+CommonJS compatibility adapter for the still-ESLint-9-compatible Next.js rule stack. Clean
+`npm ci`, adapter smoke, lint, production build, npm audit `0`, full static verifier with
+gitleaks, runtime verifier and the complete 22x2 browser verifier all pass serially.
+O2' / `cloudflare_native_zero_card_hosted_runtime` stays closed. R2 free quota is not treated
+as a zero-card activation proof because current setup documentation requires a subscription
+checkout. Existing Fly external-gate files are RC10 historical provenance until an atomic
+external-gate-audit-v2 rebase. DEV-ONLY; hosted proof still blocked.
+
 ## Binding Truth
 
 Primary project truth hierarchy:
@@ -61,7 +79,7 @@ Older percentage lines below are historical proof points only. Current percentag
 
 Latest Agent-Pool UI/verifier parity slice: `/agents` is the canonical UI for the exact Runtime contracts `autonomous-agent-roster-v1`, `autonomous-master-plan-v1`, and `autonomous-coding-team-v1`. It displays the persisted 14-role roster, 7 phases, 7 layers, 5 operating-core roles, 3 dispatch endpoints, and one UUIDv4-bound 5-member coding-team dispatch with mappings and queues. Strict frontend parsers fail closed on contract/source/evidence/binding drift, and the three focused verifiers compare API data with the rendered SSR attributes. Frontend lint, 21/21 production build, `npm run verify`, `npm run verify:runtime`, and `npm run verify:browser` passed sequentially; Docker is `10/10 healthy`, responsive proof is `22x2=44`. The then-current PostCSS `8.5.12` override was later superseded by fixed `8.5.23`; current npm audit is zero. Runtime-log SHA-256: `B2C239B91BB9C41852A862EBEB3D8BAF12353E98330BA424A68A06EF8FE40541`; browser-log SHA-256: `CB720B156EB6248BB448181458CF569A1AA9D1A14013AE939275906BD5D644A5`. `autonomous_release_workflow_verified` proves parser plus PlanOnly contract only, not a workflow run, push, or release. Persisted roster does not mean Codex Desktop task persistence; local dispatch is not hosted rollout. Agent Pool remains `69%`, Overall `86%`; DEV-ONLY; hosted proof still blocked. No live provider call, live MCP write, model download, deploy, rollout, or secret output is claimed.
 
-Latest finish audit: `docs/runtime-state/owner-input-manifest.json` covers every below-100 matrix cell with exact Owner scope/payment, gate IDs, post-verifiers, and Codex boundaries. `npm run verify:market-ready:static` passes the owner-input matrix, manifest integrity, proof ledger, and zero-warning lint; it reports no autonomous-open items. StaticOnly marks runtime checks as audit-skipped, not unfinished; the serial static/runtime/browser full gates already passed on the exact RC10 source. `master-goal-final.md` is the concise final packet. `MARKET_READY:false` remains correct because seven cells remain below 100 and external gates remain blocked. No gate or percentage was hand-set.
+Latest finish audit: `docs/runtime-state/owner-input-manifest.json` covers every below-100 matrix cell with exact Owner scope/payment, gate IDs, post-verifiers, and Codex boundaries. `npm run verify:market-ready:static` passes the owner-input matrix, manifest integrity, proof ledger, and zero-warning lint; it reports no autonomous-open items. StaticOnly marks runtime checks as audit-skipped, not unfinished; the serial static/runtime/browser full gates passed in the current Session-9 working state. `master-goal-final.md` is the concise final packet. `MARKET_READY:false` remains correct because seven cells remain below 100 and external gates remain blocked. No gate or percentage was hand-set.
 
 Latest free-hardening slice: all `17` external GitHub Actions are pinned to `11` verified commit SHAs; `18` tracked external image occurrences are pinned to `9` registry-manifest digests, while exactly `6` variable internal GHCR service references remain release-selector controlled. `scripts/verify-supply-chain-pins.ps1` discovers every tracked `.github` YAML, Dockerfile, and root Compose file dynamically and is part of `npm run verify`. Manual review of `12` high/medium scanner candidates closed `11` as false positives and reclassified one prompt-persistence response as real `CWE-209`; that response is now generic and a sentinel regression test proves no internal exception reaches the client. Backend security tests are `20/20`; the newly published PostCSS path-traversal advisory was closed by upgrading the exact override to `8.5.23`, and npm audit is zero. The focused checks plus `npm run verify`, `npm run verify:runtime`, and `npm run verify:browser` passed serially on pushed source `2ae4c61aa876759abcaa83c36c0a3379206b91a4`; Docker is `10/10 healthy` and browser proof is `22x2=44`. Active RC10 is built from that clean archive: archive SHA-256 `ACDDF0E7BACD117E4796D618722A4DAEDE9ED84F5813045C2C58AFD727F1EBD1`, candidate report `F6DB74228773767857E301FE7A7E90C4B0D8FA5FA12E395C506EA6EE778C0078`, full verification `75B226536EDCDB8DB68E4B4B036E6B6BDF4BA73DBC0796F273F86C078725691B`. No unique rubric item exists beyond the O1-O6 Owner matrix, so all percentages remain unchanged.
 

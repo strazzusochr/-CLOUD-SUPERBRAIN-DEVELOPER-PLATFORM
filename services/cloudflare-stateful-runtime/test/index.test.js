@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import worker from "../src/index.js";
+import worker, { RuntimeCoordinator } from "../src/index.js";
 
 const token = "unit-test-agent-token";
 
@@ -154,11 +154,86 @@ class FakeD1 {
   }
 }
 
+class FakeDurableStorage {
+  constructor(values) {
+    this.values = values;
+  }
+
+  async get(key) {
+    const value = this.values.get(key);
+    return value === undefined ? undefined : structuredClone(value);
+  }
+
+  async put(key, value) {
+    this.values.set(key, structuredClone(value));
+  }
+
+  async delete(key) {
+    return this.values.delete(key);
+  }
+}
+
+class FakeDurableNamespace {
+  constructor() {
+    this.objects = new Map();
+  }
+
+  idFromName(name) {
+    return name;
+  }
+
+  get(id) {
+    if (!this.objects.has(id)) {
+      const values = new Map();
+      const instance = new RuntimeCoordinator({ storage: new FakeDurableStorage(values) }, {});
+      this.objects.set(id, { fetch: (request) => instance.fetch(request) });
+    }
+    return this.objects.get(id);
+  }
+}
+
+class FakeQueue {
+  constructor() {
+    this.messages = [];
+  }
+
+  async send(body) {
+    this.messages.push(structuredClone(body));
+  }
+}
+
+class FakeR2 {
+  constructor() {
+    this.objects = new Map();
+  }
+
+  async put(key, value, options = {}) {
+    this.objects.set(key, { value: String(value), ...structuredClone(options) });
+  }
+
+  async head(key) {
+    const value = this.objects.get(key);
+    return value ? { key, customMetadata: value.customMetadata || {} } : null;
+  }
+
+  async get(key) {
+    const value = this.objects.get(key);
+    return value ? { text: async () => value.value } : null;
+  }
+
+  async delete(key) {
+    this.objects.delete(key);
+  }
+}
+
 function env(options = {}) {
   return {
     DB: new FakeD1(options),
     AGENT_API_AUTH_TOKEN: token,
     RUNTIME_MODE: "cloudflare_workers_d1_live",
+    RUNTIME_COORDINATOR: new FakeDurableNamespace(),
+    RUNTIME_QUEUE: new FakeQueue(),
+    ARTIFACT_BUCKET: new FakeR2(),
   };
 }
 
@@ -171,6 +246,17 @@ function writeRequest(path, body, suppliedToken = token, method = "POST") {
     },
     body: method === "DELETE" ? undefined : JSON.stringify(body),
   });
+}
+
+function queueDelivery(body, attempts = 1) {
+  return {
+    body: structuredClone(body),
+    attempts,
+    acked: 0,
+    retried: 0,
+    ack() { this.acked += 1; },
+    retry() { this.retried += 1; },
+  };
 }
 
 const validBuild = {
@@ -396,4 +482,162 @@ test("LangGraph executes four roles and persists run, tasks, checkpoint, memory,
   assert.equal(readBody.tasks.length, 4);
   assert.equal(readBody.memory_records.length, 1);
   assert.equal(readBody.secret_output, false);
+});
+
+test("Cloudflare-native candidate contract is fail-closed and labels local proof honestly", async () => {
+  const fakeEnv = env();
+  const response = await worker.fetch(new Request("https://state.example/api/v1/cloud-native/contract"), fakeEnv);
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.contract_version, "cloudflare-native-runtime-candidate-v1");
+  assert.equal(body.status, "configured");
+  assert.equal(body.engine, "langgraph-js");
+  assert.equal(body.coordination, "durable-object-sqlite");
+  assert.equal(body.dispatch, "cloudflare-queues");
+  assert.equal(body.checkpointing, "cloudflare-d1-custom");
+  assert.equal(body.official_langgraph_checkpointer, false);
+  assert.equal(body.artifact_store, "cloudflare-r2");
+  assert.equal(body.r2_zero_card_verified, false);
+  assert.equal(body.dev_only, true);
+  assert.equal(body.hosted_proof, false);
+  assert.equal(body.live_provider_calls, false);
+  assert.equal(body.live_mcp_writes, false);
+  assert.equal(body.production_deploy, false);
+});
+
+test("Cloudflare-native probe crosses R2, Queue, and Durable Object idempotently then cleans up", async () => {
+  const fakeEnv = env();
+  const requestBody = {
+    project_id: "default",
+    idempotency_key: "unit-native-probe",
+    content: "safe local adapter proof",
+  };
+  const created = await worker.fetch(writeRequest("/api/v1/cloud-native/probes", requestBody), fakeEnv);
+  const createdBody = await created.json();
+  assert.equal(created.status, 202);
+  assert.equal(createdBody.status, "queued");
+  assert.equal(createdBody.accepted, true);
+  assert.equal(createdBody.dev_only, true);
+  assert.equal(createdBody.hosted_proof, false);
+  assert.equal(createdBody.d1_read_verified, true);
+  assert.equal(fakeEnv.RUNTIME_QUEUE.messages.length, 1);
+  assert.equal(fakeEnv.ARTIFACT_BUCKET.objects.size, 1);
+  assert.equal(JSON.stringify(fakeEnv.RUNTIME_QUEUE.messages[0]).includes(requestBody.content), false);
+  assert.equal([...fakeEnv.ARTIFACT_BUCKET.objects.values()][0].value.includes(requestBody.content), false);
+  assert.ok(createdBody.queue_envelope_bytes < 64_000);
+
+  const replayed = await worker.fetch(writeRequest("/api/v1/cloud-native/probes", requestBody), fakeEnv);
+  const replayedBody = await replayed.json();
+  assert.equal(replayed.status, 202);
+  assert.equal(replayedBody.probe_id, createdBody.probe_id);
+  assert.equal(replayedBody.replayed, true);
+  assert.equal(replayedBody.queue_enqueued, false);
+  assert.equal(fakeEnv.RUNTIME_QUEUE.messages.length, 1);
+  assert.equal(fakeEnv.ARTIFACT_BUCKET.objects.size, 1);
+
+  const firstDelivery = queueDelivery(fakeEnv.RUNTIME_QUEUE.messages[0]);
+  await worker.queue({ messages: [firstDelivery] }, fakeEnv);
+  assert.equal(firstDelivery.acked, 1);
+  assert.equal(firstDelivery.retried, 0);
+
+  const duplicateDelivery = queueDelivery(fakeEnv.RUNTIME_QUEUE.messages[0]);
+  await worker.queue({ messages: [duplicateDelivery] }, fakeEnv);
+  assert.equal(duplicateDelivery.acked, 1);
+  assert.equal(duplicateDelivery.retried, 0);
+
+  const stateUrl = `/api/v1/cloud-native/probes/${createdBody.probe_id}?project_id=default`;
+  const read = await worker.fetch(new Request(`https://state.example${stateUrl}`), fakeEnv);
+  const readBody = await read.json();
+  assert.equal(read.status, 200);
+  assert.equal(readBody.status, "completed");
+  assert.equal(readBody.queue_delivery_count, 1);
+  assert.equal(readBody.artifact_present, true);
+  assert.equal(readBody.artifact_verified, true);
+  assert.equal(readBody.dev_only, true);
+  assert.equal(readBody.hosted_proof, false);
+
+  const deleted = await worker.fetch(writeRequest(stateUrl, null, token, "DELETE"), fakeEnv);
+  const deletedBody = await deleted.json();
+  assert.equal(deleted.status, 200);
+  assert.equal(deletedBody.status, "deleted");
+  assert.equal(deletedBody.artifact_deleted, true);
+  assert.equal(fakeEnv.ARTIFACT_BUCKET.objects.size, 0);
+
+  const afterDelete = await worker.fetch(new Request(`https://state.example${stateUrl}`), fakeEnv);
+  assert.equal(afterDelete.status, 404);
+});
+
+test("Cloudflare-native conflicting idempotency replay preserves the original coordinator state", async () => {
+  const fakeEnv = env();
+  const original = {
+    project_id: "default",
+    idempotency_key: "unit-native-conflict",
+    content: "original safe content",
+  };
+  const created = await worker.fetch(writeRequest("/api/v1/cloud-native/probes", original), fakeEnv);
+  const createdBody = await created.json();
+  assert.equal(created.status, 202);
+
+  const conflict = await worker.fetch(writeRequest("/api/v1/cloud-native/probes", {
+    ...original,
+    content: "different safe content",
+  }), fakeEnv);
+  assert.equal(conflict.status, 409);
+  assert.equal(fakeEnv.RUNTIME_QUEUE.messages.length, 1);
+  assert.equal(fakeEnv.ARTIFACT_BUCKET.objects.size, 1);
+
+  const stateUrl = `https://state.example/api/v1/cloud-native/probes/${createdBody.probe_id}?project_id=default`;
+  const read = await worker.fetch(new Request(stateUrl), fakeEnv);
+  const readBody = await read.json();
+  assert.equal(read.status, 200);
+  assert.equal(readBody.content_sha256, createdBody.content_sha256);
+  assert.equal(readBody.status, "queued");
+  assert.equal(readBody.artifact_present, true);
+});
+
+test("Cloudflare-native mutations reject missing auth and secret material before storage", async () => {
+  const fakeEnv = env();
+  const body = {
+    project_id: "default",
+    idempotency_key: "unit-native-secret",
+    content: `unsafe ${["sk", "unitfixture0000000000000000"].join("-")}`,
+  };
+  const unauthorized = await worker.fetch(writeRequest("/api/v1/cloud-native/probes", body, "wrong-token"), fakeEnv);
+  assert.equal(unauthorized.status, 401);
+  const rejected = await worker.fetch(writeRequest("/api/v1/cloud-native/probes", body), fakeEnv);
+  const rejectedText = await rejected.text();
+  assert.equal(rejected.status, 400);
+  assert.equal(JSON.parse(rejectedText).error, "secret_material_rejected");
+  assert.equal(rejectedText.includes(body.content), false);
+  assert.equal(fakeEnv.RUNTIME_QUEUE.messages.length, 0);
+  assert.equal(fakeEnv.ARTIFACT_BUCKET.objects.size, 0);
+});
+
+test("Cloudflare-native queue retry is bounded and cannot regress a failed terminal state", async () => {
+  const fakeEnv = env();
+  const created = await worker.fetch(writeRequest("/api/v1/cloud-native/probes", {
+    project_id: "default",
+    idempotency_key: "unit-native-terminal",
+    content: "terminal state proof",
+  }), fakeEnv);
+  const createdBody = await created.json();
+  const message = fakeEnv.RUNTIME_QUEUE.messages[0];
+  await fakeEnv.ARTIFACT_BUCKET.delete(message.artifact_key);
+
+  const terminalDelivery = queueDelivery(message, 3);
+  await worker.queue({ messages: [terminalDelivery] }, fakeEnv);
+  assert.equal(terminalDelivery.acked, 1);
+  assert.equal(terminalDelivery.retried, 0);
+
+  const stateUrl = `https://state.example/api/v1/cloud-native/probes/${createdBody.probe_id}?project_id=default`;
+  const failed = await worker.fetch(new Request(stateUrl), fakeEnv);
+  assert.equal((await failed.json()).status, "failed");
+
+  await fakeEnv.ARTIFACT_BUCKET.put(message.artifact_key, "{}");
+  const lateDelivery = queueDelivery(message, 1);
+  await worker.queue({ messages: [lateDelivery] }, fakeEnv);
+  assert.equal(lateDelivery.acked, 0);
+  assert.equal(lateDelivery.retried, 1);
+  const stillFailed = await worker.fetch(new Request(stateUrl), fakeEnv);
+  assert.equal((await stillFailed.json()).status, "failed");
 });

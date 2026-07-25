@@ -3,11 +3,14 @@ import { z } from "zod";
 
 const CONTRACT_VERSION = "cloudflare-d1-stateful-runtime-v1";
 const RUNTIME_CONTRACT_VERSION = "cloudflare-d1-langgraph-runtime-v1";
+const NATIVE_CONTRACT_VERSION = "cloudflare-native-runtime-candidate-v1";
+const NATIVE_MESSAGE_VERSION = "cloudflare-native-probe-message-v1";
 const SOURCE = "cloudflare-workers-d1-stateful-runtime";
 const AUTH_HEADER = "x-superbrain-agent-token";
 const MAX_BODY_BYTES = 192 * 1024;
 const MAX_HTML_BYTES = 160 * 1024;
 const MAX_METADATA_BYTES = 8 * 1024;
+const MAX_NATIVE_CONTENT_BYTES = 32 * 1024;
 const DEFAULT_LIMIT = 24;
 const MAX_LIMIT = 100;
 const AGENT_ROLES = ["planner", "coder", "tester", "devops"];
@@ -189,6 +192,206 @@ function safeProjectId(value) {
 function limitFrom(url) {
   const value = Number(url.searchParams.get("limit") || DEFAULT_LIMIT);
   return Math.max(1, Math.min(Number.isFinite(value) ? Math.floor(value) : DEFAULT_LIMIT, MAX_LIMIT));
+}
+
+function nativeArtifactKey(projectId, probeId, contentSha256) {
+  return `cloud-native/${projectId}/${probeId}/${contentSha256}.json`;
+}
+
+function nativeMessage(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid_native_message");
+  const projectId = safeProjectId(value.project_id);
+  const probeId = safeId(value.probe_id, "probe_id");
+  const contentSha256 = textField(value.content_sha256, "content_sha256", 64, 64);
+  if (!/^[a-f0-9]{64}$/.test(contentSha256)) throw new Error("invalid_content_sha256");
+  if (value.contract_version !== NATIVE_MESSAGE_VERSION || Number(value.sequence) !== 1) {
+    throw new Error("invalid_native_message");
+  }
+  const artifactKey = nativeArtifactKey(projectId, probeId, contentSha256);
+  if (value.artifact_key !== artifactKey) throw new Error("invalid_artifact_key");
+  const clean = {
+    contract_version: NATIVE_MESSAGE_VERSION,
+    project_id: projectId,
+    probe_id: probeId,
+    content_sha256: contentSha256,
+    artifact_key: artifactKey,
+    sequence: 1,
+  };
+  if (new TextEncoder().encode(JSON.stringify(clean)).byteLength >= 64_000) {
+    throw new Error("native_message_too_large");
+  }
+  return clean;
+}
+
+function nativeCoordinator(env, projectId, probeId) {
+  if (!env.RUNTIME_COORDINATOR) throw new Error("native_coordinator_unavailable");
+  const objectId = env.RUNTIME_COORDINATOR.idFromName(`${projectId}:${probeId}`);
+  return env.RUNTIME_COORDINATOR.get(objectId);
+}
+
+async function nativeCoordinatorCall(env, projectId, probeId, method, payload) {
+  const stub = nativeCoordinator(env, projectId, probeId);
+  const response = await stub.fetch(new Request("https://runtime-coordinator/state", {
+    method,
+    headers: payload ? { "content-type": "application/json" } : undefined,
+    body: payload ? JSON.stringify(payload) : undefined,
+  }));
+  const body = await response.json();
+  if (!response.ok) {
+    throw new Error(response.status === 409 ? "native_coordinator_conflict" : "native_coordinator_rejected");
+  }
+  return body;
+}
+
+async function nativeArtifactVerified(env, state) {
+  const object = await env.ARTIFACT_BUCKET.get(state.artifact_key);
+  if (!object) return false;
+  const artifact = JSON.parse(await object.text());
+  return artifact?.contract_version === NATIVE_CONTRACT_VERSION &&
+    artifact?.project_id === state.project_id &&
+    artifact?.probe_id === state.probe_id &&
+    artifact?.content_sha256 === state.content_sha256 &&
+    artifact?.raw_content_persisted === false &&
+    artifact?.secret_output === false;
+}
+
+function nativeContract(env) {
+  const bindings = {
+    d1: Boolean(env.DB),
+    durable_object_sqlite: Boolean(env.RUNTIME_COORDINATOR),
+    queue: Boolean(env.RUNTIME_QUEUE),
+    r2: Boolean(env.ARTIFACT_BUCKET),
+  };
+  return {
+    contract_version: NATIVE_CONTRACT_VERSION,
+    status: Object.values(bindings).every(Boolean) ? "configured" : "blocked",
+    engine: "langgraph-js",
+    coordination: "durable-object-sqlite",
+    dispatch: "cloudflare-queues",
+    checkpointing: "cloudflare-d1-custom",
+    official_langgraph_checkpointer: false,
+    artifact_store: "cloudflare-r2",
+    bindings,
+    create_endpoint: "POST /api/v1/cloud-native/probes",
+    state_endpoint: "GET /api/v1/cloud-native/probes/{probe_id}?project_id={project_id}",
+    cleanup_endpoint: "DELETE /api/v1/cloud-native/probes/{probe_id}?project_id={project_id}",
+    write_auth_required: true,
+    queue_envelope_contains_raw_prompt: false,
+    r2_public: false,
+    r2_zero_card_verified: false,
+    vectorize: "owner_gate_required",
+    workers_ai: "owner_gate_required",
+    dev_only: true,
+    hosted_proof: false,
+    live_provider_calls: false,
+    direct_provider_calls: false,
+    live_mcp_writes: false,
+    production_deploy: false,
+    secret_output: false,
+    non_claims: [
+      "Local bindings do not prove hosted Cloudflare resource activation.",
+      "R2 free quota does not prove zero-card subscription activation.",
+      "D1 custom persistence is not an official LangGraph checkpointer.",
+    ],
+  };
+}
+
+export class RuntimeCoordinator {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+  }
+
+  async fetch(request) {
+    try {
+      if (request.method === "GET") {
+        const current = await this.state.storage.get("probe");
+        return current ? json(current) : json({ status: "not_found", secret_output: false }, 404);
+      }
+      if (request.method === "DELETE") {
+        await this.state.storage.delete("probe");
+        return json({ status: "deleted", persisted: false, secret_output: false });
+      }
+      if (request.method !== "POST") return json({ status: "method_not_allowed", secret_output: false }, 405);
+
+      const body = await request.json();
+      const message = nativeMessage(body.message);
+      const action = body.action;
+      const current = await this.state.storage.get("probe");
+      const now = new Date().toISOString();
+
+      if (action === "initialize") {
+        if (current) {
+          const same = current.project_id === message.project_id &&
+            current.probe_id === message.probe_id &&
+            current.content_sha256 === message.content_sha256 &&
+            current.artifact_key === message.artifact_key;
+          return same
+            ? json({ ...current, replayed: true })
+            : json({ status: "conflict", secret_output: false }, 409);
+        }
+        const created = {
+          contract_version: NATIVE_CONTRACT_VERSION,
+          project_id: message.project_id,
+          probe_id: message.probe_id,
+          content_sha256: message.content_sha256,
+          artifact_key: message.artifact_key,
+          sequence: 1,
+          status: "queued",
+          queue_delivery_count: 0,
+          created_at: now,
+          updated_at: now,
+          persisted: true,
+          replayed: false,
+          live_provider_calls: false,
+          live_mcp_writes: false,
+          production_deploy: false,
+          secret_output: false,
+        };
+        await this.state.storage.put("probe", created);
+        return json(created, 201);
+      }
+
+      if (!current) return json({ status: "not_found", secret_output: false }, 404);
+      const same = current.project_id === message.project_id &&
+        current.probe_id === message.probe_id &&
+        current.content_sha256 === message.content_sha256 &&
+        current.artifact_key === message.artifact_key;
+      if (!same) return json({ status: "conflict", secret_output: false }, 409);
+
+      if (action === "complete") {
+        if (current.status === "completed") return json({ ...current, replayed: true });
+        if (current.status === "failed") return json({ status: "terminal_state_conflict", secret_output: false }, 409);
+        const completed = {
+          ...current,
+          status: "completed",
+          queue_delivery_count: Number(current.queue_delivery_count || 0) + 1,
+          updated_at: now,
+          replayed: false,
+        };
+        await this.state.storage.put("probe", completed);
+        return json(completed);
+      }
+
+      if (action === "fail") {
+        if (current.status === "completed" || current.status === "failed") {
+          return json({ ...current, replayed: true });
+        }
+        const failed = {
+          ...current,
+          status: "failed",
+          queue_delivery_count: Number(current.queue_delivery_count || 0) + 1,
+          updated_at: now,
+          replayed: false,
+        };
+        await this.state.storage.put("probe", failed);
+        return json(failed);
+      }
+      return json({ status: "invalid_action", secret_output: false }, 400);
+    } catch {
+      return json({ status: "blocked", error: "coordinator_request_failed", secret_output: false }, 400);
+    }
+  }
 }
 
 function buildFromRow(row, includeHtml = true) {
@@ -747,6 +950,196 @@ async function getRuntimeRun(id, env, requestId) {
   }
 }
 
+async function createNativeProbe(request, env, requestId) {
+  const contract = nativeContract(env);
+  if (contract.status !== "configured" || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("cloudflare_native_configuration_unavailable", requestId, "The local Cloudflare-native bindings are unavailable."), 503);
+  }
+  if (!(await authenticated(request, env))) {
+    return json(blocked("stateful_runtime_authentication_required", requestId, "Agent API write authentication failed."), 401);
+  }
+
+  let body;
+  try { body = await readJson(request); } catch (error) {
+    return json(blocked(validationCode(error), requestId, "The Cloudflare-native probe request is invalid."), 400);
+  }
+
+  let projectId;
+  let idempotencyKey;
+  let content;
+  try {
+    projectId = safeProjectId(body.project_id);
+    idempotencyKey = body.idempotency_key
+      ? safeId(body.idempotency_key, "idempotency_key")
+      : crypto.randomUUID();
+    content = textField(body.content, "content", 1, 16_000);
+    if (new TextEncoder().encode(content).byteLength > MAX_NATIVE_CONTENT_BYTES) throw new Error("request_too_large");
+    if (containsSecretMaterial(content) || containsSecretMaterial(idempotencyKey)) {
+      throw new Error("secret_material_rejected");
+    }
+  } catch (error) {
+    return json(blocked(validationCode(error), requestId, "The Cloudflare-native probe request was rejected before persistence."), 400);
+  }
+
+  const contentSha256 = await sha256(content);
+  const idempotencySha256 = await sha256(`${projectId}:${idempotencyKey}`);
+  const probeId = `probe-${idempotencySha256.slice(0, 40)}`;
+  const artifactKey = nativeArtifactKey(projectId, probeId, contentSha256);
+  const message = nativeMessage({
+    contract_version: NATIVE_MESSAGE_VERSION,
+    project_id: projectId,
+    probe_id: probeId,
+    content_sha256: contentSha256,
+    artifact_key: artifactKey,
+    sequence: 1,
+  });
+  const artifact = {
+    contract_version: NATIVE_CONTRACT_VERSION,
+    project_id: projectId,
+    probe_id: probeId,
+    content_sha256: contentSha256,
+    created_at: new Date().toISOString(),
+    raw_content_persisted: false,
+    live_provider_calls: false,
+    live_mcp_writes: false,
+    production_deploy: false,
+    secret_output: false,
+  };
+
+  let coordinatorCreated = false;
+  try {
+    const d1Probe = await env.DB.prepare("SELECT 1 AS ok").first();
+    if (Number(d1Probe?.ok) !== 1) throw new Error("d1_probe_failed");
+    await env.ARTIFACT_BUCKET.put(artifactKey, JSON.stringify(artifact), {
+      httpMetadata: { contentType: "application/json" },
+      customMetadata: { contract: NATIVE_CONTRACT_VERSION, contentSha256 },
+    });
+    const coordinator = await nativeCoordinatorCall(env, projectId, probeId, "POST", {
+      action: "initialize",
+      message,
+    });
+    coordinatorCreated = !coordinator.replayed;
+    if (coordinatorCreated) await env.RUNTIME_QUEUE.send(message);
+    return json({
+      ...contract,
+      status: "queued",
+      accepted: true,
+      persisted: true,
+      probe_id: probeId,
+      project_id: projectId,
+      content_sha256: contentSha256,
+      artifact_key: artifactKey,
+      coordinator_status: coordinator.status,
+      replayed: Boolean(coordinator.replayed),
+      queue_enqueued: coordinatorCreated,
+      d1_read_verified: true,
+      queue_envelope_bytes: new TextEncoder().encode(JSON.stringify(message)).byteLength,
+      evidence_ref: "cloudflare_native_do_queue_r2_local_candidate",
+    }, 202);
+  } catch (error) {
+    try { await env.ARTIFACT_BUCKET.delete(artifactKey); } catch { /* best-effort local cleanup */ }
+    if (coordinatorCreated) {
+      try { await nativeCoordinatorCall(env, projectId, probeId, "DELETE"); } catch { /* best-effort local cleanup */ }
+    }
+    if (error instanceof Error && error.message === "native_coordinator_conflict") {
+      return json(blocked("native_idempotency_conflict", requestId, "The idempotency key is already bound to different content."), 409);
+    }
+    return json(blocked("cloudflare_native_probe_failed", requestId, "The Cloudflare-native probe could not be queued safely."), 503);
+  }
+}
+
+async function getNativeProbe(url, probeId, env, requestId) {
+  if (nativeContract(env).status !== "configured") {
+    return json(blocked("cloudflare_native_configuration_unavailable", requestId, "The local Cloudflare-native bindings are unavailable."), 503);
+  }
+  try {
+    const projectId = safeProjectId(url.searchParams.get("project_id"));
+    const cleanProbeId = safeId(probeId, "probe_id");
+    const state = await nativeCoordinatorCall(env, projectId, cleanProbeId, "GET");
+    const artifact = await env.ARTIFACT_BUCKET.head(state.artifact_key);
+    const artifactVerified = Boolean(artifact) && await nativeArtifactVerified(env, state);
+    return json({
+      ...state,
+      contract_version: NATIVE_CONTRACT_VERSION,
+      artifact_present: Boolean(artifact),
+      artifact_verified: artifactVerified,
+      dev_only: true,
+      hosted_proof: false,
+      evidence_ref: "cloudflare_native_do_queue_r2_local_candidate",
+    });
+  } catch {
+    return json({
+      contract_version: NATIVE_CONTRACT_VERSION,
+      status: "not_found",
+      persisted: false,
+      secret_output: false,
+    }, 404);
+  }
+}
+
+async function deleteNativeProbe(request, url, probeId, env, requestId) {
+  if (nativeContract(env).status !== "configured" || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("cloudflare_native_configuration_unavailable", requestId, "The local Cloudflare-native bindings are unavailable."), 503);
+  }
+  if (!(await authenticated(request, env))) {
+    return json(blocked("stateful_runtime_authentication_required", requestId, "Agent API write authentication failed."), 401);
+  }
+  try {
+    const projectId = safeProjectId(url.searchParams.get("project_id"));
+    const cleanProbeId = safeId(probeId, "probe_id");
+    const state = await nativeCoordinatorCall(env, projectId, cleanProbeId, "GET");
+    await env.ARTIFACT_BUCKET.delete(state.artifact_key);
+    await nativeCoordinatorCall(env, projectId, cleanProbeId, "DELETE");
+    return json({
+      contract_version: NATIVE_CONTRACT_VERSION,
+      status: "deleted",
+      probe_id: cleanProbeId,
+      project_id: projectId,
+      artifact_deleted: true,
+      persisted: false,
+      dev_only: true,
+      hosted_proof: false,
+      live_provider_calls: false,
+      live_mcp_writes: false,
+      production_deploy: false,
+      secret_output: false,
+    });
+  } catch {
+    return json(blocked("cloudflare_native_cleanup_failed", requestId, "The Cloudflare-native probe cleanup failed."), 404);
+  }
+}
+
+async function consumeNativeQueue(batch, env) {
+  for (const queueMessage of batch.messages || []) {
+    let message;
+    try {
+      const body = typeof queueMessage.body === "string" ? JSON.parse(queueMessage.body) : queueMessage.body;
+      message = nativeMessage(body);
+      const artifact = await env.ARTIFACT_BUCKET.head(message.artifact_key);
+      if (!artifact) throw new Error("native_artifact_missing");
+      if (!(await nativeArtifactVerified(env, message))) throw new Error("native_artifact_invalid");
+      await nativeCoordinatorCall(env, message.project_id, message.probe_id, "POST", {
+        action: "complete",
+        message,
+      });
+      queueMessage.ack();
+    } catch {
+      const attempts = Number(queueMessage.attempts || 1);
+      if (message && attempts >= 3) {
+        try {
+          await nativeCoordinatorCall(env, message.project_id, message.probe_id, "POST", {
+            action: "fail",
+            message,
+          });
+        } catch { /* fail closed without raw error output */ }
+        queueMessage.ack();
+      } else {
+        queueMessage.retry({ delaySeconds: 1 });
+      }
+    }
+  }
+}
+
 async function health(env, requestId) {
   if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
     return json({
@@ -773,6 +1166,7 @@ async function health(env, requestId) {
       auth_required_for_writes: true,
       free_tier_policy: true,
       persisted: healthy,
+      cloudflare_native_candidate: nativeContract(env),
       live_provider_calls: false,
       direct_provider_calls: false,
       live_mcp_writes: false,
@@ -828,8 +1222,15 @@ export default {
     const requestId = safeRequestId(request.headers.get("x-request-id"));
     const buildMatch = url.pathname.match(/^\/api\/v1\/build\/([A-Za-z0-9_-]{1,64})$/);
     const runtimeRunMatch = url.pathname.match(/^\/api\/v1\/phase2\/runtime\/runs\/([A-Za-z0-9_-]{1,64})$/);
+    const nativeProbeMatch = url.pathname.match(/^\/api\/v1\/cloud-native\/probes\/([A-Za-z0-9_-]{1,64})$/);
 
     if (request.method === "GET" && url.pathname === "/api/v1/health") return health(env, requestId);
+    if (request.method === "GET" && url.pathname === "/api/v1/cloud-native/contract") return json(nativeContract(env));
+    if (request.method === "POST" && url.pathname === "/api/v1/cloud-native/probes") return createNativeProbe(request, env, requestId);
+    if (request.method === "GET" && nativeProbeMatch) return getNativeProbe(url, nativeProbeMatch[1], env, requestId);
+    if (request.method === "DELETE" && nativeProbeMatch) {
+      return deleteNativeProbe(request, url, nativeProbeMatch[1], env, requestId);
+    }
     if (request.method === "GET" && url.pathname === "/api/v1/phase2/runtime/contract") return json(runtimeContract(env));
     if (request.method === "POST" && url.pathname === "/api/v1/phase2/runtime/start") return startRuntime(request, env, requestId);
     if (request.method === "GET" && url.pathname === "/api/v1/phase2/runtime/runs") return listRuntimeRuns(url, env, requestId);
@@ -842,5 +1243,8 @@ export default {
     if (request.method === "GET" && url.pathname === "/api/v1/workspace/artifacts") return listArtifacts(url, env, requestId);
 
     return proxyContractOrigin(request, env, requestId);
+  },
+  async queue(batch, env) {
+    await consumeNativeQueue(batch, env);
   },
 };

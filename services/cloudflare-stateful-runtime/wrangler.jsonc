@@ -8,6 +8,44 @@
     "enabled": true,
     "head_sampling_rate": 0.1
   },
+  "migrations": [
+    {
+      "tag": "v1-cloudflare-native-coordinator",
+      "new_sqlite_classes": [
+        "RuntimeCoordinator"
+      ]
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "RUNTIME_COORDINATOR",
+        "class_name": "RuntimeCoordinator"
+      }
+    ]
+  },
+  "queues": {
+    "producers": [
+      {
+        "binding": "RUNTIME_QUEUE",
+        "queue": "cloud-superbrain-runtime-candidate"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "cloud-superbrain-runtime-candidate",
+        "max_batch_size": 10,
+        "max_batch_timeout": 1,
+        "max_retries": 3
+      }
+    ]
+  },
+  "r2_buckets": [
+    {
+      "binding": "ARTIFACT_BUCKET",
+      "bucket_name": "cloud-superbrain-artifacts-candidate"
+    }
+  ],
   "d1_databases": [
     {
       "binding": "DB",
@@ -17,13 +55,43 @@
     }
   ],
   "vars": {
-    "RUNTIME_MODE": "cloudflare_workers_d1_live",
+    "RUNTIME_MODE": "cloudflare_native_hosted_candidate",
     "CONTRACT_ORIGIN": "https://cloud-superbrain-developer-platform.vercel.app"
   },
   "env": {
     "preview": {
       "name": "cloud-superbrain-stateful-runtime-preview",
       "workers_dev": true,
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "RUNTIME_COORDINATOR",
+            "class_name": "RuntimeCoordinator"
+          }
+        ]
+      },
+      "queues": {
+        "producers": [
+          {
+            "binding": "RUNTIME_QUEUE",
+            "queue": "cloud-superbrain-runtime-candidate-preview"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "cloud-superbrain-runtime-candidate-preview",
+            "max_batch_size": 10,
+            "max_batch_timeout": 1,
+            "max_retries": 3
+          }
+        ]
+      },
+      "r2_buckets": [
+        {
+          "binding": "ARTIFACT_BUCKET",
+          "bucket_name": "cloud-superbrain-artifacts-candidate-preview"
+        }
+      ],
       "d1_databases": [
         {
           "binding": "DB",
@@ -32,7 +100,7 @@
         }
       ],
       "vars": {
-        "RUNTIME_MODE": "cloudflare_workers_d1_live",
+        "RUNTIME_MODE": "cloudflare_native_local_candidate",
         "CONTRACT_ORIGIN": "https://cloud-superbrain-developer-platform.vercel.app"
       }
     }

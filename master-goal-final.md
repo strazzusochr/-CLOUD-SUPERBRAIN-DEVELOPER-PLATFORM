@@ -1,15 +1,36 @@
 # Cloud Superbrain Master Goal — Autonomous Finish / Owner Blocked
 
-Stand: 2026-07-24
+Stand: 2026-07-25
 
 ## Urteil
 
 `MARKET_READY: false`
 
-Alle im aktuellen Auftrag erlaubten autonomen technischen Arbeiten sind abgeschlossen und
-verifiziert. Die verbleibenden Matrixlücken sind exakt in
-`docs/runtime-state/owner-input-manifest.json` Owner-Aktionen zugeordnet. Keine Zelle wurde
-manuell auf 100 gesetzt und kein Live-, Hosted-, Release- oder Production-Claim wurde erfunden.
+Session 9 setzt den Zielpfad auf eine kostenlose Cloudflare-native Runtime um. Bis der neue
+Pfad lokal und anschliessend gehostet bewiesen ist, bleiben Matrix, Marktfreigabe und
+Production-Claims unverändert geschlossen. Keine Zelle wird allein durch die
+Architekturentscheidung aufgewertet.
+
+## Session-9-Architekturentscheidung
+
+**A — Cloudflare-native ist gewählt. B — Hugging Face/Supabase/Upstash ist verworfen.**
+
+- LangGraph.js bleibt der Kern-Orchestrator; die Behauptung, LangGraph laufe nicht auf
+  Cloudflare Workers, trifft auf den bestehenden und lokal bewiesenen Worker nicht zu.
+- D1 bleibt der projektspezifische Read-, Audit- und Persistenzspeicher. Das ist ein
+  `custom D1 persistence`-Adapter, kein offizieller LangGraph-Checkpointer.
+- SQLite Durable Objects koordinieren und idempotenzieren, Queues dispatchen, R2 ist der
+  private Artefaktadapter. Vectorize und Workers AI bleiben bis O5/O6 fail-closed.
+- Fly.io ist als Session-9-Ziel ausgeschlossen. Der bisherige Fly-Gate bleibt nur historische
+  Ist-Wahrheit, bis ein Cloudflare-Hosted-Proof den kontrollierten Truth-Rebase erlaubt.
+- Der erste Ausbau ist `DEV-ONLY`; `hosted_proof=false`, `live_provider_calls=false`,
+  `live_mcp_writes=false`, `production_deploy=false`.
+- Keine Karte, kein bezahltes Konto und keine automatische Uebernutzung. R2 hat zwar ein
+  Gratis-Kontingent, verlangt laut aktueller Anbieter-Dokumentation aber eine R2-Subscription
+  per Checkout. Deshalb ist R2-Hosted-Zero-Card noch **nicht bewiesen** und bleibt Teil von O2'.
+
+Die bindende Migrationsgrenze steht in
+`docs/adr/ADR-010-cloudflare-native-free-runtime.md`.
 
 ## Kanonischer Stand
 
@@ -18,9 +39,27 @@ manuell auf 100 gesetzt und kein Live-, Hosted-, Release- oder Production-Claim 
 - Vertikal: `FE 100 | ORC 100 | AP 69 | LLM 55 | MCP 56 | MEM 90 | OBS 100`
 - Manifest: `docs/project-progress.manifest.json`
 - Externe Wahrheit: `blocked`; `production_deploy_claim_allowed=false`
-- Einziger kanonischer externer Audit-Fehler: `fly_live_budget_check`
+- Kanonischer externer Audit-Fehler aus RC10: `fly_live_budget_check` (historisch; Fly OUT)
+- Ersatzgate nach lokalem Adapterbeweis: O2' Cloudflare-Hosted-Zero-Card-Proof
 
-## Letzte autonome Lieferung
+## Session-9 lokale Lieferung
+
+- `cloudflare-native-runtime-candidate-v1` mit LangGraph.js, custom D1 persistence,
+  SQLite Durable Object, Queue und privatem R2-Adapter implementiert.
+- 16/16 Unit-Tests und Wrangler-Preview-Dry-run grün.
+- Echter lokaler Create -> Queue -> DO -> R2 Put/Get/Delete-Roundtrip grün;
+  Duplicate-Effektzaehler `1`, Replay dedupliziert, Konflikt `409` ohne Zustandsverlust.
+- Auth-, Oversize- und Secret-Sentinel-Negativpfade grün; kein Credential im Log;
+  lokaler Worker/Port sauber beendet.
+- Neue `brace-expansion`-Advisory durch festen `5.0.8`-Adapter geschlossen;
+  Clean-`npm ci`, Lint, Next.js-Build (`21/21`) und npm audit (`0`) grün.
+- `npm run verify`, `npm run verify:runtime` und der vollständige Browservertrag
+  (`22x2`, sieben Phase-6-Kontrollen) seriell grün; gitleaks ohne Fund.
+- Evidence SHA-256:
+  `FFB9693896C26B7831BE60E2A2DE323B7B1243F7DACDDE91727706BAF3E06F80`.
+- Kein Prozentcredit; O2' bleibt geschlossen; `DEV-ONLY; hosted proof still blocked`.
+
+## Session-8 Lieferung
 
 - `17/17` externe GitHub Actions auf `11` verifizierte Commit-SHAs fixiert.
 - `18/18` getrackte externe Image-Vorkommen auf `9` Registry-Digests fixiert;
@@ -55,7 +94,7 @@ manuell auf 100 gesetzt und kein Live-, Hosted-, Release- oder Production-Claim 
 | ID | Matrix | Owner-Aktion |
 | --- | --- | --- |
 | O1 | P3 | Production-OAuth-App, Hosted Callback und sichere Credential-Konfiguration |
-| O2 | P5, P6 | Stateful-Host-/Scale-Budget; aktueller Fly-Pfad benötigt Billing und `FLY_API_TOKEN` |
+| O2' | P5, P6 | Kostenloses Cloudflare-Konto/Scopes, Zero-Card-Ressourcen und Hosted-Paritaetsbeweis |
 | O3 | P5, MCP | GHCR-Publikation, Protected Release Workflow und Owner-Review |
 | O4 | P6, AP, MCP | Live Agent-/MCP-Write-Allowlist, Branch Protection und Audit-Freigabe |
 | O5 | MEM | Cloudflare `Vectorize:Edit`, Architekturfreigabe und Hosted Semantic-Search-Proof |
@@ -69,10 +108,10 @@ Exakte Scopes, Zahlungsbedarf, Gate-IDs und Nachverifier stehen maschinenlesbar 
 `npm run verify:market-ready:static` bleibt absichtlich fail-closed. Manifest-Integrität,
 Proof-Ledger und Lint bestehen; Matrix-100 und externe Gates scheitern ehrlich. Der StaticOnly-
 Lauf überspringt Runtime-Verifier als Auditmodus; das ist kein Implementierungsdefizit, weil die
-seriellen Vollverifier auf exakt der RC10-Quelle bereits grün sind.
+seriellen Vollverifier im aktuellen Session-9-Arbeitsstand grün sind.
 
 Report SHA-256:
-`2D32A3DBA09C18A9DC8334F829A605F9AA2A3FC8C21A1842362ADA1B9B3F6062`.
+`020327D3F46FD2BEB68F6B443E4EAF41F31223DE8313566AFC02E8292AD9EDA7`.
 
 Finish-Line bleibt unverändert:
 
