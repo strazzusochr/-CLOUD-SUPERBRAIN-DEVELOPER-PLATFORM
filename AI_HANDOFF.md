@@ -10,27 +10,34 @@ Current honesty guardrail: active candidate `prod-candidate-2026-07-24-local-rc1
 
 RC10 covers the committed immutable Action/image pins, fail-closed pin verifier, prompt-persistence error redaction, and the fixed exact PostCSS `8.5.23` override. Current runtime-source parity is locally verified; DEV-ONLY; hosted proof still blocked.
 
-Session 11 P3 repository source binding supersedes the original empty-source
-Agent Research behavior. `agent-research-run-v2` fail-closes unless all three
-fixed baked/read-only-mounted project-truth artifacts pass layout, symlink,
-regular-file, 512 KiB, UTF-8, and sanitization guards before the Gateway is
-called. It sends the same one-to-three lexical or baseline extracts, with exact
-raw/sanitized/extract hashes, to Planner, Researcher, and Writer. The response
-has no source URL or arbitrary path surface; the UI exposes only expandable
-inline sanitized excerpts. External network, filesystem writes, MCP writes,
-separate source-read audit persistence, and file-wide secret certification are
-all false. The dedicated verifier is wired into `verify-phase1.ps1`. Overall
-remains 86%, P3 remains 44%, and `MARKET_READY:false`; DEV-ONLY, hosted proof
-still blocked.
+Session 11 P3 four-role source analysis supersedes the original empty-source
+and three-role Agent Research behavior. `agent-research-run-v3` fail-closes
+unless all three fixed baked/read-only-mounted project-truth artifacts pass
+layout, symlink, regular-file, 512 KiB, UTF-8, and sanitization guards before
+the Gateway is called. It sends the same one-to-three lexical or baseline
+extracts, with exact raw/sanitized/extract hashes, through four separate
+Planner, Coder, Tester, and DevOps Gateway calls. `agent-research-four-role-v1`
+binds exact canonical profile IDs without aliases, role, order, and source IDs
+and caps each redacted role output at 2,000 Unicode code points. Every Gateway
+response must carry the exact adapter contract, evidence ref, echoed trace ID,
+and five real Boolean truth flags; missing or string-coerced values fail
+closed. The UI strictly validates these truth fields and displays the four
+roles, DevOps synthesis, and expandable inline sources.
 
-Verification for this slice passed the dedicated source verifier `18/18`,
-frontend TypeScript, focused ESLint, the Next.js production build `21/21`, the
-progress-manifest verifier, and full `scripts/verify-phase1.ps1`, including the
-canonical 3,720-file gitleaks mirror with no leaks. Docker Desktop was not
-running, so no new runtime or browser proof exists. The Session-10 22-page
-report remains historical green evidence but is not exact-current-source-bound
-after the conditional action was reclassified from a nonexistent source link
-to the real inline source-detail control.
+This is explicitly source-grounded analysis only. Tool calls, filesystem
+writes, test execution, deployment execution, autonomous software delivery,
+external network, MCP writes, separate source-read audit persistence, and
+file-wide secret certification are false. There is no source URL, arbitrary
+path, or readback route. Overall remains 86%, P3 remains 44%, and
+`MARKET_READY:false`; DEV-ONLY, hosted proof still blocked.
+
+The current focused unit suite passes `23/23`; Agent API and LLM Gateway Python
+compile, frontend TypeScript, focused ESLint, production build `21/21`,
+progress-manifest verifier, full `scripts/verify-phase1.ps1`, npm audit, and
+canonical gitleaks mirror over `3720` repository files all pass. Docker Desktop
+remains unavailable, so there is no new runtime/browser/hosted proof. The
+Session-10 22-page report remains historical green evidence and is not
+exact-current-source-bound.
 
 Session 10 adds two current local acceptance proofs without creating a new
 release candidate. `product-acceptance-3d-game-v1` produced persisted build

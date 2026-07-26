@@ -89,7 +89,7 @@ class AgentResearchRunTests(unittest.TestCase):
         agent_roster.write_text(
             json.dumps(
                 {
-                    "roles": ["planner", "researcher", "writer"],
+                    "roles": ["planner", "coder", "tester", "devops"],
                     "policy": "read-only bounded source work",
                 }
             ),
@@ -106,11 +106,12 @@ class AgentResearchRunTests(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
 
-    def test_three_steps_use_gateway_only_and_match_frontend_shape(self) -> None:
+    def test_four_steps_use_gateway_only_and_match_frontend_shape(self) -> None:
         responses = [
             gateway_response("planner"),
-            gateway_response("researcher", live_provider_calls=True, local_model_calls=False),
-            gateway_response("writer"),
+            gateway_response("coder", live_provider_calls=True, local_model_calls=False),
+            gateway_response("tester"),
+            gateway_response("devops"),
         ]
         with (
             patch.object(main, "check_budget_guard", return_value=budget_state()),
@@ -121,16 +122,41 @@ class AgentResearchRunTests(unittest.TestCase):
                 self.http_request,
             )
 
-        self.assertEqual(gateway.call_count, 3)
+        self.assertEqual(gateway.call_count, 4)
         self.assertEqual(result["contract_version"], main.AGENT_RESEARCH_RUN_CONTRACT_VERSION)
         self.assertEqual(result["evidence_ref"], main.AGENT_RESEARCH_RUN_EVIDENCE_REF)
         self.assertEqual(result["status"], "completed")
-        self.assertEqual(result["mode"], "dev_only_gateway_repo_sources")
+        self.assertEqual(result["mode"], "dev_only_gateway_four_role_repo_sources")
         self.assertEqual(result["goal"], "Explain bounded agent research")
         self.assertEqual(result["provider"], "unit-gateway-provider")
-        self.assertEqual([step["role"] for step in result["steps"]], ["planner", "researcher", "writer"])
-        self.assertEqual([step["label"] for step in result["steps"]], ["Planner", "Researcher", "Writer"])
-        self.assertEqual(result["answer"], "writer output")
+        self.assertEqual(
+            [step["role"] for step in result["steps"]],
+            ["planner", "coder", "tester", "devops"],
+        )
+        self.assertEqual(
+            [step["execution_role"] for step in result["steps"]],
+            ["planner", "coder", "tester", "devops"],
+        )
+        self.assertEqual(
+            [step["label"] for step in result["steps"]],
+            ["Planner", "Coder", "Tester", "DevOps"],
+        )
+        self.assertEqual(result["answer"], "devops output")
+        self.assertEqual(
+            result["role_binding"]["contract_version"],
+            main.AGENT_RESEARCH_ROLE_CONTRACT_VERSION,
+        )
+        self.assertEqual(
+            result["role_binding"]["role_order"],
+            ["planner", "coder", "tester", "devops"],
+        )
+        self.assertEqual(result["role_binding"]["gateway_calls"], 4)
+        self.assertTrue(result["role_binding"]["analysis_only"])
+        self.assertFalse(result["role_binding"]["tool_calls"])
+        self.assertFalse(result["role_binding"]["filesystem_writes"])
+        self.assertFalse(result["role_binding"]["test_execution"])
+        self.assertFalse(result["role_binding"]["deployment_execution"])
+        self.assertFalse(result["role_binding"]["autonomous_software_delivery"])
         self.assertGreaterEqual(len(result["sources"]), 1)
         self.assertEqual(result["source_binding"]["status"], "bound")
         self.assertEqual(result["source_binding"]["mode"], main.AGENT_RESEARCH_SOURCE_BINDING)
@@ -155,7 +181,18 @@ class AgentResearchRunTests(unittest.TestCase):
         self.assertNotIn("live_provider_calls_allowed", payloads[0]["metadata"])
         self.assertIn("planner output", payloads[1]["input"])
         self.assertIn("planner output", payloads[2]["input"])
-        self.assertIn("researcher output", payloads[2]["input"])
+        self.assertIn("coder output", payloads[2]["input"])
+        self.assertIn("planner output", payloads[3]["input"])
+        self.assertIn("coder output", payloads[3]["input"])
+        self.assertIn("tester output", payloads[3]["input"])
+        self.assertEqual(
+            [payload["metadata"]["agent_type"] for payload in payloads],
+            ["planner", "coder", "tester", "devops"],
+        )
+        self.assertEqual(
+            [payload["metadata"]["logical_agent_id"] for payload in payloads],
+            ["planner", "coder", "tester", "devops"],
+        )
         self.assertTrue(all(payload["store"] is False for payload in payloads))
         self.assertTrue(all(payload["metadata"]["source_retrieval"] is True for payload in payloads))
         self.assertTrue(all(payload["metadata"]["source_binding"] == main.AGENT_RESEARCH_SOURCE_BINDING for payload in payloads))
@@ -166,7 +203,7 @@ class AgentResearchRunTests(unittest.TestCase):
         self.assertNotIn(self.long_hex_sentinel, json.dumps(payloads))
         self.assertNotIn(self.long_hex_sentinel, json.dumps(result))
 
-    def test_three_source_context_is_exact_and_hash_bound_in_every_gateway_payload(self) -> None:
+    def test_three_source_context_is_exact_and_hash_bound_in_all_four_gateway_payloads(self) -> None:
         self.project_state.write_text(
             "pgvector " + ("alpha project context " * 120),
             encoding="utf-8",
@@ -181,8 +218,9 @@ class AgentResearchRunTests(unittest.TestCase):
         )
         responses = [
             gateway_response("planner"),
-            gateway_response("researcher"),
-            gateway_response("writer"),
+            gateway_response("coder"),
+            gateway_response("tester"),
+            gateway_response("devops"),
         ]
         with (
             patch.object(main, "check_budget_guard", return_value=budget_state()),
@@ -194,8 +232,9 @@ class AgentResearchRunTests(unittest.TestCase):
             )
 
         self.assertEqual(len(result["sources"]), 3)
-        self.assertEqual(gateway.call_count, 3)
+        self.assertEqual(gateway.call_count, 4)
         payloads = [call.args[0] for call in gateway.call_args_list]
+        source_context = main._agent_research_source_context(result["sources"])
         for source in result["sources"]:
             extract = str(source["extract"])
             self.assertGreaterEqual(len(extract), 850)
@@ -214,15 +253,8 @@ class AgentResearchRunTests(unittest.TestCase):
                 )
                 self.assertIn(f"extract_sha256={extract_sha256}", payload["input"])
         for payload in payloads:
-            source_context = str(payload["input"]).split(
-                "\n\nPlanner output:",
-                maxsplit=1,
-            )[0]
-            self.assertLessEqual(
-                len(source_context),
-                main.AGENT_RESEARCH_SOURCE_CONTEXT_CHARS
-                + len("Research goal:\npgvector Vectorize planner\n\nBound read-only project sources:\n"),
-            )
+            self.assertEqual(str(payload["input"]).count(source_context), 1)
+        self.assertLessEqual(len(source_context), main.AGENT_RESEARCH_SOURCE_CONTEXT_CHARS)
 
     def test_gateway_failure_stops_pipeline_without_fallback(self) -> None:
         gateway_error = HTTPException(status_code=503, detail="gateway unavailable")
@@ -263,13 +295,138 @@ class AgentResearchRunTests(unittest.TestCase):
         self.assertEqual(raised.exception.status_code, 502)
         self.assertEqual(gateway.call_count, 1)
 
+    def test_oversized_gateway_output_fails_before_next_role(self) -> None:
+        response = gateway_response(
+            "planner",
+            output_text="x" * (main.AGENT_RESEARCH_STEP_OUTPUT_CHARS + 1),
+        )
+        with (
+            patch.object(main, "check_budget_guard", return_value=budget_state()),
+            patch.object(main, "call_llm_gateway_responses", return_value=response) as gateway,
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                main.agent_research_run(main.AgentResearchRunRequest(goal="test"), self.http_request)
+
+        self.assertEqual(raised.exception.status_code, 502)
+        self.assertEqual(
+            raised.exception.detail,
+            "llm gateway returned oversized planner output",
+        )
+        self.assertEqual(gateway.call_count, 1)
+
+    def test_role_profile_drift_stops_before_gateway(self) -> None:
+        with (
+            patch.object(
+                main,
+                "resolve_live_agent_profile",
+                return_value={"agent_id": "coder", "execution_role": "tester"},
+            ),
+            patch.object(main, "call_llm_gateway_responses") as gateway,
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                main.execute_agent_research_step(
+                    role="coder",
+                    profile_id="coder",
+                    label="Coder",
+                    goal="test",
+                    trace_id="trace-agent-run-unit",
+                    source_context="bound context",
+                    source_ids=["project-state"],
+                )
+
+        self.assertEqual(raised.exception.status_code, 503)
+        self.assertEqual(
+            raised.exception.detail,
+            "agent research role binding failed",
+        )
+        gateway.assert_not_called()
+
+    def test_role_profile_alias_stops_before_gateway(self) -> None:
+        with patch.object(main, "call_llm_gateway_responses") as gateway:
+            with self.assertRaises(HTTPException) as raised:
+                main.execute_agent_research_step(
+                    role="planner",
+                    profile_id="explorer",
+                    label="Planner",
+                    goal="test",
+                    trace_id="trace-agent-run-unit",
+                    source_context="bound context",
+                    source_ids=["project-state"],
+                )
+
+        self.assertEqual(raised.exception.status_code, 503)
+        self.assertEqual(
+            raised.exception.detail,
+            "agent research role binding failed",
+        )
+        gateway.assert_not_called()
+
+    def test_gateway_boolean_schema_fails_closed_before_next_role(self) -> None:
+        cases = (
+            ("missing-secret-output", "secret_output", None, True),
+            ("string-secret-output", "secret_output", "true", False),
+            ("string-live-provider-calls", "live_provider_calls", "false", False),
+            ("missing-audit-persisted", "audit_persisted", None, True),
+        )
+        for name, field, value, remove in cases:
+            with self.subTest(name=name):
+                response = gateway_response("planner")
+                if remove:
+                    response.pop(field)
+                else:
+                    response[field] = value
+                with (
+                    patch.object(main, "check_budget_guard", return_value=budget_state()),
+                    patch.object(main, "call_llm_gateway_responses", return_value=response) as gateway,
+                ):
+                    with self.assertRaises(HTTPException) as raised:
+                        main.agent_research_run(
+                            main.AgentResearchRunRequest(goal="test"),
+                            self.http_request,
+                        )
+
+                self.assertEqual(raised.exception.status_code, 502)
+                self.assertEqual(
+                    raised.exception.detail,
+                    "llm gateway returned invalid planner evidence",
+                )
+                self.assertEqual(gateway.call_count, 1)
+
+    def test_gateway_contract_identity_fails_closed_before_next_role(self) -> None:
+        cases = (
+            ("contract_version", "wrong-contract"),
+            ("evidence_ref", "wrong-evidence"),
+            ("trace_id", "wrong-trace"),
+        )
+        for field, value in cases:
+            with self.subTest(field=field):
+                response = gateway_response("planner")
+                response[field] = value
+                with (
+                    patch.object(main, "check_budget_guard", return_value=budget_state()),
+                    patch.object(main, "call_llm_gateway_responses", return_value=response) as gateway,
+                ):
+                    with self.assertRaises(HTTPException) as raised:
+                        main.agent_research_run(
+                            main.AgentResearchRunRequest(goal="test"),
+                            self.http_request,
+                        )
+
+                self.assertEqual(raised.exception.status_code, 502)
+                self.assertEqual(
+                    raised.exception.detail,
+                    "llm gateway returned invalid planner evidence",
+                )
+                self.assertEqual(gateway.call_count, 1)
+
     def test_goal_gateway_output_and_bound_sources_are_redacted(self) -> None:
         input_secret = "password=supersecretvalue"
         output_secret = "ghp_" + ("x" * 20)
         responses = [
             gateway_response("planner", output_text=f"plan {output_secret}"),
-            gateway_response("researcher"),
-            gateway_response("writer"),
+            gateway_response("coder"),
+            gateway_response("tester"),
+            gateway_response("devops"),
         ]
         with (
             patch.object(main, "check_budget_guard", return_value=budget_state()),
@@ -301,8 +458,25 @@ class AgentResearchRunTests(unittest.TestCase):
 
     def test_contract_states_dev_only_gateway_and_bounded_source_claims(self) -> None:
         contract = main.agent_research_run_contract_payload()
-        self.assertEqual(contract["step_roles"], ["planner", "researcher", "writer"])
+        self.assertEqual(
+            contract["step_roles"],
+            ["planner", "coder", "tester", "devops"],
+        )
         self.assertEqual(contract["llm_gateway_endpoint"], "POST /llm/v1/responses")
+        self.assertEqual(
+            contract["role_binding"]["contract_version"],
+            main.AGENT_RESEARCH_ROLE_CONTRACT_VERSION,
+        )
+        self.assertEqual(contract["role_binding"]["gateway_calls"], 4)
+        self.assertTrue(contract["role_binding"]["analysis_only"])
+        self.assertFalse(contract["role_binding"]["tool_calls"])
+        self.assertFalse(contract["role_binding"]["test_execution"])
+        self.assertFalse(contract["role_binding"]["deployment_execution"])
+        self.assertFalse(contract["role_binding"]["autonomous_software_delivery"])
+        self.assertEqual(
+            contract["guards"]["max_step_output_chars"],
+            main.AGENT_RESEARCH_STEP_OUTPUT_CHARS,
+        )
         self.assertFalse(contract["guards"]["direct_provider_calls"])
         self.assertTrue(contract["guards"]["source_retrieval"])
         self.assertFalse(contract["guards"]["source_prompt_instructions_trusted"])

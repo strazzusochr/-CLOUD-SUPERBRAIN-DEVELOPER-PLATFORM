@@ -387,9 +387,9 @@ export const ACTION_MATRIX: readonly PageActionEntry[] = [
     route: "/agents",
     title: "Agents",
     families: [
-      family("agents-research-results", "Research run and source details", "Agent API and gated gateway are reachable.", "Research request renders three agent steps, answer, and hash-bound source details.", [
+      family("agents-research-results", "Research run and source details", "Agent API and gated gateway are reachable.", "Research request renders four analysis-only roles, a DevOps synthesis, and hash-bound source details.", [
         member("agents-goal", "Enter research goal", `input[aria-label="Forschungsziel"]`, "Agent run panel is mounted.", "Research goal state changes.", `input[aria-label="Forschungsziel"]`, "enabled", [GOAL_AGENTS]),
-        member("agents-run", "Run research", `[data-testid="ar-run"]`, "Research goal is non-empty and Agent API is reachable.", "Three agent steps and a non-empty answer become visible.", `[data-testid="ar-result"]`, "enabled", [GOAL_AGENTS]),
+        member("agents-run", "Run research", `[data-testid="ar-run"]`, "Research goal is non-empty and Agent API is reachable.", "Planner, Coder, Tester, DevOps, and a non-empty synthesis become visible.", `[data-testid="ar-result"]`, "enabled", [GOAL_AGENTS]),
         member("agents-source-detail", "Open source detail", `[data-testid^="ar-source-detail-"] > summary`, "A separately verified successful result includes bound sources.", "Selected inline source detail opens and exposes its exact sanitized extract.", `[data-testid^="ar-source-detail-"][open] .ar-source-extract`, "conditional", [GOAL_AGENTS]),
       ]),
     ],

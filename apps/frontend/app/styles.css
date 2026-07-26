@@ -2855,8 +2855,9 @@ p {
 .agent-run .ar-step-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .agent-run .ar-step-body { white-space: pre-wrap; font-size: 12.5px; color: var(--text-dim, #9fb3c8); margin: 0; max-height: 200px; overflow: auto; }
 .agent-run .ar-planner { border-left: 3px solid #9b6bff; }
-.agent-run .ar-researcher { border-left: 3px solid #37f5b5; }
-.agent-run .ar-writer { border-left: 3px solid #2bd1fe; }
+.agent-run .ar-coder { border-left: 3px solid #37f5b5; }
+.agent-run .ar-tester { border-left: 3px solid #2bd1fe; }
+.agent-run .ar-devops { border-left: 3px solid #f6b94a; }
 .agent-run .ar-answer {
   background: rgba(43,209,254,0.06); border: 1px solid rgba(43,209,254,0.22);
   border-radius: 10px; padding: 12px 14px;

@@ -959,6 +959,7 @@ def responses_adapter_payload(normalized: dict[str, Any], content: str, live_cal
         "live_provider_calls": live_call,
         "local_model_calls": local_call,
         "model_downloads": False,
+        "secret_output": False,
         "usage": {
             "input_tokens": usage.get("prompt_tokens", 0),
             "output_tokens": usage.get("completion_tokens", 0),
@@ -1010,8 +1011,10 @@ def responses_adapter_contract_snapshot() -> dict[str, object]:
             "gateway_mode": GATEWAY_MODE,
             "provider_name": "deterministic-dry-run unless live gate and token allow HF router",
             "live_provider_calls": "false in default local and hosted gate-closed mode",
+            "local_model_calls": "true only when the local runtime handled the request",
             "model_downloads": False,
             "audit_persisted": "true when Agent API audit sink is reachable",
+            "secret_output": False,
             "usage": "input_tokens, output_tokens, total_tokens",
         },
         "negative_cases": [

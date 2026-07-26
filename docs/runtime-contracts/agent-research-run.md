@@ -1,4 +1,4 @@
-# Agent Research Run Contract
+# Agent Research Four-Role Run Contract
 
 Status: DEV-ONLY gateway pipeline with bounded repository sources; hosted proof
 still blocked.
@@ -8,8 +8,9 @@ still blocked.
 - Contract: `GET /api/v1/agent-run/contract`
 - Runtime: `POST /api/v1/agent-run`
 - Request: `{"goal":"string"}`
-- Contract version: `agent-research-run-v2`
-- Evidence ref: `agent_research_run_repo_sources_visible`
+- Contract version: `agent-research-run-v3`
+- Evidence ref: `agent_research_four_role_repo_sources_visible`
+- Role contract: `agent-research-four-role-v1`
 - Source contract: `agent-research-repo-source-v1`
 - Source mode: `repo_allowlist_lexical`
 
@@ -51,16 +52,34 @@ readback endpoint, so the fixed reader cannot become a general file browser.
 
 ## Pipeline
 
-The Agent API runs three serial, read-only steps:
+The Agent API runs four serial, read-only analysis steps in the canonical
+runtime-role order:
 
-1. Planner creates a source-grounded bounded plan.
-2. Researcher develops notes from the goal, plan, and exact source excerpts.
-3. Writer produces the final answer from the same bound context.
+1. Planner creates a source-grounded bounded implementation-analysis plan.
+2. Coder develops an implementation analysis or patch outline without editing
+   files.
+3. Tester reviews the proposal and produces a verification matrix without
+   running commands or tests.
+4. DevOps synthesizes supported facts, proposed work, verification, blockers,
+   and the next safe action without deploying.
 
 Every step crosses the Layer 4 LLM Gateway Responses boundary at
 `POST /llm/v1/responses`. Metadata carries the source mode and exact source IDs.
 The Agent API does not call a provider URL directly and does not set
 `metadata.live_provider_calls_allowed`.
+
+`role_binding` is fail-closed on exactly `planner`, `coder`, `tester`, and
+`devops`; aliases are rejected even when they map to the same execution lane.
+It exposes four Gateway calls and marks `analysis_only=true`,
+`tool_calls=false`, `filesystem_writes=false`, `test_execution=false`,
+`deployment_execution=false`, and `autonomous_software_delivery=false`.
+Every returned step repeats its execution role, fixed profile, exact source
+IDs, and the same non-action guards. A role/profile mismatch stops before that
+Gateway call. The Gateway response must carry the exact adapter contract,
+evidence ref, echoed trace ID, and real booleans for provider/local/model,
+audit, and secret-output flags; missing or string-coerced flags fail closed.
+Each redacted role output is capped at 2,000 Unicode code points; an empty,
+secret-signaled, incomplete, or oversized output stops the chain.
 
 ## Guards And Non-Claims
 
@@ -68,6 +87,9 @@ The Agent API does not call a provider URL directly and does not set
 - source reads are fixed, bounded, redacted, read-only, and fail closed
 - arbitrary path input, external retrieval, filesystem writes, and MCP writes
   are false
+- all four roles perform source-grounded analysis only; no tool, file, test, or
+  deployment execution is claimed
+- four role outputs do not prove autonomous software delivery
 - source-read audit persistence is not claimed
 - lexical project grounding is not semantic or external fact verification
 - Gateway failure, incomplete status, secret-output signal, or empty output

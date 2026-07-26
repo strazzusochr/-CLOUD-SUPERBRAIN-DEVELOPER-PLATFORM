@@ -7,8 +7,10 @@ const SOURCE_PATHS = {
   "project-progress": "docs/project-progress.manifest.json",
   "agent-roster": "docs/codex-integration/autonomous-agent-roster.json",
 } as const;
+const STEP_ROLES = ["planner", "coder", "tester", "devops"] as const;
 
 type SourceId = keyof typeof SOURCE_PATHS;
+type StepRole = typeof STEP_ROLES[number];
 type Source = {
   source_id: SourceId;
   title: string;
@@ -33,17 +35,49 @@ type SourceBinding = {
   source_retrieval_audit_persisted: false;
   file_wide_secret_absence_certified: false;
 };
-type Step = { role: string; label: string; content: string; ms: number };
+type RoleBinding = {
+  contract_version: "agent-research-four-role-v1";
+  status: "bound";
+  role_order: StepRole[];
+  work_mode: "source_grounded_analysis";
+  gateway_calls: 4;
+  analysis_only: true;
+  tool_calls: false;
+  filesystem_writes: false;
+  test_execution: false;
+  deployment_execution: false;
+  autonomous_software_delivery: false;
+};
+type Step = {
+  role: StepRole;
+  execution_role: StepRole;
+  profile_id: StepRole;
+  label: string;
+  content: string;
+  ms: number;
+  source_ids: SourceId[];
+  analysis_only: true;
+  tool_calls: false;
+  filesystem_writes: false;
+};
+type Budget = {
+  level: "ok" | "warning" | "critical";
+  spent_percentage: number;
+  total_cost_cents: number;
+  budget_limit_cents: number;
+};
 type Run = {
-  contract_version: string;
-  evidence_ref: string;
-  status: string;
-  mode: string;
+  contract_version: "agent-research-run-v3";
+  evidence_ref: "agent_research_four_role_repo_sources_visible";
+  status: "completed";
+  mode: "dev_only_gateway_four_role_repo_sources";
   goal: string;
   provider: string;
+  gateway_providers: string[];
   steps: Step[];
   sources: Source[];
   source_binding: SourceBinding;
+  role_binding: RoleBinding;
   answer: string;
   trace_id: string;
   live_provider_calls: boolean;
@@ -54,9 +88,28 @@ type Run = {
   secret_output: false;
   direct_provider_calls: false;
   production_deploy: false;
-  budget: Record<string, unknown>;
+  budget: Budget;
   non_claims: string[];
 };
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isBudget(body: unknown): body is Budget {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return false;
+  const budget = body as Partial<Budget>;
+  return (budget.level === "ok" || budget.level === "warning" || budget.level === "critical")
+    && typeof budget.spent_percentage === "number"
+    && Number.isFinite(budget.spent_percentage)
+    && budget.spent_percentage >= 0
+    && typeof budget.total_cost_cents === "number"
+    && Number.isInteger(budget.total_cost_cents)
+    && budget.total_cost_cents >= 0
+    && typeof budget.budget_limit_cents === "number"
+    && Number.isInteger(budget.budget_limit_cents)
+    && budget.budget_limit_cents > 0;
+}
 
 function isSource(body: unknown): body is Source {
   if (!body || typeof body !== "object") return false;
@@ -82,17 +135,39 @@ function isRun(body: unknown): body is Run {
   if (!body || typeof body !== "object") return false;
   const candidate = body as Partial<Run>;
   const binding = candidate.source_binding as Partial<SourceBinding> | undefined;
+  const roleBinding = candidate.role_binding as Partial<RoleBinding> | undefined;
   const sourceIds = Array.isArray(candidate.sources)
     ? candidate.sources.map((source) => (source as Partial<Source>).source_id)
     : [];
-  return candidate.contract_version === "agent-research-run-v2"
-    && candidate.evidence_ref === "agent_research_run_repo_sources_visible"
+  return candidate.contract_version === "agent-research-run-v3"
+    && candidate.evidence_ref === "agent_research_four_role_repo_sources_visible"
     && candidate.status === "completed"
-    && candidate.mode === "dev_only_gateway_repo_sources"
-    && typeof candidate.provider === "string"
-    && typeof candidate.answer === "string"
+    && candidate.mode === "dev_only_gateway_four_role_repo_sources"
+    && isNonEmptyString(candidate.goal)
+    && isNonEmptyString(candidate.provider)
+    && Array.isArray(candidate.gateway_providers)
+    && candidate.gateway_providers.every(isNonEmptyString)
+    && isNonEmptyString(candidate.answer)
     && Array.isArray(candidate.steps)
-    && candidate.steps.map((step) => step.role).join(",") === "planner,researcher,writer"
+    && candidate.steps.length === STEP_ROLES.length
+    && candidate.steps.every((step, index) => (
+      step.role === STEP_ROLES[index]
+      && step.execution_role === STEP_ROLES[index]
+      && step.profile_id === STEP_ROLES[index]
+      && typeof step.label === "string"
+      && typeof step.content === "string"
+      && step.content.length >= 1
+      && Array.from(step.content).length <= 2000
+      && typeof step.ms === "number"
+      && Number.isFinite(step.ms)
+      && step.ms >= 0
+      && Array.isArray(step.source_ids)
+      && step.source_ids.join(",") === sourceIds.join(",")
+      && step.analysis_only === true
+      && step.tool_calls === false
+      && step.filesystem_writes === false
+    ))
+    && candidate.answer === candidate.steps.at(-1)?.content
     && Array.isArray(candidate.sources)
     && candidate.sources.length >= 1
     && candidate.sources.length <= 3
@@ -111,11 +186,30 @@ function isRun(body: unknown): body is Run {
     && binding.source_prompt_instructions_trusted === false
     && binding.source_retrieval_audit_persisted === false
     && binding.file_wide_secret_absence_certified === false
+    && roleBinding?.contract_version === "agent-research-four-role-v1"
+    && roleBinding.status === "bound"
+    && Array.isArray(roleBinding.role_order)
+    && roleBinding.role_order.join(",") === STEP_ROLES.join(",")
+    && roleBinding.work_mode === "source_grounded_analysis"
+    && roleBinding.gateway_calls === 4
+    && roleBinding.analysis_only === true
+    && roleBinding.tool_calls === false
+    && roleBinding.filesystem_writes === false
+    && roleBinding.test_execution === false
+    && roleBinding.deployment_execution === false
+    && roleBinding.autonomous_software_delivery === false
     && candidate.direct_provider_calls === false
     && candidate.live_mcp_writes === false
     && candidate.production_deploy === false
     && candidate.secret_output === false
-    && Array.isArray(candidate.non_claims);
+    && typeof candidate.live_provider_calls === "boolean"
+    && typeof candidate.local_model_calls === "boolean"
+    && typeof candidate.model_downloads === "boolean"
+    && typeof candidate.audit_persisted === "boolean"
+    && isNonEmptyString(candidate.trace_id)
+    && isBudget(candidate.budget)
+    && Array.isArray(candidate.non_claims)
+    && candidate.non_claims.every(isNonEmptyString);
 }
 
 // Multi-agent runner. The server route forwards only to the Agent API boundary;
@@ -140,7 +234,7 @@ export function AgentRun() {
       if (!res.ok) {
         setErr(String(body.detail ?? body.error ?? `${res.status} ${res.statusText}`));
       } else if (!isRun(body)) {
-        setErr("Agent API lieferte keine vollständige agent-research-run-v2-Antwort.");
+        setErr("Agent API lieferte keine vollständige agent-research-run-v3-Antwort.");
       } else {
         setRun(body);
       }
@@ -175,6 +269,9 @@ export function AgentRun() {
           data-contract-version={run.contract_version}
           data-status={run.status}
           data-live-provider-calls={String(run.live_provider_calls)}
+          data-audit-persisted={String(run.audit_persisted)}
+          data-analysis-only={String(run.role_binding.analysis_only)}
+          data-role-count={String(run.role_binding.gateway_calls)}
         >
           <div className="note" data-testid="ar-contract">
             <div className="chips">
@@ -189,6 +286,9 @@ export function AgentRun() {
               </span>
               <span className="badge badge-green">
                 sources={run.source_binding.source_count} · read-only
+              </span>
+              <span className="badge badge-green">
+                roles={run.role_binding.gateway_calls} · analysis-only
               </span>
               <span className="badge badge-green">direct_provider_calls=false</span>
               <span className="badge badge-green">live_mcp_writes=false</span>
@@ -206,7 +306,7 @@ export function AgentRun() {
             ))}
           </div>
           <div className="ar-answer">
-            <div className="ar-step-head"><b>Ergebnis</b><span className="mono text-12 text-mut">Gateway-Bericht · {run.provider}</span></div>
+            <div className="ar-step-head"><b>Ergebnis</b><span className="mono text-12 text-mut">DevOps-Synthese · {run.provider}</span></div>
             <div className="ar-answer-body">{run.answer}</div>
           </div>
           {run.sources.length ? (

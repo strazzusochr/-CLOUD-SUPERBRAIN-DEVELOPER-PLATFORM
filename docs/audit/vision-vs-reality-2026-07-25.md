@@ -2,7 +2,7 @@
 
 Stand: 2026-07-27
 Audit-Stichtag: 2026-07-25 / Session 10
-Aktualisiert: 2026-07-27 / Session 11 (`agent-research-run-v2`)
+Aktualisiert: 2026-07-27 / Session 11 (`agent-research-run-v3`)
 Scope: Produkt, 22 Seiten, 7 Layer, Funktionen, Optionen, Tools, Skills,
 Agenten, Modelle und Cloud-Ziele
 Fortschrittswirkung: **0 Prozentpunkte**; reine Wahrheitsinventur
@@ -124,7 +124,7 @@ sein; das ändert das Primärurteil nicht.
 | 4 | `/organism` | Live-3D-Cortex, Hubs, Run-State, Inspector | R3F/three.js, GLB/Fallback, Kamera-, Szenen-, Gameplay-, Accessibility- und lokale Statuscontrols sind echt. Events/Replay werden gelesen; echte Cloud-Telemetrie und Tool-/Agentenpulse sind Projektionen. | **ECHT NUTZBAR — DEV-ONLY**; Live-Telemetrie **NUR CONTRACT** | OTel-/Agenten-/MCP-Ereignisse an Cortex binden |
 | 5 | `/organism/replay` | Timeline, Filter, Playback | Lokale Organism-Controls funktionieren; Replay-/Event-Routen können auf redaktierte, deterministische Fallbacks zurückfallen. Ein persistierter echter Agenten-/Providerlauf wurde nicht als vollständiger Replay-Player abgenommen. | **NUR CONTRACT** | Persistierte, korrelierte Live-Runs |
 | 6 | `/organism/map` | Topologie, Knotenwahl, Details | Die Route zeigt dieselbe `OrganismView` mit Map-Label. `OrganismView` liest Live-State, Events und Replay, aber nicht den geforderten `/api/v1/organism/topology`-Pfad; damit ist die behauptete Topologiebindung statisch. | **STUB/MOCK** | Eigene topology-gebundene Kartenansicht |
-| 7 | `/agents` | Start/Pause/Kill/Reset, Status, Policies, echte Research-Pipeline | UI, Proxy und Python Agent API sind auf `/api/v1/agent-run` gebunden. `agent-research-run-v2` liefert Planner→Researcher→Writer mit ein bis drei echten, sanitierten und hash-gebundenen Exzerpten aus exakt drei festen Projektwahrheiten. Es gibt keinen Benutzerpfad, keine externe Quelle, keinen Readback-Link und keinen separaten Source-Read-Audit-Claim. Die geforderten Steuerungen, externe Toolarbeit und eine autonome Vier-Rollen-Lieferung sind nicht live belegt. | **NUR CONTRACT** | Externe Quellen-/Toolarbeit und vollständige Agentensteuerung |
+| 7 | `/agents` | Start/Pause/Kill/Reset, Status, Policies, echte Research-Pipeline | UI, Proxy und Python Agent API sind auf `/api/v1/agent-run` gebunden. `agent-research-run-v3` führt Planner→Coder→Tester→DevOps in vier getrennten Gateway-Aufrufen über ein bis drei echte, sanitisierte und hash-gebundene Exzerpte aus exakt drei festen Projektwahrheiten. Kanonische Profil-ID ohne Alias, Rolle, Reihenfolge, Quellen-IDs, Gateway-Vertrag/Evidence/Trace, fünf echte Boolean-Flags und 2.000-Zeichen-Ausgabelimit sind fail-closed gebunden; die UI prüft diese Wahrheitsfelder ebenfalls streng. Alle vier Schritte bleiben ausdrücklich `analysis_only`; es gibt keinen Benutzerpfad, keine externe Quelle, keinen Readback-Link, keinen separaten Source-Read-Audit-Claim und keine Tool-, Datei-, Test- oder Deploy-Ausführung. Die geforderten Steuerungen, externe Toolarbeit und autonome Softwarelieferung sind nicht live belegt. | **NUR CONTRACT** | Externe Quellen-/Toolarbeit, echte Artefakt-/Testwirkung und vollständige Agentensteuerung |
 | 8 | `/files` | Knowledge Bases, Vektoren, Graph, Inspector, Suche | Seed, Speicherung und lexikalische Suche sind lokal sowie in einem begrenzten Hosted-D1-Proof echt. Embeddings/semantische Suche und Graphwirkung sind nicht belegt. | **ECHT NUTZBAR** für lexikalische Memory; Vector/Graph **FEHLT** | O5: Hosted Vectorize-Semantik |
 | 9 | `/files/local` | Read-only Host-Dateibrowser, DEV-ONLY | Eine kontrollierte, redaktierte statische Auswahl-/Vertragsfläche ist vorhanden. Alle fünf Aktionen sind `spec_only`; freier Host-FS-Zugriff findet nicht statt. | **STUB/MOCK** | Echter, workspace-begrenzter Read-only-Adapter |
 | 10 | `/tools` | MCP-Katalog, Scopes, read-only Execute, Status | Client, Proxy und Backend verwenden den gleichen Projekt-/Tool-/Query-Vertrag. Die allowlist-begrenzten internen Tools `memory_read` und `task_router` laufen read-only mit Ergebnis und Audit-ID; verbotene Tools bleiben fail-closed. Externe MCP-Adapter bleiben Dry-run. | **ECHT NUTZBAR — DEV-ONLY** für interne Read-only-Calls | Externe MCP-Adapter und gegatete Writes |
@@ -215,7 +215,7 @@ umgestellt werden.
 
 | ADR | Befund | Klasse |
 | --- | --- | --- |
-| ADR-001 LangGraph | Echter `StateGraph`/Checkpointer lokal; `/agents` besitzt einen Planner→Researcher→Writer-Produktpfad mit begrenzter Projektquellenbindung, aber keine vollständige externe toolgestützte Vier-Rollen-LangGraph-Agentenarbeit. | Kern **ECHT NUTZBAR**; Produktbindung **NUR CONTRACT** |
+| ADR-001 LangGraph | Echter `StateGraph`/Checkpointer lokal; `/agents` besitzt einen fail-closed gebundenen Planner→Coder→Tester→DevOps-Analysepfad mit begrenzten Projektquellen, aber keine externe toolgestützte Vier-Rollen-LangGraph-Softwarelieferung. | Kern **ECHT NUTZBAR**; Produktbindung **NUR CONTRACT** |
 | ADR-002 LiteLLM | P0 belegt Gateway-only und keinen Browser-Direktprovider, aber den separaten Workers-AI-Pfad statt einer vollständig live verifizierten LiteLLM-Laufzeit. | **NUR CONTRACT / Entscheidungsdrift** |
 | ADR-003 No AutoGen | Keine AutoGen-Nutzung gefunden; kein Verstoß. | **ECHT eingehalten**, ohne eigenen Runtime-Claim |
 | ADR-004 | Datei ist durch ADR-007 superseded; ADR-Index führt sie weiter als accepted. | **Dokudrift** |
@@ -236,7 +236,7 @@ umgestellt werden.
 | Coder | Task-Envelope und Ergebnisaggregation existieren; keine echte Branch-/Codeänderung durch den Runtime-Agenten. | Orchestrierung **ECHT NUTZBAR**; Ergebnis **STUB/MOCK** |
 | Tester | Task-Envelope und Status existieren; keine reale Testausführung über den Produkt-Agenten. | Orchestrierung **ECHT NUTZBAR**; Ergebnis **STUB/MOCK** |
 | DevOps | Gated Workflowplan und Status existieren; kein Registry-Push oder Deploy. | **NUR CONTRACT** |
-| Research-Pipeline auf `/agents` | UI, Proxy und Python-Endpoint führen einen Planner→Researcher→Writer-Ablauf mit begrenzter, read-only Projektquellenbindung aus. Externe Quellen, Tools, Source-Read-Audit und Vier-Rollen-Arbeit sind nicht belegt. | **NUR CONTRACT** |
+| Research-Pipeline auf `/agents` | UI, Proxy und Python-Endpoint führen Planner→Coder→Tester→DevOps mit begrenzter, read-only Projektquellenbindung und expliziter Analyse-only-Rollenbindung aus. Externe Quellen, Tools, Source-Read-Audit, Dateiänderung, Testausführung und Deployment sind nicht belegt. | **NUR CONTRACT** |
 | Start/Pause/Kill/Reset | Teilweise Status-/Plancontrols; keine vollständig live bewiesene Agentensteuerung. | **NUR CONTRACT** |
 | Elastische/remote Agentenflotte | Kein Hosted-Scale-/Capacity-Proof. | **FEHLT** |
 
@@ -465,8 +465,9 @@ werden.
 3. **Produktionsidentität (O1):** reale OAuth-App, Hosted Callback,
    persistierte Identität, Refresh/Logout und Sicherheitsproof.
 4. **Echte Agentenarbeit:** externe Quellen-/Toolarbeit und
-   Planner/Coder/Tester/DevOps, die begrenzte reale Arbeit über die vorhandene
-   feste Projektquellenbindung hinaus ausführen.
+   Planner/Coder/Tester/DevOps, die über die vorhandene vierrollige
+   Analyse-only-Projektquellenbindung hinaus begrenzte Artefakt-, Test- und
+   Laufzeitwirkung ausführen und auditiert belegen.
 5. **Externe MCP-Adapter und später Writes (O4):** zunächst mindestens ein
    realer, sicherer externer Providercall; Writes nur mit Allowlist,
    Branch Protection und Audit.

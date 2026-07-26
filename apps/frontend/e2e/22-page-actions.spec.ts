@@ -1004,6 +1004,18 @@ async function auditMember(
             intervals: [100, 250, 500],
           }).toBe(true);
         }
+        if (action.id === "agents-run") {
+          const result = page.getByTestId("ar-result");
+          await expect(result).toHaveAttribute("data-contract-version", "agent-research-run-v3");
+          await expect(result).toHaveAttribute("data-live-provider-calls", /^(true|false)$/);
+          await expect(result).toHaveAttribute("data-audit-persisted", /^(true|false)$/);
+          await expect(result).toHaveAttribute("data-analysis-only", "true");
+          await expect(result).toHaveAttribute("data-role-count", "4");
+          await expect(result.locator(".ar-step")).toHaveCount(4);
+          for (const role of ["planner", "coder", "tester", "devops"]) {
+            await expect(result.locator(`.ar-${role}`)).toBeVisible();
+          }
+        }
         const explicitBlocked = BLOCKED_ERROR_PATTERN.test(afterEffect.text);
         detail = {
           ...detail,

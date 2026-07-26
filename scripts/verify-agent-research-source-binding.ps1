@@ -31,8 +31,10 @@ function Assert-NotContains {
 Push-Location $repoRoot
 try {
   $mainPath = "services\agent-api\app\main.py"
+  $llmGatewayPath = "services\llm-gateway\app\main.py"
   $testPath = "services\agent-api\tests\test_agent_research_run.py"
   $frontendPath = "apps\frontend\components\agent-run.tsx"
+  $stylesPath = "apps\frontend\app\styles.css"
   $actionMatrixPath = "apps\frontend\lib\actionMatrix.ts"
   $actionSpecPath = "apps\frontend\e2e\22-page-actions.spec.ts"
   $contractPath = "docs\runtime-contracts\agent-research-run.md"
@@ -43,8 +45,10 @@ try {
 
   foreach ($path in @(
     $mainPath,
+    $llmGatewayPath,
     $testPath,
     $frontendPath,
+    $stylesPath,
     $actionMatrixPath,
     $actionSpecPath,
     $contractPath,
@@ -60,8 +64,26 @@ try {
 
   $mainSource = Get-Content -LiteralPath $mainPath -Raw
   foreach ($required in @(
-    'agent-research-run-v2',
-    'agent_research_run_repo_sources_visible',
+    'agent-research-run-v3',
+    'agent_research_four_role_repo_sources_visible',
+    'agent-research-four-role-v1',
+    'AGENT_RESEARCH_STEP_ROLES = ("planner", "coder", "tester", "devops")',
+    'AGENT_RESEARCH_STEP_OUTPUT_CHARS = 2_000',
+    'agent_research_role_binding_payload',
+    '"analysis_only": True',
+    '"tool_calls": False',
+    '"test_execution": False',
+    '"deployment_execution": False',
+    '"autonomous_software_delivery": False',
+    'if profile_id != role',
+    'profile.get("agent_id") != role or execution_role != role',
+    'AGENT_RESEARCH_GATEWAY_BOOLEAN_FIELDS',
+    'type(response_payload.get(field)) is not bool',
+    'response_payload.get("contract_version") != LLM_RESPONSES_ADAPTER_CONTRACT_VERSION',
+    'response_payload.get("evidence_ref") != LLM_RESPONSES_ADAPTER_EVIDENCE_REF',
+    'response_payload.get("trace_id") != trace_id',
+    'strict_contract_evidence_trace_and_booleans',
+    'llm gateway returned oversized {role} output',
     'agent-research-repo-source-v1',
     'repo_allowlist_lexical',
     '"project-state"',
@@ -96,16 +118,29 @@ try {
   }
   foreach ($forbidden in @(
     'AGENT_RESEARCH_RUN_CONTRACT_VERSION = "agent-research-run-v1"',
+    'AGENT_RESEARCH_RUN_CONTRACT_VERSION = "agent-research-run-v2"',
+    '"step_roles": ["planner", "researcher", "writer"]',
     '/api/v1/agent-run/sources/{source_id}',
     'return redact_text("\n\n".join(sections))[:AGENT_RESEARCH_SOURCE_CONTEXT_CHARS]'
   )) {
     Assert-NotContains "Agent API" $mainSource $forbidden
   }
 
+  $llmGatewaySource = Get-Content -LiteralPath $llmGatewayPath -Raw
+  Assert-Contains "LLM Gateway Responses adapter" $llmGatewaySource '"secret_output": False'
+  Assert-Contains "LLM Gateway Responses adapter" $llmGatewaySource '"local_model_calls": local_call'
+
   $testSource = Get-Content -LiteralPath $testPath -Raw
   foreach ($required in @(
-    'test_three_steps_use_gateway_only_and_match_frontend_shape',
-    'test_three_source_context_is_exact_and_hash_bound_in_every_gateway_payload',
+    'test_four_steps_use_gateway_only_and_match_frontend_shape',
+    'test_three_source_context_is_exact_and_hash_bound_in_all_four_gateway_payloads',
+    'test_oversized_gateway_output_fails_before_next_role',
+    'test_role_profile_drift_stops_before_gateway',
+    'test_role_profile_alias_stops_before_gateway',
+    'test_gateway_boolean_schema_fails_closed_before_next_role',
+    'test_gateway_contract_identity_fails_closed_before_next_role',
+    '["planner", "coder", "tester", "devops"]',
+    '"llm gateway returned oversized planner output"',
     'test_tampered_extract_hash_stops_before_gateway',
     'test_source_context_overflow_stops_before_gateway',
     'test_source_loading_is_bounded_redacted_and_hash_explicit',
@@ -127,8 +162,20 @@ try {
   $frontendSource = Get-Content -LiteralPath $frontendPath -Raw
   foreach ($required in @(
     'SOURCE_PATHS',
-    'agent-research-run-v2',
-    'agent_research_run_repo_sources_visible',
+    'STEP_ROLES = ["planner", "coder", "tester", "devops"]',
+    'agent-research-run-v3',
+    'agent_research_four_role_repo_sources_visible',
+    'agent-research-four-role-v1',
+    'source_grounded_analysis',
+    'candidate.answer === candidate.steps.at(-1)?.content',
+    'roleBinding.autonomous_software_delivery === false',
+    'typeof candidate.live_provider_calls === "boolean"',
+    'typeof candidate.audit_persisted === "boolean"',
+    'isNonEmptyString(candidate.trace_id)',
+    'isBudget(candidate.budget)',
+    'candidate.non_claims.every(isNonEmptyString)',
+    'data-audit-persisted={String(run.audit_persisted)}',
+    'roles={run.role_binding.gateway_calls} · analysis-only',
     'agent-research-repo-source-v1',
     'repo_allowlist_lexical',
     'source_retrieval_audit_persisted',
@@ -147,19 +194,46 @@ try {
   }
   Assert-NotContains "Agent Research frontend" $frontendSource 'href={s.url}'
 
+  $stylesSource = Get-Content -LiteralPath $stylesPath -Raw
+  foreach ($required in @(
+    '.agent-run .ar-planner',
+    '.agent-run .ar-coder',
+    '.agent-run .ar-tester',
+    '.agent-run .ar-devops'
+  )) {
+    Assert-Contains "Agent Research styles" $stylesSource $required
+  }
+  Assert-NotContains "Agent Research styles" $stylesSource '.agent-run .ar-researcher'
+  Assert-NotContains "Agent Research styles" $stylesSource '.agent-run .ar-writer'
+
   $actionMatrixSource = Get-Content -LiteralPath $actionMatrixPath -Raw
   Assert-Contains "Action matrix" $actionMatrixSource 'agents-source-detail'
   Assert-Contains "Action matrix" $actionMatrixSource 'exact sanitized extract'
+  Assert-Contains "Action matrix" $actionMatrixSource 'four analysis-only roles'
   Assert-NotContains "Action matrix" $actionMatrixSource 'agents-source-link'
 
   $actionSpecSource = Get-Content -LiteralPath $actionSpecPath -Raw
   Assert-Contains "22-page action spec" $actionSpecSource '"agents-source-detail"'
+  Assert-Contains "22-page action spec" $actionSpecSource '"agent-research-run-v3"'
+  Assert-Contains "22-page action spec" $actionSpecSource '["planner", "coder", "tester", "devops"]'
+  Assert-Contains "22-page action spec" $actionSpecSource '"data-audit-persisted"'
+  Assert-Contains "22-page action spec" $actionSpecSource '"data-analysis-only", "true"'
   Assert-NotContains "22-page action spec" $actionSpecSource 'agents-source-link'
 
   $contractSource = Get-Content -LiteralPath $contractPath -Raw
   foreach ($required in @(
-    'agent-research-run-v2',
-    'agent_research_run_repo_sources_visible',
+    'agent-research-run-v3',
+    'agent_research_four_role_repo_sources_visible',
+    'agent-research-four-role-v1',
+    'Planner creates',
+    'Coder develops',
+    'Tester reviews',
+    'DevOps synthesizes',
+    'analysis_only=true',
+    'autonomous_software_delivery=false',
+    'aliases are rejected',
+    'missing or string-coerced flags fail closed',
+    '2,000 Unicode code points',
     'agent-research-repo-source-v1',
     'repo_allowlist_lexical',
     'PROJECT_STATE.md',
@@ -176,10 +250,10 @@ try {
   Assert-NotContains "Agent Research contract document" $contractSource '/api/v1/agent-run/sources/{source_id}'
 
   foreach ($truthSpec in @(
-    [pscustomobject]@{ Path = $projectStatePath; Marker = 'Session-11 P3 Repository-Quellenbindung' },
-    [pscustomobject]@{ Path = $handoffPath; Marker = 'Session 11 P3 repository source binding' },
-    [pscustomobject]@{ Path = $verificationPath; Marker = 'Current Session-11 Agent Research Repository Source Binding' },
-    [pscustomobject]@{ Path = $auditPath; Marker = 'agent-research-run-v2' }
+    [pscustomobject]@{ Path = $projectStatePath; Marker = 'Session-11 P3 Vier-Rollen-Quellenanalyse' },
+    [pscustomobject]@{ Path = $handoffPath; Marker = 'Session 11 P3 four-role source analysis' },
+    [pscustomobject]@{ Path = $verificationPath; Marker = 'Current Session-11 Agent Research Four-Role Source Analysis' },
+    [pscustomobject]@{ Path = $auditPath; Marker = 'agent-research-run-v3' }
   )) {
     $truthSource = Get-Content -LiteralPath $truthSpec.Path -Raw
     Assert-Contains "Truth mirror $($truthSpec.Path)" $truthSource $truthSpec.Marker
@@ -207,7 +281,8 @@ if not result.wasSuccessful():
     raise SystemExit(1)
 print(
     f"[agent-research-source] syntax=pass tests={count}/{count} "
-    "allowlist=3 read_only=true external_network=false filesystem_writes=false "
+    "allowlist=3 roles=4 analysis_only=true read_only=true "
+    "external_network=false filesystem_writes=false "
     "source_audit_claim=false"
 )
 '@ | py -3 -

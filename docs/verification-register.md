@@ -7,41 +7,49 @@ Status: Active
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `86%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `68%`, Phase 6 `90%`, Frontend `100%`, Agent Pool `69%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `90%`, and Observability `100%`.
 
-## Current Session-11 Agent Research Repository Source Binding
+## Current Session-11 Agent Research Four-Role Source Analysis
 
-`agent-research-run-v2` binds `/api/v1/agent-run` to exactly three fixed,
-baked/read-only-mounted project-truth artifacts. All three must pass fixed
-layout, parent/terminal symlink-or-junction, resolved containment,
-regular-file, bounded 512 KiB read, UTF-8, redaction, sensitive-line, and
-long-hex guards before the first Gateway request. The client supplies no path;
-external retrieval and all filesystem/MCP writes remain false.
+`agent-research-run-v3` binds `/api/v1/agent-run` to exactly four ordered
+Gateway roles and exactly three fixed, baked/read-only-mounted project-truth
+artifacts. All three sources must pass fixed layout, parent/terminal
+symlink-or-junction, resolved containment, regular-file, bounded 512 KiB read,
+UTF-8, redaction, sensitive-line, and long-hex guards before the first Gateway
+request. The client supplies no path; external retrieval and all
+filesystem/MCP writes remain false.
 
 Lexical ranking returns one to three real sources, with an explicit
 `baseline_fallback` only when no term matches. Each response source carries the
 fixed canonical project path, exact sanitized inline extract, and separate
 raw-document, sanitized-document, and extract SHA-256 values. The same complete
-hash-bound extracts enter all Planner, Researcher, and Writer payloads; context
-overflow fails closed instead of truncating an extract after hashing. There is
-no source URL/readback endpoint. The `/agents` UI validates the allowlist and
-contract guards and exposes expandable inline details. The action matrix now
-registers that real detail control instead of a nonexistent external link.
+hash-bound extracts enter Planner, Coder, Tester, and DevOps payloads; context
+overflow fails closed instead of truncating an extract after hashing.
+`agent-research-four-role-v1` rejects role/profile/order drift and same-lane
+aliases, repeats the exact source IDs per step, and caps each redacted role
+output at 2,000 Unicode code points. Gateway responses must match the adapter
+contract, evidence ref, echoed trace ID, and five exact Boolean truth fields;
+missing or string-coerced values fail closed. There is no source URL/readback
+endpoint. The `/agents` UI validates the allowlist, four-role binding,
+per-step non-action guards, live/local/audit/model truth fields, budget,
+trace ID, non-claims, and final DevOps synthesis and exposes expandable inline
+details. The action matrix now expects four analysis-only roles.
 
 `source_retrieval_audit_persisted=false` and
 `file_wide_secret_absence_certified=false` are explicit non-claims. The
-sanitizer is defense in depth; canonical gitleaks remains required. Dedicated
-verification is `scripts/verify-agent-research-source-binding.ps1`, wired into
-`scripts/verify-phase1.ps1`. The dedicated suite passed `18/18`; frontend
-TypeScript, focused ESLint, Next.js production build `21/21`, the progress
-manifest verifier, and full `scripts/verify-phase1.ps1` passed. Its canonical
-gitleaks mirror scanned 3,720 tracked and untracked repository files and found
-no leaks, including the new verifier and all slice files. Docker Desktop was
-not running, so this slice creates no new browser/runtime/hosted
-proof. The conditional action rename from the nonexistent `agents-source-link`
-to `agents-source-detail` leaves the 184 enabled-action scope unchanged, but
-the Session-10 22-page report is no longer bound to the exact current registry
-source hash and must be rerun when Docker is available. No progress credit:
-Overall remains `86%`, Phase 3 remains `44%`, `MARKET_READY:false`; DEV-ONLY,
-hosted proof still blocked.
+sanitizer is defense in depth; canonical gitleaks remains required. The four
+roles perform source-grounded analysis only:
+`tool_calls=false`, `filesystem_writes=false`, `test_execution=false`,
+`deployment_execution=false`, and `autonomous_software_delivery=false`.
+Dedicated verification is
+`scripts/verify-agent-research-source-binding.ps1`, wired into
+`scripts/verify-phase1.ps1`. The focused suite passes `23/23`; Agent API and
+LLM Gateway Python compile, frontend TypeScript, focused ESLint, production
+build `21/21`, progress-manifest verification, npm audit, full Phase-1 static
+verification, and canonical gitleaks over `3720` repository files pass.
+Docker Desktop is not running, so this slice creates no new
+browser/runtime/hosted proof. The Session-10 22-page report remains historical
+and must be rerun when Docker is available. No progress credit: Overall
+remains `86%`, Phase 3 remains `44%`, `MARKET_READY:false`; DEV-ONLY, hosted
+proof still blocked.
 
 ## Current Session-10 Product And Action Acceptance
 
