@@ -1023,6 +1023,20 @@ class LiveAgentSteerRequest(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class AgentResearchRunRequest(BaseModel):
+    goal: str = Field(..., min_length=1, max_length=10_000)
+
+    @field_validator("goal")
+    @classmethod
+    def validate_goal(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("goal must not be blank")
+        return normalized
+
+    model_config = {"extra": "forbid"}
+
+
 class RotationEventRequest(BaseModel):
     from_provider: str = Field(..., min_length=1, max_length=100)
     to_provider: str = Field(..., min_length=1, max_length=100)
@@ -1154,6 +1168,20 @@ class WorkspaceArtifactRequest(BaseModel):
     metadata: dict[str, object] = Field(default_factory=dict)
 
 
+class BuildRegistryRequest(BaseModel):
+    id: str = Field(..., min_length=1, max_length=64, pattern="^[A-Za-z0-9_-]+$")
+    project_id: str = Field(default="default", min_length=1, max_length=255, pattern="^[A-Za-z0-9_.-]+$")
+    title: str = Field(..., min_length=1, max_length=160)
+    prompt: str = Field(..., min_length=1, max_length=10_000)
+    model: str = Field(..., min_length=1, max_length=160)
+    html: str = Field(..., min_length=32, max_length=160_000)
+    gateway_mode: str = Field(default="unknown", min_length=1, max_length=80)
+    gateway_provider: str = Field(default="unknown", min_length=1, max_length=80)
+    live_provider_calls: bool = False
+
+    model_config = {"extra": "forbid"}
+
+
 class ReadOnlyToolExecuteRequest(BaseModel):
     project_id: str = Field(default="goal-b-local", min_length=1, max_length=255)
     tool_id: str = Field(..., pattern="^(memory_read|task_router)$")
@@ -1189,8 +1217,13 @@ AGENT_ACTIVITY_CONTRACT_VERSION = "agent-activity-trace-v1"
 HEALTH_CONTRACT_VERSION = "health-surface-v1"
 LIVE_AGENT_STEERING_CONTRACT_VERSION = "live-agent-steering-v1"
 LIVE_AGENT_STEERING_EVIDENCE_REF = "live_agent_steering_contract_visible"
+AGENT_RESEARCH_RUN_CONTRACT_VERSION = "agent-research-run-v1"
+AGENT_RESEARCH_RUN_EVIDENCE_REF = "agent_research_run_gateway_only_visible"
 WORKSPACE_ARTIFACT_CONTRACT_VERSION = "goal-b-workspace-artifact-registry-v1"
 WORKSPACE_ARTIFACT_EVIDENCE_REF = "goal_b_workspace_artifact_registry_visible"
+BUILD_REGISTRY_CONTRACT_VERSION = "postgres-build-registry-v1"
+BUILD_REGISTRY_MAX_HTML_BYTES = 160 * 1024
+BUILD_REGISTRY_MAX_PROMPT_BYTES = 16 * 1024
 READ_ONLY_TOOL_EXECUTE_CONTRACT_VERSION = "goal-b-readonly-tool-execute-v1"
 READ_ONLY_TOOL_EXECUTE_EVIDENCE_REF = "goal_b_readonly_tool_execute_visible"
 LIVE_AGENT_SESSION_PREFIX = "live-agent:responses:"
@@ -1377,6 +1410,151 @@ def call_llm_gateway_responses(payload: dict[str, object]) -> dict[str, object]:
     if not isinstance(data, dict):
         raise HTTPException(status_code=502, detail="llm gateway returned an invalid responses payload")
     return data
+
+
+def agent_research_run_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": AGENT_RESEARCH_RUN_CONTRACT_VERSION,
+        "evidence_ref": AGENT_RESEARCH_RUN_EVIDENCE_REF,
+        "status": "dev_only",
+        "mode": "dev_only_gateway_pipeline",
+        "runtime_endpoint": "POST /api/v1/agent-run",
+        "llm_gateway_endpoint": "POST /llm/v1/responses",
+        "request_fields": ["goal"],
+        "step_roles": ["planner", "researcher", "writer"],
+        "response_fields": [
+            "goal",
+            "provider",
+            "steps",
+            "sources",
+            "answer",
+            "trace_id",
+            "live_provider_calls",
+            "local_model_calls",
+            "live_mcp_writes",
+            "model_downloads",
+            "audit_persisted",
+            "secret_output",
+        ],
+        "guards": {
+            "direct_provider_calls": False,
+            "live_mcp_writes": False,
+            "production_deploy": False,
+            "source_retrieval": False,
+            "redaction": "app.security.redact_text",
+            "budget": "check_budget_guard_before_gateway_calls",
+        },
+        "non_claims": [
+            "This DEV-ONLY pipeline does not browse, retrieve, or verify external sources.",
+            "sources remains empty unless a future audited retrieval boundary is implemented.",
+            "Provider and live-call flags are copied only from LLM Gateway responses.",
+            "This contract does not authorize MCP writes, deployment, or production rollout.",
+        ],
+    }
+
+
+def _agent_research_provider(response_payload: dict[str, object]) -> str | None:
+    for field in ("provider_name", "provider"):
+        value = response_payload.get(field)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _agent_research_input(
+    role: str,
+    goal: str,
+    *,
+    planner_text: str | None = None,
+    research_text: str | None = None,
+) -> str:
+    if role == "planner":
+        return (
+            f"Research goal:\n{goal}\n\n"
+            "Create a concise plan for answering the goal. Separate known context from unknowns. "
+            "Do not claim browsing, tools, external retrieval, or verified sources."
+        )
+    if role == "researcher":
+        return (
+            f"Research goal:\n{goal}\n\nPlanner output:\n{planner_text or ''}\n\n"
+            "Develop factual notes using only the supplied goal and planner output. "
+            "Mark uncertainty explicitly. Do not invent citations, URLs, retrieval, or tool results."
+        )
+    return (
+        f"Research goal:\n{goal}\n\nPlanner output:\n{planner_text or ''}\n\n"
+        f"Researcher output:\n{research_text or ''}\n\n"
+        "Write the final answer using only the supplied context. Be concise and explicit about uncertainty. "
+        "Do not add citations, URLs, external-source claims, or tool claims."
+    )
+
+
+def execute_agent_research_step(
+    *,
+    role: str,
+    profile_id: str,
+    label: str,
+    goal: str,
+    trace_id: str,
+    planner_text: str | None = None,
+    research_text: str | None = None,
+) -> tuple[dict[str, object], dict[str, object]]:
+    profile = resolve_live_agent_profile(profile_id)
+    payload = {
+        "model": live_agent_default_model(),
+        "instructions": build_live_agent_instructions(
+            profile_id,
+            profile,
+            (
+                "This is a read-only DEV-ONLY research pipeline. Use only the supplied text. "
+                "No source retrieval, tool execution, filesystem access, MCP write, or deployment is authorized."
+            ),
+        ),
+        "input": _agent_research_input(
+            role,
+            goal,
+            planner_text=planner_text,
+            research_text=research_text,
+        ),
+        "store": False,
+        "max_output_tokens": 160,
+        "text": {"format": {"type": "text"}, "verbosity": "low"},
+        "reasoning": {"effort": "medium"},
+        "metadata": {
+            "trace_id": trace_id,
+            "agent_type": str(profile["execution_role"]),
+            "logical_agent_id": role,
+            "project_id": "agent-research-run-dev-only",
+            "pipeline_contract_version": AGENT_RESEARCH_RUN_CONTRACT_VERSION,
+            "pipeline_step": role,
+            "source_retrieval": False,
+        },
+    }
+    started = time.monotonic()
+    response_payload = call_llm_gateway_responses(payload)
+    duration_ms = max(0, int((time.monotonic() - started) * 1000))
+
+    if response_payload.get("status") != "completed":
+        raise HTTPException(status_code=502, detail=f"llm gateway did not complete {role} step")
+    if response_payload.get("secret_output") is True:
+        raise HTTPException(status_code=502, detail=f"llm gateway rejected {role} output")
+    content = redact_text(extract_live_agent_text(response_payload)).strip()
+    if not content:
+        raise HTTPException(status_code=502, detail=f"llm gateway returned empty {role} output")
+
+    provider = _agent_research_provider(response_payload)
+    step = {
+        "role": role,
+        "label": label,
+        "content": content,
+        "ms": duration_ms,
+        "provider": provider,
+        "model": response_payload.get("model"),
+        "live_provider_calls": bool(response_payload.get("live_provider_calls", False)),
+        "local_model_calls": bool(response_payload.get("local_model_calls", False)),
+        "model_downloads": bool(response_payload.get("model_downloads", False)),
+        "audit_persisted": bool(response_payload.get("audit_persisted", False)),
+    }
+    return step, response_payload
 
 
 def live_agent_contract_payload() -> dict[str, object]:
@@ -8315,6 +8493,205 @@ def memory_search(
     }
 
 
+def _build_registry_secret_present(*values: str) -> bool:
+    return any(redact_text(value) != value for value in values)
+
+
+def _build_registry_authenticated(supplied_token: str | None) -> bool:
+    expected_token = os.getenv("AGENT_API_AUTH_TOKEN", "")
+    return bool(
+        expected_token
+        and isinstance(supplied_token, str)
+        and supplied_token
+        and hmac.compare_digest(supplied_token, expected_token)
+    )
+
+
+def _build_registry_row(row: tuple[object, ...], *, include_html: bool) -> dict[str, object]:
+    build = {
+        "id": str(row[0]),
+        "project_id": str(row[1]),
+        "title": str(row[2]),
+        "prompt_sha256": str(row[3]),
+        "model": str(row[4]),
+        "gateway_mode": str(row[6]),
+        "gateway_provider": str(row[7]),
+        "live_provider_calls": bool(row[8]),
+        "created_at": row[9].isoformat() if row[9] else None,
+        "updated_at": row[10].isoformat() if row[10] else None,
+        "share_path": f"/run/{row[0]}",
+        "persisted": True,
+        "audit_persisted": True,
+        "direct_provider_calls": False,
+        "live_mcp_writes": False,
+        "production_deploy": False,
+        "secret_output": False,
+    }
+    if include_html:
+        build["html"] = str(row[5])
+    return build
+
+
+@app.post("/api/v1/builds", status_code=201)
+def create_build_registry_entry(
+    request: BuildRegistryRequest,
+    http_request: Request,
+    x_superbrain_agent_token: str | None = Header(default=None),
+) -> dict[str, object]:
+    if not os.getenv("AGENT_API_AUTH_TOKEN", ""):
+        raise HTTPException(status_code=503, detail="build registry authentication unavailable")
+    if not _build_registry_authenticated(x_superbrain_agent_token):
+        raise HTTPException(status_code=401, detail="build registry authentication required")
+    title = request.title.strip()
+    prompt = request.prompt.strip()
+    model = request.model.strip()
+    html = request.html.strip()
+    gateway_mode = request.gateway_mode.strip()
+    gateway_provider = request.gateway_provider.strip()
+    if not all((title, prompt, model, html, gateway_mode, gateway_provider)):
+        raise HTTPException(status_code=400, detail="invalid build registry request")
+    if len(prompt.encode("utf-8")) > BUILD_REGISTRY_MAX_PROMPT_BYTES:
+        raise HTTPException(status_code=413, detail="build prompt too large")
+    if len(html.encode("utf-8")) > BUILD_REGISTRY_MAX_HTML_BYTES:
+        raise HTTPException(status_code=413, detail="build html too large")
+    if not re.match(r"^\s*<!doctype html", html, re.IGNORECASE) or not re.search(r"</html>\s*$", html, re.IGNORECASE):
+        raise HTTPException(status_code=400, detail="invalid build html")
+    if _build_registry_secret_present(title, prompt, model, html, gateway_mode, gateway_provider):
+        raise HTTPException(status_code=400, detail="build secret material rejected")
+
+    prompt_sha256 = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+    html_sha256 = hashlib.sha256(html.encode("utf-8")).hexdigest()
+    trace_id = redact_text(
+        str(getattr(http_request.state, "trace_id", None) or f"build-registry-{uuid4()}")
+    )[:255]
+    try:
+        with psycopg.connect(database_url()) as conn:
+            row = conn.execute(
+                """
+                INSERT INTO builds (
+                  id, project_id, title, prompt_sha256, model, html,
+                  gateway_mode, gateway_provider, live_provider_calls
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (id) DO NOTHING
+                RETURNING id, project_id, title, prompt_sha256, model, html,
+                          gateway_mode, gateway_provider, live_provider_calls, created_at, updated_at
+                """,
+                (
+                    request.id,
+                    request.project_id,
+                    title,
+                    prompt_sha256,
+                    model,
+                    html,
+                    gateway_mode,
+                    gateway_provider,
+                    request.live_provider_calls,
+                ),
+            ).fetchone()
+            if not row:
+                raise HTTPException(status_code=409, detail="build id conflict")
+            audit_row = conn.execute(
+                """
+                INSERT INTO audit_log(event_type, details, severity)
+                VALUES ('build_registry_created', %s::jsonb, 'info')
+                RETURNING id
+                """,
+                (
+                    Json(
+                        {
+                            "contract_version": BUILD_REGISTRY_CONTRACT_VERSION,
+                            "build_id": request.id,
+                            "project_id": request.project_id,
+                            "prompt_sha256": prompt_sha256,
+                            "html_sha256": html_sha256,
+                            "trace_id": trace_id,
+                            "live_provider_calls": request.live_provider_calls,
+                            "direct_provider_calls": False,
+                            "live_mcp_writes": False,
+                            "secret_output": False,
+                        }
+                    ),
+                ),
+            ).fetchone()
+            if not audit_row:
+                raise RuntimeError("build audit unavailable")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=503, detail="build persistence failed") from None
+
+    return {
+        **_build_registry_row(row, include_html=True),
+        "contract_version": BUILD_REGISTRY_CONTRACT_VERSION,
+        "status": "created",
+        "source": "postgres",
+    }
+
+
+@app.get("/api/v1/builds")
+def list_build_registry_entries(
+    project_id: str = Query(default="default", min_length=1, max_length=255, pattern="^[A-Za-z0-9_.-]+$"),
+    limit: int = Query(default=24, ge=1, le=100),
+) -> dict[str, object]:
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            rows = conn.execute(
+                """
+                SELECT id, project_id, title, prompt_sha256, model, html,
+                       gateway_mode, gateway_provider, live_provider_calls, created_at, updated_at
+                FROM builds
+                WHERE project_id = %s
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (project_id, limit),
+            ).fetchall()
+    except Exception:
+        raise HTTPException(status_code=503, detail="build registry unavailable") from None
+    builds = [_build_registry_row(row, include_html=False) for row in rows]
+    return {
+        "contract_version": BUILD_REGISTRY_CONTRACT_VERSION,
+        "status": "verified",
+        "source": "postgres",
+        "builds": builds,
+        "count": len(builds),
+        "persisted": True,
+        "audit_persisted": True,
+        "direct_provider_calls": False,
+        "live_mcp_writes": False,
+        "secret_output": False,
+    }
+
+
+@app.get("/api/v1/build/{build_id}")
+def get_build_registry_entry(
+    build_id: str,
+) -> dict[str, object]:
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", build_id):
+        raise HTTPException(status_code=404, detail="build not found")
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            row = conn.execute(
+                """
+                SELECT id, project_id, title, prompt_sha256, model, html,
+                       gateway_mode, gateway_provider, live_provider_calls, created_at, updated_at
+                FROM builds
+                WHERE id = %s
+                """,
+                (build_id,),
+            ).fetchone()
+    except Exception:
+        raise HTTPException(status_code=503, detail="build registry unavailable") from None
+    if not row:
+        raise HTTPException(status_code=404, detail="build not found")
+    return {
+        **_build_registry_row(row, include_html=True),
+        "contract_version": BUILD_REGISTRY_CONTRACT_VERSION,
+        "status": "verified",
+        "source": "postgres",
+    }
+
+
 def workspace_artifact_row(row: tuple[object, ...]) -> dict[str, object]:
     details = row[3] if isinstance(row[3], dict) else {}
     return {
@@ -11367,6 +11744,83 @@ def autonomous_master_plan_contract() -> dict[str, object]:
 @app.get("/api/v1/team/master-plan")
 def autonomous_master_plan() -> dict[str, object]:
     return autonomous_master_plan_payload()
+
+
+@app.get("/api/v1/agent-run/contract")
+def agent_research_run_contract() -> dict[str, object]:
+    return agent_research_run_contract_payload()
+
+
+@app.post("/api/v1/agent-run")
+def agent_research_run(request: AgentResearchRunRequest, http_request: Request) -> dict[str, object]:
+    budget_state = check_budget_guard()
+    goal = redact_text(request.goal)
+    trace_id = redact_text(
+        str(getattr(http_request.state, "trace_id", None) or f"agent-research-run-{uuid4()}")
+    )[:255]
+
+    planner_step, planner_response = execute_agent_research_step(
+        role="planner",
+        profile_id="planner",
+        label="Planner",
+        goal=goal,
+        trace_id=trace_id,
+    )
+    researcher_step, researcher_response = execute_agent_research_step(
+        role="researcher",
+        profile_id="researcher",
+        label="Researcher",
+        goal=goal,
+        trace_id=trace_id,
+        planner_text=str(planner_step["content"]),
+    )
+    writer_step, writer_response = execute_agent_research_step(
+        role="writer",
+        profile_id="doc",
+        label="Writer",
+        goal=goal,
+        trace_id=trace_id,
+        planner_text=str(planner_step["content"]),
+        research_text=str(researcher_step["content"]),
+    )
+
+    steps = [planner_step, researcher_step, writer_step]
+    gateway_responses = [planner_response, researcher_response, writer_response]
+    providers = list(
+        dict.fromkeys(
+            provider
+            for response_payload in gateway_responses
+            if (provider := _agent_research_provider(response_payload))
+        )
+    )
+    return {
+        "contract_version": AGENT_RESEARCH_RUN_CONTRACT_VERSION,
+        "evidence_ref": AGENT_RESEARCH_RUN_EVIDENCE_REF,
+        "status": "completed",
+        "mode": "dev_only_gateway_pipeline",
+        "goal": goal,
+        "provider": " + ".join(providers) if providers else "llm-gateway:provider-unreported",
+        "gateway_providers": providers,
+        "steps": steps,
+        "sources": [],
+        "answer": str(writer_step["content"]),
+        "trace_id": trace_id,
+        "live_provider_calls": any(bool(item.get("live_provider_calls", False)) for item in gateway_responses),
+        "local_model_calls": any(bool(item.get("local_model_calls", False)) for item in gateway_responses),
+        "live_mcp_writes": False,
+        "model_downloads": any(bool(item.get("model_downloads", False)) for item in gateway_responses),
+        "audit_persisted": all(bool(item.get("audit_persisted", False)) for item in gateway_responses),
+        "secret_output": False,
+        "direct_provider_calls": False,
+        "production_deploy": False,
+        "budget": {
+            "level": budget_state.level,
+            "spent_percentage": budget_state.spent_percentage,
+            "total_cost_cents": budget_state.total_cost_cents,
+            "budget_limit_cents": budget_state.budget_limit_cents,
+        },
+        "non_claims": agent_research_run_contract_payload()["non_claims"],
+    }
 
 
 @app.get("/api/v1/live-agents/contract")

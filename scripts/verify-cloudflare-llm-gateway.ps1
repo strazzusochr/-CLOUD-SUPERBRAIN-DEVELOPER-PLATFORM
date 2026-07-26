@@ -86,7 +86,11 @@ foreach ($marker in @(
   'gateway_provider: String(provider ?? "unknown")',
   'gateway_provider: persistedBuild.gateway_provider',
   'live_provider_calls: persistedBuild.live_provider_calls === true',
-  'const models: Array<[string, number]> = [["@cf/qwen/qwen2.5-coder-32b-instruct", 50000]]'
+  'const WORKBENCH_LLM_MODEL = process.env.WORKBENCH_LLM_MODEL?.trim()',
+  '|| "@cf/qwen/qwen2.5-coder-32b-instruct"',
+  'const models: Array<[string, number]> = [[WORKBENCH_LLM_MODEL, 50000]]',
+  'process.env.PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED',
+  'live_provider_calls_allowed: LIVE_PROVIDER_APPROVED'
 )) {
   Assert-Contains "Frontend build route" $buildSource $marker
 }

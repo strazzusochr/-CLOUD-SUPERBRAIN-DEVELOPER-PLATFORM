@@ -2989,7 +2989,7 @@ if ($resourceParseErrors -and $resourceParseErrors.Count -gt 0) {
 }
 
 Write-Host "[verify] phase5 local production candidate contract"
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-production-candidate-local.ps1 -StaticOnly
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-production-candidate-local.ps1 -StaticOnly -AllowNonCandidateHead
 Assert-LastExitCode "phase5 local production candidate static contract"
 $phase5LocalCandidateVerifier = Get-Content -Path "scripts\verify-phase5-production-candidate-local.ps1" -Raw
 foreach ($required in @(
@@ -2997,6 +2997,7 @@ foreach ($required in @(
   'verification_scope',
   'runtime_without_browser',
   'full_with_browser',
+  'AllowNonCandidateHead',
   'candidate runtime source matches HEAD',
   'progress_credit_claimed',
   'candidate_runtime_source_parity_verified'

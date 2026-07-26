@@ -33,7 +33,7 @@ export default async function AgentsPage({ searchParams }: AgentsPageProps) {
         <PageHeader
           eyebrow="Agenten"
           title="Tiefenrecherche mit mehreren Agenten"
-          subtitle="Gib ein Ziel ein. Bei erreichbarer Agent API arbeiten Planner, Researcher und Writer zusammen; ohne Laufzeit bleibt der Auftrag fail-closed."
+          subtitle="Gib ein Ziel ein. Planner, Researcher und Writer laufen ausschließlich über Agent API und LLM Gateway; die Antwort zeigt die tatsächlich gemeldeten Provider-Marker. Ohne Laufzeit bleibt der Auftrag fail-closed."
           actions={<SpecModeBadge mode={runtimeVisible ? "read_only_redacted" : "spec_only"} />}
         />
 
@@ -173,9 +173,10 @@ export default async function AgentsPage({ searchParams }: AgentsPageProps) {
         <div className="note mb-16" data-testid="autonomous-agent-safety-non-claims">
           <p>DEV-ONLY; hosted proof still blocked</p>
           <div className="chips mt-12">
-            <Badge tone="green">live_provider_calls=false</Badge>
+            <Badge tone="amber">live_provider_calls=Gateway-Ergebnis</Badge>
+            <Badge tone="green">direct_provider_calls=false</Badge>
             <Badge tone="green">live_mcp_writes=false</Badge>
-            <Badge tone="green">model_downloads=false</Badge>
+            <Badge tone="amber">model_downloads=Gateway-Ergebnis</Badge>
             <Badge tone="green">production_deploy=false</Badge>
             <Badge tone="green">production_rollout_claimed=false</Badge>
             <Badge tone="green">secret_output=false</Badge>

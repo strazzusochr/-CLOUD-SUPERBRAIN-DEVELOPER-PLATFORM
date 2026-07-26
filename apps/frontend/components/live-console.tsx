@@ -75,7 +75,7 @@ export function LiveConsole({ endpoints, label = "Live-Daten" }: { endpoints: Li
         ) : (
           <span className="lc-ep mono">{endpoints[0]?.label}</span>
         )}
-        <button type="button" className="btn btn-sm btn-primary" onClick={load} disabled={busy} data-testid="live-console-load">
+        <button type="button" className="btn btn-sm btn-primary" onClick={load} disabled={busy} data-testid="live-console-load" data-endpoint={selected}>
           {busy ? "lädt…" : "↻ Aktualisieren"}
         </button>
         <button

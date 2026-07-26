@@ -631,9 +631,10 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
       failSampling("reduced_motion");
       return;
     }
+    if (performanceSamples.length === PERFORMANCE_SAMPLE_COUNT) return;
     const timeout = window.setTimeout(() => failSampling("timeout"), PERFORMANCE_SAMPLE_TIMEOUT_MS);
     return () => window.clearTimeout(timeout);
-  }, [effectiveReducedMotion, markInteraction, performanceSamplingActive]);
+  }, [effectiveReducedMotion, markInteraction, performanceSamples.length, performanceSamplingActive]);
   useEffect(() => {
     if (gameplayPaused || effectiveReducedMotion) return;
     const interval = window.setInterval(() => setGameplayTicks((value) => value + 1), 1000);
@@ -871,7 +872,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
                 data-testid="phase6-camera-lighting-state"
                 aria-live="polite"
               >
-                camera_preset={cameraPreset} · fov={fovDegrees}° · lighting_profile={lightingProfile} · exposure={exposure.toFixed(2)} · local_state_only=true
+                camera_preset={cameraPreset} · fov={fovDegrees}° · lighting_profile={lightingProfile} · exposure={exposure.toFixed(2)} · reset_signal={resetSignal} · local_state_only=true
               </div>
             </div>
             <div className="organism-gameplay" data-testid="phase6-gameplay-state-controls">

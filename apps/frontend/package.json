@@ -13,6 +13,8 @@
     "lint": "eslint .",
     "test": "playwright test",
     "test:e2e": "playwright test",
+    "test:e2e:22-page-actions": "playwright test e2e/22-page-actions.spec.ts --project=chromium --workers=1",
+    "test:e2e:product-acceptance": "playwright test e2e/product-acceptance.spec.ts --project=chromium --workers=1",
     "release:build": "next build --webpack",
     "release": "node release.mjs"
   },

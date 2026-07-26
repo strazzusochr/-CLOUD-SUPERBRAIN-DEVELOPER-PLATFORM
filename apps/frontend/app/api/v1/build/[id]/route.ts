@@ -9,15 +9,20 @@ function safeId(value: string): string {
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
   const clean = safeId((await ctx.params).id);
   if (!clean) return Response.json({ status: "not_found" }, { status: 404 });
-  const response = await proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`);
+  const response = await proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`, 30_000);
   return response ?? Response.json(
     {
-      status: "not_found",
+      status: "degraded",
+      error: "configured_boundary_unavailable",
+      accepted: false,
+      persisted: false,
       live_backend: false,
       direct_provider_calls: false,
-      note: "No Agent API build artifact is reachable.",
+      live_provider_calls: false,
+      secret_output: false,
+      note: "The configured Agent API build boundary is unavailable; no not-found claim can be made.",
     },
-    { status: 404, headers: { "cache-control": "no-store", "x-superbrain-source": "frontend-projection" } },
+    { status: 503, headers: { "cache-control": "no-store", "x-superbrain-source": "frontend-boundary-degraded" } },
   );
 }
 

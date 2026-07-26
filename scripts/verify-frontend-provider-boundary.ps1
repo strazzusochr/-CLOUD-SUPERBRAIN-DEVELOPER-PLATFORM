@@ -139,14 +139,18 @@ $buildItemGet = $buildItemRoute.Substring($buildItemGetStart, $buildItemDeleteSt
 $buildItemDelete = $buildItemRoute.Substring($buildItemDeleteStart)
 
 foreach ($required in @(
-  'proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`)',
+  'proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`, 30_000)',
   'response ?? Response.json',
-  'status: "not_found"',
+  'status: "degraded"',
+  'accepted: false',
+  'persisted: false',
   'live_backend: false',
   'direct_provider_calls: false',
+  'live_provider_calls: false',
+  'secret_output: false',
   '"cache-control": "no-store"',
-  '"x-superbrain-source": "frontend-projection"',
-  '{ status: 404'
+  '"x-superbrain-source": "frontend-boundary-degraded"',
+  '{ status: 503'
 )) {
   Assert-Contains "build item GET boundary" $buildItemGet $required
 }
@@ -154,7 +158,7 @@ foreach ($forbidden in @("proxyReadToBoundary", "serviceAuth")) {
   Assert-NotContains "build item GET boundary" $buildItemGet $forbidden
 }
 $buildItemGetIdRead = $buildItemGet.IndexOf("const clean = safeId((await ctx.params).id)", [StringComparison]::Ordinal)
-$buildItemGetProxy = $buildItemGet.IndexOf('proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`)', [StringComparison]::Ordinal)
+$buildItemGetProxy = $buildItemGet.IndexOf('proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`, 30_000)', [StringComparison]::Ordinal)
 if ($buildItemGetIdRead -lt 0 -or $buildItemGetProxy -le $buildItemGetIdRead) {
   throw "Frontend provider boundary verification failed: build item GET must sanitize the route id before constructing the exact Agent API upstream path."
 }

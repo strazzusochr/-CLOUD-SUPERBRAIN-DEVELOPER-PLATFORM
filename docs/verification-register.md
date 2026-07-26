@@ -1,11 +1,70 @@
 # Verification Register - PATCHED
 
-Stand: 2026-07-25
+Stand: 2026-07-26
 Status: Active
 
 ## Current Progress Authority
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `86%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `68%`, Phase 6 `90%`, Frontend `100%`, Agent Pool `69%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `90%`, and Observability `100%`.
+
+## Current Session-10 Product And Action Acceptance
+
+`product-acceptance-3d-game-v1` passed in real Chromium against the local
+DEV-only control plane. One visible Workbench build created persisted build
+`8e51a068-8faa-4ff4-805a-accf91e1c145` through Agent API -> LLM Gateway ->
+Cloudflare Workers AI. The response records `direct_provider_calls=false`,
+`live_provider_calls=true`, persisted build and audit state, and the persisted
+run served complete Three.js/WebGL HTML. The canvas was nonblank, a real click
+changed both pixels and visible DOM state, and reload returned the identical
+HTML and initial pixel hash. Mocks and route interception were false; console,
+page, and failed-request counts were zero. Evidence:
+`.codex/runs/CURRENT/product-acceptance/report.json`, SHA-256
+`1BC71C8D3C76C9CD68E67398A23FB573CA44E2F952643F5646BE6835C805AB7D`.
+
+`workspace-action-matrix-v2` passed its complete real-Chromium acceptance:
+22/22 canonical routes, 28/28 enabled page-local families, and 184/184 enabled
+member actions. It records 183 direct effect proofs plus exactly one current
+source-bound P0 proof, with zero non-direct, dead, unregistered, or click-only
+passes. Exactly two visible controls made the two allowed build requests and
+received two live provider responses; unexpected provider requests were zero.
+Unexpected console errors and page errors were zero. The two separately
+reported HTTP 403 console entries were request-correlated to the intentionally
+blocked Games and Apps DELETE controls, whose cards remained visible and whose
+errors were surfaced. Mocks and route interception were false. Evidence:
+`.codex/runs/CURRENT/22-page-actions/report.json`, SHA-256
+`EBA64E765F9429A29D35092D0D2D357585812BBB5750B0122B6150811AB4BB3F`,
+source binding
+`98189cefcd24224e9e573ba62e1c2d8af5b06d23c9f39f19474b878d666ea534`.
+
+The same slice adds the missing Agent API `/api/v1/agent-run` product boundary
+and aligns `/agents` to a gateway-only Planner -> Researcher -> Writer
+pipeline. It returns no fabricated sources: without a real source/tool
+binding, `sources` remains empty. The `/tools` client and backend now share the
+same project/tool/query schema and expose only the allowlisted internal
+read-only tools `memory_read` and `task_router` with result and audit ID.
+`docs/audit/vision-vs-reality-2026-07-25.md` therefore classifies the 22 primary
+route functions as 9 real, 9 contract-only, 4 stub/mock, and 0 missing/broken.
+
+Both reports are `dev_only=true` and `hosted_proof=false`; they do not prove
+hosted source parity, production identity, external MCP adapters/writes,
+semantic Vectorize memory, GHCR publication, release promotion, or production
+deployment. No unique unfinished rubric cell is closed: Overall remains
+`86%`, all phase/layer percentages stay unchanged, `MARKET_READY:false`, and
+RC10 remains the active local candidate without Session-10 requalification.
+The repo-wide development verifier may validate this explicitly older active
+candidate with `-AllowNonCandidateHead`; the dedicated candidate verifier
+remains fail-closed by default and still requires runtime-source parity before
+any candidate or promotion claim.
+
+Final verification passed in the current workspace: focused Agent API tests
+`13/13`, frontend TypeScript, focused ESLint, `scripts/verify-phase1.ps1`
+including gitleaks `no leaks found`, `scripts/verify-phase1-runtime.ps1`
+ending in `phase1 runtime checks completed`, and
+`scripts/verify-browser-contract.ps1` ending in `checks completed`. The
+runtime verifier also re-proved PostgreSQL checkpoint recovery and the older
+RC10 artifact while explicitly reporting that the active candidate predates
+the current development HEAD. Docker was `10/10 healthy`; responsive browser
+evidence covered `22x2=44`.
 
 ## Current Session-9 Cloudflare-Native Local Evidence
 

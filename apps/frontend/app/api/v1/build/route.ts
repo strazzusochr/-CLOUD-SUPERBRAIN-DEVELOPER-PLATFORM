@@ -22,6 +22,11 @@ const GPU_GUARD = `<script>(function(){var _r=window.requestAnimationFrame.bind(
 const MAX_PROMPT_CHARS = 2_000;
 const MAX_BASE_HTML_CHARS = 60_000;
 const MAX_PERSISTED_HTML_BYTES = 160 * 1024;
+const WORKBENCH_LLM_MODEL = process.env.WORKBENCH_LLM_MODEL?.trim()
+  || "@cf/qwen/qwen2.5-coder-32b-instruct";
+const LIVE_PROVIDER_APPROVED = /^(1|true|yes|on)$/i.test(
+  process.env.PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED?.trim() || "",
+);
 const SECRET_PATTERNS = [
   /\bsk-[A-Za-z0-9_-]{16,}\b/,
   /\bghp_[A-Za-z0-9_]{16,}\b/,
@@ -92,7 +97,7 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
         { role: "user", content: prompt },
       ];
   // Free-only hosted generation gets one bounded provider attempt per user prompt.
-  const models: Array<[string, number]> = [["@cf/qwen/qwen2.5-coder-32b-instruct", 50000]];
+  const models: Array<[string, number]> = [[WORKBENCH_LLM_MODEL, 50000]];
   let lastErr: unknown = null;
   let gatewayReached = false;
   for (const [model, timeoutMs] of models) {
@@ -105,7 +110,17 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
           ...(req.headers.get("x-request-id") ? { "x-request-id": req.headers.get("x-request-id") as string } : {}),
           ...(req.headers.get("traceparent") ? { traceparent: req.headers.get("traceparent") as string } : {}),
         },
-        body: JSON.stringify({ model, messages, max_tokens: 5200, temperature: 0.3, stream: false }),
+        body: JSON.stringify({
+          model,
+          messages,
+          max_tokens: 5200,
+          temperature: 0.3,
+          stream: false,
+          metadata: {
+            workload: "workbench_product_build",
+            live_provider_calls_allowed: LIVE_PROVIDER_APPROVED,
+          },
+        }),
       });
       const response = await proxyToBoundary(gatewayRequest, "llm-gateway", "/v1/chat/completions", timeoutMs);
       if (!response) continue;
@@ -120,7 +135,7 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
           model: out.model,
           liveProviderCalls: out.live_provider_calls === true,
           gatewayMode: out.gateway_mode,
-          provider: out.provider,
+          provider: out.provider ?? out.provider_name,
         };
       }
     } catch (err) {

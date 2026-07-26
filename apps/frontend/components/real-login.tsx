@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type User = { name: string; provider: string } | null;
 
@@ -10,8 +10,10 @@ export function RealLogin() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    rootRef.current?.setAttribute("data-hydrated", "true");
     let alive = true;
     (async () => {
       try {
@@ -57,7 +59,7 @@ export function RealLogin() {
 
   if (user) {
     return (
-      <div className="real-login" data-testid="real-login">
+      <div ref={rootRef} className="real-login" data-testid="real-login">
         <div className="rl-signed">✓ Angemeldet als <b>{user.name}</b> <span className="text-12 text-mut">({user.provider})</span></div>
         <div className="rl-row">
           <a href="/workbench" className="btn btn-primary btn-sm">In die Werkbank →</a>
@@ -69,7 +71,7 @@ export function RealLogin() {
   }
 
   return (
-    <div className="real-login" data-testid="real-login">
+    <div ref={rootRef} className="real-login" data-testid="real-login">
       <input
         className="rl-input"
         placeholder="Dein Name (optional)"

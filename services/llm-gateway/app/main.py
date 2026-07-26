@@ -19,6 +19,17 @@ LIVE_PROVIDER_CALLS = False
 HF_ROUTER_BASE_URL = os.getenv("HF_ROUTER_BASE_URL", "https://router.huggingface.co/v1").rstrip("/")
 HF_DEFAULT_CHAT_MODEL = os.getenv("HF_DEFAULT_CHAT_MODEL", "deepseek-ai/DeepSeek-V4-Flash:fastest")
 HF_ROUTER_TIMEOUT_SECONDS = float(os.getenv("HF_ROUTER_TIMEOUT_SECONDS", "90"))
+CF_WORKERS_AI_BASE_URL = os.getenv(
+    "CF_WORKERS_AI_BASE_URL",
+    "https://api.cloudflare.com/client/v4",
+).rstrip("/")
+CF_WORKERS_AI_TIMEOUT_SECONDS = float(os.getenv("CF_WORKERS_AI_TIMEOUT_SECONDS", "90"))
+CF_WORKERS_AI_MAX_TOKENS = int(os.getenv("CF_WORKERS_AI_MAX_TOKENS", "2048") or "2048")
+CF_WORKERS_AI_MODE = "cloudflare_workers_ai_live"
+CF_WORKERS_AI_MODELS = {
+    "@cf/qwen/qwen2.5-coder-32b-instruct",
+    "@cf/meta/llama-3.1-8b-instruct",
+}
 LOCAL_LLM_BASE_URL = os.getenv("LOCAL_LLM_BASE_URL", "http://local-llm:8080/v1").rstrip("/")
 LOCAL_LLM_MODEL = os.getenv("LOCAL_LLM_MODEL", "gemma-3-1b-it").strip() or "gemma-3-1b-it"
 LOCAL_LLM_TIMEOUT_SECONDS = float(os.getenv("LOCAL_LLM_TIMEOUT_SECONDS", "180"))
@@ -141,6 +152,24 @@ def hf_router_token() -> str | None:
 
 def hf_router_available() -> bool:
     return hf_router_token() is not None
+
+
+def cloudflare_workers_ai_token() -> str | None:
+    value = (os.getenv("CF_WORKERS_AI_TOKEN") or "").strip()
+    return value or None
+
+
+def cloudflare_workers_ai_account_id() -> str | None:
+    value = (os.getenv("CLOUDFLARE_ACCOUNT_ID") or "").strip()
+    return value or None
+
+
+def cloudflare_workers_ai_mode_enabled() -> bool:
+    return GATEWAY_MODE == CF_WORKERS_AI_MODE
+
+
+def cloudflare_workers_ai_available() -> bool:
+    return bool(cloudflare_workers_ai_token() and cloudflare_workers_ai_account_id())
 
 
 def huggingface_router_capability_snapshot() -> dict[str, object]:
@@ -656,6 +685,76 @@ def call_hf_chat_completion(request: ChatCompletionRequest) -> dict[str, Any]:
     return response_payload
 
 
+def call_cloudflare_workers_ai_chat_completion(request: ChatCompletionRequest) -> dict[str, Any]:
+    token = cloudflare_workers_ai_token()
+    account_id = cloudflare_workers_ai_account_id()
+    if not token or not account_id:
+        raise HTTPException(
+            status_code=503,
+            detail="Cloudflare Workers AI credentials are not configured for the approved gateway call",
+        )
+    if request.model not in CF_WORKERS_AI_MODELS:
+        raise HTTPException(status_code=400, detail="Cloudflare Workers AI model is outside the approved allowlist")
+
+    upstream_payload: dict[str, Any] = {
+        "messages": chat_message_payloads(request.messages),
+        "stream": False,
+        "max_tokens": max(
+            1,
+            min(request.max_tokens or CF_WORKERS_AI_MAX_TOKENS, CF_WORKERS_AI_MAX_TOKENS),
+        ),
+    }
+    if request.temperature is not None:
+        upstream_payload["temperature"] = max(0.0, min(request.temperature, 1.0))
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    endpoint = f"{CF_WORKERS_AI_BASE_URL}/accounts/{account_id}/ai/run/{request.model}"
+    try:
+        with httpx.Client(timeout=CF_WORKERS_AI_TIMEOUT_SECONDS) as client:
+            response = client.post(endpoint, headers=headers, json=upstream_payload)
+            response.raise_for_status()
+        upstream_response = response.json()
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=exc.response.status_code,
+            detail="Cloudflare Workers AI rejected the gateway request",
+        ) from exc
+    except (httpx.HTTPError, ValueError) as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Cloudflare Workers AI gateway request failed: {type(exc).__name__}",
+        ) from exc
+
+    result = upstream_response.get("result") if isinstance(upstream_response, dict) else None
+    content = result.get("response") if isinstance(result, dict) else None
+    if not isinstance(content, str) or not content.strip():
+        raise HTTPException(status_code=502, detail="Cloudflare Workers AI returned no text content")
+    usage = result.get("usage") if isinstance(result.get("usage"), dict) else {}
+    prompt_tokens = int(usage.get("prompt_tokens") or 0)
+    completion_tokens = int(usage.get("completion_tokens") or 0)
+    return {
+        "id": f"chatcmpl-cf-{uuid4()}",
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": request.model,
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": content.strip()},
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": int(usage.get("total_tokens") or prompt_tokens + completion_tokens),
+        },
+    }
+
+
 def call_local_chat_completion(request: ChatCompletionRequest) -> dict[str, Any]:
     upstream_payload: dict[str, Any] = {
         "model": normalize_model_id(request.model) or LOCAL_LLM_MODEL,
@@ -948,22 +1047,30 @@ def responses_adapter_contract_snapshot() -> dict[str, object]:
 @app.get("/api/v1/health")
 def health() -> dict[str, object]:
     router = hf_router_model_snapshot(limit=5)
+    cloudflare_mode = cloudflare_workers_ai_mode_enabled()
+    provider_available = cloudflare_workers_ai_available() if cloudflare_mode else hf_router_available()
     return {
         "status": "healthy",
         "service": "llm-gateway",
         "mode": GATEWAY_MODE,
         "live_provider_calls": LIVE_PROVIDER_CALLS,
-        "live_provider_calls_available": hf_router_available(),
+        "live_provider_calls_available": provider_available,
         "openai_compatible": True,
         "open_source_first": True,
         "model_downloads": False,
-        "provider": "local_llama_cpp" if local_llm_enabled() else "huggingface_inference_router",
+        "provider": (
+            "local_llama_cpp"
+            if local_llm_enabled()
+            else "cloudflare-workers-ai"
+            if cloudflare_mode
+            else "huggingface_inference_router"
+        ),
         "routing_resolver": True,
         "routing_policy": True,
         "provider_health": True,
         "provider_live_verified": bool(router["live_verified"]),
-        "provider_status": router["status"],
-        "provider_model_count_visible": router["model_count_visible"],
+        "provider_status": "configured" if cloudflare_mode and provider_available else router["status"],
+        "provider_model_count_visible": len(CF_WORKERS_AI_MODELS) if cloudflare_mode else router["model_count_visible"],
         "local_llm": {
             "enabled": local_llm_enabled(),
             # Only probe the optional local provider when it is actually enabled. In cloud /
@@ -1084,8 +1191,20 @@ def chat_completions(request: ChatCompletionRequest):
     # explicitly; it must not be routed through the slow local model or any live provider.
     deterministic_only = isinstance(request.metadata, dict) and request.metadata.get("deterministic_dry_run") is True
     local_live_call = local_llm_enabled() and local_llm_health() and not deterministic_only
-    live_call = live_allowed and hf_router_available() and not deterministic_only
-    completion_id = f"chatcmpl-{'local' if local_live_call else 'hf' if live_call else 'dryrun'}-{uuid4()}"
+    cloudflare_live_call = (
+        cloudflare_workers_ai_mode_enabled()
+        and live_allowed
+        and cloudflare_workers_ai_available()
+        and not deterministic_only
+    )
+    hf_live_call = (
+        not cloudflare_workers_ai_mode_enabled()
+        and live_allowed
+        and hf_router_available()
+        and not deterministic_only
+    )
+    live_call = cloudflare_live_call or hf_live_call
+    completion_id = f"chatcmpl-{'local' if local_live_call else 'cf' if cloudflare_live_call else 'hf' if hf_live_call else 'dryrun'}-{uuid4()}"
 
     if local_live_call:
         response_payload = call_local_chat_completion(request)
@@ -1108,7 +1227,28 @@ def chat_completions(request: ChatCompletionRequest):
         response_payload["audit_persisted"] = audit_persisted
         response_payload["cost_cents"] = 0
         response_payload["model_downloads"] = False
-    elif live_call:
+    elif cloudflare_live_call:
+        response_payload = call_cloudflare_workers_ai_chat_completion(request)
+        content = extract_chat_content(response_payload)
+        usage = usage_from_chat_payload(request, response_payload, content)
+        audit_persisted = audit_event(
+            request,
+            content,
+            usage,
+            provider_name="cloudflare-workers-ai",
+            status="success",
+            live_provider_calls=True,
+        )
+        response_payload["gateway_mode"] = GATEWAY_MODE
+        response_payload["provider"] = "cloudflare-workers-ai"
+        response_payload["provider_name"] = "cloudflare-workers-ai"
+        response_payload["requested_model"] = request.model
+        response_payload["live_provider_calls"] = True
+        response_payload["local_model_calls"] = False
+        response_payload["audit_persisted"] = audit_persisted
+        response_payload["cost_cents"] = 0
+        response_payload["model_downloads"] = False
+    elif hf_live_call:
         response_payload = call_hf_chat_completion(request)
         content = extract_chat_content(response_payload)
         usage = usage_from_chat_payload(request, response_payload, content)
@@ -1130,6 +1270,16 @@ def chat_completions(request: ChatCompletionRequest):
         response_payload["cost_cents"] = 0
         response_payload["model_downloads"] = False
     else:
+        if (
+            live_allowed
+            and cloudflare_workers_ai_mode_enabled()
+            and not cloudflare_workers_ai_available()
+            and not deterministic_only
+        ):
+            raise HTTPException(
+                status_code=503,
+                detail="Cloudflare Workers AI credentials are required for the approved gateway call",
+            )
         if live_allowed and not hf_router_available() and not local_live_call and not deterministic_only:
             raise HTTPException(status_code=503, detail="HF_TOKEN is required for live Hugging Face router calls")
         content = deterministic_content(request)

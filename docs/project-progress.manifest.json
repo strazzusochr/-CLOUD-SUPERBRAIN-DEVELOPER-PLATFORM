@@ -97,14 +97,15 @@
   },
   "truth_policy": "Evidence-based only: percentages increase only after code, runtime proof, and verifier/doc update.",
   "binding_document": "docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md",
-  "last_verified": "2026-07-25",
+  "last_verified": "2026-07-26",
   "non_claims": [
-    "No live LLM provider calls are enabled in the stateless backend gateway; hosted Cloudflare Workers AI has separate frontend proof.",
+    "Live LLM calls are verified only in bounded Cloudflare Workers AI gateway acceptance paths; general provider activation, dynamic routing, and hosted full-product parity are not verified.",
     "No production release readiness or release promotion is verified.",
     "No hosted stateful Phase 2 parity or production release is claimed.",
     "Historical Fly budget markers are provenance only; Fly is not the active runtime target and they do not satisfy the Cloudflare hosted gate.",
     "Hosted D1 lexical persistence exists; full Architecture-A parity with Durable Objects, Queues and a proven zero-card artifact adapter is not verified.",
     "The local Cloudflare-native Durable Object, Queue and R2 adapter proof is DEV-ONLY and earns no percentage credit.",
+    "The local product-acceptance and 22-page action reports are DEV-ONLY; hosted proof remains blocked and they earn no duplicate percentage credit.",
     "Unexpected response type is not a completion or failure claim; backend smoke/status evidence is still required."
   ]
 }

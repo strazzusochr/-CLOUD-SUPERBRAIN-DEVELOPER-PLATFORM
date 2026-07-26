@@ -10,6 +10,34 @@ Current honesty guardrail: active candidate `prod-candidate-2026-07-24-local-rc1
 
 RC10 covers the committed immutable Action/image pins, fail-closed pin verifier, prompt-persistence error redaction, and the fixed exact PostCSS `8.5.23` override. Current runtime-source parity is locally verified; DEV-ONLY; hosted proof still blocked.
 
+Session 10 adds two current local acceptance proofs without creating a new
+release candidate. `product-acceptance-3d-game-v1` produced persisted build
+`8e51a068-8faa-4ff4-805a-accf91e1c145` through the Agent API and LLM Gateway
+with Cloudflare Workers AI, no direct provider path, persisted audit, nonblank
+WebGL, click pixel/DOM change, and identical artifact hash after reload.
+Evidence: `.codex/runs/CURRENT/product-acceptance/report.json`, SHA-256
+`1BC71C8D3C76C9CD68E67398A23FB573CA44E2F952643F5646BE6835C805AB7D`.
+`workspace-action-matrix-v2` then verified 22/22 routes, 28/28 enabled
+families, and 184/184 enabled actions: 183 direct effects plus one exact P0
+proof, zero dead/unregistered/click-only/non-direct passes, and 2/2 allowed
+live-provider build responses. There were no unexpected provider, console, or
+page errors; the two observed HTTP 403 console entries were exactly correlated
+to the intentionally blocked Games/Apps DELETE paths. Evidence:
+`.codex/runs/CURRENT/22-page-actions/report.json`, SHA-256
+`EBA64E765F9429A29D35092D0D2D357585812BBB5750B0122B6150811AB4BB3F`.
+The repaired `/agents` path is gateway-only Planner→Researcher→Writer with
+empty sources instead of fabricated citations when no source/tool is bound.
+The repaired `/tools` path exposes only internal read-only `memory_read` and
+`task_router` execution with audit IDs. The strict 22-page primary verdict is
+now 9 real, 9 contract-only, 4 stub/mock, and 0 missing/broken. Both proofs are
+DEV-ONLY; hosted proof still blocked. Overall remains 86%;
+`MARKET_READY:false`; RC10 remains active and is not requalified by this slice.
+Final local gates passed: focused backend tests 13/13, TypeScript, focused
+ESLint, repo-wide `verify-phase1.ps1` including gitleaks `no leaks found`,
+`verify-phase1-runtime.ps1` ending in `phase1 runtime checks completed`, and
+`verify-browser-contract.ps1` ending in `checks completed`. Docker was 10/10
+healthy and the responsive proof was 22 routes x 2 viewports = 44 clicks.
+
 Session 9 selects Architecture A and removes Fly.io from new target work. The local
 `cloudflare-native-runtime-candidate-v1` keeps LangGraph.js, labels D1 as custom persistence,
 and adds SQLite Durable Object coordination, Queue dispatch and a private local R2 adapter.
@@ -1099,7 +1127,9 @@ Historical proof point: this raised Phase 4 from `7%` to `8%` while Overall was 
 
 Do not claim these until external evidence exists:
 
-- No live LLM provider calls are verified.
+- Live LLM calls are verified only in the bounded Cloudflare Workers AI
+  gateway acceptance paths above; general provider activation, dynamic
+  routing, and hosted full-product parity are not verified.
 - No live MCP writes are verified.
 - No stateful full-backend or full-platform production release is verified; the scoped Vercel frontend and stateless read-only Backend Contract Origin are verified separately.
 - `production_deploy_claim_allowed=true` is only a gate-closure statement, not a deploy statement.

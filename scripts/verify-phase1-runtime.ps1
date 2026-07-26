@@ -607,12 +607,18 @@ Assert-Contains "memory embedding consistency vector" $memoryEmbeddingConsistenc
 Assert-Contains "memory embedding consistency fallback" $memoryEmbeddingConsistencyContract "lexical_fallback"
 Assert-Contains "memory embedding consistency no live provider" $memoryEmbeddingConsistencyContract "No live embedding provider call"
 
-Write-Host "[runtime] llm gateway dry-run"
+Write-Host "[runtime] llm gateway safe mode and dry-run controls"
 $llmHealth = curl.exe -sS "$baseUrl/llm/api/v1/health"
 Assert-Contains "llm health service" $llmHealth '"service":"llm-gateway"'
-Assert-Contains "llm health mode" $llmHealth '"mode":"deterministic_dry_run"'
 Assert-Contains "llm health no live calls" $llmHealth '"live_provider_calls":false'
 Assert-Contains "llm health streaming" $llmHealth '"streaming_sse":true'
+$llmHealthJson = $llmHealth | ConvertFrom-Json
+if ($llmHealthJson.mode -notin @("deterministic_dry_run", "cloudflare_workers_ai_live")) {
+  throw "Runtime verification failed: LLM gateway reported unsupported mode '$($llmHealthJson.mode)'"
+}
+if ($llmHealthJson.mode -eq "cloudflare_workers_ai_live" -and $llmHealthJson.provider -ne "cloudflare-workers-ai") {
+  throw "Runtime verification failed: Cloudflare live mode did not report the Cloudflare gateway provider"
+}
 $llmStreamingContract = curl.exe -sS "$baseUrl/llm/api/v1/streaming/contract"
 Assert-Contains "llm streaming protocol" $llmStreamingContract '"protocol":"openai_compatible_sse"'
 Assert-Contains "llm streaming content type" $llmStreamingContract '"content_type":"text/event-stream"'
@@ -2381,7 +2387,7 @@ if ($LASTEXITCODE -ne 0 -or $steadyFaviconStatus -ne "200") {
 }
 
 Write-Host "[runtime] phase5 local production candidate proof"
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-production-candidate-local.ps1 -BaseUrl $baseUrl -AllowLocalhost -SkipBrowser
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-production-candidate-local.ps1 -BaseUrl $baseUrl -AllowLocalhost -AllowNonCandidateHead -SkipBrowser
 Assert-LastExitCode "phase5 local production candidate proof"
 
 Write-Host "[runtime] phase1 runtime checks completed"

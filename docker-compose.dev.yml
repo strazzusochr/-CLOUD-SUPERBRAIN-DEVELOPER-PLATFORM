@@ -10,8 +10,12 @@ services:
     environment:
       NEXT_PUBLIC_AGENT_API_URL: /api
       AGENT_API_INTERNAL_URL: http://agent-api:8000
+      AGENT_API_AUTH_TOKEN: ${AGENT_API_AUTH_TOKEN:-}
+      AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET:-}
       LLM_GATEWAY_BASE_URL: http://llm-gateway:4000
       MCP_GATEWAY_BASE_URL: http://mcp-gateway:9000
+      WORKBENCH_LLM_MODEL: ${WORKBENCH_LLM_MODEL:-gemma-3-1b-it}
+      PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED: ${PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED:-false}
       EVIDENCE_DIR: /workspace/evidence
       WATCHPACK_POLLING: "true"
     expose:
@@ -54,6 +58,7 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-superbrain}:${POSTGRES_PASSWORD:-change-me-now}@postgres:5432/${POSTGRES_DB:-superbrain_prod}
+      AGENT_API_AUTH_TOKEN: ${AGENT_API_AUTH_TOKEN:-}
       REDIS_URL: redis://redis:6379/0
       MCP_GATEWAY_URL: http://mcp-gateway:9000
       LLM_GATEWAY_URL: http://llm-gateway:4000
@@ -268,6 +273,10 @@ services:
       HF_ROUTER_BASE_URL: ${HF_ROUTER_BASE_URL:-https://router.huggingface.co/v1}
       HF_DEFAULT_CHAT_MODEL: ${HF_DEFAULT_CHAT_MODEL:-deepseek-ai/DeepSeek-V4-Flash:fastest}
       HF_ROUTER_TIMEOUT_SECONDS: ${HF_ROUTER_TIMEOUT_SECONDS:-90}
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+      CF_WORKERS_AI_TOKEN: ${CF_WORKERS_AI_TOKEN:-}
+      CF_WORKERS_AI_BASE_URL: ${CF_WORKERS_AI_BASE_URL:-https://api.cloudflare.com/client/v4}
+      CF_WORKERS_AI_TIMEOUT_SECONDS: ${CF_WORKERS_AI_TIMEOUT_SECONDS:-90}
     expose:
       - "4000"
     volumes:

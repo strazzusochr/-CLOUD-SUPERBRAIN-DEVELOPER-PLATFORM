@@ -16,6 +16,30 @@ const DEFAULT_EXAMPLES = [
 
 type Build = { id: string; title: string; model: string; html: string; share_path?: string | null };
 
+function readableBuildError(payload: Record<string, unknown>, status: number): string {
+  const error = String(payload.error ?? "");
+  if (error === "write_session_required") return "Für den Build konnte keine sichere Sitzung gestartet werden.";
+  if (error === "configured_boundary_unavailable") {
+    return "Build benötigt eine laufende Runtime mit LLM-Gateway und Backend. Dieses Frontend ist nur lesbar.";
+  }
+  if (error === "llm_gateway_generation_unavailable") return "Das LLM-Gateway hat kein vollständiges Build-Artefakt geliefert.";
+  if (error === "build_persistence_unavailable") return "Der Build wurde erzeugt, aber das Backend konnte ihn nicht sicher speichern.";
+  return String(payload.note ?? payload.reason ?? (error || `Build fehlgeschlagen (HTTP ${status}).`));
+}
+
+async function ensureSignedGuestSession(): Promise<void> {
+  const current = await fetch("/api/v1/auth/session", { cache: "no-store" });
+  const currentPayload = (await current.json()) as Record<string, unknown>;
+  if (current.ok && currentPayload.status === "signed_in") return;
+  const created = await fetch("/api/v1/auth/session", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ provider: "guest" }),
+  });
+  const createdPayload = (await created.json()) as Record<string, unknown>;
+  if (!created.ok || createdPayload.status !== "signed_in") throw new Error("Sichere Gast-Sitzung nicht verfügbar.");
+}
+
 export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { examples?: string[]; placeholder?: string } = {}) {
   const EXAMPLES = examples;
   const [prompt, setPrompt] = useState("");
@@ -24,9 +48,24 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
   const [err, setErr] = useState<string | null>(null);
   const [showCode, setShowCode] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [runtimeReady, setRuntimeReady] = useState<boolean | null>(null);
   const startedRef = useRef(0);
   const [elapsed, setElapsed] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const response = await fetch("/api/v1/builds?limit=1", { cache: "no-store" });
+        const payload = (await response.json()) as Record<string, unknown>;
+        if (alive) setRuntimeReady(response.ok && payload.persisted === true && payload.live_backend !== false);
+      } catch {
+        if (alive) setRuntimeReady(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   // Load an existing build into the builder (?build=<id>) to keep iterating on it.
   useEffect(() => {
@@ -46,6 +85,10 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
   async function run(p: string, baseHtml?: string) {
     const text = p.trim();
     if (!text || busy) return;
+    if (runtimeReady === false) {
+      setErr("Build benötigt eine laufende Runtime mit LLM-Gateway und Backend. Dieses Frontend ist nur lesbar.");
+      return;
+    }
     setBusy(true); setErr(null); if (!baseHtml) setBuild(null); setShowCode(false);
     startedRef.current = Date.now();
     setElapsed(0);
@@ -53,14 +96,15 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     try {
+      await ensureSignedGuestSession();
       const res = await fetch("/api/v1/build", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(baseHtml ? { prompt: text, base_html: baseHtml } : { prompt: text }),
         signal: ctrl.signal,
       });
-      const body = await res.json();
-      if (!res.ok || !body.html) setErr(String(body.note ?? body.reason ?? body.error ?? `Fehler ${res.status}`));
+      const body = (await res.json()) as Build & Record<string, unknown>;
+      if (!res.ok || !body.html) setErr(readableBuildError(body, res.status));
       else setBuild(body as Build);
     } catch (e) {
       if (!(e instanceof DOMException && e.name === "AbortError")) setErr(e instanceof Error ? e.message : String(e));
@@ -94,6 +138,11 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
 
   return (
     <div className="ai-builder" data-testid="ai-builder">
+      {runtimeReady === false ? (
+        <div className="note blocked" role="status" data-testid="ai-builder-runtime-notice">
+          Build benötigt eine laufende Runtime mit LLM-Gateway und Backend. Dieses Frontend ist nur lesbar.
+        </div>
+      ) : null}
       <div className="ab-prompt">
         <textarea
           className="ab-input"
@@ -105,7 +154,7 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
           disabled={busy}
           aria-label="Beschreibung für den Build"
         />
-        <button type="button" className="btn btn-primary ab-go" onClick={() => run(prompt)} disabled={busy} data-testid="ab-build">
+        <button type="button" className="btn btn-primary ab-go" onClick={() => run(prompt)} disabled={busy || runtimeReady === false} data-testid="ab-build">
           {busy ? `Baut… ${elapsed}s` : "✨ Bauen"}
         </button>
       </div>
@@ -114,7 +163,16 @@ export function AiBuilder({ examples = DEFAULT_EXAMPLES, placeholder }: { exampl
         <div className="ab-examples">
           <span className="text-12 text-mut">Beispiele:</span>
           {EXAMPLES.map((ex) => (
-            <button key={ex} type="button" className="ab-chip" onClick={() => { setPrompt(ex); run(ex); }}>{ex}</button>
+            <button
+              key={ex}
+              type="button"
+              className="ab-chip"
+              disabled={busy}
+              onClick={() => setPrompt(ex)}
+              title="Beispiel in das Eingabefeld übernehmen"
+            >
+              {ex}
+            </button>
           ))}
         </div>
       ) : null}

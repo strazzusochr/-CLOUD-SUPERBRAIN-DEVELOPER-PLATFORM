@@ -340,12 +340,32 @@ export function ToolsReadOnlyPanel() {
     setBusy(true);
     setResult("läuft…");
     try {
-      const body = await postJson("/api/v1/tools/read-only/execute", { tool, query });
-      setResult(
-        body.executed
-          ? `✓ ausgeführt · tool=${String(body.tool)} · ${String(body.ms)}ms\n${shortJson(body.result, 1400)}`
-          : `nicht ausgeführt\n${shortJson(body, 600)}`,
-      );
+      const body = await postJson("/api/v1/tools/read-only/execute", {
+        project_id: PROJECT_ID,
+        tool_id: tool,
+        query: query.trim(),
+      });
+      const status = String(body.status ?? "unknown");
+      const responseTool = String(body.tool_id ?? "unknown");
+      const auditEventId = String(body.audit_event_id ?? "missing");
+      const auditPersisted = body.audit_persisted === true;
+      const toolResult = body.result ?? body.payload;
+      const successful = status === "success"
+        && responseTool === tool
+        && auditEventId !== "missing"
+        && auditPersisted
+        && toolResult !== undefined;
+      setResult(successful
+        ? [
+            `✓ ausgeführt · tool=${responseTool} · status=${status}`,
+            `audit_event_id=${auditEventId} · audit_persisted=${String(auditPersisted)}`,
+            shortJson(toolResult, 1400),
+          ].join("\n")
+        : [
+            `Fehler · status=${status} · tool=${responseTool}`,
+            `audit_event_id=${auditEventId} · audit_persisted=${String(auditPersisted)}`,
+            shortJson(toolResult ?? body, 900),
+          ].join("\n"));
     } catch (err) {
       setResult(`Fehler\n${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -363,7 +383,6 @@ export function ToolsReadOnlyPanel() {
         >
           <option value="memory_read">memory_read</option>
           <option value="task_router">task_router</option>
-          <option value="web_fetch">web_fetch (URL)</option>
         </select>
         <input
           aria-label="Tool-Anfrage"

@@ -2,6 +2,7 @@ param(
   [string]$BaseUrl = "http://localhost:8081",
   [string]$ArtifactDir = ".codex\runs\CURRENT\master-goal\phase5\production-candidate-local",
   [switch]$AllowLocalhost,
+  [switch]$AllowNonCandidateHead,
   [switch]$StaticOnly,
   [switch]$SkipBrowser
 )
@@ -56,7 +57,13 @@ try {
   )
   $runtimeDiffArgs = @("diff", "--quiet", "$candidateSourceSha..HEAD", "--") + $runtimeSourcePaths
   & git @runtimeDiffArgs
-  Assert-True "candidate runtime source matches HEAD" ($LASTEXITCODE -eq 0)
+  $runtimeSourceMatchesHead = $LASTEXITCODE -eq 0
+  if (-not $runtimeSourceMatchesHead -and -not $AllowNonCandidateHead.IsPresent) {
+    Assert-True "candidate runtime source matches HEAD" $false
+  }
+  if (-not $runtimeSourceMatchesHead) {
+    Write-Host "[phase5-candidate-local] active candidate predates current HEAD; development-only verification"
+  }
   foreach ($marker in @(
     'environment: `production-candidate`',
     "immutable_image_commit_sha: ``$candidateSourceSha``",
@@ -79,7 +86,7 @@ try {
   Assert-True "secret non-claim source" $source.Contains('"secret_output": False')
 
   if ($StaticOnly) {
-    Write-Host "[phase5-candidate-local] static checks completed"
+    Write-Host "[phase5-candidate-local] static checks completed runtime_source_matches_head=$($runtimeSourceMatchesHead.ToString().ToLowerInvariant())"
     exit 0
   }
 

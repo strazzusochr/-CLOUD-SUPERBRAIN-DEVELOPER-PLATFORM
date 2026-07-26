@@ -46,6 +46,8 @@ function curate(builds: Build[]): CardBuild[] {
 // "Meine Apps" — persisted builds returned by the Agent API registry.
 export function BuildsGallery() {
   const [builds, setBuilds] = useState<Build[] | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -63,8 +65,24 @@ export function BuildsGallery() {
 
   async function remove(id: string) {
     if (!confirm("Diese App wirklich löschen?")) return;
-    setBuilds((prev) => (prev ? prev.filter((b) => b.id !== id) : prev));
-    try { await fetch(`/api/v1/build/${id}`, { method: "DELETE" }); } catch { /* ignore */ }
+    setDeleteError(null);
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/v1/build/${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (!res.ok) {
+        const suffix = res.status === 403 ? "Löschen ist für diese Sitzung nicht erlaubt." : `Der Server antwortete mit HTTP ${res.status}.`;
+        throw new Error(`${suffix} Die App bleibt erhalten.`);
+      }
+      setBuilds((prev) => (prev ? prev.filter((b) => b.id !== id) : prev));
+    } catch (error) {
+      setDeleteError(
+        error instanceof Error && error.message.includes("Die App bleibt erhalten.")
+          ? error.message
+          : "Löschen ist wegen eines Verbindungsfehlers nicht möglich. Die App bleibt erhalten.",
+      );
+    } finally {
+      setDeletingId((current) => (current === id ? null : current));
+    }
   }
 
   if (builds === null) return <div className="text-13 text-mut wb-pad">Lädt…</div>;
@@ -74,6 +92,11 @@ export function BuildsGallery() {
 
   return (
     <div className="builds-gallery" data-testid="builds-gallery">
+      {deleteError ? (
+        <div className="status bad wb-pad" role="alert" data-testid="build-delete-error">
+          {deleteError}
+        </div>
+      ) : null}
       {cards.map((b) => (
         <div key={b.id} className="bg-card" title={b.prompt || b.title}>
           <span className="bg-title">{b.cleanTitle}</span>
@@ -85,7 +108,17 @@ export function BuildsGallery() {
           <span className="bg-links">
             <a className="bg-open" href={`/run/${b.id}`} target="_blank" rel="noopener noreferrer">▶ Öffnen</a>
             <a className="bg-edit" href={`/workbench?build=${b.id}`}>✎ Bearbeiten</a>
-            <button type="button" className="bg-del" onClick={() => remove(b.id)} title="Löschen">🗑</button>
+            <button
+              type="button"
+              className="bg-del"
+              onClick={() => remove(b.id)}
+              title="Löschen"
+              aria-label={`App ${b.cleanTitle} löschen`}
+              data-testid={`build-delete-${b.id}`}
+              disabled={deletingId === b.id}
+            >
+              {deletingId === b.id ? "…" : "🗑"}
+            </button>
           </span>
         </div>
       ))}

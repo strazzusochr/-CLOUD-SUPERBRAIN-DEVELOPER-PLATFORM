@@ -24,6 +24,7 @@ export default function AppShell({
   const router = useRouter();
   const [cmdkOpen, setCmdkOpen] = useState(false);
   const [cmdkQuery, setCmdkQuery] = useState("");
+  const appShellRef = useRef<HTMLDivElement | null>(null);
   const cmdkInputRef = useRef<HTMLInputElement | null>(null);
   const navigationFallbackRef = useRef<number | null>(null);
 
@@ -45,6 +46,10 @@ export default function AppShell({
       return haystack.includes(query);
     });
   }, [cmdkItems, cmdkQuery]);
+
+  useEffect(() => {
+    appShellRef.current?.setAttribute("data-hydrated", "true");
+  }, []);
 
   const navigateFromCommandPalette = useCallback((route: string) => {
     setCmdkOpen(false);
@@ -103,7 +108,7 @@ export default function AppShell({
   }, [cmdkOpen]);
 
   return (
-    <div className="app-shell" data-run-state={runState}>
+    <div ref={appShellRef} className="app-shell" data-run-state={runState}>
       <nav className="rail" aria-label="Primärnavigation">
         <Link href="/home" className="rail-logo" aria-label="Cloud Superbrain Start" />
         {railGroups.map((group, gi) => (
