@@ -255,9 +255,14 @@ if (-not (Test-Path "scripts\verify-frontend-cloud-rewrites.ps1")) {
   throw "Missing frontend cloud rewrite verifier"
 }
 $frontendNextConfig = Get-Content -Path "apps\frontend\next.config.mjs" -Raw
-foreach ($required in @("convertFlyAppNameToBaseUrl", "resolveBaseUrl", "FLY_APP_AGENT_API", "FLY_APP_MCP_GATEWAY", "FLY_APP_LLM_GATEWAY", "cloud-superbrain-agent-api", "cloud-superbrain-mcp-gateway", "cloud-superbrain-llm-gateway", "hostedRewriteFallbackFor")) {
+foreach ($required in @("resolveBaseUrl", "AGENT_API_BASE_URL", "MCP_GATEWAY_BASE_URL", "LLM_GATEWAY_BASE_URL", "STAGING_BASE_URL", "isSafeHttpsOrigin", "hostedRewriteFallbackFor")) {
   if (-not $frontendNextConfig.Contains($required)) {
-    throw "Frontend Next.js config missing Fly rewrite guard: $required"
+    throw "Frontend Next.js config missing hosted origin rewrite guard: $required"
+  }
+}
+foreach ($forbiddenActiveFlyMarker in @("convertFlyAppNameToBaseUrl", "FLY_APP_AGENT_API", "FLY_APP_MCP_GATEWAY", "FLY_APP_LLM_GATEWAY")) {
+  if ($frontendNextConfig.Contains($forbiddenActiveFlyMarker)) {
+    throw "Frontend Next.js config must not retain active Fly fallback: $forbiddenActiveFlyMarker"
   }
 }
 
@@ -328,9 +333,10 @@ foreach ($required in @(
   "layers_required) 7",
   "directProviderCalls",
   "hostedProofRequiredForRelease",
-  "fly-agent-api",
-  "fly-mcp-gateway",
-  "fly-llm-gateway",
+  "cloudflare-stateful-runtime",
+  "cloudflare-llm-gateway",
+  "vercel-hosted-backend-origin-contracts",
+  "retired active backend target absent",
   "ghcr",
   "Hetzner",
   "GitKraken",
@@ -772,8 +778,9 @@ foreach ($required in @(
   "nginx",
   "infrastructure/nginx/cloud.conf",
   "PROJECT_PROGRESS_MANIFEST_PATH",
-  "FLY_API_TOKEN",
   "CLOUDFLARE_API_TOKEN",
+  "CLOUDFLARE_ACCOUNT_ID",
+  "CLOUDFLARE_STATEFUL_BASE_URL",
   "VERCEL_TOKEN",
   "GITHUB_TOKEN",
   "GHCR_TOKEN",
@@ -793,7 +800,7 @@ if (
   throw "Cloud compose missing deployment guard: project progress manifest mount"
 }
 $envExample = Get-Content -Path ".env.example" -Raw
-foreach ($required in @("GHCR_IMAGE_NAMESPACE", "IMAGE_TAG", "AGENT_API_BASE_URL", "MCP_GATEWAY_BASE_URL", "LLM_GATEWAY_BASE_URL")) {
+foreach ($required in @("GHCR_IMAGE_NAMESPACE", "IMAGE_TAG", "AGENT_API_BASE_URL", "MCP_GATEWAY_BASE_URL", "LLM_GATEWAY_BASE_URL", "CLOUDFLARE_STATEFUL_BASE_URL", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN")) {
   if (-not $envExample.Contains($required)) {
     throw ".env.example missing cloud deployment variable: $required"
   }
@@ -809,39 +816,10 @@ Write-Host "[verify] frontend npm audit"
 npm audit --audit-level=moderate --prefix apps/frontend
 Assert-LastExitCode "frontend npm audit"
 
-Write-Host "[verify] ci budget script"
-py -3 -m py_compile scripts\check_fly_infra_budget.py
-Assert-LastExitCode "ci budget script"
-
-Write-Host "[verify] fly origin configs"
-$flyOriginConfigs = @(
-  @{ path = "fly.agent-api.toml"; app = "cloud-superbrain-agent-api"; dockerfile = "services/agent-api/Dockerfile"; port = "8000"; memory = "1gb" },
-  @{ path = "fly.mcp-gateway.toml"; app = "cloud-superbrain-mcp-gateway"; dockerfile = "services/mcp-gateway/Dockerfile"; port = "9000"; memory = "512mb" },
-  @{ path = "fly.llm-gateway.toml"; app = "cloud-superbrain-llm-gateway"; dockerfile = "services/llm-gateway/Dockerfile"; port = "4000"; memory = "512mb" }
-)
-foreach ($config in $flyOriginConfigs) {
-  if (-not (Test-Path $config.path)) {
-    throw "Missing Fly.io origin config: $($config.path)"
-  }
-  $flyConfig = Get-Content -Path $config.path -Raw
-  foreach ($required in @(
-    "app = `"$($config.app)`"",
-    "primary_region = `"fra`"",
-    "dockerfile = `"$($config.dockerfile)`"",
-    "internal_port = $($config.port)",
-    "force_https = true",
-    "size = `"shared-cpu-1x`"",
-    "memory = `"$($config.memory)`""
-  )) {
-    if (-not $flyConfig.Contains($required)) {
-      throw "Fly.io origin config $($config.path) missing guard: $required"
-    }
-  }
+Write-Host "[verify] active cloud path excludes retired Fly requirements"
+if ($cloudComposeText.Contains("FLY_API_TOKEN")) {
+  throw "Cloud compose must not keep FLY_API_TOKEN in the active Cloudflare-native path"
 }
-
-Write-Host "[verify] fly source-build context"
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-fly-build-context.ps1
-Assert-LastExitCode "fly source-build context"
 
 Write-Host "[verify] project progress manifest"
 node scripts\verify-phase6-frontend.mjs --source-only
@@ -922,7 +900,7 @@ foreach ($requiredHostedBoundaryTerm in @(
   'Current Hosted Boundary',
   'historical provenance only',
   'Current frontend truth is `frontend-hosted-current-proof-v1`',
-  'current contract-origin truth is the latest `external-gate-audit-*` artifact plus reachable Agent API, MCP Gateway, and LLM Gateway HTTPS origins',
+  'current external truth is `external-gate-audit-v2` plus `external-gate-summary-v2`',
   'Neither one proves a stateful full-backend rollout, release promotion, or full-platform production release'
 )) {
   if (-not $verificationRegister.Contains($requiredHostedBoundaryTerm)) {
@@ -1033,15 +1011,45 @@ foreach ($requiredAiHandoffTerm in @(
     throw "AI_HANDOFF.md missing current progress marker: $requiredAiHandoffTerm"
   }
 }
-Write-Host "[verify] current truth mirror audit alignment (R0: canonical = token-free standard bootstrap)"
-# R0 (CODEX_UEBERGABE_2026-07-13.md, unverhandelbar): the canonical external-gate summary MUST
-# mirror the reproducible token-free standard bootstrap (currently `blocked`). Token/origin-injected
-# `verified` audits (e.g. 20260713-125413 / 20260713-122705) are owner-assisted candidate-only
-# evidence: they must NEVER be set as the current summary and must NEVER emit
-# production_deploy_claim_allowed=true as current authority. "Freigabe-erlaubt" != "deployt".
-$currentAuditName = "external-gate-audit-20260720-191532.json"
+Write-Host "[verify] current truth mirror external gate v2 alignment"
 $candidateAuditName = "external-gate-audit-20260713-125413.json"
 $masterGoal = Get-Content -Path "CODEX_MASTER_GOAL_FINALE.md" -Raw
+$externalGateSummary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
+if ([string]$externalGateSummary.contract_version -ne "external-gate-summary-v2") {
+  throw "Canonical external gate summary must use external-gate-summary-v2"
+}
+if ([string]$externalGateSummary.source_contract_version -ne "external-gate-audit-v2") {
+  throw "Canonical external gate summary must source external-gate-audit-v2"
+}
+if ([string]$externalGateSummary.active_target_gate -ne "cloudflare_native_zero_card_hosted_runtime") {
+  throw "Canonical external gate summary must target cloudflare_native_zero_card_hosted_runtime"
+}
+$currentAuditPath = ([string]$externalGateSummary.source_artifact).Replace("\", "/")
+if ($currentAuditPath -ne "docs/runtime-state/external-gate-audit-v2.json") {
+  throw "Canonical external gate summary must dynamically reference the durable v2 audit"
+}
+if (-not (Test-Path -LiteralPath $currentAuditPath)) {
+  throw "Canonical external gate v2 audit is missing: $currentAuditPath"
+}
+$trackedCurrentAudit = git ls-files --error-unmatch -- $currentAuditPath 2>$null
+if ($LASTEXITCODE -ne 0 -or @($trackedCurrentAudit).Count -ne 1) {
+  throw "Canonical external gate v2 audit must be tracked: $currentAuditPath"
+}
+$currentAudit = Get-Content -LiteralPath $currentAuditPath -Raw | ConvertFrom-Json
+if ([string]$currentAudit.contract_version -ne "external-gate-audit-v2") {
+  throw "Canonical external gate audit contract must be external-gate-audit-v2"
+}
+if ([string]$currentAudit.active_target_gate -ne "cloudflare_native_zero_card_hosted_runtime") {
+  throw "Canonical external gate audit must target cloudflare_native_zero_card_hosted_runtime"
+}
+if (
+  [string]$externalGateSummary.status -ne [string]$currentAudit.status -or
+  [string]$externalGateSummary.generated_at_utc -ne [string]$currentAudit.generated_at_utc -or
+  [bool]$externalGateSummary.production_deploy_claim_allowed -ne [bool]$currentAudit.production_deploy_claim_allowed
+) {
+  throw "Canonical external gate summary and durable v2 audit are out of parity"
+}
+$currentAuditName = [System.IO.Path]::GetFileName($currentAuditPath)
 $currentTruthMirrors = @(
   @{ name = "PROJECT_STATE.md"; content = $projectState },
   @{ name = "AI_HANDOFF.md"; content = $aiHandoff },
@@ -1049,28 +1057,42 @@ $currentTruthMirrors = @(
   @{ name = "CODEX_MASTER_GOAL_FINALE.md"; content = $masterGoal }
 )
 foreach ($mirror in $currentTruthMirrors) {
-  if (-not $mirror.content.Contains($currentAuditName)) {
-    throw "$($mirror.name) missing current token-free standard external gate audit: $currentAuditName"
+  foreach ($requiredTruthMarker in @(
+    $currentAuditName,
+    "external-gate-summary-v2",
+    "cloudflare_native_zero_card_hosted_runtime"
+  )) {
+    if (-not $mirror.content.Contains($requiredTruthMarker)) {
+      throw "$($mirror.name) missing current external gate v2 truth marker: $requiredTruthMarker"
+    }
   }
 }
 if (-not $masterGoal.Contains("``overall=$currentOverall``")) {
   throw "CODEX_MASTER_GOAL_FINALE.md missing current overall=$currentOverall marker"
 }
-$externalGateSummary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
-if (-not ([string]$externalGateSummary.source_artifact).Contains($currentAuditName)) {
-  throw "External gate summary does not reference current token-free standard audit: $currentAuditName"
-}
 if (([string]$externalGateSummary.source_artifact).Contains($candidateAuditName)) {
-  throw "R0 violation: token-injected candidate audit $candidateAuditName must never be the canonical summary source"
+  throw "Historical owner-assisted candidate $candidateAuditName must never be the canonical summary source"
 }
 if ([string]$externalGateSummary.status -ne "blocked" -or [bool]$externalGateSummary.production_deploy_claim_allowed) {
-  throw "R0 violation: canonical external gate summary must mirror the token-free standard bootstrap (status=blocked, production_deploy_claim_allowed=false)"
+  throw "Canonical external gate summary must stay blocked with production_deploy_claim_allowed=false until hosted O2' proof"
 }
 $actualMissingExternalGates = @($externalGateSummary.missing_or_failed_gates | ForEach-Object { [string]$_ })
-if ($actualMissingExternalGates.Count -lt 1) {
-  throw "R0 violation: blocked standard summary must list at least one missing/failed external gate"
+if ($actualMissingExternalGates.Count -ne 1 -or $actualMissingExternalGates[0] -ne "cloudflare_native_zero_card_hosted_runtime") {
+  throw "Canonical external gate summary must list only the active Cloudflare-native hosted gate"
 }
-# The token/origin-injected verified run may exist ONLY as a clearly-labeled, non-current candidate.
+if (
+  $externalGateSummary.PSObject.Properties.Name -contains "fly_live_budget_claim_allowed" -or
+  $actualMissingExternalGates -contains "fly_live_budget_check"
+) {
+  throw "Retired Fly gate semantics must not remain active in external-gate-summary-v2"
+}
+if (
+  [string]$externalGateSummary.legacy_provenance.status -ne "historical_only" -or
+  [string]$externalGateSummary.legacy_provenance.retired_gate_id -ne "fly_live_budget_check"
+) {
+  throw "Retired Fly evidence must be explicit historical provenance"
+}
+# The older token/origin-injected run may exist only as historical, non-current evidence.
 $candidateSummaryPath = "docs\runtime-state\external-gate-summary.candidate-125413.json"
 if (-not (Test-Path $candidateSummaryPath)) {
   throw "Missing owner-assisted candidate summary for $candidateAuditName (R0 candidate-only evidence)"
@@ -1083,7 +1105,34 @@ if ([bool]$candidateSummary.is_current -or -not [bool]$candidateSummary.owner_as
   throw "R0 violation: 125413 candidate must be labeled is_current=false and owner_assisted_candidate=true"
 }
 if ([bool]$candidateSummary.supersedes_canonical) {
-  throw "R0 violation: owner-assisted candidate must not claim to supersede the canonical standard summary"
+  throw "Historical owner-assisted candidate must not supersede the canonical v2 summary"
+}
+
+Write-Host "[verify] O6 bounded live LLM resolution truth"
+$capabilityGateState = Get-Content -Path "docs\runtime-state\capability-gates.json" -Raw | ConvertFrom-Json
+$liveLlmCapability = $capabilityGateState.gates.live_llm_provider_calls
+if (
+  -not [bool]$liveLlmCapability.owner_granted -or
+  -not [bool]$liveLlmCapability.live_verified -or
+  [bool]$liveLlmCapability.paid_provider -or
+  [string]::IsNullOrWhiteSpace([string]$liveLlmCapability.evidence_artifact)
+) {
+  throw "O6 bounded live LLM capability must remain owner_granted, free, and verifier-backed"
+}
+$ownerInputManifest = Get-Content -Path "docs\runtime-state\owner-input-manifest.json" -Raw | ConvertFrom-Json
+if ([string]$ownerInputManifest.contract_version -ne "owner-input-manifest-v2") {
+  throw "Owner input manifest must use owner-input-manifest-v2"
+}
+$o6OwnerAction = @($ownerInputManifest.actions | Where-Object { [string]$_.id -eq "O6" })
+if ($o6OwnerAction.Count -ne 1 -or [string]$o6OwnerAction[0].status -ne "resolved_verified") {
+  throw "O6 must be resolved_verified and must not remain Owner-required"
+}
+if (-not ([string]$o6OwnerAction[0].required_owner_action).StartsWith("None")) {
+  throw "O6 must not request a new Owner action"
+}
+$layer4Progress = @($projectProgress.vertical.items | Where-Object { [string]$_.id -eq "layer_4" })
+if ($layer4Progress.Count -ne 1 -or [int]$layer4Progress[0].percent -ge 100) {
+  throw "Bounded O6 resolution must not hand-set Layer 4 to 100"
 }
 py -3 -m py_compile scripts\verify-phase-transition-gate.py
 Assert-LastExitCode "phase transition gate syntax"
@@ -1103,7 +1152,7 @@ $apiTaskPolicySource = Get-Content -Path "services\agent-api\app\main.py" -Raw
 if (-not $apiTaskPolicySource.Contains("task_policy_blocked")) { throw "Missing task policy audit event" }
 if (-not $apiTaskPolicySource.Contains("/api/v1/tasks/policy/validate")) { throw "Missing public task policy validation endpoint" }
 $cloudProviderSource = Get-Content -Path "services\agent-api\app\clouds.py" -Raw
-foreach ($required in @("cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "GET /api/v1/clouds", "GET /api/v1/clouds/layers", "seven_layer_mapping", "cloud_layer_readiness_state", "FLY_API_TOKEN", "fly_api_readonly", "CLOUDFLARE_API_TOKEN", "cloudflare_api_readonly", "CLOUDFLARE_DASHBOARD_URL", "VERCEL_TOKEN", "vercel_api_readonly", "GITHUB_TOKEN", "github_api_readonly", "GHCR_TOKEN", "ghcr_api_readonly", "HF_TOKEN", "huggingface_api_readonly", "GITLAB_TOKEN", "gitlab_api_readonly", "GRAFANA_CLOUD_API_KEY", "GRAFANA_CLOUD_API_URL", "/api/v1/accesspolicies", "/api/access-control/user/permissions", "grafana_api_readonly", "real read-only provider API request", "No secret values", "mask_ip", "vercel_frontend", "cloudflare_edge", "github_actions", "ghcr_registry", "huggingface_identity", "gitlab_identity", "grafana_cloud")) {
+foreach ($required in @("cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "GET /api/v1/clouds", "GET /api/v1/clouds/layers", "seven_layer_mapping", "cloud_layer_readiness_state", "historical_only", "cannot satisfy active Layer 2, 3, 6", "CLOUDFLARE_STATEFUL_BASE_URL", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "cloudflare_api_readonly", "CLOUDFLARE_DASHBOARD_URL", "VERCEL_TOKEN", "vercel_api_readonly", "GITHUB_TOKEN", "github_api_readonly", "GHCR_TOKEN", "ghcr_api_readonly", "HF_TOKEN", "huggingface_api_readonly", "GITLAB_TOKEN", "gitlab_api_readonly", "GRAFANA_CLOUD_API_KEY", "GRAFANA_CLOUD_API_URL", "/api/v1/accesspolicies", "/api/access-control/user/permissions", "grafana_api_readonly", "real read-only provider API request", "No secret values", "mask_ip", "vercel_frontend", "cloudflare_edge", "github_actions", "ghcr_registry", "huggingface_identity", "gitlab_identity", "grafana_cloud")) {
   if (-not $cloudProviderSource.Contains($required)) {
     throw "Missing cloud provider inventory source guard: $required"
   }
@@ -1865,9 +1914,14 @@ foreach ($required in @(
   "external gate mirror status follows canonical summary",
   "canonical_summary_status",
   "missing_or_blocked_gates",
-  "fly_cloud_stack",
+  "cloudflare_native_zero_card_hosted_runtime",
   "publish_ghcr_images",
   "hosted_backend_origins",
+  "CLOUDFLARE_STATEFUL_BASE_URL",
+  "CLOUDFLARE_ACCOUNT_ID",
+  "CLOUDFLARE_API_TOKEN",
+  "cloud deployment preflight required owner scope",
+  "cloudflare_zero_card_projection",
   "BRANCH_PROTECTION_TOKEN",
   "canonical_secret_scan",
   "This endpoint does not create, mutate, deploy, or delete cloud resources."
@@ -2609,6 +2663,28 @@ foreach ($service in @("agent-api", "agent-worker", "memory-worker", "mcp-gatewa
 if ($mainDeployWorkflow -notmatch '(?ms)- name: frontend\s+context: apps/frontend\s+dockerfile: apps/frontend/Dockerfile') {
   throw "main-deploy workflow must build frontend from apps/frontend context"
 }
+$infraCostWorkflow = Get-Content -Path ".github\workflows\infra-cost-check.yml" -Raw
+foreach ($required in @("CLOUDFLARE_PROJECTED_MONTHLY_EUR", "Cloudflare zero-card target must remain EUR 0.00", "paid fallback is forbidden")) {
+  if (-not $infraCostWorkflow.Contains($required)) {
+    throw "Infra cost workflow missing Cloudflare zero-card guard: $required"
+  }
+}
+foreach ($forbidden in @("FLY_PROJECTED_MONTHLY_EUR", '"Fly.io":')) {
+  if ($infraCostWorkflow.Contains($forbidden)) {
+    throw "Infra cost workflow still contains active Fly budget input: $forbidden"
+  }
+}
+$budgetSource = Get-Content -Path "services\agent-api\app\budget.py" -Raw
+foreach ($required in @("cloudflare-native-zero-card-hosted-runtime", "cloudflare_zero_card_projection", "allow_new_infra=False")) {
+  if (-not $budgetSource.Contains($required)) {
+    throw "Budget source missing fail-closed Cloudflare projection guard: $required"
+  }
+}
+foreach ($forbidden in @("fly-production-shared-cpu", "fly-staging-shared-cpu", "fly_live_budget_items", "FLY_API_TOKEN")) {
+  if ($budgetSource.Contains($forbidden)) {
+    throw "Budget source still contains active Fly planning marker: $forbidden"
+  }
+}
 
 Write-Host "[verify] external gate audit contract"
 if (-not (Test-Path "scripts\verify-external-gates.ps1")) {
@@ -2621,19 +2697,27 @@ if (-not (Test-Path "scripts\verify-all-gates-with-tokens.ps1")) {
   throw "Missing private env external gate runner"
 }
 $externalGateAuditScript = Get-Content -Path "scripts\verify-external-gates.ps1" -Raw
-foreach ($required in @("external-gate-audit-v1", "external_gate_audit_proof", "hosted_staging_claim_allowed", "frontend_preview_claim_allowed", "production_deploy_claim_allowed", "Assert-HostedBaseUrlSafe", "External gate hosted proof requires HTTPS", "Test-RetiredHostedBaseUrl", "retired_provider_url", "network_classification", "elapsed_ms", "response_url", "failed_hosted_required_probe_ids", "failed_vercel_origin_probe_ids", "hosted_cloud_deployment_preflight", "cloud_deployment_preflight_visible", "ghcr_image_digest_verify", "ghcr_image_digest_proof", "Invoke-BoundedNativeCommand", "WaitForExit", "EXTERNAL_GATE_HTTP_TIMEOUT_MS", "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS", "EXTERNAL_GATE_DOCKER_TIMEOUT_SECONDS", '"timeout"', "dockerExitCode", "vercel_backend_origin_required", "vercel_backend_origin_health", "hosted_agent_api_health", "hosted_agent_api_health_required", "cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "github_branch_protection_verify", "canonical_gitleaks_scan", "fly_live_budget_check", "root_health", "prefixed_health", "Join-OriginProbeUrl", "gitlab_identity_claim_allowed", "huggingface_identity_claim_allowed", "grafana_cloud_claim_allowed", "Invoke-RestMethod", "GITLAB_TOKEN", "HF_TOKEN", "GRAFANA_CLOUD_API_KEY", "Invoke-PublicBranchProtectionProbe", "public_anonymous_subset", "publicBackendOrigin", "cloud-superbrain-developer-platform.vercel.app")) {
+foreach ($required in @("external-gate-audit-v2", "external-gate-summary-v2", "external_gate_audit_proof", "active_target_gate", "cloudflare_native_zero_card_hosted_runtime", "cloudflare_native_zero_card_hosted_runtime_claim_allowed", "Get-CloudflareNativeGateProbe", "DurableAuditPath", "docs\runtime-state\external-gate-audit-v2.json", "local_run_artifact", "hosted_staging_claim_allowed", "frontend_preview_claim_allowed", "production_deploy_claim_allowed", "Assert-HostedBaseUrlSafe", "External gate hosted proof requires HTTPS", "Test-RetiredHostedBaseUrl", "retired_provider_url", "network_classification", "elapsed_ms", "response_url", "failed_hosted_required_probe_ids", "failed_vercel_origin_probe_ids", "hosted_cloud_deployment_preflight", "cloud_deployment_preflight_visible", "ghcr_image_digest_verify", "ghcr_image_digest_proof", "Invoke-BoundedNativeCommand", "WaitForExit", "EXTERNAL_GATE_HTTP_TIMEOUT_MS", "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS", "EXTERNAL_GATE_DOCKER_TIMEOUT_SECONDS", '"timeout"', "dockerExitCode", "vercel_backend_origin_required", "vercel_backend_origin_health", "hosted_agent_api_health", "hosted_agent_api_health_required", "cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "github_branch_protection_verify", "canonical_gitleaks_scan", "root_health", "prefixed_health", "Join-OriginProbeUrl", "gitlab_identity_claim_allowed", "huggingface_identity_claim_allowed", "grafana_cloud_claim_allowed", "Invoke-RestMethod", "GITLAB_TOKEN", "HF_TOKEN", "GRAFANA_CLOUD_API_KEY", "Invoke-PublicBranchProtectionProbe", "public_anonymous_subset", "publicBackendOrigin", "cloud-superbrain-developer-platform.vercel.app", "historical_only", "percentage credit")) {
   if (-not $externalGateAuditScript.Contains($required)) {
     throw "External gate audit verifier missing guard: $required"
   }
 }
+if ($externalGateAuditScript -match '\$missing\s*\+=\s*["'']fly_live_budget_check["'']') {
+  throw "External gate audit verifier must not keep fly_live_budget_check in the active missing gate set"
+}
 $privateGateRunner = Get-Content -Path "scripts\verify-all-gates-with-tokens.ps1" -Raw
-foreach ($required in @("Convert-FlyAppNameToBaseUrl", "Resolve-OriginEnv", "Test-HostedRewriteFallbackValue", "Get-FlyAppNameOrDefault", "FLY_APP_AGENT_API", "FLY_APP_MCP_GATEWAY", "FLY_APP_LLM_GATEWAY", "cloud-superbrain-agent-api", "cloud-superbrain-mcp-gateway", "cloud-superbrain-llm-gateway", ".fly.dev")) {
+foreach ($required in @("verify-external-gates.ps1", "CLOUDFLARE_STATEFUL_BASE_URL", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN")) {
   if (-not $privateGateRunner.Contains($required)) {
-    throw "Private env external gate runner missing Fly origin derivation guard: $required"
+    throw "Private env external gate runner missing Cloudflare-native guard: $required"
+  }
+}
+foreach ($forbiddenActiveFlyMarker in @("Convert-FlyAppNameToBaseUrl", "Get-FlyAppNameOrDefault", "FLY_APP_AGENT_API", "FLY_APP_MCP_GATEWAY", "FLY_APP_LLM_GATEWAY")) {
+  if ($privateGateRunner.Contains($forbiddenActiveFlyMarker)) {
+    throw "Private env external gate runner still contains active Fly derivation: $forbiddenActiveFlyMarker"
   }
 }
 $externalGateAuditDoc = Get-Content -Path "docs\runtime-contracts\external-gate-audit-contract.md" -Raw
-foreach ($required in @("external-gate-audit-v1", "cloud-only-staging-proof-v1", "Frontend preview reachability is not hosted staging", "hosted_staging_claim_allowed", "production_deploy_claim_allowed", "No secret values", "Optional GitLab identity", "Optional Hugging Face identity", "Optional grafana identity", "Fly app names", "never the token")) {
+foreach ($required in @("external-gate-audit-v2", "external-gate-summary-v2", "cloud-only-staging-proof-v1", "Frontend preview reachability is not hosted staging", "hosted_staging_claim_allowed", "production_deploy_claim_allowed", "cloudflare_native_zero_card_hosted_runtime", "CLOUDFLARE_STATEFUL_BASE_URL", "No secret values", "Optional GitLab identity", "Optional Hugging Face identity", "Optional grafana identity", "historical_only", "never the token")) {
   if (-not $externalGateAuditDoc.Contains($required)) {
     throw "External gate audit contract document missing guard: $required"
   }
@@ -2651,7 +2735,7 @@ if (-not (Test-Path "docs\runtime-contracts\cloud-provider-inventory-contract.md
   throw "Missing cloud provider inventory contract document"
 }
 $cloudProviderInventoryDoc = Get-Content -Path "docs\runtime-contracts\cloud-provider-inventory-contract.md" -Raw
-foreach ($required in @("cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "GET /api/v1/clouds", "GET /api/v1/clouds/layers", "Seven-Layer Mapping", "Cloud Layer Readiness", "No secret values", "Vercel Live Read", "Fly.io Live Read", "Cloudflare Live Read", "GitHub Live Read", "GHCR Live Read", "Hugging Face Live Read", "GitLab Live Read", "Grafana Cloud Live Read", "FLY_API_TOKEN", "CLOUDFLARE_API_TOKEN", "VERCEL_TOKEN", "GITHUB_TOKEN", "GHCR_TOKEN", "HF_TOKEN", "GITLAB_TOKEN", "GRAFANA_CLOUD_API_KEY", "vercel_frontend", "ghcr_registry", "grafana_cloud")) {
+foreach ($required in @("cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "GET /api/v1/clouds", "GET /api/v1/clouds/layers", "Seven-Layer Mapping", "Cloud Layer Readiness", "No secret values", "Vercel Live Read", "Cloudflare Live Read", "GitHub Live Read", "GHCR Live Read", "Hugging Face Live Read", "GitLab Live Read", "Grafana Cloud Live Read", "Cloudflare-native stateful runtime", "historical_only", "CLOUDFLARE_STATEFUL_BASE_URL", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "VERCEL_TOKEN", "GITHUB_TOKEN", "GHCR_TOKEN", "HF_TOKEN", "GITLAB_TOKEN", "GRAFANA_CLOUD_API_KEY", "vercel_frontend", "ghcr_registry", "grafana_cloud")) {
   if (-not $cloudProviderInventoryDoc.Contains($required)) {
     throw "Cloud provider inventory contract document missing guard: $required"
   }
@@ -2660,7 +2744,7 @@ if (-not (Test-Path "docs\runtime-contracts\cloud-render-offload-contract.md")) 
   throw "Missing cloud render offload contract document"
 }
 $cloudRenderOffloadDoc = Get-Content -Path "docs\runtime-contracts\cloud-render-offload-contract.md" -Raw
-foreach ($required in @("cloud-render-offload-v1", "cloud_render_offload_contract_visible", "GET /api/v1/clouds/render-offload/contract", "localhost_heavy_render_allowed", "STAGING_BASE_URL", "FLY_API_TOKEN", "webgl_3d_rendering", "control_plane")) {
+foreach ($required in @("cloud-render-offload-v1", "cloud_render_offload_contract_visible", "GET /api/v1/clouds/render-offload/contract", "localhost_heavy_render_allowed", "STAGING_BASE_URL", "CLOUDFLARE_STATEFUL_BASE_URL", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "webgl_3d_rendering", "control_plane")) {
   if (-not $cloudRenderOffloadDoc.Contains($required)) {
     throw "Cloud render offload contract document missing guard: $required"
   }
@@ -2669,7 +2753,7 @@ if (-not (Test-Path "docs\runtime-contracts\cloud-deployment-preflight-contract.
   throw "Missing cloud deployment preflight contract document"
 }
 $cloudDeploymentPreflightDoc = Get-Content -Path "docs\runtime-contracts\cloud-deployment-preflight-contract.md" -Raw
-foreach ($required in @("cloud-deployment-preflight-v1", "cloud_deployment_preflight_visible", "GET /api/v1/clouds/deployment-preflight/contract", "publish_ghcr_images", "GITHUB_TOKEN", "GHCR_TOKEN", "FLY_API_TOKEN", "AGENT_API_BASE_URL", "BRANCH_PROTECTION_TOKEN", "cloud_deploy_claim_allowed", "production_deploy_claim_allowed", "manual_external_actions")) {
+foreach ($required in @("cloud-deployment-preflight-v1", "cloud_deployment_preflight_visible", "GET /api/v1/clouds/deployment-preflight/contract", "publish_ghcr_images", "cloudflare_native_zero_card_hosted_runtime", "CLOUDFLARE_STATEFUL_BASE_URL", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "workers_scripts_edit", "d1_edit", "durable_objects_edit", "queues_edit", "workers_ai_read", "r2_edit_if_zero_card_verified", "GITHUB_TOKEN", "GHCR_TOKEN", "BRANCH_PROTECTION_TOKEN", "cloud_deploy_claim_allowed", "production_deploy_claim_allowed", "manual_external_actions")) {
   if (-not $cloudDeploymentPreflightDoc.Contains($required)) {
     throw "Cloud deployment preflight contract document missing guard: $required"
   }
@@ -2689,6 +2773,53 @@ Write-Host "[verify] owner cloud gate activation guard"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-owner-cloud-gate-activation.ps1
 Assert-LastExitCode "owner cloud gate activation guard"
 
+Write-Host "[verify] retired Fly rollout paths fail closed"
+$retiredRolloutScript = Get-Content -Path "scripts\owner-production-rollout.ps1" -Raw
+foreach ($required in @("RETIRED_HISTORICAL_DO_NOT_EXECUTE", "owner-cloud-gate-activation.ps1", "PlanOnly")) {
+  if (-not $retiredRolloutScript.Contains($required)) {
+    throw "Retired production rollout script missing fail-closed marker: $required"
+  }
+}
+foreach ($forbidden in @("FLY_API_TOKEN", "fly deploy", "gh workflow run", "vercel deploy")) {
+  if ($retiredRolloutScript.Contains($forbidden)) {
+    throw "Retired production rollout script still contains executable legacy path: $forbidden"
+  }
+}
+$retiredTraePrompt = Get-Content -Path "TRAE_DEPLOY_PROMPT.md" -Raw
+foreach ($required in @("RETIRED_HISTORICAL_DO_NOT_EXECUTE", "cloudflare_native_zero_card_hosted_runtime", "owner-cloud-gate-activation.ps1")) {
+  if (-not $retiredTraePrompt.Contains($required)) {
+    throw "Retired deployment prompt missing current gate marker: $required"
+  }
+}
+foreach ($forbidden in @("fly deploy", "gh workflow run", "vercel deploy")) {
+  if ($retiredTraePrompt.Contains($forbidden)) {
+    throw "Retired deployment prompt still contains copyable legacy action: $forbidden"
+  }
+}
+$ownerGoLiveChecklist = Get-Content -Path "docs\runbooks\OWNER_GO_LIVE_CHECKLIST.md" -Raw
+foreach ($required in @("OWNER_BLOCKED_AUTONOMOUS_COMPLETE", "cloudflare_native_zero_card_hosted_runtime", "0/6", "O6", "resolved_verified", "PlanOnly")) {
+  if (-not $ownerGoLiveChecklist.Contains($required)) {
+    throw "Owner go-live checklist missing current truth marker: $required"
+  }
+}
+$gateOpeningAnalysis = Get-Content -Path "docs\audit\gate-opening-analysis.md" -Raw
+foreach ($required in @("external-gate-audit-v2.json", "cloudflare_native_zero_card_hosted_runtime", "0/6", "historical_only", "production_deploy_claim_allowed=false")) {
+  if (-not $gateOpeningAnalysis.Contains($required)) {
+    throw "Gate-opening analysis missing current truth marker: $required"
+  }
+}
+$toolingReadinessSource = Get-Content -Path "scripts\verify-tooling-readiness.ps1" -Raw
+foreach ($required in @("fly_io_historical", "historical_only", "cloudflare-owner-scope-readiness-v1", "o2_prime_scope_ready", "CLOUDFLARE_STATEFUL_BASE_URL")) {
+  if (-not $toolingReadinessSource.Contains($required)) {
+    throw "Tooling readiness missing Cloudflare-native guard: $required"
+  }
+}
+foreach ($forbidden in @("KnownFlyTokenPath", 'fetch("https://api.fly.io/graphql"', '"fly_io" @("FLY_API_TOKEN")')) {
+  if ($toolingReadinessSource.Contains($forbidden)) {
+    throw "Tooling readiness still contains active Fly readiness path: $forbidden"
+  }
+}
+
 Write-Host "[verify] go-live readiness guard"
 if (-not (Test-Path "scripts\verify-go-live-readiness.ps1")) {
   throw "Missing go-live readiness verifier"
@@ -2697,18 +2828,27 @@ $goLiveVerifier = Get-Content -Path "scripts\verify-go-live-readiness.ps1" -Raw
 foreach ($required in @(
   "go-live-readiness-v1",
   "go-live-readiness-surface-v1",
-  "external-gate-audit-v1",
+  "external-gate-audit-v2",
+  "external-gate-summary-v2",
+  "cloudflare_native_zero_card_hosted_runtime",
+  "cloudflare_native_zero_card_hosted_runtime_claim_allowed",
   "hosted_agent_api_contracts",
   "github_branch_protection_current_verify",
   "vercel_backend_origin_health",
-  "fly_live_budget_check",
-  "FLY_API_TOKEN",
   "STAGING_BASE_URL",
+  "CLOUDFLARE_STATEFUL_BASE_URL",
+  "CLOUDFLARE_ACCOUNT_ID",
+  "CLOUDFLARE_API_TOKEN",
+  "workers_scripts_edit",
+  "d1_edit",
+  "durable_objects_edit",
+  "queues_edit",
+  "workers_ai_read",
+  "r2_edit_if_zero_card_verified",
   "BRANCH_PROTECTION_TOKEN",
   "AGENT_API_BASE_URL",
   "MCP_GATEWAY_BASE_URL",
   "LLM_GATEWAY_BASE_URL",
-  "external-gate-summary-v1",
   "external_audit_missing_or_failed_gates",
   "production_deploy_claim_allowed",
   "Assert-NoSecretPattern",
@@ -2732,7 +2872,10 @@ $goLiveAgentApi = Get-Content -Path "services\agent-api\app\main.py" -Raw
 foreach ($required in @(
   "EXTERNAL_GATE_SUMMARY_PATH",
   "external_gate_summary_state",
-  "external-gate-summary-v1",
+  "external-gate-summary-v2",
+  "cloudflare_native_runtime",
+  "cloudflare_native_zero_card_hosted_runtime",
+  "required_owner_scopes",
   "external_audit_summary_status",
   "external_audit_missing_or_failed_gates",
   "github_branch_protection_current_verify",
@@ -2747,13 +2890,16 @@ if (-not (Test-Path "docs\runtime-state\external-gate-summary.json")) {
 }
 $externalGateSummary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw
 foreach ($required in @(
-  "external-gate-summary-v1",
-  "external-gate-audit-v1",
+  "external-gate-summary-v2",
+  "external-gate-audit-v2",
+  "docs\\runtime-state\\external-gate-audit-v2.json",
+  "cloudflare_native_zero_card_hosted_runtime",
   "hosted_agent_api_contracts",
   "github_branch_protection_current_verify",
   "vercel_backend_origin_health",
-  "fly_live_budget_check",
-  "Probe snippets, URLs, logs, and token values are not included"
+  "historical_only",
+  "Probe snippets",
+  "token values"
 )) {
   if (-not $externalGateSummary.Contains($required)) {
     throw "Sanitized external gate summary missing guard: $required"
@@ -2836,6 +2982,12 @@ foreach ($required in @(
   "/api/v1/project/progress/completion",
   "project-progress-100-percent-contract-v1",
   "project_progress_100_percent_gate_contract",
+  "external-gate-summary-v2",
+  "external-gate-audit-v2",
+  "cloudflare_native_zero_card_hosted_runtime",
+  "bounded O6 live LLM capability is open",
+  "O6 is resolved and not Owner-required",
+  "Layer 4 equal 100",
   "CSP report audit contract",
   "verify-phase3-csp-report-contract.ps1",
   "csp-report-contract-v1",
@@ -2918,13 +3070,16 @@ foreach ($required in @(
 }
 
 if (-not (Test-Path "docs\runbooks\fly-live-budget-proof-2026-06-08.md")) {
-  throw "Missing Fly.io/Vercel/GHCR/Grafana budget proof document"
+  throw "Missing historical Fly budget provenance document"
 }
 $flyBudgetProof = Get-Content -Path "docs\runbooks\fly-live-budget-proof-2026-06-08.md" -Raw
-foreach ($required in @("Projected Fly.io monthly server cost", "EUR 9.00", "EUR 16.00", "EUR 20.00", "Live Fly.io token probe: external-gated", "under warning threshold", "token is not persisted", "Vercel/Fly.io/GHCR/Grafana Cloud")) {
+foreach ($required in @("historical_only", "external-gate-audit-v2", "Projected Fly.io monthly server cost", "token is not persisted")) {
   if (-not $flyBudgetProof.Contains($required)) {
-    throw "Fly.io/Vercel/GHCR/Grafana budget proof document missing guard: $required"
+    throw "Historical Fly budget provenance document missing guard: $required"
   }
+}
+if ($flyBudgetProof.Contains("Active infrastructure baseline: Vercel/Fly.io/GHCR/Grafana Cloud.")) {
+  throw "Historical Fly budget provenance must not declare the active infrastructure baseline"
 }
 $backupParseErrors = $null
 [System.Management.Automation.Language.Parser]::ParseFile(

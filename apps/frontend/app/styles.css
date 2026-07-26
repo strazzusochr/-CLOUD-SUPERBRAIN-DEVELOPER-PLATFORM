@@ -2429,6 +2429,42 @@ p {
 .rd-name { font-weight: 600; color: var(--text-pri); }
 .rd-layers { font-size: 10.5px; color: var(--text-dim); }
 @media (max-width: 900px) { .readiness { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .readiness { min-width: 0; }
+  .rd-row {
+    min-width: 0;
+    grid-template-columns: 14px minmax(0, 1fr) minmax(0, auto);
+    grid-template-areas:
+      "status name badge"
+      ". layers layers";
+    gap: 4px 8px;
+    padding: 8px;
+  }
+  .rd-row > .dot { grid-area: status; }
+  .rd-row > .rd-name {
+    grid-area: name;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .rd-row > .rd-layers {
+    grid-area: layers;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .rd-row > .badge {
+    grid-area: badge;
+    justify-self: end;
+    max-width: 46vw;
+    height: auto;
+    min-height: 24px;
+    padding-block: 4px;
+    line-height: 1.2;
+    text-align: right;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
 /* Evidence live verification grids */
 .ev-grid { display: flex; flex-direction: column; gap: 2px; }
 .ev-row { display: grid; grid-template-columns: 14px 1fr auto; gap: 9px; align-items: center; padding: 6px 4px; font-size: 12.5px; border-bottom: 1px solid var(--border); }

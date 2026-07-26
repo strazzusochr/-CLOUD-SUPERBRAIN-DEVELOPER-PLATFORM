@@ -29,16 +29,16 @@ The layer readiness endpoint projects the same provider inventory into all seven
 | Layer | Cloud responsibility | Providers |
 | --- | --- | --- |
 | `layer_1` Frontend / Next.js | Hosted frontend and staging proof origin | Vercel / hosted frontend |
-| `layer_2` Orchestrator / LangGraph | Runtime host and API service boundary | Fly.io |
-| `layer_3` Agent Pool | Agent worker runtime host | Fly.io |
-| `layer_4` LLM Gateway | Edge, AI gateway, and optional model identity | Cloudflare, Hugging Face |
+| `layer_2` Orchestrator / LangGraph | Runtime host and API service boundary | Cloudflare-native stateful runtime |
+| `layer_3` Agent Pool | Agent worker runtime host | Cloudflare-native stateful runtime |
+| `layer_4` LLM Gateway | Gateway-only Workers AI path and optional model identity | Cloudflare, Hugging Face |
 | `layer_5` MCP Gateway / Tools | CI, registry, branch protection, optional mirror and developer-workspace identity | GitHub Actions, GHCR, GitLab |
-| `layer_6` Memory / PostgreSQL pgvector | PostgreSQL/pgvector home | Fly.io |
-| `layer_7` Observability / Evidence | Hosted proof, live budget proof, audit gate visibility | Vercel, Fly.io, Cloudflare, GitHub Actions, Grafana Cloud |
+| `layer_6` Memory | Cloudflare D1, Durable Object, Queue, R2-if-zero-card, and separately gated Vectorize | Cloudflare-native stateful runtime |
+| `layer_7` Observability / Evidence | Hosted proof, zero-card gate, audit gate visibility | Vercel, Cloudflare, GitHub Actions, Grafana Cloud |
 
 ## Providers
 
-The local contract exposes seven provider slots:
+The local contract exposes eight provider slots:
 
 1. `vercel_frontend`
 2. `fly_io`
@@ -48,6 +48,8 @@ The local contract exposes seven provider slots:
 6. `huggingface_identity`
 7. `gitlab_identity`
 8. `grafana_cloud`
+
+Fly.io remains visible only as an optional historical/read-only inventory source. It is not an active Layer 2, 3, or 6 deployment target.
 
 Every provider record includes:
 
@@ -98,20 +100,20 @@ Rules:
 - Project reads may produce `partial_verified` while account verification can still remain live-verified.
 - No deployment, environment variable, alias, domain, or rollback write is performed.
 
-### Fly.io Live Read
+### Fly.io Historical Read
 
 If `FLY_API_TOKEN` is configured, the Agent API calls Fly.io read-only endpoints for apps, machines, and volumes.
 
 Rules:
 
 - The token is never returned.
+- Fly.io reads are `historical_only` and cannot satisfy active Layer 2, 3, 6, preflight, completion, or go-live readiness.
 - Public IP addresses are masked in the dashboard payload.
-- Server monthly gross prices from the Fly API feed the infrastructure budget as `fly_api_readonly`.
-- If the API call fails, the endpoint reports `api_error` and the infrastructure budget falls back to the configured Phase-1 projection.
+- No Fly.io price or resource read is used by the active zero-card infrastructure budget projection.
 
 ### Cloudflare Live Read
 
-If `CLOUDFLARE_API_TOKEN` is configured, the Agent API calls Cloudflare read-only endpoints:
+If `CLOUDFLARE_API_TOKEN` is configured, the Agent API may call Cloudflare read-only endpoints:
 
 - `/user/tokens/verify` to prove the token is valid without returning the token value.
 - `/accounts/{account_id}` when `CLOUDFLARE_ACCOUNT_ID` is configured.
@@ -120,6 +122,9 @@ If `CLOUDFLARE_API_TOKEN` is configured, the Agent API calls Cloudflare read-onl
 Rules:
 
 - The token is never returned.
+- Active Layer 2, 3, and 6 readiness additionally requires `CLOUDFLARE_STATEFUL_BASE_URL`, `CLOUDFLARE_ACCOUNT_ID`, the least-privilege scope set, canonical `external-gate-summary-v2` approval, and `scripts/verify-cloudflare-stateful-runtime.ps1`.
+- A successful token/account read does not prove the Cloudflare-native hosted runtime.
+- The bounded O6 Workers AI gateway proof does not make Layer 4 equal 100 or prove the stateful hosted runtime.
 - Dashboard and AI Gateway URLs are reduced to non-secret host metadata.
 - Optional account or zone read failures produce `partial_verified` while token verification can still remain live-verified.
 - No DNS, Workers, AI Gateway, cache, or security rule write is performed.
@@ -190,14 +195,15 @@ Rules:
 - No cloud-only success is claimed if the frontend is deployed without hosted Agent API, MCP Gateway, and LLM Gateway rewrites.
 - No protected-main success is claimed without `BRANCH_PROTECTION_TOKEN` or an equivalent verified GitHub token.
 - No Vercel hosted frontend state is claimed without `VERCEL_TOKEN`.
-- No Fly.io live infrastructure state is claimed without `FLY_API_TOKEN`.
-- No Cloudflare live edge state is claimed without `CLOUDFLARE_API_TOKEN`.
+- No Fly.io read is treated as an active runtime claim; Fly remains historical only.
+- No Cloudflare-native hosted runtime state is claimed without canonical `cloudflare_native_zero_card_hosted_runtime_claim_allowed=true`.
+- No Cloudflare management-plane read is claimed without `CLOUDFLARE_API_TOKEN`.
 - No GitHub CI/CD state is claimed without `GITHUB_TOKEN`.
 - No GHCR registry state is claimed without `GHCR_TOKEN`.
 - No Hugging Face identity state is claimed without `HF_TOKEN`.
 - No GitLab identity state is claimed without `GITLAB_TOKEN`.
 - No Grafana Cloud observability state is claimed without `GRAFANA_CLOUD_API_KEY`.
-- No Cloudflare DNS, AI Gateway, GitHub, GHCR, GitLab, Grafana Cloud, Hugging Face, Vercel, or Fly.io write is performed by this endpoint.
+- No Cloudflare DNS, Workers, D1, Durable Object, Queue, R2, Vectorize, AI Gateway, GitHub, GHCR, GitLab, Grafana Cloud, Hugging Face, Vercel, or Fly.io write is performed by this endpoint.
 - The dashboard may show configured/missing status, never raw token material.
 
 ## Verification

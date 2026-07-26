@@ -8,9 +8,26 @@ function Assert-LastExitCode($label) {
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
 $nextConfigPath = Join-Path $repoRoot "apps\frontend\next.config.mjs"
+$snapshotRefreshPath = Join-Path $repoRoot "scripts\refresh-endpoint-snapshot.mjs"
 
 if (-not (Test-Path -LiteralPath $nextConfigPath)) {
   throw "Missing frontend Next.js config: $nextConfigPath"
+}
+if (-not (Test-Path -LiteralPath $snapshotRefreshPath)) {
+  throw "Missing endpoint snapshot refresh script: $snapshotRefreshPath"
+}
+$snapshotRefreshSource = Get-Content -LiteralPath $snapshotRefreshPath -Raw
+foreach ($required in @(
+  "Endpoint snapshot refresh is DEV-ONLY",
+  '["localhost", "127.0.0.1", "::1"]',
+  "sanitizePayload",
+  "secretPatterns",
+  "configured_count: 0",
+  "writeFileSync"
+)) {
+  if (-not $snapshotRefreshSource.Contains($required)) {
+    throw "Endpoint snapshot refresh script missing guard: $required"
+  }
 }
 
 $nodeScript = @'
@@ -25,6 +42,8 @@ const llmRoutePath = path.join(repoRoot, "apps/frontend/app/llm/[...slug]/route.
 const mcpRoutePath = path.join(repoRoot, "apps/frontend/app/mcp/[...slug]/route.ts");
 const gatewayProxyPath = path.join(repoRoot, "apps/frontend/lib/gatewayProxy.ts");
 const frontendBoundaryPath = path.join(repoRoot, "apps/frontend/lib/frontendBoundary.ts");
+const endpointSnapshotPath = path.join(repoRoot, "apps/frontend/lib/endpoint-snapshot.json");
+const progressManifestPath = path.join(repoRoot, "docs/project-progress.manifest.json");
 
 const read = (file) => fs.readFileSync(file, "utf8");
 const nextConfigSource = read(configPath);
@@ -33,6 +52,8 @@ const llmRouteSource = read(llmRoutePath);
 const mcpRouteSource = read(mcpRoutePath);
 const gatewayProxySource = read(gatewayProxyPath);
 const frontendBoundarySource = read(frontendBoundaryPath);
+const endpointSnapshot = JSON.parse(read(endpointSnapshotPath));
+const progressManifest = JSON.parse(read(progressManifestPath));
 
 const assertIncludes = (label, source, expected) => {
   if (!source.includes(expected)) {
@@ -74,6 +95,16 @@ for (const expected of [
   "void cloudRewrite",
 ]) {
   assertIncludes("next config cloud routing guard", nextConfigSource, expected);
+}
+for (const forbidden of [
+  "convertFlyAppNameToBaseUrl",
+  "getFlyAppNameOrDefault",
+  "FLY_APP_AGENT_API",
+  "FLY_APP_MCP_GATEWAY",
+  "FLY_APP_LLM_GATEWAY",
+  ".fly.dev",
+]) {
+  assertNotIncludes("next config active cloud routing guard", nextConfigSource, forbidden);
 }
 
 for (const expected of [
@@ -144,6 +175,95 @@ for (const forbidden of [
   "host.docker.internal",
 ]) {
   assertNotIncludes("frontend cloud routing sources", nextConfigSource + catchAllSource + llmRouteSource + mcpRouteSource, forbidden);
+}
+
+const snapshotExternalGates = endpointSnapshot["/api/v1/external-gates"];
+const snapshotClouds = endpointSnapshot["/api/v1/clouds"];
+const snapshotPreflight = endpointSnapshot["/api/v1/clouds/deployment-preflight"];
+const snapshotGoLive = endpointSnapshot["/api/v1/clouds/go-live-readiness"];
+const snapshotLayers = endpointSnapshot["/api/v1/clouds/layers"];
+const snapshotRender = endpointSnapshot["/api/v1/clouds/render-offload"];
+const snapshotCompletion = endpointSnapshot["/api/v1/project/progress/completion"];
+const snapshotProgress = endpointSnapshot["/api/v1/project/progress"];
+for (const [name, value] of Object.entries({
+  externalGates: snapshotExternalGates,
+  clouds: snapshotClouds,
+  preflight: snapshotPreflight,
+  goLive: snapshotGoLive,
+  layers: snapshotLayers,
+  render: snapshotRender,
+  completion: snapshotCompletion,
+  progress: snapshotProgress,
+})) {
+  if (!value || typeof value !== "object") {
+    throw new Error(`endpoint snapshot missing current payload: ${name}`);
+  }
+}
+if (
+  String(snapshotExternalGates.canonical_summary_source_artifact || "").replaceAll("\\", "/")
+    !== "docs/runtime-state/external-gate-audit-v2.json"
+) {
+  throw new Error("endpoint snapshot external gates must reference durable audit v2");
+}
+if (Number(snapshotProgress.overall_percent) !== Number(progressManifest.overall_percent)) {
+  throw new Error("endpoint snapshot progress is stale against the canonical manifest");
+}
+const flyProvider = (snapshotClouds.providers || []).find((item) => item?.id === "fly_io");
+const cloudflareProvider = (snapshotClouds.providers || []).find((item) => item?.id === "cloudflare_edge");
+if (!flyProvider?.historical_only || (flyProvider.layers || []).length !== 0) {
+  throw new Error("endpoint snapshot must keep Fly inventory historical with no active layers");
+}
+if (
+  Number(snapshotClouds.configured_count) !== 0 ||
+  Number(snapshotClouds.live_verified_count) !== 0 ||
+  (snapshotClouds.providers || []).some(
+    (item) =>
+      item?.configured ||
+      item?.live_verified ||
+      (item?.resources || []).length !== 0 ||
+      item?.error ||
+      (item?.env_status || []).some((entry) => entry?.configured),
+  )
+) {
+  throw new Error("endpoint snapshot provider inventory must redact ephemeral live metadata");
+}
+assertNotIncludes(
+  "endpoint snapshot provider inventory",
+  JSON.stringify(snapshotClouds),
+  ".sslip.io",
+);
+for (const layerId of ["layer_2", "layer_3", "layer_4", "layer_6", "layer_7"]) {
+  if (!(cloudflareProvider?.layers || []).includes(layerId)) {
+    throw new Error(`endpoint snapshot Cloudflare provider missing ${layerId}`);
+  }
+}
+for (const [name, value] of Object.entries({
+  externalGates: snapshotExternalGates,
+  preflight: snapshotPreflight,
+  goLive: snapshotGoLive,
+  render: snapshotRender,
+  completion: snapshotCompletion,
+})) {
+  const activeText = JSON.stringify(value, (key, nested) =>
+    key === "legacy_provenance" ? undefined : nested,
+  );
+  assertIncludes(
+    `endpoint snapshot ${name}`,
+    activeText,
+    "cloudflare_native_zero_card_hosted_runtime",
+  );
+  for (const forbidden of ["fly_cloud_stack", "fly_live_budget_check"]) {
+    assertNotIncludes(`endpoint snapshot ${name} active truth`, activeText, forbidden);
+  }
+}
+const activeLayersText = JSON.stringify(snapshotLayers, (key, nested) =>
+  key === "legacy_provenance" ? undefined : nested,
+);
+for (const required of ["cloudflare_edge", "CLOUDFLARE_STATEFUL_BASE_URL"]) {
+  assertIncludes("endpoint snapshot layers active truth", activeLayersText, required);
+}
+for (const forbidden of ["fly_cloud_stack", "fly_live_budget_check"]) {
+  assertNotIncludes("endpoint snapshot layers active truth", activeLayersText, forbidden);
 }
 
 console.log("[frontend-cloud-rewrites] route-handler cloud routing checks completed");

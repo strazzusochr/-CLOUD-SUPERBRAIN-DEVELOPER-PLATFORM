@@ -1,19 +1,10 @@
 ﻿{
-    "contract_version":  "external-gate-summary-v2",
-    "source_contract_version":  "external-gate-audit-v2",
-    "source_artifact":  "docs\\runtime-state\\external-gate-audit-v2.json",
-    "local_run_artifact":  ".phase1-artifacts\\external-gate-audit-v2-20260726-084042.json",
-    "generated_at_utc":  "2026-07-26T06:40:42.8674906Z",
+    "contract_version":  "external-gate-audit-v2",
+    "audit_mode":  "sanitized_verifier_output",
     "status":  "blocked",
     "active_target_gate":  "cloudflare_native_zero_card_hosted_runtime",
-    "gate_ids":  [
-                     "hosted_agent_api_contracts",
-                     "github_branch_protection_current_verify",
-                     "ghcr_image_digest_verify",
-                     "vercel_backend_origin_health",
-                     "canonical_gitleaks_scan",
-                     "cloudflare_native_zero_card_hosted_runtime"
-                 ],
+    "evidence_ref":  "external_gate_audit_proof",
+    "generated_at_utc":  "2026-07-26T06:40:42.8674906Z",
     "frontend_preview_claim_allowed":  true,
     "hosted_staging_claim_allowed":  true,
     "branch_protection_claim_allowed":  true,
@@ -34,6 +25,11 @@
     "failed_vercel_origin_probe_ids":  [
 
                                        ],
+    "source_evidence_refs":  [
+                                 "docs/runtime-state/capability-gates.json",
+                                 ".codex/runs/CURRENT/p5/cloudflare-scope-readiness/report.json",
+                                 ".phase1-artifacts/external-gate-audit-20260720-191532.json"
+                             ],
     "legacy_provenance":  {
                               "status":  "historical_only",
                               "contract_version":  "external-gate-audit-v1",
@@ -41,9 +37,9 @@
                               "retired_gate_id":  "fly_live_budget_check"
                           },
     "non_claims":  [
-                       "This is a sanitized runtime summary, not the full audit artifact.",
-                       "Probe snippets, URLs, logs, and token values are not included.",
-                       "RC10 external-gate-summary-v1 and Fly semantics are historical provenance only.",
-                       "No hosted, production, branch-protection, Cloudflare-native, or Vercel-origin claim is allowed while missing_or_failed_gates is non-empty."
+                       "This durable audit contains no probe URL, response body, response snippet, command output, or token value.",
+                       "The timestamped local_run_artifact is diagnostic evidence and is not the canonical tracked audit.",
+                       "RC10 v1 and Fly semantics are historical provenance only.",
+                       "No percentage credit or production deployment claim is granted while status is blocked."
                    ]
 }

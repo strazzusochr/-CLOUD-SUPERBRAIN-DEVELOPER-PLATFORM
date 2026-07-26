@@ -29,7 +29,9 @@ Dieses Dokument definiert den kontrollierten Umgang mit Secrets fuer MVP und fru
 | `production/SESSION_ENCRYPTION_KEY` | GitHub Environment Secret `production` | verschluesselte Sitzungsdaten |
 | `production/DATABASE_URL` | GitHub Environment Secret `production` | Datenbankverbindung |
 | `production/EMBEDDING_PROVIDER_API_KEY` | GitHub Environment Secret `production` | optionale Live-Embedding-Erzeugung nach Gate D |
-| `production/FLY_API_TOKEN` | GitHub Environment Secret `production` | Fly.io Infrastrukturautomation |
+| `production/CLOUDFLARE_API_TOKEN` | Approved private Owner secret store | Cloudflare O2' management-plane access; presence-only, never printed |
+| `production/CLOUDFLARE_ACCOUNT_ID` | Approved private Owner configuration | Cloudflare O2' account binding |
+| `production/CLOUDFLARE_STATEFUL_BASE_URL` | Vercel/Owner environment | Hosted Cloudflare runtime origin after O2' |
 | `production/VERCEL_DEPLOY_HOOK_SECRET` | GitHub Environment Secret `production` | kontrollierte Deploy-Triggers |
 | `production/MCP_INTERNAL_SHARED_SECRET` | GitHub Environment Secret `production` | interne Tool-Authentisierung |
 | `preview/*` Secrets | GitHub Environment Secret `preview` | isolierte Preview-Laufzeiten |

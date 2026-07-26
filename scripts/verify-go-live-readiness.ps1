@@ -61,9 +61,12 @@ if ((-not $AllowLocalhost) -and ($BaseUrl -match "localhost|127\.0\.0\.1|\[::1\]
 $progressManifest = Get-Content -Path "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
 $expectedOverall = [int]$progressManifest.overall_percent
 $summary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
+Assert-True "summary contract v2" ([string]$summary.contract_version -eq "external-gate-summary-v2")
+Assert-True "summary source contract v2" ([string]$summary.source_contract_version -eq "external-gate-audit-v2")
+Assert-True "summary active Cloudflare target" ([string]$summary.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime")
 $expectedRuntimeGateClaims = [ordered]@{
   ghcr_images = [bool]$summary.ghcr_image_digest_claim_allowed
-  fly_cloud_stack = [bool]$summary.fly_live_budget_claim_allowed
+  cloudflare_native_zero_card_hosted_runtime = [bool]$summary.cloudflare_native_zero_card_hosted_runtime_claim_allowed
   hosted_backend_origins = [bool]$summary.vercel_backend_origins_claim_allowed
   hosted_staging = [bool]$summary.hosted_staging_claim_allowed
   branch_protection = [bool]$summary.branch_protection_claim_allowed
@@ -87,9 +90,26 @@ Assert-True "workspace page count" ([int]$readiness.workspace_page_count -eq 22)
 Assert-True "cloud layer count" ([int]$readiness.cloud_layer_total_count -eq 7)
 Assert-True "external audit required" ($readiness.external_audit_required -eq $true)
 Assert-True "owner activation plan-only" ($readiness.owner_activation.default_mode -eq "PlanOnly")
+Assert-True "owner activation plan contract v2" ($readiness.owner_activation.plan_contract -eq "owner-cloud-gate-activation-plan-v2")
 Assert-True "owner apply not allowed in Codex" ($readiness.owner_activation.apply_allowed_in_codex -eq $false)
-if ($readiness.external_audit_claims.fly_live_budget_claim_allowed -eq $false) {
-  Assert-Contains "required owner inputs" $readiness.required_owner_inputs "FLY_API_TOKEN"
+if ($readiness.external_audit_claims.cloudflare_native_zero_card_hosted_runtime_claim_allowed -eq $false) {
+  foreach ($requiredInput in @(
+    "CLOUDFLARE_ACCOUNT_ID",
+    "CLOUDFLARE_API_TOKEN",
+    "CLOUDFLARE_STATEFUL_BASE_URL"
+  )) {
+    Assert-Contains "required Cloudflare owner inputs" $readiness.required_owner_inputs $requiredInput
+  }
+  foreach ($requiredScope in @(
+    "workers_scripts_edit",
+    "d1_edit",
+    "durable_objects_edit",
+    "queues_edit",
+    "workers_ai_read",
+    "r2_edit_if_zero_card_verified"
+  )) {
+    Assert-Contains "required Cloudflare owner scopes" $readiness.required_owner_scopes $requiredScope
+  }
 }
 if ($readiness.external_audit_claims.hosted_staging_claim_allowed -eq $false) {
   Assert-Contains "required owner inputs" $readiness.required_owner_inputs "STAGING_BASE_URL"
@@ -104,7 +124,9 @@ Assert-True "runtime preflight blocker parity" ((@($readiness.runtime_preflight_
 Assert-True "runtime external gate status follows canonical summary" ([string]$readiness.runtime_external_gate_status -eq $expectedRuntimeGateStatus)
 Assert-True "runtime external blocker parity" ((@($readiness.runtime_external_blocked_release_gates | Sort-Object) -join ",") -eq (@($expectedRuntimeBlockedGates | Sort-Object) -join ","))
 Assert-True "external audit summary configured" ($readiness.external_audit_summary.configured -eq $true)
-Assert-True "external audit summary contract" ($readiness.external_audit_summary.contract_version -eq "external-gate-summary-v1")
+Assert-True "external audit summary contract" ($readiness.external_audit_summary.contract_version -eq "external-gate-summary-v2")
+Assert-True "external audit source contract" ($readiness.external_audit_summary.source_contract_version -eq "external-gate-audit-v2")
+Assert-True "runtime active Cloudflare target" ($readiness.external_audit_summary.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime")
 Assert-True "external audit summary status supported" (@("blocked", "verified") -contains [string]$readiness.external_audit_summary_status)
 Assert-True "external audit production claim parity" ($readiness.external_audit_claims.production_deploy_claim_allowed -eq [bool]$readiness.external_audit_summary.production_deploy_claim_allowed)
 if ($readiness.external_audit_claims.hosted_staging_claim_allowed -eq $true) {
@@ -123,11 +145,12 @@ if ($readiness.external_audit_claims.branch_protection_claim_allowed -eq $false)
 } else {
   Assert-NotContains "runtime branch protection gate closed" $readiness.external_audit_missing_or_failed_gates "github_branch_protection_current_verify"
 }
-if ($readiness.external_audit_claims.fly_live_budget_claim_allowed -eq $false) {
-  Assert-Contains "runtime external audit missing gate" $readiness.external_audit_missing_or_failed_gates "fly_live_budget_check"
+if ($readiness.external_audit_claims.cloudflare_native_zero_card_hosted_runtime_claim_allowed -eq $false) {
+  Assert-Contains "runtime external audit missing gate" $readiness.external_audit_missing_or_failed_gates "cloudflare_native_zero_card_hosted_runtime"
 } else {
-  Assert-NotContains "runtime Fly budget gate closed" $readiness.external_audit_missing_or_failed_gates "fly_live_budget_check"
+  Assert-NotContains "runtime Cloudflare-native gate closed" $readiness.external_audit_missing_or_failed_gates "cloudflare_native_zero_card_hosted_runtime"
 }
+Assert-NotContains "runtime active external audit excludes retired Fly gate" $readiness.external_audit_missing_or_failed_gates "fly_live_budget_check"
 
 Assert-True "contract version" ($contract.contract_version -eq "go-live-readiness-surface-v1")
 Assert-True "contract runtime endpoint" ($contract.runtime_endpoint -eq "GET /api/v1/clouds/go-live-readiness")
@@ -138,10 +161,15 @@ Assert-Contains "contract required verifier" $contract.required_verifiers "scrip
 Write-Host "[go-live-readiness] canonical standard external gate audit"
 $canonicalAuditPath = Join-Path (Get-Location) ([string]$summary.source_artifact)
 Assert-True "canonical external audit artifact exists" (Test-Path -LiteralPath $canonicalAuditPath)
+$canonicalAuditRelativePath = ([string]$summary.source_artifact).Replace("\", "/")
+Assert-True "canonical audit uses durable v2 path" ($canonicalAuditRelativePath -eq "docs/runtime-state/external-gate-audit-v2.json")
+$trackedAuditPath = git ls-files --error-unmatch -- $canonicalAuditRelativePath 2>$null
+Assert-True "canonical audit is tracked" ($LASTEXITCODE -eq 0 -and @($trackedAuditPath).Count -eq 1)
 $canonicalAudit = Get-Item -LiteralPath $canonicalAuditPath
 $audit = Get-Content -LiteralPath $canonicalAudit.FullName -Raw | ConvertFrom-Json
 Assert-NoSecretPattern "external gate audit" $audit
-Assert-True "external audit contract" ($audit.contract_version -eq "external-gate-audit-v1")
+Assert-True "external audit contract" ($audit.contract_version -eq "external-gate-audit-v2")
+Assert-True "external audit active Cloudflare target" ($audit.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime")
 Assert-True "external audit status supported" (@("blocked", "verified") -contains [string]$audit.status)
 if ($audit.status -eq "verified") {
   Assert-True "verified external audit has no missing gates" (@($audit.missing_or_failed_gates).Count -eq 0)
@@ -161,16 +189,23 @@ if ($audit.branch_protection_claim_allowed -eq $false) {
 } else {
   Assert-NotContains "external audit branch protection gate closed" $audit.missing_or_failed_gates "github_branch_protection_current_verify"
 }
-if ($audit.fly_live_budget_claim_allowed -eq $false) {
-  Assert-Contains "external audit missing gate" $audit.missing_or_failed_gates "fly_live_budget_check"
+if ($audit.cloudflare_native_zero_card_hosted_runtime_claim_allowed -eq $false) {
+  Assert-Contains "external audit missing gate" $audit.missing_or_failed_gates "cloudflare_native_zero_card_hosted_runtime"
 } else {
-  Assert-NotContains "external audit Fly budget gate closed" $audit.missing_or_failed_gates "fly_live_budget_check"
+  Assert-NotContains "external audit Cloudflare-native gate closed" $audit.missing_or_failed_gates "cloudflare_native_zero_card_hosted_runtime"
+}
+Assert-NotContains "external audit active blockers exclude retired Fly gate" $audit.missing_or_failed_gates "fly_live_budget_check"
+Assert-True "external audit has no active Fly claim field" (-not ($audit.PSObject.Properties.Name -contains "fly_live_budget_claim_allowed"))
+if (-not [string]::IsNullOrWhiteSpace([string]$audit.local_run_artifact)) {
+  $localRunArtifact = ([string]$audit.local_run_artifact).Replace("\", "/")
+  Assert-True "optional local run artifact pattern" ($localRunArtifact -match '^\.phase1-artifacts/external-gate-audit-v2-\d{8}-\d{6}\.json$')
 }
 
 Write-Host "[go-live-readiness] sanitized external gate summary"
 Assert-NoSecretPattern "sanitized external gate summary" $summary
-Assert-True "summary contract" ($summary.contract_version -eq "external-gate-summary-v1")
+Assert-True "summary contract" ($summary.contract_version -eq "external-gate-summary-v2")
 Assert-True "summary source contract parity" ($summary.source_contract_version -eq $audit.contract_version)
+Assert-True "summary active target parity" ($summary.active_target_gate -eq $audit.active_target_gate)
 Assert-True "summary status" ($summary.status -eq $audit.status)
 Assert-True "summary production claim parity" ($summary.production_deploy_claim_allowed -eq $audit.production_deploy_claim_allowed)
 Assert-True "summary audit timestamp parity" ($summary.generated_at_utc -eq $audit.generated_at_utc)
@@ -190,11 +225,17 @@ if ($summary.branch_protection_claim_allowed -eq $false) {
 } else {
   Assert-NotContains "summary branch protection gate closed" $summary.missing_or_failed_gates "github_branch_protection_current_verify"
 }
-if ($summary.fly_live_budget_claim_allowed -eq $false) {
-  Assert-Contains "summary missing gate" $summary.missing_or_failed_gates "fly_live_budget_check"
+if ($summary.cloudflare_native_zero_card_hosted_runtime_claim_allowed -eq $false) {
+  Assert-Contains "summary missing gate" $summary.missing_or_failed_gates "cloudflare_native_zero_card_hosted_runtime"
 } else {
-  Assert-NotContains "summary Fly budget gate closed" $summary.missing_or_failed_gates "fly_live_budget_check"
+  Assert-NotContains "summary Cloudflare-native gate closed" $summary.missing_or_failed_gates "cloudflare_native_zero_card_hosted_runtime"
 }
+Assert-NotContains "summary active blockers exclude retired Fly gate" $summary.missing_or_failed_gates "fly_live_budget_check"
+Assert-True "summary has no active Fly claim field" (-not ($summary.PSObject.Properties.Name -contains "fly_live_budget_claim_allowed"))
+Assert-True "summary legacy Fly provenance is historical" (
+  [string]$summary.legacy_provenance.status -eq "historical_only" -and
+  [string]$summary.legacy_provenance.retired_gate_id -eq "fly_live_budget_check"
+)
 
 Write-Host "[go-live-readiness] artifact=$($canonicalAudit.FullName)"
 Write-Host "[go-live-readiness] status=$($readiness.status)"

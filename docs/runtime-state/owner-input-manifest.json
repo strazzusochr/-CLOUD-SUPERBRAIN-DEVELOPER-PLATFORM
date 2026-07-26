@@ -136,15 +136,12 @@
     },
     {
       "id": "O6",
-      "title": "LLM Gateway live-runtime contract",
-      "status": "owner_required",
-      "required_owner_action": "Approve the architecture and bounded live-runtime path that replaces or extends the currently enforced dry-run response contract, while retaining the gateway-only, budget, audit, and no-direct-provider guards.",
-      "required_scope_or_payment": [
-        "Architecture decision for live Gateway execution",
-        "Provider/runtime activation approval",
-        "Bounded live-call verifier approval"
-      ],
+      "title": "Bounded LLM Gateway live-runtime path",
+      "status": "resolved_verified",
+      "required_owner_action": "None. The previously granted bounded Workers AI path is verifier-backed and the Session 10 product acceptance proved a real gateway-only build.",
+      "required_scope_or_payment": [],
       "payment_required": false,
+      "resolved_at_utc": "2026-07-26T04:21:49.398Z",
       "affected_cells": [
         "layer_4"
       ],
@@ -152,15 +149,24 @@
         "live_llm_provider_calls"
       ],
       "verifier_after": [
+        "scripts/verify-live-llm-free-provider.ps1",
+        "scripts/verify-product-acceptance.ps1",
         "scripts/verify-llm-responses-contract.ps1",
         "npm run verify:runtime",
         "npm run verify:browser"
       ],
-      "codex_boundary": "The separate Cloudflare Workers AI capability proof does not authorize changing the current dry-run gateway contract or granting percentage credit."
+      "evidence_refs": [
+        "docs/runtime-state/capability-gates.json#live_llm_provider_calls",
+        ".codex/runs/CURRENT/capability/live-llm-free-provider/report-20260720-224943.json",
+        ".codex/runs/CURRENT/product-acceptance/report.json"
+      ],
+      "percentage_credit": 0,
+      "codex_boundary": "Resolved O6 removes an Owner dependency only. It does not hand-set live_verified, make Layer 4 equal 100, authorize direct provider calls, or grant percentage credit."
     }
   ],
   "external_gate_truth": {
-    "legacy_source": "docs/runtime-state/external-gate-summary.json",
+    "source": "docs/runtime-state/external-gate-summary.json",
+    "source_contract_version": "external-gate-summary-v2",
     "status": "blocked",
     "active_target_gate": "cloudflare_native_zero_card_hosted_runtime",
     "missing_or_failed_gates": [
@@ -169,14 +175,16 @@
     "legacy_missing_or_failed_gates": [
       "fly_live_budget_check"
     ],
+    "legacy_source": ".phase1-artifacts/external-gate-audit-20260720-191532.json",
     "legacy_fly_path_status": "superseded_historical",
     "production_deploy_claim_allowed": false
   },
   "non_claims": [
     "This manifest does not open a capability gate or increase any percentage.",
-    "The verifier-generated external-gate-summary-v1 remains RC10 historical provenance until an external-gate-audit-v2 atomically replaces Fly semantics.",
+    "external-gate-summary-v2 is the active gate truth; RC10 v1 and Fly semantics are historical provenance only.",
     "The local D1 + Durable Object + Queue + R2 adapter proof is DEV-ONLY and does not prove hosted zero-card resource activation.",
-    "Owner-granted alone is insufficient; each action still requires its named verifier and evidence artifact.",
+    "O1, O2', O3, O4, and O5 remain Owner-required; O6 is resolved only within its bounded verifier-backed scope.",
+    "Owner-granted alone is insufficient for every still-open action; each requires its named verifier and evidence artifact.",
     "No secret value, password, token, callback credential, or payment data is contained here.",
     "MARKET_READY remains false until every matrix cell is evidence-backed at 100 and the aggregate verifier prints MARKET_READY:true."
   ]

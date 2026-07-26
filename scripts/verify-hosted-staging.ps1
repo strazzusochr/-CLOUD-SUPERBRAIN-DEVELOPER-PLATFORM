@@ -40,9 +40,39 @@ $progressManifest = Get-Content -Path $progressManifestPath -Raw | ConvertFrom-J
 $expectedOverallPercent = [int]$progressManifest.overall_percent
 $canonicalExternalGateSummaryPath = Join-Path $PSScriptRoot "..\docs\runtime-state\external-gate-summary.json"
 $canonicalExternalGateSummary = Get-Content -Path $canonicalExternalGateSummaryPath -Raw | ConvertFrom-Json
+if ([string]$canonicalExternalGateSummary.contract_version -ne "external-gate-summary-v2") {
+  throw "Hosted staging verification failed: canonical summary contract must be external-gate-summary-v2"
+}
+if ([string]$canonicalExternalGateSummary.source_contract_version -ne "external-gate-audit-v2") {
+  throw "Hosted staging verification failed: canonical summary source contract must be external-gate-audit-v2"
+}
+if ([string]$canonicalExternalGateSummary.active_target_gate -ne "cloudflare_native_zero_card_hosted_runtime") {
+  throw "Hosted staging verification failed: canonical summary active target must be Cloudflare-native"
+}
+$canonicalExternalGateAuditPath = ([string]$canonicalExternalGateSummary.source_artifact).Replace("\", "/")
+if ($canonicalExternalGateAuditPath -ne "docs/runtime-state/external-gate-audit-v2.json") {
+  throw "Hosted staging verification failed: canonical summary must source the durable v2 audit"
+}
+$canonicalExternalGateAuditFullPath = Join-Path $PSScriptRoot "..\$canonicalExternalGateAuditPath"
+if (-not (Test-Path -LiteralPath $canonicalExternalGateAuditFullPath)) {
+  throw "Hosted staging verification failed: canonical durable v2 audit is missing"
+}
+$canonicalTrackedAudit = git -C (Join-Path $PSScriptRoot "..") ls-files --error-unmatch -- $canonicalExternalGateAuditPath 2>$null
+if ($LASTEXITCODE -ne 0 -or @($canonicalTrackedAudit).Count -ne 1) {
+  throw "Hosted staging verification failed: canonical durable v2 audit must be tracked"
+}
+$canonicalExternalGateAudit = Get-Content -LiteralPath $canonicalExternalGateAuditFullPath -Raw | ConvertFrom-Json
+if (
+  [string]$canonicalExternalGateAudit.contract_version -ne "external-gate-audit-v2" -or
+  [string]$canonicalExternalGateAudit.active_target_gate -ne "cloudflare_native_zero_card_hosted_runtime" -or
+  [string]$canonicalExternalGateSummary.status -ne [string]$canonicalExternalGateAudit.status -or
+  [string]$canonicalExternalGateSummary.generated_at_utc -ne [string]$canonicalExternalGateAudit.generated_at_utc
+) {
+  throw "Hosted staging verification failed: canonical summary/durable audit v2 parity"
+}
 $expectedExternalGateClaims = [ordered]@{
   ghcr_images = [bool]$canonicalExternalGateSummary.ghcr_image_digest_claim_allowed
-  fly_cloud_stack = [bool]$canonicalExternalGateSummary.fly_live_budget_claim_allowed
+  cloudflare_native_zero_card_hosted_runtime = [bool]$canonicalExternalGateSummary.cloudflare_native_zero_card_hosted_runtime_claim_allowed
   hosted_backend_origins = [bool]$canonicalExternalGateSummary.vercel_backend_origins_claim_allowed
   hosted_staging = [bool]$canonicalExternalGateSummary.hosted_staging_claim_allowed
   branch_protection = [bool]$canonicalExternalGateSummary.branch_protection_claim_allowed
@@ -471,6 +501,25 @@ Assert-Contains "project progress completion status" $projectProgressCompletion 
 Assert-Contains "project progress completion evidence" $projectProgressCompletion '"evidence_ref":"project_progress_100_percent_gate_contract"'
 Assert-Contains "project progress completion cannot set all to 100" $projectProgressCompletion '"can_set_all_to_100":false'
 Assert-Contains "project progress completion local gap blocker" $projectProgressCompletion "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
+$projectProgressCompletionHardBlockers = @($projectProgressCompletionJson.hard_blockers | ForEach-Object { [string]$_ })
+$capabilityGateState = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\docs\runtime-state\capability-gates.json") -Raw | ConvertFrom-Json
+$liveLlmCapability = $capabilityGateState.gates.live_llm_provider_calls
+Assert-True "bounded O6 live LLM capability is open" (
+  [bool]$liveLlmCapability.owner_granted -and
+  [bool]$liveLlmCapability.live_verified -and
+  -not [bool]$liveLlmCapability.paid_provider -and
+  -not [string]::IsNullOrWhiteSpace([string]$liveLlmCapability.evidence_artifact)
+)
+Assert-True "project progress completion clears verified free live LLM blocker" (-not ($projectProgressCompletionHardBlockers -contains "live_llm_provider_calls_require_owner_gate_and_budget_guard"))
+$ownerInputManifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\docs\runtime-state\owner-input-manifest.json") -Raw | ConvertFrom-Json
+$o6OwnerAction = @($ownerInputManifest.actions | Where-Object { [string]$_.id -eq "O6" })
+Assert-True "O6 is resolved and not Owner-required" (
+  $o6OwnerAction.Count -eq 1 -and
+  [string]$o6OwnerAction[0].status -eq "resolved_verified" -and
+  ([string]$o6OwnerAction[0].required_owner_action).StartsWith("None")
+)
+$layer4Progress = @($progressManifest.vertical.items | Where-Object { [string]$_.id -eq "layer_4" })
+Assert-True "bounded O6 proof does not make Layer 4 equal 100" ($layer4Progress.Count -eq 1 -and [int]$layer4Progress[0].percent -lt 100)
 
 Write-Host "[hosted] layer interface contracts"
 $layerInterfaceContract = Invoke-Text "$BaseUrl/api/v1/layer-interfaces/contract"
@@ -487,7 +536,8 @@ $cloudProviderInventory = Invoke-Text "$BaseUrl/api/v1/clouds"
 Assert-Contains "cloud provider contract version" $cloudProviderInventory '"contract_version":"cloud-provider-inventory-v1"'
 Assert-Contains "cloud provider evidence" $cloudProviderInventory '"evidence_ref":"cloud_provider_inventory_visible"'
 Assert-Contains "cloud provider endpoint" $cloudProviderInventory '"endpoint":"GET /api/v1/clouds"'
-Assert-Contains "cloud provider Fly.io" $cloudProviderInventory '"id":"fly_io"'
+Assert-Contains "cloud provider active Cloudflare-native runtime" $cloudProviderInventory '"id":"cloudflare_edge"'
+Assert-Contains "cloud provider retired Fly is historical" $cloudProviderInventory '"historical_only":true'
 Assert-Contains "cloud provider grafana" $cloudProviderInventory '"id":"grafana_cloud"'
 Assert-Contains "cloud provider seven layer map" $cloudProviderInventory '"seven_layer_mapping"'
 Assert-Contains "cloud provider no production claim" $cloudProviderInventory "It does not claim production deployment."
@@ -523,6 +573,13 @@ Assert-True "cloud deployment preflight canonical summary status" ([string]$clou
 Assert-ArrayEquivalent "cloud deployment preflight blocker parity" @($cloudDeploymentPreflightRuntimeJson.missing_or_blocked_gates) $expectedBlockedExternalGates
 Assert-Contains "cloud deployment preflight hosted origins" $cloudDeploymentPreflightRuntime "hosted_backend_origins"
 Assert-Contains "cloud deployment preflight branch token" $cloudDeploymentPreflightRuntime "BRANCH_PROTECTION_TOKEN"
+Assert-Contains "cloud deployment preflight Cloudflare gate" $cloudDeploymentPreflightRuntime "cloudflare_native_zero_card_hosted_runtime"
+Assert-Contains "cloud deployment preflight Cloudflare URL" $cloudDeploymentPreflightRuntime "CLOUDFLARE_STATEFUL_BASE_URL"
+Assert-Contains "cloud deployment preflight Cloudflare account" $cloudDeploymentPreflightRuntime "CLOUDFLARE_ACCOUNT_ID"
+Assert-Contains "cloud deployment preflight Cloudflare token presence" $cloudDeploymentPreflightRuntime "CLOUDFLARE_API_TOKEN"
+foreach ($requiredScope in @("workers_scripts_edit", "d1_edit", "durable_objects_edit", "queues_edit", "workers_ai_read", "r2_edit_if_zero_card_verified")) {
+  Assert-Contains "cloud deployment preflight required owner scope" $cloudDeploymentPreflightRuntime $requiredScope
+}
 Assert-Contains "cloud deployment preflight owner review" $cloudDeploymentPreflightRuntime "owner_review_before_production"
 
 Write-Host "[hosted] task assignment queue contract"
@@ -1495,15 +1552,13 @@ Assert-Contains "budget limit" $budget '"budget_limit_cents":20000'
 $infraBudget = Invoke-JsonApi -url "$BaseUrl/api/v1/infra/budget" -method "GET" -contentType $null -timeoutSeconds 15
 if ($infraBudget.level -ne "ok") { throw "Hosted staging verification failed: infra budget level was '$($infraBudget.level)'" }
 if ([int]$infraBudget.budget_limit_cents -ne 2000) { throw "Hosted staging verification failed: infra budget limit was '$($infraBudget.budget_limit_cents)'" }
-if ([int]$infraBudget.projected_cost_cents -le 0) { throw "Hosted staging verification failed: infra budget projected cost was not positive" }
-if ($infraBudget.source -eq "fly_api_readonly") {
-  if ($infraBudget.live_verified -ne $true) { throw "Hosted staging verification failed: live infra budget was not marked live_verified" }
-  if (-not (($infraBudget.items | ConvertTo-Json -Compress) -match 'fly_io')) { throw "Hosted staging verification failed: live infra budget missing fly_io item" }
-} elseif ($infraBudget.source -eq "configured_phase1_projection") {
-  if ($infraBudget.live_verified -ne $false) { throw "Hosted staging verification failed: projected infra budget unexpectedly marked live_verified" }
-} else {
+if ([int]$infraBudget.projected_cost_cents -ne 0) { throw "Hosted staging verification failed: zero-card projection must remain zero" }
+if ([string]$infraBudget.source -ne "cloudflare_zero_card_projection") {
   throw "Hosted staging verification failed: infra budget source was '$($infraBudget.source)'"
 }
+if ($infraBudget.live_verified -ne $false) { throw "Hosted staging verification failed: blocked Cloudflare projection unexpectedly marked live_verified" }
+if ($infraBudget.allow_new_infra -ne $false) { throw "Hosted staging verification failed: blocked Cloudflare projection unexpectedly allowed new infra" }
+if (-not (($infraBudget.items | ConvertTo-Json -Compress) -match 'cloudflare-native-zero-card-hosted-runtime')) { throw "Hosted staging verification failed: active infra budget missing Cloudflare-native item" }
 
 $externalGates = Invoke-Text "$BaseUrl/api/v1/external-gates"
 $externalGatesJson = $externalGates | ConvertFrom-Json
@@ -1514,7 +1569,7 @@ Assert-Contains "external gates aligned with preflight" $externalGates '"aligned
 Assert-Contains "external gates local allowed" $externalGates '"local_execution_allowed":true'
 Assert-Contains "external gates branch token" $externalGates '"id":"branch_protection_token"'
 Assert-Contains "external gates staging url" $externalGates '"id":"staging_base_url"'
-Assert-Contains "external gates Fly.io token" $externalGates '"id":"FLY_API_TOKEN"'
+Assert-Contains "external gates Cloudflare-native runtime" $externalGates '"id":"cloudflare_native_zero_card_hosted_runtime"'
 Assert-Contains "external gates ghcr digest" $externalGates '"id":"ghcr_image_digest_proof"'
 Assert-Contains "external gates vercel origins" $externalGates '"id":"vercel_backend_origins"'
 Assert-Contains "external gates gitleaks" $externalGates '"id":"gitleaks_binary"'

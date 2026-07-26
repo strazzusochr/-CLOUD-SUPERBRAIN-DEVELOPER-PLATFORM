@@ -15,7 +15,9 @@ It does not raise progress by itself. It reads the canonical manifest-backed pro
 ## Required Behavior
 
 - `can_set_all_to_100` must remain `false` while any external proof gate is missing.
-- `status` must be `blocked_external_gates` when hosted staging, branch protection, canonical secret scan, or live budget proof gates are missing.
+- `status` must be `blocked_external_gates` when hosted staging, branch protection,
+  canonical secret scan, or the Cloudflare-native zero-card hosted-runtime proof
+  is missing.
 - `missing_external_gates` must list missing gate IDs from `GET /api/v1/external-gates`.
 - `missing_external_gate_blockers` must name the corresponding blocker strings, including `hosted_staging_proof_requires_STAGING_BASE_URL` and `production_release_requires_hosted_staging_branch_protection_secret_scan_and_owner_review` when applicable.
 - `hard_blockers` must include `local_progress_gaps_require_verified_evidence_for_each_phase_and_layer` while any phase or layer is still below `100%`.
@@ -29,7 +31,10 @@ It does not raise progress by itself. It reads the canonical manifest-backed pro
 - No hosted staging success without `STAGING_BASE_URL`.
 - No protected-main success without `BRANCH_PROTECTION_TOKEN` or equivalent GitHub token.
 - No canonical gitleaks success without the `gitleaks` binary.
-- No live infrastructure budget refresh without `FLY_API_TOKEN`.
+- No hosted Cloudflare-native readiness claim without the canonical O2' scope
+  report, zero-card proof, and
+  `cloudflare_native_zero_card_hosted_runtime` verifier evidence.
+- Fly.io and `FLY_API_TOKEN` are historical provenance only.
 - No production deployment, live LLM provider calls, or live MCP writes from this contract.
 - No vector-search or semantic-retrieval claim from Cloudflare D1 lexical persistence.
 

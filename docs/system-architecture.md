@@ -1,9 +1,9 @@
 # System Architecture - PATCHED
 
-Stand: 2026-07-25
-Status: RC10 baseline plus Session-9 target transition
+Stand: 2026-07-26
+Status: Cloudflare-native target; RC10 runtime retained as historical local proof
 
-## Session-9 Target Override
+## Active Target Override
 
 `docs/adr/ADR-010-cloudflare-native-free-runtime.md` selects Architecture A as the
 zero-cost target: LangGraph.js on Workers with custom D1 persistence, SQLite Durable Objects,
@@ -11,22 +11,30 @@ Queues and a private R2 adapter. Fly.io is OUT for new Session-9 work. The Fly/P
 tables below remain the last verified RC10 baseline and migration checklist, not an
 authorization to spend, deploy, or reactivate Fly.
 
-The Cloudflare adapter is initially `DEV-ONLY; hosted proof still blocked`. R2's published
+The Cloudflare adapter is `DEV-ONLY; hosted proof still blocked`. R2's published
 free quota is not treated as a zero-card proof because current setup documentation requires a
 subscription checkout. No legacy lock is removed from verification until O2' proves hosted
 Cloudflare parity without a card or paid plan.
+
+The active external gate is `cloudflare_native_zero_card_hosted_runtime`.
+`external-gate-summary-v2` and `external-gate-audit-v2` are authoritative for
+hosted readiness. Fly.io and `FLY_API_TOKEN` are `historical_only` and cannot
+close an active gate.
 
 ## 1. Binding Source
 
 `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` is the highest local architecture truth. Older references to CPX51, Supabase as active MVP database, Qdrant in Phase 1-5, or 30-minute memory consolidation are superseded.
 
-## 2. Phase 1 Architecture Locks
+## 2. Current Target Locks
 
-- Infrastructure starts small on Vercel Frontend plus Fly.io shared-cpu runtime services. No CPX51 in Phase 1.
+- Vercel remains the frontend target; the stateful hosted target is Cloudflare
+  Workers, D1, SQLite Durable Objects, Queues, and a zero-card artifact adapter.
 - Infrastructure budget remains capped at 20 EUR/month.
-- One PostgreSQL instance is the primary source of truth.
-- Separate databases inside the same instance: `superbrain_prod` for app state and `langfuse` for observability state.
-- `pgvector` is the only vector solution in Phase 1-5.
+- D1 custom persistence is not claimed as an official LangGraph checkpointer.
+- PostgreSQL, Redis, and pgvector remain verified RC10 local-runtime provenance
+  until O2' hosted parity is proven; they are not the new hosted target.
+- Hosted semantic vector search remains separately Owner-gated through
+  `live_vector_memory_search`.
 - Qdrant is explicitly excluded until Phase 6 evaluation.
 - LangGraph is the core state machine for orchestration.
 - CrewAI may only run locally inside a LangGraph Agent-Executor node.
@@ -37,23 +45,23 @@ Cloudflare parity without a card or paid plan.
 
 ## 3. Seven Technical Layers
 
-| Layer | Owner | Inputs | Outputs | Responsibilities | Forbidden |
+| Layer | Current target / verified fallback | Inputs | Outputs | Responsibilities | Forbidden |
 | --- | --- | --- | --- | --- | --- |
 | 1 Frontend | Vercel/Next.js | User prompt, session state from API | REST/SSE calls to agent-api | Prompt UI, streaming output, agent status, budget banner | Direct DB calls, direct provider calls, secrets |
-| 2 Orchestration | Fly.io/FastAPI/LangGraph | REST/SSE requests | Task assignments, SSE events | Intent parsing, routing, graph state, budget guard, recovery | Provider bypass, schema changes without ADR |
-| 3 Agent Pool | Docker containers | Task assignments | Result envelopes | Planner, Coder, Tester, DevOps execution | Main writes, production deploys, uncontrolled loops |
+| 2 Orchestration | Cloudflare Workers/LangGraph.js target; FastAPI/LangGraph RC10 local fallback | REST/SSE requests | Task assignments, SSE events | Intent parsing, routing, graph state, budget guard, recovery | Provider bypass, schema changes without ADR |
+| 3 Agent Pool | Workers/Queues target; Docker containers RC10 local fallback | Task assignments | Result envelopes | Planner, Coder, Tester, DevOps execution | Main writes, production deploys, uncontrolled loops |
 | 4 LLM Gateway | LiteLLM | Generic LLM requests | Model responses, cost/provider events | Routing, rate limits, fallback, caching policy | Direct provider calls, sensitive prompt caching |
 | 5 Tool MCP | MCP gateway | Tool requests | Tool results with audit data | GitHub, E2B, Playwright, Filesystem, Postgres readonly | Untimed tool calls, unlogged tool calls |
-| 6 Memory | Redis + PostgreSQL/pgvector | Run events, memory search | Working context, long-term memory | 5-minute consolidation, retrieval, purge support | Qdrant Phase 1-5, MemorySaver in production |
+| 6 Memory | D1/SQLite Durable Objects target; Redis + PostgreSQL/pgvector RC10 local fallback | Run events, memory search | Working context, long-term memory | Coordination, retrieval, purge support | Unverified Vectorize claims, Qdrant Phase 1-5, MemorySaver in production |
 | 7 Observability | Langfuse/Prometheus/Grafana | Traces, metrics, costs | Dashboards, alerts, audit | Evidence, cost tracking, alerting | Mixing observability UI into main app, secrets in traces |
 
 ## 4. Deployment Targets
 
-| Target | Role | Phase 1 Limit |
+| Target | Role | Gate |
 | --- | --- | --- |
-| Vercel | Frontend only | No DB connections, no agent runtime |
-| Fly.io shared-cpu runtime | API, agents, MCP, Redis/PostgreSQL clients, gateway services | Must stay within 20 EUR/month total infra |
-| Cloudflare Free Tier | DNS, CDN, optional AI Gateway caching | No DB responsibility |
+| Vercel | Frontend only | No direct DB/provider access |
+| Cloudflare-native runtime | Workers, LangGraph.js, D1, SQLite Durable Objects, Queues; artifact adapter only after zero-card proof | O2' plus hosted source-parity/stateful-roundtrip verifier |
+| Fly.io | Historical RC10 provenance only | Cannot satisfy any active gate |
 
 ## 5. Data Flow
 

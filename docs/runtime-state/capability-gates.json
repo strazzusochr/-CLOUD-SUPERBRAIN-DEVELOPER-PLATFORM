@@ -12,7 +12,7 @@
                                                   "provider":  "cloudflare_workers_ai",
                                                   "paid_provider":  false,
                                                   "verifier":  "scripts/verify-live-llm-free-provider.ps1",
-                                                  "note":  "This is a separate bounded Workers AI proof. The canonical LLM Gateway response contract remains dry-run, so O6 and Layer 4 stay open."
+                                                  "note":  "The bounded LLM Gateway-only Workers AI path is owner_granted=true and live_verified=true. O6 is resolved within that scope; this does not make Layer 4 equal 100%, authorize direct provider calls, or grant percentage credit."
                                               },
                   "production_auth_identity":  {
                                                    "owner_granted":  false,

@@ -96,23 +96,61 @@ No rubric delta exists: Overall stays `86%`. `owner-input-manifest-v2` maps O2' 
 `cloudflare_native_zero_card_hosted_runtime` and requires no card, checkout, payment, paid
 fallback or automatic overage. The gate remains closed. R2 free quota is not a zero-card
 activation proof because its current setup documentation requires a subscription checkout.
-The verifier-generated Fly summary remains RC10 historical provenance until a future
-external-gate-audit-v2 replaces every projection atomically. DEV-ONLY; hosted proof still
-blocked.
+The v2 rebase below now replaces every active Fly projection atomically; Fly remains only
+RC10 historical provenance. DEV-ONLY; hosted proof still blocked.
+
+## Current P5 Cloudflare-Native Gate Rebase
+
+`external-gate-audit-v2` is the tracked canonical audit at
+`docs/runtime-state/external-gate-audit-v2.json`; SHA-256
+`5E05F8EC80F17845C7CAC980177275F008216560C3BEECFDCF0DD3B40D05C21C`.
+`external-gate-summary-v2` points to that durable file; the full ignored local run is
+`.phase1-artifacts/external-gate-audit-v2-20260726-084042.json`. Audit and summary are in
+timestamp/status parity: `blocked`, `production_deploy_claim_allowed=false`, with exactly
+`cloudflare_native_zero_card_hosted_runtime` missing. Hosted contracts, Vercel origins,
+branch protection, GHCR digests, and canonical gitleaks passed read-only. Fly/RC10-v1 and
+candidate `125413` are `historical_only`.
+
+The least-privilege Cloudflare readiness probe used only GET requests for Workers, D1,
+Queues, Durable Objects, R2, and Vectorize. The current token returned HTTP 401/403 with
+code 10000 for all six families, so 0/6 can be inventoried. This proves insufficient
+management scopes, not absent resources. Sanitized tracked evidence:
+`.codex/runs/CURRENT/p5/cloudflare-scope-readiness/report.json`, SHA-256
+`DBFF2AFD4E32A0ABAD49BFD05A97E6D817F605559468DE4CD74A6BEE20CE7215`.
+No cloud write, deployment, resource creation, secret output, percentage change, or gate
+flip occurred. O1-O5 remain `owner_required`; O6 is `resolved_verified` for the bounded
+gateway-only Workers AI path and has `percentage_credit=0`.
+
+Final DEV-ONLY integration verification passed `scripts/verify-phase1.ps1` including
+gitleaks, frontend lint, the Next.js production build, `scripts/verify-phase1-runtime.ps1`,
+and the complete `scripts/verify-browser-contract.ps1` run. The browser proof covered all
+seven Phase-6 controls and `22x2=44` responsive command-palette clicks. It first exposed a
+real mobile `/tools` readiness-row overflow; the responsive grid was bounded and the
+`44/44` proof then passed with zero overflow. Hosted proof remains blocked; Overall stays
+`86%` and `MARKET_READY:false`.
 
 ## Current Free-Hardening Evidence
 
-`session8-free-supply-chain-error-redaction-v1` pins all `17` external GitHub Action references to `11` current verified 40-character commits and all `18` tracked external image occurrences to `9` registry-manifest digests. `scripts/verify-supply-chain-pins.ps1` dynamically discovers all tracked `.github` YAMLs, Dockerfiles, and root Compose files; it enforces the exact Action SHA/tag-comment map, external `tag@sha256` map, occurrence counts, and exactly six allowlisted internal GHCR release-selector references. It is wired into `npm run verify`. The `_manus_audit` high/medium list contained `12` candidates: `11` were false positives after source-context review; one prompt persistence path was reclassified as `CWE-209` because it returned the raw exception. The response now exposes only `session persistence failed`, and a sentinel connection-string regression proves the actual error envelope omits the internal value. Backend security tests passed `20/20`. A newly published PostCSS path-traversal advisory was closed by replacing the exact `8.5.12` override with fixed `8.5.23`; npm audit reports zero vulnerabilities. Focused verification, both Compose configs, `npm run verify`, `npm run verify:runtime`, and `npm run verify:browser` passed serially on source `2ae4c61aa876759abcaa83c36c0a3379206b91a4`; Docker is `10/10 healthy`, responsive proof is `22x2=44`, responsive report SHA-256 `BADE51DD5E640085106D8F173A67B725789EE996C2644AB9554C59BA759C2CEE`, reference-design report SHA-256 `E66F3CAEC041787834A33D6428F1511916B806C4576BCE20FC12D98FCE513C3A`. The source is committed and pushed. No new rubric marker is credited; Overall remains `86%`, MARKET_READY remains false, and O1-O6 are unchanged. DEV-ONLY; hosted proof still blocked.
+`session8-free-supply-chain-error-redaction-v1` pins all `17` external GitHub Action references to `11` current verified 40-character commits and all `18` tracked external image occurrences to `9` registry-manifest digests. `scripts/verify-supply-chain-pins.ps1` dynamically discovers all tracked `.github` YAMLs, Dockerfiles, and root Compose files; it enforces the exact Action SHA/tag-comment map, external `tag@sha256` map, occurrence counts, and exactly six allowlisted internal GHCR release-selector references. It is wired into `npm run verify`. The `_manus_audit` high/medium list contained `12` candidates: `11` were false positives after source-context review; one prompt persistence path was reclassified as `CWE-209` because it returned the raw exception. The response now exposes only `session persistence failed`, and a sentinel connection-string regression proves the actual error envelope omits the internal value. Backend security tests passed `20/20`. A newly published PostCSS path-traversal advisory was closed by replacing the exact `8.5.12` override with fixed `8.5.23`; npm audit reports zero vulnerabilities. Focused verification, both Compose configs, `npm run verify`, `npm run verify:runtime`, and `npm run verify:browser` passed serially on source `2ae4c61aa876759abcaa83c36c0a3379206b91a4`; Docker is `10/10 healthy`, responsive proof is `22x2=44`, responsive report SHA-256 `BADE51DD5E640085106D8F173A67B725789EE996C2644AB9554C59BA759C2CEE`, reference-design report SHA-256 `E66F3CAEC041787834A33D6428F1511916B806C4576BCE20FC12D98FCE513C3A`. The source is committed and pushed. No new rubric marker is credited; Overall remains `86%`, MARKET_READY remains false. Its then-current O1-O6 statement is superseded by the current O1-O5 plus resolved-O6 matrix. DEV-ONLY; hosted proof still blocked.
 
 ## Current Hosted Boundary
 
-Entries below that mention `https://188-34-191-140.sslip.io`, `sslip.io`, or Hetzner-hosted runtime evidence are historical provenance only. Current frontend truth is `frontend-hosted-current-proof-v1`; current contract-origin truth is the latest `external-gate-audit-*` artifact plus reachable Agent API, MCP Gateway, and LLM Gateway HTTPS origins. Neither one proves a stateful full-backend rollout, release promotion, or full-platform production release.
+Entries below that mention `https://188-34-191-140.sslip.io`, `sslip.io`, Hetzner, or Fly runtime evidence are historical provenance only. Current frontend truth is `frontend-hosted-current-proof-v1`; current external truth is `external-gate-audit-v2` plus `external-gate-summary-v2`. Neither one proves a stateful full-backend rollout, release promotion, or full-platform production release.
 
-Latest external audit truth: the canonical reproducible token-free standard bootstrap audit `.phase1-artifacts/external-gate-audit-20260720-191532.json` is `status=blocked` with `production_deploy_claim_allowed=false`; the only open gate is `fly_live_budget_check` (Fly.io requires payment data - owner wall under the free-only policy). `hosted_agent_api_contracts`, `vercel_backend_origin_health` and `github_branch_protection_current_verify` are token-free reproducibly verified since audit `20260720-191532`. The token/origin-injected run `.phase1-artifacts/external-gate-audit-20260713-125413.json` reported `status=verified` with `production_deploy_claim_allowed=true`, but per R0 (CODEX_UEBERGABE_2026-07-13.md) it is recorded ONLY as a non-current, owner-assisted candidate (`docs/runtime-state/external-gate-summary.candidate-125413.json`) and must never be shown as current gate truth. Existing credentials were loaded only into the audit process; no values were printed or persisted and the audit performed no provider mutation. This does not claim a full-platform production rollout or release promotion; current manifest progress is `86%`.
+Latest external audit truth: `docs/runtime-state/external-gate-audit-v2.json` is
+`status=blocked` with `production_deploy_claim_allowed=false`; the only active blocker is
+`cloudflare_native_zero_card_hosted_runtime`. RC10/Fly-v1 and the token/origin-injected
+`125413` run are explicit historical, non-current evidence. This does not claim a
+full-platform production rollout or release promotion; current manifest progress is `86%`.
 
 ## Current R0 Runtime Truth Evidence
 
-`r0-canonical-runtime-truth-v1` makes `docs/runtime-state/external-gate-summary.json` authoritative for runtime release claims. After the token-free `20260720-191532` rebaseline, the local Agent API reports External Gates `action_required` with `5/6` verified and the single blocker `fly_cloud_stack`; the mirror reports `local_mirror_ready_hosted_blocked`; Deployment Preflight reports `action_required` with cloud and production claims `false`; Completion and Go-live Readiness report `blocked_external_gates`. Full static, runtime, and browser gates passed after the rebaseline. The browser proof covers all seven Phase-6 gates, the load-stable reference-design WebGL check, 22 canonical pages, two viewports, 44 command-palette clicks, `overflow_failures=0`, `overlay_collision_failures=0`, and `console_errors=0`. Evidence: `.codex/runs/CURRENT/master-goal/r0-canonical-runtime-truth-20260719.md`, `.phase1-artifacts/external-gate-audit-20260720-191532.json`, `.phase1-artifacts/reference-design-browser-proof-latest.json`, and `.codex/runs/CURRENT/frontend/responsive-22/report.json`. This is DEV-ONLY and changes no percentage.
+`external-gate-summary-v2` is authoritative for runtime release claims. Agent API,
+External-Gate Mirror, Deployment Preflight, Completion, Infra Budget, and Go-live Readiness
+now use `cloudflare_native_runtime` and
+`cloudflare_native_zero_card_hosted_runtime`; the single active external blocker remains
+fail-closed, and cloud/production claims remain false. Fly inventory is read-only
+`historical_only` with no active layer mapping. This is DEV-ONLY and changes no percentage.
 
 ## Current Agent-Pool UI / Verifier Parity Evidence
 
@@ -120,11 +158,12 @@ Latest external audit truth: the canonical reproducible token-free standard boot
 
 ## Current MARKET_READY Owner-Blocked Evidence
 
-`owner-input-manifest-v2` keeps the exact O1-O6 cell map while replacing O2's active target
-with O2' / `cloudflare_native_zero_card_hosted_runtime`. It validates
-`payment_required=false`, `zero_card_required=true`, `paid_fallback_allowed=false`, the
-closed Cloudflare hosted gate, the still-closed scale/write/vector/auth/release gates, and the
-separate dry-run LLM Gateway lock. `npm run verify:market-ready:static` reports
+`owner-input-manifest-v2` maps O1-O5 as `owner_required` and O6 as
+`resolved_verified` with `percentage_credit=0`. O2' targets
+`cloudflare_native_zero_card_hosted_runtime` with `payment_required=false`,
+`zero_card_required=true`, and `paid_fallback_allowed=false`. It validates the closed
+Cloudflare hosted gate and the still-closed scale/write/vector/auth/release gates while
+preserving the bounded gateway-only Workers AI proof. `verify-market-ready.ps1 -StaticOnly` reports
 `owner-input-matrix=PASS`, `autonomous-open-items=PASS`, Matrix and production gates honestly
 blocked, audit-mode runtime skip, `OFFEN (Spur A - autonom fixbar): keine`, and
 `MARKET_READY:false`. No percentage, hosted capability, production claim or Owner approval is

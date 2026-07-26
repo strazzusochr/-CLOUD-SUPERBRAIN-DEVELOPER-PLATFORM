@@ -1,45 +1,37 @@
-## Projektstatus (evidence-based; DEV-ONLY bis Hosted-Gates offen)
+# Project Status
 
-Quelle der Prozentwerte: `docs/project-progress.manifest.json` (overall: `70%`).
+Updated: 2026-07-26
 
-### Checks
+- Overall: `86%`.
+- Horizontal: P0 100, P1 100, P2 100, P3 44, P4 100, P5 68, P6 90.
+- Vertical: Frontend 100, Orchestrator 100, Agent Pool 69, LLM Gateway 55,
+  MCP Gateway 56, Memory 90, Observability 100.
+- Canonical source: `docs/project-progress.manifest.json`.
+- `MARKET_READY=false`.
 
-- ✅ LINT: `npm --prefix apps/frontend run lint` → Exit 0
-- ✅ TYPE/BUILD: `npm --prefix apps/frontend run build` → Exit 0 (Types valid)
-- ✅ E2E: `npm --prefix apps/frontend test -- --reporter=line` → `8 passed` (Exit 0)
-- ✅ BROWSER (DEV-ONLY): `npm run verify:browser` → Exit 0
-- ✅ HOSTED-LOCAL (DEV-ONLY): `npm run verify:hosted-local` → Exit 0
-- ✅ BASELINE: `npm run verify` → Exit 0
-- ✅ RUNTIME: `npm run verify:runtime` → Exit 0
+## Current external truth
 
-### External Gates (BLOCKED; keine Fake-Credentials)
+- Audit: `docs/runtime-state/external-gate-audit-v2.json`.
+- Summary: `docs/runtime-state/external-gate-summary.json`
+  (`external-gate-summary-v2`).
+- Status: `blocked`.
+- Sole active external blocker:
+  `cloudflare_native_zero_card_hosted_runtime`.
+- Fly.io is `historical_only`.
+- Cloudflare read-only scope inventory: `0/6`; current token scopes cannot
+  inventory the required resource families.
+- `production_deploy_claim_allowed=false`.
 
-Aktueller Audit-Run (DEV-ONLY): `.phase1-artifacts/external-gate-audit-20260607-213309.json`
+## Owner gates
 
-- ❌ `hosted_agent_api_contracts` → BLOCKED: `STAGING_BASE_URL` fehlt (echte HTTPS Hosted-Staging-Base-URL)
-- ❌ `github_branch_protection_current_verify` → BLOCKED: `BRANCH_PROTECTION_TOKEN` fehlt (oder SSH-Fallback nicht konfiguriert)
-- ❌ `vercel_backend_origin_health` → BLOCKED: `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, `LLM_GATEWAY_BASE_URL` fehlen (echte HTTPS Origins)
-- ❌ `fly_live_budget_check` → BLOCKED: `FLY_API_TOKEN` fehlt
+- O1–O5: open.
+- O6: `resolved_verified`, zero percentage credit.
 
-Setup: `docs/external-gates-setup.md`
+Exact actions and post-action verifiers:
+`docs/runtime-state/owner-input-manifest.json`.
 
-### Layer (L1–L7)
+## Boundary
 
-- ✅ L1 Daten & Speicher (DEV-ONLY verifiziert): Postgres/pgvector + Redis + Backup/Restore/Persistence Proofs via `verify:runtime`
-- ✅ L2 Modelle & LLM-Gateway (DEV-ONLY verifiziert): deterministic dry-run, SSE + Routing Policy Proofs via `verify:runtime`
-- ✅ L3 Agenten & Worker (DEV-ONLY verifiziert): LangGraph dry-run, agent-worker/memory-worker Proofs via `verify:runtime`
-- ✅ L4 API & Gateways (DEV-ONLY verifiziert): agent-api + mcp-gateway Contracts/Surfaces via `verify:runtime` + `verify:browser`
-- ✅ L5 Frontend & UI (DEV-ONLY verifiziert): Next.js Surfaces + Organism + Workbench via `verify:browser` + E2E
-- ⚠️ L6 Cloud & Infrastruktur (teilweise): Compose/Nginx Guards verifiziert, Hosted Deploy Proof bleibt gated (External Gates)
-- ⚠️ L7 Integration & Verification (teilweise): lokale Verifier grün, Hosted/Production Gate Claims bleiben blocked (External Gates)
-
-### Status
-
-Nicht `100% COMPLETE`: External Gates sind aktuell BLOCKED, weil echte HTTPS URLs/Tokens fehlen.
-
-### Nächste Schritte (Owner/Operator notwendig)
-
-- `STAGING_BASE_URL` setzen (echte Hosted Staging URL) und danach `npm run verify:external-gates` erneut.
-- Vercel Origins setzen (`AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, `LLM_GATEWAY_BASE_URL`) und danach `npm run verify:external-gates` erneut.
-- `BRANCH_PROTECTION_TOKEN` setzen und danach `npm run verify:external-gates` erneut.
-- `FLY_API_TOKEN` setzen und danach `npm run verify:external-gates` erneut.
+Local runtime and browser evidence are `DEV-ONLY; hosted proof still blocked`.
+No production deploy, registry push, main write, hosted write, scope expansion,
+payment, or secret output is authorized.

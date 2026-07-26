@@ -7,17 +7,7 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
-if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-  Fail "docker CLI is not available"
-}
-try {
-  $serverVersion = (docker info --format "{{.ServerVersion}}" 2>&1 | Out-String).Trim()
-  if ([string]::IsNullOrWhiteSpace($serverVersion)) {
-    Fail "docker engine readiness probe returned an empty server version"
-  }
-} catch {
-  Fail "docker engine is not ready for compose resource measurement"
-}
+& (Join-Path $PSScriptRoot "require-docker-readiness.ps1") -GateName "compose resource measurement"
 
 function Fail($Message) {
   throw "Resource measurement failed: $Message"
@@ -64,7 +54,7 @@ $payload = [pscustomobject]@{
   project = $ProjectName
   measured_at = (Get-Date).ToUniversalTime().ToString("o")
   container_count = $ordered.Count
-  upgrade_rule = "No Fly.io upgrade without empirical CPU/RAM pressure and infra-budget proof."
+  upgrade_rule = "No hosted capacity upgrade without empirical CPU/RAM pressure, zero-card eligibility, and verifier-backed budget proof."
   measurements = $ordered
 }
 

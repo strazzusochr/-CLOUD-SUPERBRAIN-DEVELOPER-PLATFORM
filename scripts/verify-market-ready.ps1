@@ -67,6 +67,7 @@ $ownerMatrixDetail = "missing: docs/runtime-state/owner-input-manifest.json"
 $autonomousOpenItemsOk = $false
 $autonomousOpenItemsDetail = "owner-input manifest unreadable"
 $ownerBlockedCellIds = @()
+$resolvedCellIds = @()
 $ownerUncoveredCellIds = @($below | ForEach-Object { [string]$_.id })
 try {
   if (Test-Path $ownerInputPath) {
@@ -74,6 +75,8 @@ try {
     $allCellIds = @($cells | ForEach-Object { [string]$_.id })
     $belowCellIds = @($below | ForEach-Object { [string]$_.id })
     $actions = @($ownerInput.actions)
+    $ownerActions = @($actions | Where-Object { [string]$_.status -eq "owner_required" })
+    $resolvedActions = @($actions | Where-Object { [string]$_.status -eq "resolved_verified" })
     $autonomousOpenItems = @($ownerInput.autonomous_open_items | ForEach-Object { [string]$_ })
     $autonomousOpenItemsOk = ($autonomousOpenItems.Count -eq 0)
     $autonomousOpenItemsDetail = if ($autonomousOpenItemsOk) {
@@ -84,11 +87,23 @@ try {
     $invalidActions = @(
       $actions | Where-Object {
         [string]$_.id -notmatch '^O\d+$' -or
-        [string]$_.status -ne 'owner_required' -or
+        [string]$_.status -notin @('owner_required', 'resolved_verified') -or
         [string]::IsNullOrWhiteSpace([string]$_.required_owner_action) -or
         @($_.affected_cells).Count -eq 0 -or
         @($_.verifier_after).Count -eq 0
       }
+    )
+    $ownerCoveredIds = @(
+      $ownerActions |
+        ForEach-Object { @($_.affected_cells) } |
+        ForEach-Object { [string]$_ } |
+        Sort-Object -Unique
+    )
+    $resolvedCoveredIds = @(
+      $resolvedActions |
+        ForEach-Object { @($_.affected_cells) } |
+        ForEach-Object { [string]$_ } |
+        Sort-Object -Unique
     )
     $coveredIds = @(
       $actions |
@@ -97,22 +112,37 @@ try {
         Sort-Object -Unique
     )
     $unknownIds = @($coveredIds | Where-Object { $_ -notin $allCellIds })
-    $ownerBlockedCellIds = @($belowCellIds | Where-Object { $_ -in $coveredIds })
+    $ownerBlockedCellIds = @($belowCellIds | Where-Object { $_ -in $ownerCoveredIds })
+    $resolvedCellIds = @($belowCellIds | Where-Object { $_ -in $resolvedCoveredIds })
     $ownerUncoveredCellIds = @($belowCellIds | Where-Object { $_ -notin $coveredIds })
-    $expectedActionCells = @{
+    $expectedOwnerActionCells = @{
       O1 = @("phase_3")
       O2 = @("phase_5", "phase_6")
       O3 = @("layer_5", "phase_5")
       O4 = @("layer_3", "layer_5", "phase_6")
       O5 = @("layer_6")
+    }
+    $expectedResolvedActionCells = @{
       O6 = @("layer_4")
     }
-    $actionIds = @($actions | ForEach-Object { [string]$_.id } | Sort-Object)
-    $actionMapOk = (($actionIds -join ",") -eq (($expectedActionCells.Keys | Sort-Object) -join ","))
-    foreach ($action in $actions) {
+    $ownerActionIds = @($ownerActions | ForEach-Object { [string]$_.id } | Sort-Object)
+    $resolvedActionIds = @($resolvedActions | ForEach-Object { [string]$_.id } | Sort-Object)
+    $actionMapOk = (
+      ($ownerActionIds -join ",") -eq (($expectedOwnerActionCells.Keys | Sort-Object) -join ",") -and
+      ($resolvedActionIds -join ",") -eq (($expectedResolvedActionCells.Keys | Sort-Object) -join ",")
+    )
+    foreach ($action in $ownerActions) {
       $actionId = [string]$action.id
       $actualAffected = @($action.affected_cells | ForEach-Object { [string]$_ } | Sort-Object)
-      $expectedAffected = @($expectedActionCells[$actionId] | Sort-Object)
+      $expectedAffected = @($expectedOwnerActionCells[$actionId] | Sort-Object)
+      if (($actualAffected -join ",") -ne ($expectedAffected -join ",")) {
+        $actionMapOk = $false
+      }
+    }
+    foreach ($action in $resolvedActions) {
+      $actionId = [string]$action.id
+      $actualAffected = @($action.affected_cells | ForEach-Object { [string]$_ } | Sort-Object)
+      $expectedAffected = @($expectedResolvedActionCells[$actionId] | Sort-Object)
       if (($actualAffected -join ",") -ne ($expectedAffected -join ",")) {
         $actionMapOk = $false
       }
@@ -154,14 +184,64 @@ try {
       [bool]$cloudflareTargetGate.live_verified -eq $false -and
       [bool]$cloudflareTargetGate.paid_provider -eq $false
     )
+    $externalAuditPath = Join-Path $repoRoot ([string]$externalState.source_artifact)
+    $externalAudit = if (Test-Path -LiteralPath $externalAuditPath -PathType Leaf) {
+      Get-Content -LiteralPath $externalAuditPath -Raw | ConvertFrom-Json
+    } else {
+      $null
+    }
+    $cloudflareScopeReadinessPath = Join-Path $repoRoot ".codex\runs\CURRENT\p5\cloudflare-scope-readiness\report.json"
+    $cloudflareScopeReadiness = if (Test-Path -LiteralPath $cloudflareScopeReadinessPath -PathType Leaf) {
+      Get-Content -LiteralPath $cloudflareScopeReadinessPath -Raw | ConvertFrom-Json
+    } else {
+      $null
+    }
+    $cloudflareScopeReadinessOk = (
+      $null -ne $cloudflareScopeReadiness -and
+      [string]$cloudflareScopeReadiness.contract_version -eq "cloudflare-owner-scope-readiness-v1" -and
+      [string]$cloudflareScopeReadiness.status -eq "scope_blocked" -and
+      [string]$cloudflareScopeReadiness.execution_scope -eq "read_only" -and
+      [bool]$cloudflareScopeReadiness.credentials.secret_output -eq $false -and
+      @($cloudflareScopeReadiness.checks).Count -eq 6 -and
+      @($cloudflareScopeReadiness.checks | Where-Object {
+        [string]$_.method -ne "GET" -or
+        [int]$_.http_status -notin @(401, 403) -or
+        @($_.error_codes) -notcontains 10000
+      }).Count -eq 0 -and
+      [bool]$cloudflareScopeReadiness.assertions.only_get_requests_used -eq $true -and
+      [bool]$cloudflareScopeReadiness.assertions.cloud_mutation -eq $false -and
+      [bool]$cloudflareScopeReadiness.assertions.resource_inventory_verified -eq $false -and
+      [bool]$cloudflareScopeReadiness.assertions.o2_prime_scope_ready -eq $false
+    )
+    $externalAuditOk = (
+      $null -ne $externalAudit -and
+      [string]$externalAudit.contract_version -eq "external-gate-audit-v2" -and
+      [string]$externalAudit.status -eq [string]$externalState.status -and
+      [string]$externalAudit.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime" -and
+      [string]$externalAudit.generated_at_utc -eq [string]$externalState.generated_at_utc -and
+      [bool]$externalAudit.production_deploy_claim_allowed -eq [bool]$externalState.production_deploy_claim_allowed -and
+      (@($externalAudit.missing_or_failed_gates) -join ",") -eq (@($externalState.missing_or_failed_gates) -join ",") -and
+      @($externalAudit.source_evidence_refs) -contains ".codex/runs/CURRENT/p5/cloudflare-scope-readiness/report.json" -and
+      [string]$externalAudit.legacy_provenance.status -eq "historical_only" -and
+      [string]$externalAudit.legacy_provenance.retired_gate_id -eq "fly_live_budget_check" -and
+      $cloudflareScopeReadinessOk
+    )
     $externalGateStateOk = (
+      [string]$externalState.contract_version -eq "external-gate-summary-v2" -and
+      [string]$externalState.source_contract_version -eq "external-gate-audit-v2" -and
       [string]$externalState.status -eq "blocked" -and
       [bool]$externalState.production_deploy_claim_allowed -eq $false -and
-      @($externalState.missing_or_failed_gates) -contains "fly_live_budget_check" -and
+      [string]$externalState.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime" -and
+      @($externalState.missing_or_failed_gates).Count -eq 1 -and
+      @($externalState.missing_or_failed_gates) -contains "cloudflare_native_zero_card_hosted_runtime" -and
+      [bool]$externalState.cloudflare_native_zero_card_hosted_runtime_claim_allowed -eq $false -and
+      [string]$externalState.legacy_provenance.status -eq "historical_only" -and
+      [string]$externalState.legacy_provenance.retired_gate_id -eq "fly_live_budget_check" -and
       [string]$ownerInput.external_gate_truth.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime" -and
       @($ownerInput.external_gate_truth.missing_or_failed_gates) -contains "cloudflare_native_zero_card_hosted_runtime" -and
       [string]$ownerInput.external_gate_truth.legacy_fly_path_status -eq "superseded_historical" -and
       [bool]$ownerInput.external_gate_truth.production_deploy_claim_allowed -eq $false -and
+      $externalAuditOk -and
       $cloudflareTargetGateOk
     )
     $o2 = @($actions | Where-Object { [string]$_.id -eq "O2" }) | Select-Object -First 1
@@ -175,11 +255,33 @@ try {
       @($o2.gate_ids) -contains "phase6_scale_runtime" -and
       @($o2.gate_ids) -notcontains "fly_live_budget_check"
     )
-    $llmResponseVerifier = Get-Content (Join-Path $repoRoot "scripts\verify-llm-responses-contract.ps1") -Raw
-    $llmDryRunLockOk = (
-      $llmResponseVerifier.Contains('Assert-True "contract live provider calls false"') -and
-      $llmResponseVerifier.Contains('Assert-True "response live provider calls false"') -and
-      $llmResponseVerifier.Contains('Assert-True "hosted response no live provider"')
+    $o6 = @($resolvedActions | Where-Object { [string]$_.id -eq "O6" }) | Select-Object -First 1
+    $llmGate = $capabilityState.gates.live_llm_provider_calls
+    $productAcceptancePath = Join-Path $repoRoot ".codex\runs\CURRENT\product-acceptance\report.json"
+    $productAcceptance = if (Test-Path -LiteralPath $productAcceptancePath) {
+      Get-Content -LiteralPath $productAcceptancePath -Raw | ConvertFrom-Json
+    } else {
+      $null
+    }
+    $o6ResolvedOk = (
+      $null -ne $o6 -and
+      [string]$o6.status -eq "resolved_verified" -and
+      [int]$o6.percentage_credit -eq 0 -and
+      @($o6.evidence_refs) -contains ".codex/runs/CURRENT/product-acceptance/report.json" -and
+      $null -ne $llmGate -and
+      [bool]$llmGate.owner_granted -eq $true -and
+      [bool]$llmGate.live_verified -eq $true -and
+      [string]$llmGate.provider -eq "cloudflare_workers_ai" -and
+      [bool]$llmGate.paid_provider -eq $false -and
+      $null -ne $productAcceptance -and
+      [string]$productAcceptance.status -eq "verified" -and
+      [bool]$productAcceptance.dev_only -eq $true -and
+      [bool]$productAcceptance.hosted_proof -eq $false -and
+      [bool]$productAcceptance.build.live_provider_calls -eq $true -and
+      [string]$productAcceptance.build.gateway_mode -eq "cloudflare_workers_ai_live" -and
+      [string]$productAcceptance.build.gateway_provider -eq "cloudflare-workers-ai" -and
+      [bool]$productAcceptance.build.direct_provider_calls -eq $false -and
+      [bool]$productAcceptance.secret_output -eq $false
     )
     $sourceMatches = (
       [int]$ownerInput.canonical_overall_percent -eq [int]$m.overall_percent -and
@@ -197,13 +299,13 @@ try {
       $closedGateStateOk -and
       $externalGateStateOk -and
       $o2ZeroCardOk -and
-      $llmDryRunLockOk -and
+      $o6ResolvedOk -and
       $sourceMatches
     )
     $ownerMatrixDetail = if ($ownerMatrixOk) {
-      "covered below-100 cells: " + ($ownerBlockedCellIds -join ", ")
+      "owner-required below-100 cells: " + ($ownerBlockedCellIds -join ", ") + "; resolved-no-credit cells: " + ($resolvedCellIds -join ", ")
     } else {
-      "invalid_actions=$($invalidActions.Count) autonomous_open=$($autonomousOpenItems.Count) unknown_cells=$($unknownIds -join ',') uncovered_cells=$($ownerUncoveredCellIds -join ',') action_map=$actionMapOk unknown_gates=$($unknownGateIds -join ',') closed_gates=$closedGateStateOk external_gate=$externalGateStateOk cloudflare_target=$cloudflareTargetGateOk o2_zero_card=$o2ZeroCardOk llm_dry_run_lock=$llmDryRunLockOk source_matches=$sourceMatches"
+      "invalid_actions=$($invalidActions.Count) autonomous_open=$($autonomousOpenItems.Count) unknown_cells=$($unknownIds -join ',') uncovered_cells=$($ownerUncoveredCellIds -join ',') action_map=$actionMapOk unknown_gates=$($unknownGateIds -join ',') closed_gates=$closedGateStateOk external_gate=$externalGateStateOk external_audit=$externalAuditOk cloudflare_scope=$cloudflareScopeReadinessOk cloudflare_target=$cloudflareTargetGateOk o2_zero_card=$o2ZeroCardOk o6_resolved=$o6ResolvedOk source_matches=$sourceMatches"
     }
   }
 } catch {
@@ -340,6 +442,7 @@ $report = [pscustomobject]@{
   owner_input_matrix_verified = $ownerMatrixOk
   autonomous_open_items_verified = $autonomousOpenItemsOk
   owner_blocked_cells = $ownerBlockedCellIds
+  resolved_no_credit_cells = $resolvedCellIds
   owner_uncovered_cells = $ownerUncoveredCellIds
   gates_status     = $gateStatus
   production_deploy_claim_allowed = $gateProd

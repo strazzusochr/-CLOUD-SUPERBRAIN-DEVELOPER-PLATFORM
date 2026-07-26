@@ -73,46 +73,6 @@ function Set-ProcessEnvIfMissing([string]$Name, [string]$Value) {
   }
 }
 
-$flyOriginAppDefaults = @{
-  FLY_APP_AGENT_API = "cloud-superbrain-agent-api"
-  FLY_APP_MCP_GATEWAY = "cloud-superbrain-mcp-gateway"
-  FLY_APP_LLM_GATEWAY = "cloud-superbrain-llm-gateway"
-}
-
-function Get-FlyAppNameOrDefault([string]$FlyAppEnvName) {
-  $flyApp = [Environment]::GetEnvironmentVariable($FlyAppEnvName, "Process")
-  if (-not [string]::IsNullOrWhiteSpace($flyApp)) {
-    return $flyApp
-  }
-
-  if ($flyOriginAppDefaults.ContainsKey($FlyAppEnvName)) {
-    return $flyOriginAppDefaults[$FlyAppEnvName]
-  }
-
-  return ""
-}
-
-function Convert-FlyAppNameToBaseUrl([string]$Value) {
-  if ([string]::IsNullOrWhiteSpace($Value)) {
-    return ""
-  }
-
-  $trimmed = $Value.Trim().TrimEnd("/")
-  if ($trimmed.Contains("<") -or $trimmed.Contains(">") -or $trimmed.Contains('${')) {
-    return ""
-  }
-
-  if ($trimmed -match '^https://[A-Za-z0-9.-]+(\.fly\.dev)?$') {
-    return $trimmed
-  }
-
-  if ($trimmed -match '^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$') {
-    return "https://$trimmed.fly.dev"
-  }
-
-  return ""
-}
-
 function Test-PlaceholderValue([string]$Value) {
   if ([string]::IsNullOrWhiteSpace($Value)) {
     return $true
@@ -141,23 +101,12 @@ function Test-HostedRewriteFallbackValue([string]$EnvName, [string]$Value, [stri
   }).Count -gt 0
 }
 
-function Resolve-OriginEnv([string]$EnvName, [string]$FlyAppEnvName, [string]$HostedFallbackUrl) {
+function Resolve-OriginEnv([string]$EnvName, [string]$HostedFallbackUrl) {
   $existing = Normalize-BaseUrl ([Environment]::GetEnvironmentVariable($EnvName, "Process"))
   if (-not (Test-PlaceholderValue $existing)) {
     if (Test-HostedRewriteFallbackValue $EnvName $existing $normalizedHostedBaseUrl) {
       Write-Host "[verify-all-gates-with-tokens] using explicit consolidated hosted contract origin for $EnvName"
     }
-    Set-ProcessEnvValue $EnvName $existing
-    return
-  }
-
-  $derivedUrl = Convert-FlyAppNameToBaseUrl (Get-FlyAppNameOrDefault $FlyAppEnvName)
-  if (-not [string]::IsNullOrWhiteSpace($derivedUrl)) {
-    Set-ProcessEnvValue $EnvName $derivedUrl
-    return
-  }
-
-  if (-not [string]::IsNullOrWhiteSpace($existing) -and -not (Test-PlaceholderValue $existing)) {
     Set-ProcessEnvValue $EnvName $existing
     return
   }
@@ -176,15 +125,18 @@ if (-not [string]::IsNullOrWhiteSpace($normalizedHostedBaseUrl)) {
   Set-ProcessEnvIfMissing "STAGING_BASE_URL" $normalizedHostedBaseUrl
 }
 
-Resolve-OriginEnv "AGENT_API_BASE_URL" "FLY_APP_AGENT_API" $normalizedHostedBaseUrl
-Resolve-OriginEnv "MCP_GATEWAY_BASE_URL" "FLY_APP_MCP_GATEWAY" "$normalizedHostedBaseUrl/mcp"
-Resolve-OriginEnv "LLM_GATEWAY_BASE_URL" "FLY_APP_LLM_GATEWAY" "$normalizedHostedBaseUrl/llm"
+Resolve-OriginEnv "AGENT_API_BASE_URL" $normalizedHostedBaseUrl
+Resolve-OriginEnv "MCP_GATEWAY_BASE_URL" "$normalizedHostedBaseUrl/mcp"
+Resolve-OriginEnv "LLM_GATEWAY_BASE_URL" "$normalizedHostedBaseUrl/llm"
 
 $hardRequired = @(
   "STAGING_BASE_URL",
   "AGENT_API_BASE_URL",
   "MCP_GATEWAY_BASE_URL",
-  "LLM_GATEWAY_BASE_URL"
+  "LLM_GATEWAY_BASE_URL",
+  "CLOUDFLARE_STATEFUL_BASE_URL",
+  "CLOUDFLARE_ACCOUNT_ID",
+  "CLOUDFLARE_API_TOKEN"
 )
 
 $missing = @()

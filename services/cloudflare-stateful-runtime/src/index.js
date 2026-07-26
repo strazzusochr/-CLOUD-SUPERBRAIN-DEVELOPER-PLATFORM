@@ -255,6 +255,22 @@ async function nativeArtifactVerified(env, state) {
     artifact?.secret_output === false;
 }
 
+function nativeRuntimeTruth(env) {
+  const hostedCandidate = env.RUNTIME_MODE === "cloudflare_native_hosted_candidate";
+  return {
+    dev_only: !hostedCandidate,
+    hosted_proof: hostedCandidate,
+    evidence_ref: hostedCandidate
+      ? "cloudflare_native_do_queue_r2_hosted_candidate"
+      : "cloudflare_native_do_queue_r2_local_candidate",
+    live_provider_calls: false,
+    direct_provider_calls: false,
+    live_mcp_writes: false,
+    production_deploy: false,
+    secret_output: false,
+  };
+}
+
 function nativeContract(env) {
   const bindings = {
     d1: Boolean(env.DB),
@@ -262,6 +278,7 @@ function nativeContract(env) {
     queue: Boolean(env.RUNTIME_QUEUE),
     r2: Boolean(env.ARTIFACT_BUCKET),
   };
+  const runtimeTruth = nativeRuntimeTruth(env);
   return {
     contract_version: NATIVE_CONTRACT_VERSION,
     status: Object.values(bindings).every(Boolean) ? "configured" : "blocked",
@@ -281,15 +298,11 @@ function nativeContract(env) {
     r2_zero_card_verified: false,
     vectorize: "owner_gate_required",
     workers_ai: "owner_gate_required",
-    dev_only: true,
-    hosted_proof: false,
-    live_provider_calls: false,
-    direct_provider_calls: false,
-    live_mcp_writes: false,
-    production_deploy: false,
-    secret_output: false,
+    ...runtimeTruth,
     non_claims: [
-      "Local bindings do not prove hosted Cloudflare resource activation.",
+      runtimeTruth.hosted_proof
+        ? "Hosted candidate mode does not claim production deployment or release readiness."
+        : "Local bindings do not prove hosted Cloudflare resource activation.",
       "R2 free quota does not prove zero-card subscription activation.",
       "D1 custom persistence is not an official LangGraph checkpointer.",
     ],
@@ -953,7 +966,7 @@ async function getRuntimeRun(id, env, requestId) {
 async function createNativeProbe(request, env, requestId) {
   const contract = nativeContract(env);
   if (contract.status !== "configured" || !env.AGENT_API_AUTH_TOKEN) {
-    return json(blocked("cloudflare_native_configuration_unavailable", requestId, "The local Cloudflare-native bindings are unavailable."), 503);
+    return json(blocked("cloudflare_native_configuration_unavailable", requestId, "The Cloudflare-native bindings are unavailable."), 503);
   }
   if (!(await authenticated(request, env))) {
     return json(blocked("stateful_runtime_authentication_required", requestId, "Agent API write authentication failed."), 401);
@@ -1034,7 +1047,6 @@ async function createNativeProbe(request, env, requestId) {
       queue_enqueued: coordinatorCreated,
       d1_read_verified: true,
       queue_envelope_bytes: new TextEncoder().encode(JSON.stringify(message)).byteLength,
-      evidence_ref: "cloudflare_native_do_queue_r2_local_candidate",
     }, 202);
   } catch (error) {
     try { await env.ARTIFACT_BUCKET.delete(artifactKey); } catch { /* best-effort local cleanup */ }
@@ -1050,7 +1062,7 @@ async function createNativeProbe(request, env, requestId) {
 
 async function getNativeProbe(url, probeId, env, requestId) {
   if (nativeContract(env).status !== "configured") {
-    return json(blocked("cloudflare_native_configuration_unavailable", requestId, "The local Cloudflare-native bindings are unavailable."), 503);
+    return json(blocked("cloudflare_native_configuration_unavailable", requestId, "The Cloudflare-native bindings are unavailable."), 503);
   }
   try {
     const projectId = safeProjectId(url.searchParams.get("project_id"));
@@ -1063,23 +1075,21 @@ async function getNativeProbe(url, probeId, env, requestId) {
       contract_version: NATIVE_CONTRACT_VERSION,
       artifact_present: Boolean(artifact),
       artifact_verified: artifactVerified,
-      dev_only: true,
-      hosted_proof: false,
-      evidence_ref: "cloudflare_native_do_queue_r2_local_candidate",
+      ...nativeRuntimeTruth(env),
     });
   } catch {
     return json({
       contract_version: NATIVE_CONTRACT_VERSION,
       status: "not_found",
       persisted: false,
-      secret_output: false,
+      ...nativeRuntimeTruth(env),
     }, 404);
   }
 }
 
 async function deleteNativeProbe(request, url, probeId, env, requestId) {
   if (nativeContract(env).status !== "configured" || !env.AGENT_API_AUTH_TOKEN) {
-    return json(blocked("cloudflare_native_configuration_unavailable", requestId, "The local Cloudflare-native bindings are unavailable."), 503);
+    return json(blocked("cloudflare_native_configuration_unavailable", requestId, "The Cloudflare-native bindings are unavailable."), 503);
   }
   if (!(await authenticated(request, env))) {
     return json(blocked("stateful_runtime_authentication_required", requestId, "Agent API write authentication failed."), 401);
@@ -1097,12 +1107,7 @@ async function deleteNativeProbe(request, url, probeId, env, requestId) {
       project_id: projectId,
       artifact_deleted: true,
       persisted: false,
-      dev_only: true,
-      hosted_proof: false,
-      live_provider_calls: false,
-      live_mcp_writes: false,
-      production_deploy: false,
-      secret_output: false,
+      ...nativeRuntimeTruth(env),
     });
   } catch {
     return json(blocked("cloudflare_native_cleanup_failed", requestId, "The Cloudflare-native probe cleanup failed."), 404);

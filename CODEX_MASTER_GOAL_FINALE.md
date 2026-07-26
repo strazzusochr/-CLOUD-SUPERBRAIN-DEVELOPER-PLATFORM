@@ -1,6 +1,8 @@
 # 🏁 CODEX MASTER GOAL — FINALE (bis Vollendung + fehlerfreier Beweis)
-# Version: 2026-07-22 (Auth fail-closed committed; RC5 lokal requalifiziert)
+# Version: 2026-07-26 (P5 Cloudflare-native Gate-Rebase v2)
 # Führt CODEX_MASTER_GOAL.md zu Ende. Dieses Dokument ist der aktuelle Einstieg.
+
+Current canonical marker: `overall=86`; `MARKET_READY:false`.
 
 ## DAS ZIEL IN EINEM SATZ
 Cloud Superbrain vollständig fertigstellen und **fehlerfrei beweisen**: alle 22 Seiten
@@ -48,37 +50,27 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
   `https://cloud-superbrain-developer-platform.vercel.app`:
   `backend-hosted-current-proof-v1` bindet READY Production Deployment
   `dpl_AQaBJxdQwHLcQKid8xYXkNJ3wva2` an dieselbe Source und denselben Archivhash.
-  Die immutable URL bleibt deployment-geschuetzt; Alias-Reads belegen `overall=84`,
-  `P4=100`, Integritaet `verified`, External Gates `5/6 action_required`, Blocker
-  `fly_cloud_stack`, MCP/LLM `healthy`, Agent API `degraded` und App-POST HTTP 503
+  Die immutable URL bleibt deployment-geschuetzt; die source-bound Alias-Reads belegen den
+  damaligen Snapshot `overall=84`, `P4=100`, MCP/LLM `healthy`, Agent API `degraded` und
+  App-POST HTTP 503
   `stateless_contract_origin_read_only`. Dies ist ein scoped Betriebs-Deploy des
   zustandslosen Contract Origin, nicht der stateful Docker-Stack oder ein Plattform-Release.
-- **External-Gate-Wahrheit:** Der kanonische reproduzierbare Standard-Bootstrap-Audit (ohne
-  Owner-Origin-Injektion) `.phase1-artifacts/external-gate-audit-20260720-191532.json` ist
-  `blocked` mit `production_deploy_claim_allowed=false`; offen ist nur noch
-  `fly_live_budget_check` (Fly.io verlangt Zahlungsdaten - Owner-Wand unter Free-Only).
-  `hosted_agent_api_contracts`, `vercel_backend_origin_health` und
-  `github_branch_protection_current_verify` sind seit Audit `20260720-191532` tokenfrei
-  reproduzierbar `verified`: die oeffentlichen Vercel-Origins sind als nicht-geheime
-  Defaults im Verifier hinterlegt, und die Branch-Protection wird auf dem oeffentlichen
-  Repository anonym als `protected=true` mit Pflicht-Check `verify` belegt
-  (`verification_scope=public_anonymous_subset`; Review-/Force-Push-/Deletion-Settings
-  sind anonym nicht lesbar und werden ausdruecklich NICHT beansprucht - dafuer bleibt
-  `BRANCH_PROTECTION_TOKEN` die staerkere Pruefung). Jede Probe bleibt eine anonyme
-  HTTPS-GET mit Pflicht-Marker und faellt bei Drift wieder fail-closed. Der
-  owner-assistierte Token-/Origin-Lauf `.phase1-artifacts/external-gate-audit-20260713-125413.json`
-  meldete `verified` mit `production_deploy_claim_allowed=true`, wird aber gemaess R0 ausschliesslich
-  als nicht-aktueller Kandidat gefuehrt (`docs/runtime-state/external-gate-summary.candidate-125413.json`)
-  und ersetzt niemals den Standard; bestehende Credentials wurden nur transient geladen, ohne Ausgabe,
-  Persistenz oder Audit-seitige Provider-Mutation. Das bindende Manifest steht bei
-  `overall=86`; das Frontend ist bereitgestellt, die Backend-Gesamtplattform wurde nicht
-  als Production Release ausgerollt.
-- **R0 Runtime-Bindung:** Die lokalen Runtime-Endpunkte fuer External Gates, Mirror,
-  Deployment Preflight, Completion und Go-live Readiness lesen die kanonische Summary und
-  zeigen den Standard deshalb einheitlich als geblockt. `npm run verify`,
-  `npm run verify:runtime` und `npm run verify:browser` sind gruen; letzterer umfasst 22
-  Seiten, zwei Viewports und 44 Klicks ohne Overflow-, Overlay- oder Console-Fehler.
-  Evidence: `.codex/runs/CURRENT/master-goal/r0-canonical-runtime-truth-20260719.md`.
+- **External-Gate-Wahrheit v2:** Der getrackte kanonische Audit
+  `docs/runtime-state/external-gate-audit-v2.json` (`external-gate-audit-v2`, SHA-256
+  `5E05F8EC80F17845C7CAC980177275F008216560C3BEECFDCF0DD3B40D05C21C`) und
+  `external-gate-summary-v2` melden `blocked`, `production_deploy_claim_allowed=false`
+  und exakt `cloudflare_native_zero_card_hosted_runtime` als aktiven Blocker. Der volle
+  lokale Lauf liegt unter
+  `.phase1-artifacts/external-gate-audit-v2-20260726-084042.json`.
+  Hosted-Vertraege, Vercel-Origins, Branch Protection, GHCR-Digests und Gitleaks sind
+  positiv, ersetzen aber nicht den stateful O2'-Hosted-Proof. Die GET-only Cloudflare-
+  Scope-Inventur konnte wegen HTTP 401/403, Code 10000, 0/6 Ressourcenfamilien lesen;
+  sie beweist unzureichende Management-Scopes, nicht Ressourcenabwesenheit. Fly/RC10-v1
+  und Kandidat `125413` sind `historical_only`.
+- **Runtime-Bindung v2:** External Gates, Mirror, Deployment Preflight, Completion,
+  Infra-Budget und Go-live Readiness lesen die v2-Summary und das CF-Capability-Gate.
+  Aktiver Target-Key ist `cloudflare_native_runtime`; Budgetquelle ist
+  `cloudflare_zero_card_projection`; Production bleibt false. Overall bleibt `86%`.
 - **Phase 3 Auth Fail-Closed:** `phase3-auth-credential-issuance-fail-closed-v1` ersetzt die
   sicherheitsinvaliden RC1-Dry-run-Issuance-Claims. Einmaliger Redis-State, verifizierte numerische
   GitHub-ID, exakt `read:user`, starkes base64url-256-Bit-Signing-Secret, aktive Cookie-Refresh-

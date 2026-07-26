@@ -210,6 +210,8 @@ Assert-Equal @($config.env.preview.queues.consumers).Count 1 "Preview Queue cons
 Assert-Equal ([int]$config.env.preview.queues.consumers[0].max_retries) 3 "Preview Queue retry bound"
 Assert-Equal @($config.env.preview.r2_buckets).Count 1 "Preview R2 binding count"
 Assert-Equal ([string]$config.env.preview.r2_buckets[0].binding) "ARTIFACT_BUCKET" "Preview R2 binding"
+Assert-Equal ([string]$config.vars.RUNTIME_MODE) "cloudflare_native_hosted_candidate" "Production Cloudflare-native runtime mode"
+Assert-Equal ([string]$config.env.preview.vars.RUNTIME_MODE) "cloudflare_native_local_candidate" "Preview Cloudflare-native runtime mode"
 
 foreach ($marker in @(
   'cloudflare-d1-stateful-runtime-v1',
@@ -283,8 +285,11 @@ foreach ($marker in @(
 Assert-Contains "Worker artifact create" $artifactCreateSection $marker
 }
 
-$nativeContractSection = Get-SourceSection $source "function nativeContract" "export class RuntimeCoordinator" "Cloudflare-native contract"
+$nativeContractSection = Get-SourceSection $source "function nativeRuntimeTruth" "export class RuntimeCoordinator" "Cloudflare-native contract"
 foreach ($marker in @(
+  'env.RUNTIME_MODE === "cloudflare_native_hosted_candidate"',
+  'dev_only: !hostedCandidate',
+  'hosted_proof: hostedCandidate',
   'engine: "langgraph-js"',
   'coordination: "durable-object-sqlite"',
   'dispatch: "cloudflare-queues"',
@@ -294,8 +299,6 @@ foreach ($marker in @(
   'queue_envelope_contains_raw_prompt: false',
   'r2_public: false',
   'r2_zero_card_verified: false',
-  'dev_only: true',
-  'hosted_proof: false',
   'live_provider_calls: false',
   'direct_provider_calls: false',
   'live_mcp_writes: false',
@@ -452,6 +455,7 @@ foreach ($marker in @(
   'LangGraph executes four roles and persists run, tasks, checkpoint, memory, and audit',
   'Cloudflare-native candidate contract is fail-closed and labels local proof honestly',
   'Cloudflare-native probe crosses R2, Queue, and Durable Object idempotently then cleans up',
+  'Cloudflare-native hosted candidate labels the full probe lifecycle without production claims',
   'Cloudflare-native conflicting idempotency replay preserves the original coordinator state',
   'Cloudflare-native mutations reject missing auth and secret material before storage',
   'Cloudflare-native queue retry is bounded and cannot regress a failed terminal state'
@@ -504,6 +508,11 @@ if (-not $StaticOnly) {
     Assert-True ([bool]$AllowHostedWrites) "Hosted mutation proof requires explicit -AllowHostedWrites owner gate"
     Assert-Equal $uri.Scheme "https" "Hosted Worker URL scheme"
   }
+  $expectedNativeDevOnly = $isLocalhost
+  $expectedNativeHostedProof = -not $isLocalhost
+  $expectedNativeRuntimeMode = if ($isLocalhost) { "cloudflare_native_local_candidate" } else { "cloudflare_native_hosted_candidate" }
+  $exerciseNativeProbe = $isLocalhost -or ((-not $isLocalhost) -and [bool]$AllowHostedWrites)
+  Assert-True $exerciseNativeProbe "Cloudflare-native probe requires -AllowLocalhost locally or -AllowHostedWrites for hosted HTTPS"
   $normalized = $uri.GetLeftPart([UriPartial]::Authority)
 
   $health = Invoke-JsonRequest -Method GET -Uri "$normalized/api/v1/health"
@@ -515,6 +524,7 @@ if (-not $StaticOnly) {
   Assert-JsonBoolean $health.payload "live_provider_calls" $false "Hosted D1 health"
   Assert-JsonBoolean $health.payload "direct_provider_calls" $false "Hosted D1 health"
   Assert-JsonBoolean $health.payload "secret_output" $false "Hosted D1 health"
+  Assert-Equal ([string]$health.payload.mode) $expectedNativeRuntimeMode "Cloudflare-native runtime mode"
 
   $probeId = "state-probe-" + [Guid]::NewGuid().ToString("N").Substring(0, 16)
   $probeProjectId = "state-probe-" + [Guid]::NewGuid().ToString("N").Substring(0, 16)
@@ -584,7 +594,7 @@ if (-not $StaticOnly) {
   Assert-Equal ([string]$unauthorizedRuntime.payload.error) "stateful_runtime_authentication_required" "Unauthenticated LangGraph start guard"
 
   $authHeaders = @{ "x-superbrain-agent-token" = $env:AGENT_API_AUTH_TOKEN; Accept = "application/json" }
-  if ($isLocalhost) {
+  if ($exerciseNativeProbe) {
   $nativeContractResponse = Invoke-JsonRequest -Method GET -Uri "$normalized/api/v1/cloud-native/contract"
   Assert-Equal $nativeContractResponse.status 200 "Cloudflare-native candidate contract HTTP"
   Assert-Equal ([string]$nativeContractResponse.payload.contract_version) "cloudflare-native-runtime-candidate-v1" "Cloudflare-native candidate contract"
@@ -599,8 +609,8 @@ if (-not $StaticOnly) {
   Assert-JsonBoolean $nativeContractResponse.payload "queue_envelope_contains_raw_prompt" $false "Cloudflare-native candidate contract"
   Assert-JsonBoolean $nativeContractResponse.payload "r2_public" $false "Cloudflare-native candidate contract"
   Assert-JsonBoolean $nativeContractResponse.payload "r2_zero_card_verified" $false "Cloudflare-native candidate contract"
-  Assert-JsonBoolean $nativeContractResponse.payload "dev_only" $true "Cloudflare-native candidate contract"
-  Assert-JsonBoolean $nativeContractResponse.payload "hosted_proof" $false "Cloudflare-native candidate contract"
+  Assert-JsonBoolean $nativeContractResponse.payload "dev_only" $expectedNativeDevOnly "Cloudflare-native candidate contract"
+  Assert-JsonBoolean $nativeContractResponse.payload "hosted_proof" $expectedNativeHostedProof "Cloudflare-native candidate contract"
   Assert-NativeNonClaims $nativeContractResponse.payload "Cloudflare-native candidate contract"
   foreach ($bindingName in @("d1", "durable_object_sqlite", "queue", "r2")) {
     Assert-JsonBoolean $nativeContractResponse.payload.bindings $bindingName $true "Cloudflare-native candidate bindings"
@@ -608,7 +618,11 @@ if (-not $StaticOnly) {
 
   $nativeProjectId = "native-probe-" + [Guid]::NewGuid().ToString("N").Substring(0, 16)
   $nativeIdempotencyKey = "native-idempotency-" + [Guid]::NewGuid().ToString("N").Substring(0, 16)
-  $nativeContent = "Deterministic DEV-ONLY Cloudflare-native adapter proof; no provider, MCP, or deploy action."
+  $nativeContent = if ($isLocalhost) {
+    "Deterministic DEV-ONLY Cloudflare-native adapter proof; no provider, MCP, or deploy action."
+  } else {
+    "Deterministic owner-gated hosted Cloudflare-native adapter proof; no provider, MCP, or deploy action."
+  }
   $nativeProbeBody = [ordered]@{
     project_id = $nativeProjectId
     idempotency_key = $nativeIdempotencyKey
@@ -661,8 +675,8 @@ if (-not $StaticOnly) {
     Assert-Equal ([string]$nativeCreated.payload.status) "queued" "Cloudflare-native create status"
     Assert-JsonBoolean $nativeCreated.payload "accepted" $true "Cloudflare-native create"
     Assert-JsonBoolean $nativeCreated.payload "persisted" $true "Cloudflare-native create"
-    Assert-JsonBoolean $nativeCreated.payload "dev_only" $true "Cloudflare-native create"
-    Assert-JsonBoolean $nativeCreated.payload "hosted_proof" $false "Cloudflare-native create"
+    Assert-JsonBoolean $nativeCreated.payload "dev_only" $expectedNativeDevOnly "Cloudflare-native create"
+    Assert-JsonBoolean $nativeCreated.payload "hosted_proof" $expectedNativeHostedProof "Cloudflare-native create"
     Assert-JsonBoolean $nativeCreated.payload "d1_read_verified" $true "Cloudflare-native create"
     Assert-JsonBoolean $nativeCreated.payload "replayed" $false "Cloudflare-native create"
     Assert-JsonBoolean $nativeCreated.payload "queue_enqueued" $true "Cloudflare-native create"
@@ -701,9 +715,10 @@ if (-not $StaticOnly) {
     Assert-Equal ([int]$nativeState.payload.queue_delivery_count) 1 "Cloudflare-native duplicate delivery effect count"
     Assert-JsonBoolean $nativeState.payload "artifact_present" $true "Cloudflare-native R2 presence"
     Assert-JsonBoolean $nativeState.payload "artifact_verified" $true "Cloudflare-native R2 readback verification"
-    Assert-JsonBoolean $nativeState.payload "dev_only" $true "Cloudflare-native completed state"
-    Assert-JsonBoolean $nativeState.payload "hosted_proof" $false "Cloudflare-native completed state"
+    Assert-JsonBoolean $nativeState.payload "dev_only" $expectedNativeDevOnly "Cloudflare-native completed state"
+    Assert-JsonBoolean $nativeState.payload "hosted_proof" $expectedNativeHostedProof "Cloudflare-native completed state"
     Assert-JsonBoolean $nativeState.payload "live_provider_calls" $false "Cloudflare-native completed state"
+    Assert-JsonBoolean $nativeState.payload "direct_provider_calls" $false "Cloudflare-native completed state"
     Assert-JsonBoolean $nativeState.payload "live_mcp_writes" $false "Cloudflare-native completed state"
     Assert-JsonBoolean $nativeState.payload "production_deploy" $false "Cloudflare-native completed state"
     Assert-JsonBoolean $nativeState.payload "secret_output" $false "Cloudflare-native completed state"
@@ -736,9 +751,10 @@ if (-not $StaticOnly) {
     Assert-Equal ([string]$nativeDeleted.payload.status) "deleted" "Cloudflare-native cleanup status"
     Assert-JsonBoolean $nativeDeleted.payload "artifact_deleted" $true "Cloudflare-native R2 cleanup"
     Assert-JsonBoolean $nativeDeleted.payload "persisted" $false "Cloudflare-native cleanup"
-    Assert-JsonBoolean $nativeDeleted.payload "dev_only" $true "Cloudflare-native cleanup"
-    Assert-JsonBoolean $nativeDeleted.payload "hosted_proof" $false "Cloudflare-native cleanup"
+    Assert-JsonBoolean $nativeDeleted.payload "dev_only" $expectedNativeDevOnly "Cloudflare-native cleanup"
+    Assert-JsonBoolean $nativeDeleted.payload "hosted_proof" $expectedNativeHostedProof "Cloudflare-native cleanup"
     Assert-JsonBoolean $nativeDeleted.payload "live_provider_calls" $false "Cloudflare-native cleanup"
+    Assert-JsonBoolean $nativeDeleted.payload "direct_provider_calls" $false "Cloudflare-native cleanup"
     Assert-JsonBoolean $nativeDeleted.payload "live_mcp_writes" $false "Cloudflare-native cleanup"
     Assert-JsonBoolean $nativeDeleted.payload "production_deploy" $false "Cloudflare-native cleanup"
     Assert-JsonBoolean $nativeDeleted.payload "secret_output" $false "Cloudflare-native cleanup"
@@ -748,7 +764,11 @@ if (-not $StaticOnly) {
     $nativeAfterDelete = Invoke-JsonRequest -Method GET -Uri $nativeStateUri
     Assert-Equal $nativeAfterDelete.status 404 "Cloudflare-native state after cleanup"
     Assert-JsonBoolean $nativeAfterDelete.payload "persisted" $false "Cloudflare-native state after cleanup"
+    Assert-JsonBoolean $nativeAfterDelete.payload "dev_only" $expectedNativeDevOnly "Cloudflare-native state after cleanup"
+    Assert-JsonBoolean $nativeAfterDelete.payload "hosted_proof" $expectedNativeHostedProof "Cloudflare-native state after cleanup"
 
+    $evidence.cloudflare_native_dev_only = $expectedNativeDevOnly
+    $evidence.cloudflare_native_hosted_proof = $expectedNativeHostedProof
     $evidence.cloudflare_native_create_enqueue_queue_do_r2_roundtrip = $true
     $evidence.cloudflare_native_probe_id = $nativeProbeId
     $evidence.cloudflare_native_queue_delivery_count = [int]$nativeState.payload.queue_delivery_count

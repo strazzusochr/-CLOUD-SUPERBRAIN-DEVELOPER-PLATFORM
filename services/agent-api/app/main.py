@@ -33,7 +33,6 @@ from pydantic import AliasChoices, BaseModel, Field, field_validator
 from app.budget import (
     check_budget_guard,
     get_budget_state,
-    get_infra_budget_state,
     get_prompt_rate_limit_status,
     get_session_llm_call_status,
     prompt_rate_limit_capacity,
@@ -732,7 +731,9 @@ def external_gate_verification_flags(progress: dict[str, object] | None = None) 
         "ghcr_images": bool(summary.get("ghcr_image_digest_claim_allowed", False)),
         "branch_protection": bool(summary.get("branch_protection_claim_allowed", False)),
         "hosted_backend_origins": bool(summary.get("vercel_backend_origins_claim_allowed", False)),
-        "fly_cloud_stack": bool(summary.get("fly_live_budget_claim_allowed", False)),
+        "cloudflare_native_runtime": bool(
+            summary.get("cloudflare_native_zero_card_hosted_runtime_claim_allowed", False)
+        ),
         "canonical_secret_scan": bool(summary.get("canonical_gitleaks_claim_allowed", False)),
         "production_gate_claim_allowed": (
             summary_verified and bool(summary.get("production_deploy_claim_allowed", False))
@@ -771,15 +772,36 @@ def external_gate_state() -> dict[str, object]:
             "fallback": "Local proof may run only with explicit -AllowLocalhost.",
         },
         {
-            "id": "fly_api_token",
-            "preflight_gate_id": "fly_cloud_stack",
-            "label": "Fly.io API token",
-            "configured": bool(os.getenv("FLY_API_TOKEN")) or verified_flags["fly_cloud_stack"],
-            "verified": verified_flags["fly_cloud_stack"],
-            "required_env": ["FLY_API_TOKEN"],
-            "evidence_ref": "fly_live_budget_check",
-            "required_for": "Live infrastructure invoice/cost verification.",
-            "fallback": "Configured Phase-1 projection is used; live invoice proof is not claimed.",
+            "id": "cloudflare_native_zero_card_hosted_runtime",
+            "preflight_gate_id": "cloudflare_native_zero_card_hosted_runtime",
+            "label": "Cloudflare-native zero-card hosted runtime",
+            "configured": all(
+                bool(os.getenv(key))
+                for key in [
+                    "CLOUDFLARE_STATEFUL_BASE_URL",
+                    "CLOUDFLARE_ACCOUNT_ID",
+                    "CLOUDFLARE_API_TOKEN",
+                ]
+            )
+            or verified_flags["cloudflare_native_runtime"],
+            "verified": verified_flags["cloudflare_native_runtime"],
+            "required_env": [
+                "CLOUDFLARE_STATEFUL_BASE_URL",
+                "CLOUDFLARE_ACCOUNT_ID",
+                "CLOUDFLARE_API_TOKEN",
+            ],
+            "required_scopes": [
+                "workers_scripts_edit",
+                "d1_edit",
+                "durable_objects_edit",
+                "queues_edit",
+                "workers_ai_read",
+                "r2_edit_if_zero_card_verified",
+            ],
+            "verifier": "scripts/verify-cloudflare-stateful-runtime.ps1",
+            "evidence_ref": "cloudflare_native_zero_card_hosted_runtime",
+            "required_for": "Hosted Cloudflare-native Layer 2/3/6 runtime and zero-card proof.",
+            "fallback": "DEV-ONLY local candidate remains visible; no hosted runtime claim is made.",
         },
         {
             "id": "ghcr_image_digest_proof",
@@ -2620,9 +2642,44 @@ def system_fallback_contract_payload() -> dict[str, object]:
     }
 
 
+def cloudflare_zero_card_infra_budget_state() -> dict[str, object]:
+    summary = external_gate_summary_state()
+    hosted_verified = bool(
+        summary.get("cloudflare_native_zero_card_hosted_runtime_claim_allowed", False)
+    )
+    gate_id = "cloudflare_native_zero_card_hosted_runtime"
+    budget_limit_cents = int(os.getenv("INFRA_BUDGET_LIMIT_CENTS", "2000"))
+    warning_limit_cents = int(os.getenv("INFRA_BUDGET_WARNING_CENTS", "1600"))
+    return {
+        "projected_cost_cents": 0,
+        "budget_limit_cents": budget_limit_cents,
+        "warning_limit_cents": warning_limit_cents,
+        "spent_percentage": 0.0,
+        "level": "ok",
+        "allow_new_infra": hosted_verified,
+        "live_verified": hosted_verified,
+        "source": "cloudflare_zero_card_projection",
+        "items": [
+            {
+                "name": "cloudflare-native-zero-card-hosted-runtime",
+                "monthly_cost_cents": 0,
+                "source": "cloudflare_zero_card_projection",
+                "status": "hosted_verified" if hosted_verified else "blocked_external_gate",
+            }
+        ],
+        "active_gate": gate_id,
+        "blockers": [] if hosted_verified else [gate_id],
+        "historical_provenance": {
+            "provider": "fly_io",
+            "status": "historical_only",
+            "source": "retired_phase1_projection",
+        },
+    }
+
+
 def health_contract_payload() -> dict[str, object]:
     budget_state = get_budget_state()
-    infra_budget_state = get_infra_budget_state()
+    infra_budget_state = cloudflare_zero_card_infra_budget_state()
     gates = external_gate_state()
     return {
         "contract_version": HEALTH_CONTRACT_VERSION,
@@ -2672,8 +2729,8 @@ def health_contract_payload() -> dict[str, object]:
         "supported_statuses": ["healthy", "degraded"],
         "supported_gate_statuses": ["verified", "action_required"],
         "budget_limit_cents": budget_state.budget_limit_cents,
-        "infra_budget_limit_cents": infra_budget_state.budget_limit_cents,
-        "infra_supported_sources": ["projection", "fly_api_readonly", "fly_api_readonly_plus_plan_projection"],
+        "infra_budget_limit_cents": infra_budget_state["budget_limit_cents"],
+        "infra_supported_sources": ["cloudflare_zero_card_projection"],
         "expected_external_gate_status": gates["status"],
         "evidence_ref": "health_contract_runtime_visible",
         "policy_checks": [
@@ -4378,12 +4435,12 @@ def project_progress_completion_payload() -> dict[str, object]:
     capability_gates = capability_gate_state()
     gates = external_gate_state()
     gate_items = list(gates["gates"])
-    missing_gate_ids = [str(gate["id"]) for gate in gate_items if not gate["configured"]]
+    missing_gate_ids = [str(gate["id"]) for gate in gate_items if not gate["verified"]]
     missing_gate_blocker_map = {
         "staging_base_url": "hosted_staging_proof_requires_STAGING_BASE_URL",
         "branch_protection_token": "protected_main_proof_requires_BRANCH_PROTECTION_TOKEN",
         "gitleaks_binary": "canonical_secret_scan_requires_gitleaks_binary",
-        "fly_api_token": "live_infra_budget_refresh_requires_FLY_API_TOKEN",
+        "cloudflare_native_zero_card_hosted_runtime": "cloudflare_native_hosted_runtime_requires_stateful_url_account_token_scopes_and_verifier",
     }
     missing_external_gate_blockers = [
         blocker for gate_id, blocker in missing_gate_blocker_map.items() if gate_id in missing_gate_ids
@@ -4417,7 +4474,10 @@ def project_progress_completion_payload() -> dict[str, object]:
             for blocker, enabled in [
                 ("hosted_staging_proof_requires_STAGING_BASE_URL", not verified_flags["hosted_staging"]),
                 ("protected_main_proof_requires_BRANCH_PROTECTION_TOKEN", not verified_flags["branch_protection"]),
-                ("live_infra_budget_refresh_requires_FLY_API_TOKEN", not verified_flags["fly_cloud_stack"]),
+                (
+                    "cloudflare_native_hosted_runtime_requires_stateful_url_account_token_scopes_and_verifier",
+                    not verified_flags["cloudflare_native_runtime"],
+                ),
             ]
             if enabled
         ],
@@ -4452,12 +4512,25 @@ def project_progress_completion_payload() -> dict[str, object]:
     }
     layer_blockers: dict[str, list[str]] = {
         "layer_1": [] if verified_flags["hosted_staging"] else ["hosted_browser_proof_requires_STAGING_BASE_URL"],
-        "layer_2": [],
-        "layer_3": (
+        "layer_2": (
             []
-            if capability_gate_open("live_agent_tool_writes", capability_gates)
-            else ["live_agent_tool_writes_require_owner_gate"]
+            if verified_flags["cloudflare_native_runtime"]
+            else ["layer_2_cloudflare_native_hosted_runtime_requires_verifier"]
         ),
+        "layer_3": [
+            blocker
+            for blocker, enabled in [
+                (
+                    "layer_3_cloudflare_native_hosted_runtime_requires_verifier",
+                    not verified_flags["cloudflare_native_runtime"],
+                ),
+                (
+                    "live_agent_tool_writes_require_owner_gate",
+                    not capability_gate_open("live_agent_tool_writes", capability_gates),
+                ),
+            ]
+            if enabled
+        ],
         "layer_4": (
             []
             if capability_gate_open("live_llm_provider_calls", capability_gates)
@@ -4471,6 +4544,10 @@ def project_progress_completion_payload() -> dict[str, object]:
         "layer_6": [
             blocker
             for blocker, enabled in [
+                (
+                    "layer_6_cloudflare_native_hosted_runtime_requires_verifier",
+                    not verified_flags["cloudflare_native_runtime"],
+                ),
                 (
                     "live_memory_provider_requires_owner_gate_and_hosted_lexical_persistence_proof",
                     not capability_gate_open("live_memory_provider", capability_gates),
@@ -4549,13 +4626,13 @@ def project_progress_completion_payload() -> dict[str, object]:
         "safe_autonomy": [
             "Autonomous code, verifier, UI, and deterministic runtime work may continue.",
             "Percentages cannot be raised to 100 while required external gates are missing.",
-            "Localhost proof remains DEV-ONLY and cannot close hosted staging, production, live-provider, or live-MCP claims.",
+            "Localhost proof remains DEV-ONLY and cannot close hosted staging, production, Cloudflare-native hosted-runtime, or live-MCP claims.",
         ],
         "non_claims": [
             "This contract does not set progress to 100.",
             "This contract does not claim hosted staging success.",
             "This contract does not claim production deployment.",
-            "This contract does not claim live LLM provider calls or live MCP writes.",
+            "This contract does not turn the bounded O6 gateway proof into unrestricted provider access, Layer 4 completion, or a live MCP-write claim.",
         ],
     }
 
@@ -4662,11 +4739,12 @@ def cloud_render_offload_state() -> dict[str, object]:
         "AGENT_API_BASE_URL",
         "MCP_GATEWAY_BASE_URL",
         "LLM_GATEWAY_BASE_URL",
-        "FLY_API_TOKEN",
+        "CLOUDFLARE_STATEFUL_BASE_URL",
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CLOUDFLARE_API_TOKEN",
     ]
     optional_env = [
         "VERCEL_TOKEN",
-        "CLOUDFLARE_API_TOKEN",
         "GITHUB_TOKEN",
         "GHCR_TOKEN",
         "GRAFANA_CLOUD_API_KEY",
@@ -4675,6 +4753,9 @@ def cloud_render_offload_state() -> dict[str, object]:
     env_status = [{"key": key, "configured": bool(os.getenv(key))} for key in [*required_env, *optional_env]]
     missing_required = [key for key in required_env if not os.getenv(key)]
     blockers = [f"cloud_render_offload_requires_{key}" for key in missing_required]
+    cloudflare_native_verified = external_gate_verification_flags()["cloudflare_native_runtime"]
+    if not cloudflare_native_verified:
+        blockers.append("cloud_render_offload_requires_cloudflare_native_zero_card_hosted_runtime_verifier")
     return {
         "contract_version": CLOUD_RENDER_OFFLOAD_CONTRACT_VERSION,
         "status": "cloud_runtime_ready" if not blockers else "action_required",
@@ -4715,10 +4796,31 @@ def cloud_render_offload_state() -> dict[str, object]:
                 "evidence_ref": "cloud_llm_gateway_health",
             },
             {
-                "id": "fly_runtime_budget",
-                "required_env": "FLY_API_TOKEN",
-                "configured": bool(os.getenv("FLY_API_TOKEN")),
-                "evidence_ref": "fly_live_budget_check",
+                "id": "cloudflare_native_zero_card_hosted_runtime",
+                "required_env": [
+                    "CLOUDFLARE_STATEFUL_BASE_URL",
+                    "CLOUDFLARE_ACCOUNT_ID",
+                    "CLOUDFLARE_API_TOKEN",
+                ],
+                "required_scopes": [
+                    "workers_scripts_edit",
+                    "d1_edit",
+                    "durable_objects_edit",
+                    "queues_edit",
+                    "workers_ai_read",
+                    "r2_edit_if_zero_card_verified",
+                ],
+                "configured": all(
+                    bool(os.getenv(key))
+                    for key in [
+                        "CLOUDFLARE_STATEFUL_BASE_URL",
+                        "CLOUDFLARE_ACCOUNT_ID",
+                        "CLOUDFLARE_API_TOKEN",
+                    ]
+                ),
+                "verified": cloudflare_native_verified,
+                "verifier": "scripts/verify-cloudflare-stateful-runtime.ps1",
+                "evidence_ref": "cloudflare_native_zero_card_hosted_runtime",
             },
         ],
         "workloads": [
@@ -4754,7 +4856,7 @@ def cloud_render_offload_state() -> dict[str, object]:
         "policy_checks": [
             "Localhost may run lightweight API and dashboard checks only.",
             "3D/WebGL rendering, browser GPU smoke, screenshots, and generated asset workloads require hosted cloud runtime proof.",
-            "Cloud render offload does not bypass the Vercel/Fly.io/GHCR/Grafana Cloud budget guard.",
+            "Cloud render offload does not bypass the Vercel/Cloudflare-native/GHCR/Grafana Cloud gates.",
             "The cloud-only staging verifier remains the release gate for hosted frontend/API/MCP/LLM proof.",
         ],
         "non_claims": [
@@ -5660,17 +5762,33 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
             "next_action": "dispatch_main_deploy_workflow_after_github_auth_is_repaired",
         },
         {
-            "id": "fly_cloud_stack",
-            "label": "Fly.io pull-based cloud stack",
-            "required_env": ["FLY_API_TOKEN"],
-            "required_artifact": "docker-compose.cloud.yml",
-            "verifier": "scripts/check_fly_infra_budget.py",
-            "environment_configured": env_ready(["FLY_API_TOKEN"]),
-            "configured": verified_flags["fly_cloud_stack"],
-            "verified": verified_flags["fly_cloud_stack"],
-            "evidence_ref": "fly_live_budget_check",
-            "required_evidence_artifact": "current Fly.io budget proof plus reachable cloud compose health checks",
-            "next_action": "run_cloud_compose_pull_and_up_on_fly_host_with_environment_only_secrets",
+            "id": "cloudflare_native_zero_card_hosted_runtime",
+            "label": "Cloudflare-native zero-card hosted runtime",
+            "required_env": [
+                "CLOUDFLARE_STATEFUL_BASE_URL",
+                "CLOUDFLARE_ACCOUNT_ID",
+                "CLOUDFLARE_API_TOKEN",
+            ],
+            "required_scopes": [
+                "workers_scripts_edit",
+                "d1_edit",
+                "durable_objects_edit",
+                "queues_edit",
+                "workers_ai_read",
+                "r2_edit_if_zero_card_verified",
+            ],
+            "required_artifact": "services/cloudflare-stateful-runtime/wrangler.jsonc",
+            "verifier": "scripts/verify-cloudflare-stateful-runtime.ps1",
+            "environment_configured": env_ready([
+                "CLOUDFLARE_STATEFUL_BASE_URL",
+                "CLOUDFLARE_ACCOUNT_ID",
+                "CLOUDFLARE_API_TOKEN",
+            ]),
+            "configured": verified_flags["cloudflare_native_runtime"],
+            "verified": verified_flags["cloudflare_native_runtime"],
+            "evidence_ref": "cloudflare_native_zero_card_hosted_runtime",
+            "required_evidence_artifact": "hosted source-parity and stateful-roundtrip verifier report with zero-card evidence",
+            "next_action": "run_cloudflare_stateful_runtime_verifier_after_explicit_owner_gate",
         },
         {
             "id": "hosted_backend_origins",
@@ -5683,7 +5801,7 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
             "verified": verified_flags["hosted_backend_origins"],
             "evidence_ref": "hosted_backend_origin_env_required",
             "required_evidence_artifact": "cloud-only staging proof with hosted backend origin URLs",
-            "next_action": "configure_vercel_backend_origin_urls_after_fly_stack_is_reachable",
+            "next_action": "configure_vercel_backend_origin_urls_after_cloudflare_stateful_runtime_is_verified",
         },
         {
             "id": "hosted_staging",
@@ -5736,7 +5854,7 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
         "evidence_ref": CLOUD_DEPLOYMENT_PREFLIGHT_EVIDENCE_REF,
         "required_sequence": [
             "publish_ghcr_images",
-            "start_fly_runtime_stack",
+            "verify_cloudflare_native_zero_card_hosted_runtime",
             "configure_vercel_backend_origins",
             "run_hosted_staging_verifier",
             "verify_branch_protection",
@@ -5754,8 +5872,7 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
         "localhost_role": "dev_control_plane_only",
         "manual_external_actions": [
             "gh workflow run main-deploy.yml",
-            "fly deploy --remote-only",
-            "fly status",
+            "powershell -ExecutionPolicy Bypass -File scripts\\verify-cloudflare-stateful-runtime.ps1 -BaseUrl <CLOUDFLARE_STATEFUL_BASE_URL> -AllowHostedWrites",
             "powershell -ExecutionPolicy Bypass -File scripts\\verify-hosted-staging.ps1",
             "py -3 scripts\\apply_github_branch_protection.py --verify-only",
             "gitleaks detect --no-git --source .",
@@ -5763,9 +5880,9 @@ def cloud_deployment_preflight_state() -> dict[str, object]:
         "claim_policy": "environment presence only never creates a cloud, hosted staging, or production deployment claim",
         "policy_checks": [
             "All secrets are referenced by environment variable name only.",
-            "GHCR image publication, Fly.io runtime execution, Vercel env writes, and branch-protection writes remain external gated actions.",
+            "GHCR publication, Cloudflare-native hosted writes, Vercel env writes, and branch-protection writes remain external gated actions.",
             "Localhost proof is development-only and cannot satisfy hosted staging.",
-            "Production deployment requires hosted staging, branch protection, canonical secret scan, budget proof, and owner review.",
+            "Production deployment requires the Cloudflare-native hosted verifier, hosted staging, branch protection, canonical secret scan, and owner review.",
         ],
         "non_claims": [
             "This endpoint does not push images.",
@@ -5982,29 +6099,33 @@ def external_gate_summary_state() -> dict[str, object]:
     path = external_gate_summary_path()
     if not path.exists():
         return {
-            "contract_version": "external-gate-summary-v1",
-            "source_contract_version": "external-gate-audit-v1",
+            "contract_version": "external-gate-summary-v2",
+            "source_contract_version": "external-gate-audit-v2",
             "source_artifact": "",
             "status": "missing_summary",
             "configured": False,
+            "active_target_gate": "cloudflare_native_zero_card_hosted_runtime",
+            "cloudflare_native_zero_card_hosted_runtime_claim_allowed": False,
             "production_deploy_claim_allowed": False,
-            "missing_or_failed_gates": [],
+            "missing_or_failed_gates": ["cloudflare_native_zero_card_hosted_runtime"],
             "failed_hosted_required_probe_ids": [],
             "failed_vercel_origin_probe_ids": [],
             "non_claims": [
                 "External gate summary is not mounted in this runtime.",
-                "Hosted, production, branch-protection, Fly budget, and Vercel-origin claims remain blocked without a current external-gate audit summary.",
+                "Hosted, production, branch-protection, Cloudflare-native, and Vercel-origin claims remain blocked without a current external-gate audit v2 summary.",
             ],
         }
     try:
         payload = json.loads(path.read_text(encoding="utf-8-sig"))
     except Exception as exc:
         return {
-            "contract_version": "external-gate-summary-v1",
-            "source_contract_version": "external-gate-audit-v1",
+            "contract_version": "external-gate-summary-v2",
+            "source_contract_version": "external-gate-audit-v2",
             "source_artifact": str(path),
             "status": "invalid_summary",
             "configured": True,
+            "active_target_gate": "cloudflare_native_zero_card_hosted_runtime",
+            "cloudflare_native_zero_card_hosted_runtime_claim_allowed": False,
             "production_deploy_claim_allowed": False,
             "missing_or_failed_gates": ["external_gate_summary_invalid"],
             "failed_hosted_required_probe_ids": [],
@@ -6012,7 +6133,7 @@ def external_gate_summary_state() -> dict[str, object]:
             "error": type(exc).__name__,
             "non_claims": [
                 "External gate summary could not be parsed.",
-                "Hosted, production, branch-protection, Fly budget, and Vercel-origin claims remain blocked.",
+                "Hosted, production, branch-protection, Cloudflare-native, and Vercel-origin claims remain blocked.",
             ],
         }
 
@@ -6022,13 +6143,14 @@ def external_gate_summary_state() -> dict[str, object]:
         "source_artifact",
         "generated_at_utc",
         "status",
+        "active_target_gate",
         "frontend_preview_claim_allowed",
         "hosted_staging_claim_allowed",
         "branch_protection_claim_allowed",
         "ghcr_image_digest_claim_allowed",
         "vercel_backend_origins_claim_allowed",
         "canonical_gitleaks_claim_allowed",
-        "fly_live_budget_claim_allowed",
+        "cloudflare_native_zero_card_hosted_runtime_claim_allowed",
         "gitlab_identity_claim_allowed",
         "huggingface_identity_claim_allowed",
         "grafana_cloud_claim_allowed",
@@ -6036,6 +6158,7 @@ def external_gate_summary_state() -> dict[str, object]:
         "missing_or_failed_gates",
         "failed_hosted_required_probe_ids",
         "failed_vercel_origin_probe_ids",
+        "legacy_provenance",
         "non_claims",
     }
     sanitized = {key: payload.get(key) for key in allowed_keys if key in payload}
@@ -6068,7 +6191,11 @@ def go_live_readiness_state() -> dict[str, object]:
         "hosted_agent_api_contracts": ["STAGING_BASE_URL", "AGENT_API_BASE_URL"],
         "github_branch_protection_current_verify": ["BRANCH_PROTECTION_TOKEN"],
         "vercel_backend_origin_health": ["AGENT_API_BASE_URL", "MCP_GATEWAY_BASE_URL", "LLM_GATEWAY_BASE_URL"],
-        "fly_live_budget_check": ["FLY_API_TOKEN"],
+        "cloudflare_native_zero_card_hosted_runtime": [
+            "CLOUDFLARE_STATEFUL_BASE_URL",
+            "CLOUDFLARE_ACCOUNT_ID",
+            "CLOUDFLARE_API_TOKEN",
+        ],
     }
     audit_required_inputs = [
         env_name
@@ -6131,35 +6258,47 @@ def go_live_readiness_state() -> dict[str, object]:
             "ghcr_image_digest_claim_allowed": bool(external_audit_summary.get("ghcr_image_digest_claim_allowed")),
             "vercel_backend_origins_claim_allowed": bool(external_audit_summary.get("vercel_backend_origins_claim_allowed")),
             "canonical_gitleaks_claim_allowed": bool(external_audit_summary.get("canonical_gitleaks_claim_allowed")),
-            "fly_live_budget_claim_allowed": bool(external_audit_summary.get("fly_live_budget_claim_allowed")),
+            "cloudflare_native_zero_card_hosted_runtime_claim_allowed": bool(
+                external_audit_summary.get("cloudflare_native_zero_card_hosted_runtime_claim_allowed")
+            ),
             "production_deploy_claim_allowed": bool(external_audit_summary.get("production_deploy_claim_allowed")),
         },
         "hard_blockers": hard_blockers,
         "required_owner_inputs": required_owner_inputs,
+        "required_owner_scopes": [
+            "workers_scripts_edit",
+            "d1_edit",
+            "durable_objects_edit",
+            "queues_edit",
+            "workers_ai_read",
+            "r2_edit_if_zero_card_verified",
+        ],
         "external_audit_required": True,
         "external_audit_summary_path": str(external_gate_summary_path()),
         "external_audit_verifier": "scripts/verify-external-gates.ps1",
         "external_audit_expected_missing_or_failed_gates": [
-            "hosted_agent_api_contracts",
-            "github_branch_protection_current_verify",
-            "vercel_backend_origin_health",
-            "fly_live_budget_check",
+            "cloudflare_native_zero_card_hosted_runtime",
         ],
         "owner_activation": {
             "script": "scripts/owner-cloud-gate-activation.ps1",
             "runbook": "docs/runbooks/cloud-gate-owner-activation-2026-06-09.md",
-            "plan_contract": "owner-cloud-gate-activation-plan-v1",
+            "plan_contract": "owner-cloud-gate-activation-plan-v2",
             "default_mode": "PlanOnly",
             "apply_allowed_in_codex": False,
         },
         "owner_sequence": [
             {
-                "step": "deploy_fly_origins",
-                "layers": ["L2", "L3", "L4", "L5", "L6"],
+                "step": "verify_cloudflare_native_zero_card_hosted_runtime",
+                "layers": ["L2", "L3", "L4", "L6"],
                 "gate": "owner_deploy_gate",
                 "mutation": True,
                 "status": "blocked_until_owner_gate",
-                "verifier_after": "GET /api/v1/health on each Fly HTTPS origin",
+                "required_env": [
+                    "CLOUDFLARE_STATEFUL_BASE_URL",
+                    "CLOUDFLARE_ACCOUNT_ID",
+                    "CLOUDFLARE_API_TOKEN",
+                ],
+                "verifier_after": "scripts/verify-cloudflare-stateful-runtime.ps1 -BaseUrl <CLOUDFLARE_STATEFUL_BASE_URL> -AllowHostedWrites",
             },
             {
                 "step": "configure_vercel_backend_origins",
@@ -6176,29 +6315,35 @@ def go_live_readiness_state() -> dict[str, object]:
                 "mutation": False,
                 "status": "waiting_for_https_staging",
                 "commands": [
+                    "scripts\\verify-cloudflare-stateful-runtime.ps1 -BaseUrl <CLOUDFLARE_STATEFUL_BASE_URL> -AllowHostedWrites",
                     "scripts\\verify-browser-contract.ps1 -BaseUrl <STAGING_BASE_URL>",
                     "scripts\\verify-external-gates.ps1",
                 ],
             },
             {
-                "step": "verify_branch_and_budget",
+                "step": "verify_branch_and_cloudflare_scopes",
                 "layers": ["L6", "L7"],
                 "gate": "owner_token_gate",
                 "mutation": False,
                 "status": "waiting_for_token_scoped_verify_only",
-                "required_env": ["BRANCH_PROTECTION_TOKEN", "FLY_API_TOKEN"],
+                "required_env": [
+                    "BRANCH_PROTECTION_TOKEN",
+                    "CLOUDFLARE_STATEFUL_BASE_URL",
+                    "CLOUDFLARE_ACCOUNT_ID",
+                    "CLOUDFLARE_API_TOKEN",
+                ],
             },
         ],
         "claim_policy": "runtime_status_and_env_presence_are_not_hosted_or_production_proof",
         "policy_checks": [
             "This readiness contract composes existing runtime contracts and does not execute cloud commands.",
-            "External audit artifacts remain the source of truth for hosted, Vercel-origin, branch-protection, Fly-budget, and production claims.",
+            "External audit v2 remains the source of truth for hosted, Vercel-origin, branch-protection, Cloudflare-native, and production claims.",
             "The 22-page Workbench contract is referenced without rendering project-state walls inside the Workbench UI.",
             "Secret values are never returned; required owner inputs are environment variable names only.",
         ],
         "non_claims": [
             "No cloud resource was created, mutated, deployed, or deleted.",
-            "No production deployment, release promotion, registry push, live LLM call, or live MCP write is claimed.",
+            "No production deployment, release promotion, registry push, unrestricted provider access, or live MCP write is claimed.",
             "Localhost remains DEV-ONLY and cannot close hosted staging or production gates.",
             "This endpoint does not make the project 100 percent complete.",
         ],
@@ -6227,6 +6372,7 @@ def go_live_readiness_contract_payload() -> dict[str, object]:
             "external_audit_claims",
             "hard_blockers",
             "required_owner_inputs",
+            "required_owner_scopes",
             "external_audit_required",
             "external_audit_summary_path",
             "owner_activation",
@@ -6248,6 +6394,7 @@ def go_live_readiness_contract_payload() -> dict[str, object]:
         "required_verifiers": [
             "scripts/verify-go-live-readiness.ps1",
             "scripts/verify-external-gates.ps1",
+            "scripts/verify-cloudflare-stateful-runtime.ps1",
             "scripts/verify-browser-contract.ps1",
         ],
         "non_claims": list(state.get("non_claims", [])),
@@ -6309,12 +6456,12 @@ ORGANISM_REGIONS = [
 
 ORGANISM_LAYERS = [
     {"no": 1, "code": "FE", "label": "Frontend / Next.js", "providers": ["vercel_frontend"]},
-    {"no": 2, "code": "ORC", "label": "Orchestrator / LangGraph", "providers": ["fly_io"]},
-    {"no": 3, "code": "AP", "label": "Agent Pool", "providers": ["fly_io"]},
+    {"no": 2, "code": "ORC", "label": "Orchestrator / LangGraph", "providers": ["cloudflare_edge"]},
+    {"no": 3, "code": "AP", "label": "Agent Pool", "providers": ["cloudflare_edge"]},
     {"no": 4, "code": "LLM", "label": "LLM Gateway", "providers": ["cloudflare_edge", "huggingface_identity"]},
     {"no": 5, "code": "MCP", "label": "MCP Gateway / Tools", "providers": ["github_actions", "ghcr_registry", "gitlab_identity"]},
-    {"no": 6, "code": "MEM", "label": "Memory / PostgreSQL pgvector", "providers": ["fly_io"]},
-    {"no": 7, "code": "OBS", "label": "Observability / Evidence", "providers": ["vercel_frontend", "fly_io", "cloudflare_edge", "github_actions", "grafana_cloud"]},
+    {"no": 6, "code": "MEM", "label": "Memory / Cloudflare D1 and stateful bindings", "providers": ["cloudflare_edge"]},
+    {"no": 7, "code": "OBS", "label": "Observability / Evidence", "providers": ["vercel_frontend", "cloudflare_edge", "github_actions", "grafana_cloud"]},
 ]
 
 ORGANISM_HUBS = [
@@ -6599,7 +6746,12 @@ def workspace_vertical_stack_payload() -> dict[str, object]:
             },
             "deploy": {
                 "frontendTarget": "vercel",
-                "backendTargets": ["fly-agent-api", "fly-mcp-gateway", "fly-llm-gateway"],
+                "backendTargets": [
+                    "cloudflare-stateful-runtime",
+                    "cloudflare-llm-gateway",
+                    "vercel-hosted-backend-origin-contracts",
+                ],
+                "backendTargetMode": "contract_targets_only",
                 "registry": "ghcr",
                 "hostedProofStatus": "blocked_external_gates",
             },
@@ -6624,7 +6776,7 @@ def workspace_vertical_stack_payload() -> dict[str, object]:
         "required_stage_keys": ["ui", "api", "data", "verification", "deploy", "safety"],
         "policy_checks": [
             "Every canonical page must expose UI, API, data, verification, deploy, and safety stages.",
-            "Every page remains local-proof-only until hosted Vercel/Fly/GHCR/Grafana gates pass.",
+            "Every page remains local-proof-only until hosted Vercel/Cloudflare-native/GHCR/Grafana gates pass.",
             "No stack entry may enable provider bypass, secret output, production deploy, or live MCP writes.",
             "Budget UI remains hidden unless a paid/metered capability is selected or explicitly available.",
         ],
@@ -7685,15 +7837,15 @@ def health() -> dict[str, object]:
         }
 
     try:
-        infra_budget_state = get_infra_budget_state()
+        infra_budget_state = cloudflare_zero_card_infra_budget_state()
         infra_budget_payload: dict[str, object] = {
-            "level": infra_budget_state.level,
-            "spent_percentage": infra_budget_state.spent_percentage,
-            "projected_cost_cents": infra_budget_state.projected_cost_cents,
-            "budget_limit_cents": infra_budget_state.budget_limit_cents,
-            "allow_new_infra": infra_budget_state.allow_new_infra,
-            "live_verified": infra_budget_state.live_verified,
-            "source": infra_budget_state.source,
+            "level": infra_budget_state["level"],
+            "spent_percentage": infra_budget_state["spent_percentage"],
+            "projected_cost_cents": infra_budget_state["projected_cost_cents"],
+            "budget_limit_cents": infra_budget_state["budget_limit_cents"],
+            "allow_new_infra": infra_budget_state["allow_new_infra"],
+            "live_verified": infra_budget_state["live_verified"],
+            "source": infra_budget_state["source"],
         }
     except Exception as exc:
         overall = "degraded"
@@ -10059,7 +10211,7 @@ def layer_interface_contract_payload() -> dict[str, object]:
         "non_claims": [
             "No hosted staging success is claimed without STAGING_BASE_URL.",
             "No GitHub branch protection success is claimed without BRANCH_PROTECTION_TOKEN.",
-            "No Fly.io live infrastructure state is claimed without FLY_API_TOKEN.",
+            "No Cloudflare-native hosted runtime is claimed without the canonical v2 gate and named stateful-runtime verifier.",
         ],
     }
 
@@ -10396,26 +10548,30 @@ def memory_embedding_consistency_contract() -> dict[str, object]:
 
 @app.get("/api/v1/infra/budget")
 def infra_budget() -> dict[str, object]:
-    state = get_infra_budget_state()
+    state = cloudflare_zero_card_infra_budget_state()
     return {
-        "projected_cost_cents": state.projected_cost_cents,
-        "budget_limit_cents": state.budget_limit_cents,
-        "warning_limit_cents": state.warning_limit_cents,
-        "budget_spent_percentage": state.spent_percentage,
-        "level": state.level,
-        "allow_new_infra": state.allow_new_infra,
-        "live_verified": state.live_verified,
-        "source": state.source,
-        "items": state.items,
+        "projected_cost_cents": state["projected_cost_cents"],
+        "budget_limit_cents": state["budget_limit_cents"],
+        "warning_limit_cents": state["warning_limit_cents"],
+        "budget_spent_percentage": state["spent_percentage"],
+        "level": state["level"],
+        "allow_new_infra": state["allow_new_infra"],
+        "live_verified": state["live_verified"],
+        "source": state["source"],
+        "items": state["items"],
+        "active_gate": state["active_gate"],
+        "blockers": state["blockers"],
+        "historical_provenance": state["historical_provenance"],
         "non_claims": [
-            "This endpoint is a configured Phase-1 projection unless FLY_API_TOKEN is configured.",
+            "The active budget projection is Cloudflare-native zero-card and remains fail-closed until the hosted gate is verifier-backed.",
+            "Fly.io is historical_only and does not contribute an active runtime item or readiness claim.",
             "LLM/API provider spend is tracked separately and is not counted in the 20 EUR infrastructure limit.",
         ],
     }
 
 
 def infra_budget_contract_payload() -> dict[str, object]:
-    state = get_infra_budget_state()
+    state = cloudflare_zero_card_infra_budget_state()
     return {
         "contract_version": "infra-budget-surface-v1",
         "mode": "infrastructure_budget_runtime_projection",
@@ -10431,17 +10587,21 @@ def infra_budget_contract_payload() -> dict[str, object]:
             "live_verified",
             "source",
             "items",
+            "active_gate",
+            "blockers",
+            "historical_provenance",
             "non_claims",
         ],
         "supported_levels": ["ok", "warning", "critical"],
-        "budget_limit_cents": state.budget_limit_cents,
-        "warning_limit_cents": state.warning_limit_cents,
-        "supported_sources": ["projection", "fly_api_readonly", "fly_api_readonly_plus_plan_projection"],
-        "required_item_fields": ["name", "monthly_cost_cents"],
+        "budget_limit_cents": state["budget_limit_cents"],
+        "warning_limit_cents": state["warning_limit_cents"],
+        "supported_sources": ["cloudflare_zero_card_projection"],
+        "required_item_fields": ["name", "monthly_cost_cents", "source", "status"],
         "evidence_ref": "infra_budget_contract_runtime_visible",
         "policy_checks": [
             "Infrastructure budget surface remains read-only.",
-            "Infra budget source stays visible as projection or readonly Fly.io API evidence.",
+            "Infra budget source stays fixed to the fail-closed Cloudflare zero-card projection.",
+            "Fly.io remains historical_only and cannot authorize active infrastructure.",
             "Infra budget does not include LLM provider spend.",
         ],
         "non_claims": [
@@ -10459,7 +10619,7 @@ def infra_budget_contract() -> dict[str, object]:
 @app.get("/api/v1/metrics")
 def prometheus_metrics() -> Response:
     budget_state = get_budget_state()
-    infra_budget_state = get_infra_budget_state()
+    infra_budget_state = cloudflare_zero_card_infra_budget_state()
     rate_limit_metrics_project = os.getenv("RATE_LIMIT_METRICS_PROJECT_ID", "browser-workspace")
     rate_limit_state = get_prompt_rate_limit_status(rate_limit_metrics_project)
     session_limit_metrics_session = os.getenv("SESSION_LIMIT_METRICS_SESSION_ID", "browser-session")
@@ -10503,13 +10663,13 @@ def prometheus_metrics() -> Response:
         metric_sample("superbrain_session_llm_call_used", session_limit_state["used"], {"session_id": session_limit_metrics_session}),
         "# HELP superbrain_infra_budget_spent_percentage Current infrastructure budget spent percentage.",
         "# TYPE superbrain_infra_budget_spent_percentage gauge",
-        metric_sample("superbrain_infra_budget_spent_percentage", infra_budget_state.spent_percentage, {"source": infra_budget_state.source}),
+        metric_sample("superbrain_infra_budget_spent_percentage", infra_budget_state["spent_percentage"], {"source": infra_budget_state["source"]}),
         "# HELP superbrain_infra_budget_projected_cost_cents Projected monthly infrastructure cost in cents.",
         "# TYPE superbrain_infra_budget_projected_cost_cents gauge",
-        metric_sample("superbrain_infra_budget_projected_cost_cents", infra_budget_state.projected_cost_cents, {"level": infra_budget_state.level}),
+        metric_sample("superbrain_infra_budget_projected_cost_cents", infra_budget_state["projected_cost_cents"], {"level": infra_budget_state["level"]}),
         "# HELP superbrain_infra_budget_allow_new Whether the infrastructure budget allows new infrastructure.",
         "# TYPE superbrain_infra_budget_allow_new gauge",
-        metric_sample("superbrain_infra_budget_allow_new", 1 if infra_budget_state.allow_new_infra else 0, {"level": infra_budget_state.level}),
+        metric_sample("superbrain_infra_budget_allow_new", 1 if infra_budget_state["allow_new_infra"] else 0, {"level": infra_budget_state["level"]}),
         "# HELP superbrain_external_gate_configured Whether an external proof gate is configured.",
         "# TYPE superbrain_external_gate_configured gauge",
         "# HELP superbrain_task_queue_depth Current Redis agent task queue depth.",

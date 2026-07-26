@@ -102,7 +102,8 @@ foreach ($required in @(
   "PROVIDERS",
   "LAYERS",
   "Vercel",
-  "Fly.io",
+  "Cloudflare-native Runtime / Workers AI",
+  "Historical read-only provider inventory",
   "GHCR",
   "Grafana Cloud"
 )) {
@@ -194,6 +195,7 @@ foreach ($requiredId in @(
   "model:Qwen/Qwen3-Coder-Next",
   "provider:vercel_frontend",
   "provider:fly_io",
+  "provider:cloudflare_edge",
   "provider:ghcr_registry",
   "provider:grafana_cloud",
   "page:workbench",
@@ -239,6 +241,19 @@ foreach ($requiredKind in @(
   "gate_to_security_region"
 )) {
   Assert-True "required edge kind $requiredKind" ($edgeKinds.Contains($requiredKind))
+}
+
+Assert-True "historical Fly has no active layer edge" (@(
+  $edges | Where-Object { $_.kind -eq "layer_to_provider" -and $_.to -eq "provider:fly_io" }
+).Count -eq 0)
+foreach ($layerCode in @("ORC", "AP", "LLM", "MEM", "OBS")) {
+  Assert-True "Cloudflare-native provider backs $layerCode" (@(
+    $edges | Where-Object {
+      $_.kind -eq "layer_to_provider" -and
+      $_.from -eq "layer:$layerCode" -and
+      $_.to -eq "provider:cloudflare_edge"
+    }
+  ).Count -eq 1)
 }
 
 $pageNodes = @($nodes | Where-Object { $_.kind -eq "workspace_page" })

@@ -251,10 +251,13 @@ vector_invalid["live_vector_memory_search"]["owner_scope_approved"] = False
 namespace["project_progress_payload"] = lambda: manifest
 namespace["external_gate_verification_flags"] = lambda _progress: {
     "hosted_staging": True,
+    "ghcr_images": True,
     "branch_protection": True,
+    "hosted_backend_origins": True,
     "canonical_secret_scan": True,
-    "fly_cloud_stack": True,
+    "cloudflare_native_runtime": True,
     "production_gate_claim_allowed": True,
+    "external_gate_audit_verified": True,
 }
 namespace["external_gate_state"] = lambda: {"gates": []}
 completion = namespace["project_progress_completion_payload"]

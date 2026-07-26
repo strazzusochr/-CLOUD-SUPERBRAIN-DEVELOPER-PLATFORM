@@ -85,6 +85,7 @@ services:
       AUTONOMOUS_TEAM_EXTERNAL_AGENTS_URL: ${AUTONOMOUS_TEAM_EXTERNAL_AGENTS_URL:-http://host.docker.internal:8000/agents}
       AUTONOMOUS_TEAM_EXTERNAL_TIMEOUT_SECONDS: ${AUTONOMOUS_TEAM_EXTERNAL_TIMEOUT_SECONDS:-5}
       CLOUD_PROVIDER_INVENTORY_ENABLED: ${CLOUD_PROVIDER_INVENTORY_ENABLED:-true}
+      # Historical read-only inventory only; never satisfies an active hosted-runtime gate.
       FLY_API_TOKEN: ${FLY_API_TOKEN:-}
       GRAFANA_CLOUD_API_KEY: ${GRAFANA_CLOUD_API_KEY:-}
       GRAFANA_CLOUD_URL: ${GRAFANA_CLOUD_URL:-}
@@ -262,7 +263,6 @@ services:
       VERCEL_AGENT_API_ORIGIN: ${VERCEL_AGENT_API_ORIGIN:-}
       VERCEL_MCP_GATEWAY_ORIGIN: ${VERCEL_MCP_GATEWAY_ORIGIN:-}
       VERCEL_LLM_GATEWAY_ORIGIN: ${VERCEL_LLM_GATEWAY_ORIGIN:-}
-      FLY_API_TOKEN: ${FLY_API_TOKEN:-}
       # Default posture is deterministic dry-run (documented architecture). Local llama.cpp is
       # opt-in on demand: set LLM_GATEWAY_MODE=local_openai_live to run the workbench F1 proof.
       LLM_GATEWAY_MODE: ${LLM_GATEWAY_MODE:-deterministic_dry_run}

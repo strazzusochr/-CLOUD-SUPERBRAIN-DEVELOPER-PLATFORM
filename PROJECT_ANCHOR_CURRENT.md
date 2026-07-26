@@ -1,6 +1,6 @@
 # Cloud Superbrain Project Anchor
 
-Anchor ID: `cloud-superbrain-anchor-2026-07-24-session8-free-hardening-rc10-verified`
+Anchor ID: `cloud-superbrain-anchor-2026-07-26-p5-cloudflare-gate-rebase-v2`
 
 Status: `ACTIVE_RESUME_POINT`
 
@@ -10,17 +10,16 @@ Branch: `claude/cloud-superbrain-analysis-127d2e`
 
 Committed and pushed RC10 source: `2ae4c61aa876759abcaa83c36c0a3379206b91a4`
 
-Detailed handoff: `CODEX_UEBERGABE_2026-07-23-SESSION8.md`
+Detailed handoff: `AI_HANDOFF.md`
 
 ## Purpose
 
-Exact resume point after the free supply-chain/error-redaction hardening passed the full serial
-static, runtime, and browser gates, the newly published PostCSS advisory was patched with exact
-override `8.5.23`, source was committed and pushed, and RC10 was rebuilt and verified from that
-clean archive. Re-audit found no additional autonomous percentage marker.
-All seven below-100 cells retain exact Owner actions in
-`docs/runtime-state/owner-input-manifest.json`. This anchor is a resume snapshot, not a progress
-authority.
+Exact resume point after `external-gate-audit-v2` replaced the active Fly/RC10-v1 gate
+projection. The tracked audit and `external-gate-summary-v2` remain blocked only on
+`cloudflare_native_zero_card_hosted_runtime`; Production remains false. A GET-only
+Cloudflare scope audit could inventory 0/6 resource families because the current token lacks
+the management scopes. O1-O5 remain Owner-required; O6 is `resolved_verified` with zero
+percentage credit. This anchor is a resume snapshot, not a progress authority.
 
 ## Required Resume Order
 
@@ -74,10 +73,18 @@ authority.
 
 ## Exact Next Step
 
-1. Do not raise percentages or activate a gate without the corresponding O1-O6 Owner input.
+1. Do not raise percentages or activate a gate without the corresponding O1-O5 Owner input and verifier evidence; O6 is already resolved with zero credit.
 2. After an Owner input changes, run its named verifier from
    `docs/runtime-state/owner-input-manifest.json`.
 3. Re-run the full aggregate finish line only after every affected cell has new evidence.
+
+Canonical v2 evidence:
+
+- `docs/runtime-state/external-gate-audit-v2.json`
+- `docs/runtime-state/external-gate-summary.json`
+- `.codex/runs/CURRENT/p5/cloudflare-scope-readiness/report.json`
+- Active blocker: `cloudflare_native_zero_card_hosted_runtime`
+- Fly/RC10-v1: `historical_only`
 
 ## Current Candidate
 

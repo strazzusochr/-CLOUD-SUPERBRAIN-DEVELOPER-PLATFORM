@@ -18,11 +18,13 @@ param(
   [string]$StagingSshKeyPath = $(if ($env:STAGING_SSH_KEY_PATH) { $env:STAGING_SSH_KEY_PATH } else { "" }),
   [string]$StagingAppDir = $(if ($env:STAGING_APP_DIR) { $env:STAGING_APP_DIR } else { "/app" }),
   [string]$ArtifactDirectory = ".phase1-artifacts",
+  [string]$DurableAuditPath = "docs\runtime-state\external-gate-audit-v2.json",
   [string]$SummaryPath = "docs\runtime-state\external-gate-summary.json",
   [switch]$RequireAllClosed
 )
 
 $ErrorActionPreference = "Stop"
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 
 function Normalize-BaseUrl([string]$value) {
   if ([string]::IsNullOrWhiteSpace($value)) {
@@ -124,6 +126,52 @@ function New-Probe(
   }
 }
 
+function Get-CloudflareNativeGateProbe([string]$CapabilityStatePath) {
+  $gateId = "cloudflare_native_zero_card_hosted_runtime"
+  if (-not (Test-Path -LiteralPath $CapabilityStatePath -PathType Leaf)) {
+    return New-Probe $gateId "missing_gate_state" $false $false $gateId "" 0 "Canonical capability gate state is missing." ""
+  }
+
+  try {
+    $capabilityState = Get-Content -LiteralPath $CapabilityStatePath -Raw | ConvertFrom-Json -ErrorAction Stop
+    $gateProperty = $capabilityState.gates.PSObject.Properties[$gateId]
+    if ($null -eq $gateProperty) {
+      return New-Probe $gateId "missing_gate_state" $false $false $gateId "" 0 "Canonical Cloudflare-native capability gate is missing." ""
+    }
+
+    $gate = $gateProperty.Value
+    $claimAllowed = (
+      [bool]$gate.owner_granted -and
+      [bool]$gate.local_candidate_verified -and
+      [bool]$gate.zero_card_verified -and
+      [bool]$gate.hosted_source_parity_verified -and
+      [bool]$gate.hosted_stateful_roundtrip_verified -and
+      [bool]$gate.live_verified -and
+      -not [bool]$gate.paid_provider
+    )
+    $result = New-Probe `
+      $gateId `
+      $(if ($claimAllowed) { "verified" } else { "blocked" }) `
+      $true `
+      $claimAllowed `
+      $(if ([string]::IsNullOrWhiteSpace([string]$gate.evidence_artifact)) { $gateId } else { [string]$gate.evidence_artifact }) `
+      "" `
+      0 `
+      $(if ($claimAllowed) { "Canonical verifier-backed Cloudflare-native hosted gate is open." } else { "Cloudflare-native hosted zero-card gate remains closed in canonical capability state." }) `
+      ""
+    $result["owner_granted"] = [bool]$gate.owner_granted
+    $result["local_candidate_verified"] = [bool]$gate.local_candidate_verified
+    $result["zero_card_verified"] = [bool]$gate.zero_card_verified
+    $result["hosted_source_parity_verified"] = [bool]$gate.hosted_source_parity_verified
+    $result["hosted_stateful_roundtrip_verified"] = [bool]$gate.hosted_stateful_roundtrip_verified
+    $result["live_verified"] = [bool]$gate.live_verified
+    $result["paid_provider"] = [bool]$gate.paid_provider
+    return $result
+  } catch {
+    return New-Probe $gateId "invalid_gate_state" $true $false $gateId "" 0 "Canonical Cloudflare-native capability gate is unreadable." $_.Exception.Message
+  }
+}
+
 function Invoke-HttpProbe([string]$Id, [string]$Url, [string]$RequiredText, [string]$EvidenceRef) {
   $nodeScript = @'
 const url = process.argv[1];
@@ -153,8 +201,7 @@ fetch(url, { signal }).then(async (response) => {
     bytes: body.length,
     elapsedMs: Date.now() - startedAt,
     responseUrl: response.url,
-    contentType: response.headers.get('content-type') || '',
-    snippet: body.slice(0, 160).replace(/\s+/g, ' ')
+    contentType: response.headers.get('content-type') || ''
   }));
 }).catch((error) => {
   console.log(JSON.stringify({
@@ -207,9 +254,6 @@ fetch(url, { signal }).then(async (response) => {
     }
     if ($probe.errorCode) {
       $result["error_code"] = [string]$probe.errorCode
-    }
-    if ($probe.snippet) {
-      $result["snippet"] = [string]$probe.snippet
     }
     return $result
   } catch {
@@ -665,12 +709,9 @@ function Invoke-RemoteBranchProtectionProbe(
     if ($probe.mismatches) {
       $result["mismatches"] = $probe.mismatches
     }
-    if ($probe.body_excerpt) {
-      $result["body_excerpt"] = [string]$probe.body_excerpt
-    }
     return $result
   } catch {
-    return New-Probe "github_branch_protection_verify" "failed" $true $false "branch_protection_verify_contract" "" 0 "remote branch protection verification failed" ($raw.Trim())
+    return New-Probe "github_branch_protection_verify" "failed" $true $false "branch_protection_verify_contract" "" 0 "remote branch protection verification failed" "invalid verifier output"
   }
 }
 
@@ -814,15 +855,8 @@ foreach ($origin in $originUrls) {
 }
 $vercelOriginsClaimAllowed = @($vercelOriginProbes | Where-Object { $_.claim_allowed }).Count -eq $originUrls.Count
 
-$flyTokenConfigured = [bool]$env:FLY_API_TOKEN
-$flyBudgetScript = Join-Path $PSScriptRoot "check_fly_infra_budget.py"
-if (-not (Test-Path -LiteralPath $flyBudgetScript)) {
-  $flyProbe = New-Probe "fly_live_budget_check" "missing_secret_or_binary" $false $false "fly_live_budget_check" "" 0 "Fly.io live budget verifier script is missing." ""
-} elseif ($flyTokenConfigured) {
-  $flyProbe = Invoke-NativeProcessProbe "fly_live_budget_check" "fly_live_budget_check" "py" @("-3", $flyBudgetScript) $true (Get-TimeoutSeconds "EXTERNAL_GATE_FLY_TIMEOUT_SECONDS" 60)
-} else {
-  $flyProbe = New-Probe "fly_live_budget_check" "missing_secret_or_token" $false $false "fly_live_budget_check" "" 0 "Fly.io live budget is BLOCKED. Set env:FLY_API_TOKEN to a real Fly.io API token." ""
-}
+$capabilityStatePath = Join-Path $repoRoot "docs\runtime-state\capability-gates.json"
+$cloudflareNativeProbe = Get-CloudflareNativeGateProbe $capabilityStatePath
 
 $hostedApiRequiredIds = @(
   "hosted_agent_api_health",
@@ -847,7 +881,7 @@ $failedVercelOriginIds = @($vercelOriginProbes | Where-Object { -not $_.claim_al
 $branchProtectionClaimAllowed = [bool]$branchProtectionProbe.claim_allowed
 $ghcrClaimAllowed = [bool]$ghcrProbe.claim_allowed
 $gitleaksClaimAllowed = [bool]$gitleaksProbe.claim_allowed
-$flyClaimAllowed = [bool]$flyProbe.claim_allowed
+$cloudflareNativeClaimAllowed = [bool]$cloudflareNativeProbe.claim_allowed
 $gitLabIdentityProbe = Invoke-GitLabIdentityProbe $GitLabProfileUrl
 $gitLabIdentityClaimAllowed = [bool]$gitLabIdentityProbe.claim_allowed
 $huggingFaceIdentityProbe = Invoke-HuggingFaceIdentityProbe $HuggingFaceProfileUrl
@@ -861,11 +895,12 @@ if (-not $branchProtectionClaimAllowed) { $missing += "github_branch_protection_
 if (-not $ghcrClaimAllowed) { $missing += "ghcr_image_digest_verify" }
 if (-not $vercelOriginsClaimAllowed) { $missing += "vercel_backend_origin_health" }
 if (-not $gitleaksClaimAllowed) { $missing += "canonical_gitleaks_scan" }
-if (-not $flyClaimAllowed) { $missing += "fly_live_budget_check" }
+if (-not $cloudflareNativeClaimAllowed) { $missing += "cloudflare_native_zero_card_hosted_runtime" }
 
 $summary = [ordered]@{
-  contract_version = "external-gate-audit-v1"
+  contract_version = "external-gate-audit-v2"
   status = if ($missing.Count -eq 0) { "verified" } else { "blocked" }
+  active_target_gate = "cloudflare_native_zero_card_hosted_runtime"
   evidence_ref = "external_gate_audit_proof"
   generated_at_utc = (Get-Date).ToUniversalTime().ToString("o")
   local_base_url = $localBase
@@ -878,7 +913,7 @@ $summary = [ordered]@{
   ghcr_image_digest_claim_allowed = $ghcrClaimAllowed
   vercel_backend_origins_claim_allowed = $vercelOriginsClaimAllowed
   canonical_gitleaks_claim_allowed = $gitleaksClaimAllowed
-  fly_live_budget_claim_allowed = $flyClaimAllowed
+  cloudflare_native_zero_card_hosted_runtime_claim_allowed = $cloudflareNativeClaimAllowed
   gitlab_identity_claim_allowed = $gitLabIdentityClaimAllowed
   huggingface_identity_claim_allowed = $huggingFaceIdentityClaimAllowed
   grafana_cloud_claim_allowed = $grafanaIdentityClaimAllowed
@@ -891,9 +926,16 @@ $summary = [ordered]@{
     "Branch protection is not current unless scripts/apply_github_branch_protection.py --verify-only passes with a configured token.",
     "GHCR image publication is not current unless all service image manifests resolve by digest.",
     "Vercel backend origins are not current unless all three HTTPS health probes pass.",
-    "Fly.io live infrastructure state is not current unless FLY_API_TOKEN is configured and the live budget check passes.",
+    "Cloudflare-native hosted state is not current unless the canonical capability gate was opened by its verifier.",
+    "The RC10 external-gate-audit-v1 fly_live_budget_check and FLY_API_TOKEN path is historical provenance only.",
     "No secret values are written into this artifact."
   )
+  legacy_provenance = [ordered]@{
+    status = "historical_only"
+    contract_version = "external-gate-audit-v1"
+    source_artifact = ".phase1-artifacts\external-gate-audit-20260720-191532.json"
+    retired_gate_id = "fly_live_budget_check"
+  }
   probes = [ordered]@{
     local_runtime = $localProbes
     hosted = $hostedProbes
@@ -901,7 +943,7 @@ $summary = [ordered]@{
     ghcr = $ghcrProbe
     gitleaks = $gitleaksProbe
     github = $branchProtectionProbe
-    fly_io = $flyProbe
+    cloudflare_native = $cloudflareNativeProbe
     gitlab = $gitLabIdentityProbe
     huggingface = $huggingFaceIdentityProbe
     grafana = $grafanaIdentityProbe
@@ -909,28 +951,35 @@ $summary = [ordered]@{
 }
 
 New-Item -ItemType Directory -Force -Path $ArtifactDirectory | Out-Null
-$artifactPath = Join-Path $ArtifactDirectory ("external-gate-audit-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
+$artifactPath = Join-Path $ArtifactDirectory ("external-gate-audit-v2-{0}.json" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
 $summary | ConvertTo-Json -Depth 10 | Set-Content -Path $artifactPath -Encoding UTF8
 
-$runtimeSummary = [ordered]@{
-  contract_version = "external-gate-summary-v1"
-  source_contract_version = [string]$summary.contract_version
-  source_artifact = $artifactPath
-  generated_at_utc = [string]$summary.generated_at_utc
+$durableAuditResolved = if ([IO.Path]::IsPathRooted($DurableAuditPath)) {
+  [IO.Path]::GetFullPath($DurableAuditPath)
+} else {
+  [IO.Path]::GetFullPath((Join-Path $repoRoot $DurableAuditPath))
+}
+$repoRootPrefix = $repoRoot.TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+if (-not $durableAuditResolved.StartsWith($repoRootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+  throw "Durable external gate audit path must stay inside the repository"
+}
+$durableAuditDirectory = Split-Path -Parent $durableAuditResolved
+New-Item -ItemType Directory -Force -Path $durableAuditDirectory | Out-Null
+$durableAuditRef = $durableAuditResolved.Substring($repoRootPrefix.Length).Replace("/", "\")
+$durableAudit = [ordered]@{
+  contract_version = [string]$summary.contract_version
+  audit_mode = "sanitized_verifier_output"
   status = [string]$summary.status
-  gate_ids = @(
-    "hosted_agent_api_contracts",
-    "github_branch_protection_current_verify",
-    "vercel_backend_origin_health",
-    "fly_live_budget_check"
-  )
+  active_target_gate = [string]$summary.active_target_gate
+  evidence_ref = [string]$summary.evidence_ref
+  generated_at_utc = [string]$summary.generated_at_utc
   frontend_preview_claim_allowed = [bool]$summary.frontend_preview_claim_allowed
   hosted_staging_claim_allowed = [bool]$summary.hosted_staging_claim_allowed
   branch_protection_claim_allowed = [bool]$summary.branch_protection_claim_allowed
   ghcr_image_digest_claim_allowed = [bool]$summary.ghcr_image_digest_claim_allowed
   vercel_backend_origins_claim_allowed = [bool]$summary.vercel_backend_origins_claim_allowed
   canonical_gitleaks_claim_allowed = [bool]$summary.canonical_gitleaks_claim_allowed
-  fly_live_budget_claim_allowed = [bool]$summary.fly_live_budget_claim_allowed
+  cloudflare_native_zero_card_hosted_runtime_claim_allowed = [bool]$summary.cloudflare_native_zero_card_hosted_runtime_claim_allowed
   gitlab_identity_claim_allowed = [bool]$summary.gitlab_identity_claim_allowed
   huggingface_identity_claim_allowed = [bool]$summary.huggingface_identity_claim_allowed
   grafana_cloud_claim_allowed = [bool]$summary.grafana_cloud_claim_allowed
@@ -938,10 +987,57 @@ $runtimeSummary = [ordered]@{
   missing_or_failed_gates = @($summary.missing_or_failed_gates | ForEach-Object { [string]$_ })
   failed_hosted_required_probe_ids = @($summary.failed_hosted_required_probe_ids | ForEach-Object { [string]$_ })
   failed_vercel_origin_probe_ids = @($summary.failed_vercel_origin_probe_ids | ForEach-Object { [string]$_ })
+  source_evidence_refs = @(
+    "docs/runtime-state/capability-gates.json",
+    ".codex/runs/CURRENT/p5/cloudflare-scope-readiness/report.json",
+    ".phase1-artifacts/external-gate-audit-20260720-191532.json"
+  )
+  legacy_provenance = $summary.legacy_provenance
+  non_claims = @(
+    "This durable audit contains no probe URL, response body, response snippet, command output, or token value.",
+    "The timestamped local_run_artifact is diagnostic evidence and is not the canonical tracked audit.",
+    "RC10 v1 and Fly semantics are historical provenance only.",
+    "No percentage credit or production deployment claim is granted while status is blocked."
+  )
+}
+$durableAudit | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $durableAuditResolved -Encoding UTF8
+
+$runtimeSummary = [ordered]@{
+  contract_version = "external-gate-summary-v2"
+  source_contract_version = [string]$summary.contract_version
+  source_artifact = $durableAuditRef
+  local_run_artifact = $artifactPath
+  generated_at_utc = [string]$summary.generated_at_utc
+  status = [string]$summary.status
+  active_target_gate = [string]$summary.active_target_gate
+  gate_ids = @(
+    "hosted_agent_api_contracts",
+    "github_branch_protection_current_verify",
+    "ghcr_image_digest_verify",
+    "vercel_backend_origin_health",
+    "canonical_gitleaks_scan",
+    "cloudflare_native_zero_card_hosted_runtime"
+  )
+  frontend_preview_claim_allowed = [bool]$summary.frontend_preview_claim_allowed
+  hosted_staging_claim_allowed = [bool]$summary.hosted_staging_claim_allowed
+  branch_protection_claim_allowed = [bool]$summary.branch_protection_claim_allowed
+  ghcr_image_digest_claim_allowed = [bool]$summary.ghcr_image_digest_claim_allowed
+  vercel_backend_origins_claim_allowed = [bool]$summary.vercel_backend_origins_claim_allowed
+  canonical_gitleaks_claim_allowed = [bool]$summary.canonical_gitleaks_claim_allowed
+  cloudflare_native_zero_card_hosted_runtime_claim_allowed = [bool]$summary.cloudflare_native_zero_card_hosted_runtime_claim_allowed
+  gitlab_identity_claim_allowed = [bool]$summary.gitlab_identity_claim_allowed
+  huggingface_identity_claim_allowed = [bool]$summary.huggingface_identity_claim_allowed
+  grafana_cloud_claim_allowed = [bool]$summary.grafana_cloud_claim_allowed
+  production_deploy_claim_allowed = [bool]$summary.production_deploy_claim_allowed
+  missing_or_failed_gates = @($summary.missing_or_failed_gates | ForEach-Object { [string]$_ })
+  failed_hosted_required_probe_ids = @($summary.failed_hosted_required_probe_ids | ForEach-Object { [string]$_ })
+  failed_vercel_origin_probe_ids = @($summary.failed_vercel_origin_probe_ids | ForEach-Object { [string]$_ })
+  legacy_provenance = $summary.legacy_provenance
   non_claims = @(
     "This is a sanitized runtime summary, not the full audit artifact.",
     "Probe snippets, URLs, logs, and token values are not included.",
-    "No hosted, production, branch-protection, Fly budget, or Vercel-origin claim is allowed while missing_or_failed_gates is non-empty."
+    "RC10 external-gate-summary-v1 and Fly semantics are historical provenance only.",
+    "No hosted, production, branch-protection, Cloudflare-native, or Vercel-origin claim is allowed while missing_or_failed_gates is non-empty."
   )
 }
 $summaryDir = Split-Path -Parent $SummaryPath
@@ -958,6 +1054,7 @@ Write-Host "[external-gates] hosted_staging_claim_allowed=$($summary.hosted_stag
 Write-Host "[external-gates] gitlab_identity_claim_allowed=$($summary.gitlab_identity_claim_allowed)"
 Write-Host "[external-gates] huggingface_identity_claim_allowed=$($summary.huggingface_identity_claim_allowed)"
 Write-Host "[external-gates] grafana_cloud_claim_allowed=$($summary.grafana_cloud_claim_allowed)"
+Write-Host "[external-gates] cloudflare_native_zero_card_hosted_runtime_claim_allowed=$($summary.cloudflare_native_zero_card_hosted_runtime_claim_allowed)"
 Write-Host "[external-gates] production_deploy_claim_allowed=$($summary.production_deploy_claim_allowed)"
 if ($missing.Count -gt 0) {
   Write-Host "[external-gates] missing_or_failed_gates=$($missing -join ',')"

@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN GO-LIVE RUNBOOK
 
-Stand: 2026-06-11
+Stand: 2026-07-26
 Status: owner-gated, read-only prepared
 
 Dieses Runbook beschreibt den sicheren Weg vom DEV-ONLY Runtime-Proof in den
@@ -12,20 +12,22 @@ keine Live-Provider-Aktivierung, keinen MCP-Write, kein Production-Claim.
 
 ## Current Truth
 
-- Aktiver Cloud-Pfad: Vercel Frontend, Fly.io Runtime, GHCR Registry, Grafana Cloud Observability.
-- Retired/historical only: Hetzner, GitKraken, Oracle, sslip.io hosted proofs.
+- Aktiver Cloud-Pfad: Vercel Frontend, Cloudflare-native Runtime, GHCR Registry, Grafana Cloud Observability.
+- Retired/historical only: Fly.io, Hetzner, GitKraken, Oracle; sslip.io hosted proofs.
 - Localhost bleibt DEV-ONLY und kann keine Hosted-, External-, Budget- oder Release-Gates schliessen.
-- Aktuelles External-Audit: `.phase1-artifacts/external-gate-audit-20260712-034356.json` (direkter No-Token-Lauf, `blocked` auf vier externen Gates; keine Tokenwerte im Artefakt).
-- Private Read-only-Bootstrap-Referenz: `20260712-000113` (nur Hosted-Agent-API und Vercel-Origins offen; kein Production-Claim).
-- Sanitized Runtime Mirror: `docs/runtime-state/external-gate-summary.json`, contract `external-gate-summary-v1`.
+- Aktuelles External-Audit: `docs/runtime-state/external-gate-audit-v2.json`,
+  contract `external-gate-audit-v2`, status `blocked`.
+- Sanitized Runtime Mirror: `docs/runtime-state/external-gate-summary.json`,
+  contract `external-gate-summary-v2`.
+- Aktives Zielgate: `cloudflare_native_zero_card_hosted_runtime`.
 - Runtime Readiness Endpoint: `GET /api/v1/clouds/go-live-readiness`.
 
-Gate-IDs und private Inputs fuer die Standard-Bootstrap-Reproduktion:
+Die folgenden v1-Probes bleiben als bestaetigte Unterbeweise sichtbar, sind aber
+nicht das aktive fehlende Zielgate:
 
 - `hosted_agent_api_contracts`
 - `github_branch_protection_current_verify`
 - `vercel_backend_origin_health`
-- `fly_live_budget_check`
 
 ## Repo Version Baseline
 
@@ -48,12 +50,20 @@ Diese Werte duerfen nur in privaten Secret-/Provider-Systemen gesetzt werden,
 nicht im Repo, nicht in Logs, nicht im Chat:
 
 - `STAGING_BASE_URL`: echte Vercel HTTPS Staging-URL.
-- `AGENT_API_BASE_URL`: echte HTTPS Fly Agent API Origin.
-- `MCP_GATEWAY_BASE_URL`: echte HTTPS Fly MCP Gateway Origin.
-- `LLM_GATEWAY_BASE_URL`: echte HTTPS LLM Gateway Origin.
+- `CLOUDFLARE_STATEFUL_BASE_URL`: echte Cloudflare HTTPS Runtime-URL.
+- `CLOUDFLARE_ACCOUNT_ID`: freigegebenes Cloudflare-Konto.
+- `CLOUDFLARE_API_TOKEN`: presence-only; Wert nie ausgeben.
+- `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, `LLM_GATEWAY_BASE_URL`:
+  echte HTTPS Origins ohne retired Provider-Ableitung.
 - `BRANCH_PROTECTION_TOKEN`: nur fuer Branch-Protection-Read/Verify/Apply nach Owner-Freigabe.
-- `FLY_API_TOKEN`: nur fuer Fly Live Budget/Health Verify nach Owner-Freigabe.
 - `VERCEL_TOKEN`, `GITHUB_TOKEN`, `GHCR_TOKEN`, `GRAFANA_CLOUD_API_KEY`: nur presence-only pruefen, Werte nie ausgeben.
+
+O2' verlangt mindestens `Workers Scripts:Edit`, `D1:Edit`,
+`Durable Objects:Edit`, `Queues:Edit` und den freigegebenen
+Workers-AI-Read-Pfad. R2 bleibt aus, bis Zero-Card-Aktivierung exakt belegt ist.
+
+O6 ist im begrenzten Gateway-Pfad `owner_granted=true` und
+`live_verified=true`. Das gibt `0%` Credit und setzt Layer 4 nicht auf 100.
 
 ## Safe Activation Sequence
 
@@ -65,9 +75,12 @@ nicht im Repo, nicht in Logs, nicht im Chat:
 2. Owner stellt private Cloud-Konfiguration bereit:
    - Vercel Env: `STAGING_REWRITES_ENABLED=1`
    - Vercel Env: `STAGING_BASE_URL`, `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, `LLM_GATEWAY_BASE_URL`
+   - Owner-Shell: `CLOUDFLARE_STATEFUL_BASE_URL`,
+     `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`
    - Private Tokens nur in Secret Stores.
 
 3. Hosted Proof nach Owner-Freigabe:
+   - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-cloudflare-stateful-runtime.ps1 -BaseUrl https://<cloudflare-runtime-domain> -AllowHostedWrites`
    - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-browser-contract.ps1 -BaseUrl https://<staging-domain>`
    - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-external-gates.ps1`
    - Erwartung: Hosted HTTPS, keine localhost evidence fuer Cloud-Gates.
@@ -105,7 +118,7 @@ oeffnet keine External-, Budget- oder Release-Gates.
 22-Seiten-Datenquellen-Integritaet mit `32` API-like Refs, korrigierter
 `GET /api/v1/models/capabilities`-Route und read-only
 `GET /api/v1/files/local/contract`. Das ist ebenfalls DEV-ONLY und ersetzt keine
-Vercel-/Fly-/GHCR-/Grafana-Gates.
+Vercel-/Cloudflare-/GHCR-/Grafana-Gates.
 
 `scripts\verify-platform-ui-status-boundary.ps1` beweist lokal, dass Home,
 Workbench, Games, Apps, Media, Docs-Output und AppShell keine Projektstatuswand,

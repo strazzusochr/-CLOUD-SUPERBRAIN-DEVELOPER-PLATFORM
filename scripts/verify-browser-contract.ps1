@@ -258,11 +258,17 @@ $liveLlmCapabilityOpen = (
   $liveLlmCapability.paid_provider -is [bool] -and
   -not [bool]$liveLlmCapability.paid_provider
 )
-if ($liveLlmCapabilityOpen) {
-  Assert-True "project progress completion clears verified free live LLM blocker" (-not ($projectProgressCompletionHardBlockers -contains "live_llm_provider_calls_require_owner_gate_and_budget_guard"))
-} else {
-  Assert-True "project progress completion retains unverified live LLM blocker" ($projectProgressCompletionHardBlockers -contains "live_llm_provider_calls_require_owner_gate_and_budget_guard")
-}
+Assert-True "bounded O6 live LLM capability is open" $liveLlmCapabilityOpen
+Assert-True "project progress completion clears verified free live LLM blocker" (-not ($projectProgressCompletionHardBlockers -contains "live_llm_provider_calls_require_owner_gate_and_budget_guard"))
+$ownerInputManifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\docs\runtime-state\owner-input-manifest.json") -Raw | ConvertFrom-Json
+$o6OwnerAction = @($ownerInputManifest.actions | Where-Object { [string]$_.id -eq "O6" })
+Assert-True "O6 is resolved and not Owner-required" (
+  $o6OwnerAction.Count -eq 1 -and
+  [string]$o6OwnerAction[0].status -eq "resolved_verified" -and
+  ([string]$o6OwnerAction[0].required_owner_action).StartsWith("None")
+)
+$layer4Progress = @($progressManifest.vertical.items | Where-Object { [string]$_.id -eq "layer_4" })
+Assert-True "bounded O6 proof does not make Layer 4 equal 100" ($layer4Progress.Count -eq 1 -and [int]$layer4Progress[0].percent -lt 100)
 $liveMemoryCapability = $capabilityGateState.gates.live_memory_provider
 $liveMemoryCapabilityOpen = (
   [bool]$liveMemoryCapability.owner_granted -and
@@ -306,7 +312,8 @@ Write-Host "[browser-contract] cloud provider inventory"
 $cloudProviderInventory = Invoke-Text "$BaseUrl/api/v1/clouds"
 Assert-Contains "cloud provider contract version" $cloudProviderInventory '"contract_version":"cloud-provider-inventory-v1"'
 Assert-Contains "cloud provider evidence" $cloudProviderInventory '"evidence_ref":"cloud_provider_inventory_visible"'
-Assert-Contains "cloud provider Fly.io" $cloudProviderInventory '"id":"fly_io"'
+Assert-Contains "cloud provider active Cloudflare-native runtime" $cloudProviderInventory '"id":"cloudflare_edge"'
+Assert-Contains "cloud provider retired Fly is historical" $cloudProviderInventory '"historical_only":true'
 Assert-Contains "cloud provider grafana" $cloudProviderInventory '"id":"grafana_cloud"'
 Assert-Contains "cloud provider seven layer mapping" $cloudProviderInventory '"seven_layer_mapping"'
 $cloudLayerReadiness = Invoke-Text "$BaseUrl/api/v1/clouds/layers"
@@ -332,6 +339,13 @@ Assert-Contains "cloud render offload local block" $cloudRenderOffloadRuntime '"
 $cloudRenderOffloadRuntimeJson = $cloudRenderOffloadRuntime | ConvertFrom-Json
 $cloudRenderOffloadMissingRequired = @($cloudRenderOffloadRuntimeJson.missing_required_env | ForEach-Object { [string]$_ })
 $cloudRenderOffloadExpectedBlockers = @($cloudRenderOffloadMissingRequired | ForEach-Object { "cloud_render_offload_requires_{0}" -f $_ })
+$cloudflareNativeRuntimeGate = @($cloudRenderOffloadRuntimeJson.cloud_gates | Where-Object {
+  [string]$_.id -eq "cloudflare_native_zero_card_hosted_runtime"
+}) | Select-Object -First 1
+Assert-True "cloud render offload Cloudflare-native gate visible" ($null -ne $cloudflareNativeRuntimeGate)
+if (-not [bool]$cloudflareNativeRuntimeGate.verified) {
+  $cloudRenderOffloadExpectedBlockers += "cloud_render_offload_requires_cloudflare_native_zero_card_hosted_runtime_verifier"
+}
 $cloudRenderOffloadActualBlockers = @($cloudRenderOffloadRuntimeJson.blockers | ForEach-Object { [string]$_ })
 Assert-True "cloud render offload missing required env visible" ($null -ne $cloudRenderOffloadRuntimeJson.missing_required_env)
 Assert-True "cloud render offload blockers visible" ($null -ne $cloudRenderOffloadRuntimeJson.blockers)
@@ -351,9 +365,22 @@ $cloudDeploymentPreflightRuntime = Invoke-Text "$BaseUrl/api/v1/clouds/deploymen
 Assert-Contains "cloud deployment preflight runtime version" $cloudDeploymentPreflightRuntime '"contract_version":"cloud-deployment-preflight-v1"'
 Assert-Contains "cloud deployment preflight runtime evidence" $cloudDeploymentPreflightRuntime '"evidence_ref":"cloud_deployment_preflight_visible"'
 $canonicalExternalGateSummary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
+Assert-True "canonical summary contract v2" ([string]$canonicalExternalGateSummary.contract_version -eq "external-gate-summary-v2")
+Assert-True "canonical summary source contract v2" ([string]$canonicalExternalGateSummary.source_contract_version -eq "external-gate-audit-v2")
+Assert-True "canonical summary active Cloudflare target" ([string]$canonicalExternalGateSummary.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime")
+$canonicalExternalGateAuditPath = ([string]$canonicalExternalGateSummary.source_artifact).Replace("\", "/")
+Assert-True "canonical summary durable audit source" ($canonicalExternalGateAuditPath -eq "docs/runtime-state/external-gate-audit-v2.json")
+Assert-True "canonical durable audit exists" (Test-Path -LiteralPath $canonicalExternalGateAuditPath)
+$canonicalTrackedAudit = git ls-files --error-unmatch -- $canonicalExternalGateAuditPath 2>$null
+Assert-True "canonical durable audit tracked" ($LASTEXITCODE -eq 0 -and @($canonicalTrackedAudit).Count -eq 1)
+$canonicalExternalGateAudit = Get-Content -LiteralPath $canonicalExternalGateAuditPath -Raw | ConvertFrom-Json
+Assert-True "canonical durable audit contract v2" ([string]$canonicalExternalGateAudit.contract_version -eq "external-gate-audit-v2")
+Assert-True "canonical durable audit active Cloudflare target" ([string]$canonicalExternalGateAudit.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime")
+Assert-True "canonical summary/audit status parity" ([string]$canonicalExternalGateSummary.status -eq [string]$canonicalExternalGateAudit.status)
+Assert-True "canonical summary/audit timestamp parity" ([string]$canonicalExternalGateSummary.generated_at_utc -eq [string]$canonicalExternalGateAudit.generated_at_utc)
 $expectedExternalGateClaims = [ordered]@{
   ghcr_images = [bool]$canonicalExternalGateSummary.ghcr_image_digest_claim_allowed
-  fly_cloud_stack = [bool]$canonicalExternalGateSummary.fly_live_budget_claim_allowed
+  cloudflare_native_zero_card_hosted_runtime = [bool]$canonicalExternalGateSummary.cloudflare_native_zero_card_hosted_runtime_claim_allowed
   hosted_backend_origins = [bool]$canonicalExternalGateSummary.vercel_backend_origins_claim_allowed
   hosted_staging = [bool]$canonicalExternalGateSummary.hosted_staging_claim_allowed
   branch_protection = [bool]$canonicalExternalGateSummary.branch_protection_claim_allowed
@@ -377,7 +404,7 @@ Assert-True "cloud deployment preflight cloud claim follows canonical summary" (
 Assert-True "cloud deployment preflight production claim follows canonical summary" ([bool]$cloudDeploymentPreflightRuntimeJson.production_deploy_claim_allowed -eq $expectedProductionDeployClaim)
 Assert-True "cloud deployment preflight canonical summary status" ([string]$cloudDeploymentPreflightRuntimeJson.canonical_summary_status -eq [string]$canonicalExternalGateSummary.status)
 Assert-ArrayEquivalent "cloud deployment preflight blocker parity" $cloudDeploymentPreflightBlockedGates $expectedBlockedExternalGates
-foreach ($requiredGateId in @("ghcr_images", "fly_cloud_stack", "hosted_backend_origins", "hosted_staging", "branch_protection", "canonical_secret_scan")) {
+foreach ($requiredGateId in @("ghcr_images", "cloudflare_native_zero_card_hosted_runtime", "hosted_backend_origins", "hosted_staging", "branch_protection", "canonical_secret_scan")) {
   $requiredGate = @($cloudDeploymentPreflightRuntimeJson.gates | Where-Object { [string]$_.id -eq $requiredGateId })
   Assert-True "cloud deployment preflight gate present: $requiredGateId" ($requiredGate.Count -eq 1)
   Assert-True "cloud deployment preflight gate summary parity: $requiredGateId" ([bool]$requiredGate[0].verified -eq [bool]$expectedExternalGateClaims[$requiredGateId])
@@ -385,7 +412,13 @@ foreach ($requiredGateId in @("ghcr_images", "fly_cloud_stack", "hosted_backend_
 Assert-Contains "cloud deployment preflight ghcr sequence" $cloudDeploymentPreflightRuntime "publish_ghcr_images"
 Assert-Contains "cloud deployment preflight hosted origins" $cloudDeploymentPreflightRuntime "hosted_backend_origins"
 Assert-Contains "cloud deployment preflight branch token" $cloudDeploymentPreflightRuntime "BRANCH_PROTECTION_TOKEN"
-Assert-Contains "cloud deployment preflight cloud compose" $cloudDeploymentPreflightRuntime "docker-compose.cloud.yml"
+Assert-Contains "cloud deployment preflight Cloudflare URL" $cloudDeploymentPreflightRuntime "CLOUDFLARE_STATEFUL_BASE_URL"
+Assert-Contains "cloud deployment preflight Cloudflare account" $cloudDeploymentPreflightRuntime "CLOUDFLARE_ACCOUNT_ID"
+Assert-Contains "cloud deployment preflight Cloudflare token presence" $cloudDeploymentPreflightRuntime "CLOUDFLARE_API_TOKEN"
+foreach ($requiredScope in @("workers_scripts_edit", "d1_edit", "durable_objects_edit", "queues_edit", "workers_ai_read", "r2_edit_if_zero_card_verified")) {
+  Assert-Contains "cloud deployment preflight required owner scope" $cloudDeploymentPreflightRuntime $requiredScope
+}
+Assert-Contains "cloud deployment preflight Cloudflare manifest" $cloudDeploymentPreflightRuntime "services/cloudflare-stateful-runtime/wrangler.jsonc"
 Assert-Contains "cloud deployment preflight owner review" $cloudDeploymentPreflightRuntime "owner_review_before_production"
 Assert-Contains "cloud deployment preflight no mutation claim" $cloudDeploymentPreflightRuntime "This endpoint does not create, mutate, deploy, or delete cloud resources."
 
@@ -638,7 +671,6 @@ if ($isLocalProof) {
   Assert-Contains "hosted live agent status degraded" $hostedLiveAgentStatus '"status":"degraded"'
   Assert-Contains "hosted live agent status non-live" $hostedLiveAgentStatus '"live_backend":false'
   Assert-Contains "hosted live agent status empty" $hostedLiveAgentStatus '"agents":[]'
-  Assert-Contains "hosted live agent owner precondition" $hostedLiveAgentStatus "Fly runtime approval or a separately approved Neon/Upstash architecture expansion"
 }
 
 Write-Host "[browser-contract] mcp version pinning contract"
@@ -913,6 +945,7 @@ Assert-Contains "external gates evidence" $externalGates '"evidence_ref":"extern
 Assert-Contains "external gates aligned with preflight" $externalGates '"aligned_with_deployment_preflight":true'
 Assert-Contains "external gates total count" $externalGates '"total_count":6'
 Assert-Contains "external gates ghcr mapping" $externalGates '"ghcr_images"'
+Assert-Contains "external gates Cloudflare-native runtime mapping" $externalGates '"cloudflare_native_zero_card_hosted_runtime"'
 Assert-Contains "external gates hosted origins mapping" $externalGates '"hosted_backend_origins"'
 Assert-Contains "external gates branch alias" $externalGates '"preflight_gate_id":"branch_protection"'
 Assert-Contains "external gates evidence alias" $externalGates '"evidence_ref":"ghcr_image_digest_proof"'

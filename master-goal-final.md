@@ -1,6 +1,6 @@
 # Cloud Superbrain Master Goal — Autonomous Finish / Owner Blocked
 
-Stand: 2026-07-25
+Stand: 2026-07-26
 
 ## Urteil
 
@@ -20,9 +20,10 @@ Architekturentscheidung aufgewertet.
 - D1 bleibt der projektspezifische Read-, Audit- und Persistenzspeicher. Das ist ein
   `custom D1 persistence`-Adapter, kein offizieller LangGraph-Checkpointer.
 - SQLite Durable Objects koordinieren und idempotenzieren, Queues dispatchen, R2 ist der
-  private Artefaktadapter. Vectorize und Workers AI bleiben bis O5/O6 fail-closed.
-- Fly.io ist als Session-9-Ziel ausgeschlossen. Der bisherige Fly-Gate bleibt nur historische
-  Ist-Wahrheit, bis ein Cloudflare-Hosted-Proof den kontrollierten Truth-Rebase erlaubt.
+  private Artefaktadapter. Vectorize bleibt bis O5 fail-closed; der bounded Workers-AI-
+  Gatewaypfad ist als O6 `resolved_verified`, ohne Prozentcredit.
+- Fly.io ist als Session-9-Ziel ausgeschlossen. Der v2-Truth-Rebase ist abgeschlossen;
+  Fly/RC10-v1 bleibt ausschliesslich `historical_only`.
 - Der erste Ausbau ist `DEV-ONLY`; `hosted_proof=false`, `live_provider_calls=false`,
   `live_mcp_writes=false`, `production_deploy=false`.
 - Keine Karte, kein bezahltes Konto und keine automatische Uebernutzung. R2 hat zwar ein
@@ -38,9 +39,10 @@ Die bindende Migrationsgrenze steht in
 - Horizontal: `P0 100 | P1 100 | P2 100 | P3 44 | P4 100 | P5 68 | P6 90`
 - Vertikal: `FE 100 | ORC 100 | AP 69 | LLM 55 | MCP 56 | MEM 90 | OBS 100`
 - Manifest: `docs/project-progress.manifest.json`
-- Externe Wahrheit: `blocked`; `production_deploy_claim_allowed=false`
-- Kanonischer externer Audit-Fehler aus RC10: `fly_live_budget_check` (historisch; Fly OUT)
-- Ersatzgate nach lokalem Adapterbeweis: O2' Cloudflare-Hosted-Zero-Card-Proof
+- Externe Wahrheit: `external-gate-summary-v2`, `blocked`;
+  `production_deploy_claim_allowed=false`
+- Kanonischer Audit: `docs/runtime-state/external-gate-audit-v2.json`
+- Einziger aktiver Audit-Blocker: `cloudflare_native_zero_card_hosted_runtime` (O2')
 
 ## Session-9 lokale Lieferung
 
@@ -58,6 +60,19 @@ Die bindende Migrationsgrenze steht in
 - Evidence SHA-256:
   `FFB9693896C26B7831BE60E2A2DE323B7B1243F7DACDDE91727706BAF3E06F80`.
 - Kein Prozentcredit; O2' bleibt geschlossen; `DEV-ONLY; hosted proof still blocked`.
+
+## P5 v2 Lieferung
+
+- Aktive Fly-/RC10-v1-Gates durch `external-gate-audit-v2` und
+  `external-gate-summary-v2` ersetzt; Fly bleibt historische Provenienz.
+- Agent API, Preflight, Go-live, Infra-Budget, UI und Verifier auf
+  `cloudflare_native_runtime` / `cloudflare_native_zero_card_hosted_runtime` umgestellt.
+- Cloudflare-Stateful-Verifier kann den Hosted Queue→DO→R2-Lifecycle nur nach
+  `-AllowHostedWrites` ausführen; ohne Owner-Gate stoppt er vor dem Netzaufruf.
+- GET-only Scope-Audit: 0/6 Management-Ressourcenfamilien lesbar, HTTP 401/403,
+  Fehlercode 10000; keine Mutation und kein Secret-Output.
+- Kanonischer Audit SHA-256:
+  `5E05F8EC80F17845C7CAC980177275F008216560C3BEECFDCF0DD3B40D05C21C`.
 
 ## Session-8 Lieferung
 
@@ -98,7 +113,9 @@ Die bindende Migrationsgrenze steht in
 | O3 | P5, MCP | GHCR-Publikation, Protected Release Workflow und Owner-Review |
 | O4 | P6, AP, MCP | Live Agent-/MCP-Write-Allowlist, Branch Protection und Audit-Freigabe |
 | O5 | MEM | Cloudflare `Vectorize:Edit`, Architekturfreigabe und Hosted Semantic-Search-Proof |
-| O6 | LLM | Architekturfreigabe für den Live-Gateway-Vertrag statt des aktuell erzwungenen Dry-run-Pfads |
+
+O6 ist `resolved_verified`: bounded Workers AI ausschliesslich durch den LLM Gateway,
+`direct_provider_calls=false`, `percentage_credit=0`. O6 ist kein Owner-Blocker.
 
 Exakte Scopes, Zahlungsbedarf, Gate-IDs und Nachverifier stehen maschinenlesbar in
 `docs/runtime-state/owner-input-manifest.json`.
@@ -111,7 +128,7 @@ Lauf überspringt Runtime-Verifier als Auditmodus; das ist kein Implementierungs
 seriellen Vollverifier im aktuellen Session-9-Arbeitsstand grün sind.
 
 Report SHA-256:
-`020327D3F46FD2BEB68F6B443E4EAF41F31223DE8313566AFC02E8292AD9EDA7`.
+`A99AF466873885E88CCFD434CB267619AB6930F0721091D09A63CF9A38E4617B`.
 
 Finish-Line bleibt unverändert:
 

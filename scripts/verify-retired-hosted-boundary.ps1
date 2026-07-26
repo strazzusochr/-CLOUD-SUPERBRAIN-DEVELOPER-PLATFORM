@@ -55,7 +55,7 @@ Assert-NotContains "AI_HANDOFF active Hetzner next safe work" $aiHandoff "author
 Assert-Contains "verification register hosted boundary" $verificationRegister "Current Hosted Boundary"
 Assert-Contains "verification register historical boundary" $verificationRegister "historical provenance only"
 Assert-Contains "verification register current frontend authority" $verificationRegister 'Current frontend truth is `frontend-hosted-current-proof-v1`'
-Assert-Contains "verification register current backend authority" $verificationRegister 'current contract-origin truth is the latest `external-gate-audit-*` artifact plus reachable Agent API, MCP Gateway, and LLM Gateway HTTPS origins'
+Assert-Contains "verification register current external authority" $verificationRegister 'current external truth is `external-gate-audit-v2` plus `external-gate-summary-v2`'
 Assert-Contains "verification register stateful backend non-claim" $verificationRegister 'Neither one proves a stateful full-backend rollout, release promotion, or full-platform production release'
 Assert-Contains "verification register current external audit" $verificationRegister $latestExternalGateAuditRef
 

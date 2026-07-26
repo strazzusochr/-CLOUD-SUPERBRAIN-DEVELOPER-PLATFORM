@@ -1,6 +1,5 @@
 param(
   [string]$SecretPath = "C:\Users\immer\.codex\secrets\cloud-superbrain.local.env",
-  [string]$KnownFlyTokenPath = "C:\Users\immer\.codex\secrets\fly-api-token.txt",
   [string]$VercelProjectJsonPath = "apps\frontend\.vercel\project.json",
   [string]$OutputPath = "",
   [switch]$RequireOptionalIdentities,
@@ -164,7 +163,6 @@ try {
     npm = [bool](Get-Command npm -ErrorAction SilentlyContinue)
     vercel = [bool](Get-Command vercel -ErrorAction SilentlyContinue)
     wrangler = [bool](Get-Command wrangler -ErrorAction SilentlyContinue)
-    fly = [bool](Get-Command fly -ErrorAction SilentlyContinue)
     git = [bool](Get-Command git -ErrorAction SilentlyContinue)
   }
   $gitLfsProbe = Invoke-ProcessProbe { git lfs version }
@@ -206,33 +204,7 @@ fetch(url, { headers: { Authorization: "Bearer " + token } })
     $checks.Add((New-Check "vercel" @("VERCEL_TOKEN", "VERCEL_PROJECT_ID", "VERCEL_TEAM_ID") "token/project/team not fully verified" "GET /v9/projects/<project>?teamId=<team>" ("status={0}; http={1}; error={2}" -f $vercelProbe.status, $vercelProbe.http_status, $vercelProbe.error_code) "Provide a Vercel token that can read the configured project/team, or mark Vercel non-blocking by owner decision." "blocked" ([int]$vercelProbe.http_status) $true))
   }
 
-  $flyProbe = Invoke-NodeJson @'
-const token = process.env.FLY_API_TOKEN || "";
-if (!token) {
-  console.log(JSON.stringify({ status: "missing", http_status: 0 }));
-  process.exit(0);
-}
-fetch("https://api.fly.io/graphql", {
-  method: "POST",
-  headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-  body: JSON.stringify({ query: "{ viewer { email } }" })
-})
-  .then(async (response) => {
-    let body = {};
-    try { body = await response.json(); } catch {}
-    console.log(JSON.stringify({
-      status: response.ok && body.data && body.data.viewer ? "verified" : "failed",
-      http_status: response.status,
-      viewer_present: Boolean(body.data && body.data.viewer)
-    }));
-  })
-  .catch((error) => console.log(JSON.stringify({ status: "failed", http_status: 0, error: error.message })));
-'@
-  if ($flyProbe.status -eq "verified") {
-    $checks.Add((New-Check "fly_io" @("FLY_API_TOKEN") "token verified" "POST /graphql (viewer)" "HTTP 200, viewer present" "" "ready" ([int]$flyProbe.http_status) $false))
-  } else {
-    $checks.Add((New-Check "fly_io" @("FLY_API_TOKEN") "token not fully verified" "POST /graphql (viewer)" ("status={0}; http={1}" -f $flyProbe.status, $flyProbe.http_status) "Provide a valid Fly API token." "blocked" ([int]$flyProbe.http_status) $true))
-  }
+  $checks.Add((New-Check "fly_io_historical" @() "historical_only; retired from active readiness" "no provider probe" "not evaluated; cannot close an active gate" "" "historical_only" 0 $false))
 
   $cloudflareProbe = Invoke-NodeJson @'
 const token = process.env.CLOUDFLARE_API_TOKEN || "";
@@ -254,11 +226,26 @@ fetch("https://api.cloudflare.com/client/v4/user/tokens/verify", { headers: { Au
   })
   .catch((error) => console.log(JSON.stringify({ status: "failed", http_status: 0, error: error.message })));
 '@
-  $cloudflareKeysPresent = (Test-EnvPresent $envValues "CLOUDFLARE_ACCOUNT_ID") -and (Test-EnvPresent $envValues "CLOUDFLARE_ZONE_ID") -and (Test-EnvPresent $envValues "CLOUDFLARE_PRODUCTION_DOMAIN")
-  if ($cloudflareProbe.status -eq "verified" -and $cloudflareKeysPresent) {
-    $checks.Add((New-Check "cloudflare" @("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_ZONE_ID", "CLOUDFLARE_PRODUCTION_DOMAIN") "token active and required non-secret IDs present" "GET /client/v4/user/tokens/verify" "HTTP 200, token active" "" "ready" ([int]$cloudflareProbe.http_status) $false))
+  $cloudflareKeysPresent = (Test-EnvPresent $envValues "CLOUDFLARE_ACCOUNT_ID") -and (Test-EnvPresent $envValues "CLOUDFLARE_STATEFUL_BASE_URL")
+  $cloudflareScopePath = Join-Path $repoRoot ".codex\runs\CURRENT\p5\cloudflare-scope-readiness\report.json"
+  $cloudflareScopeReady = $false
+  if (Test-Path -LiteralPath $cloudflareScopePath) {
+    try {
+      $cloudflareScopeReport = Get-Content -LiteralPath $cloudflareScopePath -Raw | ConvertFrom-Json
+      $cloudflareScopeReady = (
+        [string]$cloudflareScopeReport.contract_version -eq "cloudflare-owner-scope-readiness-v1" -and
+        [bool]$cloudflareScopeReport.assertions.only_get_requests_used -and
+        -not [bool]$cloudflareScopeReport.assertions.cloud_mutation -and
+        [bool]$cloudflareScopeReport.assertions.o2_prime_scope_ready
+      )
+    } catch {
+      $cloudflareScopeReady = $false
+    }
+  }
+  if ($cloudflareProbe.status -eq "verified" -and $cloudflareKeysPresent -and $cloudflareScopeReady) {
+    $checks.Add((New-Check "cloudflare" @("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_STATEFUL_BASE_URL") "token active, hosted URL present, and O2' scope inventory verified" "GET /client/v4/user/tokens/verify plus canonical read-only scope report" "HTTP 200, token active, O2' scopes ready" "" "ready" ([int]$cloudflareProbe.http_status) $false))
   } else {
-    $checks.Add((New-Check "cloudflare" @("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_ZONE_ID", "CLOUDFLARE_PRODUCTION_DOMAIN") "cloudflare token or required IDs not fully verified" "GET /client/v4/user/tokens/verify" ("status={0}; http={1}; ids_present={2}" -f $cloudflareProbe.status, $cloudflareProbe.http_status, $cloudflareKeysPresent) "Provide active token plus account, zone, and production domain values." "blocked" ([int]$cloudflareProbe.http_status) $true))
+    $checks.Add((New-Check "cloudflare" @("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_STATEFUL_BASE_URL") "Cloudflare O2' readiness is not fully verified" "GET /client/v4/user/tokens/verify plus canonical read-only scope report" ("token_status={0}; http={1}; env3_present={2}; scopes_ready={3}" -f $cloudflareProbe.status, $cloudflareProbe.http_status, $cloudflareKeysPresent, $cloudflareScopeReady) "Provide the active env3 inputs and least-privilege O2' scopes, then regenerate the read-only scope report." "blocked" ([int]$cloudflareProbe.http_status) $true))
   }
 
   $githubProbe = Invoke-NodeJson @'

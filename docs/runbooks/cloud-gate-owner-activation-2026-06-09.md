@@ -2,32 +2,43 @@
 
 Status: prepared, owner-gated, no hosted gate closure.
 
-This runbook is the next safe bridge from local evidence to cloud-only evidence. It keeps the developer platform clean and separates project-state proof from product UI work.
+This runbook is the next safe bridge from local evidence to the active O2'
+`cloudflare_native_zero_card_hosted_runtime` proof. The active external truth is
+`external-gate-summary-v2`, sourced from a dynamically named
+`external-gate-audit-v2-*.json` artifact.
 
 ## Rules
 
 - Plan-only by default: `scripts\owner-cloud-gate-activation.ps1` writes a local plan artifact and performs no cloud mutation.
 - `-Apply` is fail-closed in Codex; owner-approved mutation must be executed deliberately in an owner shell, then verified by hosted artifacts.
 - No secret values are printed or written. Token checks are presence-only.
+- Cloudflare HTTPS is required for `CLOUDFLARE_STATEFUL_BASE_URL`.
 - Vercel HTTPS staging is required for `STAGING_BASE_URL`.
 - Retired `sslip.io` staging targets are blocked.
 - Localhost is DEV-ONLY and cannot close hosted gates.
 - No progress percentage changes happen from this plan alone.
+- The bounded O6 LLM path is already `owner_granted=true` and
+  `live_verified=true`; O6 is not an Owner-required action. This does not make
+  Layer 4 equal 100 and grants no percentage credit.
+- Fly and `FLY_API_TOKEN` are retired from the active gate path. Legacy Fly
+  artifacts remain `historical_only`.
 
 ## Required Owner Inputs
 
-- `VERCEL_TOKEN` present in the private shell environment.
-- `FLY_API_TOKEN` present in the private shell environment.
-- Reachable Fly.io origins:
-  - `AGENT_API_BASE_URL`
-  - `MCP_GATEWAY_BASE_URL`
-  - `LLM_GATEWAY_BASE_URL`
-- Vercel preview/staging env:
-  - `STAGING_REWRITES_ENABLED=1`
-  - `AGENT_API_BASE_URL`
-  - `MCP_GATEWAY_BASE_URL`
-  - `LLM_GATEWAY_BASE_URL`
+- `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` present in the private
+  Owner shell; values remain presence-only.
+- Owner-approved least-privilege Cloudflare scopes:
+  - `Workers Scripts:Edit`
+  - `D1:Edit`
+  - `Durable Objects:Edit`
+  - `Queues:Edit`
+  - `Workers AI:Read`
+  - `R2:Edit` only after zero-card activation is verified
+- Explicit Owner approval for hosted writes and deployment.
+- Reachable Cloudflare HTTPS runtime as `CLOUDFLARE_STATEFUL_BASE_URL`.
 - Final Vercel HTTPS staging URL as `STAGING_BASE_URL`.
+- R2 remains disabled unless the exact account proves activation with no card,
+  checkout, charge, subscription, or paid fallback.
 
 ## Activation Order
 
@@ -39,26 +50,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\owner-cloud-gate-act
 
 2. Owner approves cloud mutation outside the normal Codex turn.
 
-3. Ensure Fly.io origins exist and are reachable for:
+3. Owner reviews the exact Workers, D1, SQLite Durable Objects and Queues scopes,
+   confirms zero-card activation, and authorizes the bounded hosted write proof.
 
-```text
-fly.agent-api.toml
-fly.mcp-gateway.toml
-fly.llm-gateway.toml
-```
-
-4. Set Vercel preview/staging origin env values:
-
-```text
-STAGING_REWRITES_ENABLED
-AGENT_API_BASE_URL
-MCP_GATEWAY_BASE_URL
-LLM_GATEWAY_BASE_URL
-```
-
-5. Verify hosted staging:
+4. Verify the Cloudflare-native hosted runtime and hosted staging:
 
 ```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-cloudflare-stateful-runtime.ps1 -BaseUrl <CLOUDFLARE_STATEFUL_BASE_URL> -AllowHostedWrites
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-browser-contract.ps1 -BaseUrl <STAGING_BASE_URL>
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-external-gates.ps1
 ```
@@ -67,7 +65,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-external-gate
 
 Only a real hosted artifact may close:
 
-- `hosted_agent_api_contracts`
-- `vercel_backend_origin_health`
+- `cloudflare_native_zero_card_hosted_runtime`
 
-The plan itself does not create production deployment, registry-push, live-provider, live MCP write, or release-readiness claims.
+The verifier remains fail-closed without Owner scopes, a Cloudflare HTTPS URL,
+explicit hosted-write approval, and real hosted evidence. The plan itself does
+not call Cloudflare, mutate providers, print secrets, deploy, publish images,
+open MCP writes, increase progress, or make a production/release claim.

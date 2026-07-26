@@ -85,17 +85,18 @@ a historical deployment.
 
 ## External Gate Status
 
-Canonical reproducible standard-bootstrap audit:
-`.phase1-artifacts/external-gate-audit-20260720-191532.json`
+Canonical reproducible audit:
+`docs/runtime-state/external-gate-audit-v2.json`
 
 Status: `blocked`
 
-Missing or failed gate: `fly_live_budget_check`.
+Missing or failed gate: `cloudflare_native_zero_card_hosted_runtime`.
 
-The token/origin-injected audit `20260713-125413` reported `verified`, but it is retained
-only as a non-current owner-assisted candidate and cannot replace the reproducible standard.
-The canonical standard allows no production-deploy claim while the Fly budget proof
-remains open under the free-only policy.
+The former Fly audit path is retained only as `historical_only` provenance and
+cannot replace the v2 audit. The current Cloudflare token can authenticate but
+the sanitized read-only O2' inventory is `0/6`; this proves insufficient
+management scopes, not resource absence. Hosted source parity, stateful
+roundtrip, and zero-card activation remain unverified.
 
 `production_deploy_claim_allowed=false`; no production rollout or release promotion occurred.
 
@@ -182,7 +183,8 @@ candidate:
 3. Reachable HTTPS hosted Agent API, MCP Gateway, and LLM Gateway origins.
 4. Fresh hosted browser and API proof against the configured staging URL.
 5. Current verify-only branch-protection proof.
-6. Current Fly budget proof within the 20 EUR/month ceiling.
+6. Current Cloudflare zero-card eligibility plus hosted-runtime proof within the
+   20 EUR/month ceiling.
 7. Immutable source/image provenance and tested rollback evidence.
 8. Explicit Owner review of commit scope, permissions, budget, rollback, and promotion.
 9. Separate Owner authorization for registry publication, deployment, and release
@@ -194,7 +196,7 @@ Without explicit Owner approval, or outside an already recorded scope-specific a
 
 - use or expand provider credentials;
 - push container images or publish registry artifacts;
-- mutate Vercel, Fly, GitHub, Grafana, or production database state;
+- mutate Vercel, Cloudflare, GitHub, Grafana, or production database state;
 - dispatch production workflows;
 - write or merge to `main`;
 - enable live LLM provider calls or live MCP writes;

@@ -230,7 +230,7 @@ function env(options = {}) {
   return {
     DB: new FakeD1(options),
     AGENT_API_AUTH_TOKEN: token,
-    RUNTIME_MODE: "cloudflare_workers_d1_live",
+    RUNTIME_MODE: options.runtimeMode || "cloudflare_native_local_candidate",
     RUNTIME_COORDINATOR: new FakeDurableNamespace(),
     RUNTIME_QUEUE: new FakeQueue(),
     ARTIFACT_BUCKET: new FakeR2(),
@@ -501,6 +501,7 @@ test("Cloudflare-native candidate contract is fail-closed and labels local proof
   assert.equal(body.dev_only, true);
   assert.equal(body.hosted_proof, false);
   assert.equal(body.live_provider_calls, false);
+  assert.equal(body.direct_provider_calls, false);
   assert.equal(body.live_mcp_writes, false);
   assert.equal(body.production_deploy, false);
 });
@@ -561,10 +562,71 @@ test("Cloudflare-native probe crosses R2, Queue, and Durable Object idempotently
   assert.equal(deleted.status, 200);
   assert.equal(deletedBody.status, "deleted");
   assert.equal(deletedBody.artifact_deleted, true);
+  assert.equal(deletedBody.dev_only, true);
+  assert.equal(deletedBody.hosted_proof, false);
+  assert.equal(deletedBody.direct_provider_calls, false);
+  assert.equal(deletedBody.live_mcp_writes, false);
+  assert.equal(deletedBody.production_deploy, false);
   assert.equal(fakeEnv.ARTIFACT_BUCKET.objects.size, 0);
 
   const afterDelete = await worker.fetch(new Request(`https://state.example${stateUrl}`), fakeEnv);
+  const afterDeleteBody = await afterDelete.json();
   assert.equal(afterDelete.status, 404);
+  assert.equal(afterDeleteBody.dev_only, true);
+  assert.equal(afterDeleteBody.hosted_proof, false);
+});
+
+test("Cloudflare-native hosted candidate labels the full probe lifecycle without production claims", async () => {
+  const fakeEnv = env({ runtimeMode: "cloudflare_native_hosted_candidate" });
+  const contract = await worker.fetch(new Request("https://state.example/api/v1/cloud-native/contract"), fakeEnv);
+  const contractBody = await contract.json();
+  assert.equal(contract.status, 200);
+  assert.equal(contractBody.dev_only, false);
+  assert.equal(contractBody.hosted_proof, true);
+  assert.equal(contractBody.evidence_ref, "cloudflare_native_do_queue_r2_hosted_candidate");
+  assert.equal(contractBody.direct_provider_calls, false);
+  assert.equal(contractBody.live_mcp_writes, false);
+  assert.equal(contractBody.production_deploy, false);
+
+  const requestBody = {
+    project_id: "default",
+    idempotency_key: "unit-native-hosted-probe",
+    content: "safe owner-gated hosted candidate proof",
+  };
+  const created = await worker.fetch(writeRequest("/api/v1/cloud-native/probes", requestBody), fakeEnv);
+  const createdBody = await created.json();
+  assert.equal(created.status, 202);
+  assert.equal(createdBody.dev_only, false);
+  assert.equal(createdBody.hosted_proof, true);
+  assert.equal(createdBody.direct_provider_calls, false);
+  assert.equal(createdBody.live_mcp_writes, false);
+  assert.equal(createdBody.production_deploy, false);
+
+  const delivery = queueDelivery(fakeEnv.RUNTIME_QUEUE.messages[0]);
+  await worker.queue({ messages: [delivery] }, fakeEnv);
+  assert.equal(delivery.acked, 1);
+
+  const stateUrl = `/api/v1/cloud-native/probes/${createdBody.probe_id}?project_id=default`;
+  const read = await worker.fetch(new Request(`https://state.example${stateUrl}`), fakeEnv);
+  const readBody = await read.json();
+  assert.equal(read.status, 200);
+  assert.equal(readBody.status, "completed");
+  assert.equal(readBody.artifact_verified, true);
+  assert.equal(readBody.dev_only, false);
+  assert.equal(readBody.hosted_proof, true);
+  assert.equal(readBody.direct_provider_calls, false);
+  assert.equal(readBody.live_mcp_writes, false);
+  assert.equal(readBody.production_deploy, false);
+
+  const deleted = await worker.fetch(writeRequest(stateUrl, null, token, "DELETE"), fakeEnv);
+  const deletedBody = await deleted.json();
+  assert.equal(deleted.status, 200);
+  assert.equal(deletedBody.dev_only, false);
+  assert.equal(deletedBody.hosted_proof, true);
+  assert.equal(deletedBody.direct_provider_calls, false);
+  assert.equal(deletedBody.live_mcp_writes, false);
+  assert.equal(deletedBody.production_deploy, false);
+  assert.equal(fakeEnv.ARTIFACT_BUCKET.objects.size, 0);
 });
 
 test("Cloudflare-native conflicting idempotency replay preserves the original coordinator state", async () => {
