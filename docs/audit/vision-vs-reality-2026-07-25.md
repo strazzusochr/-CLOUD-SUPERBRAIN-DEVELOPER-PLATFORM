@@ -1,7 +1,8 @@
 # Vision vs. Realität — Deep-Inventur
 
-Stand: 2026-07-26
+Stand: 2026-07-27
 Audit-Stichtag: 2026-07-25 / Session 10
+Aktualisiert: 2026-07-27 / Session 11 (`agent-research-run-v2`)
 Scope: Produkt, 22 Seiten, 7 Layer, Funktionen, Optionen, Tools, Skills,
 Agenten, Modelle und Cloud-Ziele
 Fortschrittswirkung: **0 Prozentpunkte**; reine Wahrheitsinventur
@@ -123,7 +124,7 @@ sein; das ändert das Primärurteil nicht.
 | 4 | `/organism` | Live-3D-Cortex, Hubs, Run-State, Inspector | R3F/three.js, GLB/Fallback, Kamera-, Szenen-, Gameplay-, Accessibility- und lokale Statuscontrols sind echt. Events/Replay werden gelesen; echte Cloud-Telemetrie und Tool-/Agentenpulse sind Projektionen. | **ECHT NUTZBAR — DEV-ONLY**; Live-Telemetrie **NUR CONTRACT** | OTel-/Agenten-/MCP-Ereignisse an Cortex binden |
 | 5 | `/organism/replay` | Timeline, Filter, Playback | Lokale Organism-Controls funktionieren; Replay-/Event-Routen können auf redaktierte, deterministische Fallbacks zurückfallen. Ein persistierter echter Agenten-/Providerlauf wurde nicht als vollständiger Replay-Player abgenommen. | **NUR CONTRACT** | Persistierte, korrelierte Live-Runs |
 | 6 | `/organism/map` | Topologie, Knotenwahl, Details | Die Route zeigt dieselbe `OrganismView` mit Map-Label. `OrganismView` liest Live-State, Events und Replay, aber nicht den geforderten `/api/v1/organism/topology`-Pfad; damit ist die behauptete Topologiebindung statisch. | **STUB/MOCK** | Eigene topology-gebundene Kartenansicht |
-| 7 | `/agents` | Start/Pause/Kill/Reset, Status, Policies, echte Research-Pipeline | UI, Proxy und Python Agent API sind auf `/api/v1/agent-run` gebunden. Der gateway-only Ablauf Planner→Researcher→Writer liefert persistierbare Ergebnis-Envelopes und erfindet keine Quellen; ohne echte Source-/Toolbindung bleibt `sources` leer. Die geforderten Steuerungen und eine autonome Vier-Rollen-Lieferung sind nicht live belegt. | **NUR CONTRACT** | Echte Quellen-/Toolarbeit und vollständige Agentensteuerung |
+| 7 | `/agents` | Start/Pause/Kill/Reset, Status, Policies, echte Research-Pipeline | UI, Proxy und Python Agent API sind auf `/api/v1/agent-run` gebunden. `agent-research-run-v2` liefert Planner→Researcher→Writer mit ein bis drei echten, sanitierten und hash-gebundenen Exzerpten aus exakt drei festen Projektwahrheiten. Es gibt keinen Benutzerpfad, keine externe Quelle, keinen Readback-Link und keinen separaten Source-Read-Audit-Claim. Die geforderten Steuerungen, externe Toolarbeit und eine autonome Vier-Rollen-Lieferung sind nicht live belegt. | **NUR CONTRACT** | Externe Quellen-/Toolarbeit und vollständige Agentensteuerung |
 | 8 | `/files` | Knowledge Bases, Vektoren, Graph, Inspector, Suche | Seed, Speicherung und lexikalische Suche sind lokal sowie in einem begrenzten Hosted-D1-Proof echt. Embeddings/semantische Suche und Graphwirkung sind nicht belegt. | **ECHT NUTZBAR** für lexikalische Memory; Vector/Graph **FEHLT** | O5: Hosted Vectorize-Semantik |
 | 9 | `/files/local` | Read-only Host-Dateibrowser, DEV-ONLY | Eine kontrollierte, redaktierte statische Auswahl-/Vertragsfläche ist vorhanden. Alle fünf Aktionen sind `spec_only`; freier Host-FS-Zugriff findet nicht statt. | **STUB/MOCK** | Echter, workspace-begrenzter Read-only-Adapter |
 | 10 | `/tools` | MCP-Katalog, Scopes, read-only Execute, Status | Client, Proxy und Backend verwenden den gleichen Projekt-/Tool-/Query-Vertrag. Die allowlist-begrenzten internen Tools `memory_read` und `task_router` laufen read-only mit Ergebnis und Audit-ID; verbotene Tools bleiben fail-closed. Externe MCP-Adapter bleiben Dry-run. | **ECHT NUTZBAR — DEV-ONLY** für interne Read-only-Calls | Externe MCP-Adapter und gegatete Writes |
@@ -214,7 +215,7 @@ umgestellt werden.
 
 | ADR | Befund | Klasse |
 | --- | --- | --- |
-| ADR-001 LangGraph | Echter `StateGraph`/Checkpointer lokal; `/agents` besitzt jetzt einen gateway-only Planner→Researcher→Writer-Produktpfad, aber keine vollständige source-/toolgestützte LangGraph-Agentenarbeit. | Kern **ECHT NUTZBAR**; Produktbindung **NUR CONTRACT** |
+| ADR-001 LangGraph | Echter `StateGraph`/Checkpointer lokal; `/agents` besitzt einen Planner→Researcher→Writer-Produktpfad mit begrenzter Projektquellenbindung, aber keine vollständige externe toolgestützte Vier-Rollen-LangGraph-Agentenarbeit. | Kern **ECHT NUTZBAR**; Produktbindung **NUR CONTRACT** |
 | ADR-002 LiteLLM | P0 belegt Gateway-only und keinen Browser-Direktprovider, aber den separaten Workers-AI-Pfad statt einer vollständig live verifizierten LiteLLM-Laufzeit. | **NUR CONTRACT / Entscheidungsdrift** |
 | ADR-003 No AutoGen | Keine AutoGen-Nutzung gefunden; kein Verstoß. | **ECHT eingehalten**, ohne eigenen Runtime-Claim |
 | ADR-004 | Datei ist durch ADR-007 superseded; ADR-Index führt sie weiter als accepted. | **Dokudrift** |
@@ -235,7 +236,7 @@ umgestellt werden.
 | Coder | Task-Envelope und Ergebnisaggregation existieren; keine echte Branch-/Codeänderung durch den Runtime-Agenten. | Orchestrierung **ECHT NUTZBAR**; Ergebnis **STUB/MOCK** |
 | Tester | Task-Envelope und Status existieren; keine reale Testausführung über den Produkt-Agenten. | Orchestrierung **ECHT NUTZBAR**; Ergebnis **STUB/MOCK** |
 | DevOps | Gated Workflowplan und Status existieren; kein Registry-Push oder Deploy. | **NUR CONTRACT** |
-| Research-Pipeline auf `/agents` | UI, Proxy und Python-Endpoint führen einen gateway-only Planner→Researcher→Writer-Ablauf aus. Ohne echte Quellen-/Toolbindung bleibt die Quellenliste leer statt erfunden zu werden. | **NUR CONTRACT** |
+| Research-Pipeline auf `/agents` | UI, Proxy und Python-Endpoint führen einen Planner→Researcher→Writer-Ablauf mit begrenzter, read-only Projektquellenbindung aus. Externe Quellen, Tools, Source-Read-Audit und Vier-Rollen-Arbeit sind nicht belegt. | **NUR CONTRACT** |
 | Start/Pause/Kill/Reset | Teilweise Status-/Plancontrols; keine vollständig live bewiesene Agentensteuerung. | **NUR CONTRACT** |
 | Elastische/remote Agentenflotte | Kein Hosted-Scale-/Capacity-Proof. | **FEHLT** |
 
@@ -275,7 +276,7 @@ Produkt-Agent-Pool gleichzusetzen.
 | Tester-Fallback: Qwen3.5 / Llama3.1 | Fallback | Nur konfiguriert. | **NUR CONTRACT** |
 | DevOps: DeepSeek Flash | Primärroute | Nur konfiguriert. | **NUR CONTRACT** |
 | DevOps-Fallback: Qwen3.6 / Gemma4 | Fallback | Nur konfiguriert. | **NUR CONTRACT** |
-| Research: GLM5.1 | Primärroute | Der Produktpfad läuft über das Gateway, aber ohne live belegte GLM5.1-, Quellen- oder Toolbindung. | **NUR CONTRACT** |
+| Research: GLM5.1 | Primärroute | Der Produktpfad läuft über das Gateway und besitzt eine begrenzte Projektquellenbindung; GLM5.1, externe Quellen und Toolarbeit sind nicht live belegt. | **NUR CONTRACT** |
 | Research-Fallback: DeepSeek Pro / Ling | Fallback | Nur konfiguriert. | **NUR CONTRACT** |
 | Python `llm-gateway` Default | OpenAI-kompatible Antwortgrenze | `deterministic_dry_run`; kein Live-Provider. | **STUB/MOCK** |
 | lokaler Gemma-GGUF-Container | Offline-Fallback | In Compose unprofiliert konfiguriert; kollidiert mit dem Hard-Lock „kein lokaler Model-Download“ und besitzt keinen Produktbeweis. | **NUR CONTRACT / Drift** |
@@ -463,9 +464,9 @@ werden.
    auf der öffentlichen URL, nicht nur lokal.
 3. **Produktionsidentität (O1):** reale OAuth-App, Hosted Callback,
    persistierte Identität, Refresh/Logout und Sicherheitsproof.
-4. **Echte Agentenarbeit:** Quellen-/Toolbindung und Planner/Coder/Tester/
-   DevOps, die begrenzte reale Arbeit statt gateway-only Research-Envelopes
-   ausführen.
+4. **Echte Agentenarbeit:** externe Quellen-/Toolarbeit und
+   Planner/Coder/Tester/DevOps, die begrenzte reale Arbeit über die vorhandene
+   feste Projektquellenbindung hinaus ausführen.
 5. **Externe MCP-Adapter und später Writes (O4):** zunächst mindestens ein
    realer, sicherer externer Providercall; Writes nur mit Allowlist,
    Branch Protection und Audit.

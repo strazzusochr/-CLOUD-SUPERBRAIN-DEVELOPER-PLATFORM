@@ -254,7 +254,7 @@ async function prepareMember(page: Page, context: BrowserContext, action: Action
     "home-build": [".ai-builder textarea", "P2 Home: baue eine kleine interaktive 3D-Szene mit Würfel und Punktestand."],
     "games-build-run": [".workbench-studio textarea", "P2 Games: baue ein kleines interaktives 3D-Spiel mit Würfel und Punktestand."],
     "agents-run": ['input[aria-label="Forschungsziel"]', "P2 providerfreier Aktionsnachweis für semantische Suche"],
-    "agents-source-link": ['input[aria-label="Forschungsziel"]', "P2 providerfreier Quellen-Nachweis"],
+    "agents-source-detail": ['input[aria-label="Forschungsziel"]', "P2 providerfreier Quellen-Nachweis"],
     "files-search": ['input[aria-label="Suchbegriff für das Gedächtnis"]', "phase2"],
     "tools-execute": ['[data-testid="goal-b-tools-panel"] input', "phase2"],
     "docs-download-md": ['input[aria-label="Titel"]', "P2 Aktionsnachweis"],
@@ -263,7 +263,7 @@ async function prepareMember(page: Page, context: BrowserContext, action: Action
   const fill = fillValues[action.id];
   if (fill) await page.locator(fill[0]).fill(fill[1]);
 
-  if (action.id === "agents-source-link") {
+  if (action.id === "agents-source-detail") {
     await page.getByTestId("ar-run").click();
     await expect(page.getByTestId("ar-result")).toBeVisible({ timeout: 180_000 });
   }

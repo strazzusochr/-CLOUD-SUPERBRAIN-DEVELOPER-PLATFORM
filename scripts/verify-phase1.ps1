@@ -2777,6 +2777,10 @@ Write-Host "[verify] owner Cloudflare token helper"
 pwsh -NoProfile -File scripts\verify-owner-set-cloudflare-token.ps1
 Assert-LastExitCode "owner Cloudflare token helper"
 
+Write-Host "[verify] Agent Research read-only source binding"
+pwsh -NoProfile -File scripts\verify-agent-research-source-binding.ps1
+Assert-LastExitCode "Agent Research read-only source binding"
+
 Write-Host "[verify] retired Fly rollout paths fail closed"
 $retiredRolloutScript = Get-Content -Path "scripts\owner-production-rollout.ps1" -Raw
 foreach ($required in @("RETIRED_HISTORICAL_DO_NOT_EXECUTE", "owner-cloud-gate-activation.ps1", "PlanOnly")) {

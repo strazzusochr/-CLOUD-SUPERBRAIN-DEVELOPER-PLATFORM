@@ -2,7 +2,37 @@
 
 import { useState } from "react";
 
-type Source = { title: string; url: string; extract: string };
+const SOURCE_PATHS = {
+  "project-state": "PROJECT_STATE.md",
+  "project-progress": "docs/project-progress.manifest.json",
+  "agent-roster": "docs/codex-integration/autonomous-agent-roster.json",
+} as const;
+
+type SourceId = keyof typeof SOURCE_PATHS;
+type Source = {
+  source_id: SourceId;
+  title: string;
+  canonical_path: string;
+  extract: string;
+  raw_document_sha256: string;
+  sanitized_document_sha256: string;
+  extract_sha256: string;
+  retrieval_reason: "lexical_match" | "baseline_fallback";
+};
+type SourceBinding = {
+  contract_version: "agent-research-repo-source-v1";
+  status: "bound";
+  mode: "repo_allowlist_lexical";
+  source_count: number;
+  source_ids: SourceId[];
+  read_only: true;
+  external_network: false;
+  arbitrary_path_input: false;
+  filesystem_writes: false;
+  source_prompt_instructions_trusted: false;
+  source_retrieval_audit_persisted: false;
+  file_wide_secret_absence_certified: false;
+};
 type Step = { role: string; label: string; content: string; ms: number };
 type Run = {
   contract_version: string;
@@ -13,6 +43,7 @@ type Run = {
   provider: string;
   steps: Step[];
   sources: Source[];
+  source_binding: SourceBinding;
   answer: string;
   trace_id: string;
   live_provider_calls: boolean;
@@ -27,23 +58,70 @@ type Run = {
   non_claims: string[];
 };
 
+function isSource(body: unknown): body is Source {
+  if (!body || typeof body !== "object") return false;
+  const source = body as Partial<Source>;
+  const sourceId = source.source_id;
+  return typeof sourceId === "string"
+    && sourceId in SOURCE_PATHS
+    && typeof source.title === "string"
+    && source.canonical_path === SOURCE_PATHS[sourceId as SourceId]
+    && typeof source.extract === "string"
+    && Array.from(source.extract).length >= 1
+    && Array.from(source.extract).length <= 900
+    && typeof source.raw_document_sha256 === "string"
+    && /^[a-f0-9]{64}$/.test(source.raw_document_sha256)
+    && typeof source.sanitized_document_sha256 === "string"
+    && /^[a-f0-9]{64}$/.test(source.sanitized_document_sha256)
+    && typeof source.extract_sha256 === "string"
+    && /^[a-f0-9]{64}$/.test(source.extract_sha256)
+    && (source.retrieval_reason === "lexical_match" || source.retrieval_reason === "baseline_fallback");
+}
+
 function isRun(body: unknown): body is Run {
   if (!body || typeof body !== "object") return false;
   const candidate = body as Partial<Run>;
-  return candidate.contract_version === "agent-research-run-v1"
+  const binding = candidate.source_binding as Partial<SourceBinding> | undefined;
+  const sourceIds = Array.isArray(candidate.sources)
+    ? candidate.sources.map((source) => (source as Partial<Source>).source_id)
+    : [];
+  return candidate.contract_version === "agent-research-run-v2"
+    && candidate.evidence_ref === "agent_research_run_repo_sources_visible"
     && candidate.status === "completed"
-    && typeof candidate.evidence_ref === "string"
+    && candidate.mode === "dev_only_gateway_repo_sources"
     && typeof candidate.provider === "string"
     && typeof candidate.answer === "string"
     && Array.isArray(candidate.steps)
+    && candidate.steps.map((step) => step.role).join(",") === "planner,researcher,writer"
     && Array.isArray(candidate.sources)
+    && candidate.sources.length >= 1
+    && candidate.sources.length <= 3
+    && candidate.sources.every(isSource)
+    && new Set(sourceIds).size === sourceIds.length
+    && binding?.contract_version === "agent-research-repo-source-v1"
+    && binding.status === "bound"
+    && binding.mode === "repo_allowlist_lexical"
+    && binding.source_count === candidate.sources.length
+    && Array.isArray(binding.source_ids)
+    && binding.source_ids.join(",") === sourceIds.join(",")
+    && binding.read_only === true
+    && binding.external_network === false
+    && binding.arbitrary_path_input === false
+    && binding.filesystem_writes === false
+    && binding.source_prompt_instructions_trusted === false
+    && binding.source_retrieval_audit_persisted === false
+    && binding.file_wide_secret_absence_certified === false
+    && candidate.direct_provider_calls === false
+    && candidate.live_mcp_writes === false
+    && candidate.production_deploy === false
+    && candidate.secret_output === false
     && Array.isArray(candidate.non_claims);
 }
 
 // Multi-agent runner. The server route forwards only to the Agent API boundary;
 // an unavailable stateful runtime is surfaced as an explicit error.
 export function AgentRun() {
-  const [goal, setGoal] = useState("Was ist eine Vektordatenbank und wofür nutzt man sie?");
+  const [goal, setGoal] = useState("Wie nutzt Cloud Superbrain pgvector und Embeddings für die Speichersuche?");
   const [busy, setBusy] = useState(false);
   const [run, setRun] = useState<Run | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -62,7 +140,7 @@ export function AgentRun() {
       if (!res.ok) {
         setErr(String(body.detail ?? body.error ?? `${res.status} ${res.statusText}`));
       } else if (!isRun(body)) {
-        setErr("Agent API lieferte keine vollständige agent-research-run-v1-Antwort.");
+        setErr("Agent API lieferte keine vollständige agent-research-run-v2-Antwort.");
       } else {
         setRun(body);
       }
@@ -109,6 +187,9 @@ export function AgentRun() {
               <span className={`badge badge-${run.audit_persisted ? "green" : "amber"}`}>
                 audit_persisted={String(run.audit_persisted)}
               </span>
+              <span className="badge badge-green">
+                sources={run.source_binding.source_count} · read-only
+              </span>
               <span className="badge badge-green">direct_provider_calls=false</span>
               <span className="badge badge-green">live_mcp_writes=false</span>
             </div>
@@ -132,9 +213,24 @@ export function AgentRun() {
             <div className="ar-sources">
               <b className="text-13">Quellen ({run.sources.length})</b>
               {run.sources.map((s, i) => (
-                <div key={s.url} className="ar-source">
-                  <a href={s.url} target="_blank" rel="noopener noreferrer" className="mono text-12">[{i + 1}] {s.title}</a>
-                </div>
+                <details
+                  key={s.source_id}
+                  className="ar-source note"
+                  data-testid={`ar-source-detail-${s.source_id}`}
+                >
+                  <summary className="mono text-12">[{i + 1}] {s.title}</summary>
+                  <p className="mono text-12 text-mut">
+                    {s.canonical_path} · {s.retrieval_reason}
+                  </p>
+                  <p className="mono text-12 text-mut" style={{ overflowWrap: "anywhere" }}>
+                    raw-sha256={s.raw_document_sha256}
+                    <br />
+                    sanitized-sha256={s.sanitized_document_sha256}
+                    <br />
+                    extract-sha256={s.extract_sha256}
+                  </p>
+                  <p className="ar-source-extract text-12 text-mut">{s.extract}</p>
+                </details>
               ))}
             </div>
           ) : null}

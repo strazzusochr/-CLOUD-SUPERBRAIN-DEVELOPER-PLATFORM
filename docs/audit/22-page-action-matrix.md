@@ -1,6 +1,7 @@
 # 22-page action matrix
 
-Date: 2026-07-26
+Browser evidence date: 2026-07-26
+Registry update: 2026-07-27
 Contract: `workspace-action-matrix-v2`
 Registry: `apps/frontend/lib/actionMatrix.ts`
 Verifier: `scripts/verify-22-page-actions.ps1`
@@ -28,11 +29,16 @@ Availability is explicit: 184 `enabled`, 5 `spec_only`, 2 `contract_only`,
 intentionally have no page-local actions. Global AppShell navigation is
 separate and is not counted here.
 
-Static `PASS`/`GAP` labels name pre-existing evidence sources. The current
-22-page Chromium report is authoritative for the enabled acceptance scope:
-28 families and 184 members are verified. It does not promote gated,
+Static `PASS`/`GAP` labels name pre-existing evidence sources. The Session-10
+22-page Chromium report is authoritative for its source-bound enabled
+acceptance scope: 28 families and 184 members are verified. It does not promote gated,
 conditional-without-precondition, specification-only, or contract-only
 members.
+
+Session 11 replaced the nonexistent conditional `agents-source-link` member
+with the real expandable `agents-source-detail` control. Totals remain
+unchanged because both members are conditional, but the old report's exact
+source-binding hash is historical until the Chromium suite is rerun.
 
 ## Route inventory
 
@@ -116,9 +122,9 @@ members.
 - Frontend TypeScript: PASS
 - Frontend focused ESLint: PASS
 - PowerShell verifier parse: PASS
-- `verify-22-page-actions.ps1`: PASS
+- `verify-22-page-actions.ps1`: PASS (Session-10 source binding; rerun pending)
 - Runtime evidence: 22 routes, 28 families, 184 actions, zero dead actions
-- Source binding:
+- Historical Session-10 source binding:
   `98189cefcd24224e9e573ba62e1c2d8af5b06d23c9f39f19474b878d666ea534`
 
 DEV-ONLY; hosted proof still blocked.

@@ -10,6 +10,28 @@ Current honesty guardrail: active candidate `prod-candidate-2026-07-24-local-rc1
 
 RC10 covers the committed immutable Action/image pins, fail-closed pin verifier, prompt-persistence error redaction, and the fixed exact PostCSS `8.5.23` override. Current runtime-source parity is locally verified; DEV-ONLY; hosted proof still blocked.
 
+Session 11 P3 repository source binding supersedes the original empty-source
+Agent Research behavior. `agent-research-run-v2` fail-closes unless all three
+fixed baked/read-only-mounted project-truth artifacts pass layout, symlink,
+regular-file, 512 KiB, UTF-8, and sanitization guards before the Gateway is
+called. It sends the same one-to-three lexical or baseline extracts, with exact
+raw/sanitized/extract hashes, to Planner, Researcher, and Writer. The response
+has no source URL or arbitrary path surface; the UI exposes only expandable
+inline sanitized excerpts. External network, filesystem writes, MCP writes,
+separate source-read audit persistence, and file-wide secret certification are
+all false. The dedicated verifier is wired into `verify-phase1.ps1`. Overall
+remains 86%, P3 remains 44%, and `MARKET_READY:false`; DEV-ONLY, hosted proof
+still blocked.
+
+Verification for this slice passed the dedicated source verifier `18/18`,
+frontend TypeScript, focused ESLint, the Next.js production build `21/21`, the
+progress-manifest verifier, and full `scripts/verify-phase1.ps1`, including the
+canonical 3,720-file gitleaks mirror with no leaks. Docker Desktop was not
+running, so no new runtime or browser proof exists. The Session-10 22-page
+report remains historical green evidence but is not exact-current-source-bound
+after the conditional action was reclassified from a nonexistent source link
+to the real inline source-detail control.
+
 Session 10 adds two current local acceptance proofs without creating a new
 release candidate. `product-acceptance-3d-game-v1` produced persisted build
 `8e51a068-8faa-4ff4-805a-accf91e1c145` through the Agent API and LLM Gateway
@@ -25,8 +47,9 @@ page errors; the two observed HTTP 403 console entries were exactly correlated
 to the intentionally blocked Games/Apps DELETE paths. Evidence:
 `.codex/runs/CURRENT/22-page-actions/report.json`, SHA-256
 `EBA64E765F9429A29D35092D0D2D357585812BBB5750B0122B6150811AB4BB3F`.
-The repaired `/agents` path is gateway-only Planner→Researcher→Writer with
-empty sources instead of fabricated citations when no source/tool is bound.
+The original Session-10 `/agents` path was gateway-only
+Planner→Researcher→Writer with empty sources instead of fabricated citations;
+that historical behavior is superseded by the Session-11 bounded binding above.
 The repaired `/tools` path exposes only internal read-only `memory_read` and
 `task_router` execution with audit IDs. The strict 22-page primary verdict is
 now 9 real, 9 contract-only, 4 stub/mock, and 0 missing/broken. Both proofs are
