@@ -32,8 +32,14 @@ Bis dahin gilt `184/184` als *historisch*. Stale-Marker steht in `docs/audit/22-
 Owner hat einen Token mit korrekten Permissions geliefert. Er lag zunächst als 68-Zeichen-Zeile vor
 (**Tokenwert + Token-Name in derselben Zeile** → `err=6003`). Nach Extraktion des reinen 53-Zeichen-Werts:
 **Workers Scripts · D1 · Queues · Durable Objects · Vectorize alle HTTP 200.**
-Einzig **R2: 403 `err=10042`** — **kein Permission-Fehler** (das wäre `10000`), sondern konsistent mit
-**nicht aktiviertem R2**. → **Owner-Restaufgabe: R2 im Dashboard aktivieren** (Free-Tier 10 GB).
+Einzig **R2: 403 `err=10042`** — **kein Permission-Fehler** (das wäre `10000`), sondern „R2 nicht aktiviert".
+
+**⛔ ARCHITEKTURENTSCHEID: R2 IST RAUS — wie Fly.io.** Cloudflare verlangt für die R2-Aktivierung eine
+**hinterlegte Zahlungsmethode, auch für den Gratis-Tarif** (Community-Berichte über 5 USD bei Aktivierung).
+Das verletzt die Free-Only-Wand. **Owner hat entschieden: nicht aktivieren. Final, nicht erneut vorschlagen.**
+→ **Artefakte in D1, Session/Koordination in Durable Objects** — beide offen und kartenfrei.
+→ **Verbindliches Profil: `O2Core` (+ `O5`).** `-Profile Full` / `O2WithR2` sind bauartbedingt unerreichbar und
+**kein Zielzustand mehr**. R2 im Code wie Fly als `historical_only` führen. **`5/6` IST der Zielzustand.**
 
 **Persistiert:** `-Profile O2Core` → **4/4 PASS**, `-Profile O5` → **1/1 PASS**. Wert liegt als
 **`CLOUDFLARE_API_TOKEN_CANDIDATE`** in `~/.codex/secrets/cloud-superbrain.local.env`, Rollback daneben.
@@ -51,8 +57,8 @@ Codes: `6003` = kein reiner Token · `1000`/`9106` = ungültig · `10000` = **Pe
 ## ▶ SOFORT-SCHLEIFE
 **P1 — 22-Seiten-Lauf nachziehen** (autonom, sofort möglich, siehe oben).
 **P2 — 🔥 HOSTED IST JETZT STARTBAR (O2Core offen, kein Warten mehr):** Ressourcen selbst anlegen
-(`wrangler d1 create` · `queues create` · `vectorize create`; **R2 vorerst auslassen**, bis der Owner es
-aktiviert — den R2-Teil ehrlich als blockiert markieren, nicht umgehen), IDs in `wrangler.jsonc` binden
+(`wrangler d1 create` · `queues create` · `vectorize create`; **kein `r2 bucket create`** — R2 ist gestrichen,
+Artefakte nach D1, Koordination in Durable Objects), IDs in `wrangler.jsonc` binden
 (**nie Secrets dort**), Migrationen, Worker deployen, `verify-cloudflare-stateful-runtime.ps1` **ohne**
 `-StaticOnly` grün, Gate **nur über den echten Verifier** öffnen. Der erste echte Write qualifiziert den
 Kandidaten — **erst dann** darf er `CLOUDFLARE_API_TOKEN` ersetzen.
@@ -73,7 +79,7 @@ Kein Absturz, nichts verloren, alles gepusht.
 |---|---|---|
 | ~~1 · O2′~~ | ✅ **ERLEDIGT** — Token liefert 5/6, O2Core 4/4 persistiert | **hosted startbar** |
 | ~~2 · O5~~ | ✅ **ERLEDIGT** — Vectorize 1/1 | **MEM-Weg offen** |
-| **1 · R2** 🔥 | **R2 im Cloudflare-Dashboard aktivieren** (Free-Tier 10 GB) — `err=10042`, keine Permission-Frage | **Artefakt-Ablage / `-Profile Full`** |
+| ~~R2~~ | ⛔ **GESTRICHEN** — Kreditkarte nötig, verletzt Free-Only. Artefakte gehen nach D1/DO. | — |
 | **3 · O1** | GitHub-OAuth-App + Callback + `vercel env` | **P3 44→100** |
 | **4 · O4** | Agent-/MCP-Write-Allowlist + Branch-Protection | **AP/MCP↑** |
 | **5 · O3** | GHCR-Publish (public = frei) + Release-Review | **P5↑** |

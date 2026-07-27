@@ -88,8 +88,22 @@ Authorization-Header ungültig). Nach Extraktion des reinen 53-Zeichen-Werts:
 | **R2** | ❌ HTTP 403 · **`err=10042`** |
 
 **`10042` ist KEIN Permission-Fehler** (das wäre `10000`, wie zuvor bei allen sechs). Die Berechtigung sitzt;
-der Befund ist konsistent mit **nicht aktiviertem R2 auf dem Konto**. → **Owner-Restaufgabe: R2 im Dashboard
-aktivieren** (Free-Tier 10 GB). Erst danach ist `-Profile Full`/`O2WithR2` grün.
+der Befund ist „R2 auf dem Konto nicht aktiviert".
+
+### ⛔ ARCHITEKTURENTSCHEID 2026-07-27: **R2 IST RAUS** (wie Fly.io)
+Recherche am 2026-07-27: **Cloudflare verlangt für die R2-Aktivierung eine hinterlegte Zahlungsmethode —
+auch für den kostenlosen 10-GB-Tarif.** In der Cloudflare-Community existieren zusätzlich Berichte über eine
+5-USD-Belastung bei Aktivierung. Damit fällt R2 unter die **Free-Only-Wand „keine Kreditkarte"**, exakt wie Fly.io.
+**Der Owner hat R2 deshalb nicht aktiviert. Das ist final; nicht erneut vorschlagen.**
+
+**Konsequenz — R2 ist KEIN Blocker, weil es nicht gebraucht wird:**
+- Artefakt-Ablage (gebaute HTML-Artefakte = Textblobs) läuft über **D1**; Session-/Koordinationszustand über
+  **Durable Objects**. Beide sind offen und karten­frei.
+- **Verbindliches Verifier-Profil ist `O2Core`** (+ `O5` für Vectorize). `-Profile Full` und `-Profile O2WithR2`
+  dürfen **nicht** mehr als Zielzustand behandelt werden — sie enthalten R2 und sind bauartbedingt unerreichbar.
+- Wo R2 im Code/Contract noch vorkommt: **als `historical_only` / nicht-aktiver Pfad führen**, exakt wie Fly
+  (`layers=[]`, ohne Token `None`). Kein stiller Fallback, keine Fake-Grün-Umgehung.
+- `5/6` ist damit der **Zielzustand**, nicht ein Zwischenstand. 6/6 ist unter Free-Only nicht erreichbar.
 
 **Persistiert (fail-closed, wie von `0d0ff548` vorgesehen):**
 `owner-set-cloudflare-token.ps1 -FromClipboard -Profile O2Core` → **4/4 PASS**, Wert gespeichert als
@@ -132,13 +146,13 @@ Fehlercodes: `6003` = kein reiner Token · `1000`/`9106` = Token ungültig · `1
 
 ## 7. ✅ HOSTED-ROLLOUT-RUNBOOK — JETZT STARTBAR (O2Core ist offen)
 > **Neuer Einstiegspunkt:** Der Kandidat ist 4/4 (O2Core) + 1/1 (O5). **Schritt 1 ist erledigt.**
-> Beginne bei Schritt 2, aber **ohne R2** bis der Owner R2 aktiviert hat — Artefaktablage vorerst über D1/DO lösen
-> oder den R2-Teil sauber als blockiert markieren. Der erste echte Write qualifiziert den Kandidaten und darf
+> Beginne bei Schritt 2. **R2 wird nicht verwendet** (§4, Kreditkarten-Wand) — Artefakte über **D1**,
+> Session/Koordination über **Durable Objects**. Der erste echte Write qualifiziert den Kandidaten und darf
 > erst dann `CLOUDFLARE_API_TOKEN` ersetzen.
-1. ~~`owner-set-cloudflare-token.ps1 -ProbeOnly` → muss 6/6 sein~~ → **erledigt: 5/6, O2Core 4/4, O5 1/1**
+1. ~~`owner-set-cloudflare-token.ps1 -ProbeOnly` → muss 6/6 sein~~ → **erledigt: O2Core 4/4, O5 1/1 = Zielzustand**
 2. **Ressourcen selbst anlegen** (dafür sind die `Edit`-Rechte da, kein Owner nötig):
    `wrangler d1 create cloud-superbrain-state-prod` (+`-preview`) · `queues create cloud-superbrain-runtime-candidate` ·
-   `r2 bucket create cloud-superbrain-artifacts-candidate` · `vectorize create …`
+   `vectorize create …` — **kein `r2 bucket create`** (§4). Artefakte in D1, Koordination in Durable Objects.
 3. IDs in `services/cloudflare-stateful-runtime/wrangler.jsonc` binden — **nie Secrets dort**
 4. D1-Migrationen ausrollen, Readback verifizieren
 5. Worker deployen → `verify-cloudflare-stateful-runtime.ps1` **ohne** `-StaticOnly` hosted grün
