@@ -589,6 +589,48 @@ foreach ($required in @(
   }
 }
 
+Write-Host "[verify] technology runtime view"
+if (-not (Test-Path "scripts\verify-technology-runtime-view.ps1")) {
+  throw "Missing technology runtime view verifier"
+}
+$technologyRuntimeParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-technology-runtime-view.ps1",
+  [ref]$null,
+  [ref]$technologyRuntimeParseErrors
+) | Out-Null
+if ($technologyRuntimeParseErrors -and $technologyRuntimeParseErrors.Count -gt 0) {
+  $technologyRuntimeParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Technology runtime view verifier has parse errors"
+}
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-technology-runtime-view.ps1 -StaticOnly
+Assert-LastExitCode "technology runtime view static surface"
+$technologyRuntimeVerifier = Get-Content -Path "scripts\verify-technology-runtime-view.ps1" -Raw
+foreach ($required in @(
+  "technology runtime contracts expose working filters layer selection and refresh",
+  "cloud-provider-inventory-v1",
+  "cloud_provider_inventory_visible",
+  "cloud-layer-readiness-v1",
+  "cloud_layer_readiness_visible",
+  "cloud-deployment-preflight-v1",
+  "cloud_deployment_preflight_visible",
+  "agent-api-boundary",
+  "project-state-projection",
+  "frontend-projection",
+  "technology-runtime-view",
+  "technology-runtime-refresh",
+  "technology-runtime-retry",
+  "technology-provider-filter",
+  "technology-layer-select",
+  "historical_only",
+  "cloudflare_edge",
+  "Localhost technology runtime proof requires -AllowLocalhost and remains DEV-ONLY"
+)) {
+  if (-not $technologyRuntimeVerifier.Contains($required)) {
+    throw "Technology runtime view verifier missing guard: $required"
+  }
+}
+
 Write-Host "[verify] reference design contract"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-reference-design-contract.ps1
 Assert-LastExitCode "reference design contract"

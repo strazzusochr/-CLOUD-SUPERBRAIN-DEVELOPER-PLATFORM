@@ -7,6 +7,44 @@ Status: Active
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `86%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `68%`, Phase 6 `90%`, Frontend `100%`, Agent Pool `69%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `90%`, and Observability `100%`.
 
+## Current Session-11 Technology Runtime Contract Binding
+
+`/technology` no longer renders a static stack claim. `TechnologyRuntimeView`
+reads exactly three canonical read-only contracts — `GET /api/v1/clouds`
+(`cloud-provider-inventory-v1`), `GET /api/v1/clouds/layers`
+(`cloud-layer-readiness-v1`), and `GET /api/v1/clouds/deployment-preflight` —
+schema-validates all three together and additionally cross-validates them:
+layer labels and `required_providers` must match `seven_layer_mapping`,
+`configured_providers` and `live_verified_providers` must be subsets of that
+mapping, Fly must be `historical_only` and absent from every layer mapping,
+the Cloudflare layer set must match exactly, and a live claim is only accepted
+while `cloudflare_native_zero_card_hosted_runtime` is not reported blocked.
+The response stream is byte-bounded before JSON parsing.
+
+Source authenticity is enforced at the proxy boundary, not in the client:
+`infrastructure/nginx/dev.conf` and `infrastructure/nginx/cloud.conf` clear an
+inbound `X-Superbrain-Source`, hide any upstream value, and stamp
+`agent-api-boundary` with `always`. `current_live_proof=true` requires that
+source on all three responses; otherwise the UI renders
+`projection_not_current` and "Projizierter Live-Vertragswert" instead of a
+live status. `/api/v1/clouds/layers` was mirrored into both
+`ORGANISM_PAGE_WIRING` (Agent API) and `WORKSPACE_WIRING` (frontend).
+
+Evidence (2026-07-27, DEV-ONLY; hosted proof still blocked):
+`scripts/verify-technology-runtime-view.ps1` static and against the running
+runtime (`providers=8`, `layers=7`, `missing_gates=1`,
+`sources=agent-api-boundary,agent-api-boundary,agent-api-boundary`,
+`current_live_proof=true`); Next.js production build `exit 0`; six real
+Chromium tests `6/6` covering working filters/layer selection/refresh and
+fail-closed behaviour on invalid schema, cross-contract parity mismatch,
+oversize provider payload, `503` retry across all three GETs, and impossible
+current agent-boundary live claims; TypeScript `0`, ESLint `0`, Python compile
+clean; `scripts/verify-phase1.ps1` passed including gitleaks over `3726` files
+(`no leaks found`). Audit reclassification: `/technology` STUB/MOCK →
+NUR CONTRACT, so the 22-page audit stands at `9 ECHT NUTZBAR`,
+`11 NUR CONTRACT`, `2 STUB/MOCK`, `0 FEHLT/BROKEN`. No percentage credit:
+overall stays `86%`, P3 `44%`, `MARKET_READY:false`.
+
 ## Current Session-11 Agent Research Four-Role Source Analysis
 
 `agent-research-run-v3` binds `/api/v1/agent-run` to exactly four ordered

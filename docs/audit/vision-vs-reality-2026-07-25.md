@@ -112,7 +112,7 @@ nicht: **FEHLT**.
 ## 3. Die 22 Produktseiten
 
 Strenges Primärurteil für die jeweils im Endziel beworbene Hauptfunktion:
-**9 ECHT NUTZBAR · 10 NUR CONTRACT · 3 STUB/MOCK · 0 FEHLT/BROKEN**.
+**9 ECHT NUTZBAR · 11 NUR CONTRACT · 2 STUB/MOCK · 0 FEHLT/BROKEN**.
 Teilfunktionen können innerhalb einer Route besser oder schlechter eingestuft
 sein; das ändert das Primärurteil nicht.
 
@@ -137,7 +137,7 @@ sein; das ändert das Primärurteil nicht.
 | 17 | `/evidence` | Verifier, Claim Guards, Evidence-Artefakte | Read-only Listings, sichtbare Zusammenfassungen, LiveConsole und Navigation existieren. Die UI führt absichtlich keine Verifier-Skripte aus; die sichtbare Tabelle kann „unverifiziert“ bleiben. | **NUR CONTRACT** | Sichere Job-/Verifier-Ausführung mit Audit |
 | 18 | `/diagnostics` | Recovery, Archive, Rohdaten | Read-only Diagnose-, Archiv- und Evidence-Navigation funktionieren. Archivdaten sind teilweise handgepflegt; Recovery-/Restore-Wirkungen werden nicht ausgeführt. | **NUR CONTRACT** | Kontrollierter Restore-/Recovery-Workflow |
 | 19 | `/design-system` | Tokens, Komponenten, Typografie, responsive Regeln | Statische Referenzfläche und Responsive-Navigation existieren. Es gibt keinen aktuellen Figma-/Pixel-Abnahmebeweis für alle 22 Targets. | **NUR CONTRACT** | Editierbare Designquelle und Visual-Regression |
-| 20 | `/technology` | 7-Layer-/Provider-Matrix und Runtime-Technik | Vollständig statische Ansicht; sie bezeichnet Fly/Postgres/Redis weiterhin als aktuelle Laufzeit und widerspricht ADR-010. Die vorgesehenen Runtime-Probes sind nicht gemountet. | **STUB/MOCK** | Provider-/Layerdaten aus kanonischer Runtime-Wahrheit |
+| 20 | `/technology` | 7-Layer-/Provider-Matrix und Runtime-Technik | Session 11: statische Ansicht ersetzt. `TechnologyRuntimeView` liest read-only `GET /api/v1/clouds` (`cloud-provider-inventory-v1`), `GET /api/v1/clouds/layers` (`cloud-layer-readiness-v1`) und `GET /api/v1/clouds/deployment-preflight`, validiert alle drei Verträge samt Querbezügen fail-closed und führt Fly ausschließlich als `historical_only` ohne Layer-Zuordnung — ADR-010-Widerspruch behoben. Bleibt `NUR CONTRACT`, weil die Cloud-Provider selbst nicht live verifiziert sind (`cloudflare_native_zero_card_hosted_runtime` offen). | **NUR CONTRACT** | Hosted-Beweis der Provider (O2′) |
 | 21 | `/settings` | Profil, Policies, Gates, Rollen, Owner-Aktivierung | Gate-/Rollenplan ist sichtbar. Apply ist gesperrt; ein vorhandener Plan-only-Button wird von der Matrix nicht auditiert. | **NUR CONTRACT** | Sichere, owner-gegatete Apply-Strecke |
 | 22 | `/open-source` | OSS-First, Lizenzen, Danksagung, Komponenten | Handgepflegte statische Übersicht ohne Runtime-Probe oder SBOM-Abgleich. Die Seite erhebt Open-Source-/Fork-Claims, obwohl im Repository keine Root-`LICENSE` liegt und das Root-Paket `private:true` ist. | **STUB/MOCK / Claim-Lücke** | Lizenzentscheidung, Root-Lizenz und automatischer SBOM-Nachweis |
 

@@ -23,6 +23,18 @@ Evidence: `.codex/runs/CURRENT/22-page-actions/report.json`
   Games and Apps DELETE paths
 - DEV-ONLY; hosted proof still blocked
 
+> **Stale-Marker (2026-07-27, Session 11):** Die Registry enthält seit der
+> Technologie-Runtime-Bindung zusätzlich die Familie `technology-runtime-controls`
+> mit den drei Mitgliedern `technology-runtime-refresh`,
+> `technology-provider-filter` und `technology-layer-select` (alle
+> `requireEffectDelta: true`). Damit stehen **31 Familien und 198 Mitglieder,
+> davon 187 `enabled`** in der Registry. Der unten protokollierte Abnahmelauf
+> `22/22 · 184/184` **stammt von vor dieser Ergänzung** und deckt die drei neuen
+> Aktionen nicht ab. Die drei sind einzeln über `technology.spec.ts` (Chromium
+> `6/6`) bewiesen, aber **nicht** über den 22-Seiten-Runner. Vor der nächsten
+> Prozent-/Gate-Arbeit ist `npm run verify:22-page-actions` erneut auszuführen;
+> bis dahin gilt `184/184` als historisch, nicht als aktuell.
+
 The registry contains 30 page-local families and 195 members in total.
 Availability is explicit: 184 `enabled`, 5 `spec_only`, 2 `contract_only`,
 0 `provider_gated`, and 4 `conditional`. `/technology` and `/open-source`
@@ -63,7 +75,7 @@ source-binding hash is historical until the Chromium suite is rerun.
 | `/evidence` | 1 | 4 | 4 | 0 | 1 |
 | `/diagnostics` | 1 | 5 | 5 | 0 | 0 |
 | `/design-system` | 1 | 3 | 3 | 0 | 0 |
-| `/technology` | 0 | 0 | 0 | 0 | 0 |
+| `/technology` | 1 | 3 | 3 | 0 | 0 |
 | `/settings` | 0 | 1 | 0 | 1 contract | 1 |
 | `/open-source` | 0 | 0 | 0 | 0 | 0 |
 

@@ -327,6 +327,15 @@ Assert-Contains "platform verify source" $platformVerify '"source":"agent-api"'
 Assert-Contains "platform verify endpoint" $platformVerify '"/api/v1/platform/verify"'
 Assert-Contains "platform verify total" $platformVerify '"total":7'
 Assert-Contains "platform verify dev-only non claim" $platformVerify "Localhost remains DEV-ONLY"
+Write-Host "[browser-contract] technology runtime view"
+if ($AllowLocalhost) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-technology-runtime-view.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-technology-runtime-view.ps1 -BaseUrl $BaseUrl
+}
+if ($LASTEXITCODE -ne 0) {
+  throw "Browser contract verification failed: technology runtime view"
+}
 $cloudRenderOffloadContract = Invoke-Text "$BaseUrl/api/v1/clouds/render-offload/contract"
 Assert-Contains "cloud render offload contract version" $cloudRenderOffloadContract '"contract_version":"cloud-render-offload-surface-v1"'
 Assert-Contains "cloud render offload contract evidence" $cloudRenderOffloadContract '"evidence_ref":"cloud_render_offload_contract_runtime_visible"'

@@ -10,6 +10,23 @@ Current honesty guardrail: active candidate `prod-candidate-2026-07-24-local-rc1
 
 RC10 covers the committed immutable Action/image pins, fail-closed pin verifier, prompt-persistence error redaction, and the fixed exact PostCSS `8.5.23` override. Current runtime-source parity is locally verified; DEV-ONLY; hosted proof still blocked.
 
+Session 11 technology runtime binding supersedes the previous static
+`/technology` stack claim. `TechnologyRuntimeView` reads exactly three
+canonical read-only contracts (`GET /api/v1/clouds`,
+`GET /api/v1/clouds/layers`, `GET /api/v1/clouds/deployment-preflight`),
+schema-validates them together, cross-validates layer/provider membership,
+keeps Fly as `historical_only` outside every layer mapping, and bounds the
+response stream before parsing. `infrastructure/nginx/dev.conf` and
+`cloud.conf` clear an inbound `X-Superbrain-Source`, hide any upstream value,
+and stamp `agent-api-boundary`; `current_live_proof=true` requires that source
+on all three responses, otherwise the UI shows `projection_not_current`
+instead of a live status. Verified DEV-ONLY on 2026-07-27: technology verifier
+static and runtime (`current_live_proof=true`), production build `exit 0`,
+Chromium `6/6` including five fail-closed proofs, TypeScript `0`, ESLint `0`,
+`scripts/verify-phase1.ps1` with gitleaks over `3726` files. `/technology`
+moves STUB/MOCK → NUR CONTRACT; no percentage credit, hosted proof still
+blocked.
+
 Session 11 P3 four-role source analysis supersedes the original empty-source
 and three-role Agent Research behavior. `agent-research-run-v3` fail-closes
 unless all three fixed baked/read-only-mounted project-truth artifacts pass

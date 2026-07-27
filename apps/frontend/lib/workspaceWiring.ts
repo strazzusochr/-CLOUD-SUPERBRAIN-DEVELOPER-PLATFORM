@@ -261,7 +261,7 @@ export const WORKSPACE_WIRING: WorkspaceSurfaceWiring[] = [
     brainRegion: "thalamus",
     hub: "cloud",
     primaryMode: "inspect",
-    dataSources: ["docs/system-architecture.md", "/api/v1/clouds", "/api/v1/clouds/deployment-preflight", "/api/v1/devops/workflow-dispatch/plan", "/api/v1/devops/workflow-dispatch/plan/contract", "/api/v1/devops/workflow-dispatch/validate", "/api/v1/devops/workflow-dispatch/validate/contract", "/api/v1/project/progress", "/api/v1/project/progress/completion", "/api/v1/project/progress/completion/contract", "/api/v1/project/progress/contract", "/api/v1/project/progress/layers", "/api/v1/project/progress/layers/contract"],
+    dataSources: ["docs/system-architecture.md", "/api/v1/clouds", "/api/v1/clouds/layers", "/api/v1/clouds/deployment-preflight", "/api/v1/devops/workflow-dispatch/plan", "/api/v1/devops/workflow-dispatch/plan/contract", "/api/v1/devops/workflow-dispatch/validate", "/api/v1/devops/workflow-dispatch/validate/contract", "/api/v1/project/progress", "/api/v1/project/progress/completion", "/api/v1/project/progress/completion/contract", "/api/v1/project/progress/contract", "/api/v1/project/progress/layers", "/api/v1/project/progress/layers/contract"],
     verifierRefs: [...commonVerifierRefs, "scripts/verify-phase1.ps1"],
     eventKinds: ["planning", "verifying", "blocked"],
     live: false,

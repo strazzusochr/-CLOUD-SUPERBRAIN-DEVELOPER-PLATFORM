@@ -216,6 +216,10 @@ const BROWSER_COMMAND_PALETTE = evidence(
   "browser spec",
   "scripts/verify-workspace-responsive-browser.cjs::22 routes x desktop/mobile command-palette navigation",
 );
+const TECHNOLOGY_RUNTIME = evidence(
+  "browser spec",
+  "apps/frontend/e2e/technology.spec.ts::technology runtime contracts expose working filters layer selection and refresh",
+);
 
 const liveConsoleMembers = (prefix: string): readonly ActionMember[] => {
   return [
@@ -579,9 +583,24 @@ export const ACTION_MATRIX: readonly PageActionEntry[] = [
   {
     route: "/technology",
     title: "Technology",
-    families: [],
+    families: [
+      family("technology-runtime-controls", "Runtime contracts, filters and selection", "All three bounded same-origin contracts pass strict parity validation.", "Refresh, provider filtering and layer selection update the fail-closed runtime surface.", [
+        {
+          ...member("technology-runtime-refresh", "Refresh runtime contracts", `[data-testid="technology-runtime-refresh"]`, "No technology contract request is active.", "All three contract sources reload in parallel and the validated-load counter increments.", `[data-testid="technology-runtime-refresh-status"]`, "enabled", [TECHNOLOGY_RUNTIME]),
+          requireEffectDelta: true,
+        },
+        {
+          ...member("technology-provider-filter", "Filter providers", `[data-testid="technology-provider-filter"]`, "The provider inventory contract is valid.", "The provider grid changes to the selected contract-backed subset.", `[data-testid="technology-provider-grid"]`, "enabled", [TECHNOLOGY_RUNTIME]),
+          requireEffectDelta: true,
+        },
+        {
+          ...member("technology-layer-select", "Select architecture layer", `[data-testid="technology-layer-select"]`, "The seven-layer readiness contract is valid.", "Layer detail, blockers and provider counts change to the selected layer.", `[data-testid="technology-layer-detail"]`, "enabled", [TECHNOLOGY_RUNTIME]),
+          requireEffectDelta: true,
+        },
+        member("technology-runtime-retry", "Retry failed runtime contracts", `[data-testid="technology-runtime-retry"]`, "A source, schema, size, source-type or parity check failed.", "The error surface starts a fresh three-source validation attempt.", `[data-testid="technology-runtime-view"]`, "conditional", [TECHNOLOGY_RUNTIME]),
+      ]),
+    ],
     excludedGates: [],
-    zeroPageLocalReason: "Static technology inventory: no mounted page-local action control.",
   },
   {
     route: "/settings",
@@ -645,8 +664,8 @@ export function validateActionMatrix(): true {
     throw new Error("action matrix must contain the 22 canonical routes in navigation order");
   }
   const zeroRoutes = ACTION_MATRIX.filter((page) => page.families.length === 0).map((page) => page.route);
-  if (zeroRoutes.join("|") !== "/technology|/open-source") {
-    throw new Error("only /technology and /open-source may have zero page-local action families");
+  if (zeroRoutes.join("|") !== "/open-source") {
+    throw new Error("only /open-source may have zero page-local action families");
   }
   const memberIds = ACTION_MATRIX.flatMap((page) => page.families).flatMap((item) => item.memberActions.map((action) => action.id));
   if (new Set(memberIds).size !== memberIds.length) throw new Error("page-local member action ids must be unique");
