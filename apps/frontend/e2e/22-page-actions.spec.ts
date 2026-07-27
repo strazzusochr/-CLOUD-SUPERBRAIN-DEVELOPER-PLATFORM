@@ -329,9 +329,16 @@ async function prepareMember(page: Page, context: BrowserContext, action: Action
     }
   }
   if (action.id === "replay-live-load" || action.id === "map-live-load") {
+    // Jede Seite reicht der Live-Konsole ihre eigene Endpoint-Liste. `/organism/map`
+    // bietet seit der Topologie-Bindung Regionen/Sicherheit/Topologie an und kein
+    // `/api/v1/health` mehr; ein fest verdrahteter Pfad waere hier eine Testluege.
+    const expectedEndpoint = action.id === "map-live-load"
+      ? "/api/v1/organism/topology"
+      : "/api/v1/health";
     const endpoint = page.getByTestId("live-console").getByLabel(/Endpoint$/);
-    await endpoint.selectOption("/api/v1/health");
-    await expect(endpoint).toHaveValue("/api/v1/health");
+    await expect(endpoint.locator(`option[value="${expectedEndpoint}"]`)).toHaveCount(1);
+    await endpoint.selectOption(expectedEndpoint);
+    await expect(endpoint).toHaveValue(expectedEndpoint);
   }
   if (action.id === "media-play" || action.id === "media-music-record") {
     await page.getByTestId("cs-tab-music").click();

@@ -21,7 +21,29 @@ Sicherheitskern: nginx löscht eingehenden `X-Superbrain-Source`, versteckt Upst
 ## 22-SEITEN-AUDIT
 **9 ECHT NUTZBAR · 11 NUR CONTRACT · 2 STUB/MOCK · 0 FEHLT/BROKEN** (`/technology` STUB → NUR CONTRACT)
 
-## 🔥 P1 — EINZIGE AUTONOME RESTAUFGABE: 22-SEITEN-LAUF NACHZIEHEN
+## 🔥 P1 — 22-SEITEN-LAUF: ZWEI PRÄZISE BLOCKER (gemessen 2026-07-27, Session 12)
+Der Lauf gegen `http://localhost:8081` steht bei **22/22 Routen · 29/29 Familien · 161/161 Aktionen ·
+0 tote Aktionen · 0 Page-Fehler**. Er ist trotzdem `failed`, wegen genau zwei Dingen:
+
+**(a) 162 nicht registrierte Bedienelemente auf `/organism/map`** — der eigentliche Blocker.
+Assertion: *„visible page-local controls missing from the action registry"*, `Expected []`, `Received 162`,
+alle mit `route: "/organism/map"`, `tag: "button"`. Ursache: `OrganismTopologyMap` (aus `6750ed70`) rendert die
+Knotenliste als Buttons. Der Runner verlangt, dass **jedes sichtbare** page-lokale Element in `actionMatrix.ts`
+registriert ist. **Entscheidung nötig (Codex):** entweder die Knoten-Buttons als eigene Familie mit
+Effektnachweis registrieren, oder sie als *datengetriebene Liste* sauber aus der Registrierungspflicht
+ausnehmen — **nicht** stillschweigend ignorieren, sondern die Ausnahme im Runner explizit und begründet machen.
+
+**(b) 1 Console-Fehler `503` wird nicht als erwartet klassifiziert.**
+Die Whitelist (`22-page-actions.spec.ts` ~Z. 1121) akzeptiert auf `^/api/v1/build/[A-Za-z0-9_-]{1,64}$`
+ausschließlich **`403 (Forbidden)`**. Beim Lauf trat dort ein **`503 (Service Unavailable)`** auf.
+**Erst klären, warum 503 kommt** (Build-Detail direkt nach Erstellung → mögliche Race), **dann** entscheiden,
+ob 503 legitim in die Whitelist gehört. Keine Whitelist-Erweiterung ohne verstandene Ursache.
+
+✅ **Bereits behoben (Session 12):** `map-live-load` war tot, weil der Test fest `/api/v1/health` wählte;
+`/organism/map` bietet seit der Topologie-Bindung aber Regionen/Sicherheit/**Topologie** an. Der Test nimmt jetzt
+je Aktion den real vorhandenen Endpoint und prüft vorher, dass die Option existiert. → tote Aktionen **1 → 0**.
+
+## 🔥 P1-ALT — 22-SEITEN-LAUF NACHZIEHEN
 Die Registry hat jetzt **31 Familien / 198 Mitglieder / 187 enabled** (neu: `technology-runtime-controls` mit
 `technology-runtime-refresh`, `technology-provider-filter`, `technology-layer-select`, alle `requireEffectDelta`).
 Der protokollierte Lauf **`22/22 · 184/184` stammt von VOR dieser Ergänzung.**

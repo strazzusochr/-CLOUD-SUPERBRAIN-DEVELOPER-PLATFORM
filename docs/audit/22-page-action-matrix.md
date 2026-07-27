@@ -23,17 +23,17 @@ Evidence: `.codex/runs/CURRENT/22-page-actions/report.json`
   Games and Apps DELETE paths
 - DEV-ONLY; hosted proof still blocked
 
-> **Stale-Marker (2026-07-27, Session 11):** Die Registry enthält seit der
-> Technologie-Runtime-Bindung zusätzlich die Familie `technology-runtime-controls`
-> mit den drei Mitgliedern `technology-runtime-refresh`,
-> `technology-provider-filter` und `technology-layer-select` (alle
-> `requireEffectDelta: true`). Damit stehen **31 Familien und 198 Mitglieder,
-> davon 187 `enabled`** in der Registry. Der unten protokollierte Abnahmelauf
-> `22/22 · 184/184` **stammt von vor dieser Ergänzung** und deckt die drei neuen
-> Aktionen nicht ab. Die drei sind einzeln über `technology.spec.ts` (Chromium
-> `6/6`) bewiesen, aber **nicht** über den 22-Seiten-Runner. Vor der nächsten
-> Prozent-/Gate-Arbeit ist `npm run verify:22-page-actions` erneut auszuführen;
-> bis dahin gilt `184/184` als historisch, nicht als aktuell.
+> **Korrigierter Stand (2026-07-27, Session 12) — gemessen, nicht gerechnet.**
+> Ein früherer Marker in dieser Datei nannte „31 Familien / 198 Mitglieder / 187 enabled".
+> **Das war falsch hochgerechnet.** Der tatsächliche Lauf gegen `http://localhost:8081` meldet:
+> **22/22 Routen · 29/29 Familien effektverifiziert · 161/161 aktivierte Aktionen ·
+> 0 Console-Fehler · 0 Page-Fehler.** Die Registry enthält seit der Technologie-Bindung
+> zusätzlich `technology-runtime-controls` mit `technology-runtime-refresh`,
+> `technology-provider-filter` und `technology-layer-select` (alle `requireEffectDelta: true`);
+> diese sind im obigen Lauf **enthalten und grün**.
+> Die historischen Zahlen `184/184` weiter unten stammen aus einer älteren Zählbasis und sind
+> **nicht** mit `161/161` vergleichbar — maßgeblich ist ausschließlich
+> `.codex/runs/CURRENT/22-page-actions/report.json`.
 
 The registry contains 30 page-local families and 195 members in total.
 Availability is explicit: 184 `enabled`, 5 `spec_only`, 2 `contract_only`,
