@@ -66,6 +66,23 @@ Danach `verify-product-acceptance.ps1` gegen die **gehostete** URL → **`hosted
 **P3 — Top-10-Lücken** aus `vision-vs-reality` (NUR CONTRACT / STUB → ECHT NUTZBAR). **Fallback ohne Token.**
 **P4 — O5/MEM** Vectorize hosted → 90→100. **P5 — ERST DANACH** Manifest/Gates/RC/`verify:market-ready`.
 
+## 🔴 WORKBENCH BRAUCHT VIER SCHALTER — NACH JEDEM CONTAINER-NEUAUFBAU WEG
+Owner-Meldung „Workbench funktioniert nicht" war **kein Codefehler**, sondern vier fail-closed Standards:
+1. `LLM_GATEWAY_MODE=cloudflare_workers_ai_live` (gateway) — sonst `chatcmpl-dryrun-…`
+2. `PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED=true` (**frontend**) — steuert `live_provider_calls_allowed` pro Request
+3. `WORKBENCH_LLM_MODEL=@cf/qwen/qwen2.5-coder-32b-instruct` — ⚠️ Compose-Standard ist **`gemma-3-1b-it`**
+   (lokales llama.cpp, **nicht** auf der Workers-AI-Allowlist) → Gateway `400` → Build `503`
+4. `AGENT_API_AUTH_TOKEN` identisch in frontend **und** agent-api — leer ⇒ jeder Build-Write abgelehnt
+   (`503 build_persistence_unavailable`, obwohl die Generierung erfolgreich war)
+
+**➡️ Immer so starten:** `pwsh -NoProfile -File scripts\start-dev-live.ps1` (setzt alle vier, erzeugt den
+Service-Token einmalig, liest die effektiven Werte aus den Containern zurück; `-DryRun` = sicherer Trockenmodus).
+**Beweis:** P0 PASS, Build `cba73a86…`, `provider=cloudflare-workers-ai`, `live_provider_calls=true`.
+
+## ✅ `session_missing` = NICHT EINGELOGGT (endgültig)
+Direktaufruf ohne Session liefert lokal `401 write_session_required / session_missing`. Kein Bug, keine fehlende
+Runtime — das war auch die Ursache der Vercel-Meldung. **Nie wieder als Backend-Defekt behandeln.**
+
 ## ⚠️ NEUE LEHRE: VOLLES LAUFWERK TARNT SICH ALS CODE-FEHLER
 `D:` auf 0,41 GB → `verify-phase1` brach mit `organism topology static surface` ab. Sah aus wie eine Regression in
 `6750ed70`, **war reiner Speichermangel** — nach Freigabe fehlerfrei. **Erst `Get-PSDrive D` prüfen, dann Code

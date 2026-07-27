@@ -192,6 +192,34 @@ O3 (GHCR) darf laut Matrix-`codex_boundary` **erst nach `MARKET_READY: true`** e
 | Turbopack-Panik im Dev-Boot | bekannt | auf Webpack-Dev wechseln |
 | HMR zeigt alten Stand | Container-Cache | `docker compose restart frontend` |
 
+## 8b. 🔴 WICHTIGSTER OPERATIVER BEFUND: DIE WORKBENCH BRAUCHT **VIER** SCHALTER
+Der Owner meldete am 2026-07-27: *„Die Workbench funktioniert nicht — ✗ Das LLM-Gateway hat kein vollständiges
+Build-Artefakt geliefert."* **Kein Codefehler.** Es waren vier Konfigurationsschalter, die der Compose-Standard
+bewusst fail-closed hält und die **nach jedem Container-Neuaufbau zurückfallen**. Sie wurden einzeln
+herausdiagnostiziert, jeder erzeugte eine andere Fehlermeldung:
+
+| # | Schalter | Ort | Standard | Fehler, wenn falsch |
+|---|---|---|---|---|
+| 1 | `LLM_GATEWAY_MODE=cloudflare_workers_ai_live` | llm-gateway | `deterministic_dry_run` | Build meldet „kein vollständiges Artefakt"; Gateway antwortet mit `chatcmpl-dryrun-…` |
+| 2 | `PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED=true` | **frontend** | `false` | Gateway bleibt im Trockenmodus — der Live-Pfad wird **pro Request** über das Metadatenfeld `live_provider_calls_allowed` entschieden, das die Build-Route hieraus ableitet |
+| 3 | `WORKBENCH_LLM_MODEL=@cf/qwen/qwen2.5-coder-32b-instruct` | frontend | ⚠️ **`gemma-3-1b-it`** | **Echter Konfigurationsdefekt:** der Compose-Standard ist das *lokale llama.cpp*-Modell und steht **nicht** auf der Workers-AI-Allowlist → Gateway `400` → Build `503 llm_gateway_generation_unavailable` |
+| 4 | `AGENT_API_AUTH_TOKEN` (identisch in frontend **und** agent-api) | beide | **leer** | `_build_registry_authenticated` verlangt ein nicht-leeres Token → jeder Build-Write abgelehnt → `503 build_persistence_unavailable`, **obwohl die LLM-Generierung erfolgreich war** |
+
+**Lösung eingebaut: `scripts/start-dev-live.ps1`.** Setzt alle vier, erzeugt den internen Service-Token einmalig
+und legt ihn in der Secrets-Datei ab, wartet auf 10/10 Health und **liest die effektiven Werte aus den Containern
+zurück** statt sie anzunehmen. `-DryRun` startet den sicheren Trockenmodus.
+```
+pwsh -NoProfile -File scripts\start-dev-live.ps1
+```
+**Beweis nach dem Fix:** `verify-product-acceptance.ps1 … -ApproveLiveProviderCall` → **PASS**,
+Build `cba73a86-d10d-41b8-9f6c-d8fcc77abe58`, `provider=cloudflare-workers-ai`, `live_provider_calls=true`.
+
+### ✅ `session_missing` ist endgültig geklärt
+Ein Direktaufruf von `POST /api/v1/build` ohne Session liefert **lokal** exakt
+`401 write_session_required / session_missing`. **`session_missing` heißt schlicht „nicht eingeloggt".**
+Das war auch die Ursache der ursprünglichen Vercel-Meldung — kein Bug, keine fehlende Runtime.
+**Codex: diese Meldung nie wieder als Backend-Defekt interpretieren.**
+
 ## 9. ⚠️ NEUE LEHRE: VOLLES LAUFWERK TARNT SICH ALS CODE-FEHLER
 `D:` lief auf **0,41 GB** voll. `verify-phase1.ps1` brach daraufhin mit
 `Verification failed: organism topology static surface` ab — **das sah exakt wie eine Regression in `6750ed70` aus,
