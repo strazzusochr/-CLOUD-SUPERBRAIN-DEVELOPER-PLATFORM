@@ -69,16 +69,44 @@ test.describe("Cloud Superbrain platform", () => {
     expect(topologyResp.status()).toBe(200);
     const topology = await topologyResp.json();
     expect(topology.contract_version).toBe("organism-topology-v1");
-    const nodeIds = new Set((topology.nodes as Array<{ id: string }>).map((node) => node.id));
+    expect(topology.evidence_ref).toBe("organism_topology_visible");
+    expect(topology.endpoint).toBe("/api/v1/organism/topology");
+    expect(topology.source_kind).toBe("contract");
+    expect(topology.live).toBe(false);
+    expect(Array.isArray(topology.nodes)).toBeTruthy();
+    expect(topology.nodes.length).toBeGreaterThan(0);
+    expect(Array.isArray(topology.edges)).toBeTruthy();
+    expect(topology.edges.length).toBeGreaterThan(0);
+    expect(Array.isArray(topology.non_claims)).toBeTruthy();
+    expect(topology.non_claims.length).toBeGreaterThan(0);
+    expect(topology.non_claims.every((item: unknown) => typeof item === "string" && item.trim().length > 0)).toBeTruthy();
+
+    const nodes = topology.nodes as Array<{
+      id: string;
+      kind: string;
+      secret_output: boolean;
+      writes: boolean;
+    }>;
+    const nodeIds = new Set(nodes.map((node) => node.id));
+    expect(nodeIds.size).toBe(nodes.length);
+    for (const node of nodes) {
+      expect(node.id.trim(), "node id").not.toBe("");
+      expect(node.kind.trim(), `node kind ${node.id}`).not.toBe("");
+      expect(node.secret_output, `node secret_output ${node.id}`).toBe(false);
+      expect(node.writes, `node writes ${node.id}`).toBe(false);
+    }
     expect(nodeIds.has("layer:FE")).toBeTruthy();
     expect(nodeIds.has("agent:planner")).toBeTruthy();
     expect(nodeIds.has("tool:mcp_gateway")).toBeTruthy();
     expect(nodeIds.has("model:deepseek-ai/DeepSeek-V4-Pro")).toBeTruthy();
-    for (const edge of topology.edges as Array<{ from: string; to: string }>) {
+    expect(nodeIds.has("page:organism-map")).toBeTruthy();
+    for (const edge of topology.edges as Array<{ from: string; to: string; kind: string }>) {
+      expect(edge.kind.trim(), `edge kind ${edge.from} -> ${edge.to}`).not.toBe("");
       expect(nodeIds.has(edge.from), `edge source ${edge.from}`).toBeTruthy();
       expect(nodeIds.has(edge.to), `edge target ${edge.to}`).toBeTruthy();
     }
-    expect((topology.nodes as Array<{ writes: boolean }>).every((node) => node.writes === false)).toBeTruthy();
+    expect(topology.non_claims.join(" ")).toMatch(/no provider write/i);
+    expect(topology.non_claims.join(" ")).toMatch(/no secret/i);
 
     const regionsResp = await request.get("/api/v1/organism/regions");
     expect(regionsResp.status()).toBe(200);
@@ -94,6 +122,151 @@ test.describe("Cloud Superbrain platform", () => {
     expect(safety.data_rules.no_fake_live).toBe(true);
     expect(safety.data_rules.secret_output).toBe(false);
     expect(safety.data_rules.provider_write).toBe(false);
+  });
+
+  test("organism map renders topology counts, filters, selection, and adjacency without the Phase-6 scene", async ({ page, request }) => {
+    const topologyResp = await request.get("/api/v1/organism/topology");
+    expect(topologyResp.status()).toBe(200);
+    const topology = await topologyResp.json() as {
+      nodes: Array<{ id: string; kind: string }>;
+      edges: Array<{ from: string; to: string; kind: string }>;
+    };
+    const plannerId = "agent:planner";
+    const coderId = "agent:coder";
+    const coderIncoming = topology.edges.filter((edge) => edge.to === coderId).length;
+    const coderOutgoing = topology.edges.filter((edge) => edge.from === coderId).length;
+    const agentNodeCount = topology.nodes.filter((node) => node.kind === "agent_profile").length;
+    const adjacentEdge = topology.edges.find((edge) => edge.from === coderId)
+      ?? topology.edges.find((edge) => edge.to === coderId);
+    if (!adjacentEdge) {
+      throw new Error("agent:coder must expose at least one topology adjacency");
+    }
+    const adjacentNodeId = adjacentEdge.from === coderId ? adjacentEdge.to : adjacentEdge.from;
+    const adjacentDirection = adjacentEdge.from === coderId ? "outgoing" : "incoming";
+
+    const topologyUiResponse = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/v1/organism/topology"
+        && response.request().method() === "GET";
+    });
+    await page.goto("/organism/map", { waitUntil: "networkidle" });
+    const fetchedTopology = await topologyUiResponse;
+    expect(fetchedTopology.status()).toBe(200);
+    expect(new URL(fetchedTopology.url()).origin).toBe(new URL(page.url()).origin);
+
+    const map = page.getByTestId("organism-topology-map");
+    await expect(map).toBeVisible();
+    await expect(map).toHaveAttribute("data-contract-version", "organism-topology-v1");
+    await expect(map).toHaveAttribute("data-evidence-ref", "organism_topology_visible");
+    await expect(map).toHaveAttribute("data-endpoint", "/api/v1/organism/topology");
+    await expect(map).toHaveAttribute("data-source-kind", "contract");
+    await expect(map).toHaveAttribute("data-live", "false");
+    await expect(map).toHaveAttribute("data-read-only", "true");
+    await expect(map).toHaveAttribute("data-node-count", String(topology.nodes.length));
+    await expect(map).toHaveAttribute("data-edge-count", String(topology.edges.length));
+    await expect(map).toHaveAttribute("data-selected-node-id", "page:organism-map");
+    await expect(page.getByTestId("organism-topology-node")).toHaveCount(topology.nodes.length);
+
+    const agentFilter = page.locator('[data-testid="organism-topology-kind-filter"][data-node-kind="agent_profile"]');
+    await agentFilter.click();
+    await expect(agentFilter).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("organism-topology-node")).toHaveCount(agentNodeCount);
+    await expect(map).toHaveAttribute("data-selected-node-id", plannerId);
+
+    const planner = page.locator('[data-testid="organism-topology-node"][data-node-id="agent:planner"]');
+    await expect(planner).toHaveAttribute("aria-pressed", "true");
+    const coder = page.locator('[data-testid="organism-topology-node"][data-node-id="agent:coder"]');
+    await coder.click();
+    await expect(map).toHaveAttribute("data-selected-node-id", coderId);
+    await expect(coder).toHaveAttribute("aria-pressed", "true");
+    await expect(planner).toHaveAttribute("aria-pressed", "false");
+
+    const adjacency = page.getByTestId("organism-topology-adjacency");
+    await expect(adjacency).toBeVisible();
+    await expect(adjacency).toHaveAttribute("data-incoming-count", String(coderIncoming));
+    await expect(adjacency).toHaveAttribute("data-outgoing-count", String(coderOutgoing));
+    await expect(adjacency).toContainText(coderId);
+
+    const adjacentNode = page.locator(
+      `[data-testid="organism-topology-adjacent-node"][data-node-id="${adjacentNodeId}"][data-edge-kind="${adjacentEdge.kind}"][data-direction="${adjacentDirection}"]`,
+    ).first();
+    await expect(adjacentNode).toBeVisible();
+    await adjacentNode.click();
+    await expect(map).toHaveAttribute("data-selected-node-id", adjacentNodeId);
+    await expect(page.getByTestId("organism-topology-node")).toHaveCount(topology.nodes.length);
+
+    await expect(page.locator("canvas")).toHaveCount(0);
+    await expect(page.locator(".cortex-wrap")).toHaveCount(0);
+    await expect(page.locator('[data-testid^="phase6-"]')).toHaveCount(0);
+  });
+
+  test("organism map rejects an oversized otherwise-valid topology before rendering", async ({ page }) => {
+    const oversizedTopology = JSON.stringify({
+      contract_version: "organism-topology-v1",
+      evidence_ref: "organism_topology_visible",
+      endpoint: "/api/v1/organism/topology",
+      source_kind: "contract",
+      live: false,
+      nodes: [
+        {
+          id: "page:organism-map",
+          kind: "workspace_page",
+          writes: false,
+          secret_output: false,
+          ignored: "x".repeat(600_000),
+        },
+        {
+          id: "region:thalamus",
+          kind: "brain_region",
+          writes: false,
+          secret_output: false,
+        },
+      ],
+      edges: [{ from: "page:organism-map", to: "region:thalamus", kind: "page_to_brain_region" }],
+      non_claims: ["static topology contract", "no provider write", "no secret values"],
+    });
+    await page.route("**/api/v1/organism/topology", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: oversizedTopology,
+      });
+    });
+
+    await page.goto("/organism/map", { waitUntil: "networkidle" });
+    const map = page.getByTestId("organism-topology-map");
+    await expect(map).toBeVisible();
+    await expect(page.getByTestId("organism-topology-error")).toContainText("Größenlimit");
+    await expect(map).toHaveAttribute("data-contract-version", "pending");
+    await expect(map).toHaveAttribute("data-node-count", "0");
+    await expect(page.getByTestId("organism-topology-node")).toHaveCount(0);
+  });
+
+  test("organism map retries after a transient topology failure", async ({ page }) => {
+    let attempts = 0;
+    await page.route("**/api/v1/organism/topology", async (route) => {
+      attempts += 1;
+      if (attempts === 1) {
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ detail: "transient topology failure" }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto("/organism/map", { waitUntil: "networkidle" });
+    const map = page.getByTestId("organism-topology-map");
+    await expect(page.getByTestId("organism-topology-error")).toContainText("503");
+    await expect(map).toHaveAttribute("data-contract-version", "pending");
+
+    await page.getByTestId("organism-topology-retry").click();
+    await expect(map).toHaveAttribute("data-contract-version", "organism-topology-v1");
+    await expect(map).toHaveAttribute("data-node-count", /^\d+$/);
+    await expect(page.getByTestId("organism-topology-error")).toHaveCount(0);
+    expect(attempts).toBe(2);
   });
 
   test("workspace wiring maps all 22 pages to organism regions and verifiers", async ({ request }) => {

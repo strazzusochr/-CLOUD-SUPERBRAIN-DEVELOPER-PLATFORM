@@ -498,14 +498,25 @@ if ($organismTopologyParseErrors -and $organismTopologyParseErrors.Count -gt 0) 
   throw "Organism topology verifier has parse errors"
 }
 $organismTopologyVerifier = Get-Content -Path "scripts\verify-organism-topology.ps1" -Raw
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-organism-topology.ps1 -StaticOnly
+Assert-LastExitCode "organism topology static surface"
 $organismTopologyFrontend = Get-Content -Path "apps\frontend\app\api\v1\organism\topology\route.ts" -Raw
 $organismTopologyContract = Get-Content -Path "apps\frontend\app\api\v1\organism\contract\route.ts" -Raw
 $organismPlatformSource = Get-Content -Path "apps\frontend\lib\platform.ts" -Raw
 $organismAgentApiSource = Get-Content -Path "services\agent-api\app\main.py" -Raw
 foreach ($required in @(
   "organism-topology-v1",
+  "organism_topology_visible",
   "workspace-surface-wiring-v1",
   "workspace-vertical-stack-v1",
+  "StaticOnly",
+  "OrganismTopologyMap.tsx",
+  "organism map page",
+  "OrganismView",
+  "isTopologyPayload",
+  "organism-topology-map",
+  "organism-topology-kind-filter",
+  "organism-topology-adjacency",
   "node kind count",
   "edge from exists",
   "edge to exists",
@@ -523,6 +534,7 @@ foreach ($required in @(
 }
 foreach ($required in @(
   "organism-topology-v1",
+  "organism_topology_visible",
   "workspace_data_source",
   "workspace_verifier",
   "page_to_data_source",
@@ -566,6 +578,7 @@ foreach ($required in @(
 foreach ($required in @(
   "def organism_topology_payload",
   "organism-topology-v1",
+  "organism_topology_visible",
   '"kind": "agent_to_tool"',
   '"kind": "page_to_verifier"',
   '"kind": "layer_to_provider"',

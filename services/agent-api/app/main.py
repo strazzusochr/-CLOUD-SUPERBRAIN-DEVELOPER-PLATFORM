@@ -6834,40 +6834,46 @@ ORGANISM_LAYERS = [
 ]
 
 ORGANISM_HUBS = [
-    {"id": "workbench", "label": "WORKBENCH", "layer": "FE", "route": "/workbench", "agents": ["planner", "coder", "tester", "devops"]},
-    {"id": "agents", "label": "AGENTS", "layer": "AP", "route": "/agents", "agents": ["planner", "coder", "tester", "devops"]},
-    {"id": "tools", "label": "TOOLS / MCP", "layer": "MCP", "route": "/tools", "agents": ["coder", "tester", "devops"]},
-    {"id": "models", "label": "MODELS", "layer": "LLM", "route": "/marketplace", "agents": ["planner", "coder", "tester", "devops"]},
-    {"id": "marketplace", "label": "MARKETPLACE", "layer": "MCP", "route": "/marketplace", "agents": ["planner"]},
-    {"id": "observe", "label": "OBSERVABILITY", "layer": "OBS", "route": "/observe", "agents": ["tester", "devops"]},
-    {"id": "memory", "label": "MEMORY", "layer": "MEM", "route": "/files", "agents": ["planner", "coder", "tester", "devops"]},
-    {"id": "cloud", "label": "CLOUD", "layer": "ORC", "route": "/technology", "agents": ["devops"]},
+    {"id": "workbench", "label": "WERKBANK", "region": "prefrontal", "layer": "FE", "route": "/workbench", "agents": ["planner", "coder", "tester", "devops"]},
+    {"id": "agents", "label": "AGENTEN", "region": "motor", "layer": "AP", "route": "/agents", "agents": ["planner", "coder", "tester", "devops"]},
+    {"id": "tools", "label": "TOOLS / MCP", "region": "basal", "layer": "MCP", "route": "/tools", "agents": ["coder", "tester", "devops"]},
+    {"id": "models", "label": "MODELLE", "region": "basal", "layer": "LLM", "route": "/marketplace", "agents": ["planner", "coder", "tester", "devops"]},
+    {"id": "marketplace", "label": "MARKTPLATZ", "region": "prefrontal", "layer": "MCP", "route": "/marketplace", "agents": ["planner"]},
+    {"id": "observe", "label": "OBSERVABILITY", "region": "cerebellum", "layer": "OBS", "route": "/observe", "agents": ["tester", "devops"]},
+    {"id": "memory", "label": "MEMORY", "region": "hippocampus", "layer": "MEM", "route": "/files", "agents": ["planner", "coder", "tester", "devops"]},
+    {"id": "cloud", "label": "CLOUD", "region": "thalamus", "layer": "ORC", "route": "/technology", "agents": ["devops"]},
 ]
 
 ORGANISM_PAGES = [
-    (1, "home", "/home", "Home / Overview", "FE"),
-    (2, "login", "/login", "Login / Onboarding", "FE"),
-    (3, "workbench", "/workbench", "Main Workbench", "FE"),
-    (4, "organism", "/organism", "Organism / Live", "FE"),
-    (5, "organism-replay", "/organism/replay", "Organism / Replay", "OBS"),
-    (6, "organism-map", "/organism/map", "Organism / Map", "FE"),
-    (7, "agents", "/agents", "Agents", "AP"),
-    (8, "files", "/files", "Files / Knowledge", "MEM"),
-    (9, "files-local", "/files/local", "Local Files API", "MEM"),
-    (10, "tools", "/tools", "MCP / Tools", "MCP"),
-    (11, "marketplace", "/marketplace", "Marketplace", "LLM"),
-    (12, "observe", "/observe", "Observe / Monitoring", "OBS"),
-    (13, "games", "/games", "Games", "AP"),
+    (1, "home", "/home", "Start", "FE"),
+    (2, "login", "/login", "Anmeldung / Einstieg", "FE"),
+    (3, "workbench", "/workbench", "Bauen", "FE"),
+    (4, "organism", "/organism", "Cortex", "FE"),
+    (5, "organism-replay", "/organism/replay", "Organismus / Wiedergabe", "OBS"),
+    (6, "organism-map", "/organism/map", "Organismus / Karte", "FE"),
+    (7, "agents", "/agents", "Agenten", "AP"),
+    (8, "files", "/files", "Wissen & Gedächtnis", "MEM"),
+    (9, "files-local", "/files/local", "Lokale Dateien", "MEM"),
+    (10, "tools", "/tools", "MCP / Werkzeuge", "MCP"),
+    (11, "marketplace", "/marketplace", "Marktplatz", "LLM"),
+    (12, "observe", "/observe", "Beobachten", "OBS"),
+    (13, "games", "/games", "Spiele", "AP"),
     (14, "apps", "/apps", "Apps", "AP"),
-    (15, "media", "/media", "Media", "LLM"),
-    (16, "docs-output", "/docs-output", "Documents", "MEM"),
-    (17, "evidence", "/evidence", "Proof / Evidence", "OBS"),
-    (18, "diagnostics", "/diagnostics", "Diagnostics", "OBS"),
-    (19, "design-system", "/design-system", "Design System", "FE"),
-    (20, "stack", "/technology", "Technology Stack", "ORC"),
-    (21, "settings", "/settings", "Settings / Governance", "MCP"),
+    (15, "media", "/media", "Medien", "LLM"),
+    (16, "docs-output", "/docs-output", "Dokumente", "MEM"),
+    (17, "evidence", "/evidence", "Prüfung / Nachweise", "OBS"),
+    (18, "diagnostics", "/diagnostics", "Diagnose / Archiv", "OBS"),
+    (19, "design-system", "/design-system", "Designsystem", "FE"),
+    (20, "stack", "/technology", "Technologie-Stack", "ORC"),
+    (21, "settings", "/settings", "Einstellungen / Governance", "MCP"),
     (22, "open-source", "/open-source", "Open Source", "FE"),
 ]
+
+ORGANISM_PROVIDER_LABELS = {
+    "vercel_frontend": "Vercel",
+    "fly_io": "Fly.io (historical)",
+    "ghcr_registry": "GHCR",
+}
 
 WORKSPACE_WIRING_CONTRACT_VERSION = "workspace-surface-wiring-v1"
 WORKSPACE_WIRING_EVIDENCE_REF = "workspace_surface_wiring_visible"
@@ -6959,17 +6965,6 @@ ORGANISM_CLOSED_GATES = [
 
 def _organism_gate_id(label: str) -> str:
     return label.lower().replace(" ", "_")
-
-
-def _organism_region_for_hub(hub_id: str) -> str:
-    return {
-        "memory": "hippocampus",
-        "observe": "cerebellum",
-        "tools": "basal",
-        "models": "basal",
-        "agents": "motor",
-        "cloud": "thalamus",
-    }.get(hub_id, "prefrontal")
 
 
 def _organism_layer_code(layer_no: int) -> str:
@@ -7304,9 +7299,9 @@ def organism_topology_payload() -> dict[str, object]:
     nodes.extend({**h, "id": f"hub:{h['id']}", "kind": "capability_hub", "secret_output": False, "writes": False} for h in ORGANISM_HUBS)
     nodes.extend({"id": f"agent:{p.get('agent_type')}", "kind": "agent_profile", "label": p.get("agent_type"), "model": p.get("primary_model"), "tools": p.get("allowed_tools", []), "secret_output": False, "writes": False} for p in profiles)
     nodes.extend({**t, "id": f"tool:{t['id']}", "kind": "mcp_tool", "secret_output": False, "writes": False, "write_capability": t["scope"] != "read", "gate_required": t["scope"] != "read"} for t in ORGANISM_TOOLS)
-    nodes.extend({**m, "id": f"model:{m['id']}", "kind": "llm_model", "layer": 4, "secret_output": False, "writes": False, "gateway_only": True} for m in models)
+    nodes.extend({**m, "id": f"model:{m['id']}", "kind": "llm_model", "label": m["id"], "layer": 4, "secret_output": False, "writes": False, "gateway_only": True} for m in models)
     nodes.extend({"id": f"skill:{skill}", "kind": "skill", "label": skill, "layer": 5, "secret_output": False, "writes": False} for skill in ORGANISM_SKILLS)
-    nodes.extend({"id": f"provider:{p.get('id')}", "kind": "cloud_provider", "label": p.get("label"), "layers": p.get("layers", []), "secret_output": False, "writes": False} for p in providers)
+    nodes.extend({"id": f"provider:{p.get('id')}", "kind": "cloud_provider", "label": ORGANISM_PROVIDER_LABELS.get(str(p.get("id")), p.get("label")), "layers": p.get("layers", []), "secret_output": False, "writes": False} for p in providers)
     nodes.extend({"id": f"gate:{_organism_gate_id(gate)}", "kind": "safety_gate", "label": gate, "status": "closed", "secret_output": False, "writes": False} for gate in ORGANISM_CLOSED_GATES)
     nodes.extend({
         "id": f"page:{page['pageId']}",
@@ -7328,7 +7323,7 @@ def organism_topology_payload() -> dict[str, object]:
 
     edges: list[dict[str, str]] = []
     edges.extend({"from": "region:callosum", "to": f"region:{r['id']}", "kind": "neural_bus"} for r in ORGANISM_REGIONS if r["id"] != "callosum")
-    edges.extend({"from": f"hub:{h['id']}", "to": f"region:{_organism_region_for_hub(str(h['id']))}", "kind": "capability_to_region"} for h in ORGANISM_HUBS)
+    edges.extend({"from": f"hub:{h['id']}", "to": f"region:{h['region']}", "kind": "capability_to_region"} for h in ORGANISM_HUBS)
     edges.extend({"from": f"hub:{h['id']}", "to": f"layer:{h['layer']}", "kind": "hub_to_layer"} for h in ORGANISM_HUBS)
     for profile in profiles:
         agent_type = str(profile.get("agent_type"))
@@ -7372,6 +7367,7 @@ def organism_topology_payload() -> dict[str, object]:
     edges.extend({"from": f"gate:{_organism_gate_id(gate)}", "to": "region:amygdala", "kind": "gate_to_security_region"} for gate in ORGANISM_CLOSED_GATES)
     return {
         "contract_version": "organism-topology-v1",
+        "evidence_ref": "organism_topology_visible",
         "endpoint": "/api/v1/organism/topology",
         "source": "agent-api-static-contract",
         "live": False,

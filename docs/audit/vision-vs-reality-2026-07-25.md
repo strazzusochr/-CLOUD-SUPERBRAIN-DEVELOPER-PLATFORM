@@ -2,7 +2,7 @@
 
 Stand: 2026-07-27
 Audit-Stichtag: 2026-07-25 / Session 10
-Aktualisiert: 2026-07-27 / Session 11 (`agent-research-run-v3`)
+Aktualisiert: 2026-07-27 / Session 11 (`agent-research-run-v3`, Topologiekarte)
 Scope: Produkt, 22 Seiten, 7 Layer, Funktionen, Optionen, Tools, Skills,
 Agenten, Modelle und Cloud-Ziele
 Fortschrittswirkung: **0 Prozentpunkte**; reine Wahrheitsinventur
@@ -112,7 +112,7 @@ nicht: **FEHLT**.
 ## 3. Die 22 Produktseiten
 
 Strenges Primärurteil für die jeweils im Endziel beworbene Hauptfunktion:
-**9 ECHT NUTZBAR · 9 NUR CONTRACT · 4 STUB/MOCK · 0 FEHLT/BROKEN**.
+**9 ECHT NUTZBAR · 10 NUR CONTRACT · 3 STUB/MOCK · 0 FEHLT/BROKEN**.
 Teilfunktionen können innerhalb einer Route besser oder schlechter eingestuft
 sein; das ändert das Primärurteil nicht.
 
@@ -123,7 +123,7 @@ sein; das ändert das Primärurteil nicht.
 | 3 | `/workbench` | Editor, Prompt→Orchestrator, Explorer, Preview, Terminal, Agentenhilfe, Mini-Cortex | Der lokale Prompt→Gateway→Workers-AI→HTML→Postgres→Run-Fluss ist echt und persistiert. Editor-/Previewflächen sind bedienbar. Vollwertige IDE-, Terminal- und Agentenarbeitswirkung bleibt teilweise Projektion. | **ECHT NUTZBAR — DEV-ONLY**; erweiterte IDE **NUR CONTRACT** | Hosted Backend-/Artefaktparität |
 | 4 | `/organism` | Live-3D-Cortex, Hubs, Run-State, Inspector | R3F/three.js, GLB/Fallback, Kamera-, Szenen-, Gameplay-, Accessibility- und lokale Statuscontrols sind echt. Events/Replay werden gelesen; echte Cloud-Telemetrie und Tool-/Agentenpulse sind Projektionen. | **ECHT NUTZBAR — DEV-ONLY**; Live-Telemetrie **NUR CONTRACT** | OTel-/Agenten-/MCP-Ereignisse an Cortex binden |
 | 5 | `/organism/replay` | Timeline, Filter, Playback | Lokale Organism-Controls funktionieren; Replay-/Event-Routen können auf redaktierte, deterministische Fallbacks zurückfallen. Ein persistierter echter Agenten-/Providerlauf wurde nicht als vollständiger Replay-Player abgenommen. | **NUR CONTRACT** | Persistierte, korrelierte Live-Runs |
-| 6 | `/organism/map` | Topologie, Knotenwahl, Details | Die Route zeigt dieselbe `OrganismView` mit Map-Label. `OrganismView` liest Live-State, Events und Replay, aber nicht den geforderten `/api/v1/organism/topology`-Pfad; damit ist die behauptete Topologiebindung statisch. | **STUB/MOCK** | Eigene topology-gebundene Kartenansicht |
+| 6 | `/organism/map` | Topologie, Knotenwahl, Details | Eine eigene same-origin Kartenansicht liest den strikt validierten read-only Vertrag `organism-topology-v1`, filtert 245 Knoten, zeigt echte Auswahl und gerichtete Nachbarschaften über 494 Kanten, blockiert übergroße Antworten vor dem Parsing und kann nach einem transienten Fehler erneut laden. Frontend-/Backend-Labels, Sicherheitsflags, Kanten und Non-Claims sind exakt gespiegelt. `live=false`; echte Agenten-, Tool-, Provider- und Hosted-Telemetrie fehlt. | **NUR CONTRACT**; Interaktion lokal belegt | Live-Telemetrie und Hosted-Parität an die vertragliche Karte binden |
 | 7 | `/agents` | Start/Pause/Kill/Reset, Status, Policies, echte Research-Pipeline | UI, Proxy und Python Agent API sind auf `/api/v1/agent-run` gebunden. `agent-research-run-v3` führt Planner→Coder→Tester→DevOps in vier getrennten Gateway-Aufrufen über ein bis drei echte, sanitisierte und hash-gebundene Exzerpte aus exakt drei festen Projektwahrheiten. Kanonische Profil-ID ohne Alias, Rolle, Reihenfolge, Quellen-IDs, Gateway-Vertrag/Evidence/Trace, fünf echte Boolean-Flags und 2.000-Zeichen-Ausgabelimit sind fail-closed gebunden; die UI prüft diese Wahrheitsfelder ebenfalls streng. Alle vier Schritte bleiben ausdrücklich `analysis_only`; es gibt keinen Benutzerpfad, keine externe Quelle, keinen Readback-Link, keinen separaten Source-Read-Audit-Claim und keine Tool-, Datei-, Test- oder Deploy-Ausführung. Die geforderten Steuerungen, externe Toolarbeit und autonome Softwarelieferung sind nicht live belegt. | **NUR CONTRACT** | Externe Quellen-/Toolarbeit, echte Artefakt-/Testwirkung und vollständige Agentensteuerung |
 | 8 | `/files` | Knowledge Bases, Vektoren, Graph, Inspector, Suche | Seed, Speicherung und lexikalische Suche sind lokal sowie in einem begrenzten Hosted-D1-Proof echt. Embeddings/semantische Suche und Graphwirkung sind nicht belegt. | **ECHT NUTZBAR** für lexikalische Memory; Vector/Graph **FEHLT** | O5: Hosted Vectorize-Semantik |
 | 9 | `/files/local` | Read-only Host-Dateibrowser, DEV-ONLY | Eine kontrollierte, redaktierte statische Auswahl-/Vertragsfläche ist vorhanden. Alle fünf Aktionen sind `spec_only`; freier Host-FS-Zugriff findet nicht statt. | **STUB/MOCK** | Echter, workspace-begrenzter Read-only-Adapter |
@@ -145,7 +145,7 @@ sein; das ändert das Primärurteil nicht.
 
 Die Abschnitte „Jetzt (HOSTED)“ in `docs/END_ZIEL_GESAMTSPEC.md` behaupten
 für mehrere Seiten mehr als die aktuelle Laufzeitevidenz trägt. Besonders
-betroffen sind Workbench-Persistenz, topology-gebundene Map, echte
+betroffen sind Workbench-Persistenz, live-telemetriegebundene Map, echte
 Agenten-Research-Pipeline, Files-Suche, Tools-Ausführung, Games-/Apps-/
 Media-Persistenz und Hosted Evidence. P1 und die aktuellen Reports zeigen:
 
@@ -480,8 +480,9 @@ werden.
 9. **Observability-Endprodukt:** echte OTel-Traces, Cortex-Korrelation,
    Grafana-/Langfuse-Queries, Dashboards und Alerts.
 10. **Design-/3D-/Policy-Werkzeugkette:** Figma-Quelle und Visual-Regression,
-    Blender-Quellen/Pipeline, echte Topology-Map sowie OPA/Rego oder eine
-    ausdrücklich neu entschiedene Alternative.
+    Blender-Quellen/Pipeline, Live-Telemetrie für die verifizierte read-only
+    Topology-Map sowie OPA/Rego oder eine ausdrücklich neu entschiedene
+    Alternative.
 
 ## 13. Geschlossene und offene Gates
 

@@ -39,6 +39,23 @@ remains unavailable, so there is no new runtime/browser/hosted proof. The
 Session-10 22-page report remains historical green evidence and is not
 exact-current-source-bound.
 
+Session 11 also replaces `/organism/map`'s reused Phase-6 scene with a
+dedicated same-origin, read-only `organism-topology-v1` client. It validates
+strict contract identity, `source_kind=contract`, `live=false`, exact false
+safety Booleans, bounded unique nodes and referentially closed edges, and caps
+the response stream at 524,288 bytes before parsing. Only normalized display
+fields survive validation. The map exposes real kind filtering, node
+selection, directed incoming/outgoing adjacency, and a retry path that clears
+rejected request state. Frontend and Agent API mirrors match exactly at 245
+nodes and 494 edges, including resolved display labels, safety flags, edge
+triples, and non-claims. The action runner requires an actual node-list delta
+for filtering. Production build `21/21`, focused Chromium `4/4`, TypeScript,
+ESLint, Python/PowerShell syntax, full Phase-1 verification, npm audit `0`, and
+canonical gitleaks over `3723` files pass; final review reports `0 P1 / 0 P2`.
+The map remains `NUR CONTRACT`: no live agent/tool/cloud telemetry is bound.
+No progress credit: Overall `86%`, P3 `44%`, `MARKET_READY:false`; DEV-ONLY,
+hosted proof still blocked.
+
 Session 10 adds two current local acceptance proofs without creating a new
 release candidate. `product-acceptance-3d-game-v1` produced persisted build
 `8e51a068-8faa-4ff4-805a-accf91e1c145` through the Agent API and LLM Gateway
@@ -59,7 +76,7 @@ Planner→Researcher→Writer with empty sources instead of fabricated citations
 that historical behavior is superseded by the Session-11 bounded binding above.
 The repaired `/tools` path exposes only internal read-only `memory_read` and
 `task_router` execution with audit IDs. The strict 22-page primary verdict is
-now 9 real, 9 contract-only, 4 stub/mock, and 0 missing/broken. Both proofs are
+now 9 real, 10 contract-only, 3 stub/mock, and 0 missing/broken. Both proofs are
 DEV-ONLY; hosted proof still blocked. Overall remains 86%;
 `MARKET_READY:false`; RC10 remains active and is not requalified by this slice.
 Final local gates passed: focused backend tests 13/13, TypeScript, focused
@@ -280,11 +297,11 @@ Workspace data source integrity guard:
 Organism topology integrity guard:
 
 - `scripts/verify-organism-topology.ps1` validates `organism-topology-v1`, `organism-surface-v1`, `workspace-surface-wiring-v1`, and `workspace-vertical-stack-v1` together.
-- Runtime proof currently reports `151` nodes and `308` edges, with exact coverage for 22 workspace pages, 7 architecture layers, 10 brain regions, agents, tools, LLM models, skills, cloud providers, safety gates, data sources, and verifiers.
-- Every topology edge must reference an existing node; every workspace page must have layer, brain-region, hub, data-source, and verifier edges.
+- Current normalized Frontend/Agent-API mirror proof reports `245` nodes and `494` edges, with exact UI-label parity and coverage for 22 workspace pages, 7 architecture layers, 10 brain regions, agents, tools, LLM models, skills, cloud providers, safety gates, data sources, and verifiers.
+- Every topology edge must reference an existing node; every workspace page must have layer, brain-region, hub, data-source, and verifier edges. The client caps the response stream before parsing, normalizes display fields, and retries without caching a rejected request.
 - The guard forbids active `Hetzner`, `GitKraken`, `Oracle`, secret output, write claims, and production deployment claims.
 - `scripts/verify-browser-contract.ps1` runs the topology guard, and `scripts/verify-phase1.ps1` statically checks parser, route, contract, Agent API mirror, and the current manifest-aligned `P4=100` frontend progress mirror.
-- Verified by isolated topology proof, full `npm run verify:browser`, manifest validation, and `git diff --check`.
+- Verified by exact mirror proof, production build `21/21`, focused Chromium `4/4`, full Phase-1 verification, manifest validation, and `git diff --check`.
 - Localhost evidence is `DEV-ONLY`; no hosted proof, cloud mutation, deploy, release promotion, live provider call, live MCP write, secret use, or progress increase.
 
 Workspace vertical stack contract:

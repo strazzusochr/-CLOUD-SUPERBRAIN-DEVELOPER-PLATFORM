@@ -996,10 +996,15 @@ async function auditMember(
           await expect.poll(async () => {
             afterControl = await snapshot(control);
             afterEffect = await snapshot(page.locator(action.effectLocator));
-            return afterEffect.digest !== beforeEffect.digest
-              || afterControl.digest !== beforeControl.digest;
+            const effectChanged = afterEffect.digest !== beforeEffect.digest
+              || (beforeEffect.visibleCount === 0 && afterEffect.visibleCount > 0);
+            return action.requireEffectDelta
+              ? effectChanged
+              : effectChanged || afterControl.digest !== beforeControl.digest;
           }, {
-            message: "control must produce a concrete visible/state/data/error delta",
+            message: action.requireEffectDelta
+              ? "control must produce a concrete effect-target delta"
+              : "control must produce a concrete visible/state/data/error delta",
             timeout: deltaTimeout,
             intervals: [100, 250, 500],
           }).toBe(true);
@@ -1026,7 +1031,11 @@ async function auditMember(
         };
       }
 
-      const effectObserved = effectType === "navigation"
+      const effectTargetChanged = afterEffect.digest !== beforeEffect.digest
+        || (beforeEffect.visibleCount === 0 && afterEffect.visibleCount > 0);
+      const effectObserved = action.requireEffectDelta
+        ? effectTargetChanged
+        : effectType === "navigation"
         || effectType === "download"
         || trigger === "clipboard"
         || tag === "input"
@@ -1034,8 +1043,7 @@ async function auditMember(
         || tag === "select"
         || Boolean(detail.control_delta)
         || normalizedId === "organism-focus-scene"
-        || afterEffect.digest !== beforeEffect.digest
-        || (beforeEffect.visibleCount === 0 && afterEffect.visibleCount > 0);
+        || effectTargetChanged;
       expect(effectObserved, `${route}/${action.id} cannot pass on click alone`).toBe(true);
       if (effectType === "blocked_error") expect(BLOCKED_ERROR_PATTERN.test(afterEffect.text)).toBe(true);
       detailRows.push({ ...detail, trigger, effect_visible_count: afterEffect.visibleCount });

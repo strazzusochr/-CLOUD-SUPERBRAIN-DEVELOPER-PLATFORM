@@ -30,6 +30,7 @@ export type ActionMember = {
   precondition: string;
   expectedEffect: string;
   effectLocator: string;
+  requireEffectDelta?: true;
   availability: ActionAvailability;
   enabled: boolean;
   verificationMode: ActionVerificationMode;
@@ -207,6 +208,10 @@ const ORGANISM_RUN_ID = evidence(
   "organism",
   "apps/frontend/e2e/organism.spec.ts::organism runtime feed forwards run_id to events and replay APIs",
 );
+const ORGANISM_TOPOLOGY = evidence(
+  "organism",
+  "scripts/verify-organism-topology.ps1::organism_topology_visible",
+);
 const BROWSER_COMMAND_PALETTE = evidence(
   "browser spec",
   "scripts/verify-workspace-responsive-browser.cjs::22 routes x desktop/mobile command-palette navigation",
@@ -372,10 +377,12 @@ export const ACTION_MATRIX: readonly PageActionEntry[] = [
     route: "/organism/map",
     title: "Organism Map",
     families: [
-      family("organism-map-controls", "Organism, topology, console and navigation", "Map route and read-only organism contracts are mounted.", "Local organism controls and topology inspection update without writes.", [
-        ...scopedMembers("map", organismControlMembers),
-        ...scopedMembers("map", organismGameplayMembers),
-        ...scopedMembers("map", organismNetcodeMembers),
+      family("organism-map-controls", "Topology, console and navigation", "Map route and read-only topology contract are mounted.", "Topology filters, adjacency inspection, console and navigation update without writes.", [
+        {
+          ...member("map-topology-kind-filter", "Filter topology kind", `[data-testid="organism-topology-kind-filter"]`, "The fail-closed topology contract is valid and contains multiple node kinds.", "The visible node list is filtered to the selected contract kind.", `[data-testid="organism-topology-node-list"]`, "enabled", [ORGANISM_TOPOLOGY]),
+          requireEffectDelta: true,
+        },
+        member("map-topology-node-select", "Inspect topology node", `[data-testid="organism-topology-node"]`, "At least one validated topology node is visible.", "The selected node and its inbound/outbound adjacency update.", `[data-testid="organism-topology-adjacency"]`, "enabled", [ORGANISM_TOPOLOGY]),
         ...liveConsoleMembers("map-live"),
         member("map-nav-live", "Open live organism", `.page-head a[href="/organism"]`, "Map route is mounted.", "Browser navigates to /organism.", "main"),
         member("map-nav-replay", "Open organism replay", `.page-head a[href="/organism/replay"]`, "Map route is mounted.", "Browser navigates to /organism/replay.", "main"),
