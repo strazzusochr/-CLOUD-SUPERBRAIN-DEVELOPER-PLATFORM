@@ -74,15 +74,30 @@ verdächtigen.** Ursache: Windows-Backup (~37 GB) unter `D:\NEWPC`, vom Owner en
 ## ⏸ CODEX RATE-LIMITED BIS **2026-08-02, 23:54**
 Kein Absturz, nichts verloren, alles gepusht.
 
+## 🆕 NEUE CODEX-PFLICHT AUS DER OWNER-MATRIX (bisher nirgends erfasst)
+`owner-input-manifest.json` / O2 verlangt wörtlich: *„otherwise keep R2 disabled **and amend ADR-010 to a genuine
+zero-card artifact adapter**"*. Da R2 endgültig gestrichen ist (Kreditkarten-Wand), ist das jetzt **fällig**:
+**`docs/adr/ADR-010-cloudflare-native-free-runtime.md` überarbeiten** — Artefakt-Adapter auf D1 (+ Durable Objects)
+statt R2, mit ehrlicher Begründung und Grenzen. Ohne diese Änderung bleibt ADR-010 im Widerspruch zur Realität.
+
+## ✅ O5 IST ERLEDIGT
+Die Matrix fordert für O5 nur „Extend the Cloudflare token with Vectorize Edit". Der gelieferte Token liest
+Vectorize (HTTP 200), `-Profile O5` **1/1 PASS**. **Der Owner-Teil von O5 entfällt.** Rest ist Codex-Arbeit
+(Index anlegen, Embedding, Roundtrip, hosted Semantic-Search-Beweis) — `live_verified` nie handsetzen.
+
 ## 🧾 OWNER-TODO (alles gratis, keine Kreditkarte)
+> **📖 Vollständige Klick-für-Klick-Anleitung: [`docs/runbooks/OWNER_SCHRITT_FUER_SCHRITT_2026-07-27.md`](docs/runbooks/OWNER_SCHRITT_FUER_SCHRITT_2026-07-27.md)**
+> Enthält exakte Feldwerte, Variablennamen, Berechtigungsstufen und die Reihenfolge.
+> **O3 erst nach `MARKET_READY: true`** — die Matrix verbietet frühere Registry-Veröffentlichung.
 | # | Was du tust | schaltet frei |
 |---|---|---|
-| ~~1 · O2′~~ | ✅ **ERLEDIGT** — Token liefert 5/6, O2Core 4/4 persistiert | **hosted startbar** |
-| ~~2 · O5~~ | ✅ **ERLEDIGT** — Vectorize 1/1 | **MEM-Weg offen** |
-| ~~R2~~ | ⛔ **GESTRICHEN** — Kreditkarte nötig, verletzt Free-Only. Artefakte gehen nach D1/DO. | — |
-| **3 · O1** | GitHub-OAuth-App + Callback + `vercel env` | **P3 44→100** |
-| **4 · O4** | Agent-/MCP-Write-Allowlist + Branch-Protection | **AP/MCP↑** |
-| **5 · O3** | GHCR-Publish (public = frei) + Release-Review | **P5↑** |
+| ~~O2′~~ | ✅ **ERLEDIGT** — O2Core 4/4 persistiert | hosted startbar |
+| ~~O5~~ | ✅ **ERLEDIGT** — Vectorize 1/1 | MEM-Weg offen |
+| ~~O6~~ | ✅ `resolved_verified` | — |
+| ~~R2~~ | ⛔ **GESTRICHEN** — Kreditkarte nötig, verletzt Free-Only. Artefakte → D1/DO. | — |
+| **1 · O1** 🔥 | OAuth-App → `GITHUB_OAUTH_CLIENT_ID` / `_CLIENT_SECRET` / `_REDIRECT_URI` (Callback exakt `/api/v1/auth/callback`) + dieselben in Vercel + Redeploy | **P3 44→100** |
+| **2 · O4** | Fine-grained Token (**Administration + Contents + Pull requests = Read and write**) → `GITHUB_TOKEN` + `GITHUB_REPOSITORY=owner/name`; dann `python scripts/apply_github_branch_protection.py`; **plus deine Freigabe im Chat**: welche Repos/Branches/MCP-Tools/Audit-Aufbewahrung | **AP/MCP↑** |
+| **3 · O3** ⚠️ | **erst nach `MARKET_READY: true`** — `write:packages` → `GHCR_TOKEN`, Paket auf **Public** (dann gratis), Release-Freigabe im Chat | **P5↑** |
 
 ## ⛔ REGELN
 No-Fake-Done/Live · `live_verified` nie handsetzen · **Free-Only: kein Fly, keine Karte, keine CF-Containers,

@@ -137,6 +137,26 @@ Fehlercodes: `6003` = kein reiner Token · `1000`/`9106` = Token ungültig · `1
 
 # TEIL III — WEG UND REGELN
 
+## 5b. 🆕 OFFENE PFLICHT AUS DER OWNER-MATRIX: **ADR-010 ÄNDERN**
+`owner-input-manifest.json` / O2 verlangt wörtlich: *„otherwise keep R2 disabled **and amend ADR-010 to a genuine
+zero-card artifact adapter**"*. R2 ist endgültig gestrichen (§4) → **die Änderung ist jetzt fällig und war bisher
+in keiner Übergabe erfasst.** Codex: `docs/adr/ADR-010-cloudflare-native-free-runtime.md` überarbeiten —
+Artefakt-Adapter auf **D1** (+ Durable Objects) statt R2, mit ehrlicher Begründung (Kreditkarten-Wand),
+Grenzen (D1-Zeilen-/Größenlimits) und Migrationshinweis. Ohne diese Änderung steht ADR-010 im Widerspruch
+zur beschlossenen Architektur.
+
+## 5c. ✅ O5 IST ERLEDIGT — OWNER-TEIL ENTFÄLLT
+Die Matrix fordert für O5 ausschließlich „Extend the Cloudflare token with Vectorize Edit". Der gelieferte Token
+liest Vectorize (HTTP 200), `-Profile O5` **1/1 PASS**. Verbleibende O5-Arbeit ist **rein Codex**: Index anlegen,
+Embedding, Roundtrip, hosted Semantic-Search-Beweis über `verify-live-vector-memory-search.ps1`.
+**`live_verified` nie handsetzen** — die lexikalische D1-Suche ist keine semantische Vektorsuche.
+
+## 5d. 📖 OWNER-RUNBOOK
+Vollständige Klick-für-Klick-Anleitung für die verbleibenden drei Gates:
+**`docs/runbooks/OWNER_SCHRITT_FUER_SCHRITT_2026-07-27.md`** — exakte Feldwerte, Variablennamen,
+Berechtigungsstufen, Reihenfolge. **Reihenfolge ist bindend: O1 → O4 → O3.**
+O3 (GHCR) darf laut Matrix-`codex_boundary` **erst nach `MARKET_READY: true`** erfolgen.
+
 ## 6. GATE-INVENTAR (10 Gates: 3 offen · 7 zu)
 ✅ offen: `live_llm_provider_calls` · `live_memory_provider` · `hosted_observability_endpoint`
 🔴 zu: `cloudflare_native_zero_card_hosted_runtime` (**O2′**) · `live_vector_memory_search` (**O5**) ·
