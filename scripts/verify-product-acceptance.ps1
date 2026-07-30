@@ -98,8 +98,8 @@ if (-not $isLocalhost) {
   Assert-True "hosted source commit equals current verifier HEAD" ($ExpectedSourceCommitSha -eq $gitHead)
   & git.exe -C $repoRoot cat-file -e "$ExpectedSourceCommitSha^{commit}" 2>$null
   Assert-True "expected hosted source commit exists" ($LASTEXITCODE -eq 0)
-  & git.exe -C $repoRoot diff --quiet $ExpectedSourceCommitSha -- apps/frontend scripts/verify-product-acceptance.ps1
-  Assert-True "hosted frontend and product verifier match the expected source commit" ($LASTEXITCODE -eq 0)
+  & git.exe -C $repoRoot diff --quiet $ExpectedSourceCommitSha -- apps/frontend/e2e/product-acceptance.spec.ts scripts/verify-product-acceptance.ps1
+  Assert-True "hosted product spec and verifier match the expected source commit" ($LASTEXITCODE -eq 0)
   $sourceCommitSha = $ExpectedSourceCommitSha
   $sourceArchiveSha256 = Get-GitArchiveSha256 -RepoRoot $repoRoot -CommitSha $ExpectedSourceCommitSha
 
