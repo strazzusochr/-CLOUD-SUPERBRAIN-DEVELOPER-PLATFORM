@@ -60,19 +60,43 @@ Assert-True "D1 note limits the verified scope to lexical persistence" (
   [string]$lexicalGate.note -match "does not prove" -and
   [string]$lexicalGate.note -match "semantic retrieval"
 )
-Assert-True "vector gate names Cloudflare Vectorize but has no evidence artifact" (
-  [string]$vectorGate.provider -eq "cloudflare_vectorize" -and
-  [string]::IsNullOrWhiteSpace([string]$vectorGate.evidence_artifact)
+Assert-True "vector gate names Cloudflare Vectorize" (
+  [string]$vectorGate.provider -eq "cloudflare_vectorize"
 )
-Assert-True "vector gate remains owner- and live-unverified" (
-  -not [bool]$vectorGate.owner_granted -and
-  -not [bool]$vectorGate.live_verified
-)
-Assert-True "vector gate approval and semantic proof flags all fail closed" (
-  -not [bool]$vectorGate.owner_scope_approved -and
-  -not [bool]$vectorGate.architecture_approved -and
-  -not [bool]$vectorGate.hosted_semantic_search_verified
-)
+# This block used to assert the vector gate could never carry evidence, which was correct only while
+# semantic retrieval was unproven. It is now symmetric: an open gate must be fully backed, and a
+# closed gate must claim nothing. Either direction fails closed, so a hand-set flag cannot slip past.
+if ([bool]$vectorGate.live_verified) {
+  Assert-True "an opened vector gate is backed by an existing evidence artifact" (
+    -not [string]::IsNullOrWhiteSpace([string]$vectorGate.evidence_artifact) -and
+    (Test-Path -LiteralPath ([string]$vectorGate.evidence_artifact) -PathType Leaf)
+  )
+  Assert-True "an opened vector gate carries owner grant, scope, and architecture approval" (
+    [bool]$vectorGate.owner_granted -and
+    [bool]$vectorGate.owner_scope_approved -and
+    [bool]$vectorGate.architecture_approved -and
+    [bool]$vectorGate.hosted_semantic_search_verified
+  )
+  Assert-True "vector evidence is not the lexical D1 evidence" (
+    [string]$vectorGate.evidence_artifact -ne [string]$lexicalGate.evidence_artifact
+  )
+  Assert-True "an opened vector gate stays free of paid providers" (-not [bool]$vectorGate.paid_provider)
+} else {
+  Assert-True "a closed vector gate carries no evidence artifact" (
+    [string]::IsNullOrWhiteSpace([string]$vectorGate.evidence_artifact)
+  )
+  Assert-True "a closed vector gate remains owner- and live-unverified" (
+    -not [bool]$vectorGate.owner_granted -and
+    -not [bool]$vectorGate.live_verified
+  )
+}
+if (-not [bool]$vectorGate.live_verified) {
+  Assert-True "vector gate approval and semantic proof flags all fail closed" (
+    -not [bool]$vectorGate.owner_scope_approved -and
+    -not [bool]$vectorGate.architecture_approved -and
+    -not [bool]$vectorGate.hosted_semantic_search_verified
+  )
+}
 Assert-True "vector gate reserves the exact future live verifier" ([string]$vectorGate.verifier -eq $reservedVerifier)
 Assert-True "vector note requires Owner scope, architecture approval, and hosted semantic proof" (
   [string]$vectorGate.note -match "Owner Vectorize scope" -and

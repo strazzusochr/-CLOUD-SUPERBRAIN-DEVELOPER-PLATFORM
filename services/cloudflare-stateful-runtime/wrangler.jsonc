@@ -48,9 +48,6 @@
       "migrations_dir": "migrations"
     }
   ],
-  // O5 semantic memory. Vectorize is on the Workers free plan (30M queried / 5M stored dimensions)
-  // and needed no payment method, unlike R2. The index is 768-dimension cosine to match the
-  // Workers AI embedding model bound below; changing either without the other breaks retrieval.
   "vectorize": [
     {
       "binding": "VECTORIZE",
