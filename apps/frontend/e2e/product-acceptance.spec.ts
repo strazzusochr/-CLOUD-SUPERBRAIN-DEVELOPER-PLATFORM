@@ -370,7 +370,7 @@ test("real prompt builds, runs, interacts, and reloads the persisted 3D game", a
     expect(initialReadResponse.status()).toBe(200);
     expect(initialRead.id).toBe(buildId);
     expect(initialRead.persisted).toBe(true);
-    expect(initialRead.audit_persisted).toBe(true);
+    // Audit atomicity is asserted on the create response; public reads do not join the audit table.
     expect(initialRead.live_provider_calls).toBe(true);
     expect(initialRead.gateway_provider).toBe(expectedGatewayProvider);
     expect(initialRead.direct_provider_calls).toBe(false);
