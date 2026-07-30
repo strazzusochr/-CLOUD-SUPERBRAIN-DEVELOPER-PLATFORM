@@ -1129,11 +1129,16 @@ if (([string]$externalGateSummary.source_artifact).Contains($candidateAuditName)
   throw "Historical owner-assisted candidate $candidateAuditName must never be the canonical summary source"
 }
 if ([string]$externalGateSummary.status -ne "blocked" -or [bool]$externalGateSummary.production_deploy_claim_allowed) {
-  throw "Canonical external gate summary must stay blocked with production_deploy_claim_allowed=false until hosted O2' proof"
+  throw "Canonical external gate summary must stay blocked with production_deploy_claim_allowed=false while release gates remain open"
 }
 $actualMissingExternalGates = @($externalGateSummary.missing_or_failed_gates | ForEach-Object { [string]$_ })
-if ($actualMissingExternalGates.Count -ne 1 -or $actualMissingExternalGates[0] -ne "cloudflare_native_zero_card_hosted_runtime") {
-  throw "Canonical external gate summary must list only the active Cloudflare-native hosted gate"
+if (
+  $actualMissingExternalGates.Count -ne 2 -or
+  $actualMissingExternalGates -notcontains "github_branch_protection_current_verify" -or
+  $actualMissingExternalGates -notcontains "ghcr_image_digest_verify" -or
+  -not [bool]$externalGateSummary.cloudflare_native_zero_card_hosted_runtime_claim_allowed
+) {
+  throw "Canonical external gate summary must keep O2Core open and list only Branch Protection plus GHCR digest as missing"
 }
 if (
   $externalGateSummary.PSObject.Properties.Name -contains "fly_live_budget_claim_allowed" -or
@@ -1163,8 +1168,71 @@ if ([bool]$candidateSummary.supersedes_canonical) {
   throw "Historical owner-assisted candidate must not supersede the canonical v2 summary"
 }
 
-Write-Host "[verify] O6 bounded live LLM resolution truth"
 $capabilityGateState = Get-Content -Path "docs\runtime-state\capability-gates.json" -Raw | ConvertFrom-Json
+Write-Host "[verify] current Cloudflare-native hosted runtime truth"
+$cloudflareHostedState = Get-Content -Path "docs\runtime-state\cloudflare-native-hosted-current.json" -Raw | ConvertFrom-Json
+$cloudflareHostedGate = $capabilityGateState.gates.cloudflare_native_zero_card_hosted_runtime
+if (
+  [string]$cloudflareHostedState.contract_version -ne "cloudflare-native-hosted-current-v1" -or
+  [string]$cloudflareHostedState.status -ne "verified" -or
+  [string]$cloudflareHostedState.runtime_contract_version -ne "cloudflare-native-runtime-candidate-v2" -or
+  [string]$cloudflareHostedState.artifact_adapter -ne "cloudflare-d1-bounded-text" -or
+  [int]$cloudflareHostedState.artifact_content_max_bytes -ne 32768 -or
+  [string]$cloudflareHostedState.r2_status -ne "historical_only" -or
+  [bool]$cloudflareHostedState.r2_enabled -or
+  [bool]$cloudflareHostedState.paid_provider -or
+  [bool]$cloudflareHostedState.dev_only -or
+  -not [bool]$cloudflareHostedState.hosted_proof -or
+  -not [bool]$cloudflareHostedState.hosted_source_parity_verified -or
+  -not [bool]$cloudflareHostedState.hosted_stateful_roundtrip_verified -or
+  -not [bool]$cloudflareHostedState.create_enqueue_queue_do_d1_artifact_roundtrip -or
+  -not [bool]$cloudflareHostedState.d1_artifact_write_read_delete_verified -or
+  -not [bool]$cloudflareHostedState.zero_card_verified -or
+  [bool]$cloudflareHostedState.product_acceptance_hosted_proof -or
+  [bool]$cloudflareHostedState.workspace_22_page_hosted_proof -or
+  [bool]$cloudflareHostedState.live_provider_calls -or
+  [bool]$cloudflareHostedState.direct_provider_calls -or
+  [bool]$cloudflareHostedState.live_mcp_writes -or
+  [bool]$cloudflareHostedState.production_deploy -or
+  [bool]$cloudflareHostedState.production_release_claimed -or
+  [bool]$cloudflareHostedState.secret_output -or
+  [int]$cloudflareHostedState.percentage_credit -ne 0
+) {
+  throw "Current Cloudflare-native hosted runtime truth violates its verified zero-card/non-claim contract"
+}
+if (
+  [string]$cloudflareHostedState.base_url -notmatch '^https://[^/]+\.workers\.dev$' -or
+  [string]$cloudflareHostedState.source_commit_sha -notmatch '^[0-9a-f]{40}$' -or
+  [string]$cloudflareHostedState.source_archive_sha256 -notmatch '^[0-9a-f]{64}$' -or
+  [string]$cloudflareHostedState.evidence_sha256 -notmatch '^[A-F0-9]{64}$' -or
+  ((@($cloudflareHostedState.bindings) | Sort-Object) -join ',') -ne 'DB,RUNTIME_COORDINATOR,RUNTIME_QUEUE'
+) {
+  throw "Current Cloudflare-native hosted runtime truth has invalid source, evidence, URL, or binding identity"
+}
+if (
+  -not [bool]$cloudflareHostedGate.owner_granted -or
+  -not [bool]$cloudflareHostedGate.live_verified -or
+  -not [bool]$cloudflareHostedGate.zero_card_verified -or
+  -not [bool]$cloudflareHostedGate.hosted_source_parity_verified -or
+  -not [bool]$cloudflareHostedGate.hosted_stateful_roundtrip_verified -or
+  [bool]$cloudflareHostedGate.r2_enabled -or
+  [bool]$cloudflareHostedGate.paid_provider -or
+  [string]$cloudflareHostedGate.evidence_sha256 -ne [string]$cloudflareHostedState.evidence_sha256 -or
+  [string]$cloudflareHostedGate.source_commit_sha -ne [string]$cloudflareHostedState.source_commit_sha -or
+  [string]$cloudflareHostedGate.source_archive_sha256 -ne [string]$cloudflareHostedState.source_archive_sha256 -or
+  [string]$cloudflareHostedGate.hosted_base_url -ne [string]$cloudflareHostedState.base_url -or
+  -not [bool]$externalGateSummary.cloudflare_native_zero_card_hosted_runtime_claim_allowed
+) {
+  throw "Current Cloudflare-native hosted runtime truth is not bound to the verifier-opened capability and external-gate mirrors"
+}
+git cat-file -e "$($cloudflareHostedState.source_commit_sha)^{commit}" 2>$null
+Assert-LastExitCode "current Cloudflare-native hosted source commit"
+git merge-base --is-ancestor ([string]$cloudflareHostedState.source_commit_sha) HEAD
+Assert-LastExitCode "current Cloudflare-native hosted source ancestry"
+git diff --quiet ([string]$cloudflareHostedState.source_commit_sha) -- services/cloudflare-stateful-runtime
+Assert-LastExitCode "current Cloudflare-native hosted Worker source parity"
+
+Write-Host "[verify] O6 bounded live LLM resolution truth"
 $liveLlmCapability = $capabilityGateState.gates.live_llm_provider_calls
 if (
   -not [bool]$liveLlmCapability.owner_granted -or
@@ -2832,6 +2900,10 @@ Write-Host "[verify] owner Cloudflare token helper"
 pwsh -NoProfile -File scripts\verify-owner-set-cloudflare-token.ps1
 Assert-LastExitCode "owner Cloudflare token helper"
 
+Write-Host "[verify] qualified Cloudflare token promotion"
+pwsh -NoProfile -File scripts\verify-promote-cloudflare-token-candidate.ps1
+Assert-LastExitCode "qualified Cloudflare token promotion"
+
 Write-Host "[verify] Agent Research read-only source binding"
 pwsh -NoProfile -File scripts\verify-agent-research-source-binding.ps1
 Assert-LastExitCode "Agent Research read-only source binding"
@@ -2866,7 +2938,7 @@ foreach ($required in @("OWNER_BLOCKED_AUTONOMOUS_COMPLETE", "cloudflare_native_
   }
 }
 $gateOpeningAnalysis = Get-Content -Path "docs\audit\gate-opening-analysis.md" -Raw
-foreach ($required in @("external-gate-audit-v2.json", "cloudflare_native_zero_card_hosted_runtime", 'Historical resource families inventoryable: `0/6`', "O2Core 4/4", "O5 1/1", "historical_only", "production_deploy_claim_allowed=false")) {
+foreach ($required in @("external-gate-audit-v2.json", "cloudflare_native_zero_card_hosted_runtime", "cloudflare-native-hosted-current.json", "FEEE5D40E14E547C9B8EB5903B993E61BC324E2C2CAD64ECF8C7DF3BA9049D0B", "github_branch_protection_current_verify", "ghcr_image_digest_verify", "O2Core 4/4", "O5 1/1", "historical_only", "production_deploy_claim_allowed=false")) {
   if (-not $gateOpeningAnalysis.Contains($required)) {
     throw "Gate-opening analysis missing current truth marker: $required"
   }

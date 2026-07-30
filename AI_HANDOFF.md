@@ -102,20 +102,21 @@ ESLint, repo-wide `verify-phase1.ps1` including gitleaks `no leaks found`,
 `verify-browser-contract.ps1` ending in `checks completed`. Docker was 10/10
 healthy and the responsive proof was 22 routes x 2 viewports = 44 clicks.
 
-P5 now has an atomic Cloudflare-native gate rebase. The tracked authority is
+P5 has an atomic Cloudflare-native gate rebase. The tracked authority is
 `docs/runtime-state/external-gate-audit-v2.json` (`external-gate-audit-v2`,
-SHA-256 `5E05F8EC80F17845C7CAC980177275F008216560C3BEECFDCF0DD3B40D05C21C`)
+SHA-256 `0678FB8C3AD2EAA4FCC2FEB7F9124846836340FCA297529A0BD3A750799E894F`)
 and `docs/runtime-state/external-gate-summary.json` uses
 `external-gate-summary-v2`. The latest full local run is
-`.phase1-artifacts/external-gate-audit-v2-20260726-084042.json`. Both stay
-`blocked` with exactly `cloudflare_native_zero_card_hosted_runtime` missing and
-Production false. A GET-only Cloudflare scope audit could inventory 0/6
-resource families because the current token returned HTTP 401/403, code 10000;
-this proves insufficient management scopes, not absent resources. Sanitized
-evidence: `.codex/runs/CURRENT/p5/cloudflare-scope-readiness/report.json`,
-SHA-256 `DBFF2AFD4E32A0ABAD49BFD05A97E6D817F605559468DE4CD74A6BEE20CE7215`.
-No Cloudflare mutation, token output, percentage credit, or gate flip occurred.
-RC10/Fly v1 is `historical_only`.
+`.phase1-artifacts/external-gate-audit-v2-20260730-202122.json`. Both stay
+`blocked` with `cloudflare_native_zero_card_hosted_runtime` verifier-open and
+exactly `github_branch_protection_current_verify` plus
+`ghcr_image_digest_verify` missing; Production remains false. The hosted
+O2Core proof covers D1, Queue and SQLite Durable Object with source parity and
+zero-card execution. The qualified active token proves O2Core 4/4 and O5 1/1;
+R2 remains unbound and historical-only. The earlier GET-only 0/6 scope report
+is retained as sanitized historical evidence, not current token truth. No
+token output, percentage credit, registry push, or Production gate flip
+occurred. RC10/Fly v1 is `historical_only`.
 
 Session 9 selects Architecture A and removes Fly.io from new target work. The local
 `cloudflare-native-runtime-candidate-v1` keeps LangGraph.js, labels D1 as custom persistence,

@@ -1,49 +1,46 @@
-﻿{
-    "contract_version":  "external-gate-summary-v2",
-    "source_contract_version":  "external-gate-audit-v2",
-    "source_artifact":  "docs\\runtime-state\\external-gate-audit-v2.json",
-    "local_run_artifact":  ".phase1-artifacts\\external-gate-audit-v2-20260726-084042.json",
-    "generated_at_utc":  "2026-07-26T06:40:42.8674906Z",
-    "status":  "blocked",
-    "active_target_gate":  "cloudflare_native_zero_card_hosted_runtime",
-    "gate_ids":  [
-                     "hosted_agent_api_contracts",
-                     "github_branch_protection_current_verify",
-                     "ghcr_image_digest_verify",
-                     "vercel_backend_origin_health",
-                     "canonical_gitleaks_scan",
-                     "cloudflare_native_zero_card_hosted_runtime"
-                 ],
-    "frontend_preview_claim_allowed":  true,
-    "hosted_staging_claim_allowed":  true,
-    "branch_protection_claim_allowed":  true,
-    "ghcr_image_digest_claim_allowed":  true,
-    "vercel_backend_origins_claim_allowed":  true,
-    "canonical_gitleaks_claim_allowed":  true,
-    "cloudflare_native_zero_card_hosted_runtime_claim_allowed":  false,
-    "gitlab_identity_claim_allowed":  false,
-    "huggingface_identity_claim_allowed":  false,
-    "grafana_cloud_claim_allowed":  false,
-    "production_deploy_claim_allowed":  false,
-    "missing_or_failed_gates":  [
-                                    "cloudflare_native_zero_card_hosted_runtime"
-                                ],
-    "failed_hosted_required_probe_ids":  [
-
-                                         ],
-    "failed_vercel_origin_probe_ids":  [
-
-                                       ],
-    "legacy_provenance":  {
-                              "status":  "historical_only",
-                              "contract_version":  "external-gate-audit-v1",
-                              "source_artifact":  ".phase1-artifacts\\external-gate-audit-20260720-191532.json",
-                              "retired_gate_id":  "fly_live_budget_check"
-                          },
-    "non_claims":  [
-                       "This is a sanitized runtime summary, not the full audit artifact.",
-                       "Probe snippets, URLs, logs, and token values are not included.",
-                       "RC10 external-gate-summary-v1 and Fly semantics are historical provenance only.",
-                       "No hosted, production, branch-protection, Cloudflare-native, or Vercel-origin claim is allowed while missing_or_failed_gates is non-empty."
-                   ]
+{
+  "contract_version": "external-gate-summary-v2",
+  "source_contract_version": "external-gate-audit-v2",
+  "source_artifact": "docs\\runtime-state\\external-gate-audit-v2.json",
+  "local_run_artifact": ".phase1-artifacts\\external-gate-audit-v2-20260730-202122.json",
+  "generated_at_utc": "2026-07-30T18:21:22.2273990Z",
+  "status": "blocked",
+  "active_target_gate": "cloudflare_native_zero_card_hosted_runtime",
+  "gate_ids": [
+    "hosted_agent_api_contracts",
+    "github_branch_protection_current_verify",
+    "ghcr_image_digest_verify",
+    "vercel_backend_origin_health",
+    "canonical_gitleaks_scan",
+    "cloudflare_native_zero_card_hosted_runtime"
+  ],
+  "frontend_preview_claim_allowed": true,
+  "hosted_staging_claim_allowed": true,
+  "branch_protection_claim_allowed": false,
+  "ghcr_image_digest_claim_allowed": false,
+  "vercel_backend_origins_claim_allowed": true,
+  "canonical_gitleaks_claim_allowed": true,
+  "cloudflare_native_zero_card_hosted_runtime_claim_allowed": true,
+  "gitlab_identity_claim_allowed": true,
+  "huggingface_identity_claim_allowed": true,
+  "grafana_cloud_claim_allowed": true,
+  "production_deploy_claim_allowed": false,
+  "missing_or_failed_gates": [
+    "github_branch_protection_current_verify",
+    "ghcr_image_digest_verify"
+  ],
+  "failed_hosted_required_probe_ids": [],
+  "failed_vercel_origin_probe_ids": [],
+  "legacy_provenance": {
+    "status": "historical_only",
+    "contract_version": "external-gate-audit-v1",
+    "source_artifact": ".phase1-artifacts\\external-gate-audit-20260720-191532.json",
+    "retired_gate_id": "fly_live_budget_check"
+  },
+  "non_claims": [
+    "This is a sanitized runtime summary, not the full audit artifact.",
+    "Probe snippets, URLs, logs, and token values are not included.",
+    "RC10 external-gate-summary-v1 and Fly semantics are historical provenance only.",
+    "Claims are gate-specific; missing_or_failed_gates blocks the named claims and production deployment, while individually verified hosted claims remain evidence-bounded."
+  ]
 }

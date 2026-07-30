@@ -1645,14 +1645,16 @@ $infraBudgetJson = $infraBudget | ConvertFrom-Json
 if ([string]$infraBudgetJson.source -ne "cloudflare_zero_card_projection") {
   throw "Runtime verification failed: active infra budget source was '$($infraBudgetJson.source)'."
 }
-if ($infraBudgetJson.live_verified -ne $false) {
-  throw "Runtime verification failed: blocked Cloudflare projection must report live_verified=false."
+$expectedCloudflareHosted = [bool]$canonicalExternalGateSummary.cloudflare_native_zero_card_hosted_runtime_claim_allowed
+if ([bool]$infraBudgetJson.live_verified -ne $expectedCloudflareHosted) {
+  throw "Runtime verification failed: Cloudflare projection live_verified diverges from canonical hosted-gate truth."
 }
-if ($infraBudgetJson.allow_new_infra -ne $false) {
-  throw "Runtime verification failed: blocked Cloudflare projection must keep allow_new_infra=false."
+if ([bool]$infraBudgetJson.allow_new_infra -ne $expectedCloudflareHosted) {
+  throw "Runtime verification failed: Cloudflare projection allow_new_infra diverges from canonical hosted-gate truth."
 }
+$expectedCloudflareBudgetStatus = if ($expectedCloudflareHosted) { "hosted_verified" } else { "blocked_external_gate" }
 Assert-Contains "infra budget active Cloudflare item" $infraBudget "cloudflare-native-zero-card-hosted-runtime"
-Assert-Contains "infra budget active gate status" $infraBudget "blocked_external_gate"
+Assert-Contains "infra budget active gate status" $infraBudget $expectedCloudflareBudgetStatus
 Assert-Contains "infra budget historical Fly classification" $infraBudget "historical_only"
 
 Write-Host "[runtime] external gates endpoint"

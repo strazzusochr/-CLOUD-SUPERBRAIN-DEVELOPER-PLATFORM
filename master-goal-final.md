@@ -6,10 +6,11 @@ Stand: 2026-07-30
 
 `MARKET_READY: false`
 
-Session 9 setzt den Zielpfad auf eine kostenlose Cloudflare-native Runtime um. Bis der neue
-Pfad lokal und anschliessend gehostet bewiesen ist, bleiben Matrix, Marktfreigabe und
-Production-Claims unverändert geschlossen. Keine Zelle wird allein durch die
-Architekturentscheidung aufgewertet.
+Session 9 setzte den Zielpfad auf eine kostenlose Cloudflare-native Runtime um.
+Der O2Core-Pfad ist inzwischen lokal und source-gebunden gehostet bewiesen. Produkt-,
+22-Seiten-, Vectorize-, Release- und Production-Claims bleiben bis zu ihren eigenen
+Beweisen geschlossen. Keine Zelle wird allein durch die Architekturentscheidung oder
+den O2Core-Runtime-Beweis aufgewertet.
 
 ## Session-9-Architekturentscheidung
 
@@ -25,8 +26,8 @@ Architekturentscheidung aufgewertet.
   Gatewaypfad ist als O6 `resolved_verified`, ohne Prozentcredit.
 - Fly.io ist als Session-9-Ziel ausgeschlossen. Der v2-Truth-Rebase ist abgeschlossen;
   Fly/RC10-v1 bleibt ausschliesslich `historical_only`.
-- Der erste Ausbau ist `DEV-ONLY`; `hosted_proof=false`, `live_provider_calls=false`,
-  `live_mcp_writes=false`, `production_deploy=false`.
+- O2Core besitzt `hosted_proof=true`; Produktabnahme und Hosted-22-Seiten-Matrix
+  bleiben separat false. `live_mcp_writes=false`, `production_deploy=false`.
 - Keine Karte, kein bezahltes Konto und keine automatische Uebernutzung. R2 ist wegen
   Checkout-/Kartenpflicht final aus O2Core entfernt; kein aktiver Binding-/Fallback-Pfad.
 
@@ -42,7 +43,9 @@ Die bindende Migrationsgrenze steht in
 - Externe Wahrheit: `external-gate-summary-v2`, `blocked`;
   `production_deploy_claim_allowed=false`
 - Kanonischer Audit: `docs/runtime-state/external-gate-audit-v2.json`
-- Einziger aktiver Audit-Blocker: `cloudflare_native_zero_card_hosted_runtime` (O2')
+- O2Core: `cloudflare_native_zero_card_hosted_runtime=true`
+- Aktive Audit-Blocker: `github_branch_protection_current_verify`,
+  `ghcr_image_digest_verify`
 
 ## Zero-Card-Adapter v2 (2026-07-30)
 
@@ -59,7 +62,12 @@ Die bindende Migrationsgrenze steht in
   (`22x2`, sieben Phase-6-Kontrollen) seriell grün; gitleaks ohne Fund.
 - Evidence SHA-256:
   `CB108383C338E41C47440FA2618009DC174053E08E6401CAD7255AD333A65F43`.
-- Kein Prozentcredit; O2' bleibt geschlossen; `DEV-ONLY; hosted proof still blocked`.
+- Hosted-Nachweis: D1 W/R/D, Queue, SQLite-DO, LangGraph, Source-Parität und
+  Zero-Card-Pfad grün; Report-SHA-256
+  `FEEE5D40E14E547C9B8EB5903B993E61BC324E2C2CAD64ECF8C7DF3BA9049D0B`.
+- Verifier-generierter State:
+  `docs/runtime-state/cloudflare-native-hosted-current.json`.
+- Kein Prozentcredit; Produkt-Hosted-Proof und Hosted-22-Seiten-Lauf bleiben offen.
 
 ## P5 v2 Lieferung
 
@@ -67,12 +75,12 @@ Die bindende Migrationsgrenze steht in
   `external-gate-summary-v2` ersetzt; Fly bleibt historische Provenienz.
 - Agent API, Preflight, Go-live, Infra-Budget, UI und Verifier auf
   `cloudflare_native_runtime` / `cloudflare_native_zero_card_hosted_runtime` umgestellt.
-- Cloudflare-Stateful-Verifier kann den Hosted D1-Artefakt→Queue→DO-Lifecycle nur nach
-  `-AllowHostedWrites` ausführen; ohne Owner-Gate stoppt er vor dem Netzaufruf.
-- GET-only Scope-Audit: 0/6 Management-Ressourcenfamilien lesbar, HTTP 401/403,
-  Fehlercode 10000; keine Mutation und kein Secret-Output.
-- Kanonischer Audit SHA-256:
-  `5E05F8EC80F17845C7CAC980177275F008216560C3BEECFDCF0DD3B40D05C21C`.
+- Cloudflare-Stateful-Verifier führte den Hosted D1-Artefakt→Queue→DO-Lifecycle nach
+  explizitem O2Core-Owner-Gate aus und öffnete das Capability-Gate atomar.
+- Der qualifizierte Management-Token wurde danach evidence-bound atomar aktiviert;
+  Rollback bleibt privat, keine Secret-Ausgabe.
+- Aktueller externer Audit bestätigt Hosted Staging, Vercel-Origins, Gitleaks und
+  Cloudflare O2Core; Branch Protection und GHCR bleiben offen.
 
 ## Session-8 Lieferung
 
@@ -109,7 +117,7 @@ Die bindende Migrationsgrenze steht in
 | ID | Matrix | Owner-Aktion |
 | --- | --- | --- |
 | O1 | P3 | Production-OAuth-App, Hosted Callback und sichere Credential-Konfiguration |
-| O2' | P5, P6 | Kostenloses Cloudflare-Konto/Scopes, Zero-Card-Ressourcen und Hosted-Paritaetsbeweis |
+| O2' Scale | P6 | O2Core Runtime ist hosted verifiziert; separater Scale-/Kapazitätsbeweis bleibt offen |
 | O3 | P5, MCP | GHCR-Publikation, Protected Release Workflow und Owner-Review |
 | O4 | P6, AP, MCP | Live Agent-/MCP-Write-Allowlist, Branch Protection und Audit-Freigabe |
 | O5 | MEM | Cloudflare `Vectorize:Edit`, Architekturfreigabe und Hosted Semantic-Search-Proof |
@@ -137,4 +145,4 @@ npm run verify:market-ready
 MARKET_READY: true
 ```
 
-Bis dahin: `DEV-ONLY; hosted proof still blocked`.
+Bis dahin: O2Core hosted verifiziert; Produkt-, Release- und Production-Proof bleiben blockiert.

@@ -1037,7 +1037,7 @@ $runtimeSummary = [ordered]@{
     "This is a sanitized runtime summary, not the full audit artifact.",
     "Probe snippets, URLs, logs, and token values are not included.",
     "RC10 external-gate-summary-v1 and Fly semantics are historical provenance only.",
-    "No hosted, production, branch-protection, Cloudflare-native, or Vercel-origin claim is allowed while missing_or_failed_gates is non-empty."
+    "Claims are gate-specific; missing_or_failed_gates blocks the named claims and production deployment, while individually verified hosted claims remain evidence-bounded."
   )
 }
 $summaryDir = Split-Path -Parent $SummaryPath

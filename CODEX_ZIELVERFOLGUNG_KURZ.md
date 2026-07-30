@@ -1,4 +1,4 @@
-# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-07-30 (Session 12) — P1 GRÜN · HOSTED offen
+# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-07-30 (Session 12) — P1 + O2Core HOSTED GRÜN
 # In JEDER Session: (1) diese Datei → (2) CODEX_UEBERGABE_2026-07-27-SESSION12.md → (3) arbeiten.
 
 ## ✅ STAND — aktueller Feature-Branch
@@ -38,6 +38,18 @@ TypeScript, ESLint, Next-Build 21/21, `verify-phase1`, npm audit 0 und Gitleaks 
 Report-SHA-256 `399F310FBDA0D4D584C6847F6462D1B1CF4895037FAB9FAFF90D123E7C183F6F`.
 DEV-ONLY; hosted proof still blocked. Kein Prozentcredit.
 
+## ✅ O2Core — HOSTED ZERO-CARD-RUNTIME GRÜN (2026-07-30)
+Worker `https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev` ist source-gebunden an
+`826a78b29a4dbf82a7115ecdd5562b238ade3594` / Archiv
+`f3d86b36883d743713c1c7e86477776dc575b87b9e941af849dfd2c4f94e325b`.
+Echter Hosted-Verifier: D1 W/R/D, Queue, SQLite-DO, LangGraph, Build-/Workspace-Persistenz sowie Auth-/Secret-/
+Oversize-/Replay-/Konfliktpfade grün; R2 ungebunden, kein Paid-Fallback. Report-SHA-256
+`FEEE5D40E14E547C9B8EB5903B993E61BC324E2C2CAD64ECF8C7DF3BA9049D0B`.
+Gate verifier-geöffnet; Management-Token nach Evidenzbindung atomar auf den qualifizierten Kandidaten umgestellt.
+Kanonischer externer Audit: Hosted Staging, Vercel-Origins, Gitleaks und O2Core grün; nur Branch Protection und
+GHCR-Digests offen. `production_deploy_claim_allowed=false`. Vercel-Preview-Laufzeitwerte sind gesetzt; neuer
+Preview-Build sowie Produkt-/22-Seiten-Hosted-Beweis folgen. Kein Prozentcredit.
+
 ## 🟢 DURCHBRUCH: CF-TOKEN 5/6 — O2Core UND O5 SIND OFFEN (2026-07-27)
 Owner hat einen Token mit korrekten Permissions geliefert. Er lag zunächst als 68-Zeichen-Zeile vor
 (**Tokenwert + Token-Name in derselben Zeile** → `err=6003`). Nach Extraktion des reinen 53-Zeichen-Werts:
@@ -51,10 +63,9 @@ Das verletzt die Free-Only-Wand. **Owner hat entschieden: nicht aktivieren. Fina
 → **Verbindliches Profil: `O2Core` (+ `O5`).** `-Profile Full` / `O2WithR2` sind bauartbedingt unerreichbar und
 **kein Zielzustand mehr**. R2 im Code wie Fly als `historical_only` führen. **`5/6` IST der Zielzustand.**
 
-**Persistiert:** `-Profile O2Core` → **4/4 PASS**, `-Profile O5` → **1/1 PASS**. Wert liegt als
-**`CLOUDFLARE_API_TOKEN_CANDIDATE`** in `~/.codex/secrets/cloud-superbrain.local.env`, Rollback daneben.
-**Bewusst noch nicht aktiv:** GET beweist nur Lesen; **Edit-Rechte sind unbewiesen**, bis der Hosted-Write-Verifier
-einen echten Write/Read/Delete zeigt. Bis dahin bleibt der alte Token der aktive Wert.
+**Persistiert und aktiviert:** `-Profile O2Core` → **4/4 PASS**, `-Profile O5` → **1/1 PASS**.
+Der source-gebundene Hosted-Write/Read/Delete-Verifier qualifizierte den Kandidaten; das fail-closed
+Promotionsskript ersetzte danach atomar nur `CLOUDFLARE_API_TOKEN` und legte einen Rollback an.
 🧹 Defekte 68-Zeichen-Zeile aus der kanonischen Datei entfernt (hätte alle Dienste mit `6003` scheitern lassen).
 ⚠️ Owner hat „Roll" **ausdrücklich abgelehnt** — nicht erneut vorschlagen.
 
@@ -65,16 +76,11 @@ eine unerfüllbare Pflichtaufgabe erzwingt Fake-Done. Schnittstelle: `scripts/ow
 Codes: `6003` = kein reiner Token · `1000`/`9106` = ungültig · `10000` = **Permission fehlt**.
 
 ## ▶ SOFORT-SCHLEIFE
-**P1 — ✅ Zero-Card-D1-Adapter lokal vollständig grün; Slice sichern.**
-**P2 — 🔥 HOSTED IST JETZT STARTBAR (O2Core offen):** Ressourcen selbst anlegen
-(`wrangler d1 create` · `queues create` · `vectorize create`; **kein `r2 bucket create`** — R2 ist gestrichen,
-Artefakte nach D1, Koordination in Durable Objects), IDs in `wrangler.jsonc` binden
-(**nie Secrets dort**), Migrationen, Worker deployen, `verify-cloudflare-stateful-runtime.ps1` **ohne**
-`-StaticOnly` grün, Gate **nur über den echten Verifier** öffnen. Der erste echte Write qualifiziert den
-Kandidaten — **erst dann** darf er `CLOUDFLARE_API_TOKEN` ersetzen.
-Danach `verify-product-acceptance.ps1` gegen die **gehostete** URL → **`hosted_proof: true`**.
-**P3 — Top-10-Lücken** aus `vision-vs-reality` (NUR CONTRACT / STUB → ECHT NUTZBAR). **Fallback ohne Token.**
-**P4 — O5/MEM** Vectorize hosted → 90→100. **P5 — ERST DANACH** Manifest/Gates/RC/`verify:market-ready`.
+**P1 — ✅ O2Core Hosted-Beweis und Token-Promotion sichern/pushen; Vercel-Preview neu bauen.**
+**P2 — `verify-product-acceptance.ps1` gegen die neue gehostete Preview → `hosted_proof:true`.**
+**P3 — Hosted 22-Seiten-Lauf → 22/22, 0 tote/unregistrierte/Non-direct/Click-only.**
+**P4 — O5/MEM** Vectorize hosted → 90→100.
+**P5 — Top-10-Lücken** aus `vision-vs-reality`; danach Manifest/Gates/RC/`verify:market-ready`.
 
 ## 🔴 WORKBENCH BRAUCHT VIER SCHALTER — NACH JEDEM CONTAINER-NEUAUFBAU WEG
 Owner-Meldung „Workbench funktioniert nicht" war **kein Codefehler**, sondern vier fail-closed Standards:
@@ -109,21 +115,10 @@ jeweils den **ungültigen** erwischt hätten. Beide entfernt, Backup `*.bak-dedu
 `GITHUB_REPOSITORY` korrekt · Branch-Protection-API 404 (= noch nicht gesetzt, erwartet) ·
 O1-Konfiguration **4/4** · **keine Duplikate mehr**, keine Leerzeichen-/Quote-Fehler in kritischen Werten.
 
-### ⚠️ ABER: DER AKTIVE CF-TOKEN IST SCHWÄCHER ALS DER KANDIDAT
-`CLOUDFLARE_API_TOKEN` und `CLOUDFLARE_API_TOKEN_CANDIDATE` sind **verschiedene Werte**:
-
-| Ressource | `CLOUDFLARE_API_TOKEN` (aktiv) | `CLOUDFLARE_API_TOKEN_CANDIDATE` |
-|---|---|---|
-| Workers · D1 · Queues · DO | 200 | 200 |
-| **Vectorize** | **403 `10000`** (Recht fehlt) | **200** |
-| R2 | 403 `10000` | 403 **`10042`** (nur nicht aktiviert) |
-| Summe | **4/6** | **5/6** |
-
-**Konsequenz: Mit dem aktiven Token scheitert O5** (kein Vectorize-Recht). Der **Kandidat ist der richtige** —
-er wurde über `owner-set-cloudflare-token.ps1` mit `O2Core 4/4` + `O5 1/1` verifiziert.
-**Codex: den Kandidaten NICHT eigenmächtig aktivieren** — die fail-closed Regel aus `0d0ff548` gilt: erst der
-echte Hosted-Write-/Read-/Delete-Beweis qualifiziert ihn, dann darf er `CLOUDFLARE_API_TOKEN` ersetzen.
-Bis dahin für Vectorize-Arbeiten **ausdrücklich den Kandidaten** verwenden und das im Report vermerken.
+### ✅ CF-TOKEN-PROMOTION NACH ECHTEM HOSTED-BEWEIS
+Der frühere Kandidat ist nach dem source-gebundenen Hosted W/R/D-Beweis der aktive Management-Token.
+O2Core und Vectorize-Read wurden nach der atomaren Promotion erneut geprüft. Rollback liegt nur im privaten
+Secrets-Verzeichnis. Keine Tokenwerte in Repo, Report oder Ausgabe; R2 bleibt absichtlich aus.
 
 ## ✅ O1 KONFIGURATION ERLEDIGT (2026-07-27) — der Blocker war ein Compose-Defekt
 Lokaler Auth-Vertrag jetzt: `github_oauth_configured: true` · `jwt_signing_configured: true` ·
@@ -152,7 +147,8 @@ kein Spillover. Migration `0003_zero_card_d1_artifacts.sql`, `17/17` Unit-Tests,
 lokaler Wrangler-Roundtrip sind grün. Report
 `.codex/runs/CURRENT/master-goal/t3/cloudflare-d1-local-v2/report.json`, SHA-256
 `CB108383C338E41C47440FA2618009DC174053E08E6401CAD7255AD333A65F43`.
-DEV-ONLY; hosted proof still blocked. Kein Prozentcredit.
+Dieser lokale Report bleibt historische DEV-Evidenz; aktueller Hosted-State:
+`docs/runtime-state/cloudflare-native-hosted-current.json`. Kein Prozentcredit.
 
 ## ✅ O5 IST ERLEDIGT
 Die Matrix fordert für O5 nur „Extend the Cloudflare token with Vectorize Edit". Der gelieferte Token liest
@@ -165,7 +161,7 @@ Vectorize (HTTP 200), `-Profile O5` **1/1 PASS**. **Der Owner-Teil von O5 entfä
 > **O3 erst nach `MARKET_READY: true`** — die Matrix verbietet frühere Registry-Veröffentlichung.
 | # | Was du tust | schaltet frei |
 |---|---|---|
-| ~~O2′~~ | ✅ **ERLEDIGT** — O2Core 4/4 persistiert | hosted startbar |
+| ~~O2′ Runtime~~ | ✅ **HOSTED VERIFIZIERT** — O2Core W/R/D + Source-Parität; Scale-Gate separat offen | Produkt-Hosted-Pfad |
 | ~~O5~~ | ✅ **ERLEDIGT** — Vectorize 1/1 | MEM-Weg offen |
 | ~~O6~~ | ✅ `resolved_verified` | — |
 | ~~R2~~ | ⛔ **GESTRICHEN** — Kreditkarte nötig, verletzt Free-Only. Artefakte → D1/DO. | — |

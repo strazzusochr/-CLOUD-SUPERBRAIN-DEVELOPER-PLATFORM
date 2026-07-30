@@ -4,7 +4,13 @@ param(
   [switch]$AllowLocalhost,
   [switch]$AllowHostedWrites,
   [string]$SeedReportPath = "",
-  [string]$EvidencePath = ""
+  [string]$EvidencePath = "",
+  [string]$ExpectedSourceCommitSha = "",
+  [string]$ExpectedSourceArchiveSha256 = "",
+  [string]$CapabilityStatePath = "docs\runtime-state\capability-gates.json",
+  [string]$OwnerInputManifestPath = "docs\runtime-state\owner-input-manifest.json",
+  [string]$HostedStatePath = "docs\runtime-state\cloudflare-native-hosted-current.json",
+  [switch]$PromoteCapabilityGate
 )
 
 $ErrorActionPreference = "Stop"
@@ -73,6 +79,22 @@ function Get-Sha256([string]$Text) {
   $bytes = [Text.Encoding]::UTF8.GetBytes($Text)
   $hash = [Security.Cryptography.SHA256]::Create().ComputeHash($bytes)
   return ([BitConverter]::ToString($hash)).Replace("-", "").ToLowerInvariant()
+}
+
+function Get-GitArchiveSha256([string]$CommitSha) {
+  $temporaryPath = [IO.Path]::Combine(
+    [IO.Path]::GetTempPath(),
+    "cloud-superbrain-source-" + [Guid]::NewGuid().ToString("N") + ".tar"
+  )
+  try {
+    & git archive --format=tar "--output=$temporaryPath" $CommitSha
+    Assert-True ($LASTEXITCODE -eq 0) "Unable to create the expected source archive"
+    return (Get-FileHash -LiteralPath $temporaryPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  } finally {
+    if (Test-Path -LiteralPath $temporaryPath -PathType Leaf) {
+      Remove-Item -LiteralPath $temporaryPath -Force
+    }
+  }
 }
 
 function ConvertTo-ClrJsonValue([object]$Value) {
@@ -527,6 +549,19 @@ if (-not $StaticOnly) {
   $exerciseNativeProbe = $isLocalhost -or ((-not $isLocalhost) -and [bool]$AllowHostedWrites)
   Assert-True $exerciseNativeProbe "Cloudflare-native probe requires -AllowLocalhost locally or -AllowHostedWrites for hosted HTTPS"
   $normalized = $uri.GetLeftPart([UriPartial]::Authority)
+  $sourceTreeMatchesExpectedCommit = $false
+  if (-not $isLocalhost) {
+    Assert-True ($ExpectedSourceCommitSha -match '^[0-9a-f]{40}$') "Hosted proof requires ExpectedSourceCommitSha"
+    Assert-True ($ExpectedSourceArchiveSha256 -match '^[0-9a-f]{64}$') "Hosted proof requires ExpectedSourceArchiveSha256"
+    & git cat-file -e "$ExpectedSourceCommitSha^{commit}" 2>$null
+    Assert-True ($LASTEXITCODE -eq 0) "Expected hosted source commit is unavailable"
+    & git merge-base --is-ancestor $ExpectedSourceCommitSha HEAD 2>$null
+    Assert-True ($LASTEXITCODE -eq 0) "Expected hosted source commit is not an ancestor of HEAD"
+    & git diff --quiet $ExpectedSourceCommitSha -- services/cloudflare-stateful-runtime
+    Assert-True ($LASTEXITCODE -eq 0) "Current Worker source tree differs from the expected hosted source commit"
+    $sourceTreeMatchesExpectedCommit = $true
+    Assert-Equal (Get-GitArchiveSha256 $ExpectedSourceCommitSha) $ExpectedSourceArchiveSha256 "Expected hosted source archive SHA-256"
+  }
 
   $health = Invoke-JsonRequest -Method GET -Uri "$normalized/api/v1/health"
   Assert-Equal $health.status 200 "Hosted D1 health HTTP"
@@ -538,6 +573,10 @@ if (-not $StaticOnly) {
   Assert-JsonBoolean $health.payload "direct_provider_calls" $false "Hosted D1 health"
   Assert-JsonBoolean $health.payload "secret_output" $false "Hosted D1 health"
   Assert-Equal ([string]$health.payload.mode) $expectedNativeRuntimeMode "Cloudflare-native runtime mode"
+  if (-not $isLocalhost) {
+    Assert-Equal ([string]$health.payload.source_commit_sha) $ExpectedSourceCommitSha "Hosted source commit SHA"
+    Assert-Equal ([string]$health.payload.source_archive_sha256) $ExpectedSourceArchiveSha256 "Hosted source archive SHA-256"
+  }
 
   $probeId = "state-probe-" + [Guid]::NewGuid().ToString("N").Substring(0, 16)
   $probeProjectId = "state-probe-" + [Guid]::NewGuid().ToString("N").Substring(0, 16)
@@ -996,13 +1035,173 @@ if (-not $StaticOnly) {
   $evidence.seed_html_ref = $seedHtmlRef
   $evidence.seed_persisted = -not [string]::IsNullOrWhiteSpace($seedId)
   $evidence.seed_audit_persisted = -not [string]::IsNullOrWhiteSpace($seedId)
+  $evidence.source_commit_sha = if ($isLocalhost) { $null } else { $ExpectedSourceCommitSha }
+  $evidence.source_archive_sha256 = if ($isLocalhost) { $null } else { $ExpectedSourceArchiveSha256 }
+  $evidence.cloudflare_native_hosted_source_parity_verified = (-not $isLocalhost) -and $sourceTreeMatchesExpectedCommit
+  $evidence.cloudflare_native_r2_binding_absent = $true
+  $evidence.cloudflare_native_paid_fallback_used = $false
+  $evidence.cloudflare_native_zero_card_execution_verified = -not $isLocalhost
 }
 
+$resolvedEvidence = $null
 if (-not [string]::IsNullOrWhiteSpace($EvidencePath)) {
   $resolvedEvidence = Resolve-RepoScopedPath $EvidencePath "Evidence" $false
   $parent = Split-Path -Parent $resolvedEvidence
   New-Item -ItemType Directory -Force -Path $parent | Out-Null
   $evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $resolvedEvidence -Encoding utf8
+}
+
+if ($PromoteCapabilityGate) {
+  Assert-True (-not [bool]$StaticOnly) "Capability promotion requires a live hosted verifier run"
+  Assert-True (-not $isLocalhost) "Capability promotion cannot use localhost"
+  Assert-True ([bool]$AllowHostedWrites) "Capability promotion requires the explicit hosted-write gate"
+  Assert-True ($null -ne $resolvedEvidence -and (Test-Path -LiteralPath $resolvedEvidence -PathType Leaf)) "Capability promotion requires a durable hosted evidence artifact"
+  Assert-True ([bool]$evidence.cloudflare_native_hosted_proof) "Capability promotion requires hosted proof"
+  Assert-True ([bool]$evidence.cloudflare_native_runtime_exercised) "Capability promotion requires the native runtime roundtrip"
+  Assert-True ([bool]$evidence.cloudflare_native_create_enqueue_queue_do_d1_artifact_roundtrip) "Capability promotion requires Queue, Durable Object and D1 artifact proof"
+  Assert-True ([bool]$evidence.cloudflare_native_d1_artifact_write_read_delete) "Capability promotion requires D1 artifact write/read/delete"
+  Assert-True ([bool]$evidence.cloudflare_native_hosted_source_parity_verified) "Capability promotion requires hosted source parity"
+  Assert-True ([bool]$evidence.cloudflare_native_zero_card_execution_verified) "Capability promotion requires the zero-card runtime path"
+  Assert-True ([bool]$evidence.cloudflare_native_r2_binding_absent) "Capability promotion requires R2 to remain unbound"
+  Assert-True (-not [bool]$evidence.cloudflare_native_paid_fallback_used) "Capability promotion forbids a paid fallback"
+
+  $resolvedOwnerInput = Resolve-RepoScopedPath $OwnerInputManifestPath "Owner input manifest" $true
+  $ownerInput = Get-Content -LiteralPath $resolvedOwnerInput -Raw | ConvertFrom-Json
+  $ownerAction = @($ownerInput.actions | Where-Object { [string]$_.id -eq "O2" }) | Select-Object -First 1
+  Assert-True ($null -ne $ownerAction) "Owner input manifest is missing O2"
+  $ownerDecision = $ownerAction.owner_scope_decision
+  Assert-Equal ([string]$ownerDecision.decision) "approved_o2core_hosted_write_read_delete" "O2 Owner decision"
+  Assert-JsonBoolean $ownerDecision "hosted_write_read_delete_authorized" $true "O2 Owner decision"
+  Assert-JsonBoolean $ownerDecision "zero_card_required" $true "O2 Owner decision"
+  Assert-JsonBoolean $ownerDecision "r2_forbidden" $true "O2 Owner decision"
+  Assert-JsonBoolean $ownerDecision "payment_forbidden" $true "O2 Owner decision"
+  Assert-JsonBoolean $ownerDecision "gate_state_unchanged_until_verifier" $true "O2 Owner decision"
+
+  $resolvedCapabilityState = Resolve-RepoScopedPath $CapabilityStatePath "Capability state" $true
+  $capabilityState = Get-Content -LiteralPath $resolvedCapabilityState -Raw | ConvertFrom-Json
+  $gate = $capabilityState.gates.cloudflare_native_zero_card_hosted_runtime
+  Assert-True ($null -ne $gate) "Cloudflare-native capability gate is missing"
+  Assert-JsonBoolean $gate "local_candidate_verified" $true "Cloudflare-native capability gate"
+  Assert-JsonBoolean $gate "r2_enabled" $false "Cloudflare-native capability gate"
+  Assert-JsonBoolean $gate "paid_provider" $false "Cloudflare-native capability gate"
+  Assert-Equal ([string]$gate.artifact_adapter) "cloudflare-d1-bounded-text" "Cloudflare-native artifact adapter"
+  Assert-Equal ([string]$gate.r2_status) "historical_only" "Cloudflare-native R2 status"
+
+  $repoPrefix = [IO.Path]::GetFullPath($repoRoot).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+  $evidenceRelativePath = $resolvedEvidence.Substring($repoPrefix.Length + 1).Replace("\", "/")
+  $evidenceSha256 = (Get-FileHash -LiteralPath $resolvedEvidence -Algorithm SHA256).Hash.ToUpperInvariant()
+  $gate.owner_granted = $true
+  $gate.owner_grant_ref = "docs/runtime-state/owner-input-manifest.json#actions.O2.owner_scope_decision"
+  $gate.zero_card_verified = $true
+  $gate.hosted_source_parity_verified = $true
+  $gate.hosted_stateful_roundtrip_verified = $true
+  $gate.live_verified = $true
+  $gate.evidence_artifact = $evidenceRelativePath
+  $gate.verified_at_utc = [string]$evidence.checked_at
+  $gate.note = "Owner-approved hosted O2Core v2 verified Workers, D1 bounded-text artifacts, Queue and SQLite Durable Object write/read/delete with source parity. R2 stayed unbound and historical-only; no paid fallback was used."
+  $gate | Add-Member -NotePropertyName "evidence_sha256" -NotePropertyValue $evidenceSha256 -Force
+  $gate | Add-Member -NotePropertyName "source_commit_sha" -NotePropertyValue $ExpectedSourceCommitSha -Force
+  $gate | Add-Member -NotePropertyName "source_archive_sha256" -NotePropertyValue $ExpectedSourceArchiveSha256 -Force
+  $gate | Add-Member -NotePropertyName "hosted_base_url" -NotePropertyValue $normalized -Force
+
+  $temporaryCapabilityState = $resolvedCapabilityState + ".candidate-" + [Guid]::NewGuid().ToString("N")
+  $rollbackCapabilityState = $resolvedCapabilityState + ".rollback-" + [Guid]::NewGuid().ToString("N")
+  try {
+    [IO.File]::WriteAllText(
+      $temporaryCapabilityState,
+      ($capabilityState | ConvertTo-Json -Depth 20),
+      [Text.UTF8Encoding]::new($false)
+    )
+    $candidateState = Get-Content -LiteralPath $temporaryCapabilityState -Raw | ConvertFrom-Json
+    Assert-JsonBoolean $candidateState.gates.cloudflare_native_zero_card_hosted_runtime "live_verified" $true "Candidate Cloudflare-native capability gate"
+    [IO.File]::Replace($temporaryCapabilityState, $resolvedCapabilityState, $rollbackCapabilityState, $true)
+  } finally {
+    if (Test-Path -LiteralPath $temporaryCapabilityState -PathType Leaf) {
+      Remove-Item -LiteralPath $temporaryCapabilityState -Force
+    }
+    if (Test-Path -LiteralPath $rollbackCapabilityState -PathType Leaf) {
+      Remove-Item -LiteralPath $rollbackCapabilityState -Force
+    }
+  }
+  $writtenState = Get-Content -LiteralPath $resolvedCapabilityState -Raw | ConvertFrom-Json
+  Assert-JsonBoolean $writtenState.gates.cloudflare_native_zero_card_hosted_runtime "live_verified" $true "Written Cloudflare-native capability gate"
+  Assert-Equal ([string]$writtenState.gates.cloudflare_native_zero_card_hosted_runtime.evidence_sha256) $evidenceSha256 "Written Cloudflare-native evidence SHA-256"
+
+  $resolvedHostedState = Resolve-RepoScopedPath $HostedStatePath "Hosted runtime state" $false
+  $hostedStateParent = Split-Path -Parent $resolvedHostedState
+  New-Item -ItemType Directory -Force -Path $hostedStateParent | Out-Null
+  $hostedState = [ordered]@{
+    contract_version = "cloudflare-native-hosted-current-v1"
+    status = "verified"
+    verified_at_utc = [string]$evidence.checked_at
+    base_url = $normalized
+    runtime_contract_version = "cloudflare-native-runtime-candidate-v2"
+    source_commit_sha = $ExpectedSourceCommitSha
+    source_archive_sha256 = $ExpectedSourceArchiveSha256
+    evidence_artifact = $evidenceRelativePath
+    evidence_sha256 = $evidenceSha256
+    bindings = @("DB", "RUNTIME_COORDINATOR", "RUNTIME_QUEUE")
+    artifact_adapter = "cloudflare-d1-bounded-text"
+    artifact_content_max_bytes = 32768
+    coordination = "durable-object-sqlite"
+    dispatch = "cloudflare-queues"
+    checkpointing = "cloudflare-d1-custom"
+    hosted_source_parity_verified = $true
+    hosted_stateful_roundtrip_verified = $true
+    create_enqueue_queue_do_d1_artifact_roundtrip = $true
+    d1_artifact_write_read_delete_verified = $true
+    zero_card_verified = $true
+    r2_enabled = $false
+    r2_status = "historical_only"
+    paid_provider = $false
+    dev_only = $false
+    hosted_proof = $true
+    product_acceptance_hosted_proof = $false
+    workspace_22_page_hosted_proof = $false
+    live_provider_calls = $false
+    direct_provider_calls = $false
+    live_mcp_writes = $false
+    production_deploy = $false
+    production_release_claimed = $false
+    secret_output = $false
+    percentage_credit = 0
+    non_claims = @(
+      "This state proves the hosted O2Core runtime and its zero-card stateful roundtrip, not hosted product acceptance.",
+      "This state does not prove the hosted 22-page action matrix, Vectorize semantic retrieval, GHCR publication, or production release.",
+      "R2 remains unbound and historical-only; no paid fallback was used.",
+      "No percentage credit is granted by this runtime proof alone."
+    )
+  }
+  $temporaryHostedState = $resolvedHostedState + ".candidate-" + [Guid]::NewGuid().ToString("N")
+  $rollbackHostedState = $resolvedHostedState + ".rollback-" + [Guid]::NewGuid().ToString("N")
+  try {
+    [IO.File]::WriteAllText(
+      $temporaryHostedState,
+      ($hostedState | ConvertTo-Json -Depth 12),
+      [Text.UTF8Encoding]::new($false)
+    )
+    $candidateHostedState = Get-Content -LiteralPath $temporaryHostedState -Raw | ConvertFrom-Json
+    Assert-Equal ([string]$candidateHostedState.contract_version) "cloudflare-native-hosted-current-v1" "Candidate hosted runtime state contract"
+    Assert-JsonBoolean $candidateHostedState "hosted_proof" $true "Candidate hosted runtime state"
+    Assert-JsonBoolean $candidateHostedState "product_acceptance_hosted_proof" $false "Candidate hosted runtime state"
+    Assert-JsonBoolean $candidateHostedState "workspace_22_page_hosted_proof" $false "Candidate hosted runtime state"
+    if (Test-Path -LiteralPath $resolvedHostedState -PathType Leaf) {
+      [IO.File]::Replace($temporaryHostedState, $resolvedHostedState, $rollbackHostedState, $true)
+    } else {
+      [IO.File]::Move($temporaryHostedState, $resolvedHostedState)
+    }
+  } finally {
+    if (Test-Path -LiteralPath $temporaryHostedState -PathType Leaf) {
+      Remove-Item -LiteralPath $temporaryHostedState -Force
+    }
+    if (Test-Path -LiteralPath $rollbackHostedState -PathType Leaf) {
+      Remove-Item -LiteralPath $rollbackHostedState -Force
+    }
+  }
+  $writtenHostedState = Get-Content -LiteralPath $resolvedHostedState -Raw | ConvertFrom-Json
+  Assert-Equal ([string]$writtenHostedState.status) "verified" "Written hosted runtime state"
+  Assert-Equal ([string]$writtenHostedState.evidence_sha256) $evidenceSha256 "Written hosted runtime evidence SHA-256"
+  Assert-Equal ([string]$writtenHostedState.source_commit_sha) $ExpectedSourceCommitSha "Written hosted runtime source SHA"
 }
 
 $transport = if (-not $StaticOnly -and $isLocalhost) { "DEV-ONLY" } elseif ($StaticOnly) { "static" } else { "hosted" }

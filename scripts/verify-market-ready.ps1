@@ -80,7 +80,7 @@ try {
     $autonomousOpenItems = @($ownerInput.autonomous_open_items | ForEach-Object { [string]$_ })
     $autonomousOpenItemsOk = ($autonomousOpenItems.Count -eq 0)
     $autonomousOpenItemsDetail = if ($autonomousOpenItemsOk) {
-      "none; local Cloudflare-native adapter and truth candidate are verified"
+      "none; source-bound Cloudflare O2Core hosted runtime is verified"
     } else {
       "open: " + ($autonomousOpenItems -join ", ")
     }
@@ -167,7 +167,6 @@ try {
       "phase6_scale_runtime",
       "live_mcp_writes",
       "live_agent_tool_writes",
-      "cloudflare_native_zero_card_hosted_runtime",
       "live_vector_memory_search"
     )) {
       $gateProperty = $capabilityState.gates.PSObject.Properties[$gateId]
@@ -178,11 +177,15 @@ try {
     $cloudflareTargetGate = $capabilityState.gates.cloudflare_native_zero_card_hosted_runtime
     $cloudflareTargetGateOk = (
       $null -ne $cloudflareTargetGate -and
+      [bool]$cloudflareTargetGate.owner_granted -eq $true -and
       [bool]$cloudflareTargetGate.local_candidate_verified -eq $true -and
-      [bool]$cloudflareTargetGate.zero_card_verified -eq $false -and
+      [bool]$cloudflareTargetGate.zero_card_verified -eq $true -and
+      [bool]$cloudflareTargetGate.hosted_source_parity_verified -eq $true -and
+      [bool]$cloudflareTargetGate.hosted_stateful_roundtrip_verified -eq $true -and
       [bool]$cloudflareTargetGate.r2_enabled -eq $false -and
-      [bool]$cloudflareTargetGate.live_verified -eq $false -and
-      [bool]$cloudflareTargetGate.paid_provider -eq $false
+      [bool]$cloudflareTargetGate.live_verified -eq $true -and
+      [bool]$cloudflareTargetGate.paid_provider -eq $false -and
+      [string]$cloudflareTargetGate.evidence_sha256 -match '^[A-F0-9]{64}$'
     )
     $externalAuditPath = Join-Path $repoRoot ([string]$externalState.source_artifact)
     $externalAudit = if (Test-Path -LiteralPath $externalAuditPath -PathType Leaf) {
@@ -220,6 +223,7 @@ try {
       [string]$externalAudit.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime" -and
       [string]$externalAudit.generated_at_utc -eq [string]$externalState.generated_at_utc -and
       [bool]$externalAudit.production_deploy_claim_allowed -eq [bool]$externalState.production_deploy_claim_allowed -and
+      [bool]$externalAudit.cloudflare_native_zero_card_hosted_runtime_claim_allowed -eq $true -and
       (@($externalAudit.missing_or_failed_gates) -join ",") -eq (@($externalState.missing_or_failed_gates) -join ",") -and
       @($externalAudit.source_evidence_refs) -contains ".codex/runs/CURRENT/p5/cloudflare-scope-readiness/report.json" -and
       [string]$externalAudit.legacy_provenance.status -eq "historical_only" -and
@@ -232,13 +236,16 @@ try {
       [string]$externalState.status -eq "blocked" -and
       [bool]$externalState.production_deploy_claim_allowed -eq $false -and
       [string]$externalState.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime" -and
-      @($externalState.missing_or_failed_gates).Count -eq 1 -and
-      @($externalState.missing_or_failed_gates) -contains "cloudflare_native_zero_card_hosted_runtime" -and
-      [bool]$externalState.cloudflare_native_zero_card_hosted_runtime_claim_allowed -eq $false -and
+      @($externalState.missing_or_failed_gates).Count -eq 2 -and
+      @($externalState.missing_or_failed_gates) -contains "github_branch_protection_current_verify" -and
+      @($externalState.missing_or_failed_gates) -contains "ghcr_image_digest_verify" -and
+      [bool]$externalState.cloudflare_native_zero_card_hosted_runtime_claim_allowed -eq $true -and
       [string]$externalState.legacy_provenance.status -eq "historical_only" -and
       [string]$externalState.legacy_provenance.retired_gate_id -eq "fly_live_budget_check" -and
       [string]$ownerInput.external_gate_truth.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime" -and
-      @($ownerInput.external_gate_truth.missing_or_failed_gates) -contains "cloudflare_native_zero_card_hosted_runtime" -and
+      @($ownerInput.external_gate_truth.missing_or_failed_gates).Count -eq 2 -and
+      @($ownerInput.external_gate_truth.missing_or_failed_gates) -contains "github_branch_protection_current_verify" -and
+      @($ownerInput.external_gate_truth.missing_or_failed_gates) -contains "ghcr_image_digest_verify" -and
       [string]$ownerInput.external_gate_truth.legacy_fly_path_status -eq "superseded_historical" -and
       [bool]$ownerInput.external_gate_truth.production_deploy_claim_allowed -eq $false -and
       $externalAuditOk -and

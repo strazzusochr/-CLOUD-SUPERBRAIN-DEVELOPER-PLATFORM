@@ -1,7 +1,7 @@
 {
   "contract_version": "owner-input-manifest-v2",
   "status": "owner_blocked_autonomous_complete",
-  "generated_at_utc": "2026-07-25T16:55:00.0000000Z",
+  "generated_at_utc": "2026-07-30T18:25:26Z",
   "canonical_progress_source": "docs/project-progress.manifest.json",
   "canonical_overall_percent": 86,
   "market_ready": false,
@@ -35,7 +35,7 @@
       "display_id": "O2'",
       "title": "Cloudflare-native hosted runtime, zero-card activation and scale proof",
       "status": "owner_required",
-      "required_owner_action": "Provide or approve least-privilege Cloudflare scopes for Workers, D1, SQLite Durable Objects and Queues, and authorize a hosted source-parity, stateful-roundtrip and scale proof. R2 remains disabled and historical-only under the zero-card decision; ADR-010 selects the bounded D1 text-artifact adapter.",
+      "required_owner_action": "O2Core scopes, zero-card resources, hosted source parity and stateful write/read/delete are verifier-complete. Only the separate Phase-6 scale/capacity proof remains Owner-gated. R2 remains disabled and historical-only.",
       "required_scope_or_payment": [
         "Cloudflare Workers, D1, Durable Objects and Queues least-privilege scopes",
         "Hosted source-parity, stateful-roundtrip and scale/capacity proof",
@@ -57,7 +57,30 @@
         "npm run verify:external-gates",
         "scripts/verify-browser-contract.ps1 -BaseUrl <STAGING_BASE_URL>"
       ],
-      "codex_boundary": "No card, checkout, payment, subscription activation, paid fallback, resource creation, hosted write, or production deployment without the exact Owner gate. A free quota is not a zero-card proof."
+      "codex_boundary": "No card, checkout, payment, subscription activation, paid fallback, resource creation, hosted write, or production deployment without the exact Owner gate. A free quota is not a zero-card proof.",
+      "owner_scope_decision": {
+        "decided_at_utc": "2026-07-30T00:00:00Z",
+        "decision": "approved_o2core_hosted_write_read_delete",
+        "recorded_by": "assistant_from_owner_goal_and_handoff",
+        "resource_creation_authorized": [
+          "Cloudflare Workers",
+          "Cloudflare D1",
+          "Cloudflare SQLite Durable Objects",
+          "Cloudflare Queues"
+        ],
+        "hosted_write_read_delete_authorized": true,
+        "zero_card_required": true,
+        "r2_forbidden": true,
+        "payment_forbidden": true,
+        "paid_fallback_forbidden": true,
+        "candidate_activation_condition": "Only a successful source-bound hosted write/read/delete verifier may qualify and activate CLOUDFLARE_API_TOKEN_CANDIDATE.",
+        "gate_state_unchanged_until_verifier": true,
+        "non_claims": [
+          "This decision does not authorize R2, payment, GHCR publication, main writes, production promotion, or release.",
+          "This decision alone does not open the capability gate.",
+          "The separate phase6_scale_runtime gate remains closed until its own capacity proof passes."
+        ]
+      }
     },
     {
       "id": "O3",
@@ -204,7 +227,8 @@
     "status": "blocked",
     "active_target_gate": "cloudflare_native_zero_card_hosted_runtime",
     "missing_or_failed_gates": [
-      "cloudflare_native_zero_card_hosted_runtime"
+      "github_branch_protection_current_verify",
+      "ghcr_image_digest_verify"
     ],
     "legacy_missing_or_failed_gates": [
       "fly_live_budget_check"
@@ -216,8 +240,8 @@
   "non_claims": [
     "This manifest does not open a capability gate or increase any percentage.",
     "external-gate-summary-v2 is the active gate truth; RC10 v1 and Fly semantics are historical provenance only.",
-    "The local D1 bounded-text artifact + Durable Object + Queue adapter proof is DEV-ONLY and does not prove hosted zero-card resource activation; R2 is historical-only.",
-    "O1, O2', O3, O4, and O5 remain Owner-required; O6 is resolved only within its bounded verifier-backed scope.",
+    "The source-bound hosted O2Core D1 bounded-text artifact + Durable Object + Queue proof is verifier-complete; R2 is historical-only. This does not prove hosted product acceptance, the hosted 22-page matrix, Vectorize semantic retrieval, scale, or production release.",
+    "O1, O2' scale, O3, O4, and O5 semantic retrieval remain Owner-required or verifier-open; O6 is resolved only within its bounded verifier-backed scope.",
     "Owner-granted alone is insufficient for every still-open action; each requires its named verifier and evidence artifact.",
     "No secret value, password, token, callback credential, or payment data is contained here.",
     "MARKET_READY remains false until every matrix cell is evidence-backed at 100 and the aggregate verifier prints MARKET_READY:true."

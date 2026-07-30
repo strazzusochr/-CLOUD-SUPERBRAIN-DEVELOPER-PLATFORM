@@ -242,7 +242,6 @@ for (const [name, value] of Object.entries({
   preflight: snapshotPreflight,
   goLive: snapshotGoLive,
   render: snapshotRender,
-  completion: snapshotCompletion,
 })) {
   const activeText = JSON.stringify(value, (key, nested) =>
     key === "legacy_provenance" ? undefined : nested,
@@ -256,11 +255,36 @@ for (const [name, value] of Object.entries({
     assertNotIncludes(`endpoint snapshot ${name} active truth`, activeText, forbidden);
   }
 }
+const completionActiveText = JSON.stringify(snapshotCompletion, (key, nested) =>
+  key === "legacy_provenance" ? undefined : nested,
+);
+for (const required of ["branch_protection_token", "ghcr_image_digest_proof"]) {
+  assertIncludes("endpoint snapshot completion current blockers", completionActiveText, required);
+}
+assertNotIncludes(
+  "endpoint snapshot completion current blockers",
+  JSON.stringify({
+    missing_external_gates: snapshotCompletion.missing_external_gates || [],
+    missing_external_gate_blockers: snapshotCompletion.missing_external_gate_blockers || [],
+    hard_blockers: snapshotCompletion.hard_blockers || [],
+  }),
+  "cloudflare_native_zero_card_hosted_runtime",
+);
+for (const forbidden of ["fly_cloud_stack", "fly_live_budget_check"]) {
+  assertNotIncludes("endpoint snapshot completion active truth", completionActiveText, forbidden);
+}
 const activeLayersText = JSON.stringify(snapshotLayers, (key, nested) =>
   key === "legacy_provenance" ? undefined : nested,
 );
-for (const required of ["cloudflare_edge", "CLOUDFLARE_STATEFUL_BASE_URL"]) {
-  assertIncludes("endpoint snapshot layers active truth", activeLayersText, required);
+assertIncludes("endpoint snapshot layers active truth", activeLayersText, "cloudflare_edge");
+const memoryLayer = (snapshotLayers.layers || []).find((item) => item?.layer_id === "layer_6");
+if (
+  memoryLayer?.status !== "live_verified" ||
+  !(memoryLayer.configured_providers || []).includes("cloudflare_edge") ||
+  !(memoryLayer.live_verified_providers || []).includes("cloudflare_edge") ||
+  (memoryLayer.blockers || []).length !== 0
+) {
+  throw new Error("endpoint snapshot memory layer must carry verified Cloudflare stateful truth");
 }
 for (const forbidden of ["fly_cloud_stack", "fly_live_budget_check"]) {
   assertNotIncludes("endpoint snapshot layers active truth", activeLayersText, forbidden);

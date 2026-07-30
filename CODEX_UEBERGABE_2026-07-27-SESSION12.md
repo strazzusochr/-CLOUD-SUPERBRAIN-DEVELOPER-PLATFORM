@@ -1,6 +1,27 @@
-# CODEX-ÜBERGABE — SESSION 12 (2026-07-27) + NACHTRAG 2026-07-30 — P1 GRÜN · HOSTED offen
+# CODEX-ÜBERGABE — SESSION 12 (2026-07-27) + NACHTRAG 2026-07-30 — P1 + O2Core HOSTED GRÜN
 > **Ersetzt SESSION11.** Jede Zahl gegen Repo-Artefakte verifiziert (`git log`, Report-JSONs, Verifier-Läufe).
 > Fremde Working-Tree-Dateien bleiben unberührt; Slice-Dateien werden ausschließlich explizit gestaged.
+
+## NACHTRAG 2026-07-30 — O2Core HOSTED VERIFIZIERT
+
+Der source-gebundene Worker
+`https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev` bestand den echten Hosted-Verifier gegen
+Commit `826a78b29a4dbf82a7115ecdd5562b238ade3594` und Archiv-SHA-256
+`f3d86b36883d743713c1c7e86477776dc575b87b9e941af849dfd2c4f94e325b`.
+D1 W/R/D, Queue, SQLite-DO, LangGraph, Build-/Workspace-Artefakte und alle gebundenen Negativpfade sind grün;
+R2 blieb ungebunden, kein Paid-Fallback. Report-SHA-256:
+`FEEE5D40E14E547C9B8EB5903B993E61BC324E2C2CAD64ECF8C7DF3BA9049D0B`.
+
+Das Capability-Gate wurde ausschließlich durch den Verifier geöffnet. Danach ersetzte das fail-closed
+Promotionsskript atomar den aktiven Management-Token durch den qualifizierten Kandidaten; Rollback bleibt privat.
+Der neue externe Audit bestätigt Hosted Staging, Vercel-Origins, Gitleaks und O2Core. Offen sind exakt Branch
+Protection und GHCR-Digests; `production_deploy_claim_allowed=false`.
+
+Vercel-Preview ist jetzt auf den Worker gebunden; `AGENT_API_AUTH_TOKEN`,
+`PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED=true` und das Workers-AI-Workbench-Modell sind Preview-only gesetzt.
+Nächster Schritt: Slice committen/pushen, automatisches Preview-Deployment abwarten, dann
+`verify-product-acceptance` mit `hosted_proof:true` und anschließend die Hosted-22-Seiten-Matrix.
+Overall bleibt `86 %`, `MARKET_READY:false`.
 
 ## NACHTRAG 2026-07-30 — AKTUELLE 22-SEITEN-ABNAHME
 

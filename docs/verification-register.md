@@ -7,6 +7,38 @@ Status: Active
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `86%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `68%`, Phase 6 `90%`, Frontend `100%`, Agent Pool `69%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `90%`, and Observability `100%`.
 
+## Current Session-12 Cloudflare O2Core Hosted Runtime
+
+The source-bound Cloudflare Worker at
+`https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev` passed the
+real hosted O2Core verifier against source commit
+`826a78b29a4dbf82a7115ecdd5562b238ade3594` and archive SHA-256
+`f3d86b36883d743713c1c7e86477776dc575b87b9e941af849dfd2c4f94e325b`.
+The verifier exercised authenticated D1 write/read/delete, bounded D1 text
+artifacts, Queue delivery, SQLite Durable Object coordination, idempotent
+replay, conflicting replay, auth, oversize and secret rejection, build and
+workspace-artifact persistence, and the hosted LangGraph run/read path. R2
+remained unbound and `historical_only`; no paid fallback was used.
+
+Evidence:
+`.codex/runs/CURRENT/master-goal/t3/cloudflare-d1-hosted-v2/report.json`,
+SHA-256
+`FEEE5D40E14E547C9B8EB5903B993E61BC324E2C2CAD64ECF8C7DF3BA9049D0B`.
+The verifier atomically opened
+`cloudflare_native_zero_card_hosted_runtime` and generated
+`docs/runtime-state/cloudflare-native-hosted-current.json`. Only after that
+proof, `scripts/promote-cloudflare-token-candidate.ps1` atomically promoted the
+qualified candidate with a private rollback; no secret value was emitted.
+
+The canonical external audit was rerun against the Vercel preview, the
+Cloudflare stateful Worker, and the hosted MCP/LLM origins. Hosted staging,
+Vercel origin health, canonical gitleaks, and Cloudflare O2Core are current and
+green. Branch protection and GHCR digest publication remain open, so
+`production_deploy_claim_allowed=false`. Vercel preview environment is bound
+to the Worker and the required product-acceptance runtime switches, but a new
+preview deployment, hosted product acceptance, and the hosted 22-page action
+matrix are not yet proved. No percentage credit; `MARKET_READY:false`.
+
 ## Current Session-11 Technology Runtime Contract Binding
 
 `/technology` no longer renders a static stack claim. `TechnologyRuntimeView`
@@ -222,18 +254,19 @@ RC10 historical provenance. DEV-ONLY; hosted proof still blocked.
 
 `external-gate-audit-v2` is the tracked canonical audit at
 `docs/runtime-state/external-gate-audit-v2.json`; SHA-256
-`5E05F8EC80F17845C7CAC980177275F008216560C3BEECFDCF0DD3B40D05C21C`.
+`0678FB8C3AD2EAA4FCC2FEB7F9124846836340FCA297529A0BD3A750799E894F`.
 `external-gate-summary-v2` points to that durable file; the full ignored local run is
-`.phase1-artifacts/external-gate-audit-v2-20260726-084042.json`. Audit and summary are in
-timestamp/status parity: `blocked`, `production_deploy_claim_allowed=false`, with exactly
-`cloudflare_native_zero_card_hosted_runtime` missing. Hosted contracts, Vercel origins,
-branch protection, GHCR digests, and canonical gitleaks passed read-only. Fly/RC10-v1 and
-candidate `125413` are `historical_only`.
+`.phase1-artifacts/external-gate-audit-v2-20260730-202122.json`. Audit and summary are in
+timestamp/status parity: `blocked`, `production_deploy_claim_allowed=false`.
+`cloudflare_native_zero_card_hosted_runtime` is verifier-open; hosted contracts, Vercel
+origins and canonical gitleaks passed, while exactly
+`github_branch_protection_current_verify` and `ghcr_image_digest_verify` remain missing.
+Fly/RC10-v1 and candidate `125413` are `historical_only`.
 
-The least-privilege Cloudflare readiness probe used only GET requests for Workers, D1,
-Queues, Durable Objects, R2, and Vectorize. The current token returned HTTP 401/403 with
-code 10000 for all six families, so 0/6 can be inventoried. This proves insufficient
-management scopes, not absent resources. Sanitized tracked evidence:
+The historical least-privilege Cloudflare readiness probe used only GET requests for
+Workers, D1, Queues, Durable Objects, R2, and Vectorize. Its then-active token returned
+HTTP 401/403 with code 10000 for all six families. The qualified active token now proves
+O2Core 4/4 and O5 1/1; R2 remains unbound and historical-only. Sanitized historical evidence:
 `.codex/runs/CURRENT/p5/cloudflare-scope-readiness/report.json`, SHA-256
 `DBFF2AFD4E32A0ABAD49BFD05A97E6D817F605559468DE4CD74A6BEE20CE7215`.
 No cloud write, deployment, resource creation, secret output, percentage change, or gate
