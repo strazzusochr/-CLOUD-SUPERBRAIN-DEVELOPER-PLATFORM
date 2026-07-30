@@ -28,7 +28,7 @@
     "paid_provider":  false,
     "dev_only":  false,
     "hosted_proof":  true,
-    "product_acceptance_hosted_proof":  false,
+    "product_acceptance_hosted_proof":  true,
     "workspace_22_page_hosted_proof":  false,
     "live_provider_calls":  false,
     "direct_provider_calls":  false,
@@ -38,9 +38,20 @@
     "secret_output":  false,
     "percentage_credit":  0,
     "non_claims":  [
-                       "This state proves the hosted O2Core runtime and its zero-card stateful roundtrip, not hosted product acceptance.",
-                       "This state does not prove the hosted 22-page action matrix, Vectorize semantic retrieval, GHCR publication, or production release.",
-                       "R2 remains unbound and historical-only; no paid fallback was used.",
-                       "No percentage credit is granted by this runtime proof alone."
-                   ]
+                       "This state proves the hosted O2Core runtime and one source-bound hosted product-acceptance flow.",
+                       "This state does not yet prove the hosted 22-page action matrix, Vectorize semantic retrieval, GHCR publication, or production release.",
+                       "The product proof used one bounded live-provider build through the LLM Gateway; direct provider calls and live MCP writes remained false.",
+                       "R2 remains unbound and historical-only; no paid fallback or percentage credit was used."
+                   ],
+    "product_acceptance_verified_at_utc":  "2026-07-30T19:55:33.646Z",
+    "product_acceptance_base_url":  "https://frontend-pxzwglow1-strazzusochrs-projects.vercel.app",
+    "product_acceptance_deployment_id":  "dpl_HPGS3ojG7cJbpCmhN8Q4VKPg3Bpp",
+    "product_acceptance_source_commit_sha":  "893d102020b7bcb267ebc01d3a77e94366e4dced",
+    "product_acceptance_source_archive_sha256":  "a863185392a8d8d2755198d26a33c64d7cdd9338bc2511e68cc502ddde7dad4d",
+    "product_acceptance_evidence_artifact":  ".codex/runs/CURRENT/master-goal/t5/product-acceptance-hosted-v5/report.json",
+    "product_acceptance_evidence_sha256":  "24C1A1C6FEEE18777EB9F534B66444A9E082B207ADFBF7005DBCD83424851F9F",
+    "product_acceptance_build_post_count":  1,
+    "product_acceptance_live_provider_calls":  true,
+    "product_acceptance_direct_provider_calls":  false,
+    "product_acceptance_secret_output":  false
 }

@@ -97,6 +97,104 @@ function Get-GitArchiveSha256([string]$CommitSha) {
   }
 }
 
+function Get-ValidatedDownstreamProof(
+  $ExistingState,
+  [string]$Prefix,
+  [string]$ProofProperty,
+  [string]$RuntimeSourceCommitSha
+) {
+  $emptyResult = [pscustomobject]@{
+    preserve = $false
+    fields = [ordered]@{}
+    evidence_path = $null
+    evidence_sha256 = $null
+    deployment_id = $null
+  }
+  if ($null -eq $ExistingState) { return $emptyResult }
+
+  $proof = $ExistingState.PSObject.Properties[$ProofProperty]
+  if ($null -eq $proof) { return $emptyResult }
+  Assert-True ($proof.Value -is [bool]) "Existing hosted state property $ProofProperty must be boolean"
+  if (-not [bool]$proof.Value) { return $emptyResult }
+
+  $label = "Existing $Prefix downstream proof"
+  $evidenceProperty = "${Prefix}_evidence_artifact"
+  $evidenceShaProperty = "${Prefix}_evidence_sha256"
+  $baseUrlProperty = "${Prefix}_base_url"
+  $deploymentProperty = "${Prefix}_deployment_id"
+  $sourceCommitProperty = "${Prefix}_source_commit_sha"
+  $sourceArchiveProperty = "${Prefix}_source_archive_sha256"
+  foreach ($requiredProperty in @(
+    $evidenceProperty,
+    $evidenceShaProperty,
+    $baseUrlProperty,
+    $deploymentProperty,
+    $sourceCommitProperty,
+    $sourceArchiveProperty
+  )) {
+    Assert-True ($null -ne $ExistingState.PSObject.Properties[$requiredProperty]) "$label missing $requiredProperty"
+  }
+
+  $evidenceRelativePath = [string]$ExistingState.$evidenceProperty
+  $evidenceSha256 = [string]$ExistingState.$evidenceShaProperty
+  $baseUrl = [string]$ExistingState.$baseUrlProperty
+  $deploymentId = [string]$ExistingState.$deploymentProperty
+  $sourceCommitSha = [string]$ExistingState.$sourceCommitProperty
+  $sourceArchiveSha256 = [string]$ExistingState.$sourceArchiveProperty
+  Assert-True ($evidenceSha256 -match "^[0-9A-Fa-f]{64}$") "$label has an invalid evidence SHA-256"
+  Assert-True ($deploymentId -match "^dpl_[A-Za-z0-9]+$") "$label has an invalid deployment id"
+  Assert-True ($sourceCommitSha -match "^[0-9a-f]{40}$") "$label has an invalid source commit"
+  Assert-True ($sourceArchiveSha256 -match "^[0-9a-f]{64}$") "$label has an invalid source archive SHA-256"
+
+  $baseUri = $null
+  Assert-True ([Uri]::TryCreate($baseUrl, [UriKind]::Absolute, [ref]$baseUri)) "$label BaseUrl must be absolute"
+  Assert-True (
+    $baseUri.Scheme -eq "https" -and
+    $baseUri.Port -eq 443 -and
+    -not $baseUri.IsLoopback -and
+    [string]::IsNullOrWhiteSpace($baseUri.UserInfo) -and
+    [string]::IsNullOrWhiteSpace($baseUri.Query) -and
+    [string]::IsNullOrWhiteSpace($baseUri.Fragment) -and
+    $baseUri.AbsolutePath -eq "/"
+  ) "$label BaseUrl must be a credential-free hosted HTTPS origin"
+
+  $resolvedEvidence = Resolve-RepoScopedPath $evidenceRelativePath "$label evidence" $true
+  Assert-True (Test-Path -LiteralPath $resolvedEvidence -PathType Leaf) "$label evidence must be a file"
+  $actualEvidenceSha256 = (Get-FileHash -LiteralPath $resolvedEvidence -Algorithm SHA256).Hash
+  Assert-Equal $actualEvidenceSha256 $evidenceSha256 "$label evidence SHA-256"
+  $report = Get-Content -LiteralPath $resolvedEvidence -Raw | ConvertFrom-Json
+  Assert-Equal ([string]$report.status) "verified" "$label report status"
+  Assert-JsonBoolean $report "hosted_proof" $true "$label report"
+  Assert-JsonBoolean $report "dev_only" $false "$label report"
+  Assert-Equal ([string]$report.base_url) $baseUrl "$label report BaseUrl"
+  Assert-Equal ([string]$report.source_binding.deployment_id) $deploymentId "$label report deployment"
+  Assert-Equal ([string]$report.source_binding.source_commit_sha) $sourceCommitSha "$label report source commit"
+  Assert-Equal ([string]$report.source_binding.source_archive_sha256) $sourceArchiveSha256 "$label report source archive"
+  if ($null -ne $report.PSObject.Properties["secret_output"]) {
+    Assert-JsonBoolean $report "secret_output" $false "$label report"
+  }
+
+  & git cat-file -e "$sourceCommitSha^{commit}" 2>$null
+  Assert-True ($LASTEXITCODE -eq 0) "$label source commit does not exist"
+  & git merge-base --is-ancestor $RuntimeSourceCommitSha $sourceCommitSha
+  Assert-True ($LASTEXITCODE -eq 0) "$label source must descend from the hosted runtime source"
+  Assert-Equal (Get-GitArchiveSha256 $sourceCommitSha) $sourceArchiveSha256 "$label source archive SHA-256"
+
+  $fields = [ordered]@{}
+  foreach ($property in $ExistingState.PSObject.Properties) {
+    if ($property.Name.StartsWith("${Prefix}_", [StringComparison]::Ordinal)) {
+      $fields[$property.Name] = $property.Value
+    }
+  }
+  return [pscustomobject]@{
+    preserve = $true
+    fields = $fields
+    evidence_path = $resolvedEvidence
+    evidence_sha256 = $evidenceSha256
+    deployment_id = $deploymentId
+  }
+}
+
 function ConvertTo-ClrJsonValue([object]$Value) {
   if ($null -eq $Value -or $Value -is [string] -or $Value -is [ValueType]) { return $Value }
   if ($Value -is [Collections.IDictionary]) {
@@ -1180,6 +1278,26 @@ if ($PromoteCapabilityGate) {
   Assert-True ([bool]$evidence.cloudflare_native_r2_binding_absent) "Capability promotion requires R2 to remain unbound"
   Assert-True (-not [bool]$evidence.cloudflare_native_paid_fallback_used) "Capability promotion forbids a paid fallback"
 
+  $resolvedHostedState = Resolve-RepoScopedPath $HostedStatePath "Hosted runtime state" $false
+  $existingHostedState = if (Test-Path -LiteralPath $resolvedHostedState -PathType Leaf) {
+    Get-Content -LiteralPath $resolvedHostedState -Raw | ConvertFrom-Json
+  } else {
+    $null
+  }
+  $preservedProductProof = Get-ValidatedDownstreamProof `
+    -ExistingState $existingHostedState `
+    -Prefix "product_acceptance" `
+    -ProofProperty "product_acceptance_hosted_proof" `
+    -RuntimeSourceCommitSha $ExpectedSourceCommitSha
+  $preservedWorkspaceProof = Get-ValidatedDownstreamProof `
+    -ExistingState $existingHostedState `
+    -Prefix "workspace_22_page" `
+    -ProofProperty "workspace_22_page_hosted_proof" `
+    -RuntimeSourceCommitSha $ExpectedSourceCommitSha
+  Assert-True (
+    -not [bool]$preservedWorkspaceProof.preserve -or [bool]$preservedProductProof.preserve
+  ) "Existing hosted 22-page proof cannot survive without its validated product-acceptance prerequisite"
+
   $resolvedOwnerInput = Resolve-RepoScopedPath $OwnerInputManifestPath "Owner input manifest" $true
   $ownerInput = Get-Content -LiteralPath $resolvedOwnerInput -Raw | ConvertFrom-Json
   $ownerAction = @($ownerInput.actions | Where-Object { [string]$_.id -eq "O2" }) | Select-Object -First 1
@@ -1242,7 +1360,6 @@ if ($PromoteCapabilityGate) {
   Assert-JsonBoolean $writtenState.gates.cloudflare_native_zero_card_hosted_runtime "live_verified" $true "Written Cloudflare-native capability gate"
   Assert-Equal ([string]$writtenState.gates.cloudflare_native_zero_card_hosted_runtime.evidence_sha256) $evidenceSha256 "Written Cloudflare-native evidence SHA-256"
 
-  $resolvedHostedState = Resolve-RepoScopedPath $HostedStatePath "Hosted runtime state" $false
   $hostedStateParent = Split-Path -Parent $resolvedHostedState
   New-Item -ItemType Directory -Force -Path $hostedStateParent | Out-Null
   $hostedState = [ordered]@{
@@ -1271,8 +1388,8 @@ if ($PromoteCapabilityGate) {
     paid_provider = $false
     dev_only = $false
     hosted_proof = $true
-    product_acceptance_hosted_proof = $false
-    workspace_22_page_hosted_proof = $false
+    product_acceptance_hosted_proof = [bool]$preservedProductProof.preserve
+    workspace_22_page_hosted_proof = [bool]$preservedWorkspaceProof.preserve
     live_provider_calls = $false
     direct_provider_calls = $false
     live_mcp_writes = $false
@@ -1280,7 +1397,30 @@ if ($PromoteCapabilityGate) {
     production_release_claimed = $false
     secret_output = $false
     percentage_credit = 0
-    non_claims = @(
+    non_claims = @()
+  }
+  foreach ($field in $preservedProductProof.fields.GetEnumerator()) {
+    $hostedState[$field.Key] = $field.Value
+  }
+  foreach ($field in $preservedWorkspaceProof.fields.GetEnumerator()) {
+    $hostedState[$field.Key] = $field.Value
+  }
+  $hostedState.non_claims = if ([bool]$preservedWorkspaceProof.preserve) {
+    @(
+      "This state proves the hosted O2Core runtime, one source-bound hosted product-acceptance flow, and the source-bound hosted 22-page action matrix.",
+      "This state does not prove Vectorize semantic retrieval, GHCR publication, production release, or any R2 capability.",
+      "The bounded product and action proofs used only the LLM Gateway; direct provider calls and live MCP writes remained false.",
+      "R2 remains unbound and historical-only; no paid fallback or percentage credit was used."
+    )
+  } elseif ([bool]$preservedProductProof.preserve) {
+    @(
+      "This state proves the hosted O2Core runtime and one source-bound hosted product-acceptance flow.",
+      "This state does not yet prove the hosted 22-page action matrix, Vectorize semantic retrieval, GHCR publication, or production release.",
+      "The product proof used one bounded live-provider build through the LLM Gateway; direct provider calls and live MCP writes remained false.",
+      "R2 remains unbound and historical-only; no paid fallback or percentage credit was used."
+    )
+  } else {
+    @(
       "This state proves the hosted O2Core runtime and its zero-card stateful roundtrip, not hosted product acceptance.",
       "This state does not prove the hosted 22-page action matrix, Vectorize semantic retrieval, GHCR publication, or production release.",
       "R2 remains unbound and historical-only; no paid fallback was used.",
@@ -1298,8 +1438,8 @@ if ($PromoteCapabilityGate) {
     $candidateHostedState = Get-Content -LiteralPath $temporaryHostedState -Raw | ConvertFrom-Json
     Assert-Equal ([string]$candidateHostedState.contract_version) "cloudflare-native-hosted-current-v1" "Candidate hosted runtime state contract"
     Assert-JsonBoolean $candidateHostedState "hosted_proof" $true "Candidate hosted runtime state"
-    Assert-JsonBoolean $candidateHostedState "product_acceptance_hosted_proof" $false "Candidate hosted runtime state"
-    Assert-JsonBoolean $candidateHostedState "workspace_22_page_hosted_proof" $false "Candidate hosted runtime state"
+    Assert-JsonBoolean $candidateHostedState "product_acceptance_hosted_proof" ([bool]$preservedProductProof.preserve) "Candidate hosted runtime state"
+    Assert-JsonBoolean $candidateHostedState "workspace_22_page_hosted_proof" ([bool]$preservedWorkspaceProof.preserve) "Candidate hosted runtime state"
     if (Test-Path -LiteralPath $resolvedHostedState -PathType Leaf) {
       [IO.File]::Replace($temporaryHostedState, $resolvedHostedState, $rollbackHostedState, $true)
     } else {
@@ -1317,6 +1457,22 @@ if ($PromoteCapabilityGate) {
   Assert-Equal ([string]$writtenHostedState.status) "verified" "Written hosted runtime state"
   Assert-Equal ([string]$writtenHostedState.evidence_sha256) $evidenceSha256 "Written hosted runtime evidence SHA-256"
   Assert-Equal ([string]$writtenHostedState.source_commit_sha) $ExpectedSourceCommitSha "Written hosted runtime source SHA"
+  if ([bool]$preservedProductProof.preserve) {
+    Assert-Equal (
+      (Get-FileHash -LiteralPath $preservedProductProof.evidence_path -Algorithm SHA256).Hash
+    ) $preservedProductProof.evidence_sha256 "Written hosted product evidence SHA-256"
+    Assert-Equal (
+      [string]$writtenHostedState.product_acceptance_deployment_id
+    ) $preservedProductProof.deployment_id "Written hosted product deployment"
+  }
+  if ([bool]$preservedWorkspaceProof.preserve) {
+    Assert-Equal (
+      (Get-FileHash -LiteralPath $preservedWorkspaceProof.evidence_path -Algorithm SHA256).Hash
+    ) $preservedWorkspaceProof.evidence_sha256 "Written hosted 22-page evidence SHA-256"
+    Assert-Equal (
+      [string]$writtenHostedState.workspace_22_page_deployment_id
+    ) $preservedWorkspaceProof.deployment_id "Written hosted 22-page deployment"
+  }
 }
 
 $transport = if (-not $StaticOnly -and $isLocalhost) { "DEV-ONLY" } elseif ($StaticOnly) { "static" } else { "hosted" }

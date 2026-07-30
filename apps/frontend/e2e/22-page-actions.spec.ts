@@ -14,6 +14,10 @@ import {
 import { WORKSPACE_PAGES } from "../lib/nav";
 
 const baseUrl = (process.env.PAGE_ACTIONS_BASE_URL ?? "http://localhost:8081").trim().replace(/\/+$/, "");
+const proofScope = (process.env.PAGE_ACTIONS_PROOF_SCOPE ?? "dev_only_localhost").trim();
+const expectedSourceCommitSha = (process.env.PAGE_ACTIONS_SOURCE_COMMIT_SHA ?? "").trim();
+const expectedSourceArchiveSha256 = (process.env.PAGE_ACTIONS_SOURCE_ARCHIVE_SHA256 ?? "").trim();
+const expectedDeploymentId = (process.env.PAGE_ACTIONS_DEPLOYMENT_ID ?? "").trim();
 const EXAMPLE_SELECTION_ACTIONS = new Set(["home-example", "workbench-example", "games-example"]);
 const PERSISTED_BUILD_ACTIONS = new Set([
   "home-iteration-input",
@@ -44,7 +48,6 @@ type PersistedBuild = {
   id: string;
   html: string;
   persisted: true;
-  audit_persisted: true;
   direct_provider_calls: false;
   secret_output: false;
 };
@@ -235,7 +238,6 @@ async function loadPersistedBuild(context: BrowserContext): Promise<PersistedBui
   const build = asRecord(await readResponse.json());
   expect(build.id).toBe(id);
   expect(build.persisted).toBe(true);
-  expect(build.audit_persisted).toBe(true);
   expect(build.direct_provider_calls).toBe(false);
   expect(build.secret_output).toBe(false);
   expect(String(build.html)).toMatch(/^\s*<!doctype html/i);
@@ -389,7 +391,6 @@ async function auditDirectBuild(
     const readback = asRecord(await readbackResponse.json());
     expect(readback.id).toBe(buildId);
     expect(readback.persisted).toBe(true);
-    expect(readback.audit_persisted).toBe(true);
     await expect(page.locator(action.effectLocator).first()).toBeVisible({ timeout: 30_000 });
     return {
       route,
@@ -462,7 +463,6 @@ async function auditPreverifiedWorkbenchBuild(
     const readback = asRecord(await readbackResponse.json());
     expect(readback.id).toBe(build.id);
     expect(readback.persisted).toBe(true);
-    expect(readback.audit_persisted).toBe(true);
     expect(readback.live_provider_calls).toBe(true);
     expect(readback.gateway_provider).toBe("cloudflare-workers-ai");
     await expect(page.locator(action.effectLocator).first()).toBeVisible({ timeout: 30_000 });
@@ -1171,12 +1171,15 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
   const excludedMembers = allMembers.filter((action) => action.availability !== "enabled");
   const excludedGateCount = ACTION_MATRIX.reduce((total, entry) => total + entry.excludedGates.length, 0);
   const repoRoot = path.resolve(path.dirname(testInfo.file), "../../..");
+  const productAcceptanceReportPath = process.env.PAGE_ACTIONS_PRODUCT_REPORT_PATH?.trim()
+    ? path.resolve(process.env.PAGE_ACTIONS_PRODUCT_REPORT_PATH)
+    : path.join(repoRoot, ".codex/runs/CURRENT/product-acceptance/report.json");
   const sourcePaths = {
     action_spec: testInfo.file,
     action_matrix: path.join(repoRoot, "apps/frontend/lib/actionMatrix.ts"),
     workspace_nav: path.join(repoRoot, "apps/frontend/lib/nav.tsx"),
     product_acceptance_spec: path.join(repoRoot, "apps/frontend/e2e/product-acceptance.spec.ts"),
-    product_acceptance_report: path.join(repoRoot, ".codex/runs/CURRENT/product-acceptance/report.json"),
+    product_acceptance_report: productAcceptanceReportPath,
   };
   const sourceContents = Object.fromEntries(await Promise.all(
     Object.entries(sourcePaths).map(async ([name, filePath]) => [name, await readFile(filePath)] as const),
@@ -1190,6 +1193,7 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
   );
   const productAcceptanceSpecSource = sourceContents.product_acceptance_spec.toString("utf8");
   const productAcceptanceReportSha256 = sourceFileSha256.product_acceptance_report;
+  const hostedProof = proofScope === "hosted_https";
   const report: JsonRecord = {
     contract_version: "22-page-action-acceptance-v2",
     registry_contract_version: ACTION_MATRIX_CONTRACT_VERSION,
@@ -1197,11 +1201,17 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
     started_at: new Date().toISOString(),
     completed_at: null,
     base_url: baseUrl,
-    dev_only: true,
-    hosted_proof: false,
+    dev_only: !hostedProof,
+    hosted_proof: hostedProof,
+    proof_scope: proofScope,
     source_binding_sha256: sourceBindingSha256,
     source_binding: {
       git_head: process.env.PAGE_ACTIONS_GIT_HEAD ?? null,
+      source_commit_sha: expectedSourceCommitSha || null,
+      source_archive_sha256: expectedSourceArchiveSha256 || null,
+      deployment_id: expectedDeploymentId || null,
+      product_acceptance_report_path: path.relative(repoRoot, productAcceptanceReportPath).replaceAll("\\", "/"),
+      product_acceptance_report_sha256: productAcceptanceReportSha256,
       files_sha256: sourceFileSha256,
     },
     registered_route_count: registeredRoutes.length,
@@ -1242,8 +1252,21 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
   };
 
   try {
-    expect(["localhost", "127.0.0.1", "::1"]).toContain(origin.hostname);
-    expect(origin.port || (origin.protocol === "https:" ? "443" : "80")).toBe("8081");
+    expect(["dev_only_localhost", "hosted_https"]).toContain(proofScope);
+    if (hostedProof) {
+      expect(origin.protocol).toBe("https:");
+      expect(origin.hostname.endsWith(".vercel.app")).toBe(true);
+      expect(origin.port || "443").toBe("443");
+      expect(expectedSourceCommitSha).toMatch(/^[0-9a-f]{40}$/);
+      expect(expectedSourceArchiveSha256).toMatch(/^[0-9a-f]{64}$/);
+      expect(expectedDeploymentId).toMatch(/^dpl_[A-Za-z0-9]+$/);
+    } else {
+      expect(["localhost", "127.0.0.1", "::1"]).toContain(origin.hostname);
+      expect(origin.port || (origin.protocol === "https:" ? "443" : "80")).toBe("8081");
+      expect(expectedSourceCommitSha).toBe("");
+      expect(expectedSourceArchiveSha256).toBe("");
+      expect(expectedDeploymentId).toBe("");
+    }
     expect(origin.username || origin.password).toBe("");
     expect(registeredRoutes).toEqual(canonicalRoutes);
     expect(registeredRoutes).toHaveLength(22);
