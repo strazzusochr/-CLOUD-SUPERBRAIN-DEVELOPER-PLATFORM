@@ -131,11 +131,23 @@ python scripts/apply_github_branch_protection.py
 Das setzt und **verifiziert** den Schutz für `main`. Du musst dafür nichts klicken.
 
 ### Schritt 4 — Deine Freigabe-Entscheidungen (die kann nur der Owner treffen)
-Codex braucht von dir **schriftlich im Chat**, was erlaubt sein soll:
-1. **Welche Repositories** dürfen beschrieben werden? (Vorschlag: nur dieses eine)
-2. **Welche Branches**? (Vorschlag: nur `claude/*`-Arbeitsbranches, **niemals `main`**)
-3. **Welche MCP-Tools** dürfen schreiben? (Vorschlag: nur Filesystem im Projektordner + Git im Arbeitsbranch)
-4. **Audit-Aufbewahrung** bestätigen (Vorschlag: alle Writes im Audit-Log, Aufbewahrung unbegrenzt)
+
+> ℹ️ **Zuerst ein Missverständnis ausräumen:** `claude/…` ist nur ein **historischer Branch-Name**, keine
+> Zuständigkeit. **Codex arbeitet auf demselben Branch** und hat dort längst committed
+> (`d726ddc1`, `e4271e76`, `6750ed70`). Beide committen unter deinem Git-Namen — der Autor sagt nichts darüber,
+> wer gearbeitet hat. `C:\Users\immer\.codex` ist Codex' **Konfigurationsordner außerhalb des Repos** und hat
+> mit Branches nichts zu tun; der Projektordner ist ausschließlich
+> `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`.
+> **Entscheidend ist nicht der Präfix, sondern: niemals `main`.**
+
+Antworte im Chat — ein „ja, so" genügt, wenn du die Vorschläge übernimmst:
+
+| # | Frage | Vorschlag |
+|---|---|---|
+| 1 | Welche **Repositories**? | Nur `strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM` — keine anderen Repos, Forks oder Organisationen |
+| 2 | Welche **Branches**? | Nur der **aktive Arbeitsbranch** (egal welcher Präfix). **`main` niemals** — kein Direkt-Write, kein Force-Push, kein Merge ohne deine Freigabe |
+| 3 | Welche **MCP-Tools** dürfen schreiben? | **Filesystem** nur innerhalb `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM` (**nicht** `.codex`, **nicht** der Secrets-Ordner) · **Git** nur im Arbeitsbranch · alles Übrige read-only |
+| 4 | **Audit-Aufbewahrung**? | Jeder Write wird protokolliert (Zeit, Agent, Pfad, Ergebnis) — **nie Secret-Werte**. Unbegrenzte Aufbewahrung. Ein Write ohne Audit-Eintrag gilt als **fehlgeschlagen** und wird zurückgerollt |
 
 ### Fertig, wenn
 Codex führt aus: `npm run verify:runtime` und `npm run verify:browser`.

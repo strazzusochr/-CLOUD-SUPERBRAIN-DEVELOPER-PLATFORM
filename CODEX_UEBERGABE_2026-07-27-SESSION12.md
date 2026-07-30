@@ -213,6 +213,31 @@ Vollständige Klick-für-Klick-Anleitung für die verbleibenden drei Gates:
 Berechtigungsstufen, Reihenfolge. **Reihenfolge ist bindend: O1 → O4 → O3.**
 O3 (GHCR) darf laut Matrix-`codex_boundary` **erst nach `MARKET_READY: true`** erfolgen.
 
+## 5e. 🧾 O4 — OWNER-FREIGABEN (Vorlage, vom Owner zu bestätigen)
+Die Owner-Matrix verlangt für `live_agent_tool_writes` + `live_mcp_writes` vier ausdrückliche Entscheidungen.
+Der Token ist bereits tauglich (`admin=true push=true pull=true`, §4b) — es fehlen **nur** diese Antworten.
+
+> ⚠️ **Namensklärung, weil es zu Missverständnissen führte:** `claude/…` ist ein **historischer
+> Branch-Namenspräfix**, **keine Zuständigkeitsgrenze**. Codex hat auf `claude/cloud-superbrain-analysis-127d2e`
+> genauso committed wie der Assistent (`d726ddc1`, `e4271e76`, `6750ed70` sind Codex-Arbeit). Beide committen
+> zudem unter dem Git-Autor des Owners — der Autorname sagt nichts über den Urheber.
+> `C:\Users\immer\.codex` ist Codex' **Konfigurations-/Secrets-Ordner außerhalb des Repos** und hat mit
+> Branches nichts zu tun. Der Git-Working-Tree ist ausschließlich
+> `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`.
+> **Maßgeblich ist nicht der Präfix, sondern: niemals `main`.**
+
+| # | Frage | Vorschlag (Owner bestätigt oder ändert) |
+|---|---|---|
+| 1 | **Welche Repositories** dürfen beschrieben werden? | **Nur** `strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`. Keine anderen Repos des Kontos, keine Forks, keine Organisationen. |
+| 2 | **Welche Branches?** | **Nur der jeweils aktive Arbeitsbranch** — aktuell `claude/cloud-superbrain-analysis-127d2e`, unabhängig vom Präfix auch künftige Arbeitsbranches. **`main` niemals**, weder direkt noch per Force-Push noch per Merge ohne Owner-Freigabe. Branch-Protection auf `main` erzwingt das zusätzlich. |
+| 3 | **Welche MCP-Tools** dürfen schreiben? | **Filesystem** nur innerhalb `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM` (keine Pfade außerhalb, insbesondere **nicht** `C:\Users\immer\.codex` und **nicht** `<SECRETS_DIR>`); **Git** nur auf dem Arbeitsbranch. Alles andere (GitHub-Issues/PR-Writes, externe APIs, Paket-Publishing) bleibt **read-only**. |
+| 4 | **Audit-Aufbewahrung** | Jeder Write wird im Audit-Log persistiert (Zeitpunkt, Agent/Rolle, Pfad bzw. Ref, Ergebnis) — **niemals Secret-Werte**. Aufbewahrung unbegrenzt; ein Write ohne erfolgreichen Audit-Eintrag gilt als **fehlgeschlagen** und wird zurückgerollt (gleiches Fail-closed-Muster wie bei der Auth-Credential-Ausgabe). |
+
+**Erst nach schriftlicher Owner-Bestätigung** darf Codex `live_agent_tool_writes`/`live_mcp_writes` über die
+echten Verifier (`npm run verify:runtime`, `npm run verify:browser`) öffnen. **Kein stilles Aktivieren**,
+kein Handsetzen von `live_verified`. Die bestätigte Fassung ist in
+`docs/runtime-state/owner-input-manifest.json` (O4) zu spiegeln.
+
 ## 6. GATE-INVENTAR (10 Gates: 3 offen · 7 zu)
 ✅ offen: `live_llm_provider_calls` · `live_memory_provider` · `hosted_observability_endpoint`
 🔴 zu: `cloudflare_native_zero_card_hosted_runtime` (**O2′**) · `live_vector_memory_search` (**O5**) ·
