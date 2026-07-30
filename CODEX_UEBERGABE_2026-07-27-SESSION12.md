@@ -213,7 +213,19 @@ Vollständige Klick-für-Klick-Anleitung für die verbleibenden drei Gates:
 Berechtigungsstufen, Reihenfolge. **Reihenfolge ist bindend: O1 → O4 → O3.**
 O3 (GHCR) darf laut Matrix-`codex_boundary` **erst nach `MARKET_READY: true`** erfolgen.
 
-## 5e. 🧾 O4 — OWNER-FREIGABEN (Vorlage, vom Owner zu bestätigen)
+## 5e. ✅ O4 — OWNER-FREIGABEN ERTEILT (2026-07-30)
+> **Der Owner hat die vier Vorschläge unverändert bestätigt („ja, so").** Gespiegelt in
+> `docs/runtime-state/owner-input-manifest.json` → `actions[O4].owner_scope_decision`
+> (`decision: approved_as_proposed`, `gate_state_unchanged: true`).
+> **Gegengeprüft: `live_agent_tool_writes` und `live_mcp_writes` stehen weiterhin auf
+> `owner_granted=false, live_verified=false`.** Die Freigabe ist eine Scope-Entscheidung, **kein Gate-Öffnen**.
+>
+> **Damit ist der Owner-Teil von O4 vollständig.** Der Token ist tauglich (§4b), die Grenzen sind schriftlich.
+> **Verbleibende O4-Arbeit ist rein Codex:** `python scripts/apply_github_branch_protection.py` ausführen,
+> den gebundenen Live-Write-Verifier bauen/fahren und die Gates **ausschließlich** über
+> `npm run verify:runtime` + `npm run verify:browser` öffnen. **`live_verified` nie handsetzen.**
+
+### Die bestätigte Fassung im Wortlaut
 Die Owner-Matrix verlangt für `live_agent_tool_writes` + `live_mcp_writes` vier ausdrückliche Entscheidungen.
 Der Token ist bereits tauglich (`admin=true push=true pull=true`, §4b) — es fehlen **nur** diese Antworten.
 

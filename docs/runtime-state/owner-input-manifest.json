@@ -109,7 +109,42 @@
         "npm run verify:runtime",
         "npm run verify:browser"
       ],
-      "codex_boundary": "Current contracts remain dry-run/read-only; Codex must not silently activate writes."
+      "codex_boundary": "Current contracts remain dry-run/read-only; Codex must not silently activate writes.",
+      "owner_scope_decision": {
+        "decided_at_utc": "2026-07-30T00:00:00.0000000Z",
+        "decision": "approved_as_proposed",
+        "recorded_by": "assistant_from_owner_chat_confirmation",
+        "repositories_allowed": [
+          "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM"
+        ],
+        "repositories_excluded": "All other repositories, forks and organisations of the account.",
+        "branches_allowed": "Only the active working branch, regardless of name prefix. The claude/ prefix is historical and carries no ownership meaning.",
+        "branches_forbidden": "main - no direct write, no force push, no merge without explicit owner release approval.",
+        "mcp_write_allowlist": [
+          "filesystem: only inside D:\\PLATTFORM\\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+          "git: only on the active working branch"
+        ],
+        "mcp_write_explicitly_excluded": [
+          "C:\\Users\\immer\\.codex (Codex configuration directory, outside the repository)",
+          "<SECRETS_DIR> and any secrets file",
+          "any path outside the project working tree"
+        ],
+        "everything_else": "read_only",
+        "audit_retention": {
+          "persist_every_write": true,
+          "fields": "timestamp, agent/role, path or ref, result",
+          "secret_values_recorded": false,
+          "retention": "unlimited",
+          "fail_closed_rule": "A write without a successfully persisted audit entry counts as failed and must be rolled back, mirroring the auth credential issuance pattern."
+        },
+        "gate_state_unchanged": true,
+        "non_claims": [
+          "This records the owner scope decision only.",
+          "It does not open live_agent_tool_writes or live_mcp_writes.",
+          "Both gates stay closed until the real verifiers prove bounded live writes.",
+          "live_verified must never be hand-set."
+        ]
+      }
     },
     {
       "id": "O5",

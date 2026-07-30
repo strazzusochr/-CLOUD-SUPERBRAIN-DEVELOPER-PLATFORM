@@ -181,7 +181,7 @@ Vectorize (HTTP 200), `-Profile O5` **1/1 PASS**. **Der Owner-Teil von O5 entfä
 | ~~O6~~ | ✅ `resolved_verified` | — |
 | ~~R2~~ | ⛔ **GESTRICHEN** — Kreditkarte nötig, verletzt Free-Only. Artefakte → D1/DO. | — |
 | ~~O1~~ | ✅ **KONFIGURATION ERLEDIGT** — 4/4 lokal verifiziert, Vercel-Variablen am Projekt verankert. Hosted-OAuth-Beweis folgt mit O2′. | P3 nach hosted Proof |
-| **1 · O4** 🔥 | ⚠️ **Zuerst neuer Token nötig:** das bisherige `GITHUB_TOKEN` (`ghp_…`) ist **abgelaufen (HTTP 401)** und hätte `apply_github_branch_protection.py` ohnehin scheitern lassen. Fine-grained Token (**Administration + Contents + Pull requests = Read and write**) → `GITHUB_TOKEN` + `GITHUB_REPOSITORY=strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`; dann `python scripts/apply_github_branch_protection.py`; **plus Freigabe im Chat**: welche Repos/Branches/MCP-Tools/Audit-Aufbewahrung | **AP/MCP↑** |
+| ~~O4 (Owner-Teil)~~ | ✅ **ERLEDIGT 2026-07-30.** Token gültig (`github_pat_…`, HTTP 200, `admin/push/pull=true`) · Freigaben vom Owner erteilt (*„ja, so"*) und in `owner-input-manifest.json` → `actions[O4].owner_scope_decision` gespiegelt. **Rest ist Codex-Arbeit.** | **AP/MCP↑** |
 | **2 · O3** ⚠️ | **erst nach `MARKET_READY: true`** — `write:packages` → `GHCR_TOKEN`, Paket auf **Public** (dann gratis), Release-Freigabe im Chat | **P5↑** |
 
 ## ⛔ REGELN
