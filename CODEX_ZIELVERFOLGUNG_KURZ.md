@@ -49,11 +49,22 @@ offen: `live_llm_provider_calls` · `live_memory_provider` · `hosted_observabil
 zu: `live_vector_memory_search` (O5) · `production_auth_identity` (O1) · `live_mcp_writes` +
 `live_agent_tool_writes` (O4) · `docker_registry_publish` (O3) · `phase6_scale_runtime` (Zahlung)
 
-## ▶ NÄCHSTER SCHRITT
-`scripts/verify-live-vector-memory-search.ps1` **existiert nicht**, wird aber vom Owner-Manifest als
-O5-Verifier referenziert → tote Referenz. Da Vectorize jetzt lesbar ist, ist das der erste echte Schritt
-für **L6 90 → 100**. **Aber:** Index-Anlage ist Ressourcenerzeugung außerhalb der in
-`actions[O2].owner_scope_decision` freigegebenen Liste (Workers, D1, DO, Queues) → **erst Owner fragen.**
+## ✅ O5-VERIFIER GEBAUT — tote Referenz geschlossen (2026-07-31)
+`scripts/verify-live-vector-memory-search.ps1` war im Gate reserviert, existierte aber nicht.
+Jetzt gebaut, in `verify-phase1.ps1` eingehängt, negativ getestet. **Schreibt `live_verified` nie.**
+Fehlende Voraussetzung = `blocked`/Exit 0 (ehrlicher Ist-Zustand); inkohärenter Anspruch = Exit 1.
+**7 Blocker gemessen**, nur `vectorize_scope_readable` ist ok — **0 Indizes auf dem Account**.
+
+> ⚠️ **Lehre:** Meine erste Fassung prüfte per Substring `semantic|vectorize` → **grün**.
+> Gematcht hatten `vectorize: "owner_gate_required"` und ein pgvector-Non-Claim — Gegenteil-Marker.
+> **Verträge nie über Wortvorkommen prüfen, immer über echte Verwendung** (`env.VECTORIZE` + `env.AI`).
+
+## ▶ NÄCHSTER SCHRITT — L6 90 → 100
+Vectorize ist im **Workers-Free-Plan** enthalten (30 Mio. / 5 Mio. Dimensionen) — **keine Karten-Wand
+wie bei R2**. Reihenfolge: (1) Owner-Freigabe für Index-Anlage einholen — liegt außerhalb der in
+`actions[O2].owner_scope_decision` freigegebenen Liste; (2) Index `cloud-superbrain-memory-v1` anlegen;
+(3) `wrangler.jsonc` um `vectorize`- **und** `ai`-Binding erweitern + Worker-Route; (4) echten Roundtrip
+beweisen, dann `-RequireHostedProof`. **`live_verified` nie handsetzen.**
 
 ## ✅ STAND — aktueller Feature-Branch
 Branch `claude/cloud-superbrain-analysis-127d2e` · Overall **86 %** · `MARKET_READY:false`

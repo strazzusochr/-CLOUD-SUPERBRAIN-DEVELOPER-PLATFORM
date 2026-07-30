@@ -792,6 +792,17 @@ Write-Host "[verify] memory worker metadata secret guard"
 & (Join-Path $PSScriptRoot "verify-memory-worker-secret-guard.ps1") -StaticOnly
 Assert-LastExitCode "memory worker metadata secret guard"
 
+Write-Host "[verify] O5 live vector memory search chain"
+# capability-gates.json reserved this exact path long before the file existed, so the owner input
+# manifest pointed at a verifier that was never written. It reports the semantic-retrieval chain and
+# stays read-only: a missing precondition is `blocked` and passes, an incoherent claim fails.
+$liveVectorSearchVerifierPath = Join-Path $PSScriptRoot "verify-live-vector-memory-search.ps1"
+if (-not (Test-Path -LiteralPath $liveVectorSearchVerifierPath -PathType Leaf)) {
+  throw "Missing live vector memory search verifier reserved by capability-gates.json"
+}
+& powershell -NoProfile -ExecutionPolicy Bypass -File $liveVectorSearchVerifierPath
+Assert-LastExitCode "O5 live vector memory search chain"
+
 Write-Host "[verify] fail-closed vector memory capability gate"
 $vectorMemoryVerifierPath = Join-Path $PSScriptRoot "verify-vector-memory-gate.ps1"
 if (-not (Test-Path -LiteralPath $vectorMemoryVerifierPath -PathType Leaf)) {

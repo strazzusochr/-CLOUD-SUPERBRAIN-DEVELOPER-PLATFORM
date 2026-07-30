@@ -31,6 +31,35 @@ Read-only verification of the real default branch on 2026-07-31 returned
 GitHub write was executed. The Owner runbook step that instructed an apply against
 `main` has been corrected to state that nothing needs to be applied.
 
+## Current O5 Live Vector Memory Search Verifier
+
+Recorded 2026-07-31. `docs/runtime-state/capability-gates.json` reserved
+`scripts/verify-live-vector-memory-search.ps1` under
+`gates.live_vector_memory_search.verifier`, and the owner input manifest listed the
+same path as the O5 verifier, but the file had never been written. The reference
+was dangling. The verifier now exists and is wired into `verify-phase1.ps1`, which
+fails with `Missing live vector memory search verifier` when it is absent; that was
+proven by removing the file, observing the failure, and restoring it.
+
+The verifier is deliberately two-tier. A missing precondition is reported as
+`blocked` and exits `0`, because that is the honest current state. An incoherent
+claim exits `1`: a gate that asserts semantic proof without an evidence artefact, an
+artefact path that does not exist, or vector evidence that reuses the lexical
+Cloudflare D1 evidence. It never writes `live_verified`.
+
+Measured state: seven blockers. `owner_scope_approved`, `architecture_approved`,
+`vectorize_index_present` (the account holds zero indexes), `worker_vectorize_binding`,
+`worker_ai_binding` and `worker_semantic_route` are all unmet. Only
+`vectorize_scope_readable` passes, confirming the promoted Cloudflare token can list
+Vectorize indexes read-only.
+
+Method note worth keeping: the first draft of the route check matched the substrings
+`semantic` or `vectorize` in the Worker source and reported green. What it matched
+were `vectorize: "owner_gate_required"` and a non-claim sentence about pgvector
+parity, both of which assert the opposite of an implementation. The check now
+requires actual binding use, `env.VECTORIZE` together with `env.AI`. Contract checks
+must test usage, not word occurrence.
+
 ## Current Branch-Protection External Gate Closure
 
 Recorded 2026-07-31. `github_branch_protection_current_verify` was listed as a

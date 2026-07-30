@@ -100,12 +100,39 @@ verlangt, dass `PROJECT_STATE.md`, `AI_HANDOFF.md` **und** `docs/verification-re
 **neueste** zeigen. Wer den Gate-Lauf macht, **muss diese drei Referenzen im selben Slice nachziehen** —
 sonst rot. `.phase1-artifacts/` ist zudem gitignored, die Kette hängt also auch hier an lokalen Dateien.
 
-### 🔨 Nächster Codex-Schritt (unverändert höchste Priorität)
-`scripts/verify-live-vector-memory-search.ps1` **existiert nicht**, wird aber von
-`docs/runtime-state/owner-input-manifest.json` als O5-Verifier referenziert — eine tote Referenz.
-Da der Token Vectorize jetzt liest, ist das der erste echte Schritt für **L6 90 → 100**.
-Index-Anlage ist eine Ressourcenerzeugung **außerhalb** der in `actions[O2].owner_scope_decision`
-freigegebenen Liste (Workers, D1, DO, Queues) — **dafür zuerst die Owner-Freigabe einholen.**
+### ✅ O5-VERIFIER GEBAUT — die tote Referenz ist geschlossen
+`scripts/verify-live-vector-memory-search.ps1` **existierte nicht**, obwohl `capability-gates.json`
+den Pfad unter `gates.live_vector_memory_search.verifier` reserviert und das Owner-Manifest ihn als
+O5-Prüfer nennt. Er ist jetzt gebaut, in `verify-phase1.ps1` eingehängt und negativ getestet
+(Verifier entfernt ⇒ Kette bricht mit `Missing live vector memory search verifier`).
+
+**Verhalten (bewusst zweistufig):** eine **fehlende Voraussetzung** ist `blocked` und Exit 0 — das ist
+der ehrliche Ist-Zustand; ein **inkohärenter Anspruch** ist Exit 1 — etwa ein Gate, das semantischen
+Beweis behauptet ohne Artefakt, oder das die lexikalische D1-Evidenz als Vektor-Evidenz recycelt.
+**`live_verified` schreibt er nie.**
+
+**Gemessener Ist-Zustand (7 Blocker):** `owner_scope_approved`, `architecture_approved`,
+`vectorize_index_present` (**0 Indizes auf dem Account**), `worker_vectorize_binding`,
+`worker_ai_binding`, `worker_semantic_route`. Einzig `vectorize_scope_readable` ist **ok**.
+
+> ⚠️ **Lehre aus dem Bau selbst — bitte übernehmen:** Meine erste Fassung prüfte die Route per
+> Substring auf `semantic|vectorize` und meldete **grün**. Gematcht hatten aber
+> `vectorize: "owner_gate_required"` (Zeile 418) und ein Non-Claim-Satz über pgvector-Parität
+> (Zeile 1199) — also **ausdrückliche Gegenteil-Marker**. Ein Haftungsausschluss wurde zum Häkchen.
+> Jetzt wird auf **Binding-Nutzung** geprüft (`env.VECTORIZE` **und** `env.AI`).
+> **Regel: Verträge nie über Wortvorkommen prüfen, immer über tatsächliche Verwendung.**
+
+### 🔨 Nächster Codex-Schritt
+Vectorize ist laut Cloudflare-Doku im **Workers-Free-Plan** enthalten (30 Mio. abgefragte /
+5 Mio. gespeicherte Dimensionen) — **keine Karten-Wand wie bei R2**. Damit ist der Weg für
+**L6 90 → 100** frei, sobald der Owner zustimmt:
+1. Owner-Freigabe für **Index-Anlage** — Ressourcenerzeugung außerhalb der in
+   `actions[O2].owner_scope_decision` freigegebenen Liste (Workers, D1, DO, Queues).
+2. Index `cloud-superbrain-memory-v1` anlegen; Dimension/Metrik am gewählten Workers-AI-
+   Embedding-Modell ausrichten.
+3. `wrangler.jsonc` um `vectorize`- **und** `ai`-Binding erweitern, Worker-Route implementieren.
+4. Echten Roundtrip beweisen, dann `-RequireHostedProof` fahren.
+**Kein Handsetzen von `live_verified`** — die lexikalische D1-Suche ist keine semantische Vektorsuche.
 
 ## NACHTRAG 2026-07-30 — O2Core HOSTED VERIFIZIERT
 
