@@ -137,6 +137,33 @@ Fehlercodes: `6003` = kein reiner Token · `1000`/`9106` = Token ungültig · `1
 
 # TEIL III — WEG UND REGELN
 
+## 4b. 🔑 SECRETS-DATEI BEREINIGT UND VOLLSTÄNDIG LIVE-VALIDIERT (2026-07-30)
+Der Owner ergänzt Werte, ohne alte zu löschen. Ergebnis waren **zwei tote Duplikate**, bei denen die übliche
+Parser-Regel *(letzter Wert gewinnt)* jeweils den **ungültigen** Wert geliefert hätte — Codex wäre mit beiden
+in Sackgassen gelaufen. Entfernt, Backup `cloud-superbrain.local.env.bak-dedup-20260730-180631`:
+
+| Key | entfernt | verbleibt |
+|---|---|---|
+| `GITHUB_TOKEN` | Zeile 15 `ghp_…` 40 Z. → **HTTP 401 abgelaufen** | Zeile 2 `github_pat_…` 93 Z. → **HTTP 200** |
+| `CLOUDFLARE_API_TOKEN` | Zeile 11 → 0/2 lesbar | Zeile 9 |
+
+**Live-Validierung nach der Bereinigung:** `GITHUB_TOKEN` 200 (`strazzusochr`), Repo-Permissions
+`admin=true push=true pull=true` → **O4-tauglich**; Branch-Protection-API **404** (= noch nicht gesetzt, korrekt);
+`VERCEL_TOKEN` 200; `GITHUB_REPOSITORY` in `owner/name`-Form; O1-Konfiguration **4/4**;
+**keine Duplikate**, keine Leerzeichen-/Anführungszeichen-Fehler in kritischen Werten.
+
+### ⚠️ AKTIVER CF-TOKEN IST SCHWÄCHER ALS DER KANDIDAT — O5 WÜRDE SCHEITERN
+`CLOUDFLARE_API_TOKEN` (aktiv) und `CLOUDFLARE_API_TOKEN_CANDIDATE` sind **verschiedene Werte**.
+Gemessen 2026-07-30: aktiv **4/6** (Workers·D1·Queues·DO = 200, **Vectorize 403 `10000`** = Recht fehlt,
+R2 403 `10000`) gegen Kandidat **5/6** (dieselben vier = 200, **Vectorize 200**, R2 403 **`10042`** =
+nur Konto-Aktivierung, siehe §4).
+**Der Kandidat ist der richtige Token** — verifiziert über `owner-set-cloudflare-token.ps1` mit
+`O2Core 4/4` + `O5 1/1`.
+> **Codex: den Kandidaten NICHT eigenmächtig aktivieren.** Die fail-closed Regel aus `0d0ff548` bleibt:
+> erst der echte Hosted-Write-/Read-/Delete-Beweis qualifiziert ihn, dann darf er `CLOUDFLARE_API_TOKEN`
+> ersetzen. Für Vectorize-Arbeiten bis dahin **ausdrücklich den Kandidaten** verwenden und das im Report
+> vermerken — nicht stillschweigend tauschen.
+
 ## 5a. ✅ O1 KONFIGURATION ERLEDIGT — DER BLOCKER WAR EIN COMPOSE-DEFEKT
 Der Owner lieferte gültige OAuth-Daten, trotzdem blieb Auth tot. **Ursache war nicht seine Eingabe:**
 `docker-compose.dev.yml` reichte `GITHUB_OAUTH_CLIENT_ID`, `_CLIENT_SECRET` und `_REDIRECT_URI`

@@ -113,6 +113,33 @@ verdächtigen.** Ursache: Windows-Backup (~37 GB) unter `D:\NEWPC`, vom Owner en
 ## ⏸ CODEX RATE-LIMITED BIS **2026-08-02, 23:54**
 Kein Absturz, nichts verloren, alles gepusht.
 
+## 🔑 SECRETS-DATEI: BEREINIGT + VOLLSTÄNDIG VALIDIERT (2026-07-30)
+Der Owner hat nur ergänzt, nie gelöscht → **zwei tote Duplikate**, bei denen Parser (letzter Wert gewinnt)
+jeweils den **ungültigen** erwischt hätten. Beide entfernt, Backup `*.bak-dedup-20260730-180631`:
+- `GITHUB_TOKEN` Zeile 15 (`ghp_…`, **HTTP 401 abgelaufen**) entfernt — gültig bleibt Zeile 2
+  (`github_pat_…`, **HTTP 200**, `admin=true push=true pull=true` auf dem Repo → **O4-tauglich**)
+- `CLOUDFLARE_API_TOKEN` Zeile 11 (0/2 lesbar) entfernt — gültig bleibt Zeile 9
+
+**Live-Validierung nach Bereinigung:** `GITHUB_TOKEN` 200 (`strazzusochr`) · `VERCEL_TOKEN` 200 ·
+`GITHUB_REPOSITORY` korrekt · Branch-Protection-API 404 (= noch nicht gesetzt, erwartet) ·
+O1-Konfiguration **4/4** · **keine Duplikate mehr**, keine Leerzeichen-/Quote-Fehler in kritischen Werten.
+
+### ⚠️ ABER: DER AKTIVE CF-TOKEN IST SCHWÄCHER ALS DER KANDIDAT
+`CLOUDFLARE_API_TOKEN` und `CLOUDFLARE_API_TOKEN_CANDIDATE` sind **verschiedene Werte**:
+
+| Ressource | `CLOUDFLARE_API_TOKEN` (aktiv) | `CLOUDFLARE_API_TOKEN_CANDIDATE` |
+|---|---|---|
+| Workers · D1 · Queues · DO | 200 | 200 |
+| **Vectorize** | **403 `10000`** (Recht fehlt) | **200** |
+| R2 | 403 `10000` | 403 **`10042`** (nur nicht aktiviert) |
+| Summe | **4/6** | **5/6** |
+
+**Konsequenz: Mit dem aktiven Token scheitert O5** (kein Vectorize-Recht). Der **Kandidat ist der richtige** —
+er wurde über `owner-set-cloudflare-token.ps1` mit `O2Core 4/4` + `O5 1/1` verifiziert.
+**Codex: den Kandidaten NICHT eigenmächtig aktivieren** — die fail-closed Regel aus `0d0ff548` gilt: erst der
+echte Hosted-Write-/Read-/Delete-Beweis qualifiziert ihn, dann darf er `CLOUDFLARE_API_TOKEN` ersetzen.
+Bis dahin für Vectorize-Arbeiten **ausdrücklich den Kandidaten** verwenden und das im Report vermerken.
+
 ## ✅ O1 KONFIGURATION ERLEDIGT (2026-07-27) — der Blocker war ein Compose-Defekt
 Lokaler Auth-Vertrag jetzt: `github_oauth_configured: true` · `jwt_signing_configured: true` ·
 `credential_issuance_ready: true` · `missing_configuration: []` · `mode: verified_identity_fail_closed`
