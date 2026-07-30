@@ -137,6 +137,35 @@ Fehlercodes: `6003` = kein reiner Token · `1000`/`9106` = Token ungültig · `1
 
 # TEIL III — WEG UND REGELN
 
+## 5a. ✅ O1 KONFIGURATION ERLEDIGT — DER BLOCKER WAR EIN COMPOSE-DEFEKT
+Der Owner lieferte gültige OAuth-Daten, trotzdem blieb Auth tot. **Ursache war nicht seine Eingabe:**
+`docker-compose.dev.yml` reichte `GITHUB_OAUTH_CLIENT_ID`, `_CLIENT_SECRET` und `_REDIRECT_URI`
+**nie an die agent-api durch**. Die berechnet `github_oauth_configured` und `credential_issuance_ready` aber
+ausschließlich daraus (`services/agent-api/app/main.py:2285`) → dauerhaft fail-closed, unabhängig von
+Secrets-Datei und Vercel. **Behoben in `99bc9c3e`** (vier Variablen mit bewusst leeren Standards).
+
+**Vierte Voraussetzung, die in keiner Anleitung stand: `JWT_SIGNING_SECRET`.** Ohne ihn bleibt
+`credential_issuance_ready` false trotz gültiger OAuth-Daten. `start-dev-live.ps1` erzeugt ihn einmalig
+(rein lokaler Signierschlüssel) und legt ihn in der Secrets-Datei ab.
+
+**Nachweis lokal:** `github_oauth_configured: true` · `jwt_signing_configured: true` ·
+`credential_issuance_ready: true` · `missing_configuration: []` ·
+`mode: verified_identity_fail_closed` (vorher `local_contract_with_dry_run_oauth`).
+`verify-phase3-auth-fail-closed.ps1` **PASS**, `status=verified_dev_only`,
+`credentials_issued=false`, `live_github_oauth_call=false`.
+
+**Vercel-Seite (vom Assistenten erledigt):** Die drei Variablen lagen nur als Team-„Shared"-Einträge; das
+Projekt `frontend` (`prj_ZbSNRVz5ijLQ4tQR61liHFw1x5eY`) hatte **keine** davon. Sie sind jetzt direkt am Projekt
+verankert (`production,preview`), Redeploy `dpl_5uLu9a2BpEBb5BDPiuqRtyfkSFY1` READY.
+> ⚠️ **Auf Vercel wird `github_oauth_configured` trotzdem nie `true`** — dort läuft keine agent-api; die Seite
+> liefert eine statische Projektion mit hart kodiertem `false` (`apps/frontend/lib/endpointDefaults.ts:29`).
+> Die Variablen sind korrekt, aber **inert bis O2′**. Das Gate `production_auth_identity` verlangt danach noch
+> den **hosted** OAuth-Austausch; die lokale Evidenz ist ausdrücklich `verified_dev_only`, kein Hosted-Proof.
+
+> 🔑 **`GITHUB_TOKEN` ist abgelaufen (HTTP 401).** Es blockierte den Git-Push und hätte auch
+> `apply_github_branch_protection.py` in O4 scheitern lassen. Der Owner hat `gh auth login` erneuert;
+> der **Token in der Secrets-Datei bleibt ungültig** und wird durch den neuen O4-Fine-grained-Token ersetzt.
+
 ## 5b. 🆕 OFFENE PFLICHT AUS DER OWNER-MATRIX: **ADR-010 ÄNDERN**
 `owner-input-manifest.json` / O2 verlangt wörtlich: *„otherwise keep R2 disabled **and amend ADR-010 to a genuine
 zero-card artifact adapter**"*. R2 ist endgültig gestrichen (§4) → **die Änderung ist jetzt fällig und war bisher

@@ -10,7 +10,14 @@
 | **O6** Live-LLM | Bereits `resolved_verified`. |
 | ~~**R2**~~ | ⛔ **Gestrichen.** Cloudflare verlangt eine Zahlungsmethode auch für den Gratis-Tarif → Free-Only-Wand. Artefakte gehen nach D1, Koordination in Durable Objects. Die Matrix erlaubt das ausdrücklich („otherwise keep R2 disabled"). |
 
-**Offen bleiben genau drei: O1, O4, O3 — in dieser Reihenfolge.**
+| **O1** GitHub-OAuth | ✅ **ERLEDIGT 2026-07-27.** Konfiguration 4/4 lokal verifiziert (`credential_issuance_ready: true`), Vercel-Variablen am Projekt verankert + Redeploy. Der eigentliche Blocker war ein **Compose-Defekt** (die Variablen wurden nie an die agent-api durchgereicht) plus ein viertes, undokumentiertes `JWT_SIGNING_SECRET` — beides behoben, **nicht** durch Owner-Eingaben lösbar gewesen. |
+
+**Offen bleiben genau zwei: O4, dann O3.**
+
+> ⚠️ **Vor O4 unbedingt lesen:** Das bisherige `GITHUB_TOKEN` (`ghp_…`) ist **abgelaufen** — geprüft gegen
+> `api.github.com/user` → **HTTP 401**. Es blockierte bereits den Git-Push und hätte
+> `apply_github_branch_protection.py` ebenfalls scheitern lassen. Der neue Fine-grained-Token aus O4 ersetzt
+> ihn — er ist also **ohnehin nötig**, nicht optional.
 
 ---
 

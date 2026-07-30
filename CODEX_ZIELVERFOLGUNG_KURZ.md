@@ -113,6 +113,25 @@ verdächtigen.** Ursache: Windows-Backup (~37 GB) unter `D:\NEWPC`, vom Owner en
 ## ⏸ CODEX RATE-LIMITED BIS **2026-08-02, 23:54**
 Kein Absturz, nichts verloren, alles gepusht.
 
+## ✅ O1 KONFIGURATION ERLEDIGT (2026-07-27) — der Blocker war ein Compose-Defekt
+Lokaler Auth-Vertrag jetzt: `github_oauth_configured: true` · `jwt_signing_configured: true` ·
+`credential_issuance_ready: true` · `missing_configuration: []` · `mode: verified_identity_fail_closed`
+(vorher `local_contract_with_dry_run_oauth`). `verify-phase3-auth-fail-closed.ps1` **PASS**,
+`status=verified_dev_only`, `credentials_issued=false`, `live_github_oauth_call=false`.
+
+**Der eigentliche Blocker war nicht die Owner-Eingabe.** `docker-compose.dev.yml` hat
+`GITHUB_OAUTH_CLIENT_ID/_SECRET/_REDIRECT_URI` **nie an die agent-api durchgereicht** — Auth blieb also
+fail-closed, egal was in der Secrets-Datei oder bei Vercel stand. Behoben in `99bc9c3e`.
+**Vierte, nirgends dokumentierte Voraussetzung: `JWT_SIGNING_SECRET`** — ohne ihn bleibt
+`credential_issuance_ready` false trotz gültiger OAuth-Daten. `start-dev-live.ps1` erzeugt ihn einmalig.
+
+⚠️ **Wichtig für Codex:** Auf **Vercel** wird `github_oauth_configured` **nie** `true` — dort läuft keine
+agent-api; die Seite liefert eine statische Projektion mit hart kodiertem `false`
+(`apps/frontend/lib/endpointDefaults.ts:29`). Die drei Variablen sind dort korrekt gesetzt (vom Assistenten
+direkt am Projekt `frontend` verankert, `production,preview`, Redeploy `dpl_5uLu9a2B…` READY), aber **inert,
+bis der hosted CF-Runtime steht (O2′)**. Das Gate `production_auth_identity` braucht danach noch den
+**hosted** OAuth-Austausch — die lokale Evidenz ist `verified_dev_only`, kein Hosted-Proof.
+
 ## 🆕 NEUE CODEX-PFLICHT AUS DER OWNER-MATRIX (bisher nirgends erfasst)
 `owner-input-manifest.json` / O2 verlangt wörtlich: *„otherwise keep R2 disabled **and amend ADR-010 to a genuine
 zero-card artifact adapter**"*. Da R2 endgültig gestrichen ist (Kreditkarten-Wand), ist das jetzt **fällig**:
@@ -134,9 +153,9 @@ Vectorize (HTTP 200), `-Profile O5` **1/1 PASS**. **Der Owner-Teil von O5 entfä
 | ~~O5~~ | ✅ **ERLEDIGT** — Vectorize 1/1 | MEM-Weg offen |
 | ~~O6~~ | ✅ `resolved_verified` | — |
 | ~~R2~~ | ⛔ **GESTRICHEN** — Kreditkarte nötig, verletzt Free-Only. Artefakte → D1/DO. | — |
-| **1 · O1** 🔥 | OAuth-App → `GITHUB_OAUTH_CLIENT_ID` / `_CLIENT_SECRET` / `_REDIRECT_URI` (Callback exakt `/api/v1/auth/callback`) + dieselben in Vercel + Redeploy | **P3 44→100** |
-| **2 · O4** | Fine-grained Token (**Administration + Contents + Pull requests = Read and write**) → `GITHUB_TOKEN` + `GITHUB_REPOSITORY=owner/name`; dann `python scripts/apply_github_branch_protection.py`; **plus deine Freigabe im Chat**: welche Repos/Branches/MCP-Tools/Audit-Aufbewahrung | **AP/MCP↑** |
-| **3 · O3** ⚠️ | **erst nach `MARKET_READY: true`** — `write:packages` → `GHCR_TOKEN`, Paket auf **Public** (dann gratis), Release-Freigabe im Chat | **P5↑** |
+| ~~O1~~ | ✅ **KONFIGURATION ERLEDIGT** — 4/4 lokal verifiziert, Vercel-Variablen am Projekt verankert. Hosted-OAuth-Beweis folgt mit O2′. | P3 nach hosted Proof |
+| **1 · O4** 🔥 | ⚠️ **Zuerst neuer Token nötig:** das bisherige `GITHUB_TOKEN` (`ghp_…`) ist **abgelaufen (HTTP 401)** und hätte `apply_github_branch_protection.py` ohnehin scheitern lassen. Fine-grained Token (**Administration + Contents + Pull requests = Read and write**) → `GITHUB_TOKEN` + `GITHUB_REPOSITORY=strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`; dann `python scripts/apply_github_branch_protection.py`; **plus Freigabe im Chat**: welche Repos/Branches/MCP-Tools/Audit-Aufbewahrung | **AP/MCP↑** |
+| **2 · O3** ⚠️ | **erst nach `MARKET_READY: true`** — `write:packages` → `GHCR_TOKEN`, Paket auf **Public** (dann gratis), Release-Freigabe im Chat | **P5↑** |
 
 ## ⛔ REGELN
 No-Fake-Done/Live · `live_verified` nie handsetzen · **Free-Only: kein Fly, keine Karte, keine CF-Containers,
