@@ -103,6 +103,43 @@ if ([string]::IsNullOrWhiteSpace($serviceToken)) {
 }
 $env:AGENT_API_AUTH_TOKEN = $serviceToken
 
+# --- O1: GitHub-OAuth + JWT-Signierschluessel aus der Secrets-Datei -----------------------
+# Die Agent API leitet `github_oauth_configured` und `credential_issuance_ready` aus genau
+# vier Werten ab. Fehlt einer, bleibt Auth fail-closed. Der JWT-Schluessel ist ein rein
+# lokaler Signierschluessel (kein Fremdzugang) und wird bei Bedarf einmalig erzeugt.
+$oauthKeys = @('GITHUB_OAUTH_CLIENT_ID', 'GITHUB_OAUTH_CLIENT_SECRET', 'GITHUB_OAUTH_REDIRECT_URI', 'JWT_SIGNING_SECRET')
+$secretsMap = @{}
+if (Test-Path -LiteralPath $secretsPath) {
+  foreach ($line in (Get-Content -LiteralPath $secretsPath)) {
+    if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$') {
+      $entryKey = $matches[1]
+      $entryValue = $matches[2].Trim().Trim('"')
+      if (($oauthKeys -contains $entryKey) -and -not [string]::IsNullOrWhiteSpace($entryValue) -and -not $secretsMap.ContainsKey($entryKey)) {
+        $secretsMap[$entryKey] = $entryValue
+      }
+    }
+  }
+}
+if (-not $secretsMap.ContainsKey('JWT_SIGNING_SECRET')) {
+  $jwtBytes = [byte[]]::new(32)
+  [System.Security.Cryptography.RandomNumberGenerator]::Fill($jwtBytes)
+  $jwtSecret = [Convert]::ToBase64String($jwtBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+  if (Test-Path -LiteralPath $secretsPath) {
+    Add-Content -LiteralPath $secretsPath -Value "JWT_SIGNING_SECRET=$jwtSecret"
+    Write-Host ('JWT-Signierschluessel erzeugt und in der Secrets-Datei ergaenzt ({0} Zeichen, Wert nicht angezeigt).' -f $jwtSecret.Length) -ForegroundColor Green
+  }
+  $secretsMap['JWT_SIGNING_SECRET'] = $jwtSecret
+}
+foreach ($oauthKey in $oauthKeys) {
+  if ($secretsMap.ContainsKey($oauthKey)) { Set-Item -Path "env:$oauthKey" -Value $secretsMap[$oauthKey] }
+}
+$missingOauth = @($oauthKeys | Where-Object { -not $secretsMap.ContainsKey($_) })
+if ($missingOauth.Count -gt 0) {
+  Write-Host ('O1 unvollstaendig — fehlt in der Secrets-Datei: {0}' -f ($missingOauth -join ', ')) -ForegroundColor Yellow
+} else {
+  Write-Host 'O1-Konfiguration vollstaendig (4/4, Werte nicht angezeigt).' -ForegroundColor Green
+}
+
 Write-Host ''
 Write-Host 'Starte Stack ...'
 docker compose -f $ComposeFile up -d
