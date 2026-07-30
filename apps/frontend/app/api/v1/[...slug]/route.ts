@@ -20,6 +20,11 @@ import { boundaryUnavailable, proxyReadToBoundary, proxyToBoundary } from "../..
 export const dynamic = "force-dynamic";
 
 const SNAP = snapshot as Record<string, unknown>;
+const CURRENT_PROJECTION_REQUIRED_WHEN_EDGE_ORIGIN_IS_STALE = new Set([
+  "/api/v1/clouds",
+  "/api/v1/clouds/layers",
+  "/api/v1/clouds/deployment-preflight",
+]);
 
 async function handle(req: Request, slug: string[] | undefined, method: string): Promise<Response> {
   const pathname = `/api/v1/${(slug ?? []).join("/")}`;
@@ -32,7 +37,9 @@ async function handle(req: Request, slug: string[] | undefined, method: string):
   const live = isRead
     ? await proxyReadToBoundary(req, "agent-api", pathname, 6_000)
     : await proxyToBoundary(req, "agent-api", pathname, 6_000);
-  if (live) return live;
+  const staleContractOrigin = live?.headers.get("x-superbrain-source") === "contract-origin-via-d1-edge"
+    && CURRENT_PROJECTION_REQUIRED_WHEN_EDGE_ORIGIN_IS_STALE.has(pathname);
+  if (live && !staleContractOrigin) return live;
   // projectedDefault internally covers knownDefault surfaces before generic data.
   const projected = projectedDefault(pathname, method);
   if (projected) {

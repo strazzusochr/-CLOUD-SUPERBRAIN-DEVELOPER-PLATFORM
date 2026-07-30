@@ -15,6 +15,26 @@ async function gotoProduct(page: Page, route: string) {
   await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => {});
 }
 
+async function ensureGuestSession(page: Page) {
+  const login = await page.goto(`${productBase}/login`, { waitUntil: "domcontentloaded" });
+  expect(login?.status()).toBe(200);
+  const session = await page.evaluate(async () => {
+    const current = await fetch("/api/v1/auth/session", { cache: "no-store" });
+    const currentPayload = await current.json() as Record<string, unknown>;
+    if (current.ok && currentPayload.status === "signed_in") {
+      return { status: current.status, payload: currentPayload };
+    }
+    const response = await fetch("/api/v1/auth/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ provider: "guest" }),
+    });
+    return { status: response.status, payload: await response.json() as Record<string, unknown> };
+  });
+  expect(session.status).toBe(200);
+  expect(session.payload.status).toBe("signed_in");
+}
+
 test.describe("Goal B action-to-result runtime proof", () => {
   test("workbench run creates visible runtime result and artifact", async ({ page }) => {
     const seen: string[] = [];
@@ -34,12 +54,13 @@ test.describe("Goal B action-to-result runtime proof", () => {
   test("agents produce a visible real multi-agent result", async ({ page }) => {
     const seen: string[] = [];
     page.on("requestfinished", (request) => seen.push(request.url()));
+    await ensureGuestSession(page);
     await gotoProduct(page, "/agents");
     await page.getByLabel("Forschungsziel").fill("Fasse den Nutzen von Embeddings für semantische Suche kurz zusammen.");
     await page.getByTestId("ar-run").click();
     const result = page.getByTestId("ar-result");
     await expect(result).toBeVisible({ timeout: 180_000 });
-    await expect(result.locator(".ar-step")).toHaveCount(3);
+    await expect(result.locator(".ar-step")).toHaveCount(4);
     await expect(result.locator(".ar-answer-body")).not.toBeEmpty();
     await expect(page.getByText("Das Agenten-Team (Zielarchitektur)")).toBeVisible();
     await expect(page.getByText(/4 Rollen · Plan/)).toBeVisible();
@@ -49,6 +70,7 @@ test.describe("Goal B action-to-result runtime proof", () => {
   test("tools execute only read-only tool envelope with audit id", async ({ page }) => {
     const seen: string[] = [];
     page.on("requestfinished", (request) => seen.push(request.url()));
+    await ensureGuestSession(page);
     await gotoProduct(page, "/tools");
     await page.getByTestId("goal-b-tool-execute").click();
     await expect(page.getByTestId("goal-b-tool-result")).toContainText("✓ ausgeführt · tool=memory_read", { timeout: 90_000 });

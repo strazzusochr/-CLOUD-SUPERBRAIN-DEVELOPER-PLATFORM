@@ -478,7 +478,7 @@ function areContractsConsistent(
     && flyIsHistorical
     && requiredMappingsBelongToProviders
     && hasSameMembers(cloudflareLayers, CLOUDFLARE_LAYER_IDS)
-    && (cloudflareHosted || missingCloudflareGate);
+    && (!requireVolatileParity || cloudflareHosted || missingCloudflareGate);
 }
 
 async function readBoundedJson(response: Response): Promise<unknown> {
@@ -589,31 +589,41 @@ export default function TechnologyRuntimeView() {
         layersResult.responseSource,
         preflightResult.responseSource,
       ].every((source) => source === "agent-api-boundary");
-      if (
-        !isCloudInventory(inventoryResult.payload)
-        || !isCloudLayers(layersResult.payload)
-        || !isCloudPreflight(preflightResult.payload)
-        || !areContractsConsistent(
-          inventoryResult.payload,
-          layersResult.payload,
-          preflightResult.payload,
-          currentLiveProof,
-        )
-      ) {
-        throw new Error("Runtime-Verträge oder deren Querverweise sind ungültig.");
+      const inventoryValid = isCloudInventory(inventoryResult.payload);
+      const layersValid = isCloudLayers(layersResult.payload);
+      const preflightValid = isCloudPreflight(preflightResult.payload);
+      if (!inventoryValid || !layersValid || !preflightValid) {
+        const failures = [
+          !inventoryValid ? "inventory" : "",
+          !layersValid ? "layers" : "",
+          !preflightValid ? "preflight" : "",
+        ].filter(Boolean).join(",");
+        throw new Error(`Runtime-Verträge oder deren Querverweise sind ungültig (${failures}).`);
+      }
+      const inventoryPayload = inventoryResult.payload as CloudInventory;
+      const layersPayload = layersResult.payload as CloudLayers;
+      const preflightPayload = preflightResult.payload as CloudPreflight;
+      const parityValid = areContractsConsistent(
+        inventoryPayload,
+        layersPayload,
+        preflightPayload,
+        currentLiveProof,
+      );
+      if (!parityValid) {
+        throw new Error("Runtime-Verträge oder deren Querverweise sind ungültig (parity).");
       }
 
       const nextRuntime: TechnologyRuntime = {
         inventory: {
-          payload: inventoryResult.payload,
+          payload: inventoryPayload,
           responseSource: inventoryResult.responseSource,
         },
         layers: {
-          payload: layersResult.payload,
+          payload: layersPayload,
           responseSource: layersResult.responseSource,
         },
         preflight: {
-          payload: preflightResult.payload,
+          payload: preflightPayload,
           responseSource: preflightResult.responseSource,
         },
       };

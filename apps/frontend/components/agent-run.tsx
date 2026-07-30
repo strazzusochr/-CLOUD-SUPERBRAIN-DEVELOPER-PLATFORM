@@ -2,26 +2,33 @@
 
 import { useState } from "react";
 
-const SOURCE_PATHS = {
+const REPO_SOURCE_PATHS = {
   "project-state": "PROJECT_STATE.md",
   "project-progress": "docs/project-progress.manifest.json",
   "agent-roster": "docs/codex-integration/autonomous-agent-roster.json",
 } as const;
+const DEPLOYED_SOURCE_PATHS = {
+  "project-state": "apps/frontend/lib/endpoint-snapshot.json#/api/v1/workspace/wiring",
+  "project-progress": "apps/frontend/lib/endpoint-snapshot.json#/api/v1/project/progress",
+  "agent-roster": "apps/frontend/lib/endpoint-snapshot.json#/api/v1/agents/profiles",
+} as const;
 const STEP_ROLES = ["planner", "coder", "tester", "devops"] as const;
 
-type SourceId = keyof typeof SOURCE_PATHS;
+type SourceId = keyof typeof REPO_SOURCE_PATHS;
 type StepRole = typeof STEP_ROLES[number];
 type Source = {
   source_id: SourceId;
   title: string;
   canonical_path: string;
+  source_kind?: "deployed_contract_snapshot";
+  snapshot_key?: string;
   extract: string;
   raw_document_sha256: string;
   sanitized_document_sha256: string;
   extract_sha256: string;
   retrieval_reason: "lexical_match" | "baseline_fallback";
 };
-type SourceBinding = {
+type RepoSourceBinding = {
   contract_version: "agent-research-repo-source-v1";
   status: "bound";
   mode: "repo_allowlist_lexical";
@@ -35,7 +42,22 @@ type SourceBinding = {
   source_retrieval_audit_persisted: false;
   file_wide_secret_absence_certified: false;
 };
-type RoleBinding = {
+type DeployedSourceBinding = {
+  contract_version: "agent-research-deployed-source-v1";
+  status: "bound";
+  mode: "deployed_contract_snapshot_lexical";
+  source_count: number;
+  source_ids: SourceId[];
+  read_only: true;
+  external_network: false;
+  arbitrary_path_input: false;
+  filesystem_writes: false;
+  source_prompt_instructions_trusted: false;
+  source_retrieval_audit_persisted: false;
+  file_wide_secret_absence_certified: false;
+};
+type SourceBinding = RepoSourceBinding | DeployedSourceBinding;
+type GatewayRoleBinding = {
   contract_version: "agent-research-four-role-v1";
   status: "bound";
   role_order: StepRole[];
@@ -48,6 +70,21 @@ type RoleBinding = {
   deployment_execution: false;
   autonomous_software_delivery: false;
 };
+type NativeRoleBinding = {
+  contract_version: "agent-research-four-role-v2";
+  status: "bound";
+  role_order: StepRole[];
+  work_mode: "cloudflare_native_source_grounded_analysis";
+  gateway_calls: 0;
+  native_role_steps: 4;
+  analysis_only: true;
+  tool_calls: false;
+  filesystem_writes: false;
+  test_execution: false;
+  deployment_execution: false;
+  autonomous_software_delivery: false;
+};
+type RoleBinding = GatewayRoleBinding | NativeRoleBinding;
 type Step = {
   role: StepRole;
   execution_role: StepRole;
@@ -68,9 +105,13 @@ type Budget = {
 };
 type Run = {
   contract_version: "agent-research-run-v3";
-  evidence_ref: "agent_research_four_role_repo_sources_visible";
+  evidence_ref:
+    | "agent_research_four_role_repo_sources_visible"
+    | "agent_research_hosted_native_sources_visible";
   status: "completed";
-  mode: "dev_only_gateway_four_role_repo_sources";
+  mode:
+    | "dev_only_gateway_four_role_repo_sources"
+    | "hosted_native_four_role_deployed_sources";
   goal: string;
   provider: string;
   gateway_providers: string[];
@@ -111,14 +152,18 @@ function isBudget(body: unknown): body is Budget {
     && budget.budget_limit_cents > 0;
 }
 
-function isSource(body: unknown): body is Source {
+function isSource(body: unknown, deployed: boolean): body is Source {
   if (!body || typeof body !== "object") return false;
   const source = body as Partial<Source>;
   const sourceId = source.source_id;
+  const expectedPaths = deployed ? DEPLOYED_SOURCE_PATHS : REPO_SOURCE_PATHS;
   return typeof sourceId === "string"
-    && sourceId in SOURCE_PATHS
+    && sourceId in expectedPaths
     && typeof source.title === "string"
-    && source.canonical_path === SOURCE_PATHS[sourceId as SourceId]
+    && source.canonical_path === expectedPaths[sourceId as SourceId]
+    && (deployed
+      ? source.source_kind === "deployed_contract_snapshot" && isNonEmptyString(source.snapshot_key)
+      : source.source_kind === undefined && source.snapshot_key === undefined)
     && typeof source.extract === "string"
     && Array.from(source.extract).length >= 1
     && Array.from(source.extract).length <= 900
@@ -136,13 +181,17 @@ function isRun(body: unknown): body is Run {
   const candidate = body as Partial<Run>;
   const binding = candidate.source_binding as Partial<SourceBinding> | undefined;
   const roleBinding = candidate.role_binding as Partial<RoleBinding> | undefined;
+  const repoMode = candidate.mode === "dev_only_gateway_four_role_repo_sources";
+  const hostedMode = candidate.mode === "hosted_native_four_role_deployed_sources";
   const sourceIds = Array.isArray(candidate.sources)
     ? candidate.sources.map((source) => (source as Partial<Source>).source_id)
     : [];
   return candidate.contract_version === "agent-research-run-v3"
-    && candidate.evidence_ref === "agent_research_four_role_repo_sources_visible"
+    && (
+      (repoMode && candidate.evidence_ref === "agent_research_four_role_repo_sources_visible")
+      || (hostedMode && candidate.evidence_ref === "agent_research_hosted_native_sources_visible")
+    )
     && candidate.status === "completed"
-    && candidate.mode === "dev_only_gateway_four_role_repo_sources"
     && isNonEmptyString(candidate.goal)
     && isNonEmptyString(candidate.provider)
     && Array.isArray(candidate.gateway_providers)
@@ -171,11 +220,18 @@ function isRun(body: unknown): body is Run {
     && Array.isArray(candidate.sources)
     && candidate.sources.length >= 1
     && candidate.sources.length <= 3
-    && candidate.sources.every(isSource)
+    && candidate.sources.every((source) => isSource(source, hostedMode))
     && new Set(sourceIds).size === sourceIds.length
-    && binding?.contract_version === "agent-research-repo-source-v1"
+    && binding !== undefined
     && binding.status === "bound"
-    && binding.mode === "repo_allowlist_lexical"
+    && (
+      (repoMode
+        && binding.contract_version === "agent-research-repo-source-v1"
+        && binding.mode === "repo_allowlist_lexical")
+      || (hostedMode
+        && binding.contract_version === "agent-research-deployed-source-v1"
+        && binding.mode === "deployed_contract_snapshot_lexical")
+    )
     && binding.source_count === candidate.sources.length
     && Array.isArray(binding.source_ids)
     && binding.source_ids.join(",") === sourceIds.join(",")
@@ -186,12 +242,21 @@ function isRun(body: unknown): body is Run {
     && binding.source_prompt_instructions_trusted === false
     && binding.source_retrieval_audit_persisted === false
     && binding.file_wide_secret_absence_certified === false
-    && roleBinding?.contract_version === "agent-research-four-role-v1"
+    && roleBinding !== undefined
     && roleBinding.status === "bound"
     && Array.isArray(roleBinding.role_order)
     && roleBinding.role_order.join(",") === STEP_ROLES.join(",")
-    && roleBinding.work_mode === "source_grounded_analysis"
-    && roleBinding.gateway_calls === 4
+    && (
+      (repoMode
+        && roleBinding.contract_version === "agent-research-four-role-v1"
+        && roleBinding.work_mode === "source_grounded_analysis"
+        && roleBinding.gateway_calls === 4)
+      || (hostedMode
+        && roleBinding.contract_version === "agent-research-four-role-v2"
+        && roleBinding.work_mode === "cloudflare_native_source_grounded_analysis"
+        && roleBinding.gateway_calls === 0
+        && roleBinding.native_role_steps === 4)
+    )
     && roleBinding.analysis_only === true
     && roleBinding.tool_calls === false
     && roleBinding.filesystem_writes === false
@@ -271,7 +336,7 @@ export function AgentRun() {
           data-live-provider-calls={String(run.live_provider_calls)}
           data-audit-persisted={String(run.audit_persisted)}
           data-analysis-only={String(run.role_binding.analysis_only)}
-          data-role-count={String(run.role_binding.gateway_calls)}
+          data-role-count={String(run.steps.length)}
         >
           <div className="note" data-testid="ar-contract">
             <div className="chips">
@@ -287,9 +352,15 @@ export function AgentRun() {
               <span className="badge badge-green">
                 sources={run.source_binding.source_count} · read-only
               </span>
-              <span className="badge badge-green">
-                roles={run.role_binding.gateway_calls} · analysis-only
-              </span>
+              {run.role_binding.contract_version === "agent-research-four-role-v1" ? (
+                <span className="badge badge-green">
+                  roles={run.role_binding.gateway_calls} · analysis-only
+                </span>
+              ) : (
+                <span className="badge badge-green">
+                  roles={run.steps.length} · native analysis-only
+                </span>
+              )}
               <span className="badge badge-green">direct_provider_calls=false</span>
               <span className="badge badge-green">live_mcp_writes=false</span>
             </div>

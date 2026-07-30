@@ -1103,8 +1103,9 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
 
   const origin = new URL(baseUrl);
   const consoleErrors: string[] = [];
-  const expectedBlockedConsoleErrors: string[] = [];
-  const expectedBlockedResponses: string[] = [];
+  const pendingConsoleErrors: Array<{ text: string; locationUrl: string }> = [];
+  const expectedBlockedConsoleErrors = new Set<string>();
+  const expectedBlockedResponses = new Set<string>();
   const pageErrors: string[] = [];
   const providerRequests: string[] = [];
   const liveProviderResponses: string[] = [];
@@ -1116,19 +1117,10 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
 
   page.on("console", (message) => {
     if (message.type() !== "error") return;
-    const text = safeMessage(message.text());
-    const locationUrl = message.location().url;
-    const matchingBlockedResponses = expectedBlockedResponses.filter((url) => url === locationUrl).length;
-    const matchingClassifiedErrors = expectedBlockedConsoleErrors.filter((url) => url === locationUrl).length;
-    if (
-      text === "Failed to load resource: the server responded with a status of 403 (Forbidden)"
-      && /^https?:\/\/[^/]+\/api\/v1\/build\/[A-Za-z0-9_-]{1,64}$/.test(locationUrl)
-      && matchingClassifiedErrors < matchingBlockedResponses
-    ) {
-      expectedBlockedConsoleErrors.push(locationUrl);
-      return;
-    }
-    consoleErrors.push(text);
+    pendingConsoleErrors.push({
+      text: safeMessage(message.text()),
+      locationUrl: message.location().url,
+    });
   });
   page.on("pageerror", (error) => pageErrors.push(safeMessage(error.message)));
   page.on("request", (request) => {
@@ -1136,15 +1128,17 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
       providerRequests.push(`${request.method()} ${new URL(request.url()).pathname}`);
     }
   });
-  page.on("response", (response) => {
+  context.on("response", (response) => {
     const responseUrl = new URL(response.url());
     if (
       response.request().method() === "DELETE"
       && response.status() === 403
       && /^\/api\/v1\/build\/[A-Za-z0-9_-]{1,64}$/.test(responseUrl.pathname)
     ) {
-      expectedBlockedResponses.push(response.url());
+      expectedBlockedResponses.add(response.url());
     }
+  });
+  page.on("response", (response) => {
     const contentType = response.headers()["content-type"] ?? "";
     if (response.request().method() === "GET" || !contentType.includes("application/json")) return;
     const inspection = response.json().then((payload) => {
@@ -1307,6 +1301,19 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
     }
 
     await Promise.allSettled(responseInspections);
+    for (const item of pendingConsoleErrors) {
+      const expected403Text = /^Failed to load resource: the server responded with a status of 403 \((?:Forbidden)?\)$/;
+      if (
+        expected403Text.test(item.text)
+        && /^https?:\/\/[^/]+\/api\/v1\/build\/[A-Za-z0-9_-]{1,64}$/.test(item.locationUrl)
+        && expectedBlockedResponses.has(item.locationUrl)
+        && !expectedBlockedConsoleErrors.has(item.locationUrl)
+      ) {
+        expectedBlockedConsoleErrors.add(item.locationUrl);
+      } else {
+        consoleErrors.push(item.text);
+      }
+    }
     const auditedFamilyIds = new Set(audits.map((audit) => audit.family_id));
     const effectFamilyIds = new Set(audits.filter((audit) => audit.passed && audit.effect_observed).map((audit) => audit.family_id));
     const failedActions = audits.filter((audit) => !audit.passed);
@@ -1396,9 +1403,9 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
     report.visited_route_count = visitedRoutes.size;
     report.console_errors = consoleErrors;
     report.console_error_count = consoleErrors.length;
-    report.expected_blocked_console_errors = expectedBlockedConsoleErrors;
-    report.expected_blocked_console_error_count = expectedBlockedConsoleErrors.length;
-    report.expected_blocked_responses = expectedBlockedResponses;
+    report.expected_blocked_console_errors = [...expectedBlockedConsoleErrors];
+    report.expected_blocked_console_error_count = expectedBlockedConsoleErrors.size;
+    report.expected_blocked_responses = [...expectedBlockedResponses];
     report.page_errors = pageErrors;
     report.page_error_count = pageErrors.length;
     report.provider_requests = providerRequests;
