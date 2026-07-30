@@ -265,9 +265,18 @@ test("real prompt builds, runs, interacts, and reloads the persisted 3D game", a
       session_id_sha256: sha256(String(signIn.session_id)),
     };
 
+    const runtimeReadyResponsePromise = page.waitForResponse((candidate) =>
+      responseMatches(candidate.url(), candidate.request().method(), "/api/v1/builds", "GET"),
+      { timeout: 60_000 },
+    );
     await page.getByRole("link", { name: /Werkbank/ }).click();
     await expect(page).toHaveURL(`${baseUrl}/workbench`);
     await expect(page.getByTestId("workbench-studio")).toBeVisible();
+    const runtimeReadyResponse = await runtimeReadyResponsePromise;
+    const runtimeReadyPayload = asRecord(await runtimeReadyResponse.json());
+    expect(runtimeReadyResponse.status(), `build runtime unavailable: ${responseFailure(runtimeReadyPayload)}`).toBe(200);
+    expect(runtimeReadyPayload.persisted, "workbench runtime must expose persisted storage").toBe(true);
+    await expect(page.getByTestId("ws-build")).toBeEnabled();
     await page.getByLabel("Beschreibung für die App-Erstellung").fill(PRODUCT_PROMPT);
     await expect(page.getByLabel("Beschreibung für die App-Erstellung")).toHaveValue(PRODUCT_PROMPT);
 
