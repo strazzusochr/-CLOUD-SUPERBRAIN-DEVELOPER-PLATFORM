@@ -125,7 +125,7 @@ P5 has an atomic Cloudflare-native gate rebase. The tracked authority is
 SHA-256 `0678FB8C3AD2EAA4FCC2FEB7F9124846836340FCA297529A0BD3A750799E894F`)
 and `docs/runtime-state/external-gate-summary.json` uses
 `external-gate-summary-v2`. The latest full local run is
-`.phase1-artifacts/external-gate-audit-v2-20260730-202122.json`. Both stay
+`.phase1-artifacts/external-gate-audit-v2-20260731-011557.json`. Both stay
 `blocked` with `cloudflare_native_zero_card_hosted_runtime` verifier-open and
 exactly `github_branch_protection_current_verify` plus
 `ghcr_image_digest_verify` missing; Production remains false. The hosted

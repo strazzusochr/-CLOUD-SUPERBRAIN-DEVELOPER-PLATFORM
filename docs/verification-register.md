@@ -31,6 +31,37 @@ Read-only verification of the real default branch on 2026-07-31 returned
 GitHub write was executed. The Owner runbook step that instructed an apply against
 `main` has been corrected to state that nothing needs to be applied.
 
+## Current Branch-Protection External Gate Closure
+
+Recorded 2026-07-31. `github_branch_protection_current_verify` was listed as a
+missing external gate, but the protection itself was present the whole time. The
+probe in `verify-external-gates.ps1` defaulted `$Branch` to an empty string, so it
+requested `https://api.github.com/repos/<repo>/branches/` with no branch and
+reported "protection not enabled" for a branch it never asked about.
+`Resolve-DefaultBranchName()` now reads the real default branch from the public
+repository metadata endpoint, which keeps the token-free bootstrap intact, and
+leaves `$Branch` empty so the probe still blocks if the name cannot be resolved.
+
+`docs/runtime-state/external-gate-summary.json` now reports
+`missing_or_failed_gates = ghcr_image_digest_verify` with
+`branch_protection_claim_allowed = true`, `status` still `blocked` and
+`production_deploy_claim_allowed` still `false`. No GitHub write was performed; the
+protection state was only read.
+
+The coupled assertions were changed in the same slice. `verify-phase1.ps1` no
+longer hard-codes a count of two missing gates: it binds to
+`branch_protection_claim_allowed` and fails closed in both directions, so a gate
+that is claimed verified may not remain listed, and a gate that is not claimed
+verified must remain listed. `verify-market-ready.ps1` was updated in both the
+summary and owner-manifest branches. `verify-go-live-readiness.ps1` needed no
+change because it was already written conditionally.
+
+Operational note: each `verify-external-gates` run writes a new timestamped
+artefact into the git-ignored `.phase1-artifacts/`, and
+`verify-retired-hosted-boundary.ps1` requires `PROJECT_STATE.md`, `AI_HANDOFF.md`
+and this register to reference the newest one. Those three references must be
+updated in the same slice as any gate run.
+
 ## Current Hosted-Acceptance Guard Alignment
 
 Recorded 2026-07-31. `verify-market-ready.ps1` required
@@ -347,7 +378,7 @@ RC10 historical provenance. DEV-ONLY; hosted proof still blocked.
 `docs/runtime-state/external-gate-audit-v2.json`; SHA-256
 `0678FB8C3AD2EAA4FCC2FEB7F9124846836340FCA297529A0BD3A750799E894F`.
 `external-gate-summary-v2` points to that durable file; the full ignored local run is
-`.phase1-artifacts/external-gate-audit-v2-20260730-202122.json`. Audit and summary are in
+`.phase1-artifacts/external-gate-audit-v2-20260731-011557.json`. Audit and summary are in
 timestamp/status parity: `blocked`, `production_deploy_claim_allowed=false`.
 `cloudflare_native_zero_card_hosted_runtime` is verifier-open; hosted contracts, Vercel
 origins and canonical gitleaks passed, while exactly

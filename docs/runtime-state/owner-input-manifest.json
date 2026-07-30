@@ -239,9 +239,22 @@
     "status": "blocked",
     "active_target_gate": "cloudflare_native_zero_card_hosted_runtime",
     "missing_or_failed_gates": [
-      "github_branch_protection_current_verify",
       "ghcr_image_digest_verify"
     ],
+    "branch_protection_resolution": {
+      "resolved_at_utc": "2026-07-31T00:00:00Z",
+      "previous_state": "listed_as_missing",
+      "current_state": "verified_read_only",
+      "root_cause": "The probe had no branch to ask about: verify-external-gates.ps1 defaulted the branch name to an empty string, and apply_github_branch_protection.py hard-coded 'main', which does not exist in this repository.",
+      "actual_default_branch": "chore/repo-bootstrap",
+      "verification": "status=verified, mismatches=0, allow_force_pushes=false, allow_deletions=false, required_approving_review_count=1",
+      "write_performed": false,
+      "non_claims": [
+        "No GitHub write, branch protection apply, or settings change was performed.",
+        "This closes only the branch protection external gate; GHCR digest publication remains missing.",
+        "production_deploy_claim_allowed stays false."
+      ]
+    },
     "legacy_missing_or_failed_gates": [
       "fly_live_budget_check"
     ],

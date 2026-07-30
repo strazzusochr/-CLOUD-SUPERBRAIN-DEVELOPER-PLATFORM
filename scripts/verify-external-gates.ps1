@@ -805,6 +805,26 @@ if ($gitleaksExecutable) {
   $gitleaksProbe = Invoke-NativeProcessProbe "canonical_gitleaks_scan" "canonical_gitleaks_scan_clean" $gitleaksExecutable @("detect", "--no-git", "--source", ".", "--config", ".gitleaks.toml", "--redact") $false (Get-TimeoutSeconds "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS" 900)
 }
 
+# Both probes below need a concrete branch name. `$Branch` defaults to empty, which built the URL
+# ".../branches/" and made the gate report "protection not enabled" for a branch it never asked about.
+# Hard-coding a name would repeat the older mistake in apply_github_branch_protection.py: this
+# repository's default branch is not `main`, and `main` does not exist at all. The public repository
+# metadata endpoint answers this anonymously, so the token-free bootstrap property is preserved.
+# Fail-closed: if the name cannot be resolved, `$Branch` stays empty and the probe blocks as before.
+function Resolve-DefaultBranchName([string]$Repository) {
+  try {
+    $metadata = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repository" -Method Get `
+      -Headers @{ Accept = "application/vnd.github+json"; "X-GitHub-Api-Version" = "2022-11-28" } -TimeoutSec 30
+    return [string]$metadata.default_branch
+  } catch {
+    return ""
+  }
+}
+if ([string]::IsNullOrWhiteSpace($Branch)) {
+  $Branch = Resolve-DefaultBranchName $Repository
+  Write-Host "[external-gates] resolved default branch: $(if ([string]::IsNullOrWhiteSpace($Branch)) { '<unresolved>' } else { $Branch })"
+}
+
 $branchTokenConfigured = [bool]$env:BRANCH_PROTECTION_TOKEN
 if ($branchTokenConfigured) {
   $branchProtectionProbe = Invoke-NativeProcessProbe "github_branch_protection_verify" "branch_protection_verify_contract" "py" @("-3", "scripts\apply_github_branch_protection.py", "--verify-only", "--repo", $Repository, "--branch", $Branch) $true (Get-TimeoutSeconds "EXTERNAL_GATE_BRANCH_TIMEOUT_SECONDS" 60)

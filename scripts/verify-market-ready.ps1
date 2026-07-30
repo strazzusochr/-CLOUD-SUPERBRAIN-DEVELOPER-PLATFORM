@@ -270,15 +270,16 @@ try {
       [string]$externalState.status -eq "blocked" -and
       [bool]$externalState.production_deploy_claim_allowed -eq $false -and
       [string]$externalState.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime" -and
-      @($externalState.missing_or_failed_gates).Count -eq 2 -and
-      @($externalState.missing_or_failed_gates) -contains "github_branch_protection_current_verify" -and
+      @($externalState.missing_or_failed_gates).Count -eq 1 -and
+      @($externalState.missing_or_failed_gates) -notcontains "github_branch_protection_current_verify" -and
+      [bool]$externalState.branch_protection_claim_allowed -eq $true -and
       @($externalState.missing_or_failed_gates) -contains "ghcr_image_digest_verify" -and
       [bool]$externalState.cloudflare_native_zero_card_hosted_runtime_claim_allowed -eq $true -and
       [string]$externalState.legacy_provenance.status -eq "historical_only" -and
       [string]$externalState.legacy_provenance.retired_gate_id -eq "fly_live_budget_check" -and
       [string]$ownerInput.external_gate_truth.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime" -and
-      @($ownerInput.external_gate_truth.missing_or_failed_gates).Count -eq 2 -and
-      @($ownerInput.external_gate_truth.missing_or_failed_gates) -contains "github_branch_protection_current_verify" -and
+      @($ownerInput.external_gate_truth.missing_or_failed_gates).Count -eq 1 -and
+      @($ownerInput.external_gate_truth.missing_or_failed_gates) -notcontains "github_branch_protection_current_verify" -and
       @($ownerInput.external_gate_truth.missing_or_failed_gates) -contains "ghcr_image_digest_verify" -and
       [string]$ownerInput.external_gate_truth.legacy_fly_path_status -eq "superseded_historical" -and
       [bool]$ownerInput.external_gate_truth.production_deploy_claim_allowed -eq $false -and

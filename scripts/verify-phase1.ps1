@@ -1132,13 +1132,30 @@ if ([string]$externalGateSummary.status -ne "blocked" -or [bool]$externalGateSum
   throw "Canonical external gate summary must stay blocked with production_deploy_claim_allowed=false while release gates remain open"
 }
 $actualMissingExternalGates = @($externalGateSummary.missing_or_failed_gates | ForEach-Object { [string]$_ })
-if (
-  $actualMissingExternalGates.Count -ne 2 -or
-  $actualMissingExternalGates -notcontains "github_branch_protection_current_verify" -or
-  $actualMissingExternalGates -notcontains "ghcr_image_digest_verify" -or
-  -not [bool]$externalGateSummary.cloudflare_native_zero_card_hosted_runtime_claim_allowed
-) {
-  throw "Canonical external gate summary must keep O2Core open and list only Branch Protection plus GHCR digest as missing"
+# Branch protection was listed as missing only because the probe had no branch to ask about: the
+# `$Branch` default was empty and this repository has no `main` at all. Once the probe resolves the real
+# default branch, protection verifies with zero mismatches. The assertion is therefore bound to the
+# claim flag instead of to a fixed count, so a regression in either direction still fails closed.
+if (-not [bool]$externalGateSummary.cloudflare_native_zero_card_hosted_runtime_claim_allowed) {
+  throw "Canonical external gate summary must keep the O2Core claim allowed"
+}
+if ($actualMissingExternalGates -notcontains "ghcr_image_digest_verify") {
+  throw "Canonical external gate summary must still list the unpublished GHCR digest as missing"
+}
+if ([bool]$externalGateSummary.branch_protection_claim_allowed) {
+  if ($actualMissingExternalGates -contains "github_branch_protection_current_verify") {
+    throw "Branch protection is claimed verified but is still listed as a missing external gate"
+  }
+  if ($actualMissingExternalGates.Count -ne 1) {
+    throw "With branch protection verified, only the GHCR digest may remain missing"
+  }
+} else {
+  if ($actualMissingExternalGates -notcontains "github_branch_protection_current_verify") {
+    throw "Branch protection is not claimed verified, so it must be listed as a missing external gate"
+  }
+  if ($actualMissingExternalGates.Count -ne 2) {
+    throw "Canonical external gate summary must list only Branch Protection plus GHCR digest as missing"
+  }
 }
 if (
   $externalGateSummary.PSObject.Properties.Name -contains "fly_live_budget_claim_allowed" -or

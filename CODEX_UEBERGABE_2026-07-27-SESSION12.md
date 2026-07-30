@@ -75,17 +75,30 @@ Gemessen sind **4 offen / 6 zu**, nicht 3/7: `cloudflare_native_zero_card_hosted
 30.07. **offen** (owner+live+evidence). Offen: `live_llm_provider_calls`, `live_memory_provider`,
 `hosted_observability_endpoint`, `cloudflare_native_zero_card_hosted_runtime`.
 
-### 🎯 Warum das Gate `github_branch_protection_current_verify` trotzdem noch offen steht
-Der Schutz **ist** da (oben belegt) — das Gate steht aus einem anderen Grund offen:
-`scripts/verify-external-gates.ps1` hat `[string]$Branch = $env:BRANCH_NAME` mit Fallback **`""`**.
-Ohne gesetztes `BRANCH_NAME` baut die Probe die URL `…/branches/` **ohne Branch** und kann nichts prüfen.
-**Konkreter nächster Schritt (klein, aber vollständig durchzuziehen):** Den Fallback auf den echten
-Default-Branch auflösen (analog zu `resolve_target_branch()`), `verify-external-gates` neu erzeugen und
-**erst dann** `docs/runtime-state/external-gate-summary.json` fortschreiben.
-⚠️ **Achtung, gekoppelt:** `verify-phase1.ps1` behauptet an einer Stelle hart, es seien **genau zwei**
-Gates offen (`github_branch_protection_current_verify` + `ghcr_image_digest_verify`). Wer das Gate
-schließt, **muss diese Assertion im selben Slice** auf ein verbleibendes Gate umstellen — sonst ist der
-Baum sofort wieder rot. Nicht einzeln anfassen.
+### ✅ GATE GESCHLOSSEN: `github_branch_protection_current_verify` — nur noch **ein** externes Gate offen
+Der Schutz war da, das Gate stand aus einem anderen Grund offen:
+`scripts/verify-external-gates.ps1` hatte `[string]$Branch = $env:BRANCH_NAME` mit Fallback **`""`**.
+Ohne gesetztes `BRANCH_NAME` baute die Probe die URL `…/branches/` **ohne Branch** — sie meldete
+„nicht geschützt" für einen Branch, nach dem sie nie gefragt hat.
+**Behoben:** `Resolve-DefaultBranchName()` löst den echten Default-Branch anonym über die öffentliche
+Repo-Metadaten-API auf (der tokenfreie Bootstrap bleibt damit erhalten) und bleibt bei Nichtauflösung
+fail-closed. Ergebnis: **`missing_or_failed_gates = ghcr_image_digest_verify`** — von zwei auf eins.
+
+**Die Kopplung wurde im selben Slice mitgezogen** (sonst wäre der Baum sofort rot gewesen):
+- `verify-phase1.ps1` prüfte hart „genau zwei fehlende Gates". Jetzt an
+  `branch_protection_claim_allowed` gebunden und **in beide Richtungen** fail-closed: geschlossen →
+  darf nicht mehr gelistet sein und es bleibt genau eins; nicht geschlossen → muss gelistet sein.
+- `verify-market-ready.ps1` an beiden Stellen (Summary + Owner-Manifest) auf `Count -eq 1` +
+  `-notcontains` + `branch_protection_claim_allowed -eq $true` umgestellt.
+- `owner-input-manifest.json` gespiegelt, inkl. `branch_protection_resolution` mit
+  `write_performed: false` und expliziten Non-Claims.
+- `verify-go-live-readiness.ps1` **brauchte nichts** — es war schon konditional gebaut.
+
+⚠️ **Betriebs-Falle, die dabei auffiel:** Jeder Lauf von `verify-external-gates` legt ein **neues
+zeitgestempeltes** Artefakt in `.phase1-artifacts/` an, und `verify-retired-hosted-boundary.ps1`
+verlangt, dass `PROJECT_STATE.md`, `AI_HANDOFF.md` **und** `docs/verification-register.md` auf das
+**neueste** zeigen. Wer den Gate-Lauf macht, **muss diese drei Referenzen im selben Slice nachziehen** —
+sonst rot. `.phase1-artifacts/` ist zudem gitignored, die Kette hängt also auch hier an lokalen Dateien.
 
 ### 🔨 Nächster Codex-Schritt (unverändert höchste Priorität)
 `scripts/verify-live-vector-memory-search.ps1` **existiert nicht**, wird aber von

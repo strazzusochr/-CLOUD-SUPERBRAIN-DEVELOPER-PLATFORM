@@ -17,6 +17,18 @@ Codex hat `53e4d242` + `0a982c2a` gepusht, **ohne danach `npm run verify` zu fah
 **Ergebnis: `verify-phase1` PASS (Exit 0), Gitleaks 0/3737.** Regel daraus: **nach jedem Commit, der einen
 Verifier anfasst, den Gesamtlauf fahren — nicht nur den Fokustest.**
 
+## ✅ EXTERNES GATE GESCHLOSSEN — NUR NOCH **EINS** OFFEN (2026-07-31)
+`missing_or_failed_gates = ghcr_image_digest_verify` — von zwei auf eins.
+Ursache war nicht fehlender Schutz, sondern eine Probe **ohne Branch**: `$Branch` hatte Fallback `""`.
+`Resolve-DefaultBranchName()` löst den echten Default-Branch jetzt anonym auf (tokenfrei, fail-closed).
+Kopplung im selben Slice mitgezogen: `verify-phase1.ps1` (an `branch_protection_claim_allowed` gebunden,
+beidseitig fail-closed), `verify-market-ready.ps1` (2 Stellen), `owner-input-manifest.json`.
+`verify-go-live-readiness.ps1` war bereits konditional.
+⚠️ **Betriebs-Falle:** Jeder `verify-external-gates`-Lauf erzeugt ein neues Artefakt in
+`.phase1-artifacts/`; `PROJECT_STATE.md`, `AI_HANDOFF.md` **und** `docs/verification-register.md` müssen
+im selben Slice auf das neueste zeigen — sonst rot.
+**`MARKET_READY` bleibt korrekt `false`** (GHCR offen, Manifest 86 %) — das ist kein Fehler, sondern ehrlich.
+
 ## ✅ BRANCH PROTECTION — CODEX' OFFENE GATE-FRAGE IST BEANTWORTET: **NICHTS ANWENDEN**
 Zwei Illusionsschichten: (1) Das Skript hatte **keinen Apply-Codepfad** (Codex korrekt gefixt).
 (2) Darunter: `DEFAULT_BRANCH_NAME = "main"` — **`main` existiert in diesem Repo nicht.**

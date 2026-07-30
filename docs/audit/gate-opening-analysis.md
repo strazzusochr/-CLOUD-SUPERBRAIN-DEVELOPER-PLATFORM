@@ -8,9 +8,13 @@ Updated: 2026-07-30
 - Canonical external audit: `docs/runtime-state/external-gate-audit-v2.json`.
 - Audit status: `blocked`.
 - Active gate `cloudflare_native_zero_card_hosted_runtime`: `verified`.
-- Remaining external failures:
-  `github_branch_protection_current_verify`,
-  `ghcr_image_digest_verify`.
+- Remaining external failure: `ghcr_image_digest_verify`.
+- Resolved 2026-07-31: `github_branch_protection_current_verify` is no longer a
+  failure. The protection was always present; the probe defaulted its branch name
+  to an empty string, and this repository has no `main` at all, so it reported a
+  branch it never queried. With the real default branch `chore/repo-bootstrap`
+  resolved, verification returns `status: verified` with zero mismatches. No
+  GitHub write was performed.
 - `production_deploy_claim_allowed=false`.
 - Fly.io and R2 evidence are `historical_only` and cannot close an active gate.
 
