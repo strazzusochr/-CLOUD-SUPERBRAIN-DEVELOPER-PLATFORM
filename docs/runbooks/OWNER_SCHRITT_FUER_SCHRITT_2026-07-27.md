@@ -123,12 +123,21 @@ GITHUB_REPOSITORY=strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM
 > `GITHUB_REPOSITORY` muss die Form `owner/name` haben — das Skript bricht sonst ab.
 > Ein bestehender `GITHUB_TOKEN`-Eintrag wird **ersetzt**, nicht doppelt angelegt (Doppelzeilen brechen Parser).
 
-### Schritt 3 — Branch-Protection anwenden
-Es existiert bereits ein Skript dafür. Codex führt aus:
+### Schritt 3 — Branch-Protection: ✅ ERLEDIGT, NICHTS ZU TUN (geprüft 2026-07-31)
+> **Diese Anleitung war falsch und hätte nicht funktioniert.** Sie nannte `--branch main` —
+> **`main` existiert in diesem Repo überhaupt nicht.** Der Default-Branch heißt `chore/repo-bootstrap`.
+> Jeder Aufruf wäre in einen `404 Branch not found` gelaufen.
+
+Der echte Default-Branch ist **bereits korrekt geschützt**. Read-only nachgewiesen:
+`status: verified`, **0 Abweichungen**, Force-Push aus, Löschen aus, 1 Review erforderlich.
+**Du musst hier nichts tun, und es muss auch nichts angewendet werden.**
+
+Nachprüfen kannst du es jederzeit selbst — das ist rein lesend und ändert nichts:
 ```
-python scripts/apply_github_branch_protection.py --apply --branch main
+python scripts/apply_github_branch_protection.py --verify-only
 ```
-Das setzt und **verifiziert** den Schutz für `main`. Du musst dafür nichts klicken.
+Ohne `--branch` löst das Skript seit dem 31.07. den **echten** Default-Branch über die API auf und
+bricht mit klarer Meldung ab, falls ein angegebener Branch nicht existiert.
 
 ### Schritt 4 — Deine Freigabe-Entscheidungen (die kann nur der Owner treffen)
 

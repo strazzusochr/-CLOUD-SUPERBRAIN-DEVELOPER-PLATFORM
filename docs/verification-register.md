@@ -12,9 +12,54 @@ Current progress claims are authoritative only when they match `docs/project-pro
 `scripts/apply_github_branch_protection.py` now requires explicit `--apply` plus
 an available token before it can issue the GitHub `PUT`. A configured token
 without `--apply` selects read-only verification; no token selects dry-run.
-`.github/workflows/branch-protection.yml` and the Owner runbook use the explicit
-apply form. This is verified implementation only: no live GitHub write was
-executed, and protected-main remains an external Owner/review gate.
+`.github/workflows/branch-protection.yml` uses the explicit apply form.
+
+Correction recorded 2026-07-31: the script also hard-coded `main` as its default
+branch, but `main` does not exist in this repository at all. The default branch is
+`chore/repo-bootstrap`, so every live call resolved to an opaque
+`404 Branch not found` and the protection state was reported as missing when it was
+not. `resolve_target_branch()` now reads the real default branch from the API
+whenever a token is present, `assert_branch_exists()` fails closed before any
+protection claim and names the actual default branch, and `request_json` accepts
+`missing_ok` so "does not exist" is distinguishable from a genuine failure. Two
+additional offline self-tests cover explicit-branch precedence and the token-free
+fallback.
+
+Read-only verification of the real default branch on 2026-07-31 returned
+`status: verified`, `0` mismatches, `allow_force_pushes=false`,
+`allow_deletions=false`, `required_approving_review_count=1`, exit `0`. No live
+GitHub write was executed. The Owner runbook step that instructed an apply against
+`main` has been corrected to state that nothing needs to be applied.
+
+## Current Hosted-Acceptance Guard Alignment
+
+Recorded 2026-07-31. `verify-market-ready.ps1` required
+`product_acceptance_hosted_proof` and `workspace_22_page_hosted_proof` to be `true`
+in `docs/runtime-state/cloudflare-native-hosted-current.json`, while
+`verify-phase1.ps1` still required both to be `false` from an earlier era in which
+neither hosted acceptance report existed. HEAD `0a982c2a` was therefore red. The
+blanket prohibition in `verify-phase1.ps1` is replaced by an evidence-bound guard:
+an unclaimed proof must carry no evidence, source, or deployment fields, and a
+claimed proof must supply an existing artefact whose SHA-256 matches the recorded
+value, a 40-character source commit that is an ancestor of HEAD, a deployment id,
+an https base url, and a report that does not contradict the truth file. This is
+strictly stronger than the previous guard, which validated no hashes at all.
+Negative proof: flipping a single hex character of the recorded evidence hash makes
+the verifier reject with `evidence SHA-256 does not match its recorded value`; the
+state file was restored byte-exactly afterwards. `verify-phase1.ps1` returned exit
+`0` with `gitleaks` reporting no leaks across 3737 files.
+
+`AI_HANDOFF.md` had lost the contract-origin sentence pinned by
+`verify-retired-hosted-boundary.ps1`; it was restored alongside the newer hosted
+statement, because the Vercel frontend and stateless read-only Backend Contract
+Origin remain deployed and the hosted proofs run against exactly those origins.
+
+Known limitation, not introduced here: `verify-live-llm-evidence-chain.ps1`
+compares two untracked, git-ignored artefacts and fails hard when they are absent,
+so `npm run verify` cannot pass on a fresh clone. The two artefacts had drifted
+apart (D1 re-seeded 2026-07-30, browser artefact from 2026-07-25) and were
+resynchronised; the chain reports `new_provider_calls=0`, so no percentage credit
+arises from it.
 
 ## Current Session-12 Hosted Product And 22-Page Acceptance
 

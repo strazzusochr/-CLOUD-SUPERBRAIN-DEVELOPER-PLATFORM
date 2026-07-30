@@ -1,5 +1,47 @@
-# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-07-30 (Session 12) — P1 + O2Core HOSTED GRÜN
+# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-07-31 — HEAD WIEDER GRÜN
 # In JEDER Session: (1) diese Datei → (2) CODEX_UEBERGABE_2026-07-27-SESSION12.md → (3) arbeiten.
+
+## 🔴 ZUERST LESEN — `0a982c2a` WAR ROT, IST REPARIERT (2026-07-31)
+Codex hat `53e4d242` + `0a982c2a` gepusht, **ohne danach `npm run verify` zu fahren** — obwohl `0a982c2a`
+`verify-phase1.ps1` anfasste. Zwei Regressionen aus `53e4d242`, beide behoben:
+1. **Verifier-Widerspruch:** `verify-market-ready.ps1` verlangte `product_acceptance_hosted_proof=true` +
+   `workspace_22_page_hosted_proof=true`, `verify-phase1.ps1` verlangte für dieselben Felder `false`.
+   Der Verbots-Guard ist jetzt **evidenzgebunden** (Artefakt + SHA-256 + Commit-Ancestry + Deployment-ID).
+   **Negativtest:** 1 verändertes Hex-Zeichen → Ablehnung. Strenger als vorher, nicht lockerer.
+2. **Gelöschter Marker:** `53e4d242` entfernte den von `verify-retired-hosted-boundary.ps1` gepinnten Satz
+   aus `AI_HANDOFF.md`. Wiederhergestellt (er ist weiterhin wahr).
+3. **Kein Repo-Bug, aber wichtig:** Die LLM-Evidenzkette vergleicht zwei **untracked** Artefakte, die
+   auseinandergelaufen waren (D1 neu geseedet 30.07., Browser-Artefakt vom 25.07.). Resynchronisiert über
+   `.codex/tmp/stateful-browser-sync.ps1`; `new_provider_calls=0` → kein Prozent-Credit.
+   ⚠️ **Folge: `npm run verify` kann auf einem frischen Clone nie grün werden.**
+**Ergebnis: `verify-phase1` PASS (Exit 0), Gitleaks 0/3737.** Regel daraus: **nach jedem Commit, der einen
+Verifier anfasst, den Gesamtlauf fahren — nicht nur den Fokustest.**
+
+## ✅ BRANCH PROTECTION — CODEX' OFFENE GATE-FRAGE IST BEANTWORTET: **NICHTS ANWENDEN**
+Zwei Illusionsschichten: (1) Das Skript hatte **keinen Apply-Codepfad** (Codex korrekt gefixt).
+(2) Darunter: `DEFAULT_BRANCH_NAME = "main"` — **`main` existiert in diesem Repo nicht.**
+Default-Branch ist **`chore/repo-bootstrap`** — und der ist **bereits korrekt geschützt**:
+`status: verified`, **0 Abweichungen**, Force-Push aus, Löschen aus, 1 Review, Exit 0. **Kein Write nötig.**
+Skript gehärtet: `resolve_target_branch()` + `assert_branch_exists()` + 2 Offline-Selbsttests.
+⚠️ „**`main` niemals**" bleibt als Regel richtig, meint faktisch aber `chore/repo-bootstrap`.
+
+## 🔑 CF-TOKEN — PROMOTION HAT STATTGEFUNDEN, O5-SCOPE IST FREI
+Aktiv **und** Kandidat: `workers/d1/queues/durable_object/vectorize` je **200**, `identical: true`.
+Das in §4b beschriebene Risiko „aktiver Token schwächer" ist **erledigt**.
+`workers_ai` 403 = **Management-API (Modell-Liste), nicht Inferenz** — die läuft über das Worker-Binding
+und ist mit `live_provider_calls=true` belegt. **Nicht verwechseln.**
+
+## 📊 GATES: 4 OFFEN / 6 ZU (gemessen, nicht geschätzt)
+offen: `live_llm_provider_calls` · `live_memory_provider` · `hosted_observability_endpoint` ·
+`cloudflare_native_zero_card_hosted_runtime`
+zu: `live_vector_memory_search` (O5) · `production_auth_identity` (O1) · `live_mcp_writes` +
+`live_agent_tool_writes` (O4) · `docker_registry_publish` (O3) · `phase6_scale_runtime` (Zahlung)
+
+## ▶ NÄCHSTER SCHRITT
+`scripts/verify-live-vector-memory-search.ps1` **existiert nicht**, wird aber vom Owner-Manifest als
+O5-Verifier referenziert → tote Referenz. Da Vectorize jetzt lesbar ist, ist das der erste echte Schritt
+für **L6 90 → 100**. **Aber:** Index-Anlage ist Ressourcenerzeugung außerhalb der in
+`actions[O2].owner_scope_decision` freigegebenen Liste (Workers, D1, DO, Queues) → **erst Owner fragen.**
 
 ## ✅ STAND — aktueller Feature-Branch
 Branch `claude/cloud-superbrain-analysis-127d2e` · Overall **86 %** · `MARKET_READY:false`

@@ -2,6 +2,98 @@
 > **Ersetzt SESSION11.** Jede Zahl gegen Repo-Artefakte verifiziert (`git log`, Report-JSONs, Verifier-Läufe).
 > Fremde Working-Tree-Dateien bleiben unberührt; Slice-Dateien werden ausschließlich explizit gestaged.
 
+## NACHTRAG 2026-07-31 — HEAD WAR ROT; ZWEI REGRESSIONEN REPARIERT + BP-FRAGE BEANTWORTET
+
+### 🔴 Der wichtigste Befund: `0a982c2a` war ein kaputter Baum
+Codex hat die letzten **beiden** Commits (`53e4d242`, `0a982c2a`) committet und gepusht, **ohne danach
+`npm run verify` laufen zu lassen** — obwohl `0a982c2a` ausgerechnet `verify-phase1.ps1` verändert hat.
+Der Gesamt-Static-Verifier war auf HEAD **rot**. Zwei unabhängige Regressionen, beide aus `53e4d242`:
+
+**(1) Verifier-Widerspruch bei den Hosted-Acceptance-Flags.**
+`53e4d242` setzte `product_acceptance_hosted_proof` und `workspace_22_page_hosted_proof` in
+`docs/runtime-state/cloudflare-native-hosted-current.json` auf `true` und zog `verify-market-ready.ps1`
+korrekt nach — aber `verify-phase1.ps1` bestand weiterhin darauf, dass genau diese beiden Flags **`false`**
+sind. Ein Verifier nachgeführt, der andere vergessen.
+**Fix:** Der pauschale Verbots-Guard ist durch einen **evidenzgebundenen** ersetzt. `false` heißt jetzt
+„es darf kein Evidenzfeld gesetzt sein"; `true` verlangt Artefakt, SHA-256-Abgleich, 40-stelligen
+Source-Commit mit Ancestry-Prüfung, Deployment-ID, `https`-Base-URL und Widerspruchsfreiheit zum Report.
+Das ist **strenger** als vorher — der alte Guard prüfte die Hashes überhaupt nicht.
+**Negativtest bestanden:** ein einziges verändertes Hex-Zeichen im hinterlegten Hash → Ablehnung mit
+`evidence SHA-256 does not match its recorded value`, Datei danach byte-exakt wiederhergestellt.
+
+**(2) Gelöschter Wahrheits-Marker in `AI_HANDOFF.md`.**
+`53e4d242` ersetzte den Satz `…frontend and the stateless read-only Backend Contract Origin are deployed on
+Vercel` durch die neue Hosted-Aussage, statt sie zu ergänzen. `verify-retired-hosted-boundary.ps1` pinnt
+diesen Wortlaut. **Fix:** Satz wiederhergestellt und mit der neuen Aussage verbunden — er ist weiterhin
+wahr, die Hosted-Beweise laufen buchstäblich gegen genau diese Vercel-Origins.
+
+### ⚠️ (3) Strukturbefund: die Pflichtkette hängt an **untracked** Artefakten
+`verify-live-llm-evidence-chain.ps1` vergleicht `stateful-build-browser/report.json` mit
+`cloudflare-d1-local/report.json`. **Beide sind untracked und gitignored.** Sie waren auseinandergelaufen:
+Codex hat am 30.07. den D1-Verifier neu geseedet (`…-2050d1a2`), das Browser-Artefakt blieb vom **25.07.**
+(`…-aaa2605b`). Der `html_sha256` war in beiden identisch — nur die ID-Bindung fehlte.
+**Behoben** über Codex' eigenen Helfer `.codex/tmp/stateful-browser-sync.ps1` (Worker 8791 + Next 3018,
+Browser-Verifier mit der *aktuellen* Seed-ID). Kette grün, `new_provider_calls=0` → **kein Prozent-Credit**.
+**Bleibende Konsequenz für Codex:** Weil der Verifier bei fehlendem Artefakt hart scheitert (`MustExist`),
+kann **`npm run verify` auf einem frischen Clone nie grün werden**. Das ist kein Bug von heute, aber es
+gehört auf die Liste — entweder Artefakte versionieren oder den Verifier bei Abwesenheit ehrlich skippen.
+
+### ✅ Branch Protection: Codex' offene GATE-Frage ist durch Evidenz beantwortet — **nichts anwenden**
+Codex' letzte Zeile war `GATE: BP anwenden? JA/NEIN`. Die Antwort lautet **NEIN, weil es nichts zu tun gibt.**
+Es lagen **zwei Illusionsschichten** übereinander:
+1. **Codex' Fund (korrekt repariert in `0a982c2a`):** Das Skript kannte nur `dry-run` und `verify-only` —
+   es gab **keinen Codepfad, der Schutz jemals angewendet hätte**.
+2. **Die Schicht darunter (neu):** `DEFAULT_BRANCH_NAME = "main"` — **`main` existiert in diesem Repo
+   überhaupt nicht.** Der Default-Branch ist **`chore/repo-bootstrap`**. Jeder Live-Aufruf lief in einen
+   nichtssagenden `404 Branch not found`.
+
+**Der real ausgelieferte Default-Branch ist bereits korrekt geschützt** — read-only nachgewiesen:
+`status: verified`, **0 Abweichungen**, `allow_force_pushes=false`, `allow_deletions=false`,
+`required_approving_review_count=1`, Exit `0`. **Kein Write, kein Owner-Eingriff nötig.**
+
+**Härtung** in `scripts/apply_github_branch_protection.py`: `resolve_target_branch()` liest den echten
+Default-Branch über die API, sobald ein Token da ist (die Konstante bleibt reiner Dry-Run-Fallback);
+`assert_branch_exists()` bricht **vor** jedem Schutz-Anspruch ab und nennt den tatsächlichen Default-Branch;
+`request_json(..., missing_ok=True)` trennt „existiert nicht" von „echter Fehler"; zwei zusätzliche
+Offline-Selbsttests. Live gegengeprüft: `--branch main` → klare Fail-closed-Meldung; ohne `--branch` →
+löst `chore/repo-bootstrap` auf und verifiziert.
+⚠️ **Merke:** Die Owner-Matrix und §5e sprechen von „`main` niemals". Das bleibt als Regel richtig, meint
+aber faktisch **`chore/repo-bootstrap`**. Die CI-Workflow-Datei war übrigens korrekt — sie nutzt
+`github.event.repository.default_branch`; falsch war nur der manuelle Pfad und das Runbook.
+
+### 🔑 CF-Token: die Promotion hat stattgefunden — O5-Scope-Blockade ist weg
+Read-only-Scope-Probe (nur HTTP-Codes, keine Werte): aktiv **und** Kandidat liefern
+`token_verify/workers/d1/queues/durable_object/vectorize` je **200**; Fingerprint-Vergleich sagt
+**`identical: true`**. Das in §4b beschriebene Risiko „aktiver Token schwächer als Kandidat" ist damit
+**erledigt** — das Promotionsskript hat den Kandidaten atomar aktiviert.
+**`workers_ai` liefert 403 — das ist die Management-API (Modell-Liste), nicht die Inferenz.** Die Inferenz
+läuft über das Worker-Binding und ist im Hosted-Produktbeweis mit `live_provider_calls=true` belegt.
+**Nicht verwechseln und daraus keinen Blocker bauen.**
+
+### 📊 Korrektur am Gate-Inventar (§6 war veraltet)
+Gemessen sind **4 offen / 6 zu**, nicht 3/7: `cloudflare_native_zero_card_hosted_runtime` ist seit dem
+30.07. **offen** (owner+live+evidence). Offen: `live_llm_provider_calls`, `live_memory_provider`,
+`hosted_observability_endpoint`, `cloudflare_native_zero_card_hosted_runtime`.
+
+### 🎯 Warum das Gate `github_branch_protection_current_verify` trotzdem noch offen steht
+Der Schutz **ist** da (oben belegt) — das Gate steht aus einem anderen Grund offen:
+`scripts/verify-external-gates.ps1` hat `[string]$Branch = $env:BRANCH_NAME` mit Fallback **`""`**.
+Ohne gesetztes `BRANCH_NAME` baut die Probe die URL `…/branches/` **ohne Branch** und kann nichts prüfen.
+**Konkreter nächster Schritt (klein, aber vollständig durchzuziehen):** Den Fallback auf den echten
+Default-Branch auflösen (analog zu `resolve_target_branch()`), `verify-external-gates` neu erzeugen und
+**erst dann** `docs/runtime-state/external-gate-summary.json` fortschreiben.
+⚠️ **Achtung, gekoppelt:** `verify-phase1.ps1` behauptet an einer Stelle hart, es seien **genau zwei**
+Gates offen (`github_branch_protection_current_verify` + `ghcr_image_digest_verify`). Wer das Gate
+schließt, **muss diese Assertion im selben Slice** auf ein verbleibendes Gate umstellen — sonst ist der
+Baum sofort wieder rot. Nicht einzeln anfassen.
+
+### 🔨 Nächster Codex-Schritt (unverändert höchste Priorität)
+`scripts/verify-live-vector-memory-search.ps1` **existiert nicht**, wird aber von
+`docs/runtime-state/owner-input-manifest.json` als O5-Verifier referenziert — eine tote Referenz.
+Da der Token Vectorize jetzt liest, ist das der erste echte Schritt für **L6 90 → 100**.
+Index-Anlage ist eine Ressourcenerzeugung **außerhalb** der in `actions[O2].owner_scope_decision`
+freigegebenen Liste (Workers, D1, DO, Queues) — **dafür zuerst die Owner-Freigabe einholen.**
+
 ## NACHTRAG 2026-07-30 — O2Core HOSTED VERIFIZIERT
 
 Der source-gebundene Worker
@@ -285,11 +377,12 @@ echten Verifier (`npm run verify:runtime`, `npm run verify:browser`) öffnen. **
 kein Handsetzen von `live_verified`. Die bestätigte Fassung ist in
 `docs/runtime-state/owner-input-manifest.json` (O4) zu spiegeln.
 
-## 6. GATE-INVENTAR (10 Gates: 3 offen · 7 zu)
-✅ offen: `live_llm_provider_calls` · `live_memory_provider` · `hosted_observability_endpoint`
-🔴 zu: `cloudflare_native_zero_card_hosted_runtime` (**O2′**) · `live_vector_memory_search` (**O5**) ·
-`production_auth_identity` (**O1**) · `live_mcp_writes` + `live_agent_tool_writes` (**O4**) ·
-`docker_registry_publish` (**O3**) · `phase6_scale_runtime` (folgt aus O2′)
+## 6. GATE-INVENTAR (10 Gates: 4 offen · 6 zu — Stand 2026-07-31 gemessen)
+✅ offen: `live_llm_provider_calls` · `live_memory_provider` · `hosted_observability_endpoint` ·
+`cloudflare_native_zero_card_hosted_runtime` (**O2′**, seit 30.07. durch den Hosted-Verifier geöffnet)
+🔴 zu: `live_vector_memory_search` (**O5**) · `production_auth_identity` (**O1**) ·
+`live_mcp_writes` + `live_agent_tool_writes` (**O4**) · `docker_registry_publish` (**O3**) ·
+`phase6_scale_runtime` (Zahlung, echte Wand)
 **Kein Gate je handsetzen — nur der echte Verifier darf `live_verified: true` schreiben.**
 
 ## 7. ✅ HOSTED-ROLLOUT-RUNBOOK — JETZT STARTBAR (O2Core ist offen)

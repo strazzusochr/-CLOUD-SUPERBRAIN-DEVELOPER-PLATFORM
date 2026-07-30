@@ -1188,8 +1188,6 @@ if (
   -not [bool]$cloudflareHostedState.create_enqueue_queue_do_d1_artifact_roundtrip -or
   -not [bool]$cloudflareHostedState.d1_artifact_write_read_delete_verified -or
   -not [bool]$cloudflareHostedState.zero_card_verified -or
-  [bool]$cloudflareHostedState.product_acceptance_hosted_proof -or
-  [bool]$cloudflareHostedState.workspace_22_page_hosted_proof -or
   [bool]$cloudflareHostedState.live_provider_calls -or
   [bool]$cloudflareHostedState.direct_provider_calls -or
   [bool]$cloudflareHostedState.live_mcp_writes -or
@@ -1209,6 +1207,83 @@ if (
 ) {
   throw "Current Cloudflare-native hosted runtime truth has invalid source, evidence, URL, or binding identity"
 }
+
+# Hosted product acceptance and the hosted 22-page matrix used to be forbidden here, because at the
+# time this guard was written the Worker proof was the only hosted evidence and neither acceptance
+# report existed. Both now exist as source-bound hosted artefacts, so a blanket "must be false" would
+# force the truth file to under-report a real proof. The claim is therefore bound to its evidence
+# instead of banned: false means nothing may be claimed, true means the artefact, its SHA-256, its
+# source commit and its deployment identity must all hold. verify-market-ready.ps1 asserts the same
+# pair from the opposite direction, so drifting one file alone now fails both gates.
+function Get-HostedAcceptanceSha256([string]$Path) {
+  $stream = [IO.File]::OpenRead($Path)
+  try {
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+      return (($sha256.ComputeHash($stream) | ForEach-Object { $_.ToString("X2") }) -join "")
+    } finally {
+      $sha256.Dispose()
+    }
+  } finally {
+    $stream.Dispose()
+  }
+}
+foreach ($hostedAcceptance in @(
+  @{ Label = "product acceptance"; Flag = "product_acceptance_hosted_proof"; Prefix = "product_acceptance" },
+  @{ Label = "22-page action matrix"; Flag = "workspace_22_page_hosted_proof"; Prefix = "workspace_22_page" }
+)) {
+  $acceptanceClaimed = [bool]$cloudflareHostedState.($hostedAcceptance.Flag)
+  $acceptanceArtifact = [string]$cloudflareHostedState."$($hostedAcceptance.Prefix)_evidence_artifact"
+  $acceptanceSha = [string]$cloudflareHostedState."$($hostedAcceptance.Prefix)_evidence_sha256"
+  $acceptanceCommit = [string]$cloudflareHostedState."$($hostedAcceptance.Prefix)_source_commit_sha"
+  $acceptanceDeployment = [string]$cloudflareHostedState."$($hostedAcceptance.Prefix)_deployment_id"
+  $acceptanceBaseUrl = [string]$cloudflareHostedState."$($hostedAcceptance.Prefix)_base_url"
+
+  if (-not $acceptanceClaimed) {
+    if (
+      -not [string]::IsNullOrWhiteSpace($acceptanceArtifact) -or
+      -not [string]::IsNullOrWhiteSpace($acceptanceSha) -or
+      -not [string]::IsNullOrWhiteSpace($acceptanceCommit) -or
+      -not [string]::IsNullOrWhiteSpace($acceptanceDeployment)
+    ) {
+      throw "Unclaimed hosted $($hostedAcceptance.Label) must not carry evidence, source, or deployment fields"
+    }
+    continue
+  }
+
+  if (-not (Test-Path -LiteralPath $acceptanceArtifact -PathType Leaf)) {
+    throw "Hosted $($hostedAcceptance.Label) claims proof but its evidence artefact is missing: $acceptanceArtifact"
+  }
+  $acceptanceActualSha = Get-HostedAcceptanceSha256 (Resolve-Path -LiteralPath $acceptanceArtifact).Path
+  if ($acceptanceSha -ne $acceptanceActualSha) {
+    throw "Hosted $($hostedAcceptance.Label) evidence SHA-256 does not match its recorded value"
+  }
+  if (
+    $acceptanceCommit -notmatch '^[0-9a-f]{40}$' -or
+    [string]::IsNullOrWhiteSpace($acceptanceDeployment) -or
+    $acceptanceBaseUrl -notmatch '^https://'
+  ) {
+    throw "Hosted $($hostedAcceptance.Label) must be bound to a full commit sha, a deployment id, and an https base url"
+  }
+  git cat-file -e "$acceptanceCommit^{commit}" 2>$null
+  Assert-LastExitCode "hosted $($hostedAcceptance.Label) source commit"
+  git merge-base --is-ancestor $acceptanceCommit HEAD
+  Assert-LastExitCode "hosted $($hostedAcceptance.Label) source ancestry"
+
+  $acceptanceReport = Get-Content -LiteralPath $acceptanceArtifact -Raw | ConvertFrom-Json
+  if (
+    [string]$acceptanceReport.status -ne "verified" -or
+    -not [bool]$acceptanceReport.hosted_proof -or
+    [bool]$acceptanceReport.dev_only -or
+    [string]$acceptanceReport.proof_scope -ne "hosted_https" -or
+    [bool]$acceptanceReport.secret_output -or
+    [string]$acceptanceReport.source_binding.source_commit_sha -ne $acceptanceCommit -or
+    [string]$acceptanceReport.source_binding.deployment_id -ne $acceptanceDeployment
+  ) {
+    throw "Hosted $($hostedAcceptance.Label) artefact contradicts the truth file it is bound to"
+  }
+}
+
 if (
   -not [bool]$cloudflareHostedGate.owner_granted -or
   -not [bool]$cloudflareHostedGate.live_verified -or

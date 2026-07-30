@@ -212,11 +212,26 @@ def self_test() -> int:
     else:
         raise SystemExit("Self-test failed: conflicting modes were not rejected")
 
+    # Branch resolution must never silently invent a target. Both cases below are offline:
+    # an explicit branch always wins, and without a token the constant stays a pure dry-run label.
+    if resolve_target_branch("owner/name", None, "chore/repo-bootstrap") != "chore/repo-bootstrap":
+        raise SystemExit("Self-test failed: explicit --branch must win over any default")
+    if resolve_target_branch("owner/name", None, None) != DEFAULT_BRANCH_NAME:
+        raise SystemExit("Self-test failed: token-free resolution must stay on the dry-run fallback")
+
     print(json.dumps({"status": "self_test_passed", "evidence_ref": EVIDENCE_REF}, indent=2))
     return 0
 
 
-def request_json(method: str, url: str, token: str, payload: dict | None = None) -> dict:
+def request_json(
+    method: str,
+    url: str,
+    token: str,
+    payload: dict | None = None,
+    missing_ok: bool = False,
+) -> dict | None:
+    """Call the GitHub API. With missing_ok, a 404 returns None instead of exiting,
+    so callers can tell "this resource does not exist" apart from a real failure."""
     data = json.dumps(payload).encode("utf-8") if payload is not None else None
     request = urllib.request.Request(
         url,
@@ -233,8 +248,44 @@ def request_json(method: str, url: str, token: str, payload: dict | None = None)
         with urllib.request.urlopen(request, timeout=30) as response:
             return json.loads(response.read().decode("utf-8") or "{}")
     except urllib.error.HTTPError as exc:
+        if missing_ok and exc.code == 404:
+            return None
         body = exc.read().decode("utf-8", errors="replace")
         raise SystemExit(f"GitHub API failed: {exc.code} {exc.reason}\n{body}") from exc
+
+
+def resolve_target_branch(repo: str, token: str | None, explicit: str | None) -> str:
+    """Pick the branch to protect.
+
+    DEFAULT_BRANCH_NAME is only a token-free fallback for the dry-run output. This repository's
+    default branch is not `main` and `main` does not exist at all, so trusting the constant made
+    every live call target a phantom branch and fail with an opaque 404. Whenever a token is
+    available the real default branch is read from the API instead.
+    """
+    if explicit:
+        return explicit
+    if not token:
+        return DEFAULT_BRANCH_NAME
+    metadata = request_json("GET", f"https://api.github.com/repos/{repo}", token) or {}
+    return str(metadata.get("default_branch") or "").strip() or DEFAULT_BRANCH_NAME
+
+
+def assert_branch_exists(repo: str, branch_name: str, token: str) -> None:
+    """Fail closed before any protection claim if the target branch is not in the repository."""
+    if request_json(
+        "GET",
+        f"https://api.github.com/repos/{repo}/branches/{branch_name}",
+        token,
+        missing_ok=True,
+    ) is not None:
+        return
+    metadata = request_json("GET", f"https://api.github.com/repos/{repo}", token) or {}
+    actual_default = str(metadata.get("default_branch") or "unknown")
+    raise SystemExit(
+        f"Branch '{branch_name}' does not exist in {repo}. Refusing to apply or claim protection "
+        f"for a branch that is not there. The repository default branch is '{actual_default}'; "
+        f"re-run with --branch {actual_default} if that is the branch you meant to protect."
+    )
 
 
 def token_from_environment() -> str | None:
@@ -278,7 +329,9 @@ def main() -> int:
     mode = selected_mode(sys.argv[1:], token is not None)
     repo_override = argument_value("--repo")
     repo = repository(repo_override)
-    branch_name = argument_value("--branch") or os.environ.get("BRANCH_NAME") or DEFAULT_BRANCH_NAME
+    branch_name = resolve_target_branch(
+        repo, token, argument_value("--branch") or os.environ.get("BRANCH_NAME")
+    )
     payload = protection_payload()
 
     if mode == "dry-run":
@@ -304,6 +357,8 @@ def main() -> int:
     if not token:
         print("BRANCH_PROTECTION_TOKEN is not configured; branch protection cannot be applied or verified.", file=sys.stderr)
         return 1
+
+    assert_branch_exists(repo, branch_name, token)
 
     url = f"https://api.github.com/repos/{repo}/branches/{branch_name}/protection"
     if mode == "apply":
