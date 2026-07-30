@@ -1,10 +1,25 @@
-import { AUTH_SESSION_COOKIE, verifySignedAuthSession } from "./authSession";
+import {
+  AUTH_SESSION_COOKIE,
+  type AuthSessionClaims,
+  type HostedAuthSessionCreation,
+  isHostedAuthSessionInvalid,
+  isHostedAuthSessionRevocation,
+  isHostedAuthSessionToken,
+  parseHostedAuthSessionCreation,
+  parseHostedAuthSessionVerification,
+  verifySignedAuthSession,
+} from "./authSession";
 
 type BoundaryKind = "agent-api" | "llm-gateway" | "mcp-gateway";
 
 type BoundaryProxyOptions = {
   serviceAuth?: boolean;
 };
+
+export type HostedAuthSessionLookup =
+  | { status: "valid"; claims: AuthSessionClaims }
+  | { status: "invalid" }
+  | { status: "unavailable" };
 
 type BoundaryConfig = {
   envNames: string[];
@@ -112,7 +127,18 @@ function publicRequestOrigin(req: Request): string | null {
   return normalizedOrigin(`${protocol}://${host}`);
 }
 
-function writeBlocked(status: 401 | 403, error: string, reason: string): Response {
+export function isLocalDevelopmentRequest(req: Request): boolean {
+  if (process.env.VERCEL === "1") return false;
+  const origin = publicRequestOrigin(req);
+  if (!origin) return false;
+  const publicHostname = new URL(origin).hostname.toLowerCase();
+  const requestHostname = new URL(req.url).hostname.toLowerCase();
+  const localHostname = (hostname: string) =>
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  return localHostname(publicHostname) && localHostname(requestHostname);
+}
+
+function writeBlocked(status: 401 | 403 | 503, error: string, reason: string): Response {
   return Response.json(
     {
       contract_version: "frontend-boundary-write-guard-v1",
@@ -140,12 +166,90 @@ function writeBlocked(status: 401 | 403, error: string, reason: string): Respons
   );
 }
 
+const MAX_HOSTED_SESSION_RESPONSE_BYTES = 16 * 1024;
+
+async function readHostedSessionPayload(response: Response, forbiddenValue?: string): Promise<unknown | null> {
+  const declaredLength = Number(response.headers.get("content-length") || 0);
+  if (declaredLength > MAX_HOSTED_SESSION_RESPONSE_BYTES) return null;
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.byteLength > MAX_HOSTED_SESSION_RESPONSE_BYTES) return null;
+  const text = new TextDecoder().decode(bytes);
+  if (forbiddenValue && text.includes(forbiddenValue)) return null;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+async function hostedSessionRequest(
+  req: Request,
+  path: "/api/v1/auth/sessions" | "/api/v1/auth/sessions/verify" | "/api/v1/auth/sessions/revoke",
+  payload: Record<string, unknown>,
+  forbiddenResponseValue?: string,
+): Promise<{ status: number; payload: unknown } | null> {
+  const target = new URL(path, req.url);
+  const requestId = req.headers.get("x-request-id");
+  const headers = new Headers({ "content-type": "application/json", accept: "application/json" });
+  if (requestId) headers.set("x-request-id", requestId);
+  const serviceRequest = new Request(target, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  const response = await proxyToBoundary(serviceRequest, "agent-api", path, 8_000, { serviceAuth: true });
+  if (!response) return null;
+  const responsePayload = await readHostedSessionPayload(response, forbiddenResponseValue);
+  return responsePayload === null ? null : { status: response.status, payload: responsePayload };
+}
+
+export async function createHostedAuthSessionAtBoundary(
+  req: Request,
+  identity: { provider: "guest" | "name"; name: string },
+): Promise<HostedAuthSessionCreation | null> {
+  const result = await hostedSessionRequest(req, "/api/v1/auth/sessions", identity);
+  return result?.status === 201 ? parseHostedAuthSessionCreation(result.payload) : null;
+}
+
+export async function verifyHostedAuthSessionAtBoundary(
+  req: Request,
+  token: string | null | undefined,
+): Promise<HostedAuthSessionLookup> {
+  if (!isHostedAuthSessionToken(token)) return { status: "invalid" };
+  const result = await hostedSessionRequest(
+    req,
+    "/api/v1/auth/sessions/verify",
+    { session_token: token },
+    token,
+  );
+  if (!result || result.status !== 200) return { status: "unavailable" };
+  const claims = parseHostedAuthSessionVerification(result.payload);
+  if (claims) return { status: "valid", claims };
+  return isHostedAuthSessionInvalid(result.payload) ? { status: "invalid" } : { status: "unavailable" };
+}
+
+export async function revokeHostedAuthSessionAtBoundary(
+  req: Request,
+  token: string | null | undefined,
+): Promise<"processed" | "invalid" | "unavailable"> {
+  if (!isHostedAuthSessionToken(token)) return "invalid";
+  const result = await hostedSessionRequest(
+    req,
+    "/api/v1/auth/sessions/revoke",
+    { session_token: token },
+    token,
+  );
+  if (!result || result.status !== 200) return "unavailable";
+  return isHostedAuthSessionRevocation(result.payload) ? "processed" : "unavailable";
+}
+
 /**
- * Reuses the signed frontend session and the Agent API's same-origin CSRF
- * semantics before a browser request may borrow a server-only service token.
- * The token itself is never accepted from or returned to the browser.
+ * Reuses either the local signed session or the hosted opaque D1 session and
+ * the Agent API's same-origin CSRF semantics before a browser request may
+ * borrow a server-only service token. The service token itself is never
+ * accepted from or returned to the browser.
  */
-export function authorizeBoundaryWrite(req: Request): Response | null {
+export async function authorizeBoundaryWrite(req: Request): Promise<Response | null> {
   const fetchSite = (req.headers.get("sec-fetch-site") ?? "").trim().toLowerCase();
   const suppliedOrigin = req.headers.get("origin");
   const actualOrigin = suppliedOrigin ? normalizedOrigin(suppliedOrigin) : null;
@@ -164,11 +268,21 @@ export function authorizeBoundaryWrite(req: Request): Response | null {
     return writeBlocked(403, "csrf_origin_rejected", "origin_mismatch");
   }
 
-  const session = verifySignedAuthSession(cookieValue(req.headers.get("cookie"), AUTH_SESSION_COOKIE));
+  const token = cookieValue(req.headers.get("cookie"), AUTH_SESSION_COOKIE);
+  const session = verifySignedAuthSession(token);
+  if (session.valid) return null;
+  if (isHostedAuthSessionToken(token)) {
+    const hostedSession = await verifyHostedAuthSessionAtBoundary(req, token);
+    if (hostedSession.status === "valid") return null;
+    if (hostedSession.status === "unavailable") {
+      return writeBlocked(503, "write_session_verification_unavailable", "stateful_session_boundary_unavailable");
+    }
+    return writeBlocked(401, "write_session_required", "session_stateful_invalid");
+  }
   if (!session.valid) {
     return writeBlocked(401, "write_session_required", `session_${session.reason}`);
   }
-  return null;
+  return writeBlocked(401, "write_session_required", "session_invalid");
 }
 
 export async function proxyToBoundary(

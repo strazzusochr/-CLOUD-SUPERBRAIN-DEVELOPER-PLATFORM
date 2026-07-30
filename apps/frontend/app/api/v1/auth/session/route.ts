@@ -3,13 +3,57 @@ import {
   AUTH_SESSION_COOKIE,
   AUTH_SESSION_TTL_SECONDS,
   createSignedAuthSession,
+  isHostedAuthSessionToken,
   normalizeAuthIdentity,
   verifySignedAuthSession,
 } from "../../../../../lib/authSession";
+import {
+  createHostedAuthSessionAtBoundary,
+  isLocalDevelopmentRequest,
+  revokeHostedAuthSessionAtBoundary,
+  verifyHostedAuthSessionAtBoundary,
+} from "../../../../../lib/frontendBoundary";
 import { randomUUID } from "node:crypto";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+function unavailable(operation: "create" | "read" | "revoke"): Response {
+  return Response.json(
+    {
+      status: "blocked",
+      error: "hosted_session_boundary_unavailable",
+      operation,
+      accepted: false,
+      persisted: false,
+      cookies_cleared: false,
+      external_provider_write: false,
+      direct_provider_calls: false,
+      live_mcp_writes: false,
+      production_deploy: false,
+      secret_output: false,
+    },
+    {
+      status: 503,
+      headers: {
+        "cache-control": "no-store",
+        "x-superbrain-source": "auth-session-stateful-boundary",
+      },
+    },
+  );
+}
+
+async function setSessionCookie(token: string, expiresAtSeconds: number): Promise<void> {
+  const jar = await cookies();
+  jar.set(AUTH_SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict",
+    path: "/",
+    maxAge: AUTH_SESSION_TTL_SECONDS,
+    expires: new Date(expiresAtSeconds * 1000),
+  });
+}
 
 export async function POST(req: Request): Promise<Response> {
   let body: Record<string, unknown> = {};
@@ -22,16 +66,28 @@ export async function POST(req: Request): Promise<Response> {
     );
   }
 
+  const hostedSession = await createHostedAuthSessionAtBoundary(req, identity);
+  if (hostedSession) {
+    await setSessionCookie(hostedSession.token, hostedSession.claims.exp);
+    return Response.json(
+      {
+        status: "signed_in",
+        session_id: hostedSession.claims.id,
+        user: { name: hostedSession.claims.name, provider: hostedSession.claims.provider },
+        persisted: true,
+        session_scope: "stateful_http_only_cookie",
+        session_backend: "cloudflare-d1",
+        token_storage: "sha256_only",
+        external_provider_write: false,
+        secret_output: false,
+      },
+      { headers: { "cache-control": "no-store", "x-superbrain-source": "auth-session-stateful-boundary" } },
+    );
+  }
+  if (!isLocalDevelopmentRequest(req)) return unavailable("create");
+
   const session = createSignedAuthSession(identity, randomUUID());
-  const jar = await cookies();
-  jar.set(AUTH_SESSION_COOKIE, session.token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "strict",
-    path: "/",
-    maxAge: AUTH_SESSION_TTL_SECONDS,
-    expires: new Date(session.claims.exp * 1000),
-  });
+  await setSessionCookie(session.token, session.claims.exp);
   return Response.json(
     {
       status: "signed_in",
@@ -39,39 +95,84 @@ export async function POST(req: Request): Promise<Response> {
       user: { name: session.claims.name, provider: session.claims.provider },
       persisted: false,
       session_scope: "signed_http_only_cookie",
+      session_backend: "local-hmac",
       external_provider_write: false,
+      secret_output: false,
     },
     { headers: { "cache-control": "no-store", "x-superbrain-source": "auth-session-integrity" } },
   );
 }
 
-export async function GET(): Promise<Response> {
+export async function GET(req: Request): Promise<Response> {
   const jar = await cookies();
-  const verification = verifySignedAuthSession(jar.get(AUTH_SESSION_COOKIE)?.value);
-  if (!verification.valid) {
-    if (verification.reason !== "missing") jar.delete(AUTH_SESSION_COOKIE);
+  const token = jar.get(AUTH_SESSION_COOKIE)?.value;
+  const verification = verifySignedAuthSession(token);
+  if (verification.valid) {
     return Response.json(
-      { status: "anonymous", user: null, session_invalidated: verification.reason !== "missing" },
+      {
+        status: "signed_in",
+        session_id: verification.claims.id,
+        user: { name: verification.claims.name, provider: verification.claims.provider },
+        expires_at: new Date(verification.claims.exp * 1000).toISOString(),
+        persisted: false,
+        session_scope: "signed_http_only_cookie",
+        session_backend: "local-hmac",
+        external_provider_write: false,
+        secret_output: false,
+      },
       { headers: { "cache-control": "no-store", "x-superbrain-source": "auth-session-integrity" } },
     );
   }
+  if (isHostedAuthSessionToken(token)) {
+    const hostedSession = await verifyHostedAuthSessionAtBoundary(req, token);
+    if (hostedSession.status === "unavailable") return unavailable("read");
+    if (hostedSession.status === "valid") {
+      return Response.json(
+        {
+          status: "signed_in",
+          session_id: hostedSession.claims.id,
+          user: { name: hostedSession.claims.name, provider: hostedSession.claims.provider },
+          expires_at: new Date(hostedSession.claims.exp * 1000).toISOString(),
+          persisted: true,
+          session_scope: "stateful_http_only_cookie",
+          session_backend: "cloudflare-d1",
+          token_storage: "sha256_only",
+          external_provider_write: false,
+          secret_output: false,
+        },
+        { headers: { "cache-control": "no-store", "x-superbrain-source": "auth-session-stateful-boundary" } },
+      );
+    }
+  }
+  if (verification.reason !== "missing") jar.delete(AUTH_SESSION_COOKIE);
   return Response.json(
     {
-      status: "signed_in",
-      session_id: verification.claims.id,
-      user: { name: verification.claims.name, provider: verification.claims.provider },
-      expires_at: new Date(verification.claims.exp * 1000).toISOString(),
-      session_scope: "signed_http_only_cookie",
+      status: "anonymous",
+      user: null,
+      session_invalidated: verification.reason !== "missing",
+      external_provider_write: false,
+      secret_output: false,
     },
     { headers: { "cache-control": "no-store", "x-superbrain-source": "auth-session-integrity" } },
   );
 }
 
-export async function DELETE(): Promise<Response> {
+export async function DELETE(req: Request): Promise<Response> {
   const jar = await cookies();
+  const token = jar.get(AUTH_SESSION_COOKIE)?.value;
+  if (isHostedAuthSessionToken(token)) {
+    const registryResult = await revokeHostedAuthSessionAtBoundary(req, token);
+    if (registryResult === "unavailable") return unavailable("revoke");
+  }
   jar.delete(AUTH_SESSION_COOKIE);
   return Response.json(
-    { status: "signed_out", cookies_cleared: true },
+    {
+      status: "signed_out",
+      cookies_cleared: true,
+      session_registry_processed: isHostedAuthSessionToken(token),
+      external_provider_write: false,
+      secret_output: false,
+    },
     { headers: { "cache-control": "no-store", "x-superbrain-source": "auth-session-integrity" } },
   );
 }

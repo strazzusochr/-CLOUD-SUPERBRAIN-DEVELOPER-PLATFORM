@@ -51,6 +51,27 @@ class FakeStatement {
       });
       return { meta: { changes: 1 } };
     }
+    if (this.sql.startsWith("INSERT INTO hosted_sessions")) {
+      const [token_sha256, session_id, provider, display_name, issued_at, expires_at] = this.values;
+      if (this.db.sessions.has(token_sha256)) throw new Error("UNIQUE constraint failed: hosted_sessions.token_sha256");
+      this.db.sessions.set(token_sha256, {
+        token_sha256,
+        session_id,
+        provider,
+        display_name,
+        issued_at,
+        expires_at,
+        revoked_at: null,
+      });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("UPDATE hosted_sessions SET revoked_at")) {
+      const [revoked_at, token_sha256] = this.values;
+      const row = this.db.sessions.get(token_sha256);
+      if (!row || row.revoked_at) return { meta: { changes: 0 } };
+      row.revoked_at = revoked_at;
+      return { meta: { changes: 1 } };
+    }
     if (this.sql.startsWith("DELETE FROM native_artifacts")) {
       return { meta: { changes: this.db.nativeArtifacts.delete(this.values[0]) ? 1 : 0 } };
     }
@@ -95,6 +116,15 @@ class FakeStatement {
     if (this.sql.startsWith("SELECT * FROM runtime_runs WHERE id")) {
       const row = this.db.runs.get(this.values[0]);
       return row ? { ...row } : null;
+    }
+    if (this.sql.startsWith("SELECT session_id, provider, display_name, issued_at, expires_at FROM hosted_sessions")) {
+      const [tokenSha256, now] = this.values;
+      const row = this.db.sessions.get(tokenSha256);
+      return row && !row.revoked_at && row.expires_at > now ? { ...row } : null;
+    }
+    if (this.sql.startsWith("SELECT session_id, revoked_at FROM hosted_sessions")) {
+      const row = this.db.sessions.get(this.values[0]);
+      return row ? { session_id: row.session_id, revoked_at: row.revoked_at } : null;
     }
     throw new Error(`Unhandled first SQL: ${this.sql}`);
   }
@@ -141,6 +171,7 @@ class FakeD1 {
     this.builds = new Map();
     this.artifacts = new Map();
     this.nativeArtifacts = new Map();
+    this.sessions = new Map();
     this.runs = new Map();
     this.tasks = [];
     this.memory = [];
@@ -157,6 +188,7 @@ class FakeD1 {
       builds: new Map([...this.builds].map(([key, value]) => [key, { ...value }])),
       artifacts: new Map([...this.artifacts].map(([key, value]) => [key, { ...value }])),
       nativeArtifacts: new Map([...this.nativeArtifacts].map(([key, value]) => [key, { ...value }])),
+      sessions: new Map([...this.sessions].map(([key, value]) => [key, { ...value }])),
       runs: new Map([...this.runs].map(([key, value]) => [key, { ...value }])),
       tasks: this.tasks.map((value) => ({ ...value })),
       memory: this.memory.map((value) => ({ ...value })),
@@ -170,6 +202,7 @@ class FakeD1 {
       this.builds = snapshot.builds;
       this.artifacts = snapshot.artifacts;
       this.nativeArtifacts = snapshot.nativeArtifacts;
+      this.sessions = snapshot.sessions;
       this.runs = snapshot.runs;
       this.tasks = snapshot.tasks;
       this.memory = snapshot.memory;
@@ -288,6 +321,96 @@ test("writes require the dedicated server-side agent token", async () => {
   assert.equal(response.status, 401);
   assert.equal(body.error, "stateful_runtime_authentication_required");
   assert.equal(fakeEnv.DB.builds.size, 0);
+});
+
+test("hosted opaque sessions survive create-verify-revoke with hash-only D1 storage", async () => {
+  const fakeEnv = env({ runtimeMode: "cloudflare_native_hosted_candidate" });
+  const created = await worker.fetch(writeRequest("/api/v1/auth/sessions", {
+    provider: "name",
+    name: "Hosted Tester",
+  }), fakeEnv);
+  const createdBody = await created.json();
+  assert.equal(created.status, 201);
+  assert.equal(createdBody.status, "created");
+  assert.equal(createdBody.persisted, true);
+  assert.equal(createdBody.session_backend, "cloudflare-d1");
+  assert.equal(createdBody.token_storage, "sha256_only");
+  assert.equal(createdBody.audit_persisted, true);
+  assert.match(createdBody.session_token, /^[A-Za-z0-9_-]{43}$/);
+  assert.equal(createdBody.session.provider, "name");
+  assert.equal(createdBody.session.name, "Hosted Tester");
+  assert.equal("secret_output" in createdBody, false);
+  assert.equal(fakeEnv.DB.sessions.size, 1);
+  const stored = [...fakeEnv.DB.sessions.values()][0];
+  assert.match(stored.token_sha256, /^[a-f0-9]{64}$/);
+  assert.equal(JSON.stringify(stored).includes(createdBody.session_token), false);
+  assert.equal(JSON.stringify(fakeEnv.DB.audit).includes(createdBody.session_token), false);
+  assert.equal(fakeEnv.DB.audit[0].event_type, "cloudflare_d1_hosted_session_created");
+
+  const verified = await worker.fetch(writeRequest("/api/v1/auth/sessions/verify", {
+    session_token: createdBody.session_token,
+  }), fakeEnv);
+  const verifiedText = await verified.text();
+  const verifiedBody = JSON.parse(verifiedText);
+  assert.equal(verified.status, 200);
+  assert.equal(verifiedBody.status, "verified");
+  assert.equal(verifiedBody.valid, true);
+  assert.equal(verifiedBody.session.id, createdBody.session.id);
+  assert.equal(verifiedBody.session_token_returned, false);
+  assert.equal(verifiedText.includes(createdBody.session_token), false);
+
+  const unknown = await worker.fetch(writeRequest("/api/v1/auth/sessions/verify", {
+    session_token: "A".repeat(43),
+  }), fakeEnv);
+  const unknownBody = await unknown.json();
+  assert.equal(unknown.status, 200);
+  assert.equal(unknownBody.valid, false);
+  assert.equal(unknownBody.reason, "missing_expired_or_revoked");
+
+  const revoked = await worker.fetch(writeRequest("/api/v1/auth/sessions/revoke", {
+    session_token: createdBody.session_token,
+  }), fakeEnv);
+  const revokedText = await revoked.text();
+  const revokedBody = JSON.parse(revokedText);
+  assert.equal(revoked.status, 200);
+  assert.equal(revokedBody.status, "signed_out");
+  assert.equal(revokedBody.revoked, true);
+  assert.equal(revokedBody.audit_persisted, true);
+  assert.equal(revokedBody.session_token_returned, false);
+  assert.equal(revokedText.includes(createdBody.session_token), false);
+  assert.equal(fakeEnv.DB.audit[1].event_type, "cloudflare_d1_hosted_session_revoked");
+
+  const afterRevoke = await worker.fetch(writeRequest("/api/v1/auth/sessions/verify", {
+    session_token: createdBody.session_token,
+  }), fakeEnv);
+  assert.equal((await afterRevoke.json()).valid, false);
+});
+
+test("hosted session issuance is authenticated, validated, and audit-atomic", async () => {
+  const unauthorizedEnv = env();
+  const unauthorized = await worker.fetch(writeRequest("/api/v1/auth/sessions", {
+    provider: "guest",
+  }, "wrong-token"), unauthorizedEnv);
+  assert.equal(unauthorized.status, 401);
+  assert.equal(unauthorizedEnv.DB.sessions.size, 0);
+
+  const invalid = await worker.fetch(writeRequest("/api/v1/auth/sessions", {
+    provider: "github",
+    name: "Unsupported",
+  }), unauthorizedEnv);
+  assert.equal(invalid.status, 400);
+  assert.equal((await invalid.json()).error, "invalid_identity");
+  assert.equal(unauthorizedEnv.DB.sessions.size, 0);
+
+  const auditFailureEnv = env({ failAuditWrites: true });
+  const auditFailure = await worker.fetch(writeRequest("/api/v1/auth/sessions", {
+    provider: "guest",
+  }), auditFailureEnv);
+  const auditFailureBody = await auditFailure.json();
+  assert.equal(auditFailure.status, 503);
+  assert.equal(auditFailureBody.error, "hosted_session_persistence_failed");
+  assert.equal(auditFailureEnv.DB.sessions.size, 0);
+  assert.equal(auditFailureEnv.DB.audit.length, 0);
 });
 
 test("a generated build survives the create-list-read-delete registry roundtrip", async () => {

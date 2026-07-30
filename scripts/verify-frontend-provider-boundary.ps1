@@ -172,7 +172,7 @@ if ($buildItemGetIdRead -lt 0 -or $buildItemGetProxy -le $buildItemGetIdRead) {
 }
 
 foreach ($required in @(
-  'const writeBlock = authorizeBoundaryWrite(req)',
+  'const writeBlock = await authorizeBoundaryWrite(req)',
   'if (writeBlock) return writeBlock',
   'contract_version: "stateful-build-delete-guard-v1"',
   'error: "build_delete_owner_identity_required"',
@@ -192,7 +192,7 @@ foreach ($forbidden in @("proxyToBoundary", "proxyReadToBoundary", "serviceAuth"
   Assert-NotContains "build item DELETE owner guard" $buildItemDelete $forbidden
 }
 $buildItemDeleteBodyMarker = "): Promise<Response> {"
-$buildItemDeleteGuardStatement = "const writeBlock = authorizeBoundaryWrite(req);"
+$buildItemDeleteGuardStatement = "const writeBlock = await authorizeBoundaryWrite(req);"
 $buildItemDeleteGuardReturnStatement = "if (writeBlock) return writeBlock;"
 $buildItemDeleteBodyStart = $buildItemDelete.IndexOf($buildItemDeleteBodyMarker, [StringComparison]::Ordinal)
 $buildItemDeleteGuard = $buildItemDelete.IndexOf($buildItemDeleteGuardStatement, [StringComparison]::Ordinal)

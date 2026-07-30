@@ -32,7 +32,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 }
 
 export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
-  const writeBlock = authorizeBoundaryWrite(req);
+  const writeBlock = await authorizeBoundaryWrite(req);
   if (writeBlock) return writeBlock;
   const clean = safeId((await ctx.params).id);
   if (!clean) return Response.json({ status: "not_found" }, { status: 404 });

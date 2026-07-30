@@ -178,6 +178,7 @@ $requiredFiles = @(
   "migrations\0001_foundation.sql",
   "migrations\0002_build_prompt_redaction.sql",
   "migrations\0003_zero_card_d1_artifacts.sql",
+  "migrations\0004_hosted_sessions.sql",
   "src\index.js",
   "test\index.test.js"
 )
@@ -191,6 +192,7 @@ $source = Get-Content -LiteralPath (Join-Path $workerRoot "src\index.js") -Raw
 $migration = Get-Content -LiteralPath (Join-Path $workerRoot "migrations\0001_foundation.sql") -Raw
 $promptMigration = Get-Content -LiteralPath (Join-Path $workerRoot "migrations\0002_build_prompt_redaction.sql") -Raw
 $artifactMigration = Get-Content -LiteralPath (Join-Path $workerRoot "migrations\0003_zero_card_d1_artifacts.sql") -Raw
+$hostedSessionMigration = Get-Content -LiteralPath (Join-Path $workerRoot "migrations\0004_hosted_sessions.sql") -Raw
 $testSource = Get-Content -LiteralPath (Join-Path $workerRoot "test\index.test.js") -Raw
 $boundarySource = Get-Content -LiteralPath "apps\frontend\lib\frontendBoundary.ts" -Raw
 $buildSource = Get-Content -LiteralPath "apps\frontend\app\api\v1\build\route.ts" -Raw
@@ -239,6 +241,7 @@ foreach ($marker in @(
   'cloudflare-d1-stateful-runtime-v1',
   'cloudflare-native-runtime-candidate-v2',
   'cloudflare-native-probe-message-v2',
+  'cloudflare-d1-hosted-session-v1',
   'x-superbrain-agent-token',
   'AGENT_API_AUTH_TOKEN',
   'env.DB.prepare',
@@ -250,6 +253,9 @@ foreach ($marker in @(
   'cloudflare_d1_native_artifact_deleted',
   '/api/v1/cloud-native/contract',
   '/api/v1/cloud-native/probes',
+  '/api/v1/auth/sessions',
+  '/api/v1/auth/sessions/verify',
+  '/api/v1/auth/sessions/revoke',
   '/api/v1/builds',
   'const buildMatch = url.pathname.match',
   '/api/v1/workspace/artifacts',
@@ -306,6 +312,24 @@ foreach ($marker in @(
   "artifact_persistence_failed"
 )) {
 Assert-Contains "Worker artifact create" $artifactCreateSection $marker
+}
+
+$hostedSessionSection = Get-SourceSection $source "async function createHostedSession" "async function createBuild" "Worker hosted sessions"
+foreach ($marker in @(
+  "authenticated(request, env)",
+  "randomHostedSessionToken",
+  "sha256(sessionToken)",
+  "INSERT INTO hosted_sessions",
+  "cloudflare_d1_hosted_session_created",
+  "token_storage: ""sha256_only""",
+  "session_token_returned: false",
+  "UPDATE hosted_sessions",
+  "cloudflare_d1_hosted_session_revoked",
+  "hosted_session_persistence_failed",
+  "hosted_session_verification_failed",
+  "hosted_session_revoke_failed"
+)) {
+  Assert-Contains "Worker hosted sessions" $hostedSessionSection $marker
 }
 
 $nativeContractSection = Get-SourceSection $source "function nativeRuntimeTruth" "export class RuntimeCoordinator" "Cloudflare-native contract"
@@ -391,12 +415,23 @@ foreach ($marker in @(
 )) {
   Assert-Contains "D1 zero-card artifact migration" $artifactMigration $marker
 }
+foreach ($marker in @(
+  "CREATE TABLE IF NOT EXISTS hosted_sessions",
+  "token_sha256 TEXT PRIMARY KEY",
+  "session_id TEXT NOT NULL UNIQUE",
+  "provider IN ('guest', 'name')",
+  "revoked_at TEXT",
+  "idx_hosted_sessions_expires_at"
+)) {
+  Assert-Contains "D1 hosted session migration" $hostedSessionMigration $marker
+}
 
 foreach ($marker in @(
   'authEnvName: "AGENT_API_AUTH_TOKEN"',
   'authHeaderName: "x-superbrain-agent-token"',
   'headers.set(config.authHeaderName, gatewayToken)',
-  'export function authorizeBoundaryWrite',
+  'export async function authorizeBoundaryWrite',
+  'verifyHostedAuthSessionAtBoundary',
   'frontend-boundary-write-guard-v1',
   'verifySignedAuthSession',
   'service_auth_forwarded: false',
@@ -417,7 +452,7 @@ foreach ($marker in @(
   'persistBuild(req, buildRecord)',
   '"/api/v1/builds",',
   '{ serviceAuth: true }',
-  'const writeBlock = authorizeBoundaryWrite(req)',
+  'const writeBlock = await authorizeBoundaryWrite(req)',
   'if (writeBlock) return writeBlock',
   'payload.audit_persisted === true',
   'build_persistence_unavailable',
@@ -428,12 +463,12 @@ foreach ($marker in @(
   Assert-Contains "Frontend build route" $buildSource $marker
 }
 $buildPostStart = $buildSource.IndexOf("export async function POST", [StringComparison]::Ordinal)
-$buildGuardIndex = $buildSource.IndexOf("const writeBlock = authorizeBoundaryWrite(req)", $buildPostStart, [StringComparison]::Ordinal)
+$buildGuardIndex = $buildSource.IndexOf("const writeBlock = await authorizeBoundaryWrite(req)", $buildPostStart, [StringComparison]::Ordinal)
 $buildGenerateIndex = $buildSource.IndexOf("const generated = await generate", $buildPostStart, [StringComparison]::Ordinal)
 Assert-True ($buildPostStart -ge 0 -and $buildGuardIndex -gt $buildPostStart -and $buildGenerateIndex -gt $buildGuardIndex) "Frontend build write guard must run before generation or persistence"
 
 foreach ($marker in @(
-  'const writeBlock = authorizeBoundaryWrite(req)',
+  'const writeBlock = await authorizeBoundaryWrite(req)',
   'build_delete_owner_identity_required',
   'service_auth_forwarded: false'
 )) {
@@ -450,7 +485,7 @@ Assert-True (-not $frontendBuildDeleteSection.Contains("serviceAuth: true")) "Br
 foreach ($marker in @(
   'export async function GET',
   'proxyReadToBoundary(req, "agent-api", "/api/v1/workspace/artifacts")',
-  'const writeBlock = authorizeBoundaryWrite(req)',
+  'const writeBlock = await authorizeBoundaryWrite(req)',
   '{ serviceAuth: true }'
 )) {
   Assert-Contains "Frontend workspace artifact route" $artifactRouteSource $marker
@@ -458,7 +493,7 @@ foreach ($marker in @(
 $frontendArtifactGetSection = Get-SourceSection $artifactRouteSource "export async function GET" "export async function POST" "Frontend workspace artifact read route"
 Assert-True (-not $frontendArtifactGetSection.Contains("serviceAuth")) "Public workspace artifact reads cannot request Agent API service auth"
 $artifactPostStart = $artifactRouteSource.IndexOf("export async function POST", [StringComparison]::Ordinal)
-$artifactGuardIndex = $artifactRouteSource.IndexOf("const writeBlock = authorizeBoundaryWrite(req)", $artifactPostStart, [StringComparison]::Ordinal)
+$artifactGuardIndex = $artifactRouteSource.IndexOf("const writeBlock = await authorizeBoundaryWrite(req)", $artifactPostStart, [StringComparison]::Ordinal)
 $artifactProxyIndex = $artifactRouteSource.IndexOf('proxyToBoundary(req, "agent-api"', $artifactPostStart, [StringComparison]::Ordinal)
 Assert-True ($artifactPostStart -ge 0 -and $artifactGuardIndex -gt $artifactPostStart -and $artifactProxyIndex -gt $artifactGuardIndex) "Frontend artifact write guard must run before service-auth proxying"
 Assert-Contains "Apps gallery" $gallerySource 'fetch("/api/v1/builds?limit=24"'
@@ -480,6 +515,8 @@ foreach ($marker in @(
 
 foreach ($marker in @(
   'writes require the dedicated server-side agent token',
+  'hosted opaque sessions survive create-verify-revoke with hash-only D1 storage',
+  'hosted session issuance is authenticated, validated, and audit-atomic',
   'survives the create-list-read-delete registry roundtrip',
   'build and audit persistence fail atomically without returning generated output',
   'known secret forms are rejected before build persistence and never echoed',
@@ -511,12 +548,15 @@ $evidence = [ordered]@{
   preview_worker_name = [string]$config.env.preview.name
   wrangler_version = [string]$package.devDependencies.wrangler
   langgraph_version = [string]$package.dependencies.'@langchain/langgraph'
-  schema_tables = @("builds", "workspace_artifacts", "runtime_runs", "agent_tasks", "memory_entries", "audit_events", "native_artifacts")
+  schema_tables = @("builds", "workspace_artifacts", "runtime_runs", "agent_tasks", "memory_entries", "audit_events", "native_artifacts", "hosted_sessions")
   cloudflare_native_contract_version = "cloudflare-native-runtime-candidate-v2"
   cloudflare_native_bindings = @("DB", "RUNTIME_COORDINATOR", "RUNTIME_QUEUE")
   cloudflare_native_dev_only = $true
   cloudflare_native_hosted_proof = $false
   cloudflare_native_runtime_exercised = $false
+  hosted_session_roundtrip_verified = $false
+  hosted_session_hash_only_storage_verified = $false
+  hosted_session_revocation_verified = $false
   unit_tests_verified = $true
   frontend_server_boundary_verified = $true
   live_provider_call_executed = $false
@@ -646,6 +686,81 @@ if (-not $StaticOnly) {
   Assert-Equal ([string]$unauthorizedRuntime.payload.error) "stateful_runtime_authentication_required" "Unauthenticated LangGraph start guard"
 
   $authHeaders = @{ "x-superbrain-agent-token" = $env:AGENT_API_AUTH_TOKEN; Accept = "application/json" }
+  $unauthorizedSession = Invoke-JsonRequest -Method POST -Uri "$normalized/api/v1/auth/sessions" -Body ([ordered]@{
+    provider = "guest"
+  })
+  Assert-Equal $unauthorizedSession.status 401 "Unauthenticated hosted session create"
+  Assert-Equal ([string]$unauthorizedSession.payload.error) "hosted_session_authentication_required" "Unauthenticated hosted session guard"
+
+  $hostedSessionToken = $null
+  $hostedSessionRevoked = $false
+  try {
+    $hostedSessionCreated = Invoke-JsonRequest -Method POST -Uri "$normalized/api/v1/auth/sessions" -Headers $authHeaders -Body ([ordered]@{
+      provider = "name"
+      name = "Hosted Verifier"
+    })
+    Assert-Equal $hostedSessionCreated.status 201 "Hosted session create"
+    Assert-Equal ([string]$hostedSessionCreated.payload.contract_version) "cloudflare-d1-hosted-session-v1" "Hosted session create contract"
+    Assert-Equal ([string]$hostedSessionCreated.payload.status) "created" "Hosted session create status"
+    Assert-JsonBoolean $hostedSessionCreated.payload "persisted" $true "Hosted session create"
+    Assert-JsonBoolean $hostedSessionCreated.payload "audit_persisted" $true "Hosted session create"
+    Assert-Equal ([string]$hostedSessionCreated.payload.session_backend) "cloudflare-d1" "Hosted session backend"
+    Assert-Equal ([string]$hostedSessionCreated.payload.token_storage) "sha256_only" "Hosted session token storage"
+    Assert-True ($null -eq $hostedSessionCreated.payload.PSObject.Properties["secret_output"]) "Hosted session issuance must not make a false generic no-secret claim"
+    $hostedSessionToken = [string]$hostedSessionCreated.payload.session_token
+    Assert-True ($hostedSessionToken -match '^[A-Za-z0-9_-]{43}$') "Hosted session credential format is invalid"
+    $hostedSessionId = [string]$hostedSessionCreated.payload.session.id
+    Assert-True ($hostedSessionId -match '^[0-9a-f-]{36}$') "Hosted session id is invalid"
+
+    $hostedSessionVerified = Invoke-JsonRequest -Method POST -Uri "$normalized/api/v1/auth/sessions/verify" -Headers $authHeaders -Body ([ordered]@{
+      session_token = $hostedSessionToken
+    })
+    Assert-Equal $hostedSessionVerified.status 200 "Hosted session verify"
+    Assert-Equal ([string]$hostedSessionVerified.payload.status) "verified" "Hosted session verify status"
+    Assert-JsonBoolean $hostedSessionVerified.payload "valid" $true "Hosted session verify"
+    Assert-JsonBoolean $hostedSessionVerified.payload "session_token_returned" $false "Hosted session verify"
+    Assert-Equal ([string]$hostedSessionVerified.payload.session.id) $hostedSessionId "Hosted session verify id"
+    Assert-SecretAbsent $hostedSessionVerified.payload $hostedSessionToken "Hosted session verify"
+
+    $unknownSessionToken = "A" * 43
+    $unknownSession = Invoke-JsonRequest -Method POST -Uri "$normalized/api/v1/auth/sessions/verify" -Headers $authHeaders -Body ([ordered]@{
+      session_token = $unknownSessionToken
+    })
+    Assert-Equal $unknownSession.status 200 "Unknown hosted session verify"
+    Assert-Equal ([string]$unknownSession.payload.status) "invalid" "Unknown hosted session verify status"
+    Assert-JsonBoolean $unknownSession.payload "valid" $false "Unknown hosted session verify"
+    Assert-SecretAbsent $unknownSession.payload $unknownSessionToken "Unknown hosted session verify"
+
+    $hostedSessionDeleted = Invoke-JsonRequest -Method POST -Uri "$normalized/api/v1/auth/sessions/revoke" -Headers $authHeaders -Body ([ordered]@{
+      session_token = $hostedSessionToken
+    })
+    Assert-Equal $hostedSessionDeleted.status 200 "Hosted session revoke"
+    Assert-Equal ([string]$hostedSessionDeleted.payload.status) "signed_out" "Hosted session revoke status"
+    Assert-JsonBoolean $hostedSessionDeleted.payload "revoked" $true "Hosted session revoke"
+    Assert-JsonBoolean $hostedSessionDeleted.payload "audit_persisted" $true "Hosted session revoke"
+    Assert-JsonBoolean $hostedSessionDeleted.payload "session_token_returned" $false "Hosted session revoke"
+    Assert-SecretAbsent $hostedSessionDeleted.payload $hostedSessionToken "Hosted session revoke"
+    $hostedSessionRevoked = $true
+
+    $hostedSessionAfterRevoke = Invoke-JsonRequest -Method POST -Uri "$normalized/api/v1/auth/sessions/verify" -Headers $authHeaders -Body ([ordered]@{
+      session_token = $hostedSessionToken
+    })
+    Assert-Equal $hostedSessionAfterRevoke.status 200 "Hosted session verify after revoke"
+    Assert-JsonBoolean $hostedSessionAfterRevoke.payload "valid" $false "Hosted session verify after revoke"
+    Assert-SecretAbsent $hostedSessionAfterRevoke.payload $hostedSessionToken "Hosted session verify after revoke"
+
+    $evidence.hosted_session_roundtrip_verified = $true
+    $evidence.hosted_session_hash_only_storage_verified = $true
+    $evidence.hosted_session_revocation_verified = $true
+  } finally {
+    if (-not $hostedSessionRevoked -and -not [string]::IsNullOrWhiteSpace($hostedSessionToken)) {
+      $hostedSessionCleanup = Invoke-JsonRequest -Method POST -Uri "$normalized/api/v1/auth/sessions/revoke" -Headers $authHeaders -Body ([ordered]@{
+        session_token = $hostedSessionToken
+      })
+      Assert-True (@(200, 404).Contains([int]$hostedSessionCleanup.status)) "Hosted session cleanup failed"
+    }
+    $hostedSessionToken = $null
+  }
   if ($exerciseNativeProbe) {
   $nativeContractResponse = Invoke-JsonRequest -Method GET -Uri "$normalized/api/v1/cloud-native/contract"
   Assert-Equal $nativeContractResponse.status 200 "Cloudflare-native candidate contract HTTP"

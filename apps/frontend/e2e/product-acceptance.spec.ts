@@ -238,13 +238,20 @@ test("real prompt builds, runs, interacts, and reloads the persisted 3D game", a
     expect(signInResponse.status(), `guest sign-in failed: ${responseFailure(signIn)}`).toBe(200);
     expect(signIn.status).toBe("signed_in");
     expect(asRecord(signIn.user).provider).toBe("guest");
-    expect(signIn.session_scope).toBe("signed_http_only_cookie");
+    expect(signIn.session_scope).toBe(devOnly ? "signed_http_only_cookie" : "stateful_http_only_cookie");
+    expect(signIn.persisted).toBe(!devOnly);
+    expect(signIn.session_backend).toBe(devOnly ? "local-hmac" : "cloudflare-d1");
     expect(signIn.external_provider_write).toBe(false);
     const sessionCookie = (await context.cookies()).find((cookie) => cookie.name === SESSION_COOKIE);
     expect(sessionCookie?.httpOnly).toBe(true);
     expect(sessionCookie?.secure).toBe(true);
     expect(sessionCookie?.sameSite).toBe("Strict");
-    expect(sessionCookie?.value.split(".")).toHaveLength(2);
+    if (devOnly) {
+      expect(sessionCookie?.value.split(".")).toHaveLength(2);
+    } else {
+      expect(sessionCookie?.value).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(sessionCookie?.value.split(".")).toHaveLength(1);
+    }
 
     const sessionRead = await page.evaluate(async () => {
       const response = await fetch("/api/v1/auth/session", { cache: "no-store" });
@@ -257,10 +264,13 @@ test("real prompt builds, runs, interacts, and reloads the persisted 3D game", a
       status: "signed_in",
       provider: "guest",
       session_scope: signIn.session_scope,
+      session_backend: signIn.session_backend,
+      persisted: signIn.persisted,
       http_only_cookie: sessionCookie?.httpOnly === true,
       secure_cookie: sessionCookie?.secure === true,
       same_site: sessionCookie?.sameSite,
-      signature_segments: sessionCookie?.value.split(".").length,
+      credential_segments: sessionCookie?.value.split(".").length,
+      credential_format: devOnly ? "hmac_signed_payload" : "opaque_base64url_256_bit",
       external_provider_write: false,
       session_id_sha256: sha256(String(signIn.session_id)),
     };

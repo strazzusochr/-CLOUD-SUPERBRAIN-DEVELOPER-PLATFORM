@@ -6,6 +6,9 @@ const RUNTIME_CONTRACT_VERSION = "cloudflare-d1-langgraph-runtime-v1";
 const NATIVE_CONTRACT_VERSION = "cloudflare-native-runtime-candidate-v2";
 const NATIVE_MESSAGE_VERSION = "cloudflare-native-probe-message-v2";
 const NATIVE_ARTIFACT_CONTENT_TYPE = "text/plain; charset=utf-8";
+const HOSTED_SESSION_CONTRACT_VERSION = "cloudflare-d1-hosted-session-v1";
+const HOSTED_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
+const HOSTED_SESSION_TOKEN_BYTES = 32;
 const SOURCE = "cloudflare-workers-d1-stateful-runtime";
 const AUTH_HEADER = "x-superbrain-agent-token";
 const MAX_BODY_BYTES = 192 * 1024;
@@ -188,6 +191,49 @@ function safeProjectId(value) {
   const id = textField(value ?? "default", "project_id", 1, 80);
   if (!/^[A-Za-z0-9_.-]+$/.test(id)) throw new Error("invalid_project_id");
   return id;
+}
+
+function randomHostedSessionToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(HOSTED_SESSION_TOKEN_BYTES));
+  const binary = String.fromCharCode(...bytes);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function hostedSessionToken(value) {
+  const token = typeof value === "string" ? value : "";
+  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new Error("invalid_session_token");
+  return token;
+}
+
+function hostedIdentity(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid_identity");
+  const provider = String(value.provider ?? "guest");
+  if (provider !== "guest" && provider !== "name") throw new Error("invalid_identity");
+  const suppliedName = String(value.name ?? "").trim().replace(/\s+/g, " ").slice(0, 40);
+  if (provider === "name" && !suppliedName) throw new Error("invalid_identity");
+  const identity = { provider, name: provider === "guest" ? "Gast" : suppliedName };
+  if (containsSecretMaterial(identity)) throw new Error("secret_material_rejected");
+  return identity;
+}
+
+function hostedSessionClaimsFromRow(row, nowSeconds = Math.floor(Date.now() / 1000)) {
+  if (!row || typeof row !== "object") return null;
+  const id = String(row.session_id ?? "");
+  const provider = String(row.provider ?? "");
+  const name = String(row.display_name ?? "");
+  const issuedMilliseconds = Date.parse(String(row.issued_at ?? ""));
+  const expiresMilliseconds = Date.parse(String(row.expires_at ?? ""));
+  const issuedAt = Math.floor(issuedMilliseconds / 1000);
+  const expiresAt = Math.floor(expiresMilliseconds / 1000);
+  const valid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+    && (provider === "guest" || provider === "name")
+    && name.length > 0 && name.length <= 40
+    && Number.isInteger(issuedAt) && Number.isInteger(expiresAt)
+    && issuedAt <= nowSeconds + 60
+    && expiresAt === issuedAt + HOSTED_SESSION_TTL_SECONDS
+    && expiresAt > nowSeconds;
+  if (!valid) return null;
+  return { v: 1, id, provider, name, iat: issuedAt, exp: expiresAt };
 }
 
 function limitFrom(url) {
@@ -521,6 +567,271 @@ function artifactFromRow(row) {
     persisted: true,
     evidence_ref: "cloudflare_d1_workspace_artifact_roundtrip",
   };
+}
+
+function hostedSessionBlocked(error, requestId, note) {
+  return {
+    ...blocked(error, requestId, note),
+    contract_version: HOSTED_SESSION_CONTRACT_VERSION,
+    session_backend: "cloudflare-d1",
+    external_provider_write: false,
+  };
+}
+
+async function createHostedSession(request, env, requestId) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(hostedSessionBlocked(
+      "hosted_session_configuration_unavailable",
+      requestId,
+      "D1 or trusted frontend authentication is unavailable.",
+    ), 503);
+  }
+  if (!(await authenticated(request, env))) {
+    return json(hostedSessionBlocked(
+      "hosted_session_authentication_required",
+      requestId,
+      "Trusted frontend authentication failed.",
+    ), 401);
+  }
+
+  let body;
+  try {
+    body = await readJson(request);
+  } catch (error) {
+    const code = validationCode(error);
+    return json(hostedSessionBlocked(code, requestId, "The session request is invalid."), code === "request_too_large" ? 413 : 400);
+  }
+
+  let identity;
+  try {
+    identity = hostedIdentity(body);
+  } catch (error) {
+    return json(hostedSessionBlocked(validationCode(error, "invalid_identity"), requestId, "The session identity is invalid."), 400);
+  }
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const issuedAt = new Date(nowSeconds * 1000).toISOString();
+  const expiresAt = new Date((nowSeconds + HOSTED_SESSION_TTL_SECONDS) * 1000).toISOString();
+  const sessionId = crypto.randomUUID();
+  const sessionToken = randomHostedSessionToken();
+  const tokenSha256 = await sha256(sessionToken);
+
+  try {
+    await env.DB.batch([
+      env.DB.prepare(`
+        INSERT INTO hosted_sessions (
+          token_sha256, session_id, provider, display_name, issued_at, expires_at, revoked_at
+        ) VALUES (?, ?, ?, ?, ?, ?, NULL)
+      `).bind(tokenSha256, sessionId, identity.provider, identity.name, issuedAt, expiresAt),
+      env.DB.prepare(`
+        INSERT INTO audit_events (id, event_type, trace_id, subject_id, details_json, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).bind(
+        crypto.randomUUID(),
+        "cloudflare_d1_hosted_session_created",
+        requestId,
+        sessionId,
+        JSON.stringify({
+          provider: identity.provider,
+          session_backend: "cloudflare-d1",
+          token_storage: "sha256_only",
+          expires_at: expiresAt,
+          external_provider_write: false,
+          secret_output: false,
+        }),
+        issuedAt,
+      ),
+    ]);
+    const row = await env.DB.prepare(`
+      SELECT session_id, provider, display_name, issued_at, expires_at
+      FROM hosted_sessions
+      WHERE token_sha256 = ? AND revoked_at IS NULL AND expires_at > ?
+      LIMIT 1
+    `).bind(tokenSha256, issuedAt).first();
+    const session = hostedSessionClaimsFromRow(row, nowSeconds);
+    if (!session) throw new Error("hosted_session_readback_failed");
+    return json({
+      contract_version: HOSTED_SESSION_CONTRACT_VERSION,
+      status: "created",
+      session_token: sessionToken,
+      session,
+      persisted: true,
+      session_backend: "cloudflare-d1",
+      token_storage: "sha256_only",
+      credential_delivery: "authenticated_frontend_service",
+      audit_persisted: true,
+      external_provider_write: false,
+      direct_provider_calls: false,
+      live_provider_calls: false,
+      live_mcp_writes: false,
+      production_deploy: false,
+    }, 201);
+  } catch {
+    return json(hostedSessionBlocked(
+      "hosted_session_persistence_failed",
+      requestId,
+      "The session and its audit event were not persisted.",
+    ), 503);
+  }
+}
+
+async function verifyHostedSession(request, env, requestId) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(hostedSessionBlocked(
+      "hosted_session_configuration_unavailable",
+      requestId,
+      "D1 or trusted frontend authentication is unavailable.",
+    ), 503);
+  }
+  if (!(await authenticated(request, env))) {
+    return json(hostedSessionBlocked(
+      "hosted_session_authentication_required",
+      requestId,
+      "Trusted frontend authentication failed.",
+    ), 401);
+  }
+
+  let sessionToken;
+  try {
+    const body = await readJson(request);
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("invalid_request");
+    sessionToken = hostedSessionToken(body.session_token);
+  } catch (error) {
+    const code = validationCode(error);
+    return json(hostedSessionBlocked(code, requestId, "The session credential is invalid."), code === "request_too_large" ? 413 : 400);
+  }
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const now = new Date(nowSeconds * 1000).toISOString();
+  try {
+    const tokenSha256 = await sha256(sessionToken);
+    const row = await env.DB.prepare(`
+      SELECT session_id, provider, display_name, issued_at, expires_at
+      FROM hosted_sessions
+      WHERE token_sha256 = ? AND revoked_at IS NULL AND expires_at > ?
+      LIMIT 1
+    `).bind(tokenSha256, now).first();
+    const session = hostedSessionClaimsFromRow(row, nowSeconds);
+    if (!session) {
+      return json({
+        contract_version: HOSTED_SESSION_CONTRACT_VERSION,
+        status: "invalid",
+        valid: false,
+        reason: "missing_expired_or_revoked",
+        session_backend: "cloudflare-d1",
+        session_token_returned: false,
+        external_provider_write: false,
+        secret_output: false,
+      });
+    }
+    return json({
+      contract_version: HOSTED_SESSION_CONTRACT_VERSION,
+      status: "verified",
+      valid: true,
+      session,
+      session_backend: "cloudflare-d1",
+      token_storage: "sha256_only",
+      session_token_returned: false,
+      external_provider_write: false,
+      secret_output: false,
+    });
+  } catch {
+    return json(hostedSessionBlocked(
+      "hosted_session_verification_failed",
+      requestId,
+      "The session registry could not be read.",
+    ), 503);
+  }
+}
+
+async function revokeHostedSession(request, env, requestId) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(hostedSessionBlocked(
+      "hosted_session_configuration_unavailable",
+      requestId,
+      "D1 or trusted frontend authentication is unavailable.",
+    ), 503);
+  }
+  if (!(await authenticated(request, env))) {
+    return json(hostedSessionBlocked(
+      "hosted_session_authentication_required",
+      requestId,
+      "Trusted frontend authentication failed.",
+    ), 401);
+  }
+
+  let sessionToken;
+  try {
+    const body = await readJson(request);
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("invalid_request");
+    sessionToken = hostedSessionToken(body.session_token);
+  } catch (error) {
+    const code = validationCode(error);
+    return json(hostedSessionBlocked(code, requestId, "The session credential is invalid."), code === "request_too_large" ? 413 : 400);
+  }
+
+  const now = new Date().toISOString();
+  try {
+    const tokenSha256 = await sha256(sessionToken);
+    const existing = await env.DB.prepare(`
+      SELECT session_id, revoked_at
+      FROM hosted_sessions
+      WHERE token_sha256 = ?
+      LIMIT 1
+    `).bind(tokenSha256).first();
+    if (!existing || existing.revoked_at) {
+      return json({
+        contract_version: HOSTED_SESSION_CONTRACT_VERSION,
+        status: "signed_out",
+        revoked: false,
+        session_backend: "cloudflare-d1",
+        session_token_returned: false,
+        audit_persisted: false,
+        external_provider_write: false,
+        secret_output: false,
+      });
+    }
+    const results = await env.DB.batch([
+      env.DB.prepare(`
+        UPDATE hosted_sessions
+        SET revoked_at = ?
+        WHERE token_sha256 = ? AND revoked_at IS NULL
+      `).bind(now, tokenSha256),
+      env.DB.prepare(`
+        INSERT INTO audit_events (id, event_type, trace_id, subject_id, details_json, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).bind(
+        crypto.randomUUID(),
+        "cloudflare_d1_hosted_session_revoked",
+        requestId,
+        String(existing.session_id),
+        JSON.stringify({
+          session_backend: "cloudflare-d1",
+          token_storage: "sha256_only",
+          external_provider_write: false,
+          secret_output: false,
+        }),
+        now,
+      ),
+    ]);
+    if (Number(results[0]?.meta?.changes || 0) !== 1) throw new Error("hosted_session_revoke_race");
+    return json({
+      contract_version: HOSTED_SESSION_CONTRACT_VERSION,
+      status: "signed_out",
+      revoked: true,
+      session_backend: "cloudflare-d1",
+      session_token_returned: false,
+      audit_persisted: true,
+      external_provider_write: false,
+      secret_output: false,
+    });
+  } catch {
+    return json(hostedSessionBlocked(
+      "hosted_session_revoke_failed",
+      requestId,
+      "The session revocation and its audit event were not persisted.",
+    ), 503);
+  }
 }
 
 async function createBuild(request, env, requestId) {
@@ -1310,6 +1621,9 @@ export default {
     const nativeProbeMatch = url.pathname.match(/^\/api\/v1\/cloud-native\/probes\/([A-Za-z0-9_-]{1,64})$/);
 
     if (request.method === "GET" && url.pathname === "/api/v1/health") return health(env, requestId);
+    if (request.method === "POST" && url.pathname === "/api/v1/auth/sessions") return createHostedSession(request, env, requestId);
+    if (request.method === "POST" && url.pathname === "/api/v1/auth/sessions/verify") return verifyHostedSession(request, env, requestId);
+    if (request.method === "POST" && url.pathname === "/api/v1/auth/sessions/revoke") return revokeHostedSession(request, env, requestId);
     if (request.method === "GET" && url.pathname === "/api/v1/cloud-native/contract") return json(nativeContract(env));
     if (request.method === "POST" && url.pathname === "/api/v1/cloud-native/probes") return createNativeProbe(request, env, requestId);
     if (request.method === "GET" && nativeProbeMatch) return getNativeProbe(url, nativeProbeMatch[1], env, requestId);

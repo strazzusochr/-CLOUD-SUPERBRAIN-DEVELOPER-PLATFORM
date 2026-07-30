@@ -1,12 +1,13 @@
 # Auth Session Integrity
 
-Contract: `auth-session-integrity-v1`
+Contracts: `auth-session-integrity-v1` and `cloudflare-d1-hosted-session-v1`
 
-The local login surface issues a signed HttpOnly cookie through
-`POST /api/v1/auth/session`. The cookie payload contains a bounded local identity,
-a random session identifier, issued-at time, and fixed expiry. `GET` accepts the
-session only when its HMAC-SHA256 signature and claims are valid and the expiry is
-still in the future.
+The login surface issues an HttpOnly cookie through `POST /api/v1/auth/session`.
+On localhost, the cookie contains a bounded local identity signed with
+HMAC-SHA256. On a hosted origin, the frontend obtains a 256-bit opaque credential
+from the authenticated Cloudflare runtime and stores only that credential in the
+HttpOnly cookie. D1 stores its SHA-256 digest, session claims, expiry, and
+revocation state; it never stores the raw credential.
 
 ## Guards
 
@@ -15,20 +16,28 @@ still in the future.
 - Malformed, modified, future-issued, and expired sessions are rejected.
 - Rejected cookies are deleted and their values are never returned.
 - Providers are limited to local `guest` and `name` identities.
-- The route performs no GitHub, database, cloud, provider, or MCP write.
 - `AUTH_SESSION_SECRET` must contain at least 32 bytes for restart-stable sessions.
   Without it, a process-local random secret deliberately invalidates sessions on
   restart instead of using a hard-coded production secret.
+- Hosted origins never fall back to the process-local signer. Creation,
+  verification, and revocation fail closed when the authenticated D1 boundary is
+  unavailable.
+- The server-only `AGENT_API_AUTH_TOKEN` protects the Cloudflare session
+  endpoints and is removed from browser-facing requests and responses.
+- Session creation and revocation are atomic with redacted audit events.
+- The hosted adapter uses D1 only: no R2, payment method, new auth secret,
+  external identity provider, LLM provider, or MCP write.
 
 The read-only contract is exposed at
-`GET /api/v1/auth/session/contract`. Deterministic Node tests cover valid,
-tampered, expired, future-issued, malformed, and unsupported-provider paths. A
-real Chromium proof signs in through `/login`, inspects cookie flags, tampers the
-cookie, and verifies fail-closed invalidation.
+`GET /api/v1/auth/session/contract`. Deterministic Node tests cover local signed
+sessions and strict hosted-envelope parsing. Cloudflare runtime tests cover an
+authenticated create/verify/revoke roundtrip, hash-only storage, invalid
+credentials, and audit-atomic failure. A real Chromium proof signs in through
+`/login` and inspects the cookie flags.
 
 ## Non-Claims
 
-This is `DEV-ONLY`; hosted proof still remains separate. It does not prove OAuth
-identity ownership, a production authentication deployment, persistent
-server-side sessions, a live provider call, a provider write, a live MCP write,
-or release promotion.
+The HMAC browser proof remains `DEV-ONLY`; hosted product acceptance is a
+separate verifier result. Neither adapter proves OAuth identity ownership,
+production authentication, a live provider call, a provider write, a live MCP
+write, or release promotion.

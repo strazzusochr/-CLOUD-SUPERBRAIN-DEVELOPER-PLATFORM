@@ -15,7 +15,7 @@ export async function GET(req: Request): Promise<Response> {
 }
 
 export async function POST(req: Request): Promise<Response> {
-  const writeBlock = authorizeBoundaryWrite(req);
+  const writeBlock = await authorizeBoundaryWrite(req);
   if (writeBlock) return writeBlock;
   const response = await proxyToBoundary(req, "agent-api", "/api/v1/workspace/artifacts", 8_000, { serviceAuth: true });
   return response ?? boundaryUnavailable("POST /api/v1/workspace/artifacts", "agent-api");

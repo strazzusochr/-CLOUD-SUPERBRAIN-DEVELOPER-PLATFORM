@@ -182,7 +182,7 @@ async function persistBuild(req: Request, build: BuildRecord): Promise<Record<st
 }
 
 export async function POST(req: Request): Promise<Response> {
-  const writeBlock = authorizeBoundaryWrite(req);
+  const writeBlock = await authorizeBoundaryWrite(req);
   if (writeBlock) return writeBlock;
 
   let body: Record<string, unknown> = {};

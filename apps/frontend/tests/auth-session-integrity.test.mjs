@@ -2,8 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   AUTH_SESSION_TTL_SECONDS,
+  HOSTED_AUTH_SESSION_CONTRACT_VERSION,
   createSignedAuthSession,
+  isHostedAuthSessionInvalid,
+  isHostedAuthSessionToken,
   normalizeAuthIdentity,
+  parseHostedAuthSessionCreation,
+  parseHostedAuthSessionVerification,
   verifySignedAuthSession,
 } from "../lib/authSession.ts";
 
@@ -38,4 +43,53 @@ test("rejects malformed cookies and unsupported identity providers", () => {
   assert.equal(normalizeAuthIdentity({ provider: "github", name: "User" }), null);
   assert.equal(normalizeAuthIdentity({ provider: "name", name: "" }), null);
   assert.deepEqual(normalizeAuthIdentity({ provider: "guest" }), { provider: "guest", name: "Gast" });
+});
+
+test("validates hosted opaque session envelopes without exposing a signing secret", () => {
+  const token = "A".repeat(43);
+  const claims = {
+    v: 1,
+    id: sessionId,
+    provider: "name",
+    name: "Hosted Tester",
+    iat: 1_000,
+    exp: 1_000 + AUTH_SESSION_TTL_SECONDS,
+  };
+  const created = parseHostedAuthSessionCreation({
+    contract_version: HOSTED_AUTH_SESSION_CONTRACT_VERSION,
+    status: "created",
+    session_token: token,
+    session: claims,
+    persisted: true,
+    session_backend: "cloudflare-d1",
+    token_storage: "sha256_only",
+    credential_delivery: "authenticated_frontend_service",
+    audit_persisted: true,
+    external_provider_write: false,
+  }, 1_001);
+  assert.deepEqual(created, { token, claims });
+  assert.equal(isHostedAuthSessionToken(token), true);
+  assert.equal(isHostedAuthSessionToken(`${token}.tampered`), false);
+
+  const verified = parseHostedAuthSessionVerification({
+    contract_version: HOSTED_AUTH_SESSION_CONTRACT_VERSION,
+    status: "verified",
+    valid: true,
+    session: claims,
+    session_backend: "cloudflare-d1",
+    token_storage: "sha256_only",
+    session_token_returned: false,
+    external_provider_write: false,
+    secret_output: false,
+  }, 1_001);
+  assert.deepEqual(verified, claims);
+  assert.equal(isHostedAuthSessionInvalid({
+    contract_version: HOSTED_AUTH_SESSION_CONTRACT_VERSION,
+    status: "invalid",
+    valid: false,
+    session_backend: "cloudflare-d1",
+    session_token_returned: false,
+    external_provider_write: false,
+    secret_output: false,
+  }), true);
 });

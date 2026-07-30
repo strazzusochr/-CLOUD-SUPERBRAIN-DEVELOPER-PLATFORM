@@ -3,6 +3,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 export const AUTH_SESSION_COOKIE = "__Host-sb_session";
 export const AUTH_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 export const AUTH_SESSION_CONTRACT_VERSION = "auth-session-integrity-v1";
+export const HOSTED_AUTH_SESSION_CONTRACT_VERSION = "cloudflare-d1-hosted-session-v1";
 
 const configuredSecret = process.env.AUTH_SESSION_SECRET?.trim();
 const hasValidConfiguredSecret = Boolean(configuredSecret && Buffer.byteLength(configuredSecret, "utf8") >= 32);
@@ -22,6 +23,34 @@ export type AuthSessionClaims = {
 export type AuthSessionVerification =
   | { valid: true; claims: AuthSessionClaims }
   | { valid: false; reason: "missing" | "malformed" | "signature" | "claims" | "expired" };
+
+export type HostedAuthSessionCreation = {
+  token: string;
+  claims: AuthSessionClaims;
+};
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function parseAuthSessionClaims(
+  value: unknown,
+  nowSeconds = Math.floor(Date.now() / 1000),
+): AuthSessionClaims | null {
+  const claims = record(value);
+  if (!claims) return null;
+  const validClaims = claims.v === 1
+    && typeof claims.id === "string" && /^[0-9a-f-]{36}$/.test(claims.id)
+    && (claims.provider === "guest" || claims.provider === "name")
+    && typeof claims.name === "string" && claims.name.length > 0 && claims.name.length <= 40
+    && Number.isInteger(claims.iat) && Number.isInteger(claims.exp)
+    && (claims.iat as number) <= nowSeconds + 60
+    && (claims.exp as number) === (claims.iat as number) + AUTH_SESSION_TTL_SECONDS
+    && (claims.exp as number) > nowSeconds;
+  return validClaims ? claims as AuthSessionClaims : null;
+}
 
 function sign(encodedPayload: string): string {
   return createHmac("sha256", sessionSecret).update(encodedPayload, "utf8").digest("base64url");
@@ -73,22 +102,95 @@ export function verifySignedAuthSession(
   const [encodedPayload, actualSignature] = parts;
   if (!signaturesMatch(actualSignature, sign(encodedPayload))) return { valid: false, reason: "signature" };
 
-  let claims: Partial<AuthSessionClaims>;
+  let claims: unknown;
   try {
-    claims = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8")) as Partial<AuthSessionClaims>;
+    claims = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8")) as unknown;
   } catch {
     return { valid: false, reason: "claims" };
   }
-  const validClaims = claims.v === 1
-    && typeof claims.id === "string" && /^[0-9a-f-]{36}$/.test(claims.id)
-    && (claims.provider === "guest" || claims.provider === "name")
-    && typeof claims.name === "string" && claims.name.length > 0 && claims.name.length <= 40
-    && Number.isInteger(claims.iat) && Number.isInteger(claims.exp)
-    && (claims.iat as number) <= nowSeconds + 60
-    && (claims.exp as number) === (claims.iat as number) + AUTH_SESSION_TTL_SECONDS;
-  if (!validClaims) return { valid: false, reason: "claims" };
-  if ((claims.exp as number) <= nowSeconds) return { valid: false, reason: "expired" };
-  return { valid: true, claims: claims as AuthSessionClaims };
+  const claimsRecord = record(claims);
+  if (!claimsRecord) return { valid: false, reason: "claims" };
+  if (Number.isInteger(claimsRecord.exp) && (claimsRecord.exp as number) <= nowSeconds) {
+    return { valid: false, reason: "expired" };
+  }
+  const parsed = parseAuthSessionClaims(claims, nowSeconds);
+  return parsed ? { valid: true, claims: parsed } : { valid: false, reason: "claims" };
+}
+
+export function isHostedAuthSessionToken(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{43}$/.test(value);
+}
+
+export function parseHostedAuthSessionCreation(
+  value: unknown,
+  nowSeconds = Math.floor(Date.now() / 1000),
+): HostedAuthSessionCreation | null {
+  const envelope = record(value);
+  if (
+    !envelope
+    || envelope.contract_version !== HOSTED_AUTH_SESSION_CONTRACT_VERSION
+    || envelope.status !== "created"
+    || envelope.persisted !== true
+    || envelope.session_backend !== "cloudflare-d1"
+    || envelope.token_storage !== "sha256_only"
+    || envelope.credential_delivery !== "authenticated_frontend_service"
+    || envelope.audit_persisted !== true
+    || envelope.external_provider_write !== false
+    || !isHostedAuthSessionToken(envelope.session_token)
+  ) {
+    return null;
+  }
+  const claims = parseAuthSessionClaims(envelope.session, nowSeconds);
+  return claims ? { token: envelope.session_token, claims } : null;
+}
+
+export function parseHostedAuthSessionVerification(
+  value: unknown,
+  nowSeconds = Math.floor(Date.now() / 1000),
+): AuthSessionClaims | null {
+  const envelope = record(value);
+  if (
+    !envelope
+    || envelope.contract_version !== HOSTED_AUTH_SESSION_CONTRACT_VERSION
+    || envelope.status !== "verified"
+    || envelope.valid !== true
+    || envelope.session_backend !== "cloudflare-d1"
+    || envelope.token_storage !== "sha256_only"
+    || envelope.session_token_returned !== false
+    || envelope.external_provider_write !== false
+    || envelope.secret_output !== false
+  ) {
+    return null;
+  }
+  return parseAuthSessionClaims(envelope.session, nowSeconds);
+}
+
+export function isHostedAuthSessionInvalid(value: unknown): boolean {
+  const envelope = record(value);
+  return Boolean(
+    envelope
+    && envelope.contract_version === HOSTED_AUTH_SESSION_CONTRACT_VERSION
+    && envelope.status === "invalid"
+    && envelope.valid === false
+    && envelope.session_backend === "cloudflare-d1"
+    && envelope.session_token_returned === false
+    && envelope.external_provider_write === false
+    && envelope.secret_output === false,
+  );
+}
+
+export function isHostedAuthSessionRevocation(value: unknown): boolean {
+  const envelope = record(value);
+  return Boolean(
+    envelope
+    && envelope.contract_version === HOSTED_AUTH_SESSION_CONTRACT_VERSION
+    && envelope.status === "signed_out"
+    && typeof envelope.revoked === "boolean"
+    && envelope.session_backend === "cloudflare-d1"
+    && envelope.session_token_returned === false
+    && envelope.external_provider_write === false
+    && envelope.secret_output === false,
+  );
 }
 
 export function authSessionContract() {
@@ -118,13 +220,24 @@ export function authSessionContract() {
     },
     allowed_providers: ["guest", "name"],
     persistence: "signed_http_only_cookie",
+    hosted_persistence: {
+      contract_version: HOSTED_AUTH_SESSION_CONTRACT_VERSION,
+      backend: "cloudflare-d1",
+      credential: "opaque_256_bit_http_only_cookie",
+      server_storage: "sha256_only",
+      audit_atomic: true,
+      raw_token_in_browser_json: false,
+      configured_service_boundary_required: true,
+      fallback_on_hosted_boundary_failure: false,
+    },
     external_provider_write: false,
     live_oauth_call: false,
     production_identity_claimed: false,
     non_claims: [
       "This local session contract does not prove external OAuth identity ownership.",
       "Without AUTH_SESSION_SECRET, sessions are intentionally process-local and expire on restart.",
-      "No GitHub, cloud, database, provider, or MCP write is performed.",
+      "The hosted D1 session adapter does not prove external OAuth identity ownership.",
+      "No GitHub, LLM provider, payment, R2, or MCP write is performed.",
     ],
   };
 }
