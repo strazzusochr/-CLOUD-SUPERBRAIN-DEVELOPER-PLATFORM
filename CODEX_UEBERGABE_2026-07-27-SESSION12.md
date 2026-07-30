@@ -1,6 +1,23 @@
-# CODEX-ÜBERGABE — SESSION 12 (2026-07-27) — ✅ ALLES SAUBER GEPUSHT · nur HOSTED offen
+# CODEX-ÜBERGABE — SESSION 12 (2026-07-27) + NACHTRAG 2026-07-30 — P1 GRÜN · HOSTED offen
 > **Ersetzt SESSION11.** Jede Zahl gegen Repo-Artefakte verifiziert (`git log`, Report-JSONs, Verifier-Läufe).
-> **Codex' abgebrochene Arbeit wurde geprüft, zu Ende geführt und gesichert. Working Tree ist sauber.**
+> Fremde Working-Tree-Dateien bleiben unberührt; Slice-Dateien werden ausschließlich explizit gestaged.
+
+## NACHTRAG 2026-07-30 — AKTUELLE 22-SEITEN-ABNAHME
+
+Der vollständige aktuelle Real-Chromium-Lauf ist grün:
+**22/22 Routen · 29/29 aktivierte Familien · 161/161 aktivierte Member · 0 tote · 0 unregistrierte ·
+0 Click-only/Non-direct · 0 unerwartete Console-Fehler · 0 Page-Fehler**. Zwei erlaubte Provider-Builds waren
+live; zwei erwartete 403 waren exakt mit den gegateten Games-/Apps-DELETEs korreliert.
+
+Die Registry besitzt **31 Familien / 173 Mitglieder / 161 enabled**. Die frühere Angabe `198/187` war eine
+falsche Hochrechnung: `/organism/map` besitzt jetzt 7 dedizierte Topologie-Controls statt 33 wiederverwendeter
+Phase-6-Controls; `/technology` besitzt 4 Mitglieder (3 enabled, 1 conditional). Knoten- und Adjazenzbuttons
+verwenden einen explizit registrierten Auswahlhandler. Der transiente P0-Build-Read wird ohne 503-Whitelist
+zweimal begrenzt auf je 15 Sekunden versucht. Fokussierter Map-Test, 40/40 Reads, TypeScript, ESLint,
+Next-Build 21/21, `verify-phase1`, npm audit und Gitleaks bestanden.
+
+Report-SHA-256: `399F310FBDA0D4D584C6847F6462D1B1CF4895037FAB9FAFF90D123E7C183F6F`.
+Kein Prozentcredit: Overall `86 %`, `MARKET_READY:false`. DEV-ONLY; hosted proof still blocked.
 
 ---
 
@@ -52,20 +69,14 @@ Live-Grün vortäuschen — auch die UI selbst nicht.**
 ## 2. AUDIT-STAND 22 SEITEN
 **9 ECHT NUTZBAR · 11 NUR CONTRACT · 2 STUB/MOCK · 0 FEHLT/BROKEN** (`docs/audit/vision-vs-reality-2026-07-25.md`)
 
-> ⚠️ **STALE-MARKER, bitte ernst nehmen:** Die Registry enthält jetzt zusätzlich die Familie
-> `technology-runtime-controls` mit 3 Mitgliedern (`technology-runtime-refresh`, `technology-provider-filter`,
-> `technology-layer-select`, alle `requireEffectDelta: true`) → **31 Familien / 198 Mitglieder / 187 enabled**.
-> Der protokollierte Abnahmelauf **`22/22 · 184/184` stammt von VOR dieser Ergänzung.** Die drei neuen Aktionen
-> sind einzeln über `technology.spec.ts` (Chromium 6/6) bewiesen, **nicht** über den 22-Seiten-Runner.
-> **P1 für Codex: `npm run verify:22-page-actions` erneut fahren, bevor Prozente/Gates angefasst werden.**
-> Bis dahin gilt `184/184` als *historisch*, nicht als aktuell. Der Marker steht auch in
-> `docs/audit/22-page-action-matrix.md`.
+> ✅ **Aktueller Nachlauf:** `22/22 · 29/29 · 161/161`, ohne tote oder unregistrierte Controls.
+> Maßgeblich ist der Nachtrag am Dateianfang; `184/184` bleibt ausschließlich historische Session-10-Evidenz.
 
 ## 3. 📊 STAND
-- Overall **86 %** · `MARKET_READY: false` · **autonom offen: 0** (außer P1 oben)
+- Overall **86 %** · `MARKET_READY: false` · autonom offen: ADR-010-D1/DO-Adapter und Hosted-O2Core
 - `P0 100·P1 100·P2 100·P3 44·P4 100·P5 68·P6 90` — `FE 100·ORC 100·AP 69·LLM 55·MCP 56·MEM 90·OBS 100`
 - **RC10** `prod-candidate-2026-07-24-local-rc10` aus `2ae4c61a`; Rollback RC9 @ `0cbe644c`; GHCR unveröffentlicht
-- **Working Tree sauber** bzgl. Slice; 33 fremde untracked Dateien (alte Übergaben, ZIPs, Screenshots) **unberührt**
+- Fremder Product-Acceptance-Report und fremde untracked Dateien bleiben **unberührt**
 - Projekt-Integrität geprüft: **833/833 versionierte Dateien vorhanden, `git fsck` sauber**
 
 ---

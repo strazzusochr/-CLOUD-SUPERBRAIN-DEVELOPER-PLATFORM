@@ -386,7 +386,7 @@ export const ACTION_MATRIX: readonly PageActionEntry[] = [
           ...member("map-topology-kind-filter", "Filter topology kind", `[data-testid="organism-topology-kind-filter"]`, "The fail-closed topology contract is valid and contains multiple node kinds.", "The visible node list is filtered to the selected contract kind.", `[data-testid="organism-topology-node-list"]`, "enabled", [ORGANISM_TOPOLOGY]),
           requireEffectDelta: true,
         },
-        member("map-topology-node-select", "Inspect topology node", `[data-testid="organism-topology-node"]`, "At least one validated topology node is visible.", "The selected node and its inbound/outbound adjacency update.", `[data-testid="organism-topology-adjacency"]`, "enabled", [ORGANISM_TOPOLOGY]),
+        member("map-topology-node-select", "Inspect topology node", `[data-testid="organism-topology-node"], [data-testid="organism-topology-adjacent-node"]`, "At least one validated topology or adjacency node is visible.", "The selected node and its inbound/outbound adjacency update.", `[data-testid="organism-topology-adjacency"]`, "enabled", [ORGANISM_TOPOLOGY]),
         ...liveConsoleMembers("map-live"),
         member("map-nav-live", "Open live organism", `.page-head a[href="/organism"]`, "Map route is mounted.", "Browser navigates to /organism.", "main"),
         member("map-nav-replay", "Open organism replay", `.page-head a[href="/organism/replay"]`, "Map route is mounted.", "Browser navigates to /organism/replay.", "main"),

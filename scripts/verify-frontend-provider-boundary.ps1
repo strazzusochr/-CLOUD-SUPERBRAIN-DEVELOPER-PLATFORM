@@ -139,7 +139,8 @@ $buildItemGet = $buildItemRoute.Substring($buildItemGetStart, $buildItemDeleteSt
 $buildItemDelete = $buildItemRoute.Substring($buildItemDeleteStart)
 
 foreach ($required in @(
-  'proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`, 30_000)',
+  'proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`, 15_000)',
+  'retryResponse ?? firstResponse',
   'response ?? Response.json',
   'status: "degraded"',
   'accepted: false',
@@ -157,8 +158,15 @@ foreach ($required in @(
 foreach ($forbidden in @("proxyReadToBoundary", "serviceAuth")) {
   Assert-NotContains "build item GET boundary" $buildItemGet $forbidden
 }
+$buildItemAttemptCount = [regex]::Matches(
+  $buildItemGet,
+  [regex]::Escape('proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`, 15_000)')
+).Count
+if ($buildItemAttemptCount -ne 2) {
+  throw "Frontend provider boundary verification failed: build item GET must use exactly two bounded idempotent read attempts."
+}
 $buildItemGetIdRead = $buildItemGet.IndexOf("const clean = safeId((await ctx.params).id)", [StringComparison]::Ordinal)
-$buildItemGetProxy = $buildItemGet.IndexOf('proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`, 30_000)', [StringComparison]::Ordinal)
+$buildItemGetProxy = $buildItemGet.IndexOf('proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`, 15_000)', [StringComparison]::Ordinal)
 if ($buildItemGetIdRead -lt 0 -or $buildItemGetProxy -le $buildItemGetIdRead) {
   throw "Frontend provider boundary verification failed: build item GET must sanitize the route id before constructing the exact Agent API upstream path."
 }

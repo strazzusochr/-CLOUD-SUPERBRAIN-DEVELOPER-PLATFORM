@@ -1,7 +1,7 @@
-# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-07-27 (Session 12) — ✅ SAUBER GEPUSHT · nur HOSTED offen
+# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-07-30 (Session 12) — P1 GRÜN · HOSTED offen
 # In JEDER Session: (1) diese Datei → (2) CODEX_UEBERGABE_2026-07-27-SESSION12.md → (3) arbeiten.
 
-## ✅ STAND — HEAD `23c11c21`, exakt synchron mit Remote
+## ✅ STAND — aktueller Feature-Branch
 Branch `claude/cloud-superbrain-analysis-127d2e` · Overall **86 %** · `MARKET_READY:false`
 `P0 100·P1 100·P2 100·P3 44·P4 100·P5 68·P6 90` — `FE 100·ORC 100·AP 69·LLM 55·MCP 56·MEM 90·OBS 100`
 RC10 aus `2ae4c61a`; Rollback RC9 @ `0cbe644c`; GHCR unveröffentlicht.
@@ -21,34 +21,22 @@ Sicherheitskern: nginx löscht eingehenden `X-Superbrain-Source`, versteckt Upst
 ## 22-SEITEN-AUDIT
 **9 ECHT NUTZBAR · 11 NUR CONTRACT · 2 STUB/MOCK · 0 FEHLT/BROKEN** (`/technology` STUB → NUR CONTRACT)
 
-## 🔥 P1 — 22-SEITEN-LAUF: ZWEI PRÄZISE BLOCKER (gemessen 2026-07-27, Session 12)
-Der Lauf gegen `http://localhost:8081` steht bei **22/22 Routen · 29/29 Familien · 161/161 Aktionen ·
-0 tote Aktionen · 0 Page-Fehler**. Er ist trotzdem `failed`, wegen genau zwei Dingen:
+## ✅ P1 — AKTUELLE 22-SEITEN-ABNAHME GRÜN (2026-07-30)
+**22/22 Routen · 29/29 aktivierte Familien · 161/161 aktivierte Aktionen · 0 tote · 0 unregistrierte ·
+0 Click-only/Non-direct · 0 unerwartete Console-Fehler · 0 Page-Fehler.** Zwei erlaubte Provider-Builds waren
+live; zwei erwartete 403 gehörten exakt zu den gegateten Games-/Apps-DELETEs.
 
-**(a) 162 nicht registrierte Bedienelemente auf `/organism/map`** — der eigentliche Blocker.
-Assertion: *„visible page-local controls missing from the action registry"*, `Expected []`, `Received 162`,
-alle mit `route: "/organism/map"`, `tag: "button"`. Ursache: `OrganismTopologyMap` (aus `6750ed70`) rendert die
-Knotenliste als Buttons. Der Runner verlangt, dass **jedes sichtbare** page-lokale Element in `actionMatrix.ts`
-registriert ist. **Entscheidung nötig (Codex):** entweder die Knoten-Buttons als eigene Familie mit
-Effektnachweis registrieren, oder sie als *datengetriebene Liste* sauber aus der Registrierungspflicht
-ausnehmen — **nicht** stillschweigend ignorieren, sondern die Ausnahme im Runner explizit und begründet machen.
+Die Registry enthält **31 Familien / 173 Mitglieder / 161 enabled**. Die frühere Rechnung `198/187` war falsch:
+Die dedizierte `/organism/map`-Topologie besitzt 7 statt der früher wiederverwendeten 33 Phase-6-Controls;
+`/technology` besitzt 4 Mitglieder, davon 3 enabled und 1 conditional. Die 162 datengetriebenen Knoten- und
+Adjazenzbuttons teilen einen **explizit registrierten** Auswahlhandler; keine stille Ausnahme.
 
-**(b) 1 Console-Fehler `503` wird nicht als erwartet klassifiziert.**
-Die Whitelist (`22-page-actions.spec.ts` ~Z. 1121) akzeptiert auf `^/api/v1/build/[A-Za-z0-9_-]{1,64}$`
-ausschließlich **`403 (Forbidden)`**. Beim Lauf trat dort ein **`503 (Service Unavailable)`** auf.
-**Erst klären, warum 503 kommt** (Build-Detail direkt nach Erstellung → mögliche Race), **dann** entscheiden,
-ob 503 legitim in die Whitelist gehört. Keine Whitelist-Erweiterung ohne verstandene Ursache.
-
-✅ **Bereits behoben (Session 12):** `map-live-load` war tot, weil der Test fest `/api/v1/health` wählte;
-`/organism/map` bietet seit der Topologie-Bindung aber Regionen/Sicherheit/**Topologie** an. Der Test nimmt jetzt
-je Aktion den real vorhandenen Endpoint und prüft vorher, dass die Option existiert. → tote Aktionen **1 → 0**.
-
-## 🔥 P1-ALT — 22-SEITEN-LAUF NACHZIEHEN
-Die Registry hat jetzt **31 Familien / 198 Mitglieder / 187 enabled** (neu: `technology-runtime-controls` mit
-`technology-runtime-refresh`, `technology-provider-filter`, `technology-layer-select`, alle `requireEffectDelta`).
-Der protokollierte Lauf **`22/22 · 184/184` stammt von VOR dieser Ergänzung.**
-→ **`npm run verify:22-page-actions` erneut fahren, BEVOR Prozente/Gates angefasst werden.**
-Bis dahin gilt `184/184` als *historisch*. Stale-Marker steht in `docs/audit/22-page-action-matrix.md`.
+Der einmalige 503 war ein transienter Read des bereits persistierten P0-Builds. Der idempotente öffentliche
+Build-Read versucht deshalb exakt zweimal je 15 Sekunden innerhalb des alten 30-Sekunden-Budgets.
+**Keine 503-Whitelist-Erweiterung.** Zusätzlich grün: fokussierter Map-Chromium-Test, 40/40 Build-Reads,
+TypeScript, ESLint, Next-Build 21/21, `verify-phase1`, npm audit 0 und Gitleaks 0/3730.
+Report-SHA-256 `399F310FBDA0D4D584C6847F6462D1B1CF4895037FAB9FAFF90D123E7C183F6F`.
+DEV-ONLY; hosted proof still blocked. Kein Prozentcredit.
 
 ## 🟢 DURCHBRUCH: CF-TOKEN 5/6 — O2Core UND O5 SIND OFFEN (2026-07-27)
 Owner hat einen Token mit korrekten Permissions geliefert. Er lag zunächst als 68-Zeichen-Zeile vor
@@ -77,8 +65,8 @@ eine unerfüllbare Pflichtaufgabe erzwingt Fake-Done. Schnittstelle: `scripts/ow
 Codes: `6003` = kein reiner Token · `1000`/`9106` = ungültig · `10000` = **Permission fehlt**.
 
 ## ▶ SOFORT-SCHLEIFE
-**P1 — 22-Seiten-Lauf nachziehen** (autonom, sofort möglich, siehe oben).
-**P2 — 🔥 HOSTED IST JETZT STARTBAR (O2Core offen, kein Warten mehr):** Ressourcen selbst anlegen
+**P1 — ADR-010 auf echten Zero-Card-D1/DO-Artefaktadapter umstellen; R2 nur `historical_only`.**
+**P2 — 🔥 HOSTED IST JETZT STARTBAR (O2Core offen):** Ressourcen selbst anlegen
 (`wrangler d1 create` · `queues create` · `vectorize create`; **kein `r2 bucket create`** — R2 ist gestrichen,
 Artefakte nach D1, Koordination in Durable Objects), IDs in `wrangler.jsonc` binden
 (**nie Secrets dort**), Migrationen, Worker deployen, `verify-cloudflare-stateful-runtime.ps1` **ohne**
@@ -109,9 +97,6 @@ Runtime — das war auch die Ursache der Vercel-Meldung. **Nie wieder als Backen
 `D:` auf 0,41 GB → `verify-phase1` brach mit `organism topology static surface` ab. Sah aus wie eine Regression in
 `6750ed70`, **war reiner Speichermangel** — nach Freigabe fehlerfrei. **Erst `Get-PSDrive D` prüfen, dann Code
 verdächtigen.** Ursache: Windows-Backup (~37 GB) unter `D:\NEWPC`, vom Owner entfernt. Jetzt **37 GB frei**.
-
-## ⏸ CODEX RATE-LIMITED BIS **2026-08-02, 23:54**
-Kein Absturz, nichts verloren, alles gepusht.
 
 ## 🔑 SECRETS-DATEI: BEREINIGT + VOLLSTÄNDIG VALIDIERT (2026-07-30)
 Der Owner hat nur ergänzt, nie gelöscht → **zwei tote Duplikate**, bei denen Parser (letzter Wert gewinnt)
@@ -195,4 +180,4 @@ verify/Playwright/Docker-Build · Preflight `git log -1` ≥ `23c11c21` + `$env:
 ## 🏁 FERTIG heißt
 `MARKET_READY: true` **UND** `verify-product-acceptance` mit **`hosted_proof: true`** (echtes spielbares 3D-Game
 aus echtem Prompt, in der Cloud, persistiert) **UND** hosted 22-Seiten-Matrix ohne tote Aktionen.
-**Lokal ist alles bewiesen. Es fehlt nur die Cloud — und die ist gratis.**
+**Die lokale 22-Seiten-Abnahme ist grün. Offen: D1/DO-Adapter und echte Hosted-Beweise.**

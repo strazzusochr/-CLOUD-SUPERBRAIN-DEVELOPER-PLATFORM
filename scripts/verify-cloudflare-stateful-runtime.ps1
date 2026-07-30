@@ -406,7 +406,8 @@ foreach ($marker in @(
   Assert-Contains "Frontend build delete route" $buildReadSource $marker
 }
 $frontendBuildGetSection = Get-SourceSection $buildReadSource "export async function GET" "export async function DELETE" "Frontend build read route"
-Assert-Contains "Frontend build read route" $frontendBuildGetSection 'proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`, 30_000)'
+Assert-Equal ([regex]::Matches($frontendBuildGetSection, [regex]::Escape('proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`, 15_000)')).Count) 2 "Frontend build read bounded attempt count"
+Assert-Contains "Frontend build read route" $frontendBuildGetSection "retryResponse ?? firstResponse"
 Assert-True (-not $frontendBuildGetSection.Contains("proxyReadToBoundary")) "Public build reads must preserve the exact Agent API upstream response"
 Assert-True (-not $frontendBuildGetSection.Contains("serviceAuth")) "Public build reads cannot request Agent API service auth"
 $frontendBuildDeleteSection = $buildReadSource.Substring($buildReadSource.IndexOf("export async function DELETE", [StringComparison]::Ordinal))

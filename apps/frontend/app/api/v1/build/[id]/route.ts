@@ -9,7 +9,12 @@ function safeId(value: string): string {
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
   const clean = safeId((await ctx.params).id);
   if (!clean) return Response.json({ status: "not_found" }, { status: 404 });
-  const response = await proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`, 30_000);
+  const firstResponse = await proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`, 15_000);
+  if (firstResponse && firstResponse.status < 500) return firstResponse;
+  // Build reads are idempotent. One bounded retry absorbs a transient boundary
+  // reset without teaching the browser acceptance suite to ignore real 503s.
+  const retryResponse = await proxyToBoundary(req, "agent-api", `/api/v1/build/${clean}`, 15_000);
+  const response = retryResponse ?? firstResponse;
   return response ?? Response.json(
     {
       status: "degraded",

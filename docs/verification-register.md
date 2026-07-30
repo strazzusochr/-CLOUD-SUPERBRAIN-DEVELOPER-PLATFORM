@@ -135,19 +135,24 @@ page, and failed-request counts were zero. Evidence:
 `1BC71C8D3C76C9CD68E67398A23FB573CA44E2F952643F5646BE6835C805AB7D`.
 
 `workspace-action-matrix-v2` passed its complete real-Chromium acceptance:
-22/22 canonical routes, 28/28 enabled page-local families, and 184/184 enabled
-member actions. It records 183 direct effect proofs plus exactly one current
+22/22 canonical routes, 29/29 enabled page-local families, and 161/161 enabled
+member actions. It records 160 direct effect proofs plus exactly one current
 source-bound P0 proof, with zero non-direct, dead, unregistered, or click-only
 passes. Exactly two visible controls made the two allowed build requests and
 received two live provider responses; unexpected provider requests were zero.
 Unexpected console errors and page errors were zero. The two separately
 reported HTTP 403 console entries were request-correlated to the intentionally
 blocked Games and Apps DELETE controls, whose cards remained visible and whose
-errors were surfaced. Mocks and route interception were false. Evidence:
+errors were surfaced. The dedicated topology map now contributes seven
+topology/console/navigation members instead of the earlier 33 reused Phase-6
+members; list and adjacency buttons share one explicitly registered selection
+handler. A transient build-boundary read is retried once without allowing HTTP
+503 in the browser whitelist. Mocks and route interception were false.
+DEV-ONLY; hosted proof still blocked. Evidence:
 `.codex/runs/CURRENT/22-page-actions/report.json`, SHA-256
-`EBA64E765F9429A29D35092D0D2D357585812BBB5750B0122B6150811AB4BB3F`,
+`399F310FBDA0D4D584C6847F6462D1B1CF4895037FAB9FAFF90D123E7C183F6F`,
 source binding
-`98189cefcd24224e9e573ba62e1c2d8af5b06d23c9f39f19474b878d666ea534`.
+`0f5899a3a7d551504fd7c7a47404c32b5814555a95ca6bd0bc3d065787b5e366`.
 
 The same slice added the original Agent API `/api/v1/agent-run` product
 boundary and aligned `/agents` to a gateway-only Planner -> Researcher ->

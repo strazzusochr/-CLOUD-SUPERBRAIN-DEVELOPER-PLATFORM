@@ -92,14 +92,18 @@ nicht: **FEHLT**.
   Klick-/DOM-Änderung und Reload-Parität. Die Keyboard-Eingaben wurden
   gesendet, erzeugten aber keine zusätzliche Pixeländerung.
 - `.codex/runs/CURRENT/22-page-actions/report.json`:
-  22/22 Routen, 28/28 aktivierte Familien und 184/184 aktivierte Member.
-  183 Aktionen wurden direkt mit ihrem eigenen Effekt ausgelöst; genau eine
+  aktueller Lauf vom 2026-07-30 mit 22/22 Routen, 29/29 aktivierten Familien
+  und 161/161 aktivierten Membern. 160 Aktionen wurden direkt mit ihrem
+  eigenen Effekt ausgelöst; genau eine
   Aktion nutzt den aktuellen source-gebundenen P0-Produktbeweis. Zwei
   erlaubte Build-Aufrufe lieferten zwei Live-Providerantworten; es gab keine
-  unerwarteten Provideraufrufe, keine unerwarteten Konsolenfehler und keine
-  Seitenfehler. Zwei erwartete HTTP-403-Konsoleneinträge sind jeweils mit dem
-  absichtlich gesperrten DELETE-Pfad von Games beziehungsweise Apps
-  korreliert. Das beweist die aktivierte lokale Aktionsfläche, aber nicht die
+  unerwarteten Provideraufrufe, keine toten oder unregistrierten Controls,
+  keine unerwarteten Konsolenfehler und keine Seitenfehler. Zwei erwartete
+  HTTP-403-Konsoleneinträge sind jeweils mit dem absichtlich gesperrten
+  DELETE-Pfad von Games beziehungsweise Apps korreliert. Der reduzierte
+  Member-Zähler kommt aus der dedizierten 7-Control-Topologiekarte statt der
+  früher wiederverwendeten 33 Phase-6-Controls; er ist kein Coverage-Verlust.
+  Das beweist die aktivierte lokale Aktionsfläche, aber nicht die
   ausgeschlossenen oder Hosted-Funktionen.
 - Beide Reports sind `dev_only=true` und `hosted_proof=false`.
 - Der Action-Report besitzt eine aktuelle

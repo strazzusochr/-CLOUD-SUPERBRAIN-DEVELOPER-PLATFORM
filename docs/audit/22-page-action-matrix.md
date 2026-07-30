@@ -1,7 +1,7 @@
 # 22-page action matrix
 
-Browser evidence date: 2026-07-26
-Registry update: 2026-07-27
+Browser evidence date: 2026-07-30
+Registry update: 2026-07-30
 Contract: `workspace-action-matrix-v2`
 Registry: `apps/frontend/lib/actionMatrix.ts`
 Verifier: `scripts/verify-22-page-actions.ps1`
@@ -9,12 +9,12 @@ Evidence: `.codex/runs/CURRENT/22-page-actions/report.json`
 
 ## Result
 
-`PASS` — real Chromium, no mocks or route interception:
+`PASS` — current real Chromium run, no mocks or route interception:
 
 - 22/22 canonical routes visited
-- 28/28 enabled page-local action families effect-verified
-- 184/184 enabled member actions audited
-- 183 direct effect proofs plus 1 exact, source-bound P0 proof
+- 29/29 enabled page-local action families effect-verified
+- 161/161 enabled member actions audited
+- 160 direct effect proofs plus 1 exact, source-bound P0 proof
 - 0 dead, unregistered, click-only, or non-direct passes
 - 2/2 allowed build requests returned live provider responses
 - 0 unexpected provider requests
@@ -23,34 +23,26 @@ Evidence: `.codex/runs/CURRENT/22-page-actions/report.json`
   Games and Apps DELETE paths
 - DEV-ONLY; hosted proof still blocked
 
-> **Korrigierter Stand (2026-07-27, Session 12) — gemessen, nicht gerechnet.**
-> Ein früherer Marker in dieser Datei nannte „31 Familien / 198 Mitglieder / 187 enabled".
-> **Das war falsch hochgerechnet.** Der tatsächliche Lauf gegen `http://localhost:8081` meldet:
-> **22/22 Routen · 29/29 Familien effektverifiziert · 161/161 aktivierte Aktionen ·
-> 0 Console-Fehler · 0 Page-Fehler.** Die Registry enthält seit der Technologie-Bindung
-> zusätzlich `technology-runtime-controls` mit `technology-runtime-refresh`,
-> `technology-provider-filter` und `technology-layer-select` (alle `requireEffectDelta: true`);
-> diese sind im obigen Lauf **enthalten und grün**.
-> Die historischen Zahlen `184/184` weiter unten stammen aus einer älteren Zählbasis und sind
-> **nicht** mit `161/161` vergleichbar — maßgeblich ist ausschließlich
-> `.codex/runs/CURRENT/22-page-actions/report.json`.
+The registry contains 31 page-local families and 173 members in total.
+Availability is explicit: 161 `enabled`, 5 `spec_only`, 2 `contract_only`,
+0 `provider_gated`, and 5 `conditional`. `/open-source` is the only route
+with no page-local family. Global AppShell navigation is separate and is not
+counted here.
 
-The registry contains 30 page-local families and 195 members in total.
-Availability is explicit: 184 `enabled`, 5 `spec_only`, 2 `contract_only`,
-0 `provider_gated`, and 4 `conditional`. `/technology` and `/open-source`
-intentionally have no page-local actions. Global AppShell navigation is
-separate and is not counted here.
+The lower current member total is intentional, not lost coverage:
+`/organism/map` no longer reuses 33 Phase-6 scene controls and instead owns
+7 topology/console/navigation members. `/technology` adds 4 runtime-contract
+members. Repeated topology rows and adjacency buttons share one registered
+selection handler; the current runner covers both selectors and the focused
+Organism Chromium test proves adjacency selection itself.
 
 Static `PASS`/`GAP` labels name pre-existing evidence sources. The Session-10
-22-page Chromium report is authoritative for its source-bound enabled
-acceptance scope: 28 families and 184 members are verified. It does not promote gated,
-conditional-without-precondition, specification-only, or contract-only
+22-page Chromium report remains historical for its then-current 28-family /
+184-member source binding. The 2026-07-30 report is authoritative for the
+current registry, including `agents-source-detail`,
+`technology-runtime-controls`, and the dedicated topology map. Neither report
+promotes gated, unavailable conditional, specification-only, or contract-only
 members.
-
-Session 11 replaced the nonexistent conditional `agents-source-link` member
-with the real expandable `agents-source-detail` control. Totals remain
-unchanged because both members are conditional, but the old report's exact
-source-binding hash is historical until the Chromium suite is rerun.
 
 ## Route inventory
 
@@ -61,7 +53,7 @@ source-binding hash is historical until the Chromium suite is rerun.
 | `/workbench` | 3 | 10 | 10 | 0 | 0 |
 | `/organism` | 4 | 30 | 30 | 0 | 0 |
 | `/organism/replay` | 1 | 34 | 33 | 1 contract | 0 |
-| `/organism/map` | 1 | 33 | 33 | 0 | 0 |
+| `/organism/map` | 1 | 7 | 7 | 0 | 0 |
 | `/agents` | 1 | 3 | 2 | 1 conditional | 0 |
 | `/files` | 1 | 2 | 2 | 0 | 0 |
 | `/files/local` | 0 | 5 | 0 | 5 spec | 1 |
@@ -75,7 +67,7 @@ source-binding hash is historical until the Chromium suite is rerun.
 | `/evidence` | 1 | 4 | 4 | 0 | 1 |
 | `/diagnostics` | 1 | 5 | 5 | 0 | 0 |
 | `/design-system` | 1 | 3 | 3 | 0 | 0 |
-| `/technology` | 1 | 3 | 3 | 0 | 0 |
+| `/technology` | 1 | 4 | 3 | 1 conditional | 0 |
 | `/settings` | 0 | 1 | 0 | 1 contract | 1 |
 | `/open-source` | 0 | 0 | 0 | 0 | 0 |
 
@@ -107,8 +99,15 @@ source-binding hash is historical until the Chromium suite is rerun.
   `role="alert"` message.
 - Build status reads use a bounded timeout and surface an unavailable backend
   truthfully instead of reporting a false not-found result.
-- The Workbench retries one read-only status request on a transient server
-  error and keeps the visible error when the retry fails.
+- The public idempotent build-read boundary retries once within the existing
+  30-second budget after a transient fetch failure or upstream 5xx. The
+  acceptance suite still rejects every browser-visible 503; no 503 was added
+  to its console whitelist.
+- The Workbench keeps its visible bounded retry/error behavior if both
+  boundary attempts fail.
+- Topology list and adjacency-node buttons are explicitly covered by the same
+  registered node-selection action; no data-driven control was silently
+  excluded.
 - Marketplace catalog cards are informational; the nonexistent card button
   action was removed.
 - RealGame full-power and emergency-stop controls are conditional on an active
@@ -134,9 +133,12 @@ source-binding hash is historical until the Chromium suite is rerun.
 - Frontend TypeScript: PASS
 - Frontend focused ESLint: PASS
 - PowerShell verifier parse: PASS
-- `verify-22-page-actions.ps1`: PASS (Session-10 source binding; rerun pending)
-- Runtime evidence: 22 routes, 28 families, 184 actions, zero dead actions
-- Historical Session-10 source binding:
-  `98189cefcd24224e9e573ba62e1c2d8af5b06d23c9f39f19474b878d666ea534`
+- `verify-22-page-actions.ps1`: PASS (2026-07-30 current source binding)
+- Runtime evidence: 22 routes, 29 families, 161 actions, zero dead or
+  unregistered actions, zero unexpected console/page errors
+- Current report SHA-256:
+  `399F310FBDA0D4D584C6847F6462D1B1CF4895037FAB9FAFF90D123E7C183F6F`
+- Current source binding:
+  `0f5899a3a7d551504fd7c7a47404c32b5814555a95ca6bd0bc3d065787b5e366`
 
 DEV-ONLY; hosted proof still blocked.
