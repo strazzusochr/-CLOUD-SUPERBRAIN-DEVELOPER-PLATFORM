@@ -1,6 +1,6 @@
 # Cloud Superbrain Project Anchor
 
-Anchor ID: `cloud-superbrain-anchor-2026-07-26-p5-cloudflare-gate-rebase-v2`
+Anchor ID: `cloud-superbrain-anchor-2026-07-30-hosted-product-matrix-v2`
 
 Status: `ACTIVE_RESUME_POINT`
 
@@ -8,18 +8,18 @@ Workspace: `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
 
 Branch: `claude/cloud-superbrain-analysis-127d2e`
 
-Committed and pushed RC10 source: `2ae4c61aa876759abcaa83c36c0a3379206b91a4`
+Committed and pushed hosted acceptance source: `0bb1c326c01e988a153cf12cde36d2108a2ff8c5`
 
 Detailed handoff: `AI_HANDOFF.md`
 
 ## Purpose
 
-Exact resume point after `external-gate-audit-v2` replaced the active Fly/RC10-v1 gate
-projection. The tracked audit and `external-gate-summary-v2` remain blocked only on
-`cloudflare_native_zero_card_hosted_runtime`; Production remains false. A GET-only
-Cloudflare scope audit could inventory 0/6 resource families because the current token lacks
-the management scopes. O1-O5 remain Owner-required; O6 is `resolved_verified` with zero
-percentage credit. This anchor is a resume snapshot, not a progress authority.
+Exact resume point after the source-bound Cloudflare O2Core, hosted product acceptance,
+and hosted 22-page action matrix all passed and were bound into
+`docs/runtime-state/cloudflare-native-hosted-current.json`. The tracked external gate truth
+remains blocked on current Branch Protection and GHCR digest proof; Production remains
+false. O1-O5 retain their remaining Owner/verifier scope; O6 is `resolved_verified` with
+zero percentage credit. This anchor is a resume snapshot, not a progress authority.
 
 ## Required Resume Order
 
@@ -38,6 +38,27 @@ percentage credit. This anchor is a resume snapshot, not a progress authority.
 - Vertical: `Frontend 100 | Orchestrator 100 | Agent Pool 69 | LLM 55 | MCP 56 | Memory 90 | Observability 100`
 - `MARKET_READY: false`
 - S1 receives no percentage credit.
+
+## Session-12 Hosted Acceptance Truth
+
+- Hosted product report:
+  `.codex/runs/CURRENT/master-goal/t5/product-acceptance-hosted-v5/report.json`
+- Product SHA-256:
+  `24C1A1C6FEEE18777EB9F534B66444A9E082B207ADFBF7005DBCD83424851F9F`
+- Product source/deployment:
+  `893d102020b7bcb267ebc01d3a77e94366e4dced` /
+  `dpl_HPGS3ojG7cJbpCmhN8Q4VKPg3Bpp`
+- Focused hosted O2 action smoke: `1/1`
+- Hosted matrix report:
+  `.codex/runs/CURRENT/master-goal/t5/22-page-actions-hosted-v2/report.json`
+- Matrix SHA-256:
+  `7F65488F60137CF8B1F4BA4361ACCAA923E302D216263A72483EF0B45EF98F8E`
+- Matrix source/deployment:
+  `0bb1c326c01e988a153cf12cde36d2108a2ff8c5` /
+  `dpl_G3ZgkPsZQND5yWJpFe5tpNLHTX8h`
+- Result: `22/22` routes, `29/29` families, `161/161` members, zero dead,
+  unregistered, console, page, mock, interception, secret, or unexpected-provider findings.
+- R2 remains unbound and `historical_only`; no paid fallback.
 
 ## Session-8 Free-Hardening Truth
 
@@ -73,17 +94,24 @@ percentage credit. This anchor is a resume snapshot, not a progress authority.
 
 ## Exact Next Step
 
-1. Do not raise percentages or activate a gate without the corresponding O1-O5 Owner input and verifier evidence; O6 is already resolved with zero credit.
-2. After an Owner input changes, run its named verifier from
-   `docs/runtime-state/owner-input-manifest.json`.
-3. Re-run the full aggregate finish line only after every affected cell has new evidence.
+1. Run `npm run verify:market-ready:static` after any truth-file change; it must validate the
+   exact hosted product/matrix paths and hashes while still returning
+   `MARKET_READY:false` until every matrix cell is 100.
+2. Do not raise percentages or activate a gate without the corresponding O1-O5 Owner input
+   and verifier evidence; O6 is already resolved with zero credit.
+3. Continue only inside an already recorded Owner scope. Stop before secret creation,
+   permission expansion, registry publication, main write, production deployment, or
+   release promotion.
 
 Canonical v2 evidence:
 
 - `docs/runtime-state/external-gate-audit-v2.json`
 - `docs/runtime-state/external-gate-summary.json`
-- `.codex/runs/CURRENT/p5/cloudflare-scope-readiness/report.json`
-- Active blocker: `cloudflare_native_zero_card_hosted_runtime`
+- `docs/runtime-state/cloudflare-native-hosted-current.json`
+- `.codex/runs/CURRENT/master-goal/t5/product-acceptance-hosted-v5/report.json`
+- `.codex/runs/CURRENT/master-goal/t5/22-page-actions-hosted-v2/report.json`
+- Active external blockers: `github_branch_protection_current_verify`,
+  `ghcr_image_digest_verify`
 - Fly/RC10-v1: `historical_only`
 
 ## Current Candidate
@@ -98,7 +126,7 @@ Canonical v2 evidence:
 - `candidate_technical=true`
 - `runtime_source_parity=true`
 - `promotion_eligible=false`
-- DEV-ONLY; hosted proof still blocked.
+- RC10 remains DEV-ONLY and is not requalified by the hosted product/matrix proofs.
 
 ## Explicit Non-Claims
 
@@ -106,7 +134,8 @@ Canonical v2 evidence:
   execution, push, publication, or release occurred.
 - Persisted roster does not mean Codex Desktop task persistence.
 - Local dispatch does not prove hosted or autonomous rollout.
-- `live_provider_calls=false`
+- Bounded hosted product/matrix provider calls are verified only through the LLM Gateway.
+- `direct_provider_calls=false`
 - `live_mcp_writes=false`
 - `model_downloads=false`
 - `production_deploy=false`
@@ -117,18 +146,19 @@ Canonical v2 evidence:
 
 - Production OAuth identity and credential configuration.
 - Cloudflare Vectorize edit scope, architecture approval, and hosted semantic-search proof.
-- Fly.io or Scale payment/billing activation.
+- Phase-6 scale/capacity proof.
 - GHCR publication and release promotion.
-- Live MCP writes and live agent/provider activation.
+- Live MCP/agent writes outside the recorded bounded scope and their required verifier proof.
 - Password, CAPTCHA, secret disclosure, or permission expansion.
 
 ## Final Audit
 
 - `owner-input-matrix=PASS`
+- `hosted-acceptance=PASS`
 - Covered cells: `phase_3`, `phase_5`, `phase_6`, `layer_3`, `layer_4`, `layer_5`, `layer_6`
 - Autonomous-open items: none
 - Report SHA-256:
-  `2D32A3DBA09C18A9DC8334F829A605F9AA2A3FC8C21A1842362ADA1B9B3F6062`
+  `E3429B1A170EF4173D8FFC82B9E2BF565AFDF6B2B55D8BC5E0B8563001530268`
 - `MARKET_READY:false`
 - Final packet: `master-goal-final.md`
 

@@ -1,11 +1,49 @@
 # Verification Register - PATCHED
 
-Stand: 2026-07-27
+Stand: 2026-07-30
 Status: Active
 
 ## Current Progress Authority
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `86%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `68%`, Phase 6 `90%`, Frontend `100%`, Agent Pool `69%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `90%`, and Observability `100%`.
+
+## Current Session-12 Hosted Product And 22-Page Acceptance
+
+The source-bound hosted product proof
+`.codex/runs/CURRENT/master-goal/t5/product-acceptance-hosted-v5/report.json`
+is `verified`, `dev_only=false`, and `hosted_proof=true`. It binds Vercel
+Preview deployment `dpl_HPGS3ojG7cJbpCmhN8Q4VKPg3Bpp` to source
+`893d102020b7bcb267ebc01d3a77e94366e4dced` and archive SHA-256
+`a863185392a8d8d2755198d26a33c64d7cdd9338bc2511e68cc502ddde7dad4d`.
+Exactly one real build (`41d5e2e1-57f3-4292-bbf5-51c0251bd11d`) crossed the
+LLM Gateway to Cloudflare Workers AI, persisted its artifact and audit, rendered
+and interacted in Chromium, and survived reload with its bound artifact. Direct
+provider calls, live MCP writes, mocks, route interception, page errors, console
+errors, and secret output were all false/zero. Report SHA-256:
+`24C1A1C6FEEE18777EB9F534B66444A9E082B207ADFBF7005DBCD83424851F9F`.
+
+The exact hosted O2 action smoke then passed `1/1` on Vercel Preview
+`dpl_G3ZgkPsZQND5yWJpFe5tpNLHTX8h`. The full source-bound
+`22-page-action-acceptance-v2` on the same Preview and source
+`0bb1c326c01e988a153cf12cde36d2108a2ff8c5` passed `22/22` routes,
+`29/29` enabled families, and `161/161` enabled member actions: `160` direct
+effects plus the exact product-report-bound P0 Workbench control. It recorded
+zero dead, unregistered, click-only, or other non-direct passes; both permitted
+build controls returned live Gateway provider responses; unexpected provider
+requests, console errors, page errors, mocks, interception, and secret output
+were zero/false. Evidence:
+`.codex/runs/CURRENT/master-goal/t5/22-page-actions-hosted-v2/report.json`,
+SHA-256
+`7F65488F60137CF8B1F4BA4361ACCAA923E302D216263A72483EF0B45EF98F8E`.
+
+`docs/runtime-state/cloudflare-native-hosted-current.json` now binds the O2Core,
+product, and 22-page evidence while preserving `r2_enabled=false`,
+`r2_status=historical_only`, `production_deploy=false`, and
+`production_release_claimed=false`. `verify-market-ready.ps1` validates these
+hosted reports and hashes instead of relying on the historical local acceptance
+report. No percentage credit is added: Overall remains `86%` and
+`MARKET_READY:false` because the below-100 matrix cells and their Owner/release
+gates remain open.
 
 ## Current Session-12 Cloudflare O2Core Hosted Runtime
 
@@ -34,10 +72,9 @@ The canonical external audit was rerun against the Vercel preview, the
 Cloudflare stateful Worker, and the hosted MCP/LLM origins. Hosted staging,
 Vercel origin health, canonical gitleaks, and Cloudflare O2Core are current and
 green. Branch protection and GHCR digest publication remain open, so
-`production_deploy_claim_allowed=false`. Vercel preview environment is bound
-to the Worker and the required product-acceptance runtime switches, but a new
-preview deployment, hosted product acceptance, and the hosted 22-page action
-matrix are not yet proved. No percentage credit; `MARKET_READY:false`.
+`production_deploy_claim_allowed=false`. The subsequent hosted product and
+22-page proofs are recorded in the preceding section. No percentage credit;
+`MARKET_READY:false`.
 
 ## Current Session-11 Technology Runtime Contract Binding
 

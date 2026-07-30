@@ -483,8 +483,23 @@ if ($PromoteHostedState) {
     -not [bool]$hostedState.paid_provider
   )
   $reportRelativePath = $reportPath.Substring($repoPrefix.Length).Replace("\", "/")
+  $workspaceVerifiedAtUtc = if ($report.completed_at -is [DateTime]) {
+    ([DateTime]$report.completed_at).ToUniversalTime().ToString(
+      "yyyy-MM-ddTHH:mm:ss.fffZ",
+      [Globalization.CultureInfo]::InvariantCulture
+    )
+  } else {
+    ([DateTimeOffset]::Parse(
+      [string]$report.completed_at,
+      [Globalization.CultureInfo]::InvariantCulture,
+      [Globalization.DateTimeStyles]::RoundtripKind
+    )).ToUniversalTime().ToString(
+      "yyyy-MM-ddTHH:mm:ss.fffZ",
+      [Globalization.CultureInfo]::InvariantCulture
+    )
+  }
   $hostedState.workspace_22_page_hosted_proof = $true
-  $hostedState | Add-Member -NotePropertyName "workspace_22_page_verified_at_utc" -NotePropertyValue ([string]$report.completed_at) -Force
+  $hostedState | Add-Member -NotePropertyName "workspace_22_page_verified_at_utc" -NotePropertyValue $workspaceVerifiedAtUtc -Force
   $hostedState | Add-Member -NotePropertyName "workspace_22_page_base_url" -NotePropertyValue $normalizedBaseUrl -Force
   $hostedState | Add-Member -NotePropertyName "workspace_22_page_deployment_id" -NotePropertyValue $ExpectedDeploymentId -Force
   $hostedState | Add-Member -NotePropertyName "workspace_22_page_source_commit_sha" -NotePropertyValue $sourceCommitSha -Force

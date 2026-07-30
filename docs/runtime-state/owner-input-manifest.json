@@ -1,11 +1,21 @@
 {
   "contract_version": "owner-input-manifest-v2",
   "status": "owner_blocked_autonomous_complete",
-  "generated_at_utc": "2026-07-30T18:25:26Z",
+  "generated_at_utc": "2026-07-30T21:49:02Z",
   "canonical_progress_source": "docs/project-progress.manifest.json",
   "canonical_overall_percent": 86,
   "market_ready": false,
   "autonomous_open_items": [],
+  "hosted_acceptance_truth": {
+    "status": "verified",
+    "state_artifact": "docs/runtime-state/cloudflare-native-hosted-current.json",
+    "product_acceptance_hosted_proof": true,
+    "product_acceptance_report": ".codex/runs/CURRENT/master-goal/t5/product-acceptance-hosted-v5/report.json",
+    "product_acceptance_report_sha256": "24C1A1C6FEEE18777EB9F534B66444A9E082B207ADFBF7005DBCD83424851F9F",
+    "workspace_22_page_hosted_proof": true,
+    "workspace_22_page_report": ".codex/runs/CURRENT/master-goal/t5/22-page-actions-hosted-v2/report.json",
+    "workspace_22_page_report_sha256": "7F65488F60137CF8B1F4BA4361ACCAA923E302D216263A72483EF0B45EF98F8E"
+  },
   "actions": [
     {
       "id": "O1",
@@ -195,10 +205,10 @@
       "id": "O6",
       "title": "Bounded LLM Gateway live-runtime path",
       "status": "resolved_verified",
-      "required_owner_action": "None. The previously granted bounded Workers AI path is verifier-backed and the Session 10 product acceptance proved a real gateway-only build.",
+      "required_owner_action": "None. The previously granted bounded Workers AI path is verifier-backed by the current source-bound hosted product acceptance and hosted 22-page action matrix.",
       "required_scope_or_payment": [],
       "payment_required": false,
-      "resolved_at_utc": "2026-07-26T04:21:49.398Z",
+      "resolved_at_utc": "2026-07-30T21:49:02.343Z",
       "affected_cells": [
         "layer_4"
       ],
@@ -215,7 +225,9 @@
       "evidence_refs": [
         "docs/runtime-state/capability-gates.json#live_llm_provider_calls",
         ".codex/runs/CURRENT/capability/live-llm-free-provider/report-20260720-224943.json",
-        ".codex/runs/CURRENT/product-acceptance/report.json"
+        "docs/runtime-state/cloudflare-native-hosted-current.json",
+        ".codex/runs/CURRENT/master-goal/t5/product-acceptance-hosted-v5/report.json",
+        ".codex/runs/CURRENT/master-goal/t5/22-page-actions-hosted-v2/report.json"
       ],
       "percentage_credit": 0,
       "codex_boundary": "Resolved O6 removes an Owner dependency only. It does not hand-set live_verified, make Layer 4 equal 100, authorize direct provider calls, or grant percentage credit."
@@ -240,7 +252,7 @@
   "non_claims": [
     "This manifest does not open a capability gate or increase any percentage.",
     "external-gate-summary-v2 is the active gate truth; RC10 v1 and Fly semantics are historical provenance only.",
-    "The source-bound hosted O2Core D1 bounded-text artifact + Durable Object + Queue proof is verifier-complete; R2 is historical-only. This does not prove hosted product acceptance, the hosted 22-page matrix, Vectorize semantic retrieval, scale, or production release.",
+    "The source-bound hosted O2Core D1 bounded-text artifact + Durable Object + Queue proof, hosted product acceptance, and hosted 22-page matrix are verifier-complete; R2 is historical-only. This does not prove Vectorize semantic retrieval, Phase-6 scale, GHCR publication, or production release.",
     "O1, O2' scale, O3, O4, and O5 semantic retrieval remain Owner-required or verifier-open; O6 is resolved only within its bounded verifier-backed scope.",
     "Owner-granted alone is insufficient for every still-open action; each requires its named verifier and evidence artifact.",
     "No secret value, password, token, callback credential, or payment data is contained here.",

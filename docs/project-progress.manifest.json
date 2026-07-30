@@ -97,15 +97,15 @@
   },
   "truth_policy": "Evidence-based only: percentages increase only after code, runtime proof, and verifier/doc update.",
   "binding_document": "docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md",
-  "last_verified": "2026-07-26",
+  "last_verified": "2026-07-30",
   "non_claims": [
-    "Live LLM calls are verified only in bounded Cloudflare Workers AI gateway acceptance paths; general provider activation, dynamic routing, and hosted full-product parity are not verified.",
+    "Live LLM calls are verified only in bounded Cloudflare Workers AI gateway acceptance paths, including the source-bound hosted product and 22-page proofs; general provider activation and dynamic routing are not verified.",
     "No production release readiness or release promotion is verified.",
-    "No hosted stateful Phase 2 parity or production release is claimed.",
+    "The hosted Cloudflare candidate proves source-bound D1 state, bounded artifacts, LangGraph run/read, Queue dispatch, and SQLite Durable Object coordination; this is not a production release claim.",
     "Historical Fly budget markers are provenance only; Fly is not the active runtime target and they do not satisfy the Cloudflare hosted gate.",
-    "Hosted D1 lexical persistence exists; full hosted Architecture-A parity with Durable Objects, Queues and the zero-card D1 artifact adapter is not verified.",
-    "The local Cloudflare-native D1 bounded-text artifact, Durable Object and Queue adapter proof is DEV-ONLY and earns no percentage credit; R2 is historical-only.",
-    "The local product-acceptance and 22-page action reports are DEV-ONLY; hosted proof remains blocked and they earn no duplicate percentage credit.",
+    "Hosted D1 lexical persistence exists; Vectorize semantic retrieval remains unverified and owner-gated.",
+    "R2 remains unbound and historical-only; no paid fallback or percentage credit is claimed.",
+    "The source-bound hosted product acceptance and 22-page action matrix are verified and earn no duplicate percentage credit; remaining below-100 cells retain their named Owner gates.",
     "Unexpected response type is not a completion or failure claim; backend smoke/status evidence is still required."
   ]
 }

@@ -40,6 +40,39 @@ function Invoke-Npm(
   Add-Result $name ($code -eq 0) "exit=$code" $required $ownerGated
 }
 
+function Resolve-RepoScopedFile([string]$RelativePath) {
+  if ([string]::IsNullOrWhiteSpace($RelativePath) -or [IO.Path]::IsPathRooted($RelativePath)) {
+    return $null
+  }
+  try {
+    $repoPrefix = [IO.Path]::GetFullPath($repoRoot).TrimEnd("\", "/") + [IO.Path]::DirectorySeparatorChar
+    $resolved = [IO.Path]::GetFullPath((Join-Path $repoRoot $RelativePath))
+    if (-not $resolved.StartsWith($repoPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+      return $null
+    }
+    if (-not (Test-Path -LiteralPath $resolved -PathType Leaf)) {
+      return $null
+    }
+    return $resolved
+  } catch {
+    return $null
+  }
+}
+
+function Get-FileSha256([string]$Path) {
+  $stream = [IO.File]::OpenRead($Path)
+  try {
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+      return (($sha256.ComputeHash($stream) | ForEach-Object { $_.ToString("X2") }) -join "")
+    } finally {
+      $sha256.Dispose()
+    }
+  } finally {
+    $stream.Dispose()
+  }
+}
+
 Write-Host "=== MARKET-READY AGGREGATE GATE ==="
 
 # --- 1) Statische Wahrheit (immer) ---
@@ -69,6 +102,7 @@ $autonomousOpenItemsDetail = "owner-input manifest unreadable"
 $ownerBlockedCellIds = @()
 $resolvedCellIds = @()
 $ownerUncoveredCellIds = @($below | ForEach-Object { [string]$_.id })
+$hostedAcceptanceOk = $false
 try {
   if (Test-Path $ownerInputPath) {
     $ownerInput = Get-Content $ownerInputPath -Raw | ConvertFrom-Json
@@ -80,7 +114,7 @@ try {
     $autonomousOpenItems = @($ownerInput.autonomous_open_items | ForEach-Object { [string]$_ })
     $autonomousOpenItemsOk = ($autonomousOpenItems.Count -eq 0)
     $autonomousOpenItemsDetail = if ($autonomousOpenItemsOk) {
-      "none; source-bound Cloudflare O2Core hosted runtime is verified"
+      "none; source-bound Cloudflare O2Core plus hosted product and 22-page acceptance are verified"
     } else {
       "open: " + ($autonomousOpenItems -join ", ")
     }
@@ -262,33 +296,131 @@ try {
       @($o2.gate_ids) -contains "phase6_scale_runtime" -and
       @($o2.gate_ids) -notcontains "fly_live_budget_check"
     )
-    $o6 = @($resolvedActions | Where-Object { [string]$_.id -eq "O6" }) | Select-Object -First 1
-    $llmGate = $capabilityState.gates.live_llm_provider_calls
-    $productAcceptancePath = Join-Path $repoRoot ".codex\runs\CURRENT\product-acceptance\report.json"
-    $productAcceptance = if (Test-Path -LiteralPath $productAcceptancePath) {
+
+    $hostedTruth = $ownerInput.hosted_acceptance_truth
+    $hostedStateRelativePath = [string]$hostedTruth.state_artifact
+    $productAcceptanceRelativePath = [string]$hostedTruth.product_acceptance_report
+    $workspaceAcceptanceRelativePath = [string]$hostedTruth.workspace_22_page_report
+    $hostedStatePath = Resolve-RepoScopedFile $hostedStateRelativePath
+    $productAcceptancePath = Resolve-RepoScopedFile $productAcceptanceRelativePath
+    $workspaceAcceptancePath = Resolve-RepoScopedFile $workspaceAcceptanceRelativePath
+    $hostedState = if ($hostedStatePath) {
+      Get-Content -LiteralPath $hostedStatePath -Raw | ConvertFrom-Json
+    } else {
+      $null
+    }
+    $productAcceptance = if ($productAcceptancePath) {
       Get-Content -LiteralPath $productAcceptancePath -Raw | ConvertFrom-Json
     } else {
       $null
     }
+    $workspaceAcceptance = if ($workspaceAcceptancePath) {
+      Get-Content -LiteralPath $workspaceAcceptancePath -Raw | ConvertFrom-Json
+    } else {
+      $null
+    }
+    $productAcceptanceSha256 = if ($productAcceptancePath) {
+      Get-FileSha256 $productAcceptancePath
+    } else {
+      ""
+    }
+    $workspaceAcceptanceSha256 = if ($workspaceAcceptancePath) {
+      Get-FileSha256 $workspaceAcceptancePath
+    } else {
+      ""
+    }
+    $hostedAcceptanceOk = (
+      $null -ne $hostedTruth -and
+      [string]$hostedTruth.status -eq "verified" -and
+      [bool]$hostedTruth.product_acceptance_hosted_proof -eq $true -and
+      [bool]$hostedTruth.workspace_22_page_hosted_proof -eq $true -and
+      $null -ne $hostedState -and
+      [string]$hostedState.contract_version -eq "cloudflare-native-hosted-current-v1" -and
+      [string]$hostedState.status -eq "verified" -and
+      [bool]$hostedState.dev_only -eq $false -and
+      [bool]$hostedState.hosted_proof -eq $true -and
+      [bool]$hostedState.product_acceptance_hosted_proof -eq $true -and
+      [bool]$hostedState.workspace_22_page_hosted_proof -eq $true -and
+      [bool]$hostedState.r2_enabled -eq $false -and
+      [bool]$hostedState.paid_provider -eq $false -and
+      [bool]$hostedState.production_deploy -eq $false -and
+      [bool]$hostedState.production_release_claimed -eq $false -and
+      [bool]$hostedState.secret_output -eq $false -and
+      [string]$hostedState.product_acceptance_evidence_artifact -eq $productAcceptanceRelativePath -and
+      [string]$hostedState.product_acceptance_evidence_sha256 -eq $productAcceptanceSha256 -and
+      [string]$hostedState.workspace_22_page_evidence_artifact -eq $workspaceAcceptanceRelativePath -and
+      [string]$hostedState.workspace_22_page_evidence_sha256 -eq $workspaceAcceptanceSha256 -and
+      [string]$hostedTruth.product_acceptance_report_sha256 -eq $productAcceptanceSha256 -and
+      [string]$hostedTruth.workspace_22_page_report_sha256 -eq $workspaceAcceptanceSha256 -and
+      $null -ne $productAcceptance -and
+      [string]$productAcceptance.contract_version -eq "product-acceptance-3d-game-v1" -and
+      [string]$productAcceptance.status -eq "verified" -and
+      [bool]$productAcceptance.dev_only -eq $false -and
+      [bool]$productAcceptance.hosted_proof -eq $true -and
+      [string]$productAcceptance.proof_scope -eq "hosted_https" -and
+      [string]$productAcceptance.base_url -eq [string]$hostedState.product_acceptance_base_url -and
+      [string]$productAcceptance.source_binding.source_commit_sha -eq [string]$hostedState.product_acceptance_source_commit_sha -and
+      [string]$productAcceptance.source_binding.source_archive_sha256 -eq [string]$hostedState.product_acceptance_source_archive_sha256 -and
+      [string]$productAcceptance.source_binding.deployment_id -eq [string]$hostedState.product_acceptance_deployment_id -and
+      [bool]$productAcceptance.build.live_provider_calls -eq $true -and
+      [string]$productAcceptance.build.gateway_mode -eq "cloudflare_workers_ai_live" -and
+      [string]$productAcceptance.build.gateway_provider -eq "cloudflare-workers-ai" -and
+      [bool]$productAcceptance.build.direct_provider_calls -eq $false -and
+      [bool]$productAcceptance.build.live_mcp_writes -eq $false -and
+      [bool]$productAcceptance.build.audit_persisted -eq $true -and
+      [bool]$productAcceptance.build.persisted -eq $true -and
+      [bool]$productAcceptance.mocks_used -eq $false -and
+      [bool]$productAcceptance.route_interception_used -eq $false -and
+      [int]$productAcceptance.console_error_count -eq 0 -and
+      [int]$productAcceptance.page_error_count -eq 0 -and
+      [bool]$productAcceptance.secret_output -eq $false -and
+      $null -ne $workspaceAcceptance -and
+      [string]$workspaceAcceptance.contract_version -eq "22-page-action-acceptance-v2" -and
+      [string]$workspaceAcceptance.status -eq "verified" -and
+      [bool]$workspaceAcceptance.dev_only -eq $false -and
+      [bool]$workspaceAcceptance.hosted_proof -eq $true -and
+      [string]$workspaceAcceptance.proof_scope -eq "hosted_https" -and
+      [string]$workspaceAcceptance.base_url -eq [string]$hostedState.workspace_22_page_base_url -and
+      [string]$workspaceAcceptance.source_binding.source_commit_sha -eq [string]$hostedState.workspace_22_page_source_commit_sha -and
+      [string]$workspaceAcceptance.source_binding.source_archive_sha256 -eq [string]$hostedState.workspace_22_page_source_archive_sha256 -and
+      [string]$workspaceAcceptance.source_binding.deployment_id -eq [string]$hostedState.workspace_22_page_deployment_id -and
+      [string]$workspaceAcceptance.source_binding.product_acceptance_report_path -eq $productAcceptanceRelativePath -and
+      [string]$workspaceAcceptance.source_binding.product_acceptance_report_sha256 -eq $productAcceptanceSha256.ToLowerInvariant() -and
+      [int]$workspaceAcceptance.registered_route_count -eq 22 -and
+      [int]$workspaceAcceptance.visited_route_count -eq 22 -and
+      [bool]$workspaceAcceptance.route_registry_parity -eq $true -and
+      [int]$workspaceAcceptance.audited_enabled_family_count -eq [int]$workspaceAcceptance.registered_enabled_family_count -and
+      [int]$workspaceAcceptance.effect_verified_family_count -eq [int]$workspaceAcceptance.registered_enabled_family_count -and
+      [int]$workspaceAcceptance.audited_enabled_member_action_count -eq [int]$workspaceAcceptance.registered_enabled_member_action_count -and
+      [int]$workspaceAcceptance.dead_action_count -eq 0 -and
+      [int]$workspaceAcceptance.unregistered_page_local_action_count -eq 0 -and
+      [int]$workspaceAcceptance.click_only_passes -eq 0 -and
+      [int]$workspaceAcceptance.non_direct_pass_count -eq 0 -and
+      [int]$workspaceAcceptance.provider_request_count -eq 2 -and
+      [int]$workspaceAcceptance.allowed_build_request_count -eq 2 -and
+      [int]$workspaceAcceptance.live_provider_response_count -eq 2 -and
+      [int]$workspaceAcceptance.unexpected_provider_request_count -eq 0 -and
+      [int]$workspaceAcceptance.console_error_count -eq 0 -and
+      [int]$workspaceAcceptance.page_error_count -eq 0 -and
+      [bool]$workspaceAcceptance.mocks_used -eq $false -and
+      [bool]$workspaceAcceptance.route_interception_used -eq $false -and
+      [bool]$workspaceAcceptance.secret_output -eq $false
+    )
+
+    $o6 = @($resolvedActions | Where-Object { [string]$_.id -eq "O6" }) | Select-Object -First 1
+    $llmGate = $capabilityState.gates.live_llm_provider_calls
     $o6ResolvedOk = (
       $null -ne $o6 -and
       [string]$o6.status -eq "resolved_verified" -and
       [int]$o6.percentage_credit -eq 0 -and
-      @($o6.evidence_refs) -contains ".codex/runs/CURRENT/product-acceptance/report.json" -and
+      @($o6.evidence_refs) -contains $hostedStateRelativePath -and
+      @($o6.evidence_refs) -contains $productAcceptanceRelativePath -and
       $null -ne $llmGate -and
       [bool]$llmGate.owner_granted -eq $true -and
       [bool]$llmGate.live_verified -eq $true -and
       [string]$llmGate.provider -eq "cloudflare_workers_ai" -and
       [bool]$llmGate.paid_provider -eq $false -and
-      $null -ne $productAcceptance -and
-      [string]$productAcceptance.status -eq "verified" -and
-      [bool]$productAcceptance.dev_only -eq $true -and
-      [bool]$productAcceptance.hosted_proof -eq $false -and
-      [bool]$productAcceptance.build.live_provider_calls -eq $true -and
-      [string]$productAcceptance.build.gateway_mode -eq "cloudflare_workers_ai_live" -and
-      [string]$productAcceptance.build.gateway_provider -eq "cloudflare-workers-ai" -and
-      [bool]$productAcceptance.build.direct_provider_calls -eq $false -and
-      [bool]$productAcceptance.secret_output -eq $false
+      $hostedAcceptanceOk
     )
     $sourceMatches = (
       [int]$ownerInput.canonical_overall_percent -eq [int]$m.overall_percent -and
@@ -306,13 +438,14 @@ try {
       $closedGateStateOk -and
       $externalGateStateOk -and
       $o2ZeroCardOk -and
+      $hostedAcceptanceOk -and
       $o6ResolvedOk -and
       $sourceMatches
     )
     $ownerMatrixDetail = if ($ownerMatrixOk) {
       "owner-required below-100 cells: " + ($ownerBlockedCellIds -join ", ") + "; resolved-no-credit cells: " + ($resolvedCellIds -join ", ")
     } else {
-      "invalid_actions=$($invalidActions.Count) autonomous_open=$($autonomousOpenItems.Count) unknown_cells=$($unknownIds -join ',') uncovered_cells=$($ownerUncoveredCellIds -join ',') action_map=$actionMapOk unknown_gates=$($unknownGateIds -join ',') closed_gates=$closedGateStateOk external_gate=$externalGateStateOk external_audit=$externalAuditOk cloudflare_scope=$cloudflareScopeReadinessOk cloudflare_target=$cloudflareTargetGateOk o2_zero_card=$o2ZeroCardOk o6_resolved=$o6ResolvedOk source_matches=$sourceMatches"
+      "invalid_actions=$($invalidActions.Count) autonomous_open=$($autonomousOpenItems.Count) unknown_cells=$($unknownIds -join ',') uncovered_cells=$($ownerUncoveredCellIds -join ',') action_map=$actionMapOk unknown_gates=$($unknownGateIds -join ',') closed_gates=$closedGateStateOk external_gate=$externalGateStateOk external_audit=$externalAuditOk cloudflare_scope=$cloudflareScopeReadinessOk cloudflare_target=$cloudflareTargetGateOk o2_zero_card=$o2ZeroCardOk hosted_acceptance=$hostedAcceptanceOk o6_resolved=$o6ResolvedOk source_matches=$sourceMatches"
     }
   }
 } catch {
@@ -448,6 +581,7 @@ $report = [pscustomobject]@{
   owner_input_manifest = "docs/runtime-state/owner-input-manifest.json"
   owner_input_matrix_verified = $ownerMatrixOk
   autonomous_open_items_verified = $autonomousOpenItemsOk
+  hosted_acceptance_verified = $hostedAcceptanceOk
   owner_blocked_cells = $ownerBlockedCellIds
   resolved_no_credit_cells = $resolvedCellIds
   owner_uncovered_cells = $ownerUncoveredCellIds
