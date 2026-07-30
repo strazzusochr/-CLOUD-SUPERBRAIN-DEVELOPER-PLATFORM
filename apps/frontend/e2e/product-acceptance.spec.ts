@@ -7,6 +7,9 @@ const PRODUCT_PROMPT = "Baue ein 3D-Web-Game mit Three.js: drehbarer Würfel, Pu
 const SESSION_COOKIE = "__Host-sb_session";
 const baseUrl = (process.env.PRODUCT_ACCEPTANCE_BASE_URL ?? "http://localhost:8081").trim().replace(/\/+$/, "");
 const expectedGatewayProvider = (process.env.PRODUCT_ACCEPTANCE_EXPECTED_GATEWAY_PROVIDER ?? "cloudflare-workers-ai").trim();
+const expectedSourceCommitSha = (process.env.PRODUCT_ACCEPTANCE_SOURCE_COMMIT_SHA ?? "").trim();
+const expectedSourceArchiveSha256 = (process.env.PRODUCT_ACCEPTANCE_SOURCE_ARCHIVE_SHA256 ?? "").trim();
+const expectedDeploymentId = (process.env.PRODUCT_ACCEPTANCE_DEPLOYMENT_ID ?? "").trim();
 
 type JsonRecord = Record<string, unknown>;
 
@@ -151,6 +154,8 @@ test("real prompt builds, runs, interacts, and reloads the persisted 3D game", a
   const screenshotPath = path.join(artifactDir, "product-acceptance.png");
   const reportPath = path.join(artifactDir, "report.json");
   await mkdir(artifactDir, { recursive: true });
+  const origin = new URL(baseUrl);
+  const devOnly = ["localhost", "127.0.0.1", "::1"].includes(origin.hostname);
 
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
@@ -164,8 +169,14 @@ test("real prompt builds, runs, interacts, and reloads the persisted 3D game", a
     started_at: startedAt,
     completed_at: null,
     base_url: baseUrl,
-    dev_only: true,
-    hosted_proof: false,
+    dev_only: devOnly,
+    hosted_proof: !devOnly,
+    proof_scope: devOnly ? "dev_only_localhost" : "hosted_https",
+    source_binding: {
+      source_commit_sha: expectedSourceCommitSha || null,
+      source_archive_sha256: expectedSourceArchiveSha256 || null,
+      deployment_id: expectedDeploymentId || null,
+    },
     prompt: PRODUCT_PROMPT,
     prompt_sha256: sha256(PRODUCT_PROMPT),
     expected_gateway_provider: expectedGatewayProvider,
@@ -198,10 +209,17 @@ test("real prompt builds, runs, interacts, and reloads the persisted 3D game", a
   });
 
   try {
-    const origin = new URL(baseUrl);
-    expect(["localhost", "127.0.0.1", "::1"], "product acceptance is a DEV-ONLY localhost proof").toContain(origin.hostname);
-    expect(origin.port || (origin.protocol === "https:" ? "443" : "80"), "product acceptance must target localhost:8081").toBe("8081");
     expect(origin.username || origin.password, "base URL must not contain credentials").toBe("");
+    if (devOnly) {
+      expect(origin.port || (origin.protocol === "https:" ? "443" : "80"), "DEV-ONLY product acceptance must target localhost:8081").toBe("8081");
+    } else {
+      expect(origin.protocol, "hosted product acceptance requires HTTPS").toBe("https:");
+      expect(origin.port || "443", "hosted product acceptance requires standard HTTPS").toBe("443");
+      expect(origin.hostname.endsWith(".vercel.app"), "hosted product acceptance requires a Vercel deployment origin").toBe(true);
+      expect(expectedSourceCommitSha, "hosted proof requires a source commit").toMatch(/^[0-9a-f]{40}$/);
+      expect(expectedSourceArchiveSha256, "hosted proof requires a source archive hash").toMatch(/^[0-9a-f]{64}$/);
+      expect(expectedDeploymentId, "hosted proof requires a Vercel deployment id").toMatch(/^dpl_[A-Za-z0-9]+$/);
+    }
     expect(expectedGatewayProvider, "expected gateway provider is required").not.toBe("");
 
     const sessionBootstrapPromise = page.waitForResponse((candidate) =>
