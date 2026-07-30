@@ -4,8 +4,8 @@
   "verified_at_utc": "2026-07-30T20:10:47.6903976Z",
   "base_url": "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev",
   "runtime_contract_version": "cloudflare-native-runtime-candidate-v2",
-  "source_commit_sha": "b1daa3b27ba73f3633e2ad2cd25ce7ef50d48c3d",
-  "source_archive_sha256": "1a3258be8b6cb6d5eb89e9255c9ba727480bafd8dfc66cd12dae03749c2e6cd7",
+  "source_commit_sha": "af61146e22d1a56e9d62232c159ea7b352405ba9",
+  "source_archive_sha256": "1d85f2cd6c948a43e0f79fb17d1f02706687d5857d80f4096780692d094b63fc",
   "evidence_artifact": ".codex/runs/CURRENT/master-goal/t5/cloudflare-hosted-session-v2/report.json",
   "evidence_sha256": "39B18CC1364A442EA9B8E401E7B14207F5A1F2F5474A960B2BD749865D05AE02",
   "bindings": [

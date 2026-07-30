@@ -1,4 +1,4 @@
-﻿{
+{
     "contract_version":  "capability-gate-state-v1",
     "status":  "configured",
     "policy":  "Only a verifier may set live_verified=true, and only after proving the capability against a live runtime. Hand edits are a No-Fake-Done violation. A paid provider never satisfies the free-only policy: paid_provider=true keeps the gate closed regardless of the other fields.",
@@ -99,8 +99,8 @@
                                                                      "verifier":  "scripts/verify-cloudflare-stateful-runtime.ps1",
                                                                      "note":  "Owner-approved hosted O2Core v2 verified Workers, D1 bounded-text artifacts, Queue and SQLite Durable Object write/read/delete with source parity. R2 stayed unbound and historical-only; no paid fallback was used.",
                                                                      "evidence_sha256":  "39B18CC1364A442EA9B8E401E7B14207F5A1F2F5474A960B2BD749865D05AE02",
-                                                                     "source_commit_sha":  "b1daa3b27ba73f3633e2ad2cd25ce7ef50d48c3d",
-                                                                     "source_archive_sha256":  "1a3258be8b6cb6d5eb89e9255c9ba727480bafd8dfc66cd12dae03749c2e6cd7",
+                                                                     "source_commit_sha":  "af61146e22d1a56e9d62232c159ea7b352405ba9",
+                                                                     "source_archive_sha256":  "1d85f2cd6c948a43e0f79fb17d1f02706687d5857d80f4096780692d094b63fc",
                                                                      "hosted_base_url":  "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev"
                                                                  },
                   "live_vector_memory_search":  {

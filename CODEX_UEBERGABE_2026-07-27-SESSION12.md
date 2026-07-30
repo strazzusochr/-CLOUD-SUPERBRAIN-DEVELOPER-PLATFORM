@@ -100,6 +100,64 @@ verlangt, dass `PROJECT_STATE.md`, `AI_HANDOFF.md` **und** `docs/verification-re
 **neueste** zeigen. Wer den Gate-Lauf macht, **muss diese drei Referenzen im selben Slice nachziehen** —
 sonst rot. `.phase1-artifacts/` ist zudem gitignored, die Kette hängt also auch hier an lokalen Dateien.
 
+### 🟢 O5 ERLEDIGT — HOSTED SEMANTISCHE VEKTORSUCHE BEWIESEN, GATE VOM VERIFIER GEÖFFNET
+Der Owner hat am 2026-07-31 die Index-Anlage freigegeben („Index anlegen freigegeben").
+**Vectorize brauchte kein Zahlungsmittel** — Workers-Free-Plan, 30 Mio. abgefragte / 5 Mio. gespeicherte
+Dimensionen. Damit ist die R2-Analogie widerlegt: Vectorize ist echt zero-card, R2 nicht.
+
+**Umgesetzt:** Index `cloud-superbrain-memory-v1` (768 Dim., cosine, passend zu
+`@cf/baai/bge-base-en-v1.5`); Worker um `vectorize`- **und** `ai`-Binding erweitert; zwei
+authentifizierte Routen `POST /api/v1/memory/semantic` und `GET /api/v1/memory/semantic/search`,
+beide mit dem bestehenden Secret-Material-Guard und 401 für unauthentifizierte Aufrufe.
+
+**Der Beweis ist bewusst so konstruiert, dass eine lexikalische Engine ihn nicht bestehen kann:**
+Die Abfrage `"feline napping in sunshine"` teilt **kein einziges Inhaltswort** mit dem Zielsatz
+`"A tabby cat dozed on the warm windowsill through the quiet afternoon."`, und ein thematisch fremder
+Ablenker über Rechnungsabgleich liegt daneben im Index.
+**Ergebnis: Ziel auf Platz 1 mit `0.7428`, Ablenker `0.3850`, lexikalische Überlappung `0`.**
+Genau das kann die lexikalische D1-Suche prinzipiell nicht — und darf niemals als deren Ersatz gelten.
+
+**Gate ausschließlich durch den Verifier geöffnet.** `-PromoteGateOnFullPass` wirft, solange irgendein
+Blocker steht; erreichbar ist es nur über den echten Roundtrip. `owner_granted`,
+`owner_scope_approved` und `architecture_approved` sind getrennt als **Owner-Fakten** hinterlegt.
+Worker-Tests 19/19. **Capability-Gates jetzt 5 offen / 5 zu.**
+
+⚠️ **Zwei Fallen, die dabei zuschlugen — bitte merken:**
+1. **Worker-Auth-Header ist `x-superbrain-agent-token`, nicht `Authorization: Bearer`.** Mein erster
+   Beweisversuch scheiterte an 401, obwohl der Token stimmte.
+2. **`SOURCE_COMMIT_SHA` / `SOURCE_ARCHIVE_SHA256` sind Worker-*Secrets*, keine Vars.** `--var` beim
+   Deploy wird davon überstimmt; `/api/v1/health` meldete weiter den alten Commit. Erst
+   `wrangler secret put` stellte die Parität her. Wrangler wirft dabei auf Windows eine libuv-
+   Assertion — **das ist Rauschen, das Setzen gelingt trotzdem**; danach `health` gegenprüfen.
+3. **`verify-vector-memory-gate.ps1` war einseitig gebaut** und erzwang, dass das Vektor-Gate *nie*
+   Evidenz trägt. Jetzt symmetrisch: offenes Gate muss vollständig belegt sein, geschlossenes darf
+   nichts behaupten — beide Richtungen fail-closed.
+4. **`verify-cloudflare-stateful-runtime.ps1` parst `wrangler.jsonc` mit reinem `ConvertFrom-Json`,
+   ohne Kommentare zu entfernen.** Ein erklärender `//`-Block in der Config bricht den Contract-Check
+   sofort. **Trotz `.jsonc`-Endung also keine Kommentare in diese Datei** — Begründungen gehören
+   hierher, nicht in die Konfiguration.
+
+### ⏳ EINZIGE OFFENE RESTARBEIT AUS DIESEM SLICE: Hosted-Source-Rebinding
+**Ehrlich benannt, damit niemand es für erledigt hält.** Die Wahrheitsdateien binden inzwischen auf
+Commit `af61146e` mit dem zugehörigen Archiv-SHA, und die **git-basierte** Worker-Source-Parität ist
+grün. Der **gehostete** Worker meldet in `/api/v1/health` aber noch den Vorgänger-Commit `62648856`:
+Der zweite `wrangler secret put`-Lauf für `SOURCE_COMMIT_SHA` / `SOURCE_ARCHIVE_SHA256` wurde von der
+Cloudflare-API abgewiesen (`/workers/scripts/.../secrets` failed), nachdem derselbe Aufruf kurz zuvor
+funktioniert hatte — vermutlich Rate-Limit.
+
+**Was fachlich gilt:** Der semantische Beweis ist davon **nicht** berührt — er lief gegen den bereits
+deployten Worker mit identischer Semantik; die Differenz zwischen `62648856` und `af61146e` ist eine
+**reine Kommentar-Entfernung** in `wrangler.jsonc`, kein Verhaltensunterschied.
+
+**Was zu tun ist (klein):**
+```
+cd services/cloudflare-stateful-runtime
+<commit>  | node node_modules/wrangler/bin/wrangler.js secret put SOURCE_COMMIT_SHA
+<archive> | node node_modules/wrangler/bin/wrangler.js secret put SOURCE_ARCHIVE_SHA256
+```
+danach `/api/v1/health` gegen `docs/runtime-state/cloudflare-native-hosted-current.json` prüfen.
+**Erst danach** darf ein hosted Source-Parity-Verifier (`-BaseUrl …`) als grün gelten.
+
 ### ✅ O5-VERIFIER GEBAUT — die tote Referenz ist geschlossen
 `scripts/verify-live-vector-memory-search.ps1` **existierte nicht**, obwohl `capability-gates.json`
 den Pfad unter `gates.live_vector_memory_search.verifier` reserviert und das Owner-Manifest ihn als

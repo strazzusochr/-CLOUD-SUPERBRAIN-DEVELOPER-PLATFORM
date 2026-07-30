@@ -49,6 +49,25 @@ offen: `live_llm_provider_calls` · `live_memory_provider` · `hosted_observabil
 zu: `live_vector_memory_search` (O5) · `production_auth_identity` (O1) · `live_mcp_writes` +
 `live_agent_tool_writes` (O4) · `docker_registry_publish` (O3) · `phase6_scale_runtime` (Zahlung)
 
+## 🟢 O5 ERLEDIGT — SEMANTISCHE VEKTORSUCHE HOSTED BEWIESEN (2026-07-31)
+Owner hat Index-Anlage freigegeben. **Vectorize brauchte kein Zahlungsmittel** (Workers-Free-Plan,
+30 Mio./5 Mio. Dimensionen) — anders als R2. Index `cloud-superbrain-memory-v1`, 768 Dim., cosine,
+passend zum Workers-AI-Modell `@cf/baai/bge-base-en-v1.5`.
+Worker: `vectorize`- + `ai`-Binding, zwei authentifizierte Routen
+(`POST /api/v1/memory/semantic`, `GET /api/v1/memory/semantic/search`).
+
+**Der Beweis ist so gebaut, dass eine lexikalische Engine ihn nicht bestehen kann:**
+Abfrage `"feline napping in sunshine"` — **null gemeinsame Inhaltswörter** mit dem Zielsatz
+`"A tabby cat dozed on the warm windowsill through the quiet afternoon."`.
+Ergebnis: Ziel auf Platz 1 mit **0.7428**, thematisch fremder Ablenker (Rechnungsabgleich) **0.3850**.
+Das kann die lexikalische D1-Suche prinzipiell nicht — und darf nie als deren Ersatz gelten.
+
+**Gate ausschließlich vom Verifier geöffnet**, nie handgesetzt: `-PromoteGateOnFullPass` wirft, solange
+irgendein Blocker steht. `owner_granted`/`owner_scope_approved`/`architecture_approved` sind separat als
+Owner-Fakten hinterlegt. Worker-Tests 19/19. Source-Parität nach Redeploy wiederhergestellt
+(Commit + Archiv-SHA als Worker-Secrets, `/api/v1/health` meldet beide korrekt).
+**Capability-Gates jetzt 5 offen / 5 zu.**
+
 ## ✅ O5-VERIFIER GEBAUT — tote Referenz geschlossen (2026-07-31)
 `scripts/verify-live-vector-memory-search.ps1` war im Gate reserviert, existierte aber nicht.
 Jetzt gebaut, in `verify-phase1.ps1` eingehängt, negativ getestet. **Schreibt `live_verified` nie.**
