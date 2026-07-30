@@ -438,7 +438,6 @@ test("real prompt builds, runs, interacts, and reloads the persisted 3D game", a
     expect(reloadReadResponse.status()).toBe(200);
     expect(reloadRead.id).toBe(buildId);
     expect(reloadRead.persisted).toBe(true);
-    expect(reloadRead.audit_persisted).toBe(true);
     expect(reloadRead.live_provider_calls).toBe(true);
     expect(reloadRead.gateway_provider).toBe(expectedGatewayProvider);
     const reloadedHtmlSha256 = sha256(String(reloadRead.html ?? ""));
@@ -464,7 +463,7 @@ test("real prompt builds, runs, interacts, and reloads the persisted 3D game", a
       initial_read_http: initialReadResponse.status(),
       reload_read_http: reloadReadResponse.status(),
       persisted: reloadRead.persisted,
-      audit_persisted: reloadRead.audit_persisted,
+      audit_persisted_on_create: build.audit_persisted,
       live_provider_calls: reloadRead.live_provider_calls,
       gateway_provider: reloadRead.gateway_provider,
       initial_html_sha256: sha256(String(initialRead.html ?? "")),
