@@ -249,7 +249,7 @@ export async function POST(req: Request): Promise<Response> {
     const audit = await readBoundedJsonResponse(auditResponse);
     const artifact = isRecord(audit.artifact) ? audit.artifact : null;
     if (
-      audit.contract_version !== "cloudflare-stateful-runtime-v1"
+      audit.contract_version !== "cloudflare-d1-stateful-runtime-v1"
       || audit.status !== "created"
       || audit.source !== "cloudflare-d1"
       || audit.audit_persisted !== true
