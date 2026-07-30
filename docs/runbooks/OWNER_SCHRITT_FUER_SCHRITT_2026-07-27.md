@@ -17,18 +17,47 @@
 # O1 — GITHUB-OAUTH (schaltet P3 von 44 % auf 100 %)
 **Ziel:** echte Login-Identität statt Fail-closed-Platzhalter. **Dauer ≈ 5 Minuten.**
 
+## ❓ „GitHub ist doch längst mit Vercel verbunden — wozu noch eine App?"
+Berechtigte Frage. Es sind **drei völlig verschiedene Dinge**, die nur zufällig alle „GitHub" heißen:
+
+| Was | Wofür | Status |
+|---|---|---|
+| **GitHub ↔ Vercel Integration** | **Deployment.** Vercel liest das Repo und baut bei jedem Push. Authentifiziert *Vercel gegenüber deinem Repo*. | ✅ längst erledigt — **nicht anfassen** |
+| **`GITHUB_TOKEN`** (Maschinen-Token) | **Automatisierung.** Branch-Protection, MCP-/Agent-Writes, API-Zugriffe. Authentifiziert *Skripte gegenüber GitHub*. | ✅ gesetzt (40 Z.) · wird in **O4** erweitert |
+| **GitHub OAuth-App** ← *das hier* | **Benutzer-Login.** Damit ein *Mensch* im Browser „Mit GitHub anmelden" klicken und eine Session bekommen kann. Authentifiziert *Nutzer gegenüber deiner App*. | ❌ fehlt — genau das ist O1 |
+
+Die ersten zwei ersetzen die dritte **nicht**. Nachweis direkt von der gehosteten Seite:
+`GET https://frontend-seven-psi-78.vercel.app/api/v1/auth/contract` → HTTP 200 mit dem ehrlichen Non-Claim
+*„No live GitHub OAuth exchange is claimed without GitHub OAuth credentials."* Es fehlen also wirklich nur
+die OAuth-Zugangsdaten — sonst nichts.
+
+> 📱 **Die GitHub-App auf deinem Handy hat mit dem Projekt nichts zu tun.** Das ist der GitHub-Mobilclient
+> zum Repos-Ansehen. Nichts zu konfigurieren, nichts zu tun.
+
+## 🔗 DEINE KONKRETE URL
+Die von dir genannte Adresse `vercel.com/strazzusochrs-projects/frontend/Cmk8u8a2…` ist die **Vercel-Dashboard-Seite
+einer Deployment-ID** — als OAuth-URL unbrauchbar. Gebraucht wird die **öffentliche App-Adresse**.
+Verifiziert am 2026-07-27 (HTTP 200 auf `/`, `/login`, `/api/v1/auth/contract`):
+
+```
+https://frontend-seven-psi-78.vercel.app
+```
+> Falls du später eine eigene Domain aufschaltest, muss die Callback-URL in der OAuth-App **mitgeändert** werden.
+
 ### Schritt 1 — OAuth-App anlegen
 1. `github.com` öffnen, oben rechts auf dein Profilbild → **Settings**
 2. Ganz unten links: **Developer settings**
 3. Links: **OAuth Apps** → Button **New OAuth App**
 
 ### Schritt 2 — Felder ausfüllen
+**Kopiervorlage — genau diese Werte:**
+
 | Feld | Wert |
 |---|---|
 | **Application name** | `Cloud Superbrain` |
-| **Homepage URL** | deine Vercel-URL, z. B. `https://frontend-seven-psi-78.vercel.app` |
+| **Homepage URL** | `https://frontend-seven-psi-78.vercel.app` |
 | **Application description** | frei lassen |
-| **Authorization callback URL** | ⚠️ **exakt**: `https://<deine-vercel-url>/api/v1/auth/callback` |
+| **Authorization callback URL** | `https://frontend-seven-psi-78.vercel.app/api/v1/auth/callback` |
 
 > Die Callback-URL muss **zeichengenau** stimmen — GitHub lehnt sonst jeden Login ab.
 > Der Pfad `/api/v1/auth/callback` ist im Code fest verdrahtet, den nicht ändern.
@@ -45,8 +74,10 @@ Drei Zeilen ergänzen (**ohne Anführungszeichen, ohne Leerzeichen um `=`, nicht
 ```
 GITHUB_OAUTH_CLIENT_ID=<Client ID>
 GITHUB_OAUTH_CLIENT_SECRET=<Client Secret>
-GITHUB_OAUTH_REDIRECT_URI=https://<deine-vercel-url>/api/v1/auth/callback
+GITHUB_OAUTH_REDIRECT_URI=https://frontend-seven-psi-78.vercel.app/api/v1/auth/callback
 ```
+> Die dritte Zeile ist **fertig zum Kopieren** — nur die ersten zwei Werte einsetzen.
+> `GITHUB_TOKEN` in derselben Datei **nicht** anfassen; das ist der Maschinen-Token für O4.
 > ⚠️ **Häufigster Fehler:** den Token-/App-Namen mit in die Zeile kopieren. Genau das ist beim Cloudflare-Token
 > passiert (68 statt 53 Zeichen → `err=6003`). **Nur der Wert, sonst nichts.**
 
