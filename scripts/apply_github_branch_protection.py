@@ -4,6 +4,11 @@
 Requires:
 - GITHUB_TOKEN with repo administration rights
 - GITHUB_REPOSITORY in owner/name form, or REPOSITORY_OWNER + REPOSITORY_NAME
+
+Modes:
+- no token: dry-run
+- token configured: verify-only
+- --apply with a token: apply the exact policy, then verify it
 """
 from __future__ import annotations
 
@@ -188,6 +193,25 @@ def self_test() -> int:
     if drift_report["status"] != "mismatch":
         raise SystemExit("Self-test failed: drifted branch protection response was not rejected")
 
+    if selected_mode([], False) != "dry-run":
+        raise SystemExit("Self-test failed: token-free default must be dry-run")
+    if selected_mode([], True) != "verify-only":
+        raise SystemExit("Self-test failed: token default must be verify-only")
+    if selected_mode(["--apply"], True) != "apply":
+        raise SystemExit("Self-test failed: explicit apply mode was not selected")
+    try:
+        selected_mode(["--apply"], False)
+    except SystemExit:
+        pass
+    else:
+        raise SystemExit("Self-test failed: token-free apply was not rejected")
+    try:
+        selected_mode(["--dry-run", "--apply"], True)
+    except SystemExit:
+        pass
+    else:
+        raise SystemExit("Self-test failed: conflicting modes were not rejected")
+
     print(json.dumps({"status": "self_test_passed", "evidence_ref": EVIDENCE_REF}, indent=2))
     return 0
 
@@ -227,25 +251,37 @@ def argument_value(flag: str) -> str | None:
         raise SystemExit(f"{flag} requires a value") from exc
 
 
-def mode_from_environment() -> str:
-    token = token_from_environment()
-    if not token:
-        return "dry-run"
-    return "verify-only"
+def selected_mode(arguments: list[str], token_configured: bool) -> str:
+    requested = [
+        mode
+        for mode, flag in (
+            ("dry-run", "--dry-run"),
+            ("verify-only", "--verify-only"),
+            ("apply", "--apply"),
+        )
+        if flag in arguments
+    ]
+    if len(requested) > 1:
+        raise SystemExit("--dry-run, --verify-only, and --apply are mutually exclusive")
+    if requested == ["apply"] and not token_configured:
+        raise SystemExit("--apply requires BRANCH_PROTECTION_TOKEN or GITHUB_TOKEN")
+    if requested:
+        return requested[0]
+    return "verify-only" if token_configured else "dry-run"
 
 
 def main() -> int:
-    dry_run = "--dry-run" in sys.argv
-    verify_only = ("--verify-only" in sys.argv) or (mode_from_environment() == "verify-only")
     if "--self-test" in sys.argv:
         return self_test()
 
+    token = token_from_environment()
+    mode = selected_mode(sys.argv[1:], token is not None)
     repo_override = argument_value("--repo")
     repo = repository(repo_override)
     branch_name = argument_value("--branch") or os.environ.get("BRANCH_NAME") or DEFAULT_BRANCH_NAME
     payload = protection_payload()
 
-    if dry_run or mode_from_environment() == "dry-run":
+    if mode == "dry-run":
         verify_command = f"py -3 scripts/apply_github_branch_protection.py --verify-only --repo {repo} --branch {branch_name}"
         print(
             json.dumps(
@@ -257,7 +293,7 @@ def main() -> int:
                     "payload": payload,
                     "expected": expected_settings(payload),
                     "verify_command": verify_command,
-                    "next_action": "set BRANCH_PROTECTION_TOKEN or GITHUB_TOKEN to enable live verification, then run: "
+                    "next_action": "set BRANCH_PROTECTION_TOKEN or GITHUB_TOKEN to enable read-only live verification, then run: "
                     + verify_command,
                 },
                 indent=2,
@@ -265,40 +301,18 @@ def main() -> int:
         )
         return 0
 
-    url = f"https://api.github.com/repos/{repo}/branches/{branch_name}/protection"
-    if not verify_only and not token_from_environment():
-        verify_command = f"py -3 scripts/apply_github_branch_protection.py --verify-only --repo {repo} --branch {branch_name}"
-        print(
-            json.dumps(
-                {
-                    "status": "dry-run",
-                    "branch_protection_verify_contract": EVIDENCE_REF,
-                    "repository": repo,
-                    "branch": branch_name,
-                    "payload": payload,
-                    "expected": expected_settings(payload),
-                    "verify_command": verify_command,
-                    "next_action": "set BRANCH_PROTECTION_TOKEN or GITHUB_TOKEN to apply protection; for verify-only, run: "
-                    + verify_command,
-                },
-                indent=2,
-            )
-        )
-        return 0
-
-    auth_value = token_from_environment()
-    if not auth_value:
+    if not token:
         print("BRANCH_PROTECTION_TOKEN is not configured; branch protection cannot be applied or verified.", file=sys.stderr)
         return 1
 
     url = f"https://api.github.com/repos/{repo}/branches/{branch_name}/protection"
-    if not verify_only:
-        request_json("PUT", url, auth_value, payload)
+    if mode == "apply":
+        request_json("PUT", url, token, payload)
 
-    response = request_json("GET", url, auth_value)
+    response = request_json("GET", url, token)
     report = verification_report(response, payload)
     result = {
-        "status": "verified" if verify_only else "applied_and_verified",
+        "status": "applied_and_verified" if mode == "apply" else "verified",
         "repository": repo,
         "branch": branch_name,
         **report,

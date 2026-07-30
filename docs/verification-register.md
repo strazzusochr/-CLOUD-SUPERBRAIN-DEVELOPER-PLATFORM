@@ -7,6 +7,15 @@ Status: Active
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `86%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `68%`, Phase 6 `90%`, Frontend `100%`, Agent Pool `69%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `90%`, and Observability `100%`.
 
+## Current Branch-Protection Safety
+
+`scripts/apply_github_branch_protection.py` now requires explicit `--apply` plus
+an available token before it can issue the GitHub `PUT`. A configured token
+without `--apply` selects read-only verification; no token selects dry-run.
+`.github/workflows/branch-protection.yml` and the Owner runbook use the explicit
+apply form. This is verified implementation only: no live GitHub write was
+executed, and protected-main remains an external Owner/review gate.
+
 ## Current Session-12 Hosted Product And 22-Page Acceptance
 
 The source-bound hosted product proof

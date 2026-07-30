@@ -126,7 +126,7 @@ GITHUB_REPOSITORY=strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM
 ### Schritt 3 — Branch-Protection anwenden
 Es existiert bereits ein Skript dafür. Codex führt aus:
 ```
-python scripts/apply_github_branch_protection.py
+python scripts/apply_github_branch_protection.py --apply --branch main
 ```
 Das setzt und **verifiziert** den Schutz für `main`. Du musst dafür nichts klicken.
 

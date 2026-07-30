@@ -2750,7 +2750,7 @@ if ($workflowArtifacts) {
   throw "Workflow artifact contains literal backslash-n"
 }
 $branchProtectionWorkflow = Get-Content -Path ".github\workflows\branch-protection.yml" -Raw
-foreach ($required in @("Apply and verify default branch protection", "BRANCH_PROTECTION_TOKEN", "BRANCH_NAME", "python scripts/apply_github_branch_protection.py --branch")) {
+foreach ($required in @("Apply and verify default branch protection", "BRANCH_PROTECTION_TOKEN", "BRANCH_NAME", "python scripts/apply_github_branch_protection.py --apply --branch")) {
   if (-not $branchProtectionWorkflow.Contains($required)) {
     throw "Branch protection workflow missing verify guard: $required"
   }
