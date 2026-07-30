@@ -1029,6 +1029,106 @@ async function deleteBuild(request, id, env, requestId) {
   }
 }
 
+// --- O5 semantic memory -------------------------------------------------------------------------
+// This is the first path in this Worker that performs real semantic retrieval. It is deliberately
+// separate from the D1 lexical memory: D1 answers "does this string occur", Vectorize answers "what
+// is close in meaning". The two must never be conflated as evidence for one another.
+const SEMANTIC_MAX_TEXT_BYTES = 8_000;
+const SEMANTIC_DEFAULT_TOP_K = 5;
+
+function embeddingModel(env) {
+  return env.MEMORY_EMBEDDING_MODEL || "@cf/baai/bge-base-en-v1.5";
+}
+
+async function embedText(env, text) {
+  const result = await env.AI.run(embeddingModel(env), { text: [text] });
+  const vector = result && Array.isArray(result.data) ? result.data[0] : null;
+  if (!Array.isArray(vector) || vector.length === 0) throw new Error("embedding_failed");
+  return vector;
+}
+
+async function upsertSemanticMemory(request, env, requestId) {
+  if (!env.VECTORIZE || !env.AI || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("semantic_memory_configuration_unavailable", requestId, "Vectorize, Workers AI, or write authentication is unavailable."), 503);
+  }
+  if (!(await authenticated(request, env))) {
+    return json(blocked("stateful_runtime_authentication_required", requestId, "Agent API write authentication failed."), 401);
+  }
+  let body;
+  try { body = await readJson(request); } catch (error) {
+    return json(blocked(error instanceof Error ? error.message : "invalid_request", requestId, "The semantic memory request is invalid."), 400);
+  }
+  try {
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("invalid_request");
+    const projectId = safeProjectId(body.project_id);
+    const text = textField(body.text, "text", 1, SEMANTIC_MAX_TEXT_BYTES);
+    if (containsSecretMaterial({ text, projectId })) throw new Error("secret_material_rejected");
+
+    const id = crypto.randomUUID();
+    const values = await embedText(env, text);
+    await env.VECTORIZE.upsert([{ id, values, metadata: { project_id: projectId, text } }]);
+
+    return json({
+      contract_version: "cloudflare-semantic-memory-v1",
+      request_id: requestId,
+      status: "stored",
+      id,
+      project_id: projectId,
+      dimensions: values.length,
+      model: embeddingModel(env),
+      lexical_evidence_reused: false,
+      secret_output: false,
+    }, 201);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "invalid_request";
+    const status = reason === "embedding_failed" ? 502 : 400;
+    return json(blocked(reason, requestId, "The semantic memory write was rejected."), status);
+  }
+}
+
+async function searchSemanticMemory(request, url, env, requestId) {
+  if (!env.VECTORIZE || !env.AI) {
+    return json(blocked("semantic_memory_configuration_unavailable", requestId, "Vectorize or Workers AI is unavailable."), 503);
+  }
+  if (!(await authenticated(request, env))) {
+    return json(blocked("stateful_runtime_authentication_required", requestId, "Agent API read authentication failed."), 401);
+  }
+  try {
+    const query = textField(url.searchParams.get("q"), "q", 1, SEMANTIC_MAX_TEXT_BYTES);
+    const requestedTopK = Number(url.searchParams.get("top_k") ?? SEMANTIC_DEFAULT_TOP_K);
+    const topK = Number.isFinite(requestedTopK) ? Math.min(Math.max(Math.trunc(requestedTopK), 1), 20) : SEMANTIC_DEFAULT_TOP_K;
+    if (containsSecretMaterial({ query })) throw new Error("secret_material_rejected");
+
+    const values = await embedText(env, query);
+    const result = await env.VECTORIZE.query(values, { topK, returnMetadata: "all" });
+    const matches = Array.isArray(result && result.matches) ? result.matches : [];
+
+    return json({
+      contract_version: "cloudflare-semantic-memory-v1",
+      request_id: requestId,
+      status: "verified",
+      // `semantic_retrieval` is the whole point of this route: the score comes from cosine distance
+      // over embeddings, not from substring matching. This is what the lexical D1 path cannot do.
+      retrieval_mode: "semantic_vector_cosine",
+      lexical_fallback_used: false,
+      model: embeddingModel(env),
+      dimensions: values.length,
+      match_count: matches.length,
+      matches: matches.map((match) => ({
+        id: match.id,
+        score: match.score,
+        project_id: match.metadata ? match.metadata.project_id : null,
+        text: match.metadata ? match.metadata.text : null,
+      })),
+      secret_output: false,
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "invalid_request";
+    const status = reason === "embedding_failed" ? 502 : 400;
+    return json(blocked(reason, requestId, "The semantic memory search was rejected."), status);
+  }
+}
+
 async function createArtifact(request, env, requestId) {
   if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
     return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or write authentication is unavailable."), 503);
@@ -1638,6 +1738,8 @@ export default {
     if (request.method === "GET" && url.pathname === "/api/v1/builds") return listBuilds(url, env, requestId);
     if (request.method === "GET" && buildMatch) return getBuild(buildMatch[1], env, requestId);
     if (request.method === "DELETE" && buildMatch) return deleteBuild(request, buildMatch[1], env, requestId);
+    if (request.method === "POST" && url.pathname === "/api/v1/memory/semantic") return upsertSemanticMemory(request, env, requestId);
+    if (request.method === "GET" && url.pathname === "/api/v1/memory/semantic/search") return searchSemanticMemory(request, url, env, requestId);
     if (request.method === "POST" && url.pathname === "/api/v1/workspace/artifacts") return createArtifact(request, env, requestId);
     if (request.method === "GET" && url.pathname === "/api/v1/workspace/artifacts") return listArtifacts(url, env, requestId);
 

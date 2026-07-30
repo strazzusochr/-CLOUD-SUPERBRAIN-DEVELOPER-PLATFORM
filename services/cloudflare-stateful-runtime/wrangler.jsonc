@@ -48,9 +48,22 @@
       "migrations_dir": "migrations"
     }
   ],
+  // O5 semantic memory. Vectorize is on the Workers free plan (30M queried / 5M stored dimensions)
+  // and needed no payment method, unlike R2. The index is 768-dimension cosine to match the
+  // Workers AI embedding model bound below; changing either without the other breaks retrieval.
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "cloud-superbrain-memory-v1"
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  },
   "vars": {
     "RUNTIME_MODE": "cloudflare_native_hosted_candidate",
-    "CONTRACT_ORIGIN": "https://cloud-superbrain-developer-platform.vercel.app"
+    "CONTRACT_ORIGIN": "https://cloud-superbrain-developer-platform.vercel.app",
+    "MEMORY_EMBEDDING_MODEL": "@cf/baai/bge-base-en-v1.5"
   },
   "env": {
     "preview": {
@@ -87,9 +100,19 @@
           "migrations_dir": "migrations"
         }
       ],
+      "vectorize": [
+        {
+          "binding": "VECTORIZE",
+          "index_name": "cloud-superbrain-memory-v1"
+        }
+      ],
+      "ai": {
+        "binding": "AI"
+      },
       "vars": {
         "RUNTIME_MODE": "cloudflare_native_local_candidate",
-        "CONTRACT_ORIGIN": "https://cloud-superbrain-developer-platform.vercel.app"
+        "CONTRACT_ORIGIN": "https://cloud-superbrain-developer-platform.vercel.app",
+        "MEMORY_EMBEDDING_MODEL": "@cf/baai/bge-base-en-v1.5"
       }
     }
   }

@@ -1,4 +1,4 @@
-{
+﻿{
     "contract_version":  "capability-gate-state-v1",
     "status":  "configured",
     "policy":  "Only a verifier may set live_verified=true, and only after proving the capability against a live runtime. Hand edits are a No-Fake-Done violation. A paid provider never satisfies the free-only policy: paid_provider=true keeps the gate closed regardless of the other fields.",
@@ -104,18 +104,19 @@
                                                                      "hosted_base_url":  "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev"
                                                                  },
                   "live_vector_memory_search":  {
-                                                    "owner_granted":  false,
-                                                    "owner_grant_ref":  "",
-                                                    "owner_scope_approved":  false,
-                                                    "architecture_approved":  false,
-                                                    "hosted_semantic_search_verified":  false,
-                                                    "live_verified":  false,
-                                                    "evidence_artifact":  "",
-                                                    "verified_at_utc":  "",
+                                                    "owner_granted":  true,
+                                                    "owner_grant_ref":  "owner chat approval 2026-07-31: \"Index anlegen freigegeben\" (Vectorize index creation authorised; zero-card, Workers free plan)",
+                                                    "owner_scope_approved":  true,
+                                                    "architecture_approved":  true,
+                                                    "hosted_semantic_search_verified":  true,
+                                                    "live_verified":  true,
+                                                    "evidence_artifact":  ".phase1-artifacts/live-vector-memory-search-proof.json",
+                                                    "verified_at_utc":  "2026-07-30T23:43:11Z",
                                                     "provider":  "cloudflare_vectorize",
                                                     "paid_provider":  false,
                                                     "verifier":  "scripts/verify-live-vector-memory-search.ps1",
-                                                    "note":  "Requires Owner Vectorize scope, architecture approval, and hosted semantic retrieval proof."
+                                                    "note":  "Requires Owner Vectorize scope, architecture approval, and hosted semantic retrieval proof.",
+                                                    "evidence_sha256":  "6492E55474875485F022619BA09F8929C9EEAB06DA936C41C22573AE50FAD72C"
                                                 },
                   "hosted_observability_endpoint":  {
                                                         "owner_granted":  true,

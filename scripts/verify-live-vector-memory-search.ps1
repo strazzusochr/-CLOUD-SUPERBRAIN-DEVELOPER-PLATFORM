@@ -9,8 +9,13 @@ param(
   # Read-only by default. The switch below never creates anything; it only allows the
   # anonymous-to-us scope probe against the Cloudflare API using the configured token.
   [switch]$AllowScopeProbe,
+  # Performs the real hosted store/query roundtrip. Writes two sentences into the index.
+  [switch]$AllowHostedRoundtrip,
+  [string]$HostedBaseUrl = "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev",
   # Refuses to run at all unless the full chain is satisfied. Used once the gate should open.
-  [switch]$RequireHostedProof
+  [switch]$RequireHostedProof,
+  # Writes the capability gate. Only ever effective on a complete pass, never by hand.
+  [switch]$PromoteGateOnFullPass
 )
 
 $ErrorActionPreference = "Stop"
@@ -166,9 +171,71 @@ Add-Check "worker_semantic_route" $semanticRoute `
   "The Worker must actually use env.VECTORIZE and env.AI, not merely mention Vectorize in a non-claim."
 if (-not $semanticRoute) { $blockers.Add("worker_semantic_route") }
 
-# --- 6) Verdict ----------------------------------------------------------------------------------
+# --- 6) Hosted semantic roundtrip ---------------------------------------------------------------
+# The decisive check. It is built so a lexical engine cannot pass it: the query shares no content
+# word with the target sentence, and a topically unrelated decoy is stored alongside. Only cosine
+# retrieval over embeddings can rank the target first, which is exactly what D1 cannot do.
+$roundtripProven = $false
+$roundtripDetail = "not attempted; pass -AllowHostedRoundtrip"
+$roundtripEvidence = $null
+if ($AllowHostedRoundtrip -and $blockers.Count -eq 0) {
+  $secrets = Read-SecretMap $SecretsPath
+  $workerToken = if ($secrets.ContainsKey("AGENT_API_AUTH_TOKEN")) { $secrets["AGENT_API_AUTH_TOKEN"] } else { "" }
+  if ([string]::IsNullOrWhiteSpace($workerToken)) {
+    $roundtripDetail = "worker write token is not configured"
+  } else {
+    $writeHeaders = @{ "x-superbrain-agent-token" = $workerToken; "Content-Type" = "application/json" }
+    $readHeaders = @{ "x-superbrain-agent-token" = $workerToken }
+    $target = "A tabby cat dozed on the warm windowsill through the quiet afternoon."
+    $decoy = "Quarterly invoice reconciliation for the logistics subcontractor was completed."
+    $query = "feline napping in sunshine"
+    try {
+      foreach ($text in @($target, $decoy)) {
+        Invoke-RestMethod -Method Post -Uri "$HostedBaseUrl/api/v1/memory/semantic" -Headers $writeHeaders `
+          -Body (@{ project_id = "o5-semantic-proof"; text = $text } | ConvertTo-Json) -TimeoutSec 60 | Out-Null
+      }
+      $encoded = [uri]::EscapeDataString($query)
+      $search = $null
+      for ($attempt = 1; $attempt -le 8; $attempt++) {
+        Start-Sleep -Seconds 15
+        $candidate = Invoke-RestMethod -Method Get `
+          -Uri "$HostedBaseUrl/api/v1/memory/semantic/search?q=$encoded&top_k=3" -Headers $readHeaders -TimeoutSec 60
+        if ([int]$candidate.match_count -gt 0) { $search = $candidate; break }
+      }
+      if ($null -eq $search) {
+        $roundtripDetail = "index did not become queryable within the retry budget"
+      } else {
+        $top = @($search.matches)[0]
+        $queryWords = @(($query.ToLowerInvariant() -split '\W+') | Where-Object { $_.Length -gt 3 })
+        $topWords = @((([string]$top.text).ToLowerInvariant() -split '\W+') | Where-Object { $_.Length -gt 3 })
+        $overlap = @($queryWords | Where-Object { $topWords -contains $_ })
+        $roundtripProven = (
+          ([string]$top.text -eq $target) -and
+          ($overlap.Count -eq 0) -and
+          ([string]$search.retrieval_mode -eq "semantic_vector_cosine")
+        )
+        $roundtripDetail = "top score $($top.score) with $($overlap.Count) shared content words"
+        $roundtripEvidence = [ordered]@{
+          retrieval_mode           = [string]$search.retrieval_mode
+          top_score                = $top.score
+          top_is_target            = ([string]$top.text -eq $target)
+          lexical_overlap_words    = $overlap.Count
+          runner_up_score          = if (@($search.matches).Count -gt 1) { @($search.matches)[1].score } else { $null }
+          model                    = [string]$search.model
+          dimensions               = [int]$search.dimensions
+        }
+      }
+    } catch {
+      $roundtripDetail = "hosted roundtrip request failed"
+    }
+  }
+}
+Add-Check "hosted_semantic_roundtrip" $roundtripProven $roundtripDetail
+if (-not $roundtripProven) { $blockers.Add("hosted_semantic_roundtrip") }
+
+# --- 7) Verdict ----------------------------------------------------------------------------------
 $allSatisfied = ($blockers.Count -eq 0)
-$status = if ($allSatisfied) { "chain_complete_awaiting_hosted_roundtrip" } else { "blocked" }
+$status = if ($allSatisfied) { "verified" } else { "blocked" }
 
 if ($RequireHostedProof -and -not $allSatisfied) {
   throw "Live vector memory search cannot be proven: $($blockers -join ', ')"
@@ -202,9 +269,34 @@ $report = [ordered]@{
   )
 }
 
+if ($null -ne $roundtripEvidence) { $report["hosted_roundtrip"] = $roundtripEvidence }
+if ($allSatisfied) {
+  $report["live_verified"] = $true
+  $report["hosted_semantic_search_verified"] = $true
+}
 $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $OutFile -Encoding UTF8
+
+# Gate promotion happens here and nowhere else. It is impossible to reach without a real roundtrip,
+# because $allSatisfied requires the zero-lexical-overlap retrieval assertion above to have passed.
+if ($PromoteGateOnFullPass) {
+  if (-not $allSatisfied) {
+    throw "Refusing to promote live_vector_memory_search: $($blockers -join ', ')"
+  }
+  $evidenceHash = (Get-FileHash -LiteralPath $OutFile -Algorithm SHA256).Hash
+  $gate.live_verified = $true
+  $gate.hosted_semantic_search_verified = $true
+  $gate.evidence_artifact = ($OutFile -replace '\\', '/')
+  $gate.evidence_sha256 = $evidenceHash
+  $gate.verified_at_utc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+  $state | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $CapabilityStatePath -Encoding UTF8
+  Write-Host "[vector-search] capability gate promoted by verifier evidence $evidenceHash"
+}
 
 Write-Host ""
 Write-Host "[vector-search] status=$status blockers=$($blockers.Count) evidence=$OutFile"
-Write-Host "[vector-search] live_verified stays false by contract"
+if ($allSatisfied) {
+  Write-Host "[vector-search] semantic retrieval proven by hosted roundtrip; lexical D1 evidence not reused"
+} else {
+  Write-Host "[vector-search] live_verified stays false by contract"
+}
 exit 0
