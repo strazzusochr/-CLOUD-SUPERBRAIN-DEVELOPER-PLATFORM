@@ -103,12 +103,29 @@ if (-not $isLocalhost) {
   $sourceCommitSha = $ExpectedSourceCommitSha
   $sourceArchiveSha256 = Get-GitArchiveSha256 -RepoRoot $repoRoot -CommitSha $ExpectedSourceCommitSha
 
-  $deploymentRaw = @(
-    & vercel.cmd api "/v13/deployments/$ExpectedDeploymentId" `
-      --scope $VercelScope `
-      --raw 2>$null
+  $vercelArguments = @(
+    "api",
+    "/v13/deployments/$ExpectedDeploymentId",
+    "--scope",
+    $VercelScope,
+    "--raw"
   )
-  Assert-True "authenticated Vercel deployment metadata lookup succeeds" ($LASTEXITCODE -eq 0)
+  if (-not [string]::IsNullOrWhiteSpace($env:VERCEL_TOKEN)) {
+    $vercelArguments += @("--token", $env:VERCEL_TOKEN)
+  }
+  $previousErrorActionPreference = $ErrorActionPreference
+  $vercelExitCode = 1
+  try {
+    # Vercel CLI currently writes its beta notice to stderr even when the
+    # authenticated metadata request succeeds. Treat only its exit code as the
+    # verifier result and keep all CLI diagnostics out of evidence.
+    $ErrorActionPreference = "Continue"
+    $deploymentRaw = @(& vercel.cmd @vercelArguments 2>$null)
+    $vercelExitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+  Assert-True "authenticated Vercel deployment metadata lookup succeeds" ($vercelExitCode -eq 0)
   $deploymentJsonText = $deploymentRaw | Where-Object { $_ -match '^\{' } | Select-Object -Last 1
   Assert-True "Vercel deployment metadata payload exists" (-not [string]::IsNullOrWhiteSpace([string]$deploymentJsonText))
   $deployment = ([string]$deploymentJsonText) | ConvertFrom-Json
