@@ -1,42 +1,50 @@
 {
-  "contract_version": "cloudflare-native-local-candidate-state-v1",
+  "contract_version": "cloudflare-native-local-candidate-state-v2",
   "status": "verified_dev_only",
-  "verified_at_utc": "2026-07-25T17:15:02.2187102Z",
+  "verified_at_utc": "2026-07-30T17:38:58.0094838Z",
   "architecture_decision": "A",
   "architecture_ref": "docs/adr/ADR-010-cloudflare-native-free-runtime.md",
-  "runtime_contract_version": "cloudflare-native-runtime-candidate-v1",
+  "runtime_contract_version": "cloudflare-native-runtime-candidate-v2",
   "engine": "langgraph-js",
   "coordination": "durable-object-sqlite",
   "dispatch": "cloudflare-queues",
   "checkpointing": "cloudflare-d1-custom",
   "official_langgraph_checkpointer": false,
-  "artifact_store": "cloudflare-r2",
+  "artifact_store": "cloudflare-d1-bounded-text",
+  "artifact_content_max_bytes": 32768,
+  "artifact_content_publicly_readable": false,
   "local_bindings_verified": [
     "DB",
     "RUNTIME_COORDINATOR",
-    "RUNTIME_QUEUE",
-    "ARTIFACT_BUCKET"
+    "RUNTIME_QUEUE"
   ],
   "local_proofs": {
-    "unit_tests_passed": 16,
-    "wrangler_preview_dry_run": true,
-    "create_enqueue_queue_do_r2_roundtrip": true,
+    "unit_tests_passed": 17,
+    "wrangler_preview_runtime": true,
+    "create_enqueue_queue_do_d1_artifact_roundtrip": true,
     "queue_delivery_count": 1,
     "same_content_replay_deduplicated": true,
     "conflicting_replay_preserved_original": true,
-    "r2_put_get_delete_verified": true,
+    "d1_artifact_write_read_delete_verified": true,
     "unauthenticated_write_blocked": true,
     "oversize_write_blocked": true,
     "secret_sentinel_absent": true,
     "legacy_d1_build_artifact_langgraph_roundtrips": true
   },
-  "evidence_artifact": ".codex/runs/CURRENT/master-goal/t3/cloudflare-d1-local/report.json",
-  "evidence_sha256": "FFB9693896C26B7831BE60E2A2DE323B7B1243F7DACDDE91727706BAF3E06F80",
-  "evidence_bytes": 3323,
+  "evidence_artifact": ".codex/runs/CURRENT/master-goal/t3/cloudflare-d1-local-v2/report.json",
+  "evidence_sha256": "CB108383C338E41C47440FA2618009DC174053E08E6401CAD7255AD333A65F43",
+  "evidence_bytes": 3222,
   "active_hosted_gate": "cloudflare_native_zero_card_hosted_runtime",
   "hosted_gate_status": "blocked",
-  "r2_zero_card_verified": false,
-  "r2_enabled_for_hosted_claims": false,
+  "historical_adapters": [
+    {
+      "id": "cloudflare-r2",
+      "status": "historical_only",
+      "active": false,
+      "binding_configured": false,
+      "zero_card_verified": false
+    }
+  ],
   "dev_only": true,
   "hosted_proof": false,
   "live_provider_calls": false,
@@ -47,7 +55,8 @@
   "percentage_credit": 0,
   "non_claims": [
     "Local Wrangler proof does not prove hosted source parity or resource activation.",
-    "R2 free quota does not prove zero-card subscription activation.",
+    "R2 is disabled and historical-only; it is not an active binding or hosted prerequisite.",
+    "D1 adapter proof covers bounded UTF-8 text, not binary or large-object parity.",
     "The RC10 external-gate-summary-v1 remains historical provenance until an external-gate-audit-v2 replaces Fly semantics atomically.",
     "DEV-ONLY; hosted proof still blocked."
   ]

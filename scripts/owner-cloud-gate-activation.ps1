@@ -101,8 +101,7 @@ $plan = [ordered]@{
     d1_edit = $false
     durable_objects_edit = $false
     queues_edit = $false
-    workers_ai_read = $false
-    r2_edit_if_zero_card_verified = $false
+    r2_historical_only = $true
     hosted_write_approval = $false
     zero_card_activation = $false
   }
@@ -116,11 +115,10 @@ $plan = [ordered]@{
         "Workers Scripts:Edit",
         "D1:Edit",
         "Durable Objects:Edit",
-        "Queues:Edit",
-        "Workers AI:Read",
-        "R2:Edit only if zero-card activation is verified"
+        "Queues:Edit"
       )
-      r2_policy = "Keep R2 disabled unless the exact account proves activation with no card, checkout, charge, subscription, or paid fallback."
+      artifact_adapter = "D1 bounded UTF-8 text"
+      r2_policy = "R2 is historical-only, unbound, and must not be created or activated."
     },
     [ordered]@{
       step = "cloudflare_hosted_runtime"

@@ -42,7 +42,10 @@ Environment variables, installed tools, and static workflow files are only prere
 - `production_deploy_claim_allowed` is `true` only when the canonical summary is `verified`, has no missing gates, and explicitly allows the production claim.
 - `configured` remains `false` until verifier artifacts prove the gate, even when env keys are present.
 - `environment_configured` only means the process can see required env-key names.
-- The Cloudflare-native runtime gate additionally requires least-privilege `workers_scripts_edit`, `d1_edit`, `durable_objects_edit`, `queues_edit`, `workers_ai_read`, and conditional `r2_edit_if_zero_card_verified` scope evidence from the named verifier.
+- The Cloudflare-native O2Core gate additionally requires least-privilege
+  `workers_scripts_edit`, `d1_edit`, `durable_objects_edit` and `queues_edit`
+  scope evidence from the named verifier. R2 is `historical_only`, has no
+  active binding and is not a conditional hosted prerequisite.
 - `manual_external_actions` are instructions for owner-gated execution, not commands the API runs.
 - Localhost is `dev_control_plane_only` and cannot satisfy hosted staging.
 - No provider token value may be returned, logged, or written to generated artifacts.

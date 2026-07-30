@@ -32,13 +32,11 @@ This runbook is the next safe bridge from local evidence to the active O2'
   - `D1:Edit`
   - `Durable Objects:Edit`
   - `Queues:Edit`
-  - `Workers AI:Read`
-  - `R2:Edit` only after zero-card activation is verified
 - Explicit Owner approval for hosted writes and deployment.
 - Reachable Cloudflare HTTPS runtime as `CLOUDFLARE_STATEFUL_BASE_URL`.
 - Final Vercel HTTPS staging URL as `STAGING_BASE_URL`.
-- R2 remains disabled unless the exact account proves activation with no card,
-  checkout, charge, subscription, or paid fallback.
+- Bounded UTF-8 artifacts use D1; R2 is disabled, unbound and
+  `historical_only`. No R2 activation or bucket creation belongs to this path.
 
 ## Activation Order
 
@@ -50,8 +48,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\owner-cloud-gate-act
 
 2. Owner approves cloud mutation outside the normal Codex turn.
 
-3. Owner reviews the exact Workers, D1, SQLite Durable Objects and Queues scopes,
-   confirms zero-card activation, and authorizes the bounded hosted write proof.
+3. Owner reviews the exact Workers, D1, SQLite Durable Objects and Queues scopes
+   and authorizes the bounded hosted write proof.
 
 4. Verify the Cloudflare-native hosted runtime and hosted staging:
 

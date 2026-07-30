@@ -155,6 +155,7 @@ $requiredFiles = @(
   "wrangler.jsonc",
   "migrations\0001_foundation.sql",
   "migrations\0002_build_prompt_redaction.sql",
+  "migrations\0003_zero_card_d1_artifacts.sql",
   "src\index.js",
   "test\index.test.js"
 )
@@ -167,6 +168,7 @@ $config = Get-Content -LiteralPath (Join-Path $workerRoot "wrangler.jsonc") -Raw
 $source = Get-Content -LiteralPath (Join-Path $workerRoot "src\index.js") -Raw
 $migration = Get-Content -LiteralPath (Join-Path $workerRoot "migrations\0001_foundation.sql") -Raw
 $promptMigration = Get-Content -LiteralPath (Join-Path $workerRoot "migrations\0002_build_prompt_redaction.sql") -Raw
+$artifactMigration = Get-Content -LiteralPath (Join-Path $workerRoot "migrations\0003_zero_card_d1_artifacts.sql") -Raw
 $testSource = Get-Content -LiteralPath (Join-Path $workerRoot "test\index.test.js") -Raw
 $boundarySource = Get-Content -LiteralPath "apps\frontend\lib\frontendBoundary.ts" -Raw
 $buildSource = Get-Content -LiteralPath "apps\frontend\app\api\v1\build\route.ts" -Raw
@@ -200,32 +202,30 @@ Assert-Equal @($config.queues.producers).Count 1 "Production Queue producer coun
 Assert-Equal ([string]$config.queues.producers[0].binding) "RUNTIME_QUEUE" "Production Queue binding"
 Assert-Equal @($config.queues.consumers).Count 1 "Production Queue consumer count"
 Assert-Equal ([int]$config.queues.consumers[0].max_retries) 3 "Production Queue retry bound"
-Assert-Equal @($config.r2_buckets).Count 1 "Production R2 binding count"
-Assert-Equal ([string]$config.r2_buckets[0].binding) "ARTIFACT_BUCKET" "Production R2 binding"
+Assert-True ($null -eq $config.PSObject.Properties["r2_buckets"]) "Production config cannot declare an R2 binding"
 Assert-Equal @($config.env.preview.durable_objects.bindings).Count 1 "Preview Durable Object binding count"
 Assert-Equal ([string]$config.env.preview.durable_objects.bindings[0].name) "RUNTIME_COORDINATOR" "Preview Durable Object binding"
 Assert-Equal @($config.env.preview.queues.producers).Count 1 "Preview Queue producer count"
 Assert-Equal ([string]$config.env.preview.queues.producers[0].binding) "RUNTIME_QUEUE" "Preview Queue binding"
 Assert-Equal @($config.env.preview.queues.consumers).Count 1 "Preview Queue consumer count"
 Assert-Equal ([int]$config.env.preview.queues.consumers[0].max_retries) 3 "Preview Queue retry bound"
-Assert-Equal @($config.env.preview.r2_buckets).Count 1 "Preview R2 binding count"
-Assert-Equal ([string]$config.env.preview.r2_buckets[0].binding) "ARTIFACT_BUCKET" "Preview R2 binding"
+Assert-True ($null -eq $config.env.preview.PSObject.Properties["r2_buckets"]) "Preview config cannot declare an R2 binding"
 Assert-Equal ([string]$config.vars.RUNTIME_MODE) "cloudflare_native_hosted_candidate" "Production Cloudflare-native runtime mode"
 Assert-Equal ([string]$config.env.preview.vars.RUNTIME_MODE) "cloudflare_native_local_candidate" "Preview Cloudflare-native runtime mode"
 
 foreach ($marker in @(
   'cloudflare-d1-stateful-runtime-v1',
-  'cloudflare-native-runtime-candidate-v1',
-  'cloudflare-native-probe-message-v1',
+  'cloudflare-native-runtime-candidate-v2',
+  'cloudflare-native-probe-message-v2',
   'x-superbrain-agent-token',
   'AGENT_API_AUTH_TOKEN',
   'env.DB.prepare',
   'env.RUNTIME_COORDINATOR',
   'env.RUNTIME_QUEUE.send(message)',
-  'env.ARTIFACT_BUCKET.put',
-  'env.ARTIFACT_BUCKET.get',
-  'env.ARTIFACT_BUCKET.head',
-  'env.ARTIFACT_BUCKET.delete',
+  'INSERT INTO native_artifacts',
+  'DELETE FROM native_artifacts',
+  'cloudflare_d1_native_artifact_created',
+  'cloudflare_d1_native_artifact_deleted',
   '/api/v1/cloud-native/contract',
   '/api/v1/cloud-native/probes',
   '/api/v1/builds',
@@ -249,6 +249,7 @@ foreach ($marker in @(
 }
 Assert-True (-not $source.Contains("CLOUDFLARE_API_TOKEN")) "Worker cannot contain a Cloudflare management token"
 Assert-True (-not $source.Contains("DATABASE_URL")) "D1 Worker must use its binding, not an exposed database URL"
+Assert-True (-not $source.Contains("ARTIFACT_BUCKET")) "Zero-card Worker cannot retain an active R2 binding"
 
 $buildCreateSection = Get-SourceSection $source "async function createBuild" "async function listBuilds" "Worker build create"
 foreach ($marker in @(
@@ -295,10 +296,11 @@ foreach ($marker in @(
   'dispatch: "cloudflare-queues"',
   'checkpointing: "cloudflare-d1-custom"',
   'official_langgraph_checkpointer: false',
-  'artifact_store: "cloudflare-r2"',
+  'artifact_store: "cloudflare-d1-bounded-text"',
+  'artifact_content_publicly_readable: false',
+  'status: "historical_only"',
+  'binding_configured: false',
   'queue_envelope_contains_raw_prompt: false',
-  'r2_public: false',
-  'r2_zero_card_verified: false',
   'live_provider_calls: false',
   'direct_provider_calls: false',
   'live_mcp_writes: false',
@@ -323,7 +325,8 @@ foreach ($marker in @(
   "containsSecretMaterial(content)",
   "MAX_NATIVE_CONTENT_BYTES",
   "env.DB.prepare",
-  "env.ARTIFACT_BUCKET.put",
+  "persistNativeArtifact",
+  "d1_artifact_persisted: artifactPersisted",
   "nativeCoordinatorCall",
   "env.RUNTIME_QUEUE.send(message)",
   "queue_enqueued: coordinatorCreated",
@@ -332,17 +335,16 @@ foreach ($marker in @(
   Assert-Contains "Cloudflare-native create" $nativeCreateSection $marker
 }
 $nativeReadSection = Get-SourceSection $source "async function getNativeProbe" "async function deleteNativeProbe" "Cloudflare-native read"
-Assert-Contains "Cloudflare-native read" $nativeReadSection "env.ARTIFACT_BUCKET.head"
-Assert-Contains "Cloudflare-native read" $nativeReadSection "nativeArtifactVerified"
-Assert-Contains "Cloudflare-native read" $nativeReadSection "artifact_verified: artifactVerified"
+Assert-Contains "Cloudflare-native read" $nativeReadSection "nativeArtifactState"
+Assert-Contains "Cloudflare-native read" $nativeReadSection "artifact_verified: artifact.verified"
 $nativeDeleteSection = Get-SourceSection $source "async function deleteNativeProbe" "async function consumeNativeQueue" "Cloudflare-native cleanup"
-foreach ($marker in @("authenticated(request, env)", "env.ARTIFACT_BUCKET.delete", 'nativeCoordinatorCall(env, projectId, cleanProbeId, "DELETE")')) {
+foreach ($marker in @("authenticated(request, env)", "deleteNativeArtifact", 'nativeCoordinatorCall(env, projectId, cleanProbeId, "DELETE")')) {
   Assert-Contains "Cloudflare-native cleanup" $nativeDeleteSection $marker
 }
 $nativeQueueSection = Get-SourceSection $source "async function consumeNativeQueue" "async function health" "Cloudflare-native Queue consumer"
 foreach ($marker in @(
   "nativeMessage(body)",
-  "env.ARTIFACT_BUCKET.head",
+  "nativeArtifactState",
   'action: "complete"',
   "queueMessage.ack()",
   "queueMessage.retry",
@@ -357,6 +359,16 @@ foreach ($table in @("builds", "workspace_artifacts", "runtime_runs", "agent_tas
 Assert-Contains "D1 migration" $migration "PRAGMA foreign_keys = ON"
 Assert-Contains "D1 prompt migration" $promptMigration "ALTER TABLE builds ADD COLUMN prompt_sha256 TEXT"
 Assert-Contains "D1 prompt migration" $promptMigration "SET prompt = '[REDACTED]'"
+foreach ($marker in @(
+  "CREATE TABLE IF NOT EXISTS native_artifacts",
+  "artifact_ref TEXT PRIMARY KEY",
+  "content_text TEXT NOT NULL",
+  "content_bytes INTEGER NOT NULL",
+  "content_bytes <= 32768",
+  "UNIQUE(project_id, probe_id, content_sha256)"
+)) {
+  Assert-Contains "D1 zero-card artifact migration" $artifactMigration $marker
+}
 
 foreach ($marker in @(
   'authEnvName: "AGENT_API_AUTH_TOKEN"',
@@ -455,7 +467,7 @@ foreach ($marker in @(
   'workspace artifacts reject nested secret metadata without echoing it',
   'LangGraph executes four roles and persists run, tasks, checkpoint, memory, and audit',
   'Cloudflare-native candidate contract is fail-closed and labels local proof honestly',
-  'Cloudflare-native probe crosses R2, Queue, and Durable Object idempotently then cleans up',
+  'Cloudflare-native probe crosses D1 artifact storage, Queue, and Durable Object idempotently then cleans up',
   'Cloudflare-native hosted candidate labels the full probe lifecycle without production claims',
   'Cloudflare-native conflicting idempotency replay preserves the original coordinator state',
   'Cloudflare-native mutations reject missing auth and secret material before storage',
@@ -477,9 +489,9 @@ $evidence = [ordered]@{
   preview_worker_name = [string]$config.env.preview.name
   wrangler_version = [string]$package.devDependencies.wrangler
   langgraph_version = [string]$package.dependencies.'@langchain/langgraph'
-  schema_tables = @("builds", "workspace_artifacts", "runtime_runs", "agent_tasks", "memory_entries", "audit_events")
-  cloudflare_native_contract_version = "cloudflare-native-runtime-candidate-v1"
-  cloudflare_native_bindings = @("DB", "RUNTIME_COORDINATOR", "RUNTIME_QUEUE", "ARTIFACT_BUCKET")
+  schema_tables = @("builds", "workspace_artifacts", "runtime_runs", "agent_tasks", "memory_entries", "audit_events", "native_artifacts")
+  cloudflare_native_contract_version = "cloudflare-native-runtime-candidate-v2"
+  cloudflare_native_bindings = @("DB", "RUNTIME_COORDINATOR", "RUNTIME_QUEUE")
   cloudflare_native_dev_only = $true
   cloudflare_native_hosted_proof = $false
   cloudflare_native_runtime_exercised = $false
@@ -598,24 +610,31 @@ if (-not $StaticOnly) {
   if ($exerciseNativeProbe) {
   $nativeContractResponse = Invoke-JsonRequest -Method GET -Uri "$normalized/api/v1/cloud-native/contract"
   Assert-Equal $nativeContractResponse.status 200 "Cloudflare-native candidate contract HTTP"
-  Assert-Equal ([string]$nativeContractResponse.payload.contract_version) "cloudflare-native-runtime-candidate-v1" "Cloudflare-native candidate contract"
+  Assert-Equal ([string]$nativeContractResponse.payload.contract_version) "cloudflare-native-runtime-candidate-v2" "Cloudflare-native candidate contract"
   Assert-Equal ([string]$nativeContractResponse.payload.status) "configured" "Cloudflare-native candidate status"
   Assert-Equal ([string]$nativeContractResponse.payload.engine) "langgraph-js" "Cloudflare-native candidate engine"
   Assert-Equal ([string]$nativeContractResponse.payload.coordination) "durable-object-sqlite" "Cloudflare-native candidate coordination"
   Assert-Equal ([string]$nativeContractResponse.payload.dispatch) "cloudflare-queues" "Cloudflare-native candidate dispatch"
   Assert-Equal ([string]$nativeContractResponse.payload.checkpointing) "cloudflare-d1-custom" "Cloudflare-native candidate checkpointing"
   Assert-JsonBoolean $nativeContractResponse.payload "official_langgraph_checkpointer" $false "Cloudflare-native candidate contract"
-  Assert-Equal ([string]$nativeContractResponse.payload.artifact_store) "cloudflare-r2" "Cloudflare-native candidate artifact store"
+  Assert-Equal ([string]$nativeContractResponse.payload.artifact_store) "cloudflare-d1-bounded-text" "Cloudflare-native candidate artifact store"
+  Assert-Equal ([int]$nativeContractResponse.payload.artifact_content_max_bytes) 32768 "Cloudflare-native D1 artifact bound"
+  Assert-JsonBoolean $nativeContractResponse.payload "artifact_content_publicly_readable" $false "Cloudflare-native candidate contract"
   Assert-JsonBoolean $nativeContractResponse.payload "write_auth_required" $true "Cloudflare-native candidate contract"
   Assert-JsonBoolean $nativeContractResponse.payload "queue_envelope_contains_raw_prompt" $false "Cloudflare-native candidate contract"
-  Assert-JsonBoolean $nativeContractResponse.payload "r2_public" $false "Cloudflare-native candidate contract"
-  Assert-JsonBoolean $nativeContractResponse.payload "r2_zero_card_verified" $false "Cloudflare-native candidate contract"
+  Assert-Equal @($nativeContractResponse.payload.historical_adapters).Count 1 "Cloudflare-native historical adapter count"
+  Assert-Equal ([string]$nativeContractResponse.payload.historical_adapters[0].id) "cloudflare-r2" "Cloudflare-native historical adapter id"
+  Assert-Equal ([string]$nativeContractResponse.payload.historical_adapters[0].status) "historical_only" "Cloudflare-native historical adapter status"
+  Assert-JsonBoolean $nativeContractResponse.payload.historical_adapters[0] "active" $false "Cloudflare-native historical adapter"
+  Assert-JsonBoolean $nativeContractResponse.payload.historical_adapters[0] "binding_configured" $false "Cloudflare-native historical adapter"
+  Assert-JsonBoolean $nativeContractResponse.payload.historical_adapters[0] "zero_card_verified" $false "Cloudflare-native historical adapter"
   Assert-JsonBoolean $nativeContractResponse.payload "dev_only" $expectedNativeDevOnly "Cloudflare-native candidate contract"
   Assert-JsonBoolean $nativeContractResponse.payload "hosted_proof" $expectedNativeHostedProof "Cloudflare-native candidate contract"
   Assert-NativeNonClaims $nativeContractResponse.payload "Cloudflare-native candidate contract"
-  foreach ($bindingName in @("d1", "durable_object_sqlite", "queue", "r2")) {
+  foreach ($bindingName in @("d1", "durable_object_sqlite", "queue")) {
     Assert-JsonBoolean $nativeContractResponse.payload.bindings $bindingName $true "Cloudflare-native candidate bindings"
   }
+  Assert-True ($null -eq $nativeContractResponse.payload.bindings.PSObject.Properties["r2"]) "Cloudflare-native active bindings cannot include R2"
 
   $nativeProjectId = "native-probe-" + [Guid]::NewGuid().ToString("N").Substring(0, 16)
   $nativeIdempotencyKey = "native-idempotency-" + [Guid]::NewGuid().ToString("N").Substring(0, 16)
@@ -672,19 +691,20 @@ if (-not $StaticOnly) {
   try {
     $nativeCreated = Invoke-JsonRequest -Method POST -Uri "$normalized/api/v1/cloud-native/probes" -Headers $authHeaders -Body $nativeProbeBody
     Assert-Equal $nativeCreated.status 202 "Cloudflare-native create and enqueue"
-    Assert-Equal ([string]$nativeCreated.payload.contract_version) "cloudflare-native-runtime-candidate-v1" "Cloudflare-native create contract"
+    Assert-Equal ([string]$nativeCreated.payload.contract_version) "cloudflare-native-runtime-candidate-v2" "Cloudflare-native create contract"
     Assert-Equal ([string]$nativeCreated.payload.status) "queued" "Cloudflare-native create status"
     Assert-JsonBoolean $nativeCreated.payload "accepted" $true "Cloudflare-native create"
     Assert-JsonBoolean $nativeCreated.payload "persisted" $true "Cloudflare-native create"
     Assert-JsonBoolean $nativeCreated.payload "dev_only" $expectedNativeDevOnly "Cloudflare-native create"
     Assert-JsonBoolean $nativeCreated.payload "hosted_proof" $expectedNativeHostedProof "Cloudflare-native create"
     Assert-JsonBoolean $nativeCreated.payload "d1_read_verified" $true "Cloudflare-native create"
+    Assert-JsonBoolean $nativeCreated.payload "d1_artifact_persisted" $true "Cloudflare-native create"
     Assert-JsonBoolean $nativeCreated.payload "replayed" $false "Cloudflare-native create"
     Assert-JsonBoolean $nativeCreated.payload "queue_enqueued" $true "Cloudflare-native create"
     Assert-NativeNonClaims $nativeCreated.payload "Cloudflare-native create"
     Assert-True ([int]$nativeCreated.payload.queue_envelope_bytes -gt 0 -and [int]$nativeCreated.payload.queue_envelope_bytes -lt 64000) "Cloudflare-native Queue envelope must remain bounded below 64 KB"
     Assert-True ([string]$nativeCreated.payload.content_sha256 -match '^[a-f0-9]{64}$') "Cloudflare-native content hash is invalid"
-    Assert-True ([string]$nativeCreated.payload.artifact_key -match '^cloud-native/.+\.json$') "Cloudflare-native R2 artifact key is invalid"
+    Assert-True ([string]$nativeCreated.payload.artifact_ref -match '^cloud-native/[A-Za-z0-9_.-]+/probe-[a-f0-9]{40}/[a-f0-9]{64}$') "Cloudflare-native D1 artifact reference is invalid"
     Assert-SecretAbsent $nativeCreated.payload $nativeSecretSentinel "Cloudflare-native create"
 
     $nativeProbeId = [string]$nativeCreated.payload.probe_id
@@ -710,12 +730,12 @@ if (-not $StaticOnly) {
       Start-Sleep -Milliseconds 250
     }
     Assert-True ($null -ne $nativeState) "Cloudflare-native Queue delivery did not reach completed state"
-    Assert-Equal ([string]$nativeState.payload.contract_version) "cloudflare-native-runtime-candidate-v1" "Cloudflare-native completed state contract"
+    Assert-Equal ([string]$nativeState.payload.contract_version) "cloudflare-native-runtime-candidate-v2" "Cloudflare-native completed state contract"
     Assert-Equal ([string]$nativeState.payload.probe_id) $nativeProbeId "Cloudflare-native completed state probe"
     Assert-Equal ([string]$nativeState.payload.content_sha256) ([string]$nativeCreated.payload.content_sha256) "Cloudflare-native completed state content hash"
     Assert-Equal ([int]$nativeState.payload.queue_delivery_count) 1 "Cloudflare-native duplicate delivery effect count"
-    Assert-JsonBoolean $nativeState.payload "artifact_present" $true "Cloudflare-native R2 presence"
-    Assert-JsonBoolean $nativeState.payload "artifact_verified" $true "Cloudflare-native R2 readback verification"
+    Assert-JsonBoolean $nativeState.payload "artifact_present" $true "Cloudflare-native D1 artifact presence"
+    Assert-JsonBoolean $nativeState.payload "artifact_verified" $true "Cloudflare-native D1 artifact readback verification"
     Assert-JsonBoolean $nativeState.payload "dev_only" $expectedNativeDevOnly "Cloudflare-native completed state"
     Assert-JsonBoolean $nativeState.payload "hosted_proof" $expectedNativeHostedProof "Cloudflare-native completed state"
     Assert-JsonBoolean $nativeState.payload "live_provider_calls" $false "Cloudflare-native completed state"
@@ -739,8 +759,8 @@ if (-not $StaticOnly) {
     Assert-Equal ([string]$nativeAfterConflict.payload.status) "completed" "Cloudflare-native terminal state after conflict"
     Assert-Equal ([string]$nativeAfterConflict.payload.content_sha256) ([string]$nativeCreated.payload.content_sha256) "Cloudflare-native original hash after conflict"
     Assert-Equal ([int]$nativeAfterConflict.payload.queue_delivery_count) 1 "Cloudflare-native effect count after conflict"
-    Assert-JsonBoolean $nativeAfterConflict.payload "artifact_present" $true "Cloudflare-native R2 presence after conflict"
-    Assert-JsonBoolean $nativeAfterConflict.payload "artifact_verified" $true "Cloudflare-native R2 verification after conflict"
+    Assert-JsonBoolean $nativeAfterConflict.payload "artifact_present" $true "Cloudflare-native D1 artifact presence after conflict"
+    Assert-JsonBoolean $nativeAfterConflict.payload "artifact_verified" $true "Cloudflare-native D1 artifact verification after conflict"
 
     $nativeUnauthorizedDelete = Invoke-JsonRequest -Method DELETE -Uri $nativeStateUri
     Assert-Equal $nativeUnauthorizedDelete.status 401 "Unauthenticated Cloudflare-native cleanup"
@@ -750,7 +770,7 @@ if (-not $StaticOnly) {
     $nativeDeleted = Invoke-JsonRequest -Method DELETE -Uri $nativeStateUri -Headers $authHeaders
     Assert-Equal $nativeDeleted.status 200 "Cloudflare-native cleanup"
     Assert-Equal ([string]$nativeDeleted.payload.status) "deleted" "Cloudflare-native cleanup status"
-    Assert-JsonBoolean $nativeDeleted.payload "artifact_deleted" $true "Cloudflare-native R2 cleanup"
+    Assert-JsonBoolean $nativeDeleted.payload "artifact_deleted" $true "Cloudflare-native D1 artifact cleanup"
     Assert-JsonBoolean $nativeDeleted.payload "persisted" $false "Cloudflare-native cleanup"
     Assert-JsonBoolean $nativeDeleted.payload "dev_only" $expectedNativeDevOnly "Cloudflare-native cleanup"
     Assert-JsonBoolean $nativeDeleted.payload "hosted_proof" $expectedNativeHostedProof "Cloudflare-native cleanup"
@@ -770,12 +790,12 @@ if (-not $StaticOnly) {
 
     $evidence.cloudflare_native_dev_only = $expectedNativeDevOnly
     $evidence.cloudflare_native_hosted_proof = $expectedNativeHostedProof
-    $evidence.cloudflare_native_create_enqueue_queue_do_r2_roundtrip = $true
+    $evidence.cloudflare_native_create_enqueue_queue_do_d1_artifact_roundtrip = $true
     $evidence.cloudflare_native_probe_id = $nativeProbeId
     $evidence.cloudflare_native_queue_delivery_count = [int]$nativeState.payload.queue_delivery_count
     $evidence.cloudflare_native_same_content_replay_deduplicated = $true
     $evidence.cloudflare_native_conflicting_replay_preserved_original = $true
-    $evidence.cloudflare_native_r2_put_presence_delete = $true
+    $evidence.cloudflare_native_d1_artifact_write_read_delete = $true
     $evidence.cloudflare_native_unauthenticated_write_blocked = $true
     $evidence.cloudflare_native_oversize_write_blocked = $true
     $evidence.cloudflare_native_secret_sentinel_absent = $true

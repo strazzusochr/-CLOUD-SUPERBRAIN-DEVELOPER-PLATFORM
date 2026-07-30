@@ -2808,7 +2808,7 @@ if (-not (Test-Path "docs\runtime-contracts\cloud-deployment-preflight-contract.
   throw "Missing cloud deployment preflight contract document"
 }
 $cloudDeploymentPreflightDoc = Get-Content -Path "docs\runtime-contracts\cloud-deployment-preflight-contract.md" -Raw
-foreach ($required in @("cloud-deployment-preflight-v1", "cloud_deployment_preflight_visible", "GET /api/v1/clouds/deployment-preflight/contract", "publish_ghcr_images", "cloudflare_native_zero_card_hosted_runtime", "CLOUDFLARE_STATEFUL_BASE_URL", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "workers_scripts_edit", "d1_edit", "durable_objects_edit", "queues_edit", "workers_ai_read", "r2_edit_if_zero_card_verified", "GITHUB_TOKEN", "GHCR_TOKEN", "BRANCH_PROTECTION_TOKEN", "cloud_deploy_claim_allowed", "production_deploy_claim_allowed", "manual_external_actions")) {
+foreach ($required in @("cloud-deployment-preflight-v1", "cloud_deployment_preflight_visible", "GET /api/v1/clouds/deployment-preflight/contract", "publish_ghcr_images", "cloudflare_native_zero_card_hosted_runtime", "CLOUDFLARE_STATEFUL_BASE_URL", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "workers_scripts_edit", "d1_edit", "durable_objects_edit", "queues_edit", "historical_only", "GITHUB_TOKEN", "GHCR_TOKEN", "BRANCH_PROTECTION_TOKEN", "cloud_deploy_claim_allowed", "production_deploy_claim_allowed", "manual_external_actions")) {
   if (-not $cloudDeploymentPreflightDoc.Contains($required)) {
     throw "Cloud deployment preflight contract document missing guard: $required"
   }
@@ -2860,13 +2860,13 @@ foreach ($forbidden in @("fly deploy", "gh workflow run", "vercel deploy")) {
   }
 }
 $ownerGoLiveChecklist = Get-Content -Path "docs\runbooks\OWNER_GO_LIVE_CHECKLIST.md" -Raw
-foreach ($required in @("OWNER_BLOCKED_AUTONOMOUS_COMPLETE", "cloudflare_native_zero_card_hosted_runtime", "0/6", "O6", "resolved_verified", "PlanOnly")) {
+foreach ($required in @("OWNER_BLOCKED_AUTONOMOUS_COMPLETE", "cloudflare_native_zero_card_hosted_runtime", "O2Core 4/4", "O5 1/1", "R2 is historical-only", "O6", "resolved_verified", "PlanOnly")) {
   if (-not $ownerGoLiveChecklist.Contains($required)) {
     throw "Owner go-live checklist missing current truth marker: $required"
   }
 }
 $gateOpeningAnalysis = Get-Content -Path "docs\audit\gate-opening-analysis.md" -Raw
-foreach ($required in @("external-gate-audit-v2.json", "cloudflare_native_zero_card_hosted_runtime", "0/6", "historical_only", "production_deploy_claim_allowed=false")) {
+foreach ($required in @("external-gate-audit-v2.json", "cloudflare_native_zero_card_hosted_runtime", 'Historical resource families inventoryable: `0/6`', "O2Core 4/4", "O5 1/1", "historical_only", "production_deploy_claim_allowed=false")) {
   if (-not $gateOpeningAnalysis.Contains($required)) {
     throw "Gate-opening analysis missing current truth marker: $required"
   }
@@ -2906,8 +2906,6 @@ foreach ($required in @(
   "d1_edit",
   "durable_objects_edit",
   "queues_edit",
-  "workers_ai_read",
-  "r2_edit_if_zero_card_verified",
   "BRANCH_PROTECTION_TOKEN",
   "AGENT_API_BASE_URL",
   "MCP_GATEWAY_BASE_URL",

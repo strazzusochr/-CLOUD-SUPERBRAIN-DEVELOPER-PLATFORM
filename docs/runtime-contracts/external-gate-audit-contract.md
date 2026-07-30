@@ -28,7 +28,13 @@ No secret values are written by this verifier.
 - Cloud layer readiness: `/api/v1/clouds/layers` must return `cloud-layer-readiness-v1` with evidence `cloud_layer_readiness_visible`.
 - GHCR image digest: all six application service image manifests must resolve under the configured GHCR namespace and tag before image publication is claimable.
 - Vercel backend origins: `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, and `LLM_GATEWAY_BASE_URL` must be explicit HTTPS non-local origins and must pass health probes. Path-prefixed reverse-proxy origins such as `/mcp` or `/llm` are probed under that prefix. The private runner may use the consolidated `STAGING_BASE_URL` paths as a fallback; it does not derive Fly.io origins.
-- Cloudflare-native zero-card hosted runtime: `CLOUDFLARE_STATEFUL_BASE_URL`, `CLOUDFLARE_ACCOUNT_ID`, and `CLOUDFLARE_API_TOKEN` must be supplied outside the repository. The canonical capability gate `cloudflare_native_zero_card_hosted_runtime` closes only after least-privilege scopes, zero-card eligibility, hosted source parity, and the verifier-backed Queue/Durable Object/R2 roundtrip are all proven.
+- Cloudflare-native zero-card hosted runtime: `CLOUDFLARE_STATEFUL_BASE_URL`,
+  `CLOUDFLARE_ACCOUNT_ID`, and `CLOUDFLARE_API_TOKEN` must be supplied outside
+  the repository. The canonical capability gate
+  `cloudflare_native_zero_card_hosted_runtime` closes only after least-privilege
+  O2Core scopes, zero-card eligibility, hosted source parity, and the
+  verifier-backed D1-artifact/Queue/Durable-Object write-read-delete roundtrip
+  are all proven. R2 is historical-only and must not be an active binding.
 - GitHub branch protection: `scripts/apply_github_branch_protection.py --verify-only` must pass for the repository default branch with a configured token.
 - Canonical secret scan: `gitleaks detect --no-git --source . --config .gitleaks.toml --redact` must pass.
 - Optional GitLab identity: `GITLAB_TOKEN` can verify access to the configured GitLab profile URL, but this is not a production-release gate in the current patched architecture.

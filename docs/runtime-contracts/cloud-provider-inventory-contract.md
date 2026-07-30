@@ -33,7 +33,7 @@ The layer readiness endpoint projects the same provider inventory into all seven
 | `layer_3` Agent Pool | Agent worker runtime host | Cloudflare-native stateful runtime |
 | `layer_4` LLM Gateway | Gateway-only Workers AI path and optional model identity | Cloudflare, Hugging Face |
 | `layer_5` MCP Gateway / Tools | CI, registry, branch protection, optional mirror and developer-workspace identity | GitHub Actions, GHCR, GitLab |
-| `layer_6` Memory | Cloudflare D1, Durable Object, Queue, R2-if-zero-card, and separately gated Vectorize | Cloudflare-native stateful runtime |
+| `layer_6` Memory | Cloudflare D1 bounded-text artifacts/persistence, Durable Object coordination, Queue dispatch, and separately gated Vectorize; R2 is historical-only | Cloudflare-native stateful runtime |
 | `layer_7` Observability / Evidence | Hosted proof, zero-card gate, audit gate visibility | Vercel, Cloudflare, GitHub Actions, Grafana Cloud |
 
 ## Providers

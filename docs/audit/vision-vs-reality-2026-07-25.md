@@ -228,7 +228,7 @@ umgestellt werden.
 | ADR-007 PostgreSQL/pgvector | PostgreSQL-Builds/Checkpoints echt, aber aktive Suche lexikalisch. ADR-010 macht den Stack zur Legacy-RC10-Baseline. | PostgreSQL **ECHT NUTZBAR**; Vektor/Zielbild **überholt** |
 | ADR-008 Single Tenant | Keine Multi-Tenant-Wirkung; Settings-Rollen bleiben Plan. | **NUR CONTRACT** |
 | ADR-009 Auth | Gast-Session echt; OAuth-State/Refresh/Produktionsidentität nicht live. | **teilweise ECHT NUTZBAR** |
-| ADR-010 Cloudflare Native | Architektur A beschlossen; lokaler D1/DO/Queue/R2-Kandidat belegt, Hosted Gate geschlossen und UI/Docs nicht rebased. | **NUR CONTRACT — DEV-ONLY Kandidat** |
+| ADR-010 Cloudflare Native | Architektur A beschlossen; lokaler v2-D1-Textartefakt/DO/Queue-Kandidat ohne R2-Binding belegt, Hosted Gate geschlossen. | **NUR CONTRACT — DEV-ONLY Kandidat** |
 
 ## 5. Agenten
 

@@ -1,6 +1,6 @@
 # Owner Go-Live Checklist
 
-Updated: 2026-07-26
+Updated: 2026-07-30
 
 Status: `OWNER_BLOCKED_AUTONOMOUS_COMPLETE`; `MARKET_READY=false`.
 
@@ -17,11 +17,11 @@ Status: `OWNER_BLOCKED_AUTONOMOUS_COMPLETE`; `MARKET_READY=false`.
 
 | ID | Required action | State |
 | --- | --- | --- |
-| O1 | Production OAuth identity and callback approval | open |
-| O2' | Cloudflare least-privilege scopes, zero-card activation, hosted stateful proof | open |
+| O1 | Production OAuth identity and callback approval | configuration complete; hosted identity proof open |
+| O2' | Cloudflare least-privilege scopes, zero-card activation, hosted stateful proof | O2Core 4/4; hosted W/R/D proof open |
 | O3 | GHCR publication plus release review | open |
-| O4 | Bounded live agent/MCP writes plus protected-branch approval | open |
-| O5 | Vectorize Edit plus hosted semantic-search proof | open |
+| O4 | Bounded live agent/MCP writes plus protected-branch approval | Owner scope approved; live-write proofs open |
+| O5 | Vectorize Edit plus hosted semantic-search proof | O5 1/1; hosted semantic proof open |
 | O6 | Bounded gateway-only Workers AI path | resolved_verified; 0% credit |
 
 The exact scope and verifier mapping is binding in
@@ -36,9 +36,9 @@ Provide in the private Owner shell without printing values:
 - `CLOUDFLARE_STATEFUL_BASE_URL`
 - `STAGING_BASE_URL`
 
-The current read-only inventory proves the available token cannot inventory
-Workers, D1, Queues, Durable Objects, R2, or Vectorize (`0/6`). HTTP 401/403
-does not prove resource absence.
+The historical read-only inventory result did not prove resource absence. The current
+candidate has separately passed `O2Core 4/4` and `O5 1/1`; only the real hosted verifier
+can qualify it for activation. The weaker active token is not silently replaced.
 
 Required least-privilege capabilities:
 
@@ -46,8 +46,9 @@ Required least-privilege capabilities:
 - D1 Edit
 - Durable Objects Edit
 - Queues Edit
-- Workers AI Read
-- R2 Edit only after exact zero-card eligibility is proven
+
+R2 is historical-only and must not be enabled, created, or added as a binding.
+
 - Vectorize Edit separately for O5
 
 ## Safe plan

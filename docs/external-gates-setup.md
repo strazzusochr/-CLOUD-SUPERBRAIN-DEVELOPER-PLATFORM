@@ -58,7 +58,8 @@ Option B (Remote Verify-only via SSH auf Staging):
 ### cloudflare_native_zero_card_hosted_runtime (O2′)
 
 - Variablen: `CLOUDFLARE_STATEFUL_BASE_URL`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`
-- Erforderliche Least-Privilege-Scopes: Workers Scripts Edit, D1 Edit, Durable Objects Edit, Queues Edit, Workers AI Read sowie R2 Edit nur nach verifizierter Zero-Card-Freigabe.
+- Erforderliche O2Core-Least-Privilege-Scopes: Workers Scripts Edit, D1 Edit, Durable Objects Edit, Queues Edit.
+- Artefakte: begrenzter D1-Textadapter. R2 ist `historical_only`, ungebunden und kein Gate/Fallback.
 - Hosted-Proof: `scripts/verify-cloudflare-stateful-runtime.ps1 -BaseUrl <CLOUDFLARE_STATEFUL_BASE_URL> -AllowHostedWrites`
 - Der Hosted-Lauf und jede Ressourcenänderung bleiben Owner-gated. Tokenwerte dürfen nie in Repo, Log oder Artefakt geschrieben werden.
 

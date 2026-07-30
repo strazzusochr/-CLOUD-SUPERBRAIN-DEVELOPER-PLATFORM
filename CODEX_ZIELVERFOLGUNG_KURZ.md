@@ -65,7 +65,7 @@ eine unerfüllbare Pflichtaufgabe erzwingt Fake-Done. Schnittstelle: `scripts/ow
 Codes: `6003` = kein reiner Token · `1000`/`9106` = ungültig · `10000` = **Permission fehlt**.
 
 ## ▶ SOFORT-SCHLEIFE
-**P1 — ADR-010 auf echten Zero-Card-D1/DO-Artefaktadapter umstellen; R2 nur `historical_only`.**
+**P1 — ✅ Zero-Card-D1-Adapter lokal vollständig grün; Slice sichern.**
 **P2 — 🔥 HOSTED IST JETZT STARTBAR (O2Core offen):** Ressourcen selbst anlegen
 (`wrangler d1 create` · `queues create` · `vectorize create`; **kein `r2 bucket create`** — R2 ist gestrichen,
 Artefakte nach D1, Koordination in Durable Objects), IDs in `wrangler.jsonc` binden
@@ -144,11 +144,15 @@ direkt am Projekt `frontend` verankert, `production,preview`, Redeploy `dpl_5uLu
 bis der hosted CF-Runtime steht (O2′)**. Das Gate `production_auth_identity` braucht danach noch den
 **hosted** OAuth-Austausch — die lokale Evidenz ist `verified_dev_only`, kein Hosted-Proof.
 
-## 🆕 NEUE CODEX-PFLICHT AUS DER OWNER-MATRIX (bisher nirgends erfasst)
-`owner-input-manifest.json` / O2 verlangt wörtlich: *„otherwise keep R2 disabled **and amend ADR-010 to a genuine
-zero-card artifact adapter**"*. Da R2 endgültig gestrichen ist (Kreditkarten-Wand), ist das jetzt **fällig**:
-**`docs/adr/ADR-010-cloudflare-native-free-runtime.md` überarbeiten** — Artefakt-Adapter auf D1 (+ Durable Objects)
-statt R2, mit ehrlicher Begründung und Grenzen. Ohne diese Änderung bleibt ADR-010 im Widerspruch zur Realität.
+## ✅ ZERO-CARD-PFLICHT AUS DER OWNER-MATRIX ERLEDIGT
+ADR-010 und `cloudflare-native-runtime-candidate-v2` verwenden jetzt den echten
+`cloudflare-d1-bounded-text`-Adapter: maximal `32768` Bytes UTF-8 in D1, Queue/SQLite-DO nur zur Koordination,
+kein Rohinhalt in Queue, DO, Antwort oder Audit. R2 ist ungebunden und ausschließlich `historical_only`;
+kein Spillover. Migration `0003_zero_card_d1_artifacts.sql`, `17/17` Unit-Tests, statischer Verifier und echter
+lokaler Wrangler-Roundtrip sind grün. Report
+`.codex/runs/CURRENT/master-goal/t3/cloudflare-d1-local-v2/report.json`, SHA-256
+`CB108383C338E41C47440FA2618009DC174053E08E6401CAD7255AD333A65F43`.
+DEV-ONLY; hosted proof still blocked. Kein Prozentcredit.
 
 ## ✅ O5 IST ERLEDIGT
 Die Matrix fordert für O5 nur „Extend the Cloudflare token with Vectorize Edit". Der gelieferte Token liest
@@ -180,4 +184,4 @@ verify/Playwright/Docker-Build · Preflight `git log -1` ≥ `23c11c21` + `$env:
 ## 🏁 FERTIG heißt
 `MARKET_READY: true` **UND** `verify-product-acceptance` mit **`hosted_proof: true`** (echtes spielbares 3D-Game
 aus echtem Prompt, in der Cloud, persistiert) **UND** hosted 22-Seiten-Matrix ohne tote Aktionen.
-**Die lokale 22-Seiten-Abnahme ist grün. Offen: D1/DO-Adapter und echte Hosted-Beweise.**
+**Lokale 22-Seiten-Abnahme und D1-Adapter sind grün. Offen: echte Hosted-Beweise.**

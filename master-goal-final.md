@@ -1,6 +1,6 @@
 # Cloud Superbrain Master Goal — Autonomous Finish / Owner Blocked
 
-Stand: 2026-07-26
+Stand: 2026-07-30
 
 ## Urteil
 
@@ -19,16 +19,16 @@ Architekturentscheidung aufgewertet.
   Cloudflare Workers, trifft auf den bestehenden und lokal bewiesenen Worker nicht zu.
 - D1 bleibt der projektspezifische Read-, Audit- und Persistenzspeicher. Das ist ein
   `custom D1 persistence`-Adapter, kein offizieller LangGraph-Checkpointer.
-- SQLite Durable Objects koordinieren und idempotenzieren, Queues dispatchen, R2 ist der
-  private Artefaktadapter. Vectorize bleibt bis O5 fail-closed; der bounded Workers-AI-
+- SQLite Durable Objects koordinieren und idempotenzieren, Queues dispatchen; D1 ist der
+  begrenzte UTF-8-Text-Artefaktadapter. R2 ist ungebunden `historical_only`.
+  Vectorize bleibt bis O5 fail-closed; der bounded Workers-AI-
   Gatewaypfad ist als O6 `resolved_verified`, ohne Prozentcredit.
 - Fly.io ist als Session-9-Ziel ausgeschlossen. Der v2-Truth-Rebase ist abgeschlossen;
   Fly/RC10-v1 bleibt ausschliesslich `historical_only`.
 - Der erste Ausbau ist `DEV-ONLY`; `hosted_proof=false`, `live_provider_calls=false`,
   `live_mcp_writes=false`, `production_deploy=false`.
-- Keine Karte, kein bezahltes Konto und keine automatische Uebernutzung. R2 hat zwar ein
-  Gratis-Kontingent, verlangt laut aktueller Anbieter-Dokumentation aber eine R2-Subscription
-  per Checkout. Deshalb ist R2-Hosted-Zero-Card noch **nicht bewiesen** und bleibt Teil von O2'.
+- Keine Karte, kein bezahltes Konto und keine automatische Uebernutzung. R2 ist wegen
+  Checkout-/Kartenpflicht final aus O2Core entfernt; kein aktiver Binding-/Fallback-Pfad.
 
 Die bindende Migrationsgrenze steht in
 `docs/adr/ADR-010-cloudflare-native-free-runtime.md`.
@@ -44,12 +44,12 @@ Die bindende Migrationsgrenze steht in
 - Kanonischer Audit: `docs/runtime-state/external-gate-audit-v2.json`
 - Einziger aktiver Audit-Blocker: `cloudflare_native_zero_card_hosted_runtime` (O2')
 
-## Session-9 lokale Lieferung
+## Zero-Card-Adapter v2 (2026-07-30)
 
-- `cloudflare-native-runtime-candidate-v1` mit LangGraph.js, custom D1 persistence,
-  SQLite Durable Object, Queue und privatem R2-Adapter implementiert.
-- 16/16 Unit-Tests und Wrangler-Preview-Dry-run grün.
-- Echter lokaler Create -> Queue -> DO -> R2 Put/Get/Delete-Roundtrip grün;
+- `cloudflare-native-runtime-candidate-v2` mit LangGraph.js, custom D1 persistence,
+  SQLite Durable Object, Queue und D1-Textartefaktadapter implementiert.
+- 17/17 Unit-Tests, D1-Migration `0003` und echter Wrangler-Preview-Lauf grün.
+- Echter lokaler Create -> D1-Artefakt -> Queue -> DO -> Read/Delete-Roundtrip grün;
   Duplicate-Effektzaehler `1`, Replay dedupliziert, Konflikt `409` ohne Zustandsverlust.
 - Auth-, Oversize- und Secret-Sentinel-Negativpfade grün; kein Credential im Log;
   lokaler Worker/Port sauber beendet.
@@ -58,7 +58,7 @@ Die bindende Migrationsgrenze steht in
 - `npm run verify`, `npm run verify:runtime` und der vollständige Browservertrag
   (`22x2`, sieben Phase-6-Kontrollen) seriell grün; gitleaks ohne Fund.
 - Evidence SHA-256:
-  `FFB9693896C26B7831BE60E2A2DE323B7B1243F7DACDDE91727706BAF3E06F80`.
+  `CB108383C338E41C47440FA2618009DC174053E08E6401CAD7255AD333A65F43`.
 - Kein Prozentcredit; O2' bleibt geschlossen; `DEV-ONLY; hosted proof still blocked`.
 
 ## P5 v2 Lieferung
@@ -67,7 +67,7 @@ Die bindende Migrationsgrenze steht in
   `external-gate-summary-v2` ersetzt; Fly bleibt historische Provenienz.
 - Agent API, Preflight, Go-live, Infra-Budget, UI und Verifier auf
   `cloudflare_native_runtime` / `cloudflare_native_zero_card_hosted_runtime` umgestellt.
-- Cloudflare-Stateful-Verifier kann den Hosted Queue→DO→R2-Lifecycle nur nach
+- Cloudflare-Stateful-Verifier kann den Hosted D1-Artefakt→Queue→DO-Lifecycle nur nach
   `-AllowHostedWrites` ausführen; ohne Owner-Gate stoppt er vor dem Netzaufruf.
 - GET-only Scope-Audit: 0/6 Management-Ressourcenfamilien lesbar, HTTP 401/403,
   Fehlercode 10000; keine Mutation und kein Secret-Output.

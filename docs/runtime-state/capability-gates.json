@@ -84,18 +84,20 @@
                                                                       "owner_granted":  false,
                                                                       "owner_grant_ref":  "",
                                                                       "local_candidate_verified":  true,
-                                                                      "local_evidence_artifact":  ".codex/runs/CURRENT/master-goal/t3/cloudflare-d1-local/report.json",
+                                                                      "local_evidence_artifact":  ".codex/runs/CURRENT/master-goal/t3/cloudflare-d1-local-v2/report.json",
                                                                       "zero_card_verified":  false,
                                                                       "hosted_source_parity_verified":  false,
                                                                       "hosted_stateful_roundtrip_verified":  false,
                                                                       "r2_enabled":  false,
+                                                                      "artifact_adapter":  "cloudflare-d1-bounded-text",
+                                                                      "r2_status":  "historical_only",
                                                                       "live_verified":  false,
                                                                       "evidence_artifact":  "",
                                                                       "verified_at_utc":  "",
                                                                       "provider":  "cloudflare_native",
                                                                       "paid_provider":  false,
                                                                       "verifier":  "scripts/verify-cloudflare-stateful-runtime.ps1",
-                                                                      "note":  "The D1 + SQLite Durable Object + Queue + local R2 adapter candidate is verified DEV-ONLY. Hosted zero-card activation is not verified. R2 stays disabled for hosted claims because its documented setup requires a subscription checkout."
+                                                                      "note":  "The bounded D1 text-artifact + SQLite Durable Object + Queue candidate v2 is verified DEV-ONLY. Hosted zero-card activation is not verified. R2 is unbound and historical-only."
                                                                   },
                   "live_vector_memory_search":  {
                                                      "owner_granted":  false,

@@ -40,12 +40,6 @@
       }
     ]
   },
-  "r2_buckets": [
-    {
-      "binding": "ARTIFACT_BUCKET",
-      "bucket_name": "cloud-superbrain-artifacts-candidate"
-    }
-  ],
   "d1_databases": [
     {
       "binding": "DB",
@@ -86,12 +80,6 @@
           }
         ]
       },
-      "r2_buckets": [
-        {
-          "binding": "ARTIFACT_BUCKET",
-          "bucket_name": "cloud-superbrain-artifacts-candidate-preview"
-        }
-      ],
       "d1_databases": [
         {
           "binding": "DB",

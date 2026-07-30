@@ -35,10 +35,9 @@
       "display_id": "O2'",
       "title": "Cloudflare-native hosted runtime, zero-card activation and scale proof",
       "status": "owner_required",
-      "required_owner_action": "Provide or approve least-privilege Cloudflare scopes for Workers, D1, SQLite Durable Objects and Queues, and authorize a hosted source-parity, stateful-roundtrip and scale proof. Enable R2 only if the exact account can do so with no card, checkout, charge, or paid fallback; otherwise keep R2 disabled and amend ADR-010 to a genuine zero-card artifact adapter.",
+      "required_owner_action": "Provide or approve least-privilege Cloudflare scopes for Workers, D1, SQLite Durable Objects and Queues, and authorize a hosted source-parity, stateful-roundtrip and scale proof. R2 remains disabled and historical-only under the zero-card decision; ADR-010 selects the bounded D1 text-artifact adapter.",
       "required_scope_or_payment": [
         "Cloudflare Workers, D1, Durable Objects and Queues least-privilege scopes",
-        "R2 scope only after zero-card activation is proven",
         "Hosted source-parity, stateful-roundtrip and scale/capacity proof",
         "No card, checkout, payment, paid plan, or automatic overage"
       ],
@@ -217,7 +216,7 @@
   "non_claims": [
     "This manifest does not open a capability gate or increase any percentage.",
     "external-gate-summary-v2 is the active gate truth; RC10 v1 and Fly semantics are historical provenance only.",
-    "The local D1 + Durable Object + Queue + R2 adapter proof is DEV-ONLY and does not prove hosted zero-card resource activation.",
+    "The local D1 bounded-text artifact + Durable Object + Queue adapter proof is DEV-ONLY and does not prove hosted zero-card resource activation; R2 is historical-only.",
     "O1, O2', O3, O4, and O5 remain Owner-required; O6 is resolved only within its bounded verifier-backed scope.",
     "Owner-granted alone is insufficient for every still-open action; each requires its named verifier and evidence artifact.",
     "No secret value, password, token, callback credential, or payment data is contained here.",

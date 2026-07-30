@@ -3,8 +3,9 @@ import { z } from "zod";
 
 const CONTRACT_VERSION = "cloudflare-d1-stateful-runtime-v1";
 const RUNTIME_CONTRACT_VERSION = "cloudflare-d1-langgraph-runtime-v1";
-const NATIVE_CONTRACT_VERSION = "cloudflare-native-runtime-candidate-v1";
-const NATIVE_MESSAGE_VERSION = "cloudflare-native-probe-message-v1";
+const NATIVE_CONTRACT_VERSION = "cloudflare-native-runtime-candidate-v2";
+const NATIVE_MESSAGE_VERSION = "cloudflare-native-probe-message-v2";
+const NATIVE_ARTIFACT_CONTENT_TYPE = "text/plain; charset=utf-8";
 const SOURCE = "cloudflare-workers-d1-stateful-runtime";
 const AUTH_HEADER = "x-superbrain-agent-token";
 const MAX_BODY_BYTES = 192 * 1024;
@@ -194,8 +195,8 @@ function limitFrom(url) {
   return Math.max(1, Math.min(Number.isFinite(value) ? Math.floor(value) : DEFAULT_LIMIT, MAX_LIMIT));
 }
 
-function nativeArtifactKey(projectId, probeId, contentSha256) {
-  return `cloud-native/${projectId}/${probeId}/${contentSha256}.json`;
+function nativeArtifactRef(projectId, probeId, contentSha256) {
+  return `cloud-native/${projectId}/${probeId}/${contentSha256}`;
 }
 
 function nativeMessage(value) {
@@ -207,14 +208,14 @@ function nativeMessage(value) {
   if (value.contract_version !== NATIVE_MESSAGE_VERSION || Number(value.sequence) !== 1) {
     throw new Error("invalid_native_message");
   }
-  const artifactKey = nativeArtifactKey(projectId, probeId, contentSha256);
-  if (value.artifact_key !== artifactKey) throw new Error("invalid_artifact_key");
+  const artifactRef = nativeArtifactRef(projectId, probeId, contentSha256);
+  if (value.artifact_ref !== artifactRef) throw new Error("invalid_artifact_ref");
   const clean = {
     contract_version: NATIVE_MESSAGE_VERSION,
     project_id: projectId,
     probe_id: probeId,
     content_sha256: contentSha256,
-    artifact_key: artifactKey,
+    artifact_ref: artifactRef,
     sequence: 1,
   };
   if (new TextEncoder().encode(JSON.stringify(clean)).byteLength >= 64_000) {
@@ -243,16 +244,80 @@ async function nativeCoordinatorCall(env, projectId, probeId, method, payload) {
   return body;
 }
 
-async function nativeArtifactVerified(env, state) {
-  const object = await env.ARTIFACT_BUCKET.get(state.artifact_key);
-  if (!object) return false;
-  const artifact = JSON.parse(await object.text());
-  return artifact?.contract_version === NATIVE_CONTRACT_VERSION &&
-    artifact?.project_id === state.project_id &&
-    artifact?.probe_id === state.probe_id &&
-    artifact?.content_sha256 === state.content_sha256 &&
-    artifact?.raw_content_persisted === false &&
-    artifact?.secret_output === false;
+async function nativeArtifactState(env, state) {
+  const row = await env.DB.prepare(`
+    SELECT artifact_ref, project_id, probe_id, content_sha256, content_text, content_type, content_bytes
+    FROM native_artifacts
+    WHERE artifact_ref = ?
+  `).bind(state.artifact_ref).first();
+  if (!row) return { present: false, verified: false };
+  const content = String(row.content_text);
+  const contentBytes = new TextEncoder().encode(content).byteLength;
+  const verified = String(row.artifact_ref) === state.artifact_ref &&
+    String(row.project_id) === state.project_id &&
+    String(row.probe_id) === state.probe_id &&
+    String(row.content_sha256) === state.content_sha256 &&
+    String(row.content_type) === NATIVE_ARTIFACT_CONTENT_TYPE &&
+    Number(row.content_bytes) === contentBytes &&
+    contentBytes > 0 &&
+    contentBytes <= MAX_NATIVE_CONTENT_BYTES &&
+    !containsSecretMaterial(content) &&
+    await sha256(content) === state.content_sha256;
+  return { present: true, verified };
+}
+
+async function persistNativeArtifact(env, artifact, requestId) {
+  await env.DB.batch([
+    env.DB.prepare(`
+      INSERT INTO native_artifacts (
+        artifact_ref, project_id, probe_id, content_sha256, content_text,
+        content_type, content_bytes, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      artifact.artifactRef,
+      artifact.projectId,
+      artifact.probeId,
+      artifact.contentSha256,
+      artifact.content,
+      NATIVE_ARTIFACT_CONTENT_TYPE,
+      artifact.contentBytes,
+      artifact.createdAt,
+    ),
+    env.DB.prepare(`
+      INSERT INTO audit_events (id, event_type, trace_id, subject_id, details_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).bind(
+      crypto.randomUUID(),
+      "cloudflare_d1_native_artifact_created",
+      requestId,
+      artifact.probeId,
+      JSON.stringify({
+        artifact_ref: artifact.artifactRef,
+        content_sha256: artifact.contentSha256,
+        content_bytes: artifact.contentBytes,
+      }),
+      artifact.createdAt,
+    ),
+  ]);
+}
+
+async function deleteNativeArtifact(env, state, requestId, eventType = "cloudflare_d1_native_artifact_deleted") {
+  const now = new Date().toISOString();
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM native_artifacts WHERE artifact_ref = ?").bind(state.artifact_ref),
+    env.DB.prepare(`
+      INSERT INTO audit_events (id, event_type, trace_id, subject_id, details_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).bind(
+      crypto.randomUUID(),
+      eventType,
+      requestId,
+      state.probe_id,
+      JSON.stringify({ artifact_ref: state.artifact_ref, content_sha256: state.content_sha256 }),
+      now,
+    ),
+  ]);
+  return !(await nativeArtifactState(env, state)).present;
 }
 
 function nativeRuntimeTruth(env) {
@@ -261,8 +326,8 @@ function nativeRuntimeTruth(env) {
     dev_only: !hostedCandidate,
     hosted_proof: hostedCandidate,
     evidence_ref: hostedCandidate
-      ? "cloudflare_native_do_queue_r2_hosted_candidate"
-      : "cloudflare_native_do_queue_r2_local_candidate",
+      ? "cloudflare_native_do_queue_d1_artifact_hosted_candidate"
+      : "cloudflare_native_do_queue_d1_artifact_local_candidate",
     live_provider_calls: false,
     direct_provider_calls: false,
     live_mcp_writes: false,
@@ -276,7 +341,6 @@ function nativeContract(env) {
     d1: Boolean(env.DB),
     durable_object_sqlite: Boolean(env.RUNTIME_COORDINATOR),
     queue: Boolean(env.RUNTIME_QUEUE),
-    r2: Boolean(env.ARTIFACT_BUCKET),
   };
   const runtimeTruth = nativeRuntimeTruth(env);
   return {
@@ -287,15 +351,24 @@ function nativeContract(env) {
     dispatch: "cloudflare-queues",
     checkpointing: "cloudflare-d1-custom",
     official_langgraph_checkpointer: false,
-    artifact_store: "cloudflare-r2",
+    artifact_store: "cloudflare-d1-bounded-text",
+    artifact_content_max_bytes: MAX_NATIVE_CONTENT_BYTES,
+    artifact_content_publicly_readable: false,
     bindings,
     create_endpoint: "POST /api/v1/cloud-native/probes",
     state_endpoint: "GET /api/v1/cloud-native/probes/{probe_id}?project_id={project_id}",
     cleanup_endpoint: "DELETE /api/v1/cloud-native/probes/{probe_id}?project_id={project_id}",
     write_auth_required: true,
     queue_envelope_contains_raw_prompt: false,
-    r2_public: false,
-    r2_zero_card_verified: false,
+    historical_adapters: [
+      {
+        id: "cloudflare-r2",
+        status: "historical_only",
+        active: false,
+        binding_configured: false,
+        zero_card_verified: false,
+      },
+    ],
     vectorize: "owner_gate_required",
     workers_ai: "owner_gate_required",
     ...runtimeTruth,
@@ -303,7 +376,8 @@ function nativeContract(env) {
       runtimeTruth.hosted_proof
         ? "Hosted candidate mode does not claim production deployment or release readiness."
         : "Local bindings do not prove hosted Cloudflare resource activation.",
-      "R2 free quota does not prove zero-card subscription activation.",
+      "R2 remains disabled and historical-only because zero-card activation is unavailable.",
+      "D1 stores bounded text artifacts only; binary and large-object parity is not claimed.",
       "D1 custom persistence is not an official LangGraph checkpointer.",
     ],
   };
@@ -338,7 +412,7 @@ export class RuntimeCoordinator {
           const same = current.project_id === message.project_id &&
             current.probe_id === message.probe_id &&
             current.content_sha256 === message.content_sha256 &&
-            current.artifact_key === message.artifact_key;
+            current.artifact_ref === message.artifact_ref;
           return same
             ? json({ ...current, replayed: true })
             : json({ status: "conflict", secret_output: false }, 409);
@@ -348,7 +422,7 @@ export class RuntimeCoordinator {
           project_id: message.project_id,
           probe_id: message.probe_id,
           content_sha256: message.content_sha256,
-          artifact_key: message.artifact_key,
+          artifact_ref: message.artifact_ref,
           sequence: 1,
           status: "queued",
           queue_delivery_count: 0,
@@ -369,7 +443,7 @@ export class RuntimeCoordinator {
       const same = current.project_id === message.project_id &&
         current.probe_id === message.probe_id &&
         current.content_sha256 === message.content_sha256 &&
-        current.artifact_key === message.artifact_key;
+        current.artifact_ref === message.artifact_ref;
       if (!same) return json({ status: "conflict", secret_output: false }, 409);
 
       if (action === "complete") {
@@ -997,42 +1071,44 @@ async function createNativeProbe(request, env, requestId) {
   const contentSha256 = await sha256(content);
   const idempotencySha256 = await sha256(`${projectId}:${idempotencyKey}`);
   const probeId = `probe-${idempotencySha256.slice(0, 40)}`;
-  const artifactKey = nativeArtifactKey(projectId, probeId, contentSha256);
+  const artifactRef = nativeArtifactRef(projectId, probeId, contentSha256);
   const message = nativeMessage({
     contract_version: NATIVE_MESSAGE_VERSION,
     project_id: projectId,
     probe_id: probeId,
     content_sha256: contentSha256,
-    artifact_key: artifactKey,
+    artifact_ref: artifactRef,
     sequence: 1,
   });
   const artifact = {
-    contract_version: NATIVE_CONTRACT_VERSION,
-    project_id: projectId,
-    probe_id: probeId,
-    content_sha256: contentSha256,
-    created_at: new Date().toISOString(),
-    raw_content_persisted: false,
-    live_provider_calls: false,
-    live_mcp_writes: false,
-    production_deploy: false,
-    secret_output: false,
+    artifactRef,
+    projectId,
+    probeId,
+    contentSha256,
+    content,
+    contentBytes: new TextEncoder().encode(content).byteLength,
+    createdAt: new Date().toISOString(),
   };
 
   let coordinatorCreated = false;
+  let artifactPersisted = false;
   try {
     const d1Probe = await env.DB.prepare("SELECT 1 AS ok").first();
     if (Number(d1Probe?.ok) !== 1) throw new Error("d1_probe_failed");
-    await env.ARTIFACT_BUCKET.put(artifactKey, JSON.stringify(artifact), {
-      httpMetadata: { contentType: "application/json" },
-      customMetadata: { contract: NATIVE_CONTRACT_VERSION, contentSha256 },
-    });
     const coordinator = await nativeCoordinatorCall(env, projectId, probeId, "POST", {
       action: "initialize",
       message,
     });
     coordinatorCreated = !coordinator.replayed;
-    if (coordinatorCreated) await env.RUNTIME_QUEUE.send(message);
+    if (coordinatorCreated) {
+      await persistNativeArtifact(env, artifact, requestId);
+      artifactPersisted = true;
+      await env.RUNTIME_QUEUE.send(message);
+    } else {
+      const artifactState = await nativeArtifactState(env, coordinator);
+      if (!artifactState.verified) throw new Error("native_artifact_replay_invalid");
+      artifactPersisted = true;
+    }
     return json({
       ...contract,
       status: "queued",
@@ -1041,17 +1117,22 @@ async function createNativeProbe(request, env, requestId) {
       probe_id: probeId,
       project_id: projectId,
       content_sha256: contentSha256,
-      artifact_key: artifactKey,
+      artifact_ref: artifactRef,
       coordinator_status: coordinator.status,
       replayed: Boolean(coordinator.replayed),
       queue_enqueued: coordinatorCreated,
       d1_read_verified: true,
+      d1_artifact_persisted: artifactPersisted,
       queue_envelope_bytes: new TextEncoder().encode(JSON.stringify(message)).byteLength,
     }, 202);
   } catch (error) {
-    try { await env.ARTIFACT_BUCKET.delete(artifactKey); } catch { /* best-effort local cleanup */ }
+    if (artifactPersisted && coordinatorCreated) {
+      try {
+        await deleteNativeArtifact(env, message, requestId, "cloudflare_d1_native_artifact_rollback");
+      } catch { /* best-effort bounded rollback */ }
+    }
     if (coordinatorCreated) {
-      try { await nativeCoordinatorCall(env, projectId, probeId, "DELETE"); } catch { /* best-effort local cleanup */ }
+      try { await nativeCoordinatorCall(env, projectId, probeId, "DELETE"); } catch { /* best-effort bounded rollback */ }
     }
     if (error instanceof Error && error.message === "native_coordinator_conflict") {
       return json(blocked("native_idempotency_conflict", requestId, "The idempotency key is already bound to different content."), 409);
@@ -1068,13 +1149,12 @@ async function getNativeProbe(url, probeId, env, requestId) {
     const projectId = safeProjectId(url.searchParams.get("project_id"));
     const cleanProbeId = safeId(probeId, "probe_id");
     const state = await nativeCoordinatorCall(env, projectId, cleanProbeId, "GET");
-    const artifact = await env.ARTIFACT_BUCKET.head(state.artifact_key);
-    const artifactVerified = Boolean(artifact) && await nativeArtifactVerified(env, state);
+    const artifact = await nativeArtifactState(env, state);
     return json({
       ...state,
       contract_version: NATIVE_CONTRACT_VERSION,
-      artifact_present: Boolean(artifact),
-      artifact_verified: artifactVerified,
+      artifact_present: artifact.present,
+      artifact_verified: artifact.verified,
       ...nativeRuntimeTruth(env),
     });
   } catch {
@@ -1098,14 +1178,14 @@ async function deleteNativeProbe(request, url, probeId, env, requestId) {
     const projectId = safeProjectId(url.searchParams.get("project_id"));
     const cleanProbeId = safeId(probeId, "probe_id");
     const state = await nativeCoordinatorCall(env, projectId, cleanProbeId, "GET");
-    await env.ARTIFACT_BUCKET.delete(state.artifact_key);
+    const artifactDeleted = await deleteNativeArtifact(env, state, requestId);
     await nativeCoordinatorCall(env, projectId, cleanProbeId, "DELETE");
     return json({
       contract_version: NATIVE_CONTRACT_VERSION,
       status: "deleted",
       probe_id: cleanProbeId,
       project_id: projectId,
-      artifact_deleted: true,
+      artifact_deleted: artifactDeleted,
       persisted: false,
       ...nativeRuntimeTruth(env),
     });
@@ -1120,9 +1200,9 @@ async function consumeNativeQueue(batch, env) {
     try {
       const body = typeof queueMessage.body === "string" ? JSON.parse(queueMessage.body) : queueMessage.body;
       message = nativeMessage(body);
-      const artifact = await env.ARTIFACT_BUCKET.head(message.artifact_key);
-      if (!artifact) throw new Error("native_artifact_missing");
-      if (!(await nativeArtifactVerified(env, message))) throw new Error("native_artifact_invalid");
+      const artifact = await nativeArtifactState(env, message);
+      if (!artifact.present) throw new Error("native_artifact_missing");
+      if (!artifact.verified) throw new Error("native_artifact_invalid");
       await nativeCoordinatorCall(env, message.project_id, message.probe_id, "POST", {
         action: "complete",
         message,

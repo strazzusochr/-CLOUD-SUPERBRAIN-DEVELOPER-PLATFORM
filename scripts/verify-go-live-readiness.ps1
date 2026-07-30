@@ -104,9 +104,7 @@ if ($readiness.external_audit_claims.cloudflare_native_zero_card_hosted_runtime_
     "workers_scripts_edit",
     "d1_edit",
     "durable_objects_edit",
-    "queues_edit",
-    "workers_ai_read",
-    "r2_edit_if_zero_card_verified"
+    "queues_edit"
   )) {
     Assert-Contains "required Cloudflare owner scopes" $readiness.required_owner_scopes $requiredScope
   }

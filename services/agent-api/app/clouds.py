@@ -41,8 +41,6 @@ CLOUDFLARE_NATIVE_REQUIRED_SCOPES = [
     "d1_edit",
     "durable_objects_edit",
     "queues_edit",
-    "workers_ai_read",
-    "r2_edit_if_zero_card_verified",
 ]
 VERCEL_API_URL = "https://api.vercel.com"
 GITHUB_API_URL = "https://api.github.com"
@@ -1124,6 +1122,7 @@ def cloudflare_provider() -> dict[str, object]:
             "The live proof calls Cloudflare read-only token verification and optional account or zone reads only.",
             "A token/account read does not prove the Cloudflare-native hosted runtime.",
             "The bounded O6 Workers AI gateway proof does not make Layer 4 equal 100 or prove the hosted stateful runtime.",
+            "O2Core uses D1 bounded-text artifacts, Durable Objects and Queues; R2 is historical-only and unbound.",
             "No DNS, Workers, AI Gateway, cache, or security rule write is performed by this endpoint.",
             "No AI Gateway routing is claimed without the LLM gateway policy proof.",
         ],
@@ -1132,6 +1131,15 @@ def cloudflare_provider() -> dict[str, object]:
     item["provider_read_live_verified"] = provider_read_live_verified
     item["hosted_runtime_claim_allowed"] = hosted_runtime_claim_allowed
     item["required_scopes"] = list(CLOUDFLARE_NATIVE_REQUIRED_SCOPES)
+    item["artifact_adapter"] = "cloudflare-d1-bounded-text"
+    item["historical_adapters"] = [
+        {
+            "id": "cloudflare-r2",
+            "status": "historical_only",
+            "active": False,
+            "binding_configured": False,
+        }
+    ]
     item["hosted_verifier"] = "scripts/verify-cloudflare-stateful-runtime.ps1"
     if snapshot.get("error"):
         item["error"] = snapshot["error"]

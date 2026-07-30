@@ -185,20 +185,20 @@ RC10 artifact while explicitly reporting that the active candidate predates
 the current development HEAD. Docker was `10/10 healthy`; responsive browser
 evidence covered `22x2=44`.
 
-## Current Session-9 Cloudflare-Native Local Evidence
+## Current Cloudflare-Native Zero-Card Local Evidence
 
-`cloudflare-native-runtime-candidate-v1` implements Architecture A without replacing
-LangGraph.js. D1 remains custom persistence, a SQLite Durable Object coordinates idempotent
-probe state, a Queue carries only versioned IDs and hashes, and private local R2 stores only
-sanitized JSON metadata under server-generated keys. The focused proof passed 16/16 unit
-tests, Wrangler Preview dry-run, and a real local authenticated create -> Queue -> DO
-completion -> R2 Put/Get/Delete flow. Same-content replay did not enqueue again; duplicate
+`cloudflare-native-runtime-candidate-v2` implements Architecture A without replacing
+LangGraph.js. D1 remains custom persistence and now stores bounded UTF-8 text artifacts,
+a SQLite Durable Object coordinates idempotent probe state, and a Queue carries only
+versioned IDs and hashes. R2 is unbound and `historical_only`. The focused proof passed
+17/17 unit tests, migration `0003`, and a real local authenticated create -> D1 artifact ->
+Queue -> DO completion -> D1 read/delete flow. Same-content replay did not enqueue again; duplicate
 delivery kept the effect count at `1`; conflicting content returned HTTP `409` while
 preserving the original terminal state. Unauthenticated, oversized and secret-bearing
 requests failed closed, the sentinel was absent from HTTP, logs and evidence, and cleanup
 left no listener or owned Worker process. Evidence:
-`.codex/runs/CURRENT/master-goal/t3/cloudflare-d1-local/report.json`, SHA-256
-`FFB9693896C26B7831BE60E2A2DE323B7B1243F7DACDDE91727706BAF3E06F80`;
+`.codex/runs/CURRENT/master-goal/t3/cloudflare-d1-local-v2/report.json`, SHA-256
+`CB108383C338E41C47440FA2618009DC174053E08E6401CAD7255AD333A65F43`;
 tracked state: `docs/runtime-state/cloudflare-native-local-candidate.json`.
 
 The newly published `brace-expansion` advisory was closed without moving the Next.js rule
@@ -213,8 +213,8 @@ including 22 routes x 2 viewports and all seven Phase-6 controls.
 
 No rubric delta exists: Overall stays `86%`. `owner-input-manifest-v2` maps O2' to
 `cloudflare_native_zero_card_hosted_runtime` and requires no card, checkout, payment, paid
-fallback or automatic overage. The gate remains closed. R2 free quota is not a zero-card
-activation proof because its current setup documentation requires a subscription checkout.
+fallback or automatic overage. The gate remains closed. R2 is historical-only and not part
+of the current binding, resource plan or hosted verifier.
 The v2 rebase below now replaces every active Fly projection atomically; Fly remains only
 RC10 historical provenance. DEV-ONLY; hosted proof still blocked.
 

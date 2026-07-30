@@ -73,7 +73,7 @@ Live-Grün vortäuschen — auch die UI selbst nicht.**
 > Maßgeblich ist der Nachtrag am Dateianfang; `184/184` bleibt ausschließlich historische Session-10-Evidenz.
 
 ## 3. 📊 STAND
-- Overall **86 %** · `MARKET_READY: false` · autonom offen: ADR-010-D1/DO-Adapter und Hosted-O2Core
+- Overall **86 %** · `MARKET_READY: false` · autonom offen: Hosted-O2Core und nachfolgende Hosted-Abnahme
 - `P0 100·P1 100·P2 100·P3 44·P4 100·P5 68·P6 90` — `FE 100·ORC 100·AP 69·LLM 55·MCP 56·MEM 90·OBS 100`
 - **RC10** `prod-candidate-2026-07-24-local-rc10` aus `2ae4c61a`; Rollback RC9 @ `0cbe644c`; GHCR unveröffentlicht
 - Fremder Product-Acceptance-Report und fremde untracked Dateien bleiben **unberührt**
@@ -204,13 +204,16 @@ verankert (`production,preview`), Redeploy `dpl_5uLu9a2BpEBb5BDPiuqRtyfkSFY1` RE
 > `apply_github_branch_protection.py` in O4 scheitern lassen. Der Owner hat `gh auth login` erneuert;
 > der **Token in der Secrets-Datei bleibt ungültig** und wird durch den neuen O4-Fine-grained-Token ersetzt.
 
-## 5b. 🆕 OFFENE PFLICHT AUS DER OWNER-MATRIX: **ADR-010 ÄNDERN**
-`owner-input-manifest.json` / O2 verlangt wörtlich: *„otherwise keep R2 disabled **and amend ADR-010 to a genuine
-zero-card artifact adapter**"*. R2 ist endgültig gestrichen (§4) → **die Änderung ist jetzt fällig und war bisher
-in keiner Übergabe erfasst.** Codex: `docs/adr/ADR-010-cloudflare-native-free-runtime.md` überarbeiten —
-Artefakt-Adapter auf **D1** (+ Durable Objects) statt R2, mit ehrlicher Begründung (Kreditkarten-Wand),
-Grenzen (D1-Zeilen-/Größenlimits) und Migrationshinweis. Ohne diese Änderung steht ADR-010 im Widerspruch
-zur beschlossenen Architektur.
+## 5b. ✅ PFLICHT AUS DER OWNER-MATRIX ERLEDIGT: **ECHTER ZERO-CARD-ADAPTER**
+ADR-010 und `cloudflare-native-runtime-candidate-v2` verwenden jetzt
+`cloudflare-d1-bounded-text`: begrenzte UTF-8-Artefakte bis `32768` Bytes liegen in D1; Queue und SQLite
+Durable Objects koordinieren ausschließlich Referenz, Hash und Status. Rohinhalt erscheint weder in Queue,
+DO-State, Antwort noch Audit. Migration `0003_zero_card_d1_artifacts.sql` ist vorhanden. R2 wurde aus den
+Wrangler-Bindings entfernt und bleibt nur ungebunden als `historical_only`; es gibt keinen Spillover.
+`17/17` Unit-Tests, statischer Verifier und echter lokaler Wrangler-Create→Queue→DO→D1-Read/Delete-Lauf
+bestanden. Evidence `.codex/runs/CURRENT/master-goal/t3/cloudflare-d1-local-v2/report.json`, SHA-256
+`CB108383C338E41C47440FA2618009DC174053E08E6401CAD7255AD333A65F43`.
+DEV-ONLY; hosted proof still blocked. Kein Prozentcredit.
 
 ## 5c. ✅ O5 IST ERLEDIGT — OWNER-TEIL ENTFÄLLT
 Die Matrix fordert für O5 ausschließlich „Extend the Cloudflare token with Vectorize Edit". Der gelieferte Token

@@ -103,8 +103,8 @@
     "No production release readiness or release promotion is verified.",
     "No hosted stateful Phase 2 parity or production release is claimed.",
     "Historical Fly budget markers are provenance only; Fly is not the active runtime target and they do not satisfy the Cloudflare hosted gate.",
-    "Hosted D1 lexical persistence exists; full Architecture-A parity with Durable Objects, Queues and a proven zero-card artifact adapter is not verified.",
-    "The local Cloudflare-native Durable Object, Queue and R2 adapter proof is DEV-ONLY and earns no percentage credit.",
+    "Hosted D1 lexical persistence exists; full hosted Architecture-A parity with Durable Objects, Queues and the zero-card D1 artifact adapter is not verified.",
+    "The local Cloudflare-native D1 bounded-text artifact, Durable Object and Queue adapter proof is DEV-ONLY and earns no percentage credit; R2 is historical-only.",
     "The local product-acceptance and 22-page action reports are DEV-ONLY; hosted proof remains blocked and they earn no duplicate percentage credit.",
     "Unexpected response type is not a completion or failure claim; backend smoke/status evidence is still required."
   ]

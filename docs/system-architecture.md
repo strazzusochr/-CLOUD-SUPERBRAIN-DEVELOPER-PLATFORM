@@ -6,14 +6,15 @@ Status: Cloudflare-native target; RC10 runtime retained as historical local proo
 ## Active Target Override
 
 `docs/adr/ADR-010-cloudflare-native-free-runtime.md` selects Architecture A as the
-zero-cost target: LangGraph.js on Workers with custom D1 persistence, SQLite Durable Objects,
-Queues and a private R2 adapter. Fly.io is OUT for new Session-9 work. The Fly/PostgreSQL/Redis
+zero-cost target: LangGraph.js on Workers with custom D1 persistence and bounded-text
+artifact storage, SQLite Durable Objects, and Queues. R2 is unbound and
+`historical_only`; Fly.io is OUT for new Session-9 work. The Fly/PostgreSQL/Redis
 tables below remain the last verified RC10 baseline and migration checklist, not an
 authorization to spend, deploy, or reactivate Fly.
 
-The Cloudflare adapter is `DEV-ONLY; hosted proof still blocked`. R2's published
-free quota is not treated as a zero-card proof because current setup documentation requires a
-subscription checkout. No legacy lock is removed from verification until O2' proves hosted
+The Cloudflare adapter is `DEV-ONLY; hosted proof still blocked`. The D1 adapter
+does not claim binary or large-object parity and has no paid/provider spillover.
+No legacy lock is removed from verification until O2' proves hosted
 Cloudflare parity without a card or paid plan.
 
 The active external gate is `cloudflare_native_zero_card_hosted_runtime`.

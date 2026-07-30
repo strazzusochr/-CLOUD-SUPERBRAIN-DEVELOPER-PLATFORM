@@ -36,6 +36,24 @@ class FakeStatement {
       this.db.artifacts.set(id, { id, project_id, source_page, artifact_type, title, summary, status, run_id, metadata_json, created_at, deleted_at: null });
       return { meta: { changes: 1 } };
     }
+    if (this.sql.startsWith("INSERT INTO native_artifacts")) {
+      const [artifact_ref, project_id, probe_id, content_sha256, content_text, content_type, content_bytes, created_at] = this.values;
+      if (this.db.nativeArtifacts.has(artifact_ref)) throw new Error("UNIQUE constraint failed: native_artifacts.artifact_ref");
+      this.db.nativeArtifacts.set(artifact_ref, {
+        artifact_ref,
+        project_id,
+        probe_id,
+        content_sha256,
+        content_text,
+        content_type,
+        content_bytes,
+        created_at,
+      });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("DELETE FROM native_artifacts")) {
+      return { meta: { changes: this.db.nativeArtifacts.delete(this.values[0]) ? 1 : 0 } };
+    }
     if (this.sql.startsWith("INSERT INTO runtime_runs")) {
       const [id, project_id, prompt_sha256, status, current_node, checkpoint_json, created_at, updated_at] = this.values;
       this.db.runs.set(id, { id, project_id, prompt_sha256, status, current_node, checkpoint_json, created_at, updated_at });
@@ -68,6 +86,10 @@ class FakeStatement {
     }
     if (this.sql.startsWith("SELECT * FROM workspace_artifacts WHERE id")) {
       const row = this.db.artifacts.get(this.values[0]);
+      return row ? { ...row } : null;
+    }
+    if (this.sql.includes("FROM native_artifacts")) {
+      const row = this.db.nativeArtifacts.get(this.values[0]);
       return row ? { ...row } : null;
     }
     if (this.sql.startsWith("SELECT * FROM runtime_runs WHERE id")) {
@@ -118,6 +140,7 @@ class FakeD1 {
   constructor({ failAuditWrites = false } = {}) {
     this.builds = new Map();
     this.artifacts = new Map();
+    this.nativeArtifacts = new Map();
     this.runs = new Map();
     this.tasks = [];
     this.memory = [];
@@ -133,6 +156,7 @@ class FakeD1 {
     const snapshot = {
       builds: new Map([...this.builds].map(([key, value]) => [key, { ...value }])),
       artifacts: new Map([...this.artifacts].map(([key, value]) => [key, { ...value }])),
+      nativeArtifacts: new Map([...this.nativeArtifacts].map(([key, value]) => [key, { ...value }])),
       runs: new Map([...this.runs].map(([key, value]) => [key, { ...value }])),
       tasks: this.tasks.map((value) => ({ ...value })),
       memory: this.memory.map((value) => ({ ...value })),
@@ -145,6 +169,7 @@ class FakeD1 {
     } catch (error) {
       this.builds = snapshot.builds;
       this.artifacts = snapshot.artifacts;
+      this.nativeArtifacts = snapshot.nativeArtifacts;
       this.runs = snapshot.runs;
       this.tasks = snapshot.tasks;
       this.memory = snapshot.memory;
@@ -202,30 +227,6 @@ class FakeQueue {
   }
 }
 
-class FakeR2 {
-  constructor() {
-    this.objects = new Map();
-  }
-
-  async put(key, value, options = {}) {
-    this.objects.set(key, { value: String(value), ...structuredClone(options) });
-  }
-
-  async head(key) {
-    const value = this.objects.get(key);
-    return value ? { key, customMetadata: value.customMetadata || {} } : null;
-  }
-
-  async get(key) {
-    const value = this.objects.get(key);
-    return value ? { text: async () => value.value } : null;
-  }
-
-  async delete(key) {
-    this.objects.delete(key);
-  }
-}
-
 function env(options = {}) {
   return {
     DB: new FakeD1(options),
@@ -233,7 +234,6 @@ function env(options = {}) {
     RUNTIME_MODE: options.runtimeMode || "cloudflare_native_local_candidate",
     RUNTIME_COORDINATOR: new FakeDurableNamespace(),
     RUNTIME_QUEUE: new FakeQueue(),
-    ARTIFACT_BUCKET: new FakeR2(),
   };
 }
 
@@ -489,15 +489,28 @@ test("Cloudflare-native candidate contract is fail-closed and labels local proof
   const response = await worker.fetch(new Request("https://state.example/api/v1/cloud-native/contract"), fakeEnv);
   const body = await response.json();
   assert.equal(response.status, 200);
-  assert.equal(body.contract_version, "cloudflare-native-runtime-candidate-v1");
+  assert.equal(body.contract_version, "cloudflare-native-runtime-candidate-v2");
   assert.equal(body.status, "configured");
   assert.equal(body.engine, "langgraph-js");
   assert.equal(body.coordination, "durable-object-sqlite");
   assert.equal(body.dispatch, "cloudflare-queues");
   assert.equal(body.checkpointing, "cloudflare-d1-custom");
   assert.equal(body.official_langgraph_checkpointer, false);
-  assert.equal(body.artifact_store, "cloudflare-r2");
-  assert.equal(body.r2_zero_card_verified, false);
+  assert.equal(body.artifact_store, "cloudflare-d1-bounded-text");
+  assert.equal(body.artifact_content_max_bytes, 32768);
+  assert.equal(body.artifact_content_publicly_readable, false);
+  assert.deepEqual(body.bindings, {
+    d1: true,
+    durable_object_sqlite: true,
+    queue: true,
+  });
+  assert.deepEqual(body.historical_adapters, [{
+    id: "cloudflare-r2",
+    status: "historical_only",
+    active: false,
+    binding_configured: false,
+    zero_card_verified: false,
+  }]);
   assert.equal(body.dev_only, true);
   assert.equal(body.hosted_proof, false);
   assert.equal(body.live_provider_calls, false);
@@ -506,7 +519,7 @@ test("Cloudflare-native candidate contract is fail-closed and labels local proof
   assert.equal(body.production_deploy, false);
 });
 
-test("Cloudflare-native probe crosses R2, Queue, and Durable Object idempotently then cleans up", async () => {
+test("Cloudflare-native probe crosses D1 artifact storage, Queue, and Durable Object idempotently then cleans up", async () => {
   const fakeEnv = env();
   const requestBody = {
     project_id: "default",
@@ -521,10 +534,12 @@ test("Cloudflare-native probe crosses R2, Queue, and Durable Object idempotently
   assert.equal(createdBody.dev_only, true);
   assert.equal(createdBody.hosted_proof, false);
   assert.equal(createdBody.d1_read_verified, true);
+  assert.equal(createdBody.d1_artifact_persisted, true);
   assert.equal(fakeEnv.RUNTIME_QUEUE.messages.length, 1);
-  assert.equal(fakeEnv.ARTIFACT_BUCKET.objects.size, 1);
+  assert.equal(fakeEnv.DB.nativeArtifacts.size, 1);
   assert.equal(JSON.stringify(fakeEnv.RUNTIME_QUEUE.messages[0]).includes(requestBody.content), false);
-  assert.equal([...fakeEnv.ARTIFACT_BUCKET.objects.values()][0].value.includes(requestBody.content), false);
+  assert.equal(JSON.stringify(createdBody).includes(requestBody.content), false);
+  assert.equal([...fakeEnv.DB.nativeArtifacts.values()][0].content_text, requestBody.content);
   assert.ok(createdBody.queue_envelope_bytes < 64_000);
 
   const replayed = await worker.fetch(writeRequest("/api/v1/cloud-native/probes", requestBody), fakeEnv);
@@ -534,7 +549,7 @@ test("Cloudflare-native probe crosses R2, Queue, and Durable Object idempotently
   assert.equal(replayedBody.replayed, true);
   assert.equal(replayedBody.queue_enqueued, false);
   assert.equal(fakeEnv.RUNTIME_QUEUE.messages.length, 1);
-  assert.equal(fakeEnv.ARTIFACT_BUCKET.objects.size, 1);
+  assert.equal(fakeEnv.DB.nativeArtifacts.size, 1);
 
   const firstDelivery = queueDelivery(fakeEnv.RUNTIME_QUEUE.messages[0]);
   await worker.queue({ messages: [firstDelivery] }, fakeEnv);
@@ -567,7 +582,7 @@ test("Cloudflare-native probe crosses R2, Queue, and Durable Object idempotently
   assert.equal(deletedBody.direct_provider_calls, false);
   assert.equal(deletedBody.live_mcp_writes, false);
   assert.equal(deletedBody.production_deploy, false);
-  assert.equal(fakeEnv.ARTIFACT_BUCKET.objects.size, 0);
+  assert.equal(fakeEnv.DB.nativeArtifacts.size, 0);
 
   const afterDelete = await worker.fetch(new Request(`https://state.example${stateUrl}`), fakeEnv);
   const afterDeleteBody = await afterDelete.json();
@@ -583,7 +598,7 @@ test("Cloudflare-native hosted candidate labels the full probe lifecycle without
   assert.equal(contract.status, 200);
   assert.equal(contractBody.dev_only, false);
   assert.equal(contractBody.hosted_proof, true);
-  assert.equal(contractBody.evidence_ref, "cloudflare_native_do_queue_r2_hosted_candidate");
+  assert.equal(contractBody.evidence_ref, "cloudflare_native_do_queue_d1_artifact_hosted_candidate");
   assert.equal(contractBody.direct_provider_calls, false);
   assert.equal(contractBody.live_mcp_writes, false);
   assert.equal(contractBody.production_deploy, false);
@@ -626,7 +641,7 @@ test("Cloudflare-native hosted candidate labels the full probe lifecycle without
   assert.equal(deletedBody.direct_provider_calls, false);
   assert.equal(deletedBody.live_mcp_writes, false);
   assert.equal(deletedBody.production_deploy, false);
-  assert.equal(fakeEnv.ARTIFACT_BUCKET.objects.size, 0);
+  assert.equal(fakeEnv.DB.nativeArtifacts.size, 0);
 });
 
 test("Cloudflare-native conflicting idempotency replay preserves the original coordinator state", async () => {
@@ -646,7 +661,7 @@ test("Cloudflare-native conflicting idempotency replay preserves the original co
   }), fakeEnv);
   assert.equal(conflict.status, 409);
   assert.equal(fakeEnv.RUNTIME_QUEUE.messages.length, 1);
-  assert.equal(fakeEnv.ARTIFACT_BUCKET.objects.size, 1);
+  assert.equal(fakeEnv.DB.nativeArtifacts.size, 1);
 
   const stateUrl = `https://state.example/api/v1/cloud-native/probes/${createdBody.probe_id}?project_id=default`;
   const read = await worker.fetch(new Request(stateUrl), fakeEnv);
@@ -672,7 +687,7 @@ test("Cloudflare-native mutations reject missing auth and secret material before
   assert.equal(JSON.parse(rejectedText).error, "secret_material_rejected");
   assert.equal(rejectedText.includes(body.content), false);
   assert.equal(fakeEnv.RUNTIME_QUEUE.messages.length, 0);
-  assert.equal(fakeEnv.ARTIFACT_BUCKET.objects.size, 0);
+  assert.equal(fakeEnv.DB.nativeArtifacts.size, 0);
 });
 
 test("Cloudflare-native queue retry is bounded and cannot regress a failed terminal state", async () => {
@@ -684,7 +699,8 @@ test("Cloudflare-native queue retry is bounded and cannot regress a failed termi
   }), fakeEnv);
   const createdBody = await created.json();
   const message = fakeEnv.RUNTIME_QUEUE.messages[0];
-  await fakeEnv.ARTIFACT_BUCKET.delete(message.artifact_key);
+  const artifact = structuredClone(fakeEnv.DB.nativeArtifacts.get(message.artifact_ref));
+  fakeEnv.DB.nativeArtifacts.delete(message.artifact_ref);
 
   const terminalDelivery = queueDelivery(message, 3);
   await worker.queue({ messages: [terminalDelivery] }, fakeEnv);
@@ -695,7 +711,7 @@ test("Cloudflare-native queue retry is bounded and cannot regress a failed termi
   const failed = await worker.fetch(new Request(stateUrl), fakeEnv);
   assert.equal((await failed.json()).status, "failed");
 
-  await fakeEnv.ARTIFACT_BUCKET.put(message.artifact_key, "{}");
+  fakeEnv.DB.nativeArtifacts.set(message.artifact_ref, artifact);
   const lateDelivery = queueDelivery(message, 1);
   await worker.queue({ messages: [lateDelivery] }, fakeEnv);
   assert.equal(lateDelivery.acked, 0);
