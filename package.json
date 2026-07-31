@@ -23,6 +23,7 @@
     "verify:orchestrator-completion": "powershell -ExecutionPolicy Bypass -File scripts\\verify-orchestrator-completion-evidence.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
     "build:phase5-candidate-local": "powershell -ExecutionPolicy Bypass -File scripts\\build-phase5-production-candidate-local.ps1",
     "verify:phase5-candidate-local": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase5-production-candidate-local.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
+    "verify:phase5-credit": "py -3 scripts\\verify_phase5_credit_itemization.py",
     "verify:phase6-scoreboard": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase6-local-scoreboard-performance-runtime.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
     "verify:responsive": "node scripts/verify-workspace-responsive-browser.cjs --base-url http://localhost:8081 --allow-localhost",
     "verify:frontend-hosted-current": "powershell -ExecutionPolicy Bypass -File scripts\\verify-frontend-hosted-current.ps1",

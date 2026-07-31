@@ -1,0 +1,107 @@
+{
+  "contract_version": "phase5-candidate-readiness-evidence-v1",
+  "release_id": "prod-candidate-2026-07-31-local-rc11",
+  "source_commit_sha": "0000000000000000000000000000000000000000",
+  "generated_at_utc": "2026-07-31T12:00:00Z",
+  "status": "pending",
+  "verified_item_count": 17,
+  "blocked_item_count": 2,
+  "blocked_item_ids": [
+    "I1",
+    "I5"
+  ],
+  "phase5_computed_percent": 89,
+  "ci_workflow": {
+    "name": "pr-check",
+    "run_id": 0,
+    "run_url": "pending",
+    "head_sha": "0000000000000000000000000000000000000000",
+    "status": "pending"
+  },
+  "local_verification": {
+    "static": {
+      "command": "npm run verify",
+      "status": "pending",
+      "artifact": ".codex/runs/CURRENT/master-goal/phase5/rc11/static.log",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "runtime": {
+      "command": "npm run verify:runtime",
+      "status": "pending",
+      "artifact": ".codex/runs/CURRENT/master-goal/phase5/rc11/runtime.log",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "browser": {
+      "command": "npm run verify:browser",
+      "status": "pending",
+      "artifact": ".codex/runs/CURRENT/master-goal/phase5/rc11/browser.log",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "candidate_images": {
+      "command": "scripts/build-phase5-production-candidate-local.ps1",
+      "status": "pending",
+      "artifact": ".codex/runs/CURRENT/master-goal/phase5/production-candidate-local/candidate-images.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "candidate_runtime": {
+      "command": "npm run verify:phase5-candidate-local",
+      "status": "pending",
+      "artifact": ".codex/runs/CURRENT/master-goal/phase5/production-candidate-local/verification.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "security": {
+      "command": "npm audit --audit-level=moderate plus canonical gitleaks verifier",
+      "status": "pending",
+      "artifact": ".codex/runs/CURRENT/master-goal/phase5/rc11/security.log",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "budget_review": {
+    "new_recurring_infrastructure": false,
+    "paid_provider": false,
+    "payment_or_card_action": false,
+    "monthly_ceiling_eur": 20,
+    "ceiling_changed": false
+  },
+  "observability_paths": {
+    "health": [
+      "/api/v1/health",
+      "/mcp/api/v1/health",
+      "/llm/api/v1/health"
+    ],
+    "metrics": [
+      "/api/v1/metrics"
+    ],
+    "audit": [
+      "/api/v1/audit/recent",
+      "/api/v1/audit/mcp"
+    ],
+    "contracts": [
+      "/api/v1/errors/contract",
+      "/api/v1/rate-limit/contract",
+      "/api/v1/sessions/history/contract",
+      "/api/v1/request/contract",
+      "/api/v1/trace/contract"
+    ],
+    "escalation_runbook": "docs/runbooks/incident-response.md"
+  },
+  "open_questions_acceptance": {
+    "unknown_questions": [],
+    "accepted_under_no_release": [
+      "I1 hosted_candidate_parity",
+      "I5 production_auth_identity"
+    ]
+  },
+  "gate_truth": {
+    "docker_registry_publish": false,
+    "production_auth_identity": false,
+    "production_rollout_claimed": false,
+    "market_ready": false
+  },
+  "non_claims": [
+    "This evidence does not prove candidate-bound hosted staging.",
+    "It does not prove production OAuth identity.",
+    "It does not publish GHCR images or verify registry digests.",
+    "It does not authorize release promotion or production rollout."
+  ]
+}

@@ -51,6 +51,7 @@ try {
     "services/memory-worker",
     "services/mcp-gateway",
     "services/llm-gateway",
+    "PROJECT_STATE.md",
     "docs/project-progress.manifest.json",
     "docs/runtime-state/external-gate-summary.json",
     "docs/codex-integration/autonomous-agent-roster.json"

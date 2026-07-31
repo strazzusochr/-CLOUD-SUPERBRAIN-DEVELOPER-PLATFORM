@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +42,10 @@ def main() -> int:
     require(payload.get("binding_document") == "docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md", "binding document mismatch")
     require("Evidence-based only" in str(payload.get("truth_policy", "")), "truth policy must be explicit")
     require(payload.get("non_claims"), "non_claims must not be empty")
+    phase5_verifier = Path("scripts/verify_phase5_credit_itemization.py")
+    require(phase5_verifier.exists(), f"missing {phase5_verifier}")
+    phase5_result = subprocess.run([sys.executable, str(phase5_verifier)], check=False)
+    require(phase5_result.returncode == 0, "Phase-5 credit itemization is invalid")
     print(f"[project-progress] manifest valid: overall={payload['overall_percent']}%")
     return 0
 

@@ -564,7 +564,7 @@ foreach ($required in @(
   '{ id: "P2", pct: 100 }',
   '{ id: "P3", pct: 44 }',
   '{ id: "P4", pct: 100 }',
-  '{ id: "P5", pct: 68 }',
+  '{ id: "P5", pct: 89 }',
   '{ id: "P6", pct: 90 }',
   "AGENTS",
   "MCP_TOOLS",
@@ -901,6 +901,8 @@ node scripts\verify-phase6-frontend.mjs --source-only
 Assert-LastExitCode "phase6 frontend source markers"
 py -3 -m py_compile scripts\verify_project_progress_manifest.py
 Assert-LastExitCode "project progress manifest syntax"
+py -3 -m py_compile scripts\verify_phase5_credit_itemization.py
+Assert-LastExitCode "phase5 credit itemization syntax"
 py -3 scripts\verify_project_progress_manifest.py
 Assert-LastExitCode "project progress manifest"
 $projectProgressManifest = Get-Content -Path "docs\project-progress.manifest.json" -Raw

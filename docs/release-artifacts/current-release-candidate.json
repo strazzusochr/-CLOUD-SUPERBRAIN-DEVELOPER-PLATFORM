@@ -1,7 +1,7 @@
 {
-  "active_release_id": "prod-candidate-2026-07-24-local-rc10",
-  "updated_at": "2026-07-24T19:19:37.4701130Z",
-  "updated_by": "codex-session8-postcss-security-requalification",
-  "reason": "Requalify six content-addressed production service images from committed source 2ae4c61aa876759abcaa83c36c0a3379206b91a4 after upgrading the exact PostCSS override from vulnerable 8.5.12 to fixed 8.5.23 and confirming npm audit zero. Rollback remains bound to Session 8 RC9 source 0cbe644c84812bbe72811516d58a70be8c27ffa5. GHCR publication, hosted proof, Owner approval, release promotion, and production rollout remain explicitly blocked.",
+  "active_release_id": "prod-candidate-2026-07-31-local-rc11",
+  "updated_at": "2026-07-31T12:00:00Z",
+  "updated_by": "codex-session13-phase5-itemization",
+  "reason": "Replace source-stale RC10 with a source-current six-service clean-archive candidate and bind the 19-item Phase-5 readiness rubric. RC10 source remains the local rollback target. Candidate-bound hosted staging, production OAuth, GHCR publication, Owner approval, release promotion, and production rollout remain explicitly blocked.",
   "production_rollout_claimed": false
 }
