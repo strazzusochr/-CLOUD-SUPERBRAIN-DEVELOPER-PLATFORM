@@ -71,6 +71,21 @@ Die Fähigkeiten **sind** bewiesen (L4: `gateway_mode=cloudflare_workers_ai_live
 
 **6. P5 / O3 GHCR — OWNER, ZULETZT**, laut Matrix erst nach `MARKET_READY: true`.
 
+## 🧾 OWNER-AKTIONSPAKET — nur noch ZWEI Handlungen trennen uns von der Finish-Line
+
+**O1 — GitHub-OAuth-Klick (schaltet P3 44 → höher)**
+Der Owner öffnet die OAuth-App-Autorisierung und bestätigt einmalig den Zustimmungsdialog.
+Konfiguration ist fertig (Compose + `JWT_SIGNING_SECRET`), lokal `verified_dev_only`.
+Danach Codex: hosted Nachweis fahren, `production_auth_identity` **nur** über den echten Verifier
+öffnen. **Der Klick selbst ist eine der vier Wände — kein Agent darf ihn ersetzen.**
+
+**O3 — GHCR (schaltet P5 68 → höher) — ERST NACH `MARKET_READY: true`**
+Owner gibt Registry-Publikation der sechs Images aus dem aktiven RC frei.
+`codex_boundary` verbietet es davor. Danach: `verify:release-candidate` +
+`verify:current-release-candidate`.
+
+**P6 90 bleibt zu** — `phase6_scale_runtime` braucht Zahlung. Wand, kein Verhandlungsgegenstand.
+
 ## 🛑 EHRLICHER BEFUND: DIE AUTONOME FLÄCHE IST ERSCHÖPFT
 Jede Zelle unter 100 ist entweder **owner-/zahlungsgewallt** (P3, P5, P6) oder **bewusst
 null-kreditiert** (L4, L5). Es gibt derzeit **keine** Zelle, die ein Agent ohne Owner-Handlung

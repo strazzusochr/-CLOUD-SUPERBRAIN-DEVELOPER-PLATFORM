@@ -316,3 +316,35 @@ mit konkretem Owner-Action-Paket.** Nichts anderes zählt als fertig.
 
 **Aktueller ehrlicher Stand: 86 %, `MARKET_READY: false`, 1 externes Gate offen (GHCR),
 4 Capability-Gates zu — davon 1 echte Zahlungswand.**
+
+---
+
+## §4 OWNER-AKTIONSPAKET — die zwei verbleibenden Handlungen
+
+Alles Autonome ist erledigt. Was fehlt, kann **nur der Owner** auslösen.
+
+### O1 — GitHub-OAuth-Klick → hebt P3 (44)
+- **Owner:** Autorisierungsdialog der OAuth-App einmalig bestätigen. Ein Klick.
+- **Vorbereitet:** Compose-Config + `JWT_SIGNING_SECRET` liegen, lokal `verified_dev_only`.
+- **Codex danach:** hosted Nachweis fahren, `production_auth_identity` ausschliesslich ueber den
+  echten Verifier oeffnen, gekoppelte Assertions im **selben Slice** nachziehen
+  (`verify-phase1.ps1` · `verify-market-ready.ps1` 2 Stellen · `owner-input-manifest.json`).
+- **Verboten:** Gate ohne hosted Evidenz oeffnen; Klick simulieren/umgehen (Wand 2/3).
+
+### O3 — GHCR → hebt P5 (68), ERST NACH `MARKET_READY: true`
+- **Owner:** Publikation der sechs Images aus dem aktiven RC freigeben.
+- **Sperre:** `codex_boundary` verbietet Registry-Publish davor — Reihenfolge ist bindend.
+- **Codex danach:** `verify:release-candidate` + `verify:current-release-candidate`,
+  dann `ghcr_image_digest_verify` (letztes externes Gate) schliessen.
+
+### P6 (90) — bleibt zu
+`phase6_scale_runtime` erfordert Zahlung. Wand 1. Ehrlich als OWNER-BLOCKED listen, nie umgehen.
+
+### L4 (55) / L5 (56) — NICHT ANFASSEN
+Faehigkeiten bewiesen, Credit bewusst **0** (`O4.percentage_credit_breakdown.layer_5 = 0`,
+`O6.percentage_credit = 0`), geprueft von `verify-market-ready.ps1` **und**
+`verify-o4-live-writes.ps1`. Hochsetzen bricht zwei Verifier = Fake-Completion.
+**Ein offenes Gate ist kein Prozent-Credit.**
+
+**Merksatz fuer Session 14:** Ohne O1- oder O3-Entscheidung existiert **keine** Zelle, die ein Agent
+ehrlich anheben kann. Dann ist der korrekte Output ein Statusbericht — kein Zahlenanstieg.
