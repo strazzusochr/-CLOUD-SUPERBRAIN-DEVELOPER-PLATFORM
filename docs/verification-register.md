@@ -5,7 +5,23 @@ Status: Active
 
 ## Current Progress Authority
 
-Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `86%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `68%`, Phase 6 `90%`, Frontend `100%`, Agent Pool `69%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
+Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `86%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `68%`, Phase 6 `90%`, Frontend `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
+
+## Current O4 Bounded Agent/MCP Write Evidence
+
+Recorded 2026-07-31. `o4-live-agent-mcp-write-proof-v1` binds the approved
+DEV-ONLY Agent-to-MCP filesystem write path to source
+`d314e9969ca93b243e147bb10236a813cae6d355`, the active branch, and the project
+root. Runtime and browser verification prove branch-protection readback,
+persisted audit before and after the write, exact readback, and rollback when
+audit persistence fails. Evidence `.phase1-artifacts/o4-live-writes/proof.json`
+has SHA-256
+`15D802A79ABCCA5B2425A19B15329A22DEAB5AB67D0F6853167D007CC1157269`.
+Both O4 capability gates are verifier-opened and O4 is `resolved_verified`.
+The unique marker `bounded_live_agent_mcp_write_audit_verified` credits only
+Agent Pool `69% -> 100%`; MCP Gateway and Phase 6 receive no duplicate credit.
+Overall remains `86%`. No main, registry, provider, release, production,
+payment, or secret write is claimed.
 
 ## Current Hosted Source Rebinding
 
@@ -472,21 +488,25 @@ now use `cloudflare_native_runtime` and
 fail-closed, and cloud/production claims remain false. Fly inventory is read-only
 `historical_only` with no active layer mapping. This is DEV-ONLY and changes no percentage.
 
-## Current Agent-Pool UI / Verifier Parity Evidence
+## Historical Pre-O4 Agent-Pool UI / Verifier Parity Evidence
+
+This dated S1 slice predates the bounded O4 proof. Its `69%` statement is
+historical and superseded by the current Agent Pool `100%` authority above.
 
 `agent-pool-autonomous-runtime-ui-parity-v1` binds the canonical `/agents` SSR surface to three exact runtime contracts: `autonomous-agent-roster-v1`, `autonomous-master-plan-v1`, and `autonomous-coding-team-v1`. Strict parsers reject drift in contract version, source document, runtime source, evidence reference, binding/integrity state, roster composition, phases/layers, role mappings, queue values, or dispatch identity. The rendered proof shows the persisted `14`-role roster, `7` phases, `7` layers, `5` operating-core roles, `3` dispatch endpoints, and one UUIDv4-bound five-member coding-team dispatch. `scripts/verify-autonomous-agent-roster.ps1`, `scripts/verify-autonomous-master-plan.ps1`, and `scripts/verify-autonomous-coding-team.ps1` compare the API envelopes with SSR attributes; the team verifier creates a dispatch first and then queries the same `dispatch_id`. Frontend lint, Next.js production build (`21/21`), `npm run verify`, `npm run verify:runtime`, and `npm run verify:browser` passed serially; Docker is `10/10 healthy`, responsive proof is `22` routes x `2` viewports = `44` clicks. The then-current PostCSS `8.5.12` override was later superseded by fixed `8.5.23`; current npm audit is zero. Runtime-log SHA-256: `B2C239B91BB9C41852A862EBEB3D8BAF12353E98330BA424A68A06EF8FE40541`; browser-log SHA-256: `CB720B156EB6248BB448181458CF569A1AA9D1A14013AE939275906BD5D644A5`. `autonomous_release_workflow_verified` means parser plus PlanOnly validation only; no workflow execution, push, publication, or release occurred. Persisted roster is not Codex Desktop task persistence, and local dispatch is not hosted rollout. No new unique rubric item is credited: Agent Pool remains `69%`, Overall `86%`. DEV-ONLY; hosted proof still blocked. `live_provider_calls=false`, `live_mcp_writes=false`, `model_downloads=false`, `production_deploy=false`, `production_rollout_claimed=false`, `secret_output=false`.
 
 ## Current MARKET_READY Owner-Blocked Evidence
 
-`owner-input-manifest-v2` maps O1, O2' scale, O3, and O4 as `owner_required`.
-O5 is `resolved_verified` with the final Memory `10%` slice; O6 is
-`resolved_verified` with `percentage_credit=0`. O2' targets
+`owner-input-manifest-v2` maps O1, O2' scale, and O3 as `owner_required`.
+O4 and O5 are `resolved_verified` with their bounded Agent-Pool/Memory slices;
+O6 is `resolved_verified` with `percentage_credit=0`. O2' targets
 `cloudflare_native_zero_card_hosted_runtime` with `payment_required=false`,
 `zero_card_required=true`, and `paid_fallback_allowed=false`. It validates the closed
 scale/write/auth/release gates while
 preserving the bounded gateway-only Workers AI proof. `verify-market-ready.ps1 -StaticOnly` reports
-`owner-input-matrix=PASS`, `autonomous-open-items=PASS`, Matrix and production gates honestly
-blocked, audit-mode runtime skip, `OFFEN (Spur A - autonom fixbar): keine`, and
+`owner-input-matrix=PASS`, `autonomous-open-items=PASS`, five below-100 cells and
+production gates honestly blocked, audit-mode runtime skip,
+`OFFEN (Spur A - autonom fixbar): keine`, and
 `MARKET_READY:false`. No percentage, hosted capability, production claim or Owner approval is
 created.
 

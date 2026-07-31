@@ -66,8 +66,8 @@
       {
         "id": "layer_3",
         "label": "Agent Pool",
-        "percent": 69,
-        "status": "per-role-result-summaries-visible-in-agent-activity-per-role-result-summaries-complete-partial-failure-guarded-force-agent-partial-failure-probe-worker-status-regression-harness-worker-stale-queued-finalized-worker-status-rehydrate-guard-stream-parity-restored-deterministic-four-role-execution-planner-coder-tester-devops-validated-result-envelope-policy-gated-langgraph-task-assignment-completed-agent-profiles-runtime-contract-profile-policy-enforced-task-session-uuid-fail-closed-proof-task-assignment-queue-contract-visible-priority_queue_routing_proof-hosted_worker_priority_queue_runtime_parity_proof-hosted_worker_failure_path_runtime_parity_proof-hosted_agent_status_failure_surface_parity_proof-hosted_agent_activity_failure_surface_parity_proof-hosted_failure_cross_surface_parity_proof-hosted_agent_status_cross_surface_parity_proof-hosted_agent_status_request_correlation_parity_proof-agent_profiles_contract_runtime_visible-hosted_task_assignment_contract_runtime_parity_proof-hosted_cloudflare_d1_four_role_agent_pool_readback_proof-autonomous_team_dispatch_visible-persisted_agent_roster_visible-autonomous_master_plan_visible-autonomous_release_workflow_verified"
+        "percent": 100,
+        "status": "per-role-result-summaries-visible-in-agent-activity-per-role-result-summaries-complete-partial-failure-guarded-force-agent-partial-failure-probe-worker-status-regression-harness-worker-stale-queued-finalized-worker-status-rehydrate-guard-stream-parity-restored-deterministic-four-role-execution-planner-coder-tester-devops-validated-result-envelope-policy-gated-langgraph-task-assignment-completed-agent-profiles-runtime-contract-profile-policy-enforced-task-session-uuid-fail-closed-proof-task-assignment-queue-contract-visible-priority_queue_routing_proof-hosted_worker_priority_queue_runtime_parity_proof-hosted_worker_failure_path_runtime_parity_proof-hosted_agent_status_failure_surface_parity_proof-hosted_agent_activity_failure_surface_parity_proof-hosted_failure_cross_surface_parity_proof-hosted_agent_status_cross_surface_parity_proof-hosted_agent_status_request_correlation_parity_proof-agent_profiles_contract_runtime_visible-hosted_task_assignment_contract_runtime_parity_proof-hosted_cloudflare_d1_four_role_agent_pool_readback_proof-autonomous_team_dispatch_visible-persisted_agent_roster_visible-autonomous_master_plan_visible-autonomous_release_workflow_verified-bounded_live_agent_mcp_write_audit_verified"
       },
       {
         "id": "layer_4",
@@ -97,14 +97,15 @@
   },
   "truth_policy": "Evidence-based only: percentages increase only after code, runtime proof, and verifier/doc update.",
   "binding_document": "docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md",
-  "last_verified": "2026-07-30",
+  "last_verified": "2026-07-31",
   "non_claims": [
     "Live LLM calls are verified only in bounded Cloudflare Workers AI gateway acceptance paths, including the source-bound hosted product and 22-page proofs; general provider activation and dynamic routing are not verified.",
     "No production release readiness or release promotion is verified.",
     "The hosted Cloudflare candidate proves source-bound D1 state, bounded artifacts, LangGraph run/read, Queue dispatch, and SQLite Durable Object coordination; this is not a production release claim.",
     "Historical Fly budget markers are provenance only; Fly is not the active runtime target and they do not satisfy the Cloudflare hosted gate.",
-    "Hosted D1 lexical persistence exists; Vectorize semantic retrieval remains unverified and owner-gated.",
+    "Hosted D1 lexical persistence and Cloudflare Vectorize semantic retrieval are verifier-backed in bounded source-bound paths; this is not a production release claim.",
     "R2 remains unbound and historical-only; no paid fallback or percentage credit is claimed.",
+    "Bounded Agent/MCP filesystem writes are verified DEV-ONLY only inside the approved repository and active branch with persisted audit and rollback; main, registry, provider, release, and production writes remain closed.",
     "The source-bound hosted product acceptance and 22-page action matrix are verified and earn no duplicate percentage credit; remaining below-100 cells retain their named Owner gates.",
     "Unexpected response type is not a completion or failure claim; backend smoke/status evidence is still required."
   ]

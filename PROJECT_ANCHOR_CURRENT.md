@@ -36,9 +36,10 @@ not a progress authority.
 
 - Overall: `86%`
 - Horizontal: `P0 100 | P1 100 | P2 100 | P3 44 | P4 100 | P5 68 | P6 90`
-- Vertical: `Frontend 100 | Orchestrator 100 | Agent Pool 69 | LLM 55 | MCP 56 | Memory 100 | Observability 100`
+- Vertical: `Frontend 100 | Orchestrator 100 | Agent Pool 100 | LLM 55 | MCP 56 | Memory 100 | Observability 100`
 - `MARKET_READY: false`
 - S1 receives no percentage credit.
+- O4 is `resolved_verified`; its evidence-backed `31%` credits only Agent Pool.
 
 ## Session-12 Hosted Acceptance Truth
 
@@ -99,7 +100,7 @@ not a progress authority.
    exact hosted product/matrix paths and hashes while still returning
    `MARKET_READY:false` until every matrix cell is 100.
 2. Do not raise percentages or activate a gate without the corresponding Owner input and
-   verifier evidence; O5 is resolved with bounded semantic evidence and O6 with zero credit.
+   verifier evidence; O4 and O5 are resolved with bounded evidence and O6 with zero credit.
 3. Continue only inside an already recorded Owner scope. Stop before secret creation,
    permission expansion, registry publication, main write, production deployment, or
    release promotion.

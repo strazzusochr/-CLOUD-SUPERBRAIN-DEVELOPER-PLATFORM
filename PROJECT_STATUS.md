@@ -4,7 +4,7 @@ Updated: 2026-07-31
 
 - Overall: `86%`.
 - Horizontal: P0 100, P1 100, P2 100, P3 44, P4 100, P5 68, P6 90.
-- Vertical: Frontend 100, Orchestrator 100, Agent Pool 69, LLM Gateway 55,
+- Vertical: Frontend 100, Orchestrator 100, Agent Pool 100, LLM Gateway 55,
   MCP Gateway 56, Memory 100, Observability 100.
 - Canonical source: `docs/project-progress.manifest.json`.
 - `MARKET_READY=false`.
@@ -24,7 +24,8 @@ Updated: 2026-07-31
 
 ## Owner gates
 
-- O1, O2' scale, O3, and O4: open.
+- O1, O2' scale, and O3: open.
+- O4: `resolved_verified`, Agent Pool `31%` credit from bounded audited writes.
 - O5: `resolved_verified`, final Memory `10%` credit without D1 double-credit.
 - O6: `resolved_verified`, zero percentage credit.
 
@@ -34,6 +35,7 @@ Exact actions and post-action verifiers:
 ## Boundary
 
 Local runtime and browser evidence remain `DEV-ONLY`. Hosted O2Core, product,
-22-page, and semantic Vectorize proofs are separately source/evidence-bound.
+22-page, semantic Vectorize, and bounded O4 Agent/MCP-write proofs are separately
+source/evidence-bound.
 No production deploy, registry push, default-branch write, scope expansion,
 payment, or secret output is authorized.

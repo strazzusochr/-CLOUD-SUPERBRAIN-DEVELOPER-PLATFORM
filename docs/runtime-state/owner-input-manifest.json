@@ -119,8 +119,8 @@
     {
       "id": "O4",
       "title": "Live agent and MCP writes",
-      "status": "owner_required",
-      "required_owner_action": "Approve the exact write-capable tools and repositories, confirm protected-branch policy and audit retention, and authorize a bounded live-write verifier.",
+      "status": "resolved_verified",
+      "required_owner_action": "None. Owner scope is approved and the bounded runtime/browser write chain is verifier-complete.",
       "required_scope_or_payment": [
         "MCP write allowlist",
         "Agent tool-write allowlist",
@@ -141,7 +141,7 @@
         "npm run verify:runtime",
         "npm run verify:browser"
       ],
-      "codex_boundary": "Current contracts remain dry-run/read-only; Codex must not silently activate writes.",
+      "codex_boundary": "Resolved O4 credits Agent Pool 69 -> 100. MCP Gateway and Phase 6 stay below 100 because GHCR publication and paid scale are separate unresolved gates; no double credit.",
       "owner_scope_decision": {
         "decided_at_utc": "2026-07-30T00:00:00.0000000Z",
         "decision": "approved_as_proposed",
@@ -176,6 +176,20 @@
           "Both gates stay closed until the real verifiers prove bounded live writes.",
           "live_verified must never be hand-set."
         ]
+      },
+      "resolved_at_utc": "2026-07-31T04:54:47.4854871Z",
+      "evidence_refs": [
+        "docs/runtime-state/capability-gates.json#live_agent_tool_writes",
+        "docs/runtime-state/capability-gates.json#live_mcp_writes",
+        ".phase1-artifacts/o4-live-writes/proof.json",
+        ".phase1-artifacts/o4-live-writes/runtime-proof.json",
+        ".phase1-artifacts/o4-live-writes/browser-proof.json"
+      ],
+      "percentage_credit": 31,
+      "percentage_credit_breakdown": {
+        "layer_3": 31,
+        "layer_5": 0,
+        "phase_6": 0
       }
     },
     {
@@ -268,7 +282,7 @@
     "This manifest does not itself open a capability gate; O5 resolution and its final 10 percentage points are bound to verifier-opened capability evidence and the canonical progress manifest.",
     "external-gate-summary-v2 is the active gate truth; RC10 v1 and Fly semantics are historical provenance only.",
     "The source-bound hosted O2Core D1 bounded-text artifact + Durable Object + Queue proof, hosted product acceptance, hosted 22-page matrix, and hosted Vectorize semantic roundtrip are verifier-complete; R2 is historical-only. This does not prove Phase-6 scale, GHCR publication, or production release.",
-    "O1, O2' scale, O3, and O4 remain Owner-required or verifier-open; O5 and O6 are resolved only within their bounded verifier-backed scopes.",
+    "O1, O2' scale, and O3 remain Owner-required; O4, O5, and O6 are resolved only within their bounded verifier-backed scopes.",
     "Owner-granted alone is insufficient for every still-open action; each requires its named verifier and evidence artifact.",
     "No secret value, password, token, callback credential, or payment data is contained here.",
     "MARKET_READY remains false until every matrix cell is evidence-backed at 100 and the aggregate verifier prints MARKET_READY:true."
