@@ -1675,13 +1675,13 @@ Assert-Contains "external gates ghcr mapping" $externalGates '"ghcr_images"'
 Assert-Contains "external gates hosted origins mapping" $externalGates '"hosted_backend_origins"'
 $externalGatesJson = $externalGates | ConvertFrom-Json
 $externalGatesBlockedRelease = @($externalGatesJson.blocked_release_gates | ForEach-Object { [string]$_ })
-$expectedMissingConfiguredGateIds = @($externalGatesJson.gates | Where-Object { -not [bool]$_.configured } | ForEach-Object { [string]$_.id })
+$expectedMissingVerifiedGateIds = @($externalGatesJson.gates | Where-Object { -not [bool]$_.verified } | ForEach-Object { [string]$_.id })
 Assert-True "external gates status follows canonical summary" ([string]$externalGatesJson.status -eq $expectedExternalGateStatus)
 Assert-True "external gates verified count follows canonical summary" ([int]$externalGatesJson.verified_count -eq $expectedExternalVerifiedCount)
 Assert-True "external gates canonical summary status" ([string]$externalGatesJson.canonical_summary_status -eq [string]$canonicalExternalGateSummary.status)
 Assert-True "external gates release blocker parity" ((@($externalGatesBlockedRelease | Sort-Object) -join ",") -eq (@($expectedBlockedExternalGates | Sort-Object) -join ","))
-Assert-True "project progress completion missing external gate parity" ((@($projectProgressCompletionMissingGates | Sort-Object) -join ",") -eq (@($expectedMissingConfiguredGateIds | Sort-Object) -join ","))
-foreach ($expectedMissingGateId in $expectedMissingConfiguredGateIds) {
+Assert-True "project progress completion missing external gate parity" ((@($projectProgressCompletionMissingGates | Sort-Object) -join ",") -eq (@($expectedMissingVerifiedGateIds | Sort-Object) -join ","))
+foreach ($expectedMissingGateId in $expectedMissingVerifiedGateIds) {
   Assert-True "project progress completion hard blocker present: $expectedMissingGateId" ($projectProgressCompletionHardBlockers -contains $expectedMissingGateId)
 }
 $externalGateMirror = curl.exe -sS "$baseUrl/api/v1/external-gates/mirror"
