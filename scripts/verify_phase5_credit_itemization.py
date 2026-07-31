@@ -196,8 +196,11 @@ def validate_candidate(
     )
 
     local = readiness.get("local_verification", {})
+    # "static" is deliberately NOT required here. That entry records `npm run verify`, which
+    # runs this very check - requiring it made the mandatory gate demand its own passing
+    # output as its input. A chain cannot be its own evidence. The remaining five are
+    # independent chains and stay required.
     for key in (
-        "static",
         "runtime",
         "browser",
         "candidate_images",
@@ -234,7 +237,21 @@ def main() -> int:
         itemization.get("contract_version") == "phase5-credit-itemization-v2",
         "itemization contract must be phase5-credit-itemization-v2",
     )
-    require(itemization.get("mode") == "fully_itemized", "itemization must be fully_itemized")
+    # Two modes exist so that credit can follow proof instead of preceding it.
+    #
+    #   legacy_reconstruction - the 19-item rubric is recorded and the historical 68 is
+    #       reproduced from it, but the active candidate is not yet qualified. The cell
+    #       stays at the proven legacy value. This is the honest resting state.
+    #   fully_itemized - the candidate carries its own passing qualification runs, so the
+    #       cell may carry the freshly computed score.
+    #
+    # Without the first mode the gate was unreachable: it demanded a qualified candidate
+    # before it would let the chain that qualifies the candidate run at all.
+    mode = itemization.get("mode")
+    require(
+        mode in {"legacy_reconstruction", "fully_itemized"},
+        "itemization mode must be legacy_reconstruction or fully_itemized",
+    )
     require(itemization.get("cell_id") == "phase_5", "itemization cell must be phase_5")
     require(
         itemization.get("checklist_path") == "docs/release-checklist.md",
@@ -322,11 +339,31 @@ def main() -> int:
         None,
     )
     require(phase5 is not None, "manifest is missing phase_5")
-    require(phase5.get("percent") == computed_percent, "manifest phase_5 must equal computed percent")
-    require(
-        "phase5_release_readiness_19_item_score_verified" in str(phase5.get("status", "")),
-        "manifest is missing the Phase-5 itemization marker",
-    )
+
+    legacy_percent = rounded_binary_percent(13, 19)
+    if mode == "legacy_reconstruction":
+        # The rubric already computes a higher score, but the candidate that would prove it
+        # has not been qualified. Recording the higher number here would be crediting an
+        # unfinished proof, so the cell stays at the reconstructed legacy value.
+        require(
+            phase5.get("percent") == legacy_percent,
+            "legacy mode requires manifest phase_5 to stay at the reconstructed legacy percent",
+        )
+        require(
+            itemization.get("credit_blocked_until_candidate_qualified") is True,
+            "legacy mode must state that credit is blocked until the candidate qualifies",
+        )
+        require(
+            "phase5_release_readiness_19_item_score_pending_candidate_qualification"
+            in str(phase5.get("status", "")),
+            "legacy mode requires the pending-qualification marker, not a verified marker",
+        )
+    else:
+        require(phase5.get("percent") == computed_percent, "manifest phase_5 must equal computed percent")
+        require(
+            "phase5_release_readiness_19_item_score_verified" in str(phase5.get("status", "")),
+            "manifest is missing the Phase-5 itemization marker",
+        )
 
     release_id = str(itemization.get("active_release_id", ""))
     source_sha = str(itemization.get("active_source_commit_sha", ""))
@@ -345,10 +382,12 @@ def main() -> int:
     require(registry_gate.get("owner_granted") is False, "E3 must not silently grant registry publication")
     require(registry_gate.get("live_verified") is False, "E3 must not silently verify registry publication")
 
-    validate_candidate(release_id, source_sha, computed_percent, verified_count, blocked_count)
+    if mode == "fully_itemized":
+        validate_candidate(release_id, source_sha, computed_percent, verified_count, blocked_count)
+    credited = legacy_percent if mode == "legacy_reconstruction" else computed_percent
     print(
-        "[phase5-credit] verified "
-        f"legacy_gap=32 current={computed_percent} verified={verified_count}/19 "
+        f"[phase5-credit] verified mode={mode} legacy_gap=32 "
+        f"computed={computed_percent} credited={credited} verified={verified_count}/19 "
         f"blocked={','.join(sorted(blocked_ids))}"
     )
     return 0
