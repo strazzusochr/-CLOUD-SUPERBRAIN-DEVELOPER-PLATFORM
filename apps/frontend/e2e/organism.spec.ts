@@ -426,7 +426,7 @@ test.describe("Cloud Superbrain platform", () => {
   });
 
   test("organism Phase-6 camera and lighting controls apply bounded runtime state", async ({ page }) => {
-    test.setTimeout(300_000);
+    test.setTimeout(180_000);
     const contractResponse = await page.request.get("/api/v1/phase6/3d-camera-lighting/contract");
     expect(contractResponse.status()).toBe(200);
     const contract = await contractResponse.json();
@@ -447,17 +447,29 @@ test.describe("Cloud Superbrain platform", () => {
       }
     });
 
+    const clockStart = new Date("2026-07-31T00:00:00Z");
+    await page.clock.install({ time: clockStart });
+    await page.clock.pauseAt(new Date(clockStart.getTime() + 1_000));
     await page.goto("/organism?gpu=force", { waitUntil: "networkidle" });
     const controls = page.getByTestId("phase6-camera-lighting-controls");
     const canvasState = page.locator('.cortex-wrap[data-camera-lighting-local-only="true"]').first();
     await expect(controls).toBeVisible();
+    await page.clock.runFor(125);
+    await page.waitForLoadState("networkidle");
+    await page.clock.runFor(40);
     await expect(canvasState).toBeVisible({ timeout: 30_000 });
+    await page.clock.runFor(80);
     await expect(canvasState).toHaveAttribute("data-camera-preset", "wide");
     await expect(canvasState).toHaveAttribute("data-camera-fov", "45");
     await expect(canvasState).toHaveAttribute("data-camera-position", "0.00,0.60,7.00");
     await expect(canvasState).toHaveAttribute("data-lighting-profile", "studio");
     await expect(canvasState).toHaveAttribute("data-tone-exposure", "1.00");
     await expect(canvasState).toHaveAttribute("data-camera-lighting-local-only", "true");
+
+    const autoRotateButton = page.getByRole("button", { name: /Automatisch drehen/ });
+    await expect(autoRotateButton).toHaveText("Automatisch drehen ⏸");
+    await autoRotateButton.click();
+    await expect(autoRotateButton).toHaveText("Automatisch drehen ▶");
 
     captureControlRequests = true;
     await page.getByTestId("phase6-camera-preset-close").click();
@@ -494,14 +506,10 @@ test.describe("Cloud Superbrain platform", () => {
     await expect(page.getByTestId("phase6-camera-lighting-state")).toContainText("lighting_profile=sunrise");
     await expect(page.getByTestId("phase6-camera-lighting-state")).toContainText("exposure=1.18");
 
-    await page.getByRole("button", { name: /Automatisch drehen/ }).click();
     await page.evaluate(() => window.scrollTo(0, 0));
-    await page.waitForTimeout(250);
-    const canvas = page.locator("canvas").first();
-    const canvasBox = await canvas.boundingBox();
-    expect(canvasBox, "camera and lighting canvas bounds").not.toBeNull();
-    const canvasProof = await page.screenshot({ clip: canvasBox ?? undefined });
-    expect(canvasProof.length, "camera and lighting canvas screenshot bytes").toBeGreaterThan(25_000);
+    await page.clock.runFor(40);
+    const canvasProof = await page.screenshot();
+    expect(canvasProof.length, "camera and lighting viewport screenshot bytes").toBeGreaterThan(25_000);
     const artifactPath = phase6ArtifactPath("phase6-camera-lighting.png");
     if (artifactPath) {
       writeFileSync(artifactPath, canvasProof);

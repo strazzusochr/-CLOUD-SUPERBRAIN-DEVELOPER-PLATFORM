@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import math
 import re
 import subprocess
@@ -90,18 +91,41 @@ def run_git(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def require_tracked_repo_path(raw_path: Any, label: str) -> str:
+def resolve_repo_file(raw_path: Any, label: str) -> tuple[str, Path]:
     require(isinstance(raw_path, str) and raw_path, f"{label} path must be non-empty")
     normalized = raw_path.replace("\\", "/")
     pure = PurePosixPath(normalized)
     require(not pure.is_absolute(), f"{label} path must be repo-relative")
     require(".." not in pure.parts, f"{label} path may not escape the repository")
     require(normalized == pure.as_posix(), f"{label} path must be normalized")
-    target = ROOT / Path(*pure.parts)
+    target = (ROOT / Path(*pure.parts)).resolve()
+    require(target.is_relative_to(ROOT.resolve()), f"{label} path resolves outside the repository")
     require(target.is_file(), f"{label} evidence is missing: {normalized}")
+    return normalized, target
+
+
+def require_tracked_repo_path(raw_path: Any, label: str) -> str:
+    normalized, _ = resolve_repo_file(raw_path, label)
     tracked = run_git("ls-files", "--error-unmatch", "--", normalized)
     require(tracked.returncode == 0, f"{label} evidence is not tracked: {normalized}")
     return normalized
+
+
+def require_anchor(target: Path, raw_anchor: Any, label: str) -> str:
+    require(isinstance(raw_anchor, str), f"{label} anchor must be a string")
+    anchor = raw_anchor.strip()
+    require(len(anchor) >= 8, f"{label} anchor must contain at least eight characters")
+    artifact = target.read_bytes().decode("utf-8-sig", errors="replace")
+    require(anchor in artifact, f"{label} anchor is not present in the evidence artifact")
+    return anchor
+
+
+def sha256_file(target: Path) -> str:
+    digest = hashlib.sha256()
+    with target.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest().upper()
 
 
 def rounded_binary_percent(verified: int, total: int) -> int:
@@ -210,10 +234,47 @@ def validate_candidate(
         entry = local.get(key, {})
         require(entry.get("status") == "passed", f"candidate local verification {key} must pass")
         require(
+            isinstance(entry.get("command"), str) and entry["command"].strip(),
+            f"candidate local verification {key} command is missing",
+        )
+        artifact_path, artifact_target = resolve_repo_file(
+            entry.get("artifact"), f"candidate local verification {key}"
+        )
+        require(
             isinstance(entry.get("sha256"), str)
             and re.fullmatch(r"[0-9A-F]{64}", entry["sha256"]),
             f"candidate local verification {key} SHA-256 is invalid",
         )
+        require(
+            entry["sha256"] != "0" * 64,
+            f"candidate local verification {key} SHA-256 may not be the all-zero placeholder",
+        )
+        require(
+            sha256_file(artifact_target) == entry["sha256"],
+            f"candidate local verification {key} SHA-256 does not match {artifact_path}",
+        )
+        success_anchors = entry.get("success_anchors")
+        require(
+            isinstance(success_anchors, list) and success_anchors,
+            f"candidate local verification {key} success_anchors must not be empty",
+        )
+        for index, anchor in enumerate(success_anchors):
+            require_anchor(
+                artifact_target,
+                anchor,
+                f"candidate local verification {key} success anchor #{index + 1}",
+            )
+
+        if key in {"candidate_images", "candidate_runtime"}:
+            proof = load_json(artifact_target)
+            require(proof.get("status") == "verified", f"candidate local verification {key} status mismatch")
+            require(
+                proof.get("source_commit_sha") == source_sha,
+                f"candidate local verification {key} source SHA mismatch",
+            )
+            require(proof.get("service_count") == 6, f"candidate local verification {key} service count mismatch")
+            if key == "candidate_images":
+                require(proof.get("release_id") == release_id, "candidate image proof release_id mismatch")
 
     require(
         run_git("cat-file", "-e", f"{source_sha}^{{commit}}").returncode == 0,
@@ -301,10 +362,15 @@ def main() -> int:
         require(isinstance(evidence, list) and evidence, f"{item_id} evidence must not be empty")
         for index, entry in enumerate(evidence):
             require(isinstance(entry, dict), f"{item_id} evidence #{index + 1} must be an object")
-            require_tracked_repo_path(entry.get("path"), f"{item_id} evidence #{index + 1}")
+            normalized = require_tracked_repo_path(entry.get("path"), f"{item_id} evidence #{index + 1}")
             require(
                 isinstance(entry.get("claim"), str) and entry["claim"].strip(),
                 f"{item_id} evidence #{index + 1} claim is missing",
+            )
+            require_anchor(
+                ROOT / normalized,
+                entry.get("anchor"),
+                f"{item_id} evidence #{index + 1}",
             )
 
     require(set(by_id) == set(EXPECTED_ITEMS), "itemization IDs do not cover the full checklist")

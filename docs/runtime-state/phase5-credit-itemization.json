@@ -52,7 +52,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-readiness.json",
-          "claim": "Immutable GitHub Actions run URL, source SHA, and success conclusion are candidate-bound."
+          "claim": "Immutable GitHub Actions run URL, source SHA, and success conclusion are candidate-bound.",
+          "anchor": "\"ci_workflow\": {"
         }
       ]
     },
@@ -65,7 +66,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-readiness.json",
-          "claim": "Static, runtime, browser, image, candidate-runtime, and security log hashes are recorded as passed."
+          "claim": "Runtime, browser, candidate-image, candidate-runtime, and security artifacts are recorded as passed independent chains.",
+          "anchor": "\"local_verification\": {"
         }
       ]
     },
@@ -78,15 +80,18 @@
       "evidence": [
         {
           "path": "PROJECT_STATE.md",
-          "claim": "Current project truth records the itemized Phase-5 score and remaining gates."
+          "claim": "Current project truth records the itemized Phase-5 score and remaining gates.",
+          "anchor": "Session-13 Phase-5-Itemisierung / RC11"
         },
         {
           "path": "AI_HANDOFF.md",
-          "claim": "Current handoff mirrors the canonical Phase-5 and overall values."
+          "claim": "Current handoff mirrors the canonical Phase-5 and overall values.",
+          "anchor": "Overall remains `86%`"
         },
         {
           "path": "docs/verification-register.md",
-          "claim": "The evidence register records the audit, score, and verifier result."
+          "claim": "The evidence register records the audit, score, and verifier result.",
+          "anchor": "Current verified progress is total `86%`"
         }
       ]
     },
@@ -99,11 +104,13 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/current-release-candidate.json",
-          "claim": "The active pointer selects the exact source-bound RC11 candidate."
+          "claim": "The active pointer selects the exact source-bound RC11 candidate.",
+          "anchor": "\"active_release_id\": \"prod-candidate-2026-07-31-local-rc11\""
         },
         {
           "path": "scripts/verify-current-release-candidate.ps1",
-          "claim": "The current-candidate verifier fails closed on committed runtime-source drift."
+          "claim": "The current-candidate verifier fails closed on committed runtime-source drift.",
+          "anchor": "active release candidate has committed runtime-source drift from HEAD"
         }
       ]
     },
@@ -116,7 +123,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-readiness.json",
-          "claim": "Candidate-scoped npm audit and canonical secret-scan results are recorded with a verification hash."
+          "claim": "Candidate-scoped npm audit and canonical secret-scan results are recorded with a verification hash.",
+          "anchor": "\"security\": {"
         }
       ]
     },
@@ -131,11 +139,13 @@
       "evidence": [
         {
           "path": "docs/runtime-state/frontend-hosted-current.json",
-          "claim": "A hosted frontend exists, but its recorded source is not RC11."
+          "claim": "A hosted frontend exists, but its recorded source is not RC11.",
+          "anchor": "\"source_commit_sha\": \"21913f8c3ef13949ca962980c143e757ca87a7cc\""
         },
         {
           "path": "docs/runtime-state/backend-hosted-current.json",
-          "claim": "The hosted backend is a read-only contract origin and not six-service RC11 parity."
+          "claim": "The hosted backend is a read-only contract origin and not six-service RC11 parity.",
+          "anchor": "\"read_only_contract_origin\": true"
         }
       ]
     },
@@ -149,11 +159,13 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11.md",
-          "claim": "Six clean-archive images, OCI revisions, embedded source hashes, and planned immutable tags are candidate-bound."
+          "claim": "Six clean-archive images, OCI revisions, embedded source hashes, and planned immutable tags are candidate-bound.",
+          "anchor": "immutable_image_commit_sha:"
         },
         {
           "path": "docs/runtime-state/capability-gates.json",
-          "claim": "docker_registry_publish remains owner_granted=false and live_verified=false."
+          "claim": "docker_registry_publish remains owner_granted=false and live_verified=false.",
+          "anchor": "\"docker_registry_publish\":"
         }
       ]
     },
@@ -166,11 +178,13 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11.md",
-          "claim": "RC10 source and the rollback procedure are named without claiming a hosted rollback."
+          "claim": "RC10 source and the rollback procedure are named without claiming a hosted rollback.",
+          "anchor": "rollback_target_commit_sha:"
         },
         {
           "path": "docs/runbooks/rollback-deploy.md",
-          "claim": "The immutable rollback procedure remains applicable."
+          "claim": "The immutable rollback procedure remains applicable.",
+          "anchor": "# Rollback Deploy Runbook"
         }
       ]
     },
@@ -183,7 +197,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-readiness.json",
-          "claim": "RC11 adds no provider, paid tier, card, or recurring infrastructure and remains inside the 20 EUR ceiling."
+          "claim": "RC11 adds no provider, paid tier, card, or recurring infrastructure and remains inside the 20 EUR ceiling.",
+          "anchor": "\"new_recurring_infrastructure\": false"
         }
       ]
     },
@@ -198,11 +213,13 @@
       "evidence": [
         {
           "path": "docs/runtime-state/capability-gates.json",
-          "claim": "production_auth_identity remains owner_granted=false and live_verified=false."
+          "claim": "production_auth_identity remains owner_granted=false and live_verified=false.",
+          "anchor": "\"production_auth_identity\":"
         },
         {
           "path": "docs/runtime-state/owner-input-manifest.json",
-          "claim": "O1 records the exact Owner action and no-payment boundary."
+          "claim": "O1 records the exact Owner action and no-payment boundary.",
+          "anchor": "\"id\": \"O1\""
         }
       ]
     },
@@ -215,7 +232,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11.md",
-          "claim": "The candidate names the exact health, metrics, and audit endpoints."
+          "claim": "The candidate names the exact health, metrics, and audit endpoints.",
+          "anchor": "- Health: `/api/v1/health`"
         }
       ]
     },
@@ -228,7 +246,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-readiness.json",
-          "claim": "Candidate-scoped observability contract paths and verification state are recorded."
+          "claim": "Candidate-scoped observability contract paths and verification state are recorded.",
+          "anchor": "\"/api/v1/errors/contract\""
         }
       ]
     },
@@ -241,7 +260,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11.md",
-          "claim": "Candidate, CI, local verification, browser, image, rollback, and readiness proofs are linked."
+          "claim": "Candidate, CI, local verification, browser, image, rollback, and readiness proofs are linked.",
+          "anchor": "full_verifier_sweep_proof:"
         }
       ]
     },
@@ -254,11 +274,13 @@
       "evidence": [
         {
           "path": "docs/runbooks/incident-response.md",
-          "claim": "The incident escalation and evidence-preservation path is documented."
+          "claim": "The incident escalation and evidence-preservation path is documented.",
+          "anchor": "# Incident Response Runbook"
         },
         {
           "path": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11.md",
-          "claim": "RC11 binds the runbook and stop conditions."
+          "claim": "RC11 binds the runbook and stop conditions.",
+          "anchor": "- Escalation: `docs/runbooks/incident-response.md`"
         }
       ]
     },
@@ -271,11 +293,13 @@
       "evidence": [
         {
           "path": "docs/runbooks/rollback-deploy.md",
-          "claim": "The runbook supports immutable candidate rollback."
+          "claim": "The runbook supports immutable candidate rollback.",
+          "anchor": "# Rollback Deploy Runbook"
         },
         {
           "path": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11.md",
-          "claim": "The candidate names the exact rollback source."
+          "claim": "The candidate names the exact rollback source.",
+          "anchor": "rollback_target_commit_sha:"
         }
       ]
     },
@@ -288,11 +312,13 @@
       "evidence": [
         {
           "path": "docs/runbooks/incident-response.md",
-          "claim": "Incident response steps are tracked."
+          "claim": "Incident response steps are tracked.",
+          "anchor": "# Incident Response Runbook"
         },
         {
           "path": "docs/runbooks/secret-rotation.md",
-          "claim": "Secret rotation steps are tracked."
+          "claim": "Secret rotation steps are tracked.",
+          "anchor": "# Secret Rotation Runbook"
         }
       ]
     },
@@ -305,11 +331,18 @@
       "evidence": [
         {
           "path": "docs/runtime-state/owner-input-manifest.json",
-          "claim": "O1 and O3 remain explicit Owner gates."
+          "claim": "O1 remains an explicit Owner gate.",
+          "anchor": "\"id\": \"O1\""
+        },
+        {
+          "path": "docs/runtime-state/owner-input-manifest.json",
+          "claim": "O3 remains an explicit Owner gate.",
+          "anchor": "\"id\": \"O3\""
         },
         {
           "path": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11.md",
-          "claim": "review_gate=pending and owner_decision=no-release preserve the stop gate."
+          "claim": "review_gate=pending and owner_decision=no-release preserve the stop gate.",
+          "anchor": "review_gate: `pending`"
         }
       ]
     },
@@ -322,7 +355,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-readiness.json",
-          "claim": "The two remaining blockers are explicitly accepted under no-release; no unknown question remains."
+          "claim": "The two remaining blockers are explicitly accepted under no-release; no unknown question remains.",
+          "anchor": "\"unknown_questions\": []"
         }
       ]
     },
@@ -335,11 +369,13 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/current-release-candidate.json",
-          "claim": "production_rollout_claimed remains false."
+          "claim": "production_rollout_claimed remains false.",
+          "anchor": "\"production_rollout_claimed\": false"
         },
         {
           "path": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11.md",
-          "claim": "The candidate denies registry publication, promotion, rollout, and production status."
+          "claim": "The candidate denies registry publication, promotion, rollout, and production status.",
+          "anchor": "This artifact does not claim a production rollout."
         }
       ]
     }

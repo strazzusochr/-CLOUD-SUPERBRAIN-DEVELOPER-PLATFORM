@@ -139,9 +139,13 @@ Assert-Contains "manifest camera controls marker" $phase6.status "camera_lightin
 Write-Host "[phase6-camera-lighting] Chromium interaction proof"
 $previousBaseUrl = $env:PHASE6_BASE_URL
 $previousArtifactDir = $env:PHASE6_ARTIFACT_DIR
+$previousScreenshotNoFontsReady = $env:PW_TEST_SCREENSHOT_NO_FONTS_READY
 try {
   $env:PHASE6_BASE_URL = $BaseUrl
   $env:PHASE6_ARTIFACT_DIR = $artifactDir
+  # This proof captures the viewport containing the visible WebGL canvas.
+  # Unrelated unresolved document fonts must not consume the test timeout.
+  $env:PW_TEST_SCREENSHOT_NO_FONTS_READY = "1"
   Push-Location (Join-Path $repoRoot "apps\frontend")
   try {
     npx playwright test --grep "Phase-6 camera and lighting controls" --workers=1 --reporter=line
@@ -154,6 +158,7 @@ try {
 } finally {
   $env:PHASE6_BASE_URL = $previousBaseUrl
   $env:PHASE6_ARTIFACT_DIR = $previousArtifactDir
+  $env:PW_TEST_SCREENSHOT_NO_FONTS_READY = $previousScreenshotNoFontsReady
 }
 
 $screenshotPath = Join-Path $artifactDir "phase6-camera-lighting.png"
