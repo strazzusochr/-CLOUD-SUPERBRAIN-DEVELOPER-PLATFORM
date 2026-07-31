@@ -598,3 +598,46 @@ Der **aktuelle** Kandidat hat also source-gebundene Browser-Evidenz. Die rc1-Lue
 unter 100 halten? Niemand kann sie je wieder ausfuehren. Antwortet der Owner „nein", faellt Block B
 aus der Luecke — dann bleibt fuer `phase_5` **nur noch Block A (GHCR/O3)**, und der ist per E3(a)
 ohnehin als Post-Market klassifiziert.
+
+---
+
+## §9 SUPERVISOR-RULINGS + BEWEIS ZUR NICHT-HERLEITBARKEIT (Session 13f, 08:45)
+
+### 9.1 Entschieden, nicht zurueckgereicht
+
+E3 = **(a)** · P6-Schwelle gesetzt und nach Fehlschlag **nicht** gesenkt · Harness-Messfehler erkannt
+und behoben · Block B **nicht bearbeitbar** (eigene Einschaetzung widerrufen) · und neu:
+
+> **RULING zu den 6 rc1-Markern:** Sie sind **kein gueltiges Kriterium**. Ein Kriterium, das
+> konstruktionsbedingt nie erfuellbar ist, ist ein **kaputtes Kriterium, keine offene Arbeit** —
+> exakt dieselbe Fehlklasse wie der P5/O3-Deadlock. Sie zaehlen **nicht** mehr als Luecke.
+> Das war zuvor faelschlich als Owner-Gewichtungsfrage gefuehrt. **Kein Owner-Input noetig.**
+
+### 9.2 Beweis: die Marker koennen `phase_5` nicht herleiten
+
+Geprueft, ob sich die 68 aus der Markerliste rechnen laesst — als Grundlage fuer eine Anhebung.
+**Ergebnis: nein, und zwar beweisbar.**
+
+**Block A (GHCR) ist ein realer offener Posten, erscheint in der Markerliste aber an keiner Stelle
+als blockiert.** Eine Markerquote (65 von 71 nicht-blockiert) wuerde folglich **100 %** melden,
+waehrend GHCR unbestritten offen ist. Die Markerliste ist damit **nachweislich unvollstaendig**
+als Kriterium.
+
+**Folgerung:** Die 68 kodiert Inhalt, den die Marker nicht abbilden. Jede jetzt geschriebene Zahl
+waere eine **Annahme** darueber, was die fehlenden 32 Punkte enthalten — und
+`verify_project_progress_manifest.py` prueft nur `0 <= percent <= 100`, wuerde also **jede** Zahl
+akzeptieren. Genau die Konstellation, gegen die R-NEU-6 geschrieben wurde.
+
+> **`phase_5` wurde deshalb nicht bewegt. Das ist ein technisches Urteil, kein Zoegern und keine
+> Rueckgabe an den Owner.**
+
+### 9.3 Naechste Agenten-Arbeit — ohne Owner-Gate, ohne Geld, ohne Token
+
+**Herleitung rekonstruieren:** Die Phase-5-Release-Checkliste Posten fuer Posten gegen die
+vorhandenen Artefakte in `docs/release-artifacts/` auditieren, bis eine **belegte** Aufschluesselung
+der fehlenden 32 Punkte existiert — Vorbild `actions[O4].percentage_credit_breakdown`.
+Ergebnis in `docs/runtime-state/phase5-credit-itemization.json` nachtragen.
+
+Erst danach darf `phase_5` bewegt werden, und dann **gemessen** statt geschaetzt. Mit E3(a)
+(Publikation = Post-Market) und dem rc1-Ruling landet die Zelle voraussichtlich deutlich hoeher —
+**aber nur mit Beleg, nie auf Verdacht.**

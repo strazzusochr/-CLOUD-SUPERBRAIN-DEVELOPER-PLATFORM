@@ -226,9 +226,38 @@ Owner-Action-Paket. Nichts anderes.
    ✅ Der **aktuelle** Kandidat hat Browser-Evidenz
    (`phase5_current_candidate_requalified_source_bound_browser_verified`) — es ist eine
    **historische Buchungsluecke, kein Evidenzmangel am Produkt.**
-   → **Offene Frage ist eine Owner-Gewichtung, keine Arbeit:** Sollen 6 dauerhaft eingefrorene
-   rc1-Marker `phase_5` weiter unter 100 halten? Niemand kann sie je wieder ausfuehren.
+   → ⚖️ **RULING (Supervisor, nicht Owner):** Die 6 rc1-Marker sind **kein gueltiges Kriterium**.
+   Was konstruktionsbedingt nie erfuellbar ist, ist ein **kaputtes Kriterium, keine offene Arbeit**
+   — dieselbe Klasse wie der Deadlock. Sie zaehlen **nicht** mehr als Luecke. Kein Owner-Input noetig.
    **R-NEU-8:** „blockiert" = *noch nicht erledigt* **oder** *dauerhaft eingefroren*. Nur das
    erste ist Arbeit. rc1-Marker sind immer das zweite.
 5. **Owner: O1** bleibt der einzige sofort oeffenbare Owner-Blocker.
 6. **Owner: `AGENT_API_AUTH_TOKEN`** fuer die Write-Stufe des Scale-Beweises.
+
+## ⚖️ SUPERVISOR-RULINGS (Stand 08:45) — nicht mehr offen, entschieden
+
+| Punkt | Ruling | Owner-Input? |
+|---|---|---|
+| E3 Deadlock | **Option (a)** — Publikation ist Post-Market | nein |
+| P6-Schwelle | gesetzt vor Messcode, nach Fehlschlag **nicht gesenkt** | nein |
+| Harness | Messfehler erkannt + behoben (21.180 → 299,9 ms) | nein |
+| Block B | **nicht bearbeitbar**, Einschaetzung widerrufen | nein |
+| 6 rc1-Marker | **kein gueltiges Kriterium**, zaehlen nicht als Luecke | nein |
+
+## 🔬 BEWEIS: DIE MARKER KOENNEN `phase_5` NICHT HERLEITEN
+
+Geprueft, ob die Markerliste die Zelle rechnerisch herleitet. **Sie kann es nicht:**
+**Block A (GHCR) ist real offen, taucht aber in der Markerliste NIRGENDS als blockiert auf.**
+Eine Markerquote wuerde also **100 %** melden, waehrend GHCR offen ist.
+
+→ Damit ist bewiesen: **die 68 kodiert etwas, das die Marker nicht abbilden.**
+→ Jede jetzt geschriebene Zahl waere eine **Annahme** ueber den Inhalt der fehlenden 32 Punkte.
+→ Der Manifest-Verifier prueft nur `0..100` und wuerde alles schlucken.
+**Deshalb wurde `phase_5` NICHT bewegt. Das ist eine Entscheidung, kein Zoegern.**
+
+## ▶ NAECHSTE AGENTEN-ARBEIT (kein Owner-Gate, kein Geld, kein Token)
+
+**Herleitung rekonstruieren:** Phase-5-Release-Checkliste Posten fuer Posten gegen die vorhandenen
+Artefakte auditieren, bis eine **belegte** Aufschlueselung der 32 Punkte steht. Erst danach darf
+`phase_5` bewegt werden — dann **gemessen** statt geschaetzt. Mit E3(a) + rc1-Ruling landet die Zelle
+voraussichtlich deutlich hoeher, aber **nur mit Beleg**.
