@@ -159,6 +159,10 @@ foreach ($required in @(
   }
 }
 
+Write-Host "[verify] llm gateway active-provider-only health"
+py -3 scripts\verify_llm_gateway_health_mode.py
+Assert-LastExitCode "llm gateway active-provider-only health"
+
 Write-Host "[verify] live agent steering contract guard"
 if (-not (Test-Path "scripts\verify-live-agent-steering-contract.ps1")) {
   throw "Missing live agent steering verifier"

@@ -1049,8 +1049,21 @@ def responses_adapter_contract_snapshot() -> dict[str, object]:
 
 @app.get("/api/v1/health")
 def health() -> dict[str, object]:
-    router = hf_router_model_snapshot(limit=5)
     cloudflare_mode = cloudflare_workers_ai_mode_enabled()
+    # Health must describe the active gateway without performing an unrelated
+    # Hugging Face provider read. In Cloudflare mode that network probe can
+    # exceed the Agent API's three-second dependency timeout and make an
+    # otherwise healthy local stack flap to degraded.
+    router = (
+        {
+            "status": "not_active_provider",
+            "live_verified": False,
+            "model_count_visible": 0,
+            "models": [],
+        }
+        if cloudflare_mode
+        else hf_router_model_snapshot(limit=5)
+    )
     provider_available = cloudflare_workers_ai_available() if cloudflare_mode else hf_router_available()
     return {
         "status": "healthy",
