@@ -218,10 +218,17 @@ Owner-Action-Paket. Nichts anderes.
 3. ✅ **`phase_5` itemisiert (`7390d519`)** → `docs/runtime-state/phase5-credit-itemization.json`.
    71 Marker · 60 verified · **6 blockiert**. Ehrliche Grenze im Dokument: **die Herleitung der 68
    ist nirgends festgehalten** — Inhalt benennbar, Arithmetik nicht rueckrechenbar.
-4. ⭐ **NEU AUTONOM MOEGLICH — Block B.** Die 6 blockierten Marker haengen an der stillgelegten
-   **sslip.io/Hetzner**-Bruecke (`superseded`), waehrend eine **aktuelle** Hosted-Flaeche mit frischer
-   Browser-Evidenz existiert. **Kein Owner-Gate, keine Zahlung.** Erst Machbarkeit pruefen, dann
-   **frisch** ausfuehren. ⚠️ Superseded-Artefakte bleiben superseded — Umhaengen waere
-   Evidence-Laundering.
+4. ❌ **Block B geprueft — NICHT bearbeitbar (Einschaetzung zurueckgezogen).** Die 6 Marker gehoeren
+   zu `rc1` vom **2026-05-05**; die Kandidatenlinie steht bei `local-rc10`. Es gibt **keine
+   rc1-Flaeche mehr zum Nachmessen**, der `sslip.io`-Host ist weg, und
+   `verify-retired-hosted-boundary.ps1` pinnt die Records mit **34 Assertions** als eingefrorene
+   Historie. Entsperrbedingung nennt **Fly** (dauerhaft ausgeschlossen).
+   ✅ Der **aktuelle** Kandidat hat Browser-Evidenz
+   (`phase5_current_candidate_requalified_source_bound_browser_verified`) — es ist eine
+   **historische Buchungsluecke, kein Evidenzmangel am Produkt.**
+   → **Offene Frage ist eine Owner-Gewichtung, keine Arbeit:** Sollen 6 dauerhaft eingefrorene
+   rc1-Marker `phase_5` weiter unter 100 halten? Niemand kann sie je wieder ausfuehren.
+   **R-NEU-8:** „blockiert" = *noch nicht erledigt* **oder** *dauerhaft eingefroren*. Nur das
+   erste ist Arbeit. rc1-Marker sind immer das zweite.
 5. **Owner: O1** bleibt der einzige sofort oeffenbare Owner-Blocker.
 6. **Owner: `AGENT_API_AUTH_TOKEN`** fuer die Write-Stufe des Scale-Beweises.
