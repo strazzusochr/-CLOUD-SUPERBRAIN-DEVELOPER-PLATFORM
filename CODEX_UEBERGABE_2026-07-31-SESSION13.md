@@ -348,3 +348,88 @@ Faehigkeiten bewiesen, Credit bewusst **0** (`O4.percentage_credit_breakdown.lay
 
 **Merksatz fuer Session 14:** Ohne O1- oder O3-Entscheidung existiert **keine** Zelle, die ein Agent
 ehrlich anheben kann. Dann ist der korrekte Output ein Statusbericht — kein Zahlenanstieg.
+
+---
+
+## §5 DEEP-ANALYSE DER RESTBLOCKER (Session 13b) — zwei harte Korrekturen
+
+Owner-Auftrag war: *"wir oeffnen jetzt eins nach dem anderen was blockiert ist, auch mit Bezahlung."*
+Die Analyse ergibt: **Bezahlung oeffnet nichts, und die Ziellinie ist zirkulaer.** Beides mit
+Datei- und Zeilenbeleg, nicht als Einschaetzung.
+
+### 5.1 Korrektur A — Zahlung ist kein Blocker, sondern verifier-verboten
+
+Frueher stand in dieser Uebergabe *"P6 braucht Zahlung, Wand 1"*. **Das war falsch.** Gemessen:
+
+| Quelle | Feld | Wert |
+|---|---|---|
+| `owner-input-manifest.json` O1 | `payment_required` | `false` |
+| `owner-input-manifest.json` O2 | `payment_required` / `zero_card_required` | `false` / `true` |
+| `owner-input-manifest.json` O2 | `payment_forbidden` / `paid_fallback_forbidden` | `true` / `true` |
+| `owner-input-manifest.json` O3 | `payment_required` | `false` |
+| `capability-gates.json` (alle 3 zu) | `paid_provider` | `false` |
+
+`scripts/verify-market-ready.ps1:298-305` **prueft aktiv** `payment_required -eq $false`,
+`zero_card_required -eq $true`, `paid_fallback_allowed -eq $false`. Eine Zahlung, die im Manifest
+abgebildet wuerde, macht `owner-input-matrix` rot und damit `MARKET_READY` **false**.
+Repoweit stehen 61 Zero-Card-/Payment-Assertions in `scripts/`.
+
+> **Regel R-NEU-5:** Zahlung ist in diesem Projekt kein Beschleuniger, sondern ein **Rueckschritt**.
+> Wer P6 mit "Budget" erklaeren will, hat den Blocker nicht gelesen. Der echte Mangel ist ein
+> **Scale-/Kapazitaetsbeweis bei Zero-Card**, und `scripts/verify-phase6-scale-runtime.ps1`
+> **existiert nicht** (Gate-Feld `verifier` ist leer).
+
+### 5.2 Korrektur B — die Ziellinie enthaelt einen Deadlock
+
+Mechanik: `verify-market-ready.ps1:699` `MARKET_READY = ($requiredFails.Count -eq 0)`.
+`:619` `Add-Result "manifest-all-100" $allHundred … $true` → **required**.
+`:88` sammelt `horizontal.items` **und** `vertical.items` → hier zaehlen alle 14 Zellen
+(anders als bei `overall_percent`, das nur horizontal rechnet — beide Regeln gelten parallel).
+
+Daraus folgt zwingend:
+
+```
+MARKET_READY:true  ->  phase_5 = 100  ->  O3 (GHCR-Publikation)
+O3.codex_boundary  ->  "No registry push ... before MARKET_READY:true"
+                   ->  MARKET_READY:true
+```
+
+**Zirkel.** `owner-input-manifest.json:117` ist die Quelle der Ordnungsregel,
+`:288` bestaetigt *"MARKET_READY remains false until every matrix cell is … 100"*.
+Von innen nicht aufloesbar — auch nicht durch Owner-Klick, auch nicht durch Zahlung.
+
+**Zweiter Widerspruch (P6):** `manifest-all-100` verlangt `phase_6 = 100`, waehrend
+`verify-market-ready.ps1:204-217` verlangt, dass `phase6_scale_runtime.live_verified` **false**
+bleibt (`$closedGateStateOk`). Beide Schritte sind `required`.
+
+### 5.3 Was daraus folgt — und was Codex NICHT tun darf
+
+- **Nicht** die Ziellinie umschreiben, um sie erreichbar zu machen. Das ist dieselbe Fehlklasse wie
+  Prozente hochsetzen: man faelscht dann nicht die Zahl, sondern das Kriterium.
+- **Nicht** ein Scale-Kriterium selbst erfinden. Eine selbstgewaehlte Messlatte ist eine
+  gefaelschte Ziellinie.
+- **Nicht** zahlen, nicht auf paid fallback ausweichen (siehe 5.1).
+
+### 5.4 Owner-Entscheidungen E1–E3 (Reihenfolge ist die Antwort auf "eins nach dem anderen")
+
+**E1 — O1 sofort.** Der einzige Blocker ohne Zahlung, ohne Deadlock, ohne Vorbedingung.
+Owner: OAuth-App waehlen/anlegen, Hosted-Callback freigeben, Credential ueber den Secret-Kanal.
+Codex danach: `scripts/verify-phase3-auth-fail-closed.ps1` (**existiert**) + `npm run verify:browser`,
+Gate `production_auth_identity` **nur** ueber den Verifier oeffnen, gekoppelte Assertions im selben
+Slice (`verify-phase1.ps1` · `verify-market-ready.ps1` 2 Stellen · `owner-input-manifest.json`).
+**Achtung:** `:204-217` erwartet dieses Gate aktuell als *geschlossen* — beim Oeffnen muss
+`$expectedClosedGateIds` im selben Commit mitgezogen werden, sonst kippt `owner-input-matrix`.
+
+**E2 — P6-Kriterium definieren (Owner).** Messbare Definition von "Scale-Proof bei Zero-Card",
+z. B. begrenzte Parallellast gegen den Hosted-Worker **innerhalb** des Free-Kontingents, ohne
+Overage-Risiko. Erst danach darf `scripts/verify-phase6-scale-runtime.ps1` gebaut und das Gate
+verifier-gebunden werden.
+
+**E3 — Deadlock aufloesen (Owner waehlt genau eine Option).**
+- **(a)** `phase_5 = 100` := *release-candidate-ready*; GHCR-Publikation wird **Post-Market-Schritt**.
+  Vorteil: O3-Boundary bleibt unveraendert, `manifest-all-100` wird erfuellbar.
+- **(b)** O3-`codex_boundary` aendern zu *"nach explizitem Owner-Gate, unabhaengig von MARKET_READY"*.
+  Vorteil: Publikation zuerst; Nachteil: die Schutzreihenfolge faellt.
+
+**Ohne E3 ist `MARKET_READY:true` strukturell unerreichbar** — unabhaengig von Arbeitsmenge, Tokens
+oder Budget. Das ist der wichtigste Satz dieser Uebergabe.

@@ -20,7 +20,7 @@ Branch `claude/cloud-superbrain-analysis-127d2e` · HEAD = `origin` · Overall *
 |---|---|
 | `live_llm_provider_calls` | `production_auth_identity` (O1 — OAuth-Klick = Owner-Wand) |
 | `live_memory_provider` | `docker_registry_publish` (O3 — **zuletzt**, nach MARKET_READY) |
-| `cloudflare_native_zero_card_hosted_runtime` | `phase6_scale_runtime` (Zahlung = echte Wand) |
+| `cloudflare_native_zero_card_hosted_runtime` | `phase6_scale_runtime` (**NICHT Zahlung** — Scale-Proof + Verifier fehlen) |
 | `live_vector_memory_search` | |
 | `hosted_observability_endpoint` | |
 | `live_agent_tool_writes` **(O4, neu)** | |
@@ -67,9 +67,12 @@ Die Fähigkeiten **sind** bewiesen (L4: `gateway_mode=cloudflare_workers_ai_live
 **4. P3 (O1) — OWNER.** Konfiguration erledigt, lokal `verified_dev_only`. Der interaktive
    GitHub-Zustimmungsklick ist eine **echte Owner-Wand**.
 
-**5. P6 — ZAHLUNG.** `phase6_scale_runtime` braucht Zahlung. Eine der vier Wände.
+**5. P6 — KEIN GELD-PROBLEM.** Korrektur: `phase6_scale_runtime` hat `paid_provider:false`,
+   O2 hat `payment_required:false` + `zero_card_required:true` + `payment_forbidden:true`.
+   Es fehlt ein **Scale-/Kapazitaetsbeweis bei Zero-Card** — und `scripts/verify-phase6-scale-runtime.ps1`
+   **existiert nicht** (Gate-Feld `verifier` ist leer). Zahlen loest hier nichts.
 
-**6. P5 / O3 GHCR — OWNER, ZULETZT**, laut Matrix erst nach `MARKET_READY: true`.
+**6. P5 / O3 GHCR — ZIRKULAER BLOCKIERT.** Siehe Deadlock unten. Nicht abarbeitbar wie spezifiziert.
 
 ## 🧾 OWNER-AKTIONSPAKET — nur noch ZWEI Handlungen trennen uns von der Finish-Line
 
@@ -84,7 +87,47 @@ Owner gibt Registry-Publikation der sechs Images aus dem aktiven RC frei.
 `codex_boundary` verbietet es davor. Danach: `verify:release-candidate` +
 `verify:current-release-candidate`.
 
-**P6 90 bleibt zu** — `phase6_scale_runtime` braucht Zahlung. Wand, kein Verhandlungsgegenstand.
+## 🚨 BEFUND SESSION 13b: ZAHLEN OEFFNET NICHTS — UND DIE ZIELLINIE IST ZIRKULAER
+
+**1. Bezahlung loest keinen einzigen Blocker.** Belegt, nicht vermutet:
+`O1.payment_required=false` · `O2.payment_required=false` · `O3.payment_required=false` ·
+alle drei geschlossenen Gates `paid_provider:false`.
+O2 traegt zusaetzlich `zero_card_required:true`, `payment_forbidden:true`, `paid_fallback_forbidden:true`.
+**`verify-market-ready.ps1:298-305` prueft diese Werte aktiv.** Wer bezahlt und das Manifest
+entsprechend aendert, macht den Schritt `owner-input-matrix` **rot** → `MARKET_READY` faellt auf false.
+Zahlen wuerde das Projekt **zurueckwerfen**, nicht voranbringen. (61 Zero-Card-Assertions in `scripts/`.)
+
+**2. Die Ziellinie enthaelt einen Deadlock.**
+`MARKET_READY = (requiredFails.Count -eq 0)` (`:699`) und `manifest-all-100` ist `required=$true` (`:619`)
+— es zaehlen **horizontale UND vertikale** Zellen (`:88`), anders als bei `overall_percent`.
+Daraus folgt die Schleife:
+> `MARKET_READY:true` braucht `phase_5 = 100` → braucht **O3** (GHCR-Publikation) →
+> O3 `codex_boundary`: *"No registry push … **before MARKET_READY:true**"* → braucht `MARKET_READY:true`.
+
+**Das ist per Konstruktion unerfuellbar.** Kein Agent und kein Owner-Klick kann diese Schleife von
+innen aufloesen. Es ist ein **Spezifikationsfehler**, keine offene Arbeit.
+
+**3. P6 hat einen zweiten Widerspruch.** `manifest-all-100` verlangt `phase_6 = 100`, waehrend
+`verify-market-ready.ps1:204-217` verlangt, dass `phase6_scale_runtime.live_verified` **false** bleibt.
+
+## 🧭 DIE DREI OWNER-ENTSCHEIDUNGEN (in dieser Reihenfolge)
+
+**E1 — O1 JETZT (einzig sauber oeffenbarer Blocker).** Keine Zahlung, kein Deadlock, keine Abhaengigkeit.
+Owner: OAuth-App waehlen/anlegen, Hosted-Callback freigeben, Config ueber den Secret-Kanal.
+Danach: `scripts/verify-phase3-auth-fail-closed.ps1` (**existiert**) + `npm run verify:browser`.
+
+**E2 — P6-Kriterium definieren.** Der Owner legt fest, was "Scale-Proof bei Zero-Card" messbar heisst
+(z. B. begrenzte Parallellast gegen den Hosted-Worker **innerhalb** des Free-Kontingents, ohne Overage).
+Erst dann darf `scripts/verify-phase6-scale-runtime.ps1` gebaut werden. **Codex darf das Kriterium
+nicht selbst erfinden** — eine selbstgewaehlte Messlatte ist eine gefaelschte Ziellinie.
+
+**E3 — Deadlock aufloesen.** Genau eine der beiden Optionen, Owner entscheidet:
+- **(a)** `phase_5 = 100` wird als *release-candidate-ready* definiert; GHCR-Publikation ist ein
+  **Post-Market-Schritt** → `manifest-all-100` wird erfuellbar, O3-Boundary bleibt unangetastet.
+- **(b)** O3-`codex_boundary` wird auf *"nach Owner-Gate, unabhaengig von MARKET_READY"* geaendert
+  → Publikation zuerst, `MARKET_READY` danach.
+
+Ohne E3 ist `MARKET_READY:true` **unerreichbar** — egal wieviel gearbeitet oder bezahlt wird.
 
 ## 🛑 EHRLICHER BEFUND: DIE AUTONOME FLÄCHE IST ERSCHÖPFT
 Jede Zelle unter 100 ist entweder **owner-/zahlungsgewallt** (P3, P5, P6) oder **bewusst
