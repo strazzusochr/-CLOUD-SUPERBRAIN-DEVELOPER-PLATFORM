@@ -867,6 +867,13 @@ async function auditMember(
         }
       }
     }
+    if (action.id === "technology-provider-filter") {
+      const historicalOnlyIndex = await controls.evaluateAll((items) =>
+        items.findIndex((item) => item.getAttribute("data-filter") === "historical_only")
+      );
+      expect(historicalOnlyIndex, "technology provider filtering needs a guaranteed contract-backed subset").toBeGreaterThanOrEqual(0);
+      selectedIndex = historicalOnlyIndex;
+    }
     const visibleIndexes = [selectedIndex];
     for (const originalIndex of visibleIndexes) {
       if (audited > 0 && effectType === "navigation") {
@@ -1104,8 +1111,8 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
   const origin = new URL(baseUrl);
   const consoleErrors: string[] = [];
   const pendingConsoleErrors: Array<{ text: string; locationUrl: string }> = [];
-  const expectedBlockedConsoleErrors = new Set<string>();
-  const expectedBlockedResponses = new Set<string>();
+  const expectedBlockedConsoleErrors: string[] = [];
+  const expectedBlockedResponses: string[] = [];
   const pageErrors: string[] = [];
   const providerRequests: string[] = [];
   const liveProviderResponses: string[] = [];
@@ -1135,7 +1142,7 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
       && response.status() === 403
       && /^\/api\/v1\/build\/[A-Za-z0-9_-]{1,64}$/.test(responseUrl.pathname)
     ) {
-      expectedBlockedResponses.add(response.url());
+      expectedBlockedResponses.push(response.url());
     }
   });
   page.on("response", (response) => {
@@ -1303,13 +1310,14 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
     await Promise.allSettled(responseInspections);
     for (const item of pendingConsoleErrors) {
       const expected403Text = /^Failed to load resource: the server responded with a status of 403 \((?:Forbidden)?\)$/;
+      const matchingResponseCount = expectedBlockedResponses.filter((url) => url === item.locationUrl).length;
+      const matchedConsoleCount = expectedBlockedConsoleErrors.filter((url) => url === item.locationUrl).length;
       if (
         expected403Text.test(item.text)
         && /^https?:\/\/[^/]+\/api\/v1\/build\/[A-Za-z0-9_-]{1,64}$/.test(item.locationUrl)
-        && expectedBlockedResponses.has(item.locationUrl)
-        && !expectedBlockedConsoleErrors.has(item.locationUrl)
+        && matchedConsoleCount < matchingResponseCount
       ) {
-        expectedBlockedConsoleErrors.add(item.locationUrl);
+        expectedBlockedConsoleErrors.push(item.locationUrl);
       } else {
         consoleErrors.push(item.text);
       }
@@ -1403,9 +1411,9 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
     report.visited_route_count = visitedRoutes.size;
     report.console_errors = consoleErrors;
     report.console_error_count = consoleErrors.length;
-    report.expected_blocked_console_errors = [...expectedBlockedConsoleErrors];
-    report.expected_blocked_console_error_count = expectedBlockedConsoleErrors.size;
-    report.expected_blocked_responses = [...expectedBlockedResponses];
+    report.expected_blocked_console_errors = expectedBlockedConsoleErrors;
+    report.expected_blocked_console_error_count = expectedBlockedConsoleErrors.length;
+    report.expected_blocked_responses = expectedBlockedResponses;
     report.page_errors = pageErrors;
     report.page_error_count = pageErrors.length;
     report.provider_requests = providerRequests;

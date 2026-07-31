@@ -25,6 +25,18 @@ function Set-ProcessEnvironment([string]$Name, [AllowNull()][string]$Value) {
   [Environment]::SetEnvironmentVariable($Name, $Value, [EnvironmentVariableTarget]::Process)
 }
 
+function Get-Sha256([string]$Path) {
+  $resolved = (Resolve-Path -LiteralPath $Path).Path
+  $stream = [IO.File]::OpenRead($resolved)
+  $sha256 = [Security.Cryptography.SHA256]::Create()
+  try {
+    return ([BitConverter]::ToString($sha256.ComputeHash($stream))).Replace("-", "")
+  } finally {
+    $sha256.Dispose()
+    $stream.Dispose()
+  }
+}
+
 function Get-GitArchiveSha256([string]$RepoRoot, [string]$CommitSha) {
   $temporaryPath = [IO.Path]::Combine(
     [IO.Path]::GetTempPath(),
@@ -33,7 +45,7 @@ function Get-GitArchiveSha256([string]$RepoRoot, [string]$CommitSha) {
   try {
     & git.exe -C $RepoRoot archive --format=tar "--output=$temporaryPath" $CommitSha
     Assert-True "expected source archive can be created" ($LASTEXITCODE -eq 0)
-    return (Get-FileHash -LiteralPath $temporaryPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    return (Get-Sha256 $temporaryPath).ToLowerInvariant()
   } finally {
     if (Test-Path -LiteralPath $temporaryPath -PathType Leaf) {
       Remove-Item -LiteralPath $temporaryPath -Force
@@ -111,7 +123,7 @@ $productSpecPath = Join-Path $frontendRoot "e2e\product-acceptance.spec.ts"
 $resolvedProductReport = Resolve-RepoScopedPath -RepoRoot $repoRoot -Path $ProductReportPath -Label "green product-acceptance evidence" -MustExist $true
 $resolvedHostedState = Resolve-RepoScopedPath -RepoRoot $repoRoot -Path $HostedStatePath -Label "hosted runtime state" -MustExist (-not $isLocalhost)
 $productReportRelativePath = $resolvedProductReport.Substring($repoPrefix.Length).Replace("\", "/")
-$productReportSha256 = (Get-FileHash -LiteralPath $resolvedProductReport -Algorithm SHA256).Hash
+$productReportSha256 = Get-Sha256 $resolvedProductReport
 
 Assert-True "Playwright 22-page action spec exists" (Test-Path -LiteralPath $specPath -PathType Leaf)
 Assert-True "canonical action registry exists" (Test-Path -LiteralPath $matrixPath -PathType Leaf)
@@ -390,7 +402,7 @@ $expectedSourceFiles = @{
 }
 $expectedSourceHashes = @{}
 foreach ($entry in $expectedSourceFiles.GetEnumerator()) {
-  $expectedHash = (Get-FileHash -LiteralPath $entry.Value -Algorithm SHA256).Hash.ToLowerInvariant()
+  $expectedHash = (Get-Sha256 $entry.Value).ToLowerInvariant()
   $expectedSourceHashes[$entry.Key] = $expectedHash
   Assert-True "source file hash matches: $($entry.Key)" (
     [string]$report.source_binding.files_sha256.PSObject.Properties[$entry.Key].Value -eq $expectedHash
@@ -466,7 +478,7 @@ Assert-True "workbench-build binds the supplied product report" (
   [string]$workbenchProof[0].details.p0_product_acceptance_report_sha256 -eq $productReportSha256.ToLowerInvariant()
 )
 
-$reportSha256 = (Get-FileHash -LiteralPath $reportPath -Algorithm SHA256).Hash
+$reportSha256 = Get-Sha256 $reportPath
 if ($PromoteHostedState) {
   Assert-True "hosted-state promotion requires hosted proof" (-not $isLocalhost)
   $hostedState = Get-Content -LiteralPath $resolvedHostedState -Raw | ConvertFrom-Json
