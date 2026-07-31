@@ -1,3 +1,9 @@
+> # ⛔ HISTORISCH — NICHT MEHR AKTIV
+> **Die aktive Übergabe ist `CODEX_UEBERGABE_2026-07-31-SESSION13.md`.**
+> Dieses Dokument bleibt als Provenance erhalten. Einige Angaben darin sind überholt, insbesondere:
+> das Gate-Inventar, der Branch-Protection-Status (nichts anzuwenden — `main` existiert nicht),
+> und O5 (inzwischen **hosted bewiesen**). Im Zweifel gilt ausschließlich SESSION 13.
+
 # CODEX-ÜBERGABE — SESSION 12 (2026-07-27) + NACHTRAG 2026-07-30 — P1 + O2Core HOSTED GRÜN
 > **Ersetzt SESSION11.** Jede Zahl gegen Repo-Artefakte verifiziert (`git log`, Report-JSONs, Verifier-Läufe).
 > Fremde Working-Tree-Dateien bleiben unberührt; Slice-Dateien werden ausschließlich explizit gestaged.
