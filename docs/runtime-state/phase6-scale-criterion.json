@@ -1,0 +1,50 @@
+{
+  "contract_version": "phase6-scale-criterion-v1",
+  "gate_id": "phase6_scale_runtime",
+  "declared_at_utc": "2026-07-31T00:00:00Z",
+  "declared_before_first_run": true,
+  "declaration_note": "This criterion is committed in its own commit BEFORE any measuring script exists, so the run can fail. A pass threshold authored after seeing results is not evidence, it is rationalisation.",
+  "target": {
+    "base_url": "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev",
+    "surface": "cloudflare-stateful-runtime worker"
+  },
+  "envelope": {
+    "zero_card": true,
+    "payment_forbidden": true,
+    "paid_fallback_forbidden": true,
+    "max_total_requests": 900,
+    "cap_enforcement": "The verifier counts every request it issues and aborts before exceeding max_total_requests. Overage is structurally impossible, not merely unlikely.",
+    "rationale": "Far inside the Cloudflare Workers free daily request allowance. The proof is about behaviour under concurrency, not about buying capacity."
+  },
+  "read_tiers": [
+    { "concurrency": 1, "requests": 60 },
+    { "concurrency": 10, "requests": 240 },
+    { "concurrency": 50, "requests": 500 }
+  ],
+  "write_tier": {
+    "required": true,
+    "auth_env_name": "AGENT_API_AUTH_TOKEN",
+    "concurrency": 10,
+    "records": 50,
+    "readback_required": true,
+    "no_loss_allowed": true,
+    "no_duplicate_allowed": true,
+    "note": "Parallel D1 writes with full readback are the actual scale proof. Latency numbers alone do not demonstrate that state survives concurrency."
+  },
+  "pass_criteria": {
+    "min_success_ratio": 0.99,
+    "max_p95_ms": 1500,
+    "own_5xx_allowed": 0,
+    "throttle_must_fail_closed": true,
+    "throttle_note": "HTTP 429 is an acceptable outcome and does not fail the run, but it must degrade cleanly: no 5xx, no partial or corrupted state on readback."
+  },
+  "fail_closed": {
+    "missing_write_auth_is_failure": true,
+    "note": "If AGENT_API_AUTH_TOKEN is absent the verifier MUST exit non-zero and report BLOCKED. Silently downgrading to a read-only run and printing green is the false-green failure mode this project has already hit once."
+  },
+  "non_claims": [
+    "A pass proves capacity within the declared zero-card envelope only. It does not claim unlimited or production-grade scale.",
+    "A pass does not open phase6_scale_runtime by itself. Only the verifier may record evidence, and the Owner gate remains authoritative.",
+    "This criterion grants no percentage credit to any matrix cell."
+  ]
+}
