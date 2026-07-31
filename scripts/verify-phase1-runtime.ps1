@@ -38,6 +38,22 @@ function Assert-NotContains($label, $value, $forbidden) {
   }
 }
 
+function Test-O4RuntimeTokenConfigured {
+  $previousErrorActionPreference = $ErrorActionPreference
+  $previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  $PSNativeCommandUseErrorActionPreference = $false
+  try {
+    & docker exec cloud-superbrain-phase1-dev-mcp-gateway-1 python -c `
+      "import os, sys; sys.exit(0 if os.getenv('AGENT_API_AUTH_TOKEN') else 3)" 2>$null
+    $probeExitCode = $LASTEXITCODE
+  } finally {
+    $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+  return $probeExitCode -eq 0
+}
+
 function Wait-UrlContains($label, $url, $expected, $attempts = 30) {
   $last = ""
   for ($i = 0; $i -lt $attempts; $i++) {
@@ -2000,7 +2016,7 @@ if ($orchestratorLlmCall.routing.selected_model -ne "deepseek-ai/DeepSeek-V4-Pro
 if ($orchestratorLlmCall.routing.selected_provider -ne "huggingface_inference_router") { throw "Runtime verification failed: orchestrator did not retain gateway selected provider" }
 if ($orchestratorLlmCall.routing.live_provider_calls -ne $false) { throw "Runtime verification failed: orchestrator gateway routing attempted live provider calls" }
 if ($orchestratorLlmCall.routing.configured_only -ne $false) { throw "Runtime verification failed: orchestrator gateway routing should be HF-live-verifiable" }
-if ($orchestratorLlmCall.routing.provider_health.status -notin @("live_verified", "missing_token")) { throw "Runtime verification failed: orchestrator gateway provider health status wrong" }
+if ($orchestratorLlmCall.routing.provider_health.status -notin $expectedRouteProviderStatuses) { throw "Runtime verification failed: orchestrator gateway provider health status wrong" }
 if ($orchestratorLlmCall.routing_policy_checked -ne $true) { throw "Runtime verification failed: orchestrator did not check LLM routing policy before gateway call" }
 if ($orchestratorLlmCall.routing_policy_contract_version -ne "llm-routing-policy-v1") { throw "Runtime verification failed: orchestrator LLM routing policy contract version mismatch" }
 if ($orchestratorLlmCall.routing_policy_decision -ne "allow_primary") { throw "Runtime verification failed: orchestrator LLM routing policy did not allow primary route" }
@@ -2418,7 +2434,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-produc
 Assert-LastExitCode "phase5 local production candidate proof"
 
 Write-Host "[runtime] O4 bounded live Agent/MCP write proof"
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-o4-live-writes.ps1 -BaseUrl $baseUrl -AllowLocalhost -RuntimeProof
+if (Test-O4RuntimeTokenConfigured) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-o4-live-writes.ps1 -BaseUrl $baseUrl -AllowLocalhost -RuntimeProof
+} else {
+  Write-Host "[runtime] O4 persisted proof revalidation; fresh write OWNER-BLOCKED by AGENT_API_AUTH_TOKEN"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-o4-live-writes.ps1
+}
 Assert-LastExitCode "O4 bounded live Agent/MCP write proof"
 
 Write-Host "[runtime] phase1 runtime checks completed"
