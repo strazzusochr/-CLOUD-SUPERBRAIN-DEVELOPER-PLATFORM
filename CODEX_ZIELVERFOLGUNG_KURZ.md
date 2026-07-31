@@ -26,6 +26,49 @@ Branch `claude/cloud-superbrain-analysis-127d2e` · HEAD = `origin` · Overall *
 | `live_agent_tool_writes` **(O4, neu)** | |
 | `live_mcp_writes` **(O4, neu)** | |
 
+## 🚨 SESSION 13g: HEAD WAR ROT UND GEPUSHT — ZWEITER SELBSTBEZUG
+
+Codex lieferte die 19-Item-Rubrik + Verifier (**gute Arbeit**), setzte aber `phase_5` 68 → 89
+und pushte einen Stand, bei dem `npm run verify` **exit 1** lieferte. Die Zahl lief ihrem
+Beweis voraus.
+
+**Ursache — der Pflicht-Gate verlangte sich selbst:**
+```
+npm run verify -> project-progress -> phase5-credit
+  verlangt  local_verification.static.status == "passed"
+  wobei     local_verification.static.command == "npm run verify"
+```
+Es gab nur einen Modus → **aus dem Kaltstart nie gruen.** Jede Session waere rot gestartet.
+
+> **R-NEU-9: Eine Kette darf nie ihre eigene Ausgabe als Eingabe verlangen.**
+> Vor jedem neuen Evidenzfeld fragen: Wer erzeugt es — und laeuft der Erzeuger *innerhalb*
+> der Kette, die es fordert?
+
+**Korrektur `02362751` (`npm run verify` = exit 0, Gitleaks 0):**
+`static` entfaellt (5 unabhaengige Ketten bleiben Pflicht) · neuer Modus
+`legacy_reconstruction` = **Credit folgt dem Beweis**: P5 bleibt beim rekonstruierten **68**,
+Marker `..._pending_candidate_qualification`, der berechnete `17/19 = 89` bleibt Vorwaertswert ·
+Spiegel resynchronisiert (Manifest · `platform.ts` · **Pin in `verify-phase1.ps1:571`** ·
+Snapshot · `PROJECT_STATE.md`).
+
+**Ueberholt:** Meine Aussage „Herleitung der 68 nicht rekonstruierbar" ist **widerlegt** —
+Codex' `13/19 → 68` reproduziert den Altwert exakt. Und `verify_phase5_credit_itemization.py:325`
+bindet `manifest phase_5 == computed_percent`: **Handsetzen ist jetzt strukturell unmoeglich.**
+
+## ⚠️ DREI SCHWAECHEN — VOR `fully_itemized` SCHLIESSEN
+| # | Fund |
+|---|---|
+| S1 | Item **C2** ist `verified` mit Claim „log hashes recorded as passed" — real: **alle sechs `pending`, Null-Hashes**. Falscher Claim. |
+| S2 | `evidence[].claim` wird **nie gegen den Dateiinhalt** geprueft, nur auf „nicht leer". |
+| S3 | `local_verification[].sha256` nur **Hex-Format**-geprueft; Artefakt muss nicht existieren, Hash wird nicht verglichen. |
+
+**Weg zu ehrlichen 89:** 5 Qualifikationslaeufe echt fahren → reale SHA-256 → `status` erst
+**danach** auf `verified_with_owner_blocks` → S1–S3 schliessen → `mode=fully_itemized` +
+alle Spiegel im selben Slice.
+⚠️ Kamera-Test haengt reproduzierbar; Codex' Fix-Versuche liegen **uncommitted** im Working
+Tree (`organism.spec.ts`, `verify-phase6-3d-camera-lighting-runtime.ps1`) — nicht ueberschreiben.
+
+
 ## 🧮 WARUM VERTIKALE ARBEIT DIE 86 % NIE BEWEGT
 `scripts/verify_project_progress_manifest.py` erzwingt:
 `overall_percent == round(Summe der horizontalen Phasen / Anzahl)`.

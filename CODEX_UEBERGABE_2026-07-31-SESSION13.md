@@ -641,3 +641,93 @@ Ergebnis in `docs/runtime-state/phase5-credit-itemization.json` nachtragen.
 Erst danach darf `phase_5` bewegt werden, und dann **gemessen** statt geschaetzt. Mit E3(a)
 (Publikation = Post-Market) und dem rc1-Ruling landet die Zelle voraussichtlich deutlich hoeher —
 **aber nur mit Beleg, nie auf Verdacht.**
+
+---
+
+## §10 SESSION 13g — HEAD WAR ROT UND GEPUSHT; ZWEITER SELBSTBEZUG GEFUNDEN
+
+### 10.1 Ausgangsbefund
+
+Codex hat die von mir benannte Restarbeit tatsaechlich geliefert: 19-Item-Rubrik,
+`scripts/verify_phase5_credit_itemization.py`, RC11-Artefakte, und `phase_5` 68 → 89.
+**Aber der Stand auf `origin` war rot:**
+
+```
+[project-progress] Phase-5 credit itemization is invalid
+Verification failed: project progress manifest   →  npm run verify = exit 1
+```
+
+`phase_5 = 89` und `overall = 89` waren **committed und gepusht, waehrend der Verifier, der
+sie rechtfertigen soll, fehlschlug.** Die Zahl war ihrem Beweis vorausgelaufen — genau die
+Fehlklasse, die R-NEU-6 verhindern sollte.
+
+### 10.2 Ursache: der zweite selbstreferenzielle Deadlock
+
+```
+npm run verify
+  → verify_project_progress_manifest.py:45-48   (unbedingter Subprozess, hard fail)
+    → verify_phase5_credit_itemization.py
+      → verlangt local_verification.static.status == "passed"
+      → wobei  local_verification.static.command == "npm run verify"
+```
+
+**`npm run verify` verlangte einen bestandenen `npm run verify`.** Es gab nur einen Modus
+(`fully_itemized`), also war der **primaere Pflicht-Gate des Repos aus dem Kaltstart
+unerreichbar** — jede kuenftige Session haette rot gestartet.
+
+Das ist derselbe Fehlertyp wie der P5↔O3-Deadlock aus §5.2, aber gravierender: dieser lag
+nicht im Market-Ready-Aggregat, sondern in der Pflichtkette selbst.
+
+> **R-NEU-9: Eine Kette darf nie ihre eigene Ausgabe als ihre Eingabe verlangen.**
+> Wenn ein Verifier Evidenz fordert, die nur durch seinen eigenen gruenen Lauf entsteht,
+> ist er unerfuellbar. Vor jedem neuen Evidenzfeld pruefen: *Wer erzeugt das — und laeuft
+> der Erzeuger innerhalb der Kette, die es fordert?*
+
+### 10.3 Korrektur (`02362751`, `npm run verify` = exit 0, Gitleaks 0)
+
+1. **`static` entfaellt** aus den geforderten `local_verification`-Eintraegen, Begruendung
+   im Code verankert. Die **fuenf unabhaengigen** Ketten (`runtime`, `browser`,
+   `candidate_images`, `candidate_runtime`, `security`) bleiben Pflicht.
+2. **Neuer Modus `legacy_reconstruction`** — *Credit folgt dem Beweis, nicht umgekehrt:*
+   solange der Kandidat nicht qualifiziert ist, traegt die Zelle den rekonstruierten
+   Altwert **68** (13/19, reproduziert den historischen Wert exakt), und der Manifest-Marker
+   sagt `..._pending_candidate_qualification` statt `..._verified`.
+   Der berechnete `17/19 = 89` bleibt als **Vorwaertswert** erfasst.
+3. **Spiegel resynchronisiert**, die den ungutgeschriebenen 89 trugen: Manifest,
+   `platform.ts`, die **hart eingepinnte Erwartung in `verify-phase1.ps1:571`**,
+   `endpoint-snapshot.json` (Byte-Format erhalten) und `PROJECT_STATE.md`.
+
+**Codex' Rubrikarbeit bleibt vollstaendig erhalten** — 19-Item-Checkliste, Evidenzbindung,
+Legacy-Rekonstruktion und beide Supervisor-Rulings sind unveraendert.
+
+### 10.4 Was Codex gut gemacht hat (nicht unterschlagen)
+
+- Die **Legacy-Rekonstruktion ist ein echter Beweis:** 13/19 → 68 reproduziert den
+  eingefrorenen Wert. Damit ist meine §9.2-Feststellung „Herleitung nicht rekonstruierbar"
+  **ueberholt** — sie ist rekonstruiert, und zwar validiert durch Reproduktion.
+- `verify_phase5_credit_itemization.py:325` bindet **`manifest phase_5 == computed_percent`**.
+  Handsetzen ist damit strukturell ausgeschlossen. Das war die Kernluecke aus R-NEU-6.
+- Evidenzpfade muessen **existieren und git-tracked** sein.
+- Meine beiden Rulings sind maschinell erzwungen (6 RC1-Marker mit `credit_awarded=false`).
+
+### 10.5 Drei offene Schwaechen — vor dem Umschalten auf `fully_itemized` schliessen
+
+| # | Schwaeche | Wirkung |
+|---|---|---|
+| S1 | Item **C2** ist `verified` mit dem Claim *"Static, runtime, browser … log hashes are recorded as passed"* — im Artefakt stehen **alle sechs auf `pending` mit Null-Hashes**. | Der Claim ist **nachweislich falsch**. C2 ist im Voraus gutgeschrieben. |
+| S2 | `evidence[].claim` wird nur auf *nicht leer* geprueft, **nie gegen den Inhalt** der Evidenzdatei. | Ein Item kann auf eine echte Datei zeigen, die den Claim nicht stuetzt. Dieselbe Fehlklasse wie mein Substring-False-Green (§ Fallen-Tabelle). |
+| S3 | `local_verification[].sha256` wird nur auf **Hex-Format** geprueft; weder existiert die `artifact`-Datei zwingend, noch wird der Hash gegen sie geprueft. | Der „Log-Hash" beweist nichts. |
+
+**Empfehlung:** `evidence[]` um ein `anchor`-Feld erweitern (woertlicher Teilstring, der in der
+Datei vorkommen **muss**) und `local_verification` gegen die reale Artefaktdatei hashen.
+
+### 10.6 Weg zu ehrlichen 89
+
+1. Die fuenf Qualifikationslaeufe echt fahren und mit **realen** SHA-256 eintragen.
+2. `readiness.status` → `verified_with_owner_blocks` (**erst danach**, nie vorher).
+3. S1–S3 schliessen; C2 bleibt bis dahin unbelegt.
+4. `mode` → `fully_itemized`, Manifest → 89, Overall → 89, Spiegel im **selben Slice**
+   (Manifest · `platform.ts` · `verify-phase1.ps1`-Pin · Snapshot · `PROJECT_STATE.md`).
+5. **Achtung Kamera-Test:** Codex' Lauf haengt reproduzierbar in
+   `verify-phase6-3d-camera-lighting-runtime.ps1`; die Fix-Versuche liegen **uncommitted**
+   im Working Tree (`organism.spec.ts`, Kamera-Verifier). Nicht ueberschreiben.
