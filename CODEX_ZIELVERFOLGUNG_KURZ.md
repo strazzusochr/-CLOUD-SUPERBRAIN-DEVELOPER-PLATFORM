@@ -116,18 +116,30 @@ innen aufloesen. Es ist ein **Spezifikationsfehler**, keine offene Arbeit.
 Owner: OAuth-App waehlen/anlegen, Hosted-Callback freigeben, Config ueber den Secret-Kanal.
 Danach: `scripts/verify-phase3-auth-fail-closed.ps1` (**existiert**) + `npm run verify:browser`.
 
-**E2 — P6-Kriterium definieren.** Der Owner legt fest, was "Scale-Proof bei Zero-Card" messbar heisst
-(z. B. begrenzte Parallellast gegen den Hosted-Worker **innerhalb** des Free-Kontingents, ohne Overage).
-Erst dann darf `scripts/verify-phase6-scale-runtime.ps1` gebaut werden. **Codex darf das Kriterium
-nicht selbst erfinden** — eine selbstgewaehlte Messlatte ist eine gefaelschte Ziellinie.
+**E2 — ✅ ERLEDIGT, Ergebnis ist ROT (und das ist korrekt).**
+Kriterium `docs/runtime-state/phase6-scale-criterion.json` in **eigenem Commit `6c761aa2`** — der
+messende Code existierte da noch nicht, der Lauf konnte also scheitern.
+`scripts/verify-phase6-scale-runtime.ps1` gebaut (`a7335f6f`), zweimal gelaufen:
 
-**E3 — Deadlock aufloesen.** Genau eine der beiden Optionen, Owner entscheidet:
-- **(a)** `phase_5 = 100` wird als *release-candidate-ready* definiert; GHCR-Publikation ist ein
-  **Post-Market-Schritt** → `manifest-all-100` wird erfuellbar, O3-Boundary bleibt unangetastet.
-- **(b)** O3-`codex_boundary` wird auf *"nach Owner-Gate, unabhaengig von MARKET_READY"* geaendert
-  → Publikation zuerst, `MARKET_READY` danach.
+| c=1 | c=10 | c=50 |
+|---|---|---|
+| p95 **271 ms** | p95 **3.140 ms** | p95 **21.180 ms** (Reproduktion 22.226 ms) |
 
-Ohne E3 ist `MARKET_READY:true` **unerreichbar** — egal wieviel gearbeitet oder bezahlt wird.
+800 Requests, **1.0 Erfolgsquote, 0× 5xx, 0× 429** — Korrektheit haelt, Latenz bricht ein.
+Schwelle 1.500 ms gerissen → **FAIL**, Gate bleibt **zu**. **Schwelle wurde NICHT gesenkt.**
+⚠️ `attribution_valid: false` — jede Anfrage nutzt eigenen Runspace + frischen TLS-Handshake.
+**Daraus „der Worker skaliert nicht" abzuleiten waere unbelegt.** Erst Connection-Reuse oder
+Server-Timing macht p95 zuordenbar.
+
+**E3 — ✅ ENTSCHIEDEN: Option (a).** Grund ist zwingend, nicht Geschmack: `docker_registry_publish`
+steht in `$expectedClosedGateIds` (`:204-217`) — eine GHCR-Publikation macht das Gate `live_verified`
+und drueckt `MARKET_READY` **erneut** auf false. (b) verschiebt den Deadlock also nur und kostet zwei
+Schutzmechanismen; (a) aendert an den Verifiern **nichts**.
+⛔ **Korrektur:** „O3 als `post_market`" ist **verboten** (`:126` erlaubt nur `owner_required` /
+`resolved_verified`). **O3 bleibt unveraendert.**
+⛔ **`phase_5` wurde NICHT auf 100 gesetzt:** Der Manifest-Verifier prueft nur `0..100`, es gibt
+**keine itemisierte Evidenz** fuer die fehlenden 32 Punkte. Jede Zahl waere erfunden — der Verifier
+haette sie widerstandslos akzeptiert. **R-NEU-6: Fehlende Pruefung ist kein Freibrief.**
 
 ## 🛑 EHRLICHER BEFUND: DIE AUTONOME FLÄCHE IST ERSCHÖPFT
 Jede Zelle unter 100 ist entweder **owner-/zahlungsgewallt** (P3, P5, P6) oder **bewusst
@@ -184,3 +196,14 @@ bereits geschützt) · kein Force-Push · kein GHCR/Release ohne Gate · Localho
 `npm run verify:market-ready` druckt real **`MARKET_READY: true`**.
 **Oder:** alles autonom Lösbare echt auf 100 **+** der Rest exakt als OWNER-BLOCKED mit
 Owner-Action-Paket. Nichts anderes.
+
+## ▶ NAECHSTE SCHRITTE (Stand Session 13c)
+
+1. **Owner: `AGENT_API_AUTH_TOKEN` bereitstellen** → erst dann laeuft die Write-Stufe
+   (parallele D1-Writes + Readback = der eigentliche Scale-Beweis). Ohne Token meldet der
+   Verifier `BLOCKED` (Exit 2) und verweigert bewusst ein Read-only-Gruen.
+2. **Codex: Harness haerten** — Connection-Reuse oder worker-seitiges Dauersignal, damit p95
+   ueberhaupt zuordenbar wird. **Ohne Schwellenaenderung.**
+3. **Codex: `phase_5`-Evidenz itemisieren** (Vorbild: `O4.percentage_credit_breakdown`),
+   bevor irgendjemand die 68 anfasst.
+4. **Owner: O1** bleibt der einzige sofort oeffenbare Blocker.
