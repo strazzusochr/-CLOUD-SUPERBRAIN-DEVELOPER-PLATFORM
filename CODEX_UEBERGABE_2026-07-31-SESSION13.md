@@ -433,3 +433,75 @@ verifier-gebunden werden.
 
 **Ohne E3 ist `MARKET_READY:true` strukturell unerreichbar** — unabhaengig von Arbeitsmenge, Tokens
 oder Budget. Das ist der wichtigste Satz dieser Uebergabe.
+
+---
+
+## §6 E2 UND E3 AUSGEFUEHRT (Session 13c) — ein echtes Rot, kein geschoentes Gruen
+
+### 6.1 E3 — Option (a) gewaehlt, mit einer Korrektur am eigenen Plan
+
+**Warum (a) und nicht (b):** `docker_registry_publish` steht in `$expectedClosedGateIds`
+(`verify-market-ready.ps1:204-217`). Eine GHCR-Publikation wuerde das Gate `live_verified` machen,
+`$closedGateStateOk` auf false setzen und `MARKET_READY` **erneut** auf false druecken. Option (b)
+loest den Deadlock also nicht, sie verschiebt ihn — und kostet dabei zwei Schutzmechanismen.
+Option (a) aendert an den Verifiern **nichts**.
+
+Inhaltlich ist (a) ebenfalls das Richtige: Phase 5 heisst *Release **Readiness***, und ihre eigenen
+Marker (`production_candidate_no_release`, `no_release_decision_verified`,
+`candidate_promotion_gate_refusal_verified`) schreiben Fortschritt ausdruecklich dem **Nicht**-
+Veroeffentlichen gut. Publikation war als Readiness-Kriterium **fehlklassifiziert**.
+
+> **Korrektur am eigenen Vorschlag:** Der zuvor genannte Schritt „O3 als `post_market`
+> umklassifizieren" ist **nicht erlaubt**. `verify-market-ready.ps1:126` laesst fuer `status` nur
+> `owner_required` oder `resolved_verified` zu; alles andere fuellt `$invalidActions` und macht die
+> Matrix rot. **O3 bleibt `owner_required`, `affected_cells` bleiben unveraendert** — sonst bricht
+> zusaetzlich die `$expectedOwnerActionCells`-Zuordnung (`:155-158`).
+
+**Was (a) blockiert — und warum `phase_5` NICHT auf 100 gesetzt wurde:**
+`scripts/verify_project_progress_manifest.py` prueft nur `0 <= percent <= 100` und einen nicht-leeren
+`status`. **Es gibt keine maschinelle Evidenzbindung pro Zelle** — die Prozente sind handgepflegt.
+Und fuer `phase_5` existiert **keine itemisierte Aufschluesselung** der fehlenden 32 Punkte
+(anders als bei O4, das `percentage_credit_breakdown` traegt; Suche ueber `docs/` liefert fuer
+`phase_5` nur die zwei `affected_cells`-Treffer in O1/O2/O3).
+
+> **Daraus folgt hart:** Jede Zahl, die ich jetzt fuer `phase_5` schreibe, waere **erfunden** — der
+> Verifier wuerde sie widerstandslos akzeptieren. Genau deshalb wurde sie **nicht** gesetzt.
+> **R-NEU-6:** Fehlende Verifier-Pruefung ist kein Freibrief, sondern die Stelle, an der nur noch
+> Disziplin schuetzt. Vor jeder `phase_5`-Anhebung muss eine Evidenz-Itemisierung existieren.
+
+### 6.2 E2 — Kriterium zuerst, dann gemessen, dann ehrlich durchgefallen
+
+Reihenfolge ist in der Git-Historie belegt, nicht behauptet:
+`6c761aa2` committet **nur** `docs/runtime-state/phase6-scale-criterion.json` — der messende Code
+existierte da noch nicht. Der Lauf konnte also scheitern. **Er ist gescheitert.**
+
+| Stufe | n | 2xx | 429 | 5xx | p95 |
+|---|---|---|---|---|---|
+| c=1 | 60 | 60 | 0 | 0 | **271 ms** |
+| c=10 | 240 | 240 | 0 | 0 | **3.140 ms** |
+| c=50 | 500 | 500 | 0 | 0 | **21.180 ms** |
+
+Zweiter Lauf reproduziert (22.226 ms bei c=50). Erfolgsquote 1.0, **null** 5xx, **null** 429 —
+Korrektheit haelt, Latenz bricht ein. Kriterium `max_p95_ms = 1500` → **FAIL**, Exit 1.
+`phase6_scale_runtime` bleibt **zu**. Artefakt: `.phase1-artifacts/phase6-scale/scale-evidence.json`.
+
+> **Das Kriterium wurde nach dem Fehlschlag NICHT gelockert.** Eine Schwelle, die man senkt, weil sie
+> gerissen wurde, ist keine Schwelle.
+
+### 6.3 Methodik-Vorbehalt — der Befund ist NOCH KEIN Server-Befund
+
+Jede Anfrage laeuft in einem eigenen PowerShell-Runspace mit frischem TLS-Handshake und ohne
+Connection-Reuse. Bei c=50 ist die **Harness selbst** ein plausibler Hauptkostenfaktor. Das Artefakt
+traegt deshalb `attribution_valid: false` und `measurement_scope: "end_to_end_client_observed"`.
+
+**Wer aus diesen Zahlen „der Worker skaliert nicht" ableitet, zieht einen unbelegten Schluss.**
+Vor einer Server-Aussage braucht es Connection-Reuse **oder** ein worker-seitiges Dauersignal.
+Das ist ein Mangel **meiner Messung**, kein Grund, die Schwelle zu aendern.
+
+### 6.4 Offen fuer den naechsten Lauf
+
+1. **`AGENT_API_AUTH_TOKEN`** fehlt → die Write-Stufe (parallele D1-Writes mit Readback, der
+   eigentliche Scale-Beweis) lief nie. Der Verifier meldet das als `BLOCKED` (Exit 2) und
+   verweigert ausdruecklich ein Read-only-Gruen.
+2. **Harness haerten** (Connection-Reuse / Server-Timing), damit p95 ueberhaupt zuordenbar wird.
+3. **`phase_5`-Evidenz itemisieren**, bevor irgendjemand die 68 anfasst.
