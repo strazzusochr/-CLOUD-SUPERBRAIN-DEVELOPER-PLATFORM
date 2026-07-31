@@ -49,17 +49,21 @@ function Write-TextAtomic([string]$Path, [string]$Text) {
   $directory = [IO.Path]::GetDirectoryName($fullPath)
   [IO.Directory]::CreateDirectory($directory) | Out-Null
   $temporary = Join-Path $directory (".{0}.{1}.tmp" -f [IO.Path]::GetFileName($fullPath), [Guid]::NewGuid().ToString("N"))
+  $backup = Join-Path $directory (".{0}.{1}.bak" -f [IO.Path]::GetFileName($fullPath), [Guid]::NewGuid().ToString("N"))
   $utf8 = New-Object Text.UTF8Encoding($false)
   try {
     [IO.File]::WriteAllText($temporary, $Text, $utf8)
     if ([IO.File]::Exists($fullPath)) {
-      [IO.File]::Replace($temporary, $fullPath, $null)
+      [IO.File]::Replace($temporary, $fullPath, $backup)
     } else {
       [IO.File]::Move($temporary, $fullPath)
     }
   } finally {
     if ([IO.File]::Exists($temporary)) {
       [IO.File]::Delete($temporary)
+    }
+    if ([IO.File]::Exists($backup)) {
+      [IO.File]::Delete($backup)
     }
   }
 }
