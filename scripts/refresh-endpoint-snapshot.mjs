@@ -6,6 +6,9 @@ const snapshotPath = fileURLToPath(
   new URL("../apps/frontend/lib/endpoint-snapshot.json", import.meta.url),
 );
 const baseUrlArg = process.argv.find((value) => value.startsWith("--base-url="));
+const pathArgs = process.argv
+  .filter((value) => value.startsWith("--path="))
+  .map((value) => value.slice("--path=".length));
 const baseUrl = (baseUrlArg?.slice("--base-url=".length) || "http://localhost:8081").replace(
   /\/$/,
   "",
@@ -20,6 +23,10 @@ const current = JSON.parse(readFileSync(snapshotPath, "utf8"));
 const paths = Object.keys(current);
 if (paths.length < 30 || paths.some((path) => !path.startsWith("/api/v1/"))) {
   throw new Error(`Unexpected endpoint snapshot key set: count=${paths.length}`);
+}
+const selectedPaths = pathArgs.length > 0 ? [...new Set(pathArgs)] : paths;
+if (selectedPaths.some((path) => !paths.includes(path))) {
+  throw new Error("Endpoint snapshot refresh received an unknown --path target.");
 }
 
 function sanitizePayload(path, payload) {
@@ -60,10 +67,10 @@ function sanitizePayload(path, payload) {
   };
 }
 
-const refreshed = {};
-for (const path of paths) {
+const refreshed = { ...current };
+for (const path of selectedPaths) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
+  const timeout = setTimeout(() => controller.abort(), 60_000);
   let response;
   try {
     response = await fetch(`${baseUrl}${path}`, {
@@ -127,4 +134,6 @@ for (const [path, payload] of Object.entries(refreshed)) {
 
 const serialized = `${JSON.stringify(refreshed)}\n`;
 writeFileSync(snapshotPath, serialized, "utf8");
-console.log(`[endpoint-snapshot] refreshed=${paths.length} source=DEV-ONLY path=${snapshotPath}`);
+console.log(
+  `[endpoint-snapshot] refreshed=${selectedPaths.length}/${paths.length} source=DEV-ONLY path=${snapshotPath}`,
+);
