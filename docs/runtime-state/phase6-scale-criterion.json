@@ -31,6 +31,14 @@
     "no_duplicate_allowed": true,
     "note": "Parallel D1 writes with full readback are the actual scale proof. Latency numbers alone do not demonstrate that state survives concurrency."
   },
+  "control_tier": {
+    "added_at_utc": "2026-07-31T08:30:00Z",
+    "purpose": "Attribution control. /cdn-cgi/trace is served by the Cloudflare edge WITHOUT invoking the Worker, so it shares the client, the TLS path and the edge but excludes our code. Worker latency minus control latency at the same concurrency is the Worker's own contribution.",
+    "path": "/cdn-cgi/trace",
+    "max_control_requests": 500,
+    "budget_note": "Separate hard cap. The Worker-path budget in envelope.max_total_requests is deliberately left untouched so the measured Worker tiers stay exactly comparable to the first run.",
+    "not_a_pass_criterion": "This block adds a measurement control only. It changes no threshold in pass_criteria."
+  },
   "pass_criteria": {
     "min_success_ratio": 0.99,
     "max_p95_ms": 1500,

@@ -57,19 +57,46 @@ if ($BaseUrl -notmatch '^https://') { Fail "base url must be https" }
 
 $maxTotal = [int]$criterion.envelope.max_total_requests
 $script:issued = 0
+$script:controlIssued = 0
 
-function Invoke-Probe([string]$url) {
-  if ($script:issued -ge $maxTotal) { return $null }
-  $script:issued++
-  $sw = [System.Diagnostics.Stopwatch]::StartNew()
-  try {
-    $resp = Invoke-WebRequest -Uri $url -Method GET -TimeoutSec 30 -SkipHttpErrorCheck
-    $sw.Stop()
-    return [pscustomobject]@{ status = [int]$resp.StatusCode; ms = $sw.Elapsed.TotalMilliseconds }
-  } catch {
-    $sw.Stop()
-    return [pscustomobject]@{ status = 0; ms = $sw.Elapsed.TotalMilliseconds }
+# One pooled HttpClient for the whole run. The first version of this script used
+# ForEach-Object -Parallel with Invoke-WebRequest, which gave every request its own
+# runspace and its own TLS handshake -- at concurrency 50 that harness cost plausibly
+# dominated the measurement and made the numbers unusable as a server statement.
+Add-Type -AssemblyName System.Net.Http
+$handler = [System.Net.Http.SocketsHttpHandler]::new()
+$handler.MaxConnectionsPerServer = 128
+$handler.PooledConnectionLifetime = [TimeSpan]::FromMinutes(10)
+$httpClient = [System.Net.Http.HttpClient]::new($handler)
+$httpClient.Timeout = [TimeSpan]::FromSeconds(30)
+
+# Closed-loop load: each wave fires $conc concurrent requests and waits for all of
+# them before the next wave starts. Per-request timing therefore includes in-wave
+# queueing, which is the intended signal.
+function Invoke-LoadTier([string]$url, [int]$conc, [int]$count) {
+  $lat = New-Object System.Collections.Generic.List[double]
+  $codes = New-Object System.Collections.Generic.List[int]
+  $done = 0
+  while ($done -lt $count) {
+    $wave = [Math]::Min($conc, $count - $done)
+    $watches = @()
+    $tasks = @()
+    for ($i = 0; $i -lt $wave; $i++) {
+      $watches += [System.Diagnostics.Stopwatch]::StartNew()
+      $tasks += $httpClient.GetAsync($url)
+    }
+    try { [System.Threading.Tasks.Task]::WaitAll($tasks) } catch { }
+    for ($i = 0; $i -lt $wave; $i++) {
+      $watches[$i].Stop()
+      $lat.Add($watches[$i].Elapsed.TotalMilliseconds)
+      try {
+        $codes.Add([int]$tasks[$i].Result.StatusCode)
+        $tasks[$i].Result.Dispose()
+      } catch { $codes.Add(0) }
+    }
+    $done += $wave
   }
+  return [pscustomobject]@{ latencies = @($lat); codes = @($codes) }
 }
 
 function Get-Percentile([double[]]$values, [double]$p) {
@@ -114,26 +141,29 @@ foreach ($tier in $criterion.read_tiers) {
   if ($remaining -le 0) { break }
   if ($count -gt $remaining) { $count = $remaining }
 
-  $samples = 1..$count | ForEach-Object -ThrottleLimit $conc -Parallel {
-    $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    try {
-      $r = Invoke-WebRequest -Uri $using:healthUrl -Method GET -TimeoutSec 30 -SkipHttpErrorCheck
-      $sw.Stop()
-      [pscustomobject]@{ status = [int]$r.StatusCode; ms = $sw.Elapsed.TotalMilliseconds }
-    } catch {
-      $sw.Stop()
-      [pscustomobject]@{ status = 0; ms = $sw.Elapsed.TotalMilliseconds }
-    }
-  }
+  $tier1 = Invoke-LoadTier $healthUrl $conc $count
   $script:issued += $count
 
-  $lat = @($samples | ForEach-Object { [double]$_.ms })
-  $ok2xx = @($samples | Where-Object { $_.status -ge 200 -and $_.status -lt 300 }).Count
-  $throttled = @($samples | Where-Object { $_.status -eq 429 }).Count
-  $server5xx = @($samples | Where-Object { $_.status -ge 500 }).Count
-  $transport = @($samples | Where-Object { $_.status -eq 0 }).Count
+  $lat = @($tier1.latencies)
+  $codes = @($tier1.codes)
+  $ok2xx = @($codes | Where-Object { $_ -ge 200 -and $_ -lt 300 }).Count
+  $throttled = @($codes | Where-Object { $_ -eq 429 }).Count
+  $server5xx = @($codes | Where-Object { $_ -ge 500 }).Count
+  $transport = @($codes | Where-Object { $_ -eq 0 }).Count
+
+  # Attribution control at the same concurrency: same client, same TLS path, same
+  # edge, but /cdn-cgi/trace never reaches the Worker.
+  $ctlP95 = $null
+  $ctlCount = [Math]::Min($conc * 4, [int]$criterion.control_tier.max_control_requests - $script:controlIssued)
+  if ($ctlCount -gt 0) {
+    $ctl = Invoke-LoadTier ($BaseUrl + [string]$criterion.control_tier.path) $conc $ctlCount
+    $script:controlIssued += $ctlCount
+    $ctlP95 = Get-Percentile @($ctl.latencies) 0.95
+  }
 
   $tierResults += [pscustomobject]@{
+    control_p95_ms = $ctlP95
+    worker_share_p95_ms = if ($null -ne $ctlP95) { [Math]::Round((Get-Percentile $lat 0.95) - $ctlP95, 1) } else { $null }
     concurrency    = $conc
     requests       = $count
     success_2xx    = $ok2xx
@@ -144,8 +174,8 @@ foreach ($tier in $criterion.read_tiers) {
     p95_ms         = Get-Percentile $lat 0.95
     p99_ms         = Get-Percentile $lat 0.99
   }
-  Write-Host ("[phase6-scale] c={0,-3} n={1,-4} 2xx={2,-4} 429={3,-3} 5xx={4,-3} p95={5}ms" -f `
-    $conc, $count, $ok2xx, $throttled, $server5xx, $tierResults[-1].p95_ms)
+  Write-Host ("[phase6-scale] c={0,-3} n={1,-4} 2xx={2,-4} 429={3,-3} 5xx={4,-3} p95={5}ms  edge-control={6}ms  worker-share={7}ms" -f `
+    $conc, $count, $ok2xx, $throttled, $server5xx, $tierResults[-1].p95_ms, $ctlP95, $tierResults[-1].worker_share_p95_ms)
 }
 
 # --- evaluate against the pre-declared criterion ----------------------------
@@ -194,14 +224,16 @@ $report = [pscustomobject]@{
   gate_may_open       = $false
   gate_open_blocked_by = @($writeBlockers)
   non_claims          = @($criterion.non_claims)
-  # Attribution caveat. These are end-to-end client timings. Every request runs
-  # in its own PowerShell runspace with a fresh TLS handshake and no connection
-  # reuse, so at high concurrency the harness itself is a plausible dominant
-  # cost. A latency regression measured here must NOT be reported as a server
-  # finding until a server-side duration signal separates the two.
-  measurement_scope   = "end_to_end_client_observed"
-  attribution_valid   = $false
-  attribution_note    = "Harness cannot separate client overhead from worker time. Needs connection reuse or a worker-reported duration before any p95 threshold is meaningful as a server claim."
+  # Hardened harness: one pooled HttpClient (connection reuse, no per-request TLS
+  # handshake, no runspace per request) plus an edge control at the same concurrency.
+  # /cdn-cgi/trace shares client, TLS path and edge but never enters the Worker, so
+  # worker_share_p95_ms is the Worker's own contribution.
+  measurement_scope   = "end_to_end_client_observed_with_edge_control"
+  attribution_valid   = ($script:controlIssued -gt 0)
+  attribution_note    = "Pooled HttpClient plus per-tier /cdn-cgi/trace control. worker_share_p95_ms = worker p95 minus edge-control p95 at identical concurrency."
+  harness_version     = "pooled-httpclient-v2"
+  control_requests    = $script:controlIssued
+  control_path        = [string]$criterion.control_tier.path
 }
 $reportPath = Join-Path $artifactDir "scale-evidence.json"
 $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $reportPath -Encoding utf8
