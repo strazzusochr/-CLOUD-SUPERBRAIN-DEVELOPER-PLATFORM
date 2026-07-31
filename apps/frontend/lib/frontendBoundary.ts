@@ -128,14 +128,16 @@ function publicRequestOrigin(req: Request): string | null {
 }
 
 export function isLocalDevelopmentRequest(req: Request): boolean {
-  if (process.env.VERCEL === "1") return false;
+  if (process.env.VERCEL === "1" || process.env.NODE_ENV !== "development") return false;
   const origin = publicRequestOrigin(req);
   if (!origin) return false;
   const publicHostname = new URL(origin).hostname.toLowerCase();
   const requestHostname = new URL(req.url).hostname.toLowerCase();
   const localHostname = (hostname: string) =>
-    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-  return localHostname(publicHostname) && localHostname(requestHostname);
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "0.0.0.0";
+  const forwardedHost = firstForwarded(req.headers.get("x-forwarded-host"));
+  const trustedDevProxy = requestHostname === "frontend" && forwardedHost.length > 0;
+  return localHostname(publicHostname) && (localHostname(requestHostname) || trustedDevProxy);
 }
 
 function writeBlocked(status: 401 | 403 | 503, error: string, reason: string): Response {
