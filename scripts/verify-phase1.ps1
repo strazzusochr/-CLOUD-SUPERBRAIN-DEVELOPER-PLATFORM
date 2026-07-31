@@ -560,6 +560,7 @@ foreach ($required in @(
   'overall: 86',
   '{ name: "Frontend", layer: 1, pct: 100 }',
   '{ name: "Orchestrator", layer: 2, pct: 100 }',
+  '{ name: "Memory", layer: 6, pct: 100 }',
   '{ id: "P2", pct: 100 }',
   '{ id: "P3", pct: 44 }',
   '{ id: "P4", pct: 100 }',

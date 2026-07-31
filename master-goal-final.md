@@ -1,16 +1,16 @@
 # Cloud Superbrain Master Goal — Autonomous Finish / Owner Blocked
 
-Stand: 2026-07-30
+Stand: 2026-07-31
 
 ## Urteil
 
 `MARKET_READY: false`
 
 Session 9 setzte den Zielpfad auf eine kostenlose Cloudflare-native Runtime um.
-Der O2Core-Pfad ist inzwischen lokal und source-gebunden gehostet bewiesen. Produkt-,
-22-Seiten-, Vectorize-, Release- und Production-Claims bleiben bis zu ihren eigenen
-Beweisen geschlossen. Keine Zelle wird allein durch die Architekturentscheidung oder
-den O2Core-Runtime-Beweis aufgewertet.
+Der O2Core-Pfad, die Produkt-/22-Seiten-Abnahme und der semantische Vectorize-Roundtrip
+sind source- bzw. evidence-gebunden gehostet bewiesen. Release- und Production-Claims
+bleiben bis zu ihren eigenen Gates geschlossen. Keine Zelle wird allein durch eine
+Architekturentscheidung aufgewertet.
 
 ## Session-9-Architekturentscheidung
 
@@ -38,14 +38,13 @@ Die bindende Migrationsgrenze steht in
 
 - Overall: `86%`
 - Horizontal: `P0 100 | P1 100 | P2 100 | P3 44 | P4 100 | P5 68 | P6 90`
-- Vertikal: `FE 100 | ORC 100 | AP 69 | LLM 55 | MCP 56 | MEM 90 | OBS 100`
+- Vertikal: `FE 100 | ORC 100 | AP 69 | LLM 55 | MCP 56 | MEM 100 | OBS 100`
 - Manifest: `docs/project-progress.manifest.json`
 - Externe Wahrheit: `external-gate-summary-v2`, `blocked`;
   `production_deploy_claim_allowed=false`
 - Kanonischer Audit: `docs/runtime-state/external-gate-audit-v2.json`
 - O2Core: `cloudflare_native_zero_card_hosted_runtime=true`
-- Aktive Audit-Blocker: `github_branch_protection_current_verify`,
-  `ghcr_image_digest_verify`
+- Aktiver Audit-Blocker: `ghcr_image_digest_verify`
 
 ## Zero-Card-Adapter v2 (2026-07-30)
 
@@ -79,8 +78,8 @@ Die bindende Migrationsgrenze steht in
   explizitem O2Core-Owner-Gate aus und öffnete das Capability-Gate atomar.
 - Der qualifizierte Management-Token wurde danach evidence-bound atomar aktiviert;
   Rollback bleibt privat, keine Secret-Ausgabe.
-- Aktueller externer Audit bestätigt Hosted Staging, Vercel-Origins, Gitleaks und
-  Cloudflare O2Core; Branch Protection und GHCR bleiben offen.
+- Aktueller externer Audit bestätigt Hosted Staging, Vercel-Origins, Gitleaks,
+  Cloudflare O2Core und Branch Protection; GHCR bleibt offen.
 
 ## Session-8 Lieferung
 
@@ -119,11 +118,12 @@ Die bindende Migrationsgrenze steht in
 | O1 | P3 | Production-OAuth-App, Hosted Callback und sichere Credential-Konfiguration |
 | O2' Scale | P6 | O2Core Runtime ist hosted verifiziert; separater Scale-/Kapazitätsbeweis bleibt offen |
 | O3 | P5, MCP | GHCR-Publikation, Protected Release Workflow und Owner-Review |
-| O4 | P6, AP, MCP | Live Agent-/MCP-Write-Allowlist, Branch Protection und Audit-Freigabe |
-| O5 | MEM | Cloudflare `Vectorize:Edit`, Architekturfreigabe und Hosted Semantic-Search-Proof |
+| O4 | P6, AP, MCP | Live Agent-/MCP-Write-Allowlist und fail-closed Audit-Beweis |
 
 O6 ist `resolved_verified`: bounded Workers AI ausschliesslich durch den LLM Gateway,
 `direct_provider_calls=false`, `percentage_credit=0`. O6 ist kein Owner-Blocker.
+O5 ist ebenfalls `resolved_verified`: der freie hosted Vectorize-Roundtrip kreditiert
+ausschliesslich die letzten `10%` von Memory; die D1-Lexik wird nicht doppelt gezaehlt.
 
 Exakte Scopes, Zahlungsbedarf, Gate-IDs und Nachverifier stehen maschinenlesbar in
 `docs/runtime-state/owner-input-manifest.json`.
@@ -145,4 +145,4 @@ npm run verify:market-ready
 MARKET_READY: true
 ```
 
-Bis dahin: O2Core hosted verifiziert; Produkt-, Release- und Production-Proof bleiben blockiert.
+Bis dahin: O2Core, Produkt und Vectorize sind hosted verifiziert; Release und Production bleiben blockiert.

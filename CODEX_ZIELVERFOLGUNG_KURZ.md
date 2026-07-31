@@ -12,7 +12,7 @@ Owner-gewallte Reste ehrlich als **OWNER-BLOCKED** listen — **nie faken** (R0)
 ## ✅ STAND (gemessen, nicht geschätzt)
 Branch `claude/cloud-superbrain-analysis-127d2e` · HEAD = `origin` · Overall **86 %** · `MARKET_READY:false`
 `P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 68 · P6 90`
-`FE 100 · ORC 100 · AP 69 · LLM 55 · MCP 56 · MEM 90 · OBS 100`
+`FE 100 · ORC 100 · AP 69 · LLM 55 · MCP 56 · MEM 100 · OBS 100`
 
 **Capability-Gates: 5 offen / 5 zu** · **Externe Gates: nur noch `ghcr_image_digest_verify`**
 
@@ -31,14 +31,14 @@ Branch `claude/cloud-superbrain-analysis-127d2e` · HEAD = `origin` · Overall *
 
 ## ▶ ARBEITSREIHENFOLGE BIS MARKTREIFE
 
-**1. Restarbeit schließen (klein, zuerst).** Hosted-Source-Rebinding: Wahrheit bindet auf `af61146e`,
-   der Worker meldet in `/api/v1/health` noch `62648856`. `wrangler secret put` für
-   `SOURCE_COMMIT_SHA` + `SOURCE_ARCHIVE_SHA256` wiederholen (Rate-Limit war die Ursache),
-   danach **per `health` gegenprüfen**. Exakter Befehl: Übergabe §2.5.
+**1. ✅ Restarbeit geschlossen.** Hosted-Source-Rebinding meldet in `/api/v1/health`
+   exakt `af61146e22d1a56e9d62232c159ea7b352405ba9` +
+   `1d85f2cd6c948a43e0f79fb17d1f02706687d5857d80f4096780692d094b63fc`.
+   Worker-Version: `757cf74c-7988-4790-ae03-ff51534ccea4`.
 
-**2. L6 90 → 100 gutschreiben.** O5 ist bewiesen, der Prozentwert **noch nicht** fortgeschrieben.
-   Marker `hosted_lexical_memory_only_vector_search_vectorize_pending` ist überholt.
-   **Kein Doppelcredit** — die lexikalische D1-Persistenz zählt bereits.
+**2. ✅ L6 90 → 100 gutgeschrieben.** Marker:
+   `hosted_semantic_vector_search_cloudflare_vectorize_roundtrip_verified`.
+   **Kein Doppelcredit** — die lexikalische D1-Persistenz bleibt ihr eigener Slice.
 
 **3. O4 abschließen.** Owner-Freigabe liegt vor. Gebundenen Live-Write-Verifier bauen, Grenzen hart
    durchsetzen, Audit fail-closed, Gates nur über `verify:runtime` + `verify:browser` öffnen.
@@ -57,7 +57,7 @@ Branch `claude/cloud-superbrain-analysis-127d2e` · HEAD = `origin` · Overall *
 | Falle | Richtig |
 |---|---|
 | `Authorization: Bearer` am Worker | **`x-superbrain-agent-token`** |
-| `--var SOURCE_COMMIT_SHA` | Sind **Secrets** → `wrangler secret put` |
+| `wrangler secret put SOURCE_*` | Remote sind beide `plain_text`; `secret put` scheitert mit `10053`. Rebind per `deploy --keep-vars --var ...` |
 | `//`-Kommentar in `wrangler.jsonc` | Verifier parst mit reinem `ConvertFrom-Json` → **keine Kommentare** |
 | Substring-Check `semantic\|vectorize` | Traf Non-Claims → **falsches Grün**. Auf **Verwendung** prüfen |
 | `Set-Location` + `[IO.File]` | .NET hat eigenes CWD → **absolute Pfade** |

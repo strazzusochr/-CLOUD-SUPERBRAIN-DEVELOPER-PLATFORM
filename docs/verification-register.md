@@ -1,11 +1,28 @@
 # Verification Register - PATCHED
 
-Stand: 2026-07-30
+Stand: 2026-07-31
 Status: Active
 
 ## Current Progress Authority
 
-Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `86%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `68%`, Phase 6 `90%`, Frontend `100%`, Agent Pool `69%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `90%`, and Observability `100%`.
+Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `86%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `68%`, Phase 6 `90%`, Frontend `100%`, Agent Pool `69%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
+
+## Current Hosted Source Rebinding
+
+Recorded 2026-07-31. The stateful Cloudflare Worker was rebound to the tracked source
+identity without changing application source. Remote settings proved that
+`SOURCE_COMMIT_SHA` and `SOURCE_ARCHIVE_SHA256` are `plain_text` bindings, not secrets.
+Accordingly, `wrangler secret put` failed without mutation with Cloudflare code `10053`
+(`Binding name already in use`); the prior rate-limit/secret interpretation is superseded.
+The bounded deploy used `--keep-vars` plus the two public source values and created Worker
+version `757cf74c-7988-4790-ae03-ff51534ccea4`.
+
+The public `/api/v1/health` contract now reports `healthy`, source
+`af61146e22d1a56e9d62232c159ea7b352405ba9`, and archive SHA-256
+`1d85f2cd6c948a43e0f79fb17d1f02706687d5857d80f4096780692d094b63fc`,
+exactly matching `docs/runtime-state/cloudflare-native-hosted-current.json`. Required
+bindings remain present, R2 binding count remains zero, and no secret value was emitted.
+The hosted O5 semantic roundtrip passed again after deployment.
 
 ## Current Branch-Protection Safety
 
@@ -33,32 +50,30 @@ GitHub write was executed. The Owner runbook step that instructed an apply again
 
 ## Current O5 Live Vector Memory Search Verifier
 
-Recorded 2026-07-31. `docs/runtime-state/capability-gates.json` reserved
-`scripts/verify-live-vector-memory-search.ps1` under
-`gates.live_vector_memory_search.verifier`, and the owner input manifest listed the
-same path as the O5 verifier, but the file had never been written. The reference
-was dangling. The verifier now exists and is wired into `verify-phase1.ps1`, which
-fails with `Missing live vector memory search verifier` when it is absent; that was
-proven by removing the file, observing the failure, and restoring it.
+Recorded 2026-07-31. The reserved two-tier verifier now has every required precondition
+and a real hosted semantic roundtrip. Missing prerequisites still report `blocked`
+without fabricating a claim; incoherent evidence still exits nonzero. Gate promotion
+was performed only through `scripts/verify-live-vector-memory-search.ps1
+-PromoteGateOnFullPass`, never by hand.
 
-The verifier is deliberately two-tier. A missing precondition is reported as
-`blocked` and exits `0`, because that is the honest current state. An incoherent
-claim exits `1`: a gate that asserts semantic proof without an evidence artefact, an
-artefact path that does not exist, or vector evidence that reuses the lexical
-Cloudflare D1 evidence. It never writes `live_verified`.
+The verified report `.phase1-artifacts/live-vector-memory-search-proof.json` has SHA-256
+`18C3E1B54E547207FFD43B3E80FCAF5C0BCC31084A5392D53B5BAE35C205A831`,
+matching `docs/runtime-state/capability-gates.json`. It proves provider
+`cloudflare_vectorize`, free/no-paid state, Workers AI model
+`@cf/baai/bge-base-en-v1.5`, 768 dimensions, cosine retrieval, the intended item on
+rank 1 with score `0.7428076`, and zero shared content words. The lexical D1 evidence is
+not reused, blockers are empty, and secret output is false.
 
-Measured state: seven blockers. `owner_scope_approved`, `architecture_approved`,
-`vectorize_index_present` (the account holds zero indexes), `worker_vectorize_binding`,
-`worker_ai_binding` and `worker_semantic_route` are all unmet. Only
-`vectorize_scope_readable` passes, confirming the promoted Cloudflare token can list
-Vectorize indexes read-only.
+`vector-memory-gate-static-proof-v2` binds that evidence SHA and positive hosted fields,
+keeps the malformed/missing/paid/wrong-provider negative matrix, and proves that closing
+only this gate restores exactly the Layer-6 vector blocker. The live verifier itself
+keeps `percentage_credit=0`; canonical truth grants the final non-duplicated `10%` through
+`hosted_semantic_vector_search_cloudflare_vectorize_roundtrip_verified`. Memory is now
+`100%`, Overall remains `86%`, and O5 is `resolved_verified`.
 
-Method note worth keeping: the first draft of the route check matched the substrings
-`semantic` or `vectorize` in the Worker source and reported green. What it matched
-were `vectorize: "owner_gate_required"` and a non-claim sentence about pgvector
-parity, both of which assert the opposite of an implementation. The check now
-requires actual binding use, `env.VECTORIZE` together with `env.AI`. Contract checks
-must test usage, not word occurrence.
+Method note worth keeping: the first draft matched only the words `semantic` or
+`vectorize` and falsely hit non-claims. The verifier requires actual `env.VECTORIZE`
+plus `env.AI` usage. Contract checks must test usage, not word occurrence.
 
 ## Current Branch-Protection External Gate Closure
 
@@ -410,8 +425,8 @@ RC10 historical provenance. DEV-ONLY; hosted proof still blocked.
 `.phase1-artifacts/external-gate-audit-v2-20260731-011557.json`. Audit and summary are in
 timestamp/status parity: `blocked`, `production_deploy_claim_allowed=false`.
 `cloudflare_native_zero_card_hosted_runtime` is verifier-open; hosted contracts, Vercel
-origins and canonical gitleaks passed, while exactly
-`github_branch_protection_current_verify` and `ghcr_image_digest_verify` remain missing.
+origins, Branch Protection and canonical gitleaks passed, while only
+`ghcr_image_digest_verify` remains missing.
 Fly/RC10-v1 and candidate `125413` are `historical_only`.
 
 The historical least-privilege Cloudflare readiness probe used only GET requests for
@@ -420,9 +435,10 @@ HTTP 401/403 with code 10000 for all six families. The qualified active token no
 O2Core 4/4 and O5 1/1; R2 remains unbound and historical-only. Sanitized historical evidence:
 `.codex/runs/CURRENT/p5/cloudflare-scope-readiness/report.json`, SHA-256
 `DBFF2AFD4E32A0ABAD49BFD05A97E6D817F605559468DE4CD74A6BEE20CE7215`.
-No cloud write, deployment, resource creation, secret output, percentage change, or gate
-flip occurred. O1-O5 remain `owner_required`; O6 is `resolved_verified` for the bounded
-gateway-only Workers AI path and has `percentage_credit=0`.
+That historical readiness probe performed no cloud write, deployment, resource creation,
+secret output, percentage change, or gate flip. O1, O2' scale, O3, and O4 remain
+`owner_required`; O5 is `resolved_verified` with the final Memory `10%` slice and O6 is
+`resolved_verified` for the bounded gateway-only Workers AI path with `percentage_credit=0`.
 
 Final DEV-ONLY integration verification passed `scripts/verify-phase1.ps1` including
 gitleaks, frontend lint, the Next.js production build, `scripts/verify-phase1-runtime.ps1`,
@@ -442,7 +458,8 @@ Entries below that mention `https://188-34-191-140.sslip.io`, `sslip.io`, Hetzne
 
 Latest external audit truth: `docs/runtime-state/external-gate-audit-v2.json` is
 `status=blocked` with `production_deploy_claim_allowed=false`; the only active blocker is
-`cloudflare_native_zero_card_hosted_runtime`. RC10/Fly-v1 and the token/origin-injected
+`ghcr_image_digest_verify`. Cloudflare O2Core and Branch Protection are verifier-open.
+RC10/Fly-v1 and the token/origin-injected
 `125413` run are explicit historical, non-current evidence. This does not claim a
 full-platform production rollout or release promotion; current manifest progress is `86%`.
 
@@ -451,7 +468,7 @@ full-platform production rollout or release promotion; current manifest progress
 `external-gate-summary-v2` is authoritative for runtime release claims. Agent API,
 External-Gate Mirror, Deployment Preflight, Completion, Infra Budget, and Go-live Readiness
 now use `cloudflare_native_runtime` and
-`cloudflare_native_zero_card_hosted_runtime`; the single active external blocker remains
+`cloudflare_native_zero_card_hosted_runtime`; the remaining GHCR external blocker stays
 fail-closed, and cloud/production claims remain false. Fly inventory is read-only
 `historical_only` with no active layer mapping. This is DEV-ONLY and changes no percentage.
 
@@ -461,11 +478,12 @@ fail-closed, and cloud/production claims remain false. Fly inventory is read-onl
 
 ## Current MARKET_READY Owner-Blocked Evidence
 
-`owner-input-manifest-v2` maps O1-O5 as `owner_required` and O6 as
+`owner-input-manifest-v2` maps O1, O2' scale, O3, and O4 as `owner_required`.
+O5 is `resolved_verified` with the final Memory `10%` slice; O6 is
 `resolved_verified` with `percentage_credit=0`. O2' targets
 `cloudflare_native_zero_card_hosted_runtime` with `payment_required=false`,
 `zero_card_required=true`, and `paid_fallback_allowed=false`. It validates the closed
-Cloudflare hosted gate and the still-closed scale/write/vector/auth/release gates while
+scale/write/auth/release gates while
 preserving the bounded gateway-only Workers AI proof. `verify-market-ready.ps1 -StaticOnly` reports
 `owner-input-matrix=PASS`, `autonomous-open-items=PASS`, Matrix and production gates honestly
 blocked, audit-mode runtime skip, `OFFEN (Spur A - autonom fixbar): keine`, and
@@ -1004,7 +1022,7 @@ The current-candidate hosted-boundary verifier is deterministic under stale loca
 ## Current Next Verification
 
 Current verified progress is total `86%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `68%`, and Phase 6 `90%`.
-Current vertical layer snapshot is Frontend `100%`, Orchestrator `100%`, Agent Pool `69%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `90%`, and Observability `100%`.
+Current vertical layer snapshot is Frontend `100%`, Orchestrator `100%`, Agent Pool `69%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
 
 - Current hosted MCP read-only contract parity: `mcp-hosted-current-readonly-v1` binds the public Vercel Contract Origin to deployment `dpl_AQaBJxdQwHLcQKid8xYXkNJ3wva2`, source `21913f8c3ef13949ca962980c143e757ca87a7cc`, the recorded backend verification artifact, and blob-identical current MCP deployment sources. Public HTTPS GET returned HTTP `200` for MCP health, the GitHub/PostgreSQL/Filesystem/Playwright/E2B dry-run contracts, exact version pinning, and the MCP audit contract. Evidence `.codex/runs/CURRENT/mcp-gateway/hosted-readonly-contract/report.json` has SHA-256 `67281BB2B9CE8A411D88954D7604D9205E13726644FDA21BA0DE5673A596D15C`. This credits `mcp_current_hosted_readonly_contract_parity_verified`, raising MCP Gateway `55% -> 56%`; Overall remains `86%`. Non-claims: no token, MCP execution, audit write, provider write, stateful backend, release, or production claim.
 

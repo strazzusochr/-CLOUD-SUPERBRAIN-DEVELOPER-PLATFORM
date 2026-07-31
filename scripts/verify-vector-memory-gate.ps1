@@ -8,9 +8,10 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
-$proofLabel = "DEV-ONLY; hosted proof still blocked"
+$proofLabel = "HOSTED-EVIDENCE-BOUND; no new network or provider call"
 $vectorBlocker = "live_vector_memory_search_requires_owner_vectorize_scope_architecture_approval_and_hosted_proof"
 $pendingMarker = "hosted_lexical_memory_only_vector_search_vectorize_pending"
+$verifiedMarker = "hosted_semantic_vector_search_cloudflare_vectorize_roundtrip_verified"
 $reservedVerifier = "scripts/verify-live-vector-memory-search.ps1"
 
 function Assert-True([string]$Label, [bool]$Condition) {
@@ -63,6 +64,7 @@ Assert-True "D1 note limits the verified scope to lexical persistence" (
 Assert-True "vector gate names Cloudflare Vectorize" (
   [string]$vectorGate.provider -eq "cloudflare_vectorize"
 )
+Assert-True "current vector gate is verifier-opened" ([bool]$vectorGate.live_verified)
 # This block used to assert the vector gate could never carry evidence, which was correct only while
 # semantic retrieval was unproven. It is now symmetric: an open gate must be fully backed, and a
 # closed gate must claim nothing. Either direction fails closed, so a hand-set flag cannot slip past.
@@ -106,6 +108,44 @@ Assert-True "vector note requires Owner scope, architecture approval, and hosted
 Assert-True "lexical evidence is not reused as vector evidence" (
   [string]$lexicalGate.provider -ne [string]$vectorGate.provider -and
   [string]$lexicalGate.evidence_artifact -ne [string]$vectorGate.evidence_artifact
+)
+
+$vectorEvidencePath = [string]$vectorGate.evidence_artifact
+$recordedEvidenceSha = [string]$vectorGate.evidence_sha256
+Assert-True "vector gate records an evidence SHA-256" ($recordedEvidenceSha -match "^[A-Fa-f0-9]{64}$")
+$actualEvidenceSha = Get-Sha256Hex $vectorEvidencePath
+Assert-True "vector evidence SHA-256 matches the gate" (
+  $actualEvidenceSha.Equals($recordedEvidenceSha, [StringComparison]::OrdinalIgnoreCase)
+)
+$vectorEvidence = Get-Content -LiteralPath $vectorEvidencePath -Raw -Encoding UTF8 | ConvertFrom-Json
+Assert-True "vector evidence contract is exact" (
+  [string]$vectorEvidence.contract_version -eq "live-vector-memory-search-proof-v1"
+)
+Assert-True "vector evidence is verified and names the exact gate/provider" (
+  [string]$vectorEvidence.status -eq "verified" -and
+  [string]$vectorEvidence.gate -eq "live_vector_memory_search" -and
+  [string]$vectorEvidence.provider -eq "cloudflare_vectorize"
+)
+Assert-True "vector evidence proves hosted semantic retrieval" (
+  [bool]$vectorEvidence.live_verified -and
+  [bool]$vectorEvidence.hosted_semantic_search_verified -and
+  -not [bool]$vectorEvidence.lexical_evidence_reused
+)
+Assert-True "vector evidence is free and secret-safe" (
+  -not [bool]$vectorEvidence.paid_provider -and
+  -not [bool]$vectorEvidence.secret_output -and
+  @($vectorEvidence.blockers).Count -eq 0
+)
+Assert-True "live verifier does not hand-set progress credit" ([int]$vectorEvidence.percentage_credit -eq 0)
+Assert-True "hosted roundtrip is semantic, top-ranked, and lexically disjoint" (
+  [string]$vectorEvidence.hosted_roundtrip.retrieval_mode -eq "semantic_vector_cosine" -and
+  [bool]$vectorEvidence.hosted_roundtrip.top_is_target -and
+  [int]$vectorEvidence.hosted_roundtrip.lexical_overlap_words -eq 0 -and
+  [double]$vectorEvidence.hosted_roundtrip.top_score -gt 0
+)
+Assert-True "hosted roundtrip uses the bound embedding contract" (
+  [string]$vectorEvidence.hosted_roundtrip.model -eq "@cf/baai/bge-base-en-v1.5" -and
+  [int]$vectorEvidence.hosted_roundtrip.dimensions -eq 768
 )
 
 $apiSource = Get-Content -LiteralPath $AgentApiPath -Raw -Encoding UTF8
@@ -343,8 +383,9 @@ $manifest = Get-Content -LiteralPath $ManifestPath -Raw -Encoding UTF8 | Convert
 $memoryItems = @($manifest.vertical.items | Where-Object { [string]$_.id -eq "layer_6" })
 Assert-True "manifest has exactly one Memory layer" ($memoryItems.Count -eq 1)
 $memory = $memoryItems[0]
-Assert-True "manifest Memory remains at 90 percent" ([int]$memory.percent -eq 90)
-Assert-True "manifest keeps the Vectorize pending marker" ([string]$memory.status -match [regex]::Escape($pendingMarker))
+Assert-True "manifest Memory is at 100 percent" ([int]$memory.percent -eq 100)
+Assert-True "manifest records the verified semantic roundtrip" ([string]$memory.status -match [regex]::Escape($verifiedMarker))
+Assert-True "manifest removed the superseded Vectorize pending marker" (-not ([string]$memory.status -match [regex]::Escape($pendingMarker)))
 
 $parseTokens = $null
 $parseErrors = $null
@@ -402,10 +443,10 @@ try {
 Assert-True "evidence output is git-ignored" ($ignoreExit -eq 0)
 
 $report = [ordered]@{
-  contract_version = "vector-memory-gate-static-proof-v1"
-  status = "verified_blocked"
+  contract_version = "vector-memory-gate-static-proof-v2"
+  status = "verified"
   label = $proofLabel
-  evidence_ref = "live_vector_memory_search_fail_closed"
+  evidence_ref = $verifiedMarker
   lexical_memory = [ordered]@{
     provider = [string]$lexicalGate.provider
     live_verified = [bool]$lexicalGate.live_verified
@@ -421,12 +462,17 @@ $report = [ordered]@{
     hosted_semantic_search_verified = [bool]$vectorGate.hosted_semantic_search_verified
     live_verified = [bool]$vectorGate.live_verified
     evidence_artifact = [string]$vectorGate.evidence_artifact
-    blocker = $vectorBlocker
+    evidence_sha256 = $actualEvidenceSha
+    blocker_when_closed = $vectorBlocker
   }
   manifest = [ordered]@{
     layer_id = "layer_6"
     percent = [int]$memory.percent
-    pending_marker = $pendingMarker
+    verified_marker = $verifiedMarker
+    superseded_marker_absent = -not ([string]$memory.status -match [regex]::Escape($pendingMarker))
+    incremental_credit_percent = 10
+    lexical_credit_reused = $false
+    live_verifier_percentage_credit = [int]$vectorEvidence.percentage_credit
   }
   execution_guards = [ordered]@{
     network_calls = $false

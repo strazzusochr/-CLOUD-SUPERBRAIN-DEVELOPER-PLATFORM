@@ -1,11 +1,11 @@
 # Cloud Superbrain Release Status
 
-Updated: 2026-07-22
+Updated: 2026-07-31
 
 Status: **not released**. This repository has a healthy local development runtime, a
-verified Vercel frontend deployment, and a reachable stateless read-only Backend Contract
-Origin. It does not yet have the stateful hosted Docker-stack proof or Owner approvals
-required for a full-platform production release or release promotion.
+verified Vercel frontend, a read-only Backend Contract Origin, and source-bound Cloudflare
+O2Core plus semantic Vectorize proofs. GHCR publication and the remaining Owner/release
+gates are still missing, so no full-platform production release or promotion is claimed.
 
 ## Local Development Runtime
 
@@ -28,7 +28,7 @@ gates.
 | --- | --- |
 | Overall progress | 86 percent |
 | Horizontal | P0 100, P1 100, P2 100, P3 44, P4 100, P5 68, P6 90 |
-| Vertical | Frontend 100, Orchestrator 100, Agent Pool 69, LLM 55, MCP 56, Memory 90, Observability 100 |
+| Vertical | Frontend 100, Orchestrator 100, Agent Pool 69, LLM 55, MCP 56, Memory 100, Observability 100 |
 | Project progress integrity | `verified` |
 | Canonical workspace pages | 22/22 local and 22/22 hosted in real Google Chrome at desktop and mobile |
 | Docker services | 10/10 healthy in the latest local check |

@@ -342,8 +342,19 @@ foreach ($required in @(
 }
 
 Write-Host "[organism-topology] normalized frontend/backend mirror"
-$frontendTopologyOutput = & node scripts\emit-organism-topology-route.cjs 2>&1
-if ($LASTEXITCODE -ne 0) {
+$previousConsoleOutputEncoding = [Console]::OutputEncoding
+$previousPipelineOutputEncoding = $OutputEncoding
+try {
+  $utf8OutputEncoding = [Text.UTF8Encoding]::new($false)
+  [Console]::OutputEncoding = $utf8OutputEncoding
+  $OutputEncoding = $utf8OutputEncoding
+  $frontendTopologyOutput = & node scripts\emit-organism-topology-route.cjs 2>&1
+  $frontendTopologyExit = $LASTEXITCODE
+} finally {
+  [Console]::OutputEncoding = $previousConsoleOutputEncoding
+  $OutputEncoding = $previousPipelineOutputEncoding
+}
+if ($frontendTopologyExit -ne 0) {
   throw "Frontend topology route emitter failed: $($frontendTopologyOutput -join "`n")"
 }
 $frontendTopologyJson = $frontendTopologyOutput -join "`n"
@@ -359,9 +370,42 @@ $frontendProjection = Get-TopologyMirrorProjection "frontend topology mirror" $f
 $backendProjection = Get-TopologyMirrorProjection "backend topology mirror" $backendMirror
 $frontendProjectionJson = $frontendProjection | ConvertTo-Json -Depth 6 -Compress
 $backendProjectionJson = $backendProjection | ConvertTo-Json -Depth 6 -Compress
-Assert-True "normalized topology mirrors match" (
-  [string]::Equals($frontendProjectionJson, $backendProjectionJson, [System.StringComparison]::Ordinal)
+$topologyMirrorsMatch = [string]::Equals(
+  $frontendProjectionJson,
+  $backendProjectionJson,
+  [System.StringComparison]::Ordinal
 )
+if (-not $topologyMirrorsMatch) {
+  $scalarDiffs = @(
+    foreach ($key in @("contract_version", "evidence_ref", "endpoint", "source_kind", "live")) {
+      if ([string]$frontendProjection[$key] -cne [string]$backendProjection[$key]) {
+        "${key}:frontend=$($frontendProjection[$key]),backend=$($backendProjection[$key])"
+      }
+    }
+  )
+  $nodeDiffs = @(
+    Compare-Object @($frontendProjection.nodes) @($backendProjection.nodes) -CaseSensitive |
+      Select-Object -First 3 |
+      ForEach-Object { "$($_.SideIndicator):$($_.InputObject)" }
+  )
+  $edgeDiffs = @(
+    Compare-Object @($frontendProjection.edges) @($backendProjection.edges) -CaseSensitive |
+      Select-Object -First 3 |
+      ForEach-Object { "$($_.SideIndicator):$($_.InputObject)" }
+  )
+  $nonClaimDiffs = @(
+    Compare-Object @($frontendProjection.non_claims) @($backendProjection.non_claims) -CaseSensitive |
+      Select-Object -First 3 |
+      ForEach-Object { "$($_.SideIndicator):$($_.InputObject)" }
+  )
+  throw (
+    "Verification failed: normalized topology mirrors match; " +
+    "scalar_diffs=$($scalarDiffs -join '|'); " +
+    "node_diffs=$($nodeDiffs -join '|'); " +
+    "edge_diffs=$($edgeDiffs -join '|'); " +
+    "non_claim_diffs=$($nonClaimDiffs -join '|')"
+  )
+}
 Write-Host "[organism-topology] mirror nodes=$(@($frontendMirror.nodes).Count) edges=$(@($frontendMirror.edges).Count)"
 
 if ($StaticOnly) {

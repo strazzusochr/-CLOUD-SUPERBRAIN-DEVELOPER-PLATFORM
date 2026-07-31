@@ -137,7 +137,7 @@ export const API_SURFACES: SurfaceGroup[] = [
  * only on /diagnostics (never on Home/Workbench as a hero).
  * ------------------------------------------------------------------ */
 export const MANIFEST = {
-  snapshot: "2026-07-21",
+  snapshot: "2026-07-31",
   overall: 86,
   integrity: "verified",
   modules: [
@@ -146,7 +146,7 @@ export const MANIFEST = {
     { name: "Agent Pool", layer: 3, pct: 69 },
     { name: "LLM Gateway", layer: 4, pct: 55 },
     { name: "MCP Gateway", layer: 5, pct: 56 },
-    { name: "Memory", layer: 6, pct: 90 },
+    { name: "Memory", layer: 6, pct: 100 },
     { name: "Observability", layer: 7, pct: 100 },
   ],
   phases: [

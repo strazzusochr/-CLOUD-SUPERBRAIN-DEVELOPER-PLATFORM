@@ -84,8 +84,8 @@
       {
         "id": "layer_6",
         "label": "Memory",
-        "percent": 90,
-        "status": "repeatable-browser-contract-memory-consolidation-proof-pgvector-consolidation-postgres-backup-restore-redis-persistence-runtime-redaction-proof-scoped-dsgvo-purge-proof-single-entry-soft-delete-proof-langgraph-context-injection-memory-updater-persisted-dry-run-session-foreign-key-guard-proof-browser-memory-consolidation-refresh-proof-memory_embedding_consistency_contract_visible-hosted_session_memory_memory_worker_parity_proof-memory_consolidation_contract_runtime_visible-memory_search_contract_runtime_visible-hosted_memory_embedding_consistency_runtime_parity_proof-memory_worker_metadata_secret_guard_verified-live_memory_provider_cloudflare_d1_hosted_proof-hosted_stateful_persistence_create_read_delete_roundtrip_verified-hosted_langgraph_run_checkpoint_memory_audit_persisted-hosted_lexical_memory_only_vector_search_vectorize_pending"
+        "percent": 100,
+        "status": "repeatable-browser-contract-memory-consolidation-proof-pgvector-consolidation-postgres-backup-restore-redis-persistence-runtime-redaction-proof-scoped-dsgvo-purge-proof-single-entry-soft-delete-proof-langgraph-context-injection-memory-updater-persisted-dry-run-session-foreign-key-guard-proof-browser-memory-consolidation-refresh-proof-memory_embedding_consistency_contract_visible-hosted_session_memory_memory_worker_parity_proof-memory_consolidation_contract_runtime_visible-memory_search_contract_runtime_visible-hosted_memory_embedding_consistency_runtime_parity_proof-memory_worker_metadata_secret_guard_verified-live_memory_provider_cloudflare_d1_hosted_proof-hosted_stateful_persistence_create_read_delete_roundtrip_verified-hosted_langgraph_run_checkpoint_memory_audit_persisted-hosted_semantic_vector_search_cloudflare_vectorize_roundtrip_verified"
       },
       {
         "id": "layer_7",

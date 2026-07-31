@@ -258,16 +258,38 @@ for (const [name, value] of Object.entries({
 const completionActiveText = JSON.stringify(snapshotCompletion, (key, nested) =>
   key === "legacy_provenance" ? undefined : nested,
 );
-for (const required of ["branch_protection_token", "ghcr_image_digest_proof"]) {
-  assertIncludes("endpoint snapshot completion current blockers", completionActiveText, required);
+assertIncludes(
+  "endpoint snapshot completion current blockers",
+  completionActiveText,
+  "ghcr_image_digest_proof",
+);
+const completionBlockerText = JSON.stringify({
+  missing_external_gates: snapshotCompletion.missing_external_gates || [],
+  missing_external_gate_blockers: snapshotCompletion.missing_external_gate_blockers || [],
+  hard_blockers: snapshotCompletion.hard_blockers || [],
+});
+const branchProtectionGate = (snapshotExternalGates.gates || []).find(
+  (item) => item?.id === "branch_protection_token",
+);
+if (!branchProtectionGate || typeof branchProtectionGate.verified !== "boolean") {
+  throw new Error("endpoint snapshot branch protection gate must be explicit");
+}
+if (branchProtectionGate.verified) {
+  assertNotIncludes(
+    "endpoint snapshot verified branch protection blockers",
+    completionBlockerText,
+    "branch_protection_token",
+  );
+} else {
+  assertIncludes(
+    "endpoint snapshot unverified branch protection blockers",
+    completionBlockerText,
+    "branch_protection_token",
+  );
 }
 assertNotIncludes(
   "endpoint snapshot completion current blockers",
-  JSON.stringify({
-    missing_external_gates: snapshotCompletion.missing_external_gates || [],
-    missing_external_gate_blockers: snapshotCompletion.missing_external_gate_blockers || [],
-    hard_blockers: snapshotCompletion.hard_blockers || [],
-  }),
+  completionBlockerText,
   "cloudflare_native_zero_card_hosted_runtime",
 );
 for (const forbidden of ["fly_cloud_stack", "fly_live_budget_check"]) {

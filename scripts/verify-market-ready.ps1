@@ -154,9 +154,9 @@ try {
       O2 = @("phase_5", "phase_6")
       O3 = @("layer_5", "phase_5")
       O4 = @("layer_3", "layer_5", "phase_6")
-      O5 = @("layer_6")
     }
     $expectedResolvedActionCells = @{
+      O5 = @("layer_6")
       O6 = @("layer_4")
     }
     $ownerActionIds = @($ownerActions | ForEach-Object { [string]$_.id } | Sort-Object)
@@ -200,8 +200,7 @@ try {
       "docker_registry_publish",
       "phase6_scale_runtime",
       "live_mcp_writes",
-      "live_agent_tool_writes",
-      "live_vector_memory_search"
+      "live_agent_tool_writes"
     )) {
       $gateProperty = $capabilityState.gates.PSObject.Properties[$gateId]
       if ($null -eq $gateProperty -or [bool]$gateProperty.Value.live_verified) {
@@ -408,6 +407,51 @@ try {
       [bool]$workspaceAcceptance.secret_output -eq $false
     )
 
+    $o5 = @($resolvedActions | Where-Object { [string]$_.id -eq "O5" }) | Select-Object -First 1
+    $vectorGate = $capabilityState.gates.live_vector_memory_search
+    $vectorEvidencePath = Resolve-RepoScopedFile ([string]$vectorGate.evidence_artifact)
+    $vectorEvidenceSha256 = if ($vectorEvidencePath) {
+      Get-FileSha256 $vectorEvidencePath
+    } else {
+      ""
+    }
+    $vectorEvidence = if ($vectorEvidencePath) {
+      Get-Content -LiteralPath $vectorEvidencePath -Raw | ConvertFrom-Json
+    } else {
+      $null
+    }
+    $memoryProgress = @($m.vertical.items | Where-Object { [string]$_.id -eq "layer_6" }) | Select-Object -First 1
+    $o5ResolvedOk = (
+      $null -ne $o5 -and
+      [string]$o5.status -eq "resolved_verified" -and
+      [int]$o5.percentage_credit -eq 10 -and
+      @($o5.evidence_refs) -contains "docs/runtime-state/capability-gates.json#live_vector_memory_search" -and
+      @($o5.evidence_refs) -contains [string]$vectorGate.evidence_artifact -and
+      $null -ne $vectorGate -and
+      [bool]$vectorGate.owner_granted -eq $true -and
+      [bool]$vectorGate.owner_scope_approved -eq $true -and
+      [bool]$vectorGate.architecture_approved -eq $true -and
+      [bool]$vectorGate.hosted_semantic_search_verified -eq $true -and
+      [bool]$vectorGate.live_verified -eq $true -and
+      [string]$vectorGate.provider -eq "cloudflare_vectorize" -and
+      [bool]$vectorGate.paid_provider -eq $false -and
+      [string]$vectorGate.verifier -eq "scripts/verify-live-vector-memory-search.ps1" -and
+      [string]$vectorGate.evidence_sha256 -eq $vectorEvidenceSha256 -and
+      $null -ne $vectorEvidence -and
+      [string]$vectorEvidence.contract_version -eq "live-vector-memory-search-proof-v1" -and
+      [string]$vectorEvidence.status -eq "verified" -and
+      [bool]$vectorEvidence.live_verified -eq $true -and
+      [bool]$vectorEvidence.hosted_semantic_search_verified -eq $true -and
+      [bool]$vectorEvidence.lexical_evidence_reused -eq $false -and
+      [bool]$vectorEvidence.paid_provider -eq $false -and
+      [bool]$vectorEvidence.secret_output -eq $false -and
+      @($vectorEvidence.blockers).Count -eq 0 -and
+      [int]$vectorEvidence.percentage_credit -eq 0 -and
+      $null -ne $memoryProgress -and
+      [int]$memoryProgress.percent -eq 100 -and
+      [string]$memoryProgress.status -match "hosted_semantic_vector_search_cloudflare_vectorize_roundtrip_verified"
+    )
+
     $o6 = @($resolvedActions | Where-Object { [string]$_.id -eq "O6" }) | Select-Object -First 1
     $llmGate = $capabilityState.gates.live_llm_provider_calls
     $o6ResolvedOk = (
@@ -440,13 +484,14 @@ try {
       $externalGateStateOk -and
       $o2ZeroCardOk -and
       $hostedAcceptanceOk -and
+      $o5ResolvedOk -and
       $o6ResolvedOk -and
       $sourceMatches
     )
     $ownerMatrixDetail = if ($ownerMatrixOk) {
       "owner-required below-100 cells: " + ($ownerBlockedCellIds -join ", ") + "; resolved-no-credit cells: " + ($resolvedCellIds -join ", ")
     } else {
-      "invalid_actions=$($invalidActions.Count) autonomous_open=$($autonomousOpenItems.Count) unknown_cells=$($unknownIds -join ',') uncovered_cells=$($ownerUncoveredCellIds -join ',') action_map=$actionMapOk unknown_gates=$($unknownGateIds -join ',') closed_gates=$closedGateStateOk external_gate=$externalGateStateOk external_audit=$externalAuditOk cloudflare_scope=$cloudflareScopeReadinessOk cloudflare_target=$cloudflareTargetGateOk o2_zero_card=$o2ZeroCardOk hosted_acceptance=$hostedAcceptanceOk o6_resolved=$o6ResolvedOk source_matches=$sourceMatches"
+      "invalid_actions=$($invalidActions.Count) autonomous_open=$($autonomousOpenItems.Count) unknown_cells=$($unknownIds -join ',') uncovered_cells=$($ownerUncoveredCellIds -join ',') action_map=$actionMapOk unknown_gates=$($unknownGateIds -join ',') closed_gates=$closedGateStateOk external_gate=$externalGateStateOk external_audit=$externalAuditOk cloudflare_scope=$cloudflareScopeReadinessOk cloudflare_target=$cloudflareTargetGateOk o2_zero_card=$o2ZeroCardOk hosted_acceptance=$hostedAcceptanceOk o5_resolved=$o5ResolvedOk o6_resolved=$o6ResolvedOk source_matches=$sourceMatches"
     }
   }
 } catch {

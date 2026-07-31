@@ -1,7 +1,7 @@
 {
   "contract_version": "owner-input-manifest-v2",
   "status": "owner_blocked_autonomous_complete",
-  "generated_at_utc": "2026-07-30T21:49:02Z",
+  "generated_at_utc": "2026-07-31T00:47:12.8748218Z",
   "canonical_progress_source": "docs/project-progress.manifest.json",
   "canonical_overall_percent": 86,
   "market_ready": false,
@@ -181,14 +181,11 @@
     {
       "id": "O5",
       "title": "Hosted semantic vector memory",
-      "status": "owner_required",
-      "required_owner_action": "Extend the Cloudflare token with Vectorize Edit for the approved account, approve the Vectorize architecture, and authorize index, embedding, roundtrip, worker, and hosted semantic-search proof.",
-      "required_scope_or_payment": [
-        "Cloudflare Vectorize Edit",
-        "Architecture approval",
-        "Hosted semantic-search proof"
-      ],
+      "status": "resolved_verified",
+      "required_owner_action": "None. Owner scope and architecture approval were recorded, and the reserved verifier proved the free hosted Cloudflare Vectorize semantic roundtrip.",
+      "required_scope_or_payment": [],
       "payment_required": false,
+      "resolved_at_utc": "2026-07-30T23:43:11Z",
       "affected_cells": [
         "layer_6"
       ],
@@ -199,7 +196,12 @@
         "scripts/verify-live-vector-memory-search.ps1",
         "scripts/verify-vector-memory-gate.ps1"
       ],
-      "codex_boundary": "Do not hand-set live_verified; the current lexical D1 proof is not semantic vector search."
+      "evidence_refs": [
+        "docs/runtime-state/capability-gates.json#live_vector_memory_search",
+        ".phase1-artifacts/live-vector-memory-search-proof.json"
+      ],
+      "percentage_credit": 10,
+      "codex_boundary": "Resolved O5 credits only the final reserved semantic-search slice. The lexical D1 persistence credit is not reused, and live_verified was opened only by the reserved verifier."
     },
     {
       "id": "O6",
@@ -263,10 +265,10 @@
     "production_deploy_claim_allowed": false
   },
   "non_claims": [
-    "This manifest does not open a capability gate or increase any percentage.",
+    "This manifest does not itself open a capability gate; O5 resolution and its final 10 percentage points are bound to verifier-opened capability evidence and the canonical progress manifest.",
     "external-gate-summary-v2 is the active gate truth; RC10 v1 and Fly semantics are historical provenance only.",
-    "The source-bound hosted O2Core D1 bounded-text artifact + Durable Object + Queue proof, hosted product acceptance, and hosted 22-page matrix are verifier-complete; R2 is historical-only. This does not prove Vectorize semantic retrieval, Phase-6 scale, GHCR publication, or production release.",
-    "O1, O2' scale, O3, O4, and O5 semantic retrieval remain Owner-required or verifier-open; O6 is resolved only within its bounded verifier-backed scope.",
+    "The source-bound hosted O2Core D1 bounded-text artifact + Durable Object + Queue proof, hosted product acceptance, hosted 22-page matrix, and hosted Vectorize semantic roundtrip are verifier-complete; R2 is historical-only. This does not prove Phase-6 scale, GHCR publication, or production release.",
+    "O1, O2' scale, O3, and O4 remain Owner-required or verifier-open; O5 and O6 are resolved only within their bounded verifier-backed scopes.",
     "Owner-granted alone is insufficient for every still-open action; each requires its named verifier and evidence artifact.",
     "No secret value, password, token, callback credential, or payment data is contained here.",
     "MARKET_READY remains false until every matrix cell is evidence-backed at 100 and the aggregate verifier prints MARKET_READY:true."

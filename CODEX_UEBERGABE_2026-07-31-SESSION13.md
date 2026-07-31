@@ -30,7 +30,7 @@ docker ps --filter 'name=cloud-superbrain-phase1-dev' --format '{{.Names}} {{.St
 |---|---|
 | Overall | **86 %** |
 | Horizontal | P0 100 · P1 100 · P2 100 · **P3 44** · P4 100 · **P5 68** · **P6 90** |
-| Vertikal | FE 100 · ORC 100 · **AP 69** · **LLM 55** · **MCP 56** · **MEM 90** · OBS 100 |
+| Vertikal | FE 100 · ORC 100 · **AP 69** · **LLM 55** · **MCP 56** · **MEM 100** · OBS 100 |
 | Capability-Gates | **5 offen / 5 zu** |
 | Externe Gates | **1 offen** (`ghcr_image_digest_verify`) |
 | `MARKET_READY` | **false** — korrekt, kein Fehler |
@@ -100,26 +100,31 @@ Ablenker liegt daneben im Index.
 `owner_granted` / `owner_scope_approved` / `architecture_approved` sind separat als **Owner-Fakten**
 hinterlegt. Worker-Tests 19/19.
 
-## 2.5 ⏳ EINZIGE OFFENE RESTARBEIT AUS SESSION 13
-**Hosted-Source-Rebinding.** Die Wahrheitsdateien binden auf `af61146e`; die **git-basierte**
-Worker-Source-Parität ist grün. Der **gehostete** Worker meldet in `/api/v1/health` aber noch
-`62648856`, weil der zweite `wrangler secret put` von der Cloudflare-API abgewiesen wurde
-(Rate-Limit — derselbe Aufruf funktionierte Minuten vorher).
+## 2.5 ✅ HOSTED-SOURCE-REBINDING GESCHLOSSEN
+Die Remote-Settings zeigten `SOURCE_COMMIT_SHA` und `SOURCE_ARCHIVE_SHA256` als
+`plain_text`, nicht als Secrets. `wrangler secret put` war deshalb der falsche Pfad und
+scheiterte korrekt mit Cloudflare-Code `10053` (`Binding name already in use`); es war
+kein Rate-Limit. Die Werte sind ohnehin über den öffentlichen Health-Vertrag sichtbar.
 
-**Fachlich unkritisch:** Die Differenz ist eine **reine Kommentar-Entfernung** in `wrangler.jsonc`.
-**Aber nicht als grün ausgeben.** So schließt du es:
+Der sichere Rebind erfolgte mit `--keep-vars` und den beiden `--var`-Werten:
 ```powershell
 Set-Location 'D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\services\cloudflare-stateful-runtime'
-# Token/Account aus <SECRETS_DIR> laden, Werte NIE ausgeben
-$commit = (git -C '..\..' rev-parse HEAD)
+$state = Get-Content '..\..\docs\runtime-state\cloudflare-native-hosted-current.json' -Raw |
+  ConvertFrom-Json
+$commit = [string]$state.source_commit_sha
+$expectedSha = [string]$state.source_archive_sha256
 $tmp='D:\_sb_tmp\a.tar'; git -C '..\..' archive --format=tar "--output=$tmp" $commit
 $sha=(Get-FileHash $tmp -Algorithm SHA256).Hash.ToLowerInvariant(); Remove-Item $tmp
-$commit | node node_modules/wrangler/bin/wrangler.js secret put SOURCE_COMMIT_SHA
-$sha    | node node_modules/wrangler/bin/wrangler.js secret put SOURCE_ARCHIVE_SHA256
-# Danach PFLICHT: /api/v1/health gegen cloudflare-native-hosted-current.json prüfen
+if ($sha -ne $expectedSha) { throw 'source archive mismatch' }
+node node_modules/wrangler/bin/wrangler.js deploy --keep-vars --env "" `
+  --var "SOURCE_COMMIT_SHA:$commit" --var "SOURCE_ARCHIVE_SHA256:$sha"
 ```
-Wrangler wirft dabei auf Windows eine **libuv-Assertion** — das ist Rauschen, das Setzen kann trotzdem
-gelingen. **Immer per `health` gegenprüfen, nie der Konsolenausgabe glauben.**
+
+Neue Worker-Version: `757cf74c-7988-4790-ae03-ff51534ccea4`.
+`/api/v1/health` meldet danach `healthy`,
+Source `af61146e22d1a56e9d62232c159ea7b352405ba9` und Archiv
+`1d85f2cd6c948a43e0f79fb17d1f02706687d5857d80f4096780692d094b63fc`.
+R2 bleibt ungebunden; die Remote-Bindings und der O5-Hosted-Roundtrip wurden erneut grün geprüft.
 
 ---
 
@@ -130,17 +135,13 @@ alle Matrix-Zellen evidenzbasiert auf 100 **und** externe Gates nicht mehr block
 
 ## Reihenfolge (bindend)
 
-### Schritt 1 — Restarbeit aus §2.5 schließen
-Klein, rein technisch, keine Owner-Aktion. **Zuerst erledigen**, sonst schleppt sich die Inkonsistenz
-durch alle folgenden Beweise.
+### Schritt 1 — ✅ Restarbeit aus §2.5 geschlossen
+Source- und Archivbindung stimmen im gehosteten Health-Vertrag.
 
-### Schritt 2 — L6 Memory 90 → 100 gutschreiben
-O5 ist bewiesen, **aber der Prozentwert ist noch nicht fortgeschrieben**.
-- Marker `hosted_lexical_memory_only_vector_search_vectorize_pending` in
-  `docs/project-progress.manifest.json` ist überholt → durch einen Marker für den bewiesenen
-  semantischen Roundtrip ersetzen.
-- **Kein Doppelcredit:** Die lexikalische D1-Persistenz ist bereits gutgeschrieben.
-- Danach `py -3 scripts/verify_project_progress_manifest.py` + `npm run verify`.
+### Schritt 2 — ✅ L6 Memory 90 → 100 gutgeschrieben
+Der Marker lautet `hosted_semantic_vector_search_cloudflare_vectorize_roundtrip_verified`.
+Die lexikalische D1-Persistenz wurde nicht doppelt gezählt. Manifest- und O5-Fokustest sind grün;
+der verpflichtende Gesamtlauf ist der Abschluss dieses Slices.
 
 ### Schritt 3 — O4 abschließen (`live_agent_tool_writes` + `live_mcp_writes`)
 Owner-Freigabe liegt vor (`owner-input-manifest.json` → `actions[O4].owner_scope_decision`,
@@ -175,7 +176,7 @@ Laut Owner-Matrix `codex_boundary` erst **nach** `MARKET_READY: true`. Owner-Akt
 | # | Falle | Richtig |
 |---|---|---|
 | 1 | `Authorization: Bearer` am Worker | Header heißt **`x-superbrain-agent-token`** |
-| 2 | `--var SOURCE_COMMIT_SHA` beim Deploy | Das sind **Secrets**, `--var` wird überstimmt → `wrangler secret put` |
+| 2 | `wrangler secret put SOURCE_*` | Remote sind beide `plain_text`; Rebind per `deploy --keep-vars --var ...`, danach Health-Parität |
 | 3 | `//`-Kommentar in `wrangler.jsonc` | `verify-cloudflare-stateful-runtime.ps1` parst mit **reinem `ConvertFrom-Json`** ohne Kommentar-Entfernung → **keine Kommentare**, trotz `.jsonc` |
 | 4 | Substring-Check auf `semantic\|vectorize` | Traf `vectorize: "owner_gate_required"` und einen Non-Claim → **falsches Grün**. Auf **Verwendung** prüfen (`env.VECTORIZE` + `env.AI`) |
 | 5 | `Set-Location` + `[IO.File]::ReadAllText` | .NET nutzt ein eigenes Arbeitsverzeichnis → **absolute Pfade** |

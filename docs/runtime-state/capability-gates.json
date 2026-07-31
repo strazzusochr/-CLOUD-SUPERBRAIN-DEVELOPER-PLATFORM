@@ -1,4 +1,4 @@
-{
+﻿{
     "contract_version":  "capability-gate-state-v1",
     "status":  "configured",
     "policy":  "Only a verifier may set live_verified=true, and only after proving the capability against a live runtime. Hand edits are a No-Fake-Done violation. A paid provider never satisfies the free-only policy: paid_provider=true keeps the gate closed regardless of the other fields.",
@@ -111,12 +111,12 @@
                                                     "hosted_semantic_search_verified":  true,
                                                     "live_verified":  true,
                                                     "evidence_artifact":  ".phase1-artifacts/live-vector-memory-search-proof.json",
-                                                    "verified_at_utc":  "2026-07-30T23:43:11Z",
+                                                    "verified_at_utc":  "2026-07-31T01:07:34Z",
                                                     "provider":  "cloudflare_vectorize",
                                                     "paid_provider":  false,
                                                     "verifier":  "scripts/verify-live-vector-memory-search.ps1",
                                                     "note":  "Requires Owner Vectorize scope, architecture approval, and hosted semantic retrieval proof.",
-                                                    "evidence_sha256":  "6492E55474875485F022619BA09F8929C9EEAB06DA936C41C22573AE50FAD72C"
+                                                    "evidence_sha256":  "18C3E1B54E547207FFD43B3E80FCAF5C0BCC31084A5392D53B5BAE35C205A831"
                                                 },
                   "hosted_observability_endpoint":  {
                                                         "owner_granted":  true,

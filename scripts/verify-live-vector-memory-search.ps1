@@ -31,8 +31,8 @@ Set-StrictMode -Version Latest
 #   * an INCOHERENT state is `failed` and exits 1 - for example a gate that claims semantic proof
 #     without an evidence artefact, or an evidence artefact that claims an index that is not there.
 #
-# It never writes `live_verified`. The lexical D1 memory proof is explicitly NOT semantic retrieval
-# and must never be reused as evidence here.
+# It writes `live_verified` only when `-PromoteGateOnFullPass` follows a complete hosted roundtrip.
+# The lexical D1 memory proof is explicitly NOT semantic retrieval and must never be reused here.
 
 $contractVersion = "live-vector-memory-search-proof-v1"
 $requiredProvider = "cloudflare_vectorize"
@@ -50,6 +50,18 @@ function Add-Check([string]$Id, [bool]$Ok, [string]$Detail) {
 function Assert-Coherent([string]$Label, [bool]$Condition) {
   if (-not $Condition) {
     throw "Live vector memory search verification failed: $Label"
+  }
+}
+
+function Get-Sha256Hex([string]$Path) {
+  $resolvedPath = (Resolve-Path -LiteralPath $Path).Path
+  $stream = [IO.File]::OpenRead($resolvedPath)
+  $sha256 = [Security.Cryptography.SHA256]::Create()
+  try {
+    return ([BitConverter]::ToString($sha256.ComputeHash($stream))).Replace("-", "")
+  } finally {
+    $sha256.Dispose()
+    $stream.Dispose()
   }
 }
 
@@ -110,6 +122,59 @@ Assert-Coherent "owner manifest still tracks O5" ($null -ne $o5)
 Assert-Coherent "owner manifest still names this verifier for O5" (
   @($o5.verifier_after | ForEach-Object { [string]$_ }) -contains $reservedVerifierPath
 )
+
+# Once O5 is open, the default static-suite invocation validates the immutable evidence chain
+# instead of replacing it with a lower-tier offline probe. This prevents `npm run verify` from
+# downgrading the very artefact whose SHA-256 the capability gate binds.
+$validateBoundEvidenceOnly = (
+  [bool]$gate.live_verified -and
+  -not [bool]$AllowScopeProbe -and
+  -not [bool]$AllowHostedRoundtrip -and
+  -not [bool]$PromoteGateOnFullPass
+)
+if ($validateBoundEvidenceOnly) {
+  Assert-Coherent "opened gate keeps hosted semantic proof true" ([bool]$gate.hosted_semantic_search_verified)
+  Assert-Coherent "opened gate keeps owner grant true" ([bool]$gate.owner_granted)
+  Assert-Coherent "opened gate keeps an evidence SHA-256" ([string]$gate.evidence_sha256 -match "^[A-Fa-f0-9]{64}$")
+  $boundEvidencePath = [string]$gate.evidence_artifact
+  $boundEvidenceHash = Get-Sha256Hex $boundEvidencePath
+  Assert-Coherent "bound evidence SHA-256 matches the gate" (
+    $boundEvidenceHash.Equals([string]$gate.evidence_sha256, [StringComparison]::OrdinalIgnoreCase)
+  )
+  $boundEvidence = Get-Content -LiteralPath $boundEvidencePath -Raw -Encoding UTF8 | ConvertFrom-Json
+  Assert-Coherent "bound evidence contract is exact" (
+    [string]$boundEvidence.contract_version -eq $contractVersion
+  )
+  Assert-Coherent "bound evidence is a verified vector report" (
+    [string]$boundEvidence.status -eq "verified" -and
+    [string]$boundEvidence.gate -eq "live_vector_memory_search" -and
+    [string]$boundEvidence.provider -eq $requiredProvider
+  )
+  Assert-Coherent "bound evidence proves hosted semantic search" (
+    [bool]$boundEvidence.live_verified -and
+    [bool]$boundEvidence.hosted_semantic_search_verified -and
+    -not [bool]$boundEvidence.lexical_evidence_reused
+  )
+  Assert-Coherent "bound evidence is free, blocker-free, and secret-safe" (
+    -not [bool]$boundEvidence.paid_provider -and
+    -not [bool]$boundEvidence.secret_output -and
+    @($boundEvidence.blockers).Count -eq 0
+  )
+  Assert-Coherent "bound evidence contains the semantic top-rank proof" (
+    [string]$boundEvidence.hosted_roundtrip.retrieval_mode -eq "semantic_vector_cosine" -and
+    [bool]$boundEvidence.hosted_roundtrip.top_is_target -and
+    [int]$boundEvidence.hosted_roundtrip.lexical_overlap_words -eq 0
+  )
+  Assert-Coherent "O5 owner action is resolved with only the final Memory slice" (
+    [string]$o5.status -eq "resolved_verified" -and
+    [int]$o5.percentage_credit -eq 10
+  )
+  Add-Check "bound_hosted_semantic_evidence" $true "Existing hosted evidence SHA-256 and semantic roundtrip are intact."
+  Write-Host ""
+  Write-Host "[vector-search] status=verified blockers=0 evidence=$boundEvidencePath"
+  Write-Host "[vector-search] validation-only; bound evidence preserved without network or provider write"
+  exit 0
+}
 
 # --- 3) Token scope, read-only, never printing any value ----------------------------------------
 $scopePresent = $false
@@ -262,10 +327,14 @@ $report = [ordered]@{
   secret_output                   = $false
   percentage_credit               = 0
   non_claims                      = @(
-    "This verifier never sets live_verified; only a real hosted semantic roundtrip may do that.",
+    "Gate promotion is possible only with -PromoteGateOnFullPass after a complete hosted semantic roundtrip.",
     "The lexical Cloudflare D1 memory proof is not semantic vector retrieval and is not reused here.",
     "A readable Vectorize scope is not an architecture approval and not a retrieval proof.",
-    "No index, embedding, upsert, or query was created or executed by this verifier."
+    $(if ($AllowHostedRoundtrip) {
+      "This execution performed only the bounded O5 semantic upsert/query proof; it did not create the index or activate a paid provider."
+    } else {
+      "This validation execution created no index, embedding, upsert, or query."
+    })
   )
 }
 
@@ -282,7 +351,7 @@ if ($PromoteGateOnFullPass) {
   if (-not $allSatisfied) {
     throw "Refusing to promote live_vector_memory_search: $($blockers -join ', ')"
   }
-  $evidenceHash = (Get-FileHash -LiteralPath $OutFile -Algorithm SHA256).Hash
+  $evidenceHash = Get-Sha256Hex $OutFile
   $gate.live_verified = $true
   $gate.hosted_semantic_search_verified = $true
   $gate.evidence_artifact = ($OutFile -replace '\\', '/')
