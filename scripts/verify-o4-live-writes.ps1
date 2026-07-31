@@ -235,11 +235,11 @@ except json.JSONDecodeError:
     body = None
 print(json.dumps({"http_status": status, "body": body}, separators=(",", ":")))
 '@
-  $output = & docker exec `
+  $output = $python | & docker exec -i `
     -e "O4_PAYLOAD_B64=$payloadBase64" `
     -e "O4_USE_TOKEN=$tokenFlag" `
     -e "O4_TARGET_URL=$Url" `
-    $Container python -c $python
+    $Container python -
   Assert-True "container request exited zero" ($LASTEXITCODE -eq 0)
   return ($output | Out-String).Trim() | ConvertFrom-Json
 }
