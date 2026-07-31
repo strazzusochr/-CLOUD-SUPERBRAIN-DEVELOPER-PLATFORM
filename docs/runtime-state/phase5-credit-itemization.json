@@ -40,7 +40,19 @@
       "id": "B",
       "title": "Release-candidate browser and sweep evidence bound to a retired hosting boundary",
       "owner_action": null,
-      "agent_actionable": "likely, needs feasibility check first",
+      "agent_actionable": false,
+      "feasibility_check_result": {
+        "checked_at_utc": "2026-07-31T09:00:00Z",
+        "verdict": "NOT actionable. The earlier assessment that this was likely re-runnable is withdrawn.",
+        "evidence": [
+          "The six markers belong to release_id prod-candidate-2026-05-05-rc1. The candidate line has since moved to prod-candidate-2026-07-24-local-rc10, so there is no rc1 surface left to re-measure.",
+          "docs/release-artifacts/prod-candidate-2026-05-05-rc1-browser-proof.md carries Status: superseded, current_candidate_evidence: false, historical_base_url: an sslip.io host that no longer exists.",
+          "scripts/verify-retired-hosted-boundary.ps1 pins these records with 34 assertions. They are deliberately frozen history, not an open work item.",
+          "Their recorded unblock condition is current_hosted_gate_status: blocked_pending_vercel_fly, which names Fly - permanently excluded under the free-only policy."
+        ],
+        "already_covered_elsewhere": "phase_5 separately carries phase5_current_candidate_requalified_source_bound_browser_verified, so the CURRENT candidate does have source-bound browser evidence. The historical rc1 gap is not an evidence gap in the product.",
+        "real_question_for_owner": "Whether six permanently frozen rc1 history markers should still count against phase_5 at all. That is a weighting decision, not work. Nobody can re-run them."
+      },
       "markers": [
         "candidate_browser_bridge_retired_current_hosted_blocked",
         "candidate_browser_evidence_retired_current_hosted_blocked",

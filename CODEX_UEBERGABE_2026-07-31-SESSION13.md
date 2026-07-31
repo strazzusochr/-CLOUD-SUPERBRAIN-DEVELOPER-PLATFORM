@@ -568,3 +568,33 @@ Browser-Evidenz** (`dev_only=false`, `proof_scope=hosted_https`, 22/22 Routen, 1
 
 **Block B auf Machbarkeit pruefen und, wenn tragfaehig, frisch ausfuehren.** Das ist die einzige
 identifizierte Arbeit, die derzeit ohne Owner-Handlung echten Fortschritt erzeugen kann.
+
+---
+
+## §8 BLOCK-B-MACHBARKEIT GEPRUEFT: NEIN (Session 13e) — Selbstkorrektur
+
+In §7.2 stand, Block B sei **wahrscheinlich autonom bearbeitbar**. Die Pruefung widerlegt das.
+Die Einschaetzung wird **zurueckgezogen**.
+
+**Belege:**
+
+| Befund | Konsequenz |
+|---|---|
+| Die 6 Marker gehoeren zu `prod-candidate-2026-05-05-rc1` | Die Kandidatenlinie steht bei `prod-candidate-2026-07-24-local-rc10`. **Es gibt keine rc1-Flaeche mehr zum Nachmessen.** |
+| `browser-proof.md`: `Status: superseded`, `current_candidate_evidence: false`, `historical_base_url: https://188-34-191-140.sslip.io` | Host existiert nicht mehr |
+| `verify-retired-hosted-boundary.ps1` pinnt die Records mit **34 Assertions** | **Bewusst eingefrorene Historie**, kein offener Arbeitsposten |
+| Entsperrbedingung im Artefakt: `current_hosted_gate_status: blocked_pending_vercel_fly` | Nennt **Fly** — dauerhaft ausgeschlossen (Free-Only) |
+
+**Entscheidend:** `phase_5` traegt separat `phase5_current_candidate_requalified_source_bound_browser_verified`.
+Der **aktuelle** Kandidat hat also source-gebundene Browser-Evidenz. Die rc1-Luecke ist eine
+**historische Buchungsluecke, kein Evidenzmangel am Produkt.**
+
+> **R-NEU-8:** „Blockiert" heisst hier zweierlei — *noch nicht erledigt* oder *dauerhaft eingefroren*.
+> Nur das erste ist Arbeit. Vor jedem Aufwand: gehoert der Marker zur **aktiven** Kandidatenlinie?
+> Bei rc1-Markern lautet die Antwort immer **nein**.
+
+**Damit ist die autonome Flaeche erneut leer.** Die echte offene Frage ist keine Arbeit, sondern eine
+**Owner-Gewichtung:** Sollen sechs dauerhaft eingefrorene rc1-Historienmarker `phase_5` weiterhin
+unter 100 halten? Niemand kann sie je wieder ausfuehren. Antwortet der Owner „nein", faellt Block B
+aus der Luecke — dann bleibt fuer `phase_5` **nur noch Block A (GHCR/O3)**, und der ist per E3(a)
+ohnehin als Post-Market klassifiziert.
