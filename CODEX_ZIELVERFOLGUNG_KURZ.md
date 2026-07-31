@@ -20,7 +20,7 @@ Branch `claude/cloud-superbrain-analysis-127d2e` · HEAD = `origin` · Overall *
 |---|---|
 | `live_llm_provider_calls` | `production_auth_identity` (O1 — OAuth-Klick = Owner-Wand) |
 | `live_memory_provider` | `docker_registry_publish` (O3 — Deadlock, Aufloesung = E3 Option (a)) |
-| `cloudflare_native_zero_card_hosted_runtime` | `phase6_scale_runtime` (**NICHT Zahlung** — Verifier existiert, Lauf ist rot) |
+| `cloudflare_native_zero_card_hosted_runtime` | `phase6_scale_runtime` (**NICHT Zahlung** — Read-Stufe gruen, Write-Stufe fehlt) |
 | `live_vector_memory_search` | |
 | `hosted_observability_endpoint` | |
 | `live_agent_tool_writes` **(O4, neu)** | |
@@ -70,8 +70,8 @@ Die Fähigkeiten **sind** bewiesen (L4: `gateway_mode=cloudflare_workers_ai_live
 **5. P6 — KEIN GELD-PROBLEM.** Korrektur: `phase6_scale_runtime` hat `paid_provider:false`,
    O2 hat `payment_required:false` + `zero_card_required:true` + `payment_forbidden:true`.
    Es fehlt ein **Scale-/Kapazitaetsbeweis bei Zero-Card**. Zahlen loest hier nichts.
-   ✅ `scripts/verify-phase6-scale-runtime.ps1` **existiert seit `a7335f6f`** — Lauf ist **rot**
-   (p95 21.180 ms gegen Schwelle 1.500 ms), Gate bleibt korrekt zu. Details unter E2.
+   ✅ Verifier existiert (`a7335f6f`, gehaertet `6834ab61`) — Read-Stufe **gruen**
+   (p95 299,9 ms bei c=50), Gate bleibt korrekt zu weil die Write-Stufe fehlt. Details unter E2.
 
 **6. P5 / O3 GHCR — ZIRKULAER BLOCKIERT, Aufloesung entschieden: Option (a).** Siehe E3.
 
@@ -119,20 +119,26 @@ innen aufloesen. Es ist ein **Spezifikationsfehler**, keine offene Arbeit.
 Owner: OAuth-App waehlen/anlegen, Hosted-Callback freigeben, Config ueber den Secret-Kanal.
 Danach: `scripts/verify-phase3-auth-fail-closed.ps1` (**existiert**) + `npm run verify:browser`.
 
-**E2 — ✅ ERLEDIGT, Ergebnis ist ROT (und das ist korrekt).**
+**E2 — ✅ ERLEDIGT. Erst rot, dann als Messfehler entlarvt.**
 Kriterium `docs/runtime-state/phase6-scale-criterion.json` in **eigenem Commit `6c761aa2`** — der
-messende Code existierte da noch nicht, der Lauf konnte also scheitern.
-`scripts/verify-phase6-scale-runtime.ps1` gebaut (`a7335f6f`), zweimal gelaufen:
+messende Code existierte da noch nicht, der Lauf konnte also scheitern. Verifier `a7335f6f`,
+gehaertete Harness `6834ab61`.
 
-| c=1 | c=10 | c=50 |
-|---|---|---|
-| p95 **271 ms** | p95 **3.140 ms** | p95 **21.180 ms** (Reproduktion 22.226 ms) |
+| c | Lauf 1 (Runspaces) | Lauf 2 (pooled + Edge-Kontrolle) | Kontrolle | **Worker-Anteil** |
+|---|---|---|---|---|
+| 1 | 271 ms | **59,7 ms** | 30,4 ms | 29,3 ms |
+| 10 | 3.140 ms | **229,6 ms** | 49,3 ms | 180,3 ms |
+| 50 | 21.180 ms | **299,9 ms** | 60,7 ms | **239,2 ms** |
 
-800 Requests, **1.0 Erfolgsquote, 0× 5xx, 0× 429** — Korrektheit haelt, Latenz bricht ein.
-Schwelle 1.500 ms gerissen → **FAIL**, Gate bleibt **zu**. **Schwelle wurde NICHT gesenkt.**
-⚠️ `attribution_valid: false` — jede Anfrage nutzt eigenen Runspace + frischen TLS-Handshake.
-**Daraus „der Worker skaliert nicht" abzuleiten waere unbelegt.** Erst Connection-Reuse oder
-Server-Timing macht p95 zuordenbar.
+Lauf 1 riss die 1.500-ms-Schwelle und war **zu ~98,6 % Messfehler** (ein Runspace + frischer
+TLS-Handshake **pro Request**). **Die Schwelle wurde NICHT gesenkt** — stattdessen das Messgeraet
+repariert: gepoolter `HttpClient` + Kontrollgruppe `/cdn-cgi/trace` (Edge bedient sie **ohne** den
+Worker). Die Read-Stufe besteht das **urspruengliche** Kriterium jetzt aus eigener Kraft.
+Der Worker haelt bei 50-facher Parallelitaet (Eigenanteil 29 → 239 ms, 1,0 Erfolg, 0× 5xx, 0× 429).
+
+⛔ **Gate bleibt trotzdem zu** (Exit 2): Die Write-Stufe — parallele D1-Writes mit Readback, der
+*eigentliche* Scale-Beweis — lief mangels `AGENT_API_AUTH_TOKEN` nie. Read-Kapazitaet allein ist
+kein Scale-Beweis. **R-NEU-7: Ein Lastmessaufbau ohne Connection-Reuse misst sich selbst.**
 
 **E3 — ✅ ENTSCHIEDEN: Option (a).** Grund ist zwingend, nicht Geschmack: `docker_registry_publish`
 steht in `$expectedClosedGateIds` (`:204-217`) — eine GHCR-Publikation macht das Gate `live_verified`
@@ -205,8 +211,17 @@ Owner-Action-Paket. Nichts anderes.
 1. **Owner: `AGENT_API_AUTH_TOKEN` bereitstellen** → erst dann laeuft die Write-Stufe
    (parallele D1-Writes + Readback = der eigentliche Scale-Beweis). Ohne Token meldet der
    Verifier `BLOCKED` (Exit 2) und verweigert bewusst ein Read-only-Gruen.
-2. **Codex: Harness haerten** — Connection-Reuse oder worker-seitiges Dauersignal, damit p95
-   ueberhaupt zuordenbar wird. **Ohne Schwellenaenderung.**
-3. **Codex: `phase_5`-Evidenz itemisieren** (Vorbild: `O4.percentage_credit_breakdown`),
-   bevor irgendjemand die 68 anfasst.
-4. **Owner: O1** bleibt der einzige sofort oeffenbare Blocker.
+2. ✅ **Harness gehaertet (`6834ab61`).** Gepoolter `HttpClient` + Edge-Kontrolle `/cdn-cgi/trace`.
+   **Der Fehlschlag war zu ~98,6 % Messfehler:** c=50 p95 **21.180 → 299,9 ms**, Worker-Eigenanteil
+   nur **239 ms**. Schwellen/Stufen/Budget **unveraendert** — die Read-Stufe besteht das
+   urspruengliche 1.500-ms-Kriterium aus eigener Kraft. Gate bleibt zu (Write-Stufe fehlt).
+3. ✅ **`phase_5` itemisiert (`7390d519`)** → `docs/runtime-state/phase5-credit-itemization.json`.
+   71 Marker · 60 verified · **6 blockiert**. Ehrliche Grenze im Dokument: **die Herleitung der 68
+   ist nirgends festgehalten** — Inhalt benennbar, Arithmetik nicht rueckrechenbar.
+4. ⭐ **NEU AUTONOM MOEGLICH — Block B.** Die 6 blockierten Marker haengen an der stillgelegten
+   **sslip.io/Hetzner**-Bruecke (`superseded`), waehrend eine **aktuelle** Hosted-Flaeche mit frischer
+   Browser-Evidenz existiert. **Kein Owner-Gate, keine Zahlung.** Erst Machbarkeit pruefen, dann
+   **frisch** ausfuehren. ⚠️ Superseded-Artefakte bleiben superseded — Umhaengen waere
+   Evidence-Laundering.
+5. **Owner: O1** bleibt der einzige sofort oeffenbare Owner-Blocker.
+6. **Owner: `AGENT_API_AUTH_TOKEN`** fuer die Write-Stufe des Scale-Beweises.
