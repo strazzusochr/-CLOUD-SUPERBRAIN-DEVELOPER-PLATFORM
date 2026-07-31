@@ -16,6 +16,7 @@ services:
       MCP_GATEWAY_BASE_URL: http://mcp-gateway:9000
       WORKBENCH_LLM_MODEL: ${WORKBENCH_LLM_MODEL:-gemma-3-1b-it}
       PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED: ${PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED:-false}
+      O4_LIVE_WRITE_PROBE_ENABLED: "true"
       EVIDENCE_DIR: /workspace/evidence
       WATCHPACK_POLLING: "true"
     expose:
@@ -85,6 +86,9 @@ services:
       PROJECT_PROGRESS_MANIFEST_PATH: /app/progress/project-progress.manifest.json
       EXTERNAL_GATE_SUMMARY_PATH: /app/progress/external-gate-summary.json
       CAPABILITY_GATE_STATE_PATH: /app/progress/capability-gates.json
+      O4_LIVE_WRITE_PROBE_ENABLED: "true"
+      O4_OWNER_MANIFEST_PATH: /app/progress/owner-input-manifest.json
+      O4_GIT_HEAD_PATH: /app/o4-git/HEAD
       PROJECT_STATE_PATH: /app/PROJECT_STATE.md
       EVIDENCE_DIR: /workspace/evidence
       LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-gemma-3-1b-it}
@@ -124,6 +128,8 @@ services:
       - ./docs/project-progress.manifest.json:/app/progress/project-progress.manifest.json:ro
       - ./docs/runtime-state/external-gate-summary.json:/app/progress/external-gate-summary.json:ro
       - ./docs/runtime-state/capability-gates.json:/app/progress/capability-gates.json:ro
+      - ./docs/runtime-state/owner-input-manifest.json:/app/progress/owner-input-manifest.json:ro
+      - ./.git/HEAD:/app/o4-git/HEAD:ro
       - ./PROJECT_STATE.md:/app/PROJECT_STATE.md:ro
       - ./docs/codex-integration/autonomous-agent-roster.json:/app/docs/codex-integration/autonomous-agent-roster.json:ro
       - ./services/agent-api/app:/app/app:ro
@@ -235,12 +241,19 @@ services:
     environment:
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       E2B_API_KEY: ${E2B_API_KEY:-}
+      AGENT_API_AUTH_TOKEN: ${AGENT_API_AUTH_TOKEN:-}
       FILESYSTEM_ROOT: /tmp/agent-workspace
       AGENT_API_INTERNAL_URL: http://agent-api:8000
+      O4_LIVE_WRITE_PROBE_ENABLED: "true"
+      O4_LIVE_WRITE_NEGATIVE_TEST_ENABLED: "true"
+      O4_OWNER_MANIFEST_PATH: /app/progress/owner-input-manifest.json
+      O4_GIT_HEAD_PATH: /app/o4-git/HEAD
     expose:
       - "9000"
     volumes:
-      - mcp_workspace:/tmp/agent-workspace
+      - ./.phase1-artifacts/o4-live-write-workspace:/tmp/agent-workspace
+      - ./docs/runtime-state/owner-input-manifest.json:/app/progress/owner-input-manifest.json:ro
+      - ./.git/HEAD:/app/o4-git/HEAD:ro
       - ./services/mcp-gateway/app:/app/app:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/api/v1/health', timeout=3)"]

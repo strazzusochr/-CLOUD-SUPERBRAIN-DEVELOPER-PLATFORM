@@ -111,6 +111,8 @@ try {
     $actions = @($ownerInput.actions)
     $ownerActions = @($actions | Where-Object { [string]$_.status -eq "owner_required" })
     $resolvedActions = @($actions | Where-Object { [string]$_.status -eq "resolved_verified" })
+    $o4Action = @($actions | Where-Object { [string]$_.id -eq "O4" }) | Select-Object -First 1
+    $o4IsResolved = ($null -ne $o4Action -and [string]$o4Action.status -eq "resolved_verified")
     $autonomousOpenItems = @($ownerInput.autonomous_open_items | ForEach-Object { [string]$_ })
     $autonomousOpenItemsOk = ($autonomousOpenItems.Count -eq 0)
     $autonomousOpenItemsDetail = if ($autonomousOpenItemsOk) {
@@ -153,11 +155,15 @@ try {
       O1 = @("phase_3")
       O2 = @("phase_5", "phase_6")
       O3 = @("layer_5", "phase_5")
-      O4 = @("layer_3", "layer_5", "phase_6")
     }
     $expectedResolvedActionCells = @{
       O5 = @("layer_6")
       O6 = @("layer_4")
+    }
+    if ($o4IsResolved) {
+      $expectedResolvedActionCells.O4 = @("layer_3", "layer_5", "phase_6")
+    } else {
+      $expectedOwnerActionCells.O4 = @("layer_3", "layer_5", "phase_6")
     }
     $ownerActionIds = @($ownerActions | ForEach-Object { [string]$_.id } | Sort-Object)
     $resolvedActionIds = @($resolvedActions | ForEach-Object { [string]$_.id } | Sort-Object)
@@ -195,13 +201,15 @@ try {
     )
     $unknownGateIds = @($referencedGateIds | Where-Object { $_ -notin $knownGateIds })
     $closedGateStateOk = $true
-    foreach ($gateId in @(
+    $expectedClosedGateIds = @(
       "production_auth_identity",
       "docker_registry_publish",
-      "phase6_scale_runtime",
-      "live_mcp_writes",
-      "live_agent_tool_writes"
-    )) {
+      "phase6_scale_runtime"
+    )
+    if (-not $o4IsResolved) {
+      $expectedClosedGateIds += @("live_mcp_writes", "live_agent_tool_writes")
+    }
+    foreach ($gateId in $expectedClosedGateIds) {
       $gateProperty = $capabilityState.gates.PSObject.Properties[$gateId]
       if ($null -eq $gateProperty -or [bool]$gateProperty.Value.live_verified) {
         $closedGateStateOk = $false
@@ -407,6 +415,114 @@ try {
       [bool]$workspaceAcceptance.secret_output -eq $false
     )
 
+    $agentWriteGate = $capabilityState.gates.live_agent_tool_writes
+    $mcpWriteGate = $capabilityState.gates.live_mcp_writes
+    $o4StateOk = $false
+    if (-not $o4IsResolved) {
+      $o4StateOk = (
+        $null -ne $o4Action -and
+        [string]$o4Action.status -eq "owner_required" -and
+        [string]$o4Action.owner_scope_decision.decision -eq "approved_as_proposed" -and
+        [bool]$o4Action.owner_scope_decision.gate_state_unchanged -eq $true -and
+        [bool]$agentWriteGate.owner_granted -eq $false -and
+        [bool]$agentWriteGate.live_verified -eq $false -and
+        [bool]$mcpWriteGate.owner_granted -eq $false -and
+        [bool]$mcpWriteGate.live_verified -eq $false
+      )
+    } else {
+      $o4EvidenceRelativePath = [string]$agentWriteGate.evidence_artifact
+      $o4EvidencePath = Resolve-RepoScopedFile $o4EvidenceRelativePath
+      $o4EvidenceSha256 = if ($o4EvidencePath) { Get-FileSha256 $o4EvidencePath } else { "" }
+      $o4Evidence = if ($o4EvidencePath) {
+        Get-Content -LiteralPath $o4EvidencePath -Raw | ConvertFrom-Json
+      } else {
+        $null
+      }
+      $o4RuntimeRelativePath = if ($o4Evidence) { [string]$o4Evidence.runtime_report } else { "" }
+      $o4BrowserRelativePath = if ($o4Evidence) { [string]$o4Evidence.browser_report } else { "" }
+      $o4RuntimePath = Resolve-RepoScopedFile $o4RuntimeRelativePath
+      $o4BrowserPath = Resolve-RepoScopedFile $o4BrowserRelativePath
+      $o4RuntimeSha256 = if ($o4RuntimePath) { Get-FileSha256 $o4RuntimePath } else { "" }
+      $o4BrowserSha256 = if ($o4BrowserPath) { Get-FileSha256 $o4BrowserPath } else { "" }
+      $o4Runtime = if ($o4RuntimePath) {
+        Get-Content -LiteralPath $o4RuntimePath -Raw | ConvertFrom-Json
+      } else {
+        $null
+      }
+      $o4Browser = if ($o4BrowserPath) {
+        Get-Content -LiteralPath $o4BrowserPath -Raw | ConvertFrom-Json
+      } else {
+        $null
+      }
+      $agentPoolProgress = @($m.vertical.items | Where-Object { [string]$_.id -eq "layer_3" }) | Select-Object -First 1
+      $o4StateOk = (
+        $null -ne $o4Action -and
+        [string]$o4Action.status -eq "resolved_verified" -and
+        [int]$o4Action.percentage_credit -eq 31 -and
+        [int]$o4Action.percentage_credit_breakdown.layer_3 -eq 31 -and
+        [int]$o4Action.percentage_credit_breakdown.layer_5 -eq 0 -and
+        [int]$o4Action.percentage_credit_breakdown.phase_6 -eq 0 -and
+        @($o4Action.evidence_refs) -contains "docs/runtime-state/capability-gates.json#live_agent_tool_writes" -and
+        @($o4Action.evidence_refs) -contains "docs/runtime-state/capability-gates.json#live_mcp_writes" -and
+        @($o4Action.evidence_refs) -contains $o4EvidenceRelativePath -and
+        $null -ne $agentWriteGate -and
+        $null -ne $mcpWriteGate -and
+        [bool]$agentWriteGate.owner_granted -eq $true -and
+        [bool]$agentWriteGate.live_verified -eq $true -and
+        [bool]$mcpWriteGate.owner_granted -eq $true -and
+        [bool]$mcpWriteGate.live_verified -eq $true -and
+        [string]$agentWriteGate.evidence_artifact -eq [string]$mcpWriteGate.evidence_artifact -and
+        [string]$agentWriteGate.evidence_sha256 -eq $o4EvidenceSha256 -and
+        [string]$mcpWriteGate.evidence_sha256 -eq $o4EvidenceSha256 -and
+        [string]$agentWriteGate.provider -eq "local_mcp_gateway_filesystem" -and
+        [string]$mcpWriteGate.provider -eq "local_mcp_gateway_filesystem" -and
+        [bool]$agentWriteGate.paid_provider -eq $false -and
+        [bool]$mcpWriteGate.paid_provider -eq $false -and
+        [string]$agentWriteGate.verifier -eq "scripts/verify-o4-live-writes.ps1" -and
+        [string]$mcpWriteGate.verifier -eq "scripts/verify-o4-live-writes.ps1" -and
+        [bool]$agentWriteGate.runtime_verified -eq $true -and
+        [bool]$agentWriteGate.browser_verified -eq $true -and
+        [bool]$agentWriteGate.branch_protection_verified -eq $true -and
+        [bool]$agentWriteGate.audit_fail_closed_verified -eq $true -and
+        [bool]$mcpWriteGate.runtime_verified -eq $true -and
+        [bool]$mcpWriteGate.browser_verified -eq $true -and
+        [bool]$mcpWriteGate.branch_protection_verified -eq $true -and
+        [bool]$mcpWriteGate.audit_fail_closed_verified -eq $true -and
+        $null -ne $o4Evidence -and
+        [string]$o4Evidence.contract_version -eq "o4-live-agent-mcp-write-proof-v1" -and
+        [string]$o4Evidence.status -eq "verified" -and
+        [string]$o4Evidence.provider -eq "local_mcp_gateway_filesystem" -and
+        [bool]$o4Evidence.paid_provider -eq $false -and
+        [bool]$o4Evidence.live_agent_tool_writes -eq $true -and
+        [bool]$o4Evidence.live_mcp_writes -eq $true -and
+        [bool]$o4Evidence.runtime_verified -eq $true -and
+        [bool]$o4Evidence.browser_verified -eq $true -and
+        [bool]$o4Evidence.audit_failure_rollback_verified -eq $true -and
+        [bool]$o4Evidence.arbitrary_paths_allowed -eq $false -and
+        [bool]$o4Evidence.main_write -eq $false -and
+        [bool]$o4Evidence.force_push -eq $false -and
+        [bool]$o4Evidence.production_deploy -eq $false -and
+        [bool]$o4Evidence.secret_output -eq $false -and
+        [bool]$o4Evidence.DEV_ONLY -eq $true -and
+        [string]$o4Evidence.runtime_report_sha256 -eq $o4RuntimeSha256 -and
+        [string]$o4Evidence.browser_report_sha256 -eq $o4BrowserSha256 -and
+        $null -ne $o4Runtime -and
+        [string]$o4Runtime.contract_version -eq "o4-live-write-runtime-proof-v1" -and
+        [string]$o4Runtime.status -eq "verified" -and
+        [bool]$o4Runtime.audit_failure_rollback_verified -eq $true -and
+        [bool]$o4Runtime.secret_output -eq $false -and
+        $null -ne $o4Browser -and
+        [string]$o4Browser.contract_version -eq "o4-live-write-browser-proof-v1" -and
+        [string]$o4Browser.status -eq "verified" -and
+        [bool]$o4Browser.real_browser -eq $true -and
+        [bool]$o4Browser.secret_output -eq $false -and
+        [string]$o4Runtime.source_commit -eq [string]$o4Browser.source_commit -and
+        $null -ne $agentPoolProgress -and
+        [int]$agentPoolProgress.percent -eq 100 -and
+        [string]$agentPoolProgress.status -match "bounded_live_agent_mcp_write_audit_verified"
+      )
+    }
+
     $o5 = @($resolvedActions | Where-Object { [string]$_.id -eq "O5" }) | Select-Object -First 1
     $vectorGate = $capabilityState.gates.live_vector_memory_search
     $vectorEvidencePath = Resolve-RepoScopedFile ([string]$vectorGate.evidence_artifact)
@@ -484,6 +600,7 @@ try {
       $externalGateStateOk -and
       $o2ZeroCardOk -and
       $hostedAcceptanceOk -and
+      $o4StateOk -and
       $o5ResolvedOk -and
       $o6ResolvedOk -and
       $sourceMatches
@@ -491,7 +608,7 @@ try {
     $ownerMatrixDetail = if ($ownerMatrixOk) {
       "owner-required below-100 cells: " + ($ownerBlockedCellIds -join ", ") + "; resolved-no-credit cells: " + ($resolvedCellIds -join ", ")
     } else {
-      "invalid_actions=$($invalidActions.Count) autonomous_open=$($autonomousOpenItems.Count) unknown_cells=$($unknownIds -join ',') uncovered_cells=$($ownerUncoveredCellIds -join ',') action_map=$actionMapOk unknown_gates=$($unknownGateIds -join ',') closed_gates=$closedGateStateOk external_gate=$externalGateStateOk external_audit=$externalAuditOk cloudflare_scope=$cloudflareScopeReadinessOk cloudflare_target=$cloudflareTargetGateOk o2_zero_card=$o2ZeroCardOk hosted_acceptance=$hostedAcceptanceOk o5_resolved=$o5ResolvedOk o6_resolved=$o6ResolvedOk source_matches=$sourceMatches"
+      "invalid_actions=$($invalidActions.Count) autonomous_open=$($autonomousOpenItems.Count) unknown_cells=$($unknownIds -join ',') uncovered_cells=$($ownerUncoveredCellIds -join ',') action_map=$actionMapOk unknown_gates=$($unknownGateIds -join ',') closed_gates=$closedGateStateOk external_gate=$externalGateStateOk external_audit=$externalAuditOk cloudflare_scope=$cloudflareScopeReadinessOk cloudflare_target=$cloudflareTargetGateOk o2_zero_card=$o2ZeroCardOk hosted_acceptance=$hostedAcceptanceOk o4_state=$o4StateOk o5_resolved=$o5ResolvedOk o6_resolved=$o6ResolvedOk source_matches=$sourceMatches"
     }
   }
 } catch {

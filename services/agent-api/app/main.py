@@ -42,7 +42,7 @@ from app.budget import (
     session_llm_call_limit,
 )
 from app.clouds import cloud_layer_readiness_state, cloud_provider_state
-from app.db import check_agent_worker, check_llm_gateway, check_mcp, check_memory_worker, check_postgres, check_redis, database_url, llm_gateway_url, redis_url, run_migrations
+from app.db import check_agent_worker, check_llm_gateway, check_mcp, check_memory_worker, check_postgres, check_redis, database_url, llm_gateway_url, mcp_gateway_url, redis_url, run_migrations
 from app.memory import (
     EMBEDDING_SEARCH_MODE,
     MemoryWriteRequest,
@@ -1131,6 +1131,14 @@ class McpToolAuditRequest(BaseModel):
     duration_ms: int = Field(..., ge=0)
     retry_after_ms: int = Field(..., ge=0)
     audit_tags: list[str] = Field(default_factory=list)
+    write_phase: str | None = Field(default=None, pattern="^(authorized|committed|rolled_back)$")
+    write_path: str | None = Field(default=None, max_length=500)
+    branch_ref: str | None = Field(default=None, max_length=160)
+    write_result: str | None = Field(default=None, max_length=120)
+    content_sha256: str | None = Field(default=None, pattern=r"^$|^[a-f0-9]{64}$")
+    live_mcp_write: bool = False
+    rollback_performed: bool = False
+    secret_output: bool = False
 
     @field_validator("session_id")
     @classmethod
@@ -1209,6 +1217,16 @@ class ReadOnlyToolExecuteRequest(BaseModel):
     trace_id: str | None = Field(default=None, max_length=255)
 
 
+class LiveToolWriteProbeRequest(BaseModel):
+    repository: str = Field(..., min_length=1, max_length=160)
+    branch: str = Field(..., min_length=1, max_length=160, pattern=r"^[A-Za-z0-9._/-]+$")
+    channel: str = Field(..., pattern="^(runtime|browser)$")
+    idempotency_key: str = Field(..., pattern=r"^o4-(runtime|browser)-[a-f0-9]{32}$")
+    confirm_owner_scope: bool
+
+    model_config = {"extra": "forbid"}
+
+
 AUTH_ACCESS_TOKEN_TTL_SECONDS = 15 * 60
 AUTH_REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60
 AUTH_OAUTH_STATE_TTL_SECONDS = 10 * 60
@@ -1255,6 +1273,11 @@ AGENT_RESEARCH_SOURCE_MAX_BYTES = 512 * 1024
 AGENT_RESEARCH_SOURCE_MAX_COUNT = 3
 AGENT_RESEARCH_SOURCE_EXTRACT_CHARS = 900
 AGENT_RESEARCH_SOURCE_CONTEXT_CHARS = 4_096
+O4_LIVE_WRITE_CONTRACT_VERSION = "o4-live-agent-mcp-write-v1"
+O4_LIVE_WRITE_EVIDENCE_REF = "o4_live_agent_mcp_write_audit_verified"
+O4_ALLOWED_REPOSITORY = "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM"
+O4_OWNER_MANIFEST_PATH = "/app/progress/owner-input-manifest.json"
+O4_GIT_HEAD_PATH = "/app/o4-git/HEAD"
 AGENT_RESEARCH_SOURCE_CATALOG: dict[str, dict[str, str]] = {
     "project-state": {
         "title": "Current Project State",
@@ -6340,10 +6363,15 @@ def capability_gate_state() -> dict[str, object]:
             "owner_granted": False,
             "live_verified": False,
             "evidence_artifact": "",
+            "evidence_sha256": "",
             "verified_at_utc": "",
             "provider": "",
             "paid_provider": False,
             "verifier": "",
+            "runtime_verified": False,
+            "browser_verified": False,
+            "branch_protection_verified": False,
+            "audit_fail_closed_verified": False,
             "owner_scope_approved": False,
             "architecture_approved": False,
             "hosted_semantic_search_verified": False,
@@ -6382,6 +6410,11 @@ def capability_gate_state() -> dict[str, object]:
         paid = bool(entry.get("paid_provider", False))
         provider = str(entry.get("provider", "") or "")
         verifier = str(entry.get("verifier", "") or "")
+        evidence_sha256 = str(entry.get("evidence_sha256", "") or "")
+        runtime_verified = bool(entry.get("runtime_verified", False))
+        browser_verified = bool(entry.get("browser_verified", False))
+        branch_protection_verified = bool(entry.get("branch_protection_verified", False))
+        audit_fail_closed_verified = bool(entry.get("audit_fail_closed_verified", False))
         owner_scope_approved = bool(entry.get("owner_scope_approved", False))
         architecture_approved = bool(entry.get("architecture_approved", False))
         hosted_semantic_search_verified = bool(entry.get("hosted_semantic_search_verified", False))
@@ -6403,15 +6436,40 @@ def capability_gate_state() -> dict[str, object]:
                 and provider == "cloudflare_vectorize"
                 and verifier == "scripts/verify-live-vector-memory-search.ps1"
             )
+        if gate_id in {"live_agent_tool_writes", "live_mcp_writes"}:
+            owner_granted = entry.get("owner_granted") is True
+            runtime_verified = entry.get("runtime_verified") is True
+            browser_verified = entry.get("browser_verified") is True
+            branch_protection_verified = entry.get("branch_protection_verified") is True
+            audit_fail_closed_verified = entry.get("audit_fail_closed_verified") is True
+            sanitized_live_verified = (
+                entry.get("live_verified") is True
+                and owner_granted
+                and isinstance(entry.get("evidence_artifact"), str)
+                and bool(artifact.strip())
+                and re.fullmatch(r"[A-Fa-f0-9]{64}", evidence_sha256) is not None
+                and entry.get("paid_provider") is False
+                and provider == "local_mcp_gateway_filesystem"
+                and verifier == "scripts/verify-o4-live-writes.ps1"
+                and runtime_verified
+                and browser_verified
+                and branch_protection_verified
+                and audit_fail_closed_verified
+            )
         gates[gate_id] = {
             "id": gate_id,
             "owner_granted": owner_granted,
             "live_verified": sanitized_live_verified,
             "evidence_artifact": artifact,
+            "evidence_sha256": evidence_sha256,
             "verified_at_utc": str(entry.get("verified_at_utc", "") or ""),
             "provider": provider,
             "paid_provider": paid,
             "verifier": verifier,
+            "runtime_verified": runtime_verified,
+            "browser_verified": browser_verified,
+            "branch_protection_verified": branch_protection_verified,
+            "audit_fail_closed_verified": audit_fail_closed_verified,
             "owner_scope_approved": owner_scope_approved,
             "architecture_approved": architecture_approved,
             "hosted_semantic_search_verified": hosted_semantic_search_verified,
@@ -6437,6 +6495,18 @@ def capability_gate_open(gate_id: str, state: dict[str, object] | None = None) -
         and bool(str(entry.get("evidence_artifact", "")).strip())
         and entry.get("paid_provider") is False
     )
+    if gate_id in {"live_agent_tool_writes", "live_mcp_writes"}:
+        return (
+            base_open
+            and entry.get("provider") == "local_mcp_gateway_filesystem"
+            and entry.get("verifier") == "scripts/verify-o4-live-writes.ps1"
+            and isinstance(entry.get("evidence_sha256"), str)
+            and re.fullmatch(r"[A-Fa-f0-9]{64}", entry.get("evidence_sha256", "")) is not None
+            and entry.get("runtime_verified") is True
+            and entry.get("browser_verified") is True
+            and entry.get("branch_protection_verified") is True
+            and entry.get("audit_fail_closed_verified") is True
+        )
     if gate_id != "live_vector_memory_search":
         return base_open
     return (
@@ -9328,6 +9398,267 @@ def create_workspace_artifact(request: WorkspaceArtifactRequest, http_request: R
         "live_mcp_writes": False,
         "secret_output": False,
         "production_deploy": False,
+    }
+
+
+def o4_active_branch() -> str:
+    head_path = Path(os.getenv("O4_GIT_HEAD_PATH", O4_GIT_HEAD_PATH))
+    try:
+        head = head_path.read_text(encoding="utf-8-sig").strip()
+    except OSError:
+        return ""
+    prefix = "ref: refs/heads/"
+    return head[len(prefix):] if head.startswith(prefix) else ""
+
+
+def o4_owner_scope_decision() -> dict[str, object] | None:
+    manifest_path = Path(os.getenv("O4_OWNER_MANIFEST_PATH", O4_OWNER_MANIFEST_PATH))
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    actions = payload.get("actions")
+    if not isinstance(actions, list):
+        return None
+    action = next(
+        (item for item in actions if isinstance(item, dict) and item.get("id") == "O4"),
+        None,
+    )
+    decision = action.get("owner_scope_decision") if isinstance(action, dict) else None
+    return decision if isinstance(decision, dict) else None
+
+
+def assert_o4_live_write_scope(request: LiveToolWriteProbeRequest) -> str:
+    if os.getenv("O4_LIVE_WRITE_PROBE_ENABLED", "").lower() != "true":
+        raise HTTPException(status_code=403, detail="O4 live-write verifier is disabled")
+    if request.confirm_owner_scope is not True:
+        raise HTTPException(status_code=403, detail="O4 owner scope confirmation required")
+    actual_branch = o4_active_branch()
+    decision = o4_owner_scope_decision()
+    audit = decision.get("audit_retention") if isinstance(decision, dict) else None
+    write_allowlist = decision.get("mcp_write_allowlist") if isinstance(decision, dict) else None
+    exclusions = decision.get("mcp_write_explicitly_excluded") if isinstance(decision, dict) else None
+    summary = external_gate_summary_state()
+    coherent = bool(
+        isinstance(decision, dict)
+        and decision.get("decision") == "approved_as_proposed"
+        and decision.get("gate_state_unchanged") is True
+        and decision.get("repositories_allowed") == [O4_ALLOWED_REPOSITORY]
+        and request.repository == O4_ALLOWED_REPOSITORY
+        and actual_branch
+        and request.branch == actual_branch
+        and request.branch != "main"
+        and ".." not in request.branch.split("/")
+        and isinstance(decision.get("branches_forbidden"), str)
+        and "main" in decision["branches_forbidden"]
+        and isinstance(write_allowlist, list)
+        and any(str(item).startswith("filesystem:") for item in write_allowlist)
+        and any(str(item).startswith("git:") for item in write_allowlist)
+        and isinstance(exclusions, list)
+        and any(r"C:\Users\immer\.codex" in str(item) for item in exclusions)
+        and any("<SECRETS_DIR>" in str(item) for item in exclusions)
+        and isinstance(audit, dict)
+        and audit.get("persist_every_write") is True
+        and audit.get("secret_values_recorded") is False
+        and audit.get("retention") == "unlimited"
+        and "rolled back" in str(audit.get("fail_closed_rule", "")).lower()
+        and summary.get("branch_protection_claim_allowed") is True
+    )
+    if not coherent:
+        raise HTTPException(status_code=403, detail="O4 owner scope or branch protection rejected")
+    if not request.idempotency_key.startswith(f"o4-{request.channel}-"):
+        raise HTTPException(status_code=400, detail="O4 channel binding mismatch")
+    return actual_branch
+
+
+def o4_live_write_contract_payload() -> dict[str, object]:
+    decision = o4_owner_scope_decision()
+    summary = external_gate_summary_state()
+    return {
+        "contract_version": O4_LIVE_WRITE_CONTRACT_VERSION,
+        "endpoint": "POST /api/v1/tools/live-write/probe",
+        "mode": "DEV-ONLY bounded verifier probe",
+        "enabled": os.getenv("O4_LIVE_WRITE_PROBE_ENABLED", "").lower() == "true",
+        "owner_scope_approved": isinstance(decision, dict) and decision.get("decision") == "approved_as_proposed",
+        "branch_protection_verified": summary.get("branch_protection_claim_allowed") is True,
+        "active_branch": o4_active_branch(),
+        "repository": O4_ALLOWED_REPOSITORY,
+        "agent_role": "coder",
+        "toolset": "filesystem",
+        "arbitrary_paths_allowed": False,
+        "main_write_allowed": False,
+        "audit_fail_closed": True,
+        "rollback_on_audit_failure": True,
+        "evidence_ref": O4_LIVE_WRITE_EVIDENCE_REF,
+        "live_provider_calls": False,
+        "direct_provider_calls": False,
+        "production_deploy": False,
+        "secret_output": False,
+        "non_claims": [
+            "This is a fixed local verifier probe, not a general write API.",
+            "No main write, force push, provider write, release, production deployment, or secret output is authorized.",
+        ],
+    }
+
+
+@app.get("/api/v1/tools/live-write/probe/contract")
+def o4_live_write_contract() -> dict[str, object]:
+    return o4_live_write_contract_payload()
+
+
+@app.post("/api/v1/tools/live-write/probe")
+def execute_o4_live_tool_write(
+    request: LiveToolWriteProbeRequest,
+    x_superbrain_agent_token: str | None = Header(default=None),
+) -> dict[str, object]:
+    if not _build_registry_authenticated(x_superbrain_agent_token):
+        raise HTTPException(status_code=401, detail="O4 service authentication required")
+    active_branch = assert_o4_live_write_scope(request)
+    session_id = str(uuid4())
+    suffix = request.idempotency_key.rsplit("-", 1)[-1]
+    run_id = f"o4-{request.channel}-run-{suffix}"
+    mcp_payload = {
+        "tool_request_id": request.idempotency_key,
+        "run_id": run_id,
+        "session_id": session_id,
+        "agent_role": "coder",
+        "repository": request.repository,
+        "branch": active_branch,
+        "channel": request.channel,
+        "idempotency_key": request.idempotency_key,
+        "simulate_commit_audit_failure": False,
+    }
+    service_token = os.getenv("AGENT_API_AUTH_TOKEN", "")
+    try:
+        response = httpx.post(
+            f"{mcp_gateway_url()}/api/v1/tools/live-write/probe",
+            json=mcp_payload,
+            headers={"x-superbrain-agent-token": service_token},
+            timeout=15.0,
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=503, detail="O4 MCP live-write boundary failed")
+        mcp_result = response.json()
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=503, detail="O4 MCP live-write boundary unavailable") from None
+
+    expected_path = f"/tmp/agent-workspace/o4-live-write/{request.channel}.json"
+    required_true = (
+        "write_performed",
+        "readback_verified",
+        "audit_persisted",
+        "audit_fail_closed",
+        "rollback_on_audit_failure",
+        "live_mcp_writes",
+    )
+    if not (
+        isinstance(mcp_result, dict)
+        and mcp_result.get("contract_version") == O4_LIVE_WRITE_CONTRACT_VERSION
+        and mcp_result.get("status") == "verified"
+        and mcp_result.get("evidence_ref") == O4_LIVE_WRITE_EVIDENCE_REF
+        and mcp_result.get("repository") == request.repository
+        and mcp_result.get("branch") == active_branch
+        and mcp_result.get("channel") == request.channel
+        and mcp_result.get("agent_role") == "coder"
+        and mcp_result.get("toolset") == "filesystem"
+        and mcp_result.get("write_path") == expected_path
+        and all(mcp_result.get(field) is True for field in required_true)
+        and isinstance(mcp_result.get("content_sha256"), str)
+        and re.fullmatch(r"[a-f0-9]{64}", mcp_result["content_sha256"])
+        and mcp_result.get("live_provider_calls") is False
+        and mcp_result.get("direct_provider_calls") is False
+        and mcp_result.get("production_deploy") is False
+        and mcp_result.get("secret_output") is False
+    ):
+        raise HTTPException(status_code=503, detail="O4 MCP live-write response failed validation")
+
+    try:
+        prewrite_event_id = UUID(str(mcp_result.get("prewrite_audit_event_id")))
+        mcp_event_id = UUID(str(mcp_result.get("mcp_audit_event_id")))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=503, detail="O4 MCP audit identity invalid") from None
+
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        audit_rows = conn.execute(
+            """
+            SELECT id, user_id, details, created_at
+            FROM audit_log
+            WHERE id = ANY(%s)
+              AND event_type = 'mcp_tool_executed'
+            """,
+            ([prewrite_event_id, mcp_event_id],),
+        ).fetchall()
+        audit_by_id = {str(row[0]): row for row in audit_rows}
+        prewrite_row = audit_by_id.get(str(prewrite_event_id))
+        committed_row = audit_by_id.get(str(mcp_event_id))
+        committed_details = committed_row[2] if committed_row and isinstance(committed_row[2], dict) else {}
+        prewrite_details = prewrite_row[2] if prewrite_row and isinstance(prewrite_row[2], dict) else {}
+        audit_readback_verified = bool(
+            prewrite_row
+            and committed_row
+            and prewrite_row[1] == "coder"
+            and committed_row[1] == "coder"
+            and prewrite_details.get("write_phase") == "authorized"
+            and prewrite_details.get("write_path") == expected_path
+            and committed_details.get("write_phase") == "committed"
+            and committed_details.get("write_path") == expected_path
+            and committed_details.get("branch_ref") == active_branch
+            and committed_details.get("write_result") == "committed"
+            and committed_details.get("content_sha256") == mcp_result["content_sha256"]
+            and committed_details.get("live_mcp_write") is True
+            and committed_details.get("rollback_performed") is False
+            and committed_details.get("secret_output") is False
+        )
+        if not audit_readback_verified:
+            raise HTTPException(status_code=503, detail="O4 MCP audit readback failed")
+        agent_details = redact_json(
+            {
+                "contract_version": O4_LIVE_WRITE_CONTRACT_VERSION,
+                "evidence_ref": O4_LIVE_WRITE_EVIDENCE_REF,
+                "repository": request.repository,
+                "branch": active_branch,
+                "path_or_ref": expected_path,
+                "result": "committed_and_audit_read_back",
+                "agent_role": "coder",
+                "toolset": "filesystem",
+                "run_id": run_id,
+                "trace_id": run_id,
+                "mcp_audit_event_id": str(mcp_event_id),
+                "content_sha256": mcp_result["content_sha256"],
+                "live_agent_tool_writes": True,
+                "live_mcp_writes": True,
+                "audit_persisted": True,
+                "live_provider_calls": False,
+                "direct_provider_calls": False,
+                "production_deploy": False,
+                "secret_output": False,
+            }
+        )
+        agent_audit_row = conn.execute(
+            """
+            INSERT INTO audit_log(event_type, user_id, session_id, details, severity)
+            VALUES ('agent_live_tool_write_verified', 'coder', %s, %s::jsonb, 'info')
+            RETURNING id, created_at
+            """,
+            (UUID(session_id), Json(agent_details)),
+        ).fetchone()
+    if not agent_audit_row:
+        raise HTTPException(status_code=503, detail="O4 agent audit insert failed")
+
+    return {
+        **mcp_result,
+        "agent_audit_event_id": str(agent_audit_row[0]),
+        "agent_audit_created_at": agent_audit_row[1].isoformat() if agent_audit_row[1] else None,
+        "agent_audit_readback_verified": audit_readback_verified,
+        "live_agent_tool_writes": True,
+        "audit_persisted": True,
+        "owner_scope_approved": True,
+        "branch_protection_verified": True,
+        "main_write": False,
+        "force_push": False,
+        "DEV_ONLY": True,
     }
 
 

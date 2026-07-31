@@ -804,6 +804,14 @@ if (-not (Test-Path -LiteralPath $liveVectorSearchVerifierPath -PathType Leaf)) 
 & powershell -NoProfile -ExecutionPolicy Bypass -File $liveVectorSearchVerifierPath
 Assert-LastExitCode "O5 live vector memory search chain"
 
+Write-Host "[verify] O4 live Agent/MCP write gate"
+$liveWriteVerifierPath = Join-Path $PSScriptRoot "verify-o4-live-writes.ps1"
+if (-not (Test-Path -LiteralPath $liveWriteVerifierPath -PathType Leaf)) {
+  throw "Missing O4 live Agent/MCP write verifier"
+}
+& powershell -NoProfile -ExecutionPolicy Bypass -File $liveWriteVerifierPath
+Assert-LastExitCode "O4 live Agent/MCP write gate"
+
 Write-Host "[verify] fail-closed vector memory capability gate"
 $vectorMemoryVerifierPath = Join-Path $PSScriptRoot "verify-vector-memory-gate.ps1"
 if (-not (Test-Path -LiteralPath $vectorMemoryVerifierPath -PathType Leaf)) {

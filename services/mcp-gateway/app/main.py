@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import json
 import os
 import posixpath
@@ -10,9 +12,10 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import UUID, uuid4
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 MCP_GATEWAY_VERSION = "0.1.0"
@@ -45,6 +48,28 @@ class ToolRequest(BaseModel):
     def validate_session_uuid(cls, value: str | None) -> str | None:
         if value is None:
             return None
+        try:
+            return str(UUID(value))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("session_id must be a valid UUID") from exc
+
+
+class LiveWorkspaceWriteProbeRequest(BaseModel):
+    tool_request_id: str = Field(..., pattern=r"^o4-(runtime|browser|rollback)-[a-f0-9]{32}$")
+    run_id: str = Field(..., pattern=r"^o4-(runtime|browser|rollback)-run-[a-f0-9]{32}$")
+    session_id: str
+    agent_role: str = Field(default="coder", pattern="^coder$")
+    repository: str = Field(..., min_length=1, max_length=160)
+    branch: str = Field(..., min_length=1, max_length=160, pattern=r"^[A-Za-z0-9._/-]+$")
+    channel: str = Field(..., pattern="^(runtime|browser|rollback)$")
+    idempotency_key: str = Field(..., pattern=r"^o4-(runtime|browser|rollback)-[a-f0-9]{32}$")
+    simulate_commit_audit_failure: bool = False
+
+    model_config = {"extra": "forbid"}
+
+    @field_validator("session_id")
+    @classmethod
+    def validate_session_uuid(cls, value: str) -> str:
         try:
             return str(UUID(value))
         except (TypeError, ValueError) as exc:
@@ -93,6 +118,13 @@ FILESYSTEM_FORBIDDEN_OPERATIONS = (
     "read_secret",
     "write_secret",
 )
+O4_LIVE_WRITE_CONTRACT_VERSION = "o4-live-agent-mcp-write-v1"
+O4_LIVE_WRITE_EVIDENCE_REF = "o4_live_agent_mcp_write_audit_verified"
+O4_ALLOWED_REPOSITORY = "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM"
+O4_OWNER_MANIFEST_PATH = "/app/progress/owner-input-manifest.json"
+O4_GIT_HEAD_PATH = "/app/o4-git/HEAD"
+O4_PROBE_DIRECTORY = "o4-live-write"
+O4_MAX_PRIOR_BYTES = 32_768
 
 PLAYWRIGHT_ALLOWED_ACTIONS = ("navigate_to_url", "take_screenshot", "extract_text", "close_browser")
 PLAYWRIGHT_FORBIDDEN_SCHEMES = ("file", "ftp", "data", "javascript")
@@ -196,6 +228,332 @@ def filesystem_workspace_scope_contract() -> dict[str, object]:
             "No filesystem read or write is executed by this contract endpoint.",
             "No host filesystem access outside /tmp/agent-workspace is claimed or allowed.",
         ],
+    }
+
+
+def o4_internal_auth_valid(supplied_token: str | None) -> bool:
+    expected_token = os.getenv("AGENT_API_AUTH_TOKEN", "")
+    return bool(
+        expected_token
+        and isinstance(supplied_token, str)
+        and supplied_token
+        and hmac.compare_digest(supplied_token, expected_token)
+    )
+
+
+def o4_active_branch() -> str:
+    head_path = Path(os.getenv("O4_GIT_HEAD_PATH", O4_GIT_HEAD_PATH))
+    try:
+        head = head_path.read_text(encoding="utf-8-sig").strip()
+    except OSError:
+        return ""
+    prefix = "ref: refs/heads/"
+    return head[len(prefix):] if head.startswith(prefix) else ""
+
+
+def o4_owner_scope_authorized(repository: str, branch: str) -> bool:
+    manifest_path = Path(os.getenv("O4_OWNER_MANIFEST_PATH", O4_OWNER_MANIFEST_PATH))
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    actions = payload.get("actions")
+    if not isinstance(actions, list):
+        return False
+    action = next(
+        (item for item in actions if isinstance(item, dict) and item.get("id") == "O4"),
+        None,
+    )
+    decision = action.get("owner_scope_decision") if isinstance(action, dict) else None
+    if not isinstance(decision, dict):
+        return False
+    audit = decision.get("audit_retention")
+    write_allowlist = decision.get("mcp_write_allowlist")
+    exclusions = decision.get("mcp_write_explicitly_excluded")
+    actual_branch = o4_active_branch()
+    return bool(
+        decision.get("decision") == "approved_as_proposed"
+        and decision.get("gate_state_unchanged") is True
+        and decision.get("repositories_allowed") == [O4_ALLOWED_REPOSITORY]
+        and repository == O4_ALLOWED_REPOSITORY
+        and actual_branch
+        and actual_branch == branch
+        and branch != "main"
+        and ".." not in branch.split("/")
+        and isinstance(decision.get("branches_forbidden"), str)
+        and "main" in decision["branches_forbidden"]
+        and isinstance(write_allowlist, list)
+        and any(str(item).startswith("filesystem:") for item in write_allowlist)
+        and any(str(item).startswith("git:") for item in write_allowlist)
+        and isinstance(exclusions, list)
+        and any(r"C:\Users\immer\.codex" in str(item) for item in exclusions)
+        and any("<SECRETS_DIR>" in str(item) for item in exclusions)
+        and isinstance(audit, dict)
+        and audit.get("persist_every_write") is True
+        and audit.get("secret_values_recorded") is False
+        and audit.get("retention") == "unlimited"
+        and "rolled back" in str(audit.get("fail_closed_rule", "")).lower()
+    )
+
+
+def o4_live_write_contract() -> dict[str, object]:
+    workspace_root = os.getenv("FILESYSTEM_ROOT", FILESYSTEM_WORKSPACE_ROOT)
+    return {
+        "contract_version": O4_LIVE_WRITE_CONTRACT_VERSION,
+        "endpoint": "POST /api/v1/tools/live-write/probe",
+        "mode": "DEV-ONLY bounded verifier probe",
+        "enabled": os.getenv("O4_LIVE_WRITE_PROBE_ENABLED", "").lower() == "true",
+        "toolset": "filesystem",
+        "agent_role": "coder",
+        "repository": O4_ALLOWED_REPOSITORY,
+        "active_branch": o4_active_branch(),
+        "workspace_root": workspace_root,
+        "fixed_probe_directory": O4_PROBE_DIRECTORY,
+        "arbitrary_paths_allowed": False,
+        "main_write_allowed": False,
+        "force_push_allowed": False,
+        "audit_before_write_required": True,
+        "audit_after_write_required": True,
+        "rollback_on_commit_audit_failure": True,
+        "audit_retention": "unlimited",
+        "secret_output": False,
+        "production_deploy": False,
+        "evidence_ref": O4_LIVE_WRITE_EVIDENCE_REF,
+        "non_claims": [
+            "This contract authorizes only the fixed DEV-ONLY O4 verifier probe.",
+            "It does not authorize arbitrary paths, main writes, force pushes, provider writes, releases, or production deployment.",
+            "The internal service token is required and is never returned.",
+        ],
+    }
+
+
+def o4_tool_request(request: LiveWorkspaceWriteProbeRequest) -> ToolRequest:
+    return ToolRequest(
+        tool_request_id=request.tool_request_id,
+        run_id=request.run_id,
+        session_id=request.session_id,
+        trace_id=request.run_id,
+        agent_role="coder",
+        toolset="filesystem",
+        capability="write_workspace_probe",
+        intent_summary="Execute the fixed bounded O4 live-write verifier probe.",
+        input_ref=json.dumps(
+            {
+                "channel": request.channel,
+                "repository": request.repository,
+                "branch": request.branch,
+            },
+            separators=(",", ":"),
+        ),
+        allowed_scope=FILESYSTEM_WORKSPACE_ROOT,
+        timeout_ms=10_000,
+        retry_budget=0,
+        idempotency_key=request.idempotency_key,
+        audit_tags=["o4", "live-write", request.channel, "fail-closed"],
+        redaction_required=True,
+        expected_output_type="o4_live_write_proof",
+    )
+
+
+def o4_audit_result(
+    tool_request: ToolRequest,
+    *,
+    status: str,
+    summary: str,
+    phase: str,
+    write_path: str,
+    branch: str,
+    write_result: str,
+    content_sha256: str = "",
+    live_write: bool = False,
+    rollback_performed: bool = False,
+) -> dict[str, object]:
+    result = envelope_result(
+        tool_request,
+        status=status,
+        sanitized_summary=summary,
+        error_class="none" if status == "success" else write_result,
+        evidence_ref=O4_LIVE_WRITE_EVIDENCE_REF,
+    )
+    result.update(
+        {
+            "write_phase": phase,
+            "write_path": write_path,
+            "branch_ref": branch,
+            "write_result": write_result,
+            "content_sha256": content_sha256,
+            "live_mcp_write": live_write,
+            "rollback_performed": rollback_performed,
+            "secret_output": False,
+        }
+    )
+    return result
+
+
+def o4_atomic_write(target: Path, content: bytes) -> None:
+    temporary = target.parent / f".{target.name}.{uuid4().hex}.tmp"
+    try:
+        temporary.write_bytes(content)
+        os.replace(temporary, target)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+def execute_o4_live_write(
+    request: LiveWorkspaceWriteProbeRequest,
+    supplied_token: str | None,
+) -> dict[str, object]:
+    if os.getenv("O4_LIVE_WRITE_PROBE_ENABLED", "").lower() != "true":
+        raise HTTPException(status_code=403, detail="O4 live-write verifier is disabled")
+    if not o4_internal_auth_valid(supplied_token):
+        raise HTTPException(status_code=401, detail="O4 internal service authentication required")
+    if request.tool_request_id != request.idempotency_key:
+        raise HTTPException(status_code=400, detail="O4 idempotency binding mismatch")
+    if not request.idempotency_key.startswith(f"o4-{request.channel}-"):
+        raise HTTPException(status_code=400, detail="O4 channel binding mismatch")
+    if request.simulate_commit_audit_failure and (
+        os.getenv("O4_LIVE_WRITE_NEGATIVE_TEST_ENABLED", "").lower() != "true"
+        or request.channel != "rollback"
+    ):
+        raise HTTPException(status_code=403, detail="O4 negative probe is disabled")
+    if not o4_owner_scope_authorized(request.repository, request.branch):
+        raise HTTPException(status_code=403, detail="O4 owner scope or branch policy rejected")
+
+    configured_root = os.getenv("FILESYSTEM_ROOT", FILESYSTEM_WORKSPACE_ROOT)
+    if configured_root != FILESYSTEM_WORKSPACE_ROOT:
+        raise HTTPException(status_code=503, detail="O4 workspace root contract mismatch")
+    workspace_root = Path(configured_root).resolve()
+    target_parent = workspace_root / O4_PROBE_DIRECTORY
+    target = target_parent / f"{request.channel}.json"
+    logical_path = f"{FILESYSTEM_WORKSPACE_ROOT}/{O4_PROBE_DIRECTORY}/{request.channel}.json"
+    tool_request = o4_tool_request(request)
+
+    authorization_audit = post_audit_event(
+        tool_request,
+        o4_audit_result(
+            tool_request,
+            status="success",
+            summary=f"Authorized bounded O4 write to {logical_path}.",
+            phase="authorized",
+            write_path=logical_path,
+            branch=request.branch,
+            write_result="authorized",
+        ),
+    )
+    if not authorization_audit:
+        raise HTTPException(status_code=503, detail="O4 pre-write audit unavailable")
+
+    parent_existed = target_parent.exists()
+    prior_content: bytes | None = None
+    if target.exists():
+        if target.is_symlink() or target.stat().st_size > O4_MAX_PRIOR_BYTES:
+            raise HTTPException(status_code=409, detail="O4 existing probe target is unsafe")
+        prior_content = target.read_bytes()
+
+    content = (
+        json.dumps(
+            {
+                "contract_version": O4_LIVE_WRITE_CONTRACT_VERSION,
+                "evidence_ref": O4_LIVE_WRITE_EVIDENCE_REF,
+                "repository": request.repository,
+                "branch": request.branch,
+                "channel": request.channel,
+                "idempotency_key": request.idempotency_key,
+                "agent_role": "coder",
+                "toolset": "filesystem",
+                "live_agent_tool_writes": True,
+                "live_mcp_writes": True,
+                "production_deploy": False,
+                "secret_output": False,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n"
+    ).encode("utf-8")
+    content_sha256 = hashlib.sha256(content).hexdigest()
+
+    try:
+        target_parent.mkdir(parents=True, exist_ok=True)
+        if target_parent.resolve().parent != workspace_root or target.is_symlink():
+            raise RuntimeError("O4 target escaped the fixed workspace")
+        o4_atomic_write(target, content)
+        if hashlib.sha256(target.read_bytes()).hexdigest() != content_sha256:
+            raise RuntimeError("O4 write readback mismatch")
+        commit_audit = None if request.simulate_commit_audit_failure else post_audit_event(
+            tool_request,
+            o4_audit_result(
+                tool_request,
+                status="success",
+                summary=f"Committed and read back bounded O4 write at {logical_path}.",
+                phase="committed",
+                write_path=logical_path,
+                branch=request.branch,
+                write_result="committed",
+                content_sha256=content_sha256,
+                live_write=True,
+            ),
+        )
+        if not commit_audit:
+            raise RuntimeError("O4 commit audit unavailable")
+    except Exception:
+        try:
+            if prior_content is None:
+                if target.exists() and not target.is_symlink():
+                    target.unlink()
+            else:
+                o4_atomic_write(target, prior_content)
+            if not parent_existed and target_parent.exists() and not any(target_parent.iterdir()):
+                target_parent.rmdir()
+            rollback_ok = post_audit_event(
+                tool_request,
+                o4_audit_result(
+                    tool_request,
+                    status="degraded",
+                    summary=f"Rolled back bounded O4 write at {logical_path}.",
+                    phase="rolled_back",
+                    write_path=logical_path,
+                    branch=request.branch,
+                    write_result="audit_commit_failed_rolled_back",
+                    rollback_performed=True,
+                ),
+            )
+        except Exception:
+            rollback_ok = None
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "O4 live-write commit failed",
+                "rollback_performed": True,
+                "rollback_audit_persisted": bool(rollback_ok),
+                "secret_output": False,
+            },
+        ) from None
+
+    return {
+        "contract_version": O4_LIVE_WRITE_CONTRACT_VERSION,
+        "status": "verified",
+        "evidence_ref": O4_LIVE_WRITE_EVIDENCE_REF,
+        "repository": request.repository,
+        "branch": request.branch,
+        "channel": request.channel,
+        "agent_role": "coder",
+        "toolset": "filesystem",
+        "write_path": logical_path,
+        "write_performed": True,
+        "readback_verified": True,
+        "content_sha256": content_sha256,
+        "prewrite_audit_event_id": authorization_audit["event_id"],
+        "mcp_audit_event_id": commit_audit["event_id"],
+        "audit_persisted": True,
+        "audit_fail_closed": True,
+        "rollback_on_audit_failure": True,
+        "live_mcp_writes": True,
+        "live_provider_calls": False,
+        "direct_provider_calls": False,
+        "production_deploy": False,
+        "secret_output": False,
     }
 
 
@@ -696,6 +1054,18 @@ def post_audit_event(request: ToolRequest, result: dict[str, object]) -> dict[st
         "retry_after_ms": result["retry_after_ms"],
         "audit_tags": request.audit_tags,
     }
+    for field in (
+        "write_phase",
+        "write_path",
+        "branch_ref",
+        "write_result",
+        "content_sha256",
+        "live_mcp_write",
+        "rollback_performed",
+        "secret_output",
+    ):
+        if field in result:
+            payload[field] = result[field]
     http_request = urllib.request.Request(
         f"{base_url}/internal/audit/mcp-tool-events",
         data=json.dumps(payload).encode("utf-8"),
@@ -764,6 +1134,19 @@ def postgresql_readonly_query_contract_endpoint() -> dict[str, object]:
 @app.get("/api/v1/filesystem/workspace-scope/contract")
 def filesystem_workspace_scope_contract_endpoint() -> dict[str, object]:
     return filesystem_workspace_scope_contract()
+
+
+@app.get("/api/v1/tools/live-write/probe/contract")
+def o4_live_write_contract_endpoint() -> dict[str, object]:
+    return o4_live_write_contract()
+
+
+@app.post("/api/v1/tools/live-write/probe")
+def o4_live_write_probe_endpoint(
+    request: LiveWorkspaceWriteProbeRequest,
+    x_superbrain_agent_token: str | None = Header(default=None),
+) -> dict[str, object]:
+    return execute_o4_live_write(request, x_superbrain_agent_token)
 
 
 @app.get("/api/v1/playwright/browser-proof/contract")

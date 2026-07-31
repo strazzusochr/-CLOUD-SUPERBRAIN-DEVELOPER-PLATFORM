@@ -2412,5 +2412,9 @@ Write-Host "[runtime] phase5 local production candidate proof"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-production-candidate-local.ps1 -BaseUrl $baseUrl -AllowLocalhost -AllowNonCandidateHead -SkipBrowser
 Assert-LastExitCode "phase5 local production candidate proof"
 
+Write-Host "[runtime] O4 bounded live Agent/MCP write proof"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-o4-live-writes.ps1 -BaseUrl $baseUrl -AllowLocalhost -RuntimeProof
+Assert-LastExitCode "O4 bounded live Agent/MCP write proof"
+
 Write-Host "[runtime] phase1 runtime checks completed"
 
