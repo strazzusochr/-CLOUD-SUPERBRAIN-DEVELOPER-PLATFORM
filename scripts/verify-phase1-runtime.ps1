@@ -717,7 +717,12 @@ if ($llmRoute.live_provider_calls -ne $false) { throw "Runtime verification fail
 if ($llmRoute.configured_only -ne $false) { throw "Runtime verification failed: LLM routing should be live-verifiable through HF router" }
 if (-not ($llmRoute.fallback_chain -contains "moonshotai/Kimi-K2.6:fastest")) { throw "Runtime verification failed: LLM routing fallback chain missing open-source emergency fallback" }
 if (-not ($llmRoute.provider_chain -contains "huggingface_inference_router")) { throw "Runtime verification failed: LLM routing provider chain missing HF router provider" }
-if ($llmRoute.provider_health.status -notin @("live_verified", "missing_token")) { throw "Runtime verification failed: LLM routing provider health status wrong" }
+$expectedRouteProviderStatuses = if ($llmHealthJson.mode -eq "cloudflare_workers_ai_live") {
+  @("not_active_provider")
+} else {
+  @("live_verified", "missing_token")
+}
+if ($llmRoute.provider_health.status -notin $expectedRouteProviderStatuses) { throw "Runtime verification failed: LLM routing provider health status wrong" }
 $llmTraceId = "runtime-llm-dry-run-" + [Guid]::NewGuid().ToString("N")
 $llmChatBody = @{
   model = "deepseek-ai/DeepSeek-V4-Flash:fastest"

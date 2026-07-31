@@ -33,6 +33,18 @@ def main() -> int:
     require(payload["provider_status"] == "configured", "Cloudflare provider is not configured")
     require(payload["provider_live_verified"] is False, "health incorrectly claims a live provider read")
 
+    route = gateway.resolve_route(
+        gateway.RoutingResolveRequest(
+            agent_type="planner",
+            task_type="deterministic_probe",
+            requires_streaming=True,
+            budget_level="ok",
+        )
+    )
+    require(not calls, "Cloudflare route resolution invoked the inactive Hugging Face provider")
+    require(route["provider_health"]["status"] == "not_active_provider", "inactive route status is wrong")
+    require(route["provider_health"]["live_verified"] is False, "route incorrectly claims a live provider read")
+
     def active_hf_probe(*_args: Any, **_kwargs: Any) -> dict[str, object]:
         calls.append(1)
         return {

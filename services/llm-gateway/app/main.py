@@ -338,6 +338,17 @@ def hf_router_model_snapshot(limit: int = 20) -> dict[str, object]:
     }
 
 
+def hf_router_snapshot_for_gateway_mode(limit: int = 20) -> dict[str, object]:
+    if cloudflare_workers_ai_mode_enabled():
+        return {
+            "status": "not_active_provider",
+            "live_verified": False,
+            "model_count_visible": 0,
+            "models": [],
+        }
+    return hf_router_model_snapshot(limit=limit)
+
+
 def provider_status_snapshot() -> dict[str, object]:
     router = hf_router_model_snapshot()
     local_status = "healthy" if local_llm_health() else "starting_or_unavailable"
@@ -549,7 +560,7 @@ def resolve_route(request: RoutingResolveRequest) -> dict[str, object]:
         selected = candidates[-1]
         reason = "streaming_required_primary_not_supported"
     selected_provider = provider_for_model(selected)
-    router = hf_router_model_snapshot(limit=5)
+    router = hf_router_snapshot_for_gateway_mode(limit=5)
 
     return {
         "mode": GATEWAY_MODE,
@@ -1054,16 +1065,7 @@ def health() -> dict[str, object]:
     # Hugging Face provider read. In Cloudflare mode that network probe can
     # exceed the Agent API's three-second dependency timeout and make an
     # otherwise healthy local stack flap to degraded.
-    router = (
-        {
-            "status": "not_active_provider",
-            "live_verified": False,
-            "model_count_visible": 0,
-            "models": [],
-        }
-        if cloudflare_mode
-        else hf_router_model_snapshot(limit=5)
-    )
+    router = hf_router_snapshot_for_gateway_mode(limit=5)
     provider_available = cloudflare_workers_ai_available() if cloudflare_mode else hf_router_available()
     return {
         "status": "healthy",
