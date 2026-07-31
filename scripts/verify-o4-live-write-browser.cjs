@@ -118,18 +118,28 @@ async function main() {
     assert(contract.body?.secret_output === false, "O4 browser contract reports secret output");
 
     const negativeKey = `o4-browser-${crypto.randomBytes(16).toString("hex")}`;
-    const unauthenticated = await browserJson(page, new URL("/api/v1/tools/live-write/probe", base).href, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        repository: "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
-        branch,
-        channel: "browser",
-        idempotency_key: negativeKey,
-        confirm_owner_scope: true,
-      }),
-    });
+    const unauthenticatedContext = await browser.newContext();
+    let unauthenticated;
+    try {
+      const response = await unauthenticatedContext.request.post(new URL("/api/v1/tools/live-write/probe", base).href, {
+        data: {
+          repository: "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+          branch,
+          channel: "browser",
+          idempotency_key: negativeKey,
+          confirm_owner_scope: true,
+        },
+      });
+      unauthenticated = {
+        status: response.status(),
+        body: await response.json(),
+      };
+    } finally {
+      await unauthenticatedContext.close();
+    }
     assert([401, 403].includes(unauthenticated.status), "Unauthenticated O4 browser write was not blocked");
+    assert(unauthenticated.body?.accepted === false, "Unauthenticated O4 browser write reported acceptance");
+    assert(unauthenticated.body?.secret_output === false, "Unauthenticated O4 browser write reported secret output");
 
     const signIn = await context.request.post(new URL("/api/v1/auth/session", base).href, {
       data: { provider: "guest" },
