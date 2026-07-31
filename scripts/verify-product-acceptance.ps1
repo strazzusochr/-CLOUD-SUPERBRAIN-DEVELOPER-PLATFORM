@@ -25,6 +25,18 @@ function Set-ProcessEnvironment([string]$Name, [string]$Value) {
   [Environment]::SetEnvironmentVariable($Name, $Value, [EnvironmentVariableTarget]::Process)
 }
 
+function Get-Sha256([string]$Path) {
+  $resolved = (Resolve-Path -LiteralPath $Path).Path
+  $stream = [IO.File]::OpenRead($resolved)
+  $sha256 = [Security.Cryptography.SHA256]::Create()
+  try {
+    return ([BitConverter]::ToString($sha256.ComputeHash($stream))).Replace("-", "")
+  } finally {
+    $sha256.Dispose()
+    $stream.Dispose()
+  }
+}
+
 function Get-GitArchiveSha256([string]$RepoRoot, [string]$CommitSha) {
   $temporaryPath = [IO.Path]::Combine(
     [IO.Path]::GetTempPath(),
@@ -33,7 +45,7 @@ function Get-GitArchiveSha256([string]$RepoRoot, [string]$CommitSha) {
   try {
     & git.exe -C $RepoRoot archive --format=tar "--output=$temporaryPath" $CommitSha
     Assert-True "expected source archive can be created" ($LASTEXITCODE -eq 0)
-    return (Get-FileHash -LiteralPath $temporaryPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    return (Get-Sha256 $temporaryPath).ToLowerInvariant()
   } finally {
     if (Test-Path -LiteralPath $temporaryPath -PathType Leaf) {
       Remove-Item -LiteralPath $temporaryPath -Force
@@ -267,7 +279,7 @@ Assert-True "no mocks used" (-not [bool]$report.mocks_used -and -not [bool]$repo
 Assert-True "screenshot evidence exists" (Test-Path -LiteralPath $screenshotPath -PathType Leaf)
 Assert-True "screenshot evidence is non-empty" ((Get-Item -LiteralPath $screenshotPath).Length -gt 1000)
 
-$reportSha256 = (Get-FileHash -LiteralPath $reportPath -Algorithm SHA256).Hash.ToUpperInvariant()
+$reportSha256 = Get-Sha256 $reportPath
 if ($PromoteHostedState) {
   Assert-True "hosted-state promotion requires hosted proof" (-not $isLocalhost)
   $resolvedHostedState = Resolve-RepoScopedPath -RepoRoot $repoRoot -Path $HostedStatePath -Label "Hosted runtime state" -MustExist $true
