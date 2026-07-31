@@ -505,3 +505,66 @@ Das ist ein Mangel **meiner Messung**, kein Grund, die Schwelle zu aendern.
    verweigert ausdruecklich ein Read-only-Gruen.
 2. **Harness haerten** (Connection-Reuse / Server-Timing), damit p95 ueberhaupt zuordenbar wird.
 3. **`phase_5`-Evidenz itemisieren**, bevor irgendjemand die 68 anfasst.
+
+---
+
+## §7 HARNESS GEHAERTET + PHASE_5 ITEMISIERT (Session 13d)
+
+### 7.1 Der Fehlschlag aus §6.2 war zu ~98,6 % Messfehler
+
+Alte Harness: ein Runspace **pro Request**, frischer TLS-Handshake, kein Connection-Reuse.
+Neu (`6834ab61`): **ein** gepoolter `HttpClient` (`SocketsHttpHandler`, closed-loop Wellen) plus
+**Edge-Kontrolle** gegen `/cdn-cgi/trace` — von der Cloudflare-Edge bedient, **ohne** den Worker zu
+betreten. Gleicher Client, gleiches TLS, gleiche Edge, nur ohne unseren Code.
+
+| c | alt | neu | Edge-Kontrolle | **Worker-Anteil** |
+|---|---|---|---|---|
+| 1 | 271 ms | **59,7 ms** | 30,4 ms | **29,3 ms** |
+| 10 | 3.140 ms | **229,6 ms** | 49,3 ms | **180,3 ms** |
+| 50 | 21.180 ms | **299,9 ms** | 60,7 ms | **239,2 ms** |
+
+**Schwellen, Stufengroessen und Request-Budget blieben unveraendert** — nur die Messung wurde
+korrigiert. Die Read-Stufe besteht das **urspruenglich** deklarierte 1.500-ms-Kriterium jetzt aus
+eigener Kraft. Genau deshalb war es richtig, die Schwelle nach dem Fehlschlag **nicht** zu senken:
+der Fehler lag im Messgeraet, nicht in der Messlatte.
+
+Der Worker haelt bei 50-facher Parallelitaet: Eigenanteil waechst nur von 29 ms auf 239 ms,
+Erfolgsquote 1,0, null 5xx, null 429.
+
+> **R-NEU-7:** Vor jeder Latenz-Aussage die **Harness** kontrollieren. Ein Messaufbau ohne
+> Connection-Reuse misst sich selbst. Die Kontrollgruppe (`/cdn-cgi/trace`) ist Pflicht, nicht Kuer.
+
+**Gate bleibt trotzdem zu** (Exit 2, `BLOCKED`): die Write-Stufe — parallele D1-Writes mit Readback,
+der eigentliche Scale-Beweis — lief mangels `AGENT_API_AUTH_TOKEN` nie. Read-Kapazitaet allein ist
+kein Scale-Beweis, und der Verifier verweigert dafuer ausdruecklich ein Gruen.
+
+### 7.2 `phase_5` itemisiert — `docs/runtime-state/phase5-credit-itemization.json`
+
+**Marker-Zensus:** 71 gesamt · 60 `_verified` · 5 Zustandsmarker · **6 blockiert**.
+
+**Ehrliche Grenze, die im Dokument steht:** 65 von 71 nicht-blockierten Markern sind ~92 %, die Zelle
+steht aber auf **68**. **Es existiert kein Artefakt, das die Herleitung der 68 festhaelt.** Damit laesst
+sich der *Inhalt* der Luecke benennen, aber die *Arithmetik* nicht rueckrechnen. Eine Umrechnung der
+Bloecke in Prozentpunkte braucht eine **Owner-Gewichtung** — sie hier zu erfinden waere exakt der
+Fehler, den das Dokument verhindern soll.
+
+**Block A — GHCR/Release (O3).** Owner-gated. `ghcr_image_digest_verify` ist der einzige verbliebene
+Eintrag in `missing_or_failed_gates`. Per E3(a) **Post-Market** — darf `phase_5` nach Uebernahme der
+Readiness-Definition nicht mehr unter 100 halten.
+
+**Block B — 6 blockierte Marker, gebunden an eine stillgelegte Hosting-Grenze.** ⭐ Der eigentliche
+Fund: Diese Release-Candidate-Browser- und Sweep-Beweise haengen an der **retired sslip.io/Hetzner**-
+Bruecke (`Status: superseded`, `retired_boundary: sslip_io_hetzner`, gepinnt von
+`verify-retired-hosted-boundary.ps1`). **Es gibt aber eine aktuelle Hosted-Flaeche mit frischer
+Browser-Evidenz** (`dev_only=false`, `proof_scope=hosted_https`, 22/22 Routen, 161/161 Aktionen).
+→ **Kein Owner-Gate, keine Zahlung noetig.** Damit ist Block B der erste seit langem wieder
+**autonom bearbeitbare** Kandidat.
+
+> ⚠️ **Vor der Arbeit pruefen, nicht behaupten:** ob Candidate-Artefakte und aktuelle Hosted-URLs
+> zusammenpassen. Und: **die sechs superseded-Artefakte bleiben superseded.** Altevidenz an eine neue
+> Grenze umzuhaengen waere Evidence-Laundering, kein Nachweis. Nur ein **frischer Lauf** zaehlt.
+
+### 7.3 Naechster Schritt
+
+**Block B auf Machbarkeit pruefen und, wenn tragfaehig, frisch ausfuehren.** Das ist die einzige
+identifizierte Arbeit, die derzeit ohne Owner-Handlung echten Fortschritt erzeugen kann.
