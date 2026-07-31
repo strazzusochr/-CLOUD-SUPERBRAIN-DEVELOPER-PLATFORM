@@ -19,8 +19,8 @@ Branch `claude/cloud-superbrain-analysis-127d2e` · HEAD = `origin` · Overall *
 | offen ✅ | zu 🔴 |
 |---|---|
 | `live_llm_provider_calls` | `production_auth_identity` (O1 — OAuth-Klick = Owner-Wand) |
-| `live_memory_provider` | `docker_registry_publish` (O3 — **zuletzt**, nach MARKET_READY) |
-| `cloudflare_native_zero_card_hosted_runtime` | `phase6_scale_runtime` (**NICHT Zahlung** — Scale-Proof + Verifier fehlen) |
+| `live_memory_provider` | `docker_registry_publish` (O3 — Deadlock, Aufloesung = E3 Option (a)) |
+| `cloudflare_native_zero_card_hosted_runtime` | `phase6_scale_runtime` (**NICHT Zahlung** — Verifier existiert, Lauf ist rot) |
 | `live_vector_memory_search` | |
 | `hosted_observability_endpoint` | |
 | `live_agent_tool_writes` **(O4, neu)** | |
@@ -31,7 +31,7 @@ Branch `claude/cloud-superbrain-analysis-127d2e` · HEAD = `origin` · Overall *
 `overall_percent == round(Summe der horizontalen Phasen / Anzahl)`.
 **Vertikale Layer fließen gar nicht ein.** L3 69→100 und L6 90→100 haben `overall` deshalb korrekt
 bei 86 gelassen — das ist Arithmetik, kein Beschönigen. Wer die 86 bewegen will, muss **P3, P5 oder P6**
-bewegen. Alle drei sind Owner-/Zahlungs-Gates.
+bewegen. **Keines davon ist ein Zahlungs-Gate** — siehe Befund 13b.
 
 ## ⛔ L4 (55) UND L5 (56) SIND NICHT „VERGESSEN" — SIE SIND BEWUSST NULL-CREDIT
 Die Fähigkeiten **sind** bewiesen (L4: `gateway_mode=cloudflare_workers_ai_live`, `live_calls=true`,
@@ -69,10 +69,11 @@ Die Fähigkeiten **sind** bewiesen (L4: `gateway_mode=cloudflare_workers_ai_live
 
 **5. P6 — KEIN GELD-PROBLEM.** Korrektur: `phase6_scale_runtime` hat `paid_provider:false`,
    O2 hat `payment_required:false` + `zero_card_required:true` + `payment_forbidden:true`.
-   Es fehlt ein **Scale-/Kapazitaetsbeweis bei Zero-Card** — und `scripts/verify-phase6-scale-runtime.ps1`
-   **existiert nicht** (Gate-Feld `verifier` ist leer). Zahlen loest hier nichts.
+   Es fehlt ein **Scale-/Kapazitaetsbeweis bei Zero-Card**. Zahlen loest hier nichts.
+   ✅ `scripts/verify-phase6-scale-runtime.ps1` **existiert seit `a7335f6f`** — Lauf ist **rot**
+   (p95 21.180 ms gegen Schwelle 1.500 ms), Gate bleibt korrekt zu. Details unter E2.
 
-**6. P5 / O3 GHCR — ZIRKULAER BLOCKIERT.** Siehe Deadlock unten. Nicht abarbeitbar wie spezifiziert.
+**6. P5 / O3 GHCR — ZIRKULAER BLOCKIERT, Aufloesung entschieden: Option (a).** Siehe E3.
 
 ## 🧾 OWNER-AKTIONSPAKET — nur noch ZWEI Handlungen trennen uns von der Finish-Line
 
@@ -82,10 +83,12 @@ Konfiguration ist fertig (Compose + `JWT_SIGNING_SECRET`), lokal `verified_dev_o
 Danach Codex: hosted Nachweis fahren, `production_auth_identity` **nur** über den echten Verifier
 öffnen. **Der Klick selbst ist eine der vier Wände — kein Agent darf ihn ersetzen.**
 
-**O3 — GHCR (schaltet P5 68 → höher) — ERST NACH `MARKET_READY: true`**
-Owner gibt Registry-Publikation der sechs Images aus dem aktiven RC frei.
-`codex_boundary` verbietet es davor. Danach: `verify:release-candidate` +
-`verify:current-release-candidate`.
+**O3 — GHCR — ⚠️ HAENGT AM DEADLOCK, NICHT AM OWNER-WILLEN**
+Owner gibt Registry-Publikation der sechs Images aus dem aktiven RC frei. **Aber:** O3 auszufuehren
+macht `docker_registry_publish` `live_verified` und drueckt `MARKET_READY` **wieder** auf false
+(`:204-217`). Deshalb E3 **Option (a)**: `phase_5 = 100` := *release-candidate-ready*, GHCR wird
+**Post-Market-Schritt**. O3 bleibt formal `owner_required` und unveraendert.
+Danach: `verify:release-candidate` + `verify:current-release-candidate`.
 
 ## 🚨 BEFUND SESSION 13b: ZAHLEN OEFFNET NICHTS — UND DIE ZIELLINIE IST ZIRKULAER
 
