@@ -12,17 +12,37 @@ Owner-gewallte Reste ehrlich als **OWNER-BLOCKED** listen — **nie faken** (R0)
 ## ✅ STAND (gemessen, nicht geschätzt)
 Branch `claude/cloud-superbrain-analysis-127d2e` · HEAD = `origin` · Overall **86 %** · `MARKET_READY:false`
 `P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 68 · P6 90`
-`FE 100 · ORC 100 · AP 69 · LLM 55 · MCP 56 · MEM 100 · OBS 100`
+`FE 100 · ORC 100 · AP 100 · LLM 55 · MCP 56 · MEM 100 · OBS 100`
 
-**Capability-Gates: 5 offen / 5 zu** · **Externe Gates: nur noch `ghcr_image_digest_verify`**
+**Capability-Gates: 7 offen / 3 zu** · **Externe Gates: nur noch `ghcr_image_digest_verify`**
 
 | offen ✅ | zu 🔴 |
 |---|---|
-| `live_llm_provider_calls` | `production_auth_identity` (O1) |
-| `live_memory_provider` | `live_agent_tool_writes` + `live_mcp_writes` (O4) |
-| `cloudflare_native_zero_card_hosted_runtime` | `docker_registry_publish` (O3, **zuletzt**) |
-| `live_vector_memory_search` **(neu)** | `phase6_scale_runtime` (Zahlung = echte Wand) |
+| `live_llm_provider_calls` | `production_auth_identity` (O1 — OAuth-Klick = Owner-Wand) |
+| `live_memory_provider` | `docker_registry_publish` (O3 — **zuletzt**, nach MARKET_READY) |
+| `cloudflare_native_zero_card_hosted_runtime` | `phase6_scale_runtime` (Zahlung = echte Wand) |
+| `live_vector_memory_search` | |
 | `hosted_observability_endpoint` | |
+| `live_agent_tool_writes` **(O4, neu)** | |
+| `live_mcp_writes` **(O4, neu)** | |
+
+## 🧮 WARUM VERTIKALE ARBEIT DIE 86 % NIE BEWEGT
+`scripts/verify_project_progress_manifest.py` erzwingt:
+`overall_percent == round(Summe der horizontalen Phasen / Anzahl)`.
+**Vertikale Layer fließen gar nicht ein.** L3 69→100 und L6 90→100 haben `overall` deshalb korrekt
+bei 86 gelassen — das ist Arithmetik, kein Beschönigen. Wer die 86 bewegen will, muss **P3, P5 oder P6**
+bewegen. Alle drei sind Owner-/Zahlungs-Gates.
+
+## ⛔ L4 (55) UND L5 (56) SIND NICHT „VERGESSEN" — SIE SIND BEWUSST NULL-CREDIT
+Die Fähigkeiten **sind** bewiesen (L4: `gateway_mode=cloudflare_workers_ai_live`, `live_calls=true`,
+`direct=false`, hosted+auditiert · L5: bounded, auditierter MCP-Write mit Rollback). Trotzdem gilt:
+- `actions[O4].percentage_credit_breakdown` = `layer_3: 31`, **`layer_5: 0`**, `phase_6: 0`
+- `actions[O6].percentage_credit` = **0**, Boundary: *„does not make Layer 4 equal 100 … or grant
+  percentage credit"*
+
+**Beide Nullen werden hart geprüft** — von `verify-market-ready.ps1` **und**
+`verify-o4-live-writes.ps1` (`[int]$o4Action.percentage_credit_breakdown.layer_5 -eq 0`).
+**Wer L4 oder L5 hochsetzt, bricht zwei Verifier und erzeugt Fake-Vollständigkeit. Nicht anfassen.**
 
 **Hosted echt bewiesen:** Produktabnahme + 22-Seiten-Matrix mit `dev_only=false`,
 `proof_scope=hosted_https` — 22/22 Routen · 29/29 Familien · 161/161 Aktionen · 0 tote · 0 Fehler.
@@ -40,16 +60,22 @@ Branch `claude/cloud-superbrain-analysis-127d2e` · HEAD = `origin` · Overall *
    `hosted_semantic_vector_search_cloudflare_vectorize_roundtrip_verified`.
    **Kein Doppelcredit** — die lexikalische D1-Persistenz bleibt ihr eigener Slice.
 
-**3. O4 abschließen.** Owner-Freigabe liegt vor. Gebundenen Live-Write-Verifier bauen, Grenzen hart
-   durchsetzen, Audit fail-closed, Gates nur über `verify:runtime` + `verify:browser` öffnen.
+**3. ✅ O4 abgeschlossen.** `live_agent_tool_writes` + `live_mcp_writes` sind vom Verifier geöffnet,
+   Evidenz `.phase1-artifacts/o4-live-writes/proof.json`, Audit vor/nach Write + Readback + Rollback
+   bewiesen, `main_write=false`. Agent Pool **69 → 100** (Credit 31, itemisiert hinterlegt).
 
-**4. P3 (O1).** Konfiguration erledigt, lokal `verified_dev_only`. Der interaktive GitHub-Klick ist
-   eine **echte Owner-Wand**. Nur den ohne ihn beweisbaren Teil gutschreiben.
+**4. P3 (O1) — OWNER.** Konfiguration erledigt, lokal `verified_dev_only`. Der interaktive
+   GitHub-Zustimmungsklick ist eine **echte Owner-Wand**.
 
-**5. P5/P6 Restzellen.** Nur noch nicht kreditierte, live beweisbare Marker.
-   `phase6_scale_runtime` bleibt zu (Zahlung).
+**5. P6 — ZAHLUNG.** `phase6_scale_runtime` braucht Zahlung. Eine der vier Wände.
 
-**6. O3 GHCR — ZULETZT**, laut Matrix erst nach `MARKET_READY: true`.
+**6. P5 / O3 GHCR — OWNER, ZULETZT**, laut Matrix erst nach `MARKET_READY: true`.
+
+## 🛑 EHRLICHER BEFUND: DIE AUTONOME FLÄCHE IST ERSCHÖPFT
+Jede Zelle unter 100 ist entweder **owner-/zahlungsgewallt** (P3, P5, P6) oder **bewusst
+null-kreditiert** (L4, L5). Es gibt derzeit **keine** Zelle, die ein Agent ohne Owner-Handlung
+ehrlich anheben könnte. Wer trotzdem eine Zahl erhöht, fälscht.
+**Nächste echte Arbeit beginnt erst nach einer Owner-Entscheidung (O1 oder O3).**
 
 ---
 

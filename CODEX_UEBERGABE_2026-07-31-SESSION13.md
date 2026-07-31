@@ -30,18 +30,51 @@ docker ps --filter 'name=cloud-superbrain-phase1-dev' --format '{{.Names}} {{.St
 |---|---|
 | Overall | **86 %** |
 | Horizontal | P0 100 · P1 100 · P2 100 · **P3 44** · P4 100 · **P5 68** · **P6 90** |
-| Vertikal | FE 100 · ORC 100 · **AP 69** · **LLM 55** · **MCP 56** · **MEM 100** · OBS 100 |
-| Capability-Gates | **5 offen / 5 zu** |
+| Vertikal | FE 100 · ORC 100 · **AP 100** · **LLM 55** · **MCP 56** · **MEM 100** · OBS 100 |
+| Capability-Gates | **7 offen / 3 zu** |
 | Externe Gates | **1 offen** (`ghcr_image_digest_verify`) |
 | `MARKET_READY` | **false** — korrekt, kein Fehler |
 
-## 1.2 Capability-Gates (gemessen, nicht geschätzt)
-**✅ offen:** `live_llm_provider_calls` · `live_memory_provider` ·
+## 1.2 Capability-Gates (gemessen 2026-07-31 nach O4, nicht geschätzt)
+**✅ offen (7):** `live_llm_provider_calls` · `live_memory_provider` ·
 `cloudflare_native_zero_card_hosted_runtime` · `live_vector_memory_search` ·
-`hosted_observability_endpoint`
+`hosted_observability_endpoint` · **`live_agent_tool_writes`** · **`live_mcp_writes`**
 
-**🔴 zu:** `production_auth_identity` (O1) · `live_agent_tool_writes` + `live_mcp_writes` (O4) ·
-`docker_registry_publish` (O3) · `phase6_scale_runtime` (Zahlung, echte Wand)
+**🔴 zu (3):** `production_auth_identity` (O1, Owner) · `docker_registry_publish` (O3, Owner,
+zuletzt) · `phase6_scale_runtime` (Zahlung, echte Wand)
+
+## 1.3 🧮 DIE WICHTIGSTE RECHENREGEL — sonst sucht man ewig an der falschen Stelle
+`scripts/verify_project_progress_manifest.py` erzwingt hart:
+```
+overall_percent == round( Σ horizontale Phasen / Anzahl Phasen )
+```
+**Vertikale Layer gehen NICHT in `overall` ein.** Deshalb blieb `overall` bei 86, obwohl L3 von 69
+auf 100 und L6 von 90 auf 100 stieg — das ist korrekte Arithmetik, kein Beschönigen.
+**Wer die 86 % bewegen will, muss P3, P5 oder P6 bewegen** — und alle drei sind Owner-/Zahlungs-Gates.
+
+## 1.4 ⛔ L4 (55) UND L5 (56) SIND BEWUSST NULL-KREDITIERT — NICHT VERGESSEN
+Die Versuchung ist groß, hier „vergessene" Prozente zu sehen. Die **Fähigkeiten sind bewiesen**:
+- **L4:** Hosted-Produktbeweis zeigt `gateway_mode=cloudflare_workers_ai_live`, `live_calls=true`,
+  `direct_provider_calls=false`, persistiert und auditiert — das Gate ist offen.
+- **L5:** O4-Beweis zeigt bounded, auditierten MCP-Write mit Readback und Rollback.
+
+**Trotzdem ist der Prozent-Credit ausdrücklich null, und das ist maschinell erzwungen:**
+
+| Quelle | Feld | Wert |
+|---|---|---|
+| `actions[O4].percentage_credit_breakdown` | `layer_3` | **31** (das erklärt 69→100) |
+| " | `layer_5` | **0** |
+| " | `phase_6` | **0** |
+| `actions[O6].percentage_credit` | — | **0** |
+
+`actions[O6].codex_boundary` sagt wörtlich: *„does not hand-set live_verified, make Layer 4 equal 100,
+authorize direct provider calls, or grant percentage credit."*
+
+**Beide Nullen werden hart geprüft** — `verify-market-ready.ps1` **und** `verify-o4-live-writes.ps1`
+enthalten je `[int]$o4Action.percentage_credit_breakdown.layer_5 -eq 0`.
+
+> **REGEL R-NEU-4: L4 und L5 nicht hochsetzen. Ein offenes Gate ist kein Prozent-Credit.
+> Die Erhöhung bricht zwei Verifier und ist per Definition Fake-Vollständigkeit.**
 
 ## 1.3 Was hosted echt bewiesen ist
 - **Produktabnahme + 22-Seiten-Matrix:** `dev_only=false`, `proof_scope=hosted_https`,
@@ -128,6 +161,25 @@ R2 bleibt ungebunden; die Remote-Bindings und der O5-Hosted-Roundtrip wurden ern
 
 ---
 
+## 2.6 ✅ O4 ABGESCHLOSSEN — bounded, auditierte Live-Writes bewiesen
+`live_agent_tool_writes` und `live_mcp_writes` sind **vom Verifier** geöffnet
+(`scripts/verify-o4-live-writes.ps1`, Evidenz `.phase1-artifacts/o4-live-writes/proof.json`).
+Bewiesen: Audit **vor** und **nach** dem Write, Readback, **Rollback bei Audit-Fehler**,
+Write-Scope auf `.phase1-artifacts/o4-live-write-workspace` begrenzt, `main_write=false`,
+Kanäle `runtime` + `browser`. Agent Pool **69 → 100** mit itemisiertem Credit `31`.
+
+## 2.7 🔧 KORREKTUR AN DIESER ÜBERGABE — meine frühere Diagnose war falsch
+Eine ältere Fassung dieses Dokuments nannte als Ursache für das fehlgeschlagene Hosted-Rebinding
+ein **Rate-Limit**. Das war falsch und hätte in eine Sackgasse geführt („später nochmal versuchen").
+
+**Die echte Ursache:** `SOURCE_COMMIT_SHA` und `SOURCE_ARCHIVE_SHA256` sind remote **`plain_text`-Vars,
+keine Secrets**. `wrangler secret put` scheitert deshalb korrekt mit Cloudflare-Code **`10053`
+(`Binding name already in use`)** — reproduzierbar, kein Timing-Problem. Der richtige Weg ist
+`deploy --keep-vars --var …` (siehe §2.5). **Nie erneut auf „Rate-Limit" tippen, wenn `secret put`
+auf einem bestehenden `plain_text`-Binding scheitert — der Fehlercode sagt es exakt.**
+
+---
+
 # 3 · DER WEG BIS `MARKET_READY: true`
 
 `MARKET_READY` wird **nur** wahr, wenn `npm run verify:market-ready` es real druckt. Bedingungen:
@@ -143,30 +195,39 @@ Der Marker lautet `hosted_semantic_vector_search_cloudflare_vectorize_roundtrip_
 Die lexikalische D1-Persistenz wurde nicht doppelt gezählt. Manifest- und O5-Fokustest sind grün;
 der verpflichtende Gesamtlauf ist der Abschluss dieses Slices.
 
-### Schritt 3 — O4 abschließen (`live_agent_tool_writes` + `live_mcp_writes`)
-Owner-Freigabe liegt vor (`owner-input-manifest.json` → `actions[O4].owner_scope_decision`,
-`decision: approved_as_proposed`). **Offen ist reine Codex-Arbeit:**
-1. Gebundenen Live-Write-Verifier bauen — Muster: `verify-live-vector-memory-search.ps1`
-   (zweistufig: fehlende Voraussetzung = `blocked`/Exit 0, inkohärenter Anspruch = Exit 1).
-2. Grenzen aus der Owner-Entscheidung **hart** durchsetzen: nur dieses Repo, nur der aktive
-   Arbeitsbranch, Filesystem nur innerhalb des Working-Tree, **niemals** `C:\Users\immer\.codex`,
-   **niemals** `<SECRETS_DIR>`.
-3. Audit fail-closed: Write ohne persistierten Audit-Eintrag gilt als **fehlgeschlagen** und wird
-   zurückgerollt (gleiches Muster wie Auth-Credential-Ausgabe).
-4. Gates **ausschließlich** über `npm run verify:runtime` + `npm run verify:browser` öffnen.
+### Schritt 3 — ✅ O4 ABGESCHLOSSEN
+Beide Gates verifier-geöffnet, Agent Pool 69 → 100. Details in §2.6.
+**Achtung:** `layer_5` und `phase_6` haben aus O4 bewusst **0 Credit** — siehe §1.4.
 
-### Schritt 4 — P3 44 → höher (`production_auth_identity`, O1)
+### Schritt 4 — P3 44 → höher (`production_auth_identity`, O1) · **OWNER**
 Konfiguration ist erledigt (Compose-Verdrahtung + `JWT_SIGNING_SECRET`), lokal `verified_dev_only`.
 **Für das Gate fehlt ein hosted Nachweis.** Der interaktive GitHub-Zustimmungsklick ist eine
 **echte Owner-Wand** — nicht umgehen. Prüfen, welcher Teil ohne diesen Klick hosted beweisbar ist
 (Konfigurationspräsenz, Fail-closed-Verhalten) und nur diesen gutschreiben.
 
-### Schritt 5 — P5/P6 Restzellen
-Ehrlich prüfen, welche Marker **noch nicht** gutgeschrieben und **live beweisbar** sind.
-`phase6_scale_runtime` braucht Zahlung ⇒ **bleibt zu**, Local-Load-Test ist Overclaim.
+### Schritt 5 — P6 · **ZAHLUNG**
+`phase6_scale_runtime` braucht Zahlung ⇒ **bleibt zu**. Local-Load-Test ist Overclaim.
+Eine der vier Wände.
 
-### Schritt 6 — O3 GHCR (**ZULETZT**)
+### Schritt 6 — P5 / O3 GHCR · **OWNER, ZULETZT**
 Laut Owner-Matrix `codex_boundary` erst **nach** `MARKET_READY: true`. Owner-Aktion.
+
+---
+
+## 3.1 🛑 EHRLICHER GESAMTBEFUND: DIE AUTONOME FLÄCHE IST ERSCHÖPFT
+Stand 2026-07-31 ist **jede** Zelle unter 100 aus genau einem von zwei Gründen offen:
+
+| Zelle | Grund | autonom lösbar? |
+|---|---|---|
+| P3 44 | `production_auth_identity` — OAuth-Klick | ❌ Owner-Wand |
+| P5 68 | `docker_registry_publish` — GHCR | ❌ Owner, erst nach MARKET_READY |
+| P6 90 | `phase6_scale_runtime` — Zahlung | ❌ eine der vier Wände |
+| L4 55 | O6 `percentage_credit = 0`, verifier-geprüft | ❌ bewusst null-kreditiert |
+| L5 56 | O4 `credit.layer_5 = 0`, **zweifach** verifier-geprüft | ❌ bewusst null-kreditiert |
+
+**Es existiert derzeit keine Zelle, die ein Agent ohne Owner-Handlung ehrlich anheben könnte.**
+Wer trotzdem eine Zahl erhöht, fälscht — und bricht dabei nachweislich Verifier.
+Die nächste echte Arbeit beginnt erst **nach einer Owner-Entscheidung zu O1 oder O3.**
 
 ---
 
