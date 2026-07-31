@@ -37,7 +37,8 @@ regexes = [
   '''change-me-too''',
   '''PLACEHOLDER''',
   '''YOUR_KEY_HERE''',
-  '''example\.invalid'''
+  '''example\.invalid''',
+  '''hf_router_snapshot_for_gateway_mode'''
 ]
 paths = [
   '''\.env\.example$'''
