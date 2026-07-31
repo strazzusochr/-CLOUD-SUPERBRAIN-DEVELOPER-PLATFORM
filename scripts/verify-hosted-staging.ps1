@@ -1577,8 +1577,8 @@ Assert-True "external gates status follows canonical summary" ([string]$external
 Assert-True "external gates verified count follows canonical summary" ([int]$externalGatesJson.verified_count -eq $expectedExternalVerifiedCount)
 Assert-True "external gates canonical summary status" ([string]$externalGatesJson.canonical_summary_status -eq [string]$canonicalExternalGateSummary.status)
 Assert-ArrayEquivalent "external gates release blocker parity" @($externalGatesJson.blocked_release_gates) $expectedBlockedExternalGates
-$expectedMissingConfiguredGateIds = @($externalGatesJson.gates | Where-Object { -not [bool]$_.configured } | ForEach-Object { [string]$_.id })
-Assert-ArrayEquivalent "project progress completion missing external gate parity" @($projectProgressCompletionJson.missing_external_gates) $expectedMissingConfiguredGateIds
+$expectedMissingVerifiedGateIds = @($externalGatesJson.gates | Where-Object { -not [bool]$_.verified } | ForEach-Object { [string]$_.id })
+Assert-ArrayEquivalent "project progress completion missing external gate parity" @($projectProgressCompletionJson.missing_external_gates) $expectedMissingVerifiedGateIds
 $externalGateMirror = Invoke-Text "$BaseUrl/api/v1/external-gates/mirror"
 $externalGateMirrorJson = $externalGateMirror | ConvertFrom-Json
 Assert-Contains "external gate mirror contract" $externalGateMirror '"contract_version":"external-gate-mirror-v1"'
