@@ -43,6 +43,21 @@ try {
   Assert-True "candidate source commit exists" ($LASTEXITCODE -eq 0)
   git merge-base --is-ancestor $candidateSourceSha HEAD 2>$null
   Assert-True "candidate source is an ancestor of HEAD" ($LASTEXITCODE -eq 0)
+
+  $sourceManifestText = (& git show "${candidateSourceSha}:docs/project-progress.manifest.json" 2>$null | Out-String)
+  Assert-True "candidate source manifest readable" ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($sourceManifestText))
+  $sourceManifest = $sourceManifestText | ConvertFrom-Json
+  $sourcePhase5Items = @($sourceManifest.horizontal.items | Where-Object { $_.id -eq "phase_5" })
+  Assert-Equal "candidate source phase_5 item count" $sourcePhase5Items.Count 1
+  $sourcePhase5 = [int]$sourcePhase5Items[0].percent
+  Assert-True "candidate source phase_5 percent" ($sourcePhase5 -ge 0 -and $sourcePhase5 -le 100)
+
+  $currentManifest = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
+  $currentPhase5Items = @($currentManifest.horizontal.items | Where-Object { $_.id -eq "phase_5" })
+  Assert-Equal "current phase_5 item count" $currentPhase5Items.Count 1
+  $currentPhase5 = [int]$currentPhase5Items[0].percent
+  Assert-True "current phase_5 percent" ($currentPhase5 -ge 0 -and $currentPhase5 -le 100)
+
   $runtimeSourcePaths = @(
     ".dockerignore",
     "apps/frontend",
@@ -62,7 +77,10 @@ try {
     "apps/frontend/lib/platform.ts",
     "docs/project-progress.manifest.json"
   )
-  $runtimeDiffArgs = @("diff", "--name-only", "--diff-filter=ACMRTUXB", "$candidateSourceSha..HEAD", "--") + $runtimeSourcePaths
+  # Compare the candidate tree with the index. In a clean checkout the index is
+  # HEAD; before commit it also includes only the explicitly staged truth slice,
+  # while unrelated unstaged build artifacts remain outside qualification truth.
+  $runtimeDiffArgs = @("diff", "--cached", "--name-only", "--diff-filter=ACDMRTUXB", $candidateSourceSha, "--") + $runtimeSourcePaths
   $runtimeChangedPaths = @(& git @runtimeDiffArgs | ForEach-Object { ([string]$_).Trim().Replace("\", "/") } | Where-Object { $_ })
   Assert-True "candidate runtime diff readable" ($LASTEXITCODE -eq 0)
   $runtimeSourceMatchesHead = $runtimeChangedPaths.Count -eq 0
@@ -72,20 +90,14 @@ try {
     $missingTruthPaths = @($qualificationTruthPaths | Where-Object { $runtimeChangedPaths -notcontains $_ })
     if ($unexpectedRuntimePaths.Count -eq 0 -and $missingTruthPaths.Count -eq 0) {
       $itemization = Get-Content "docs\runtime-state\phase5-credit-itemization.json" -Raw | ConvertFrom-Json
-      $sourceManifestText = (& git show "${candidateSourceSha}:docs/project-progress.manifest.json" 2>$null | Out-String)
-      Assert-True "candidate source manifest readable" ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($sourceManifestText))
-      $sourceManifest = $sourceManifestText | ConvertFrom-Json
-      $currentManifestForParity = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
-      $sourcePhase5ForParity = [int](($sourceManifest.horizontal.items | Where-Object { $_.id -eq "phase_5" }).percent)
-      $currentPhase5ForParity = [int](($currentManifestForParity.horizontal.items | Where-Object { $_.id -eq "phase_5" }).percent)
       $legacyPhase5ForParity = [int]$itemization.legacy_gap_reconstruction.recorded_percent
       $qualifiedPhase5ForParity = [int]$itemization.current_score.computed_percent
       $qualificationTruthTransition = (
         [string]$itemization.mode -eq "fully_itemized" -and
         -not [bool]$itemization.credit_blocked_until_candidate_qualified -and
-        $sourcePhase5ForParity -eq $legacyPhase5ForParity -and
-        $currentPhase5ForParity -eq $qualifiedPhase5ForParity -and
-        ([int]$currentManifestForParity.overall_percent - [int]$sourceManifest.overall_percent) -eq [int](($qualifiedPhase5ForParity - $legacyPhase5ForParity) / 7)
+        $sourcePhase5 -eq $legacyPhase5ForParity -and
+        $currentPhase5 -eq $qualifiedPhase5ForParity -and
+        ([int]$currentManifest.overall_percent - [int]$sourceManifest.overall_percent) -eq [int](($qualifiedPhase5ForParity - $legacyPhase5ForParity) / 7)
       )
     }
   }
@@ -133,10 +145,8 @@ try {
   Assert-Equal "report source boundary" $report.source_boundary "committed_git_archive_only"
   Assert-True "archive hash" ([string]$report.git_archive_sha256 -match '^[0-9a-f]{64}$')
   Assert-Equal "service count" ([int]$report.service_count) 6
-  $manifest = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
-  $currentPhase5 = [int](($manifest.horizontal.items | Where-Object { $_.id -eq "phase_5" }).percent)
-  Assert-Equal "report phase before" ([int]$report.phase5_progress_before_proof) $currentPhase5
-  Assert-Equal "report phase after" ([int]$report.phase5_progress_after_proof) $currentPhase5
+  Assert-Equal "report phase before" ([int]$report.phase5_progress_before_proof) $sourcePhase5
+  Assert-Equal "report phase after" ([int]$report.phase5_progress_after_proof) $sourcePhase5
   Assert-Equal "report progress credit" ([bool]$report.progress_credit_claimed) $false
   Assert-True "candidate rollback target" ($candidate -match '(?m)^rollback_target_commit_sha:\s*`([0-9a-f]{40})`\s*$')
   $candidateRollbackTarget = $Matches[1]
@@ -194,12 +204,13 @@ try {
     status = "verified"
     verification_scope = $(if ($SkipBrowser) { "runtime_without_browser" } else { "full_with_browser" })
     generated_at = (Get-Date).ToUniversalTime().ToString("o")
+    release_id = [string]$report.release_id
     source_commit_sha = $report.source_commit_sha
     service_count = 6
     api_contract_verified = $true
     local_image_identity_verified = $true
     embedded_source_hash_parity_verified = $true
-    candidate_runtime_source_parity_verified = $true
+    candidate_runtime_source_parity_verified = [bool]$runtimeSourceParityVerified
     rollback_target = $candidateRollbackTarget
     browser_click_verified = (-not $SkipBrowser)
     registry_publish = $false
@@ -211,7 +222,7 @@ try {
   New-Item -ItemType Directory -Force -Path $ArtifactDir | Out-Null
   $verificationFile = if ($SkipBrowser) { "verification-runtime.json" } else { "verification.json" }
   $verification | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $ArtifactDir $verificationFile) -Encoding utf8
-  Write-Host "[phase5-candidate-local] status=verified service_count=6 source_parity=true progress_credit=false browser_click_verified=$(-not $SkipBrowser) artifact=$verificationFile"
+  Write-Host "[phase5-candidate-local] status=verified service_count=6 source_parity=$($runtimeSourceParityVerified.ToString().ToLowerInvariant()) progress_credit=false browser_click_verified=$(-not $SkipBrowser) artifact=$verificationFile"
 } finally {
   Pop-Location
 }

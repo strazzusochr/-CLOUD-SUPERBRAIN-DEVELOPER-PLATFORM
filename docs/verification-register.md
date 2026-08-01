@@ -1,26 +1,42 @@
 # Verification Register - PATCHED
 
-Stand: 2026-07-31
+Stand: 2026-08-01
 Status: Active
 
 ## Current Progress Authority
 
-Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `86%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `68%`, Phase 6 `90%`, Frontend `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
+Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
+
+## Current RC11 Local Qualification Evidence
+
+Recorded 2026-08-01. Active candidate `prod-candidate-2026-07-31-local-rc11`
+is bound to committed source `bae3cdc1692e1e99e7f546f72664a3c747958b8c`.
+GitHub Actions `pr-check` run `30686367636` passed for that source. Five
+independent chains passed with real evidence hashes and success anchors:
+`runtime`, `browser`, `candidate_images`, `candidate_runtime`, and `security`.
+The readiness contract is `verified_with_owner_blocks` and the itemization derives
+`17/19 = 89%`, raising P5 to `89%` and Overall to `89%`.
+
+The two unverified readiness items are exactly I1 `hosted_candidate_parity` and I5
+`production_auth_identity`; both are `OWNER-BLOCKED`. The five local chains are
+`DEV-ONLY; hosted proof still blocked`. `MARKET_READY:false` remains correct. No
+GHCR publication, production deployment, release promotion, default-branch write,
+or secret output is claimed.
 
 ## Current O4 Bounded Agent/MCP Write Evidence
 
-Recorded 2026-07-31. `o4-live-agent-mcp-write-proof-v1` binds the approved
+Revalidated 2026-08-01. `o4-live-agent-mcp-write-proof-v1` binds the approved
 DEV-ONLY Agent-to-MCP filesystem write path to source
-`d314e9969ca93b243e147bb10236a813cae6d355`, the active branch, and the project
+`bae3cdc1692e1e99e7f546f72664a3c747958b8c`, the active branch, and the project
 root. Runtime and browser verification prove branch-protection readback,
 persisted audit before and after the write, exact readback, and rollback when
 audit persistence fails. Evidence `.phase1-artifacts/o4-live-writes/proof.json`
 has SHA-256
-`15D802A79ABCCA5B2425A19B15329A22DEAB5AB67D0F6853167D007CC1157269`.
+`50304C69B3D748C95804C4C72C2970694748F469AE322D5C24DAA6BCB545B11B`.
 Both O4 capability gates are verifier-opened and O4 is `resolved_verified`.
 The unique marker `bounded_live_agent_mcp_write_audit_verified` credits only
 Agent Pool `69% -> 100%`; MCP Gateway and Phase 6 receive no duplicate credit.
-Overall remains `86%`. No main, registry, provider, release, production,
+Overall is `89%` after the independent RC11 P5 qualification. No main, registry, provider, release, production,
 payment, or secret write is claimed.
 
 ## Current Hosted Source Rebinding
@@ -152,7 +168,7 @@ apart (D1 re-seeded 2026-07-30, browser artefact from 2026-07-25) and were
 resynchronised; the chain reports `new_provider_calls=0`, so no percentage credit
 arises from it.
 
-## Current Session-12 Hosted Product And 22-Page Acceptance
+## Historical Session-12 Hosted Product And 22-Page Acceptance
 
 The source-bound hosted product proof
 `.codex/runs/CURRENT/master-goal/t5/product-acceptance-hosted-v5/report.json`
@@ -190,7 +206,7 @@ report. No percentage credit is added: Overall remains `86%` and
 `MARKET_READY:false` because the below-100 matrix cells and their Owner/release
 gates remain open.
 
-## Current Session-12 Cloudflare O2Core Hosted Runtime
+## Historical Session-12 Cloudflare O2Core Hosted Runtime
 
 The source-bound Cloudflare Worker at
 `https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev` passed the
@@ -221,7 +237,7 @@ green. Branch protection and GHCR digest publication remain open, so
 22-page proofs are recorded in the preceding section. No percentage credit;
 `MARKET_READY:false`.
 
-## Current Session-11 Technology Runtime Contract Binding
+## Historical Session-11 Technology Runtime Contract Binding
 
 `/technology` no longer renders a static stack claim. `TechnologyRuntimeView`
 reads exactly three canonical read-only contracts — `GET /api/v1/clouds`
@@ -303,7 +319,7 @@ and must be rerun when Docker is available. No progress credit: Overall
 remains `86%`, Phase 3 remains `44%`, `MARKET_READY:false`; DEV-ONLY, hosted
 proof still blocked.
 
-## Current Session-11 Organism Topology Map Binding
+## Historical Session-11 Organism Topology Map Binding
 
 `/organism/map` now mounts a dedicated client for same-origin
 `GET /api/v1/organism/topology` instead of reusing the Phase-6 `OrganismView`.
@@ -334,7 +350,7 @@ agent, tool, provider, or hosted telemetry is bound. Overall remains `86%`,
 Phase 3 remains `44%`, `MARKET_READY:false`; DEV-ONLY, hosted proof still
 blocked.
 
-## Current Session-10 Product And Action Acceptance
+## Historical Session-10 Product And Action Acceptance
 
 `product-acceptance-3d-game-v1` passed in real Chromium against the local
 DEV-only control plane. One visible Workbench build created persisted build
@@ -432,7 +448,7 @@ of the current binding, resource plan or hosted verifier.
 The v2 rebase below now replaces every active Fly projection atomically; Fly remains only
 RC10 historical provenance. DEV-ONLY; hosted proof still blocked.
 
-## Current P5 Cloudflare-Native Gate Rebase
+## Historical Pre-RC11 P5 Cloudflare-Native Gate Rebase
 
 `external-gate-audit-v2` is the tracked canonical audit at
 `docs/runtime-state/external-gate-audit-v2.json`; SHA-256
@@ -464,7 +480,7 @@ real mobile `/tools` readiness-row overflow; the responsive grid was bounded and
 `44/44` proof then passed with zero overflow. Hosted proof remains blocked; Overall stays
 `86%` and `MARKET_READY:false`.
 
-## Current Free-Hardening Evidence
+## Historical Pre-RC11 Free-Hardening Evidence
 
 `session8-free-supply-chain-error-redaction-v1` pins all `17` external GitHub Action references to `11` current verified 40-character commits and all `18` tracked external image occurrences to `9` registry-manifest digests. `scripts/verify-supply-chain-pins.ps1` dynamically discovers all tracked `.github` YAMLs, Dockerfiles, and root Compose files; it enforces the exact Action SHA/tag-comment map, external `tag@sha256` map, occurrence counts, and exactly six allowlisted internal GHCR release-selector references. It is wired into `npm run verify`. The `_manus_audit` high/medium list contained `12` candidates: `11` were false positives after source-context review; one prompt persistence path was reclassified as `CWE-209` because it returned the raw exception. The response now exposes only `session persistence failed`, and a sentinel connection-string regression proves the actual error envelope omits the internal value. Backend security tests passed `20/20`. A newly published PostCSS path-traversal advisory was closed by replacing the exact `8.5.12` override with fixed `8.5.23`; npm audit reports zero vulnerabilities. Focused verification, both Compose configs, `npm run verify`, `npm run verify:runtime`, and `npm run verify:browser` passed serially on source `2ae4c61aa876759abcaa83c36c0a3379206b91a4`; Docker is `10/10 healthy`, responsive proof is `22x2=44`, responsive report SHA-256 `BADE51DD5E640085106D8F173A67B725789EE996C2644AB9554C59BA759C2CEE`, reference-design report SHA-256 `E66F3CAEC041787834A33D6428F1511916B806C4576BCE20FC12D98FCE513C3A`. The source is committed and pushed. No new rubric marker is credited; Overall remains `86%`, MARKET_READY remains false. Its then-current O1-O6 statement is superseded by the current O1-O5 plus resolved-O6 matrix. DEV-ONLY; hosted proof still blocked.
 
@@ -477,7 +493,7 @@ Latest external audit truth: `docs/runtime-state/external-gate-audit-v2.json` is
 `ghcr_image_digest_verify`. Cloudflare O2Core and Branch Protection are verifier-open.
 RC10/Fly-v1 and the token/origin-injected
 `125413` run are explicit historical, non-current evidence. This does not claim a
-full-platform production rollout or release promotion; current manifest progress is `86%`.
+full-platform production rollout or release promotion; current manifest progress is `89%`.
 
 ## Current R0 Runtime Truth Evidence
 
@@ -495,20 +511,14 @@ historical and superseded by the current Agent Pool `100%` authority above.
 
 `agent-pool-autonomous-runtime-ui-parity-v1` binds the canonical `/agents` SSR surface to three exact runtime contracts: `autonomous-agent-roster-v1`, `autonomous-master-plan-v1`, and `autonomous-coding-team-v1`. Strict parsers reject drift in contract version, source document, runtime source, evidence reference, binding/integrity state, roster composition, phases/layers, role mappings, queue values, or dispatch identity. The rendered proof shows the persisted `14`-role roster, `7` phases, `7` layers, `5` operating-core roles, `3` dispatch endpoints, and one UUIDv4-bound five-member coding-team dispatch. `scripts/verify-autonomous-agent-roster.ps1`, `scripts/verify-autonomous-master-plan.ps1`, and `scripts/verify-autonomous-coding-team.ps1` compare the API envelopes with SSR attributes; the team verifier creates a dispatch first and then queries the same `dispatch_id`. Frontend lint, Next.js production build (`21/21`), `npm run verify`, `npm run verify:runtime`, and `npm run verify:browser` passed serially; Docker is `10/10 healthy`, responsive proof is `22` routes x `2` viewports = `44` clicks. The then-current PostCSS `8.5.12` override was later superseded by fixed `8.5.23`; current npm audit is zero. Runtime-log SHA-256: `B2C239B91BB9C41852A862EBEB3D8BAF12353E98330BA424A68A06EF8FE40541`; browser-log SHA-256: `CB720B156EB6248BB448181458CF569A1AA9D1A14013AE939275906BD5D644A5`. `autonomous_release_workflow_verified` means parser plus PlanOnly validation only; no workflow execution, push, publication, or release occurred. Persisted roster is not Codex Desktop task persistence, and local dispatch is not hosted rollout. No new unique rubric item is credited: Agent Pool remains `69%`, Overall `86%`. DEV-ONLY; hosted proof still blocked. `live_provider_calls=false`, `live_mcp_writes=false`, `model_downloads=false`, `production_deploy=false`, `production_rollout_claimed=false`, `secret_output=false`.
 
-## Current MARKET_READY Owner-Blocked Evidence
+## Current RC11 MARKET_READY Owner-Blocked Evidence
 
-`owner-input-manifest-v2` maps O1, O2' scale, and O3 as `owner_required`.
-O4 and O5 are `resolved_verified` with their bounded Agent-Pool/Memory slices;
-O6 is `resolved_verified` with `percentage_credit=0`. O2' targets
-`cloudflare_native_zero_card_hosted_runtime` with `payment_required=false`,
-`zero_card_required=true`, and `paid_fallback_allowed=false`. It validates the closed
-scale/write/auth/release gates while
-preserving the bounded gateway-only Workers AI proof. `verify-market-ready.ps1 -StaticOnly` reports
-`owner-input-matrix=PASS`, `autonomous-open-items=PASS`, five below-100 cells and
-production gates honestly blocked, audit-mode runtime skip,
-`OFFEN (Spur A - autonom fixbar): keine`, and
-`MARKET_READY:false`. No percentage, hosted capability, production claim or Owner approval is
-created.
+RC11 qualification is `verified_with_owner_blocks`: all five independent local
+verification chains passed and the evidence-derived P5 score is `89%`. I1
+`hosted_candidate_parity` and I5 `production_auth_identity` are the two remaining
+readiness items and both require Owner action. `MARKET_READY:false` remains fail-closed.
+No GHCR publication, production deployment, release promotion, production-auth claim,
+or Owner approval is created by the local qualification.
 
 ## Current Phase 2 Checkpoint Recovery Evidence
 
@@ -544,7 +554,7 @@ created.
 
 `backend-hosted-current-proof-v1` binds Vercel Production deployment `dpl_AQaBJxdQwHLcQKid8xYXkNJ3wva2` to the same source and archive hash. `scripts/verify-backend-hosted-current.ps1` checks authenticated read-only Vercel metadata for READY state, target `production`, Alias assignment, and exact source/archive metadata. The immutable URL remains protected, while public Alias reads prove external gates `5/6 action_required`, summary `blocked`, only blocker `fly_cloud_stack`, MCP/LLM `healthy`, expected stateless Agent API `degraded`, and mutation-shaped HTTP 503 with `stateless_contract_origin_read_only`. Evidence: `.codex/runs/CURRENT/master-goal/production/t1-21913f8c/backend-verification.json`. This scoped operational deployment does not prove the stateful Docker backend, persistent workers, registry publication, release-candidate promotion, or a full-platform production release.
 
-## Current Phase 5 Local Candidate Evidence
+## Historical RC10 Phase 5 Local Candidate Evidence
 
 `phase5-production-candidate-local-v1` is verified for active candidate `prod-candidate-2026-07-24-local-rc10` and pushed PostCSS-fixed source commit `2ae4c61aa876759abcaa83c36c0a3379206b91a4`. Six production targets were built only from the committed Git archive with SHA-256 `acddf0e7bacd117e4796d618722a4daede9ed84f5813045c2c58afd727f1ebd1`. The proof records local Docker image IDs, OCI labels, embedded source hash parity, Frontend `BUILD_ID` `K1RYRyr2WuLFjXFPVnOfu`, committed runtime-source parity and RC9 source rollback target `0cbe644c84812bbe72811516d58a70be8c27ffa5`, then rechecks the read-only API contract and a real Diagnostics Chromium click. Runtime-only checks write `verification-runtime.json` without replacing full `verification.json`; the hosted boundary distinguishes its source-bound `overall=84` snapshot from current local truth `overall=86` while promotion remains false under the blocked canonical summary. Evidence is under `.codex/runs/CURRENT/master-goal/phase5/production-candidate-local`; candidate report SHA-256 is `F6DB74228773767857E301FE7A7E90C4B0D8FA5FA12E395C506EA6EE778C0078` and full verification SHA-256 is `75B226536EDCDB8DB68E4B4B036E6B6BDF4BA73DBC0796F273F86C078725691B`. `npm run verify:current-release-candidate` reports `candidate_technical=true`, `runtime_source_parity=true`, `promotion_eligible=false`, canonical `blocked`. Phase 5 remains `68%`; Overall remains `86%`. DEV-ONLY; hosted proof still blocked. No GHCR publication, Owner approval, deployment, release promotion, or production claim.
 
@@ -1041,8 +1051,15 @@ The current-candidate hosted-boundary verifier is deterministic under stale loca
 
 ## Current Next Verification
 
-Current verified progress is total `86%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `68%`, and Phase 6 `90%`.
-Current vertical layer snapshot is Frontend `100%`, Orchestrator `100%`, Agent Pool `69%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
+Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, and Phase 6 `90%`.
+Current vertical layer snapshot is Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
+
+Next safe verification is the serial full truth-suite after the RC11 mirrors are synchronized,
+followed by exact staging, branch commit/push, and CI. The remaining capability work starts only
+after explicit Owner input for I1 hosted candidate parity or I5 production authentication. No
+GHCR publish, deploy, or promotion is part of that verification step.
+
+The dated evidence bullets below are historical milestone references, not current progress claims.
 
 - Current hosted MCP read-only contract parity: `mcp-hosted-current-readonly-v1` binds the public Vercel Contract Origin to deployment `dpl_AQaBJxdQwHLcQKid8xYXkNJ3wva2`, source `21913f8c3ef13949ca962980c143e757ca87a7cc`, the recorded backend verification artifact, and blob-identical current MCP deployment sources. Public HTTPS GET returned HTTP `200` for MCP health, the GitHub/PostgreSQL/Filesystem/Playwright/E2B dry-run contracts, exact version pinning, and the MCP audit contract. Evidence `.codex/runs/CURRENT/mcp-gateway/hosted-readonly-contract/report.json` has SHA-256 `67281BB2B9CE8A411D88954D7604D9205E13726644FDA21BA0DE5673A596D15C`. This credits `mcp_current_hosted_readonly_contract_parity_verified`, raising MCP Gateway `55% -> 56%`; Overall remains `86%`. Non-claims: no token, MCP execution, audit write, provider write, stateful backend, release, or production claim.
 

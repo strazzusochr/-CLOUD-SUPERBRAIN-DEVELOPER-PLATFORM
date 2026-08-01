@@ -1,14 +1,14 @@
 {
   "contract_version": "phase5-credit-itemization-v2",
-  "mode": "legacy_reconstruction",
-  "credit_blocked_until_candidate_qualified": true,
+  "mode": "fully_itemized",
+  "credit_blocked_until_candidate_qualified": false,
   "cell_id": "phase_5",
-  "updated_at_utc": "2026-07-31T12:00:00Z",
+  "updated_at_utc": "2026-08-01T08:21:37Z",
   "checklist_path": "docs/release-checklist.md",
   "rubric": "phase5-release-readiness-19-v2",
   "scoring_rule": "Each of the 19 JA/NEIN items is one equal binary unit. computed_percent = round(verified_item_count / 19 * 100). NEIN receives no partial credit.",
   "active_release_id": "prod-candidate-2026-07-31-local-rc11",
-  "active_source_commit_sha": "e2c77d88ffd9f1e6dc7d8fdeb1055ea035c13172",
+  "active_source_commit_sha": "bae3cdc1692e1e99e7f546f72664a3c747958b8c",
   "legacy_gap_reconstruction": {
     "recorded_percent": 68,
     "total_item_count": 19,
@@ -86,12 +86,12 @@
         {
           "path": "AI_HANDOFF.md",
           "claim": "Current handoff mirrors the canonical Phase-5 and overall values.",
-          "anchor": "Overall remains `86%`"
+          "anchor": "Overall: `89%`"
         },
         {
           "path": "docs/verification-register.md",
           "claim": "The evidence register records the audit, score, and verifier result.",
-          "anchor": "Current verified progress is total `86%`"
+          "anchor": "Current verified progress is total `89%`"
         }
       ]
     },
@@ -110,7 +110,7 @@
         {
           "path": "scripts/verify-current-release-candidate.ps1",
           "claim": "The current-candidate verifier fails closed on committed runtime-source drift.",
-          "anchor": "active release candidate has committed runtime-source drift from HEAD"
+          "anchor": "active release candidate has committed or staged runtime-source drift outside the exact truth transition"
         }
       ]
     },

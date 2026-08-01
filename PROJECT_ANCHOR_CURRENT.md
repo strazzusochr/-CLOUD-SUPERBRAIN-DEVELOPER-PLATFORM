@@ -1,51 +1,35 @@
 # Cloud Superbrain Project Anchor
 
-## ⚓ CHECKPOINT 2026-08-01 — SESSION 13h (NEUESTER REFERENZPUNKT)
+## ⚓ CHECKPOINT 2026-08-01 — SESSION 13i (NEUESTER REFERENZPUNKT)
 
-**Anchor ID:** `cloud-superbrain-anchor-2026-08-01-session13h-live-path-restored`
+**Anchor ID:** `cloud-superbrain-anchor-2026-08-01-session13i-rc11-local-qualified`
 **Status:** `ACTIVE_RESUME_POINT`
 **Workspace:** `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM` (Hauptordner!)
-**Branch:** `claude/cloud-superbrain-analysis-127d2e` · **HEAD = origin = `05a7f00b`**
+**Branch:** `claude/cloud-superbrain-analysis-127d2e` · **HEAD = origin = `bae3cdc1692e1e99e7f546f72664a3c747958b8c`**
 
 ### AKTUELLER STAND (gemessen)
 | Gegenstand | Ergebnis |
 |---|---|
-| `npm run verify` (Static + Gitleaks) | ✅ **exit 0**, no leaks |
-| `npm run verify:runtime` | ✅ PASS, 10/10 healthy |
-| `npm run verify:product-acceptance` | ✅ **PASS** — echter Workers-AI-Call, Build `bce23bcd`, 45,5 s |
-| `npm run verify:browser` | ❌ **exit 1** — genau **ein** Test rot (Phase-6 Kamera/Licht) |
-| Security-Kette | ✅ `npm audit` 0 · kanonischer Gitleaks 0 |
-| Kandidat RC11 Images / Runtime | ✅ 6/6 `verified`, source `05a7f00b` |
-| Manifest | Overall **86** · P5 **68** · `MARKET_READY:false` |
-| Itemisierung | `mode=legacy_reconstruction`, `credit_blocked_until_candidate_qualified=true` |
+| Source / CI | ✅ `bae3cdc1692e1e99e7f546f72664a3c747958b8c` · `pr-check` Run `30686367636` success |
+| RC11-Qualifikationsketten | ✅ 5/5: Runtime · Browser · Images · Candidate-Runtime · Security |
+| Kandidat RC11 | ✅ `prod-candidate-2026-07-31-local-rc11`, 6/6 Images/Services source-bound |
+| O4 Proof | ✅ SHA-256 `50304C69B3D748C95804C4C72C2970694748F469AE322D5C24DAA6BCB545B11B` |
+| Manifest-Wahrheit | Overall **89** · P5 **89** · `MARKET_READY:false` |
+| Itemisierung | ✅ `17/19`, `fully_itemized`; I1 + I5 `OWNER-BLOCKED` |
+| Scope | `DEV-ONLY; hosted proof still blocked` |
 
 ### NÄCHSTER SCHRITT (exakt, in dieser Reihenfolge)
-1. **Kamera-Test reparieren** — `apps/frontend/e2e/organism.spec.ts:428` ff.
-   Fehlerbild: `expect(locator('.cortex-wrap[data-camera-lighting-local-only="true"]')).toBeVisible()`
-   → `element(s) not found`, Timeout 30 s.
-   **Verdacht (belegt durch Zeile 458):** `await page.waitForLoadState("networkidle")` **nach**
-   Playwright-Clock-Pause. Bei eingefrorenen Timern kann `networkidle` nie eintreten.
-   → Ersetzen durch `domcontentloaded` + expliziten Sichtbarkeits-Wait (Repo-Praxis, gleicher Fix
-   wurde bereits bei `/login` angewandt).
-2. **`npm run verify:browser` komplett grün fahren**, Log nach
-   `.codex/runs/CURRENT/master-goal/phase5/rc11/browser.log`.
-3. **Fünf Qualifikationsketten eintragen** in
-   `docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-readiness.json`:
-   `runtime`, `browser`, `candidate_images`, `candidate_runtime`, `security` →
-   je `status:"passed"`, **echter** SHA-256 (Großbuchstaben-Hex) und `success_anchors`
-   (Text muss real in der Datei vorkommen — der Verifier liest die Bytes).
-   **Vier von fünf Belegdateien existieren bereits und sind bestanden; nur `browser.log` ist rot.**
-4. `readiness.status` → `verified_with_owner_blocks` (**erst danach**, nie vorher).
-5. `mode` → `fully_itemized`, P5 → **89**, Overall → **89**, **alle Spiegel im selben Slice**:
-   `docs/project-progress.manifest.json` · `apps/frontend/lib/platform.ts` ·
-   **Pin in `scripts/verify-phase1.ps1:571`** · `apps/frontend/lib/endpoint-snapshot.json` ·
-   `PROJECT_STATE.md`.
-6. Gesamtlauf `npm run verify` → commit → push.
+1. RC11-Wahrheit atomar in Manifest, Runtime-/Frontend-Spiegeln und aktuellen Dokumenten synchronisieren.
+2. Danach die vollständige Suite seriell mit `TEMP`/`TMP=D:\_sb_tmp` verifizieren; keine
+   parallelen Playwright-/Docker-/Verifier-Läufe.
+3. Nur den RC11-Truth-Slice explizit stagen, committen, auf den Arbeitsbranch pushen und CI abwarten.
+4. Anschließend an den echten Owner-Wänden stoppen: I1 `hosted_candidate_parity` und I5
+   `production_auth_identity`. Kein Registry-Push, Deploy oder Promotion ohne separates Gate.
 
 ### PROJEKTZIEL
 `npm run verify:market-ready` druckt real **`MARKET_READY: true`**.
 Rest ehrlich als **OWNER-BLOCKED** listen — **nie faken** (R0).
-Owner-Wände: **O1** GitHub-OAuth-Klick · **O3** GHCR (post-market) · Zahlung/Passwort/CAPTCHA/Secrets.
+Owner-Wände: **I1** Hosted-Candidate-Parität · **I5** Production-Auth-Identität.
 
 ### ⛔ WAS VERMIEDEN WERDEN MUSS (Fehler, Loops, Blocker, Hänger)
 1. **503 der Workbench ist KEIN Defekt.** Compose ist bewusst fail-closed
@@ -55,10 +39,10 @@ Owner-Wände: **O1** GitHub-OAuth-Klick · **O3** GHCR (post-market) · Zahlung/
 2. **Kette nie ihre eigene Ausgabe als Eingabe verlangen lassen** (R-NEU-9). Genau das war der
    Deadlock: `local_verification.static` = `npm run verify`, geprüft *von* `npm run verify`.
    `static` ist deshalb bewusst **nicht mehr** Pflichteintrag — nicht wieder hinzufügen.
-3. **Zahlung öffnet nichts.** `O1/O2/O3.payment_required=false`; `verify-market-ready.ps1:298-305`
-   prüft das aktiv. Eine abgebildete Zahlung macht die Matrix **rot**. Kein Fly, kein R2, keine Karte.
-4. **Credit folgt dem Beweis, nie umgekehrt.** P5 bleibt 68, solange die fünf Ketten nicht
-   eingetragen sind. Handsetzen ist unmöglich: `verify_phase5_credit_itemization.py:325` bindet
+3. **Zahlung öffnet nichts.** Kein Fly, kein R2, keine Karte; I1 und I5 brauchen Beweis und
+   Owner-Freigabe, keine erfundene Zahlungsprojektion.
+4. **Credit folgt dem Beweis, nie umgekehrt.** P5 ist wegen der fünf bestandenen Ketten `89`;
+   I1 und I5 bleiben offen. Handsetzen bleibt unzulässig: der Itemization-Verifier bindet
    `manifest phase_5 == computed_percent`.
 5. **L4 (55) und L5 (56) nicht anfassen** — bewusst null-kreditiert, von zwei Verifiern geprüft.
 6. **Nur im Hauptordner arbeiten.** Es gibt **5 Worktrees** desselben Repos;
@@ -87,7 +71,7 @@ Owner-Wände: **O1** GitHub-OAuth-Klick · **O3** GHCR (post-market) · Zahlung/
 
 Anchor ID: `cloud-superbrain-anchor-2026-07-30-hosted-product-matrix-v2`
 
-Status: `ACTIVE_RESUME_POINT`
+Status: `HISTORICAL_RESUME_POINT`
 
 Workspace: `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
 
@@ -117,7 +101,7 @@ not a progress authority.
 5. Inspect `git status --short`; preserve every foreign dirty file.
 6. Continue at the exact next step below. Do not restart the project or overwrite foreign work.
 
-## Current Canonical Progress
+## Historical Session-12 Canonical Progress
 
 - Overall: `86%`
 - Horizontal: `P0 100 | P1 100 | P2 100 | P3 44 | P4 100 | P5 68 | P6 90`
@@ -179,7 +163,7 @@ not a progress authority.
   reports zero vulnerabilities.
 - Fresh runtime cloud read without Owner inputs remained `5/8` providers and `4/7` layers.
 
-## Exact Next Step
+## Historical Session-12 Next Step
 
 1. Run `npm run verify:market-ready:static` after any truth-file change; it must validate the
    exact hosted product/matrix paths and hashes while still returning
@@ -200,7 +184,7 @@ Canonical v2 evidence:
 - Active external blocker: `ghcr_image_digest_verify`
 - Fly/RC10-v1: `historical_only`
 
-## Current Candidate
+## Historical RC10 Candidate
 
 - Release: `prod-candidate-2026-07-24-local-rc10`
 - Source: `2ae4c61aa876759abcaa83c36c0a3379206b91a4`

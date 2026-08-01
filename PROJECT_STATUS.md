@@ -1,41 +1,38 @@
 # Project Status
 
-Updated: 2026-07-31
+Updated: 2026-08-01
 
-- Overall: `86%`.
-- Horizontal: P0 100, P1 100, P2 100, P3 44, P4 100, P5 68, P6 90.
+- Overall: `89%`.
+- Horizontal: P0 100, P1 100, P2 100, P3 44, P4 100, P5 89, P6 90.
 - Vertical: Frontend 100, Orchestrator 100, Agent Pool 100, LLM Gateway 55,
   MCP Gateway 56, Memory 100, Observability 100.
 - Canonical source: `docs/project-progress.manifest.json`.
 - `MARKET_READY=false`.
+- RC11 source: `bae3cdc1692e1e99e7f546f72664a3c747958b8c`.
+- CI: `pr-check` run `30686367636`, `success`.
 
-## Current external truth
+## Current RC11 truth
 
-- Audit: `docs/runtime-state/external-gate-audit-v2.json`.
-- Summary: `docs/runtime-state/external-gate-summary.json`
-  (`external-gate-summary-v2`).
-- Status: `blocked`.
-- Sole active external blocker:
-  `ghcr_image_digest_verify`.
-- Branch protection is read-only verified on the real default branch.
-- Cloudflare O2Core and O5 Vectorize are verifier-opened; R2 remains unbound.
-- Fly.io is `historical_only`.
+- Candidate: `prod-candidate-2026-07-31-local-rc11`.
+- Readiness: `verified_with_owner_blocks`, `17/19`.
+- Five independent chains passed: runtime, browser, candidate images,
+  candidate runtime, and security.
+- O4 proof SHA-256:
+  `50304C69B3D748C95804C4C72C2970694748F469AE322D5C24DAA6BCB545B11B`.
+- Scope: `DEV-ONLY; hosted proof still blocked`.
 - `production_deploy_claim_allowed=false`.
 
 ## Owner gates
 
-- O1, O2' scale, and O3: open.
-- O4: `resolved_verified`, Agent Pool `31%` credit from bounded audited writes.
-- O5: `resolved_verified`, final Memory `10%` credit without D1 double-credit.
-- O6: `resolved_verified`, zero percentage credit.
+- I1 `hosted_candidate_parity`: `OWNER-BLOCKED`.
+- I5 `production_auth_identity`: `OWNER-BLOCKED`.
 
 Exact actions and post-action verifiers:
 `docs/runtime-state/owner-input-manifest.json`.
 
 ## Boundary
 
-Local runtime and browser evidence remain `DEV-ONLY`. Hosted O2Core, product,
-22-page, semantic Vectorize, and bounded O4 Agent/MCP-write proofs are separately
-source/evidence-bound.
-No production deploy, registry push, default-branch write, scope expansion,
-payment, or secret output is authorized.
+All five RC11 qualification chains remain `DEV-ONLY`. They do not prove hosted
+candidate parity or production authentication. No production deploy, registry push,
+release promotion, default-branch write, scope expansion, payment, or secret output
+is authorized.

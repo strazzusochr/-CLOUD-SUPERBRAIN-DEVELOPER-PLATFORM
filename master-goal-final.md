@@ -1,10 +1,15 @@
 # Cloud Superbrain Master Goal — Autonomous Finish / Owner Blocked
 
-Stand: 2026-07-31
+Stand: 2026-08-01
 
 ## Urteil
 
 `MARKET_READY: false`
+
+RC11 ist lokal qualifiziert: fünf unabhängige Beweisketten sind bestanden, P5 und
+Overall stehen evidence-derived bei `89%`. I1 `hosted_candidate_parity` und I5
+`production_auth_identity` bleiben `OWNER-BLOCKED`. Das ist keine Release-, Deploy-
+oder Production-Auth-Freigabe.
 
 Session 9 setzte den Zielpfad auf eine kostenlose Cloudflare-native Runtime um.
 Der O2Core-Pfad, die Produkt-/22-Seiten-Abnahme und der semantische Vectorize-Roundtrip
@@ -12,7 +17,7 @@ sind source- bzw. evidence-gebunden gehostet bewiesen. Release- und Production-C
 bleiben bis zu ihren eigenen Gates geschlossen. Keine Zelle wird allein durch eine
 Architekturentscheidung aufgewertet.
 
-## Session-9-Architekturentscheidung
+## Historische Session-9-Architekturentscheidung
 
 **A — Cloudflare-native ist gewählt. B — Hugging Face/Supabase/Upstash ist verworfen.**
 
@@ -36,9 +41,9 @@ Die bindende Migrationsgrenze steht in
 
 ## Kanonischer Stand
 
-- Overall: `86%`
-- Horizontal: `P0 100 | P1 100 | P2 100 | P3 44 | P4 100 | P5 68 | P6 90`
-- Vertikal: `FE 100 | ORC 100 | AP 69 | LLM 55 | MCP 56 | MEM 100 | OBS 100`
+- Overall: `89%`
+- Horizontal: `P0 100 | P1 100 | P2 100 | P3 44 | P4 100 | P5 89 | P6 90`
+- Vertikal: `FE 100 | ORC 100 | AP 100 | LLM 55 | MCP 56 | MEM 100 | OBS 100`
 - Manifest: `docs/project-progress.manifest.json`
 - Externe Wahrheit: `external-gate-summary-v2`, `blocked`;
   `production_deploy_claim_allowed=false`
@@ -46,7 +51,7 @@ Die bindende Migrationsgrenze steht in
 - O2Core: `cloudflare_native_zero_card_hosted_runtime=true`
 - Aktiver Audit-Blocker: `ghcr_image_digest_verify`
 
-## Zero-Card-Adapter v2 (2026-07-30)
+## Historischer Zero-Card-Adapter v2 (2026-07-30)
 
 - `cloudflare-native-runtime-candidate-v2` mit LangGraph.js, custom D1 persistence,
   SQLite Durable Object, Queue und D1-Textartefaktadapter implementiert.
@@ -68,7 +73,7 @@ Die bindende Migrationsgrenze steht in
   `docs/runtime-state/cloudflare-native-hosted-current.json`.
 - Kein Prozentcredit; Produkt-Hosted-Proof und Hosted-22-Seiten-Lauf bleiben offen.
 
-## P5 v2 Lieferung
+## Historische P5-v2-Lieferung
 
 - Aktive Fly-/RC10-v1-Gates durch `external-gate-audit-v2` und
   `external-gate-summary-v2` ersetzt; Fly bleibt historische Provenienz.
@@ -81,7 +86,7 @@ Die bindende Migrationsgrenze steht in
 - Aktueller externer Audit bestätigt Hosted Staging, Vercel-Origins, Gitleaks,
   Cloudflare O2Core und Branch Protection; GHCR bleibt offen.
 
-## Session-8 Lieferung
+## Historische Session-8-Lieferung
 
 - `17/17` externe GitHub Actions auf `11` verifizierte Commit-SHAs fixiert.
 - `18/18` getrackte externe Image-Vorkommen auf `9` Registry-Digests fixiert;
@@ -95,7 +100,7 @@ Die bindende Migrationsgrenze steht in
 - Voller serieller Beweis: `npm run verify`, `npm run verify:runtime`,
   `npm run verify:browser`; Docker `10/10 healthy`; Browser `22x2=44`.
 
-## RC10
+## Historischer RC10
 
 - Release: `prod-candidate-2026-07-24-local-rc10`
 - Source: `2ae4c61aa876759abcaa83c36c0a3379206b91a4`
@@ -111,14 +116,26 @@ Die bindende Migrationsgrenze steht in
 - `promotion_eligible=false`
 - GHCR unveröffentlicht; keine Promotion oder Production-Ausrollung.
 
+## RC11 — lokal qualifiziert
+
+- Release: `prod-candidate-2026-07-31-local-rc11`
+- Source: `bae3cdc1692e1e99e7f546f72664a3c747958b8c`
+- CI: `pr-check` Run `30686367636`, `success`
+- Ketten: `runtime`, `browser`, `candidate_images`, `candidate_runtime`, `security`
+  jeweils bestanden und mit realem Artefakt, SHA-256 und Success-Ankern gebunden
+- Itemisierung: `17/19 = 89%`; P5 `89%`, Overall `89%`
+- O4-Proof SHA-256:
+  `50304C69B3D748C95804C4C72C2970694748F469AE322D5C24DAA6BCB545B11B`
+- Scope: `DEV-ONLY; hosted proof still blocked`
+- Nicht beansprucht: GHCR-Publish, Production-Deploy, Release-Promotion,
+  Production-Auth oder `MARKET_READY:true`
+
 ## OWNER-BLOCKED
 
-| ID | Matrix | Owner-Aktion |
+| ID | Readiness item | Owner-Aktion |
 | --- | --- | --- |
-| O1 | P3 | Production-OAuth-App, Hosted Callback und sichere Credential-Konfiguration |
-| O2' Scale | P6 | O2Core Runtime ist hosted verifiziert; separater Scale-/Kapazitätsbeweis bleibt offen |
-| O3 | P5, MCP | GHCR-Publikation, Protected Release Workflow und Owner-Review |
-| O4 | P6, AP, MCP | Live Agent-/MCP-Write-Allowlist und fail-closed Audit-Beweis |
+| I1 | `hosted_candidate_parity` | Exakte RC11-Source auf dem zulässigen Hosted-Ziel bereitstellen/freigeben und source-bound parity verifizieren lassen |
+| I5 | `production_auth_identity` | Production-OAuth-Identität, Hosted Callback und sichere Credential-Konfiguration über den Owner-/Secret-Kanal freigeben |
 
 O6 ist `resolved_verified`: bounded Workers AI ausschliesslich durch den LLM Gateway,
 `direct_provider_calls=false`, `percentage_credit=0`. O6 ist kein Owner-Blocker.
@@ -130,13 +147,9 @@ Exakte Scopes, Zahlungsbedarf, Gate-IDs und Nachverifier stehen maschinenlesbar 
 
 ## Market-Ready-Audit
 
-`npm run verify:market-ready:static` bleibt absichtlich fail-closed. Manifest-Integrität,
-Proof-Ledger und Lint bestehen; Matrix-100 und externe Gates scheitern ehrlich. Der StaticOnly-
-Lauf überspringt Runtime-Verifier als Auditmodus; das ist kein Implementierungsdefizit, weil die
-seriellen Vollverifier im aktuellen Session-9-Arbeitsstand grün sind.
-
-Report SHA-256:
-`A99AF466873885E88CCFD434CB267619AB6930F0721091D09A63CF9A38E4617B`.
+Die fünf RC11-Qualifikationsketten sind lokal grün; `MARKET_READY:false` bleibt
+fail-closed, weil I1 und I5 nicht bewiesen sind. Die lokale Qualifikation berechtigt weder
+Registry-Publikation noch Deployment oder Promotion.
 
 Finish-Line bleibt unverändert:
 
@@ -145,4 +158,5 @@ npm run verify:market-ready
 MARKET_READY: true
 ```
 
-Bis dahin: O2Core, Produkt und Vectorize sind hosted verifiziert; Release und Production bleiben blockiert.
+Bis dahin: RC11 bleibt lokal qualifiziert und `DEV-ONLY`; Hosted-Candidate-Parität,
+Production-Auth, Release und Production bleiben blockiert.

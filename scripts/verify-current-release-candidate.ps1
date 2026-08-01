@@ -82,7 +82,7 @@ Assert-HostedBaseUrlConfigured
 function Get-Json($url) {
 @"
 import json, ssl, urllib.request
-ctx = ssl._create_unverified_context()
+ctx = ssl.create_default_context()
 with urllib.request.urlopen(r"$url", timeout=30, context=ctx) as response:
     print(json.dumps(json.load(response)))
 "@ | py -3 -
@@ -91,7 +91,7 @@ with urllib.request.urlopen(r"$url", timeout=30, context=ctx) as response:
 function Get-Status($url) {
 @"
 import ssl, urllib.request
-ctx = ssl._create_unverified_context()
+ctx = ssl.create_default_context()
 with urllib.request.urlopen(r"$url", timeout=30, context=ctx) as response:
     print(response.status)
 "@ | py -3 -
@@ -178,7 +178,7 @@ $qualificationTruthPaths = @(
   "apps/frontend/lib/platform.ts",
   "docs/project-progress.manifest.json"
 )
-$runtimeDiffArgs = @("diff", "--name-only", "--diff-filter=ACMRTUXB", "$sourceSha..HEAD", "--") + $runtimeSourcePaths
+$runtimeDiffArgs = @("diff", "--cached", "--name-only", "--diff-filter=ACDMRTUXB", $sourceSha, "--") + $runtimeSourcePaths
 $runtimeChangedPaths = @(& git @runtimeDiffArgs | ForEach-Object { ([string]$_).Trim().Replace("\", "/") } | Where-Object { $_ })
 if ($LASTEXITCODE -ne 0) {
   throw "Verification failed: could not compare active release runtime source with HEAD."
@@ -188,7 +188,7 @@ if ($runtimeChangedPaths.Count -gt 0) {
   $unexpectedRuntimePaths = @($runtimeChangedPaths | Where-Object { $qualificationTruthPaths -notcontains $_ })
   $missingTruthPaths = @($qualificationTruthPaths | Where-Object { $runtimeChangedPaths -notcontains $_ })
   if ($unexpectedRuntimePaths.Count -gt 0 -or $missingTruthPaths.Count -gt 0) {
-    throw "Verification failed: active release candidate has committed runtime-source drift from HEAD."
+    throw "Verification failed: active release candidate has committed or staged runtime-source drift outside the exact truth transition."
   }
 
   $itemization = Get-Content "docs\runtime-state\phase5-credit-itemization.json" -Raw | ConvertFrom-Json

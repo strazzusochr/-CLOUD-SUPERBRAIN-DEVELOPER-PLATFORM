@@ -103,9 +103,6 @@ try {
     throw "RollbackTarget must differ from the candidate source commit."
   }
 
-  $manifest = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
-  $phase5Percent = [int](($manifest.horizontal.items | Where-Object { $_.id -eq "phase_5" }).percent)
-
   $outputPath = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $OutputDir))
   New-Item -ItemType Directory -Force -Path $outputPath | Out-Null
   $logsPath = Join-Path $outputPath "build-logs"
@@ -126,6 +123,20 @@ try {
     Invoke-Native "git archive" "git" @("archive", "--format=tar", "--output=$archivePath", $resolvedSourceSha)
     Invoke-Native "git archive extraction" "tar.exe" @("-xf", $archivePath, "-C", $sourcePath)
     $archiveSha256 = Get-FileSha256 $archivePath
+
+    $sourceManifestPath = Join-Path $sourcePath "docs\project-progress.manifest.json"
+    if (-not (Test-Path -LiteralPath $sourceManifestPath)) {
+      throw "Candidate source manifest is missing from committed archive: $resolvedSourceSha"
+    }
+    $sourceManifest = Get-Content -LiteralPath $sourceManifestPath -Raw | ConvertFrom-Json
+    $sourcePhase5Items = @($sourceManifest.horizontal.items | Where-Object { $_.id -eq "phase_5" })
+    if ($sourcePhase5Items.Count -ne 1) {
+      throw "Candidate source manifest must contain exactly one phase_5 item."
+    }
+    $phase5Percent = [int]$sourcePhase5Items[0].percent
+    if ($phase5Percent -lt 0 -or $phase5Percent -gt 100) {
+      throw "Candidate source manifest contains an invalid phase_5 percent: $phase5Percent"
+    }
 
     $serviceDefinitions = @(
       [ordered]@{ id = "frontend"; dockerfile = "apps/frontend/Dockerfile"; context = "apps/frontend"; target = "runner"; source_file = "apps/frontend/package.json"; embedded_file = "/app/package.json" },

@@ -656,7 +656,16 @@ Add-Result "lint-zero-warnings" $lintOk $lintDetail
 if (-not $StaticOnly) {
   Invoke-Npm "verify(phase1+gitleaks)" "verify"
   Invoke-Npm "verify:runtime"          "verify:runtime"
-  Invoke-Npm "verify:browser"          "verify:browser"
+  Write-Host "[market-ready] running: scripts\start-dev-live.ps1"
+  & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repoRoot "scripts\start-dev-live.ps1") 2>&1 |
+    ForEach-Object { Write-Host "    $_" }
+  $devLiveCode = $LASTEXITCODE; if ($null -eq $devLiveCode) { $devLiveCode = 0 }
+  Add-Result "dev-live-rehydrate" ($devLiveCode -eq 0) "exit=$devLiveCode"
+  if ($devLiveCode -eq 0) {
+    Invoke-Npm "verify:browser" "verify:browser"
+  } else {
+    Add-Result "verify:browser" $false "skipped: DEV-LIVE rehydration failed"
+  }
   Invoke-Npm "verify:csrf"             "verify:csrf"
   Invoke-Npm "verify:responsive"       "verify:responsive"
   Invoke-Npm "frontend-hosted-current" "verify:frontend-hosted-current"

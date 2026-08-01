@@ -798,3 +798,73 @@ Ein Remote (`strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`), aber **5 Git-W
 `.claude/worktrees/project-state-restore-session4-4a555d` steht auf `60d48868` — **7 Commits
 hinterher**. Alle vier Neben-Worktrees haben **0 unveroeffentlichte Commits**; es geht nichts
 verloren. Gefahr ist nur, versehentlich dort zu arbeiten. **Immer im Hauptordner arbeiten.**
+
+---
+
+## §12 ORGANISM-VISUAL-REDESIGN — ANALYSE + PLAN (Session 13i, NICHT umgesetzt)
+
+**Referenz:** `docs/reference/stock-footage-ai-...-background.mp4` (596x336, 30 fps, 10 s).
+8 Frames extrahiert, zwei davon vollstaendig analysiert (`fps=1/2`, ffmpeg 8.1.1).
+
+### 12.1 Was das Video zeigt (gemessen, nicht geraten)
+
+| Ebene | Merkmal |
+|---|---|
+| **Kern** | **Low-Poly-Gehirn**, trianguliertes Drahtgitter, cyan/blaue Kanten, helle Knotenpunkte an jedem Vertex, halbtransparente Teal-Fuellung, **starker Bloom** |
+| Alternativkern (Frame 1) | Punktwolken-Kopf im Profil, gleiche Farbwelt — beide Motive wechseln |
+| Hintergrund 1 | **Dot-Matrix-Globus**, orange Kontinentlinien, rotierend |
+| Hintergrund 2 | **Matrix-Rain** aus gruenen Ziffern, mehrere Tiefenebenen |
+| HUD | horizontale Scan-/Datenbalken, duenne Gitterlinien, kleine rote/cyane Labels |
+| Geometrie | grosse halbtransparente **Dreiecks-Shards**, langsam driftend |
+| Unten | **Waveform-Streifen** (Audio-/Datenspektrum) |
+| Palette | Basis #05070d–#0a1020, Cyan #3fe0ff, Teal #1e9fb0, Orange #ff7a2f, Matrix-Gruen #2fff7a |
+
+### 12.2 Kein neues Plugin/Tool/MCP noetig — der Stack ist vollstaendig da
+
+```
+three                       0.184.0
+@react-three/fiber          9.6.1
+@react-three/drei          10.7.7
+@react-three/postprocessing 3.0.4
+postprocessing              6.39.1
+```
+
+**Alles, was das Video zeigt, ist damit baubar.** Eine Websuche nach „bestem Plugin" ist hier
+gegenstandslos: R3F + drei + postprocessing ist der Referenz-Stack fuer genau diese Optik.
+Ein zusaetzliches Paket waere neue Lieferkette, neuer Supply-Chain-Pin, neuer Audit — ohne Gewinn.
+
+### 12.3 Umsetzungsplan (Mapping Effekt -> vorhandene API)
+
+1. **Brain-Mesh** — GLB `public/organism/core.glb` (existiert) oder `IcosahedronGeometry(r,3)`;
+   `<Edges>` (drei) fuer Kanten + `<Points>` fuer Vertex-Knoten; `MeshTransmissionMaterial`
+   oder `meshBasicMaterial` mit `transparent`, `opacity 0.25`, additivem Blending.
+2. **Bloom** — `<EffectComposer><Bloom intensity={1.4} luminanceThreshold={0.15} mipmapBlur/>`.
+3. **Dot-Globus** — `THREE.Points` auf Fibonacci-Sphaere, Kontinente per Alpha-Maske aus
+   Equirect-PNG; langsame Y-Rotation.
+4. **Matrix-Rain** — Instanced Plane mit ShaderMaterial (Ziffern-Atlas) ODER DOM-Layer hinter
+   dem Canvas. DOM ist billiger und stoert die WebGL-Perf nicht.
+5. **Scanlines/HUD** — `Scanline`-Effect aus `postprocessing` + SVG-Overlay fuer Labels.
+6. **Shards** — 6-10 `PlaneGeometry` mit `DoubleSide`, `opacity 0.06`, langsame Drift.
+7. **Waveform** — vorhandene Telemetrie auf `LineSegments` mappen (echte Daten, keine Deko!).
+
+### 12.4 HARTE SPERRE — warum ich es NICHT umgesetzt habe
+
+**Codex faehrt gerade `verify:browser` (BVR ACTIVE, ~100 Node-Prozesse).**
+Eine Aenderung an `components/organism/*` haette:
+
+- den laufenden Browserlauf mitten im Test zerrissen,
+- RC11 (`bae3cdc1`) ungueltig gemacht — Runtime-Source-Paritaet bricht,
+- die 5 gerade erzeugten Evidenzketten entwertet,
+- P5 zurueckgeworfen.
+
+`CortexCanvas3D.tsx` hat **997 Zeilen** und ist an sieben Phase-6-Browserbeweise gebunden
+(Kamera, Gameplay, Asset, Save/Load, A11y, Netcode, Scoreboard). Ein Visual-Rewrite ist ein
+eigener Slice mit eigenem vollen Browserlauf — **niemals waehrend eines offenen RC**.
+
+### 12.5 Reihenfolge
+
+1. RC11 abschliessen -> P5=89 -> `MARKET_READY`-Check -> commit/push
+2. **Danach** eigener Branch-Slice „organism-visual-v2"
+3. Erst Blend-/Bloom-Layer additiv ergaenzen, Testselektoren (`data-testid`) **unveraendert lassen**
+4. Voller `verify:browser` als Abnahme, Screenshot-Bytes als Beleg
+5. Kein Austausch von `CortexCanvas3D` — **erweitern**, nicht ersetzen

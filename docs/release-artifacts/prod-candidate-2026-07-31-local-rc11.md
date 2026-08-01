@@ -4,16 +4,16 @@ release_id: `prod-candidate-2026-07-31-local-rc11`
 scope: `Session 13 Phase-5 itemization and source-current six-service production-candidate requalification`
 environment: `production-candidate`
 source_branch: `claude/cloud-superbrain-analysis-127d2e`
-source_commit_sha: `0000000000000000000000000000000000000000`
-source_commit_semantics: `source-current Phase-5 19-item rubric, canonical progress truth, six-service clean-archive candidate, and fail-closed credit verifier`
-immutable_image_commit_sha: `0000000000000000000000000000000000000000`
-workflow_run_url: `pending`
-pipeline_status: `pending`
-smoke_result: `pending`
+source_commit_sha: `bae3cdc1692e1e99e7f546f72664a3c747958b8c`
+source_commit_semantics: `pre-proof P5=68 and Overall=86 truth baseline, S1-S3-hardened five-chain credit verifier, bounded camera proof, and six-service runtime source`
+immutable_image_commit_sha: `bae3cdc1692e1e99e7f546f72664a3c747958b8c`
+workflow_run_url: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/30686367636`
+pipeline_status: `GitHub Actions pr-check run 30686367636 passed against exact source SHA`
+smoke_result: `passed DEV-ONLY; six-service candidate runtime source parity and browser click verified; hosted proof still blocked`
 observability_check: `present`
 rollback_note: `local rollback target is RC10 source 2ae4c61aa876759abcaa83c36c0a3379206b91a4; no hosted rollback is authorized or executed`
 rollback_target_commit_sha: `2ae4c61aa876759abcaa83c36c0a3379206b91a4`
-immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:0000000000000000000000000000000000000000`
+immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:bae3cdc1692e1e99e7f546f72664a3c747958b8c`
 immutable_tag_publish_status: `unpublished`
 rollback_drill_proof: `docs/runbooks/rollback-deploy.md`
 executed_rollback_rerun_proof: `docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-readiness.json`
@@ -31,7 +31,7 @@ final_browser_e2e_recheck_proof: `docs/release-artifacts/prod-candidate-2026-07-
 full_verifier_sweep_proof: `docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-readiness.json`
 truth_mirror_rebaseline_proof: `docs/runtime-state/phase5-credit-itemization.json`
 release_readiness_rerun_proof: `docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-readiness.json`
-browser_rerun_status: `pending`
+browser_rerun_status: `passed DEV-ONLY on 2026-08-01; full browser contract, product acceptance, 22-page actions, and O4 proof green`
 review_gate: `pending`
 owner_decision: `no-release`
 hosted_staging_parity: `false`
@@ -45,9 +45,9 @@ phase5_computed_percent: `89`
 | ID | JA/NEIN | Beleg |
 | --- | --- | --- |
 | C1 | JA | Source-gebundener GitHub-Actions-Lauf in der Readiness-Evidenz. |
-| C2 | JA | Static, Runtime, Browser, Security und Candidate-Smoke sind gruen und gehasht. |
+| C2 | JA | Runtime, Browser, Security, Candidate-Images und Candidate-Runtime sind gruen und gehasht. |
 | C3 | JA | Manifest, State, Handoff, Register und Release-Dokumente sind synchronisiert. |
-| C4 | JA | Der Current-Candidate-Verifier verweigert jeden committed Runtime-Drift. |
+| C4 | JA | Der Current-Candidate-Verifier erlaubt nur den exakten vierteiligen Post-Proof-Wahrheitsuebergang; sonstigen Runtime-Drift verweigert er. |
 | C5 | JA | npm audit und kanonischer Secret-Scan sind kandidatenbezogen gruen. |
 | I1 | NEIN | Kein non-local HTTPS-Hosted-Stack ist exakt an RC11 gebunden. |
 | I2 | JA | Sechs Clean-Archive-Images sind lokal content-addressed verifiziert; GHCR bleibt Post-Market. |

@@ -1,8 +1,8 @@
 # 🏁 CODEX MASTER GOAL — FINALE (bis Vollendung + fehlerfreier Beweis)
-# Version: 2026-07-26 (P5 Cloudflare-native Gate-Rebase v2)
+# Version: 2026-08-01 (RC11 local qualification)
 # Führt CODEX_MASTER_GOAL.md zu Ende. Dieses Dokument ist der aktuelle Einstieg.
 
-Current canonical marker: `overall=86`; `MARKET_READY:false`.
+Current canonical marker: `overall=89`; `P5=89`; `MARKET_READY:false`.
 
 ## DAS ZIEL IN EINEM SATZ
 Cloud Superbrain vollständig fertigstellen und **fehlerfrei beweisen**: alle 22 Seiten
@@ -35,7 +35,24 @@ im Status begründen — aber weiterarbeiten. Kein vorzeitiger Stop, kein Loop o
 6. **Kein Deploy, während ein Hosted-Proof läuft** (invalidiert den Beweis).
 7. Budget: Workers AI 10.000 Neurons/Tag → LLM-Beweise = 1 Mini-Prompt.
 
-## VERIFIZIERTE BASELINE (2026-07-20 — nicht neu herleiten, nur fortführen)
+## AKTUELLER RC11-QUALIFIKATIONSSTAND (2026-08-01)
+
+- Release: `prod-candidate-2026-07-31-local-rc11`.
+- Source: `bae3cdc1692e1e99e7f546f72664a3c747958b8c`.
+- CI: GitHub Actions `pr-check`, Run `30686367636`, `success`.
+- Fünf unabhaengige Ketten sind grün und artefakt-/hash-/ankergebunden:
+  `runtime`, `browser`, `candidate_images`, `candidate_runtime`, `security`.
+- Ergebnis: `17/19`, P5 `89%`, Overall `89%`.
+- Horizontal: `P0 100 | P1 100 | P2 100 | P3 44 | P4 100 | P5 89 | P6 90`.
+- Vertikal: `FE 100 | ORC 100 | AP 100 | LLM 55 | MCP 56 | MEM 100 | OBS 100`.
+- O4-Evidence SHA-256:
+  `50304C69B3D748C95804C4C72C2970694748F469AE322D5C24DAA6BCB545B11B`.
+- `MARKET_READY:false`: I1 `hosted_candidate_parity` und I5
+  `production_auth_identity` bleiben `OWNER-BLOCKED`.
+- Alle fünf Ketten sind `DEV-ONLY; hosted proof still blocked`.
+- Kein GHCR-Publish, kein Deploy, keine Promotion und kein Production-Auth-Claim.
+
+## HISTORISCHE BASELINE (2026-07-20 — Provenienz, nicht aktuelle Prozentautorität)
 - **Frontend Production** `https://frontend-seven-psi-78.vercel.app`:
   `frontend-hosted-current-proof-v1` bindet READY Production Deployment
   `dpl_9KPqcjNPnV9irpJ9W8tyjff8LMbX` an Source

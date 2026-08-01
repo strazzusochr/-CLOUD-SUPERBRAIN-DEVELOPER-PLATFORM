@@ -1,9 +1,9 @@
 {
   "contract_version": "phase5-candidate-readiness-evidence-v1",
   "release_id": "prod-candidate-2026-07-31-local-rc11",
-  "source_commit_sha": "0000000000000000000000000000000000000000",
-  "generated_at_utc": "2026-07-31T12:00:00Z",
-  "status": "pending",
+  "source_commit_sha": "bae3cdc1692e1e99e7f546f72664a3c747958b8c",
+  "generated_at_utc": "2026-08-01T08:41:48Z",
+  "status": "verified_with_owner_blocks",
   "verified_item_count": 17,
   "blocked_item_count": 2,
   "blocked_item_ids": [
@@ -13,47 +13,79 @@
   "phase5_computed_percent": 89,
   "ci_workflow": {
     "name": "pr-check",
-    "run_id": 0,
-    "run_url": "pending",
-    "head_sha": "0000000000000000000000000000000000000000",
-    "status": "pending"
+    "run_id": 30686367636,
+    "run_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/30686367636",
+    "head_sha": "bae3cdc1692e1e99e7f546f72664a3c747958b8c",
+    "status": "success"
   },
   "local_verification": {
-    "static": {
-      "command": "npm run verify",
-      "status": "pending",
-      "artifact": ".codex/runs/CURRENT/master-goal/phase5/rc11/static.log",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
-    },
     "runtime": {
       "command": "npm run verify:runtime",
-      "status": "pending",
-      "artifact": ".codex/runs/CURRENT/master-goal/phase5/rc11/runtime.log",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "status": "passed",
+      "artifact": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-evidence/runtime.json",
+      "sha256": "82F491128B37B3681FD92E2EE8E1BF9CE52DD6D20662461EB620E19ADB328374",
+      "success_anchors": [
+        "[runtime] compose status",
+        "[phase5-candidate-local] status=verified service_count=6 source_parity=true progress_credit=false browser_click_verified=False artifact=verification-runtime.json",
+        "[runtime] phase1 runtime checks completed",
+        "RUNTIME_EXIT=0"
+      ]
     },
     "browser": {
       "command": "npm run verify:browser",
-      "status": "pending",
-      "artifact": ".codex/runs/CURRENT/master-goal/phase5/rc11/browser.log",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "status": "passed",
+      "artifact": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-evidence/browser.json",
+      "sha256": "93BBCAC6B757530BA9FC5316A7B35528C76D75A3BD36C83552D0C5499265006C",
+      "success_anchors": [
+        "[browser-contract] checks completed",
+        "[product-acceptance] PASS DEV-ONLY; hosted proof still blocked",
+        "[22-page-actions] PASS DEV-ONLY; hosted proof still blocked",
+        "[o4-write] status=verified gates=live_agent_tool_writes,live_mcp_writes",
+        "BROWSER_EXIT=0"
+      ]
     },
     "candidate_images": {
-      "command": "scripts/build-phase5-production-candidate-local.ps1",
-      "status": "pending",
-      "artifact": ".codex/runs/CURRENT/master-goal/phase5/production-candidate-local/candidate-images.json",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/build-phase5-production-candidate-local.ps1 -SourceSha bae3cdc1692e1e99e7f546f72664a3c747958b8c -ReleaseId prod-candidate-2026-07-31-local-rc11 -RollbackTarget 2ae4c61aa876759abcaa83c36c0a3379206b91a4 -OutputDir .codex/runs/CURRENT/master-goal/phase5/production-candidate-local",
+      "status": "passed",
+      "artifact": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-evidence/candidate-images.json",
+      "sha256": "F9538F0F11B7202F1A3505DA7D6EF2AD224447D0EA7E686894E8ED19C5728FDA",
+      "success_anchors": [
+        "\"status\": \"verified\"",
+        "\"release_id\": \"prod-candidate-2026-07-31-local-rc11\"",
+        "\"source_commit_sha\": \"bae3cdc1692e1e99e7f546f72664a3c747958b8c\"",
+        "\"service_count\": 6"
+      ]
     },
     "candidate_runtime": {
       "command": "npm run verify:phase5-candidate-local",
-      "status": "pending",
-      "artifact": ".codex/runs/CURRENT/master-goal/phase5/production-candidate-local/verification.json",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "status": "passed",
+      "artifact": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-evidence/candidate-runtime.json",
+      "sha256": "9D2A60301DD0FCD6550C9E9CEB5BCA1AE381CBAE8D81E2DEB1C2E4901E13BBF6",
+      "success_anchors": [
+        "\"status\": \"verified\"",
+        "\"verification_scope\": \"full_with_browser\"",
+        "\"release_id\": \"prod-candidate-2026-07-31-local-rc11\"",
+        "\"source_commit_sha\": \"bae3cdc1692e1e99e7f546f72664a3c747958b8c\"",
+        "\"service_count\": 6"
+      ]
     },
     "security": {
-      "command": "npm audit --audit-level=moderate plus canonical gitleaks verifier",
-      "status": "pending",
-      "artifact": ".codex/runs/CURRENT/master-goal/phase5/rc11/security.log",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/write-rc11-security-evidence.ps1 -ReleaseId prod-candidate-2026-07-31-local-rc11 -SourceSha bae3cdc1692e1e99e7f546f72664a3c747958b8c",
+      "status": "passed",
+      "artifact": "docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-evidence/security.json",
+      "sha256": "F0C771C7CB9FD849BB96159C619A3B97C9B1DD436E6B46F16D416FFBCF27DBCE",
+      "success_anchors": [
+        "RC11_SECURITY_EVIDENCE_V1",
+        "[rc11-security] release_id=prod-candidate-2026-07-31-local-rc11",
+        "[rc11-security] source_commit_sha=bae3cdc1692e1e99e7f546f72664a3c747958b8c",
+        "[rc11-security] source_boundary=committed_git_archive_only",
+        "found 0 vulnerabilities",
+        "NPM_AUDIT_EXIT=0",
+        "[rc11-security] gitleaks_config=.gitleaks.toml",
+        "no leaks found",
+        "GITLEAKS_EXIT=0",
+        "RC11_SECURITY_EXIT=0"
+      ]
     }
   },
   "budget_review": {

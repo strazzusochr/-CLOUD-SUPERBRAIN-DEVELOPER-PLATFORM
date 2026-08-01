@@ -561,14 +561,14 @@ foreach ($required in @(
   }
 }
 foreach ($required in @(
-  'overall: 86',
+  'overall: 89',
   '{ name: "Frontend", layer: 1, pct: 100 }',
   '{ name: "Orchestrator", layer: 2, pct: 100 }',
   '{ name: "Memory", layer: 6, pct: 100 }',
   '{ id: "P2", pct: 100 }',
   '{ id: "P3", pct: 44 }',
   '{ id: "P4", pct: 100 }',
-  '{ id: "P5", pct: 68 }',
+  '{ id: "P5", pct: 89 }',
   '{ id: "P6", pct: 90 }',
   "AGENTS",
   "MCP_TOOLS",
@@ -3426,7 +3426,7 @@ foreach ($required in @(
   'external_gates_snapshot_scope',
   'external_gates_deployment_snapshot_source_artifact',
   'embedded_at_source_commit',
-  'active release candidate has committed runtime-source drift from HEAD',
+  'active release candidate has committed or staged runtime-source drift outside the exact truth transition',
   'qualificationTruthPaths',
   'qualification_truth_transition=',
   'backendState.overall_percent',
@@ -3467,6 +3467,8 @@ foreach ($required in @(
   'verify:frontend-hosted-current',
   'verify:backend-hosted-current',
   'verify:current-release-candidate',
+  'scripts\start-dev-live.ps1',
+  'dev-live-rehydrate',
   'requires owner-gated stateful hosted runtime',
   '^B\d+-|owner[-_ ]gated|owner[-_ ]gate'
 )) {

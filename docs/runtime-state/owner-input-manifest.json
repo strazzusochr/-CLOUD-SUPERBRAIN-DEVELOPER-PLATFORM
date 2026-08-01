@@ -3,7 +3,7 @@
   "status": "owner_blocked_autonomous_complete",
   "generated_at_utc": "2026-07-31T00:47:12.8748218Z",
   "canonical_progress_source": "docs/project-progress.manifest.json",
-  "canonical_overall_percent": 86,
+  "canonical_overall_percent": 89,
   "market_ready": false,
   "autonomous_open_items": [],
   "hosted_acceptance_truth": {
@@ -69,7 +69,7 @@
       ],
       "codex_boundary": "No card, checkout, payment, subscription activation, paid fallback, resource creation, hosted write, or production deployment without the exact Owner gate. A free quota is not a zero-card proof.",
       "owner_scope_decision": {
-        "decided_at_utc": "2026-07-30T00:00:00Z",
+        "decided_at_utc": "2026-07-30T00:00:00.0000000Z",
         "decision": "approved_o2core_hosted_write_read_delete",
         "recorded_by": "assistant_from_owner_goal_and_handoff",
         "resource_creation_authorized": [
@@ -143,7 +143,7 @@
       ],
       "codex_boundary": "Resolved O4 credits Agent Pool 69 -> 100. MCP Gateway and Phase 6 stay below 100 because GHCR publication and paid scale are separate unresolved gates; no double credit.",
       "owner_scope_decision": {
-        "decided_at_utc": "2026-07-30T00:00:00.0000000Z",
+        "decided_at_utc": "2026-07-30T00:00:00Z",
         "decision": "approved_as_proposed",
         "recorded_by": "assistant_from_owner_chat_confirmation",
         "repositories_allowed": [
@@ -177,7 +177,7 @@
           "live_verified must never be hand-set."
         ]
       },
-      "resolved_at_utc": "2026-07-31T04:54:47.4854871Z",
+      "resolved_at_utc": "2026-08-01T08:19:10.7319115Z",
       "evidence_refs": [
         "docs/runtime-state/capability-gates.json#live_agent_tool_writes",
         "docs/runtime-state/capability-gates.json#live_mcp_writes",

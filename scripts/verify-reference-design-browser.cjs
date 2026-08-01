@@ -232,7 +232,7 @@ async function main() {
     assert(workbenchProbe.surface1.toLowerCase() === "#0b1020", `Unexpected surface token: ${workbenchProbe.surface1}`);
     assert(workbenchProbe.cyan.toLowerCase() === "#00e5ff", `Unexpected cyan token: ${workbenchProbe.cyan}`);
     assert(!workbenchProbe.hasStatusWall, "Workbench status wall markers are visible.");
-    await page.screenshot({ path: workbenchPath, fullPage: true });
+    await page.screenshot({ path: workbenchPath, fullPage: true, caret: "initial" });
     assert(fs.statSync(workbenchPath).size > 25000, "Workbench screenshot is too small to be a useful proof artifact.");
 
     await gotoWithRetry(page, `${baseUrl}/organism`, "Organism page");
@@ -311,7 +311,7 @@ async function main() {
     assert(organismProbe.webgl, "Organism canvas does not expose a WebGL context.");
     assert(organismProbe.runtimeFeedVisible, "Organism runtime feed missing.");
     assert(/spec_only|agent_api_redacted|platform_audit/.test(organismProbe.runtimeSourceKind), `Unexpected runtime source kind: ${organismProbe.runtimeSourceKind}`);
-    await page.screenshot({ path: organismPath, fullPage: true });
+    await page.screenshot({ path: organismPath, fullPage: true, caret: "initial" });
     assert(fs.statSync(organismPath).size > 25000, "Organism screenshot is too small to be a useful proof artifact.");
     const organismPngStats = pngVisualStats(organismPath);
     assert(organismPngStats.uniqueColorBuckets >= 18, `Organism screenshot lacks visual color variance: ${organismPngStats.uniqueColorBuckets}`);

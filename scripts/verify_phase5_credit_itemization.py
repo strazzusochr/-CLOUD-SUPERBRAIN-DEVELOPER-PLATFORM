@@ -65,6 +65,28 @@ QUALIFICATION_TRUTH_PATHS = {
     "apps/frontend/lib/platform.ts",
     "docs/project-progress.manifest.json",
 }
+LOCAL_VERIFICATION_FILES = {
+    "runtime": "runtime.json",
+    "browser": "browser.json",
+    "candidate_images": "candidate-images.json",
+    "candidate_runtime": "candidate-runtime.json",
+    "security": "security.json",
+}
+SUMMARY_CHAINS = {"runtime", "browser", "security"}
+SUMMARY_COMMANDS = {
+    "runtime": "npm run verify:runtime",
+    "browser": "npm run verify:browser",
+}
+EXPECTED_CANDIDATE_SERVICES = {
+    "frontend",
+    "agent-api",
+    "agent-worker",
+    "memory-worker",
+    "mcp-gateway",
+    "llm-gateway",
+}
+SHA256_UPPER_RE = re.compile(r"[0-9A-F]{64}")
+SHA256_LOWER_RE = re.compile(r"[0-9a-f]{64}")
 
 
 def fail(message: str) -> None:
@@ -134,6 +156,243 @@ def sha256_file(target: Path) -> str:
     return digest.hexdigest().upper()
 
 
+def require_upper_sha256(value: Any, label: str) -> str:
+    require(
+        isinstance(value, str) and SHA256_UPPER_RE.fullmatch(value) is not None,
+        f"{label} must be an uppercase SHA-256",
+    )
+    require(value != "0" * 64, f"{label} may not be the all-zero placeholder")
+    return value
+
+
+def require_lower_sha256(value: Any, label: str) -> str:
+    require(
+        isinstance(value, str) and SHA256_LOWER_RE.fullmatch(value) is not None,
+        f"{label} must be a lowercase SHA-256",
+    )
+    require(value != "0" * 64, f"{label} may not be the all-zero placeholder")
+    return value
+
+
+def require_non_claims(value: Any, label: str) -> list[str]:
+    require(isinstance(value, list) and value, f"{label} non_claims must not be empty")
+    claims: list[str] = []
+    for index, raw_claim in enumerate(value):
+        require(
+            isinstance(raw_claim, str) and raw_claim.strip(),
+            f"{label} non_claim #{index + 1} must be a non-empty string",
+        )
+        claims.append(raw_claim.strip())
+    normalized = "\n".join(claims).lower()
+    require("dev-only" in normalized, f"{label} must retain the DEV-ONLY non-claim")
+    require("hosted" in normalized, f"{label} must retain the hosted-proof non-claim")
+    require("production" in normalized, f"{label} must retain the production non-claim")
+    return claims
+
+
+def validate_summary_proof(
+    chain: str,
+    proof: dict[str, Any],
+    readiness_entry: dict[str, Any],
+    release_id: str,
+    source_sha: str,
+) -> None:
+    label = f"candidate local verification {chain}"
+    require(
+        proof.get("contract_version") == "phase5-local-verification-summary-v1",
+        f"{label} contract mismatch",
+    )
+    require(proof.get("chain") == chain, f"{label} chain mismatch")
+    require(proof.get("release_id") == release_id, f"{label} release_id mismatch")
+    require(proof.get("source_commit_sha") == source_sha, f"{label} source SHA mismatch")
+    command = proof.get("command")
+    require(
+        isinstance(command, str) and command.strip(),
+        f"{label} command is missing",
+    )
+    require(command == readiness_entry.get("command"), f"{label} command does not match readiness")
+    if chain in SUMMARY_COMMANDS:
+        require(command == SUMMARY_COMMANDS[chain], f"{label} command is not canonical")
+    if chain == "security":
+        security_generator = "scripts/write-rc11-security-evidence.ps1"
+        require(
+            security_generator in command
+            or ("npm audit" in command and "gitleaks" in command.lower()),
+            f"{label} command must use the canonical security generator or name npm audit and gitleaks",
+        )
+    require(proof.get("status") == "passed", f"{label} status mismatch")
+    require(type(proof.get("exit_code")) is int and proof["exit_code"] == 0, f"{label} exit_code must be 0")
+    require(proof.get("dev_only") is True, f"{label} must be explicitly DEV-ONLY")
+    require(proof.get("hosted_proof") is False, f"{label} may not claim hosted proof")
+    require(proof.get("secret_output") is False, f"{label} may not claim secret output")
+    require_upper_sha256(proof.get("raw_log_sha256"), f"{label} raw_log_sha256")
+    observed = proof.get("observed_success_anchors")
+    expected = readiness_entry.get("success_anchors")
+    require(
+        isinstance(observed, list) and observed,
+        f"{label} observed_success_anchors must not be empty",
+    )
+    require(observed == expected, f"{label} observed anchors do not match readiness")
+    for index, anchor in enumerate(observed):
+        require(
+            isinstance(anchor, str) and len(anchor.strip()) >= 8,
+            f"{label} observed anchor #{index + 1} is invalid",
+        )
+    require_non_claims(proof.get("non_claims"), label)
+
+
+def validate_candidate_images_proof(
+    proof: dict[str, Any],
+    release_id: str,
+    source_sha: str,
+) -> None:
+    label = "candidate local verification candidate_images"
+    require(
+        proof.get("contract_version") == "phase5-production-candidate-local-v1",
+        f"{label} contract mismatch",
+    )
+    require(
+        proof.get("evidence_ref") == "phase5_local_production_candidate_verified",
+        f"{label} evidence_ref mismatch",
+    )
+    require(proof.get("status") == "verified", f"{label} status mismatch")
+    require(proof.get("release_id") == release_id, f"{label} release_id mismatch")
+    require(proof.get("source_commit_sha") == source_sha, f"{label} source SHA mismatch")
+    require(
+        proof.get("source_boundary") == "committed_git_archive_only",
+        f"{label} source boundary mismatch",
+    )
+    require_lower_sha256(proof.get("git_archive_sha256"), f"{label} git archive SHA-256")
+    require(proof.get("service_count") == 6, f"{label} service count mismatch")
+
+    images = proof.get("images")
+    require(isinstance(images, list) and len(images) == 6, f"{label} must contain six images")
+    services: set[str] = set()
+    tags: set[str] = set()
+    image_ids: set[str] = set()
+    for index, image in enumerate(images):
+        item_label = f"{label} image #{index + 1}"
+        require(isinstance(image, dict), f"{item_label} must be an object")
+        service = image.get("service")
+        require(service in EXPECTED_CANDIDATE_SERVICES, f"{item_label} service is invalid")
+        require(service not in services, f"{item_label} service is duplicated")
+        services.add(service)
+
+        expected_tag = f"cloud-superbrain-production-candidate/{service}:{source_sha}"
+        image_tag = image.get("image_tag")
+        require(image_tag == expected_tag, f"{item_label} image tag mismatch")
+        require(image_tag not in tags, f"{item_label} image tag is duplicated")
+        tags.add(image_tag)
+
+        image_id = image.get("image_id")
+        require(
+            isinstance(image_id, str) and re.fullmatch(r"sha256:[0-9a-f]{64}", image_id) is not None,
+            f"{item_label} image ID is invalid",
+        )
+        require(image_id != f"sha256:{'0' * 64}", f"{item_label} image ID may not be all zeroes")
+        require(image_id not in image_ids, f"{item_label} image ID is duplicated")
+        image_ids.add(image_id)
+        require(
+            type(image.get("image_size_bytes")) is int and image["image_size_bytes"] > 0,
+            f"{item_label} image size must be positive",
+        )
+
+        for field in ("dockerfile", "source_file", "embedded_file"):
+            require(
+                isinstance(image.get(field), str) and image[field].strip(),
+                f"{item_label} {field} is missing",
+            )
+        require_lower_sha256(image.get("dockerfile_sha256"), f"{item_label} dockerfile SHA-256")
+        source_hash = require_lower_sha256(
+            image.get("source_file_sha256"),
+            f"{item_label} source-file SHA-256",
+        )
+        embedded_hash = require_lower_sha256(
+            image.get("embedded_file_sha256"),
+            f"{item_label} embedded-file SHA-256",
+        )
+        require(source_hash == embedded_hash, f"{item_label} embedded source hash mismatch")
+        require(image.get("oci_revision") == source_sha, f"{item_label} OCI revision mismatch")
+        require(image.get("oci_version") == release_id, f"{item_label} OCI version mismatch")
+        require(
+            isinstance(image.get("oci_source"), str)
+            and re.fullmatch(r"https://github\.com/[^/\s]+/[^/\s]+", image["oci_source"]) is not None,
+            f"{item_label} OCI source is invalid",
+        )
+
+    require(services == EXPECTED_CANDIDATE_SERVICES, f"{label} service set mismatch")
+    require(
+        type(proof.get("phase5_progress_before_proof")) is int
+        and proof.get("phase5_progress_after_proof") == proof["phase5_progress_before_proof"],
+        f"{label} Phase-5 proof values must preserve source truth",
+    )
+    require(proof.get("progress_credit_claimed") is False, f"{label} may not claim progress credit")
+    require(
+        isinstance(proof.get("rollback_target"), str)
+        and re.fullmatch(r"[0-9a-f]{40}", proof["rollback_target"]) is not None,
+        f"{label} rollback target is invalid",
+    )
+    require(
+        proof.get("rollback_target_source") == "active_release_candidate",
+        f"{label} rollback target source mismatch",
+    )
+    for field in (
+        "registry_publish",
+        "hosted_staging_parity",
+        "production_deploy",
+        "release_promotion",
+        "owner_review_approved",
+        "secret_output",
+    ):
+        require(proof.get(field) is False, f"{label} {field} must remain false")
+    non_claims = require_non_claims(proof.get("non_claims"), label)
+    normalized_non_claims = "\n".join(non_claims).lower()
+    require("ghcr" in normalized_non_claims, f"{label} must retain the GHCR non-claim")
+    require("release promotion" in normalized_non_claims, f"{label} must retain the promotion non-claim")
+
+
+def validate_candidate_runtime_proof(
+    proof: dict[str, Any],
+    release_id: str,
+    source_sha: str,
+) -> None:
+    label = "candidate local verification candidate_runtime"
+    require(
+        proof.get("contract_version") == "phase5-production-candidate-local-verification-v1",
+        f"{label} contract mismatch",
+    )
+    require(
+        proof.get("evidence_ref") == "phase5_local_production_candidate_verified",
+        f"{label} evidence_ref mismatch",
+    )
+    require(proof.get("status") == "verified", f"{label} status mismatch")
+    require(proof.get("verification_scope") == "full_with_browser", f"{label} must use full browser scope")
+    require(proof.get("release_id") == release_id, f"{label} release_id mismatch")
+    require(proof.get("source_commit_sha") == source_sha, f"{label} source SHA mismatch")
+    require(proof.get("service_count") == 6, f"{label} service count mismatch")
+    for field in (
+        "api_contract_verified",
+        "local_image_identity_verified",
+        "embedded_source_hash_parity_verified",
+        "candidate_runtime_source_parity_verified",
+        "browser_click_verified",
+    ):
+        require(proof.get(field) is True, f"{label} {field} must be true")
+    for field in (
+        "registry_publish",
+        "hosted_staging_parity",
+        "production_deploy",
+        "release_promotion",
+        "secret_output",
+    ):
+        require(proof.get(field) is False, f"{label} {field} must remain false")
+    require(
+        isinstance(proof.get("rollback_target"), str)
+        and re.fullmatch(r"[0-9a-f]{40}", proof["rollback_target"]) is not None,
+        f"{label} rollback target is invalid",
+    )
+
+
 def rounded_binary_percent(verified: int, total: int) -> int:
     require(total > 0, "rubric denominator must be positive")
     return math.floor((verified * 100 / total) + 0.5)
@@ -158,21 +417,22 @@ def require_runtime_source_parity(
 ) -> None:
     diff = run_git(
         "diff",
+        "--cached",
         "--name-only",
-        "--diff-filter=ACMRTUXB",
+        "--diff-filter=ACDMRTUXB",
         "-z",
-        f"{source_sha}..HEAD",
+        source_sha,
         "--",
         *RUNTIME_SOURCE_PATHS,
     )
-    require(diff.returncode == 0, "could not compare candidate runtime source with HEAD")
+    require(diff.returncode == 0, "could not compare candidate runtime source with the current index")
     changed_paths = {path for path in diff.stdout.split("\0") if path}
     if not changed_paths:
         return
 
     require(
         changed_paths == QUALIFICATION_TRUTH_PATHS,
-        "active candidate has committed runtime-source drift outside the exact post-qualification truth transition",
+        "active candidate has committed or staged runtime-source drift outside the exact post-qualification truth transition",
     )
     require(
         itemization.get("mode") == "fully_itemized",
@@ -304,34 +564,37 @@ def validate_candidate(
     )
 
     local = readiness.get("local_verification", {})
+    require(isinstance(local, dict), "candidate local verification must be an object")
+    require(
+        set(local) == set(LOCAL_VERIFICATION_FILES),
+        "candidate readiness must contain exactly the five independent local verification chains",
+    )
     # "static" is deliberately NOT required here. That entry records `npm run verify`, which
     # runs this very check - requiring it made the mandatory gate demand its own passing
     # output as its input. A chain cannot be its own evidence. The remaining five are
     # independent chains and stay required.
-    for key in (
-        "runtime",
-        "browser",
-        "candidate_images",
-        "candidate_runtime",
-        "security",
-    ):
+    for key, evidence_filename in LOCAL_VERIFICATION_FILES.items():
         entry = local.get(key, {})
         require(entry.get("status") == "passed", f"candidate local verification {key} must pass")
         require(
             isinstance(entry.get("command"), str) and entry["command"].strip(),
             f"candidate local verification {key} command is missing",
         )
-        artifact_path, artifact_target = resolve_repo_file(
-            entry.get("artifact"), f"candidate local verification {key}"
+        artifact_path = require_tracked_repo_path(
+            entry.get("artifact"),
+            f"candidate local verification {key}",
+        )
+        expected_artifact_path = (
+            f"docs/release-artifacts/{release_id}-evidence/{evidence_filename}"
         )
         require(
-            isinstance(entry.get("sha256"), str)
-            and re.fullmatch(r"[0-9A-F]{64}", entry["sha256"]),
-            f"candidate local verification {key} SHA-256 is invalid",
+            artifact_path == expected_artifact_path,
+            f"candidate local verification {key} must use {expected_artifact_path}",
         )
-        require(
-            entry["sha256"] != "0" * 64,
-            f"candidate local verification {key} SHA-256 may not be the all-zero placeholder",
+        artifact_target = ROOT / artifact_path
+        require_upper_sha256(
+            entry.get("sha256"),
+            f"candidate local verification {key} SHA-256",
         )
         require(
             sha256_file(artifact_target) == entry["sha256"],
@@ -349,16 +612,21 @@ def validate_candidate(
                 f"candidate local verification {key} success anchor #{index + 1}",
             )
 
-        if key in {"candidate_images", "candidate_runtime"}:
-            proof = load_json(artifact_target)
-            require(proof.get("status") == "verified", f"candidate local verification {key} status mismatch")
-            require(
-                proof.get("source_commit_sha") == source_sha,
-                f"candidate local verification {key} source SHA mismatch",
-            )
-            require(proof.get("service_count") == 6, f"candidate local verification {key} service count mismatch")
-            if key == "candidate_images":
-                require(proof.get("release_id") == release_id, "candidate image proof release_id mismatch")
+        proof = load_json(artifact_target)
+        require(
+            proof.get("release_id") == release_id,
+            f"candidate local verification {key} release_id mismatch",
+        )
+        require(
+            proof.get("source_commit_sha") == source_sha,
+            f"candidate local verification {key} source SHA mismatch",
+        )
+        if key in SUMMARY_CHAINS:
+            validate_summary_proof(key, proof, entry, release_id, source_sha)
+        elif key == "candidate_images":
+            validate_candidate_images_proof(proof, release_id, source_sha)
+        else:
+            validate_candidate_runtime_proof(proof, release_id, source_sha)
 
     require(
         run_git("cat-file", "-e", f"{source_sha}^{{commit}}").returncode == 0,

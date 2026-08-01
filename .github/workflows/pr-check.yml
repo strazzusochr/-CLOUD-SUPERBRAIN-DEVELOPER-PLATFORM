@@ -44,6 +44,9 @@ jobs:
       - name: Python syntax
         run: python -m py_compile services/agent-api/app/main.py services/mcp-gateway/app/main.py
 
+      - name: Phase 5 credit itemization
+        run: python scripts/verify_phase5_credit_itemization.py
+
       - name: Frontend install
         working-directory: apps/frontend
         run: npm ci

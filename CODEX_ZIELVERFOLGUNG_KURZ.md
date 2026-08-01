@@ -1,4 +1,4 @@
-# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-07-31 (Session 13)
+# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-08-01 (Session 13i)
 > **Reihenfolge in JEDER Session:** (1) diese Datei → (2) `CODEX_UEBERGABE_2026-07-31-SESSION13.md`
 > → (3) Preflight → (4) arbeiten. Die Session-12-Übergabe ist **historisch**.
 
@@ -9,14 +9,15 @@ Owner-gewallte Reste ehrlich als **OWNER-BLOCKED** listen — **nie faken** (R0)
 
 ---
 
-## 🚀 START HIER (Session 13h, 2026-08-01) — HEAD = origin = `05a7f00b`
+## 🚀 START HIER (Session 13i, 2026-08-01) — HEAD = origin = `bae3cdc1692e1e99e7f546f72664a3c747958b8c`
 
 > **Vollprotokoll im Anker:** `PROJECT_ANCHOR_CURRENT.md`, oberster Block
-> (Checkpoint · Ist-Stand · naechster Schritt · Ziel · 12 Vermeidungsregeln).
+> (Checkpoint · Ist-Stand · nächster Schritt · Ziel · Vermeidungsregeln).
 
-**Ist-Stand gemessen:** `npm run verify` ✅ exit 0 · `verify:runtime` ✅ · **Produktabnahme ✅ PASS**
-(echter Workers-AI-Call, Build `bce23bcd`) · Security ✅ · RC11 Images/Runtime ✅ 6/6 ·
-`verify:browser` ❌ **exit 1** (genau **ein** Test) · Overall **86** · P5 **68** · `MARKET_READY:false`
+**Ist-Stand gemessen:** RC11-Source `bae3cdc1692e1e99e7f546f72664a3c747958b8c` ·
+GitHub Actions `pr-check` Run `30686367636` ✅ success · fünf unabhängige Ketten ✅
+(`runtime`, `browser`, `candidate_images`, `candidate_runtime`, `security`) ·
+Overall **89** · P5 **89** · `MARKET_READY:false`.
 
 **⚠️ ERSTE HANDLUNG IN JEDER SESSION — sonst laeufst du in ein Phantom-503:**
 ```
@@ -25,17 +26,10 @@ pwsh -NoProfile -File scripts\start-dev-live.ps1
 Der Compose-Standard ist **bewusst** `deterministic_dry_run`. Ohne diesen Aufruf meldet
 `/api/v1/build` immer „kein vollstaendiges Build-Artefakt" — **das ist der Schutz, kein Defekt.**
 
-**DER EINE ROTE TEST:**
-`apps/frontend/e2e/organism.spec.ts:428` — Locator
-`.cortex-wrap[data-camera-lighting-local-only="true"]` nicht gefunden.
-Zeile 458 nutzt `waitForLoadState("networkidle")` **nach** Playwright-Clock-Pause →
-eingefrorene Timer, `networkidle` tritt nie ein. Fix wie damals bei `/login`:
-DOM-ready + sichtbarer Anker statt `networkidle`. Zweimal reproduziert, kein Flake.
-
-**DANACH (Reihenfolge bindend):** Browser gruen → 5 Ketten mit **echten** SHA-256 + Ankern
-eintragen (4 von 5 Belegdateien existieren bereits und sind bestanden) → `readiness.status`
-= `verified_with_owner_blocks` → `mode=fully_itemized` → P5 **89**, Overall **89** +
-**alle 5 Spiegel im selben Slice** → Gesamtlauf → commit/push.
+**NÄCHSTER AUTONOMER SCHRITT:** RC11-Wahrheit atomar in allen aktiven Spiegeln
+synchronisieren → vollständige Suite seriell fahren → nur den RC11-Slice exakt stagen →
+commit/push → CI abwarten. Danach bleiben genau I1 `hosted_candidate_parity` und I5
+`production_auth_identity` `OWNER-BLOCKED`.
 
 **NIE:** `static` wieder als Pflichtkette eintragen (Selbstbezug, R-NEU-9) · zahlen (macht die
 Matrix rot) · P5 handsetzen (verifier-gebunden) · L4/L5 anfassen · in einem Neben-Worktree
@@ -44,23 +38,15 @@ arbeiten (5 Stueck, einer 7 Commits hinterher).
 ---
 
 ## ✅ STAND (gemessen, nicht geschätzt)
-Branch `claude/cloud-superbrain-analysis-127d2e` · HEAD = `origin` · Overall **86 %** · `MARKET_READY:false`
-`P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 68 · P6 90`
+Branch `claude/cloud-superbrain-analysis-127d2e` · HEAD = `origin` · Overall **89 %** · `MARKET_READY:false`
+`P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 89 · P6 90`
 `FE 100 · ORC 100 · AP 100 · LLM 55 · MCP 56 · MEM 100 · OBS 100`
 
-**Capability-Gates: 7 offen / 3 zu** · **Externe Gates: nur noch `ghcr_image_digest_verify`**
+**RC11 Readiness:** `17/19` · Status `verified_with_owner_blocks` · offen: I1 + I5.
+Alle fünf Ketten sind `DEV-ONLY; hosted proof still blocked`. Kein GHCR-Publish,
+Production-Deploy oder Release-Promotion.
 
-| offen ✅ | zu 🔴 |
-|---|---|
-| `live_llm_provider_calls` | `production_auth_identity` (O1 — OAuth-Klick = Owner-Wand) |
-| `live_memory_provider` | `docker_registry_publish` (O3 — Deadlock, Aufloesung = E3 Option (a)) |
-| `cloudflare_native_zero_card_hosted_runtime` | `phase6_scale_runtime` (**NICHT Zahlung** — Read-Stufe gruen, Write-Stufe fehlt) |
-| `live_vector_memory_search` | |
-| `hosted_observability_endpoint` | |
-| `live_agent_tool_writes` **(O4, neu)** | |
-| `live_mcp_writes` **(O4, neu)** | |
-
-## 🚨 SESSION 13g: HEAD WAR ROT UND GEPUSHT — ZWEITER SELBSTBEZUG
+## 🚨 HISTORISCH — SESSION 13g: HEAD WAR ROT UND GEPUSHT — ZWEITER SELBSTBEZUG
 
 Codex lieferte die 19-Item-Rubrik + Verifier (**gute Arbeit**), setzte aber `phase_5` 68 → 89
 und pushte einen Stand, bei dem `npm run verify` **exit 1** lieferte. Die Zahl lief ihrem
@@ -102,7 +88,7 @@ Der Kamera-Hang und der Scoreboard-Fetch-Guard sind ebenfalls behoben und **comm
 Der verbleibende rote Test ist ein **anderer**: siehe „DER EINE ROTE TEST" oben.
 
 
-## 🧮 WARUM VERTIKALE ARBEIT DIE 86 % NIE BEWEGT
+## 🧮 HISTORISCH — WARUM VERTIKALE ARBEIT DIE 86 % NIE BEWEGTE
 `scripts/verify_project_progress_manifest.py` erzwingt:
 `overall_percent == round(Summe der horizontalen Phasen / Anzahl)`.
 **Vertikale Layer fließen gar nicht ein.** L3 69→100 und L6 90→100 haben `overall` deshalb korrekt
@@ -125,7 +111,7 @@ Die Fähigkeiten **sind** bewiesen (L4: `gateway_mode=cloudflare_workers_ai_live
 
 ---
 
-## ▶ ARBEITSREIHENFOLGE BIS MARKTREIFE
+## ▶ HISTORISCHE ARBEITSREIHENFOLGE BIS MARKTREIFE
 
 **1. ✅ Restarbeit geschlossen.** Hosted-Source-Rebinding meldet in `/api/v1/health`
    exakt `af61146e22d1a56e9d62232c159ea7b352405ba9` +
@@ -151,7 +137,7 @@ Die Fähigkeiten **sind** bewiesen (L4: `gateway_mode=cloudflare_workers_ai_live
 
 **6. P5 / O3 GHCR — ZIRKULAER BLOCKIERT, Aufloesung entschieden: Option (a).** Siehe E3.
 
-## 🧾 OWNER-AKTIONSPAKET — nur noch ZWEI Handlungen trennen uns von der Finish-Line
+## 🧾 HISTORISCHES OWNER-AKTIONSPAKET (vor RC11-Qualifikation)
 
 **O1 — GitHub-OAuth-Klick (schaltet P3 44 → höher)**
 Der Owner öffnet die OAuth-App-Autorisierung und bestätigt einmalig den Zustimmungsdialog.
@@ -189,7 +175,7 @@ innen aufloesen. Es ist ein **Spezifikationsfehler**, keine offene Arbeit.
 **3. P6 hat einen zweiten Widerspruch.** `manifest-all-100` verlangt `phase_6 = 100`, waehrend
 `verify-market-ready.ps1:204-217` verlangt, dass `phase6_scale_runtime.live_verified` **false** bleibt.
 
-## 🧭 DIE DREI OWNER-ENTSCHEIDUNGEN (in dieser Reihenfolge)
+## 🧭 HISTORISCHE DREI OWNER-ENTSCHEIDUNGEN
 
 **E1 — O1 JETZT (einzig sauber oeffenbarer Blocker).** Keine Zahlung, kein Deadlock, keine Abhaengigkeit.
 Owner: OAuth-App waehlen/anlegen, Hosted-Callback freigeben, Config ueber den Secret-Kanal.
@@ -226,7 +212,7 @@ Schutzmechanismen; (a) aendert an den Verifiern **nichts**.
 **keine itemisierte Evidenz** fuer die fehlenden 32 Punkte. Jede Zahl waere erfunden — der Verifier
 haette sie widerstandslos akzeptiert. **R-NEU-6: Fehlende Pruefung ist kein Freibrief.**
 
-## 🛑 EHRLICHER BEFUND: DIE AUTONOME FLÄCHE IST ERSCHÖPFT
+## 🛑 HISTORISCHER BEFUND: DIE AUTONOME FLÄCHE WAR ERSCHÖPFT
 Jede Zelle unter 100 ist entweder **owner-/zahlungsgewallt** (P3, P5, P6) oder **bewusst
 null-kreditiert** (L4, L5). Es gibt derzeit **keine** Zelle, die ein Agent ohne Owner-Handlung
 ehrlich anheben könnte. Wer trotzdem eine Zahl erhöht, fälscht.
@@ -282,7 +268,7 @@ bereits geschützt) · kein Force-Push · kein GHCR/Release ohne Gate · Localho
 **Oder:** alles autonom Lösbare echt auf 100 **+** der Rest exakt als OWNER-BLOCKED mit
 Owner-Action-Paket. Nichts anderes.
 
-## ▶ NAECHSTE SCHRITTE (Stand Session 13c)
+## ▶ HISTORISCHE NAECHSTE SCHRITTE (Stand Session 13c)
 
 1. **Owner: `AGENT_API_AUTH_TOKEN` bereitstellen** → erst dann laeuft die Write-Stufe
    (parallele D1-Writes + Readback = der eigentliche Scale-Beweis). Ohne Token meldet der
@@ -331,7 +317,7 @@ Eine Markerquote wuerde also **100 %** melden, waehrend GHCR offen ist.
 → Der Manifest-Verifier prueft nur `0..100` und wuerde alles schlucken.
 **Deshalb wurde `phase_5` NICHT bewegt. Das ist eine Entscheidung, kein Zoegern.**
 
-## ▶ NAECHSTE AGENTEN-ARBEIT (kein Owner-Gate, kein Geld, kein Token)
+## ▶ HISTORISCHE NAECHSTE AGENTEN-ARBEIT (vor RC11-Qualifikation)
 
 **Herleitung rekonstruieren:** Phase-5-Release-Checkliste Posten fuer Posten gegen die vorhandenen
 Artefakte auditieren, bis eine **belegte** Aufschlueselung der 32 Punkte steht. Erst danach darf

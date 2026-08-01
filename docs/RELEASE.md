@@ -1,11 +1,11 @@
 # Cloud Superbrain Release Status
 
-Updated: 2026-07-31
+Updated: 2026-08-01
 
-Status: **not released**. This repository has a healthy local development runtime, a
-verified Vercel frontend, a read-only Backend Contract Origin, and source-bound Cloudflare
-O2Core plus semantic Vectorize proofs. GHCR publication and the remaining Owner/release
-gates are still missing, so no full-platform production release or promotion is claimed.
+Status: **not released**. RC11 is locally qualified on source
+`bae3cdc1692e1e99e7f546f72664a3c747958b8c`; GitHub Actions run `30686367636`
+passed. I1 hosted candidate parity and I5 production authentication remain Owner-blocked,
+so no full-platform production release or promotion is claimed.
 
 ## Local Development Runtime
 
@@ -26,17 +26,20 @@ gates.
 
 | Scope | Current verified value |
 | --- | --- |
-| Overall progress | 86 percent |
-| Horizontal | P0 100, P1 100, P2 100, P3 44, P4 100, P5 68, P6 90 |
-| Vertical | Frontend 100, Orchestrator 100, Agent Pool 69, LLM 55, MCP 56, Memory 100, Observability 100 |
+| Overall progress | 89 percent |
+| Horizontal | P0 100, P1 100, P2 100, P3 44, P4 100, P5 89, P6 90 |
+| Vertical | Frontend 100, Orchestrator 100, Agent Pool 100, LLM 55, MCP 56, Memory 100, Observability 100 |
 | Project progress integrity | `verified` |
 | Canonical workspace pages | 22/22 local and 22/22 hosted in real Google Chrome at desktop and mobile |
 | Docker services | 10/10 healthy in the latest local check |
 | Canonical secret scan | gitleaks pass, no leaks found |
+| RC11 qualification | Five independent chains passed; `17/19`, `verified_with_owner_blocks` |
 | Deployment | Vercel frontend and read-only backend contract origin verified; full-platform production release not performed |
 
 Percentages come only from `docs/project-progress.manifest.json` and must match
 `GET /api/v1/project/progress` plus `GET /api/v1/project/progress/integrity`.
+All dated evidence paragraphs below preserve their historical milestone percentages;
+they do not override the current RC11 snapshot above.
 
 The current Phase-3 credential-issuance replacement is locally verified under
 `phase3-auth-credential-issuance-fail-closed-v1`. It requires one-time Redis OAuth state,
@@ -83,20 +86,14 @@ both deployments. This adds no progress credit and is not a release-promotion cl
 frontend currently targets the Cloudflare Preview worker and the failed immutable URL remains
 a historical deployment.
 
-## External Gate Status
+## Current RC11 Gate Status
 
-Canonical reproducible audit:
-`docs/runtime-state/external-gate-audit-v2.json`
+Status: `verified_with_owner_blocks` for local candidate qualification.
 
-Status: `blocked`
-
-Missing or failed gate: `cloudflare_native_zero_card_hosted_runtime`.
-
-The former Fly audit path is retained only as `historical_only` provenance and
-cannot replace the v2 audit. The current Cloudflare token can authenticate but
-the sanitized read-only O2' inventory is `0/6`; this proves insufficient
-management scopes, not resource absence. Hosted source parity, stateful
-roundtrip, and zero-card activation remain unverified.
+The remaining readiness items are exactly I1 `hosted_candidate_parity` and I5
+`production_auth_identity`. Both require Owner action and their dedicated hosted
+verifiers. The local runtime, browser, image, candidate-runtime, and security chains
+cannot close either item.
 
 `production_deploy_claim_allowed=false`; no production rollout or release promotion occurred.
 
@@ -159,18 +156,17 @@ publication, release-candidate promotion, or a full-platform production release.
 
 ## Local Production Candidate Preparation
 
-Candidate `prod-candidate-2026-07-22-local-rc5` is locally verified against auth/security runtime
-source commit `255e328a76b3f84bf74358bc7258b9ffb797b339`. Six production targets were built
-only from its committed Git archive. Local image IDs, OCI labels, embedded source hashes,
-the frontend build ID, committed runtime-source parity, the RC4 rollback target, the read-only API
-contract, and a real Diagnostics Chromium click passed.
-Runtime-only verification cannot overwrite the full-browser artifact. The read-only hosted
-response is matched to its embedded `overall=84` deployment snapshot and is explicitly stale
-against the current local `overall=86`; only the current canonical summary controls promotion.
-P5 remains 68 because freshness repair is not new percentage credit; Overall remains 86.
+Candidate `prod-candidate-2026-07-31-local-rc11` is locally qualified against committed
+source `bae3cdc1692e1e99e7f546f72664a3c747958b8c`. GitHub Actions `pr-check` run
+`30686367636` passed. The five independent chains `runtime`, `browser`,
+`candidate_images`, `candidate_runtime`, and `security` passed with real artifacts,
+SHA-256 values, and success anchors. The itemization derives `17/19 = 89%`, so P5 is
+`89%` and Overall is `89%`.
 
-The GHCR tag set is planned and unpublished. Hosted parity, Owner approval, registry
-publication, production deploy, and release promotion remain false.
+Current O4 proof SHA-256 is
+`50304C69B3D748C95804C4C72C2970694748F469AE322D5C24DAA6BCB545B11B`.
+The remaining items are I1 hosted candidate parity and I5 production auth identity.
+The GHCR tag set is unpublished; production deploy and release promotion remain false.
 DEV-ONLY; hosted proof still blocked.
 
 ## Candidate And Release Requirements
