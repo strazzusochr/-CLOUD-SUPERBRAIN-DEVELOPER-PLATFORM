@@ -1044,7 +1044,14 @@ test.describe("Cloud Superbrain platform", () => {
       if (captureLocalRequests) webSockets.push(socket.url());
     });
 
+    const coreAssetResponsePromise = page.waitForResponse(
+      (response) => new URL(response.url()).pathname === "/organism/core.glb",
+      { timeout: 30_000 },
+    );
     await page.goto("/organism", { waitUntil: "networkidle" });
+    const coreAssetResponse = await coreAssetResponsePromise;
+    expect(coreAssetResponse.ok(), "core GLB is loaded before scoreboard request capture").toBeTruthy();
+    expect(await coreAssetResponse.finished(), "core GLB response finishes before scoreboard request capture").toBeNull();
     const controls = page.getByTestId("phase6-scoreboard-performance-controls");
     const leaderboard = page.getByTestId("phase6-leaderboard-list");
     const leaderboardState = page.getByTestId("phase6-leaderboard-state");
