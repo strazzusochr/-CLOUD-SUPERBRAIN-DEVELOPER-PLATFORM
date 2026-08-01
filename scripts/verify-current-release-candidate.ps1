@@ -172,10 +172,42 @@ $runtimeSourcePaths = @(
   "docs/runtime-state/external-gate-summary.json",
   "docs/codex-integration/autonomous-agent-roster.json"
 )
-$runtimeDiffArgs = @("diff", "--quiet", "$sourceSha..HEAD", "--") + $runtimeSourcePaths
-& git @runtimeDiffArgs
+$qualificationTruthPaths = @(
+  "PROJECT_STATE.md",
+  "apps/frontend/lib/endpoint-snapshot.json",
+  "apps/frontend/lib/platform.ts",
+  "docs/project-progress.manifest.json"
+)
+$runtimeDiffArgs = @("diff", "--name-only", "--diff-filter=ACMRTUXB", "$sourceSha..HEAD", "--") + $runtimeSourcePaths
+$runtimeChangedPaths = @(& git @runtimeDiffArgs | ForEach-Object { ([string]$_).Trim().Replace("\", "/") } | Where-Object { $_ })
 if ($LASTEXITCODE -ne 0) {
-  throw "Verification failed: active release candidate has committed runtime-source drift from HEAD."
+  throw "Verification failed: could not compare active release runtime source with HEAD."
+}
+$truthTransition = $false
+if ($runtimeChangedPaths.Count -gt 0) {
+  $unexpectedRuntimePaths = @($runtimeChangedPaths | Where-Object { $qualificationTruthPaths -notcontains $_ })
+  $missingTruthPaths = @($qualificationTruthPaths | Where-Object { $runtimeChangedPaths -notcontains $_ })
+  if ($unexpectedRuntimePaths.Count -gt 0 -or $missingTruthPaths.Count -gt 0) {
+    throw "Verification failed: active release candidate has committed runtime-source drift from HEAD."
+  }
+
+  $itemization = Get-Content "docs\runtime-state\phase5-credit-itemization.json" -Raw | ConvertFrom-Json
+  Assert-Equal "post-qualification itemization mode" ([string]$itemization.mode) "fully_itemized"
+  Assert-False "post-qualification credit block" $itemization.credit_blocked_until_candidate_qualified
+  $sourceManifestText = (& git show "${sourceSha}:docs/project-progress.manifest.json" 2>$null | Out-String)
+  if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($sourceManifestText)) {
+    throw "Verification failed: candidate source manifest is unavailable."
+  }
+  $sourceManifest = $sourceManifestText | ConvertFrom-Json
+  $currentManifestForParity = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
+  $sourcePhase5ForParity = [int](($sourceManifest.horizontal.items | Where-Object { $_.id -eq "phase_5" }).percent)
+  $currentPhase5ForParity = [int](($currentManifestForParity.horizontal.items | Where-Object { $_.id -eq "phase_5" }).percent)
+  $legacyPhase5ForParity = [int]$itemization.legacy_gap_reconstruction.recorded_percent
+  $qualifiedPhase5ForParity = [int]$itemization.current_score.computed_percent
+  Assert-Equal "candidate pre-proof Phase 5" $sourcePhase5ForParity $legacyPhase5ForParity
+  Assert-Equal "current qualified Phase 5" $currentPhase5ForParity $qualifiedPhase5ForParity
+  Assert-Equal "post-qualification overall delta" ([int]$currentManifestForParity.overall_percent - [int]$sourceManifest.overall_percent) ([int](($qualifiedPhase5ForParity - $legacyPhase5ForParity) / 7))
+  $truthTransition = $true
 }
 
 $rolloutArtifacts = @(Get-ChildItem "docs\release-artifacts" -Filter "prod-release-*.md" -File -ErrorAction SilentlyContinue)
@@ -245,4 +277,4 @@ if ($canonicalVerified) {
 
 $promotionEligible = ($canonicalVerified -and [bool]$canonicalSummary.production_deploy_claim_allowed)
 $snapshotStale = ($expectedHostedOverall -ne [int]$manifest.overall_percent)
-Write-Host "[current-release-candidate] verified candidate_technical=true runtime_source_parity=true promotion_eligible=$($promotionEligible.ToString().ToLowerInvariant()) canonical=$($canonicalSummary.status) boundary=$hostedBoundarySource hosted_snapshot_overall=$expectedHostedOverall current_manifest_overall=$([int]$manifest.overall_percent) snapshot_stale=$($snapshotStale.ToString().ToLowerInvariant())"
+Write-Host "[current-release-candidate] verified candidate_technical=true runtime_source_parity=true qualification_truth_transition=$($truthTransition.ToString().ToLowerInvariant()) promotion_eligible=$($promotionEligible.ToString().ToLowerInvariant()) canonical=$($canonicalSummary.status) boundary=$hostedBoundarySource hosted_snapshot_overall=$expectedHostedOverall current_manifest_overall=$([int]$manifest.overall_percent) snapshot_stale=$($snapshotStale.ToString().ToLowerInvariant())"

@@ -3427,6 +3427,8 @@ foreach ($required in @(
   'external_gates_deployment_snapshot_source_artifact',
   'embedded_at_source_commit',
   'active release candidate has committed runtime-source drift from HEAD',
+  'qualificationTruthPaths',
+  'qualification_truth_transition=',
   'backendState.overall_percent',
   'runtime_source_parity=true',
   'snapshot_stale='

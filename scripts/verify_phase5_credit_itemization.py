@@ -59,6 +59,12 @@ RUNTIME_SOURCE_PATHS = [
     "docs/runtime-state/external-gate-summary.json",
     "docs/codex-integration/autonomous-agent-roster.json",
 ]
+QUALIFICATION_TRUTH_PATHS = {
+    "PROJECT_STATE.md",
+    "apps/frontend/lib/endpoint-snapshot.json",
+    "apps/frontend/lib/platform.ts",
+    "docs/project-progress.manifest.json",
+}
 
 
 def fail(message: str) -> None:
@@ -133,6 +139,82 @@ def rounded_binary_percent(verified: int, total: int) -> int:
     return math.floor((verified * 100 / total) + 0.5)
 
 
+def load_git_json(source_sha: str, path: str) -> dict[str, Any]:
+    result = run_git("show", f"{source_sha}:{path}")
+    require(result.returncode == 0, f"candidate source is missing {path}")
+    try:
+        value = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        fail(f"invalid JSON in candidate source {path}: {exc}")
+    require(isinstance(value, dict), f"candidate source {path} must contain an object")
+    return value
+
+
+def require_runtime_source_parity(
+    source_sha: str,
+    manifest: dict[str, Any],
+    itemization: dict[str, Any],
+    computed_percent: int,
+) -> None:
+    diff = run_git(
+        "diff",
+        "--name-only",
+        "--diff-filter=ACMRTUXB",
+        "-z",
+        f"{source_sha}..HEAD",
+        "--",
+        *RUNTIME_SOURCE_PATHS,
+    )
+    require(diff.returncode == 0, "could not compare candidate runtime source with HEAD")
+    changed_paths = {path for path in diff.stdout.split("\0") if path}
+    if not changed_paths:
+        return
+
+    require(
+        changed_paths == QUALIFICATION_TRUTH_PATHS,
+        "active candidate has committed runtime-source drift outside the exact post-qualification truth transition",
+    )
+    require(
+        itemization.get("mode") == "fully_itemized",
+        "post-qualification truth transition requires fully_itemized mode",
+    )
+    require(
+        itemization.get("credit_blocked_until_candidate_qualified") is False,
+        "post-qualification truth transition must clear the credit block",
+    )
+
+    source_manifest = load_git_json(source_sha, "docs/project-progress.manifest.json")
+    source_phase5 = next(
+        (
+            item
+            for item in source_manifest.get("horizontal", {}).get("items", [])
+            if item.get("id") == "phase_5"
+        ),
+        None,
+    )
+    current_phase5 = next(
+        (
+            item
+            for item in manifest.get("horizontal", {}).get("items", [])
+            if item.get("id") == "phase_5"
+        ),
+        None,
+    )
+    require(source_phase5 is not None, "candidate source manifest is missing phase_5")
+    require(current_phase5 is not None, "current manifest is missing phase_5")
+    legacy_percent = itemization.get("legacy_gap_reconstruction", {}).get("recorded_percent")
+    require(source_phase5.get("percent") == legacy_percent, "candidate source must carry the pre-proof Phase-5 value")
+    require(current_phase5.get("percent") == computed_percent, "current Phase-5 value must equal the qualified score")
+    source_overall = source_manifest.get("overall_percent")
+    current_overall = manifest.get("overall_percent")
+    require(isinstance(source_overall, int), "candidate source overall percent is invalid")
+    require(isinstance(current_overall, int), "current overall percent is invalid")
+    require(
+        current_overall - source_overall == (computed_percent - legacy_percent) // 7,
+        "post-qualification overall delta does not match the Phase-5-only score transition",
+    )
+
+
 def extract_field(artifact: str, field: str) -> str:
     match = re.search(rf"(?m)^{re.escape(field)}:\s*`([^`]+)`\s*$", artifact)
     require(match is not None, f"active candidate missing field {field}")
@@ -145,6 +227,8 @@ def validate_candidate(
     computed_percent: int,
     verified_count: int,
     blocked_count: int,
+    manifest: dict[str, Any],
+    itemization: dict[str, Any],
 ) -> None:
     candidate_path = ROOT / f"docs/release-artifacts/{release_id}.md"
     readiness_path = ROOT / f"docs/release-artifacts/{release_id}-readiness.json"
@@ -284,8 +368,7 @@ def validate_candidate(
         run_git("merge-base", "--is-ancestor", source_sha, "HEAD").returncode == 0,
         "candidate source commit is not an ancestor of HEAD",
     )
-    drift = run_git("diff", "--quiet", f"{source_sha}..HEAD", "--", *RUNTIME_SOURCE_PATHS)
-    require(drift.returncode == 0, "active candidate has committed runtime-source drift")
+    require_runtime_source_parity(source_sha, manifest, itemization, computed_percent)
 
 
 def main() -> int:
@@ -427,6 +510,10 @@ def main() -> int:
     else:
         require(phase5.get("percent") == computed_percent, "manifest phase_5 must equal computed percent")
         require(
+            itemization.get("credit_blocked_until_candidate_qualified") is False,
+            "fully_itemized mode must clear the candidate qualification credit block",
+        )
+        require(
             "phase5_release_readiness_19_item_score_verified" in str(phase5.get("status", "")),
             "manifest is missing the Phase-5 itemization marker",
         )
@@ -449,7 +536,15 @@ def main() -> int:
     require(registry_gate.get("live_verified") is False, "E3 must not silently verify registry publication")
 
     if mode == "fully_itemized":
-        validate_candidate(release_id, source_sha, computed_percent, verified_count, blocked_count)
+        validate_candidate(
+            release_id,
+            source_sha,
+            computed_percent,
+            verified_count,
+            blocked_count,
+            manifest,
+            itemization,
+        )
     credited = legacy_percent if mode == "legacy_reconstruction" else computed_percent
     print(
         f"[phase5-credit] verified mode={mode} legacy_gap=32 "

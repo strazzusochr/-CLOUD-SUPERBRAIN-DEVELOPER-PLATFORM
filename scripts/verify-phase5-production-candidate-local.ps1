@@ -56,13 +56,44 @@ try {
     "docs/runtime-state/external-gate-summary.json",
     "docs/codex-integration/autonomous-agent-roster.json"
   )
-  $runtimeDiffArgs = @("diff", "--quiet", "$candidateSourceSha..HEAD", "--") + $runtimeSourcePaths
-  & git @runtimeDiffArgs
-  $runtimeSourceMatchesHead = $LASTEXITCODE -eq 0
-  if (-not $runtimeSourceMatchesHead -and -not $AllowNonCandidateHead.IsPresent) {
-    Assert-True "candidate runtime source matches HEAD" $false
-  }
+  $qualificationTruthPaths = @(
+    "PROJECT_STATE.md",
+    "apps/frontend/lib/endpoint-snapshot.json",
+    "apps/frontend/lib/platform.ts",
+    "docs/project-progress.manifest.json"
+  )
+  $runtimeDiffArgs = @("diff", "--name-only", "--diff-filter=ACMRTUXB", "$candidateSourceSha..HEAD", "--") + $runtimeSourcePaths
+  $runtimeChangedPaths = @(& git @runtimeDiffArgs | ForEach-Object { ([string]$_).Trim().Replace("\", "/") } | Where-Object { $_ })
+  Assert-True "candidate runtime diff readable" ($LASTEXITCODE -eq 0)
+  $runtimeSourceMatchesHead = $runtimeChangedPaths.Count -eq 0
+  $qualificationTruthTransition = $false
   if (-not $runtimeSourceMatchesHead) {
+    $unexpectedRuntimePaths = @($runtimeChangedPaths | Where-Object { $qualificationTruthPaths -notcontains $_ })
+    $missingTruthPaths = @($qualificationTruthPaths | Where-Object { $runtimeChangedPaths -notcontains $_ })
+    if ($unexpectedRuntimePaths.Count -eq 0 -and $missingTruthPaths.Count -eq 0) {
+      $itemization = Get-Content "docs\runtime-state\phase5-credit-itemization.json" -Raw | ConvertFrom-Json
+      $sourceManifestText = (& git show "${candidateSourceSha}:docs/project-progress.manifest.json" 2>$null | Out-String)
+      Assert-True "candidate source manifest readable" ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($sourceManifestText))
+      $sourceManifest = $sourceManifestText | ConvertFrom-Json
+      $currentManifestForParity = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
+      $sourcePhase5ForParity = [int](($sourceManifest.horizontal.items | Where-Object { $_.id -eq "phase_5" }).percent)
+      $currentPhase5ForParity = [int](($currentManifestForParity.horizontal.items | Where-Object { $_.id -eq "phase_5" }).percent)
+      $legacyPhase5ForParity = [int]$itemization.legacy_gap_reconstruction.recorded_percent
+      $qualifiedPhase5ForParity = [int]$itemization.current_score.computed_percent
+      $qualificationTruthTransition = (
+        [string]$itemization.mode -eq "fully_itemized" -and
+        -not [bool]$itemization.credit_blocked_until_candidate_qualified -and
+        $sourcePhase5ForParity -eq $legacyPhase5ForParity -and
+        $currentPhase5ForParity -eq $qualifiedPhase5ForParity -and
+        ([int]$currentManifestForParity.overall_percent - [int]$sourceManifest.overall_percent) -eq [int](($qualifiedPhase5ForParity - $legacyPhase5ForParity) / 7)
+      )
+    }
+  }
+  $runtimeSourceParityVerified = $runtimeSourceMatchesHead -or $qualificationTruthTransition
+  if (-not $runtimeSourceMatchesHead -and -not $AllowNonCandidateHead.IsPresent) {
+    Assert-True "candidate runtime source matches HEAD or exact post-qualification truth transition" $runtimeSourceParityVerified
+  }
+  if (-not $runtimeSourceParityVerified) {
     Write-Host "[phase5-candidate-local] active candidate predates current HEAD; development-only verification"
   }
   foreach ($marker in @(
@@ -87,7 +118,7 @@ try {
   Assert-True "secret non-claim source" $source.Contains('"secret_output": False')
 
   if ($StaticOnly) {
-    Write-Host "[phase5-candidate-local] static checks completed runtime_source_matches_head=$($runtimeSourceMatchesHead.ToString().ToLowerInvariant())"
+    Write-Host "[phase5-candidate-local] static checks completed runtime_source_matches_head=$($runtimeSourceMatchesHead.ToString().ToLowerInvariant()) qualification_truth_transition=$($qualificationTruthTransition.ToString().ToLowerInvariant()) runtime_source_parity=$($runtimeSourceParityVerified.ToString().ToLowerInvariant())"
     exit 0
   }
 
