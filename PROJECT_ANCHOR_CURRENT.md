@@ -1,5 +1,90 @@
 # Cloud Superbrain Project Anchor
 
+## ⚓ CHECKPOINT 2026-08-01 — SESSION 13h (NEUESTER REFERENZPUNKT)
+
+**Anchor ID:** `cloud-superbrain-anchor-2026-08-01-session13h-live-path-restored`
+**Status:** `ACTIVE_RESUME_POINT`
+**Workspace:** `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM` (Hauptordner!)
+**Branch:** `claude/cloud-superbrain-analysis-127d2e` · **HEAD = origin = `05a7f00b`**
+
+### AKTUELLER STAND (gemessen)
+| Gegenstand | Ergebnis |
+|---|---|
+| `npm run verify` (Static + Gitleaks) | ✅ **exit 0**, no leaks |
+| `npm run verify:runtime` | ✅ PASS, 10/10 healthy |
+| `npm run verify:product-acceptance` | ✅ **PASS** — echter Workers-AI-Call, Build `bce23bcd`, 45,5 s |
+| `npm run verify:browser` | ❌ **exit 1** — genau **ein** Test rot (Phase-6 Kamera/Licht) |
+| Security-Kette | ✅ `npm audit` 0 · kanonischer Gitleaks 0 |
+| Kandidat RC11 Images / Runtime | ✅ 6/6 `verified`, source `05a7f00b` |
+| Manifest | Overall **86** · P5 **68** · `MARKET_READY:false` |
+| Itemisierung | `mode=legacy_reconstruction`, `credit_blocked_until_candidate_qualified=true` |
+
+### NÄCHSTER SCHRITT (exakt, in dieser Reihenfolge)
+1. **Kamera-Test reparieren** — `apps/frontend/e2e/organism.spec.ts:428` ff.
+   Fehlerbild: `expect(locator('.cortex-wrap[data-camera-lighting-local-only="true"]')).toBeVisible()`
+   → `element(s) not found`, Timeout 30 s.
+   **Verdacht (belegt durch Zeile 458):** `await page.waitForLoadState("networkidle")` **nach**
+   Playwright-Clock-Pause. Bei eingefrorenen Timern kann `networkidle` nie eintreten.
+   → Ersetzen durch `domcontentloaded` + expliziten Sichtbarkeits-Wait (Repo-Praxis, gleicher Fix
+   wurde bereits bei `/login` angewandt).
+2. **`npm run verify:browser` komplett grün fahren**, Log nach
+   `.codex/runs/CURRENT/master-goal/phase5/rc11/browser.log`.
+3. **Fünf Qualifikationsketten eintragen** in
+   `docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-readiness.json`:
+   `runtime`, `browser`, `candidate_images`, `candidate_runtime`, `security` →
+   je `status:"passed"`, **echter** SHA-256 (Großbuchstaben-Hex) und `success_anchors`
+   (Text muss real in der Datei vorkommen — der Verifier liest die Bytes).
+   **Vier von fünf Belegdateien existieren bereits und sind bestanden; nur `browser.log` ist rot.**
+4. `readiness.status` → `verified_with_owner_blocks` (**erst danach**, nie vorher).
+5. `mode` → `fully_itemized`, P5 → **89**, Overall → **89**, **alle Spiegel im selben Slice**:
+   `docs/project-progress.manifest.json` · `apps/frontend/lib/platform.ts` ·
+   **Pin in `scripts/verify-phase1.ps1:571`** · `apps/frontend/lib/endpoint-snapshot.json` ·
+   `PROJECT_STATE.md`.
+6. Gesamtlauf `npm run verify` → commit → push.
+
+### PROJEKTZIEL
+`npm run verify:market-ready` druckt real **`MARKET_READY: true`**.
+Rest ehrlich als **OWNER-BLOCKED** listen — **nie faken** (R0).
+Owner-Wände: **O1** GitHub-OAuth-Klick · **O3** GHCR (post-market) · Zahlung/Passwort/CAPTCHA/Secrets.
+
+### ⛔ WAS VERMIEDEN WERDEN MUSS (Fehler, Loops, Blocker, Hänger)
+1. **503 der Workbench ist KEIN Defekt.** Compose ist bewusst fail-closed
+   (`LLM_GATEWAY_MODE=deterministic_dry_run`). Live-Pfad **nur** via
+   `pwsh -NoProfile -File scripts\start-dev-live.ps1` (setzt Gateway **und** Frontend-Freigabe).
+   Ohne das liefert `/api/v1/build` immer „kein vollständiges Build-Artefakt".
+2. **Kette nie ihre eigene Ausgabe als Eingabe verlangen lassen** (R-NEU-9). Genau das war der
+   Deadlock: `local_verification.static` = `npm run verify`, geprüft *von* `npm run verify`.
+   `static` ist deshalb bewusst **nicht mehr** Pflichteintrag — nicht wieder hinzufügen.
+3. **Zahlung öffnet nichts.** `O1/O2/O3.payment_required=false`; `verify-market-ready.ps1:298-305`
+   prüft das aktiv. Eine abgebildete Zahlung macht die Matrix **rot**. Kein Fly, kein R2, keine Karte.
+4. **Credit folgt dem Beweis, nie umgekehrt.** P5 bleibt 68, solange die fünf Ketten nicht
+   eingetragen sind. Handsetzen ist unmöglich: `verify_phase5_credit_itemization.py:325` bindet
+   `manifest phase_5 == computed_percent`.
+5. **L4 (55) und L5 (56) nicht anfassen** — bewusst null-kreditiert, von zwei Verifiern geprüft.
+6. **Nur im Hauptordner arbeiten.** Es gibt **5 Worktrees** desselben Repos;
+   `.claude/worktrees/project-state-restore-session4-4a555d` steht **7 Commits hinterher**.
+   Alle Neben-Worktrees haben 0 unveröffentlichte Commits — dort ist nichts zu holen.
+7. **`$env:TEMP`/`$env:TMP` = `D:\_sb_tmp`** vor **jedem** Verifier. Sonst irreführende Fehler.
+8. **Kein paralleler** Verify-/Playwright-/Docker-Lauf. Browser-Lauf dauert 40–60 min →
+   Hintergrundlauf, nicht abbrechen, nicht doppelt starten.
+9. **Nie `git add -A`.** Fremde dirty Dateien (`.codex/runs/**`, `tsconfig.tsbuildinfo`) bleiben
+   unberührt. Immer explizit stagen.
+10. **`endpoint-snapshot.json` ist minifiziertes JSON in EINER Zeile.** Vor dem Bearbeiten
+    Byte-identischen Round-Trip prüfen (`separators=(',',':')`, `ensure_ascii=False`, `+"
+"`),
+    sonst 12.000-Zeilen-Diff.
+11. **Rot ohne Codeänderung?** Zuerst Speicherplatz (`Get-PSDrive C,D`), dann Docker-Health.
+12. **Secrets nie ausgeben**, nie committen — nur Pfad + Fundart melden.
+
+### REFERENZPUNKTE
+- Übergabe: `CODEX_UEBERGABE_2026-07-31-SESSION13.md` (§10 = Selbstbezug-Deadlock, §11 = dieser Stand)
+- Ziel kurz: `CODEX_ZIELVERFOLGUNG_KURZ.md`
+- Itemisierung: `docs/runtime-state/phase5-credit-itemization.json`
+- Kandidat: `docs/release-artifacts/prod-candidate-2026-07-31-local-rc11-readiness.json`
+
+---
+
+
 Anchor ID: `cloud-superbrain-anchor-2026-07-30-hosted-product-matrix-v2`
 
 Status: `ACTIVE_RESUME_POINT`

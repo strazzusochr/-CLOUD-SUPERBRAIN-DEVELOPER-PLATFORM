@@ -9,6 +9,40 @@ Owner-gewallte Reste ehrlich als **OWNER-BLOCKED** listen — **nie faken** (R0)
 
 ---
 
+## 🚀 START HIER (Session 13h, 2026-08-01) — HEAD = origin = `05a7f00b`
+
+> **Vollprotokoll im Anker:** `PROJECT_ANCHOR_CURRENT.md`, oberster Block
+> (Checkpoint · Ist-Stand · naechster Schritt · Ziel · 12 Vermeidungsregeln).
+
+**Ist-Stand gemessen:** `npm run verify` ✅ exit 0 · `verify:runtime` ✅ · **Produktabnahme ✅ PASS**
+(echter Workers-AI-Call, Build `bce23bcd`) · Security ✅ · RC11 Images/Runtime ✅ 6/6 ·
+`verify:browser` ❌ **exit 1** (genau **ein** Test) · Overall **86** · P5 **68** · `MARKET_READY:false`
+
+**⚠️ ERSTE HANDLUNG IN JEDER SESSION — sonst laeufst du in ein Phantom-503:**
+```
+pwsh -NoProfile -File scripts\start-dev-live.ps1
+```
+Der Compose-Standard ist **bewusst** `deterministic_dry_run`. Ohne diesen Aufruf meldet
+`/api/v1/build` immer „kein vollstaendiges Build-Artefakt" — **das ist der Schutz, kein Defekt.**
+
+**DER EINE ROTE TEST:**
+`apps/frontend/e2e/organism.spec.ts:428` — Locator
+`.cortex-wrap[data-camera-lighting-local-only="true"]` nicht gefunden.
+Zeile 458 nutzt `waitForLoadState("networkidle")` **nach** Playwright-Clock-Pause →
+eingefrorene Timer, `networkidle` tritt nie ein. Fix wie damals bei `/login`:
+DOM-ready + sichtbarer Anker statt `networkidle`. Zweimal reproduziert, kein Flake.
+
+**DANACH (Reihenfolge bindend):** Browser gruen → 5 Ketten mit **echten** SHA-256 + Ankern
+eintragen (4 von 5 Belegdateien existieren bereits und sind bestanden) → `readiness.status`
+= `verified_with_owner_blocks` → `mode=fully_itemized` → P5 **89**, Overall **89** +
+**alle 5 Spiegel im selben Slice** → Gesamtlauf → commit/push.
+
+**NIE:** `static` wieder als Pflichtkette eintragen (Selbstbezug, R-NEU-9) · zahlen (macht die
+Matrix rot) · P5 handsetzen (verifier-gebunden) · L4/L5 anfassen · in einem Neben-Worktree
+arbeiten (5 Stueck, einer 7 Commits hinterher).
+
+---
+
 ## ✅ STAND (gemessen, nicht geschätzt)
 Branch `claude/cloud-superbrain-analysis-127d2e` · HEAD = `origin` · Overall **86 %** · `MARKET_READY:false`
 `P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 68 · P6 90`
@@ -55,18 +89,17 @@ Snapshot · `PROJECT_STATE.md`).
 Codex' `13/19 → 68` reproduziert den Altwert exakt. Und `verify_phase5_credit_itemization.py:325`
 bindet `manifest phase_5 == computed_percent`: **Handsetzen ist jetzt strukturell unmoeglich.**
 
-## ⚠️ DREI SCHWAECHEN — VOR `fully_itemized` SCHLIESSEN
-| # | Fund |
-|---|---|
-| S1 | Item **C2** ist `verified` mit Claim „log hashes recorded as passed" — real: **alle sechs `pending`, Null-Hashes**. Falscher Claim. |
-| S2 | `evidence[].claim` wird **nie gegen den Dateiinhalt** geprueft, nur auf „nicht leer". |
-| S3 | `local_verification[].sha256` nur **Hex-Format**-geprueft; Artefakt muss nicht existieren, Hash wird nicht verglichen. |
+## ✅ S1–S3 SIND GESCHLOSSEN (Codex, Session 13h) — HISTORISCH
 
-**Weg zu ehrlichen 89:** 5 Qualifikationslaeufe echt fahren → reale SHA-256 → `status` erst
-**danach** auf `verified_with_owner_blocks` → S1–S3 schliessen → `mode=fully_itemized` +
-alle Spiegel im selben Slice.
-⚠️ Kamera-Test haengt reproduzierbar; Codex' Fix-Versuche liegen **uncommitted** im Working
-Tree (`organism.spec.ts`, `verify-phase6-3d-camera-lighting-runtime.ps1`) — nicht ueberschreiben.
+| # | Fund | Status |
+|---|---|---|
+| S1 | Item **C2** war `verified` mit falschem Claim | ✅ behoben |
+| S2 | `evidence[].claim` nie gegen Dateiinhalt geprueft | ✅ **`require_anchor` liest die Bytes** (`verify_phase5_credit_itemization.py:120-126`) |
+| S3 | `sha256` nur formatgeprueft, Artefakt musste nicht existieren | ✅ echter Datei-Hash + Null-Hashes verboten |
+
+Der Kamera-Hang und der Scoreboard-Fetch-Guard sind ebenfalls behoben und **committed**
+(`1e2c57a1`, `05a7f00b`) — nichts liegt mehr uncommitted im Working Tree.
+Der verbleibende rote Test ist ein **anderer**: siehe „DER EINE ROTE TEST" oben.
 
 
 ## 🧮 WARUM VERTIKALE ARBEIT DIE 86 % NIE BEWEGT

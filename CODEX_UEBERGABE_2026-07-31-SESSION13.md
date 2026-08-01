@@ -731,3 +731,70 @@ Datei vorkommen **muss**) und `local_verification` gegen die reale Artefaktdatei
 5. **Achtung Kamera-Test:** Codex' Lauf haengt reproduzierbar in
    `verify-phase6-3d-camera-lighting-runtime.ps1`; die Fix-Versuche liegen **uncommitted**
    im Working Tree (`organism.spec.ts`, Kamera-Verifier). Nicht ueberschreiben.
+
+---
+
+## §11 SESSION 13h — LIVE-PFAD WIEDERHERGESTELLT, EIN TEST BLEIBT ROT
+
+**Anker mit vollem Protokoll: `PROJECT_ANCHOR_CURRENT.md` (oberster Block, Checkpoint 2026-08-01).**
+Dort stehen Ist-Stand, nächster Schritt, Projektziel und die 12 Vermeidungsregeln.
+
+### 11.1 Das 503 der Produktabnahme war KEIN Defekt
+
+Compose ist bewusst fail-closed: `LLM_GATEWAY_MODE=deterministic_dry_run` und
+`PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED=false`. `scripts/start-dev-live.ps1` sagt es woertlich:
+*„das ist KEIN Defekt, sondern der Schutz gegen unbeabsichtigte Provider-Aufrufe."*
+
+Nach dem sanktionierten Lauf `pwsh -NoProfile -File scripts\start-dev-live.ps1`:
+Gateway `cloudflare_workers_ai_live` · Frontend-Freigabe `true` · 10/10 healthy →
+**Produktabnahme PASS**, echter Workers-AI-Call, Build `bce23bcd`, 45,5 s, Report-SHA
+`F067BF6B336B7EDEAF8FDC4F021C3F333E75CF839147292F9A0B5B9FC335C9C1`.
+
+> **R-NEU-10:** Vor jeder „Workbench kaputt"-Diagnose zuerst den Gateway-Modus lesen.
+> Dry-Run ist der Auslieferungszustand, nicht ein Fehler.
+
+### 11.2 Codex' S1–S3-Haertung ist echt
+
+`require_anchor` (`verify_phase5_credit_itemization.py:120-126`) liest die Evidenzdatei als Bytes
+und verlangt, dass der Ankertext **wirklich darin vorkommt**. Damit sind die von mir gemeldeten
+Schwaechen **S2** (Claim nie gegen Dateiinhalt geprueft) und **S3** (Hash nur formatgeprueft)
+geschlossen. Null-Hashes sind verboten, `success_anchors` duerfen nicht leer sein.
+
+### 11.3 Qualifikationsketten: 4 von 5 belegt
+
+| Kette | Beleg | Zustand |
+|---|---|---|
+| `runtime` | `rc11/runtime.log` | ✅ `phase1 runtime checks completed` |
+| `candidate_images` | `production-candidate-local/candidate-images.json` | ✅ `status: verified`, 6 Services, `05a7f00b` |
+| `candidate_runtime` | `production-candidate-local/verification.json` | ✅ `status: verified`, `browser_click_verified` |
+| `security` | `rc11/security.log` | ✅ **neu erzeugt**: `npm audit` 0 + kanonischer Gitleaks 0 |
+| `browser` | `rc11/browser.log` | ❌ **exit 1** |
+
+**Eingetragen ist noch keine** — alle stehen auf `pending` mit Null-Hashes, deshalb bleibt
+**P5 korrekt bei 68** und Overall bei 86. Das ist die richtige Reihenfolge: Credit folgt dem Beweis.
+
+### 11.4 Der eine rote Test — praezise Fehlerstelle
+
+```
+apps/frontend/e2e/organism.spec.ts:428
+  "organism Phase-6 camera and lighting controls apply bounded runtime state"
+  expect(locator('.cortex-wrap[data-camera-lighting-local-only="true"]')).toBeVisible()
+  -> element(s) not found, Timeout 30000ms
+  Zeile 458: await page.waitForLoadState("networkidle")
+```
+
+**Belegter Verdacht:** Codex' Kamera-Fix pausiert die Playwright-Clock (`setInterval`,
+`requestAnimationFrame` eingefroren). Danach kann `waitForLoadState("networkidle")` nicht mehr
+eintreten. Derselbe Fehlertyp wurde im Repo schon einmal behoben — bei `/login` wurde
+`networkidle` durch DOM-ready + sichtbaren Anker ersetzt.
+
+**Reproduziert:** zweimal rot, auch nach Vorwaermen von `/organism` (HTTP 200). Kein Flake.
+**Nicht blind geaendert** — eine Testaenderung, die ich im verbleibenden Budget nicht mit einem
+vollen Browserlauf validieren kann, waere schlechter als ein praezise dokumentierter Befund.
+
+### 11.5 Fuenf Worktrees, ein Repo
+
+Ein Remote (`strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`), aber **5 Git-Worktrees**.
+`.claude/worktrees/project-state-restore-session4-4a555d` steht auf `60d48868` — **7 Commits
+hinterher**. Alle vier Neben-Worktrees haben **0 unveroeffentlichte Commits**; es geht nichts
+verloren. Gefahr ist nur, versehentlich dort zu arbeiten. **Immer im Hauptordner arbeiten.**
