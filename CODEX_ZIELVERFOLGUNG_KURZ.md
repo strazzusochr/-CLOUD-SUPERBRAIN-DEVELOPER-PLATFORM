@@ -1,4 +1,4 @@
-# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-08-01 (Session 13i)
+# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-08-01 (Session 13j)
 > **Reihenfolge in JEDER Session:** (1) diese Datei → (2) `CODEX_UEBERGABE_2026-07-31-SESSION13.md`
 > → (3) Preflight → (4) arbeiten. Die Session-12-Übergabe ist **historisch**.
 
@@ -9,15 +9,19 @@ Owner-gewallte Reste ehrlich als **OWNER-BLOCKED** listen — **nie faken** (R0)
 
 ---
 
-## 🚀 START HIER (Session 13i, 2026-08-01) — HEAD = origin = `bae3cdc1692e1e99e7f546f72664a3c747958b8c`
+## 🚀 START HIER (Session 13j, 2026-08-01) — HEAD = origin = `f7830977358a2f93bd356814aa50c762a8f9eafb`
 
 > **Vollprotokoll im Anker:** `PROJECT_ANCHOR_CURRENT.md`, oberster Block
 > (Checkpoint · Ist-Stand · nächster Schritt · Ziel · Vermeidungsregeln).
 
-**Ist-Stand gemessen:** RC11-Source `bae3cdc1692e1e99e7f546f72664a3c747958b8c` ·
-GitHub Actions `pr-check` Run `30686367636` ✅ success · fünf unabhängige Ketten ✅
-(`runtime`, `browser`, `candidate_images`, `candidate_runtime`, `security`) ·
-Overall **89** · P5 **89** · `MARKET_READY:false`.
+**Ist-Stand nachgemessen (nicht aus einem Report übernommen):** HEAD == origin `f7830977` ·
+GitHub Actions `pr-check` Run `30712183385` ✅ `completed/success` auf genau diesem SHA ·
+`npm run verify` / P5-Credit / Release-Candidate ✅ · Overall **89** (= `round(Σ H / 7)`
+nachgerechnet) · P3 **44** · P5 **89** (`fully_itemized`, `17/19`) · P6 **90** ·
+Capability-Gates **7/10 geschlossen** · `MARKET_READY:false`.
+
+**Fremd-dirty, NIE mitcommitten:** `.codex/runs/CURRENT/product-acceptance/report.json` ·
+`apps/frontend/next-env.d.ts` · `apps/frontend/tsconfig.tsbuildinfo`.
 
 **⚠️ ERSTE HANDLUNG IN JEDER SESSION — sonst laeufst du in ein Phantom-503:**
 ```
@@ -26,10 +30,19 @@ pwsh -NoProfile -File scripts\start-dev-live.ps1
 Der Compose-Standard ist **bewusst** `deterministic_dry_run`. Ohne diesen Aufruf meldet
 `/api/v1/build` immer „kein vollstaendiges Build-Artefakt" — **das ist der Schutz, kein Defekt.**
 
-**NÄCHSTER AUTONOMER SCHRITT:** RC11-Wahrheit atomar in allen aktiven Spiegeln
-synchronisieren → vollständige Suite seriell fahren → nur den RC11-Slice exakt stagen →
-commit/push → CI abwarten. Danach bleiben genau I1 `hosted_candidate_parity` und I5
-`production_auth_identity` `OWNER-BLOCKED`.
+**NÄCHSTER AUTONOMER SCHRITT:** RC11 ist **abgeschlossen und grün** — nichts nachtragen,
+nichts hochsetzen, keinen Re-Run „zur Sicherheit". Die einzige verbleibende autonome Fläche
+ist der Produkt-Slice **`organism-visual-v2`** (§12 der Übergabe): eigener Branch, additiv auf
+`CortexCanvas3D`, `data-testid`-Selektoren unverändert, voller `verify:browser` als Abnahme.
+
+**Alles andere ist Owner-Wand, nicht offene Arbeit:** O1 (OAuth-Klick) → P3 ·
+O3 (GHCR, erst nach `MARKET_READY`) → P5 · `AGENT_API_AUTH_TOKEN` (Secret, **keine Zahlung**)
+→ `phase6_scale_runtime`. L4/L5 sind bewusst null-kreditiert — Hochsetzen bricht zwei Verifier.
+
+**R-NEU-10 (neu, aus einem Eigenfehler):** In einem Repo, in dem ein zweiter Agent parallel
+arbeitet, **nie `git commit` ohne Pfadliste** — der Index gehört dir nicht allein. Immer
+`git commit -o <pfad…> -m "…"`. Beleg: `a8331d89` trägt eine Doku-Nachricht, enthält aber 34
+Dateien. Bleibt stehen (gepusht, grün, zwei Commits darauf); Rewrite wäre ein Force-Push.
 
 **NIE:** `static` wieder als Pflichtkette eintragen (Selbstbezug, R-NEU-9) · zahlen (macht die
 Matrix rot) · P5 handsetzen (verifier-gebunden) · L4/L5 anfassen · in einem Neben-Worktree

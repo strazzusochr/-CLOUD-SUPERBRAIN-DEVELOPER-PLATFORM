@@ -1,30 +1,35 @@
 # Cloud Superbrain Project Anchor
 
-## ⚓ CHECKPOINT 2026-08-01 — SESSION 13i (NEUESTER REFERENZPUNKT)
+## ⚓ CHECKPOINT 2026-08-01 — SESSION 13j (NEUESTER REFERENZPUNKT)
 
-**Anchor ID:** `cloud-superbrain-anchor-2026-08-01-session13i-rc11-local-qualified`
+**Anchor ID:** `cloud-superbrain-anchor-2026-08-01-session13j-clean-clone-requalified`
 **Status:** `ACTIVE_RESUME_POINT`
 **Workspace:** `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM` (Hauptordner!)
-**Branch:** `claude/cloud-superbrain-analysis-127d2e` · **HEAD = origin = `bae3cdc1692e1e99e7f546f72664a3c747958b8c`**
+**Branch:** `claude/cloud-superbrain-analysis-127d2e` · **HEAD = origin = `f7830977358a2f93bd356814aa50c762a8f9eafb`**
 
-### AKTUELLER STAND (gemessen)
+### AKTUELLER STAND (unabhängig nachgemessen 2026-08-01)
 | Gegenstand | Ergebnis |
 |---|---|
-| Source / CI | ✅ `bae3cdc1692e1e99e7f546f72664a3c747958b8c` · `pr-check` Run `30686367636` success |
-| RC11-Qualifikationsketten | ✅ 5/5: Runtime · Browser · Images · Candidate-Runtime · Security |
-| Kandidat RC11 | ✅ `prod-candidate-2026-07-31-local-rc11`, 6/6 Images/Services source-bound |
-| O4 Proof | ✅ SHA-256 `50304C69B3D748C95804C4C72C2970694748F469AE322D5C24DAA6BCB545B11B` |
-| Manifest-Wahrheit | Overall **89** · P5 **89** · `MARKET_READY:false` |
-| Itemisierung | ✅ `17/19`, `fully_itemized`; I1 + I5 `OWNER-BLOCKED` |
+| Source / CI | ✅ `f7830977` · `pr-check` Run `30712183385` `completed/success`, headSha identisch |
+| Lokal = origin | ✅ `git rev-parse HEAD == origin/<branch>` |
+| Manifest-Wahrheit | Overall **89** = `round(Σ H / 7)` nachgerechnet · `MARKET_READY:false` |
+| Horizontal | P0 100 · P1 100 · P2 100 · **P3 44** · P4 100 · **P5 89** · **P6 90** |
+| Vertikal | L1 100 · L2 100 · L3 100 · **L4 55** · **L5 56** · L6 100 · L7 100 |
+| P5-Itemisierung | ✅ `fully_itemized`, `computed=89 == credited=89`, `17/19`; blockiert: **I1, I5** |
+| Capability-Gates | **7/10 geschlossen**, 3 offen: `production_auth_identity` · `docker_registry_publish` · `phase6_scale_runtime` |
+| O4 Proof | ✅ SHA-256 `2D3F164D…D72E71`, gebunden an `live_agent_tool_writes` **und** `live_mcp_writes` |
+| Dirty (fremd, nicht committen!) | `.codex/runs/CURRENT/product-acceptance/report.json` · `apps/frontend/next-env.d.ts` · `apps/frontend/tsconfig.tsbuildinfo` |
 | Scope | `DEV-ONLY; hosted proof still blocked` |
 
 ### NÄCHSTER SCHRITT (exakt, in dieser Reihenfolge)
-1. RC11-Wahrheit atomar in Manifest, Runtime-/Frontend-Spiegeln und aktuellen Dokumenten synchronisieren.
-2. Danach die vollständige Suite seriell mit `TEMP`/`TMP=D:\_sb_tmp` verifizieren; keine
-   parallelen Playwright-/Docker-/Verifier-Läufe.
-3. Nur den RC11-Truth-Slice explizit stagen, committen, auf den Arbeitsbranch pushen und CI abwarten.
-4. Anschließend an den echten Owner-Wänden stoppen: I1 `hosted_candidate_parity` und I5
-   `production_auth_identity`. Kein Registry-Push, Deploy oder Promotion ohne separates Gate.
+1. **Nichts an der Wahrheit anfassen** — HEAD ist grün, lokal == origin, CI grün. Kein Nachtragen,
+   kein Hochsetzen, kein Re-Run „zur Sicherheit".
+2. Die drei offenen Gates sind **Owner-Wände**, keine offene Arbeit:
+   O1 (GitHub-OAuth-Klick) → P3 · O3 (GHCR, erst nach MARKET_READY) → P5/`docker_registry_publish`
+   · `AGENT_API_AUTH_TOKEN` für den Phase-6-Write-Tier → `phase6_scale_runtime`.
+3. Erst wenn eine dieser Wände fällt, gibt es wieder autonome Fläche auf den Prozentzahlen.
+4. Unabhängig davon freigegeben: der Slice **`organism-visual-v2`** (§12) — eigener Branch,
+   additiv auf `CortexCanvas3D`, Testselektoren unverändert, voller `verify:browser` als Abnahme.
 
 ### PROJEKTZIEL
 `npm run verify:market-ready` druckt real **`MARKET_READY: true`**.

@@ -868,3 +868,57 @@ eigener Slice mit eigenem vollen Browserlauf — **niemals waehrend eines offene
 3. Erst Blend-/Bloom-Layer additiv ergaenzen, Testselektoren (`data-testid`) **unveraendert lassen**
 4. Voller `verify:browser` als Abnahme, Screenshot-Bytes als Beleg
 5. Kein Austausch von `CortexCanvas3D` — **erweitern**, nicht ersetzen
+
+---
+
+## 13. SESSION-ABSCHLUSS 2026-08-01 — ZUSTAND UND EIN EIGENFEHLER
+
+### 13.1 Gemessener Endstand (unabhängig nachgeprüft, nicht aus einem Report übernommen)
+
+| Prüfung | Kommando / Quelle | Ergebnis |
+|---|---|---|
+| HEAD == origin | `git rev-parse HEAD` vs `origin/<branch>` | ✅ `f7830977` |
+| CI | `gh run view 30712183385` | ✅ `completed / success`, headSha `f7830977` |
+| Overall | `round(Σ horizontale Phasen / 7)` nachgerechnet | ✅ **89** == Manifest |
+| P5-Credit | `scripts/verify_phase5_credit_itemization.py` | ✅ exit 0, `fully_itemized`, `computed=89 == credited=89`, `17/19` |
+| O4-Evidenz | SHA-256 über `.phase1-artifacts/o4-live-writes/proof.json` | ✅ identisch in `live_agent_tool_writes` **und** `live_mcp_writes` |
+| Gates | `docs/runtime-state/capability-gates.json` | **7/10 zu**, offen: `production_auth_identity`, `docker_registry_publish`, `phase6_scale_runtime` |
+
+Damit stimmt Codex' Abschlussmeldung mit dem tatsächlichen Repo-Zustand überein.
+
+### 13.2 R-NEU-10 — `git commit` ohne Pathspec committet den **gesamten** Index
+
+**Was passiert ist:** Ich wollte zwei Doku-Dateien committen und habe `git commit -m …`
+ohne Pfadangabe abgesetzt. Codex hatte zeitgleich 32 Dateien seines RC11-Slices gestaged
+(`STAGE: EXACT 32F`). Ergebnis: Commit `a8331d89` trägt die Nachricht
+„docs(organism): record reference-video analysis and deferred visual plan" — enthält aber
+**34 Dateien**, darunter `verify_phase5_credit_itemization.py`, `verify-market-ready.ps1`,
+das komplette RC11-Evidenzpaket und `.github/workflows/pr-check.yml`.
+
+**Warum es NICHT rückgängig gemacht wird:**
+1. `a8331d89` ist **gepusht** und trägt zwei weitere Commits (`7101d3e7`, `f7830977`).
+2. Eine Korrektur wäre ein Force-Push — **durch Owner-Regel verboten**.
+3. Der **Inhalt ist unbeschädigt**: es ist Codex' eigene, legitime Arbeit, die er anschließend
+   selbst weitergebaut hat; CI und alle Verifier sind darauf grün.
+
+Falsch ist allein die **Commit-Nachricht**, nicht der Baum. Ein Rewrite würde ein reales,
+grünes Fundament gegen ein kosmetisches Problem eintauschen. **Bleibt stehen, wird protokolliert.**
+
+**Regel für jeden Agenten, der parallel zu einem anderen im selben Repo arbeitet:**
+> Niemals `git commit` ohne explizite Pfadliste. Immer `git commit -o <pfad…> -m "…"`
+> (oder `git commit -- <pfad…>`). Der Index ist in einem geteilten Repo **kein eigener Besitz**.
+> `git add -A` bleibt ohnehin verboten.
+
+### 13.3 Was jetzt offen ist — und was davon Arbeit ist
+
+| Offen | Art | Autonom lösbar? |
+|---|---|---|
+| P3 = 44 | O1 GitHub-OAuth-Klick | ❌ Owner-Wand |
+| P5 = 89 (I1, I5) | O3 GHCR + Production-Auth-Identity | ❌ Owner-Wand, GHCR zusätzlich erst nach MARKET_READY |
+| P6 = 90 | `AGENT_API_AUTH_TOKEN` für den Write-Tier | ❌ Owner-Wand (Secret, **keine Zahlung**) |
+| L4 = 55, L5 = 56 | bewusst null-kreditiert, verifier-geschützt | ❌ Hochsetzen = Fake-Completion |
+| `organism-visual-v2` | Produktarbeit, §12 | ✅ **freigegeben** — RC11 ist abgeschlossen |
+
+Die einzige verbleibende autonome Fläche ist damit §12. Alles andere wartet auf eine
+Owner-Entscheidung, **nicht** auf Geld: `payment_required` ist bei O1/O2/O3 `false`, und eine
+im Manifest abgebildete Zahlung macht `owner-input-matrix` rot.
