@@ -449,15 +449,14 @@ test.describe("Cloud Superbrain platform", () => {
 
     const clockStart = new Date("2026-07-31T00:00:00Z");
     await page.clock.install({ time: clockStart });
-    await page.clock.pauseAt(new Date(clockStart.getTime() + 1_000));
-    await page.goto("/organism?gpu=force", { waitUntil: "networkidle" });
+    await page.goto("/organism?gpu=force", { waitUntil: "domcontentloaded" });
     const controls = page.getByTestId("phase6-camera-lighting-controls");
     const canvasState = page.locator('.cortex-wrap[data-camera-lighting-local-only="true"]').first();
     await expect(controls).toBeVisible();
-    await page.clock.runFor(125);
-    await page.waitForLoadState("networkidle");
-    await page.clock.runFor(40);
     await expect(canvasState).toBeVisible({ timeout: 30_000 });
+    await expect(canvasState.locator("canvas")).toBeVisible({ timeout: 30_000 });
+    const readyTime = await page.evaluate(() => Date.now());
+    await page.clock.pauseAt(readyTime + 1_000);
     await page.clock.runFor(80);
     await expect(canvasState).toHaveAttribute("data-camera-preset", "wide");
     await expect(canvasState).toHaveAttribute("data-camera-fov", "45");
