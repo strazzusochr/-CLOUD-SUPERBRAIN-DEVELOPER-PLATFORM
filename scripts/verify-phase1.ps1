@@ -813,6 +813,43 @@ $liveWriteVerifierPath = Join-Path $PSScriptRoot "verify-o4-live-writes.ps1"
 if (-not (Test-Path -LiteralPath $liveWriteVerifierPath -PathType Leaf)) {
   throw "Missing O4 live Agent/MCP write verifier"
 }
+$liveWriteVerifierSource = Get-Content -LiteralPath $liveWriteVerifierPath -Raw
+foreach ($required in @(
+  'Assert-ProofSourceParity',
+  '--diff-filter=ACDMRTUXB',
+  'qualificationTruthPaths',
+  'apps/frontend/lib/endpoint-snapshot.json',
+  'apps/frontend/lib/platform.ts',
+  'scripts/verify-o4-live-writes.ps1',
+  'RequireCleanWorktree',
+  'proof tracked runtime worktree is clean',
+  'proof has no untracked runtime paths',
+  '"ls-files", "--others", "--exclude-standard"',
+  'runtime_source_parity_verified',
+  'browser_source_parity_verified',
+  'proof_worktree_clean_verified'
+)) {
+  if (-not $liveWriteVerifierSource.Contains($required)) {
+    throw "O4 live-write verifier missing fail-closed source-parity guard: $required"
+  }
+}
+$liveWriteBrowserPath = Join-Path $PSScriptRoot "verify-o4-live-write-browser.cjs"
+if (-not (Test-Path -LiteralPath $liveWriteBrowserPath -PathType Leaf)) {
+  throw "Missing O4 live-write browser verifier"
+}
+$liveWriteBrowserSource = Get-Content -LiteralPath $liveWriteBrowserPath -Raw
+foreach ($required in @(
+  '"status"',
+  '"--porcelain=v1"',
+  '"--untracked-files=all"',
+  'scripts/verify-o4-live-writes.ps1',
+  'O4 proof generation requires a clean tracked and untracked runtime worktree',
+  'proof_worktree_clean_verified: true'
+)) {
+  if (-not $liveWriteBrowserSource.Contains($required)) {
+    throw "O4 browser verifier missing clean-worktree guard: $required"
+  }
+}
 & powershell -NoProfile -ExecutionPolicy Bypass -File $liveWriteVerifierPath
 Assert-LastExitCode "O4 live Agent/MCP write gate"
 
@@ -3431,10 +3468,28 @@ foreach ($required in @(
   'qualification_truth_transition=',
   'backendState.overall_percent',
   'runtime_source_parity=true',
-  'snapshot_stale='
+  'snapshot_stale=',
+  'ssl.create_default_context()',
+  'class NoRedirectHandler',
+  'urllib.request.HTTPSHandler(context=ctx)',
+  'response.status != 200',
+  'response.geturl() != url',
+  'attempts = 3',
+  'urllib.error.HTTPError',
+  '500 <= exc.code <= 599',
+  'transient_errors = (ConnectionError, TimeoutError, socket.timeout, http.client.RemoteDisconnected)',
+  'not isinstance(exc.reason, transient_errors)',
+  'time.sleep(attempt)',
+  'Assert-Equal "hosted status $url" ([int]$status) 200',
+  'Verified hosted read failed after bounded retries'
 )) {
   if (-not $currentReleaseCandidateVerifier.Contains($required)) {
     throw "Current release candidate verifier missing canonical gate classification: $required"
+  }
+}
+foreach ($forbidden in @('ssl._create_unverified_context', 'ssl.CERT_NONE', 'check_hostname = False')) {
+  if ($currentReleaseCandidateVerifier.Contains($forbidden)) {
+    throw "Current release candidate verifier weakens TLS verification: $forbidden"
   }
 }
 $phase5ImmutableParityVerifier = Get-Content -Path "scripts\manual\verify-phase5-staging-immutable-parity.ps1" -Raw
@@ -3468,13 +3523,26 @@ foreach ($required in @(
   'verify:backend-hosted-current',
   'verify:current-release-candidate',
   'scripts\start-dev-live.ps1',
+  'pwsh -NoProfile',
   'dev-live-rehydrate',
+  'o4Evidence.runtime_report_source_commit',
+  'o4Evidence.browser_report_source_commit',
+  'o4Evidence.runtime_source_parity_verified',
+  'o4Evidence.browser_source_parity_verified',
+  'o4Evidence.proof_worktree_clean_verified',
+  'o4Runtime.proof_worktree_clean_verified',
+  'o4Browser.proof_worktree_clean_verified',
   'requires owner-gated stateful hosted runtime',
   '^B\d+-|owner[-_ ]gated|owner[-_ ]gate'
 )) {
   if (-not $marketReadyScript.Contains($required)) {
     throw "Market-ready verifier missing current gate guard: $required"
   }
+}
+$rootPackageConfig = Get-Content -Path "package.json" -Raw | ConvertFrom-Json
+$frontendHostedCommand = [string]$rootPackageConfig.scripts.'verify:frontend-hosted-current'
+if (-not $frontendHostedCommand.Contains('-SkipBrowser')) {
+  throw "Current hosted frontend package verifier must preserve and validate the timestamp-bound canonical browser report"
 }
 
 Write-Host "[verify] current hosted MCP read-only verifier"

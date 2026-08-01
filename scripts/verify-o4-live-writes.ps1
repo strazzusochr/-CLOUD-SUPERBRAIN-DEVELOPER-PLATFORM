@@ -303,11 +303,33 @@ function Assert-LiveResult($Result, [string]$Channel, [string]$Branch) {
   }
 }
 
-function Assert-ProofReport($Report, [string]$Kind, [string]$Branch, [string]$Head) {
+$proofRuntimePaths = @(
+  ".dockerignore",
+  "apps/frontend",
+  "docker-compose.dev.yml",
+  "infrastructure/nginx/dev.conf",
+  "services/agent-api",
+  "services/mcp-gateway",
+  "scripts/start-dev-live.ps1",
+  "scripts/verify-o4-live-write-browser.cjs",
+  "scripts/verify-o4-live-writes.ps1"
+)
+$qualificationTruthPaths = @(
+  "apps/frontend/lib/endpoint-snapshot.json",
+  "apps/frontend/lib/platform.ts"
+)
+
+function Assert-ProofReport(
+  $Report,
+  [string]$Kind,
+  [string]$Branch,
+  [string]$Head,
+  [bool]$RequireCleanWorktree = $false
+) {
   Assert-True "$Kind report verified" ([string]$Report.status -eq "verified")
   Assert-True "$Kind report repository" ([string]$Report.repository -eq $repository)
   Assert-True "$Kind report branch" ([string]$Report.branch -eq $Branch)
-  Assert-True "$Kind report source commit" ([string]$Report.source_commit -eq $Head)
+  Assert-ProofSourceParity ([string]$Report.source_commit) $Kind $Head $RequireCleanWorktree
   foreach ($field in @(
     "write_performed",
     "readback_verified",
@@ -318,6 +340,7 @@ function Assert-ProofReport($Report, [string]$Kind, [string]$Branch, [string]$He
     "live_mcp_writes",
     "owner_scope_approved",
     "branch_protection_verified",
+    "proof_worktree_clean_verified",
     "DEV_ONLY"
   )) {
     Assert-True "$Kind report $field=true" ($Report.$field -eq $true)
@@ -333,6 +356,57 @@ function Assert-ProofReport($Report, [string]$Kind, [string]$Branch, [string]$He
     Assert-True "$Kind report $field=false" ($Report.$field -eq $false)
   }
   Assert-True "$Kind report content SHA-256" ([string]$Report.content_sha256 -match "^[a-f0-9]{64}$")
+}
+
+function Assert-ProofSourceParity(
+  [string]$SourceCommit,
+  [string]$Kind,
+  [string]$Head,
+  [bool]$RequireCleanWorktree = $false
+) {
+  Assert-True "$Kind report source commit format" ($SourceCommit -match "^[a-f0-9]{40}$")
+  & git -C $repoRoot cat-file -e "$SourceCommit^{commit}" 2>$null
+  Assert-True "$Kind report source commit exists" ($LASTEXITCODE -eq 0)
+  & git -C $repoRoot merge-base --is-ancestor $SourceCommit $Head 2>$null
+  Assert-True "$Kind report source commit is an ancestor of HEAD" ($LASTEXITCODE -eq 0)
+
+  $diffArgs = @(
+    "diff", "--cached", "--name-only", "--diff-filter=ACDMRTUXB", $SourceCommit, "--"
+  ) + $proofRuntimePaths
+  $changedPaths = @(
+    & git -C $repoRoot @diffArgs |
+      ForEach-Object { ([string]$_).Trim().Replace("\", "/") } |
+      Where-Object { $_ }
+  )
+  Assert-True "$Kind report runtime-source diff is readable" ($LASTEXITCODE -eq 0)
+  $unexpectedPaths = @(
+    $changedPaths | Where-Object { $qualificationTruthPaths -notcontains $_ }
+  )
+  Assert-True "$Kind report runtime-source parity outside qualification truth" ($unexpectedPaths.Count -eq 0)
+
+  if ($RequireCleanWorktree) {
+    $worktreeDiffArgs = @(
+      "diff", "--name-only", "--diff-filter=ACDMRTUXB", $SourceCommit, "--"
+    ) + $proofRuntimePaths
+    $worktreeChanges = @(
+      & git -C $repoRoot @worktreeDiffArgs |
+        ForEach-Object { ([string]$_).Trim().Replace("\", "/") } |
+        Where-Object { $_ }
+    )
+    Assert-True "$Kind proof worktree diff is readable" ($LASTEXITCODE -eq 0)
+    Assert-True "$Kind proof tracked runtime worktree is clean" ($worktreeChanges.Count -eq 0)
+
+    $untrackedArgs = @(
+      "ls-files", "--others", "--exclude-standard", "--"
+    ) + $proofRuntimePaths
+    $untrackedPaths = @(
+      & git -C $repoRoot @untrackedArgs |
+        ForEach-Object { ([string]$_).Trim().Replace("\", "/") } |
+        Where-Object { $_ }
+    )
+    Assert-True "$Kind proof untracked runtime inventory is readable" ($LASTEXITCODE -eq 0)
+    Assert-True "$Kind proof has no untracked runtime paths" ($untrackedPaths.Count -eq 0)
+  }
 }
 
 Assert-True "RuntimeProof and PromoteGateOnFullPass are mutually exclusive" (
@@ -356,6 +430,8 @@ Assert-True "O4 workspace is not .codex" (-not $workspaceRoot.Contains("\.codex\
 Assert-True "O4 workspace is not secrets" (-not $workspaceRoot.Contains("\secrets\"))
 
 if ($RuntimeProof) {
+  $runtimeHead = (& git -C $repoRoot rev-parse HEAD | Out-String).Trim()
+  Assert-ProofSourceParity $runtimeHead "runtime generation" $runtimeHead $true
   $base = [Uri]$BaseUrl
   Assert-True "runtime proof requires explicit localhost approval" (
     $AllowLocalhost -and
@@ -524,6 +600,7 @@ if ($RuntimeProof) {
     live_mcp_writes = $true
     owner_scope_approved = $true
     branch_protection_verified = $true
+    proof_worktree_clean_verified = $true
     main_write = $false
     force_push = $false
     live_provider_calls = $false
@@ -564,8 +641,8 @@ if ($PromoteGateOnFullPass) {
   $runtimeReport = Read-Json $RuntimeReportPath
   $browserReport = Read-Json $BrowserReportPath
   $head = (& git -C $repoRoot rev-parse HEAD | Out-String).Trim()
-  Assert-ProofReport $runtimeReport "runtime" $branch $head
-  Assert-ProofReport $browserReport "browser" $branch $head
+  Assert-ProofReport $runtimeReport "runtime" $branch $head $true
+  Assert-ProofReport $browserReport "browser" $branch $head $true
   Assert-True "runtime report contract" ([string]$runtimeReport.contract_version -eq "o4-live-write-runtime-proof-v1")
   Assert-True "browser report contract" ([string]$browserReport.contract_version -eq "o4-live-write-browser-proof-v1")
   Assert-True "runtime negative probes are complete" (
@@ -590,6 +667,13 @@ if ($PromoteGateOnFullPass) {
     evidence_ref = $evidenceRef
     verified_at_utc = $verifiedAt
     source_commit = $head
+    runtime_report_source_commit = [string]$runtimeReport.source_commit
+    browser_report_source_commit = [string]$browserReport.source_commit
+    runtime_source_parity_verified = $true
+    browser_source_parity_verified = $true
+    proof_worktree_clean_verified = $true
+    proof_runtime_source_paths = $proofRuntimePaths
+    qualification_truth_paths = $qualificationTruthPaths
     repository = $repository
     branch = $branch
     provider = $provider
@@ -722,6 +806,9 @@ Assert-True "O4 combined report verified" (
   $combined.live_mcp_writes -eq $true -and
   $combined.runtime_verified -eq $true -and
   $combined.browser_verified -eq $true -and
+  $combined.runtime_source_parity_verified -eq $true -and
+  $combined.browser_source_parity_verified -eq $true -and
+  $combined.proof_worktree_clean_verified -eq $true -and
   $combined.audit_failure_rollback_verified -eq $true
 )
 Assert-True "O4 combined report safety" (
@@ -730,6 +817,27 @@ Assert-True "O4 combined report safety" (
   $combined.force_push -eq $false -and
   $combined.production_deploy -eq $false -and
   $combined.secret_output -eq $false
+)
+$runtimeEvidencePath = [string]$combined.runtime_report
+$browserEvidencePath = [string]$combined.browser_report
+Assert-True "O4 runtime report exists" (Test-Path -LiteralPath $runtimeEvidencePath -PathType Leaf)
+Assert-True "O4 browser report exists" (Test-Path -LiteralPath $browserEvidencePath -PathType Leaf)
+Assert-True "O4 runtime report SHA-256" (
+  [string]$combined.runtime_report_sha256 -eq (Get-Sha256 $runtimeEvidencePath)
+)
+Assert-True "O4 browser report SHA-256" (
+  [string]$combined.browser_report_sha256 -eq (Get-Sha256 $browserEvidencePath)
+)
+$runtimeEvidence = Read-Json $runtimeEvidencePath
+$browserEvidence = Read-Json $browserEvidencePath
+$currentHead = (& git -C $repoRoot rev-parse HEAD | Out-String).Trim()
+Assert-ProofReport $runtimeEvidence "runtime" $branch $currentHead
+Assert-ProofReport $browserEvidence "browser" $branch $currentHead
+Assert-True "O4 combined runtime source commit" (
+  [string]$combined.runtime_report_source_commit -eq [string]$runtimeEvidence.source_commit
+)
+Assert-True "O4 combined browser source commit" (
+  [string]$combined.browser_report_source_commit -eq [string]$browserEvidence.source_commit
 )
 Assert-True "O4 action resolved" ([string]$o4Action.status -eq "resolved_verified")
 Assert-True "O4 action credit is exact" (

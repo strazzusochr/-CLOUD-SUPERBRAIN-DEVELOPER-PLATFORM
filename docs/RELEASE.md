@@ -123,24 +123,28 @@ live provider calls, live MCP writes, registry publication, deployment, or relea
 
 ## Current Hosted Frontend Proof
 
-`frontend-hosted-current-proof-v1` binds Vercel Production deployment
-`dpl_9KPqcjNPnV9irpJ9W8tyjff8LMbX` to source
-`21913f8c3ef13949ca962980c143e757ca87a7cc` and archive SHA-256
-`314bd1d9c7830dc5ac9077398025fed4ab48041b31fefae491916e838d5f7080`.
+`frontend-hosted-current-proof-v1` binds the current Vercel Production Alias to
+READY deployment `dpl_5uLu9a2BpEBb5BDPiuqRtyfkSFY1` and Vercel-attested Git
+source `67f41cecf38de109e762632ed971c9a7fdaff6ba`. This Git-integrated redeploy has
+no attested source-archive SHA-256, so none is claimed.
 Real Google Chrome `148.0.7778.96` opened all 22 canonical routes through 44
 command-palette clicks at desktop `1440x960` and mobile `390x844`. Overflow failures,
 overlay collisions, visible not-found states, and console errors were zero. The verifier
-also requires exact Vercel metadata, byte-identical immutable/Alias root and workspace
-wiring, and HTTP `200` for 32 read endpoints including all eight former HTTP-500 routes.
-Evidence is under `.codex/runs/CURRENT/master-goal/production/t1-21913f8c`.
+also requires two matching authenticated Vercel metadata reads, exact proof/deployment
+timestamp ordering, byte-identical immutable/Alias root and workspace wiring, and HTTP
+`200` for 32 read endpoints including all eight former HTTP-500 routes. Evidence is
+under `.codex/runs/CURRENT/master-goal/production/t1-67f41cec`.
 
-This is a scoped operational Production repair, not release-candidate promotion. It does
-not close the stateful Agent API, registry, live-provider, or full-platform release gates.
+This is a read-only truth refresh for the already-active Alias, not a deploy, RC11 hosted
+parity, or release-candidate promotion. Frontend remains `100%`; Overall remains `89%`.
+It does not close the stateful Agent API, registry, live-provider, or full-platform release gates.
 
 ## Current Hosted Backend Contract Origin
 
 `backend-hosted-current-proof-v1` binds Vercel Production deployment
-`dpl_AQaBJxdQwHLcQKid8xYXkNJ3wva2` to the same source and archive hash. Authenticated
+`dpl_AQaBJxdQwHLcQKid8xYXkNJ3wva2` explicitly to historical T1 source
+`21913f8c3ef13949ca962980c143e757ca87a7cc` and archive SHA-256
+`314bd1d9c7830dc5ac9077398025fed4ab48041b31fefae491916e838d5f7080`. Authenticated
 read-only Vercel metadata proves READY state, target `production`, and Alias assignment.
 The immutable URL remains deployment-protected; public Alias reads prove the source-bound
 snapshot at `overall=84`, `P4=100`, integrity `verified`,

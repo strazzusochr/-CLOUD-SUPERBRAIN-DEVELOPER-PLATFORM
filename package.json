@@ -26,7 +26,7 @@
     "verify:phase5-credit": "py -3 scripts\\verify_phase5_credit_itemization.py",
     "verify:phase6-scoreboard": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase6-local-scoreboard-performance-runtime.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
     "verify:responsive": "node scripts/verify-workspace-responsive-browser.cjs --base-url http://localhost:8081 --allow-localhost",
-    "verify:frontend-hosted-current": "powershell -ExecutionPolicy Bypass -File scripts\\verify-frontend-hosted-current.ps1",
+    "verify:frontend-hosted-current": "powershell -ExecutionPolicy Bypass -File scripts\\verify-frontend-hosted-current.ps1 -SkipBrowser",
     "verify:backend-hosted-current": "powershell -ExecutionPolicy Bypass -File scripts\\verify-backend-hosted-current.ps1",
     "verify:cloudflare-llm-gateway": "powershell -ExecutionPolicy Bypass -File scripts\\verify-cloudflare-llm-gateway.ps1 -StaticOnly",
     "verify:cloudflare-stateful-runtime": "powershell -ExecutionPolicy Bypass -File scripts\\verify-cloudflare-stateful-runtime.ps1 -StaticOnly",

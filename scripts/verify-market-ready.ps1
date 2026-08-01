@@ -497,6 +497,7 @@ try {
         [bool]$o4Evidence.live_mcp_writes -eq $true -and
         [bool]$o4Evidence.runtime_verified -eq $true -and
         [bool]$o4Evidence.browser_verified -eq $true -and
+        [bool]$o4Evidence.proof_worktree_clean_verified -eq $true -and
         [bool]$o4Evidence.audit_failure_rollback_verified -eq $true -and
         [bool]$o4Evidence.arbitrary_paths_allowed -eq $false -and
         [bool]$o4Evidence.main_write -eq $false -and
@@ -510,13 +511,18 @@ try {
         [string]$o4Runtime.contract_version -eq "o4-live-write-runtime-proof-v1" -and
         [string]$o4Runtime.status -eq "verified" -and
         [bool]$o4Runtime.audit_failure_rollback_verified -eq $true -and
+        [bool]$o4Runtime.proof_worktree_clean_verified -eq $true -and
         [bool]$o4Runtime.secret_output -eq $false -and
         $null -ne $o4Browser -and
         [string]$o4Browser.contract_version -eq "o4-live-write-browser-proof-v1" -and
         [string]$o4Browser.status -eq "verified" -and
         [bool]$o4Browser.real_browser -eq $true -and
+        [bool]$o4Browser.proof_worktree_clean_verified -eq $true -and
         [bool]$o4Browser.secret_output -eq $false -and
-        [string]$o4Runtime.source_commit -eq [string]$o4Browser.source_commit -and
+        [string]$o4Evidence.runtime_report_source_commit -eq [string]$o4Runtime.source_commit -and
+        [string]$o4Evidence.browser_report_source_commit -eq [string]$o4Browser.source_commit -and
+        [bool]$o4Evidence.runtime_source_parity_verified -eq $true -and
+        [bool]$o4Evidence.browser_source_parity_verified -eq $true -and
         $null -ne $agentPoolProgress -and
         [int]$agentPoolProgress.percent -eq 100 -and
         [string]$agentPoolProgress.status -match "bounded_live_agent_mcp_write_audit_verified"
@@ -657,7 +663,7 @@ if (-not $StaticOnly) {
   Invoke-Npm "verify(phase1+gitleaks)" "verify"
   Invoke-Npm "verify:runtime"          "verify:runtime"
   Write-Host "[market-ready] running: scripts\start-dev-live.ps1"
-  & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repoRoot "scripts\start-dev-live.ps1") 2>&1 |
+  & pwsh -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repoRoot "scripts\start-dev-live.ps1") 2>&1 |
     ForEach-Object { Write-Host "    $_" }
   $devLiveCode = $LASTEXITCODE; if ($null -eq $devLiveCode) { $devLiveCode = 0 }
   Add-Result "dev-live-rehydrate" ($devLiveCode -eq 0) "exit=$devLiveCode"

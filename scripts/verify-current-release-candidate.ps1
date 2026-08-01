@@ -79,22 +79,65 @@ if (-not $baseUrlExplicit) {
 $BaseUrl = $BaseUrl.TrimEnd('/')
 Assert-HostedBaseUrlConfigured
 
-function Get-Json($url) {
-@"
-import json, ssl, urllib.request
+function Invoke-HostedRead($url, $mode) {
+  $output = @"
+import http.client, json, socket, ssl, sys, time, urllib.error, urllib.parse, urllib.request
+
+class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, message, headers, newurl):
+        return None
+
+url = sys.argv[1]
+mode = sys.argv[2]
+parsed = urllib.parse.urlsplit(url)
+if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+    raise ValueError("Hosted read requires a credential-free HTTPS URL")
+if mode not in {"json", "status"}:
+    raise ValueError("Unsupported hosted read mode")
 ctx = ssl.create_default_context()
-with urllib.request.urlopen(r"$url", timeout=30, context=ctx) as response:
-    print(json.dumps(json.load(response)))
-"@ | py -3 -
+opener = urllib.request.build_opener(
+    urllib.request.HTTPSHandler(context=ctx),
+    NoRedirectHandler(),
+)
+attempts = 3
+transient_errors = (ConnectionError, TimeoutError, socket.timeout, http.client.RemoteDisconnected)
+
+for attempt in range(1, attempts + 1):
+    try:
+        with opener.open(url, timeout=30) as response:
+            if response.status != 200:
+                raise RuntimeError(f"Hosted read expected HTTP 200, got {response.status}")
+            if response.geturl() != url:
+                raise RuntimeError("Hosted read changed URL unexpectedly")
+            if mode == "json":
+                print(json.dumps(json.load(response)))
+            else:
+                print(response.status)
+        break
+    except urllib.error.HTTPError as exc:
+        if not (500 <= exc.code <= 599) or attempt == attempts:
+            raise
+        exc.close()
+    except urllib.error.URLError as exc:
+        if not isinstance(exc.reason, transient_errors) or attempt == attempts:
+            raise
+    except transient_errors:
+        if attempt == attempts:
+            raise
+    time.sleep(attempt)
+"@ | py -3 - $url $mode
+  if ($LASTEXITCODE -ne 0) {
+    throw "Verified hosted read failed after bounded retries: $url"
+  }
+  return $output
+}
+
+function Get-Json($url) {
+  Invoke-HostedRead $url "json"
 }
 
 function Get-Status($url) {
-@"
-import ssl, urllib.request
-ctx = ssl.create_default_context()
-with urllib.request.urlopen(r"$url", timeout=30, context=ctx) as response:
-    print(response.status)
-"@ | py -3 -
+  Invoke-HostedRead $url "status"
 }
 
 function Assert-GitCommitExists($sha) {
@@ -228,7 +271,7 @@ foreach ($url in @(
   "$BaseUrl/api/v1/project/progress/integrity"
 )) {
   $status = Get-Status $url
-  Assert-Contains "hosted status $url" $status "200"
+  Assert-Equal "hosted status $url" ([int]$status) 200
 }
 
 $manifest = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json

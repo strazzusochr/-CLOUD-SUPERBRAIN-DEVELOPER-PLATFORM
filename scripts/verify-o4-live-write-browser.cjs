@@ -76,6 +76,25 @@ async function main() {
   const branch = git(repoRoot, ["branch", "--show-current"]);
   assert(branch && branch !== "main" && !branch.split("/").includes(".."), "O4 browser proof refuses main or an invalid branch");
   assertCanonicalRemote(git(repoRoot, ["remote", "get-url", "origin"]));
+  const proofRuntimePaths = [
+    ".dockerignore",
+    "apps/frontend",
+    "docker-compose.dev.yml",
+    "infrastructure/nginx/dev.conf",
+    "services/agent-api",
+    "services/mcp-gateway",
+    "scripts/start-dev-live.ps1",
+    "scripts/verify-o4-live-write-browser.cjs",
+    "scripts/verify-o4-live-writes.ps1",
+  ];
+  const runtimeStatus = git(repoRoot, [
+    "status",
+    "--porcelain=v1",
+    "--untracked-files=all",
+    "--",
+    ...proofRuntimePaths,
+  ]);
+  assert(runtimeStatus === "", "O4 proof generation requires a clean tracked and untracked runtime worktree");
 
   const outPath = path.resolve(repoRoot, args.out);
   const artifactRoot = path.resolve(repoRoot, ".phase1-artifacts", "o4-live-writes");
@@ -242,6 +261,7 @@ async function main() {
       live_mcp_writes: true,
       owner_scope_approved: true,
       branch_protection_verified: true,
+      proof_worktree_clean_verified: true,
       main_write: false,
       force_push: false,
       live_provider_calls: false,
