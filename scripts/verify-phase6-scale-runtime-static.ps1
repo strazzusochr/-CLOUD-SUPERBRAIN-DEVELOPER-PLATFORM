@@ -13,7 +13,9 @@ if (@($parseErrors).Count -gt 0) {
 }
 
 $source = Get-Content -LiteralPath $sourcePath -Raw
-$workflowPath = Join-Path (Split-Path -Parent $PSScriptRoot) '.github\workflows\phase6-scale-runtime.yml'
+# Forward slashes: this verifier runs in pr-check on ubuntu-latest, where a backslash is a
+# literal character and the path would never resolve. PowerShell accepts "/" on Windows too.
+$workflowPath = Join-Path (Split-Path -Parent $PSScriptRoot) '.github/workflows/phase6-scale-runtime.yml'
 if (-not (Test-Path -LiteralPath $workflowPath -PathType Leaf)) {
   throw 'dedicated Phase6 scale workflow is missing'
 }

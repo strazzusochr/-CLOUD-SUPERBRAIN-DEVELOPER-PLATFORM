@@ -143,9 +143,11 @@ try {
   $criterionPath = Join-Path $tempRoot 'phase6-scale-criterion.json'
   $hostedPath = Join-Path $tempRoot 'cloudflare-native-hosted-current.json'
   $capabilityPath = Join-Path $tempRoot 'capability-gates.json'
-  Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\runtime-state\phase6-scale-criterion.json') -Destination $criterionPath
-  Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\runtime-state\cloudflare-native-hosted-current.json') -Destination $hostedPath
-  Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\runtime-state\capability-gates.json') -Destination $capabilityPath
+  # Forward slashes: pr-check runs this on ubuntu-latest, where a backslash is a literal
+  # character and -LiteralPath would look for a file whose name contains it.
+  Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/runtime-state/phase6-scale-criterion.json') -Destination $criterionPath
+  Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/runtime-state/cloudflare-native-hosted-current.json') -Destination $hostedPath
+  Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/runtime-state/capability-gates.json') -Destination $capabilityPath
   $criterion = Get-Content -LiteralPath $criterionPath -Raw | ConvertFrom-Json -Depth 30
   $hosted = Get-Content -LiteralPath $hostedPath -Raw | ConvertFrom-Json -Depth 30
   $repositoryHeadSha = (& git.exe -C $repoRoot rev-parse HEAD).Trim()
