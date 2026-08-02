@@ -127,7 +127,7 @@ def attested_ci_workflow() -> dict[str, object]:
         "name": "pr-check",
         "binding_mode": "source_checkout_attestation_v1",
         "run_id": RUN_ID,
-        "run_url": f"https://github.com/example/project/actions/runs/{RUN_ID}",
+        "run_url": f"https://github.com/{verifier.EXPECTED_GITHUB_REPOSITORY}/actions/runs/{RUN_ID}",
         "head_sha": CONTROL_SHA,
         "control_sha": CONTROL_SHA,
         "candidate_sha": SOURCE_SHA,
@@ -144,7 +144,7 @@ def attested_ci_workflow() -> dict[str, object]:
             "github_artifact_id": 987654321,
             "github_artifact_name": f"pr-check-source-checkout-attestation-{RUN_ID}-1",
             "github_artifact_url": (
-                f"https://github.com/example/project/actions/runs/{RUN_ID}/artifacts/987654321"
+                f"https://github.com/{verifier.EXPECTED_GITHUB_REPOSITORY}/actions/runs/{RUN_ID}/artifacts/987654321"
             ),
             "github_artifact_digest": f"sha256:{'e' * 64}",
         },
@@ -180,7 +180,7 @@ def source_checkout_attestation() -> dict[str, object]:
         "run_attempt": 1,
         "run_id": RUN_ID,
         "run_sha": CONTROL_SHA,
-        "run_url": f"https://github.com/example/project/actions/runs/{RUN_ID}",
+        "run_url": f"https://github.com/{verifier.EXPECTED_GITHUB_REPOSITORY}/actions/runs/{RUN_ID}",
         "secret_output": False,
         "source_prequalification": True,
     }
@@ -188,7 +188,7 @@ def source_checkout_attestation() -> dict[str, object]:
 
 def github_source_attestation_readback() -> dict[str, object]:
     artifact_id = 987654321
-    repository = "example/project"
+    repository = verifier.EXPECTED_GITHUB_REPOSITORY
     return {
         "contract_version": "github-actions-source-attestation-readback-v1",
         "repository": repository,
@@ -267,7 +267,10 @@ def v2_summary_fixture(
     chain: str = "runtime",
     command: str = "npm run verify:runtime",
 ) -> tuple[dict[str, object], dict[str, object], Path]:
-    anchors = ["successful verification anchor"]
+    # Mirror the verifier's own canonical set instead of inventing anchor text here. The
+    # verifier requires equality, so a hand-written placeholder made every v2 summary test
+    # fail on "observed anchors are not canonical" before reaching what it meant to assert.
+    anchors = list(verifier.CANONICAL_SUCCESS_ANCHORS[chain])
     relative = f"docs/release-artifacts/{V2_RELEASE_ID}-evidence/raw/{chain}.log"
     raw = v2_raw_log(chain, command, anchors)
     target = write_repo_file(root, relative, raw)
@@ -444,23 +447,29 @@ def v2_candidate_runtime_fixture(
     omit_boolean_anchor: str | None = None,
 ) -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
     command = "npm run verify:phase5-candidate-local"
-    anchors = ["1 passed", "[phase5-candidate-local] status=verified service_count=6"]
-    booleans = [
-        "api_contract_verified",
-        "local_image_identity_verified",
-        "embedded_source_hash_parity_verified",
-        "candidate_runtime_source_parity_verified",
-        "browser_click_verified",
+    # The canonical set already carries the five boolean anchors, the playwright count and the
+    # service-count line, in the order the verifier compares against. Deriving from it keeps the
+    # fixture and the contract in one place; omit_boolean_anchor then removes exactly one line so
+    # the rejection tests still exercise a genuinely incomplete log.
+    omitted_prefix = (
+        f"[phase5-candidate-local] {omit_boolean_anchor}="
+        if omit_boolean_anchor is not None
+        else None
+    )
+    anchors = list(verifier.CANONICAL_SUCCESS_ANCHORS["candidate-runtime"])
+    # The declared anchor set always stays canonical — omit_boolean_anchor drops the line from
+    # the RAW LOG only. That is the fabrication these tests exist to catch: evidence that claims
+    # a complete anchor set while the log it hashes does not actually contain it.
+    logged_anchors = [
+        line
+        for line in anchors
+        if omitted_prefix is None or not line.startswith(omitted_prefix)
     ]
-    extra = [
-        f"[phase5-candidate-local] {field}=true"
-        for field in booleans
-        if field != omit_boolean_anchor
-    ]
+    extra: list[str] = []
     raw_log_path = (
         f"docs/release-artifacts/{V2_RELEASE_ID}-evidence/raw/candidate-runtime.log"
     )
-    raw_log = v2_raw_log("candidate-runtime", command, anchors, extra_lines=extra)
+    raw_log = v2_raw_log("candidate-runtime", command, logged_anchors, extra_lines=extra)
     write_repo_file(root, raw_log_path, raw_log)
     raw_log_sha = sha256_upper(raw_log)
     readiness: dict[str, object] = {
@@ -682,7 +691,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             {
                 "name": "pr-check",
                 "run_id": RUN_ID,
-                "run_url": f"https://github.com/example/project/actions/runs/{RUN_ID}",
+                "run_url": f"https://github.com/{verifier.EXPECTED_GITHUB_REPOSITORY}/actions/runs/{RUN_ID}",
                 "head_sha": legacy_source,
                 "status": "success",
             },
@@ -696,7 +705,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
                 {
                     "name": "pr-check",
                     "run_id": RUN_ID,
-                    "run_url": f"https://github.com/example/project/actions/runs/{RUN_ID}",
+                    "run_url": f"https://github.com/{verifier.EXPECTED_GITHUB_REPOSITORY}/actions/runs/{RUN_ID}",
                     "head_sha": SOURCE_SHA,
                     "status": "success",
                 },
@@ -952,7 +961,12 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
                         entry,
                         image_entry,
                     ),
-                    "browser_click_verified raw proof anchor is not present",
+                    # The verifier rejects the missing line as a canonical-anchor violation.
+                    # Match the field name and the exact-line requirement rather than the whole
+                    # sentence, so a future rewording cannot silently turn this into a test that
+                    # passes for the wrong reason.
+                    "canonical anchor must occur as one exact line: "
+                    r"\[phase5-candidate-local\] browser_click_verified=true",
                 )
 
     def test_v2_candidate_runtime_rejects_boolean_fabrication_in_raw_api(self) -> None:
