@@ -1,7 +1,7 @@
 {
-  "active_release_id": "prod-candidate-2026-07-31-local-rc11",
-  "updated_at": "2026-08-01T08:21:37Z",
-  "updated_by": "codex-session13-phase5-itemization",
-  "reason": "Replace source-stale RC10 with a source-current six-service clean-archive candidate and bind the 19-item Phase-5 readiness rubric. RC10 source remains the local rollback target. Candidate-bound hosted staging, production OAuth, GHCR publication, Owner approval, release promotion, and production rollout remain explicitly blocked.",
+  "active_release_id": "prod-candidate-2026-08-02-local-rc12",
+  "updated_at": "2026-08-02T15:05:00Z",
+  "updated_by": "claude-session16-completion-transition",
+  "reason": "Replace RC11 with a candidate bound to the frozen completion-transition source 44c69506d78f4b6f0043a2719efbe7200eb07cd9. RC11 qualified a source whose Phase-6 scale contracts could not execute in CI at all; RC12 freezes the six platform fixes that made them run on ubuntu-latest, two runtime assertions rewritten to match hardened API behaviour instead of pre-hardening leaks, and a generation boundary that reports why a build failed. RC11 source remains the local rollback target. Candidate-bound hosted staging, production OAuth, GHCR publication, Owner approval, release promotion, and production rollout remain explicitly blocked.",
   "production_rollout_claimed": false
 }
