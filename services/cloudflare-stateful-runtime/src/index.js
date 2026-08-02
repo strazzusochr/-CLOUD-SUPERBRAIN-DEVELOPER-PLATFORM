@@ -98,6 +98,29 @@ function blocked(error, requestId, note) {
   };
 }
 
+function mutationOutcomeUnknown(error, requestId, note, details = {}) {
+  return {
+    contract_version: CONTRACT_VERSION,
+    status: "blocked",
+    error,
+    request_id: requestId,
+    ...details,
+    accepted: null,
+    persisted: null,
+    mutation_outcome: "unknown",
+    audit_persisted: null,
+    audit_readback_verified: false,
+    retry_safe: false,
+    reconciliation_required: true,
+    live_provider_calls: false,
+    direct_provider_calls: false,
+    live_mcp_writes: false,
+    production_deploy: false,
+    secret_output: false,
+    note,
+  };
+}
+
 async function secureEqual(left, right) {
   if (!left || !right) return false;
   const encoder = new TextEncoder();
@@ -550,6 +573,33 @@ function buildFromRow(row, includeHtml = true) {
   return build;
 }
 
+function auditReadbackMatches(row, expected) {
+  return Boolean(row) &&
+    String(row.id) === expected.id &&
+    String(row.event_type) === expected.eventType &&
+    String(row.trace_id) === expected.requestId &&
+    String(row.subject_id) === expected.subjectId &&
+    String(row.details_json) === expected.detailsJson &&
+    String(row.created_at) === expected.createdAt;
+}
+
+function buildCreateReadbackMatches(row, build, createdAt) {
+  return Boolean(row) &&
+    String(row.id) === build.id &&
+    String(row.project_id) === build.projectId &&
+    String(row.title) === build.title &&
+    String(row.prompt) === REDACTED_PROMPT &&
+    String(row.prompt_sha256) === build.promptSha256 &&
+    String(row.model) === build.model &&
+    String(row.html) === build.html &&
+    String(row.gateway_mode) === build.gatewayMode &&
+    String(row.gateway_provider) === build.gatewayProvider &&
+    Number(row.live_provider_calls) === build.liveProviderCalls &&
+    String(row.created_at) === createdAt &&
+    String(row.updated_at) === createdAt &&
+    (row.deleted_at === null || row.deleted_at === undefined);
+}
+
 function artifactFromRow(row) {
   let metadata = {};
   try { metadata = JSON.parse(String(row.metadata_json || "{}")); } catch { /* keep redacted empty metadata */ }
@@ -883,8 +933,17 @@ async function createBuild(request, env, requestId) {
   }
 
   const now = new Date().toISOString();
+  const auditEventId = crypto.randomUUID();
+  const auditDetailsJson = JSON.stringify({
+    project_id: build.projectId,
+    prompt_sha256: build.promptSha256,
+    model: build.model,
+    gateway_mode: build.gatewayMode,
+    gateway_provider: build.gatewayProvider,
+    live_provider_calls: build.liveProviderCalls === 1,
+    secret_output: false,
+  });
   try {
-
     await env.DB.batch([
       env.DB.prepare(`
         INSERT INTO builds (
@@ -909,38 +968,64 @@ async function createBuild(request, env, requestId) {
         INSERT INTO audit_events (id, event_type, trace_id, subject_id, details_json, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `).bind(
-        crypto.randomUUID(),
+        auditEventId,
         "cloudflare_d1_build_created",
         requestId,
         build.id,
-        JSON.stringify({
-          project_id: build.projectId,
-          prompt_sha256: build.promptSha256,
-          model: build.model,
-          gateway_mode: build.gatewayMode,
-          gateway_provider: build.gatewayProvider,
-          live_provider_calls: build.liveProviderCalls === 1,
-          secret_output: false,
-        }),
+        auditDetailsJson,
         now,
       ),
     ]);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "build_insert_failed";
+    const conflict = /UNIQUE|constraint/i.test(code);
+    if (conflict) {
+      return json(blocked("build_id_conflict", requestId, "The conflicting build and audit event were not persisted."), 409);
+    }
+    return json(mutationOutcomeUnknown(
+      "build_persistence_outcome_unknown",
+      requestId,
+      "The D1 batch outcome could not be confirmed. Reconcile the returned build and audit correlation identifiers before retrying.",
+      { id: build.id, audit_event_id: auditEventId, operation: "create" },
+    ), 503);
+  }
 
+  try {
     const row = await env.DB.prepare("SELECT * FROM builds WHERE id = ? AND deleted_at IS NULL").bind(build.id).first();
-    if (!row) throw new Error("build_readback_failed");
+    const auditRow = await env.DB.prepare(`
+      SELECT id, event_type, trace_id, subject_id, details_json, created_at
+      FROM audit_events
+      WHERE id = ? AND event_type = ? AND trace_id = ? AND subject_id = ?
+      LIMIT 1
+    `).bind(auditEventId, "cloudflare_d1_build_created", requestId, build.id).first();
+    if (!buildCreateReadbackMatches(row, build, now)) throw new Error("build_readback_failed");
+    if (!auditReadbackMatches(auditRow, {
+      id: auditEventId,
+      eventType: "cloudflare_d1_build_created",
+      requestId,
+      subjectId: build.id,
+      detailsJson: auditDetailsJson,
+      createdAt: now,
+    })) throw new Error("build_audit_readback_failed");
     return json({
       ...buildFromRow(row),
       contract_version: CONTRACT_VERSION,
       status: "created",
       source: "cloudflare-d1",
+      request_id: requestId,
+      audit_event_id: auditEventId,
       audit_persisted: true,
+      audit_readback_verified: true,
       live_mcp_writes: false,
       production_deploy: false,
     }, 201);
-  } catch (error) {
-    const code = error instanceof Error ? error.message : "build_insert_failed";
-    const conflict = /UNIQUE|constraint/i.test(code);
-    return json(blocked(conflict ? "build_id_conflict" : "build_persistence_failed", requestId, "The build and its audit event were not persisted."), conflict ? 409 : 503);
+  } catch {
+    return json(mutationOutcomeUnknown(
+      "build_persistence_outcome_unknown",
+      requestId,
+      "The D1 batch completed but exact build and audit readback could not be verified. Reconcile the returned build and audit correlation identifiers before retrying.",
+      { id: build.id, audit_event_id: auditEventId, operation: "create" },
+    ), 503);
   }
 }
 
@@ -995,37 +1080,95 @@ async function deleteBuild(request, id, env, requestId) {
   if (!(await authenticated(request, env))) {
     return json(blocked("stateful_runtime_authentication_required", requestId, "Agent API write authentication failed."), 401);
   }
+  const clean = safeId(id);
+  const now = new Date().toISOString();
+  const auditEventId = crypto.randomUUID();
+  const auditDetailsJson = JSON.stringify({ build_id: clean, secret_output: false });
+  let results;
   try {
-    const clean = safeId(id);
-    const now = new Date().toISOString();
-    const results = await env.DB.batch([
+    results = await env.DB.batch([
       env.DB.prepare("UPDATE builds SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL")
         .bind(now, now, clean),
       env.DB.prepare(`
         INSERT INTO audit_events (id, event_type, trace_id, subject_id, details_json, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `).bind(
-        crypto.randomUUID(),
+        auditEventId,
         "cloudflare_d1_build_delete_requested",
         requestId,
         clean,
-        JSON.stringify({ build_id: clean, secret_output: false }),
+        auditDetailsJson,
         now,
       ),
     ]);
+  } catch {
+    return json(mutationOutcomeUnknown(
+      "build_delete_outcome_unknown",
+      requestId,
+      "The D1 delete batch outcome could not be confirmed. Reconcile the returned build and audit correlation identifiers before retrying.",
+      { id: clean, audit_event_id: auditEventId, operation: "delete", deleted: null, delete_readback_verified: false },
+    ), 503);
+  }
+
+  try {
     const changes = Number(results[0]?.meta?.changes || 0);
-    if (changes === 0) return json({ status: "not_found", persisted: false, deleted: false, audit_persisted: true, secret_output: false }, 404);
+    if (changes !== 0 && changes !== 1) throw new Error("build_delete_change_count_invalid");
+    const auditRow = await env.DB.prepare(`
+      SELECT id, event_type, trace_id, subject_id, details_json, created_at
+      FROM audit_events
+      WHERE id = ? AND event_type = ? AND trace_id = ? AND subject_id = ?
+      LIMIT 1
+    `).bind(auditEventId, "cloudflare_d1_build_delete_requested", requestId, clean).first();
+    const activeRow = await env.DB.prepare(`
+      SELECT id, deleted_at
+      FROM builds
+      WHERE id = ? AND deleted_at IS NULL
+      LIMIT 1
+    `).bind(clean).first();
+    if (!auditReadbackMatches(auditRow, {
+      id: auditEventId,
+      eventType: "cloudflare_d1_build_delete_requested",
+      requestId,
+      subjectId: clean,
+      detailsJson: auditDetailsJson,
+      createdAt: now,
+    })) throw new Error("build_delete_audit_readback_failed");
+    if (activeRow) throw new Error("build_delete_readback_failed");
+    if (changes === 0) {
+      return json({
+        contract_version: CONTRACT_VERSION,
+        status: "not_found",
+        id: clean,
+        request_id: requestId,
+        audit_event_id: auditEventId,
+        persisted: false,
+        deleted: false,
+        audit_persisted: true,
+        audit_readback_verified: true,
+        delete_readback_verified: true,
+        secret_output: false,
+      }, 404);
+    }
     return json({
       contract_version: CONTRACT_VERSION,
       status: "deleted",
       id: clean,
+      request_id: requestId,
+      audit_event_id: auditEventId,
       persisted: true,
       deleted: true,
       audit_persisted: true,
+      audit_readback_verified: true,
+      delete_readback_verified: true,
       secret_output: false,
     });
   } catch {
-    return json(blocked("build_delete_failed", requestId, "The build was not deleted."), 503);
+    return json(mutationOutcomeUnknown(
+      "build_delete_outcome_unknown",
+      requestId,
+      "The D1 delete batch completed but exact build and audit readback could not be verified. Reconcile the returned build and audit correlation identifiers before retrying.",
+      { id: clean, audit_event_id: auditEventId, operation: "delete", deleted: null, delete_readback_verified: false },
+    ), 503);
   }
 }
 

@@ -1,51 +1,146 @@
 name: main-deploy
 
 on:
-  push:
-    branches: [chore/repo-bootstrap]
   workflow_dispatch:
     inputs:
-      deploy_environment:
-        description: Target environment marker for the image tag
+      candidate_sha:
+        description: Exact active release-candidate source SHA from tracked Phase-5 truth
         required: true
-        default: staging
-        type: choice
-        options: [staging, production]
+        type: string
 
+# Read-only by default. Only publish-candidate can mutate GHCR.
 permissions:
   contents: read
-  packages: write
-  security-events: write
 
 env:
   IMAGE_NAMESPACE: ghcr.io/${{ github.repository_owner }}/cloud-superbrain-developer-platform
 
 concurrency:
-  group: main-deploy-${{ github.ref }}
+  group: ghcr-candidate-${{ inputs.candidate_sha }}
   cancel-in-progress: false
 
 jobs:
-  verify:
-    uses: ./.github/workflows/pr-check.yml
-
-  production-gate:
-    if: ${{ github.event.inputs.deploy_environment == 'production' }}
-    needs: verify
+  candidate-preflight:
+    name: Bind control SHA to tracked candidate truth
     runs-on: ubuntu-latest
-    environment: production
+    permissions:
+      contents: read
+    outputs:
+      control_sha: ${{ steps.validate.outputs.control_sha }}
+      candidate_sha: ${{ steps.validate.outputs.candidate_sha }}
     steps:
-      - name: Production approval marker
-        run: echo 'Production image tags are published after environment approval. Watchtower/host deployment remains pull-based.'
+      - name: Checkout control commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
 
-  build-and-push:
-    needs: [verify, production-gate]
-    if: ${{ always() && needs.verify.result == 'success' && (needs.production-gate.result == 'success' || needs.production-gate.result == 'skipped') }}
+      - name: Validate control branch and active candidate
+        id: validate
+        shell: python
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          CONTROL_SHA: ${{ github.sha }}
+          CONTROL_REF: ${{ github.ref }}
+        run: |
+          import json
+          import os
+          import pathlib
+          import re
+          import subprocess
+
+          candidate_sha = os.environ["CANDIDATE_SHA"]
+          control_sha = os.environ["CONTROL_SHA"]
+          control_ref = os.environ["CONTROL_REF"]
+          truth_path = pathlib.Path("docs/runtime-state/phase5-credit-itemization.json")
+          capability_path = pathlib.Path("docs/runtime-state/capability-gates.json")
+
+          if control_ref != "refs/heads/chore/repo-bootstrap":
+              raise SystemExit("candidate publication must be dispatched from refs/heads/chore/repo-bootstrap")
+          if re.fullmatch(r"[0-9a-f]{40}", control_sha) is None:
+              raise SystemExit("github.sha is not a lowercase 40-hex control SHA")
+          if re.fullmatch(r"[0-9a-f]{40}", candidate_sha) is None:
+              raise SystemExit("candidate_sha must be an exact lowercase 40-hex commit")
+          if candidate_sha == control_sha:
+              raise SystemExit("candidate_sha must remain distinct from the control/workflow SHA")
+
+          subprocess.run(
+              ["git", "ls-files", "--error-unmatch", truth_path.as_posix()],
+              check=True,
+              stdout=subprocess.DEVNULL,
+          )
+          truth = json.loads(truth_path.read_text(encoding="utf-8"))
+          active_source_sha = truth.get("active_source_commit_sha")
+          if active_source_sha != candidate_sha:
+              raise SystemExit("candidate_sha does not equal tracked active_source_commit_sha")
+
+          subprocess.run(
+              ["git", "ls-files", "--error-unmatch", capability_path.as_posix()],
+              check=True,
+              stdout=subprocess.DEVNULL,
+          )
+          capability = json.loads(capability_path.read_text(encoding="utf-8"))
+          if capability.get("contract_version") != "capability-gate-state-v1":
+              raise SystemExit("capability gate contract is invalid")
+          gates = capability.get("gates")
+          registry_gate = gates.get("docker_registry_publish") if isinstance(gates, dict) else None
+          if not isinstance(registry_gate, dict):
+              raise SystemExit("docker_registry_publish gate is missing")
+          if registry_gate.get("owner_granted") is not True:
+              raise SystemExit("docker_registry_publish has no exact Owner grant")
+          owner_grant_ref = registry_gate.get("owner_grant_ref")
+          if not isinstance(owner_grant_ref, str) or not owner_grant_ref.strip():
+              raise SystemExit("docker_registry_publish Owner grant reference is missing")
+          if registry_gate.get("paid_provider") is not False:
+              raise SystemExit("docker_registry_publish violates the zero-card policy")
+
+          checked_out_sha = subprocess.run(
+              ["git", "rev-parse", "HEAD"],
+              check=True,
+              capture_output=True,
+              text=True,
+          ).stdout.strip()
+          if checked_out_sha != control_sha:
+              raise SystemExit("checked-out control commit does not equal github.sha")
+
+          subprocess.run(
+              ["git", "cat-file", "-e", f"{candidate_sha}^{{commit}}"],
+              check=True,
+          )
+          ancestry = subprocess.run(
+              ["git", "merge-base", "--is-ancestor", candidate_sha, control_sha],
+              check=False,
+          )
+          if ancestry.returncode != 0:
+              raise SystemExit("active candidate is not an ancestor of the control commit")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"control_sha={control_sha}\n")
+              output.write(f"candidate_sha={candidate_sha}\n")
+
+  verify-candidate:
+    name: Verify exact candidate source
+    needs: candidate-preflight
+    permissions:
+      contents: read
+    uses: ./.github/workflows/pr-check.yml
+    with:
+      candidate_sha: ${{ needs.candidate-preflight.outputs.candidate_sha }}
+
+  publish-candidate:
+    name: Publish immutable ${{ matrix.name }} candidate
+    needs: [candidate-preflight, verify-candidate]
     runs-on: ubuntu-latest
+    environment:
+      name: registry-publication
+      deployment: false
+    permissions:
+      contents: read
+      packages: write
     strategy:
+      fail-fast: false
       matrix:
         include:
-          # agent-api builds from the repo root so it can bake the manifest/
-          # state files it reads at runtime (no bind-mounts on Fly).
           - name: agent-api
             context: .
             dockerfile: services/agent-api/Dockerfile
@@ -65,8 +160,11 @@ jobs:
             context: .
             dockerfile: services/memory-worker/Dockerfile
     steps:
-      - name: Checkout
+      - name: Checkout exact candidate
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.candidate-preflight.outputs.candidate_sha }}
+          fetch-depth: 1
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4
@@ -81,13 +179,111 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push image
+      - name: Refuse to overwrite an existing candidate tag
+        id: registry-check
+        shell: bash
+        env:
+          IMAGE_REF: ${{ env.IMAGE_NAMESPACE }}/${{ matrix.name }}:${{ needs.candidate-preflight.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          set +e
+          inspection="$(docker buildx imagetools inspect "${IMAGE_REF}" 2>&1)"
+          inspect_status=$?
+          set -e
+
+          if [ "${inspect_status}" -eq 0 ]; then
+            echo "exists=true" >> "${GITHUB_OUTPUT}"
+            echo "Candidate tag already exists; build and push are intentionally skipped."
+            exit 0
+          fi
+
+          if printf '%s' "${inspection}" | grep -Eiq 'manifest unknown' || \
+             printf '%s' "${inspection}" | grep -Fq "${IMAGE_REF}: not found"; then
+            echo "exists=false" >> "${GITHUB_OUTPUT}"
+            echo "Candidate tag is absent; one initial publication is allowed."
+            exit 0
+          fi
+
+          printf '%s\n' "${inspection}" >&2
+          echo "Registry state could not be classified safely; refusing to build or push." >&2
+          exit "${inspect_status}"
+
+      - name: Build and push absent candidate tag once
+        if: ${{ steps.registry-check.outputs.exists == 'false' }}
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: |
-            ${{ env.IMAGE_NAMESPACE }}/${{ matrix.name }}:${{ github.sha }}
-            ${{ env.IMAGE_NAMESPACE }}/${{ matrix.name }}:${{ github.event.inputs.deploy_environment || 'staging' }}
+          provenance: false
+          sbom: false
+          tags: ${{ env.IMAGE_NAMESPACE }}/${{ matrix.name }}:${{ needs.candidate-preflight.outputs.candidate_sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ needs.candidate-preflight.outputs.candidate_sha }}
+            org.opencontainers.image.version=candidate-${{ needs.candidate-preflight.outputs.candidate_sha }}
+
+  verify-candidate-manifest:
+    name: Verify six remote images and emit candidate manifest
+    needs: [candidate-preflight, publish-candidate]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout control verifier
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.candidate-preflight.outputs.control_sha }}
+          fetch-depth: 1
+
+      - name: Login to GHCR read-only
+        shell: bash
+        env:
+          GHCR_ACTOR: ${{ github.actor }}
+          GHCR_READ_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "${GHCR_READ_TOKEN}" | docker login ghcr.io --username "${GHCR_ACTOR}" --password-stdin >/dev/null
+          docker buildx version
+
+      - name: Prepare exclusive manifest destination
+        shell: bash
+        env:
+          OUT_DIR: ${{ runner.temp }}/ghcr-candidate-manifest
+        run: |
+          set -euo pipefail
+          test ! -e "${OUT_DIR}"
+          mkdir "${OUT_DIR}"
+
+      - name: Verify aggregate and write immutable manifest
+        env:
+          GHCR_IMAGE_NAMESPACE: ${{ env.IMAGE_NAMESPACE }}
+          CANDIDATE_SHA: ${{ needs.candidate-preflight.outputs.candidate_sha }}
+          CONTROL_SHA: ${{ needs.candidate-preflight.outputs.control_sha }}
+          WORKFLOW_CANDIDATE_SHA: ${{ needs.candidate-preflight.outputs.candidate_sha }}
+          WORKFLOW_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GHCR_RELEASE_MANIFEST: ${{ runner.temp }}/ghcr-candidate-manifest/ghcr-candidate-manifest.json
+        run: python scripts/verify_ghcr_candidate.py
+
+      - name: Upload immutable candidate manifest
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ghcr-candidate-${{ needs.candidate-preflight.outputs.candidate_sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ghcr-candidate-manifest/
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+          overwrite: false
+          include-hidden-files: false
+
+      - name: Record Actions artifact digest
+        shell: bash
+        env:
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          test "${ARTIFACT_DIGEST}" != ""
+          printf 'Candidate manifest Actions artifact digest: %s\n' "${ARTIFACT_DIGEST}" >> "${GITHUB_STEP_SUMMARY}"

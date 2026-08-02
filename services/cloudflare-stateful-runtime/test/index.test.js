@@ -28,6 +28,7 @@ class FakeStatement {
       const [deleted_at, updated_at, id] = this.values;
       const row = this.db.builds.get(id);
       if (!row || row.deleted_at) return { meta: { changes: 0 } };
+      if (this.db.keepBuildActiveOnDelete) return { meta: { changes: 1 } };
       Object.assign(row, { deleted_at, updated_at });
       return { meta: { changes: 1 } };
     }
@@ -101,7 +102,22 @@ class FakeStatement {
 
   async first() {
     if (this.sql === "SELECT 1 AS ok") return { ok: 1 };
+    if (this.sql.startsWith("SELECT id, event_type, trace_id, subject_id, details_json, created_at FROM audit_events")) {
+      if (this.db.throwAuditReadback) throw new Error("simulated audit readback transport failure");
+      if (this.db.omitAuditReadback) return null;
+      const [id, eventType, traceId, subjectId] = this.values;
+      const row = this.db.audit.find((item) => item.id === id &&
+        item.event_type === eventType && item.trace_id === traceId && item.subject_id === subjectId);
+      if (!row) return null;
+      return this.db.mismatchAuditReadback ? { ...row, trace_id: `${row.trace_id}-mismatch` } : { ...row };
+    }
+    if (this.sql.startsWith("SELECT id, deleted_at FROM builds WHERE id")) {
+      if (this.db.throwDeleteReadback) throw new Error("simulated delete readback transport failure");
+      const row = this.db.builds.get(this.values[0]);
+      return row && !row.deleted_at ? { id: row.id, deleted_at: row.deleted_at } : null;
+    }
     if (this.sql.startsWith("SELECT * FROM builds WHERE id")) {
+      if (this.db.throwBuildReadback) throw new Error("simulated build readback transport failure");
       const row = this.db.builds.get(this.values[0]);
       return row && !row.deleted_at ? { ...row } : null;
     }
@@ -167,7 +183,15 @@ class FakeStatement {
 }
 
 class FakeD1 {
-  constructor({ failAuditWrites = false } = {}) {
+  constructor({
+    failAuditWrites = false,
+    omitAuditReadback = false,
+    mismatchAuditReadback = false,
+    throwAuditReadback = false,
+    throwBuildReadback = false,
+    throwDeleteReadback = false,
+    keepBuildActiveOnDelete = false,
+  } = {}) {
     this.builds = new Map();
     this.artifacts = new Map();
     this.nativeArtifacts = new Map();
@@ -177,6 +201,12 @@ class FakeD1 {
     this.memory = [];
     this.audit = [];
     this.failAuditWrites = failAuditWrites;
+    this.omitAuditReadback = omitAuditReadback;
+    this.mismatchAuditReadback = mismatchAuditReadback;
+    this.throwAuditReadback = throwAuditReadback;
+    this.throwBuildReadback = throwBuildReadback;
+    this.throwDeleteReadback = throwDeleteReadback;
+    this.keepBuildActiveOnDelete = keepBuildActiveOnDelete;
   }
 
   prepare(sql) {
@@ -270,13 +300,15 @@ function env(options = {}) {
   };
 }
 
-function writeRequest(path, body, suppliedToken = token, method = "POST") {
+function writeRequest(path, body, suppliedToken = token, method = "POST", requestId = null) {
+  const headers = {
+    "content-type": "application/json",
+    "x-superbrain-agent-token": suppliedToken,
+  };
+  if (requestId) headers["x-request-id"] = requestId;
   return new Request(`https://state.example${path}`, {
     method,
-    headers: {
-      "content-type": "application/json",
-      "x-superbrain-agent-token": suppliedToken,
-    },
+    headers,
     body: method === "DELETE" ? undefined : JSON.stringify(body),
   });
 }
@@ -415,20 +447,33 @@ test("hosted session issuance is authenticated, validated, and audit-atomic", as
 
 test("a generated build survives the create-list-read-delete registry roundtrip", async () => {
   const fakeEnv = env();
-  const created = await worker.fetch(writeRequest("/api/v1/builds", validBuild), fakeEnv);
-  const createdBody = await created.json();
+  const createRequestId = "phase6-create-request";
+  const created = await worker.fetch(writeRequest("/api/v1/builds", validBuild, token, "POST", createRequestId), fakeEnv);
+  const createdText = await created.text();
+  const createdBody = JSON.parse(createdText);
   assert.equal(created.status, 201);
   assert.equal(createdBody.persisted, true);
   assert.equal(createdBody.share_path, "/run/build_test_1");
   assert.equal(createdBody.live_provider_calls, true);
+  assert.equal(createdBody.request_id, createRequestId);
+  assert.match(createdBody.audit_event_id, /^[0-9a-f-]{36}$/i);
   assert.equal(createdBody.audit_persisted, true);
+  assert.equal(createdBody.audit_readback_verified, true);
   assert.equal(createdBody.direct_provider_calls, false);
   assert.equal(createdBody.secret_output, false);
   assert.equal("prompt" in createdBody, false);
+  assert.equal(createdText.includes(validBuild.prompt), false);
+  assert.equal(createdText.includes(token), false);
   assert.match(createdBody.prompt_sha256, /^[a-f0-9]{64}$/);
   assert.equal(fakeEnv.DB.builds.get(validBuild.id).prompt, "[REDACTED]");
   assert.equal(fakeEnv.DB.audit.length, 1);
   assert.equal(fakeEnv.DB.audit[0].event_type, "cloudflare_d1_build_created");
+  assert.equal(fakeEnv.DB.audit[0].id, createdBody.audit_event_id);
+  assert.equal(fakeEnv.DB.audit[0].trace_id, createRequestId);
+  assert.equal(fakeEnv.DB.audit[0].subject_id, validBuild.id);
+  assert.equal(JSON.stringify(fakeEnv.DB.audit).includes(validBuild.prompt), false);
+  assert.equal(JSON.stringify(fakeEnv.DB.audit).includes(validBuild.html), false);
+  assert.equal(JSON.stringify(fakeEnv.DB.audit).includes(token), false);
 
   const listed = await worker.fetch(new Request("https://state.example/api/v1/builds?project_id=default&limit=24"), fakeEnv);
   const listedBody = await listed.json();
@@ -444,24 +489,176 @@ test("a generated build survives the create-list-read-delete registry roundtrip"
   assert.equal(readBody.html, validBuild.html);
   assert.equal("prompt" in readBody, false);
 
-  const deleted = await worker.fetch(writeRequest(`/api/v1/build/${validBuild.id}`, null, token, "DELETE"), fakeEnv);
+  const deleteRequestId = "phase6-delete-request";
+  const deleted = await worker.fetch(writeRequest(
+    `/api/v1/build/${validBuild.id}`,
+    null,
+    token,
+    "DELETE",
+    deleteRequestId,
+  ), fakeEnv);
+  const deletedBody = await deleted.json();
   assert.equal(deleted.status, 200);
-  assert.equal((await deleted.json()).audit_persisted, true);
+  assert.equal(deletedBody.request_id, deleteRequestId);
+  assert.match(deletedBody.audit_event_id, /^[0-9a-f-]{36}$/i);
+  assert.equal(deletedBody.audit_persisted, true);
+  assert.equal(deletedBody.audit_readback_verified, true);
+  assert.equal(deletedBody.delete_readback_verified, true);
+  assert.equal(fakeEnv.DB.audit[1].id, deletedBody.audit_event_id);
+  assert.equal(fakeEnv.DB.audit[1].trace_id, deleteRequestId);
+  assert.equal(fakeEnv.DB.audit[1].subject_id, validBuild.id);
   const afterDelete = await worker.fetch(new Request(`https://state.example/api/v1/build/${validBuild.id}`), fakeEnv);
   assert.equal(afterDelete.status, 404);
 });
 
-test("build and audit persistence fail atomically without returning generated output", async () => {
+test("an unconfirmed build batch reports unknown outcome while the fake D1 rolls back atomically", async () => {
   const fakeEnv = env({ failAuditWrites: true });
   const response = await worker.fetch(writeRequest("/api/v1/builds", validBuild), fakeEnv);
   const body = await response.json();
   assert.equal(response.status, 503);
-  assert.equal(body.error, "build_persistence_failed");
-  assert.equal(body.persisted, false);
+  assert.equal(body.error, "build_persistence_outcome_unknown");
+  assert.equal(body.accepted, null);
+  assert.equal(body.persisted, null);
+  assert.equal(body.mutation_outcome, "unknown");
+  assert.equal(body.audit_persisted, null);
+  assert.equal(body.retry_safe, false);
+  assert.equal(body.reconciliation_required, true);
   assert.equal(body.secret_output, false);
   assert.equal("html" in body, false);
   assert.equal(fakeEnv.DB.builds.size, 0);
   assert.equal(fakeEnv.DB.audit.length, 0);
+});
+
+test("build creation reports unknown outcome when committed readback is unavailable or mismatched", async () => {
+  for (const option of ["omitAuditReadback", "mismatchAuditReadback", "throwAuditReadback", "throwBuildReadback"]) {
+    const fakeEnv = env({ [option]: true });
+    const requestId = `create-${option}`;
+    const response = await worker.fetch(writeRequest("/api/v1/builds", {
+      ...validBuild,
+      id: `build_${option}`,
+    }, token, "POST", requestId), fakeEnv);
+    const text = await response.text();
+    const body = JSON.parse(text);
+    assert.equal(response.status, 503);
+    assert.equal(body.error, "build_persistence_outcome_unknown");
+    assert.equal(body.request_id, requestId);
+    assert.equal(body.id, `build_${option}`);
+    assert.match(body.audit_event_id, /^[0-9a-f-]{36}$/i);
+    assert.equal(body.accepted, null);
+    assert.equal(body.persisted, null);
+    assert.equal(body.mutation_outcome, "unknown");
+    assert.equal(body.audit_persisted, null);
+    assert.equal(body.audit_readback_verified, false);
+    assert.equal(body.retry_safe, false);
+    assert.equal(body.reconciliation_required, true);
+    assert.equal("html" in body, false);
+    assert.equal(text.includes(validBuild.prompt), false);
+    assert.equal(text.includes(token), false);
+    assert.equal(/not persisted/i.test(body.note), false);
+    assert.equal(fakeEnv.DB.builds.has(`build_${option}`), true);
+    assert.equal(fakeEnv.DB.audit.length, 1);
+  }
+});
+
+test("an unconfirmed delete batch reports unknown outcome while the fake D1 rolls back atomically", async () => {
+  const fakeEnv = env();
+  const created = await worker.fetch(writeRequest("/api/v1/builds", validBuild), fakeEnv);
+  assert.equal(created.status, 201);
+  fakeEnv.DB.failAuditWrites = true;
+
+  const response = await worker.fetch(writeRequest(`/api/v1/build/${validBuild.id}`, null, token, "DELETE"), fakeEnv);
+  const body = await response.json();
+  assert.equal(response.status, 503);
+  assert.equal(body.error, "build_delete_outcome_unknown");
+  assert.equal(body.accepted, null);
+  assert.equal(body.persisted, null);
+  assert.equal(body.deleted, null);
+  assert.equal(body.mutation_outcome, "unknown");
+  assert.equal(body.retry_safe, false);
+  assert.equal(body.reconciliation_required, true);
+  assert.equal(fakeEnv.DB.builds.get(validBuild.id).deleted_at, null);
+  assert.equal(fakeEnv.DB.audit.length, 1);
+});
+
+test("build deletion reports unknown outcome when committed readback is unavailable or mismatched", async () => {
+  for (const option of ["omitAuditReadback", "mismatchAuditReadback", "throwAuditReadback", "throwDeleteReadback"]) {
+    const fakeEnv = env();
+    const id = `build_delete_${option}`;
+    const created = await worker.fetch(writeRequest("/api/v1/builds", { ...validBuild, id }), fakeEnv);
+    assert.equal(created.status, 201);
+    fakeEnv.DB[option] = true;
+
+    const requestId = `delete-${option}`;
+    const response = await worker.fetch(writeRequest(`/api/v1/build/${id}`, null, token, "DELETE", requestId), fakeEnv);
+    const text = await response.text();
+    const body = JSON.parse(text);
+    assert.equal(response.status, 503);
+    assert.equal(body.error, "build_delete_outcome_unknown");
+    assert.equal(body.request_id, requestId);
+    assert.equal(body.id, id);
+    assert.match(body.audit_event_id, /^[0-9a-f-]{36}$/i);
+    assert.equal(body.accepted, null);
+    assert.equal(body.persisted, null);
+    assert.equal(body.deleted, null);
+    assert.equal(body.mutation_outcome, "unknown");
+    assert.equal(body.audit_persisted, null);
+    assert.equal(body.audit_readback_verified, false);
+    assert.equal(body.delete_readback_verified, false);
+    assert.equal(body.retry_safe, false);
+    assert.equal(body.reconciliation_required, true);
+    assert.equal(text.includes(token), false);
+    assert.equal(/not deleted/i.test(body.note), false);
+    assert.notEqual(fakeEnv.DB.builds.get(id).deleted_at, null);
+    assert.equal(fakeEnv.DB.audit.length, 2);
+  }
+});
+
+test("build deletion rejects a reported update that leaves the build active", async () => {
+  const fakeEnv = env();
+  const created = await worker.fetch(writeRequest("/api/v1/builds", validBuild), fakeEnv);
+  assert.equal(created.status, 201);
+  fakeEnv.DB.keepBuildActiveOnDelete = true;
+
+  const response = await worker.fetch(writeRequest(`/api/v1/build/${validBuild.id}`, null, token, "DELETE"), fakeEnv);
+  const body = await response.json();
+  assert.equal(response.status, 503);
+  assert.equal(body.error, "build_delete_outcome_unknown");
+  assert.equal(body.accepted, null);
+  assert.equal(body.persisted, null);
+  assert.equal(body.deleted, null);
+  assert.equal(body.mutation_outcome, "unknown");
+  assert.equal(body.reconciliation_required, true);
+  assert.equal(fakeEnv.DB.builds.get(validBuild.id).deleted_at, null);
+  assert.equal(fakeEnv.DB.audit.at(-1).event_type, "cloudflare_d1_build_delete_requested");
+});
+
+test("not-found build deletion persists and verifies an exactly bound audit event", async () => {
+  const fakeEnv = env();
+  const requestId = "phase6-delete-not-found";
+  const missingId = "missing_build";
+  const response = await worker.fetch(writeRequest(
+    `/api/v1/build/${missingId}`,
+    null,
+    token,
+    "DELETE",
+    requestId,
+  ), fakeEnv);
+  const text = await response.text();
+  const body = JSON.parse(text);
+  assert.equal(response.status, 404);
+  assert.equal(body.status, "not_found");
+  assert.equal(body.request_id, requestId);
+  assert.match(body.audit_event_id, /^[0-9a-f-]{36}$/i);
+  assert.equal(body.deleted, false);
+  assert.equal(body.audit_persisted, true);
+  assert.equal(body.audit_readback_verified, true);
+  assert.equal(body.delete_readback_verified, true);
+  assert.equal(fakeEnv.DB.audit.length, 1);
+  assert.equal(fakeEnv.DB.audit[0].id, body.audit_event_id);
+  assert.equal(fakeEnv.DB.audit[0].event_type, "cloudflare_d1_build_delete_requested");
+  assert.equal(fakeEnv.DB.audit[0].trace_id, requestId);
+  assert.equal(fakeEnv.DB.audit[0].subject_id, missingId);
+  assert.equal(text.includes(token), false);
 });
 
 test("known secret forms are rejected before build persistence and never echoed", async () => {

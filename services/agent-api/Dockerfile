@@ -41,6 +41,7 @@ COPY services/agent-api/app ./app
 #   AUTONOMOUS_AGENT_ROSTER_PATH=/app/docs/codex-integration/autonomous-agent-roster.json
 COPY docs/project-progress.manifest.json /app/progress/project-progress.manifest.json
 COPY docs/runtime-state/external-gate-summary.json /app/progress/external-gate-summary.json
+COPY docs/runtime-state/capability-gates.json /app/progress/capability-gates.json
 COPY PROJECT_STATE.md /app/PROJECT_STATE.md
 COPY docs/codex-integration/autonomous-agent-roster.json /app/docs/codex-integration/autonomous-agent-roster.json
 

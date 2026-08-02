@@ -2,6 +2,11 @@ name: pr-check
 
 on:
   workflow_call:
+    inputs:
+      candidate_sha:
+        description: Optional exact candidate commit to verify when called by the publication workflow
+        required: false
+        type: string
   pull_request:
     branches: [chore/repo-bootstrap]
   workflow_dispatch:
@@ -17,6 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          ref: ${{ inputs.candidate_sha || github.sha }}
           fetch-depth: 0
 
       - name: Setup Node
@@ -54,6 +60,9 @@ jobs:
       - name: Frontend audit
         working-directory: apps/frontend
         run: npm audit --audit-level=moderate
+
+      - name: OAuth boundary unit contract
+        run: npm run verify:oauth-boundary
 
       - name: Install gitleaks
         env:

@@ -2913,34 +2913,15 @@ foreach ($required in @("Apply and verify default branch protection", "BRANCH_PR
 $prCheckWorkflow = Get-Content -Path ".github\workflows\pr-check.yml" -Raw
 Assert-Contains "pr-check default branch" $prCheckWorkflow "chore/repo-bootstrap"
 $mainDeployWorkflow = Get-Content -Path ".github\workflows\main-deploy.yml" -Raw
-Assert-Contains "main-deploy default branch" $mainDeployWorkflow "chore/repo-bootstrap"
-foreach ($required in @(
-  'IMAGE_NAMESPACE: ghcr.io/${{ github.repository_owner }}/cloud-superbrain-developer-platform',
-  'agent-api',
-  'agent-worker',
-  'memory-worker',
-  'mcp-gateway',
-  'llm-gateway',
-  'frontend',
-  '${{ env.IMAGE_NAMESPACE }}/${{ matrix.name }}:${{ github.sha }}',
-  '${{ env.IMAGE_NAMESPACE }}/${{ matrix.name }}:${{ github.event.inputs.deploy_environment || ''staging'' }}'
-)) {
-  if (-not $mainDeployWorkflow.Contains($required)) {
-    throw "main-deploy workflow missing GHCR cloud image guard: $required"
-  }
-}
-if ($mainDeployWorkflow.Contains('ghcr.io/${{ github.repository }}/')) {
-  throw "main-deploy workflow must not use github.repository for GHCR image paths because this repo name is not a stable lowercase image namespace"
-}
-foreach ($service in @("agent-api", "agent-worker", "memory-worker", "mcp-gateway", "llm-gateway")) {
-  $rootContextPattern = "(?ms)- name: $([regex]::Escape($service))\s+context: \.\s+dockerfile: services/$([regex]::Escape($service))/Dockerfile"
-  if ($mainDeployWorkflow -notmatch $rootContextPattern) {
-    throw "main-deploy workflow must build $service from repository-root context"
-  }
-}
-if ($mainDeployWorkflow -notmatch '(?ms)- name: frontend\s+context: apps/frontend\s+dockerfile: apps/frontend/Dockerfile') {
-  throw "main-deploy workflow must build frontend from apps/frontend context"
-}
+Write-Host "[verify] main-deploy immutable candidate transition"
+& powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-main-deploy-transition.ps1 | Out-Null
+Assert-LastExitCode "main-deploy immutable candidate transition"
+Write-Host "[verify] Phase-6 scale producer and evidence mutation safety contracts"
+& npm.cmd run verify:phase6-scale:static | Out-Null
+Assert-LastExitCode "Phase-6 scale producer and evidence mutation safety contracts"
+Write-Host "[verify] OAuth frontend boundary unit contract"
+& npm.cmd run verify:oauth-boundary | Out-Null
+Assert-LastExitCode "OAuth frontend boundary unit contract"
 $infraCostWorkflow = Get-Content -Path ".github\workflows\infra-cost-check.yml" -Raw
 foreach ($required in @("CLOUDFLARE_PROJECTED_MONTHLY_EUR", "Cloudflare zero-card target must remain EUR 0.00", "paid fallback is forbidden")) {
   if (-not $infraCostWorkflow.Contains($required)) {
@@ -3533,7 +3514,12 @@ foreach ($required in @(
   'o4Runtime.proof_worktree_clean_verified',
   'o4Browser.proof_worktree_clean_verified',
   'requires owner-gated stateful hosted runtime',
-  '^B\d+-|owner[-_ ]gated|owner[-_ ]gate'
+  '^B\d+-|owner[-_ ]gated|owner[-_ ]gate',
+  'market-ready-aggregate-v2',
+  'market_ready_verified',
+  'RequireReady',
+  'valid_owner_blocked',
+  'ready-evidence-candidate-source-bound'
 )) {
   if (-not $marketReadyScript.Contains($required)) {
     throw "Market-ready verifier missing current gate guard: $required"

@@ -1,0 +1,21 @@
+﻿{
+    "contract_version":  "live-llm-free-provider-proof-v1",
+    "status":  "verified",
+    "evidence_ref":  "live_llm_free_provider_verified",
+    "base_url":  "https://frontend-seven-psi-78.vercel.app",
+    "hosted":  true,
+    "scope":  "hosted_https",
+    "model":  "@cf/qwen/qwen2.5-coder-32b-instruct",
+    "provider":  "cloudflare_workers_ai",
+    "paid_provider":  false,
+    "prompts_used":  1,
+    "html_length":  1888,
+    "build_id":  "f34b7bf7-d16e-45d1-925c-96adba91f35c",
+    "elapsed_ms":  37805,
+    "verified_at_utc":  "2026-07-20T22:49:44.0224068Z",
+    "non_claims":  [
+                       "Proves one real free-tier generation call only.",
+                       "Does not claim throughput, availability, paid provider access, or a release promotion.",
+                       "Does not claim persistence: build registry persistence is tracked separately."
+                   ]
+}

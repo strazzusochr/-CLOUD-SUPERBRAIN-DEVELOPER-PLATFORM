@@ -28,11 +28,18 @@ function authContract(): Record<string, unknown> {
     live_github_oauth_call: false,
     github_oauth_configured: false,
     jwt_signing_configured: false,
+    credentials_configured: false,
+    owner_activation_granted: false,
+    owner_activation_required: true,
     credential_issuance_ready: false,
+    missing_configuration: ["GITHUB_OAUTH_CLIENT_ID", "GITHUB_OAUTH_CLIENT_SECRET", "GITHUB_OAUTH_REDIRECT_URI", "JWT_SIGNING_SECRET_BASE64URL_256_BIT_MINIMUM"],
+    activation_blockers: ["production_auth_identity_owner_grant"],
     access_token_ttl_seconds: 900,
     jwt: {
       algorithm: "HS256",
       access_token_ttl_seconds: 900,
+      issuer: "cloud-superbrain-agent-api",
+      audience: "cloud-superbrain-frontend",
       signing_secret_format: "base64url_256_bit_minimum",
       ephemeral_fallback: true,
     },
@@ -59,7 +66,7 @@ function authContract(): Record<string, unknown> {
     },
     cookie: { SameSite: "Strict", HttpOnly: true, Secure: true, host_prefix: true },
     audit: { credential_issuance_requires_persistence: true, secret_material_allowed: false },
-    endpoints: ["/api/v1/auth/github", "/api/v1/auth/callback", "/api/v1/auth/refresh", "/api/v1/auth/logout"],
+    endpoints: ["/api/v1/auth/github", "/api/v1/auth/callback", "/api/v1/auth/refresh", "/api/v1/auth/logout", "/api/v1/auth/me"],
     secret_output: false,
   };
 }
@@ -134,6 +141,15 @@ const DEFAULTS: Record<string, () => Record<string, unknown>> = {
     state_required: true,
     state_issued: false,
     authorize_url: null,
+  }),
+  "/api/v1/auth/me": () => ({
+    ...authContract(),
+    status: "blocked",
+    error: "auth_configuration_required",
+    authenticated: false,
+    identity_verified: false,
+    token_returned: false,
+    cookie_returned: false,
   }),
   "/api/v1/layer-interfaces/contract": () => ({
     ...tag,

@@ -116,10 +116,25 @@ for (const expected of [
   "frontend-projection",
   "endpoint-snapshot.json",
   "genericDefault",
+  "proxyOAuthGetToBoundary",
+  "proxyAuthSessionToBoundary",
+  '"/api/v1/auth/me"',
+  '"/api/v1/auth/refresh"',
+  '"/api/v1/auth/logout"',
+  "secret_output: false",
 ]) {
   assertIncludes("agent-api catch-all route", catchAllSource, expected);
 }
-assertNotIncludes("agent-api catch-all route", catchAllSource, "secret");
+for (const forbidden of [
+  "process.env.GITHUB_OAUTH_CLIENT_SECRET",
+  "process.env.JWT_SIGNING_SECRET",
+  "process.env.AGENT_API_AUTH_TOKEN",
+  "ghp_",
+  "sk-proj-",
+  "BEGIN PRIVATE KEY",
+]) {
+  assertNotIncludes("agent-api catch-all secret-value boundary", catchAllSource, forbidden);
+}
 
 for (const expected of [
   "gatewayHandle",
@@ -185,6 +200,11 @@ const snapshotLayers = endpointSnapshot["/api/v1/clouds/layers"];
 const snapshotRender = endpointSnapshot["/api/v1/clouds/render-offload"];
 const snapshotCompletion = endpointSnapshot["/api/v1/project/progress/completion"];
 const snapshotProgress = endpointSnapshot["/api/v1/project/progress"];
+const snapshotWiring = endpointSnapshot["/api/v1/workspace/wiring"];
+const snapshotVertical = endpointSnapshot["/api/v1/workspace/vertical-stack"];
+const snapshotOrganism = endpointSnapshot["/api/v1/organism/contract"];
+const snapshotTopology = endpointSnapshot["/api/v1/organism/topology"];
+const snapshotInventory = endpointSnapshot["/api/v1/platform/inventory"];
 for (const [name, value] of Object.entries({
   externalGates: snapshotExternalGates,
   clouds: snapshotClouds,
@@ -194,10 +214,66 @@ for (const [name, value] of Object.entries({
   render: snapshotRender,
   completion: snapshotCompletion,
   progress: snapshotProgress,
+  wiring: snapshotWiring,
+  vertical: snapshotVertical,
+  organism: snapshotOrganism,
+  topology: snapshotTopology,
+  inventory: snapshotInventory,
 })) {
   if (!value || typeof value !== "object") {
     throw new Error(`endpoint snapshot missing current payload: ${name}`);
   }
+}
+const loginWiring = (snapshotWiring.surfaces || []).find((item) => item?.pageId === "login");
+const settingsWiring = (snapshotWiring.surfaces || []).find((item) => item?.pageId === "settings");
+const loginVertical = (snapshotVertical.stacks || []).find((item) => item?.pageId === "login");
+const settingsVertical = (snapshotVertical.stacks || []).find((item) => item?.pageId === "settings");
+const requireSources = (label, actual, expected) => {
+  for (const source of expected) {
+    if (!Array.isArray(actual) || !actual.includes(source)) {
+      throw new Error(`${label}: missing ${source}`);
+    }
+  }
+};
+const loginAuthSources = [
+  "/api/v1/auth/contract",
+  "/api/v1/auth/github",
+  "/api/v1/auth/callback",
+  "/api/v1/auth/me",
+  "/api/v1/auth/refresh",
+  "/api/v1/auth/logout",
+];
+const settingsAuthSources = [
+  "/api/v1/auth/contract",
+  "/api/v1/auth/callback",
+  "/api/v1/auth/me",
+  "/api/v1/auth/refresh",
+  "/api/v1/auth/logout",
+];
+requireSources("snapshot login wiring", loginWiring?.dataSources, loginAuthSources);
+requireSources("snapshot settings wiring", settingsWiring?.dataSources, settingsAuthSources);
+requireSources("snapshot login vertical API", loginVertical?.api?.contracts, loginAuthSources);
+requireSources("snapshot login vertical data", loginVertical?.data?.sources, loginAuthSources);
+requireSources("snapshot settings vertical API", settingsVertical?.api?.contracts, settingsAuthSources);
+requireSources("snapshot settings vertical data", settingsVertical?.data?.sources, settingsAuthSources);
+const authMeNode = (snapshotTopology.nodes || []).find((item) => item?.id === "source:api_v1_auth_me");
+const authMePages = (snapshotTopology.edges || [])
+  .filter((item) => item?.kind === "page_to_data_source" && item?.to === "source:api_v1_auth_me")
+  .map((item) => item.from)
+  .sort();
+if (
+  !authMeNode ||
+  Number((snapshotTopology.nodes || []).length) !== 246 ||
+  Number((snapshotTopology.edges || []).length) !== 500 ||
+  JSON.stringify(authMePages) !== JSON.stringify(["page:login", "page:settings"])
+) {
+  throw new Error("endpoint snapshot topology is stale for the auth/me page wiring");
+}
+if (!JSON.stringify(snapshotOrganism).includes("/api/v1/auth/me")) {
+  throw new Error("endpoint snapshot organism contract is stale for auth/me");
+}
+if (Number(snapshotInventory?.backend?.agent_api_routes) !== 180) {
+  throw new Error("endpoint snapshot Agent API route inventory is stale");
 }
 if (
   String(snapshotExternalGates.canonical_summary_source_artifact || "").replaceAll("\\", "/")

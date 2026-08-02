@@ -5,7 +5,7 @@ import json
 import os
 import unittest
 import urllib.parse
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import httpx
 from fastapi import HTTPException
@@ -35,10 +35,17 @@ def render_http_exception(exc: HTTPException) -> Response:
     return asyncio.run(main.http_exception_envelope_handler(request, exc))
 
 
-async def asgi_get(path: str, cookie_header: str) -> httpx.Response:
+async def asgi_get(
+    path: str,
+    cookie_header: str = "",
+    extra_headers: dict[str, str] | None = None,
+) -> httpx.Response:
+    headers = dict(extra_headers or {})
+    if cookie_header:
+        headers["cookie"] = cookie_header
     transport = httpx.ASGITransport(app=main.app)
     async with httpx.AsyncClient(transport=transport, base_url="https://example.test") as client:
-        return await client.get(path, headers={"cookie": cookie_header})
+        return await client.get(path, headers=headers)
 
 
 class FakePipeline:
@@ -90,7 +97,48 @@ class FakeRedis:
         return FakePipeline(self)
 
 
+def signed_access_token(
+    now_seconds: int,
+    *,
+    header_overrides: dict[str, object] | None = None,
+    payload_overrides: dict[str, object] | None = None,
+) -> str:
+    header: dict[str, object] = {"alg": "HS256", "typ": "JWT"}
+    payload: dict[str, object] = {
+        "sub": "github:123",
+        "iat": now_seconds,
+        "exp": now_seconds + main.AUTH_ACCESS_TOKEN_TTL_SECONDS,
+        "iss": main.AUTH_JWT_ISSUER,
+        "aud": main.AUTH_JWT_AUDIENCE,
+        "trace_id": "auth-me-test",
+        "mode": "verified_github_identity",
+    }
+    header.update(header_overrides or {})
+    payload.update(payload_overrides or {})
+    signing_input = f"{main.b64url_json(header)}.{main.b64url_json(payload)}"
+    signature = main.hmac.new(main.auth_secret(), signing_input.encode("ascii"), main.hashlib.sha256).digest()
+    return f"{signing_input}.{main.b64url_bytes(signature)}"
+
+
 class AuthSecurityTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.capability_gate_state_patcher = patch.object(
+            main,
+            "capability_gate_state",
+            return_value={
+                "contract_version": "capability-gate-state-v1",
+                "status": "configured",
+                "gates": {
+                    "production_auth_identity": {
+                        "owner_granted": True,
+                        "live_verified": False,
+                    }
+                },
+            },
+        )
+        self.capability_gate_state_mock = self.capability_gate_state_patcher.start()
+        self.addCleanup(self.capability_gate_state_patcher.stop)
+
     def test_prompt_persistence_failure_redacts_internal_exception(self) -> None:
         sentinel = "postgresql://internal-user:internal-password@private-db.example/superbrain"
         request = main.PromptRequest(project_id="security-test", prompt="redaction probe")
@@ -116,6 +164,83 @@ class AuthSecurityTests(unittest.TestCase):
         main.register_oauth_state(client, state)
         self.assertTrue(main.consume_oauth_state(client, state))
         self.assertFalse(main.consume_oauth_state(client, state))
+
+    @patch.dict(
+        os.environ,
+        {
+            "GITHUB_OAUTH_CLIENT_ID": "client-id",
+            "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
+            "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
+            "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+        },
+        clear=True,
+    )
+    def test_owner_activation_is_exact_boolean_and_does_not_require_live_verified(self) -> None:
+        configuration = main.auth_configuration()
+        contract = main.auth_contract_payload()
+        self.assertTrue(configuration["credentials_configured"])
+        self.assertTrue(configuration["owner_activation_granted"])
+        self.assertTrue(configuration["credential_issuance_ready"])
+        self.assertTrue(contract["owner_activation_granted"])
+        self.assertTrue(contract["owner_activation_required"])
+        self.assertFalse(contract["live_github_oauth_call"])
+        self.assertFalse(
+            self.capability_gate_state_mock.return_value["gates"]["production_auth_identity"]["live_verified"]
+        )
+
+        self.capability_gate_state_mock.return_value = {
+            "gates": {"production_auth_identity": {"owner_granted": "true", "live_verified": True}}
+        }
+        blocked = main.auth_configuration()
+        self.assertFalse(blocked["owner_activation_granted"])
+        self.assertFalse(blocked["credential_issuance_ready"])
+
+    @patch.dict(
+        os.environ,
+        {
+            "GITHUB_OAUTH_CLIENT_ID": "client-id",
+            "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
+            "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
+            "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+        },
+        clear=True,
+    )
+    def test_full_credentials_without_owner_activation_issue_no_state_redirect_or_provider_call(self) -> None:
+        self.capability_gate_state_mock.return_value = {
+            "gates": {"production_auth_identity": {"owner_granted": False, "live_verified": False}}
+        }
+        response = Response()
+        with (
+            patch.object(main, "redis_client") as redis_boundary,
+            patch.object(main, "exchange_github_identity") as exchange,
+            patch.object(main, "persist_auth_audit"),
+        ):
+            start = main.auth_github_start(response)
+            with self.assertRaises(HTTPException) as raised:
+                main.auth_callback(
+                    Response(),
+                    code="unused",
+                    state="phase3-auth-state-" + ("O" * 32),
+                    oauth_state_cookie="phase3-auth-state-" + ("O" * 32),
+                )
+
+        self.assertIsInstance(start, dict)
+        self.assertEqual(start["status"], "owner_activation_required")
+        self.assertTrue(start["credentials_configured"])
+        self.assertFalse(start["owner_activation_granted"])
+        self.assertFalse(start["state_issued"])
+        self.assertIsNone(start["authorize_url"])
+        self.assertIn("Max-Age=0", response.headers["set-cookie"])
+        self.assertIn("no-store", response.headers["cache-control"])
+        self.assertEqual(response.headers["referrer-policy"], "no-referrer")
+        self.assertEqual(raised.exception.status_code, 403)
+        self.assertEqual(raised.exception.detail["error"], "production_auth_owner_activation_required")
+        blocked_callback = render_http_exception(raised.exception)
+        self.assertIn("Max-Age=0", blocked_callback.headers["set-cookie"])
+        self.assertIn("no-store", blocked_callback.headers["cache-control"])
+        self.assertEqual(blocked_callback.headers["referrer-policy"], "no-referrer")
+        redis_boundary.assert_not_called()
+        exchange.assert_not_called()
 
     def test_unknown_refresh_token_cannot_mint_credentials(self) -> None:
         client = FakeRedis()
@@ -158,6 +283,8 @@ class AuthSecurityTests(unittest.TestCase):
         query = urllib.parse.parse_qs(location.query)
         self.assertEqual(query["scope"], ["read:user"])
         self.assertNotIn("user:email", result.headers["location"])
+        self.assertIn("no-store", result.headers["cache-control"])
+        self.assertEqual(result.headers["referrer-policy"], "no-referrer")
         state = query["state"][0]
         self.assertEqual(client.get(main.auth_oauth_state_key(state)), "pending")
         self.assertIn(main.AUTH_OAUTH_STATE_COOKIE + "=", result.headers["set-cookie"])
@@ -204,6 +331,8 @@ class AuthSecurityTests(unittest.TestCase):
         actual_response = render_http_exception(raised.exception)
         self.assertIn(main.AUTH_OAUTH_STATE_COOKIE + '=""', actual_response.headers["set-cookie"])
         self.assertIn("Max-Age=0", actual_response.headers["set-cookie"])
+        self.assertIn("no-store", actual_response.headers["cache-control"])
+        self.assertEqual(actual_response.headers["referrer-policy"], "no-referrer")
         self.assertNotIn(main.AUTH_ACCESS_COOKIE + "=", actual_response.headers["set-cookie"])
         self.assertNotIn(main.AUTH_REFRESH_COOKIE + "=", actual_response.headers["set-cookie"])
 
@@ -386,6 +515,7 @@ class AuthSecurityTests(unittest.TestCase):
             )
         self.assertFalse(result["refresh_token_revoked"])
         self.assertFalse(result["body_token_accepted"])
+        self.assertTrue(result["active_refresh_token_absent"])
         self.assertNotIn("blacklist_key", result)
         self.assertTrue(result["audit_persisted"])
         self.assertEqual(audit.call_args.args[0], "auth_logout_no_active_token")
@@ -397,9 +527,29 @@ class AuthSecurityTests(unittest.TestCase):
         with patch.object(main, "redis_client", return_value=client), patch.object(main, "persist_auth_audit") as audit:
             result = main.auth_logout(Response(), request=None, refresh_token_cookie=token)
         self.assertTrue(result["refresh_token_revoked"])
+        self.assertTrue(result["active_refresh_token_absent"])
         self.assertTrue(result["audit_persisted"])
         self.assertEqual(audit.call_args.args[0], "auth_logout_revoked")
         self.assertEqual(client.get(main.auth_blacklist_key(token)), "logout")
+
+    def test_logout_audit_failure_is_not_reported_as_success(self) -> None:
+        client = FakeRedis()
+        token = main.create_refresh_token()
+        main.register_refresh_token(client, token, "github:123")
+        response = Response()
+        with patch.object(main, "redis_client", return_value=client), patch.object(
+            main, "persist_auth_audit", return_value=False
+        ):
+            result = main.auth_logout(response, request=None, refresh_token_cookie=token)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(result["status"], "audit_unavailable")
+        self.assertFalse(result["audit_persisted"])
+        self.assertTrue(result["refresh_token_revoked"])
+        self.assertTrue(result["active_refresh_token_absent"])
+        self.assertIn("no-store", response.headers["cache-control"])
+        set_cookie_headers = [value.decode("latin-1") for key, value in response.raw_headers if key == b"set-cookie"]
+        self.assertEqual(len(set_cookie_headers), 2)
+        self.assertTrue(all("Max-Age=0" in header for header in set_cookie_headers))
 
     @patch.dict(
         os.environ,
@@ -428,6 +578,7 @@ class AuthSecurityTests(unittest.TestCase):
                 oauth_error=None,
                 oauth_state_cookie=state,
             )
+        self.assertIsInstance(result, dict)
         self.assertTrue(result["identity_verified"])
         self.assertTrue(result["oauth_state_consumed"])
         self.assertTrue(result["access_token_issued"])
@@ -442,6 +593,155 @@ class AuthSecurityTests(unittest.TestCase):
         audit_details = json.dumps(audit.call_args.args[1])
         self.assertNotIn("provider-code", audit_details)
         self.assertNotIn(state, audit_details)
+
+    @patch.dict(
+        os.environ,
+        {
+            "GITHUB_OAUTH_CLIENT_ID": "client-id",
+            "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
+            "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
+            "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+        },
+        clear=True,
+    )
+    def test_html_callback_returns_strict_same_origin_workbench_redirect_with_auth_cookies(self) -> None:
+        client = FakeRedis()
+        state = "phase3-auth-state-" + ("H" * 32)
+        main.register_oauth_state(client, state)
+        path = "/api/v1/auth/callback?" + urllib.parse.urlencode({"code": "provider-code", "state": state})
+        with (
+            patch.object(main, "redis_client", return_value=client),
+            patch.object(main, "persist_auth_audit", return_value=True),
+            patch.object(main, "exchange_github_identity", return_value="github:123") as exchange,
+        ):
+            response = asyncio.run(
+                asgi_get(
+                    path,
+                    f"{main.AUTH_OAUTH_STATE_COOKIE}={state}",
+                    {"accept": "text/html,application/xhtml+xml;q=0.9"},
+                )
+            )
+
+        self.assertEqual(response.status_code, 303)
+        location = urllib.parse.urlsplit(response.headers["location"])
+        self.assertEqual((location.scheme, location.netloc, location.path), ("https", "example.test", "/workbench"))
+        self.assertEqual(location.query, "")
+        self.assertEqual(location.fragment, "")
+        self.assertEqual(response.content, b"")
+        self.assertIn("no-store", response.headers["cache-control"])
+        self.assertEqual(response.headers["referrer-policy"], "no-referrer")
+        set_cookie_headers = response.headers.get_list("set-cookie")
+        self.assertTrue(any(header.startswith(main.AUTH_OAUTH_STATE_COOKIE + '=""') for header in set_cookie_headers))
+        self.assertTrue(any(header.startswith(main.AUTH_ACCESS_COOKIE + "=") for header in set_cookie_headers))
+        self.assertTrue(any(header.startswith(main.AUTH_REFRESH_COOKIE + "=") for header in set_cookie_headers))
+        self.assertEqual(len([key for key in client.values if key.startswith(main.AUTH_REFRESH_ACTIVE_PREFIX)]), 1)
+        exchange.assert_called_once_with("provider-code", ANY)
+
+    @patch.dict(
+        os.environ,
+        {
+            "GITHUB_OAUTH_CLIENT_ID": "client-id",
+            "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
+            "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
+            "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+        },
+        clear=True,
+    )
+    def test_auth_me_verifies_cookie_jwt_without_returning_credential_material(self) -> None:
+        now = 2_000_000_000
+        with patch.object(main.time, "time", return_value=now):
+            token = main.create_access_jwt("github:123", "auth-me-test")
+            response = asyncio.run(asgi_get("/api/v1/auth/me", f"{main.AUTH_ACCESS_COOKIE}={token}"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(
+            payload["identity"],
+            {"provider": "github", "provider_user_id": 123, "subject": "github:123"},
+        )
+        self.assertEqual(payload["trace_id"], "auth-me-test")
+        self.assertTrue(payload["identity_verified"])
+        self.assertTrue(payload["jwt_signature_verified"])
+        self.assertTrue(payload["jwt_claims_verified"])
+        self.assertFalse(payload["token_returned"])
+        self.assertFalse(payload["cookie_returned"])
+        self.assertFalse(payload["secret_output"])
+        self.assertIn("no-store", response.headers["cache-control"])
+        self.assertEqual(response.headers["referrer-policy"], "no-referrer")
+        self.assertNotIn("access_token", payload)
+        self.assertNotIn("refresh_token", payload)
+        self.assertNotIn(token, response.text)
+
+    @patch.dict(
+        os.environ,
+        {
+            "GITHUB_OAUTH_CLIENT_ID": "client-id",
+            "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
+            "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
+            "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+        },
+        clear=True,
+    )
+    def test_auth_me_rejects_missing_tampered_and_expired_tokens_fail_closed(self) -> None:
+        now = 2_000_000_000
+        with patch.object(main.time, "time", return_value=now):
+            token = main.create_access_jwt("github:123", "auth-me-test")
+            replacement = "A" if not token.endswith("A") else "B"
+            cases = (
+                ("missing", ""),
+                ("tampered", token[:-1] + replacement),
+            )
+            for label, supplied in cases:
+                with self.subTest(case=label):
+                    cookie = f"{main.AUTH_ACCESS_COOKIE}={supplied}" if supplied else ""
+                    response = asyncio.run(asgi_get("/api/v1/auth/me", cookie))
+                    self.assertEqual(response.status_code, 401)
+                    self.assertEqual(response.json()["error"], "access_token_invalid")
+                    self.assertIn("Max-Age=0", response.headers["set-cookie"])
+                    self.assertIn("no-store", response.headers["cache-control"])
+                    self.assertEqual(response.headers["referrer-policy"], "no-referrer")
+                    if supplied:
+                        self.assertNotIn(supplied, response.text)
+
+        with patch.object(main.time, "time", return_value=now + main.AUTH_ACCESS_TOKEN_TTL_SECONDS):
+            expired = asyncio.run(asgi_get("/api/v1/auth/me", f"{main.AUTH_ACCESS_COOKIE}={token}"))
+        self.assertEqual(expired.status_code, 401)
+        self.assertEqual(expired.json()["error"], "access_token_invalid")
+        self.assertNotIn(token, expired.text)
+
+    @patch.dict(
+        os.environ,
+        {
+            "GITHUB_OAUTH_CLIENT_ID": "client-id",
+            "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
+            "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
+            "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+        },
+        clear=True,
+    )
+    def test_auth_me_rejects_signed_algorithm_issuer_audience_and_subject_drift(self) -> None:
+        now = 2_000_000_000
+        cases = (
+            ("algorithm", {"alg": "none"}, {}),
+            ("issuer", {}, {"iss": "other-issuer"}),
+            ("audience", {}, {"aud": "other-audience"}),
+            ("zero-subject", {}, {"sub": "github:0"}),
+            ("non-github-subject", {}, {"sub": "name:123"}),
+        )
+        with patch.object(main.time, "time", return_value=now):
+            for label, header_overrides, payload_overrides in cases:
+                with self.subTest(case=label):
+                    token = signed_access_token(
+                        now,
+                        header_overrides=header_overrides,
+                        payload_overrides=payload_overrides,
+                    )
+                    response = asyncio.run(
+                        asgi_get("/api/v1/auth/me", f"{main.AUTH_ACCESS_COOKIE}={token}")
+                    )
+                    self.assertEqual(response.status_code, 401)
+                    self.assertEqual(response.json()["error"], "access_token_invalid")
+                    self.assertNotIn(token, response.text)
 
     @patch.dict(
         os.environ,

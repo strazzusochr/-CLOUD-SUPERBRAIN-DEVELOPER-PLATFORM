@@ -1,0 +1,73 @@
+﻿{
+    "contract_version":  "live-vector-memory-search-proof-v1",
+    "status":  "verified",
+    "gate":  "live_vector_memory_search",
+    "provider":  "cloudflare_vectorize",
+    "required_index_name":  "cloud-superbrain-memory-v1",
+    "checks":  [
+                   {
+                       "id":  "owner_scope_approved",
+                       "ok":  true,
+                       "detail":  "Owner approval that the Cloudflare token may carry the Vectorize scope."
+                   },
+                   {
+                       "id":  "architecture_approved",
+                       "ok":  true,
+                       "detail":  "Owner approval of the Vectorize architecture, including index creation on the account."
+                   },
+                   {
+                       "id":  "vectorize_scope_readable",
+                       "ok":  true,
+                       "detail":  "Vectorize list succeeded; 1 index(es) on the account"
+                   },
+                   {
+                       "id":  "vectorize_index_present",
+                       "ok":  true,
+                       "detail":  "Index \u0027cloud-superbrain-memory-v1\u0027 must exist before any semantic retrieval can be proven."
+                   },
+                   {
+                       "id":  "worker_vectorize_binding",
+                       "ok":  true,
+                       "detail":  "wrangler.jsonc must declare a vectorize binding for the runtime to query the index."
+                   },
+                   {
+                       "id":  "worker_ai_binding",
+                       "ok":  true,
+                       "detail":  "wrangler.jsonc must declare a Workers AI binding to produce embeddings inside the Worker."
+                   },
+                   {
+                       "id":  "worker_semantic_route",
+                       "ok":  true,
+                       "detail":  "The Worker must actually use env.VECTORIZE and env.AI, not merely mention Vectorize in a non-claim."
+                   },
+                   {
+                       "id":  "hosted_semantic_roundtrip",
+                       "ok":  true,
+                       "detail":  "top score 0.7428076 with 0 shared content words"
+                   }
+               ],
+    "blockers":  [
+
+                 ],
+    "live_verified":  true,
+    "hosted_semantic_search_verified":  true,
+    "lexical_evidence_reused":  false,
+    "paid_provider":  false,
+    "secret_output":  false,
+    "percentage_credit":  0,
+    "non_claims":  [
+                       "Gate promotion is possible only with -PromoteGateOnFullPass after a complete hosted semantic roundtrip.",
+                       "The lexical Cloudflare D1 memory proof is not semantic vector retrieval and is not reused here.",
+                       "A readable Vectorize scope is not an architecture approval and not a retrieval proof.",
+                       "This execution performed only the bounded O5 semantic upsert/query proof; it did not create the index or activate a paid provider."
+                   ],
+    "hosted_roundtrip":  {
+                             "retrieval_mode":  "semantic_vector_cosine",
+                             "top_score":  0.7428076,
+                             "top_is_target":  true,
+                             "lexical_overlap_words":  0,
+                             "runner_up_score":  0.7428076,
+                             "model":  "@cf/baai/bge-base-en-v1.5",
+                             "dimensions":  768
+                         }
+}

@@ -1,9 +1,12 @@
 {
-  "contract_version": "phase6-scale-criterion-v1",
+  "contract_version": "phase6-scale-criterion-v2",
+  "supersedes": "phase6-scale-criterion-v1",
   "gate_id": "phase6_scale_runtime",
   "declared_at_utc": "2026-07-31T00:00:00Z",
+  "v2_clarified_at_utc": "2026-08-02T00:00:00Z",
   "declared_before_first_run": true,
-  "declaration_note": "This criterion is committed in its own commit BEFORE any measuring script exists, so the run can fail. A pass threshold authored after seeing results is not evidence, it is rationalisation.",
+  "declared_before_first_full_write_run": true,
+  "declaration_note": "V1 was committed before measuring. V2 is declared before the first authorized full write run and only makes the already-required no-loss/no-duplicate write semantics and active-record cleanup explicit; no measured threshold was relaxed.",
   "target": {
     "base_url": "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev",
     "surface": "cloudflare-stateful-runtime worker"
@@ -29,6 +32,8 @@
     "readback_required": true,
     "no_loss_allowed": true,
     "no_duplicate_allowed": true,
+    "http_429_allowed": false,
+    "cleanup_semantics": "soft_delete_then_active_row_absence_and_audit_readback",
     "note": "Parallel D1 writes with full readback are the actual scale proof. Latency numbers alone do not demonstrate that state survives concurrency."
   },
   "control_tier": {
@@ -44,7 +49,8 @@
     "max_p95_ms": 1500,
     "own_5xx_allowed": 0,
     "throttle_must_fail_closed": true,
-    "throttle_note": "HTTP 429 is an acceptable outcome and does not fail the run, but it must degrade cleanly: no 5xx, no partial or corrupted state on readback."
+    "http_429_scope": "health_read_tiers_only",
+    "throttle_note": "HTTP 429 is acceptable only on health-read tiers and must fail closed. Every planned write and cleanup still requires its exact readback, so a write/delete 429 is a failed run."
   },
   "fail_closed": {
     "missing_write_auth_is_failure": true,

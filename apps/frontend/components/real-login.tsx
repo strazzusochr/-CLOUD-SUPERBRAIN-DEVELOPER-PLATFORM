@@ -10,6 +10,7 @@ export function RealLogin() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [oauthReady, setOauthReady] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -17,11 +18,41 @@ export function RealLogin() {
     let alive = true;
     (async () => {
       try {
-        const r = await fetch("/api/v1/auth/session", { cache: "no-store" });
-        const d = await r.json();
-        if (alive && d.user) setUser(d.user);
+        const identityResponse = await fetch("/api/v1/auth/me", { cache: "no-store" });
+        const identity = await identityResponse.json().catch(() => null);
+        if (
+          alive
+          && identityResponse.ok
+          && identity?.status === "authenticated"
+          && identity?.identity_verified === true
+          && identity?.jwt_signature_verified === true
+          && identity?.identity?.provider === "github"
+          && Number.isInteger(identity?.identity?.provider_user_id)
+          && identity.identity.provider_user_id > 0
+        ) {
+          setUser({ name: `GitHub #${identity.identity.provider_user_id}`, provider: "github" });
+          return;
+        }
+        const sessionResponse = await fetch("/api/v1/auth/session", { cache: "no-store" });
+        const session = await sessionResponse.json();
+        if (alive && session.user) setUser(session.user);
       } catch {
         if (alive) setError("Sitzungsstatus ist momentan nicht erreichbar.");
+      }
+    })();
+    (async () => {
+      try {
+        const response = await fetch("/api/v1/auth/contract", { cache: "no-store" });
+        const contract = await response.json();
+        if (alive) {
+          setOauthReady(
+            response.ok
+            && contract?.credential_issuance_ready === true
+            && contract?.owner_activation_granted === true,
+          );
+        }
+      } catch {
+        if (alive) setOauthReady(false);
       }
     })();
     return () => { alive = false; };
@@ -49,8 +80,23 @@ export function RealLogin() {
     setBusy(true);
     setError("");
     try {
-      const response = await fetch("/api/v1/auth/session", { method: "DELETE" });
-      if (!response.ok) throw new Error("sign_out_failed");
+      if (user?.provider === "github") {
+        const response = await fetch("/api/v1/auth/logout", { method: "POST" });
+        const payload = await response.json().catch(() => null);
+        if (
+          !response.ok
+          || payload?.status !== "logged_out"
+          || payload?.cookies_cleared !== true
+          || payload?.active_refresh_token_absent !== true
+          || payload?.audit_persisted !== true
+        ) {
+          throw new Error("oauth_sign_out_failed");
+        }
+        await fetch("/api/v1/auth/session", { method: "DELETE" }).catch(() => null);
+      } else {
+        const response = await fetch("/api/v1/auth/session", { method: "DELETE" });
+        if (!response.ok) throw new Error("sign_out_failed");
+      }
       setUser(null);
     } catch {
       setError("Abmeldung konnte nicht abgeschlossen werden.");
@@ -85,9 +131,20 @@ export function RealLogin() {
         <button type="button" className="btn btn-primary btn-sm" onClick={() => signIn(name ? "name" : "guest")} disabled={busy} data-testid="rl-signin">
           {busy ? "…" : name ? `Anmelden als ${name}` : "Als Gast fortfahren"}
         </button>
+        <form action="/api/v1/auth/github" method="get">
+          <button
+            type="submit"
+            className="btn btn-sm"
+            aria-describedby="rl-oauth-note"
+            data-testid="rl-github-signin"
+            disabled={busy || !oauthReady}
+          >
+            Mit GitHub anmelden
+          </button>
+        </form>
       </div>
       {error ? <p className="text-12 status bad" role="alert">{error}</p> : null}
-      <p className="text-12 text-mut">Signierte HttpOnly-Sitzung ohne externe Schreibzugriffe. OAuth-Provider sind erst nach separater Freigabe aktiv.</p>
+      <p id="rl-oauth-note" className="text-12 text-mut">Signierte HttpOnly-Sitzung ohne externe Schreibzugriffe. GitHub OAuth ist nur bei konfigurierter und Owner-freigegebener Auth-Grenze aktiv{oauthReady ? "." : "; aktuell gesperrt."}</p>
     </div>
   );
 }

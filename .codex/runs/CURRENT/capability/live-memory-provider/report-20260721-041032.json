@@ -1,0 +1,19 @@
+﻿{
+    "contract_version":  "live-memory-provider-proof-v1",
+    "status":  "verified",
+    "evidence_ref":  "live_memory_provider_verified",
+    "provider":  "cloudflare_d1",
+    "paid_provider":  false,
+    "worker_url":  "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev",
+    "d1_read_verified":  true,
+    "auth_boundary_http":  401,
+    "roundtrip_verified":  true,
+    "build_id":  "8a0674a6-502b-4dfb-97c3-7ed5e6c9e482",
+    "verified_at_utc":  "2026-07-21T04:10:32.0400387Z",
+    "non_claims":  [
+                       "Proves a real free-tier hosted stateful persistence roundtrip on Cloudflare D1 (create, read, list, delete).",
+                       "This is LEXICAL persistence (D1/SQLite content + metadata), not pgvector semantic vector search.",
+                       "No write-token value is printed, logged, or stored in this artifact.",
+                       "Free tier only; no paid provider."
+                   ]
+}

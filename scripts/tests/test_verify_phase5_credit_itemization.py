@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import subprocess
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from scripts import verify_phase5_credit_itemization as verifier
@@ -10,6 +11,7 @@ from scripts import verify_phase5_credit_itemization as verifier
 
 RELEASE_ID = "prod-candidate-2026-07-31-local-rc11"
 SOURCE_SHA = "a" * 40
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def summary_proof(chain: str, command: str) -> tuple[dict[str, object], dict[str, object]]:
@@ -203,6 +205,14 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
                 f"docs/release-artifacts/{RELEASE_ID}-evidence/candidate-runtime.json",
             },
         )
+
+    def test_release_readiness_does_not_depend_on_ignored_runtime_artifacts(self) -> None:
+        source = (REPO_ROOT / "scripts" / "verify-phase5-release-readiness.ps1").read_text(
+            encoding="utf-8-sig"
+        )
+        self.assertNotIn(".phase1-artifacts", source)
+        self.assertIn("verify-main-deploy-transition.ps1", source)
+        self.assertIn("verify_project_progress_manifest.py", source)
 
     def test_runtime_source_parity_includes_and_rejects_deletions(self) -> None:
         deleted_path = "apps/frontend/app/page.tsx"

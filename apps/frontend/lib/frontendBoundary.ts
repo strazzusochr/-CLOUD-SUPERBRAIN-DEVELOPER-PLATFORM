@@ -14,7 +14,14 @@ type BoundaryKind = "agent-api" | "llm-gateway" | "mcp-gateway";
 
 type BoundaryProxyOptions = {
   serviceAuth?: boolean;
+  oauthRedirectPolicy?: "github-start" | "same-origin-callback";
+  authSessionPolicy?: "identity" | "refresh" | "logout";
 };
+
+const OAUTH_STATE_COOKIE = "__Host-sb_oauth_state";
+const OAUTH_ACCESS_COOKIE = "__Host-sb_access";
+const OAUTH_REFRESH_COOKIE = "__Host-sb_refresh";
+const OAUTH_STATE_PATTERN = /^phase3-auth-state-[A-Za-z0-9_-]{32}$/;
 
 export type HostedAuthSessionLookup =
   | { status: "valid"; claims: AuthSessionClaims }
@@ -76,6 +83,58 @@ function copyRequestHeaders(req: Request): Headers {
   return headers;
 }
 
+function copyOAuthRequestHeaders(
+  req: Request,
+  policy: NonNullable<BoundaryProxyOptions["oauthRedirectPolicy"]>,
+): Headers {
+  const headers = new Headers({ accept: req.headers.get("accept") ?? "text/html" });
+  for (const name of ["x-request-id", "traceparent"]) {
+    const value = req.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+  if (policy === "same-origin-callback") {
+    const state = cookieValue(req.headers.get("cookie"), OAUTH_STATE_COOKIE);
+    if (state && OAUTH_STATE_PATTERN.test(state)) headers.set("cookie", `${OAUTH_STATE_COOKIE}=${state}`);
+  }
+  return headers;
+}
+
+function copyAuthSessionRequestHeaders(
+  req: Request,
+  policy: NonNullable<BoundaryProxyOptions["authSessionPolicy"]>,
+): Headers {
+  const headers = new Headers({ accept: req.headers.get("accept") ?? "application/json" });
+  for (const name of ["x-request-id", "traceparent"]) {
+    const value = req.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+  if (policy !== "identity") {
+    const contentType = req.headers.get("content-type");
+    if (contentType?.toLowerCase().startsWith("application/json")) headers.set("content-type", contentType);
+  }
+  const cookieName = policy === "identity" ? OAUTH_ACCESS_COOKIE : OAUTH_REFRESH_COOKIE;
+  const value = cookieValue(req.headers.get("cookie"), cookieName);
+  if (value) headers.set("cookie", `${cookieName}=${value}`);
+  return headers;
+}
+
+function responseSetCookieHeaders(headers: Headers): string[] | null {
+  const extended = headers as Headers & {
+    getSetCookie?: () => string[];
+    raw?: () => Record<string, string[]>;
+  };
+  if (typeof extended.getSetCookie === "function") {
+    return extended.getSetCookie().filter(Boolean);
+  }
+  if (typeof extended.raw === "function") {
+    return (extended.raw()["set-cookie"] ?? []).filter(Boolean);
+  }
+  // A combined Set-Cookie header cannot be split safely because Expires and
+  // extension attributes may contain commas. Drop/deny it unless the runtime
+  // exposes an enumerating API.
+  return headers.has("set-cookie") ? null : [];
+}
+
 function copyResponseHeaders(response: Response, source: string): Headers {
   const headers = new Headers({
     "content-type": response.headers.get("content-type") ?? "application/json",
@@ -83,11 +142,160 @@ function copyResponseHeaders(response: Response, source: string): Headers {
     "x-superbrain-boundary": source,
     "x-superbrain-source": response.headers.get("x-superbrain-source") ?? source,
   });
-  for (const name of ["set-cookie", "www-authenticate", "retry-after"]) {
+  for (const name of ["www-authenticate", "retry-after"]) {
     const value = response.headers.get(name);
     if (value) headers.set(name, value);
   }
   return headers;
+}
+
+type ParsedSetCookie = {
+  name: string;
+  value: string;
+  attributes: ReadonlyMap<string, string | true>;
+};
+
+function parseSetCookie(value: string): ParsedSetCookie | null {
+  if (!value || /[\r\n]/.test(value)) return null;
+  const segments = value.split(";").map((segment) => segment.trim());
+  const first = segments.shift() ?? "";
+  const separator = first.indexOf("=");
+  if (separator < 1) return null;
+  const name = first.slice(0, separator);
+  const rawValue = first.slice(separator + 1);
+  if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name)) return null;
+  const cookieValue = rawValue.length >= 2 && rawValue.startsWith('"') && rawValue.endsWith('"')
+    ? rawValue.slice(1, -1)
+    : rawValue;
+  if (/[;\u0000-\u001f\u007f]/.test(cookieValue)) return null;
+  const attributes = new Map<string, string | true>();
+  for (const segment of segments) {
+    if (!segment) continue;
+    const index = segment.indexOf("=");
+    const key = (index < 0 ? segment : segment.slice(0, index)).trim().toLowerCase();
+    const attributeValue = index < 0 ? true : segment.slice(index + 1).trim();
+    if (!key || attributes.has(key)) return null;
+    attributes.set(key, attributeValue);
+  }
+  return { name, value: cookieValue, attributes };
+}
+
+function validHostCookieShape(cookie: ParsedSetCookie, sameSite: "lax" | "strict"): boolean {
+  const allowedAttributes = new Set(["path", "secure", "httponly", "samesite", "max-age", "expires"]);
+  if ([...cookie.attributes.keys()].some((key) => !allowedAttributes.has(key))) return false;
+  if (cookie.attributes.has("domain")) return false;
+  return cookie.name.startsWith("__Host-")
+    && cookie.attributes.get("secure") === true
+    && cookie.attributes.get("httponly") === true
+    && cookie.attributes.get("path") === "/"
+    && String(cookie.attributes.get("samesite") ?? "").toLowerCase() === sameSite;
+}
+
+function validOAuthCookie(
+  cookie: ParsedSetCookie,
+  expectedState: string | null,
+  mustClearState: boolean,
+): boolean {
+  if (cookie.name === OAUTH_STATE_COOKIE) {
+    if (!validHostCookieShape(cookie, "lax")) return false;
+    if (mustClearState) return cookie.value === "" && cookie.attributes.get("max-age") === "0";
+    return expectedState !== null
+      && cookie.value === expectedState
+      && OAUTH_STATE_PATTERN.test(cookie.value)
+      && cookie.attributes.get("max-age") === "600";
+  }
+  if (cookie.name === OAUTH_ACCESS_COOKIE) {
+    return validHostCookieShape(cookie, "strict")
+      && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(cookie.value)
+      && cookie.attributes.get("max-age") === "900";
+  }
+  if (cookie.name === OAUTH_REFRESH_COOKIE) {
+    return validHostCookieShape(cookie, "strict")
+      && /^csr_[A-Za-z0-9_-]{32,128}$/.test(cookie.value)
+      && cookie.attributes.get("max-age") === "604800";
+  }
+  return false;
+}
+
+function validatedOAuthSetCookieHeaders(
+  response: Response,
+  policy: NonNullable<BoundaryProxyOptions["oauthRedirectPolicy"]>,
+  safeLocation: string | null,
+): string[] | null {
+  const rawCookies = responseSetCookieHeaders(response.headers);
+  if (rawCookies === null) return null;
+  const parsed = rawCookies.map(parseSetCookie);
+  if (parsed.some((cookie) => cookie === null)) return null;
+  const cookies = parsed as ParsedSetCookie[];
+  if (new Set(cookies.map((cookie) => cookie.name)).size !== cookies.length) return null;
+
+  if (policy === "github-start") {
+    if (safeLocation) {
+      const state = new URL(safeLocation).searchParams.get("state");
+      return cookies.length === 1 && validOAuthCookie(cookies[0], state, false) ? rawCookies : null;
+    }
+    return cookies.length === 0
+      || (cookies.length === 1 && cookies[0].name === OAUTH_STATE_COOKIE && validOAuthCookie(cookies[0], null, true))
+      ? rawCookies
+      : null;
+  }
+
+  const authenticated = response.status === 200 || safeLocation === "/workbench";
+  if (authenticated) {
+    const expectedNames = new Set([OAUTH_STATE_COOKIE, OAUTH_ACCESS_COOKIE, OAUTH_REFRESH_COOKIE]);
+    if (cookies.length !== expectedNames.size || cookies.some((cookie) => !expectedNames.has(cookie.name))) return null;
+    return cookies.every((cookie) => validOAuthCookie(cookie, null, cookie.name === OAUTH_STATE_COOKIE))
+      ? rawCookies
+      : null;
+  }
+  if (cookies.length === 0) return rawCookies;
+  return cookies.length === 1
+    && cookies[0].name === OAUTH_STATE_COOKIE
+    && validOAuthCookie(cookies[0], null, true)
+    ? rawCookies
+    : null;
+}
+
+function validClearedAuthCookie(cookie: ParsedSetCookie, name: string): boolean {
+  return cookie.name === name
+    && validHostCookieShape(cookie, "strict")
+    && cookie.value === ""
+    && cookie.attributes.get("max-age") === "0";
+}
+
+function validatedAuthSessionSetCookieHeaders(
+  response: Response,
+  policy: NonNullable<BoundaryProxyOptions["authSessionPolicy"]>,
+): string[] | null {
+  const rawCookies = responseSetCookieHeaders(response.headers);
+  if (rawCookies === null) return null;
+  const parsed = rawCookies.map(parseSetCookie);
+  if (parsed.some((cookie) => cookie === null)) return null;
+  const cookies = parsed as ParsedSetCookie[];
+  if (new Set(cookies.map((cookie) => cookie.name)).size !== cookies.length) return null;
+
+  if (policy === "identity") {
+    if (response.status === 200) return cookies.length === 0 ? rawCookies : null;
+    return cookies.length === 0
+      || (cookies.length === 1 && validClearedAuthCookie(cookies[0], OAUTH_ACCESS_COOKIE))
+      ? rawCookies
+      : null;
+  }
+  if (policy === "refresh") {
+    if (response.status !== 200) return cookies.length === 0 ? rawCookies : null;
+    const expected = new Set([OAUTH_ACCESS_COOKIE, OAUTH_REFRESH_COOKIE]);
+    return cookies.length === 2
+      && cookies.every((cookie) => expected.has(cookie.name) && validOAuthCookie(cookie, null, false))
+      ? rawCookies
+      : null;
+  }
+
+  if (response.status !== 200 && response.status !== 503) return cookies.length === 0 ? rawCookies : null;
+  const expected = new Set([OAUTH_ACCESS_COOKIE, OAUTH_REFRESH_COOKIE]);
+  return cookies.length === 2
+    && cookies.every((cookie) => expected.has(cookie.name) && validClearedAuthCookie(cookie, cookie.name))
+    ? rawCookies
+    : null;
 }
 
 function cookieValue(header: string | null, name: string): string | null {
@@ -125,6 +333,106 @@ function publicRequestOrigin(req: Request): string | null {
   const host = forwardedHost || firstForwarded(req.headers.get("host")) || incoming.host;
   const protocol = forwardedProtocol || incoming.protocol.replace(":", "");
   return normalizedOrigin(`${protocol}://${host}`);
+}
+
+function safeOAuthRedirectLocation(
+  req: Request,
+  rawLocation: string | null,
+  policy: NonNullable<BoundaryProxyOptions["oauthRedirectPolicy"]>,
+): string | null {
+  if (!rawLocation) return null;
+  const publicOrigin = publicRequestOrigin(req);
+  if (!publicOrigin) return null;
+  try {
+    const location = new URL(rawLocation, publicOrigin);
+    if (location.username || location.password || location.hash) return null;
+    if (policy === "github-start") {
+      if (
+        location.protocol !== "https:"
+        || location.hostname.toLowerCase() !== "github.com"
+        || location.port
+        || location.pathname !== "/login/oauth/authorize"
+      ) {
+        return null;
+      }
+      const clientIds = location.searchParams.getAll("client_id");
+      const redirectUris = location.searchParams.getAll("redirect_uri");
+      const scopes = location.searchParams.getAll("scope");
+      const states = location.searchParams.getAll("state");
+      const queryKeys = [...location.searchParams.keys()].sort();
+      if (
+        queryKeys.join("|") !== "client_id|redirect_uri|scope|state"
+        || location.searchParams.size !== 4
+        || clientIds.length !== 1
+        || !/^[A-Za-z0-9_-]{1,128}$/.test(clientIds[0])
+        || redirectUris.length !== 1
+        || scopes.length !== 1
+        || scopes[0] !== "read:user"
+        || states.length !== 1
+        || !/^phase3-auth-state-[A-Za-z0-9_-]{32}$/.test(states[0])
+      ) {
+        return null;
+      }
+      const redirectUri = new URL(redirectUris[0]);
+      if (
+        redirectUri.origin.toLowerCase() !== publicOrigin
+        || redirectUri.pathname !== "/api/v1/auth/callback"
+        || redirectUri.search
+        || redirectUri.hash
+        || redirectUri.username
+        || redirectUri.password
+      ) {
+        return null;
+      }
+      return location.toString();
+    }
+    if (location.origin.toLowerCase() !== publicOrigin) return null;
+    if (location.pathname !== "/login" && location.pathname !== "/workbench") return null;
+    if (location.search) return null;
+    return location.pathname;
+  } catch {
+    return null;
+  }
+}
+
+function blockedOAuthRedirect(): Response {
+  return Response.json(
+    {
+      contract_version: "frontend-oauth-redirect-guard-v1",
+      status: "blocked",
+      error: "oauth_redirect_rejected",
+      credentials_issued: false,
+      secret_output: false,
+    },
+    {
+      status: 502,
+      headers: {
+        "cache-control": "no-store",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-superbrain-boundary": BOUNDARIES["agent-api"].responseSource,
+        "x-superbrain-source": "frontend-oauth-redirect-guard",
+      },
+    },
+  );
+}
+
+function validIncomingOAuthQuery(req: Request, targetPath: "/api/v1/auth/github" | "/api/v1/auth/callback"): boolean {
+  const url = new URL(req.url);
+  if (targetPath === "/api/v1/auth/github") return url.search === "";
+  const keys = [...url.searchParams.keys()].sort();
+  const keyShape = keys.join("|");
+  if (url.searchParams.size !== 2 || (keyShape !== "code|state" && keyShape !== "error|state")) return false;
+  const states = url.searchParams.getAll("state");
+  if (states.length !== 1 || !OAUTH_STATE_PATTERN.test(states[0])) return false;
+  const cookieState = cookieValue(req.headers.get("cookie"), OAUTH_STATE_COOKIE);
+  if (cookieState !== states[0]) return false;
+  if (keyShape === "code|state") {
+    const codes = url.searchParams.getAll("code");
+    return codes.length === 1 && codes[0].length >= 1 && codes[0].length <= 255 && !/[\u0000-\u001f\u007f]/.test(codes[0]);
+  }
+  const errors = url.searchParams.getAll("error");
+  return errors.length === 1 && /^[A-Za-z0-9_.-]{1,64}$/.test(errors[0]);
 }
 
 export function isLocalDevelopmentRequest(req: Request): boolean {
@@ -287,6 +595,61 @@ export async function authorizeBoundaryWrite(req: Request): Promise<Response | n
   return writeBlocked(401, "write_session_required", "session_invalid");
 }
 
+function authMutationOriginBlock(req: Request): Response | null {
+  const expectedOrigin = publicRequestOrigin(req);
+  const suppliedOrigin = req.headers.get("origin");
+  const actualOrigin = suppliedOrigin ? normalizedOrigin(suppliedOrigin) : null;
+  const fetchSite = (req.headers.get("sec-fetch-site") ?? "").trim().toLowerCase();
+  let reason = "";
+  if (!expectedOrigin) reason = "request_origin_unavailable";
+  else if (!suppliedOrigin || !actualOrigin) reason = "exact_origin_required";
+  else if (actualOrigin !== expectedOrigin) reason = "origin_mismatch";
+  else if (fetchSite && fetchSite !== "same-origin") reason = "fetch_metadata_not_same_origin";
+  if (!reason) return null;
+  return Response.json(
+    {
+      contract_version: "frontend-auth-session-boundary-v1",
+      status: "blocked",
+      error: "csrf_origin_rejected",
+      reason,
+      accepted: false,
+      credentials_issued: false,
+      secret_output: false,
+    },
+    {
+      status: 403,
+      headers: {
+        "cache-control": "no-store",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-superbrain-source": "frontend-auth-session-guard",
+      },
+    },
+  );
+}
+
+function blockedAuthSessionResponse(): Response {
+  return Response.json(
+    {
+      contract_version: "frontend-auth-session-boundary-v1",
+      status: "blocked",
+      error: "auth_session_response_rejected",
+      accepted: false,
+      credentials_issued: false,
+      secret_output: false,
+    },
+    {
+      status: 502,
+      headers: {
+        "cache-control": "no-store",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "x-superbrain-source": "frontend-auth-session-guard",
+      },
+    },
+  );
+}
+
 export async function proxyToBoundary(
   req: Request,
   kind: BoundaryKind,
@@ -303,7 +666,11 @@ export async function proxyToBoundary(
 
   const method = req.method.toUpperCase();
   const body = method === "GET" || method === "HEAD" ? undefined : await req.text();
-  const headers = copyRequestHeaders(req);
+  const headers = options.oauthRedirectPolicy
+    ? copyOAuthRequestHeaders(req, options.oauthRedirectPolicy)
+    : options.authSessionPolicy
+      ? copyAuthSessionRequestHeaders(req, options.authSessionPolicy)
+      : copyRequestHeaders(req);
   const config = BOUNDARIES[kind];
   const gatewayToken = config.authEnvName ? process.env[config.authEnvName]?.trim() : "";
   const attachConfiguredAuth = kind !== "agent-api" || options.serviceAuth === true;
@@ -324,15 +691,69 @@ export async function proxyToBoundary(
       redirect: "manual",
       signal: controller.signal,
     });
+    const responseHeaders = copyResponseHeaders(response, BOUNDARIES[kind].responseSource);
+    let safeOAuthLocation: string | null = null;
+    if (options.oauthRedirectPolicy || options.authSessionPolicy) {
+      responseHeaders.set("cache-control", "no-store");
+      responseHeaders.set("referrer-policy", "no-referrer");
+      responseHeaders.set("x-content-type-options", "nosniff");
+    }
+    if (response.status >= 300 && response.status < 400 && options.oauthRedirectPolicy) {
+      safeOAuthLocation = safeOAuthRedirectLocation(req, response.headers.get("location"), options.oauthRedirectPolicy);
+      if (!safeOAuthLocation || (response.status !== 302 && response.status !== 303)) return blockedOAuthRedirect();
+      responseHeaders.set("location", safeOAuthLocation);
+    }
+    const setCookies = options.oauthRedirectPolicy
+      ? validatedOAuthSetCookieHeaders(response, options.oauthRedirectPolicy, safeOAuthLocation)
+      : options.authSessionPolicy
+        ? validatedAuthSessionSetCookieHeaders(response, options.authSessionPolicy)
+        : responseSetCookieHeaders(response.headers);
+    if (options.oauthRedirectPolicy && setCookies === null) return blockedOAuthRedirect();
+    if (options.authSessionPolicy && setCookies === null) return blockedAuthSessionResponse();
+    for (const cookie of setCookies ?? []) {
+      responseHeaders.append("set-cookie", cookie);
+    }
     return new Response(await response.arrayBuffer(), {
       status: response.status,
-      headers: copyResponseHeaders(response, BOUNDARIES[kind].responseSource),
+      headers: responseHeaders,
     });
   } catch {
     return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+export async function proxyOAuthGetToBoundary(
+  req: Request,
+  targetPath: "/api/v1/auth/github" | "/api/v1/auth/callback",
+  timeoutMs = 8_000,
+): Promise<Response | null> {
+  const method = req.method.toUpperCase();
+  if (method !== "GET") return null;
+  if (!validIncomingOAuthQuery(req, targetPath)) return blockedOAuthRedirect();
+  return proxyToBoundary(req, "agent-api", targetPath, timeoutMs, {
+    oauthRedirectPolicy: targetPath === "/api/v1/auth/github" ? "github-start" : "same-origin-callback",
+  });
+}
+
+export async function proxyAuthSessionToBoundary(
+  req: Request,
+  targetPath: "/api/v1/auth/me" | "/api/v1/auth/refresh" | "/api/v1/auth/logout",
+  timeoutMs = 8_000,
+): Promise<Response | null> {
+  const method = req.method.toUpperCase();
+  const policy = targetPath === "/api/v1/auth/me"
+    ? "identity"
+    : targetPath === "/api/v1/auth/refresh"
+      ? "refresh"
+      : "logout";
+  if ((policy === "identity" && method !== "GET") || (policy !== "identity" && method !== "POST")) return null;
+  if (policy !== "identity") {
+    const blocked = authMutationOriginBlock(req);
+    if (blocked) return blocked;
+  }
+  return proxyToBoundary(req, "agent-api", targetPath, timeoutMs, { authSessionPolicy: policy });
 }
 
 export async function proxyReadToBoundary(
@@ -375,6 +796,8 @@ export function boundaryUnavailable(
       status,
       headers: {
         "cache-control": "no-store",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
         "x-superbrain-boundary": BOUNDARIES[kind].responseSource,
         "x-superbrain-source": "frontend-boundary-blocked",
       },

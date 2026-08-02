@@ -15,7 +15,7 @@
 
 import snapshot from "../../../../lib/endpoint-snapshot.json";
 import { projectedDefault, genericDefault, frontendMetrics } from "../../../../lib/endpointDefaults";
-import { boundaryUnavailable, proxyReadToBoundary, proxyToBoundary } from "../../../../lib/frontendBoundary";
+import { boundaryUnavailable, proxyAuthSessionToBoundary, proxyOAuthGetToBoundary, proxyReadToBoundary, proxyToBoundary } from "../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +32,75 @@ async function handle(req: Request, slug: string[] | undefined, method: string):
   // origin is reachable. Backend metrics remain available at their own origin.
   if (method === "GET" && pathname === "/api/v1/metrics") {
     return new Response(frontendMetrics(), { headers: { "content-type": "text/plain; version=0.0.4", "x-superbrain-source": "frontend-metrics" } });
+  }
+  if (pathname === "/api/v1/auth/github" || pathname === "/api/v1/auth/callback") {
+    if (method !== "GET") {
+      return Response.json(
+        {
+          contract_version: "frontend-oauth-method-guard-v1",
+          status: "blocked",
+          error: "method_not_allowed",
+          credentials_issued: false,
+          secret_output: false,
+        },
+        {
+          status: 405,
+          headers: {
+            allow: "GET",
+            "cache-control": "no-store",
+            "referrer-policy": "no-referrer",
+            "x-content-type-options": "nosniff",
+            "x-superbrain-source": "frontend-oauth-method-guard",
+          },
+        },
+      );
+    }
+    const oauth = await proxyOAuthGetToBoundary(req, pathname, 6_000);
+    if (oauth) return oauth;
+    // OAuth start/callback are security-sensitive and the callback consumes a
+    // one-time state. Never retry them through the generic GET proxy or serve a
+    // projected fallback after an ambiguous upstream timeout.
+    return boundaryUnavailable(
+      pathname,
+      "agent-api",
+      "The OAuth boundary did not produce a definitive response; no retry was attempted.",
+      503,
+    );
+  }
+  if (pathname === "/api/v1/auth/me" || pathname === "/api/v1/auth/refresh" || pathname === "/api/v1/auth/logout") {
+    const allowedMethod = pathname === "/api/v1/auth/me" ? "GET" : "POST";
+    if (method !== allowedMethod) {
+      return Response.json(
+        {
+          contract_version: "frontend-auth-session-boundary-v1",
+          status: "blocked",
+          error: "method_not_allowed",
+          authenticated: false,
+          accepted: false,
+          secret_output: false,
+        },
+        {
+          status: 405,
+          headers: {
+            allow: allowedMethod,
+            "cache-control": "no-store",
+            "referrer-policy": "no-referrer",
+            "x-content-type-options": "nosniff",
+          },
+        },
+      );
+    }
+    const authSession = await proxyAuthSessionToBoundary(
+      req,
+      pathname as "/api/v1/auth/me" | "/api/v1/auth/refresh" | "/api/v1/auth/logout",
+      6_000,
+    );
+    return authSession ?? boundaryUnavailable(
+      `${allowedMethod} ${pathname}`,
+      "agent-api",
+      "The production auth-session boundary is unavailable; no retry or projection was attempted.",
+      503,
+    );
   }
   const isRead = method === "GET" || method === "HEAD";
   const live = isRead
@@ -64,6 +133,10 @@ type Ctx = { params: Promise<{ slug: string[] }> };
 
 export async function GET(req: Request, ctx: Ctx): Promise<Response> {
   return handle(req, (await ctx.params).slug, "GET");
+}
+
+export async function HEAD(req: Request, ctx: Ctx): Promise<Response> {
+  return handle(req, (await ctx.params).slug, "HEAD");
 }
 
 export async function POST(req: Request, ctx: Ctx): Promise<Response> {

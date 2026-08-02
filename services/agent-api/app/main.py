@@ -1239,6 +1239,12 @@ AUTH_OAUTH_STATE_COOKIE = "__Host-sb_oauth_state"
 AUTH_REFRESH_TOKEN_PATTERN = re.compile(r"^csr_[A-Za-z0-9_-]{32,128}$")
 AUTH_OAUTH_STATE_PATTERN = re.compile(r"^phase3-auth-state-[A-Za-z0-9_-]{32}$")
 AUTH_SIGNING_SECRET_PATTERN = re.compile(r"^[A-Za-z0-9_-]{43,128}$")
+AUTH_JWT_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+AUTH_JWT_TRACE_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
+AUTH_JWT_ISSUER = "cloud-superbrain-agent-api"
+AUTH_JWT_AUDIENCE = "cloud-superbrain-frontend"
+AUTH_ACCESS_TOKEN_MAX_CHARS = 4096
+AUTH_JWT_SEGMENT_MAX_BYTES = 2048
 AUTH_SIGNING_SECRET_MIN_DECODED_BYTES = 32
 AUTH_SIGNING_SECRET_MIN_UNIQUE_BYTES = 16
 AUTH_REJECTED_SIGNING_SECRETS = frozenset(
@@ -2271,6 +2277,12 @@ def auth_signing_secret_is_strong(signing_secret: str) -> bool:
     )
 
 
+def production_auth_owner_activation_granted() -> bool:
+    gates = capability_gate_state().get("gates", {})
+    entry = gates.get("production_auth_identity") if isinstance(gates, dict) else None
+    return isinstance(entry, dict) and entry.get("owner_granted") is True
+
+
 def auth_configuration() -> dict[str, object]:
     client_id = os.getenv("GITHUB_OAUTH_CLIENT_ID", "").strip()
     client_secret = os.getenv("GITHUB_OAUTH_CLIENT_SECRET", "").strip()
@@ -2302,11 +2314,17 @@ def auth_configuration() -> dict[str, object]:
         missing.append("GITHUB_OAUTH_REDIRECT_URI")
     if not jwt_signing_configured:
         missing.append("JWT_SIGNING_SECRET_BASE64URL_256_BIT_MINIMUM")
+    credentials_configured = not missing
+    owner_activation_granted = production_auth_owner_activation_granted()
     return {
         "github_oauth_configured": bool(client_id and client_secret and redirect_uri_valid),
         "jwt_signing_configured": jwt_signing_configured,
-        "credential_issuance_ready": not missing,
+        "credentials_configured": credentials_configured,
+        "owner_activation_granted": owner_activation_granted,
+        "owner_activation_required": True,
+        "credential_issuance_ready": credentials_configured and owner_activation_granted,
         "missing_configuration": missing,
+        "activation_blockers": [] if owner_activation_granted else ["production_auth_identity_owner_grant"],
         "client_id": client_id,
         "client_secret": client_secret,
         "redirect_uri": redirect_uri if redirect_uri_valid else "",
@@ -2320,19 +2338,107 @@ def auth_secret() -> bytes:
 
 def create_access_jwt(subject: str, trace_id: str | None = None) -> str:
     now = int(time.time())
+    bounded_trace_id = bounded_auth_trace_id(trace_id, "auth")
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {
         "sub": subject,
         "iat": now,
         "exp": now + AUTH_ACCESS_TOKEN_TTL_SECONDS,
-        "iss": "cloud-superbrain-agent-api",
-        "aud": "cloud-superbrain-frontend",
-        "trace_id": trace_id or f"auth-{uuid4()}",
+        "iss": AUTH_JWT_ISSUER,
+        "aud": AUTH_JWT_AUDIENCE,
+        "trace_id": bounded_trace_id,
         "mode": "verified_github_identity",
     }
     signing_input = f"{b64url_json(header)}.{b64url_json(payload)}"
     signature = hmac.new(auth_secret(), signing_input.encode("ascii"), hashlib.sha256).digest()
     return f"{signing_input}.{b64url_bytes(signature)}"
+
+
+def bounded_auth_trace_id(value: object, prefix: str) -> str:
+    if isinstance(value, str) and AUTH_JWT_TRACE_PATTERN.fullmatch(value):
+        return value
+    return f"{prefix}-{uuid4()}"
+
+
+def decode_canonical_b64url_segment(segment: str) -> bytes | None:
+    if not segment or not AUTH_JWT_SEGMENT_PATTERN.fullmatch(segment):
+        return None
+    try:
+        decoded = base64.urlsafe_b64decode(segment + ("=" * (-len(segment) % 4)))
+    except (ValueError, TypeError):
+        return None
+    if len(decoded) > AUTH_JWT_SEGMENT_MAX_BYTES or b64url_bytes(decoded) != segment:
+        return None
+    return decoded
+
+
+def json_object_without_duplicate_keys(raw: bytes) -> dict[str, object] | None:
+    def reject_duplicates(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        result: dict[str, object] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate JSON member")
+            result[key] = value
+        return result
+
+    try:
+        payload = json.loads(raw.decode("utf-8"), object_pairs_hook=reject_duplicates)
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def verify_access_jwt(token: str | None, now_seconds: int | None = None) -> dict[str, object] | None:
+    if not isinstance(token, str) or not token or len(token) > AUTH_ACCESS_TOKEN_MAX_CHARS:
+        return None
+    parts = token.split(".")
+    if len(parts) != 3:
+        return None
+    encoded_header, encoded_payload, encoded_signature = parts
+    header_bytes = decode_canonical_b64url_segment(encoded_header)
+    payload_bytes = decode_canonical_b64url_segment(encoded_payload)
+    signature = decode_canonical_b64url_segment(encoded_signature)
+    if header_bytes is None or payload_bytes is None or signature is None or len(signature) != hashlib.sha256().digest_size:
+        return None
+    signing_input = f"{encoded_header}.{encoded_payload}"
+    expected_signature = hmac.new(auth_secret(), signing_input.encode("ascii"), hashlib.sha256).digest()
+    if not hmac.compare_digest(signature, expected_signature):
+        return None
+    header = json_object_without_duplicate_keys(header_bytes)
+    payload = json_object_without_duplicate_keys(payload_bytes)
+    if header != {"alg": "HS256", "typ": "JWT"} or payload is None:
+        return None
+    required_claims = {"sub", "iat", "exp", "iss", "aud", "trace_id", "mode"}
+    if set(payload) != required_claims:
+        return None
+    subject = payload.get("sub")
+    subject_match = re.fullmatch(r"github:([1-9][0-9]{0,19})", subject) if isinstance(subject, str) else None
+    issued_at = payload.get("iat")
+    expires_at = payload.get("exp")
+    trace_id = payload.get("trace_id")
+    now = int(time.time()) if now_seconds is None else now_seconds
+    if (
+        subject_match is None
+        or type(issued_at) is not int
+        or type(expires_at) is not int
+        or issued_at > now + 60
+        or expires_at <= now
+        or expires_at != issued_at + AUTH_ACCESS_TOKEN_TTL_SECONDS
+        or payload.get("iss") != AUTH_JWT_ISSUER
+        or payload.get("aud") != AUTH_JWT_AUDIENCE
+        or payload.get("mode") != "verified_github_identity"
+        or not isinstance(trace_id, str)
+        or not AUTH_JWT_TRACE_PATTERN.fullmatch(trace_id)
+    ):
+        return None
+    return {
+        "subject": subject,
+        "provider": "github",
+        "provider_user_id": int(subject_match.group(1)),
+        "issued_at": issued_at,
+        "expires_at": expires_at,
+        "trace_id": trace_id,
+    }
 
 
 def create_refresh_token() -> str:
@@ -2417,6 +2523,13 @@ def set_oauth_state_cookie(response: Response, state: str) -> None:
     )
 
 
+def set_auth_response_security_headers(response: Response) -> None:
+    response.headers["Cache-Control"] = CACHE_CONTROL_HEADERS["Cache-Control"]
+    response.headers["Pragma"] = CACHE_CONTROL_HEADERS["Pragma"]
+    response.headers["Expires"] = CACHE_CONTROL_HEADERS["Expires"]
+    response.headers["Referrer-Policy"] = SECURITY_HEADERS["Referrer-Policy"]
+
+
 def clear_oauth_state_cookie(response: Response) -> None:
     response.delete_cookie(AUTH_OAUTH_STATE_COOKIE, httponly=True, secure=True, samesite="lax", path="/")
 
@@ -2424,7 +2537,11 @@ def clear_oauth_state_cookie(response: Response) -> None:
 def oauth_state_cookie_clear_headers() -> dict[str, str]:
     response = Response()
     clear_oauth_state_cookie(response)
-    return {"Set-Cookie": response.headers["set-cookie"]}
+    return {
+        "Set-Cookie": response.headers["set-cookie"],
+        **CACHE_CONTROL_HEADERS,
+        "Referrer-Policy": SECURITY_HEADERS["Referrer-Policy"],
+    }
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
@@ -2451,6 +2568,51 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str) 
 def clear_auth_cookies(response: Response) -> None:
     response.delete_cookie(AUTH_ACCESS_COOKIE, httponly=True, secure=True, samesite="strict", path="/")
     response.delete_cookie(AUTH_REFRESH_COOKIE, httponly=True, secure=True, samesite="strict", path="/")
+
+
+def auth_access_cookie_clear_headers() -> dict[str, str]:
+    response = Response()
+    response.delete_cookie(AUTH_ACCESS_COOKIE, httponly=True, secure=True, samesite="strict", path="/")
+    return {
+        "Set-Cookie": response.headers["set-cookie"],
+        **CACHE_CONTROL_HEADERS,
+        "Referrer-Policy": SECURITY_HEADERS["Referrer-Policy"],
+    }
+
+
+def accepts_html(accept_header: object) -> bool:
+    if not isinstance(accept_header, str) or len(accept_header) > 512:
+        return False
+    for item in accept_header.split(","):
+        parts = [part.strip() for part in item.split(";")]
+        if not parts or parts[0].lower() != "text/html":
+            continue
+        quality = 1.0
+        quality_seen = False
+        for parameter in parts[1:]:
+            if parameter.lower().startswith("q="):
+                if quality_seen:
+                    return False
+                quality_seen = True
+                try:
+                    quality = float(parameter[2:])
+                except ValueError:
+                    quality = 0.0
+        return 0.0 < quality <= 1.0
+    return False
+
+
+def auth_workbench_redirect_uri(configuration: dict[str, object]) -> str:
+    parsed = urllib.parse.urlsplit(str(configuration.get("redirect_uri", "")))
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.netloc
+        or parsed.username
+        or parsed.password
+        or parsed.fragment
+    ):
+        raise ValueError("validated OAuth redirect origin unavailable")
+    return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, "/workbench", "", ""))
 
 
 def exchange_github_identity(code: str, configuration: dict[str, object]) -> str:
@@ -2542,13 +2704,17 @@ def auth_contract_payload() -> dict[str, object]:
         "live_github_oauth_call": False,
         "github_oauth_configured": configuration["github_oauth_configured"],
         "jwt_signing_configured": configuration["jwt_signing_configured"],
+        "credentials_configured": configuration["credentials_configured"],
+        "owner_activation_granted": configuration["owner_activation_granted"],
+        "owner_activation_required": configuration["owner_activation_required"],
         "credential_issuance_ready": configuration["credential_issuance_ready"],
         "missing_configuration": configuration["missing_configuration"],
+        "activation_blockers": configuration["activation_blockers"],
         "jwt": {
             "algorithm": "HS256",
             "access_token_ttl_seconds": AUTH_ACCESS_TOKEN_TTL_SECONDS,
-            "issuer": "cloud-superbrain-agent-api",
-            "audience": "cloud-superbrain-frontend",
+            "issuer": AUTH_JWT_ISSUER,
+            "audience": AUTH_JWT_AUDIENCE,
             "signing_secret_format": "base64url_256_bit_minimum",
             "ephemeral_fallback": not bool(configuration["jwt_signing_configured"]),
         },
@@ -2589,6 +2755,7 @@ def auth_contract_payload() -> dict[str, object]:
             "callback": "/api/v1/auth/callback",
             "refresh": "/api/v1/auth/refresh",
             "logout": "/api/v1/auth/logout",
+            "identity": "/api/v1/auth/me",
         },
         "evidence_refs": {
             "contract": "auth_contract_visible",
@@ -2604,6 +2771,8 @@ def auth_contract_payload() -> dict[str, object]:
             "Access JWT expires after 900 seconds.",
             "Refresh token expires after 604800 seconds.",
             "Credential issuance requires a one-time Redis-backed OAuth state and a verified GitHub user id.",
+            "Production OAuth start and callback additionally require the exact production_auth_identity owner_granted activation flag.",
+            "The first live proof does not require live_verified; only owner_granted is the activation prerequisite.",
             "OAuth start uses a GitHub redirect with minimal read:user scope and never returns state in a JSON body.",
             "Callback failures clear the OAuth-state cookie on the actual error response.",
             "Malformed or non-ASCII OAuth state and non-object provider JSON fail closed before credential issuance.",
@@ -2616,10 +2785,12 @@ def auth_contract_payload() -> dict[str, object]:
             "Auth cookies use the __Host- prefix and are HttpOnly, Secure, and SameSite=Strict.",
             "JWT signing configuration must be a non-placeholder base64url secret carrying at least 256 bits.",
             "Missing or weak OAuth/signing configuration blocks credential issuance.",
+            "The identity endpoint verifies JWT signature, algorithm, issuer, audience, lifetime, and a positive GitHub subject without returning the token.",
         ],
         "non_claims": [
             "Reading this contract does not make a live GitHub OAuth call.",
             "No production identity claim is made until a configured callback verifies GitHub identity.",
+            "Owner activation alone is not live verification and does not close the production identity capability gate.",
             "The ephemeral signing fallback is process-local and never authorizes production credential issuance.",
         ],
     }
@@ -6404,7 +6575,7 @@ def capability_gate_state() -> dict[str, object]:
         # A capability counts as open only when the owner granted it AND a
         # verifier proved it live AND the proof names a concrete artifact.
         # A paid provider never satisfies the free-only policy.
-        owner_granted = bool(entry.get("owner_granted", False))
+        owner_granted = entry.get("owner_granted") is True
         live_verified = bool(entry.get("live_verified", False))
         artifact = str(entry.get("evidence_artifact", "") or "")
         paid = bool(entry.get("paid_provider", False))
@@ -6966,7 +7137,7 @@ REFERENCE_DESIGN_RULES = {
 
 ORGANISM_PAGE_WIRING = {
     "home": {"brain_region": "sensory", "hub": "workbench", "primary_mode": "navigate", "data_sources": ["WORKSPACE_PAGES", "/api/v1/clouds", "/api/v1/project/progress/integrity"], "verifier_refs": WORKSPACE_COMMON_VERIFIERS, "event_kinds": ["planning", "blocked"]},
-    "login": {"brain_region": "amygdala", "hub": "workbench", "primary_mode": "govern", "data_sources": ["/api/v1/auth/contract", "/api/v1/auth/github", "/api/v1/audit/recent"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1-runtime.ps1"], "event_kinds": ["verifying", "blocked"]},
+    "login": {"brain_region": "amygdala", "hub": "workbench", "primary_mode": "govern", "data_sources": ["/api/v1/auth/contract", "/api/v1/auth/github", "/api/v1/auth/callback", "/api/v1/auth/me", "/api/v1/auth/refresh", "/api/v1/auth/logout", "/api/v1/audit/recent"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1-runtime.ps1"], "event_kinds": ["verifying", "blocked"]},
     "workbench": {"brain_region": "prefrontal", "hub": "workbench", "primary_mode": "create", "data_sources": ["/api/v1/phase2/runtime/contract", "/api/v1/orchestrator/manifest/contract", "/api/v1/platform/verify", "/api/v1/orchestrator/checkpoints/contract", "/api/v1/orchestrator/dry-run", "/api/v1/orchestrator/dry-run/contract", "/api/v1/orchestrator/dry-run/stream", "/api/v1/orchestrator/dry-run/stream/contract", "/api/v1/orchestrator/manifest", "/api/v1/phase2/runtime/runs", "/api/v1/phase2/runtime/runs/contract", "/api/v1/phase2/runtime/start", "/api/v1/phase2/runtime/start/contract", "/api/v1/trace/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["planning", "executing", "verifying"]},
     "organism": {"brain_region": "callosum", "hub": "workbench", "primary_mode": "inspect", "data_sources": ["/api/v1/organism/contract", "/api/v1/organism/live-state", "/api/v1/phase6/3d-camera-lighting/contract", "/api/v1/phase6/3d-gameplay-state/contract", "/api/v1/phase6/3d-asset-policy/contract", "/api/v1/phase6/3d-save-load/contract", "/api/v1/phase6/3d-accessibility/contract", "/api/v1/phase6/3d-netcode/contract", "/api/v1/phase6/local-scoreboard-performance/contract", "/organism/core.glb"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["planning", "executing", "tool_call", "llm_call", "memory_read", "memory_write", "verifying", "blocked"]},
     "organism-replay": {"brain_region": "hippocampus", "hub": "observe", "primary_mode": "inspect", "data_sources": ["/api/v1/organism/replay", "/api/v1/organism/events"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["memory_read", "verifying", "blocked"]},
@@ -6985,7 +7156,7 @@ ORGANISM_PAGE_WIRING = {
     "diagnostics": {"brain_region": "amygdala", "hub": "observe", "primary_mode": "verify", "data_sources": ["/api/v1/audit/recent", "/api/v1/escalations/recent", ".phase1-artifacts", "/api/v1/errors/contract", "/api/v1/escalations/contract", "/api/v1/layer-interfaces/contract", "/api/v1/request/contract", "/api/v1/security/headers/contract", "/api/v1/security/csp/contract", "/api/v1/security/csrf/contract", "/api/v1/security/cross-origin/contract", "/api/v1/orchestrator/completion/contract", "/api/v1/release-candidate/local/contract", "/api/v1/workspace/artifacts", "/api/v1/workspace/artifacts/contract", "/api/v1/workspace/vertical-stack", "/api/v1/workspace/wiring", "/api/v1/platform/inventory"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-retired-hosted-boundary.ps1", "scripts/verify-phase5-production-candidate-local.ps1"], "event_kinds": ["verifying", "blocked"]},
     "design-system": {"brain_region": "sensory", "hub": "workbench", "primary_mode": "inspect", "data_sources": ["apps/frontend/app/styles.css", "WORKSPACE_PAGES", "NeuroGlass tokens", "/api/v1/design/reference-contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "npm run lint --prefix apps/frontend"], "event_kinds": ["planning", "verifying"]},
     "stack": {"brain_region": "thalamus", "hub": "cloud", "primary_mode": "inspect", "data_sources": ["docs/system-architecture.md", "/api/v1/clouds", "/api/v1/clouds/layers", "/api/v1/clouds/deployment-preflight", "/api/v1/devops/workflow-dispatch/plan", "/api/v1/devops/workflow-dispatch/plan/contract", "/api/v1/devops/workflow-dispatch/validate", "/api/v1/devops/workflow-dispatch/validate/contract", "/api/v1/project/progress", "/api/v1/project/progress/completion", "/api/v1/project/progress/completion/contract", "/api/v1/project/progress/contract", "/api/v1/project/progress/layers", "/api/v1/project/progress/layers/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1.ps1"], "event_kinds": ["planning", "verifying", "blocked"]},
-    "settings": {"brain_region": "amygdala", "hub": "tools", "primary_mode": "govern", "data_sources": ["/api/v1/clouds/deployment-preflight", "/api/v1/auth/contract", "CLOSED_GATES", "/api/v1/auth/callback", "/api/v1/auth/logout", "/api/v1/auth/refresh"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-owner-cloud-gate-activation.ps1"], "event_kinds": ["blocked", "verifying"]},
+    "settings": {"brain_region": "amygdala", "hub": "tools", "primary_mode": "govern", "data_sources": ["/api/v1/clouds/deployment-preflight", "/api/v1/auth/contract", "CLOSED_GATES", "/api/v1/auth/callback", "/api/v1/auth/me", "/api/v1/auth/logout", "/api/v1/auth/refresh"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-owner-cloud-gate-activation.ps1"], "event_kinds": ["blocked", "verifying"]},
     "open-source": {"brain_region": "callosum", "hub": "cloud", "primary_mode": "navigate", "data_sources": ["package.json", "LICENSE", "docs/verification-register.md"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1.ps1"], "event_kinds": ["planning", "verifying"]},
 }
 
@@ -7867,24 +8038,90 @@ def auth_contract() -> dict[str, object]:
     return auth_contract_payload()
 
 
+@app.get("/api/v1/auth/me")
+def auth_me(
+    response: Response,
+    access_token_cookie: str | None = Cookie(default=None, alias=AUTH_ACCESS_COOKIE),
+) -> dict[str, object]:
+    configuration = auth_configuration()
+    if not bool(configuration["credential_issuance_ready"]):
+        owner_blocked = bool(configuration["credentials_configured"]) and not bool(
+            configuration["owner_activation_granted"]
+        )
+        raise HTTPException(
+            status_code=403 if owner_blocked else 503,
+            detail={
+                "error": "production_auth_owner_activation_required" if owner_blocked else "auth_configuration_required",
+                "authenticated": False,
+                "identity_verified": False,
+                "owner_activation_granted": configuration["owner_activation_granted"],
+                "token_returned": False,
+                "cookie_returned": False,
+                "secret_output": False,
+            },
+            headers=auth_access_cookie_clear_headers(),
+        )
+    claims = verify_access_jwt(access_token_cookie)
+    if claims is None:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "access_token_invalid",
+                "authenticated": False,
+                "identity_verified": False,
+                "token_returned": False,
+                "cookie_returned": False,
+                "secret_output": False,
+            },
+            headers=auth_access_cookie_clear_headers(),
+        )
+    set_auth_response_security_headers(response)
+    return {
+        "status": "authenticated",
+        "contract_version": "auth-github-jwt-refresh-v1",
+        "identity": {
+            "provider": claims["provider"],
+            "provider_user_id": claims["provider_user_id"],
+            "subject": claims["subject"],
+        },
+        "trace_id": claims["trace_id"],
+        "issued_at": claims["issued_at"],
+        "expires_at": claims["expires_at"],
+        "owner_activation_granted": True,
+        "identity_verified": True,
+        "jwt_signature_verified": True,
+        "jwt_claims_verified": True,
+        "token_returned": False,
+        "cookie_returned": False,
+        "secret_output": False,
+        "live_github_oauth_call": False,
+    }
+
+
 @app.get("/api/v1/auth/github", response_model=None)
-@app.post("/api/v1/auth/github", response_model=None)
 def auth_github_start(response: Response) -> dict[str, object] | Response:
     contract = auth_contract_payload()
     configuration = auth_configuration()
     if not bool(configuration["credential_issuance_ready"]):
         clear_oauth_state_cookie(response)
+        set_auth_response_security_headers(response)
+        owner_blocked = bool(configuration["credentials_configured"]) and not bool(
+            configuration["owner_activation_granted"]
+        )
         return {
             "contract_version": contract["contract_version"],
-            "status": "configuration_required",
+            "status": "owner_activation_required" if owner_blocked else "configuration_required",
             "mode": contract["mode"],
             "live_github_oauth_call": False,
+            "credentials_configured": configuration["credentials_configured"],
+            "owner_activation_granted": configuration["owner_activation_granted"],
             "credential_issuance_ready": False,
             "credentials_issued": False,
             "state_required": True,
             "state_issued": False,
             "authorize_url": None,
             "missing_configuration": configuration["missing_configuration"],
+            "activation_blockers": configuration["activation_blockers"],
             "non_claims": contract["non_claims"],
         }
     state = "phase3-auth-state-" + secrets.token_urlsafe(24)
@@ -7899,35 +8136,47 @@ def auth_github_start(response: Response) -> dict[str, object] | Response:
     )
     redirect = RedirectResponse(authorize_url, status_code=303)
     set_oauth_state_cookie(redirect, state)
+    set_auth_response_security_headers(redirect)
     return redirect
 
 
-@app.get("/api/v1/auth/callback")
+@app.get("/api/v1/auth/callback", response_model=None)
 def auth_callback(
     response: Response,
     code: str | None = Query(default=None),
     state: str | None = Query(default=None),
     oauth_error: str | None = Query(default=None, alias="error"),
     oauth_state_cookie: str | None = Cookie(default=None, alias=AUTH_OAUTH_STATE_COOKIE),
-) -> dict[str, object]:
-    trace_id = f"auth-callback-{uuid4()}"
+    accept: str | None = Header(default=None, alias="Accept"),
+    x_request_id: str | None = Header(default=None, alias="X-Request-ID"),
+) -> dict[str, object] | Response:
+    trace_id = bounded_auth_trace_id(x_request_id, "auth-callback")
     configuration = auth_configuration()
     if not bool(configuration["credential_issuance_ready"]):
+        owner_blocked = bool(configuration["credentials_configured"]) and not bool(
+            configuration["owner_activation_granted"]
+        )
         persist_auth_audit(
             "auth_github_callback_blocked",
-            {"trace_id": trace_id, "reason": "configuration_required", "credentials_issued": False},
+            {
+                "trace_id": trace_id,
+                "reason": "owner_activation_required" if owner_blocked else "configuration_required",
+                "credentials_issued": False,
+            },
             "warning",
         )
         raise HTTPException(
-            status_code=503,
+            status_code=403 if owner_blocked else 503,
             detail={
-                "error": "github_oauth_not_configured",
+                "error": "production_auth_owner_activation_required" if owner_blocked else "github_oauth_not_configured",
+                "owner_activation_granted": configuration["owner_activation_granted"],
                 "credentials_issued": False,
                 "live_github_oauth_call": False,
                 "secret_output": False,
             },
             headers=oauth_state_cookie_clear_headers(),
         )
+    workbench_redirect = auth_workbench_redirect_uri(configuration) if accepts_html(accept) else None
     state_is_bounded = isinstance(state, str) and bool(AUTH_OAUTH_STATE_PATTERN.fullmatch(state))
     cookie_is_bounded = isinstance(oauth_state_cookie, str) and bool(
         AUTH_OAUTH_STATE_PATTERN.fullmatch(oauth_state_cookie)
@@ -8005,7 +8254,6 @@ def auth_callback(
             detail=exc.detail,
             headers=oauth_state_cookie_clear_headers(),
         ) from exc
-    clear_oauth_state_cookie(response)
     refresh_token = create_refresh_token()
     client = redis_client()
     register_refresh_token(client, refresh_token, subject)
@@ -8031,8 +8279,7 @@ def auth_callback(
             headers=oauth_state_cookie_clear_headers(),
         )
     access_token = create_access_jwt(subject, trace_id)
-    set_auth_cookies(response, access_token, refresh_token)
-    return {
+    payload = {
         "status": "authenticated",
         "contract_version": "auth-github-jwt-refresh-v1",
         "mode": "verified_identity_fail_closed",
@@ -8048,6 +8295,16 @@ def auth_callback(
         "trace_id": trace_id,
         "non_claims": auth_contract_payload()["non_claims"],
     }
+    if workbench_redirect:
+        redirect = RedirectResponse(workbench_redirect, status_code=303)
+        clear_oauth_state_cookie(redirect)
+        set_auth_cookies(redirect, access_token, refresh_token)
+        set_auth_response_security_headers(redirect)
+        return redirect
+    clear_oauth_state_cookie(response)
+    set_auth_cookies(response, access_token, refresh_token)
+    set_auth_response_security_headers(response)
+    return payload
 
 
 @app.post("/api/v1/auth/refresh")
@@ -8056,7 +8313,7 @@ def auth_refresh(
     request: AuthRefreshRequest | None = None,
     refresh_token_cookie: str | None = Cookie(default=None, alias=AUTH_REFRESH_COOKIE),
 ) -> dict[str, object]:
-    trace_id = (request.trace_id if request else None) or f"auth-refresh-{uuid4()}"
+    trace_id = bounded_auth_trace_id(request.trace_id if request else None, "auth-refresh")
     if request and request.refresh_token is not None:
         persist_auth_audit(
             "auth_refresh_rejected",
@@ -8127,6 +8384,7 @@ def auth_refresh(
         )
     access_token = create_access_jwt(subject, trace_id)
     set_auth_cookies(response, access_token, new_refresh_token)
+    set_auth_response_security_headers(response)
     return {
         "status": "rotated",
         "contract_version": "auth-github-jwt-refresh-v1",
@@ -8151,11 +8409,14 @@ def auth_logout(
     supplied_token = refresh_token_cookie
     refresh_token_revoked = False
     rejection_reason = None
+    client = redis_client()
     if supplied_token:
-        subject, rejection_reason = consume_refresh_token(redis_client(), supplied_token, "logout")
+        subject, rejection_reason = consume_refresh_token(client, supplied_token, "logout")
         refresh_token_revoked = subject is not None and rejection_reason is None
+    active_refresh_token_absent = not supplied_token or client.get(auth_refresh_active_key(supplied_token)) is None
     clear_auth_cookies(response)
-    trace_id = (request.trace_id if request else None) or f"auth-logout-{uuid4()}"
+    set_auth_response_security_headers(response)
+    trace_id = bounded_auth_trace_id(request.trace_id if request else None, "auth-logout")
     audit_persisted = bool(persist_auth_audit(
         "auth_logout_revoked" if refresh_token_revoked else "auth_logout_no_active_token",
         {
@@ -8165,14 +8426,18 @@ def auth_logout(
             "cookie_token_present": bool(supplied_token),
             "rejection_reason": rejection_reason,
             "cookies_cleared": True,
+            "active_refresh_token_absent": active_refresh_token_absent,
         },
     ))
+    if not audit_persisted:
+        response.status_code = 503
     return {
-        "status": "logged_out",
+        "status": "logged_out" if audit_persisted else "audit_unavailable",
         "contract_version": "auth-github-jwt-refresh-v1",
         "refresh_token_revoked": refresh_token_revoked,
         "body_token_accepted": False,
         "cookies_cleared": True,
+        "active_refresh_token_absent": active_refresh_token_absent,
         "audit_persisted": audit_persisted,
         "trace_id": trace_id,
     }

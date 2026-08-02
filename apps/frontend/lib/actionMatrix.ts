@@ -314,15 +314,14 @@ export const ACTION_MATRIX: readonly PageActionEntry[] = [
       family("login-session-navigation", "Name, login, logout and navigation", "Authentication API is reachable for session mutations.", "Session UI and navigation reflect confirmed API outcomes.", [
         member("login-name", "Enter optional name", `input[aria-label="Name"]`, "No user session is active.", "Name input state changes.", `input[aria-label="Name"]`),
         member("login-signin", "Sign in", `[data-testid="rl-signin"]`, "No user session is active.", "Signed HttpOnly session is created and signed-in UI appears.", `[data-testid="real-login"]`, "enabled", [PRODUCT_LOGIN]),
+        member("login-github", "Start Owner-gated GitHub sign-in", `[data-testid="rl-github-signin"]`, "The production-auth Owner grant and complete OAuth configuration are both active.", "A separate hosted verifier proves GitHub consent, callback identity, session read, refresh rotation and logout without exposing credentials.", `[data-testid="real-login"]`, "provider_gated"),
         member("login-signout", "Sign out", `[data-testid="rl-signout"]`, "A user session is active.", "Session deletion succeeds before signed-out UI appears.", `[data-testid="rl-signin"]`),
         member("login-workbench", "Open workbench after sign-in", `[data-testid="real-login"] a[href="/workbench"]`, "A user session is active.", "Browser navigates to /workbench.", `[data-testid="workbench-studio"]`, "enabled", [PRODUCT_LOGIN]),
         member("login-home", "Open workspace home", `a[href="/home"]`, "Login page is mounted.", "Browser navigates to /home.", "main"),
         member("login-marketing", "Open marketing root", `a[href="/"]`, "Login page is mounted.", "Browser navigates to /.", "main"),
       ]),
     ],
-    excludedGates: [
-      { id: "external-oauth", label: "External OAuth provider activation", locator: "not mounted", reason: "Separate auth-scope Owner gate is closed." },
-    ],
+    excludedGates: [],
   },
   {
     route: "/workbench",
