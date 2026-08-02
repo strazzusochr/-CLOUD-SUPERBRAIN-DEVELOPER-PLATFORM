@@ -922,3 +922,49 @@ grünes Fundament gegen ein kosmetisches Problem eintauschen. **Bleibt stehen, w
 Die einzige verbleibende autonome Fläche ist damit §12. Alles andere wartet auf eine
 Owner-Entscheidung, **nicht** auf Geld: `payment_required` ist bei O1/O2/O3 `false`, und eine
 im Manifest abgebildete Zahlung macht `owner-input-matrix` rot.
+
+---
+
+## 14. AUDIT-BEFUND 2026-08-02 — EINE ECHTE LÜCKE IM NEUEN GHCR-SLICE
+
+Codex ist bis **2026-08-09** rate-limited. Sein Slice liegt lokal (6 Commits über origin,
+HEAD `292d49d3`). Ein 6-dimensionaler Read-only-Audit lief; 2 Funde überlebten die
+adversariale Gegenprüfung, 13 blieben ungeprüft (das Audit lief selbst in ein Session-Limit).
+
+### 14.1 MAJOR — Publikation ist nicht mehr an CI gebunden *asserted*
+
+`verify-phase5-release-readiness.ps1` hat drei Assertions gelöscht, die Image-Publikation an
+einen erfolgreichen `verify`-Job banden. Der neue `scripts/verify-main-deploy-transition.ps1`
+ersetzt sie **nicht**: er prüft `publish-candidate` nur auf `environment: registry-publication`
+(Zeile 83), nie auf dessen `needs:`.
+
+**Heute ist der Workflow korrekt** — `.github/workflows/main-deploy.yml:132` hat
+`needs: [candidate-preflight, verify-candidate]`. Aber niemand prüft das mehr. Wer diese Zeile
+auf `needs: [candidate-preflight]` kürzt **oder** dem Job ein `if: ${{ always() }}` gibt,
+publiziert sechs GHCR-Images ohne CI-Gate — und **jeder Verifier bleibt grün**.
+
+**Fix (eine Assertion, gehört in `verify-main-deploy-transition.ps1`):**
+> `publish-candidate` muss `verify-candidate` in `needs:` führen **und** darf kein
+> `if: always()` auf Job-Ebene tragen.
+
+Einzige verbleibende echte Schranke ist `environment: registry-publication` (Human-Approval) —
+und `verify-main-deploy-transition.ps1:84` sagt selbst, dass es dessen Konfiguration nicht prüft.
+
+### 14.2 MINOR — tote Variable
+
+`verify-phase1.ps1:2915` liest `main-deploy.yml` in `$mainDeployWorkflow`, das danach nie mehr
+gelesen wird (AST-geprüft: 1 Write, 0 Reads; bei HEAD waren es 1 Write + 5 Reads).
+**Kein Schaden** — die Delegation darunter ist strikt stärker als der gelöschte Inline-Block
+(Build-Contexts wortgleich, Default-Branch zusätzlich gebunden, Service-Matrix von
+„vorhanden" auf „genau sechs, je einmal" verschärft). Nur Zeile 2915 löschen.
+
+### 14.3 Was NICHT geprüft werden konnte
+
+13 Funde aus Scale-False-Green, OAuth-Frontend, Backend-Auth und Truth-Integrität blieben
+**unverifiziert** — die Gegenprüfer liefen in ein Limit. Sie sind weder bestätigt noch
+entkräftet. Vor dem nächsten Push: diese vier Dimensionen erneut prüfen.
+
+### 14.4 Mechanik-Status (geprüft, sauber)
+
+9/9 PowerShell-Skripte parsen · `Assert-LastExitCode` definiert · `verify:oauth-boundary` und
+`verify:phase6-scale:static` in `package.json` verdrahtet · XDIRTY unverändert.
