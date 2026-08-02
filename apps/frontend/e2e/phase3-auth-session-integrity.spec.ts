@@ -5,9 +5,21 @@ const base = process.env.PHASE3_AUTH_SESSION_BASE_URL ?? "http://localhost:8081"
 const cookieName = "__Host-sb_session";
 
 test("login issues a signed session and rejects a tampered cookie", async ({ page, context, request }, testInfo) => {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => message.type() === "error" && errors.push(message.text()));
+  const pageErrors: string[] = [];
+  const consoleErrors: string[] = [];
+  const authMeFailures: number[] = [];
+  const unexpectedHttpFailures: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (message) => message.type() === "error" && consoleErrors.push(message.text()));
+  page.on("response", (candidate) => {
+    if (candidate.status() < 400) return;
+    const url = new URL(candidate.url());
+    if (url.pathname === "/api/v1/auth/me" && candidate.request().method() === "GET") {
+      authMeFailures.push(candidate.status());
+      return;
+    }
+    unexpectedHttpFailures.push(`${candidate.request().method()} ${url.pathname} ${candidate.status()}`);
+  });
 
   const response = await page.goto(`${base}/login`, { waitUntil: "networkidle" });
   expect(response?.status()).toBe(200);
@@ -68,10 +80,29 @@ test("login issues a signed session and rejects a tampered cookie", async ({ pag
   expect(unsupportedProvider.status()).toBe(400);
   expect((await unsupportedProvider.json()).error).toBe("provider_or_name_invalid");
 
+  if (contract.body.credential_issuance_ready === true && contract.body.owner_activation_granted === true) {
+    expect(authMeFailures.every((status) => status === 401)).toBe(true);
+  } else {
+    expect(authMeFailures, "closed OAuth gate must suppress /auth/me probes").toEqual([]);
+  }
+
+  const remainingExpectedAuthErrors = [...authMeFailures];
+  const unexpectedConsoleErrors = consoleErrors.filter((message) => {
+    const match = message.match(/^Failed to load resource: the server responded with a status of (\d+) \(/);
+    if (!match) return true;
+    const status = Number(match[1]);
+    const expectedIndex = remainingExpectedAuthErrors.indexOf(status);
+    if (expectedIndex < 0) return true;
+    remainingExpectedAuthErrors.splice(expectedIndex, 1);
+    return false;
+  });
+
   const artifactDir = process.env.PHASE3_AUTH_SESSION_ARTIFACT_DIR;
   const screenshotPath = artifactDir
     ? path.join(artifactDir, "login-auth-session-integrity.png")
     : testInfo.outputPath("login-auth-session-integrity.png");
   await page.screenshot({ path: screenshotPath, fullPage: true });
-  expect(errors, "no console/page errors during auth-session integrity proof").toEqual([]);
+  expect(unexpectedHttpFailures, "no unexpected failed page responses").toEqual([]);
+  expect(pageErrors, "no page errors during auth-session integrity proof").toEqual([]);
+  expect(unexpectedConsoleErrors, "no unexpected console errors during auth-session integrity proof").toEqual([]);
 });

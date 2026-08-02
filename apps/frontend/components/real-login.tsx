@@ -17,42 +17,49 @@ export function RealLogin() {
     rootRef.current?.setAttribute("data-hydrated", "true");
     let alive = true;
     (async () => {
-      try {
-        const identityResponse = await fetch("/api/v1/auth/me", { cache: "no-store" });
-        const identity = await identityResponse.json().catch(() => null);
-        if (
-          alive
-          && identityResponse.ok
-          && identity?.status === "authenticated"
-          && identity?.identity_verified === true
-          && identity?.jwt_signature_verified === true
-          && identity?.identity?.provider === "github"
-          && Number.isInteger(identity?.identity?.provider_user_id)
-          && identity.identity.provider_user_id > 0
-        ) {
-          setUser({ name: `GitHub #${identity.identity.provider_user_id}`, provider: "github" });
-          return;
-        }
-        const sessionResponse = await fetch("/api/v1/auth/session", { cache: "no-store" });
-        const session = await sessionResponse.json();
-        if (alive && session.user) setUser(session.user);
-      } catch {
-        if (alive) setError("Sitzungsstatus ist momentan nicht erreichbar.");
-      }
-    })();
-    (async () => {
+      let oauthBoundaryReady = false;
       try {
         const response = await fetch("/api/v1/auth/contract", { cache: "no-store" });
         const contract = await response.json();
-        if (alive) {
-          setOauthReady(
-            response.ok
-            && contract?.credential_issuance_ready === true
-            && contract?.owner_activation_granted === true,
-          );
-        }
+        oauthBoundaryReady = (
+          response.ok
+          && contract?.credential_issuance_ready === true
+          && contract?.owner_activation_granted === true
+        );
       } catch {
-        if (alive) setOauthReady(false);
+        oauthBoundaryReady = false;
+      }
+      if (!alive) return;
+      setOauthReady(oauthBoundaryReady);
+
+      if (oauthBoundaryReady) {
+        try {
+          const identityResponse = await fetch("/api/v1/auth/me", { cache: "no-store" });
+          const identity = await identityResponse.json().catch(() => null);
+          if (
+            alive
+            && identityResponse.ok
+            && identity?.status === "authenticated"
+            && identity?.identity_verified === true
+            && identity?.jwt_signature_verified === true
+            && identity?.identity?.provider === "github"
+            && Number.isInteger(identity?.identity?.provider_user_id)
+            && identity.identity.provider_user_id > 0
+          ) {
+            setUser({ name: `GitHub #${identity.identity.provider_user_id}`, provider: "github" });
+            return;
+          }
+        } catch {
+          // The independent local signed session remains available without claiming OAuth identity.
+        }
+      }
+
+      try {
+        const sessionResponse = await fetch("/api/v1/auth/session", { cache: "no-store" });
+        const session = await sessionResponse.json();
+        if (alive && sessionResponse.ok && session.user) setUser(session.user);
+      } catch {
+        if (alive) setError("Sitzungsstatus ist momentan nicht erreichbar.");
       }
     })();
     return () => { alive = false; };
