@@ -6,11 +6,15 @@ const cookieName = "__Host-sb_session";
 
 test("login issues a signed session and rejects a tampered cookie", async ({ page, context, request }, testInfo) => {
   const pageErrors: string[] = [];
-  const consoleErrors: string[] = [];
+  const consoleErrors: Array<{ text: string; url: string }> = [];
   const authMeFailures: number[] = [];
   const unexpectedHttpFailures: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
-  page.on("console", (message) => message.type() === "error" && consoleErrors.push(message.text()));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      consoleErrors.push({ text: message.text(), url: message.location().url });
+    }
+  });
   page.on("response", (candidate) => {
     if (candidate.status() < 400) return;
     const url = new URL(candidate.url());
@@ -24,14 +28,21 @@ test("login issues a signed session and rejects a tampered cookie", async ({ pag
   const response = await page.goto(`${base}/login`, { waitUntil: "networkidle" });
   expect(response?.status()).toBe(200);
 
-  const contract = await page.evaluate(async () => {
+  const sessionContract = await page.evaluate(async () => {
     const result = await fetch("/api/v1/auth/session/contract", { cache: "no-store" });
     return { status: result.status, body: await result.json() };
   });
-  expect(contract.status).toBe(200);
-  expect(contract.body.contract_version).toBe("auth-session-integrity-v1");
-  expect(contract.body.integrity.tampered_cookie_rejected).toBe(true);
-  expect(contract.body.external_provider_write).toBe(false);
+  expect(sessionContract.status).toBe(200);
+  expect(sessionContract.body.contract_version).toBe("auth-session-integrity-v1");
+  expect(sessionContract.body.integrity.tampered_cookie_rejected).toBe(true);
+  expect(sessionContract.body.external_provider_write).toBe(false);
+
+  const oauthContract = await page.evaluate(async () => {
+    const result = await fetch("/api/v1/auth/contract", { cache: "no-store" });
+    return { status: result.status, body: await result.json() };
+  });
+  expect(oauthContract.status).toBe(200);
+  expect(oauthContract.body.contract_version).toBe("auth-github-jwt-refresh-v1");
 
   await page.getByLabel("Name").fill("Local Integrity User");
   // Ensure React state settled: button must reflect the typed name before clicking
@@ -80,18 +91,24 @@ test("login issues a signed session and rejects a tampered cookie", async ({ pag
   expect(unsupportedProvider.status()).toBe(400);
   expect((await unsupportedProvider.json()).error).toBe("provider_or_name_invalid");
 
-  if (contract.body.credential_issuance_ready === true && contract.body.owner_activation_granted === true) {
-    expect(authMeFailures.every((status) => status === 401)).toBe(true);
+  if (oauthContract.body.credential_issuance_ready === true && oauthContract.body.owner_activation_granted === true) {
+    expect(authMeFailures, "open OAuth gate probes the anonymous identity exactly once per page load").toEqual([401, 401]);
   } else {
     expect(authMeFailures, "closed OAuth gate must suppress /auth/me probes").toEqual([]);
   }
 
   const remainingExpectedAuthErrors = [...authMeFailures];
   const unexpectedConsoleErrors = consoleErrors.filter((message) => {
-    const match = message.match(/^Failed to load resource: the server responded with a status of (\d+) \(/);
+    let pathname = "";
+    try {
+      pathname = new URL(message.url).pathname;
+    } catch {
+      return true;
+    }
+    if (pathname !== "/api/v1/auth/me") return true;
+    const match = message.text.match(/^Failed to load resource: the server responded with a status of 401 \(Unauthorized\)$/);
     if (!match) return true;
-    const status = Number(match[1]);
-    const expectedIndex = remainingExpectedAuthErrors.indexOf(status);
+    const expectedIndex = remainingExpectedAuthErrors.indexOf(401);
     if (expectedIndex < 0) return true;
     remainingExpectedAuthErrors.splice(expectedIndex, 1);
     return false;
@@ -103,6 +120,7 @@ test("login issues a signed session and rejects a tampered cookie", async ({ pag
     : testInfo.outputPath("login-auth-session-integrity.png");
   await page.screenshot({ path: screenshotPath, fullPage: true });
   expect(unexpectedHttpFailures, "no unexpected failed page responses").toEqual([]);
+  expect(remainingExpectedAuthErrors, "every expected /auth/me 401 has one exact console error").toEqual([]);
   expect(pageErrors, "no page errors during auth-session integrity proof").toEqual([]);
   expect(unexpectedConsoleErrors, "no unexpected console errors during auth-session integrity proof").toEqual([]);
 });
