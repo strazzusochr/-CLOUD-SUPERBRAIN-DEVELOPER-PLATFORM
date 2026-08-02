@@ -26,7 +26,7 @@
     "verify:phase5-candidate-local": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase5-production-candidate-local.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
     "verify:phase5-credit": "py -3 scripts\\verify_phase5_credit_itemization.py",
     "verify:phase6-scoreboard": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase6-local-scoreboard-performance-runtime.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
-    "verify:phase6-scale:static": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\\verify-phase6-scale-runtime-static.ps1 && pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\\verify-phase6-scale-evidence-static.ps1",
+    "verify:phase6-scale:static": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase6-scale-runtime-static.ps1 && pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase6-scale-evidence-static.ps1",
     "verify:phase6-scale:evidence-static": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase6-scale-evidence-static.ps1",
     "verify:responsive": "node scripts/verify-workspace-responsive-browser.cjs --base-url http://localhost:8081 --allow-localhost",
     "verify:frontend-hosted-current": "powershell -ExecutionPolicy Bypass -File scripts\\verify-frontend-hosted-current.ps1 -SkipBrowser",
