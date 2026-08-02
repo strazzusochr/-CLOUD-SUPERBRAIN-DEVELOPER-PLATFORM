@@ -71,6 +71,7 @@ try {
     "oauth_provider_denied",
     "refresh_token_body_not_allowed",
     "auth_configuration_required",
+    "production_auth_owner_activation_required",
     "auth_audit_unavailable",
     "github_identity_verification_failed",
     "auth_logout_no_active_token",
@@ -129,6 +130,8 @@ try {
   Assert-Equal "refresh complete issuance configuration required" ([bool]$contract.refresh_token.complete_issuance_configuration_required) $true
   Assert-Equal "host-prefixed cookies" ([bool]$contract.cookie_flags.host_prefix) $true
   Assert-Equal "credential issuance audit persistence required" ([bool]$contract.audit.credential_issuance_requires_persistence) $true
+  Assert-Equal "owner activation is an explicit issuance gate" ([bool]$contract.owner_activation_required) $true
+  $ownerActivationBlocked = ([bool]$contract.credentials_configured) -and (-not [bool]$contract.owner_activation_granted)
 
   if (-not $isLocal) {
     New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
@@ -206,6 +209,7 @@ finally:
 
   $startProbe = Invoke-Probe "OAuth start" "GET" "$base/api/v1/auth/github"
   if ([bool]$contract.credential_issuance_ready) {
+    $oauthStartGateStatus = "ready_redirect"
     Assert-True "configured start redirect HTTP" ($startProbe.status -in @(302, 303, 307))
     Assert-True "configured start fixed GitHub host" ($startProbe.headers -match '(?im)^Location:\s*https://github\.com/login/oauth/authorize\?')
     Assert-True "configured start minimal scope" ($startProbe.headers -match 'scope=read%3Auser(?:&|\r?$)')
@@ -217,15 +221,24 @@ finally:
     $start = $startProbe.body | ConvertFrom-Json
     Assert-Equal "OAuth start issued no credentials" ([bool]$start.credentials_issued) $false
     Assert-Equal "OAuth start made no provider call" ([bool]$start.live_github_oauth_call) $false
-    Assert-Equal "unconfigured start blocked" ([string]$start.status) "configuration_required"
-    Assert-Equal "unconfigured start state not issued" ([bool]$start.state_issued) $false
+    $oauthStartGateStatus = if ($ownerActivationBlocked) { "owner_activation_required" } else { "configuration_required" }
+    Assert-Equal "OAuth start blocked by the exact inactive gate" ([string]$start.status) $oauthStartGateStatus
+    Assert-Equal "OAuth start configuration truth" ([bool]$start.credentials_configured) ([bool]$contract.credentials_configured)
+    Assert-Equal "OAuth start owner activation truth" ([bool]$start.owner_activation_granted) ([bool]$contract.owner_activation_granted)
+    Assert-Equal "blocked start state not issued" ([bool]$start.state_issued) $false
   }
 
   $callbackProbe = Invoke-Probe "arbitrary callback" "GET" "$base/api/v1/auth/callback?code=invalid-proof-code&state=invalid-proof-state"
-  Assert-True "arbitrary callback non-success" ($callbackProbe.status -in @(401, 503))
-  Assert-True "arbitrary callback fail-closed error" (
-    $callbackProbe.body.Contains("oauth_state_invalid") -or $callbackProbe.body.Contains("github_oauth_not_configured")
-  )
+  if ([bool]$contract.credential_issuance_ready) {
+    Assert-Equal "arbitrary callback invalid state HTTP" $callbackProbe.status 401
+    Assert-True "arbitrary callback invalid state error" $callbackProbe.body.Contains("oauth_state_invalid")
+  } elseif ($ownerActivationBlocked) {
+    Assert-Equal "arbitrary callback owner gate HTTP" $callbackProbe.status 403
+    Assert-True "arbitrary callback owner gate error" $callbackProbe.body.Contains("production_auth_owner_activation_required")
+  } else {
+    Assert-Equal "arbitrary callback configuration HTTP" $callbackProbe.status 503
+    Assert-True "arbitrary callback configuration error" $callbackProbe.body.Contains("github_oauth_not_configured")
+  }
   Assert-True "arbitrary callback issued no credentials" $callbackProbe.body.Contains('"credentials_issued":false')
   Assert-True "arbitrary callback set no access cookie" (-not $callbackProbe.headers.Contains("__Host-sb_access="))
   Assert-True "arbitrary callback set no refresh cookie" (-not $callbackProbe.headers.Contains("__Host-sb_refresh="))
@@ -271,6 +284,10 @@ finally:
     unit_tests_passed = $unitTestCount
     real_redis_concurrency_verified = $true
     oauth_start_status = $startProbe.status
+    oauth_start_gate_status = $oauthStartGateStatus
+    credentials_configured = [bool]$contract.credentials_configured
+    owner_activation_granted = [bool]$contract.owner_activation_granted
+    credential_issuance_ready = [bool]$contract.credential_issuance_ready
     oauth_start_state_in_json = $false
     oauth_scope = "read:user"
     oauth_state_error_cookie_cleared = $true
