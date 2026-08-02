@@ -1,0 +1,26 @@
+{
+    "contract_version":  "phase5-local-verification-summary-v2",
+    "chain":  "browser",
+    "release_id":  "prod-candidate-2026-08-02-local-rc12",
+    "source_commit_sha":  "d071481f64c559811f2f9f3f2c5b0b187e3148e9",
+    "generated_at_utc":  "2026-08-02T17:44:35Z",
+    "command":  "npm run verify:browser",
+    "status":  "passed",
+    "exit_code":  0,
+    "dev_only":  true,
+    "hosted_proof":  false,
+    "secret_output":  false,
+    "evidence_run_id":  "b1692bf5-16ea-479e-90f7-7c7c8a4347df",
+    "raw_log_path":  "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/browser.log",
+    "raw_log_sha256":  "348D249303F6580D661E6173FFCDB5626E8C8DC33A630E09CAF341989661EDA8",
+    "observed_success_anchors":  [
+                                     "[browser-contract] checks completed",
+                                     "[product-acceptance] PASS DEV-ONLY; hosted proof still blocked",
+                                     "[22-page-actions] PASS DEV-ONLY; hosted proof still blocked",
+                                     "[o4-write] status=verified gates=live_agent_tool_writes,live_mcp_writes"
+                                 ],
+    "non_claims":  [
+                       "DEV-ONLY; hosted proof still blocked.",
+                       "This evidence does not publish images, deploy production, or authorize release promotion."
+                   ]
+}

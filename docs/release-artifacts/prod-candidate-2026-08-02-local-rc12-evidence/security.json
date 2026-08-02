@@ -1,0 +1,31 @@
+{
+    "contract_version":  "phase5-local-verification-summary-v2",
+    "chain":  "security",
+    "release_id":  "prod-candidate-2026-08-02-local-rc12",
+    "source_commit_sha":  "d071481f64c559811f2f9f3f2c5b0b187e3148e9",
+    "generated_at_utc":  "2026-08-02T16:57:19Z",
+    "command":  "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/write-phase5-security-evidence.ps1 -ReleaseId prod-candidate-2026-08-02-local-rc12 -SourceSha d071481f64c559811f2f9f3f2c5b0b187e3148e9 -EvidenceRunId d13b9ab3-76c5-4d5c-9e69-728d9abc4cdf",
+    "status":  "passed",
+    "exit_code":  0,
+    "dev_only":  true,
+    "hosted_proof":  false,
+    "secret_output":  false,
+    "evidence_run_id":  "d13b9ab3-76c5-4d5c-9e69-728d9abc4cdf",
+    "raw_log_path":  "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/security.log",
+    "raw_log_sha256":  "D8EDCF8F7F20FD34F389C1EE99ACCF6F1C6C3087510152C81D557E539251E43C",
+    "observed_success_anchors":  [
+                                     "PHASE5_SECURITY_EVIDENCE_V2",
+                                     "[phase5-security] source_boundary=committed_git_archive_only",
+                                     "[phase5-security] npm_audit_verified=true",
+                                     "NPM_AUDIT_EXIT=0",
+                                     "[phase5-security] gitleaks_config=.gitleaks.toml",
+                                     "[phase5-security] gitleaks_verified=true",
+                                     "GITLEAKS_EXIT=0",
+                                     "PHASE5_SECURITY_EXIT=0"
+                                 ],
+    "non_claims":  [
+                       "DEV-ONLY; hosted proof still blocked.",
+                       "The scan boundary is the committed candidate git archive only.",
+                       "This evidence does not publish a registry image, deploy production, or disclose secrets."
+                   ]
+}

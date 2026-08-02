@@ -82,11 +82,24 @@ try {
     Assert-True "archive extraction" ($LASTEXITCODE -eq 0)
 
     [void]$lines.Add("=== npm audit --audit-level=moderate (candidate apps/frontend) ===")
-    $auditOutput = @(& npm audit --audit-level=moderate --prefix (Join-Path $sourcePath "apps\frontend") 2>&1)
-    $auditExit = $LASTEXITCODE
+    # Same reason as the gitleaks call below: npm writes progress and warnings to stderr, and
+    # under $ErrorActionPreference = 'Stop' those records become a terminating NativeCommandError
+    # before the exit code can be read. The exit code remains the gate.
+    $previousAuditErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+      $auditOutput = @(& npm audit --audit-level=moderate --prefix (Join-Path $sourcePath "apps\frontend") 2>&1)
+      $auditExit = $LASTEXITCODE
+    } finally {
+      $ErrorActionPreference = $previousAuditErrorAction
+    }
     foreach ($line in $auditOutput) { [void]$lines.Add([string]$line) }
     [void]$lines.Add("NPM_AUDIT_EXIT=$auditExit")
     Assert-True "npm audit" ($auditExit -eq 0)
+    # Written only after the exit code proved clean. CANONICAL_SUCCESS_ANCHORS["security"] in
+    # verify_phase5_credit_itemization.py requires this exact line, so a log without it cannot
+    # be credited — which is the point: the verdict is recorded, not inferred from prose.
+    [void]$lines.Add("[phase5-security] npm_audit_verified=true")
 
     $gitleaksCommand = Get-Command gitleaks -ErrorAction SilentlyContinue
     $repoLocalGitleaks = Join-Path $repoRoot ".tools\gitleaks\gitleaks.exe"
@@ -99,13 +112,23 @@ try {
     }
     [void]$lines.Add("=== canonical gitleaks (candidate archive) ===")
     [void]$lines.Add("[phase5-security] gitleaks_config=.gitleaks.toml")
-    $gitleaksOutput = @(
-      & $gitleaksExecutable detect --no-git --source $sourcePath --config (Join-Path $sourcePath ".gitleaks.toml") --redact --timeout 600 2>&1
-    )
-    $gitleaksExit = $LASTEXITCODE
+    # gitleaks prints its banner and its summary line to stderr even on a clean scan, and under
+    # $ErrorActionPreference = 'Stop' PowerShell turns those into a terminating
+    # NativeCommandError before the exit code can be read — a passing scan looked like a crash.
+    $previousGitleaksErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+      $gitleaksOutput = @(
+        & $gitleaksExecutable detect --no-git --source $sourcePath --config (Join-Path $sourcePath ".gitleaks.toml") --redact --timeout 600 2>&1
+      )
+      $gitleaksExit = $LASTEXITCODE
+    } finally {
+      $ErrorActionPreference = $previousGitleaksErrorAction
+    }
     foreach ($line in $gitleaksOutput) { [void]$lines.Add([string]$line) }
     [void]$lines.Add("GITLEAKS_EXIT=$gitleaksExit")
     Assert-True "gitleaks" ($gitleaksExit -eq 0)
+    [void]$lines.Add("[phase5-security] gitleaks_verified=true")
     [void]$lines.Add("PHASE5_SECURITY_EXIT=0")
     [void]$lines.Add("[phase5-evidence] exit_code=0")
 
@@ -126,13 +149,17 @@ try {
     }
   }
 
+  # Must equal CANONICAL_SUCCESS_ANCHORS["security"] in verify_phase5_credit_itemization.py —
+  # the verifier compares with ==, so tool-prose lines like "found 0 vulnerabilities" or
+  # "no leaks found" cannot appear here. They stay in the raw log; what is DECLARED are the two
+  # explicit verdict lines this script writes only after each exit code proved clean.
   $successAnchors = @(
     "PHASE5_SECURITY_EVIDENCE_V2",
     "[phase5-security] source_boundary=committed_git_archive_only",
-    "found 0 vulnerabilities",
+    "[phase5-security] npm_audit_verified=true",
     "NPM_AUDIT_EXIT=0",
     "[phase5-security] gitleaks_config=.gitleaks.toml",
-    "no leaks found",
+    "[phase5-security] gitleaks_verified=true",
     "GITLEAKS_EXIT=0",
     "PHASE5_SECURITY_EXIT=0"
   )

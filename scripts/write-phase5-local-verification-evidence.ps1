@@ -70,19 +70,21 @@ try {
   foreach ($line in $commandOutput) { Write-Host ([string]$line) }
   Assert-True "canonical command exit" ($exitCode -eq 0)
 
+  # These must equal CANONICAL_SUCCESS_ANCHORS[$Chain] in scripts/verify_phase5_credit_itemization.py.
+  # The verifier compares observed_success_anchors to that set with ==, not with a subset test, so
+  # declaring one extra line here makes every summary this script writes unverifiable. The exit
+  # anchor is deliberately NOT among them: it is a log-integrity line, checked separately below.
   $successAnchors = if ($Chain -eq "runtime") {
     @(
       "[runtime] compose status",
-      "[runtime] phase1 runtime checks completed",
-      "RUNTIME_EXIT=0"
+      "[runtime] phase1 runtime checks completed"
     )
   } else {
     @(
       "[browser-contract] checks completed",
       "[product-acceptance] PASS DEV-ONLY; hosted proof still blocked",
       "[22-page-actions] PASS DEV-ONLY; hosted proof still blocked",
-      "[o4-write] status=verified gates=live_agent_tool_writes,live_mcp_writes",
-      "BROWSER_EXIT=0"
+      "[o4-write] status=verified gates=live_agent_tool_writes,live_mcp_writes"
     )
   }
   $exitAnchor = if ($Chain -eq "runtime") { "RUNTIME_EXIT=0" } else { "BROWSER_EXIT=0" }
@@ -109,6 +111,9 @@ try {
   foreach ($anchor in $successAnchors) {
     Assert-True "success anchor $anchor" $rawText.Contains($anchor)
   }
+  # The exit anchor stays a hard requirement on the log itself; it just is not part of the
+  # declared canonical set the verifier compares against.
+  Assert-True "exit anchor $exitAnchor" $rawText.Contains($exitAnchor)
 
   $summary = [ordered]@{
     contract_version = "phase5-local-verification-summary-v2"
