@@ -1650,7 +1650,16 @@ Assert-Contains "task policy audit severity" $policyAudit '"severity":"critical"
 Write-Host "[runtime] task session UUID fail-closed"
 $invalidTaskOut = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import json, urllib.error, urllib.request; data=json.dumps({'project_id':'runtime-invalid-session','session_id':'not-a-uuid','agent_type':'planner','task_type':'runtime_invalid_session','task_description':'runtime task session UUID fail-closed smoke','priority':5,'max_retries':2}).encode(); req=urllib.request.Request('http://127.0.0.1:8000/api/v1/internal/tasks', data=data, headers={'Content-Type':'application/json'}, method='POST');`ntry:`n print(urllib.request.urlopen(req, timeout=5).read().decode())`nexcept urllib.error.HTTPError as exc:`n print(str(exc.code) + ':' + exc.read().decode())"
 Assert-Contains "invalid task session status" $invalidTaskOut "422:"
-Assert-Contains "invalid task session uuid error" $invalidTaskOut "session_id must be a valid UUID"
+# The API sanitizes validation errors (sanitized_validation_errors in services/agent-api/app/main.py)
+# so Pydantic never reflects the submitted value or its internal context back to the caller. The
+# offending field must still be named, and the message must be the sanitized constant — asserting
+# that constant is what proves the raw Pydantic message is no longer leaking.
+Assert-Contains "invalid task session validation envelope" $invalidTaskOut '"error":"validation_error"'
+Assert-Contains "invalid task session field is identified" $invalidTaskOut '"session_id"'
+Assert-Contains "invalid task session error is sanitized" $invalidTaskOut '"msg":"request field failed schema validation"'
+if ($invalidTaskOut -match 'not-a-uuid') {
+  throw "Runtime verification failed: validation error reflected the submitted session_id value"
+}
 
 Write-Host "[runtime] budget endpoint"
 $budget = curl.exe -sS "$baseUrl/api/v1/budget"

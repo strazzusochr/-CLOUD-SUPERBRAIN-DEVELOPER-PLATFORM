@@ -257,7 +257,20 @@ finally:
   Assert-Equal "unknown cookie refresh HTTP" $cookieRefreshProbe.status 401
   Assert-True "unknown cookie refresh rejected" $cookieRefreshProbe.body.Contains("refresh_token_invalid")
   Assert-True "unknown cookie refresh reason" $cookieRefreshProbe.body.Contains('"reason":"unknown"')
-  Assert-True "unknown cookie refresh set no access cookie" (-not $cookieRefreshProbe.headers.Contains("__Host-sb_access="))
+  # A rejected refresh actively CLEARS stale cookies (empty value + Max-Age=0). That emits a
+  # Set-Cookie header for __Host-sb_access, so a plain substring match would flag the hardened
+  # behaviour as a failure. What must never happen is the issuance of a real credential, so every
+  # access-cookie header on this response is required to be the cleared form.
+  $accessCookieHeaders = @(
+    $cookieRefreshProbe.headers -split "`r?`n" |
+      Where-Object { $_ -match '(?i)^\s*set-cookie:\s*__Host-sb_access=' }
+  )
+  foreach ($accessCookieHeader in $accessCookieHeaders) {
+    Assert-True "unknown cookie refresh issued no access credential" (
+      ($accessCookieHeader -match '(?i)__Host-sb_access=(""|)\s*;') -and
+      ($accessCookieHeader -match '(?i)max-age=0')
+    )
+  }
 
   $logoutToken = "csr_" + ("C" * 43)
   $logoutProbe = Invoke-Probe "unknown cookie logout" "POST" "$base/api/v1/auth/logout" "" @("Cookie: __Host-sb_refresh=$logoutToken")
