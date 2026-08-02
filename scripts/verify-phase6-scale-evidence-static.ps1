@@ -8,7 +8,19 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\', '/')
 $verifierPath = Join-Path $PSScriptRoot 'verify-phase6-scale-evidence.ps1'
 $collectorPath = Join-Path $PSScriptRoot 'collect-phase6-scale-execution-readback.ps1'
-$testRoot = [IO.Path]::GetFullPath('D:\_sb_tmp').TrimEnd('\', '/')
+# The project pins scratch work to D:\_sb_tmp on the Windows workstation, but pr-check runs
+# this contract on ubuntu-latest where that drive does not exist: GetFullPath would resolve it
+# relative to the working directory and the cleanup guard below would correctly refuse to
+# delete the resulting bogus path. Prefer the pinned root when it is actually present, and fall
+# back to the platform temp directory otherwise.
+$preferredTestRoot = if (-not [string]::IsNullOrWhiteSpace($env:SUPERBRAIN_TEST_ROOT)) {
+  $env:SUPERBRAIN_TEST_ROOT
+} elseif (Test-Path -LiteralPath 'D:/_sb_tmp' -PathType Container) {
+  'D:/_sb_tmp'
+} else {
+  [IO.Path]::GetTempPath()
+}
+$testRoot = [IO.Path]::GetFullPath($preferredTestRoot).TrimEnd('\', '/')
 $tempRoot = Join-Path $testRoot ('phase6-scale-evidence-static-' + [Guid]::NewGuid().ToString('N'))
 $utf8NoBom = [Text.UTF8Encoding]::new($false)
 
