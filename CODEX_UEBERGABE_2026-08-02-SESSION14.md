@@ -697,3 +697,96 @@ Vorarbeit dafür liegt schon in `D:\_sb_tmp\superbrain-clean-proof-96a9c5e4`
 | Nicht committet | bewusst — würde HEAD rot machen (§13.5) |
 | Prozente | unverändert **89**. Nichts hochgesetzt, nichts gefälscht |
 
+
+---
+
+## 14. SESSION 16 — SECHS PLATTFORMFEHLER, DREI REIHENFOLGE-REGELN, RC12-MECHANIK ENTSCHLÜSSELT
+
+### 14.1 Codex' Phase-6-CI-Step war nie gelaufen — sechs Fehler übereinander
+
+Der Step `Phase 6 scale fail-closed static contracts` wurde in Commit A neu eingebaut und
+**ausschließlich lokal auf Windows** getestet. In CI (`ubuntu-latest`) kam er nie einen
+einzigen Schritt weit. Jeder Fix legte den nächsten frei:
+
+| # | Fehler | Wirkung in CI |
+|---|---|---|
+| 1 | `pwsh -File scripts\...ps1` in `package.json` | `\` ist kein Trenner → pwsh druckte **seinen Hilfetext**, **13 Folge-Steps `skipped`** |
+| 2 | `.github/workflows/phase6-scale-runtime.yml` **nie committet** | „dedicated Phase6 scale workflow is missing" |
+| 3 | `'.github\workflows\...'` in `verify-phase6-scale-runtime-static.ps1:16` | Pfad löst auf Linux nie auf |
+| 4 | `GetFullPath('D:\_sb_tmp')` in `verify-phase6-scale-evidence-static.ps1:11` | Laufwerk existiert nicht → Cleanup-Wache verweigerte **zu Recht** |
+| 5 | `git.exe` (3× static, 10× deep) | „The term 'git.exe' is not recognized" |
+| 6 | `D:\_sb_tmp`-Confinement in `verify-phase6-scale-evidence.ps1:31` | jede Test-Fixture galt als „außerhalb" |
+
+**Fehler 2 war meiner:** Beim Zusammenstellen von Commit A habe ich untracked Dateien nur aus
+`scripts apps services docs` geholt und **`.github` vergessen**.
+
+**Lehre:** Ein Verifier, der nur auf der Entwicklermaschine läuft, beweist nichts über CI.
+Jeder neue CI-Step braucht mindestens einen roten Lauf, bevor man ihm glaubt.
+
+Alle sechs sind behoben; `[phase6-scale-static] PASS` erscheint jetzt **in CI**. Die Fixes sind
+plattformübergreifend und lokal auf Windows **und** im Fallback-Pfad verifiziert.
+
+### 14.2 Drei Reihenfolge-Regeln, die jeden Kettenlauf entscheiden
+
+1. **O4 ist der LETZTE Schritt vor der Kette, nicht der erste.**
+   Der Beweis bindet sich an den Source-SHA. Jeder Commit danach macht ihn stale und die Kette
+   fällt am Ende mit `runtime-source parity outside qualification truth`. Code einfrieren →
+   O4 beweisen → Kette fahren.
+
+2. **`start-dev-live.ps1` gehört NACH `verify:runtime`, unmittelbar VOR `verify:browser`.**
+   Die Runtime-Kette recycelt Container über Compose, und der Compose-Standard ist
+   `deterministic_dry_run`. Danach liefert das Modell nur den 129-Zeichen-Stub, die Build-Route
+   verweigert korrekt die Persistenz, und Product-Acceptance fällt mit
+   `llm_gateway_generation_unavailable`. Der Token bleibt dabei gesetzt — **nur der Modus ist weg**.
+   Prüfbefehl vor jeder Browser-Kette:
+   `docker exec cloud-superbrain-phase1-dev-llm-gateway-1 sh -c 'echo $LLM_GATEWAY_MODE'`
+   Muss `cloudflare_workers_ai_live` sagen. Der Startmeldung allein nicht vertrauen.
+
+3. **Jeder `docker compose up --build <service>` setzt den Live-Pfad ebenfalls zurück.**
+   Nach jedem Rebuild erneut `start-dev-live.ps1`.
+
+### 14.3 RC12: die Bindungsmechanik, vollständig
+
+`verify_phase5_credit_itemization.py:473-560` kennt **zwei** CI-Bindungsmodi:
+
+- `direct_head_v1` — verlangt `head_sha == source_sha`, aber **nur für Kandidaten in
+  `LEGACY_DIRECT_CI_BINDINGS`**. Für RC12 nicht zulässig.
+- `source_checkout_attestation_v1` — der Weg für RC12. Er **trennt Kontroll- und Kandidaten-SHA**
+  und löst damit das Henne-Ei-Problem („die Metadaten müssen den CI-Lauf ihres eigenen SHA
+  nennen"), an dem ich zuerst hängen blieb.
+
+Erforderlich:
+
+| Feld | Wert |
+|---|---|
+| `control_sha` | = `head_sha` des Laufs, **muss ≠ source_sha** sein (der Metadaten-Commit) |
+| `candidate_sha` · `checked_out_sha` | = `source_sha` (der eingefrorene Code-SHA) |
+| `event_name` | `workflow_dispatch` |
+| `source_prequalification` | `true` |
+| Ahnenkette | `source` → Ahn von `control` → Ahn von `HEAD` |
+| `attestation.artifact` | `docs/release-artifacts/<release_id>-evidence/ci-source-checkout-attestation.json`, **getrackt** |
+| dazu | `sha256` der Datei · `github_artifact_id` · `github_artifact_url` = `<run_url>/artifacts/<id>` · `github_artifact_digest` |
+
+**Ablauf, der daraus folgt:**
+1. Code einfrieren (hier: `44c69506`), alle fünf Ketten darauf grün fahren.
+2. RC12-Metadaten committen (Docs/Evidenz — liegen **außerhalb** `RUNTIME_SOURCE_PATHS`,
+   erzeugen also **keinen** neuen Drift). Dieser Commit wird der **Kontroll-SHA**.
+3. Push, dann `pr-check` per `workflow_dispatch` mit `candidate_sha=<source>` und
+   `source_prequalification=true`.
+4. Attestation-Artefakt aus dem Lauf herunterladen, in den Evidence-Ordner committen,
+   Hash + Artifact-ID/URL/Digest in die Readiness eintragen.
+5. `npm run verify` → der Drift-Guard findet keine Änderung in `RUNTIME_SOURCE_PATHS` und gibt frei.
+
+### 14.4 Stand am Ende dieser Session
+
+**Eingefrorener Kandidaten-SHA: `44c69506`.** Alle fünf Ketten darauf grün:
+
+| Kette | Ergebnis |
+|---|---|
+| Images | ✅ 6/6 `status=verified` |
+| Runtime | ✅ 86 Prüfungen |
+| Browser | ✅ Contract · Product-Acceptance (echter Cloudflare-Call) · 22 Routen/161 Aktionen (20,7 min) · O4-Write · Promote |
+| O4 | ✅ dreifach, `4FA30579…` |
+| Security / Candidate-Runtime | offen — brauchen zuerst das RC12-Kandidatendokument |
+
+**Prozente unverändert 89.** Nichts hochgesetzt, nichts gefälscht.
