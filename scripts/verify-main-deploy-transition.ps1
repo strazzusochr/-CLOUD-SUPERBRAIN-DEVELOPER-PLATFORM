@@ -244,3 +244,7 @@ foreach ($useMatch in $uses) {
 
 Write-Host "[main-deploy-transition] VERIFIED candidate-only append-only GHCR publication contract"
 exit 0
+
+# Control commit marker: source-prequalification binding for the RC12 candidate.
+# Placed directly on the candidate so the control delta stays inside the allowed path list;
+# evidence commits necessarily come later, because they are produced by running against it.
