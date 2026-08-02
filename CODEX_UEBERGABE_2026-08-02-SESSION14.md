@@ -562,3 +562,138 @@ git push origin HEAD:refs/heads/claude/cloud-superbrain-analysis-127d2e
 
 *Letzte Messung 2026-08-02 · HEAD `9a3776ff` · 8 Commits ungepusht · 42 dirty · Syntax 314/314 ok ·
 Secrets 0 · Prozente unangetastet · Codex-Reset 2026-08-09*
+
+---
+
+## 13. SESSION 15 — WAS ICH NACH CODEX' AUS NOCH GEPRÜFT UND REPARIERT HABE
+
+> **Korrekturen an früheren Kapiteln stehen hier. Wo Widerspruch: dieses Kapitel gilt.**
+
+### 13.1 ✅ KORREKTUR — der MAJOR-Befund aus §6.1 ist ERLEDIGT
+
+**Meine Meldung in §6.1 ist überholt.** Codex hat nach meinem Audit selbst nachgezogen.
+`scripts/verify-main-deploy-transition.ps1` enthält jetzt **genau die zwei Assertions**, deren
+Fehlen ich gemeldet hatte:
+
+```
+Zeile 89:  Assert-Regex    "publish-candidate is gated by successful candidate preflight and CI"
+                           '^\s{4}needs:\s*\[candidate-preflight,\s*verify-candidate\]\s*$'
+Zeile 90:  Assert-NotRegex "publish-candidate has no job-level always bypass"
+                           '^\s{4}if:\s*.*\balways\s*\('
+```
+
+Beide Umgehungswege, die ich beschrieben hatte (`needs:` kürzen · `if: always()`), sind damit
+geschlossen. **Kein offener MAJOR-Befund mehr.** §6.1 nur noch als Historie lesen.
+
+### 13.2 ✅ Scale-False-Green — widerlegt
+
+Die Sorge aus §6.3 (Verifier könnte ohne echte Writes grün melden) ist **gegenstandslos**:
+
+- `scripts/verify-phase6-scale-runtime.ps1:376-377` — ohne `-AllowHostedWrites`:
+  `Blocked "-AllowHostedWrites is missing; zero HTTP requests issued"`
+- `Blocked` ist **`exit 2`**, kein Pass (Zeile 36-39)
+- Das Skript enthält **null** `WriteAllText` / `Set-Content` / `Out-File`.
+  Es liest `capability-gates.json` nur und prüft die getrackten HEAD-Bytes.
+  **Es kann sich nicht selbst freischalten.**
+- 12 × `finally` → Cleanup ist abgesichert
+
+### 13.3 ✅ Die zwei Wahrheitsdateien sind sauber — semantisch geprüft
+
+Nicht am Text, sondern am **geparsten JSON** gegen `HEAD` verglichen:
+
+| Datei | Semantische Änderung |
+|---|---|
+| `capability-gates.json` | **nur** `live_agent_tool_writes` + `live_mcp_writes`: `evidence_sha256` und `verified_at_utc` — ein O4-Rebind vom 2026-08-02 |
+| `owner-input-manifest.json` | derselbe O4-Timestamp · eine Zeitformat-Normalisierung · eine Wortkorrektur: *„paid scale"* → *„zero-card authenticated scale proof"* (richtig — P6 braucht **kein Geld**) |
+
+**Hash-Bindung nachgerechnet:** SHA-256 über `.phase1-artifacts/o4-live-writes/proof.json`
+= `B7CC7705…` — identisch in **beiden** Gate-Einträgen. ✅
+**Gates umgelegt: KEINE.** Weiterhin exakt 3 offen. ✅
+Der Rest des Diffs ist BOM-/Einrückungs-Normalisierung.
+
+### 13.4 🔧 EIN ECHTER BUG GEFUNDEN UND REPARIERT
+
+`npm run verify` war **rot** — erster Stopp gleich in `[verify] supply-chain pins`:
+
+```
+[System.IO.Path] enthält keine Methode "GetRelativePath"
+  scripts/verify-supply-chain-pins.ps1:27
+```
+
+`[IO.Path]::GetRelativePath()` gibt es **nur in .NET Core (pwsh 7+)**. `package.json` startet
+`verify` aber mit `powershell` = **Windows PowerShell 5.1**. Exakt die Falle aus §10.
+
+**Fix:** relativer Pfad durch Trimmen von `$repoRoot` statt `GetRelativePath`, plus eine
+`StartsWith`-Wache, die den Scan im Repo hält.
+
+**Ergebnis — beide Editionen, identische Zählung:**
+
+```
+PS 5.1 : [verify] supply-chain pins PASS (23 external actions, 18 external image occurrences,
+                                          9 unique external images, 6 internal GHCR references)
+pwsh 7 : [verify] supply-chain pins PASS (23 …)   ← Zahl für Zahl gleich
+```
+
+Keine Assertion geschwächt: die Exakt-Gleichheit `-ne 23` bleibt.
+
+### 13.5 ⛔ WARUM DIESER FIX NICHT COMMITTET IST
+
+Er hängt an Codex' `pr-check.yml`. Codex hat dort Jobs ergänzt, deshalb stieg die Erwartung von
+**20 auf 23** Actions. Committe ich **nur** den Verifier, prüft er gegen die **alte** committete
+`pr-check.yml` mit 20 Treffern → **HEAD wäre sofort rot.**
+
+Der Fix gehört zum Slice und muss **mit** ihm committet werden. **Er liegt fertig im Worktree.**
+
+### 13.6 🛑 DER ECHTE VERBLEIBENDE BLOCKER — und er ist KEIN Bug
+
+Nach dem Fix läuft `verify` deutlich weiter (Phase-6-Frontend 7/7 Marker grün) und stoppt dann hier:
+
+```
+[phase5-credit] active candidate has committed or staged runtime-source drift
+                outside the exact post-qualification truth transition
+[project-progress] Phase-5 credit itemization is invalid
+```
+
+`scripts/verify_phase5_credit_itemization.py:1152` verlangt
+`changed_paths == QUALIFICATION_TRUTH_PATHS`.
+
+**Übersetzt:** Der aktive Kandidat ist **RC11 (`bae3cdc1`)**. Seit dessen Qualifikation hat sich
+die Runtime-Quelle geändert (8 Commits + 42 dirty). Der Verifier **weigert sich**, P5 = 89 für
+einen Kandidaten gutzuschreiben, dessen Quelle nicht mehr passt.
+
+> **Das ist kein Defekt, das ist die Kernregel des Projekts, die funktioniert.**
+> Codex hatte denselben Befund und nannte ihn richtig:
+> *„RC11 darf den neuen Runtime-Slice nicht erben."*
+
+**Die Auflösung ist RC12, nicht ein Patch am Verifier.** Wer hier einen Verifier anfasst, um
+grün zu werden, begeht Fake-Completion.
+
+### 13.7 Der Weg zu grün — konkret
+
+1. **Commit A** = Codex' Code/Evidence-Slice (42 dirty + 9 untracked, inkl. meines Fixes),
+   in sinnvollen Teilen mit **Pathspec**.
+2. **Clean-Clone** auf Commit A (kein Worktree — Docker kann dessen `.git`-Datei nicht mounten).
+3. **6 Images bauen** → `build-phase5-production-candidate-local.ps1`, Source = Commit A.
+4. **Fünf Ketten** fahren: Runtime · Browser · Images · Candidate-Runtime · Security.
+5. **Commit B** = RC12-Metadaten, die exakt auf A zeigen
+   (`current-release-candidate.json` + `prod-candidate-2026-08-02-local-rc12.md`).
+6. Erst **B** als Kandidat verifizieren → dann ist `changed_paths` wieder leer → P5-Credit gültig.
+7. `npm run verify` grün → pushen → `pr-check` per Dispatch auf genau diesem SHA.
+
+Vorarbeit dafür liegt schon in `D:\_sb_tmp\superbrain-clean-proof-96a9c5e4`
+(RC12-Metadaten von Codex bereits geschrieben, Kette unvollendet).
+
+**Zeitbedarf realistisch:** 6-Image-Build ≈ 60 Min, Browserkette ≈ 45 Min, seriell, mit
+`TEMP`/`TMP=D:\_sb_tmp` und C: > 6 GB frei. Das ist der nächste große Block.
+
+### 13.8 Bilanz dieser Session
+
+| | |
+|---|---|
+| Gefixt | 1 echter Bug (PS-5.1-Inkompatibilität), unter **beiden** Editionen verifiziert |
+| Widerlegt | 2 eigene Befunde (§6.1 bereits erledigt · Scale-False-Green gegenstandslos) |
+| Bestätigt sauber | beide Wahrheitsdateien · O4-Hash-Bindung · keine Gate-Manipulation |
+| Identifiziert | der **exakte** verbleibende Blocker (Kandidatenbindung, kein Bug) |
+| Nicht committet | bewusst — würde HEAD rot machen (§13.5) |
+| Prozente | unverändert **89**. Nichts hochgesetzt, nichts gefälscht |
+
