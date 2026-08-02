@@ -282,7 +282,9 @@ def error_envelope(
 
 @app.exception_handler(HTTPException)
 async def http_exception_envelope_handler(request: Request, exc: HTTPException) -> JSONResponse:
-    return JSONResponse(
+    headers = dict(getattr(exc, "headers", None) or {})
+    clear_auth_cookie_pair = headers.pop("X-Superbrain-Clear-Auth-Cookies", "") == "1"
+    response = JSONResponse(
         status_code=exc.status_code,
         content=error_envelope(
             status_code=exc.status_code,
@@ -290,8 +292,35 @@ async def http_exception_envelope_handler(request: Request, exc: HTTPException) 
             request=request,
             fallback_error=f"http_{exc.status_code}",
         ),
-        headers=getattr(exc, "headers", None),
+        headers=headers,
     )
+    if clear_auth_cookie_pair:
+        clear_auth_cookies(response)
+    return response
+
+
+def sanitized_validation_errors(exc: RequestValidationError) -> list[dict[str, object]]:
+    """Retain schema diagnostics without reflecting submitted values or Pydantic context."""
+    sanitized: list[dict[str, object]] = []
+    for error in exc.errors():
+        location = error.get("loc")
+        safe_location: list[str | int] = []
+        if isinstance(location, (list, tuple)):
+            for item in location[:2]:
+                if isinstance(item, int):
+                    safe_location.append(item)
+                elif isinstance(item, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]{0,63}", item):
+                    safe_location.append(item)
+                else:
+                    safe_location.append("field")
+        sanitized.append(
+            {
+                "type": error_slug(error.get("type"), "validation_error")[:128],
+                "loc": safe_location,
+                "msg": "request field failed schema validation",
+            }
+        )
+    return sanitized
 
 
 @app.exception_handler(RequestValidationError)
@@ -300,12 +329,121 @@ async def validation_exception_envelope_handler(request: Request, exc: RequestVa
         status_code=422,
         content=error_envelope(
             status_code=422,
-            detail=jsonable_encoder(exc.errors()),
+            detail=jsonable_encoder(sanitized_validation_errors(exc)),
             request=request,
             fallback_error="validation_error",
             message="request validation failed",
         ),
     )
+
+
+_PRODUCTION_MUTATION_SAFE_PATHS = frozenset(
+    {
+        "/api/v1/auth/refresh",
+        "/api/v1/auth/logout",
+        "/api/v1/security/csp/report",
+        "/api/v1/security/csrf/probe",
+    }
+)
+
+
+def production_mutation_guard_enabled() -> bool:
+    """Only the exact, explicit DEV-ONLY runtime mode bypasses service authorization."""
+    return os.getenv("SUPERBRAIN_RUNTIME_MODE", "") != "dev-only"
+
+
+def persist_mutation_authorization_rejection_audit(request: Request, reason: str) -> bool:
+    path_scope = "internal" if request.url.path.startswith("/internal/") else "api"
+    details = {
+        "contract_version": "production-mutation-service-authorization-v1",
+        "reason": reason,
+        "method": request.method.upper(),
+        "path_scope": path_scope,
+        "path_sha256": hashlib.sha256(request.url.path.encode("utf-8")).hexdigest(),
+        "raw_path_persisted": False,
+        "runtime_mode": "dev-only" if not production_mutation_guard_enabled() else "protected",
+        "service_token_present": bool(request.headers.get("x-superbrain-agent-token")),
+        "authorization_header_present": bool(request.headers.get("authorization")),
+        "oauth_access_cookie_present": AUTH_ACCESS_COOKIE in request.cookies,
+        "mutation_performed": False,
+        "secret_output": False,
+    }
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, details, severity)
+                VALUES ('security_mutation_authorization_rejected', 'security', %s::jsonb, 'warning')
+                """,
+                (Json(redact_json(details)),),
+            )
+        return True
+    except Exception:
+        return False
+
+
+def mutation_authorization_response(
+    request: Request,
+    status_code: int,
+    error: str,
+    *,
+    audit_persisted: bool,
+) -> JSONResponse:
+    if not audit_persisted:
+        status_code, error = 503, "security_audit_unavailable"
+    detail = {
+        "error": error,
+        "mutation_performed": False,
+        "audit_persisted": audit_persisted,
+        "secret_output": False,
+    }
+    content = error_envelope(
+        status_code=status_code,
+        detail=detail,
+        request=request,
+        fallback_error=error,
+        message="protected mutation authorization failed",
+    )
+    content["audit_persisted"] = audit_persisted
+    response = JSONResponse(
+        status_code=status_code,
+        content=content,
+    )
+    set_auth_response_security_headers(response)
+    return response
+
+
+@app.middleware("http")
+async def production_mutation_authorization_middleware(request: Request, call_next):
+    if (
+        request.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
+        and (request.url.path.startswith("/api/") or request.url.path.startswith("/internal/"))
+        and request.url.path not in _PRODUCTION_MUTATION_SAFE_PATHS
+        and production_mutation_guard_enabled()
+    ):
+        expected_token = os.getenv("AGENT_API_AUTH_TOKEN", "")
+        if not expected_token:
+            audit_persisted = persist_mutation_authorization_rejection_audit(
+                request, "service_authorization_unavailable"
+            )
+            return mutation_authorization_response(
+                request,
+                503,
+                "service_authorization_unavailable",
+                audit_persisted=audit_persisted,
+            )
+        supplied_token = request.headers.get("x-superbrain-agent-token", "")
+        if not supplied_token or not hmac.compare_digest(supplied_token, expected_token):
+            audit_persisted = persist_mutation_authorization_rejection_audit(
+                request, "service_authorization_required"
+            )
+            return mutation_authorization_response(
+                request,
+                401,
+                "service_authorization_required",
+                audit_persisted=audit_persisted,
+            )
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -1232,7 +1370,10 @@ AUTH_REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60
 AUTH_OAUTH_STATE_TTL_SECONDS = 10 * 60
 AUTH_BLACKLIST_PREFIX = "auth:refresh:blacklist:"
 AUTH_REFRESH_ACTIVE_PREFIX = "auth:refresh:active:"
+AUTH_REFRESH_FAMILY_PREFIX = "auth:refresh:family:"
+AUTH_REFRESH_TOMBSTONE_PREFIX = "auth:refresh:tombstone:"
 AUTH_OAUTH_STATE_PREFIX = "auth:oauth:state:"
+AUTH_OAUTH_RATE_LIMIT_PREFIX = "auth:oauth:rate:"
 AUTH_ACCESS_COOKIE = "__Host-sb_access"
 AUTH_REFRESH_COOKIE = "__Host-sb_refresh"
 AUTH_OAUTH_STATE_COOKIE = "__Host-sb_oauth_state"
@@ -1247,6 +1388,10 @@ AUTH_ACCESS_TOKEN_MAX_CHARS = 4096
 AUTH_JWT_SEGMENT_MAX_BYTES = 2048
 AUTH_SIGNING_SECRET_MIN_DECODED_BYTES = 32
 AUTH_SIGNING_SECRET_MIN_UNIQUE_BYTES = 16
+AUTH_GITHUB_USER_ID_MAX = (1 << 63) - 1
+AUTH_OAUTH_START_RATE_LIMIT = 20
+AUTH_OAUTH_EXCHANGE_RATE_LIMIT = 10
+AUTH_OAUTH_RATE_LIMIT_WINDOW_SECONDS = 10 * 60
 AUTH_REJECTED_SIGNING_SECRETS = frozenset(
     {
         "change-me",
@@ -2283,11 +2428,44 @@ def production_auth_owner_activation_granted() -> bool:
     return isinstance(entry, dict) and entry.get("owner_granted") is True
 
 
+def canonical_github_user_id(value: object) -> int | None:
+    if type(value) is not int or not 1 <= value <= AUTH_GITHUB_USER_ID_MAX:
+        return None
+    return value
+
+
+def canonical_github_subject(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    match = re.fullmatch(r"github:([1-9][0-9]{0,18})", value)
+    if match is None:
+        return None
+    user_id = int(match.group(1))
+    return value if canonical_github_user_id(user_id) == user_id else None
+
+
+def parse_owner_github_user_ids(raw_value: str) -> frozenset[int] | None:
+    if not raw_value or len(raw_value) > 2048:
+        return None
+    entries = [entry.strip() for entry in raw_value.split(",")]
+    if not entries or any(not re.fullmatch(r"[1-9][0-9]{0,18}", entry) for entry in entries):
+        return None
+    values = [int(entry) for entry in entries]
+    if (
+        any(canonical_github_user_id(value) != value for value in values)
+        or len(set(values)) != len(values)
+        or len(values) > 64
+    ):
+        return None
+    return frozenset(values)
+
+
 def auth_configuration() -> dict[str, object]:
     client_id = os.getenv("GITHUB_OAUTH_CLIENT_ID", "").strip()
     client_secret = os.getenv("GITHUB_OAUTH_CLIENT_SECRET", "").strip()
     redirect_uri = os.getenv("GITHUB_OAUTH_REDIRECT_URI", "").strip()
     signing_secret = os.getenv("JWT_SIGNING_SECRET", "").strip()
+    owner_github_user_ids = parse_owner_github_user_ids(os.getenv("GITHUB_OAUTH_OWNER_IDS", "").strip())
     try:
         parsed_redirect = urllib.parse.urlsplit(redirect_uri) if redirect_uri else None
         redirect_uri_valid = bool(
@@ -2314,12 +2492,16 @@ def auth_configuration() -> dict[str, object]:
         missing.append("GITHUB_OAUTH_REDIRECT_URI")
     if not jwt_signing_configured:
         missing.append("JWT_SIGNING_SECRET_BASE64URL_256_BIT_MINIMUM")
+    if owner_github_user_ids is None:
+        missing.append("GITHUB_OAUTH_OWNER_IDS")
     credentials_configured = not missing
     owner_activation_granted = production_auth_owner_activation_granted()
     return {
         "github_oauth_configured": bool(client_id and client_secret and redirect_uri_valid),
         "jwt_signing_configured": jwt_signing_configured,
         "credentials_configured": credentials_configured,
+        "owner_identity_allowlist_configured": owner_github_user_ids is not None,
+        "owner_identity_allowlist_count": len(owner_github_user_ids or ()),
         "owner_activation_granted": owner_activation_granted,
         "owner_activation_required": True,
         "credential_issuance_ready": credentials_configured and owner_activation_granted,
@@ -2328,6 +2510,7 @@ def auth_configuration() -> dict[str, object]:
         "client_id": client_id,
         "client_secret": client_secret,
         "redirect_uri": redirect_uri if redirect_uri_valid else "",
+        "owner_github_user_ids": owner_github_user_ids or frozenset(),
     }
 
 
@@ -2337,6 +2520,8 @@ def auth_secret() -> bytes:
 
 
 def create_access_jwt(subject: str, trace_id: str | None = None) -> str:
+    if canonical_github_subject(subject) is None:
+        raise ValueError("canonical GitHub subject required")
     now = int(time.time())
     bounded_trace_id = bounded_auth_trace_id(trace_id, "auth")
     header = {"alg": "HS256", "typ": "JWT"}
@@ -2355,7 +2540,16 @@ def create_access_jwt(subject: str, trace_id: str | None = None) -> str:
 
 
 def bounded_auth_trace_id(value: object, prefix: str) -> str:
-    if isinstance(value, str) and AUTH_JWT_TRACE_PATTERN.fullmatch(value):
+    credential_shaped = bool(
+        isinstance(value, str)
+        and (
+            AUTH_REFRESH_TOKEN_PATTERN.fullmatch(value)
+            or re.fullmatch(r"[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}", value)
+            or re.fullmatch(r"(?:gho|ghu|ghs|ghr)_[A-Za-z0-9_]{16,}", value)
+            or re.fullmatch(r"github_pat_[A-Za-z0-9_]{16,}", value)
+        )
+    )
+    if isinstance(value, str) and not credential_shaped and AUTH_JWT_TRACE_PATTERN.fullmatch(value):
         return value
     return f"{prefix}-{uuid4()}"
 
@@ -2412,13 +2606,13 @@ def verify_access_jwt(token: str | None, now_seconds: int | None = None) -> dict
     if set(payload) != required_claims:
         return None
     subject = payload.get("sub")
-    subject_match = re.fullmatch(r"github:([1-9][0-9]{0,19})", subject) if isinstance(subject, str) else None
+    canonical_subject = canonical_github_subject(subject)
     issued_at = payload.get("iat")
     expires_at = payload.get("exp")
     trace_id = payload.get("trace_id")
     now = int(time.time()) if now_seconds is None else now_seconds
     if (
-        subject_match is None
+        canonical_subject is None
         or type(issued_at) is not int
         or type(expires_at) is not int
         or issued_at > now + 60
@@ -2434,7 +2628,7 @@ def verify_access_jwt(token: str | None, now_seconds: int | None = None) -> dict
     return {
         "subject": subject,
         "provider": "github",
-        "provider_user_id": int(subject_match.group(1)),
+        "provider_user_id": int(canonical_subject.split(":", 1)[1]),
         "issued_at": issued_at,
         "expires_at": expires_at,
         "trace_id": trace_id,
@@ -2457,6 +2651,14 @@ def auth_refresh_active_key(token: str) -> str:
     return AUTH_REFRESH_ACTIVE_PREFIX + hash_token(token)
 
 
+def auth_refresh_family_key(family_id: str) -> str:
+    return AUTH_REFRESH_FAMILY_PREFIX + family_id
+
+
+def auth_refresh_tombstone_key(token: str) -> str:
+    return AUTH_REFRESH_TOMBSTONE_PREFIX + hash_token(token)
+
+
 def auth_oauth_state_key(state: str) -> str:
     return AUTH_OAUTH_STATE_PREFIX + hash_token(state)
 
@@ -2473,13 +2675,240 @@ def consume_oauth_state(client: redis.Redis, state: str) -> bool:
     return value == "pending" and int(deleted or 0) == 1
 
 
-def register_refresh_token(client: redis.Redis, token: str, subject: str) -> None:
-    record = json.dumps(
-        {"subject": subject, "issued_at": int(time.time())},
-        separators=(",", ":"),
-        sort_keys=True,
+_AUTH_REFRESH_INITIAL_REGISTER_SCRIPT = r"""
+if redis.call('EXISTS', KEYS[1]) ~= 0 or redis.call('EXISTS', KEYS[2]) ~= 0 then
+  return 0
+end
+local active_record = {
+  subject = ARGV[2], family_id = ARGV[3], generation = 0,
+  issued_at = tonumber(ARGV[5])
+}
+local family_record = {
+  subject = ARGV[2], family_id = ARGV[3], generation = 0,
+  status = 'active', current_token_hash = ARGV[4]
+}
+redis.call('SETEX', KEYS[1], tonumber(ARGV[1]), cjson.encode(active_record))
+redis.call('SETEX', KEYS[2], tonumber(ARGV[1]), cjson.encode(family_record))
+return 1
+"""
+
+_AUTH_REFRESH_ROTATED_REGISTER_SCRIPT = r"""
+if redis.call('EXISTS', KEYS[1]) ~= 0 then return 0 end
+local raw = redis.call('GET', KEYS[2])
+if not raw then return 0 end
+local ok, family = pcall(cjson.decode, raw)
+if not ok or type(family) ~= 'table' then return 0 end
+if family['status'] ~= 'rotating'
+   or family['family_id'] ~= ARGV[3]
+   or family['subject'] ~= ARGV[2]
+   or family['previous_token_hash'] ~= ARGV[5] then
+  return 0
+end
+local generation = (tonumber(family['generation']) or 0) + 1
+local active_record = {
+  subject = ARGV[2], family_id = ARGV[3], generation = generation,
+  issued_at = tonumber(ARGV[6])
+}
+family['generation'] = generation
+family['status'] = 'active'
+family['current_token_hash'] = ARGV[4]
+family['previous_token_hash'] = ARGV[5]
+redis.call('SETEX', KEYS[1], tonumber(ARGV[1]), cjson.encode(active_record))
+redis.call('SETEX', KEYS[2], tonumber(ARGV[1]), cjson.encode(family))
+return 1
+"""
+
+_AUTH_REFRESH_CONSUME_SCRIPT = r"""
+local ttl = tonumber(ARGV[1])
+local reason = ARGV[2]
+local token_hash = ARGV[3]
+local family_prefix = ARGV[4]
+local active_prefix = ARGV[5]
+
+local function revoke_family(family_id, why)
+  if not family_id or family_id == '' then return end
+  local family_key = family_prefix .. family_id
+  local family_raw = redis.call('GET', family_key)
+  if not family_raw then return end
+  local ok, family = pcall(cjson.decode, family_raw)
+  if not ok or type(family) ~= 'table' then
+    redis.call('DEL', family_key)
+    return
+  end
+  local current_hash = family['current_token_hash']
+  if current_hash and current_hash ~= '' then
+    redis.call('DEL', active_prefix .. current_hash)
+  end
+  family['status'] = 'revoked'
+  family['current_token_hash'] = ''
+  family['revoked_reason'] = why
+  redis.call('SETEX', family_key, ttl, cjson.encode(family))
+end
+
+if redis.call('GET', KEYS[2]) then
+  local prior_family_id = redis.call('GET', KEYS[3])
+  revoke_family(prior_family_id, 'replay')
+  return {'', 'blacklisted'}
+end
+
+local record_raw = redis.call('GET', KEYS[1])
+if not record_raw then return {'', 'unknown'} end
+local ok, record = pcall(cjson.decode, record_raw)
+redis.call('DEL', KEYS[1])
+if not ok or type(record) ~= 'table' then
+  redis.call('SETEX', KEYS[2], ttl, 'invalid_record')
+  return {'', 'invalid_record'}
+end
+
+local family_id = record['family_id']
+redis.call('SETEX', KEYS[2], ttl, reason)
+if type(family_id) == 'string' and family_id ~= '' then
+  redis.call('SETEX', KEYS[3], ttl, family_id)
+end
+
+local family_key = family_prefix .. tostring(family_id or '')
+local family_raw = redis.call('GET', family_key)
+local family_ok, family = pcall(cjson.decode, family_raw or '')
+if not family_ok or type(family) ~= 'table'
+   or family['status'] ~= 'active'
+   or family['current_token_hash'] ~= token_hash
+   or family['subject'] ~= record['subject'] then
+  revoke_family(family_id, 'invalid_family')
+  return {'', 'invalid_family'}
+end
+
+if reason == 'rotated' then
+  family['status'] = 'rotating'
+  family['previous_token_hash'] = token_hash
+  family['current_token_hash'] = ''
+  redis.call('SETEX', family_key, ttl, cjson.encode(family))
+else
+  revoke_family(family_id, reason)
+end
+return {record_raw, ''}
+"""
+
+_AUTH_REFRESH_REVOKE_FAMILY_SCRIPT = r"""
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 0 end
+local ok, family = pcall(cjson.decode, raw)
+if not ok or type(family) ~= 'table' then
+  redis.call('DEL', KEYS[1])
+  return 0
+end
+local current_hash = family['current_token_hash']
+if current_hash and current_hash ~= '' then
+  redis.call('DEL', ARGV[2] .. current_hash)
+end
+family['status'] = 'revoked'
+family['current_token_hash'] = ''
+family['revoked_reason'] = ARGV[3]
+redis.call('SETEX', KEYS[1], tonumber(ARGV[1]), cjson.encode(family))
+return 1
+"""
+
+_AUTH_REFRESH_VERIFY_FAMILY_SCRIPT = r"""
+local family_raw = redis.call('GET', KEYS[1])
+local active_raw = redis.call('GET', KEYS[2])
+if not family_raw or not active_raw then return 0 end
+local family_ok, family = pcall(cjson.decode, family_raw)
+local active_ok, active = pcall(cjson.decode, active_raw)
+if not family_ok or not active_ok or type(family) ~= 'table' or type(active) ~= 'table' then return 0 end
+if family['status'] ~= 'active'
+   or family['current_token_hash'] ~= ARGV[2]
+   or family['subject'] ~= ARGV[1]
+   or active['family_id'] ~= family['family_id']
+   or active['subject'] ~= ARGV[1] then
+  return 0
+end
+return 1
+"""
+
+
+def register_refresh_token(
+    client: redis.Redis,
+    token: str,
+    subject: str,
+    *,
+    family_id: str | None = None,
+    predecessor_token: str | None = None,
+) -> str:
+    if not AUTH_REFRESH_TOKEN_PATTERN.fullmatch(token) or canonical_github_subject(subject) is None:
+        raise ValueError("canonical refresh registration required")
+    resolved_family_id = family_id or secrets.token_urlsafe(24)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{32,64}", resolved_family_id):
+        raise ValueError("canonical refresh family required")
+    token_hash = hash_token(token)
+    issued_at = str(int(time.time()))
+    if predecessor_token is None:
+        registered = client.eval(
+            _AUTH_REFRESH_INITIAL_REGISTER_SCRIPT,
+            2,
+            auth_refresh_active_key(token),
+            auth_refresh_family_key(resolved_family_id),
+            AUTH_REFRESH_TOKEN_TTL_SECONDS,
+            subject,
+            resolved_family_id,
+            token_hash,
+            issued_at,
+        )
+    else:
+        registered = client.eval(
+            _AUTH_REFRESH_ROTATED_REGISTER_SCRIPT,
+            2,
+            auth_refresh_active_key(token),
+            auth_refresh_family_key(resolved_family_id),
+            AUTH_REFRESH_TOKEN_TTL_SECONDS,
+            subject,
+            resolved_family_id,
+            token_hash,
+            hash_token(predecessor_token),
+            issued_at,
+        )
+    if int(registered or 0) != 1:
+        raise RuntimeError("refresh family registration rejected")
+    return resolved_family_id
+
+
+def refresh_family_id_for_token(client: redis.Redis, token: str) -> str | None:
+    family_id = client.get(auth_refresh_tombstone_key(token))
+    return family_id if isinstance(family_id, str) and re.fullmatch(r"[A-Za-z0-9_-]{32,64}", family_id) else None
+
+
+def revoke_refresh_family(client: redis.Redis, family_id: str | None, reason: str) -> bool:
+    if not isinstance(family_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{32,64}", family_id):
+        return False
+    safe_reason = reason if re.fullmatch(r"[a-z0-9_:-]{1,64}", reason) else "revoked"
+    return bool(
+        client.eval(
+            _AUTH_REFRESH_REVOKE_FAMILY_SCRIPT,
+            1,
+            auth_refresh_family_key(family_id),
+            AUTH_REFRESH_TOKEN_TTL_SECONDS,
+            AUTH_REFRESH_ACTIVE_PREFIX,
+            safe_reason,
+        )
     )
-    client.setex(auth_refresh_active_key(token), AUTH_REFRESH_TOKEN_TTL_SECONDS, record)
+
+
+def refresh_family_is_active(client: redis.Redis, family_id: str | None, token: str, subject: str) -> bool:
+    if (
+        not isinstance(family_id, str)
+        or not re.fullmatch(r"[A-Za-z0-9_-]{32,64}", family_id)
+        or not AUTH_REFRESH_TOKEN_PATTERN.fullmatch(token)
+        or canonical_github_subject(subject) is None
+    ):
+        return False
+    return bool(
+        client.eval(
+            _AUTH_REFRESH_VERIFY_FAMILY_SCRIPT,
+            2,
+            auth_refresh_family_key(family_id),
+            auth_refresh_active_key(token),
+            subject,
+            hash_token(token),
+        )
+    )
 
 
 def consume_refresh_token(
@@ -2489,25 +2918,32 @@ def consume_refresh_token(
 ) -> tuple[str | None, str | None]:
     if not AUTH_REFRESH_TOKEN_PATTERN.fullmatch(token):
         return None, "malformed"
-    blacklist_key = auth_blacklist_key(token)
-    if client.get(blacklist_key):
-        return None, "blacklisted"
-    with client.pipeline(transaction=True) as transaction:
-        transaction.get(auth_refresh_active_key(token))
-        transaction.delete(auth_refresh_active_key(token))
-        record_text, deleted = transaction.execute()
-    if not record_text or int(deleted or 0) != 1:
-        return None, "unknown"
+    safe_reason = revocation_reason if re.fullmatch(r"[a-z0-9_:-]{1,64}", revocation_reason) else "revoked"
+    result = client.eval(
+        _AUTH_REFRESH_CONSUME_SCRIPT,
+        3,
+        auth_refresh_active_key(token),
+        auth_blacklist_key(token),
+        auth_refresh_tombstone_key(token),
+        AUTH_REFRESH_TOKEN_TTL_SECONDS,
+        safe_reason,
+        hash_token(token),
+        AUTH_REFRESH_FAMILY_PREFIX,
+        AUTH_REFRESH_ACTIVE_PREFIX,
+    )
+    record_text = result[0] if isinstance(result, (list, tuple)) and len(result) == 2 else ""
+    rejection_reason = result[1] if isinstance(result, (list, tuple)) and len(result) == 2 else "storage_error"
+    if rejection_reason:
+        return None, str(rejection_reason)
     try:
         record = json.loads(record_text)
-        subject = str(record["subject"])
+        subject = record["subject"]
+        family_id = record["family_id"]
     except (KeyError, TypeError, ValueError, json.JSONDecodeError):
-        client.setex(blacklist_key, AUTH_REFRESH_TOKEN_TTL_SECONDS, "invalid_record")
         return None, "invalid_record"
-    if not re.fullmatch(r"github:[0-9]+", subject):
-        client.setex(blacklist_key, AUTH_REFRESH_TOKEN_TTL_SECONDS, "invalid_subject")
+    if canonical_github_subject(subject) is None:
+        revoke_refresh_family(client, family_id if isinstance(family_id, str) else None, "invalid_subject")
         return None, "invalid_subject"
-    client.setex(blacklist_key, AUTH_REFRESH_TOKEN_TTL_SECONDS, revocation_reason)
     return subject, None
 
 
@@ -2578,6 +3014,48 @@ def auth_access_cookie_clear_headers() -> dict[str, str]:
         **CACHE_CONTROL_HEADERS,
         "Referrer-Policy": SECURITY_HEADERS["Referrer-Policy"],
     }
+
+
+def auth_cookie_clear_headers() -> dict[str, str]:
+    return {
+        "X-Superbrain-Clear-Auth-Cookies": "1",
+        **CACHE_CONTROL_HEADERS,
+        "Referrer-Policy": SECURITY_HEADERS["Referrer-Policy"],
+    }
+
+
+_AUTH_OAUTH_RATE_LIMIT_SCRIPT = r"""
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then redis.call('EXPIRE', KEYS[1], tonumber(ARGV[1])) end
+local ttl = redis.call('TTL', KEYS[1])
+return {count, ttl}
+"""
+
+
+def enforce_oauth_rate_limit(client: redis.Redis, bucket: str, limit: int) -> dict[str, int]:
+    if bucket not in {"start", "exchange"} or not 1 <= limit <= 100:
+        raise ValueError("bounded OAuth rate limit required")
+    result = client.eval(
+        _AUTH_OAUTH_RATE_LIMIT_SCRIPT,
+        1,
+        AUTH_OAUTH_RATE_LIMIT_PREFIX + bucket,
+        AUTH_OAUTH_RATE_LIMIT_WINDOW_SECONDS,
+    )
+    if not isinstance(result, (list, tuple)) or len(result) != 2:
+        raise RuntimeError("OAuth rate limit storage unavailable")
+    count, ttl = int(result[0]), max(0, int(result[1]))
+    return {"count": count, "remaining": max(0, limit - count), "retry_after": ttl, "limit": limit}
+
+
+def auth_configuration_rejection(configuration: dict[str, object]) -> tuple[int, str]:
+    owner_blocked = bool(configuration.get("credentials_configured")) and not bool(
+        configuration.get("owner_activation_granted")
+    )
+    return (
+        (403, "production_auth_owner_activation_required")
+        if owner_blocked
+        else (503, "auth_configuration_required")
+    )
 
 
 def accepts_html(accept_header: object) -> bool:
@@ -2665,11 +3143,21 @@ def exchange_github_identity(code: str, configuration: dict[str, object]) -> str
                     status_code=401,
                     detail={"error": "github_identity_verification_failed", "credentials_issued": False},
                 )
-            github_user_id = identity_payload.get("id")
-            if not isinstance(github_user_id, int) or github_user_id <= 0:
+            github_user_id = canonical_github_user_id(identity_payload.get("id"))
+            owner_github_user_ids = configuration.get("owner_github_user_ids")
+            if (
+                github_user_id is None
+                or not isinstance(owner_github_user_ids, frozenset)
+                or github_user_id not in owner_github_user_ids
+            ):
                 raise HTTPException(
-                    status_code=401,
-                    detail={"error": "github_identity_verification_failed", "credentials_issued": False},
+                    status_code=403 if github_user_id is not None else 401,
+                    detail={
+                        "error": "github_owner_identity_not_allowed"
+                        if github_user_id is not None
+                        else "github_identity_verification_failed",
+                        "credentials_issued": False,
+                    },
                 )
             return f"github:{github_user_id}"
     except HTTPException:
@@ -2696,6 +3184,22 @@ def persist_auth_audit(event_type: str, details: dict[str, object], severity: st
         return False
 
 
+def require_rejected_auth_audit(
+    event_type: str,
+    details: dict[str, object],
+    severity: str = "warning",
+    *,
+    headers: dict[str, str] | None = None,
+) -> None:
+    if persist_auth_audit(event_type, details, severity):
+        return
+    raise HTTPException(
+        status_code=503,
+        detail={"error": "auth_audit_unavailable", "credentials_issued": False, "secret_output": False},
+        headers=headers,
+    )
+
+
 def auth_contract_payload() -> dict[str, object]:
     configuration = auth_configuration()
     return {
@@ -2705,6 +3209,8 @@ def auth_contract_payload() -> dict[str, object]:
         "github_oauth_configured": configuration["github_oauth_configured"],
         "jwt_signing_configured": configuration["jwt_signing_configured"],
         "credentials_configured": configuration["credentials_configured"],
+        "owner_identity_allowlist_configured": configuration["owner_identity_allowlist_configured"],
+        "owner_identity_allowlist_count": configuration["owner_identity_allowlist_count"],
         "owner_activation_granted": configuration["owner_activation_granted"],
         "owner_activation_required": configuration["owner_activation_required"],
         "credential_issuance_ready": configuration["credential_issuance_ready"],
@@ -2728,6 +3234,13 @@ def auth_contract_payload() -> dict[str, object]:
             "response_body_contains_state": False,
             "scope": "read:user",
             "state_format": "phase3-auth-state-<32_urlsafe_chars>",
+            "rate_limits": {
+                "scope": "service_instance",
+                "window_seconds": AUTH_OAUTH_RATE_LIMIT_WINDOW_SECONDS,
+                "start_limit": AUTH_OAUTH_START_RATE_LIMIT,
+                "exchange_limit": AUTH_OAUTH_EXCHANGE_RATE_LIMIT,
+                "storage": "redis",
+            },
         },
         "refresh_token": {
             "ttl_seconds": AUTH_REFRESH_TOKEN_TTL_SECONDS,
@@ -2739,6 +3252,9 @@ def auth_contract_payload() -> dict[str, object]:
             "body_token_allowed": False,
             "signing_secret_required": True,
             "complete_issuance_configuration_required": True,
+            "family_tracking": True,
+            "replay_revokes_successors": True,
+            "logout_revokes_family": True,
         },
         "cookie_flags": {
             "HttpOnly": True,
@@ -2748,7 +3264,15 @@ def auth_contract_payload() -> dict[str, object]:
         },
         "audit": {
             "credential_issuance_requires_persistence": True,
+            "rejected_event_persistence_fail_closed": True,
             "secret_material_allowed": False,
+        },
+        "authorization": {
+            "oauth_access_scope": "display_identity_only",
+            "production_mutations_require_service_token": True,
+            "service_token_header": "x-superbrain-agent-token",
+            "explicit_dev_only_mode": "SUPERBRAIN_RUNTIME_MODE=dev-only",
+            "identity_to_action_binding_complete": False,
         },
         "endpoints": {
             "github_start": "/api/v1/auth/github",
@@ -2771,12 +3295,14 @@ def auth_contract_payload() -> dict[str, object]:
             "Access JWT expires after 900 seconds.",
             "Refresh token expires after 604800 seconds.",
             "Credential issuance requires a one-time Redis-backed OAuth state and a verified GitHub user id.",
+            "Credential issuance requires an explicit allowlist containing the verified Owner GitHub numeric id.",
             "Production OAuth start and callback additionally require the exact production_auth_identity owner_granted activation flag.",
             "The first live proof does not require live_verified; only owner_granted is the activation prerequisite.",
             "OAuth start uses a GitHub redirect with minimal read:user scope and never returns state in a JSON body.",
             "Callback failures clear the OAuth-state cookie on the actual error response.",
             "Malformed or non-ASCII OAuth state and non-object provider JSON fail closed before credential issuance.",
             "Refresh token is rotated on every refresh request.",
+            "Refresh families revoke all successors on replay or logout, including refresh-vs-logout races.",
             "Only refresh tokens present in the active Redis registry can rotate or revoke.",
             "A registered refresh token cannot mint credentials while complete OAuth/JWT issuance configuration is unavailable.",
             "Successful callback and refresh credential issuance requires persisted audit evidence.",
@@ -2785,6 +3311,7 @@ def auth_contract_payload() -> dict[str, object]:
             "Auth cookies use the __Host- prefix and are HttpOnly, Secure, and SameSite=Strict.",
             "JWT signing configuration must be a non-placeholder base64url secret carrying at least 256 bits.",
             "Missing or weak OAuth/signing configuration blocks credential issuance.",
+            "Production-facing unsafe mutations require the service-token boundary; OAuth display JWTs never authorize them.",
             "The identity endpoint verifies JWT signature, algorithm, issuer, audience, lifetime, and a positive GitHub subject without returning the token.",
         ],
         "non_claims": [
@@ -8045,13 +8572,11 @@ def auth_me(
 ) -> dict[str, object]:
     configuration = auth_configuration()
     if not bool(configuration["credential_issuance_ready"]):
-        owner_blocked = bool(configuration["credentials_configured"]) and not bool(
-            configuration["owner_activation_granted"]
-        )
+        status_code, error = auth_configuration_rejection(configuration)
         raise HTTPException(
-            status_code=403 if owner_blocked else 503,
+            status_code=status_code,
             detail={
-                "error": "production_auth_owner_activation_required" if owner_blocked else "auth_configuration_required",
+                "error": error,
                 "authenticated": False,
                 "identity_verified": False,
                 "owner_activation_granted": configuration["owner_activation_granted"],
@@ -8067,6 +8592,20 @@ def auth_me(
             status_code=401,
             detail={
                 "error": "access_token_invalid",
+                "authenticated": False,
+                "identity_verified": False,
+                "token_returned": False,
+                "cookie_returned": False,
+                "secret_output": False,
+            },
+            headers=auth_access_cookie_clear_headers(),
+        )
+    owner_ids = configuration.get("owner_github_user_ids")
+    if not isinstance(owner_ids, frozenset) or claims["provider_user_id"] not in owner_ids:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "github_owner_identity_not_allowed",
                 "authenticated": False,
                 "identity_verified": False,
                 "token_returned": False,
@@ -8124,8 +8663,37 @@ def auth_github_start(response: Response) -> dict[str, object] | Response:
             "activation_blockers": configuration["activation_blockers"],
             "non_claims": contract["non_claims"],
         }
+    try:
+        client = redis_client()
+        rate = enforce_oauth_rate_limit(client, "start", AUTH_OAUTH_START_RATE_LIMIT)
+    except Exception:
+        clear_oauth_state_cookie(response)
+        set_auth_response_security_headers(response)
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "auth_state_storage_unavailable", "credentials_issued": False, "secret_output": False},
+            headers=oauth_state_cookie_clear_headers(),
+        ) from None
+    if rate["count"] > rate["limit"]:
+        require_rejected_auth_audit(
+            "auth_oauth_start_rate_limited",
+            {"reason": "oauth_start_rate_limit", "credentials_issued": False},
+            headers=oauth_state_cookie_clear_headers(),
+        )
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "oauth_rate_limit_exceeded", "credentials_issued": False, "secret_output": False},
+            headers={**oauth_state_cookie_clear_headers(), "Retry-After": str(rate["retry_after"])},
+        )
     state = "phase3-auth-state-" + secrets.token_urlsafe(24)
-    register_oauth_state(redis_client(), state)
+    try:
+        register_oauth_state(client, state)
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "auth_state_storage_unavailable", "credentials_issued": False, "secret_output": False},
+            headers=oauth_state_cookie_clear_headers(),
+        ) from None
     authorize_url = "https://github.com/login/oauth/authorize?" + urllib.parse.urlencode(
         {
             "client_id": str(configuration["client_id"]),
@@ -8153,22 +8721,20 @@ def auth_callback(
     trace_id = bounded_auth_trace_id(x_request_id, "auth-callback")
     configuration = auth_configuration()
     if not bool(configuration["credential_issuance_ready"]):
-        owner_blocked = bool(configuration["credentials_configured"]) and not bool(
-            configuration["owner_activation_granted"]
-        )
-        persist_auth_audit(
+        status_code, error = auth_configuration_rejection(configuration)
+        require_rejected_auth_audit(
             "auth_github_callback_blocked",
             {
                 "trace_id": trace_id,
-                "reason": "owner_activation_required" if owner_blocked else "configuration_required",
+                "reason": "owner_activation_required" if status_code == 403 else "configuration_required",
                 "credentials_issued": False,
             },
-            "warning",
+            headers=oauth_state_cookie_clear_headers(),
         )
         raise HTTPException(
-            status_code=403 if owner_blocked else 503,
+            status_code=status_code,
             detail={
-                "error": "production_auth_owner_activation_required" if owner_blocked else "github_oauth_not_configured",
+                "error": error if status_code == 403 else "github_oauth_not_configured",
                 "owner_activation_granted": configuration["owner_activation_granted"],
                 "credentials_issued": False,
                 "live_github_oauth_call": False,
@@ -8176,6 +8742,14 @@ def auth_callback(
             },
             headers=oauth_state_cookie_clear_headers(),
         )
+    try:
+        client = redis_client()
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "auth_state_storage_unavailable", "credentials_issued": False, "secret_output": False},
+            headers=oauth_state_cookie_clear_headers(),
+        ) from None
     workbench_redirect = auth_workbench_redirect_uri(configuration) if accepts_html(accept) else None
     state_is_bounded = isinstance(state, str) and bool(AUTH_OAUTH_STATE_PATTERN.fullmatch(state))
     cookie_is_bounded = isinstance(oauth_state_cookie, str) and bool(
@@ -8188,12 +8762,19 @@ def auth_callback(
         and state
         and hmac.compare_digest(oauth_state_cookie, state)
     )
-    state_consumed = bool(state_matches_cookie and state and consume_oauth_state(redis_client(), state))
+    try:
+        state_consumed = bool(state_matches_cookie and state and consume_oauth_state(client, state))
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "auth_state_storage_unavailable", "credentials_issued": False, "secret_output": False},
+            headers=oauth_state_cookie_clear_headers(),
+        ) from None
     if not state_consumed:
-        persist_auth_audit(
+        require_rejected_auth_audit(
             "auth_github_callback_blocked",
             {"trace_id": trace_id, "reason": "oauth_state_invalid", "credentials_issued": False},
-            "warning",
+            headers=oauth_state_cookie_clear_headers(),
         )
         raise HTTPException(
             status_code=401,
@@ -8205,11 +8786,30 @@ def auth_callback(
             },
             headers=oauth_state_cookie_clear_headers(),
         )
+    try:
+        rate = enforce_oauth_rate_limit(client, "exchange", AUTH_OAUTH_EXCHANGE_RATE_LIMIT)
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "auth_state_storage_unavailable", "credentials_issued": False, "secret_output": False},
+            headers=oauth_state_cookie_clear_headers(),
+        ) from None
+    if rate["count"] > rate["limit"]:
+        require_rejected_auth_audit(
+            "auth_oauth_exchange_rate_limited",
+            {"trace_id": trace_id, "reason": "oauth_exchange_rate_limit", "credentials_issued": False},
+            headers=oauth_state_cookie_clear_headers(),
+        )
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "oauth_rate_limit_exceeded", "credentials_issued": False, "secret_output": False},
+            headers={**oauth_state_cookie_clear_headers(), "Retry-After": str(rate["retry_after"])},
+        )
     if oauth_error:
-        persist_auth_audit(
+        require_rejected_auth_audit(
             "auth_github_callback_blocked",
             {"trace_id": trace_id, "reason": "oauth_provider_denied", "credentials_issued": False},
-            "warning",
+            headers=oauth_state_cookie_clear_headers(),
         )
         raise HTTPException(
             status_code=401,
@@ -8222,10 +8822,10 @@ def auth_callback(
             headers=oauth_state_cookie_clear_headers(),
         )
     if not isinstance(code, str) or not 1 <= len(code) <= 255:
-        persist_auth_audit(
+        require_rejected_auth_audit(
             "auth_github_callback_blocked",
             {"trace_id": trace_id, "reason": "oauth_callback_parameters_invalid", "credentials_issued": False},
-            "warning",
+            headers=oauth_state_cookie_clear_headers(),
         )
         raise HTTPException(
             status_code=400,
@@ -8240,23 +8840,50 @@ def auth_callback(
     try:
         subject = exchange_github_identity(code, configuration)
     except HTTPException as exc:
-        persist_auth_audit(
+        require_rejected_auth_audit(
             "auth_github_callback_blocked",
             {
                 "trace_id": trace_id,
                 "reason": str(exc.detail.get("error", "oauth_exchange_failed")) if isinstance(exc.detail, dict) else "oauth_exchange_failed",
                 "credentials_issued": False,
             },
-            "warning",
+            headers=oauth_state_cookie_clear_headers(),
         )
         raise HTTPException(
             status_code=exc.status_code,
             detail=exc.detail,
             headers=oauth_state_cookie_clear_headers(),
         ) from exc
+    rechecked_configuration = auth_configuration()
+    rechecked_owner_ids = rechecked_configuration.get("owner_github_user_ids")
+    subject_id = int(subject.split(":", 1)[1]) if canonical_github_subject(subject) else None
+    if (
+        not bool(rechecked_configuration["credential_issuance_ready"])
+        or not isinstance(rechecked_owner_ids, frozenset)
+        or subject_id not in rechecked_owner_ids
+    ):
+        status_code, error = auth_configuration_rejection(rechecked_configuration)
+        if bool(rechecked_configuration["credential_issuance_ready"]):
+            status_code, error = 403, "github_owner_identity_not_allowed"
+        require_rejected_auth_audit(
+            "auth_github_callback_blocked",
+            {"trace_id": trace_id, "reason": "credential_issuance_recheck_failed", "credentials_issued": False},
+            headers=oauth_state_cookie_clear_headers(),
+        )
+        raise HTTPException(
+            status_code=status_code,
+            detail={"error": error, "credentials_issued": False, "secret_output": False},
+            headers=oauth_state_cookie_clear_headers(),
+        )
     refresh_token = create_refresh_token()
-    client = redis_client()
-    register_refresh_token(client, refresh_token, subject)
+    try:
+        family_id = register_refresh_token(client, refresh_token, subject)
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "refresh_registry_unavailable", "credentials_issued": False, "secret_output": False},
+            headers=oauth_state_cookie_clear_headers(),
+        ) from None
     audit_persisted = bool(persist_auth_audit(
         "auth_github_callback_verified",
         {
@@ -8268,7 +8895,10 @@ def auth_callback(
         },
     ))
     if not audit_persisted:
-        client.delete(auth_refresh_active_key(refresh_token))
+        try:
+            revoke_refresh_family(client, family_id, "audit_unavailable")
+        except Exception:
+            pass
         raise HTTPException(
             status_code=503,
             detail={
@@ -8276,6 +8906,45 @@ def auth_callback(
                 "credentials_issued": False,
                 "secret_output": False,
             },
+            headers=oauth_state_cookie_clear_headers(),
+        )
+    final_configuration = auth_configuration()
+    final_owner_ids = final_configuration.get("owner_github_user_ids")
+    if (
+        not bool(final_configuration["credential_issuance_ready"])
+        or not isinstance(final_owner_ids, frozenset)
+        or subject_id not in final_owner_ids
+    ):
+        try:
+            revoke_refresh_family(client, family_id, "configuration_changed")
+        except Exception:
+            pass
+        status_code, error = auth_configuration_rejection(final_configuration)
+        if bool(final_configuration["credential_issuance_ready"]):
+            status_code, error = 403, "github_owner_identity_not_allowed"
+        require_rejected_auth_audit(
+            "auth_github_callback_blocked",
+            {"trace_id": trace_id, "reason": "credential_issuance_final_recheck_failed", "credentials_issued": False},
+            headers=oauth_state_cookie_clear_headers(),
+        )
+        raise HTTPException(
+            status_code=status_code,
+            detail={"error": error, "credentials_issued": False, "secret_output": False},
+            headers=oauth_state_cookie_clear_headers(),
+        )
+    try:
+        family_active = refresh_family_is_active(client, family_id, refresh_token, subject)
+    except Exception:
+        family_active = False
+    if not family_active:
+        require_rejected_auth_audit(
+            "auth_github_callback_blocked",
+            {"trace_id": trace_id, "reason": "refresh_family_not_active", "credentials_issued": False},
+            headers=oauth_state_cookie_clear_headers(),
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "refresh_registry_unavailable", "credentials_issued": False, "secret_output": False},
             headers=oauth_state_cookie_clear_headers(),
         )
     access_token = create_access_jwt(subject, trace_id)
@@ -8315,57 +8984,143 @@ def auth_refresh(
 ) -> dict[str, object]:
     trace_id = bounded_auth_trace_id(request.trace_id if request else None, "auth-refresh")
     if request and request.refresh_token is not None:
-        persist_auth_audit(
+        require_rejected_auth_audit(
             "auth_refresh_rejected",
             {"trace_id": trace_id, "reason": "body_token_not_allowed", "credentials_issued": False},
-            "warning",
+            headers=auth_cookie_clear_headers(),
         )
         raise HTTPException(
             status_code=400,
             detail={"error": "refresh_token_body_not_allowed", "credentials_issued": False, "secret_output": False},
+            headers=auth_cookie_clear_headers(),
         )
     supplied_token = refresh_token_cookie
     if not supplied_token:
+        require_rejected_auth_audit(
+            "auth_refresh_rejected",
+            {"trace_id": trace_id, "reason": "refresh_token_missing", "credentials_issued": False},
+            headers=auth_cookie_clear_headers(),
+        )
         raise HTTPException(
             status_code=401,
             detail={"error": "refresh_token_missing", "credentials_issued": False, "secret_output": False},
+            headers=auth_cookie_clear_headers(),
         )
-    client = redis_client()
-    token_is_registered_and_unrevoked = bool(
-        AUTH_REFRESH_TOKEN_PATTERN.fullmatch(supplied_token)
-        and not client.get(auth_blacklist_key(supplied_token))
-        and client.get(auth_refresh_active_key(supplied_token))
-    )
-    if token_is_registered_and_unrevoked and not bool(auth_configuration()["credential_issuance_ready"]):
-        persist_auth_audit(
-            "auth_refresh_rejected",
-            {"trace_id": trace_id, "reason": "credential_issuance_configuration_required", "credentials_issued": False},
-            "warning",
+    try:
+        client = redis_client()
+        token_is_registered_and_unrevoked = bool(
+            AUTH_REFRESH_TOKEN_PATTERN.fullmatch(supplied_token)
+            and not client.get(auth_blacklist_key(supplied_token))
+            and client.get(auth_refresh_active_key(supplied_token))
         )
+    except Exception:
         raise HTTPException(
             status_code=503,
+            detail={"error": "refresh_registry_unavailable", "credentials_issued": False, "secret_output": False},
+            headers=auth_cookie_clear_headers(),
+        ) from None
+    configuration = auth_configuration()
+    if token_is_registered_and_unrevoked and not bool(configuration["credential_issuance_ready"]):
+        status_code, error = auth_configuration_rejection(configuration)
+        require_rejected_auth_audit(
+            "auth_refresh_rejected",
+            {"trace_id": trace_id, "reason": "credential_issuance_configuration_required", "credentials_issued": False},
+            headers=auth_cookie_clear_headers(),
+        )
+        raise HTTPException(
+            status_code=status_code,
             detail={
-                "error": "auth_configuration_required",
+                "error": error,
                 "credentials_issued": False,
                 "secret_output": False,
             },
+            headers=auth_cookie_clear_headers(),
         )
-    subject, rejection_reason = consume_refresh_token(client, supplied_token, "rotated")
+    try:
+        subject, rejection_reason = consume_refresh_token(client, supplied_token, "rotated")
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "refresh_registry_unavailable", "credentials_issued": False, "secret_output": False},
+            headers=auth_cookie_clear_headers(),
+        ) from None
     if rejection_reason:
         event_type = "auth_refresh_reuse_blocked" if rejection_reason == "blacklisted" else "auth_refresh_rejected"
-        persist_auth_audit(
+        require_rejected_auth_audit(
             event_type,
             {"trace_id": trace_id, "reason": rejection_reason, "credentials_issued": False},
             "critical" if rejection_reason == "blacklisted" else "warning",
+            headers=auth_cookie_clear_headers(),
         )
         raise HTTPException(
             status_code=401,
             detail={"error": "refresh_token_invalid", "reason": rejection_reason, "credentials_issued": False, "secret_output": False},
+            headers=auth_cookie_clear_headers(),
         )
     if subject is None:
-        raise HTTPException(status_code=401, detail={"error": "refresh_token_invalid", "credentials_issued": False})
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "refresh_token_invalid", "credentials_issued": False},
+            headers=auth_cookie_clear_headers(),
+        )
+    try:
+        family_id = refresh_family_id_for_token(client, supplied_token)
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "refresh_registry_unavailable", "credentials_issued": False, "secret_output": False},
+            headers=auth_cookie_clear_headers(),
+        ) from None
+    rechecked_configuration = auth_configuration()
+    owner_ids = rechecked_configuration.get("owner_github_user_ids")
+    subject_id = int(subject.split(":", 1)[1]) if canonical_github_subject(subject) else None
+    if (
+        not bool(rechecked_configuration["credential_issuance_ready"])
+        or not isinstance(owner_ids, frozenset)
+        or subject_id not in owner_ids
+    ):
+        try:
+            revoke_refresh_family(client, family_id, "configuration_changed")
+        except Exception:
+            pass
+        status_code, error = auth_configuration_rejection(rechecked_configuration)
+        if bool(rechecked_configuration["credential_issuance_ready"]):
+            status_code, error = 403, "github_owner_identity_not_allowed"
+        require_rejected_auth_audit(
+            "auth_refresh_rejected",
+            {"trace_id": trace_id, "reason": "credential_issuance_recheck_failed", "credentials_issued": False},
+            headers=auth_cookie_clear_headers(),
+        )
+        raise HTTPException(
+            status_code=status_code,
+            detail={"error": error, "credentials_issued": False, "secret_output": False},
+            headers=auth_cookie_clear_headers(),
+        )
     new_refresh_token = create_refresh_token()
-    register_refresh_token(client, new_refresh_token, subject)
+    try:
+        register_refresh_token(
+            client,
+            new_refresh_token,
+            subject,
+            family_id=family_id,
+            predecessor_token=supplied_token,
+        )
+    except Exception:
+        try:
+            revoke_refresh_family(client, family_id, "rotation_race_blocked")
+        except Exception:
+            pass
+        require_rejected_auth_audit(
+            "auth_refresh_reuse_blocked",
+            {"trace_id": trace_id, "reason": "refresh_family_revoked", "credentials_issued": False},
+            "critical",
+            headers=auth_cookie_clear_headers(),
+        )
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "refresh_token_invalid", "reason": "family_revoked", "credentials_issued": False, "secret_output": False},
+            headers=auth_cookie_clear_headers(),
+        ) from None
     audit_persisted = bool(persist_auth_audit(
         "auth_refresh_rotated",
         {
@@ -8377,10 +9132,58 @@ def auth_refresh(
         },
     ))
     if not audit_persisted:
-        client.delete(auth_refresh_active_key(new_refresh_token))
+        try:
+            revoke_refresh_family(client, family_id, "audit_unavailable")
+        except Exception:
+            pass
         raise HTTPException(
             status_code=503,
             detail={"error": "auth_audit_unavailable", "credentials_issued": False, "secret_output": False},
+            headers=auth_cookie_clear_headers(),
+        )
+    final_configuration = auth_configuration()
+    final_owner_ids = final_configuration.get("owner_github_user_ids")
+    if (
+        not bool(final_configuration["credential_issuance_ready"])
+        or not isinstance(final_owner_ids, frozenset)
+        or subject_id not in final_owner_ids
+    ):
+        try:
+            revoke_refresh_family(client, family_id, "configuration_changed")
+        except Exception:
+            pass
+        status_code, error = auth_configuration_rejection(final_configuration)
+        if bool(final_configuration["credential_issuance_ready"]):
+            status_code, error = 403, "github_owner_identity_not_allowed"
+        require_rejected_auth_audit(
+            "auth_refresh_rejected",
+            {"trace_id": trace_id, "reason": "credential_issuance_final_recheck_failed", "credentials_issued": False},
+            headers=auth_cookie_clear_headers(),
+        )
+        raise HTTPException(
+            status_code=status_code,
+            detail={"error": error, "credentials_issued": False, "secret_output": False},
+            headers=auth_cookie_clear_headers(),
+        )
+    try:
+        family_active = refresh_family_is_active(client, family_id, new_refresh_token, subject)
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "refresh_registry_unavailable", "credentials_issued": False, "secret_output": False},
+            headers=auth_cookie_clear_headers(),
+        ) from None
+    if not family_active:
+        require_rejected_auth_audit(
+            "auth_refresh_reuse_blocked",
+            {"trace_id": trace_id, "reason": "refresh_family_revoked", "credentials_issued": False},
+            "critical",
+            headers=auth_cookie_clear_headers(),
+        )
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "refresh_token_invalid", "reason": "family_revoked", "credentials_issued": False, "secret_output": False},
+            headers=auth_cookie_clear_headers(),
         )
     access_token = create_access_jwt(subject, trace_id)
     set_auth_cookies(response, access_token, new_refresh_token)
@@ -8409,14 +9212,40 @@ def auth_logout(
     supplied_token = refresh_token_cookie
     refresh_token_revoked = False
     rejection_reason = None
-    client = redis_client()
-    if supplied_token:
-        subject, rejection_reason = consume_refresh_token(client, supplied_token, "logout")
-        refresh_token_revoked = subject is not None and rejection_reason is None
-    active_refresh_token_absent = not supplied_token or client.get(auth_refresh_active_key(supplied_token)) is None
     clear_auth_cookies(response)
     set_auth_response_security_headers(response)
     trace_id = bounded_auth_trace_id(request.trace_id if request else None, "auth-logout")
+    try:
+        client = redis_client()
+        if supplied_token:
+            subject, rejection_reason = consume_refresh_token(client, supplied_token, "logout")
+            refresh_token_revoked = subject is not None and rejection_reason is None
+        active_refresh_token_absent = not supplied_token or client.get(auth_refresh_active_key(supplied_token)) is None
+    except Exception:
+        audit_persisted = bool(
+            persist_auth_audit(
+                "auth_logout_storage_unavailable",
+                {
+                    "trace_id": trace_id,
+                    "refresh_token_revoked": False,
+                    "cookie_token_present": bool(supplied_token),
+                    "cookies_cleared": True,
+                    "credentials_issued": False,
+                },
+                "warning",
+            )
+        )
+        response.status_code = 503
+        return {
+            "status": "storage_unavailable",
+            "contract_version": "auth-github-jwt-refresh-v1",
+            "refresh_token_revoked": False,
+            "body_token_accepted": False,
+            "cookies_cleared": True,
+            "active_refresh_token_absent": False,
+            "audit_persisted": audit_persisted,
+            "trace_id": trace_id,
+        }
     audit_persisted = bool(persist_auth_audit(
         "auth_logout_revoked" if refresh_token_revoked else "auth_logout_no_active_token",
         {
@@ -10550,7 +11379,7 @@ def error_response_contract_payload() -> dict[str, object]:
             "status_code": "integer",
             "error": "stable machine-readable string",
             "message": "human-readable string",
-            "detail": "original FastAPI detail payload",
+            "detail": "sanitized FastAPI detail payload without submitted input values",
             "recoverable": "boolean",
             "evidence_ref": "error_response_*",
             "path": "request path",
@@ -10566,6 +11395,7 @@ def error_response_contract_payload() -> dict[str, object]:
         "policy_checks": [
             "Error responses expose a stable HTTP status.",
             "Validation errors fail before persistence/task/memory mutation.",
+            "Validation errors omit submitted input and validator context to prevent credential reflection.",
             "Rate/session overflow returns 429 and no done claim.",
             "UI surfaces error text instead of marking completion.",
             "Every handled HTTP error response includes contract_version and status_code.",

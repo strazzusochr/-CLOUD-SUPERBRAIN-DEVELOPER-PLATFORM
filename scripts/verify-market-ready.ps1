@@ -194,6 +194,9 @@ function Get-ReadyGateEvidenceValidation(
 
   switch ($GateId) {
     "production_auth_identity" {
+      # This aggregate is not a substitute for an auth-specific verifier. Until
+      # that verifier exists, tracked JSON claims must remain fail-closed.
+      $failures.Add("auth_dedicated_non_mutating_verifier_unavailable")
       if ([string]$evidence.contract_version -ne "production-auth-identity-proof-v1") { $failures.Add("auth_contract") }
       foreach ($field in @(
         "hosted_https", "real_browser", "oauth_start_verified", "callback_verified",
@@ -232,6 +235,48 @@ function Get-ReadyGateEvidenceValidation(
           [string]::IsNullOrWhiteSpace([string]$evidence.workflow.run_url)) {
         $failures.Add("ghcr_workflow_binding")
       }
+      $ghcrTempParent = [IO.Path]::GetFullPath('D:\_sb_tmp').TrimEnd('\', '/')
+      $ghcrTempRoot = Join-Path $ghcrTempParent ("market-ready-ghcr-" + [Guid]::NewGuid().ToString('N'))
+      $ghcrTempOutput = Join-Path $ghcrTempRoot 'read-only-registry-revalidation.json'
+      $ghcrCleanupOk = $true
+      try {
+        New-Item -ItemType Directory -Path $ghcrTempRoot -Force | Out-Null
+        $ghcrOutput = @(& py -3 (Join-Path $repoRoot 'scripts\verify_ghcr_candidate.py') `
+          --source-manifest $evidencePath `
+          --candidate-sha $ExpectedCandidateSha `
+          --active-candidate-sha $ExpectedCandidateSha `
+          --output $ghcrTempOutput 2>&1)
+        $ghcrExit = $LASTEXITCODE
+        if ($null -eq $ghcrExit) { $ghcrExit = 127 }
+        if ($ghcrExit -ne 0 -or -not (Test-Path -LiteralPath $ghcrTempOutput -PathType Leaf)) {
+          $failures.Add("ghcr_deep_read_only_verifier")
+        } else {
+          try {
+            $ghcrReadback = Get-Content -LiteralPath $ghcrTempOutput -Raw | ConvertFrom-Json -Depth 30
+            if ([string]$ghcrReadback.contract_version -ne 'ghcr-release-manifest-v1' -or
+                [string]$ghcrReadback.status -ne 'verified' -or
+                [string]$ghcrReadback.candidate_sha -ne $ExpectedCandidateSha -or
+                -not (Test-JsonBool $ghcrReadback.registry_readback.source_manifest_bound $true) -or
+                -not (Test-JsonBool $ghcrReadback.registry_readback.digest_readback_matches_publication $true) -or
+                -not (Test-JsonBool $ghcrReadback.inspection_read_only $true) -or
+                -not (Test-JsonBool $ghcrReadback.registry_write_performed $false) -or
+                -not (Test-JsonBool $ghcrReadback.registry_delete_performed $false) -or
+                -not (Test-JsonBool $ghcrReadback.secret_output $false)) {
+              $failures.Add("ghcr_deep_readback_contract")
+            }
+          } catch {
+            $failures.Add("ghcr_deep_readback_json")
+          }
+        }
+      } finally {
+        $resolvedGhcrTempRoot = [IO.Path]::GetFullPath($ghcrTempRoot)
+        if (-not $resolvedGhcrTempRoot.StartsWith($ghcrTempParent + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+          $ghcrCleanupOk = $false
+        } elseif (Test-Path -LiteralPath $resolvedGhcrTempRoot) {
+          try { Remove-Item -LiteralPath $resolvedGhcrTempRoot -Recurse -Force -ErrorAction Stop } catch { $ghcrCleanupOk = $false }
+        }
+      }
+      if (-not $ghcrCleanupOk) { $failures.Add("ghcr_verifier_temp_cleanup") }
     }
     "phase6_scale_runtime" {
       if ([string]$evidence.contract_version -ne "phase6-scale-evidence-v2") { $failures.Add("phase6_contract") }
@@ -252,6 +297,19 @@ function Get-ReadyGateEvidenceValidation(
           -not (Test-JsonBool $evidence.gate_promotion_performed $false) -or
           [int]$evidence.percentage_credit_awarded -ne 0) {
         $failures.Add("phase6_non_claim")
+      }
+      if ([string]$Gate.verifier -ne "scripts/verify-phase6-scale-evidence.ps1") {
+        $failures.Add("phase6_verifier_identity")
+      } else {
+        $phase6VerifierPath = Join-Path $repoRoot "scripts\verify-phase6-scale-evidence.ps1"
+        $phase6Output = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $phase6VerifierPath `
+          -EvidencePath $relativeEvidence `
+          -ValidateOnly 2>&1)
+        $phase6Exit = $LASTEXITCODE
+        if ($null -eq $phase6Exit) { $phase6Exit = 127 }
+        if ($phase6Exit -ne 0 -or ($phase6Output -join "`n") -notmatch 'promotion=false read_only=true') {
+          $failures.Add("phase6_deep_non_mutating_verifier")
+        }
       }
     }
     default { $failures.Add("unsupported_gate") }
@@ -1077,6 +1135,7 @@ $ledgerOwnerGated = $false
 $ledgerIntegrityOk = $false
 $ledgerIntegrityDetail = "missing"
 if (Test-Path $ledgerPath) {
+  $ledgerTrackedClean = Test-TrackedCleanRepoFile ".codex/runs/CURRENT/master-goal/PROOF_LEDGER.md"
   $latestStatus = @{}
   $ledgerDataRows = 0
   $ledgerMalformedRows = 0
@@ -1096,11 +1155,13 @@ if (Test-Path $ledgerPath) {
     }
     $latestStatus[$ledgerCells[0]] = $status
   }
-  $ledgerIntegrityOk = ($ledgerDataRows -gt 0 -and $ledgerMalformedRows -eq 0 -and $latestStatus.Count -gt 0)
-  $ledgerIntegrityDetail = "rows=$ledgerDataRows malformed=$ledgerMalformedRows latest_items=$($latestStatus.Count)"
+  $ledgerIntegrityOk = ($ledgerTrackedClean -and $ledgerDataRows -gt 0 -and $ledgerMalformedRows -eq 0 -and $latestStatus.Count -gt 0)
+  $ledgerIntegrityDetail = "tracked_clean=$ledgerTrackedClean rows=$ledgerDataRows malformed=$ledgerMalformedRows latest_items=$($latestStatus.Count)"
   $openItems = @($latestStatus.GetEnumerator() | Where-Object { $_.Value -eq 'OPEN' } | ForEach-Object { $_.Key })
-  $autonomousOpenItems = @($openItems | Where-Object { $_ -notmatch '^B\d+-|owner[-_ ]gated|owner[-_ ]gate' })
-  $ledgerOwnerGated = ($openItems.Count -gt 0 -and $autonomousOpenItems.Count -eq 0)
+  # Ledger rows have no authenticated Owner-gate metadata. Do not infer it from
+  # attacker-controlled item names such as "B1-*" or "owner-gated".
+  $autonomousOpenItems = @($openItems)
+  $ledgerOwnerGated = $false
   $ledgerOk = ($ledgerIntegrityOk -and $openItems.Count -eq 0)
   $ledgerDetail = if (-not $ledgerIntegrityOk) {
     "ledger integrity failed"

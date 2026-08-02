@@ -20,17 +20,30 @@ function Get-TrackedFiles {
   return @($trackedFiles | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
 }
 
-$workflowFiles = @(Get-TrackedFiles `
-  -Label ".github YAML files" `
-  -Pathspecs @(":(glob).github/**/*.yml", ":(glob).github/**/*.yaml"))
+$githubRoot = Join-Path $repoRoot ".github"
+$workflowFiles = @(
+  Get-ChildItem -LiteralPath $githubRoot -Recurse -File |
+    Where-Object { $_.Extension -in @('.yml', '.yaml') } |
+    ForEach-Object {
+      # [IO.Path]::GetRelativePath exists only on .NET Core (pwsh 7+). This chain also runs under
+      # Windows PowerShell 5.1 via `npm run verify`, so the relative path is derived by trimming
+      # the repository root instead. The StartsWith guard keeps the traversal inside the repo.
+      $fullPath = $_.FullName
+      if (-not $fullPath.StartsWith($repoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Fail-SupplyChainVerification "workflow file resolved outside the repository root"
+      }
+      $fullPath.Substring($repoRoot.Length).TrimStart('\', '/').Replace('\', '/')
+    } |
+    Sort-Object -Unique
+)
 if ($workflowFiles.Count -eq 0) {
   Fail-SupplyChainVerification "no tracked .github YAML files discovered"
 }
 
 $expectedActions = @(
   [pscustomobject]@{ Action = "actions/checkout"; Sha = "11d5960a326750d5838078e36cf38b85af677262"; Comment = "v4"; Count = 1 },
-  [pscustomobject]@{ Action = "actions/checkout"; Sha = "d23441a48e516b6c34aea4fa41551a30e30af803"; Comment = "v6"; Count = 7 },
-  [pscustomobject]@{ Action = "actions/upload-artifact"; Sha = "ea165f8d65b6e75b540449e92b4886f43607fa02"; Comment = "v4.6.2"; Count = 1 },
+  [pscustomobject]@{ Action = "actions/checkout"; Sha = "d23441a48e516b6c34aea4fa41551a30e30af803"; Comment = "v6"; Count = 8 },
+  [pscustomobject]@{ Action = "actions/upload-artifact"; Sha = "ea165f8d65b6e75b540449e92b4886f43607fa02"; Comment = "v4.6.2"; Count = 3 },
   [pscustomobject]@{ Action = "actions/setup-node"; Sha = "49933ea5288caeca8642d1e84afbd3f7d6820020"; Comment = "v4"; Count = 1 },
   [pscustomobject]@{ Action = "actions/setup-node"; Sha = "249970729cb0ef3589644e2896645e5dc5ba9c38"; Comment = "v6"; Count = 1 },
   [pscustomobject]@{ Action = "actions/setup-python"; Sha = "a26af69be951a213d495a4c3e4e4022e16d87065"; Comment = "v5"; Count = 1 },
@@ -92,8 +105,8 @@ foreach ($relativePath in $workflowFiles) {
   }
 }
 
-if ($externalActionCount -ne 20) {
-  Fail-SupplyChainVerification "expected exactly 20 external action references, found $externalActionCount"
+if ($externalActionCount -ne 23) {
+  Fail-SupplyChainVerification "expected exactly 23 external action references, found $externalActionCount"
 }
 foreach ($key in $expectedActionKeys.Keys) {
   $actual = if ($actualActionCounts.ContainsKey($key)) { [int]$actualActionCounts[$key] } else { 0 }
@@ -251,4 +264,4 @@ foreach ($key in $expectedImageOccurrences.Keys) {
   }
 }
 
-Write-Host "[verify] supply-chain pins PASS (20 external actions, 18 external image occurrences, 9 unique external images, 6 internal GHCR references)"
+Write-Host "[verify] supply-chain pins PASS (23 external actions, 18 external image occurrences, 9 unique external images, 6 internal GHCR references)"

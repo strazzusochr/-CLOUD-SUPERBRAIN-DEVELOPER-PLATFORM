@@ -1,4 +1,4 @@
-import { boundaryUnavailable, projectionResponse, proxyReadToBoundary, proxyToBoundary } from "../../../../../lib/frontendBoundary";
+import { authorizeBoundaryWrite, boundaryUnavailable, projectionResponse, proxyReadToBoundary, proxyToBoundary } from "../../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -16,7 +16,9 @@ export async function GET(req: Request): Promise<Response> {
 }
 
 export async function POST(req: Request): Promise<Response> {
-  const response = await proxyToBoundary(req, "agent-api", "/api/v1/memory/search", 30_000);
+  const writeBlock = await authorizeBoundaryWrite(req);
+  if (writeBlock) return writeBlock;
+  const response = await proxyToBoundary(req, "agent-api", "/api/v1/memory/search", 30_000, { serviceAuth: true });
   return response ?? boundaryUnavailable(
     "POST /api/v1/memory/search",
     "agent-api",

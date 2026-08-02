@@ -30,7 +30,19 @@ $routeSource=Get-Content (Join-Path $repoRoot "apps\frontend\app\api\v1\auth\ses
 $browserSource=Get-Content (Join-Path $repoRoot "apps\frontend\e2e\phase3-auth-session-integrity.spec.ts") -Raw
 $docSource=Get-Content (Join-Path $repoRoot "docs\runtime-contracts\auth-session-integrity.md") -Raw
 foreach($required in @("createHmac","timingSafeEqual","AUTH_SESSION_TTL_SECONDS","verifySignedAuthSession","ephemeral_process")){Assert-Contains "helper source" $helperSource $required}
-foreach($required in @("auth-session-integrity","external_provider_write: false","jar.delete(AUTH_SESSION_COOKIE)")){Assert-Contains "route source" $routeSource $required}
+foreach($required in @(
+  "auth-session-integrity",
+  "external_provider_write: false",
+  "async function clearSessionCookie()",
+  'jar.set(AUTH_SESSION_COOKIE, "", {',
+  "httpOnly: true",
+  "secure: true",
+  'sameSite: "strict"',
+  'path: "/"',
+  "maxAge: 0",
+  "expires: new Date(0)"
+)){Assert-Contains "route source" $routeSource $required}
+Assert-NotContains "route must not use attribute-incomplete cookie deletion" $routeSource "jar.delete(AUTH_SESSION_COOKIE)"
 Assert-NotContains "route has no GitHub store" $routeSource "ghStore"
 foreach($required in @("tampered cookie","session_invalidated","external_provider_write","login-auth-session-integrity.png")){Assert-Contains "browser source" $browserSource $required}
 foreach($required in @("auth-session-integrity-v1","HMAC-SHA256","AUTH_SESSION_SECRET","DEV-ONLY")){Assert-Contains "contract doc" $docSource $required}

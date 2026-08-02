@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import json
 import hashlib
+import io
 import math
 import re
 import subprocess
+import urllib.error
+import urllib.request
+import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -72,6 +76,62 @@ LOCAL_VERIFICATION_FILES = {
     "candidate_runtime": "candidate-runtime.json",
     "security": "security.json",
 }
+SOURCE_PREQUALIFICATION_CONTROL_PATHS = {
+    ".github/workflows/pr-check.yml",
+    "scripts/tests/test_verify_phase5_credit_itemization.py",
+    "scripts/verify-main-deploy-transition.ps1",
+    "scripts/verify-supply-chain-pins.ps1",
+    "scripts/verify_phase5_credit_itemization.py",
+}
+LEGACY_DIRECT_CI_BINDINGS = {
+    (
+        "prod-candidate-2026-07-31-local-rc11",
+        "bae3cdc1692e1e99e7f546f72664a3c747958b8c",
+    ),
+}
+LEGACY_EVIDENCE_BINDINGS = {
+    (
+        "prod-candidate-2026-07-31-local-rc11",
+        "bae3cdc1692e1e99e7f546f72664a3c747958b8c",
+    ),
+}
+EXPECTED_GITHUB_REPOSITORY = "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM"
+EXPECTED_GITHUB_WORKFLOW_NAME = "pr-check"
+EXPECTED_GITHUB_WORKFLOW_PATH = ".github/workflows/pr-check.yml"
+CANONICAL_SUCCESS_ANCHORS = {
+    "runtime": [
+        "[runtime] compose status",
+        "[runtime] phase1 runtime checks completed",
+    ],
+    "browser": [
+        "[browser-contract] checks completed",
+        "[product-acceptance] PASS DEV-ONLY; hosted proof still blocked",
+        "[22-page-actions] PASS DEV-ONLY; hosted proof still blocked",
+        "[o4-write] status=verified gates=live_agent_tool_writes,live_mcp_writes",
+    ],
+    "security": [
+        "PHASE5_SECURITY_EVIDENCE_V2",
+        "[phase5-security] source_boundary=committed_git_archive_only",
+        "[phase5-security] npm_audit_verified=true",
+        "NPM_AUDIT_EXIT=0",
+        "[phase5-security] gitleaks_config=.gitleaks.toml",
+        "[phase5-security] gitleaks_verified=true",
+        "GITLEAKS_EXIT=0",
+        "PHASE5_SECURITY_EXIT=0",
+    ],
+    "candidate-images": [
+        "[phase5-candidate-local] status=verified service_count=6",
+    ],
+    "candidate-runtime": [
+        "[phase5-candidate-local] api_contract_verified=true",
+        "[phase5-candidate-local] local_image_identity_verified=true",
+        "[phase5-candidate-local] embedded_source_hash_parity_verified=true",
+        "[phase5-candidate-local] candidate_runtime_source_parity_verified=true",
+        "[phase5-candidate-local] browser_click_verified=true",
+        "[phase5-candidate-local] playwright_passed=1",
+        "[phase5-candidate-local] status=verified service_count=6",
+    ],
+}
 SUMMARY_CHAINS = {"runtime", "browser", "security"}
 SUMMARY_COMMANDS = {
     "runtime": "npm run verify:runtime",
@@ -85,8 +145,46 @@ EXPECTED_CANDIDATE_SERVICES = {
     "mcp-gateway",
     "llm-gateway",
 }
+EXPECTED_OCI_SOURCE = (
+    "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM"
+)
+EXPECTED_CANDIDATE_IMAGE_FILES = {
+    "frontend": (
+        "apps/frontend/Dockerfile",
+        "apps/frontend/package.json",
+        "/app/package.json",
+    ),
+    "agent-api": (
+        "services/agent-api/Dockerfile",
+        "services/agent-api/app/main.py",
+        "/app/app/main.py",
+    ),
+    "agent-worker": (
+        "services/agent-worker/Dockerfile",
+        "services/agent-worker/app/worker.py",
+        "/app/app/worker.py",
+    ),
+    "memory-worker": (
+        "services/memory-worker/Dockerfile",
+        "services/memory-worker/app/worker.py",
+        "/app/app/worker.py",
+    ),
+    "mcp-gateway": (
+        "services/mcp-gateway/Dockerfile",
+        "services/mcp-gateway/app/main.py",
+        "/app/app/main.py",
+    ),
+    "llm-gateway": (
+        "services/llm-gateway/Dockerfile",
+        "services/llm-gateway/app/main.py",
+        "/app/app/main.py",
+    ),
+}
 SHA256_UPPER_RE = re.compile(r"[0-9A-F]{64}")
 SHA256_LOWER_RE = re.compile(r"[0-9a-f]{64}")
+EVIDENCE_RUN_ID_RE = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+)
 
 
 def fail(message: str) -> None:
@@ -106,6 +204,14 @@ def load_json(path: Path) -> dict[str, Any]:
         fail(f"invalid JSON in {path.relative_to(ROOT).as_posix()}: {exc}")
     require(isinstance(value, dict), f"{path.relative_to(ROOT).as_posix()} must contain an object")
     return value
+
+
+def load_json_value(path: Path) -> Any:
+    require(path.is_file(), f"missing {path.relative_to(ROOT).as_posix()}")
+    try:
+        return json.loads(path.read_text(encoding="utf-8-sig"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        fail(f"invalid JSON in {path.relative_to(ROOT).as_posix()}: {exc}")
 
 
 def run_git(*args: str) -> subprocess.CompletedProcess[str]:
@@ -156,6 +262,83 @@ def sha256_file(target: Path) -> str:
     return digest.hexdigest().upper()
 
 
+def sha256_bytes(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest().upper()
+
+
+def require_exact_lines(lines: list[str], expected: list[str], label: str) -> None:
+    require(len(expected) == len(set(expected)), f"{label} canonical anchors are duplicated")
+    for anchor in expected:
+        require(
+            lines.count(anchor) == 1,
+            f"{label} canonical anchor must occur as one exact line: {anchor}",
+        )
+
+
+def github_api_json(url: str, label: str) -> dict[str, Any]:
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "cloud-superbrain-phase5-verifier",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            require(response.status == 200, f"{label} returned HTTP {response.status}")
+            payload = response.read()
+    except (OSError, urllib.error.HTTPError, urllib.error.URLError) as exc:
+        fail(f"{label} live GitHub readback failed closed: {exc}")
+    try:
+        value = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        fail(f"{label} live GitHub readback is invalid JSON: {exc}")
+    require(isinstance(value, dict), f"{label} live GitHub readback must be an object")
+    return value
+
+
+def github_api_bytes(url: str, label: str) -> bytes:
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "cloud-superbrain-phase5-verifier",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            require(response.status == 200, f"{label} returned HTTP {response.status}")
+            return response.read()
+    except (OSError, urllib.error.HTTPError, urllib.error.URLError) as exc:
+        fail(f"{label} live GitHub artifact download failed closed: {exc}")
+
+
+def load_git_blob(source_sha: str, path: str) -> bytes:
+    result = subprocess.run(
+        ["git", "show", f"{source_sha}:{path}"],
+        cwd=ROOT,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    require(result.returncode == 0, f"candidate source file is not readable at {source_sha}:{path}")
+    return result.stdout
+
+
+def git_archive_sha256(source_sha: str) -> str:
+    result = subprocess.run(
+        ["git", "archive", "--format=tar", source_sha],
+        cwd=ROOT,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    require(result.returncode == 0, f"candidate git archive cannot be reproduced for {source_sha}")
+    return hashlib.sha256(result.stdout).hexdigest()
+
+
 def require_upper_sha256(value: Any, label: str) -> str:
     require(
         isinstance(value, str) and SHA256_UPPER_RE.fullmatch(value) is not None,
@@ -190,6 +373,348 @@ def require_non_claims(value: Any, label: str) -> list[str]:
     return claims
 
 
+def is_legacy_evidence_binding(release_id: str, source_sha: str) -> bool:
+    return (release_id, source_sha) in LEGACY_EVIDENCE_BINDINGS
+
+
+def require_hashed_tracked_file(
+    metadata: Any,
+    expected_path: str,
+    label: str,
+) -> Path:
+    require(isinstance(metadata, dict), f"{label} metadata is missing")
+    path = require_tracked_repo_path(metadata.get("path"), label)
+    require(path == expected_path, f"{label} path mismatch")
+    recorded_sha256 = require_upper_sha256(metadata.get("sha256"), f"{label} SHA-256")
+    target = ROOT / path
+    require(sha256_file(target) == recorded_sha256, f"{label} SHA-256 mismatch")
+    return target
+
+
+def validate_v2_raw_log(
+    chain: str,
+    proof: dict[str, Any],
+    readiness_entry: Any,
+    release_id: str,
+    source_sha: str,
+) -> Path:
+    label = f"candidate local verification {chain}"
+    require(isinstance(readiness_entry, dict), f"{label} readiness entry is missing")
+    command = proof.get("command")
+    require(
+        isinstance(command, str) and command.strip(),
+        f"{label} command is missing",
+    )
+    require(command == readiness_entry.get("command"), f"{label} command does not match readiness")
+
+    run_id = proof.get("evidence_run_id")
+    require(
+        isinstance(run_id, str) and EVIDENCE_RUN_ID_RE.fullmatch(run_id) is not None,
+        f"{label} evidence_run_id is invalid",
+    )
+    require(
+        readiness_entry.get("evidence_run_id") == run_id,
+        f"{label} evidence run does not match readiness",
+    )
+
+    expected_raw_path = (
+        f"docs/release-artifacts/{release_id}-evidence/raw/{chain}.log"
+    )
+    raw_path = require_tracked_repo_path(proof.get("raw_log_path"), f"{label} raw log")
+    require(raw_path == expected_raw_path, f"{label} raw log path mismatch")
+    require(
+        readiness_entry.get("raw_log_path") == raw_path,
+        f"{label} raw log path does not match readiness",
+    )
+    raw_target = ROOT / raw_path
+    raw_sha256 = require_upper_sha256(proof.get("raw_log_sha256"), f"{label} raw_log_sha256")
+    require(
+        readiness_entry.get("raw_log_sha256") == raw_sha256,
+        f"{label} raw log SHA-256 does not match readiness",
+    )
+    require(sha256_file(raw_target) == raw_sha256, f"{label} raw log SHA-256 mismatch")
+
+    raw_text = raw_target.read_bytes().decode("utf-8-sig", errors="replace")
+    lines = [line.rstrip("\r") for line in raw_text.splitlines()]
+    non_empty = [line for line in lines if line.strip()]
+    require(
+        bool(non_empty) and non_empty[0] == "PHASE5_EVIDENCE_RAW_V2",
+        f"{label} raw log contract marker is missing",
+    )
+    expected_bindings = {
+        "chain": chain,
+        "release_id": release_id,
+        "source_commit_sha": source_sha,
+        "evidence_run_id": run_id,
+        "command": command,
+        "exit_code": "0",
+    }
+    for field, expected in expected_bindings.items():
+        marker = f"[phase5-evidence] {field}={expected}"
+        require(
+            lines.count(marker) == 1,
+            f"{label} raw log {field} binding must occur exactly once",
+        )
+
+    observed = proof.get("observed_success_anchors")
+    expected = readiness_entry.get("success_anchors")
+    canonical = CANONICAL_SUCCESS_ANCHORS.get(chain)
+    require(canonical is not None, f"{label} has no verifier-owned canonical anchor set")
+    require(
+        isinstance(observed, list) and observed,
+        f"{label} observed_success_anchors must not be empty",
+    )
+    require(observed == canonical, f"{label} observed anchors are not canonical")
+    require(expected == canonical, f"{label} readiness anchors are not canonical")
+    require_exact_lines(lines, canonical, f"{label} raw log")
+    return raw_target
+
+
+def validate_ci_workflow(
+    workflow: Any,
+    release_id: str,
+    source_sha: str,
+) -> None:
+    label = "candidate CI workflow"
+    require(isinstance(workflow, dict), f"{label} must be an object")
+    require(workflow.get("name") == "pr-check", f"{label} name mismatch")
+    require(workflow.get("status") == "success", f"{label} must be successful")
+
+    run_id = workflow.get("run_id")
+    require(type(run_id) is int and run_id > 0, f"{label} run_id is invalid")
+    run_url = workflow.get("run_url")
+    require(
+        run_url
+        == f"https://github.com/{EXPECTED_GITHUB_REPOSITORY}/actions/runs/{run_id}",
+        f"{label} URL is invalid",
+    )
+
+    head_sha = workflow.get("head_sha")
+    require(
+        isinstance(head_sha, str) and re.fullmatch(r"[0-9a-f]{40}", head_sha) is not None,
+        f"{label} head SHA is invalid",
+    )
+    binding_mode = workflow.get("binding_mode")
+    if binding_mode in (None, "direct_head_v1"):
+        require(
+            (release_id, source_sha) in LEGACY_DIRECT_CI_BINDINGS,
+            f"{label} legacy direct binding is not allowed for this candidate",
+        )
+        require(head_sha == source_sha, f"{label} SHA mismatch")
+        return
+
+    require(
+        binding_mode == "source_checkout_attestation_v1",
+        f"{label} binding mode is invalid",
+    )
+    control_sha = workflow.get("control_sha")
+    candidate_sha = workflow.get("candidate_sha")
+    checked_out_sha = workflow.get("checked_out_sha")
+    require(control_sha == head_sha, f"{label} control SHA must equal run head SHA")
+    require(control_sha != source_sha, f"{label} control SHA must remain distinct from source SHA")
+    require(candidate_sha == source_sha, f"{label} candidate SHA mismatch")
+    require(checked_out_sha == source_sha, f"{label} checked-out SHA mismatch")
+    require(workflow.get("event_name") == "workflow_dispatch", f"{label} event mismatch")
+    require(workflow.get("source_prequalification") is True, f"{label} prequalification flag is missing")
+
+    require(
+        run_git("cat-file", "-e", f"{control_sha}^{{commit}}").returncode == 0,
+        f"{label} control commit does not exist",
+    )
+    require(
+        run_git("merge-base", "--is-ancestor", source_sha, control_sha).returncode == 0,
+        f"{label} source is not an ancestor of control",
+    )
+    require(
+        run_git("merge-base", "--is-ancestor", control_sha, "HEAD").returncode == 0,
+        f"{label} control is not an ancestor of HEAD",
+    )
+
+    attestation_entry = workflow.get("attestation")
+    require(isinstance(attestation_entry, dict), f"{label} attestation metadata is missing")
+    expected_path = (
+        f"docs/release-artifacts/{release_id}-evidence/ci-source-checkout-attestation.json"
+    )
+    artifact_path = require_tracked_repo_path(
+        attestation_entry.get("artifact"),
+        f"{label} attestation",
+    )
+    require(artifact_path == expected_path, f"{label} attestation path mismatch")
+    artifact_target = ROOT / artifact_path
+    recorded_sha256 = require_upper_sha256(
+        attestation_entry.get("sha256"),
+        f"{label} attestation SHA-256",
+    )
+    require(
+        sha256_file(artifact_target) == recorded_sha256,
+        f"{label} attestation SHA-256 mismatch",
+    )
+
+    artifact_id = attestation_entry.get("github_artifact_id")
+    require(type(artifact_id) is int and artifact_id > 0, f"{label} artifact ID is invalid")
+    artifact_url = attestation_entry.get("github_artifact_url")
+    require(
+        artifact_url == f"{run_url}/artifacts/{artifact_id}",
+        f"{label} artifact URL is invalid",
+    )
+    artifact_digest = attestation_entry.get("github_artifact_digest")
+    require(
+        isinstance(artifact_digest, str)
+        and re.fullmatch(r"sha256:[0-9a-f]{64}", artifact_digest) is not None,
+        f"{label} artifact digest is invalid",
+    )
+
+    readback_entry = workflow.get("github_readback")
+    require(isinstance(readback_entry, dict), f"{label} GitHub readback metadata is missing")
+    expected_readback_path = (
+        f"docs/release-artifacts/{release_id}-evidence/"
+        "ci-source-checkout-github-readback.json"
+    )
+    readback_path = require_tracked_repo_path(
+        readback_entry.get("artifact"),
+        f"{label} GitHub readback",
+    )
+    require(readback_path == expected_readback_path, f"{label} GitHub readback path mismatch")
+    readback_target = ROOT / readback_path
+    recorded_readback_sha256 = require_upper_sha256(
+        readback_entry.get("sha256"),
+        f"{label} GitHub readback SHA-256",
+    )
+    require(
+        sha256_file(readback_target) == recorded_readback_sha256,
+        f"{label} GitHub readback SHA-256 mismatch",
+    )
+
+    attestation = load_json(artifact_target)
+    require(
+        attestation.get("contract_version") == "pr-check-source-checkout-attestation-v1",
+        f"{label} attestation contract mismatch",
+    )
+    for field, expected in (
+        ("binding_mode", binding_mode),
+        ("candidate_sha", source_sha),
+        ("checked_out_sha", source_sha),
+        ("control_sha", control_sha),
+        ("run_sha", control_sha),
+        ("event_name", "workflow_dispatch"),
+        ("run_id", run_id),
+        ("run_url", run_url),
+        ("source_prequalification", True),
+        ("github_actions_artifact_upload", True),
+        ("registry_publish", False),
+        ("production_deploy", False),
+        ("release_promotion", False),
+        ("secret_output", False),
+    ):
+        require(attestation.get(field) == expected, f"{label} attestation {field} mismatch")
+
+    run_attempt = attestation.get("run_attempt")
+    require(type(run_attempt) is int and run_attempt > 0, f"{label} run attempt is invalid")
+    expected_artifact_name = f"pr-check-source-checkout-attestation-{run_id}-{run_attempt}"
+    require(
+        attestation_entry.get("github_artifact_name") == expected_artifact_name,
+        f"{label} artifact name mismatch",
+    )
+    require(
+        isinstance(attestation.get("ref"), str)
+        and re.fullmatch(r"refs/heads/[^\s]+", attestation["ref"]) is not None,
+        f"{label} attestation ref is invalid",
+    )
+    require_non_claims(attestation.get("non_claims"), f"{label} attestation")
+
+    readback = load_json(readback_target)
+    require(
+        readback.get("contract_version") == "github-actions-source-attestation-readback-v1",
+        f"{label} GitHub readback contract mismatch",
+    )
+    repository = EXPECTED_GITHUB_REPOSITORY
+    require(readback.get("repository") == repository, f"{label} GitHub readback repository mismatch")
+    require(readback.get("secret_output") is False, f"{label} GitHub readback secret flag mismatch")
+    readback_run = readback.get("run")
+    require(isinstance(readback_run, dict), f"{label} GitHub run readback is missing")
+    for field, expected in (
+        ("id", run_id),
+        ("run_attempt", run_attempt),
+        ("event", "workflow_dispatch"),
+        ("status", "completed"),
+        ("conclusion", "success"),
+        ("head_sha", control_sha),
+        ("html_url", run_url),
+    ):
+        require(readback_run.get(field) == expected, f"{label} GitHub run {field} mismatch")
+    require(
+        isinstance(readback_run.get("head_branch"), str) and readback_run["head_branch"],
+        f"{label} GitHub run head branch is missing",
+    )
+    require(
+        attestation.get("ref") == f"refs/heads/{readback_run['head_branch']}",
+        f"{label} attestation ref does not match the GitHub run head branch",
+    )
+
+    readback_artifact = readback.get("artifact")
+    require(isinstance(readback_artifact, dict), f"{label} GitHub artifact readback is missing")
+    for field, expected in (
+        ("id", artifact_id),
+        ("name", expected_artifact_name),
+        ("expired", False),
+        ("digest", artifact_digest),
+    ):
+        require(
+            readback_artifact.get(field) == expected,
+            f"{label} GitHub artifact {field} mismatch",
+        )
+    require(
+        readback_artifact.get("url")
+        == f"https://api.github.com/repos/{repository}/actions/artifacts/{artifact_id}",
+        f"{label} GitHub artifact API URL mismatch",
+    )
+    require(
+        readback_artifact.get("archive_download_url")
+        == f"https://api.github.com/repos/{repository}/actions/artifacts/{artifact_id}/zip",
+        f"{label} GitHub artifact archive URL mismatch",
+    )
+    artifact_workflow = readback_artifact.get("workflow_run")
+    require(isinstance(artifact_workflow, dict), f"{label} artifact workflow readback is missing")
+    require(artifact_workflow.get("id") == run_id, f"{label} artifact workflow run mismatch")
+    require(
+        artifact_workflow.get("head_sha") == control_sha,
+        f"{label} artifact workflow head SHA mismatch",
+    )
+    downloaded_archive_sha = require_lower_sha256(
+        readback.get("downloaded_archive_sha256"),
+        f"{label} downloaded archive SHA-256",
+    )
+    require(
+        artifact_digest == f"sha256:{downloaded_archive_sha}",
+        f"{label} downloaded artifact archive digest mismatch",
+    )
+    require(
+        readback.get("downloaded_attestation_sha256") == recorded_sha256,
+        f"{label} downloaded attestation SHA-256 mismatch",
+    )
+
+    delta = run_git(
+        "diff",
+        "--name-only",
+        "--diff-filter=ACDMRTUXB",
+        "-z",
+        source_sha,
+        control_sha,
+        "--",
+    )
+    require(delta.returncode == 0, f"{label} control delta cannot be resolved")
+    actual_delta = sorted({path for path in delta.stdout.split("\0") if path})
+    require(actual_delta, f"{label} control delta must not be empty")
+    require(
+        set(actual_delta).issubset(SOURCE_PREQUALIFICATION_CONTROL_PATHS),
+        f"{label} control delta contains non-control paths",
+    )
+    require(
+        attestation.get("control_delta") == actual_delta,
+        f"{label} attested control delta mismatch",
+    )
+
+
 def validate_summary_proof(
     chain: str,
     proof: dict[str, Any],
@@ -198,8 +723,10 @@ def validate_summary_proof(
     source_sha: str,
 ) -> None:
     label = f"candidate local verification {chain}"
+    legacy = is_legacy_evidence_binding(release_id, source_sha)
     require(
-        proof.get("contract_version") == "phase5-local-verification-summary-v1",
+        proof.get("contract_version")
+        == ("phase5-local-verification-summary-v1" if legacy else "phase5-local-verification-summary-v2"),
         f"{label} contract mismatch",
     )
     require(proof.get("chain") == chain, f"{label} chain mismatch")
@@ -214,30 +741,38 @@ def validate_summary_proof(
     if chain in SUMMARY_COMMANDS:
         require(command == SUMMARY_COMMANDS[chain], f"{label} command is not canonical")
     if chain == "security":
-        security_generator = "scripts/write-rc11-security-evidence.ps1"
-        require(
-            security_generator in command
-            or ("npm audit" in command and "gitleaks" in command.lower()),
-            f"{label} command must use the canonical security generator or name npm audit and gitleaks",
-        )
+        if legacy:
+            require(
+                "scripts/write-rc11-security-evidence.ps1" in command
+                or ("npm audit" in command and "gitleaks" in command.lower()),
+                f"{label} command must use the canonical security generator or name npm audit and gitleaks",
+            )
+        else:
+            require(
+                "scripts/write-phase5-security-evidence.ps1" in command,
+                f"{label} command must use the v2 security evidence generator",
+            )
     require(proof.get("status") == "passed", f"{label} status mismatch")
     require(type(proof.get("exit_code")) is int and proof["exit_code"] == 0, f"{label} exit_code must be 0")
     require(proof.get("dev_only") is True, f"{label} must be explicitly DEV-ONLY")
     require(proof.get("hosted_proof") is False, f"{label} may not claim hosted proof")
     require(proof.get("secret_output") is False, f"{label} may not claim secret output")
-    require_upper_sha256(proof.get("raw_log_sha256"), f"{label} raw_log_sha256")
-    observed = proof.get("observed_success_anchors")
-    expected = readiness_entry.get("success_anchors")
-    require(
-        isinstance(observed, list) and observed,
-        f"{label} observed_success_anchors must not be empty",
-    )
-    require(observed == expected, f"{label} observed anchors do not match readiness")
-    for index, anchor in enumerate(observed):
+    if legacy:
+        require_upper_sha256(proof.get("raw_log_sha256"), f"{label} raw_log_sha256")
+        observed = proof.get("observed_success_anchors")
+        expected = readiness_entry.get("success_anchors")
         require(
-            isinstance(anchor, str) and len(anchor.strip()) >= 8,
-            f"{label} observed anchor #{index + 1} is invalid",
+            isinstance(observed, list) and observed,
+            f"{label} observed_success_anchors must not be empty",
         )
+        require(observed == expected, f"{label} observed anchors do not match readiness")
+        for index, anchor in enumerate(observed):
+            require(
+                isinstance(anchor, str) and len(anchor.strip()) >= 8,
+                f"{label} observed anchor #{index + 1} is invalid",
+            )
+    else:
+        validate_v2_raw_log(chain, proof, readiness_entry, release_id, source_sha)
     require_non_claims(proof.get("non_claims"), label)
 
 
@@ -245,10 +780,13 @@ def validate_candidate_images_proof(
     proof: dict[str, Any],
     release_id: str,
     source_sha: str,
+    readiness_entry: dict[str, Any] | None = None,
 ) -> None:
     label = "candidate local verification candidate_images"
+    legacy = is_legacy_evidence_binding(release_id, source_sha)
     require(
-        proof.get("contract_version") == "phase5-production-candidate-local-v1",
+        proof.get("contract_version")
+        == ("phase5-production-candidate-local-v1" if legacy else "phase5-production-candidate-local-v2"),
         f"{label} contract mismatch",
     )
     require(
@@ -258,11 +796,21 @@ def validate_candidate_images_proof(
     require(proof.get("status") == "verified", f"{label} status mismatch")
     require(proof.get("release_id") == release_id, f"{label} release_id mismatch")
     require(proof.get("source_commit_sha") == source_sha, f"{label} source SHA mismatch")
+    if not legacy:
+        validate_v2_raw_log("candidate-images", proof, readiness_entry, release_id, source_sha)
     require(
         proof.get("source_boundary") == "committed_git_archive_only",
         f"{label} source boundary mismatch",
     )
-    require_lower_sha256(proof.get("git_archive_sha256"), f"{label} git archive SHA-256")
+    archive_sha256 = require_lower_sha256(
+        proof.get("git_archive_sha256"),
+        f"{label} git archive SHA-256",
+    )
+    if not legacy:
+        require(
+            git_archive_sha256(source_sha) == archive_sha256,
+            f"{label} git archive SHA-256 cannot be reproduced from source",
+        )
     require(proof.get("service_count") == 6, f"{label} service count mismatch")
 
     images = proof.get("images")
@@ -297,12 +845,19 @@ def validate_candidate_images_proof(
             f"{item_label} image size must be positive",
         )
 
-        for field in ("dockerfile", "source_file", "embedded_file"):
-            require(
-                isinstance(image.get(field), str) and image[field].strip(),
-                f"{item_label} {field} is missing",
-            )
-        require_lower_sha256(image.get("dockerfile_sha256"), f"{item_label} dockerfile SHA-256")
+        expected_dockerfile, expected_source_file, expected_embedded_file = (
+            EXPECTED_CANDIDATE_IMAGE_FILES[service]
+        )
+        for field, expected_path in (
+            ("dockerfile", expected_dockerfile),
+            ("source_file", expected_source_file),
+            ("embedded_file", expected_embedded_file),
+        ):
+            require(image.get(field) == expected_path, f"{item_label} {field} mismatch")
+        dockerfile_hash = require_lower_sha256(
+            image.get("dockerfile_sha256"),
+            f"{item_label} dockerfile SHA-256",
+        )
         source_hash = require_lower_sha256(
             image.get("source_file_sha256"),
             f"{item_label} source-file SHA-256",
@@ -315,12 +870,96 @@ def validate_candidate_images_proof(
         require(image.get("oci_revision") == source_sha, f"{item_label} OCI revision mismatch")
         require(image.get("oci_version") == release_id, f"{item_label} OCI version mismatch")
         require(
-            isinstance(image.get("oci_source"), str)
-            and re.fullmatch(r"https://github\.com/[^/\s]+/[^/\s]+", image["oci_source"]) is not None,
+            image.get("oci_source") == EXPECTED_OCI_SOURCE,
             f"{item_label} OCI source is invalid",
         )
 
+        if not legacy:
+            require(
+                hashlib.sha256(load_git_blob(source_sha, expected_dockerfile)).hexdigest()
+                == dockerfile_hash,
+                f"{item_label} dockerfile SHA-256 cannot be reproduced from source",
+            )
+            require(
+                hashlib.sha256(load_git_blob(source_sha, expected_source_file)).hexdigest()
+                == source_hash,
+                f"{item_label} source-file SHA-256 cannot be reproduced from source",
+            )
+
     require(services == EXPECTED_CANDIDATE_SERVICES, f"{label} service set mismatch")
+    if not legacy:
+        raw_evidence = proof.get("raw_evidence")
+        require(isinstance(raw_evidence, dict), f"{label} raw_evidence is missing")
+        raw_images = raw_evidence.get("images")
+        require(
+            isinstance(raw_images, list) and len(raw_images) == 6,
+            f"{label} raw_evidence must contain six images",
+        )
+        raw_by_service: dict[str, dict[str, Any]] = {}
+        for raw_image in raw_images:
+            require(isinstance(raw_image, dict), f"{label} raw image metadata must be an object")
+            raw_service = raw_image.get("service")
+            require(raw_service in EXPECTED_CANDIDATE_SERVICES, f"{label} raw image service is invalid")
+            require(raw_service not in raw_by_service, f"{label} raw image service is duplicated")
+            raw_by_service[raw_service] = raw_image
+
+        image_by_service = {str(image["service"]): image for image in images}
+        raw_root = f"docs/release-artifacts/{release_id}-evidence/raw/candidate-images"
+        for service in sorted(EXPECTED_CANDIDATE_SERVICES):
+            raw_image = raw_by_service[service]
+            image = image_by_service[service]
+            inspect_target = require_hashed_tracked_file(
+                raw_image.get("inspect"),
+                f"{raw_root}/{service}-inspect.json",
+                f"{label} {service} inspect",
+            )
+            inspect_value = load_json_value(inspect_target)
+            if isinstance(inspect_value, list):
+                require(len(inspect_value) == 1, f"{label} {service} inspect must contain one image")
+                inspect_value = inspect_value[0]
+            require(isinstance(inspect_value, dict), f"{label} {service} inspect must be an object")
+            require(inspect_value.get("Id") == image.get("image_id"), f"{label} {service} raw image ID mismatch")
+            require(inspect_value.get("Size") == image.get("image_size_bytes"), f"{label} {service} raw image size mismatch")
+            repo_tags = inspect_value.get("RepoTags")
+            require(
+                isinstance(repo_tags, list) and image.get("image_tag") in repo_tags,
+                f"{label} {service} raw image tag mismatch",
+            )
+            config = inspect_value.get("Config")
+            require(isinstance(config, dict), f"{label} {service} inspect config is missing")
+            labels = config.get("Labels")
+            require(isinstance(labels, dict), f"{label} {service} inspect labels are missing")
+            for field, expected in (
+                ("org.opencontainers.image.revision", source_sha),
+                ("org.opencontainers.image.version", release_id),
+                ("org.opencontainers.image.ref.name", release_id),
+                ("org.opencontainers.image.source", image.get("oci_source")),
+            ):
+                require(labels.get(field) == expected, f"{label} {service} raw OCI {field} mismatch")
+
+            embedded_target = require_hashed_tracked_file(
+                raw_image.get("embedded_hash"),
+                f"{raw_root}/{service}-embedded-sha256.txt",
+                f"{label} {service} embedded hash",
+            )
+            embedded_text = embedded_target.read_text(encoding="utf-8-sig").strip()
+            embedded_match = re.fullmatch(r"([0-9a-f]{64})\s+\*?(.+)", embedded_text)
+            require(embedded_match is not None, f"{label} {service} embedded hash output is invalid")
+            require(
+                embedded_match.group(1) == image.get("embedded_file_sha256")
+                and embedded_match.group(2) == image.get("embedded_file"),
+                f"{label} {service} raw embedded hash mismatch",
+            )
+
+            if service == "frontend":
+                build_id_target = require_hashed_tracked_file(
+                    raw_image.get("frontend_build_id"),
+                    f"{raw_root}/frontend-build-id.txt",
+                    f"{label} frontend build ID",
+                )
+                build_id = build_id_target.read_text(encoding="utf-8-sig").strip()
+                require(bool(build_id), f"{label} frontend raw build ID is empty")
+                require(build_id == image.get("frontend_build_id"), f"{label} frontend raw build ID mismatch")
     require(
         type(proof.get("phase5_progress_before_proof")) is int
         and proof.get("phase5_progress_after_proof") == proof["phase5_progress_before_proof"],
@@ -355,10 +994,18 @@ def validate_candidate_runtime_proof(
     proof: dict[str, Any],
     release_id: str,
     source_sha: str,
+    readiness_entry: dict[str, Any] | None = None,
+    candidate_images_entry: dict[str, Any] | None = None,
 ) -> None:
     label = "candidate local verification candidate_runtime"
+    legacy = is_legacy_evidence_binding(release_id, source_sha)
     require(
-        proof.get("contract_version") == "phase5-production-candidate-local-verification-v1",
+        proof.get("contract_version")
+        == (
+            "phase5-production-candidate-local-verification-v1"
+            if legacy
+            else "phase5-production-candidate-local-verification-v2"
+        ),
         f"{label} contract mismatch",
     )
     require(
@@ -369,6 +1016,14 @@ def validate_candidate_runtime_proof(
     require(proof.get("verification_scope") == "full_with_browser", f"{label} must use full browser scope")
     require(proof.get("release_id") == release_id, f"{label} release_id mismatch")
     require(proof.get("source_commit_sha") == source_sha, f"{label} source SHA mismatch")
+    if not legacy:
+        raw_target = validate_v2_raw_log(
+            "candidate-runtime",
+            proof,
+            readiness_entry,
+            release_id,
+            source_sha,
+        )
     require(proof.get("service_count") == 6, f"{label} service count mismatch")
     for field in (
         "api_contract_verified",
@@ -391,6 +1046,70 @@ def validate_candidate_runtime_proof(
         and re.fullmatch(r"[0-9a-f]{40}", proof["rollback_target"]) is not None,
         f"{label} rollback target is invalid",
     )
+    if not legacy:
+        raw_evidence = proof.get("raw_evidence")
+        require(isinstance(raw_evidence, dict), f"{label} raw_evidence is missing")
+        candidate_images_target = require_hashed_tracked_file(
+            raw_evidence.get("candidate_images"),
+            f"docs/release-artifacts/{release_id}-evidence/candidate-images.json",
+            f"{label} candidate images",
+        )
+        require(isinstance(candidate_images_entry, dict), f"{label} candidate-images readiness entry is missing")
+        require(
+            raw_evidence["candidate_images"].get("sha256") == candidate_images_entry.get("sha256"),
+            f"{label} candidate-images SHA-256 does not match readiness",
+        )
+        candidate_images = load_json(candidate_images_target)
+        require(
+            candidate_images.get("contract_version") == "phase5-production-candidate-local-v2",
+            f"{label} linked candidate-images contract mismatch",
+        )
+        require(candidate_images.get("release_id") == release_id, f"{label} linked release mismatch")
+        require(candidate_images.get("source_commit_sha") == source_sha, f"{label} linked source mismatch")
+
+        api_target = require_hashed_tracked_file(
+            raw_evidence.get("api_contract"),
+            f"docs/release-artifacts/{release_id}-evidence/raw/candidate-runtime-api-contract.json",
+            f"{label} API contract",
+        )
+        api_contract = load_json(api_target)
+        require(
+            api_contract.get("contract_version") == "phase5-production-candidate-local-v1",
+            f"{label} API contract version mismatch",
+        )
+        require(
+            api_contract.get("evidence_ref") == "phase5_local_production_candidate_verified",
+            f"{label} API evidence_ref mismatch",
+        )
+        require(api_contract.get("service_count") == 6, f"{label} API service count mismatch")
+        for field in (
+            "registry_publish",
+            "hosted_staging_parity",
+            "production_deploy",
+            "release_promotion",
+            "owner_review_approved",
+            "secret_output",
+        ):
+            require(api_contract.get(field) is False, f"{label} API {field} must remain false")
+
+        screenshot_target = require_hashed_tracked_file(
+            raw_evidence.get("browser_screenshot"),
+            (
+                f"docs/release-artifacts/{release_id}-evidence/raw/"
+                "candidate-runtime-browser.png"
+            ),
+            f"{label} browser screenshot",
+        )
+        screenshot_bytes = screenshot_target.read_bytes()
+        require(
+            len(screenshot_bytes) >= 1024 and screenshot_bytes.startswith(b"\x89PNG\r\n\x1a\n"),
+            f"{label} browser screenshot is not a non-empty PNG",
+        )
+        screenshot_size = raw_evidence["browser_screenshot"].get("size_bytes")
+        require(
+            type(screenshot_size) is int and screenshot_size == len(screenshot_bytes),
+            f"{label} browser screenshot size mismatch",
+        )
 
 
 def rounded_binary_percent(verified: int, total: int) -> int:
@@ -554,14 +1273,7 @@ def validate_candidate(
     require(readiness.get("blocked_item_count") == blocked_count, "readiness blocked count mismatch")
     require(set(readiness.get("blocked_item_ids", [])) == CURRENT_BLOCKED_IDS, "readiness blocked IDs mismatch")
 
-    workflow = readiness.get("ci_workflow", {})
-    require(workflow.get("status") == "success", "candidate CI workflow must be successful")
-    require(workflow.get("head_sha") == source_sha, "candidate CI workflow SHA mismatch")
-    require(
-        isinstance(workflow.get("run_url"), str)
-        and re.fullmatch(r"https://github\.com/[^/\s]+/[^/\s]+/actions/runs/\d+", workflow["run_url"]),
-        "candidate CI workflow URL is invalid",
-    )
+    validate_ci_workflow(readiness.get("ci_workflow"), release_id, source_sha)
 
     local = readiness.get("local_verification", {})
     require(isinstance(local, dict), "candidate local verification must be an object")
@@ -605,12 +1317,19 @@ def validate_candidate(
             isinstance(success_anchors, list) and success_anchors,
             f"candidate local verification {key} success_anchors must not be empty",
         )
-        for index, anchor in enumerate(success_anchors):
-            require_anchor(
-                artifact_target,
-                anchor,
-                f"candidate local verification {key} success anchor #{index + 1}",
-            )
+        if is_legacy_evidence_binding(release_id, source_sha):
+            for index, anchor in enumerate(success_anchors):
+                require_anchor(
+                    artifact_target,
+                    anchor,
+                    f"candidate local verification {key} success anchor #{index + 1}",
+                )
+        else:
+            for index, anchor in enumerate(success_anchors):
+                require(
+                    isinstance(anchor, str) and len(anchor.strip()) >= 8,
+                    f"candidate local verification {key} success anchor #{index + 1} is invalid",
+                )
 
         proof = load_json(artifact_target)
         require(
@@ -624,9 +1343,15 @@ def validate_candidate(
         if key in SUMMARY_CHAINS:
             validate_summary_proof(key, proof, entry, release_id, source_sha)
         elif key == "candidate_images":
-            validate_candidate_images_proof(proof, release_id, source_sha)
+            validate_candidate_images_proof(proof, release_id, source_sha, entry)
         else:
-            validate_candidate_runtime_proof(proof, release_id, source_sha)
+            validate_candidate_runtime_proof(
+                proof,
+                release_id,
+                source_sha,
+                entry,
+                local.get("candidate_images"),
+            )
 
     require(
         run_git("cat-file", "-e", f"{source_sha}^{{commit}}").returncode == 0,

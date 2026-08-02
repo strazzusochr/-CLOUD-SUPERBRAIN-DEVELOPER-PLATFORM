@@ -2,7 +2,8 @@ param(
   [string]$SourceSha = "",
   [string]$ReleaseId = "prod-candidate-2026-07-20-local-rc2",
   [string]$RollbackTarget = "",
-  [string]$OutputDir = ".codex\runs\CURRENT\master-goal\phase5\production-candidate-local"
+  [string]$OutputDir = ".codex\runs\CURRENT\master-goal\phase5\production-candidate-local",
+  [string]$EvidenceRunId = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -44,10 +45,13 @@ function Invoke-Native([string]$Label, [string]$FilePath, [string[]]$Arguments, 
   }
 }
 
-function Get-ContainerSha256([string]$Image, [string]$Path) {
+function Get-ContainerSha256([string]$Image, [string]$Path, [string]$RawOutputPath = "") {
   $value = (& docker run --rm --entrypoint sha256sum $Image $Path 2>&1 | Out-String).Trim()
   if ($LASTEXITCODE -ne 0 -or $value -notmatch '^([0-9a-f]{64})\s+') {
     throw "Could not hash $Path in $Image. Value: $value"
+  }
+  if ($RawOutputPath) {
+    [IO.File]::WriteAllText($RawOutputPath, "$value`n", [Text.UTF8Encoding]::new($false))
   }
   return $Matches[1]
 }
@@ -85,6 +89,18 @@ try {
   if ($LASTEXITCODE -ne 0 -or $resolvedSourceSha -notmatch '^[0-9a-f]{40}$') {
     throw "SourceSha is not a local commit: $SourceSha"
   }
+  $legacyEvidence = (
+    $ReleaseId -eq "prod-candidate-2026-07-31-local-rc11" -and
+    $resolvedSourceSha -eq "bae3cdc1692e1e99e7f546f72664a3c747958b8c"
+  )
+  if (-not $legacyEvidence) {
+    if ([string]::IsNullOrWhiteSpace($EvidenceRunId)) {
+      $EvidenceRunId = [Guid]::NewGuid().ToString("D").ToLowerInvariant()
+    }
+    if ($EvidenceRunId -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$') {
+      throw "EvidenceRunId must be a lowercase RFC 4122 version-4 UUID."
+    }
+  }
 
   if ([string]::IsNullOrWhiteSpace($RollbackTarget)) {
     $activeConfig = Get-Content "docs\release-artifacts\current-release-candidate.json" -Raw | ConvertFrom-Json
@@ -107,6 +123,9 @@ try {
   New-Item -ItemType Directory -Force -Path $outputPath | Out-Null
   $logsPath = Join-Path $outputPath "build-logs"
   New-Item -ItemType Directory -Force -Path $logsPath | Out-Null
+  $rawPath = Join-Path $outputPath "raw"
+  $rawImagesPath = Join-Path $rawPath "candidate-images"
+  New-Item -ItemType Directory -Force -Path $rawImagesPath | Out-Null
 
   $tempRoot = [System.IO.Path]::GetFullPath((Join-Path ([System.IO.Path]::GetTempPath()) "cloud-superbrain-phase5"))
   New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
@@ -148,6 +167,7 @@ try {
     )
 
     $images = @()
+    $rawImages = @()
     foreach ($service in $serviceDefinitions) {
       $imageTag = "cloud-superbrain-production-candidate/$($service.id):$resolvedSourceSha"
       $dockerfilePath = Join-Path $sourcePath $service.dockerfile
@@ -168,10 +188,17 @@ try {
       Write-Host "[phase5-candidate-local] building $($service.id) from committed archive $resolvedSourceSha"
       Invoke-Native "docker build $($service.id)" "docker" $buildArgs (Join-Path $logsPath "$($service.id).log")
 
-      $inspect = @(& docker image inspect $imageTag | ConvertFrom-Json)[0]
-      if ($LASTEXITCODE -ne 0 -or $null -eq $inspect) {
+      $inspectRaw = (& docker image inspect $imageTag 2>&1 | Out-String).Trim()
+      $inspectExit = $LASTEXITCODE
+      if ($inspectExit -ne 0 -or [string]::IsNullOrWhiteSpace($inspectRaw)) {
         throw "docker inspect failed for $imageTag"
       }
+      $inspect = @($inspectRaw | ConvertFrom-Json)[0]
+      if ($null -eq $inspect) {
+        throw "docker inspect returned invalid JSON for $imageTag"
+      }
+      $inspectRawPath = Join-Path $rawImagesPath "$($service.id)-inspect.json"
+      [IO.File]::WriteAllText($inspectRawPath, "$inspectRaw`n", [Text.UTF8Encoding]::new($false))
       $revision = [string]$inspect.Config.Labels.'org.opencontainers.image.revision'
       $version = [string]$inspect.Config.Labels.'org.opencontainers.image.version'
       if ($revision -ne $resolvedSourceSha -or $version -ne $ReleaseId) {
@@ -180,7 +207,8 @@ try {
 
       $sourceFilePath = Join-Path $sourcePath $service.source_file
       $sourceFileSha256 = Get-FileSha256 $sourceFilePath
-      $embeddedFileSha256 = Get-ContainerSha256 -Image $imageTag -Path $service.embedded_file
+      $embeddedRawPath = Join-Path $rawImagesPath "$($service.id)-embedded-sha256.txt"
+      $embeddedFileSha256 = Get-ContainerSha256 -Image $imageTag -Path $service.embedded_file -RawOutputPath $embeddedRawPath
       if ($sourceFileSha256 -ne $embeddedFileSha256) {
         throw "Embedded source hash mismatch for $($service.id)"
       }
@@ -191,6 +219,11 @@ try {
         if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($frontendBuildId)) {
           throw "Frontend production image does not contain a Next.js BUILD_ID."
         }
+        [IO.File]::WriteAllText(
+          (Join-Path $rawImagesPath "frontend-build-id.txt"),
+          "$frontendBuildId`n",
+          [Text.UTF8Encoding]::new($false)
+        )
       }
 
       $images += [ordered]@{
@@ -209,10 +242,49 @@ try {
         oci_version = $version
         frontend_build_id = $frontendBuildId
       }
+      $rawImage = [ordered]@{
+        service = $service.id
+        inspect = [ordered]@{
+          path = "docs/release-artifacts/$ReleaseId-evidence/raw/candidate-images/$($service.id)-inspect.json"
+          sha256 = (Get-FileHash -LiteralPath $inspectRawPath -Algorithm SHA256).Hash
+        }
+        embedded_hash = [ordered]@{
+          path = "docs/release-artifacts/$ReleaseId-evidence/raw/candidate-images/$($service.id)-embedded-sha256.txt"
+          sha256 = (Get-FileHash -LiteralPath $embeddedRawPath -Algorithm SHA256).Hash
+        }
+      }
+      if ($service.id -eq "frontend") {
+        $frontendBuildIdPath = Join-Path $rawImagesPath "frontend-build-id.txt"
+        $rawImage["frontend_build_id"] = [ordered]@{
+          path = "docs/release-artifacts/$ReleaseId-evidence/raw/candidate-images/frontend-build-id.txt"
+          sha256 = (Get-FileHash -LiteralPath $frontendBuildIdPath -Algorithm SHA256).Hash
+        }
+      }
+      $rawImages += $rawImage
+    }
+
+    $evidenceCommand = (
+      "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/build-phase5-production-candidate-local.ps1 " +
+      "-SourceSha $resolvedSourceSha -ReleaseId $ReleaseId -RollbackTarget $RollbackTarget " +
+      "-OutputDir $OutputDir -EvidenceRunId $EvidenceRunId"
+    )
+    $rawLogPath = Join-Path $rawPath "candidate-images.log"
+    if (-not $legacyEvidence) {
+      $rawLogLines = @(
+        "PHASE5_EVIDENCE_RAW_V2",
+        "[phase5-evidence] chain=candidate-images",
+        "[phase5-evidence] release_id=$ReleaseId",
+        "[phase5-evidence] source_commit_sha=$resolvedSourceSha",
+        "[phase5-evidence] evidence_run_id=$EvidenceRunId",
+        "[phase5-evidence] command=$evidenceCommand",
+        "[phase5-candidate-local] status=verified service_count=$($images.Count)",
+        "[phase5-evidence] exit_code=0"
+      )
+      [IO.File]::WriteAllLines($rawLogPath, $rawLogLines, [Text.UTF8Encoding]::new($false))
     }
 
     $report = [ordered]@{
-      contract_version = "phase5-production-candidate-local-v1"
+      contract_version = $(if ($legacyEvidence) { "phase5-production-candidate-local-v1" } else { "phase5-production-candidate-local-v2" })
       evidence_ref = "phase5_local_production_candidate_verified"
       status = "verified"
       generated_at = (Get-Date).ToUniversalTime().ToString("o")
@@ -239,6 +311,16 @@ try {
         "DEV-ONLY; hosted proof still blocked.",
         "No production deployment or release promotion was performed."
       )
+    }
+    if (-not $legacyEvidence) {
+      $report["command"] = $evidenceCommand
+      $report["evidence_run_id"] = $EvidenceRunId
+      $report["raw_log_path"] = "docs/release-artifacts/$ReleaseId-evidence/raw/candidate-images.log"
+      $report["raw_log_sha256"] = (Get-FileHash -LiteralPath $rawLogPath -Algorithm SHA256).Hash
+      $report["observed_success_anchors"] = @(
+        "[phase5-candidate-local] status=verified service_count=$($images.Count)"
+      )
+      $report["raw_evidence"] = [ordered]@{ images = $rawImages }
     }
     $report | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $outputPath "candidate-images.json") -Encoding utf8
 

@@ -9,6 +9,7 @@ evidence file after every remote assertion has passed.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -22,6 +23,8 @@ from urllib.parse import urlparse
 
 
 CONTRACT_VERSION = "ghcr-release-manifest-v1"
+ACTIVE_TRUTH_CONTRACT_VERSION = "phase5-credit-itemization-v2"
+CANONICAL_ACTIVE_TRUTH_PATH = Path("docs/runtime-state/phase5-credit-itemization.json")
 EXPECTED_SERVICES = (
     "agent-api",
     "mcp-gateway",
@@ -43,7 +46,7 @@ NAMESPACE_RE = re.compile(
 )
 REPOSITORY_RE = re.compile(
     r"[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?/"
-    r"[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?"
+    r"[A-Za-z0-9._-]+"
 )
 
 
@@ -78,9 +81,16 @@ class WorkflowMetadata:
 class VerificationConfig:
     namespace: str
     candidate_sha: str
+    active_candidate_sha: str
+    active_release_id: str
     control_sha: str
     output: Path
     workflow: WorkflowMetadata
+    active_truth_sha256: str
+    active_truth_control_sha256: str
+    baseline_manifest: Mapping[str, Any] | None = None
+    baseline_manifest_path: str = ""
+    baseline_manifest_sha256: str = ""
     services: tuple[str, ...] = EXPECTED_SERVICES
 
 
@@ -107,6 +117,146 @@ def _require_digest(value: Any, label: str) -> str:
     return value
 
 
+def _require_release_id(value: Any, label: str = "active_release_id") -> str:
+    _require(
+        isinstance(value, str)
+        and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{2,127}", value) is not None,
+        f"{label} must be a non-placeholder release identifier",
+    )
+    return value
+
+
+def _sha256_bytes(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def _read_json_file(path: Path, label: str) -> tuple[dict[str, Any], bytes]:
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise VerificationError(f"{label} is unavailable") from exc
+    try:
+        value = json.loads(raw.decode("utf-8-sig"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise VerificationError(f"{label} is not valid UTF-8 JSON") from exc
+    _require(isinstance(value, dict), f"{label} must be a JSON object")
+    return value, raw
+
+
+def _run_git(command: Sequence[str], label: str) -> CommandResult:
+    try:
+        completed = subprocess.run(
+            ["git", *command],
+            check=False,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError, subprocess.TimeoutExpired) as exc:
+        raise VerificationError(f"{label} could not be verified with git") from exc
+    _require(completed.returncode == 0, f"{label} could not be verified with git")
+    return CommandResult(
+        completed.returncode,
+        completed.stdout.decode("utf-8", errors="replace"),
+        completed.stderr.decode("utf-8", errors="replace"),
+    )
+
+
+def _require_tracked_clean_repo_file(path: Path, label: str) -> str:
+    repo_root = Path(
+        _run_git(("rev-parse", "--show-toplevel"), "repository root").stdout.strip()
+    ).resolve()
+    try:
+        resolved = path.resolve(strict=True)
+        relative = resolved.relative_to(repo_root).as_posix()
+    except (OSError, ValueError) as exc:
+        raise VerificationError(f"{label} must be a tracked file inside the repository") from exc
+    _run_git(("ls-files", "--error-unmatch", "--", relative), f"{label} tracking")
+    for diff_args in (
+        ("diff", "--quiet", "--", relative),
+        ("diff", "--cached", "--quiet", "--", relative),
+    ):
+        try:
+            completed = subprocess.run(
+                ["git", *diff_args],
+                check=False,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=30,
+            )
+        except (OSError, subprocess.SubprocessError, subprocess.TimeoutExpired) as exc:
+            raise VerificationError(f"{label} cleanliness could not be verified") from exc
+        _require(completed.returncode == 0, f"{label} has unstaged or staged drift")
+    return relative
+
+
+def _validate_active_truth_object(
+    truth: Mapping[str, Any],
+    candidate_sha: str,
+    label: str,
+) -> str:
+    _require(
+        truth.get("contract_version") == ACTIVE_TRUTH_CONTRACT_VERSION,
+        f"{label} contract_version is invalid",
+    )
+    truth_candidate = _require_sha40(
+        truth.get("active_source_commit_sha"), f"{label} active_source_commit_sha"
+    )
+    _require(
+        truth_candidate == candidate_sha,
+        f"{label} selects a stale candidate instead of the requested active candidate",
+    )
+    return _require_release_id(truth.get("active_release_id"), f"{label} active_release_id")
+
+
+def load_active_candidate_truth(
+    path: Path,
+    candidate_sha: str,
+    control_sha: str,
+) -> tuple[str, str, str]:
+    """Bind a requested candidate to clean tracked truth and the workflow control commit."""
+
+    canonical_path = (Path.cwd() / CANONICAL_ACTIVE_TRUTH_PATH).resolve()
+    try:
+        requested_path = path.resolve(strict=True)
+    except OSError as exc:
+        raise VerificationError("active candidate truth is unavailable") from exc
+    _require(
+        requested_path == canonical_path,
+        "active candidate truth must use docs/runtime-state/phase5-credit-itemization.json",
+    )
+
+    _require_tracked_clean_repo_file(requested_path, "active candidate truth")
+
+    truth, truth_raw = _read_json_file(requested_path, "active candidate truth")
+    active_release_id = _validate_active_truth_object(
+        truth, candidate_sha, "active candidate truth"
+    )
+
+    control_snapshot = _run_git(
+        ("show", f"{control_sha}:{CANONICAL_ACTIVE_TRUTH_PATH.as_posix()}"),
+        "control-SHA active candidate truth",
+    ).stdout.encode("utf-8")
+    try:
+        control_truth = json.loads(control_snapshot.decode("utf-8"))
+    except json.JSONDecodeError as exc:
+        raise VerificationError("control-SHA active candidate truth is invalid JSON") from exc
+    _require(
+        isinstance(control_truth, dict),
+        "control-SHA active candidate truth must be a JSON object",
+    )
+    control_release_id = _validate_active_truth_object(
+        control_truth, candidate_sha, "control-SHA active candidate truth"
+    )
+    _require(
+        control_release_id == active_release_id,
+        "control-SHA release id does not bind the current active release id",
+    )
+    return active_release_id, _sha256_bytes(truth_raw), _sha256_bytes(control_snapshot)
+
+
 def _validate_services(services: Sequence[str]) -> tuple[str, ...]:
     normalized = tuple(services)
     _require(len(normalized) == len(EXPECTED_SERVICES), "exactly six services are required")
@@ -129,7 +279,25 @@ def _validate_config(config: VerificationConfig) -> tuple[str, ...]:
     )
     _require(":" not in config.namespace and "@" not in config.namespace, "namespace may not contain a tag or digest")
     _require_sha40(config.candidate_sha, "candidate_sha")
+    _require_sha40(config.active_candidate_sha, "active_candidate_sha")
+    _require(
+        config.candidate_sha == config.active_candidate_sha,
+        "candidate_sha does not equal the active release-candidate SHA",
+    )
+    _require_release_id(config.active_release_id)
     _require_sha40(config.control_sha, "control_sha")
+    _require(
+        config.candidate_sha != config.control_sha,
+        "candidate_sha must remain distinct from the workflow control_sha",
+    )
+    _require(
+        re.fullmatch(r"[0-9a-f]{64}", config.active_truth_sha256) is not None,
+        "active_truth_sha256 must be a sha256 hex digest",
+    )
+    _require(
+        re.fullmatch(r"[0-9a-f]{64}", config.active_truth_control_sha256) is not None,
+        "active_truth_control_sha256 must be a sha256 hex digest",
+    )
 
     workflow = config.workflow
     _require(
@@ -137,11 +305,20 @@ def _validate_config(config: VerificationConfig) -> tuple[str, ...]:
         and REPOSITORY_RE.fullmatch(workflow.repository) is not None,
         "workflow repository must be an owner/repository pair",
     )
-    _require(isinstance(workflow.workflow_name, str) and workflow.workflow_name.strip(), "workflow name is required")
+    _require(
+        workflow.workflow_name == "main-deploy",
+        "workflow name must be main-deploy",
+    )
     _require(isinstance(workflow.run_id, str) and re.fullmatch(r"[1-9][0-9]*", workflow.run_id) is not None, "workflow run_id must be a positive integer string")
     _require(type(workflow.run_attempt) is int and workflow.run_attempt > 0, "workflow run_attempt must be positive")
-    _require(isinstance(workflow.ref, str) and workflow.ref.startswith("refs/"), "workflow ref must be an explicit refs/* value")
-    _require(isinstance(workflow.event_name, str) and workflow.event_name.strip(), "workflow event_name is required")
+    _require(
+        isinstance(workflow.ref, str) and workflow.ref.startswith("refs/heads/"),
+        "workflow ref must be an explicit branch ref",
+    )
+    _require(
+        workflow.event_name == "workflow_dispatch",
+        "workflow event_name must be workflow_dispatch",
+    )
     _require_sha40(workflow.head_sha, "workflow head_sha")
     _require_sha40(workflow.candidate_sha, "workflow candidate_sha")
     _require(workflow.head_sha == config.control_sha, "workflow head_sha does not bind control_sha")
@@ -282,6 +459,119 @@ def _parse_config_labels(
     return required
 
 
+def _manifest_digest_matrix(
+    manifest: Mapping[str, Any],
+    namespace: str,
+    candidate_sha: str,
+    label: str,
+) -> dict[str, dict[str, Any]]:
+    images = manifest.get("images")
+    _require(isinstance(images, list) and len(images) == 6, f"{label} must contain six images")
+    matrix: dict[str, dict[str, Any]] = {}
+    top_digests: set[str] = set()
+    for position, image in enumerate(images, start=1):
+        image_label = f"{label} image #{position}"
+        _require(isinstance(image, dict), f"{image_label} must be an object")
+        service = image.get("service")
+        _require(service in EXPECTED_SERVICES, f"{image_label} has an unexpected service")
+        _require(service not in matrix, f"{label} duplicates service {service}")
+        expected_ref = f"{namespace}/{service}:{candidate_sha}"
+        _require(image.get("tag") == candidate_sha, f"{service} {label} uses a stale or mutable tag")
+        _require(image.get("image_ref") == expected_ref, f"{service} {label} image_ref mismatch")
+        top_digest = _require_digest(image.get("digest"), f"{service} {label} top digest")
+        _require(top_digest not in top_digests, f"{label} duplicates a top digest")
+        top_digests.add(top_digest)
+
+        platform_entries = image.get("index_platforms")
+        _require(
+            isinstance(platform_entries, list) and len(platform_entries) == 2,
+            f"{service} {label} must contain two platform digests",
+        )
+        platform_digests: dict[str, str] = {}
+        for platform_entry in platform_entries:
+            _require(isinstance(platform_entry, dict), f"{service} {label} platform entry must be an object")
+            platform = platform_entry.get("platform")
+            _require(platform in EXPECTED_PLATFORMS, f"{service} {label} has an unexpected platform")
+            _require(platform not in platform_digests, f"{service} {label} duplicates platform {platform}")
+            digest = _require_digest(
+                platform_entry.get("digest"), f"{service} {platform} {label} digest"
+            )
+            expected_digest_ref = f"{namespace}/{service}@{digest}"
+            digest_ref = platform_entry.get("digest_ref", expected_digest_ref)
+            _require(
+                digest_ref == expected_digest_ref,
+                f"{service} {platform} {label} digest_ref mismatch",
+            )
+            platform_digests[platform] = digest
+        _require(
+            set(platform_digests) == set(EXPECTED_PLATFORMS),
+            f"{service} {label} platform set is incomplete",
+        )
+        matrix[service] = {"top": top_digest, "platforms": platform_digests}
+    _require(set(matrix) == set(EXPECTED_SERVICES), f"{label} service set is incomplete")
+    return matrix
+
+
+def load_baseline_manifest(
+    path: Path,
+    active_candidate_sha: str,
+) -> tuple[dict[str, Any], str, str]:
+    """Load a prior publication manifest used for immutable digest readback."""
+
+    relative_path = _require_tracked_clean_repo_file(path, "published GHCR manifest")
+    manifest, raw = _read_json_file(path, "published GHCR manifest")
+    _require(manifest.get("contract_version") == CONTRACT_VERSION, "published GHCR manifest contract is invalid")
+    _require(manifest.get("status") == "verified", "published GHCR manifest is not verified")
+    _require(manifest.get("publication_complete") is True, "published GHCR manifest is incomplete")
+    _require(manifest.get("registry") == "ghcr.io", "published GHCR manifest registry mismatch")
+    candidate_sha = _require_sha40(manifest.get("candidate_sha"), "published manifest candidate_sha")
+    _require(
+        candidate_sha == active_candidate_sha,
+        "published GHCR manifest selects a stale candidate",
+    )
+    active_binding = manifest.get("active_release_candidate")
+    _require(
+        isinstance(active_binding, dict),
+        "published GHCR manifest active release binding is unavailable",
+    )
+    _require_release_id(
+        active_binding.get("release_id"),
+        "published GHCR manifest active release id",
+    )
+    _require(
+        active_binding.get("source_commit_sha") == active_candidate_sha
+        and active_binding.get("image_tag") == active_candidate_sha,
+        "published GHCR manifest active source/tag binding mismatch",
+    )
+    _require(
+        active_binding.get("truth_contract_version") == ACTIVE_TRUTH_CONTRACT_VERSION,
+        "published GHCR manifest active truth contract mismatch",
+    )
+    for digest_field in ("truth_sha256", "control_truth_sha256"):
+        _require(
+            isinstance(active_binding.get(digest_field), str)
+            and re.fullmatch(r"[0-9a-f]{64}", active_binding[digest_field]) is not None,
+            f"published GHCR manifest {digest_field} is invalid",
+        )
+    publication_readback = manifest.get("registry_readback")
+    _require(
+        isinstance(publication_readback, dict)
+        and publication_readback.get("mode") == "publication-verification"
+        and publication_readback.get("source_manifest_bound") is False
+        and publication_readback.get("digest_readback_matches_publication") is True
+        and publication_readback.get("inspected_image_count") == 6
+        and publication_readback.get("inspected_platform_manifest_count") == 12,
+        "published GHCR manifest publication readback contract is invalid",
+    )
+    namespace = manifest.get("namespace")
+    _require(
+        isinstance(namespace, str) and NAMESPACE_RE.fullmatch(namespace) is not None,
+        "published GHCR manifest namespace is invalid",
+    )
+    _manifest_digest_matrix(manifest, namespace, candidate_sha, "published GHCR manifest")
+    return manifest, relative_path, _sha256_bytes(raw)
+
+
 def verify_candidate(config: VerificationConfig, runner: CommandRunner = subprocess_runner) -> dict[str, Any]:
     """Inspect and validate the candidate, returning the evidence object in memory."""
 
@@ -338,6 +628,7 @@ def verify_candidate(config: VerificationConfig, runner: CommandRunner = subproc
                 {
                     "platform": platform,
                     "digest": platform_digest,
+                    "digest_ref": digest_ref,
                     "oci_labels": labels,
                 }
             )
@@ -353,6 +644,36 @@ def verify_candidate(config: VerificationConfig, runner: CommandRunner = subproc
         )
 
     _require(len(images) == 6 and len(top_digests) == 6, "candidate publication must contain six unique image digests")
+    readback_matrix = _manifest_digest_matrix(
+        {"images": images}, config.namespace, config.candidate_sha, "registry readback"
+    )
+    baseline_bound = config.baseline_manifest is not None
+    if baseline_bound:
+        _require(
+            re.fullmatch(r"[0-9a-f]{64}", config.baseline_manifest_sha256) is not None,
+            "baseline_manifest_sha256 must be a sha256 hex digest",
+        )
+        baseline = config.baseline_manifest
+        _require(baseline.get("candidate_sha") == config.candidate_sha, "baseline candidate SHA mismatch")
+        _require(baseline.get("control_sha") == config.control_sha, "baseline control SHA mismatch")
+        baseline_workflow = baseline.get("workflow")
+        _require(isinstance(baseline_workflow, dict), "baseline workflow binding is unavailable")
+        _require(
+            baseline_workflow.get("run_id") == config.workflow.run_id
+            and baseline_workflow.get("run_attempt") == config.workflow.run_attempt
+            and baseline_workflow.get("run_url") == config.workflow.run_url
+            and baseline_workflow.get("head_sha") == config.workflow.head_sha
+            and baseline_workflow.get("candidate_sha") == config.workflow.candidate_sha,
+            "baseline workflow run/control/source binding mismatch",
+        )
+        baseline_matrix = _manifest_digest_matrix(
+            baseline, config.namespace, config.candidate_sha, "published GHCR manifest"
+        )
+        _require(
+            readback_matrix == baseline_matrix,
+            "registry digest readback differs from the published immutable candidate manifest",
+        )
+
     return {
         "contract_version": CONTRACT_VERSION,
         "status": "verified",
@@ -361,6 +682,15 @@ def verify_candidate(config: VerificationConfig, runner: CommandRunner = subproc
         "namespace": config.namespace,
         "candidate_sha": config.candidate_sha,
         "control_sha": config.control_sha,
+        "active_release_candidate": {
+            "release_id": config.active_release_id,
+            "source_commit_sha": config.active_candidate_sha,
+            "image_tag": config.active_candidate_sha,
+            "truth_contract_version": ACTIVE_TRUTH_CONTRACT_VERSION,
+            "truth_path": CANONICAL_ACTIVE_TRUTH_PATH.as_posix(),
+            "truth_sha256": config.active_truth_sha256,
+            "control_truth_sha256": config.active_truth_control_sha256,
+        },
         "service_count": 6,
         "services": list(EXPECTED_SERVICES),
         "required_platforms": list(EXPECTED_PLATFORMS),
@@ -382,6 +712,15 @@ def verify_candidate(config: VerificationConfig, runner: CommandRunner = subproc
             "event_name": config.workflow.event_name,
         },
         "images": images,
+        "registry_readback": {
+            "mode": "published-manifest-revalidation" if baseline_bound else "publication-verification",
+            "source_manifest_bound": baseline_bound,
+            "source_manifest_path": config.baseline_manifest_path if baseline_bound else "",
+            "source_manifest_sha256": config.baseline_manifest_sha256 if baseline_bound else "",
+            "digest_readback_matches_publication": True,
+            "inspected_image_count": 6,
+            "inspected_platform_manifest_count": 12,
+        },
         "inspection_command": "docker buildx imagetools inspect",
         "inspection_read_only": True,
         "selected_tag_is_exact_candidate_sha": True,
@@ -415,28 +754,111 @@ def _env(name: str) -> str | None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--namespace", default=_env("GHCR_IMAGE_NAMESPACE"), required=_env("GHCR_IMAGE_NAMESPACE") is None)
-    parser.add_argument("--candidate-sha", default=_env("CANDIDATE_SHA"), required=_env("CANDIDATE_SHA") is None)
-    parser.add_argument("--control-sha", default=_env("CONTROL_SHA"), required=_env("CONTROL_SHA") is None)
+    parser.add_argument("--namespace", default=_env("GHCR_IMAGE_NAMESPACE"))
+    parser.add_argument("--candidate-sha", default=_env("CANDIDATE_SHA"))
+    parser.add_argument("--active-candidate-sha", default=_env("ACTIVE_RELEASE_CANDIDATE_SHA"))
+    parser.add_argument(
+        "--active-candidate-truth",
+        type=Path,
+        default=Path(_env("ACTIVE_RELEASE_CANDIDATE_TRUTH") or CANONICAL_ACTIVE_TRUTH_PATH),
+    )
+    parser.add_argument("--source-manifest", type=Path, default=_env("GHCR_PUBLISHED_MANIFEST"))
+    parser.add_argument("--control-sha", default=_env("CONTROL_SHA"))
     parser.add_argument("--output", type=Path, default=_env("GHCR_RELEASE_MANIFEST"), required=_env("GHCR_RELEASE_MANIFEST") is None)
-    parser.add_argument("--repository", default=_env("GITHUB_REPOSITORY"), required=_env("GITHUB_REPOSITORY") is None)
-    parser.add_argument("--workflow-name", default=_env("GITHUB_WORKFLOW"), required=_env("GITHUB_WORKFLOW") is None)
-    parser.add_argument("--workflow-run-id", default=_env("GITHUB_RUN_ID"), required=_env("GITHUB_RUN_ID") is None)
-    parser.add_argument("--workflow-run-attempt", type=int, default=_env("GITHUB_RUN_ATTEMPT"), required=_env("GITHUB_RUN_ATTEMPT") is None)
-    parser.add_argument("--workflow-run-url", default=_env("WORKFLOW_RUN_URL"), required=_env("WORKFLOW_RUN_URL") is None)
-    parser.add_argument("--workflow-ref", default=_env("GITHUB_REF"), required=_env("GITHUB_REF") is None)
-    parser.add_argument("--workflow-head-sha", default=_env("GITHUB_SHA"), required=_env("GITHUB_SHA") is None)
-    parser.add_argument("--workflow-candidate-sha", default=_env("WORKFLOW_CANDIDATE_SHA"), required=_env("WORKFLOW_CANDIDATE_SHA") is None)
-    parser.add_argument("--workflow-event-name", default=_env("GITHUB_EVENT_NAME"), required=_env("GITHUB_EVENT_NAME") is None)
+    parser.add_argument("--repository", default=_env("GITHUB_REPOSITORY"))
+    parser.add_argument("--workflow-name", default=_env("GITHUB_WORKFLOW"))
+    parser.add_argument("--workflow-run-id", default=_env("GITHUB_RUN_ID"))
+    parser.add_argument("--workflow-run-attempt", type=int, default=_env("GITHUB_RUN_ATTEMPT"))
+    parser.add_argument("--workflow-run-url", default=_env("WORKFLOW_RUN_URL"))
+    parser.add_argument("--workflow-ref", default=_env("GITHUB_REF"))
+    parser.add_argument("--workflow-head-sha", default=_env("GITHUB_SHA"))
+    parser.add_argument("--workflow-candidate-sha", default=_env("WORKFLOW_CANDIDATE_SHA"))
+    parser.add_argument("--workflow-event-name", default=_env("GITHUB_EVENT_NAME"))
     return parser
 
 
 def config_from_args(args: argparse.Namespace) -> VerificationConfig:
+    baseline: dict[str, Any] | None = None
+    baseline_path = ""
+    baseline_sha256 = ""
+    active_candidate_sha = args.active_candidate_sha or args.candidate_sha
+    _require(active_candidate_sha is not None, "active release-candidate SHA is required")
+    _require_sha40(active_candidate_sha, "active release-candidate SHA")
+
+    if args.source_manifest is not None:
+        baseline, baseline_path, baseline_sha256 = load_baseline_manifest(
+            args.source_manifest, active_candidate_sha
+        )
+        workflow_payload = baseline.get("workflow")
+        _require(isinstance(workflow_payload, dict), "published GHCR manifest workflow is unavailable")
+
+        derived = {
+            "namespace": baseline.get("namespace"),
+            "candidate_sha": baseline.get("candidate_sha"),
+            "control_sha": baseline.get("control_sha"),
+            "repository": workflow_payload.get("repository"),
+            "workflow_name": workflow_payload.get("name"),
+            "workflow_run_id": workflow_payload.get("run_id"),
+            "workflow_run_attempt": workflow_payload.get("run_attempt"),
+            "workflow_run_url": workflow_payload.get("run_url"),
+            "workflow_ref": workflow_payload.get("ref"),
+            "workflow_head_sha": workflow_payload.get("head_sha"),
+            "workflow_candidate_sha": workflow_payload.get("candidate_sha"),
+            "workflow_event_name": workflow_payload.get("event_name"),
+        }
+        for argument_name, derived_value in derived.items():
+            explicit_value = getattr(args, argument_name)
+            if explicit_value is not None:
+                _require(
+                    explicit_value == derived_value,
+                    f"explicit {argument_name} does not match the published GHCR manifest",
+                )
+            setattr(args, argument_name, derived_value)
+
+    required_values = {
+        "namespace": args.namespace,
+        "candidate_sha": args.candidate_sha,
+        "control_sha": args.control_sha,
+        "repository": args.repository,
+        "workflow_name": args.workflow_name,
+        "workflow_run_id": args.workflow_run_id,
+        "workflow_run_attempt": args.workflow_run_attempt,
+        "workflow_run_url": args.workflow_run_url,
+        "workflow_ref": args.workflow_ref,
+        "workflow_head_sha": args.workflow_head_sha,
+        "workflow_candidate_sha": args.workflow_candidate_sha,
+        "workflow_event_name": args.workflow_event_name,
+    }
+    missing = [name for name, value in required_values.items() if value in (None, "")]
+    _require(not missing, f"missing required candidate metadata: {', '.join(missing)}")
+
+    active_release_id, active_truth_sha256, control_truth_sha256 = load_active_candidate_truth(
+        args.active_candidate_truth,
+        active_candidate_sha,
+        args.control_sha,
+    )
+    if baseline is not None:
+        active_binding = baseline["active_release_candidate"]
+        _require(
+            active_binding.get("release_id") == active_release_id,
+            "published GHCR manifest release id is stale",
+        )
+        _require(
+            active_binding.get("control_truth_sha256") == control_truth_sha256,
+            "published GHCR manifest control-truth digest mismatch",
+        )
     return VerificationConfig(
         namespace=args.namespace,
         candidate_sha=args.candidate_sha,
+        active_candidate_sha=active_candidate_sha,
+        active_release_id=active_release_id,
         control_sha=args.control_sha,
         output=args.output,
+        active_truth_sha256=active_truth_sha256,
+        active_truth_control_sha256=control_truth_sha256,
+        baseline_manifest=baseline,
+        baseline_manifest_path=baseline_path,
+        baseline_manifest_sha256=baseline_sha256,
         workflow=WorkflowMetadata(
             repository=args.repository,
             workflow_name=args.workflow_name,

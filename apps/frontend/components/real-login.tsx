@@ -4,6 +4,60 @@ import { useEffect, useRef, useState } from "react";
 
 type User = { name: string; provider: string } | null;
 
+function githubUser(payload: unknown): User {
+  if (
+    payload
+    && typeof payload === "object"
+    && "status" in payload
+    && payload.status === "authenticated"
+    && "identity_verified" in payload
+    && payload.identity_verified === true
+    && "jwt_signature_verified" in payload
+    && payload.jwt_signature_verified === true
+    && "identity" in payload
+    && payload.identity
+    && typeof payload.identity === "object"
+    && "provider" in payload.identity
+    && payload.identity.provider === "github"
+    && "provider_user_id" in payload.identity
+    && Number.isInteger(payload.identity.provider_user_id)
+    && Number(payload.identity.provider_user_id) > 0
+  ) {
+    return { name: `GitHub #${payload.identity.provider_user_id}`, provider: "github" };
+  }
+  return null;
+}
+
+async function oauthIdentityWithRefresh(): Promise<User> {
+  const identityResponse = await fetch("/api/v1/auth/me", { cache: "no-store" });
+  const identity = await identityResponse.json().catch(() => null);
+  if (identityResponse.ok) return githubUser(identity);
+  if (identityResponse.status !== 401) return null;
+
+  const refreshResponse = await fetch("/api/v1/auth/refresh", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+    cache: "no-store",
+  });
+  const refresh = await refreshResponse.json().catch(() => null);
+  if (
+    !refreshResponse.ok
+    || refresh?.status !== "rotated"
+    || refresh?.access_token_issued !== true
+    || refresh?.refresh_token_rotated !== true
+    || refresh?.old_refresh_token_blacklisted !== true
+    || refresh?.active_registry_verified !== true
+    || refresh?.audit_persisted !== true
+  ) {
+    return null;
+  }
+
+  const retriedResponse = await fetch("/api/v1/auth/me", { cache: "no-store" });
+  const retriedIdentity = await retriedResponse.json().catch(() => null);
+  return retriedResponse.ok ? githubUser(retriedIdentity) : null;
+}
+
 // Real session sign-in: creates a genuine persisted session + httpOnly cookie.
 export function RealLogin() {
   const [user, setUser] = useState<User>(null);
@@ -34,19 +88,9 @@ export function RealLogin() {
 
       if (oauthBoundaryReady) {
         try {
-          const identityResponse = await fetch("/api/v1/auth/me", { cache: "no-store" });
-          const identity = await identityResponse.json().catch(() => null);
-          if (
-            alive
-            && identityResponse.ok
-            && identity?.status === "authenticated"
-            && identity?.identity_verified === true
-            && identity?.jwt_signature_verified === true
-            && identity?.identity?.provider === "github"
-            && Number.isInteger(identity?.identity?.provider_user_id)
-            && identity.identity.provider_user_id > 0
-          ) {
-            setUser({ name: `GitHub #${identity.identity.provider_user_id}`, provider: "github" });
+          const githubIdentity = await oauthIdentityWithRefresh();
+          if (alive && githubIdentity) {
+            setUser(githubIdentity);
             return;
           }
         } catch {
@@ -87,23 +131,27 @@ export function RealLogin() {
     setBusy(true);
     setError("");
     try {
-      if (user?.provider === "github") {
-        const response = await fetch("/api/v1/auth/logout", { method: "POST" });
+      const oauthApplicable = oauthReady || user?.provider === "github";
+      const oauthRevoke = oauthApplicable
+        ? (async () => {
+            const response = await fetch("/api/v1/auth/logout", { method: "POST", cache: "no-store" });
+            const payload = await response.json().catch(() => null);
+            return response.ok
+              && payload?.status === "logged_out"
+              && payload?.cookies_cleared === true
+              && payload?.active_refresh_token_absent === true
+              && payload?.audit_persisted === true;
+          })()
+        : Promise.resolve(true);
+      const localRevoke = (async () => {
+        const response = await fetch("/api/v1/auth/session", { method: "DELETE", cache: "no-store" });
         const payload = await response.json().catch(() => null);
-        if (
-          !response.ok
-          || payload?.status !== "logged_out"
-          || payload?.cookies_cleared !== true
-          || payload?.active_refresh_token_absent !== true
-          || payload?.audit_persisted !== true
-        ) {
-          throw new Error("oauth_sign_out_failed");
-        }
-        await fetch("/api/v1/auth/session", { method: "DELETE" }).catch(() => null);
-      } else {
-        const response = await fetch("/api/v1/auth/session", { method: "DELETE" });
-        if (!response.ok) throw new Error("sign_out_failed");
-      }
+        return response.ok
+          && payload?.status === "signed_out"
+          && payload?.cookies_cleared === true;
+      })();
+      const [oauthRevoked, localRevoked] = await Promise.all([oauthRevoke, localRevoke]);
+      if (!oauthRevoked || !localRevoked) throw new Error("session_revoke_incomplete");
       setUser(null);
     } catch {
       setError("Abmeldung konnte nicht abgeschlossen werden.");

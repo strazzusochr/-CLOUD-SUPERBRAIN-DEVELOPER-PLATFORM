@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
+from copy import deepcopy
 from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
@@ -17,6 +20,8 @@ from verify_ghcr_candidate import (
     VerificationConfig,
     VerificationError,
     WorkflowMetadata,
+    build_parser,
+    config_from_args,
     verify_candidate,
     write_evidence_exclusive,
 )
@@ -47,11 +52,15 @@ def valid_config(output: Path) -> VerificationConfig:
     return VerificationConfig(
         namespace=NAMESPACE,
         candidate_sha=CANDIDATE_SHA,
+        active_candidate_sha=CANDIDATE_SHA,
+        active_release_id="prod-candidate-test-rc1",
         control_sha=CONTROL_SHA,
         output=output,
+        active_truth_sha256="d" * 64,
+        active_truth_control_sha256="e" * 64,
         workflow=WorkflowMetadata(
             repository=REPOSITORY,
-            workflow_name="Publish immutable candidate images",
+            workflow_name="main-deploy",
             run_id="123456789",
             run_attempt=2,
             run_url=f"https://github.com/{REPOSITORY}/actions/runs/123456789",
@@ -157,6 +166,83 @@ def make_results(
 
 
 class GhcrCandidateVerifierTests(unittest.TestCase):
+    def test_cli_config_binds_clean_tracked_truth_to_control_sha(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.invalid"], cwd=repo, check=True
+            )
+            subprocess.run(["git", "config", "user.name", "Verifier Test"], cwd=repo, check=True)
+            (repo / "candidate.txt").write_text("candidate\n", encoding="utf-8")
+            subprocess.run(["git", "add", "candidate.txt"], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-q", "-m", "candidate"], cwd=repo, check=True)
+            candidate_sha = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True
+            ).stdout.strip()
+
+            truth_path = repo / "docs" / "runtime-state" / "phase5-credit-itemization.json"
+            truth_path.parent.mkdir(parents=True)
+            truth_path.write_text(
+                json.dumps(
+                    {
+                        "contract_version": "phase5-credit-itemization-v2",
+                        "active_release_id": "prod-candidate-test-rc1",
+                        "active_source_commit_sha": candidate_sha,
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            subprocess.run(["git", "add", truth_path.as_posix()], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-q", "-m", "control truth"], cwd=repo, check=True)
+            control_sha = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True
+            ).stdout.strip()
+
+            previous_cwd = Path.cwd()
+            try:
+                os.chdir(repo)
+                args = build_parser().parse_args(
+                    [
+                        "--namespace",
+                        NAMESPACE,
+                        "--candidate-sha",
+                        candidate_sha,
+                        "--active-candidate-sha",
+                        candidate_sha,
+                        "--control-sha",
+                        control_sha,
+                        "--output",
+                        str(repo / "readback.json"),
+                        "--repository",
+                        "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+                        "--workflow-name",
+                        "main-deploy",
+                        "--workflow-run-id",
+                        "123456789",
+                        "--workflow-run-attempt",
+                        "1",
+                        "--workflow-run-url",
+                        "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/123456789",
+                        "--workflow-ref",
+                        "refs/heads/chore/repo-bootstrap",
+                        "--workflow-head-sha",
+                        control_sha,
+                        "--workflow-candidate-sha",
+                        candidate_sha,
+                        "--workflow-event-name",
+                        "workflow_dispatch",
+                    ]
+                )
+                config = config_from_args(args)
+            finally:
+                os.chdir(previous_cwd)
+
+            self.assertEqual(config.candidate_sha, candidate_sha)
+            self.assertEqual(config.control_sha, control_sha)
+            self.assertEqual(config.active_release_id, "prod-candidate-test-rc1")
+
     def test_valid_six_image_candidate_and_exclusive_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "manifest.json"
@@ -173,6 +259,15 @@ class GhcrCandidateVerifierTests(unittest.TestCase):
             self.assertEqual(persisted["candidate_sha"], CANDIDATE_SHA)
             self.assertEqual(persisted["control_sha"], CONTROL_SHA)
             self.assertEqual(persisted["workflow"]["head_sha"], CONTROL_SHA)
+            self.assertEqual(
+                persisted["active_release_candidate"]["source_commit_sha"], CANDIDATE_SHA
+            )
+            self.assertEqual(
+                persisted["active_release_candidate"]["image_tag"], CANDIDATE_SHA
+            )
+            self.assertEqual(
+                persisted["registry_readback"]["inspected_platform_manifest_count"], 12
+            )
             self.assertEqual(len(persisted["images"]), 6)
             self.assertEqual(len({image["digest"] for image in persisted["images"]}), 6)
             self.assertEqual(len(runner.calls), 24)
@@ -211,11 +306,103 @@ class GhcrCandidateVerifierTests(unittest.TestCase):
                 verify_candidate(config, runner)
             self.assertEqual(runner.calls, [])
 
+    def test_stale_active_candidate_binding_fails_before_inspection(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "manifest.json"
+            config = replace(valid_config(output), active_candidate_sha="c" * 40)
+            runner = FakeRunner(make_results())
+            with self.assertRaisesRegex(VerificationError, "active release-candidate SHA"):
+                verify_candidate(config, runner)
+            self.assertEqual(runner.calls, [])
+
+    def test_tag_ref_and_non_dispatch_workflow_fail_before_inspection(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "manifest.json"
+            base = valid_config(output)
+            cases = (
+                replace(base.workflow, ref="refs/tags/release"),
+                replace(base.workflow, event_name="push"),
+                replace(base.workflow, workflow_name="other-workflow"),
+            )
+            for workflow in cases:
+                with self.subTest(workflow=workflow):
+                    runner = FakeRunner(make_results())
+                    with self.assertRaises(VerificationError):
+                        verify_candidate(replace(base, workflow=workflow), runner)
+                    self.assertEqual(runner.calls, [])
+
     def test_stale_oci_revision_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             runner = FakeRunner(make_results(stale_revision_service="frontend"))
             with self.assertRaisesRegex(VerificationError, "OCI label org.opencontainers.image.revision mismatch"):
                 verify_candidate(valid_config(Path(temporary) / "manifest.json"), runner)
+
+    def test_published_manifest_digest_drift_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = valid_config(Path(temporary) / "manifest.json")
+            baseline_runner = FakeRunner(make_results())
+            baseline = verify_candidate(base, baseline_runner)
+
+            drifted_results = make_results()
+            service = "frontend"
+            image_ref = f"{NAMESPACE}/{service}:{CANDIDATE_SHA}"
+            new_digest = digest("retargeted-frontend-top")
+            prior = drifted_results[("docker", "buildx", "imagetools", "inspect", image_ref)]
+            drifted_results[("docker", "buildx", "imagetools", "inspect", image_ref)] = CommandResult(
+                0,
+                prior.stdout.replace(digest(f"top-{service}"), new_digest, 1),
+            )
+            config = replace(
+                base,
+                baseline_manifest=baseline,
+                baseline_manifest_path="docs/release-artifacts/ghcr.json",
+                baseline_manifest_sha256="f" * 64,
+            )
+            runner = FakeRunner(drifted_results)
+            with self.assertRaisesRegex(VerificationError, "differs from the published"):
+                verify_candidate(config, runner)
+
+    def test_matching_published_manifest_is_bound_in_readback(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = valid_config(Path(temporary) / "manifest.json")
+            baseline = verify_candidate(base, FakeRunner(make_results()))
+            config = replace(
+                base,
+                baseline_manifest=baseline,
+                baseline_manifest_path="docs/release-artifacts/ghcr.json",
+                baseline_manifest_sha256="f" * 64,
+            )
+            evidence = verify_candidate(config, FakeRunner(make_results()))
+            self.assertTrue(evidence["registry_readback"]["source_manifest_bound"])
+            self.assertTrue(
+                evidence["registry_readback"]["digest_readback_matches_publication"]
+            )
+            self.assertTrue(
+                all(
+                    platform["digest_ref"].endswith(platform["digest"])
+                    for image in evidence["images"]
+                    for platform in image["index_platforms"]
+                )
+            )
+
+    def test_published_platform_digest_drift_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = valid_config(Path(temporary) / "manifest.json")
+            baseline = deepcopy(verify_candidate(base, FakeRunner(make_results())))
+            baseline["images"][0]["index_platforms"][0]["digest"] = digest(
+                "retargeted-platform"
+            )
+            baseline["images"][0]["index_platforms"][0]["digest_ref"] = (
+                f"{NAMESPACE}/{EXPECTED_SERVICES[0]}@{digest('retargeted-platform')}"
+            )
+            config = replace(
+                base,
+                baseline_manifest=baseline,
+                baseline_manifest_path="docs/release-artifacts/ghcr.json",
+                baseline_manifest_sha256="f" * 64,
+            )
+            with self.assertRaisesRegex(VerificationError, "differs from the published"):
+                verify_candidate(config, FakeRunner(make_results()))
 
     def test_missing_platform_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

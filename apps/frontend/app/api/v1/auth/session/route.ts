@@ -55,6 +55,18 @@ async function setSessionCookie(token: string, expiresAtSeconds: number): Promis
   });
 }
 
+async function clearSessionCookie(): Promise<void> {
+  const jar = await cookies();
+  jar.set(AUTH_SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict",
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
+  });
+}
+
 export async function POST(req: Request): Promise<Response> {
   let body: Record<string, unknown> = {};
   try { body = (await req.json()) as Record<string, unknown>; } catch { /* empty */ }
@@ -144,7 +156,7 @@ export async function GET(req: Request): Promise<Response> {
       );
     }
   }
-  if (verification.reason !== "missing") jar.delete(AUTH_SESSION_COOKIE);
+  if (verification.reason !== "missing") await clearSessionCookie();
   return Response.json(
     {
       status: "anonymous",
@@ -164,7 +176,7 @@ export async function DELETE(req: Request): Promise<Response> {
     const registryResult = await revokeHostedAuthSessionAtBoundary(req, token);
     if (registryResult === "unavailable") return unavailable("revoke");
   }
-  jar.delete(AUTH_SESSION_COOKIE);
+  await clearSessionCookie();
   return Response.json(
     {
       status: "signed_out",

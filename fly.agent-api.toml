@@ -34,6 +34,7 @@ primary_region = "fra"
 
 [env]
   PORT = "8000"
+  SUPERBRAIN_RUNTIME_MODE = "production"
   CLOUD_PROVIDER_INVENTORY_ENABLED = "true"
   LLM_GATEWAY_MODE = "deterministic_dry_run"
   # Inter-service calls use <app>.flycast (Fly proxy private address) — unlike <app>.internal it

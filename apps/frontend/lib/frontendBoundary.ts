@@ -16,6 +16,7 @@ type BoundaryProxyOptions = {
   serviceAuth?: boolean;
   oauthRedirectPolicy?: "github-start" | "same-origin-callback";
   authSessionPolicy?: "identity" | "refresh" | "logout";
+  forwardCsrfMetadata?: boolean;
 };
 
 const OAUTH_STATE_COOKIE = "__Host-sb_oauth_state";
@@ -74,12 +75,32 @@ function configuredOrigin(kind: BoundaryKind): string | null {
   return null;
 }
 
-function copyRequestHeaders(req: Request): Headers {
-  const headers = new Headers({ accept: req.headers.get("accept") ?? "application/json" });
-  for (const name of ["content-type", "authorization", "cookie", "x-csrf-token", "x-request-id", "traceparent"]) {
+type OrdinaryRequestHeaderPolicy = "public-read" | "public-json" | "service-json" | "gateway-json";
+
+const ORDINARY_REQUEST_HEADER_ALLOWLISTS: Record<OrdinaryRequestHeaderPolicy, readonly string[]> = {
+  "public-read": ["accept", "x-request-id", "traceparent"],
+  "public-json": ["accept", "content-type", "x-request-id", "traceparent"],
+  "service-json": ["accept", "content-type", "x-request-id", "traceparent"],
+  "gateway-json": ["accept", "content-type", "x-request-id", "traceparent"],
+};
+
+function ordinaryRequestHeaderPolicy(
+  kind: BoundaryKind,
+  method: string,
+  options: BoundaryProxyOptions,
+): OrdinaryRequestHeaderPolicy {
+  if (kind === "llm-gateway" || kind === "mcp-gateway") return "gateway-json";
+  if (options.serviceAuth === true) return "service-json";
+  return method === "GET" || method === "HEAD" ? "public-read" : "public-json";
+}
+
+function copyRequestHeaders(req: Request, policy: OrdinaryRequestHeaderPolicy): Headers {
+  const headers = new Headers();
+  for (const name of ORDINARY_REQUEST_HEADER_ALLOWLISTS[policy]) {
     const value = req.headers.get(name);
     if (value) headers.set(name, value);
   }
+  if (!headers.has("accept")) headers.set("accept", "application/json");
   return headers;
 }
 
@@ -257,10 +278,15 @@ function validatedOAuthSetCookieHeaders(
 }
 
 function validClearedAuthCookie(cookie: ParsedSetCookie, name: string): boolean {
+  const expires = cookie.attributes.get("expires");
+  const expiresAt = typeof expires === "string" ? Date.parse(expires) : Number.NaN;
   return cookie.name === name
     && validHostCookieShape(cookie, "strict")
     && cookie.value === ""
-    && cookie.attributes.get("max-age") === "0";
+    && cookie.attributes.get("max-age") === "0"
+    && Number.isFinite(expiresAt)
+    && expiresAt <= 0
+    && new Date(expiresAt).toUTCString() === expires;
 }
 
 function validatedAuthSessionSetCookieHeaders(
@@ -282,8 +308,15 @@ function validatedAuthSessionSetCookieHeaders(
       : null;
   }
   if (policy === "refresh") {
-    if (response.status !== 200) return cookies.length === 0 ? rawCookies : null;
     const expected = new Set([OAUTH_ACCESS_COOKIE, OAUTH_REFRESH_COOKIE]);
+    if (response.status !== 200) {
+      const canonicalClearStatuses = new Set([400, 401, 403, 503]);
+      if (!canonicalClearStatuses.has(response.status)) return cookies.length === 0 ? rawCookies : null;
+      return cookies.length === 2
+        && cookies.every((cookie) => expected.has(cookie.name) && validClearedAuthCookie(cookie, cookie.name))
+        ? rawCookies
+        : null;
+    }
     return cookies.length === 2
       && cookies.every((cookie) => expected.has(cookie.name) && validOAuthCookie(cookie, null, false))
       ? rawCookies
@@ -448,8 +481,13 @@ export function isLocalDevelopmentRequest(req: Request): boolean {
   return localHostname(publicHostname) && (localHostname(requestHostname) || trustedDevProxy);
 }
 
-function writeBlocked(status: 401 | 403 | 503, error: string, reason: string): Response {
-  return Response.json(
+function writeBlocked(
+  status: 401 | 403 | 503,
+  error: string,
+  reason: string,
+  authResponse?: Response,
+): Response {
+  const blocked = Response.json(
     {
       contract_version: "frontend-boundary-write-guard-v1",
       status: "blocked",
@@ -474,6 +512,13 @@ function writeBlocked(status: 401 | 403 | 503, error: string, reason: string): R
       },
     },
   );
+  if (authResponse) {
+    const clearedCookies = responseSetCookieHeaders(authResponse.headers);
+    for (const cookie of clearedCookies ?? []) blocked.headers.append("set-cookie", cookie);
+    const retryAfter = authResponse.headers.get("retry-after");
+    if (retryAfter) blocked.headers.set("retry-after", retryAfter);
+  }
+  return blocked;
 }
 
 const MAX_HOSTED_SESSION_RESPONSE_BYTES = 16 * 1024;
@@ -553,13 +598,86 @@ export async function revokeHostedAuthSessionAtBoundary(
   return isHostedAuthSessionRevocation(result.payload) ? "processed" : "unavailable";
 }
 
+function isVerifiedOwnerIdentity(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return false;
+  const envelope = payload as Record<string, unknown>;
+  const identity = envelope.identity;
+  if (!identity || typeof identity !== "object" || Array.isArray(identity)) return false;
+  const claims = identity as Record<string, unknown>;
+  const providerUserId = claims.provider_user_id;
+  return envelope.status === "authenticated"
+    && envelope.contract_version === "auth-github-jwt-refresh-v1"
+    && envelope.owner_activation_granted === true
+    && envelope.identity_verified === true
+    && envelope.jwt_signature_verified === true
+    && envelope.jwt_claims_verified === true
+    && envelope.token_returned === false
+    && envelope.cookie_returned === false
+    && envelope.secret_output === false
+    && envelope.live_github_oauth_call === false
+    && claims.provider === "github"
+    && Number.isSafeInteger(providerUserId)
+    && Number(providerUserId) > 0
+    && claims.subject === `github:${providerUserId}`;
+}
+
+async function authorizeHostedOwnerWrite(req: Request): Promise<Response | null> {
+  const identityRequest = new Request(new URL("/api/v1/auth/me", req.url), {
+    method: "GET",
+    headers: req.headers,
+  });
+  const identityResponse = await proxyAuthSessionToBoundary(identityRequest, "/api/v1/auth/me", 8_000);
+  if (!identityResponse) {
+    return writeBlocked(503, "write_owner_identity_unavailable", "owner_identity_boundary_unavailable");
+  }
+  if (identityResponse.status === 401) {
+    return writeBlocked(401, "write_owner_identity_required", "github_owner_identity_missing_or_invalid", identityResponse);
+  }
+  if (identityResponse.status === 403) {
+    return writeBlocked(403, "write_owner_identity_forbidden", "github_owner_identity_not_allowed", identityResponse);
+  }
+  if (identityResponse.status !== 200) {
+    return writeBlocked(503, "write_owner_identity_unavailable", "owner_identity_boundary_rejected", identityResponse);
+  }
+  const incomingAccessToken = cookieValue(req.headers.get("cookie"), OAUTH_ACCESS_COOKIE);
+  const payload = await readHostedSessionPayload(identityResponse, incomingAccessToken ?? undefined);
+  if (!isVerifiedOwnerIdentity(payload)) {
+    return writeBlocked(503, "write_owner_identity_unavailable", "owner_identity_contract_invalid");
+  }
+  return null;
+}
+
 /**
- * Reuses either the local signed session or the hosted opaque D1 session and
- * the Agent API's same-origin CSRF semantics before a browser request may
- * borrow a server-only service token. The service token itself is never
- * accepted from or returned to the browser.
+ * Local guest/name sessions may authorize writes only for an explicit
+ * DEV-ONLY request. Hosted requests must prove the allowlisted GitHub Owner
+ * identity through /auth/me before a browser request may borrow a server-only
+ * service token. The service token itself is never accepted from or returned
+ * to the browser.
  */
 export async function authorizeBoundaryWrite(req: Request): Promise<Response | null> {
+  const originBlock = authorizePublicSecurityProbe(req);
+  if (originBlock) return originBlock;
+
+  if (!isLocalDevelopmentRequest(req)) return authorizeHostedOwnerWrite(req);
+
+  const token = cookieValue(req.headers.get("cookie"), AUTH_SESSION_COOKIE);
+  const session = verifySignedAuthSession(token);
+  if (session.valid) return null;
+  if (isHostedAuthSessionToken(token)) {
+    const hostedSession = await verifyHostedAuthSessionAtBoundary(req, token);
+    if (hostedSession.status === "valid") return null;
+    if (hostedSession.status === "unavailable") {
+      return writeBlocked(503, "write_session_verification_unavailable", "stateful_session_boundary_unavailable");
+    }
+    return writeBlocked(401, "write_session_required", "session_stateful_invalid");
+  }
+  if (!session.valid) {
+    return writeBlocked(401, "write_session_required", `session_${session.reason}`);
+  }
+  return writeBlocked(401, "write_session_required", "session_invalid");
+}
+
+export function authorizePublicSecurityProbe(req: Request): Response | null {
   const fetchSite = (req.headers.get("sec-fetch-site") ?? "").trim().toLowerCase();
   const suppliedOrigin = req.headers.get("origin");
   const actualOrigin = suppliedOrigin ? normalizedOrigin(suppliedOrigin) : null;
@@ -577,22 +695,7 @@ export async function authorizeBoundaryWrite(req: Request): Promise<Response | n
   if (actualOrigin && actualOrigin !== expectedOrigin) {
     return writeBlocked(403, "csrf_origin_rejected", "origin_mismatch");
   }
-
-  const token = cookieValue(req.headers.get("cookie"), AUTH_SESSION_COOKIE);
-  const session = verifySignedAuthSession(token);
-  if (session.valid) return null;
-  if (isHostedAuthSessionToken(token)) {
-    const hostedSession = await verifyHostedAuthSessionAtBoundary(req, token);
-    if (hostedSession.status === "valid") return null;
-    if (hostedSession.status === "unavailable") {
-      return writeBlocked(503, "write_session_verification_unavailable", "stateful_session_boundary_unavailable");
-    }
-    return writeBlocked(401, "write_session_required", "session_stateful_invalid");
-  }
-  if (!session.valid) {
-    return writeBlocked(401, "write_session_required", `session_${session.reason}`);
-  }
-  return writeBlocked(401, "write_session_required", "session_invalid");
+  return null;
 }
 
 function authMutationOriginBlock(req: Request): Response | null {
@@ -670,7 +773,15 @@ export async function proxyToBoundary(
     ? copyOAuthRequestHeaders(req, options.oauthRedirectPolicy)
     : options.authSessionPolicy
       ? copyAuthSessionRequestHeaders(req, options.authSessionPolicy)
-      : copyRequestHeaders(req);
+      : copyRequestHeaders(req, ordinaryRequestHeaderPolicy(kind, method, options));
+  if (options.forwardCsrfMetadata === true) {
+    const origin = req.headers.get("origin");
+    const fetchSite = (req.headers.get("sec-fetch-site") ?? "").trim().toLowerCase();
+    if (origin) headers.set("origin", origin);
+    if (["same-origin", "same-site", "cross-site", "none"].includes(fetchSite)) {
+      headers.set("sec-fetch-site", fetchSite);
+    }
+  }
   const config = BOUNDARIES[kind];
   const gatewayToken = config.authEnvName ? process.env[config.authEnvName]?.trim() : "";
   const attachConfiguredAuth = kind !== "agent-api" || options.serviceAuth === true;
@@ -703,11 +814,13 @@ export async function proxyToBoundary(
       if (!safeOAuthLocation || (response.status !== 302 && response.status !== 303)) return blockedOAuthRedirect();
       responseHeaders.set("location", safeOAuthLocation);
     }
+    // Set-Cookie is deny-by-default. Only the exact OAuth/auth-session wrappers
+    // below may opt in, and each validates cookie name, value, flags and count.
     const setCookies = options.oauthRedirectPolicy
       ? validatedOAuthSetCookieHeaders(response, options.oauthRedirectPolicy, safeOAuthLocation)
       : options.authSessionPolicy
         ? validatedAuthSessionSetCookieHeaders(response, options.authSessionPolicy)
-        : responseSetCookieHeaders(response.headers);
+        : [];
     if (options.oauthRedirectPolicy && setCookies === null) return blockedOAuthRedirect();
     if (options.authSessionPolicy && setCookies === null) return blockedAuthSessionResponse();
     for (const cookie of setCookies ?? []) {

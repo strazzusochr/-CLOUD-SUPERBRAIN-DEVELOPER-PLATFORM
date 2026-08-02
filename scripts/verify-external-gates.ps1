@@ -12,7 +12,8 @@ param(
   [string]$HuggingFaceProfileUrl = $(if ($env:HF_PROFILE_URL) { $env:HF_PROFILE_URL } else { "https://huggingface.co/Wrzzzrzr" }),
   [string]$grafanaDashboardUrl = $(if ($env:GRAFANA_CLOUD_URL) { $env:GRAFANA_CLOUD_URL } else { "https://cordialtrout569.grafana.net" }),
   [string]$GhcrImageNamespace = $(if ($env:GHCR_IMAGE_NAMESPACE) { $env:GHCR_IMAGE_NAMESPACE } else { "ghcr.io/strazzusochr/cloud-superbrain-developer-platform" }),
-  [string]$ImageTag = $(if ($env:IMAGE_TAG) { $env:IMAGE_TAG } else { "staging" }),
+  [string]$ActiveReleaseCandidateSha = $(if ($env:ACTIVE_RELEASE_CANDIDATE_SHA) { $env:ACTIVE_RELEASE_CANDIDATE_SHA } else { "" }),
+  [string]$GhcrPublishedManifestPath = $(if ($env:GHCR_PUBLISHED_MANIFEST) { $env:GHCR_PUBLISHED_MANIFEST } else { "" }),
   [string]$StagingSshHost = $(if ($env:STAGING_SSH_HOST) { $env:STAGING_SSH_HOST } else { "" }),
   [string]$StagingSshUser = $(if ($env:STAGING_SSH_USER) { $env:STAGING_SSH_USER } else { "" }),
   [string]$StagingSshKeyPath = $(if ($env:STAGING_SSH_KEY_PATH) { $env:STAGING_SSH_KEY_PATH } else { "" }),
@@ -568,42 +569,116 @@ function Invoke-NativeProcessProbe(
   }
 }
 
-function Invoke-GhcrDigestProbe([string]$Namespace, [string]$Tag) {
+function Invoke-GhcrCandidateProbe(
+  [string]$Namespace,
+  [string]$CandidateSha,
+  [string]$PublishedManifestPath,
+  [string]$EvidenceDirectory
+) {
+  $probeId = "ghcr_image_digest_verify"
+  $evidenceRef = "ghcr_release_candidate_readback"
+  if ($CandidateSha -notmatch "^[0-9a-f]{40}$" -or $CandidateSha -eq ("0" * 40)) {
+    return New-Probe $probeId "missing_active_candidate_sha" $false $false $evidenceRef "" 0 "GHCR readiness requires the exact lowercase 40-hex active release-candidate SHA; mutable tags are rejected." ""
+  }
   $dockerAvailable = [bool](Get-Command docker -ErrorAction SilentlyContinue)
   if (-not $dockerAvailable) {
-    return New-Probe "ghcr_image_digest_verify" "missing_secret_or_binary" $false $false "ghcr_image_digest_proof" "" 0 "docker is required to verify GHCR image digests" ""
+    return New-Probe $probeId "missing_secret_or_binary" $false $false $evidenceRef "" 0 "docker is required to verify the exact GHCR candidate" ""
   }
   if ([string]::IsNullOrWhiteSpace($Namespace)) {
-    return New-Probe "ghcr_image_digest_verify" "missing_secret_or_url" $false $false "ghcr_image_digest_proof" "" 0 "GHCR image namespace is not configured. Set env:GHCR_IMAGE_NAMESPACE (example: ghcr.io/<owner>/<repo>)" ""
+    return New-Probe $probeId "missing_secret_or_url" $false $false $evidenceRef "" 0 "GHCR image namespace is not configured. Set env:GHCR_IMAGE_NAMESPACE (example: ghcr.io/<owner>/<repo>)" ""
+  }
+  if ([string]::IsNullOrWhiteSpace($PublishedManifestPath)) {
+    return New-Probe $probeId "missing_published_manifest" $false $false $evidenceRef "" 0 "GHCR readiness requires the tracked publication manifest from the source-bound main-deploy workflow." ""
   }
 
-  $services = @("frontend", "agent-api", "agent-worker", "memory-worker", "mcp-gateway", "llm-gateway")
-  $digests = @()
-  $inspectTimeoutSeconds = Get-TimeoutSeconds "EXTERNAL_GATE_DOCKER_TIMEOUT_SECONDS" 45
-  foreach ($service in $services) {
-    $imageRef = "$Namespace/$service`:$Tag"
-    $dockerResult = Invoke-BoundedNativeCommand "docker" @("buildx", "imagetools", "inspect", $imageRef) $inspectTimeoutSeconds
-    $raw = [string]$dockerResult.output
-    $dockerExitCode = [int]$dockerResult.exit_code
-    if ($dockerResult.timed_out) {
-      return New-Probe "ghcr_image_digest_verify" "timeout" $true $false "ghcr_image_digest_proof" "" 0 "GHCR digest inspection timed out for $service after ${inspectTimeoutSeconds}s" ($raw.Trim())
+  try {
+    $manifestResolved = if ([IO.Path]::IsPathRooted($PublishedManifestPath)) {
+      [IO.Path]::GetFullPath($PublishedManifestPath)
+    } else {
+      [IO.Path]::GetFullPath((Join-Path $repoRoot $PublishedManifestPath))
     }
-    if ($dockerExitCode -ne 0) {
-      if ($raw -match "unauthorized|denied|authentication|forbidden") {
-        return New-Probe "ghcr_image_digest_verify" "missing_secret_or_token" $true $false "ghcr_image_digest_proof" "" 0 "GHCR digest verification is BLOCKED. Authenticate Docker for GHCR (docker login ghcr.io) with a token that has read:packages, then re-run verify:external-gates." ($raw.Trim())
+    $repoPrefix = $repoRoot.TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+    if (-not $manifestResolved.StartsWith($repoPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+      throw "published manifest must stay inside the repository"
+    }
+    if (-not (Test-Path -LiteralPath $manifestResolved -PathType Leaf)) {
+      throw "published manifest does not exist"
+    }
+    $manifestRelative = $manifestResolved.Substring($repoPrefix.Length).Replace("\", "/")
+    $tracked = git ls-files --error-unmatch -- $manifestRelative 2>$null
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($tracked | Out-String))) {
+      throw "published manifest is not tracked"
+    }
+
+    $readbackDirectory = Join-Path $EvidenceDirectory "ghcr-candidate-readback"
+    New-Item -ItemType Directory -Force -Path $readbackDirectory | Out-Null
+    $readbackPath = Join-Path $readbackDirectory ("{0}-{1}.json" -f $CandidateSha, [guid]::NewGuid().ToString("N"))
+    if (Test-Path -LiteralPath $readbackPath) {
+      throw "exclusive GHCR readback destination already exists"
+    }
+
+    $pythonCommand = if (Get-Command py -ErrorAction SilentlyContinue) { "py" } elseif (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "" }
+    if ([string]::IsNullOrWhiteSpace($pythonCommand)) {
+      return New-Probe $probeId "missing_secret_or_binary" $false $false $evidenceRef "" 0 "Python is required to run the exact GHCR candidate verifier." ""
+    }
+    $pythonArgs = @()
+    if ($pythonCommand -eq "py") { $pythonArgs += "-3" }
+    $pythonArgs += @(
+      (Join-Path $repoRoot "scripts\verify_ghcr_candidate.py"),
+      "--source-manifest", $manifestResolved,
+      "--candidate-sha", $CandidateSha,
+      "--active-candidate-sha", $CandidateSha,
+      "--namespace", $Namespace,
+      "--output", $readbackPath
+    )
+    $verifyTimeoutSeconds = Get-TimeoutSeconds "EXTERNAL_GATE_DOCKER_TIMEOUT_SECONDS" 1500
+    $verification = Invoke-BoundedNativeCommand $pythonCommand $pythonArgs $verifyTimeoutSeconds
+    $raw = [string]$verification.output
+    if ($verification.timed_out) {
+      return New-Probe $probeId "timeout" $true $false $evidenceRef "" 0 "Exact GHCR candidate verification timed out after ${verifyTimeoutSeconds}s." ($raw.Trim())
+    }
+    if ([int]$verification.exit_code -ne 0) {
+      $status = if ($raw -match "unauthorized|denied|authentication|forbidden") { "missing_secret_or_token" } else { "failed" }
+      $message = if ($status -eq "missing_secret_or_token") {
+        "GHCR verification is BLOCKED. Authenticate Docker for read-only package access, then rerun with the exact active candidate SHA."
+      } else {
+        "Exact GHCR candidate verification failed closed."
       }
-      return New-Probe "ghcr_image_digest_verify" "failed" $true $false "ghcr_image_digest_proof" "" 0 "GHCR digest inspection failed" ($raw.Trim())
+      return New-Probe $probeId $status $true $false $evidenceRef "" 0 $message ($raw.Trim())
     }
-    $match = [regex]::Match($raw, "Digest:\s*(sha256:[0-9a-f]{64})", [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-    if (-not $match.Success) {
-      return New-Probe "ghcr_image_digest_verify" "failed" $true $false "ghcr_image_digest_proof" "" 0 "GHCR digest inspection did not return a digest" ($raw.Trim())
+    if (-not (Test-Path -LiteralPath $readbackPath -PathType Leaf)) {
+      throw "exact GHCR candidate verifier did not create readback evidence"
     }
-    $digests += "$service=$($match.Groups[1].Value)"
-  }
+    $readback = Get-Content -LiteralPath $readbackPath -Raw | ConvertFrom-Json -ErrorAction Stop
+    $readbackOk = (
+      [string]$readback.contract_version -eq "ghcr-release-manifest-v1" -and
+      [string]$readback.status -eq "verified" -and
+      [string]$readback.candidate_sha -eq $CandidateSha -and
+      [string]$readback.active_release_candidate.source_commit_sha -eq $CandidateSha -and
+      [string]$readback.active_release_candidate.image_tag -eq $CandidateSha -and
+      [bool]$readback.registry_readback.source_manifest_bound -and
+      [bool]$readback.registry_readback.digest_readback_matches_publication -and
+      [int]$readback.registry_readback.inspected_image_count -eq 6 -and
+      [int]$readback.registry_readback.inspected_platform_manifest_count -eq 12 -and
+      [bool]$readback.selected_tag_is_exact_candidate_sha -and
+      -not [bool]$readback.mutable_tag_fallback_used -and
+      -not [bool]$readback.registry_write_performed -and
+      -not [bool]$readback.registry_delete_performed
+    )
+    if (-not $readbackOk) {
+      throw "exact GHCR candidate evidence contract failed post-readback validation"
+    }
 
-  $result = New-Probe "ghcr_image_digest_verify" "verified" $true $true "ghcr_image_digest_proof" "" 200 "GHCR digests resolved for all service images" ""
-  $result["digests"] = $digests
-  return $result
+    $result = New-Probe $probeId "verified" $true $true $evidenceRef "" 200 "Six exact candidate images and twelve platform manifests match the source-bound publication manifest." ""
+    $result["active_release_candidate_sha"] = $CandidateSha
+    $result["selected_image_tag"] = $CandidateSha
+    $result["published_manifest_ref"] = $manifestRelative
+    $result["local_readback_artifact"] = $readbackPath
+    $result["readback"] = $readback
+    return $result
+  } catch {
+    return New-Probe $probeId "failed" $true $false $evidenceRef "" 0 "Exact GHCR candidate verification failed closed." $_.Exception.Message
+  }
 }
 
 function Invoke-PublicBranchProtectionProbe([string]$Repository, [string]$Branch) {
@@ -840,7 +915,7 @@ if ($branchTokenConfigured) {
   }
 }
 
-$ghcrProbe = Invoke-GhcrDigestProbe $GhcrImageNamespace $ImageTag
+$ghcrProbe = Invoke-GhcrCandidateProbe $GhcrImageNamespace $ActiveReleaseCandidateSha $GhcrPublishedManifestPath $ArtifactDirectory
 
 # Public, non-secret consolidated free-tier origins. Env vars still override.
 # These are anonymous HTTPS health probes with required response markers; if the
@@ -927,6 +1002,9 @@ $summary = [ordered]@{
   hosted_base_url = $hostedBase
   repository = $Repository
   branch = $Branch
+  requested_release_candidate_selector = $ActiveReleaseCandidateSha
+  active_release_candidate_sha = $(if ($ghcrProbe.claim_allowed) { [string]$ghcrProbe.active_release_candidate_sha } else { "" })
+  ghcr_published_manifest_ref = $(if ($ghcrProbe.published_manifest_ref) { [string]$ghcrProbe.published_manifest_ref } else { "" })
   frontend_preview_claim_allowed = $hostedFrontendClaimAllowed
   hosted_staging_claim_allowed = $hostedApiClaimAllowed
   branch_protection_claim_allowed = $branchProtectionClaimAllowed
@@ -944,7 +1022,7 @@ $summary = [ordered]@{
   non_claims = @(
     "Frontend preview reachability is not hosted staging unless /api/v1 contracts pass.",
     "Branch protection is not current unless scripts/apply_github_branch_protection.py --verify-only passes with a configured token.",
-    "GHCR image publication is not current unless all service image manifests resolve by digest.",
+    "GHCR image publication is not current unless the exact active candidate SHA, six image indexes, twelve platform digests, OCI source labels, and the source-bound workflow publication manifest all match.",
     "Vercel backend origins are not current unless all three HTTPS health probes pass.",
     "Cloudflare-native hosted state is not current unless the canonical capability gate was opened by its verifier.",
     "The RC10 external-gate-audit-v1 fly_live_budget_check and FLY_API_TOKEN path is historical provenance only.",
@@ -993,6 +1071,9 @@ $durableAudit = [ordered]@{
   active_target_gate = [string]$summary.active_target_gate
   evidence_ref = [string]$summary.evidence_ref
   generated_at_utc = [string]$summary.generated_at_utc
+  requested_release_candidate_selector = [string]$summary.requested_release_candidate_selector
+  active_release_candidate_sha = [string]$summary.active_release_candidate_sha
+  ghcr_published_manifest_ref = [string]$summary.ghcr_published_manifest_ref
   frontend_preview_claim_allowed = [bool]$summary.frontend_preview_claim_allowed
   hosted_staging_claim_allowed = [bool]$summary.hosted_staging_claim_allowed
   branch_protection_claim_allowed = [bool]$summary.branch_protection_claim_allowed
@@ -1007,14 +1088,16 @@ $durableAudit = [ordered]@{
   missing_or_failed_gates = @($summary.missing_or_failed_gates | ForEach-Object { [string]$_ })
   failed_hosted_required_probe_ids = @($summary.failed_hosted_required_probe_ids | ForEach-Object { [string]$_ })
   failed_vercel_origin_probe_ids = @($summary.failed_vercel_origin_probe_ids | ForEach-Object { [string]$_ })
+  ghcr_candidate_readback = $(if ($ghcrProbe.claim_allowed) { $ghcrProbe.readback } else { $null })
   source_evidence_refs = @(
     "docs/runtime-state/capability-gates.json",
+    $(if ($ghcrProbe.published_manifest_ref) { [string]$ghcrProbe.published_manifest_ref } else { "ghcr_published_manifest_not_configured" }),
     ".codex/runs/CURRENT/p5/cloudflare-scope-readiness/report.json",
     ".phase1-artifacts/external-gate-audit-20260720-191532.json"
   )
   legacy_provenance = $summary.legacy_provenance
   non_claims = @(
-    "This durable audit contains no probe URL, response body, response snippet, command output, or token value.",
+    "This durable audit contains no hosted probe endpoint, response body, response snippet, command output, or token value; exact public GHCR image refs and the source-bound GitHub workflow URL are retained as required release provenance.",
     "The timestamped local_run_artifact is diagnostic evidence and is not the canonical tracked audit.",
     "RC10 v1 and Fly semantics are historical provenance only.",
     "No percentage credit or production deployment claim is granted while status is blocked."
@@ -1030,6 +1113,10 @@ $runtimeSummary = [ordered]@{
   generated_at_utc = [string]$summary.generated_at_utc
   status = [string]$summary.status
   active_target_gate = [string]$summary.active_target_gate
+  requested_release_candidate_selector = [string]$summary.requested_release_candidate_selector
+  active_release_candidate_sha = [string]$summary.active_release_candidate_sha
+  ghcr_published_manifest_ref = [string]$summary.ghcr_published_manifest_ref
+  ghcr_candidate_readback_source_artifact = $(if ($ghcrProbe.claim_allowed) { $durableAuditRef } else { "" })
   gate_ids = @(
     "hosted_agent_api_contracts",
     "github_branch_protection_current_verify",

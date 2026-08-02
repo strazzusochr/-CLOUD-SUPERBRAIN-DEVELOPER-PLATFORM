@@ -80,6 +80,14 @@ foreach ($forbiddenPermission in @('contents: write', 'actions: write', 'deploym
   Assert-True "permission expansion is absent: $forbiddenPermission" (-not $workflow.Contains($forbiddenPermission))
 }
 Assert-Regex "publication job uses registry-publication without deployment claim" $workflow '(?ms)^\s{2}publish-candidate:.*?^\s{4}environment:\s+^\s{6}name: registry-publication\s+^\s{6}deployment: false\s*$'
+$publishJobMatch = [regex]::Match(
+  $workflow,
+  '(?ms)^  publish-candidate:\s*\r?\n(?<body>.*?)(?=^  [a-zA-Z0-9_-]+:\s*(?:\r?\n|$)|\z)'
+)
+Assert-True "publish-candidate job block is parseable" $publishJobMatch.Success
+$publishJobBlock = $publishJobMatch.Groups['body'].Value
+Assert-Regex "publish-candidate is gated by successful candidate preflight and CI" $publishJobBlock '(?m)^\s{4}needs:\s*\[candidate-preflight,\s*verify-candidate\]\s*$'
+Assert-NotRegex "publish-candidate has no job-level always bypass" $publishJobBlock '(?im)^\s{4}if:\s*.*\balways\s*\('
 Write-Host "[main-deploy-transition] OWNER-READ-GATE registry-publication protection rules are external GitHub state; this static verifier does not claim they are configured."
 
 # Control/workflow SHA and candidate SHA must remain independent.
@@ -119,7 +127,23 @@ foreach ($forbiddenEquality in @(
 # Reusable CI verifies the candidate checkout, while preserving normal PR behavior.
 Assert-Regex "pr-check declares optional workflow_call candidate input" $prCheck '(?ms)^\s{2}workflow_call:\s+inputs:\s+candidate_sha:\s+description:.*?required: false\s+type: string\s*$'
 Assert-Contains "pr-check checks out supplied candidate or normal event SHA" $prCheck 'ref: ${{ inputs.candidate_sha || github.sha }}'
+Assert-Regex "pr-check manual dispatch declares explicit source prequalification" $prCheck '(?ms)^\s{2}workflow_dispatch:\s+inputs:\s+candidate_sha:.*?required: false\s+type: string\s+source_prequalification:.*?required: false\s+default: false\s+type: boolean\s*$'
+Assert-Contains "source prequalification is manual-dispatch only" $prCheck 'event_name != "workflow_dispatch"'
+Assert-Contains "source prequalification requires an explicit candidate" $prCheck 'source prequalification requires an explicit candidate_sha'
+Assert-Contains "source prequalification is branch-ref only" $prCheck 'event_ref.startswith("refs/heads/")'
+Assert-Contains "source attestation is runner-temp bounded" $prCheck 'os.environ["RUNNER_TEMP"]'
+Assert-Contains "direct Phase-5 truth check is retained" $prCheck "if: `${{ steps.source-binding.outputs.candidate_differs != 'true' }}"
+Assert-Contains "reusable candidate CI validates control truth" $prCheck "if: `${{ steps.source-binding.outputs.candidate_differs == 'true' && steps.source-binding.outputs.source_prequalification != 'true' }}"
+Assert-Contains "reusable candidate CI runs the control-truth verifier" $prCheck 'python "$CONTROL_TRUTH_DIR/scripts/verify_phase5_credit_itemization.py"'
+Assert-True "main publication workflow cannot enable source prequalification" (-not $workflow.Contains('source_prequalification'))
 Assert-Contains "OAuth CI line is preserved" $prCheck 'run: npm run verify:oauth-boundary'
+Assert-Contains "backend auth security tests are CI-gated" $prCheck 'python -m unittest discover -s services/agent-api/tests -p test_auth_security.py -v'
+Assert-Contains "Phase-6 scale static contracts are CI-gated" $prCheck 'run: npm run verify:phase6-scale:static'
+Assert-Contains "Cloudflare stateful runtime tests are CI-gated" $prCheck 'npm test --prefix services/cloudflare-stateful-runtime'
+Assert-Contains "Cloudflare LLM gateway tests are CI-gated" $prCheck 'npm test --prefix services/cloudflare-llm-gateway'
+Assert-Contains "source prequalification validates control tests" $prCheck 'python -m unittest scripts.tests.test_verify_phase5_credit_itemization -v'
+Assert-Contains "source prequalification validates the publication transition" $prCheck 'pwsh -NoProfile -File scripts/verify-main-deploy-transition.ps1'
+Assert-Contains "source prequalification validates supply-chain pins" $prCheck 'pwsh -NoProfile -File scripts/verify-supply-chain-pins.ps1'
 Assert-Regex "main calls reusable candidate CI with exact SHA" $workflow '(?ms)^\s{2}verify-candidate:.*?uses: \./\.github/workflows/pr-check\.yml\s+with:\s+candidate_sha: \$\{\{ needs\.candidate-preflight\.outputs\.candidate_sha \}\}\s*$'
 
 # Exactly six image builds, one immutable SHA tag, and no overwrite path.

@@ -15,7 +15,7 @@
 
 import snapshot from "../../../../lib/endpoint-snapshot.json";
 import { projectedDefault, genericDefault, frontendMetrics } from "../../../../lib/endpointDefaults";
-import { boundaryUnavailable, proxyAuthSessionToBoundary, proxyOAuthGetToBoundary, proxyReadToBoundary, proxyToBoundary } from "../../../../lib/frontendBoundary";
+import { authorizeBoundaryWrite, authorizePublicSecurityProbe, boundaryUnavailable, proxyAuthSessionToBoundary, proxyOAuthGetToBoundary, proxyReadToBoundary, proxyToBoundary } from "../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 
@@ -102,10 +102,58 @@ async function handle(req: Request, slug: string[] | undefined, method: string):
       503,
     );
   }
+  if (pathname === "/api/v1/security/csp/report") {
+    if (method !== "POST") {
+      return Response.json(
+        {
+          contract_version: "frontend-security-report-method-guard-v1",
+          status: "blocked",
+          error: "method_not_allowed",
+          accepted: false,
+          secret_output: false,
+        },
+        { status: 405, headers: { allow: "POST", "cache-control": "no-store" } },
+      );
+    }
+    const report = await proxyToBoundary(req, "agent-api", pathname, 6_000);
+    return report ?? boundaryUnavailable(
+      "POST /api/v1/security/csp/report",
+      "agent-api",
+      "The bounded CSP report sink is unavailable; no retry or projection was attempted.",
+      503,
+    );
+  }
+  if (pathname === "/api/v1/security/csrf/probe") {
+    if (method !== "POST") {
+      return Response.json(
+        {
+          contract_version: "frontend-security-probe-method-guard-v1",
+          status: "blocked",
+          error: "method_not_allowed",
+          accepted: false,
+          secret_output: false,
+        },
+        { status: 405, headers: { allow: "POST", "cache-control": "no-store" } },
+      );
+    }
+    const originBlock = authorizePublicSecurityProbe(req);
+    if (originBlock) return originBlock;
+    const probe = await proxyToBoundary(req, "agent-api", pathname, 6_000, { forwardCsrfMetadata: true });
+    return probe ?? boundaryUnavailable(
+      "POST /api/v1/security/csrf/probe",
+      "agent-api",
+      "The bounded CSRF probe is unavailable; no retry or projection was attempted.",
+      503,
+    );
+  }
   const isRead = method === "GET" || method === "HEAD";
+  if (!isRead) {
+    const writeBlock = await authorizeBoundaryWrite(req);
+    if (writeBlock) return writeBlock;
+  }
   const live = isRead
     ? await proxyReadToBoundary(req, "agent-api", pathname, 6_000)
-    : await proxyToBoundary(req, "agent-api", pathname, 6_000);
+    : await proxyToBoundary(req, "agent-api", pathname, 6_000, { serviceAuth: true });
   const staleContractOrigin = live?.headers.get("x-superbrain-source") === "contract-origin-via-d1-edge"
     && CURRENT_PROJECTION_REQUIRED_WHEN_EDGE_ORIGIN_IS_STALE.has(pathname);
   if (live && !staleContractOrigin) return live;

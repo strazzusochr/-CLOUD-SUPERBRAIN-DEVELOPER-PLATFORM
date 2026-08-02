@@ -10,6 +10,16 @@ on:
   pull_request:
     branches: [chore/repo-bootstrap]
   workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Optional exact ancestor source commit to prequalify without self-referential Phase-5 truth
+        required: false
+        type: string
+      source_prequalification:
+        description: Explicitly attest a distinct source checkout while skipping only the self-referential Phase-5 truth check
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -37,6 +47,168 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Bind run control to exact checked-out source
+        id: source-binding
+        shell: python
+        env:
+          REQUESTED_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          REQUESTED_SOURCE_PREQUALIFICATION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.source_prequalification == 'true' }}
+          RUN_SHA: ${{ github.sha }}
+          CONTROL_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REF: ${{ github.ref }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          import json
+          import os
+          import pathlib
+          import re
+          import subprocess
+
+          sha_pattern = re.compile(r"[0-9a-f]{40}")
+          requested_sha = os.environ.get("REQUESTED_CANDIDATE_SHA", "")
+          requested_prequalification = (
+              os.environ.get("REQUESTED_SOURCE_PREQUALIFICATION", "").lower() == "true"
+          )
+          run_sha = os.environ["RUN_SHA"]
+          control_sha = os.environ["CONTROL_SHA"]
+          event_name = os.environ["EVENT_NAME"]
+          event_ref = os.environ["EVENT_REF"]
+          run_id = os.environ["RUN_ID"]
+          run_attempt = os.environ["RUN_ATTEMPT"]
+          run_url = os.environ["RUN_URL"]
+
+          if sha_pattern.fullmatch(run_sha) is None:
+              raise SystemExit("github.sha must be a lowercase 40-hex run SHA")
+          if sha_pattern.fullmatch(control_sha) is None:
+              raise SystemExit("control SHA must be a lowercase 40-hex commit")
+          if control_sha != run_sha:
+              raise SystemExit("control SHA must exactly equal the workflow run SHA")
+          if requested_sha and sha_pattern.fullmatch(requested_sha) is None:
+              raise SystemExit("candidate_sha must be an exact lowercase 40-hex commit")
+          if not event_name or not event_ref:
+              raise SystemExit("workflow event name and ref must be present")
+          if not run_id.isdecimal():
+              raise SystemExit("workflow run ID must be decimal")
+          if not run_attempt.isdecimal() or int(run_attempt) < 1:
+              raise SystemExit("workflow run attempt must be a positive integer")
+
+          candidate_sha = requested_sha or control_sha
+          for label, commit_sha in (("control", control_sha), ("candidate", candidate_sha)):
+              result = subprocess.run(
+                  ["git", "cat-file", "-e", f"{commit_sha}^{{commit}}"],
+                  check=False,
+              )
+              if result.returncode != 0:
+                  raise SystemExit(f"{label} SHA does not resolve to a commit")
+
+          checked_out_sha = subprocess.run(
+              ["git", "rev-parse", "HEAD"],
+              check=True,
+              capture_output=True,
+              text=True,
+          ).stdout.strip()
+          if checked_out_sha != candidate_sha:
+              raise SystemExit("checked-out SHA does not exactly equal the selected candidate SHA")
+
+          ancestry = subprocess.run(
+              ["git", "merge-base", "--is-ancestor", candidate_sha, control_sha],
+              check=False,
+          )
+          if ancestry.returncode != 0:
+              raise SystemExit("candidate SHA is not an ancestor of the control SHA")
+
+          source_prequalification = requested_prequalification
+          control_delta: list[str] = []
+          if source_prequalification:
+              if event_name != "workflow_dispatch":
+                  raise SystemExit("source prequalification is available only to workflow_dispatch")
+              if not requested_sha:
+                  raise SystemExit("source prequalification requires an explicit candidate_sha")
+              if candidate_sha == control_sha:
+                  raise SystemExit("source prequalification requires candidate_sha to differ from control SHA")
+              if not event_ref.startswith("refs/heads/"):
+                  raise SystemExit("source prequalification requires a branch ref")
+              allowed_control_paths = {
+                  ".github/workflows/pr-check.yml",
+                  "scripts/tests/test_verify_phase5_credit_itemization.py",
+                  "scripts/verify-main-deploy-transition.ps1",
+                  "scripts/verify-supply-chain-pins.ps1",
+                  "scripts/verify_phase5_credit_itemization.py",
+              }
+              raw_delta = subprocess.run(
+                  [
+                      "git",
+                      "diff",
+                      "--name-only",
+                      "--diff-filter=ACDMRTUXB",
+                      "-z",
+                      candidate_sha,
+                      control_sha,
+                      "--",
+                  ],
+                  check=True,
+                  capture_output=True,
+              ).stdout
+              control_delta = sorted(
+                  {path.decode("utf-8") for path in raw_delta.split(b"\0") if path}
+              )
+              if not control_delta:
+                  raise SystemExit("distinct source prequalification requires a non-empty control delta")
+              unexpected_paths = sorted(set(control_delta) - allowed_control_paths)
+              if unexpected_paths:
+                  raise SystemExit(
+                      "source prequalification control delta contains non-control paths: "
+                      + ", ".join(unexpected_paths)
+                  )
+
+          if source_prequalification:
+              binding_mode = "source_checkout_attestation_v1"
+          elif candidate_sha != control_sha:
+              binding_mode = "reusable_candidate_checkout_v1"
+          else:
+              binding_mode = "direct_checkout_attestation_v1"
+          non_claims = [
+              "This attestation proves only the exact source checkout boundary for this CI run.",
+              "This attestation does not convert DEV-ONLY evidence into hosted proof.",
+              "This attestation does not claim GHCR publication, production deployment, release promotion, or Owner approval.",
+          ]
+          attestation = {
+              "binding_mode": binding_mode,
+              "candidate_sha": candidate_sha,
+              "checked_out_sha": checked_out_sha,
+              "contract_version": "pr-check-source-checkout-attestation-v1",
+              "control_delta": control_delta,
+              "control_sha": control_sha,
+              "event_name": event_name,
+              "github_actions_artifact_upload": True,
+              "non_claims": non_claims,
+              "production_deploy": False,
+              "ref": event_ref,
+              "registry_publish": False,
+              "release_promotion": False,
+              "run_id": int(run_id),
+              "run_attempt": int(run_attempt),
+              "run_sha": run_sha,
+              "run_url": run_url,
+              "secret_output": False,
+              "source_prequalification": source_prequalification,
+          }
+          attestation_path = pathlib.Path(os.environ["RUNNER_TEMP"]) / "ci-source-checkout-attestation.json"
+          attestation_path.parent.mkdir(parents=True, exist_ok=True)
+          attestation_path.write_text(
+              json.dumps(attestation, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"binding_mode={binding_mode}\n")
+              output.write(f"candidate_differs={str(candidate_sha != control_sha).lower()}\n")
+              output.write(f"source_prequalification={str(source_prequalification).lower()}\n")
+              output.write(f"attestation_path={attestation_path.as_posix()}\n")
+
       - name: Docker Compose config
         run: docker compose -f docker-compose.dev.yml config >/tmp/compose.yml
 
@@ -50,8 +222,53 @@ jobs:
       - name: Python syntax
         run: python -m py_compile services/agent-api/app/main.py services/mcp-gateway/app/main.py
 
+      - name: Backend auth security unit contract
+        env:
+          PYTHONPATH: services/agent-api
+        run: |
+          python -m pip install --disable-pip-version-check -r services/agent-api/requirements.txt
+          python -m unittest discover -s services/agent-api/tests -p test_auth_security.py -v
+
+      - name: Phase 6 scale fail-closed static contracts
+        shell: pwsh
+        run: npm run verify:phase6-scale:static
+
       - name: Phase 5 credit itemization
+        if: ${{ steps.source-binding.outputs.candidate_differs != 'true' }}
         run: python scripts/verify_phase5_credit_itemization.py
+
+      - name: Phase 5 control-truth itemization for reusable candidate CI
+        if: ${{ steps.source-binding.outputs.candidate_differs == 'true' && steps.source-binding.outputs.source_prequalification != 'true' }}
+        shell: bash
+        env:
+          CONTROL_TRUTH_DIR: ${{ runner.temp }}/pr-check-control-truth
+        run: |
+          set -euo pipefail
+          cleanup() {
+            git worktree remove --force "$CONTROL_TRUTH_DIR" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          git worktree add --detach "$CONTROL_TRUTH_DIR" "${GITHUB_SHA}"
+          python "$CONTROL_TRUTH_DIR/scripts/verify_phase5_credit_itemization.py"
+
+      - name: Source-prequalification control integrity
+        if: ${{ steps.source-binding.outputs.source_prequalification == 'true' }}
+        shell: bash
+        env:
+          CONTROL_INTEGRITY_DIR: ${{ runner.temp }}/pr-check-control-integrity
+        run: |
+          set -euo pipefail
+          cleanup() {
+            git worktree remove --force "$CONTROL_INTEGRITY_DIR" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          git worktree add --detach "$CONTROL_INTEGRITY_DIR" "${GITHUB_SHA}"
+          (
+            cd "$CONTROL_INTEGRITY_DIR"
+            python -m unittest scripts.tests.test_verify_phase5_credit_itemization -v
+            pwsh -NoProfile -File scripts/verify-main-deploy-transition.ps1
+            pwsh -NoProfile -File scripts/verify-supply-chain-pins.ps1
+          )
 
       - name: Frontend install
         working-directory: apps/frontend
@@ -63,6 +280,16 @@ jobs:
 
       - name: OAuth boundary unit contract
         run: npm run verify:oauth-boundary
+
+      - name: Cloudflare stateful runtime audit contract
+        run: |
+          npm ci --ignore-scripts --prefix services/cloudflare-stateful-runtime
+          npm test --prefix services/cloudflare-stateful-runtime
+
+      - name: Cloudflare LLM gateway contract
+        run: |
+          npm ci --ignore-scripts --prefix services/cloudflare-llm-gateway
+          npm test --prefix services/cloudflare-llm-gateway
 
       - name: Install gitleaks
         env:
@@ -80,3 +307,14 @@ jobs:
 
       - name: Build Phase 1 images
         run: docker compose -f docker-compose.dev.yml build
+
+      - name: Upload exact source checkout attestation
+        id: source-attestation-upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pr-check-source-checkout-attestation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.source-binding.outputs.attestation_path }}
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+          retention-days: 90

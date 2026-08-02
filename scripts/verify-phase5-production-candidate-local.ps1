@@ -4,7 +4,8 @@ param(
   [switch]$AllowLocalhost,
   [switch]$AllowNonCandidateHead,
   [switch]$StaticOnly,
-  [switch]$SkipBrowser
+  [switch]$SkipBrowser,
+  [string]$EvidenceRunId = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -39,6 +40,18 @@ try {
   $candidate = Get-Content $candidatePath -Raw
   Assert-True "candidate source sha" ($candidate -match '(?m)^source_commit_sha:\s*`([0-9a-f]{40})`\s*$')
   $candidateSourceSha = $Matches[1]
+  $legacyEvidence = (
+    [string]$candidateConfig.active_release_id -eq "prod-candidate-2026-07-31-local-rc11" -and
+    $candidateSourceSha -eq "bae3cdc1692e1e99e7f546f72664a3c747958b8c"
+  )
+  if (-not $legacyEvidence) {
+    if ([string]::IsNullOrWhiteSpace($EvidenceRunId)) {
+      $EvidenceRunId = [Guid]::NewGuid().ToString("D").ToLowerInvariant()
+    }
+    Assert-True "evidence run id" (
+      $EvidenceRunId -match '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    )
+  }
   git cat-file -e "$candidateSourceSha^{commit}" 2>$null
   Assert-True "candidate source commit exists" ($LASTEXITCODE -eq 0)
   git merge-base --is-ancestor $candidateSourceSha HEAD 2>$null
@@ -137,7 +150,7 @@ try {
   $reportPath = Join-Path $ArtifactDir "candidate-images.json"
   Assert-True "candidate image report exists" (Test-Path -LiteralPath $reportPath)
   $report = Get-Content $reportPath -Raw | ConvertFrom-Json
-  Assert-Equal "report contract" $report.contract_version "phase5-production-candidate-local-v1"
+  Assert-Equal "report contract" $report.contract_version $(if ($legacyEvidence) { "phase5-production-candidate-local-v1" } else { "phase5-production-candidate-local-v2" })
   Assert-Equal "report evidence" $report.evidence_ref "phase5_local_production_candidate_verified"
   Assert-Equal "report status" $report.status "verified"
   Assert-Equal "report release id" $report.release_id ([string]$candidateConfig.active_release_id)
@@ -190,16 +203,71 @@ try {
     }
   }
 
+  $playwrightOutput = @()
   if (-not $SkipBrowser) {
     $env:PHASE5_CANDIDATE_BASE_URL = $BaseUrl
     $env:PHASE5_CANDIDATE_ARTIFACT_DIR = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $ArtifactDir))
     $env:PHASE6_BASE_URL = $BaseUrl
-    npm run test:e2e --prefix apps/frontend -- --project=chromium e2e/phase5-production-candidate.spec.ts
-    Assert-True "Playwright candidate proof" ($LASTEXITCODE -eq 0)
+    $previousErrorActionPreference = $ErrorActionPreference
+    $previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    $PSNativeCommandUseErrorActionPreference = $false
+    try {
+      $playwrightOutput = @(
+        & npm run test:e2e --prefix apps/frontend -- --project=chromium e2e/phase5-production-candidate.spec.ts 2>&1
+      )
+      $playwrightExit = $LASTEXITCODE
+    } finally {
+      $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
+      $ErrorActionPreference = $previousErrorActionPreference
+    }
+    foreach ($line in $playwrightOutput) { Write-Host ([string]$line) }
+    Assert-True "Playwright candidate proof" ($playwrightExit -eq 0)
+    Assert-True "Playwright candidate passed output" (($playwrightOutput | Out-String) -match '(?m)\b1 passed\b')
+  }
+
+  $evidenceCommand = (
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase5-production-candidate-local.ps1 " +
+    "-BaseUrl $BaseUrl -ArtifactDir $ArtifactDir -AllowLocalhost -EvidenceRunId $EvidenceRunId"
+  )
+  $rawPath = Join-Path $ArtifactDir "raw"
+  New-Item -ItemType Directory -Force -Path $rawPath | Out-Null
+  $rawLogPath = Join-Path $rawPath "candidate-runtime.log"
+  $apiContractPath = Join-Path $rawPath "candidate-runtime-api-contract.json"
+  if (-not $legacyEvidence) {
+    [IO.File]::WriteAllText(
+      ([IO.Path]::GetFullPath((Join-Path $repoRoot $apiContractPath))),
+      (($contract | ConvertTo-Json -Depth 8) + "`n"),
+      [Text.UTF8Encoding]::new($false)
+    )
+    $rawLogLines = [Collections.Generic.List[string]]::new()
+    [void]$rawLogLines.Add("PHASE5_EVIDENCE_RAW_V2")
+    [void]$rawLogLines.Add("[phase5-evidence] chain=candidate-runtime")
+    [void]$rawLogLines.Add("[phase5-evidence] release_id=$([string]$candidateConfig.active_release_id)")
+    [void]$rawLogLines.Add("[phase5-evidence] source_commit_sha=$candidateSourceSha")
+    [void]$rawLogLines.Add("[phase5-evidence] evidence_run_id=$EvidenceRunId")
+    [void]$rawLogLines.Add("[phase5-evidence] command=$evidenceCommand")
+    foreach ($line in $playwrightOutput) { [void]$rawLogLines.Add([string]$line) }
+    foreach ($field in @(
+      "api_contract_verified",
+      "local_image_identity_verified",
+      "embedded_source_hash_parity_verified",
+      "candidate_runtime_source_parity_verified"
+    )) {
+      [void]$rawLogLines.Add("[phase5-candidate-local] $field=true")
+    }
+    [void]$rawLogLines.Add("[phase5-candidate-local] browser_click_verified=$(((-not $SkipBrowser).ToString()).ToLowerInvariant())")
+    [void]$rawLogLines.Add("[phase5-candidate-local] status=verified service_count=6")
+    [void]$rawLogLines.Add("[phase5-evidence] exit_code=0")
+    [IO.File]::WriteAllLines(
+      ([IO.Path]::GetFullPath((Join-Path $repoRoot $rawLogPath))),
+      $rawLogLines,
+      [Text.UTF8Encoding]::new($false)
+    )
   }
 
   $verification = [ordered]@{
-    contract_version = "phase5-production-candidate-local-verification-v1"
+    contract_version = $(if ($legacyEvidence) { "phase5-production-candidate-local-verification-v1" } else { "phase5-production-candidate-local-verification-v2" })
     evidence_ref = "phase5_local_production_candidate_verified"
     status = "verified"
     verification_scope = $(if ($SkipBrowser) { "runtime_without_browser" } else { "full_with_browser" })
@@ -218,6 +286,42 @@ try {
     production_deploy = $false
     release_promotion = $false
     secret_output = $false
+  }
+  if (-not $legacyEvidence) {
+    $candidateImagesPath = Join-Path $ArtifactDir "candidate-images.json"
+    $verification["command"] = $evidenceCommand
+    $verification["evidence_run_id"] = $EvidenceRunId
+    $verification["raw_log_path"] = "docs/release-artifacts/$([string]$candidateConfig.active_release_id)-evidence/raw/candidate-runtime.log"
+    $verification["raw_log_sha256"] = (Get-FileHash -LiteralPath $rawLogPath -Algorithm SHA256).Hash
+    $verification["observed_success_anchors"] = if ($SkipBrowser) {
+      @("[phase5-candidate-local] status=verified service_count=6")
+    } else {
+      @("1 passed", "[phase5-candidate-local] status=verified service_count=6")
+    }
+    $rawEvidence = [ordered]@{
+      candidate_images = [ordered]@{
+        path = "docs/release-artifacts/$([string]$candidateConfig.active_release_id)-evidence/candidate-images.json"
+        sha256 = (Get-FileHash -LiteralPath $candidateImagesPath -Algorithm SHA256).Hash
+      }
+      api_contract = [ordered]@{
+        path = "docs/release-artifacts/$([string]$candidateConfig.active_release_id)-evidence/raw/candidate-runtime-api-contract.json"
+        sha256 = (Get-FileHash -LiteralPath $apiContractPath -Algorithm SHA256).Hash
+      }
+    }
+    if (-not $SkipBrowser) {
+      $browserSourcePath = Join-Path $ArtifactDir "diagnostics-phase5-production-candidate.png"
+      Assert-True "candidate browser screenshot exists" (Test-Path -LiteralPath $browserSourcePath -PathType Leaf)
+      $browserEvidencePath = Join-Path $rawPath "candidate-runtime-browser.png"
+      Copy-Item -LiteralPath $browserSourcePath -Destination $browserEvidencePath -Force
+      $browserSize = (Get-Item -LiteralPath $browserEvidencePath).Length
+      Assert-True "candidate browser screenshot non-empty" ($browserSize -ge 1024)
+      $rawEvidence["browser_screenshot"] = [ordered]@{
+        path = "docs/release-artifacts/$([string]$candidateConfig.active_release_id)-evidence/raw/candidate-runtime-browser.png"
+        sha256 = (Get-FileHash -LiteralPath $browserEvidencePath -Algorithm SHA256).Hash
+        size_bytes = [int64]$browserSize
+      }
+    }
+    $verification["raw_evidence"] = $rawEvidence
   }
   New-Item -ItemType Directory -Force -Path $ArtifactDir | Out-Null
   $verificationFile = if ($SkipBrowser) { "verification-runtime.json" } else { "verification.json" }

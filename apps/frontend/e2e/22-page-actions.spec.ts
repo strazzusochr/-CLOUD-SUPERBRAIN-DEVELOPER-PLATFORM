@@ -522,22 +522,72 @@ const PAGE_LOCAL_INTERACTIVE_SELECTOR = [
 async function findUnregisteredPageLocalControls(
   page: Page,
   entry: PageActionEntry,
-): Promise<readonly JsonRecord[]> {
+): Promise<{
+  unregistered: readonly JsonRecord[];
+  registeredMatchCounts: Readonly<Record<string, number>>;
+}> {
   const registeredLocators = [
     ...entry.families.flatMap((family) => family.memberActions.map((action) => action.locator)),
     ...entry.excludedGates.map((gate) => gate.locator),
   ];
-  let registered = page.locator("main > :not(*)");
-  for (const locator of registeredLocators) {
-    try {
-      registered = registered.or(page.locator(locator));
-    } catch {
-      // Human-readable exclusions such as "not mounted" intentionally match no DOM control.
-    }
-  }
-  return registered.evaluateAll((coveredElements, candidateSelector) => {
-      const covered = new Set<Element>(coveredElements);
-      return Array.from(document.querySelectorAll(candidateSelector)).flatMap((element) => {
+  const snapshot = await page.evaluate(({ candidateSelector, selectors }) => {
+      const splitSelectorList = (value: string): string[] => {
+        const parts: string[] = [];
+        let start = 0;
+        let quote = "";
+        let bracketDepth = 0;
+        let parenthesisDepth = 0;
+        for (let index = 0; index < value.length; index += 1) {
+          const character = value[index];
+          if (quote) {
+            if (character === quote && value[index - 1] !== "\\") quote = "";
+            continue;
+          }
+          if (character === '"' || character === "'") {
+            quote = character;
+            continue;
+          }
+          if (character === "[") bracketDepth += 1;
+          else if (character === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+          else if (character === "(") parenthesisDepth += 1;
+          else if (character === ")") parenthesisDepth = Math.max(0, parenthesisDepth - 1);
+          else if (character === "," && bracketDepth === 0 && parenthesisDepth === 0) {
+            parts.push(value.slice(start, index).trim());
+            start = index + 1;
+          }
+        }
+        parts.push(value.slice(start).trim());
+        return parts.filter(Boolean);
+      };
+      const matchingElements = (rawSelector: string): Element[] => {
+        const textMatch = rawSelector.match(/^(.*):has-text\((["'])(.*)\2\)$/);
+        try {
+          if (!textMatch) return Array.from(document.querySelectorAll(rawSelector));
+          const css = textMatch[1].trim();
+          const expectedText = textMatch[3].replace(/\\([\\"'])/g, "$1").replace(/\s+/g, " ").trim();
+          return Array.from(document.querySelectorAll(css)).filter((element) =>
+            (element.textContent || "").replace(/\s+/g, " ").trim().includes(expectedText),
+          );
+        } catch {
+          // Human-readable exclusions such as "not mounted" intentionally
+          // match no DOM control and never broaden the registered set.
+          return [];
+        }
+      };
+
+      // Resolve registry coverage and candidate controls synchronously in one
+      // browser task. React cannot hydrate another build card between snapshots.
+      const covered = new Set<Element>();
+      const registeredMatchCounts: Record<string, number> = {};
+      for (const selector of selectors) {
+        const matches = new Set<Element>();
+        for (const selectorPart of splitSelectorList(selector)) {
+          for (const element of matchingElements(selectorPart)) matches.add(element);
+        }
+        registeredMatchCounts[selector] = matches.size;
+        for (const element of matches) covered.add(element);
+      }
+      const unregistered = Array.from(document.querySelectorAll(candidateSelector)).flatMap((element) => {
         const html = element as HTMLElement;
         const style = window.getComputedStyle(element);
         const rect = html.getBoundingClientRect();
@@ -558,10 +608,25 @@ async function findUnregisteredPageLocalControls(
           aria_label: element.getAttribute("aria-label"),
           href,
           text: (element.textContent || "").replace(/\s+/g, " ").trim().slice(0, 160),
-          class_name: typeof html.className === "string" ? html.className.slice(0, 160) : "",
-        }];
-      });
-    }, PAGE_LOCAL_INTERACTIVE_SELECTOR);
+           class_name: typeof html.className === "string" ? html.className.slice(0, 160) : "",
+         }];
+       });
+      return { unregistered, registeredMatchCounts };
+    }, { candidateSelector: PAGE_LOCAL_INTERACTIVE_SELECTOR, selectors: registeredLocators });
+
+  if (entry.route === "/apps") {
+    for (const selector of [
+      ".builds-gallery .bg-open",
+      ".builds-gallery .bg-edit",
+      '.builds-gallery [data-testid^="build-delete-"]',
+    ]) {
+      expect(
+        snapshot.registeredMatchCounts[selector],
+        `/apps registry selector must cover a hydrated dynamic build-card control: ${selector}`,
+      ).toBeGreaterThan(0);
+    }
+  }
+  return snapshot;
 }
 
 async function auditNetcodeSequence(page: Page, route: string, family: ActionFamily, action: ActionMember): Promise<ActionAudit> {
@@ -1120,6 +1185,7 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
   const audits: ActionAudit[] = [];
   const visitedRoutes = new Set<string>();
   const unregisteredByRoute = new Map<string, readonly JsonRecord[]>();
+  const registeredMatchCountsByRoute = new Map<string, Readonly<Record<string, number>>>();
   let failure: unknown = null;
 
   page.on("console", (message) => {
@@ -1304,7 +1370,9 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
         }
       }
       await gotoRoute(page, entry.route, persistedBuild.id);
-      unregisteredByRoute.set(entry.route, await findUnregisteredPageLocalControls(page, entry));
+      const registrySnapshot = await findUnregisteredPageLocalControls(page, entry);
+      unregisteredByRoute.set(entry.route, registrySnapshot.unregistered);
+      registeredMatchCountsByRoute.set(entry.route, registrySnapshot.registeredMatchCounts);
     }
 
     await Promise.allSettled(responseInspections);
@@ -1377,6 +1445,7 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
         ]),
       ),
       excluded_gates: entry.excludedGates.map((gate) => gate.id),
+      registered_page_local_match_counts: registeredMatchCountsByRoute.get(entry.route) ?? {},
       unregistered_page_local_controls: unregisteredByRoute.get(entry.route) ?? [],
       zero_page_local_reason: entry.zeroPageLocalReason ?? null,
     }));

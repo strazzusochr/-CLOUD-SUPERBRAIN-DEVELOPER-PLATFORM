@@ -68,6 +68,9 @@ function Get-StringSha256([string]$Value) {
 
 function Get-Percentile([double[]]$Values, [double]$Percentile) {
   if ($Values.Count -eq 0) { return 0.0 }
+  foreach ($value in $Values) {
+    Require (-not [double]::IsNaN($value) -and -not [double]::IsInfinity($value) -and $value -ge 0.0) "latency samples must be finite and non-negative"
+  }
   $sorted = @($Values | Sort-Object)
   $index = [Math]::Ceiling($Percentile * $sorted.Count) - 1
   if ($index -lt 0) { $index = 0 }
@@ -85,6 +88,57 @@ function ConvertFrom-JsonSafe([string]$Value) {
 
 function Has-Property($Value, [string]$Name) {
   return ($null -ne $Value -and $null -ne $Value.PSObject.Properties[$Name])
+}
+
+function Get-OptionalStringProperty($Value, [string]$Name) {
+  if (Has-Property $Value $Name) { return [string]$Value.$Name }
+  return ""
+}
+
+function Get-NonNegativeInteger($Value, [string]$Label) {
+  Require ($null -ne $Value -and $Value -isnot [bool]) "$Label must be a non-negative integer"
+  $text = [Convert]::ToString($Value, [Globalization.CultureInfo]::InvariantCulture)
+  Require ($text -match '^(?:0|[1-9][0-9]*)$') "$Label must be a non-negative integer"
+  $parsed = 0L
+  Require ([Int64]::TryParse($text, [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture, [ref]$parsed)) "$Label is outside the Int64 range"
+  return $parsed
+}
+
+function Get-StrictUtcTimestamp($Value, [string]$Label) {
+  $text = [string]$Value
+  Require ($text -match '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?Z$') "$Label must be an explicit UTC timestamp"
+  $parsed = [DateTimeOffset]::MinValue
+  Require ([DateTimeOffset]::TryParse(
+    $text,
+    [Globalization.CultureInfo]::InvariantCulture,
+    [Globalization.DateTimeStyles]::AssumeUniversal,
+    [ref]$parsed
+  )) "$Label is invalid"
+  Require ($parsed.Offset -eq [TimeSpan]::Zero) "$Label must use UTC"
+  return $parsed.ToUniversalTime()
+}
+
+function Get-RequiredEnvironment([string]$Name) {
+  $value = [Environment]::GetEnvironmentVariable($Name)
+  Require (-not [string]::IsNullOrWhiteSpace($value)) "trusted GitHub Actions context is missing $Name"
+  return $value.Trim()
+}
+
+function Require-BoundedText([string]$Value, [int]$MaximumLength, [string]$Label) {
+  Require (-not [string]::IsNullOrWhiteSpace($Value) -and $Value.Length -le $MaximumLength) "$Label is empty or too long"
+  Require ($Value -notmatch '[\x00-\x1f\x7f]') "$Label contains control characters"
+}
+
+function Assert-TrackedHeadBytes([string]$RelativePath, [string]$Label, [string]$HeadSha) {
+  Require (-not [IO.Path]::IsPathRooted($RelativePath)) "$Label must use a repository-relative path"
+  $normalized = $RelativePath.Replace('\', '/')
+  Require ($normalized -notmatch '(^|/)\.\.(/|$)') "$Label escapes the repository"
+  & git.exe -C $repoRoot ls-files --error-unmatch -- $normalized 2>$null | Out-Null
+  Require ($LASTEXITCODE -eq 0) "$Label is not tracked"
+  & git.exe -C $repoRoot diff --quiet HEAD -- $normalized
+  Require ($LASTEXITCODE -eq 0) "$Label has uncommitted changes"
+  & git.exe -C $repoRoot cat-file -e "${HeadSha}:$normalized" 2>$null
+  Require ($LASTEXITCODE -eq 0) "$Label did not exist at the execution HEAD"
 }
 
 function Resolve-RepoScopedPath([string]$Candidate, [string]$Label) {
@@ -170,10 +224,6 @@ if (-not $BaseUrl) { $BaseUrl = $criterionBaseUrl }
 $BaseUrl = Normalize-BaseUrl $BaseUrl
 Require ($BaseUrl -eq $criterionBaseUrl -and $BaseUrl -eq $hostedBaseUrl) "requested base url is not bound to criterion and hosted state"
 
-$readExpected = [int](($criterion.read_tiers | Measure-Object -Property requests -Sum).Sum)
-$writeExpected = [int]$criterion.write_tier.records
-$writeConcurrency = [int]$criterion.write_tier.concurrency
-$maxWorkerRequests = [int]$criterion.envelope.max_total_requests
 $declaredReadTiers = @($criterion.read_tiers)
 Require ($declaredReadTiers.Count -eq 3) "criterion must declare exactly three read tiers"
 $lockedReadTiers = @(
@@ -182,11 +232,17 @@ $lockedReadTiers = @(
   @{ concurrency = 50; requests = 500 }
 )
 for ($tierIndex = 0; $tierIndex -lt $lockedReadTiers.Count; $tierIndex++) {
+  $declaredConcurrency = Get-NonNegativeInteger $declaredReadTiers[$tierIndex].concurrency "criterion read tier $tierIndex concurrency"
+  $declaredRequests = Get-NonNegativeInteger $declaredReadTiers[$tierIndex].requests "criterion read tier $tierIndex requests"
   Require (
-    [int]$declaredReadTiers[$tierIndex].concurrency -eq [int]$lockedReadTiers[$tierIndex].concurrency -and
-    [int]$declaredReadTiers[$tierIndex].requests -eq [int]$lockedReadTiers[$tierIndex].requests
+    $declaredConcurrency -eq [int]$lockedReadTiers[$tierIndex].concurrency -and
+    $declaredRequests -eq [int]$lockedReadTiers[$tierIndex].requests
   ) "criterion read tier $tierIndex differs from the pre-declared 60@c1, 240@c10, 500@c50 plan"
 }
+$readExpected = [int](($lockedReadTiers | Measure-Object -Property requests -Sum).Sum)
+$writeExpected = [int](Get-NonNegativeInteger $criterion.write_tier.records "criterion write record count")
+$writeConcurrency = [int](Get-NonNegativeInteger $criterion.write_tier.concurrency "criterion write concurrency")
+$maxWorkerRequests = [int](Get-NonNegativeInteger $criterion.envelope.max_total_requests "criterion Worker request cap")
 Require ($readExpected -eq 800) "criterion must declare exactly 800 Worker reads"
 Require ($writeExpected -eq 50) "criterion must declare exactly 50 write records"
 Require ($writeConcurrency -eq 10) "criterion write concurrency must be exactly 10"
@@ -199,10 +255,12 @@ Require ([bool]$criterion.write_tier.no_duplicate_allowed) "write tier permits d
 Require ($criterion.write_tier.http_429_allowed -eq $false) "criterion permits throttled writes"
 Require ([string]$criterion.write_tier.cleanup_semantics -eq "soft_delete_then_active_row_absence_and_audit_readback") "criterion cleanup semantics changed"
 Require ([string]$criterion.control_tier.path -eq "/cdn-cgi/trace") "criterion control path changed"
-Require ([int]$criterion.control_tier.max_control_requests -eq 500) "criterion control request cap changed"
+$maxControlRequests = [int](Get-NonNegativeInteger $criterion.control_tier.max_control_requests "criterion control request cap")
+Require ($maxControlRequests -eq 500) "criterion control request cap changed"
 Require ([double]$criterion.pass_criteria.min_success_ratio -eq 0.99) "criterion success threshold changed"
 Require ([double]$criterion.pass_criteria.max_p95_ms -eq 1500) "criterion p95 threshold changed"
-Require ([int]$criterion.pass_criteria.own_5xx_allowed -eq 0) "criterion 5xx allowance changed"
+$own5xxAllowed = [int](Get-NonNegativeInteger $criterion.pass_criteria.own_5xx_allowed "criterion 5xx allowance")
+Require ($own5xxAllowed -eq 0) "criterion 5xx allowance changed"
 Require ([bool]$criterion.pass_criteria.throttle_must_fail_closed) "criterion no longer requires fail-closed throttling"
 Require ([string]$criterion.pass_criteria.http_429_scope -eq "health_read_tiers_only") "criterion 429 scope changed"
 Require ([bool]$criterion.fail_closed.missing_write_auth_is_failure) "criterion no longer fails on missing write authentication"
@@ -218,13 +276,94 @@ Require ($hostedEvidenceSha256 -eq ([string]$hostedState.evidence_sha256).ToLowe
 $hostedEvidence = Get-Content -LiteralPath $hostedEvidencePath -Raw | ConvertFrom-Json
 Require ([string]$hostedEvidence.contract_version -eq "cloudflare-d1-stateful-runtime-hosted-proof-v2") "hosted deployment evidence must be rebound with the v2 immutable deployment contract"
 Require ([string]$hostedEvidence.base_url -eq [string]$hostedState.base_url) "hosted deployment evidence base URL mismatch"
-Require ([string]$hostedEvidence.source_commit_sha -eq [string]$hostedState.source_commit_sha) "hosted deployment evidence source commit mismatch"
-Require ([string]$hostedEvidence.source_archive_sha256 -eq [string]$hostedState.source_archive_sha256) "hosted deployment evidence source archive mismatch"
+Require ([string]$hostedEvidence.source_commit_sha -match '^[0-9a-f]{40}$' -and [string]$hostedEvidence.source_commit_sha -ceq [string]$hostedState.source_commit_sha) "hosted deployment evidence source commit mismatch"
+Require ([string]$hostedEvidence.source_archive_sha256 -match '^[0-9a-f]{64}$' -and [string]$hostedEvidence.source_archive_sha256 -ceq [string]$hostedState.source_archive_sha256) "hosted deployment evidence source archive mismatch"
 Require ([string]$hostedEvidence.worker_version_id -match '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') "hosted deployment evidence Worker version ID is invalid"
 Require ([string]$hostedEvidence.deployment_id -match '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') "hosted deployment evidence deployment ID is invalid"
 Require ($hostedEvidence.source_binding_verified -eq $true -and $hostedEvidence.hosted_write_read_delete_verified -eq $true) "hosted deployment evidence lacks source-bound runtime proof"
 Require ($hostedEvidence.dev_only -eq $false -and $hostedEvidence.secret_output -eq $false) "hosted deployment evidence is DEV-only or exposes secret output"
-Require ((Get-GitArchiveSha256 ([string]$hostedState.source_commit_sha)) -eq [string]$hostedState.source_archive_sha256) "hosted source archive does not match the declared Git commit"
+Require ((Get-GitArchiveSha256 ([string]$hostedState.source_commit_sha)) -ceq [string]$hostedState.source_archive_sha256) "hosted source archive does not match the declared Git commit"
+
+$repositoryHeadSha = [string](& git.exe -C $repoRoot rev-parse HEAD)
+$repositoryHeadSha = $repositoryHeadSha.Trim()
+Require ($repositoryHeadSha -match '^[0-9a-f]{40}$') "repository HEAD SHA is invalid"
+& git.exe -C $repoRoot merge-base --is-ancestor ([string]$hostedState.source_commit_sha) $repositoryHeadSha
+Require ($LASTEXITCODE -eq 0) "deployed source commit is not an ancestor of the execution control HEAD"
+
+$verifierRelativePath = "scripts/verify-phase6-scale-runtime.ps1"
+Assert-TrackedHeadBytes "docs/runtime-state/phase6-scale-criterion.json" "scale criterion" $repositoryHeadSha
+Assert-TrackedHeadBytes "docs/runtime-state/cloudflare-native-hosted-current.json" "hosted state" $repositoryHeadSha
+Assert-TrackedHeadBytes "docs/runtime-state/capability-gates.json" "capability state" $repositoryHeadSha
+Assert-TrackedHeadBytes $hostedEvidenceRelativePath "hosted deployment evidence" $repositoryHeadSha
+Assert-TrackedHeadBytes $verifierRelativePath "runtime verifier" $repositoryHeadSha
+
+$criterionDeclaredAt = Get-StrictUtcTimestamp $criterion.declared_at_utc "criterion declaration timestamp"
+$hostedVerifiedAt = Get-StrictUtcTimestamp $hostedState.verified_at_utc "hosted-state verification timestamp"
+$deploymentTimestampProperties = @("verified_at_utc", "checked_at") | Where-Object { Has-Property $hostedEvidence $_ }
+Require ($deploymentTimestampProperties.Count -eq 1) "hosted deployment evidence must expose exactly one verification timestamp"
+$deploymentCheckedAt = Get-StrictUtcTimestamp $hostedEvidence.($deploymentTimestampProperties[0]) "hosted deployment evidence timestamp"
+$preflightNow = [DateTimeOffset](Get-Date).ToUniversalTime()
+$allowedClockSkew = [TimeSpan]::FromMinutes(5)
+$maximumDeploymentAge = [TimeSpan]::FromHours(24)
+Require ($deploymentCheckedAt -ge $criterionDeclaredAt) "hosted deployment evidence predates the locked scale criterion"
+Require ($deploymentCheckedAt -eq $hostedVerifiedAt) "hosted state and deployment evidence timestamps are not identical"
+Require ($hostedVerifiedAt -le ($preflightNow + $allowedClockSkew)) "hosted deployment evidence is future-dated"
+Require (($preflightNow - $hostedVerifiedAt) -le $maximumDeploymentAge) "hosted deployment evidence is stale"
+
+# The execution itself must happen in a GitHub-hosted workflow context. This is
+# only provisional provenance: the completed run and uploaded evidence pair are
+# independently rebound from the GitHub API after the run finishes.
+Require ((Get-RequiredEnvironment "GITHUB_ACTIONS") -ceq "true") "phase6 scale execution requires GitHub Actions"
+$githubRepository = Get-RequiredEnvironment "GITHUB_REPOSITORY"
+Require ($githubRepository -match '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') "GITHUB_REPOSITORY is invalid"
+$githubRunId = Get-NonNegativeInteger (Get-RequiredEnvironment "GITHUB_RUN_ID") "GITHUB_RUN_ID"
+Require ($githubRunId -gt 0) "GITHUB_RUN_ID must be positive"
+$githubRunAttempt = Get-NonNegativeInteger (Get-RequiredEnvironment "GITHUB_RUN_ATTEMPT") "GITHUB_RUN_ATTEMPT"
+Require ($githubRunAttempt -gt 0 -and $githubRunAttempt -le [int]::MaxValue) "GITHUB_RUN_ATTEMPT is invalid"
+$githubSha = (Get-RequiredEnvironment "GITHUB_SHA").ToLowerInvariant()
+Require ($githubSha -match '^[0-9a-f]{40}$' -and $githubSha -ceq $repositoryHeadSha) "GitHub execution SHA is not the exact repository HEAD"
+$githubRef = Get-RequiredEnvironment "GITHUB_REF"
+Require ($githubRef -match '^refs/heads/[^\s]+$') "phase6 scale execution requires a branch ref"
+$githubEventName = Get-RequiredEnvironment "GITHUB_EVENT_NAME"
+Require ($githubEventName -ceq "workflow_dispatch") "phase6 scale execution requires an explicit workflow_dispatch"
+$githubWorkflow = Get-RequiredEnvironment "GITHUB_WORKFLOW"
+$githubWorkflowRef = Get-RequiredEnvironment "GITHUB_WORKFLOW_REF"
+Require-BoundedText $githubWorkflow 256 "GITHUB_WORKFLOW"
+Require-BoundedText $githubWorkflowRef 512 "GITHUB_WORKFLOW_REF"
+Require ($githubWorkflowRef.StartsWith("$githubRepository/.github/workflows/", [StringComparison]::Ordinal) -and $githubWorkflowRef.Contains("@")) "GITHUB_WORKFLOW_REF is not repository-bound"
+$workflowSeparator = $githubWorkflowRef.LastIndexOf("@", [StringComparison]::Ordinal)
+Require ($workflowSeparator -gt $githubRepository.Length) "GITHUB_WORKFLOW_REF does not contain an exact workflow path"
+$githubWorkflowPath = $githubWorkflowRef.Substring($githubRepository.Length + 1, $workflowSeparator - $githubRepository.Length - 1).Replace('\', '/')
+Require ($githubWorkflowPath -match '^\.github/workflows/phase6-scale-runtime\.ya?ml$') "phase6 scale execution used an unexpected workflow path"
+$githubJob = Get-RequiredEnvironment "GITHUB_JOB"
+Require ($githubJob -match '^[A-Za-z0-9_.-]{1,128}$') "GITHUB_JOB is invalid"
+$githubServerUrl = Get-RequiredEnvironment "GITHUB_SERVER_URL"
+Require ($githubServerUrl -ceq "https://github.com") "GITHUB_SERVER_URL is not the trusted GitHub origin"
+$githubRunUrl = "$githubServerUrl/$githubRepository/actions/runs/$githubRunId"
+$githubArtifactName = "phase6-scale-execution-evidence-$githubRunId-$githubRunAttempt"
+
+$allowedControlDelta = @(
+  $githubWorkflowPath,
+  "docs/runtime-state/phase6-scale-criterion.json",
+  "docs/runtime-state/cloudflare-native-hosted-current.json",
+  "docs/runtime-state/capability-gates.json",
+  $hostedEvidenceRelativePath.Replace('\', '/'),
+  "scripts/verify-phase6-scale-runtime.ps1",
+  "scripts/verify-phase6-scale-runtime-static.ps1",
+  "scripts/verify-phase6-scale-evidence.ps1",
+  "scripts/verify-phase6-scale-evidence-static.ps1",
+  "scripts/collect-phase6-scale-execution-readback.ps1"
+) | Sort-Object -Unique
+$controlDelta = @(& git.exe -C $repoRoot diff --name-only --diff-filter=ACDMRTUXB ([string]$hostedState.source_commit_sha) $repositoryHeadSha --)
+Require ($LASTEXITCODE -eq 0) "source/control delta cannot be resolved"
+$safeControlDelta = @(& git.exe -C $repoRoot diff --name-only --diff-filter=ACM ([string]$hostedState.source_commit_sha) $repositoryHeadSha --)
+Require ($LASTEXITCODE -eq 0) "source/control safe delta cannot be resolved"
+$controlDelta = @($controlDelta | ForEach-Object { ([string]$_).Replace('\', '/') } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+$safeControlDelta = @($safeControlDelta | ForEach-Object { ([string]$_).Replace('\', '/') } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+Require ($controlDelta.Count -gt 0) "source/control delta is empty and cannot contain post-deployment evidence"
+Require ($controlDelta.Count -eq $safeControlDelta.Count -and (@(Compare-Object $controlDelta $safeControlDelta -CaseSensitive).Count -eq 0)) "source/control delta contains a delete, rename, type change, or unmerged path"
+$unexpectedControlDelta = @($controlDelta | Where-Object { $allowedControlDelta -cnotcontains $_ })
+Require ($unexpectedControlDelta.Count -eq 0) "source/control delta contains a non-allowlisted runtime path"
 
 # This authorization preflight intentionally precedes HttpClient construction and
 # every call site. A missing token or Owner switch therefore produces zero HTTP.
@@ -238,6 +377,7 @@ if (-not $AllowHostedWrites) {
   Blocked "-AllowHostedWrites is missing; zero HTTP requests issued"
 }
 
+$executionStartedAt = [DateTimeOffset](Get-Date).ToUniversalTime()
 $script:workerRequestsIssued = 0
 $script:controlRequestsIssued = 0
 
@@ -311,6 +451,7 @@ function Invoke-HttpBatch([object[]]$Specs, [int]$Concurrency, [bool]$WorkerRequ
       }
       $results.Add([pscustomobject]@{
         key = [string]$waveSpecs[$index].key
+        ordinal = [int]$waveSpecs[$index].ordinal
         status_code = $statusCode
         latency_ms = [Math]::Round($watches[$index].Elapsed.TotalMilliseconds, 1)
         response_text = $responseText
@@ -335,7 +476,7 @@ function Test-HealthBody($Body) {
     source_archive_sha256 = [string]$hostedState.source_archive_sha256
   }
   foreach ($entry in $expected.GetEnumerator()) {
-    if ([string]$Body.($entry.Key) -ne [string]$entry.Value) { $errors.Add("field:$($entry.Key)") }
+    if (-not (Has-Property $Body $entry.Key) -or [string]$Body.($entry.Key) -ne [string]$entry.Value) { $errors.Add("field:$($entry.Key)") }
   }
   foreach ($name in @("d1_binding_configured", "d1_read_verified", "write_auth_configured", "auth_required_for_writes", "free_tier_policy", "persisted")) {
     if (-not (Has-Property $Body $name) -or $Body.$name -ne $true) { $errors.Add("field:$name") }
@@ -343,7 +484,7 @@ function Test-HealthBody($Body) {
   foreach ($name in @("direct_provider_calls", "live_mcp_writes", "production_deploy", "secret_output")) {
     if (-not (Has-Property $Body $name) -or $Body.$name -ne $false) { $errors.Add("field:$name") }
   }
-  if (-not (Has-Property $Body "cloudflare_native_candidate") -or
+  if (-not (Has-Property $Body "cloudflare_native_candidate") -or $null -eq $Body.cloudflare_native_candidate -or
       [string]$Body.cloudflare_native_candidate.contract_version -ne [string]$hostedState.runtime_contract_version) {
     $errors.Add("field:cloudflare_native_candidate.contract_version")
   }
@@ -370,11 +511,11 @@ function Test-CreateBody($Body, $Expected) {
     share_path = "/run/$($Expected.id)"
   }
   foreach ($entry in $expectedFields.GetEnumerator()) {
-    if ([string]$Body.($entry.Key) -ne [string]$entry.Value) { $errors.Add("field:$($entry.Key)") }
+    if (-not (Has-Property $Body $entry.Key) -or [string]$Body.($entry.Key) -ne [string]$entry.Value) { $errors.Add("field:$($entry.Key)") }
   }
-  if ([string]$Body.request_id -cne [string]$Expected.create_request_id) { $errors.Add("field:request_id") }
-  if ([string]$Body.audit_event_id -cnotmatch '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') { $errors.Add("field:audit_event_id") }
-  if ([string]$Body.prompt_sha256 -ne [string]$Expected.prompt_sha256) { $errors.Add("hash:prompt") }
+  if ((Get-OptionalStringProperty $Body "request_id") -cne [string]$Expected.create_request_id) { $errors.Add("field:request_id") }
+  if ((Get-OptionalStringProperty $Body "audit_event_id") -cnotmatch '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') { $errors.Add("field:audit_event_id") }
+  if ((Get-OptionalStringProperty $Body "prompt_sha256") -ne [string]$Expected.prompt_sha256) { $errors.Add("hash:prompt") }
   foreach ($name in @("persisted", "audit_persisted", "audit_readback_verified")) {
     if (-not (Has-Property $Body $name) -or $Body.$name -ne $true) { $errors.Add("field:$name") }
   }
@@ -382,11 +523,19 @@ function Test-CreateBody($Body, $Expected) {
     if (-not (Has-Property $Body $name) -or $Body.$name -ne $false) { $errors.Add("field:$name") }
   }
   if (Has-Property $Body "prompt") { $errors.Add("prompt_not_redacted") }
-  if ((Get-StringSha256 ([string]$Body.html)) -ne [string]$Expected.html_sha256) { $errors.Add("hash:html") }
+  if ((Get-StringSha256 (Get-OptionalStringProperty $Body "html")) -ne [string]$Expected.html_sha256) { $errors.Add("hash:html") }
   $createdAt = [DateTimeOffset]::MinValue
   $updatedAt = [DateTimeOffset]::MinValue
-  if (-not [DateTimeOffset]::TryParse([string]$Body.created_at, [ref]$createdAt)) { $errors.Add("field:created_at") }
-  if (-not [DateTimeOffset]::TryParse([string]$Body.updated_at, [ref]$updatedAt)) { $errors.Add("field:updated_at") }
+  $createdValid = [DateTimeOffset]::TryParse((Get-OptionalStringProperty $Body "created_at"), [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeUniversal, [ref]$createdAt)
+  $updatedValid = [DateTimeOffset]::TryParse((Get-OptionalStringProperty $Body "updated_at"), [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeUniversal, [ref]$updatedAt)
+  if (-not $createdValid -or $createdAt.Offset -ne [TimeSpan]::Zero) { $errors.Add("field:created_at") }
+  if (-not $updatedValid -or $updatedAt.Offset -ne [TimeSpan]::Zero) { $errors.Add("field:updated_at") }
+  if ($createdValid -and $updatedValid) {
+    if ($createdAt -ne $updatedAt) { $errors.Add("field:timestamp_parity") }
+    if ($createdAt -lt ($executionStartedAt - $allowedClockSkew) -or $createdAt -gt ([DateTimeOffset](Get-Date).ToUniversalTime() + $allowedClockSkew)) {
+      $errors.Add("field:timestamp_window")
+    }
+  }
   return @($errors)
 }
 
@@ -396,17 +545,17 @@ function Test-DeleteBody($Body, [string]$ExpectedId, [string]$ExpectedRequestId,
     $errors.Add("invalid_json")
     return @($errors)
   }
-  if ([string]$Body.contract_version -ne "cloudflare-d1-stateful-runtime-v1") { $errors.Add("field:contract_version") }
-  if ([string]$Body.id -cne $ExpectedId) { $errors.Add("field:id") }
-  if ([string]$Body.request_id -cne $ExpectedRequestId) { $errors.Add("field:request_id") }
-  if ([string]$Body.audit_event_id -cnotmatch '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') { $errors.Add("field:audit_event_id") }
+  if ((Get-OptionalStringProperty $Body "contract_version") -ne "cloudflare-d1-stateful-runtime-v1") { $errors.Add("field:contract_version") }
+  if ((Get-OptionalStringProperty $Body "id") -cne $ExpectedId) { $errors.Add("field:id") }
+  if ((Get-OptionalStringProperty $Body "request_id") -cne $ExpectedRequestId) { $errors.Add("field:request_id") }
+  if ((Get-OptionalStringProperty $Body "audit_event_id") -cnotmatch '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') { $errors.Add("field:audit_event_id") }
   if ($ExpectDeleted) {
-    if ([string]$Body.status -ne "deleted") { $errors.Add("field:status") }
+    if ((Get-OptionalStringProperty $Body "status") -ne "deleted") { $errors.Add("field:status") }
     foreach ($name in @("persisted", "deleted", "audit_persisted", "audit_readback_verified", "delete_readback_verified")) {
       if (-not (Has-Property $Body $name) -or $Body.$name -ne $true) { $errors.Add("field:$name") }
     }
   } else {
-    if ([string]$Body.status -ne "not_found") { $errors.Add("field:status") }
+    if ((Get-OptionalStringProperty $Body "status") -ne "not_found") { $errors.Add("field:status") }
     foreach ($name in @("persisted", "deleted")) {
       if (-not (Has-Property $Body $name) -or $Body.$name -ne $false) { $errors.Add("field:$name") }
     }
@@ -429,15 +578,13 @@ $gateIdentityJson = [ordered]@{
 } | ConvertTo-Json -Compress
 $gateIdentitySha256 = Get-StringSha256 $gateIdentityJson
 $verifierScriptSha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
-$repositoryHeadSha = [string](& git.exe -C $repoRoot rev-parse HEAD)
-$repositoryHeadSha = $repositoryHeadSha.Trim()
-Require ($repositoryHeadSha -match '^[0-9a-f]{40}$') "repository HEAD SHA is invalid"
 $runId = [Guid]::NewGuid().ToString("N")
 $projectId = "phase6-scale-$($runId.Substring(0, 16))"
 $healthUrl = "$BaseUrl/api/v1/health"
 $tierResults = @()
 $validHealthJsonCount = 0
 $invalidHealthJsonCount = 0
+$controlFailureCount = 0
 $healthValidationFailures = [Collections.Generic.List[string]]::new()
 
 Write-Host "[phase6-scale] source-bound target: $BaseUrl"
@@ -449,18 +596,31 @@ foreach ($tier in $criterion.read_tiers) {
   $requestCount = [int]$tier.requests
   $specs = @()
   for ($index = 0; $index -lt $requestCount; $index++) {
-    $specs += [pscustomobject]@{ key = "health-$concurrency-$index"; method = "GET"; url = $healthUrl; body = ""; headers = @{} }
+    $ordinal = $index + 1
+    $specs += [pscustomobject]@{ key = "health-$concurrency-$ordinal"; ordinal = $ordinal; method = "GET"; url = $healthUrl; body = ""; headers = @{} }
   }
   $responses = Invoke-HttpBatch $specs $concurrency $true
+  Require ($responses.Count -eq $requestCount) "read tier c=$concurrency response count is not exact"
   $codes = @($responses | ForEach-Object { [int]$_.status_code })
   $latencies = @($responses | ForEach-Object { [double]$_.latency_ms })
   $tierValid = 0
   $tierInvalid = 0
+  $tierRecordEvidence = [Collections.Generic.List[object]]::new()
+  $seenReadKeys = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
   foreach ($response in $responses) {
+    $responseOrdinal = [int]$response.ordinal
+    $expectedKey = "health-$concurrency-$responseOrdinal"
+    Require ($responseOrdinal -ge 1 -and $responseOrdinal -le $requestCount) "read tier c=$concurrency contains an invalid ordinal"
+    Require ([string]$response.key -ceq $expectedKey) "read tier c=$concurrency key/ordinal binding mismatch"
+    Require ($seenReadKeys.Add([string]$response.key)) "read tier c=$concurrency contains a duplicate request key"
+    Require ([double]$response.latency_ms -ge 0.0 -and -not [double]::IsNaN([double]$response.latency_ms) -and -not [double]::IsInfinity([double]$response.latency_ms)) "read tier contains an invalid latency"
+    $errors = @()
+    $healthVerified = $false
     if ([int]$response.status_code -eq 200) {
       $body = ConvertFrom-JsonSafe ([string]$response.response_text)
       $errors = @(Test-HealthBody $body)
       if ($errors.Count -eq 0) {
+        $healthVerified = $true
         $tierValid += 1
         $validHealthJsonCount += 1
       } else {
@@ -469,16 +629,28 @@ foreach ($tier in $criterion.read_tiers) {
         foreach ($errorName in $errors) { $healthValidationFailures.Add("c=$concurrency/$errorName") }
       }
     }
+    $tierRecordEvidence.Add([pscustomobject]@{
+      ordinal = $responseOrdinal
+      key = [string]$response.key
+      status_code = [int]$response.status_code
+      latency_ms = [double]$response.latency_ms
+      health_contract_verified = $healthVerified
+      validation_errors = @($errors)
+    })
   }
+  Require ($seenReadKeys.Count -eq $requestCount) "read tier c=$concurrency request identities are incomplete"
 
   $controlP95 = $null
-  $controlRemaining = [int]$criterion.control_tier.max_control_requests - $script:controlRequestsIssued
+  $controlRecordEvidence = [Collections.Generic.List[object]]::new()
+  $controlRemaining = $maxControlRequests - $script:controlRequestsIssued
   $controlCount = [Math]::Min($concurrency * 4, [Math]::Max(0, $controlRemaining))
   if ($controlCount -gt 0) {
     $controlSpecs = @()
     for ($index = 0; $index -lt $controlCount; $index++) {
+      $ordinal = $index + 1
       $controlSpecs += [pscustomobject]@{
-        key = "control-$concurrency-$index"
+        key = "control-$concurrency-$ordinal"
+        ordinal = $ordinal
         method = "GET"
         url = "$BaseUrl$([string]$criterion.control_tier.path)"
         body = ""
@@ -486,24 +658,50 @@ foreach ($tier in $criterion.read_tiers) {
       }
     }
     $controlResponses = Invoke-HttpBatch $controlSpecs $concurrency $false
-    $controlP95 = Get-Percentile @($controlResponses | ForEach-Object { [double]$_.latency_ms }) 0.95
+    Require ($controlResponses.Count -eq $controlCount) "edge-control tier c=$concurrency response count is not exact"
+    $seenControlKeys = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($controlResponse in $controlResponses) {
+      $controlOrdinal = [int]$controlResponse.ordinal
+      $expectedControlKey = "control-$concurrency-$controlOrdinal"
+      Require ($controlOrdinal -ge 1 -and $controlOrdinal -le $controlCount) "edge-control tier c=$concurrency contains an invalid ordinal"
+      Require ([string]$controlResponse.key -ceq $expectedControlKey) "edge-control tier c=$concurrency key/ordinal binding mismatch"
+      Require ($seenControlKeys.Add([string]$controlResponse.key)) "edge-control tier c=$concurrency contains a duplicate request key"
+      $controlStatusValid = ([int]$controlResponse.status_code -eq 200)
+      if (-not $controlStatusValid) { $controlFailureCount += 1 }
+      $controlRecordEvidence.Add([pscustomobject]@{
+        ordinal = $controlOrdinal
+        key = [string]$controlResponse.key
+        status_code = [int]$controlResponse.status_code
+        latency_ms = [double]$controlResponse.latency_ms
+        response_ok = $controlStatusValid
+      })
+    }
+    Require ($seenControlKeys.Count -eq $controlCount) "edge-control tier c=$concurrency request identities are incomplete"
+    $controlP95 = Get-Percentile @($controlRecordEvidence | ForEach-Object { [double]$_.latency_ms }) 0.95
   }
 
+  $tier429 = [int]@($codes | Where-Object { $_ -eq 429 }).Count
+  $tier5xx = [int]@($codes | Where-Object { $_ -ge 500 -and $_ -le 599 }).Count
+  $tierTransport = [int]@($codes | Where-Object { $_ -eq 0 }).Count
+  $tierOther = [int]@($codes | Where-Object { $_ -ne 0 -and $_ -ne 200 -and $_ -ne 429 -and ($_ -lt 500 -or $_ -gt 599) }).Count
+  Require (($tierValid + $tierInvalid + $tier429 + $tier5xx + $tierTransport + $tierOther) -eq $requestCount) "read tier c=$concurrency response accounting is not exact"
   $tierP95 = Get-Percentile $latencies 0.95
   $tierResults += [pscustomobject]@{
-    concurrency = $concurrency
-    requests = $requestCount
-    valid_health_200 = $tierValid
-    invalid_health_200 = $tierInvalid
-    throttled_429 = @($codes | Where-Object { $_ -eq 429 }).Count
-    server_5xx = @($codes | Where-Object { $_ -ge 500 }).Count
-    transport_fail = @($codes | Where-Object { $_ -eq 0 }).Count
-    other_status = @($codes | Where-Object { ($_ -ne 0) -and ($_ -ne 200) -and ($_ -ne 429) -and ($_ -lt 500) }).Count
+    concurrency = [int]$concurrency
+    requests = [int]$requestCount
+    valid_health_200 = [int]$tierValid
+    invalid_health_200 = [int]$tierInvalid
+    throttled_429 = [int]$tier429
+    server_5xx = [int]$tier5xx
+    transport_fail = [int]$tierTransport
+    other_status = [int]$tierOther
     p50_ms = Get-Percentile $latencies 0.50
     p95_ms = $tierP95
     p99_ms = Get-Percentile $latencies 0.99
     edge_control_p95_ms = $controlP95
-    worker_share_p95_ms = if ($null -ne $controlP95) { [Math]::Round($tierP95 - $controlP95, 1) } else { $null }
+    worker_share_p95_ms = if ($null -ne $controlP95) { [Math]::Round([Math]::Max(0.0, $tierP95 - $controlP95), 1) } else { $null }
+    records = @($tierRecordEvidence)
+    edge_control_records = @($controlRecordEvidence)
   }
   Write-Host ("[phase6-scale] READ c={0,-2} n={1,-3} valid-health={2,-3} 429={3,-3} 5xx={4,-3} transport={5,-3} p95={6}ms" -f `
     $concurrency, $requestCount, $tierValid, $tierResults[-1].throttled_429, $tierResults[-1].server_5xx,
@@ -511,6 +709,7 @@ foreach ($tier in $criterion.read_tiers) {
 }
 
 Require ($script:workerRequestsIssued -eq 800) "read tier did not issue exactly 800 Worker requests"
+Require ($script:controlRequestsIssued -eq 244) "edge-control tier did not issue exactly 244 requests"
 if ($validHealthJsonCount -eq 0 -or $invalidHealthJsonCount -gt 0 -or
     @($tierResults | Where-Object { $_.valid_health_200 -eq 0 }).Count -gt 0) {
   Fail "health JSON/source binding failed; no hosted writes were issued"
@@ -525,6 +724,7 @@ for ($index = 0; $index -lt $writeExpected; $index++) {
   $prompt = "Phase 6 zero-card scale verification record $ordinal for run $runId"
   $html = "<!doctype html><html><head><meta charset=`"utf-8`"><title>Phase 6 $ordinal</title></head><body><main data-phase6-scale=`"$id`">Scale record $ordinal</main></body></html>"
   $expected = [pscustomobject]@{
+    ordinal = $ordinal
     id = $id
     project_id = $projectId
     title = "Phase 6 scale record $ordinal"
@@ -550,6 +750,7 @@ for ($index = 0; $index -lt $writeExpected; $index++) {
   } | ConvertTo-Json -Compress
   $postSpecs += [pscustomobject]@{
     key = $id
+    ordinal = $ordinal
     method = "POST"
     url = "$BaseUrl/api/v1/builds"
     body = $payload
@@ -564,6 +765,7 @@ foreach ($id in @($expectedById.Keys | Sort-Object)) {
   $deleteRequestIdById[$id] = $deleteRequestId
   $deleteSpecs += [pscustomobject]@{
     key = $id
+    ordinal = [int]$expectedById[$id].ordinal
     method = "DELETE"
     url = "$BaseUrl/api/v1/build/$id"
     body = ""
@@ -586,14 +788,21 @@ $recordLossCount = $writeExpected
 # stronger than relying on the normal happy-path sequence for test cleanup.
 try {
   $postResponses = Invoke-HttpBatch $postSpecs $writeConcurrency $true
+  Require ($postResponses.Count -eq $writeExpected) "write tier response count is not exact"
+  $seenPostKeys = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
   foreach ($response in $postResponses) {
     $id = [string]$response.key
+    Require ($expectedById.ContainsKey($id)) "write tier returned an unplanned request identity"
+    Require ($seenPostKeys.Add($id)) "write tier returned a duplicate request identity"
+    $expected = $expectedById[$id]
+    Require ([int]$response.ordinal -eq [int]$expected.ordinal) "write tier ID/ordinal binding mismatch"
+    Require ($id -ceq "p6s$($runId.Substring(0, 24))$(([int]$expected.ordinal).ToString('00'))") "write tier ID derivation mismatch"
     $body = ConvertFrom-JsonSafe ([string]$response.response_text)
     $errors = @()
     $readbackVerified = $false
     $responseId = if ($null -ne $body -and (Has-Property $body "id")) { [string]$body.id } else { $null }
     if ([int]$response.status_code -eq 201) {
-      $errors = @(Test-CreateBody $body $expectedById[$id])
+      $errors = @(Test-CreateBody $body $expected)
       $readbackVerified = ($errors.Count -eq 0)
       if ($readbackVerified) { $validCreatedIds.Add($id) }
       $createFieldFailureCount += @($errors | Where-Object { $_ -like "field:*" -or $_ -eq "invalid_json" -or $_ -eq "prompt_not_redacted" }).Count
@@ -604,21 +813,27 @@ try {
     } elseif ([int]$response.status_code -ne 429) {
       $errors = @("http:$([int]$response.status_code)")
     }
+    $responsePromptSha256 = if ($null -ne $body -and (Has-Property $body "prompt_sha256")) { [string]$body.prompt_sha256 } else { "" }
+    $responseHtmlSha256 = if ($null -ne $body -and (Has-Property $body "html")) { Get-StringSha256 ([string]$body.html) } else { "" }
     $postEvidence.Add([pscustomobject]@{
+      ordinal = [int]$expected.ordinal
       id = $id
       response_id = $responseId
       status_code = [int]$response.status_code
       latency_ms = [double]$response.latency_ms
       response_readback_verified = $readbackVerified
-      request_id = if ($null -ne $body) { [string]$body.request_id } else { "" }
-      audit_event_id = if ($null -ne $body) { [string]$body.audit_event_id } else { "" }
-      prompt_sha256 = [string]$expectedById[$id].prompt_sha256
-      html_sha256 = [string]$expectedById[$id].html_sha256
+      request_id = Get-OptionalStringProperty $body "request_id"
+      audit_event_id = Get-OptionalStringProperty $body "audit_event_id"
+      prompt_sha256 = $responsePromptSha256
+      html_sha256 = $responseHtmlSha256
+      created_at_utc = Get-OptionalStringProperty $body "created_at"
+      updated_at_utc = Get-OptionalStringProperty $body "updated_at"
       audit_persisted_verified = ($readbackVerified -and $body.audit_persisted -eq $true)
       audit_readback_verified = ($readbackVerified -and $body.audit_readback_verified -eq $true)
       validation_errors = @($errors)
     })
   }
+  Require ($seenPostKeys.Count -eq $writeExpected) "write tier request identities are incomplete"
 
   $responseIds = @($postEvidence | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.response_id) } | ForEach-Object { $_.response_id })
   $duplicateCount = @($responseIds | Group-Object | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Count - 1 } | Measure-Object -Sum).Sum
@@ -636,10 +851,15 @@ try {
 $cleanupEvidence = [Collections.Generic.List[object]]::new()
 $cleanupVerifiedCount = 0
 $uncleanThrottleCount = 0
+$seenCleanupKeys = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
 
 foreach ($response in $deleteResponses) {
   $id = [string]$response.key
+  Require ($expectedById.ContainsKey($id)) "cleanup tier returned an unplanned request identity"
+  Require ($seenCleanupKeys.Add($id)) "cleanup tier returned a duplicate request identity"
   $create = @($postEvidence | Where-Object { $_.id -eq $id })[0]
+  Require ($null -ne $create) "cleanup tier lacks its create correlation"
+  Require ([int]$response.ordinal -eq [int]$expectedById[$id].ordinal) "cleanup tier ID/ordinal binding mismatch"
   $body = ConvertFrom-JsonSafe ([string]$response.response_text)
   $expectDeleted = [bool]$create.response_readback_verified
   $errors = @()
@@ -657,36 +877,65 @@ foreach ($response in $deleteResponses) {
   }
   if ($verified) { $cleanupVerifiedCount += 1 }
   $cleanupEvidence.Add([pscustomobject]@{
+    ordinal = [int]$expectedById[$id].ordinal
     id = $id
     status_code = [int]$response.status_code
     latency_ms = [double]$response.latency_ms
     expected_deleted_record = $expectDeleted
     cleanup_verified = $verified
-    request_id = if ($null -ne $body) { [string]$body.request_id } else { "" }
-    audit_event_id = if ($null -ne $body) { [string]$body.audit_event_id } else { "" }
+    request_id = Get-OptionalStringProperty $body "request_id"
+    audit_event_id = Get-OptionalStringProperty $body "audit_event_id"
     audit_persisted_verified = ($verified -and $body.audit_persisted -eq $true)
     audit_readback_verified = ($verified -and $body.audit_readback_verified -eq $true)
     delete_readback_verified = ($verified -and $body.delete_readback_verified -eq $true)
     validation_errors = @($errors)
   })
 }
+Require ($seenCleanupKeys.Count -eq $writeExpected) "cleanup tier request identities are incomplete"
 
 Require ($postResponses.Count -eq 50) "write tier did not issue exactly 50 POST requests"
 Require ($deleteResponses.Count -eq 50) "cleanup tier did not issue exactly 50 DELETE requests"
 Require ($script:workerRequestsIssued -eq $maxWorkerRequests) "Worker request count is not exactly $maxWorkerRequests"
 
+$createRequestIds = @($postEvidence | ForEach-Object { [string]$_.request_id })
+$cleanupRequestIds = @($cleanupEvidence | ForEach-Object { [string]$_.request_id })
+$allRequestIds = @($createRequestIds + $cleanupRequestIds | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+$allAuditEventIds = @(
+  @($postEvidence | ForEach-Object { [string]$_.audit_event_id }) +
+  @($cleanupEvidence | ForEach-Object { [string]$_.audit_event_id }) |
+    Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+)
+$duplicateRequestIdCount = [int](@($allRequestIds | Group-Object -CaseSensitive | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Count - 1 } | Measure-Object -Sum).Sum)
+$duplicateAuditEventIdCount = [int](@($allAuditEventIds | Group-Object -CaseSensitive | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Count - 1 } | Measure-Object -Sum).Sum)
+Require ($duplicateRequestIdCount -ge 0 -and $duplicateAuditEventIdCount -ge 0) "correlation duplicate counts must be non-negative integers"
+Require ($recordLossCount -ge 0 -and $recordLossCount -le $writeExpected) "write record-loss count is invalid"
+Require ($cleanupVerifiedCount -ge 0 -and $cleanupVerifiedCount -le $writeExpected) "cleanup verified count is invalid"
+
 $read429 = [int](($tierResults | Measure-Object -Property throttled_429 -Sum).Sum)
 $read5xx = [int](($tierResults | Measure-Object -Property server_5xx -Sum).Sum)
 $readTransport = [int](($tierResults | Measure-Object -Property transport_fail -Sum).Sum)
 $readOther = [int](($tierResults | Measure-Object -Property other_status -Sum).Sum)
-$post429 = @($postResponses | Where-Object { $_.status_code -eq 429 }).Count
-$delete429 = @($deleteResponses | Where-Object { $_.status_code -eq 429 }).Count
-$server5xxTotal = $read5xx + @($postResponses | Where-Object { $_.status_code -ge 500 }).Count + @($deleteResponses | Where-Object { $_.status_code -ge 500 }).Count
-$transportTotal = $readTransport + @($postResponses | Where-Object { $_.status_code -eq 0 }).Count + @($deleteResponses | Where-Object { $_.status_code -eq 0 }).Count
+$post201 = [int]@($postResponses | Where-Object { $_.status_code -eq 201 }).Count
+$post429 = [int]@($postResponses | Where-Object { $_.status_code -eq 429 }).Count
+$post5xx = [int]@($postResponses | Where-Object { $_.status_code -ge 500 -and $_.status_code -le 599 }).Count
+$postTransport = [int]@($postResponses | Where-Object { $_.status_code -eq 0 }).Count
+$postOther = [int]@($postResponses | Where-Object { $_.status_code -ne 0 -and $_.status_code -ne 201 -and $_.status_code -ne 429 -and ($_.status_code -lt 500 -or $_.status_code -gt 599) }).Count
+$delete200 = [int]@($deleteResponses | Where-Object { $_.status_code -eq 200 }).Count
+$delete429 = [int]@($deleteResponses | Where-Object { $_.status_code -eq 429 }).Count
+$delete5xx = [int]@($deleteResponses | Where-Object { $_.status_code -ge 500 -and $_.status_code -le 599 }).Count
+$deleteTransport = [int]@($deleteResponses | Where-Object { $_.status_code -eq 0 }).Count
+$deleteOther = [int]@($deleteResponses | Where-Object { $_.status_code -ne 0 -and $_.status_code -ne 200 -and $_.status_code -ne 429 -and ($_.status_code -lt 500 -or $_.status_code -gt 599) }).Count
+Require (($post201 + $post429 + $post5xx + $postTransport + $postOther) -eq $writeExpected) "write response status accounting is not exact"
+Require (($delete200 + $delete429 + $delete5xx + $deleteTransport + $deleteOther) -eq $writeExpected) "cleanup response status accounting is not exact"
+$server5xxTotal = [int]($read5xx + $post5xx + $delete5xx)
+$transportTotal = [int]($readTransport + $postTransport + $deleteTransport)
 $throttled429Total = $read429 + $post429 + $delete429
-$acceptableStatusCount = $validHealthJsonCount + @($postResponses | Where-Object { $_.status_code -ge 200 -and $_.status_code -lt 300 }).Count +
-  @($deleteResponses | Where-Object { $_.status_code -ge 200 -and $_.status_code -lt 300 }).Count + $read429
-$successRatio = [Math]::Round($acceptableStatusCount / $maxWorkerRequests, 4)
+$literalCleanupSuccessCount = [int]@($cleanupEvidence | Where-Object { $_.status_code -eq 200 -and $_.cleanup_verified -eq $true }).Count
+$literalSuccessCount = [int]($validHealthJsonCount + $validCreatedIds.Count + $literalCleanupSuccessCount)
+Require ($literalSuccessCount -ge 0 -and $literalSuccessCount -le $maxWorkerRequests) "literal 2xx success count is invalid"
+# 429 is deliberately excluded: only contract-valid health 200, create 201,
+# and verified cleanup 200 responses are literal successes.
+$successRatio = [Math]::Round(([double]$literalSuccessCount / [double]$maxWorkerRequests), 4)
 $worstReadP95 = [double](($tierResults | Measure-Object -Property p95_ms -Maximum).Maximum)
 $postLatencies = @($postResponses | ForEach-Object { [double]$_.latency_ms })
 $deleteLatencies = @($deleteResponses | ForEach-Object { [double]$_.latency_ms })
@@ -697,13 +946,18 @@ $worstWorkerP95 = [Math]::Max($worstReadP95, [Math]::Max($postP95, $deleteP95))
 $failures = [Collections.Generic.List[string]]::new()
 if ($successRatio -lt [double]$criterion.pass_criteria.min_success_ratio) { $failures.Add("success_ratio_below_threshold") }
 if ($worstWorkerP95 -gt [double]$criterion.pass_criteria.max_p95_ms) { $failures.Add("p95_above_threshold") }
-if ($server5xxTotal -gt [int]$criterion.pass_criteria.own_5xx_allowed) { $failures.Add("own_5xx_above_threshold") }
+if ($server5xxTotal -gt $own5xxAllowed) { $failures.Add("own_5xx_above_threshold") }
 if ($transportTotal -gt 0) { $failures.Add("transport_failure") }
 if ($readOther -gt 0) { $failures.Add("unexpected_read_status") }
+if ($controlFailureCount -gt 0) { $failures.Add("edge_control_failure") }
 if ($invalidHealthJsonCount -gt 0) { $failures.Add("invalid_health_json") }
 if ($post429 -gt 0 -or $delete429 -gt 0) { $failures.Add("write_or_cleanup_throttled") }
 if ($recordLossCount -gt 0) { $failures.Add("write_record_loss") }
 if ([int]$duplicateCount -gt 0) { $failures.Add("duplicate_write_readback") }
+if ($duplicateRequestIdCount -gt 0) { $failures.Add("duplicate_request_id") }
+if ($duplicateAuditEventIdCount -gt 0) { $failures.Add("duplicate_audit_event_id") }
+if ($allRequestIds.Count -ne (2 * $writeExpected)) { $failures.Add("request_id_accounting_incomplete") }
+if ($allAuditEventIds.Count -ne (2 * $writeExpected)) { $failures.Add("audit_event_id_accounting_incomplete") }
 if ($createFieldFailureCount -gt 0 -or $createHashFailureCount -gt 0 -or $createAuditFailureCount -gt 0) { $failures.Add("write_readback_validation_failed") }
 if ($cleanupVerifiedCount -ne $writeExpected) { $failures.Add("cleanup_incomplete") }
 if ($uncleanThrottleCount -gt 0) { $failures.Add("throttle_did_not_fail_closed") }
@@ -719,7 +973,7 @@ $report = [ordered]@{
   contract_version = "phase6-scale-evidence-v2"
   generated_at_utc = $generatedAt.ToString("o")
   run_id = $runId
-  result = if ($failures.Count -eq 0) { "verified" } else { "failed" }
+  result = if ($failures.Count -eq 0) { "provisional_pending_github_readback" } else { "failed" }
   criterion_binding = [ordered]@{
     contract_version = [string]$criterion.contract_version
     gate_id = [string]$criterion.gate_id
@@ -744,57 +998,84 @@ $report = [ordered]@{
     owner_granted = [bool]$scaleGate.owner_granted
     owner_grant_ref = [string]$scaleGate.owner_grant_ref
     health_json_source_binding_verified = ($validHealthJsonCount -gt 0 -and $invalidHealthJsonCount -eq 0)
+    execution_attestation = [ordered]@{
+      contract_version = "phase6-scale-execution-provenance-v1"
+      binding_mode = "source_control_allowlist_v1"
+      status = "provisional_pending_github_readback"
+      github_actions = $true
+      repository = $githubRepository
+      run_id = [Int64]$githubRunId
+      run_attempt = [int]$githubRunAttempt
+      run_url = $githubRunUrl
+      event_name = $githubEventName
+      ref = $githubRef
+      head_sha = $githubSha
+      source_commit_sha = [string]$hostedState.source_commit_sha
+      control_delta = @($controlDelta)
+      workflow = $githubWorkflow
+      workflow_ref = $githubWorkflowRef
+      job = $githubJob
+      artifact_name = $githubArtifactName
+      post_run_api_readback_required = $true
+      verified = $false
+    }
   }
   request_budget = [ordered]@{
-    worker_cap = $maxWorkerRequests
-    worker_requests_issued = $script:workerRequestsIssued
-    read_requests_issued = $readExpected
-    create_requests_issued = $postResponses.Count
-    cleanup_delete_requests_issued = $deleteResponses.Count
-    control_edge_requests_issued = $script:controlRequestsIssued
+    worker_cap = [int]$maxWorkerRequests
+    worker_requests_issued = [int]$script:workerRequestsIssued
+    read_requests_issued = [int]$readExpected
+    create_requests_issued = [int]$postResponses.Count
+    cleanup_delete_requests_issued = [int]$deleteResponses.Count
+    control_edge_requests_issued = [int]$script:controlRequestsIssued
     cap_respected = ($script:workerRequestsIssued -le $maxWorkerRequests)
     exact_plan_executed = ($script:workerRequestsIssued -eq 900)
   }
   read_tiers = @($tierResults)
   health_validation = [ordered]@{
-    valid_json_count = $validHealthJsonCount
-    invalid_json_or_contract_count = $invalidHealthJsonCount
+    valid_json_count = [int]$validHealthJsonCount
+    invalid_json_or_contract_count = [int]$invalidHealthJsonCount
     validation_failures = @($healthValidationFailures | Select-Object -Unique)
   }
   write_tier = [ordered]@{
     concurrency = $writeConcurrency
     records_planned = $writeExpected
-    valid_post_insert_readbacks = $validCreatedIds.Count
-    record_loss_count = $recordLossCount
+    valid_post_insert_readbacks = [int]$validCreatedIds.Count
+    record_loss_count = [int]$recordLossCount
     duplicate_count = [int]$duplicateCount
-    field_failure_count = $createFieldFailureCount
-    hash_failure_count = $createHashFailureCount
-    audit_failure_count = $createAuditFailureCount
-    throttled_429 = $post429
-    server_5xx = @($postResponses | Where-Object { $_.status_code -ge 500 }).Count
-    transport_fail = @($postResponses | Where-Object { $_.status_code -eq 0 }).Count
+    duplicate_request_id_count = [int]$duplicateRequestIdCount
+    duplicate_audit_event_id_count = [int]$duplicateAuditEventIdCount
+    field_failure_count = [int]$createFieldFailureCount
+    hash_failure_count = [int]$createHashFailureCount
+    audit_failure_count = [int]$createAuditFailureCount
+    throttled_429 = [int]$post429
+    server_5xx = [int]$post5xx
+    transport_fail = [int]$postTransport
     p50_ms = Get-Percentile $postLatencies 0.50
     p95_ms = $postP95
     p99_ms = Get-Percentile $postLatencies 0.99
     records = @($postEvidence)
   }
   cleanup = [ordered]@{
-    verified_count = $cleanupVerifiedCount
-    required_count = $writeExpected
+    verified_count = [int]$cleanupVerifiedCount
+    literal_success_count = [int]$literalCleanupSuccessCount
+    required_count = [int]$writeExpected
     complete = ($cleanupVerifiedCount -eq $writeExpected)
-    throttled_429 = $delete429
-    unclean_throttle_count = $uncleanThrottleCount
-    server_5xx = @($deleteResponses | Where-Object { $_.status_code -ge 500 }).Count
-    transport_fail = @($deleteResponses | Where-Object { $_.status_code -eq 0 }).Count
+    throttled_429 = [int]$delete429
+    unclean_throttle_count = [int]$uncleanThrottleCount
+    server_5xx = [int]$delete5xx
+    transport_fail = [int]$deleteTransport
     p95_ms = $deleteP95
     records = @($cleanupEvidence)
   }
   aggregate = [ordered]@{
+    literal_success_count = [int]$literalSuccessCount
     success_ratio = $successRatio
     worst_p95_ms = $worstWorkerP95
-    throttled_429_total = $throttled429Total
-    server_5xx_total = $server5xxTotal
-    transport_fail_total = $transportTotal
+    throttled_429_total = [int]$throttled429Total
+    server_5xx_total = [int]$server5xxTotal
+    transport_fail_total = [int]$transportTotal
+    edge_control_failure_count = [int]$controlFailureCount
+    http_429_counted_as_success = $false
     failures = @($failures)
     criterion_met = ($failures.Count -eq 0)
   }
@@ -807,6 +1088,7 @@ $report = [ordered]@{
   percentage_credit_awarded = 0
   non_claims = @($criterion.non_claims) + @(
     "This evidence file does not promote phase6_scale_runtime.",
+    "This provisional evidence requires an independently downloaded post-run GitHub API and artifact readback before it can verify execution provenance.",
     "The authorization token is neither printed nor persisted.",
     "Control requests use the Cloudflare edge path and are not Worker requests."
   )
@@ -814,20 +1096,38 @@ $report = [ordered]@{
 
 $json = $report | ConvertTo-Json -Depth 10
 $utf8NoBom = [Text.UTF8Encoding]::new($false)
-$stream = [IO.File]::Open($reportPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+$reportCreated = $false
+$sidecarCreated = $false
+$reportSha256 = Get-StringSha256 $json
 try {
-  $writer = [IO.StreamWriter]::new($stream, $utf8NoBom)
-  try { $writer.Write($json) } finally { $writer.Dispose() }
-} finally {
-  if ($null -ne $stream) { $stream.Dispose() }
-}
-$reportSha256 = (Get-FileHash -LiteralPath $reportPath -Algorithm SHA256).Hash.ToLowerInvariant()
-$shaStream = [IO.File]::Open($shaPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::Read)
-try {
-  $shaWriter = [IO.StreamWriter]::new($shaStream, $utf8NoBom)
-  try { $shaWriter.Write("$reportSha256  $([IO.Path]::GetFileName($reportPath))`n") } finally { $shaWriter.Dispose() }
-} finally {
-  if ($null -ne $shaStream) { $shaStream.Dispose() }
+  # The digest sidecar is created first from the exact UTF-8 bytes held in
+  # memory. Therefore a sidecar failure can never leave an orphan report.
+  $shaStream = [IO.File]::Open($shaPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+  $sidecarCreated = $true
+  try {
+    $shaWriter = [IO.StreamWriter]::new($shaStream, $utf8NoBom)
+    try { $shaWriter.Write("$reportSha256  $([IO.Path]::GetFileName($reportPath))`n") } finally { $shaWriter.Dispose() }
+  } finally {
+    if ($null -ne $shaStream) { $shaStream.Dispose() }
+  }
+  $stream = [IO.File]::Open($reportPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+  $reportCreated = $true
+  try {
+    $writer = [IO.StreamWriter]::new($stream, $utf8NoBom)
+    try { $writer.Write($json) } finally { $writer.Dispose() }
+  } finally {
+    if ($null -ne $stream) { $stream.Dispose() }
+  }
+  $writtenReportSha256 = (Get-FileHash -LiteralPath $reportPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($writtenReportSha256 -cne $reportSha256) { throw "evidence byte digest mismatch" }
+} catch {
+  if ($reportCreated -and (Test-Path -LiteralPath $reportPath -PathType Leaf)) {
+    Remove-Item -LiteralPath $reportPath -Force
+  }
+  if ($sidecarCreated -and (Test-Path -LiteralPath $shaPath -PathType Leaf)) {
+    Remove-Item -LiteralPath $shaPath -Force
+  }
+  Fail "immutable evidence/report sidecar pair could not be created atomically"
 }
 
 Write-Host ""
@@ -839,11 +1139,13 @@ Write-Host "[phase6-scale] worst p95       : ${worstWorkerP95}ms"
 Write-Host "[phase6-scale] evidence        : $reportPath"
 Write-Host "[phase6-scale] evidence SHA256 : $reportSha256"
 Write-Host "[phase6-scale] gate promoted   : false"
+Write-Host "[phase6-scale] GitHub artifact : $githubArtifactName"
+Write-Host "[phase6-scale] API readback    : pending after completed run"
 
 if ($failures.Count -gt 0) {
   Fail ("criterion failed: " + (@($failures) -join "; "))
 }
-Write-Host "[phase6-scale] VERIFIED: declared zero-card scale criterion met; Owner gate remains unchanged"
+Write-Host "[phase6-scale] PROVISIONAL: literal criterion met; completed GitHub run/artifact readback is still required"
 } finally {
   $authValue = $null
   $postSpecs = $null

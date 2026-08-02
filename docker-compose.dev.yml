@@ -60,6 +60,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-superbrain}:${POSTGRES_PASSWORD:-change-me-now}@postgres:5432/${POSTGRES_DB:-superbrain_prod}
       AGENT_API_AUTH_TOKEN: ${AGENT_API_AUTH_TOKEN:-}
+      SUPERBRAIN_RUNTIME_MODE: dev-only
       # O1 / production_auth_identity: die Agent API berechnet `github_oauth_configured`
       # und `credential_issuance_ready` ausschliesslich aus diesen vier Werten
       # (services/agent-api/app/main.py:2285). Ohne Verdrahtung bleibt Auth dauerhaft
@@ -68,6 +69,7 @@ services:
       GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
       GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}
       GITHUB_OAUTH_REDIRECT_URI: ${GITHUB_OAUTH_REDIRECT_URI:-}
+      GITHUB_OAUTH_OWNER_IDS: ${GITHUB_OAUTH_OWNER_IDS:-}
       JWT_SIGNING_SECRET: ${JWT_SIGNING_SECRET:-}
       REDIS_URL: redis://redis:6379/0
       MCP_GATEWAY_URL: http://mcp-gateway:9000

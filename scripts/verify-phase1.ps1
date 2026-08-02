@@ -1510,6 +1510,11 @@ foreach ($nginxPath in @("infrastructure\nginx\dev.conf", "infrastructure\nginx\
   if ($authSafeNginx -match '(?m)^\s*log_format\s+superbrain_path_only[^;]*\$request(?:\s|''|"|;)') {
     throw "Nginx auth-safe access log must not include raw request arguments: $nginxPath"
   }
+  if (([regex]::Matches($authSafeNginx, '(?m)^\s*proxy_set_header\s+Authorization\s+"";\s*$')).Count -lt 2 -or
+      ([regex]::Matches($authSafeNginx, '(?m)^\s*proxy_set_header\s+Cookie\s+"";\s*$')).Count -lt 2 -or
+      ([regex]::Matches($authSafeNginx, '(?m)^\s*proxy_hide_header\s+Set-Cookie;\s*$')).Count -lt 2) {
+    throw "Nginx public MCP/LLM routes must strip browser credentials and upstream cookies: $nginxPath"
+  }
 }
 Write-Host "[verify] Phase 3 auth credential issuance fail-closed"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-auth-fail-closed.ps1 -StaticOnly
@@ -2582,8 +2587,22 @@ foreach ($required in @("createHmac", "timingSafeEqual", "AUTH_SESSION_TTL_SECON
   if (-not $authSessionHelper.Contains($required)) { throw "Auth-session integrity helper missing: $required" }
 }
 $authSessionRoute = Get-Content -Path "apps\frontend\app\api\v1\auth\session\route.ts" -Raw
-foreach ($required in @("AUTH_SESSION_COOKIE", "external_provider_write: false", "jar.delete(AUTH_SESSION_COOKIE)")) {
+foreach ($required in @(
+  "AUTH_SESSION_COOKIE",
+  "external_provider_write: false",
+  "async function clearSessionCookie()",
+  'jar.set(AUTH_SESSION_COOKIE, "", {',
+  "httpOnly: true",
+  "secure: true",
+  'sameSite: "strict"',
+  'path: "/"',
+  "maxAge: 0",
+  "expires: new Date(0)"
+)) {
   if (-not $authSessionRoute.Contains($required)) { throw "Auth-session route missing: $required" }
+}
+if ($authSessionRoute.Contains("jar.delete(AUTH_SESSION_COOKIE)")) {
+  throw "Auth-session route must clear the __Host- cookie with the full creation attributes"
 }
 if ($authSessionRoute.Contains("ghStore")) { throw "Auth-session route must not contain a GitHub write path" }
 if (-not (Test-Path "apps\frontend\e2e\phase3-auth-session-integrity.spec.ts")) { throw "Missing auth-session Chromium proof" }
@@ -2912,7 +2931,6 @@ foreach ($required in @("Apply and verify default branch protection", "BRANCH_PR
 }
 $prCheckWorkflow = Get-Content -Path ".github\workflows\pr-check.yml" -Raw
 Assert-Contains "pr-check default branch" $prCheckWorkflow "chore/repo-bootstrap"
-$mainDeployWorkflow = Get-Content -Path ".github\workflows\main-deploy.yml" -Raw
 Write-Host "[verify] main-deploy immutable candidate transition"
 & powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-main-deploy-transition.ps1 | Out-Null
 Assert-LastExitCode "main-deploy immutable candidate transition"

@@ -69,7 +69,7 @@
       ],
       "codex_boundary": "No card, checkout, payment, subscription activation, paid fallback, resource creation, hosted write, or production deployment without the exact Owner gate. A free quota is not a zero-card proof.",
       "owner_scope_decision": {
-        "decided_at_utc": "2026-07-30T00:00:00.0000000Z",
+        "decided_at_utc": "2026-07-30T00:00:00Z",
         "decision": "approved_o2core_hosted_write_read_delete",
         "recorded_by": "assistant_from_owner_goal_and_handoff",
         "resource_creation_authorized": [
@@ -141,7 +141,7 @@
         "npm run verify:runtime",
         "npm run verify:browser"
       ],
-      "codex_boundary": "Resolved O4 credits Agent Pool 69 -> 100. MCP Gateway and Phase 6 stay below 100 because GHCR publication and paid scale are separate unresolved gates; no double credit.",
+      "codex_boundary": "Resolved O4 credits Agent Pool 69 -> 100. MCP Gateway and Phase 6 stay below 100 because GHCR publication and the separate zero-card authenticated scale proof are unresolved gates; no double credit.",
       "owner_scope_decision": {
         "decided_at_utc": "2026-07-30T00:00:00Z",
         "decision": "approved_as_proposed",
@@ -177,7 +177,7 @@
           "live_verified must never be hand-set."
         ]
       },
-      "resolved_at_utc": "2026-08-01T18:02:11.8052782Z",
+      "resolved_at_utc": "2026-08-02T03:27:39.0612514Z",
       "evidence_refs": [
         "docs/runtime-state/capability-gates.json#live_agent_tool_writes",
         "docs/runtime-state/capability-gates.json#live_mcp_writes",

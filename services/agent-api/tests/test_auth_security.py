@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import threading
 import unittest
 import urllib.parse
 from unittest.mock import ANY, MagicMock, patch
@@ -48,6 +49,57 @@ async def asgi_get(
         return await client.get(path, headers=headers)
 
 
+async def asgi_request(
+    method: str,
+    path: str,
+    *,
+    json_body: object | None = None,
+    cookie_header: str = "",
+    extra_headers: dict[str, str] | None = None,
+) -> httpx.Response:
+    headers = {"origin": "https://example.test", "sec-fetch-site": "same-origin", **(extra_headers or {})}
+    if cookie_header:
+        headers["cookie"] = cookie_header
+    transport = httpx.ASGITransport(app=main.app)
+    async with httpx.AsyncClient(transport=transport, base_url="https://example.test") as client:
+        return await client.request(method, path, headers=headers, json=json_body)
+
+
+async def invoke_mutation_guard(
+    method: str,
+    path: str,
+    *,
+    headers: dict[str, str] | None = None,
+    query_string: str = "",
+) -> tuple[Response, bool]:
+    encoded_headers = [
+        (name.lower().encode("latin-1"), value.encode("latin-1")) for name, value in (headers or {}).items()
+    ]
+    scope = {
+        "type": "http",
+        "http_version": "1.1",
+        "method": method,
+        "scheme": "https",
+        "path": path,
+        "raw_path": path.encode("ascii"),
+        "query_string": query_string.encode("ascii"),
+        "headers": encoded_headers,
+        "client": ("127.0.0.1", 12345),
+        "server": ("example.test", 443),
+        "root_path": "",
+    }
+    request = main.Request(scope)
+    called = False
+
+    async def call_next(_request: main.Request) -> Response:
+        nonlocal called
+        called = True
+        return Response(status_code=204)
+
+    response = await main.production_mutation_authorization_middleware(request, call_next)
+    return response, called
+
+
 class FakePipeline:
     def __init__(self, client: "FakeRedis") -> None:
         self.client = client
@@ -80,6 +132,7 @@ class FakePipeline:
 class FakeRedis:
     def __init__(self) -> None:
         self.values: dict[str, str] = {}
+        self.lock = threading.RLock()
 
     def setex(self, key: str, _ttl: int, value: str) -> bool:
         self.values[key] = value
@@ -95,6 +148,137 @@ class FakeRedis:
         if not transaction:
             raise AssertionError("auth consumption must use a Redis transaction")
         return FakePipeline(self)
+
+    def _revoke_family(self, family_id: str | None, reason: str) -> bool:
+        if not family_id:
+            return False
+        family_key = main.auth_refresh_family_key(family_id)
+        raw = self.values.get(family_key)
+        if not raw:
+            return False
+        family = json.loads(raw)
+        current_hash = family.get("current_token_hash")
+        if current_hash:
+            self.values.pop(main.AUTH_REFRESH_ACTIVE_PREFIX + current_hash, None)
+        family.update(status="revoked", current_token_hash="", revoked_reason=reason)
+        self.values[family_key] = json.dumps(family, separators=(",", ":"), sort_keys=True)
+        return True
+
+    def eval(self, script: str, numkeys: int, *arguments: object) -> object:
+        keys = [str(item) for item in arguments[:numkeys]]
+        argv = [str(item) for item in arguments[numkeys:]]
+        with self.lock:
+            if script == main._AUTH_OAUTH_RATE_LIMIT_SCRIPT:
+                count = int(self.values.get(keys[0], "0")) + 1
+                self.values[keys[0]] = str(count)
+                return [count, int(argv[0])]
+            if script == main._AUTH_REFRESH_INITIAL_REGISTER_SCRIPT:
+                if keys[0] in self.values or keys[1] in self.values:
+                    return 0
+                subject, family_id, token_hash, issued_at = argv[1], argv[2], argv[3], int(argv[4])
+                self.values[keys[0]] = json.dumps(
+                    {"subject": subject, "family_id": family_id, "generation": 0, "issued_at": issued_at},
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+                self.values[keys[1]] = json.dumps(
+                    {
+                        "subject": subject,
+                        "family_id": family_id,
+                        "generation": 0,
+                        "status": "active",
+                        "current_token_hash": token_hash,
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+                return 1
+            if script == main._AUTH_REFRESH_ROTATED_REGISTER_SCRIPT:
+                if keys[0] in self.values or keys[1] not in self.values:
+                    return 0
+                family = json.loads(self.values[keys[1]])
+                subject, family_id, new_hash, predecessor_hash, issued_at = (
+                    argv[1], argv[2], argv[3], argv[4], int(argv[5])
+                )
+                if (
+                    family.get("status") != "rotating"
+                    or family.get("family_id") != family_id
+                    or family.get("subject") != subject
+                    or family.get("previous_token_hash") != predecessor_hash
+                ):
+                    return 0
+                generation = int(family.get("generation", 0)) + 1
+                self.values[keys[0]] = json.dumps(
+                    {
+                        "subject": subject,
+                        "family_id": family_id,
+                        "generation": generation,
+                        "issued_at": issued_at,
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+                family.update(
+                    generation=generation,
+                    status="active",
+                    current_token_hash=new_hash,
+                    previous_token_hash=predecessor_hash,
+                )
+                self.values[keys[1]] = json.dumps(family, separators=(",", ":"), sort_keys=True)
+                return 1
+            if script == main._AUTH_REFRESH_CONSUME_SCRIPT:
+                reason, token_hash = argv[1], argv[2]
+                if keys[1] in self.values:
+                    self._revoke_family(self.values.get(keys[2]), "replay")
+                    return ["", "blacklisted"]
+                record_raw = self.values.pop(keys[0], None)
+                if not record_raw:
+                    return ["", "unknown"]
+                try:
+                    record = json.loads(record_raw)
+                except json.JSONDecodeError:
+                    self.values[keys[1]] = "invalid_record"
+                    return ["", "invalid_record"]
+                family_id = record.get("family_id")
+                self.values[keys[1]] = reason
+                if family_id:
+                    self.values[keys[2]] = str(family_id)
+                family_raw = self.values.get(main.auth_refresh_family_key(str(family_id)))
+                family = json.loads(family_raw) if family_raw else None
+                if (
+                    not isinstance(family, dict)
+                    or family.get("status") != "active"
+                    or family.get("current_token_hash") != token_hash
+                    or family.get("subject") != record.get("subject")
+                ):
+                    self._revoke_family(str(family_id) if family_id else None, "invalid_family")
+                    return ["", "invalid_family"]
+                if reason == "rotated":
+                    family.update(status="rotating", previous_token_hash=token_hash, current_token_hash="")
+                    self.values[main.auth_refresh_family_key(str(family_id))] = json.dumps(
+                        family, separators=(",", ":"), sort_keys=True
+                    )
+                else:
+                    self._revoke_family(str(family_id), reason)
+                return [record_raw, ""]
+            if script == main._AUTH_REFRESH_REVOKE_FAMILY_SCRIPT:
+                family_id = keys[0].removeprefix(main.AUTH_REFRESH_FAMILY_PREFIX)
+                return int(self._revoke_family(family_id, argv[2]))
+            if script == main._AUTH_REFRESH_VERIFY_FAMILY_SCRIPT:
+                family_raw = self.values.get(keys[0])
+                active_raw = self.values.get(keys[1])
+                if not family_raw or not active_raw:
+                    return 0
+                family = json.loads(family_raw)
+                active = json.loads(active_raw)
+                return int(
+                    family.get("status") == "active"
+                    and family.get("current_token_hash") == argv[1]
+                    and family.get("subject") == argv[0]
+                    and active.get("family_id") == family.get("family_id")
+                    and active.get("subject") == argv[0]
+                )
+        raise AssertionError("unexpected Redis Lua script")
 
 
 def signed_access_token(
@@ -172,6 +356,7 @@ class AuthSecurityTests(unittest.TestCase):
             "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
             "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
             "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
         },
         clear=True,
     )
@@ -202,6 +387,7 @@ class AuthSecurityTests(unittest.TestCase):
             "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
             "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
             "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
         },
         clear=True,
     )
@@ -269,6 +455,7 @@ class AuthSecurityTests(unittest.TestCase):
             "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
             "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
             "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
         },
         clear=True,
     )
@@ -343,6 +530,7 @@ class AuthSecurityTests(unittest.TestCase):
             "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
             "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
             "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
         },
         clear=True,
     )
@@ -368,6 +556,7 @@ class AuthSecurityTests(unittest.TestCase):
             "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
             "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
             "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
         },
         clear=True,
     )
@@ -406,7 +595,11 @@ class AuthSecurityTests(unittest.TestCase):
                 serialized_audit = json.dumps(audit.call_args.args[1])
                 self.assertNotIn(state, serialized_audit)
 
-        with patch.object(main, "persist_auth_audit"), patch.object(main, "exchange_github_identity") as exchange:
+        with (
+            patch.object(main, "redis_client", return_value=FakeRedis()),
+            patch.object(main, "persist_auth_audit"),
+            patch.object(main, "exchange_github_identity") as exchange,
+        ):
             malformed_response = asyncio.run(
                 asgi_get(
                     "/api/v1/auth/callback?code=unused&state=%C3%BC",
@@ -440,6 +633,7 @@ class AuthSecurityTests(unittest.TestCase):
             "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
             "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
             "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
         },
         clear=True,
     )
@@ -466,6 +660,7 @@ class AuthSecurityTests(unittest.TestCase):
             "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
             "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
             "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
         },
         clear=True,
     )
@@ -558,6 +753,7 @@ class AuthSecurityTests(unittest.TestCase):
             "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
             "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
             "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
         },
         clear=True,
     )
@@ -601,6 +797,7 @@ class AuthSecurityTests(unittest.TestCase):
             "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
             "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
             "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
         },
         clear=True,
     )
@@ -644,6 +841,7 @@ class AuthSecurityTests(unittest.TestCase):
             "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
             "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
             "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
         },
         clear=True,
     )
@@ -679,6 +877,7 @@ class AuthSecurityTests(unittest.TestCase):
             "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
             "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
             "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
         },
         clear=True,
     )
@@ -716,6 +915,7 @@ class AuthSecurityTests(unittest.TestCase):
             "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
             "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
             "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
         },
         clear=True,
     )
@@ -750,6 +950,7 @@ class AuthSecurityTests(unittest.TestCase):
             "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
             "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
             "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
         },
         clear=True,
     )
@@ -792,6 +993,7 @@ class AuthSecurityTests(unittest.TestCase):
             "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
             "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
             "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
         },
         clear=True,
     )
@@ -822,6 +1024,482 @@ class AuthSecurityTests(unittest.TestCase):
         audit_details = json.dumps(audit.call_args.args[1])
         self.assertNotIn("rejected-code", audit_details)
         self.assertNotIn(state, audit_details)
+
+    @patch.dict(
+        os.environ,
+        {
+            "GITHUB_OAUTH_CLIENT_ID": "client-id",
+            "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
+            "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
+            "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+        },
+        clear=True,
+    )
+    def test_owner_identity_allowlist_is_required_and_never_exposes_ids(self) -> None:
+        missing = main.auth_configuration()
+        self.assertFalse(missing["credentials_configured"])
+        self.assertFalse(missing["owner_identity_allowlist_configured"])
+        self.assertIn("GITHUB_OAUTH_OWNER_IDS", missing["missing_configuration"])
+
+        for invalid in ("0", "00123", "123,123", str(main.AUTH_GITHUB_USER_ID_MAX + 1), "true"):
+            with self.subTest(invalid=invalid), patch.dict(os.environ, {"GITHUB_OAUTH_OWNER_IDS": invalid}):
+                self.assertFalse(main.auth_configuration()["owner_identity_allowlist_configured"])
+
+        with patch.dict(os.environ, {"GITHUB_OAUTH_OWNER_IDS": "123,456"}):
+            configuration = main.auth_configuration()
+            contract = main.auth_contract_payload()
+        self.assertTrue(configuration["credentials_configured"])
+        self.assertTrue(contract["owner_identity_allowlist_configured"])
+        self.assertEqual(contract["owner_identity_allowlist_count"], 2)
+        serialized_contract = json.dumps(contract)
+        self.assertNotIn('"123"', serialized_contract)
+        self.assertNotIn('"456"', serialized_contract)
+
+    def test_github_identity_rejects_bool_out_of_range_and_unlisted_ids(self) -> None:
+        cases = (
+            (True, frozenset({1}), 401, "github_identity_verification_failed"),
+            (main.AUTH_GITHUB_USER_ID_MAX + 1, frozenset({1}), 401, "github_identity_verification_failed"),
+            (456, frozenset({123}), 403, "github_owner_identity_not_allowed"),
+        )
+        for provider_id, allowed_ids, expected_status, expected_error in cases:
+            with self.subTest(provider_id=provider_id):
+                client = MagicMock()
+                client.__enter__.return_value = client
+                token_response = MagicMock(status_code=200)
+                token_response.json.return_value = {"access_token": "gho_" + ("x" * 32)}
+                identity_response = MagicMock(status_code=200)
+                identity_response.json.return_value = {"id": provider_id}
+                client.post.return_value = token_response
+                client.get.return_value = identity_response
+                with patch.object(main.httpx, "Client", return_value=client):
+                    with self.assertRaises(HTTPException) as raised:
+                        main.exchange_github_identity(
+                            "provider-code",
+                            {
+                                "client_id": "client-id",
+                                "client_secret": "client-secret",
+                                "redirect_uri": "https://example.test/api/v1/auth/callback",
+                                "owner_github_user_ids": allowed_ids,
+                            },
+                        )
+                self.assertEqual(raised.exception.status_code, expected_status)
+                self.assertEqual(raised.exception.detail["error"], expected_error)
+        self.assertIsNone(main.canonical_github_user_id(True))
+        self.assertIsNone(main.canonical_github_user_id(main.AUTH_GITHUB_USER_ID_MAX + 1))
+
+    def test_refresh_replay_and_stale_logout_revoke_successors(self) -> None:
+        client = FakeRedis()
+        old_token = main.create_refresh_token()
+        family_id = main.register_refresh_token(client, old_token, "github:123")
+        subject, reason = main.consume_refresh_token(client, old_token, "rotated")
+        self.assertEqual((subject, reason), ("github:123", None))
+        successor = main.create_refresh_token()
+        main.register_refresh_token(
+            client,
+            successor,
+            "github:123",
+            family_id=family_id,
+            predecessor_token=old_token,
+        )
+        self.assertIsNotNone(client.get(main.auth_refresh_active_key(successor)))
+        self.assertEqual(main.consume_refresh_token(client, old_token, "rotated"), (None, "blacklisted"))
+        self.assertIsNone(client.get(main.auth_refresh_active_key(successor)))
+
+        stale = main.create_refresh_token()
+        stale_family = main.register_refresh_token(client, stale, "github:123")
+        self.assertEqual(main.consume_refresh_token(client, stale, "rotated"), ("github:123", None))
+        pending_successor = main.create_refresh_token()
+        with patch.object(main, "redis_client", return_value=client), patch.object(
+            main, "persist_auth_audit", return_value=True
+        ):
+            logout = main.auth_logout(Response(), request=None, refresh_token_cookie=stale)
+        self.assertFalse(logout["refresh_token_revoked"])
+        self.assertEqual(client.get(main.auth_blacklist_key(stale)), "rotated")
+        with self.assertRaises(RuntimeError):
+            main.register_refresh_token(
+                client,
+                pending_successor,
+                "github:123",
+                family_id=stale_family,
+                predecessor_token=stale,
+            )
+        self.assertIsNone(client.get(main.auth_refresh_active_key(pending_successor)))
+
+    def test_redis_failures_still_clear_auth_cookie_pair(self) -> None:
+        refresh_response = Response()
+        with patch.object(main, "redis_client", side_effect=RuntimeError("redis down")):
+            with self.assertRaises(HTTPException) as raised:
+                main.auth_refresh(refresh_response, request=None, refresh_token_cookie=main.create_refresh_token())
+        self.assertEqual(raised.exception.status_code, 503)
+        rendered = render_http_exception(raised.exception)
+        clear_headers = rendered.headers.getlist("set-cookie")
+        self.assertEqual(len(clear_headers), 2)
+        self.assertTrue(all("Max-Age=0" in header for header in clear_headers))
+
+        logout_response = Response()
+        with (
+            patch.object(main, "redis_client", side_effect=RuntimeError("redis down")),
+            patch.object(main, "persist_auth_audit", return_value=False),
+        ):
+            logout = main.auth_logout(
+                logout_response,
+                request=None,
+                refresh_token_cookie=main.create_refresh_token(),
+            )
+        self.assertEqual(logout_response.status_code, 503)
+        self.assertEqual(logout["status"], "storage_unavailable")
+        raw_clear_headers = [
+            value.decode("latin-1") for key, value in logout_response.raw_headers if key == b"set-cookie"
+        ]
+        self.assertEqual(len(raw_clear_headers), 2)
+        self.assertTrue(all("Max-Age=0" in header for header in raw_clear_headers))
+
+    def test_validation_errors_do_not_reflect_credential_input(self) -> None:
+        credential = "csr_" + ("S" * 700)
+        response = asyncio.run(
+            asgi_request(
+                "POST",
+                "/api/v1/auth/refresh",
+                json_body={"refresh_token": credential, "trace_id": "validation-redaction"},
+            )
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertNotIn(credential, response.text)
+        detail = response.json()["detail"]
+        self.assertTrue(detail)
+        self.assertTrue(all("input" not in item and "ctx" not in item for item in detail))
+
+    @patch.dict(
+        os.environ,
+        {
+            "GITHUB_OAUTH_CLIENT_ID": "client-id",
+            "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
+            "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
+            "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
+        },
+        clear=True,
+    )
+    def test_oauth_start_and_exchange_rate_limits_are_bounded(self) -> None:
+        client = FakeRedis()
+        for _index in range(main.AUTH_OAUTH_START_RATE_LIMIT):
+            with patch.object(main, "redis_client", return_value=client):
+                self.assertEqual(main.auth_github_start(Response()).status_code, 303)
+        with (
+            patch.object(main, "redis_client", return_value=client),
+            patch.object(main, "persist_auth_audit", return_value=True),
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                main.auth_github_start(Response())
+        self.assertEqual(raised.exception.status_code, 429)
+        self.assertEqual(raised.exception.detail["error"], "oauth_rate_limit_exceeded")
+
+        exchange_client = FakeRedis()
+        counts = [
+            main.enforce_oauth_rate_limit(exchange_client, "exchange", main.AUTH_OAUTH_EXCHANGE_RATE_LIMIT)
+            for _index in range(main.AUTH_OAUTH_EXCHANGE_RATE_LIMIT + 1)
+        ]
+        self.assertEqual(counts[-1]["remaining"], 0)
+        self.assertGreater(counts[-1]["count"], counts[-1]["limit"])
+
+        route_client = FakeRedis()
+        for _index in range(main.AUTH_OAUTH_EXCHANGE_RATE_LIMIT):
+            main.enforce_oauth_rate_limit(route_client, "exchange", main.AUTH_OAUTH_EXCHANGE_RATE_LIMIT)
+        state = "phase3-auth-state-" + ("L" * 32)
+        main.register_oauth_state(route_client, state)
+        with (
+            patch.object(main, "redis_client", return_value=route_client),
+            patch.object(main, "persist_auth_audit", return_value=True),
+            patch.object(main, "exchange_github_identity") as exchange,
+        ):
+            with self.assertRaises(HTTPException) as exchange_limited:
+                main.auth_callback(
+                    Response(),
+                    code="provider-code",
+                    state=state,
+                    oauth_error=None,
+                    oauth_state_cookie=state,
+                )
+        self.assertEqual(exchange_limited.exception.status_code, 429)
+        exchange.assert_not_called()
+
+    @patch.dict(
+        os.environ,
+        {
+            "GITHUB_OAUTH_CLIENT_ID": "client-id",
+            "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
+            "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
+            "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
+        },
+        clear=True,
+    )
+    def test_rejected_auth_audit_failure_and_configuration_drift_fail_closed(self) -> None:
+        client = FakeRedis()
+        with (
+            patch.object(main, "redis_client", return_value=client),
+            patch.object(main, "persist_auth_audit", return_value=False),
+        ):
+            with self.assertRaises(HTTPException) as rejected:
+                main.auth_callback(Response(), code="unused", state="invalid", oauth_state_cookie="invalid")
+        self.assertEqual(rejected.exception.status_code, 503)
+        self.assertEqual(rejected.exception.detail["error"], "auth_audit_unavailable")
+
+        state = "phase3-auth-state-" + ("R" * 32)
+        client = FakeRedis()
+        main.register_oauth_state(client, state)
+        ready = main.auth_configuration()
+        blocked = {**ready, "owner_activation_granted": False, "credential_issuance_ready": False}
+        with (
+            patch.object(main, "redis_client", return_value=client),
+            patch.object(main, "auth_configuration", side_effect=[ready, blocked]),
+            patch.object(main, "exchange_github_identity", return_value="github:123"),
+            patch.object(main, "persist_auth_audit", return_value=True),
+        ):
+            with self.assertRaises(HTTPException) as drifted:
+                main.auth_callback(
+                    Response(),
+                    code="provider-code",
+                    state=state,
+                    oauth_error=None,
+                    oauth_state_cookie=state,
+                )
+        self.assertEqual(drifted.exception.status_code, 403)
+        self.assertFalse(any(key.startswith(main.AUTH_REFRESH_ACTIVE_PREFIX) for key in client.values))
+
+    @patch.dict(
+        os.environ,
+        {
+            "GITHUB_OAUTH_CLIENT_ID": "client-id",
+            "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
+            "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
+            "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
+        },
+        clear=True,
+    )
+    def test_owner_false_refresh_is_forbidden_not_service_unavailable(self) -> None:
+        client = FakeRedis()
+        token = main.create_refresh_token()
+        main.register_refresh_token(client, token, "github:123")
+        self.capability_gate_state_mock.return_value = {
+            "gates": {"production_auth_identity": {"owner_granted": False, "live_verified": False}}
+        }
+        with patch.object(main, "redis_client", return_value=client), patch.object(
+            main, "persist_auth_audit", return_value=True
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                main.auth_refresh(Response(), request=None, refresh_token_cookie=token)
+        self.assertEqual(raised.exception.status_code, 403)
+        self.assertEqual(raised.exception.detail["error"], "production_auth_owner_activation_required")
+        self.assertIsNotNone(client.get(main.auth_refresh_active_key(token)))
+
+    @patch.dict(
+        os.environ,
+        {
+            "SUPERBRAIN_RUNTIME_MODE": "production",
+            "AGENT_API_AUTH_TOKEN": "service-boundary-value",
+            "GITHUB_OAUTH_CLIENT_ID": "client-id",
+            "GITHUB_OAUTH_CLIENT_SECRET": "client-secret",
+            "GITHUB_OAUTH_REDIRECT_URI": "https://example.test/api/v1/auth/callback",
+            "JWT_SIGNING_SECRET": TEST_SIGNING_SECRET,
+            "GITHUB_OAUTH_OWNER_IDS": "123",
+        },
+        clear=True,
+    )
+    def test_oauth_display_identity_cannot_authorize_production_mutations(self) -> None:
+        oauth_jwt = main.create_access_jwt("github:123", "mutation-auth-test")
+        headers = {"authorization": f"Bearer {oauth_jwt}"}
+        cookie = f"{main.AUTH_ACCESS_COOKIE}={oauth_jwt}"
+        with patch.object(main, "persist_mutation_authorization_rejection_audit", return_value=True):
+            prompt = asyncio.run(
+                asgi_request(
+                    "POST",
+                    "/api/v1/prompt",
+                    json_body={"project_id": "authz-test", "prompt": "must not persist"},
+                    cookie_header=cookie,
+                    extra_headers=headers,
+                )
+            )
+            memory_delete = asyncio.run(
+                asgi_request(
+                    "DELETE",
+                    "/api/v1/memory?project_id=authz-test&confirm=true",
+                    cookie_header=cookie,
+                    extra_headers=headers,
+                )
+            )
+        for response in (prompt, memory_delete):
+            self.assertEqual(response.status_code, 401)
+            self.assertEqual(response.json()["error"], "service_authorization_required")
+            self.assertFalse(response.json()["detail"]["mutation_performed"])
+            self.assertTrue(response.json()["audit_persisted"])
+            self.assertNotIn(oauth_jwt, response.text)
+        self.assertFalse(main._build_registry_authenticated(oauth_jwt))
+        with patch.object(main, "persist_mutation_authorization_rejection_audit", return_value=True):
+            jwt_in_service_header = asyncio.run(
+                asgi_request(
+                    "POST",
+                    "/api/v1/prompt",
+                    json_body={"project_id": "authz-test", "prompt": "must not persist"},
+                    extra_headers={"x-superbrain-agent-token": oauth_jwt},
+                )
+            )
+        self.assertEqual(jwt_in_service_header.status_code, 401)
+        self.assertNotIn(oauth_jwt, jwt_in_service_header.text)
+
+        with (
+            patch.dict(os.environ, {"AGENT_API_AUTH_TOKEN": ""}),
+            patch.object(main, "persist_mutation_authorization_rejection_audit", return_value=True),
+        ):
+            unavailable = asyncio.run(
+                asgi_request(
+                    "POST",
+                    "/api/v1/prompt",
+                    json_body={"project_id": "authz-test", "prompt": "must not persist"},
+                )
+            )
+        self.assertEqual(unavailable.status_code, 503)
+        self.assertEqual(unavailable.json()["error"], "service_authorization_unavailable")
+
+        with patch.dict(os.environ, {"SUPERBRAIN_RUNTIME_MODE": "dev-only"}):
+            dev_only_validation = asyncio.run(
+                asgi_request("POST", "/api/v1/prompt", json_body={"project_id": "authz-test", "prompt": ""})
+            )
+        self.assertEqual(dev_only_validation.status_code, 422)
+
+    def test_production_mutation_guard_exact_methods_paths_modes_and_audit(self) -> None:
+        self.assertEqual(
+            main._PRODUCTION_MUTATION_SAFE_PATHS,
+            {
+                "/api/v1/auth/refresh",
+                "/api/v1/auth/logout",
+                "/api/v1/security/csp/report",
+                "/api/v1/security/csrf/probe",
+            },
+        )
+        protected_paths = ("/api/v1/generic-mutation", "/internal/generic-mutation")
+        with patch.dict(
+            os.environ,
+            {"SUPERBRAIN_RUNTIME_MODE": "production", "AGENT_API_AUTH_TOKEN": "exact-service-token"},
+            clear=True,
+        ):
+            for method in ("POST", "PUT", "PATCH", "DELETE"):
+                for path in protected_paths:
+                    with self.subTest(method=method, path=path), patch.object(
+                        main, "persist_mutation_authorization_rejection_audit", return_value=True
+                    ) as audit:
+                        blocked, called = asyncio.run(invoke_mutation_guard(method, path))
+                    self.assertEqual(blocked.status_code, 401)
+                    self.assertFalse(called)
+                    self.assertTrue(json.loads(blocked.body)["audit_persisted"])
+                    audit.assert_called_once()
+
+                    allowed, called = asyncio.run(
+                        invoke_mutation_guard(
+                            method,
+                            path,
+                            headers={"x-superbrain-agent-token": "exact-service-token"},
+                        )
+                    )
+                    self.assertEqual(allowed.status_code, 204)
+                    self.assertTrue(called)
+
+            for safe_path in main._PRODUCTION_MUTATION_SAFE_PATHS:
+                with self.subTest(safe_path=safe_path), patch.object(
+                    main, "persist_mutation_authorization_rejection_audit"
+                ) as audit:
+                    allowed, called = asyncio.run(
+                        invoke_mutation_guard("POST", safe_path, query_string="lookalike=1")
+                    )
+                self.assertEqual(allowed.status_code, 204)
+                self.assertTrue(called)
+                audit.assert_not_called()
+
+            lookalikes = (
+                "/api/v1/auth/refresh/",
+                "/api/v1/auth/Refresh",
+                "/api/v1/auth/logout-extra",
+                "/api/v1/security/csp/report/extra",
+                "/api/v1/security/csrf/probe%2Fextra",
+            )
+            for path in lookalikes:
+                with self.subTest(lookalike=path), patch.object(
+                    main, "persist_mutation_authorization_rejection_audit", return_value=True
+                ):
+                    blocked, called = asyncio.run(invoke_mutation_guard("POST", path))
+                self.assertEqual(blocked.status_code, 401)
+                self.assertFalse(called)
+
+            with patch.object(main, "persist_mutation_authorization_rejection_audit", return_value=False):
+                audit_down, called = asyncio.run(invoke_mutation_guard("POST", "/api/v1/prompt"))
+            self.assertEqual(audit_down.status_code, 503)
+            self.assertEqual(json.loads(audit_down.body)["error"], "security_audit_unavailable")
+            self.assertFalse(json.loads(audit_down.body)["audit_persisted"])
+            self.assertFalse(called)
+
+        for runtime_mode, expected_bypass in (
+            ("dev-only", True),
+            ("", False),
+            ("production", False),
+            ("development", False),
+            ("DEV-ONLY", False),
+            ("dev-only ", False),
+        ):
+            with (
+                self.subTest(runtime_mode=runtime_mode),
+                patch.dict(
+                    os.environ,
+                    {"SUPERBRAIN_RUNTIME_MODE": runtime_mode, "AGENT_API_AUTH_TOKEN": "exact-service-token"},
+                    clear=True,
+                ),
+                patch.object(main, "persist_mutation_authorization_rejection_audit", return_value=True),
+            ):
+                response, called = asyncio.run(invoke_mutation_guard("POST", "/api/v1/prompt"))
+            self.assertEqual(called, expected_bypass)
+            self.assertEqual(response.status_code, 204 if expected_bypass else 401)
+
+    def test_mutation_rejection_audit_persists_no_path_or_credential_values(self) -> None:
+        credential = "eyJ" + ("A" * 40) + "." + ("B" * 40) + "." + ("C" * 40)
+        path = "/api/v1/" + credential
+        headers = {
+            "authorization": f"Bearer {credential}",
+            "cookie": f"{main.AUTH_ACCESS_COOKIE}={credential}",
+            "x-superbrain-agent-token": credential,
+        }
+        scope = {
+            "type": "http",
+            "http_version": "1.1",
+            "method": "POST",
+            "scheme": "https",
+            "path": path,
+            "raw_path": path.encode("ascii"),
+            "query_string": b"",
+            "headers": [(key.encode("ascii"), value.encode("ascii")) for key, value in headers.items()],
+            "client": ("127.0.0.1", 12345),
+            "server": ("example.test", 443),
+            "root_path": "",
+        }
+        connection = MagicMock()
+        connection.__enter__.return_value = connection
+        with (
+            patch.object(main, "database_url", return_value="postgresql://audit.invalid/test"),
+            patch.object(main.psycopg, "connect", return_value=connection),
+            patch.object(main, "redact_json", side_effect=lambda value: value) as redact,
+        ):
+            persisted = main.persist_mutation_authorization_rejection_audit(
+                main.Request(scope), "service_authorization_required"
+            )
+        self.assertTrue(persisted)
+        details = redact.call_args.args[0]
+        serialized = json.dumps(details)
+        self.assertNotIn(credential, serialized)
+        self.assertNotIn(path, serialized)
+        self.assertEqual(details["path_scope"], "api")
+        self.assertFalse(details["raw_path_persisted"])
+        self.assertTrue(details["service_token_present"])
+        self.assertTrue(details["authorization_header_present"])
+        self.assertTrue(details["oauth_access_cookie_present"])
 
     def test_provider_json_shapes_fail_closed_without_redirect_following(self) -> None:
         for malformed_stage in ("token", "identity"):
