@@ -152,6 +152,24 @@ function verifiedOwnerIdentity(overrides = {}) {
   };
 }
 
+// Returns the body of each POST/PUT/PATCH/DELETE handler in a route module. Assertions about
+// mutation behaviour must not read a GET reader that happens to live in the same file.
+function mutationHandlerBodies(source) {
+  const handlerStart = /export\s+async\s+function\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b/g;
+  const boundaries = [];
+  let match;
+  while ((match = handlerStart.exec(source)) !== null) {
+    boundaries.push({ method: match[1], start: match.index });
+  }
+  return boundaries
+    .filter((entry) => ["POST", "PUT", "PATCH", "DELETE"].includes(entry.method))
+    .map((entry, index) => {
+      const position = boundaries.findIndex((candidate) => candidate.start === entry.start);
+      const next = boundaries[position + 1];
+      return source.slice(entry.start, next ? next.start : source.length);
+    });
+}
+
 function apiMutationRouteSources(directory = apiRouteRoot) {
   const entries = fs.readdirSync(directory, { withFileTypes: true });
   return entries.flatMap((entry) => {
@@ -662,8 +680,19 @@ test("every Next mutation proxy is owner-write guarded with only exact auth and 
     assert.ok(guardIndex >= 0, `${route.relative} must execute the write guard`);
     assert.match(route.source, /if \(writeBlock\) return writeBlock;/, `${route.relative} must stop on a failed write guard`);
     if (route.relative !== "v1/[...slug]/route.ts") {
-      const agentProxyCallCount = (route.source.match(/\bproxyToBoundary\s*\([\s\S]{0,240}?"agent-api"/g) ?? []).length;
-      const serviceAuthCount = (route.source.match(/\{\s*serviceAuth:\s*true\s*\}/g) ?? []).length;
+      // Count only inside the mutation handlers. Scanning the whole file also caught GET
+      // readers, which would have forced the service token onto read traffic — more token
+      // exposure for no gain. v1/build/[id] is the case that exposed it: two proxied reads in
+      // GET, and a DELETE that never proxies at all because it fails closed on owner identity.
+      const mutationBodies = mutationHandlerBodies(route.source);
+      const agentProxyCallCount = mutationBodies.reduce(
+        (total, body) => total + (body.match(/\bproxyToBoundary\s*\([\s\S]{0,240}?"agent-api"/g) ?? []).length,
+        0,
+      );
+      const serviceAuthCount = mutationBodies.reduce(
+        (total, body) => total + (body.match(/\{\s*serviceAuth:\s*true\s*\}/g) ?? []).length,
+        0,
+      );
       assert.equal(
         serviceAuthCount,
         agentProxyCallCount,
