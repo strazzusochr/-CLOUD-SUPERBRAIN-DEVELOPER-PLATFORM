@@ -102,36 +102,49 @@ function Get-TopologyMirrorProjection([string]$Label, $Payload) {
   }
 }
 
-function Invoke-BackendTopologyJson {
-  $previousErrorPreference = $ErrorActionPreference
-  $result = $null
+function Invoke-TopologyEmitterAttempt([string]$Executable, [string[]]$CommandArguments) {
+  $stderrPath = [IO.Path]::GetTempFileName()
   try {
-    $ErrorActionPreference = "Continue"
-    if (Test-Path ".venv\Scripts\python.exe") {
-      $output = & ".venv\Scripts\python.exe" "scripts\emit-organism-topology-backend.py" 2>&1
-      if ($LASTEXITCODE -eq 0 -and @($output).Count -gt 0) {
-        $result = $output -join "`n"
-      }
+    $output = & $Executable @CommandArguments 2> $stderrPath
+    $exitCode = $LASTEXITCODE
+    $stderr = if ((Get-Item -LiteralPath $stderrPath).Length -gt 0) {
+      [IO.File]::ReadAllText($stderrPath)
+    } else {
+      ""
     }
-    if ($null -eq $result -and (Get-Command py -ErrorAction SilentlyContinue)) {
-      $output = & py -3.12 "scripts\emit-organism-topology-backend.py" 2>&1
-      if ($LASTEXITCODE -eq 0 -and @($output).Count -gt 0) {
-        $result = $output -join "`n"
-      }
-    }
-    if ($null -eq $result -and (Get-Command python -ErrorAction SilentlyContinue)) {
-      $output = & python "scripts\emit-organism-topology-backend.py" 2>&1
-      if ($LASTEXITCODE -eq 0 -and @($output).Count -gt 0) {
-        $result = $output -join "`n"
-      }
+    return [pscustomobject]@{
+      exit_code = $exitCode
+      stdout = @($output) -join "`n"
+      stderr = $stderr
     }
   } finally {
-    $ErrorActionPreference = $previousErrorPreference
+    Remove-Item -LiteralPath $stderrPath -Force -ErrorAction SilentlyContinue
   }
-  if ($null -ne $result) {
-    return $result
+}
+
+function Invoke-BackendTopologyJson {
+  $attempts = @()
+  $candidates = @()
+  if (Test-Path ".venv\Scripts\python.exe") {
+    $candidates += ,@((Resolve-Path ".venv\Scripts\python.exe").Path, @("scripts\emit-organism-topology-backend.py"))
   }
-  throw "Unable to execute the Agent API topology builder with installed project dependencies."
+  if (Get-Command py -ErrorAction SilentlyContinue) {
+    $candidates += ,@("py", @("-3.12", "scripts\emit-organism-topology-backend.py"))
+  }
+  if (Get-Command python -ErrorAction SilentlyContinue) {
+    $candidates += ,@("python", @("scripts\emit-organism-topology-backend.py"))
+  }
+
+  foreach ($candidate in $candidates) {
+    $attempt = Invoke-TopologyEmitterAttempt ([string]$candidate[0]) ([string[]]$candidate[1])
+    if ($attempt.exit_code -eq 0 -and -not [string]::IsNullOrWhiteSpace($attempt.stdout)) {
+      return $attempt.stdout
+    }
+    $diagnostic = ([string]$attempt.stderr).Trim()
+    if ($diagnostic.Length -gt 300) { $diagnostic = $diagnostic.Substring(0, 300) }
+    $attempts += "$($candidate[0]):exit=$($attempt.exit_code):$diagnostic"
+  }
+  throw "Unable to execute the Agent API topology builder with installed project dependencies. Attempts: $($attempts -join '; ')"
 }
 
 Write-Host "[organism-topology] static topology surface"
