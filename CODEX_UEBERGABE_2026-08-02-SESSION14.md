@@ -697,3 +697,67 @@ Vorarbeit dafür liegt schon in `D:\_sb_tmp\superbrain-clean-proof-96a9c5e4`
 | Nicht committet | bewusst — würde HEAD rot machen (§13.5) |
 | Prozente | unverändert **89**. Nichts hochgesetzt, nichts gefälscht |
 
+
+---
+
+## 16. DIE EINE REIHENFOLGE, DIE RC12 ENTSCHEIDET
+
+### 16.1 Der Fehler, den ich dreimal gemacht habe
+
+`pr-check` setzt `control_sha = head_sha des Laufs`, und der Lauf startet immer auf **Branch-HEAD**.
+Der Kontroll-Delta ist `git diff candidate_sha control_sha` und darf nur fünf Pfade enthalten
+(`pr-check.yml`, `verify_phase5_credit_itemization.py` + Tests, `verify-main-deploy-transition.ps1`,
+`verify-supply-chain-pins.ps1`).
+
+Daraus folgt zwingend:
+
+> **Der Kontroll-Commit muss zum Zeitpunkt des CI-Dispatch der Branch-HEAD sein.**
+> Alles, was danach committet wird, landet im Delta des nächsten Laufs.
+
+Ich habe dreimal Metadaten, Evidenz oder Schreiber-Fixes committet **bevor** ich dispatcht habe,
+und jedes Mal wurde der Delta unzulässig. `gh workflow run --ref` akzeptiert nur Branch/Tag,
+keinen SHA — man kann also nicht nachträglich auf einen früheren Commit dispatchen.
+
+### 16.2 Die korrekte Abfolge — genau so, ohne Abweichung
+
+```
+1. Quelle einfrieren                      -> KANDIDAT
+2. Images bauen (git archive <KANDIDAT>)
+3. O4 dreifach beweisen                   (letzter Schritt vor den Ketten!)
+4. Runtime-Kette
+5. start-dev-live + Gateway-Modus pruefen (Runtime setzt ihn auf dry-run zurueck)
+6. Browser-Kette
+7. Security-, Candidate-Runtime-Evidenz
+8. Metadaten + Evidenz committen          -> alles VOR der Kontrolle
+9. Kontroll-Commit                        -> NUR erlaubte Pfade, muss HEAD sein
+10. SOFORT dispatchen:
+    gh workflow run pr-check.yml --ref <branch> \
+      -f candidate_sha=<KANDIDAT> -f source_prequalification=true
+11. Attestation herunterladen, in <release>-evidence/ committen, Readiness schreiben
+12. npm run verify
+```
+
+**Schritt 8 vor 9** ist der Punkt, den ich dreimal falsch hatte. Metadaten gehören **vor** den
+Kontroll-Commit, nicht danach — sie sind Teil dessen, was der Kandidat mitbringt, und der
+Kontroll-Commit ist die **letzte** Änderung vor dem Lauf.
+
+### 16.3 Was in dieser Session zusätzlich repariert wurde
+
+| Fund | Datei | Art |
+|---|---|---|
+| 7/21 Unit-Tests rot | `scripts/tests/test_verify_phase5_credit_itemization.py` | Fixtures an `EXPECTED_GITHUB_REPOSITORY` und `CANONICAL_SUCCESS_ANCHORS` gebunden statt dupliziert → **21/21** |
+| Supply-Chain-Verstoß | `services/model-registry/` | unpinned `python:3.12-slim`; Entwürfe aus dem Kandidaten entfernt und aus dem Baum nach `D:\_sb_tmp\superbrain-drafts-2026-08-02\` verschoben |
+| **Clean-Clone-Rätsel gelöst** | dieselben Entwürfe | sie lagen **untracked unter `services/`** und ließen den O4-Beweis im Hauptordner seit dem 22.07. immer scheitern. Zusammen mit dem `tsbuildinfo`-Fix ist der 30-Minuten-Umweg dauerhaft weg |
+| Anker-Vertrag verletzt | 3 Schreiber | `RUNTIME_EXIT=0`/`BROWSER_EXIT=0` und Tool-Prosa wurden als Erfolgsanker deklariert; jetzt Trennung von **Log-Pflicht** und **deklariertem Satz** |
+| stderr tötete Exit-Codes | `npm audit`, `gitleaks` | `$ErrorActionPreference='Stop'` machte aus Bannern eine `NativeCommandError`, bevor der Exit-Code gelesen wurde — ein sauberer Scan sah aus wie ein Absturz |
+| PS-5.1 aus pwsh 7 | Umgebung, nicht Repo | `PSModulePath` wird vererbt; 5.1 lädt 7er-Module und findet `Get-FileHash` nicht. Vor npm-Verifiern setzen: `$env:PSModulePath='C:\Program Files\WindowsPowerShell\Modules;C:\WINDOWS\system32\WindowsPowerShell\v1.0\Modules'` |
+
+### 16.4 Stand
+
+**Kandidat `d071481f`** — sechs Ketten grün, Evidenz v2 kanonisch (runtime/browser/security
+`observed_success_anchors == CANONICAL_SUCCESS_ANCHORS`, getrackte Rohlogs).
+
+**Offen:** `candidate-images`- und `candidate-runtime`-Evidenz (für beide existiert **kein**
+v2-Schreiber), Readiness, Attestation-Round-Trip, `npm run verify`.
+
+**Prozente unverändert 89.** Kein Prozent bewegt, keine Assertion gelockert, kein Gate umgelegt.
