@@ -790,3 +790,95 @@ Erforderlich:
 | Security / Candidate-Runtime | offen — brauchen zuerst das RC12-Kandidatendokument |
 
 **Prozente unverändert 89.** Nichts hochgesetzt, nichts gefälscht.
+
+---
+
+## 15. DER BLOCKER, DER JETZT SICHTBAR IST: VERIFIER UND EVIDENZ-SCHREIBER SIND UNEINIG
+
+### 15.1 Was passiert ist
+
+Nachdem die sechs Plattformfehler aus §14.1 behoben waren, laufen in `pr-check` zum **ersten
+Mal** zwei Steps, die vorher immer nur `skipped` waren:
+
+- `Phase 5 credit itemization`
+- `Source-prequalification control integrity`
+
+Beide melden jetzt echte, semantische Fehler. **Die Plattformfehler haben sie verdeckt.**
+
+### 15.2 Der eigentliche Befund
+
+`scripts/verify_phase5_credit_itemization.py:101` definiert `CANONICAL_SUCCESS_ANCHORS` — pro
+Kette eine **exakte** Liste von Ankerzeilen, die im Rohlog stehen müssen. `:467` verlangt
+`observed == canonical`, also Gleichheit, nicht Teilmenge.
+
+`scripts/write-phase5-security-evidence.ps1` schreibt diese Anker aber **nicht**:
+
+| Verifier verlangt | Schreiber erzeugt |
+|---|---|
+| `[phase5-security] npm_audit_verified=true` | nur `found 0 vulnerabilities` |
+| `[phase5-security] gitleaks_verified=true` | nur `no leaks found` |
+
+Der Verifier wurde verschärft, der Schreiber nicht nachgezogen. Dieselbe Klasse Bruch trifft
+`candidate-runtime`: `scripts/tests/test_verify_phase5_credit_itemization.py` erzeugt Fixtures,
+die der Verifier mit *„observed anchors are not canonical"* ablehnt, **bevor** die eigentlich
+getestete Assertion überhaupt erreicht wird.
+
+**7 der 21 Unit-Tests fallen** — lokal wie in CI, reproduzierbar:
+
+```bash
+python -m unittest discover -s scripts/tests -p "test_verify_phase5_credit_itemization.py"
+```
+→ `Ran 21 tests … FAILED (failures=3, errors=4)`
+
+Betroffen: `test_ci_workflow_accepts_fail_closed_source_checkout_attestation`,
+`test_ci_workflow_accepts_legacy_direct_head_binding`,
+`test_v2_candidate_runtime_requires_raw_api_image_browser_and_boolean_evidence`,
+`test_v2_summary_recomputes_tracked_raw_log_and_reads_anchors_from_it`,
+`test_ci_workflow_rejects_relabeling_and_non_control_delta`,
+`test_ci_workflow_rejects_unattested_direct_binding_for_new_candidate`,
+`test_v2_candidate_runtime_rejects_boolean_fabrication_in_raw_api`.
+
+### 15.3 Was daraus folgt — und was NICHT
+
+**Nicht:** Der Verifier ist zu streng. Kanonische Anker sind der Grund, warum ein Rohlog nicht
+frei erfunden werden kann. Wer sie aufweicht, öffnet genau die Tür, die sie schließen sollen.
+
+**Sondern:** Der Evidenz-Schreiber muss die Anker erzeugen, die der Verifier verlangt, und die
+Test-Fixtures müssen dieselbe kanonische Form benutzen. Drei Dateien, eine Wahrheit:
+
+1. `scripts/write-phase5-security-evidence.ps1` → `npm_audit_verified=true` und
+   `gitleaks_verified=true` in das Rohlog schreiben, jeweils nur nach bestandenem Exit-Code.
+2. Analog für die übrigen Ketten prüfen: `runtime`, `browser`, `candidate-images`,
+   `candidate-runtime` gegen `CANONICAL_SUCCESS_ANCHORS` abgleichen.
+3. `scripts/tests/test_verify_phase5_credit_itemization.py` → Fixtures auf dieselbe
+   kanonische Ankerform bringen, damit die Tests wieder das prüfen, was ihr Name sagt.
+
+Danach: Evidenz neu erzeugen (die fünf Ketten laufen bereits grün, nur die Rohlogs müssen die
+Anker tragen), Readiness schreiben, Kontroll-Commit, CI mit Attestation, `npm run verify`.
+
+### 15.4 Die Commit-Reihenfolge, die die Attestation erzwingt
+
+`.github/workflows/pr-check.yml` berechnet den Kontroll-Delta als
+`git diff candidate_sha control_sha` und erlaubt darin **genau fünf** Pfade:
+`pr-check.yml`, `verify_phase5_credit_itemization.py` (+ Tests),
+`verify-main-deploy-transition.ps1`, `verify-supply-chain-pins.ps1`.
+
+**Alles, was zwischen Kandidat und Kontrolle liegt, landet in diesem Delta.** Release-Metadaten,
+Evidenz und Übergabedokumente müssen deshalb **nach** dem Kontroll-Commit liegen, nie dazwischen.
+Ich bin genau in diese Falle gelaufen und habe sie vorwärts korrigiert:
+`a7a5f4ae` (Kontrolle, nur `pr-check.yml`) → danach die Metadaten. Die Regel steht jetzt als
+Kommentar in `pr-check.yml` an der Stelle, an der sie gilt.
+
+### 15.5 Aktueller Stand
+
+| | |
+|---|---|
+| Kandidaten-SHA | `44c69506` — sechs Ketten grün, siehe §14.4 |
+| Kontroll-Commit | `a7a5f4ae` — Delta = genau eine erlaubte Datei ✅ |
+| RC12-Metadaten | wiederhergestellt und **nach** der Kontrolle einsortiert |
+| CI | rot, aber jetzt an **echten** Prüfungen: `Phase 5 credit itemization` und `control integrity` |
+| Prozente | unverändert **89** |
+
+**Das ist Fortschritt, kein Rückschritt:** Vorher scheiterte CI daran, dass ein Skript nicht
+startete. Jetzt scheitert sie an einer inhaltlichen Aussage über die Evidenz. Der Weg von hier
+ist in §15.3 vollständig beschrieben.
