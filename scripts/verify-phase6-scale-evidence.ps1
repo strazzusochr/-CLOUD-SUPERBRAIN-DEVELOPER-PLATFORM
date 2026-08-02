@@ -28,7 +28,20 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\', '/')
 $artifactRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot '.phase1-artifacts\phase6-scale')).TrimEnd('\', '/')
-$testRoot = [IO.Path]::GetFullPath('D:\_sb_tmp').TrimEnd('\', '/')
+# -AllowTestPaths is confined to a scratch root so a caller cannot point the fixtures at
+# arbitrary files. The root itself must resolve per platform: the workstation pins D:\_sb_tmp,
+# but the static contract drives this verifier inside pr-check on ubuntu-latest, where that
+# drive does not exist and every fixture would be rejected as "outside" it. The confinement is
+# unchanged — only the root it is measured against is now resolved the same way the static
+# contract resolves its own scratch directory.
+$preferredTestRoot = if (-not [string]::IsNullOrWhiteSpace($env:SUPERBRAIN_TEST_ROOT)) {
+  $env:SUPERBRAIN_TEST_ROOT
+} elseif (Test-Path -LiteralPath 'D:/_sb_tmp' -PathType Container) {
+  'D:/_sb_tmp'
+} else {
+  [IO.Path]::GetTempPath()
+}
+$testRoot = [IO.Path]::GetFullPath($preferredTestRoot).TrimEnd('\', '/')
 $canonicalCriterion = [IO.Path]::GetFullPath((Join-Path $repoRoot 'docs\runtime-state\phase6-scale-criterion.json'))
 $canonicalHostedState = [IO.Path]::GetFullPath((Join-Path $repoRoot 'docs\runtime-state\cloudflare-native-hosted-current.json'))
 $canonicalCapabilityState = [IO.Path]::GetFullPath((Join-Path $repoRoot 'docs\runtime-state\capability-gates.json'))
@@ -196,7 +209,7 @@ function Resolve-InputFile([string]$Path, [string]$Label, [string]$CanonicalPath
   $item = Get-Item -LiteralPath $resolved -Force
   Assert-True ([string]::IsNullOrEmpty([string]$item.LinkType)) "$Label must not be a symbolic link."
   if ($AllowTestPaths) {
-    Assert-True (Test-UnderRoot $resolved $testRoot) "$Label test path is outside D:\_sb_tmp."
+    Assert-True (Test-UnderRoot $resolved $testRoot) "$Label test path is outside the allowed scratch root $testRoot."
   } elseif ($CanonicalPath) {
     Assert-True ($resolved.Equals($CanonicalPath, [StringComparison]::OrdinalIgnoreCase)) "$Label is not the canonical project file."
   } else {
@@ -215,7 +228,7 @@ function Resolve-BoundArtifact([string]$Path, [string]$Label) {
   $item = Get-Item -LiteralPath $resolved -Force
   Assert-True ([string]::IsNullOrEmpty([string]$item.LinkType)) "$Label must not be a symbolic link."
   if ($AllowTestPaths) {
-    Assert-True (Test-UnderRoot $resolved $testRoot) "$Label test path is outside D:\_sb_tmp."
+    Assert-True (Test-UnderRoot $resolved $testRoot) "$Label test path is outside the allowed scratch root $testRoot."
   } else {
     Assert-True (Test-UnderRoot $resolved $repoRoot) "$Label is outside the repository."
   }
