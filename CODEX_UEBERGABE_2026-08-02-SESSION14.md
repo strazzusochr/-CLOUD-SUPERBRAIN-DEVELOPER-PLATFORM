@@ -761,3 +761,82 @@ Kontroll-Commit ist die **letzte** Änderung vor dem Lauf.
 v2-Schreiber), Readiness, Attestation-Round-Trip, `npm run verify`.
 
 **Prozente unverändert 89.** Kein Prozent bewegt, keine Assertion gelockert, kein Gate umgelegt.
+
+---
+
+## 17. RC12 IST GEBUNDEN — UND WO DIE AUTONOME FLÄCHE ENDET
+
+### 17.1 Erreicht
+
+`python scripts/verify_phase5_credit_itemization.py` sagt jetzt:
+
+```
+[phase5-credit] verified mode=fully_itemized legacy_gap=32 computed=89 credited=89
+                verified=17/19 blocked=I1,I5
+```
+
+**Kandidat `6261f9f8`**, gebunden an einen **grünen CI-Lauf** (`30762156522`, alle Steps) über
+`binding_mode = source_checkout_attestation_v1`:
+
+| | |
+|---|---|
+| `checked_out_sha` == `candidate_sha` | ✅ CI hat exakt den Kandidaten ausgecheckt |
+| `control_delta` | genau **ein** erlaubter Pfad |
+| Archiv-Integrität | heruntergeladenes ZIP hasht auf GitHubs Digest `6ac31896…` |
+| 5 Ketten | Images 6/6 · Runtime 86 · Browser 161 Aktionen · Security · Candidate-Runtime `source_parity=true` |
+| 32 Evidenz-Anker | alle treffen, alle Kreuzreferenz-Hashes stimmen |
+
+**Prozente unverändert 89.** Kein Prozent bewegt, keine Assertion gelockert, kein Gate umgelegt.
+
+### 17.2 Der Schlüssel, der die Bindung möglich machte
+
+`gh workflow run` akzeptiert einen **Ref, keinen SHA**. Deshalb:
+
+> Kontroll-Commit **direkt auf den Kandidaten** setzen, auf einen eigenen Branch pushen,
+> darauf dispatchen, anschließend in die Hauptlinie **mergen** (nicht cherry-picken — der
+> Merge erhält den SHA, den die Attestation nennt, als Ahn von HEAD).
+
+Damit sind alle drei Bedingungen gleichzeitig erfüllt, ohne die Metadaten-Historie umzustellen.
+Drei frühere Versuche scheiterten daran, dass Evidenz zwischen Kandidat und Kontrolle lag —
+und Evidenz **kann** dort nicht wegbleiben, sie entsteht ja erst durch Läufe gegen den Kandidaten.
+
+### 17.3 Lehre, die mich selbst getroffen hat
+
+Ich hatte Evidenz-Summaries nachträglich „aufgeräumt" (Pfade geglättet, Felder ergänzt) und
+damit die Kreuzreferenz-Hashes in `candidate-runtime.json` gebrochen. **Genau dagegen existieren
+sie.** Evidenz wird **verbatim** aus dem erzeugenden Lauf übernommen; jede Nachbearbeitung ist
+per Konstruktion nicht von Manipulation unterscheidbar.
+
+### 17.4 Fünfter Schreiber/Verifier-Bruch
+
+`verify-phase5-production-candidate-local.ps1` deklarierte Playwrights eigenes `"1 passed"` als
+Erfolgsanker, wo der Vertrag `[phase5-candidate-local] playwright_passed=1` verlangt — und
+**zwei** Anker, wo **sieben** verglichen werden. Behoben; der Verdikt-Satz wird jetzt geschrieben.
+
+Damit ist das Muster vollständig: **alle fünf** Evidenz-Schreiber waren von den kanonischen
+Ankern abgekoppelt. Sichtbar wurde das erst, als die sechs Plattformfehler die CI-Steps
+überhaupt zum Laufen brachten.
+
+### 17.5 ⛔ HIER ENDET DIE AUTONOME FLÄCHE
+
+`npm run verify` stoppt an:
+
+```
+Verification failed: current Cloudflare-native hosted Worker source parity
+```
+
+`docs/runtime-state/cloudflare-native-hosted-current.json` nennt `af61146e`; der Kandidat ist
+`6261f9f8`. Parität herzustellen heißt **einen Live-Worker neu zu deployen** — eine
+öffentlich erreichbare Fläche zu verändern.
+
+**Das ist kein Bug und nichts zum Patchen.** Codex stand an derselben Stelle und nannte es
+richtig: *„noch nicht Owner-gated deployed, also kein Fake-Grün."* Wer den Verifier hier
+aufweicht, fälscht Hosted-Parität.
+
+**Owner-Entscheidung erforderlich:** Cloudflare-Worker-Deploy auf `6261f9f8` (zero-card, freier
+Tarif, keine Zahlung — aber eine Live-Fläche). Danach läuft `npm run verify` durch.
+
+### 17.6 Danach offen
+
+I1 (`hosted_candidate_parity`) und I5 (`production_auth_identity`) bleiben owner-gewallt.
+`docker_registry_publish` bleibt post-market. Die drei Capability-Gates stehen unverändert.
