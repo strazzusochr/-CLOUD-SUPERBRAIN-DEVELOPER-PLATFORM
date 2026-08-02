@@ -33,6 +33,10 @@ function parseArgs(argv) {
 
 const args = parseArgs(process.argv);
 if (args.outDir) mkdirSync(args.outDir, { recursive: true });
+const localBaseUrl = !args.baseUrl || /^http:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::|\/|$)/i.test(args.baseUrl);
+if (args.baseUrl && !localBaseUrl && !args.baseUrl.startsWith("https://")) {
+  throw new Error("A non-local Phase-6 browser proof requires HTTPS");
+}
 
 const SLICES = [
   { id: "webgpu_detection_with_webgl_fallback", file: "components/organism/OrganismView.tsx", needle: '"gpu" in navigator' },
@@ -68,7 +72,7 @@ if (args.sourceOnly) {
   process.exit(0);
 }
 
-const proofMode = args.baseUrl ? "HOSTED HTTPS" : "LOCAL DEV-ONLY";
+const proofMode = localBaseUrl ? "LOCAL DEV-ONLY" : "HOSTED HTTPS";
 console.log(`\nAll ${ok} slice markers present. Running the Playwright Phase-6 control proof (${proofMode})…`);
 const r = spawnSync(
   process.execPath,
@@ -103,7 +107,7 @@ if (args.outDir) {
   const report = {
     contract: "phase6-frontend-client-runtime-proof-v1",
     status: "pass",
-    mode: args.baseUrl ? "hosted_https" : "local_dev_only",
+    mode: localBaseUrl ? "local_dev_only" : "hosted_https",
     base_url: args.baseUrl || "http://localhost:4040",
     slice_count: SLICES.length,
     passed_slice_count: ok,
@@ -123,6 +127,7 @@ if (args.outDir) {
       "This proof covers the Phase-6 frontend client runtime, not every Phase-6 scale capability.",
       "The dedicated accessibility verifier closes the keyboard, focus, live-status, system-preference, and semantic 2D-fallback slice.",
       "No provider write, deployment, release promotion, or secret use was performed.",
+      ...(localBaseUrl ? ["DEV-ONLY; hosted proof still blocked."] : []),
     ],
     generated_at: new Date().toISOString(),
   };
