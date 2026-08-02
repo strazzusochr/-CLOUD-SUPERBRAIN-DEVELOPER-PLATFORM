@@ -471,3 +471,94 @@ Der Weg dorthin ist **nicht** „Prozente hochsetzen", sondern:
 
 *Erstellt 2026-08-02 · HEAD `7b366b45` · origin `fe88c2a0` · Overall 89 · Gates 7/10 zu ·
 Codex rate-limited bis 2026-08-09 · DEV-ONLY; hosted proof still blocked*
+
+---
+
+## 12. FINALE ÜBERGABE — CODEX IST ENDGÜLTIG AUS (Stand 2026-08-02, letzte Messung)
+
+> Alles ab hier ist **nach** Kapitel 1–11 gemessen worden. Wo sich Zahlen widersprechen,
+> **gilt dieses Kapitel.** Codex hat nach Kapitel 2 noch ~2 Stunden weitergearbeitet und ist
+> dann mit leerem Kontingent gestoppt (Reset laut Fehlermeldung **2026-08-09**).
+
+### 12.1 Die Zahlen, die zählen
+
+| | |
+|---|---|
+| HEAD | `9a3776ff` |
+| origin | `fe88c2a0` — **8 Commits ungepusht** |
+| Letzte CI-grüne Wahrheit | `f7830977`, Run `30712183385` |
+| **Tracked dirty** | **42 Dateien** (nicht 12, nicht 3 — Kapitel 2 ist überholt) |
+| Untracked neu | 9 Code-Dateien + Runbook |
+
+### 12.2 ✅ Was ich abschließend geprüft habe — und was dabei herauskam
+
+| Prüfung | Ergebnis |
+|---|---|
+| **Prozentwahrheit unangetastet?** | ✅ `docs/project-progress.manifest.json` hat **keinen Diff**. Overall **89**, P `[100,100,100,44,100,89,90]`, L `[100,100,100,55,56,100,100]` — exakt wie vor Codex' Session. **Kein Prozent wurde gefälscht.** |
+| **Gates unangetastet?** | ✅ **3 von 10 offen**, unverändert |
+| **Syntax des gesamten Baums** | ✅ **265 PowerShell + 41 Python + 8 YAML = 314 Dateien, 0 Fehler** |
+| **Secret-Scan über den ganzen Diff** | ✅ **0 Funde** |
+| **`fly.agent-api.toml` berührt?** | ✅ Ja, aber harmlos: **eine** Zeile `SUPERBRAIN_RUNTIME_MODE = "production"`. Kein Fly-Deploy, kein Paid-Pfad, keine Zahlung |
+
+**Kurz: der Baum ist unfertig, aber er ist nicht kaputt und er lügt nicht.**
+
+### 12.3 Die 42 dirty Dateien — nach Gruppen
+
+**Fremd, nie anfassen (2):**
+`.codex/runs/CURRENT/product-acceptance/report.json` · `apps/frontend/tsconfig.tsbuildinfo`
+
+**Wahrheits-/Evidenzdateien (5) — vor jedem Commit einzeln begründen:**
+`docs/runtime-state/capability-gates.json` · `docs/runtime-state/owner-input-manifest.json` ·
+`.phase1-artifacts/o4-live-writes/{proof,browser-proof,runtime-proof}.json`
+
+**Verifier (16):** `verify-phase1` · `verify-market-ready` · `verify-main-deploy-transition` ·
+`verify-supply-chain-pins` · `verify-external-gates` · `verify-phase3-auth-session-integrity` ·
+`verify-phase5-production-candidate-local` · `build-phase5-production-candidate-local` ·
+`verify-phase6-scale-{runtime,runtime-static,evidence,evidence-static}` ·
+`verify_phase5_credit_itemization.py` + Tests · `verify_ghcr_candidate.py` + Tests ·
+`verify_project_progress_manifest.py`
+
+**Frontend (10):** `frontendBoundary.ts` · `real-login.tsx` · 5 × `app/api/**/route.ts` ·
+`oauth-boundary-readiness.test.mjs` · `22-page-actions.spec.ts` · `phase3-auth-session-integrity.spec.ts`
+
+**Backend/Infra (8):** `agent-api/app/main.py` + `test_auth_security.py` ·
+`docker-compose.{dev,cloud}.yml` · `nginx/{dev,cloud}.conf` · `fly.agent-api.toml` · `pr-check.yml`
+
+**Neu, NICHT integriert (untracked):** `services/model-registry/*` (kompletter Service, kein
+Verifier kennt ihn) · `services/agent-api/app/core/{access_classes,cost_gate}.py` + Test ·
+`docs/runbooks/OWNER_SCHRITT_FUER_SCHRITT_2026-07-27.txt`
+
+### 12.4 Was der nächste Agent ZUERST tun muss
+
+1. **Nichts pauschal committen.** 42 Dateien in einem Commit = Wiederholung von R-NEU-10 im großen Stil.
+2. **`npm run verify` einmal seriell laufen lassen** — das ist der einzige ehrliche Weg
+   herauszufinden, ob Codex' halbfertiger Slice grün ist. Vorher `TEMP`/`TMP=D:\_sb_tmp`.
+3. **Erst danach** entscheiden: Slice fertigstellen **oder** in kleine committbare Teile schneiden.
+4. **Fix aus §6.1 nicht vergessen** (eine Assertion, `publish-candidate` braucht `verify-candidate`).
+5. **§6.3**: 13 Auditfunde sind weiterhin ungeprüft.
+
+### 12.5 Warum nichts gepusht wurde
+
+8 Commits + 42 dirty Dateien, **kein einziger vollständiger Verifier-Lauf** über diesem Stand.
+Ein Push ohne grünen Lauf hätte genau den Fehler wiederholt, der als **R-NEU-9** dokumentiert
+ist: *HEAD war rot und gepusht.* Der Baum bleibt lokal, bis er bewiesen ist.
+
+**Der Push-Befehl steht bereit — er braucht nur einen grünen Lauf davor:**
+
+```bash
+git push origin HEAD:refs/heads/claude/cloud-superbrain-analysis-127d2e
+```
+
+### 12.6 Ehrliches Fazit
+
+- **Fortschritt seit `f7830977`:** substanziell und in weiten Teilen lokal grün
+  (27/27 Auth · 24/24 Worker · 12/12 OAuth-Boundary · 14/14 GHCR · 15/15 Evidence-Portabilität ·
+  Kamera-Browserbeweis · MARKET_READY-Dual-State).
+- **Aber:** unbewiesen als Ganzes, ungepusht, und mit einem bestätigten MAJOR-Befund.
+- **Die 89 % sind echt.** Sie sind nicht gestiegen — weil ohne Owner-Wände **nichts** legitim
+  steigen kann. Das ist kein Stillstand, das ist Ehrlichkeit.
+
+---
+
+*Letzte Messung 2026-08-02 · HEAD `9a3776ff` · 8 Commits ungepusht · 42 dirty · Syntax 314/314 ok ·
+Secrets 0 · Prozente unangetastet · Codex-Reset 2026-08-09*
