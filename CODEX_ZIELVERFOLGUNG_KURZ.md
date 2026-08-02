@@ -63,19 +63,49 @@ git diff --unified=1 -- docs/runtime-state/capability-gates.json docs/runtime-st
 
 ---
 
-## 🔧 NÄCHSTE SCHRITTE (in dieser Reihenfolge)
+## 🔧 NÄCHSTE SCHRITTE — Stand nach Session 15 (Übergabe §13)
 
-1. **Fix MAJOR-Befund** (Übergabe §6.1): eine Assertion in `verify-main-deploy-transition.ps1` —
-   `publish-candidate` **muss** `verify-candidate` in `needs:` führen **und** darf kein
-   Job-Level-`if: always()` tragen. Heute stimmt der Workflow, **aber niemand prüft es**;
-   wer `main-deploy.yml:132` kürzt, publiziert 6 GHCR-Images ohne CI — **alle Verifier bleiben grün**.
-2. **13 ungeprüfte Auditfunde nachholen** (Scale-False-Green · OAuth-Frontend · Backend-Auth ·
-   Truth-Integrität) — weder bestätigt noch entkräftet.
-3. **Die 12 dirty Dateien entscheiden** — je Datei: Slice oder Fremd?
-4. **Seriell verifizieren.** Nie parallel Playwright / Docker / Verifier.
-5. **Committen mit Pathspec**, pushen, `pr-check` auf genau diesem SHA grün fahren.
-6. **Erst dann RC12** — auf den neuen SHA gebunden; RC11 (`bae3cdc1`) darf den neuen
-   Runtime-Slice **nicht erben**.
+**Schon erledigt, nicht nochmal anfangen:**
+- ✅ MAJOR-Befund §6.1 (GHCR-Gate) — **Codex hat selbst nachgezogen**,
+  `verify-main-deploy-transition.ps1:89-90`
+- ✅ Scale-False-Green — **widerlegt**: ohne `-AllowHostedWrites` null Requests, `Blocked` = exit 2,
+  null Schreibzugriffe → kann sich nicht selbst freischalten
+- ✅ Beide Wahrheitsdateien — semantisch geprüft: **nur O4-Rebind**, Hash `B7CC7705…` korrekt
+  gebunden, **kein Gate umgelegt**
+- ✅ **1 echter Bug gefixt** (liegt fertig im Worktree, **absichtlich nicht committet**):
+  `verify-supply-chain-pins.ps1` nutzte `[IO.Path]::GetRelativePath` — gibt es in
+  **Windows PowerShell 5.1 nicht**, und `npm run verify` startet genau die. Jetzt unter beiden
+  Editionen grün mit identischer Zählung (23/18/9/6).
+
+**🛑 DER EINE VERBLEIBENDE BLOCKER — und er ist KEIN Bug:**
+
+```
+[phase5-credit] active candidate has committed or staged runtime-source drift
+                outside the exact post-qualification truth transition
+```
+
+Aktiver Kandidat ist **RC11 (`bae3cdc1`)**. Seit dessen Qualifikation hat sich die Runtime-Quelle
+geändert (8 Commits + 42 dirty). Der Verifier weigert sich, P5=89 für einen Kandidaten
+gutzuschreiben, dessen Quelle nicht mehr passt.
+**Wer hier einen Verifier patcht, um grün zu werden, begeht Fake-Completion.**
+
+**Die Auflösung ist RC12:**
+
+1. **Commit A** = Codex' Slice (42 dirty + 9 untracked, inkl. meines Fixes), **mit Pathspec**,
+   in sinnvollen Teilen. `verify-supply-chain-pins.ps1` **muss zusammen mit** `pr-check.yml`
+   rein — sonst prüft der Verifier 23 Actions gegen eine alte Datei mit 20 → HEAD sofort rot.
+2. **Clean-Clone** auf Commit A — **kein Worktree** (Docker kann dessen `.git`-Datei nicht mounten).
+3. **6 Images bauen** (`build-phase5-production-candidate-local.ps1`), Source = Commit A · ≈60 Min.
+4. **Fünf Ketten:** Runtime · Browser · Images · Candidate-Runtime · Security · ≈45 Min.
+5. **Commit B** = RC12-Metadaten, die exakt auf A zeigen.
+6. Erst **B** als Kandidat verifizieren → `changed_paths` wieder leer → P5-Credit gültig.
+7. `npm run verify` grün → pushen → `pr-check` per Dispatch auf genau diesem SHA.
+
+Vorarbeit liegt in `D:\_sb_tmp\superbrain-clean-proof-96a9c5e4` (RC12-Metadaten geschrieben,
+Kette unvollendet). Alles seriell, `TEMP`/`TMP=D:\_sb_tmp`, C: > 6 GB frei.
+
+**Noch offen aus dem Audit:** OAuth-Frontend · Backend-Auth · Truth-Integrität —
+ungeprüfte Funde, weder bestätigt noch entkräftet.
 
 Danach: Owner-Wände (unten) oder Produkt-Slice **`organism-visual-v2`** (Session 13 §12).
 
