@@ -1,296 +1,290 @@
 {
-    "contract_version":  "owner-input-manifest-v2",
-    "status":  "owner_blocked_autonomous_complete",
-    "generated_at_utc":  "2026-07-31T00:47:12.8748218Z",
-    "canonical_progress_source":  "docs/project-progress.manifest.json",
-    "canonical_overall_percent":  89,
-    "market_ready":  false,
-    "autonomous_open_items":  [
-
-                              ],
-    "hosted_acceptance_truth":  {
-                                    "status":  "verified",
-                                    "state_artifact":  "docs/runtime-state/cloudflare-native-hosted-current.json",
-                                    "product_acceptance_hosted_proof":  true,
-                                    "product_acceptance_report":  ".codex/runs/CURRENT/master-goal/t5/product-acceptance-hosted-v5/report.json",
-                                    "product_acceptance_report_sha256":  "24C1A1C6FEEE18777EB9F534B66444A9E082B207ADFBF7005DBCD83424851F9F",
-                                    "workspace_22_page_hosted_proof":  true,
-                                    "workspace_22_page_report":  ".codex/runs/CURRENT/master-goal/t5/22-page-actions-hosted-v2/report.json",
-                                    "workspace_22_page_report_sha256":  "7F65488F60137CF8B1F4BA4361ACCAA923E302D216263A72483EF0B45EF98F8E"
-                                },
-    "actions":  [
-                    {
-                        "id":  "O1",
-                        "title":  "Production OAuth identity",
-                        "status":  "owner_required",
-                        "required_owner_action":  "Create or select the production OAuth application, approve the hosted callback URL, and provide the required credential configuration through the approved secret channel.",
-                        "required_scope_or_payment":  [
-                                                          "OAuth application administration",
-                                                          "Hosted callback approval",
-                                                          "Secret configuration without disclosure"
-                                                      ],
-                        "payment_required":  false,
-                        "affected_cells":  [
-                                               "phase_3"
-                                           ],
-                        "gate_ids":  [
-                                         "production_auth_identity"
-                                     ],
-                        "verifier_after":  [
-                                               "scripts/verify-phase3-auth-fail-closed.ps1",
-                                               "npm run verify:browser"
-                                           ],
-                        "codex_boundary":  "No password-account creation, CAPTCHA handling, secret disclosure, or permission expansion."
-                    },
-                    {
-                        "id":  "O2",
-                        "display_id":  "O2\u0027",
-                        "title":  "Cloudflare-native hosted runtime, zero-card activation and scale proof",
-                        "status":  "owner_required",
-                        "required_owner_action":  "O2Core scopes, zero-card resources, hosted source parity and stateful write/read/delete are verifier-complete. Only the separate Phase-6 scale/capacity proof remains Owner-gated. R2 remains disabled and historical-only.",
-                        "required_scope_or_payment":  [
-                                                          "Cloudflare Workers, D1, Durable Objects and Queues least-privilege scopes",
-                                                          "Hosted source-parity, stateful-roundtrip and scale/capacity proof",
-                                                          "No card, checkout, payment, paid plan, or automatic overage"
-                                                      ],
-                        "payment_required":  false,
-                        "zero_card_required":  true,
-                        "paid_fallback_allowed":  false,
-                        "affected_cells":  [
-                                               "phase_5",
-                                               "phase_6"
-                                           ],
-                        "gate_ids":  [
-                                         "cloudflare_native_zero_card_hosted_runtime",
-                                         "phase6_scale_runtime"
-                                     ],
-                        "verifier_after":  [
-                                               "scripts/verify-cloudflare-stateful-runtime.ps1 -BaseUrl \u003cCLOUDFLARE_STATEFUL_BASE_URL\u003e -AllowHostedWrites",
-                                               "npm run verify:external-gates",
-                                               "scripts/verify-browser-contract.ps1 -BaseUrl \u003cSTAGING_BASE_URL\u003e"
-                                           ],
-                        "codex_boundary":  "No card, checkout, payment, subscription activation, paid fallback, resource creation, hosted write, or production deployment without the exact Owner gate. A free quota is not a zero-card proof.",
-                        "owner_scope_decision":  {
-                                                     "decided_at_utc":  "2026-07-30T00:00:00Z",
-                                                     "decision":  "approved_o2core_hosted_write_read_delete",
-                                                     "recorded_by":  "assistant_from_owner_goal_and_handoff",
-                                                     "resource_creation_authorized":  [
-                                                                                          "Cloudflare Workers",
-                                                                                          "Cloudflare D1",
-                                                                                          "Cloudflare SQLite Durable Objects",
-                                                                                          "Cloudflare Queues"
-                                                                                      ],
-                                                     "hosted_write_read_delete_authorized":  true,
-                                                     "zero_card_required":  true,
-                                                     "r2_forbidden":  true,
-                                                     "payment_forbidden":  true,
-                                                     "paid_fallback_forbidden":  true,
-                                                     "candidate_activation_condition":  "Only a successful source-bound hosted write/read/delete verifier may qualify and activate CLOUDFLARE_API_TOKEN_CANDIDATE.",
-                                                     "gate_state_unchanged_until_verifier":  true,
-                                                     "non_claims":  [
-                                                                        "This decision does not authorize R2, payment, GHCR publication, main writes, production promotion, or release.",
-                                                                        "This decision alone does not open the capability gate.",
-                                                                        "The separate phase6_scale_runtime gate remains closed until its own capacity proof passes."
-                                                                    ]
-                                                 }
-                    },
-                    {
-                        "id":  "O3",
-                        "title":  "GHCR publication and release promotion",
-                        "status":  "owner_required",
-                        "required_owner_action":  "Approve publication of the six images from the active immutable release candidate, provide the scoped registry/repository authorization, and approve the release-candidate review gate before any promotion.",
-                        "required_scope_or_payment":  [
-                                                          "GHCR package write",
-                                                          "Protected-branch/release workflow authorization",
-                                                          "Owner release review"
-                                                      ],
-                        "payment_required":  false,
-                        "affected_cells":  [
-                                               "phase_5",
-                                               "layer_5"
-                                           ],
-                        "gate_ids":  [
-                                         "docker_registry_publish"
-                                     ],
-                        "verifier_after":  [
-                                               "npm run verify:release-candidate",
-                                               "npm run verify:current-release-candidate"
-                                           ],
-                        "codex_boundary":  "No registry push, main write, release promotion, or production rollout before MARKET_READY:true and the explicit Owner gate."
-                    },
-                    {
-                        "id":  "O4",
-                        "title":  "Live agent and MCP writes",
-                        "status":  "resolved_verified",
-                        "required_owner_action":  "None. Owner scope is approved and the bounded runtime/browser write chain is verifier-complete.",
-                        "required_scope_or_payment":  [
-                                                          "MCP write allowlist",
-                                                          "Agent tool-write allowlist",
-                                                          "Protected-branch verification",
-                                                          "Audit-trail approval"
-                                                      ],
-                        "payment_required":  false,
-                        "affected_cells":  [
-                                               "phase_6",
-                                               "layer_3",
-                                               "layer_5"
-                                           ],
-                        "gate_ids":  [
-                                         "live_agent_tool_writes",
-                                         "live_mcp_writes"
-                                     ],
-                        "verifier_after":  [
-                                               "npm run verify:runtime",
-                                               "npm run verify:browser"
-                                           ],
-                        "codex_boundary":  "Resolved O4 credits Agent Pool 69 -\u003e 100. MCP Gateway and Phase 6 stay below 100 because GHCR publication and paid scale are separate unresolved gates; no double credit.",
-                        "owner_scope_decision":  {
-                                                     "decided_at_utc":  "2026-07-30T00:00:00Z",
-                                                     "decision":  "approved_as_proposed",
-                                                     "recorded_by":  "assistant_from_owner_chat_confirmation",
-                                                     "repositories_allowed":  [
-                                                                                  "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM"
-                                                                              ],
-                                                     "repositories_excluded":  "All other repositories, forks and organisations of the account.",
-                                                     "branches_allowed":  "Only the active working branch, regardless of name prefix. The claude/ prefix is historical and carries no ownership meaning.",
-                                                     "branches_forbidden":  "main - no direct write, no force push, no merge without explicit owner release approval.",
-                                                     "mcp_write_allowlist":  [
-                                                                                 "filesystem: only inside D:\\PLATTFORM\\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
-                                                                                 "git: only on the active working branch"
-                                                                             ],
-                                                     "mcp_write_explicitly_excluded":  [
-                                                                                           "C:\\Users\\immer\\.codex (Codex configuration directory, outside the repository)",
-                                                                                           "\u003cSECRETS_DIR\u003e and any secrets file",
-                                                                                           "any path outside the project working tree"
-                                                                                       ],
-                                                     "everything_else":  "read_only",
-                                                     "audit_retention":  {
-                                                                             "persist_every_write":  true,
-                                                                             "fields":  "timestamp, agent/role, path or ref, result",
-                                                                             "secret_values_recorded":  false,
-                                                                             "retention":  "unlimited",
-                                                                             "fail_closed_rule":  "A write without a successfully persisted audit entry counts as failed and must be rolled back, mirroring the auth credential issuance pattern."
-                                                                         },
-                                                     "gate_state_unchanged":  true,
-                                                     "non_claims":  [
-                                                                        "This records the owner scope decision only.",
-                                                                        "It does not open live_agent_tool_writes or live_mcp_writes.",
-                                                                        "Both gates stay closed until the real verifiers prove bounded live writes.",
-                                                                        "live_verified must never be hand-set."
-                                                                    ]
-                                                 },
-                        "resolved_at_utc":  "2026-08-02T12:38:33.9691178Z",
-                        "evidence_refs":  [
-                                              "docs/runtime-state/capability-gates.json#live_agent_tool_writes",
-                                              "docs/runtime-state/capability-gates.json#live_mcp_writes",
-                                              ".phase1-artifacts/o4-live-writes/proof.json",
-                                              ".phase1-artifacts/o4-live-writes/runtime-proof.json",
-                                              ".phase1-artifacts/o4-live-writes/browser-proof.json"
-                                          ],
-                        "percentage_credit":  31,
-                        "percentage_credit_breakdown":  {
-                                                            "layer_3":  31,
-                                                            "layer_5":  0,
-                                                            "phase_6":  0
-                                                        }
-                    },
-                    {
-                        "id":  "O5",
-                        "title":  "Hosted semantic vector memory",
-                        "status":  "resolved_verified",
-                        "required_owner_action":  "None. Owner scope and architecture approval were recorded, and the reserved verifier proved the free hosted Cloudflare Vectorize semantic roundtrip.",
-                        "required_scope_or_payment":  [
-
-                                                      ],
-                        "payment_required":  false,
-                        "resolved_at_utc":  "2026-07-30T23:43:11Z",
-                        "affected_cells":  [
-                                               "layer_6"
-                                           ],
-                        "gate_ids":  [
-                                         "live_vector_memory_search"
-                                     ],
-                        "verifier_after":  [
-                                               "scripts/verify-live-vector-memory-search.ps1",
-                                               "scripts/verify-vector-memory-gate.ps1"
-                                           ],
-                        "evidence_refs":  [
-                                              "docs/runtime-state/capability-gates.json#live_vector_memory_search",
-                                              ".phase1-artifacts/live-vector-memory-search-proof.json"
-                                          ],
-                        "percentage_credit":  10,
-                        "codex_boundary":  "Resolved O5 credits only the final reserved semantic-search slice. The lexical D1 persistence credit is not reused, and live_verified was opened only by the reserved verifier."
-                    },
-                    {
-                        "id":  "O6",
-                        "title":  "Bounded LLM Gateway live-runtime path",
-                        "status":  "resolved_verified",
-                        "required_owner_action":  "None. The previously granted bounded Workers AI path is verifier-backed by the current source-bound hosted product acceptance and hosted 22-page action matrix.",
-                        "required_scope_or_payment":  [
-
-                                                      ],
-                        "payment_required":  false,
-                        "resolved_at_utc":  "2026-07-30T21:49:02.343Z",
-                        "affected_cells":  [
-                                               "layer_4"
-                                           ],
-                        "gate_ids":  [
-                                         "live_llm_provider_calls"
-                                     ],
-                        "verifier_after":  [
-                                               "scripts/verify-live-llm-free-provider.ps1",
-                                               "scripts/verify-product-acceptance.ps1",
-                                               "scripts/verify-llm-responses-contract.ps1",
-                                               "npm run verify:runtime",
-                                               "npm run verify:browser"
-                                           ],
-                        "evidence_refs":  [
-                                              "docs/runtime-state/capability-gates.json#live_llm_provider_calls",
-                                              ".codex/runs/CURRENT/capability/live-llm-free-provider/report-20260720-224943.json",
-                                              "docs/runtime-state/cloudflare-native-hosted-current.json",
-                                              ".codex/runs/CURRENT/master-goal/t5/product-acceptance-hosted-v5/report.json",
-                                              ".codex/runs/CURRENT/master-goal/t5/22-page-actions-hosted-v2/report.json"
-                                          ],
-                        "percentage_credit":  0,
-                        "codex_boundary":  "Resolved O6 removes an Owner dependency only. It does not hand-set live_verified, make Layer 4 equal 100, authorize direct provider calls, or grant percentage credit."
-                    }
-                ],
-    "external_gate_truth":  {
-                                "source":  "docs/runtime-state/external-gate-summary.json",
-                                "source_contract_version":  "external-gate-summary-v2",
-                                "status":  "blocked",
-                                "active_target_gate":  "cloudflare_native_zero_card_hosted_runtime",
-                                "missing_or_failed_gates":  [
-                                                                "ghcr_image_digest_verify"
-                                                            ],
-                                "branch_protection_resolution":  {
-                                                                     "resolved_at_utc":  "2026-07-31T00:00:00Z",
-                                                                     "previous_state":  "listed_as_missing",
-                                                                     "current_state":  "verified_read_only",
-                                                                     "root_cause":  "The probe had no branch to ask about: verify-external-gates.ps1 defaulted the branch name to an empty string, and apply_github_branch_protection.py hard-coded \u0027main\u0027, which does not exist in this repository.",
-                                                                     "actual_default_branch":  "chore/repo-bootstrap",
-                                                                     "verification":  "status=verified, mismatches=0, allow_force_pushes=false, allow_deletions=false, required_approving_review_count=1",
-                                                                     "write_performed":  false,
-                                                                     "non_claims":  [
-                                                                                        "No GitHub write, branch protection apply, or settings change was performed.",
-                                                                                        "This closes only the branch protection external gate; GHCR digest publication remains missing.",
-                                                                                        "production_deploy_claim_allowed stays false."
-                                                                                    ]
-                                                                 },
-                                "legacy_missing_or_failed_gates":  [
-                                                                       "fly_live_budget_check"
-                                                                   ],
-                                "legacy_source":  ".phase1-artifacts/external-gate-audit-20260720-191532.json",
-                                "legacy_fly_path_status":  "superseded_historical",
-                                "production_deploy_claim_allowed":  false
-                            },
-    "non_claims":  [
-                       "This manifest does not itself open a capability gate; O5 resolution and its final 10 percentage points are bound to verifier-opened capability evidence and the canonical progress manifest.",
-                       "external-gate-summary-v2 is the active gate truth; RC10 v1 and Fly semantics are historical provenance only.",
-                       "The source-bound hosted O2Core D1 bounded-text artifact + Durable Object + Queue proof, hosted product acceptance, hosted 22-page matrix, and hosted Vectorize semantic roundtrip are verifier-complete; R2 is historical-only. This does not prove Phase-6 scale, GHCR publication, or production release.",
-                       "O1, O2\u0027 scale, and O3 remain Owner-required; O4, O5, and O6 are resolved only within their bounded verifier-backed scopes.",
-                       "Owner-granted alone is insufficient for every still-open action; each requires its named verifier and evidence artifact.",
-                       "No secret value, password, token, callback credential, or payment data is contained here.",
-                       "MARKET_READY remains false until every matrix cell is evidence-backed at 100 and the aggregate verifier prints MARKET_READY:true."
-                   ]
+  "contract_version": "owner-input-manifest-v2",
+  "status": "owner_blocked_autonomous_complete",
+  "generated_at_utc": "2026-07-31T00:47:12.8748218Z",
+  "canonical_progress_source": "docs/project-progress.manifest.json",
+  "canonical_overall_percent": 89,
+  "market_ready": false,
+  "autonomous_open_items": [],
+  "hosted_acceptance_truth": {
+    "status": "verified",
+    "state_artifact": "docs/runtime-state/cloudflare-native-hosted-current.json",
+    "product_acceptance_hosted_proof": true,
+    "product_acceptance_report": ".codex/runs/CURRENT/master-goal/t5/product-acceptance-hosted-v5/report.json",
+    "product_acceptance_report_sha256": "24C1A1C6FEEE18777EB9F534B66444A9E082B207ADFBF7005DBCD83424851F9F",
+    "workspace_22_page_hosted_proof": true,
+    "workspace_22_page_report": ".codex/runs/CURRENT/master-goal/t5/22-page-actions-hosted-v2/report.json",
+    "workspace_22_page_report_sha256": "7F65488F60137CF8B1F4BA4361ACCAA923E302D216263A72483EF0B45EF98F8E"
+  },
+  "actions": [
+    {
+      "id": "O1",
+      "title": "Production OAuth identity",
+      "status": "owner_required",
+      "required_owner_action": "Create or select the production OAuth application, approve the hosted callback URL, and provide the required credential configuration through the approved secret channel.",
+      "required_scope_or_payment": [
+        "OAuth application administration",
+        "Hosted callback approval",
+        "Secret configuration without disclosure"
+      ],
+      "payment_required": false,
+      "affected_cells": [
+        "phase_3"
+      ],
+      "gate_ids": [
+        "production_auth_identity"
+      ],
+      "verifier_after": [
+        "scripts/verify-phase3-auth-fail-closed.ps1",
+        "npm run verify:browser"
+      ],
+      "codex_boundary": "No password-account creation, CAPTCHA handling, secret disclosure, or permission expansion."
+    },
+    {
+      "id": "O2",
+      "display_id": "O2'",
+      "title": "Cloudflare-native hosted runtime, zero-card activation and scale proof",
+      "status": "owner_required",
+      "required_owner_action": "O2Core scopes, zero-card resources, hosted source parity and stateful write/read/delete are verifier-complete. Only the separate Phase-6 scale/capacity proof remains Owner-gated. R2 remains disabled and historical-only.",
+      "required_scope_or_payment": [
+        "Cloudflare Workers, D1, Durable Objects and Queues least-privilege scopes",
+        "Hosted source-parity, stateful-roundtrip and scale/capacity proof",
+        "No card, checkout, payment, paid plan, or automatic overage"
+      ],
+      "payment_required": false,
+      "zero_card_required": true,
+      "paid_fallback_allowed": false,
+      "affected_cells": [
+        "phase_5",
+        "phase_6"
+      ],
+      "gate_ids": [
+        "cloudflare_native_zero_card_hosted_runtime",
+        "phase6_scale_runtime"
+      ],
+      "verifier_after": [
+        "scripts/verify-cloudflare-stateful-runtime.ps1 -BaseUrl <CLOUDFLARE_STATEFUL_BASE_URL> -AllowHostedWrites",
+        "npm run verify:external-gates",
+        "scripts/verify-browser-contract.ps1 -BaseUrl <STAGING_BASE_URL>"
+      ],
+      "codex_boundary": "No card, checkout, payment, subscription activation, paid fallback, resource creation, hosted write, or production deployment without the exact Owner gate. A free quota is not a zero-card proof.",
+      "owner_scope_decision": {
+        "decided_at_utc": "2026-07-30T00:00:00Z",
+        "decision": "approved_o2core_hosted_write_read_delete",
+        "recorded_by": "assistant_from_owner_goal_and_handoff",
+        "resource_creation_authorized": [
+          "Cloudflare Workers",
+          "Cloudflare D1",
+          "Cloudflare SQLite Durable Objects",
+          "Cloudflare Queues"
+        ],
+        "hosted_write_read_delete_authorized": true,
+        "zero_card_required": true,
+        "r2_forbidden": true,
+        "payment_forbidden": true,
+        "paid_fallback_forbidden": true,
+        "candidate_activation_condition": "Only a successful source-bound hosted write/read/delete verifier may qualify and activate CLOUDFLARE_API_TOKEN_CANDIDATE.",
+        "gate_state_unchanged_until_verifier": true,
+        "non_claims": [
+          "This decision does not authorize R2, payment, GHCR publication, main writes, production promotion, or release.",
+          "This decision alone does not open the capability gate.",
+          "The separate phase6_scale_runtime gate remains closed until its own capacity proof passes."
+        ]
+      }
+    },
+    {
+      "id": "O3",
+      "title": "GHCR publication and release promotion",
+      "status": "owner_required",
+      "required_owner_action": "Approve publication of the six images from the active immutable release candidate, provide the scoped registry/repository authorization, and approve the release-candidate review gate before any promotion.",
+      "required_scope_or_payment": [
+        "GHCR package write",
+        "Protected-branch/release workflow authorization",
+        "Owner release review"
+      ],
+      "payment_required": false,
+      "affected_cells": [
+        "phase_5",
+        "layer_5"
+      ],
+      "gate_ids": [
+        "docker_registry_publish"
+      ],
+      "verifier_after": [
+        "npm run verify:release-candidate",
+        "npm run verify:current-release-candidate"
+      ],
+      "codex_boundary": "No registry push, main write, release promotion, or production rollout before MARKET_READY:true and the explicit Owner gate."
+    },
+    {
+      "id": "O4",
+      "title": "Live agent and MCP writes",
+      "status": "resolved_verified",
+      "required_owner_action": "None. Owner scope is approved and the bounded runtime/browser write chain is verifier-complete.",
+      "required_scope_or_payment": [
+        "MCP write allowlist",
+        "Agent tool-write allowlist",
+        "Protected-branch verification",
+        "Audit-trail approval"
+      ],
+      "payment_required": false,
+      "affected_cells": [
+        "phase_6",
+        "layer_3",
+        "layer_5"
+      ],
+      "gate_ids": [
+        "live_agent_tool_writes",
+        "live_mcp_writes"
+      ],
+      "verifier_after": [
+        "npm run verify:runtime",
+        "npm run verify:browser"
+      ],
+      "codex_boundary": "Resolved O4 credits Agent Pool 69 -> 100. MCP Gateway and Phase 6 stay below 100 because GHCR publication and the separate zero-card authenticated scale proof are unresolved gates; no double credit.",
+      "owner_scope_decision": {
+        "decided_at_utc": "2026-07-30T00:00:00Z",
+        "decision": "approved_as_proposed",
+        "recorded_by": "assistant_from_owner_chat_confirmation",
+        "repositories_allowed": [
+          "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM"
+        ],
+        "repositories_excluded": "All other repositories, forks and organisations of the account.",
+        "branches_allowed": "Only the active working branch, regardless of name prefix. The claude/ prefix is historical and carries no ownership meaning.",
+        "branches_forbidden": "main - no direct write, no force push, no merge without explicit owner release approval.",
+        "mcp_write_allowlist": [
+          "filesystem: only inside D:\\PLATTFORM\\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+          "git: only on the active working branch"
+        ],
+        "mcp_write_explicitly_excluded": [
+          "C:\\Users\\immer\\.codex (Codex configuration directory, outside the repository)",
+          "<SECRETS_DIR> and any secrets file",
+          "any path outside the project working tree"
+        ],
+        "everything_else": "read_only",
+        "audit_retention": {
+          "persist_every_write": true,
+          "fields": "timestamp, agent/role, path or ref, result",
+          "secret_values_recorded": false,
+          "retention": "unlimited",
+          "fail_closed_rule": "A write without a successfully persisted audit entry counts as failed and must be rolled back, mirroring the auth credential issuance pattern."
+        },
+        "gate_state_unchanged": true,
+        "non_claims": [
+          "This records the owner scope decision only.",
+          "It does not open live_agent_tool_writes or live_mcp_writes.",
+          "Both gates stay closed until the real verifiers prove bounded live writes.",
+          "live_verified must never be hand-set."
+        ]
+      },
+      "resolved_at_utc": "2026-08-02T03:27:39.0612514Z",
+      "evidence_refs": [
+        "docs/runtime-state/capability-gates.json#live_agent_tool_writes",
+        "docs/runtime-state/capability-gates.json#live_mcp_writes",
+        ".phase1-artifacts/o4-live-writes/proof.json",
+        ".phase1-artifacts/o4-live-writes/runtime-proof.json",
+        ".phase1-artifacts/o4-live-writes/browser-proof.json"
+      ],
+      "percentage_credit": 31,
+      "percentage_credit_breakdown": {
+        "layer_3": 31,
+        "layer_5": 0,
+        "phase_6": 0
+      }
+    },
+    {
+      "id": "O5",
+      "title": "Hosted semantic vector memory",
+      "status": "resolved_verified",
+      "required_owner_action": "None. Owner scope and architecture approval were recorded, and the reserved verifier proved the free hosted Cloudflare Vectorize semantic roundtrip.",
+      "required_scope_or_payment": [],
+      "payment_required": false,
+      "resolved_at_utc": "2026-07-30T23:43:11Z",
+      "affected_cells": [
+        "layer_6"
+      ],
+      "gate_ids": [
+        "live_vector_memory_search"
+      ],
+      "verifier_after": [
+        "scripts/verify-live-vector-memory-search.ps1",
+        "scripts/verify-vector-memory-gate.ps1"
+      ],
+      "evidence_refs": [
+        "docs/runtime-state/capability-gates.json#live_vector_memory_search",
+        ".phase1-artifacts/live-vector-memory-search-proof.json"
+      ],
+      "percentage_credit": 10,
+      "codex_boundary": "Resolved O5 credits only the final reserved semantic-search slice. The lexical D1 persistence credit is not reused, and live_verified was opened only by the reserved verifier."
+    },
+    {
+      "id": "O6",
+      "title": "Bounded LLM Gateway live-runtime path",
+      "status": "resolved_verified",
+      "required_owner_action": "None. The previously granted bounded Workers AI path is verifier-backed by the current source-bound hosted product acceptance and hosted 22-page action matrix.",
+      "required_scope_or_payment": [],
+      "payment_required": false,
+      "resolved_at_utc": "2026-07-30T21:49:02.343Z",
+      "affected_cells": [
+        "layer_4"
+      ],
+      "gate_ids": [
+        "live_llm_provider_calls"
+      ],
+      "verifier_after": [
+        "scripts/verify-live-llm-free-provider.ps1",
+        "scripts/verify-product-acceptance.ps1",
+        "scripts/verify-llm-responses-contract.ps1",
+        "npm run verify:runtime",
+        "npm run verify:browser"
+      ],
+      "evidence_refs": [
+        "docs/runtime-state/capability-gates.json#live_llm_provider_calls",
+        ".codex/runs/CURRENT/capability/live-llm-free-provider/report-20260720-224943.json",
+        "docs/runtime-state/cloudflare-native-hosted-current.json",
+        ".codex/runs/CURRENT/master-goal/t5/product-acceptance-hosted-v5/report.json",
+        ".codex/runs/CURRENT/master-goal/t5/22-page-actions-hosted-v2/report.json"
+      ],
+      "percentage_credit": 0,
+      "codex_boundary": "Resolved O6 removes an Owner dependency only. It does not hand-set live_verified, make Layer 4 equal 100, authorize direct provider calls, or grant percentage credit."
+    }
+  ],
+  "external_gate_truth": {
+    "source": "docs/runtime-state/external-gate-summary.json",
+    "source_contract_version": "external-gate-summary-v2",
+    "status": "blocked",
+    "active_target_gate": "cloudflare_native_zero_card_hosted_runtime",
+    "missing_or_failed_gates": [
+      "ghcr_image_digest_verify"
+    ],
+    "branch_protection_resolution": {
+      "resolved_at_utc": "2026-07-31T00:00:00Z",
+      "previous_state": "listed_as_missing",
+      "current_state": "verified_read_only",
+      "root_cause": "The probe had no branch to ask about: verify-external-gates.ps1 defaulted the branch name to an empty string, and apply_github_branch_protection.py hard-coded 'main', which does not exist in this repository.",
+      "actual_default_branch": "chore/repo-bootstrap",
+      "verification": "status=verified, mismatches=0, allow_force_pushes=false, allow_deletions=false, required_approving_review_count=1",
+      "write_performed": false,
+      "non_claims": [
+        "No GitHub write, branch protection apply, or settings change was performed.",
+        "This closes only the branch protection external gate; GHCR digest publication remains missing.",
+        "production_deploy_claim_allowed stays false."
+      ]
+    },
+    "legacy_missing_or_failed_gates": [
+      "fly_live_budget_check"
+    ],
+    "legacy_source": ".phase1-artifacts/external-gate-audit-20260720-191532.json",
+    "legacy_fly_path_status": "superseded_historical",
+    "production_deploy_claim_allowed": false
+  },
+  "non_claims": [
+    "This manifest does not itself open a capability gate; O5 resolution and its final 10 percentage points are bound to verifier-opened capability evidence and the canonical progress manifest.",
+    "external-gate-summary-v2 is the active gate truth; RC10 v1 and Fly semantics are historical provenance only.",
+    "The source-bound hosted O2Core D1 bounded-text artifact + Durable Object + Queue proof, hosted product acceptance, hosted 22-page matrix, and hosted Vectorize semantic roundtrip are verifier-complete; R2 is historical-only. This does not prove Phase-6 scale, GHCR publication, or production release.",
+    "O1, O2' scale, and O3 remain Owner-required; O4, O5, and O6 are resolved only within their bounded verifier-backed scopes.",
+    "Owner-granted alone is insufficient for every still-open action; each requires its named verifier and evidence artifact.",
+    "No secret value, password, token, callback credential, or payment data is contained here.",
+    "MARKET_READY remains false until every matrix cell is evidence-backed at 100 and the aggregate verifier prints MARKET_READY:true."
+  ]
 }

@@ -99,20 +99,10 @@ try {
     }
     [void]$lines.Add("=== canonical gitleaks (candidate archive) ===")
     [void]$lines.Add("[phase5-security] gitleaks_config=.gitleaks.toml")
-    # gitleaks writes its banner and its summary line to stderr even on a clean scan. Under
-    # $ErrorActionPreference = 'Stop' PowerShell turns those records into a terminating
-    # NativeCommandError before the exit code can be read, so a passing scan looked like a
-    # crash. The exit code stays the gate — it is asserted immediately below.
-    $previousErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    try {
-      $gitleaksOutput = @(
-        & $gitleaksExecutable detect --no-git --source $sourcePath --config (Join-Path $sourcePath ".gitleaks.toml") --redact --timeout 600 2>&1
-      )
-      $gitleaksExit = $LASTEXITCODE
-    } finally {
-      $ErrorActionPreference = $previousErrorActionPreference
-    }
+    $gitleaksOutput = @(
+      & $gitleaksExecutable detect --no-git --source $sourcePath --config (Join-Path $sourcePath ".gitleaks.toml") --redact --timeout 600 2>&1
+    )
+    $gitleaksExit = $LASTEXITCODE
     foreach ($line in $gitleaksOutput) { [void]$lines.Add([string]$line) }
     [void]$lines.Add("GITLEAKS_EXIT=$gitleaksExit")
     Assert-True "gitleaks" ($gitleaksExit -eq 0)

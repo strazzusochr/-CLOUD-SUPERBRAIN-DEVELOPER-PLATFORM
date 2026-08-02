@@ -131,6 +131,11 @@ jobs:
                   raise SystemExit("source prequalification requires candidate_sha to differ from control SHA")
               if not event_ref.startswith("refs/heads/"):
                   raise SystemExit("source prequalification requires a branch ref")
+              # Ordering contract, learned the hard way: the control commit must come
+              # DIRECTLY after the candidate. Everything between candidate_sha and
+              # control_sha shows up in this delta, so release metadata, evidence
+              # summaries and handover documents have to be committed AFTER the control
+              # commit — never between it and the candidate.
               allowed_control_paths = {
                   ".github/workflows/pr-check.yml",
                   "scripts/tests/test_verify_phase5_credit_itemization.py",
