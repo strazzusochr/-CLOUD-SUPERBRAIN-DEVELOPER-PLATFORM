@@ -104,7 +104,9 @@ function Get-TopologyMirrorProjection([string]$Label, $Payload) {
 
 function Invoke-TopologyEmitterAttempt([string]$Executable, [string[]]$CommandArguments) {
   $stderrPath = [IO.Path]::GetTempFileName()
+  $previousErrorPreference = $ErrorActionPreference
   try {
+    $ErrorActionPreference = "Continue"
     $output = & $Executable @CommandArguments 2> $stderrPath
     $exitCode = $LASTEXITCODE
     $stderr = if ((Get-Item -LiteralPath $stderrPath).Length -gt 0) {
@@ -118,6 +120,7 @@ function Invoke-TopologyEmitterAttempt([string]$Executable, [string[]]$CommandAr
       stderr = $stderr
     }
   } finally {
+    $ErrorActionPreference = $previousErrorPreference
     Remove-Item -LiteralPath $stderrPath -Force -ErrorAction SilentlyContinue
   }
 }
