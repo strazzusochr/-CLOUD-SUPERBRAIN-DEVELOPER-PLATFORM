@@ -98,6 +98,13 @@ LEGACY_EVIDENCE_BINDINGS = {
 EXPECTED_GITHUB_REPOSITORY = "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM"
 EXPECTED_GITHUB_WORKFLOW_NAME = "pr-check"
 EXPECTED_GITHUB_WORKFLOW_PATH = ".github/workflows/pr-check.yml"
+# These sets are compared with == , not as a subset. Every writer that produces a v2 summary
+# must declare exactly this list for its chain, or the evidence it writes cannot be credited:
+#   runtime, browser -> scripts/write-phase5-local-verification-evidence.ps1
+#   security         -> scripts/write-phase5-security-evidence.ps1
+# Exit anchors (RUNTIME_EXIT=0, BROWSER_EXIT=0) are log-integrity lines and are deliberately NOT
+# part of a declared set. When a line is added or renamed here, the corresponding writer has to
+# change in the same commit — they drifted apart once and every chain silently failed to verify.
 CANONICAL_SUCCESS_ANCHORS = {
     "runtime": [
         "[runtime] compose status",
