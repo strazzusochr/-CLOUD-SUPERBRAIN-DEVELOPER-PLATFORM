@@ -1,338 +1,142 @@
-# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-08-01 (Session 13j)
-> **Reihenfolge in JEDER Session:** (1) diese Datei → (2) `CODEX_UEBERGABE_2026-07-31-SESSION13.md`
-> → (3) Preflight → (4) arbeiten. Die Session-12-Übergabe ist **historisch**.
+# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-08-02 (Session 14)
+
+> **Reihenfolge in JEDER Session:**
+> (1) diese Datei → (2) `CODEX_UEBERGABE_2026-08-02-SESSION14.md` → (3) Preflight → (4) arbeiten.
+> `CODEX_UEBERGABE_2026-07-31-SESSION13.md` ist **Historie** (Rulings, Organism-Plan §12) —
+> der Ist-Stand steht in Session 14.
 
 ## ENDZIEL
+
+`npm run verify:market-ready` druckt real **`MARKET_READY: true`**.
 Beide Matrizen **100 %**, jede Zelle mit echtem Artefakt.
-**Finish-Line:** `npm run verify:market-ready` druckt real `MARKET_READY: true`.
-Owner-gewallte Reste ehrlich als **OWNER-BLOCKED** listen — **nie faken** (R0).
+Owner-gewallte Reste ehrlich als **OWNER-BLOCKED** listen — **nie faken (R0)**.
 
 ---
 
-## 🚀 START HIER (Session 13j, 2026-08-01) — HEAD = origin = `f7830977358a2f93bd356814aa50c762a8f9eafb`
+## 🚀 START HIER — HEAD = `7b366b45` · origin = `fe88c2a0` · **7 Commits ungepusht**
 
-> **Vollprotokoll im Anker:** `PROJECT_ANCHOR_CURRENT.md`, oberster Block
-> (Checkpoint · Ist-Stand · nächster Schritt · Ziel · Vermeidungsregeln).
+**Workspace:** `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM` (Hauptordner, nicht `.claude/worktrees/*`)
+**Branch:** `claude/cloud-superbrain-analysis-127d2e` · Default = `chore/repo-bootstrap` (**kein `main`**)
 
-**Ist-Stand nachgemessen (nicht aus einem Report übernommen):** HEAD == origin `f7830977` ·
-GitHub Actions `pr-check` Run `30712183385` ✅ `completed/success` auf genau diesem SHA ·
-`npm run verify` / P5-Credit / Release-Candidate ✅ · Overall **89** (= `round(Σ H / 7)`
-nachgerechnet) · P3 **44** · P5 **89** (`fully_itemized`, `17/19`) · P6 **90** ·
-Capability-Gates **7/10 geschlossen** · `MARKET_READY:false`.
+**Ist-Stand (nachgemessen, nicht aus einem Report übernommen):**
+Overall **89** = `round(Σ H / 7)` · P3 **44** · P5 **89** (`fully_itemized`, 17/19, blockiert I1+I5) ·
+P6 **90** · L4 **55** · L5 **56** · Capability-Gates **7/10 geschlossen** · `MARKET_READY:false`.
 
-**Fremd-dirty, NIE mitcommitten:** `.codex/runs/CURRENT/product-acceptance/report.json` ·
-`apps/frontend/next-env.d.ts` · `apps/frontend/tsconfig.tsbuildinfo`.
+**Letzte CI-verifizierte Wahrheit:** `f7830977`, Run `30712183385` = success.
+**Alles danach ist lokal unbewiesen.**
 
-**⚠️ ERSTE HANDLUNG IN JEDER SESSION — sonst laeufst du in ein Phantom-503:**
-```
+**Codex ist rate-limited bis 2026-08-09.**
+
+### ⚠️ ERSTE HANDLUNG VOR JEDEM BROWSER-/RUNTIME-BEWEIS
+
+```powershell
 pwsh -NoProfile -File scripts\start-dev-live.ps1
 ```
-Der Compose-Standard ist **bewusst** `deterministic_dry_run`. Ohne diesen Aufruf meldet
-`/api/v1/build` immer „kein vollstaendiges Build-Artefakt" — **das ist der Schutz, kein Defekt.**
 
-**NÄCHSTER AUTONOMER SCHRITT:** RC11 ist **abgeschlossen und grün** — nichts nachtragen,
-nichts hochsetzen, keinen Re-Run „zur Sicherheit". Die einzige verbleibende autonome Fläche
-ist der Produkt-Slice **`organism-visual-v2`** (§12 der Übergabe): eigener Branch, additiv auf
-`CortexCanvas3D`, `data-testid`-Selektoren unverändert, voller `verify:browser` als Abnahme.
-
-**Alles andere ist Owner-Wand, nicht offene Arbeit:** O1 (OAuth-Klick) → P3 ·
-O3 (GHCR, erst nach `MARKET_READY`) → P5 · `AGENT_API_AUTH_TOKEN` (Secret, **keine Zahlung**)
-→ `phase6_scale_runtime`. L4/L5 sind bewusst null-kreditiert — Hochsetzen bricht zwei Verifier.
-
-**R-NEU-10 (neu, aus einem Eigenfehler):** In einem Repo, in dem ein zweiter Agent parallel
-arbeitet, **nie `git commit` ohne Pfadliste** — der Index gehört dir nicht allein. Immer
-`git commit -o <pfad…> -m "…"`. Beleg: `a8331d89` trägt eine Doku-Nachricht, enthält aber 34
-Dateien. Bleibt stehen (gepusht, grün, zwei Commits darauf); Rewrite wäre ein Force-Push.
-
-**NIE:** `static` wieder als Pflichtkette eintragen (Selbstbezug, R-NEU-9) · zahlen (macht die
-Matrix rot) · P5 handsetzen (verifier-gebunden) · L4/L5 anfassen · in einem Neben-Worktree
-arbeiten (5 Stueck, einer 7 Commits hinterher).
+Compose-Standard ist **absichtlich** `deterministic_dry_run`. Ohne diesen Aufruf meldet
+`/api/v1/build` immer „kein vollständiges Build-Artefakt" — **Schutz, kein Defekt**.
 
 ---
 
-## ✅ STAND (gemessen, nicht geschätzt)
-Branch `claude/cloud-superbrain-analysis-127d2e` · HEAD = `origin` · Overall **89 %** · `MARKET_READY:false`
-`P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 89 · P6 90`
-`FE 100 · ORC 100 · AP 100 · LLM 55 · MCP 56 · MEM 100 · OBS 100`
+## ⚠️ DER BAUM IST NICHT SAUBER — XDIRTY ist NICHT mehr 3
 
-**RC11 Readiness:** `17/19` · Status `verified_with_owner_blocks` · offen: I1 + I5.
-Alle fünf Ketten sind `DEV-ONLY; hosted proof still blocked`. Kein GHCR-Publish,
-Production-Deploy oder Release-Promotion.
+**12 tracked dirty + 9 untracked.** Codex wurde mitten im Slice abgeschnitten.
 
-## 🚨 HISTORISCH — SESSION 13g: HEAD WAR ROT UND GEPUSHT — ZWEITER SELBSTBEZUG
+**Fremd, nie anfassen:**
+`.codex/runs/CURRENT/product-acceptance/report.json` · `apps/frontend/tsconfig.tsbuildinfo` ·
+`apps/frontend/next-env.d.ts`
 
-Codex lieferte die 19-Item-Rubrik + Verifier (**gute Arbeit**), setzte aber `phase_5` 68 → 89
-und pushte einen Stand, bei dem `npm run verify` **exit 1** lieferte. Die Zahl lief ihrem
-Beweis voraus.
+**Unfertige Codex-Arbeit (9), darunter ZWEI Wahrheitsdateien:**
+`.github/workflows/pr-check.yml` · `.phase1-artifacts/o4-live-writes/{proof,browser-proof,runtime-proof}.json` ·
+**`docs/runtime-state/capability-gates.json`** · **`docs/runtime-state/owner-input-manifest.json`** ·
+`scripts/verify_phase5_credit_itemization.py` · `scripts/tests/test_verify_phase5_credit_itemization.py` ·
+`scripts/verify-main-deploy-transition.ps1` · `scripts/verify-supply-chain-pins.ps1`
 
-**Ursache — der Pflicht-Gate verlangte sich selbst:**
+**Neu und NICHT integriert:** `services/model-registry/*` (kompletter Service, kein Verifier
+kennt ihn) · `services/agent-api/app/core/{access_classes,cost_gate}.py`
+
+Vor jedem Commit die zwei Wahrheitsdateien einzeln begründen:
+
+```bash
+git diff --unified=1 -- docs/runtime-state/capability-gates.json docs/runtime-state/owner-input-manifest.json
 ```
-npm run verify -> project-progress -> phase5-credit
-  verlangt  local_verification.static.status == "passed"
-  wobei     local_verification.static.command == "npm run verify"
-```
-Es gab nur einen Modus → **aus dem Kaltstart nie gruen.** Jede Session waere rot gestartet.
 
-> **R-NEU-9: Eine Kette darf nie ihre eigene Ausgabe als Eingabe verlangen.**
-> Vor jedem neuen Evidenzfeld fragen: Wer erzeugt es — und laeuft der Erzeuger *innerhalb*
-> der Kette, die es fordert?
+---
 
-**Korrektur `02362751` (`npm run verify` = exit 0, Gitleaks 0):**
-`static` entfaellt (5 unabhaengige Ketten bleiben Pflicht) · neuer Modus
-`legacy_reconstruction` = **Credit folgt dem Beweis**: P5 bleibt beim rekonstruierten **68**,
-Marker `..._pending_candidate_qualification`, der berechnete `17/19 = 89` bleibt Vorwaertswert ·
-Spiegel resynchronisiert (Manifest · `platform.ts` · **Pin in `verify-phase1.ps1:571`** ·
-Snapshot · `PROJECT_STATE.md`).
+## 🔧 NÄCHSTE SCHRITTE (in dieser Reihenfolge)
 
-**Ueberholt:** Meine Aussage „Herleitung der 68 nicht rekonstruierbar" ist **widerlegt** —
-Codex' `13/19 → 68` reproduziert den Altwert exakt. Und `verify_phase5_credit_itemization.py:325`
-bindet `manifest phase_5 == computed_percent`: **Handsetzen ist jetzt strukturell unmoeglich.**
+1. **Fix MAJOR-Befund** (Übergabe §6.1): eine Assertion in `verify-main-deploy-transition.ps1` —
+   `publish-candidate` **muss** `verify-candidate` in `needs:` führen **und** darf kein
+   Job-Level-`if: always()` tragen. Heute stimmt der Workflow, **aber niemand prüft es**;
+   wer `main-deploy.yml:132` kürzt, publiziert 6 GHCR-Images ohne CI — **alle Verifier bleiben grün**.
+2. **13 ungeprüfte Auditfunde nachholen** (Scale-False-Green · OAuth-Frontend · Backend-Auth ·
+   Truth-Integrität) — weder bestätigt noch entkräftet.
+3. **Die 12 dirty Dateien entscheiden** — je Datei: Slice oder Fremd?
+4. **Seriell verifizieren.** Nie parallel Playwright / Docker / Verifier.
+5. **Committen mit Pathspec**, pushen, `pr-check` auf genau diesem SHA grün fahren.
+6. **Erst dann RC12** — auf den neuen SHA gebunden; RC11 (`bae3cdc1`) darf den neuen
+   Runtime-Slice **nicht erben**.
 
-## ✅ S1–S3 SIND GESCHLOSSEN (Codex, Session 13h) — HISTORISCH
+Danach: Owner-Wände (unten) oder Produkt-Slice **`organism-visual-v2`** (Session 13 §12).
 
-| # | Fund | Status |
+---
+
+## 🧱 DIE DREI OWNER-WÄNDE — Entscheidungen, keine offene Arbeit
+
+| Wand | öffnet | Art |
 |---|---|---|
-| S1 | Item **C2** war `verified` mit falschem Claim | ✅ behoben |
-| S2 | `evidence[].claim` nie gegen Dateiinhalt geprueft | ✅ **`require_anchor` liest die Bytes** (`verify_phase5_credit_itemization.py:120-126`) |
-| S3 | `sha256` nur formatgeprueft, Artefakt musste nicht existieren | ✅ echter Datei-Hash + Null-Hashes verboten |
+| **O1** GitHub-OAuth-Identität | P3 +56 | braucht **zuerst** Architekturentscheidung: CF-native stateful **oder** hosted Agent-API+PG+Redis. Vercel-Backend ist read-only und kann O1 **nicht** erfüllen. Scope nur `read:user` |
+| **`AGENT_API_AUTH_TOKEN`** | P6 +10 | **Secret, keine Zahlung.** Danach 900 echte Requests: 800 Reads + 50 POST/D1-Readback + 50 DELETE |
+| **O3** GHCR | P5 +11 | **zyklisch blockiert**: Push verboten vor `MARKET_READY:true`, das aber GHCR-Digests verlangt. Owner muss entscheiden, welche Seite nachgibt |
 
-Der Kamera-Hang und der Scoreboard-Fetch-Guard sind ebenfalls behoben und **committed**
-(`1e2c57a1`, `05a7f00b`) — nichts liegt mehr uncommitted im Working Tree.
-Der verbleibende rote Test ist ein **anderer**: siehe „DER EINE ROTE TEST" oben.
+**Zahlung öffnet NICHTS.** `payment_required` ist bei O1/O2/O3 `false`; eine im Manifest
+abgebildete Zahlung macht `owner-input-matrix` **rot**.
 
-
-## 🧮 HISTORISCH — WARUM VERTIKALE ARBEIT DIE 86 % NIE BEWEGTE
-`scripts/verify_project_progress_manifest.py` erzwingt:
-`overall_percent == round(Summe der horizontalen Phasen / Anzahl)`.
-**Vertikale Layer fließen gar nicht ein.** L3 69→100 und L6 90→100 haben `overall` deshalb korrekt
-bei 86 gelassen — das ist Arithmetik, kein Beschönigen. Wer die 86 bewegen will, muss **P3, P5 oder P6**
-bewegen. **Keines davon ist ein Zahlungs-Gate** — siehe Befund 13b.
-
-## ⛔ L4 (55) UND L5 (56) SIND NICHT „VERGESSEN" — SIE SIND BEWUSST NULL-CREDIT
-Die Fähigkeiten **sind** bewiesen (L4: `gateway_mode=cloudflare_workers_ai_live`, `live_calls=true`,
-`direct=false`, hosted+auditiert · L5: bounded, auditierter MCP-Write mit Rollback). Trotzdem gilt:
-- `actions[O4].percentage_credit_breakdown` = `layer_3: 31`, **`layer_5: 0`**, `phase_6: 0`
-- `actions[O6].percentage_credit` = **0**, Boundary: *„does not make Layer 4 equal 100 … or grant
-  percentage credit"*
-
-**Beide Nullen werden hart geprüft** — von `verify-market-ready.ps1` **und**
-`verify-o4-live-writes.ps1` (`[int]$o4Action.percentage_credit_breakdown.layer_5 -eq 0`).
-**Wer L4 oder L5 hochsetzt, bricht zwei Verifier und erzeugt Fake-Vollständigkeit. Nicht anfassen.**
-
-**Hosted echt bewiesen:** Produktabnahme + 22-Seiten-Matrix mit `dev_only=false`,
-`proof_scope=hosted_https` — 22/22 Routen · 29/29 Familien · 161/161 Aktionen · 0 tote · 0 Fehler.
+**L4 (55) / L5 (56)** sind **bewusst null-kreditiert** und werden von **zwei** Verifiern geprüft.
+Hochsetzen = Fake-Completion.
 
 ---
 
-## ▶ HISTORISCHE ARBEITSREIHENFOLGE BIS MARKTREIFE
+## ⛔ VERBOTE
 
-**1. ✅ Restarbeit geschlossen.** Hosted-Source-Rebinding meldet in `/api/v1/health`
-   exakt `af61146e22d1a56e9d62232c159ea7b352405ba9` +
-   `1d85f2cd6c948a43e0f79fb17d1f02706687d5857d80f4096780692d094b63fc`.
-   Worker-Version: `757cf74c-7988-4790-ae03-ff51534ccea4`.
+`git add -A` · `git commit` **ohne Pathspec** (R-NEU-10) · Force-Push · Push auf Default-Branch ·
+Prozente hochsetzen · `live_verified` von Hand · L4/L5 hochsetzen ·
+Zahlung / Kreditkarte / Paid Provider / Fly.io / R2 / CF Containers ·
+Secrets in Chat, Datei, Log oder Commit (nur **Pfad + Fundtyp** melden) ·
+Token rotieren („Roll") — vom Owner **ausdrücklich abgelehnt** ·
+parallel Playwright / Docker / Verifier · `TEMP`/`TMP` ≠ `D:\_sb_tmp` ·
+DEV-ONLY-Evidenz als Hosted-Beweis ausgeben.
 
-**2. ✅ L6 90 → 100 gutgeschrieben.** Marker:
-   `hosted_semantic_vector_search_cloudflare_vectorize_roundtrip_verified`.
-   **Kein Doppelcredit** — die lexikalische D1-Persistenz bleibt ihr eigener Slice.
-
-**3. ✅ O4 abgeschlossen.** `live_agent_tool_writes` + `live_mcp_writes` sind vom Verifier geöffnet,
-   Evidenz `.phase1-artifacts/o4-live-writes/proof.json`, Audit vor/nach Write + Readback + Rollback
-   bewiesen, `main_write=false`. Agent Pool **69 → 100** (Credit 31, itemisiert hinterlegt).
-
-**4. P3 (O1) — OWNER.** Konfiguration erledigt, lokal `verified_dev_only`. Der interaktive
-   GitHub-Zustimmungsklick ist eine **echte Owner-Wand**.
-
-**5. P6 — KEIN GELD-PROBLEM.** Korrektur: `phase6_scale_runtime` hat `paid_provider:false`,
-   O2 hat `payment_required:false` + `zero_card_required:true` + `payment_forbidden:true`.
-   Es fehlt ein **Scale-/Kapazitaetsbeweis bei Zero-Card**. Zahlen loest hier nichts.
-   ✅ Verifier existiert (`a7335f6f`, gehaertet `6834ab61`) — Read-Stufe **gruen**
-   (p95 299,9 ms bei c=50), Gate bleibt korrekt zu weil die Write-Stufe fehlt. Details unter E2.
-
-**6. P5 / O3 GHCR — ZIRKULAER BLOCKIERT, Aufloesung entschieden: Option (a).** Siehe E3.
-
-## 🧾 HISTORISCHES OWNER-AKTIONSPAKET (vor RC11-Qualifikation)
-
-**O1 — GitHub-OAuth-Klick (schaltet P3 44 → höher)**
-Der Owner öffnet die OAuth-App-Autorisierung und bestätigt einmalig den Zustimmungsdialog.
-Konfiguration ist fertig (Compose + `JWT_SIGNING_SECRET`), lokal `verified_dev_only`.
-Danach Codex: hosted Nachweis fahren, `production_auth_identity` **nur** über den echten Verifier
-öffnen. **Der Klick selbst ist eine der vier Wände — kein Agent darf ihn ersetzen.**
-
-**O3 — GHCR — ⚠️ HAENGT AM DEADLOCK, NICHT AM OWNER-WILLEN**
-Owner gibt Registry-Publikation der sechs Images aus dem aktiven RC frei. **Aber:** O3 auszufuehren
-macht `docker_registry_publish` `live_verified` und drueckt `MARKET_READY` **wieder** auf false
-(`:204-217`). Deshalb E3 **Option (a)**: `phase_5 = 100` := *release-candidate-ready*, GHCR wird
-**Post-Market-Schritt**. O3 bleibt formal `owner_required` und unveraendert.
-Danach: `verify:release-candidate` + `verify:current-release-candidate`.
-
-## 🚨 BEFUND SESSION 13b: ZAHLEN OEFFNET NICHTS — UND DIE ZIELLINIE IST ZIRKULAER
-
-**1. Bezahlung loest keinen einzigen Blocker.** Belegt, nicht vermutet:
-`O1.payment_required=false` · `O2.payment_required=false` · `O3.payment_required=false` ·
-alle drei geschlossenen Gates `paid_provider:false`.
-O2 traegt zusaetzlich `zero_card_required:true`, `payment_forbidden:true`, `paid_fallback_forbidden:true`.
-**`verify-market-ready.ps1:298-305` prueft diese Werte aktiv.** Wer bezahlt und das Manifest
-entsprechend aendert, macht den Schritt `owner-input-matrix` **rot** → `MARKET_READY` faellt auf false.
-Zahlen wuerde das Projekt **zurueckwerfen**, nicht voranbringen. (61 Zero-Card-Assertions in `scripts/`.)
-
-**2. Die Ziellinie enthaelt einen Deadlock.**
-`MARKET_READY = (requiredFails.Count -eq 0)` (`:699`) und `manifest-all-100` ist `required=$true` (`:619`)
-— es zaehlen **horizontale UND vertikale** Zellen (`:88`), anders als bei `overall_percent`.
-Daraus folgt die Schleife:
-> `MARKET_READY:true` braucht `phase_5 = 100` → braucht **O3** (GHCR-Publikation) →
-> O3 `codex_boundary`: *"No registry push … **before MARKET_READY:true**"* → braucht `MARKET_READY:true`.
-
-**Das ist per Konstruktion unerfuellbar.** Kein Agent und kein Owner-Klick kann diese Schleife von
-innen aufloesen. Es ist ein **Spezifikationsfehler**, keine offene Arbeit.
-
-**3. P6 hat einen zweiten Widerspruch.** `manifest-all-100` verlangt `phase_6 = 100`, waehrend
-`verify-market-ready.ps1:204-217` verlangt, dass `phase6_scale_runtime.live_verified` **false** bleibt.
-
-## 🧭 HISTORISCHE DREI OWNER-ENTSCHEIDUNGEN
-
-**E1 — O1 JETZT (einzig sauber oeffenbarer Blocker).** Keine Zahlung, kein Deadlock, keine Abhaengigkeit.
-Owner: OAuth-App waehlen/anlegen, Hosted-Callback freigeben, Config ueber den Secret-Kanal.
-Danach: `scripts/verify-phase3-auth-fail-closed.ps1` (**existiert**) + `npm run verify:browser`.
-
-**E2 — ✅ ERLEDIGT. Erst rot, dann als Messfehler entlarvt.**
-Kriterium `docs/runtime-state/phase6-scale-criterion.json` in **eigenem Commit `6c761aa2`** — der
-messende Code existierte da noch nicht, der Lauf konnte also scheitern. Verifier `a7335f6f`,
-gehaertete Harness `6834ab61`.
-
-| c | Lauf 1 (Runspaces) | Lauf 2 (pooled + Edge-Kontrolle) | Kontrolle | **Worker-Anteil** |
-|---|---|---|---|---|
-| 1 | 271 ms | **59,7 ms** | 30,4 ms | 29,3 ms |
-| 10 | 3.140 ms | **229,6 ms** | 49,3 ms | 180,3 ms |
-| 50 | 21.180 ms | **299,9 ms** | 60,7 ms | **239,2 ms** |
-
-Lauf 1 riss die 1.500-ms-Schwelle und war **zu ~98,6 % Messfehler** (ein Runspace + frischer
-TLS-Handshake **pro Request**). **Die Schwelle wurde NICHT gesenkt** — stattdessen das Messgeraet
-repariert: gepoolter `HttpClient` + Kontrollgruppe `/cdn-cgi/trace` (Edge bedient sie **ohne** den
-Worker). Die Read-Stufe besteht das **urspruengliche** Kriterium jetzt aus eigener Kraft.
-Der Worker haelt bei 50-facher Parallelitaet (Eigenanteil 29 → 239 ms, 1,0 Erfolg, 0× 5xx, 0× 429).
-
-⛔ **Gate bleibt trotzdem zu** (Exit 2): Die Write-Stufe — parallele D1-Writes mit Readback, der
-*eigentliche* Scale-Beweis — lief mangels `AGENT_API_AUTH_TOKEN` nie. Read-Kapazitaet allein ist
-kein Scale-Beweis. **R-NEU-7: Ein Lastmessaufbau ohne Connection-Reuse misst sich selbst.**
-
-**E3 — ✅ ENTSCHIEDEN: Option (a).** Grund ist zwingend, nicht Geschmack: `docker_registry_publish`
-steht in `$expectedClosedGateIds` (`:204-217`) — eine GHCR-Publikation macht das Gate `live_verified`
-und drueckt `MARKET_READY` **erneut** auf false. (b) verschiebt den Deadlock also nur und kostet zwei
-Schutzmechanismen; (a) aendert an den Verifiern **nichts**.
-⛔ **Korrektur:** „O3 als `post_market`" ist **verboten** (`:126` erlaubt nur `owner_required` /
-`resolved_verified`). **O3 bleibt unveraendert.**
-⛔ **`phase_5` wurde NICHT auf 100 gesetzt:** Der Manifest-Verifier prueft nur `0..100`, es gibt
-**keine itemisierte Evidenz** fuer die fehlenden 32 Punkte. Jede Zahl waere erfunden — der Verifier
-haette sie widerstandslos akzeptiert. **R-NEU-6: Fehlende Pruefung ist kein Freibrief.**
-
-## 🛑 HISTORISCHER BEFUND: DIE AUTONOME FLÄCHE WAR ERSCHÖPFT
-Jede Zelle unter 100 ist entweder **owner-/zahlungsgewallt** (P3, P5, P6) oder **bewusst
-null-kreditiert** (L4, L5). Es gibt derzeit **keine** Zelle, die ein Agent ohne Owner-Handlung
-ehrlich anheben könnte. Wer trotzdem eine Zahl erhöht, fälscht.
-**Nächste echte Arbeit beginnt erst nach einer Owner-Entscheidung (O1 oder O3).**
+**Vier Wände, die kein Agent überschreitet:** Kreditkarte/Zahlung · Passwort-Konten · CAPTCHA ·
+Secrets ausgeben/committen.
 
 ---
 
-## ⚠️ DIE ACHT FALLEN (alle in Session 13 real passiert)
-| Falle | Richtig |
-|---|---|
-| `Authorization: Bearer` am Worker | **`x-superbrain-agent-token`** |
-| `wrangler secret put SOURCE_*` | Remote sind beide `plain_text`; `secret put` scheitert mit `10053`. Rebind per `deploy --keep-vars --var ...` |
-| `//`-Kommentar in `wrangler.jsonc` | Verifier parst mit reinem `ConvertFrom-Json` → **keine Kommentare** |
-| Substring-Check `semantic\|vectorize` | Traf Non-Claims → **falsches Grün**. Auf **Verwendung** prüfen |
-| `Set-Location` + `[IO.File]` | .NET hat eigenes CWD → **absolute Pfade** |
-| `Set-Content` zum Restaurieren | Ändert BOM/Zeilenenden → **`git checkout --`** |
-| 1-Zeichen-Funktionsnamen | `H` = `Get-History`; Exception gab Token aus |
-| `ErrorActionPreference='Stop'` um Kindprozess | stderr wird terminierend → Test bricht zu früh ab |
+## 🧠 DIE VIER REGELN, DIE TEUER GELERNT WURDEN
 
-**Merksatz:** *Verträge nie über Wortvorkommen prüfen, immer über tatsächliche Verwendung.*
-
-## 🔗 GEKOPPELTE ASSERTIONS — nie einzeln anfassen
-Gate schließen ⇒ im **selben Slice**: `verify-phase1.ps1` · `verify-market-ready.ps1` (2 Stellen) ·
-`owner-input-manifest.json`. (`verify-go-live-readiness.ps1` ist bereits konditional.)
-Jeder `verify-external-gates`-Lauf erzeugt ein **neues** Artefakt in `.phase1-artifacts/` —
-`PROJECT_STATE.md`, `AI_HANDOFF.md` **und** `docs/verification-register.md` müssen auf das neueste zeigen.
-
-## 🧱 STRUKTURELL
-`npm run verify` kann auf einem **frischen Clone nie grün** werden: Die LLM-Evidenzkette hängt an zwei
-**untracked** Artefakten. Bei Drift: `.codex/tmp/stateful-browser-sync.ps1`.
+- **R-NEU-7** — Die Lastmessung maß sich selbst: `ForEach-Object -Parallel` + `Invoke-WebRequest`
+  = ein TLS-Handshake **pro Request**. 21.180 ms → **299,9 ms** mit gepooltem `HttpClient`.
+  **98,6 % war Messfehler.** Schwelle wurde nicht gesenkt.
+- **R-NEU-8** — „blockiert" heißt *noch nicht erledigt* **oder** *dauerhaft eingefroren*.
+  Nur das Erste ist Arbeit.
+- **R-NEU-9** — Eine Kette darf **nie** ihre eigene Ausgabe als Eingabe verlangen.
+  Folge des Verstoßes: HEAD war rot **und gepusht**.
+- **R-NEU-10** — `git commit` ohne Pathspec committet den **gesamten** Index.
+  Beleg `a8331d89`: Doku-Nachricht, **34 Dateien**.
 
 ---
 
-## 🔒 PFLICHT-PROTOKOLL
-1. `$env:TEMP`/`$env:TMP` = `D:\_sb_tmp` **vor jedem** Verifier.
-2. Nach **jedem** Commit an Verifier/Wahrheitsdatei: **Gesamtlauf**, nicht nur Fokustest.
-3. Fremde dirty Dateien nie anfassen · **nie `git add -A`**.
-4. Kein paralleler Verify-/Playwright-/Docker-Lauf.
-5. Rot ohne Codeänderung? Zuerst `Get-PSDrive C,D`, dann Docker-Health.
+## 🪤 FALLEN
 
-## ⛔ REGELN (R0)
-`live_verified` **nie** handsetzen · keine Doppelzählung · Free-Only (kein R2, kein Fly, keine Karte) ·
-keine Secrets ausgeben · **kein `main`** (existiert nicht — Default ist `chore/repo-bootstrap`,
-bereits geschützt) · kein Force-Push · kein GHCR/Release ohne Gate · Localhost = **DEV-ONLY**.
-
-## ⛔ VIER WÄNDE
-1. Kreditkarte/Zahlung · 2. Passwort-Accounts · 3. CAPTCHA · 4. Secrets ausgeben/committen
+Phantom-503 = `start-dev-live.ps1` vergessen ·
+Playwright `networkidle` bei pausierter Clock **kann nie** eintreten → `load` + `pauseAt(+1000ms)` ·
+`wrangler secret put` scheitert an CF-**10053** (es sind `plain_text`-Vars) → `deploy --keep-vars --var …` ·
+Docker kann die `.git`-**Datei** eines Worktrees nicht mounten → echten Clean-Clone nutzen ·
+C: < 6 GB vor Docker-Build → erst `docker builder prune` (ein disk-full-Abbruch hat schon das
+ext4-Journal zerschossen) · `#Requires -Version 7` → Verifier mit `pwsh` starten ·
+`endpoint-snapshot.json` ist **minified single-line** (`separators=(',',':')`, `+"\n"`) ·
+P5-Prozent hat **fünf** Spiegel inkl. hartem Pin `verify-phase1.ps1:571`.
 
 ---
 
-## 🏁 FERTIG HEISST EXAKT
-`npm run verify:market-ready` druckt real **`MARKET_READY: true`**.
-**Oder:** alles autonom Lösbare echt auf 100 **+** der Rest exakt als OWNER-BLOCKED mit
-Owner-Action-Paket. Nichts anderes.
-
-## ▶ HISTORISCHE NAECHSTE SCHRITTE (Stand Session 13c)
-
-1. **Owner: `AGENT_API_AUTH_TOKEN` bereitstellen** → erst dann laeuft die Write-Stufe
-   (parallele D1-Writes + Readback = der eigentliche Scale-Beweis). Ohne Token meldet der
-   Verifier `BLOCKED` (Exit 2) und verweigert bewusst ein Read-only-Gruen.
-2. ✅ **Harness gehaertet (`6834ab61`).** Gepoolter `HttpClient` + Edge-Kontrolle `/cdn-cgi/trace`.
-   **Der Fehlschlag war zu ~98,6 % Messfehler:** c=50 p95 **21.180 → 299,9 ms**, Worker-Eigenanteil
-   nur **239 ms**. Schwellen/Stufen/Budget **unveraendert** — die Read-Stufe besteht das
-   urspruengliche 1.500-ms-Kriterium aus eigener Kraft. Gate bleibt zu (Write-Stufe fehlt).
-3. ✅ **`phase_5` itemisiert (`7390d519`)** → `docs/runtime-state/phase5-credit-itemization.json`.
-   71 Marker · 60 verified · **6 blockiert**. Ehrliche Grenze im Dokument: **die Herleitung der 68
-   ist nirgends festgehalten** — Inhalt benennbar, Arithmetik nicht rueckrechenbar.
-4. ❌ **Block B geprueft — NICHT bearbeitbar (Einschaetzung zurueckgezogen).** Die 6 Marker gehoeren
-   zu `rc1` vom **2026-05-05**; die Kandidatenlinie steht bei `local-rc10`. Es gibt **keine
-   rc1-Flaeche mehr zum Nachmessen**, der `sslip.io`-Host ist weg, und
-   `verify-retired-hosted-boundary.ps1` pinnt die Records mit **34 Assertions** als eingefrorene
-   Historie. Entsperrbedingung nennt **Fly** (dauerhaft ausgeschlossen).
-   ✅ Der **aktuelle** Kandidat hat Browser-Evidenz
-   (`phase5_current_candidate_requalified_source_bound_browser_verified`) — es ist eine
-   **historische Buchungsluecke, kein Evidenzmangel am Produkt.**
-   → ⚖️ **RULING (Supervisor, nicht Owner):** Die 6 rc1-Marker sind **kein gueltiges Kriterium**.
-   Was konstruktionsbedingt nie erfuellbar ist, ist ein **kaputtes Kriterium, keine offene Arbeit**
-   — dieselbe Klasse wie der Deadlock. Sie zaehlen **nicht** mehr als Luecke. Kein Owner-Input noetig.
-   **R-NEU-8:** „blockiert" = *noch nicht erledigt* **oder** *dauerhaft eingefroren*. Nur das
-   erste ist Arbeit. rc1-Marker sind immer das zweite.
-5. **Owner: O1** bleibt der einzige sofort oeffenbare Owner-Blocker.
-6. **Owner: `AGENT_API_AUTH_TOKEN`** fuer die Write-Stufe des Scale-Beweises.
-
-## ⚖️ SUPERVISOR-RULINGS (Stand 08:45) — nicht mehr offen, entschieden
-
-| Punkt | Ruling | Owner-Input? |
-|---|---|---|
-| E3 Deadlock | **Option (a)** — Publikation ist Post-Market | nein |
-| P6-Schwelle | gesetzt vor Messcode, nach Fehlschlag **nicht gesenkt** | nein |
-| Harness | Messfehler erkannt + behoben (21.180 → 299,9 ms) | nein |
-| Block B | **nicht bearbeitbar**, Einschaetzung widerrufen | nein |
-| 6 rc1-Marker | **kein gueltiges Kriterium**, zaehlen nicht als Luecke | nein |
-
-## 🔬 BEWEIS: DIE MARKER KOENNEN `phase_5` NICHT HERLEITEN
-
-Geprueft, ob die Markerliste die Zelle rechnerisch herleitet. **Sie kann es nicht:**
-**Block A (GHCR) ist real offen, taucht aber in der Markerliste NIRGENDS als blockiert auf.**
-Eine Markerquote wuerde also **100 %** melden, waehrend GHCR offen ist.
-
-→ Damit ist bewiesen: **die 68 kodiert etwas, das die Marker nicht abbilden.**
-→ Jede jetzt geschriebene Zahl waere eine **Annahme** ueber den Inhalt der fehlenden 32 Punkte.
-→ Der Manifest-Verifier prueft nur `0..100` und wuerde alles schlucken.
-**Deshalb wurde `phase_5` NICHT bewegt. Das ist eine Entscheidung, kein Zoegern.**
-
-## ▶ HISTORISCHE NAECHSTE AGENTEN-ARBEIT (vor RC11-Qualifikation)
-
-**Herleitung rekonstruieren:** Phase-5-Release-Checkliste Posten fuer Posten gegen die vorhandenen
-Artefakte auditieren, bis eine **belegte** Aufschlueselung der 32 Punkte steht. Erst danach darf
-`phase_5` bewegt werden — dann **gemessen** statt geschaetzt. Mit E3(a) + rc1-Ruling landet die Zelle
-voraussichtlich deutlich hoeher, aber **nur mit Beleg**.
+*Kurzfassung — Details, Belege und Owner-Klickfolgen in `CODEX_UEBERGABE_2026-08-02-SESSION14.md`*

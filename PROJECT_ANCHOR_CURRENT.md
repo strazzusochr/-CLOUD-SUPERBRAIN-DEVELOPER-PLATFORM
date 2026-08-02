@@ -1,5 +1,44 @@
 # Cloud Superbrain Project Anchor
 
+## ⚓ CHECKPOINT 2026-08-02 — SESSION 14 (NEUESTER REFERENZPUNKT)
+
+**Anchor ID:** `cloud-superbrain-anchor-2026-08-02-session14-unpushed-transition-slice`
+**Status:** `ACTIVE_RESUME_POINT`
+**Aktive Übergabe:** `CODEX_UEBERGABE_2026-08-02-SESSION14.md` (Session 13 = Historie)
+**Workspace:** `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM` (Hauptordner!)
+**Branch:** `claude/cloud-superbrain-analysis-127d2e`
+
+### AKTUELLER STAND (nachgemessen 2026-08-02)
+| Gegenstand | Ergebnis |
+|---|---|
+| HEAD lokal | `7b366b45` |
+| origin | `fe88c2a0` — **7 Commits ungepusht, nicht CI-verifiziert** |
+| Letzte grüne CI | `f7830977`, Run `30712183385` = success |
+| Arbeitsbaum | ⚠ **12 tracked dirty + 9 untracked** — Codex mitten im Slice abgebrochen |
+| Manifest | Overall **89** = `round(Σ H / 7)` · P3 44 · P5 89 · P6 90 · L4 55 · L5 56 |
+| P5 | `fully_itemized`, `computed == credited`, 17/19; blockiert I1 + I5 |
+| Capability-Gates | **7/10 geschlossen**; offen: `production_auth_identity`, `docker_registry_publish`, `phase6_scale_runtime` |
+| Codex | **rate-limited bis 2026-08-09** |
+| Offener Befund | 1× MAJOR (GHCR-Publish nicht *geprüft* CI-gebunden) + 13 ungeprüfte Auditfunde |
+| Scope | `DEV-ONLY; hosted proof still blocked` |
+
+### NÄCHSTER SCHRITT (exakt, in dieser Reihenfolge)
+1. MAJOR-Befund fixen: eine Assertion in `scripts/verify-main-deploy-transition.ps1` —
+   `publish-candidate` muss `verify-candidate` in `needs:` führen und darf kein `if: always()` tragen.
+2. Die 13 ungeprüften Auditfunde nachholen (Scale-False-Green · OAuth-Frontend · Backend-Auth · Truth-Integrität).
+3. Die 12 dirty Dateien einzeln entscheiden — besonders die **zwei Wahrheitsdateien**
+   (`capability-gates.json`, `owner-input-manifest.json`).
+4. Seriell verifizieren, mit Pathspec committen, pushen, `pr-check` auf genau diesem SHA grün fahren.
+5. Erst danach RC12 auf den neuen SHA binden (RC11 `bae3cdc1` darf den Slice nicht erben).
+
+### VERMEIDEN
+`git add -A` · `git commit` ohne Pathspec · Force-Push · Prozente/`live_verified` von Hand ·
+L4/L5 hochsetzen · Zahlung (öffnet nichts, macht die Matrix rot) · Secrets ausgeben ·
+Token rotieren · parallel Playwright/Docker/Verifier · `TEMP`/`TMP` ≠ `D:\_sb_tmp` ·
+Browser-/Runtime-Beweis ohne vorheriges `start-dev-live.ps1` (Phantom-503).
+
+---
+
 ## ⚓ CHECKPOINT 2026-08-01 — SESSION 13j (NEUESTER REFERENZPUNKT)
 
 **Anchor ID:** `cloud-superbrain-anchor-2026-08-01-session13j-clean-clone-requalified`
