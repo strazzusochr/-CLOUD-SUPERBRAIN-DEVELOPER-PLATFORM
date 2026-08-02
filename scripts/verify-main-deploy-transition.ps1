@@ -244,3 +244,5 @@ foreach ($useMatch in $uses) {
 
 Write-Host "[main-deploy-transition] VERIFIED candidate-only append-only GHCR publication contract"
 exit 0
+
+# Control commit marker: RC12 source-prequalification binding for candidate 6261f9f8.
