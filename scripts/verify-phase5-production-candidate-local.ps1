@@ -257,6 +257,12 @@ try {
       [void]$rawLogLines.Add("[phase5-candidate-local] $field=true")
     }
     [void]$rawLogLines.Add("[phase5-candidate-local] browser_click_verified=$(((-not $SkipBrowser).ToString()).ToLowerInvariant())")
+    # CANONICAL_SUCCESS_ANCHORS["candidate-runtime"] requires this exact line. Playwright's own
+    # "1 passed" was previously declared instead, which the verifier rejects: it compares the
+    # declared set with equality, and tool wording is not a verdict this script has recorded.
+    if (-not $SkipBrowser) {
+      [void]$rawLogLines.Add("[phase5-candidate-local] playwright_passed=1")
+    }
     [void]$rawLogLines.Add("[phase5-candidate-local] status=verified service_count=6")
     [void]$rawLogLines.Add("[phase5-evidence] exit_code=0")
     [IO.File]::WriteAllLines(
@@ -293,10 +299,20 @@ try {
     $verification["evidence_run_id"] = $EvidenceRunId
     $verification["raw_log_path"] = "docs/release-artifacts/$([string]$candidateConfig.active_release_id)-evidence/raw/candidate-runtime.log"
     $verification["raw_log_sha256"] = (Get-FileHash -LiteralPath $rawLogPath -Algorithm SHA256).Hash
+    # Must equal CANONICAL_SUCCESS_ANCHORS["candidate-runtime"] in
+    # scripts/verify_phase5_credit_itemization.py — declared with equality, in this order.
     $verification["observed_success_anchors"] = if ($SkipBrowser) {
       @("[phase5-candidate-local] status=verified service_count=6")
     } else {
-      @("1 passed", "[phase5-candidate-local] status=verified service_count=6")
+      @(
+        "[phase5-candidate-local] api_contract_verified=true",
+        "[phase5-candidate-local] local_image_identity_verified=true",
+        "[phase5-candidate-local] embedded_source_hash_parity_verified=true",
+        "[phase5-candidate-local] candidate_runtime_source_parity_verified=true",
+        "[phase5-candidate-local] browser_click_verified=true",
+        "[phase5-candidate-local] playwright_passed=1",
+        "[phase5-candidate-local] status=verified service_count=6"
+      )
     }
     $rawEvidence = [ordered]@{
       candidate_images = [ordered]@{

@@ -1,24 +1,24 @@
 {
-    "contract_version":  "phase5-local-verification-summary-v2",
-    "chain":  "runtime",
-    "release_id":  "prod-candidate-2026-08-02-local-rc12",
-    "source_commit_sha":  "6261f9f89d803c36b449ba87a4d93e14411b31d0",
-    "generated_at_utc":  "2026-08-02T18:10:59Z",
-    "command":  "npm run verify:runtime",
-    "status":  "passed",
-    "exit_code":  0,
-    "dev_only":  true,
-    "hosted_proof":  false,
-    "secret_output":  false,
-    "evidence_run_id":  "66a23062-e988-4adb-bccd-d1fb81d7d4da",
-    "raw_log_path":  "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/runtime.log",
-    "raw_log_sha256":  "C867D9FC07FA2551C085AD90C10328098FEAE0569D83CA0D5909D8F9702535CA",
-    "observed_success_anchors":  [
-                                     "[runtime] compose status",
-                                     "[runtime] phase1 runtime checks completed"
-                                 ],
-    "non_claims":  [
-                       "DEV-ONLY; hosted proof still blocked.",
-                       "This evidence does not publish images, deploy production, or authorize release promotion."
-                   ]
+  "contract_version": "phase5-local-verification-summary-v2",
+  "chain": "runtime",
+  "release_id": "prod-candidate-2026-08-02-local-rc12",
+  "source_commit_sha": "6261f9f89d803c36b449ba87a4d93e14411b31d0",
+  "generated_at_utc": "2026-08-02T18:10:59Z",
+  "command": "npm run verify:runtime",
+  "status": "passed",
+  "exit_code": 0,
+  "dev_only": true,
+  "hosted_proof": false,
+  "secret_output": false,
+  "evidence_run_id": "66a23062-e988-4adb-bccd-d1fb81d7d4da",
+  "raw_log_path": "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/runtime.log",
+  "raw_log_sha256": "6F97CD7A872FE3B2CDC031BA8C43C733183DE8725007204DFCD91E00D3630941",
+  "observed_success_anchors": [
+    "[runtime] compose status",
+    "[runtime] phase1 runtime checks completed"
+  ],
+  "non_claims": [
+    "DEV-ONLY; hosted proof still blocked.",
+    "This evidence does not publish images, deploy production, or authorize release promotion."
+  ]
 }
