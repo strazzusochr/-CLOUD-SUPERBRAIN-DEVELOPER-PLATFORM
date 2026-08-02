@@ -49,7 +49,7 @@ function Get-StringSha256([string]$Value) {
 function Get-GitArchiveSha256([string]$CommitSha) {
   $archivePath = Join-Path $testRoot ("phase6-static-archive-$([Guid]::NewGuid().ToString('N')).tar")
   try {
-    & git.exe -C $repoRoot archive --format=tar "--output=$archivePath" $CommitSha
+    & git -C $repoRoot archive --format=tar "--output=$archivePath" $CommitSha
     Assert-True ($LASTEXITCODE -eq 0) 'Unable to build static-fixture source archive.'
     return (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
   } finally {
@@ -162,8 +162,8 @@ try {
   Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/runtime-state/capability-gates.json') -Destination $capabilityPath
   $criterion = Get-Content -LiteralPath $criterionPath -Raw | ConvertFrom-Json -Depth 30
   $hosted = Get-Content -LiteralPath $hostedPath -Raw | ConvertFrom-Json -Depth 30
-  $repositoryHeadSha = (& git.exe -C $repoRoot rev-parse HEAD).Trim()
-  $deployedSourceSha = (& git.exe -C $repoRoot rev-parse HEAD^).Trim()
+  $repositoryHeadSha = (& git -C $repoRoot rev-parse HEAD).Trim()
+  $deployedSourceSha = (& git -C $repoRoot rev-parse HEAD^).Trim()
   $sourceArchiveSha256 = Get-GitArchiveSha256 $deployedSourceSha
   $generatedAt = (Get-Date).ToUniversalTime().AddMinutes(-2)
   $hostedVerifiedAt = $generatedAt.AddMinutes(-5)
