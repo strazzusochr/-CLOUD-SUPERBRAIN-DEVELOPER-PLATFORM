@@ -334,7 +334,7 @@ function Assert-BoundedText([string]$Value, [int]$MaximumLength, [string]$Label)
 }
 
 function Get-RepositoryHeadSha {
-  $head = (& git.exe -C $repoRoot rev-parse HEAD 2>$null).Trim()
+  $head = (& git -C $repoRoot rev-parse HEAD 2>$null).Trim()
   Assert-True ($LASTEXITCODE -eq 0 -and $head -match '^[0-9a-f]{40}$') 'Repository HEAD identity is unavailable.'
   return $head
 }
@@ -342,17 +342,17 @@ function Get-RepositoryHeadSha {
 function Assert-RepositoryHeadBinding([string]$RecordedSha) {
   Assert-True ($RecordedSha -match '^[0-9a-f]{40}$') 'Repository HEAD binding is invalid.'
   $currentSha = Get-RepositoryHeadSha
-  & git.exe -C $repoRoot merge-base --is-ancestor $RecordedSha $currentSha
+  & git -C $repoRoot merge-base --is-ancestor $RecordedSha $currentSha
   Assert-True ($LASTEXITCODE -eq 0) 'Execution-control commit is not an ancestor of the current evidence HEAD.'
 }
 
 function Get-GitDelta([string]$FromSha, [string]$ToSha, [string]$Label) {
   foreach ($sha in @($FromSha, $ToSha)) {
     Assert-True ($sha -match '^[0-9a-f]{40}$') "$Label contains an invalid commit SHA."
-    & git.exe -C $repoRoot cat-file -e "$sha^{commit}" 2>$null
+    & git -C $repoRoot cat-file -e "$sha^{commit}" 2>$null
     Assert-True ($LASTEXITCODE -eq 0) "$Label commit is unavailable: $sha"
   }
-  $lines = @(& git.exe -C $repoRoot -c core.quotepath=false diff --no-renames --name-status $FromSha $ToSha --)
+  $lines = @(& git -C $repoRoot -c core.quotepath=false diff --no-renames --name-status $FromSha $ToSha --)
   Assert-True ($LASTEXITCODE -eq 0) "$Label cannot be resolved."
   $entries = @()
   foreach ($line in $lines) {
@@ -363,9 +363,9 @@ function Get-GitDelta([string]$FromSha, [string]$ToSha, [string]$Label) {
 }
 
 function Assert-TrackedCleanAgainstHead([string]$RelativePath) {
-  & git.exe -C $repoRoot ls-files --error-unmatch -- $RelativePath 2>$null | Out-Null
+  & git -C $repoRoot ls-files --error-unmatch -- $RelativePath 2>$null | Out-Null
   Assert-True ($LASTEXITCODE -eq 0) "Canonical truth file is not tracked: $RelativePath"
-  & git.exe -C $repoRoot diff --quiet HEAD -- $RelativePath
+  & git -C $repoRoot diff --quiet HEAD -- $RelativePath
   Assert-True ($LASTEXITCODE -eq 0) "Canonical truth file is not clean against HEAD: $RelativePath"
 }
 
@@ -375,7 +375,7 @@ function Get-GitArchiveSha256([string]$CommitSha) {
   New-Item -ItemType Directory -Force -Path $temporaryRoot | Out-Null
   $temporaryPath = Join-Path $temporaryRoot "phase6-evidence-archive-$([Guid]::NewGuid().ToString('N')).tar"
   try {
-    & git.exe -C $repoRoot archive --format=tar "--output=$temporaryPath" $CommitSha
+    & git -C $repoRoot archive --format=tar "--output=$temporaryPath" $CommitSha
     Assert-True ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $temporaryPath -PathType Leaf)) 'Unable to recompute source archive.'
     return (Get-FileSha256 $temporaryPath)
   } finally {
@@ -558,7 +558,7 @@ Assert-True ([string]$executionBinding.ref -match '^refs/heads/[^\s]+$') 'Execut
 Assert-True ([string]$executionBinding.head_sha -eq [string]$evidence.source_binding.repository_head_sha) 'Execution head SHA mismatch.'
 Assert-True ([string]$executionBinding.source_commit_sha -eq [string]$hostedState.source_commit_sha) 'Execution deployed-source binding mismatch.'
 Assert-True ([string]$executionBinding.head_sha -ne [string]$executionBinding.source_commit_sha) 'Execution control and deployed-source commits must have distinct roles.'
-& git.exe -C $repoRoot merge-base --is-ancestor ([string]$executionBinding.source_commit_sha) ([string]$executionBinding.head_sha)
+& git -C $repoRoot merge-base --is-ancestor ([string]$executionBinding.source_commit_sha) ([string]$executionBinding.head_sha)
 Assert-True ($LASTEXITCODE -eq 0) 'Deployed source is not an ancestor of the execution-control commit.'
 $recordedControlDelta = @($executionBinding.control_delta | ForEach-Object { [string]$_ } | Sort-Object -Unique)
 $workflowPathMatch = [regex]::Match([string]$executionBinding.workflow_ref, '/(?<path>\.github/workflows/phase6-scale-runtime\.ya?ml)@')
@@ -655,7 +655,7 @@ if (-not $AllowTestPaths) {
   Assert-True ($forbiddenEvidenceHeadPaths.Count -eq 0) "Control-to-evidence delta contains non-evidence paths: $($forbiddenEvidenceHeadPaths -join ',')"
   foreach ($requiredPath in $requiredEvidenceHeadPaths) {
     Assert-True ($evidenceHeadPaths -ccontains $requiredPath) "Control-to-evidence delta is missing immutable evidence path: $requiredPath"
-    & git.exe -C $repoRoot cat-file -e "$([string]$executionBinding.head_sha):$requiredPath" 2>$null
+    & git -C $repoRoot cat-file -e "$([string]$executionBinding.head_sha):$requiredPath" 2>$null
     Assert-True ($LASTEXITCODE -ne 0) "Immutable evidence path already existed at the execution-control commit: $requiredPath"
   }
 }
@@ -977,7 +977,7 @@ foreach ($boundPath in @(
   'scripts/verify-phase6-scale-runtime.ps1',
   $relativeDeploymentEvidence
 )) {
-  & git.exe -C $repoRoot diff --quiet "$recordedRepositoryHead..HEAD" -- $boundPath
+  & git -C $repoRoot diff --quiet "$recordedRepositoryHead..HEAD" -- $boundPath
   Assert-True ($LASTEXITCODE -eq 0) "Source-bound file changed after the recorded live-run HEAD: $boundPath"
 }
 Assert-True ((Get-FileSha256 $deploymentEvidencePath) -eq $deploymentEvidenceSha256) 'Deployment evidence changed during verification.'
