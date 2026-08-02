@@ -246,6 +246,9 @@ async function loadPersistedBuild(context: BrowserContext): Promise<PersistedBui
 
 async function prepareMember(page: Page, context: BrowserContext, action: ActionMember): Promise<void> {
   const normalizedId = normalizedOrganismActionId(action.id);
+  if (normalizedId.startsWith("organism-")) {
+    await expect(page.getByTestId("organism-view")).toHaveAttribute("data-hydrated", "true", { timeout: 30_000 });
+  }
   if (action.id === "login-name" || action.id === "login-signin") {
     await setSession(page, context, false);
   } else if (action.id === "login-signout" || action.id === "login-workbench") {
@@ -307,6 +310,9 @@ async function prepareMember(page: Page, context: BrowserContext, action: Action
   }
   if (normalizedId === "organism-load-snapshot" || normalizedId === "organism-clear-snapshot") {
     await page.getByTestId("phase6-save-snapshot").click();
+    await expect(page.getByTestId("phase6-save-load-state")).toContainText("snapshot_status=saved", { timeout: 15_000 });
+    await expect(page.getByTestId(normalizedId === "organism-load-snapshot" ? "phase6-load-snapshot" : "phase6-clear-snapshot"))
+      .toBeEnabled({ timeout: 15_000 });
   }
   if (normalizedId === "organism-leaderboard-capture" || normalizedId === "organism-leaderboard-reset") {
     await page.getByTestId("phase6-gameplay-complete").click();
@@ -1078,7 +1084,11 @@ async function auditMember(
         if (action.id.includes("delete")) page.once("dialog", (dialog) => dialog.accept());
         await expect(control).toBeEnabled({ timeout: 15_000 });
         await control.click();
-        const deltaTimeout = action.id.startsWith("agents-") ? 180_000 : 5_000;
+        const deltaTimeout = action.id.startsWith("agents-")
+          ? 180_000
+          : normalizedId.startsWith("organism-")
+            ? 15_000
+            : 5_000;
         let afterControl = await snapshot(control);
         if (normalizedId === "organism-focus-scene") {
           await expect(page.getByTestId("phase6-accessible-scene")).toBeFocused({ timeout: deltaTimeout });

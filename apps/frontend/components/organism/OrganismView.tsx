@@ -245,6 +245,7 @@ function abortQuietly(ctrl: AbortController, reason: string) {
 }
 
 export default function OrganismView({ mode = "live" }: { mode?: "live" | "replay" | "map" }) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const [runState, setRunState] = useState<RunState>("planning");
   const [active, setActive] = useState<string>("workbench");
   const [layers, setLayers] = useState<string[]>(LAYERS.map((l) => l.code));
@@ -292,6 +293,10 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
   const [performanceSamplingActive, setPerformanceSamplingActive] = useState(false);
   const [performanceResult, setPerformanceResult] = useState<PerformanceSampleResult | null>(null);
   const performanceSamplesRef = useRef<PerformanceSample[]>([]);
+
+  useEffect(() => {
+    rootRef.current?.setAttribute("data-hydrated", "true");
+  }, []);
 
   // Bind to the organism live-state feed: real when the configured agent-api is
   // reachable (source: "agent-api"), honest deterministic spec-only otherwise.
@@ -727,7 +732,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
         : "SPEC · ORGANISMUS";
 
   return (
-    <div className="page-wide">
+    <div ref={rootRef} className="page-wide" data-testid="organism-view" data-hydrated="false">
       <div className="page-head organism-head">
         <div>
           <div className="eyebrow">Cortex-Ansicht{mode !== "live" ? ` · ${MODE_LABEL[mode]}` : ""}</div>
