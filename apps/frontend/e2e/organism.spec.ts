@@ -480,7 +480,9 @@ test.describe("Cloud Superbrain platform", () => {
     await expect(canvasState).toBeVisible({ timeout: 30_000 });
     await expect(canvasState.locator("canvas")).toBeVisible({ timeout: 30_000 });
     const readyTime = await page.evaluate(() => Date.now());
-    await page.clock.pauseAt(readyTime + 1_000);
+    // Leave enough headroom for a loaded Windows runner between the Date probe
+    // and pauseAt; Playwright rejects any target overtaken by the live clock.
+    await page.clock.pauseAt(readyTime + 60_000);
     await page.clock.runFor(80);
     await expect(canvasState).toHaveAttribute("data-camera-preset", "wide");
     await expect(canvasState).toHaveAttribute("data-camera-fov", "45");
