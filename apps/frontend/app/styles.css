@@ -932,8 +932,158 @@ p {
 }
 .cortex-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
 .cortex-canvas.interactive { cursor: pointer; }
-.cortex3d-canvas { position: absolute; inset: 0; }
+.cortex3d-canvas { position: absolute; inset: 0; z-index: 1; }
 .cortex3d-html { pointer-events: none; }
+.cortex-visual-v2 {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  isolation: isolate;
+}
+.cortex-matrix-rain {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0.3;
+  mix-blend-mode: screen;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 18%, #000 70%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 18%, #000 70%, transparent 100%);
+}
+.cortex-matrix-column {
+  position: absolute;
+  top: -48%;
+  display: block;
+  color: rgba(54, 211, 255, 0.66);
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 700;
+  line-height: 9px;
+  text-align: center;
+  text-shadow: 0 0 7px rgba(0, 229, 255, 0.85);
+  animation-name: cortexMatrixFall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+.cortex-matrix-rain.is-paused .cortex-matrix-column,
+.cortex-visual-v2.is-paused .cortex-matrix-column { animation-play-state: paused; }
+@keyframes cortexMatrixFall {
+  from { transform: translate3d(0, -12%, 0); }
+  to { transform: translate3d(0, 178%, 0); }
+}
+.cortex-scanlines {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(to bottom, rgba(126, 231, 255, 0.035) 0, rgba(126, 231, 255, 0.035) 1px, transparent 1px, transparent 4px),
+    linear-gradient(90deg, rgba(0, 229, 255, 0.025), transparent 32%, transparent 68%, rgba(139, 92, 246, 0.025));
+  opacity: 0.78;
+  mix-blend-mode: screen;
+}
+.cortex-scanlines::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 16%;
+  top: -18%;
+  background: linear-gradient(to bottom, transparent, rgba(0, 229, 255, 0.075), transparent);
+  animation: cortexScanSweep 8s linear infinite;
+}
+.cortex-visual-v2.is-paused .cortex-scanlines::after { animation-play-state: paused; }
+@keyframes cortexScanSweep {
+  from { transform: translateY(0); }
+  to { transform: translateY(740%); }
+}
+.cortex-visual-hud {
+  position: absolute;
+  inset: 46px 18px 22px;
+  color: rgba(54, 211, 255, 0.58);
+}
+.cortex-hud-corner {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-color: currentColor;
+  filter: drop-shadow(0 0 5px rgba(0, 229, 255, 0.28));
+}
+.cortex-hud-corner-nw { left: 0; top: 0; border-left: 1px solid; border-top: 1px solid; }
+.cortex-hud-corner-ne { right: 0; top: 0; border-right: 1px solid; border-top: 1px solid; }
+.cortex-hud-corner-sw { left: 0; bottom: 0; border-left: 1px solid; border-bottom: 1px solid; }
+.cortex-hud-corner-se { right: 0; bottom: 0; border-right: 1px solid; border-bottom: 1px solid; }
+.cortex-hud-axis {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: currentColor;
+  opacity: 0.22;
+}
+.cortex-hud-axis-x { width: 38px; height: 1px; transform: translate(-50%, -50%); }
+.cortex-hud-axis-y { width: 1px; height: 38px; transform: translate(-50%, -50%); }
+.cortex-hud-readout {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.55);
+}
+.cortex-telemetry-waveform {
+  position: absolute;
+  left: 50%;
+  bottom: 76px;
+  width: clamp(150px, 30%, 250px);
+  height: 58px;
+  transform: translateX(-50%);
+  padding: 6px 8px 5px;
+  color: rgba(54, 211, 255, 0.82);
+  background: linear-gradient(180deg, rgba(4, 6, 13, 0.18), rgba(4, 6, 13, 0.58));
+  border-left: 1px solid rgba(0, 229, 255, 0.22);
+  border-right: 1px solid rgba(139, 92, 246, 0.18);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+}
+.cortex-telemetry-waveform.is-live { color: rgba(52, 211, 153, 0.9); }
+.cortex-waveform-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.cortex-telemetry-waveform svg { display: block; width: 100%; height: 38px; overflow: visible; }
+.cortex-waveform-baseline {
+  stroke: rgba(139, 92, 246, 0.24);
+  stroke-width: 0.55;
+  vector-effect: non-scaling-stroke;
+}
+.cortex-waveform-signal {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 3px currentColor);
+}
+@media (max-width: 700px) {
+  .cortex-matrix-column:nth-child(n + 11) { display: none; }
+  .cortex-visual-hud { inset: 52px 12px 20px; }
+  .cortex-telemetry-waveform { bottom: 104px; width: 46%; min-width: 136px; height: 52px; }
+  .cortex-waveform-label { font-size: 6.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cortex-matrix-column,
+  .cortex-scanlines::after { animation: none; }
+}
 .cortex3d-label {
   font-size: 11px;
   font-weight: 600;
@@ -966,6 +1116,7 @@ p {
 }
 .org-hud {
   position: absolute;
+  z-index: 5;
   left: 12px;
   bottom: 12px;
   display: flex;
@@ -1038,6 +1189,7 @@ p {
 .state-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .org-gates {
   position: absolute;
+  z-index: 5;
   right: 12px;
   bottom: 12px;
   display: flex;
@@ -1080,6 +1232,7 @@ p {
 .layer-chip.on.layer-OBS { color: var(--gold); border-color: rgba(251, 191, 36, 0.55); }
 .cortex-badge {
   position: absolute;
+  z-index: 4;
   left: 12px;
   top: 12px;
   font-size: 10px;
@@ -1092,6 +1245,7 @@ p {
 }
 .cortex-state {
   position: absolute;
+  z-index: 4;
   right: 12px;
   top: 12px;
   display: flex;

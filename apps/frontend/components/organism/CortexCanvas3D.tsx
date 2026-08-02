@@ -12,9 +12,9 @@
  * runState / activeRegion. CortexCanvas (2D) is the reduced-motion fallback.
  */
 
-import { useMemo, useRef, useState, useEffect, useCallback, memo, Suspense, Component, type ReactNode } from "react";
+import { useMemo, useRef, useState, useEffect, useCallback, memo, Suspense, Component, type CSSProperties, type ReactNode } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { OrbitControls, PerspectiveCamera, Html, Environment, Lightformer, useGLTF } from "@react-three/drei";
+import { Edges, Environment, Html, Lightformer, MeshTransmissionMaterial, OrbitControls, PerspectiveCamera, useGLTF } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { HUBS, STATE_COLOR, STATE_LABEL, type RunState } from "./regionMap";
@@ -52,6 +52,26 @@ type LightingProfile = "studio" | "night" | "sunrise";
 type GameplayObjective = "collect" | "checkpoint" | "survive";
 type AssetProfile = "cube" | "beacon" | "ring";
 type MaterialVariant = "cyan" | "amber" | "rose";
+
+type VisualTelemetry = {
+  sourceKind: string;
+  live: boolean;
+  eventCount: number;
+  frameCount: number;
+  renderFps: number;
+  renderMs: number;
+  samples: number[];
+};
+
+const EMPTY_VISUAL_TELEMETRY: VisualTelemetry = {
+  sourceKind: "loading",
+  live: false,
+  eventCount: 0,
+  frameCount: 0,
+  renderFps: 0,
+  renderMs: 0,
+  samples: [0],
+};
 
 const CAMERA_PRESETS: Record<CameraPreset, { position: [number, number, number]; target: [number, number, number] }> = {
   wide: { position: [0, 0.6, 7], target: [0, 0, 0] },
@@ -133,6 +153,22 @@ function stringSeed(value: string) {
   }
   return hash >>> 0;
 }
+
+const MATRIX_COLUMNS = Array.from({ length: 18 }, (_, index) => {
+  const alphabet = "01A7C9EF";
+  let glyphs = "";
+  for (let glyphIndex = 0; glyphIndex < 14; glyphIndex += 1) {
+    const pick = Math.floor(seededUnit(index * 37 + glyphIndex + 1) * alphabet.length);
+    glyphs += alphabet[pick];
+  }
+  return {
+    glyphs: glyphs.split("").join("\n"),
+    left: 2 + index * (96 / 17),
+    delay: seededUnit(index + 101) * 5.5,
+    duration: 4.8 + seededUnit(index + 211) * 4.2,
+    opacity: 0.18 + seededUnit(index + 307) * 0.34,
+  };
+});
 
 function useGlow() {
   return useMemo(() => {
@@ -281,6 +317,31 @@ function Brain({ count, tex }: { count: number; tex: THREE.Texture }) {
  *  hardware GPUs get full PBR. Falls back to procedural geometry on load failure. */
 const CORE_GLB = "/organism/core.glb";
 
+function CoreCrystalMaterial({ pbr, color }: { pbr: boolean; color: string }) {
+  if (!pbr) {
+    return <meshBasicMaterial color={color} transparent opacity={0.82} toneMapped={false} />;
+  }
+  return (
+    <MeshTransmissionMaterial
+      color={color}
+      emissive={color}
+      emissiveIntensity={0.48}
+      transmission={0.78}
+      thickness={0.58}
+      roughness={0.18}
+      chromaticAberration={0.018}
+      anisotropy={0.08}
+      distortion={0.08}
+      distortionScale={0.16}
+      temporalDistortion={0.015}
+      samples={3}
+      resolution={128}
+      transparent
+      opacity={0.92}
+    />
+  );
+}
+
 function CrystalGLB({ pbr, color }: { pbr: boolean; color: string }) {
   const gltf = useGLTF(CORE_GLB);
   const geometry = useMemo(() => {
@@ -294,7 +355,8 @@ function CrystalGLB({ pbr, color }: { pbr: boolean; color: string }) {
   if (!geometry) return <ProceduralCrystal pbr={pbr} color={color} />;
   return (
     <mesh geometry={geometry}>
-      <NodeMaterial color={color} pbr={pbr} emissive={1.8} on />
+      <CoreCrystalMaterial color={color} pbr={pbr} />
+      <Edges threshold={16} color={ORGANISM_COLORS.coreGlow} lineWidth={0.7} transparent opacity={0.5} />
     </mesh>
   );
 }
@@ -303,7 +365,8 @@ function ProceduralCrystal({ pbr, color }: { pbr: boolean; color: string }) {
   return (
     <mesh>
       <icosahedronGeometry args={[1, 4]} />
-      <NodeMaterial color={color} pbr={pbr} emissive={1.8} on />
+      <CoreCrystalMaterial color={color} pbr={pbr} />
+      <Edges threshold={16} color={ORGANISM_COLORS.coreGlow} lineWidth={0.7} transparent opacity={0.5} />
     </mesh>
   );
 }
@@ -509,6 +572,94 @@ function Stars({ tex }: { tex: THREE.Texture }) {
       </bufferGeometry>
       <pointsMaterial map={tex} color="#3b82f6" size={0.07} transparent opacity={0.5} sizeAttenuation depthWrite={false} blending={THREE.AdditiveBlending} />
     </points>
+  );
+}
+
+/** Fibonacci-sphere dot globe: a cheap geometry-only orbit marker that keeps the
+ *  reference-video silhouette without introducing another texture or shader. */
+function DotGlobe({ color, paused }: { color: string; paused: boolean }) {
+  const globe = useRef<THREE.Group>(null);
+  const positions = useMemo(() => {
+    const count = 360;
+    const points = new Float32Array(count * 3);
+    const golden = Math.PI * (3 - Math.sqrt(5));
+    for (let index = 0; index < count; index += 1) {
+      const y = 1 - (index / (count - 1)) * 2;
+      const radius = Math.sqrt(Math.max(0, 1 - y * y));
+      const theta = golden * index;
+      points[index * 3] = Math.cos(theta) * radius;
+      points[index * 3 + 1] = y;
+      points[index * 3 + 2] = Math.sin(theta) * radius;
+    }
+    return points;
+  }, []);
+  useFrame((_, delta) => {
+    if (!globe.current || paused) return;
+    globe.current.rotation.y += delta * 0.16;
+    globe.current.rotation.x += delta * 0.025;
+  });
+  return (
+    <group ref={globe} name="organism-visual-dot-globe" position={[2.75, -1.28, -0.75]} scale={0.72} rotation={[0.22, 0, -0.18]}>
+      <points>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        </bufferGeometry>
+        <pointsMaterial color={color} size={0.035} transparent opacity={0.72} sizeAttenuation depthWrite={false} blending={THREE.AdditiveBlending} />
+      </points>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[1.02, 0.008, 6, 96]} />
+        <meshBasicMaterial color={ORGANISM_COLORS.ice} transparent opacity={0.16} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+      <mesh rotation={[0, Math.PI / 2, 0]}>
+        <torusGeometry args={[1.02, 0.008, 6, 96]} />
+        <meshBasicMaterial color={color} transparent opacity={0.12} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Low-opacity glass shards frame the core. They are deterministic, non-
+ *  interactive planes and stay below the particle/label interaction layer. */
+function Shards({ color, paused }: { color: string; paused: boolean }) {
+  const group = useRef<THREE.Group>(null);
+  const transforms = useMemo(() => Array.from({ length: 12 }, (_, index) => {
+    const side = index % 2 === 0 ? -1 : 1;
+    return {
+      position: [
+        side * (1.65 + seededUnit(index + 701) * 2.1),
+        -2.25 + seededUnit(index + 733) * 4.5,
+        -1.8 + seededUnit(index + 769) * 2.4,
+      ] as [number, number, number],
+      rotation: [
+        seededUnit(index + 797) * Math.PI,
+        seededUnit(index + 823) * Math.PI,
+        seededUnit(index + 859) * Math.PI,
+      ] as [number, number, number],
+      scale: 0.45 + seededUnit(index + 887) * 0.9,
+    };
+  }), []);
+  useFrame((state, delta) => {
+    if (!group.current || paused) return;
+    group.current.rotation.y += delta * 0.018;
+    group.current.position.y = Math.sin(state.clock.elapsedTime * 0.22) * 0.08;
+  });
+  return (
+    <group ref={group} name="organism-visual-shards">
+      {transforms.map((transform, index) => (
+        <mesh key={index} position={transform.position} rotation={transform.rotation} scale={transform.scale}>
+          <planeGeometry args={[0.58, 1.55]} />
+          <meshBasicMaterial
+            color={index % 3 === 0 ? ORGANISM_COLORS.violet : color}
+            transparent
+            opacity={0.06}
+            side={THREE.DoubleSide}
+            toneMapped={false}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
+    </group>
   );
 }
 
@@ -735,6 +886,108 @@ function LoopbackPeer({ connected, running, sequence, paused }: { connected: boo
   );
 }
 
+function MatrixRain({ paused }: { paused: boolean }) {
+  return (
+    <div
+      className={`cortex-matrix-rain${paused ? " is-paused" : ""}`}
+      data-testid="organism-matrix-rain"
+      aria-hidden="true"
+    >
+      {MATRIX_COLUMNS.map((column, index) => (
+        <span
+          key={index}
+          className="cortex-matrix-column"
+          style={{
+            left: `${column.left}%`,
+            animationDelay: `-${column.delay.toFixed(2)}s`,
+            animationDuration: `${column.duration.toFixed(2)}s`,
+            opacity: column.opacity,
+          } as CSSProperties}
+        >
+          {column.glyphs}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function TelemetryWaveform({ telemetry }: { telemetry: VisualTelemetry }) {
+  const samples = telemetry.samples
+    .filter((sample) => Number.isFinite(sample))
+    .slice(-24)
+    .map((sample) => Math.min(1, Math.max(0, sample)));
+  const bounded = samples.length === 0 ? [0, 0] : samples.length === 1 ? [samples[0], samples[0]] : samples;
+  const points = bounded.map((sample, index) => {
+    const x = (index / (bounded.length - 1)) * 100;
+    const y = 34 - sample * 28;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  }).join(" ");
+  const source = telemetry.sourceKind.replace(/[^A-Za-z0-9_.:-]/g, "_").slice(0, 32) || "unknown";
+  return (
+    <div
+      className={`cortex-telemetry-waveform${telemetry.live ? " is-live" : ""}`}
+      data-testid="organism-telemetry-waveform"
+      data-telemetry-source={source}
+      data-telemetry-live={String(telemetry.live)}
+      data-event-count={telemetry.eventCount}
+      data-frame-count={telemetry.frameCount}
+      data-render-fps={telemetry.renderFps.toFixed(1)}
+      data-render-ms={telemetry.renderMs.toFixed(1)}
+      data-sample-count={bounded.length}
+      role="img"
+      aria-label={`${telemetry.live ? "Live" : "Spec-only"} telemetry waveform: ${telemetry.eventCount} events, ${telemetry.frameCount} replay frames, ${telemetry.renderFps.toFixed(0)} FPS`}
+    >
+      <div className="cortex-waveform-label">
+        <span>{telemetry.live ? "LIVE SIGNAL" : "SPEC SIGNAL"}</span>
+        <span>{telemetry.eventCount}E · {telemetry.frameCount}F</span>
+      </div>
+      <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="0" y1="34" x2="100" y2="34" className="cortex-waveform-baseline" />
+        <polyline points={points} className="cortex-waveform-signal" />
+      </svg>
+    </div>
+  );
+}
+
+function VisualOverlay({
+  telemetry,
+  paused,
+  runState,
+  pbr,
+}: {
+  telemetry: VisualTelemetry;
+  paused: boolean;
+  runState: RunState;
+  pbr: boolean;
+}) {
+  return (
+    <div
+      className={`cortex-visual-v2${paused ? " is-paused" : ""}`}
+      data-testid="organism-visual-v2"
+      data-visual-dot-globe="fibonacci-360"
+      data-visual-matrix-rain="dom"
+      data-visual-scanlines="hud"
+      data-visual-shards="plane-12-opacity-0.06"
+      data-visual-waveform="runtime-telemetry"
+      data-visual-core-edges="active"
+      data-visual-core-transmission={pbr ? "active" : "hardware-gated"}
+    >
+      <MatrixRain paused={paused} />
+      <div className="cortex-scanlines" data-testid="organism-scanlines" aria-hidden="true" />
+      <div className="cortex-visual-hud" data-testid="organism-hud-overlay" aria-hidden="true">
+        <span className="cortex-hud-corner cortex-hud-corner-nw" />
+        <span className="cortex-hud-corner cortex-hud-corner-ne" />
+        <span className="cortex-hud-corner cortex-hud-corner-sw" />
+        <span className="cortex-hud-corner cortex-hud-corner-se" />
+        <span className="cortex-hud-axis cortex-hud-axis-x" />
+        <span className="cortex-hud-axis cortex-hud-axis-y" />
+        <span className="cortex-hud-readout">CORTEX // {STATE_LABEL[runState].toUpperCase()}</span>
+      </div>
+      <TelemetryWaveform telemetry={telemetry} />
+    </div>
+  );
+}
+
 function Scene({
   runState,
   nodeCount,
@@ -814,6 +1067,8 @@ function Scene({
         </>
       ) : null}
       <Stars tex={tex} />
+      <Shards color={sc} paused={paused} />
+      <DotGlobe color={sc} paused={paused} />
       <Stats onStats={onStats} nodes={nodeCount} />
       <group rotation={[0.32, 0, 0]}>
         <Brain count={nodeCount} tex={tex} />
@@ -871,6 +1126,7 @@ export default function CortexCanvas3D({
   netcodeSequence = 0,
   onToggleAutoRotate,
   sourceLabel = "SPEC · ORGANISM",
+  visualTelemetry = EMPTY_VISUAL_TELEMETRY,
 }: {
   runState?: RunState;
   nodeCount?: number;
@@ -900,6 +1156,7 @@ export default function CortexCanvas3D({
   netcodeSequence?: number;
   onToggleAutoRotate?: () => void;
   sourceLabel?: string;
+  visualTelemetry?: VisualTelemetry;
 }) {
   const boundedFov = [38, 45, 58].includes(fovDegrees) ? fovDegrees : 45;
   const boundedExposure = Math.min(1.18, Math.max(0.72, exposure));
@@ -948,6 +1205,8 @@ export default function CortexCanvas3D({
       data-netcode-sequence={netcodeSequence}
       data-netcode-websocket="false"
       data-netcode-server-sync="false"
+      data-organism-visual-version="v2"
+      data-visual-telemetry-source={visualTelemetry.sourceKind}
     >
       <Canvas
         camera={{ position: CAMERA_PRESETS[cameraPreset].position, fov: boundedFov }}
@@ -987,6 +1246,7 @@ export default function CortexCanvas3D({
           onLightingApplied={onLightingApplied}
         />
       </Canvas>
+      <VisualOverlay telemetry={visualTelemetry} paused={paused} runState={runState} pbr={pbr} />
       <span className="cortex-badge">{sourceLabel} · {pbr ? "PBR/WEBGL" : "WEBGL"}</span>
       <span className="cortex-state">
         <span className={`dot dot-state-${runState}`} />

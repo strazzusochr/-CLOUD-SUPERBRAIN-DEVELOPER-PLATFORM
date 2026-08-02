@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import CortexLive from "./CortexLive";
+import CortexLive, { type OrganismVisualTelemetry } from "./CortexLive";
 import { HUBS, LAYERS, ORGANISM_AGENTS, STATE_LABEL, type RunState } from "./regionMap";
 import { CLOSED_GATES } from "../../lib/platform";
 
@@ -159,6 +159,51 @@ type RuntimeProjection = {
 
 function normalizeRunState(value: unknown, fallback: RunState): RunState {
   return typeof value === "string" && STATES.includes(value as RunState) ? (value as RunState) : fallback;
+}
+
+function finiteNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function buildVisualTelemetry(
+  runtime: RuntimeProjection | null,
+  liveState: { source: string; live: boolean } | null,
+  renderer: { fps: number; ms: number },
+): OrganismVisualTelemetry {
+  const raw: number[] = [];
+  for (const event of runtime?.events.slice(-12) ?? []) {
+    const stateWeight = Math.max(0, STATES.indexOf(normalizeRunState(event.run_state, "idle")));
+    const severityWeight = event.severity === "error" ? 5 : event.severity === "warning" ? 3 : 1;
+    raw.push(
+      finiteNumber(event.seq)
+      + finiteNumber(event.offset_s) * 2
+      + stateWeight * 1.5
+      + severityWeight
+      + (event.writes ? 2 : 0),
+    );
+  }
+  for (const frame of runtime?.frames.slice(-12) ?? []) {
+    const stateWeight = Math.max(0, STATES.indexOf(normalizeRunState(frame.run_state, "idle")));
+    raw.push(finiteNumber(frame.t) * 2 + stateWeight * 1.5 + (frame.active?.length ?? 0) + (frame.regions?.length ?? 0));
+  }
+  if (renderer.fps > 0) raw.push(renderer.fps / 2);
+  if (renderer.ms > 0) raw.push(renderer.ms);
+  if (raw.length === 0) raw.push(0);
+  const selected = raw.slice(-24);
+  const minimum = Math.min(...selected);
+  const maximum = Math.max(...selected);
+  const samples = maximum > minimum
+    ? selected.map((value) => (value - minimum) / (maximum - minimum))
+    : selected.map((value) => (value > 0 ? 0.5 : 0));
+  return {
+    sourceKind: runtime?.sourceKind ?? liveState?.source ?? "loading",
+    live: runtime?.live ?? liveState?.live ?? false,
+    eventCount: runtime?.events.length ?? 0,
+    frameCount: runtime?.frames.length ?? 0,
+    renderFps: Math.max(0, finiteNumber(renderer.fps)),
+    renderMs: Math.max(0, finiteNumber(renderer.ms)),
+    samples,
+  };
 }
 
 function readRequestedRunId(): string {
@@ -667,6 +712,10 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
   };
   const visibleEvents = runtimeFeed?.events.slice(-6).reverse() ?? [];
   const visibleFrames = runtimeFeed?.frames.slice(-4).reverse() ?? [];
+  const visualTelemetry = useMemo(
+    () => buildVisualTelemetry(runtimeFeed, feed, stats),
+    [feed, runtimeFeed, stats],
+  );
   const performanceStatus = performanceSamplingActive ? "sampling" : performanceResult?.status ?? "idle";
   const rendererStatsReady = Number.isFinite(stats.fps) && Number.isFinite(stats.ms) && stats.fps > 0 && stats.ms > 0;
   const runtimeSourceLabel = runtimeFeed?.live
@@ -736,6 +785,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
               forceReducedMotion={effectiveReducedMotion}
               onMode={onMode}
               sourceLabel={runtimeSourceLabel}
+              visualTelemetry={visualTelemetry}
             />
             {/* Debug / performance HUD overlay (frame budget = Phase-6 perf slice) */}
             <div className="org-hud" aria-hidden="true">

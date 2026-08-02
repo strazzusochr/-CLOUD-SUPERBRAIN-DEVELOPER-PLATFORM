@@ -41,6 +41,13 @@ const SLICES = [
   { id: "phase6_3d_camera_lighting_runtime_visible (full controls)", file: "components/organism/OrganismView.tsx", needle: "phase6-camera-lighting-controls" },
   { id: "phase6_3d_accessibility_runtime_visible (full keyboard/focus controls)", file: "components/organism/OrganismView.tsx", needle: "phase6-accessibility-controls" },
   { id: "phase6_3d_scene_state (auto-rotate toggle)", file: "components/organism/CortexCanvas3D.tsx", needle: "onToggleAutoRotate" },
+  { id: "organism_visual_v2_dot_globe", file: "components/organism/CortexCanvas3D.tsx", needle: "function DotGlobe" },
+  { id: "organism_visual_v2_matrix_rain", file: "components/organism/CortexCanvas3D.tsx", needle: 'data-testid="organism-matrix-rain"' },
+  { id: "organism_visual_v2_scanlines_hud", file: "components/organism/CortexCanvas3D.tsx", needle: 'data-testid="organism-scanlines"' },
+  { id: "organism_visual_v2_shards", file: "components/organism/CortexCanvas3D.tsx", needle: "function Shards" },
+  { id: "organism_visual_v2_runtime_telemetry_waveform", file: "components/organism/OrganismView.tsx", needle: "buildVisualTelemetry" },
+  { id: "organism_visual_v2_core_edges", file: "components/organism/CortexCanvas3D.tsx", needle: "<Edges threshold={16}" },
+  { id: "organism_visual_v2_core_transmission", file: "components/organism/CortexCanvas3D.tsx", needle: "<MeshTransmissionMaterial" },
   { id: "threejs_webgl_smoke + nonblank_canvas (e2e)", file: "e2e/organism.spec.ts", needle: "Phase-6 3D controls" },
 ];
 
@@ -101,11 +108,13 @@ if (args.outDir) {
     slice_count: SLICES.length,
     passed_slice_count: ok,
     source_markers: SLICES.map(({ id, file }) => ({ id, file, passed: true })),
-    interactions: ["camera_reset", "keyboard_camera_loop", "reduced_motion_to_2d"],
+    interactions: ["camera_reset", "keyboard_camera_loop", "organism_visual_v2_visible", "reduced_motion_to_2d"],
     assertions: {
       webgl_canvas_visible: true,
       canvas_screenshot_min_bytes: 25_000,
       frame_budget_hud_visible: true,
+      organism_visual_v2_visible: true,
+      runtime_telemetry_waveform_visible: true,
       console_errors: 0,
       reduced_motion_fallback_visible: true,
     },
@@ -120,7 +129,7 @@ if (args.outDir) {
   writeFileSync(resolve(args.outDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
   writeFileSync(
     resolve(args.outDir, "report.md"),
-    `# Phase 6 Frontend Client Runtime Proof\n\nStatus: PASS\n\n- Mode: ${report.mode}\n- Base URL: ${report.base_url}\n- Slices: ${ok}/${SLICES.length}\n- Real interactions: camera reset, keyboard camera loop, reduced motion to 2D\n- Console errors: 0\n- Screenshots: ${screenshots.map((entry) => entry.name).join(", ")}\n\nThis is a frontend client-runtime slice proof, not a claim that all Phase 6 scale work is complete.\n`,
+    `# Phase 6 Frontend Client Runtime Proof\n\nStatus: PASS\n\n- Mode: ${report.mode}\n- Base URL: ${report.base_url}\n- Slices: ${ok}/${SLICES.length}\n- Real interactions: camera reset, keyboard camera loop, organism visual v2, reduced motion to 2D\n- Console errors: 0\n- Screenshots: ${screenshots.map((entry) => entry.name).join(", ")}\n\nThis is a frontend client-runtime slice proof, not a claim that all Phase 6 scale work is complete.\n`,
   );
 }
 

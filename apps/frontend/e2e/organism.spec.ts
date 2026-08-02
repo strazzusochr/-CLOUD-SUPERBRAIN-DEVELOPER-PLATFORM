@@ -374,6 +374,23 @@ test.describe("Cloud Superbrain platform", () => {
     expect(info.badge).toContain("WEBGL");
     expect(errors, "no console/page errors").toEqual([]);
 
+    const visualV2 = page.getByTestId("organism-visual-v2");
+    await expect(visualV2).toBeVisible();
+    await expect(visualV2).toHaveAttribute("data-visual-dot-globe", "fibonacci-360");
+    await expect(visualV2).toHaveAttribute("data-visual-matrix-rain", "dom");
+    await expect(visualV2).toHaveAttribute("data-visual-scanlines", "hud");
+    await expect(visualV2).toHaveAttribute("data-visual-shards", "plane-12-opacity-0.06");
+    await expect(visualV2).toHaveAttribute("data-visual-waveform", "runtime-telemetry");
+    await expect(visualV2).toHaveAttribute("data-visual-core-edges", "active");
+    await expect(visualV2).toHaveAttribute("data-visual-core-transmission", /active|hardware-gated/);
+    await expect(page.getByTestId("organism-matrix-rain").locator(".cortex-matrix-column")).toHaveCount(18);
+    await expect(page.getByTestId("organism-scanlines")).toBeVisible();
+    await expect(page.getByTestId("organism-hud-overlay")).toBeVisible();
+    const waveform = page.getByTestId("organism-telemetry-waveform");
+    await expect(waveform).toBeVisible();
+    await expect(waveform).toHaveAttribute("data-telemetry-source", /^[A-Za-z0-9_.:-]{1,32}$/);
+    expect(Number(await waveform.getAttribute("data-sample-count"))).toBeGreaterThanOrEqual(2);
+
     const box = await page.locator(".cortex-wrap").first().boundingBox();
     await page.screenshot({ path: "e2e/__artifacts__/organism.png", clip: box ?? undefined });
   });
@@ -397,6 +414,13 @@ test.describe("Cloud Superbrain platform", () => {
     await expect(page.getByRole("button", { name: /Weniger Bewegung/ })).toBeVisible();
     const canvas = page.locator("canvas").first();
     await expect(canvas).toBeVisible();
+    const visualV2 = page.getByTestId("organism-visual-v2");
+    await expect(visualV2).toBeVisible();
+    await expect(visualV2).toHaveAttribute("data-visual-dot-globe", "fibonacci-360");
+    await expect(page.getByTestId("organism-matrix-rain")).toBeVisible();
+    await expect(page.getByTestId("organism-scanlines")).toBeVisible();
+    await expect(page.getByTestId("organism-hud-overlay")).toBeVisible();
+    await expect(page.getByTestId("organism-telemetry-waveform")).toBeVisible();
     const canvasProof = await canvas.screenshot();
     expect(canvasProof.length, "rendered canvas screenshot bytes").toBeGreaterThan(25_000);
     const beforePath = phase6ArtifactPath("phase6-3d-before.png");
@@ -1433,6 +1457,12 @@ test.describe("Cloud Superbrain platform", () => {
     await expect(feed).toHaveAttribute("data-run-id", runId);
     await expect(feed).toContainText(`run_id=${runId}`);
     await expect(page.getByTestId("organism-replay-frames")).toBeVisible();
+    const waveform = page.getByTestId("organism-telemetry-waveform");
+    await expect(waveform).toHaveAttribute("data-telemetry-source", "agent_api_redacted");
+    await expect(waveform).toHaveAttribute("data-telemetry-live", "true");
+    await expect(waveform).toHaveAttribute("data-event-count", "1");
+    await expect(waveform).toHaveAttribute("data-frame-count", "1");
+    expect(Number(await waveform.getAttribute("data-sample-count"))).toBeGreaterThanOrEqual(2);
     expect(seen.events).toBe(true);
     expect(seen.replay).toBe(true);
   });

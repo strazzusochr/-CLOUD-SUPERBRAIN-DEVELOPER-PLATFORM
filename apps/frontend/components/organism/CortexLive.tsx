@@ -12,6 +12,16 @@ import { Component, type ReactNode, useEffect, useState } from "react";
 import CortexCanvas from "./CortexCanvas";
 import type { RunState } from "./regionMap";
 
+export type OrganismVisualTelemetry = {
+  sourceKind: string;
+  live: boolean;
+  eventCount: number;
+  frameCount: number;
+  renderFps: number;
+  renderMs: number;
+  samples: number[];
+};
+
 const CortexCanvas3D = dynamic(() => import("./CortexCanvas3D"), {
   ssr: false,
   loading: () => <div className="cortex-wrap" />,
@@ -49,6 +59,7 @@ type Props = {
   forceReducedMotion?: boolean;
   onMode?: (mode: "2d" | "3d") => void;
   sourceLabel?: string;
+  visualTelemetry?: OrganismVisualTelemetry;
 };
 
 class GLErrorBoundary extends Component<{
@@ -126,6 +137,7 @@ export default function CortexLive(props: Props) {
           netcodeSequence={props.netcodeSequence}
           onToggleAutoRotate={props.onToggleAutoRotate}
           sourceLabel={props.sourceLabel}
+          visualTelemetry={props.visualTelemetry}
         />
       </GLErrorBoundary>
     );
