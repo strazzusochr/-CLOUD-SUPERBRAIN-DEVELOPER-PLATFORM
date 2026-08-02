@@ -1,9 +1,9 @@
 PHASE5_EVIDENCE_RAW_V2
 [phase5-evidence] chain=security
 [phase5-evidence] release_id=prod-candidate-2026-08-02-local-rc12
-[phase5-evidence] source_commit_sha=d071481f64c559811f2f9f3f2c5b0b187e3148e9
-[phase5-evidence] evidence_run_id=d13b9ab3-76c5-4d5c-9e69-728d9abc4cdf
-[phase5-evidence] command=pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/write-phase5-security-evidence.ps1 -ReleaseId prod-candidate-2026-08-02-local-rc12 -SourceSha d071481f64c559811f2f9f3f2c5b0b187e3148e9 -EvidenceRunId d13b9ab3-76c5-4d5c-9e69-728d9abc4cdf
+[phase5-evidence] source_commit_sha=6261f9f89d803c36b449ba87a4d93e14411b31d0
+[phase5-evidence] evidence_run_id=7dfd7529-2c44-4a64-a3ac-5199ab0977a3
+[phase5-evidence] command=pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/write-phase5-security-evidence.ps1 -ReleaseId prod-candidate-2026-08-02-local-rc12 -SourceSha 6261f9f89d803c36b449ba87a4d93e14411b31d0 -EvidenceRunId 7dfd7529-2c44-4a64-a3ac-5199ab0977a3
 PHASE5_SECURITY_EVIDENCE_V2
 [phase5-security] source_boundary=committed_git_archive_only
 === npm audit --audit-level=moderate (candidate apps/frontend) ===
@@ -19,8 +19,8 @@ System.Management.Automation.RemoteException
     ○ ░
     ░    gitleaks
 System.Management.Automation.RemoteException
-6:57PM INF scanned ~38426626 bytes (38.43 MB) in 3.89s
-6:57PM INF no leaks found
+8:50PM INF scanned ~38510139 bytes (38.51 MB) in 4.33s
+8:50PM INF no leaks found
 GITLEAKS_EXIT=0
 [phase5-security] gitleaks_verified=true
 PHASE5_SECURITY_EXIT=0

@@ -1,8 +1,8 @@
 PHASE5_EVIDENCE_RAW_V2
 [phase5-evidence] chain=runtime
 [phase5-evidence] release_id=prod-candidate-2026-08-02-local-rc12
-[phase5-evidence] source_commit_sha=d071481f64c559811f2f9f3f2c5b0b187e3148e9
-[phase5-evidence] evidence_run_id=b1c127f1-b27a-4378-b612-341232c19c35
+[phase5-evidence] source_commit_sha=6261f9f89d803c36b449ba87a4d93e14411b31d0
+[phase5-evidence] evidence_run_id=66a23062-e988-4adb-bccd-d1fb81d7d4da
 [phase5-evidence] command=npm run verify:runtime
 
 > cloud-superbrain-developer-platform@0.1.0 verify:runtime
@@ -10,17 +10,17 @@ PHASE5_EVIDENCE_RAW_V2
 
 [docker-readiness] status=ready server_version=29.6.2
 [runtime] compose status
-NAME                                          IMAGE                                                                                                             COMMAND                  SERVICE         CREATED          STATUS                    PORTS
-cloud-superbrain-phase1-dev-agent-api-1       cloud-superbrain-phase1-dev-agent-api                                                                             "uvicorn app.main:ap…"   agent-api       39 minutes ago   Up 39 minutes (healthy)   8000/tcp
-cloud-superbrain-phase1-dev-agent-worker-1    cloud-superbrain-phase1-dev-agent-worker                                                                          "python -m app.worker"   agent-worker    10 hours ago     Up 10 hours (healthy)     
-cloud-superbrain-phase1-dev-frontend-1        cloud-superbrain-phase1-dev-frontend                                                                              "docker-entrypoint.s…"   frontend        39 minutes ago   Up 39 minutes (healthy)   3000/tcp
-cloud-superbrain-phase1-dev-llm-gateway-1     cloud-superbrain-phase1-dev-llm-gateway                                                                           "uvicorn app.main:ap…"   llm-gateway     39 minutes ago   Up 39 minutes (healthy)   4000/tcp
-cloud-superbrain-phase1-dev-local-llm-1       ghcr.io/ggml-org/llama.cpp:server@sha256:4f02c560799a1569be08b0183d52b94b0d4a6e4b88f52f20562d2334c73837d4         "/app/llama-server -…"   local-llm       15 hours ago     Up 15 hours (healthy)     8080/tcp
-cloud-superbrain-phase1-dev-mcp-gateway-1     cloud-superbrain-phase1-dev-mcp-gateway                                                                           "uvicorn app.main:ap…"   mcp-gateway     39 minutes ago   Up 39 minutes (healthy)   9000/tcp
-cloud-superbrain-phase1-dev-memory-worker-1   cloud-superbrain-phase1-dev-memory-worker                                                                         "python -m app.worker"   memory-worker   10 hours ago     Up 10 hours (healthy)     
-cloud-superbrain-phase1-dev-nginx-1           nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0   "/docker-entrypoint.…"   nginx           40 minutes ago   Up 40 minutes (healthy)   0.0.0.0:8081->8080/tcp, [::]:8081->8080/tcp
-cloud-superbrain-phase1-dev-postgres-1        pgvector/pgvector:0.8.2-pg16@sha256:00ba258a66dac104fd5171074a0084462a64a1369d8513f3d0a634e2f24d15bc              "docker-entrypoint.s…"   postgres        10 hours ago     Up 10 hours (healthy)     5432/tcp
-cloud-superbrain-phase1-dev-redis-1           redis:7.4.2-alpine@sha256:02419de7eddf55aa5bcf49efb74e88fa8d931b4d77c07eff8a6b2144472b6952                        "docker-entrypoint.s…"   redis           42 minutes ago   Up 42 minutes (healthy)   6379/tcp
+NAME                                          IMAGE                                                                                                             COMMAND                  SERVICE         CREATED             STATUS                       PORTS
+cloud-superbrain-phase1-dev-agent-api-1       cloud-superbrain-phase1-dev-agent-api                                                                             "uvicorn app.main:ap…"   agent-api       About an hour ago   Up About an hour (healthy)   8000/tcp
+cloud-superbrain-phase1-dev-agent-worker-1    cloud-superbrain-phase1-dev-agent-worker                                                                          "python -m app.worker"   agent-worker    11 hours ago        Up 11 hours (healthy)        
+cloud-superbrain-phase1-dev-frontend-1        cloud-superbrain-phase1-dev-frontend                                                                              "docker-entrypoint.s…"   frontend        About an hour ago   Up About an hour (healthy)   3000/tcp
+cloud-superbrain-phase1-dev-llm-gateway-1     cloud-superbrain-phase1-dev-llm-gateway                                                                           "uvicorn app.main:ap…"   llm-gateway     About an hour ago   Up About an hour (healthy)   4000/tcp
+cloud-superbrain-phase1-dev-local-llm-1       ghcr.io/ggml-org/llama.cpp:server@sha256:4f02c560799a1569be08b0183d52b94b0d4a6e4b88f52f20562d2334c73837d4         "/app/llama-server -…"   local-llm       16 hours ago        Up 16 hours (healthy)        8080/tcp
+cloud-superbrain-phase1-dev-mcp-gateway-1     cloud-superbrain-phase1-dev-mcp-gateway                                                                           "uvicorn app.main:ap…"   mcp-gateway     About an hour ago   Up About an hour (healthy)   9000/tcp
+cloud-superbrain-phase1-dev-memory-worker-1   cloud-superbrain-phase1-dev-memory-worker                                                                         "python -m app.worker"   memory-worker   11 hours ago        Up 11 hours (healthy)        
+cloud-superbrain-phase1-dev-nginx-1           nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0   "/docker-entrypoint.…"   nginx           About an hour ago   Up About an hour (healthy)   0.0.0.0:8081->8080/tcp, [::]:8081->8080/tcp
+cloud-superbrain-phase1-dev-postgres-1        pgvector/pgvector:0.8.2-pg16@sha256:00ba258a66dac104fd5171074a0084462a64a1369d8513f3d0a634e2f24d15bc              "docker-entrypoint.s…"   postgres        11 hours ago        Up 11 hours (healthy)        5432/tcp
+cloud-superbrain-phase1-dev-redis-1           redis:7.4.2-alpine@sha256:02419de7eddf55aa5bcf49efb74e88fa8d931b4d77c07eff8a6b2144472b6952                        "docker-entrypoint.s…"   redis           About an hour ago   Up About an hour (healthy)   6379/tcp
 [runtime] compose resource measurement
 [runtime] postgres backup proof
 [runtime] postgres restore proof
@@ -41,7 +41,7 @@ cloud-superbrain-phase1-dev-redis-1           redis:7.4.2-alpine@sha256:02419de7
 [cloud-provider-live-read] evidence_scope=DEV-ONLY
 [cloud-provider-live-read] live_verified_count=4/8
 [cloud-provider-live-read] ready_layer_count=4/7
-[cloud-provider-live-read] artifact=.phase1-artifacts\cloud-provider-live-read-20260802-165828.json
+[cloud-provider-live-read] artifact=.phase1-artifacts\cloud-provider-live-read-20260802-180802.json
 [runtime] phase6 camera lighting contract
 [runtime] phase6 gameplay state contract
 [runtime] phase6 asset policy contract
@@ -123,7 +123,7 @@ cloud-superbrain-phase1-dev-redis-1           redis:7.4.2-alpine@sha256:02419de7
 [auth-fail-closed] unsafe source absent: jwt_signing_configured = len(signing_secret.encode("utf-8")) >= 32
 ......................................
 ----------------------------------------------------------------------
-Ran 38 tests in 0.330s
+Ran 38 tests in 0.360s
 System.Management.Automation.RemoteException
 OK
 [auth-fail-closed] auth unit tests
@@ -183,11 +183,11 @@ OK
 [runtime] signed auth-session integrity
 [phase3-auth-session] contract and source guards
 [phase3-auth-session] deterministic token unit tests
-✔ accepts an intact signed session within its lifetime (2.6934ms)
-✔ rejects signature tampering (0.3215ms)
-✔ rejects expired and future-issued sessions (0.279ms)
-✔ rejects malformed cookies and unsupported identity providers (0.2552ms)
-✔ validates hosted opaque session envelopes without exposing a signing secret (0.3293ms)
+✔ accepts an intact signed session within its lifetime (5.4103ms)
+✔ rejects signature tampering (0.3245ms)
+✔ rejects expired and future-issued sessions (0.2909ms)
+✔ rejects malformed cookies and unsupported identity providers (0.2619ms)
+✔ validates hosted opaque session envelopes without exposing a signing secret (0.3912ms)
 ℹ tests 5
 ℹ suites 0
 ℹ pass 5
@@ -195,7 +195,7 @@ OK
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 180.6157
+ℹ duration_ms 254.6677
 [phase3-auth-session] issue, verify, tamper, and provider rejection
 [phase3-auth-session] status=verified browser_click_verified=False
 [runtime] devops workflow dispatch contract
@@ -211,7 +211,7 @@ INSERT 0 1
 [runtime] langgraph mcp timeout controlled proof
 [runtime] phase2 runtime graph start
 [runtime] organism runtime event projection
-[organism-runtime-events] verified run_id=ca705389-fd40-47b7-b22a-832cd0b3527f source_kind=agent_api_redacted
+[organism-runtime-events] verified run_id=cc6324a4-272f-42b9-82f2-55246a6f033f source_kind=agent_api_redacted
 [runtime] langgraph policy hard-stop dry-run
 [runtime] langgraph global retry limit hard-stop
 [runtime] langgraph node retry bounded failure probes
@@ -232,31 +232,31 @@ INSERT 0 1
  Container cloud-superbrain-phase1-dev-frontend-1 Recreated 
  Container cloud-superbrain-phase1-dev-nginx-1 Recreate 
  Container cloud-superbrain-phase1-dev-nginx-1 Recreated 
- Container cloud-superbrain-phase1-dev-llm-gateway-1 Starting 
  Container cloud-superbrain-phase1-dev-mcp-gateway-1 Starting 
+ Container cloud-superbrain-phase1-dev-llm-gateway-1 Starting 
  Container cloud-superbrain-phase1-dev-llm-gateway-1 Started 
  Container cloud-superbrain-phase1-dev-mcp-gateway-1 Started 
- Container cloud-superbrain-phase1-dev-mcp-gateway-1 Waiting 
  Container cloud-superbrain-phase1-dev-llm-gateway-1 Waiting 
  Container cloud-superbrain-phase1-dev-postgres-1 Waiting 
  Container cloud-superbrain-phase1-dev-redis-1 Waiting 
+ Container cloud-superbrain-phase1-dev-mcp-gateway-1 Waiting 
  Container cloud-superbrain-phase1-dev-postgres-1 Healthy 
  Container cloud-superbrain-phase1-dev-redis-1 Healthy 
- Container cloud-superbrain-phase1-dev-llm-gateway-1 Healthy 
  Container cloud-superbrain-phase1-dev-mcp-gateway-1 Healthy 
+ Container cloud-superbrain-phase1-dev-llm-gateway-1 Healthy 
  Container cloud-superbrain-phase1-dev-agent-api-1 Starting 
  Container cloud-superbrain-phase1-dev-agent-api-1 Started 
  Container cloud-superbrain-phase1-dev-agent-api-1 Waiting 
  Container cloud-superbrain-phase1-dev-agent-api-1 Healthy 
  Container cloud-superbrain-phase1-dev-frontend-1 Starting 
  Container cloud-superbrain-phase1-dev-frontend-1 Started 
- Container cloud-superbrain-phase1-dev-llm-gateway-1 Waiting 
- Container cloud-superbrain-phase1-dev-frontend-1 Waiting 
  Container cloud-superbrain-phase1-dev-agent-api-1 Waiting 
  Container cloud-superbrain-phase1-dev-mcp-gateway-1 Waiting 
- Container cloud-superbrain-phase1-dev-agent-api-1 Healthy 
- Container cloud-superbrain-phase1-dev-llm-gateway-1 Healthy 
+ Container cloud-superbrain-phase1-dev-llm-gateway-1 Waiting 
+ Container cloud-superbrain-phase1-dev-frontend-1 Waiting 
  Container cloud-superbrain-phase1-dev-mcp-gateway-1 Healthy 
+ Container cloud-superbrain-phase1-dev-llm-gateway-1 Healthy 
+ Container cloud-superbrain-phase1-dev-agent-api-1 Healthy 
  Container cloud-superbrain-phase1-dev-frontend-1 Healthy 
  Container cloud-superbrain-phase1-dev-nginx-1 Starting 
  Container cloud-superbrain-phase1-dev-nginx-1 Started 

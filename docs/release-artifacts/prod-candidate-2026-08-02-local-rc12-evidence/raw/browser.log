@@ -1,8 +1,8 @@
 PHASE5_EVIDENCE_RAW_V2
 [phase5-evidence] chain=browser
 [phase5-evidence] release_id=prod-candidate-2026-08-02-local-rc12
-[phase5-evidence] source_commit_sha=d071481f64c559811f2f9f3f2c5b0b187e3148e9
-[phase5-evidence] evidence_run_id=b1692bf5-16ea-479e-90f7-7c7c8a4347df
+[phase5-evidence] source_commit_sha=6261f9f89d803c36b449ba87a4d93e14411b31d0
+[phase5-evidence] evidence_run_id=b19cb7de-f807-47ca-821c-bac03d238608
 [phase5-evidence] command=npm run verify:browser
 
 > cloud-superbrain-developer-platform@0.1.0 verify:browser
@@ -65,7 +65,7 @@ PHASE5_EVIDENCE_RAW_V2
 [auth-fail-closed] unsafe source absent: jwt_signing_configured = len(signing_secret.encode("utf-8")) >= 32
 ......................................
 ----------------------------------------------------------------------
-Ran 38 tests in 0.507s
+Ran 38 tests in 0.294s
 System.Management.Automation.RemoteException
 OK
 [auth-fail-closed] auth unit tests
@@ -125,11 +125,11 @@ OK
 [browser-contract] signed auth-session integrity
 [phase3-auth-session] contract and source guards
 [phase3-auth-session] deterministic token unit tests
-✔ accepts an intact signed session within its lifetime (4.0032ms)
-✔ rejects signature tampering (0.5625ms)
-✔ rejects expired and future-issued sessions (0.6943ms)
-✔ rejects malformed cookies and unsupported identity providers (0.5704ms)
-✔ validates hosted opaque session envelopes without exposing a signing secret (0.4391ms)
+✔ accepts an intact signed session within its lifetime (2.2311ms)
+✔ rejects signature tampering (0.2656ms)
+✔ rejects expired and future-issued sessions (0.2767ms)
+✔ rejects malformed cookies and unsupported identity providers (0.256ms)
+✔ validates hosted opaque session envelopes without exposing a signing secret (0.3532ms)
 ℹ tests 5
 ℹ suites 0
 ℹ pass 5
@@ -137,26 +137,26 @@ OK
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 294.3042
+ℹ duration_ms 198.3526
 [phase3-auth-session] issue, verify, tamper, and provider rejection
 [phase3-auth-session] Chromium login and tamper proof
-(node:30180) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:29992) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 Running 1 test using 1 worker
 
-[1A[2K(node:16372) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:30408) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
-[1A[2K(node:16372) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+[1A[2K(node:30408) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 
-[1A[2K(node:16372) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:30408) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
 [1A[2K[1/1] [chromium] › e2e\phase3-auth-session-integrity.spec.ts:7:1 › login issues a signed session and rejects a tampered cookie
-[1A[2K  1 passed (6.5s)
+[1A[2K  1 passed (5.4s)
 [phase3-auth-session] status=verified browser_click_verified=True
 [browser-contract] system unavailable fallback contract
 [browser-contract] phase3 product surface contracts
@@ -166,76 +166,76 @@ Running 1 test using 1 worker
 [phase3-csp-report] local audit and redaction proof
 [phase3-csp-report] negative paths
 [phase3-csp-report] Chromium click proof
-(node:19064) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:12800) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 Running 1 test using 1 worker
 
-[1A[2K(node:31760) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:29160) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
-[1A[2K(node:31760) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+[1A[2K(node:29160) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 
-[1A[2K(node:31760) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:29160) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
 [1A[2K[1/1] [chromium] › e2e\phase3-csp-report.spec.ts:6:1 › diagnostics loads the CSP report contract through a real click
-[1A[2K  1 passed (3.6s)
+[1A[2K  1 passed (2.5s)
 status=verified
 contract_version=csp-report-contract-v1
 evidence_ref=csp_report_contract_visible
 audit_evidence_ref=csp_report_audit_persisted
 proof_scope=DEV-ONLY
-screenshot_bytes=157338
+screenshot_bytes=157204
 [browser-contract] CSRF origin guard contract
 [phase3-csrf] contract and visible surface
 [phase3-csrf] same-origin and non-browser compatibility
 [phase3-csrf] fail-closed negative paths
 [phase3-csrf] Chromium click and same-origin POST proof
-(node:16472) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:27520) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 Running 1 test using 1 worker
 
-[1A[2K(node:10900) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:14744) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
-[1A[2K(node:10900) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+[1A[2K(node:14744) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 
-[1A[2K(node:10900) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:14744) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
 [1A[2K[1/1] [chromium] › e2e\phase3-csrf-origin.spec.ts:6:1 › diagnostics loads CSRF guard and performs a same-origin browser POST
-[1A[2K  1 passed (4.1s)
+[1A[2K  1 passed (2.9s)
 [phase3-csrf] status=verified
-[phase3-csrf] screenshot_bytes=156695
+[phase3-csrf] screenshot_bytes=156680
 [browser-contract] cross-origin response guard contract
 [phase3-cross-origin] contract and source guards
 [phase3-cross-origin] response and negative-origin probes
 [phase3-cross-origin] Chromium click proof
-(node:7424) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:10672) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 Running 1 test using 1 worker
 
-[1A[2K(node:13496) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:23600) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
-[1A[2K(node:13496) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+[1A[2K(node:23600) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 
-[1A[2K(node:13496) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:23600) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
 [1A[2K[1/1] [chromium] › e2e\phase3-cross-origin-response.spec.ts:6:1 › diagnostics loads the cross-origin response guard through a real click
-[1A[2K  1 passed (4.9s)
+[1A[2K  1 passed (4.3s)
 [phase3-cross-origin] status=verified
-[phase3-cross-origin] screenshot_bytes=164090
+[phase3-cross-origin] screenshot_bytes=163968
 [browser-contract] orchestrator completion evidence
 [orchestrator-completion] contract
 [orchestrator-completion] source and parent-proof guards
@@ -243,26 +243,26 @@ Running 1 test using 1 worker
 [orchestrator-completion] policy hard-stop
 [orchestrator-completion] controlled MCP timeout
 [orchestrator-completion] Chromium diagnostics click
-(node:26788) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:20420) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 Running 1 test using 1 worker
 
-[1A[2K(node:16276) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:25544) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
-[1A[2K(node:16276) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+[1A[2K(node:25544) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 
-[1A[2K(node:16276) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:25544) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
 [1A[2K[1/1] [chromium] › e2e\orchestrator-completion.spec.ts:7:1 › diagnostics loads orchestrator completion evidence through a real click
-[1A[2K  1 passed (4.3s)
+[1A[2K  1 passed (4.4s)
 [orchestrator-completion] result=verified
 [orchestrator-completion] scope=DEV-ONLY
-[orchestrator-completion] screenshot_bytes=164238
+[orchestrator-completion] screenshot_bytes=164156
 [browser-contract] phase5 local production candidate
 [browser-contract] task assignment queue contract
 [browser-contract] agent llm streaming contract
@@ -270,7 +270,7 @@ Running 1 test using 1 worker
 [llm-responses] contract
 [llm-responses] local runtime dry-run
 [llm-responses] local negative cases
-[llm-responses] trace=llm-responses-contract-78bfa76ef125479f85750a44d06f0039
+[llm-responses] trace=llm-responses-contract-246a195faa8c46748b9f1e83aa8b4812
 [llm-responses] checks completed
 [browser-contract] live agent steering contract
 [live-agent-steering] contract
@@ -278,7 +278,7 @@ Running 1 test using 1 worker
 [live-agent-steering] compatibility route
 [live-agent-steering] negative cases
 [live-agent-steering] reset after proof
-[live-agent-steering] trace=live-agent-steering-contract-c994177fcd6b46c680b47b1dd3b01e96
+[live-agent-steering] trace=live-agent-steering-contract-ecda0adc0b18479ab571bbfc54378843
 [live-agent-steering] checks completed
 [browser-contract] mcp version pinning contract
 [browser-contract] memory embedding consistency contract
@@ -288,167 +288,167 @@ Running 1 test using 1 worker
 [phase6-camera-lighting] runtime contract
 [phase6-camera-lighting] frontend and source guards
 [phase6-camera-lighting] Chromium interaction proof
-(node:29044) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:15592) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 Running 1 test using 1 worker
 
-[1A[2K(node:18584) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:15600) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
-[1A[2K(node:18584) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+[1A[2K(node:15600) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 
-[1A[2K(node:18584) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:15600) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
 [1A[2K[1/1] [chromium] › e2e\organism.spec.ts:428:3 › Cloud Superbrain platform › organism Phase-6 camera and lighting controls apply bounded runtime state
-[1A[2K  1 passed (18.0s)
+[1A[2K  1 passed (16.2s)
 [phase6-camera-lighting] result=verified
 [phase6-camera-lighting] evidence_ref=phase6_3d_camera_lighting_runtime_visible
-[phase6-camera-lighting] screenshot_bytes=442246
+[phase6-camera-lighting] screenshot_bytes=443965
 [browser-contract] Phase 6 3D gameplay state controls
 [phase6-gameplay-state] runtime contract
 [phase6-gameplay-state] frontend and source guards
 [phase6-gameplay-state] Chromium interaction proof
-(node:12596) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:33728) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 Running 1 test using 1 worker
 
-[1A[2K(node:27344) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+
+[1A[2K(node:28408) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
+[1A[2K(node:28408) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 
-
-[1A[2K(node:27344) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
-
-[1A[2K(node:27344) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:28408) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 [1A[2K[1/1] [chromium] › e2e\organism.spec.ts:521:3 › Cloud Superbrain platform › organism Phase-6 gameplay state is deterministic, pause-safe, and browser-local
-[1A[2K  1 passed (1.4m)
+[1A[2K  1 passed (1.3m)
 [phase6-gameplay-state] result=verified
 [phase6-gameplay-state] evidence_ref=phase6_3d_gameplay_state_runtime_visible
-[phase6-gameplay-state] screenshot_bytes=662845
+[phase6-gameplay-state] screenshot_bytes=664646
 [browser-contract] Phase 6 3D asset policy controls
 [phase6-asset-policy] runtime contract
 [phase6-asset-policy] frontend and source guards
 [phase6-asset-policy] Chromium interaction proof
-(node:32324) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:31760) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 Running 1 test using 1 worker
 
-[1A[2K(node:13080) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:17552) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
-[1A[2K(node:13080) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+[1A[2K(node:17552) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 
-[1A[2K(node:13080) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
-
+[1A[2K(node:17552) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
+
 
 [1A[2K[1/1] [chromium] › e2e\organism.spec.ts:617:3 › Cloud Superbrain platform › organism Phase-6 asset policy applies procedural profiles without network access
 [1A[2K  1 passed (1.3m)
 [phase6-asset-policy] result=verified
 [phase6-asset-policy] evidence_ref=phase6_3d_asset_policy_runtime_visible
-[phase6-asset-policy] screenshot_bytes=656375
+[phase6-asset-policy] screenshot_bytes=660104
 [browser-contract] Phase 6 3D save and load controls
 [phase6-save-load] runtime contract
 [phase6-save-load] frontend and source guards
 [phase6-save-load] Chromium interaction proof
-(node:21404) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:32324) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 Running 1 test using 1 worker
 
-[1A[2K(node:23296) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:17264) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
-[1A[2K(node:23296) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+[1A[2K(node:17264) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 
-[1A[2K(node:23296) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:17264) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
 
 (Use `node --trace-warnings ...` to show where the warning was created)
-
 [1A[2K[1/1] [chromium] › e2e\organism.spec.ts:703:3 › Cloud Superbrain platform › organism Phase-6 save and load restores a volatile browser-memory snapshot
-[1A[2K  1 passed (2.1m)
+[1A[2K  1 passed (2.4m)
 [phase6-save-load] result=verified
 [phase6-save-load] evidence_ref=phase6_3d_save_load_runtime_visible
-[phase6-save-load] screenshot_bytes=672075
+[phase6-save-load] screenshot_bytes=668229
 [browser-contract] Phase 6 3D accessibility controls
 [phase6-accessibility] runtime contract
 [phase6-accessibility] frontend and source guards
 [phase6-accessibility] Chromium interaction proof
-(node:26524) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:25000) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 Running 1 test using 1 worker
 
-[1A[2K(node:21648) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+
+[1A[2K(node:21172) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
+[1A[2K(node:21172) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 
-
-[1A[2K(node:21648) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
-
-[1A[2K(node:21648) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:21172) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
 [1A[2K[1/1] [chromium] › e2e\organism.spec.ts:813:3 › Cloud Superbrain platform › organism Phase-6 accessibility honors reduced motion, focus, keyboard, and live status
-[1A[2K  1 passed (34.6s)
+[1A[2K  1 passed (42.9s)
 [phase6-accessibility] result=verified
-[phase6-accessibility] screenshot_bytes=491540
+[phase6-accessibility] screenshot_bytes=491647
 [browser-contract] Phase 6 3D netcode loopback controls
 [phase6-netcode] runtime contract
 [phase6-netcode] frontend and source guards
 [phase6-netcode] Chromium interaction proof
-(node:31696) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:18748) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 Running 1 test using 1 worker
 
-[1A[2K(node:23204) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:28304) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
-[1A[2K(node:23204) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+[1A[2K(node:28304) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 
-[1A[2K(node:23204) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:28304) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
 [1A[2K[1/1] [chromium] › e2e\organism.spec.ts:918:3 › Cloud Superbrain platform › organism Phase-6 netcode loopback enforces two-peer ready and lockstep boundaries
-[1A[2K  1 passed (1.6m)
+[1A[2K  1 passed (2.0m)
 [phase6-netcode] result=verified
-[phase6-netcode] screenshot_bytes=647469
+[phase6-netcode] screenshot_bytes=647038
 [browser-contract] Phase 6 local scoreboard and performance controls
 [phase6-scoreboard-performance] runtime contract
 [phase6-scoreboard-performance] frontend and source guards
 [phase6-scoreboard-performance] Chromium interaction proof
-(node:24692) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:10884) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 Running 1 test using 1 worker
 
-[1A[2K(node:28748) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:11812) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
-[1A[2K(node:28748) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+[1A[2K(node:11812) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 
-[1A[2K(node:28748) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[1A[2K(node:11812) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
 [1A[2K[1/1] [chromium] › e2e\organism.spec.ts:1014:3 › Cloud Superbrain platform › organism Phase-6 local scoreboard and performance sample stay browser-local
-[1A[2K  1 passed (3.2m)
+[1A[2K  1 passed (2.7m)
 [phase6-scoreboard-performance] result=verified
-[phase6-scoreboard-performance] screenshot_bytes=635104
+[phase6-scoreboard-performance] screenshot_bytes=659790
 [organism-topology] static topology surface
 [organism-topology] normalized frontend/backend mirror
 [organism-topology] mirror nodes=246 edges=500
@@ -525,7 +525,7 @@ Running 1 test using 1 worker
 [browser-contract] external gate mirror
 [browser-contract] Start Phase 2 Runtime
 [browser-contract] Organism Runtime Event Projection
-[organism-runtime-events] verified run_id=9545f25a-e12f-4c92-b64b-1f5810c66b3e source_kind=agent_api_redacted
+[organism-runtime-events] verified run_id=6068e3e1-532f-461f-a518-0f50b306c69e source_kind=agent_api_redacted
 [browser-contract] session history opens
 [browser-contract] Memory Consolidation: feed shape
 [browser-contract] checks completed
@@ -536,22 +536,22 @@ Running 1 test using 1 worker
 > cloud-superbrain-frontend@1.0.0 test:e2e:product-acceptance
 > playwright test e2e/product-acceptance.spec.ts --project=chromium --workers=1
 
-(node:8040) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:14740) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 Running 1 test using 1 worker
 
-(node:28648) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:5212) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:28648) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
-(node:28648) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:5212) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:5212) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-  ok 1 [chromium] › e2e\product-acceptance.spec.ts:148:1 › real prompt builds, runs, interacts, and reloads the persisted 3D game (40.1s)
+  ok 1 [chromium] › e2e\product-acceptance.spec.ts:148:1 › real prompt builds, runs, interacts, and reloads the persisted 3D game (50.1s)
 
-  1 passed (41.5s)
+  1 passed (51.9s)
 [product-acceptance] PASS DEV-ONLY; hosted proof still blocked
-[product-acceptance] build_id=e7b0c79f-1e21-406b-bde4-35110c479ee4 provider=cloudflare-workers-ai live_provider_calls=true
-[product-acceptance] report=D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\.codex\runs\CURRENT\product-acceptance\report.json sha256=EA42FA8BA3ABCE87388C62E491E5442DC885096CA70A628FC2B36462355EE897
+[product-acceptance] build_id=0bc1006a-82a9-40e6-bf2e-941595261f47 provider=cloudflare-workers-ai live_provider_calls=true
+[product-acceptance] report=D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\.codex\runs\CURRENT\product-acceptance\report.json sha256=6C70442F1E3608CB7E7F8ACE320735CA245D6A286CAA9866AE1AD77157D2CBB9
 [22-page-actions] DEV-ONLY base url: http://localhost:8081
 [22-page-actions] two registered build controls are explicitly approved; mocks, interception, and direct provider bypass are forbidden
 [22-page-actions] evidence: D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\.codex\runs\CURRENT\22-page-actions
@@ -559,27 +559,27 @@ Running 1 test using 1 worker
 > cloud-superbrain-frontend@1.0.0 test:e2e:22-page-actions
 > playwright test e2e/22-page-actions.spec.ts --project=chromium --workers=1
 
-(node:10800) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:540) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 
 Running 1 test using 1 worker
 
-(node:32536) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:30684) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:32536) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
-(node:32536) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:30684) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:30684) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-  ok 1 [chromium] › e2e\22-page-actions.spec.ts:1175:1 › all 22 canonical pages directly prove every enabled page-local action and reject unregistered controls (23.8m)
+  ok 1 [chromium] › e2e\22-page-actions.spec.ts:1175:1 › all 22 canonical pages directly prove every enabled page-local action and reject unregistered controls (21.6m)
 
-  Slow test file: [chromium] › e2e\22-page-actions.spec.ts (23.8m)
+  Slow test file: [chromium] › e2e\22-page-actions.spec.ts (21.6m)
   Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
-  1 passed (23.8m)
+  1 passed (21.6m)
 [22-page-actions] PASS DEV-ONLY; hosted proof still blocked
 [22-page-actions] routes=22 families=29 members=161 direct=160 preverified_exact=1
-[22-page-actions] report=D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\.codex\runs\CURRENT\22-page-actions\report.json sha256=7CC0B1EDBDC5E0C2336D1BB01DC4F92C409199C55E3B364C500051873CA6A125
+[22-page-actions] report=D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\.codex\runs\CURRENT\22-page-actions\report.json sha256=DC30B2DC4B257C302F63830CE6C1A18C66E4F2BCF95D6638E0DA3725EF9647B1
 [o4-browser] status=verified branch=claude/cloud-superbrain-analysis-127d2e audit_persisted=true secret_output=false
 [o4-browser] evidence=.phase1-artifacts/o4-live-writes/browser-proof.json
 [o4-write] status=verified gates=live_agent_tool_writes,live_mcp_writes
-[o4-write] evidence=.phase1-artifacts\o4-live-writes\proof.json sha256=C7518BDF7CBC1A5B8D0CC2C58676F81C32598CA64E83DB13D11E9D751FBDECE6
+[o4-write] evidence=.phase1-artifacts\o4-live-writes\proof.json sha256=6B314543B2B7FBE224848A705FE85E29D46123C6631E564CEB3657B7F5242090
 BROWSER_EXIT=0
 [phase5-evidence] exit_code=0

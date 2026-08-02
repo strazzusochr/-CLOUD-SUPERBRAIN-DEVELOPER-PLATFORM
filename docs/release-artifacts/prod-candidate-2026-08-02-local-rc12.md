@@ -4,16 +4,16 @@ release_id: `prod-candidate-2026-08-02-local-rc12`
 scope: `Session 16 completion-transition slice: portable CI contracts, diagnosable build boundary, and a six-service candidate rebound to the frozen source`
 environment: `production-candidate`
 source_branch: `claude/cloud-superbrain-analysis-127d2e`
-source_commit_sha: `d071481f64c559811f2f9f3f2c5b0b187e3148e9`
+source_commit_sha: `6261f9f89d803c36b449ba87a4d93e14411b31d0`
 source_commit_semantics: `frozen completion-transition source: six platform fixes that made the Phase-6 CI contracts executable on ubuntu-latest, two hardened runtime assertions, a diagnosable generation boundary, and the untracked TypeScript build cache removed`
-immutable_image_commit_sha: `d071481f64c559811f2f9f3f2c5b0b187e3148e9`
+immutable_image_commit_sha: `6261f9f89d803c36b449ba87a4d93e14411b31d0`
 workflow_run_url: `pending-source-checkout-attestation`
-pipeline_status: `pending: pr-check must run with candidate_sha=d071481f64c559811f2f9f3f2c5b0b187e3148e9 and source_prequalification=true so the source-checkout attestation binds this candidate`
+pipeline_status: `pending: pr-check must run with candidate_sha=6261f9f89d803c36b449ba87a4d93e14411b31d0 and source_prequalification=true so the source-checkout attestation binds this candidate`
 smoke_result: `passed DEV-ONLY; six-service candidate images verified, runtime chain 86 checks, browser chain green including 22 routes and 161 page-local actions; hosted proof still blocked`
 observability_check: `present`
 rollback_note: `local rollback target is RC11 source bae3cdc1692e1e99e7f546f72664a3c747958b8c; no hosted rollback is authorized or executed`
 rollback_target_commit_sha: `bae3cdc1692e1e99e7f546f72664a3c747958b8c`
-immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:d071481f64c559811f2f9f3f2c5b0b187e3148e9`
+immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:6261f9f89d803c36b449ba87a4d93e14411b31d0`
 immutable_tag_publish_status: `unpublished`
 rollback_drill_proof: `docs/runbooks/rollback-deploy.md`
 executed_rollback_rerun_proof: `docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-readiness.json`
