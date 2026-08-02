@@ -99,6 +99,7 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
   // Free-only hosted generation gets one bounded provider attempt per user prompt.
   const models: Array<[string, number]> = [[WORKBENCH_LLM_MODEL, 50000]];
   let lastErr: unknown = null;
+  let lastRejection: string | null = null;
   let gatewayReached = false;
   for (const [model, timeoutMs] of models) {
     try {
@@ -128,7 +129,18 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
       const out = (await response.json()) as Record<string, unknown>;
       if (!response.ok) throw new Error(String(out.error ?? out.detail ?? `LLM Gateway HTTP ${response.status}`));
       const choices = out.choices as Array<{ message?: { content?: string } }> | undefined;
-      const html = extractHtml(choices?.[0]?.message?.content ?? "");
+      const rawContent = choices?.[0]?.message?.content ?? "";
+      const html = extractHtml(rawContent);
+      // A 200 whose body fails these two gates used to fall straight through to the next
+      // attempt without recording anything, so lastErr stayed undefined and the caller saw the
+      // bare "generation failed" with no way to tell an incomplete document from a rejected one.
+      // Only the verdict and the sizes are captured — never the document, which is exactly the
+      // material containsSecretMaterial exists to guard.
+      if (!completePersistableHtml(html)) {
+        lastRejection = `incomplete_html (raw ${rawContent.length} chars, extracted ${html.length} chars)`;
+      } else if (containsSecretMaterial(html)) {
+        lastRejection = `secret_material_in_generated_html (${html.length} chars)`;
+      }
       if (completePersistableHtml(html) && !containsSecretMaterial(html)) {
         return {
           html,
@@ -143,7 +155,8 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
     }
   }
   if (!gatewayReached) return null;
-  throw new Error(lastErr instanceof Error ? lastErr.message : "generation failed");
+  if (lastErr instanceof Error) throw lastErr;
+  throw new Error(lastRejection ? `generation rejected: ${lastRejection}` : "generation failed");
 }
 
 async function persistBuild(req: Request, build: BuildRecord): Promise<Record<string, unknown> | null> {
@@ -281,7 +294,17 @@ export async function POST(req: Request): Promise<Response> {
       },
       { headers: { "x-superbrain-source": "llm-gateway-boundary", "cache-control": "no-store" } },
     );
-  } catch {
+  } catch (error) {
+    // This catch used to be unbound, which discarded the only evidence of why the primary
+    // product path failed and left "llm_gateway_generation_unavailable" as the sole signal for
+    // every possible cause. The reason is logged server-side only; the response body is
+    // unchanged so no internal detail reaches the client. Any long token-shaped run is redacted
+    // before logging so a provider error string can never carry a credential into the logs.
+    const reason = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    console.error(
+      "[build] generation boundary threw:",
+      reason.replace(/[A-Za-z0-9_\-]{24,}/g, "[redacted]").slice(0, 500),
+    );
     return Response.json(
       {
         contract_version: "frontend-provider-boundary-v1",

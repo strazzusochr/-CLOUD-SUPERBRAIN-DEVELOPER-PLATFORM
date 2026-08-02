@@ -530,6 +530,18 @@ async function findUnregisteredPageLocalControls(
     ...entry.families.flatMap((family) => family.memberActions.map((action) => action.locator)),
     ...entry.excludedGates.map((gate) => gate.locator),
   ];
+  if (entry.route === "/apps" || entry.route === "/games") {
+    // BuildsGallery renders "Lädt…" until its /api/v1/builds fetch resolves, so a snapshot taken
+    // during that window sees zero build-card controls and the coverage assertion below would
+    // fail on a timing artefact rather than on missing coverage. Wait for the first card to
+    // attach. A registry that genuinely has no cards still fails — the wait times out and the
+    // assertion is reached with a count of zero.
+    await page
+      .locator(".builds-gallery .bg-open")
+      .first()
+      .waitFor({ state: "attached", timeout: 20_000 })
+      .catch(() => undefined);
+  }
   const snapshot = await page.evaluate(({ candidateSelector, selectors }) => {
       const splitSelectorList = (value: string): string[] => {
         const parts: string[] = [];
