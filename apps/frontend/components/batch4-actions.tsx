@@ -50,68 +50,6 @@ export function HomeCortexHero() {
   );
 }
 
-export function HomeHeroProofPanel() {
-  const [result, setResult] = useState("Bereit — Prüfung noch nicht gestartet.");
-
-  function checkHero() {
-    setResult([
-      "PASS home_hero_check",
-      "visual=glowing_3d_cortex",
-      "source=client_3d",
-      "fake_stats=false",
-      "live_provider_calls=false",
-      "provider_writes=false",
-      "production_deploy=false",
-    ].join("\n"));
-  }
-
-  return (
-    <div className="goalb-action-panel" data-testid="goal-b-home-panel">
-      <div className="goalb-row">
-        <button
-          aria-label="DEV-ONLY-Cortex-Hero prüfen"
-          className="btn btn-sm btn-primary"
-          type="button"
-          data-testid="goal-b-home-hero-proof"
-          onClick={checkHero}
-        >
-          Cortex-Nachweis
-        </button>
-        <span className="badge badge-cyan">lokaler visueller Vertrag</span>
-      </div>
-      <ActionResult state={result} testId="goal-b-home-result" />
-    </div>
-  );
-}
-
-export function LoginDryRunPanel() {
-  const [result, setResult] = useState("Bereit — noch kein Login-Durchlauf.");
-
-  function choose(provider: "github" | "google" | "email" | "guest") {
-    setResult([
-      "PASS login_dry_run",
-      `provider=${provider}`,
-      "session_state=dry_run",
-      "live_oauth=false",
-      "provider_writes=false",
-      "secret_output=false",
-      "redirect_allowed=/workbench",
-    ].join("\n"));
-  }
-
-  return (
-    <div className="goalb-action-panel" data-testid="goal-b-login-panel">
-      <div className="goalb-row">
-        <button className="btn btn-sm" type="button" data-testid="goal-b-login-github" onClick={() => choose("github")}>GitHub-Dry-Run</button>
-        <button className="btn btn-sm" type="button" data-testid="goal-b-login-google" onClick={() => choose("google")}>Google-Dry-Run</button>
-        <button className="btn btn-sm" type="button" data-testid="goal-b-login-email" onClick={() => choose("email")}>E-Mail-Dry-Run</button>
-        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-login-guest" onClick={() => choose("guest")}>Gast-Dry-Run</button>
-      </div>
-      <ActionResult state={result} testId="goal-b-login-result" />
-    </div>
-  );
-}
-
 export function ObserveRuntimeProbe() {
   const [result, setResult] = useState("Bereit — noch keine Messung abgerufen.");
   const [busy, setBusy] = useState(false);

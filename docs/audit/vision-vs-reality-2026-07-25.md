@@ -1,5 +1,9 @@
 # Vision vs. Realität — Deep-Inventur
 
+> Historischer Auditstand. Für die fünf neu vermessenen Achsen und den
+> aktuellen 89-%-Stand gilt
+> `docs/audit/five-axis-substance-audit-2026-08-02.md`.
+
 Stand: 2026-07-27
 Audit-Stichtag: 2026-07-25 / Session 10
 Aktualisiert: 2026-07-27 / Session 11 (`agent-research-run-v3`, Topologiekarte)

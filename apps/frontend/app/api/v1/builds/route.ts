@@ -9,7 +9,7 @@ export async function GET(req: Request): Promise<Response> {
     status: "degraded",
     builds: [],
     persisted: false,
-    reason: "agent_api_build_registry_unavailable_or_not_implemented",
+    reason: "agent_api_build_registry_unavailable",
     note: "No Agent API build registry is reachable; no builds are claimed.",
   });
 }

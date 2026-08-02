@@ -2632,18 +2632,18 @@ p {
 .sw .sw-meta { padding: 8px 10px; font-size: 11px; }
 .sw .sw-meta b { display: block; font-size: 12px; color: var(--text-pri); }
 .sw .sw-meta span { color: var(--text-mut); font-family: var(--font-mono); }
-.chip-color.color-deep { background: #05070d; }
-.chip-color.color-surface-1 { background: #0b1020; }
-.chip-color.color-surface-2 { background: #121a32; }
-.chip-color.color-neuro-cyan { background: #00e5ff; }
-.chip-color.color-ion-blue { background: #3b82f6; }
-.chip-color.color-plasma-violet { background: #8b5cf6; }
-.chip-color.color-synapse-magenta { background: #ec4899; }
-.chip-color.color-memory-gold { background: #fbbf24; }
-.chip-color.color-success { background: #22c55e; }
-.chip-color.color-warning { background: #f59e0b; }
-.chip-color.color-danger { background: #ef4444; }
-.chip-color.color-text-primary { background: #eaf2ff; }
+.chip-color.color-deep { background: var(--bg-deep); }
+.chip-color.color-surface-1 { background: var(--surface-1); }
+.chip-color.color-surface-2 { background: var(--surface-2); }
+.chip-color.color-neuro-cyan { background: var(--cyan); }
+.chip-color.color-ion-blue { background: var(--blue); }
+.chip-color.color-plasma-violet { background: var(--violet); }
+.chip-color.color-synapse-magenta { background: var(--magenta); }
+.chip-color.color-memory-gold { background: var(--gold); }
+.chip-color.color-success { background: var(--green); }
+.chip-color.color-warning { background: var(--amber); }
+.chip-color.color-danger { background: var(--red); }
+.chip-color.color-text-primary { background: var(--text-pri); }
 
 /* Asset thumbs */
 .assets { display: flex; gap: 10px; flex-wrap: wrap; }

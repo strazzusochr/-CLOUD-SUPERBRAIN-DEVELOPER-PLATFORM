@@ -809,7 +809,7 @@ export default function OrganismView({ mode = "live" }: { mode?: "live" | "repla
                 </span>
               ) : null}
             </div>
-            {/* OPA gate badges overlay */}
+            {/* Internal policy-gate badges overlay; no external OPA runtime is claimed. */}
             <div className="org-gates">
               {CLOSED_GATES.slice(0, 4).map((g) => (
                 <span key={g} className="org-gate" title={`${g} Gate ist geschlossen`}>{g} · GESCHLOSSEN</span>

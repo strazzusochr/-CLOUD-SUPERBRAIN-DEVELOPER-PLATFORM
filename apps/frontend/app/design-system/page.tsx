@@ -8,7 +8,7 @@ export const metadata = { title: "Designsystem — Cloud Superbrain" };
 const COLORS = [
   { name: "Deep", hex: "#05070D", swatchClass: "color-deep" },
   { name: "Surface 1", hex: "#0B1020", swatchClass: "color-surface-1" },
-  { name: "Surface 2", hex: "#121A32", swatchClass: "color-surface-2" },
+  { name: "Surface 2", hex: "#101A31", swatchClass: "color-surface-2" },
   { name: "Neuro Cyan", hex: "#00E5FF", swatchClass: "color-neuro-cyan" },
   { name: "Ion Blue", hex: "#3B82F6", swatchClass: "color-ion-blue" },
   { name: "Plasma Violet", hex: "#8B5CF6", swatchClass: "color-plasma-violet" },

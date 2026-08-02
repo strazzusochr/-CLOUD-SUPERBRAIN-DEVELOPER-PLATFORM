@@ -4,7 +4,7 @@
 
 ## Projektauftrag fuer Hermes
 Plattform: D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM
-Stack: Next.js 15, LangGraph, FastAPI, pgvector
+Stack: Next.js 16.2.11, LangGraph, FastAPI, pgvector
 
 ## Verhalten
 - Multi-Datei-Tasks: Subagents spawnen (3 Worktrees bereits verfuegbar)
@@ -163,4 +163,3 @@ Use short progress updates while working. Do not create meta-documents unless th
 ---
 
 *AGENTS.md - Version 4.0 | 2026-04-29 | GPT-5.5 / Codex config drift cleanup*
-
