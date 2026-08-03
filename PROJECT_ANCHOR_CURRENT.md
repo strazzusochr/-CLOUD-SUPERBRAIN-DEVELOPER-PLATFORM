@@ -1,9 +1,64 @@
 # Cloud Superbrain Project Anchor
 
-## ⚓ CHECKPOINT 2026-08-02 — SESSION 14 (NEUESTER REFERENZPUNKT)
+## ⚓ CHECKPOINT 2026-08-03 — RC13 QUALIFIZIERT / OWNER-GATES OFFEN (NEUESTER REFERENZPUNKT)
+
+**Anchor ID:** `cloud-superbrain-anchor-2026-08-03-rc13-qualified-owner-blocked`
+**Status:** `ACTIVE_RESUME_POINT`
+**Workspace:** `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM` (Hauptordner!)
+**Branch:** `codex/organism-visual-v2`
+
+### AKTUELLER STAND (nachgemessen 2026-08-03)
+
+| Gegenstand | Ergebnis |
+|---|---|
+| RC13-Abschlusscommit | `f75e5e8f` |
+| Eingefrorene Candidate-Quelle | `db631ab3ffe2254309ae80aadc691b0bba6c372d` |
+| Aktiver Kandidat | `prod-candidate-2026-08-03-local-rc13` |
+| Rollback | `6261f9f89d803c36b449ba87a4d93e14411b31d0` (RC12) |
+| Source-attested CI | ✅ `pr-check` Run `30815984573`, Kontroll-Commit `f5f0a2fa`, `completed/success`; Kontrollzweig wurde per Merge `0b15bd3f` eingebunden, nicht cherry-picked |
+| RC13-Qualifikation | ✅ `runtime` · `browser` · `candidate_images` · `candidate_runtime` · `security`; Readiness `verified_with_owner_blocks`, P5 `17/19 = 89` |
+| Manifest | Overall **89** · P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 89 · P6 90 |
+| Vertikal | L1 100 · L2 100 · L3 100 · L4 55 · L5 56 · L6 100 · L7 100 |
+| O4 | ✅ dreifach revalidiert: Runtime-Proof → Browser → `PromoteGateOnFullPass` |
+| Realer Browser-Nachlauf | ✅ `22/22` Routen · `29/29` Familien · `161/161` Aktionen; Report-SHA-256 `F8411776BF6EBD74CD526F637A8567F8BB37647771C745D7950D10307F970141` |
+| Aggregate | `MARKET_READY:false`; keine Prozent- oder Gate-Erhöhung |
+| Scope | `DEV-ONLY; hosted proof still blocked` |
+
+### LETZTER VERIFIER-BEFUND
+
+- `npm run verify`: alle autonomen Prüfungen bis zum kanonischen Hosted-Abgleich grün; Stop exakt bei
+  **Cloudflare-Worker-Source-Parität**. Hosted Worker: `af61146e…`; RC13: `db631ab3…`.
+- `npm run verify:market-ready`: `AGGREGATE_STATE: INVALID`, `MARKET_READY: false`.
+  Erwartete Owner-Wände: Matrixzellen unter 100, stateful Hosted-Releaseprüfung, externe Gates und
+  source-gebundene Ready-Evidenz. Der Browserteil fiel zusätzlich rein lokal mit `ENOSPC` aus
+  (`D:` nur `0,278 GB` frei); nach dem recoverable Move des generierten `.next`-Caches nach
+  `C:\Users\immer\AppData\Local\Temp\superbrain-generated-next-rc13-market-ready`
+  waren `0,632 GB` frei und der exakt fehlgeschlagene 22-Seiten-Test bestand vollständig.
+- Der Aggregate-Report bleibt deshalb ehrlich rot; der isolierte Nachlauf ersetzt keinen Hosted-
+  oder Market-Ready-Beweis.
+
+### NÄCHSTER SCHRITT / OWNER-WÄNDE
+
+1. **Owner-Freigabe für den öffentlichen Cloudflare-Worker-Deploy/Rebind auf `db631ab3…`.**
+   Ohne diese Freigabe darf Codex die Source-Parität nicht herstellen; `npm run verify` bleibt dort rot.
+2. Danach seriell `npm run verify` erneut fahren und erst mit realem Hosted-Beweis weiterbinden.
+3. Weiterhin separat Owner-gegatet: O1 Production-OAuth-Identität, `AGENT_API_AUTH_TOKEN` für den
+   Phase-6-Write-Tier sowie O3 GHCR/Release-Promotion. Kein Secret ausgeben oder committen.
+4. L4 `55` und L5 `56` bleiben echte, verifiergeschützte Substanzlücken. Nicht von Hand erhöhen.
+
+### NICHT MITCOMMITTEN / NICHT VERÄNDERN
+
+- Fremd bzw. generiert dirty: `.codex/runs/CURRENT/product-acceptance/report.json`,
+  `apps/frontend/next-env.d.ts` und der bereits fremd gestagte RC12-Artefaktpfad.
+- Kein `git add -A`, kein Default-Branch-Push, kein GHCR-Push, kein Production-Deploy, keine
+  Secret-/Permission-Ausweitung und keine parallelen Docker-/Playwright-/Verifierläufe.
+
+---
+
+## ⚓ CHECKPOINT 2026-08-02 — SESSION 14 (HISTORISCHER REFERENZPUNKT)
 
 **Anchor ID:** `cloud-superbrain-anchor-2026-08-02-session14-unpushed-transition-slice`
-**Status:** `ACTIVE_RESUME_POINT`
+**Status:** `HISTORICAL_RESUME_POINT`
 **Aktive Übergabe:** `CODEX_UEBERGABE_2026-08-02-SESSION14.md` (Session 13 = Historie)
 **Workspace:** `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM` (Hauptordner!)
 **Branch:** `claude/cloud-superbrain-analysis-127d2e`
@@ -39,10 +94,10 @@ Browser-/Runtime-Beweis ohne vorheriges `start-dev-live.ps1` (Phantom-503).
 
 ---
 
-## ⚓ CHECKPOINT 2026-08-01 — SESSION 13j (NEUESTER REFERENZPUNKT)
+## ⚓ CHECKPOINT 2026-08-01 — SESSION 13j (HISTORISCHER REFERENZPUNKT)
 
 **Anchor ID:** `cloud-superbrain-anchor-2026-08-01-session13j-clean-clone-requalified`
-**Status:** `ACTIVE_RESUME_POINT`
+**Status:** `HISTORICAL_RESUME_POINT`
 **Workspace:** `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM` (Hauptordner!)
 **Branch:** `claude/cloud-superbrain-analysis-127d2e` · **HEAD = origin = `f7830977358a2f93bd356814aa50c762a8f9eafb`**
 
