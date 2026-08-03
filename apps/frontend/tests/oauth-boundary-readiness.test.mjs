@@ -49,7 +49,6 @@ loadBoundary((specifier) => {
 
 const {
   authorizeBoundaryWrite,
-  authorizePublicSecurityProbe,
   proxyAuthSessionToBoundary,
   proxyOAuthGetToBoundary,
   proxyReadToBoundary,
@@ -163,7 +162,7 @@ function mutationHandlerBodies(source) {
   }
   return boundaries
     .filter((entry) => ["POST", "PUT", "PATCH", "DELETE"].includes(entry.method))
-    .map((entry, index) => {
+    .map((entry) => {
       const position = boundaries.findIndex((candidate) => candidate.start === entry.start);
       const next = boundaries[position + 1];
       return source.slice(entry.start, next ? next.start : source.length);
