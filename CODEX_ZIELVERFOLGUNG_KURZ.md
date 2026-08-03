@@ -57,8 +57,9 @@ macht die Owner-Matrix **rot**.
 
 ## ✅ AUTONOM, SOFORT MÖGLICH
 
-1. **`organism-visual-v2`** — 5 von 7 Effekten fehlen (Dot-Globus, Matrix-Rain, Scanlines,
-   Shards, Waveform). Die Substanz ist echt: GLB lädt, Szene kommt aus
+1. **`organism-visual-v2`** — nach Codex' Nachtlauf sind **3 von 7** fertig (Brain-Mesh mit
+   Edges/Points/MeshTransmission, Bloom, Scanlines). Es fehlen: **Dot-Globus, Matrix-Rain,
+   Shards, Waveform**. Die Substanz ist echt: GLB lädt, Szene kommt aus
    `/api/v1/organism/live-state|events|replay`. **Optik-Lücke, keine Substanz-Lücke.**
    Additiv auf `CortexCanvas3D`, `data-testid` unverändert, voller `verify:browser` als Abnahme.
 2. **Die 5 ungemessenen Achsen** (Übergabe §8): 22 Seiten · L4/L5 · Docs-Versprechen ·
