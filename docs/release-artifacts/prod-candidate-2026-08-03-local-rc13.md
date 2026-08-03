@@ -7,8 +7,8 @@ source_branch: `codex/organism-visual-v2`
 source_commit_sha: `db631ab3ffe2254309ae80aadc691b0bba6c372d`
 source_commit_semantics: `frozen organism-visual-v2 source with the completed seven-effect organism presentation, paused-clock camera-test repair, OAuth verifier lint cleanup, and canonical five-axis substance measurement`
 immutable_image_commit_sha: `db631ab3ffe2254309ae80aadc691b0bba6c372d`
-workflow_run_url: `pending-source-checkout-attestation`
-pipeline_status: `pending: pr-check must run with candidate_sha=db631ab3ffe2254309ae80aadc691b0bba6c372d and source_prequalification=true so the source-checkout attestation binds this candidate`
+workflow_run_url: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/30815984573`
+pipeline_status: `GitHub Actions pr-check run 30815984573 passed with binding_mode source_checkout_attestation_v1; checked_out_sha equals the candidate and the control delta is a single allowed path`
 smoke_result: `passed DEV-ONLY; six-service candidate images and candidate runtime verified, full runtime chain green, full browser chain green with real Cloudflare Workers AI generation, 22 routes, 161 page-local actions, and O4 write proof; hosted proof still blocked`
 observability_check: `present`
 rollback_note: `local rollback target is RC12 source 6261f9f89d803c36b449ba87a4d93e14411b31d0; no hosted rollback is authorized or executed`
@@ -44,7 +44,7 @@ phase5_computed_percent: `89`
 
 | ID | JA/NEIN | Beleg |
 | --- | --- | --- |
-| C1 | JA | Source-bound GitHub Actions proof is required in the readiness evidence through the source-checkout attestation. |
+| C1 | JA | Source-bound GitHub Actions run 30815984573 is recorded in the readiness evidence through the source-checkout attestation. |
 | C2 | JA | Runtime, browser, security, candidate-image, and candidate-runtime chains are bound as hashed evidence. |
 | C3 | JA | Manifest, state, handoff, register, and release documents remain synchronized. |
 | C4 | JA | Runtime-source parity is fail-closed against the frozen candidate source. |
