@@ -1,0 +1,73 @@
+{
+    "contract_version":  "phase5-production-candidate-local-v1",
+    "evidence_ref":  "phase5_local_production_candidate_verified",
+    "endpoint":  "GET /api/v1/release-candidate/local/contract",
+    "phase_id":  "phase_5",
+    "phase5_progress_before_proof":  67,
+    "phase5_progress_after_proof":  68,
+    "proof_scope":  "local_content_addressed_production_candidate_preparation",
+    "source_boundary":  "committed_git_archive_only",
+    "service_count":  6,
+    "services":  [
+                     {
+                         "id":  "frontend",
+                         "dockerfile":  "apps/frontend/Dockerfile",
+                         "target":  "runner"
+                     },
+                     {
+                         "id":  "agent-api",
+                         "dockerfile":  "services/agent-api/Dockerfile"
+                     },
+                     {
+                         "id":  "agent-worker",
+                         "dockerfile":  "services/agent-worker/Dockerfile"
+                     },
+                     {
+                         "id":  "memory-worker",
+                         "dockerfile":  "services/memory-worker/Dockerfile"
+                     },
+                     {
+                         "id":  "mcp-gateway",
+                         "dockerfile":  "services/mcp-gateway/Dockerfile"
+                     },
+                     {
+                         "id":  "llm-gateway",
+                         "dockerfile":  "services/llm-gateway/Dockerfile"
+                     }
+                 ],
+    "required_image_labels":  [
+                                  "org.opencontainers.image.revision",
+                                  "org.opencontainers.image.source",
+                                  "org.opencontainers.image.version"
+                              ],
+    "required_proofs":  [
+                            "git_archive_sha256",
+                            "local_docker_image_ids",
+                            "oci_revision_label_parity",
+                            "embedded_source_hash_parity",
+                            "frontend_build_id_present",
+                            "candidate_scoped_rollback_target",
+                            "real_chromium_diagnostics_click"
+                        ],
+    "registry_publish":  false,
+    "hosted_staging_parity":  false,
+    "production_deploy":  false,
+    "release_promotion":  false,
+    "owner_review_approved":  false,
+    "live_provider_calls":  false,
+    "live_mcp_writes":  false,
+    "secret_output":  false,
+    "browser_proof":  {
+                          "route":  "/diagnostics",
+                          "label":  "Phase 5 Production Candidate",
+                          "real_click_required":  true,
+                          "screenshot_required":  true
+                      },
+    "verifier":  "scripts/verify-phase5-production-candidate-local.ps1",
+    "non_claims":  [
+                       "This is a local content-addressed candidate preparation proof, not a GHCR publication proof.",
+                       "Localhost evidence remains DEV-ONLY and does not prove hosted staging parity.",
+                       "No production deployment, release promotion, owner approval, live provider call, live MCP write, or secret output is authorized.",
+                       "The hosted release-candidate gate remains fail-closed until its external and Owner gates pass."
+                   ]
+}

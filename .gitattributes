@@ -17,3 +17,4 @@
 .phase1-artifacts/o4-live-writes/browser-proof.json binary -eol
 .phase1-artifacts/o4-live-writes/proof.json binary -eol
 .phase1-artifacts/o4-live-writes/runtime-proof.json binary -eol
+docs/release-artifacts/prod-candidate-*-evidence/** binary -eol

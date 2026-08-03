@@ -1,0 +1,82 @@
+[
+    {
+        "Id": "sha256:549a9cea46c0765f322ae1c4d5e8e7320441a186bb06208be039296c5d07d728",
+        "RepoTags": [
+            "cloud-superbrain-production-candidate/agent-api:db631ab3ffe2254309ae80aadc691b0bba6c372d"
+        ],
+        "RepoDigests": [
+            "cloud-superbrain-production-candidate/agent-api@sha256:549a9cea46c0765f322ae1c4d5e8e7320441a186bb06208be039296c5d07d728"
+        ],
+        "Comment": "buildkit.dockerfile.v0",
+        "Created": "2026-08-03T11:59:44.965338654Z",
+        "Config": {
+            "User": "appuser",
+            "ExposedPorts": {
+                "8000/tcp": {}
+            },
+            "Env": [
+                "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "PYTHON_VERSION=3.14.6",
+                "PYTHON_SHA256=143b1dddefaec3bd2e21e3b839b34a2b7fb9842272883c576420d605e9f30c63",
+                "PYTHONDONTWRITEBYTECODE=1",
+                "PYTHONUNBUFFERED=1"
+            ],
+            "Cmd": [
+                "uvicorn",
+                "app.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--no-access-log"
+            ],
+            "WorkingDir": "/app",
+            "Labels": {
+                "org.opencontainers.image.ref.name": "prod-candidate-2026-08-03-local-rc13",
+                "org.opencontainers.image.revision": "db631ab3ffe2254309ae80aadc691b0bba6c372d",
+                "org.opencontainers.image.source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+                "org.opencontainers.image.version": "prod-candidate-2026-08-03-local-rc13"
+            },
+            "ArgsEscaped": true
+        },
+        "Architecture": "amd64",
+        "Os": "linux",
+        "Size": 59277169,
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:34884abbe92863fce933ed7c39c0e045631af0ed86d5cc0dfbdf9fdca426ce3c",
+                "sha256:460337c1ba7e527ed7b05b71c37014059ba6b0a49b89073b152a6cc80586866c",
+                "sha256:d1acd644bdb683fa2347c9f7ba0ad074ec0cfa9f11b933fecab47e5eeb06428a",
+                "sha256:92a229ac48b6a870f271c0bc8b312b5dbf2e8957ea42dbc843e96daa68811f8e",
+                "sha256:99f512d22df16543783c07b22d6c261bd452569dd0171ede372ab9a11deffb71",
+                "sha256:ab0a453f15ef4c18294923d494865f425f04311d4f96f33ef293d104d5e654ea",
+                "sha256:f2e6e29db05f75c8e10ed46b8ea9db0a5375bc918ffb048012070b1f3d954234",
+                "sha256:3ec5c5f93f23f18dab2977f5a0c0456c141c1bc9f274493ce25defb2b3cac9bd",
+                "sha256:8b03c13b54e3067e006a2f9ab29a694535b4fc26b4f390ad03e2c2aa305ea224",
+                "sha256:21ab90d36f85fde1bad9771a00c2eab25f8370d361f67c142dcb98b0ac3d3cc6",
+                "sha256:8e2be45565f069c2a4f97cdae8964be0248bad15f5741d1f4ec091b9488ee943",
+                "sha256:e8b3c596e3c1db4d756800d94fdd8c50c0e5bda1deb96a09a29b3e6f9ae29dfe",
+                "sha256:caddd6dd7f75c9bd88f6ba1db3ab329c50b5351f218f17e16015734ea08061bd",
+                "sha256:9eb6e4e990dd5873a8a36f05288b4cff3a1b0a88539d31598d1ffcd708948ab0",
+                "sha256:861de2c59be2ae73a1eeec0846e413028a735b28aa108f85e8644ed2040869cb"
+            ]
+        },
+        "Metadata": {
+            "LastTagTime": "2026-08-03T11:59:58.371723473Z"
+        },
+        "Descriptor": {
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "digest": "sha256:549a9cea46c0765f322ae1c4d5e8e7320441a186bb06208be039296c5d07d728",
+            "size": 856
+        },
+        "Identity": {
+            "Build": [
+                {
+                    "Ref": "43t7bhdhq25a75h0ylblycqgq",
+                    "CreatedAt": "2026-08-03T12:00:02.67270912Z"
+                }
+            ]
+        }
+    }
+]
