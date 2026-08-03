@@ -96,3 +96,95 @@ DEV-ONLY-Evidenz als Hosted-Beweis ausgeben.
 ---
 
 *Details, Belege und Owner-Klickfolgen: `CODEX_UEBERGABE_2026-08-02-FINAL.md`*
+
+---
+
+# 📋 ANWEISUNGEN FÜR CODEX — Stand nach deinem Nachtlauf
+
+## Was du gebaut hast (gemessen, nicht behauptet)
+
+**56 Dateien, +2.749 / −803** gegenüber Kandidat `6261f9f8`. Am Organism sind jetzt fertig:
+`Edges` ✅ · `Scanline` ✅ · `MeshTransmissionMaterial` ✅ — zusammen mit `Points` und `Bloom`
+sind das **3 von 7** Plan-Effekten (vorher 1,5).
+
+**Noch offen:** Dot-Globus (Fibonacci-Sphäre) · Matrix-Rain (DOM-Layer, billiger als Shader) ·
+Shards (`PlaneGeometry`, opacity 0.06) · Waveform aus **echter** Telemetrie.
+
+## Deine Arbeit ist NICHT verifiziert — das ist der wichtigste Satz hier
+
+`apps/frontend` ist in `RUNTIME_SOURCE_PATHS`. Deine 56 Dateien erzeugen deshalb
+**Kandidaten-Drift**: `npm run verify` meldet
+`active candidate has committed or staged runtime-source drift`.
+
+**RC12 (`6261f9f8`) ist vollständig gebunden und CI-grün** — dein Slice hängt daran vorbei.
+Du brauchst **RC13**. Das ist kein Rückschritt, das ist die Regel: neue Runtime-Quelle = neuer Kandidat.
+
+## Deine nächsten Schritte, exakt in dieser Reihenfolge
+
+```
+1.  Slice fertig machen, dann Quelle EINFRIEREN. Ab hier kein Source-Commit mehr.
+2.  Statisch gruen fahren (schnell, kein Docker):
+      python -m unittest discover -s scripts/tests -p "test_verify_phase5_credit_itemization.py"   # 21/21
+      node --test apps/frontend/tests/oauth-boundary-readiness.test.mjs                            # 22/22
+      npm run verify:phase6-scale:static
+      pwsh -File scripts/verify-supply-chain-pins.ps1
+      npx tsc --noEmit -p apps/frontend/tsconfig.json
+3.  Images bauen:  build-phase5-production-candidate-local.ps1 -SourceSha <FROZEN>
+                   -ReleaseId prod-candidate-<datum>-local-rc13
+                   -RollbackTarget 6261f9f89d803c36b449ba87a4d93e14411b31d0
+                   -OutputDir .codex\runs\CURRENT\master-goal\phase5\production-candidate-local
+4.  O4 dreifach beweisen  (RuntimeProof -> Browser -> PromoteGateOnFullPass)   <- LETZTER Schritt vor den Ketten
+5.  npm run verify:runtime
+6.  start-dev-live.ps1  +  Gateway-Modus pruefen (MUSS 'cloudflare_workers_ai_live' sein)
+7.  Evidenz erzeugen (die Schreiber fahren die Ketten selbst):
+      write-phase5-local-verification-evidence.ps1 -Chain runtime
+      start-dev-live erneut  ->  -Chain browser
+      write-phase5-security-evidence.ps1
+      npm run verify:phase5-candidate-local
+8.  Metadaten + Evidenz committen   (Docs liegen ausserhalb RUNTIME_SOURCE_PATHS)
+9.  Kontroll-Commit DIREKT AUF DEN KANDIDATEN, eigener Branch:
+      git branch rc13-ctl <FROZEN> && <eine erlaubte Datei aendern> && commit && push
+10. gh workflow run pr-check.yml --ref rc13-ctl -f candidate_sha=<FROZEN> -f source_prequalification=true
+11. Attestation + GitHub-Readback herunterladen, in <release>-evidence/ committen,
+    Readiness schreiben, Itemisierung auf RC13 umhaengen
+12. python scripts/verify_phase5_credit_itemization.py   -> muss 'verified' sagen
+13. Kontroll-Branch in die Hauptlinie MERGEN (nicht cherry-picken)
+```
+
+## Fünf Fallen, die dich sonst Stunden kosten
+
+1. **`gh workflow run` nimmt einen Ref, keinen SHA.** Deshalb der eigene Branch in Schritt 9.
+   Alles, was zwischen Kandidat und Kontrolle liegt, landet im Kontroll-Delta — und der erlaubt
+   nur: `pr-check.yml`, `verify_phase5_credit_itemization.py` (+Tests),
+   `verify-main-deploy-transition.ps1`, `verify-supply-chain-pins.ps1`.
+2. **`verify:runtime` setzt den Gateway auf `deterministic_dry_run` zurück.** Danach liefert das
+   Modell einen 129-Zeichen-Stub und Product-Acceptance scheitert mit
+   `llm_gateway_generation_unavailable` — irreführend, aber korrekt. Immer Schritt 6 dazwischen.
+3. **O4 verlangt einen sauberen Worktree inkl. untracked unter `services/`.** Deine Entwürfe
+   (`model-registry`, `access_classes`, `cost_gate`) liegen deshalb jetzt in
+   `D:\_sb_tmp\superbrain-drafts-2026-08-02\`. **Nicht zurückkopieren** — sie brachen ausserdem
+   `verify-supply-chain-pins` (unpinned `python:3.12-slim`). Genau das war der Grund, warum du
+   immer einen Clean-Clone gebraucht hast.
+4. **Evidenz VERBATIM übernehmen.** Ich habe Summaries nachträglich „aufgeräumt" und damit die
+   Kreuzreferenz-Hashes gebrochen — genau der Manipulationsschutz.
+5. **Aus pwsh 7 vorher setzen:**
+   `$env:PSModulePath='C:\Program Files\WindowsPowerShell\Modules;C:\WINDOWS\system32\WindowsPowerShell\v1.0\Modules'`
+   sonst findet PS 5.1 sein eigenes `Get-FileHash` nicht. 38 von 39 npm-Scripts rufen 5.1.
+
+## Was ich in deinem Slice repariert habe — bitte nicht rückgängig machen
+
+**Alle fünf Evidenz-Schreiber** waren von `CANONICAL_SUCCESS_ANCHORS` abgekoppelt (Vergleich ist
+`==`, nicht Teilmenge). Behoben in `write-phase5-local-verification-evidence.ps1`,
+`write-phase5-security-evidence.ps1`, `verify-phase5-production-candidate-local.ps1`.
+Exit-Anker sind **Log-Pflicht**, aber **kein deklarierter Anker**.
+
+**Sechs Plattformfehler**, wegen derer dein Phase-6-CI-Step **nie gelaufen** ist (Backslash-Pfade,
+`git.exe`, hardcodiertes `D:\_sb_tmp`, nicht committete Workflow-Datei). Alle vier neuen CI-Steps
+liefen monatelang nur `skipped` — und enthielten beim ersten echten Lauf **alle** Fehler.
+
+**Regel daraus:** Einem neuen CI-Step erst nach einem **roten** Lauf glauben.
+
+## Was NICHT du bist — die Owner-Wände
+
+Worker-Deploy · O1 OAuth · `AGENT_API_AUTH_TOKEN` · O3 GHCR. Details in
+`CODEX_UEBERGABE_2026-08-02-FINAL.md` §5. **Nicht versuchen zu umgehen.**
