@@ -103,98 +103,80 @@ DEV-ONLY-Evidenz als Hosted-Beweis ausgeben.
 
 ---
 
-# 📋 ANWEISUNGEN FÜR CODEX — Stand nach deinem Nachtlauf
+# 📋 ANWEISUNGEN FÜR CODEX — RC13 ist gebunden, was jetzt zählt
 
-## Was du gebaut hast (gemessen, nicht behauptet)
+## Was du geliefert hast (unabhängig nachgemessen)
 
-**56 Dateien, +2.749 / −803** gegenüber Kandidat `6261f9f8`. Nachgemessen im Baum:
+| | |
+|---|---|
+| **RC13** | `db631ab3ffe2254309ae80aadc691b0bba6c372d` — eingefroren, lokal qualifiziert |
+| **CI grün** | Run `30815984573`, Kontroll-Commit `f5f0a2fa` auf `rc13-ctl`, sauber gemerged |
+| **P5-Verifier** | `verified mode=fully_itemized computed=89 credited=89 verified=17/19 blocked=I1,I5` |
+| **Organism** | **7 von 7** Effekten — nicht nur gebaut, sondern **kandidatengebunden bewiesen** |
+| **5 Achsen** | gemessen, kanonisch in `LAYER_MATRIX.md` |
 
-**Der Organism ist visuell FERTIG — 7 von 7 Plan-Effekten** (`db6c8c18`):
-`Edges` · `MeshTransmissionMaterial` · `Bloom` · `Scanline` · Fibonacci-Dot-Globus ·
-Shards (`PlaneGeometry`) · Waveform (`LineSegments`) · Matrix-Rain (auch in `styles.css`).
+**Der 13-Schritt-Plan der Vorversion ist vollständig abgearbeitet.** Zwei Dinge hast du dabei
+selbst gelöst, die nicht im Plan standen: den `.gitattributes`-Eintrag, ohne den die
+Roh-Log-Hashes zwischen Worktree und Index auseinanderlaufen, und den D:-Platzmangel
+(`.next` ausgelagert statt Beweise abgebrochen). Beides war richtig.
 
-**Und du hast die fünf Substanz-Achsen gemessen** (`4c526c69` → `LAYER_MATRIX.md` kanonisch).
-Das war die letzte offene Wissenslücke. Ergebnis für L4/L5: **echte fehlende Funktion**, kein
-zurückgehaltener Credit — Standardmodus `deterministic_dry_run`, Adapter bleiben contract/dry-run.
+**Prozente unverändert 89** — korrekt, RC13 fügt keine horizontale Phase hinzu.
 
-**Korrektur meinerseits:** Ich hatte „3 von 7" geschrieben. Das war ein Grep über einen
-Zwischenstand, nicht über deinen fertigen Commit. Falsch — es sind 7 von 7.
+---
 
-## Deine Arbeit ist NICHT verifiziert — das ist der wichtigste Satz hier
+## ⛔ WAS JETZT BLOCKIERT — und es ist nicht deine Arbeit
 
-`apps/frontend` ist in `RUNTIME_SOURCE_PATHS`. Deine 56 Dateien erzeugen deshalb
-**Kandidaten-Drift**: `npm run verify` meldet
-`active candidate has committed or staged runtime-source drift`.
+`npm run verify` stoppt weiterhin an **Cloudflare-Worker-Source-Parität**:
+gehostet läuft `af61146e`, Kandidat ist `db631ab3`.
 
-**RC12 (`6261f9f8`) ist vollständig gebunden und CI-grün** — dein Slice hängt daran vorbei.
-Du brauchst **RC13**. Das ist kein Rückschritt, das ist die Regel: neue Runtime-Quelle = neuer Kandidat.
+**Nicht umgehen.** Es ist eine Live-Fläche und eine Owner-Entscheidung. Wer den Verifier hier
+aufweicht, fälscht Hosted-Parität. Du hast das selbst einmal richtig benannt — dabei bleibt es.
 
-## Deine nächsten Schritte, exakt in dieser Reihenfolge
+Dasselbe gilt für O1 (OAuth), `AGENT_API_AUTH_TOKEN` (P6), O3 (GHCR). **Vier Owner-Wände.**
 
-```
-1.  Slice fertig machen, dann Quelle EINFRIEREN. Ab hier kein Source-Commit mehr.
-2.  Statisch gruen fahren (schnell, kein Docker):
-      python -m unittest discover -s scripts/tests -p "test_verify_phase5_credit_itemization.py"   # 21/21
-      node --test apps/frontend/tests/oauth-boundary-readiness.test.mjs                            # 22/22
-      npm run verify:phase6-scale:static
-      pwsh -File scripts/verify-supply-chain-pins.ps1
-      npx tsc --noEmit -p apps/frontend/tsconfig.json
-3.  Images bauen:  build-phase5-production-candidate-local.ps1 -SourceSha <FROZEN>
-                   -ReleaseId prod-candidate-<datum>-local-rc13
-                   -RollbackTarget 6261f9f89d803c36b449ba87a4d93e14411b31d0
-                   -OutputDir .codex\runs\CURRENT\master-goal\phase5\production-candidate-local
-4.  O4 dreifach beweisen  (RuntimeProof -> Browser -> PromoteGateOnFullPass)   <- LETZTER Schritt vor den Ketten
-5.  npm run verify:runtime
-6.  start-dev-live.ps1  +  Gateway-Modus pruefen (MUSS 'cloudflare_workers_ai_live' sein)
-7.  Evidenz erzeugen (die Schreiber fahren die Ketten selbst):
-      write-phase5-local-verification-evidence.ps1 -Chain runtime
-      start-dev-live erneut  ->  -Chain browser
-      write-phase5-security-evidence.ps1
-      npm run verify:phase5-candidate-local
-8.  Metadaten + Evidenz committen   (Docs liegen ausserhalb RUNTIME_SOURCE_PATHS)
-9.  Kontroll-Commit DIREKT AUF DEN KANDIDATEN, eigener Branch:
-      git branch rc13-ctl <FROZEN> && <eine erlaubte Datei aendern> && commit && push
-10. gh workflow run pr-check.yml --ref rc13-ctl -f candidate_sha=<FROZEN> -f source_prequalification=true
-11. Attestation + GitHub-Readback herunterladen, in <release>-evidence/ committen,
-    Readiness schreiben, Itemisierung auf RC13 umhaengen
-12. python scripts/verify_phase5_credit_itemization.py   -> muss 'verified' sagen
-13. Kontroll-Branch in die Hauptlinie MERGEN (nicht cherry-picken)
-```
+---
 
-## Fünf Fallen, die dich sonst Stunden kosten
+## ✅ WAS AUTONOM ÜBRIG BLEIBT — die ehrliche Liste
 
-1. **`gh workflow run` nimmt einen Ref, keinen SHA.** Deshalb der eigene Branch in Schritt 9.
-   Alles, was zwischen Kandidat und Kontrolle liegt, landet im Kontroll-Delta — und der erlaubt
-   nur: `pr-check.yml`, `verify_phase5_credit_itemization.py` (+Tests),
-   `verify-main-deploy-transition.ps1`, `verify-supply-chain-pins.ps1`.
-2. **`verify:runtime` setzt den Gateway auf `deterministic_dry_run` zurück.** Danach liefert das
-   Modell einen 129-Zeichen-Stub und Product-Acceptance scheitert mit
-   `llm_gateway_generation_unavailable` — irreführend, aber korrekt. Immer Schritt 6 dazwischen.
-3. **O4 verlangt einen sauberen Worktree inkl. untracked unter `services/`.** Deine Entwürfe
-   (`model-registry`, `access_classes`, `cost_gate`) liegen deshalb jetzt in
-   `D:\_sb_tmp\superbrain-drafts-2026-08-02\`. **Nicht zurückkopieren** — sie brachen ausserdem
-   `verify-supply-chain-pins` (unpinned `python:3.12-slim`). Genau das war der Grund, warum du
-   immer einen Clean-Clone gebraucht hast.
-4. **Evidenz VERBATIM übernehmen.** Ich habe Summaries nachträglich „aufgeräumt" und damit die
-   Kreuzreferenz-Hashes gebrochen — genau der Manipulationsschutz.
-5. **Aus pwsh 7 vorher setzen:**
-   `$env:PSModulePath='C:\Program Files\WindowsPowerShell\Modules;C:\WINDOWS\system32\WindowsPowerShell\v1.0\Modules'`
-   sonst findet PS 5.1 sein eigenes `Get-FileHash` nicht. 38 von 39 npm-Scripts rufen 5.1.
+Nach dem Audit ist genau **eine** substanzielle Fläche offen. Sie bewegt die Prozente **nicht**
+(Vertikale zählen nicht ins `overall`), schließt aber die echte Funktionslücke:
 
-## Was ich in deinem Slice repariert habe — bitte nicht rückgängig machen
+**L4 (55 %) — LLM Gateway.** Fehlt laut eigener Messung: volle Live-Flotte · dynamisches
+Routing · Responses-**Streaming**. Standardmodus `deterministic_dry_run` ist der Schutz,
+nicht der Defekt.
 
-**Alle fünf Evidenz-Schreiber** waren von `CANONICAL_SUCCESS_ANCHORS` abgekoppelt (Vergleich ist
-`==`, nicht Teilmenge). Behoben in `write-phase5-local-verification-evidence.ps1`,
-`write-phase5-security-evidence.ps1`, `verify-phase5-production-candidate-local.ps1`.
-Exit-Anker sind **Log-Pflicht**, aber **kein deklarierter Anker**.
+**L5 (56 %) — MCP Gateway.** Fehlt: GitHub-, PostgreSQL-, Filesystem-, Playwright- und
+E2B-Adapter jenseits von contract/dry-run; Writes bleiben allowlist- und owner-gegatet.
 
-**Sechs Plattformfehler**, wegen derer dein Phase-6-CI-Step **nie gelaufen** ist (Backslash-Pfade,
-`git.exe`, hardcodiertes `D:\_sb_tmp`, nicht committete Workflow-Datei). Alle vier neuen CI-Steps
-liefen monatelang nur `skipped` — und enthielten beim ersten echten Lauf **alle** Fehler.
+**Bevor du daran arbeitest:** Für L4/L5 existiert **keine autoritative Credit-Rubrik**. Ohne sie
+ist jede Prozentbewegung Fake-Grün — zwei Verifier prüfen die Null aktiv. Ein Rubrik-Vorschlag
+steht in `CODEX_UEBERGABE_2026-08-02-SESSION14.md`; er braucht **Owner-Freigabe**, bevor er zählt.
 
-**Regel daraus:** Einem neuen CI-Step erst nach einem **roten** Lauf glauben.
+**Reihenfolge:** Funktion bauen und lokal beweisen → Rubrik freigeben lassen → RC14.
+Nicht umgekehrt.
 
-## Was NICHT du bist — die Owner-Wände
+---
 
-Worker-Deploy · O1 OAuth · `AGENT_API_AUTH_TOKEN` · O3 GHCR. Details in
-`CODEX_UEBERGABE_2026-08-02-FINAL.md` §5. **Nicht versuchen zu umgehen.**
+## 🧹 AUFRÄUMEN BEIM NÄCHSTEN LAUF
+
+- `rc13-ctl` (lokal + origin) erst löschen, wenn RC13 nicht mehr aktiv ist — **nicht vorher**,
+  die Attestation verweist darauf.
+- Worktree unter `D:\_sb_tmp\rc13-ctl` entfernen.
+- `.next` liegt unter `C:\Users\immer\AppData\Local\Temp\superbrain-generated-next-rc13-market-ready`.
+- **`D:` war bei ~0 GB.** Vor jedem Image-Build Platz prüfen — ein voller Datenträger hat schon
+  einmal das Docker-Dateisystem beschädigt (Session 14, `fsck` nötig).
+
+---
+
+## 🚫 UNVERÄNDERT VERBOTEN
+
+Prozente oder `live_verified` von Hand · L4/L5 ohne freigegebene Rubrik hochsetzen ·
+kanonische Anker aufweichen · Hosted-Deploy ohne Freigabe · Zahlung/Karte/Paid Provider ·
+Secrets ausgeben (**nur Pfad + Fundtyp**) · Token rotieren · Force-Push ·
+Push auf Default-Branch · `git add -A` · DEV-ONLY als Hosted-Beweis ausgeben.
+
+**Vier Wände:** Kreditkarte/Zahlung · Passwort-Konten · CAPTCHA · Secrets ausgeben/committen.
+
+---
+
+*RC13 `db631ab3` · CI `30815984573` grün · Overall 89 · Gates 7/10 zu · `MARKET_READY:false`*
