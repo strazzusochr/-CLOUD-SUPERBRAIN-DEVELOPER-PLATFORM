@@ -1,4 +1,4 @@
-# 🎯 ZIEL-VERFOLGUNG (KURZ) — Endspurt, Stand 2026-08-02
+# 🎯 ZIEL-VERFOLGUNG (KURZ) — Endspurt, Stand 2026-08-03 (RC13)
 
 > **Reihenfolge in JEDER Session:** (1) diese Datei → (2) `CODEX_UEBERGABE_2026-08-02-FINAL.md`
 > → (3) Preflight → (4) arbeiten. `…SESSION14.md` = Detailprotokoll, `…SESSION13.md` = Historie.
@@ -11,9 +11,9 @@ Owner-gewallte Reste ehrlich als **OWNER-BLOCKED** listen — **nie faken (R0)**
 
 ---
 
-## 🚀 START HIER — Kandidat `6261f9f8` · CI `30762156522` **grün**
+## 🚀 START HIER — Kandidat **RC13** `db631ab3` · CI `30815984573` **grün**
 
-**RC12 ist gebunden. Der Verifier bestätigt es selbst:**
+**RC13 ist gebunden. Der Verifier bestätigt es selbst:**
 
 ```
 [phase5-credit] verified mode=fully_itemized computed=89 credited=89 verified=17/19 blocked=I1,I5
@@ -34,7 +34,7 @@ $env:PSModulePath='C:\Program Files\WindowsPowerShell\Modules;C:\WINDOWS\system3
 ## ⛔ DER EINE BLOCKER — Owner-Entscheidung, kein Bug
 
 `npm run verify` stoppt an **Cloudflare-Worker-Source-Parität**: der gehostete Worker läuft auf
-`af61146e`, der Kandidat ist `6261f9f8`.
+`af61146e`, der Kandidat ist `db631ab3`.
 
 Auflösen heißt **einen öffentlich erreichbaren Live-Worker neu deployen**. Kostenlos
 (zero-card), aber eine Live-Fläche — deshalb rührt kein Agent das an. Danach läuft die Kette durch.
@@ -45,7 +45,7 @@ Auflösen heißt **einen öffentlich erreichbaren Live-Worker neu deployen**. Ko
 
 | Wand | öffnet | Art |
 |---|---|---|
-| **Worker-Deploy** auf `6261f9f8` | `npm run verify` | Live-Fläche, keine Zahlung |
+| **Worker-Deploy** auf `db631ab3` | `npm run verify` | Live-Fläche, keine Zahlung |
 | **O1** OAuth-Identität | P3 +56 | braucht **zuerst** Architekturentscheidung: CF-native **oder** hosted PG+Redis. Vercel ist read-only und kann O1 nicht erfüllen. Scope nur `read:user` |
 | **`AGENT_API_AUTH_TOKEN`** | P6 +10 | **Secret, keine Zahlung.** Danach 900 echte Requests |
 | **O3** GHCR | P5 +11 | **zyklisch** — Push verboten vor `MARKET_READY:true`, das GHCR-Digests verlangt. Owner muss den Zyklus brechen |

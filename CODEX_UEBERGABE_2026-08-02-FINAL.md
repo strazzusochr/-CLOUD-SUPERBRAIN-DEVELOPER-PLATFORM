@@ -1,4 +1,4 @@
-# 🏁 ÜBERGABE — ENDSPURT AUF MARKTREIFE (Stand 2026-08-02)
+# 🏁 ÜBERGABE — ENDSPURT AUF MARKTREIFE (Stand 2026-08-03, RC13)
 
 > **Aktive Übergabe.** `CODEX_UEBERGABE_2026-08-02-SESSION14.md` = Detailprotokoll (§14–§17 mit
 > allen Herleitungen), `…SESSION13.md` = Historie.
@@ -8,13 +8,13 @@
 
 ## 1. DIE LAGE IN SECHS SÄTZEN
 
-1. **RC12 ist gebunden, der Verifier bestätigt es selbst:**
+1. **RC13 ist gebunden, der Verifier bestätigt es selbst:**
    `verified mode=fully_itemized computed=89 credited=89 verified=17/19 blocked=I1,I5`
 2. **Ein technischer Blocker steht noch:** der gehostete Cloudflare-Worker läuft auf alter Quelle.
    Das ist eine **Owner-Entscheidung**, kein Bug (§5.1).
 3. **Drei Capability-Gates bleiben owner-gewallt** — Klicks und Secrets, keine Arbeit (§5).
 4. **Overall 89 ist echt.** Kein Prozent wurde je hochgesetzt; die Verifier machen es strukturell unmöglich.
-5. **`/organism` ist visuell fertig — 7 von 7 Effekten** (Codex, `db6c8c18`), unverifiziert (§6).
+5. **`/organism` ist visuell fertig — 7 von 7 Effekten** (`db6c8c18`) und **in RC13 verifiziert** (§6).
 6. **Die fünf Substanz-Achsen sind gemessen** (`4c526c69`, `LAYER_MATRIX.md`): bei **L4/L5 fehlt
    echte Funktion**, kein zurückgehaltener Credit (§8).
 
@@ -24,15 +24,15 @@
 
 | Gegenstand | Wert |
 |---|---|
-| Branch | `claude/cloud-superbrain-analysis-127d2e` (Default `chore/repo-bootstrap`, **kein `main`**) |
-| **Kandidat** | `6261f9f89d803c36b449ba87a4d93e14411b31d0` |
-| Kontroll-Commit | `16a16fd03e69a3cc3a4941a5c82f4b2c9e68eb85` |
-| **CI grün** | Run `30762156522` — **alle Steps** |
+| Branch | `codex/organism-visual-v2` (Default `chore/repo-bootstrap`, **kein `main`**) |
+| **Kandidat (RC13)** | `db631ab3ffe2254309ae80aadc691b0bba6c372d` |
+| Kontroll-Commit | `f5f0a2fac884a443fe3f34ef20272c1fc67991a0` (Branch `rc13-ctl`, gemerged) |
+| **CI grün** | Run `30815984573` — **alle Steps** |
 | Bindung | `source_checkout_attestation_v1`, `checked_out_sha == candidate_sha`, control_delta = 1 erlaubter Pfad |
 | Overall | **89** = `round(Σ H / 7)` · P3 44 · P5 89 · P6 90 · L4 55 · L5 56 |
 | P5 | `fully_itemized`, 17/19, blockiert **I1** + **I5** |
 | Gates | **7/10 zu**; offen: `production_auth_identity`, `docker_registry_publish`, `phase6_scale_runtime` |
-| Rollback-Anker | RC11 `bae3cdc1692e1e99e7f546f72664a3c747958b8c` |
+| Rollback-Anker | **RC12** `6261f9f89d803c36b449ba87a4d93e14411b31d0` |
 
 **Fremd-dirty, nie mitcommitten:** `.codex/runs/CURRENT/product-acceptance/report.json`
 **Entwürfe ausgelagert:** `D:\_sb_tmp\superbrain-drafts-2026-08-02\` — model-registry,
@@ -107,7 +107,7 @@ cd services/cloudflare-stateful-runtime && npm test                       # 24/2
 ### 5.1 SOFORT ENTSCHEIDBAR — Cloudflare-Worker-Deploy
 
 `npm run verify` stoppt an `current Cloudflare-native hosted Worker source parity`.
-`docs/runtime-state/cloudflare-native-hosted-current.json` nennt `af61146e`, Kandidat ist `6261f9f8`.
+`docs/runtime-state/cloudflare-native-hosted-current.json` nennt `af61146e`, Kandidat ist `db631ab3`.
 
 - **Was fehlt:** Worker aus dem Kandidaten neu deployen.
 - **Warum kein Agent das tut:** verändert eine **öffentlich erreichbare Live-Fläche**.
@@ -164,8 +164,8 @@ Required Reviewer. Pakete **privat** lassen — public ist irreversibel.
 | 6 | Shards (`PlaneGeometry`) | ✅ |
 | 7 | Waveform (`LineSegments`) aus echter Telemetrie | ✅ |
 
-**Aber: unverifiziert.** `apps/frontend` liegt in `RUNTIME_SOURCE_PATHS` — der Slice erzeugt
-Kandidaten-Drift gegen RC12 und braucht **RC13** (Ziel-Datei, Codex-Anweisungen).
+**Und verifiziert:** Der Slice ist als **RC13** eingefroren, lokal qualifiziert (6 Images, Runtime,
+Browser, Security, Candidate-Runtime) und über CI `30815984573` source-attestiert.
 
 ---
 
@@ -217,7 +217,7 @@ nur schaden, wenn jemand `git add -A` benutzt. Genau deshalb ist das verboten.
 2. Owner: AGENT_API_AUTH_TOKEN setzen                -> P6 900-Request-Beweis -> P6 100
 3. Owner: Architekturentscheidung Hosted-Auth        -> O1 -> P3 100
 4. Owner: O3-Zyklus brechen + Environments anlegen   -> GHCR -> P5 100
-5. Agent: RC13 fuer Codex' Organism-Slice binden     -> 7/7 Effekte verifiziert
+5. [ERLEDIGT] RC13 gebunden, CI 30815984573 gruen    -> 7/7 Effekte verifiziert
 6. Agent: L4/L5 echte Funktion bauen (§8)           -> Live-Flotte, Routing, Adapter
 7. verify:market-ready -IncludeExternalGates         -> MARKET_READY: true
 ```
@@ -242,5 +242,5 @@ Secrets ausgeben oder committen.
 
 ---
 
-*Stand 2026-08-02 · Kandidat `6261f9f8` · CI `30762156522` grün · Overall 89 · Gates 7/10 zu ·
-`MARKET_READY:false` · DEV-ONLY; hosted proof still blocked*
+*Stand 2026-08-03 · Kandidat **RC13** `db631ab3` · CI `30815984573` grün · Overall 89 ·
+Gates 7/10 zu · `MARKET_READY:false` · DEV-ONLY; hosted proof still blocked*
