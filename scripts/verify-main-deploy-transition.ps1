@@ -248,3 +248,7 @@ exit 0
 # Control commit marker: source-prequalification binding for the RC12 candidate.
 # Placed directly on the candidate so the control delta stays inside the allowed path list;
 # evidence commits necessarily come later, because they are produced by running against it.
+
+# Control commit marker: source-prequalification binding for the RC13 candidate.
+# Placed directly on the frozen candidate so CI can attest the exact source while the local
+# qualification evidence remains on the separate mainline metadata commit.
