@@ -57,14 +57,17 @@ macht die Owner-Matrix **rot**.
 
 ## ✅ AUTONOM, SOFORT MÖGLICH
 
-1. **`organism-visual-v2`** — nach Codex' Nachtlauf sind **3 von 7** fertig (Brain-Mesh mit
-   Edges/Points/MeshTransmission, Bloom, Scanlines). Es fehlen: **Dot-Globus, Matrix-Rain,
-   Shards, Waveform**. Die Substanz ist echt: GLB lädt, Szene kommt aus
-   `/api/v1/organism/live-state|events|replay`. **Optik-Lücke, keine Substanz-Lücke.**
-   Additiv auf `CortexCanvas3D`, `data-testid` unverändert, voller `verify:browser` als Abnahme.
-2. **Die 5 ungemessenen Achsen** (Übergabe §8): 22 Seiten · L4/L5 · Docs-Versprechen ·
-   halbfertiger Code · Inspector/Replay/Design-System. Das Audit lief **zweimal ins Limit** —
-   **sequenziell inline messen, nicht per Subagent.**
+**Beides ist erledigt — von Codex, in seinem Nachtlauf:**
+
+1. ✅ **`organism-visual-v2` ist FERTIG — 7 von 7 Effekten** (`db6c8c18`). Im Baum nachgemessen:
+   `Edges` · `MeshTransmission` · `Bloom` · `Scanline` · Fibonacci-Dot-Globus · Shards ·
+   Waveform · Matrix-Rain (auch in `styles.css`). **Unverifiziert** — braucht RC13.
+2. ✅ **Die 5 Achsen sind gemessen** (`4c526c69`, kanonisch in `LAYER_MATRIX.md`).
+   Antwort auf *„überall fehlt die Hälfte"*: **bei L4/L5 stimmt es, es ist echte Arbeit** —
+   L4 55 %: Standardmodus ist `deterministic_dry_run`, volle Live-Flotte, dynamisches Routing
+   und Responses-Streaming sind **nicht belegt**. L5 56 %: GitHub-/PostgreSQL-/Filesystem-/
+   Playwright-/E2B-Adapter bleiben contract/dry-run, Writes allowlist- und owner-gegatet.
+   **Das ist fehlende Funktion, nicht zurückgehaltener Credit.**
 
 ---
 
@@ -104,12 +107,18 @@ DEV-ONLY-Evidenz als Hosted-Beweis ausgeben.
 
 ## Was du gebaut hast (gemessen, nicht behauptet)
 
-**56 Dateien, +2.749 / −803** gegenüber Kandidat `6261f9f8`. Am Organism sind jetzt fertig:
-`Edges` ✅ · `Scanline` ✅ · `MeshTransmissionMaterial` ✅ — zusammen mit `Points` und `Bloom`
-sind das **3 von 7** Plan-Effekten (vorher 1,5).
+**56 Dateien, +2.749 / −803** gegenüber Kandidat `6261f9f8`. Nachgemessen im Baum:
 
-**Noch offen:** Dot-Globus (Fibonacci-Sphäre) · Matrix-Rain (DOM-Layer, billiger als Shader) ·
-Shards (`PlaneGeometry`, opacity 0.06) · Waveform aus **echter** Telemetrie.
+**Der Organism ist visuell FERTIG — 7 von 7 Plan-Effekten** (`db6c8c18`):
+`Edges` · `MeshTransmissionMaterial` · `Bloom` · `Scanline` · Fibonacci-Dot-Globus ·
+Shards (`PlaneGeometry`) · Waveform (`LineSegments`) · Matrix-Rain (auch in `styles.css`).
+
+**Und du hast die fünf Substanz-Achsen gemessen** (`4c526c69` → `LAYER_MATRIX.md` kanonisch).
+Das war die letzte offene Wissenslücke. Ergebnis für L4/L5: **echte fehlende Funktion**, kein
+zurückgehaltener Credit — Standardmodus `deterministic_dry_run`, Adapter bleiben contract/dry-run.
+
+**Korrektur meinerseits:** Ich hatte „3 von 7" geschrieben. Das war ein Grep über einen
+Zwischenstand, nicht über deinen fertigen Commit. Falsch — es sind 7 von 7.
 
 ## Deine Arbeit ist NICHT verifiziert — das ist der wichtigste Satz hier
 

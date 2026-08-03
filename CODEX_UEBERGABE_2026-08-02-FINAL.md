@@ -14,10 +14,9 @@
    Das ist eine **Owner-Entscheidung**, kein Bug (§5.1).
 3. **Drei Capability-Gates bleiben owner-gewallt** — Klicks und Secrets, keine Arbeit (§5).
 4. **Overall 89 ist echt.** Kein Prozent wurde je hochgesetzt; die Verifier machen es strukturell unmöglich.
-5. **`/organism` sieht nicht aus wie das Referenzvideo** — 5 von 7 Effekten fehlen. Er ist aber
-   **echt datengetrieben**, kein Screensaver (§6).
-6. **Nie gemessen:** ob die 22 Seiten, L4/L5 und die Docs-Versprechen substanziell sind (§8).
-   **Nicht raten — messen.**
+5. **`/organism` ist visuell fertig — 7 von 7 Effekten** (Codex, `db6c8c18`), unverifiziert (§6).
+6. **Die fünf Substanz-Achsen sind gemessen** (`4c526c69`, `LAYER_MATRIX.md`): bei **L4/L5 fehlt
+   echte Funktion**, kein zurückgehaltener Credit (§8).
 
 ---
 
@@ -153,22 +152,20 @@ Required Reviewer. Pakete **privat** lassen — public ist irreversibel.
 `/api/v1/organism/live-state`, `/events`, `/replay` · Bloom + Vignette + EffectComposer aktiv ·
 `runState` aus echter Telemetrie.
 
-**Optik fehlt — 5 von 7 Effekten (Plan §12.3):**
+**Optik ist FERTIG — 7 von 7 Effekten (Plan §12.3), geliefert von Codex in `db6c8c18`:**
 
 | # | Geplant | Status |
 |---|---|---|
-| 1 | Brain-Mesh: `Edges` + `Points` + `MeshTransmissionMaterial` | **teilweise** (`Points` ✅) |
+| 1 | Brain-Mesh: `Edges` + `Points` + `MeshTransmissionMaterial` | ✅ |
 | 2 | Bloom | ✅ |
-| 3 | Dot-Globus (Fibonacci-Sphäre) | ❌ |
-| 4 | Matrix-Rain (DOM-Layer, billiger als Shader) | ❌ |
-| 5 | Scanlines/HUD | ❌ |
-| 6 | Shards (`PlaneGeometry`, opacity 0.06) | ❌ |
-| 7 | Waveform aus **echter** Telemetrie | ❌ |
+| 3 | Dot-Globus (Fibonacci-Sphäre) | ✅ |
+| 4 | Matrix-Rain (auch in `styles.css`) | ✅ |
+| 5 | Scanlines/HUD | ✅ |
+| 6 | Shards (`PlaneGeometry`) | ✅ |
+| 7 | Waveform (`LineSegments`) aus echter Telemetrie | ✅ |
 
-**Optik-Lücke, keine Substanz-Lücke** — Stunden bis Tage.
-**Regeln:** eigener Branch · **additiv** auf `CortexCanvas3D` (997 Zeilen, an 7 Phase-6-Browser-
-beweise gebunden) · `data-testid` **unverändert** · voller `verify:browser` als Abnahme ·
-**nie während eines offenen RC**.
+**Aber: unverifiziert.** `apps/frontend` liegt in `RUNTIME_SOURCE_PATHS` — der Slice erzeugt
+Kandidaten-Drift gegen RC12 und braucht **RC13** (Ziel-Datei, Codex-Anweisungen).
 
 ---
 
@@ -191,20 +188,21 @@ beweise gebunden) · `data-testid` **unverändert** · voller `verify:browser` a
 
 ---
 
-## 8. WAS NIE GEMESSEN WURDE — nicht raten
+## 8. DIE FÜNF SUBSTANZ-ACHSEN — jetzt gemessen
 
-Ein 6-Achsen-Audit *„im Dokument versprochen, nie gebaut"* wurde **zweimal gestartet und lief nie
-durch** (Session-Limits). **Null Ergebnisse.** Ehrlich unbekannt:
+**Erledigt.** Codex hat die fünf Achsen gemessen (`4c526c69`); Ergebnis ist kanonisch in
+`LAYER_MATRIX.md`. Meine frühere Aussage *„nie gemessen"* ist damit überholt.
 
-| Achse | Frage |
-|---|---|
-| 22 Seiten | Echte Features oder Hüllen? Der Audit beweist Klickbarkeit, **nicht** Substanz |
-| L4 (55) / L5 (56) | Was fehlt **wirklich** vs. was existiert und nur nicht gutgeschrieben ist |
-| Docs-Versprechen | Jeder benannte Endpoint/Service gegen den Code |
-| Halbfertiges | TODO/stub/`NotImplementedError` auf dem Produktpfad |
-| Ziel vs. Realität | Inspector? Replay-UI? NeuroGlass-Design-System als Tokens? |
+**Die Antwort auf „überall fehlt die Hälfte":** bei L4/L5 **stimmt es — und es ist echte
+fehlende Funktion, kein zurückgehaltener Credit.**
 
-**Sequenziell inline messen, nicht per Subagent** — die liefen zweimal ins Limit.
+| Layer | vorhanden | was fehlt (Zitat `LAYER_MATRIX.md`) |
+|---|---|---|
+| **L4 55 %** | OpenAI-kompatible Chat-/Responses-Verträge, Routing/Policy/Fallback/Budget, begrenzter Workers-AI-Livepfad | Standardmodus ist `deterministic_dry_run`; **volle Live-Flotte, dynamisches Routing und Responses-Streaming sind nicht belegt** |
+| **L5 56 %** | Safe-Envelopes mit Scope/Timeout/Audit/Versionspins, interne Read-only-Tools, begrenzter O4-Dateiwrite | GitHub-, PostgreSQL-, Filesystem-, Playwright- und **E2B-Adapter bleiben contract/dry-run**; Writes allowlist- und owner-gegatet |
+
+L1–L3, L6, L7 stehen bei 100 % mit benannter Implementierung; der Wahrheitsrand ist überall
+**DEV-ONLY, Hosted-Parität je Kandidat neu zu belegen**.
 
 **Offener Sicherheitshinweis:** Ein Vollscan des Arbeitsverzeichnisses meldet **7 gitleaks-Funde**
 — alle in **untracked** Build-/Testartefakten. Das **Kandidaten-Archiv ist sauber**. Sie können
@@ -219,8 +217,8 @@ nur schaden, wenn jemand `git add -A` benutzt. Genau deshalb ist das verboten.
 2. Owner: AGENT_API_AUTH_TOKEN setzen                -> P6 900-Request-Beweis -> P6 100
 3. Owner: Architekturentscheidung Hosted-Auth        -> O1 -> P3 100
 4. Owner: O3-Zyklus brechen + Environments anlegen   -> GHCR -> P5 100
-5. Agent: organism-visual-v2 (§6)                    -> Optik zum Referenzvideo
-6. Agent: die 5 ungemessenen Achsen (§8) messen      -> L4/L5-Wahrheit
+5. Agent: RC13 fuer Codex' Organism-Slice binden     -> 7/7 Effekte verifiziert
+6. Agent: L4/L5 echte Funktion bauen (§8)           -> Live-Flotte, Routing, Adapter
 7. verify:market-ready -IncludeExternalGates         -> MARKET_READY: true
 ```
 
