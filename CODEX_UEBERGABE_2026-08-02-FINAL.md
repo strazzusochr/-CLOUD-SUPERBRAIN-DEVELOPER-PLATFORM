@@ -213,7 +213,7 @@ nur schaden, wenn jemand `git add -A` benutzt. Genau deshalb ist das verboten.
 ## 9. ENDSPURT — Reihenfolge
 
 ```
-1. Owner: Cloudflare-Worker auf 6261f9f8 deployen   -> npm run verify laeuft durch
+1. Owner: Cloudflare-Worker auf db631ab3 deployen   -> npm run verify laeuft durch
 2. Owner: AGENT_API_AUTH_TOKEN setzen                -> P6 900-Request-Beweis -> P6 100
 3. Owner: Architekturentscheidung Hosted-Auth        -> O1 -> P3 100
 4. Owner: O3-Zyklus brechen + Environments anlegen   -> GHCR -> P5 100
