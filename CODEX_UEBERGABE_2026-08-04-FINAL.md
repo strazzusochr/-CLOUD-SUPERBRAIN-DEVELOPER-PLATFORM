@@ -1,6 +1,8 @@
 # 🏁 ÜBERGABE — Stand 2026-08-04 · RC13 · **Optik zurückgestellt, Funktion zuerst**
 
-> **Aktive Übergabe.** Ersetzt `CODEX_UEBERGABE_2026-08-02-FINAL.md`.
+> ⚠️ **HISTORIE — nicht mehr aktiv.** Der gesamte Inhalt ist in `CODEX_ZIELVERFOLGUNG_KURZ.md`
+> überführt (Abschnitte R1–R4 und die Codex-Anweisungen). Diese Datei bleibt nur als Protokoll
+> der Session vom 2026-08-04 stehen. **Arbeitsgrundlage ist ausschließlich die Ziel-Datei.**
 > Regelwerk: **`REGELN_OPTIK_UND_FERTIG.md`** (R-VIS-1…8, R-SELF-1…3) — **vor jeder Arbeit lesen.**
 > Reihenfolge: (1) `CODEX_ZIELVERFOLGUNG_KURZ.md` → (2) diese Datei → (3) Preflight §4 → (4) arbeiten.
 

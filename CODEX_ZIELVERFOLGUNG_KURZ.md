@@ -1,7 +1,10 @@
 # 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-08-04 · RC13
 
-> **Reihenfolge in JEDER Session:** (1) diese Datei — **Codex-Anweisungen stehen am Ende** → (2) `CODEX_UEBERGABE_2026-08-04-FINAL.md`
-> → (3) **`REGELN_OPTIK_UND_FERTIG.md`** → (4) Preflight → (5) arbeiten.
+> **Dies ist die EINZIGE Arbeitsdatei.** Aufbau: Ziel → Owner-Entscheidung → Start → Befunde →
+> Wände → Reihenfolge → Regeln → **Anweisungen für Codex** → **Referenz** (Details, Test-Inventar,
+> Owner-Klickfolgen).
+> **Zweites und letztes Dokument:** `REGELN_OPTIK_UND_FERTIG.md` — das Regelwerk mit den Belegen.
+> Alle `CODEX_UEBERGABE_*.md` sind **Historie**.
 
 ## ENDZIEL
 
@@ -250,3 +253,98 @@ Hosted-Deploy ohne Owner-Freigabe · Zahlung/Karte/Paid Provider/Fly.io/R2 ·
 Secrets ausgeben (**nur Pfad + Fundtyp**) · DEV-ONLY als Hosted-Beweis ausgeben.
 
 **Vier Wände:** Kreditkarte/Zahlung · Passwort-Konten · CAPTCHA · Secrets ausgeben/committen.
+
+---
+
+# 📚 REFERENZ — Details, die man nicht auswendig kennt
+
+## R1 · Vollständiger Ist-Stand
+
+| Gegenstand | Wert |
+|---|---|
+| Branch | `codex/organism-visual-v2` (Default `chore/repo-bootstrap`, **kein `main`**) |
+| **Kandidat RC13** | `db631ab3ffe2254309ae80aadc691b0bba6c372d` |
+| Kontroll-Commit | `f5f0a2fac884a443fe3f34ef20272c1fc67991a0` (`rc13-ctl`, gemerged) |
+| CI grün am | Run `30815984573`, **2026-08-03 13:29** — siehe Blocker §1 |
+| **Rollback-Anker** | RC12 `6261f9f89d803c36b449ba87a4d93e14411b31d0` |
+| Overall | **89** · P3 44 · P5 89 · P6 90 · L4 55 · L5 56 |
+| Gates | **7/10 zu**; offen: `production_auth_identity`, `docker_registry_publish`, `phase6_scale_runtime` |
+
+**Fremd-dirty, nie mitcommitten:** `.codex/runs/CURRENT/product-acceptance/report.json`
+**Entwürfe ausgelagert:** `D:\_sb_tmp\superbrain-drafts-2026-08-02\` — `model-registry`,
+`access_classes`, `cost_gate`. Sie brachen Supply-Chain **und** O4. Nicht zurückkopieren.
+
+---
+
+## R2 · Test-Inventar — was welcher Befehl wirklich prüft
+
+**Ohne Docker:**
+
+| Befehl | Prüft |
+|---|---|
+| `npm run verify` | Gesamtkette Phase 1 — **derzeit ROT**, siehe §1 |
+| `python scripts/verify_phase5_credit_itemization.py` | P5-Credit, Evidenz, CI-Bindung, 32 Anker |
+| `python -m unittest discover -s scripts/tests -p "test_verify_phase5*"` | 21 Tests |
+| `node --test apps/frontend/tests/oauth-boundary-readiness.test.mjs` | 22/22 OAuth-Grenze |
+| `pwsh -File scripts/verify-supply-chain-pins.ps1` | 23 Actions / 18 Images / 9 unique / 6 GHCR |
+| `pwsh -File scripts/verify-vector-memory-gate.ps1` | Vektor-Gate + Beweis-Artefakt (§2) |
+| `pwsh -File scripts/verify-main-deploy-transition.ps1` | Immutable-Candidate-GHCR-Vertrag |
+| `npm run verify:phase6-scale:static` | Zero-Request-Preflight, Tamper-Guards |
+| `npm run verify:current-release-candidate` | Kandidatenbindung |
+| `cd services/cloudflare-stateful-runtime && npm test` | 24 Worker-Tests |
+
+**Mit Docker:** `npm run verify:runtime` (86 Prüfungen) ·
+`npm run verify:browser` (Contract → Product-Acceptance → 22 Seiten/161 Aktionen → O4)
+
+**Owner-gated:** `verify-phase6-scale-runtime.ps1 -AllowHostedWrites` ·
+`verify-market-ready.ps1 -IncludeExternalGates`
+
+**Existiert NICHT:** Pixelvergleich, Visual-Regression-Baseline.
+
+---
+
+## R3 · Die vier Owner-Wände im Detail
+
+**① Cloudflare-Worker-Deploy** auf `db631ab3` → `npm run verify` läuft durch.
+Live-Fläche, **keine Zahlung** (zero-card).
+> **Falle:** `wrangler secret put` scheitert mit **CF-10053** — es sind `plain_text`-Vars.
+> Richtig: `wrangler deploy --keep-vars --var …`
+
+**② O1 — OAuth-Identität** → P3 +56.
+Braucht **zuerst** eine Architekturentscheidung: CF-native stateful **oder** hosted Agent-API mit
+PostgreSQL+Redis. Der Vercel-Ursprung ist read-only und kann O1 **nicht** erfüllen.
+GitHub → Settings → Developer settings → OAuth Apps → New OAuth App ·
+Callback `https://<AUTH_PUBLIC_ORIGIN>/api/v1/auth/callback` · Scope **nur `read:user`**.
+Variablen: `GITHUB_OAUTH_CLIENT_ID` · `_CLIENT_SECRET` · `_REDIRECT_URI` · `JWT_SIGNING_SECRET`.
+**Abnahme = 10 echte Browserschritte:** Cancel→401 · Scope prüfen · Authorize · Reload ·
+Refresh rotiert · Replay→401 · Callback-Replay scheitert · Logout widerruft + Audit.
+
+**③ `AGENT_API_AUTH_TOKEN`** → P6 +10. Ein Secret, keine Zahlung.
+Danach exakt **900 echte Requests**: 60@c1 + 240@c10 + 500@c50 Reads, 50 POST mit
+serverseitigem D1-Readback, 50 authentifizierte DELETEs.
+Schwellen: Erfolg ≥ 0,99 · p95 ≤ 1500 ms · eigene 5xx **exakt 0** · Cleanup vollständig.
+Ohne Flag: **null Requests**, `Blocked` = exit 2.
+
+**④ O3 — GHCR** → P5 +11, **zyklisch**: Push verboten vor `MARKET_READY:true`, das aber
+GHCR-Digests verlangt. Owner muss den Zyklus brechen.
+Settings → Environments → `registry-publication` **und** `production`, je mit Required Reviewer.
+Pakete **privat** lassen — public ist irreversibel.
+
+> **Zahlung öffnet nichts.** `payment_required` ist bei O1/O2/O3 `false`; eine im Manifest
+> abgebildete Zahlung macht `owner-input-matrix` **rot**.
+
+---
+
+## R4 · Organismus — Befund für später
+
+Vollständig mit Zeilennummern in **`REGELN_OPTIK_UND_FERTIG.md`** (B1–B17). Kurzfassung:
+`core.glb` ist eine **Icosphere**, kein Gehirn · die Komponente `Brain` ist eine
+Fibonacci-Punktwolke (X × 1.28 → Ellipsoid) · Dot-Globus = 21 %-Satellit ohne Kontinente ·
+Matrix-Rain = waagerechte **104 × 9 px**-Striche bei ~9 % Deckkraft, cyan statt grün ·
+Shards = 12 Rechtecke bei 6 % · Waveform = 2D-SVG-Polyline · `MeshTransmission` unter
+Playwright abgeschaltet · Bloom stammt aus einem älteren Commit.
+
+**Die Substanz ist echt** (Live-State/Events/Replay, Run-State-Filter, Kamera/Licht/Belichtung,
+Gameplay, Asset-Policy, Snapshot, Accessibility, Multiplayer-Loopback, Performance, WebGPU).
+
+**Per Owner-Entscheidung: ganz zuletzt.**
