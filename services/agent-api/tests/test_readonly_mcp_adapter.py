@@ -60,6 +60,10 @@ class FakeResult:
 
 
 class FakeConnection:
+    def __init__(self, *, trace_id: str = "trace-filesystem-unit", identity_mismatch: bool = False) -> None:
+        self.trace_id = trace_id
+        self.identity_mismatch = identity_mismatch
+
     def __enter__(self):
         return self
 
@@ -70,10 +74,18 @@ class FakeConnection:
         normalized = " ".join(sql.split())
         now = datetime(2026, 8, 7, tzinfo=timezone.utc)
         if normalized.startswith("SELECT id"):
+            before_identity = {
+                "tool_request_id": "filesystem-progress-request-unit",
+                "run_id": "filesystem-progress-run-unit",
+                "session_id": "44444444-4444-4444-8444-444444444444",
+            }
+            after_identity = dict(before_identity)
+            if self.identity_mismatch:
+                after_identity["tool_request_id"] = "filesystem-progress-request-other"
             return FakeResult(
                 rows=[
-                    (UUID(PRE_AUDIT), "planner", {"toolset": "filesystem", "capability": "read_project_progress", "audit_tags": ["read_phase:authorized"]}, now),
-                    (UUID(POST_AUDIT), "planner", {"toolset": "filesystem", "capability": "read_project_progress", "audit_tags": ["read_phase:completed"], "content_sha256": "a" * 64}, now),
+                    (UUID(PRE_AUDIT), "planner", {**before_identity, "toolset": "filesystem", "capability": "read_project_progress", "audit_tags": ["read_phase:authorized"], "trace_id": self.trace_id}, now),
+                    (UUID(POST_AUDIT), "planner", {**after_identity, "toolset": "filesystem", "capability": "read_project_progress", "audit_tags": ["read_phase:completed"], "trace_id": self.trace_id, "content_sha256": "a" * 64}, now),
                 ]
             )
         if normalized.startswith("INSERT INTO audit_log"):
@@ -87,6 +99,7 @@ class ReadOnlyMcpAdapterTests(unittest.TestCase):
             os.environ,
             {
                 "AGENT_API_AUTH_TOKEN": TOKEN,
+                "DATABASE_URL": "postgresql://unit:unit@localhost:5432/unit",
                 "SUPERBRAIN_RUNTIME_MODE": "dev-only",
                 "MCP_GATEWAY_URL": "http://mcp-gateway:9000",
             },
@@ -128,7 +141,10 @@ class ReadOnlyMcpAdapterTests(unittest.TestCase):
         self.assertEqual(get.call_count, 1)
         self.assertEqual(get.call_args.args[0], "http://mcp-gateway:9000/internal/v1/filesystem/project-progress")
         self.assertEqual(get.call_args.kwargs["timeout"], 3.0)
-        self.assertEqual(get.call_args.kwargs["headers"], {"x-superbrain-agent-token": TOKEN})
+        self.assertEqual(
+            get.call_args.kwargs["headers"],
+            {"x-superbrain-agent-token": TOKEN, "x-trace-id": "trace-filesystem-unit"},
+        )
         self.assertEqual(result["status"], "success")
         self.assertEqual(result["tool_id"], "filesystem_project_progress")
         self.assertEqual(result["audit_event_id"], AGENT_AUDIT)
@@ -136,6 +152,7 @@ class ReadOnlyMcpAdapterTests(unittest.TestCase):
         self.assertTrue(result["mcp_audit_readback_verified"])
         self.assertTrue(result["filesystem_read_performed"])
         self.assertEqual(result["result"]["overall_percent"], 89)
+        self.assertEqual(result["result"]["bytes_read"], 4096)
         self.assertNotIn("path", result["result"])
         self.assertNotIn("content", result["result"])
         for field in ("live_mcp_writes", "live_provider_calls", "direct_provider_calls", "production_deploy", "secret_output"):
@@ -148,6 +165,36 @@ class ReadOnlyMcpAdapterTests(unittest.TestCase):
                 main.execute_read_only_tool(request, self.http_request)
         self.assertEqual(caught.exception.status_code, 503)
         self.assertEqual(get.call_count, 1)
+
+    def test_mcp_audit_trace_mismatch_withholds_result(self) -> None:
+        response = httpx.Response(
+            200,
+            json=mcp_payload(),
+            request=httpx.Request("GET", "http://mcp-gateway:9000/internal/v1/filesystem/project-progress"),
+        )
+        request = main.ReadOnlyToolExecuteRequest(tool_id="filesystem_project_progress", query=QUERY)
+        with (
+            patch.object(main.httpx, "get", return_value=response),
+            patch.object(main.psycopg, "connect", return_value=FakeConnection(trace_id="wrong-trace")),
+        ):
+            with self.assertRaises(HTTPException) as caught:
+                main.execute_read_only_tool(request, self.http_request)
+        self.assertEqual(caught.exception.status_code, 503)
+
+    def test_mcp_audit_identity_mismatch_withholds_result(self) -> None:
+        response = httpx.Response(
+            200,
+            json=mcp_payload(),
+            request=httpx.Request("GET", "http://mcp-gateway:9000/internal/v1/filesystem/project-progress"),
+        )
+        request = main.ReadOnlyToolExecuteRequest(tool_id="filesystem_project_progress", query=QUERY)
+        with (
+            patch.object(main.httpx, "get", return_value=response),
+            patch.object(main.psycopg, "connect", return_value=FakeConnection(identity_mismatch=True)),
+        ):
+            with self.assertRaises(HTTPException) as caught:
+                main.execute_read_only_tool(request, self.http_request)
+        self.assertEqual(caught.exception.status_code, 503)
 
     def test_wrong_query_non_dev_missing_token_and_bad_payload_fail_closed(self) -> None:
         request = main.ReadOnlyToolExecuteRequest(tool_id="filesystem_project_progress", query="../PROJECT_STATE.md")

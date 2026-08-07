@@ -87,6 +87,12 @@ class ProjectProgressFilesystemAdapterTests(unittest.TestCase):
         with patch.object(main, "post_audit_event", side_effect=self.audit_events()) as audit:
             result = main.execute_filesystem_project_progress_read(TOKEN, "trace-unit")
         self.assertEqual(audit.call_count, 2)
+        self.assertTrue(all(call.args[0].trace_id == "trace-unit" for call in audit.call_args_list))
+        before_request = audit.call_args_list[0].args[0]
+        after_request = audit.call_args_list[1].args[0]
+        self.assertEqual(before_request.tool_request_id, after_request.tool_request_id)
+        self.assertEqual(before_request.run_id, after_request.run_id)
+        self.assertEqual(before_request.session_id, after_request.session_id)
         self.assertEqual(result["status"], "success")
         self.assertEqual(result["contract_version"], "filesystem-project-progress-read-v1")
         self.assertEqual(result["trace_id"], "trace-unit")
