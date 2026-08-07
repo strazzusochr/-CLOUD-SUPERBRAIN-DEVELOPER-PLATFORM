@@ -83,6 +83,13 @@ Hard constraints:
 - No secrets in code, logs, examples, commits, generated files, or final answers.
 - No fake done: implementation, tests, integration, audit evidence, rollback note, and verifier update must exist before completion claims.
 
+## Storage / Backup Retention
+
+- Do not create a backup, recovery clone, or proof worktree unless it is needed for the active task.
+- After a new backup has been verified, keep only that newest verified backup plus one explicitly required rollback copy; delete superseded generated backups, recovery clones, test profiles, and caches immediately.
+- `.phase1-artifacts/` and `docs/release-artifacts/` are protected evidence, never cleanup targets. Resolve junction targets before deleting anything.
+- Never delete the active worktree or `D:\_sb_tmp\rc13-ctl`. Cleanup must use exact validated paths and finish with `git status --porcelain | Select-String '^ D'` returning no tracked deletions.
+
 ---
 
 ## Localhost / Cloud-Native Rule

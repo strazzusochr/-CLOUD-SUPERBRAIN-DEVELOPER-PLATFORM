@@ -127,17 +127,24 @@ Gates bleiben in Evidence, Diagnostics, Organism und read-only Wiring getrennt.
 
 `scripts\verify-llm-responses-contract.ps1` beweist lokal den
 Responses-kompatiblen LLM-Gateway-Adapter: `GET /llm/api/v1/responses/contract`
-liefert `llm-responses-adapter-contract-v1`, `POST /llm/v1/responses` bleibt im
+liefert `llm-responses-adapter-contract-v2`, `POST /llm/v1/responses` bleibt im
 dry-run auf `live_provider_calls=false`, `model_downloads=false` und
-`audit_persisted=true`, und die Negativfaelle `stream=true -> 501` sowie
-ungueltige `metadata -> 422` sind fail-closed. Das ist DEV-ONLY und aktiviert
-keinen Live-Provider.
+`audit_persisted=true`. `stream=true` liefert das deterministische Protokoll
+`openai-responses-sse-v1` bis `response.completed` ohne Chat-Completions-`[DONE]`;
+Audit-Persistenz erfolgt vor dem ersten SSE-Frame und Fehler liefern `503` ohne
+Completion-Event. Instructions werden als Systemkontext angewendet; ein auf 64
+Eintraege/1800 Sekunden begrenzter Prozessspeicher loest `previous_response_id`
+auf. Ungueltige Metadaten, Stream-Typen, Live-Flags, Kontext-IDs und ungebundene
+Eingaben bleiben fail-closed. Das ist DEV-ONLY und aktiviert keinen Live-Provider.
 
 `scripts\verify-live-agent-steering-contract.ps1` beweist lokal den
 Live-Agent-Steering-Pfad: `GET /api/v1/live-agents/contract`,
 `POST /api/v1/live-agents/steer`, `POST /api/steer-agent`,
 `GET /api/v1/live-agents/status` und Reset bleiben an
-`llm-responses-adapter-contract-v1` gebunden. Runtime-Antworten spiegeln
+`llm-responses-adapter-contract-v2` gebunden. Runtime-Antworten spiegeln
 `live_provider_calls=false`, `model_downloads=false`, `audit_persisted=true`
 und `secret_output=false`; `unknown agent -> 404` und `empty message -> 422`
-sind fail-closed. Das ist DEV-ONLY und aktiviert keinen Live-Provider.
+sind fail-closed. Request-Metadaten duerfen weder Trace/Rollen/Projektwerte
+ueberschreiben noch Provider-Nutzung freigeben; abgelaufene Gateway-Kontexte
+werden einmalig sichtbar mit `continuity_reset=true` neu begonnen. Das ist
+DEV-ONLY und aktiviert keinen Live-Provider.

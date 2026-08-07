@@ -333,21 +333,21 @@ Autopilot stream proof now runs through the active Agent API/Nginx stack at `<lo
 
 Live agent steering contract guard:
 
-- `services/agent-api/app/main.py` now imports the existing `llm_gateway_url` helper, uses `httpx` explicitly, and mirrors LLM Gateway safety fields on steering responses.
+- `services/agent-api/app/main.py` keeps trace/role/project/provider-gate metadata server-owned, bounds caller metadata to 8192 bytes, and mirrors LLM Gateway safety plus `continuity_reset` on steering responses.
 - Steering responses expose `trace_id`, `evidence_ref`, `llm_gateway_contract_version`, `llm_gateway_evidence_ref`, `live_provider_calls=false`, `model_downloads=false`, `audit_persisted=true`, and `secret_output=false` in the DEV-ONLY dry-run path.
-- `scripts/verify-live-agent-steering-contract.ps1` checks source guards, runtime contract, LLM Gateway contract, reset, steering, Redis session state, audit trace visibility, compatibility route, `unknown agent -> 404`, and `empty message -> 422`.
+- `scripts/verify-live-agent-steering-contract.ps1` checks source guards, runtime contract, LLM Gateway contract, reset, steering, Redis session state, audit trace visibility, compatibility route, and caller metadata spoof/provider-authorization rejection.
 - The guard is wired into `scripts/verify-browser-contract.ps1` and statically guarded by `scripts/verify-phase1.ps1`; `docs/runtime-contracts/live-agent-steering-contract.md` documents the boundary.
-- Verified by Python compile, Docker DEV rebuild/restart, isolated verifier, full `npm run verify:browser`, and full `scripts\verify-phase1.ps1` including gitleaks with no leaks.
+- Current v2 slice is verified by Python compile, service-container unit tests, 10/10 healthy DEV containers, and the isolated runtime verifier; full serial truth suites remain separate gates.
 - Localhost evidence is `DEV-ONLY`; no hosted proof, cloud mutation, deploy, release promotion, live provider call, live MCP write, secret use, or progress increase.
 
 LLM responses adapter contract guard:
 
-- `services/llm-gateway/app/main.py` now exposes `GET /api/v1/responses/contract` with `contract_version=llm-responses-adapter-contract-v1` and `evidence_ref=llm_responses_adapter_contract_visible`.
+- `services/llm-gateway/app/main.py` exposes `GET /api/v1/responses/contract` with `contract_version=llm-responses-adapter-contract-v2`, protocol `openai-responses-sse-v1`, and evidence `llm_responses_adapter_contract_visible`.
 - `POST /llm/v1/responses` returns a Responses-compatible payload with `output`, `output_text`, `trace_id`, `live_provider_calls=false`, `model_downloads=false`, and `audit_persisted=true` in the DEV-ONLY dry-run path.
 - `services/agent-api/app/main.py` links the same contract from `GET /api/v1/live-agents/contract` through `GET /llm/api/v1/responses/contract` and keeps Agent API direct-provider calls closed.
-- `scripts/verify-llm-responses-contract.ps1` checks source guards, the runtime contract, live-agent contract wiring, a dry-run runtime call, audit trace visibility, `stream=true -> 501`, and invalid `metadata -> 422`.
+- `scripts/verify-llm-responses-contract.ps1` checks non-stream compatibility, audit trace visibility, bounded instruction/previous-response continuity, exact SSE ordering/reconstruction, audit-before-emit policy, and typed/bounded negative cases.
 - The guard is wired into `scripts/verify-browser-contract.ps1` and statically guarded by `scripts/verify-phase1.ps1`; `docs/runtime-contracts/llm-responses-adapter-contract.md` documents the boundary.
-- Verified by Python compile, Docker DEV rebuild/restart, isolated verifier, full `npm run verify:browser`, and full `scripts\verify-phase1.ps1` including gitleaks with no leaks.
+- Current v2 slice is verified by Python compile, 9/9 gateway unit tests, 26/26 Agent API unit tests, the focused runtime verifiers (traces `llm-responses-contract-6414d2cef5034562bccaee730feb964f` and `trace-b531e01f-bdab-4ddb-ab25-9a357aee9abe`), and 10/10 healthy DEV containers. The serial browser-contract, product-acceptance, and 22-page action components also produced verified DEV-ONLY reports; the 30-minute calling-tool timeout occurred before O4 and is not represented as a full `npm run verify:browser` exit-0 claim.
 - Localhost evidence is `DEV-ONLY`; no hosted proof, cloud mutation, deploy, release promotion, live provider call, live MCP write, secret use, or progress increase.
 
 Platform UI status boundary guard:

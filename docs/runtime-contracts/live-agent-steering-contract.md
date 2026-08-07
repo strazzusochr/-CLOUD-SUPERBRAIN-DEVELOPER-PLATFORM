@@ -34,6 +34,11 @@ Agent history is stored in Redis under `live-agent:responses:<agent_id>` with
 the task TTL. The status surface exposes only the previous response id, model,
 execution role, and update timestamp.
 
+Layer 4 resolves that id through a bounded process-local context store. If the
+gateway process restarted or the id expired, Layer 3 clears the stale Redis
+pointer, retries once without the id, and returns `continuity_reset=true`.
+This is recovery behavior, not cross-replica conversation persistence.
+
 ## Guarded Defaults
 
 - `live_provider_calls=false`
@@ -41,11 +46,15 @@ execution role, and update timestamp.
 - `secret_output=false`
 - no production deploy claim
 - no live provider claim unless the LLM Gateway policy and owner gate allow it
+- caller metadata is limited to 8192 serialized bytes
+- `trace_id`, role/project correlation, gateway routing, and
+  `live_provider_calls_allowed` are server-owned and rejected in request-body metadata
 
 ## Negative Cases
 
 - unknown `agent_id` returns HTTP `404`
 - empty `message` returns HTTP `422`
+- server-owned metadata or caller-supplied provider authorization returns HTTP `422`
 - localhost proof requires `-AllowLocalhost`
 - hosted proof requires HTTPS
 
