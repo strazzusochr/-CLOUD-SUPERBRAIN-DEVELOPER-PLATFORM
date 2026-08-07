@@ -27,6 +27,7 @@ export default async function ToolsPage() {
   const hasAgentApi = !!process.env.AGENT_API_BASE_URL;
   const hasMcp = !!process.env.MCP_GATEWAY_BASE_URL;
   const hasLlm = !!process.env.LLM_GATEWAY_BASE_URL;
+  const filesystemProjectProgressEnabled = process.env.SUPERBRAIN_RUNTIME_MODE === "dev-only";
   return (
     <AppShell crumb="Werkzeuge" runState="idle">
       <div className="page-wide">
@@ -103,7 +104,7 @@ export default async function ToolsPage() {
 
         <Panel title="Werkzeuge sicher ausführen (nur lesend)" className="mb-16" actions={<Badge tone="green">memory_read / task_router</Badge>}>
           <div className="wb-pad">
-            <ToolsReadOnlyPanel />
+            <ToolsReadOnlyPanel filesystemProjectProgressEnabled={filesystemProjectProgressEnabled} />
           </div>
         </Panel>
 

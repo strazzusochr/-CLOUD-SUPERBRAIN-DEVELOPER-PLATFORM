@@ -1372,7 +1372,7 @@ class BuildRegistryRequest(BaseModel):
 
 class ReadOnlyToolExecuteRequest(BaseModel):
     project_id: str = Field(default="goal-b-local", min_length=1, max_length=255)
-    tool_id: str = Field(..., pattern="^(memory_read|task_router)$")
+    tool_id: str = Field(..., pattern="^(memory_read|task_router|filesystem_project_progress)$")
     query: str = Field(default="phase2 runtime", min_length=1, max_length=500)
     trace_id: str | None = Field(default=None, max_length=255)
 
@@ -1497,6 +1497,13 @@ BUILD_REGISTRY_MAX_HTML_BYTES = 160 * 1024
 BUILD_REGISTRY_MAX_PROMPT_BYTES = 16 * 1024
 READ_ONLY_TOOL_EXECUTE_CONTRACT_VERSION = "goal-b-readonly-tool-execute-v1"
 READ_ONLY_TOOL_EXECUTE_EVIDENCE_REF = "goal_b_readonly_tool_execute_visible"
+FILESYSTEM_PROJECT_PROGRESS_CONTRACT_VERSION = "filesystem-project-progress-read-v1"
+FILESYSTEM_PROJECT_PROGRESS_EVIDENCE_REF = "filesystem_project_progress_read_verified"
+FILESYSTEM_PROJECT_PROGRESS_QUERY = "canonical-project-progress"
+FILESYSTEM_PROJECT_PROGRESS_INTERNAL_ENDPOINT = "/internal/v1/filesystem/project-progress"
+FILESYSTEM_PROJECT_PROGRESS_MAX_BYTES = 65_536
+FILESYSTEM_PROJECT_PROGRESS_PHASE_IDS = tuple(f"phase_{index}" for index in range(7))
+FILESYSTEM_PROJECT_PROGRESS_LAYER_IDS = tuple(f"layer_{index}" for index in range(1, 8))
 LIVE_AGENT_SESSION_PREFIX = "live-agent:responses:"
 LIVE_AGENT_SESSION_TTL_SECONDS = TASK_TTL_SECONDS
 LIVE_AGENT_LLM_TIMEOUT_SECONDS = 120
@@ -10791,16 +10798,211 @@ def execute_o4_live_tool_write(
     }
 
 
+def _strict_response_json(raw: bytes) -> dict[str, object]:
+    try:
+        text = raw.decode("utf-8", errors="strict")
+
+        def reject_duplicate_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
+            result: dict[str, object] = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError("duplicate JSON key")
+                result[key] = value
+            return result
+
+        payload = json.loads(
+            text,
+            object_pairs_hook=reject_duplicate_pairs,
+            parse_constant=lambda _value: (_ for _ in ()).throw(ValueError("invalid JSON constant")),
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="filesystem project progress response is invalid") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=503, detail="filesystem project progress response is invalid")
+    return payload
+
+
+def _validated_project_progress_axis(
+    value: object,
+    expected_ids: tuple[str, ...],
+) -> list[dict[str, object]]:
+    if not isinstance(value, list) or len(value) != len(expected_ids):
+        raise HTTPException(status_code=503, detail="filesystem project progress response schema mismatch")
+    projection: list[dict[str, object]] = []
+    for expected_id, item in zip(expected_ids, value, strict=True):
+        if not isinstance(item, dict) or set(item) != {"id", "percent"}:
+            raise HTTPException(status_code=503, detail="filesystem project progress response schema mismatch")
+        percent = item.get("percent")
+        if item.get("id") != expected_id or isinstance(percent, bool) or not isinstance(percent, int):
+            raise HTTPException(status_code=503, detail="filesystem project progress response schema mismatch")
+        if not 0 <= percent <= 100:
+            raise HTTPException(status_code=503, detail="filesystem project progress response schema mismatch")
+        projection.append({"id": expected_id, "percent": percent})
+    return projection
+
+
+def _validated_filesystem_project_progress_response(
+    response: httpx.Response,
+    expected_trace_id: str,
+) -> dict[str, object]:
+    raw = response.content
+    if response.status_code != 200 or not raw or len(raw) > FILESYSTEM_PROJECT_PROGRESS_MAX_BYTES:
+        raise HTTPException(status_code=503, detail="filesystem project progress MCP boundary failed")
+    payload = _strict_response_json(raw)
+    allowed_fields = {
+        "contract_version",
+        "status",
+        "evidence_ref",
+        "trace_id",
+        "overall_percent",
+        "horizontal",
+        "vertical",
+        "last_verified",
+        "source_sha256",
+        "bytes_read",
+        "filesystem_read_performed",
+        "audit_before_read",
+        "audit_after_read",
+        "authorization_audit_event_id",
+        "completion_audit_event_id",
+        "live_mcp_writes",
+        "live_provider_calls",
+        "direct_provider_calls",
+        "production_deploy",
+        "secret_output",
+        "DEV_ONLY",
+    }
+    if set(payload) != allowed_fields:
+        raise HTTPException(status_code=503, detail="filesystem project progress response schema mismatch")
+    overall_percent = payload.get("overall_percent")
+    bytes_read = payload.get("bytes_read")
+    last_verified = payload.get("last_verified")
+    trace_id = payload.get("trace_id")
+    source_sha256 = payload.get("source_sha256")
+    if not (
+        payload.get("contract_version") == FILESYSTEM_PROJECT_PROGRESS_CONTRACT_VERSION
+        and payload.get("status") == "success"
+        and payload.get("evidence_ref") == FILESYSTEM_PROJECT_PROGRESS_EVIDENCE_REF
+        and trace_id == expected_trace_id
+        and not isinstance(overall_percent, bool)
+        and isinstance(overall_percent, int)
+        and 0 <= overall_percent <= 100
+        and isinstance(last_verified, str)
+        and re.fullmatch(r"\d{4}-\d{2}-\d{2}", last_verified)
+        and isinstance(source_sha256, str)
+        and re.fullmatch(r"[a-f0-9]{64}", source_sha256)
+        and not isinstance(bytes_read, bool)
+        and isinstance(bytes_read, int)
+        and 1 <= bytes_read <= FILESYSTEM_PROJECT_PROGRESS_MAX_BYTES
+        and payload.get("filesystem_read_performed") is True
+        and payload.get("audit_before_read") is True
+        and payload.get("audit_after_read") is True
+        and payload.get("live_mcp_writes") is False
+        and payload.get("live_provider_calls") is False
+        and payload.get("direct_provider_calls") is False
+        and payload.get("production_deploy") is False
+        and payload.get("secret_output") is False
+        and payload.get("DEV_ONLY") is True
+    ):
+        raise HTTPException(status_code=503, detail="filesystem project progress response validation failed")
+    try:
+        authorization_event_id = str(UUID(str(payload.get("authorization_audit_event_id"))))
+        completion_event_id = str(UUID(str(payload.get("completion_audit_event_id"))))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=503, detail="filesystem project progress audit identity invalid") from None
+    if authorization_event_id == completion_event_id:
+        raise HTTPException(status_code=503, detail="filesystem project progress audit identity invalid")
+    return {
+        **payload,
+        "horizontal": _validated_project_progress_axis(payload.get("horizontal"), FILESYSTEM_PROJECT_PROGRESS_PHASE_IDS),
+        "vertical": _validated_project_progress_axis(payload.get("vertical"), FILESYSTEM_PROJECT_PROGRESS_LAYER_IDS),
+        "authorization_audit_event_id": authorization_event_id,
+        "completion_audit_event_id": completion_event_id,
+    }
+
+
+def _filesystem_project_progress_audits_verified(
+    conn: object,
+    payload: dict[str, object],
+    expected_trace_id: str,
+) -> bool:
+    authorization_event_id = UUID(str(payload["authorization_audit_event_id"]))
+    completion_event_id = UUID(str(payload["completion_audit_event_id"]))
+    rows = conn.execute(
+        """
+        SELECT id, user_id, details, created_at
+        FROM audit_log
+        WHERE id = ANY(%s)
+          AND event_type = 'mcp_tool_executed'
+        """,
+        ([authorization_event_id, completion_event_id],),
+    ).fetchall()
+    by_id = {str(row[0]): row for row in rows if len(row) >= 4}
+    authorization = by_id.get(str(authorization_event_id))
+    completion = by_id.get(str(completion_event_id))
+    authorization_details = authorization[2] if authorization and isinstance(authorization[2], dict) else {}
+    completion_details = completion[2] if completion and isinstance(completion[2], dict) else {}
+    shared_identity_fields = ("tool_request_id", "run_id", "session_id", "trace_id")
+    return bool(
+        authorization
+        and completion
+        and authorization[1] == "planner"
+        and completion[1] == "planner"
+        and authorization_details.get("toolset") == "filesystem"
+        and completion_details.get("toolset") == "filesystem"
+        and authorization_details.get("capability") == "read_project_progress"
+        and completion_details.get("capability") == "read_project_progress"
+        and authorization_details.get("audit_tags") == ["read_phase:authorized"]
+        and completion_details.get("audit_tags") == ["read_phase:completed"]
+        and authorization_details.get("trace_id") == expected_trace_id
+        and completion_details.get("trace_id") == expected_trace_id
+        and all(
+            authorization_details.get(field)
+            and authorization_details.get(field) == completion_details.get(field)
+            for field in shared_identity_fields
+        )
+        and completion_details.get("content_sha256") == payload["source_sha256"]
+    )
+
+
+def _fetch_filesystem_project_progress(trace_id: str) -> dict[str, object]:
+    if os.getenv("SUPERBRAIN_RUNTIME_MODE", "") != "dev-only":
+        raise HTTPException(status_code=403, detail="filesystem project progress adapter is DEV-ONLY")
+    if not re.fullmatch(r"[A-Za-z0-9._:-]{1,255}", trace_id):
+        raise HTTPException(status_code=503, detail="filesystem project progress trace binding is invalid")
+    service_token = os.getenv("AGENT_API_AUTH_TOKEN", "")
+    if not service_token:
+        raise HTTPException(status_code=503, detail="filesystem project progress service authentication unavailable")
+    try:
+        response = httpx.get(
+            f"{mcp_gateway_url()}{FILESYSTEM_PROJECT_PROGRESS_INTERNAL_ENDPOINT}",
+            headers={
+                "x-superbrain-agent-token": service_token,
+                "x-trace-id": trace_id,
+            },
+            timeout=3.0,
+        )
+    except Exception:
+        raise HTTPException(status_code=503, detail="filesystem project progress MCP boundary unavailable") from None
+    return _validated_filesystem_project_progress_response(response, trace_id)
+
+
 @app.get("/api/v1/tools/read-only/execute/contract")
 def read_only_tool_execute_contract() -> dict[str, object]:
     return {
         "contract_version": READ_ONLY_TOOL_EXECUTE_CONTRACT_VERSION,
         "endpoint": "POST /api/v1/tools/read-only/execute",
-        "supported_tools": ["memory_read", "task_router"],
+        "supported_tools": ["memory_read", "task_router", "filesystem_project_progress"],
+        "filesystem_contract_version": FILESYSTEM_PROJECT_PROGRESS_CONTRACT_VERSION,
+        "filesystem_internal_endpoint": FILESYSTEM_PROJECT_PROGRESS_INTERNAL_ENDPOINT,
+        "filesystem_canonical_query": FILESYSTEM_PROJECT_PROGRESS_QUERY,
+        "caller_path_allowed": False,
+        "hosted_enabled": False,
         "evidence_ref": READ_ONLY_TOOL_EXECUTE_EVIDENCE_REF,
         "mode": "read-only local tool execution",
         "audit_event_type": "read_only_tool_executed",
         "live_mcp_writes": False,
+        "direct_provider_calls": False,
         "writes": "audit-only local persistence",
         "secret_output": False,
         "production_deploy": False,
@@ -10810,8 +11012,25 @@ def read_only_tool_execute_contract() -> dict[str, object]:
 @app.post("/api/v1/tools/read-only/execute")
 def execute_read_only_tool(request: ReadOnlyToolExecuteRequest, http_request: Request) -> dict[str, object]:
     trace_id = getattr(http_request.state, "trace_id", None) or request.trace_id or f"readonly-tool-{uuid4()}"
-    if request.tool_id == "memory_read":
+    mcp_payload: dict[str, object] | None = None
+    mcp_audit_readback_verified = False
+    filesystem_read_performed = False
+
+    if request.tool_id == "filesystem_project_progress":
+        if request.query != FILESYSTEM_PROJECT_PROGRESS_QUERY:
+            raise HTTPException(status_code=422, detail="filesystem project progress requires canonical-project-progress")
+        mcp_payload = _fetch_filesystem_project_progress(str(trace_id))
         payload: dict[str, object] = {
+            "overall_percent": mcp_payload["overall_percent"],
+            "horizontal": mcp_payload["horizontal"],
+            "vertical": mcp_payload["vertical"],
+            "last_verified": mcp_payload["last_verified"],
+            "source_sha256": mcp_payload["source_sha256"],
+            "bytes_read": mcp_payload["bytes_read"],
+        }
+        filesystem_read_performed = True
+    elif request.tool_id == "memory_read":
+        payload = {
             "tool_id": request.tool_id,
             "query": redact_text(request.query),
             "results": [item.model_dump() for item in search_memory(request.project_id, request.query, 5)],
@@ -10834,22 +11053,48 @@ def execute_read_only_tool(request: ReadOnlyToolExecuteRequest, http_request: Re
                 for record in list_recent_tasks(limit=8)
             ],
         }
-    details = redact_json(
-        {
-            "contract_version": READ_ONLY_TOOL_EXECUTE_CONTRACT_VERSION,
-            "project_id": request.project_id,
-            "tool_id": request.tool_id,
-            "trace_id": trace_id,
-            "evidence_ref": READ_ONLY_TOOL_EXECUTE_EVIDENCE_REF,
-            "live_mcp_writes": False,
-            "secret_output": False,
-            "payload_summary": {
-                "result_count": len(payload.get("results", [])) if request.tool_id == "memory_read" else len(payload.get("recent_tasks", [])),
-                "query": redact_text(request.query),
-            },
-        }
-    )
+
+    if request.tool_id == "memory_read":
+        result_count = len(payload.get("results", []))
+    elif request.tool_id == "task_router":
+        result_count = len(payload.get("recent_tasks", []))
+    else:
+        result_count = len(payload.get("horizontal", [])) + len(payload.get("vertical", []))
+    details_payload: dict[str, object] = {
+        "contract_version": READ_ONLY_TOOL_EXECUTE_CONTRACT_VERSION,
+        "project_id": request.project_id,
+        "tool_id": request.tool_id,
+        "trace_id": trace_id,
+        "evidence_ref": READ_ONLY_TOOL_EXECUTE_EVIDENCE_REF,
+        "live_mcp_writes": False,
+        "secret_output": False,
+        "payload_summary": {
+            "result_count": result_count,
+            "query": redact_text(request.query),
+        },
+    }
+    if mcp_payload is not None:
+        details_payload.update(
+            {
+                "filesystem_contract_version": FILESYSTEM_PROJECT_PROGRESS_CONTRACT_VERSION,
+                "mcp_trace_id": mcp_payload["trace_id"],
+                "mcp_authorization_audit_event_id": mcp_payload["authorization_audit_event_id"],
+                "mcp_completion_audit_event_id": mcp_payload["completion_audit_event_id"],
+                "source_sha256": mcp_payload["source_sha256"],
+                "filesystem_read_performed": True,
+            }
+        )
+    details = redact_json(details_payload)
+
     with psycopg.connect(database_url(), autocommit=True) as conn:
+        if mcp_payload is not None:
+            mcp_audit_readback_verified = _filesystem_project_progress_audits_verified(
+                conn,
+                mcp_payload,
+                str(trace_id),
+            )
+            if not mcp_audit_readback_verified:
+                raise HTTPException(status_code=503, detail="filesystem project progress MCP audit readback failed")
         row = conn.execute(
             """
             INSERT INTO audit_log(event_type, details, severity)
@@ -10869,7 +11114,10 @@ def execute_read_only_tool(request: ReadOnlyToolExecuteRequest, http_request: Re
         "audit_event_id": str(row[0]),
         "audit_created_at": row[1].isoformat() if row[1] else None,
         "audit_persisted": True,
+        "mcp_audit_readback_verified": mcp_audit_readback_verified,
+        "filesystem_read_performed": filesystem_read_performed,
         "live_provider_calls": False,
+        "direct_provider_calls": False,
         "live_mcp_writes": False,
         "secret_output": False,
         "production_deploy": False,

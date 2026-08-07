@@ -14,6 +14,7 @@ services:
       AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET:-}
       LLM_GATEWAY_BASE_URL: http://llm-gateway:4000
       MCP_GATEWAY_BASE_URL: http://mcp-gateway:9000
+      SUPERBRAIN_RUNTIME_MODE: "dev-only"
       WORKBENCH_LLM_MODEL: ${WORKBENCH_LLM_MODEL:-gemma-3-1b-it}
       PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED: ${PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED:-false}
       O4_LIVE_WRITE_PROBE_ENABLED: "true"
@@ -60,7 +61,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-superbrain}:${POSTGRES_PASSWORD:-change-me-now}@postgres:5432/${POSTGRES_DB:-superbrain_prod}
       AGENT_API_AUTH_TOKEN: ${AGENT_API_AUTH_TOKEN:-}
-      SUPERBRAIN_RUNTIME_MODE: dev-only
+      SUPERBRAIN_RUNTIME_MODE: "dev-only"
       # O1 / production_auth_identity: die Agent API berechnet `github_oauth_configured`
       # und `credential_issuance_ready` ausschliesslich aus diesen vier Werten
       # (services/agent-api/app/main.py:2285). Ohne Verdrahtung bleibt Auth dauerhaft
@@ -244,7 +245,9 @@ services:
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       E2B_API_KEY: ${E2B_API_KEY:-}
       AGENT_API_AUTH_TOKEN: ${AGENT_API_AUTH_TOKEN:-}
+      SUPERBRAIN_RUNTIME_MODE: "dev-only"
       FILESYSTEM_ROOT: /tmp/agent-workspace
+      FILESYSTEM_PROJECT_PROGRESS_PATH: /app/readonly/project-progress.manifest.json
       AGENT_API_INTERNAL_URL: http://agent-api:8000
       O4_LIVE_WRITE_PROBE_ENABLED: "true"
       O4_LIVE_WRITE_NEGATIVE_TEST_ENABLED: "true"

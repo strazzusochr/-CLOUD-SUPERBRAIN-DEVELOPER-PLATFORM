@@ -7,6 +7,7 @@ import json
 import os
 import posixpath
 import re
+import stat
 import time
 import urllib.error
 import urllib.parse
@@ -21,6 +22,12 @@ from pydantic import BaseModel, Field, field_validator
 MCP_GATEWAY_VERSION = "0.1.0"
 MCP_VERSION_PINNING_CONTRACT_VERSION = "mcp-version-pinning-v1"
 MCP_VERSION_PINNING_EVIDENCE_REF = "mcp_version_pinning_contract_visible"
+FILESYSTEM_PROJECT_PROGRESS_CONTRACT_VERSION = "filesystem-project-progress-read-v1"
+FILESYSTEM_PROJECT_PROGRESS_EVIDENCE_REF = "filesystem_project_progress_read_verified"
+FILESYSTEM_PROJECT_PROGRESS_PATH = "/app/readonly/project-progress.manifest.json"
+FILESYSTEM_PROJECT_PROGRESS_MAX_BYTES = 65_536
+FILESYSTEM_PROJECT_PROGRESS_PHASE_IDS = tuple(f"phase_{index}" for index in range(7))
+FILESYSTEM_PROJECT_PROGRESS_LAYER_IDS = tuple(f"layer_{index}" for index in range(1, 8))
 
 app = FastAPI(title="Cloud Superbrain MCP Gateway", version=MCP_GATEWAY_VERSION)
 
@@ -228,6 +235,291 @@ def filesystem_workspace_scope_contract() -> dict[str, object]:
             "No filesystem read or write is executed by this contract endpoint.",
             "No host filesystem access outside /tmp/agent-workspace is claimed or allowed.",
         ],
+    }
+
+
+def filesystem_project_progress_contract() -> dict[str, object]:
+    return {
+        "contract_version": FILESYSTEM_PROJECT_PROGRESS_CONTRACT_VERSION,
+        "public_contract_endpoint": "GET /api/v1/filesystem/project-progress/contract",
+        "internal_execute_endpoint": "GET /internal/v1/filesystem/project-progress",
+        "source": "image_baked_project_progress_manifest",
+        "capability": "read_project_progress",
+        "canonical_query": "canonical-project-progress",
+        "max_source_bytes": FILESYSTEM_PROJECT_PROGRESS_MAX_BYTES,
+        "caller_path_allowed": False,
+        "caller_filename_allowed": False,
+        "caller_operation_allowed": False,
+        "regular_file_required": True,
+        "symlink_allowed": False,
+        "writable_source_allowed": False,
+        "strict_utf8_json_required": True,
+        "required_phase_ids": list(FILESYSTEM_PROJECT_PROGRESS_PHASE_IDS),
+        "required_layer_ids": list(FILESYSTEM_PROJECT_PROGRESS_LAYER_IDS),
+        "audit_before_read_required": True,
+        "audit_after_read_required": True,
+        "timeout_seconds": 3,
+        "retry_budget": 0,
+        "hosted_enabled": False,
+        "live_mcp_writes": False,
+        "live_provider_calls": False,
+        "direct_provider_calls": False,
+        "production_deploy": False,
+        "secret_output": False,
+        "evidence_ref": FILESYSTEM_PROJECT_PROGRESS_EVIDENCE_REF,
+        "non_claims": [
+            "This adapter reads only the fixed image-baked project progress manifest in exact DEV-ONLY mode.",
+            "No caller path, filename, operation, provider call, MCP write, secret output, hosted use, or production deployment is enabled.",
+        ],
+    }
+
+
+def _strict_json_object(raw: bytes) -> dict[str, object]:
+    try:
+        text = raw.decode("utf-8", errors="strict")
+
+        def reject_duplicate_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
+            result: dict[str, object] = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError("duplicate JSON key")
+                result[key] = value
+            return result
+
+        payload = json.loads(
+            text,
+            object_pairs_hook=reject_duplicate_pairs,
+            parse_constant=lambda _value: (_ for _ in ()).throw(ValueError("invalid JSON constant")),
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise ValueError("project progress source is not strict UTF-8 JSON") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("project progress source must be an object")
+    return payload
+
+
+def _bounded_progress_items(
+    container: object,
+    expected_ids: tuple[str, ...],
+    label: str,
+) -> list[dict[str, object]]:
+    if not isinstance(container, dict) or set(container) != {"label", "items"}:
+        raise ValueError(f"{label} container schema mismatch")
+    if (
+        not isinstance(container["label"], str)
+        or not container["label"].strip()
+        or len(container["label"]) > 160
+    ):
+        raise ValueError(f"{label} label is invalid")
+    items = container.get("items")
+    if not isinstance(items, list) or len(items) != len(expected_ids):
+        raise ValueError(f"{label} must contain exactly seven items")
+
+    projection: list[dict[str, object]] = []
+    for expected_id, item in zip(expected_ids, items, strict=True):
+        if not isinstance(item, dict) or set(item) != {"id", "label", "percent", "status"}:
+            raise ValueError(f"{label} item schema mismatch")
+        item_id = item.get("id")
+        percent = item.get("percent")
+        if item_id != expected_id or isinstance(percent, bool) or not isinstance(percent, int):
+            raise ValueError(f"{label} item identity or percent is invalid")
+        if not 0 <= percent <= 100:
+            raise ValueError(f"{label} percent is out of range")
+        projected: dict[str, object] = {"id": item_id, "percent": percent}
+        for field, maximum in (("label", 160), ("status", 16_384)):
+            value = item.get(field)
+            if not isinstance(value, str) or not value.strip() or len(value) > maximum:
+                raise ValueError(f"{label} {field} is invalid")
+        projection.append(projected)
+    return projection
+
+
+def _read_filesystem_project_progress_source() -> tuple[dict[str, object], str, int]:
+    configured_path = os.getenv("FILESYSTEM_PROJECT_PROGRESS_PATH", FILESYSTEM_PROJECT_PROGRESS_PATH)
+    source_path = Path(configured_path)
+    try:
+        path_stat = source_path.lstat()
+    except OSError as exc:
+        raise ValueError("project progress source is unavailable") from exc
+    if stat.S_ISLNK(path_stat.st_mode) or not stat.S_ISREG(path_stat.st_mode):
+        raise ValueError("project progress source must be a regular non-symlink file")
+    flags = os.O_RDONLY
+    flags |= getattr(os, "O_BINARY", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(source_path, flags)
+    except OSError as exc:
+        raise ValueError("project progress source read failed") from exc
+    try:
+        source_stat = os.fstat(descriptor)
+        if not stat.S_ISREG(source_stat.st_mode):
+            raise ValueError("project progress source must be a regular file")
+        if (source_stat.st_dev, source_stat.st_ino) != (path_stat.st_dev, path_stat.st_ino):
+            raise ValueError("project progress source changed before the bounded read")
+        if source_stat.st_mode & (stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH):
+            raise ValueError("project progress source must not be writable")
+        if source_stat.st_size <= 0 or source_stat.st_size > FILESYSTEM_PROJECT_PROGRESS_MAX_BYTES:
+            raise ValueError("project progress source size is outside the fixed bound")
+        chunks: list[bytes] = []
+        remaining = FILESYSTEM_PROJECT_PROGRESS_MAX_BYTES + 1
+        while remaining > 0:
+            chunk = os.read(descriptor, min(8192, remaining))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        raw = b"".join(chunks)
+        completed_stat = os.fstat(descriptor)
+        if (
+            len(raw) != source_stat.st_size
+            or len(raw) > FILESYSTEM_PROJECT_PROGRESS_MAX_BYTES
+            or completed_stat.st_size != source_stat.st_size
+            or completed_stat.st_mtime_ns != source_stat.st_mtime_ns
+        ):
+            raise ValueError("project progress source changed during the bounded read")
+    finally:
+        os.close(descriptor)
+
+    payload = _strict_json_object(raw)
+    known_top_level = {
+        "overall_percent",
+        "progress_source",
+        "horizontal",
+        "vertical",
+        "truth_policy",
+        "binding_document",
+        "last_verified",
+        "non_claims",
+    }
+    required_top_level = {"overall_percent", "progress_source", "horizontal", "vertical", "last_verified"}
+    if not required_top_level.issubset(payload) or set(payload).difference(known_top_level):
+        raise ValueError("project progress top-level schema mismatch")
+    if payload.get("progress_source") != "docs/project-progress.manifest.json":
+        raise ValueError("project progress source identity mismatch")
+    overall_percent = payload.get("overall_percent")
+    last_verified = payload.get("last_verified")
+    if isinstance(overall_percent, bool) or not isinstance(overall_percent, int) or not 0 <= overall_percent <= 100:
+        raise ValueError("overall_percent is invalid")
+    if not isinstance(last_verified, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", last_verified):
+        raise ValueError("last_verified is invalid")
+    horizontal = _bounded_progress_items(payload.get("horizontal"), FILESYSTEM_PROJECT_PROGRESS_PHASE_IDS, "horizontal")
+    vertical = _bounded_progress_items(payload.get("vertical"), FILESYSTEM_PROJECT_PROGRESS_LAYER_IDS, "vertical")
+    projection = {
+        "overall_percent": overall_percent,
+        "horizontal": horizontal,
+        "vertical": vertical,
+        "last_verified": last_verified,
+    }
+    return projection, hashlib.sha256(raw).hexdigest(), len(raw)
+
+
+def _filesystem_project_progress_tool_request(trace_id: str) -> ToolRequest:
+    request_id = uuid4().hex
+    return ToolRequest(
+        tool_request_id=f"filesystem-progress-{request_id}",
+        run_id=f"filesystem-progress-run-{request_id}",
+        session_id=str(uuid4()),
+        trace_id=trace_id,
+        agent_role="planner",
+        toolset="filesystem",
+        capability="read_project_progress",
+        intent_summary="Read the fixed image-baked project progress manifest.",
+        input_ref="fixed:image-baked-project-progress",
+        allowed_scope="fixed:image-baked-project-progress",
+        timeout_ms=3_000,
+        retry_budget=0,
+        idempotency_key=None,
+        audit_tags=["read_phase:authorized"],
+        redaction_required=True,
+        expected_output_type="filesystem_project_progress_projection",
+    )
+
+
+def _valid_audit_event_id(event: object) -> str | None:
+    if not isinstance(event, dict):
+        return None
+    event_id = event.get("event_id")
+    try:
+        return str(UUID(str(event_id)))
+    except (TypeError, ValueError):
+        return None
+
+
+def execute_filesystem_project_progress_read(
+    supplied_token: str | None,
+    trace_id: str | None = None,
+) -> dict[str, object]:
+    if os.getenv("SUPERBRAIN_RUNTIME_MODE", "") != "dev-only":
+        raise HTTPException(status_code=403, detail="filesystem project progress adapter is DEV-ONLY")
+    if not o4_internal_auth_valid(supplied_token):
+        raise HTTPException(status_code=401, detail="filesystem project progress service authentication required")
+
+    bounded_trace_id = str(trace_id or f"filesystem-progress-{uuid4()}")
+    if not re.fullmatch(r"[A-Za-z0-9._:-]{1,255}", bounded_trace_id):
+        raise HTTPException(status_code=400, detail="filesystem project progress trace id is invalid")
+    authorization_request = _filesystem_project_progress_tool_request(bounded_trace_id)
+    authorization_result = envelope_result(
+        authorization_request,
+        status="success",
+        sanitized_summary="Authorized the fixed DEV-ONLY project progress read.",
+        evidence_ref=FILESYSTEM_PROJECT_PROGRESS_EVIDENCE_REF,
+    )
+    authorization_event = post_audit_event(authorization_request, authorization_result)
+    authorization_event_id = _valid_audit_event_id(authorization_event)
+    if not authorization_event_id:
+        raise HTTPException(status_code=503, detail="filesystem project progress authorization audit unavailable")
+
+    try:
+        projection, content_sha256, bytes_read = _read_filesystem_project_progress_source()
+    except ValueError:
+        blocked_request = authorization_request.model_copy(update={"audit_tags": ["read_phase:completed"]})
+        blocked_result = envelope_result(
+            blocked_request,
+            status="blocked",
+            sanitized_summary="The fixed project progress source failed bounded validation; no result returned.",
+            error_class="filesystem_project_progress_validation_failed",
+            evidence_ref=FILESYSTEM_PROJECT_PROGRESS_EVIDENCE_REF,
+        )
+        post_audit_event(blocked_request, blocked_result)
+        raise HTTPException(status_code=503, detail="filesystem project progress source validation failed") from None
+
+    completion_request = authorization_request.model_copy(update={"audit_tags": ["read_phase:completed"]})
+    completion_result = envelope_result(
+        completion_request,
+        status="success",
+        sanitized_summary="Completed and validated the fixed DEV-ONLY project progress read.",
+        evidence_ref=FILESYSTEM_PROJECT_PROGRESS_EVIDENCE_REF,
+    )
+    completion_result.update(
+        {
+            "content_sha256": content_sha256,
+            "filesystem_read_performed": True,
+        }
+    )
+    completion_event = post_audit_event(completion_request, completion_result)
+    completion_event_id = _valid_audit_event_id(completion_event)
+    if not completion_event_id:
+        raise HTTPException(status_code=503, detail="filesystem project progress completion audit unavailable")
+
+    return {
+        "contract_version": FILESYSTEM_PROJECT_PROGRESS_CONTRACT_VERSION,
+        "status": "success",
+        "evidence_ref": FILESYSTEM_PROJECT_PROGRESS_EVIDENCE_REF,
+        "trace_id": bounded_trace_id,
+        **projection,
+        "source_sha256": content_sha256,
+        "bytes_read": bytes_read,
+        "filesystem_read_performed": True,
+        "audit_before_read": True,
+        "audit_after_read": True,
+        "authorization_audit_event_id": authorization_event_id,
+        "completion_audit_event_id": completion_event_id,
+        "live_mcp_writes": False,
+        "live_provider_calls": False,
+        "direct_provider_calls": False,
+        "production_deploy": False,
+        "secret_output": False,
+        "DEV_ONLY": True,
     }
 
 
@@ -780,6 +1072,16 @@ def mcp_version_pinning_contract() -> dict[str, object]:
                 "live_mutation": False,
             },
             {
+                "toolset": "filesystem",
+                "capability": "read_project_progress",
+                "contract_version": FILESYSTEM_PROJECT_PROGRESS_CONTRACT_VERSION,
+                "endpoint": "GET /mcp/api/v1/filesystem/project-progress/contract",
+                "internal_execute_endpoint": "GET /internal/v1/filesystem/project-progress",
+                "dev_only": True,
+                "caller_path_allowed": False,
+                "live_mutation": False,
+            },
+            {
                 "toolset": "playwright",
                 "capability": "plan_browser_proof",
                 "contract_version": "playwright-browser-proof-v1",
@@ -1037,6 +1339,7 @@ def envelope_result(
 
 def post_audit_event(request: ToolRequest, result: dict[str, object]) -> dict[str, object] | None:
     base_url = os.getenv("AGENT_API_INTERNAL_URL", "http://agent-api:8000").rstrip("/")
+    service_token = os.getenv("AGENT_API_AUTH_TOKEN", "")
     payload = {
         "tool_request_id": request.tool_request_id,
         "run_id": request.run_id,
@@ -1069,7 +1372,10 @@ def post_audit_event(request: ToolRequest, result: dict[str, object]) -> dict[st
     http_request = urllib.request.Request(
         f"{base_url}/internal/audit/mcp-tool-events",
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "X-Superbrain-Agent-Token": service_token,
+        },
         method="POST",
     )
     try:
@@ -1134,6 +1440,19 @@ def postgresql_readonly_query_contract_endpoint() -> dict[str, object]:
 @app.get("/api/v1/filesystem/workspace-scope/contract")
 def filesystem_workspace_scope_contract_endpoint() -> dict[str, object]:
     return filesystem_workspace_scope_contract()
+
+
+@app.get("/api/v1/filesystem/project-progress/contract")
+def filesystem_project_progress_contract_endpoint() -> dict[str, object]:
+    return filesystem_project_progress_contract()
+
+
+@app.get("/internal/v1/filesystem/project-progress")
+def filesystem_project_progress_read_endpoint(
+    x_superbrain_agent_token: str | None = Header(default=None),
+    x_trace_id: str | None = Header(default=None),
+) -> dict[str, object]:
+    return execute_filesystem_project_progress_read(x_superbrain_agent_token, x_trace_id)
 
 
 @app.get("/api/v1/tools/live-write/probe/contract")

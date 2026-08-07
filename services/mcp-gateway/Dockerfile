@@ -8,7 +8,12 @@ WORKDIR /app
 COPY services/mcp-gateway/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY services/mcp-gateway/app ./app
-RUN useradd --create-home --uid 10001 appuser && chown -R appuser:appuser /app /tmp
+COPY docs/project-progress.manifest.json /app/readonly/project-progress.manifest.json
+RUN useradd --create-home --uid 10001 appuser \
+    && chown -R appuser:appuser /app /tmp \
+    && chown -R root:root /app/readonly \
+    && chmod 0555 /app/readonly \
+    && chmod 0444 /app/readonly/project-progress.manifest.json
 USER appuser
 
 EXPOSE 9000

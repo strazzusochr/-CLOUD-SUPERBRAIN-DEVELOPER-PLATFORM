@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Icon } from "../lib/nav";
 
 const PROJECT_ID = "goal-b-local";
+const FILESYSTEM_PROJECT_PROGRESS_QUERY = "canonical-project-progress";
 
 type JsonValue = Record<string, unknown>;
 
@@ -330,7 +331,7 @@ export function FilesSearchPanel() {
   );
 }
 
-export function ToolsReadOnlyPanel() {
+export function ToolsReadOnlyPanel({ filesystemProjectProgressEnabled = false }: { filesystemProjectProgressEnabled?: boolean }) {
   const [tool, setTool] = useState("memory_read");
   const [query, setQuery] = useState("phase2 runtime");
   const [result, setResult] = useState("Bereit — wähle ein Tool und führe es nur lesend aus.");
@@ -379,15 +380,24 @@ export function ToolsReadOnlyPanel() {
         <select
           aria-label="Nur lesendes Tool"
           value={tool}
-          onChange={(event) => { setTool(event.target.value); setResult("bereit"); }}
+          onChange={(event) => {
+            const nextTool = event.target.value;
+            setTool(nextTool);
+            setQuery(nextTool === "filesystem_project_progress" ? FILESYSTEM_PROJECT_PROGRESS_QUERY : "phase2 runtime");
+            setResult("bereit");
+          }}
         >
           <option value="memory_read">memory_read</option>
           <option value="task_router">task_router</option>
+          {filesystemProjectProgressEnabled ? (
+            <option value="filesystem_project_progress">filesystem_project_progress · DEV-ONLY</option>
+          ) : null}
         </select>
         <input
           aria-label="Tool-Anfrage"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          readOnly={tool === "filesystem_project_progress"}
         />
         <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-tool-execute" onClick={execute} disabled={busy}>Ausführen</button>
       </div>

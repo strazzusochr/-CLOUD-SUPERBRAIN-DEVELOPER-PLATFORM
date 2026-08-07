@@ -521,7 +521,11 @@ const DEFAULTS: Record<string, () => Record<string, unknown>> = {
     evidence_ref: "mcp_version_pinning_contract_visible",
     audit_gap: "L-08",
     pins: ["fastapi==0.136.3", "uvicorn[standard]==0.49.0", "pydantic==2.13.4"],
-    tool_contracts: ["github-branch-pr-plan-v1", "e2b-sandbox-lifecycle-v1"],
+    tool_contracts: [
+      "github-branch-pr-plan-v1",
+      "e2b-sandbox-lifecycle-v1",
+      "filesystem-project-progress-read-v1",
+    ],
     drift_policy: "exact == pinning",
     non_claims: ["No live MCP write"],
   }),
