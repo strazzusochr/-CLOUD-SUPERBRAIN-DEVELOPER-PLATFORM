@@ -350,6 +350,8 @@ def _read_filesystem_project_progress_source() -> tuple[dict[str, object], str, 
         descriptor = os.open(source_path, flags)
     except OSError as exc:
         raise ValueError("project progress source read failed") from exc
+    source_error: OSError | ValueError | None = None
+    raw = b""
     try:
         source_stat = os.fstat(descriptor)
         if not stat.S_ISREG(source_stat.st_mode):
@@ -377,8 +379,15 @@ def _read_filesystem_project_progress_source() -> tuple[dict[str, object], str, 
             or completed_stat.st_mtime_ns != source_stat.st_mtime_ns
         ):
             raise ValueError("project progress source changed during the bounded read")
-    finally:
+    except (OSError, ValueError) as exc:
+        source_error = exc
+    try:
         os.close(descriptor)
+    except OSError as exc:
+        if source_error is None:
+            source_error = exc
+    if source_error is not None:
+        raise ValueError("project progress source bounded read failed") from source_error
 
     payload = _strict_json_object(raw)
     known_top_level = {

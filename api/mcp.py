@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,6 +24,8 @@ app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 @app.middleware("http")
 async def read_only_contract_origin(request: Request, call_next):
+    if request.url.path == "/mcp/internal" or request.url.path.startswith("/mcp/internal/"):
+        return Response(status_code=404)
     if request.method not in {"GET", "HEAD", "OPTIONS"}:
         return JSONResponse(
             status_code=503,
