@@ -93,17 +93,20 @@ function detectMode(forceReducedMotion?: boolean): "2d" | "3d" {
 
 export default function CortexLive(props: Props) {
   const { forceReducedMotion, onMode } = props;
-  const [mode, setMode] = useState<"2d" | "3d">("2d");
+  const [mode, setMode] = useState<"pending" | "2d" | "3d">("pending");
 
   useEffect(() => {
-    const nextMode = detectMode(forceReducedMotion);
-    const timer = window.setTimeout(() => setMode(nextMode), nextMode === "2d" ? 0 : 75);
-    return () => window.clearTimeout(timer);
+    const frame = window.requestAnimationFrame(() => setMode(detectMode(forceReducedMotion)));
+    return () => window.cancelAnimationFrame(frame);
   }, [forceReducedMotion]);
 
   useEffect(() => {
-    onMode?.(mode);
+    if (mode !== "pending") onMode?.(mode);
   }, [mode, onMode]);
+
+  if (mode === "pending") {
+    return <div className="cortex-wrap" data-testid="organism-renderer-pending" aria-hidden="true" />;
+  }
 
   if (mode === "3d") {
     return (
