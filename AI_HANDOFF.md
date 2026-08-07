@@ -28,6 +28,30 @@ that scoped operational proof does not satisfy I1 hosted candidate parity.
 All dated RC10, Session-12, and earlier snapshots below are historical provenance unless
 an explicitly current authority section says otherwise.
 
+## Current DEV-ONLY L5 Filesystem Read — 2026-08-07
+
+`filesystem-project-progress-read-v1` is a real but fixed read adapter. The Agent
+accepts only `filesystem_project_progress` plus `canonical-project-progress`;
+the MCP Gateway reads only the non-writable image-baked
+`docs/project-progress.manifest.json` copy through one bounded descriptor. It
+returns only overall percent, seven phase IDs/percents, seven layer IDs/percents,
+`last_verified`, source SHA-256, and byte count. Caller paths, arbitrary
+filenames/operations, label/status bulk, generic filesystem access, and unknown
+response fields are rejected.
+
+Authorization and completion MCP audits share trace/tool-request/run/session
+identity. Agent API verifies both persisted rows and the content hash before its
+own audit and before returning a result. Nginx and the Vercel ASGI MCP boundary
+return `404` for the internal subtree. Low-level I/O, pre/post-audit, timeout,
+trace, identity, symlink, writable-file, oversize, UTF-8/JSON, and schema failures
+withhold the result. Focused proof passed: MCP `11` tests (one Windows symlink
+skip), Agent `8/8`, static and live focused verifier, Docker `10/10`, and one
+real Chromium click on `/tools`. Contract:
+`docs/runtime-contracts/mcp-filesystem-project-progress-contract.md`.
+`DEV-ONLY; hosted proof still blocked`. MCP Gateway remains `56%`, Overall
+remains `89%`; no MCP write, provider call, secret output, deployment, release,
+production right, or generic filesystem capability is claimed.
+
 Historical RC10 guardrail: candidate `prod-candidate-2026-07-24-local-rc10` was a locally verified backend preparation artifact bound to committed and pushed source `2ae4c61aa876759abcaa83c36c0a3379206b91a4`; its six Docker image identities were local only and the planned GHCR tags were unpublished. Runtime-only and full-browser candidate verification artifacts were isolated. The verifier proved committed runtime-source parity, bound rollback to RC9 source `0cbe644c84812bbe72811516d58a70be8c27ffa5`, and reported `candidate_technical=true`, `runtime_source_parity=true`, `promotion_eligible=false`. Separately, the frontend and the stateless read-only Backend Contract Origin were deployed on Vercel, and the Cloudflare-native stateful candidate, hosted product acceptance, hosted 22-page action matrix, and hosted semantic Vectorize roundtrip were source/evidence-bound and verified. The canonical `external-gate-summary-v2` remained `blocked` only on GHCR digest proof; Branch Protection was read-only verified and `production_deploy_claim_allowed=false`. This did not prove Owner release approval, registry publication, full-platform production deployment, Phase-6 scale, or release promotion.
 
 Historical pre-RC11 O5/source snapshot: the stateful Worker health contract reported
@@ -237,6 +261,8 @@ Vertical:
 
 Older percentage lines below are historical proof points only. Current percentages must come from this section and `docs/project-progress.manifest.json`.
 
+Latest fixed L5 read slice: commits `6978e3ab` and `553f6c48` implement and harden `filesystem-project-progress-read-v1`. The source is image-baked and non-writable, all caller-selected paths are absent, the response is allowlisted, pre/post MCP audits are identity-bound and read back by Agent API, and both Nginx and Vercel ASGI hide the internal endpoint. Focused unit, static, runtime, health, and real Chromium-click proof passed. No progress credit was assigned: MCP Gateway remains `56%`, Overall `89%`. DEV-ONLY; hosted proof still blocked.
+
 Latest O4 closure: the source-bound DEV-ONLY proof on commit `bae3cdc1692e1e99e7f546f72664a3c747958b8c` verifies the approved Agent-to-MCP filesystem write path inside the repository and active branch, with branch-protection readback, persisted pre/post audit, exact readback, and rollback on audit failure. Full runtime and browser verification passed; the browser chain included live gateway product acceptance and the 22-page matrix (`22/22` routes, `29/29` families, `161/161` actions). Both O4 capability gates are verifier-opened and O4 is `resolved_verified`. Evidence: `.phase1-artifacts/o4-live-writes/proof.json`, SHA-256 `50304C69B3D748C95804C4C72C2970694748F469AE322D5C24DAA6BCB545B11B`. Only Agent Pool receives the reserved `31%`, moving `69% -> 100%`; Overall is now `89%` because the independently itemized RC11 Phase-5 qualification raised P5, with no MCP/P6 double credit and no main, registry, provider, release, production, payment, or secret write.
 
 Historical note: the following S1 UI-parity paragraph predates O4; its `69%` statement is superseded by the current `100%` value above.
@@ -330,6 +356,15 @@ Current Master Goal external gate mirror: the tracked canonical audit `docs/runt
 Autopilot stream proof now runs through the active Agent API/Nginx stack at `<local-control-plane-stream-url>` and emits `status:init`, `status:llm`, `token`, and `done` with `autopilot-mode-stream-proof`.
 
 ## Latest Completed Proof
+
+Fixed filesystem project-progress read guard:
+
+- `services/mcp-gateway/app/main.py` reads only the fixed, image-baked manifest through one bounded descriptor and returns an exact allowlisted projection.
+- `services/agent-api/app/main.py` accepts only the canonical tool/query pair, passes the outer trace, validates the bounded MCP response, reads both correlated MCP audits back, and persists its own audit before returning.
+- `api/mcp.py`, `infrastructure/nginx/dev.conf`, and `infrastructure/nginx/cloud.conf` return `404` for the internal MCP subtree on public boundaries.
+- `scripts/verify-mcp-filesystem-project-progress.ps1` is wired into static, runtime, and browser umbrella scripts; the frontend exposes the option only in exact DEV mode.
+- Focused proof passed MCP `11` tests (one platform symlink skip), Agent `8/8`, Python compile, PowerShell parser, focused ESLint/TypeScript, compose validation, `10/10` health, the live focused verifier, and one real Chromium click.
+- Localhost evidence is `DEV-ONLY; hosted proof still blocked`; no generic filesystem access, write, provider call, secret, deploy, release, production permission, or progress increase is claimed.
 
 Live agent steering contract guard:
 

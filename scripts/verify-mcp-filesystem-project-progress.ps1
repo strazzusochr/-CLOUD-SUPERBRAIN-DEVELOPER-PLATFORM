@@ -31,6 +31,7 @@ $cloudNginx = Read-Source "infrastructure\nginx\cloud.conf"
 $vercelMcp = Read-Source "api\mcp.py"
 $ui = Read-Source "apps\frontend\components\goal-b-actions.tsx"
 $defaults = Read-Source "apps\frontend\lib\endpointDefaults.ts"
+$contractDoc = Read-Source "docs\runtime-contracts\mcp-filesystem-project-progress-contract.md"
 
 foreach ($required in @(
   "filesystem-project-progress-read-v1",
@@ -74,6 +75,17 @@ Assert-Contains "local UI adapter option" $ui 'value="filesystem_project_progres
 Assert-Contains "local UI canonical query" $ui "canonical-project-progress"
 Assert-Contains "version pinning includes adapter" $mcp "filesystem-project-progress-read-v1"
 Assert-Contains "frontend default includes adapter pin" $defaults "filesystem-project-progress-read-v1"
+foreach ($required in @(
+  "filesystem-project-progress-read-v1",
+  "canonical-project-progress",
+  "65536",
+  "O_NOFOLLOW",
+  "audit_before_read",
+  "audit_after_read",
+  "DEV-ONLY; hosted proof still blocked",
+  'MCP Gateway remains `56%`',
+  'Overall remains `89%`'
+)) { Assert-Contains "runtime contract documentation $required" $contractDoc $required }
 
 if ($StaticOnly) {
   Write-Host "[filesystem-project-progress] status=verified_static DEV-ONLY hosted=false"

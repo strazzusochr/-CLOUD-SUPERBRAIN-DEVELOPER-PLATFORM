@@ -1,11 +1,36 @@
 # Verification Register - PATCHED
 
-Stand: 2026-08-01
+Stand: 2026-08-07
 Status: Active
 
 ## Current Progress Authority
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
+
+## Current DEV-ONLY Filesystem Project Progress Read Evidence
+
+Recorded 2026-08-07. `filesystem-project-progress-read-v1` is implemented by
+commits `6978e3ab` and `553f6c48`. The real read is limited to the non-writable
+image-baked `docs/project-progress.manifest.json`; the request has no path,
+filename, or operation input, and the response returns only the bounded progress
+projection, verification date, source SHA-256, and byte count.
+
+Authorization and completion MCP audits share exact trace/tool-request/run/session
+identity. Agent API reads both rows and the content hash back before persisting its
+own audit and returning. Nginx and Vercel ASGI return `404` for the internal MCP
+subtree. Fail-closed coverage includes missing/failed audit, three low-level I/O
+failure positions, timeout/no-retry, trace and identity mismatch, symlink,
+writable/oversize source, invalid UTF-8/JSON, duplicate keys, schema drift,
+caller-path query, and malformed/oversize MCP response.
+
+Verified serially by focused MCP tests (`11`, one Windows symlink skip), Agent API
+tests (`8/8`), Python compile, PowerShell parsing, focused ESLint/TypeScript,
+Compose validation, `scripts/start-dev-live.ps1` with `10/10` healthy
+containers, `scripts/verify-mcp-filesystem-project-progress.ps1` against
+`http://localhost:8081`, and one real Chromium `/tools` click (`1/1`).
+`DEV-ONLY; hosted proof still blocked`. No generic filesystem access, MCP write,
+provider call, secret output, deployment, release, production permission, or
+progress credit is claimed. MCP Gateway remains `56%`; Overall remains `89%`.
 
 ## Current RC11 Local Qualification Evidence
 

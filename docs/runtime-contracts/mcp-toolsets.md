@@ -75,7 +75,7 @@ In Scope:
 - GitHub-MCP fuer Branch-, PR- und Workflow-Status-Operationen
 - E2B-Sandbox-MCP fuer isolierte Build- und Testausfuehrung
 - Playwright-MCP fuer Browser-Smoke- und Runtime-Evidence-Flows
-- Filesystem-MCP fuer streng begrenzte Workspace-Operationen
+- Filesystem-MCP: aktuell exakt der feste DEV-ONLY `filesystem_project_progress`-Read; breitere Workspace-Operationen bleiben gegatet
 - PostgreSQL-MCP als spaeteres read-only Projektkontext-Tool nach Gate-Freigabe
 - Puppeteer-MCP als zusaetzlicher Evidence-Pfad fuer UI- und Gameplay-Aufgaben
 - Request-Envelope, Timeout, Audit-Event, Retry-Grenze und Fehlermodus je Toolcall
@@ -223,6 +223,7 @@ Jedes Audit-Event muss mindestens enthalten:
 | MCP-010 | Mehr als `2` Retries pro Toolcall | wird blockiert |
 | MCP-011 | Tool-Ergebnis `degraded` | darf nicht als fertig gelten |
 | MCP-012 | UI-/Gameplay-Task ohne Browser-Evidence | bleibt `evidence-blocked` |
+| MCP-013 | Filesystem-Projektfortschritt mit Caller-Pfad, falscher Query, Symlink, Write-Bit, Schema-Drift oder fehlendem Audit | wird fail-closed ohne Ergebnis blockiert |
 
 ## Stop-Gates
 
@@ -243,12 +244,12 @@ Sofortiger Halt mit Review-Gate ist Pflicht bei:
 
 - Es ist ein Phase-1-MCP-Gateway mit sicheren Envelope-, Timeout-, Blocked- und Degraded-Pfaden live verdrahtet.
 - Es wurde keine E2B-Sandbox gestartet.
-- Es wurde keine Browser-Automation ausgefuehrt.
+- Durch den MCP-Adapter wurde keine Browser-Automation ausgefuehrt; der separate Chromium-Akzeptanztest prueft nur den sichtbaren DEV-ONLY UI-zu-Read-Pfad.
 - Es wurde keine GitHub-Schreiboperation ausgefuehrt.
 - Es wurde kein Docker-Image gepusht.
-- Es wurde kein Filesystem-MCP verbunden.
+- Es wurde kein allgemeines oder caller-gesteuertes Filesystem-MCP verbunden; aktiviert ist nur der feste DEV-ONLY Read von `docs/project-progress.manifest.json` gemaess `filesystem-project-progress-read-v1`.
 - Es wurde keine Datenbank verbunden.
 
 ## Naechster sicherer Schritt
 
-Nach diesem Vertrag folgt eine Phase-2-Readiness-Matrix, die alle Runtime-Vertraege gegen Tests, Evidence-Artefakte und offene Stop-Gates abgleicht.
+Der naechste sichere L5-Ausbau bleibt ein separat test-first gegateter Adapter ohne neue Credentials, Rechte oder beliebige Pfade. PostgreSQL, GitHub, Playwright, E2B sowie breitere Filesystem-Rechte bleiben Owner-/Security-gesteuert.

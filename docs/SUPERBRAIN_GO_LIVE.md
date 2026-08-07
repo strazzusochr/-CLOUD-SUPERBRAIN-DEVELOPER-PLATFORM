@@ -148,3 +148,14 @@ sind fail-closed. Request-Metadaten duerfen weder Trace/Rollen/Projektwerte
 ueberschreiben noch Provider-Nutzung freigeben; abgelaufene Gateway-Kontexte
 werden einmalig sichtbar mit `continuity_reset=true` neu begonnen. Das ist
 DEV-ONLY und aktiviert keinen Live-Provider.
+
+`scripts\verify-mcp-filesystem-project-progress.ps1` beweist lokal den festen
+MCP-Dateilesepfad `filesystem-project-progress-read-v1`: nur die read-only in
+das MCP-Image kopierte `docs/project-progress.manifest.json` darf gelesen werden;
+Caller-Pfade, Symlinks, schreibbare oder uebergrosse Dateien, Schema-Drift,
+Trace-/Audit-Abweichungen und Low-Level-I/O-Fehler liefern kein Ergebnis. Audit
+vor und nach dem Read sowie Agent-API-Readback sind Pflicht. Nginx und die Vercel
+ASGI-Grenze verstecken `/mcp/internal/` mit `404`. Der echte Chromium-Klick auf
+`/tools` ist DEV-ONLY; hosted proof still blocked. Der Adapter aktiviert weder
+einen allgemeinen Filesystem-Zugriff noch MCP-Writes, Provideraufrufe, Secrets,
+Deployments oder Production-Rechte.

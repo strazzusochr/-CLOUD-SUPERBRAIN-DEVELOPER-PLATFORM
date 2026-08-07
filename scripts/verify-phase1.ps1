@@ -3586,6 +3586,11 @@ $filesystemProjectProgressVerifier = Get-Content "scripts\verify-mcp-filesystem-
 foreach ($required in @("filesystem-project-progress-read-v1", "canonical-project-progress", "filesystem_project_progress_read_verified", "audit_before_after=true", "direct_provider_calls", "DEV-ONLY hosted=false")) {
   if (-not $filesystemProjectProgressVerifier.Contains($required)) { throw "Filesystem project-progress verifier missing: $required" }
 }
+if (-not (Test-Path "docs\runtime-contracts\mcp-filesystem-project-progress-contract.md")) { throw "Missing filesystem project-progress runtime contract documentation" }
+$filesystemProjectProgressDoc = Get-Content "docs\runtime-contracts\mcp-filesystem-project-progress-contract.md" -Raw
+foreach ($required in @("filesystem-project-progress-read-v1", "canonical-project-progress", "O_NOFOLLOW", "audit_before_read", "audit_after_read", "DEV-ONLY; hosted proof still blocked", 'MCP Gateway remains `56%`', 'Overall remains `89%`')) {
+  if (-not $filesystemProjectProgressDoc.Contains($required)) { throw "Filesystem project-progress documentation missing: $required" }
+}
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-mcp-filesystem-project-progress.ps1 -StaticOnly
 Assert-LastExitCode "filesystem project-progress static verifier"
 
