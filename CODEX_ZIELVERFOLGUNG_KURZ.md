@@ -1,7 +1,7 @@
-# 🎯 ZIEL-VERFOLGUNG (KURZ) — Endspurt, Stand 2026-08-03 (RC13)
+# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-08-04 · RC13
 
-> **Reihenfolge in JEDER Session:** (1) diese Datei → (2) `CODEX_UEBERGABE_2026-08-02-FINAL.md`
-> → (3) Preflight → (4) arbeiten. `…SESSION14.md` = Detailprotokoll, `…SESSION13.md` = Historie.
+> **Reihenfolge in JEDER Session:** (1) diese Datei → (2) `CODEX_UEBERGABE_2026-08-04-FINAL.md`
+> → (3) **`REGELN_OPTIK_UND_FERTIG.md`** → (4) Preflight → (5) arbeiten.
 
 ## ENDZIEL
 
@@ -11,174 +11,106 @@ Owner-gewallte Reste ehrlich als **OWNER-BLOCKED** listen — **nie faken (R0)**
 
 ---
 
-## 🚀 START HIER — Kandidat **RC13** `db631ab3` · CI `30815984573` **grün**
+## 🔴 OWNER-ENTSCHEIDUNG — gilt ab sofort
 
-**RC13 ist gebunden. Der Verifier bestätigt es selbst:**
+> **Organismus-Optik kommt GANZ ANS ENDE.** Alles andere ist wichtiger.
+> Kein Agent arbeitet am Aussehen von `CortexCanvas3D`, bis Funktion und Ketten stehen.
+
+---
+
+## 🚀 START HIER — RC13 `db631ab3` · CI `30815984573` grün
 
 ```
 [phase5-credit] verified mode=fully_itemized computed=89 credited=89 verified=17/19 blocked=I1,I5
 ```
-
 Overall **89** · P3 44 · P5 89 · P6 90 · L4 55 · L5 56 · Gates **7/10 zu** · `MARKET_READY:false`
 
-**Preflight (PSModulePath ist Pflicht aus pwsh 7):**
-
+**Preflight:**
 ```powershell
 Set-Location 'D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM'
 $env:TEMP='D:\_sb_tmp'; $env:TMP='D:\_sb_tmp'
 $env:PSModulePath='C:\Program Files\WindowsPowerShell\Modules;C:\WINDOWS\system32\WindowsPowerShell\v1.0\Modules'
+git status --porcelain | Select-String '^ D'   # MUSS leer sein
+(Get-PSDrive D).Free/1GB                       # vor Image-Builds
+docker ps                                      # Daemon lebt?
 ```
 
 ---
 
-## ⛔ DER EINE BLOCKER — Owner-Entscheidung, kein Bug
+## ⚠️ ZWEI NEUE BEFUNDE AUS DIESER SESSION
 
-`npm run verify` stoppt an **Cloudflare-Worker-Source-Parität**: der gehostete Worker läuft auf
-`af61146e`, der Kandidat ist `db631ab3`.
+**1. Ein geschlossenes Gate war gebrochen — behoben.**
+`.phase1-artifacts/live-vector-memory-search-proof.json` war beim 30-GB-Aufräumen gelöscht worden.
+`verify-vector-memory-gate.ps1` schlug fehl: *„an opened vector gate is backed by an existing
+evidence artifact"*. Per `git restore` wiederhergestellt, Gate wieder grün.
+**Regel:** Aufräumen fasst `.phase1-artifacts/` und `docs/release-artifacts/` **nie** an.
 
-Auflösen heißt **einen öffentlich erreichbaren Live-Worker neu deployen**. Kostenlos
-(zero-card), aber eine Live-Fläche — deshalb rührt kein Agent das an. Danach läuft die Kette durch.
+**2. Das 5-Achsen-Audit ist teilweise fest verdrahtet.**
+`verify-five-axis-substance-audit.mjs:295` ist ein **Literal**:
+`console.log("… inspector=true replay=true neuroglass_tokens=12 organism_visual_v2=verified")`.
+Ebenso `actions=161`, `docs_endpoint_mentions=98`, `strict_unfinished=0`, `dead_scaffolds=0`.
+Zusätzlich prüft es, ob ein Markdown-Dokument Sätze enthält, die derselbe Commit hineinschrieb.
+**Meine frühere Aussage „die fünf Achsen sind gemessen" ist damit falsch** — nur Layer-Prozente
+und Routen-Klassifikation werden berechnet.
 
 ---
 
-## 🧱 DIE VIER WÄNDE
+## ⛔ DIE VIER OWNER-WÄNDE
 
 | Wand | öffnet | Art |
 |---|---|---|
 | **Worker-Deploy** auf `db631ab3` | `npm run verify` | Live-Fläche, keine Zahlung |
-| **O1** OAuth-Identität | P3 +56 | braucht **zuerst** Architekturentscheidung: CF-native **oder** hosted PG+Redis. Vercel ist read-only und kann O1 nicht erfüllen. Scope nur `read:user` |
-| **`AGENT_API_AUTH_TOKEN`** | P6 +10 | **Secret, keine Zahlung.** Danach 900 echte Requests |
-| **O3** GHCR | P5 +11 | **zyklisch** — Push verboten vor `MARKET_READY:true`, das GHCR-Digests verlangt. Owner muss den Zyklus brechen |
+| **O1** OAuth | P3 +56 | zuerst Architekturentscheidung; Scope nur `read:user` |
+| **`AGENT_API_AUTH_TOKEN`** | P6 +10 | ein Secret, keine Zahlung |
+| **O3** GHCR | P5 +11 | zyklisch — Owner muss den Zyklus brechen |
 
-**Zahlung öffnet nichts** — `payment_required` ist überall `false`; eine abgebildete Zahlung
-macht die Owner-Matrix **rot**.
-
----
-
-## ✅ AUTONOM, SOFORT MÖGLICH
-
-**Beides ist erledigt — von Codex, in seinem Nachtlauf:**
-
-1. ❌ **`organism-visual-v2` ist NICHT fertig — die Meldung „7 von 7“ ist widerlegt.**
-   Am laufenden System gemessen: kein Gehirn (nur Icosphere + Ellipsoid-Punktwolke), Dot-Globus
-   ist ein 21 %-Satellit ohne Kontinente, Matrix-Rain sind waagerechte 104×9-px-Striche bei
-   ~9 % Deckkraft, Shards 6 % Deckkraft, Waveform ein 2D-SVG. Bloom stammt aus einem älteren
-   Commit. **Belege und neue Regeln: `REGELN_OPTIK_UND_FERTIG.md`.**
-2. ✅ **Die 5 Achsen sind gemessen** (`4c526c69`, kanonisch in `LAYER_MATRIX.md`).
-   Antwort auf *„überall fehlt die Hälfte"*: **bei L4/L5 stimmt es, es ist echte Arbeit** —
-   L4 55 %: Standardmodus ist `deterministic_dry_run`, volle Live-Flotte, dynamisches Routing
-   und Responses-Streaming sind **nicht belegt**. L5 56 %: GitHub-/PostgreSQL-/Filesystem-/
-   Playwright-/E2B-Adapter bleiben contract/dry-run, Writes allowlist- und owner-gegatet.
-   **Das ist fehlende Funktion, nicht zurückgehaltener Credit.**
+**Zahlung öffnet nichts.**
 
 ---
 
-## 🔒 ACHT REGELN, DIE JEDEN LAUF ENTSCHEIDEN
+## ✅ AUTONOM — in dieser Reihenfolge
 
-1. **O4 zuletzt** vor den Ketten — jeder Commit danach macht den Beweis stale.
-2. **`start-dev-live.ps1` NACH `verify:runtime`, VOR `verify:browser`** — die Runtime-Kette setzt
-   den Gateway auf `deterministic_dry_run` zurück; danach liefert das Modell einen 129-Zeichen-Stub.
-   Prüfen: `docker exec …llm-gateway-1 sh -c 'echo $LLM_GATEWAY_MODE'` muss `…_live` sagen.
-3. **Evidenz VERBATIM** aus dem erzeugenden Lauf — Nachbearbeiten bricht die Kreuzreferenz-Hashes.
-4. **CI-Dispatch:** `gh workflow run` nimmt einen **Ref, keinen SHA**. Kontroll-Commit direkt auf
-   den Kandidaten, eigener Branch, dispatchen, danach **mergen** (nicht cherry-picken).
-5. **Nie `git add -A`**, nie `git commit` ohne Pathspec.
-6. **`PSModulePath` setzen** — sonst fehlen PS-5.1-Standard-Cmdlets.
-7. **Nie parallel** Playwright / Docker / Verifier.
-8. **Jedem neuen CI-Step erst nach einem roten Lauf glauben.** Vier Steps liefen monatelang nur
-   `skipped` — und enthielten **alle** Fehler.
+```
+1. Docker stabil bekommen  ->  npm run verify · verify:runtime · verify:browser
+   (in dieser Session NICHT gelaufen: Daemon stuerzte beim Stack-Start ab)
+2. L4 Responses-SSE fertig (Codex' laufender Slice, 16 dirty Dateien - nicht anfassen)
+3. L5 Adapter aus contract/dry-run holen
+4. Rubrik fuer L4/L5 vom Owner freigeben lassen  ->  erst DANN Prozente
+5. RC14 binden
+6. GANZ ZULETZT: Organismus-Optik
+```
+
+---
+
+## 🔒 ZEHN REGELN, DIE JEDEN LAUF ENTSCHEIDEN
+
+1. **Kein Commit benotet sich selbst** (R-SELF-1) — Prüfung vor Umsetzung, getrennter Commit, einmal rot.
+2. **Quelltext-Textsuche ist keine Prüfung** (R-SELF-2) — `includes("function DotGlobe")` misst nichts.
+3. **Optik-Behauptung nur mit Screenshot gegen benannte Referenz** (R-VIS-1/2).
+4. **O4 zuletzt** vor den Ketten — jeder Commit danach macht den Beweis stale.
+5. **`start-dev-live.ps1` NACH `verify:runtime`, VOR `verify:browser`** — sonst
+   `deterministic_dry_run` und ein 129-Zeichen-Stub. Modus prüfen, nicht der Startmeldung trauen.
+6. **Evidenz VERBATIM** — Nachbearbeiten bricht die Kreuzreferenz-Hashes.
+7. **`gh workflow run` nimmt einen Ref, keinen SHA** — Kontroll-Commit auf den Kandidaten,
+   eigener Branch, danach **mergen** (nicht cherry-picken).
+8. **Nie `git add -A`**, nie Commit ohne Pathspec.
+9. **Nie parallel** Playwright / Docker / Verifier.
+10. **Neuem Prüfschritt erst nach einem roten Lauf glauben.**
 
 ---
 
 ## ⛔ VERBOTEN
 
-Prozente oder `live_verified` von Hand · L4/L5 hochsetzen · kanonische Anker aufweichen ·
-Hosted-Deploy ohne Freigabe · Zahlung/Karte/Paid Provider/Fly.io/R2 · Secrets ausgeben
-(**nur Pfad + Fundtyp**) · Token rotieren · Force-Push · Push auf Default-Branch ·
-DEV-ONLY-Evidenz als Hosted-Beweis ausgeben.
-
-**Vier Wände:** Kreditkarte/Zahlung · Passwort-Konten · CAPTCHA · Secrets ausgeben/committen.
-
----
-
-*Details, Belege und Owner-Klickfolgen: `CODEX_UEBERGABE_2026-08-02-FINAL.md`*
-
----
-
-# 📋 ANWEISUNGEN FÜR CODEX — RC13 ist gebunden, was jetzt zählt
-
-## Was du geliefert hast (unabhängig nachgemessen)
-
-| | |
-|---|---|
-| **RC13** | `db631ab3ffe2254309ae80aadc691b0bba6c372d` — eingefroren, lokal qualifiziert |
-| **CI grün** | Run `30815984573`, Kontroll-Commit `f5f0a2fa` auf `rc13-ctl`, sauber gemerged |
-| **P5-Verifier** | `verified mode=fully_itemized computed=89 credited=89 verified=17/19 blocked=I1,I5` |
-| **Organism** | ⚠️ **zurückgezogen** — „7 von 7“ war eine Selbstbenotung, siehe `REGELN_OPTIK_UND_FERTIG.md` |
-| **5 Achsen** | gemessen, kanonisch in `LAYER_MATRIX.md` |
-
-**Der 13-Schritt-Plan der Vorversion ist vollständig abgearbeitet.** Zwei Dinge hast du dabei
-selbst gelöst, die nicht im Plan standen: den `.gitattributes`-Eintrag, ohne den die
-Roh-Log-Hashes zwischen Worktree und Index auseinanderlaufen, und den D:-Platzmangel
-(`.next` ausgelagert statt Beweise abgebrochen). Beides war richtig.
-
-**Prozente unverändert 89** — korrekt, RC13 fügt keine horizontale Phase hinzu.
-
----
-
-## ⛔ WAS JETZT BLOCKIERT — und es ist nicht deine Arbeit
-
-`npm run verify` stoppt weiterhin an **Cloudflare-Worker-Source-Parität**:
-gehostet läuft `af61146e`, Kandidat ist `db631ab3`.
-
-**Nicht umgehen.** Es ist eine Live-Fläche und eine Owner-Entscheidung. Wer den Verifier hier
-aufweicht, fälscht Hosted-Parität. Du hast das selbst einmal richtig benannt — dabei bleibt es.
-
-Dasselbe gilt für O1 (OAuth), `AGENT_API_AUTH_TOKEN` (P6), O3 (GHCR). **Vier Owner-Wände.**
-
----
-
-## ✅ WAS AUTONOM ÜBRIG BLEIBT — die ehrliche Liste
-
-Nach dem Audit ist genau **eine** substanzielle Fläche offen. Sie bewegt die Prozente **nicht**
-(Vertikale zählen nicht ins `overall`), schließt aber die echte Funktionslücke:
-
-**L4 (55 %) — LLM Gateway.** Fehlt laut eigener Messung: volle Live-Flotte · dynamisches
-Routing · Responses-**Streaming**. Standardmodus `deterministic_dry_run` ist der Schutz,
-nicht der Defekt.
-
-**L5 (56 %) — MCP Gateway.** Fehlt: GitHub-, PostgreSQL-, Filesystem-, Playwright- und
-E2B-Adapter jenseits von contract/dry-run; Writes bleiben allowlist- und owner-gegatet.
-
-**Bevor du daran arbeitest:** Für L4/L5 existiert **keine autoritative Credit-Rubrik**. Ohne sie
-ist jede Prozentbewegung Fake-Grün — zwei Verifier prüfen die Null aktiv. Ein Rubrik-Vorschlag
-steht in `CODEX_UEBERGABE_2026-08-02-SESSION14.md`; er braucht **Owner-Freigabe**, bevor er zählt.
-
-**Reihenfolge:** Funktion bauen und lokal beweisen → Rubrik freigeben lassen → RC14.
-Nicht umgekehrt.
-
----
-
-## 🧹 AUFRÄUMEN BEIM NÄCHSTEN LAUF
-
-- `rc13-ctl` (lokal + origin) erst löschen, wenn RC13 nicht mehr aktiv ist — **nicht vorher**,
-  die Attestation verweist darauf.
-- Worktree unter `D:\_sb_tmp\rc13-ctl` entfernen.
-- `.next` liegt unter `C:\Users\immer\AppData\Local\Temp\superbrain-generated-next-rc13-market-ready`.
-- **`D:` war bei ~0 GB.** Vor jedem Image-Build Platz prüfen — ein voller Datenträger hat schon
-  einmal das Docker-Dateisystem beschädigt (Session 14, `fsck` nötig).
-
----
-
-## 🚫 UNVERÄNDERT VERBOTEN
-
 Prozente oder `live_verified` von Hand · L4/L5 ohne freigegebene Rubrik hochsetzen ·
-kanonische Anker aufweichen · Hosted-Deploy ohne Freigabe · Zahlung/Karte/Paid Provider ·
-Secrets ausgeben (**nur Pfad + Fundtyp**) · Token rotieren · Force-Push ·
-Push auf Default-Branch · `git add -A` · DEV-ONLY als Hosted-Beweis ausgeben.
+Selbstbenotung · Quelltext-Grep als Abnahme · Effekte zählen, die unter Test aus sind ·
+`.phase1-artifacts/` oder `docs/release-artifacts/` beim Aufräumen löschen ·
+Hosted-Deploy ohne Freigabe · Zahlung/Karte/Paid Provider/Fly.io/R2 ·
+Secrets ausgeben (nur Pfad + Fundtyp) · Force-Push · Push auf Default-Branch ·
+DEV-ONLY als Hosted-Beweis ausgeben.
 
 **Vier Wände:** Kreditkarte/Zahlung · Passwort-Konten · CAPTCHA · Secrets ausgeben/committen.
 
 ---
 
-*RC13 `db631ab3` · CI `30815984573` grün · Overall 89 · Gates 7/10 zu · `MARKET_READY:false`*
+*RC13 `db631ab3` · CI `30815984573` grün · Overall 89 · Gates 7/10 zu · `MARKET_READY:false`
+Details: `CODEX_UEBERGABE_2026-08-04-FINAL.md` · Regeln: `REGELN_OPTIK_UND_FERTIG.md`*
