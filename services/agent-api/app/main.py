@@ -119,7 +119,7 @@ TASK_ASSIGNMENT_CONTRACT_VERSION = "task-assignment-queue-contract-v1"
 TASK_ASSIGNMENT_EVIDENCE_REF = "task_assignment_queue_contract_visible"
 AGENT_LLM_STREAMING_CONTRACT_VERSION = "agent-llm-streaming-contract-v1"
 AGENT_LLM_STREAMING_EVIDENCE_REF = "agent_llm_streaming_contract_visible"
-LLM_RESPONSES_ADAPTER_CONTRACT_VERSION = "llm-responses-adapter-contract-v1"
+LLM_RESPONSES_ADAPTER_CONTRACT_VERSION = "llm-responses-adapter-contract-v2"
 LLM_RESPONSES_ADAPTER_EVIDENCE_REF = "llm_responses_adapter_contract_visible"
 MEMORY_EMBEDDING_CONSISTENCY_CONTRACT_VERSION = "memory-embedding-consistency-v1"
 MEMORY_EMBEDDING_CONSISTENCY_EVIDENCE_REF = "memory_embedding_consistency_contract_visible"
@@ -1178,6 +1178,28 @@ class LiveAgentSteerRequest(BaseModel):
     reset_history: bool = Field(default=False, validation_alias=AliasChoices("reset_history", "resetHistory"))
     metadata: dict[str, object] = Field(default_factory=dict)
 
+    @field_validator("metadata")
+    @classmethod
+    def validate_metadata_boundary(cls, value: dict[str, object]) -> dict[str, object]:
+        reserved = {
+            "trace_id",
+            "agent_type",
+            "logical_agent_id",
+            "project_id",
+            "live_provider_calls_allowed",
+            "gateway_path",
+        }
+        conflicts = sorted(reserved.intersection(value))
+        if conflicts:
+            raise ValueError(f"metadata keys are server-owned: {', '.join(conflicts)}")
+        try:
+            encoded = json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        except (TypeError, ValueError) as exc:
+            raise ValueError("metadata must be JSON-serializable") from exc
+        if len(encoded) > 8_192:
+            raise ValueError("metadata exceeds the 8192-byte limit")
+        return value
+
     model_config = {"populate_by_name": True}
 
 
@@ -2150,10 +2172,23 @@ def live_agent_contract_payload() -> dict[str, object]:
             "resetHistory",
             "metadata",
         ],
+        "metadata_policy": {
+            "max_bytes": 8192,
+            "server_owned_keys": [
+                "trace_id",
+                "agent_type",
+                "logical_agent_id",
+                "project_id",
+                "live_provider_calls_allowed",
+                "gateway_path",
+            ],
+            "provider_authorization_from_request_body": False,
+        },
         "response_fields": [
             "contract_version",
             "response_id",
             "responseId",
+            "continuity_reset",
             "text",
             "status",
             "model",
@@ -13842,17 +13877,28 @@ def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> d
         },
         "reasoning": {"effort": request.reasoning_effort},
         "metadata": {
+            **request.metadata,
             "trace_id": trace_id,
             "agent_type": str(profile["execution_role"]),
             "logical_agent_id": agent_id,
             "project_id": request.project_id,
-            **request.metadata,
         },
     }
     if previous_response_id:
         payload["previous_response_id"] = previous_response_id
 
-    response_payload = call_llm_gateway_responses(payload)
+    continuity_reset = False
+    try:
+        response_payload = call_llm_gateway_responses(dict(payload))
+    except HTTPException as exc:
+        if previous_response_id and exc.status_code == 404:
+            reset_live_agent_session(agent_id)
+            payload.pop("previous_response_id", None)
+            previous_response_id = None
+            continuity_reset = True
+            response_payload = call_llm_gateway_responses(dict(payload))
+        else:
+            raise
     response_id = str(response_payload.get("id") or "")
     text = extract_live_agent_text(response_payload)
     action_result = perform_live_agent_result(
@@ -13884,6 +13930,7 @@ def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> d
         "response_id": response_id or None,
         "responseId": response_id or None,
         "previous_response_id": previous_response_id,
+        "continuity_reset": continuity_reset,
         "status": response_payload.get("status", "completed"),
         "model": response_payload.get("model") or model,
         "text": text,
