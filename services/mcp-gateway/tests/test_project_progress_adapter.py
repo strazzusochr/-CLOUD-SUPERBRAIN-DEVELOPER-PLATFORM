@@ -20,6 +20,7 @@ LAYER_IDS = [f"layer_{index}" for index in range(1, 8)]
 def manifest() -> dict[str, object]:
     return {
         "overall_percent": 89,
+        "progress_source": "docs/project-progress.manifest.json",
         "last_verified": "2026-08-03",
         "horizontal": {
             "label": "Phase progress",
@@ -79,6 +80,7 @@ class ProjectProgressFilesystemAdapterTests(unittest.TestCase):
         self.assertTrue(contract["audit_before_read_required"])
         self.assertTrue(contract["audit_after_read_required"])
         self.assertFalse(contract["live_mcp_writes"])
+        self.assertFalse(contract["direct_provider_calls"])
         self.assertFalse(contract["secret_output"])
 
     def test_success_returns_only_allowlisted_projection_after_two_audits(self) -> None:
@@ -91,6 +93,8 @@ class ProjectProgressFilesystemAdapterTests(unittest.TestCase):
         self.assertEqual(result["overall_percent"], 89)
         self.assertEqual([item["id"] for item in result["horizontal"]], PHASE_IDS)
         self.assertEqual([item["id"] for item in result["vertical"]], LAYER_IDS)
+        self.assertTrue(all(set(item) == {"id", "percent"} for item in result["horizontal"]))
+        self.assertTrue(all(set(item) == {"id", "percent"} for item in result["vertical"]))
         self.assertRegex(result["source_sha256"], r"^[a-f0-9]{64}$")
         self.assertGreater(result["bytes_read"], 0)
         self.assertLessEqual(result["bytes_read"], 65_536)
@@ -99,8 +103,16 @@ class ProjectProgressFilesystemAdapterTests(unittest.TestCase):
         self.assertTrue(result["audit_after_read"])
         self.assertNotIn("path", result)
         self.assertNotIn("content", result)
-        for field in ("live_mcp_writes", "live_provider_calls", "production_deploy", "secret_output"):
+        for field in ("live_mcp_writes", "live_provider_calls", "direct_provider_calls", "production_deploy", "secret_output"):
             self.assertFalse(result[field])
+
+    def test_read_uses_one_descriptor_instead_of_reopening_the_path(self) -> None:
+        with (
+            patch.object(Path, "read_bytes", side_effect=AssertionError("path must not be reopened")),
+            patch.object(main, "post_audit_event", side_effect=self.audit_events()),
+        ):
+            result = main.execute_filesystem_project_progress_read(TOKEN, "trace-unit")
+        self.assertTrue(result["filesystem_read_performed"])
 
     def test_pre_audit_failure_prevents_the_file_read(self) -> None:
         with (
@@ -128,11 +140,19 @@ class ProjectProgressFilesystemAdapterTests(unittest.TestCase):
         self.assertEqual(production.exception.status_code, 403)
 
     def test_oversize_malformed_and_schema_drift_fail_closed(self) -> None:
+        missing_progress_source = manifest()
+        missing_progress_source.pop("progress_source")
+        missing_item_field = manifest()
+        missing_item_field["horizontal"]["items"][0].pop("status")
         failures = [
             b"x" * 65_537,
             b"{not-json",
+            b'{"overall_percent":89,"overall_percent":90}',
+            b'{"overall_percent":89,"progress_source":"docs/project-progress.manifest.json","last_verified":"2026-08-03","horizontal":{},"vertical":{},"invalid":"\xff"}'[:-2] + b"\xff\"}",
             json.dumps({**manifest(), "overall_percent": True}).encode("utf-8"),
             json.dumps({**manifest(), "horizontal": {"items": []}}).encode("utf-8"),
+            json.dumps(missing_progress_source).encode("utf-8"),
+            json.dumps(missing_item_field).encode("utf-8"),
         ]
         for raw in failures:
             with self.subTest(size=len(raw)):
@@ -145,6 +165,24 @@ class ProjectProgressFilesystemAdapterTests(unittest.TestCase):
                 with patch.object(main, "post_audit_event", return_value=self.audit_events()[0]):
                     with self.assertRaises(HTTPException):
                         main.execute_filesystem_project_progress_read(TOKEN, "trace-unit")
+
+    def test_writable_source_and_unsafe_trace_fail_closed(self) -> None:
+        try:
+            self.path.chmod(0o644)
+            with patch.object(main, "post_audit_event", return_value=self.audit_events()[0]):
+                with self.assertRaises(HTTPException):
+                    main.execute_filesystem_project_progress_read(TOKEN, "trace-unit")
+        finally:
+            try:
+                self.path.chmod(0o444)
+            except OSError:
+                pass
+
+        with patch.object(main, "post_audit_event") as audit:
+            with self.assertRaises(HTTPException) as unsafe_trace:
+                main.execute_filesystem_project_progress_read(TOKEN, "bad\ntrace")
+        self.assertEqual(unsafe_trace.exception.status_code, 400)
+        audit.assert_not_called()
 
     def test_symlink_source_is_rejected_when_supported(self) -> None:
         link = Path(self.tmp.name) / "linked-progress.json"

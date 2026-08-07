@@ -40,6 +40,7 @@ def mcp_payload() -> dict[str, object]:
         "completion_audit_event_id": POST_AUDIT,
         "live_mcp_writes": False,
         "live_provider_calls": False,
+        "direct_provider_calls": False,
         "production_deploy": False,
         "secret_output": False,
         "DEV_ONLY": True,
@@ -102,6 +103,7 @@ class ReadOnlyMcpAdapterTests(unittest.TestCase):
         self.assertFalse(contract["caller_path_allowed"])
         self.assertFalse(contract["hosted_enabled"])
         self.assertFalse(contract["live_mcp_writes"])
+        self.assertFalse(contract["direct_provider_calls"])
 
     def test_request_model_accepts_tool_and_rejects_unknown_tool(self) -> None:
         request = main.ReadOnlyToolExecuteRequest(tool_id="filesystem_project_progress", query=QUERY)
@@ -124,6 +126,7 @@ class ReadOnlyMcpAdapterTests(unittest.TestCase):
                 self.http_request,
             )
         self.assertEqual(get.call_count, 1)
+        self.assertEqual(get.call_args.args[0], "http://mcp-gateway:9000/internal/v1/filesystem/project-progress")
         self.assertEqual(get.call_args.kwargs["timeout"], 3.0)
         self.assertEqual(get.call_args.kwargs["headers"], {"x-superbrain-agent-token": TOKEN})
         self.assertEqual(result["status"], "success")
@@ -135,8 +138,16 @@ class ReadOnlyMcpAdapterTests(unittest.TestCase):
         self.assertEqual(result["result"]["overall_percent"], 89)
         self.assertNotIn("path", result["result"])
         self.assertNotIn("content", result["result"])
-        for field in ("live_mcp_writes", "live_provider_calls", "production_deploy", "secret_output"):
+        for field in ("live_mcp_writes", "live_provider_calls", "direct_provider_calls", "production_deploy", "secret_output"):
             self.assertFalse(result[field])
+
+    def test_timeout_fails_closed_without_retry(self) -> None:
+        request = main.ReadOnlyToolExecuteRequest(tool_id="filesystem_project_progress", query=QUERY)
+        with patch.object(main.httpx, "get", side_effect=httpx.TimeoutException("unit timeout")) as get:
+            with self.assertRaises(HTTPException) as caught:
+                main.execute_read_only_tool(request, self.http_request)
+        self.assertEqual(caught.exception.status_code, 503)
+        self.assertEqual(get.call_count, 1)
 
     def test_wrong_query_non_dev_missing_token_and_bad_payload_fail_closed(self) -> None:
         request = main.ReadOnlyToolExecuteRequest(tool_id="filesystem_project_progress", query="../PROJECT_STATE.md")

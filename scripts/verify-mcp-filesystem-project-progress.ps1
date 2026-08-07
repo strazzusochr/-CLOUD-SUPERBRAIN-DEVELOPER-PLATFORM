@@ -42,7 +42,11 @@ foreach ($required in @(
   "read_phase:authorized",
   "read_phase:completed",
   "filesystem_read_performed",
-  "caller_path_allowed"
+  "caller_path_allowed",
+  "direct_provider_calls",
+  "progress_source",
+  "os.open",
+  "O_NOFOLLOW"
 )) { Assert-Contains "MCP source marker $required" $mcp $required }
 
 foreach ($required in @(
@@ -82,6 +86,7 @@ Assert-True "contract version" ([string]$contract.contract_version -eq "filesyst
 Assert-True "contract caller path false" ([bool]$contract.caller_path_allowed -eq $false)
 Assert-True "contract max bytes" ([int]$contract.max_source_bytes -eq 65536)
 Assert-True "contract no writes" ([bool]$contract.live_mcp_writes -eq $false)
+Assert-True "contract no direct provider calls" ([bool]$contract.direct_provider_calls -eq $false)
 Assert-True "contract no secrets" ([bool]$contract.secret_output -eq $false)
 
 $internalStatus = curl.exe -sS --max-time 15 --output NUL --write-out "%{http_code}" "$base/mcp/internal/v1/filesystem/project-progress"
@@ -97,13 +102,25 @@ Assert-True "agent audit persisted" ([bool]$result.audit_persisted)
 Assert-True "overall bounded" ([int]$result.result.overall_percent -ge 0 -and [int]$result.result.overall_percent -le 100)
 Assert-True "seven phases" (@($result.result.horizontal).Count -eq 7)
 Assert-True "seven layers" (@($result.result.vertical).Count -eq 7)
+Assert-True "phase projection allowlist" ((@($result.result.horizontal[0].PSObject.Properties.Name | Sort-Object) -join ",") -eq "id,percent")
+Assert-True "layer projection allowlist" ((@($result.result.vertical[0].PSObject.Properties.Name | Sort-Object) -join ",") -eq "id,percent")
 Assert-True "source hash" ([string]$result.result.source_sha256 -match '^[a-f0-9]{64}$')
-foreach ($field in @("live_mcp_writes", "live_provider_calls", "production_deploy", "secret_output")) {
+foreach ($field in @("live_mcp_writes", "live_provider_calls", "direct_provider_calls", "production_deploy", "secret_output")) {
   Assert-True "$field false" ([bool]$result.$field -eq $false)
 }
 
 $badBody = @{ project_id = "goal-b-local"; tool_id = "filesystem_project_progress"; query = "../PROJECT_STATE.md" } | ConvertTo-Json -Compress
-$badStatus = curl.exe -sS --max-time 15 -H "Content-Type: application/json" --data-binary $badBody --output NUL --write-out "%{http_code}" "$base/api/v1/tools/read-only/execute"
+$tempStem = "superbrain-filesystem-project-progress-" + [Guid]::NewGuid().ToString("N")
+$badRequestPath = Join-Path ([IO.Path]::GetTempPath()) ($tempStem + "-request.json")
+$badResponsePath = Join-Path ([IO.Path]::GetTempPath()) ($tempStem + "-response.json")
+try {
+  [IO.File]::WriteAllText($badRequestPath, $badBody, [Text.UTF8Encoding]::new($false))
+  $badStatus = curl.exe -sS --max-time 15 -H "Content-Type: application/json" --data-binary "@$badRequestPath" --output $badResponsePath --write-out "%{http_code}" "$base/api/v1/tools/read-only/execute"
+  $badResponse = [IO.File]::ReadAllText($badResponsePath)
+} finally {
+  Remove-Item -LiteralPath $badRequestPath, $badResponsePath -Force -ErrorAction SilentlyContinue
+}
 Assert-True "caller path rejected" ([int]$badStatus -eq 422)
+Assert-Contains "caller path rejection body" $badResponse "canonical-project-progress"
 
 Write-Host "[filesystem-project-progress] status=verified runtime_read=true audit_before_after=true secret_output=false DEV-ONLY hosted=false"
