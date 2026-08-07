@@ -38,7 +38,7 @@
     "verify:stateful-build-browser": "node scripts/verify-stateful-build-browser.cjs",
     "verify:live-llm-evidence-chain": "powershell -ExecutionPolicy Bypass -File scripts\\verify-live-llm-evidence-chain.ps1",
     "verify:current-release-candidate": "powershell -ExecutionPolicy Bypass -File scripts\\verify.ps1 -Suite current-release-candidate -FailFast",
-    "verify:market-ready": "powershell -ExecutionPolicy Bypass -File scripts\\verify-market-ready.ps1",
+    "verify:market-ready": "powershell -ExecutionPolicy Bypass -File scripts\\verify-market-ready.ps1 -IncludeExternalGates",
     "verify:market-ready:static": "powershell -ExecutionPolicy Bypass -File scripts\\verify-market-ready.ps1 -StaticOnly",
     "verify:market-ready:require-ready": "powershell -ExecutionPolicy Bypass -File scripts\\verify-market-ready.ps1 -IncludeExternalGates -RequireReady",
     "verify:hosted-local": "powershell -ExecutionPolicy Bypass -File scripts\\verify-hosted-staging.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
