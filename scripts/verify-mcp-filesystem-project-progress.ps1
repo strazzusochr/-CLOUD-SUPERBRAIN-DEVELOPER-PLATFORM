@@ -28,6 +28,7 @@ $dockerfile = Read-Source "services\mcp-gateway\Dockerfile"
 $compose = Read-Source "docker-compose.dev.yml"
 $devNginx = Read-Source "infrastructure\nginx\dev.conf"
 $cloudNginx = Read-Source "infrastructure\nginx\cloud.conf"
+$vercelMcp = Read-Source "api\mcp.py"
 $ui = Read-Source "apps\frontend\components\goal-b-actions.tsx"
 $defaults = Read-Source "apps\frontend\lib\endpointDefaults.ts"
 
@@ -65,6 +66,9 @@ Assert-Contains "MCP exact DEV mode" $compose 'SUPERBRAIN_RUNTIME_MODE: "dev-onl
 foreach ($source in @($devNginx, $cloudNginx)) {
   Assert-Contains "public internal MCP path blocked" $source "location ^~ /mcp/internal/"
   Assert-Contains "public service-token header stripped" $source 'proxy_set_header X-Superbrain-Agent-Token "";'
+}
+foreach ($required in @('request.url.path.startswith("/mcp/internal/")', 'status_code=404')) {
+  Assert-Contains "Vercel ASGI internal MCP path guard" $vercelMcp $required
 }
 Assert-Contains "local UI adapter option" $ui 'value="filesystem_project_progress"'
 Assert-Contains "local UI canonical query" $ui "canonical-project-progress"

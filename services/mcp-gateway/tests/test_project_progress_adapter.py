@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import tempfile
@@ -8,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 
 from app import main
 
@@ -202,6 +204,43 @@ class ProjectProgressFilesystemAdapterTests(unittest.TestCase):
         ):
             with self.assertRaises(HTTPException):
                 main.execute_filesystem_project_progress_read(TOKEN, "trace-unit")
+
+    def test_low_level_io_failures_still_persist_blocked_completion_audit(self) -> None:
+        real_close = os.close
+
+        def close_then_fail(descriptor: int) -> None:
+            real_close(descriptor)
+            raise OSError("unit close failure")
+
+        for target, failure in (
+            ("read", OSError("unit read failure")),
+            ("fstat", OSError("unit fstat failure")),
+            ("close", close_then_fail),
+        ):
+            with self.subTest(target=target):
+                patcher = patch.object(os, target, side_effect=failure)
+                with patcher, patch.object(main, "post_audit_event", side_effect=self.audit_events()) as audit:
+                    with self.assertRaises(HTTPException) as caught:
+                        main.execute_filesystem_project_progress_read(TOKEN, "trace-unit")
+                self.assertEqual(caught.exception.status_code, 503)
+                self.assertEqual(audit.call_count, 2)
+                self.assertEqual(audit.call_args_list[1].args[0].audit_tags, ["read_phase:completed"])
+                self.assertEqual(audit.call_args_list[1].args[1]["status"], "blocked")
+
+    def test_vercel_asgi_boundary_hides_internal_adapter_for_all_read_methods(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        entrypoint = root / "api" / "mcp.py"
+        spec = importlib.util.spec_from_file_location("unit_vercel_mcp_entrypoint", entrypoint)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        client = TestClient(module.app)
+        for method in ("GET", "HEAD", "OPTIONS"):
+            with self.subTest(method=method):
+                response = client.request(method, "/mcp/internal/v1/filesystem/project-progress")
+                self.assertEqual(response.status_code, 404)
+        self.assertEqual(client.get("/mcp/api/v1/filesystem/project-progress/contract").status_code, 200)
 
 
 if __name__ == "__main__":
