@@ -28,7 +28,9 @@ Das ist keine Abwertung des Befunds — die Optik ist nachweislich nicht wie die
 | Vektor-Gedächtnis-Gate | war **ROT**, jetzt wieder grün | §3 |
 | Freier Platz D: | **30,5 GB** (nach Codex' Aufräumen) | `Get-PSDrive` |
 
-**Nicht geprüft — und deshalb hier nicht behauptet:** `npm run verify` (Gesamtkette),
+| `npm run verify` | **ROT** — `frontend npm audit` (§3b) | in dieser Session nachgeholt |
+
+**Nicht geprüft — und deshalb hier nicht behauptet:**
 `verify:runtime`, `verify:browser`, Workbench-Klickstrecke. **Grund: Docker Desktop ist während
 des Stack-Starts abgestürzt** (§5). Die Container erreichten `Healthy`, dann brach der Daemon weg.
 
@@ -57,6 +59,53 @@ Keine weiteren gelöschten tracked Dateien.
 
 > **Regel daraus:** Aufräumen darf `.phase1-artifacts/` und `docs/release-artifacts/` **nie**
 > berühren. Nach jedem Aufräumen `git status | grep "^ D"` prüfen.
+
+---
+
+## 3b. 🔴 NEU UND SCHWERWIEGEND — RC13-Evidenz ist heute NICHT mehr reproduzierbar
+
+`npm run verify` bricht ab bei **`Verification failed: frontend npm audit`**.
+
+**Der Code hat sich nicht geaendert — die Advisory-Datenbank hat sich geaendert.**
+
+| | |
+|---|---|
+| Funde | **2 high**, beide transitiv |
+| `brace-expansion` | 4.0.0-5.0.8 — *DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation* |
+| `js-yaml` | 4.0.0-4.3.0 — *Quadratic CPU consumption in `!!omap` resolution, CVE-2026-59870 nicht backportiert* |
+| RC13 CI gruen am | **2026-08-03 13:29** — die Advisories kamen danach |
+
+**Warum das mehr als eine Warnung ist — drei gebundene Stellen:**
+
+1. **CI:** `.github/workflows/pr-check.yml:284` fuehrt `npm audit --audit-level=moderate` aus.
+   Ein **erneuter Lauf gegen RC13 waere heute ROT**.
+2. **P5-Security-Evidenz:** `scripts/write-phase5-security-evidence.ps1:98` prueft
+   `Assert-True "npm audit" ($auditExit -eq 0)`. Die RC13-Security-Kette laesst sich damit
+   **nicht mehr neu erzeugen**.
+3. **Kandidatenbindung:** `apps/frontend` steht in `RUNTIME_SOURCE_PATHS`
+   (`verify_phase5_credit_itemization.py:55`). Jede Aenderung an `package-lock.json` erzeugt
+   **Kandidaten-Drift** → RC13 waere ungueltig, es braucht **RC14**.
+
+**Der Fix ist nicht trivial:** `npm audit fix` alleine loest beide **nicht**; npm verlangt
+`npm audit fix --force`, also potenziell brechende Major-Bumps.
+
+**Ich habe ihn deshalb NICHT ausgefuehrt.** Gruende: er wuerde mitten in Codex' laufenden
+L4-Slice fallen (16 dirty Dateien) und den Build brechen koennen.
+
+**Empfohlenes Vorgehen — gehoert in RC14:**
+```
+1. Codex' L4-Slice abschliessen
+2. npm audit fix --force  in apps/frontend
+3. npm run build --prefix apps/frontend   (MUSS gruen sein - Major-Bumps pruefen)
+4. npx tsc --noEmit -p apps/frontend/tsconfig.json
+5. npm run verify:browser                 (Regression durch Major-Bump ausschliessen)
+6. erst dann Quelle einfrieren und RC14 bauen
+```
+
+> **Lehre:** Eine gruene CI ist ein **Zeitpunkt-Beweis**, keine Dauerzusage. Zeitabhaengige
+> Pruefungen (Advisories, Zertifikate, Token-Ablauf) koennen einen unveraenderten Kandidaten
+> nachtraeglich rot machen. Vor jeder Behauptung *"RC ist gruen"* muss der Lauf **erneut**
+> erfolgen oder das Datum mitgenannt werden.
 
 ---
 
