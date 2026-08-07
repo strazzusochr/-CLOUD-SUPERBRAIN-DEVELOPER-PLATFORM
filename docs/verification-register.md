@@ -50,14 +50,14 @@ or secret output is claimed.
 
 ## Current O4 Bounded Agent/MCP Write Evidence
 
-Revalidated 2026-08-01. `o4-live-agent-mcp-write-proof-v1` binds the approved
+Revalidated 2026-08-07 after the fixed L5 read slice. `o4-live-agent-mcp-write-proof-v1` binds the approved
 DEV-ONLY Agent-to-MCP filesystem write path to source
-`bae3cdc1692e1e99e7f546f72664a3c747958b8c`, the active branch, and the project
+`1e15b308b59ecf4f541891587cddc71b21916f55`, the active branch, and the project
 root. Runtime and browser verification prove branch-protection readback,
 persisted audit before and after the write, exact readback, and rollback when
 audit persistence fails. Evidence `.phase1-artifacts/o4-live-writes/proof.json`
 has SHA-256
-`50304C69B3D748C95804C4C72C2970694748F469AE322D5C24DAA6BCB545B11B`.
+`91D1653F14A0CD072EAA67A7D3BD8349E300A11E8ACFBB5E3A78FD28D2F2FFA0`.
 Both O4 capability gates are verifier-opened and O4 is `resolved_verified`.
 The unique marker `bounded_live_agent_mcp_write_audit_verified` credits only
 Agent Pool `69% -> 100%`; MCP Gateway and Phase 6 receive no duplicate credit.
