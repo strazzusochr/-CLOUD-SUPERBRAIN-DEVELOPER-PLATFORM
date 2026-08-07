@@ -121,12 +121,13 @@ $llmResponsesVerifier = Get-Content -Path "scripts\verify-llm-responses-contract
 $llmGatewaySource = Get-Content -Path "services\llm-gateway\app\main.py" -Raw
 $agentApiSourceForLlmResponses = Get-Content -Path "services\agent-api\app\main.py" -Raw
 foreach ($required in @(
-  "llm-responses-adapter-contract-v1",
+  "llm-responses-adapter-contract-v2",
   "llm_responses_adapter_contract_visible",
   "POST /llm/v1/responses",
   "GET /llm/api/v1/responses/contract",
   "audit_persisted",
-  "stream true rejected",
+  "stream exact event order",
+  "continuity applied to gateway messages",
   "metadata object required",
   "No direct provider URL is called by the Agent API"
 )) {
@@ -139,7 +140,10 @@ foreach ($required in @(
   "responses_adapter_contract_snapshot",
   '@app.get("/api/v1/responses/contract")',
   '@app.post("/v1/responses")',
-  "stream=true is not supported on this /v1/responses proxy",
+  "responses_stream_events",
+  "store_responses_context",
+  "Responses stream audit persistence failed before emission",
+  "openai-responses-sse-v1",
   "metadata must be an object",
   '"secret_output": False'
 )) {
@@ -158,6 +162,13 @@ foreach ($required in @(
     throw "Agent API source missing responses adapter guard: $required"
   }
 }
+
+Write-Host "[verify] llm responses deterministic streaming regression tests"
+if (-not (Test-Path "services\llm-gateway\tests\test_responses_streaming.py")) {
+  throw "Missing LLM Responses streaming regression tests"
+}
+py -3 services\llm-gateway\tests\test_responses_streaming.py
+Assert-LastExitCode "llm responses deterministic streaming regression tests"
 
 Write-Host "[verify] llm gateway active-provider-only health"
 py -3 scripts\verify_llm_gateway_health_mode.py
@@ -184,11 +195,12 @@ foreach ($required in @(
   "live_agent_steering_contract_visible",
   "POST /llm/v1/responses",
   "GET /llm/api/v1/responses/contract",
-  "llm-responses-adapter-contract-v1",
+  "llm-responses-adapter-contract-v2",
   "live_provider_calls",
   "model_downloads",
   "audit_persisted",
   "secret_output",
+  "caller live-provider authorization rejected",
   "unknown agent rejected",
   "empty message rejected",
   "compatibility route"
@@ -210,9 +222,25 @@ foreach ($required in @(
   "model_downloads",
   "audit_persisted",
   "secret_output"
+  "metadata keys are server-owned"
+  "continuity_reset"
 )) {
   if (-not $agentApiSourceForLiveAgentSteering.Contains($required)) {
     throw "Agent API source missing live agent steering guard: $required"
+  }
+}
+$agentResearchUnitPath = "services\agent-api\tests\test_agent_research_run.py"
+if (-not (Test-Path $agentResearchUnitPath)) {
+  throw "Missing Agent API research/steering regression tests"
+}
+$agentResearchUnitSource = Get-Content -Path $agentResearchUnitPath -Raw
+foreach ($required in @(
+  "test_caller_metadata_cannot_set_server_owned_or_provider_gate_fields",
+  "test_caller_metadata_is_size_bounded",
+  "test_expired_gateway_context_is_reset_and_retried_once"
+)) {
+  if (-not $agentResearchUnitSource.Contains($required)) {
+    throw "Agent API steering regression tests missing required guard: $required"
   }
 }
 
@@ -3259,7 +3287,7 @@ foreach ($required in @(
   "browser_contract_harness",
   "llm responses adapter contract",
   "verify-llm-responses-contract.ps1",
-  "llm-responses-adapter-contract-v1",
+  "llm-responses-adapter-contract-v2",
   "live agent steering contract",
   "verify-live-agent-steering-contract.ps1",
   "live-agent-steering-v1",

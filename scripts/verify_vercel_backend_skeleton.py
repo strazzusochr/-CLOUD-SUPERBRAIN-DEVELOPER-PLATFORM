@@ -20,7 +20,7 @@ EXPECTED_PINS = {
 GET_CASES = [
     ("api.index", "/api/v1/health", "status", "degraded"),
     ("api.index", "/api/v1/clouds/layers", "contract_version", "cloud-layer-readiness-v1"),
-    ("api.llm", "/llm/api/v1/responses/contract", "contract_version", "llm-responses-adapter-contract-v1"),
+    ("api.llm", "/llm/api/v1/responses/contract", "contract_version", "llm-responses-adapter-contract-v2"),
     ("api.mcp", "/mcp/api/v1/version-pinning/contract", "contract_version", "mcp-version-pinning-v1"),
 ]
 POST_CASES = [

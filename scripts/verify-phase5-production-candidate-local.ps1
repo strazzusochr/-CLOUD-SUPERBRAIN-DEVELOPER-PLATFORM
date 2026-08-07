@@ -24,6 +24,18 @@ function Assert-Equal([string]$Label, $Actual, $Expected) {
   if ($Actual -ne $Expected) { throw "Phase5 local candidate verification failed: $Label expected '$Expected' but got '$Actual'." }
 }
 
+function Get-Sha256Hex([string]$Path) {
+  $resolved = (Resolve-Path -LiteralPath $Path).Path
+  $stream = [System.IO.File]::OpenRead($resolved)
+  $sha256 = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    return [System.BitConverter]::ToString($sha256.ComputeHash($stream)).Replace("-", "")
+  } finally {
+    $sha256.Dispose()
+    $stream.Dispose()
+  }
+}
+
 function Get-ContainerSha256([string]$Image, [string]$Path) {
   $value = (& docker run --rm --entrypoint sha256sum $Image $Path 2>&1 | Out-String).Trim()
   Assert-True "embedded hash readable for $Image $Path" ($LASTEXITCODE -eq 0 -and $value -match '^([0-9a-f]{64})\s+')
@@ -298,7 +310,7 @@ try {
     $verification["command"] = $evidenceCommand
     $verification["evidence_run_id"] = $EvidenceRunId
     $verification["raw_log_path"] = "docs/release-artifacts/$([string]$candidateConfig.active_release_id)-evidence/raw/candidate-runtime.log"
-    $verification["raw_log_sha256"] = (Get-FileHash -LiteralPath $rawLogPath -Algorithm SHA256).Hash
+    $verification["raw_log_sha256"] = Get-Sha256Hex $rawLogPath
     # Must equal CANONICAL_SUCCESS_ANCHORS["candidate-runtime"] in
     # scripts/verify_phase5_credit_itemization.py — declared with equality, in this order.
     $verification["observed_success_anchors"] = if ($SkipBrowser) {
@@ -317,11 +329,11 @@ try {
     $rawEvidence = [ordered]@{
       candidate_images = [ordered]@{
         path = "docs/release-artifacts/$([string]$candidateConfig.active_release_id)-evidence/candidate-images.json"
-        sha256 = (Get-FileHash -LiteralPath $candidateImagesPath -Algorithm SHA256).Hash
+        sha256 = Get-Sha256Hex $candidateImagesPath
       }
       api_contract = [ordered]@{
         path = "docs/release-artifacts/$([string]$candidateConfig.active_release_id)-evidence/raw/candidate-runtime-api-contract.json"
-        sha256 = (Get-FileHash -LiteralPath $apiContractPath -Algorithm SHA256).Hash
+        sha256 = Get-Sha256Hex $apiContractPath
       }
     }
     if (-not $SkipBrowser) {
@@ -333,7 +345,7 @@ try {
       Assert-True "candidate browser screenshot non-empty" ($browserSize -ge 1024)
       $rawEvidence["browser_screenshot"] = [ordered]@{
         path = "docs/release-artifacts/$([string]$candidateConfig.active_release_id)-evidence/raw/candidate-runtime-browser.png"
-        sha256 = (Get-FileHash -LiteralPath $browserEvidencePath -Algorithm SHA256).Hash
+        sha256 = Get-Sha256Hex $browserEvidencePath
         size_bytes = [int64]$browserSize
       }
     }

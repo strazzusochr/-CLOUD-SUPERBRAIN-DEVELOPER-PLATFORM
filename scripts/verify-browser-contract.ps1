@@ -661,7 +661,7 @@ Assert-Contains "agent llm streaming no live" $agentLlmStreamingContract "No liv
 
 Write-Host "[browser-contract] llm responses adapter contract"
 $llmResponsesContract = Invoke-Text "$BaseUrl/llm/api/v1/responses/contract"
-Assert-Contains "llm responses adapter version" $llmResponsesContract '"contract_version":"llm-responses-adapter-contract-v1"'
+Assert-Contains "llm responses adapter version" $llmResponsesContract '"contract_version":"llm-responses-adapter-contract-v2"'
 Assert-Contains "llm responses adapter evidence" $llmResponsesContract '"evidence_ref":"llm_responses_adapter_contract_visible"'
 Assert-Contains "llm responses adapter runtime endpoint" $llmResponsesContract "POST /llm/v1/responses"
 & (Join-Path $PSScriptRoot "verify-llm-responses-contract.ps1") -BaseUrl $BaseUrl -AllowLocalhost:$AllowLocalhost
@@ -670,7 +670,7 @@ Write-Host "[browser-contract] live agent steering contract"
 $liveAgentSteeringContract = Invoke-Text "$BaseUrl/api/v1/live-agents/contract"
 Assert-Contains "live agent steering version" $liveAgentSteeringContract '"contract_version":"live-agent-steering-v1"'
 Assert-Contains "live agent steering evidence" $liveAgentSteeringContract "live_agent_steering_contract_visible"
-Assert-Contains "live agent steering llm adapter" $liveAgentSteeringContract "llm-responses-adapter-contract-v1"
+Assert-Contains "live agent steering llm adapter" $liveAgentSteeringContract "llm-responses-adapter-contract-v2"
 Assert-Contains "live agent steering response no-live" $liveAgentSteeringContract "live_provider_calls"
 Assert-Contains "live agent steering response audit" $liveAgentSteeringContract "audit_persisted"
 if ($isLocalProof) {

@@ -352,6 +352,31 @@ test.describe("Cloud Superbrain platform", () => {
     expect(fetched.length, "canvas fetched core.glb").toBeGreaterThan(0);
   });
 
+  test("organism does not flash the alternate 2D cortex before the 3D renderer mounts", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.addInitScript(() => {
+      const state = { alternateCortexSeen: false };
+      Object.defineProperty(window, "__organismBootVisualState", {
+        value: state,
+        configurable: true,
+      });
+      const detectAlternateCortex = () => {
+        if (document.querySelector("canvas.cortex-canvas")) state.alternateCortexSeen = true;
+      };
+      new MutationObserver(detectAlternateCortex).observe(document, { childList: true, subtree: true });
+      document.addEventListener("readystatechange", detectAlternateCortex);
+    });
+
+    await page.goto("/organism", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("organism-visual-v2")).toBeVisible({ timeout: 30_000 });
+    const alternateCortexSeen = await page.evaluate(() => Boolean(
+      (window as Window & { __organismBootVisualState?: { alternateCortexSeen: boolean } })
+        .__organismBootVisualState?.alternateCortexSeen,
+    ));
+
+    expect(alternateCortexSeen, "the boot path must show one cortex implementation only").toBe(false);
+  });
+
   test("organism 3D renders a WebGL canvas with no console errors (+ screenshot proof)", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
@@ -571,12 +596,19 @@ test.describe("Cloud Superbrain platform", () => {
       }
     });
 
-    await page.goto("/organism", { waitUntil: "networkidle" });
+    const clockStart = new Date("2026-07-31T00:00:00Z");
+    await page.clock.install({ time: clockStart });
+    await page.goto("/organism", { waitUntil: "domcontentloaded" });
     const controls = page.getByTestId("phase6-gameplay-state-controls");
     const state = page.getByTestId("phase6-gameplay-state");
     const canvasState = page.locator('.cortex-wrap[data-gameplay-local-only="true"]').first();
     await expect(controls).toBeVisible();
     await expect(canvasState).toBeVisible({ timeout: 30_000 });
+    const readyTime = await page.evaluate(() => Date.now());
+    // Keep interval behavior deterministic without depending on a loaded runner's
+    // wall clock. The future target also avoids pauseAt racing the live clock.
+    await page.clock.pauseAt(readyTime + 60_000);
+    await page.clock.runFor(80);
     await expect(state).toContainText("objective=collect");
     await expect(state).toContainText("score=0");
     await expect(state).toContainText("checkpoints=0");
@@ -609,11 +641,12 @@ test.describe("Cloud Superbrain platform", () => {
     await expect(state).toContainText("paused=true");
     await expect(canvasState).toHaveAttribute("data-gameplay-paused", "true");
     const pausedTicks = await canvasState.getAttribute("data-gameplay-ticks");
-    await page.waitForTimeout(1_250);
+    await page.clock.runFor(1_250);
     await expect(canvasState).toHaveAttribute("data-gameplay-ticks", pausedTicks ?? "0");
 
     await page.getByTestId("phase6-gameplay-pause").click();
     await expect(state).toContainText("paused=false");
+    await page.clock.runFor(1_100);
     await expect.poll(async () => canvasState.getAttribute("data-gameplay-ticks"), { timeout: 10_000 }).not.toBe(pausedTicks);
 
     await page.getByTestId("phase6-gameplay-pause").click();
@@ -632,8 +665,7 @@ test.describe("Cloud Superbrain platform", () => {
     expect(canvasProof.length, "gameplay canvas screenshot bytes").toBeGreaterThan(25_000);
     const artifactPath = phase6ArtifactPath("phase6-gameplay-state.png");
     if (artifactPath) {
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await page.screenshot({ path: artifactPath, fullPage: true });
+      writeFileSync(artifactPath, canvasProof);
     }
 
     expect(gameplayRequests, "gameplay controls remain browser-local").toEqual([]);

@@ -27,7 +27,7 @@ def gateway_response(
         "id": f"resp-{role}",
         "object": "response",
         "status": "completed",
-        "contract_version": "llm-responses-adapter-contract-v1",
+        "contract_version": "llm-responses-adapter-contract-v2",
         "evidence_ref": "llm_responses_adapter_contract_visible",
         "trace_id": "trace-agent-run-unit",
         "model": f"unit-model-{role}",
@@ -641,6 +641,67 @@ class AgentResearchRunTests(unittest.TestCase):
         self.assertEqual(raised.exception.status_code, 503)
         self.assertEqual(raised.exception.detail, "curated research source failed encoding guard")
         gateway.assert_not_called()
+
+
+class LiveAgentSteeringSecurityTests(unittest.TestCase):
+    def test_caller_metadata_cannot_set_server_owned_or_provider_gate_fields(self) -> None:
+        reserved_keys = (
+            "trace_id",
+            "agent_type",
+            "logical_agent_id",
+            "project_id",
+            "live_provider_calls_allowed",
+            "gateway_path",
+        )
+        for key in reserved_keys:
+            with self.subTest(key=key), self.assertRaises(ValidationError):
+                main.LiveAgentSteerRequest(
+                    agent_id="coder",
+                    message="bounded steering request",
+                    metadata={key: True},
+                )
+
+    def test_caller_metadata_is_size_bounded(self) -> None:
+        with self.assertRaises(ValidationError):
+            main.LiveAgentSteerRequest(
+                agent_id="coder",
+                message="bounded steering request",
+                metadata={"client_context": "x" * 9000},
+            )
+
+    def test_expired_gateway_context_is_reset_and_retried_once(self) -> None:
+        prior_id = "resp_dryrun_11111111-1111-4111-8111-111111111111"
+        completed = gateway_response("coder", output_text="recovered bounded response")
+        completed["trace_id"] = "trace-live-agent-context-recovery"
+        action_result = {
+            "result_type": "analysis",
+            "output_rel": None,
+            "command": None,
+            "exit_code": None,
+        }
+        with (
+            patch.object(main, "check_budget_guard", return_value=budget_state()),
+            patch.object(main, "get_live_agent_session", return_value={"previous_response_id": prior_id}),
+            patch.object(
+                main,
+                "call_llm_gateway_responses",
+                side_effect=[HTTPException(status_code=404, detail="previous_response_id is unknown or expired"), completed],
+            ) as gateway_call,
+            patch.object(main, "reset_live_agent_session") as reset,
+            patch.object(main, "perform_live_agent_result", return_value=action_result),
+            patch.object(main, "set_live_agent_session"),
+        ):
+            result = main.live_agent_steer(
+                main.LiveAgentSteerRequest(agent_id="coder", message="recover bounded continuity"),
+                SimpleNamespace(state=SimpleNamespace(trace_id="trace-live-agent-context-recovery")),
+            )
+
+        self.assertEqual(gateway_call.call_count, 2)
+        self.assertEqual(gateway_call.call_args_list[0].args[0]["previous_response_id"], prior_id)
+        self.assertNotIn("previous_response_id", gateway_call.call_args_list[1].args[0])
+        reset.assert_called_once_with("coder")
+        self.assertTrue(result["continuity_reset"])
+        self.assertIsNone(result["previous_response_id"])
 
 
 if __name__ == "__main__":
