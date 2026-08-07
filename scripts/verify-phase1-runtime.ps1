@@ -607,6 +607,9 @@ Assert-Contains "filesystem workspace allowed read" $filesystemWorkspaceContract
 Assert-Contains "filesystem workspace accepted evidence" $filesystemWorkspaceContract "filesystem_workspace_access_plan"
 Assert-Contains "filesystem workspace blocked evidence" $filesystemWorkspaceContract "filesystem_scope_policy"
 Assert-Contains "filesystem workspace traversal block" $filesystemWorkspaceContract "path traversal is forbidden"
+Write-Host "[runtime] fixed DEV-ONLY filesystem project-progress adapter"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-mcp-filesystem-project-progress.ps1 -BaseUrl $baseUrl -AllowLocalhost
+Assert-LastExitCode "filesystem project-progress runtime verifier"
 $playwrightBrowserContract = curl.exe -sS "$baseUrl/mcp/api/v1/playwright/browser-proof/contract"
 Assert-Contains "playwright browser contract version" $playwrightBrowserContract '"contract_version":"playwright-browser-proof-v1"'
 Assert-Contains "playwright browser contract mode" $playwrightBrowserContract '"mode":"dry_run_contract_only"'

@@ -1100,5 +1100,13 @@ if ($SeedMemoryConsolidation) {
   Assert-Contains "memory consolidation summary shape" $consolidationFeed '"summary"'
 }
 
+if ($isLocalProof) {
+  Write-Host "[browser-contract] fixed DEV-ONLY filesystem project-progress adapter"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-mcp-filesystem-project-progress.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) { throw "Browser contract filesystem project-progress verifier failed" }
+} else {
+  Write-Host "[browser-contract] filesystem project-progress adapter skipped: DEV-ONLY; hosted proof still blocked"
+}
+
 Write-Host "[browser-contract] checks completed"
 

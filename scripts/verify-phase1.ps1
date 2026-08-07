@@ -3577,6 +3577,18 @@ if (-not $frontendHostedCommand.Contains('-SkipBrowser')) {
   throw "Current hosted frontend package verifier must preserve and validate the timestamp-bound canonical browser report"
 }
 
+Write-Host "[verify] fixed DEV-ONLY filesystem project-progress adapter"
+if (-not (Test-Path "scripts\verify-mcp-filesystem-project-progress.ps1")) { throw "Missing filesystem project-progress verifier" }
+$filesystemProjectProgressParseErrors = $null
+[Management.Automation.Language.Parser]::ParseFile("scripts\verify-mcp-filesystem-project-progress.ps1", [ref]$null, [ref]$filesystemProjectProgressParseErrors) | Out-Null
+if ($filesystemProjectProgressParseErrors) { $filesystemProjectProgressParseErrors | ForEach-Object { Write-Error $_.Message }; throw "Filesystem project-progress verifier parse errors" }
+$filesystemProjectProgressVerifier = Get-Content "scripts\verify-mcp-filesystem-project-progress.ps1" -Raw
+foreach ($required in @("filesystem-project-progress-read-v1", "canonical-project-progress", "filesystem_project_progress_read_verified", "audit_before_after=true", "direct_provider_calls", "DEV-ONLY hosted=false")) {
+  if (-not $filesystemProjectProgressVerifier.Contains($required)) { throw "Filesystem project-progress verifier missing: $required" }
+}
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-mcp-filesystem-project-progress.ps1 -StaticOnly
+Assert-LastExitCode "filesystem project-progress static verifier"
+
 Write-Host "[verify] current hosted MCP read-only verifier"
 if (-not (Test-Path "scripts\verify-mcp-hosted-current-readonly.ps1")) { throw "Missing current hosted MCP read-only verifier" }
 $hostedMcpReadOnlyParseErrors = $null
