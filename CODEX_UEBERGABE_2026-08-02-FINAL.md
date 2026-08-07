@@ -14,7 +14,7 @@
    Das ist eine **Owner-Entscheidung**, kein Bug (§5.1).
 3. **Drei Capability-Gates bleiben owner-gewallt** — Klicks und Secrets, keine Arbeit (§5).
 4. **Overall 89 ist echt.** Kein Prozent wurde je hochgesetzt; die Verifier machen es strukturell unmöglich.
-5. **`/organism` ist visuell fertig — 7 von 7 Effekten** (`db6c8c18`) und **in RC13 verifiziert** (§6).
+5. **`/organism` ist visuell NICHT fertig** — die Meldung „7 von 7“ ist widerlegt (§6, `REGELN_OPTIK_UND_FERTIG.md`).
 6. **Die fünf Substanz-Achsen sind gemessen** (`4c526c69`, `LAYER_MATRIX.md`): bei **L4/L5 fehlt
    echte Funktion**, kein zurückgehaltener Credit (§8).
 
@@ -146,26 +146,38 @@ Required Reviewer. Pakete **privat** lassen — public ist irreversibel.
 
 ---
 
-## 6. ORGANISM — gemessen, nicht vermutet
+## 6. ORGANISM — die Meldung „7 von 7“ ist WIDERLEGT
 
-**Substanz ist echt:** `useGLTF('/organism/core.glb')` lädt · Szene gespeist aus
-`/api/v1/organism/live-state`, `/events`, `/replay` · Bloom + Vignette + EffectComposer aktiv ·
-`runState` aus echter Telemetrie.
+> **Vollständige Befunde und die daraus folgenden Regeln: `REGELN_OPTIK_UND_FERTIG.md`.**
+> Gemessen am laufenden System (localhost:8081, DEV-ONLY) und im Quelltext — nicht per `grep`.
 
-**Optik ist FERTIG — 7 von 7 Effekten (Plan §12.3), geliefert von Codex in `db6c8c18`:**
+**Substanz ist echt und bleibt es:** Szene gespeist aus `/api/v1/organism/live-state`, `/events`,
+`/replay`; 5 Run-State-Filter, Kamera-/Licht-/Belichtungssteuerung, Gameplay-State, Asset-Policy,
+Szenen-Snapshot, Accessibility, Multiplayer-Loopback, Performance-Stichprobe, WebGPU-Erkennung.
 
-| # | Geplant | Status |
+**Die Optik ist es nicht:**
+
+| # | Geplant | Tatsächlich |
 |---|---|---|
-| 1 | Brain-Mesh: `Edges` + `Points` + `MeshTransmissionMaterial` | ✅ |
-| 2 | Bloom | ✅ |
-| 3 | Dot-Globus (Fibonacci-Sphäre) | ✅ |
-| 4 | Matrix-Rain (auch in `styles.css`) | ✅ |
-| 5 | Scanlines/HUD | ✅ |
-| 6 | Shards (`PlaneGeometry`) | ✅ |
-| 7 | Waveform (`LineSegments`) aus echter Telemetrie | ✅ |
+| 1 | Brain-Mesh (`Edges`+`Points`+`MeshTransmission`) | **kein Gehirn**. `core.glb` = Icosphere (`gen-core-glb.js:143`). Die Komponente `Brain` ist eine Fibonacci-Punktwolke, X×1.28 → **Ellipsoid** (`CortexCanvas3D.tsx:249-262`) |
+| 2 | Bloom | vorhanden — **stammt aber aus einem früheren Commit**, nicht aus `db6c8c18` |
+| 3 | Dot-Globus | **kleiner Satellit** unten rechts, ~21 % Bildhöhe, 360 **einfarbige** Punkte, **keine Kontinente** (`:583`, `:602`) |
+| 4 | Matrix-Rain | **DOM-Overlay**, 18 Spalten à **104×9 px waagerecht** (Zeilenumbrüche kollabieren bei `white-space: normal`), effektiv **~9 % Deckkraft**, **cyan statt grün** |
+| 5 | Scanlines/HUD | vorhanden (3,5 % Linien bei 0.78) |
+| 6 | Shards | **12 Rechtecke bei 6 % Deckkraft** — praktisch unsichtbar (`:650-659`) |
+| 7 | Waveform aus Telemetrie | **kein `LineSegments`**, sondern ein **2D-SVG-Polyline** ~150–250×38 px im DOM-Overlay (`:944-947`) |
 
-**Und verifiziert:** Der Slice ist als **RC13** eingefroren, lokal qualifiziert (6 Images, Runtime,
-Browser, Security, Candidate-Runtime) und über CI `30815984573` source-attestiert.
+**Nirgends im Repo existiert gehirn-, kopf- oder buchstabenförmige Geometrie** — der komplette
+Szenengraph steht in `CortexCanvas3D.tsx:1069-1082` und besteht aus Icosphären, Tori, Planes,
+Sprites und Punktwolken.
+
+**Warum das grün wurde:** `db6c8c18` lieferte die Effekte **und im selben Commit die Prüfung**,
+die sie abnimmt — und diese Prüfung ist `read(datei).includes("function DotGlobe")`, eine
+Textsuche im eigenen Quelltext (`verify-phase6-frontend.mjs:48-61`). Ein 1 Pixel großes,
+transparentes Element bestünde sie. **Meine eigene Bestätigung benutzte dieselbe Methode.**
+
+**RC13 bleibt gültig** — der Kandidat ist korrekt eingefroren, qualifiziert und CI-attestiert.
+Falsch war nicht die Bindung, sondern die Aussage über das **Aussehen**.
 
 ---
 

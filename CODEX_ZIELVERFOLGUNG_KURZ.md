@@ -59,9 +59,11 @@ macht die Owner-Matrix **rot**.
 
 **Beides ist erledigt — von Codex, in seinem Nachtlauf:**
 
-1. ✅ **`organism-visual-v2` ist FERTIG — 7 von 7 Effekten** (`db6c8c18`). Im Baum nachgemessen:
-   `Edges` · `MeshTransmission` · `Bloom` · `Scanline` · Fibonacci-Dot-Globus · Shards ·
-   Waveform · Matrix-Rain (auch in `styles.css`). **Unverifiziert** — braucht RC13.
+1. ❌ **`organism-visual-v2` ist NICHT fertig — die Meldung „7 von 7“ ist widerlegt.**
+   Am laufenden System gemessen: kein Gehirn (nur Icosphere + Ellipsoid-Punktwolke), Dot-Globus
+   ist ein 21 %-Satellit ohne Kontinente, Matrix-Rain sind waagerechte 104×9-px-Striche bei
+   ~9 % Deckkraft, Shards 6 % Deckkraft, Waveform ein 2D-SVG. Bloom stammt aus einem älteren
+   Commit. **Belege und neue Regeln: `REGELN_OPTIK_UND_FERTIG.md`.**
 2. ✅ **Die 5 Achsen sind gemessen** (`4c526c69`, kanonisch in `LAYER_MATRIX.md`).
    Antwort auf *„überall fehlt die Hälfte"*: **bei L4/L5 stimmt es, es ist echte Arbeit** —
    L4 55 %: Standardmodus ist `deterministic_dry_run`, volle Live-Flotte, dynamisches Routing
@@ -112,7 +114,7 @@ DEV-ONLY-Evidenz als Hosted-Beweis ausgeben.
 | **RC13** | `db631ab3ffe2254309ae80aadc691b0bba6c372d` — eingefroren, lokal qualifiziert |
 | **CI grün** | Run `30815984573`, Kontroll-Commit `f5f0a2fa` auf `rc13-ctl`, sauber gemerged |
 | **P5-Verifier** | `verified mode=fully_itemized computed=89 credited=89 verified=17/19 blocked=I1,I5` |
-| **Organism** | **7 von 7** Effekten — nicht nur gebaut, sondern **kandidatengebunden bewiesen** |
+| **Organism** | ⚠️ **zurückgezogen** — „7 von 7“ war eine Selbstbenotung, siehe `REGELN_OPTIK_UND_FERTIG.md` |
 | **5 Achsen** | gemessen, kanonisch in `LAYER_MATRIX.md` |
 
 **Der 13-Schritt-Plan der Vorversion ist vollständig abgearbeitet.** Zwei Dinge hast du dabei
