@@ -78,6 +78,54 @@ test.describe("Goal B action-to-result runtime proof", () => {
     expect(seen.some((url) => url.includes("/api/v1/tools/read-only/execute"))).toBeTruthy();
   });
 
+  test("tools DEV-ONLY filesystem progress adapter performs a real bounded read with audit readback", async ({ page }) => {
+    await ensureGuestSession(page);
+    await gotoProduct(page, "/tools");
+
+    const toolSelect = page.getByLabel("Nur lesendes Tool");
+    await expect(toolSelect.locator('option[value="filesystem_project_progress"]')).toHaveCount(1);
+    await toolSelect.selectOption("filesystem_project_progress");
+    await expect(page.getByLabel("Tool-Anfrage")).toHaveValue("canonical-project-progress");
+    await expect(page.getByLabel("Tool-Anfrage")).toHaveAttribute("readonly", "");
+
+    const responsePromise = page.waitForResponse((response) => (
+      response.url().includes("/api/v1/tools/read-only/execute")
+      && response.request().method() === "POST"
+    ));
+    await page.getByTestId("goal-b-tool-execute").click();
+    const response = await responsePromise;
+    expect(response.status()).toBe(200);
+    expect(response.request().postDataJSON()).toEqual({
+      project_id: "goal-b-local",
+      tool_id: "filesystem_project_progress",
+      query: "canonical-project-progress",
+    });
+
+    const body = await response.json();
+    expect(body.status).toBe("success");
+    expect(body.tool_id).toBe("filesystem_project_progress");
+    expect(body.audit_persisted).toBe(true);
+    expect(body.mcp_audit_readback_verified).toBe(true);
+    expect(body.filesystem_read_performed).toBe(true);
+    expect(body.result.overall_percent).toBeGreaterThanOrEqual(0);
+    expect(body.result.overall_percent).toBeLessThanOrEqual(100);
+    expect(body.result.horizontal).toHaveLength(7);
+    expect(body.result.vertical).toHaveLength(7);
+    expect(Object.keys(body.result.horizontal[0]).sort()).toEqual(["id", "percent"]);
+    expect(Object.keys(body.result.vertical[0]).sort()).toEqual(["id", "percent"]);
+    expect(body.result.source_sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(body.result.bytes_read).toBeGreaterThan(0);
+    for (const field of ["live_mcp_writes", "live_provider_calls", "direct_provider_calls", "production_deploy", "secret_output"]) {
+      expect(body[field]).toBe(false);
+    }
+
+    const result = page.getByTestId("goal-b-tool-result");
+    await expect(result).toContainText("✓ ausgeführt · tool=filesystem_project_progress", { timeout: 90_000 });
+    await expect(result).toContainText("audit_persisted=true");
+    await expect(result).toContainText("source_sha256");
+    await expect(result).toContainText("bytes_read");
+  });
+
   test("files search returns real memory hits created by artifact registry", async ({ page }) => {
     const seed = await page.request.post(`${base}/api/v1/workspace/artifacts`, {
       data: {
