@@ -1,4 +1,4 @@
-# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-08-04 · RC13
+# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-08-08 · **RC14 faellig**
 
 > **Dies ist die EINZIGE Arbeitsdatei.** Aufbau: Ziel → Owner-Entscheidung → Start → Befunde →
 > Wände → Reihenfolge → Regeln → **Anweisungen für Codex** → **Referenz** (Details, Test-Inventar,
@@ -21,7 +21,37 @@ Owner-gewallte Reste ehrlich als **OWNER-BLOCKED** listen — **nie faken (R0)**
 
 ---
 
-## 🚀 START HIER — RC13 `db631ab3` · CI `30815984573` grün
+## 🚀 START HIER — RC13 ist ABGELAUFEN, RC14 ist faellig
+
+**Codex hat 18 Commits geliefert und lief dann ins Nutzungslimit (bis 2026-08-12).**
+Die Quelle ist gegenueber RC13 um **17 Dateien / +2.113 / −80** gedriftet.
+`npm run verify` stoppt korrekt an
+`active candidate has committed or staged runtime-source drift`.
+**Das ist kein Defekt — das ist das System, das funktioniert.**
+
+### Was Codex geliefert hat (Commits nachgeprueft)
+
+| | |
+|---|---|
+| **L4 Responses-SSE** | `0c2e83dc` test → `e44d17ad` feat — **Test zuerst** |
+| **L5 Filesystem-Adapter** | 6 Test-Commits → `6978e3ab` feat → `553f6c48` fix — **Test zuerst** |
+| **Organismus-Doppelbild** | `13ceb5d3` — der 2D-Boot-Cortex blitzte vor dem 3D auf. **Dein Befund war richtig.** |
+| **MARKET_READY-Einstieg** | `285ccefc` test → `6e6343eb` fix — `verify:market-ready` lief **ohne** `-IncludeExternalGates`, konnte also gruen wirken, ohne die externen Gates zu pruefen |
+| **npm-Advisories** | `6f8017a1` — brace-expansion + js-yaml geschlossen |
+
+> **R-SELF-1 wurde eingehalten.** Bei jedem Slice: Test-Commit **vor** Implementierungs-Commit.
+> Die neuen Regeln haben in der Praxis funktioniert.
+
+### Was ich danach gefunden und behoben habe
+
+**Ein drittes Advisory** war aufgetaucht: `nanoid` < 3.3.17 (Endlosschleife bei
+`size = 0`). Patch-Bump 3.3.16 → 3.3.18, drei Zeilen, Build gruen, `npm audit` exit 0
+(`2cb39ba8`). **Drittes Advisory in rund einem Tag** — die Advisory-Datenbank bewegt sich
+schneller als der Code.
+
+---
+
+## 🚀 ALTER STAND (Historie) — RC13 `db631ab3` · CI `30815984573`
 
 ```
 [phase5-credit] verified mode=fully_itemized computed=89 credited=89 verified=17/19 blocked=I1,I5
@@ -74,12 +104,13 @@ und Routen-Klassifikation werden berechnet.
 ## ✅ AUTONOM — in dieser Reihenfolge
 
 ```
-1. Docker stabil bekommen  ->  npm run verify · verify:runtime · verify:browser
-   (in dieser Session NICHT gelaufen: Daemon stuerzte beim Stack-Start ab)
-2. L4 Responses-SSE fertig (Codex' laufender Slice, 16 dirty Dateien - nicht anfassen)
-3. L5 Adapter aus contract/dry-run holen
-4. Rubrik fuer L4/L5 vom Owner freigeben lassen  ->  erst DANN Prozente
-5. RC14 binden
+1. [ERLEDIGT] L4 Responses-SSE          (Codex, test-first)
+2. [ERLEDIGT] L5 Filesystem-Adapter      (Codex, test-first)
+3. [ERLEDIGT] npm-Advisories x3          (Codex 2, ich 1)
+4. RC14 BINDEN  <- der naechste Schritt, alles andere haengt daran
+     Quelle einfrieren -> 6 Images -> O4 -> runtime -> dev-live -> browser
+     -> Evidenz -> Kontroll-Commit auf den Kandidaten -> CI -> P5-Credit
+5. Rubrik fuer L4/L5 vom Owner freigeben lassen  ->  erst DANN Prozente
 6. GANZ ZULETZT: Organismus-Optik
 ```
 
