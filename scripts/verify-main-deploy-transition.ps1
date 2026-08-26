@@ -252,3 +252,7 @@ exit 0
 # Control commit marker: source-prequalification binding for the RC13 candidate.
 # Placed directly on the frozen candidate so CI can attest the exact source while the local
 # qualification evidence remains on the separate mainline metadata commit.
+
+# Control commit marker: source-prequalification binding for the RC14 candidate.
+# Placed directly on the frozen candidate so CI can attest the exact source while the local
+# qualification evidence remains on the separate mainline metadata commit.
