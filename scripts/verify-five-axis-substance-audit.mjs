@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -10,6 +11,10 @@ function read(relativePath) {
 
 function readJson(relativePath) {
   return JSON.parse(read(relativePath));
+}
+
+function sha256(relativePath) {
+  return createHash("sha256").update(readFileSync(resolve(root, relativePath))).digest("hex");
 }
 
 function assert(condition, message) {
@@ -61,7 +66,10 @@ for (const page of workspacePages) {
   assert(existsSync(resolve(root, pagePath)), `missing page implementation ${pagePath}`);
 }
 
-const browserReport = readJson(".codex/runs/CURRENT/22-page-actions/report.json");
+const browserReportPath = process.env.FIVE_AXIS_BROWSER_REPORT?.trim()
+  || ".codex/runs/CURRENT/22-page-actions/report.json";
+assert(existsSync(resolve(root, browserReportPath)), `browser report is missing: ${browserReportPath}`);
+const browserReport = readJson(browserReportPath);
 assert(browserReport.contract_version === "22-page-action-acceptance-v2", "browser report contract drift");
 assert(browserReport.status === "verified", "browser report is not verified");
 assert(browserReport.dev_only === true && browserReport.hosted_proof === false, "browser report scope is not honest DEV-ONLY");
@@ -69,60 +77,88 @@ assert(browserReport.proof_scope === "dev_only_localhost", "browser report proof
 assert(browserReport.registered_route_count === 22, "browser report registered route count drift");
 assert(browserReport.visited_route_count === 22, "browser report visited route count drift");
 assert(browserReport.route_registry_parity === true, "browser route registry parity failed");
-assert(browserReport.audited_enabled_family_count === 29, "enabled family count drift");
-assert(browserReport.audited_enabled_member_action_count === 161, "enabled member count drift");
-assert(browserReport.direct_effect_count === 160, "direct effect count drift");
-assert(browserReport.preverified_exact_control_count === 1, "preverified control count drift");
-assert(browserReport.excluded_member_action_count === 13, "excluded member count drift");
-assert(browserReport.excluded_spec_only_count === 5, "spec-only exclusion count drift");
-assert(browserReport.excluded_contract_only_count === 2, "contract-only exclusion count drift");
-assert(browserReport.excluded_provider_gated_count === 1, "provider-gated exclusion count drift");
-assert(browserReport.excluded_conditional_count === 5, "conditional exclusion count drift");
+assert(
+  browserReport.audited_enabled_family_count === browserReport.registered_enabled_family_count,
+  "enabled family audit is incomplete",
+);
+assert(
+  browserReport.audited_enabled_member_action_count === browserReport.registered_enabled_member_action_count,
+  "enabled member audit is incomplete",
+);
+assert(
+  browserReport.direct_effect_count + browserReport.preverified_exact_control_count
+    === browserReport.audited_enabled_member_action_count,
+  "direct/preverified action accounting drift",
+);
+assert(
+  browserReport.excluded_spec_only_count
+    + browserReport.excluded_contract_only_count
+    + browserReport.excluded_provider_gated_count
+    + browserReport.excluded_conditional_count
+    === browserReport.excluded_member_action_count,
+  "excluded action accounting drift",
+);
 assert(browserReport.unregistered_page_local_action_count === 0, "unregistered page-local controls exist");
 assert(browserReport.dead_action_count === 0, "dead registered actions exist");
 assert(browserReport.click_only_passes === 0, "click-only passes exist");
-assert(browserReport.provider_request_count === 2, "provider request count drift");
-assert(browserReport.allowed_build_request_count === 2, "allowed build request count drift");
-assert(browserReport.live_provider_response_count === 2, "live provider response count drift");
+assert(
+  browserReport.provider_request_count === browserReport.allowed_build_request_count,
+  "provider request allowlist accounting drift",
+);
+assert(
+  browserReport.live_provider_response_count === browserReport.allowed_build_request_count,
+  "allowed build requests lack live gateway responses",
+);
 assert(browserReport.unexpected_provider_request_count === 0, "unexpected provider requests exist");
 assert(browserReport.mocks_used === false, "browser report used mocks");
 assert(browserReport.route_interception_used === false, "browser report used request interception");
 assert(browserReport.secret_output === false, "browser report detected secret output");
 
+const sourceFiles = {
+  action_spec: "apps/frontend/e2e/22-page-actions.spec.ts",
+  action_matrix: "apps/frontend/lib/actionMatrix.ts",
+  workspace_nav: "apps/frontend/lib/nav.tsx",
+  product_acceptance_spec: "apps/frontend/e2e/product-acceptance.spec.ts",
+  product_acceptance_report: browserReport.source_binding?.product_acceptance_report_path,
+};
+for (const [name, path] of Object.entries(sourceFiles)) {
+  assert(typeof path === "string" && path.length > 0, `source binding path missing: ${name}`);
+  assert(existsSync(resolve(root, path)), `source binding file missing: ${name}`);
+  assert(
+    browserReport.source_binding?.files_sha256?.[name] === sha256(path),
+    `source binding hash mismatch: ${name}`,
+  );
+}
+const sourceBindingMaterial = Object.keys(sourceFiles).sort()
+  .map((name) => `${name}:${browserReport.source_binding.files_sha256[name]}`).join("\n");
+const expectedSourceBinding = createHash("sha256").update(sourceBindingMaterial).digest("hex");
+assert(browserReport.source_binding_sha256 === expectedSourceBinding, "source binding aggregate hash mismatch");
+
 const auditedRoutes = new Set(browserReport.routes.map(({ route }) => route));
 for (const { route } of workspacePages) assert(auditedRoutes.has(route), `browser report omitted ${route}`);
 
-const substanceClasses = new Map([
-  ["/home", "real"],
-  ["/login", "real"],
-  ["/workbench", "real"],
-  ["/organism", "real"],
-  ["/organism/replay", "contract"],
-  ["/organism/map", "contract"],
-  ["/agents", "contract"],
-  ["/files", "real"],
-  ["/files/local", "spec"],
-  ["/tools", "real"],
-  ["/marketplace", "contract"],
-  ["/observe", "contract"],
-  ["/games", "real"],
-  ["/apps", "real"],
-  ["/media", "real"],
-  ["/docs-output", "real"],
-  ["/evidence", "contract"],
-  ["/diagnostics", "contract"],
-  ["/design-system", "real"],
-  ["/technology", "contract"],
-  ["/settings", "contract"],
-  ["/open-source", "contract"],
+const auditReport = read("docs/audit/five-axis-substance-audit-2026-08-02.md");
+const classNames = new Map([
+  ["ECHT NUTZBAR", "real"],
+  ["NUR CONTRACT", "contract"],
+  ["SPEC/STUB", "spec"],
 ]);
+const substanceClasses = new Map();
+for (const line of auditReport.split(/\r?\n/)) {
+  const match = line.match(/^\|\s*\d+\s*\|\s*`([^`]+)`\s*\|.*\|\s*\*\*(ECHT NUTZBAR|NUR CONTRACT|SPEC\/STUB)/);
+  if (match) substanceClasses.set(match[1], classNames.get(match[2]));
+}
 assert(substanceClasses.size === 22, "substance classification must cover exactly 22 routes");
 for (const { route } of workspacePages) assert(substanceClasses.has(route), `substance classification omitted ${route}`);
 const classCounts = [...substanceClasses.values()].reduce((counts, value) => {
   counts[value] = (counts[value] ?? 0) + 1;
   return counts;
 }, {});
-assert(classCounts.real === 11 && classCounts.contract === 10 && classCounts.spec === 1, "substance class totals drift");
+for (const [kind, label] of [["real", "ECHT NUTZBAR"], ["contract", "NUR CONTRACT"], ["spec", "SPEC/STUB"]]) {
+  const summary = auditReport.match(new RegExp(`- \\*\\*(\\d+) ${label.replace("/", "\\/")}`));
+  assert(summary, `audit summary is missing ${label}`);
+  assert(Number(summary[1]) === classCounts[kind], `audit summary/table mismatch: ${label}`);
+}
 
 const manifest = readJson("docs/project-progress.manifest.json");
 const layers = new Map(manifest.vertical.items.map((item) => [item.id, item]));
@@ -143,7 +179,7 @@ const endpointMentions = [...new Set(
   (authoritativeText.match(/\/(?:api|mcp|llm)\/[A-Za-z0-9_./{}:\-]+(?:\?[A-Za-z0-9_=&{}:\-]+)?/g) ?? [])
     .map((value) => value.replace(/[.,;:)\]]+$/g, "").replace(/\/+$/g, "")),
 )].sort();
-assert(endpointMentions.length === 98, `authoritative endpoint mention count drift: ${endpointMentions.length}`);
+assert(endpointMentions.length > 0, "authoritative endpoint inventory is empty");
 
 const serviceSourceFiles = trackedFiles("services/**").filter((file) =>
   /\.(?:py|ts|tsx|js|mjs|cjs)$/.test(file) && !/(?:^|\/)(?:node_modules|dist|coverage)(?:\/|$)/.test(file),
@@ -172,7 +208,6 @@ for (const mention of endpointMentions) {
   else unresolvedEndpoints.push(mention);
 }
 assert(unresolvedEndpoints.length === 0, `unresolved authoritative endpoints: ${unresolvedEndpoints.join(", ")}`);
-assert(implementedEndpointCount === 96, `implemented authoritative endpoint count drift: ${implementedEndpointCount}`);
 assert(authoritativeText.includes("stale Ref `/api/v1/model-capabilities` ist verboten"), "negative legacy endpoint context drift");
 
 const applicationServices = ["frontend", "agent-api", "agent-worker", "memory-worker", "mcp-gateway", "llm-gateway"];
@@ -231,19 +266,14 @@ assert(productSource.includes("mode=spec_only"), "files-local spec-only boundary
 assert(productSource.includes("analysis_only"), "agent analysis-only boundary is missing");
 assert(productSource.includes("dry_run_contract_only"), "MCP dry-run boundary is missing");
 
-const organismView = read("apps/frontend/components/organism/OrganismView.tsx");
-const cortex3d = read("apps/frontend/components/organism/CortexCanvas3D.tsx");
-assert(organismView.includes(">Inspektion<"), "organism inspector is missing");
-assert(organismView.includes('data-testid="organism-runtime-feed"'), "organism runtime feed is missing");
-assert(organismView.includes('data-testid="organism-replay-frames"'), "organism replay frames are missing");
-for (const marker of [
-  'data-visual-dot-globe="fibonacci-360"',
-  'data-visual-matrix-rain="dom"',
-  'data-visual-scanlines="hud"',
-  'data-visual-shards="plane-12-opacity-0.06"',
-  'data-visual-waveform="runtime-telemetry"',
-  'data-visual-core-edges="active"',
-]) assert(cortex3d.includes(marker), `organism visual-v2 marker missing: ${marker}`);
+const organismRoutes = new Map(browserReport.routes.map((route) => [route.route, route]));
+assert(organismRoutes.get("/organism")?.visited === true, "organism browser route is not visited");
+assert(organismRoutes.get("/organism/replay")?.visited === true, "organism replay browser route is not visited");
+const browserActions = new Map(browserReport.actions.map((action) => [action.action_id, action]));
+for (const actionId of ["organism-nav-replay", "replay-live-load", "replay-live-copy"]) {
+  const action = browserActions.get(actionId);
+  assert(action?.passed === true && action?.effect_observed === true, `browser action not measured: ${actionId}`);
+}
 
 const styles = read("apps/frontend/app/styles.css");
 const designPage = read("apps/frontend/app/design-system/page.tsx");
@@ -273,24 +303,24 @@ assert(openSourcePage.includes("OWNER-BLOCKED · Lizenzwahl"), "license Owner bl
 assert(!openSourcePage.includes("Cloud Superbrain ist Open Source"), "unlicensed open-source claim returned");
 assert(!openSourcePage.includes("Lizenzen eingehalten"), "unverified license-compliance claim returned");
 
-const auditReport = read("docs/audit/five-axis-substance-audit-2026-08-02.md");
 assert(read("AGENTS.md").includes("Stack: Next.js 16.2.11, LangGraph, FastAPI, pgvector"), "active stack version drift");
 for (const phrase of [
-  "11 ECHT NUTZBAR",
-  "10 NUR CONTRACT",
-  "1 SPEC/STUB",
-  "96 aktuelle Endpoints",
   "L4 bleibt 55 %",
   "L5 bleibt 56 %",
   "MARKET_READY:false",
   "DEV-ONLY; hosted proof still blocked",
+  "Messgrenze:",
+  "Organismus-Optik: **OWNER-ABNAHME OFFEN**",
+  "Keine Optik-Verifikation aus Quelltext-Markern",
+  "R-VIS-1",
+  "Endpoint-/Routenabgleich ist statisch",
 ]) assert(auditReport.includes(phrase), `audit report phrase missing: ${phrase}`);
 
 console.log("[five-axis-audit] PASS");
 console.log(`[five-axis-audit] routes=22 real=${classCounts.real} contract=${classCounts.contract} spec=${classCounts.spec}`);
-console.log(`[five-axis-audit] actions=161 direct=160 preverified=1 excluded=13 provider_live=2`);
+console.log(`[five-axis-audit] actions=${browserReport.audited_enabled_member_action_count} direct=${browserReport.direct_effect_count} preverified=${browserReport.preverified_exact_control_count} excluded=${browserReport.excluded_member_action_count} provider_live=${browserReport.live_provider_response_count}`);
 console.log(`[five-axis-audit] L4=${layers.get("layer_4").percent} L5=${layers.get("layer_5").percent} deltas=${deltaLedger.entries.length}`);
-console.log(`[five-axis-audit] docs_endpoint_mentions=98 implemented=96 namespace=1 negative_legacy=1 unresolved=0`);
-console.log(`[five-axis-audit] product_files=${productFiles.length} strict_unfinished=0 dead_scaffolds=0`);
-console.log("[five-axis-audit] inspector=true replay=true neuroglass_tokens=12 organism_visual_v2=verified");
+console.log(`[five-axis-audit] docs_endpoint_mentions=${endpointMentions.length} declared_routes=${implementedEndpointCount} namespace=${namespaces.size} negative_legacy=${negativeOnly.size} unresolved=${unresolvedEndpoints.length}`);
+console.log(`[five-axis-audit] product_files=${productFiles.length} strict_unfinished=${unfinishedHits.length} dead_scaffolds=0`);
+console.log(`[five-axis-audit] inspector/replay=browser_measured neuroglass_tokens_declared=${tokenExpectations.size} organism_visual=owner_blocked`);
 console.log("[five-axis-audit] MARKET_READY:false; DEV-ONLY; hosted proof still blocked");
