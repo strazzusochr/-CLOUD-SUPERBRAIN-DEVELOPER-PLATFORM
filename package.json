@@ -29,6 +29,7 @@
     "verify:phase6-scale:static": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase6-scale-runtime-static.ps1 && pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase6-scale-evidence-static.ps1",
     "verify:phase6-scale:evidence-static": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase6-scale-evidence-static.ps1",
     "verify:five-axis-audit": "node scripts/verify-five-axis-substance-audit.mjs",
+    "verify:five-axis-audit:test": "node --test scripts/tests/five-axis-audit-regression.test.mjs",
     "verify:responsive": "node scripts/verify-workspace-responsive-browser.cjs --base-url http://localhost:8081 --allow-localhost",
     "verify:frontend-hosted-current": "powershell -ExecutionPolicy Bypass -File scripts\\verify-frontend-hosted-current.ps1 -SkipBrowser",
     "verify:backend-hosted-current": "powershell -ExecutionPolicy Bypass -File scripts\\verify-backend-hosted-current.ps1",
