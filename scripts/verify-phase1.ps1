@@ -2127,7 +2127,7 @@ foreach ($required in @(
   "mcp_timeout_guard",
   "mcp_tool_controlled_error",
   "task session UUID fail-closed",
-  "session_id must be a valid UUID",
+  "request field failed schema validation",
   "mcp_tool_session_bound_audit",
   '"session_bound":true',
   '"partial_failure":true'
