@@ -204,15 +204,15 @@ jobs:
           attestation_path = pathlib.Path(os.environ["RUNNER_TEMP"]) / "ci-source-checkout-attestation.json"
           attestation_path.parent.mkdir(parents=True, exist_ok=True)
           attestation_path.write_text(
-              json.dumps(attestation, indent=2, sort_keys=True) + "\n",
+              json.dumps(attestation, indent=2, sort_keys=True) + chr(10),
               encoding="utf-8",
           )
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"binding_mode={binding_mode}\n")
-              output.write(f"candidate_differs={str(candidate_sha != control_sha).lower()}\n")
-              output.write(f"source_prequalification={str(source_prequalification).lower()}\n")
-              output.write(f"attestation_path={attestation_path.as_posix()}\n")
+              print(f"binding_mode={binding_mode}", file=output)
+              print(f"candidate_differs={str(candidate_sha != control_sha).lower()}", file=output)
+              print(f"source_prequalification={str(source_prequalification).lower()}", file=output)
+              print(f"attestation_path={attestation_path.as_posix()}", file=output)
 
       - name: Docker Compose config
         run: docker compose -f docker-compose.dev.yml config >/tmp/compose.yml

@@ -115,8 +115,8 @@ jobs:
               raise SystemExit("active candidate is not an ancestor of the control commit")
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"control_sha={control_sha}\n")
-              output.write(f"candidate_sha={candidate_sha}\n")
+              print(f"control_sha={control_sha}", file=output)
+              print(f"candidate_sha={candidate_sha}", file=output)
 
   verify-candidate:
     name: Verify exact candidate source
@@ -204,7 +204,8 @@ jobs:
             exit 0
           fi
 
-          printf '%s\n' "${inspection}" >&2
+          printf '%s' "${inspection}" >&2
+          echo >&2
           echo "Registry state could not be classified safely; refusing to build or push." >&2
           exit "${inspect_status}"
 
@@ -286,4 +287,5 @@ jobs:
         run: |
           set -euo pipefail
           test "${ARTIFACT_DIGEST}" != ""
-          printf 'Candidate manifest Actions artifact digest: %s\n' "${ARTIFACT_DIGEST}" >> "${GITHUB_STEP_SUMMARY}"
+          printf 'Candidate manifest Actions artifact digest: %s' "${ARTIFACT_DIGEST}" >> "${GITHUB_STEP_SUMMARY}"
+          echo >> "${GITHUB_STEP_SUMMARY}"
