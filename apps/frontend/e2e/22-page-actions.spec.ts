@@ -1052,12 +1052,22 @@ async function auditMember(
               await gotoRoute(page, route, build.id);
               await prepareMember(page, context, action);
             }
-            const popupControl = page.locator(action.locator).nth(
-              Math.min(originalIndex, Math.max(0, (await page.locator(action.locator).count()) - 1)),
+            const popupControls = page.locator(action.locator);
+            await popupControls.first().waitFor({ state: "visible", timeout: 60_000 }).catch(() => undefined);
+            const popupControl = popupControls.nth(
+              Math.min(originalIndex, Math.max(0, (await popupControls.count()) - 1)),
             );
-            const popupPromise = context.waitForEvent("page", { timeout: 15_000 });
-            await popupControl.click();
-            popup = await popupPromise.catch(() => null);
+            try {
+              await expect(popupControl).toBeVisible({ timeout: 60_000 });
+              // Attach the rejection handler before clicking. Dynamic build galleries can
+              // re-render between locator discovery and the click; an unhandled page-event
+              // timeout must not abort the retry that re-hydrates the route.
+              const popupPromise = page.waitForEvent("popup", { timeout: 30_000 }).catch(() => null);
+              await popupControl.click({ timeout: 30_000 });
+              popup = await popupPromise;
+            } catch {
+              popup = null;
+            }
           }
           expect(popup, `${route}/${action.id} must open a browser page`).not.toBeNull();
           if (popup === null) throw new Error(`${route}/${action.id} did not open a browser page`);
