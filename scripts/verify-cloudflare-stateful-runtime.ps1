@@ -387,7 +387,7 @@ foreach ($marker in @(
   "INSERT INTO audit_events",
   "cloudflare_d1_build_created",
   "audit_persisted: true",
-  "build_persistence_failed"
+  "build_persistence_outcome_unknown"
 )) {
   Assert-Contains "Worker build create" $buildCreateSection $marker
 }
@@ -616,7 +616,8 @@ foreach ($marker in @(
   'hosted opaque sessions survive create-verify-revoke with hash-only D1 storage',
   'hosted session issuance is authenticated, validated, and audit-atomic',
   'survives the create-list-read-delete registry roundtrip',
-  'build and audit persistence fail atomically without returning generated output',
+  'an unconfirmed build batch reports unknown outcome while the fake D1 rolls back atomically',
+  'build creation reports unknown outcome when committed readback is unavailable or mismatched',
   'known secret forms are rejected before build persistence and never echoed',
   'public build reads redact legacy titles and never expose raw prompts',
   'workspace artifacts use the same authenticated D1 boundary',
