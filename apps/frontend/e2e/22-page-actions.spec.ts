@@ -1084,6 +1084,9 @@ async function auditMember(
         if (action.id.includes("delete")) page.once("dialog", (dialog) => dialog.accept());
         await expect(control).toBeEnabled({ timeout: 15_000 });
         await control.click();
+        if (action.id === "agents-run") {
+          await expect(page.getByTestId("ar-result")).toBeVisible({ timeout: 180_000 });
+        }
         const deltaTimeout = action.id.startsWith("agents-")
           ? 180_000
           : normalizedId.startsWith("organism-")
