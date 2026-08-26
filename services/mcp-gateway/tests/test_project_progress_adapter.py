@@ -6,7 +6,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -84,6 +84,27 @@ class ProjectProgressFilesystemAdapterTests(unittest.TestCase):
         self.assertFalse(contract["live_mcp_writes"])
         self.assertFalse(contract["direct_provider_calls"])
         self.assertFalse(contract["secret_output"])
+
+    def test_audit_transport_has_one_bounded_ten_second_attempt(self) -> None:
+        request = main._filesystem_project_progress_tool_request("trace-unit")
+        result = main.envelope_result(
+            request,
+            status="success",
+            sanitized_summary="Authorized bounded test read.",
+            evidence_ref="filesystem_project_progress_read_verified",
+        )
+        response = MagicMock()
+        response.__enter__.return_value = response
+        response.read.return_value = json.dumps(
+            {"event_id": "11111111-1111-4111-8111-111111111111", "severity": "info"}
+        ).encode("utf-8")
+
+        with patch.object(main.urllib.request, "urlopen", return_value=response) as urlopen:
+            audit = main.post_audit_event(request, result)
+
+        self.assertEqual(audit["event_id"], "11111111-1111-4111-8111-111111111111")
+        urlopen.assert_called_once()
+        self.assertEqual(urlopen.call_args.kwargs["timeout"], 10)
 
     def test_success_returns_only_allowlisted_projection_after_two_audits(self) -> None:
         with patch.object(main, "post_audit_event", side_effect=self.audit_events()) as audit:
