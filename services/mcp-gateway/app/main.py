@@ -28,6 +28,7 @@ FILESYSTEM_PROJECT_PROGRESS_PATH = "/app/readonly/project-progress.manifest.json
 FILESYSTEM_PROJECT_PROGRESS_MAX_BYTES = 65_536
 FILESYSTEM_PROJECT_PROGRESS_PHASE_IDS = tuple(f"phase_{index}" for index in range(7))
 FILESYSTEM_PROJECT_PROGRESS_LAYER_IDS = tuple(f"layer_{index}" for index in range(1, 8))
+MCP_AUDIT_HTTP_TIMEOUT_SECONDS = 10
 
 app = FastAPI(title="Cloud Superbrain MCP Gateway", version=MCP_GATEWAY_VERSION)
 
@@ -1388,7 +1389,7 @@ def post_audit_event(request: ToolRequest, result: dict[str, object]) -> dict[st
         method="POST",
     )
     try:
-        with urllib.request.urlopen(http_request, timeout=2) as response:
+        with urllib.request.urlopen(http_request, timeout=MCP_AUDIT_HTTP_TIMEOUT_SECONDS) as response:
             return json.loads(response.read().decode("utf-8"))
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
         return None
