@@ -32,21 +32,22 @@ $candidate = Get-Content -Path "docs\release-artifacts\prod-candidate-2026-05-05
 $browserProof = Get-Content -Path "docs\release-artifacts\prod-candidate-2026-05-05-rc1-browser-proof.md" -Raw
 $postRollbackBrowserProof = Get-Content -Path "docs\release-artifacts\prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md" -Raw
 $progressManifest = Get-Content -Path "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
-$latestExternalGateAudit = Get-ChildItem -Path ".phase1-artifacts" -Filter "external-gate-audit-*.json" |
-  Sort-Object -Property Name -Descending |
-  Select-Object -First 1
-if (-not $latestExternalGateAudit) {
-  throw "Verification failed: no external gate audit artifact found."
+$canonicalExternalGateAuditRef = "docs/runtime-state/external-gate-audit-v2.json"
+if (-not (Test-Path -LiteralPath $canonicalExternalGateAuditRef -PathType Leaf)) {
+  throw "Verification failed: canonical external gate audit not found."
 }
-$latestExternalGateAuditRef = ".phase1-artifacts/$($latestExternalGateAudit.Name)"
+$canonicalExternalGateAudit = Get-Content -LiteralPath $canonicalExternalGateAuditRef -Raw | ConvertFrom-Json
+if ([string]$canonicalExternalGateAudit.contract_version -ne "external-gate-audit-v2") {
+  throw "Verification failed: canonical external gate audit contract is not v2."
+}
 
-Assert-Contains "PROJECT_STATE current external audit" $projectState $latestExternalGateAuditRef
+Assert-Contains "PROJECT_STATE current external audit" $projectState $canonicalExternalGateAuditRef
 Assert-Contains "PROJECT_STATE retired provider boundary" $projectState "Hetzner, GitKraken und Oracle sind aus dem aktiven Pfad entfernt oder als historische Altlast markiert"
 Assert-Contains "PROJECT_STATE no-token external baseline" $projectState "GitLab-, Hugging-Face- und Grafana-Identity bleiben im Basislauf ohne Token fail-closed"
 Assert-Contains "PROJECT_STATE historical Hetzner boundary" $projectState "historische Provenance"
 Assert-NotContains "PROJECT_STATE next safe work" $projectState "authoritative hosted gate truth is on the Hetzner staging URL"
 
-Assert-Contains "AI_HANDOFF current external audit" $aiHandoff $latestExternalGateAuditRef
+Assert-Contains "AI_HANDOFF current external audit" $aiHandoff $canonicalExternalGateAuditRef
 Assert-Contains "AI_HANDOFF no-token external baseline" $aiHandoff "GitLab, Hugging Face, and Grafana identity checks are fail-closed in this no-token baseline"
 Assert-Contains "AI_HANDOFF current frontend proof" $aiHandoff 'frontend-hosted-current-proof-v1'
 Assert-Contains "AI_HANDOFF current contract origin" $aiHandoff 'frontend and the stateless read-only Backend Contract Origin are deployed on Vercel'
@@ -57,7 +58,7 @@ Assert-Contains "verification register historical boundary" $verificationRegiste
 Assert-Contains "verification register current frontend authority" $verificationRegister 'Current frontend truth is `frontend-hosted-current-proof-v1`'
 Assert-Contains "verification register current external authority" $verificationRegister 'current external truth is `external-gate-audit-v2` plus `external-gate-summary-v2`'
 Assert-Contains "verification register stateful backend non-claim" $verificationRegister 'Neither one proves a stateful full-backend rollout, release promotion, or full-platform production release'
-Assert-Contains "verification register current external audit" $verificationRegister $latestExternalGateAuditRef
+Assert-Contains "verification register current external audit" $verificationRegister $canonicalExternalGateAuditRef
 
 Assert-NotContains "deploy-to-staging active default IP" $deployScript '[string]$StagingIp = "188.34.191.140"'
 Assert-NotContains "deploy-to-staging active sslip derivation" $deployScript 'return ($Ip -replace ''.'', ''-'') + ".sslip.io"'
