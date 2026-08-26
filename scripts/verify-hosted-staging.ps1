@@ -434,8 +434,24 @@ if (-not $BaseUrl) {
 }
 
 $BaseUrl = $BaseUrl.TrimEnd("/")
-if ((-not $AllowLocalhost) -and ($BaseUrl -match "localhost|127\.0\.0\.1|\[::1\]")) {
+try {
+  $stagingUri = [Uri]$BaseUrl
+} catch {
+  throw "Hosted staging proof requires a valid absolute URL"
+}
+if (-not $stagingUri.IsAbsoluteUri -or -not [string]::IsNullOrWhiteSpace($stagingUri.UserInfo)) {
+  throw "Hosted staging proof requires a valid absolute URL without embedded credentials"
+}
+$stagingHost = $stagingUri.DnsSafeHost.ToLowerInvariant()
+$isLocalhostTarget = $stagingHost -in @("localhost", "127.0.0.1", "::1")
+if ($stagingHost -eq "188.34.191.140" -or $stagingHost.EndsWith(".sslip.io")) {
+  throw "Hosted staging proof refuses the retired sslip.io/Hetzner boundary"
+}
+if ((-not $AllowLocalhost) -and $isLocalhostTarget) {
   throw "Hosted staging proof refuses localhost unless -AllowLocalhost is set"
+}
+if ((-not $isLocalhostTarget) -and $stagingUri.Scheme -ne "https") {
+  throw "Hosted staging proof requires HTTPS for non-local targets"
 }
 
 Write-Host "[hosted] base url: $BaseUrl"

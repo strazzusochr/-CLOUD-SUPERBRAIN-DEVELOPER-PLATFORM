@@ -27,6 +27,7 @@ $projectState = Get-Content -Path "PROJECT_STATE.md" -Raw
 $aiHandoff = Get-Content -Path "AI_HANDOFF.md" -Raw
 $verificationRegister = Get-Content -Path "docs\verification-register.md" -Raw
 $deployScript = Get-Content -Path "scripts\deploy-to-staging.ps1" -Raw
+$hostedVerifier = Get-Content -Path "scripts\verify-hosted-staging.ps1" -Raw
 $externalGateScript = Get-Content -Path "scripts\verify-external-gates.ps1" -Raw
 $candidate = Get-Content -Path "docs\release-artifacts\prod-candidate-2026-05-05-rc1.md" -Raw
 $browserProof = Get-Content -Path "docs\release-artifacts\prod-candidate-2026-05-05-rc1-browser-proof.md" -Raw
@@ -64,6 +65,10 @@ Assert-NotContains "deploy-to-staging active default IP" $deployScript '[string]
 Assert-NotContains "deploy-to-staging active sslip derivation" $deployScript 'return ($Ip -replace ''.'', ''-'') + ".sslip.io"'
 Assert-Contains "deploy-to-staging retired mutation guard" $deployScript "scripts/deploy-to-staging.ps1 is retired for active cloud mutation"
 Assert-Contains "deploy-to-staging plan placeholder" $deployScript "retired-plan.invalid"
+
+Assert-Contains "hosted verifier retired boundary guard" $hostedVerifier "Hosted staging proof refuses the retired sslip.io/Hetzner boundary"
+Assert-Contains "hosted verifier retired suffix guard" $hostedVerifier '$stagingHost.EndsWith(".sslip.io")'
+Assert-Contains "hosted verifier HTTPS guard" $hostedVerifier "Hosted staging proof requires HTTPS for non-local targets"
 
 Assert-Contains "external gate Grafana powershell probe" $externalGateScript "Invoke-RestMethod -Method Get"
 Assert-Contains "external gate Grafana redaction" $externalGateScript "[redacted-token]"

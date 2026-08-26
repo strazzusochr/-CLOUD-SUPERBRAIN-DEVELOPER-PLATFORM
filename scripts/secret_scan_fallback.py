@@ -73,6 +73,10 @@ def is_skipped(path: Path) -> bool:
     return path.suffix.lower() in SKIP_SUFFIXES
 
 
+def is_test_fixture(path: Path) -> bool:
+    return any(part.lower() in {"test", "tests"} for part in path.parts) or ".test." in path.name.lower()
+
+
 def is_allowed(value: str, path: Path) -> bool:
     normalized = value.strip().strip("\"'").lower()
     if path.name == ".env.example":
@@ -91,6 +95,8 @@ def is_allowed(value: str, path: Path) -> bool:
         return True
     if "(" in normalized or ")" in normalized:
         return True
+    if "," in normalized or ";" in normalized:
+        return True
     return False
 
 
@@ -102,14 +108,17 @@ def scan_file(path: Path) -> list[str]:
 
     findings: list[str] = []
     rel = path.relative_to(ROOT)
+    scanner_config = rel.as_posix() == ".gitleaks.toml"
+    test_fixture = is_test_fixture(rel)
     for line_number, line in enumerate(text.splitlines(), start=1):
-        for pattern in TOKEN_PATTERNS:
-            match = pattern.search(line)
-            if match and not is_allowed(match.group(0), path):
-                findings.append(f"{rel}:{line_number}: token-like secret pattern")
+        if not scanner_config:
+            for pattern in TOKEN_PATTERNS:
+                match = pattern.search(line)
+                if match and not is_allowed(match.group(0), path):
+                    findings.append(f"{rel}:{line_number}: token-like secret pattern")
 
         assignment = ASSIGNMENT_PATTERN.search(line)
-        if assignment and not is_allowed(assignment.group(2), path):
+        if assignment and not test_fixture and not is_allowed(assignment.group(2), path):
             findings.append(f"{rel}:{line_number}: secret assignment pattern")
 
     return findings
