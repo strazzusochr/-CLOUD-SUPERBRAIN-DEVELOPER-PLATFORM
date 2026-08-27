@@ -216,7 +216,7 @@ def model_capability_matrix() -> dict[str, object]:
                 "secret_output": False,
             }
         },
-        "note": "The qwen3.7-plus coder route uses Alibaba Model Studio through the LLM Gateway; every live generation remains credential-, mode-, budget-, policy-, and audit-gated.",
+        "note": "Routes are open-source-first and resolved through the Hugging Face router unless an explicitly provider-bound route applies. The qwen3.7-plus coder route uses Alibaba Model Studio through the LLM Gateway; every live generation remains credential-, mode-, budget-, policy-, and audit-gated.",
     }
 
 
