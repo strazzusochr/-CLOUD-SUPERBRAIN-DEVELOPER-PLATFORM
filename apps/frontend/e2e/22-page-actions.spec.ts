@@ -255,6 +255,14 @@ async function prepareMember(page: Page, context: BrowserContext, action: Action
   if (normalizedId.startsWith("organism-")) {
     await expect(page.getByTestId("organism-view")).toHaveAttribute("data-hydrated", "true", { timeout: 30_000 });
   }
+  if (action.id.startsWith("technology-")) {
+    // The technology surface removes its contract-backed controls while all three
+    // runtime sources reload. A preceding refresh may legitimately take longer
+    // than the default action timeout, so bind every follow-up action to the
+    // explicit ready state instead of racing the transient loading tree.
+    await expect(page.getByTestId("technology-runtime-view"))
+      .toHaveAttribute("data-state", "ready", { timeout: 60_000 });
+  }
   if (action.id === "login-name" || action.id === "login-signin") {
     await setSession(page, context, false);
   } else if (action.id === "login-signout" || action.id === "login-workbench") {
@@ -1113,6 +1121,8 @@ async function auditMember(
         }
         const deltaTimeout = action.id.startsWith("agents-")
           ? 180_000
+          : action.id.startsWith("technology-")
+            ? 60_000
           : normalizedId.startsWith("organism-")
             ? 15_000
             : 5_000;
