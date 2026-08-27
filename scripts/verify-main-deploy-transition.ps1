@@ -256,3 +256,6 @@ exit 0
 # Control commit marker: source-prequalification binding for the RC14 candidate.
 # Placed directly on the frozen candidate so CI can attest the exact source while the local
 # qualification evidence remains on the separate mainline metadata commit.
+
+# Control commit marker: source-prequalification binding for source 2e945a6.
+# This attests the exact development source only; it does not select RC15 or promote a release.
