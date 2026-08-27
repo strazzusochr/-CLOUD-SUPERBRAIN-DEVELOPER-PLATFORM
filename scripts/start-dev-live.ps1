@@ -43,7 +43,7 @@ $env:TEMP = 'D:\_sb_tmp'
 $env:TMP  = 'D:\_sb_tmp'
 
 if (-not (Test-Path -LiteralPath $ComposeFile)) {
-  throw "Compose-Datei nicht gefunden: $ComposeFile — bitte im Repo-Wurzelverzeichnis ausführen."
+  throw "Compose-Datei nicht gefunden: $ComposeFile - bitte im Repo-Wurzelverzeichnis ausführen."
 }
 
 # --- Freier Speicher: bekannter Stolperstein, tarnt sich als Verifier-Fehler --------------
