@@ -191,6 +191,12 @@ async function gotoRoute(page: Page, route: string, buildId?: string): Promise<v
   }
 }
 
+async function waitForTopologyMap(page: Page): Promise<void> {
+  const map = page.getByTestId("organism-topology-map");
+  await expect(map).toHaveAttribute("data-contract-version", "organism-topology-v1", { timeout: 60_000 });
+  await expect(page.getByTestId("organism-topology-kind-filter").first()).toBeVisible({ timeout: 60_000 });
+}
+
 async function setSession(page: Page, context: BrowserContext, signedIn: boolean): Promise<void> {
   const loginResponse = await page.goto(`${baseUrl}/login?sessionreset=${Date.now()}`, {
     waitUntil: "domcontentloaded",
@@ -253,6 +259,9 @@ async function prepareMember(page: Page, context: BrowserContext, action: Action
     await setSession(page, context, false);
   } else if (action.id === "login-signout" || action.id === "login-workbench") {
     await setSession(page, context, true);
+  }
+  if (action.id.startsWith("map-topology-")) {
+    await waitForTopologyMap(page);
   }
 
   const fillValues: Record<string, [string, string]> = {
@@ -547,6 +556,11 @@ async function findUnregisteredPageLocalControls(
       .first()
       .waitFor({ state: "attached", timeout: 20_000 })
       .catch(() => undefined);
+  }
+  if (entry.route === "/organism/map") {
+    // The topology contract is fetched and strictly validated client-side. Do not snapshot
+    // dynamic controls while the map still reports its explicit pending state.
+    await waitForTopologyMap(page);
   }
   const snapshot = await page.evaluate(({ candidateSelector, selectors }) => {
       const splitSelectorList = (value: string): string[] => {
