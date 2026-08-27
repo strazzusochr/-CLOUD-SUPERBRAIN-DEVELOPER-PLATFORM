@@ -1,13 +1,45 @@
 # Verification Register - PATCHED
 
-Stand: 2026-08-27
+Stand: 2026-08-28
 Status: Active
 
 ## Current Progress Authority
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
 
-## Current RC15 Local Qualification Evidence
+## Current RC16 Local Qualification Evidence
+
+Recorded 2026-08-28. Active locally qualified candidate
+`prod-candidate-2026-08-28-local-rc16` is bound to frozen source
+`0a706beae17e25525a312843c236720a1efdf99b`. GitHub Actions `pr-check` run
+`33122645862` passed through control commit
+`c37caea08155474b5a8403aa901764b26b2d568f`; the source-checkout attestation reports
+`checked_out_sha=0a706beae17e25525a312843c236720a1efdf99b` and the only control delta is
+`scripts/verify-main-deploy-transition.ps1`. GitHub artifact `9667130968`, its reported and
+downloaded archive digest, and attestation hash are preserved in the 27-file evidence set.
+
+The five independent chains passed: six committed-archive candidate images, full runtime,
+full browser, candidate-runtime identity/parity with a real Chromium selection and click, and
+candidate-archive security. Browser proof passed Browser Contract, real Cloudflare Workers AI
+product acceptance, `22/22` routes, `29/29` families, `161/161` action members, responsive
+`22x2` navigation, and O4 write/readback/rollback. Candidate security passed npm audit and
+canonical gitleaks over the committed candidate archive. All local evidence is
+`DEV-ONLY; hosted proof still blocked`.
+
+RC16 is the minimal Windows PowerShell 5 parser repair after RC15: one Unicode em dash in the
+DEV-LIVE missing-compose error is now an ASCII hyphen. Static `npm run verify` exposed the
+encoding boundary, the repaired script parses under Windows PowerShell 5, and the full static
+sweep passes. No runtime behavior, model route, provider permission, infrastructure, or cost
+changed. Alibaba remained inactive; the real acceptance provider remained Cloudflare Workers AI.
+
+Readiness is `verified_with_owner_blocks`; Phase-5 itemization remains exactly `17/19 = 89%`.
+The only zero-credit items are I1 `hosted_candidate_parity` and I5
+`production_auth_identity`. Overall remains `89%`; `MARKET_READY:false`. RC15 source
+`2e945a6cfd7217ee71372ad3ddc9ad63f4840a2f` is the rollback target. No authenticated Alibaba
+call, GHCR publication, default-branch write, production deploy, release promotion, Owner
+approval, payment, or secret output is claimed.
+
+## Historical RC15 Local Qualification Evidence
 
 Recorded 2026-08-27. Active locally qualified candidate
 `prod-candidate-2026-08-27-local-rc15` is bound to frozen source

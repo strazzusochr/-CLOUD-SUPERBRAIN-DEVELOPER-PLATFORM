@@ -1,7 +1,7 @@
 {
-  "active_release_id": "prod-candidate-2026-08-27-local-rc15",
-  "updated_at": "2026-08-27T21:28:18Z",
-  "updated_by": "codex-rc15-local-qualification",
-  "reason": "RC15 is the active locally qualified candidate for frozen source 2e945a6cfd7217ee71372ad3ddc9ad63f4840a2f. Source-attested GitHub Actions run 33095778510 and all five independent local chains passed with immutable hashes. RC14 source d0674bfc1367b04d95ca2bf745e89fabf12046ad is the exact rollback target. DEV-ONLY; hosted proof still blocked. Hosted staging, production OAuth, Phase-6 scale authorization, GHCR publication, Owner approval, release promotion, and production rollout remain blocked.",
+  "active_release_id": "prod-candidate-2026-08-28-local-rc16",
+  "updated_at": "2026-08-27T23:53:59Z",
+  "updated_by": "codex-rc16-local-qualification",
+  "reason": "RC16 is the active locally qualified candidate for frozen source 0a706beae17e25525a312843c236720a1efdf99b. Source-attested GitHub Actions run 33122645862 and all five independent local chains passed with immutable hashes. RC15 source 2e945a6cfd7217ee71372ad3ddc9ad63f4840a2f is the exact rollback target. DEV-ONLY; hosted proof still blocked. Hosted staging, production OAuth, Phase-6 scale authorization, GHCR publication, Owner approval, release promotion, and production rollout remain blocked.",
   "production_rollout_claimed": false
 }

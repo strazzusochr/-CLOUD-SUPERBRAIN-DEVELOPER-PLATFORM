@@ -6,7 +6,41 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-## Current RC15 Handoff — 2026-08-27
+## Current RC16 Handoff — 2026-08-28
+
+Active locally qualified candidate: `prod-candidate-2026-08-28-local-rc16`, frozen source
+`0a706beae17e25525a312843c236720a1efdf99b`, control commit
+`c37caea08155474b5a8403aa901764b26b2d568f`, source-attested GitHub Actions run
+`33122645862`. GitHub checked out the exact candidate SHA; the only control delta was
+`scripts/verify-main-deploy-transition.ps1`. Artifact `9667130968`, its GitHub digest,
+downloaded archive digest, and embedded attestation are preserved with the candidate.
+
+All five independent chains passed: six committed-archive service images, full runtime,
+full real-Chromium browser, candidate-runtime identity/parity with a real selection/click,
+and candidate-archive npm-audit/gitleaks security. Browser proof includes a real Cloudflare
+Workers AI build, `22/22` routes, `29/29` action families, `161/161` action members,
+responsive `22x2` navigation, and O4 write/readback/rollback. The immutable evidence set has
+27 files. Every local result is `DEV-ONLY; hosted proof still blocked`.
+
+RC16 keeps RC15's gateway-only `qwen3.7-plus` Coder route and changes one DEV-LIVE error
+delimiter from a Unicode em dash to an ASCII hyphen. This repairs Windows PowerShell 5 parsing
+without changing runtime behavior, provider routing, permissions, gates, or cost. Qwen Code
+`0.22.2` remains gateway-bound; Alibaba is inactive and no authenticated Alibaba call occurred.
+The real acceptance provider remained Cloudflare Workers AI.
+
+Readiness remains `17/19 = 89%`. Exactly I1 `hosted_candidate_parity` and I5
+`production_auth_identity` remain Owner-blocked and zero-credit. Rollback target is RC15 source
+`2e945a6cfd7217ee71372ad3ddc9ad63f4840a2f`. Overall: `89%`; P0/P1/P2/P4 `100`, P3 `44`,
+P5 `89`, P6 `90`; L1/L2/L3/L6/L7 `100`, L4 `55`, L5 `56`. `MARKET_READY:false`.
+
+The selection truth is committed before the final source-bound rerun. After that commit, run
+build, runtime, DEV-LIVE browser/22-page/O4, static/release-boundary checks, and feature-branch
+push serially. O4 must stay the last source-bound browser/write proof. Generated O4 and runtime
+gate files are evidence, not selection-commit inputs. Preserve the separately staged RC12 file;
+never use `git add -A`. No GHCR publication, default-branch write, production deploy, release
+promotion, Owner approval, payment, or secret output is authorized.
+
+## Historical RC15 Handoff — 2026-08-27
 
 Active locally qualified candidate: `prod-candidate-2026-08-27-local-rc15`, frozen source
 `2e945a6cfd7217ee71372ad3ddc9ad63f4840a2f`, control commit
