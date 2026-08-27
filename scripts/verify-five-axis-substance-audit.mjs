@@ -195,8 +195,21 @@ const nginxSource = `${read("infrastructure/nginx/dev.conf")}\n${read("infrastru
 assert(nginxSource.includes("location /mcp/"), "nginx MCP gateway prefix is missing");
 assert(nginxSource.includes("location /llm/"), "nginx LLM gateway prefix is missing");
 
-const negativeOnly = new Set(["/api/v1/model-capabilities"]);
-const namespaces = new Set(["/api/v1"]);
+const endpointTokenClasses = new Map();
+for (const match of auditReport.matchAll(
+  /^\|\s*`(\/(?:api|mcp|llm)\/[^`]*|\/api\/v1)`\s*\|\s*`(NEGATIVE-ONLY|NAMESPACE-ONLY)`\s*\|/gm,
+)) {
+  assert(!endpointTokenClasses.has(match[1]), `duplicate endpoint token classification: ${match[1]}`);
+  endpointTokenClasses.set(match[1], match[2]);
+}
+const negativeOnly = new Set(
+  [...endpointTokenClasses].filter(([, kind]) => kind === "NEGATIVE-ONLY").map(([token]) => token),
+);
+const namespaces = new Set(
+  [...endpointTokenClasses].filter(([, kind]) => kind === "NAMESPACE-ONLY").map(([token]) => token),
+);
+assert(negativeOnly.size > 0, "audit has no explicit NEGATIVE-ONLY endpoint tokens");
+assert(namespaces.size > 0, "audit has no explicit NAMESPACE-ONLY endpoint tokens");
 const unresolvedEndpoints = [];
 let implementedEndpointCount = 0;
 for (const mention of endpointMentions) {
@@ -320,7 +333,7 @@ console.log("[five-axis-audit] PASS");
 console.log(`[five-axis-audit] routes=22 real=${classCounts.real} contract=${classCounts.contract} spec=${classCounts.spec}`);
 console.log(`[five-axis-audit] actions=${browserReport.audited_enabled_member_action_count} direct=${browserReport.direct_effect_count} preverified=${browserReport.preverified_exact_control_count} excluded=${browserReport.excluded_member_action_count} provider_live=${browserReport.live_provider_response_count}`);
 console.log(`[five-axis-audit] L4=${layers.get("layer_4").percent} L5=${layers.get("layer_5").percent} deltas=${deltaLedger.entries.length}`);
-console.log(`[five-axis-audit] docs_endpoint_mentions=${endpointMentions.length} declared_routes=${implementedEndpointCount} namespace=${namespaces.size} negative_legacy=${negativeOnly.size} unresolved=${unresolvedEndpoints.length}`);
+console.log(`[five-axis-audit] docs_endpoint_mentions=${endpointMentions.length} declared_routes=${implementedEndpointCount} namespace=${namespaces.size} negative_only=${negativeOnly.size} unresolved=${unresolvedEndpoints.length}`);
 console.log(`[five-axis-audit] product_files=${productFiles.length} strict_unfinished=${unfinishedHits.length} dead_scaffolds=0`);
 console.log(`[five-axis-audit] inspector/replay=browser_measured neuroglass_tokens_declared=${tokenExpectations.size} organism_visual=owner_blocked`);
 console.log("[five-axis-audit] MARKET_READY:false; DEV-ONLY; hosted proof still blocked");

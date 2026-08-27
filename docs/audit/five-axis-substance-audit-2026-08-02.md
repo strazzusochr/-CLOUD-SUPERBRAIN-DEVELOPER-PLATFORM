@@ -1,6 +1,6 @@
 # Fünf-Achsen-Substanzaudit
 
-Stand: 2026-08-02
+Stand: 2026-08-26
 Scope: 22 Seiten · L4/L5 · autoritative Docs-Endpunkte/Services · halbfertiger
 Produktcode · Inspector/Replay/NeuroGlass
 Fortschrittswirkung: **0 Prozentpunkte**
@@ -8,8 +8,9 @@ Marktreife: **`MARKET_READY:false`**
 
 ## Ergebnis
 
-Die fünf zuvor ungemessenen Achsen sind jetzt sequenziell und reproduzierbar
-geprüft. Das Urteil trennt sichtbare Klickwirkung von echter Produktsubstanz:
+Die fünf Achsen sind sequenziell inventarisiert. Nur Browserwirkungen und
+manifest-/artefaktgebundene Werte gelten als gemessen; Route-Kategorien,
+Quellinventare und Design-Tokens bleiben ausdrücklich deklarative Audits:
 
 - **11 ECHT NUTZBAR** im jeweils genannten Scope,
 - **10 NUR CONTRACT**,
@@ -24,23 +25,30 @@ Request-Interception, null tote/unregistrierte Aktionen und keinen Secret-
 Output. Das belegt Bedienbarkeit, nicht automatisch Hosted-Parität oder die
 volle Wirkung jeder beworbenen Funktion.
 
+**Messgrenze:** Der Action-Report misst Bedienwirkungen. Die Route-Kategorie
+ist eine dokumentierte Auditbewertung, der Endpoint-/Routenabgleich ist statisch,
+und die Organismus-Optik besitzt ohne Screenshotvergleich plus Owner-Abnahme
+keinen Fertig-Beweis.
+
 `DEV-ONLY; hosted proof still blocked`.
 
 ## Methode
 
 1. Kanonische Routen aus `apps/frontend/lib/nav.tsx` gegen reale
    `page.tsx`-Dateien, Action Matrix und aktuellen Browserreport gespiegelt.
-2. Für jede Route die beworbene Hauptwirkung gegen UI, Same-Origin-API,
-   Backendwirkung und Laufzeitevidenz klassifiziert.
+2. Für jede Route die beworbene Hauptwirkung gegen benannte UI-, API- und
+   Laufzeitevidenz als Auditbewertung klassifiziert; die Kategorie selbst ist
+   kein automatisch gemessener Prozent- oder Release-Beweis.
 3. L4/L5 gegen Manifest, Implementierung, O4/O6-Evidenz und den leeren,
    verifier-gesperrten Delta-Ledger geprüft.
-4. Alle Endpoint-Tokens in den vier autoritativen Quellen gegen echte
-   FastAPI/Hono-Routen und die nginx-Gatewaypräfixe verglichen.
+4. Alle Endpoint-Tokens in den vier autoritativen Quellen statisch gegen
+   deklarierte FastAPI/Hono-Routen und nginx-Gatewaypräfixe verglichen.
 5. Getrackte Produktquellen ohne Tests/Buildoutputs auf strikte
    `TODO`/`FIXME`/`HACK`/`NotImplementedError`/`not_implemented`-Marker und
    ungemountete Scaffolds geprüft.
-6. Inspector, Replay-Frames, Runtimefeed, Visual-v2-Marker und die zwölf
-   sichtbaren NeuroGlass-Farbtokens direkt gegen den Quellcode validiert.
+6. Inspector-/Replay-Bedienwirkung aus dem echten Browserreport geprüft.
+   Design-Tokens werden nur als deklarierte Source-Inventur geführt. Keine Optik-Verifikation aus Quelltext-Markern; nach R-VIS-1 braucht jede
+   sichtbare Fertig-Behauptung Screenshot, benannte Referenz und Owner-Abnahme.
 
 Reproduzierbarer Guard:
 
@@ -55,7 +63,7 @@ npm run verify:five-axis-audit
 | 1 | `/home` | Eigener lokaler Prompt→Gateway→Live-Provider→persistierter Build sowie Cortex-Hero und Navigation | **ECHT NUTZBAR — DEV-ONLY** | Hosted Source-/Persistenzparität |
 | 2 | `/login` | Signierte Gast-Session, Sessionread und Logout lokal | **ECHT NUTZBAR** für Gast | Production OAuth ist OWNER-BLOCKED; Google/E-Mail nicht live |
 | 3 | `/workbench` | Prompt→Gateway→Workers AI→HTML→PostgreSQL/Audit→Run/Reload | **ECHT NUTZBAR — DEV-ONLY** | vollständige IDE/Terminal-/Hosted-Artefaktparität |
-| 4 | `/organism` | R3F/three.js, GLB/Fallback, Kamera, Gameplay, Save/Clear, Accessibility, Visual-v2 und echte Feedprojektion | **ECHT NUTZBAR — DEV-ONLY** | vollständige Live-Agenten-/MCP-/OTel-Telemetrie |
+| 4 | `/organism` | R3F/three.js, GLB/Fallback, Kamera, Gameplay, Save/Clear, Accessibility und echte Feedprojektion | **ECHT NUTZBAR — DEV-ONLY** | Optik-Referenzabnahme und vollständige Live-Agenten-/MCP-/OTel-Telemetrie |
 | 5 | `/organism/replay` | Eventfeed, Replay-Frames, Run-State- und Hub-Controls sind sichtbar/bedienbar | **NUR CONTRACT** | ohne gebundenen Run ist redaktierter Spec-Fallback zulässig; kein vollwertiger persistierter Player |
 | 6 | `/organism/map` | 245 Knoten/494 Kanten, Filter, Auswahl und Nachbarschaft aus strikt validiertem Vertrag | **NUR CONTRACT** | Vertrag setzt `live=false`; keine echte Cloud-/Agententelemetrie |
 | 7 | `/agents` | Vier getrennte, quellengebundene Planner→Coder→Tester→DevOps-Analysen; begrenzter O4 Agent→MCP-Write existiert | **NUR CONTRACT** für die beworbene Agentenlieferung | UI-Pipeline bleibt `analysis_only`; keine allgemeine Code-/Test-/Deploy-Lieferung |
@@ -142,14 +150,25 @@ Geprüfte autoritative Quellen:
 
 Ergebnis der Endpoint-Inventur:
 
-- 98 eindeutige Endpoint-/Namespace-Tokens insgesamt,
-- **96 aktuelle Endpoints** sind als echte FastAPI/Hono-Routen vorhanden;
-  `/mcp/...` und `/llm/...` sind zusätzlich durch nginx-Präfixrouting gebunden,
-- 1 Token (`/api/v1`) ist nur der Namespace,
-- 1 Token (`/api/v1/model-capabilities`) ist absichtlich nicht implementiert
-  und erscheint ausschließlich als dokumentierter, verbotener Altalias; die
-  echte Route ist `/api/v1/models/capabilities`,
-- 0 ungelöste aktuelle Endpoint-Versprechen.
+| Token | Statische Klasse | Begründung |
+| --- | --- | --- |
+| `/api/v1` | `NAMESPACE-ONLY` | Gemeinsamer Namespace, kein einzelner Handler. |
+| `/api/v1/model-capabilities` | `NEGATIVE-ONLY` | Dokumentierter verbotener Altalias; die echte Route ist `/api/v1/models/capabilities`. |
+| `/mcp/internal` | `NEGATIVE-ONLY` | Öffentliche Nginx-/Vercel-Grenzen müssen diesen internen Teilbaum mit `404` verbergen. |
+
+- Der Verifier berechnet die Zahl der eindeutigen Endpoint-/Namespace-Tokens
+  bei jedem Lauf neu und druckt sie aus; feste Literale sind kein Messwert.
+- Aktuelle Tokens müssen statisch einer deklarierten FastAPI/Hono-Route oder
+  dem nginx-Präfixrouting `/mcp/...` beziehungsweise `/llm/...` entsprechen.
+- `/api/v1` ist nur der Namespace.
+- `/api/v1/model-capabilities` ist absichtlich nicht implementiert und
+  erscheint ausschließlich als dokumentierter, verbotener Altalias; die
+  echte Route ist `/api/v1/models/capabilities`.
+- Ungelöste aktuelle Endpoint-Tokens lassen den Guard fehlschlagen.
+
+**Endpoint-/Routenabgleich ist statisch.** Er beweist deklarierte
+Source-Konsistenz, aber weder HTTP-Erreichbarkeit noch Hosted-Parität. Diese
+Behauptungen brauchen getrennte Runtime-/Hosted-Beweise.
 
 Service-Abgleich:
 
@@ -212,43 +231,45 @@ Hub-Navigation und source-markierte Runtimeprojektion.
 
 ### Replay
 
-Das aktuelle Visual Target verlangt Cortex, Runtimeeventfeed, Replay-Frames,
-Run-State- und Hub-Controls. Alle fünf sind vorhanden. Nicht vorhanden ist ein
-vollwertiger, persistierter Timeline-Player mit Scrubbing über beliebige
-historische Runs; das wird nicht behauptet.
+Das aktuelle Functional Target verlangt Cortex-Fläche, Runtimeeventfeed,
+Replay-Frames, Run-State- und Hub-Controls. Diese Funktionsflächen sind
+browsergemessen. Nicht vorhanden ist ein vollwertiger, persistierter
+Timeline-Player mit Scrubbing über beliebige historische Runs; das wird nicht
+behauptet.
 
 ### Organism Visual v2
 
-Vorhanden und markergebunden:
+Organismus-Optik: **OWNER-ABNAHME OFFEN**.
 
-- Edges/Points und hardware-gegatetes Transmission-Material,
-- Bloom,
-- Fibonacci-Dot-Globus,
-- DOM-Matrix-Rain,
-- Scanlines/HUD,
-- zwölf niedrig-opake Shards,
-- Waveform aus Runtimeevents, Replayframes und Rendermetrik,
-- Pause-/Reduced-Motion-Verhalten und echte Source-Labels.
+Die Funktionskette und die Canvas-Bedienung sind gemessen. Nicht bewiesen ist,
+dass der gerenderte Cortex der benannten Masterreferenz entspricht. Frühere
+`data-visual-*`-Marker, Komponentenamen und Quelltext-Tokens sind nach R-VIS-1,
+R-SELF-2 und R-SELF-3 kein visueller Fertig-Beweis. Maßgeblich bleiben
+`REGELN_OPTIK_UND_FERTIG.md`, die benannte Referenz, ein aktueller Screenshot
+und die ausdrückliche Owner-Abnahme. Bis dahin lautet der Status
+`OWNER-BLOCKED`, nicht `verified`.
 
 ### NeuroGlass
 
-Die zwölf sichtbaren Farben stammen jetzt direkt aus den `:root`-CSS-Tokens.
-Der zuvor abweichende Surface-2-Wert ist auf `#101A31` korrigiert; die Swatches
-verwenden `var(...)` statt duplizierter Hardcodes. Offen bleiben Figma-Quelle,
-vollständige WCAG-Abnahme und 22-Seiten-Visual-Regression.
+Zwölf CSS-Farbtokens und tokengebundene Swatches sind statisch deklariert.
+Diese Source-Inventur beweist weder Sichtbarkeit noch Referenztreue. Offen
+bleiben Screenshot-/Pixelvergleich, Figma-Quelle, vollständige WCAG-Abnahme
+und 22-Seiten-Visual-Regression.
 
 ## Externe Wände und nächste Kette
 
-Das Audit schließt keine Owner-Gates. Für echte 100 % bleiben unverändert:
+Das Audit schließt keine Owner-Gates. Für echte 100 % bleiben:
 
-1. Owner-Freigabe für source-identischen Cloudflare-Worker-Deploy; danach
-   `npm run verify`.
+1. Hosted Candidate Parity über eine echte schreibfähige Owner-Identität; der
+   aktuelle Preview-Produktlauf stoppt korrekt an dieser Grenze.
 2. Owner-Architekturentscheidung und Production-OAuth-Identität für P3.
 3. Owner-bereitgestelltes `AGENT_API_AUTH_TOKEN`; danach der gegatete
    900-Request-Scale-Beweis für P6.
 4. Owner-Entscheidung zum GHCR-Zyklus/Required-Reviewer-Setup für P5.
 5. Owner-Lizenzentscheidung vor jeder Open-Source-/Fork-/Weitergabe-Behauptung.
-6. Nach dem letzten Source-Commit O4 Runtime- und Browserproof zuletzt
+6. Owner-Abnahme der Organismus-Optik gegen die benannte Referenz; ohne
+   Prozentwirkung, aber erforderlich für eine Optik-Fertig-Behauptung.
+7. Nach dem letzten Runtime-Source-Commit O4 Runtime- und Browserproof zuletzt
    erzeugen, dann erst die fünf Qualifikationsketten und den Market-Ready-
    Verifier ausführen.
 
@@ -262,8 +283,9 @@ Die zuvor unbekannten Achsen sind nicht mehr unbekannt: 22/22 Routen existieren
 und sind bedienbar, aber nur 11 besitzen im beworbenen Kern bereits echte
 Wirkung. L4/L5 enthalten mehr reale Substanz als reine Prozentzahlen zeigen,
 doch der aktuelle Ledger erlaubt ehrlicherweise keinen zusätzlichen Credit.
-Alle aktuellen autoritativen Endpoint-Versprechen sind codegebunden; die
-verbleibenden Lücken sind sichtbar als Contract, Spec, Dry-run oder
-OWNER-BLOCKED markiert.
+Alle aktuellen autoritativen Endpoint-Tokens sind statisch an deklarierte
+Routen gebunden; Runtime- und Hosted-Erreichbarkeit bleiben getrennte
+Beweisklassen. Die verbleibenden Lücken sind sichtbar als Contract, Spec,
+Dry-run oder OWNER-BLOCKED markiert.
 
 **`MARKET_READY:false` — DEV-ONLY; hosted proof still blocked.**
