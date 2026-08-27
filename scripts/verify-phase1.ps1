@@ -3533,6 +3533,30 @@ foreach ($required in @(
   }
 }
 
+Write-Host "[verify] DEV-LIVE owner master gate"
+$devLiveParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\start-dev-live.ps1",
+  [ref]$null,
+  [ref]$devLiveParseErrors
+) | Out-Null
+if ($devLiveParseErrors -and $devLiveParseErrors.Count -gt 0) {
+  $devLiveParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "DEV-LIVE start script syntax failed"
+}
+$devLiveScript = Get-Content -Path "scripts\start-dev-live.ps1" -Raw
+foreach ($required in @(
+  '$env:LLM_LIVE_PROVIDER_DEFAULT = ''false''',
+  '$env:LLM_LIVE_PROVIDER_DEFAULT = ''true''',
+  'Owner-Live-Master-Gate',
+  '$ownerLiveGate -eq ''true''',
+  'PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED'
+)) {
+  if (-not $devLiveScript.Contains($required)) {
+    throw "DEV-LIVE start script missing fail-closed owner-gate guard: $required"
+  }
+}
+
 Write-Host "[verify] market-ready hosted proof classification"
 $marketReadyParseErrors = $null
 [System.Management.Automation.Language.Parser]::ParseFile(

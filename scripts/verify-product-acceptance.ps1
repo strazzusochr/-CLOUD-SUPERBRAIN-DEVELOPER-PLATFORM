@@ -161,6 +161,13 @@ if (-not $isLocalhost) {
 Assert-True "Playwright product acceptance spec exists" (Test-Path -LiteralPath $specPath -PathType Leaf)
 Assert-True "frontend node_modules exists; run npm install --prefix apps/frontend first" (Test-Path -LiteralPath (Join-Path $frontendRoot "node_modules\@playwright\test") -PathType Container)
 
+if ($ExpectedGatewayProvider -eq "cloudflare-workers-ai") {
+  $providerStatus = Invoke-RestMethod -Method Get -Uri "$normalizedBaseUrl/llm/api/v1/providers/status" -TimeoutSec 30
+  Assert-True "Cloudflare Workers AI gateway mode is active" ([string]$providerStatus.mode -eq "cloudflare_workers_ai_live")
+  Assert-True "Owner live-provider master gate is active" (-not [bool]$providerStatus.policy.external_provider_calls_disabled_by_default)
+  Assert-True "Per-request live-provider approval remains required" ([string]$providerStatus.policy.requires_request_metadata -eq "metadata.live_provider_calls_allowed=true")
+}
+
 $specSource = Get-Content -LiteralPath $specPath -Raw
 foreach ($forbiddenPattern in @(
   "\.route\s*\(",

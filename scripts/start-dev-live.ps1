@@ -5,17 +5,19 @@
 
 .DESCRIPTION
   Der Compose-Standard ist bewusst fail-closed:
+    - `LLM_LIVE_PROVIDER_DEFAULT`               = false
     - `LLM_GATEWAY_MODE`                        = deterministic_dry_run
     - `PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED` = false
   Damit liefert `/api/v1/build` nach jedem Container-Neuaufbau die Meldung
   „Das LLM-Gateway hat kein vollständiges Build-Artefakt geliefert" — das ist KEIN Defekt,
   sondern der Schutz gegen unbeabsichtigte Provider-Aufrufe.
 
-  Für die Workbench müssen BEIDE Schalter gesetzt sein:
-    1. Gateway   : LLM_GATEWAY_MODE=cloudflare_workers_ai_live
-    2. Frontend  : PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED=true
+  Für die Workbench müssen ALLE DREI Schalter gesetzt sein:
+    1. Owner-Gate: LLM_LIVE_PROVIDER_DEFAULT=true
+    2. Gateway   : LLM_GATEWAY_MODE=cloudflare_workers_ai_live
+    3. Frontend  : PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED=true
   Das Gateway prüft zusätzlich pro Request das Metadatenfeld `live_provider_calls_allowed`,
-  das die Build-Route aus Schalter 2 ableitet.
+  das die Build-Route aus Schalter 3 ableitet.
 
   Voraussetzungen (bereits erfüllt, wenn die Secrets-Datei gepflegt ist):
     CF_WORKERS_AI_TOKEN, CLOUDFLARE_ACCOUNT_ID
@@ -54,10 +56,14 @@ if ($freeGb -lt 5) {
 $CfModel = '@cf/qwen/qwen2.5-coder-32b-instruct'
 
 if ($DryRun) {
+  $env:LLM_LIVE_PROVIDER_DEFAULT = 'false'
   $env:LLM_GATEWAY_MODE = 'deterministic_dry_run'
   $env:PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED = 'false'
   Write-Host 'Modus: SICHERER TROCKENLAUF — keine Provider-Aufrufe, Workbench-Build liefert kein Artefakt.' -ForegroundColor Cyan
 } else {
+  # Dieses Skript ist die explizite lokale Owner-Aktion fuer genau den nachgelagerten,
+  # per Request erneut freizugebenden DEV-ONLY-Providerpfad. Compose bleibt standardmaessig aus.
+  $env:LLM_LIVE_PROVIDER_DEFAULT = 'true'
   $env:LLM_GATEWAY_MODE = 'cloudflare_workers_ai_live'
   $env:PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED = 'true'
   # Dritter, leicht zu übersehender Schalter: der Compose-Standard ist `gemma-3-1b-it`,
@@ -171,6 +177,7 @@ if ($total -eq 0 -or $healthy -ne $total) {
 Write-Host ''
 Write-Host '=== Effektive Schalter ===' -ForegroundColor Cyan
 $gatewayMode = (docker compose -f $ComposeFile exec -T llm-gateway sh -lc 'printf "%s" "$LLM_GATEWAY_MODE"' 2>$null)
+$ownerLiveGate = (docker compose -f $ComposeFile exec -T llm-gateway sh -lc 'printf "%s" "$LLM_LIVE_PROVIDER_DEFAULT"' 2>$null)
 $frontendFlag = (docker compose -f $ComposeFile exec -T frontend sh -lc 'printf "%s" "$PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED"' 2>$null)
 $workbenchModel = (docker compose -f $ComposeFile exec -T frontend sh -lc 'printf "%s" "$WORKBENCH_LLM_MODEL"' 2>$null)
 $tokenSet = (docker compose -f $ComposeFile exec -T llm-gateway sh -lc 'if [ -n "$CF_WORKERS_AI_TOKEN" ]; then printf yes; else printf no; fi' 2>$null)
@@ -178,12 +185,13 @@ $accountSet = (docker compose -f $ComposeFile exec -T llm-gateway sh -lc 'if [ -
 $allowedModels = @('@cf/qwen/qwen2.5-coder-32b-instruct', '@cf/meta/llama-3.1-8b-instruct')
 $modelOk = $allowedModels -contains $workbenchModel
 Write-Host ("  Gateway-Modus            : {0}" -f $gatewayMode)
+Write-Host ("  Owner-Live-Master-Gate  : {0}" -f $ownerLiveGate)
 Write-Host ("  Frontend erlaubt Live    : {0}" -f $frontendFlag)
 Write-Host ("  Workbench-Modell         : {0} {1}" -f $workbenchModel, $(if ($modelOk) { '(auf Allowlist)' } else { '(NICHT auf Allowlist -> Gateway 400)' }))
 Write-Host ("  CF_WORKERS_AI_TOKEN      : {0}" -f $tokenSet)
 Write-Host ("  CLOUDFLARE_ACCOUNT_ID    : {0}" -f $accountSet)
 
-$liveReady = ($gatewayMode -eq 'cloudflare_workers_ai_live') -and ($frontendFlag -eq 'true') -and $modelOk -and ($tokenSet -eq 'yes') -and ($accountSet -eq 'yes')
+$liveReady = ($ownerLiveGate -eq 'true') -and ($gatewayMode -eq 'cloudflare_workers_ai_live') -and ($frontendFlag -eq 'true') -and $modelOk -and ($tokenSet -eq 'yes') -and ($accountSet -eq 'yes')
 Write-Host ''
 if ($DryRun) {
   Write-Host 'Trockenlauf aktiv. Die Workbench baut bewusst KEIN Artefakt.' -ForegroundColor Cyan
