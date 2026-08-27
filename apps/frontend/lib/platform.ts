@@ -40,7 +40,7 @@ export const AGENTS: AgentProfile[] = [
   {
     type: "coder",
     role: "Feature implementation on scoped branches with no direct main writes.",
-    model: "Qwen/Qwen3-Coder-Next",
+    model: "qwen3.7-plus",
     fallbacks: ["DeepSeek-V4-Flash", "gemma-4-31B-it"],
     tools: ["memory_read", "github_mcp", "filesystem_mcp", "mcp_gateway"],
     maxExecSec: 300,
@@ -198,7 +198,7 @@ export const SKILLS = [
 /** Models pinned by the agent profiles (primary, per agent). */
 export const MODELS = [
   { id: "deepseek-ai/DeepSeek-V4-Pro", role: "Planner primary" },
-  { id: "Qwen/Qwen3-Coder-Next", role: "Coder primary" },
+  { id: "qwen3.7-plus", role: "Coder primary via LLM Gateway / Alibaba Model Studio" },
   { id: "google/gemma-4-26B-A4B-it", role: "Tester primary" },
   { id: "deepseek-ai/DeepSeek-V4-Flash", role: "DevOps primary" },
 ];

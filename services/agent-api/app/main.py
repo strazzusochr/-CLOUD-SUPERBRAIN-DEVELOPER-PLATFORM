@@ -1316,10 +1316,14 @@ class LlmGatewayAuditRequest(BaseModel):
     model_name: str = Field(..., min_length=1, max_length=120)
     provider_name: str = Field(..., min_length=1, max_length=120)
     agent_type: str = Field(default="unknown", max_length=50)
-    status: str = Field(..., pattern="^(dry_run|success|blocked|error)$")
+    status: str = Field(..., pattern="^(dry_run|authorized|success|blocked|error)$")
     input_tokens: int = Field(..., ge=0)
     output_tokens: int = Field(..., ge=0)
-    cost_cents: int = Field(..., ge=0)
+    cost_cents: int | None = Field(default=None, ge=0)
+    cost_status: str = Field(
+        default="unverified",
+        pattern="^(measured|unverified|provider_invoice_unverified|zero_cost_non_provider)$",
+    )
     live_provider_calls: bool = False
     summary: str = Field(..., min_length=1, max_length=500)
 
@@ -14667,6 +14671,7 @@ def model_capabilities_contract_payload() -> dict[str, object]:
             "memory_injection_budget_percent_max",
             "routes",
             "agent_profiles",
+            "provider_bindings",
             "note",
         ],
         "required_route_fields": [
@@ -14685,6 +14690,7 @@ def model_capabilities_contract_payload() -> dict[str, object]:
         "non_claims": [
             "Configured routes do not imply live provider credentials are present.",
             "Configured routes do not imply live provider health has been verified.",
+            "The qwen3.7-plus coder route reaches Alibaba Model Studio only through the LLM Gateway.",
             "This contract does not authorize production deployment.",
         ],
     }

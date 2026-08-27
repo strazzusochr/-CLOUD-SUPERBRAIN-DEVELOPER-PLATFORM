@@ -31,7 +31,7 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
 
 const MODEL_DESCRIPTIONS: Record<string, string> = {
   "deepseek-ai/DeepSeek-V4-Pro": "Primärmodell für Planung.",
-  "Qwen/Qwen3-Coder-Next": "Primärmodell für Code-Erstellung.",
+  "qwen3.7-plus": "Primärmodell für Code-Erstellung über das LLM Gateway und Alibaba Model Studio.",
   "google/gemma-4-26B-A4B-it": "Primärmodell für Tests.",
   "deepseek-ai/DeepSeek-V4-Flash": "Primärmodell für DevOps.",
 };

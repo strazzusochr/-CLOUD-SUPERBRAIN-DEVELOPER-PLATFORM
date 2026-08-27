@@ -31,7 +31,8 @@ The audit write completes before SSE headers or frames are emitted. If persisten
 - `secret_output=false`
 - `production_deploy=false`
 - no OpenAI API key is required by this adapter
-- live Hugging Face router calls require both token availability and explicit request metadata approval
+- live provider calls require the active gateway mode, its dedicated credential, the owner-controlled environment master gate, explicit request metadata approval, and persisted preflight/completion audits
+- Alibaba Model Studio is restricted to the allowlisted `qwen3.7-plus` coder route; Hugging Face remains the default router outside that explicit mode
 - streaming is deterministic-only and never calls local or live providers
 - `metadata.live_provider_calls_allowed=true` is rejected on the streaming path
 - SSE responses use `Cache-Control: no-store` and disable reverse-proxy buffering

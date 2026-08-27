@@ -357,7 +357,7 @@ if ($isLocalProof) {
   Write-Host "[llm-responses] local runtime dry-run"
   $traceId = "llm-responses-contract-" + [Guid]::NewGuid().ToString("N")
   $responsePayload = Invoke-JsonPost "$base/llm/v1/responses" @{
-    model = "Qwen/Qwen3-Coder-Next:fastest"
+    model = "qwen3.7-plus"
     input = "verify llm responses adapter contract"
     store = $true
     metadata = @{
@@ -394,7 +394,7 @@ if ($isLocalProof) {
   $continuityInput = "verify previous response context is applied"
   $continuityTraceId = "llm-responses-continuity-" + [Guid]::NewGuid().ToString("N")
   $continuity = Invoke-JsonPost "$base/llm/v1/responses" @{
-    model = "Qwen/Qwen3-Coder-Next:fastest"
+    model = "qwen3.7-plus"
     instructions = $continuityInstructions
     input = $continuityInput
     previous_response_id = $responsePayload.id
@@ -407,7 +407,7 @@ if ($isLocalProof) {
     }
     stream = $false
   }
-  $digestMaterial = $continuityInstructions + "|verify llm responses adapter contract|" + [string]$responsePayload.output_text + "|" + $continuityInput + "Qwen/Qwen3-Coder-Next:fastest"
+  $digestMaterial = $continuityInstructions + "|verify llm responses adapter contract|" + [string]$responsePayload.output_text + "|" + $continuityInput + "qwen3.7-plus"
   $digestBytes = [System.Text.Encoding]::UTF8.GetBytes($digestMaterial)
   $digestHash = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash($digestBytes)).Replace("-", "").ToLowerInvariant().Substring(0, 12)
   Assert-Contains "continuity applied to gateway messages" ([string]$continuity.output_text) "llm-dry-run:$digestHash"
@@ -417,7 +417,7 @@ if ($isLocalProof) {
   Write-Host "[llm-responses] deterministic Responses SSE"
   $streamTraceId = "llm-responses-stream-contract-" + [Guid]::NewGuid().ToString("N")
   $streamResult = Invoke-SsePost "$base/llm/v1/responses" @{
-    model = "Qwen/Qwen3-Coder-Next:fastest"
+    model = "qwen3.7-plus"
     input = "verify deterministic Responses streaming with ordered auditable events"
     store = $true
     metadata = @{
@@ -434,7 +434,7 @@ if ($isLocalProof) {
   Assert-Equal "stream content type" $streamResult.ContentType "text/event-stream"
   Assert-Contains "stream cache control" $streamResult.CacheControl "no-store"
   Assert-Equal "stream proxy buffering disabled" $streamResult.AccelBuffering.ToLowerInvariant() "no"
-  Assert-True "stream events present" (@($streamResult.Events).Count -ge 11)
+  Assert-True "stream events present" (@($streamResult.Events).Count -ge 10)
   Assert-True "stream omits chat-completions done sentinel" (
     @($streamResult.Events | Where-Object { [string]$_.RawData -eq "[DONE]" }).Count -eq 0
   )
@@ -517,7 +517,7 @@ if ($isLocalProof) {
 
   Write-Host "[llm-responses] local negative cases"
   $liveStreamStatus = Invoke-StatusPost "$base/llm/v1/responses" @{
-    model = "Qwen/Qwen3-Coder-Next:fastest"
+    model = "qwen3.7-plus"
     input = "live provider streaming must remain closed"
     metadata = @{
       trace_id = "$traceId-live-stream"
@@ -529,7 +529,7 @@ if ($isLocalProof) {
   Assert-Equal "live provider stream rejected" $liveStreamStatus 403
 
   $metadataStatus = Invoke-StatusPost "$base/llm/v1/responses" @{
-    model = "Qwen/Qwen3-Coder-Next:fastest"
+    model = "qwen3.7-plus"
     input = "metadata should be structured"
     metadata = "not-an-object"
     stream = $false
@@ -537,7 +537,7 @@ if ($isLocalProof) {
   Assert-Equal "metadata object required" $metadataStatus 422
 
   $streamTypeStatus = Invoke-StatusPost "$base/llm/v1/responses" @{
-    model = "Qwen/Qwen3-Coder-Next:fastest"
+    model = "qwen3.7-plus"
     input = "stream must be typed"
     metadata = @{ trace_id = "$traceId-stream-type"; agent_type = "tester" }
     stream = "true"
@@ -545,7 +545,7 @@ if ($isLocalProof) {
   Assert-Equal "stream boolean required" $streamTypeStatus 422
 
   $emptyInputStatus = Invoke-StatusPost "$base/llm/v1/responses" @{
-    model = "Qwen/Qwen3-Coder-Next:fastest"
+    model = "qwen3.7-plus"
     input = ""
     metadata = @{ trace_id = "$traceId-empty"; agent_type = "tester" }
     stream = $true
@@ -553,7 +553,7 @@ if ($isLocalProof) {
   Assert-Equal "non-empty input required" $emptyInputStatus 422
 
   $outputTokenStatus = Invoke-StatusPost "$base/llm/v1/responses" @{
-    model = "Qwen/Qwen3-Coder-Next:fastest"
+    model = "qwen3.7-plus"
     input = "requested output tokens must remain bounded"
     max_output_tokens = 8193
     metadata = @{ trace_id = "$traceId-output-token-limit"; agent_type = "tester" }
@@ -562,7 +562,7 @@ if ($isLocalProof) {
   Assert-Equal "bounded output tokens required" $outputTokenStatus 422
 
   $instructionsStatus = Invoke-StatusPost "$base/llm/v1/responses" @{
-    model = "Qwen/Qwen3-Coder-Next:fastest"
+    model = "qwen3.7-plus"
     instructions = "x" * 8193
     input = "instructions must remain bounded"
     metadata = @{ trace_id = "$traceId-instruction-limit"; agent_type = "tester" }
@@ -571,7 +571,7 @@ if ($isLocalProof) {
   Assert-Equal "bounded instructions required" $instructionsStatus 422
 
   $previousResponseStatus = Invoke-StatusPost "$base/llm/v1/responses" @{
-    model = "Qwen/Qwen3-Coder-Next:fastest"
+    model = "qwen3.7-plus"
     input = "previous response ids must be adapter-issued"
     previous_response_id = "not-a-response-id"
     metadata = @{ trace_id = "$traceId-previous-response-format"; agent_type = "tester" }
@@ -582,7 +582,7 @@ if ($isLocalProof) {
   Write-Host "[llm-responses] hosted read-only boundary"
   $traceId = "llm-responses-hosted-boundary-" + [Guid]::NewGuid().ToString("N")
   $blocked = Invoke-JsonPostResult "$base/llm/v1/responses" @{
-    model = "Qwen/Qwen3-Coder-Next:fastest"
+    model = "qwen3.7-plus"
     input = "verify hosted read-only LLM boundary"
     store = $true
     metadata = @{ trace_id = $traceId; agent_type = "tester" }

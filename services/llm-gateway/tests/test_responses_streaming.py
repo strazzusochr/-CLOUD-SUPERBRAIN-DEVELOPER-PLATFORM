@@ -52,7 +52,7 @@ class ResponsesStreamingTests(unittest.TestCase):
     def make_terminal_response(self, text: str) -> dict[str, object]:
         normalized = gateway.normalize_responses_request(
             {
-                "model": "Qwen/Qwen3-Coder-Next:fastest",
+                "model": "qwen3.7-plus",
                 "input": "focused Responses SSE unit proof",
                 "metadata": {
                     "trace_id": "responses-stream-unit-trace",
@@ -133,7 +133,7 @@ class ResponsesStreamingTests(unittest.TestCase):
     def test_stream_endpoint_emits_audited_fail_closed_sse(self) -> None:
         trace_id = "responses-stream-endpoint-trace"
         request = {
-            "model": "Qwen/Qwen3-Coder-Next:fastest",
+            "model": "qwen3.7-plus",
             "input": "verify the complete deterministic Responses event stream",
             "metadata": {
                 "trace_id": trace_id,
@@ -175,7 +175,7 @@ class ResponsesStreamingTests(unittest.TestCase):
 
     def test_stream_endpoint_refuses_to_emit_when_audit_persistence_fails(self) -> None:
         request = {
-            "model": "Qwen/Qwen3-Coder-Next:fastest",
+            "model": "qwen3.7-plus",
             "input": "do not emit an unaudited Responses stream",
             "metadata": {
                 "trace_id": "responses-stream-audit-failure",
@@ -198,7 +198,7 @@ class ResponsesStreamingTests(unittest.TestCase):
 
     def test_non_stream_response_shape_remains_compatible_and_safe(self) -> None:
         request = {
-            "model": "Qwen/Qwen3-Coder-Next:fastest",
+            "model": "qwen3.7-plus",
             "input": "verify non-stream compatibility",
             "metadata": {
                 "trace_id": "responses-non-stream-trace",
@@ -228,7 +228,7 @@ class ResponsesStreamingTests(unittest.TestCase):
 
     def test_stream_validation_is_bounded_and_fail_closed(self) -> None:
         base = {
-            "model": "Qwen/Qwen3-Coder-Next:fastest",
+            "model": "qwen3.7-plus",
             "input": "bounded validation",
             "metadata": {
                 "trace_id": "responses-stream-validation",
@@ -290,7 +290,7 @@ class ResponsesStreamingTests(unittest.TestCase):
         )
         normalized = gateway.normalize_responses_request(
             {
-                "model": "Qwen/Qwen3-Coder-Next:fastest",
+                "model": "qwen3.7-plus",
                 "instructions": "Trusted role and safety instructions.",
                 "input": "follow-up question",
                 "previous_response_id": previous_id,
@@ -314,7 +314,7 @@ class ResponsesStreamingTests(unittest.TestCase):
         gateway.clear_responses_context_store()
         normalized = gateway.normalize_responses_request(
             {
-                "model": "Qwen/Qwen3-Coder-Next:fastest",
+                "model": "qwen3.7-plus",
                 "input": "follow-up question",
                 "previous_response_id": "resp_dryrun_22222222-2222-4222-8222-222222222222",
                 "metadata": {"trace_id": "responses-context-miss", "agent_type": "tester"},
@@ -328,7 +328,7 @@ class ResponsesStreamingTests(unittest.TestCase):
 
     def test_instruction_and_previous_response_validation_is_bounded(self) -> None:
         base = {
-            "model": "Qwen/Qwen3-Coder-Next:fastest",
+            "model": "qwen3.7-plus",
             "input": "bounded controls",
             "metadata": {"trace_id": "responses-control-bounds", "agent_type": "tester"},
         }

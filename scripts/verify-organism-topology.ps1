@@ -518,7 +518,7 @@ foreach ($requiredId in @(
   "agent:tester",
   "agent:devops",
   "tool:mcp_gateway",
-  "model:Qwen/Qwen3-Coder-Next",
+  "model:qwen3.7-plus",
   "provider:vercel_frontend",
   "provider:fly_io",
   "provider:cloudflare_edge",

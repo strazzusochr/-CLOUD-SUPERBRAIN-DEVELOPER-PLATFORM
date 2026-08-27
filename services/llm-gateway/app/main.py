@@ -9,6 +9,7 @@ import time
 from collections import OrderedDict
 from threading import Lock
 from typing import Any
+from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 import httpx
@@ -34,6 +35,13 @@ CF_WORKERS_AI_MODELS = {
     "@cf/qwen/qwen2.5-coder-32b-instruct",
     "@cf/meta/llama-3.1-8b-instruct",
 }
+MODEL_STUDIO_MODE = "alibaba_model_studio_live"
+MODEL_STUDIO_BASE_URL = os.getenv("ALIBABA_MODEL_STUDIO_BASE_URL", "").strip().rstrip("/")
+MODEL_STUDIO_CODER_MODEL = (
+    os.getenv("ALIBABA_MODEL_STUDIO_CODER_MODEL", "qwen3.7-plus").strip() or "qwen3.7-plus"
+)
+MODEL_STUDIO_TIMEOUT_SECONDS = float(os.getenv("ALIBABA_MODEL_STUDIO_TIMEOUT_SECONDS", "90"))
+MODEL_STUDIO_MODELS = {MODEL_STUDIO_CODER_MODEL}
 LOCAL_LLM_BASE_URL = os.getenv("LOCAL_LLM_BASE_URL", "http://local-llm:8080/v1").rstrip("/")
 LOCAL_LLM_MODEL = os.getenv("LOCAL_LLM_MODEL", "gemma-3-1b-it").strip() or "gemma-3-1b-it"
 LOCAL_LLM_TIMEOUT_SECONDS = float(os.getenv("LOCAL_LLM_TIMEOUT_SECONDS", "180"))
@@ -63,10 +71,13 @@ RESPONSES_CONTEXT_TTL_SECONDS = 1_800
 RESPONSES_STREAM_CHUNK_CHARS = 64
 MAX_FALLBACKS_PER_REQUEST = 2
 MAX_RETRY_CYCLES_PER_RUN = 5
+MAX_CHAT_OUTPUT_TOKENS = 8_192
+MAX_CHAT_TOOLS = 128
+MAX_CHAT_TOOLS_BYTES = 131_072
 
 LEGACY_MODEL_ALIASES = {
     "deepseek-chat": "deepseek-ai/DeepSeek-V4-Flash:fastest",
-    "qwen-coder": "Qwen/Qwen3-Coder-Next:fastest",
+    "qwen-coder": MODEL_STUDIO_CODER_MODEL,
     "gemma-chat": "google/gemma-4-31B-it:fastest",
     "llama-chat": "meta-llama/Llama-3.1-8B-Instruct:fastest",
 }
@@ -83,11 +94,11 @@ MODEL_ROUTES = [
     },
     {
         "agent_type": "coder",
-        "primary": "Qwen/Qwen3-Coder-Next:fastest",
+        "primary": MODEL_STUDIO_CODER_MODEL,
         "fallbacks": ["deepseek-ai/DeepSeek-V4-Flash:fastest", "google/gemma-4-31B-it:fastest"],
         "max_output_tokens": 8192,
         "supports_streaming": True,
-        "configured_only": False,
+        "configured_only": True,
         "open_source_first": True,
     },
     {
@@ -122,7 +133,10 @@ MODEL_ROUTES = [
 
 class ChatMessage(BaseModel):
     role: str
-    content: str | list[dict[str, Any]]
+    content: str | list[dict[str, Any]] | None = None
+    name: str | None = Field(default=None, max_length=128)
+    tool_call_id: str | None = Field(default=None, max_length=256)
+    tool_calls: list[dict[str, Any]] | None = Field(default=None, max_length=MAX_CHAT_TOOLS)
 
 
 class ChatCompletionRequest(BaseModel):
@@ -130,7 +144,10 @@ class ChatCompletionRequest(BaseModel):
     messages: list[ChatMessage] = Field(default_factory=list)
     stream: bool = False
     temperature: float | None = None
-    max_tokens: int | None = None
+    max_tokens: int | None = Field(default=None, ge=1, le=MAX_CHAT_OUTPUT_TOKENS)
+    tools: list[dict[str, Any]] | None = Field(default=None, max_length=MAX_CHAT_TOOLS)
+    tool_choice: str | dict[str, Any] | None = None
+    parallel_tool_calls: bool | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -241,6 +258,63 @@ def cloudflare_workers_ai_available() -> bool:
     return bool(cloudflare_workers_ai_token() and cloudflare_workers_ai_account_id())
 
 
+def model_studio_api_key() -> str | None:
+    value = (os.getenv("DASHSCOPE_API_KEY") or "").strip()
+    return value or None
+
+
+def model_studio_mode_enabled() -> bool:
+    return GATEWAY_MODE == MODEL_STUDIO_MODE
+
+
+def model_studio_base_url_valid() -> bool:
+    if not MODEL_STUDIO_BASE_URL:
+        return False
+    parsed = urlsplit(MODEL_STUDIO_BASE_URL)
+    hostname = (parsed.hostname or "").lower()
+    return bool(
+        parsed.scheme == "https"
+        and hostname.endswith(".maas.aliyuncs.com")
+        and parsed.path.rstrip("/") == "/compatible-mode/v1"
+        and not parsed.username
+        and not parsed.password
+        and not parsed.query
+        and not parsed.fragment
+    )
+
+
+def model_studio_available() -> bool:
+    return bool(model_studio_base_url_valid() and model_studio_api_key())
+
+
+def model_studio_capability_snapshot() -> dict[str, object]:
+    return {
+        "provider": "alibaba_model_studio",
+        "mode": MODEL_STUDIO_MODE,
+        "mode_enabled": model_studio_mode_enabled(),
+        "available": model_studio_available(),
+        "base_url": MODEL_STUDIO_BASE_URL,
+        "chat_endpoint": "/chat/completions",
+        "model": MODEL_STUDIO_CODER_MODEL,
+        "auth_env": "DASHSCOPE_API_KEY",
+        "api_key_configured": model_studio_api_key() is not None,
+        "endpoint_valid": model_studio_base_url_valid(),
+        "owner_live_gate_enabled": LLM_LIVE_PROVIDER_DEFAULT,
+        "max_output_tokens": MAX_CHAT_OUTPUT_TOKENS,
+        "tool_calling": True,
+        "max_tools": MAX_CHAT_TOOLS,
+        "gateway_only": True,
+        "direct_provider_calls": False,
+        "live_provider_calls": False,
+        "model_downloads": False,
+        "secret_output": False,
+        "non_claim": (
+            "The endpoint and model are configured through the LLM Gateway; no live call is "
+            "claimed until the dedicated key, gateway mode, per-request approval, and audit all pass."
+        ),
+    }
+
+
 def huggingface_router_capability_snapshot() -> dict[str, object]:
     return {
         "available": hf_router_available(),
@@ -336,6 +410,8 @@ def local_llm_health() -> bool:
 
 def model_family(model: str) -> str:
     base = normalize_model_id(model).split(":", 1)[0]
+    if base in MODEL_STUDIO_MODELS or base.startswith("qwen"):
+        return "qwen"
     if base.startswith("deepseek-ai/"):
         return "deepseek"
     if base.startswith("Qwen/"):
@@ -356,6 +432,8 @@ def model_family(model: str) -> str:
 
 
 def provider_for_model(model: str) -> str:
+    if normalize_model_id(model) in MODEL_STUDIO_MODELS:
+        return "alibaba_model_studio"
     if local_llm_enabled():
         return "local_llama_cpp"
     return "huggingface_inference_router"
@@ -408,7 +486,7 @@ def hf_router_model_snapshot(limit: int = 20) -> dict[str, object]:
 
 
 def provider_router_snapshot_for_gateway_mode(limit: int = 20) -> dict[str, object]:
-    if cloudflare_workers_ai_mode_enabled():
+    if cloudflare_workers_ai_mode_enabled() or model_studio_mode_enabled():
         return {
             "status": "not_active_provider",
             "live_verified": False,
@@ -419,13 +497,28 @@ def provider_router_snapshot_for_gateway_mode(limit: int = 20) -> dict[str, obje
 
 
 def provider_status_snapshot() -> dict[str, object]:
-    router = hf_router_model_snapshot()
-    local_status = "healthy" if local_llm_health() else "starting_or_unavailable"
+    router = provider_router_snapshot_for_gateway_mode()
+    local_status = (
+        "healthy"
+        if local_llm_enabled() and local_llm_health()
+        else "starting_or_unavailable"
+        if local_llm_enabled()
+        else "not_enabled"
+    )
+    model_studio = model_studio_capability_snapshot()
+    if model_studio["available"]:
+        model_studio_status = "configured_gate_closed"
+    elif not model_studio["endpoint_valid"]:
+        model_studio_status = "missing_or_invalid_endpoint"
+    else:
+        model_studio_status = "missing_api_key"
 
     return {
         "mode": GATEWAY_MODE,
         "live_provider_calls": LIVE_PROVIDER_CALLS,
-        "live_provider_calls_available": hf_router_available(),
+        "live_provider_calls_available": (
+            model_studio_available() if model_studio_mode_enabled() else hf_router_available()
+        ),
         "live_verified": False,
         "policy": {
             "rotation_backoff_seconds": ROTATION_BACKOFF_SECONDS,
@@ -433,8 +526,29 @@ def provider_status_snapshot() -> dict[str, object]:
             "never_break_budget": True,
             "external_provider_calls_disabled_by_default": not LLM_LIVE_PROVIDER_DEFAULT,
             "requires_request_metadata": "metadata.live_provider_calls_allowed=true",
+            "requires_owner_environment_gate": "LLM_LIVE_PROVIDER_DEFAULT=true",
         },
         "providers": [
+            {
+                "provider": "alibaba_model_studio",
+                "status": model_studio_status,
+                "live_verified": False,
+                "live_provider_calls": False,
+                "live_provider_calls_available": model_studio_available(),
+                "model_count_visible": 1,
+                "configured_models": [MODEL_STUDIO_CODER_MODEL],
+                "visible_models_sample": [MODEL_STUDIO_CODER_MODEL],
+                "backoff_seconds": ROTATION_BACKOFF_SECONDS,
+                "reset_after_seconds": PROVIDER_RESET_AFTER_SECONDS,
+                "model_downloads": False,
+                "open_source_first": False,
+                "gateway_only": True,
+                "direct_provider_calls": False,
+                "secret_output": False,
+                "endpoint_valid": model_studio["endpoint_valid"],
+                "api_key_configured": model_studio["api_key_configured"],
+                "non_claim": model_studio["non_claim"],
+            },
             {
                 "provider": "local_llama_cpp",
                 "status": local_status,
@@ -630,11 +744,25 @@ def resolve_route(request: RoutingResolveRequest) -> dict[str, object]:
         reason = "streaming_required_primary_not_supported"
     selected_provider = provider_for_model(selected)
     router = provider_router_snapshot_for_gateway_mode(limit=5)
+    selected_provider_available = (
+        model_studio_available()
+        if selected_provider == "alibaba_model_studio"
+        else local_llm_health()
+        if selected_provider == "local_llama_cpp" and local_llm_enabled()
+        else hf_router_available()
+    )
+    selected_provider_status = (
+        "configured_gate_closed"
+        if selected_provider == "alibaba_model_studio" and selected_provider_available
+        else "missing_api_key_or_endpoint"
+        if selected_provider == "alibaba_model_studio"
+        else str(router["status"])
+    )
 
     return {
         "mode": GATEWAY_MODE,
         "live_provider_calls": LIVE_PROVIDER_CALLS,
-        "live_provider_calls_available": hf_router_available(),
+        "live_provider_calls_available": selected_provider_available,
         "agent_type": request.agent_type,
         "task_type": request.task_type,
         "selected_model": selected,
@@ -645,17 +773,21 @@ def resolve_route(request: RoutingResolveRequest) -> dict[str, object]:
         "provider_chain": [provider_for_model(candidate) for candidate in candidates],
         "max_output_tokens": route["max_output_tokens"],
         "supports_streaming": route["supports_streaming"],
-        "configured_only": False,
-        "live_verified": bool(router["live_verified"]),
+        "configured_only": bool(route["configured_only"]),
+        "live_verified": False if selected_provider == "alibaba_model_studio" else bool(router["live_verified"]),
         "budget_level": request.budget_level,
         "provider_health": {
             "provider": selected_provider,
-            "status": router["status"],
-            "live_verified": bool(router["live_verified"]),
+            "status": selected_provider_status,
+            "live_verified": False if selected_provider == "alibaba_model_studio" else bool(router["live_verified"]),
             "live_provider_calls": False,
-            "live_provider_calls_available": hf_router_available(),
+            "live_provider_calls_available": selected_provider_available,
             "model_downloads": False,
-            "non_claim": "Router availability is verified through HF /v1/models; generation is still policy-gated.",
+            "non_claim": (
+                "Model Studio configuration is visible but generation remains key-, mode-, policy-, and audit-gated."
+                if selected_provider == "alibaba_model_studio"
+                else "Router availability is verified through HF /v1/models; generation is still policy-gated."
+            ),
         },
         "policy": {
             "rotation_backoff_seconds": ROTATION_BACKOFF_SECONDS,
@@ -663,6 +795,7 @@ def resolve_route(request: RoutingResolveRequest) -> dict[str, object]:
             "never_break_budget": True,
             "external_provider_calls_disabled_by_default": not LLM_LIVE_PROVIDER_DEFAULT,
             "requires_request_metadata": "metadata.live_provider_calls_allowed=true",
+            "requires_owner_environment_gate": "LLM_LIVE_PROVIDER_DEFAULT=true",
         },
     }
 
@@ -682,27 +815,41 @@ def deterministic_content(request: ChatCompletionRequest) -> str:
     )
 
 
-def request_allows_live_provider(metadata: dict[str, Any] | None) -> bool:
+def request_requests_live_provider(metadata: dict[str, Any] | None) -> bool:
     metadata = metadata or {}
     value = metadata.get("live_provider_calls_allowed")
-    if value is None:
-        return LLM_LIVE_PROVIDER_DEFAULT
     return value is True or (isinstance(value, str) and value.strip().lower() in {"1", "true", "yes"})
+
+
+def request_allows_live_provider(metadata: dict[str, Any] | None) -> bool:
+    return LLM_LIVE_PROVIDER_DEFAULT and request_requests_live_provider(metadata)
 
 
 def chat_message_payloads(messages: list[ChatMessage]) -> list[dict[str, Any]]:
     payloads: list[dict[str, Any]] = []
     for message in messages:
-        payloads.append({"role": message.role, "content": message.content})
+        payload: dict[str, Any] = {"role": message.role, "content": message.content}
+        if message.name is not None:
+            payload["name"] = message.name
+        if message.tool_call_id is not None:
+            payload["tool_call_id"] = message.tool_call_id
+        if message.tool_calls is not None:
+            payload["tool_calls"] = message.tool_calls
+        payloads.append(payload)
     return payloads
 
 
-def extract_chat_content(response_payload: dict[str, Any]) -> str:
+def first_chat_choice(response_payload: dict[str, Any]) -> dict[str, Any] | None:
     choices = response_payload.get("choices")
     if not isinstance(choices, list) or not choices:
-        return ""
+        return None
     first = choices[0]
-    if not isinstance(first, dict):
+    return first if isinstance(first, dict) else None
+
+
+def extract_chat_content(response_payload: dict[str, Any]) -> str:
+    first = first_chat_choice(response_payload)
+    if first is None:
         return ""
     message = first.get("message")
     if isinstance(message, dict) and message.get("content"):
@@ -711,6 +858,36 @@ def extract_chat_content(response_payload: dict[str, Any]) -> str:
     if isinstance(delta, dict) and delta.get("content"):
         return str(delta["content"])
     return ""
+
+
+def extract_chat_tool_calls(response_payload: dict[str, Any]) -> list[dict[str, Any]]:
+    first = first_chat_choice(response_payload)
+    if first is None:
+        return []
+    message = first.get("message")
+    if not isinstance(message, dict):
+        return []
+    tool_calls = message.get("tool_calls")
+    if not isinstance(tool_calls, list):
+        return []
+    return [item for item in tool_calls if isinstance(item, dict)]
+
+
+def extract_chat_finish_reason(response_payload: dict[str, Any]) -> str | None:
+    first = first_chat_choice(response_payload)
+    if first is None:
+        return None
+    finish_reason = first.get("finish_reason")
+    return str(finish_reason) if finish_reason else None
+
+
+def chat_audit_summary(response_payload: dict[str, Any]) -> str:
+    content = extract_chat_content(response_payload).strip()
+    if content:
+        return content
+    if extract_chat_tool_calls(response_payload):
+        return "OpenAI-compatible tool-call response returned through the LLM Gateway."
+    return "OpenAI-compatible response returned without auditable text."
 
 
 def usage_from_chat_payload(request: ChatCompletionRequest, response_payload: dict[str, Any], content: str) -> dict[str, int]:
@@ -762,6 +939,72 @@ def call_hf_chat_completion(request: ChatCompletionRequest) -> dict[str, Any]:
 
     if not isinstance(response_payload, dict):
         raise HTTPException(status_code=502, detail="Hugging Face router returned an invalid payload")
+    return response_payload
+
+
+def call_model_studio_chat_completion(request: ChatCompletionRequest) -> dict[str, Any]:
+    token = model_studio_api_key()
+    if not token or not model_studio_base_url_valid():
+        raise HTTPException(
+            status_code=503,
+            detail="Alibaba Model Studio gateway configuration is incomplete",
+        )
+    model = normalize_model_id(request.model)
+    if model not in MODEL_STUDIO_MODELS:
+        raise HTTPException(status_code=400, detail="Model Studio model is outside the approved allowlist")
+
+    upstream_payload: dict[str, Any] = {
+        "model": model,
+        "messages": chat_message_payloads(request.messages),
+        "stream": False,
+    }
+    if request.temperature is not None:
+        upstream_payload["temperature"] = request.temperature
+    if request.max_tokens is not None:
+        upstream_payload["max_tokens"] = request.max_tokens
+    if request.tools is not None:
+        try:
+            tool_bytes = len(
+                json.dumps(request.tools, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            )
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail="Model Studio tools must be JSON-serializable") from exc
+        if tool_bytes > MAX_CHAT_TOOLS_BYTES:
+            raise HTTPException(status_code=422, detail="Model Studio tools exceed the bounded payload limit")
+        upstream_payload["tools"] = request.tools
+    if request.tool_choice is not None:
+        upstream_payload["tool_choice"] = request.tool_choice
+    if request.parallel_tool_calls is not None:
+        upstream_payload["parallel_tool_calls"] = request.parallel_tool_calls
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    try:
+        with httpx.Client(timeout=MODEL_STUDIO_TIMEOUT_SECONDS) as client:
+            response = client.post(
+                f"{MODEL_STUDIO_BASE_URL}/chat/completions",
+                headers=headers,
+                json=upstream_payload,
+            )
+            response.raise_for_status()
+        response_payload = response.json()
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=exc.response.status_code,
+            detail="Alibaba Model Studio rejected the gateway request",
+        ) from exc
+    except (httpx.HTTPError, ValueError) as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Alibaba Model Studio gateway request failed: {type(exc).__name__}",
+        ) from exc
+
+    if not isinstance(response_payload, dict) or not (
+        extract_chat_content(response_payload).strip() or extract_chat_tool_calls(response_payload)
+    ):
+        raise HTTPException(status_code=502, detail="Alibaba Model Studio returned an invalid payload")
     return response_payload
 
 
@@ -922,6 +1165,8 @@ def audit_event(
     provider_name: str = "deterministic-dry-run",
     status: str = "dry_run",
     live_provider_calls: bool = False,
+    cost_cents: int | None = 0,
+    cost_status: str = "measured",
 ) -> bool:
     base_url = os.getenv("AGENT_API_INTERNAL_URL", "").rstrip("/")
     if not base_url:
@@ -935,7 +1180,8 @@ def audit_event(
         "status": status,
         "input_tokens": usage["prompt_tokens"],
         "output_tokens": usage["completion_tokens"],
-        "cost_cents": 0,
+        "cost_cents": cost_cents,
+        "cost_status": cost_status,
         "live_provider_calls": live_provider_calls,
         "summary": content,
     }
@@ -965,7 +1211,8 @@ def audit_responses_event(request_payload: dict[str, Any], response_payload: dic
         "status": "success" if response_payload.get("status") == "completed" else "error",
         "input_tokens": usage["input_tokens"],
         "output_tokens": usage["output_tokens"],
-        "cost_cents": 0,
+        "cost_cents": response_payload.get("cost_cents"),
+        "cost_status": str(response_payload.get("cost_status") or "unverified"),
         "live_provider_calls": bool(response_payload.get("live_provider_calls")),
         "summary": summary[:500],
     }
@@ -1139,10 +1386,19 @@ def responses_adapter_payload(
     usage: dict[str, int],
     *,
     local_call: bool = False,
+    live_provider_name: str | None = None,
 ) -> dict[str, Any]:
     created = int(time.time())
     metadata = normalized.get("metadata") if isinstance(normalized.get("metadata"), dict) else {}
-    provider_slug = "hf" if live_call else "local" if local_call else "dryrun"
+    provider_slug = (
+        "ms"
+        if live_call and live_provider_name == "alibaba_model_studio"
+        else "hf"
+        if live_call
+        else "local"
+        if local_call
+        else "dryrun"
+    )
     return {
         "id": f"resp_{provider_slug}_{uuid4()}",
         "object": "response",
@@ -1165,11 +1421,19 @@ def responses_adapter_payload(
         ],
         "output_text": content,
         "gateway_mode": GATEWAY_MODE,
-        "provider_name": "huggingface_inference_router" if live_call else "local_llama_cpp" if local_call else "deterministic-dry-run",
+        "provider_name": (
+            live_provider_name or "huggingface_inference_router"
+            if live_call
+            else "local_llama_cpp"
+            if local_call
+            else "deterministic-dry-run"
+        ),
         "live_provider_calls": live_call,
         "local_model_calls": local_call,
         "model_downloads": False,
         "secret_output": False,
+        "cost_cents": None if live_call else 0,
+        "cost_status": "provider_invoice_unverified" if live_call else "zero_cost_non_provider",
         "usage": {
             "input_tokens": usage.get("prompt_tokens", 0),
             "output_tokens": usage.get("completion_tokens", 0),
@@ -1281,7 +1545,8 @@ def responses_adapter_contract_snapshot() -> dict[str, object]:
         "service_runtime_route": "POST /v1/responses",
         "covered_boundary": "L3 live-agent steering to L4 LLM Gateway Responses adapter",
         "adapter": {
-            "upstream_provider": "huggingface_inference_router",
+            "upstream_provider": "gateway_mode_selected_openai_compatible_provider",
+            "supported_live_providers": ["alibaba_model_studio", "huggingface_inference_router"],
             "upstream_chat_endpoint": "/v1/chat/completions",
             "dry_run_provider": "deterministic-dry-run",
             "stream_passthrough": False,
@@ -1304,7 +1569,7 @@ def responses_adapter_contract_snapshot() -> dict[str, object]:
             "max_output_tokens": f"optional integer from 1 through {MAX_RESPONSES_OUTPUT_TOKENS}",
         },
         "response_schema": {
-            "id": "resp_dryrun_*, resp_local_*, or resp_hf_*",
+            "id": "resp_dryrun_*, resp_local_*, resp_ms_*, or resp_hf_*",
             "object": "response",
             "status": "completed",
             "contract_version": LLM_RESPONSES_ADAPTER_CONTRACT_VERSION,
@@ -1313,7 +1578,7 @@ def responses_adapter_contract_snapshot() -> dict[str, object]:
             "output": "Responses-style message array",
             "output_text": "flattened assistant text",
             "gateway_mode": GATEWAY_MODE,
-            "provider_name": "deterministic-dry-run unless live gate and token allow HF router",
+            "provider_name": "deterministic-dry-run unless the active gateway provider passes all live gates",
             "live_provider_calls": "false in default local and hosted gate-closed mode",
             "local_model_calls": "true only when the local runtime handled the request",
             "model_downloads": False,
@@ -1383,7 +1648,7 @@ def responses_adapter_contract_snapshot() -> dict[str, object]:
         "policy_checks": [
             "Agent API calls POST /llm/v1/responses through the LLM Gateway only.",
             "The adapter never uses an OpenAI API key or direct provider URL.",
-            "Live provider calls require both provider token availability and explicit metadata.live_provider_calls_allowed=true.",
+            "Live provider calls require the matching credential, approved gateway mode, owner environment gate, explicit request approval, and persisted preflight/completion audits.",
             "Default local and gate-closed hosted proofs keep live_provider_calls=false and cost_cents=0.",
             "Responses streaming buffers one deterministic result, audits it, and then emits Responses-native SSE without provider passthrough.",
             "Audit payloads are redacted by the Agent API sink before persistence.",
@@ -1410,12 +1675,19 @@ def responses_adapter_contract_snapshot() -> dict[str, object]:
 @app.get("/api/v1/health")
 def health() -> dict[str, object]:
     cloudflare_mode = cloudflare_workers_ai_mode_enabled()
+    model_studio_mode = model_studio_mode_enabled()
     # Health must describe the active gateway without performing an unrelated
     # Hugging Face provider read. In Cloudflare mode that network probe can
     # exceed the Agent API's three-second dependency timeout and make an
     # otherwise healthy local stack flap to degraded.
     router = provider_router_snapshot_for_gateway_mode(limit=5)
-    provider_available = cloudflare_workers_ai_available() if cloudflare_mode else hf_router_available()
+    provider_available = (
+        cloudflare_workers_ai_available()
+        if cloudflare_mode
+        else model_studio_available()
+        if model_studio_mode
+        else hf_router_available()
+    )
     return {
         "status": "healthy",
         "service": "llm-gateway",
@@ -1430,14 +1702,30 @@ def health() -> dict[str, object]:
             if local_llm_enabled()
             else "cloudflare-workers-ai"
             if cloudflare_mode
+            else "alibaba_model_studio"
+            if model_studio_mode
             else "huggingface_inference_router"
         ),
         "routing_resolver": True,
         "routing_policy": True,
         "provider_health": True,
         "provider_live_verified": bool(router["live_verified"]),
-        "provider_status": "configured" if cloudflare_mode and provider_available else router["status"],
-        "provider_model_count_visible": len(CF_WORKERS_AI_MODELS) if cloudflare_mode else router["model_count_visible"],
+        "provider_status": (
+            "configured"
+            if cloudflare_mode and provider_available
+            else "configured_gate_closed"
+            if model_studio_mode and provider_available
+            else "missing_api_key_or_endpoint"
+            if model_studio_mode
+            else router["status"]
+        ),
+        "provider_model_count_visible": (
+            len(CF_WORKERS_AI_MODELS)
+            if cloudflare_mode
+            else len(MODEL_STUDIO_MODELS)
+            if model_studio_mode
+            else router["model_count_visible"]
+        ),
         "local_llm": {
             "enabled": local_llm_enabled(),
             # Only probe the optional local provider when it is actually enabled. In cloud /
@@ -1451,10 +1739,15 @@ def health() -> dict[str, object]:
         "streaming_protocol": STREAMING_PROTOCOL,
         "models_configured": len(model_ids()),
         "hf_router": huggingface_router_capability_snapshot(),
-        "responses_api": huggingface_router_capability_snapshot(),
+        "model_studio": model_studio_capability_snapshot(),
+        "responses_api": (
+            model_studio_capability_snapshot()
+            if model_studio_mode
+            else huggingface_router_capability_snapshot()
+        ),
         "non_claims": [
             "No model files are downloaded by this gateway.",
-            "Generation calls require HF_TOKEN plus request policy/metadata approval.",
+            "Generation calls require the active provider credential plus request policy/metadata approval.",
             "OpenAI-compatible means wire protocol compatibility, not OpenAI provider dependency.",
         ],
     }
@@ -1482,6 +1775,30 @@ def models() -> dict[str, object]:
             "router_status": "not_applicable_local_mode",
             "model_downloads": True,
         }
+    if model_studio_mode_enabled():
+        return {
+            "object": "list",
+            "data": [
+                {
+                    "id": model_id,
+                    "object": "model",
+                    "owned_by": "alibaba_model_studio",
+                    "configured_route": True,
+                    "open_source_first": False,
+                    "live_verified": False,
+                    "gateway_only": True,
+                }
+                for model_id in sorted(MODEL_STUDIO_MODELS)
+            ],
+            "live_provider_calls": False,
+            "live_provider_calls_available": model_studio_available(),
+            "provider": "alibaba_model_studio",
+            "router_status": (
+                "configured_gate_closed" if model_studio_available() else "missing_api_key_or_endpoint"
+            ),
+            "model_downloads": False,
+            "secret_output": False,
+        }
     router = hf_router_model_snapshot(limit=200)
     route_models = set(model_ids())
     visible = router["models"] if router["live_verified"] else []
@@ -1492,10 +1809,14 @@ def models() -> dict[str, object]:
             {
                 "id": model_id,
                 "object": "model",
-                "owned_by": "huggingface-router",
+                "owned_by": provider_for_model(model_id),
                 "configured_route": model_id in route_models,
-                "open_source_first": True,
-                "live_verified": bool(router["live_verified"]),
+                "open_source_first": provider_for_model(model_id) != "alibaba_model_studio",
+                "live_verified": (
+                    bool(router["live_verified"])
+                    if provider_for_model(model_id) == "huggingface_inference_router"
+                    else False
+                ),
             }
             for model_id in merged
         ],
@@ -1549,7 +1870,7 @@ def routing_resolve(request: RoutingResolveRequest) -> dict[str, object]:
 @app.post("/v1/chat/completions")
 def chat_completions(request: ChatCompletionRequest):
     created = int(time.time())
-    live_allowed = request_allows_live_provider(request.metadata)
+    requested_provider = provider_for_model(request.model)
     # Local llama.cpp is an optional, open-source, local-CPU provider. When it is enabled but
     # unavailable/unhealthy (still loading model, saturated, or down), degrade gracefully to the
     # deterministic dry-run path instead of hard-failing — a missing optional local provider must
@@ -1557,7 +1878,18 @@ def chat_completions(request: ChatCompletionRequest):
     # A caller (e.g. the Phase-2 LangGraph orchestrator) can demand the deterministic dry-run path
     # explicitly; it must not be routed through the slow local model or any live provider.
     deterministic_only = isinstance(request.metadata, dict) and request.metadata.get("deterministic_dry_run") is True
+    live_requested = request_requests_live_provider(request.metadata)
+    if live_requested and not LLM_LIVE_PROVIDER_DEFAULT and not local_llm_enabled() and not deterministic_only:
+        raise HTTPException(status_code=403, detail="External live-provider owner gate is closed")
+    live_allowed = request_allows_live_provider(request.metadata)
     local_live_call = local_llm_enabled() and local_llm_health() and not deterministic_only
+    model_studio_live_call = (
+        model_studio_mode_enabled()
+        and requested_provider == "alibaba_model_studio"
+        and live_allowed
+        and model_studio_available()
+        and not deterministic_only
+    )
     cloudflare_live_call = (
         cloudflare_workers_ai_mode_enabled()
         and live_allowed
@@ -1566,12 +1898,14 @@ def chat_completions(request: ChatCompletionRequest):
     )
     hf_live_call = (
         not cloudflare_workers_ai_mode_enabled()
+        and not model_studio_mode_enabled()
+        and requested_provider != "alibaba_model_studio"
         and live_allowed
         and hf_router_available()
         and not deterministic_only
     )
-    live_call = cloudflare_live_call or hf_live_call
-    completion_id = f"chatcmpl-{'local' if local_live_call else 'cf' if cloudflare_live_call else 'hf' if hf_live_call else 'dryrun'}-{uuid4()}"
+    live_call = model_studio_live_call or cloudflare_live_call or hf_live_call
+    completion_id = f"chatcmpl-{'local' if local_live_call else 'ms' if model_studio_live_call else 'cf' if cloudflare_live_call else 'hf' if hf_live_call else 'dryrun'}-{uuid4()}"
 
     if local_live_call:
         response_payload = call_local_chat_completion(request)
@@ -1594,6 +1928,47 @@ def chat_completions(request: ChatCompletionRequest):
         response_payload["audit_persisted"] = audit_persisted
         response_payload["cost_cents"] = 0
         response_payload["model_downloads"] = False
+    elif model_studio_live_call:
+        preflight_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        preflight_persisted = audit_event(
+            request,
+            "Model Studio live request authorized; upstream call pending.",
+            preflight_usage,
+            provider_name="alibaba_model_studio",
+            status="authorized",
+            live_provider_calls=False,
+            cost_cents=None,
+            cost_status="provider_invoice_unverified",
+        )
+        if not preflight_persisted:
+            raise HTTPException(status_code=503, detail="Live-provider audit preflight persistence failed")
+        response_payload = call_model_studio_chat_completion(request)
+        content = extract_chat_content(response_payload)
+        usage = usage_from_chat_payload(request, response_payload, content)
+        audit_persisted = audit_event(
+            request,
+            chat_audit_summary(response_payload),
+            usage,
+            provider_name="alibaba_model_studio",
+            status="success",
+            live_provider_calls=True,
+            cost_cents=None,
+            cost_status="provider_invoice_unverified",
+        )
+        if not audit_persisted:
+            raise HTTPException(status_code=503, detail="Live-provider completion audit persistence failed")
+        response_payload["gateway_mode"] = GATEWAY_MODE
+        response_payload["provider"] = "alibaba_model_studio"
+        response_payload["provider_name"] = "alibaba_model_studio"
+        response_payload["requested_model"] = request.model
+        response_payload["model"] = response_payload.get("model") or normalize_model_id(request.model)
+        response_payload["live_provider_calls"] = True
+        response_payload["local_model_calls"] = False
+        response_payload["audit_persisted"] = audit_persisted
+        response_payload["cost_cents"] = None
+        response_payload["cost_status"] = "provider_invoice_unverified"
+        response_payload["model_downloads"] = False
+        response_payload["secret_output"] = False
     elif cloudflare_live_call:
         response_payload = call_cloudflare_workers_ai_chat_completion(request)
         content = extract_chat_content(response_payload)
@@ -1639,6 +2014,36 @@ def chat_completions(request: ChatCompletionRequest):
     else:
         if (
             live_allowed
+            and requested_provider == "alibaba_model_studio"
+            and not model_studio_mode_enabled()
+            and not deterministic_only
+        ):
+            raise HTTPException(
+                status_code=503,
+                detail="Alibaba Model Studio requires the approved LLM Gateway mode",
+            )
+        if (
+            live_allowed
+            and model_studio_mode_enabled()
+            and requested_provider != "alibaba_model_studio"
+            and not deterministic_only
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Requested model is outside the active Model Studio allowlist",
+            )
+        if (
+            live_allowed
+            and model_studio_mode_enabled()
+            and not model_studio_available()
+            and not deterministic_only
+        ):
+            raise HTTPException(
+                status_code=503,
+                detail="Alibaba Model Studio gateway configuration is incomplete",
+            )
+        if (
+            live_allowed
             and cloudflare_workers_ai_mode_enabled()
             and not cloudflare_workers_ai_available()
             and not deterministic_only
@@ -1672,16 +2077,26 @@ def chat_completions(request: ChatCompletionRequest):
             "cost_cents": 0,
             "provider_name": "deterministic-dry-run",
             "model_downloads": False,
+            "secret_output": False,
         }
 
     if request.stream:
         def events():
+            response_tool_calls = extract_chat_tool_calls(response_payload)
+            delta = (
+                {"role": "assistant", "tool_calls": response_tool_calls}
+                if response_tool_calls
+                else {"content": content}
+            )
+            finish_reason = extract_chat_finish_reason(response_payload) or (
+                "tool_calls" if response_tool_calls else "stop"
+            )
             chunk = {
                 "id": completion_id,
                 "object": "chat.completion.chunk",
                 "created": created,
                 "model": response_payload.get("model") or normalize_model_id(request.model),
-                "choices": [{"index": 0, "delta": {"content": content}, "finish_reason": None}],
+                "choices": [{"index": 0, "delta": delta, "finish_reason": None}],
                 "live_provider_calls": live_call,
                 "audit_persisted": audit_persisted,
                 "provider_name": response_payload.get("provider_name"),
@@ -1693,7 +2108,7 @@ def chat_completions(request: ChatCompletionRequest):
                 "object": "chat.completion.chunk",
                 "created": created,
                 "model": response_payload.get("model") or normalize_model_id(request.model),
-                "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                "choices": [{"index": 0, "delta": {}, "finish_reason": finish_reason}],
             }
             yield f"data: {json.dumps(done, separators=(',', ':'))}\n\n"
             yield "data: [DONE]\n\n"
@@ -1716,9 +2131,14 @@ def create_response(payload: dict[str, Any]):
     )
     stream_requested = normalized.get("stream") is True
     deterministic_only = stream_requested or chat_request.metadata.get("deterministic_dry_run") is True
+    live_requested = request_requests_live_provider(chat_request.metadata)
+    if live_requested and not LLM_LIVE_PROVIDER_DEFAULT and not local_llm_enabled() and not deterministic_only:
+        raise HTTPException(status_code=403, detail="External live-provider owner gate is closed")
     live_allowed = request_allows_live_provider(chat_request.metadata)
+    requested_provider = provider_for_model(chat_request.model)
     local_call = False
     live_call = False
+    live_provider_name: str | None = None
     if deterministic_only:
         content = deterministic_content(chat_request)
         usage = chat_usage(chat_request, content)
@@ -1727,6 +2147,41 @@ def create_response(payload: dict[str, Any]):
         content = extract_chat_content(chat_payload)
         usage = usage_from_chat_payload(chat_request, chat_payload, content)
         local_call = True
+    elif (
+        live_allowed
+        and requested_provider == "alibaba_model_studio"
+        and not model_studio_mode_enabled()
+    ):
+        raise HTTPException(
+            status_code=503,
+            detail="Alibaba Model Studio requires the approved LLM Gateway mode",
+        )
+    elif live_allowed and model_studio_mode_enabled() and requested_provider != "alibaba_model_studio":
+        raise HTTPException(status_code=400, detail="Requested model is outside the active Model Studio allowlist")
+    elif live_allowed and model_studio_mode_enabled() and not model_studio_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Alibaba Model Studio gateway configuration is incomplete",
+        )
+    elif live_allowed and model_studio_mode_enabled():
+        preflight_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        preflight_persisted = audit_event(
+            chat_request,
+            "Model Studio live Responses request authorized; upstream call pending.",
+            preflight_usage,
+            provider_name="alibaba_model_studio",
+            status="authorized",
+            live_provider_calls=False,
+            cost_cents=None,
+            cost_status="provider_invoice_unverified",
+        )
+        if not preflight_persisted:
+            raise HTTPException(status_code=503, detail="Live-provider audit preflight persistence failed")
+        chat_payload = call_model_studio_chat_completion(chat_request)
+        content = extract_chat_content(chat_payload)
+        usage = usage_from_chat_payload(chat_request, chat_payload, content)
+        live_call = True
+        live_provider_name = "alibaba_model_studio"
     elif live_allowed and not hf_router_available():
         raise HTTPException(status_code=503, detail="HF_TOKEN is required for live Hugging Face router calls")
     elif live_allowed:
@@ -1739,9 +2194,18 @@ def create_response(payload: dict[str, Any]):
         usage = chat_usage(chat_request, content)
 
     validate_responses_output_text(content)
-    response_payload = responses_adapter_payload(normalized, content, live_call, usage, local_call=local_call)
+    response_payload = responses_adapter_payload(
+        normalized,
+        content,
+        live_call,
+        usage,
+        local_call=local_call,
+        live_provider_name=live_provider_name,
+    )
     audit_persisted = audit_responses_event(normalized, response_payload)
     response_payload["audit_persisted"] = audit_persisted
+    if live_call and not audit_persisted:
+        raise HTTPException(status_code=503, detail="Live-provider completion audit persistence failed")
     if stream_requested and not audit_persisted:
         raise HTTPException(status_code=503, detail="Responses stream audit persistence failed before emission")
     if audit_persisted and normalized.get("store") is True:

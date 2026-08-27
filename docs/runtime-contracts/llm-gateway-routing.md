@@ -77,6 +77,18 @@ Die Runtime mappt Slots auf freigegebene Providerklassen:
 Konkrete Provider duerfen erst in Umgebungskonfigurationen oder Secret-gebundenen Deployments aufgeloest werden.
 Diese Aufloesung ist nicht Teil dieses Vertrags.
 
+### Gebundener Coder-Provider
+
+Der Slot `coder_primary` ist an das Modell `qwen3.7-plus` gebunden. Seine konkrete
+`standard_coding`-Aufloesung erfolgt ausschliesslich im LLM Gateway ueber den
+`alibaba_model_studio`-Adapter. Die Agentenschicht kennt weder
+`ALIBABA_MODEL_STUDIO_BASE_URL` noch `DASHSCOPE_API_KEY` und darf beide nicht im Request
+uebergeben. Der Adapter bleibt ohne expliziten Modus, gueltigen Endpoint, dedizierten Key,
+Owner-Master-Gate, Request-Freigabe sowie Preflight- und Completion-Audit-Persistenz fail-closed.
+Live-Kosten bleiben bis zu einer gemessenen Provider-Zuordnung explizit unbekannt statt `0`.
+Details:
+`docs/runtime-contracts/model-studio-qwen-coder.md`.
+
 ## Inputs
 
 ### `llm.gateway.request`
