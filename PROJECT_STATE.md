@@ -14,7 +14,8 @@ Letzte Aktualisierung: 2026-08-27
 - **Aktiver Entwicklungsbranch:** `codex/organism-visual-v2`. Die neuesten gebundenen Slices
   beheben Browser-Hydration/-Retry-Rennen, klassifizieren den Fuenf-Achsen-Audit aus echter
   Evidenz und fuegen den neuen Coder `qwen3.7-plus` ueber den L3→L4-LLM-Gatewaypfad ein.
-  Red-first Testcommit: `b586d309`; Implementierung: `16052d72`.
+  Red-first Testcommit: `b586d309`; Implementierung: `16052d72`; additiver Runtime-
+  Vertragsfix fuer die bestehende Open-Source-First-Routing-Notiz: `f6a20a1`.
 - **Qwen Code:** Standalone-Client `0.22.2` ist user-scope installiert. Seine lokale
   Providerkonfiguration zeigt auf `http://localhost:8081/llm/v1`, nicht direkt auf Alibaba.
   Ein echter CLI→Gateway-Lauf bestand im deterministischen DEV-ONLY-Modus ohne Tool- oder
@@ -35,8 +36,11 @@ Letzte Aktualisierung: 2026-08-27
 - **Vollkettenstatus vor finalem Lauf:** `npm run verify` lief auf Source `16052d72` bis zum
   ersten erwarteten roten Gate: O4-Evidence war nach den neuen Commits source-stale. Das ist
   kein Produktfehler; O4 muss gemaess R-SELF/O4-Regel nach dem letzten Source-/Truth-Commit
-  als letzter Browser-/Write-Beweis neu erzeugt werden. Danach folgen Static, Runtime,
-  Browser/22-Seiten und Release-/Market-Ready-Auswertung erneut auf exakt derselben Source.
+  als letzter Browser-/Write-Beweis neu erzeugt werden. Ein anschliessender Runtime-Lauf fand,
+  dass die neue Qwen-Notiz den bestehenden Open-Source-First-Satz ersetzt hatte; `f6a20a1`
+  fuehrt beide Wahrheiten additiv zusammen und der fokussierte Runtime-/Snapshot-Readback ist
+  gruen. Danach folgen Build, Runtime, Browser/22-Seiten/O4, Static und Release-/Market-Ready-
+  Auswertung erneut auf exakt derselben finalen Source.
 - **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
   P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
   L6 `100`, L7 `100`. Keine Rubrik- oder Prozentanhebung durch den Qwen-Slice.

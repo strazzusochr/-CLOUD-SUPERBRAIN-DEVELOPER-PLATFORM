@@ -11,8 +11,10 @@ Open this entire folder in the next IDE or AI-agent tool. Do not copy only track
 The active branch is `codex/organism-visual-v2`. The newest completed source slices after RC14
 repair browser hydration/retry races, derive the five-axis audit from evidence, and add the
 Alibaba Model Studio `qwen3.7-plus` coder strictly through the LLM Gateway. The red-first test
-commit is `b586d309`; the implementation commit is `16052d72`. Preserve the separately staged
-historical RC12 file and the generated dirty runtime/evidence files; never use `git add -A`.
+commit is `b586d309`; the implementation commit is `16052d72`; runtime-contract compatibility
+fix `f6a20a1` preserves both the established open-source-first routing note and the new Qwen
+provider-bound note. Preserve the separately staged historical RC12 file and the generated dirty
+runtime/evidence files; never use `git add -A`.
 
 Qwen Code standalone `0.22.2` is installed in user scope. Its provider configuration uses the
 DEV-ONLY local gateway boundary `http://localhost:8081/llm/v1`. The repository stores only model
@@ -24,7 +26,9 @@ Focused proof is green: LLM Gateway `23/23`, Agent API `78/78`, Python compile, 
 focused ESLint, dev/cloud Compose config, runtime Responses SSE, topology `246/500`, and the
 fail-closed runtime matrix (`200` health, live request `403`, oversized tokens `422`, direct
 provider denied, no secret output). `npm run verify` currently stops at the first O4 source-parity
-check because O4 evidence predates the new commits. After the final truth commit, run serially:
+check because O4 evidence predates the new commits. The first runtime rerun also exposed the
+replaced routing note; `f6a20a1` fixed it additively and focused runtime/snapshot readback passed.
+After the final truth commit, run serially:
 
 1. `npm run build`
 2. `npm run verify:runtime`

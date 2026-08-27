@@ -11,7 +11,10 @@ Current progress claims are authoritative only when they match `docs/project-pro
 
 Recorded 2026-08-27. Red-first commit `b586d309` defines the Alibaba Model Studio coder
 contract; implementation commit `16052d72` binds `qwen3.7-plus` as `coder_primary` through the
-LLM Gateway only. The provider endpoint is validated as HTTPS under `.maas.aliyuncs.com` with the
+LLM Gateway only. Runtime-contract compatibility commit `f6a20a1` preserves the established
+open-source-first Hugging Face routing note and appends the explicitly provider-bound Qwen route
+instead of replacing that truth. The provider endpoint is validated as HTTPS under
+`.maas.aliyuncs.com` with the
 exact `/compatible-mode/v1` path. The dedicated key is read only from `DASHSCOPE_API_KEY` and was
 absent during every proof. The owner-controlled live master gate remained false; a client metadata
 flag alone returned HTTP `403` before network access. Requests above `8192` tokens returned `422`,
@@ -38,6 +41,9 @@ tracked O4 runtime/browser reports were bound to an older source. This is the ex
 guard after source changes. It is not accepted as green. O4 must be regenerated after the final
 truth commit and remain the last browser/write proof; build, runtime, browser/22-page, static,
 release-boundary, market-ready and gitleaks results must then be reported from that exact source.
+The first runtime rerun additionally caught the replaced routing-note phrase; the additive
+`f6a20a1` source and refreshed `/api/v1/models/capabilities` snapshot passed focused compile,
+runtime readback and snapshot assertions before this final truth commit.
 
 No percentage credit is added. The active qualified release candidate remains RC14 at source
 `d0674bfc1367b04d95ca2bf745e89fabf12046ad`; this newer feature-branch source is not yet a
