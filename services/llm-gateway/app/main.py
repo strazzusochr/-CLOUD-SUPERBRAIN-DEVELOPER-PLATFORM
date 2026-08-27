@@ -792,21 +792,33 @@ def call_cloudflare_workers_ai_chat_completion(request: ChatCompletionRequest) -
         "Content-Type": "application/json",
     }
     endpoint = f"{CF_WORKERS_AI_BASE_URL}/accounts/{account_id}/ai/run/{request.model}"
-    try:
-        with httpx.Client(timeout=CF_WORKERS_AI_TIMEOUT_SECONDS) as client:
-            response = client.post(endpoint, headers=headers, json=upstream_payload)
-            response.raise_for_status()
-        upstream_response = response.json()
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=exc.response.status_code,
-            detail="Cloudflare Workers AI rejected the gateway request",
-        ) from exc
-    except (httpx.HTTPError, ValueError) as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Cloudflare Workers AI gateway request failed: {type(exc).__name__}",
-        ) from exc
+    upstream_response: object | None = None
+    for connect_attempt in range(2):
+        try:
+            with httpx.Client(timeout=CF_WORKERS_AI_TIMEOUT_SECONDS) as client:
+                response = client.post(endpoint, headers=headers, json=upstream_payload)
+                response.raise_for_status()
+            upstream_response = response.json()
+            break
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(
+                status_code=exc.response.status_code,
+                detail="Cloudflare Workers AI rejected the gateway request",
+            ) from exc
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+            # Retry only failures that occur while establishing the connection. Once a
+            # request can have reached the provider, retrying could duplicate inference.
+            if connect_attempt == 0:
+                continue
+            raise HTTPException(
+                status_code=502,
+                detail=f"Cloudflare Workers AI gateway request failed: {type(exc).__name__}",
+            ) from exc
+        except (httpx.HTTPError, ValueError) as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Cloudflare Workers AI gateway request failed: {type(exc).__name__}",
+            ) from exc
 
     result = upstream_response.get("result") if isinstance(upstream_response, dict) else None
     content = result.get("response") if isinstance(result, dict) else None
