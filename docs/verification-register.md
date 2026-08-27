@@ -7,7 +7,34 @@ Status: Active
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
 
-## Current Qwen 3.7 Coder / Final-Requalification Evidence
+## Current RC15 Local Qualification Evidence
+
+Recorded 2026-08-27. Active locally qualified candidate
+`prod-candidate-2026-08-27-local-rc15` is bound to frozen source
+`2e945a6cfd7217ee71372ad3ddc9ad63f4840a2f`. GitHub Actions `pr-check` run
+`33095778510` passed through control commit
+`dbb5822f42f742a223ada07820f9e82c0813cbc2`; the source-checkout attestation reports
+`checked_out_sha=2e945a6cfd7217ee71372ad3ddc9ad63f4840a2f` and the only control delta is
+`scripts/verify-main-deploy-transition.ps1`. GitHub artifact `9656378547`, its reported and
+downloaded archive digest, and the downloaded attestation hash are preserved in the immutable
+RC15 evidence set.
+
+The five independent chains passed: six committed-archive candidate images, full runtime,
+full browser, candidate-runtime identity/parity with a real Chromium selection and click, and
+candidate-archive security. The browser chain passed Browser Contract, product acceptance with
+a real Cloudflare Workers AI generation, `22/22` routes, `29/29` families, `161/161` action
+members, responsive `22x2` navigation, and O4 write/readback/rollback. Candidate security passed
+npm audit and canonical gitleaks over the committed candidate archive. All local evidence is
+`DEV-ONLY; hosted proof still blocked`.
+
+Readiness is `verified_with_owner_blocks`; Phase-5 itemization remains exactly `17/19 = 89%`.
+The only zero-credit items are I1 `hosted_candidate_parity` and I5
+`production_auth_identity`. Overall remains `89%`; `MARKET_READY:false`. RC14 source
+`d0674bfc1367b04d95ca2bf745e89fabf12046ad` is the rollback target. No authenticated Alibaba
+call, GHCR publication, default-branch write, production deploy, release promotion, Owner
+approval, payment, or secret output is claimed.
+
+## Historical Pre-Qualification Qwen 3.7 Coder Evidence
 
 Recorded 2026-08-27. Red-first commit `b586d309` defines the Alibaba Model Studio coder
 contract; implementation commit `16052d72` binds `qwen3.7-plus` as `coder_primary` through the

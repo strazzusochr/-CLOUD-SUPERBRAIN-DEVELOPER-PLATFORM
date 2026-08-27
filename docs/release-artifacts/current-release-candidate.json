@@ -1,7 +1,7 @@
 {
-  "active_release_id": "prod-candidate-2026-08-26-local-rc14",
-  "updated_at": "2026-08-26T17:51:00Z",
-  "updated_by": "codex-rc14-source-attested-qualification",
-  "reason": "Select RC14 after all five DEV-ONLY local qualification chains and source-attested GitHub Actions run 32996004920 passed against frozen source d0674bfc1367b04d95ca2bf745e89fabf12046ad. The source carries the Responses SSE adapter, fixed filesystem project-progress adapter, dependency advisory closures, external-gate-aware market-ready entrypoint, organism boot-flash repair, and fail-closed MCP audit transport stabilization. RC13 source db631ab3ffe2254309ae80aadc691b0bba6c372d remains the exact local rollback target. Candidate-bound hosted staging, production OAuth, Phase-6 scale authorization, GHCR publication, Owner approval, release promotion, and production rollout remain explicitly blocked.",
+  "active_release_id": "prod-candidate-2026-08-27-local-rc15",
+  "updated_at": "2026-08-27T21:28:18Z",
+  "updated_by": "codex-rc15-local-qualification",
+  "reason": "RC15 is the active locally qualified candidate for frozen source 2e945a6cfd7217ee71372ad3ddc9ad63f4840a2f. Source-attested GitHub Actions run 33095778510 and all five independent local chains passed with immutable hashes. RC14 source d0674bfc1367b04d95ca2bf745e89fabf12046ad is the exact rollback target. DEV-ONLY; hosted proof still blocked. Hosted staging, production OAuth, Phase-6 scale authorization, GHCR publication, Owner approval, release promotion, and production rollout remain blocked.",
   "production_rollout_claimed": false
 }

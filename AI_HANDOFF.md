@@ -6,7 +6,46 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-## Current Development Handoff — 2026-08-27
+## Current RC15 Handoff — 2026-08-27
+
+Active locally qualified candidate: `prod-candidate-2026-08-27-local-rc15`, frozen source
+`2e945a6cfd7217ee71372ad3ddc9ad63f4840a2f`, control commit
+`dbb5822f42f742a223ada07820f9e82c0813cbc2`, source-attested GitHub Actions run
+`33095778510`. GitHub checked out the exact candidate SHA; the only control delta was
+`scripts/verify-main-deploy-transition.ps1`. All CI jobs passed, including source integrity,
+frontend audit, OAuth, Cloudflare stateful/LLM, gitleaks, six image builds, and attestation
+upload. The downloaded GitHub artifact digest and embedded attestation are preserved in the
+RC15 evidence directory.
+
+All five independent candidate chains passed with immutable hashes: committed-archive images
+for six services, full runtime, full real-Chromium browser, candidate-runtime image/source
+identity plus a real selection/click, and candidate-archive npm-audit/gitleaks security. The
+browser chain passed Browser Contract, real Cloudflare Workers AI product generation,
+`22/22` routes, `29/29` families, `161/161` action members, responsive `22x2` navigation,
+and O4 write/readback/rollback proof. Every local result is `DEV-ONLY; hosted proof still
+blocked`.
+
+RC15 adds `qwen3.7-plus` as the gateway-only Coder primary. Qwen Code `0.22.2` is installed
+user-scope and its local client points to the LLM Gateway, not Alibaba directly. The dedicated
+Alibaba key was absent, the Owner live-provider gate remained closed, and no authenticated
+Alibaba request occurred. The real provider used by product acceptance remained Cloudflare
+Workers AI. Direct-provider bypass, secret output, GHCR publication, production deployment,
+release promotion, default-branch write, and production rollout remain false.
+
+The active pointer, readiness contract, 27-file immutable evidence set, and Phase-5 itemization
+are synchronized at `17/19 = 89%`. Exactly I1 `hosted_candidate_parity` and I5
+`production_auth_identity` remain Owner-blocked and zero-credit. Rollback target is RC14 source
+`d0674bfc1367b04d95ca2bf745e89fabf12046ad`. Overall: `89%`; P0/P1/P2/P4 `100`, P3 `44`,
+P5 `89`, P6 `90`; L1/L2/L3/L6/L7 `100`, L4 `55`, L5 `56`. `MARKET_READY:false`.
+
+Do not stage or alter the separately staged historical RC12 artifact. Do not use `git add -A`.
+The generated O4, product-acceptance, capability-gate, external-gate, and owner-manifest files
+remain working-tree evidence and must not be swept into the RC15 selection commit. O4/browser
+must remain the final source-bound write proof after that exact commit. No backup or recovery
+clone is needed; protected `.phase1-artifacts/` and `docs/release-artifacts/` are never cleanup
+targets.
+
+## Historical Pre-RC15 Development Handoff — 2026-08-27
 
 The active branch is `codex/organism-visual-v2`. The newest completed source slices after RC14
 repair browser hydration/retry races, derive the five-axis audit from evidence, and add the
