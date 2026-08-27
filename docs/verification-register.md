@@ -45,6 +45,19 @@ The first runtime rerun additionally caught the replaced routing-note phrase; th
 `f6a20a1` source and refreshed `/api/v1/models/capabilities` snapshot passed focused compile,
 runtime readback and snapshot assertions before this final truth commit.
 
+The first browser requalification passed the full Browser Contract and `22x2` responsive route
+navigation (`44` real Chromium clicks), then stopped before product completion because
+`start-dev-live.ps1` did not yet set the new owner-controlled `LLM_LIVE_PROVIDER_DEFAULT` gate.
+The gateway correctly returned `403`, which the Build boundary sanitized to
+`llm_gateway_generation_unavailable` / HTTP `503`. Commit `46cefe4` makes the explicit live
+launcher set the master gate to `true`, makes DryRun force it to `false`, verifies the effective
+container value, and adds both static and product-acceptance preflight regression guards.
+Post-fix DryRun and Live rehydrate were each `10/10` healthy with effective gate `false` and
+`true`; the focused real Cloudflare product flow then passed build, persisted audit, 3D
+interaction and reload. Evidence report SHA-256:
+`92CE7E2523BCBC83927AD60EF4117EF1D4D0111EBFAB59B89F18F866A2BE508F`.
+This is DEV-ONLY evidence; Alibaba remained disabled and hosted proof remains blocked.
+
 No percentage credit is added. The active qualified release candidate remains RC14 at source
 `d0674bfc1367b04d95ca2bf745e89fabf12046ad`; this newer feature-branch source is not yet a
 qualified candidate. No authenticated Alibaba call, GHCR publication, default-branch write,

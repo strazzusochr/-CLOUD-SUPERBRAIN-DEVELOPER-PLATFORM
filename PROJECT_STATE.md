@@ -15,7 +15,8 @@ Letzte Aktualisierung: 2026-08-27
   beheben Browser-Hydration/-Retry-Rennen, klassifizieren den Fuenf-Achsen-Audit aus echter
   Evidenz und fuegen den neuen Coder `qwen3.7-plus` ueber den L3→L4-LLM-Gatewaypfad ein.
   Red-first Testcommit: `b586d309`; Implementierung: `16052d72`; additiver Runtime-
-  Vertragsfix fuer die bestehende Open-Source-First-Routing-Notiz: `f6a20a1`.
+  Vertragsfix fuer die bestehende Open-Source-First-Routing-Notiz: `f6a20a1`; DEV-LIVE-
+  Rehydrate-Fix fuer den Owner-Master-Gate: `46cefe4`.
 - **Qwen Code:** Standalone-Client `0.22.2` ist user-scope installiert. Seine lokale
   Providerkonfiguration zeigt auf `http://localhost:8081/llm/v1`, nicht direkt auf Alibaba.
   Ein echter CLI→Gateway-Lauf bestand im deterministischen DEV-ONLY-Modus ohne Tool- oder
@@ -41,6 +42,15 @@ Letzte Aktualisierung: 2026-08-27
   fuehrt beide Wahrheiten additiv zusammen und der fokussierte Runtime-/Snapshot-Readback ist
   gruen. Danach folgen Build, Runtime, Browser/22-Seiten/O4, Static und Release-/Market-Ready-
   Auswertung erneut auf exakt derselben finalen Source.
+- **DEV-LIVE-Rehydrate korrigiert:** Der erste Browser-Umbrella bestand Browser-Contract und
+  `22x2` responsive Navigation mit `44` echten Klicks, stoppte aber im Produktflow bei einem
+  maskierten Build-`503`. Ursache war der nach dem Qwen-Security-Slice neue Owner-Master-Gate,
+  den `start-dev-live.ps1` noch nicht setzte. Commit `46cefe4` setzt ihn nur im expliziten
+  Live-Lauf auf `true` und im Dry-Run auf `false`, prueft den effektiven Containerwert und
+  fuegt Static- sowie Product-Preflight-Guards hinzu. Dry/Live-Rehydrate waren danach jeweils
+  `10/10` healthy; der fokussierte echte Cloudflare-Produktlauf mit Build, 3D-Interaktion und
+  Reload bestand (Report-SHA-256 `92CE7E2523BCBC83927AD60EF4117EF1D4D0111EBFAB59B89F18F866A2BE508F`).
+  Alibaba blieb deaktiviert; DEV-ONLY; hosted proof still blocked.
 - **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
   P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
   L6 `100`, L7 `100`. Keine Rubrik- oder Prozentanhebung durch den Qwen-Slice.
