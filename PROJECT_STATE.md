@@ -1,9 +1,49 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-08-07
+Letzte Aktualisierung: 2026-08-27
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
+
+### Session 2026-08-27 — aktueller Entwicklungsstand vor finaler Requalifizierung
+
+- **Aktiver qualifizierter Kandidat bleibt RC14:** `prod-candidate-2026-08-26-local-rc14`,
+  eingefrorene Source `d0674bfc1367b04d95ca2bf745e89fabf12046ad`, source-attestierter
+  GitHub-Actions-Lauf `32996004920`. Die aktuelle Feature-Branch-Source ist neuer und deshalb
+  noch **kein** qualifizierter Release Candidate.
+- **Aktiver Entwicklungsbranch:** `codex/organism-visual-v2`. Die neuesten gebundenen Slices
+  beheben Browser-Hydration/-Retry-Rennen, klassifizieren den Fuenf-Achsen-Audit aus echter
+  Evidenz und fuegen den neuen Coder `qwen3.7-plus` ueber den L3→L4-LLM-Gatewaypfad ein.
+  Red-first Testcommit: `b586d309`; Implementierung: `16052d72`.
+- **Qwen Code:** Standalone-Client `0.22.2` ist user-scope installiert. Seine lokale
+  Providerkonfiguration zeigt auf `http://localhost:8081/llm/v1`, nicht direkt auf Alibaba.
+  Ein echter CLI→Gateway-Lauf bestand im deterministischen DEV-ONLY-Modus ohne Tool- oder
+  Dateiausfuehrung. `qwen3.7-plus` ist im Agent-Profil und in der Modellmatrix der neue
+  `coder_primary`; `gateway_only=true`, `configured_only=true`.
+- **Fail-closed LLM-Wahrheit:** Der workspace-spezifische Model-Studio-Endpoint ist nur als
+  Umgebungskonfiguration vorhanden. `DASHSCOPE_API_KEY` fehlt, der Owner-Live-Master-Gate ist
+  aus, direkte Providerpfade werden abgelehnt, `max_tokens` ist auf `8192` begrenzt,
+  Tool-Calling-Felder werden OpenAI-kompatibel erhalten und Live-Antworten verlangen ein
+  persistiertes Preflight- und Completion-Audit. Es wurde **kein** authentifizierter Alibaba-
+  Providercall ausgefuehrt.
+- **Fokussierte Verifikation:** LLM-Gateway `23/23`, Agent API `78/78`, Python-Compile,
+  TypeScript, fokussiertes ESLint, beide Compose-Konfigurationen, Responses-SSE-Runtime,
+  Organismus-Topologie `246` Knoten/`500` Kanten und der Qwen-CLI-Gateway-Smoke sind gruen.
+  Runtime-Probe: HTTP `200`, `qwen3.7-plus`, Endpoint gueltig, Key absent, Owner-Gate false,
+  Live-Versuch `403`, Oversize `422`, Direct-Provider-Entscheid `deny_direct_provider`,
+  `secret_output=false`.
+- **Vollkettenstatus vor finalem Lauf:** `npm run verify` lief auf Source `16052d72` bis zum
+  ersten erwarteten roten Gate: O4-Evidence war nach den neuen Commits source-stale. Das ist
+  kein Produktfehler; O4 muss gemaess R-SELF/O4-Regel nach dem letzten Source-/Truth-Commit
+  als letzter Browser-/Write-Beweis neu erzeugt werden. Danach folgen Static, Runtime,
+  Browser/22-Seiten und Release-/Market-Ready-Auswertung erneut auf exakt derselben Source.
+- **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
+  P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
+  L6 `100`, L7 `100`. Keine Rubrik- oder Prozentanhebung durch den Qwen-Slice.
+- **Offene harte Gates:** `production_auth_identity`, `docker_registry_publish` und
+  `phase6_scale_runtime`; Kandidaten-paritaet fuer die aktuelle neue Source ist ebenfalls
+  unbewiesen. Kein GHCR-Push, kein Default-Branch-Push, keine Promotion und kein Production-
+  Rollout. `DEV-ONLY; hosted proof still blocked` fuer alle neuen lokalen Belege.
 
 - **Anchor ID:** `project-anchor-2026-04-30T00-49-26+02-00`
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
@@ -136,7 +176,7 @@ Letzte Aktualisierung: 2026-08-07
 - **T7 Phase 3 Security:** DONE fuer den lokalen fail-closed Ersatzbeweis; 19 Tests, reale Redis-Konkurrenz, HTTP-, Runtime-, Browser- und Static-Gates gruen. Kein Doppelcredit; P3 bleibt `44%`.
 - **T1/O5 DONE:** Das getrennte Gate `live_vector_memory_search` ist verifier-geöffnet; hosted semantischer Vectorize-Roundtrip und Evidence-Hash sind gebunden, Memory `100%`, kein D1-Doppelcredit.
 - **T1/O4 DONE:** `live_agent_tool_writes` und `live_mcp_writes` sind durch Runtime-, Browser-, Audit-, Readback- und Rollbackbeweis verifier-geöffnet; Agent Pool `69% -> 100%`, kein MCP-/P6-Doppelcredit.
-- **Nächster sicherer Schritt:** Den neuen L5-Read-Slice seriell durch Static-, Runtime- und Browser-Umbrella revalidieren, danach O4 source-gebunden erneuern und `verify:market-ready` fail-closed auswerten. Anschliessend das exakte OWNER-BLOCKED-Paket fuer I1/I5 und die verbleibenden externen Scale-/GHCR-/Release-Waende ausgeben. Keine Production-, Registry- oder Release-Mutation.
+- **Nächster sicherer Schritt:** Die aktuelle Qwen-3.7-Gateway-Quelle und diese Truth-Dateien gemeinsam committen. Danach strikt seriell `npm run build`, `npm run verify:runtime`, `scripts/start-dev-live.ps1`, `npm run verify:browser` (22 Seiten und O4 als letzte Source-Bindung), `npm run verify`, `npm run verify:release-boundary`, `npm run verify:current-release-candidate` und `npm run verify:market-ready` ausfuehren. Nur bei gruenem In-Scope-Stand den Feature-Branch `codex/organism-visual-v2` pushen und dessen CI pruefen; weder `main` noch GHCR, Production oder Release-Promotion mutieren.
 - Localhost bleibt nur `DEV-ONLY`; Betriebs-Deploy ist von Release-Candidate-Promotion und `MARKET_READY:true` strikt getrennt.
 
 ## ZULETZT ABGESCHLOSSEN

@@ -1,11 +1,48 @@
 # Verification Register - PATCHED
 
-Stand: 2026-08-07
+Stand: 2026-08-27
 Status: Active
 
 ## Current Progress Authority
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
+
+## Current Qwen 3.7 Coder / Final-Requalification Evidence
+
+Recorded 2026-08-27. Red-first commit `b586d309` defines the Alibaba Model Studio coder
+contract; implementation commit `16052d72` binds `qwen3.7-plus` as `coder_primary` through the
+LLM Gateway only. The provider endpoint is validated as HTTPS under `.maas.aliyuncs.com` with the
+exact `/compatible-mode/v1` path. The dedicated key is read only from `DASHSCOPE_API_KEY` and was
+absent during every proof. The owner-controlled live master gate remained false; a client metadata
+flag alone returned HTTP `403` before network access. Requests above `8192` tokens returned `422`,
+direct-provider policy returned `deny_direct_provider`, and no provider error body, authorization
+header, credential, or secret output crossed the public boundary.
+
+OpenAI-compatible tools, tool choice, parallel-tool flag, assistant tool calls and tool-result IDs
+are preserved by unit proof. A live path requires a persisted authorization audit before the
+provider call and a persisted completion audit before returning the response. Live provider cost
+remains explicitly unknown (`null` / `provider_invoice_unverified`) instead of a false zero-cost
+claim. Model Studio cannot inherit Hugging Face `live_verified` state.
+
+Verified checks at this checkpoint: LLM Gateway `23/23`; Agent API `78/78`; Python compile;
+frontend TypeScript and focused ESLint; dev/cloud Compose config; `verify-llm-responses-contract`
+runtime including ordered SSE; `verify-organism-topology` with `246` nodes and `500` edges; and a
+real Qwen Code `0.22.2` noninteractive CLI→local-gateway request with no tools/files executed.
+The sanitized runtime matrix was HTTP health `200`, coder `qwen3.7-plus`,
+`configured_only=true`, provider `alibaba_model_studio`, `gateway_only=true`, endpoint valid,
+owner gate false, key absent, dry audit persisted, live attempt `403`, oversize `422`, direct
+provider denied and `secret_output=false`.
+
+The first full static sweep on source `16052d72` reached the O4 verifier and stopped because the
+tracked O4 runtime/browser reports were bound to an older source. This is the expected stale-proof
+guard after source changes. It is not accepted as green. O4 must be regenerated after the final
+truth commit and remain the last browser/write proof; build, runtime, browser/22-page, static,
+release-boundary, market-ready and gitleaks results must then be reported from that exact source.
+
+No percentage credit is added. The active qualified release candidate remains RC14 at source
+`d0674bfc1367b04d95ca2bf745e89fabf12046ad`; this newer feature-branch source is not yet a
+qualified candidate. No authenticated Alibaba call, GHCR publication, default-branch write,
+release promotion or production rollout is claimed. `DEV-ONLY; hosted proof still blocked`.
 
 ## Current DEV-ONLY Filesystem Project Progress Read Evidence
 
@@ -1079,10 +1116,13 @@ The current-candidate hosted-boundary verifier is deterministic under stale loca
 Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, and Phase 6 `90%`.
 Current vertical layer snapshot is Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
 
-Next safe verification is the serial full truth-suite after the RC11 mirrors are synchronized,
-followed by exact staging, branch commit/push, and CI. The remaining capability work starts only
-after explicit Owner input for I1 hosted candidate parity or I5 production authentication. No
-GHCR publish, deploy, or promotion is part of that verification step.
+Next safe verification is the strict serial final chain for the Qwen 3.7 gateway source:
+`npm run build`, `npm run verify:runtime`, `scripts/start-dev-live.ps1`, `npm run verify:browser`
+(22-page Chromium proof and O4 last-write binding), `npm run verify`, release-boundary/candidate/
+market-ready checks, then the exact feature-branch push and CI inspection. The active qualified
+candidate remains RC14 until independently source-attested qualification exists for the newer
+source. No `main` push, GHCR publication, Production deploy, Alibaba live-provider activation, or
+release promotion is part of this verification step.
 
 The dated evidence bullets below are historical milestone references, not current progress claims.
 

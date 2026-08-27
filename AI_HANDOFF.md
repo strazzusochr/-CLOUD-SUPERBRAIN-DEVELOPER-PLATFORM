@@ -6,6 +6,45 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
+## Current Development Handoff — 2026-08-27
+
+The active branch is `codex/organism-visual-v2`. The newest completed source slices after RC14
+repair browser hydration/retry races, derive the five-axis audit from evidence, and add the
+Alibaba Model Studio `qwen3.7-plus` coder strictly through the LLM Gateway. The red-first test
+commit is `b586d309`; the implementation commit is `16052d72`. Preserve the separately staged
+historical RC12 file and the generated dirty runtime/evidence files; never use `git add -A`.
+
+Qwen Code standalone `0.22.2` is installed in user scope. Its provider configuration uses the
+DEV-ONLY local gateway boundary `http://localhost:8081/llm/v1`. The repository stores only model
+and environment-variable names. `DASHSCOPE_API_KEY` is absent, the owner live-provider gate is
+false, and no authenticated Alibaba call was made. A real noninteractive Qwen CLI request reached
+the gateway and returned the deterministic `qwen3.7-plus` response with zero tool/file actions.
+
+Focused proof is green: LLM Gateway `23/23`, Agent API `78/78`, Python compile, TypeScript,
+focused ESLint, dev/cloud Compose config, runtime Responses SSE, topology `246/500`, and the
+fail-closed runtime matrix (`200` health, live request `403`, oversized tokens `422`, direct
+provider denied, no secret output). `npm run verify` currently stops at the first O4 source-parity
+check because O4 evidence predates the new commits. After the final truth commit, run serially:
+
+1. `npm run build`
+2. `npm run verify:runtime`
+3. `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-dev-live.ps1`
+4. `npm run verify:browser` (O4 remains the last write/browser proof)
+5. `npm run verify`
+6. release-boundary/current-candidate/market-ready and canonical gitleaks checks
+7. push only `codex/organism-visual-v2` if every in-scope check is green
+
+The active qualified candidate remains RC14
+`prod-candidate-2026-08-26-local-rc14` at source
+`d0674bfc1367b04d95ca2bf745e89fabf12046ad`, CI `32996004920`. The newer branch source is not a
+candidate until an independent qualification and source-attested CI run exist. Progress remains
+Overall `89%`; P0/P1/P2/P4 `100`, P3 `44`, P5 `89`, P6 `90`; L1/L2/L3/L6/L7 `100`, L4 `55`,
+L5 `56`. `MARKET_READY:false`. Open hard gates remain production auth identity, registry
+publication and Phase-6 scale authorization. No production rollout, release promotion, GHCR push,
+default-branch write, live Alibaba call, or secret use is authorized or claimed.
+
+`DEV-ONLY; hosted proof still blocked` for the new local Qwen and final-build evidence.
+
 ## Current RC11 Qualification Truth — 2026-08-01
 
 Active local candidate `prod-candidate-2026-07-31-local-rc11` is bound to committed
@@ -1307,19 +1346,14 @@ Do not claim these until external evidence exists:
 
 ## Next Safe Work
 
-1. Keep localhost as a dev control plane only; current Vercel truth consists of the source-bound frontend proof plus the reachable stateless Agent API/MCP/LLM Contract Origin, not a stateful full-backend rollout.
-2. Treat the `P4=100` Contract Origin redeploy and its current hosted proof as complete; continue with candidate-scoped Phase-5 evidence instead of switching to rollout.
-3. If rollout is approved later, treat `.phase1-artifacts/phase5-rollback-drill-prod-candidate-20260505-rc1.md` as the rollback starting point, not the floating `:staging` alias.
-4. Treat `.phase1-artifacts/hosted-browser-proof-20260504-235540.md` as historical provenance only. Current operational Production evidence is `.codex/runs/CURRENT/master-goal/production/t1-21913f8c`; next fix the hosted `POST /api/v1/build` 503 through the free Cloudflare Workers AI LLM-Gateway boundary.
+1. Commit only the current Qwen 3.7 gateway implementation and synchronized Truth/Handoff files; preserve all unrelated dirty and staged files.
+2. Run the final chain strictly serially: `npm run build`, `npm run verify:runtime`, `scripts/start-dev-live.ps1`, `npm run verify:browser`, `npm run verify`, `npm run verify:release-boundary`, `npm run verify:current-release-candidate`, and `npm run verify:market-ready`.
+3. Keep O4 as the last source-bound runtime/browser proof after the final tracked-source commit. Any later tracked change invalidates that proof and requires the browser/O4 chain again.
+4. Push only `codex/organism-visual-v2` after the in-scope chain is green, then inspect its GitHub Actions result. Do not push `main`, publish GHCR images, deploy Production, activate Alibaba live-provider traffic, or promote a release without the documented Owner gates.
 
 ## Git State Warning
 
-The current workspace is intentionally not clean. Many files are modified or untracked because the platform has been built in-place. For exact transfer:
-
-1. Copy the whole project folder, or
-2. Commit/stage the whole current workspace before handing it off.
-
-Do not rely on `git clone` alone unless these local changes have been committed and pushed.
+The current workspace is intentionally not clean. Generated runtime evidence, the foreign staged RC12 mirror, and unrelated untracked files must remain outside this slice. Never use `git add -A`; stage or commit only explicit pathspecs. A clone reproduces only committed and pushed project truth, not these preserved local artifacts.
 
 ## Historical Hosted Snapshot (superseded by Current Verified Progress at the top)
 
