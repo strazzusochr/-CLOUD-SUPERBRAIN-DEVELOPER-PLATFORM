@@ -259,3 +259,6 @@ exit 0
 
 # Control commit marker: source-prequalification binding for source 2e945a6.
 # This attests the exact development source only; it does not select RC15 or promote a release.
+
+# Control commit marker: source-prequalification binding for source 0a706be.
+# This attests the exact development source only; it does not select RC16 or promote a release.
