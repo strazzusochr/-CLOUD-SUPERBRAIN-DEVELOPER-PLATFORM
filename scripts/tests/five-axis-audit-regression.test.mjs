@@ -36,3 +36,11 @@ test("fails on a tampered browser-evidence status through the explicit evidence 
     rmSync(fixtureDir, { recursive: true, force: true });
   }
 });
+
+test("accepts canonical evidence with every authoritative endpoint token classified", () => {
+  const result = runWithReport(canonicalReport);
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.equal(result.status, 0, output);
+  assert.match(output, /\[five-axis-audit\] PASS/);
+  assert.match(output, /unresolved=0/);
+});
