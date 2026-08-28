@@ -281,8 +281,10 @@ apps/frontend/lib/platform.ts · docs/project-progress.manifest.json
 ## 11. NAECHSTER SCHRITT
 
 ```
-1. RC21 auf 88fc985a fertig binden ODER den Zeiger bewusst auf RC20 zuruecknehmen
-   - solange beides offen ist, bleibt verify:phase5-credit rot
+1. RC21 auf 88fc985a fertig binden - ZWINGEND, nicht optional:
+   Codex' Lint-Fix 88fc985a aenderte CortexLive.tsx (in RUNTIME_SOURCE_PATHS)
+   nach RC20, also deckt RC20-Quelle c29c738b den HEAD nicht mehr ab.
+   Bis dahin bleibt verify:phase5-credit korrekt rot.
 2. PROJECT_STATE.md im Rahmen des Vierer-Truth-Uebergangs oder vor dem naechsten
    Source-Freeze nachziehen (siehe Falle oben)
 3. Die in CI nie gelaufenen neuen Tests einmal in einem gruenen CI-Lauf sehen

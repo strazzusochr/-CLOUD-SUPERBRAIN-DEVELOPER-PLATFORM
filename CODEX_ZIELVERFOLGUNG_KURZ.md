@@ -146,9 +146,13 @@ Ursache exakt: C3-Evidenz #1 verlangt in genau dieser Datei den Anker
 `"active_release_id": "prod-candidate-2026-08-28-local-rc20"`. Der **committete** Stand
 (HEAD `88fc985a`) enthaelt ihn; der Arbeitsbaum nicht.
 
-> **Kein Defekt.** Entweder RC21 fertig binden oder den Zeiger bewusst auf RC20
-> zuruecknehmen — solange beides offen ist, bleibt der Verifier rot.
-> Die Datei ist **fremd-dirty**: nicht stagen, nicht zuruecksetzen ohne Absicht.
+**RC21 ist zwingend, nicht optional.** Ein Zurueckstellen auf RC20 geht nicht mehr:
+Codex' Lint-Fix `88fc985a` hat nach der RC20-Qualifizierung
+`apps/frontend/components/organism/CortexLive.tsx` geaendert — ein Pfad in
+`RUNTIME_SOURCE_PATHS`. Die RC20-Quelle `c29c738b` deckt HEAD damit nicht mehr ab.
+
+> **Kein Defekt** — der Verifier meldet korrekt, dass der Kandidat neu gebunden werden muss.
+> `current-release-candidate.json` ist **fremd-dirty**: nicht stagen, nicht zuruecksetzen.
 
 ## ⛔ FALLE: `PROJECT_STATE.md` niemals allein nachziehen
 
