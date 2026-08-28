@@ -278,6 +278,84 @@ apps/frontend/lib/platform.ts · docs/project-progress.manifest.json
 
 ---
 
+## 12. TIEFEN-CHECK — was dabei wirklich kaputt war
+
+Auftrag war: nichts falsch, nichts vergessen, keine Haenger, keine Bugs. Ergebnis:
+
+### 12.1 Ein echter roter Test — zwei unabhaengige Ursachen
+
+`node --test scripts/tests/five-axis-audit-regression.test.mjs` war **rot**. Nicht
+„historisch rot", sondern jetzt.
+
+**Ursache 1 — vorbestehend.** `PROJECT_STATE.md` nennt die Basis-URL
+`http://localhost:8081/llm/v1`. Der Auditor hatte fuer diesen Token keine Klassifikation und
+zaehlte ihn als `unresolved authoritative endpoint`. Es ist ein Namespace hinter der
+Nginx-Grenze `location /llm/`, kein Handler — die Handler sind
+`/llm/v1/chat/completions`, `/llm/v1/responses`, `/llm/v1/models`.
+Als `NAMESPACE-ONLY` klassifiziert, neben `/api/v1`.
+*Beweis, dass es nicht meins war:* alle drei beteiligten Dateien wurden zuletzt am
+**2026-08-27** geaendert, also vor dieser Session.
+
+**Ursache 2 — meins.** Dahinter lag ein zweiter Fehler, den erst die erste Reparatur
+sichtbar machte:
+
+```
+[five-axis-audit] strict unfinished markers exist: apps/frontend/app/api/v1/build/route.ts:25
+```
+
+Meine Prompt-Zeile enthielt das Literal **`TODO`** („never stop early with a TODO or a
+placeholder comment"). Der Auditor wertet dieses Wort in Produktquelltext repo-weit als
+unfertigen Marker — **zu Recht**. Umformuliert auf „a placeholder comment or an
+unfinished-work marker"; Bedeutung unveraendert.
+
+Danach: Auditor `PASS`, `routes=22 real=11 contract=10 spec=1`, Regressionstest **2/2**.
+
+> **Warum das durchrutschen konnte:** `verify:five-axis-audit` haengt **nicht** in
+> `verify.suites.json` oder `verify-phase1.ps1` — es sind eigenstaendige npm-Skripte.
+> Deshalb konnte RC20 gruen werden, obwohl dieser Test rot war. **Das ist eine echte
+> Luecke in der Gate-Kette**, kein Einzelfall-Pech.
+
+### 12.2 Ein Guard hat korrekt gestoppt — kein Bug
+
+Der erste 22-Seiten-Lauf brach sofort ab:
+
+```
+22-page action acceptance requires explicit -ApproveLiveProviderCalls
+because two registered controls perform one real LLM provider call each
+```
+
+Das ist eine **Kostenbremse**, kein Fehler. Der Lauf wurde mit expliziter Freigabe
+wiederholt (2 gebundene Cloudflare-Calls, Free-Tier).
+
+### 12.3 Echte Klicks — bestanden
+
+`npm run verify:product-acceptance` mit **echtem Provider**:
+
+```
+ok 1  real prompt builds, runs, interacts, and reloads the persisted 3D game (1.2m)
+build_id=eaf70ed3-a170-4697-864d-f3c9ac1903fa
+provider=cloudflare-workers-ai   live_provider_calls=true
+report sha256=788D7F9D…3D2ACE
+```
+
+Also: echter Prompt -> echter Build -> laeuft -> **Interaktion** -> Reload mit identischem
+Artefakt. Nicht simuliert, nicht abgefangen, kein Mock.
+
+### 12.4 Was gruen ist
+
+| Pruefung | Ergebnis |
+|---|---|
+| `tsc --noEmit` | gruen |
+| `generated-html-runnability` | **14/14** |
+| `oauth-boundary-readiness` | gruen |
+| `auth-session-integrity` | gruen |
+| `llm-gateway` Unit | **31/31** |
+| `five-axis-audit` + Regression | **PASS · 2/2** (nach Reparatur) |
+| Produktabnahme, echte Klicks, Live-Provider | **PASS** |
+| Stack | **10/10 healthy**, `cloudflare_workers_ai_live` |
+
+---
+
 ## 11. NAECHSTER SCHRITT
 
 ```

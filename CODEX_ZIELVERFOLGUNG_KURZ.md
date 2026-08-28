@@ -235,6 +235,96 @@ gemessen**, weil HEAD weitergelaufen ist:
 
 ---
 
+## 🐞 ZWEI PRODUKT-BUGS AUS DEM TIEFEN-CHECK — beide behoben
+
+### 1 · Der Marktplatz zeigte einen **stillgelegten** Provider als „verified" (Fake-Live)
+
+`apps/frontend/app/marketplace/page.tsx` bestimmte den Status-Ton mit
+`/verified|live/.test(status)`. Das Inventar meldet Fly.io als
+`historical_read_verified` — der Vertrag nennt sie selbst `historical_only`,
+„not an active runtime target". Der Teilstring enthaelt aber **„verified"**:
+
+```
+/verified|live/.test("historical_read_verified")  ->  true  ->  GRUEN
+```
+
+Die stillgelegte Fly.io bekam damit denselben gruenen Punkt und dasselbe gruene Badge wie
+die echt laufende Cloudflare-Runtime. **Auf einer Produktflaeche ist das eine Live-Behauptung
+ohne Beleg — genau das Fake-Live, das R0 verbietet.**
+
+Behoben: exakte Klassifikation statt Teilstring (`apps/frontend/lib/providerStatus.ts`).
+Nur `live_verified` und `verified` sind gruen. Test 4/4, tsc und Lint gruen.
+
+> Das erklaert auch den Widerspruch zwischen den Flaechen: **Marktplatz „4/8 verifiziert"**
+> gegen **Vertragsseite „Live verifiziert 3"**. Laufzeit-Wahrheit aus `GET /api/v1/clouds`:
+> 8 Provider, `live_verified` **1**, `verified` **2**, `historical_read_verified` **1**,
+> `action_required` **2**, `api_error` **1**, `metadata_only` **1**.
+> **3 sind aktuell verifiziert — nicht 4.**
+
+### 2 · Der Fuenf-Achsen-Audit war rot (zwei Ursachen)
+
+`PROJECT_STATE.md` nennt die Basis-URL `…/llm/v1`, die der Auditor nicht klassifizieren
+konnte (jetzt `NAMESPACE-ONLY`). Dahinter lag ein zweiter Fehler: **meine** Prompt-Zeile
+enthielt das Literal `TODO`, was der repo-weite Unfinished-Marker-Guard korrekt bemaengelte.
+Beides behoben — Auditor `PASS`, Regression **2/2**.
+
+> **Luecke in der Gate-Kette:** `verify:five-axis-audit` haengt **nicht** in
+> `verify.suites.json` oder `verify-phase1.ps1`. Deshalb konnte RC20 gruen werden, obwohl
+> dieser Test rot war. Das gehoert in die Kette.
+
+### 3 · Offen und **nicht** von mir behoben: `github_actions = api_error`
+
+`GET /api/v1/clouds` meldet fuer GitHub Actions `status: api_error` bei
+`configured: true` (`GITHUB_TOKEN` ist gesetzt). Der Token ist also da, der API-Aufruf
+scheitert trotzdem. In derselben Session konnte sich auch der `github`-MCP-Server nicht
+verbinden (`CONNECTION_CLOSED`) — moeglicherweise dieselbe Ursache.
+**Nicht gemessen, welche.** Das blockiert L5/L7-Gates und gehoert als Naechstes untersucht.
+
+---
+
+## 📐 DER ECHTE DELTA AUF 100 % — und warum ihn niemand setzen darf
+
+Aus `docs/project-progress.manifest.json` gerechnet, nicht geschaetzt:
+
+| Horizontal | ist | Delta | wer oeffnet das |
+|---|---:|---:|---|
+| `phase_3` | 44 % | **+56** | **O1** GitHub-OAuth-Identitaet (Owner) |
+| `phase_5` | 89 % | **+11** | **I1** hosted candidate parity · **I5** production auth (Owner) |
+| `phase_6` | 90 % | **+10** | **`AGENT_API_AUTH_TOKEN`** (Owner, ein Secret) |
+| P0 · P1 · P2 · P4 | 100 % | 0 | — |
+
+| Vertikal | ist | Delta | wer oeffnet das |
+|---|---:|---:|---|
+| `layer_4` LLM Gateway | 55 % | **+45** | Rubrik fehlt — **Owner muss sie freigeben** |
+| `layer_5` MCP Gateway | 56 % | **+44** | Rubrik fehlt — **Owner muss sie freigeben** |
+| L1 · L2 · L3 · L6 · L7 | 100 % | 0 | — |
+
+```
+horizontal offen: 77 Zellpunkte  ->  Mittelwert 89  ->  100 = +11
+vertikal   offen: 89 Zellpunkte  (zaehlt NICHT in `overall`)
+Gates: 7 zu / 3 offen  ->  production_auth_identity · docker_registry_publish · phase6_scale_runtime
+```
+
+### Warum ich nichts auf 100 setze
+
+**Jeder einzelne Restpunkt haengt an einer Owner-Wand.** Es gibt keinen offenen Punkt, den ein
+Agent autonom schliessen koennte:
+
+- P3, P5, P6 brauchen **Secrets/Freigaben**, die nur der Owner geben kann (R3 unten).
+- L4 und L5 haben **keine freigegebene Rubrik**. Prozente ohne Rubrik hochzusetzen ist
+  ausdruecklich verboten — das waere exakt der Fake, den R0 verhindert.
+- `MARKET_READY:true` ist zusaetzlich per Deadlock blockiert: O3 verlangt GHCR-Digests,
+  aber Registry-Push ist vor `MARKET_READY:true` untersagt. **Den Zyklus kann nur der Owner brechen.**
+
+> **Zahlung oeffnet nichts.** `payment_required` ist bei O1/O2/O3 `false`; eine im Manifest
+> abgebildete Zahlung macht `owner-input-matrix` sogar **rot**.
+
+**Ehrliche Antwort auf „mach alles 100 % gruen":** Alles, was ohne Owner-Freigabe gruen sein
+kann, **ist** gruen (Liste oben). Die verbleibenden 11 % sind kein Arbeitsrueckstand, sondern
+vier Entscheidungen. Sie zu setzen waere kein Fortschritt, sondern eine Faelschung.
+
+---
+
 ## ⛔ DIE VIER OWNER-WÄNDE
 
 | Wand | öffnet | Art |
