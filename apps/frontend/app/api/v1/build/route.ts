@@ -11,7 +11,7 @@ import {
 } from "../../../../lib/generatedHtml";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 115;
 
 const SYSTEM = `You are a senior frontend engineer for an AI developer platform.
 Build exactly what the user asks for as a SINGLE, COMPLETE, self-contained HTML document.
@@ -115,7 +115,9 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
         { role: "user", content: prompt },
       ];
   // Free-only hosted generation gets one bounded provider attempt per user prompt.
-  const models: Array<[string, number]> = [[WORKBENCH_LLM_MODEL, 50000]];
+  // Must exceed CF_WORKERS_AI_TIMEOUT_SECONDS (90s) so the gateway's own verdict is
+  // observed instead of this hop aborting first and reporting a false outage.
+  const models: Array<[string, number]> = [[WORKBENCH_LLM_MODEL, 100000]];
   let lastErr: unknown = null;
   let lastRejection: string | null = null;
   let gatewayReached = false;
