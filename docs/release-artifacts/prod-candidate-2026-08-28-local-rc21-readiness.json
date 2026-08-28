@@ -68,11 +68,11 @@
     "candidate_images": {
       "artifact": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc21-evidence/candidate-images.json",
       "sha256": "73CE6587C373F0E8CD06D16B33D998E6C303C9761D84F0DA7A598E8ADC9CC7E2",
-      "status": "passed",
+      "status": "verified",
       "success_anchors": [
         "[phase5-candidate-local] status=verified service_count=6"
       ],
-      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/build-phase5-production-candidate-local.ps1 -SourceSha c1b022a884eb16939fe0542b2eb9056b60706b20 -ReleaseId prod-candidate-2026-08-28-local-rc21 -RollbackTarget c29c738b82e4e35cc1288bc603319cba60d167d2 -OutputDir .codex\\runs\\CURRENT\\master-goal\\phase5\\production-candidate-local -EvidenceRunId 2a26ff79-0a00-4742-8851-7615c1613127",
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/build-phase5-production-candidate-local.ps1 -SourceSha c1b022a884eb16939fe0542b2eb9056b60706b20 -ReleaseId prod-candidate-2026-08-28-local-rc21 -RollbackTarget c29c738b82e4e35cc1288bc603319cba60d167d2 -OutputDir .codex\\runs\\CURRENT\\master-goal\\phase5\\production-candidate-local -EvidenceRunId 191a709f-0304-4921-bbcd-ec95e2f72b14",
       "evidence_run_id": "191a709f-0304-4921-bbcd-ec95e2f72b14",
       "raw_log_path": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc21-evidence/raw/candidate-images.log",
       "raw_log_sha256": "7BF42978A437D575B7A5881DCB7484F8649EF8977F3F2DB3A227E4E87264469C"
@@ -80,7 +80,7 @@
     "candidate_runtime": {
       "artifact": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc21-evidence/candidate-runtime.json",
       "sha256": "C1D637FCDDB097F9A3CA2ABFA21F2068D910CBEE89C85AA7DFE5F2D6A9D854FB",
-      "status": "passed",
+      "status": "verified",
       "success_anchors": [
         "[phase5-candidate-local] api_contract_verified=true",
         "[phase5-candidate-local] local_image_identity_verified=true",
@@ -90,7 +90,7 @@
         "[phase5-candidate-local] playwright_passed=1",
         "[phase5-candidate-local] status=verified service_count=6"
       ],
-      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase5-production-candidate-local.ps1 -BaseUrl http://localhost:8081 -ArtifactDir .codex\\runs\\CURRENT\\master-goal\\phase5\\production-candidate-local -AllowLocalhost -EvidenceRunId d4e0c55e-f3c6-48bd-8f23-6e14cd784951",
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase5-production-candidate-local.ps1 -BaseUrl http://localhost:8081 -ArtifactDir .codex\\runs\\CURRENT\\master-goal\\phase5\\production-candidate-local -AllowLocalhost -EvidenceRunId b099db7f-a621-42e4-b874-519840b09bc8",
       "evidence_run_id": "b099db7f-a621-42e4-b874-519840b09bc8",
       "raw_log_path": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc21-evidence/raw/candidate-runtime.log",
       "raw_log_sha256": "3DA13B56BF36DC7514FA2EF70E60A784346C749EB71A1FB785ADC2354EC78134"
@@ -109,7 +109,7 @@
         "GITLEAKS_EXIT=0",
         "PHASE5_SECURITY_EXIT=0"
       ],
-      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/write-phase5-security-evidence.ps1 -ReleaseId prod-candidate-2026-08-28-local-rc21 -SourceSha c1b022a884eb16939fe0542b2eb9056b60706b20 -EvidenceRunId 5c0b1984-51e1-46df-8934-9fb4763e6878",
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/write-phase5-security-evidence.ps1 -ReleaseId prod-candidate-2026-08-28-local-rc21 -SourceSha c1b022a884eb16939fe0542b2eb9056b60706b20 -EvidenceRunId ee726c88-8e3a-4442-9592-5e77879310f3",
       "raw_log_path": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc21-evidence/raw/security.log",
       "raw_log_sha256": "56C887E665489647B0EAADBA31D2E5A6E158322E766EB49B41BE2AC2F2DF0A29",
       "evidence_run_id": "ee726c88-8e3a-4442-9592-5e77879310f3"
