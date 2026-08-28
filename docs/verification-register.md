@@ -7,7 +7,40 @@ Status: Active
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
 
-## Current RC17 Local Qualification Evidence
+## Current RC19 Local Qualification Evidence
+
+Recorded 2026-08-28. Active locally qualified candidate
+`prod-candidate-2026-08-28-local-rc19` is bound to frozen source
+`5062de35a5c033354ba81a988d699aad418347c3`. GitHub Actions `pr-check` run
+`33193522336` passed through control commit
+`59b52fc4093d351970db2cb8f613359b10048bac`; the source-checkout attestation reports
+`checked_out_sha=5062de35a5c033354ba81a988d699aad418347c3` and the only control delta is
+`scripts/verify-main-deploy-transition.ps1`. GitHub artifact `9694839399`, its reported and
+downloaded archive digest, and attestation hash are preserved in the 27-file evidence set.
+
+The five independent chains passed: six committed-archive candidate images, full runtime,
+full browser, candidate-runtime identity/parity with a real Chromium selection and click, and
+candidate-archive security. Browser proof passed Browser Contract, real Cloudflare Workers AI
+product acceptance, `22/22` routes, `29/29` families, `161/161` action members, responsive
+`22x2` navigation, and O4 write/readback/rollback. Candidate security passed npm audit and
+canonical gitleaks over the committed candidate archive. All local evidence is
+`DEV-ONLY; hosted proof still blocked`.
+
+RC19 raises the bounded Workers AI generation ceiling to 8192 tokens, preserves the explicit
+5200-token Workbench request, and makes the provider/frontend/serverless/proxy timeout budgets
+grow outward. Red-first tests bind the generation and timeout ceilings. The generation contract
+also requires a complete lit/shadow-enabled 3D scene with standard materials. The inherited R3F
+ready barrier prevents a mode-switch remount race. These are functional/browser contracts, not
+final visual approval; Organism visual polish remains deferred.
+
+Readiness is `verified_with_owner_blocks`; Phase-5 itemization remains exactly `17/19 = 89%`.
+The only zero-credit items are I1 `hosted_candidate_parity` and I5
+`production_auth_identity`. Overall remains `89%`; `MARKET_READY:false`. RC17 source
+`bbc2ad481352e8d9ee1e8e9fc010a5d3407d7b85` is the rollback target. No authenticated Alibaba
+call, GHCR publication, default-branch write, production deploy, release promotion, Owner
+approval, payment, secret output, or final visual approval is claimed.
+
+## Historical RC17 Local Qualification Evidence
 
 Recorded 2026-08-28. Active locally qualified candidate
 `prod-candidate-2026-08-28-local-rc17` is bound to frozen source

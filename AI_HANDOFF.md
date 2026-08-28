@@ -6,7 +6,41 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-## Current RC17 Handoff — 2026-08-28
+## Current RC19 Handoff — 2026-08-28
+
+Active locally qualified candidate: `prod-candidate-2026-08-28-local-rc19`, frozen source
+`5062de35a5c033354ba81a988d699aad418347c3`, control commit
+`59b52fc4093d351970db2cb8f613359b10048bac`, source-attested GitHub Actions run
+`33193522336`. GitHub checked out the exact candidate SHA; the only control delta was
+`scripts/verify-main-deploy-transition.ps1`. Artifact `9694839399`, its GitHub digest,
+downloaded archive digest, and embedded attestation are preserved with the candidate.
+
+All five independent chains passed: six committed-archive service images, full runtime,
+full real-Chromium browser, candidate-runtime identity/parity with a real selection/click,
+and candidate-archive npm-audit/gitleaks security. Browser proof includes a real Cloudflare
+Workers AI build, `22/22` routes, `29/29` action families, `161/161` action members,
+responsive `22x2` navigation, and O4 write/readback/rollback. The immutable evidence set has
+27 files. Every local result is `DEV-ONLY; hosted proof still blocked`.
+
+RC19 raises the bounded Workers AI generation ceiling to 8192 tokens while the Workbench
+requests 5200, makes provider/frontend/serverless/proxy timeout budgets grow outward, and
+requires complete lit/shadowed 3D generation rather than accepting a partial dark scene. The
+inherited R3F readiness guard waits for the real canvas before mode switching. These are
+functional contracts, not final visual approval; Organism visual polish and the 3-star look
+remain last. The frozen source passed the real Cloudflare build and the complete browser matrix.
+
+Readiness remains `17/19 = 89%`. Exactly I1 `hosted_candidate_parity` and I5
+`production_auth_identity` remain Owner-blocked and zero-credit. Rollback target is RC17 source
+`bbc2ad481352e8d9ee1e8e9fc010a5d3407d7b85`. Overall: `89%`; P0/P1/P2/P4 `100`, P3 `44`,
+P5 `89`, P6 `90`; L1/L2/L3/L6/L7 `100`, L4 `55`, L5 `56`. `MARKET_READY:false`.
+
+The RC19 selection truth is on top of control `59b52fc4`; final static, release-boundary,
+current-candidate, and market-readiness checks must remain serial. Preserve the separately
+staged RC12 file; never use `git add -A`. No GHCR publication, default-branch write,
+production deploy, release promotion, Owner approval, payment, secret output, or final visual
+approval is authorized or claimed.
+
+## Historical RC17 Handoff — 2026-08-28
 
 Active locally qualified candidate: `prod-candidate-2026-08-28-local-rc17`, frozen source
 `bbc2ad481352e8d9ee1e8e9fc010a5d3407d7b85`, control commit

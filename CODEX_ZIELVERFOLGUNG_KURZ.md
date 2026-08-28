@@ -1,4 +1,4 @@
-# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-08-28 · **RC19 faellig**
+# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-08-28 · **RC19 qualifiziert**
 
 > **Dies ist die EINZIGE Arbeitsdatei.** Aufbau: Ziel → Owner-Entscheidung → Start → Befunde →
 > Wände → Reihenfolge → Regeln → **Anweisungen für Codex** → **Referenz** (Details, Test-Inventar,
@@ -98,7 +98,7 @@ ist ein fehlgeschlagenes Rendering*. Diese Zwischenversion ist verworfen.
 Overall 89   H: P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 89 · P6 90
              V: L1 100 · L2 100 · L3 100 · L4 55 · L5 56 · L6 100 · L7 100
 Gates 7/10 zu   offen: production_auth_identity · docker_registry_publish · phase6_scale_runtime
-Quellstand c0c57d3d (letzter Commit an Runtime-Source; Docs-Commit liegt darueber)
+Kandidat 5062de35 · Control 59b52fc4 · CI 33193522336 · Evidenz 27/27
 Branch codex/organism-visual-v2   MARKET_READY:false
 ```
 
@@ -113,31 +113,18 @@ docker ps                                      # Daemon lebt?
 
 ---
 
-## 🔴 DER NAECHSTE BLOCKER — RC18 ist ein unvollstaendiger Stumpf
+## ✅ RC19-BINDUNG ABGESCHLOSSEN
 
-`docs/release-artifacts/current-release-candidate.json` zeigt auf
-`prod-candidate-2026-08-28-local-rc18`. Dieser Kandidat ist **nicht qualifiziert**:
+`prod-candidate-2026-08-28-local-rc19` ist an Quelle
+`5062de35a5c033354ba81a988d699aad418347c3` gebunden. Sechs Images, Candidate Runtime,
+Runtime, Security, Browser `22/22` und `161/161`, O4 sowie GitHub Actions Run
+`33193522336` sind gruen. Die Source-Attestation bindet Control
+`59b52fc4093d351970db2cb8f613359b10048bac` als direkten Nachfahren und genau einen
+zugelassenen Delta-Pfad. Das Evidenzset enthaelt exakt 27 Dateien.
 
-- die RC18-`.md` ist ein **untracked 12-Zeilen-Stumpf** (`qualification_status: in-progress`)
-- es gibt **kein** `-evidence/`-Verzeichnis und **keine** `-readiness.json`
-- `npm run verify:phase5-credit` stoppt deshalb an
-  `C4 evidence #1 anchor is not present in the evidence artifact`
-
-**Das ist Codex' abgebrochener Lauf, kein neuer Defekt** — die Datei war bereits vor dieser
-Session dirty. Zusaetzlich liegt jetzt **echter Runtime-Source-Drift** darauf: `apps/frontend`
-und `services/` stehen in `RUNTIME_SOURCE_PATHS`, und beide wurden geaendert.
-
-> **Konsequenz: RC18 ist nicht mehr rettbar. Es braucht RC19 auf dem neuen HEAD.**
-
-**CI bestaetigt das** (Run `33187389678` auf dem gepushten Stand): 10 Schritte gruen —
-inkl. `Forbid patched-plan drift in compose`, `Backend auth security unit contract` und
-`Phase 6 scale fail-closed static contracts` — Abbruch **erst** an
-`Phase 5 credit itemization` mit
-`active candidate has committed or staged runtime-source drift`.
-
-> **Falle beim Dispatch:** `-f source_prequalification=true` verlangt, dass `candidate_sha`
-> sich vom Control-SHA **unterscheidet**. Branch-Tip als beides = sofortiger Abbruch.
-> Fuer RC19 zuerst den Kontroll-Commit auf eigenem Branch, dann dispatchen.
+`npm run verify:phase5-credit` ist gruen: `17/19 = 89%`, blockiert bleiben nur I1 und I5.
+`npm run verify:current-release-candidate` ist gruen, aber `promotion_eligible=false` bleibt
+korrekt. DEV-ONLY; hosted proof still blocked.
 
 ---
 
@@ -163,9 +150,9 @@ inkl. `Forbid patched-plan drift in compose`, `Backend auth security unit contra
 4. [ERLEDIGT] Runnability-Guard fuer generiertes HTML           (Codex 0cf451d0/bbc2ad48)
 5. [ERLEDIGT] R3F-Remount-Race /organism                        (Codex 048ba550)
 6. [ERLEDIGT] Generierungs-Deckel + Zeitbudget + 3D-Qualitaet   <- diese Session
-7. RC19 BINDEN  <- der naechste Schritt, alles andere haengt daran
-     Quelle einfrieren -> 6 Images -> O4 -> runtime -> dev-live -> browser
-     -> Evidenz -> Kontroll-Commit auf den Kandidaten -> CI -> P5-Credit
+7. [ERLEDIGT] RC19 BINDEN
+     Quelle -> 6 Images -> O4 -> runtime -> dev-live -> browser
+     -> 27 Evidenzen -> Kontroll-Commit -> CI -> P5-Credit
 8. Rubrik fuer L4/L5 vom Owner freigeben lassen  ->  erst DANN Prozente
 9. GANZ ZULETZT: Organismus-Optik (und der 3-Sterne-Look der generierten Spiele)
 ```
@@ -221,19 +208,17 @@ Bindend: **R-SELF-1** (kein Commit benotet sich selbst) · **R-SELF-2** (Quellte
 Pruefung) · **R-SELF-3** (unter Test abgeschaltet = unbewiesen) · **R-VIS-1** (ohne Screenshot
 gegen benannte Referenz ist keine Optik fertig) · **neu R-MEAS-1** (oben).
 
-## 1. 🔴 DEIN NAECHSTER SCHRITT — RC19 binden
-
-RC18 ist tot (unvollstaendiger Stumpf **plus** Runtime-Source-Drift). Nicht reparieren — neu binden:
+## 1. 🔴 DEIN NAECHSTER SCHRITT — Auswahl committen und final verifizieren
 
 ```
-1. Quelle einfrieren auf den aktuellen HEAD
-2. 6 Images aus dem committeten git-archive
-3. O4 ZULETZT vor den Ketten
-4. verify:runtime  ->  start-dev-live.ps1  ->  verify:browser
-5. Evidenz VERBATIM einsammeln, Hashes binden
-6. Kontroll-Commit auf den Kandidaten, eigener Branch, dann mergen
-7. CI dispatchen (Ref, nicht SHA), Attestation zurueckholen
-8. verify:phase5-credit gruen fahren
+1. Nur RC19-Auswahlpfade committen; den fremden RC12-Stage nicht mitnehmen
+2. npm run build
+3. npm run verify:runtime
+4. scripts/start-dev-live.ps1
+5. npm run verify:browser nur falls ein spaeter Runtime-Source-Commit entstand
+6. npm run verify
+7. current-candidate, release-boundary, market-ready:static, release-candidate
+8. Feature-Branch pushen und Remote-SHA pruefen
 ```
 
 ## 2. WAS DU NICHT ANFASSEN DARFST
@@ -243,7 +228,6 @@ Diese Dateien sind **fremd dirty** und gehoeren nicht dir:
 - `.codex/runs/CURRENT/product-acceptance/report.json`
 - `.phase1-artifacts/o4-live-writes/{proof,runtime-proof,browser-proof}.json`
 - `docs/runtime-state/{capability-gates,external-gate-audit-v2,external-gate-summary,owner-input-manifest}.json`
-- `docs/release-artifacts/current-release-candidate.json`
 - **gestaged:** `docs/release-artifacts/prod-candidate-2026-08-02-local-rc12.md`
 
 Nie stagen, nie zuruecksetzen, nie `git add -A`.
@@ -273,9 +257,9 @@ Beides ist per Owner-Entscheidung **ganz am Ende**.
 |---|---|
 | Branch | `codex/organism-visual-v2` (Default `chore/repo-bootstrap`, **kein `main`**) |
 | Letzter Runtime-Source-Commit | `c0c57d3d` (Docs-Commits liegen darueber) |
-| **Kandidat RC18** | `048ba5502a0149a6880abe6acf7325d42c191e08` — **unvollstaendig, verworfen** |
+| **Kandidat RC19** | `5062de35a5c033354ba81a988d699aad418347c3` — **lokal qualifiziert** |
 | Rollback-Anker | RC17 `bbc2ad481352e8d9ee1e8e9fc010a5d3407d7b85` |
-| Letzte gruene CI | Run `33179887487` (Source-Prequalification auf `048ba550`) |
+| Letzte gruene CI | Run `33193522336` (Source-Attestation auf `5062de35`) |
 | Overall | **89** · P3 44 · P5 89 · P6 90 · L4 55 · L5 56 |
 | Gates | **7/10 zu**; offen: `production_auth_identity`, `docker_registry_publish`, `phase6_scale_runtime` |
 
@@ -288,7 +272,7 @@ Beides ist per Owner-Entscheidung **ganz am Ende**.
 | Befehl | Prüft |
 |---|---|
 | `npm run verify` | Gesamtkette Phase 1 |
-| `npm run verify:phase5-credit` | P5-Credit — **derzeit ROT**: RC18-Evidenz fehlt |
+| `npm run verify:phase5-credit` | P5-Credit — **gruen: 17/19 = 89%, I1/I5 blocked** |
 | `npm run build` | 21/21 Seiten — **gruen** |
 | `npx tsc --noEmit -p apps/frontend/tsconfig.json` | **gruen** |
 | `node --test apps/frontend/tests/generated-html-runnability.test.mjs` | 14/14 Runnability |
