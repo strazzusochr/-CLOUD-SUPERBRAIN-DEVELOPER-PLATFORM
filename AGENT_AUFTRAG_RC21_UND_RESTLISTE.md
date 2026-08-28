@@ -154,6 +154,27 @@ Dauert ~30 min. **Nicht abbrechen, nichts parallel starten.**
 Bei „no space": aufraeumen — aber **niemals** `.phase1-artifacts/` oder
 `docs/release-artifacts/`.
 
+> ### ⛔ FALLE: falsches `tar` — bricht den Build sofort ab
+>
+> ```
+> /usr/bin/tar: Cannot connect to D: resolve failed
+> git archive extraction failed with exit code 128
+> ```
+>
+> **Ursache:** Auf dieser Maschine steht Gits GNU-`tar`
+> (`C:\Program Files\Git\usr\bin\tar.exe`) im PATH **vor** dem Windows-`tar`
+> (`C:\WINDOWS\system32\tar.exe`) — auch in einer sauberen `pwsh`. GNU-`tar` liest
+> `D:\_sb_tmp\…\source.tar` als **Remote-Host** `D:` und versucht eine Netzverbindung.
+>
+> **Fix — PATH vor dem Aufruf korrigieren:**
+> ```powershell
+> $env:PATH = 'C:\WINDOWS\system32;' + $env:PATH
+> (Get-Command tar).Source     # MUSS C:\WINDOWS\system32\tar.exe sein
+> ```
+>
+> Pruefe das **vor** dem Build. Sonst laeufst du 30 Minuten in einen Abbruch, der wie ein
+> Code-Fehler aussieht, aber keiner ist.
+
 ## A4 · Runtime-Kette
 
 Der Runtime-Verifier braucht den Service-Token **im Prozess**. Wert niemals ausgeben:
