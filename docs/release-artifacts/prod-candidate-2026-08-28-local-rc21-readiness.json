@@ -47,7 +47,7 @@
       ],
       "command": "npm run verify:runtime",
       "raw_log_path": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc21-evidence/raw/runtime.log",
-      "raw_log_sha256": "FE5622BD7AD9009C49F1B6A9AD9E3C4A4A651BD075DEA33A82FCF067C4EA765A",
+      "raw_log_sha256": "BDD5CDDCEC0805E04C424F57DD816558366E942C13EC91B09B04CB133063A6CC",
       "evidence_run_id": "3dd4d3f0-a222-4d8e-81d4-bc8436d61bbf"
     },
     "browser": {
@@ -62,7 +62,7 @@
       ],
       "command": "npm run verify:browser",
       "raw_log_path": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc21-evidence/raw/browser.log",
-      "raw_log_sha256": "48389FFC654C44A15419C0B9D108A2986B547725A467785720A57F90ED010310",
+      "raw_log_sha256": "8E89684DE28F980E461E6D40EC48FDEE3CA4D51133B9202D7227A26CD67042A7",
       "evidence_run_id": "7023024c-2d25-4fb3-ad1a-01d6d27e20e6"
     },
     "candidate_images": {
@@ -75,7 +75,7 @@
       "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/build-phase5-production-candidate-local.ps1 -SourceSha c1b022a884eb16939fe0542b2eb9056b60706b20 -ReleaseId prod-candidate-2026-08-28-local-rc21 -RollbackTarget c29c738b82e4e35cc1288bc603319cba60d167d2 -OutputDir .codex\\runs\\CURRENT\\master-goal\\phase5\\production-candidate-local -EvidenceRunId 2a26ff79-0a00-4742-8851-7615c1613127",
       "evidence_run_id": "191a709f-0304-4921-bbcd-ec95e2f72b14",
       "raw_log_path": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc21-evidence/raw/candidate-images.log",
-      "raw_log_sha256": "86D010564DAD40EA6900DC37F41A19B76A0E9E98C80FDA928E38E94FC53AC27D"
+      "raw_log_sha256": "7BF42978A437D575B7A5881DCB7484F8649EF8977F3F2DB3A227E4E87264469C"
     },
     "candidate_runtime": {
       "artifact": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc21-evidence/candidate-runtime.json",
@@ -93,7 +93,7 @@
       "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase5-production-candidate-local.ps1 -BaseUrl http://localhost:8081 -ArtifactDir .codex\\runs\\CURRENT\\master-goal\\phase5\\production-candidate-local -AllowLocalhost -EvidenceRunId d4e0c55e-f3c6-48bd-8f23-6e14cd784951",
       "evidence_run_id": "b099db7f-a621-42e4-b874-519840b09bc8",
       "raw_log_path": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc21-evidence/raw/candidate-runtime.log",
-      "raw_log_sha256": "05CE2CC530951F7951D8CBF612CDD588CE24F4F58E735D6BDCC2CEA530B9AD98"
+      "raw_log_sha256": "3DA13B56BF36DC7514FA2EF70E60A784346C749EB71A1FB785ADC2354EC78134"
     },
     "security": {
       "artifact": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc21-evidence/security.json",
@@ -111,7 +111,7 @@
       ],
       "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/write-phase5-security-evidence.ps1 -ReleaseId prod-candidate-2026-08-28-local-rc21 -SourceSha c1b022a884eb16939fe0542b2eb9056b60706b20 -EvidenceRunId 5c0b1984-51e1-46df-8934-9fb4763e6878",
       "raw_log_path": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc21-evidence/raw/security.log",
-      "raw_log_sha256": "BCB262066C29368450A3E0312C649C96383AAE4745C81E27B371D5225E618AB0",
+      "raw_log_sha256": "56C887E665489647B0EAADBA31D2E5A6E158322E766EB49B41BE2AC2F2DF0A29",
       "evidence_run_id": "ee726c88-8e3a-4442-9592-5e77879310f3"
     }
   },
