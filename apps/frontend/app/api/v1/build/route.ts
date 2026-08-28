@@ -22,7 +22,14 @@ HARD RULES:
 - Never use three.js examples/js paths (removed in r150). Load addons only from examples/jsm inside type="module", or stay with core THREE globals.
 - It MUST run immediately when opened in a browser. Make it actually work and look polished (dark, modern UI).
 - For games/animations: use requestAnimationFrame, keep it performant, and stop the loop when document.hidden.
-- Keep it focused and COMPLETE within ~300 lines, and ALWAYS finish the document with </body></html>. Never cut off mid-tag.`;
+- Build the whole thing. Aim for 300-700 lines; ALWAYS finish the document with </body></html>. Never cut off mid-tag, and never stop early with a TODO or a placeholder comment.
+- When the request is 3D, render real WebGL through three.js - never a 2D canvas imitation. A 3D scene is only finished when it has all of:
+  * a PerspectiveCamera that follows or frames the subject, and a resize handler,
+  * lighting with at least one directional light plus ambient/hemisphere fill, and shadows enabled on renderer, light and meshes,
+  * MeshStandardMaterial (not MeshBasicMaterial) so lighting is visible, with distinct colours per object type,
+  * more than a bare box: ground, several distinct objects, and visible depth,
+  * renderer.setPixelRatio(Math.min(devicePixelRatio, 2)) and an animation loop driven by a clock delta.
+- For a playable game also implement: keyboard state via keydown/keyup (never a single keypress branch), gravity and ground collision, collision or pickup detection, a visible score/HUD in the DOM, and a lose/win or reset path.`;
 
 const GPU_GUARD = `<script>(function(){var _r=window.requestAnimationFrame.bind(window),last=0;window.requestAnimationFrame=function(cb){return _r(function(t){if(document.hidden){window.requestAnimationFrame(cb);return;}if(t-last<15){window.requestAnimationFrame(cb);return;}last=t;cb(t);});};})();</script>`;
 const MAX_PROMPT_CHARS = 2_000;

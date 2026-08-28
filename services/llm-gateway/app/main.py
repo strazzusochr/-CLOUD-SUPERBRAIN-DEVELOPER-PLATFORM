@@ -29,7 +29,11 @@ CF_WORKERS_AI_BASE_URL = os.getenv(
     "https://api.cloudflare.com/client/v4",
 ).rstrip("/")
 CF_WORKERS_AI_TIMEOUT_SECONDS = float(os.getenv("CF_WORKERS_AI_TIMEOUT_SECONDS", "90"))
-CF_WORKERS_AI_MAX_TOKENS = int(os.getenv("CF_WORKERS_AI_MAX_TOKENS", "2048") or "2048")
+# qwen2.5-coder-32b-instruct carries a 32,768 token context window, so a 2048 ceiling
+# silently truncated every generation to roughly 6% of what the model can emit. The
+# ceiling stays a real guard against runaway callers; it is simply set to a value that
+# fits one complete single-file application alongside its prompt.
+CF_WORKERS_AI_MAX_TOKENS = int(os.getenv("CF_WORKERS_AI_MAX_TOKENS", "8192") or "8192")
 CF_WORKERS_AI_MODE = "cloudflare_workers_ai_live"
 CF_WORKERS_AI_MODELS = {
     "@cf/qwen/qwen2.5-coder-32b-instruct",

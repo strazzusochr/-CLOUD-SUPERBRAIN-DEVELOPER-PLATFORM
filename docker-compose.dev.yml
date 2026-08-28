@@ -308,6 +308,7 @@ services:
       CF_WORKERS_AI_TOKEN: ${CF_WORKERS_AI_TOKEN:-}
       CF_WORKERS_AI_BASE_URL: ${CF_WORKERS_AI_BASE_URL:-https://api.cloudflare.com/client/v4}
       CF_WORKERS_AI_TIMEOUT_SECONDS: ${CF_WORKERS_AI_TIMEOUT_SECONDS:-90}
+      CF_WORKERS_AI_MAX_TOKENS: ${CF_WORKERS_AI_MAX_TOKENS:-8192}
     expose:
       - "4000"
     volumes:
