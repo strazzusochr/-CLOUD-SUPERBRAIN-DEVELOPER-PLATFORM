@@ -1,7 +1,7 @@
 {
-  "active_release_id": "prod-candidate-2026-08-28-local-rc16",
-  "updated_at": "2026-08-27T23:53:59Z",
-  "updated_by": "codex-rc16-local-qualification",
-  "reason": "RC16 is the active locally qualified candidate for frozen source 0a706beae17e25525a312843c236720a1efdf99b. Source-attested GitHub Actions run 33122645862 and all five independent local chains passed with immutable hashes. RC15 source 2e945a6cfd7217ee71372ad3ddc9ad63f4840a2f is the exact rollback target. DEV-ONLY; hosted proof still blocked. Hosted staging, production OAuth, Phase-6 scale authorization, GHCR publication, Owner approval, release promotion, and production rollout remain blocked.",
+  "active_release_id": "prod-candidate-2026-08-28-local-rc17",
+  "updated_at": "2026-08-28T13:50:00Z",
+  "updated_by": "codex-rc17-local-qualification",
+  "reason": "RC17 is locally qualified at frozen source bbc2ad481352e8d9ee1e8e9fc010a5d3407d7b85. Source-prequalification run 33171020720 and all five independent local chains passed, including the real Cloudflare Workers AI build and 22-page browser matrix. RC16 source 0a706beae17e25525a312843c236720a1efdf99b is the exact rollback target. DEV-ONLY; hosted proof still blocked. Hosted candidate parity, production OAuth, Phase-6 scale authorization, GHCR publication, Owner approval, release promotion, and production rollout remain blocked.",
   "production_rollout_claimed": false
 }

@@ -1,0 +1,165 @@
+{
+  "contract_version": "phase5-candidate-readiness-evidence-v1",
+  "release_id": "prod-candidate-2026-08-28-local-rc17",
+  "source_commit_sha": "bbc2ad481352e8d9ee1e8e9fc010a5d3407d7b85",
+  "generated_at_utc": "2026-08-28T13:48:17Z",
+  "status": "verified_with_owner_blocks",
+  "verified_item_count": 17,
+  "blocked_item_count": 2,
+  "blocked_item_ids": [
+    "I1",
+    "I5"
+  ],
+  "phase5_computed_percent": 89,
+  "ci_workflow": {
+    "name": "pr-check",
+    "run_id": 33171020720,
+    "run_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/33171020720",
+    "head_sha": "fd268dbe14a8e9246567be0b1857246bee194a81",
+    "status": "success",
+    "binding_mode": "source_checkout_attestation_v1",
+    "control_sha": "fd268dbe14a8e9246567be0b1857246bee194a81",
+    "candidate_sha": "bbc2ad481352e8d9ee1e8e9fc010a5d3407d7b85",
+    "checked_out_sha": "bbc2ad481352e8d9ee1e8e9fc010a5d3407d7b85",
+    "event_name": "workflow_dispatch",
+    "source_prequalification": true,
+    "attestation": {
+      "artifact": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc17-evidence/ci-source-checkout-attestation.json",
+      "sha256": "0184AA6816EE87F31F979984AAD6E8D044A10FACEBE386E33DE995D0DBFBFBED",
+      "github_artifact_id": 9685667549,
+      "github_artifact_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/33171020720/artifacts/9685667549",
+      "github_artifact_digest": "sha256:90debb0e2ed9f445e87796ba501edfbfa7ce234bd583f31a4a2d4b3d3fc110c8",
+      "github_artifact_name": "pr-check-source-checkout-attestation-33171020720-1"
+    },
+    "github_readback": {
+      "artifact": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc17-evidence/ci-source-checkout-github-readback.json",
+      "sha256": "4132A54658510677A8BE9DE80121E85F553EAF316322988AEE3358ED982A6EDA"
+    }
+  },
+  "local_verification": {
+    "runtime": {
+      "artifact": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc17-evidence/runtime.json",
+      "sha256": "376AD16062DC8A7AE9D50FE2B16964F42BA3EBD53D16A20DE795676262183A81",
+      "status": "passed",
+      "success_anchors": [
+        "[runtime] compose status",
+        "[runtime] phase1 runtime checks completed"
+      ],
+      "command": "npm run verify:runtime",
+      "raw_log_path": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc17-evidence/raw/runtime.log",
+      "raw_log_sha256": "E97761D7593B456F97BEA3200B0959241C38C4E8142EEE450F260FFE4587DC09",
+      "evidence_run_id": "d1082170-071f-4f7e-80eb-62b5967f9ec5"
+    },
+    "browser": {
+      "artifact": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc17-evidence/browser.json",
+      "sha256": "47F5422949CB1073039408E895622D7C53B121C36C71B4734F80B83136B1E8E7",
+      "status": "passed",
+      "success_anchors": [
+        "[browser-contract] checks completed",
+        "[product-acceptance] PASS DEV-ONLY; hosted proof still blocked",
+        "[22-page-actions] PASS DEV-ONLY; hosted proof still blocked",
+        "[o4-write] status=verified gates=live_agent_tool_writes,live_mcp_writes"
+      ],
+      "command": "npm run verify:browser",
+      "raw_log_path": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc17-evidence/raw/browser.log",
+      "raw_log_sha256": "593B94DEB528E2712F789FBB3EDB374510B518E2628C9D7B0E9C595D09442C19",
+      "evidence_run_id": "34061cce-5173-4ec6-8c49-740cec5a4dac"
+    },
+    "candidate_images": {
+      "artifact": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc17-evidence/candidate-images.json",
+      "sha256": "46234D8473032120874019C604A34E44C96CC055779C92CCEE609984B80627E5",
+      "status": "passed",
+      "success_anchors": [
+        "[phase5-candidate-local] status=verified service_count=6"
+      ],
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/build-phase5-production-candidate-local.ps1 -SourceSha bbc2ad481352e8d9ee1e8e9fc010a5d3407d7b85 -ReleaseId prod-candidate-2026-08-28-local-rc17 -RollbackTarget 0a706beae17e25525a312843c236720a1efdf99b -OutputDir .codex\\runs\\CURRENT\\master-goal\\phase5\\production-candidate-local -EvidenceRunId 765a1359-dfd1-4008-926d-f0954d3a1e31",
+      "evidence_run_id": "765a1359-dfd1-4008-926d-f0954d3a1e31",
+      "raw_log_path": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc17-evidence/raw/candidate-images.log",
+      "raw_log_sha256": "5196E30BA0CD64588865E1F5F714720A0AE65B3149C9284C0A8E0C4E6189313C"
+    },
+    "candidate_runtime": {
+      "artifact": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc17-evidence/candidate-runtime.json",
+      "sha256": "335118C6B5D6F276B90E46BCD943CBFABAEC395FF8A9EDDF80D7C998F9C2BF57",
+      "status": "passed",
+      "success_anchors": [
+        "[phase5-candidate-local] api_contract_verified=true",
+        "[phase5-candidate-local] local_image_identity_verified=true",
+        "[phase5-candidate-local] embedded_source_hash_parity_verified=true",
+        "[phase5-candidate-local] candidate_runtime_source_parity_verified=true",
+        "[phase5-candidate-local] browser_click_verified=true",
+        "[phase5-candidate-local] playwright_passed=1",
+        "[phase5-candidate-local] status=verified service_count=6"
+      ],
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase5-production-candidate-local.ps1 -BaseUrl http://localhost:8081 -ArtifactDir .codex\\runs\\CURRENT\\master-goal\\phase5\\production-candidate-local -AllowLocalhost -EvidenceRunId bf4c7707-c36f-44b3-b70c-ab6cabe03432",
+      "evidence_run_id": "bf4c7707-c36f-44b3-b70c-ab6cabe03432",
+      "raw_log_path": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc17-evidence/raw/candidate-runtime.log",
+      "raw_log_sha256": "81FB4D99003A1ADE74B63C509F8738E1BF45C8CC2772E3589C0453CAF7FAF117"
+    },
+    "security": {
+      "artifact": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc17-evidence/security.json",
+      "sha256": "849CF3154555DCF9DCD52C6D85729DFF139FD7EE73E99D6C2935D96DE856D820",
+      "status": "passed",
+      "success_anchors": [
+        "PHASE5_SECURITY_EVIDENCE_V2",
+        "[phase5-security] source_boundary=committed_git_archive_only",
+        "[phase5-security] npm_audit_verified=true",
+        "NPM_AUDIT_EXIT=0",
+        "[phase5-security] gitleaks_config=.gitleaks.toml",
+        "[phase5-security] gitleaks_verified=true",
+        "GITLEAKS_EXIT=0",
+        "PHASE5_SECURITY_EXIT=0"
+      ],
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/write-phase5-security-evidence.ps1 -ReleaseId prod-candidate-2026-08-28-local-rc17 -SourceSha bbc2ad481352e8d9ee1e8e9fc010a5d3407d7b85 -EvidenceRunId ff8e62db-2d61-451c-b0cb-2bbc6771ad31",
+      "raw_log_path": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc17-evidence/raw/security.log",
+      "raw_log_sha256": "3991B30013B90AC917E4DD7D38ED9629E5720122F76972468651DEA87085DF56",
+      "evidence_run_id": "ff8e62db-2d61-451c-b0cb-2bbc6771ad31"
+    }
+  },
+  "budget_review": {
+    "new_recurring_infrastructure": false,
+    "paid_provider": false,
+    "payment_or_card_action": false,
+    "monthly_ceiling_eur": 20,
+    "ceiling_changed": false
+  },
+  "observability_paths": {
+    "health": [
+      "/api/v1/health",
+      "/mcp/api/v1/health",
+      "/llm/api/v1/health"
+    ],
+    "metrics": [
+      "/api/v1/metrics"
+    ],
+    "audit": [
+      "/api/v1/audit/recent",
+      "/api/v1/audit/mcp"
+    ],
+    "contracts": [
+      "/api/v1/errors/contract",
+      "/api/v1/rate-limit/contract",
+      "/api/v1/sessions/history/contract",
+      "/api/v1/request/contract",
+      "/api/v1/trace/contract"
+    ],
+    "escalation_runbook": "docs/runbooks/incident-response.md"
+  },
+  "open_questions_acceptance": {
+    "unknown_questions": [],
+    "accepted_under_no_release": [
+      "I1 hosted_candidate_parity",
+      "I5 production_auth_identity"
+    ]
+  },
+  "gate_truth": {
+    "docker_registry_publish": false,
+    "production_auth_identity": false,
+    "production_rollout_claimed": false,
+    "market_ready": false
+  },
+  "non_claims": [
+    "DEV-ONLY; hosted proof still blocked.",
+    "Local Docker image IDs are not registry digests.",
+    "No registry push, production deploy, release promotion, Owner approval, payment, authenticated Alibaba call, or secret output is performed."
+  ]
+}

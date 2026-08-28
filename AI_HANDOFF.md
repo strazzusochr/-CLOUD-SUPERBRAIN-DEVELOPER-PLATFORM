@@ -6,7 +6,46 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-## Current RC16 Handoff — 2026-08-28
+## Current RC17 Handoff — 2026-08-28
+
+Active locally qualified candidate: `prod-candidate-2026-08-28-local-rc17`, frozen source
+`bbc2ad481352e8d9ee1e8e9fc010a5d3407d7b85`, control commit
+`fd268dbe14a8e9246567be0b1857246bee194a81`, source-attested GitHub Actions run
+`33171020720`. GitHub checked out the exact candidate SHA; the only control delta was
+`scripts/verify-main-deploy-transition.ps1`. Artifact `9685667549`, its GitHub digest,
+downloaded archive digest, and embedded attestation are preserved with the candidate.
+
+All five independent chains passed: six committed-archive service images, full runtime,
+full real-Chromium browser, candidate-runtime identity/parity with a real selection/click,
+and candidate-archive npm-audit/gitleaks security. Browser proof includes a real Cloudflare
+Workers AI build, `22/22` routes, `29/29` action families, `161/161` action members,
+responsive `22x2` navigation, and O4 write/readback/rollback. The immutable evidence set has
+27 files. Every local result is `DEV-ONLY; hosted proof still blocked`.
+
+RC17 adds an executable-by-contract generated-HTML boundary. Red-first tests reject dead
+`examples/js` references, unsupported classic `examples/jsm` references, and `THREE` use
+without a prior core dependency. The trusted frontend generation boundary inserts pinned
+Three.js `0.160.0` before first use only for the missing-core case; Agent API and Cloudflare
+D1 independently fail closed before persistence. The first full browser run caught the real
+`THREE is not defined` regression and is not credited; the frozen repair passed all focused,
+CI, runtime, candidate, security, and full `22-page-actions` proof.
+
+The Coder target remains gateway-only `qwen3.7-plus`; the live acceptance provider remains
+Cloudflare Workers AI. No authenticated Alibaba call occurred. Readiness remains
+`17/19 = 89%`. Exactly I1 `hosted_candidate_parity` and I5
+`production_auth_identity` remain Owner-blocked and zero-credit. Rollback target is RC16 source
+`0a706beae17e25525a312843c236720a1efdf99b`. Overall: `89%`; P0/P1/P2/P4 `100`, P3 `44`,
+P5 `89`, P6 `90`; L1/L2/L3/L6/L7 `100`, L4 `55`, L5 `56`. `MARKET_READY:false`.
+
+The selection truth must be committed on top of control `fd268dbe` before the final
+source-bound rerun. Then run build, runtime, DEV-LIVE browser/22-page/O4, static and release
+boundary verifiers serially and push only `codex/organism-visual-v2`. O4 must stay the last
+source-bound browser/write proof. Generated O4 and runtime gate files are evidence, not
+selection-commit inputs. Preserve the separately staged RC12 file; never use `git add -A`.
+No GHCR publication, default-branch write, production deploy, release promotion, Owner
+approval, payment, or secret output is authorized.
+
+## Historical RC16 Handoff — 2026-08-28
 
 Active locally qualified candidate: `prod-candidate-2026-08-28-local-rc16`, frozen source
 `0a706beae17e25525a312843c236720a1efdf99b`, control commit
