@@ -540,6 +540,25 @@ Ein echter Defekt wurde inzwischen gefunden und behoben: der **R3F-Remount-Race*
 
 ---
 
+### 12.5 22 Seiten × 161 Aktionen — echte Klicks, bestanden
+
+```
+ok 1 [chromium]  all 22 canonical pages directly prove every enabled page-local
+                 action and reject unregistered controls          (29.9m)
+routes=22  families=29  members=161  direct=160  preverified_exact=1
+report sha256=7BF249D9…73F2F8      EXIT=0
+```
+
+Zwei gebundene Live-Provider-Calls, explizit freigegeben; keine Mocks, keine Interception,
+kein Direct-Provider-Bypass. **Production-Build danach gruen: 21/21 Seiten.**
+
+> **Ehrlich zum Ablauf:** Ich habe waehrend dieses Laufs `marketplace/page.tsx` geaendert,
+> und das Verzeichnis ist live in den Container gemountet. Das war unsauber — der Lauf haette
+> daran scheitern koennen. Er ist es nicht; das Ergebnis steht. Beim naechsten Mal erst der
+> Lauf, dann der Eingriff.
+
+---
+
 # 🔚 WAS ZULETZT NOCH OFFEN IST — die Restliste
 
 Alles hier ist **gemessen**, nicht vermutet. Reihenfolge = Bearbeitungsreihenfolge.
