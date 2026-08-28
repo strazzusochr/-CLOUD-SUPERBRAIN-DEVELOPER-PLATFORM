@@ -6,6 +6,25 @@
 > **Zweites und letztes Dokument:** `REGELN_OPTIK_UND_FERTIG.md` — das Regelwerk mit den Belegen.
 > Alle `CODEX_UEBERGABE_*.md` sind **Historie**.
 
+## 👥 ZWEI AGENTEN, ZWEI AUFTRÄGE — wer macht was
+
+| Agent | Auftragsdatei | Arbeitsbereich |
+|---|---|---|
+| **Codex** | `AGENT_AUFTRAG_RC21_UND_RESTLISTE.md` | Repository, Terminal, Verifier, RC-Bindung |
+| **Antigravity** | `PROMPT_ANTIGRAVITY_CLOUD.md` | Browser, Cloud-Konsolen, Owner-Freigaben |
+
+**Beide Dateien liegen im Repo-Wurzelverzeichnis**
+`D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\` — **nicht** unter `.claude/worktrees/`.
+
+**Reihenfolge:** Antigravity öffnet die Cloud-Wände (V1–V4), Codex bindet RC21 und misst.
+Codex' Aufgabe A (RC21) läuft **unabhängig** und kann sofort starten.
+
+> **Hinweis zu `docs/runtime-contracts/layer-credit-rubric.md`:** Diese Datei
+> **existiert noch nicht**. Sie ist ein **Auftrag an Codex** (Block V0) — er entwirft sie,
+> der Owner gibt sie frei. Ohne sie bleiben L4 und L5 dauerhaft blockiert.
+
+---
+
 ## ENDZIEL
 
 `npm run verify:market-ready` druckt real **`MARKET_READY: true`**.
