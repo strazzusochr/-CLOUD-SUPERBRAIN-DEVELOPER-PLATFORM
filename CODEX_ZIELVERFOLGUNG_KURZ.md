@@ -98,7 +98,8 @@ ist ein fehlgeschlagenes Rendering*. Diese Zwischenversion ist verworfen.
 Overall 89   H: P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 89 · P6 90
              V: L1 100 · L2 100 · L3 100 · L4 55 · L5 56 · L6 100 · L7 100
 Gates 7/10 zu   offen: production_auth_identity · docker_registry_publish · phase6_scale_runtime
-HEAD c0c57d3d   Branch codex/organism-visual-v2   MARKET_READY:false
+Quellstand c0c57d3d (letzter Commit an Runtime-Source; Docs-Commit liegt darueber)
+Branch codex/organism-visual-v2   MARKET_READY:false
 ```
 
 **Preflight:**
@@ -261,7 +262,7 @@ Beides ist per Owner-Entscheidung **ganz am Ende**.
 | Gegenstand | Wert |
 |---|---|
 | Branch | `codex/organism-visual-v2` (Default `chore/repo-bootstrap`, **kein `main`**) |
-| HEAD | `c0c57d3d` |
+| Letzter Runtime-Source-Commit | `c0c57d3d` (Docs-Commits liegen darueber) |
 | **Kandidat RC18** | `048ba5502a0149a6880abe6acf7325d42c191e08` — **unvollstaendig, verworfen** |
 | Rollback-Anker | RC17 `bbc2ad481352e8d9ee1e8e9fc010a5d3407d7b85` |
 | Letzte gruene CI | Run `33179887487` (Source-Prequalification auf `048ba550`) |

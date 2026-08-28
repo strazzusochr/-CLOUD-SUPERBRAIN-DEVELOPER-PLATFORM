@@ -155,7 +155,7 @@ Damit niemand mehr hineinliest, als da ist:
 ## 9. DER ZUSTAND, IN DEM DU UEBERNIMMST
 
 ```
-HEAD    c0c57d3d   Branch codex/organism-visual-v2
+Quellstand c0c57d3d (letzter Runtime-Source-Commit)   Branch codex/organism-visual-v2
 Overall 89   P0/P1/P2/P4 100 · P3 44 · P5 89 · P6 90
              L1/L2/L3/L6/L7 100 · L4 55 · L5 56
 Gates   7/10 zu    offen: production_auth_identity · docker_registry_publish · phase6_scale_runtime
@@ -200,5 +200,5 @@ bereits vor dieser Session dirty. Zusaetzlich liegt jetzt echter Runtime-Source-
 
 ---
 
-*Session 15 · 2026-08-28 · HEAD `c0c57d3d` · Overall 89 · Gates 7/10 · `MARKET_READY:false`
+*Session 15 · 2026-08-28 · Quellstand `c0c57d3d` · Overall 89 · Gates 7/10 · `MARKET_READY:false`
 Ziel-Datei: `CODEX_ZIELVERFOLGUNG_KURZ.md` · Regeln: `REGELN_OPTIK_UND_FERTIG.md`*
