@@ -1127,6 +1127,7 @@ export default function CortexCanvas3D({
   onToggleAutoRotate,
   sourceLabel = "SPEC · ORGANISM",
   visualTelemetry = EMPTY_VISUAL_TELEMETRY,
+  onReady,
 }: {
   runState?: RunState;
   nodeCount?: number;
@@ -1157,6 +1158,7 @@ export default function CortexCanvas3D({
   onToggleAutoRotate?: () => void;
   sourceLabel?: string;
   visualTelemetry?: VisualTelemetry;
+  onReady?: () => void;
 }) {
   const boundedFov = [38, 45, 58].includes(fovDegrees) ? fovDegrees : 45;
   const boundedExposure = Math.min(1.18, Math.max(0.72, exposure));
@@ -1214,6 +1216,7 @@ export default function CortexCanvas3D({
         frameloop="demand"
         gl={{ antialias: true, alpha: false, powerPreference: "low-power" }}
         className="cortex3d-canvas"
+        onCreated={onReady}
       >
         <FrameThrottle active={renderActive} />
         <Scene

@@ -8,7 +8,7 @@
  */
 
 import dynamic from "next/dynamic";
-import { Component, type ReactNode, useEffect, useState } from "react";
+import { Component, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import CortexCanvas from "./CortexCanvas";
 import type { RunState } from "./regionMap";
 
@@ -94,6 +94,9 @@ function detectMode(forceReducedMotion?: boolean): "2d" | "3d" {
 export default function CortexLive(props: Props) {
   const { forceReducedMotion, onMode } = props;
   const [mode, setMode] = useState<"pending" | "2d" | "3d">("pending");
+  const modeRef = useRef(mode);
+  const readyFrameRef = useRef<number | null>(null);
+  modeRef.current = mode;
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setMode(detectMode(forceReducedMotion)));
@@ -101,8 +104,24 @@ export default function CortexLive(props: Props) {
   }, [forceReducedMotion]);
 
   useEffect(() => {
-    if (mode !== "pending") onMode?.(mode);
+    if (mode === "2d") onMode?.("2d");
+    if (mode !== "3d" && readyFrameRef.current !== null) {
+      window.cancelAnimationFrame(readyFrameRef.current);
+      readyFrameRef.current = null;
+    }
   }, [mode, onMode]);
+
+  useEffect(() => () => {
+    if (readyFrameRef.current !== null) window.cancelAnimationFrame(readyFrameRef.current);
+  }, []);
+
+  const handle3dReady = useCallback(() => {
+    if (readyFrameRef.current !== null) window.cancelAnimationFrame(readyFrameRef.current);
+    readyFrameRef.current = window.requestAnimationFrame(() => {
+      readyFrameRef.current = null;
+      if (modeRef.current === "3d") onMode?.("3d");
+    });
+  }, [onMode]);
 
   if (mode === "pending") {
     return <div className="cortex-wrap" data-testid="organism-renderer-pending" aria-hidden="true" />;
@@ -141,6 +160,7 @@ export default function CortexLive(props: Props) {
           onToggleAutoRotate={props.onToggleAutoRotate}
           sourceLabel={props.sourceLabel}
           visualTelemetry={props.visualTelemetry}
+          onReady={handle3dReady}
         />
       </GLErrorBoundary>
     );
