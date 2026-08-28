@@ -22,7 +22,7 @@ HARD RULES:
 - Never use three.js examples/js paths (removed in r150). Load addons only from examples/jsm inside type="module", or stay with core THREE globals.
 - It MUST run immediately when opened in a browser. Make it actually work and look polished (dark, modern UI).
 - For games/animations: use requestAnimationFrame, keep it performant, and stop the loop when document.hidden.
-- Build the whole thing. Aim for 300-700 lines; ALWAYS finish the document with </body></html>. Never cut off mid-tag, and never stop early with a TODO or a placeholder comment.
+- Build the whole thing. Aim for 300-700 lines; ALWAYS finish the document with </body></html>. Never cut off mid-tag, and never stop early with a placeholder comment or an unfinished-work marker.
 - When the request is 3D, render real WebGL through three.js - never a 2D canvas imitation. A 3D scene is only finished when it has all of:
   * a PerspectiveCamera that follows or frames the subject, and a resize handler,
   * lighting with at least one directional light plus ambient/hemisphere fill, and shadows enabled on renderer, light and meshes,

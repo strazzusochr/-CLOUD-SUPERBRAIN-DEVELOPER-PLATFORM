@@ -153,6 +153,7 @@ Ergebnis der Endpoint-Inventur:
 | Token | Statische Klasse | Begründung |
 | --- | --- | --- |
 | `/api/v1` | `NAMESPACE-ONLY` | Gemeinsamer Namespace, kein einzelner Handler. |
+| `/llm/v1` | `NAMESPACE-ONLY` | OpenAI-kompatibler Basis-Namespace hinter der Nginx-Grenze `location /llm/`; die konkreten Handler sind `/llm/v1/chat/completions`, `/llm/v1/responses` und `/llm/v1/models`. Der nackte Prefix ist eine Basis-URL, kein Handler. |
 | `/api/v1/model-capabilities` | `NEGATIVE-ONLY` | Dokumentierter verbotener Altalias; die echte Route ist `/api/v1/models/capabilities`. |
 | `/mcp/internal` | `NEGATIVE-ONLY` | Öffentliche Nginx-/Vercel-Grenzen müssen diesen internen Teilbaum mit `404` verbergen. |
 
