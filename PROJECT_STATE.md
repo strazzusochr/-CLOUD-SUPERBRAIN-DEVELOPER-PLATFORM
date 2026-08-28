@@ -1,16 +1,34 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-08-27
+Letzte Aktualisierung: 2026-08-28
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
 
-### Session 2026-08-27 — aktueller Entwicklungsstand vor finaler Requalifizierung
+### Session 2026-08-28 — RC20 qualifiziert, RC21 in Bindung
 
-- **Aktiver qualifizierter Kandidat bleibt RC14:** `prod-candidate-2026-08-26-local-rc14`,
-  eingefrorene Source `d0674bfc1367b04d95ca2bf745e89fabf12046ad`, source-attestierter
-  GitHub-Actions-Lauf `32996004920`. Die aktuelle Feature-Branch-Source ist neuer und deshalb
-  noch **kein** qualifizierter Release Candidate.
+- **Zuletzt qualifizierter Kandidat: RC20** `prod-candidate-2026-08-28-local-rc20`,
+  eingefrorene Source `c29c738b82e4e35cc1288bc603319cba60d167d2`, Kontroll-Commit
+  `6f9387c6d492151b9195e3afcbf5a031b094dd67`, source-attestierter GitHub-Actions-Lauf
+  `33200830176`, Evidenzsatz 27 Dateien. Rollback-Anker ist RC19
+  `5062de35a5c033354ba81a988d699aad418347c3`.
+- **RC20 ist inzwischen ueberholt.** Seit `c29c738b` haben sich Pfade in
+  `RUNTIME_SOURCE_PATHS` geaendert, deshalb ist eine Neubindung als **RC21** noetig; ein
+  Rueckfall auf RC20 ist nicht moeglich. Solange RC21 nicht gebunden ist, meldet
+  `verify:phase5-credit` korrekt rot.
+- **Generierungs-Deckel behoben (Produktkern):** Die Workbench erzeugte nur Spielzeug, weil
+  vier stille Deckel uebereinanderlagen — `CF_WORKERS_AI_MAX_TOKENS` war im Container
+  ungesetzt (Default 2048, Route bat um 5200), `docker-compose.dev.yml` deklarierte die
+  Variable nie, der Systemprompt forderte „~300 lines", und das Zeitbudget war invertiert
+  (Route 50 s < Provider 90 s). Jetzt: Ceiling 8192, Budget monoton
+  `90 s < 100 s < 115 s < 120 s`, Prompt fordert eine beleuchtete, vollstaendige 3D-Szene.
+  Belegt DEV-ONLY durch ein echtes, spielbares 3D-Spiel (7953 Bytes / 232 Zeilen, WebGL 2.0,
+  0 Console-Errors) — Artefakte unter `docs/audit/workbench-3d-game-2026-08-28/`.
+- **Zwei Produkt-Bugs behoben:** Der Marktplatz zeigte den stillgelegten Provider Fly.io als
+  gruen „verified", weil `/verified|live/` den Teilstring in `historical_read_verified`
+  traf — jetzt exakte Klassifikation in `apps/frontend/lib/providerStatus.ts`. Und der
+  Fuenf-Achsen-Audit war rot (unklassifizierter `/llm/v1`-Namespace plus ein literaler
+  Unfinished-Marker in der Generierungs-Prompt-Zeile); beides behoben, Auditor `PASS`.
 - **Aktiver Entwicklungsbranch:** `codex/organism-visual-v2`. Die neuesten gebundenen Slices
   beheben Browser-Hydration/-Retry-Rennen, klassifizieren den Fuenf-Achsen-Audit aus echter
   Evidenz und fuegen den neuen Coder `qwen3.7-plus` ueber den L3→L4-LLM-Gatewaypfad ein.

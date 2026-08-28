@@ -3772,4 +3772,16 @@ if ($gitleaksCommand -or (Test-Path $repoLocalGitleaks)) {
   Assert-LastExitCode "fallback secret scan"
 }
 
+# Five-axis substance audit. It lived outside the gate chain until 2026-08-28, which is how
+# RC20 could qualify while its regression test was red. The registry at line ~126 only
+# discovers verify-*.ps1, so a .mjs verifier can never be reached through verify.suites.json;
+# it has to be invoked here.
+Write-Host "[verify] five-axis substance audit"
+node scripts\verify-five-axis-substance-audit.mjs
+Assert-LastExitCode "five-axis substance audit"
+
+Write-Host "[verify] five-axis audit regression"
+node --test scripts\tests\five-axis-audit-regression.test.mjs
+Assert-LastExitCode "five-axis audit regression"
+
 Write-Host "[verify] phase1 checks completed"
