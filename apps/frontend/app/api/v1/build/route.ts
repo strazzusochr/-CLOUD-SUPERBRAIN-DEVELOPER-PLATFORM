@@ -4,7 +4,11 @@
 // frontend never calls a provider or persistence service directly.
 
 import { authorizeBoundaryWrite, boundaryUnavailable, proxyToBoundary } from "../../../../lib/frontendBoundary";
-import { findUnrunnableReferences, isRunnableGeneratedHtml } from "../../../../lib/generatedHtml";
+import {
+  ensureGeneratedHtmlDependencies,
+  findUnrunnableReferences,
+  isRunnableGeneratedHtml,
+} from "../../../../lib/generatedHtml";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -14,7 +18,7 @@ Build exactly what the user asks for as a SINGLE, COMPLETE, self-contained HTML 
 HARD RULES:
 - Output ONLY the HTML document. Start with <!doctype html>. No markdown fences, no prose, no explanation.
 - Inline ALL CSS in a <style> tag and ALL JavaScript in <script> tags. No build step.
-- Allowed external resources: CDN scripts only (e.g. https://unpkg.com/three@0.160.0/build/three.min.js for 3D, using the global THREE). No other network calls, no API keys, no backend.
+- Allowed external resources: CDN scripts only (e.g. https://unpkg.com/three@0.160.0/build/three.min.js for 3D, using the global THREE). If any code references THREE, that core script MUST be present before the first use. No other network calls, no API keys, no backend.
 - Never use three.js examples/js paths (removed in r150). Load addons only from examples/jsm inside type="module", or stay with core THREE globals.
 - It MUST run immediately when opened in a browser. Make it actually work and look polished (dark, modern UI).
 - For games/animations: use requestAnimationFrame, keep it performant, and stop the loop when document.hidden.
@@ -70,7 +74,7 @@ Apply ONLY the requested change and return the COMPLETE updated HTML document.
 HARD RULES:
 - Output ONLY the full HTML document. Start with <!doctype html>, finish with </body></html>. No markdown, no prose.
 - Keep everything that already works; change only what the request asks for.
-- Same constraints: inline CSS/JS, CDN scripts only (e.g. three.min.js global THREE), no backend, must run immediately, dark modern UI.
+- Same constraints: inline CSS/JS, CDN scripts only (e.g. three.min.js global THREE); if any code references THREE, load that core before the first use; no backend, must run immediately, dark modern UI.
 - Never use three.js examples/js paths (removed in r150). Load addons only from examples/jsm inside type="module", or stay with core THREE globals.`;
 
 type GeneratedBuild = {
@@ -137,7 +141,7 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
       if (!response.ok) throw new Error(String(out.error ?? out.detail ?? `LLM Gateway HTTP ${response.status}`));
       const choices = out.choices as Array<{ message?: { content?: string } }> | undefined;
       const rawContent = choices?.[0]?.message?.content ?? "";
-      const html = extractHtml(rawContent);
+      const html = ensureGeneratedHtmlDependencies(extractHtml(rawContent));
       const unrunnableReferences = findUnrunnableReferences(html);
       // A 200 whose body fails these two gates used to fall straight through to the next
       // attempt without recording anything, so lastErr stayed undefined and the caller saw the

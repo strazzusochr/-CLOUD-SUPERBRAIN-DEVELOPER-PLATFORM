@@ -239,6 +239,25 @@ class BuildRegistryTests(unittest.TestCase):
         self.assertEqual(result["html"], request.html)
         self.assertTrue(result["persisted"])
 
+    def test_three_global_without_core_dependency_is_rejected_before_database_access(self) -> None:
+        request = valid_request(
+            html=(
+                '<!doctype html><html><body><script>'
+                'const scene = new THREE.Scene();'
+                '</script></body></html>'
+            )
+        )
+        with (
+            patch.dict(os.environ, {"AGENT_API_AUTH_TOKEN": TEST_AGENT_TOKEN}),
+            patch.object(main.psycopg, "connect") as connect,
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                main.create_build_registry_entry(request, self.http_request, TEST_AGENT_TOKEN)
+
+        self.assertEqual(raised.exception.status_code, 400)
+        self.assertEqual(raised.exception.detail, "unrunnable build html")
+        connect.assert_not_called()
+
     def test_audit_failure_rolls_back_build_and_returns_no_internal_error(self) -> None:
         sentinel = "postgresql://private-user:private-password@db.internal/superbrain"
         self.connection = FakeConnection(fail_audit=True)

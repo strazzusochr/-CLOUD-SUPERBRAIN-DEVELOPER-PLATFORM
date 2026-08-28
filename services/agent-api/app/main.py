@@ -10220,23 +10220,46 @@ def _build_registry_secret_present(*values: str) -> bool:
 class _BuildHtmlScriptParser(HTMLParser):
     _removed_three_addon = re.compile(r"/three(?:@[^/]*)?/examples/js/", re.IGNORECASE)
     _module_three_addon = re.compile(r"/three(?:@[^/]*)?/examples/jsm/", re.IGNORECASE)
+    _classic_three_core = re.compile(
+        r"(?:/three(?:@[^/]*)?/build/three(?:\.min)?\.js|/three(?:\.min)?\.js)(?:[?#]|$)",
+        re.IGNORECASE,
+    )
+    _module_three_core = re.compile(
+        r"(?:/three(?:@[^/]*)?/build/three\.module(?:\.min)?\.js|/three\.module(?:\.min)?\.js)(?:[?#]|$)",
+        re.IGNORECASE,
+    )
+    _three_global_use = re.compile(r"\b(?:new\s+)?THREE\s*\.")
+    _three_local_definition = re.compile(
+        r"\b(?:const|let|var)\s+THREE\b|\b(?:window|globalThis)\.THREE\s*="
+    )
+    _three_namespace_import = re.compile(
+        r"\bimport\s+\*\s+as\s+THREE\s+from\s*(?:\"([^\"]+)\"|'([^']+)')"
+    )
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.unrunnable_reference = False
         self.module_addon_reference = False
         self.three_import_map = False
-        self._inside_import_map = False
-        self._import_map_chunks: list[str] = []
+        self.three_global_used = False
+        self.three_global_provider = False
+        self.three_local_binding = False
+        self.three_bare_module_binding = False
+        self._inside_script = False
+        self._script_type = ""
+        self._script_chunks: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag.lower() != "script" or self.unrunnable_reference:
             return
         values = {key.lower(): (value or "") for key, value in attrs}
         script_type = values.get("type", "").lower()
-        self._inside_import_map = script_type == "importmap"
-        self._import_map_chunks = []
+        self._inside_script = True
+        self._script_type = script_type
+        self._script_chunks = []
         src = values.get("src", "")
+        if src and script_type != "module" and self._classic_three_core.search(src):
+            self.three_global_provider = True
         if self._removed_three_addon.search(src):
             self.unrunnable_reference = True
             return
@@ -10247,14 +10270,15 @@ class _BuildHtmlScriptParser(HTMLParser):
                 self.module_addon_reference = True
 
     def handle_data(self, data: str) -> None:
-        if self._inside_import_map:
-            self._import_map_chunks.append(data)
+        if self._inside_script:
+            self._script_chunks.append(data)
 
     def handle_endtag(self, tag: str) -> None:
         if tag.lower() == "script":
-            if self._inside_import_map:
+            script_body = "".join(self._script_chunks)
+            if self._script_type == "importmap":
                 try:
-                    parsed = json.loads("".join(self._import_map_chunks))
+                    parsed = json.loads(script_body)
                     imports = parsed.get("imports", {}) if isinstance(parsed, dict) else {}
                     mapping = imports.get("three", "") if isinstance(imports, dict) else ""
                     self.three_import_map = self.three_import_map or (
@@ -10262,16 +10286,39 @@ class _BuildHtmlScriptParser(HTMLParser):
                     )
                 except (TypeError, ValueError):
                     pass
-            self._inside_import_map = False
-            self._import_map_chunks = []
+            elif self._three_global_use.search(script_body):
+                self.three_global_used = True
+                if self._three_local_definition.search(script_body):
+                    self.three_local_binding = True
+                if self._script_type == "module":
+                    namespace_import = self._three_namespace_import.search(script_body)
+                    specifier = (
+                        (namespace_import.group(1) or namespace_import.group(2))
+                        if namespace_import
+                        else ""
+                    )
+                    if specifier == "three":
+                        self.three_bare_module_binding = True
+                    elif specifier and self._module_three_core.search(specifier):
+                        self.three_local_binding = True
+            self._inside_script = False
+            self._script_type = ""
+            self._script_chunks = []
 
 
 def _build_registry_html_is_runnable(html: str) -> bool:
     parser = _BuildHtmlScriptParser()
     parser.feed(html)
     parser.close()
-    return not parser.unrunnable_reference and not (
-        parser.module_addon_reference and not parser.three_import_map
+    three_dependency_ready = (
+        parser.three_global_provider
+        or parser.three_local_binding
+        or (parser.three_bare_module_binding and parser.three_import_map)
+    )
+    return (
+        not parser.unrunnable_reference
+        and not (parser.module_addon_reference and not parser.three_import_map)
+        and not (parser.three_global_used and not three_dependency_ready)
     )
 
 

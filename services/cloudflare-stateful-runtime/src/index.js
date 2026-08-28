@@ -155,7 +155,8 @@ function containsSecretMaterial(value) {
 
 function containsKnownUnrunnableHtmlReference(html) {
   const executableMarkup = String(html).replace(/<!--[\s\S]*?-->/g, "");
-  const hasThreeImportMap = [...executableMarkup.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
+  const scriptBlocks = [...executableMarkup.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
+  const hasThreeImportMap = scriptBlocks
     .some(([, attributes, body]) => {
       const typeMatch = attributes.match(/\btype\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s"'=<>`]+))/i);
       const scriptType = String(typeMatch?.[1] ?? typeMatch?.[2] ?? typeMatch?.[3] ?? "").toLowerCase();
@@ -176,7 +177,35 @@ function containsKnownUnrunnableHtmlReference(html) {
     if (/\/three(?:@[^/]*)?\/examples\/js\//i.test(src)) return true;
     if (!(scriptType === "module" && hasThreeImportMap) && /\/three(?:@[^/]*)?\/examples\/jsm\//i.test(src)) return true;
   }
-  return false;
+  let threeGlobalUsed = false;
+  let threeDependencyReady = false;
+  for (const [, attributes, body] of scriptBlocks) {
+    const typeMatch = attributes.match(/\btype\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s"'=<>`]+))/i);
+    const scriptType = String(typeMatch?.[1] ?? typeMatch?.[2] ?? typeMatch?.[3] ?? "").toLowerCase();
+    const srcMatch = attributes.match(/\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s"'=<>`]+))/i);
+    const src = srcMatch?.[1] ?? srcMatch?.[2] ?? srcMatch?.[3] ?? "";
+    if (
+      src
+      && scriptType !== "module"
+      && /(?:\/three(?:@[^/]*)?\/build\/three(?:\.min)?\.js|\/three(?:\.min)?\.js)(?:[?#]|$)/i.test(src)
+    ) {
+      threeDependencyReady = true;
+    }
+    if (scriptType === "importmap" || !/\b(?:new\s+)?THREE\s*\./.test(body)) continue;
+    threeGlobalUsed = true;
+    if (/\b(?:const|let|var)\s+THREE\b|\b(?:window|globalThis)\.THREE\s*=/.test(body)) {
+      threeDependencyReady = true;
+    }
+    if (scriptType === "module") {
+      const namespaceImport = body.match(/\bimport\s+\*\s+as\s+THREE\s+from\s*(?:"([^"]+)"|'([^']+)')/);
+      const specifier = namespaceImport?.[1] ?? namespaceImport?.[2] ?? "";
+      if (specifier === "three" && hasThreeImportMap) threeDependencyReady = true;
+      if (/(?:\/three(?:@[^/]*)?\/build\/three\.module(?:\.min)?\.js|\/three\.module(?:\.min)?\.js)(?:[?#]|$)/i.test(specifier)) {
+        threeDependencyReady = true;
+      }
+    }
+  }
+  return threeGlobalUsed && !threeDependencyReady;
 }
 
 function redactText(value) {

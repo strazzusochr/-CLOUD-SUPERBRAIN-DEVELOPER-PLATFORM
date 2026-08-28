@@ -26,7 +26,7 @@ const compiled = ts.transpileModule(source, {
 const load = vm.runInThisContext(`(function (exports, module, require) { ${compiled}\n})`);
 const moduleShim = { exports: {} };
 load(moduleShim.exports, moduleShim, module.createRequire(import.meta.url));
-const { findUnrunnableReferences, isRunnableGeneratedHtml } = moduleShim.exports;
+const { ensureGeneratedHtmlDependencies, findUnrunnableReferences, isRunnableGeneratedHtml } = moduleShim.exports;
 
 const DOC = (body) => `<!doctype html><html><head></head><body>${body}</body></html>`;
 
@@ -123,6 +123,30 @@ test("a core-only three.js document is accepted", () => {
   assert.equal(isRunnableGeneratedHtml(html), true);
 });
 
+test("a live-style THREE global without any core dependency is rejected", () => {
+  const html = DOC(
+    "<script>const scene=new THREE.Scene();const renderer=new THREE.WebGLRenderer();</script>",
+  );
+  const reasons = findUnrunnableReferences(html);
+  assert.equal(isRunnableGeneratedHtml(html), false);
+  assert.ok(
+    reasons.some((reason) => reason.includes("THREE is referenced")),
+    `expected a missing THREE dependency rejection, got ${JSON.stringify(reasons)}`,
+  );
+});
+
+test("the generation boundary can add the pinned core before the first THREE use", () => {
+  const broken = DOC("<script>const scene=new THREE.Scene();</script>");
+  const repaired = ensureGeneratedHtmlDependencies(broken);
+  assert.match(repaired, /three@0\.160\.0\/build\/three\.min\.js/);
+  assert.ok(
+    repaired.indexOf("three.min.js") < repaired.indexOf("new THREE.Scene"),
+    "the dependency must execute before the generated app",
+  );
+  assert.equal(isRunnableGeneratedHtml(repaired), true);
+  assert.equal(ensureGeneratedHtmlDependencies(repaired), repaired, "repair must be idempotent");
+});
+
 test("a document with no external scripts at all is accepted", () => {
   assert.equal(isRunnableGeneratedHtml(DOC("<script>console.log(1)</script>")), true);
 });
@@ -135,10 +159,15 @@ test("the rejection reason names the offending URL so the boundary can report it
 
 test("the production build route applies the runnability guard before persistence", () => {
   const route = fs.readFileSync(new URL("../app/api/v1/build/route.ts", import.meta.url), "utf8");
-  assert.match(route, /import \{ findUnrunnableReferences, isRunnableGeneratedHtml \}/);
+  assert.match(route, /ensureGeneratedHtmlDependencies/);
   assert.match(route, /isRunnableGeneratedHtml\(value\)/);
   assert.match(route, /unrunnable_html/);
   assert.match(route, /!structurallyCompletePersistableHtml\(baseHtml\)/);
+  assert.ok(
+    route.indexOf("ensureGeneratedHtmlDependencies(extractHtml(rawContent))")
+      < route.indexOf("findUnrunnableReferences(html)"),
+    "known missing dependencies must be repaired before the fail-closed verdict",
+  );
   assert.ok(
     route.indexOf("findUnrunnableReferences(html)") < route.indexOf("persistBuild(req, buildRecord)"),
     "runnability must be checked before the persistence call",
