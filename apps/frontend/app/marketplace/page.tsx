@@ -3,6 +3,7 @@ import { PageHeader, Badge, StatusDot } from "../../components/ui";
 import { SKILLS, MODELS, AGENTS, MCP_TOOLS } from "../../lib/platform";
 import { fetchProviders } from "../../lib/agentApi";
 import { MarketplaceActionPanel, MarketplaceCardGrid } from "../../components/goal-b-actions";
+import { providerStatusTone } from "../../lib/providerStatus";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Marktplatz — Cloud Superbrain" };
@@ -67,10 +68,10 @@ export default async function MarketplacePage() {
           <div className="readiness mb-16">
             {readiness!.providers.map((p) => (
               <div key={p.id} className="rd-row">
-                <StatusDot tone={/verified|live/.test(p.status) ? "green" : /partial|configured/.test(p.status) ? "amber" : "violet"} pulse={p.liveVerified} />
+                <StatusDot tone={providerStatusTone(p.status)} pulse={p.liveVerified} />
                 <span className="rd-name">{p.label}</span>
                 <span className="rd-layers mono">{p.layers.map((l) => l.replace("layer_", "L")).join(" ")}</span>
-                <Badge tone={/verified|live/.test(p.status) ? "green" : "amber"}>{p.status.replace(/_/g, " ")}</Badge>
+                <Badge tone={providerStatusTone(p.status) === "green" ? "green" : "amber"}>{p.status.replace(/_/g, " ")}</Badge>
               </div>
             ))}
           </div>
