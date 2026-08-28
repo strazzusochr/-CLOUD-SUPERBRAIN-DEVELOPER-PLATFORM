@@ -398,10 +398,18 @@ test("real prompt builds, runs, interacts, and reloads the persisted 3D game", a
     await canvas.click();
     await page.waitForTimeout(350);
     const afterClickPixels = await pixelProbe(page, canvas);
-    await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("ArrowUp");
-    await page.keyboard.press("Space");
-    await page.waitForTimeout(700);
+    // Generated games commonly poll held-key state from requestAnimationFrame.
+    // A synthetic press can complete keydown+keyup between two frames and falsely
+    // report a valid control loop as inert, so exercise each control as a real hold.
+    for (const key of ["ArrowRight", "ArrowUp", "Space"]) {
+      await page.keyboard.down(key);
+      try {
+        await page.waitForTimeout(250);
+      } finally {
+        await page.keyboard.up(key);
+      }
+    }
+    await page.waitForTimeout(350);
     const afterState = await visibleState(frame);
     const afterKeyboardPixels = await pixelProbe(page, canvas);
     const clickPixelChanged = beforePixels.pngSha256 !== afterClickPixels.pngSha256;
