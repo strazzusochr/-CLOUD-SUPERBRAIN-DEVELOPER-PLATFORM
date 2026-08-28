@@ -34,7 +34,98 @@ erklärst was zu tun ist, und **wartest**:
 
 ---
 
-## 1 · BESTANDSAUFNAHME ZUERST — nur lesen, nichts ändern
+## 1 · BESTANDSAUFNAHME — 11 von 13 Punkten sind BEREITS GEMESSEN
+
+> **Frag nicht nochmal danach.** Diese Werte wurden am 2026-08-28 direkt über `gh`, die
+> Cloudflare-API, die Vercel-API, die HF-API und das Cloud-Inventar der Plattform erhoben.
+> **Alle 8 Cloud-Provider sind abgedeckt.** Nur **Punkt 1 und 10** fehlen — die sind
+> tatsächlich nur im Browser sichtbar. Fang mit denen an, dann geh sofort zu B1 und V4.
+
+| # | Punkt | **Gemessener Ist-Zustand** |
+|---|---|---|
+| 1 | GitHub OAuth Apps | ⬜ **DU MUSST NACHSEHEN** — über die API nicht listbar |
+| 2 | GitHub Environments | ✅ gemessen: **5 Vercel-Auto-Environments** (`Preview`, `Preview – cloud-superbrain-developer-platform`, `Preview – frontend`, `Production – cloud-superbrain-developer-platform`, `Production – frontend`). **`registry-publication` fehlt. `production` (klein) fehlt. KEINES hat protection_rules.** |
+| 3 | Branch Protection | ✅ Default-Branch = `chore/repo-bootstrap`, **geschützt**: `required_reviews=true`, `status_checks=true`, `enforce_admins=false` |
+| 4 | GHCR-Pakete | ⚠️ **nicht listbar — HTTP 403**: *„You need at least read:packages scope"* |
+| 5 | Personal Access Token | ✅ **aktiv**, Konto `strazzusochr`, Scopes: `gist, read:org, repo, workflow`. Rate-Limit **4996/5000** — nicht limitiert. **`read:packages` / `write:packages` FEHLEN.** |
+| 6 | Cloudflare Workers | ✅ **2 Worker**: `cloud-superbrain-stateful-runtime` (HTTP 200) und `cloud-superbrain-llm-gateway-preview` (HTTP 200). Beide zuletzt geändert **2026-08-26**. |
+| 7 | Worker-Variablen | ✅ teilweise: Health meldet `d1_binding_configured=true`, `write_auth_configured=true`, `auth_required_for_writes=true`. **Exakte Namensliste nur im Browser** |
+| 8 | Workers AI | ✅ **aktiv** — LLM-Gateway-Worker meldet `mode=cloudflare_workers_ai_live`, `status=healthy` |
+| 9 | Vercel Deployments | ✅ Projekt `frontend` (`prj_ZbSNRVz5ijLQ4tQR61liHFw1x5eY`). **Kein Schutz**: passwordProtection/ssoProtection/trustedIps alle **deaktiviert** -> öffentlich prüfbar. Beide Flächen **HTTP 200**. |
+| 10 | Vercel Env-Variablen | ⬜ **DU MUSST NACHSEHEN** — API-Abruf schlug fehl |
+
+### Die restlichen 3 der 8 Cloud-Provider — ebenfalls gemessen
+
+Die Plattform führt **8 Provider**. Die Punkte 1–10 decken GitHub, GHCR, Cloudflare und
+Vercel ab. Hier die fehlenden drei plus den stillgelegten:
+
+| # | Provider | Layer | **Gemessener Ist-Zustand** |
+|---|---|---|---|
+| 11 | **Hugging Face** | L4 · L7 | ✅ `status=verified`, `configured=true`, `live_verified=true`. `HF_TOKEN` **gesetzt**, `HF_PROFILE_URL` **fehlt**. Konto `Wrzzzrzr`, kein Pro. ⚠️ **OAuth-Credential läuft 2026-08-29 02:11 UTC ab** |
+| 12 | **GitLab** | L5 · L7 | 🔴 `status=action_required`, `configured=false`. **Alle drei Variablen fehlen**: `GITLAB_TOKEN`, `GITLAB_PROFILE_URL`, `GITLAB_API_URL` |
+| 13 | **Grafana Cloud** | L7 | ✅ `status=verified`, `live_verified=true`. `GRAFANA_CLOUD_API_KEY` **gesetzt**, `GRAFANA_CLOUD_URL` **fehlt** |
+| — | *Fly.io* | *keine* | ⬛ `historical_read_verified` — **stillgelegt**, „not an active runtime target". **Nichts tun.** Nicht reaktivieren, nicht als verifiziert zählen. |
+
+**Was daraus zu tun ist:**
+
+- **GitLab (12)** ist der einzige echte Ausfall: komplett unkonfiguriert und blockiert
+  L5 + L7. Frag den Owner, ob GitLab überhaupt gewollt ist. **Falls nein**, gehört der
+  Provider als `optional` markiert statt als `action_required` — sonst zieht er dauerhaft
+  eine Gate-Rotfärbung nach sich, die niemand schliessen will.
+- **`HF_PROFILE_URL` (11)** und **`GRAFANA_CLOUD_URL` (13)** fehlen. Beides sind
+  **keine Secrets**, sondern öffentliche URLs. Der Owner kann sie direkt eintragen.
+  `GRAFANA_CLOUD_URL` war in der Vergangenheit die Ursache eines HTTP-503 an der
+  Observability-Fläche — also nicht ignorieren.
+- **Fly.io** nicht anfassen. Es zählt in keiner Layer-Zuordnung mit.
+
+---
+
+### 🔴 Der wichtigste Befund daraus — B1 ist damit im Kern gelöst
+
+Der Token hat die Scopes `gist, read:org, repo, workflow`. **Es fehlt `read:packages`.**
+Genau daran scheitert die Paket-Abfrage mit HTTP 403 — und das ist die naheliegendste
+Ursache für `github_actions = api_error` **und** für das blockierte GHCR-Gate.
+
+Der Token ist **nicht abgelaufen** und **nicht rate-limitiert**. Es fehlt nur eine
+Berechtigung.
+
+> **Das ist eine Owner-Entscheidung.** Du fügst **keinen** Scope hinzu und erstellst
+> **keinen** neuen Token. Zeig dem Owner die Stelle
+> (Settings -> Developer settings -> Personal access tokens -> Token -> Scopes) und
+> erkläre, dass `read:packages` fehlt. **Er entscheidet.**
+
+### 🔴 Zweiter Befund — die gehosteten Flächen laufen auf sehr altem Code
+
+| Fläche | deployte Quelle | Abstand |
+|---|---|---|
+| Cloudflare `stateful-runtime` | `d0674bfc` (RC14) | **67 Commits** hinter HEAD · 53 hinter RC20 |
+| Cloudflare `llm-gateway-preview` | `d0674bfc` (RC14) | **67 Commits** hinter HEAD |
+| Vercel Frontend | `67f41cec` | **252 Commits** hinter HEAD |
+| Vercel Backend-Origin | `21913f8c` | **254 Commits** hinter HEAD |
+
+**Alle vier müssen für V2 neu deployt werden** — auf den Kandidaten-SHA, den Codex meldet.
+
+---
+
+## 1b · WAS DU NOCH SELBST NACHSEHEN MUSST — nur diese zwei
+
+**Punkt 1 — OAuth Apps:**
+GitHub -> Profilbild -> Settings -> Developer settings -> **OAuth Apps**
+Melde: Existiert eine App? Name · Callback-URL · Scopes. Falls keine: sag das klar, dann
+ist V1 ein Neuanlegen.
+
+**Punkt 10 — Vercel Environment Variables:**
+Vercel -> Projekt `frontend` -> Settings -> **Environment Variables**
+Melde **nur die Namen**, niemals Werte. Achte besonders auf:
+`GITHUB_OAUTH_CLIENT_ID` · `GITHUB_OAUTH_CLIENT_SECRET` · `GITHUB_OAUTH_REDIRECT_URI` ·
+`JWT_SIGNING_SECRET` · `AGENT_API_AUTH_TOKEN`
+
+**Danach sofort weiter mit Aufgabe B1 und V4.** Die restlichen 11 Punkte sind erledigt.
+
+---
+
+<details>
+<summary>Ursprüngliche Prüfliste (nur noch Referenz)</summary>
 
 Öffne der Reihe nach und **melde den exakten Ist-Zustand**, bevor du irgendetwas anfasst:
 
@@ -51,8 +142,9 @@ erklärst was zu tun ist, und **wartest**:
 | 9 | Vercel -> **Projekt** | Deployments, Aliase, geschützt oder öffentlich? |
 | 10 | Vercel -> Settings -> **Environment Variables** | Welche Namen sind gesetzt? (nur Namen) |
 
-> **Berichte diese 10 Punkte als Tabelle, bevor du zu Abschnitt 2 gehst.**
-> Ohne diese Bestandsaufnahme weiss niemand, was schon da ist.
+</details>
+
+> Die Tabelle oben ist bereits ausgefuellt. Ergaenze nur Punkt 1 und 10.
 
 ---
 
