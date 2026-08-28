@@ -126,5 +126,58 @@ class GenerationBudgetTests(unittest.TestCase):
         )
 
 
+class GenerationTimeoutBudgetTests(unittest.TestCase):
+    """The time budget must grow outward, or a slow success is reported as an outage.
+
+    Observed 2026-08-28 immediately after the token ceiling was lifted: a richer app takes
+    longer to emit, and POST /api/v1/build answered HTTP 503
+    `configured_boundary_unavailable` after 53.8 s. Nothing was actually unavailable. The
+    build route aborted its own call to the gateway at 50 s while the gateway was still
+    waiting up to CF_WORKERS_AI_TIMEOUT_SECONDS (90 s) for the provider. The innermost hop
+    was allowed more time than the hop that awaits it, so the caller could never observe a
+    slow-but-successful generation - only a misleading boundary error.
+
+    Each hop outward must allow strictly more time than the hop it waits on.
+    """
+
+    def setUp(self) -> None:
+        self.route_source = (REPO_ROOT / "apps/frontend/app/api/v1/build/route.ts").read_text(encoding="utf-8")
+
+    def boundary_timeout_seconds(self) -> float:
+        # models: Array<[string, number]> = [[WORKBENCH_LLM_MODEL, 50000]]
+        match = re.search(r"models:\s*Array<\[string,\s*number\]>\s*=\s*\[\[[^,]+,\s*(\d+)\]\]", self.route_source)
+        self.assertIsNotNone(match, "the build route must declare an explicit gateway timeout")
+        return int(match.group(1)) / 1000
+
+    def max_duration_seconds(self) -> float:
+        match = re.search(r"export const maxDuration\s*=\s*(\d+)", self.route_source)
+        self.assertIsNotNone(match, "the build route must declare maxDuration")
+        return int(match.group(1))
+
+    def test_the_route_waits_longer_than_the_gateway_waits_for_the_provider(self) -> None:
+        self.assertGreater(
+            self.boundary_timeout_seconds(),
+            gateway.CF_WORKERS_AI_TIMEOUT_SECONDS,
+            "the route abandons the gateway mid-generation and reports a false outage",
+        )
+
+    def test_the_serverless_budget_outlasts_the_call_it_wraps(self) -> None:
+        self.assertGreater(
+            self.max_duration_seconds(),
+            self.boundary_timeout_seconds(),
+            "the function is killed before its own gateway call can time out cleanly",
+        )
+
+    def test_the_edge_proxy_outlasts_the_whole_request(self) -> None:
+        conf = (REPO_ROOT / "infrastructure/nginx/dev.conf").read_text(encoding="utf-8")
+        match = re.search(r"proxy_read_timeout\s+(\d+)s", conf)
+        self.assertIsNotNone(match, "the dev proxy must declare a read timeout")
+        self.assertGreaterEqual(
+            int(match.group(1)),
+            self.max_duration_seconds(),
+            "nginx closes the connection before the build route can answer",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
