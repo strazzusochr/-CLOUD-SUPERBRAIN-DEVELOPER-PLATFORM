@@ -29,6 +29,14 @@ HARD RULES:
   * MeshStandardMaterial (not MeshBasicMaterial) so lighting is visible, with distinct colours per object type,
   * more than a bare box: ground, several distinct objects, and visible depth,
   * renderer.setPixelRatio(Math.min(devicePixelRatio, 2)) and an animation loop driven by a clock delta.
+- A 3D scene must never be a black void, and must never be an empty sky. Give it a finished look:
+  * a coloured sky via scene.background, plus scene.fog whose colour EXACTLY matches that sky,
+  * a large ground that fills the lower half of the view: PlaneGeometry at least 200x200, rotated -Math.PI/2, receiveShadow, in a clearly visible colour,
+  * BRIGHT lighting - three.js r155+ uses physical light units, so a scene lit only by defaults renders almost black. Use DirectionalLight intensity 2.5-3.5 plus AmbientLight or HemisphereLight intensity 1.5-2.5, and verify every object reads as its own colour rather than as a dark silhouette,
+  * renderer.shadowMap.type = THREE.PCFSoftShadowMap,
+  * a considered palette of at least five distinct colours, with emissive on pickups so they glow,
+  * varied geometry - not every object a box; use spheres, cylinders, cones where they suit.
+- Do not enable tone mapping unless you also raise light intensities to match; a dark render is a failed render.
 - For a playable game also implement: keyboard state via keydown/keyup (never a single keypress branch), gravity and ground collision, collision or pickup detection, a visible score/HUD in the DOM, and a lose/win or reset path.`;
 
 const GPU_GUARD = `<script>(function(){var _r=window.requestAnimationFrame.bind(window),last=0;window.requestAnimationFrame=function(cb){return _r(function(t){if(document.hidden){window.requestAnimationFrame(cb);return;}if(t-last<15){window.requestAnimationFrame(cb);return;}last=t;cb(t);});};})();</script>`;
