@@ -132,6 +132,41 @@ korrekt. DEV-ONLY; hosted proof still blocked.
 
 ---
 
+## 🔴 ARBEITSBAUM STEHT MITTEN IN RC21 — `verify:phase5-credit` ist deshalb ROT
+
+Nachgeprueft am 2026-08-28: `docs/release-artifacts/current-release-candidate.json` ist
+**uncommitted** auf `prod-candidate-2026-08-28-local-rc21` (Quelle `88fc985a`) gesetzt.
+RC21 hat nur eine `.md` — **kein** `-evidence/`, **keine** `-readiness.json`.
+
+```
+[phase5-credit] C3 evidence #1 anchor is not present in the evidence artifact
+```
+
+Ursache exakt: C3-Evidenz #1 verlangt in genau dieser Datei den Anker
+`"active_release_id": "prod-candidate-2026-08-28-local-rc20"`. Der **committete** Stand
+(HEAD `88fc985a`) enthaelt ihn; der Arbeitsbaum nicht.
+
+> **Kein Defekt.** Entweder RC21 fertig binden oder den Zeiger bewusst auf RC20
+> zuruecknehmen — solange beides offen ist, bleibt der Verifier rot.
+> Die Datei ist **fremd-dirty**: nicht stagen, nicht zuruecksetzen ohne Absicht.
+
+## ⛔ FALLE: `PROJECT_STATE.md` niemals allein nachziehen
+
+`PROJECT_STATE.md` ist veraltet (nennt noch **RC14**, Stand `2026-08-27`), darf aber nicht
+einfach aktualisiert werden. Es steht in **beiden** Mengen — `RUNTIME_SOURCE_PATHS` und
+`QUALIFICATION_TRUTH_PATHS` — und der Uebergang prueft **exakte Mengengleichheit**
+(`verify_phase5_credit_itemization.py:1160`):
+
+```
+PROJECT_STATE.md · apps/frontend/lib/endpoint-snapshot.json
+apps/frontend/lib/platform.ts · docs/project-progress.manifest.json
+```
+
+Ein Einzel-Update ergibt eine 1-elementige Menge -> ungleich -> Kandidatenbindung bricht.
+**Also: vor dem naechsten Source-Freeze aktualisieren, oder alle vier gemeinsam.**
+
+---
+
 ## ⛔ DIE VIER OWNER-WÄNDE
 
 | Wand | öffnet | Art |

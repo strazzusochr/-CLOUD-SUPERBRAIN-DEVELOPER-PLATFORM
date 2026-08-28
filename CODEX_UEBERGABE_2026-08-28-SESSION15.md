@@ -169,12 +169,14 @@ MARKET_READY: false
 
 `current-release-candidate.json` zeigt auf `prod-candidate-2026-08-28-local-rc18`.
 Dieser Kandidat hat **kein** `-evidence/`-Verzeichnis und **keine** `-readiness.json`;
-die `.md` ist ein untracked 12-Zeilen-Stumpf mit `qualification_status: in-progress`.
+die `.md` ist ein untracked **13**-Zeilen-Stumpf mit `qualification_status: in-progress`.
 `verify:phase5-credit` stoppt folgerichtig an
 `C4 evidence #1 anchor is not present in the evidence artifact`.
 
 Das ist Codex' abgebrochener Lauf (Nutzungslimit), **kein neuer Defekt** — die Datei war
-bereits vor dieser Session dirty. Zusaetzlich liegt jetzt echter Runtime-Source-Drift darauf.
+bereits vor dieser Session dirty. Zusaetzlich liegt jetzt echter Runtime-Source-Drift darauf:
+`apps/frontend` und **`services/llm-gateway`** stehen namentlich in `RUNTIME_SOURCE_PATHS`
+(nicht `services/` pauschal), und beide wurden geaendert.
 
 > **RC18 nicht reparieren. RC19 auf dem neuen HEAD binden.**
 
@@ -195,7 +197,9 @@ failure  Phase 5 credit itemization
           outside the exact post-qualification truth transition"
 ```
 
-**10 Schritte gruen, Abbruch erst am letzten** — und zwar aus genau dem dokumentierten Grund:
+**10 Schritte gruen, dann Abbruch am 11. von 27** — danach wurden **14 Schritte uebersprungen**,
+darunter der Runnability-Guard, der OAuth-Kontrakt, der Secret-Scan und der Image-Build.
+**Die in dieser Session ergaenzten Tests sind in CI also nie gelaufen.** Grund des Abbruchs:
 Der aktive Kandidat ist RC18, und meine Aenderungen an `apps/frontend` und `services/` sind
 Runtime-Source-Drift dagegen. **Das System arbeitet korrekt.** Gruen wird das erst mit RC19.
 
@@ -216,17 +220,79 @@ Runtime-Source-Drift dagegen. **Das System arbeitet korrekt.** Gruen wird das er
 
 ---
 
-## 10. NAECHSTER SCHRITT
+## 10. WAS DANACH GESCHAH — RC19, RC20, und ein offener RC21
+
+Diese Uebergabe endete bei „RC19 faellig". Codex hat danach weitergearbeitet und beides
+geliefert; der Stand unten ist am 2026-08-28 nachgeprueft, nicht uebernommen.
+
+| Kandidat | Quelle | Status |
+|---|---|---|
+| **RC19** | `5062de35` (= der Quellstand dieser Session) | qualifiziert, CI `33193522336`, 27 Evidenzen |
+| **RC20** | `c29c738b` | qualifiziert, Control `6f9387c6`, CI `33200830176`, 27 Evidenzen — **committed aktiv** |
+| **RC21** | `88fc985a` | **in Arbeit, nicht qualifiziert** — nur `.md`, kein `-evidence/`, keine `-readiness.json` |
+
+RC20 haelt in der Abnahme ArrowRight/KeyD jetzt ueber mehrere `requestAnimationFrame`-Frames
+gedrueckt — eine **Harness**-Korrektur fuer Spiele, die Tastenzustand im Frame pollen.
+Das ist keine Optik-Umsetzung und keine visuelle Abnahme.
+
+### ⚠️ `npm run verify:phase5-credit` ist derzeit ROT — und das ist korrekt
 
 ```
-1. RC19 binden  (Quelle einfrieren -> 6 Images -> O4 zuletzt -> runtime
-                 -> dev-live -> browser -> Evidenz -> Kontroll-Commit -> CI -> P5-Credit)
-2. 22-Seiten-Test und Layer-Routing im Rahmen von verify:browser nachholen
-3. L4/L5-Rubrik vom Owner freigeben lassen -> erst dann Prozente
-4. GANZ ZULETZT: Organismus-Optik und der 3-Sterne-Look
+[phase5-credit] C3 evidence #1 anchor is not present in the evidence artifact
+```
+
+Ursache exakt belegt, nicht vermutet: C3-Evidenz #1 verlangt in
+`docs/release-artifacts/current-release-candidate.json` den Anker
+`"active_release_id": "prod-candidate-2026-08-28-local-rc20"`. Der **committete** Stand
+enthaelt genau das. Der **Arbeitsbaum** wurde von Codex auf `…-rc21` gesetzt (uncommitted,
+fremd-dirty), also fehlt der Anker.
+
+> **Das ist kein Defekt.** Der committete Stand ist konsistent; der Arbeitsbaum steht
+> mitten in RC21. Wer RC21 nicht fertigstellt, sieht dieses Rot dauerhaft.
+
+### ⛔ FALLE: `PROJECT_STATE.md` darf **nicht allein** aktualisiert werden
+
+`PROJECT_STATE.md` ist inhaltlich veraltet — es nennt noch **RC14** als aktiven Kandidaten
+und traegt `Letzte Aktualisierung: 2026-08-27`. Trotzdem darf man es jetzt **nicht** einfach
+nachziehen:
+
+`PROJECT_STATE.md` steht in **beiden** Mengen — `RUNTIME_SOURCE_PATHS` **und**
+`QUALIFICATION_TRUTH_PATHS`. Der erlaubte Nachqualifizierungs-Uebergang prueft mit
+**exakter Mengengleichheit**:
+
+```python
+require(changed_paths == QUALIFICATION_TRUTH_PATHS, ...)   # verify_phase5_credit_itemization.py:1160
+```
+
+Ein Update von `PROJECT_STATE.md` allein ergibt eine 1-elementige Menge und ist damit
+**ungleich** der geforderten Vierermenge:
+
+```
+PROJECT_STATE.md · apps/frontend/lib/endpoint-snapshot.json
+apps/frontend/lib/platform.ts · docs/project-progress.manifest.json
+```
+
+> **Regel:** `PROJECT_STATE.md` wird **vor** dem Einfrieren der naechsten Kandidatenquelle
+> aktualisiert — oder gemeinsam mit allen vier Truth-Pfaden als bewusster Uebergang.
+> Nachtraeglich allein nachziehen bricht die Kandidatenbindung.
+
+---
+
+## 11. NAECHSTER SCHRITT
+
+```
+1. RC21 auf 88fc985a fertig binden ODER den Zeiger bewusst auf RC20 zuruecknehmen
+   - solange beides offen ist, bleibt verify:phase5-credit rot
+2. PROJECT_STATE.md im Rahmen des Vierer-Truth-Uebergangs oder vor dem naechsten
+   Source-Freeze nachziehen (siehe Falle oben)
+3. Die in CI nie gelaufenen neuen Tests einmal in einem gruenen CI-Lauf sehen
+4. L4/L5-Rubrik vom Owner freigeben lassen -> erst dann Prozente
+5. GANZ ZULETZT: Organismus-Optik und der 3-Sterne-Look
 ```
 
 ---
 
-*Session 15 · 2026-08-28 · Quellstand `c0c57d3d` · Overall 89 · Gates 7/10 · `MARKET_READY:false`
+*Session 15 · 2026-08-28 · Quellstand dieser Session `c0c57d3d` (= RC19-Quelle `5062de35` nach
+den Doku-Commits) · committed aktiver Kandidat RC20 `c29c738b` · Overall 89 · Gates 7/10 ·
+`MARKET_READY:false`
 Ziel-Datei: `CODEX_ZIELVERFOLGUNG_KURZ.md` · Regeln: `REGELN_OPTIK_UND_FERTIG.md`*
