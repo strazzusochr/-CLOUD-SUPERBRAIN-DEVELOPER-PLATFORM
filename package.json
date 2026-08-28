@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
+    "lint": "npm run lint --prefix apps/frontend",
     "build": "npm install --prefix apps/frontend && npm run build --prefix apps/frontend",
     "verify": "powershell -ExecutionPolicy Bypass -File scripts\\verify-phase1.ps1",
     "verify:supply-chain-pins": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\verify-supply-chain-pins.ps1",

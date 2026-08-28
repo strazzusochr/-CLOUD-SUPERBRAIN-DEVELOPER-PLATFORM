@@ -96,7 +96,10 @@ export default function CortexLive(props: Props) {
   const [mode, setMode] = useState<"pending" | "2d" | "3d">("pending");
   const modeRef = useRef(mode);
   const readyFrameRef = useRef<number | null>(null);
-  modeRef.current = mode;
+
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setMode(detectMode(forceReducedMotion)));
