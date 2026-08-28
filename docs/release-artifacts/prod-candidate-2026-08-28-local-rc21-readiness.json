@@ -68,7 +68,7 @@
     "candidate_images": {
       "artifact": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc21-evidence/candidate-images.json",
       "sha256": "73CE6587C373F0E8CD06D16B33D998E6C303C9761D84F0DA7A598E8ADC9CC7E2",
-      "status": "verified",
+      "status": "passed",
       "success_anchors": [
         "[phase5-candidate-local] status=verified service_count=6"
       ],
@@ -80,7 +80,7 @@
     "candidate_runtime": {
       "artifact": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc21-evidence/candidate-runtime.json",
       "sha256": "C1D637FCDDB097F9A3CA2ABFA21F2068D910CBEE89C85AA7DFE5F2D6A9D854FB",
-      "status": "verified",
+      "status": "passed",
       "success_anchors": [
         "[phase5-candidate-local] api_contract_verified=true",
         "[phase5-candidate-local] local_image_identity_verified=true",
