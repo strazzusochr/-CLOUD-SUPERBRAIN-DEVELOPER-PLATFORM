@@ -262,8 +262,25 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\verify-o4-live-writes.ps1
 ```
 
 > **Kritisch:** O4 ist der **letzte** quellgebundene Schreib-/Browserbeweis.
-> **Jeder** Commit an `RUNTIME_SOURCE_PATHS` danach macht ihn stale und du musst
-> A5–A8 wiederholen.
+>
+> **Praezise Bedingung** (gemessen an `verify-o4-live-writes.ps1:371` und `:397`) — O4 bleibt
+> gueltig, solange **beides** gilt:
+> 1. der `source_commit` des Reports ist ein **Vorfahr von HEAD** (nicht: gleich HEAD), und
+> 2. diese neun Pfade sind **sauber**:
+>    `.dockerignore` · `apps/frontend` · `docker-compose.dev.yml` ·
+>    `infrastructure/nginx/dev.conf` · `services/agent-api` · `services/mcp-gateway` ·
+>    `scripts/start-dev-live.ps1` · `scripts/verify-o4-live-write-browser.cjs` ·
+>    `scripts/verify-o4-live-writes.ps1`
+>
+> **Daraus folgt:** Ein reiner **Doku-Commit nach O4 ist unschaedlich** — er macht den
+> Beweis nicht stale. Nur eine Aenderung an einem der neun Pfade zwingt zur Wiederholung
+> von A5–A8. (Eine frueher hier stehende Formulierung war zu streng.)
+>
+> ⚠️ **Haeufigste Ursache fuer ein rotes O4:** `apps/frontend/next-env.d.ts`. Next.js
+> schaltet die Zeile beim Build zwischen `./.next/dev/types/routes.d.ts` und
+> `./.next/types/routes.d.ts` um. Die Datei ist generiert („should not be edited") — nach
+> einem `npm run build` mit `git restore -- apps/frontend/next-env.d.ts` zuruecksetzen,
+> sonst blockiert sie den Sauberkeits-Guard.
 
 ## A9 · Evidenz binden, Kontroll-Commit, CI
 
