@@ -274,3 +274,5 @@ exit 0
 
 # Control commit marker: source-prequalification binding for source c29c738.
 # This attests the exact development source only; it does not select RC20 or promote a release.
+
+# rc21-source-prequalification-binding
