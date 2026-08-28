@@ -129,6 +129,16 @@ und `services/` stehen in `RUNTIME_SOURCE_PATHS`, und beide wurden geaendert.
 
 > **Konsequenz: RC18 ist nicht mehr rettbar. Es braucht RC19 auf dem neuen HEAD.**
 
+**CI bestaetigt das** (Run `33187389678` auf dem gepushten Stand): 10 Schritte gruen —
+inkl. `Forbid patched-plan drift in compose`, `Backend auth security unit contract` und
+`Phase 6 scale fail-closed static contracts` — Abbruch **erst** an
+`Phase 5 credit itemization` mit
+`active candidate has committed or staged runtime-source drift`.
+
+> **Falle beim Dispatch:** `-f source_prequalification=true` verlangt, dass `candidate_sha`
+> sich vom Control-SHA **unterscheidet**. Branch-Tip als beides = sofortiger Abbruch.
+> Fuer RC19 zuerst den Kontroll-Commit auf eigenem Branch, dann dispatchen.
+
 ---
 
 ## ⛔ DIE VIER OWNER-WÄNDE

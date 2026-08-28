@@ -178,6 +178,34 @@ bereits vor dieser Session dirty. Zusaetzlich liegt jetzt echter Runtime-Source-
 
 > **RC18 nicht reparieren. RC19 auf dem neuen HEAD binden.**
 
+### CI-Signal auf dem gepushten Stand — Run `33187389678`
+
+Nach dem Push habe ich `pr-check` auf dem Branch-Tip dispatcht. Ergebnis, exakt:
+
+```
+success  Checkout / Setup Node / Setup Python
+success  Bind run control to exact checked-out source
+success  Docker Compose config
+success  Forbid patched-plan drift in compose      <- validiert meine Compose-Aenderung
+success  Python syntax
+success  Backend auth security unit contract
+success  Phase 6 scale fail-closed static contracts
+failure  Phase 5 credit itemization
+         "active candidate has committed or staged runtime-source drift
+          outside the exact post-qualification truth transition"
+```
+
+**10 Schritte gruen, Abbruch erst am letzten** — und zwar aus genau dem dokumentierten Grund:
+Der aktive Kandidat ist RC18, und meine Aenderungen an `apps/frontend` und `services/` sind
+Runtime-Source-Drift dagegen. **Das System arbeitet korrekt.** Gruen wird das erst mit RC19.
+
+> Nebenbefund fuer den naechsten Lauf: `-f source_prequalification=true` verlangt, dass
+> `candidate_sha` sich vom Control-SHA **unterscheidet**. Mit dem Branch-Tip als beidem
+> bricht der Guard sofort ab (`source prequalification requires candidate_sha to differ`).
+> Fuer RC19 also erst den Kontroll-Commit auf einem eigenen Branch, dann dispatchen.
+
+---
+
 ### Fremd-dirty — nie anfassen
 
 `.codex/runs/CURRENT/product-acceptance/report.json` ·
