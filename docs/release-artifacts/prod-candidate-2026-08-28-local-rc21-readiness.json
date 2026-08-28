@@ -26,9 +26,9 @@
     "attestation": {
       "artifact": "docs/release-artifacts/prod-candidate-2026-08-28-local-rc21-evidence/ci-source-checkout-attestation.json",
       "sha256": "BB5323DF99B0337A8FA4F52ED30E15CEF7FF18642232A107ABE8F9AD3740FCD5",
-      "github_artifact_id": 9697753745,
-      "github_artifact_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/33217980790/artifacts/9697753745",
-      "github_artifact_digest": "sha256:8eab478fef49981d52a820c989909d85dd09474f7e8cb84329d5aac7e5120ded",
+      "github_artifact_id": 9704158577,
+      "github_artifact_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/33217980790/artifacts/9704158577",
+      "github_artifact_digest": "sha256:609762e619014e222b99083803c95e569b18eab7f456cf8b1ff0d0e8405956ec",
       "github_artifact_name": "pr-check-source-checkout-attestation-33217980790-1"
     },
     "github_readback": {
