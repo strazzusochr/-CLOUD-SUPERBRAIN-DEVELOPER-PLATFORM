@@ -1,4 +1,4 @@
-# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-08-28 · **RC19 qualifiziert**
+# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-08-28 · **RC20 qualifiziert**
 
 > **Dies ist die EINZIGE Arbeitsdatei.** Aufbau: Ziel → Owner-Entscheidung → Start → Befunde →
 > Wände → Reihenfolge → Regeln → **Anweisungen für Codex** → **Referenz** (Details, Test-Inventar,
@@ -98,7 +98,7 @@ ist ein fehlgeschlagenes Rendering*. Diese Zwischenversion ist verworfen.
 Overall 89   H: P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 89 · P6 90
              V: L1 100 · L2 100 · L3 100 · L4 55 · L5 56 · L6 100 · L7 100
 Gates 7/10 zu   offen: production_auth_identity · docker_registry_publish · phase6_scale_runtime
-Kandidat 5062de35 · Control 59b52fc4 · CI 33193522336 · Evidenz 27/27
+Kandidat c29c738b · Control 6f9387c6 · CI 33200830176 · Evidenz 27/27
 Branch codex/organism-visual-v2   MARKET_READY:false
 ```
 
@@ -113,14 +113,18 @@ docker ps                                      # Daemon lebt?
 
 ---
 
-## ✅ RC19-BINDUNG ABGESCHLOSSEN
+## ✅ RC20-BINDUNG ABGESCHLOSSEN
 
-`prod-candidate-2026-08-28-local-rc19` ist an Quelle
-`5062de35a5c033354ba81a988d699aad418347c3` gebunden. Sechs Images, Candidate Runtime,
+`prod-candidate-2026-08-28-local-rc20` ist an Quelle
+`c29c738b82e4e35cc1288bc603319cba60d167d2` gebunden. Sechs Images, Candidate Runtime,
 Runtime, Security, Browser `22/22` und `161/161`, O4 sowie GitHub Actions Run
-`33193522336` sind gruen. Die Source-Attestation bindet Control
-`59b52fc4093d351970db2cb8f613359b10048bac` als direkten Nachfahren und genau einen
+`33200830176` sind gruen. Die Source-Attestation bindet Control
+`6f9387c6d492151b9195e3afcbf5a031b094dd67` als direkten Nachfahren und genau einen
 zugelassenen Delta-Pfad. Das Evidenzset enthaelt exakt 27 Dateien.
+
+Der reale Produktbeweis haelt ArrowRight und KeyD jetzt ueber mehrere
+`requestAnimationFrame`-Frames gedrueckt und verlangt weiterhin eine messbare sichtbare
+Zustands- oder Pixelaenderung. RC19 `5062de35` ist der Rollback-Anker.
 
 `npm run verify:phase5-credit` ist gruen: `17/19 = 89%`, blockiert bleiben nur I1 und I5.
 `npm run verify:current-release-candidate` ist gruen, aber `promotion_eligible=false` bleibt
@@ -150,7 +154,7 @@ korrekt. DEV-ONLY; hosted proof still blocked.
 4. [ERLEDIGT] Runnability-Guard fuer generiertes HTML           (Codex 0cf451d0/bbc2ad48)
 5. [ERLEDIGT] R3F-Remount-Race /organism                        (Codex 048ba550)
 6. [ERLEDIGT] Generierungs-Deckel + Zeitbudget + 3D-Qualitaet   <- diese Session
-7. [ERLEDIGT] RC19 BINDEN
+7. [ERLEDIGT] RC20 BINDEN
      Quelle -> 6 Images -> O4 -> runtime -> dev-live -> browser
      -> 27 Evidenzen -> Kontroll-Commit -> CI -> P5-Credit
 8. Rubrik fuer L4/L5 vom Owner freigeben lassen  ->  erst DANN Prozente
@@ -211,7 +215,7 @@ gegen benannte Referenz ist keine Optik fertig) · **neu R-MEAS-1** (oben).
 ## 1. 🔴 DEIN NAECHSTER SCHRITT — Auswahl committen und final verifizieren
 
 ```
-1. Nur RC19-Auswahlpfade committen; den fremden RC12-Stage nicht mitnehmen
+1. Nur RC20-Auswahlpfade committen; den fremden RC12-Stage nicht mitnehmen
 2. npm run build
 3. npm run verify:runtime
 4. scripts/start-dev-live.ps1
@@ -257,9 +261,9 @@ Beides ist per Owner-Entscheidung **ganz am Ende**.
 |---|---|
 | Branch | `codex/organism-visual-v2` (Default `chore/repo-bootstrap`, **kein `main`**) |
 | Letzter Runtime-Source-Commit | `c0c57d3d` (Docs-Commits liegen darueber) |
-| **Kandidat RC19** | `5062de35a5c033354ba81a988d699aad418347c3` — **lokal qualifiziert** |
-| Rollback-Anker | RC17 `bbc2ad481352e8d9ee1e8e9fc010a5d3407d7b85` |
-| Letzte gruene CI | Run `33193522336` (Source-Attestation auf `5062de35`) |
+| **Kandidat RC20** | `c29c738b82e4e35cc1288bc603319cba60d167d2` — **lokal qualifiziert** |
+| Rollback-Anker | RC19 `5062de35a5c033354ba81a988d699aad418347c3` |
+| Letzte gruene CI | Run `33200830176` (Source-Attestation auf `c29c738b`) |
 | Overall | **89** · P3 44 · P5 89 · P6 90 · L4 55 · L5 56 |
 | Gates | **7/10 zu**; offen: `production_auth_identity`, `docker_registry_publish`, `phase6_scale_runtime` |
 
