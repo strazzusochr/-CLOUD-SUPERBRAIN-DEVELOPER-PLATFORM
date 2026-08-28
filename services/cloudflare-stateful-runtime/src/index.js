@@ -153,6 +153,32 @@ function containsSecretMaterial(value) {
   return false;
 }
 
+function containsKnownUnrunnableHtmlReference(html) {
+  const executableMarkup = String(html).replace(/<!--[\s\S]*?-->/g, "");
+  const hasThreeImportMap = [...executableMarkup.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
+    .some(([, attributes, body]) => {
+      const typeMatch = attributes.match(/\btype\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s"'=<>`]+))/i);
+      const scriptType = String(typeMatch?.[1] ?? typeMatch?.[2] ?? typeMatch?.[3] ?? "").toLowerCase();
+      if (scriptType !== "importmap") return false;
+      try {
+        const parsed = JSON.parse(body);
+        return typeof parsed?.imports?.three === "string" && parsed.imports.three.trim().length > 0;
+      } catch {
+        return false;
+      }
+    });
+  for (const match of executableMarkup.matchAll(/<script\b([^>]*)>/gi)) {
+    const attributes = match[1];
+    const typeMatch = attributes.match(/\btype\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s"'=<>`]+))/i);
+    const scriptType = String(typeMatch?.[1] ?? typeMatch?.[2] ?? typeMatch?.[3] ?? "").toLowerCase();
+    const srcMatch = attributes.match(/\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s"'=<>`]+))/i);
+    const src = srcMatch?.[1] ?? srcMatch?.[2] ?? srcMatch?.[3] ?? "";
+    if (/\/three(?:@[^/]*)?\/examples\/js\//i.test(src)) return true;
+    if (!(scriptType === "module" && hasThreeImportMap) && /\/three(?:@[^/]*)?\/examples\/jsm\//i.test(src)) return true;
+  }
+  return false;
+}
+
 function redactText(value) {
   let redacted = String(value);
   for (const [source, flags] of SECRET_PATTERN_SOURCES) {
@@ -911,6 +937,7 @@ async function createBuild(request, env, requestId) {
     if (htmlBytes > MAX_HTML_BYTES || !/^\s*<!doctype html/i.test(html) || !/<\/html>\s*$/i.test(html)) {
       throw new Error("invalid_html");
     }
+    if (containsKnownUnrunnableHtmlReference(html)) throw new Error("invalid_html_runnability");
     const gatewayMode = textField(body.gateway_mode ?? "unknown", "gateway_mode", 1, 80);
     const gatewayProvider = textField(body.gateway_provider ?? "unknown", "gateway_provider", 1, 80);
     const liveProviderCalls = body.live_provider_calls === true ? 1 : 0;

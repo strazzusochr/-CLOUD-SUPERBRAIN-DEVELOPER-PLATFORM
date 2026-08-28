@@ -677,6 +677,44 @@ test("known secret forms are rejected before build persistence and never echoed"
   assert.equal(fakeEnv.DB.audit.length, 0);
 });
 
+test("known-dead three.js addon references are rejected before build persistence", async () => {
+  const fakeEnv = env();
+  const response = await worker.fetch(writeRequest("/api/v1/builds", {
+    ...validBuild,
+    id: "build_unrunnable_rejected",
+    html: '<!doctype html><html><body><script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script></body></html>',
+  }), fakeEnv);
+  const body = await response.json();
+  assert.equal(response.status, 400);
+  assert.equal(body.error, "invalid_html_runnability");
+  assert.equal(body.persisted, false);
+  assert.equal(body.secret_output, false);
+  assert.equal(fakeEnv.DB.builds.size, 0);
+  assert.equal(fakeEnv.DB.audit.length, 0);
+
+  const moduleWithoutMapEnv = env();
+  const moduleWithoutMap = await worker.fetch(writeRequest("/api/v1/builds", {
+    ...validBuild,
+    id: "build_module_without_map_rejected",
+    html: '<!doctype html><html><body><script type=module src=https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js></script></body></html>',
+  }), moduleWithoutMapEnv);
+  assert.equal(moduleWithoutMap.status, 400);
+  assert.equal((await moduleWithoutMap.json()).error, "invalid_html_runnability");
+  assert.equal(moduleWithoutMapEnv.DB.builds.size, 0);
+  assert.equal(moduleWithoutMapEnv.DB.audit.length, 0);
+
+  const moduleWithMapEnv = env();
+  const moduleWithMap = await worker.fetch(writeRequest("/api/v1/builds", {
+    ...validBuild,
+    id: "build_module_with_map_allowed",
+    html: '<!doctype html><html><body><script type=importmap>{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script><script type=module src=https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js></script></body></html>',
+  }), moduleWithMapEnv);
+  assert.equal(moduleWithMap.status, 201);
+  assert.equal((await moduleWithMap.json()).persisted, true);
+  assert.equal(moduleWithMapEnv.DB.builds.size, 1);
+  assert.equal(moduleWithMapEnv.DB.audit.length, 1);
+});
+
 test("public build reads redact legacy titles and never expose raw prompts", async () => {
   const fakeEnv = env();
   const fakeSecret = ["ghp", "unitfixture0000000000000000"].join("_");

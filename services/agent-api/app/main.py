@@ -17,6 +17,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -10216,6 +10217,64 @@ def _build_registry_secret_present(*values: str) -> bool:
     return any(redact_text(value) != value for value in values)
 
 
+class _BuildHtmlScriptParser(HTMLParser):
+    _removed_three_addon = re.compile(r"/three(?:@[^/]*)?/examples/js/", re.IGNORECASE)
+    _module_three_addon = re.compile(r"/three(?:@[^/]*)?/examples/jsm/", re.IGNORECASE)
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.unrunnable_reference = False
+        self.module_addon_reference = False
+        self.three_import_map = False
+        self._inside_import_map = False
+        self._import_map_chunks: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.lower() != "script" or self.unrunnable_reference:
+            return
+        values = {key.lower(): (value or "") for key, value in attrs}
+        script_type = values.get("type", "").lower()
+        self._inside_import_map = script_type == "importmap"
+        self._import_map_chunks = []
+        src = values.get("src", "")
+        if self._removed_three_addon.search(src):
+            self.unrunnable_reference = True
+            return
+        if self._module_three_addon.search(src):
+            if script_type != "module":
+                self.unrunnable_reference = True
+            else:
+                self.module_addon_reference = True
+
+    def handle_data(self, data: str) -> None:
+        if self._inside_import_map:
+            self._import_map_chunks.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() == "script":
+            if self._inside_import_map:
+                try:
+                    parsed = json.loads("".join(self._import_map_chunks))
+                    imports = parsed.get("imports", {}) if isinstance(parsed, dict) else {}
+                    mapping = imports.get("three", "") if isinstance(imports, dict) else ""
+                    self.three_import_map = self.three_import_map or (
+                        isinstance(mapping, str) and bool(mapping.strip())
+                    )
+                except (TypeError, ValueError):
+                    pass
+            self._inside_import_map = False
+            self._import_map_chunks = []
+
+
+def _build_registry_html_is_runnable(html: str) -> bool:
+    parser = _BuildHtmlScriptParser()
+    parser.feed(html)
+    parser.close()
+    return not parser.unrunnable_reference and not (
+        parser.module_addon_reference and not parser.three_import_map
+    )
+
+
 def _build_registry_authenticated(supplied_token: str | None) -> bool:
     expected_token = os.getenv("AGENT_API_AUTH_TOKEN", "")
     return bool(
@@ -10275,6 +10334,8 @@ def create_build_registry_entry(
         raise HTTPException(status_code=413, detail="build html too large")
     if not re.match(r"^\s*<!doctype html", html, re.IGNORECASE) or not re.search(r"</html>\s*$", html, re.IGNORECASE):
         raise HTTPException(status_code=400, detail="invalid build html")
+    if not _build_registry_html_is_runnable(html):
+        raise HTTPException(status_code=400, detail="unrunnable build html")
     if _build_registry_secret_present(title, prompt, model, html, gateway_mode, gateway_provider):
         raise HTTPException(status_code=400, detail="build secret material rejected")
 

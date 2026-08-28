@@ -4,6 +4,7 @@
 // frontend never calls a provider or persistence service directly.
 
 import { authorizeBoundaryWrite, boundaryUnavailable, proxyToBoundary } from "../../../../lib/frontendBoundary";
+import { findUnrunnableReferences, isRunnableGeneratedHtml } from "../../../../lib/generatedHtml";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -14,6 +15,7 @@ HARD RULES:
 - Output ONLY the HTML document. Start with <!doctype html>. No markdown fences, no prose, no explanation.
 - Inline ALL CSS in a <style> tag and ALL JavaScript in <script> tags. No build step.
 - Allowed external resources: CDN scripts only (e.g. https://unpkg.com/three@0.160.0/build/three.min.js for 3D, using the global THREE). No other network calls, no API keys, no backend.
+- Never use three.js examples/js paths (removed in r150). Load addons only from examples/jsm inside type="module", or stay with core THREE globals.
 - It MUST run immediately when opened in a browser. Make it actually work and look polished (dark, modern UI).
 - For games/animations: use requestAnimationFrame, keep it performant, and stop the loop when document.hidden.
 - Keep it focused and COMPLETE within ~300 lines, and ALWAYS finish the document with </body></html>. Never cut off mid-tag.`;
@@ -40,10 +42,14 @@ function containsSecretMaterial(value: string): boolean {
   return SECRET_PATTERNS.some((pattern) => pattern.test(value));
 }
 
-function completePersistableHtml(value: string): boolean {
+function structurallyCompletePersistableHtml(value: string): boolean {
   return new TextEncoder().encode(value).byteLength <= MAX_PERSISTED_HTML_BYTES
     && /^\s*<!doctype html/i.test(value)
     && /<\/html>\s*$/i.test(value);
+}
+
+function completePersistableHtml(value: string): boolean {
+  return structurallyCompletePersistableHtml(value) && isRunnableGeneratedHtml(value);
 }
 
 function extractHtml(raw: string): string {
@@ -64,7 +70,8 @@ Apply ONLY the requested change and return the COMPLETE updated HTML document.
 HARD RULES:
 - Output ONLY the full HTML document. Start with <!doctype html>, finish with </body></html>. No markdown, no prose.
 - Keep everything that already works; change only what the request asks for.
-- Same constraints: inline CSS/JS, CDN scripts only (e.g. three.min.js global THREE), no backend, must run immediately, dark modern UI.`;
+- Same constraints: inline CSS/JS, CDN scripts only (e.g. three.min.js global THREE), no backend, must run immediately, dark modern UI.
+- Never use three.js examples/js paths (removed in r150). Load addons only from examples/jsm inside type="module", or stay with core THREE globals.`;
 
 type GeneratedBuild = {
   html: string;
@@ -131,13 +138,16 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
       const choices = out.choices as Array<{ message?: { content?: string } }> | undefined;
       const rawContent = choices?.[0]?.message?.content ?? "";
       const html = extractHtml(rawContent);
+      const unrunnableReferences = findUnrunnableReferences(html);
       // A 200 whose body fails these two gates used to fall straight through to the next
       // attempt without recording anything, so lastErr stayed undefined and the caller saw the
       // bare "generation failed" with no way to tell an incomplete document from a rejected one.
       // Only the verdict and the sizes are captured — never the document, which is exactly the
       // material containsSecretMaterial exists to guard.
-      if (!completePersistableHtml(html)) {
+      if (!structurallyCompletePersistableHtml(html)) {
         lastRejection = `incomplete_html (raw ${rawContent.length} chars, extracted ${html.length} chars)`;
+      } else if (unrunnableReferences.length > 0) {
+        lastRejection = `unrunnable_html (${unrunnableReferences.join("; ")})`;
       } else if (containsSecretMaterial(html)) {
         lastRejection = `secret_material_in_generated_html (${html.length} chars)`;
       }
@@ -216,7 +226,9 @@ export async function POST(req: Request): Promise<Response> {
       { status: 400, headers: { "cache-control": "no-store" } },
     );
   }
-  if (baseHtml !== undefined && (baseHtml.length > MAX_BASE_HTML_CHARS || !completePersistableHtml(baseHtml) || containsSecretMaterial(baseHtml))) {
+  // A previously persisted broken build must remain repairable. Only the newly generated output
+  // is subject to the runnability guard; the repair input is bounded, structural, and secret-safe.
+  if (baseHtml !== undefined && (baseHtml.length > MAX_BASE_HTML_CHARS || !structurallyCompletePersistableHtml(baseHtml) || containsSecretMaterial(baseHtml))) {
     return Response.json(
       { status: "bad_request", error: "base_html_rejected", accepted: false, persisted: false, secret_output: false },
       { status: 400, headers: { "cache-control": "no-store" } },

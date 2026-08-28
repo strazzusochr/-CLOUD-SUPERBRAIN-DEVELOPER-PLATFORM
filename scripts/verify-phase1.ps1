@@ -1811,6 +1811,12 @@ foreach ($forbidden in @("fetchMasterPlan", "Master Plan (live)", "Dispatch endp
     throw "Workbench must not surface project-plan dashboard elements: $forbidden"
   }
 }
+Write-Host "[verify] generated HTML runnability guard"
+if (-not (Test-Path "apps\frontend\tests\generated-html-runnability.test.mjs")) {
+  throw "Missing generated HTML runnability regression tests"
+}
+node --test apps/frontend/tests/generated-html-runnability.test.mjs
+Assert-LastExitCode "generated HTML runnability guard"
 foreach ($required in @(
   "CSP_REPORT_CONTRACT_VERSION",
   "CSP_REPORT_EVIDENCE_REF",

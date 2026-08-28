@@ -188,6 +188,57 @@ class BuildRegistryTests(unittest.TestCase):
         self.assertNotIn(fixture_secret, str(raised.exception.detail))
         connect.assert_not_called()
 
+    def test_known_dead_three_addons_are_rejected_before_database_access(self) -> None:
+        request = valid_request(
+            html=(
+                '<!doctype html><html><body><script '
+                'src="https://unpkg.com/three@0.160.0/examples/js/postprocessing/EffectComposer.js">'
+                '</script></body></html>'
+            )
+        )
+        with (
+            patch.dict(os.environ, {"AGENT_API_AUTH_TOKEN": TEST_AGENT_TOKEN}),
+            patch.object(main.psycopg, "connect") as connect,
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                main.create_build_registry_entry(request, self.http_request, TEST_AGENT_TOKEN)
+
+        self.assertEqual(raised.exception.status_code, 400)
+        self.assertEqual(raised.exception.detail, "unrunnable build html")
+        connect.assert_not_called()
+
+        module_request = valid_request(
+            html=(
+                '<!doctype html><html><body><script type=module '
+                'src=https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js>'
+                '</script></body></html>'
+            )
+        )
+        with (
+            patch.dict(os.environ, {"AGENT_API_AUTH_TOKEN": TEST_AGENT_TOKEN}),
+            patch.object(main.psycopg, "connect") as module_connect,
+        ):
+            with self.assertRaises(HTTPException) as module_raised:
+                main.create_build_registry_entry(module_request, self.http_request, TEST_AGENT_TOKEN)
+
+        self.assertEqual(module_raised.exception.status_code, 400)
+        self.assertEqual(module_raised.exception.detail, "unrunnable build html")
+        module_connect.assert_not_called()
+
+    def test_module_addon_and_commented_legacy_reference_remain_allowed(self) -> None:
+        request = valid_request(
+            html=(
+                '<!doctype html><html><body>'
+                '<!-- <script src="https://unpkg.com/three/examples/js/controls/OrbitControls.js"></script> -->'
+                '<script type=importmap>{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>'
+                '<script type=module src=https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js></script>'
+                '</body></html>'
+            )
+        )
+        result = self.create(request)
+        self.assertEqual(result["html"], request.html)
+        self.assertTrue(result["persisted"])
+
     def test_audit_failure_rolls_back_build_and_returns_no_internal_error(self) -> None:
         sentinel = "postgresql://private-user:private-password@db.internal/superbrain"
         self.connection = FakeConnection(fail_audit=True)

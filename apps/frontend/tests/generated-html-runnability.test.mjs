@@ -21,10 +21,12 @@ const source = fs.readFileSync(new URL("../lib/generatedHtml.ts", import.meta.ur
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-const sandbox = { exports: {}, module: { exports: {} }, require: module.createRequire(import.meta.url) };
-sandbox.module.exports = sandbox.exports;
-vm.runInNewContext(compiled, sandbox);
-const { findUnrunnableReferences, isRunnableGeneratedHtml } = sandbox.module.exports;
+// Evaluated in this realm on purpose: a new vm context would hand back arrays from a different
+// realm, and deepEqual would then reject two structurally identical empty arrays.
+const load = vm.runInThisContext(`(function (exports, module, require) { ${compiled}\n})`);
+const moduleShim = { exports: {} };
+load(moduleShim.exports, moduleShim, module.createRequire(import.meta.url));
+const { findUnrunnableReferences, isRunnableGeneratedHtml } = moduleShim.exports;
 
 const DOC = (body) => `<!doctype html><html><head></head><body>${body}</body></html>`;
 
@@ -67,6 +69,51 @@ test("examples/jsm inside a module script or an import map stays allowed", () =>
   assert.equal(isRunnableGeneratedHtml(importMap), true);
 });
 
+test("unquoted and unversioned classic addon URLs cannot bypass the guard", () => {
+  const html = DOC(
+    '<script src=https://unpkg.com/three/examples/js/controls/OrbitControls.js></script>'
+    + '<script src=https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js></script>',
+  );
+  assert.equal(findUnrunnableReferences(html).length, 2);
+  assert.equal(isRunnableGeneratedHtml(html), false);
+});
+
+test("a module tag cannot revive the removed examples/js directory", () => {
+  const html = DOC(
+    '<script type=module src=https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js></script>',
+  );
+  assert.equal(isRunnableGeneratedHtml(html), false);
+});
+
+test("an external examples/jsm module needs a three import map", () => {
+  const withoutMap = DOC(
+    '<script type=module src=https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js></script>',
+  );
+  assert.equal(isRunnableGeneratedHtml(withoutMap), false);
+
+  const withMap = DOC(
+    '<script type=importmap>{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>'
+    + '<script type=module src=https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js></script>',
+  );
+  assert.equal(isRunnableGeneratedHtml(withMap), true);
+
+  const withInvalidMap = DOC(
+    '<script type=importmap>{"imports":{"three":}}</script>'
+    + '<script type=module src=https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js></script>',
+  );
+  assert.equal(isRunnableGeneratedHtml(withInvalidMap), false);
+});
+
+test("commented legacy snippets are not treated as executable references", () => {
+  const html = DOC(
+    '<!-- <script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script> -->'
+    + '<script type=importmap>{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>'
+    + '<script type=module src=https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js></script>',
+  );
+  assert.deepEqual(findUnrunnableReferences(html), []);
+  assert.equal(isRunnableGeneratedHtml(html), true);
+});
+
 test("a core-only three.js document is accepted", () => {
   const html = DOC(
     '<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>'
@@ -84,4 +131,16 @@ test("the rejection reason names the offending URL so the boundary can report it
   const html = DOC('<script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>');
   const [reason] = findUnrunnableReferences(html);
   assert.ok(reason.includes("OrbitControls.js"), `reason should name the file, got ${reason}`);
+});
+
+test("the production build route applies the runnability guard before persistence", () => {
+  const route = fs.readFileSync(new URL("../app/api/v1/build/route.ts", import.meta.url), "utf8");
+  assert.match(route, /import \{ findUnrunnableReferences, isRunnableGeneratedHtml \}/);
+  assert.match(route, /isRunnableGeneratedHtml\(value\)/);
+  assert.match(route, /unrunnable_html/);
+  assert.match(route, /!structurallyCompletePersistableHtml\(baseHtml\)/);
+  assert.ok(
+    route.indexOf("findUnrunnableReferences(html)") < route.indexOf("persistBuild(req, buildRecord)"),
+    "runnability must be checked before the persistence call",
+  );
 });

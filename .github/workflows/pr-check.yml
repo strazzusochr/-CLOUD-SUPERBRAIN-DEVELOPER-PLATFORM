@@ -233,6 +233,7 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check -r services/agent-api/requirements.txt
           python -m unittest discover -s services/agent-api/tests -p test_auth_security.py -v
+          python -m unittest discover -s services/agent-api/tests -p test_build_registry.py -v
 
       - name: Phase 6 scale fail-closed static contracts
         shell: pwsh
@@ -278,6 +279,9 @@ jobs:
       - name: Frontend install
         working-directory: apps/frontend
         run: npm ci
+
+      - name: Generated HTML runnability guard
+        run: node --test apps/frontend/tests/generated-html-runnability.test.mjs
 
       - name: Frontend audit
         working-directory: apps/frontend
