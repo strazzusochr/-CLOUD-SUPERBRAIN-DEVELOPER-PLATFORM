@@ -171,6 +171,70 @@ Ein Einzel-Update ergibt eine 1-elementige Menge -> ungleich -> Kandidatenbindun
 
 ---
 
+## 🔎 DREI BEFUNDE AUS DEM ABGEBROCHENEN PRUEF-WORKFLOW — heute nachgemessen
+
+Ein frueherer Workflow starb im Session-Limit (`messen 4/5`, `pruefen 2/12`), aber **6 Agenten
+liefen durch**. Ihre Ergebnisse standen nirgends. Ich habe sie geborgen und **jeden Befund am
+heutigen HEAD neu gemessen**, statt ihn zu uebernehmen.
+
+### A · LLM-Gateway hat KEINE Aufrufer-Authentifizierung
+
+Zwei unabhaengige Pruefer konnten das nicht widerlegen (`refuted: false`, „if anything
+understated"). Heute erneut gemessen:
+
+| Geprueft | Ergebnis |
+|---|---|
+| `add_middleware` / `Depends(` / `HTTPBearer` / `APIKeyHeader` / `Security(` / `@app.middleware` | **alle 0** in `services/llm-gateway/app/main.py` |
+| `infrastructure/nginx/dev.conf:119-131` | `proxy_set_header Authorization ""` **und** `Cookie ""` |
+| anonymer `GET /llm/v1/models` (ohne jeden Header) | **HTTP 200**, 148 Modelle, `live_verified: true` |
+| Tokenwert im Body | **nein** — kein Secret-Output |
+
+Der Dienst kann eine Aufrufer-Identitaet **prinzipiell nicht lesen**. Ein unauthentifizierter
+lokaler Aufrufer loest damit einen **authentifizierten Upstream-Call auf dem Owner-Token** aus.
+
+> **Korrektur am Agenten-Befund:** Er meldete
+> `external_provider_calls_disabled_by_default:false`. **Heute ist es `true`**, Modus
+> `deterministic_dry_run`, `LLM_LIVE_PROVIDER_DEFAULT=false`. Die Schwere haengt am Gate:
+> **Read-Calls** sind immer anonym ausloesbar; **generative Calls** nur, solange DEV-LIVE
+> laeuft — dann aber ebenfalls ohne jede Aufrufer-Identitaet.
+>
+> Scope: `localhost:8081`, DEV-ONLY. Nicht aus dem Internet erreichbar.
+
+### B · Die 161/161-Aktionsmatrix ist **kein** Beweis fuer echte Backend-Calls
+
+`apps/frontend/lib/actionMatrix.ts` hat **kein `endpoint`-Feld** (heute geprueft: FEHLT).
+Die Matrix kann deshalb gar nicht die Autoritaet dafuer sein, ob eine Aktion das Backend
+erreicht. Der Agent hat die Endpunkte aus den Komponenten hergeleitet und gemessen:
+
+```
+161 aktivierte Aktionen  ->  21 (13 %) machen einen Backend-Request
+                             28 sind Navigation
+                            112 sind reiner lokaler State / Browser-API
+```
+
+**`161/161 gruen` heisst also „161 Aktionen loesen einen sichtbaren Effekt aus" — nicht
+„161 Aktionen laufen ueber die Layer".** Das ist die ehrliche Lesart (R-VIS-1-Geist).
+
+### C · Kein Layer laeuft ueber die Cloud — die Hosted-Flaechen sind weit zurueck
+
+`infrastructure/nginx/dev.conf:8-11` definiert **alle vier Upstreams als Container-DNS**
+(`frontend:3000`, `agent-api:8000`, `mcp-gateway:9000`, `llm-gateway:4000`) — **null hosted
+Upstreams**. L1–L7 laufen local-docker-only. Der einzige Ausgang nach draussen ist der
+Provider-Call des LLM-Gateways zu Cloudflare Workers AI.
+
+Die Hosted-Flaechen tragen alten Code — heute nachgerechnet, **schlechter als vom Agenten
+gemessen**, weil HEAD weitergelaufen ist:
+
+| Flaeche | Quelle | Abstand zu HEAD |
+|---|---|---|
+| Vercel Frontend | `67f41cec` | **252 Commits** zurueck (Agent mass 229) |
+| Vercel Backend Contract Origin | `21913f8c` | **254 Commits** zurueck (Agent mass 231) |
+
+> **Antwort auf „laufen alle Layer ueber die Clouds?" — Nein.** Sie laufen lokal; die
+> gehosteten Flaechen zeigen einen mehrere hundert Commits alten Stand.
+
+---
+
 ## ⛔ DIE VIER OWNER-WÄNDE
 
 | Wand | öffnet | Art |
