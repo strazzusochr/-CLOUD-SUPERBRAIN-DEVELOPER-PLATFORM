@@ -537,3 +537,74 @@ Ein echter Defekt wurde inzwischen gefunden und behoben: der **R3F-Remount-Race*
 (`connect(null)`) beim Moduswechsel — Commit `048ba550`.
 
 **Per Owner-Entscheidung: ganz zuletzt.**
+
+---
+
+# 🔚 WAS ZULETZT NOCH OFFEN IST — die Restliste
+
+Alles hier ist **gemessen**, nicht vermutet. Reihenfolge = Bearbeitungsreihenfolge.
+
+## 1 · RC21 fertig binden — blockiert alles andere
+
+`current-release-candidate.json` steht **uncommitted** auf RC21 (Quelle `88fc985a`), aber
+RC21 hat nur eine `.md` — kein `-evidence/`, keine `-readiness.json`. Deshalb ist
+`verify:phase5-credit` rot (`C3 evidence #1 anchor …`).
+
+**Zurueck auf RC20 geht nicht:** Lint-Fix `88fc985a` aenderte `CortexLive.tsx`, und die
+Doku-/Fix-Commits danach aenderten weitere Pfade in `RUNTIME_SOURCE_PATHS`
+(`apps/frontend/lib/providerStatus.ts`, `apps/frontend/app/marketplace/page.tsx`,
+`apps/frontend/app/api/v1/build/route.ts`). Der Kandidat **muss** neu gebunden werden.
+
+```
+Quelle einfrieren -> 6 Images -> O4 zuletzt -> runtime -> dev-live -> browser
+-> 27 Evidenzen -> Kontroll-Commit -> CI (Ref, nicht SHA) -> P5-Credit
+```
+
+## 2 · `github_actions = api_error` untersuchen
+
+`GET /api/v1/clouds` meldet `status: api_error` bei `configured: true`
+(`GITHUB_TOKEN` gesetzt). Token da, API-Aufruf scheitert. In derselben Session konnte sich
+auch der `github`-MCP-Server nicht verbinden (`CONNECTION_CLOSED`).
+**Welche Ursache — nicht gemessen.** Blockiert L5/L7-Gates.
+
+## 3 · Gate-Luecke schliessen: Fuenf-Achsen-Audit gehoert in die Kette
+
+`verify:five-axis-audit` und sein Regressionstest haengen **nicht** in
+`verify.suites.json` / `verify-phase1.ps1`. Deshalb konnte RC20 gruen werden, obwohl der
+Test rot war. Beide sind jetzt gruen — **erst danach** eintragen, damit die Kette nicht
+sofort rot startet. Bewusst nicht von mir gemacht: eine Aenderung an der Gate-Kette
+unmittelbar vor einer Kandidatenbindung ist riskant.
+
+## 4 · `PROJECT_STATE.md` nachziehen — aber nur im Vierer-Uebergang
+
+Veraltet (nennt noch RC14, Stand 2026-08-27). **Nicht allein aktualisieren** —
+exakte Mengengleichheit gegen
+`PROJECT_STATE.md · endpoint-snapshot.json · platform.ts · project-progress.manifest.json`.
+Am besten **vor** dem naechsten Source-Freeze.
+
+## 5 · Die neuen Tests einmal in einem gruenen CI-Lauf sehen
+
+CI-Lauf `33187389678` brach am 11. von 27 Schritten ab; **14 Schritte wurden uebersprungen**,
+darunter Runnability-Guard, OAuth-Kontrakt, Secret-Scan und Image-Build.
+Die in dieser Session ergaenzten Tests sind in CI also **nie gelaufen**.
+
+## 6 · Owner-Entscheidungen — der gesamte Rest der 11 %
+
+| offen | Delta | Entscheidung |
+|---|---:|---|
+| P3 | +56 | **O1** OAuth-Architektur + App anlegen, Scope nur `read:user` |
+| P5 | +11 | **I1** hosted candidate parity · **I5** production auth |
+| P6 | +10 | **`AGENT_API_AUTH_TOKEN`** setzen (ein Secret) |
+| L4 / L5 | +45 / +44 | **Rubrik freigeben** — ohne sie ist jede Prozentzahl Fake |
+| `MARKET_READY` | — | **O3-Deadlock brechen** (GHCR-Digests vs. Push-Verbot) |
+
+## 7 · GANZ ZULETZT — Optik
+
+Organismus-Aussehen **und** der 3-Sterne-Look der generierten Spiele. Erreicht ist
+„solide beleuchtetes 3D mit Schatten, spielbar" — **nicht** 3 Sterne.
+Per Owner-Entscheidung bleibt beides am Ende.
+
+---
+
+*Restliste erstellt 2026-08-28 nach dem Tiefen-Check. Jeder Punkt ist gemessen;
+kein Punkt ist geschaetzt.*
