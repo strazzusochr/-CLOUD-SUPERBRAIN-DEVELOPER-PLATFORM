@@ -823,6 +823,105 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         self.assertIn('os.environ["RUNNER_TEMP"]', source)
         self.assertNotIn("source_prequalification = candidate_sha != control_sha", source)
 
+    def test_pr_check_prequalification_accepts_only_exact_post_selection_manifest_drift(self) -> None:
+        source = (REPO_ROOT / ".github" / "workflows" / "pr-check.yml").read_text(
+            encoding="utf-8"
+        )
+        step_start = source.index("      - name: Project progress delta-ledger replay regression")
+        step_end = source.index("      - name: Phase 3 and Phase 6 draft credit rubric integrity", step_start)
+        step = source[step_start:step_end]
+        expected_drift = (
+            "[phase5-credit] active candidate has committed or staged runtime-source drift "
+            "outside the exact post-qualification truth transition\\n"
+            "[project-progress] Phase-5 credit itemization is invalid"
+        )
+
+        self.assertIn(
+            "SOURCE_PREQUALIFICATION: ${{ steps.source-binding.outputs.source_prequalification }}",
+            step,
+        )
+        self.assertIn("set -euo pipefail", step)
+        self.assertIn(f"expected_progress_drift=$'{expected_drift}'", step)
+        self.assertIn('progress_output="$(python scripts/verify_project_progress_manifest.py 2>&1)"', step)
+        self.assertIn("progress_exit=$?", step)
+        self.assertIn('if [[ "$progress_exit" -ne 1 ]]; then', step)
+        self.assertIn('if [[ "$progress_output" != "$expected_progress_drift" ]]; then', step)
+        self.assertEqual(step.count("python scripts/verify_project_progress_manifest.py"), 2)
+        self.assertNotIn("python scripts/verify_project_progress_manifest.py || true", step)
+
+        unit_index = step.index("python -m unittest scripts.tests.test_verify_project_progress_manifest -v")
+        branch_index = step.index('if [[ "$SOURCE_PREQUALIFICATION" == "true" ]]; then')
+        endpoint_index = step.index("node --test scripts/tests/endpoint-snapshot-metadata.test.mjs")
+        self.assertLess(unit_index, branch_index)
+        self.assertGreater(endpoint_index, step.rindex("          fi"))
+
+        transition = (REPO_ROOT / "scripts" / "verify-main-deploy-transition.ps1").read_text(
+            encoding="utf-8-sig"
+        )
+        for marker in (
+            "project-progress source prequalification env is bound",
+            "project-progress prequalification requires exact exit 1",
+            "project-progress prequalification requires exact drift output",
+            "project-progress normal validation is retained",
+            "project-progress manifest has no blanket bypass",
+        ):
+            self.assertIn(marker, transition)
+
+    def test_five_axis_prequalification_accepts_only_exact_post_selection_manifest_drift(self) -> None:
+        source = (REPO_ROOT / ".github" / "workflows" / "pr-check.yml").read_text(
+            encoding="utf-8"
+        )
+        step_start = source.index("      - name: Five-axis delta-ledger integration")
+        step_end = source.index("      - name: Backend auth security unit contract", step_start)
+        step = source[step_start:step_end]
+        expected_drift = (
+            "[five-axis-audit] project progress verifier failed via python3: "
+            "[phase5-credit] active candidate has committed or staged runtime-source drift "
+            "outside the exact post-qualification truth transition\\n"
+            "[project-progress] Phase-5 credit itemization is invalid"
+        )
+        negative_pattern = (
+            "^(rejects the retired v1 permanent-empty ledger contract without browser evidence|"
+            "rejects a structurally typed but unauthenticated v2 ledger entry|"
+            "keeps future evidence-backed vertical deltas reachable)$"
+        )
+
+        self.assertIn(
+            "SOURCE_PREQUALIFICATION: ${{ steps.source-binding.outputs.source_prequalification }}",
+            step,
+        )
+        self.assertIn("set -euo pipefail", step)
+        self.assertIn('case "$SOURCE_PREQUALIFICATION" in', step)
+        self.assertIn(f"--test-name-pattern='{negative_pattern}'", step)
+        self.assertIn(f"expected_five_axis_drift=$'{expected_drift}'", step)
+        self.assertIn("await import(\"./scripts/verify-five-axis-substance-audit.mjs\")", step)
+        self.assertIn("five_axis_exit=$?", step)
+        self.assertIn('if [[ "$five_axis_exit" -ne 1 ]]; then', step)
+        self.assertIn('if [[ "$five_axis_output" != "$expected_five_axis_drift" ]]; then', step)
+        self.assertIn("            false)", step)
+        self.assertIn("            *)", step)
+        self.assertIn("unexpected SOURCE_PREQUALIFICATION value", step)
+        self.assertEqual(
+            step.count("node --test scripts/tests/five-axis-delta-ledger-regression.test.mjs"),
+            1,
+        )
+        self.assertEqual(step.count("node scripts/verify-five-axis-substance-audit.mjs"), 1)
+        self.assertNotIn("|| true", step)
+        self.assertNotIn("continue-on-error", step)
+
+        transition = (REPO_ROOT / "scripts" / "verify-main-deploy-transition.ps1").read_text(
+            encoding="utf-8-sig"
+        )
+        for marker in (
+            "five-axis source prequalification env is bound",
+            "five-axis prequalification requires exact exit 1",
+            "five-axis prequalification requires exact drift output",
+            "five-axis normal validation is retained",
+            "five-axis prequalification rejects unexpected mode values",
+            "five-axis audit has no blanket bypass",
+        ):
+            self.assertIn(marker, transition)
+
     def test_summary_proof_rejects_anchor_or_source_relabeling(self) -> None:
         proof, entry = summary_proof("browser", "npm run verify:browser")
         relabeled = copy.deepcopy(proof)
@@ -1070,10 +1169,226 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         with patch.object(verifier, "run_git", side_effect=fake_run_git):
             self.assert_rejected(
                 lambda: verifier.require_runtime_source_parity(SOURCE_SHA, {}, {}, 89),
-                "runtime-source drift outside the exact post-qualification truth transition",
+                "runtime-source drift outside the exact post-qualification or no-credit requalification truth transition",
             )
 
         self.assertIn("--diff-filter=ACDMRTUXB", captured_args)
+
+    def test_no_credit_requalification_is_exact_source_bound_and_hash_bound(self) -> None:
+        source_sha = "c" * 40
+        previous_sha = "d" * 40
+        release_id = "prod-candidate-2026-08-29-local-rc23"
+        previous_release_id = "prod-candidate-2026-08-29-local-rc22"
+
+        def build_fixture() -> tuple[
+            dict[str, object],
+            dict[str, object],
+            dict[tuple[str, ...], subprocess.CompletedProcess[str]],
+        ]:
+            manifest: dict[str, object] = {
+                "overall_percent": 89,
+                "horizontal": {"items": [{"id": "phase_5", "percent": 89}]},
+                "vertical": {"items": []},
+                "last_verified": "2026-08-29",
+            }
+            score = {
+                "total_item_count": 19,
+                "verified_item_count": 17,
+                "blocked_item_count": 2,
+                "blocked_item_ids": ["I1", "I5"],
+                "computed_percent": 89,
+            }
+            base_itemization: dict[str, object] = {
+                "contract_version": "phase5-credit-itemization-v2",
+                "mode": "fully_itemized",
+                "credit_blocked_until_candidate_qualified": False,
+                "cell_id": "phase_5",
+                "checklist_path": "docs/release-checklist.md",
+                "rubric": "phase5-release-readiness-19-v2",
+                "scoring_rule": "binary",
+                "legacy_gap_reconstruction": {"recorded_percent": 68},
+                "rulings_applied": {"no_gate_mutation": True},
+                "current_score": score,
+                "items": [
+                    {
+                        "id": "I1",
+                        "section": "infrastructure",
+                        "title": "hosted parity",
+                        "status": "blocked_owner",
+                        "credit_awarded": False,
+                        "blocker_id": "hosted_candidate_parity",
+                        "owner_action": "owner",
+                        "evidence": [{"path": "old", "claim": "old"}],
+                    },
+                    {
+                        "id": "I5",
+                        "section": "infrastructure",
+                        "title": "auth",
+                        "status": "blocked_owner",
+                        "credit_awarded": False,
+                        "blocker_id": "production_auth_identity",
+                        "owner_action": "owner",
+                        "evidence": [{"path": "old", "claim": "old"}],
+                    },
+                ],
+                "retired_noncriteria": [{"marker": "historical", "credit_awarded": False}],
+            }
+            source_itemization = copy.deepcopy(base_itemization)
+            source_itemization.update(
+                {
+                    "active_release_id": previous_release_id,
+                    "active_source_commit_sha": previous_sha,
+                    "updated_at_utc": "2026-08-29T11:03:10Z",
+                }
+            )
+            index_itemization = copy.deepcopy(base_itemization)
+            index_itemization.update(
+                {
+                    "active_release_id": release_id,
+                    "active_source_commit_sha": source_sha,
+                    "updated_at_utc": "2026-08-29T18:00:00Z",
+                }
+            )
+            for item in index_itemization["items"]:  # type: ignore[index]
+                item["evidence"] = [{"path": "new", "claim": "new"}]
+
+            source_pointer = {
+                "active_release_id": previous_release_id,
+                "source_commit_sha": previous_sha,
+                "updated_at": "2026-08-29T11:03:10Z",
+                "production_rollout_claimed": False,
+            }
+            index_pointer = {
+                "active_release_id": release_id,
+                "source_commit_sha": source_sha,
+                "updated_at": "2026-08-29T18:00:00Z",
+                "production_rollout_claimed": False,
+            }
+            source_external = {
+                "contract_version": "external-gate-summary-v2",
+                "source_contract_version": "external-gate-audit-v2",
+                "status": "blocked",
+                "active_target_gate": "cloudflare_native_zero_card_hosted_runtime",
+                "requested_release_candidate_selector": previous_sha,
+                "active_release_candidate_sha": "",
+                "production_deploy_claim_allowed": False,
+                "gate_ids": ["a", "b"],
+                "missing_or_failed_gates": ["a", "b"],
+            }
+            index_external = copy.deepcopy(source_external)
+            index_external["requested_release_candidate_selector"] = source_sha
+            candidate_artifact = f"release_id: `{release_id}`\nsource_commit_sha: `{source_sha}`\n"
+
+            texts = {
+                verifier.PROJECT_PROGRESS_MANIFEST_REPO_PATH: json.dumps(manifest),
+                verifier.PHASE5_ITEMIZATION_REPO_PATH: json.dumps(index_itemization),
+                verifier.CURRENT_RELEASE_CANDIDATE_REPO_PATH: json.dumps(index_pointer),
+                verifier.EXTERNAL_GATE_SUMMARY_REPO_PATH: json.dumps(index_external),
+                f"docs/release-artifacts/{release_id}.md": candidate_artifact,
+                "PROJECT_STATE.md": (
+                    "# State\n### Session current\n"
+                    f"{release_id} {source_sha} Overall `89%` MARKET_READY:false I1 I5\n"
+                    "### Session history\n"
+                ),
+            }
+            snapshot: dict[str, object] = {
+                f"/api/v1/test/{index}": {"ok": True} for index in range(33)
+            }
+            snapshot["/api/v1/project/progress"] = manifest
+            snapshot["__snapshot_metadata"] = {
+                "contract_version": "endpoint-snapshot-metadata-v1",
+                "refresh_scope": "full",
+                "payload_epoch_complete": True,
+                "current": False,
+                "current_reason": "runtime_source_unattested_prequalification",
+                "qualification_state": "prequalification",
+                "source_scope": "DEV-ONLY",
+                "target_scope": "localhost_only",
+                "endpoint_count": 34,
+                "refreshed_endpoint_count": 34,
+                "gate_refresh_atomic": True,
+                "active_release_id": release_id,
+                "candidate_source_commit_sha": source_sha,
+                "runtime_source_commit_sha": None,
+                "runtime_source_attested": False,
+                "candidate_source_parity": False,
+                "current_release_candidate_sha256": verifier.canonical_text_sha256(
+                    texts[verifier.CURRENT_RELEASE_CANDIDATE_REPO_PATH]
+                ),
+                "release_candidate_artifact_sha256": verifier.canonical_text_sha256(candidate_artifact),
+                "project_progress_manifest_sha256": verifier.canonical_text_sha256(
+                    texts[verifier.PROJECT_PROGRESS_MANIFEST_REPO_PATH]
+                ),
+                "external_gate_summary_sha256": verifier.canonical_text_sha256(
+                    texts[verifier.EXTERNAL_GATE_SUMMARY_REPO_PATH]
+                ),
+            }
+            texts[verifier.ENDPOINT_SNAPSHOT_REPO_PATH] = json.dumps(snapshot)
+
+            responses: dict[tuple[str, ...], subprocess.CompletedProcess[str]] = {}
+            source_payloads = {
+                verifier.PROJECT_PROGRESS_MANIFEST_REPO_PATH: manifest,
+                verifier.PHASE5_ITEMIZATION_REPO_PATH: source_itemization,
+                verifier.CURRENT_RELEASE_CANDIDATE_REPO_PATH: source_pointer,
+                verifier.EXTERNAL_GATE_SUMMARY_REPO_PATH: source_external,
+            }
+            for path, payload in source_payloads.items():
+                args = ("show", f"{source_sha}:{path}")
+                responses[args] = subprocess.CompletedProcess(args, 0, json.dumps(payload), "")
+            for path, text in texts.items():
+                args = ("show", f":{path}")
+                responses[args] = subprocess.CompletedProcess(args, 0, text, "")
+            return manifest, index_itemization, responses
+
+        def run_fixture(
+            manifest: dict[str, object],
+            itemization: dict[str, object],
+            responses: dict[tuple[str, ...], subprocess.CompletedProcess[str]],
+            changed_paths: set[str] | None = None,
+        ) -> None:
+            selected_paths = changed_paths or verifier.NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS
+
+            def fake_run_git(*args: str) -> subprocess.CompletedProcess[str]:
+                if args[:3] == ("diff", "--cached", "--name-only"):
+                    return subprocess.CompletedProcess(args, 0, "\0".join(sorted(selected_paths)) + "\0", "")
+                return responses.get(args, subprocess.CompletedProcess(args, 1, "", "missing fixture"))
+
+            with patch.object(verifier, "run_git", side_effect=fake_run_git):
+                verifier.require_runtime_source_parity(source_sha, manifest, itemization, 89)
+
+        manifest, itemization, responses = build_fixture()
+        run_fixture(manifest, itemization, responses)
+
+        inflated_manifest, inflated_itemization, inflated_responses = build_fixture()
+        inflated_itemization["current_score"]["computed_percent"] = 90  # type: ignore[index]
+        inflated_responses[("show", f":{verifier.PHASE5_ITEMIZATION_REPO_PATH}")] = subprocess.CompletedProcess(
+            (), 0, json.dumps(inflated_itemization), ""
+        )
+        self.assert_rejected(
+            lambda: run_fixture(inflated_manifest, inflated_itemization, inflated_responses),
+            "may not change the Phase-5 score, blockers, or rulings",
+        )
+
+        bad_hash_manifest, bad_hash_itemization, bad_hash_responses = build_fixture()
+        snapshot_key = ("show", f":{verifier.ENDPOINT_SNAPSHOT_REPO_PATH}")
+        bad_snapshot = json.loads(bad_hash_responses[snapshot_key].stdout)
+        bad_snapshot["__snapshot_metadata"]["current_release_candidate_sha256"] = "0" * 64
+        bad_hash_responses[snapshot_key] = subprocess.CompletedProcess((), 0, json.dumps(bad_snapshot), "")
+        self.assert_rejected(
+            lambda: run_fixture(bad_hash_manifest, bad_hash_itemization, bad_hash_responses),
+            "snapshot current_release_candidate_sha256 mismatch",
+        )
+
+        extra_manifest, extra_itemization, extra_responses = build_fixture()
+        self.assert_rejected(
+            lambda: run_fixture(
+                extra_manifest,
+                extra_itemization,
+                extra_responses,
+                verifier.NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS | {"apps/frontend/app/page.tsx"},
+            ),
+            "runtime-source drift outside the exact post-qualification or no-credit requalification truth transition",
+        )
 
 
 if __name__ == "__main__":
