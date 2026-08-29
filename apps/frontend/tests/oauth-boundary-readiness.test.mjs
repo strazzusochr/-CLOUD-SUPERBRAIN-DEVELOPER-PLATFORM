@@ -15,6 +15,8 @@ const authSessionRouteSource = fs.readFileSync(new URL("../app/api/v1/auth/sessi
 const realLoginSource = fs.readFileSync(new URL("../components/real-login.tsx", import.meta.url), "utf8");
 const startDevLiveSource = fs.readFileSync(new URL("../../../scripts/start-dev-live.ps1", import.meta.url), "utf8");
 const agentApiSource = fs.readFileSync(new URL("../../../services/agent-api/app/main.py", import.meta.url), "utf8");
+const devComposeSource = fs.readFileSync(new URL("../../../docker-compose.dev.yml", import.meta.url), "utf8");
+const cloudComposeSource = fs.readFileSync(new URL("../../../docker-compose.cloud.yml", import.meta.url), "utf8");
 const apiRouteRoot = fileURLToPath(new URL("../app/api/", import.meta.url));
 const compiledBoundary = ts.transpileModule(boundarySource, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -96,6 +98,24 @@ test("DEV-LIVE loads all five fail-closed OAuth configuration values", () => {
   ]);
   assert.match(startDevLiveSource, /O1-Konfiguration vollstaendig \(5\/5, Werte nicht angezeigt\)\./);
   assert.doesNotMatch(startDevLiveSource, /O1-Konfiguration vollstaendig \(4\/4/);
+});
+
+test("both Compose modes wire the same five OAuth configuration values", () => {
+  const keys = [
+    "GITHUB_OAUTH_CLIENT_ID",
+    "GITHUB_OAUTH_CLIENT_SECRET",
+    "GITHUB_OAUTH_REDIRECT_URI",
+    "GITHUB_OAUTH_OWNER_IDS",
+    "JWT_SIGNING_SECRET",
+  ];
+  for (const source of [devComposeSource, cloudComposeSource]) {
+    for (const key of keys) {
+      const marker = `${key}: ` + "${" + `${key}:-}`;
+      assert.ok(source.includes(marker), `missing Compose OAuth marker: ${marker}`);
+    }
+  }
+  assert.match(devComposeSource, /ausschliesslich aus diesen fuenf Werten/);
+  assert.doesNotMatch(devComposeSource, /ausschliesslich aus diesen vier Werten/);
 });
 
 test("OAuth callback timing remains monotonic across the backend and frontend boundary", () => {
