@@ -102,9 +102,40 @@ Wildcard. Der Backend-Origin bleibt separat. Falls der Owner eine neue canonical
 Domain waehlt, muessen GitHub App, Vercel Environment, Frontend-Origin-Guard und Hosted-
 Verifier gemeinsam auf exakt diesen Ursprung umgestellt werden.
 
+Der Callback-Origin darf nicht durch irgendeine syntaktisch gueltige HTTPS-URL ersetzt
+werden. Der dedizierte Verifier bindet ihn ausschliesslich an die getrackte, saubere und
+SHA-256-gepruefte kanonische Evidence
+`docs/runtime-state/frontend-hosted-current.json` mit Contract
+`frontend-hosted-current-proof-v1`. Deren Candidate-Source, Deployment-ID, Vercel-Scope
+`strazzusochrs-projects`, Projekt-ID `prj_ZbSNRVz5ijLQ4tQR61liHFw1x5eY`, Projektname
+`frontend`, immutable Deployment-Origin, Production-Alias, operativer Deploy-Status sowie
+Metadata-/Alias-Paritaet muessen exakt passen. Das stateless read-only Backend-Projekt
+`cloud-superbrain-developer-platform` oder eine alternative gleichartig aussehende JSON-Datei
+kann diese Frontend-Origin-Evidence nicht ersetzen.
+
 Eine wechselnde unique Preview-Origin kann dieselbe Production-Callback-URI nicht als
 Same-Origin-Beweis verwenden. Es braucht eine kanonische Staging-Origin oder eine separat
 registrierte OAuth App pro wirklich abzunehmender Origin.
+
+Fuer den Gate-Credit `production_auth_identity` gilt strenger: eine Preview-/Staging-Probe
+kann die Implementierung vorbereiten, aber nicht den Production-Target-Beweis ersetzen. Der
+dedizierte Evidence-Verifier verlangt deshalb fuer diesen Credit `target=production` und den
+Production-Alias der kanonischen Frontend-Evidence. Das ist kein stiller Deploy-Grant.
+
+Die Owner-ADR wird nicht aus diesem Fixplan abgeleitet. Sie muss spaeter als getrackte,
+saubere und SHA-256-gebundene JSON-Entscheidung unter
+`docs/runtime-state/production-auth-architecture-decision.json` vorliegen. Erlaubt sind nur:
+
+- `cloudflare_native` mit Evidence
+  `docs/runtime-state/cloudflare-oauth-hosted-current.json` und dem noch zu implementierenden
+  read-only Verifier `scripts/verify-cloudflare-oauth-hosted-current.ps1`; oder
+- `hosted_fastapi` mit Evidence
+  `docs/runtime-state/fastapi-oauth-hosted-current.json` und dem noch zu implementierenden
+  read-only Verifier `scripts/verify-fastapi-oauth-hosted-current.ps1`.
+
+Solange die Owner-ADR, die ausgewaehlte Runtime-Evidence und der passende dynamische Verifier
+nicht existieren, bleibt die Production-Auth-Evidence absichtlich fail-closed. Freie IDs oder
+selbst gesetzte JSON-Booleans koennen I5 nicht oeffnen.
 
 ## 5. Zu implementierende Worker-Oberflaeche
 
@@ -169,10 +200,11 @@ JWT_SIGNING_SECRET
 Zusaetzlich verwendet Option A die bereits architekturgebundenen D1-/Durable-Object-
 Bindings. Secret-Erzeugung, Rotation oder Ausgabe ist eine Owner-Aktion.
 
-Bekannter Startskript-Drift: `scripts/start-dev-live.ps1` laedt derzeit nur vier OAuth-Namen
-und laesst `GITHUB_OAUTH_OWNER_IDS` aus. Das muss im neuen Candidate zusammen mit Test und
-Dokumentationsspiegel korrigiert werden. Die alten Owner-Runbooks vom 2026-07-27 sind
-`HISTORICAL_DO_NOT_EXECUTE`.
+Bereinigter Startskript-Stand: `scripts/start-dev-live.ps1` laedt bereits alle fuenf Namen,
+einschliesslich `GITHUB_OAUTH_OWNER_IDS`. Es gibt in diesem Punkt keinen offenen Code-Drift.
+Die Templates spiegeln nur diese Variablennamen mit leeren Werten; weder Secret-Erzeugung
+noch Secret-Uebernahme ist Bestandteil dieses Fixplans. Die alten Owner-Runbooks vom
+2026-07-27 sind `HISTORICAL_DO_NOT_EXECUTE`.
 
 ## 8. Red-first Testplan
 
@@ -275,7 +307,17 @@ Der neue Hosted-Verifier muss mindestens pruefen:
 
 - non-local HTTPS;
 - immutable Frontend-/Worker-Deployment-Bindung;
-- exakter Callback-Origin;
+- exakter Callback-Origin auf den Production-Alias des kanonischen Vercel-Projekts
+  `frontend`, gebunden an den festen Pfad `docs/runtime-state/frontend-hosted-current.json`,
+  dessen getrackte/saubere Bytes und SHA-256;
+- exakte Candidate-Source- und Frontend-Deployment-ID-Paritaet der Origin-Evidence;
+- den kanonischen Frontend-Verifier im vollstaendigen `-ValidateOnly`-Pfad: zwei
+  authentifizierte Vercel-Metadaten-Reads, Alias-/Content-/Endpoint-Paritaet, kein Browser-
+  Rerun und kein `verification.json`-Write;
+- fail-closed Ablehnung eines Backend-Projekts, einer stale Source, eines fremden Alias oder
+  einer veraenderten Origin-Evidence;
+- getrackte/gehashte Owner-ADR, architecture-spezifische Runtime-Evidence und den exakt
+  allowlisteten read-only Runtime-Verifier;
 - alle positiven und negativen Schritte aus Abschnitt 10;
 - Cookieattribute und erlaubte Cookie-Namen;
 - atomare Rotation/Replay-Sperre;

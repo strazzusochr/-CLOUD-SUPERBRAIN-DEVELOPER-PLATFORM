@@ -121,6 +121,33 @@ hosted deploy, gate transition, percentage credit, release or production claim w
 Overall remains `89`; next autonomous work is A5, the Vercel/frontend-origin evidence binding
 and OAuth ownership decision packet.
 
+### Post-RC22 A5 Frontend-Origin / Production-Auth Evidence Checkpoint
+
+A5 fixes the ownership ambiguity without performing a deployment or selecting an OAuth
+architecture for the Owner. The Vercel project `frontend` owns the browser-visible UI,
+Same-Origin cookies and callback origin. The separate Vercel project
+`cloud-superbrain-developer-platform` remains only a stateless read-only contract origin and
+cannot substitute for frontend-origin evidence. Neither project currently proves a hosted
+Production OAuth executor.
+
+The Production-Auth verifier is now fail-closed on exact evidence schemas, an existing
+ancestor candidate SHA, the canonical tracked/clean/hash-bound frontend hosted-state file,
+the exact Production alias and frontend Vercel project identity, ordered human-flow evidence,
+and the absence of raw secret-shaped fields. It additionally requires a tracked, clean and
+SHA-256-bound Owner architecture decision plus architecture-specific hosted runtime evidence
+and its allowlisted dynamic read-only verifier. The two permitted future choices are
+`cloudflare_native` and `hosted_fastapi`; the ADR, runtime evidence and both runtime verifiers
+do not yet exist, so I5 remains deliberately blocked.
+
+`verify-frontend-hosted-current.ps1 -ValidateOnly` performs the complete authenticated Vercel
+metadata/alias/content/read-endpoint validation twice, skips the browser rerun and suppresses
+its only proof-file write. Regression evidence is Production-Auth `13/13`, market-ready plus
+frontend no-write `6/6`, OAuth boundary `26/26`, and team projection `5/5`; both PowerShell
+files parse and `git diff --check` passes. No provider write, browser rerun, deploy, secret use,
+gate transition, percentage credit, release or production claim occurred. Overall remains
+`89`; next autonomous work is A6, the independently derived go-live gate set plus
+summary/snapshot/freshness repair for a new candidate.
+
 ## Historical Session16 Audit Handoff — 2026-08-29
 
 The current operator packet is:

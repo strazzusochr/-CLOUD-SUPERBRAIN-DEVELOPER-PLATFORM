@@ -154,6 +154,8 @@ Naechster autonomer Punkt: A2 als `DRAFT_OWNER_APPROVAL_REQUIRED`; null Credit.
 - Read-only-Verifier + Regression: `13/13` gruen; `credit_applied=false`.
 - A1-CI auf `d5bdad62f159bbc0a401fcedf2e324def77e6657`: Run `33253659212`,
   `26/26` beobachtete Schritte gruen, `0 skipped`.
+- A2/A3-CI auf `4c20b4f6`: Run `33256222000`, `27/27` beobachtete Schritte gruen,
+  `0 skipped`.
 
 Keine Prozent-, Gate-, Hosted-, Deploy- oder Release-Transition. A4 folgt als naechster
 Runtime-Contract-Punkt.
@@ -175,6 +177,28 @@ Runtime-Contract-Punkt.
 Kein Deploy und keine Hosted-Umetikettierung: die Tabelle in Abschnitt 6 bleibt bis zu einem
 freigegebenen source-gebundenen Deploy unveraendert. Overall/P3/P6/L4/L5 bleiben
 `89/44/90/55/56`. Naechster autonomer Punkt: A5 Vercel-Origin-/OAuth-Ownership-Beweis.
+
+## 6d. A5 Frontend-Origin und Auth-Evidence fail-closed gebunden
+
+- Browser-UI, Same-Origin-Cookies und OAuth-Callback gehoeren zum Vercel-Projekt `frontend`;
+  `cloud-superbrain-developer-platform` bleibt stateless read-only Contract Origin.
+- Der Auth-Verifier akzeptiert nur die kanonische getrackte/saubere/hash-gebundene
+  Frontend-Hosted-Evidence, den exakten Production-Alias, die feste Frontend-Projektidentitaet
+  und einen existierenden Candidate-Ancestor.
+- Human-Flow-Reihenfolge und Evidence-Schemas sind exakt; unbekannte oder secret-foermige
+  Felder werden fail-closed abgewiesen.
+- I5 verlangt zusaetzlich eine gehashte Owner-ADR plus architecture-spezifische Runtime-
+  Evidence und einen dynamischen read-only Verifier. Erlaubte Auswahl:
+  `cloudflare_native` oder `hosted_fastapi`.
+- ADR, Hosted-Auth-Evidence und beide Runtime-Verifier fehlen absichtlich noch. Das ist der
+  messbare Owner-/Implementierungsblock, kein stiller Default.
+- Frontend-Hosted `-ValidateOnly` fuehrt volle Vercel-Metadata-/Alias-/Content-/Read-Pruefung
+  ohne Browser-Rerun und ohne Proof-Write aus.
+- Gruen: Auth `13/13`, Market/No-write `6/6`, OAuth `26/26`, Team `5/5`, PS-AST und Diff-Check.
+
+Keine Provider-Writes, kein Deploy, kein Gate-/Prozent-/Release-Uebergang. Overall/P3/P6/L4/L5
+bleiben `89/44/90/55/56`. Naechster autonomer Punkt: A6 Gate-/Summary-/Snapshot-/Freshness-
+Paritaet Red-first und danach neue Candidate-Qualifikation.
 
 ## 7. Offen bis 100
 
@@ -242,14 +266,13 @@ Ein allgemeines `ja` oder ein Browser-Login ist keine dieser spezifischen Freiga
 
 Autonom:
 
-1. A1-Checkpoint explizit committen und nur den Feature-Branch pushen; generierten
-   ungebundenen Working-Report ausschliessen;
-2. A2 P3-Rubrik als Owner-gated Null-Credit-Draft;
-3. A3 P6-Rubrik als Owner-gated Null-Credit-Draft;
-4. A4 `/team/status` Red-first/Fix;
-5. A5 Vercel-Origin-Entscheidungspaket ohne Provider-Write;
-6. A6 verbleibende Summary-/Snapshot-/Freshness-Paritaet Red-first fuer einen neuen
-   Kandidaten; den bereits in RC22 geschlossenen Altdefekt nicht erneut reparieren.
+A1 bis A5 sind abgeschlossen und bleiben ohne neuen Credit. Jetzt:
+
+1. A5-Slice exakt committen/pushen; den fremden Working-Report ausschliessen;
+2. A6 Go-live-Missing-Gates unabhaengig aus Claims ableiten und adversarial testen;
+3. A6 Summary-/Snapshot-/Candidate-Freshness Red-first source-binden;
+4. synchronisierte Truth-Projektionen und neue lokale Candidate-Qualifikation;
+5. serieller Verifier-Stack, Feature-Branch-CI und weiterhin null Hosted-Umetikettierung.
 
 Nach Owner-Freigaben:
 

@@ -47,7 +47,7 @@ function authContract(): Record<string, unknown> {
     owner_activation_granted: false,
     owner_activation_required: true,
     credential_issuance_ready: false,
-    missing_configuration: ["GITHUB_OAUTH_CLIENT_ID", "GITHUB_OAUTH_CLIENT_SECRET", "GITHUB_OAUTH_REDIRECT_URI", "JWT_SIGNING_SECRET_BASE64URL_256_BIT_MINIMUM"],
+    missing_configuration: ["GITHUB_OAUTH_CLIENT_ID", "GITHUB_OAUTH_CLIENT_SECRET", "GITHUB_OAUTH_REDIRECT_URI", "GITHUB_OAUTH_OWNER_IDS", "JWT_SIGNING_SECRET_BASE64URL_256_BIT_MINIMUM"],
     activation_blockers: ["production_auth_identity_owner_grant"],
     access_token_ttl_seconds: 900,
     jwt: {

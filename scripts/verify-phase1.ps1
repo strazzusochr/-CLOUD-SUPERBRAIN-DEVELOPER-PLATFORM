@@ -120,6 +120,7 @@ Assert-LastExitCode "Phase 5 itemization transition regression tests"
 Write-Host "[verify] market-ready transition regression tests"
 py -3 -m unittest `
   scripts.tests.test_market_ready_entrypoint `
+  scripts.tests.test_frontend_hosted_validate_only `
   scripts.tests.test_production_auth_identity_evidence
 Assert-LastExitCode "market-ready transition regression tests"
 
@@ -147,6 +148,11 @@ foreach ($required in @(
   "refresh_family_replay_rejected_verified",
   "audit_before_credential_verified",
   "human_flow_verified_steps",
+  "production-auth-architecture-decision-v1",
+  "owner_architecture_adr_bound=true",
+  "auth_runtime_bound=true",
+  "verify-frontend-hosted-current.ps1",
+  "full_validation=true",
   "validation_mode=true read_only=true gate_promotion_performed=false secret_output=false"
 )) {
   if (-not $productionAuthVerifier.Contains($required)) {
@@ -3749,7 +3755,10 @@ foreach ($required in @(
   'requiredReadPaths',
   'hosted read endpoint inventory',
   'production_operational_deploy_verified',
-  'browserBaseUrl'
+  'browserBaseUrl',
+  '[switch]$ValidateOnly',
+  'full_validation=true',
+  'verification_written=false'
 )) {
   if (-not $frontendHostedVerifierSource.Contains($required)) {
     throw "Current hosted frontend verifier missing T1 Production guard: $required"

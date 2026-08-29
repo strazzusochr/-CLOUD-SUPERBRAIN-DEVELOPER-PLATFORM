@@ -10,6 +10,7 @@ import ts from "typescript";
 const require = createRequire(import.meta.url);
 const boundarySource = fs.readFileSync(new URL("../lib/frontendBoundary.ts", import.meta.url), "utf8");
 const catchAllRouteSource = fs.readFileSync(new URL("../app/api/v1/[...slug]/route.ts", import.meta.url), "utf8");
+const endpointDefaultsSource = fs.readFileSync(new URL("../lib/endpointDefaults.ts", import.meta.url), "utf8");
 const actionMatrixSource = fs.readFileSync(new URL("../lib/actionMatrix.ts", import.meta.url), "utf8");
 const authSessionRouteSource = fs.readFileSync(new URL("../app/api/v1/auth/session/route.ts", import.meta.url), "utf8");
 const realLoginSource = fs.readFileSync(new URL("../components/real-login.tsx", import.meta.url), "utf8");
@@ -50,6 +51,13 @@ loadBoundary((specifier) => {
   }
   return require(specifier);
 }, boundaryModule, boundaryModule.exports);
+
+const compiledEndpointDefaults = ts.transpileModule(endpointDefaultsSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+const endpointDefaultsModule = { exports: {} };
+new vm.Script(`(function (require, module, exports) { ${compiledEndpointDefaults}\n})`)
+  .runInThisContext()(require, endpointDefaultsModule, endpointDefaultsModule.exports);
 
 const {
   authorizeBoundaryWrite,
@@ -116,6 +124,17 @@ test("both Compose modes wire the same five OAuth configuration values", () => {
   }
   assert.match(devComposeSource, /ausschliesslich aus diesen fuenf Werten/);
   assert.doesNotMatch(devComposeSource, /ausschliesslich aus diesen vier Werten/);
+});
+
+test("the frontend auth projection names all five missing OAuth values", () => {
+  const projected = endpointDefaultsModule.exports.projectedDefault("/api/v1/auth/contract", "GET");
+  assert.deepEqual(projected?.payload.missing_configuration, [
+    "GITHUB_OAUTH_CLIENT_ID",
+    "GITHUB_OAUTH_CLIENT_SECRET",
+    "GITHUB_OAUTH_REDIRECT_URI",
+    "GITHUB_OAUTH_OWNER_IDS",
+    "JWT_SIGNING_SECRET_BASE64URL_256_BIT_MINIMUM",
+  ]);
 });
 
 test("OAuth callback timing remains monotonic across the backend and frontend boundary", () => {

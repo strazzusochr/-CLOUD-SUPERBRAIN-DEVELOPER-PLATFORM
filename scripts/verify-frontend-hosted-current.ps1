@@ -1,7 +1,8 @@
 param(
   [string]$ConfigPath = "docs\runtime-state\frontend-hosted-current.json",
   [switch]$StaticOnly,
-  [switch]$SkipBrowser
+  [switch]$SkipBrowser,
+  [switch]$ValidateOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -200,6 +201,9 @@ function Assert-ProofFreshness([DateTimeOffset]$ProofGeneratedAt, [object]$Deplo
 }
 
 try {
+  Assert-True (-not ($StaticOnly -and $ValidateOnly)) "Choose either static validation or full non-mutating validation, not both."
+  if ($ValidateOnly) { $SkipBrowser = $true }
+
   Assert-True (Test-Path -LiteralPath $ConfigPath) "Hosted frontend proof config missing: $ConfigPath"
   $config = ConvertFrom-JsonPreservingDates (Get-Content -LiteralPath $ConfigPath -Raw)
   Assert-Equal ([string]$config.contract_version) "frontend-hosted-current-proof-v1" "config contract"
@@ -467,8 +471,15 @@ try {
     production_operational_deploy_verified = ($vercelTarget -eq "production")
     production_release_claimed = $false
   }
-  $verification | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $proofDir "verification.json") -Encoding utf8
-  Write-Host "[frontend-hosted-current] status=verified target=$vercelTarget pages=22 viewports=2 clicks=44 browser=$($proof.browser_version)"
+  $verificationPath = Join-Path $proofDir "verification.json"
+  if (-not $ValidateOnly) {
+    $verification | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $verificationPath -Encoding utf8
+  }
+  if ($ValidateOnly) {
+    Write-Host "[frontend-hosted-current] status=verified target=$vercelTarget pages=22 viewports=2 clicks=44 browser=$($proof.browser_version) full_validation=true validation_mode=true browser_skipped=true verification_written=false"
+  } else {
+    Write-Host "[frontend-hosted-current] status=verified target=$vercelTarget pages=22 viewports=2 clicks=44 browser=$($proof.browser_version)"
+  }
 } finally {
   Pop-Location
 }

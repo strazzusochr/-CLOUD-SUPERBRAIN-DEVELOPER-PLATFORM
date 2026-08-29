@@ -115,6 +115,34 @@ syntax and static verification, frontend lint, production build, manifest valida
 checks are green. No dispatch, live call, write, hosted deploy, percentage, gate, release or
 production claim changed. Overall remains `89%`; hosted proof is still blocked.
 
+## Current A5 Frontend-Origin / Production-Auth Evidence
+
+Recorded 2026-08-29 after A4 commit `461fb99d`. The browser callback authority is the Vercel
+project `frontend`, which owns the visible UI and Same-Origin cookie boundary. The separate
+Vercel project `cloud-superbrain-developer-platform` remains a stateless read-only contract
+origin and is explicitly rejected as a substitute for frontend-origin proof.
+
+The dedicated Production-Auth verifier now requires an existing ancestor candidate SHA;
+exact evidence schemas; the canonical tracked, clean and SHA-256-bound
+`docs/runtime-state/frontend-hosted-current.json`; exact candidate/deployment/project/alias
+parity; Production target; the ordered twelve-step human flow; and no unknown or raw
+secret-shaped properties. It runs the canonical frontend hosted verifier in full
+`-ValidateOnly` mode, which performs authenticated Vercel metadata reads twice plus
+alias/content/root/wiring/read-endpoint checks while suppressing the browser rerun and the
+only `verification.json` write.
+
+I5 additionally requires the future canonical Owner ADR, bound by tracked bytes and SHA-256,
+and the matching architecture-specific hosted runtime evidence plus dynamic read-only
+verifier. Only `cloudflare_native` and `hosted_fastapi` are allowlisted. Those ADR/evidence/
+verifier artifacts do not yet exist in the repository, so the transition remains fail-closed
+instead of trusting free-form deployment IDs or booleans.
+
+Verification: Production-Auth adversarial suite `13/13`; market-ready plus frontend
+validate-only suite `6/6`; OAuth boundary `26/26`; team projection `5/5`; both PowerShell ASTs
+and `git diff --check` pass. No browser rerun, provider write, deploy, secret use, gate change,
+percentage credit, release or production action occurred. Overall remains `89%`; I1 and I5
+remain the only Phase-5 zero-credit blocks. A6 is next.
+
 ## Historical Post-RC21 Session16 Audit
 
 Recorded 2026-08-29. Fresh local verification is green for build (`21/21`), runtime,
