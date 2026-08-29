@@ -37,6 +37,59 @@ class MarketReadyEntrypointTests(unittest.TestCase):
         self.assertIn(" -IncludeExternalGates", require_ready_command)
         self.assertIn(" -RequireReady", require_ready_command)
 
+    def test_production_auth_gate_has_a_real_verifier_availability_transition(self) -> None:
+        source = (REPO_ROOT / "scripts" / "verify-market-ready.ps1").read_text(
+            encoding="utf-8"
+        )
+        arm = source.split('"production_auth_identity" {', 1)[1].split(
+            '"docker_registry_publish" {', 1
+        )[0]
+        markers = (
+            '$authVerifierRelative = "scripts/verify-production-auth-identity-evidence.ps1"',
+            "Resolve-RepoScopedFile $authVerifierRelative",
+            "Test-TrackedCleanRepoFile $authVerifierRelative",
+            "-EvidencePath $relativeEvidence",
+            "-ExpectedCandidateSha $ExpectedCandidateSha",
+            "-ValidateOnly",
+            "auth_dedicated_non_mutating_verifier_failed",
+            "validation_mode=true read_only=true gate_promotion_performed=false secret_output=false",
+            "oauth_scope_exact_read_user_verified",
+            "oauth_state_one_time_verified",
+            "callback_replay_rejected_verified",
+            "refresh_family_replay_rejected_verified",
+            "audit_before_credential_verified",
+        )
+        for marker in markers:
+            with self.subTest(marker=marker):
+                self.assertIn(marker, arm)
+
+        guard = "if ([string]$Gate.verifier -ne $authVerifierRelative -or"
+        unavailable = '$failures.Add("auth_dedicated_non_mutating_verifier_unavailable")'
+        self.assertEqual(arm.count(unavailable), 1)
+        self.assertLess(arm.index(guard), arm.index(unavailable))
+
+    def test_production_auth_evidence_verifier_is_read_only_and_fail_closed(self) -> None:
+        source = (
+            REPO_ROOT / "scripts" / "verify-production-auth-identity-evidence.ps1"
+        ).read_text(encoding="utf-8")
+        for marker in (
+            "production-auth-identity-proof-v1",
+            "oauth_scope_exact_read_user_verified",
+            "oauth_state_one_time_verified",
+            "callback_replay_rejected_verified",
+            "refresh_family_replay_rejected_verified",
+            "audit_before_credential_verified",
+            "human_flow_verified_steps",
+            "Evidence must contain exactly the 12 canonical human-flow steps.",
+            "Evidence must be clean relative to HEAD.",
+            "validation_mode=true read_only=true gate_promotion_performed=false secret_output=false",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, source)
+        self.assertIn("if (-not $ValidateOnly)", source)
+        self.assertNotIn("Invoke-WebRequest", source)
+        self.assertNotIn("Invoke-RestMethod", source)
+
 
 if __name__ == "__main__":
     unittest.main()

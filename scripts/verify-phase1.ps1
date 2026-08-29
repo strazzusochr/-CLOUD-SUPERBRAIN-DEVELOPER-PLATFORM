@@ -103,6 +103,47 @@ Write-Host "[verify] external gate claim-map regression tests"
 py -3 -m unittest scripts.tests.test_verify_phase1_external_gate_claim_map
 Assert-LastExitCode "external gate claim-map regression tests"
 
+Write-Host "[verify] Phase 5 itemization transition regression tests"
+py -3 -m unittest scripts.tests.test_verify_phase5_credit_itemization
+Assert-LastExitCode "Phase 5 itemization transition regression tests"
+
+Write-Host "[verify] market-ready transition regression tests"
+py -3 -m unittest `
+  scripts.tests.test_market_ready_entrypoint `
+  scripts.tests.test_production_auth_identity_evidence
+Assert-LastExitCode "market-ready transition regression tests"
+
+Write-Host "[verify] production auth evidence verifier contract"
+$productionAuthVerifierPath = "scripts\verify-production-auth-identity-evidence.ps1"
+if (-not (Test-Path -LiteralPath $productionAuthVerifierPath -PathType Leaf)) {
+  throw "Missing production auth identity evidence verifier"
+}
+$productionAuthParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  $productionAuthVerifierPath,
+  [ref]$null,
+  [ref]$productionAuthParseErrors
+) | Out-Null
+if ($productionAuthParseErrors -and $productionAuthParseErrors.Count -gt 0) {
+  $productionAuthParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Production auth identity evidence verifier has parse errors"
+}
+$productionAuthVerifier = Get-Content -LiteralPath $productionAuthVerifierPath -Raw
+foreach ($required in @(
+  "production-auth-identity-proof-v1",
+  "oauth_scope_exact_read_user_verified",
+  "oauth_state_one_time_verified",
+  "callback_replay_rejected_verified",
+  "refresh_family_replay_rejected_verified",
+  "audit_before_credential_verified",
+  "human_flow_verified_steps",
+  "validation_mode=true read_only=true gate_promotion_performed=false secret_output=false"
+)) {
+  if (-not $productionAuthVerifier.Contains($required)) {
+    throw "Production auth identity evidence verifier missing required guard: $required"
+  }
+}
+
 Write-Host "[verify] Grafana Cloud real-read regression tests"
 py -3 scripts\verify-grafana-cloud-live-read.py
 Assert-LastExitCode "Grafana Cloud real-read regression tests"

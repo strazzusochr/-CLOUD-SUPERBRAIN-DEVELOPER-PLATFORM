@@ -565,6 +565,42 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, expected):
             callback()
 
+    def test_i5_closes_only_after_validated_auth_transition(self) -> None:
+        self.assertEqual(
+            verifier.expected_blocked_ids(auth_transition_verified=False),
+            {"I1", "I5"},
+        )
+        self.assertEqual(
+            verifier.expected_blocked_ids(auth_transition_verified=True),
+            {"I1"},
+        )
+        self.assertEqual(verifier.rounded_binary_percent(18, 19), 95)
+
+    def test_i5_rejects_live_flags_without_the_dedicated_evidence_verifier(self) -> None:
+        self.assertFalse(
+            verifier.validate_production_auth_transition(
+                {
+                    "owner_granted": False,
+                    "live_verified": False,
+                },
+                SOURCE_SHA,
+            )
+        )
+        self.assert_rejected(
+            lambda: verifier.validate_production_auth_transition(
+                {
+                    "owner_granted": True,
+                    "live_verified": True,
+                    "paid_provider": False,
+                    "owner_grant_ref": "owner-approved-auth-scope",
+                    "provider": "github_oauth",
+                    "verifier": "",
+                },
+                SOURCE_SHA,
+            ),
+            "dedicated non-mutating verifier",
+        )
+
     def test_summary_proof_accepts_bound_canonical_runtime(self) -> None:
         proof, entry = summary_proof("runtime", "npm run verify:runtime")
         verifier.validate_summary_proof("runtime", proof, entry, RELEASE_ID, SOURCE_SHA)

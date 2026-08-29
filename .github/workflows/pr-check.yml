@@ -269,6 +269,11 @@ jobs:
             )
           fi
 
+      - name: Market-ready transition contracts
+        run: |
+          python -m unittest scripts.tests.test_market_ready_entrypoint -v
+          python -m unittest scripts.tests.test_production_auth_identity_evidence -v
+
       - name: Frontend install
         working-directory: apps/frontend
         run: npm ci

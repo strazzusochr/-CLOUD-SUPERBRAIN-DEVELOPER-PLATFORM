@@ -41,7 +41,8 @@ EXPECTED_ITEMS = {
     "O5": "operations",
 }
 LEGACY_MISSING_IDS = {"I1", "I2", "I4", "I5", "V1", "O4"}
-CURRENT_BLOCKED_IDS = {"I1", "I5"}
+BASELINE_BLOCKED_IDS = {"I1"}
+PRODUCTION_AUTH_VERIFIER_PATH = "scripts/verify-production-auth-identity-evidence.ps1"
 RETIRED_RC1_MARKERS = {
     "candidate_browser_bridge_retired_current_hosted_blocked",
     "candidate_browser_evidence_retired_current_hosted_blocked",
@@ -271,6 +272,94 @@ def sha256_file(target: Path) -> str:
 
 def sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest().upper()
+
+
+def expected_blocked_ids(*, auth_transition_verified: bool) -> set[str]:
+    blocked = set(BASELINE_BLOCKED_IDS)
+    if not auth_transition_verified:
+        blocked.add("I5")
+    return blocked
+
+
+def validate_production_auth_transition(gate: Any, source_sha: str) -> bool:
+    require(isinstance(gate, dict), "production auth capability gate must be an object")
+    owner_granted = gate.get("owner_granted") is True
+    live_verified = gate.get("live_verified") is True
+    require(
+        not live_verified or owner_granted,
+        "production auth gate may not be live-verified without an Owner grant",
+    )
+    if not (owner_granted and live_verified):
+        return False
+
+    require(gate.get("paid_provider") is False, "production auth proof must remain free-only")
+    require(
+        isinstance(gate.get("owner_grant_ref"), str) and gate["owner_grant_ref"].strip(),
+        "production auth gate is missing its Owner grant reference",
+    )
+    require(
+        isinstance(gate.get("provider"), str) and gate["provider"].strip(),
+        "production auth gate is missing its provider identity",
+    )
+    require(
+        gate.get("verifier") == PRODUCTION_AUTH_VERIFIER_PATH,
+        "production auth gate must name the dedicated non-mutating verifier",
+    )
+
+    verifier_path = require_tracked_repo_path(
+        PRODUCTION_AUTH_VERIFIER_PATH,
+        "production auth verifier",
+    )
+    require(
+        run_git("diff", "--quiet", "HEAD", "--", verifier_path).returncode == 0,
+        "production auth verifier must be clean relative to HEAD",
+    )
+    evidence_path = require_tracked_repo_path(
+        gate.get("evidence_artifact"),
+        "production auth gate",
+    )
+    require(
+        run_git("diff", "--quiet", "HEAD", "--", evidence_path).returncode == 0,
+        "production auth evidence must be clean relative to HEAD",
+    )
+    evidence_sha = gate.get("evidence_sha256")
+    require(
+        isinstance(evidence_sha, str) and re.fullmatch(r"[0-9A-Fa-f]{64}", evidence_sha) is not None,
+        "production auth evidence SHA-256 is invalid",
+    )
+    require(
+        sha256_file(ROOT / evidence_path) == evidence_sha.upper(),
+        "production auth evidence SHA-256 mismatch",
+    )
+
+    command = [
+        "pwsh",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        str(ROOT / PRODUCTION_AUTH_VERIFIER_PATH),
+        "-EvidencePath",
+        evidence_path,
+        "-ExpectedCandidateSha",
+        source_sha,
+        "-ValidateOnly",
+    ]
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=ROOT,
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except OSError as exc:
+        fail(f"production auth verifier could not run: {exc}")
+    marker = "validation_mode=true read_only=true gate_promotion_performed=false secret_output=false"
+    require(completed.returncode == 0, "production auth evidence failed dedicated validation")
+    require(marker in completed.stdout, "production auth verifier omitted the read-only validation marker")
+    return True
 
 
 def require_exact_lines(lines: list[str], expected: list[str], label: str) -> None:
@@ -1213,6 +1302,7 @@ def validate_candidate(
     computed_percent: int,
     verified_count: int,
     blocked_count: int,
+    expected_blocked_item_ids: set[str],
     manifest: dict[str, Any],
     itemization: dict[str, Any],
 ) -> None:
@@ -1264,8 +1354,9 @@ def validate_candidate(
     row_map = {item_id: answer for item_id, answer in table_rows}
     require(set(row_map) == set(EXPECTED_ITEMS), "candidate checklist row IDs mismatch")
     require(
-        {item_id for item_id, answer in row_map.items() if answer == "NEIN"} == CURRENT_BLOCKED_IDS,
-        "candidate NEIN rows must be exactly I1 and I5",
+        {item_id for item_id, answer in row_map.items() if answer == "NEIN"}
+        == expected_blocked_item_ids,
+        "candidate NEIN rows must match the validated blocked-item set",
     )
 
     readiness = load_json(readiness_path)
@@ -1278,7 +1369,10 @@ def validate_candidate(
     require(readiness.get("status") == "verified_with_owner_blocks", "readiness status mismatch")
     require(readiness.get("verified_item_count") == verified_count, "readiness verified count mismatch")
     require(readiness.get("blocked_item_count") == blocked_count, "readiness blocked count mismatch")
-    require(set(readiness.get("blocked_item_ids", [])) == CURRENT_BLOCKED_IDS, "readiness blocked IDs mismatch")
+    require(
+        set(readiness.get("blocked_item_ids", [])) == expected_blocked_item_ids,
+        "readiness blocked IDs mismatch",
+    )
 
     validate_ci_workflow(readiness.get("ci_workflow"), release_id, source_sha)
 
@@ -1402,6 +1496,24 @@ def main() -> int:
         "itemization checklist path mismatch",
     )
 
+    release_id = str(itemization.get("active_release_id", ""))
+    source_sha = str(itemization.get("active_source_commit_sha", ""))
+    require(
+        re.fullmatch(r"prod-candidate-\d{4}-\d{2}-\d{2}-local-rc\d+", release_id) is not None,
+        "active release ID is invalid",
+    )
+    require(re.fullmatch(r"[0-9a-f]{40}", source_sha) is not None, "active source SHA is invalid")
+    require(current_candidate.get("active_release_id") == release_id, "current candidate pointer mismatch")
+    require(current_candidate.get("production_rollout_claimed") is False, "current candidate may not claim rollout")
+
+    auth_transition_verified = validate_production_auth_transition(
+        gates.get("production_auth_identity", {}),
+        source_sha,
+    )
+    expected_blocked_item_ids = expected_blocked_ids(
+        auth_transition_verified=auth_transition_verified,
+    )
+
     checklist = CHECKLIST_PATH.read_text(encoding="utf-8")
     require(
         "Rubrik: `phase5-release-readiness-19-v2`" in checklist,
@@ -1458,7 +1570,10 @@ def main() -> int:
 
     require(set(by_id) == set(EXPECTED_ITEMS), "itemization IDs do not cover the full checklist")
     blocked_ids = {item_id for item_id, item in by_id.items() if item["status"] == "blocked_owner"}
-    require(blocked_ids == CURRENT_BLOCKED_IDS, "current blocked items must be exactly I1 and I5")
+    require(
+        blocked_ids == expected_blocked_item_ids,
+        "current blocked items must match the validated gate transitions",
+    )
     require(
         by_id["I2"].get("policy_basis") == "E3_release_candidate_ready_ghcr_post_market",
         "I2 must encode the E3 post-market ruling",
@@ -1481,7 +1596,14 @@ def main() -> int:
     require(current.get("verified_item_count") == verified_count, "current verified count mismatch")
     require(current.get("blocked_item_count") == blocked_count, "current blocked count mismatch")
     require(current.get("computed_percent") == computed_percent, "current computed percent mismatch")
-    require(computed_percent == 89, "current evidence must derive Phase 5 as 89")
+    expected_percent = rounded_binary_percent(
+        len(EXPECTED_ITEMS) - len(expected_blocked_item_ids),
+        len(EXPECTED_ITEMS),
+    )
+    require(
+        computed_percent == expected_percent,
+        "current evidence must derive the Phase-5 score from validated blockers",
+    )
 
     phase5 = next(
         (item for item in manifest.get("horizontal", {}).get("items", []) if item.get("id") == "phase_5"),
@@ -1518,19 +1640,10 @@ def main() -> int:
             "manifest is missing the Phase-5 itemization marker",
         )
 
-    release_id = str(itemization.get("active_release_id", ""))
-    source_sha = str(itemization.get("active_source_commit_sha", ""))
     require(
-        re.fullmatch(r"prod-candidate-\d{4}-\d{2}-\d{2}-local-rc\d+", release_id) is not None,
-        "active release ID is invalid",
+        (by_id["I5"]["status"] == "verified") is auth_transition_verified,
+        "I5 status must match the validated production-auth transition",
     )
-    require(re.fullmatch(r"[0-9a-f]{40}", source_sha) is not None, "active source SHA is invalid")
-    require(current_candidate.get("active_release_id") == release_id, "current candidate pointer mismatch")
-    require(current_candidate.get("production_rollout_claimed") is False, "current candidate may not claim rollout")
-
-    auth_gate = gates.get("production_auth_identity", {})
-    require(auth_gate.get("owner_granted") is False, "I5 may remain blocked only while auth owner grant is false")
-    require(auth_gate.get("live_verified") is False, "I5 may remain blocked only while auth live proof is false")
     registry_gate = gates.get("docker_registry_publish", {})
     require(registry_gate.get("owner_granted") is False, "E3 must not silently grant registry publication")
     require(registry_gate.get("live_verified") is False, "E3 must not silently verify registry publication")
@@ -1542,6 +1655,7 @@ def main() -> int:
             computed_percent,
             verified_count,
             blocked_count,
+            expected_blocked_item_ids,
             manifest,
             itemization,
         )

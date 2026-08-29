@@ -194,15 +194,34 @@ function Get-ReadyGateEvidenceValidation(
 
   switch ($GateId) {
     "production_auth_identity" {
-      # This aggregate is not a substitute for an auth-specific verifier. Until
-      # that verifier exists, tracked JSON claims must remain fail-closed.
-      $failures.Add("auth_dedicated_non_mutating_verifier_unavailable")
+      $authVerifierRelative = "scripts/verify-production-auth-identity-evidence.ps1"
+      $authVerifierPath = Resolve-RepoScopedFile $authVerifierRelative
+      if ([string]$Gate.verifier -ne $authVerifierRelative -or
+          -not $authVerifierPath -or
+          -not (Test-TrackedCleanRepoFile $authVerifierRelative)) {
+        $failures.Add("auth_dedicated_non_mutating_verifier_unavailable")
+      } else {
+        $authOutput = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $authVerifierPath `
+          -EvidencePath $relativeEvidence `
+          -ExpectedCandidateSha $ExpectedCandidateSha `
+          -ValidateOnly 2>&1)
+        $authExit = $LASTEXITCODE
+        if ($null -eq $authExit) { $authExit = 127 }
+        $authText = $authOutput -join "`n"
+        $authValidationMarker = "validation_mode=true read_only=true gate_promotion_performed=false secret_output=false"
+        if ($authExit -ne 0 -or -not $authText.Contains($authValidationMarker)) {
+          $failures.Add("auth_dedicated_non_mutating_verifier_failed")
+        }
+      }
       if ([string]$evidence.contract_version -ne "production-auth-identity-proof-v1") { $failures.Add("auth_contract") }
       foreach ($field in @(
-        "hosted_https", "real_browser", "oauth_start_verified", "callback_verified",
-        "session_readback_verified", "refresh_verified", "logout_verified",
-        "audit_readback_verified", "refresh_revoked_verified", "cookies_cleared_verified",
-        "rollback_verified"
+        "hosted_https", "real_browser", "oauth_start_verified",
+        "oauth_scope_exact_read_user_verified", "oauth_state_one_time_verified",
+        "callback_verified", "callback_replay_rejected_verified",
+        "session_readback_verified", "refresh_verified",
+        "refresh_family_replay_rejected_verified", "logout_verified",
+        "audit_readback_verified", "audit_before_credential_verified",
+        "refresh_revoked_verified", "cookies_cleared_verified", "rollback_verified"
       )) {
         $property = $evidence.PSObject.Properties[$field]
         if ($null -eq $property -or -not (Test-JsonBool $property.Value $true)) { $failures.Add("auth_$field") }
