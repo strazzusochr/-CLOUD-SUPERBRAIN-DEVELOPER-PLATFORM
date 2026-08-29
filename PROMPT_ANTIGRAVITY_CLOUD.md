@@ -1,5 +1,12 @@
 # 🌐 AUFTRAG FÜR ANTIGRAVITY — Cloud-Konsolen im Browser
 
+> **Status: `HISTORICAL_DO_NOT_EXECUTE` (2026-08-29).** Die Bestandsaufnahme `11/13`,
+> der behauptete alleinige GitLab-Ausfall und die alte `read:packages`-Ursachenzuordnung
+> sind ueberholt. Aktuell sind DEV-ONLY `8/8` Provider konfiguriert, `7/8` live gelesen und
+> die Cloud-Layer `6/7`; GitHub Actions und GitLab sind verifiziert, nur der GHCR-Live-Read
+> bleibt `api_error`. Verbindlich sind `CODEX_UEBERGABE_2026-08-29-SESSION16.md`,
+> `CODEX_ZIELVERFOLGUNG_KURZ.md` und `CODEX_100_PROZENT_ZIEL_2026-08-29.md`.
+
 > **Du arbeitest ausschliesslich im Browser in den Cloud-Konsolen.**
 > Du fasst **kein** Repository, **keine** lokale Datei und **keinen** Terminalbefehl an —
 > das macht Codex (siehe `AGENT_AUFTRAG_RC21_UND_RESTLISTE.md`).

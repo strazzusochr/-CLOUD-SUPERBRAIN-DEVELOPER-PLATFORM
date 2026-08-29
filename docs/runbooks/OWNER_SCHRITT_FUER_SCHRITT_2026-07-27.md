@@ -1,4 +1,9 @@
 # OWNER-RUNBOOK — SCHRITT FÜR SCHRITT (Stand 2026-07-27)
+> **Status: `HISTORICAL_DO_NOT_EXECUTE` (2026-08-29).** Die OAuth-Anleitung nennt nur drei
+> statt fuenf Konfigurationen und behauptet faelschlich, lokale Verifier koennten Production
+> Auth oeffnen. Aktuell verbindlich:
+> `docs/runbooks/PRODUCTION_OAUTH_FIXPLAN_2026-08-29.md`.
+
 > Alles hier ist **kostenlos** und **ohne Kreditkarte**. Reihenfolge einhalten.
 > Quelle der Anforderungen: `docs/runtime-state/owner-input-manifest.json` (`owner-input-manifest-v2`).
 

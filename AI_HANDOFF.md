@@ -6,6 +6,39 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
+## Current Session16 Audit Handoff — 2026-08-29
+
+The current operator packet is:
+
+- `CODEX_UEBERGABE_2026-08-29-SESSION16.md`
+- `CODEX_ZIELVERFOLGUNG_KURZ.md`
+- `CODEX_100_PROZENT_ZIEL_2026-08-29.md`
+- `docs/runbooks/PRODUCTION_OAUTH_FIXPLAN_2026-08-29.md`
+
+Post-RC21 local build, runtime, DEV-LIVE and browser proofs are green, but they are
+Worktree-/DEV proofs rather than a new immutable candidate chain. The fresh Product and
+22-page reports have no `source_commit_sha`; O4 and the action report bind the then-current
+HEAD `740bafe92314b36f047a07443567df403ea5a45d`. The latest full `npm run verify` is red at
+`current Cloudflare-native hosted Worker source parity`: Hosted still reports
+`d0674bfc1367b04d95ca2bf745e89fabf12046ad`, while the Worker tree contains later
+runnability fixes. `DEV-ONLY; hosted proof still blocked`.
+
+Current local cloud inventory is `8/8` configured, `7/8` live-read and cloud layers `6/7`.
+GitHub Actions and GitLab are verified; only GHCR is `api_error`, so L5 remains partial.
+The older `PROMPT_ANTIGRAVITY_CLOUD.md` is `HISTORICAL_DO_NOT_EXECUTE`.
+
+Production OAuth is not a console-only fix. The Vercel callback must stay on the visible
+frontend origin. The Worker lacks native GitHub start/callback/me/refresh/logout routes;
+GET fallback can recurse Worker -> Vercel -> Worker and unmatched POST returns 405. The
+recommended zero-card design uses additive D1 tables plus a dedicated Auth Durable Object,
+subject to an explicit Owner ADR and deploy gate.
+
+Known next-candidate contract drift: `services/agent-api/app/main.py:7455` and
+`apps/frontend/lib/endpoint-snapshot.json` still expect the already-closed Cloudflare gate,
+while the real missing set is `hosted_agent_api_contracts`, `ghcr_image_digest_verify`, and
+`vercel_backend_origin_health`. Do not patch this as an isolated truth edit; repair it
+Red-first with its snapshot/verifier mirrors and requalify a new candidate.
+
 ## Current RC21 Handoff — 2026-08-29
 
 Active locally qualified candidate: `prod-candidate-2026-08-28-local-rc21`, frozen source
@@ -31,14 +64,14 @@ older container token while the local secret file and authenticated `gh` keyring
 restored `/api/v1/clouds` to `configured=true`, `live_verified=true`, `status=verified`, with
 three resources and no error. No token was printed or rotated.
 
-Owner console preparation is complete but does not close production auth: GitHub
+Owner console preparation exists but does not close production auth: GitHub
 `registry-publication` and `production` environments have Required Reviewer
-`strazzusochr`; Cloudflare stores `AGENT_API_AUTH_TOKEN` and
-`GITHUB_OAUTH_CLIENT_SECRET` as encrypted Worker secrets; the existing project OAuth App
-uses the Worker homepage/callback with wildcard matching disabled; and Vercel Production and
-Preview use the same callback URI. A current hosted deploy plus the full OAuth
-start/callback/session/replay proof are still missing, so `production_auth_identity` remains
-closed.
+`strazzusochr`, and encrypted Worker secret names were configured. Session16 then proved
+that the recorded Worker homepage/callback is incompatible with the frontend Same-Origin
+and `__Host-` cookie contract. The browser callback must be a canonical Vercel frontend
+origin; unique Preview origins require a stable staging origin or separate OAuth App. A
+current hosted deploy plus the full OAuth start/callback/session/replay proof are still
+missing, so `production_auth_identity` remains closed.
 
 V0 now has the non-binding Owner draft
 `docs/runtime-contracts/layer-credit-rubric.md`. Its proposed L4 and L5 tables each sum to
@@ -49,9 +82,12 @@ percentage moves.
 No GHCR publication, default-branch write, production deploy, release promotion, payment,
 secret output, Phase-6 hosted-write run, or visual approval is authorized or claimed.
 
-## Current RC20 Handoff — 2026-08-28
+## Historical RC20 Handoff — 2026-08-28
 
-Active locally qualified candidate: `prod-candidate-2026-08-28-local-rc20`, frozen source
+Legacy verifier compatibility anchor only: `Current RC20 Handoff`. This string is not a
+current-candidate claim; RC21 is authoritative.
+
+Former locally qualified candidate: `prod-candidate-2026-08-28-local-rc20`, frozen source
 `c29c738b82e4e35cc1288bc603319cba60d167d2`, control commit
 `6f9387c6d492151b9195e3afcbf5a031b094dd67`, source-attested GitHub Actions run
 `33200830176`. GitHub checked out the exact candidate SHA; the only control delta was
@@ -600,7 +636,7 @@ py -3 scripts\verify_project_progress_manifest.py
 
 Recent verification status: on 2026-06-11, the Platform UI Status Boundary Guard was added and passed `scripts\verify-platform-ui-status-boundary.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` with `product_surfaces=7` and `routes=6`, then passed through `npm run verify:browser`. It blocks project-status helpers, manifest snapshots, project progress endpoints, completion/gate/recovery wall markers, and go-live/external-gate audit markers from Home, Workbench, Games, Apps, Media, Docs-Output, and AppShell while keeping Evidence/Diagnostics/Organism/non-rendering wiring available. The Workspace Data Source Integrity Guard corrected stale `/api/v1/model-capabilities` refs to `/api/v1/models/capabilities`, added `GET /api/v1/files/local/contract`, and passed `scripts\verify-workspace-data-sources.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` with `api_refs=32`. It is now included in `npm run verify:browser` after the vertical-stack guard. The same session passed `py -3 -m py_compile services\agent-api\app\main.py`, `npm run lint --prefix apps/frontend`, `npm run build --prefix apps/frontend`, Docker DEV rebuild for frontend/agent-api/nginx, and `npm run verify:browser`. Earlier on 2026-06-11, the Organism Topology Integrity Guard passed `scripts\verify-organism-topology.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` with `151` nodes and `308` edges, then passed through `npm run verify:browser`; manifest validation and `git diff --check` also passed, with only line-ending warnings. The topology guard is part of `scripts\verify-browser-contract.ps1` and statically guarded by `scripts\verify-phase1.ps1`; `apps/frontend/lib/platform.ts` now mirrors Phase `P4` as `99%` instead of a stale `100%` snapshot. `scripts\verify-phase1.ps1` passed fully, including gitleaks over ~4.27 GB, and `npm run verify:external-gates` produced `.phase1-artifacts/external-gate-audit-20260615-121905.json` with the same external blockers. Earlier on 2026-06-10, the frontend runtime binding slice passed `npm run lint --prefix apps/frontend`, `npm run build --prefix apps/frontend`, focused `npx playwright test e2e/organism.spec.ts --project=chromium --grep "forwards run_id"`, full `npx playwright test e2e/organism.spec.ts --project=chromium` (`12 passed`), `scripts\verify-organism-runtime-events.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `npm run verify:browser`, `npm run verify:runtime`, `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase1.ps1`, `npm run verify:external-gates`, `py -3 scripts\verify_project_progress_manifest.py`, and `git diff --check`. `npm run verify` initially caught and blocked a missing exact no-token baseline phrase in this handoff; that mirror text was repaired. A later gitleaks block was traced to local `.claude` Secret/Session copies, redacted without printing secret values, and then gitleaks/Phase-1 verified clean. The Workbench budget-visibility slice passed lint, build, full Organism E2E (`13 passed`), Docker DEV frontend/nginx rebuild, `npm run verify:browser`, targeted Workbench HTTP proof, manifest validation, `git diff --check`, `scripts\verify-phase1.ps1`, and `npm run verify:external-gates`; `/workbench` hides `Metered Budget` unless a paid/metered option is selected or explicitly configured. The last external gate artifact is `.phase1-artifacts/external-gate-audit-20260615-121905.json`, blocked for `hosted_agent_api_contracts` and `vercel_backend_origin_health`; `canonical_gitleaks_scan` and `ghcr_image_digest_verify` are verified. GitLab, Hugging Face, and Grafana identity checks are fail-closed in this no-token baseline. Current hosted proof requires Vercel HTTPS `STAGING_BASE_URL` plus reachable Fly origins.
 
-Current Master Goal external gate mirror: the tracked canonical audit `docs/runtime-state/external-gate-audit-v2.json` and `external-gate-summary-v2` are `blocked` with `production_deploy_claim_allowed=false`; the only active audit blocker is `ghcr_image_digest_verify`. Hosted contracts, Vercel origins, Branch Protection, Cloudflare O2Core, and the canonical secret scan are positive. RC10/Fly v1 and the owner-assisted `125413` candidate are `historical_only` and never current authority. Current verified progress is 86 percent.
+Historical Master Goal snapshot, superseded by the Session16 section at the top: the then-tracked audit was `blocked` with `production_deploy_claim_allowed=false` and the then-current progress was 86 percent. It is not current gate or progress authority. The current missing set is `hosted_agent_api_contracts`, `ghcr_image_digest_verify`, and `vercel_backend_origin_health`; current progress is 89 percent.
 
 Autopilot stream proof now runs through the active Agent API/Nginx stack at `<local-control-plane-stream-url>` and emits `status:init`, `status:llm`, `token`, and `done` with `autopilot-mode-stream-proof`.
 
@@ -1550,16 +1586,19 @@ Do not claim these until external evidence exists:
 - Live LLM calls are verified only in the bounded Cloudflare Workers AI
   gateway acceptance paths above; general provider activation, dynamic
   routing, and hosted full-product parity are not verified.
-- No live MCP writes are verified.
+- No hosted or production MCP writes are verified. Bounded DEV-ONLY O4 MCP/filesystem
+  write, audit, readback and rollback are verified and do not close a hosted gate.
 - No stateful full-backend or full-platform production release is verified; the scoped Vercel frontend and stateless read-only Backend Contract Origin are verified separately.
 - `production_deploy_claim_allowed=true` is only a gate-closure statement, not a deploy statement.
 
-## Next Safe Work
+## Historical Next Safe Work (superseded)
 
-1. Commit only the current Qwen 3.7 gateway implementation and synchronized Truth/Handoff files; preserve all unrelated dirty and staged files.
-2. Run the final chain strictly serially: `npm run build`, `npm run verify:runtime`, `scripts/start-dev-live.ps1`, `npm run verify:browser`, `npm run verify`, `npm run verify:release-boundary`, `npm run verify:current-release-candidate`, and `npm run verify:market-ready`.
-3. Keep O4 as the last source-bound runtime/browser proof after the final tracked-source commit. Any later tracked change invalidates that proof and requires the browser/O4 chain again.
-4. Push only `codex/organism-visual-v2` after the in-scope chain is green, then inspect its GitHub Actions result. Do not push `main`, publish GHCR images, deploy Production, activate Alibaba live-provider traffic, or promote a release without the documented Owner gates.
+The older Qwen/O4 checklist here is complete or superseded. Current next work is defined only
+by the Session16 packet at the top, especially
+`CODEX_UEBERGABE_2026-08-29-SESSION16.md` and
+`CODEX_100_PROZENT_ZIEL_2026-08-29.md`. The full verifier currently stops fail-closed at
+Hosted Worker source parity; OAuth, Hosted deploy, scale, GHCR and Production remain
+separately Owner-gated.
 
 ## Git State Warning
 

@@ -1,678 +1,264 @@
-# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-08-29 · **RC21 qualifiziert**
+# ZIELVERFOLGUNG KURZ - STAND 2026-08-29
 
-> **Dies ist die EINZIGE Arbeitsdatei.** Aufbau: Ziel → Owner-Entscheidung → Start → Befunde →
-> Wände → Reihenfolge → Regeln → **Anweisungen für Codex** → **Referenz** (Details, Test-Inventar,
-> Owner-Klickfolgen).
-> **Zweites und letztes Dokument:** `REGELN_OPTIK_UND_FERTIG.md` — das Regelwerk mit den Belegen.
-> Alle `CODEX_UEBERGABE_*.md` sind **Historie**.
+Status: `ACTIVE_CURRENT_TRUTH`
+Branch: `codex/organism-visual-v2`
+Market Status: `MARKET_READY:false`
 
-## AKTUELLER DELTA-SEITENKOPF — 2026-08-29
+Diese Datei ist die kurze Steuerung. Details:
 
-- **RC21 ist gebunden:** `prod-candidate-2026-08-28-local-rc21`, Quelle
-  `c1b022a884eb16939fe0542b2eb9056b60706b20`, Control `9f2ee383`, CI
-  `33217980790`, fuenf Ketten und der gebundene Evidenzsatz sind vorhanden.
-  `verify:phase5-credit` ist gruen bei `17/19 = 89%`; `current-release-candidate`
-  ist technisch gruen und absichtlich `promotion_eligible=false`.
-- **CI-Restliste E ist geschlossen:** Der erste Audit fand zwei uebersprungene
-  Phase-5-Schritte. Run `33223542872` auf `e98f68a6` bestand danach `25/25`
-  Schritte mit `0` skipped, einschliesslich Runnability, OAuth, Secret-Scan und
-  sechs Image-Builds.
-- **GitHub-Actions-Befund B ist geschlossen:** Ursache war ein veralteter Token
-  nur im laufenden DEV-ONLY-Container. Lokaler Secret-Store und `gh` waren
-  gueltig. Nach scoped Agent-API-Recreate meldet `/api/v1/clouds`
-  `github_actions.status=verified`; kein Token wurde ausgegeben oder rotiert.
-- **Gate-Luecke C ist geschlossen:** Fuenf-Achsen-Audit und Regression laufen in
-  `scripts/verify-phase1.ps1`; die `.mjs`-Verifier koennen ueber die nur-PS1-
-  Registry nicht direkt aufgeloest werden.
-- **V0 ist vorbereitet:** `docs/runtime-contracts/layer-credit-rubric.md` existiert
-  jetzt als `DRAFT_OWNER_APPROVAL_REQUIRED`; L4 und L5 summieren jeweils exakt
-  100, aber `credit_application_allowed=false`. L4 `55` und L5 `56` bleiben.
-- **Owner-Konsolen vorbereitet:** GitHub-Environments/Reviewer, Worker-Secrets,
-  OAuth-App und Vercel-Callback sind gesetzt. Ohne aktuellen Hosted-Deploy und
-  den echten OAuth-Session-/Replay-Beweis bleibt I5 geschlossen. Phase-6-900-
-  Request-Lauf, GHCR-Publish, Production-Promotion und Rubrikfreigabe brauchen
-  weiterhin ihre expliziten Owner-Gates.
+- aktuelle Uebergabe: `CODEX_UEBERGABE_2026-08-29-SESSION16.md`
+- Weg zu 100: `CODEX_100_PROZENT_ZIEL_2026-08-29.md`
+- OAuth: `docs/runbooks/PRODUCTION_OAUTH_FIXPLAN_2026-08-29.md`
+- Optikregeln: `REGELN_OPTIK_UND_FERTIG.md`
+- RC21-Arbeitsauftrag/Historie: `AGENT_AUFTRAG_RC21_UND_RESTLISTE.md`
 
-Naechster autonomer Schritt: den aktuellen Branch seriell durch Build, Runtime,
-Static und Release-Verifier pruefen; danach nur die echten Owner-Gates melden.
+## 1. Endziel
 
-## 👥 ZWEI AGENTEN, ZWEI AUFTRÄGE — wer macht was
+`npm run verify:market-ready` druckt real:
 
-| Agent | Auftragsdatei | Arbeitsbereich |
-|---|---|---|
-| **Codex** | `AGENT_AUFTRAG_RC21_UND_RESTLISTE.md` | Repository, Terminal, Verifier, RC-Bindung |
-| **Antigravity** | `PROMPT_ANTIGRAVITY_CLOUD.md` | Browser, Cloud-Konsolen, Owner-Freigaben |
-
-**Beide Dateien liegen im Repo-Wurzelverzeichnis**
-`D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\` — **nicht** unter `.claude/worktrees/`.
-
-**Reihenfolge:** Antigravity öffnet die Cloud-Wände (V1–V4), Codex bindet RC21 und misst.
-Codex' Aufgabe A (RC21) läuft **unabhängig** und kann sofort starten.
-
-> **Hinweis zu `docs/runtime-contracts/layer-credit-rubric.md`:** Der Entwurf
-> existiert. Er ist noch **nicht Owner-freigegeben** und darf deshalb weder L4/L5
-> noch `MARKET_READY` veraendern.
-
----
-
-## ENDZIEL
-
-`npm run verify:market-ready` druckt real **`MARKET_READY: true`**.
-Beide Matrizen 100 %, jede Zelle mit echtem Artefakt.
-Owner-gewollte Reste ehrlich als **OWNER-BLOCKED** listen — **nie faken (R0)**.
-
----
-
-## 🔴 OWNER-ENTSCHEIDUNG — gilt weiter
-
-> **Organismus-Optik kommt GANZ ANS ENDE.** Alles andere ist wichtiger.
-> Kein Agent arbeitet am Aussehen von `CortexCanvas3D`, bis Funktion und Ketten stehen.
-
----
-
-## 🚀 START HIER — das Produkt baut jetzt echte 3D-Spiele
-
-**Der Kern des Produkts war kaputt und ist repariert.** Die Workbench erzeugte bisher nur
-Spielzeug („Taschenrechner-Niveau"). Ursache war **nicht** das Modell, sondern **drei
-gestapelte Deckel**, alle gemessen, keiner geraten:
-
-| # | Deckel | Messung |
-|---|---|---|
-| 1 | `CF_WORKERS_AI_MAX_TOKENS` **im Container UNSET** → Default **2048** | Die Route bittet um 5200; `min(5200, 2048)` schnitt **~60 %** weg, ohne Fehler, ohne Logzeile |
-| 2 | `docker-compose.dev.yml` setzte die Variable **nie** | Der stille Code-Default war der echte Betriebswert |
-| 3 | Systemprompt forderte **„~300 lines"** | Er beschrieb die Verstümmelung statt das Produkt |
-
-**Folge, an allen 40 persistierten Artefakten gemessen:** groesstes **6867 Bytes / 191 Zeilen**,
-Median **2967 Bytes** — gegen ein Persistenz-Limit von **160 KB**. Ein unvollstaendiges Dokument
-wird von der Persistenzgrenze hart abgelehnt, deshalb konnten **nur kleine Apps** je durchkommen.
-
-Zur Einordnung: `@cf/qwen/qwen2.5-coder-32b-instruct` hat laut offizieller Cloudflare-Doku ein
-**Kontextfenster von 32 768 Token**. Der Deckel lag bei rund **6 %** dessen, was das Modell kann.
-
-### Was danach sofort auffiel — ein vierter, invertierter Deckel
-
-Sobald der Token-Deckel weg war, antwortete `POST /api/v1/build` mit **HTTP 503
-`configured_boundary_unavailable` nach 53,8 s**. Es war **nichts unavailable**: die Route brach
-ihren Gateway-Aufruf bei **50 s** ab, während das Gateway noch bis **90 s** auf den Provider
-wartete. Der innere Hop durfte laenger leben als der Hop, der auf ihn wartet — ein langsamer
-**Erfolg** konnte nur als **falscher Ausfall** erscheinen.
-
-Zeitbudget jetzt monoton nach aussen:
-**Provider 90 s < Route 100 s < maxDuration 115 s < nginx 120 s.**
-
-Dass das noetig war, ist belegt: der erfolgreiche Lauf brauchte **61,9 s** und waere unter dem
-alten 50-s-Limit erneut als Ausfall gemeldet worden.
-
-### Beweis — echtes 3D, wirklich spielbar (DEV-ONLY)
-
-Live gegen `@cf/qwen/qwen2.5-coder-32b-instruct`, Gateway `cloudflare_workers_ai_live`:
-
-```
-build: HTTP 200 in 61,9 s
-id    : 5a5fbcce-0e78-4020-8e41-499f8760b708
-bytes : 7953   lines: 232      <- groesser als jedes der 40 vorherigen Artefakte
+```text
+MARKET_READY: true
 ```
 
-| Geprueft | Ergebnis |
+Dafuer muessen beide Matrizen evidenzbasiert 100 sein. Production-Deploy und Release-
+Promotion bleiben danach separate Owner-Entscheidungen.
+
+## 2. Aktueller Koordinatensatz
+
+| Feld | Stand |
 |---|---|
-| WebGL-Kontext | **WebGL 2.0 (OpenGL ES 3.0 Chromium)**, Canvas 1280×800 |
-| Console-/Page-Errors | **0** |
-| Renderbeweis | Screenshot: blauer Himmel, grosser gruener Boden, violette Plattformen, roter Spieler **mit geworfenem Schatten**, Muenzen, HUD `Score: 0` |
-| Bewegung | Pfeil rechts → Welt verschiebt sich unter **mitlaufender Kamera** |
-| Sprung | Leertaste → Spieler loest sich sichtbar **von seinem Schatten** |
-| Material | `MeshStandardMaterial` ×5, **`MeshBasicMaterial` 0** |
-| Schatten | `castShadow` 5 · `receiveShadow` 4 · `shadowMap` 2 |
-| Eingabe | `keydown` **und** `keyup` (echter Tastenzustand, kein Einzelzweig) |
+| lokaler HEAD vor diesem Dokumentensatz | `740bafe92314b36f047a07443567df403ea5a45d` |
+| Remote vor diesem Dokumentensatz | `e98f68a6e5ce8544f8504f38a57c0e17672fe253` |
+| aktiver Kandidat | `prod-candidate-2026-08-28-local-rc21` |
+| Candidate Source | `c1b022a884eb16939fe0542b2eb9056b60706b20` |
+| Candidate Control | `9f2ee3838492079bd5c65b53a03cd4b29c9a6c49` |
+| Qualifikations-CI | `33217980790` |
+| Follow-up-CI | `33223542872` auf `e98f68a6`, `25/25`, `0 skipped` |
+| Readiness | `17/19 = 89%`; offen I1 und I5 |
+| Rollback | RC20 Source `c29c738b82e4e35cc1288bc603319cba60d167d2` |
 
-Artefakte: `docs/audit/workbench-3d-game-2026-08-28/` — 3 Screenshots + das generierte HTML.
+RC21 bleibt immutable. Neue Runtime-Source-Aenderungen benoetigen einen neuen Kandidaten.
 
-> **Ehrlich dazu:** Die Optik ist solide beleuchtetes 3D, aber noch **kein „3-Sterne"-Look**.
-> Die Kamera steht weit weg, die Formen sind einfach. Das ist der naechste Optik-Schritt —
-> und der kommt nach der Owner-Reihenfolge, also **spaeter**.
+## 3. Fortschritt
 
-### ⚠️ Eine Zwischenversion war schlechter — und wird nicht als Fortschritt behauptet
+```text
+Overall 89
 
-Der erste Versuch, Optik zu fordern, verlangte Tone-Mapping. Ergebnis: **fast schwarze
-Silhouetten, Boden komplett verschwunden**. Der Grund ist real und erklaerbar: three.js r155+
-nutzt physikalische Lichteinheiten, ACES ueber Default-Intensitaeten rendert dunkel. Der Prompt
-fordert jetzt ausdruecklich **helle Intensitaeten** (Directional 2.5–3.5, Ambient/Hemisphere
-1.5–2.5), einen **200×200-Boden**, Fog in **Himmelsfarbe** — und sagt: *ein dunkles Rendering
-ist ein fehlgeschlagenes Rendering*. Diese Zwischenversion ist verworfen.
+Horizontal:
+P0 100 | P1 100 | P2 100 | P3 44 | P4 100 | P5 89 | P6 90
 
----
-
-## 📍 IST-STAND
-
-```
-Overall 89   H: P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 89 · P6 90
-             V: L1 100 · L2 100 · L3 100 · L4 55 · L5 56 · L6 100 · L7 100
-Gates 7/10 zu   offen: production_auth_identity · docker_registry_publish · phase6_scale_runtime
-Kandidat c29c738b · Control 6f9387c6 · CI 33200830176 · Evidenz 27/27
-Branch codex/organism-visual-v2   MARKET_READY:false
+Vertikal:
+L1 100 | L2 100 | L3 100 | L4 55 | L5 56 | L6 100 | L7 100
 ```
 
-**Preflight:**
-```powershell
-Set-Location 'D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM'
-$env:TEMP='D:\_sb_tmp'; $env:TMP='D:\_sb_tmp'
-git status --porcelain | Select-String '^ D'   # MUSS leer sein
-(Get-PSDrive D).Free/1GB                       # vor Image-Builds
-docker ps                                      # Daemon lebt?
+Keine Prozentanhebung durch Doku, Konsolenwerte oder lokale Wiederholungen bereits
+kreditierter Beweise.
+
+## 4. Seit RC21 erledigt
+
+- RC21 Source-Paritaet wiederhergestellt.
+- Runtime-Verifier auf active-provider-only-Wahrheit korrigiert.
+- Fuenf-Achsen-Audit und Regression in der statischen Gate-Kette.
+- GitHub-Actions-`api_error` als stale Container-Environment gemessen und durch scoped
+  Agent-API-Recreate behoben; kein Token rotiert oder ausgegeben.
+- Phase-5-CI so geroutet, dass kein mutually-exclusive Schritt mehr skipped wird.
+- Follow-up-CI `33223542872`: ein Job, `25/25` success, `0 skipped`.
+- L4/L5-Rubrik als Owner-Draft erstellt; beide Tabellen summieren 100, aber kein Credit.
+- GitHub-Environments/Reviewer, OAuth App, Worker-Secret-Namen und Vercel-Callback-
+  Konfiguration vorbereitet.
+- lokaler Build `21/21` gruen.
+- kompletter Runtime-Umbrella gruen.
+- DEV-LIVE `10/10 healthy`.
+- kompletter lokaler Browser-Umbrella gruen:
+  - responsive `22x2 = 44`, ohne Overflow/Overlay/Console-Fehler,
+  - echter Cloudflare-Workers-AI-Build,
+  - `22/22` Routen,
+  - `29/29` Familien,
+  - `161/161` Aktionen,
+  - O4 Audit/Readback/Rollback.
+
+`161/161` bedeutet sichtbare UI-Effektabdeckung, nicht 161 Backend- oder Layeraufrufe.
+Responsive-Report-SHA: `723D2DEF1E3B98C25885E2F6242342EB02D2238CAC46D510A5F7E103AEED8E5B`.
+Fresh Product-/Aktionsreports sind DEV-/Worktree-Proofs, nicht neue source-gebundene
+Kandidatenevidenz; ihre `source_commit_sha`-Felder sind leer.
+Alle neuen Browser-/Runtimebeweise: `DEV-ONLY; hosted proof still blocked`.
+
+## 5. Letzter Verifier
+
+Letzter realer `npm run verify`-Exit:
+
+```text
+FAIL: current Cloudflare-native hosted Worker source parity
 ```
 
----
+Gemessene Ursache:
 
-## ✅ RC20-BINDUNG ABGESCHLOSSEN
+- Hosted Worker Source: `d0674bfc1367b04d95ca2bf745e89fabf12046ad`
+- aktueller Worker-Tree enthaelt danach die Runnability-Fixes `0cf451d0` und `bbc2ad48`
+- geaendert sind `services/cloudflare-stateful-runtime/src/index.js` und
+  `services/cloudflare-stateful-runtime/test/index.test.js`
+- Hosted Fortschritt `84`, Repo Fortschritt `89`
 
-`prod-candidate-2026-08-28-local-rc20` ist an Quelle
-`c29c738b82e4e35cc1288bc603319cba60d167d2` gebunden. Sechs Images, Candidate Runtime,
-Runtime, Security, Browser `22/22` und `161/161`, O4 sowie GitHub Actions Run
-`33200830176` sind gruen. Die Source-Attestation bindet Control
-`6f9387c6d492151b9195e3afcbf5a031b094dd67` als direkten Nachfahren und genau einen
-zugelassenen Delta-Pfad. Das Evidenzset enthaelt exakt 27 Dateien.
+Das Gate bleibt rot, bis ein Owner-freigegebener aktueller Hosted-Deploy plus erneuerte
+source-gebundene Evidence existiert. Verifier nicht abschwaechen.
 
-Der reale Produktbeweis haelt ArrowRight und KeyD jetzt ueber mehrere
-`requestAnimationFrame`-Frames gedrueckt und verlangt weiterhin eine messbare sichtbare
-Zustands- oder Pixelaenderung. RC19 `5062de35` ist der Rollback-Anker.
+Uncommittet in `scripts/verify-phase1.ps1`: ein Claim-Flag-basierter External-Gate-Set-Fix.
+Er bestand im Full-Verifier und liess den Lauf bis zur echten Worker-Paritaet weiterlaufen,
+bleibt aber bis zur vereinbarten Akzeptanzbedingung uncommittet.
 
-`npm run verify:phase5-credit` ist gruen: `17/19 = 89%`, blockiert bleiben nur I1 und I5.
-`npm run verify:current-release-candidate` ist gruen, aber `promotion_eligible=false` bleibt
-korrekt. DEV-ONLY; hosted proof still blocked.
+## 6. Hosted-Wahrheit
 
----
+Aktuelle anonyme Readbacks:
 
-## 🔴 ARBEITSBAUM STEHT MITTEN IN RC21 — `verify:phase5-credit` ist deshalb ROT
-
-Nachgeprueft am 2026-08-28: `docs/release-artifacts/current-release-candidate.json` ist
-**uncommitted** auf `prod-candidate-2026-08-28-local-rc21` (Quelle `88fc985a`) gesetzt.
-RC21 hat nur eine `.md` — **kein** `-evidence/`, **keine** `-readiness.json`.
-
-```
-[phase5-credit] C3 evidence #1 anchor is not present in the evidence artifact
-```
-
-Ursache exakt: C3-Evidenz #1 verlangt in genau dieser Datei den Anker
-`"active_release_id": "prod-candidate-2026-08-28-local-rc20"`. Der **committete** Stand
-(HEAD `88fc985a`) enthaelt ihn; der Arbeitsbaum nicht.
-
-**RC21 ist zwingend, nicht optional.** Ein Zurueckstellen auf RC20 geht nicht mehr:
-Codex' Lint-Fix `88fc985a` hat nach der RC20-Qualifizierung
-`apps/frontend/components/organism/CortexLive.tsx` geaendert — ein Pfad in
-`RUNTIME_SOURCE_PATHS`. Die RC20-Quelle `c29c738b` deckt HEAD damit nicht mehr ab.
-
-> **Kein Defekt** — der Verifier meldet korrekt, dass der Kandidat neu gebunden werden muss.
-> `current-release-candidate.json` ist **fremd-dirty**: nicht stagen, nicht zuruecksetzen.
-
-## ⛔ FALLE: `PROJECT_STATE.md` niemals allein nachziehen
-
-`PROJECT_STATE.md` ist veraltet (nennt noch **RC14**, Stand `2026-08-27`), darf aber nicht
-einfach aktualisiert werden. Es steht in **beiden** Mengen — `RUNTIME_SOURCE_PATHS` und
-`QUALIFICATION_TRUTH_PATHS` — und der Uebergang prueft **exakte Mengengleichheit**
-(`verify_phase5_credit_itemization.py:1160`):
-
-```
-PROJECT_STATE.md · apps/frontend/lib/endpoint-snapshot.json
-apps/frontend/lib/platform.ts · docs/project-progress.manifest.json
-```
-
-Ein Einzel-Update ergibt eine 1-elementige Menge -> ungleich -> Kandidatenbindung bricht.
-**Also: vor dem naechsten Source-Freeze aktualisieren, oder alle vier gemeinsam.**
-
----
-
-## 🔎 DREI BEFUNDE AUS DEM ABGEBROCHENEN PRUEF-WORKFLOW — heute nachgemessen
-
-Ein frueherer Workflow starb im Session-Limit (`messen 4/5`, `pruefen 2/12`), aber **6 Agenten
-liefen durch**. Ihre Ergebnisse standen nirgends. Ich habe sie geborgen und **jeden Befund am
-heutigen HEAD neu gemessen**, statt ihn zu uebernehmen.
-
-### A · LLM-Gateway hat KEINE Aufrufer-Authentifizierung
-
-Zwei unabhaengige Pruefer konnten das nicht widerlegen (`refuted: false`, „if anything
-understated"). Heute erneut gemessen:
-
-| Geprueft | Ergebnis |
+| Surface | Stand |
 |---|---|
-| `add_middleware` / `Depends(` / `HTTPBearer` / `APIKeyHeader` / `Security(` / `@app.middleware` | **alle 0** in `services/llm-gateway/app/main.py` |
-| `infrastructure/nginx/dev.conf:119-131` | `proxy_set_header Authorization ""` **und** `Cookie ""` |
-| anonymer `GET /llm/v1/models` (ohne jeden Header) | **HTTP 200**, 148 Modelle, `live_verified: true` |
-| Tokenwert im Body | **nein** — kein Secret-Output |
+| Worker `/health` | 200, healthy, Source `d0674bfc` |
+| Worker `/project/progress` | 200, Overall 84 |
+| Worker `/team/status` | 500 |
+| Worker `/auth/contract` | 200, read-only Contract-Origin; OAuth nicht konfiguriert/live |
+| Worker `/auth/me` | 404 |
+| Vercel `/health` | 200, degraded, Backends nicht konfiguriert |
+| Vercel `/project/progress` | 200, Overall 84 |
+| Vercel `/team/status` | 200, ehrliche Frontend-Projektion |
+| Vercel `/auth/me` | 200, ehrliche leere Projektion, keine Identity |
 
-Der Dienst kann eine Aufrufer-Identitaet **prinzipiell nicht lesen**. Ein unauthentifizierter
-lokaler Aufrufer loest damit einen **authentifizierten Upstream-Call auf dem Owner-Token** aus.
+HTTP 200 ist kein Auth-, Backend- oder Release-Beweis.
 
-> **Korrektur am Agenten-Befund:** Er meldete
-> `external_provider_calls_disabled_by_default:false`. **Heute ist es `true`**, Modus
-> `deterministic_dry_run`, `LLM_LIVE_PROVIDER_DEFAULT=false`. Die Schwere haengt am Gate:
-> **Read-Calls** sind immer anonym ausloesbar; **generative Calls** nur, solange DEV-LIVE
-> laeuft — dann aber ebenfalls ohne jede Aufrufer-Identitaet.
->
-> Scope: `localhost:8081`, DEV-ONLY. Nicht aus dem Internet erreichbar.
+DEV-ONLY Cloud-Inventar: `8/8` konfiguriert, `7/8` live gelesen; Cloud-Layer `6/7`.
+GitHub Actions und GitLab sind verifiziert. Nur GHCR bleibt `api_error`, wodurch L5 wegen
+`ghcr_registry_live_read_not_verified` partial bleibt. `PROMPT_ANTIGRAVITY_CLOUD.md` ist
+historisch und nicht mehr auszufuehren.
 
-### B · Die 161/161-Aktionsmatrix ist **kein** Beweis fuer echte Backend-Calls
+Bekannter Next-Candidate-Defekt: `services/agent-api/app/main.py:7455` und
+`apps/frontend/lib/endpoint-snapshot.json` erwarten noch den bereits geschlossenen
+Cloudflare-Gate-Namen. Real fehlen `hosted_agent_api_contracts`,
+`ghcr_image_digest_verify` und `vercel_backend_origin_health`.
 
-`apps/frontend/lib/actionMatrix.ts` hat **kein `endpoint`-Feld** (heute geprueft: FEHLT).
-Die Matrix kann deshalb gar nicht die Autoritaet dafuer sein, ob eine Aktion das Backend
-erreicht. Der Agent hat die Endpunkte aus den Komponenten hergeleitet und gemessen:
+## 7. Offen bis 100
 
-```
-161 aktivierte Aktionen  ->  21 (13 %) machen einen Backend-Request
-                             28 sind Navigation
-                            112 sind reiner lokaler State / Browser-API
-```
-
-**`161/161 gruen` heisst also „161 Aktionen loesen einen sichtbaren Effekt aus" — nicht
-„161 Aktionen laufen ueber die Layer".** Das ist die ehrliche Lesart (R-VIS-1-Geist).
-
-### C · Kein Layer laeuft ueber die Cloud — die Hosted-Flaechen sind weit zurueck
-
-`infrastructure/nginx/dev.conf:8-11` definiert **alle vier Upstreams als Container-DNS**
-(`frontend:3000`, `agent-api:8000`, `mcp-gateway:9000`, `llm-gateway:4000`) — **null hosted
-Upstreams**. L1–L7 laufen local-docker-only. Der einzige Ausgang nach draussen ist der
-Provider-Call des LLM-Gateways zu Cloudflare Workers AI.
-
-Die Hosted-Flaechen tragen alten Code — heute nachgerechnet, **schlechter als vom Agenten
-gemessen**, weil HEAD weitergelaufen ist:
-
-| Flaeche | Quelle | Abstand zu HEAD |
+| Block | Heute | Abschluss |
 |---|---|---|
-| Vercel Frontend | `67f41cec` | **252 Commits** zurueck (Agent mass 229) |
-| Vercel Backend Contract Origin | `21913f8c` | **254 Commits** zurueck (Agent mass 231) |
+| P3 | 44 | echte production OAuth identity mit Session-/Replay-/Audit-Beweis |
+| P5 | 89 | I1 aktueller Hosted Candidate + I5 Production Auth |
+| P6 | 90 | freigegebener 900-Request-Scale-Beweis |
+| L4 | 55 | Owner-freigegebene Rubrik + Hosted-Gateway-Evidence |
+| L5 | 56 | Owner-freigegebene Rubrik + Hosted-MCP-/Registry-/SBOM-/Scan-Evidence |
+| Market Ready | false | alle Zellen 100 + realer Market-Ready-Verifier |
+| Optik | bewusst zuletzt | Organismus-/Cortex-Bug und 3-Sterne-Look separat abnehmen |
 
-> **Antwort auf „laufen alle Layer ueber die Clouds?" — Nein.** Sie laufen lokal; die
-> gehosteten Flaechen zeigen einen mehrere hundert Commits alten Stand.
+## 8. Exakte Owner-Entscheidungen
 
----
+### V0 - Rubrik
 
-## 🐞 ZWEI PRODUKT-BUGS AUS DEM TIEFEN-CHECK — beide behoben
+Erforderlich sind exakter Rubrik-Commit und vier ausdrueckliche Entscheidungen:
 
-### 1 · Der Marktplatz zeigte einen **stillgelegten** Provider als „verified" (Fake-Live)
+1. L4-Kriterien/Gewichte akzeptiert?
+2. L5-Kriterien/Gewichte akzeptiert?
+3. fehlende Hosted-Verifier unter den benannten Pfaden erlaubt?
+4. darf erst nach deren Evidence-Readback Credit berechnet werden?
 
-`apps/frontend/app/marketplace/page.tsx` bestimmte den Status-Ton mit
-`/verified|live/.test(status)`. Das Inventar meldet Fly.io als
-`historical_read_verified` — der Vertrag nennt sie selbst `historical_only`,
-„not an active runtime target". Der Teilstring enthaelt aber **„verified"**:
+Bis dahin: `credit_application_allowed=false`, L4 55, L5 56.
 
-```
-/verified|live/.test("historical_read_verified")  ->  true  ->  GRUEN
-```
+### O1 - OAuth-Architektur
 
-Die stillgelegte Fly.io bekam damit denselben gruenen Punkt und dasselbe gruene Badge wie
-die echt laufende Cloudflare-Runtime. **Auf einer Produktflaeche ist das eine Live-Behauptung
-ohne Beleg — genau das Fake-Live, das R0 verbietet.**
+Waehlen:
 
-Behoben: exakte Klassifikation statt Teilstring (`apps/frontend/lib/providerStatus.ts`).
-Nur `live_verified` und `verified` sind gruen. Test 4/4, tsc und Lint gruen.
+- Cloudflare-native D1 + Durable Object im Zero-card-Pfad, oder
+- ausdruecklich freigegebener Hosted FastAPI/PostgreSQL/Redis-Stack.
 
-> Das erklaert auch den Widerspruch zwischen den Flaechen: **Marktplatz „4/8 verifiziert"**
-> gegen **Vertragsseite „Live verifiziert 3"**. Laufzeit-Wahrheit aus `GET /api/v1/clouds`:
-> 8 Provider, `live_verified` **1**, `verified` **2**, `historical_read_verified` **1**,
-> `action_required` **2**, `api_error` **1**, `metadata_only` **1**.
-> **3 sind aktuell verifiziert — nicht 4.**
+Der aktuelle Worker besitzt die Browser-OAuth-Routen nicht. Callback muss mit der
+Frontend-Origin-/Cookie-Grenze uebereinstimmen. Details im OAuth-Fixplan.
 
-### 2 · Der Fuenf-Achsen-Audit war rot (zwei Ursachen)
+### I1 - aktueller Hosted Candidate
 
-`PROJECT_STATE.md` nennt die Basis-URL `…/llm/v1`, die der Auditor nicht klassifizieren
-konnte (jetzt `NAMESPACE-ONLY`). Dahinter lag ein zweiter Fehler: **meine** Prompt-Zeile
-enthielt das Literal `TODO`, was der repo-weite Unfinished-Marker-Guard korrekt bemaengelte.
-Beides behoben — Auditor `PASS`, Regression **2/2**.
+Owner autorisiert den konkreten non-local HTTPS-Deploy. Source-/Image-/Browser-/State-/
+Audit-/Rollback-Paritaet muss gegen denselben Kandidaten verifiziert werden.
 
-> **Luecke in der Gate-Kette:** `verify:five-axis-audit` haengt **nicht** in
-> `verify.suites.json` oder `verify-phase1.ps1`. Deshalb konnte RC20 gruen werden, obwohl
-> dieser Test rot war. Das gehoert in die Kette.
+### P6 - Scale
 
-### 3 · Offen und **nicht** von mir behoben: `github_actions = api_error`
+Owner autorisiert genau einen `-AllowHostedWrites`-Lauf mit exakt 900 Requests. Ohne diese
+Freigabe: null Writes.
 
-`GET /api/v1/clouds` meldet fuer GitHub Actions `status: api_error` bei
-`configured: true` (`GITHUB_TOKEN` ist gesetzt). Der Token ist also da, der API-Aufruf
-scheitert trotzdem. In derselben Session konnte sich auch der `github`-MCP-Server nicht
-verbinden (`CONNECTION_CLOSED`) — moeglicherweise dieselbe Ursache.
-**Nicht gemessen, welche.** Das blockiert L5/L7-Gates und gehoert als Naechstes untersucht.
+### O3 - GHCR
 
----
+Owner loest den Policyzyklus:
 
-## 📐 DER ECHTE DELTA AUF 100 % — und warum ihn niemand setzen darf
+- einmalige private kandidatengebundene Publikation ueber `registry-publication` mit
+  Required Reviewer, ohne Deploy/Promotion, oder
+- Rubrik/Policy macht Remote-Digests explizit post-market.
 
-Aus `docs/project-progress.manifest.json` gerechnet, nicht geschaetzt:
+Keine Public-Schaltung.
 
-| Horizontal | ist | Delta | wer oeffnet das |
-|---|---:|---:|---|
-| `phase_3` | 44 % | **+56** | **O1** GitHub-OAuth-Identitaet (Owner) |
-| `phase_5` | 89 % | **+11** | **I1** hosted candidate parity · **I5** production auth (Owner) |
-| `phase_6` | 90 % | **+10** | **`AGENT_API_AUTH_TOKEN`** (Owner, ein Secret) |
-| P0 · P1 · P2 · P4 | 100 % | 0 | — |
+### Production
 
-| Vertikal | ist | Delta | wer oeffnet das |
-|---|---:|---:|---|
-| `layer_4` LLM Gateway | 55 % | **+45** | Rubrik fehlt — **Owner muss sie freigeben** |
-| `layer_5` MCP Gateway | 56 % | **+44** | Rubrik fehlt — **Owner muss sie freigeben** |
-| L1 · L2 · L3 · L6 · L7 | 100 % | 0 | — |
+Production-Deploy, Promotion, Rollout und Default-Branch-Write bleiben jeweils eigene
+Freigaben nach Market-Ready.
 
-```
-horizontal offen: 77 Zellpunkte  ->  Mittelwert 89  ->  100 = +11
-vertikal   offen: 89 Zellpunkte  (zaehlt NICHT in `overall`)
-Gates: 7 zu / 3 offen  ->  production_auth_identity · docker_registry_publish · phase6_scale_runtime
-```
+Ein allgemeines `ja` oder ein Browser-Login ist keine dieser spezifischen Freigaben.
 
-### Warum ich nichts auf 100 setze
+## 9. Naechster sicherer Ablauf
 
-**Jeder einzelne Restpunkt haengt an einer Owner-Wand.** Es gibt keinen offenen Punkt, den ein
-Agent autonom schliessen koennte:
+Autonom:
 
-- P3, P5, P6 brauchen **Secrets/Freigaben**, die nur der Owner geben kann (R3 unten).
-- L4 und L5 haben **keine freigegebene Rubrik**. Prozente ohne Rubrik hochzusetzen ist
-  ausdruecklich verboten — das waere exakt der Fake, den R0 verhindert.
-- `MARKET_READY:true` ist zusaetzlich per Deadlock blockiert: O3 verlangt GHCR-Digests,
-  aber Registry-Push ist vor `MARKET_READY:true` untersagt. **Den Zyklus kann nur der Owner brechen.**
+1. aktuellen Dokumentensatz pruefen und nur die eigenen Dokumentpfade committen;
+2. `npm run verify:phase5-credit`;
+3. `npm run verify:current-release-candidate`;
+4. `py -3 scripts/verify_project_progress_manifest.py`;
+5. Feature-Branch pushen;
+6. CI auf finalem Head: success und `skipped=0` pruefen.
 
-> **Zahlung oeffnet nichts.** `payment_required` ist bei O1/O2/O3 `false`; eine im Manifest
-> abgebildete Zahlung macht `owner-input-matrix` sogar **rot**.
+Nach Owner-Freigaben:
 
-**Ehrliche Antwort auf „mach alles 100 % gruen":** Alles, was ohne Owner-Freigabe gruen sein
-kann, **ist** gruen (Liste oben). Die verbleibenden 11 % sind kein Arbeitsrueckstand, sondern
-vier Entscheidungen. Sie zu setzen waere kein Fortschritt, sondern eine Faelschung.
+1. OAuth-ADR und Red-first-Implementierung;
+2. aktueller source-gleicher Worker-/Vercel-Staging-Deploy;
+3. Hosted OAuth/I1/Scale/L4/L5 Beweise;
+4. neue Candidate-Qualifikation nach der letzten Runtime-Source-Aenderung;
+5. finaler serieller Gate-Stack;
+6. Optik ganz zuletzt.
 
----
+## 10. Schutzregeln
 
-## ⛔ DIE VIER OWNER-WÄNDE
+- nie `git add -A`;
+- kein Stash, Force-Push oder Default-Branch-Push;
+- Playwright, Docker-Build und Verifier nie parallel;
+- keine Frontend-Dateiaenderung waehrend eines Browserlaufs;
+- keine Evidence nachbearbeiten;
+- keine Secrets, Passwoerter, 2FA-, CAPTCHA- oder Zahlungsdaten ausgeben;
+- `.phase1-artifacts/` und `docs/release-artifacts/` nicht aufraeumen;
+- `PROJECT_STATE.md` nie allein aktualisieren.
 
-| Wand | öffnet | Art |
-|---|---|---|
-| **Worker-Deploy** auf den Kandidaten-SHA | `npm run verify` | Live-Fläche, keine Zahlung |
-| **O1** OAuth | P3 +56 | zuerst Architekturentscheidung; Scope nur `read:user` |
-| **`AGENT_API_AUTH_TOKEN`** | P6 +10 | ein Secret, keine Zahlung |
-| **O3** GHCR | P5 +11 | zyklisch — Owner muss den Zyklus brechen |
+Der erlaubte Qualification-Truth-Uebergang umfasst exakt:
 
-**Zahlung öffnet nichts.**
-
----
-
-## ✅ AUTONOM — in dieser Reihenfolge
-
-```
-1. [ERLEDIGT] L4 Responses-SSE                                (Codex, test-first)
-2. [ERLEDIGT] L5 Filesystem-Adapter                            (Codex, test-first)
-3. [ERLEDIGT] npm-Advisories x3
-4. [ERLEDIGT] Runnability-Guard fuer generiertes HTML           (Codex 0cf451d0/bbc2ad48)
-5. [ERLEDIGT] R3F-Remount-Race /organism                        (Codex 048ba550)
-6. [ERLEDIGT] Generierungs-Deckel + Zeitbudget + 3D-Qualitaet   <- diese Session
-7. [ERLEDIGT] RC20 BINDEN
-     Quelle -> 6 Images -> O4 -> runtime -> dev-live -> browser
-     -> 27 Evidenzen -> Kontroll-Commit -> CI -> P5-Credit
-8. Rubrik fuer L4/L5 vom Owner freigeben lassen  ->  erst DANN Prozente
-9. GANZ ZULETZT: Organismus-Optik (und der 3-Sterne-Look der generierten Spiele)
+```text
+PROJECT_STATE.md
+apps/frontend/lib/endpoint-snapshot.json
+apps/frontend/lib/platform.ts
+docs/project-progress.manifest.json
 ```
 
----
+## 11. Fremde Dirty-Pfade bewahren
 
-## 🔒 ZEHN REGELN, DIE JEDEN LAUF ENTSCHEIDEN
-
-1. **Kein Commit benotet sich selbst** (R-SELF-1) — Prüfung vor Umsetzung, getrennter Commit, einmal rot.
-2. **Quelltext-Textsuche ist keine Prüfung** (R-SELF-2) — `includes("function DotGlobe")` misst nichts.
-3. **Optik-Behauptung nur mit Screenshot gegen benannte Referenz** (R-VIS-1/2).
-4. **O4 zuletzt** vor den Ketten — jeder Commit danach macht den Beweis stale.
-5. **`start-dev-live.ps1` NACH `verify:runtime`, VOR `verify:browser`** — sonst
-   `deterministic_dry_run` und ein 129-Zeichen-Stub. Modus prüfen, nicht der Startmeldung trauen.
-6. **Evidenz VERBATIM** — Nachbearbeiten bricht die Kreuzreferenz-Hashes.
-7. **`gh workflow run` nimmt einen Ref, keinen SHA** — Kontroll-Commit auf den Kandidaten,
-   eigener Branch, danach **mergen** (nicht cherry-picken).
-8. **Nie `git add -A`**, nie Commit ohne Pathspec.
-9. **Nie parallel** Playwright / Docker / Verifier.
-10. **Neuem Prüfschritt erst nach einem roten Lauf glauben.**
-
-### R-MEAS-1 · Eine Messung, die still fehlschlagen kann, gilt erst nach dem Gegenbeweis
-
-**Neu aus dieser Session.** Ich habe den Canvas per `createImageBitmap` ausgelesen und
-`distinctColours: 1, litSamples: 0` bekommen — also „schwarzes Bild, Spiel kaputt".
-**Das war falsch.** WebGL-Canvases liefern ohne `preserveDrawingBuffer: true` nach dem
-Compositing schwarz zurueck. Der Playwright-**Screenshot** zeigte eine vollstaendig gerenderte
-Szene. Haette ich der Zahl geglaubt, haette ich ein funktionierendes Produkt als kaputt gemeldet.
-
-> **Regel:** Wenn eine Messung „nichts da" sagt, zuerst pruefen, ob die Messmethode ueberhaupt
-> etwas sehen **kann**. Bei Optik entscheidet das Bild, nicht der Zahlenwert.
-
----
-
-## ⛔ VERBOTEN
-
-Prozente oder `live_verified` von Hand · L4/L5 ohne freigegebene Rubrik hochsetzen ·
-Selbstbenotung · Quelltext-Grep als Abnahme · Effekte zählen, die unter Test aus sind ·
-`.phase1-artifacts/` oder `docs/release-artifacts/` beim Aufräumen löschen ·
-Hosted-Deploy ohne Freigabe · Zahlung/Karte/Paid Provider/Fly.io/R2 ·
-Secrets ausgeben (nur Pfad + Fundtyp) · Force-Push · Push auf Default-Branch ·
-DEV-ONLY als Hosted-Beweis ausgeben.
-
-**Vier Wände:** Kreditkarte/Zahlung · Passwort-Konten · CAPTCHA · Secrets ausgeben/committen.
-
----
-
-# 📋 ANWEISUNGEN FÜR CODEX — Stand 2026-08-28
-
-## 0. ZUERST LESEN: `REGELN_OPTIK_UND_FERTIG.md`
-
-Bindend: **R-SELF-1** (kein Commit benotet sich selbst) · **R-SELF-2** (Quelltextsuche ist keine
-Pruefung) · **R-SELF-3** (unter Test abgeschaltet = unbewiesen) · **R-VIS-1** (ohne Screenshot
-gegen benannte Referenz ist keine Optik fertig) · **neu R-MEAS-1** (oben).
-
-## 1. 🔴 DEIN NAECHSTER SCHRITT — Auswahl committen und final verifizieren
-
-```
-1. Nur RC20-Auswahlpfade committen; den fremden RC12-Stage nicht mitnehmen
-2. npm run build
-3. npm run verify:runtime
-4. scripts/start-dev-live.ps1
-5. npm run verify:browser nur falls ein spaeter Runtime-Source-Commit entstand
-6. npm run verify
-7. current-candidate, release-boundary, market-ready:static, release-candidate
-8. Feature-Branch pushen und Remote-SHA pruefen
+```text
+.codex/runs/CURRENT/product-acceptance/report.json
+.phase1-artifacts/o4-live-writes/proof.json
+.phase1-artifacts/o4-live-writes/runtime-proof.json
+.phase1-artifacts/o4-live-writes/browser-proof.json
+docs/runtime-state/capability-gates.json
+docs/runtime-state/external-gate-audit-v2.json
+docs/runtime-state/external-gate-summary.json
+docs/runtime-state/owner-input-manifest.json
+docs/release-artifacts/prod-candidate-2026-08-02-local-rc12.md  (fremd gestaged)
 ```
 
-## 2. WAS DU NICHT ANFASSEN DARFST
+Eigener uncommitteter Codepfad: `scripts/verify-phase1.ps1`.
 
-Diese Dateien sind **fremd dirty** und gehoeren nicht dir:
+## 12. Non-Claims
 
-- `.codex/runs/CURRENT/product-acceptance/report.json`
-- `.phase1-artifacts/o4-live-writes/{proof,runtime-proof,browser-proof}.json`
-- `docs/runtime-state/{capability-gates,external-gate-audit-v2,external-gate-summary,owner-input-manifest}.json`
-- **gestaged:** `docs/release-artifacts/prod-candidate-2026-08-02-local-rc12.md`
-
-Nie stagen, nie zuruecksetzen, nie `git add -A`.
-
-## 3. ✅ WAS NACHWEISLICH FUNKTIONIERT — dein Fundament
-
-- **Produktkern:** Workbench erzeugt echte, spielbare 3D-WebGL-Spiele (Beweis oben)
-- **Runnability-Guard:** `apps/frontend/lib/generatedHtml.ts` lehnt tote `examples/js`-Pfade,
-  klassisch geladenes `examples/jsm` und fehlende THREE-Kerne ab; **14 Tests gruen**
-- **Generierungsbudget:** 8192 Token, in `docker-compose.dev.yml` deklariert; Zeitbudget monoton
-- **Gateway:** 31 Tests gruen · **Build:** 21/21 Seiten · **TypeScript:** sauber
-- **Stack:** 10/10 healthy, `cloudflare_workers_ai_live`, Modell auf Allowlist
-
-## 4. WAS DANACH KOMMT — und was NICHT
-
-**Danach:** L4/L5-Rubrik vom Owner, dann erst Prozente.
-**NICHT:** Organismus-Optik, und **nicht** der 3-Sterne-Look der generierten Spiele.
-Beides ist per Owner-Entscheidung **ganz am Ende**.
-
----
-
-# 📚 REFERENZ — Details, die man nicht auswendig kennt
-
-## R1 · Vollständiger Ist-Stand
-
-| Gegenstand | Wert |
-|---|---|
-| Branch | `codex/organism-visual-v2` (Default `chore/repo-bootstrap`, **kein `main`**) |
-| Letzter Runtime-Source-Commit | `c0c57d3d` (Docs-Commits liegen darueber) |
-| **Kandidat RC20** | `c29c738b82e4e35cc1288bc603319cba60d167d2` — **lokal qualifiziert** |
-| Rollback-Anker | RC19 `5062de35a5c033354ba81a988d699aad418347c3` |
-| Letzte gruene CI | Run `33200830176` (Source-Attestation auf `c29c738b`) |
-| Overall | **89** · P3 44 · P5 89 · P6 90 · L4 55 · L5 56 |
-| Gates | **7/10 zu**; offen: `production_auth_identity`, `docker_registry_publish`, `phase6_scale_runtime` |
-
----
-
-## R2 · Test-Inventar — was welcher Befehl wirklich prüft
-
-**Ohne Docker:**
-
-| Befehl | Prüft |
-|---|---|
-| `npm run verify` | Gesamtkette Phase 1 |
-| `npm run verify:phase5-credit` | P5-Credit — **gruen: 17/19 = 89%, I1/I5 blocked** |
-| `npm run build` | 21/21 Seiten — **gruen** |
-| `npx tsc --noEmit -p apps/frontend/tsconfig.json` | **gruen** |
-| `node --test apps/frontend/tests/generated-html-runnability.test.mjs` | 14/14 Runnability |
-| `node --test apps/frontend/tests/oauth-boundary-readiness.test.mjs` | OAuth-Grenze |
-| `cd services/llm-gateway && python -m unittest discover -s tests` | **31/31**, inkl. Generierungsbudget |
-| `pwsh -File scripts/verify-supply-chain-pins.ps1` | Actions/Images/GHCR-Pins |
-| `pwsh -File scripts/verify-vector-memory-gate.ps1` | Vektor-Gate + Beweis-Artefakt |
-| `npm run verify:current-release-candidate` | Kandidatenbindung |
-
-**Mit Docker:** `npm run verify:runtime` · `npm run verify:browser`
-(Contract → Product-Acceptance → 22 Seiten/161 Aktionen → O4)
-
-**Owner-gated:** `verify-phase6-scale-runtime.ps1 -AllowHostedWrites` ·
-`verify-market-ready.ps1 -IncludeExternalGates`
-
-**Existiert NICHT:** Pixelvergleich, Visual-Regression-Baseline.
-
----
-
-## R3 · Die vier Owner-Wände im Detail
-
-**① Cloudflare-Worker-Deploy** auf den Kandidaten-SHA → `npm run verify` laeuft durch.
-Live-Fläche, **keine Zahlung** (zero-card).
-> **Falle:** `wrangler secret put` scheitert mit **CF-10053** — es sind `plain_text`-Vars.
-> Richtig: `wrangler deploy --keep-vars --var …`
-
-**② O1 — OAuth-Identität** → P3 +56.
-Braucht **zuerst** eine Architekturentscheidung: CF-native stateful **oder** hosted Agent-API mit
-PostgreSQL+Redis. Der Vercel-Ursprung ist read-only und kann O1 **nicht** erfüllen.
-GitHub → Settings → Developer settings → OAuth Apps → New OAuth App ·
-Callback `https://<AUTH_PUBLIC_ORIGIN>/api/v1/auth/callback` · Scope **nur `read:user`**.
-Variablen: `GITHUB_OAUTH_CLIENT_ID` · `_CLIENT_SECRET` · `_REDIRECT_URI` · `JWT_SIGNING_SECRET`.
-**Abnahme = 10 echte Browserschritte:** Cancel→401 · Scope prüfen · Authorize · Reload ·
-Refresh rotiert · Replay→401 · Callback-Replay scheitert · Logout widerruft + Audit.
-
-**③ `AGENT_API_AUTH_TOKEN`** → P6 +10. Ein Secret, keine Zahlung.
-Danach exakt **900 echte Requests**: 60@c1 + 240@c10 + 500@c50 Reads, 50 POST mit
-serverseitigem D1-Readback, 50 authentifizierte DELETEs.
-Schwellen: Erfolg ≥ 0,99 · p95 ≤ 1500 ms · eigene 5xx **exakt 0** · Cleanup vollständig.
-Ohne Flag: **null Requests**, `Blocked` = exit 2.
-
-**④ O3 — GHCR** → P5 +11, **zyklisch**: Push verboten vor `MARKET_READY:true`, das aber
-GHCR-Digests verlangt. Owner muss den Zyklus brechen.
-Settings → Environments → `registry-publication` **und** `production`, je mit Required Reviewer.
-Pakete **privat** lassen — public ist irreversibel.
-
-> **Zahlung öffnet nichts.** `payment_required` ist bei O1/O2/O3 `false`; eine im Manifest
-> abgebildete Zahlung macht `owner-input-matrix` **rot**.
-
----
-
-## R4 · Organismus — Befund für später
-
-Vollständig mit Zeilennummern in **`REGELN_OPTIK_UND_FERTIG.md`** (B1–B17). Kurzfassung:
-`core.glb` ist eine **Icosphere**, kein Gehirn · die Komponente `Brain` ist eine
-Fibonacci-Punktwolke (X × 1.28 → Ellipsoid) · Dot-Globus = 21 %-Satellit ohne Kontinente ·
-Matrix-Rain = waagerechte **104 × 9 px**-Striche bei ~9 % Deckkraft · Shards = 12 Rechtecke
-bei 6 % · Waveform = 2D-SVG-Polyline · `MeshTransmission` unter Playwright abgeschaltet ·
-Bloom stammt aus einem älteren Commit.
-
-**Die Substanz ist echt** (Live-State/Events/Replay, Run-State-Filter, Kamera/Licht/Belichtung,
-Gameplay, Asset-Policy, Snapshot, Accessibility, Multiplayer-Loopback, Performance, WebGPU).
-
-Ein echter Defekt wurde inzwischen gefunden und behoben: der **R3F-Remount-Race**
-(`connect(null)`) beim Moduswechsel — Commit `048ba550`.
-
-**Per Owner-Entscheidung: ganz zuletzt.**
-
----
-
-### 12.5 22 Seiten × 161 Aktionen — echte Klicks, bestanden
-
-```
-ok 1 [chromium]  all 22 canonical pages directly prove every enabled page-local
-                 action and reject unregistered controls          (29.9m)
-routes=22  families=29  members=161  direct=160  preverified_exact=1
-report sha256=7BF249D9…73F2F8      EXIT=0
-```
-
-Zwei gebundene Live-Provider-Calls, explizit freigegeben; keine Mocks, keine Interception,
-kein Direct-Provider-Bypass. **Production-Build danach gruen: 21/21 Seiten.**
-
-> **Ehrlich zum Ablauf:** Ich habe waehrend dieses Laufs `marketplace/page.tsx` geaendert,
-> und das Verzeichnis ist live in den Container gemountet. Das war unsauber — der Lauf haette
-> daran scheitern koennen. Er ist es nicht; das Ergebnis steht. Beim naechsten Mal erst der
-> Lauf, dann der Eingriff.
-
----
-
-# 🔚 WAS ZULETZT NOCH OFFEN IST — die Restliste
-
-Alles hier ist **gemessen**, nicht vermutet. Reihenfolge = Bearbeitungsreihenfolge.
-
-## 1 · RC21 fertig binden — blockiert alles andere
-
-`current-release-candidate.json` steht **uncommitted** auf RC21 (Quelle `88fc985a`), aber
-RC21 hat nur eine `.md` — kein `-evidence/`, keine `-readiness.json`. Deshalb ist
-`verify:phase5-credit` rot (`C3 evidence #1 anchor …`).
-
-**Zurueck auf RC20 geht nicht:** Lint-Fix `88fc985a` aenderte `CortexLive.tsx`, und die
-Doku-/Fix-Commits danach aenderten weitere Pfade in `RUNTIME_SOURCE_PATHS`
-(`apps/frontend/lib/providerStatus.ts`, `apps/frontend/app/marketplace/page.tsx`,
-`apps/frontend/app/api/v1/build/route.ts`). Der Kandidat **muss** neu gebunden werden.
-
-```
-Quelle einfrieren -> 6 Images -> O4 zuletzt -> runtime -> dev-live -> browser
--> 27 Evidenzen -> Kontroll-Commit -> CI (Ref, nicht SHA) -> P5-Credit
-```
-
-## 2 · `github_actions = api_error` untersuchen
-
-`GET /api/v1/clouds` meldet `status: api_error` bei `configured: true`
-(`GITHUB_TOKEN` gesetzt). Token da, API-Aufruf scheitert. In derselben Session konnte sich
-auch der `github`-MCP-Server nicht verbinden (`CONNECTION_CLOSED`).
-**Welche Ursache — nicht gemessen.** Blockiert L5/L7-Gates.
-
-## 3 · Gate-Luecke schliessen: Fuenf-Achsen-Audit gehoert in die Kette
-
-`verify:five-axis-audit` und sein Regressionstest haengen **nicht** in
-`verify.suites.json` / `verify-phase1.ps1`. Deshalb konnte RC20 gruen werden, obwohl der
-Test rot war. Beide sind jetzt gruen — **erst danach** eintragen, damit die Kette nicht
-sofort rot startet. Bewusst nicht von mir gemacht: eine Aenderung an der Gate-Kette
-unmittelbar vor einer Kandidatenbindung ist riskant.
-
-## 4 · `PROJECT_STATE.md` nachziehen — aber nur im Vierer-Uebergang
-
-Veraltet (nennt noch RC14, Stand 2026-08-27). **Nicht allein aktualisieren** —
-exakte Mengengleichheit gegen
-`PROJECT_STATE.md · endpoint-snapshot.json · platform.ts · project-progress.manifest.json`.
-Am besten **vor** dem naechsten Source-Freeze.
-
-## 5 · Die neuen Tests einmal in einem gruenen CI-Lauf sehen
-
-CI-Lauf `33187389678` brach am 11. von 27 Schritten ab; **14 Schritte wurden uebersprungen**,
-darunter Runnability-Guard, OAuth-Kontrakt, Secret-Scan und Image-Build.
-Die in dieser Session ergaenzten Tests sind in CI also **nie gelaufen**.
-
-## 6 · Owner-Entscheidungen — der gesamte Rest der 11 %
-
-| offen | Delta | Entscheidung |
-|---|---:|---|
-| P3 | +56 | **O1** OAuth-Architektur + App anlegen, Scope nur `read:user` |
-| P5 | +11 | **I1** hosted candidate parity · **I5** production auth |
-| P6 | +10 | **`AGENT_API_AUTH_TOKEN`** setzen (ein Secret) |
-| L4 / L5 | +45 / +44 | **Rubrik freigeben** — ohne sie ist jede Prozentzahl Fake |
-| `MARKET_READY` | — | **O3-Deadlock brechen** (GHCR-Digests vs. Push-Verbot) |
-
-## 7 · GANZ ZULETZT — Optik
-
-Organismus-Aussehen **und** der 3-Sterne-Look der generierten Spiele. Erreicht ist
-„solide beleuchtetes 3D mit Schatten, spielbar" — **nicht** 3 Sterne.
-Per Owner-Entscheidung bleibt beides am Ende.
-
----
-
-*Restliste erstellt 2026-08-28 nach dem Tiefen-Check. Jeder Punkt ist gemessen;
-kein Punkt ist geschaetzt.*
+- kein Main-/Default-Branch-Push;
+- kein GHCR-Push;
+- kein Production-Deploy, keine Promotion, kein Rollout;
+- kein Phase-6-Hosted-Write-Lauf;
+- keine production OAuth identity;
+- keine Rubrikaktivierung;
+- kein Secret- oder Payment-Output;
+- `MARKET_READY:false`.

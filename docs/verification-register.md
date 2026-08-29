@@ -7,6 +7,45 @@ Status: Active
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
 
+## Current Post-RC21 Session16 Audit
+
+Recorded 2026-08-29. Fresh local verification is green for build (`21/21`), runtime,
+DEV-LIVE (`10/10 healthy`) and the serial browser umbrella. Product acceptance report
+SHA-256 is `0CBC1DDE789FD0170444DDCCC108B215392374EB87A31C01D60E2D5F125905FD`;
+22-page action report SHA-256 is
+`A21B5E329ABA48EC6B9D4D9916841A5C918D74676588CC024DB1CC2F77B3D6C6`;
+responsive `22x2` report SHA-256 is
+`723D2DEF1E3B98C25885E2F6242342EB02D2238CAC46D510A5F7E103AEED8E5B`; O4 report
+SHA-256 is `8307EDB2783BC05A9849F0A85235162E802C34F656091759AA2AC10F74B4E1D0`.
+The action count is visible UI-effect coverage, not 161 backend calls. Product and action
+reports have no `source_commit_sha`, so these are Worktree-/DEV proofs and cannot replace
+the immutable RC21 or Hosted-I1 evidence. `DEV-ONLY; hosted proof still blocked`.
+
+The latest full `npm run verify` exits 1 at `current Cloudflare-native hosted Worker source
+parity`. Hosted Worker source remains `d0674bfc1367b04d95ca2bf745e89fabf12046ad`, while
+the current Worker tree contains the later `0cf451d0` and `bbc2ad48` runnability fixes.
+Hosted progress remains 84 against repo progress 89; Worker `/team/status` returns 500 and
+Worker `/auth/me` returns 404.
+
+DEV-ONLY cloud inventory currently measures `8/8` configured, `7/8` live-read and layers
+`6/7`. GitHub Actions and GitLab are verified; GHCR alone is `api_error` and leaves L5
+partial. The old `PROMPT_ANTIGRAVITY_CLOUD.md` inventory is historical and must not be
+executed as current truth.
+
+Production OAuth remains unverified. The frontend proxy and Same-Origin callback guard are
+implemented, but the Worker has only guest/name service-session endpoints and no native
+GitHub start/callback/me/refresh/logout lifecycle. A Worker backend today can create a
+Worker/Vercel GET fallback loop, while unmatched refresh/logout POST is 405. The current
+market-ready gate intentionally remains fail-closed until a dedicated source-bound OAuth
+verifier and separately Owner-approved gate promoter exist.
+
+Known next-candidate runtime-contract drift: `services/agent-api/app/main.py:7455` and
+`apps/frontend/lib/endpoint-snapshot.json` expect
+`cloudflare_native_zero_card_hosted_runtime`, but the current sanitized audit actually lists
+`hosted_agent_api_contracts`, `ghcr_image_digest_verify`, and
+`vercel_backend_origin_health`. This is recorded for a Red-first mirrored runtime fix and a
+new candidate; no immutable RC21 artifact was edited.
+
 ## Current RC21 And Follow-up Verification
 
 Recorded 2026-08-29. The active candidate
@@ -34,12 +73,14 @@ and authenticated `gh` keyring token, while `gh api rate_limit` was healthy. A s
 `live_verified=true`, `status=verified`, three resources and no error. No token value was
 emitted and no rotation occurred.
 
-The Owner console configuration is API/UI-verified: both GitHub publication environments
-require reviewer `strazzusochr`; the Worker has the Agent API and GitHub OAuth secrets as
-`secret_text`; the project OAuth App has the exact Worker homepage/callback and no wildcard;
-Vercel Production/Preview use that callback. This is configuration evidence only. A current
-hosted deployment and the ten-step OAuth session/replay proof are absent, so
-`production_auth_identity` and I5 remain blocked.
+The Owner console configuration was API/UI-read back: both GitHub publication environments
+require reviewer `strazzusochr`, and Worker secret names are stored as `secret_text`.
+Session16 later proved that the recorded Worker OAuth callback and the same URI across
+Production/Preview are incompatible with the frontend Same-Origin and `__Host-` cookie
+contract. The callback must use a canonical browser-visible frontend origin; unique Preview
+origins require a stable staging origin or separate OAuth App. Console configuration remains
+preparation only. A current hosted deployment and the full OAuth session/replay proof are
+absent, so `production_auth_identity` and I5 remain blocked.
 
 The new `docs/runtime-contracts/layer-credit-rubric.md` is explicitly
 `DRAFT_OWNER_APPROVAL_REQUIRED`. Proposed L4 and L5 sums are each 100, but it grants no
@@ -49,9 +90,12 @@ credit. Manifest values remain Overall `89`, L4 `55`, L5 `56`, and
 No GHCR publication, production deploy, default-branch push, release promotion, Phase-6
 hosted-write run, payment, secret output or visual completion claim was made.
 
-## Current RC20 Local Qualification Evidence
+## Historical RC20 Local Qualification Evidence
 
-Recorded 2026-08-28. Active locally qualified candidate
+Legacy verifier compatibility anchor only: `Current RC20 Local Qualification Evidence`.
+This string is not a current-candidate claim; RC21 is authoritative.
+
+Recorded 2026-08-28. Former locally qualified candidate
 `prod-candidate-2026-08-28-local-rc20` is bound to frozen source
 `c29c738b82e4e35cc1288bc603319cba60d167d2`. GitHub Actions `pr-check` run
 `33200830176` passed through control commit
@@ -1311,13 +1355,12 @@ The current-candidate hosted-boundary verifier is deterministic under stale loca
 Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, and Phase 6 `90%`.
 Current vertical layer snapshot is Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
 
-Next safe verification is the strict serial final chain for the Qwen 3.7 gateway source:
-`npm run build`, `npm run verify:runtime`, `scripts/start-dev-live.ps1`, `npm run verify:browser`
-(22-page Chromium proof and O4 last-write binding), `npm run verify`, release-boundary/candidate/
-market-ready checks, then the exact feature-branch push and CI inspection. The active qualified
-candidate remains RC14 until independently source-attested qualification exists for the newer
-source. No `main` push, GHCR publication, Production deploy, Alibaba live-provider activation, or
-release promotion is part of this verification step.
+The active qualified candidate is RC21. The latest local build, runtime, DEV-LIVE and browser
+chain is green, while the full verifier stops fail-closed at current Cloudflare-native Hosted
+Worker source parity. The next safe sequence is the Session16 documentation commit and exact
+feature-branch CI inspection, followed only after explicit Owner gates by the Red-first OAuth/
+contract work and a source-equal Hosted candidate deployment. No `main` push, GHCR publication,
+Production deploy, Alibaba live-provider activation or release promotion is authorized here.
 
 The dated evidence bullets below are historical milestone references, not current progress claims.
 
