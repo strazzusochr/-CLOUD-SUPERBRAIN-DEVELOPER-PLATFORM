@@ -5,18 +5,27 @@ Letzte Aktualisierung: 2026-08-29
 
 ## AKTUELLER PROJEKTANKER
 
-### Session 2026-08-29 — RC22 Source-Vorbereitung nach drei Red-first Transition-Fixes
+### Session 2026-08-29 — RC22 Re-Freeze nach Transition-Fixes und Browser-Harness-Korrektur
 
 - **Aktiv qualifiziert bleibt RC21:** `prod-candidate-2026-08-28-local-rc21`, Source
   `c1b022a884eb16939fe0542b2eb9056b60706b20`, Kontroll-Commit
   `9f2ee38366932d3be9e4fae303ed392354afd079`, source-attestierter GitHub-Actions-Lauf
   `33217980790`, Evidenzsatz 27 Dateien. RC20-Source
   `c29c738b82e4e35cc1288bc603319cba60d167d2` ist der qualifizierte Rollback-Anker.
-- **RC22 ist noch nicht eingefroren oder qualifiziert.** Der vorgesehene lokale Kandidat ist
-  `prod-candidate-2026-08-29-local-rc22`; sein Rollback-Ziel ist die RC21-Source
-  `c1b022a884eb16939fe0542b2eb9056b60706b20`. Der Freeze erfolgt erst nach diesem
-  Projektwahrheits-Commit in einem sauberen Checkout. Danach sind keine weiteren Source-
-  Aenderungen vor den fuenf Qualifikationsketten zulaessig.
+- **RC22 ist noch nicht qualifiziert.** Der erste Freeze auf Source
+  `29ecc45e7e866bcb8df0b9d4c7b53499979276e9` bestand Candidate-Images, Runtime und den
+  DEV-LIVE-Start `10/10`, stoppte aber ehrlich in der Browser-Kette am 150-Sekunden-Budget
+  des Phase-6-Netcode-Playwright-Tests. Es wurde keine RC22-Evidence selektiert und RC21
+  bleibt aktiv. Der vorgesehene lokale Kandidat bleibt
+  `prod-candidate-2026-08-29-local-rc22`; sein Rollback-Ziel bleibt die RC21-Source
+  `c1b022a884eb16939fe0542b2eb9056b60706b20`.
+- **Netcode-Produktpfad war nicht blockiert:** Die Trace-Auswertung zeigt, dass Create,
+  Join, Ready, Lockstep, zwei Ticks, Disconnect und Close vollstaendig funktionierten. Der
+  150-Sekunden-Timer lief waehrend des finalen Close-Klicks ab; bis `172.109 s` waren auch
+  `idle`, `0/2`, No-Network und No-Console-Error gruen. Unter der belasteten lokalen
+  WebGL-/Trace-Umgebung benoetigte der fokussierte echte Chromium-Klicklauf `4.6 min` und
+  bestand `1/1`. Das Harness-Budget ist deshalb auf `420_000 ms` angehoben; Produktlogik,
+  Gates und Prozentwerte bleiben unveraendert.
 - **Transition-Defekt 1 geschlossen:** Agent-API-/Frontend-External-Gate-Mirrors und der
   statische Claim-Map-Verifier leiten die reale Missing-Menge aus sechs Claim-Flags ab. Die
   Regression-Suite deckt den heutigen Drei-Gate-Block, den spaeteren GHCR-Uebergang,
@@ -44,12 +53,11 @@ Letzte Aktualisierung: 2026-08-29
   `4/4`, insgesamt `41/41`; Python-Compile, PowerShell-AST und expliziter Diff-Check sind
   gruen. Der temporaere Test erzeugt keine Projekt-Evidence und hinterlaesst keinen Backup-
   Klon.
-- **Browser-/Runtime-Belege sind nach den neuen Source-Commits bewusst stale:** Auf der
-  damaligen Source `4491e52e` bestanden der reale DEV-LIVE-Produktlauf, alle `22/22`
-  Seiten, `29/29` Aktionsfamilien, `161/161` Aktionsmitglieder, der sichtbare Organismus-
-  Kamera-Handklick sowie O4 und Runtime `10/10`. Diese Belege werden nicht auf die heutige
-  Source umetikettiert. RC22 muss Images, Runtime, Browser/O4, Candidate-Runtime und
-  Security seriell neu erzeugen. `DEV-ONLY; hosted proof still blocked`.
+- **Browser-/Runtime-Belege werden nicht umetikettiert:** Sowohl die aelteren Belege auf
+  Source `4491e52e` als auch die abgebrochene RC22-Qualifikation auf `29ecc45e` sind nach
+  diesem Harness-Commit source-stale. RC22 muss Candidate-Images, Runtime, Browser/O4,
+  Candidate-Runtime und Security seriell auf dem neuen finalen Freeze neu erzeugen.
+  `DEV-ONLY; hosted proof still blocked`.
 - **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
   P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
   L6 `100`, L7 `100`. `MARKET_READY:false`.
@@ -57,10 +65,11 @@ Letzte Aktualisierung: 2026-08-29
   Identity, Phase-6-Scale, GHCR-Publikation, Default-Branch/Main-Write, Release-Promotion
   und Production-Rollout bleiben geschlossen. Es erfolgten kein GHCR-/Main-/Production-
   Write, keine neue Secret-Nutzung und keine Prozentanhebung.
-- **Naechster sicherer Schritt:** diesen Projektwahrheitsstand committen, daraus die finale
-  RC22-Source in einem sauberen Checkout einfrieren, Build und die fuenf lokalen Ketten
-  source-gebunden ausfuehren, danach den Einpfad-Control-Commit und source-attestiertes CI
-  erstellen und erst anschliessend Candidate-/Readiness-/27-Dateien-Evidence selektieren.
+- **Naechster sicherer Schritt:** Harness und diesen Projektwahrheitsstand gemeinsam
+  committen, daraus die neue finale RC22-Source in einem sauberen Checkout einfrieren,
+  Build und alle fuenf lokalen Ketten source-gebunden neu ausfuehren, danach den Einpfad-
+  Control-Commit und source-attestiertes CI erstellen und erst anschliessend Candidate-/
+  Readiness-/27-Dateien-Evidence selektieren.
 
 ### Session 2026-08-28 — RC20 qualifiziert, RC21 in Bindung
 

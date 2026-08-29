@@ -974,7 +974,7 @@ test.describe("Cloud Superbrain platform", () => {
   });
 
   test("organism Phase-6 netcode loopback enforces two-peer ready and lockstep boundaries", async ({ page }) => {
-    test.setTimeout(150_000);
+    test.setTimeout(420_000);
     const contractResponse = await page.request.get("/api/v1/phase6/3d-netcode/contract");
     expect(contractResponse.status()).toBe(200);
     const contract = await contractResponse.json();
