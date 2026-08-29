@@ -1223,30 +1223,29 @@ if ([string]$externalGateSummary.status -ne "blocked" -or [bool]$externalGateSum
   throw "Canonical external gate summary must stay blocked with production_deploy_claim_allowed=false while release gates remain open"
 }
 $actualMissingExternalGates = @($externalGateSummary.missing_or_failed_gates | ForEach-Object { [string]$_ })
-# Branch protection was listed as missing only because the probe had no branch to ask about: the
-# `$Branch` default was empty and this repository has no `main` at all. Once the probe resolves the real
-# default branch, protection verifies with zero mismatches. The assertion is therefore bound to the
-# claim flag instead of to a fixed count, so a regression in either direction still fails closed.
+# The canonical missing set must be the exact inverse of all six current claim flags. Keep this
+# relationship data-driven so both today's blocked state and a later fully verified state fail closed
+# on omissions, unexpected entries, or duplicates without retaining historical fixed-count rules.
 if (-not [bool]$externalGateSummary.cloudflare_native_zero_card_hosted_runtime_claim_allowed) {
   throw "Canonical external gate summary must keep the O2Core claim allowed"
 }
-if ($actualMissingExternalGates -notcontains "ghcr_image_digest_verify") {
-  throw "Canonical external gate summary must still list the unpublished GHCR digest as missing"
-}
-if ([bool]$externalGateSummary.branch_protection_claim_allowed) {
-  if ($actualMissingExternalGates -contains "github_branch_protection_current_verify") {
-    throw "Branch protection is claimed verified but is still listed as a missing external gate"
-  }
-  if ($actualMissingExternalGates.Count -ne 1) {
-    throw "With branch protection verified, only the GHCR digest may remain missing"
-  }
-} else {
-  if ($actualMissingExternalGates -notcontains "github_branch_protection_current_verify") {
-    throw "Branch protection is not claimed verified, so it must be listed as a missing external gate"
-  }
-  if ($actualMissingExternalGates.Count -ne 2) {
-    throw "Canonical external gate summary must list only Branch Protection plus GHCR digest as missing"
-  }
+$externalGateClaimMap = @(
+  @{ id = "hosted_agent_api_contracts"; allowed = [bool]$externalGateSummary.hosted_staging_claim_allowed },
+  @{ id = "github_branch_protection_current_verify"; allowed = [bool]$externalGateSummary.branch_protection_claim_allowed },
+  @{ id = "ghcr_image_digest_verify"; allowed = [bool]$externalGateSummary.ghcr_image_digest_claim_allowed },
+  @{ id = "vercel_backend_origin_health"; allowed = [bool]$externalGateSummary.vercel_backend_origins_claim_allowed },
+  @{ id = "canonical_gitleaks_scan"; allowed = [bool]$externalGateSummary.canonical_gitleaks_claim_allowed },
+  @{ id = "cloudflare_native_zero_card_hosted_runtime"; allowed = [bool]$externalGateSummary.cloudflare_native_zero_card_hosted_runtime_claim_allowed }
+)
+$expectedMissingExternalGates = @(
+  $externalGateClaimMap |
+    Where-Object { -not $_.allowed } |
+    ForEach-Object { [string]$_.id } |
+    Sort-Object
+)
+$actualMissingExternalGatesSorted = @($actualMissingExternalGates | Sort-Object)
+if (($actualMissingExternalGatesSorted -join "|") -ne ($expectedMissingExternalGates -join "|")) {
+  throw "Canonical external gate missing set does not match the claim flags. expected=$($expectedMissingExternalGates -join ',') actual=$($actualMissingExternalGatesSorted -join ',')"
 }
 if (
   $externalGateSummary.PSObject.Properties.Name -contains "fly_live_budget_claim_allowed" -or
