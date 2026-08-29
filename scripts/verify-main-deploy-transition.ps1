@@ -276,3 +276,5 @@ exit 0
 # This attests the exact development source only; it does not select RC20 or promote a release.
 
 # rc21-source-prequalification-binding
+
+# rc22-source-prequalification-binding
