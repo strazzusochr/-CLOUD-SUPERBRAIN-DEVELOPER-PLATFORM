@@ -22,6 +22,8 @@ const THREE_NAMESPACE_IMPORT = /\bimport\s+\*\s+as\s+THREE\s+from\s*(?:"([^"]+)"
 const THREE_CLASSIC_CORE = /(?:\/three(?:@[^/]*)?\/build\/three(?:\.min)?\.js|\/three(?:\.min)?\.js)(?:[?#]|$)/i;
 const THREE_MODULE_CORE = /(?:\/three(?:@[^/]*)?\/build\/three\.module(?:\.min)?\.js|\/three\.module(?:\.min)?\.js)(?:[?#]|$)/i;
 const PINNED_THREE_CLASSIC = '<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>';
+const SIMPLE_KEYS_DECLARATION = /^[ \t]*(?:const|let)\s+keys\s*=\s*\{\s*\}\s*;[ \t]*$/m;
+const FUNCTION_DECLARATION = /\bfunction\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/g;
 
 type DeadReference = {
   /** Matches the resolved script URL. */
@@ -95,6 +97,120 @@ function missingThreeGlobalDependency(executableMarkup: string, importMapPresent
   return threeUsed && !threeProvided;
 }
 
+type EarlyKeyboardStartup = {
+  entryPoint: string;
+  callIndex: number;
+  callText: string;
+  indentation: string;
+};
+
+function matchingBlockEnd(source: string, openingBrace: number): number {
+  let depth = 0;
+  let quote = "";
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+  let regularExpression = false;
+  let regularExpressionClass = false;
+  let previousSignificant = "";
+
+  for (let index = openingBrace; index < source.length; index += 1) {
+    const current = source[index];
+    const next = source[index + 1] ?? "";
+    if (lineComment) {
+      if (current === "\n") lineComment = false;
+      continue;
+    }
+    if (blockComment) {
+      if (current === "*" && next === "/") {
+        blockComment = false;
+        index += 1;
+      }
+      continue;
+    }
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (current === "\\") escaped = true;
+      else if (current === quote) quote = "";
+      continue;
+    }
+    if (regularExpression) {
+      if (escaped) escaped = false;
+      else if (current === "\\") escaped = true;
+      else if (current === "[") regularExpressionClass = true;
+      else if (current === "]") regularExpressionClass = false;
+      else if (current === "/" && !regularExpressionClass) regularExpression = false;
+      continue;
+    }
+    if (current === "/" && next === "/") {
+      lineComment = true;
+      index += 1;
+      continue;
+    }
+    if (current === "/" && next === "*") {
+      blockComment = true;
+      index += 1;
+      continue;
+    }
+    if (current === "'" || current === '"' || current === "`") {
+      quote = current;
+      continue;
+    }
+    if (current === "/" && (!previousSignificant || /[([{,:;=!?&|+*%~^-]/.test(previousSignificant))) {
+      regularExpression = true;
+      regularExpressionClass = false;
+      continue;
+    }
+    if (current === "{") depth += 1;
+    else if (current === "}") {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+    if (!/\s/.test(current)) previousSignificant = current;
+  }
+  return -1;
+}
+
+function findEarlyKeyboardStartup(scriptBody: string): EarlyKeyboardStartup | null {
+  const keysDeclaration = scriptBody.match(SIMPLE_KEYS_DECLARATION);
+  const keysIndex = keysDeclaration?.index ?? -1;
+  if (keysIndex < 0) return null;
+
+  for (const declaration of scriptBody.matchAll(FUNCTION_DECLARATION)) {
+    const entryPoint = declaration[1];
+    const functionIndex = declaration.index ?? -1;
+    if (functionIndex < 0 || functionIndex >= keysIndex) continue;
+    const openingBrace = functionIndex + declaration[0].lastIndexOf("{");
+    const closingBrace = matchingBlockEnd(scriptBody, openingBrace);
+    if (closingBrace < openingBrace || closingBrace >= keysIndex) continue;
+    if (!/\bkeys\s*\[/.test(scriptBody.slice(openingBrace + 1, closingBrace))) continue;
+    const escapedEntryPoint = entryPoint.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const afterFunction = scriptBody.slice(closingBrace + 1, keysIndex);
+    const directCall = new RegExp(`^([ \\t]*)${escapedEntryPoint}\\(\\);[ \\t]*$`, "m").exec(afterFunction);
+    const callIndex = directCall?.index === undefined ? -1 : closingBrace + 1 + directCall.index;
+    if (callIndex <= closingBrace || callIndex >= keysIndex) continue;
+    return {
+      entryPoint,
+      callIndex,
+      callText: directCall?.[0] ?? `${entryPoint}();`,
+      indentation: directCall?.[1] ?? "",
+    };
+  }
+  return null;
+}
+
+function findEarlyKeyboardStateReferences(executableMarkup: string): string[] {
+  const reasons: string[] = [];
+  for (const [, attributes, body] of executableMarkup.matchAll(SCRIPT_BLOCK)) {
+    if (attributeValue(attributes, SRC_ATTR)) continue;
+    const startup = findEarlyKeyboardStartup(body);
+    if (startup) {
+      reasons.push(`${startup.entryPoint}() starts before lexical keyboard state 'keys' is initialized`);
+    }
+  }
+  return reasons;
+}
+
 /**
  * Returns one human-readable reason per script reference that cannot load or execute.
  * An empty array means nothing known-dead was referenced.
@@ -116,6 +232,7 @@ export function findUnrunnableReferences(html: string): string[] {
   if (missingThreeGlobalDependency(executableMarkup, importMapPresent)) {
     reasons.push("THREE is referenced but no compatible three.js core dependency is loaded");
   }
+  reasons.push(...findEarlyKeyboardStateReferences(executableMarkup));
   return reasons;
 }
 
@@ -137,6 +254,26 @@ export function ensureGeneratedHtmlDependencies(html: string): string {
     if (index >= 0) return `${html.slice(0, index)}${PINNED_THREE_CLASSIC}${html.slice(index)}`;
   }
   return html;
+}
+
+/**
+ * Repairs the narrow live-provider ordering defect where a declared animation function is started
+ * before its simple lexical `keys` state exists. Moving the direct start call after the declaration
+ * preserves the generated program while preventing a deterministic temporal-dead-zone exception.
+ */
+export function ensureGeneratedHtmlRuntimeOrder(html: string): string {
+  return html.replace(SCRIPT_BLOCK, (script, attributes: string, body: string) => {
+    if (attributeValue(attributes, SRC_ATTR)) return script;
+    const startup = findEarlyKeyboardStartup(body);
+    if (!startup) return script;
+    const withoutEarlyCall = `${body.slice(0, startup.callIndex)}${body.slice(startup.callIndex + startup.callText.length)}`;
+    const keysDeclaration = withoutEarlyCall.match(SIMPLE_KEYS_DECLARATION);
+    if (keysDeclaration?.index === undefined) return script;
+    const insertAt = keysDeclaration.index + keysDeclaration[0].length;
+    const repairedBody = `${withoutEarlyCall.slice(0, insertAt)}\n${startup.indentation}${startup.entryPoint}();${withoutEarlyCall.slice(insertAt)}`;
+    const bodyStart = script.indexOf(">") + 1;
+    return `${script.slice(0, bodyStart)}${repairedBody}${script.slice(bodyStart + body.length)}`;
+  });
 }
 
 /** True when the document references nothing that provably cannot load. */
