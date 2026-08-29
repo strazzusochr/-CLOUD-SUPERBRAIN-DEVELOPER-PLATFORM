@@ -487,7 +487,8 @@ class ProductionAuthIdentityEvidenceTests(unittest.TestCase):
             completed = self.run_verifier(root, "-ValidateOnly")
         self.assertNotEqual(completed.returncode, 0)
         stderr_without_ansi = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", completed.stderr)
-        normalized_stderr = " ".join(stderr_without_ansi.split())
+        stderr_without_layout = re.sub(r"(?m)^[ \t]*\|[ \t]?", "", stderr_without_ansi)
+        normalized_stderr = " ".join(stderr_without_layout.split())
         self.assertIn(
             "source_binding.frontend_origin_evidence_ref must use the canonical hosted frontend state path.",
             normalized_stderr,
