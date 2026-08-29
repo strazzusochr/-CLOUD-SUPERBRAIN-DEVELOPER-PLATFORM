@@ -155,8 +155,26 @@ Naechster autonomer Punkt: A2 als `DRAFT_OWNER_APPROVAL_REQUIRED`; null Credit.
 - A1-CI auf `d5bdad62f159bbc0a401fcedf2e324def77e6657`: Run `33253659212`,
   `26/26` beobachtete Schritte gruen, `0 skipped`.
 
-Keine Prozent-, Gate-, Hosted-, Deploy- oder Release-Transition. Naechster autonomer Punkt:
-A4 `/api/v1/team/status` im Worker Red-first reparieren.
+Keine Prozent-, Gate-, Hosted-, Deploy- oder Release-Transition. A4 folgt als naechster
+Runtime-Contract-Punkt.
+
+## 6c. A4 Team-Status lokal repariert
+
+- Fresh Hosted-Readback vor dem Fix: Worker API-Pfad `500`, Worker-Alias `404`, stateless
+  Contract Origin `500`, Frontend `200` mit der unvollstaendigen Projektion `roles=[]`.
+- Worker-Source: beide GET-Aliase jetzt nativ `external_degraded`, exakt fuenf logische Rollen,
+  kanonische Ausfuehrungsmap, fuenf `unavailable` Members, Queue `0` und
+  `queue_depth_observed=false`.
+- Nichtleere `dispatch_id` am zustandslosen Worker wird HTTP `404 dispatch_not_found` ohne
+  Echo. Das Frontend blockiert unsichere IDs vor dem Proxy; gueltige UUIDv4 duerfen einen
+  konfigurierten stateful Origin erreichen und fallen nur bei dessen Ausfall auf 404.
+- Alle Provider-/MCP-Write-/Deploy-/Rollout-/Secret-Claims bleiben `false`.
+- Red-first Worker `2` Fehler, danach Worker `28/28`; Frontend `5/5`, Lint, Build und statischer
+  Worker-Verifier gruen.
+
+Kein Deploy und keine Hosted-Umetikettierung: die Tabelle in Abschnitt 6 bleibt bis zu einem
+freigegebenen source-gebundenen Deploy unveraendert. Overall/P3/P6/L4/L5 bleiben
+`89/44/90/55/56`. Naechster autonomer Punkt: A5 Vercel-Origin-/OAuth-Ownership-Beweis.
 
 ## 7. Offen bis 100
 

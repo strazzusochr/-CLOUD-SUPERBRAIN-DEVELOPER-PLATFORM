@@ -4,6 +4,21 @@
 
 const tag = { live_backend: false, source: "frontend-projection" as const };
 const AGENT_ROLES = ["planner", "coder", "tester", "devops"];
+const AUTONOMOUS_LOGICAL_ROLES = ["supervisor", "planner", "explorer", "coder", "tester"] as const;
+const AUTONOMOUS_ROLE_MAP: Record<(typeof AUTONOMOUS_LOGICAL_ROLES)[number], string> = {
+  supervisor: "planner",
+  planner: "planner",
+  explorer: "planner",
+  coder: "coder",
+  tester: "tester",
+};
+const AUTONOMOUS_TEAM_NON_CLAIMS = [
+  "Logical roles are overlays on the existing runtime pool, not separate worker binaries.",
+  "An optional external runtime adapter may project read-only team presence without changing dispatch semantics.",
+  "This status surface does not claim live provider execution, live MCP writes, or production deployment.",
+  "Legacy four-role public contracts remain authoritative for the runtime pool itself.",
+  "The read-only projection does not observe or mutate the internal task queue.",
+];
 
 type DefaultResult = {
   payload: Record<string, unknown>;
@@ -82,6 +97,92 @@ function liveAgentRows(): Array<Record<string, unknown>> {
   }));
 }
 
+function projectedTeamStatus(): Record<string, unknown> {
+  const unavailableReason = "internal_queue_unavailable_at_read_boundary";
+  return {
+    ...tag,
+    contract_version: "autonomous-coding-team-v1",
+    dispatch_contract_version: "autonomous-task-dispatch-v1",
+    team_mode: "logical_five_role_overlay_on_runtime_pool",
+    runtime_source: "external_adapter",
+    status: "external_degraded",
+    dispatch_id: null,
+    project_id: null,
+    session_id: null,
+    objective: "external runtime projection",
+    trace_id: null,
+    request_id: null,
+    correlation_evidence_ref: null,
+    audit_feed_evidence_ref: null,
+    queue_depth: 0,
+    queue_depth_by_priority: { high: 0, mid: 0, low: 0 },
+    queue_depth_observed: false,
+    logical_roles: [...AUTONOMOUS_LOGICAL_ROLES],
+    logical_to_execution_map: { ...AUTONOMOUS_ROLE_MAP },
+    external_runtime: {
+      configured: false,
+      provider: null,
+      status: "unavailable",
+      status_url: null,
+      agents_url: null,
+      ready: false,
+      runtime: "cloud_native_read_only_projection",
+      agents: [],
+      logical_role_map: { ...AUTONOMOUS_ROLE_MAP },
+      error: unavailableReason,
+      live_provider_calls: false,
+      direct_provider_calls: false,
+      live_mcp_writes: false,
+      provider_writes: false,
+      production_deploy: false,
+      production_rollout_claimed: false,
+      secret_output: false,
+    },
+    runtime_pool_contract_version: "task-assignment-queue-contract-v1",
+    write_scope: [],
+    acceptance_criteria: [],
+    constraints: [
+      "Respect the fail-closed task policy before enqueue.",
+      "Do not claim live provider calls, live MCP writes, or production deployment.",
+      "Keep changes inside the declared write_scope.",
+      "Escalate instead of bypassing blocked actions or human-review gates.",
+    ],
+    members: AUTONOMOUS_LOGICAL_ROLES.map((logicalRole) => ({
+      logical_role: logicalRole,
+      execution_agent_type: AUTONOMOUS_ROLE_MAP[logicalRole],
+      task_id: null,
+      latest_task_id: null,
+      task_type: "external_runtime_projection",
+      status: "unavailable",
+      latest_status: "unavailable",
+      priority: null,
+      priority_level: null,
+      priority_queue: null,
+      allowed_tools: [],
+      planned_capabilities: ["external_runtime_projection"],
+      write_scope: [],
+      acceptance_criteria: [],
+      human_review_required: true,
+      blocked_actions: [],
+      current_status_source: "external_runtime",
+      trace_id: null,
+      request_id: null,
+      correlation_evidence_ref: null,
+      audit_feed_evidence_ref: null,
+      latest_result: null,
+      latest_error: unavailableReason,
+    })),
+    live_provider_calls: false,
+    direct_provider_calls: false,
+    live_mcp_writes: false,
+    provider_writes: false,
+    production_deploy: false,
+    production_rollout_claimed: false,
+    secret_output: false,
+    non_claims: [...AUTONOMOUS_TEAM_NON_CLAIMS],
+  };
+}
+
 const DEFAULTS: Record<string, () => Record<string, unknown>> = {
   "/api/v1/tasks/recent": () => ({
     ...tag,
@@ -125,7 +226,7 @@ const DEFAULTS: Record<string, () => Record<string, unknown>> = {
     agents: [],
     default_model: null,
   }),
-  "/api/v1/team/status": () => ({ ...tag, status: "ok", roles: [] }),
+  "/api/v1/team/status": projectedTeamStatus,
   "/api/v1/rate-limit/status": () => ({ ...tag, contract_version: "rate-limit-guard-v1", evidence_ref: "rate_limit_status_visible", status: "ok", limit: null, remaining: null, window_s: null }),
   "/api/v1/session-limits/status": () => ({ ...tag, contract_version: "session-llm-call-limit-v1", evidence_ref: "session_limit_status_visible", status: "ok", active_sessions: 0, max_sessions: null }),
   "/api/v1/budget": () => ({ ...tag, status: "ok", spent_usd: 0, max_usd: envNum("LIVE_LLM_MAX_BUDGET_USD", 20), live_provider_calls: false }),

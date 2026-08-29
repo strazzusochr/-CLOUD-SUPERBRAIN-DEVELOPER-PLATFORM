@@ -296,7 +296,9 @@ jobs:
         run: npm ci
 
       - name: Generated HTML runnability guard
-        run: node --test apps/frontend/tests/generated-html-runnability.test.mjs
+        run: |
+          node --test apps/frontend/tests/generated-html-runnability.test.mjs
+          node --test apps/frontend/tests/team-status-default.test.mjs
 
       - name: Frontend audit
         working-directory: apps/frontend

@@ -612,6 +612,17 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
+  'AUTONOMOUS_TEAM_STATUS_PATHS',
+  'autonomousTeamStatusPayload',
+  'autonomousTeamDispatchNotFound',
+  'queue_depth_observed: false',
+  'production_rollout_claimed: false',
+  'The read-only projection does not observe or mutate the internal task queue.'
+)) {
+  Assert-Contains "Worker native team status" $source $marker
+}
+
+foreach ($marker in @(
   'writes require the dedicated server-side agent token',
   'hosted opaque sessions survive create-verify-revoke with hash-only D1 storage',
   'hosted session issuance is authenticated, validated, and audit-atomic',
@@ -623,6 +634,8 @@ foreach ($marker in @(
   'workspace artifacts use the same authenticated D1 boundary',
   'workspace artifact persistence rolls back when its audit write fails',
   'workspace artifacts reject nested secret metadata without echoing it',
+  'team status is a native read-only degraded projection on both aliases',
+  'team status fails closed for every nonempty dispatch id without echoing it',
   'LangGraph executes four roles and persists run, tasks, checkpoint, memory, and audit',
   'Cloudflare-native candidate contract is fail-closed and labels local proof honestly',
   'Cloudflare-native probe crosses D1 artifact storage, Queue, and Durable Object idempotently then cleans up',

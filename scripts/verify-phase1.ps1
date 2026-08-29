@@ -1876,6 +1876,12 @@ if (-not (Test-Path "apps\frontend\tests\generated-html-runnability.test.mjs")) 
 }
 node --test apps/frontend/tests/generated-html-runnability.test.mjs
 Assert-LastExitCode "generated HTML runnability guard"
+Write-Host "[verify] team status frontend projection guard"
+if (-not (Test-Path "apps\frontend\tests\team-status-default.test.mjs")) {
+  throw "Missing team status frontend projection regression tests"
+}
+node --test apps/frontend/tests/team-status-default.test.mjs
+Assert-LastExitCode "team status frontend projection guard"
 foreach ($required in @(
   "CSP_REPORT_CONTRACT_VERSION",
   "CSP_REPORT_EVIDENCE_REF",

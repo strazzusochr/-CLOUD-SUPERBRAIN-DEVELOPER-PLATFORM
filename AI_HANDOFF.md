@@ -97,6 +97,30 @@ A1 feature-head `d5bdad62f159bbc0a401fcedf2e324def77e6657` is independently veri
 GitHub Actions run `33253659212`: all 26 observed steps passed with zero skipped steps.
 Next autonomous work is A4, the Worker-native read-only `/api/v1/team/status` repair.
 
+### Post-RC22 A4 Team-Status Projection Checkpoint
+
+A4 repairs the local source contract without relabeling the currently deployed hosts. Before
+the repair, fresh anonymous HTTPS reads measured Worker `/api/v1/team/status=500`, Worker
+alias `/team/status=404`, the stateless Backend Contract Origin `=500`, and the frontend
+projection `=200` with the malformed body `status=ok, roles=[]`. Those hosted responses remain
+the current hosted truth until a separately approved, source-bound deployment occurs.
+
+The Cloudflare runtime now serves both GET aliases natively before `CONTRACT_ORIGIN` fallback.
+The response is a parser-compatible `autonomous-coding-team-v1` projection with status
+`external_degraded`, the exact five logical roles and canonical four-role execution map, five
+`unavailable` members, zero unobserved queue depths, and explicit false provider/write/deploy/
+rollout/secret claims. Any nonempty `dispatch_id` fails closed with HTTP 404 and is not echoed.
+The frontend default now projects the same honest no-dispatch state; unsafe identifiers are
+rejected before the service boundary, while valid UUIDv4 identifiers may reach a configured
+stateful origin and fail closed only when that origin is unavailable.
+
+Red-first Worker tests failed twice before implementation and now pass `28/28`; the focused
+frontend projection/parser/proxy suite passes `5/5`. Worker syntax/static verification,
+frontend lint and the production build are green. No dispatch, provider call, MCP write,
+hosted deploy, gate transition, percentage credit, release or production claim was created.
+Overall remains `89`; next autonomous work is A5, the Vercel/frontend-origin evidence binding
+and OAuth ownership decision packet.
+
 ## Historical Session16 Audit Handoff — 2026-08-29
 
 The current operator packet is:

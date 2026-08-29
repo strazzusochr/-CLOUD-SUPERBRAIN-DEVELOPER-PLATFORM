@@ -18,6 +18,19 @@ const MAX_NATIVE_CONTENT_BYTES = 32 * 1024;
 const DEFAULT_LIMIT = 24;
 const MAX_LIMIT = 100;
 const AGENT_ROLES = ["planner", "coder", "tester", "devops"];
+const AUTONOMOUS_TEAM_CONTRACT_VERSION = "autonomous-coding-team-v1";
+const AUTONOMOUS_TASK_DISPATCH_CONTRACT_VERSION = "autonomous-task-dispatch-v1";
+const AUTONOMOUS_TEAM_MODE = "logical_five_role_overlay_on_runtime_pool";
+const AUTONOMOUS_RUNTIME_POOL_CONTRACT_VERSION = "task-assignment-queue-contract-v1";
+const AUTONOMOUS_LOGICAL_ROLES = ["supervisor", "planner", "explorer", "coder", "tester"];
+const AUTONOMOUS_ROLE_MAP = {
+  supervisor: "planner",
+  planner: "planner",
+  explorer: "planner",
+  coder: "coder",
+  tester: "tester",
+};
+const AUTONOMOUS_TEAM_STATUS_PATHS = new Set(["/api/v1/team/status", "/team/status"]);
 const REDACTED_PROMPT = "[REDACTED]";
 const MASKED_SECRET = "***MASKED_SECRET***";
 const SECRET_PATTERN_SOURCES = [
@@ -95,6 +108,121 @@ function blocked(error, requestId, note) {
     production_deploy: false,
     secret_output: false,
     note,
+  };
+}
+
+function autonomousTeamStatusPayload(requestId) {
+  const roleMap = { ...AUTONOMOUS_ROLE_MAP };
+  const unavailableReason = "internal_queue_unavailable_at_read_boundary";
+  const externalRuntime = {
+    configured: false,
+    provider: null,
+    status: "unavailable",
+    status_url: null,
+    agents_url: null,
+    ready: false,
+    runtime: "cloud_native_read_only_projection",
+    agents: [],
+    logical_role_map: { ...roleMap },
+    error: unavailableReason,
+    live_provider_calls: false,
+    direct_provider_calls: false,
+    live_mcp_writes: false,
+    provider_writes: false,
+    production_deploy: false,
+    production_rollout_claimed: false,
+    secret_output: false,
+  };
+  return {
+    contract_version: AUTONOMOUS_TEAM_CONTRACT_VERSION,
+    dispatch_contract_version: AUTONOMOUS_TASK_DISPATCH_CONTRACT_VERSION,
+    team_mode: AUTONOMOUS_TEAM_MODE,
+    runtime_source: "external_adapter",
+    status: "external_degraded",
+    dispatch_id: null,
+    project_id: null,
+    session_id: null,
+    objective: "external runtime projection",
+    trace_id: null,
+    request_id: requestId,
+    correlation_evidence_ref: null,
+    audit_feed_evidence_ref: null,
+    queue_depth: 0,
+    queue_depth_by_priority: { high: 0, mid: 0, low: 0 },
+    queue_depth_observed: false,
+    logical_roles: [...AUTONOMOUS_LOGICAL_ROLES],
+    logical_to_execution_map: roleMap,
+    external_runtime: externalRuntime,
+    runtime_pool_contract_version: AUTONOMOUS_RUNTIME_POOL_CONTRACT_VERSION,
+    write_scope: [],
+    acceptance_criteria: [],
+    constraints: [
+      "Respect the fail-closed task policy before enqueue.",
+      "Do not claim live provider calls, live MCP writes, or production deployment.",
+      "Keep changes inside the declared write_scope.",
+      "Escalate instead of bypassing blocked actions or human-review gates.",
+    ],
+    members: AUTONOMOUS_LOGICAL_ROLES.map((logicalRole) => ({
+      logical_role: logicalRole,
+      execution_agent_type: roleMap[logicalRole],
+      task_id: null,
+      latest_task_id: null,
+      task_type: "external_runtime_projection",
+      status: "unavailable",
+      latest_status: "unavailable",
+      priority: null,
+      priority_level: null,
+      priority_queue: null,
+      allowed_tools: [],
+      planned_capabilities: ["external_runtime_projection"],
+      write_scope: [],
+      acceptance_criteria: [],
+      human_review_required: true,
+      blocked_actions: [],
+      current_status_source: "external_runtime",
+      trace_id: null,
+      request_id: null,
+      correlation_evidence_ref: null,
+      audit_feed_evidence_ref: null,
+      latest_result: null,
+      latest_error: unavailableReason,
+    })),
+    live_provider_calls: false,
+    direct_provider_calls: false,
+    live_mcp_writes: false,
+    provider_writes: false,
+    production_deploy: false,
+    production_rollout_claimed: false,
+    secret_output: false,
+    non_claims: [
+      "Logical roles are overlays on the existing runtime pool, not separate worker binaries.",
+      "An optional external runtime adapter may project read-only team presence without changing dispatch semantics.",
+      "This status surface does not claim live provider execution, live MCP writes, or production deployment.",
+      "Legacy four-role public contracts remain authoritative for the runtime pool itself.",
+      "The read-only projection does not observe or mutate the internal task queue.",
+    ],
+  };
+}
+
+function autonomousTeamDispatchNotFound(requestId) {
+  return {
+    contract_version: AUTONOMOUS_TEAM_CONTRACT_VERSION,
+    dispatch_contract_version: AUTONOMOUS_TASK_DISPATCH_CONTRACT_VERSION,
+    team_mode: AUTONOMOUS_TEAM_MODE,
+    status: "blocked",
+    error: "dispatch_not_found",
+    dispatch_id: null,
+    request_id: requestId,
+    accepted: false,
+    persisted: false,
+    live_provider_calls: false,
+    direct_provider_calls: false,
+    live_mcp_writes: false,
+    provider_writes: false,
+    production_deploy: false,
+    production_rollout_claimed: false,
+    secret_output: false,
+    note: "The requested dispatch is unavailable from the edge read-only projection.",
   };
 }
 
@@ -1920,6 +2048,12 @@ export default {
     const nativeProbeMatch = url.pathname.match(/^\/api\/v1\/cloud-native\/probes\/([A-Za-z0-9_-]{1,64})$/);
 
     if (request.method === "GET" && url.pathname === "/api/v1/health") return health(env, requestId);
+    if (request.method === "GET" && AUTONOMOUS_TEAM_STATUS_PATHS.has(url.pathname)) {
+      const hasRequestedDispatch = url.searchParams.getAll("dispatch_id").some((value) => value.length > 0);
+      return hasRequestedDispatch
+        ? json(autonomousTeamDispatchNotFound(requestId), 404)
+        : json(autonomousTeamStatusPayload(requestId));
+    }
     if (request.method === "POST" && url.pathname === "/api/v1/auth/sessions") return createHostedSession(request, env, requestId);
     if (request.method === "POST" && url.pathname === "/api/v1/auth/sessions/verify") return verifyHostedSession(request, env, requestId);
     if (request.method === "POST" && url.pathname === "/api/v1/auth/sessions/revoke") return revokeHostedSession(request, env, requestId);

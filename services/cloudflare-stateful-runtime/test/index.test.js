@@ -825,6 +825,99 @@ test("unmatched writes are never proxied to the contract origin", async () => {
   assert.equal(body.accepted, false);
 });
 
+test("team status is a native read-only degraded projection on both aliases", async () => {
+  const expectedRoles = ["supervisor", "planner", "explorer", "coder", "tester"];
+  const expectedRoleMap = {
+    supervisor: "planner",
+    planner: "planner",
+    explorer: "planner",
+    coder: "coder",
+    tester: "tester",
+  };
+
+  for (const path of ["/api/v1/team/status", "/team/status"]) {
+    const response = await worker.fetch(new Request(`https://state.example${path}`, {
+      headers: { "x-request-id": "team-status-unit" },
+    }), env());
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("x-superbrain-source"), "cloudflare-workers-d1-stateful-runtime");
+    assert.equal(body.contract_version, "autonomous-coding-team-v1");
+    assert.equal(body.dispatch_contract_version, "autonomous-task-dispatch-v1");
+    assert.equal(body.team_mode, "logical_five_role_overlay_on_runtime_pool");
+    assert.equal(body.runtime_source, "external_adapter");
+    assert.equal(body.status, "external_degraded");
+    assert.equal(body.dispatch_id, null);
+    assert.equal(body.request_id, "team-status-unit");
+    assert.equal(body.queue_depth, 0);
+    assert.deepEqual(body.queue_depth_by_priority, { high: 0, mid: 0, low: 0 });
+    assert.equal(body.queue_depth_observed, false);
+    assert.deepEqual(body.logical_roles, expectedRoles);
+    assert.deepEqual(body.logical_to_execution_map, expectedRoleMap);
+    assert.equal(body.runtime_pool_contract_version, "task-assignment-queue-contract-v1");
+    assert.equal(body.external_runtime.ready, false);
+    assert.equal(body.external_runtime.runtime, "cloud_native_read_only_projection");
+    assert.equal(body.external_runtime.error, "internal_queue_unavailable_at_read_boundary");
+    assert.deepEqual(body.external_runtime.agents, []);
+    assert.deepEqual(body.external_runtime.logical_role_map, expectedRoleMap);
+    assert.equal(body.members.length, expectedRoles.length);
+    assert.deepEqual(body.members.map((member) => member.logical_role), expectedRoles);
+    for (const member of body.members) {
+      assert.equal(member.execution_agent_type, expectedRoleMap[member.logical_role]);
+      assert.equal(member.status, "unavailable");
+      assert.equal(member.latest_status, "unavailable");
+      assert.equal(member.priority, null);
+      assert.equal(member.priority_level, null);
+      assert.equal(member.priority_queue, null);
+      assert.equal(member.current_status_source, "external_runtime");
+    }
+    for (const guard of [
+      "live_provider_calls",
+      "direct_provider_calls",
+      "live_mcp_writes",
+      "provider_writes",
+      "production_deploy",
+      "production_rollout_claimed",
+      "secret_output",
+    ]) {
+      assert.equal(body[guard], false, `${guard} must remain fail-closed`);
+      assert.equal(body.external_runtime[guard], false, `external_runtime.${guard} must remain fail-closed`);
+    }
+    assert.equal(body.non_claims.some((claim) => claim.includes("does not claim live provider execution")), true);
+    assert.equal(body.non_claims.includes("The read-only projection does not observe or mutate the internal task queue."), true);
+  }
+});
+
+test("team status fails closed for every nonempty dispatch id without echoing it", async () => {
+  const dispatchIds = [
+    "123e4567-e89b-42d3-a456-426614174000",
+    "token=unitfixture000000000000000000000000",
+  ];
+
+  for (const path of ["/api/v1/team/status", "/team/status"]) {
+    for (const dispatchId of dispatchIds) {
+      const encodedDispatchId = encodeURIComponent(dispatchId);
+      const response = await worker.fetch(new Request(
+        `https://state.example${path}?dispatch_id=${encodedDispatchId}`,
+      ), env());
+      const text = await response.text();
+      const body = JSON.parse(text);
+
+      assert.equal(response.status, 404);
+      assert.equal(body.contract_version, "autonomous-coding-team-v1");
+      assert.equal(body.error, "dispatch_not_found");
+      assert.equal(body.dispatch_id, null);
+      assert.equal(text.includes(dispatchId), false);
+      assert.equal(text.includes(encodedDispatchId), false);
+      assert.equal(body.live_provider_calls, false);
+      assert.equal(body.live_mcp_writes, false);
+      assert.equal(body.production_deploy, false);
+      assert.equal(body.secret_output, false);
+    }
+  }
+});
+
 test("LangGraph executes four roles and persists run, tasks, checkpoint, memory, and audit", async () => {
   const fakeEnv = env();
   const contract = await worker.fetch(new Request("https://state.example/api/v1/phase2/runtime/contract"), fakeEnv);

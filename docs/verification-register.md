@@ -91,6 +91,30 @@ dispatch inputs, and deliberate blocked-list duplicates. Output is
 credit_applied=false`. No percentage, ledger entry, capability gate, hosted write, provider
 call, deployment, release or production claim changed.
 
+## Current A4 Team-Status Projection Evidence
+
+Recorded 2026-08-29. Fresh pre-fix anonymous HTTPS reads returned Worker
+`/api/v1/team/status=500`, Worker alias `/team/status=404`, stateless Backend Contract Origin
+`/api/v1/team/status=500`, and frontend `/api/v1/team/status=200` with the incomplete
+`status=ok, roles=[]` projection. These measurements remain the deployed truth; A4 is a local
+source repair and does not claim a hosted rollout.
+
+The Worker now handles both GET aliases before `CONTRACT_ORIGIN`. Its read-only
+`autonomous-coding-team-v1` response is `external_degraded`, carries the exact logical roles
+`supervisor, planner, explorer, coder, tester`, maps them onto the canonical existing runtime
+pool, reports five unavailable members, and labels queue depth as zero but unobserved. Every
+provider, direct-provider, MCP-write, provider-write, deploy, rollout and secret-output field
+is false. A nonempty `dispatch_id` returns HTTP 404 `dispatch_not_found` without reflecting
+caller input. The frontend fallback is parser-compatible with the same no-dispatch semantics;
+unsafe identifiers are rejected pre-proxy and valid UUIDv4 identifiers may reach a configured
+stateful backend before the unavailable fallback is selected.
+
+Red-first Worker tests reproduced two failures, then the full Worker suite passed `28/28`.
+The frontend projection, production-parser and proxy-boundary suite passed `5/5`; Worker
+syntax and static verification, frontend lint, production build, manifest validation and diff
+checks are green. No dispatch, live call, write, hosted deploy, percentage, gate, release or
+production claim changed. Overall remains `89%`; hosted proof is still blocked.
+
 ## Historical Post-RC21 Session16 Audit
 
 Recorded 2026-08-29. Fresh local verification is green for build (`21/21`), runtime,

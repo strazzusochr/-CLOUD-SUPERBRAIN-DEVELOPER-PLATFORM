@@ -23,14 +23,54 @@ export const maxDuration = 30;
 const SNAP = snapshot as Record<string, unknown>;
 const OAUTH_START_BOUNDARY_TIMEOUT_MS = 8_000;
 const OAUTH_CALLBACK_BOUNDARY_TIMEOUT_MS = 25_000;
+const SAFE_DISPATCH_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CURRENT_PROJECTION_REQUIRED_WHEN_EDGE_ORIGIN_IS_STALE = new Set([
   "/api/v1/clouds",
   "/api/v1/clouds/layers",
   "/api/v1/clouds/deployment-preflight",
 ]);
 
+function teamDispatchNotFound(): Response {
+  return Response.json(
+    {
+      contract_version: "autonomous-coding-team-v1",
+      dispatch_contract_version: "autonomous-task-dispatch-v1",
+      team_mode: "logical_five_role_overlay_on_runtime_pool",
+      status: "blocked",
+      error: "dispatch_not_found",
+      dispatch_id: null,
+      request_id: null,
+      accepted: false,
+      persisted: false,
+      live_provider_calls: false,
+      direct_provider_calls: false,
+      live_mcp_writes: false,
+      provider_writes: false,
+      production_deploy: false,
+      production_rollout_claimed: false,
+      secret_output: false,
+      note: "The requested dispatch is unavailable from the read-only projection.",
+    },
+    {
+      status: 404,
+      headers: {
+        "x-superbrain-source": "frontend-projection",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff",
+      },
+    },
+  );
+}
+
 async function handle(req: Request, slug: string[] | undefined, method: string): Promise<Response> {
   const pathname = `/api/v1/${(slug ?? []).join("/")}`;
+  const requestedTeamDispatchId = method === "GET" && pathname === "/api/v1/team/status"
+    ? new URL(req.url).searchParams.get("dispatch_id")?.trim()
+    : null;
+  if (requestedTeamDispatchId && !SAFE_DISPATCH_ID.test(requestedTeamDispatchId)) {
+    // Reject unsafe identifiers before the service boundary sees caller-controlled input.
+    return teamDispatchNotFound();
+  }
   // Frontend-owned metrics must describe this deployment even when the Agent API
   // origin is reachable. Backend metrics remain available at their own origin.
   if (method === "GET" && pathname === "/api/v1/metrics") {
@@ -163,6 +203,7 @@ async function handle(req: Request, slug: string[] | undefined, method: string):
   const staleContractOrigin = live?.headers.get("x-superbrain-source") === "contract-origin-via-d1-edge"
     && CURRENT_PROJECTION_REQUIRED_WHEN_EDGE_ORIGIN_IS_STALE.has(pathname);
   if (live && !staleContractOrigin) return live;
+  if (requestedTeamDispatchId) return teamDispatchNotFound();
   // projectedDefault internally covers knownDefault surfaces before generic data.
   const projected = projectedDefault(pathname, method);
   if (projected) {
