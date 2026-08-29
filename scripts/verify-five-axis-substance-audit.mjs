@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -19,6 +19,75 @@ function sha256(relativePath) {
 
 function assert(condition, message) {
   if (!condition) throw new Error(`[five-axis-audit] ${message}`);
+}
+
+function verifyProjectProgress(deltaLedgerPath) {
+  const verifier = resolve(root, "scripts", "verify_project_progress_manifest.py");
+  const launchers = process.platform === "win32"
+    ? [["py", ["-3", verifier]], ["python", [verifier]], ["python3", [verifier]]]
+    : [["python3", [verifier]], ["python", [verifier]], ["py", ["-3", verifier]]];
+  const env = {
+    ...process.env,
+    PROJECT_PROGRESS_DELTA_LEDGER_PATH: resolve(root, deltaLedgerPath),
+  };
+
+  for (const [command, args] of launchers) {
+    const result = spawnSync(command, args, { cwd: root, encoding: "utf8", env });
+    if (result.error?.code === "ENOENT") continue;
+    assert(!result.error, `project progress verifier launch failed via ${command}: ${result.error?.message}`);
+    if (result.status !== 0) {
+      const detail = `${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim().slice(-4000)
+        || `exit=${result.status ?? "unknown"}`;
+      assert(false, `project progress verifier failed via ${command}: ${detail}`);
+    }
+    return;
+  }
+
+  assert(false, "project progress verifier launch failed: no Python 3 launcher is available");
+}
+
+function verifyDeltaLedgerSurface() {
+  const manifest = readJson("docs/project-progress.manifest.json");
+  const layers = new Map(manifest.vertical.items.map((item) => [item.id, item]));
+  const deltaLedgerPath = process.env.PROJECT_PROGRESS_DELTA_LEDGER_PATH?.trim()
+    || "docs/runtime-state/project-progress-delta-ledger.json";
+  const deltaLedger = readJson(deltaLedgerPath);
+  const deltaLedgerSchema = readJson("docs/runtime-contracts/project-progress-delta-ledger.schema.json");
+  assert(deltaLedger.contract_version === "project-progress-delta-ledger-v2", "progress delta ledger contract drift");
+  assert(
+    deltaLedgerSchema.properties?.contract_version?.const === "project-progress-delta-ledger-v2",
+    "progress delta ledger schema contract drift",
+  );
+  assert(deltaLedgerSchema.properties?.entries?.type === "array", "progress delta ledger entries schema drift");
+  assert(Array.isArray(deltaLedger.entries), "progress delta ledger entries must be an array");
+
+  const deltaEntrySchema = deltaLedgerSchema.properties.entries.items;
+  const requiredDeltaEntryKeys = [...(deltaEntrySchema?.required ?? [])].sort();
+  assert(requiredDeltaEntryKeys.length > 0, "progress delta ledger entry schema is missing required fields");
+  const seenDeltaEntryIds = new Set();
+  for (const [index, entry] of deltaLedger.entries.entries()) {
+    assert(entry && typeof entry === "object" && !Array.isArray(entry), `progress delta ledger entry ${index} must be an object`);
+    const actualKeys = Object.keys(entry).sort();
+    assert(
+      actualKeys.length === requiredDeltaEntryKeys.length
+        && actualKeys.every((key, keyIndex) => key === requiredDeltaEntryKeys[keyIndex]),
+      `progress delta ledger entry ${index} keys drift`,
+    );
+    assert(typeof entry.entry_id === "string" && entry.entry_id.length > 0, `progress delta ledger entry ${index} id is invalid`);
+    assert(!seenDeltaEntryIds.has(entry.entry_id), `duplicate progress delta ledger entry id: ${entry.entry_id}`);
+    seenDeltaEntryIds.add(entry.entry_id);
+  }
+  verifyProjectProgress(deltaLedgerPath);
+  return { manifest, layers, deltaLedger };
+}
+
+if (process.env.FIVE_AXIS_LEDGER_ONLY === "1") {
+  const { layers, deltaLedger } = verifyDeltaLedgerSurface();
+  console.log(
+    `[five-axis-audit] DELTA-LEDGER PASS L4=${layers.get("layer_4").percent} `
+      + `L5=${layers.get("layer_5").percent} deltas=${deltaLedger.entries.length}`,
+  );
+  process.exit(0);
 }
 
 function trackedFiles(...pathspecs) {
@@ -160,13 +229,10 @@ for (const [kind, label] of [["real", "ECHT NUTZBAR"], ["contract", "NUR CONTRAC
   assert(Number(summary[1]) === classCounts[kind], `audit summary/table mismatch: ${label}`);
 }
 
-const manifest = readJson("docs/project-progress.manifest.json");
-const layers = new Map(manifest.vertical.items.map((item) => [item.id, item]));
-assert(layers.get("layer_4")?.percent === 55, "L4 must remain verifier-locked at 55%");
-assert(layers.get("layer_5")?.percent === 56, "L5 must remain verifier-locked at 56%");
-const deltaLedger = readJson("docs/runtime-state/project-progress-delta-ledger.json");
-assert(deltaLedger.contract_version === "project-progress-delta-ledger-v1", "progress delta ledger contract drift");
-assert(Array.isArray(deltaLedger.entries) && deltaLedger.entries.length === 0, "v1 progress delta ledger must remain empty");
+// The Python progress verifier owns source ancestry, evidence hashes, scorer execution
+// and projection replay. This audit consumes the same authority without reinstating the
+// retired permanent-empty or literal L4/L5 locks.
+const { manifest, layers, deltaLedger } = verifyDeltaLedgerSurface();
 
 const authoritativeDocs = [
   "PROJECT_STATE.md",
@@ -318,8 +384,6 @@ assert(!openSourcePage.includes("Lizenzen eingehalten"), "unverified license-com
 
 assert(read("AGENTS.md").includes("Stack: Next.js 16.2.11, LangGraph, FastAPI, pgvector"), "active stack version drift");
 for (const phrase of [
-  "L4 bleibt 55 %",
-  "L5 bleibt 56 %",
   "MARKET_READY:false",
   "DEV-ONLY; hosted proof still blocked",
   "Messgrenze:",

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
+import subprocess
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -10,6 +12,18 @@ from scripts import verify_project_progress_manifest as verifier
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+SYNTHETIC_P3_SCORER_COMMAND = "python scripts/tests/synthetic_p3_progress_delta_scorer.py --score-v1"
+SYNTHETIC_P3_SCORER_ARGV = (
+    "synthetic-python",
+    "scripts/tests/synthetic_p3_progress_delta_scorer.py",
+    "--score-v1",
+)
+SYNTHETIC_L4_SCORER_COMMAND = "python scripts/tests/synthetic_l4_progress_delta_scorer.py --score-v1"
+SYNTHETIC_L4_SCORER_ARGV = (
+    "synthetic-python",
+    "scripts/tests/synthetic_l4_progress_delta_scorer.py",
+    "--score-v1",
+)
 
 
 class ProjectProgressTruthTests(unittest.TestCase):
@@ -36,6 +50,174 @@ class ProjectProgressTruthTests(unittest.TestCase):
             REPO_ROOT,
         )
 
+    def synthetic_p3_delta(self):
+        manifest = copy.deepcopy(self.manifest)
+        manifest["horizontal"]["items"][3]["percent"] = 45
+        manifest["overall_percent"] = round(
+            sum(item["percent"] for item in manifest["horizontal"]["items"]) / 7
+        )
+        projection = verifier.progress_projection(manifest)
+        source_sha = "a" * 40
+        artifact_bytes = b'{"contract_version":"p3-progress-proof-v1","verified":true}\n'
+        artifact_path = ".phase1-artifacts/project-progress/p3-44-to-45.json"
+        ledger = copy.deepcopy(self.ledger)
+        ledger["contract_version"] = "project-progress-delta-ledger-v2"
+        ledger["entries"] = [
+            {
+                "entry_id": "p3-44-to-45",
+                "scope": "horizontal",
+                "cell_id": "phase_3",
+                "old_percent": 44,
+                "new_percent": 45,
+                "overall_percent": manifest["overall_percent"],
+                "previous_projection_sha256": verifier.BASELINE_PROJECTION_SHA256,
+                "projection_sha256": verifier.canonical_json_sha256(projection),
+                "source_sha": source_sha,
+                "verifier_command": SYNTHETIC_P3_SCORER_COMMAND,
+                "artifact_path": artifact_path,
+                "artifact_sha256": hashlib.sha256(artifact_bytes).hexdigest(),
+            }
+        ]
+        snapshot = copy.deepcopy(self.snapshot)
+        snapshot["/api/v1/project/progress"] = copy.deepcopy(manifest)
+        platform = self.platform.replace(
+            '{ id: "P3", pct: 44 }',
+            '{ id: "P3", pct: 45 }',
+            1,
+        )
+        self.assertNotEqual(platform, self.platform)
+        return manifest, ledger, snapshot, platform, artifact_bytes
+
+    def validate_synthetic_p3_delta(
+        self,
+        manifest,
+        ledger,
+        snapshot,
+        platform,
+        artifact_bytes,
+        *,
+        source_available: bool = True,
+        source_is_ancestor: bool = True,
+        committed_artifact: bytes | None = None,
+        artifact_missing: bool = False,
+        artifact_object_type: str = "blob",
+        artifact_object_mode: str = "100644",
+        artifact_payloads: dict[str, bytes] | None = None,
+        approved_scorers: dict[
+            tuple[str, str], tuple[str, tuple[str, ...]]
+        ]
+        | None = None,
+        scorer_stdout: str | None = None,
+        scorer_returncode: int = 0,
+        scorer_side_effect: BaseException | None = None,
+    ):
+        source_shas = {entry["source_sha"] for entry in ledger["entries"]}
+        first_artifact_path = ledger["entries"][0]["artifact_path"]
+        committed_artifacts = dict(artifact_payloads or {first_artifact_path: artifact_bytes})
+        if committed_artifact is not None:
+            committed_artifacts[first_artifact_path] = committed_artifact
+
+        def object_is_commit(_repo_root, candidate_sha):
+            if candidate_sha in source_shas:
+                return source_available
+            return True
+
+        def commit_is_ancestor(_repo_root, ancestor, descendant):
+            if source_shas.intersection({ancestor, descendant}):
+                return source_is_ancestor
+            return True
+
+        def file_at_commit(_repo_root, candidate_sha, path):
+            if artifact_missing:
+                return None
+            if candidate_sha in source_shas and path in committed_artifacts:
+                return committed_artifacts[path]
+            return None
+
+        def object_type_at_commit(_repo_root, candidate_sha, path):
+            if candidate_sha in source_shas and path in committed_artifacts:
+                return artifact_object_type
+            return None
+
+        def object_mode_at_commit(_repo_root, candidate_sha, path):
+            if candidate_sha in source_shas and path in committed_artifacts:
+                return artifact_object_mode
+            return None
+
+        def valid_scorer_result(request):
+            return {
+                "contract_version": "project-progress-delta-scorer-result-v1",
+                "verifier_command": request["verifier_command"],
+                "scope": request["scope"],
+                "cell_id": request["cell_id"],
+                "source_sha": request["source_sha"],
+                "artifact_path": request["artifact_path"],
+                "artifact_sha256": request["artifact_sha256"],
+                "old_percent": request["old_percent"],
+                "new_percent": request["new_percent"],
+                "overall_percent": request["overall_percent"],
+                "previous_projection_sha256": request["previous_projection_sha256"],
+                "projection_sha256": request["projection_sha256"],
+                "read_only": True,
+                "provider_writes": False,
+                "secret_output": False,
+                "evidence_verified": True,
+                "credit_allowed": True,
+            }
+
+        def run_scorer(argv, **kwargs):
+            request = json.loads(kwargs["input"])
+            stdout = scorer_stdout
+            if stdout is None:
+                stdout = json.dumps(valid_scorer_result(request), sort_keys=True) + "\n"
+            return subprocess.CompletedProcess(
+                args=argv,
+                returncode=scorer_returncode,
+                stdout=stdout,
+                stderr="synthetic scorer failure" if scorer_returncode else "",
+            )
+
+        with (
+            patch.object(
+                verifier,
+                "load_pinned_baseline_projection",
+                return_value=verifier.expected_baseline_projection(),
+            ),
+            patch.object(verifier, "git_object_is_commit", side_effect=object_is_commit),
+            patch.object(verifier, "git_commit_is_ancestor", side_effect=commit_is_ancestor),
+            patch.object(verifier, "git_file_at_commit", side_effect=file_at_commit),
+            patch.object(verifier, "git_object_type_at_commit", side_effect=object_type_at_commit),
+            patch.object(verifier, "git_object_mode_at_commit", side_effect=object_mode_at_commit),
+            patch.object(
+                verifier,
+                "APPROVED_DELTA_SCORERS",
+                approved_scorers
+                if approved_scorers is not None
+                else {
+                    ("horizontal", "phase_3"): (
+                        SYNTHETIC_P3_SCORER_COMMAND,
+                        SYNTHETIC_P3_SCORER_ARGV,
+                    ),
+                    ("vertical", "layer_4"): (
+                        SYNTHETIC_L4_SCORER_COMMAND,
+                        SYNTHETIC_L4_SCORER_ARGV,
+                    ),
+                },
+            ),
+            patch.object(
+                verifier.subprocess,
+                "run",
+                side_effect=scorer_side_effect if scorer_side_effect is not None else run_scorer,
+            ) as scorer_run,
+        ):
+            self.validate(
+                manifest=manifest,
+                ledger=ledger,
+                snapshot=snapshot,
+                platform=platform,
+            )
+        return scorer_run
+
     def test_current_baseline_and_both_mirrors_are_valid_without_phase5_delegate(self) -> None:
         self.validate()
 
@@ -57,7 +239,7 @@ class ProjectProgressTruthTests(unittest.TestCase):
         raised["overall_percent"] = round(
             sum(item["percent"] for item in raised["horizontal"]["items"]) / 7
         )
-        self.assert_rejected(lambda: self.validate(manifest=raised), "progress projection differs from the pinned v1 baseline")
+        self.assert_rejected(lambda: self.validate(manifest=raised), "progress projection differs from the replayed v2 delta ledger")
 
     def test_hand_raised_p6_fails_without_evidence_delta(self) -> None:
         raised = copy.deepcopy(self.manifest)
@@ -65,7 +247,7 @@ class ProjectProgressTruthTests(unittest.TestCase):
         raised["overall_percent"] = round(
             sum(item["percent"] for item in raised["horizontal"]["items"]) / 7
         )
-        self.assert_rejected(lambda: self.validate(manifest=raised), "progress projection differs from the pinned v1 baseline")
+        self.assert_rejected(lambda: self.validate(manifest=raised), "progress projection differs from the replayed v2 delta ledger")
 
     def test_hand_raised_vertical_cells_fail_without_evidence_delta(self) -> None:
         for index, cell_id in ((3, "layer_4"), (4, "layer_5")):
@@ -74,7 +256,7 @@ class ProjectProgressTruthTests(unittest.TestCase):
                 raised["vertical"]["items"][index]["percent"] += 1
                 self.assert_rejected(
                     lambda raised=raised: self.validate(manifest=raised),
-                    "progress projection differs from the pinned v1 baseline",
+                    "progress projection differs from the replayed v2 delta ledger",
                 )
 
     def test_endpoint_snapshot_mirror_edit_fails(self) -> None:
@@ -95,24 +277,519 @@ class ProjectProgressTruthTests(unittest.TestCase):
         self.assertNotEqual(layer_edited, self.platform)
         self.assert_rejected(lambda: self.validate(platform=layer_edited), "vertical mirror differs")
 
-    def test_v1_runtime_and_schema_reject_every_fabricated_delta_entry(self) -> None:
-        self.assertEqual(self.ledger_schema["properties"]["entries"], {"const": []})
-        fabricated = copy.deepcopy(self.ledger)
-        fabricated["entries"] = [
-            {
-                "entry_id": "progress-delta-fabricated-phase-3",
-                "cell_id": "phase_3",
-                "old_percent": 44,
-                "new_percent": 100,
-                "source_sha": "b" * 40,
-                "verifier_command": "pwsh -File scripts/fabricated.ps1",
-                "artifact_path": ".phase1-artifacts/fabricated.json",
-                "artifact_sha256": "c" * 64,
-            }
-        ]
+    def test_v2_replays_one_source_bound_p3_delta(self) -> None:
+        manifest, ledger, snapshot, platform, artifact_bytes = self.synthetic_p3_delta()
+        scorer_run = self.validate_synthetic_p3_delta(
+            manifest,
+            ledger,
+            snapshot,
+            platform,
+            artifact_bytes,
+        )
+        expected_request = verifier.build_delta_scorer_request(ledger["entries"][0])
+        scorer_run.assert_called_once_with(
+            list(SYNTHETIC_P3_SCORER_ARGV),
+            cwd=REPO_ROOT,
+            input=json.dumps(
+                expected_request,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=verifier.DELTA_SCORER_TIMEOUT_SECONDS,
+            env=verifier.delta_scorer_environment(),
+            shell=False,
+        )
+
+    def test_v2_rejects_bad_unavailable_and_non_ancestor_entry_sources(self) -> None:
+        manifest, ledger, snapshot, platform, artifact_bytes = self.synthetic_p3_delta()
+
+        bad = copy.deepcopy(ledger)
+        bad["entries"][0]["source_sha"] = "A" * 40
         self.assert_rejected(
-            lambda: self.validate(ledger=fabricated),
-            "v1 progress delta ledger entries must remain exactly empty",
+            lambda: self.validate_synthetic_p3_delta(
+                manifest, bad, snapshot, platform, artifact_bytes
+            ),
+            "source_sha must be a lowercase 40-character Git SHA",
+        )
+
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+                source_available=False,
+            ),
+            "source commit is unavailable",
+        )
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+                source_is_ancestor=False,
+            ),
+            "source ancestry chain mismatch",
+        )
+
+        baseline_source = copy.deepcopy(ledger)
+        baseline_source["entries"][0]["source_sha"] = verifier.BASELINE_SOURCE_SHA
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                baseline_source,
+                snapshot,
+                platform,
+                artifact_bytes,
+            ),
+            "source_sha must advance beyond the pinned baseline",
+        )
+
+    def test_v2_rejects_bad_projection_hash_and_percent_above_100(self) -> None:
+        manifest, ledger, snapshot, platform, artifact_bytes = self.synthetic_p3_delta()
+
+        bad_hash = copy.deepcopy(ledger)
+        bad_hash["entries"][0]["projection_sha256"] = "f" * 64
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest, bad_hash, snapshot, platform, artifact_bytes
+            ),
+            "projection_sha256 does not match replay state",
+        )
+
+        above_100 = copy.deepcopy(ledger)
+        above_100["entries"][0]["new_percent"] = 101
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest, above_100, snapshot, platform, artifact_bytes
+            ),
+            "new_percent percent must be between 0 and 100",
+        )
+
+    def test_v2_rejects_arbitrary_verifier_command(self) -> None:
+        manifest, ledger, snapshot, platform, artifact_bytes = self.synthetic_p3_delta()
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+                approved_scorers={},
+            ),
+            "cell has no statically approved evidence scorer",
+        )
+        ledger["entries"][0]["verifier_command"] = "pwsh -File scripts/fabricated.ps1"
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest, ledger, snapshot, platform, artifact_bytes
+            ),
+            "verifier_command is not the statically approved scorer",
+        )
+
+    def test_v2_rejects_missing_failed_or_timed_out_approved_scorer(self) -> None:
+        manifest, ledger, snapshot, platform, artifact_bytes = self.synthetic_p3_delta()
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+                scorer_side_effect=FileNotFoundError("synthetic scorer missing"),
+            ),
+            "approved evidence scorer is unavailable",
+        )
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+                scorer_returncode=7,
+            ),
+            "approved evidence scorer failed",
+        )
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+                scorer_side_effect=subprocess.TimeoutExpired(
+                    cmd=list(SYNTHETIC_P3_SCORER_ARGV),
+                    timeout=30,
+                ),
+            ),
+            "approved evidence scorer timed out",
+        )
+
+    def test_v2_rejects_malformed_mismatched_or_denied_scorer_result(self) -> None:
+        manifest, ledger, snapshot, platform, artifact_bytes = self.synthetic_p3_delta()
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+                scorer_stdout="not-json\n",
+            ),
+            "approved evidence scorer output is malformed",
+        )
+
+        request = {
+            "verifier_command": ledger["entries"][0]["verifier_command"],
+            "scope": ledger["entries"][0]["scope"],
+            "cell_id": ledger["entries"][0]["cell_id"],
+            "source_sha": ledger["entries"][0]["source_sha"],
+            "artifact_path": ledger["entries"][0]["artifact_path"],
+            "artifact_sha256": ledger["entries"][0]["artifact_sha256"],
+            "old_percent": ledger["entries"][0]["old_percent"],
+            "new_percent": ledger["entries"][0]["new_percent"],
+            "overall_percent": ledger["entries"][0]["overall_percent"],
+            "previous_projection_sha256": ledger["entries"][0]["previous_projection_sha256"],
+            "projection_sha256": ledger["entries"][0]["projection_sha256"],
+        }
+        valid_result = {
+            "contract_version": "project-progress-delta-scorer-result-v1",
+            **request,
+            "read_only": True,
+            "provider_writes": False,
+            "secret_output": False,
+            "evidence_verified": True,
+            "credit_allowed": True,
+        }
+        mismatched = {**valid_result, "source_sha": "b" * 40}
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+                scorer_stdout=json.dumps(mismatched) + "\n",
+            ),
+            "result binding mismatch for source_sha",
+        )
+        malformed_shape = dict(valid_result)
+        malformed_shape.pop("artifact_sha256")
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+                scorer_stdout=json.dumps(malformed_shape) + "\n",
+            ),
+            "result keys mismatch",
+        )
+        denied = {**valid_result, "evidence_verified": False}
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+                scorer_stdout=json.dumps(denied) + "\n",
+            ),
+            "did not verify evidence",
+        )
+        writes = {**valid_result, "provider_writes": True}
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+                scorer_stdout=json.dumps(writes) + "\n",
+            ),
+            "must report provider_writes=false",
+        )
+
+    def test_v2_scorer_process_scrubs_secrets_and_rejects_oversized_output(self) -> None:
+        manifest, ledger, snapshot, platform, artifact_bytes = self.synthetic_p3_delta()
+        with patch.dict(
+            verifier.os.environ,
+            {
+                "PATH": "synthetic-safe-path",
+                "CLOUDFLARE_API_TOKEN": "must-not-be-inherited",
+                "GITHUB_TOKEN": "must-not-be-inherited",
+            },
+            clear=False,
+        ):
+            scorer_run = self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+            )
+        scorer_env = scorer_run.call_args.kwargs["env"]
+        self.assertEqual(scorer_env["PATH"], "synthetic-safe-path")
+        self.assertNotIn("CLOUDFLARE_API_TOKEN", scorer_env)
+        self.assertNotIn("GITHUB_TOKEN", scorer_env)
+        self.assertFalse(scorer_run.call_args.kwargs["shell"])
+
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+                scorer_stdout="x" * (verifier.DELTA_SCORER_MAX_OUTPUT_CHARS + 1),
+            ),
+            "output exceeded the bounded limit",
+        )
+
+    def test_v2_rejects_bad_overall_and_old_percent_or_baseline_chain_drift(self) -> None:
+        manifest, ledger, snapshot, platform, artifact_bytes = self.synthetic_p3_delta()
+
+        bad_overall = copy.deepcopy(ledger)
+        bad_overall["entries"][0]["overall_percent"] += 1
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest, bad_overall, snapshot, platform, artifact_bytes
+            ),
+            "overall_percent does not match replay state",
+        )
+
+        old_percent_drift = copy.deepcopy(ledger)
+        old_percent_drift["entries"][0]["old_percent"] = 43
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest, old_percent_drift, snapshot, platform, artifact_bytes
+            ),
+            "old_percent does not match replay state",
+        )
+
+        baseline_chain_drift = copy.deepcopy(ledger)
+        baseline_chain_drift["entries"][0]["previous_projection_sha256"] = "e" * 64
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest, baseline_chain_drift, snapshot, platform, artifact_bytes
+            ),
+            "previous_projection_sha256 does not match replay state",
+        )
+
+    def test_v2_rejects_missing_or_hash_mismatched_committed_artifact(self) -> None:
+        manifest, ledger, snapshot, platform, artifact_bytes = self.synthetic_p3_delta()
+
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+                committed_artifact=b"",
+            ),
+            "evidence artifact hash mismatch",
+        )
+
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+                artifact_missing=True,
+            ),
+            "evidence artifact is unavailable at source commit",
+        )
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+                artifact_object_type="tree",
+            ),
+            "evidence artifact must be a Git blob",
+        )
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                manifest,
+                ledger,
+                snapshot,
+                platform,
+                artifact_bytes,
+                artifact_object_mode="120000",
+            ),
+            "evidence artifact must be a regular Git file",
+        )
+
+    def test_v2_rejects_same_cell_proof_reuse_and_requires_strict_source_advancement(self) -> None:
+        manifest, ledger, _snapshot, _platform, artifact_bytes = self.synthetic_p3_delta()
+        final_manifest = copy.deepcopy(manifest)
+        final_manifest["horizontal"]["items"][3]["percent"] = 46
+        final_manifest["overall_percent"] = round(
+            sum(item["percent"] for item in final_manifest["horizontal"]["items"]) / 7
+        )
+        second_artifact_path = ".phase1-artifacts/project-progress/p3-45-to-46.json"
+        second_artifact_bytes = b'{"contract_version":"p3-progress-proof-v1","step":2,"verified":true}\n'
+        second_entry = {
+            **ledger["entries"][0],
+            "entry_id": "p3-45-to-46",
+            "old_percent": 45,
+            "new_percent": 46,
+            "overall_percent": final_manifest["overall_percent"],
+            "previous_projection_sha256": ledger["entries"][0]["projection_sha256"],
+            "projection_sha256": verifier.canonical_json_sha256(
+                verifier.progress_projection(final_manifest)
+            ),
+            "artifact_path": second_artifact_path,
+            "artifact_sha256": hashlib.sha256(second_artifact_bytes).hexdigest(),
+        }
+        repeated_source = copy.deepcopy(ledger)
+        repeated_source["entries"].append(second_entry)
+        final_snapshot = copy.deepcopy(self.snapshot)
+        final_snapshot["/api/v1/project/progress"] = copy.deepcopy(final_manifest)
+        final_platform = self.platform.replace(
+            '{ id: "P3", pct: 44 }',
+            '{ id: "P3", pct: 46 }',
+            1,
+        )
+        artifacts = {
+            ledger["entries"][0]["artifact_path"]: artifact_bytes,
+            second_artifact_path: second_artifact_bytes,
+        }
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                final_manifest,
+                repeated_source,
+                final_snapshot,
+                final_platform,
+                artifact_bytes,
+                artifact_payloads=artifacts,
+            ),
+            "source_sha must advance strictly for a repeated cell",
+        )
+
+        reused_proof = copy.deepcopy(repeated_source)
+        reused_proof["entries"][1]["artifact_path"] = reused_proof["entries"][0]["artifact_path"]
+        reused_proof["entries"][1]["artifact_sha256"] = reused_proof["entries"][0]["artifact_sha256"]
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                final_manifest,
+                reused_proof,
+                final_snapshot,
+                final_platform,
+                artifact_bytes,
+                artifact_payloads=artifacts,
+            ),
+            "reuses an identical evidence artifact for the same cell",
+        )
+
+        newer_source_reused_artifact = copy.deepcopy(repeated_source)
+        newer_source_reused_artifact["entries"][1]["source_sha"] = "b" * 40
+        newer_source_reused_artifact["entries"][1]["artifact_path"] = (
+            newer_source_reused_artifact["entries"][0]["artifact_path"]
+        )
+        newer_source_reused_artifact["entries"][1]["artifact_sha256"] = (
+            newer_source_reused_artifact["entries"][0]["artifact_sha256"]
+        )
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                final_manifest,
+                newer_source_reused_artifact,
+                final_snapshot,
+                final_platform,
+                artifact_bytes,
+                artifact_payloads=artifacts,
+            ),
+            "reuses an identical evidence artifact for the same cell",
+        )
+
+        valid_advanced_source = copy.deepcopy(repeated_source)
+        valid_advanced_source["entries"][1]["source_sha"] = "b" * 40
+        scorer_run = self.validate_synthetic_p3_delta(
+            final_manifest,
+            valid_advanced_source,
+            final_snapshot,
+            final_platform,
+            artifact_bytes,
+            artifact_payloads=artifacts,
+        )
+        self.assertEqual(scorer_run.call_count, 2)
+
+    def test_v2_allows_same_source_for_different_cells_and_scores_each_entry(self) -> None:
+        manifest, ledger, _snapshot, _platform, artifact_bytes = self.synthetic_p3_delta()
+        final_manifest = copy.deepcopy(manifest)
+        final_manifest["vertical"]["items"][3]["percent"] = 56
+        second_artifact_path = ".phase1-artifacts/project-progress/l4-55-to-56.json"
+        second_artifact_bytes = b'{"contract_version":"l4-progress-proof-v1","verified":true}\n'
+        ledger["entries"].append(
+            {
+                **ledger["entries"][0],
+                "entry_id": "l4-55-to-56",
+                "scope": "vertical",
+                "cell_id": "layer_4",
+                "verifier_command": SYNTHETIC_L4_SCORER_COMMAND,
+                "old_percent": 55,
+                "new_percent": 56,
+                "previous_projection_sha256": ledger["entries"][0]["projection_sha256"],
+                "projection_sha256": verifier.canonical_json_sha256(
+                    verifier.progress_projection(final_manifest)
+                ),
+                "artifact_path": second_artifact_path,
+                "artifact_sha256": hashlib.sha256(second_artifact_bytes).hexdigest(),
+            }
+        )
+        final_snapshot = copy.deepcopy(self.snapshot)
+        final_snapshot["/api/v1/project/progress"] = copy.deepcopy(final_manifest)
+        final_platform = (
+            self.platform.replace('{ id: "P3", pct: 44 }', '{ id: "P3", pct: 45 }', 1)
+            .replace(
+                '{ name: "LLM Gateway", layer: 4, pct: 55 }',
+                '{ name: "LLM Gateway", layer: 4, pct: 56 }',
+                1,
+            )
+        )
+        scorer_run = self.validate_synthetic_p3_delta(
+            final_manifest,
+            ledger,
+            final_snapshot,
+            final_platform,
+            artifact_bytes,
+            artifact_payloads={
+                ledger["entries"][0]["artifact_path"]: artifact_bytes,
+                second_artifact_path: second_artifact_bytes,
+            },
+        )
+        self.assertEqual(scorer_run.call_count, 2)
+
+        cross_cell_reuse = copy.deepcopy(ledger)
+        cross_cell_reuse["entries"][1]["verifier_command"] = SYNTHETIC_P3_SCORER_COMMAND
+        self.assert_rejected(
+            lambda: self.validate_synthetic_p3_delta(
+                final_manifest,
+                cross_cell_reuse,
+                final_snapshot,
+                final_platform,
+                artifact_bytes,
+                artifact_payloads={
+                    ledger["entries"][0]["artifact_path"]: artifact_bytes,
+                    second_artifact_path: second_artifact_bytes,
+                },
+            ),
+            "verifier_command is not the statically approved scorer for vertical/layer_4",
         )
 
     def test_pinned_baseline_source_commit_must_be_available(self) -> None:

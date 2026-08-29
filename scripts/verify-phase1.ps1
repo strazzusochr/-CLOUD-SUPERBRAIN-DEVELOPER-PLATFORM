@@ -103,6 +103,10 @@ Write-Host "[verify] external gate claim-map regression tests"
 py -3 -m unittest scripts.tests.test_verify_phase1_external_gate_claim_map
 Assert-LastExitCode "external gate claim-map regression tests"
 
+Write-Host "[verify] project progress delta-ledger replay regression tests"
+py -3 -m unittest scripts.tests.test_verify_project_progress_manifest -v
+Assert-LastExitCode "project progress delta-ledger replay regression tests"
+
 Write-Host "[verify] Phase 5 itemization transition regression tests"
 py -3 -m unittest scripts.tests.test_verify_phase5_credit_itemization
 Assert-LastExitCode "Phase 5 itemization transition regression tests"

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 MANIFEST_PATH = Path("docs/project-progress.manifest.json")
@@ -15,7 +16,7 @@ ENDPOINT_SNAPSHOT_PATH = Path("apps/frontend/lib/endpoint-snapshot.json")
 PLATFORM_MIRROR_PATH = Path("apps/frontend/lib/platform.ts")
 PHASE5_VERIFIER_PATH = Path("scripts/verify_phase5_credit_itemization.py")
 
-DELTA_LEDGER_CONTRACT = "project-progress-delta-ledger-v1"
+DELTA_LEDGER_CONTRACT = "project-progress-delta-ledger-v2"
 DELTA_LEDGER_SCHEMA = "../runtime-contracts/project-progress-delta-ledger.schema.json"
 BASELINE_SOURCE_SHA = "9a3776fffd226271fcd3d01fdefb0405e5303ce0"
 BASELINE_PROJECTION_SHA256 = "de6c3568a200c34daac1755c25a24b51d0c792d0752e2f952e58610f3a3dee7a"
@@ -41,6 +42,54 @@ CANONICAL_VERTICAL: tuple[tuple[str, str, int], ...] = (
 )
 CANONICAL_CELLS = CANONICAL_HORIZONTAL + CANONICAL_VERTICAL
 
+DELTA_ENTRY_KEYS = {
+    "entry_id",
+    "scope",
+    "cell_id",
+    "old_percent",
+    "new_percent",
+    "overall_percent",
+    "previous_projection_sha256",
+    "projection_sha256",
+    "source_sha",
+    "verifier_command",
+    "artifact_path",
+    "artifact_sha256",
+}
+
+# Empty by design. A future scorer is admitted only after its implementation is
+# evidence-only, source-commit compatible, read-only, and covered by protocol tests.
+# The key is the exact (scope, cell_id); the value pins both the exact ledger audit
+# string and argv tuple executed without a shell. No existing project verifier currently
+# satisfies that contract.
+APPROVED_DELTA_SCORERS: dict[tuple[str, str], tuple[str, tuple[str, ...]]] = {}
+DELTA_SCORER_TIMEOUT_SECONDS = 30
+DELTA_SCORER_MAX_OUTPUT_CHARS = 65_536
+DELTA_SCORER_REQUEST_CONTRACT = "project-progress-delta-scorer-request-v1"
+DELTA_SCORER_RESULT_CONTRACT = "project-progress-delta-scorer-result-v1"
+DELTA_SCORER_BINDING_KEYS = (
+    "verifier_command",
+    "scope",
+    "cell_id",
+    "source_sha",
+    "artifact_path",
+    "artifact_sha256",
+    "old_percent",
+    "new_percent",
+    "overall_percent",
+    "previous_projection_sha256",
+    "projection_sha256",
+)
+DELTA_SCORER_RESULT_KEYS = {
+    "contract_version",
+    *DELTA_SCORER_BINDING_KEYS,
+    "read_only",
+    "provider_writes",
+    "secret_output",
+    "evidence_verified",
+    "credit_allowed",
+}
+
 PLATFORM_MODULE_NAMES = (
     "Frontend",
     "Orchestrator",
@@ -65,6 +114,22 @@ def load_json(path: Path) -> dict[str, Any]:
         raise SystemExit(f"[project-progress] invalid JSON in {path.as_posix()}: {exc}") from exc
     require(isinstance(payload, dict), f"{path.as_posix()} root must be an object")
     return payload
+
+
+def resolve_delta_ledger_path(repo_root: Path) -> Path:
+    configured = os.environ.get("PROJECT_PROGRESS_DELTA_LEDGER_PATH", "").strip()
+    if not configured:
+        return (repo_root / DELTA_LEDGER_PATH).resolve()
+    require("\x00" not in configured, "progress delta ledger override path is invalid")
+    candidate = Path(configured)
+    if not candidate.is_absolute():
+        candidate = repo_root / candidate
+    try:
+        resolved = candidate.resolve(strict=False)
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise SystemExit("[project-progress] progress delta ledger override path is invalid") from exc
+    require(resolved.suffix.lower() == ".json", "progress delta ledger override must point to a JSON file")
+    return resolved
 
 
 def require_exact_keys(payload: dict[str, Any], expected: set[str], context: str) -> None:
@@ -104,6 +169,81 @@ def expected_baseline_payload() -> dict[str, Any]:
         "projection_sha256": BASELINE_PROJECTION_SHA256,
         "overall_percent": BASELINE_OVERALL_PERCENT,
         "cells": cells("horizontal", CANONICAL_HORIZONTAL) + cells("vertical", CANONICAL_VERTICAL),
+    }
+
+
+def expected_delta_entry_schema() -> dict[str, Any]:
+    percent_schema = {"type": "integer", "minimum": 0, "maximum": 100}
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "entry_id",
+            "scope",
+            "cell_id",
+            "old_percent",
+            "new_percent",
+            "overall_percent",
+            "previous_projection_sha256",
+            "projection_sha256",
+            "source_sha",
+            "verifier_command",
+            "artifact_path",
+            "artifact_sha256",
+        ],
+        "properties": {
+            "entry_id": {
+                "type": "string",
+                "pattern": r"^[a-z0-9][a-z0-9._-]{0,127}$",
+            },
+            "scope": {"enum": ["horizontal", "vertical"]},
+            "cell_id": {"enum": [item_id for item_id, _label, _percent in CANONICAL_CELLS]},
+            "old_percent": percent_schema,
+            "new_percent": percent_schema,
+            "overall_percent": percent_schema,
+            "previous_projection_sha256": {
+                "type": "string",
+                "pattern": r"^[0-9a-f]{64}$",
+            },
+            "projection_sha256": {
+                "type": "string",
+                "pattern": r"^[0-9a-f]{64}$",
+            },
+            "source_sha": {
+                "type": "string",
+                "pattern": r"^[0-9a-f]{40}$",
+            },
+            "verifier_command": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": r"^(?!\s)(?!.*\s$)(?!.*[\r\n]).*\S$",
+                "description": (
+                    "Structural audit field only; authoritative replay accepts and executes "
+                    "only a statically approved scorer."
+                ),
+            },
+            "artifact_path": {
+                "type": "string",
+                "pattern": (
+                    r"^(?:\.phase1-artifacts|docs/release-artifacts)/"
+                    r"(?!\.{1,2}(?:/|$))(?!.*\/\.{1,2}(?:/|$))"
+                    r"(?!.*//)(?!.*\/$)[A-Za-z0-9._/-]+$"
+                ),
+            },
+            "artifact_sha256": {
+                "type": "string",
+                "pattern": r"^[0-9a-f]{64}$",
+            },
+        },
+    }
+
+
+def expected_delta_entries_schema() -> dict[str, Any]:
+    return {
+        "type": "array",
+        "uniqueItems": True,
+        "items": expected_delta_entry_schema(),
     }
 
 
@@ -204,8 +344,32 @@ def git_commit_is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> b
     return run_git(repo_root, "merge-base", "--is-ancestor", ancestor, descendant).returncode == 0
 
 
+def git_object_type_at_commit(repo_root: Path, source_sha: str, path: str) -> str | None:
+    result = run_git(repo_root, "cat-file", "-t", f"{source_sha}:{path}")
+    if result.returncode != 0 or not isinstance(result.stdout, str):
+        return None
+    object_type = result.stdout.strip()
+    return object_type or None
+
+
+def git_object_mode_at_commit(repo_root: Path, source_sha: str, path: str) -> str | None:
+    result = run_git(repo_root, "ls-tree", source_sha, "--", path)
+    if result.returncode != 0 or not isinstance(result.stdout, str):
+        return None
+    lines = [line for line in result.stdout.splitlines() if line]
+    if len(lines) != 1:
+        return None
+    match = re.fullmatch(r"(?P<mode>[0-9]{6})\s+\S+\s+[0-9a-f]{40}\t.+", lines[0])
+    return match.group("mode") if match is not None else None
+
+
 def git_file_at_commit(repo_root: Path, source_sha: str, path: str) -> bytes | None:
-    result = run_git(repo_root, "show", f"{source_sha}:{path}", binary=True)
+    if (
+        git_object_type_at_commit(repo_root, source_sha, path) != "blob"
+        or git_object_mode_at_commit(repo_root, source_sha, path) not in {"100644", "100755"}
+    ):
+        return None
+    result = run_git(repo_root, "cat-file", "-p", f"{source_sha}:{path}", binary=True)
     return result.stdout if result.returncode == 0 else None
 
 
@@ -240,8 +404,29 @@ def load_pinned_baseline_projection(repo_root: Path) -> dict[str, Any]:
 
 
 def validate_delta_ledger_schema(schema: dict[str, Any]) -> None:
+    require_exact_keys(
+        schema,
+        {"$schema", "$id", "title", "type", "additionalProperties", "required", "properties"},
+        "progress delta ledger schema",
+    )
+    require(schema["$schema"] == "https://json-schema.org/draft/2020-12/schema", "progress delta ledger JSON Schema draft mismatch")
+    require(
+        schema["$id"] == "https://cloud-superbrain.local/schemas/project-progress-delta-ledger-v2.json",
+        "progress delta ledger schema id mismatch",
+    )
+    require(schema["type"] == "object", "progress delta ledger schema root type mismatch")
+    require(schema["additionalProperties"] is False, "progress delta ledger schema must reject extra root fields")
+    require(
+        schema["required"] == ["$schema", "contract_version", "baseline", "entries"],
+        "progress delta ledger schema required fields mismatch",
+    )
     properties = schema.get("properties")
     require(isinstance(properties, dict), "progress delta ledger schema properties must be an object")
+    require_exact_keys(
+        properties,
+        {"$schema", "contract_version", "baseline", "entries"},
+        "progress delta ledger schema properties",
+    )
     require(
         properties.get("$schema") == {"const": DELTA_LEDGER_SCHEMA},
         "progress delta ledger schema path contract mismatch",
@@ -255,15 +440,332 @@ def validate_delta_ledger_schema(schema: dict[str, Any]) -> None:
         "progress delta ledger schema baseline lock mismatch",
     )
     require(
-        properties.get("entries") == {"const": []},
-        "progress delta ledger schema must lock v1 entries to exactly empty",
+        properties.get("entries") == expected_delta_entries_schema(),
+        "progress delta ledger schema entry contract mismatch",
     )
+
+
+def require_lower_hex(value: Any, length: int, context: str) -> str:
+    require(
+        isinstance(value, str) and re.fullmatch(rf"[0-9a-f]{{{length}}}", value) is not None,
+        f"{context} must be a lowercase {length}-character {'Git SHA' if length == 40 else 'SHA-256'}",
+    )
+    return value
+
+
+def validate_artifact_path(value: Any, context: str) -> str:
+    require(isinstance(value, str) and value, f"{context} must be a non-empty string")
+    require("\\" not in value, f"{context} must use repository-relative POSIX separators")
+    path = PurePosixPath(value)
+    require(
+        not path.is_absolute()
+        and path.as_posix() == value
+        and "." not in path.parts
+        and ".." not in path.parts,
+        f"{context} must be a normalized repository-relative path",
+    )
+    require(
+        path.parts
+        and path.parts[0] in {".phase1-artifacts", "docs"}
+        and (path.parts[0] != "docs" or len(path.parts) > 1 and path.parts[1] == "release-artifacts"),
+        f"{context} must be inside .phase1-artifacts or docs/release-artifacts",
+    )
+    require(
+        re.fullmatch(
+            r"(?:\.phase1-artifacts|docs/release-artifacts)/"
+            r"(?!\.{1,2}(?:/|$))(?!.*\/\.{1,2}(?:/|$))[A-Za-z0-9._/-]+",
+            value,
+        )
+        is not None,
+        f"{context} contains unsupported characters",
+    )
+    return value
+
+
+def build_delta_scorer_request(entry: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "contract_version": DELTA_SCORER_REQUEST_CONTRACT,
+        **{key: entry[key] for key in DELTA_SCORER_BINDING_KEYS},
+        "read_only_required": True,
+        "provider_writes_allowed": False,
+        "secret_output_allowed": False,
+    }
+
+
+def delta_scorer_environment() -> dict[str, str]:
+    environment = {
+        "PYTHONIOENCODING": "utf-8",
+        "PYTHONUTF8": "1",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+    }
+    for key in ("PATH", "SystemRoot", "SYSTEMROOT", "TEMP", "TMP"):
+        value = os.environ.get(key)
+        if value:
+            environment[key] = value
+    return environment
+
+
+def execute_approved_delta_scorer(
+    entry: dict[str, Any],
+    repo_root: Path,
+    context: str,
+) -> None:
+    # Approved scorers must read evidence from source_sha:artifact_path (Git object
+    # bytes), never by following the current working-tree path. The replay verifies
+    # those committed bytes before invoking any scorer.
+    scorer_key = (entry["scope"], entry["cell_id"])
+    scorer_spec = APPROVED_DELTA_SCORERS.get(scorer_key)
+    require(scorer_spec is not None, f"{context} cell has no statically approved evidence scorer")
+    require(
+        isinstance(scorer_spec, tuple)
+        and len(scorer_spec) == 2
+        and isinstance(scorer_spec[0], str)
+        and isinstance(scorer_spec[1], tuple),
+        f"{context} approved evidence scorer specification is invalid",
+    )
+    approved_command, approved_argv = scorer_spec
+    require(
+        entry["verifier_command"] == approved_command,
+        f"{context} verifier_command is not the statically approved scorer for {scorer_key[0]}/{scorer_key[1]}",
+    )
+    require(
+        approved_argv
+        and all(isinstance(argument, str) and argument for argument in approved_argv),
+        f"{context} approved evidence scorer argv is invalid",
+    )
+
+    request = build_delta_scorer_request(entry)
+    request_json = json.dumps(
+        request,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ) + "\n"
+    try:
+        result = subprocess.run(
+            list(approved_argv),
+            cwd=repo_root,
+            input=request_json,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=DELTA_SCORER_TIMEOUT_SECONDS,
+            env=delta_scorer_environment(),
+            shell=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise SystemExit(f"[project-progress] {context} approved evidence scorer timed out") from exc
+    except OSError as exc:
+        raise SystemExit(f"[project-progress] {context} approved evidence scorer is unavailable") from exc
+
+    stdout = result.stdout if isinstance(result.stdout, str) else ""
+    stderr = result.stderr if isinstance(result.stderr, str) else ""
+    require(
+        len(stdout) <= DELTA_SCORER_MAX_OUTPUT_CHARS
+        and len(stderr) <= DELTA_SCORER_MAX_OUTPUT_CHARS,
+        f"{context} approved evidence scorer output exceeded the bounded limit",
+    )
+    require(result.returncode == 0, f"{context} approved evidence scorer failed")
+    require(stdout.strip() != "", f"{context} approved evidence scorer output is malformed")
+    try:
+        scorer_result = json.loads(stdout)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(
+            f"[project-progress] {context} approved evidence scorer output is malformed"
+        ) from exc
+    require(isinstance(scorer_result, dict), f"{context} approved evidence scorer output is malformed")
+    require_exact_keys(scorer_result, DELTA_SCORER_RESULT_KEYS, f"{context} scorer result")
+    require(
+        scorer_result["contract_version"] == DELTA_SCORER_RESULT_CONTRACT,
+        f"{context} scorer result contract mismatch",
+    )
+    for key in DELTA_SCORER_BINDING_KEYS:
+        require(
+            type(scorer_result[key]) is type(request[key])
+            and scorer_result[key] == request[key],
+            f"{context} scorer result binding mismatch for {key}",
+        )
+    require(scorer_result["read_only"] is True, f"{context} scorer must report read_only=true")
+    require(
+        scorer_result["provider_writes"] is False,
+        f"{context} scorer must report provider_writes=false",
+    )
+    require(
+        scorer_result["secret_output"] is False,
+        f"{context} scorer must report secret_output=false",
+    )
+    require(
+        scorer_result["evidence_verified"] is True,
+        f"{context} approved evidence scorer did not verify evidence",
+    )
+    require(
+        scorer_result["credit_allowed"] is True,
+        f"{context} approved evidence scorer did not allow credit",
+    )
+
+
+def replay_delta_ledger_entries(
+    entries: Any,
+    pinned_projection: dict[str, Any],
+    repo_root: Path,
+) -> dict[str, Any]:
+    require(isinstance(entries, list), "progress delta ledger entries must be an array")
+    replayed = {
+        "overall_percent": pinned_projection["overall_percent"],
+        "horizontal": [dict(item) for item in pinned_projection["horizontal"]],
+        "vertical": [dict(item) for item in pinned_projection["vertical"]],
+    }
+    seen_entry_ids: set[str] = set()
+    seen_cell_artifact_hashes: set[tuple[str, str, str]] = set()
+    last_source_by_cell: dict[tuple[str, str], str] = {}
+    previous_source_sha = BASELINE_SOURCE_SHA
+
+    for index, entry in enumerate(entries):
+        context = f"progress delta ledger entry[{index}]"
+        require(isinstance(entry, dict), f"{context} must be an object")
+        require_exact_keys(entry, DELTA_ENTRY_KEYS, context)
+
+        entry_id = entry["entry_id"]
+        require(
+            isinstance(entry_id, str)
+            and re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,127}", entry_id) is not None,
+            f"{context} entry_id is invalid",
+        )
+        require(entry_id not in seen_entry_ids, f"{context} entry_id is duplicated")
+        seen_entry_ids.add(entry_id)
+
+        scope = entry["scope"]
+        require(
+            isinstance(scope, str) and scope in {"horizontal", "vertical"},
+            f"{context} scope must be horizontal or vertical",
+        )
+        cells = replayed[scope]
+        cell_id = entry["cell_id"]
+        require(isinstance(cell_id, str), f"{context} cell_id must be a string")
+        matching_cells = [cell for cell in cells if cell["id"] == cell_id]
+        require(len(matching_cells) == 1, f"{context} cell_id does not belong to scope {scope}")
+        cell = matching_cells[0]
+
+        old_percent = require_percent(entry["old_percent"], f"{context} old_percent")
+        new_percent = require_percent(entry["new_percent"], f"{context} new_percent")
+        require(cell["percent"] == old_percent, f"{context} old_percent does not match replay state")
+        require(new_percent > old_percent, f"{context} new_percent must increase the replay state")
+
+        previous_projection_sha256 = require_lower_hex(
+            entry["previous_projection_sha256"],
+            64,
+            f"{context} previous_projection_sha256",
+        )
+        require(
+            previous_projection_sha256 == canonical_json_sha256(replayed),
+            f"{context} previous_projection_sha256 does not match replay state",
+        )
+
+        source_sha = require_lower_hex(entry["source_sha"], 40, f"{context} source_sha")
+        require(
+            source_sha != BASELINE_SOURCE_SHA,
+            f"{context} source_sha must advance beyond the pinned baseline",
+        )
+        require(
+            git_object_is_commit(repo_root, source_sha),
+            f"{context} source commit is unavailable: {source_sha}",
+        )
+        require(
+            git_commit_is_ancestor(repo_root, previous_source_sha, source_sha)
+            and git_commit_is_ancestor(repo_root, source_sha, "HEAD"),
+            f"{context} source ancestry chain mismatch",
+        )
+
+        verifier_command = entry["verifier_command"]
+        require(
+            isinstance(verifier_command, str)
+            and verifier_command.strip() == verifier_command
+            and verifier_command
+            and "\n" not in verifier_command
+            and "\r" not in verifier_command
+            and len(verifier_command) <= 512,
+            f"{context} verifier_command must be one bounded non-empty line",
+        )
+        artifact_path = validate_artifact_path(entry["artifact_path"], f"{context} artifact_path")
+        artifact_sha256 = require_lower_hex(
+            entry["artifact_sha256"],
+            64,
+            f"{context} artifact_sha256",
+        )
+        artifact_object_type = git_object_type_at_commit(repo_root, source_sha, artifact_path)
+        artifact_object_mode = git_object_mode_at_commit(repo_root, source_sha, artifact_path)
+        require(
+            artifact_object_type is not None,
+            f"{context} evidence artifact is unavailable at source commit",
+        )
+        require(
+            artifact_object_type == "blob",
+            f"{context} evidence artifact must be a Git blob",
+        )
+        require(
+            artifact_object_mode in {"100644", "100755"},
+            f"{context} evidence artifact must be a regular Git file",
+        )
+        committed_artifact = git_file_at_commit(repo_root, source_sha, artifact_path)
+        require(
+            committed_artifact is not None,
+            f"{context} evidence artifact is unavailable at source commit",
+        )
+        require(
+            hashlib.sha256(committed_artifact).hexdigest() == artifact_sha256,
+            f"{context} evidence artifact hash mismatch",
+        )
+
+        cell_key = (scope, cell_id)
+        proof_key = (scope, cell_id, artifact_sha256)
+        require(
+            proof_key not in seen_cell_artifact_hashes,
+            f"{context} reuses an identical evidence artifact for the same cell",
+        )
+        prior_cell_source = last_source_by_cell.get(cell_key)
+        if prior_cell_source is not None:
+            require(
+                source_sha != prior_cell_source,
+                f"{context} source_sha must advance strictly for a repeated cell",
+            )
+            require(
+                git_commit_is_ancestor(repo_root, prior_cell_source, source_sha),
+                f"{context} repeated-cell source ancestry direction mismatch",
+            )
+
+        cell["percent"] = new_percent
+        replayed["overall_percent"] = round(
+            sum(item["percent"] for item in replayed["horizontal"])
+            / len(replayed["horizontal"])
+        )
+        overall_percent = require_percent(entry["overall_percent"], f"{context} overall_percent")
+        require(
+            overall_percent == replayed["overall_percent"],
+            f"{context} overall_percent does not match replay state",
+        )
+        projection_sha256 = require_lower_hex(
+            entry["projection_sha256"],
+            64,
+            f"{context} projection_sha256",
+        )
+        require(
+            projection_sha256 == canonical_json_sha256(replayed),
+            f"{context} projection_sha256 does not match replay state",
+        )
+        execute_approved_delta_scorer(entry, repo_root, context)
+        seen_cell_artifact_hashes.add(proof_key)
+        last_source_by_cell[cell_key] = source_sha
+        previous_source_sha = source_sha
+
+    return replayed
 
 
 def validate_delta_ledger(
     ledger: dict[str, Any],
     manifest: dict[str, Any],
     pinned_projection: dict[str, Any],
+    repo_root: Path,
 ) -> None:
     require_exact_keys(ledger, {"$schema", "contract_version", "baseline", "entries"}, "progress delta ledger")
     require(ledger["$schema"] == DELTA_LEDGER_SCHEMA, "progress delta ledger schema path mismatch")
@@ -273,10 +775,10 @@ def validate_delta_ledger(
         canonical_json_sha256(expected_baseline_projection()) == BASELINE_PROJECTION_SHA256,
         "internal progress baseline projection hash mismatch",
     )
-    require(ledger["entries"] == [], "v1 progress delta ledger entries must remain exactly empty")
+    replayed_projection = replay_delta_ledger_entries(ledger["entries"], pinned_projection, repo_root)
     require(
-        progress_projection(manifest) == pinned_projection,
-        "progress projection differs from the pinned v1 baseline; trusted delta evidence requires a new contract",
+        progress_projection(manifest) == replayed_projection,
+        "progress projection differs from the replayed v2 delta ledger",
     )
 
 
@@ -348,7 +850,7 @@ def validate_progress_truth(
     validate_manifest_shape(manifest)
     pinned_projection = load_pinned_baseline_projection(repo_root)
     validate_delta_ledger_schema(ledger_schema)
-    validate_delta_ledger(ledger, manifest, pinned_projection)
+    validate_delta_ledger(ledger, manifest, pinned_projection, repo_root)
     validate_endpoint_snapshot_mirror(manifest, endpoint_snapshot)
     validate_platform_mirror(manifest, platform_source)
 
@@ -356,7 +858,7 @@ def validate_progress_truth(
 def main() -> int:
     repo_root = Path(__file__).resolve().parents[1]
     manifest = load_json(repo_root / MANIFEST_PATH)
-    ledger = load_json(repo_root / DELTA_LEDGER_PATH)
+    ledger = load_json(resolve_delta_ledger_path(repo_root))
     ledger_schema = load_json(repo_root / DELTA_LEDGER_SCHEMA_PATH)
     endpoint_snapshot = load_json(repo_root / ENDPOINT_SNAPSHOT_PATH)
     platform_source = (repo_root / PLATFORM_MIRROR_PATH).read_text(encoding="utf-8")

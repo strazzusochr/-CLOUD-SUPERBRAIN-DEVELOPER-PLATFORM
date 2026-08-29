@@ -45,6 +45,33 @@ team/status runtime defect, the Vercel-origin decision packet, and the next-cand
 missing-gate contract repair. Do not change percentages without code, runtime proof,
 verifier acceptance, and synchronized truth documents.
 
+### Post-RC22 A1 Delta-Ledger Checkpoint
+
+The A1 transition probe is complete on top of selection commit
+`866cde5d4bac41e091dcc7f0c204e674ded43573`; RC22 itself remains immutable. A
+Red-first synthetic Phase-3 entry was rejected by the retired v1 permanent-empty contract.
+The tracked ledger and schema now use `project-progress-delta-ledger-v2`, while the real
+ledger remains empty and every progress value remains unchanged.
+
+The v2 replay verifier fails closed on exact entry shape, scope/cell mismatch, non-increasing
+or out-of-range percentages, old/overall/projection drift, duplicate IDs, source-commit
+availability and ancestry, committed artifact presence and SHA-256, and per-cell approved
+scorer identity and execution. The production scorer allowlist is intentionally empty: the
+existing Phase-5 verifier is not an evidence-only, source-commit-compatible delta scorer.
+P3, P5, P6, L4 and L5 therefore cannot receive ledger credit until their dedicated
+evidence-derived scorers and regression tests exist. An arbitrary command string or arbitrary
+evidence path cannot authorize progress.
+
+Focused verification passed the Python replay suite `22/22`, combined five-axis regression
+`6/6`, fresh-checkout-safe ledger-only integration `4/4`, the real five-axis audit,
+main-deploy transition verification, JSON/YAML parsing and the manifest verifier
+(`overall=89`, `deltas=0`, `mirrors=2`). Branch CI executes the real Python replay plus the
+ledger-only integration without depending on ignored local browser reports. The full
+`npm run verify` sweep
+again reached only the expected external stop `current Cloudflare-native hosted Worker
+source parity`. No percentage, gate, candidate, hosted, release or production claim changed.
+Next autonomous work is A2, the zero-credit P3 rubric draft.
+
 ## Historical Session16 Audit Handoff — 2026-08-29
 
 The current operator packet is:

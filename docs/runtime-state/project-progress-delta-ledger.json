@@ -1,6 +1,6 @@
 {
   "$schema": "../runtime-contracts/project-progress-delta-ledger.schema.json",
-  "contract_version": "project-progress-delta-ledger-v1",
+  "contract_version": "project-progress-delta-ledger-v2",
   "baseline": {
     "source_sha": "9a3776fffd226271fcd3d01fdefb0405e5303ce0",
     "projection_sha256": "de6c3568a200c34daac1755c25a24b51d0c792d0752e2f952e58610f3a3dee7a",

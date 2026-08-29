@@ -227,6 +227,18 @@ jobs:
       - name: Python syntax
         run: python -m py_compile services/agent-api/app/main.py services/mcp-gateway/app/main.py
 
+      - name: Project progress delta-ledger replay regression
+        run: |
+          python -m unittest scripts.tests.test_verify_project_progress_manifest -v
+          python scripts/verify_project_progress_manifest.py
+
+      - name: Five-axis delta-ledger integration
+        env:
+          FIVE_AXIS_LEDGER_ONLY: "1"
+        run: |
+          node --test scripts/tests/five-axis-delta-ledger-regression.test.mjs
+          node scripts/verify-five-axis-substance-audit.mjs
+
       - name: Backend auth security unit contract
         env:
           PYTHONPATH: services/agent-api

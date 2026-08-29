@@ -126,6 +126,24 @@ historisch und nicht mehr auszufuehren.
 Die fruehere Missing-Gate-Claim-Drift wurde in RC22 Red-first repariert. Hosted Readbacks
 sind weiterhin kein RC22-Paritaetsbeweis und koennen I1 nicht schliessen.
 
+## 6a. A1 Delta-Ledger-Probelauf abgeschlossen
+
+- Red-first: synthetisches P3-Delta gegen v1 wurde erwartungsgemaess abgewiesen.
+- Aktiv: `project-progress-delta-ledger-v2`; kanonische `entries=[]` und alle Prozente
+  bleiben unveraendert.
+- Replay bindet jede kuenftige Erhoehung an exakte Zelle, alte/neue Projektion,
+  Source-Commit/Ancestor-Kette, committed Evidence-SHA und einen fest allowlisteten
+  zellenspezifischen Scorer.
+- Die produktive Allowlist ist absichtlich leer: der bestehende P5-Verifier ist kein
+  evidence-only/source-commit-kompatibler Delta-Scorer. P3/P5/P6/L4/L5 bleiben ohne
+  eigenen Evidence-Scorer technisch nicht kreditierbar.
+- Gruen: Replay-Regression `22/22`, kombinierte Five-Axis-Regression `6/6`,
+  fresh-checkout-safe Ledger-Integration `4/4`, realer Five-Axis-Audit,
+  Main-Deploy-Transition, Manifest `89% / deltas=0 / mirrors=2`.
+- Full Sweep: weiterhin ausschliesslich rot an Hosted-Worker-Source-Paritaet (I1).
+
+Naechster autonomer Punkt: A2 als `DRAFT_OWNER_APPROVAL_REQUIRED`; null Credit.
+
 ## 7. Offen bis 100
 
 | Block | Heute | Abschluss |
@@ -192,13 +210,14 @@ Ein allgemeines `ja` oder ein Browser-Login ist keine dieser spezifischen Freiga
 
 Autonom:
 
-1. RC22-Truth-Bundle explizit stagen; generierten ungebundenen Working-Report ausschliessen;
-2. `npm run verify:phase5-credit`;
-3. `npm run verify:current-release-candidate`;
-4. `py -3 scripts/verify_project_progress_manifest.py` und relevante statische Gates;
-5. Selection-Commit und nur den Feature-Branch pushen;
-6. danach A1 Delta-Ledger Red-first, A2 P3-Rubrik, A3 P6-Rubrik, A4 `/team/status`,
-   A5 Vercel-Origin-Entscheidung und A6 Next-Candidate-Missing-Gates in dieser Reihenfolge.
+1. A1-Checkpoint explizit committen und nur den Feature-Branch pushen; generierten
+   ungebundenen Working-Report ausschliessen;
+2. A2 P3-Rubrik als Owner-gated Null-Credit-Draft;
+3. A3 P6-Rubrik als Owner-gated Null-Credit-Draft;
+4. A4 `/team/status` Red-first/Fix;
+5. A5 Vercel-Origin-Entscheidungspaket ohne Provider-Write;
+6. A6 verbleibende Summary-/Snapshot-/Freshness-Paritaet Red-first fuer einen neuen
+   Kandidaten; den bereits in RC22 geschlossenen Altdefekt nicht erneut reparieren.
 
 Nach Owner-Freigaben:
 

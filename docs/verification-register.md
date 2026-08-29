@@ -43,6 +43,31 @@ the external runtime gate and stopped at `current Cloudflare-native hosted Worke
 parity`. This is the expected unclosed I1/hosted boundary, not a local-chain failure; the
 full sweep is not claimed green and no hosted proof is inferred from HTTP 200.
 
+## Current A1 Delta-Ledger Transition Evidence
+
+Recorded 2026-08-29 after RC22 selection commit
+`866cde5d4bac41e091dcc7f0c204e674ded43573`. The Red-first probe confirmed that the old
+v1 schema rejected a synthetic Phase-3 delta. The repository now carries
+`project-progress-delta-ledger-v2`; its canonical entry array remains empty, so the manifest
+and both runtime mirrors stay at the existing `89%` projection.
+
+Replay validation covers exact schema and entry fields, unique entry IDs, cell/scope
+membership, monotonic percentages in range, old/overall/projection hash parity, source
+commit availability, ordered ancestry through `HEAD`, and committed evidence bytes bound
+by SHA-256. Each cell also needs an exact statically approved and actually executed evidence
+scorer. The production allowlist is intentionally empty because the existing Phase-5 verifier
+is not an evidence-only, source-commit-compatible delta scorer. No P3, P5, P6, L4 or L5 delta
+is reachable before a dedicated scorer and regression coverage are added.
+
+Evidence: project-progress replay regression `22/22`, combined five-axis regression `6/6`,
+fresh-checkout-safe ledger-only integration `4/4`, real five-axis audit PASS with
+`deltas=0`, main-deploy-transition PASS, JSON/YAML parse PASS, `git diff --check` PASS, and
+real manifest verifier PASS with `overall=89`, `deltas=0`, `mirrors=2`. CI now executes the
+authoritative replay without depending on ignored local browser reports. The serial full
+verifier reached the unchanged expected external I1 stop at
+Cloudflare-native hosted Worker source parity. This checkpoint changes no percentage,
+Owner gate, candidate status, hosted claim, release claim or production claim.
+
 ## Historical Post-RC21 Session16 Audit
 
 Recorded 2026-08-29. Fresh local verification is green for build (`21/21`), runtime,
