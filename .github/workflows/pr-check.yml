@@ -239,42 +239,34 @@ jobs:
         shell: pwsh
         run: npm run verify:phase6-scale:static
 
-      - name: Phase 5 credit itemization
-        if: ${{ steps.source-binding.outputs.candidate_differs != 'true' }}
-        run: python scripts/verify_phase5_credit_itemization.py
-
-      - name: Phase 5 control-truth itemization for reusable candidate CI
-        if: ${{ steps.source-binding.outputs.candidate_differs == 'true' && steps.source-binding.outputs.source_prequalification != 'true' }}
+      - name: Phase 5 itemization and source-binding integrity
         shell: bash
         env:
+          CANDIDATE_DIFFERS: ${{ steps.source-binding.outputs.candidate_differs }}
+          SOURCE_PREQUALIFICATION: ${{ steps.source-binding.outputs.source_prequalification }}
           CONTROL_TRUTH_DIR: ${{ runner.temp }}/pr-check-control-truth
-        run: |
-          set -euo pipefail
-          cleanup() {
-            git worktree remove --force "$CONTROL_TRUTH_DIR" >/dev/null 2>&1 || true
-          }
-          trap cleanup EXIT
-          git worktree add --detach "$CONTROL_TRUTH_DIR" "${GITHUB_SHA}"
-          python "$CONTROL_TRUTH_DIR/scripts/verify_phase5_credit_itemization.py"
-
-      - name: Source-prequalification control integrity
-        if: ${{ steps.source-binding.outputs.source_prequalification == 'true' }}
-        shell: bash
-        env:
           CONTROL_INTEGRITY_DIR: ${{ runner.temp }}/pr-check-control-integrity
         run: |
           set -euo pipefail
           cleanup() {
+            git worktree remove --force "$CONTROL_TRUTH_DIR" >/dev/null 2>&1 || true
             git worktree remove --force "$CONTROL_INTEGRITY_DIR" >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
-          git worktree add --detach "$CONTROL_INTEGRITY_DIR" "${GITHUB_SHA}"
-          (
-            cd "$CONTROL_INTEGRITY_DIR"
-            python -m unittest scripts.tests.test_verify_phase5_credit_itemization -v
-            pwsh -NoProfile -File scripts/verify-main-deploy-transition.ps1
-            pwsh -NoProfile -File scripts/verify-supply-chain-pins.ps1
-          )
+          if [[ "$CANDIDATE_DIFFERS" != "true" ]]; then
+            python scripts/verify_phase5_credit_itemization.py
+          elif [[ "$SOURCE_PREQUALIFICATION" != "true" ]]; then
+            git worktree add --detach "$CONTROL_TRUTH_DIR" "${GITHUB_SHA}"
+            python "$CONTROL_TRUTH_DIR/scripts/verify_phase5_credit_itemization.py"
+          else
+            git worktree add --detach "$CONTROL_INTEGRITY_DIR" "${GITHUB_SHA}"
+            (
+              cd "$CONTROL_INTEGRITY_DIR"
+              python -m unittest scripts.tests.test_verify_phase5_credit_itemization -v
+              pwsh -NoProfile -File scripts/verify-main-deploy-transition.ps1
+              pwsh -NoProfile -File scripts/verify-supply-chain-pins.ps1
+            )
+          fi
 
       - name: Frontend install
         working-directory: apps/frontend
