@@ -1,27 +1,11 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-08-29
+Letzte Aktualisierung: 2026-08-28
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
 
 ### Session 2026-08-28 — RC20 qualifiziert, RC21 in Bindung
-
-- **Owner-Konsolen-Konfiguration abgeschlossen (2026-08-29):** Die GitHub-
-  Environments `registry-publication` und `production` besitzen jeweils die
-  Required-Reviewer-Regel fuer `strazzusochr` (GitHub-API verifiziert). Der
-  Cloudflare-Worker `cloud-superbrain-stateful-runtime` fuehrt
-  `AGENT_API_AUTH_TOKEN` und `GITHUB_OAUTH_CLIENT_SECRET` jeweils als
-  `secret_text` (Cloudflare-API HTTP 200, keine Secret-Ausgabe). Die bestehende,
-  zum Projekt gehoerende GitHub OAuth App wurde auf den Namen `Cloud Superbrain
-  Developer Platform`, die Worker-Homepage und den exakten Worker-Callback
-  `/api/v1/auth/callback` aktualisiert; Wildcard-Matching ist aus. In Vercel ist
-  `GITHUB_OAUTH_REDIRECT_URI` fuer Production und Preview auf denselben Callback
-  aktualisiert; Client-ID und Client-Secret bleiben dort verschluesselt vorhanden.
-  **Kein Gate-Credit:** Eine neue Bereitstellung und der hosted Start/Callback-
-  Runtimebeweis fehlen weiterhin; `production_auth_identity` bleibt bis dahin
-  geschlossen. Es wurde weder ein Secret ausgegeben noch ein Main-/GHCR-/Release-
-  oder Production-Promotion-Write ausgefuehrt.
 
 - **Zuletzt qualifizierter Kandidat: RC20** `prod-candidate-2026-08-28-local-rc20`,
   eingefrorene Source `c29c738b82e4e35cc1288bc603319cba60d167d2`, Kontroll-Commit
