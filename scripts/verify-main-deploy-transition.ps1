@@ -6,6 +6,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $workflowPath = Join-Path $repoRoot ".github\workflows\main-deploy.yml"
 $prCheckPath = Join-Path $repoRoot ".github\workflows\pr-check.yml"
 $ghcrVerifierPath = Join-Path $repoRoot "scripts\verify_ghcr_candidate.py"
+$phase5CreditVerifierPath = Join-Path $repoRoot "scripts\verify_phase5_credit_itemization.py"
 
 function Assert-True([string]$Label, [bool]$Condition) {
   if (-not $Condition) {
@@ -34,9 +35,11 @@ function Assert-Count([string]$Label, [string]$Text, [string]$Pattern, [int]$Exp
 Assert-True "main workflow exists" (Test-Path -LiteralPath $workflowPath -PathType Leaf)
 Assert-True "reusable pr-check exists" (Test-Path -LiteralPath $prCheckPath -PathType Leaf)
 Assert-True "read-only GHCR verifier exists" (Test-Path -LiteralPath $ghcrVerifierPath -PathType Leaf)
+Assert-True "Phase-5 credit verifier exists" (Test-Path -LiteralPath $phase5CreditVerifierPath -PathType Leaf)
 $workflow = Get-Content -LiteralPath $workflowPath -Raw
 $prCheck = Get-Content -LiteralPath $prCheckPath -Raw
 $ghcrVerifier = Get-Content -LiteralPath $ghcrVerifierPath -Raw
+$phase5CreditVerifier = Get-Content -LiteralPath $phase5CreditVerifierPath -Raw
 
 # Event and input boundary: manual candidate publication only.
 $onMatch = [regex]::Match($workflow, '(?ms)^on:\s*\r?\n(?<body>.*?)(?=^permissions:)')
@@ -132,6 +135,89 @@ Assert-Contains "source prequalification is manual-dispatch only" $prCheck 'even
 Assert-Contains "source prequalification requires an explicit candidate" $prCheck 'source prequalification requires an explicit candidate_sha'
 Assert-Contains "source prequalification is branch-ref only" $prCheck 'event_ref.startswith("refs/heads/")'
 Assert-Contains "source attestation is runner-temp bounded" $prCheck 'os.environ["RUNNER_TEMP"]'
+$projectProgressStepMatch = [regex]::Match(
+  $prCheck,
+  '(?ms)^      - name: Project progress delta-ledger replay regression\s*\r?\n(?<body>.*?)(?=^      - name:)'
+)
+Assert-True "project-progress step is parseable" $projectProgressStepMatch.Success
+$projectProgressStep = $projectProgressStepMatch.Value
+Assert-Contains "project-progress source prequalification env is bound" `
+  $projectProgressStep `
+  'SOURCE_PREQUALIFICATION: ${{ steps.source-binding.outputs.source_prequalification }}'
+Assert-Contains "project-progress prequalification remains explicit" `
+  $projectProgressStep `
+  'if [[ "$SOURCE_PREQUALIFICATION" == "true" ]]; then'
+Assert-Contains "project-progress prequalification requires exact exit 1" `
+  $projectProgressStep `
+  'if [[ "$progress_exit" -ne 1 ]]; then'
+Assert-Contains "project-progress prequalification requires exact drift output" `
+  $projectProgressStep `
+  'if [[ "$progress_output" != "$expected_progress_drift" ]]; then'
+Assert-Contains "project-progress prequalification pins runtime-source drift" `
+  $projectProgressStep `
+  '[phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+Assert-Regex "project-progress normal validation is retained" `
+  $projectProgressStep `
+  '(?ms)^\s{10}else\s*\r?\n\s{12}python scripts/verify_project_progress_manifest\.py\s*\r?\n\s{10}fi\s*$'
+Assert-Regex "project-progress unit and endpoint tests remain outside conditional" `
+  $projectProgressStep `
+  '(?ms)python -m unittest scripts\.tests\.test_verify_project_progress_manifest -v.*?^\s{10}if \[\[.*?^\s{10}fi\s*\r?\n\s{10}node --test scripts/tests/endpoint-snapshot-metadata\.test\.mjs'
+Assert-Count "project-progress manifest executes in both explicit modes" `
+  $projectProgressStep `
+  '(?m)python scripts/verify_project_progress_manifest\.py' `
+  2
+Assert-NotRegex "project-progress manifest has no blanket bypass" `
+  $projectProgressStep `
+  'python scripts/verify_project_progress_manifest\.py[^\r\n]*\|\|\s*true'
+$fiveAxisStepMatch = [regex]::Match(
+  $prCheck,
+  '(?ms)^      - name: Five-axis delta-ledger integration\s*\r?\n(?<body>.*?)(?=^      - name:)'
+)
+Assert-True "five-axis step is parseable" $fiveAxisStepMatch.Success
+$fiveAxisStep = $fiveAxisStepMatch.Value
+Assert-Contains "five-axis source prequalification env is bound" `
+  $fiveAxisStep `
+  'SOURCE_PREQUALIFICATION: ${{ steps.source-binding.outputs.source_prequalification }}'
+Assert-Contains "five-axis prequalification remains explicit" `
+  $fiveAxisStep `
+  'case "$SOURCE_PREQUALIFICATION" in'
+Assert-Contains "five-axis prequalification keeps negative ledger regressions" `
+  $fiveAxisStep `
+  "--test-name-pattern='^(rejects the retired v1 permanent-empty ledger contract without browser evidence|rejects a structurally typed but unauthenticated v2 ledger entry|keeps future evidence-backed vertical deltas reachable)$'"
+Assert-Contains "five-axis prequalification requires exact exit 1" `
+  $fiveAxisStep `
+  'if [[ "$five_axis_exit" -ne 1 ]]; then'
+Assert-Contains "five-axis prequalification requires exact drift output" `
+  $fiveAxisStep `
+  'if [[ "$five_axis_output" != "$expected_five_axis_drift" ]]; then'
+Assert-Contains "five-axis prequalification pins runtime-source drift" `
+  $fiveAxisStep `
+  '[five-axis-audit] project progress verifier failed via python3: [phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+Assert-Regex "five-axis normal validation is retained" `
+  $fiveAxisStep `
+  '(?ms)^\s{12}false\)\s*\r?\n\s{14}node --test scripts/tests/five-axis-delta-ledger-regression\.test\.mjs\s*\r?\n\s{14}node scripts/verify-five-axis-substance-audit\.mjs\s*\r?\n\s{14};;'
+Assert-Contains "five-axis prequalification rejects unexpected mode values" `
+  $fiveAxisStep `
+  'unexpected SOURCE_PREQUALIFICATION value'
+Assert-NotRegex "five-axis audit has no blanket bypass" `
+  $fiveAxisStep `
+  '(?m)(node --test|node scripts/verify-five-axis-substance-audit\.mjs)[^\r\n]*\|\|\s*true'
+foreach ($requiredNoCreditGuard in @(
+  'NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS',
+  'def require_no_credit_requalification(',
+  'phase5_credit_projection(index_itemization) == phase5_credit_projection(source_itemization)',
+  'external_gate_truth_projection(index_external) == external_gate_truth_projection(source_external)',
+  'snapshot.get("/api/v1/project/progress") == index_manifest',
+  'runtime_source_parity_mode=no_credit_requalification',
+  'progress_credit_changed=false'
+)) {
+  Assert-Contains "no-credit requalification guard: $requiredNoCreditGuard" `
+    $phase5CreditVerifier `
+    $requiredNoCreditGuard
+}
+Assert-Contains "no-credit requalification has an exact runtime truth delta" `
+  $phase5CreditVerifier `
+  'if changed_paths == NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS:'
 Assert-Contains "direct Phase-5 truth check is retained" $prCheck 'if [[ "$CANDIDATE_DIFFERS" != "true" ]]; then'
 Assert-Contains "direct Phase-5 truth verifier is retained" $prCheck 'python scripts/verify_phase5_credit_itemization.py'
 Assert-Contains "reusable candidate CI validates control truth" $prCheck 'elif [[ "$SOURCE_PREQUALIFICATION" != "true" ]]; then'

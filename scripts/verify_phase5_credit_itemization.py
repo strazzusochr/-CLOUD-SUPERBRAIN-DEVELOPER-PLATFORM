@@ -70,6 +70,16 @@ QUALIFICATION_TRUTH_PATHS = {
     "apps/frontend/lib/platform.ts",
     "docs/project-progress.manifest.json",
 }
+NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS = {
+    "PROJECT_STATE.md",
+    "apps/frontend/lib/endpoint-snapshot.json",
+    "docs/runtime-state/external-gate-summary.json",
+}
+CURRENT_RELEASE_CANDIDATE_REPO_PATH = "docs/release-artifacts/current-release-candidate.json"
+PHASE5_ITEMIZATION_REPO_PATH = "docs/runtime-state/phase5-credit-itemization.json"
+PROJECT_PROGRESS_MANIFEST_REPO_PATH = "docs/project-progress.manifest.json"
+ENDPOINT_SNAPSHOT_REPO_PATH = "apps/frontend/lib/endpoint-snapshot.json"
+EXTERNAL_GATE_SUMMARY_REPO_PATH = "docs/runtime-state/external-gate-summary.json"
 LOCAL_VERIFICATION_FILES = {
     "runtime": "runtime.json",
     "browser": "browser.json",
@@ -1224,6 +1234,266 @@ def load_git_json(source_sha: str, path: str) -> dict[str, Any]:
     return value
 
 
+def load_index_text(path: str) -> str:
+    result = run_git("show", f":{path}")
+    require(result.returncode == 0, f"staged qualification truth is missing {path}")
+    return result.stdout
+
+
+def load_index_json(path: str) -> dict[str, Any]:
+    text = load_index_text(path)
+    try:
+        value = json.loads(text)
+    except json.JSONDecodeError as exc:
+        fail(f"invalid JSON in staged qualification truth {path}: {exc}")
+    require(isinstance(value, dict), f"staged qualification truth {path} must contain an object")
+    return value
+
+
+def canonical_text_sha256(value: str) -> str:
+    return hashlib.sha256(value.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")).hexdigest()
+
+
+def phase5_credit_projection(payload: dict[str, Any]) -> dict[str, Any]:
+    items = payload.get("items", [])
+    projected_items: list[dict[str, Any]] = []
+    if isinstance(items, list):
+        for item in items:
+            if not isinstance(item, dict):
+                projected_items.append({"invalid": True})
+                continue
+            projected_items.append(
+                {
+                    key: item.get(key)
+                    for key in (
+                        "id",
+                        "section",
+                        "title",
+                        "status",
+                        "credit_awarded",
+                        "blocker_id",
+                        "owner_action",
+                        "policy_basis",
+                    )
+                    if key in item
+                }
+            )
+    return {
+        "contract_version": payload.get("contract_version"),
+        "mode": payload.get("mode"),
+        "credit_blocked_until_candidate_qualified": payload.get(
+            "credit_blocked_until_candidate_qualified"
+        ),
+        "cell_id": payload.get("cell_id"),
+        "checklist_path": payload.get("checklist_path"),
+        "rubric": payload.get("rubric"),
+        "scoring_rule": payload.get("scoring_rule"),
+        "legacy_gap_reconstruction": payload.get("legacy_gap_reconstruction"),
+        "rulings_applied": payload.get("rulings_applied"),
+        "current_score": payload.get("current_score"),
+        "items": projected_items,
+        "retired_noncriteria": payload.get("retired_noncriteria"),
+    }
+
+
+def external_gate_truth_projection(payload: dict[str, Any]) -> dict[str, Any]:
+    keys = (
+        "contract_version",
+        "source_contract_version",
+        "status",
+        "active_target_gate",
+        "active_release_candidate_sha",
+        "ghcr_published_manifest_ref",
+        "ghcr_candidate_readback_source_artifact",
+        "gate_ids",
+        "frontend_preview_claim_allowed",
+        "hosted_staging_claim_allowed",
+        "branch_protection_claim_allowed",
+        "ghcr_image_digest_claim_allowed",
+        "vercel_backend_origins_claim_allowed",
+        "canonical_gitleaks_claim_allowed",
+        "cloudflare_native_zero_card_hosted_runtime_claim_allowed",
+        "gitlab_identity_claim_allowed",
+        "huggingface_identity_claim_allowed",
+        "grafana_cloud_claim_allowed",
+        "production_deploy_claim_allowed",
+        "missing_or_failed_gates",
+        "failed_hosted_required_probe_ids",
+        "failed_vercel_origin_probe_ids",
+        "legacy_provenance",
+    )
+    return {key: payload.get(key) for key in keys}
+
+
+def require_no_credit_requalification(
+    source_sha: str,
+    manifest: dict[str, Any],
+    itemization: dict[str, Any],
+    computed_percent: int,
+) -> None:
+    source_manifest = load_git_json(source_sha, PROJECT_PROGRESS_MANIFEST_REPO_PATH)
+    index_manifest = load_index_json(PROJECT_PROGRESS_MANIFEST_REPO_PATH)
+    require(
+        index_manifest == source_manifest and manifest == index_manifest,
+        "no-credit requalification may not change project progress truth",
+    )
+    require(
+        index_manifest.get("overall_percent") == source_manifest.get("overall_percent"),
+        "no-credit requalification may not change overall progress",
+    )
+    source_phase5 = next(
+        (
+            entry
+            for entry in source_manifest.get("horizontal", {}).get("items", [])
+            if entry.get("id") == "phase_5"
+        ),
+        None,
+    )
+    index_phase5 = next(
+        (
+            entry
+            for entry in index_manifest.get("horizontal", {}).get("items", [])
+            if entry.get("id") == "phase_5"
+        ),
+        None,
+    )
+    require(source_phase5 is not None and index_phase5 is not None, "no-credit requalification requires phase_5")
+    require(
+        source_phase5.get("percent") == index_phase5.get("percent") == computed_percent,
+        "no-credit requalification may not change Phase-5 credit",
+    )
+
+    source_itemization = load_git_json(source_sha, PHASE5_ITEMIZATION_REPO_PATH)
+    index_itemization = load_index_json(PHASE5_ITEMIZATION_REPO_PATH)
+    require(
+        itemization == index_itemization,
+        "working-tree Phase-5 truth must exactly match the staged qualification truth",
+    )
+    require(
+        phase5_credit_projection(index_itemization) == phase5_credit_projection(source_itemization),
+        "no-credit requalification may not change the Phase-5 score, blockers, or rulings",
+    )
+    require(
+        index_itemization.get("mode") == "fully_itemized"
+        and index_itemization.get("credit_blocked_until_candidate_qualified") is False,
+        "no-credit requalification requires fully itemized, already-qualified credit truth",
+    )
+    require(
+        index_itemization.get("active_source_commit_sha") == source_sha,
+        "no-credit requalification must select the exact candidate source",
+    )
+
+    source_pointer = load_git_json(source_sha, CURRENT_RELEASE_CANDIDATE_REPO_PATH)
+    index_pointer = load_index_json(CURRENT_RELEASE_CANDIDATE_REPO_PATH)
+    release_id = str(index_itemization.get("active_release_id", ""))
+    require(
+        re.fullmatch(r"prod-candidate-\d{4}-\d{2}-\d{2}-local-rc\d+", release_id) is not None,
+        "no-credit requalification release ID is invalid",
+    )
+    require(
+        release_id != source_pointer.get("active_release_id"),
+        "no-credit requalification must advance the active release ID",
+    )
+    require(
+        index_pointer.get("active_release_id") == release_id
+        and index_pointer.get("source_commit_sha") == source_sha,
+        "no-credit requalification pointer must select the exact release and source",
+    )
+    require(
+        index_pointer.get("updated_at") == index_itemization.get("updated_at_utc"),
+        "no-credit requalification pointer and itemization timestamps must match",
+    )
+    require(
+        index_pointer.get("production_rollout_claimed") is False,
+        "no-credit requalification may not claim production rollout",
+    )
+    require(
+        source_pointer.get("source_commit_sha") == source_itemization.get("active_source_commit_sha"),
+        "source candidate pointer and source Phase-5 truth are inconsistent",
+    )
+
+    source_external = load_git_json(source_sha, EXTERNAL_GATE_SUMMARY_REPO_PATH)
+    index_external = load_index_json(EXTERNAL_GATE_SUMMARY_REPO_PATH)
+    require(
+        external_gate_truth_projection(index_external) == external_gate_truth_projection(source_external),
+        "no-credit requalification may not inflate external gate truth",
+    )
+    require(
+        index_external.get("requested_release_candidate_selector") == source_sha,
+        "no-credit requalification external selector must equal the candidate source",
+    )
+    require(
+        index_external.get("status") == "blocked"
+        and index_external.get("active_release_candidate_sha") == ""
+        and index_external.get("production_deploy_claim_allowed") is False,
+        "no-credit requalification must preserve blocked external production truth",
+    )
+
+    snapshot = load_index_json(ENDPOINT_SNAPSHOT_REPO_PATH)
+    metadata = snapshot.get("__snapshot_metadata", {})
+    require(isinstance(metadata, dict), "no-credit requalification snapshot metadata is missing")
+    endpoint_keys = [key for key in snapshot if key != "__snapshot_metadata"]
+    require(
+        len(endpoint_keys) == 34 and all(key.startswith("/api/v1/") for key in endpoint_keys),
+        "no-credit requalification requires the full 34-endpoint snapshot",
+    )
+    require(
+        snapshot.get("/api/v1/project/progress") == index_manifest,
+        "no-credit requalification snapshot progress must equal the unchanged manifest",
+    )
+    for field, expected in (
+        ("contract_version", "endpoint-snapshot-metadata-v1"),
+        ("refresh_scope", "full"),
+        ("payload_epoch_complete", True),
+        ("current", False),
+        ("current_reason", "runtime_source_unattested_prequalification"),
+        ("qualification_state", "prequalification"),
+        ("source_scope", "DEV-ONLY"),
+        ("target_scope", "localhost_only"),
+        ("endpoint_count", 34),
+        ("refreshed_endpoint_count", 34),
+        ("gate_refresh_atomic", True),
+        ("active_release_id", release_id),
+        ("candidate_source_commit_sha", source_sha),
+        ("runtime_source_commit_sha", None),
+        ("runtime_source_attested", False),
+        ("candidate_source_parity", False),
+    ):
+        require(metadata.get(field) == expected, f"no-credit requalification snapshot {field} mismatch")
+
+    candidate_artifact_path = f"docs/release-artifacts/{release_id}.md"
+    expected_hashes = {
+        "current_release_candidate_sha256": canonical_text_sha256(
+            load_index_text(CURRENT_RELEASE_CANDIDATE_REPO_PATH)
+        ),
+        "release_candidate_artifact_sha256": canonical_text_sha256(
+            load_index_text(candidate_artifact_path)
+        ),
+        "project_progress_manifest_sha256": canonical_text_sha256(
+            load_index_text(PROJECT_PROGRESS_MANIFEST_REPO_PATH)
+        ),
+        "external_gate_summary_sha256": canonical_text_sha256(
+            load_index_text(EXTERNAL_GATE_SUMMARY_REPO_PATH)
+        ),
+    }
+    for field, expected in expected_hashes.items():
+        require(metadata.get(field) == expected, f"no-credit requalification snapshot {field} mismatch")
+
+    project_state = load_index_text("PROJECT_STATE.md")
+    current_anchor = project_state.split("### Session", 2)[1] if "### Session" in project_state else ""
+    require(
+        release_id in current_anchor and source_sha in current_anchor,
+        "no-credit requalification project anchor must name the exact release and source",
+    )
+    require(
+        "Overall `89%`" in current_anchor
+        and "MARKET_READY:false" in current_anchor
+        and "I1" in current_anchor
+        and "I5" in current_anchor,
+        "no-credit requalification project anchor must preserve progress and Owner blockers",
+    )
+
+
 def require_runtime_source_parity(
     source_sha: str,
     manifest: dict[str, Any],
@@ -1245,9 +1515,17 @@ def require_runtime_source_parity(
     if not changed_paths:
         return
 
+    if changed_paths == NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS:
+        require_no_credit_requalification(source_sha, manifest, itemization, computed_percent)
+        print(
+            "[phase5-credit] runtime_source_parity_mode=no_credit_requalification "
+            "progress_credit_changed=false"
+        )
+        return
+
     require(
         changed_paths == QUALIFICATION_TRUTH_PATHS,
-        "active candidate has committed or staged runtime-source drift outside the exact post-qualification truth transition",
+        "active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition",
     )
     require(
         itemization.get("mode") == "fully_itemized",
