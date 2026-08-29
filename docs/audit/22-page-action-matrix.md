@@ -23,9 +23,9 @@ Evidence: `.codex/runs/CURRENT/22-page-actions/report.json`
   Games and Apps DELETE paths
 - DEV-ONLY; hosted proof still blocked
 
-The registry contains 31 page-local families and 173 members in total.
+The registry contains 31 page-local families and 174 members in total.
 Availability is explicit: 161 `enabled`, 5 `spec_only`, 2 `contract_only`,
-0 `provider_gated`, and 5 `conditional`. `/open-source` is the only route
+1 `provider_gated`, and 5 `conditional`. `/open-source` is the only route
 with no page-local family. Global AppShell navigation is separate and is not
 counted here.
 
