@@ -72,6 +72,31 @@ again reached only the expected external stop `current Cloudflare-native hosted 
 source parity`. No percentage, gate, candidate, hosted, release or production claim changed.
 Next autonomous work is A2, the zero-credit P3 rubric draft.
 
+### Post-RC22 A2/A3 Credit-Rubric Draft Checkpoint
+
+A2 and A3 are implemented as non-binding, zero-credit drafts in
+`docs/runtime-contracts/phase3-credit-rubric.md` and
+`docs/runtime-contracts/phase6-credit-rubric.md`. Both remain exactly
+`DRAFT_OWNER_APPROVAL_REQUIRED`; P3 stays `44`, P6 stays `90`, Overall stays `89`,
+and no gate, hosted state, `live_verified`, deploy, promotion or release claim changed.
+
+The P3 draft preserves the existing 44-point block and itemizes the open 56 points across
+the real OAuth start/callback/identity/cookie/refresh/logout/replay/audit chain. It explicitly
+separates the current envelope verifier from the future evidence-derived P3 scorer and keeps
+password, 2FA, CAPTCHA and Authorize as Owner actions. The P6 draft reconstructs the existing
+90 points and makes the open 10-point hosted scale block atomic. It pins exactly 900 Worker
+requests plus 244 Edge-control requests, the ordered 22-entry blocked multiset, and the known
+control-criterion/runtime contradiction that must be resolved Red-first before activation.
+
+`scripts/verify_credit_rubric_drafts.py` is read-only and fails closed on status, weights,
+request arithmetic, ordered non-goals, dispatch/secret boundaries and the no-credit claims.
+Its adversarial regression suite passes `13/13`; the verifier reports
+`P3=44+56=100 P6=90+10=100 requests=900+244=1144 blocked=22 read_only=true
+credit_applied=false`. The checks are wired into the local Phase-1 verifier and branch CI.
+A1 feature-head `d5bdad62f159bbc0a401fcedf2e324def77e6657` is independently verified by
+GitHub Actions run `33253659212`: all 26 observed steps passed with zero skipped steps.
+Next autonomous work is A4, the Worker-native read-only `/api/v1/team/status` repair.
+
 ## Historical Session16 Audit Handoff — 2026-08-29
 
 The current operator packet is:

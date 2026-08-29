@@ -68,6 +68,29 @@ verifier reached the unchanged expected external I1 stop at
 Cloudflare-native hosted Worker source parity. This checkpoint changes no percentage,
 Owner gate, candidate status, hosted claim, release claim or production claim.
 
+## Current A2/A3 Draft-Rubric Evidence
+
+Recorded 2026-08-29 after A1 feature commit
+`d5bdad62f159bbc0a401fcedf2e324def77e6657`. GitHub Actions run `33253659212`
+verified that exact head with all 26 observed steps successful and zero skipped steps.
+
+The new Phase-3 and Phase-6 credit rubrics remain
+`DRAFT_OWNER_APPROVAL_REQUIRED` and `credit_application_allowed=false`. P3 preserves its
+existing 44 points and itemizes the open 56; P6 preserves its existing 90 and itemizes one
+atomic open 10-point hosted-scale block. The P6 contract pins 900 Worker requests plus 244
+Edge-control requests, 1,144 outbound requests total, and the exact ordered 22-entry blocked
+multiset. It also records the unresolved `not_a_pass_criterion` versus
+`edge_control_failure` runtime contradiction; activation is forbidden until that behavior is
+unified Red-first.
+
+The deterministic read-only verifier and thirteen adversarial regressions pass. They enforce the
+zero-credit state, exact weight arithmetic, OAuth/session/replay/logout/audit boundaries,
+current-versus-future P3 verifier separation, P6 request arithmetic, Owner-only secret and
+dispatch inputs, and deliberate blocked-list duplicates. Output is
+`P3=44+56=100 P6=90+10=100 requests=900+244=1144 blocked=22 read_only=true
+credit_applied=false`. No percentage, ledger entry, capability gate, hosted write, provider
+call, deployment, release or production claim changed.
+
 ## Historical Post-RC21 Session16 Audit
 
 Recorded 2026-08-29. Fresh local verification is green for build (`21/21`), runtime,

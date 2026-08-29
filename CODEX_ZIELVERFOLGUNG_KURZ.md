@@ -144,6 +144,20 @@ sind weiterhin kein RC22-Paritaetsbeweis und koennen I1 nicht schliessen.
 
 Naechster autonomer Punkt: A2 als `DRAFT_OWNER_APPROVAL_REQUIRED`; null Credit.
 
+## 6b. A2/A3 Rubrikentwuerfe abgeschlossen
+
+- P3: `44 + 56 = 100` itemisiert; Status bleibt `DRAFT_OWNER_APPROVAL_REQUIRED`.
+- P6: `90 + 10 = 100` itemisiert; der Hosted-Block bleibt atomar und unaktiviert.
+- P6-Laufgrenze: `900` Worker + `244` Edge-Kontrolle = `1.144` HTTP-Requests.
+- Die geordnete 22-Eintraege-Blocked-Multimenge und beide absichtlichen Duplikate bleiben
+  unveraendert.
+- Read-only-Verifier + Regression: `13/13` gruen; `credit_applied=false`.
+- A1-CI auf `d5bdad62f159bbc0a401fcedf2e324def77e6657`: Run `33253659212`,
+  `26/26` beobachtete Schritte gruen, `0 skipped`.
+
+Keine Prozent-, Gate-, Hosted-, Deploy- oder Release-Transition. Naechster autonomer Punkt:
+A4 `/api/v1/team/status` im Worker Red-first reparieren.
+
 ## 7. Offen bis 100
 
 | Block | Heute | Abschluss |

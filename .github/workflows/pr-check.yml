@@ -232,6 +232,11 @@ jobs:
           python -m unittest scripts.tests.test_verify_project_progress_manifest -v
           python scripts/verify_project_progress_manifest.py
 
+      - name: Phase 3 and Phase 6 draft credit rubric integrity
+        run: |
+          python -m unittest scripts.tests.test_credit_rubric_drafts -v
+          python scripts/verify_credit_rubric_drafts.py
+
       - name: Five-axis delta-ledger integration
         env:
           FIVE_AXIS_LEDGER_ONLY: "1"

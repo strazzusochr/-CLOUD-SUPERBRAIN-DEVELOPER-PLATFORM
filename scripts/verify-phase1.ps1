@@ -107,6 +107,12 @@ Write-Host "[verify] project progress delta-ledger replay regression tests"
 py -3 -m unittest scripts.tests.test_verify_project_progress_manifest -v
 Assert-LastExitCode "project progress delta-ledger replay regression tests"
 
+Write-Host "[verify] Phase 3/6 draft credit rubric integrity"
+py -3 -m unittest scripts.tests.test_credit_rubric_drafts -v
+Assert-LastExitCode "Phase 3/6 draft credit rubric regression tests"
+py -3 scripts\verify_credit_rubric_drafts.py
+Assert-LastExitCode "Phase 3/6 draft credit rubric integrity"
+
 Write-Host "[verify] Phase 5 itemization transition regression tests"
 py -3 -m unittest scripts.tests.test_verify_phase5_credit_itemization
 Assert-LastExitCode "Phase 5 itemization transition regression tests"
