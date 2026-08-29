@@ -231,6 +231,7 @@ jobs:
         run: |
           python -m unittest scripts.tests.test_verify_project_progress_manifest -v
           python scripts/verify_project_progress_manifest.py
+          node --test scripts/tests/endpoint-snapshot-metadata.test.mjs
 
       - name: Phase 3 and Phase 6 draft credit rubric integrity
         run: |

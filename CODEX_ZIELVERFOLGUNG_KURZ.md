@@ -96,6 +96,15 @@ PASS verify_project_progress_manifest.py -> overall 89, deltas 0, mirrors 2
 FAIL npm run verify -> current Cloudflare-native hosted Worker source parity
 ```
 
+A6 pre-qualification aktuell:
+
+```text
+PASS endpoint snapshot -> 34/34, epoch_complete=true, current=false/prequalification
+PASS go-live runtime -> blocked_external_gates (Branch Protection + GHCR)
+PASS focused tests -> Agent API 95/95, Manifest 27/27, Snapshot 8/8
+BLOCK verify_project_progress_manifest.py -> unqualified post-RC22 runtime-source drift
+```
+
 Der Full-Sweep-Stop ist der erwartete ungeschlossene Hosted-I1-Ownerblock und kein Fehler
 der fuenf source-gebundenen lokalen RC22-Ketten. Hosted I1 und Production Auth I5 bleiben
 rot. Kein Full-Sweep-Gruen wird behauptet; Verifier nicht abschwaechen.
@@ -200,6 +209,28 @@ Keine Provider-Writes, kein Deploy, kein Gate-/Prozent-/Release-Uebergang. Overa
 bleiben `89/44/90/55/56`. Naechster autonomer Punkt: A6 Gate-/Summary-/Snapshot-/Freshness-
 Paritaet Red-first und danach neue Candidate-Qualifikation.
 
+## 6e. A6 Go-Live-Wahrheit und Candidate-Freshness lokal repariert
+
+- Sechs kanonische External-Gates werden in Agent API und PowerShell-Verifier unabhaengig aus
+  den sechs Boolean-Claims abgeleitet; Reihenfolge, Case, Eindeutigkeit, Status, Production-
+  Claim und Provenienz sind fail-closed.
+- Full Snapshot: `34/34`, `payload_epoch_complete=true`, `gate_atomic=true`; reservierte
+  `__snapshot_metadata` und SHA-256 fuer Pointer, Candidate-Artefakt, Manifest und External-
+  Gate-Summary. Mangels unabhaengiger Runtime-Source-Attestation bleibt er ehrlich
+  `current=false/prequalification` und schreibt die DEV-Payloads nicht RC22 zu.
+- Manifest-Freshness bindet Candidate-Schema, Phase-5-Release/Source/Timestamp, existierenden
+  Ancestor und beide Runtime-Mirrors. Post-RC22-Runtime-Drift wird vor der neuen Qualifikation
+  absichtlich abgewiesen.
+- Read-only External-Gate-Refresh auf RC22-Selector bleibt `blocked`; offen sind exakt
+  `github_branch_protection_current_verify` und `ghcr_image_digest_verify`.
+  `active_release_candidate_sha` bleibt leer, Production bleibt false.
+- Gruen: Go-Live `14/14`, Agent API `95/95`, Manifest `27/27`, Snapshot `8/8`, Frontend-
+  Rewrite-Verifier, DEV-ONLY Go-Live-Runtime, AST/Compile und Diff-Check.
+
+Kein Prozent- oder Gate-Credit: Overall/P3/P6/L4/L5 bleiben `89/44/90/55/56`; I1/I5 bleiben
+geschlossen. A6 ist neue Source und benoetigt RC23 mit allen fuenf lokalen Ketten.
+`DEV-ONLY; hosted proof still blocked`.
+
 ## 7. Offen bis 100
 
 | Block | Heute | Abschluss |
@@ -266,13 +297,13 @@ Ein allgemeines `ja` oder ein Browser-Login ist keine dieser spezifischen Freiga
 
 Autonom:
 
-A1 bis A5 sind abgeschlossen und bleiben ohne neuen Credit. Jetzt:
+A1 bis A6 sind lokal abgeschlossen und bleiben ohne neuen Credit. Jetzt:
 
-1. A5-Slice exakt committen/pushen; den fremden Working-Report ausschliessen;
-2. A6 Go-live-Missing-Gates unabhaengig aus Claims ableiten und adversarial testen;
-3. A6 Summary-/Snapshot-/Candidate-Freshness Red-first source-binden;
-4. synchronisierte Truth-Projektionen und neue lokale Candidate-Qualifikation;
-5. serieller Verifier-Stack, Feature-Branch-CI und weiterhin null Hosted-Umetikettierung.
+1. A6 plus synchrone Truth-Dateien exakt committen; fremden Working-Report ausschliessen;
+2. Feature-Branch pushen und source-attestiertes CI lesen;
+3. RC23 aus der finalen Source einfrieren;
+4. Candidate-Images, Runtime, Browser/22-Seiten/O4, Candidate-Runtime und Security seriell;
+5. erst nach vollstaendiger Evidence den separaten Selection-Commit erstellen.
 
 Nach Owner-Freigaben:
 
@@ -294,7 +325,8 @@ Nach Owner-Freigaben:
 - `.phase1-artifacts/` und `docs/release-artifacts/` nicht aufraeumen;
 - `PROJECT_STATE.md` nie allein aktualisieren.
 
-Der erlaubte Qualification-Truth-Uebergang umfasst exakt:
+Der vierteilige Qualification-Truth-Uebergang gilt ausschliesslich fuer den vom Phase-5-
+Verifier erkannten post-qualification Mirror-Uebergang:
 
 ```text
 PROJECT_STATE.md
@@ -314,7 +346,10 @@ apps/frontend/playwright-report/**
 
 Die drei O4-Proofs, `capability-gates.json`, `owner-input-manifest.json`, die RC22-Note,
 Readiness, das 27-Dateien-Set und die synchronisierten Truth-Dokumente gehoeren zum
-expliziten RC22-Selection-Slice. Keine anderen Pfade stagen.
+historischen, abgeschlossenen RC22-Selection-Slice. A6 darf diese Evidence nicht veraendern
+oder umetikettieren. RC23 bekommt einen eigenen Source-Freeze, eigene fuenf Ketten, eigene
+CI-Attestation, eigene Selection-Evidence und einen getrennten Selection-Commit. Keine
+fremden Working-Reports stagen.
 
 ## 12. Non-Claims
 

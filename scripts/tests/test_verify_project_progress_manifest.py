@@ -5,6 +5,7 @@ import hashlib
 import json
 import subprocess
 import unittest
+from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
@@ -39,6 +40,47 @@ class ProjectProgressTruthTests(unittest.TestCase):
     def assert_rejected(self, callback, expected: str) -> None:
         with self.assertRaisesRegex(SystemExit, expected):
             callback()
+
+    def candidate_freshness_inputs(self):
+        manifest = copy.deepcopy(self.manifest)
+        manifest["last_verified"] = "2026-08-29"
+        current_candidate = {
+            "active_release_id": "prod-candidate-2026-08-29-local-rc23",
+            "source_commit_sha": "a" * 40,
+            "updated_at": "2026-08-29T12:34:56Z",
+            "updated_by": "synthetic-test",
+            "reason": "Source-bound synthetic candidate for verifier protocol tests.",
+            "production_rollout_claimed": False,
+        }
+        phase5_itemization = {
+            "contract_version": "phase5-credit-itemization-v2",
+            "cell_id": "phase_5",
+            "active_release_id": current_candidate["active_release_id"],
+            "active_source_commit_sha": current_candidate["source_commit_sha"],
+            "updated_at_utc": current_candidate["updated_at"],
+        }
+        return manifest, current_candidate, phase5_itemization
+
+    def validate_candidate_freshness(
+        self,
+        manifest,
+        current_candidate,
+        phase5_itemization,
+        *,
+        source_available: bool = True,
+        source_is_ancestor: bool = True,
+    ) -> None:
+        with (
+            patch.object(verifier, "git_object_is_commit", return_value=source_available),
+            patch.object(verifier, "git_commit_is_ancestor", return_value=source_is_ancestor),
+        ):
+            verifier.validate_current_candidate_freshness(
+                manifest,
+                current_candidate,
+                phase5_itemization,
+                REPO_ROOT,
+                today_utc=date(2026, 8, 30),
+            )
 
     def validate(self, manifest=None, ledger=None, ledger_schema=None, snapshot=None, platform=None) -> None:
         verifier.validate_progress_truth(
@@ -220,6 +262,165 @@ class ProjectProgressTruthTests(unittest.TestCase):
 
     def test_current_baseline_and_both_mirrors_are_valid_without_phase5_delegate(self) -> None:
         self.validate()
+
+    def test_current_candidate_source_and_freshness_binding_accepts_valid_chain(self) -> None:
+        manifest, current_candidate, phase5_itemization = self.candidate_freshness_inputs()
+        self.validate_candidate_freshness(manifest, current_candidate, phase5_itemization)
+
+    def test_current_candidate_rejects_schema_and_identity_drift(self) -> None:
+        manifest, current_candidate, phase5_itemization = self.candidate_freshness_inputs()
+
+        missing_source = copy.deepcopy(current_candidate)
+        missing_source.pop("source_commit_sha")
+        self.assert_rejected(
+            lambda: self.validate_candidate_freshness(
+                manifest, missing_source, phase5_itemization
+            ),
+            "current release candidate keys mismatch",
+        )
+
+        extra_field = {**current_candidate, "unbound_claim": True}
+        self.assert_rejected(
+            lambda: self.validate_candidate_freshness(
+                manifest, extra_field, phase5_itemization
+            ),
+            "current release candidate keys mismatch",
+        )
+
+        bad_release = copy.deepcopy(current_candidate)
+        bad_release["active_release_id"] = "production"
+        self.assert_rejected(
+            lambda: self.validate_candidate_freshness(
+                manifest, bad_release, phase5_itemization
+            ),
+            "active_release_id is invalid",
+        )
+
+        empty_reason = copy.deepcopy(current_candidate)
+        empty_reason["reason"] = "  "
+        self.assert_rejected(
+            lambda: self.validate_candidate_freshness(
+                manifest, empty_reason, phase5_itemization
+            ),
+            "reason must be non-empty",
+        )
+
+        rollout_claim = copy.deepcopy(current_candidate)
+        rollout_claim["production_rollout_claimed"] = True
+        self.assert_rejected(
+            lambda: self.validate_candidate_freshness(
+                manifest, rollout_claim, phase5_itemization
+            ),
+            "may not claim production rollout",
+        )
+
+    def test_current_candidate_rejects_phase5_source_or_release_mismatch(self) -> None:
+        manifest, current_candidate, phase5_itemization = self.candidate_freshness_inputs()
+
+        uppercase_source = copy.deepcopy(current_candidate)
+        uppercase_source["source_commit_sha"] = "A" * 40
+        self.assert_rejected(
+            lambda: self.validate_candidate_freshness(
+                manifest, uppercase_source, phase5_itemization
+            ),
+            "source_commit_sha must be a lowercase 40-character Git SHA",
+        )
+
+        source_mismatch = copy.deepcopy(phase5_itemization)
+        source_mismatch["active_source_commit_sha"] = "b" * 40
+        self.assert_rejected(
+            lambda: self.validate_candidate_freshness(
+                manifest, current_candidate, source_mismatch
+            ),
+            "source_commit_sha does not match Phase-5 itemization",
+        )
+
+        release_mismatch = copy.deepcopy(phase5_itemization)
+        release_mismatch["active_release_id"] = "prod-candidate-2026-08-29-local-rc24"
+        self.assert_rejected(
+            lambda: self.validate_candidate_freshness(
+                manifest, current_candidate, release_mismatch
+            ),
+            "active_release_id does not match Phase-5 itemization",
+        )
+
+        wrong_contract = copy.deepcopy(phase5_itemization)
+        wrong_contract["contract_version"] = "phase5-credit-itemization-v1"
+        self.assert_rejected(
+            lambda: self.validate_candidate_freshness(
+                manifest, current_candidate, wrong_contract
+            ),
+            "Phase-5 itemization contract mismatch",
+        )
+
+    def test_current_candidate_rejects_timestamp_and_manifest_freshness_drift(self) -> None:
+        manifest, current_candidate, phase5_itemization = self.candidate_freshness_inputs()
+
+        malformed_timestamp = copy.deepcopy(current_candidate)
+        malformed_timestamp["updated_at"] = "2026-08-29"
+        self.assert_rejected(
+            lambda: self.validate_candidate_freshness(
+                manifest, malformed_timestamp, phase5_itemization
+            ),
+            "updated_at must be a whole-second UTC timestamp",
+        )
+
+        timestamp_mismatch = copy.deepcopy(phase5_itemization)
+        timestamp_mismatch["updated_at_utc"] = "2026-08-29T12:34:57Z"
+        self.assert_rejected(
+            lambda: self.validate_candidate_freshness(
+                manifest, current_candidate, timestamp_mismatch
+            ),
+            "updated_at does not match Phase-5 itemization",
+        )
+
+        stale_manifest = copy.deepcopy(manifest)
+        stale_manifest["last_verified"] = "2026-08-28"
+        self.assert_rejected(
+            lambda: self.validate_candidate_freshness(
+                stale_manifest, current_candidate, phase5_itemization
+            ),
+            "last_verified predates the active release candidate",
+        )
+
+        future_manifest = copy.deepcopy(manifest)
+        future_manifest["last_verified"] = "2026-08-31"
+        self.assert_rejected(
+            lambda: self.validate_candidate_freshness(
+                future_manifest, current_candidate, phase5_itemization
+            ),
+            "last_verified may not be future-dated",
+        )
+
+        impossible_manifest_date = copy.deepcopy(manifest)
+        impossible_manifest_date["last_verified"] = "2026-02-30"
+        self.assert_rejected(
+            lambda: self.validate_candidate_freshness(
+                impossible_manifest_date, current_candidate, phase5_itemization
+            ),
+            "last_verified must be a valid ISO date",
+        )
+
+    def test_current_candidate_source_must_exist_and_be_ancestor(self) -> None:
+        manifest, current_candidate, phase5_itemization = self.candidate_freshness_inputs()
+        self.assert_rejected(
+            lambda: self.validate_candidate_freshness(
+                manifest,
+                current_candidate,
+                phase5_itemization,
+                source_available=False,
+            ),
+            "source commit is unavailable",
+        )
+        self.assert_rejected(
+            lambda: self.validate_candidate_freshness(
+                manifest,
+                current_candidate,
+                phase5_itemization,
+                source_is_ancestor=False,
+            ),
+            "source commit is not an ancestor of HEAD",
+        )
 
     def test_canonical_ids_labels_and_order_are_exact(self) -> None:
         reordered = copy.deepcopy(self.manifest)

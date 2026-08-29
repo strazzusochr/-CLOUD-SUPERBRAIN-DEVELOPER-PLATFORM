@@ -141,7 +141,44 @@ Verification: Production-Auth adversarial suite `13/13`; market-ready plus front
 validate-only suite `6/6`; OAuth boundary `26/26`; team projection `5/5`; both PowerShell ASTs
 and `git diff --check` pass. No browser rerun, provider write, deploy, secret use, gate change,
 percentage credit, release or production action occurred. Overall remains `89%`; I1 and I5
-remain the only Phase-5 zero-credit blocks. A6 is next.
+remain the only Phase-5 zero-credit blocks. The completed local A6 checkpoint follows.
+
+## Current A6 Go-Live Derivation And Candidate-Freshness Evidence
+
+Recorded 2026-08-29 after local A5 commit `c2e487fb`. This is post-RC22 source work and is
+not immutable RC22 evidence. Agent API and the dedicated PowerShell verifier independently
+derive the missing set from the ordered six-claim contract:
+`hosted_agent_api_contracts`, `github_branch_protection_current_verify`,
+`ghcr_image_digest_verify`, `vercel_backend_origin_health`, `canonical_gitleaks_scan`, and
+`cloudflare_native_zero_card_hosted_runtime`. Duplicate, unknown, case-changed, reordered or
+non-Boolean inputs, inconsistent status/production claims and forged source provenance all
+fail closed.
+
+The endpoint snapshot reserves `__snapshot_metadata`, treats only `/api/v1/*` keys as
+endpoints, records full/partial/gate-atomic currentness and binds active candidate plus source
+to SHA-256 digests of the pointer, candidate artifact, project manifest and external summary.
+The full DEV-ONLY refresh passed `34/34`, `payload_epoch_complete=true` and
+`gate_atomic=true`, but remains honestly `current=false` and
+`qualification_state=prequalification`: no independent runtime-source attestation exists, so
+the DEV payloads are not attributed to RC22. The project-progress verifier now requires the
+exact current-candidate schema and field set, source and
+Phase-5 release/timestamp parity, a real ancestor commit, and fresh mirrors.
+
+The canonical read-only external audit was refreshed with RC22 source
+`28727b198b057a6bdef6b5f34e9aa946fb2757a0` as selector. The sanitized v2 summary is
+`blocked`; exactly `github_branch_protection_current_verify` and
+`ghcr_image_digest_verify` remain missing. `active_release_candidate_sha` is empty and
+`production_deploy_claim_allowed=false`. Four individually bounded claims being true does
+not close I1, authorize GHCR publication or establish production readiness.
+
+Verification passed focused go-live `14/14`, full Agent API `95/95`, manifest regressions
+`27/27`, snapshot metadata `8/8`, frontend cloud rewrites, DEV-ONLY go-live runtime,
+PowerShell AST, Python compile and `git diff --check`. The real progress-manifest verifier
+correctly fails on unqualified runtime-source drift after RC22; this is the required guard
+until RC23 is source-bound and fully requalified. Percentages remain Overall `89`, P3 `44`,
+P5 `89`, P6 `90`, L4 `55`, L5 `56`; I1 and I5 remain blocked. No main/default-branch
+write, GHCR push, hosted deploy, live provider call, OAuth activation, secret use, release
+promotion or production rollout occurred. `DEV-ONLY; hosted proof still blocked`.
 
 ## Historical Post-RC21 Session16 Audit
 
@@ -544,7 +581,7 @@ Method note worth keeping: the first draft matched only the words `semantic` or
 `vectorize` and falsely hit non-claims. The verifier requires actual `env.VECTORIZE`
 plus `env.AI` usage. Contract checks must test usage, not word occurrence.
 
-## Current Branch-Protection External Gate Closure
+## Historical Branch-Protection External Gate Closure
 
 Recorded 2026-07-31. `github_branch_protection_current_verify` was listed as a
 missing external gate, but the protection itself was present the whole time. The
@@ -574,6 +611,11 @@ artefact into the git-ignored `.phase1-artifacts/`, and
 `verify-retired-hosted-boundary.ps1` requires `PROJECT_STATE.md`, `AI_HANDOFF.md`
 and this register to reference the newest one. Those three references must be
 updated in the same slice as any gate run.
+
+Superseded 2026-08-29: the current RC22-selector readback no longer proves the
+Branch-Protection gate. Current truth is `branch_protection_claim_allowed=false` with
+exactly `github_branch_protection_current_verify` and `ghcr_image_digest_verify` missing.
+The 2026-07-31 read remains historical proof of the then-observed repository setting only.
 
 ## Current Hosted-Acceptance Guard Alignment
 
@@ -926,9 +968,10 @@ real mobile `/tools` readiness-row overflow; the responsive grid was bounded and
 Entries below that mention `https://188-34-191-140.sslip.io`, `sslip.io`, Hetzner, or Fly runtime evidence are historical provenance only. Current frontend truth is `frontend-hosted-current-proof-v1`; current external truth is `external-gate-audit-v2` plus `external-gate-summary-v2`. Neither one proves a stateful full-backend rollout, release promotion, or full-platform production release.
 
 Latest external audit truth: `docs/runtime-state/external-gate-audit-v2.json` is
-`status=blocked` with `production_deploy_claim_allowed=false`; the only active blocker is
-`ghcr_image_digest_verify`. Cloudflare O2Core and Branch Protection are verifier-open.
-RC10/Fly-v1 and the token/origin-injected
+`status=blocked` with `production_deploy_claim_allowed=false`; the exact active blockers are
+`github_branch_protection_current_verify` and `ghcr_image_digest_verify`. Four bounded
+claims are true, but `active_release_candidate_sha` is empty, so neither I1 nor Production
+is closed. RC10/Fly-v1 and the token/origin-injected
 `125413` run are explicit historical, non-current evidence. This does not claim a
 full-platform production rollout or release promotion; current manifest progress is `89%`.
 
@@ -937,8 +980,8 @@ full-platform production rollout or release promotion; current manifest progress
 `external-gate-summary-v2` is authoritative for runtime release claims. Agent API,
 External-Gate Mirror, Deployment Preflight, Completion, Infra Budget, and Go-live Readiness
 now use `cloudflare_native_runtime` and
-`cloudflare_native_zero_card_hosted_runtime`; the remaining GHCR external blocker stays
-fail-closed, and cloud/production claims remain false. Fly inventory is read-only
+`cloudflare_native_zero_card_hosted_runtime`; the remaining Branch-Protection and GHCR
+external blockers stay fail-closed, and cloud/production claims remain false. Fly inventory is read-only
 `historical_only` with no active layer mapping. This is DEV-ONLY and changes no percentage.
 
 ## Historical Pre-O4 Agent-Pool UI / Verifier Parity Evidence
@@ -948,7 +991,7 @@ historical and superseded by the current Agent Pool `100%` authority above.
 
 `agent-pool-autonomous-runtime-ui-parity-v1` binds the canonical `/agents` SSR surface to three exact runtime contracts: `autonomous-agent-roster-v1`, `autonomous-master-plan-v1`, and `autonomous-coding-team-v1`. Strict parsers reject drift in contract version, source document, runtime source, evidence reference, binding/integrity state, roster composition, phases/layers, role mappings, queue values, or dispatch identity. The rendered proof shows the persisted `14`-role roster, `7` phases, `7` layers, `5` operating-core roles, `3` dispatch endpoints, and one UUIDv4-bound five-member coding-team dispatch. `scripts/verify-autonomous-agent-roster.ps1`, `scripts/verify-autonomous-master-plan.ps1`, and `scripts/verify-autonomous-coding-team.ps1` compare the API envelopes with SSR attributes; the team verifier creates a dispatch first and then queries the same `dispatch_id`. Frontend lint, Next.js production build (`21/21`), `npm run verify`, `npm run verify:runtime`, and `npm run verify:browser` passed serially; Docker is `10/10 healthy`, responsive proof is `22` routes x `2` viewports = `44` clicks. The then-current PostCSS `8.5.12` override was later superseded by fixed `8.5.23`; current npm audit is zero. Runtime-log SHA-256: `B2C239B91BB9C41852A862EBEB3D8BAF12353E98330BA424A68A06EF8FE40541`; browser-log SHA-256: `CB720B156EB6248BB448181458CF569A1AA9D1A14013AE939275906BD5D644A5`. `autonomous_release_workflow_verified` means parser plus PlanOnly validation only; no workflow execution, push, publication, or release occurred. Persisted roster is not Codex Desktop task persistence, and local dispatch is not hosted rollout. No new unique rubric item is credited: Agent Pool remains `69%`, Overall `86%`. DEV-ONLY; hosted proof still blocked. `live_provider_calls=false`, `live_mcp_writes=false`, `model_downloads=false`, `production_deploy=false`, `production_rollout_claimed=false`, `secret_output=false`.
 
-## Current RC11 MARKET_READY Owner-Blocked Evidence
+## Historical RC11 MARKET_READY Owner-Blocked Evidence
 
 RC11 qualification is `verified_with_owner_blocks`: all five independent local
 verification chains passed and the evidence-derived P5 score is `89%`. I1
@@ -956,6 +999,10 @@ verification chains passed and the evidence-derived P5 score is `89%`. I1
 readiness items and both require Owner action. `MARKET_READY:false` remains fail-closed.
 No GHCR publication, production deployment, release promotion, production-auth claim,
 or Owner approval is created by the local qualification.
+
+Current equivalent authority is RC22 at source
+`28727b198b057a6bdef6b5f34e9aa946fb2757a0`, still `17/19 = 89%` with I1 and I5
+blocked. Post-RC22 A6 work requires RC23 and cannot reuse RC11 or RC22 qualification evidence.
 
 ## Current Phase 2 Checkpoint Recovery Evidence
 
@@ -1491,12 +1538,13 @@ The current-candidate hosted-boundary verifier is deterministic under stale loca
 Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, and Phase 6 `90%`.
 Current vertical layer snapshot is Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
 
-The active qualified candidate is RC21. The latest local build, runtime, DEV-LIVE and browser
-chain is green, while the full verifier stops fail-closed at current Cloudflare-native Hosted
-Worker source parity. The next safe sequence is the Session16 documentation commit and exact
-feature-branch CI inspection, followed only after explicit Owner gates by the Red-first OAuth/
-contract work and a source-equal Hosted candidate deployment. No `main` push, GHCR publication,
-Production deploy, Alibaba live-provider activation or release promotion is authorized here.
+The active qualified candidate is immutable RC22 at source
+`28727b198b057a6bdef6b5f34e9aa946fb2757a0`. A6 is post-RC22 runtime-source work: focused
+derivation/snapshot/freshness proof is green, while the real manifest guard correctly blocks
+the unqualified drift. The next safe sequence is exact A6 commit, feature-branch push/CI,
+then a new RC23 freeze with five serial qualification chains, source attestation and separate
+selection. No `main` push, GHCR publication, Production deploy, live-provider activation,
+OAuth activation or release promotion is authorized here.
 
 The dated evidence bullets below are historical milestone references, not current progress claims.
 

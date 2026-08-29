@@ -39,11 +39,11 @@ Post-selection verification passed `verify:phase5-credit`,
 `current Cloudflare-native hosted Worker source parity`; it does not invalidate the five
 source-bound local RC22 chains and it does not close I1. No hosted evidence was relabeled.
 
-After the RC22 selection verifiers and feature-branch push, continue the active master goal
-with the delta-ledger transition probe, then the P3 and P6 evidence-derived rubrics, the
-team/status runtime defect, the Vercel-origin decision packet, and the next-candidate
-missing-gate contract repair. Do not change percentages without code, runtime proof,
-verifier acceptance, and synchronized truth documents.
+RC22 remains immutable. A1 through A5 are complete after selection; A6 is the current
+next-candidate source repair. Do not relabel RC22 evidence for the changed runtime source.
+Finish A6, freeze RC23 from the final source, rerun all five local qualification chains and
+source-attested branch CI, then select the new candidate only from complete evidence. Do not
+change percentages without code, runtime proof, verifier acceptance and synchronized truth.
 
 ### Post-RC22 A1 Delta-Ledger Checkpoint
 
@@ -147,6 +147,46 @@ files parse and `git diff --check` passes. No provider write, browser rerun, dep
 gate transition, percentage credit, release or production claim occurred. Overall remains
 `89`; next autonomous work is A6, the independently derived go-live gate set plus
 summary/snapshot/freshness repair for a new candidate.
+
+### Post-RC22 A6 Go-Live Truth / Candidate-Freshness Checkpoint
+
+A6 is implemented locally as a source repair for the next candidate; it is not part of the
+immutable RC22 evidence. Agent API and the PowerShell verifier independently derive the
+canonical missing set from six ordered Boolean claims:
+`hosted_agent_api_contracts`, `github_branch_protection_current_verify`,
+`ghcr_image_digest_verify`, `vercel_backend_origin_health`, `canonical_gitleaks_scan`, and
+`cloudflare_native_zero_card_hosted_runtime`. Unknown, duplicate, case-changed or reordered
+gate IDs, non-Boolean claims, inconsistent status/production claims, and forged provenance
+all fail closed.
+
+The endpoint snapshot now reserves `__snapshot_metadata`, excludes it from endpoint routing,
+binds the active candidate ID and source SHA, hashes the candidate pointer/artifact, progress
+manifest and external summary, and distinguishes full/current/atomic from partial or mixed-
+epoch refreshes. A full DEV-ONLY refresh completed `34/34`,
+`payload_epoch_complete=true` and `gate_atomic=true`, but remains honestly
+`current=false` and `qualification_state=prequalification`: the running DEV stack exposes no
+independent runtime-source attestation, so its payloads are not attributed to RC22. The
+progress verifier now requires exact candidate schema, source and
+Phase-5 identity/freshness parity plus a real available ancestor.
+
+The read-only external refresh selected RC22 source
+`28727b198b057a6bdef6b5f34e9aa946fb2757a0`. Its v2 summary remains `blocked`; the exact
+current failures are `github_branch_protection_current_verify` and
+`ghcr_image_digest_verify`. The active external candidate SHA is empty and production is
+false, so this read does not close I1 or authorize GHCR/publication/promotion.
+
+Focused proof is go-live regression `14/14`, full Agent API `95/95`, progress-manifest
+regression `27/27`, snapshot metadata `8/8`, frontend cloud-rewrite verifier, DEV-ONLY
+go-live runtime verifier, AST/compile and diff checks. The real progress-manifest verifier
+correctly rejects the unqualified post-RC22 runtime-source drift; it becomes eligible to pass
+only after a new source-bound candidate transition. Overall remains `89`; I1 and I5 remain
+the Phase-5 zero-credit blocks. No main/default-branch write, GHCR push, deploy, live provider
+call, OAuth activation, secret use, release promotion or production rollout occurred.
+
+Next: commit only the A6/truth paths (exclude the foreign product-acceptance working report),
+push the feature branch, verify CI, then qualify RC23 through candidate images, runtime,
+browser/22-page/O4, candidate-runtime and security before a separate selection commit.
+`DEV-ONLY; hosted proof still blocked`.
 
 ## Historical Session16 Audit Handoff — 2026-08-29
 
@@ -606,13 +646,15 @@ healthy and the responsive proof was 22 routes x 2 viewports = 44 clicks.
 
 P5 has an atomic Cloudflare-native gate rebase. The tracked authority is
 `docs/runtime-state/external-gate-audit-v2.json` (`external-gate-audit-v2`,
-SHA-256 `0678FB8C3AD2EAA4FCC2FEB7F9124846836340FCA297529A0BD3A750799E894F`)
+SHA-256 `B630616F46DE8CD8BA1C187B303427FF6D679E1932F59047E837BF911B25D5EA`)
 and `docs/runtime-state/external-gate-summary.json` uses
-`external-gate-summary-v2`. The latest full local run is
-`.phase1-artifacts/external-gate-audit-v2-20260731-011557.json`. Both stay
-`blocked` with `cloudflare_native_zero_card_hosted_runtime` verifier-open and
-exactly `github_branch_protection_current_verify` plus
-`ghcr_image_digest_verify` missing; Production remains false. The hosted
+`external-gate-summary-v2` (SHA-256
+`5245F5625A007DDD178B07A839EBA476F00BF48141797DD82D686F9E530FCB8B`). The
+latest read-only full local run is
+`.phase1-artifacts/external-gate-audit-v2-20260829-173826.json`. Both stay
+`blocked`; exactly `github_branch_protection_current_verify` plus
+`ghcr_image_digest_verify` are missing, the active candidate SHA is empty and
+Production remains false. The hosted
 O2Core proof covers D1, Queue and SQLite Durable Object with source parity and
 zero-card execution. The qualified active token proves O2Core 4/4 and O5 1/1;
 R2 remains unbound and historical-only. The earlier GET-only 0/6 scope report
@@ -726,7 +768,12 @@ Latest hosted backend boundary proof: `backend-hosted-current-proof-v1` binds Ve
 
 Latest Phase 5 boundary hardening: RC10 `prod-candidate-2026-07-24-local-rc10` rebuilt six images from the clean Git archive of pushed PostCSS-fixed source `2ae4c61aa876759abcaa83c36c0a3379206b91a4`. `scripts/verify-phase5-production-candidate-local.ps1` proves OCI/source identity, embedded hashes, Frontend `BUILD_ID` `K1RYRyr2WuLFjXFPVnOfu`, committed runtime-source parity, RC9 rollback identity, read-only methods, and a real Diagnostics Chromium click. `scripts/verify-current-release-candidate.ps1` distinguishes the source-bound Vercel read-only snapshot (`overall=84`) from current local manifest truth (`overall=86`) and reports `candidate_technical=true`, `runtime_source_parity=true`, `promotion_eligible=false`, canonical `blocked`. Evidence: `.codex/runs/CURRENT/master-goal/phase5/production-candidate-local` (Git archive SHA-256 `ACDDF0E7BACD117E4796D618722A4DAEDE9ED84F5813045C2C58AFD727F1EBD1`, candidate report SHA-256 `F6DB74228773767857E301FE7A7E90C4B0D8FA5FA12E395C506EA6EE778C0078`, verification SHA-256 `75B226536EDCDB8DB68E4B4B036E6B6BDF4BA73DBC0796F273F86C078725691B`). DEV-ONLY; hosted proof still blocked. No deployment, registry publication, percentage increase, or provider write is implied.
 
-Latest local R0 truth proof: `r0-canonical-runtime-truth-v1` binds runtime gate claims to `docs/runtime-state/external-gate-summary.json`. After the token-free `20260720-191532` rebaseline, the DEV control plane reports External Gates `action_required` at `5/6` with the single blocker `fly_cloud_stack`, Deployment Preflight `action_required`, Completion and Go-live Readiness `blocked_external_gates`, and production claim `false`. Full `npm run verify`, `npm run verify:runtime`, and `npm run verify:browser` passed after the rebaseline; the browser proof covers all seven Phase-6 gates, the load-stable reference-design WebGL check, 22 pages, two viewports, 44 clicks, and zero overflow, overlay-collision, and console failures. Evidence: `.codex/runs/CURRENT/master-goal/r0-canonical-runtime-truth-20260719.md`, `.phase1-artifacts/external-gate-audit-20260720-191532.json`, `.phase1-artifacts/reference-design-browser-proof-latest.json`, and `.codex/runs/CURRENT/frontend/responsive-22/report.json`. No progress increase or production claim.
+Historical local R0 truth proof: `r0-canonical-runtime-truth-v1` documented the retired
+token-free `20260720-191532` Fly-era rebaseline and its then-single `fly_cloud_stack`
+blocker. It is provenance only. Current runtime gate truth is the A6
+`external-gate-summary-v2` readback above, with Branch Protection and GHCR missing and
+Production false. The historical full verifier/browser result and its evidence paths remain
+unchanged; they do not override current gate truth or create progress/production claims.
 
 Latest T3 read-only cloud proof: Grafana `glc_` token metadata is now used only to select the validated region; `live_verified=true` requires a successful read against the fixed Grafana Cloud API. Cloudflare token verification, GitHub identity, and GHCR package-list reads also returned HTTP 200. `npm run verify:cloud-provider-live-read` and its integrated `npm run verify:runtime` invocation report `8/8` local providers and `7/7` local layers live verified in `.phase1-artifacts/cloud-provider-live-read-20260720-032243.json`. The owner-assisted audit `.phase1-artifacts/external-gate-audit-20260720-060043.json` remains blocked for `hosted_agent_api_contracts` and `vercel_backend_origin_health`, has `production_deploy_claim_allowed=false`, and is isolated as non-current candidate `docs/runtime-state/external-gate-summary.candidate-20260720-060043.json`; it did not supersede the canonical token-free summary. This is DEV-ONLY identity/inventory evidence, not telemetry ingestion or hosted backend proof. Observability remains `99%` and Overall remains `84%` because the configured Grafana stack endpoint returns HTTP 503.
 

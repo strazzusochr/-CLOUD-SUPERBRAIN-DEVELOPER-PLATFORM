@@ -20,10 +20,17 @@ $snapshotRefreshSource = Get-Content -LiteralPath $snapshotRefreshPath -Raw
 foreach ($required in @(
   "Endpoint snapshot refresh is DEV-ONLY",
   '["localhost", "127.0.0.1", "::1"]',
+  "SNAPSHOT_METADATA_KEY",
+  "GATE_RELEVANT_PATHS",
+  "gate_refresh_atomic",
+  "current = fullRefresh && candidateSourceParity",
+  "runtime_source_unattested_prequalification",
+  "candidate_source_parity",
   "sanitizePayload",
   "secretPatterns",
   "configured_count: 0",
-  "writeFileSync"
+  "writeSnapshotAtomic",
+  "renameSync"
 )) {
   if (-not $snapshotRefreshSource.Contains($required)) {
     throw "Endpoint snapshot refresh script missing guard: $required"
@@ -31,6 +38,7 @@ foreach ($required in @(
 }
 
 $nodeScript = @'
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -44,6 +52,14 @@ const gatewayProxyPath = path.join(repoRoot, "apps/frontend/lib/gatewayProxy.ts"
 const frontendBoundaryPath = path.join(repoRoot, "apps/frontend/lib/frontendBoundary.ts");
 const endpointSnapshotPath = path.join(repoRoot, "apps/frontend/lib/endpoint-snapshot.json");
 const progressManifestPath = path.join(repoRoot, "docs/project-progress.manifest.json");
+const currentCandidatePath = path.join(
+  repoRoot,
+  "docs/release-artifacts/current-release-candidate.json",
+);
+const externalGateSummaryPath = path.join(
+  repoRoot,
+  "docs/runtime-state/external-gate-summary.json",
+);
 
 const read = (file) => fs.readFileSync(file, "utf8");
 const nextConfigSource = read(configPath);
@@ -52,8 +68,13 @@ const llmRouteSource = read(llmRoutePath);
 const mcpRouteSource = read(mcpRoutePath);
 const gatewayProxySource = read(gatewayProxyPath);
 const frontendBoundarySource = read(frontendBoundaryPath);
-const endpointSnapshot = JSON.parse(read(endpointSnapshotPath));
-const progressManifest = JSON.parse(read(progressManifestPath));
+const endpointSnapshotText = read(endpointSnapshotPath);
+const progressManifestText = read(progressManifestPath);
+const currentCandidateText = read(currentCandidatePath);
+const externalGateSummaryText = read(externalGateSummaryPath);
+const endpointSnapshot = JSON.parse(endpointSnapshotText);
+const progressManifest = JSON.parse(progressManifestText);
+const currentCandidate = JSON.parse(currentCandidateText);
 
 const assertIncludes = (label, source, expected) => {
   if (!source.includes(expected)) {
@@ -190,6 +211,137 @@ for (const forbidden of [
   "host.docker.internal",
 ]) {
   assertNotIncludes("frontend cloud routing sources", nextConfigSource + catchAllSource + llmRouteSource + mcpRouteSource, forbidden);
+}
+
+const snapshotMetadataKey = "__snapshot_metadata";
+const expectedMetadataKeys = [
+  "active_release_id",
+  "candidate_source_commit_sha",
+  "candidate_source_parity",
+  "contract_version",
+  "current",
+  "current_reason",
+  "current_release_candidate_sha256",
+  "endpoint_count",
+  "external_gate_summary_sha256",
+  "gate_refresh_atomic",
+  "gate_relevant_paths",
+  "generated_at_utc",
+  "payload_epoch_complete",
+  "project_progress_manifest_sha256",
+  "qualification_state",
+  "refresh_scope",
+  "refreshed_endpoint_count",
+  "refreshed_paths",
+  "release_candidate_artifact_sha256",
+  "runtime_source_attested",
+  "runtime_source_commit_sha",
+  "source_scope",
+  "target_scope",
+].sort();
+const gateRelevantPaths = [
+  "/api/v1/clouds",
+  "/api/v1/clouds/deployment-preflight",
+  "/api/v1/clouds/go-live-readiness",
+  "/api/v1/clouds/layers",
+  "/api/v1/external-gates",
+  "/api/v1/project/progress",
+  "/api/v1/project/progress/completion",
+].sort();
+const snapshotKeys = Object.keys(endpointSnapshot);
+const invalidSnapshotKeys = snapshotKeys.filter(
+  (key) => key !== snapshotMetadataKey && !key.startsWith("/api/v1/"),
+);
+if (invalidSnapshotKeys.length > 0) {
+  throw new Error(`endpoint snapshot has non-endpoint keys: ${invalidSnapshotKeys.sort().join(",")}`);
+}
+const snapshotEndpointPaths = snapshotKeys.filter((key) => key.startsWith("/api/v1/")).sort();
+if (snapshotEndpointPaths.length < 30) {
+  throw new Error("endpoint snapshot does not contain the canonical endpoint set");
+}
+const snapshotMetadata = endpointSnapshot[snapshotMetadataKey];
+if (!snapshotMetadata || typeof snapshotMetadata !== "object" || Array.isArray(snapshotMetadata)) {
+  throw new Error("endpoint snapshot is missing reserved __snapshot_metadata");
+}
+if (
+  JSON.stringify(Object.keys(snapshotMetadata).sort()) !== JSON.stringify(expectedMetadataKeys)
+) {
+  throw new Error("endpoint snapshot metadata schema is not exact");
+}
+const canonicalGeneratedAt = new Date(snapshotMetadata.generated_at_utc).toISOString();
+if (canonicalGeneratedAt !== snapshotMetadata.generated_at_utc) {
+  throw new Error("endpoint snapshot generated_at_utc is not canonical ISO-8601 UTC");
+}
+if (
+  snapshotMetadata.contract_version !== "endpoint-snapshot-metadata-v1" ||
+  snapshotMetadata.refresh_scope !== "full" ||
+  snapshotMetadata.payload_epoch_complete !== true ||
+  snapshotMetadata.current !== false ||
+  snapshotMetadata.current_reason !== "runtime_source_unattested_prequalification" ||
+  snapshotMetadata.qualification_state !== "prequalification" ||
+  snapshotMetadata.runtime_source_attested !== false ||
+  snapshotMetadata.runtime_source_commit_sha !== null ||
+  snapshotMetadata.candidate_source_parity !== false ||
+  snapshotMetadata.source_scope !== "DEV-ONLY" ||
+  snapshotMetadata.target_scope !== "localhost_only" ||
+  snapshotMetadata.gate_refresh_atomic !== true
+) {
+  throw new Error("endpoint snapshot metadata does not prove an honest full DEV-ONLY prequalification refresh");
+}
+if (
+  Number(snapshotMetadata.endpoint_count) !== snapshotEndpointPaths.length ||
+  Number(snapshotMetadata.refreshed_endpoint_count) !== snapshotEndpointPaths.length ||
+  JSON.stringify(snapshotMetadata.refreshed_paths) !== JSON.stringify(snapshotEndpointPaths) ||
+  JSON.stringify(snapshotMetadata.gate_relevant_paths) !== JSON.stringify(gateRelevantPaths)
+) {
+  throw new Error("endpoint snapshot metadata does not bind the exact refreshed endpoint set");
+}
+for (const gatePath of gateRelevantPaths) {
+  if (!snapshotEndpointPaths.includes(gatePath)) {
+    throw new Error(`endpoint snapshot is missing gate-relevant endpoint: ${gatePath}`);
+  }
+}
+
+const activeReleaseId = String(currentCandidate.active_release_id || "");
+if (!/^[a-z0-9][a-z0-9._-]+$/.test(activeReleaseId)) {
+  throw new Error("current release candidate has an invalid active_release_id");
+}
+if (currentCandidate.production_rollout_claimed !== false) {
+  throw new Error("current release candidate must keep production_rollout_claimed=false");
+}
+const releaseCandidateArtifactPath = path.join(
+  repoRoot,
+  "docs/release-artifacts",
+  `${activeReleaseId}.md`,
+);
+const releaseCandidateArtifactText = read(releaseCandidateArtifactPath);
+const releaseIdMatch = releaseCandidateArtifactText.match(/^release_id:\s*`([^`]+)`\s*$/m);
+const sourceCommitMatch = releaseCandidateArtifactText.match(
+  /^source_commit_sha:\s*`([0-9a-f]{40})`\s*$/m,
+);
+if (releaseIdMatch?.[1] !== activeReleaseId || !sourceCommitMatch) {
+  throw new Error("active release candidate artifact is not source-bound to its pointer");
+}
+if (
+  !/^[0-9a-f]{40}$/.test(String(currentCandidate.source_commit_sha || "")) ||
+  currentCandidate.source_commit_sha !== sourceCommitMatch[1]
+) {
+  throw new Error("current release candidate pointer source_commit_sha does not match its artifact");
+}
+const sha256 = (value) => crypto.createHash("sha256").update(value).digest("hex");
+const canonicalTextSha256 = (value) => sha256(value.replace(/\r\n?/g, "\n"));
+const expectedMetadataBindings = {
+  active_release_id: activeReleaseId,
+  candidate_source_commit_sha: currentCandidate.source_commit_sha,
+  current_release_candidate_sha256: canonicalTextSha256(currentCandidateText),
+  release_candidate_artifact_sha256: canonicalTextSha256(releaseCandidateArtifactText),
+  project_progress_manifest_sha256: canonicalTextSha256(progressManifestText),
+  external_gate_summary_sha256: canonicalTextSha256(externalGateSummaryText),
+};
+for (const [field, expected] of Object.entries(expectedMetadataBindings)) {
+  if (snapshotMetadata[field] !== expected) {
+    throw new Error(`endpoint snapshot metadata binding mismatch: ${field}`);
+  }
 }
 
 const snapshotExternalGates = endpointSnapshot["/api/v1/external-gates"];

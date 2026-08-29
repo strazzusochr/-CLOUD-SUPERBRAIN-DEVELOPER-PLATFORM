@@ -360,6 +360,8 @@ foreach ($forbiddenActiveFlyMarker in @("convertFlyAppNameToBaseUrl", "FLY_APP_A
 }
 
 Write-Host "[verify] frontend cloud rewrites"
+node --test scripts\tests\endpoint-snapshot-metadata.test.mjs
+Assert-LastExitCode "endpoint snapshot metadata regression tests"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-frontend-cloud-rewrites.ps1
 Assert-LastExitCode "frontend cloud rewrites"
 

@@ -6,6 +6,7 @@ import os
 import re
 import subprocess
 import sys
+from datetime import date, datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -15,6 +16,8 @@ DELTA_LEDGER_SCHEMA_PATH = Path("docs/runtime-contracts/project-progress-delta-l
 ENDPOINT_SNAPSHOT_PATH = Path("apps/frontend/lib/endpoint-snapshot.json")
 PLATFORM_MIRROR_PATH = Path("apps/frontend/lib/platform.ts")
 PHASE5_VERIFIER_PATH = Path("scripts/verify_phase5_credit_itemization.py")
+PHASE5_ITEMIZATION_PATH = Path("docs/runtime-state/phase5-credit-itemization.json")
+CURRENT_RELEASE_CANDIDATE_PATH = Path("docs/release-artifacts/current-release-candidate.json")
 
 DELTA_LEDGER_CONTRACT = "project-progress-delta-ledger-v2"
 DELTA_LEDGER_SCHEMA = "../runtime-contracts/project-progress-delta-ledger.schema.json"
@@ -100,6 +103,15 @@ PLATFORM_MODULE_NAMES = (
     "Observability",
 )
 
+CURRENT_RELEASE_CANDIDATE_KEYS = {
+    "active_release_id",
+    "source_commit_sha",
+    "updated_at",
+    "updated_by",
+    "reason",
+    "production_rollout_claimed",
+}
+
 
 def require(condition: bool, message: str) -> None:
     if not condition:
@@ -141,6 +153,31 @@ def require_percent(value: Any, context: str) -> int:
     require(type(value) is int, f"{context} percent must be an integer")
     require(0 <= value <= 100, f"{context} percent must be between 0 and 100")
     return value
+
+
+def require_iso_date(value: Any, context: str) -> date:
+    require(
+        isinstance(value, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value) is not None,
+        f"{context} must be an ISO date",
+    )
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise SystemExit(f"[project-progress] {context} must be a valid ISO date") from exc
+
+
+def require_utc_timestamp(value: Any, context: str) -> datetime:
+    require(
+        isinstance(value, str)
+        and re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", value) is not None,
+        f"{context} must be a whole-second UTC timestamp",
+    )
+    try:
+        return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    except ValueError as exc:
+        raise SystemExit(
+            f"[project-progress] {context} must be a valid whole-second UTC timestamp"
+        ) from exc
 
 
 def expected_baseline_projection() -> dict[str, Any]:
@@ -297,14 +334,108 @@ def validate_manifest_shape(payload: dict[str, Any]) -> tuple[list[dict[str, Any
         "binding document mismatch",
     )
     require("Evidence-based only" in str(payload["truth_policy"]), "truth policy must be explicit")
-    require(
-        isinstance(payload["last_verified"], str)
-        and re.fullmatch(r"\d{4}-\d{2}-\d{2}", payload["last_verified"]) is not None,
-        "last_verified must be an ISO date",
-    )
+    require_iso_date(payload["last_verified"], "last_verified")
     require(isinstance(payload["non_claims"], list) and payload["non_claims"], "non_claims must not be empty")
     require(all(isinstance(item, str) and item.strip() for item in payload["non_claims"]), "non_claims entries must be non-empty strings")
     return phases, layers
+
+
+def validate_current_candidate_freshness(
+    manifest: dict[str, Any],
+    current_candidate: dict[str, Any],
+    phase5_itemization: dict[str, Any],
+    repo_root: Path,
+    *,
+    today_utc: date | None = None,
+) -> None:
+    """Bind progress freshness to the exact active, source-bound Phase-5 candidate."""
+
+    require_exact_keys(
+        current_candidate,
+        CURRENT_RELEASE_CANDIDATE_KEYS,
+        "current release candidate",
+    )
+    release_id = current_candidate["active_release_id"]
+    require(
+        isinstance(release_id, str)
+        and re.fullmatch(r"prod-candidate-\d{4}-\d{2}-\d{2}-local-rc\d+", release_id)
+        is not None,
+        "current release candidate active_release_id is invalid",
+    )
+    source_sha = require_lower_hex(
+        current_candidate["source_commit_sha"],
+        40,
+        "current release candidate source_commit_sha",
+    )
+    require(
+        isinstance(current_candidate["updated_by"], str)
+        and current_candidate["updated_by"].strip(),
+        "current release candidate updated_by must be non-empty",
+    )
+    require(
+        isinstance(current_candidate["reason"], str)
+        and current_candidate["reason"].strip(),
+        "current release candidate reason must be non-empty",
+    )
+    require(
+        current_candidate["production_rollout_claimed"] is False,
+        "current release candidate may not claim production rollout",
+    )
+
+    require(
+        phase5_itemization.get("contract_version") == "phase5-credit-itemization-v2",
+        "Phase-5 itemization contract mismatch",
+    )
+    require(
+        phase5_itemization.get("cell_id") == "phase_5",
+        "Phase-5 itemization cell mismatch",
+    )
+    require(
+        phase5_itemization.get("active_release_id") == release_id,
+        "current release candidate active_release_id does not match Phase-5 itemization",
+    )
+    itemization_source_sha = require_lower_hex(
+        phase5_itemization.get("active_source_commit_sha"),
+        40,
+        "Phase-5 itemization active_source_commit_sha",
+    )
+    require(
+        itemization_source_sha == source_sha,
+        "current release candidate source_commit_sha does not match Phase-5 itemization",
+    )
+
+    candidate_updated_at = require_utc_timestamp(
+        current_candidate["updated_at"],
+        "current release candidate updated_at",
+    )
+    itemization_updated_at = require_utc_timestamp(
+        phase5_itemization.get("updated_at_utc"),
+        "Phase-5 itemization updated_at_utc",
+    )
+    require(
+        candidate_updated_at == itemization_updated_at,
+        "current release candidate updated_at does not match Phase-5 itemization",
+    )
+
+    require(
+        git_object_is_commit(repo_root, source_sha),
+        "current release candidate source commit is unavailable",
+    )
+    require(
+        git_commit_is_ancestor(repo_root, source_sha, "HEAD"),
+        "current release candidate source commit is not an ancestor of HEAD",
+    )
+
+    manifest_last_verified = require_iso_date(manifest.get("last_verified"), "last_verified")
+    require(
+        manifest_last_verified >= candidate_updated_at.date(),
+        "last_verified predates the active release candidate",
+    )
+    effective_today = today_utc if today_utc is not None else datetime.now(timezone.utc).date()
+    require(
+        manifest_last_verified <= effective_today,
+        "last_verified may not be future-dated",
+    )
 
 
 def progress_projection(payload: dict[str, Any]) -> dict[str, Any]:
@@ -861,8 +992,16 @@ def main() -> int:
     ledger = load_json(resolve_delta_ledger_path(repo_root))
     ledger_schema = load_json(repo_root / DELTA_LEDGER_SCHEMA_PATH)
     endpoint_snapshot = load_json(repo_root / ENDPOINT_SNAPSHOT_PATH)
+    current_candidate = load_json(repo_root / CURRENT_RELEASE_CANDIDATE_PATH)
+    phase5_itemization = load_json(repo_root / PHASE5_ITEMIZATION_PATH)
     platform_source = (repo_root / PLATFORM_MIRROR_PATH).read_text(encoding="utf-8")
     validate_progress_truth(manifest, ledger, ledger_schema, endpoint_snapshot, platform_source, repo_root)
+    validate_current_candidate_freshness(
+        manifest,
+        current_candidate,
+        phase5_itemization,
+        repo_root,
+    )
 
     phase5_verifier = repo_root / PHASE5_VERIFIER_PATH
     require(phase5_verifier.is_file(), f"missing {PHASE5_VERIFIER_PATH.as_posix()}")
@@ -870,7 +1009,8 @@ def main() -> int:
     require(phase5_result.returncode == 0, "Phase-5 credit itemization is invalid")
     print(
         "[project-progress] manifest valid: "
-        f"overall={manifest['overall_percent']}% deltas={len(ledger['entries'])} mirrors=2"
+        f"overall={manifest['overall_percent']}% deltas={len(ledger['entries'])} "
+        "mirrors=2 candidate_source_bound=true freshness=verified"
     )
     return 0
 

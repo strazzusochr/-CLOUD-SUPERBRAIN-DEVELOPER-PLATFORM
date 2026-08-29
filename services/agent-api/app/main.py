@@ -7268,6 +7268,156 @@ def capability_gate_open(gate_id: str, state: dict[str, object] | None = None) -
     )
 
 
+EXTERNAL_AUDIT_CLAIM_GATE_SEQUENCE = (
+    ("hosted_staging_claim_allowed", "hosted_agent_api_contracts"),
+    ("branch_protection_claim_allowed", "github_branch_protection_current_verify"),
+    ("ghcr_image_digest_claim_allowed", "ghcr_image_digest_verify"),
+    ("vercel_backend_origins_claim_allowed", "vercel_backend_origin_health"),
+    ("canonical_gitleaks_claim_allowed", "canonical_gitleaks_scan"),
+    (
+        "cloudflare_native_zero_card_hosted_runtime_claim_allowed",
+        "cloudflare_native_zero_card_hosted_runtime",
+    ),
+)
+EXTERNAL_AUDIT_CANONICAL_GATE_IDS = tuple(gate_id for _, gate_id in EXTERNAL_AUDIT_CLAIM_GATE_SEQUENCE)
+EXTERNAL_AUDIT_REQUIRED_PROVENANCE_FIELDS = (
+    "contract_version",
+    "source_contract_version",
+    "source_artifact",
+    "local_run_artifact",
+    "generated_at_utc",
+    "active_target_gate",
+    "requested_release_candidate_selector",
+    "active_release_candidate_sha",
+    "ghcr_published_manifest_ref",
+    "ghcr_candidate_readback_source_artifact",
+    "gate_ids",
+)
+
+
+def _external_audit_provenance_errors(payload: dict[str, object]) -> list[str]:
+    errors: list[str] = []
+    for field in EXTERNAL_AUDIT_REQUIRED_PROVENANCE_FIELDS:
+        if field not in payload:
+            errors.append(f"{field}_missing")
+
+    gate_ids = payload.get("gate_ids")
+    if "gate_ids" in payload and gate_ids != list(EXTERNAL_AUDIT_CANONICAL_GATE_IDS):
+        errors.append("gate_ids_not_canonical")
+
+    if payload.get("contract_version") != "external-gate-summary-v2":
+        errors.append("contract_version_invalid")
+    if payload.get("source_contract_version") != "external-gate-audit-v2":
+        errors.append("source_contract_version_invalid")
+    source_artifact = payload.get("source_artifact")
+    if (
+        not isinstance(source_artifact, str)
+        or source_artifact.replace("\\", "/")
+        != "docs/runtime-state/external-gate-audit-v2.json"
+    ):
+        errors.append("source_artifact_invalid")
+    if payload.get("active_target_gate") != "cloudflare_native_zero_card_hosted_runtime":
+        errors.append("active_target_gate_invalid")
+
+    generated_at = payload.get("generated_at_utc")
+    try:
+        parsed_generated_at = datetime.fromisoformat(
+            generated_at[:-1] + "+00:00"
+            if isinstance(generated_at, str) and generated_at.endswith("Z")
+            else ""
+        )
+    except ValueError:
+        parsed_generated_at = None
+    if parsed_generated_at is None or parsed_generated_at.utcoffset() != timezone.utc.utcoffset(None):
+        errors.append("generated_at_utc_invalid")
+
+    for field in ("requested_release_candidate_selector", "active_release_candidate_sha"):
+        value = payload.get(field)
+        if not isinstance(value, str) or (value and re.fullmatch(r"[0-9a-f]{40}", value) is None):
+            errors.append(f"{field}_invalid")
+
+    for field in (
+        "local_run_artifact",
+        "ghcr_published_manifest_ref",
+        "ghcr_candidate_readback_source_artifact",
+    ):
+        if not isinstance(payload.get(field), str):
+            errors.append(f"{field}_invalid")
+    local_run_artifact = payload.get("local_run_artifact")
+    if (
+        isinstance(local_run_artifact, str)
+        and local_run_artifact
+        and re.fullmatch(
+            r"\.phase1-artifacts/external-gate-audit-v2-\d{8}-\d{6}\.json",
+            local_run_artifact.replace("\\", "/"),
+        )
+        is None
+    ):
+        errors.append("local_run_artifact_invalid")
+
+    selector = payload.get("requested_release_candidate_selector")
+    active_sha = payload.get("active_release_candidate_sha")
+    if isinstance(active_sha, str) and active_sha and isinstance(selector, str) and selector != active_sha:
+        errors.append("active_release_candidate_sha_selector_mismatch")
+
+    if payload.get("ghcr_image_digest_claim_allowed") is True:
+        if not isinstance(active_sha, str) or re.fullmatch(r"[0-9a-f]{40}", active_sha) is None:
+            errors.append("ghcr_claim_missing_active_release_candidate_sha")
+        if not isinstance(selector, str) or selector != active_sha:
+            errors.append("ghcr_claim_selector_mismatch")
+        for field in ("ghcr_published_manifest_ref", "ghcr_candidate_readback_source_artifact"):
+            value = payload.get(field)
+            if not isinstance(value, str) or not value.strip():
+                errors.append(f"ghcr_claim_{field}_missing")
+    return errors
+
+
+def _external_audit_expected_missing_gates(summary: dict[str, object]) -> list[str]:
+    return [
+        gate_id
+        for claim_field, gate_id in EXTERNAL_AUDIT_CLAIM_GATE_SEQUENCE
+        if summary.get(claim_field) is not True
+    ]
+
+
+def _external_audit_consistency(
+    summary: dict[str, object],
+) -> tuple[list[str], str, bool, list[str]]:
+    expected_missing = _external_audit_expected_missing_gates(summary)
+    expected_status = "verified" if not expected_missing else "blocked"
+    expected_production_claim = not expected_missing
+    errors: list[str] = []
+
+    for claim_field, _ in EXTERNAL_AUDIT_CLAIM_GATE_SEQUENCE:
+        if type(summary.get(claim_field)) is not bool:
+            errors.append(f"claim_not_boolean:{claim_field}")
+
+    raw_missing = summary.get("missing_or_failed_gates")
+    missing_sequence_valid = (
+        isinstance(raw_missing, list)
+        and all(isinstance(item, str) for item in raw_missing)
+        and raw_missing == expected_missing
+    )
+    if not missing_sequence_valid:
+        errors.append("missing_gate_sequence_mismatch")
+    if summary.get("status") != expected_status:
+        errors.append("summary_status_mismatch")
+
+    production_claim = summary.get("production_deploy_claim_allowed")
+    if type(production_claim) is not bool:
+        errors.append("production_deploy_claim_not_boolean")
+    if production_claim is not expected_production_claim:
+        errors.append("production_deploy_claim_mismatch")
+
+    if summary.get("provenance_valid") is False:
+        errors.extend(
+            f"provenance:{item}"
+            for item in summary.get("provenance_validation_errors", [])
+            if isinstance(item, str) and item
+        )
+    return expected_missing, expected_status, expected_production_claim, errors
+
+
 def external_gate_summary_path() -> Path:
     configured = os.getenv("EXTERNAL_GATE_SUMMARY_PATH", "/app/progress/external-gate-summary.json")
     return Path(configured)
@@ -7319,9 +7469,15 @@ def external_gate_summary_state() -> dict[str, object]:
         "contract_version",
         "source_contract_version",
         "source_artifact",
+        "local_run_artifact",
         "generated_at_utc",
         "status",
         "active_target_gate",
+        "requested_release_candidate_selector",
+        "active_release_candidate_sha",
+        "ghcr_published_manifest_ref",
+        "ghcr_candidate_readback_source_artifact",
+        "gate_ids",
         "frontend_preview_claim_allowed",
         "hosted_staging_claim_allowed",
         "branch_protection_claim_allowed",
@@ -7351,6 +7507,14 @@ def external_gate_summary_state() -> dict[str, object]:
     sanitized["failed_vercel_origin_probe_ids"] = [
         str(item) for item in sanitized.get("failed_vercel_origin_probe_ids", []) if str(item).strip()
     ]
+    provenance_errors = _external_audit_provenance_errors(payload)
+    sanitized["provenance_valid"] = not provenance_errors
+    sanitized["provenance_validation_errors"] = provenance_errors
+    if provenance_errors:
+        sanitized["status"] = "invalid_summary"
+        for claim_field, _ in EXTERNAL_AUDIT_CLAIM_GATE_SEQUENCE:
+            sanitized[claim_field] = False
+        sanitized["production_deploy_claim_allowed"] = False
     return sanitized
 
 
@@ -7364,7 +7528,19 @@ def go_live_readiness_state() -> dict[str, object]:
     external_audit_summary = external_gate_summary_state()
 
     preflight_gates = [gate for gate in preflight.get("gates", []) if isinstance(gate, dict)]
-    audit_missing_gates = [str(item) for item in external_audit_summary.get("missing_or_failed_gates", [])]
+    raw_audit_missing_gates = external_audit_summary.get("missing_or_failed_gates", [])
+    audit_missing_gates = (
+        [str(item) for item in raw_audit_missing_gates]
+        if isinstance(raw_audit_missing_gates, list)
+        else []
+    )
+    (
+        expected_audit_missing_gates,
+        expected_audit_status,
+        expected_production_claim,
+        audit_consistency_errors,
+    ) = _external_audit_consistency(external_audit_summary)
+    audit_summary_consistent = not audit_consistency_errors
     audit_required_env_map = {
         "hosted_agent_api_contracts": ["STAGING_BASE_URL", "AGENT_API_BASE_URL"],
         "github_branch_protection_current_verify": ["BRANCH_PROTECTION_TOKEN"],
@@ -7377,7 +7553,7 @@ def go_live_readiness_state() -> dict[str, object]:
     }
     audit_required_inputs = [
         env_name
-        for gate_id in audit_missing_gates
+        for gate_id in expected_audit_missing_gates
         for env_name in audit_required_env_map.get(gate_id, [])
     ]
     required_owner_inputs = sorted({
@@ -7403,7 +7579,12 @@ def go_live_readiness_state() -> dict[str, object]:
     ]
     status = (
         "ready_for_owner_cloud_execution"
-        if bool(preflight.get("preflight_ready")) and not hard_blockers and not audit_missing_gates
+        if (
+            bool(preflight.get("preflight_ready"))
+            and not hard_blockers
+            and not expected_audit_missing_gates
+            and audit_summary_consistent
+        )
         else "blocked_external_gates"
     )
 
@@ -7429,17 +7610,22 @@ def go_live_readiness_state() -> dict[str, object]:
         "external_audit_summary": external_audit_summary,
         "external_audit_summary_status": external_audit_summary.get("status"),
         "external_audit_missing_or_failed_gates": audit_missing_gates,
+        "external_audit_expected_missing_or_failed_gates": expected_audit_missing_gates,
+        "external_audit_expected_status": expected_audit_status,
+        "external_audit_expected_production_deploy_claim_allowed": expected_production_claim,
+        "external_audit_summary_consistent": audit_summary_consistent,
+        "external_audit_summary_consistency_errors": audit_consistency_errors,
         "external_audit_claims": {
-            "frontend_preview_claim_allowed": bool(external_audit_summary.get("frontend_preview_claim_allowed")),
-            "hosted_staging_claim_allowed": bool(external_audit_summary.get("hosted_staging_claim_allowed")),
-            "branch_protection_claim_allowed": bool(external_audit_summary.get("branch_protection_claim_allowed")),
-            "ghcr_image_digest_claim_allowed": bool(external_audit_summary.get("ghcr_image_digest_claim_allowed")),
-            "vercel_backend_origins_claim_allowed": bool(external_audit_summary.get("vercel_backend_origins_claim_allowed")),
-            "canonical_gitleaks_claim_allowed": bool(external_audit_summary.get("canonical_gitleaks_claim_allowed")),
-            "cloudflare_native_zero_card_hosted_runtime_claim_allowed": bool(
-                external_audit_summary.get("cloudflare_native_zero_card_hosted_runtime_claim_allowed")
+            "frontend_preview_claim_allowed": external_audit_summary.get("frontend_preview_claim_allowed") is True,
+            "hosted_staging_claim_allowed": external_audit_summary.get("hosted_staging_claim_allowed") is True,
+            "branch_protection_claim_allowed": external_audit_summary.get("branch_protection_claim_allowed") is True,
+            "ghcr_image_digest_claim_allowed": external_audit_summary.get("ghcr_image_digest_claim_allowed") is True,
+            "vercel_backend_origins_claim_allowed": external_audit_summary.get("vercel_backend_origins_claim_allowed") is True,
+            "canonical_gitleaks_claim_allowed": external_audit_summary.get("canonical_gitleaks_claim_allowed") is True,
+            "cloudflare_native_zero_card_hosted_runtime_claim_allowed": (
+                external_audit_summary.get("cloudflare_native_zero_card_hosted_runtime_claim_allowed") is True
             ),
-            "production_deploy_claim_allowed": bool(external_audit_summary.get("production_deploy_claim_allowed")),
+            "production_deploy_claim_allowed": external_audit_summary.get("production_deploy_claim_allowed") is True,
         },
         "hard_blockers": hard_blockers,
         "required_owner_inputs": required_owner_inputs,
@@ -7452,7 +7638,6 @@ def go_live_readiness_state() -> dict[str, object]:
         "external_audit_required": True,
         "external_audit_summary_path": str(external_gate_summary_path()),
         "external_audit_verifier": "scripts/verify-external-gates.ps1",
-        "external_audit_expected_missing_or_failed_gates": list(audit_missing_gates),
         "owner_activation": {
             "script": "scripts/owner-cloud-gate-activation.ps1",
             "runbook": "docs/runbooks/cloud-gate-owner-activation-2026-06-09.md",
@@ -7544,6 +7729,10 @@ def go_live_readiness_contract_payload() -> dict[str, object]:
             "external_audit_summary_status",
             "external_audit_missing_or_failed_gates",
             "external_audit_expected_missing_or_failed_gates",
+            "external_audit_expected_status",
+            "external_audit_expected_production_deploy_claim_allowed",
+            "external_audit_summary_consistent",
+            "external_audit_summary_consistency_errors",
             "external_audit_claims",
             "hard_blockers",
             "required_owner_inputs",

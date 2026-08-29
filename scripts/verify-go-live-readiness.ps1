@@ -41,6 +41,13 @@ function Assert-NoSecretPattern($label, $value) {
   }
 }
 
+function Read-StrictBooleanProperty($label, $value, [string]$propertyName) {
+  $property = $value.PSObject.Properties[$propertyName]
+  Assert-True "$label property '$propertyName' exists" ($null -ne $property)
+  Assert-True "$label property '$propertyName' is boolean" ($property.Value -is [System.Boolean])
+  return [bool]$property.Value
+}
+
 function Invoke-Json($url) {
   try {
     return Invoke-RestMethod -Uri $url -Method GET -TimeoutSec 30
@@ -64,18 +71,44 @@ $summary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Ra
 Assert-True "summary contract v2" ([string]$summary.contract_version -eq "external-gate-summary-v2")
 Assert-True "summary source contract v2" ([string]$summary.source_contract_version -eq "external-gate-audit-v2")
 Assert-True "summary active Cloudflare target" ([string]$summary.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime")
+$canonicalExternalAuditClaimGates = [ordered]@{
+  hosted_staging_claim_allowed = "hosted_agent_api_contracts"
+  branch_protection_claim_allowed = "github_branch_protection_current_verify"
+  ghcr_image_digest_claim_allowed = "ghcr_image_digest_verify"
+  vercel_backend_origins_claim_allowed = "vercel_backend_origin_health"
+  canonical_gitleaks_claim_allowed = "canonical_gitleaks_scan"
+  cloudflare_native_zero_card_hosted_runtime_claim_allowed = "cloudflare_native_zero_card_hosted_runtime"
+}
+$canonicalExternalAuditGateIds = @($canonicalExternalAuditClaimGates.Values | ForEach-Object { [string]$_ })
+Assert-True "summary canonical gate IDs exact order and case" ((@($summary.gate_ids | ForEach-Object { [string]$_ }) -join "|") -ceq ($canonicalExternalAuditGateIds -join "|"))
+$externalAuditClaimValues = [ordered]@{}
+foreach ($claimField in $canonicalExternalAuditClaimGates.Keys) {
+  $externalAuditClaimValues[$claimField] = Read-StrictBooleanProperty "summary" $summary $claimField
+}
+$expectedExternalAuditMissingGates = @(
+  $canonicalExternalAuditClaimGates.GetEnumerator() |
+    Where-Object { -not $externalAuditClaimValues[$_.Key] } |
+    ForEach-Object { [string]$_.Value }
+)
+$canonicalMissingGates = @($summary.missing_or_failed_gates | ForEach-Object { [string]$_ })
+Assert-True "summary missing gates exact derived order, case, membership, and cardinality" (($canonicalMissingGates -join "|") -ceq ($expectedExternalAuditMissingGates -join "|"))
+$expectedExternalAuditStatus = if ($expectedExternalAuditMissingGates.Count -eq 0) { "verified" } else { "blocked" }
+Assert-True "summary status follows independently derived claims" ([string]$summary.status -ceq $expectedExternalAuditStatus)
+$summaryProductionClaim = Read-StrictBooleanProperty "summary" $summary "production_deploy_claim_allowed"
+$expectedExternalAuditProductionClaim = $expectedExternalAuditMissingGates.Count -eq 0
+Assert-True "summary production claim follows all six canonical claims" ($summaryProductionClaim -eq $expectedExternalAuditProductionClaim)
 $expectedRuntimeGateClaims = [ordered]@{
-  ghcr_images = [bool]$summary.ghcr_image_digest_claim_allowed
-  cloudflare_native_zero_card_hosted_runtime = [bool]$summary.cloudflare_native_zero_card_hosted_runtime_claim_allowed
-  hosted_backend_origins = [bool]$summary.vercel_backend_origins_claim_allowed
-  hosted_staging = [bool]$summary.hosted_staging_claim_allowed
-  branch_protection = [bool]$summary.branch_protection_claim_allowed
-  canonical_secret_scan = [bool]$summary.canonical_gitleaks_claim_allowed
+  ghcr_images = $externalAuditClaimValues.ghcr_image_digest_claim_allowed
+  cloudflare_native_zero_card_hosted_runtime = $externalAuditClaimValues.cloudflare_native_zero_card_hosted_runtime_claim_allowed
+  hosted_backend_origins = $externalAuditClaimValues.vercel_backend_origins_claim_allowed
+  hosted_staging = $externalAuditClaimValues.hosted_staging_claim_allowed
+  branch_protection = $externalAuditClaimValues.branch_protection_claim_allowed
+  canonical_secret_scan = $externalAuditClaimValues.canonical_gitleaks_claim_allowed
 }
 $expectedRuntimeBlockedGates = @($expectedRuntimeGateClaims.GetEnumerator() | Where-Object { -not $_.Value } | ForEach-Object { [string]$_.Key })
-$summaryVerified = [string]$summary.status -eq "verified" -and @($summary.missing_or_failed_gates).Count -eq 0
+$summaryVerified = $expectedExternalAuditStatus -eq "verified" -and $expectedExternalAuditMissingGates.Count -eq 0
 $expectedRuntimeGateStatus = if ($summaryVerified -and $expectedRuntimeBlockedGates.Count -eq 0) { "verified" } else { "action_required" }
-$expectedRuntimePreflightStatus = if ($expectedRuntimeBlockedGates.Count -gt 0) { "action_required" } elseif ($summaryVerified -and [bool]$summary.production_deploy_claim_allowed) { "verified" } else { "ready_for_external_execution" }
+$expectedRuntimePreflightStatus = if ($expectedRuntimeBlockedGates.Count -gt 0) { "action_required" } elseif ($summaryVerified -and $summaryProductionClaim) { "verified" } else { "ready_for_external_execution" }
 
 Write-Host "[go-live-readiness] runtime contract"
 $readiness = Invoke-Json "$BaseUrl/api/v1/clouds/go-live-readiness"
@@ -126,12 +159,26 @@ Assert-True "external audit summary contract" ($readiness.external_audit_summary
 Assert-True "external audit source contract" ($readiness.external_audit_summary.source_contract_version -eq "external-gate-audit-v2")
 Assert-True "runtime active Cloudflare target" ($readiness.external_audit_summary.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime")
 Assert-True "external audit summary status supported" (@("blocked", "verified") -contains [string]$readiness.external_audit_summary_status)
-Assert-True "external audit production claim parity" ($readiness.external_audit_claims.production_deploy_claim_allowed -eq [bool]$readiness.external_audit_summary.production_deploy_claim_allowed)
-$canonicalMissingGates = @($summary.missing_or_failed_gates | ForEach-Object { [string]$_ })
+foreach ($claimField in $canonicalExternalAuditClaimGates.Keys) {
+  $runtimeClaim = Read-StrictBooleanProperty "runtime external audit claims" $readiness.external_audit_claims $claimField
+  Assert-True "runtime external audit claim '$claimField' parity" ($runtimeClaim -eq $externalAuditClaimValues[$claimField])
+}
+$runtimeProductionClaim = Read-StrictBooleanProperty "runtime external audit claims" $readiness.external_audit_claims "production_deploy_claim_allowed"
+Assert-True "external audit production claim parity" ($runtimeProductionClaim -eq $summaryProductionClaim)
 $runtimeMissingGates = @($readiness.external_audit_missing_or_failed_gates | ForEach-Object { [string]$_ })
 $runtimeExpectedMissingGates = @($readiness.external_audit_expected_missing_or_failed_gates | ForEach-Object { [string]$_ })
-Assert-True "runtime external audit missing-set exact parity" (($runtimeMissingGates -join "|") -eq ($canonicalMissingGates -join "|"))
-Assert-True "runtime expected external audit missing-set exact parity" (($runtimeExpectedMissingGates -join "|") -eq ($canonicalMissingGates -join "|"))
+Assert-True "runtime external audit missing-set exact parity" (($runtimeMissingGates -join "|") -ceq ($canonicalMissingGates -join "|"))
+Assert-True "runtime independently derived missing-set exact parity" (($runtimeExpectedMissingGates -join "|") -ceq ($expectedExternalAuditMissingGates -join "|"))
+$runtimeSummaryConsistent = Read-StrictBooleanProperty "runtime readiness" $readiness "external_audit_summary_consistent"
+Assert-True "runtime external audit summary consistency" $runtimeSummaryConsistent
+Assert-True "runtime external audit consistency errors empty" (@($readiness.external_audit_summary_consistency_errors).Count -eq 0)
+Assert-True "runtime expected external audit status" ([string]$readiness.external_audit_expected_status -ceq $expectedExternalAuditStatus)
+$runtimeExpectedProductionClaim = Read-StrictBooleanProperty "runtime readiness" $readiness "external_audit_expected_production_deploy_claim_allowed"
+Assert-True "runtime expected production claim" ($runtimeExpectedProductionClaim -eq $expectedExternalAuditProductionClaim)
+$runtimeProvenanceValid = Read-StrictBooleanProperty "runtime sanitized summary" $readiness.external_audit_summary "provenance_valid"
+Assert-True "runtime sanitized summary provenance valid" $runtimeProvenanceValid
+Assert-True "runtime sanitized summary provenance errors empty" (@($readiness.external_audit_summary.provenance_validation_errors).Count -eq 0)
+Assert-True "runtime canonical gate IDs exact parity" ((@($readiness.external_audit_summary.gate_ids | ForEach-Object { [string]$_ }) -join "|") -ceq ($canonicalExternalAuditGateIds -join "|"))
 if ($readiness.external_audit_claims.hosted_staging_claim_allowed -eq $true) {
   Assert-NotContains "runtime hosted Agent API gate closed" $readiness.external_audit_missing_or_failed_gates "hosted_agent_api_contracts"
 } else {

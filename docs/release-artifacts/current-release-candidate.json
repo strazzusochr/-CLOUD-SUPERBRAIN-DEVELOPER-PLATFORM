@@ -1,5 +1,6 @@
 {
   "active_release_id": "prod-candidate-2026-08-29-local-rc22",
+  "source_commit_sha": "28727b198b057a6bdef6b5f34e9aa946fb2757a0",
   "updated_at": "2026-08-29T11:03:10Z",
   "updated_by": "rc22-local-qualification",
   "reason": "RC22 is locally qualified at frozen source 28727b198b057a6bdef6b5f34e9aa946fb2757a0. All five independent source-bound chains passed: six committed-archive service images, 10/10 healthy runtime services, full real-Chromium browser proof with 22/22 routes and 161/161 action members, candidate-runtime identity with real selection and click, and candidate-archive npm-audit/gitleaks security. GitHub Actions run 33248839880 passed and attested the exact source checkout through control a7ea8ea27c640f5430977b86b115bbea9ad8464e. RC21 source c1b022a884eb16939fe0542b2eb9056b60706b20 is the immutable local rollback target. DEV-ONLY; hosted proof still blocked. Hosted candidate parity, production OAuth, GHCR publication, Owner approval, release promotion, and production rollout remain blocked.",
