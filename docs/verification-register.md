@@ -7,7 +7,43 @@ Status: Active
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
 
-## Current Post-RC21 Session16 Audit
+## Current RC22 Local Qualification Evidence
+
+Recorded 2026-08-29. Active candidate `prod-candidate-2026-08-29-local-rc22` is bound
+to frozen source `28727b198b057a6bdef6b5f34e9aa946fb2757a0` through source-attestation
+control `a7ea8ea27c640f5430977b86b115bbea9ad8464e`. GitHub Actions `pr-check` run
+`33248839880` completed successfully with every observed job step green. The checked-out
+SHA equals the candidate source; the attested control delta is exactly
+`scripts/verify-main-deploy-transition.ps1`. Artifact `9713732244`, GitHub digest
+`sha256:4a75dba1196ad502485fd2ead35decb88fca68cdb88cec6c0161c842670da74d`,
+attestation SHA `E0F2E88944B36ECF500CC34604D54BADE7A43D62F6C158116A0D0EB47BEFF3F6`,
+and GitHub-readback SHA `C9A085503B84362956B3DBA022EE06047A367A954279331EFC518BC4BFFBD3A4`
+are preserved in the exact 27-file evidence set.
+
+The five independent chains passed: six committed-archive candidate images; full runtime
+with `10/10 healthy`; full real-Chromium browser proof; candidate-runtime source/image
+identity with real selection and click; and candidate-archive npm-audit/gitleaks security.
+Browser evidence contains `22/22` routes, `29/29` action families, `161/161` action members,
+real Cloudflare Workers AI generation, click and keyboard effects, and the Phase-6
+camera/game/assets/save/accessibility/netcode/scoreboard-performance proofs with zero
+unexpected network calls, mocks, interceptions, console errors, page errors, or secret
+output. All local evidence is `DEV-ONLY; hosted proof still blocked`.
+
+Readiness is `verified_with_owner_blocks`: `17/19 = 89%`, with only I1
+`hosted_candidate_parity` and I5 `production_auth_identity` blocked. RC21 source
+`c1b022a884eb16939fe0542b2eb9056b60706b20` is the local rollback target. Review remains
+pending, Owner decision remains `no-release`, and production rollout remains false. No
+GHCR publication, default-branch write, hosted deploy, production-auth promotion, release
+promotion, payment, or secret output is claimed.
+
+The post-selection checks passed Phase-5 credit (`17/19`, I1/I5), current-candidate
+technical/source parity (`promotion_eligible=false`, canonical `blocked`) and the progress
+manifest (`overall=89`, `deltas=0`, `mirrors=2`). The full `npm run verify` sweep reached
+the external runtime gate and stopped at `current Cloudflare-native hosted Worker source
+parity`. This is the expected unclosed I1/hosted boundary, not a local-chain failure; the
+full sweep is not claimed green and no hosted proof is inferred from HTTP 200.
+
+## Historical Post-RC21 Session16 Audit
 
 Recorded 2026-08-29. Fresh local verification is green for build (`21/21`), runtime,
 DEV-LIVE (`10/10 healthy`) and the serial browser umbrella. Product acceptance report
@@ -46,7 +82,7 @@ Known next-candidate runtime-contract drift: `services/agent-api/app/main.py:745
 `vercel_backend_origin_health`. This is recorded for a Red-first mirrored runtime fix and a
 new candidate; no immutable RC21 artifact was edited.
 
-## Current RC21 And Follow-up Verification
+## Historical RC21 And Follow-up Verification
 
 Recorded 2026-08-29. The active candidate
 `prod-candidate-2026-08-28-local-rc21` is bound to source

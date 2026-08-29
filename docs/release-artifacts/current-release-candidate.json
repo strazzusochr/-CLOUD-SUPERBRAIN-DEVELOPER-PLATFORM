@@ -1,7 +1,7 @@
 {
-  "active_release_id": "prod-candidate-2026-08-28-local-rc21",
-  "updated_at": "2026-08-28T22:51:43Z",
-  "updated_by": "rc21-local-qualification",
-  "reason": "RC21 is qualified at frozen source c1b022a884eb16939fe0542b2eb9056b60706b20. All five local chains passed: six committed-archive service images, full runtime, full real-Chromium browser with 22/22 routes and 161/161 action members, candidate-runtime identity with a real selection and click, and candidate-archive npm-audit/gitleaks security. GitHub Actions run 33217980790 attested the exact source checkout with a single-path control delta. RC21 wires the five-axis substance audit into the static gate chain, refreshes PROJECT_STATE truth before the freeze, and stops the marketplace painting a retired provider as verified. RC20 source c29c738b82e4e35cc1288bc603319cba60d167d2 is the exact rollback target. DEV-ONLY; hosted proof still blocked. Hosted candidate parity, production OAuth, Phase-6 scale authorization, GHCR publication, Owner approval, release promotion, and production rollout remain blocked.",
+  "active_release_id": "prod-candidate-2026-08-29-local-rc22",
+  "updated_at": "2026-08-29T11:03:10Z",
+  "updated_by": "rc22-local-qualification",
+  "reason": "RC22 is locally qualified at frozen source 28727b198b057a6bdef6b5f34e9aa946fb2757a0. All five independent source-bound chains passed: six committed-archive service images, 10/10 healthy runtime services, full real-Chromium browser proof with 22/22 routes and 161/161 action members, candidate-runtime identity with real selection and click, and candidate-archive npm-audit/gitleaks security. GitHub Actions run 33248839880 passed and attested the exact source checkout through control a7ea8ea27c640f5430977b86b115bbea9ad8464e. RC21 source c1b022a884eb16939fe0542b2eb9056b60706b20 is the immutable local rollback target. DEV-ONLY; hosted proof still blocked. Hosted candidate parity, production OAuth, GHCR publication, Owner approval, release promotion, and production rollout remain blocked.",
   "production_rollout_claimed": false
 }

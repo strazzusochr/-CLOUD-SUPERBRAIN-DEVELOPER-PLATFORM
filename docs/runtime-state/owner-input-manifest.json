@@ -179,7 +179,7 @@
                                                                         "live_verified must never be hand-set."
                                                                     ]
                                                  },
-                        "resolved_at_utc":  "2026-08-26T20:02:05.2863027Z",
+                        "resolved_at_utc":  "2026-08-29T08:48:33.8081992Z",
                         "evidence_refs":  [
                                               "docs/runtime-state/capability-gates.json#live_agent_tool_writes",
                                               "docs/runtime-state/capability-gates.json#live_mcp_writes",

@@ -1,0 +1,31 @@
+PHASE5_EVIDENCE_RAW_V2
+[phase5-evidence] chain=candidate-runtime
+[phase5-evidence] release_id=prod-candidate-2026-08-29-local-rc22
+[phase5-evidence] source_commit_sha=28727b198b057a6bdef6b5f34e9aa946fb2757a0
+[phase5-evidence] evidence_run_id=123c467a-3cc5-4e60-9506-8117c3ff6cb1
+[phase5-evidence] command=pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase5-production-candidate-local.ps1 -BaseUrl http://localhost:8081 -ArtifactDir .codex\runs\CURRENT\master-goal\phase5\production-candidate-local -AllowLocalhost -EvidenceRunId 123c467a-3cc5-4e60-9506-8117c3ff6cb1
+
+> cloud-superbrain-frontend@1.0.0 test:e2e
+> playwright test --project=chromium e2e/phase5-production-candidate.spec.ts
+
+(node:27944) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:28488) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28488) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:28488) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 [chromium] › e2e\phase5-production-candidate.spec.ts:8:1 › diagnostics loads the Phase 5 production candidate through a real selection and click (3.4s)
+
+  1 passed (4.6s)
+[phase5-candidate-local] api_contract_verified=true
+[phase5-candidate-local] local_image_identity_verified=true
+[phase5-candidate-local] embedded_source_hash_parity_verified=true
+[phase5-candidate-local] candidate_runtime_source_parity_verified=true
+[phase5-candidate-local] browser_click_verified=true
+[phase5-candidate-local] playwright_passed=1
+[phase5-candidate-local] status=verified service_count=6
+[phase5-evidence] exit_code=0

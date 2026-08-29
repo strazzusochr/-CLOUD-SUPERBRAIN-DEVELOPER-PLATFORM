@@ -6,11 +6,11 @@ Market Status: `MARKET_READY:false`
 
 Diese Datei ist die kurze Steuerung. Details:
 
-- aktuelle Uebergabe: `CODEX_UEBERGABE_2026-08-29-SESSION16.md`
+- aktuelle Uebergabe: `AI_HANDOFF.md#current-rc22-handoff--2026-08-29`
 - Weg zu 100: `CODEX_100_PROZENT_ZIEL_2026-08-29.md`
 - OAuth: `docs/runbooks/PRODUCTION_OAUTH_FIXPLAN_2026-08-29.md`
 - Optikregeln: `REGELN_OPTIK_UND_FERTIG.md`
-- RC21-Arbeitsauftrag/Historie: `AGENT_AUFTRAG_RC21_UND_RESTLISTE.md`
+- RC21-Arbeitsauftrag/Historie: `AGENT_AUFTRAG_RC21_UND_RESTLISTE.md` (`HISTORICAL`)
 
 ## 1. Endziel
 
@@ -27,17 +27,15 @@ Promotion bleiben danach separate Owner-Entscheidungen.
 
 | Feld | Stand |
 |---|---|
-| lokaler HEAD vor diesem Dokumentensatz | `740bafe92314b36f047a07443567df403ea5a45d` |
-| Remote vor diesem Dokumentensatz | `e98f68a6e5ce8544f8504f38a57c0e17672fe253` |
-| aktiver Kandidat | `prod-candidate-2026-08-28-local-rc21` |
-| Candidate Source | `c1b022a884eb16939fe0542b2eb9056b60706b20` |
-| Candidate Control | `9f2ee3838492079bd5c65b53a03cd4b29c9a6c49` |
-| Qualifikations-CI | `33217980790` |
-| Follow-up-CI | `33223542872` auf `e98f68a6`, `25/25`, `0 skipped` |
+| eingefrorene Candidate Source | `28727b198b057a6bdef6b5f34e9aa946fb2757a0` |
+| source-attestation Control | `a7ea8ea27c640f5430977b86b115bbea9ad8464e` |
+| aktiver Kandidat | `prod-candidate-2026-08-29-local-rc22` |
+| Qualifikations-CI | `33248839880`, success, alle beobachteten Job-Schritte gruen |
+| Evidence | exakt `27` immutable Dateien; 5 lokale Ketten + CI-Attestation/Readback |
 | Readiness | `17/19 = 89%`; offen I1 und I5 |
-| Rollback | RC20 Source `c29c738b82e4e35cc1288bc603319cba60d167d2` |
+| Rollback | RC21 Source `c1b022a884eb16939fe0542b2eb9056b60706b20` |
 
-RC21 bleibt immutable. Neue Runtime-Source-Aenderungen benoetigen einen neuen Kandidaten.
+RC22 bleibt immutable. Neue Runtime-Source-Aenderungen benoetigen einen neuen Kandidaten.
 
 ## 3. Fortschritt
 
@@ -54,57 +52,53 @@ L1 100 | L2 100 | L3 100 | L4 55 | L5 56 | L6 100 | L7 100
 Keine Prozentanhebung durch Doku, Konsolenwerte oder lokale Wiederholungen bereits
 kreditierter Beweise.
 
-## 4. Seit RC21 erledigt
+## 4. Seit RC21 erledigt / in RC22 gebunden
 
-- RC21 Source-Paritaet wiederhergestellt.
-- Runtime-Verifier auf active-provider-only-Wahrheit korrigiert.
-- Fuenf-Achsen-Audit und Regression in der statischen Gate-Kette.
-- GitHub-Actions-`api_error` als stale Container-Environment gemessen und durch scoped
-  Agent-API-Recreate behoben; kein Token rotiert oder ausgegeben.
-- Phase-5-CI so geroutet, dass kein mutually-exclusive Schritt mehr skipped wird.
-- Follow-up-CI `33223542872`: ein Job, `25/25` success, `0 skipped`.
-- L4/L5-Rubrik als Owner-Draft erstellt; beide Tabellen summieren 100, aber kein Credit.
-- GitHub-Environments/Reviewer, OAuth App, Worker-Secret-Namen und Vercel-Callback-
-  Konfiguration vorbereitet.
-- lokaler Build `21/21` gruen.
-- kompletter Runtime-Umbrella gruen.
-- DEV-LIVE `10/10 healthy`.
-- kompletter lokaler Browser-Umbrella gruen:
-  - responsive `22x2 = 44`, ohne Overflow/Overlay/Console-Fehler,
-  - echter Cloudflare-Workers-AI-Build,
-  - `22/22` Routen,
-  - `29/29` Familien,
-  - `161/161` Aktionen,
-  - O4 Audit/Readback/Rollback.
+- External-Gate-Claim-Set aus den exakten Claim-Flags abgeleitet; keine Duplikat- oder
+  Case-Maskierung.
+- I5-Transition fail-closed: Production-Auth-Credit nur nach dediziertem, getracktem,
+  gehashtem, source-gebundenem Read-only-Verifier; Gate-Booleans allein reichen nicht.
+- Phase-6-Netcode-Browserbeweis auf gemessenen SwiftShader-/Trace-Overhead stabilisiert;
+  Produktzustandsmaschine unveraendert.
+- lokaler Build `21/21`, Runtime `10/10 healthy`, sechs Clean-Archive-Images und
+  candidate-runtime real selection/click gruen.
+- kompletter lokaler Browser-Umbrella gruen: echter Cloudflare-Workers-AI-Build,
+  `22/22` Routen, `29/29` Familien, `161/161` Aktionen, Phase-6-Ketten und O4
+  Audit/Readback/Rollback; keine Mocks, Interceptions, Console-/Page-Fehler.
+- candidate-scoped npm audit und canonical gitleaks gruen.
+- GitHub Actions `33248839880`: exact source checkout, single-path Control-Delta,
+  alle beobachteten Job-Schritte gruen.
+- exakt 27 Evidence-Dateien mit reproduzierten SHA-256-Werten gebunden.
 
 `161/161` bedeutet sichtbare UI-Effektabdeckung, nicht 161 Backend- oder Layeraufrufe.
 Responsive-Report-SHA: `723D2DEF1E3B98C25885E2F6242342EB02D2238CAC46D510A5F7E103AEED8E5B`.
-Fresh Product-/Aktionsreports sind DEV-/Worktree-Proofs, nicht neue source-gebundene
-Kandidatenevidenz; ihre `source_commit_sha`-Felder sind leer.
-Alle neuen Browser-/Runtimebeweise: `DEV-ONLY; hosted proof still blocked`.
+Der generierte Working-Report unter `.codex/runs/CURRENT/product-acceptance/report.json`
+bleibt ausserhalb des Selection-Commits; die kanonische RC22-Browser-Summary ist dagegen
+source-gebunden und Teil des 27-Dateien-Sets. Alle lokalen Browser-/Runtimebeweise:
+`DEV-ONLY; hosted proof still blocked`.
 
-## 5. Letzter Verifier
+## 5. Letzter bindender Verifier
 
-Letzter realer `npm run verify`-Exit:
+RC22-Qualifikation:
 
 ```text
-FAIL: current Cloudflare-native hosted Worker source parity
+PASS: five local chains on source 28727b198b057a6bdef6b5f34e9aa946fb2757a0
+PASS: GitHub Actions 33248839880 via control a7ea8ea27c640f5430977b86b115bbea9ad8464e
+PASS: exact 27-file evidence set
 ```
 
-Gemessene Ursache:
+Post-selection real gemessen:
 
-- Hosted Worker Source: `d0674bfc1367b04d95ca2bf745e89fabf12046ad`
-- aktueller Worker-Tree enthaelt danach die Runnability-Fixes `0cf451d0` und `bbc2ad48`
-- geaendert sind `services/cloudflare-stateful-runtime/src/index.js` und
-  `services/cloudflare-stateful-runtime/test/index.test.js`
-- Hosted Fortschritt `84`, Repo Fortschritt `89`
+```text
+PASS verify:phase5-credit -> 17/19, blocked I1/I5
+PASS verify:current-release-candidate -> technical/source parity true, promotion false
+PASS verify_project_progress_manifest.py -> overall 89, deltas 0, mirrors 2
+FAIL npm run verify -> current Cloudflare-native hosted Worker source parity
+```
 
-Das Gate bleibt rot, bis ein Owner-freigegebener aktueller Hosted-Deploy plus erneuerte
-source-gebundene Evidence existiert. Verifier nicht abschwaechen.
-
-Uncommittet in `scripts/verify-phase1.ps1`: ein Claim-Flag-basierter External-Gate-Set-Fix.
-Er bestand im Full-Verifier und liess den Lauf bis zur echten Worker-Paritaet weiterlaufen,
-bleibt aber bis zur vereinbarten Akzeptanzbedingung uncommittet.
+Der Full-Sweep-Stop ist der erwartete ungeschlossene Hosted-I1-Ownerblock und kein Fehler
+der fuenf source-gebundenen lokalen RC22-Ketten. Hosted I1 und Production Auth I5 bleiben
+rot. Kein Full-Sweep-Gruen wird behauptet; Verifier nicht abschwaechen.
 
 ## 6. Hosted-Wahrheit
 
@@ -129,10 +123,8 @@ GitHub Actions und GitLab sind verifiziert. Nur GHCR bleibt `api_error`, wodurch
 `ghcr_registry_live_read_not_verified` partial bleibt. `PROMPT_ANTIGRAVITY_CLOUD.md` ist
 historisch und nicht mehr auszufuehren.
 
-Bekannter Next-Candidate-Defekt: `services/agent-api/app/main.py:7455` und
-`apps/frontend/lib/endpoint-snapshot.json` erwarten noch den bereits geschlossenen
-Cloudflare-Gate-Namen. Real fehlen `hosted_agent_api_contracts`,
-`ghcr_image_digest_verify` und `vercel_backend_origin_health`.
+Die fruehere Missing-Gate-Claim-Drift wurde in RC22 Red-first repariert. Hosted Readbacks
+sind weiterhin kein RC22-Paritaetsbeweis und koennen I1 nicht schliessen.
 
 ## 7. Offen bis 100
 
@@ -200,12 +192,13 @@ Ein allgemeines `ja` oder ein Browser-Login ist keine dieser spezifischen Freiga
 
 Autonom:
 
-1. aktuellen Dokumentensatz pruefen und nur die eigenen Dokumentpfade committen;
+1. RC22-Truth-Bundle explizit stagen; generierten ungebundenen Working-Report ausschliessen;
 2. `npm run verify:phase5-credit`;
 3. `npm run verify:current-release-candidate`;
-4. `py -3 scripts/verify_project_progress_manifest.py`;
-5. Feature-Branch pushen;
-6. CI auf finalem Head: success und `skipped=0` pruefen.
+4. `py -3 scripts/verify_project_progress_manifest.py` und relevante statische Gates;
+5. Selection-Commit und nur den Feature-Branch pushen;
+6. danach A1 Delta-Ledger Red-first, A2 P3-Rubrik, A3 P6-Rubrik, A4 `/team/status`,
+   A5 Vercel-Origin-Entscheidung und A6 Next-Candidate-Missing-Gates in dieser Reihenfolge.
 
 Nach Owner-Freigaben:
 
@@ -236,21 +229,18 @@ apps/frontend/lib/platform.ts
 docs/project-progress.manifest.json
 ```
 
-## 11. Fremde Dirty-Pfade bewahren
+## 11. Dirty-/Evidence-Schutz
 
 ```text
 .codex/runs/CURRENT/product-acceptance/report.json
-.phase1-artifacts/o4-live-writes/proof.json
-.phase1-artifacts/o4-live-writes/runtime-proof.json
-.phase1-artifacts/o4-live-writes/browser-proof.json
-docs/runtime-state/capability-gates.json
-docs/runtime-state/external-gate-audit-v2.json
-docs/runtime-state/external-gate-summary.json
-docs/runtime-state/owner-input-manifest.json
-docs/release-artifacts/prod-candidate-2026-08-02-local-rc12.md  (fremd gestaged)
+.codex/runs/CURRENT/master-goal/phase5/**
+apps/frontend/test-results/**
+apps/frontend/playwright-report/**
 ```
 
-Eigener uncommitteter Codepfad: `scripts/verify-phase1.ps1`.
+Die drei O4-Proofs, `capability-gates.json`, `owner-input-manifest.json`, die RC22-Note,
+Readiness, das 27-Dateien-Set und die synchronisierten Truth-Dokumente gehoeren zum
+expliziten RC22-Selection-Slice. Keine anderen Pfade stagen.
 
 ## 12. Non-Claims
 

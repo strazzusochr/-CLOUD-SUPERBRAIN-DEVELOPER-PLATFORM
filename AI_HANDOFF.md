@@ -6,7 +6,46 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-## Current Session16 Audit Handoff — 2026-08-29
+## Current RC22 Handoff — 2026-08-29
+
+Active locally qualified candidate: `prod-candidate-2026-08-29-local-rc22`, frozen source
+`28727b198b057a6bdef6b5f34e9aa946fb2757a0`, source-attestation control
+`a7ea8ea27c640f5430977b86b115bbea9ad8464e`, GitHub Actions run `33248839880`.
+The run completed successfully with every observed job step green, checked out the exact
+candidate source, and attested the single control delta
+`scripts/verify-main-deploy-transition.ps1`. The canonical evidence directory contains
+exactly 27 immutable files: the five independent local chains, their raw evidence, the CI
+checkout attestation, and the GitHub metadata readback.
+
+All five RC22 chains passed on the frozen source: six committed-archive images; runtime with
+`10/10 healthy`; full real-Chromium browser proof; candidate-runtime source/image identity
+with a real selection and click; and candidate-scoped npm-audit plus canonical gitleaks.
+Browser proof covers `22/22` routes, `29/29` action families and `161/161` action members,
+real Cloudflare Workers AI generation, click and keyboard input, and the Phase-6
+camera/game/assets/save/accessibility/netcode/scoreboard-performance paths. There were no
+unexpected network requests, mocks, route interception, console errors, page errors, or
+secret output. `DEV-ONLY; hosted proof still blocked`.
+
+Phase-5 readiness remains `17/19 = 89%`. I1 `hosted_candidate_parity` and I5
+`production_auth_identity` are the only zero-credit Owner blocks. RC21 source
+`c1b022a884eb16939fe0542b2eb9056b60706b20` is the exact immutable local rollback target.
+Review stays pending and Owner decision stays `no-release`; no GHCR publication,
+default-branch write, hosted deploy, production OAuth promotion, release promotion,
+production rollout, payment, or secret output is authorized or claimed.
+
+Post-selection verification passed `verify:phase5-credit`,
+`verify:current-release-candidate` and the project-progress manifest verifier. The full
+`npm run verify` sweep then stopped at the expected external Owner boundary
+`current Cloudflare-native hosted Worker source parity`; it does not invalidate the five
+source-bound local RC22 chains and it does not close I1. No hosted evidence was relabeled.
+
+After the RC22 selection verifiers and feature-branch push, continue the active master goal
+with the delta-ledger transition probe, then the P3 and P6 evidence-derived rubrics, the
+team/status runtime defect, the Vercel-origin decision packet, and the next-candidate
+missing-gate contract repair. Do not change percentages without code, runtime proof,
+verifier acceptance, and synchronized truth documents.
+
+## Historical Session16 Audit Handoff — 2026-08-29
 
 The current operator packet is:
 
@@ -39,7 +78,7 @@ while the real missing set is `hosted_agent_api_contracts`, `ghcr_image_digest_v
 `vercel_backend_origin_health`. Do not patch this as an isolated truth edit; repair it
 Red-first with its snapshot/verifier mirrors and requalify a new candidate.
 
-## Current RC21 Handoff — 2026-08-29
+## Historical RC21 Handoff — 2026-08-29
 
 Active locally qualified candidate: `prod-candidate-2026-08-28-local-rc21`, frozen source
 `c1b022a884eb16939fe0542b2eb9056b60706b20`, control commit
