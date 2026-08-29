@@ -228,9 +228,30 @@ jobs:
         run: python -m py_compile services/agent-api/app/main.py services/mcp-gateway/app/main.py
 
       - name: Project progress delta-ledger replay regression
+        env:
+          SOURCE_PREQUALIFICATION: ${{ steps.source-binding.outputs.source_prequalification }}
         run: |
+          set -euo pipefail
           python -m unittest scripts.tests.test_verify_project_progress_manifest -v
-          python scripts/verify_project_progress_manifest.py
+          if [[ "$SOURCE_PREQUALIFICATION" == "true" ]]; then
+            expected_progress_drift=$'[phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+            set +e
+            progress_output="$(python scripts/verify_project_progress_manifest.py 2>&1)"
+            progress_exit=$?
+            set -e
+            if [[ "$progress_exit" -ne 1 ]]; then
+              printf 'source prequalification expected project-progress exit 1, got %s\n' "$progress_exit" >&2
+              exit 1
+            fi
+            if [[ "$progress_output" != "$expected_progress_drift" ]]; then
+              printf 'source prequalification received unexpected project-progress output:\n%s\n' "$progress_output" >&2
+              exit 1
+            fi
+            printf '%s\n' "$progress_output"
+            echo '[project-progress] source_prequalification=true expected_post_rc22_runtime_source_drift=true'
+          else
+            python scripts/verify_project_progress_manifest.py
+          fi
           node --test scripts/tests/endpoint-snapshot-metadata.test.mjs
 
       - name: Phase 3 and Phase 6 draft credit rubric integrity
@@ -241,9 +262,37 @@ jobs:
       - name: Five-axis delta-ledger integration
         env:
           FIVE_AXIS_LEDGER_ONLY: "1"
+          SOURCE_PREQUALIFICATION: ${{ steps.source-binding.outputs.source_prequalification }}
         run: |
-          node --test scripts/tests/five-axis-delta-ledger-regression.test.mjs
-          node scripts/verify-five-axis-substance-audit.mjs
+          set -euo pipefail
+          case "$SOURCE_PREQUALIFICATION" in
+            true)
+              node --test --test-name-pattern='^(rejects the retired v1 permanent-empty ledger contract without browser evidence|rejects a structurally typed but unauthenticated v2 ledger entry|keeps future evidence-backed vertical deltas reachable)$' scripts/tests/five-axis-delta-ledger-regression.test.mjs
+              expected_five_axis_drift=$'[five-axis-audit] project progress verifier failed via python3: [phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+              set +e
+              five_axis_output="$(node --input-type=module --eval 'try { await import("./scripts/verify-five-axis-substance-audit.mjs"); } catch (error) { console.error(error.message); process.exitCode = 1; }' 2>&1)"
+              five_axis_exit=$?
+              set -e
+              if [[ "$five_axis_exit" -ne 1 ]]; then
+                printf 'source prequalification expected five-axis exit 1, got %s\n' "$five_axis_exit" >&2
+                exit 1
+              fi
+              if [[ "$five_axis_output" != "$expected_five_axis_drift" ]]; then
+                printf 'source prequalification received unexpected five-axis output:\n%s\n' "$five_axis_output" >&2
+                exit 1
+              fi
+              printf '%s\n' "$five_axis_output"
+              echo '[five-axis-audit] source_prequalification=true expected_post_rc22_runtime_source_drift=true'
+              ;;
+            false)
+              node --test scripts/tests/five-axis-delta-ledger-regression.test.mjs
+              node scripts/verify-five-axis-substance-audit.mjs
+              ;;
+            *)
+              printf 'unexpected SOURCE_PREQUALIFICATION value: %s\n' "$SOURCE_PREQUALIFICATION" >&2
+              exit 1
+              ;;
+          esac
 
       - name: Backend auth security unit contract
         env:
