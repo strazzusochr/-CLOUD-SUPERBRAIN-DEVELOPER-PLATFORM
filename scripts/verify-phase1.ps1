@@ -99,6 +99,10 @@ py -3 -m py_compile `
   services\mcp-gateway\app\main.py
 Assert-LastExitCode "python syntax"
 
+Write-Host "[verify] external gate claim-map regression tests"
+py -3 -m unittest scripts.tests.test_verify_phase1_external_gate_claim_map
+Assert-LastExitCode "external gate claim-map regression tests"
+
 Write-Host "[verify] Grafana Cloud real-read regression tests"
 py -3 scripts\verify-grafana-cloud-live-read.py
 Assert-LastExitCode "Grafana Cloud real-read regression tests"
@@ -1224,7 +1228,7 @@ if ([string]$externalGateSummary.status -ne "blocked" -or [bool]$externalGateSum
 }
 $actualMissingExternalGates = @($externalGateSummary.missing_or_failed_gates | ForEach-Object { [string]$_ })
 # The canonical missing set must be the exact inverse of all six current claim flags. Keep this
-# relationship data-driven so both today's blocked state and a later fully verified state fail closed
+# relationship data-driven so both today's blocked state and later gate transitions fail closed
 # on omissions, unexpected entries, or duplicates without retaining historical fixed-count rules.
 if (-not [bool]$externalGateSummary.cloudflare_native_zero_card_hosted_runtime_claim_allowed) {
   throw "Canonical external gate summary must keep the O2Core claim allowed"
