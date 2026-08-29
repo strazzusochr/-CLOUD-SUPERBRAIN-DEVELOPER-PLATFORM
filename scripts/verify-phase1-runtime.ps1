@@ -720,7 +720,12 @@ Assert-Contains "llm providers backoff" $llmProviders '"rotation_backoff_seconds
 $llmProvidersJson = $llmProviders | ConvertFrom-Json
 $hfProvider = $llmProvidersJson.providers | Where-Object { $_.provider -eq "huggingface_inference_router" } | Select-Object -First 1
 if (-not $hfProvider) { throw "Runtime verification failed: LLM providers response missing Hugging Face router provider" }
-if ($hfProvider.status -notin @("live_verified", "missing_token")) { throw "Runtime verification failed: LLM provider status was unexpected: $($hfProvider.status)" }
+$expectedHfProviderStatuses = if ($llmHealthJson.mode -in @("cloudflare_workers_ai_live", "alibaba_model_studio_live")) {
+  @("not_active_provider")
+} else {
+  @("live_verified", "missing_token")
+}
+if ($hfProvider.status -notin $expectedHfProviderStatuses) { throw "Runtime verification failed: LLM provider status was unexpected: $($hfProvider.status)" }
 if ($hfProvider.open_source_first -ne $true) { throw "Runtime verification failed: LLM provider did not advertise open_source_first" }
 if ($hfProvider.model_downloads -ne $false) { throw "Runtime verification failed: LLM provider attempted model downloads" }
 $llmRouteBody = @{
@@ -736,11 +741,7 @@ if ($llmRoute.live_provider_calls -ne $false) { throw "Runtime verification fail
 if ($llmRoute.configured_only -ne $false) { throw "Runtime verification failed: LLM routing should be live-verifiable through HF router" }
 if (-not ($llmRoute.fallback_chain -contains "moonshotai/Kimi-K2.6:fastest")) { throw "Runtime verification failed: LLM routing fallback chain missing open-source emergency fallback" }
 if (-not ($llmRoute.provider_chain -contains "huggingface_inference_router")) { throw "Runtime verification failed: LLM routing provider chain missing HF router provider" }
-$expectedRouteProviderStatuses = if ($llmHealthJson.mode -eq "cloudflare_workers_ai_live") {
-  @("not_active_provider")
-} else {
-  @("live_verified", "missing_token")
-}
+$expectedRouteProviderStatuses = $expectedHfProviderStatuses
 if ($llmRoute.provider_health.status -notin $expectedRouteProviderStatuses) { throw "Runtime verification failed: LLM routing provider health status wrong" }
 $llmTraceId = "runtime-llm-dry-run-" + [Guid]::NewGuid().ToString("N")
 $llmChatBody = @{
