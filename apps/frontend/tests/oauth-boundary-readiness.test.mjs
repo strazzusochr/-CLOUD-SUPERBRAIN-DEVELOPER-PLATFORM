@@ -94,7 +94,7 @@ test("DEV-LIVE loads all five fail-closed OAuth configuration values", () => {
     "GITHUB_OAUTH_OWNER_IDS",
     "JWT_SIGNING_SECRET",
   ]);
-  assert.match(startDevLiveSource, /O1-Konfiguration vollstaendig \(5\/5, Werte nicht angezeigt\.\)/);
+  assert.match(startDevLiveSource, /O1-Konfiguration vollstaendig \(5\/5, Werte nicht angezeigt\)\./);
   assert.doesNotMatch(startDevLiveSource, /O1-Konfiguration vollstaendig \(4\/4/);
 });
 
