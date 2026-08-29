@@ -127,6 +127,11 @@ Assert-True "external audit source contract" ($readiness.external_audit_summary.
 Assert-True "runtime active Cloudflare target" ($readiness.external_audit_summary.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime")
 Assert-True "external audit summary status supported" (@("blocked", "verified") -contains [string]$readiness.external_audit_summary_status)
 Assert-True "external audit production claim parity" ($readiness.external_audit_claims.production_deploy_claim_allowed -eq [bool]$readiness.external_audit_summary.production_deploy_claim_allowed)
+$canonicalMissingGates = @($summary.missing_or_failed_gates | ForEach-Object { [string]$_ })
+$runtimeMissingGates = @($readiness.external_audit_missing_or_failed_gates | ForEach-Object { [string]$_ })
+$runtimeExpectedMissingGates = @($readiness.external_audit_expected_missing_or_failed_gates | ForEach-Object { [string]$_ })
+Assert-True "runtime external audit missing-set exact parity" (($runtimeMissingGates -join "|") -eq ($canonicalMissingGates -join "|"))
+Assert-True "runtime expected external audit missing-set exact parity" (($runtimeExpectedMissingGates -join "|") -eq ($canonicalMissingGates -join "|"))
 if ($readiness.external_audit_claims.hosted_staging_claim_allowed -eq $true) {
   Assert-NotContains "runtime hosted Agent API gate closed" $readiness.external_audit_missing_or_failed_gates "hosted_agent_api_contracts"
 } else {
@@ -154,6 +159,7 @@ Assert-True "contract version" ($contract.contract_version -eq "go-live-readines
 Assert-True "contract runtime endpoint" ($contract.runtime_endpoint -eq "GET /api/v1/clouds/go-live-readiness")
 Assert-Contains "contract guarded endpoint" $contract.guarded_endpoints "GET /api/v1/project/progress/completion"
 Assert-Contains "contract guarded endpoint" $contract.guarded_endpoints "GET /api/v1/external-gates"
+Assert-Contains "contract canonical missing-set alias" $contract.required_top_level_fields "external_audit_expected_missing_or_failed_gates"
 Assert-Contains "contract required verifier" $contract.required_verifiers "scripts/verify-external-gates.ps1"
 
 Write-Host "[go-live-readiness] canonical standard external gate audit"

@@ -13,6 +13,8 @@ const catchAllRouteSource = fs.readFileSync(new URL("../app/api/v1/[...slug]/rou
 const actionMatrixSource = fs.readFileSync(new URL("../lib/actionMatrix.ts", import.meta.url), "utf8");
 const authSessionRouteSource = fs.readFileSync(new URL("../app/api/v1/auth/session/route.ts", import.meta.url), "utf8");
 const realLoginSource = fs.readFileSync(new URL("../components/real-login.tsx", import.meta.url), "utf8");
+const startDevLiveSource = fs.readFileSync(new URL("../../../scripts/start-dev-live.ps1", import.meta.url), "utf8");
+const agentApiSource = fs.readFileSync(new URL("../../../services/agent-api/app/main.py", import.meta.url), "utf8");
 const apiRouteRoot = fileURLToPath(new URL("../app/api/", import.meta.url));
 const compiledBoundary = ts.transpileModule(boundarySource, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -81,6 +83,32 @@ function restoreEnvironment() {
 
 test.afterEach(restoreEnvironment);
 test.after(restoreEnvironment);
+
+test("DEV-LIVE loads all five fail-closed OAuth configuration values", () => {
+  const declaration = startDevLiveSource.match(/\$oauthKeys\s*=\s*@\(([^)]*)\)/s)?.[1] ?? "";
+  const keys = [...declaration.matchAll(/'([A-Z][A-Z0-9_]*)'/g)].map((match) => match[1]);
+  assert.deepEqual(keys, [
+    "GITHUB_OAUTH_CLIENT_ID",
+    "GITHUB_OAUTH_CLIENT_SECRET",
+    "GITHUB_OAUTH_REDIRECT_URI",
+    "GITHUB_OAUTH_OWNER_IDS",
+    "JWT_SIGNING_SECRET",
+  ]);
+  assert.match(startDevLiveSource, /O1-Konfiguration vollstaendig \(5\/5, Werte nicht angezeigt\.\)/);
+  assert.doesNotMatch(startDevLiveSource, /O1-Konfiguration vollstaendig \(4\/4/);
+});
+
+test("OAuth callback timing remains monotonic across the backend and frontend boundary", () => {
+  assert.match(agentApiSource, /httpx\.Client\(timeout=10\.0, follow_redirects=False\)/);
+  assert.match(catchAllRouteSource, /export const maxDuration = 30;/);
+  assert.match(catchAllRouteSource, /const OAUTH_START_BOUNDARY_TIMEOUT_MS = 8_000;/);
+  assert.match(catchAllRouteSource, /const OAUTH_CALLBACK_BOUNDARY_TIMEOUT_MS = 25_000;/);
+  assert.match(
+    catchAllRouteSource,
+    /pathname === "\/api\/v1\/auth\/callback"\s*\? OAUTH_CALLBACK_BOUNDARY_TIMEOUT_MS\s*:\s*OAUTH_START_BOUNDARY_TIMEOUT_MS/,
+  );
+  assert.doesNotMatch(catchAllRouteSource, /proxyOAuthGetToBoundary\(req, pathname, 6_000\)/);
+});
 
 function request(path, extraHeaders = {}, init = {}) {
   return new Request(`https://frontend.example.test${path}`, {
