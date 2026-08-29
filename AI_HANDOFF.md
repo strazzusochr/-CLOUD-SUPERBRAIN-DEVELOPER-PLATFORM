@@ -6,6 +6,49 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
+## Current RC21 Handoff — 2026-08-29
+
+Active locally qualified candidate: `prod-candidate-2026-08-28-local-rc21`, frozen source
+`c1b022a884eb16939fe0542b2eb9056b60706b20`, control commit
+`9f2ee3838492079bd5c65b53a03cd4b29c9a6c49`, source-attested GitHub Actions run
+`33217980790`. The committed candidate evidence contains the five independent local chains,
+six committed-archive images, the real Chromium `22/22` and `161/161` proof, candidate
+runtime identity, security evidence, and the CI checkout attestation. RC20 source
+`c29c738b82e4e35cc1288bc603319cba60d167d2` is the exact rollback target. Readiness remains
+`17/19 = 89%`; I1 `hosted_candidate_parity` and I5 `production_auth_identity` remain
+zero-credit. `DEV-ONLY; hosted proof still blocked`.
+
+The skipped-step gap is closed after an observed red run: RC21's prequalification run had
+two mutually exclusive Phase-5 steps marked `skipped`. The workflow now routes all three
+Phase-5 modes through one always-executed step. GitHub Actions run `33223542872`, head
+`e98f68a6e5ce8544f8504f38a57c0e17672fe253`, passed `25/25` steps with `0` skipped. It
+includes the generated-HTML guard, OAuth boundary, both Cloudflare contracts, secret scan,
+and all six Phase-1 image builds.
+
+The `github_actions=api_error` root cause is measured: the running DEV-ONLY Agent API had an
+older container token while the local secret file and authenticated `gh` keyring matched and
+`gh api rate_limit` succeeded. Recreating only `agent-api` with the existing local environment
+restored `/api/v1/clouds` to `configured=true`, `live_verified=true`, `status=verified`, with
+three resources and no error. No token was printed or rotated.
+
+Owner console preparation is complete but does not close production auth: GitHub
+`registry-publication` and `production` environments have Required Reviewer
+`strazzusochr`; Cloudflare stores `AGENT_API_AUTH_TOKEN` and
+`GITHUB_OAUTH_CLIENT_SECRET` as encrypted Worker secrets; the existing project OAuth App
+uses the Worker homepage/callback with wildcard matching disabled; and Vercel Production and
+Preview use the same callback URI. A current hosted deploy plus the full OAuth
+start/callback/session/replay proof are still missing, so `production_auth_identity` remains
+closed.
+
+V0 now has the non-binding Owner draft
+`docs/runtime-contracts/layer-credit-rubric.md`. Its proposed L4 and L5 tables each sum to
+exactly 100 and name concrete evidence/verifier paths, but `credit_application_allowed=false`.
+Until the Owner explicitly approves a rubric commit, L4 stays `55`, L5 stays `56`, and no
+percentage moves.
+
+No GHCR publication, default-branch write, production deploy, release promotion, payment,
+secret output, Phase-6 hosted-write run, or visual approval is authorized or claimed.
+
 ## Current RC20 Handoff — 2026-08-28
 
 Active locally qualified candidate: `prod-candidate-2026-08-28-local-rc20`, frozen source

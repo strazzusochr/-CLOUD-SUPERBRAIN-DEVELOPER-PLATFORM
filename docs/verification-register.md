@@ -1,11 +1,53 @@
 # Verification Register - PATCHED
 
-Stand: 2026-08-28
+Stand: 2026-08-29
 Status: Active
 
 ## Current Progress Authority
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
+
+## Current RC21 And Follow-up Verification
+
+Recorded 2026-08-29. The active candidate
+`prod-candidate-2026-08-28-local-rc21` is bound to source
+`c1b022a884eb16939fe0542b2eb9056b60706b20` through control
+`9f2ee3838492079bd5c65b53a03cd4b29c9a6c49` and source-attested GitHub Actions run
+`33217980790`. Its committed five-chain evidence and CI readback prove the six local images,
+runtime, real Chromium browser (`22/22`, `29/29`, `161/161`), candidate-runtime identity and
+security chain. `npm run verify:phase5-credit` reports `verified 17/19 = 89%` with only I1
+and I5 blocked. `npm run verify:current-release-candidate` reports
+`candidate_technical=true`, `runtime_source_parity=true`, `promotion_eligible=false` and
+canonical `blocked`, which is the expected non-production result.
+
+The CI completeness audit first found two skipped Phase-5 steps in run `33217980790`.
+After replacing three mutually exclusive workflow steps with one always-running mode router,
+run `33223542872` verified head
+`e98f68a6e5ce8544f8504f38a57c0e17672fe253`: one job, `25/25` successful steps,
+`0` skipped and no non-success conclusion. The run includes the generated-HTML guard, OAuth
+boundary, stateful-runtime and LLM-gateway contracts, gitleaks and all Phase-1 image builds.
+
+The local `github_actions=api_error` was a stale container-environment defect, not an expired
+Owner credential: the DEV-ONLY container token differed from the matching local secret-file
+and authenticated `gh` keyring token, while `gh api rate_limit` was healthy. A scoped
+`agent-api` recreation restored the provider inventory to `configured=true`,
+`live_verified=true`, `status=verified`, three resources and no error. No token value was
+emitted and no rotation occurred.
+
+The Owner console configuration is API/UI-verified: both GitHub publication environments
+require reviewer `strazzusochr`; the Worker has the Agent API and GitHub OAuth secrets as
+`secret_text`; the project OAuth App has the exact Worker homepage/callback and no wildcard;
+Vercel Production/Preview use that callback. This is configuration evidence only. A current
+hosted deployment and the ten-step OAuth session/replay proof are absent, so
+`production_auth_identity` and I5 remain blocked.
+
+The new `docs/runtime-contracts/layer-credit-rubric.md` is explicitly
+`DRAFT_OWNER_APPROVAL_REQUIRED`. Proposed L4 and L5 sums are each 100, but it grants no
+credit. Manifest values remain Overall `89`, L4 `55`, L5 `56`, and
+`MARKET_READY:false`.
+
+No GHCR publication, production deploy, default-branch push, release promotion, Phase-6
+hosted-write run, payment, secret output or visual completion claim was made.
 
 ## Current RC20 Local Qualification Evidence
 

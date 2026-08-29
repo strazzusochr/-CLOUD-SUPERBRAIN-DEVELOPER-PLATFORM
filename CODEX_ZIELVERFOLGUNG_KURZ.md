@@ -1,10 +1,40 @@
-# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-08-28 · **RC20 qualifiziert**
+# 🎯 ZIEL-VERFOLGUNG (KURZ) — Stand 2026-08-29 · **RC21 qualifiziert**
 
 > **Dies ist die EINZIGE Arbeitsdatei.** Aufbau: Ziel → Owner-Entscheidung → Start → Befunde →
 > Wände → Reihenfolge → Regeln → **Anweisungen für Codex** → **Referenz** (Details, Test-Inventar,
 > Owner-Klickfolgen).
 > **Zweites und letztes Dokument:** `REGELN_OPTIK_UND_FERTIG.md` — das Regelwerk mit den Belegen.
 > Alle `CODEX_UEBERGABE_*.md` sind **Historie**.
+
+## AKTUELLER DELTA-SEITENKOPF — 2026-08-29
+
+- **RC21 ist gebunden:** `prod-candidate-2026-08-28-local-rc21`, Quelle
+  `c1b022a884eb16939fe0542b2eb9056b60706b20`, Control `9f2ee383`, CI
+  `33217980790`, fuenf Ketten und der gebundene Evidenzsatz sind vorhanden.
+  `verify:phase5-credit` ist gruen bei `17/19 = 89%`; `current-release-candidate`
+  ist technisch gruen und absichtlich `promotion_eligible=false`.
+- **CI-Restliste E ist geschlossen:** Der erste Audit fand zwei uebersprungene
+  Phase-5-Schritte. Run `33223542872` auf `e98f68a6` bestand danach `25/25`
+  Schritte mit `0` skipped, einschliesslich Runnability, OAuth, Secret-Scan und
+  sechs Image-Builds.
+- **GitHub-Actions-Befund B ist geschlossen:** Ursache war ein veralteter Token
+  nur im laufenden DEV-ONLY-Container. Lokaler Secret-Store und `gh` waren
+  gueltig. Nach scoped Agent-API-Recreate meldet `/api/v1/clouds`
+  `github_actions.status=verified`; kein Token wurde ausgegeben oder rotiert.
+- **Gate-Luecke C ist geschlossen:** Fuenf-Achsen-Audit und Regression laufen in
+  `scripts/verify-phase1.ps1`; die `.mjs`-Verifier koennen ueber die nur-PS1-
+  Registry nicht direkt aufgeloest werden.
+- **V0 ist vorbereitet:** `docs/runtime-contracts/layer-credit-rubric.md` existiert
+  jetzt als `DRAFT_OWNER_APPROVAL_REQUIRED`; L4 und L5 summieren jeweils exakt
+  100, aber `credit_application_allowed=false`. L4 `55` und L5 `56` bleiben.
+- **Owner-Konsolen vorbereitet:** GitHub-Environments/Reviewer, Worker-Secrets,
+  OAuth-App und Vercel-Callback sind gesetzt. Ohne aktuellen Hosted-Deploy und
+  den echten OAuth-Session-/Replay-Beweis bleibt I5 geschlossen. Phase-6-900-
+  Request-Lauf, GHCR-Publish, Production-Promotion und Rubrikfreigabe brauchen
+  weiterhin ihre expliziten Owner-Gates.
+
+Naechster autonomer Schritt: den aktuellen Branch seriell durch Build, Runtime,
+Static und Release-Verifier pruefen; danach nur die echten Owner-Gates melden.
 
 ## 👥 ZWEI AGENTEN, ZWEI AUFTRÄGE — wer macht was
 
@@ -19,9 +49,9 @@
 **Reihenfolge:** Antigravity öffnet die Cloud-Wände (V1–V4), Codex bindet RC21 und misst.
 Codex' Aufgabe A (RC21) läuft **unabhängig** und kann sofort starten.
 
-> **Hinweis zu `docs/runtime-contracts/layer-credit-rubric.md`:** Diese Datei
-> **existiert noch nicht**. Sie ist ein **Auftrag an Codex** (Block V0) — er entwirft sie,
-> der Owner gibt sie frei. Ohne sie bleiben L4 und L5 dauerhaft blockiert.
+> **Hinweis zu `docs/runtime-contracts/layer-credit-rubric.md`:** Der Entwurf
+> existiert. Er ist noch **nicht Owner-freigegeben** und darf deshalb weder L4/L5
+> noch `MARKET_READY` veraendern.
 
 ---
 

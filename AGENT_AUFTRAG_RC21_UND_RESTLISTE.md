@@ -8,6 +8,26 @@
 > Branch: `codex/organism-visual-v2` — **niemals** `main` oder `chore/repo-bootstrap`
 > Stand dieser Anweisung: HEAD `abead9ac57c6fc2877d0efd2250301c90e566f42`
 
+## AUSFUEHRUNGSSTAND 2026-08-29 — nicht erneut beginnen
+
+- Aufgabe A ist abgeschlossen: RC21 Quelle `c1b022a884eb16939fe0542b2eb9056b60706b20`,
+  Control `9f2ee383`, CI `33217980790`, aktiver Kandidat technisch verifiziert.
+- Aufgabe B ist abgeschlossen: `api_error` war ein stale DEV-ONLY-Container-Token;
+  scoped Agent-API-Recreate stellte `github_actions.status=verified` her, ohne
+  Rotation oder Secret-Ausgabe.
+- Aufgabe C ist abgeschlossen: Audit und Regression laufen in
+  `scripts/verify-phase1.ps1`; die Suite-Registry entdeckt nur PS1-Dateien.
+- Aufgabe E ist abgeschlossen: Follow-up-CI `33223542872` bestand `25/25` mit
+  `0` skipped.
+- V0 ist als `docs/runtime-contracts/layer-credit-rubric.md` entworfen. Der
+  Entwurf vergibt keinen Credit und wartet auf Owner-Freigabe.
+- Die Owner-Konsolen sind vorbereitet, aber Hosted OAuth, Phase-6-Scale,
+  Hosted-Candidate-Paritaet, GHCR und Production bleiben beweispflichtig bzw.
+  explizit gegatet.
+
+Die Detailanweisung unten bleibt der reproduzierbare historische Ablauf. Fuer
+den naechsten Schritt gilt der Seitenkopf in `CODEX_ZIELVERFOLGUNG_KURZ.md`.
+
 ---
 
 ## 0 · HARTE REGELN — Verstoss macht den ganzen Lauf ungueltig
