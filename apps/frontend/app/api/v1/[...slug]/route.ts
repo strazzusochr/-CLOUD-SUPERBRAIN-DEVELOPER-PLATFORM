@@ -18,8 +18,11 @@ import { projectedDefault, genericDefault, frontendMetrics } from "../../../../l
 import { authorizeBoundaryWrite, authorizePublicSecurityProbe, boundaryUnavailable, proxyAuthSessionToBoundary, proxyOAuthGetToBoundary, proxyReadToBoundary, proxyToBoundary } from "../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 const SNAP = snapshot as Record<string, unknown>;
+const OAUTH_START_BOUNDARY_TIMEOUT_MS = 8_000;
+const OAUTH_CALLBACK_BOUNDARY_TIMEOUT_MS = 25_000;
 const CURRENT_PROJECTION_REQUIRED_WHEN_EDGE_ORIGIN_IS_STALE = new Set([
   "/api/v1/clouds",
   "/api/v1/clouds/layers",
@@ -55,7 +58,10 @@ async function handle(req: Request, slug: string[] | undefined, method: string):
         },
       );
     }
-    const oauth = await proxyOAuthGetToBoundary(req, pathname, 6_000);
+    const oauthTimeoutMs = pathname === "/api/v1/auth/callback"
+      ? OAUTH_CALLBACK_BOUNDARY_TIMEOUT_MS
+      : OAUTH_START_BOUNDARY_TIMEOUT_MS;
+    const oauth = await proxyOAuthGetToBoundary(req, pathname, oauthTimeoutMs);
     if (oauth) return oauth;
     // OAuth start/callback are security-sensitive and the callback consumes a
     // one-time state. Never retry them through the generic GET proxy or serve a

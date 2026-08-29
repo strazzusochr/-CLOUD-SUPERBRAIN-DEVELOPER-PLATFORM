@@ -111,9 +111,9 @@ $env:AGENT_API_AUTH_TOKEN = $serviceToken
 
 # --- O1: GitHub-OAuth + JWT-Signierschluessel aus der Secrets-Datei -----------------------
 # Die Agent API leitet `github_oauth_configured` und `credential_issuance_ready` aus genau
-# vier Werten ab. Fehlt einer, bleibt Auth fail-closed. Der JWT-Schluessel ist ein rein
+# fuenf Werten ab. Fehlt einer, bleibt Auth fail-closed. Der JWT-Schluessel ist ein rein
 # lokaler Signierschluessel (kein Fremdzugang) und wird bei Bedarf einmalig erzeugt.
-$oauthKeys = @('GITHUB_OAUTH_CLIENT_ID', 'GITHUB_OAUTH_CLIENT_SECRET', 'GITHUB_OAUTH_REDIRECT_URI', 'JWT_SIGNING_SECRET')
+$oauthKeys = @('GITHUB_OAUTH_CLIENT_ID', 'GITHUB_OAUTH_CLIENT_SECRET', 'GITHUB_OAUTH_REDIRECT_URI', 'GITHUB_OAUTH_OWNER_IDS', 'JWT_SIGNING_SECRET')
 $secretsMap = @{}
 if (Test-Path -LiteralPath $secretsPath) {
   foreach ($line in (Get-Content -LiteralPath $secretsPath)) {
@@ -143,7 +143,7 @@ $missingOauth = @($oauthKeys | Where-Object { -not $secretsMap.ContainsKey($_) }
 if ($missingOauth.Count -gt 0) {
   Write-Host ('O1 unvollstaendig — fehlt in der Secrets-Datei: {0}' -f ($missingOauth -join ', ')) -ForegroundColor Yellow
 } else {
-  Write-Host 'O1-Konfiguration vollstaendig (4/4, Werte nicht angezeigt).' -ForegroundColor Green
+  Write-Host 'O1-Konfiguration vollstaendig (5/5, Werte nicht angezeigt).' -ForegroundColor Green
 }
 
 Write-Host ''

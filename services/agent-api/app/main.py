@@ -7452,9 +7452,7 @@ def go_live_readiness_state() -> dict[str, object]:
         "external_audit_required": True,
         "external_audit_summary_path": str(external_gate_summary_path()),
         "external_audit_verifier": "scripts/verify-external-gates.ps1",
-        "external_audit_expected_missing_or_failed_gates": [
-            "cloudflare_native_zero_card_hosted_runtime",
-        ],
+        "external_audit_expected_missing_or_failed_gates": list(audit_missing_gates),
         "owner_activation": {
             "script": "scripts/owner-cloud-gate-activation.ps1",
             "runbook": "docs/runbooks/cloud-gate-owner-activation-2026-06-09.md",
@@ -7545,6 +7543,7 @@ def go_live_readiness_contract_payload() -> dict[str, object]:
             "runtime_preflight_missing_or_blocked_gates",
             "external_audit_summary_status",
             "external_audit_missing_or_failed_gates",
+            "external_audit_expected_missing_or_failed_gates",
             "external_audit_claims",
             "hard_blockers",
             "required_owner_inputs",
