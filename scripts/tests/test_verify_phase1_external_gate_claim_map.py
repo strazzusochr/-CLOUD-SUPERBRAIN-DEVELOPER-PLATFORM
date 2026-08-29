@@ -71,8 +71,18 @@ class VerifyPhase1ExternalGateClaimMapTests(unittest.TestCase):
             )
         )
 
-    def test_fully_verified_post_publication_state_passes(self) -> None:
+    def test_claim_map_accepts_all_flags_true_with_empty_missing_set(self) -> None:
         self.assert_passes(self.summary([]))
+
+    def test_ghcr_publication_transition_passes_while_hosted_gates_remain(self) -> None:
+        self.assert_passes(
+            self.summary(
+                [
+                    "hosted_agent_api_contracts",
+                    "vercel_backend_origin_health",
+                ]
+            )
+        )
 
     def test_false_claim_with_omitted_missing_id_fails(self) -> None:
         summary = self.summary([])
@@ -96,6 +106,21 @@ class VerifyPhase1ExternalGateClaimMapTests(unittest.TestCase):
                 ]
             )
         )
+
+    def test_case_variant_missing_id_fails(self) -> None:
+        self.assert_fails(self.summary(["GHCR_IMAGE_DIGEST_VERIFY"]))
+
+    def test_delimiter_collision_missing_id_fails(self) -> None:
+        summary = self.summary(
+            [
+                "hosted_agent_api_contracts",
+                "ghcr_image_digest_verify",
+            ]
+        )
+        summary["missing_or_failed_gates"] = [
+            "ghcr_image_digest_verify|hosted_agent_api_contracts"
+        ]
+        self.assert_fails(summary)
 
     def test_source_does_not_mask_duplicates_or_require_ghcr_missing(self) -> None:
         self.assertNotIn("Sort-Object -Unique", self.claim_map_block)

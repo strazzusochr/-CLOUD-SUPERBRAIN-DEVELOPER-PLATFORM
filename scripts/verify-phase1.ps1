@@ -1244,8 +1244,13 @@ $expectedMissingExternalGates = @(
     Sort-Object
 )
 $actualMissingExternalGatesSorted = @($actualMissingExternalGates | Sort-Object)
-if (($actualMissingExternalGatesSorted -join "|") -ne ($expectedMissingExternalGates -join "|")) {
+if ($actualMissingExternalGatesSorted.Count -ne $expectedMissingExternalGates.Count) {
   throw "Canonical external gate missing set does not match the claim flags. expected=$($expectedMissingExternalGates -join ',') actual=$($actualMissingExternalGatesSorted -join ',')"
+}
+for ($externalGateIndex = 0; $externalGateIndex -lt $expectedMissingExternalGates.Count; $externalGateIndex++) {
+  if ($actualMissingExternalGatesSorted[$externalGateIndex] -cne $expectedMissingExternalGates[$externalGateIndex]) {
+    throw "Canonical external gate missing set does not match the claim flags. expected=$($expectedMissingExternalGates -join ',') actual=$($actualMissingExternalGatesSorted -join ',')"
+  }
 }
 if (
   $externalGateSummary.PSObject.Properties.Name -contains "fly_live_budget_claim_allowed" -or
