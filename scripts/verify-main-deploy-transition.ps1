@@ -132,8 +132,10 @@ Assert-Contains "source prequalification is manual-dispatch only" $prCheck 'even
 Assert-Contains "source prequalification requires an explicit candidate" $prCheck 'source prequalification requires an explicit candidate_sha'
 Assert-Contains "source prequalification is branch-ref only" $prCheck 'event_ref.startswith("refs/heads/")'
 Assert-Contains "source attestation is runner-temp bounded" $prCheck 'os.environ["RUNNER_TEMP"]'
-Assert-Contains "direct Phase-5 truth check is retained" $prCheck "if: `${{ steps.source-binding.outputs.candidate_differs != 'true' }}"
-Assert-Contains "reusable candidate CI validates control truth" $prCheck "if: `${{ steps.source-binding.outputs.candidate_differs == 'true' && steps.source-binding.outputs.source_prequalification != 'true' }}"
+Assert-Contains "direct Phase-5 truth check is retained" $prCheck 'if [[ "$CANDIDATE_DIFFERS" != "true" ]]; then'
+Assert-Contains "direct Phase-5 truth verifier is retained" $prCheck 'python scripts/verify_phase5_credit_itemization.py'
+Assert-Contains "reusable candidate CI validates control truth" $prCheck 'elif [[ "$SOURCE_PREQUALIFICATION" != "true" ]]; then'
+Assert-Contains "reusable candidate CI creates isolated control truth" $prCheck 'git worktree add --detach "$CONTROL_TRUTH_DIR" "${GITHUB_SHA}"'
 Assert-Contains "reusable candidate CI runs the control-truth verifier" $prCheck 'python "$CONTROL_TRUTH_DIR/scripts/verify_phase5_credit_itemization.py"'
 Assert-True "main publication workflow cannot enable source prequalification" (-not $workflow.Contains('source_prequalification'))
 Assert-Contains "OAuth CI line is preserved" $prCheck 'run: npm run verify:oauth-boundary'
@@ -276,3 +278,5 @@ exit 0
 # This attests the exact development source only; it does not select RC20 or promote a release.
 
 # rc21-source-prequalification-binding
+
+# rc22-source-prequalification-binding-v2
