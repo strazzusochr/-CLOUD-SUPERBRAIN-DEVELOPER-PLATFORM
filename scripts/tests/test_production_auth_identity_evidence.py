@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -485,7 +486,12 @@ class ProductionAuthIdentityEvidenceTests(unittest.TestCase):
             subprocess.run(["git", "commit", "--quiet", "-m", "alternate"], cwd=root, check=True)
             completed = self.run_verifier(root, "-ValidateOnly")
         self.assertNotEqual(completed.returncode, 0)
-        self.assertIn("canonical hosted frontend state path", completed.stderr)
+        stderr_without_ansi = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", completed.stderr)
+        normalized_stderr = " ".join(stderr_without_ansi.split())
+        self.assertIn(
+            "source_binding.frontend_origin_evidence_ref must use the canonical hosted frontend state path.",
+            normalized_stderr,
+        )
 
     def test_backend_or_stale_origin_evidence_cannot_substitute_for_frontend(self) -> None:
         for field, value in (
