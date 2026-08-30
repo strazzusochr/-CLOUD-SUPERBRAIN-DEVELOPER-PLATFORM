@@ -59,8 +59,9 @@ dem Kontroll-Branch-Muster ist das zulaessig, aber es ist kein Beweis am Freeze-
 - Das immutable Evidence-Set enthaelt exakt **27** Dateien; nachgezaehlt am Mess-Ref.
 - GitHub Actions `33273326919` attestierte den exakten Source-Checkout `7db18d90` ueber
   Kontroll-SHA `5cfbf1f4`, `25/25` Schritte, `0` skipped.
-- Final-Head-CI `33282524897` (fuer `67cd698c`), `33282746874` (fuer `6a62e28a`)
-  und `33283986186` (fuer `f6822d44`): jeweils `29/29`, `0` skipped, `0` failed.
+- Final-Head-CI `33282524897` (fuer `67cd698c`), `33282746874` (fuer `6a62e28a`),
+  `33283986186` (fuer `f6822d44`) und `33300647039` (fuer Truth-Sync
+  `042b1bd4`): jeweils `29/29`, `0` skipped, `0` failed.
 - A1 bis A6 des historischen Plans sind erledigt. Der Generated-Game-TDZ-Guard ist in
   `7db18d90` gebunden, `20/20` Regressionstests plus echte Browserausfuehrung.
 - Post-Selection fokussiert gruen: `verify:phase5-credit`,
@@ -191,6 +192,28 @@ zurueckgeschrieben.
 
 Danach bleiben ausschliesslich die expliziten Owner-/Hosted-Stufen B bis H. Kein Main-
 Push, GHCR-Push, Hosted-Deploy, OAuth-Gate-Flip oder Production-Rollout ist dadurch erlaubt.
+
+### 0.10 Autonomer Nachlauf auf Truth-Sync `042b1bd4`
+
+- **A1 ist synthetisch erprobt und erledigt.** Der Replay-Test akzeptiert einen
+  source-gebundenen P3-Deltaeintrag und weist die Pflicht-Negativfaelle fuer Source-SHA,
+  Ancestor-/Baseline-Kette, Projection-Hash, Zellbereich und Overall-Summe ab. Lokal
+  bestanden `27/27`; Exact-Head-CI `33300647039` bestand beide Ledger-Schritte. Der
+  kanonische Ledger bleibt absichtlich `entries=[]`: kein realer Kredit wurde angewandt.
+- **A5 ist read-only geklaert.** Das Vercel-Projekt `frontend` ist Next.js-UI und
+  Boundary-Proxy; `cloud-superbrain-developer-platform` ist der stateless/read-only
+  `CONTRACT_ORIGIN`. Die vorhandenen OAuth-Variablen am Frontend konfigurieren weder den
+  Worker noch den Upstream. Nach B2 liegen serverseitige OAuth-Variablen bei Option A im
+  Cloudflare-Stateful-Worker, bei Option B im stateful FastAPI/PostgreSQL/Redis-Stack;
+  niemals im Frontend oder stateless Contract-Origin. Es wurden nur Variablennamen und
+  Scopes gelesen, keine Werte ausgegeben und keine Provider-Konfiguration veraendert.
+- **A6 ist kein Defekt.** `active_target_gate` bezeichnet im Vertrag v2 das kanonische
+  Architekturziel `cloudflare_native_zero_card_hosted_runtime`; der aktuelle Blocker steht
+  getrennt in `missing_or_failed_gates`. Die gueltige Kombination ist deshalb
+  `TARGET=Cloudflare`, `Cloudflare-Claim=true`, `MISSING=[ghcr_image_digest_verify]`.
+  Ein Einzeilenwechsel in `main.py:7455` auf GHCR waere vertragswidrig, braeche RC23-Paritaet
+  und wurde bewusst nicht ausgefuehrt. Ein zusaetzliches aktuelles-Blocker-Feld waere eine
+  spaetere, versionierte Contract-Migration, kein Hotfix.
 
 ## 1. Endziel
 
@@ -325,7 +348,7 @@ grep -nE "BASELINE_BLOCKED_IDS|blocked\.(add|discard|remove)" scripts/verify_pha
 Zaehlprobe: `rounded_binary_percent = floor(v*100/19 + 0.5)` -> 17/19 = 89,
 18/19 = 95, 19/19 = 100.
 
-### B4 — Der Delta-Ledger wurde nie benutzt — UNVERAENDERT
+### B4 — Der Delta-Ledger wurde nie fuer realen Kredit benutzt — UNVERAENDERT
 
 ```
 docs/runtime-state/project-progress-delta-ledger.json
@@ -333,10 +356,11 @@ docs/runtime-state/project-progress-delta-ledger.json
   entries          = 0
 ```
 
-Das Schema ist auf v2 gehoben, der Mechanismus bleibt **null mal erprobt**. Er
-ist der einzige sanktionierte Weg, eine Manifestzelle zu bewegen, gebunden an
-`BASELINE_SOURCE_SHA = 9a3776ff`. Der erste echte Kreditversuch waere zugleich
-der erste Test des Mechanismus — deshalb steht A1 vor allem anderen.
+Das Schema ist auf v2 gehoben und der Mechanismus ist synthetisch inklusive der
+Pflicht-Negativfaelle erprobt. Der kanonische Ledger enthaelt dennoch **null reale
+Krediteintraege**. Er ist der einzige sanktionierte Weg, eine Manifestzelle zu bewegen,
+gebunden an `BASELINE_SOURCE_SHA = 9a3776ff`; der erste reale Kreditversuch bleibt daher
+der erste produktive Einsatz des Mechanismus.
 
 **Praezisierung:** Die Prozentwerte in `CANONICAL_HORIZONTAL` /
 `CANONICAL_VERTICAL` sind **kein** Deckel auf das aktuelle Manifest. Die
@@ -364,8 +388,9 @@ worker /api/v1/auth/callback     503   stateless_contract_origin_read_only
 ## 4. Kritischer Pfad
 
 ```
-A1 Ledger-Probelauf ──┐
-A5 / A6 ──────────────┴─> autonom, keine Freigabe noetig
+A1 Ledger-Probelauf ─────> erledigt, synthetisch verifiziert, realer Ledger leer
+A5 Origin-Zuordnung ─────> erledigt, read-only geklaert
+A6 Gate-Name-Pruefung ───> NOT_A_DEFECT, keine Codeaenderung
 
 B1 Rubriken freigeben ─┐
 B2 OAuth-ADR ──────────┤
@@ -390,12 +415,11 @@ und der Abstand ist von 86 ueber 106 auf 112 Commits gewachsen.
 
 ### STUFE A — autonom, ohne Owner ausfuehrbar
 
-**A1 · Delta-Ledger-Probelauf** — zuerst, alles Weitere baut darauf auf.
-Red-first-Test mit synthetischem Delta-Eintrag gegen die Schema-`const`-Baseline;
-`verify_project_progress_manifest.py` muss Hash-, Baseline- und Ancestor-Pruefung
-greifen lassen. Negativfaelle: falscher `source_sha`, falscher Projection-Hash,
-Zelle ausserhalb 0-100, Summe passt nicht zu `overall`. Eintrag danach entfernen.
-**Kein Prozentwert wird veraendert.**
+**A1 · Delta-Ledger-Probelauf — ERLEDIGT.**
+Der source-gebundene synthetische Eintrag sowie falscher `source_sha`, falscher
+Projection-Hash, Zelle ausserhalb 0-100, falsche Overall-Summe und Baseline-/Ancestor-
+Drift sind getestet. Lokal `27/27`, Exact-Head-CI `33300647039` gruen. Der kanonische
+Ledger bleibt `entries=[]`; **kein Prozentwert wurde veraendert.**
 
 **A2 · P3-Kriterienkatalog — ERLEDIGT.**
 `docs/runtime-contracts/phase3-credit-rubric.md` existiert, Summe 100,
@@ -413,16 +437,22 @@ aktuellen Quellcode (`services/cloudflare-stateful-runtime/src/index.js:33`,
 der 500er dann bleibt, ist es ein echter Codedefekt — sonst war es Staleness.
 Ein Fix vor C1 waere Arbeit an einer Diagnose, die noch nicht steht.
 
-**A5 · Vercel-Origin-Widerspruch** — der Worker reicht an
-`cloud-superbrain-developer-platform.vercel.app` durch, die OAuth-Variablen wurden
-im Projekt `frontend` gepflegt. Entscheiden und dokumentieren, nicht raten.
+**A5 · Vercel-Origin-Zuordnung — ERLEDIGT (read-only, keine Aktivierung).**
+Das Projekt `frontend` ist Next.js-UI und Boundary-Proxy; dort gepflegte OAuth-Variablen
+konfigurieren weder Worker noch Upstream. Das Projekt
+`cloud-superbrain-developer-platform` ist der absichtlich stateless/read-only
+`CONTRACT_ORIGIN` und darf keine Production-OAuth-Runtime werden. Nach B2 liegen die
+serverseitigen OAuth-Variablen bei Option A im Cloudflare-Stateful-Worker, bei Option B im
+stateful FastAPI/PostgreSQL/Redis-Stack. `frontend` erhaelt nur `AGENT_API_BASE_URL` zur
+gewaehlten Runtime; Callback-URI und registrierter Callback muessen exakt dieselbe
+freigegebene Boundary verwenden. Keine Provider-Konfiguration wurde veraendert.
 
-**A6 · Stale Gate-Name im Kandidatenpfad** —
-`services/agent-api/app/main.py:7455` fuehrt im Exception-Zweig
-`active_target_gate: cloudflare_native_zero_card_hosted_runtime`. Dieses Gate ist
-inzwischen **geschlossen** (`owner_granted` und `live_verified` beide `true`).
-Real offen ist nur `ghcr_image_digest_verify`. Wirkung begrenzt — der Pfad ist ein
-Fehlerzweig, kein Normalpfad; entsprechend niedrig priorisieren, aber richtigstellen.
+**A6 · Gate-Name-Pruefung — ERLEDIGT, `NOT_A_DEFECT`.**
+`services/agent-api/app/main.py:7455` ist korrekt: `active_target_gate` bezeichnet das
+kanonische Cloudflare-Architekturziel und nicht den aktuell fehlenden Einzelgate. Dieser
+steht separat in `missing_or_failed_gates`, aktuell exakt `ghcr_image_digest_verify`.
+Ein Wechsel der Zeile auf GHCR wuerde `external-gate-summary-v2`, die Provenienzpruefung
+und RC23-Source-Paritaet brechen; deshalb bleibt der Runtime-Code unveraendert.
 
 ### STUFE B — Owner-Entscheidungen (blockieren alles Weitere)
 
@@ -538,11 +568,12 @@ Evidence SHA-256-gebunden. Token nur im Prozess-Environment, nie in Ausgabe.
 
 ## 6. Naechster sicherer Ablauf ohne jede Freigabe
 
-Der aktuelle Ablauf steht verbindlich in Abschnitt 0. A1, A5 und A6 sind inzwischen
-erledigt; die alte Reihenfolge wird nicht erneut ausgefuehrt. Selection-Commit `67cd698c`,
-Feature-Push und die Head-CI bis Mess-Ref `f6822d44` sind bereits belegt. Fuer diese neue
-Master-Synchronisierung fehlen nur der exakt begrenzte Truth-Doku-Commit, Feature-Push und
-dessen final-head CI mit `skipped=0`; kein neuer Candidate-/Runtime-Source-Commit.
+Der aktuelle Ablauf steht verbindlich in Abschnitt 0. A1 und A5 sind verifiziert erledigt;
+A6 ist nach Contract-Audit `NOT_A_DEFECT` und erzeugt bewusst keine Runtime-Aenderung.
+Selection-Commit `67cd698c`, Truth-Sync `042b1bd4`, Feature-Push und dessen Exact-Head-CI
+`33300647039` sind belegt. Diese Korrekturfassung darf nur als exakt begrenzter
+Truth-Doku-Commit gepusht und durch eine neue Exact-Head-CI mit `skipped=0` gebunden werden;
+kein neuer Candidate-/Runtime-Source-Commit. Danach endet der autonome Pfad an B1 bis B5.
 
 ## 7. Schutzregeln
 
