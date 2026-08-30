@@ -1,219 +1,18 @@
-# CODEX ZIEL-MASTER — STAND 2026-08-29
+# CODEX ZIEL-MASTER — MARKTREIFE-ZIELVERFOLGUNG
 
 Status: `ACTIVE_CURRENT_TRUTH`
+Stand: **2026-08-30**
 Branch: `codex/organism-visual-v2`
-Mess-Ref dieser zweiten Nachmessung: `f6822d44`; eingefrorene Candidate-Source `7db18d90`
-Market Status: `MARKET_READY:false`
+Truth-HEAD: **`4adb250c`**
+Market Status: `MARKET_READY:false` — Overall `89`
 
-**Dies ist die einzige Zieldatei.** Sie sagt, was zu tun ist.
+**Dies ist die einzige Zieldatei.** Sie sagt, *was zu tun ist*.
 Die Lage steht in `CODEX_UEBERGABE_MASTER_2026-08-29.md`.
 
-Alles hier ist **gemessen**, nicht aus einem Protokoll uebernommen. Wo etwas nur
-protokolliert und nicht nachmessbar war, steht das ausdruecklich dabei.
-Ersetzt und vereint: `CODEX_ZIELVERFOLGUNG_KURZ.md`,
-`CODEX_100_PROZENT_ZIEL_2026-08-29.md`, `CODEX_AUFTRAG_GESAMTANALYSE_2026-08-29.md`,
-`docs/runbooks/PRODUCTION_OAUTH_FIXPLAN_2026-08-29.md`.
+> Der Dateiname bleibt bewusst auf `2026-08-29` stehen, damit Codex genau eine Zieldatei und
+> genau eine Uebergabe findet. Massgeblich ist das Feld `Stand` oben.
 
 ---
-
-## 0. Aktueller Rebind — 2026-08-30, zweite Messung
-
-Dieser Abschnitt ersetzt alle zeitabhaengigen Koordinaten der darunter erhaltenen
-Erstmessung auf `a7ff9714`. Die Strukturblocker und Owner-Gates darunter bleiben bindend,
-soweit sie hier nicht ausdruecklich korrigiert werden.
-
-**Diese Fassung ist eine unabhaengige Nachmessung gegen `f6822d44`.** Jede Zeile hier ist
-gegen den Mess-Ref oder gegen den Live-Endpunkt neu geprueft, nicht aus einem Protokoll
-uebernommen. Wo etwas nur protokolliert und nicht nachmessbar ist, steht das dabei.
-
-### 0.1 Koordinaten
-
-| Groesse | Wert |
-| --- | --- |
-| Mess-Ref der Nachmessung | `f6822d44` (damals `= origin/codex/organism-visual-v2`) |
-| Kandidat | RC23 `prod-candidate-2026-08-29-local-rc23` |
-| Eingefrorene Candidate-Source | `7db18d90` |
-| Kontroll-Commit | `5cfbf1f4` |
-| Selection-Commit | `67cd698c` |
-| Default-Branch | `chore/repo-bootstrap` @ `48e86ced` |
-| Hosted Worker Source | `d0674bfc` — **112 Commits zurueck** |
-| Overall | `89` — unveraendert |
-
-Nach dem Freeze auf `7db18d90` folgten vier Commits: `5cfbf1f4` (Verifier/Workflow-
-Kontrolle), `67cd698c` (Qualifikation und Evidence), `6a62e28a` und `f6822d44` (reine
-Doku). `67cd698c` bindet neben Evidence auch den verifier-erlaubten Endpoint-Snapshot-
-Truth-Uebergang; deshalb waere "kein Produktpfad" zu weitgehend. Nachgeprueft ist die
-engere, massgebliche Aussage: Candidate-Image-Source `7db18d90` blieb eingefroren und der
-Current-Candidate-Verifier bestaetigt `runtime_source_parity=true` sowie
-`no_credit_requalification=true`. `5cfbf1f4` ist allerdings ein ungewoehnlich grosser
-Kontroll-Commit (4 Dateien, +733 Zeilen in `verify_phase5_credit_itemization.py`,
-`verify-main-deploy-transition.ps1`, `pr-check.yml` und deren Tests). Das heisst: der
-Verifier, der RC23 heute prueft, ist **neuer** als die eingefrorene Kandidatenquelle. Nach
-dem Kontroll-Branch-Muster ist das zulaessig, aber es ist kein Beweis am Freeze-Stand.
-
-### 0.2 Was seit `a7ff9714` erledigt wurde
-
-- RC23 ist lokal an `7db18d90` qualifiziert. Alle fuenf unabhaengigen Ketten sind gruen:
-  sechs Clean-Archive-Images, Runtime `10/10 healthy`, Browser-Umbrella, Candidate-Runtime
-  mit realer Auswahl und Klick, Candidate-Archiv npm-audit/gitleaks.
-- Das immutable Evidence-Set enthaelt exakt **27** Dateien; nachgezaehlt am Mess-Ref.
-- GitHub Actions `33273326919` attestierte den exakten Source-Checkout `7db18d90` ueber
-  Kontroll-SHA `5cfbf1f4`, `25/25` Schritte, `0` skipped.
-- Final-Head-CI `33282524897` (fuer `67cd698c`), `33282746874` (fuer `6a62e28a`),
-  `33283986186` (fuer `f6822d44`) und `33300647039` (fuer Truth-Sync
-  `042b1bd4`): jeweils `29/29`, `0` skipped, `0` failed.
-- A1 bis A6 des historischen Plans sind erledigt. Der Generated-Game-TDZ-Guard ist in
-  `7db18d90` gebunden, `20/20` Regressionstests plus echte Browserausfuehrung.
-- Post-Selection fokussiert gruen: `verify:phase5-credit`,
-  `verify:current-release-candidate`, `verify_project_progress_manifest.py`.
-- Der finale lokale `npm run verify`-Sweep endet exakt am externen Stop
-  `current Cloudflare-native hosted Worker source parity` — der unveraenderte
-  I1/B5-C1-Blocker, kein lokaler Testfehler.
-
-### 0.3 Workbench-Tiefentest — was belegt ist und was nicht
-
-- **Pass 1 ist belegt und committet.** Im RC23-Evidence-Set steht `raw/browser.log`
-  (SHA-256 `21A2DBBB…`) mit den woertlichen Zeilen
-  `[22-page-actions] routes=22 families=29 members=161 direct=160 preverified_exact=1`
-  und `[responsive-22] routes=22 viewports=2 clicks=44`. `browser.json` meldet
-  `status=passed`, `exit_code=0`. Praezise gelesen sind das **160 direkt bewiesene**
-  Aktionen plus **1 exakt vorverifizierte** — nicht 161 direkte.
-- **Pass 2 ist gelaufen, aber nicht belegt.** Der wiederholte monolithische Chromium-Lauf
-  (`39,1` Minuten, `22/22`, `29/29`, `161/161`) ist nur ueber seinen Report-Hash
-  `4E844972…` dokumentiert. `docs/verification-register.md` bezeichnet ihn selbst als
-  **"unstaged working-report"**. Die exakten, an `4E844972…` gebundenen Reportbytes sind
-  weder als immutable Artefakt committet noch im aktuellen fremden Working-Report
-  vorhanden. Pass 2 ist damit Protokoll, nicht nachpruefbare Evidenz.
-- **Die Workbench wurde nur lokal aktuell tiefengeprueft.** Historische Hosted-Beweise
-  binden nicht den aktuellen Kandidaten: Worker `112` Commits hinter dem Mess-Ref,
-  `/api/v1/team/status` `500`,
-  `github_oauth_configured=false`. "Gesamte Workbench" gilt fuer `localhost:8081`,
-  nicht fuer den Hosted-Stack.
-
-### 0.4 Live gemessen am 2026-08-30
-
-```text
-worker /api/v1/health            200   source_commit_sha = d0674bfc   d1_read_verified = true
-worker /api/v1/project/progress  200   overall_percent = 84   (Repo: 89)
-worker /api/v1/team/status       500   Internal Server Error
-worker /api/v1/auth/contract     200   mode = local_contract_with_dry_run_oauth
-                                       github_oauth_configured = false
-                                       live_github_oauth_call  = false
-worker /api/v1/auth/callback     503
-vercel /api/v1/health            200   status = degraded
-vercel /api/v1/project/progress  200   overall_percent = 84
-```
-
-Der Hosted-Snapshot meldet zusaetzlich abweichende Einzelzellen: `P2 86` statt `100`,
-`P5 68` statt `89`, `L3 68`, `L4 54`, `L5 55`, `L6 73`.
-
-### 0.5 Korrektur an C1 — ein Worker-Rebind allein reicht nicht
-
-Neu gemessen und **bestaetigt**: Der `CONTRACT_ORIGIN`
-(`https://cloud-superbrain-developer-platform.vercel.app`) liefert selbst
-`overall_percent = 84` und `status = degraded`. Der Worker reicht diesen Stand nur durch.
-
-Daraus folgt eine Praezisierung der Stufe C weiter unten: **C1 (Worker auf Candidate-Source
-`7db18d90`) kann die
-native `team/status`-Route reparieren, aber weder `progress = 89` noch Production OAuth
-liefern**, solange der Contract-Origin auf dem veralteten Backend-Stand steht. C2 braucht
-zusaetzlich einen source-gebundenen Contract-Origin-Rebind oder eine explizit verifizierte
-native Worker-Projektion. Beides gehoert zu den Hosted-/OAuth-Freigaben, nicht zur
-autonomen Flaeche.
-
-### 0.6 B3 und B4 sind strukturell tiefer blockiert als beschrieben
-
-Beides am Mess-Ref nachgeprueft:
-
-- **B3:** `.github/workflows/phase6-scale-runtime.yml` existiert auf dem Feature-Branch
-  (`0b2f7e3b`), aber **nicht auf dem Default-Branch** `chore/repo-bootstrap`. Das
-  Environment `phase6-scale-hosted-writes` (`:28`) und der Secret-Gate
-  `AGENT_API_AUTH_TOKEN` (`:41`, Fail-closed `:67`, Nutzung `:76`) sind daher nicht
-  dispatchbar. B3 braucht Environment **und** Secret **und** den Workflow auf dem
-  Default-Branch.
-- **B4:** `main-deploy.yml` fuehrt auf dem Default-Branch noch den alten Blob `555e8325`;
-  der gehaertete Feature-Blob ist `14e84b31`. Vor dem Dispatch muss der sichere Blob
-  Owner-autorisiert auf den geschuetzten Default-Stand gelangen.
-
-### 0.7 Fuenf Strukturblocker — Stand der Nachmessung
-
-| Blocker | Stand `a7ff9714` | Stand `f6822d44` |
-| --- | --- | --- |
-| B1 Rubriken | 3 Entwuerfe, nicht freigegeben | **unveraendert** — alle drei `DRAFT_OWNER_APPROVAL_REQUIRED`, `Credit-Anwendung erlaubt: false` |
-| B2 Verifier | 10/10 fehlen | **unveraendert** — 10/10 fehlen, einzeln geprueft |
-| B3 P5-Codepin | I1 gepinnt, I5 evidenzgetrieben | **unveraendert** — `BASELINE_BLOCKED_IDS = {"I1"}`, nur `blocked.add`, kein `discard`/`remove` |
-| B4 Delta-Ledger | v2, 0 Eintraege | **unveraendert** — v2, `baseline.source_sha = 9a3776ff`, `entries = 0` |
-| B5 Hosted-Abstand | 106 Commits | **verschlechtert: 112 Commits** |
-
-Owner-Gates unveraendert: **7 von 10 geschlossen**; offen bleiben
-`production_auth_identity`, `docker_registry_publish`, `phase6_scale_runtime`.
-Alle fuenf Owner-Freigaben B1 bis B5 sind weiterhin **nicht** erteilt.
-
-### 0.8 Korrigierte Zeilenangaben
-
-Die Zeilennummern der Erstmessung sind durch `5cfbf1f4` verschoben worden. Gueltig am
-Mess-Ref `f6822d44`:
-
-```text
-scripts/verify_phase5_credit_itemization.py
-  :44    BASELINE_BLOCKED_IDS = {"I1"}
-  :287   def expected_blocked_ids(*, auth_transition_verified: bool)
-  :290   blocked.add("I5")
-  :1221  def rounded_binary_percent -> math.floor((verified*100/total)+0.5)
-  :1871  computed_percent = rounded_binary_percent(verified_count, len(items))
-  :1877  expected_percent = rounded_binary_percent(...)
-  :1882  require(computed_percent == expected_percent, ...)
-
-scripts/verify_project_progress_manifest.py
-  :24    BASELINE_SOURCE_SHA = "9a3776ff..."
-  :328   expected_overall = round(sum(percent) / len(phases))
-
-scripts/verify-main-deploy-transition.ps1   (368 Zeilen)
-  :63    market_ready in der Liste verbotener Tokens  -> kein GHCR-Deadlock
-
-services/cloudflare-stateful-runtime/src/index.js   (2084 Zeilen)
-  :33    AUTONOMOUS_TEAM_STATUS_PATHS
-  :2051  GET-Dispatch fuer /api/v1/team/status  -> Route existiert im HEAD-Quellcode
-  :2057-2059  auth/sessions{,/verify,/revoke}   -> kein auth/github, kein auth/callback
-
-services/agent-api/app/main.py
-  :7435, :7455  active_target_gate = cloudflare_native_zero_card_hosted_runtime
-```
-
-### 0.9 Autonomer Rest
-
-**Kein vor B1 bis B5 sicher autonom ausfuehrbares Implementierungsitem.** Die zehn spaeter
-in Stufe E benoetigten Verifier bleiben realer Neubau, duerfen laut Abfolge aber erst nach
-Rubrikfreigabe und Hosted-Rebind entstehen. Ein reiner
-Truth-Sync gilt erst als gueltig, wenn `git rev-parse origin/codex/organism-visual-v2`
-exakt dem `headSha` des neuesten abgeschlossenen `pr-check` mit `conclusion=success`,
-`skipped=0` und `failed=0` entspricht — keine Run-ID wird in denselben Commit
-zurueckgeschrieben.
-
-Danach bleiben ausschliesslich die expliziten Owner-/Hosted-Stufen B bis H. Kein Main-
-Push, GHCR-Push, Hosted-Deploy, OAuth-Gate-Flip oder Production-Rollout ist dadurch erlaubt.
-
-### 0.10 Autonomer Nachlauf auf Truth-Sync `042b1bd4`
-
-- **A1 ist synthetisch erprobt und erledigt.** Der Replay-Test akzeptiert einen
-  source-gebundenen P3-Deltaeintrag und weist die Pflicht-Negativfaelle fuer Source-SHA,
-  Ancestor-/Baseline-Kette, Projection-Hash, Zellbereich und Overall-Summe ab. Lokal
-  bestanden `27/27`; Exact-Head-CI `33300647039` bestand beide Ledger-Schritte. Der
-  kanonische Ledger bleibt absichtlich `entries=[]`: kein realer Kredit wurde angewandt.
-- **A5 ist read-only geklaert.** Das Vercel-Projekt `frontend` ist Next.js-UI und
-  Boundary-Proxy; `cloud-superbrain-developer-platform` ist der stateless/read-only
-  `CONTRACT_ORIGIN`. Die vorhandenen OAuth-Variablen am Frontend konfigurieren weder den
-  Worker noch den Upstream. Nach B2 liegen serverseitige OAuth-Variablen bei Option A im
-  Cloudflare-Stateful-Worker, bei Option B im stateful FastAPI/PostgreSQL/Redis-Stack;
-  niemals im Frontend oder stateless Contract-Origin. Es wurden nur Variablennamen und
-  Scopes gelesen, keine Werte ausgegeben und keine Provider-Konfiguration veraendert.
-- **A6 ist kein Defekt.** `active_target_gate` bezeichnet im Vertrag v2 das kanonische
-  Architekturziel `cloudflare_native_zero_card_hosted_runtime`; der aktuelle Blocker steht
-  getrennt in `missing_or_failed_gates`. Die gueltige Kombination ist deshalb
-  `TARGET=Cloudflare`, `Cloudflare-Claim=true`, `MISSING=[ghcr_image_digest_verify]`.
-  Ein Einzeilenwechsel in `main.py:7455` auf GHCR waere vertragswidrig, braeche RC23-Paritaet
-  und wurde bewusst nicht ausgefuehrt. Ein zusaetzliches aktuelles-Blocker-Feld waere eine
-  spaetere, versionierte Contract-Migration, kein Hotfix.
 
 ## 1. Endziel
 
@@ -223,424 +22,333 @@ Push, GHCR-Push, Hosted-Deploy, OAuth-Gate-Flip oder Production-Rollout ist dadu
 MARKET_READY: true
 ```
 
-Dafuer muessen beide Matrizen evidenzbasiert 100 sein. Production-Deploy und
+Dafuer muessen beide Matrizen **evidenzbasiert** 100 sein. Production-Deploy und
 Release-Promotion bleiben danach **separate** Owner-Entscheidungen.
 
-## 2. Fortschritt und Restdelta
+---
+
+## 2. Restdelta
 
 ```text
-Overall 89
-
 Horizontal:  P0 100 | P1 100 | P2 100 | P3 44 | P4 100 | P5 89 | P6 90
 Vertikal:    L1 100 | L2 100 | L3 100 | L4 55 | L5 56 | L6 100 | L7 100
+Delta-Ledger: 0 Eintraege
 ```
 
-| Zelle | Heute | Rest | Abschlussbedingung |
-|---|---:|---:|---|
-| P3 | 44 | **+56** | 8 binaere Rubrikzeilen, alle hosted OAuth (Rubrik existiert, nicht freigegeben) |
-| P5 | 89 | +11 | genau zwei Items: I1 `hosted_candidate_parity`, I5 `production_auth_identity` |
-| P6 | 90 | +10 | 3 binaere Zeilen P6-H01/H02/H03, alle hosted Scale-Writes |
-| L4 | 55 | +45 | Rubrikfreigabe + 5 fehlende Hosted-LLM-Verifier |
-| L5 | 56 | +44 | Rubrikfreigabe + 5 fehlende Hosted-MCP/SBOM-Verifier |
-| Optik | — | — | bewusst zuletzt: Cortex-Bug und 3-Sterne-Look separat |
+| Zelle | Rest | Was den Rest wirklich blockiert |
+| --- | ---: | --- |
+| P3 | **+56** | Code ist fertig und deployfaehig. Es fehlt der **echte Authorize-Beweis** im Browser. |
+| P5 | **+11** | `I5` faellt automatisch nach dem P3-Beweis. `I1` braucht Hosted-Candidate-Paritaet **plus** eine Codeaenderung. |
+| P6 | **+10** | Der vorhandene 900er-Lauf ist kriterien-unvollstaendig. Wiederholung mit dem zugelassenen Verifier noetig. |
+| L4 | **+45** | Fuenf Verifier existieren nur als Geruest und beweisen nichts. Neu schreiben. |
+| L5 | **+44** | Dito, plus ein echtes SBOM. |
 
-**Rechenregel:** `overall = round(sum(7 Phasen)/7)`
-(`scripts/verify_project_progress_manifest.py:328`). Layerarbeit ist wichtig,
-bewegt die 89 aber **nie**. Keine Prozentanhebung durch Doku, Konsolenwerte oder
-Wiederholung bereits kreditierter Beweise.
-
-**166 offene Punkte gesamt.** 99 davon (L4 45 + L5 44 + P6 10) haengen an einer
-einzigen Wurzelbedingung: der Hosted Worker laeuft hinter Candidate-Source (B5/C1).
+**166 offene Punkte.** `overall = round(sum(7 Phasen)/7)` — Layerarbeit (L4/L5) bewegt die
+89 **nie**; sie ist trotzdem Pflicht fuer die vertikale 100.
 
 ---
 
-## 3. Die fuenf Strukturblocker — Stand gemessen
-
-### B1 — Kriterienkataloge existieren, sind aber nicht freigegeben — TEILWEISE GELOEST
-
-Drei Rubriken liegen jetzt vor, alle unter `docs/runtime-contracts/`:
-
-| Datei | Zelle | Status | Credit-Anwendung |
-|---|---|---|---|
-| `phase3-credit-rubric.md` | P3 | `DRAFT_OWNER_APPROVAL_REQUIRED` | `false` |
-| `phase6-credit-rubric.md` | P6 | `DRAFT_OWNER_APPROVAL_REQUIRED` | `false` |
-| `layer-credit-rubric.md` | L4/L5 | `DRAFT_OWNER_APPROVAL_REQUIRED` | `false` |
-
-Die Spezifikationsluecke ist geschlossen. Es fehlt ausschliesslich die
-Owner-Freigabe (Stufe B). Ohne sie darf kein Punkt aus diesen Rubriken
-kreditiert werden.
-
-**P3 — die 8 offenen Zeilen, Summe 56** (`44` bleibt historischer Gesamtblock):
-
-| ID | Kriterium | Pkt |
-|---|---|---:|
-| P3-01 | Hosted OAuth-Start: echte freigegebene `client_id`, exakt Scope `read:user`, kryptographischer One-Time-State | 8 |
-| P3-02 | Hosted Callback tauscht echten Code gegen verifizierte numerische GitHub-Identitaet, Session erst danach | 12 |
-| P3-03 | Owner-Allowlist bindet die numerische Identitaet fail-closed | 8 |
-| P3-04 | State-Cookie `__Host-`/`Secure`/`HttpOnly`/`SameSite=Lax`; Auth-Cookies `SameSite=Strict`, kein `Domain`, freigegebene TTL | 6 |
-| P3-05 | Refresh rotiert atomar; Replay -> exakt `401`, widerruft die Tokenfamilie | 8 |
-| P3-06 | Logout widerruft genau einen aktiven Refresh-Token, loescht beide Cookies, persistiert Audit, Post-Logout-Refresh `401` | 6 |
-| P3-07 | Callback-Replay und State-Reuse fail-closed abgewiesen | 4 |
-| P3-08 | Auditkette request-/session-korreliert, vor Credential-Ausgabe persistiert, ohne Codes/State/Tokens/Cookies/Secrets | 4 |
-
-**P6 — die 3 offenen Zeilen, Summe 10:**
-
-| ID | Kriterium | Pkt |
-|---|---|---:|
-| P6-H01 | Exakt 800 Hosted Reads in drei Stufen (`60@1`, `240@10`, `500@50`) | 3 |
-| P6-H02 | Exakt 50 authentisierte D1-Creates bei Concurrency `10`, ohne Verlust/Duplikat, vollstaendiger Readback | 3 |
-| P6-H03 | Exakt 50 auditierte Deletes, `soft_delete_then_active_row_absence_and_audit_readback`, vollstaendiger Cleanup | 2 |
-
-Die restlichen 2 Punkte liegen in der P6-Rubrik auf p95/5xx/Requestzahl.
-
-### B2 — Die L4/L5-Rubrik benennt 10 Verifier, die nicht existieren — UNVERAENDERT
-
-Einzeln gegen den Mess-Ref geprueft, **alle 10 fehlen**:
-
-```
-verify-llm-hosted-stream-parity.ps1          verify-mcp-hosted-write.ps1
-verify-llm-hosted-fallback.ps1               verify-mcp-hosted-auth-scope.ps1
-verify-llm-hosted-budget-guard.ps1           verify-mcp-hosted-timeout-idempotency.ps1
-verify-llm-hosted-trace-correlation.ps1      verify-mcp-hosted-audit-readback-rollback.ps1
-verify-llm-hosted-negative-guards.ps1        verify-mcp-candidate-sbom.ps1
-```
-
-L4 +45 und L5 +44 sind zu 100 % Neubau, nicht Nachweis.
-
-### B3 — P5-Codepin — TEILWEISE GELOEST, I1 bleibt gepinnt
-
-Frueherer Stand: `CURRENT_BLOCKED_IDS = {"I1","I5"}` plus harte Zusicherung
-`require(computed_percent == 89)`. Beides ist **weg**.
-
-Aktueller Stand, `scripts/verify_phase5_credit_itemization.py`:
-
-```python
-:44   BASELINE_BLOCKED_IDS = {"I1"}
-
-:287  def expected_blocked_ids(*, auth_transition_verified: bool) -> set[str]:
-:288      blocked = set(BASELINE_BLOCKED_IDS)
-:290      if not auth_transition_verified: blocked.add("I5")
-:291      return blocked
-
-:1871 computed_percent = rounded_binary_percent(verified_count, len(items))
-:1882 require(computed_percent == expected_percent, ...)
-:1911 require(phase5.get("percent") == computed_percent, ...)
-```
-
-Daraus folgt exakt, ohne Auslegung:
-
-- **I5 ist evidenzgetrieben.** Sobald das Capability-Gate `production_auth_identity`
-  `owner_granted` **und** `live_verified` traegt (plus `paid_provider:false` und
-  gesetzte `owner_grant_ref`), verschwindet I5 aus `expected_blocked`.
-  **Kein Codewechsel noetig.** P5 geht dann 89 -> **95** (18/19).
-- **I1 ist weiterhin hart gepinnt.** `I1` steht in `BASELINE_BLOCKED_IDS` und wird
-  an keiner Stelle je entfernt (`blocked.add` existiert, `discard`/`remove` nicht).
-  Fuer I1 braucht es den Beweis **und** die Aenderung der Konstante — sonst schlaegt
-  `computed_percent == expected_percent` fehl. Erst dann 95 -> **100**.
-
-**Das ist eine Korrektur an einer frueheren Fassung dieser Datei**, die B3 als
-vollstaendig geloest und I1 als beweisgenuegend bezeichnet hat. Gegenprobe:
-
-```bash
-grep -nE "BASELINE_BLOCKED_IDS|blocked\.(add|discard|remove)" scripts/verify_phase5_credit_itemization.py
-```
-
-Zaehlprobe: `rounded_binary_percent = floor(v*100/19 + 0.5)` -> 17/19 = 89,
-18/19 = 95, 19/19 = 100.
-
-### B4 — Der Delta-Ledger wurde nie fuer realen Kredit benutzt — UNVERAENDERT
-
-```
-docs/runtime-state/project-progress-delta-ledger.json
-  contract_version = project-progress-delta-ledger-v2
-  entries          = 0
-```
-
-Das Schema ist auf v2 gehoben und der Mechanismus ist synthetisch inklusive der
-Pflicht-Negativfaelle erprobt. Der kanonische Ledger enthaelt dennoch **null reale
-Krediteintraege**. Er ist der einzige sanktionierte Weg, eine Manifestzelle zu bewegen,
-gebunden an `BASELINE_SOURCE_SHA = 9a3776ff`; der erste reale Kreditversuch bleibt daher
-der erste produktive Einsatz des Mechanismus.
-
-**Praezisierung:** Die Prozentwerte in `CANONICAL_HORIZONTAL` /
-`CANONICAL_VERTICAL` sind **kein** Deckel auf das aktuelle Manifest. Die
-Pruefschleife verwirft die Prozentspalte (`_`) und prueft nur `0 <= v <= 100`.
-Sie beschreiben ausschliesslich den eingefrorenen Baseline-Commit.
-
-### B5 — Hosted laeuft hinter Mess-Ref — VERSCHLECHTERT: 112 Commits
-
-`d0674bfc` (Hosted) vs `f6822d44` (Mess-Ref) sind `112` Commits; gegen die
-eingefrorene Candidate-Source `7db18d90` sind es `108`. Bei der urspruenglichen Analyse
-waren es 86. Wurzelbedingung fuer **99 der 166 offenen Punkte** plus P5-I1 und den hosted
-Teil von P3.
-
-Live gemessen, unauthentifizierte GET:
+## 3. Kritischer Pfad
 
 ```text
-worker /api/v1/health            200   source_commit_sha = d0674bfc   d1_read_verified = true
-worker /api/v1/project/progress  200   overall_percent = 84   (Repo: 89)
-worker /api/v1/team/status       500
-worker /api/v1/auth/callback     503   stateless_contract_origin_read_only
+D0  Worker-Deploy (F1+F2 scharfschalten)  ── Voraussetzung fuer ALLES Hosted
+     │
+     ├─> D1  OAuth-Browserkette ──> P3 +56 ──> P5-I5
+     │        (braucht Owner: Passwort + 2FA)
+     │
+     ├─> D2  RC24 einfrieren + qualifizieren ──> P5-I1 (+ Codeaenderung)
+     │
+     ├─> D3  10 Verifier neu schreiben ──> L4 +45, L5 +44
+     │
+     └─> D4  P6-Scale mit echtem Verifier ──> P6 +10
+                     │
+                     └─> D5  Delta-Ledger buchen ──> D6  Final-Stack ──> MARKET_READY
 ```
+
+**Engpass:** `D0`. Ohne ihn ist der Worker weiterhin auf die falsche Redirect-URI
+konfiguriert und ohne Source-Bindung — dann sind D1 und D2 unmoeglich.
 
 ---
 
-## 4. Kritischer Pfad
+## 4. Die Stufen im Detail
 
-```
-A1 Ledger-Probelauf ─────> erledigt, synthetisch verifiziert, realer Ledger leer
-A5 Origin-Zuordnung ─────> erledigt, read-only geklaert
-A6 Gate-Name-Pruefung ───> NOT_A_DEFECT, keine Codeaenderung
+### D0 — Worker-Deploy: F1 und F2 scharfschalten
 
-B1 Rubriken freigeben ─┐
-B2 OAuth-ADR ──────────┤
-B3 P6-Environment ─────┤
-B4 GHCR-Dispatch ──────┤
-B5 + C1 Worker auf RC23┼─> D OAuth   ──> P3 100, P5-I5  (P5 = 95)
-   (Wurzel fuer 99 Pkt)├─> E L4/L5   ──> L4 100, L5 100
-                       ├─> F Scale   ──> P6 100
-                       └─> G GHCR/I1 ──> P5 100 (Codewechsel noetig)
-                                            └─> H overall 100
-```
+**Zustand:** Beide Fixes sind in `4adb250c` committet und per Dry-Run validiert
+(13/13 Bindings, beide Source-Vars, korrigierte Redirect-URI). Sie sind **noch nicht live**.
 
-**Engpass 1: C1** — Worker auf Candidate-Source `7db18d90` redeployen. Entsperrt 99 Punkte,
-braucht keinen neuen Code. Er ist seit der Analyse **nicht** ausgefuehrt worden,
-und der Abstand ist von 86 ueber 106 auf 112 Commits gewachsen.
-
-**Engpass 2: B2** — OAuth-ADR. Ohne sie ist der groesste Rest (P3 +56) nicht startbar.
-
----
-
-## 5. Arbeitspakete
-
-### STUFE A — autonom, ohne Owner ausfuehrbar
-
-**A1 · Delta-Ledger-Probelauf — ERLEDIGT.**
-Der source-gebundene synthetische Eintrag sowie falscher `source_sha`, falscher
-Projection-Hash, Zelle ausserhalb 0-100, falsche Overall-Summe und Baseline-/Ancestor-
-Drift sind getestet. Lokal `27/27`, Exact-Head-CI `33300647039` gruen. Der kanonische
-Ledger bleibt `entries=[]`; **kein Prozentwert wurde veraendert.**
-
-**A2 · P3-Kriterienkatalog — ERLEDIGT.**
-`docs/runtime-contracts/phase3-credit-rubric.md` existiert, Summe 100,
-`DRAFT_OWNER_APPROVAL_REQUIRED`. Nichts mehr zu tun; wartet auf B1.
-
-**A3 · P6-Kriterienkatalog — ERLEDIGT.**
-`docs/runtime-contracts/phase6-credit-rubric.md` existiert, Summe 100,
-`DRAFT_OWNER_APPROVAL_REQUIRED`. Die 22 `*_blocked`-Eintraege sind **absichtliche
-Nichtziele** und bleiben korrekt draussen. Wartet auf B1.
-
-**A4 · `/api/v1/team/status` = 500 — erst nach C1 als Defekt behandeln.**
-Der 500er ist gegen das **veraltete** Deployment gemessen. Die Route existiert im
-aktuellen Quellcode (`services/cloudflare-stateful-runtime/src/index.js:33`,
-`AUTONOMOUS_TEAM_STATUS_PATHS`). Reihenfolge: erst C1, dann neu messen. Nur wenn
-der 500er dann bleibt, ist es ein echter Codedefekt — sonst war es Staleness.
-Ein Fix vor C1 waere Arbeit an einer Diagnose, die noch nicht steht.
-
-**A5 · Vercel-Origin-Zuordnung — ERLEDIGT (read-only, keine Aktivierung).**
-Das Projekt `frontend` ist Next.js-UI und Boundary-Proxy; dort gepflegte OAuth-Variablen
-konfigurieren weder Worker noch Upstream. Das Projekt
-`cloud-superbrain-developer-platform` ist der absichtlich stateless/read-only
-`CONTRACT_ORIGIN` und darf keine Production-OAuth-Runtime werden. Nach B2 liegen die
-serverseitigen OAuth-Variablen bei Option A im Cloudflare-Stateful-Worker, bei Option B im
-stateful FastAPI/PostgreSQL/Redis-Stack. `frontend` erhaelt nur `AGENT_API_BASE_URL` zur
-gewaehlten Runtime; Callback-URI und registrierter Callback muessen exakt dieselbe
-freigegebene Boundary verwenden. Keine Provider-Konfiguration wurde veraendert.
-
-**A6 · Gate-Name-Pruefung — ERLEDIGT, `NOT_A_DEFECT`.**
-`services/agent-api/app/main.py:7455` ist korrekt: `active_target_gate` bezeichnet das
-kanonische Cloudflare-Architekturziel und nicht den aktuell fehlenden Einzelgate. Dieser
-steht separat in `missing_or_failed_gates`, aktuell exakt `ghcr_image_digest_verify`.
-Ein Wechsel der Zeile auf GHCR wuerde `external-gate-summary-v2`, die Provenienzpruefung
-und RC23-Source-Paritaet brechen; deshalb bleibt der Runtime-Code unveraendert.
-
-### STUFE B — Owner-Entscheidungen (blockieren alles Weitere)
-
-| ID | Entscheidung | Blockiert |
-|---|---|---|
-| **B1** | Die drei Rubriken freigeben (`DRAFT_OWNER_APPROVAL_REQUIRED` -> approved, Freigabecommit benennen) | P3 +56, P6 +10, L4 +45, L5 +44 |
-| **B2** | OAuth-ADR: **Option A** Cloudflare-native (Zero-card, empfohlen) oder **Option B** Hosted FastAPI + PostgreSQL + Redis | gesamter OAuth-Strang |
-| **B3** | Konsole: Environment `phase6-scale-hosted-writes` anlegen **und Environment-Secret `AGENT_API_AUTH_TOKEN` setzen** | P6 +10 |
-| **B4** | Konsole: `main-deploy` dispatchen, `registry-publication` freigeben | letztes External Gate |
-| **B5** | Explizite Hosted-Deploy-Freigabe fuer C1 (kein Production-Alias) | 99 Punkte |
-
-**Zu B3 — der uebersehene zwoelfte Konsolenpunkt:**
-`.github/workflows/phase6-scale-runtime.yml:28` verlangt
-`environment: phase6-scale-hosted-writes`; `:41` prueft dessen
-`AGENT_API_AUTH_TOKEN`. GitHub legt ein referenziertes Environment beim Lauf
-implizit an — **ohne Secrets**. Der Owner-Gate-Check (`:67`) faellt dann
-fail-closed, bevor ein Request rausgeht. **P6 ist ohne B3 nicht ausfuehrbar.**
-
-**Zu B4 — kein Deadlock.** `scripts/verify-main-deploy-transition.ps1:63`
-fuehrt `market_ready` in der Liste **verbotener** Tokens
-(`forbidden legacy or runtime-release token is absent`). Die Kandidatenpublikation
-setzt `MARKET_READY:true` also **nicht** voraus. Sie braucht nur Owner-Dispatch
-plus Reviewer-Freigabe. Gegenprobe jederzeit:
+**Aktion — genau ein Befehl:**
 
 ```powershell
-Select-String -Path .\scripts\verify-main-deploy-transition.ps1 -Pattern 'market_ready'
+Set-Location 'D:\_sb_tmp\clean-head-7f181868'
+$env:TEMP='D:\_sb_tmp'; $env:TMP='D:\_sb_tmp'
+Get-Content 'C:\Users\immer\.codex\secrets\cloud-superbrain.local.env' | ForEach-Object {
+  if ($_ -match '^(CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID)=(.*)$') {
+    Set-Item -Path "env:$($Matches[1])" -Value ($Matches[2].Trim().Trim('"').Trim("'"))
+  }
+}
+pwsh -NoProfile -File .\scripts\deploy-cloudflare-stateful-runtime.ps1
 ```
 
-Ein allgemeines "ja" oder ein Browser-Login ist **keine** dieser Freigaben.
+**Nie wieder `wrangler deploy` direkt aufrufen** — das hat F2 verursacht.
 
-### STUFE C — Hosted-Source-Paritaet (Wurzel fuer 99 Punkte + I1)
+**Abnahme (das Skript prueft es selbst):**
 
-**C1** Worker aus dem aktuellen Kandidaten-Commit neu deployen,
-`SOURCE_COMMIT_SHA` und `SOURCE_ARCHIVE_SHA256` neu binden, `/api/v1/health` muss
-den neuen SHA melden. Vorbedingung: B5.
-
-**C2** Danach muss `/api/v1/project/progress` 89 melden, `snapshot_stale=false`,
-und `/api/v1/team/status` neu gemessen werden (siehe A4).
-
-### STUFE D — Production OAuth (P3 +56 und P5-I5)
-
-Erst nach B2. Bei Option A:
-
-1. **D1** Worker-Auth-Oberflaeche implementieren: `GET /api/v1/auth/github`
-   (echter `client_id`, One-Time-State in D1) und `GET /api/v1/auth/callback`
-   (Code-Tausch, Identitaetsbindung, Session). Beide fehlen — der Worker kennt nur
-   `auth/sessions{,/verify,/revoke}`
-   (`services/cloudflare-stateful-runtime/src/index.js:2057-2059`); alles Uebrige
-   faellt auf `CONTRACT_ORIGIN` durch.
-2. **D2** Die 4 fehlenden Worker-Variablen setzen: `GITHUB_OAUTH_CLIENT_ID`,
-   `GITHUB_OAUTH_REDIRECT_URI`, `GITHUB_OAUTH_OWNER_IDS`, `JWT_SIGNING_SECRET`
-   (vorhanden sind nur `AGENT_API_AUTH_TOKEN` und `GITHUB_OAUTH_CLIENT_SECRET`).
-3. **D3** `production_auth_identity.owner_granted = true` — erst **nach**
-   bewiesenem Callback, nie vorher. `live_verified` niemals von Hand.
-4. **D4** Echte Browserabnahme mit Handklicks: privates Fenster, `/login`,
-   "Mit GitHub anmelden"; erster Versuch **Cancel** (erwartet 401, State geloescht);
-   zweiter Versuch Scope zeigt nur `read:user`; Owner klickt Authorize selbst
-   (Passwort/2FA/CAPTCHA bleiben beim Owner); Callback beweist echte GitHub-ID,
-   konsumierten One-Time-State und persistiertes Audit; Reload behaelt Session;
-   Refresh rotiert; alter Token -> 401; Callback-Replay scheitert; Logout widerruft
-   und auditiert.
-
-Ergebnis bei Erfolg: P3-Rubrikzeilen erfuellt (nach B1 kreditierbar) und
-P5-I5 faellt weg -> **P5 = 95**.
-
-### STUFE E — L4/L5-Hosted-Verifier (10 Skripte, +89 Punkte)
-
-Erst nach B1 und C1, je Skript red-first, dann Hosted-Lauf:
-
-```
-L4  stream-parity 10 · negative-guards 7 · fallback 3 · budget-guard 3 ·
-    trace-correlation 4 · generativer Hosted-Beweis 10 · Routing+Audit nach Rebind 8
-L5  hosted-write 10 · auth-scope 6 · timeout-idempotency 4 ·
-    audit-readback-rollback 10 · SBOM 3 · Digest+Scan+approvierter Lauf 11
+```text
+/api/v1/health   source_commit_sha     = 4adb250c9948f9728c477eaabfc5964252b5707b
+                 source_archive_sha256 = 60c43b638f3ed6fd43162ae906c99c0781ff8289bf08d64333b0ec63269f118e
+/api/v1/auth/github  Location enthaelt
+                 redirect_uri = https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev/api/v1/auth/callback
 ```
 
-### STUFE F — Phase-6-Scale (+10)
+**Kredit:** keiner. D0 ist reine Voraussetzung.
 
-Erst nach B3 und C1. Exakt 900 Worker-Requests: 60 Reads @1, 240 @10, 500 @50,
-50 parallele `POST /api/v1/builds` @10, serverseitiger D1-Readback je Datensatz,
-50 authentifizierte DELETEs.
-Erfolg: Quote >= 0,99 · p95 <= 1500 ms · eigene 5xx = 0 · 50 erstellt/eindeutig/
-geloescht · Verlust 0 · Duplikate 0 · Cleanup vollstaendig · Audit persistiert ·
-Evidence SHA-256-gebunden. Token nur im Prozess-Environment, nie in Ausgabe.
-
-### STUFE G — GHCR, I1 und der P5-Uebergang
-
-1. **G1** Nach B4: sechs unveraenderliche SHA-Digests fuer frontend, agent-api,
-   agent-worker, memory-worker, mcp-gateway, llm-gateway. Schliesst
-   `ghcr_image_digest_verify` — das letzte External Gate.
-2. **G2** Kandidatengebundenes Hosted-Staging mit **denselben** Digests -> **I1**.
-   Hier werden auch die **6 stillgelegten P5-Beweise** neu erbracht.
-3. **G3** Nach D4 -> **I5**. Rein evidenzgetrieben, kein Codewechsel.
-4. **G4** Erst wenn I1 real belegt ist: Readiness-Zeilen auf 19/19 "JA",
-   Itemization `blocked_owner` -> `verified`, **und im selben Zug**
-   `BASELINE_BLOCKED_IDS = {"I1"}` -> `set()` in
-   `scripts/verify_phase5_credit_itemization.py`. Ohne diesen Codewechsel bleibt
-   `expected_percent` bei 95 und `require(computed_percent == expected_percent)`
-   schlaegt fehl. Fuer I5 gilt das **nicht** — dort genuegt der Beweis.
-
-### STUFE H — Abschluss
-
-1. Delta-Ledger-Eintraege je bewegter Zelle (Mechanismus in A1 erprobt).
-2. Manifest: P3 100, P5 100, P6 100, L4 100, L5 100 -> `overall = 100`.
-3. Wahrheitsdateien synchronisieren: `PROJECT_STATE.md`, `AI_HANDOFF.md`,
-   `docs/verification-register.md`, `LAYER_MATRIX.md`, `docs/screen-inventory.md`,
-   diese Datei.
-4. Finaler serieller Gate-Stack, dann
-   `pwsh -NoProfile -File .\scripts\verify-market-ready.ps1 -IncludeExternalGates`.
-5. Optik ganz zuletzt: Cortex-Bug und 3-Sterne-Look.
+**Erwartung daempfen:** `/api/v1/project/progress` bleibt danach bei `84`. Der Worker hat
+keine native Progress-Route und reicht an den degradierten `CONTRACT_ORIGIN` durch. Das ist
+ein eigener Punkt (§6), kein Fehler des Deploys.
 
 ---
 
-## 6. Naechster sicherer Ablauf ohne jede Freigabe
+### D1 — OAuth-Browserkette: P3 +56 und P5-I5
 
-Der aktuelle Ablauf steht verbindlich in Abschnitt 0. A1 und A5 sind verifiziert erledigt;
-A6 ist nach Contract-Audit `NOT_A_DEFECT` und erzeugt bewusst keine Runtime-Aenderung.
-Selection-Commit `67cd698c`, Truth-Sync `042b1bd4`, Feature-Push und dessen Exact-Head-CI
-`33300647039` sind belegt. Diese Korrekturfassung darf nur als exakt begrenzter
-Truth-Doku-Commit gepusht und durch eine neue Exact-Head-CI mit `skipped=0` gebunden werden;
-kein neuer Candidate-/Runtime-Source-Commit. Danach endet der autonome Pfad an B1 bis B5.
+**Voraussetzung:** D0 gruen.
 
-## 7. Schutzregeln
+**Vorher pruefen:** Die GitHub-OAuth-App muss als Callback exakt
+`https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev/api/v1/auth/callback`
+fuehren, Scope nur `read:user`, Wildcard-Matching aus. Weicht das ab, scheitert die Kette an
+`redirect_uri_mismatch` — genau der Fehler aus F1.
 
-- nie `git add -A`; exakte Pathspecs; nie `git commit` ohne Pathspec;
-- kein Stash, kein Force-Push, kein Default-Branch-Push;
-- Playwright, Docker-Build und Verifier **nie parallel**;
-- keine Frontend-Dateiaenderung waehrend eines Browserlaufs;
-- keine Evidence nachbearbeiten;
-- keine Secrets, Passwoerter, 2FA-, CAPTCHA- oder Zahlungsdaten ausgeben;
-- `.phase1-artifacts/` und `docs/release-artifacts/` nicht aufraeumen;
-- `PROJECT_STATE.md` nie allein aktualisieren;
-- `TEMP`/`TMP` = `D:\_sb_tmp` vor Verifierlaeufen;
-- Verifier nie abschwaechen, um gruen zu werden;
-- die 22 P6- und 2 P3-`*_blocked`-Eintraege sind **absichtliche Grenzen** und
-  duerfen nicht "geschlossen" werden;
-- `live_verified` niemals von Hand setzen;
-- solange ein RC an einem SourceSha eingefroren ist: kein neuer Runtime-Source-Commit.
-  Ein separater verifier-akzeptierter Qualification-Truth-/Selection-Commit darf den
-  eingefrorenen SourceSha, immutable Evidence, Pointer und Truth-Dokumente binden, solange
-  `runtime_source_parity=true` bleibt und keine Runtime-Source-Pfade geaendert werden.
+**Die Kette, in privatem Fenster, mit echten Klicks:**
 
-Der historische Vier-Pfade-Prequalification-Uebergang war:
+1. `/login` -> „Mit GitHub anmelden" -> **Cancel**. Erwartet: `401`, State geloescht, keine
+   Session.
+2. Erneut starten. Der Consent-Screen darf **nur** `read:user` zeigen.
+3. **Owner klickt Authorize selbst** — Passwort und 2FA bleiben beim Owner.
+4. Callback muss beweisen: echte numerische GitHub-ID, konsumierter One-Time-State,
+   persistiertes Audit **vor** der Credential-Ausgabe.
+5. `/api/v1/auth/me` liefert die Identitaet; Reload behaelt die Session.
+6. `POST /api/v1/auth/refresh` rotiert. Der **alte** Refresh-Token danach -> `401`
+   `auth_refresh_reuse_blocked`, die Familie ist widerrufen.
+7. Callback-Replay mit demselben State scheitert.
+8. `POST /api/v1/auth/logout` widerruft die Familie, loescht beide Cookies; Refresh danach
+   `401`.
 
-```text
-PROJECT_STATE.md
-apps/frontend/lib/endpoint-snapshot.json
-apps/frontend/lib/platform.ts
-docs/project-progress.manifest.json
+**Evidence:** SHA-256-gebunden ablegen, Audit-Kette request-/session-korreliert, **ohne**
+Codes, State, Tokens, Cookies oder Secrets im Klartext.
+
+**Kredit:** P3 `44 -> 100` gegen `docs/runtime-contracts/phase3-credit-rubric.md`
+(P3-01 bis P3-08, Summe 56) — **erst nach B1-Freigabe der Rubrik**. Danach faellt `I5`
+automatisch, weil `expected_blocked_ids` es rein evidenzgetrieben behandelt
+(`verify_phase5_credit_itemization.py:290`). P5 geht damit auf `95` (18/19).
+
+---
+
+### D2 — RC24 einfrieren und qualifizieren: P5-I1
+
+**Warum noetig:** RC23 zeigt auf `7db18d90`. Mit `9ec4741f` ist neuer **Produktquellcode**
+dazugekommen (722 Zeilen OAuth, Migration 0005). RC23 kann I1 nicht mehr tragen.
+
+**Aktion:**
+
+1. Kandidaten an dem SHA einfrieren, der auch deployt ist (`4adb250c` oder spaeter).
+2. Die fuenf Ketten fahren: sechs Clean-Archive-Images, Runtime `10/10`, Browser-Umbrella,
+   Candidate-Runtime mit realer Auswahl und Klick, Candidate-Archiv npm-audit + gitleaks.
+3. Evidence-Set (27 Dateien) neu binden, `current-release-candidate.json` umstellen.
+4. Kontroll-Commit + CI mit `conclusion=success`, `skipped=0`, Source-Attestierung auf den
+   eingefrorenen SHA.
+5. Kandidatgebundenes Hosted-Staging mit **denselben** Digests -> das ist I1.
+
+**Danach — und nur danach — die Codeaenderung:**
+
+```python
+# scripts/verify_phase5_credit_itemization.py:44
+BASELINE_BLOCKED_IDS = set()      # war: {"I1"}
 ```
 
-Die abschliessende Selection darf zusaetzlich nur das immutable Evidence-Set, Readiness,
-Candidate-Pointer, verifier-generierte O4-Gate-Wahrheit und die synchronen Master-/Handoff-
-Dokumente enthalten. `git add -A` bleibt verboten.
+Ohne diese Aenderung bleibt `expected_percent` bei 95 und
+`require(computed_percent == expected_percent)` schlaegt fehl. Fuer `I5` gilt das **nicht** —
+dort genuegt der Beweis.
 
-## 8. Fremde Dirty-Pfade bewahren
+**Kredit:** P5 `95 -> 100` (19/19).
 
-```text
-.codex/runs/CURRENT/product-acceptance/report.json
-.phase1-artifacts/o4-live-writes/proof.json
-.phase1-artifacts/o4-live-writes/runtime-proof.json
-.phase1-artifacts/o4-live-writes/browser-proof.json
-docs/runtime-state/capability-gates.json
-docs/runtime-state/external-gate-audit-v2.json
-docs/runtime-state/external-gate-summary.json
-docs/runtime-state/owner-input-manifest.json
-docs/release-artifacts/prod-candidate-2026-08-02-local-rc12.md  (fremd gestaged)
-```
+---
 
-**Eigene uncommittete Pfade** (nachgeprueft, nicht fremd — duerfen bearbeitet werden):
+### D3 — Die zehn Verifier neu schreiben: L4 +45, L5 +44
+
+**Ausgangslage:** Die zehn Dateien in `scripts/` sind als `NOT CREDIT-BEARING` markiert und
+schreiben `status="scaffold_not_credit_bearing"` mit `credit_eligible=false`. Sie sind
+Geruest, kein Beweis (Details in der Uebergabe §5).
+
+**Beide Ziel-Gateways sind live** und antworten `200`:
 
 ```text
-scripts/verify-phase1.ps1        Claim-Flag-basierter External-Gate-Set-Fix
-AI_HANDOFF.md                    +63 Zeilen Cross-Audit-Abschnitt
-CODEX_ZIELVERFOLGUNG_KURZ.md     +38 Zeilen Cross-Audit-Abschnitt
+https://cloud-superbrain-llm-gateway-preview.strazzusochr.workers.dev/api/v1/health  -> service=llm-gateway
+https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev/mcp/api/v1/health -> service=mcp-gateway
 ```
 
-Die beiden Dokumentaenderungen verweisen noch auf `0a6277b8` und den alten
-Dokumentensatz. Sie sind durch diese Datei und die Uebergabe **ueberholt**.
+Echte Verifier sind also baubar. Jeder muss: einen **erfolgreichen** Hosted-Aufruf machen,
+das Ergebnis gegen das Rubrikkriterium pruefen, fail-closed sein und Evidence
+SHA-256-gebunden schreiben. Ein `401` auf einen Dummy-Token ist kein Beweis.
 
-## 9. Non-Claims
+| Punkte | L4 (LLM Gateway) | Punkte | L5 (MCP Gateway) |
+| ---: | --- | ---: | --- |
+| 10 | Stream vs. Non-Stream Paritaet — **echter Stream noetig** | 10 | Hosted-Write — **echter Write + Readback** |
+| 7 | Negative Guards | 10 | Audit-Readback + Rollback |
+| 4 | Trace-Korrelation | 6 | Auth-Scope |
+| 3 | Fallback | 4 | Timeout + Idempotenz |
+| 3 | Budget-Guard | 3 | SBOM **erzeugen** (nicht Pins pruefen) |
+| 10 | generativer Hosted-Beweis | 11 | Digest + Scan + approvierter Lauf |
+| 8 | Routing + Audit nach Rebind | | |
 
-- kein Main-/Default-Branch-Push;
-- kein GHCR-Push;
-- kein Production-Deploy, keine Promotion, kein Rollout;
-- kein Phase-6-Hosted-Write-Lauf;
-- keine production OAuth identity;
-- keine Rubrikaktivierung;
-- kein Secret- oder Payment-Output;
-- `MARKET_READY:false`;
-- `DEV-ONLY; hosted proof still blocked.`
+**Kredit:** L4 `55 -> 100`, L5 `56 -> 100` gegen
+`docs/runtime-contracts/layer-credit-rubric.md` — **erst nach B1-Freigabe**.
+
+---
+
+### D4 — Phase-6-Scale mit dem zugelassenen Verifier: P6 +10
+
+**Voraussetzung:** Gate `phase6_scale_runtime` offen; GitHub-Environment
+`phase6-scale-hosted-writes` existiert **und** enthaelt das Secret `AGENT_API_AUTH_TOKEN`;
+`.github/workflows/phase6-scale-runtime.yml` liegt auf dem **Default-Branch**.
+
+**Der vorhandene Lauf zaehlt nicht.** Er lief am Verifier vorbei und liefert keinen
+D1-Readback, keine No-Loss/No-Duplicate-Zaehlung, keine Cleanup-Semantik und kein
+Control-Tier.
+
+**Aktion:** `scripts/verify-phase6-scale-runtime.ps1 -AllowHostedWrites` gegen
+`docs/runtime-state/phase6-scale-criterion.json` (v2):
+
+```text
+Reads   60 @ concurrency 1 | 240 @ 10 | 500 @ 50
+Writes  50 x POST /api/v1/builds @ 10, serverseitiger D1-Readback je Record
+Deletes 50 authentifiziert, soft_delete_then_active_row_absence_and_audit_readback
+Control /cdn-cgi/trace, separates Budget, max 500
+Gesamt  exakt 900 Worker-Requests
+```
+
+Bestehen: Quote ≥ `0.99`, p95 ≤ `1500 ms`, eigene 5xx = `0`, 50 erstellt / eindeutig /
+geloescht, Verlust `0`, Duplikate `0`, Cleanup vollstaendig, Audit persistiert, Evidence
+SHA-256-gebunden. `429` ist **nur** auf Health-Read-Tiers zulaessig und muss fail-closed
+sein.
+
+Der Token gehoert ausschliesslich ins Prozess-Environment — nie in Ausgabe, Log oder Commit.
+
+**Kredit:** P6 `90 -> 100`.
+
+---
+
+### D5 — Delta-Ledger buchen
+
+`docs/runtime-state/project-progress-delta-ledger.json` ist der **einzige** zugelassene Weg,
+eine Manifestzelle zu bewegen. `entries = 0`, `baseline.source_sha = 9a3776ff`. Der
+Mechanismus ist bis heute **nie** erprobt worden — der erste echte Kredit ist zugleich sein
+erster Test. Vorher einen synthetischen Probeeintrag mit Negativfaellen fahren (falscher
+`source_sha`, falscher Projection-Hash, Zelle ausserhalb 0–100, Summe passt nicht zu
+`overall`) und danach wieder entfernen.
+
+Je bewegter Zelle **ein** SHA-gebundener Eintrag. Danach muss
+`py -3 scripts/verify_project_progress_manifest.py` die neuen Werte akzeptieren.
+
+**Niemals** einen Prozentwert direkt im Manifest setzen.
+
+---
+
+### D6 — Abschluss-Stack, streng seriell
+
+```powershell
+Set-Location 'D:\_sb_tmp\clean-head-7f181868'
+$env:TEMP='D:\_sb_tmp'; $env:TMP='D:\_sb_tmp'; $env:PYTHONUTF8='1'
+
+npm run verify
+npm run verify:runtime
+pwsh -NoProfile -File .\scripts\start-dev-live.ps1
+npm run verify:browser
+npm run verify:csrf
+npm run verify:responsive
+npm run verify:frontend-hosted-current
+npm run verify:backend-hosted-current
+npm run verify:phase5-credit
+npm run verify:current-release-candidate
+npm run verify:release-candidate
+npm run verify:external-gates
+pwsh -NoProfile -File .\scripts\verify-market-ready.ps1 -IncludeExternalGates
+```
+
+Zielausgabe muss **real** sein: `MARKET_READY: true`, Overall `100`, alle Zellen `100`,
+Ledger enthaelt die legitimen Eintraege, Hosted-SHA = Truth-HEAD, keine `OWNER_BLOCKED`
+mehr.
+
+---
+
+## 5. Owner-Gates — was nur der Owner erteilen kann
+
+| Gate | Entscheidung | Blockiert |
+| --- | --- | --- |
+| **B1** | Die drei Rubriken freigeben (`DRAFT_OWNER_APPROVAL_REQUIRED` -> approved, Freigabecommit benennen) | P3 +56, P6 +10, L4 +45, L5 +44 |
+| **B2** | OAuth-ADR festschreiben (Cloudflare-native ist implementiert und deployfaehig) | Dokumentationslage |
+| **B3** | Environment `phase6-scale-hosted-writes` anlegen, Secret `AGENT_API_AUTH_TOKEN` setzen, Workflow auf den Default-Branch bringen | P6 +10 |
+| **B4** | Gehaerteten `main-deploy`-Blob auf den Default-Branch bringen, dann Candidate dispatchen und `registry-publication` freigeben | GHCR / letztes External Gate |
+| **B5** | Hosted-Deploy-Freigabe fuer Worker **und** Contract-Origin | D0, D2, §6 |
+
+Zu **B4**: **kein Deadlock.** `scripts/verify-main-deploy-transition.ps1:63` fuehrt
+`market_ready` in der Liste **verbotener** Tokens. Die Kandidatenpublikation setzt
+`MARKET_READY:true` also nicht voraus.
+
+### Drei Wände, die keine Freigabe verschiebt
+
+1. **Der GitHub-Authorize-Klick** braucht Passwort und 2FA des Owners. Nicht delegierbar.
+2. **Secret-Werte in Konsolen-Felder eintippen** ist einem Agenten kategorisch untersagt.
+3. **Die Deploy-Sperre der Claude-Code-Harness** — sie hat D0 zweimal geblockt. Der Owner
+   loest sie per Permission-Regel oder fuehrt den Befehl aus §D0 selbst aus.
+
+---
+
+## 6. Der offene Architekturpunkt: die hosted `84`
+
+`/api/v1/project/progress` liefert hosted `84` statt `89` — und **kein Worker-Deploy aendert
+das**. Der Worker hat keine native Progress-Route; alles Unbekannte faellt auf
+`CONTRACT_ORIGIN` durch (`src/index.js:2011`), hart verdrahtet auf
+`cloud-superbrain-developer-platform.vercel.app`, der selbst `status=degraded` und `84`
+meldet.
+
+Zwei saubere Wege, beide Owner-Entscheidung:
+
+- **A** — den Contract-Origin source-gebunden neu deployen, oder
+- **B** — eine native Progress-Projektion in den Worker bauen und `CONTRACT_ORIGIN` fuer
+  diese Route nicht mehr benutzen.
+
+Bis dahin gilt: hosted `84` ist **kein Defekt des Workers**, sondern ein bekannter,
+dokumentierter Origin-Rueckstand.
+
+---
+
+## 7. Schutzregeln — bindend
+
+- nie `git add -A`; immer exakte Pathspecs; nie `git commit` ohne Pathspec
+- kein `git stash`, kein Force-Push, kein Push auf `chore/repo-bootstrap`
+- Playwright, Docker-Build und Verifier **nie parallel**
+- keine Frontend-Datei aendern, waehrend ein Browserlauf laeuft
+- Evidence nie nachbearbeiten; `.phase1-artifacts/` und `docs/release-artifacts/` nie
+  aufraeumen
+- `live_verified` **niemals** von Hand setzen
+- Verifier **nie** abschwaechen, um gruen zu werden
+- keine Secrets in Ausgabe, Log oder Commit
+- fremde Dirty-Pfade weder stagen noch zuruecksetzen
+- Worker **nur** ueber `scripts/deploy-cloudflare-stateful-runtime.ps1` deployen
+- `PYTHONUTF8=1` vor jedem Python-Verifier
+- solange ein RC eingefroren ist: kein neuer Produktcode-Commit, sonst driftet der Kandidat
+
+---
+
+## 8. Was ausdruecklich verboten bleibt
+
+Ein Kredit ohne den zugehoerigen echten Beweis ist **Fake-Done** und zerstoert genau das,
+was dieses Projekt ausmacht. Konkret heute:
+
+- Die zehn Verifier-Geruste **nicht** fuer L4/L5 kreditieren.
+- Den vorhandenen 900er-Lauf **nicht** fuer P6 kreditieren.
+- `production_auth_identity` **nicht** oeffnen, bevor der Authorize-Klick real erfolgt ist.
+- `BASELINE_BLOCKED_IDS` **nicht** leeren, bevor I1 wirklich belegt ist.
+- Keinen Prozentwert direkt im Manifest setzen — ausschliesslich ueber den Delta-Ledger.
+
+`MARKET_READY:false` · `DEV-ONLY; hosted proof still blocked.`
