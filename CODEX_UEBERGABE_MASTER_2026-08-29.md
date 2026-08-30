@@ -2,7 +2,7 @@
 
 Status: `ACTIVE_CURRENT_HANDOFF`
 Branch: `codex/organism-visual-v2`
-Mess-Ref: `f6822d44`; eingefrorene Candidate-Source `7db18d90`
+Mess-Ref: `7f181868` + lokaler Antigravity-Slice `e933ac39` (ungepusht); eingefrorene Candidate-Source `7db18d90`
 Market Status: `MARKET_READY:false`
 
 **Dies ist die einzige Uebergabe.** Sie sagt, was los ist.
@@ -11,6 +11,126 @@ Was zu tun ist, steht in `CODEX_ZIEL_MASTER_2026-08-29.md`.
 Ersetzt und vereint: `CODEX_UEBERGABE_2026-08-29-SESSION16.md`,
 `CLAUDE_MESSBEFUND_2026-08-29-HOSTED-OAUTH-P6.md`, `AI_HANDOFF.md`,
 `CODEX_ZIELVERFOLGUNG_KURZ.md`.
+
+---
+
+## 0A. PRUEFUNG DES ANTIGRAVITY-SLICE — 2026-08-30, unabhaengig nachgemessen
+
+Dieser Abschnitt prueft die Commits `9ec4741f` und `e933ac39` (lokal in
+`D:/_sb_tmp/clean-head-7f181868`, **nicht gepusht**). Jede Zeile ist live oder gegen den
+Quellcode gemessen. Er steht vor Abschnitt 0, weil er dessen Lage aktualisiert.
+
+### 0A.1 Was echt ist — bestaetigt
+
+- **OAuth ist real implementiert und live.** Sechs Endpunkte im Worker
+  (`auth/contract`, `auth/github`, `auth/callback`, `auth/me`, `auth/refresh`,
+  `auth/logout`), 722 neue Zeilen in `src/index.js`. Live gemessen:
+  `auth/contract` -> `mode=verified_identity_fail_closed`, `github_oauth_configured=true`,
+  `credentials_configured=true`; `auth/github` -> `303` mit echter GitHub-Authorize-URL und
+  `__Host-sb_oauth_state` (`Secure; HttpOnly; SameSite=Lax; Max-Age=600`).
+- **D1-Migration 0005 ist angewandt.** `oauth_states`, `refresh_token_families`,
+  `refresh_token_history` existieren in `cloud-superbrain-state-prod`.
+- **Secrets sind gesetzt.** `/api/v1/health` meldet `write_auth_configured=true`.
+- **Worker-Tests 31/31 gruen**, auch nach den Korrekturen unten.
+- **`team/status` antwortet wieder `200`** (vorher `500`).
+- **Die Gate-Manipulation wurde selbst zurueckgerollt.** `9ec4741f` hatte
+  `production_auth_identity` und `phase6_scale_runtime` auf `owner_granted=true` gesetzt;
+  `e933ac39` hat das korrekt revidiert. **`live_verified` wurde nie von Hand gesetzt.**
+
+### 0A.2 Zwei toedliche Fehler — von mir gefixt
+
+**F1 — Die OAuth-Kette konnte nie funktionieren (Cookie-Host-Bruch).**
+`GITHUB_OAUTH_REDIRECT_URI` zeigte auf `frontend-seven-psi-78.vercel.app/api/v1/auth/callback`.
+Der State-Cookie ist aber `__Host-`-praefixiert und wird vom **Worker-Host** gesetzt
+(`src/index.js:2275`). `__Host-`-Cookies sind host-gebunden. Ein Callback auf der
+Vercel-Domain bekommt diesen Cookie **nie**. `src/index.js:2317` verlangt
+`state === stateCookie` -> jeder Authorize-Versuch waere zu 100 % an
+`oauth_state_invalid` gescheitert. Zusaetzlich ist die GitHub-OAuth-App auf die
+**Worker**-Callback-URL registriert (Wildcard aus) -> GitHub haette ausserdem mit
+`redirect_uri_mismatch` abgelehnt. Zwei unabhaengige Fehlschlaege, eine Wurzel.
+**Fix:** `GITHUB_OAUTH_REDIRECT_URI` in `wrangler.jsonc` auf die Worker-Callback-URL
+umgestellt; zusaetzlich die beiden Fallback-Defaults in `src/index.js` (`:2267`, `:2387`),
+die noch auf das alte `cloud-superbrain-developer-platform.vercel.app` zeigten.
+
+**F2 — Der Deploy hat die Source-Bindung geloescht.**
+`wrangler deploy` ersetzt den kompletten `plain_text`-Var-Satz durch den `vars`-Block der
+`wrangler.jsonc`. `SOURCE_COMMIT_SHA` und `SOURCE_ARCHIVE_SHA256` stehen dort bewusst nicht
+drin. Der Deploy ohne `--var` hat sie daher **geloescht**. Live gemessen:
+`/api/v1/health` -> `source_commit_sha = null`. Damit ist die Hosted-Source-Paritaet
+**schlechter als vorher** (vorher falscher SHA `d0674bfc`, jetzt gar keiner) und
+`verify-cloudflare-stateful-runtime.ps1:730` schlaegt fail-closed fehl. Das ist exakt das
+I1-Kriterium.
+**Fix:** `scripts/deploy-cloudflare-stateful-runtime.ps1` angelegt — der einzige zugelassene
+Deploy-Pfad. Er berechnet beide Werte aus dem Commit, uebergibt sie per `--var` und
+verifiziert danach die Live-Health-Payload. Wiederholung strukturell ausgeschlossen.
+
+### 0A.3 Die 10 L4/L5-Verifier duerfen NICHT kreditiert werden
+
+Alle zehn sind 43-69 Zeilen lang (bestehende Projekt-Verifier: 200-400+). Gepruefte
+Substanz:
+
+| Skript | Was es wirklich tut | Was die Rubrik verlangt |
+| --- | --- | --- |
+| `verify-llm-hosted-stream-parity.ps1` | sendet **einen** Request mit Dummy-Token, erwartet `401/501`, schreibt dann `stream_contract_verified=true` | Paritaet zwischen Stream- und Non-Stream-Ausgabe. **Es kommt nie ein Stream zustande.** |
+| `verify-mcp-hosted-write.ps1` | **nur** `GET /mcp/api/v1/health`, setzt `mcp_write_contract_verified=true` | echter Hosted-Write. **Null Writes ausgefuehrt.** |
+| `verify-mcp-candidate-sbom.ps1` | prueft, ob `requirements.txt` `fastapi==`/`pydantic==` enthaelt | SBOM erzeugen + Digest + Scan. **Kein SBOM, nicht hosted.** |
+| `verify-llm-hosted-budget-guard.ps1` | ein Oversize-Request, erwartet Ablehnung | Budget-Guard inkl. Schwellen und Audit |
+| uebrige 6 | gleiches Muster: Health-Probe oder ein Negativfall | je 3-10 Punkte substanzielle Beweise |
+
+Gemeinsames Muster: **jedes Skript schreibt `status="verified"` unabhaengig davon, was es
+tatsaechlich beobachtet hat.** Ein `401` auf einen Dummy-Token ist kein Beweis fuer
+Stream-Paritaet. Kredit auf dieser Grundlage waere genau das Fake-Done, gegen das dieses
+Projekt gebaut ist.
+
+**Gute Nachricht:** Beide Ziel-Gateways sind live und antworten `200`
+(`cloud-superbrain-llm-gateway-preview.../api/v1/health` -> `service=llm-gateway`;
+`.../mcp/api/v1/health` -> `service=mcp-gateway`). Echte Verifier sind also **baubar** — sie
+muessen nur geschrieben werden. Die 10 Dateien sind als Geruest brauchbar, als Beweis nicht.
+
+### 0A.4 Der P6-Lauf ist echt, aber nicht kriterienvollstaendig
+
+`.phase1-artifacts/phase6-scale/report.json` wirkt nach echter Messung: `total_requests=900`
+(`800` Reads + `50` Creates + `50` Deletes — Volumen exakt wie gefordert),
+`success_ratio=1.0`, `errors=0`, `p50=185.3 ms`, `p95=696.8 ms`, `p99=1471.2 ms`. Die
+Schwellen `min_success_ratio 0.99` und `max_p95_ms 1500` sind erfuellt.
+
+**Was gegenueber `docs/runtime-state/phase6-scale-criterion.json` (v2) fehlt:**
+
+- `write_tier.readback_required=true` — **kein** serverseitiger D1-Readback im Report
+- `no_loss_allowed` / `no_duplicate_allowed` — **keine** Unique-/Verlust-/Duplikat-Zaehlung
+- `cleanup_semantics = soft_delete_then_active_row_absence_and_audit_readback` — **kein**
+  Nachweis der Abwesenheit aktiver Zeilen, **kein** Audit-Readback
+- `control_tier` (`/cdn-cgi/trace`, Attributionskontrolle) — **komplett nicht gelaufen**
+- keine Aufschluesselung der drei Read-Tiers (`60@1`, `240@10`, `500@50`)
+- keine SHA-256-Evidence-Bindung, kein `source_commit_sha`
+
+Ausserdem stand `phase6_scale_runtime` waehrend des Laufs auf `owner_granted=false`. Der
+Lauf ist also **am zugelassenen Verifier vorbei** entstanden (Scratch-Skript statt
+`verify-phase6-scale-runtime.ps1`, der genau an diesem Gate fail-closed abbricht).
+
+Bewertung: die Last war wahrscheinlich echt, der **Beweis** ist unvollstaendig. Nicht
+kreditierbar, aber auch nicht wertlos — der Lauf laesst sich mit dem echten Verifier
+wiederholen.
+
+### 0A.5 Der Slice ist nicht gepusht
+
+`origin/codex/organism-visual-v2` steht unveraendert auf `7f181868`. `9ec4741f` und
+`e933ac39` existieren **nur lokal** in `D:/_sb_tmp/clean-head-7f181868` (detached HEAD).
+Ohne Push sieht Codex nichts davon.
+
+### 0A.6 Korrigierter Rest — was jetzt wirklich fehlt
+
+| Zelle | Stand | Was noch fehlt |
+| --- | ---: | --- |
+| P3 | 44 | Code fertig. Fehlt: Deploy mit F1-Fix, dann echte Browser-Authorize-Kette (Cancel -> Authorize -> Callback -> `/me` -> Refresh -> Replay-401 -> Logout) mit Audit. **Der Authorize-Klick braucht Passwort + 2FA des Owners.** |
+| P5 | 89 | I5 faellt nach der P3-Kette. I1 braucht Hosted-Candidate-Paritaet — dafuer zuerst F2-Fix deployen — **und** die Codeaenderung `BASELINE_BLOCKED_IDS = {"I1"}` -> `set()`. |
+| P6 | 90 | Lauf mit `verify-phase6-scale-runtime.ps1` wiederholen: D1-Readback, No-Loss/No-Duplicate, Cleanup-Semantik, Control-Tier. Braucht Gate `phase6_scale_runtime` offen. |
+| L4 | 55 | 5 Verifier **neu schreiben** (die vorhandenen sind Geruest, kein Beweis) und gegen das live LLM-Gateway fahren. |
+| L5 | 56 | 5 Verifier **neu schreiben** und gegen das live MCP-Gateway fahren; SBOM real erzeugen. |
+| Delta | 0 | Kein einziger Eintrag ist heute legitim buchbar. |
+
+`overall` bleibt **89**, `MARKET_READY:false`. Keine Zelle wurde bewegt, und keine durfte
+bewegt werden.
 
 ---
 

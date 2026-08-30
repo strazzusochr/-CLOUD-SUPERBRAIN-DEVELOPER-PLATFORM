@@ -1,3 +1,10 @@
+# NOT CREDIT-BEARING SCAFFOLDING.
+# Audited 2026-08-30: this script observes a health probe and/or a single negative case.
+# It does NOT satisfy the L4/L5 rubric criterion it is named after and must never be used
+# to credit a manifest cell or to create a delta-ledger entry. Rewrite it against the real
+# criterion in docs/runtime-contracts/layer-credit-rubric.md before any credit is claimed.
+# See CODEX_UEBERGABE_MASTER_2026-08-29.md section 0A.3.
+
 param(
   [string]$BaseUrl = "https://cloud-superbrain-llm-gateway-preview.strazzusochr.workers.dev",
   [string]$OutDir = ".phase1-artifacts/llm-gateway/hosted-stream-parity"
@@ -53,7 +60,9 @@ try {
   $reportPath = Join-Path $OutDir "report.json"
   $report = [ordered]@{
     contract_version = "llm-hosted-stream-parity-v1"
-    status = "verified"
+    status = "scaffold_not_credit_bearing"
+    credit_eligible = $false
+    credit_block_reason = "audited-2026-08-30-insufficient-evidence"
     checked_at = [DateTime]::UtcNow.ToString("o")
     base_url = $base
     stream_contract_verified = $true
@@ -63,7 +72,7 @@ try {
     secret_output = $false
   }
   $report | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $reportPath -Encoding utf8
-  Write-Host "[llm-stream-parity] status=verified report=$reportPath"
+  Write-Host "[llm-stream-parity] status=scaffold_not_credit_bearing report=$reportPath"
 } finally {
   Pop-Location
 }

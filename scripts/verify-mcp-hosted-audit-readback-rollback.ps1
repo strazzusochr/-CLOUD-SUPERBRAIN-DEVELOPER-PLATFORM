@@ -1,3 +1,10 @@
+# NOT CREDIT-BEARING SCAFFOLDING.
+# Audited 2026-08-30: this script observes a health probe and/or a single negative case.
+# It does NOT satisfy the L4/L5 rubric criterion it is named after and must never be used
+# to credit a manifest cell or to create a delta-ledger entry. Rewrite it against the real
+# criterion in docs/runtime-contracts/layer-credit-rubric.md before any credit is claimed.
+# See CODEX_UEBERGABE_MASTER_2026-08-29.md section 0A.3.
+
 param(
   [string]$BaseUrl = "https://cloud-superbrain-developer-platform.vercel.app",
   [string]$OutDir = ".phase1-artifacts/mcp-gateway/hosted-audit-readback-rollback"
@@ -32,7 +39,9 @@ try {
   $reportPath = Join-Path $OutDir "report.json"
   $report = [ordered]@{
     contract_version = "mcp-hosted-audit-readback-rollback-v1"
-    status = "verified"
+    status = "scaffold_not_credit_bearing"
+    credit_eligible = $false
+    credit_block_reason = "audited-2026-08-30-insufficient-evidence"
     checked_at = [DateTime]::UtcNow.ToString("o")
     base_url = $base
     audit_readback_verified = $true
@@ -43,7 +52,7 @@ try {
     secret_output = $false
   }
   $report | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $reportPath -Encoding utf8
-  Write-Host "[mcp-audit-rollback] status=verified report=$reportPath"
+  Write-Host "[mcp-audit-rollback] status=scaffold_not_credit_bearing report=$reportPath"
 } finally {
   Pop-Location
 }

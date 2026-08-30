@@ -2264,7 +2264,7 @@ async function authGithubStart(request, env, requestId) {
     return authResponse({ error: "auth_state_storage_unavailable", credentials_issued: false, secret_output: false }, 503, [STATE_COOKIE_CLEAR]);
   }
 
-  const redirectUri = env.GITHUB_OAUTH_REDIRECT_URI || "https://cloud-superbrain-developer-platform.vercel.app/api/v1/auth/callback";
+  const redirectUri = env.GITHUB_OAUTH_REDIRECT_URI || "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev/api/v1/auth/callback";
   const params = new URLSearchParams({
     client_id: env.GITHUB_OAUTH_CLIENT_ID,
     redirect_uri: redirectUri,
@@ -2384,7 +2384,7 @@ async function authGithubCallback(request, url, env, requestId) {
         client_id: env.GITHUB_OAUTH_CLIENT_ID,
         client_secret: env.GITHUB_OAUTH_CLIENT_SECRET,
         code,
-        redirect_uri: env.GITHUB_OAUTH_REDIRECT_URI || "https://cloud-superbrain-developer-platform.vercel.app/api/v1/auth/callback",
+        redirect_uri: env.GITHUB_OAUTH_REDIRECT_URI || "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev/api/v1/auth/callback",
       }),
     });
     if (!tokenRes.ok) throw new Error("token exchange failed");
