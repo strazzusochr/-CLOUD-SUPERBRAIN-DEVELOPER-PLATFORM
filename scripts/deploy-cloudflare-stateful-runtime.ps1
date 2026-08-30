@@ -52,7 +52,7 @@ try {
   Assert-True "wrangler present" (Test-Path -LiteralPath $wrangler)
 
   $deployArgs = @(
-    $wrangler, "deploy", "--env=`"`"",
+    $wrangler, "deploy", "--env", "",
     "--var", "SOURCE_COMMIT_SHA:$resolved",
     "--var", "SOURCE_ARCHIVE_SHA256:$archiveSha"
   )
