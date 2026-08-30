@@ -221,19 +221,48 @@ $qualificationTruthPaths = @(
   "apps/frontend/lib/platform.ts",
   "docs/project-progress.manifest.json"
 )
+$noCreditRequalificationPaths = @(
+  "PROJECT_STATE.md",
+  "apps/frontend/lib/endpoint-snapshot.json",
+  "docs/runtime-state/external-gate-summary.json"
+)
+function Test-ExactPathSet($Actual, $Expected) {
+  $unexpected = @($Actual | Where-Object { $Expected -notcontains $_ })
+  $missing = @($Expected | Where-Object { $Actual -notcontains $_ })
+  return $unexpected.Count -eq 0 -and $missing.Count -eq 0
+}
 $runtimeDiffArgs = @("diff", "--cached", "--name-only", "--diff-filter=ACDMRTUXB", $sourceSha, "--") + $runtimeSourcePaths
 $runtimeChangedPaths = @(& git @runtimeDiffArgs | ForEach-Object { ([string]$_).Trim().Replace("\", "/") } | Where-Object { $_ })
 if ($LASTEXITCODE -ne 0) {
   throw "Verification failed: could not compare active release runtime source with HEAD."
 }
 $truthTransition = $false
+$noCreditRequalification = $false
 if ($runtimeChangedPaths.Count -gt 0) {
-  $unexpectedRuntimePaths = @($runtimeChangedPaths | Where-Object { $qualificationTruthPaths -notcontains $_ })
-  $missingTruthPaths = @($qualificationTruthPaths | Where-Object { $runtimeChangedPaths -notcontains $_ })
-  if ($unexpectedRuntimePaths.Count -gt 0 -or $missingTruthPaths.Count -gt 0) {
+  $isQualificationTruthTransition = Test-ExactPathSet $runtimeChangedPaths $qualificationTruthPaths
+  $isNoCreditRequalification = Test-ExactPathSet $runtimeChangedPaths $noCreditRequalificationPaths
+  if (-not $isQualificationTruthTransition -and -not $isNoCreditRequalification) {
     throw "Verification failed: active release candidate has committed or staged runtime-source drift outside the exact truth transition."
   }
 
+  if ($isNoCreditRequalification) {
+    $previousPythonUtf8 = [Environment]::GetEnvironmentVariable("PYTHONUTF8")
+    try {
+      $env:PYTHONUTF8 = "1"
+      & py -3 scripts\verify_phase5_credit_itemization.py
+      if ($LASTEXITCODE -ne 0) {
+        throw "Verification failed: no-credit requalification verifier failed."
+      }
+    } finally {
+      if ($null -eq $previousPythonUtf8) {
+        Remove-Item Env:PYTHONUTF8 -ErrorAction SilentlyContinue
+      } else {
+        $env:PYTHONUTF8 = $previousPythonUtf8
+      }
+    }
+    $truthTransition = $true
+    $noCreditRequalification = $true
+  } else {
   $itemization = Get-Content "docs\runtime-state\phase5-credit-itemization.json" -Raw | ConvertFrom-Json
   Assert-Equal "post-qualification itemization mode" ([string]$itemization.mode) "fully_itemized"
   Assert-False "post-qualification credit block" $itemization.credit_blocked_until_candidate_qualified
@@ -251,6 +280,7 @@ if ($runtimeChangedPaths.Count -gt 0) {
   Assert-Equal "current qualified Phase 5" $currentPhase5ForParity $qualifiedPhase5ForParity
   Assert-Equal "post-qualification overall delta" ([int]$currentManifestForParity.overall_percent - [int]$sourceManifest.overall_percent) ([int](($qualifiedPhase5ForParity - $legacyPhase5ForParity) / 7))
   $truthTransition = $true
+  }
 }
 
 $rolloutArtifacts = @(Get-ChildItem "docs\release-artifacts" -Filter "prod-release-*.md" -File -ErrorAction SilentlyContinue)
@@ -320,4 +350,4 @@ if ($canonicalVerified) {
 
 $promotionEligible = ($canonicalVerified -and [bool]$canonicalSummary.production_deploy_claim_allowed)
 $snapshotStale = ($expectedHostedOverall -ne [int]$manifest.overall_percent)
-Write-Host "[current-release-candidate] verified candidate_technical=true runtime_source_parity=true qualification_truth_transition=$($truthTransition.ToString().ToLowerInvariant()) promotion_eligible=$($promotionEligible.ToString().ToLowerInvariant()) canonical=$($canonicalSummary.status) boundary=$hostedBoundarySource hosted_snapshot_overall=$expectedHostedOverall current_manifest_overall=$([int]$manifest.overall_percent) snapshot_stale=$($snapshotStale.ToString().ToLowerInvariant())"
+Write-Host "[current-release-candidate] verified candidate_technical=true runtime_source_parity=true qualification_truth_transition=$($truthTransition.ToString().ToLowerInvariant()) no_credit_requalification=$($noCreditRequalification.ToString().ToLowerInvariant()) promotion_eligible=$($promotionEligible.ToString().ToLowerInvariant()) canonical=$($canonicalSummary.status) boundary=$hostedBoundarySource hosted_snapshot_overall=$expectedHostedOverall current_manifest_overall=$([int]$manifest.overall_percent) snapshot_stale=$($snapshotStale.ToString().ToLowerInvariant())"

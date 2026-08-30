@@ -7,7 +7,49 @@ Status: Active
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
 
-## Current RC22 Local Qualification Evidence
+## Current RC23 Local Qualification Evidence
+
+Recorded 2026-08-29. Active candidate `prod-candidate-2026-08-29-local-rc23` is bound
+to frozen source `7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927` through source-attestation
+control `5cfbf1f4b8a70116985cb27d7b949f4e2aaf45b1`. GitHub Actions `pr-check` run
+`33273326919` completed successfully with all 25 observed steps green and zero skipped
+steps. The checked-out SHA equals the candidate source. Artifact `9720781589`, GitHub
+digest `sha256:4d8b214e65d5dbfc6200c68e119e784a0596d92312255551b4b1dc6262615c5c`,
+attestation SHA `8D732D01C0F215747A256472EDD8E7C85AD8F3F8732FA8F9DD2EA45940C91360`,
+and GitHub-readback SHA `F2F5AFAE667BEB427F377561390606440B790AABD31826D40A6851C63995165C`
+are preserved in the exact 27-file evidence set.
+
+The five independent chains passed: six committed-archive candidate images; full runtime
+with `10/10 healthy`; full real-Chromium browser proof; candidate-runtime source/image
+identity with real selection and click; and candidate-archive npm-audit/gitleaks security.
+Browser evidence contains `22/22` routes, `29/29` action families, `161/161` action members,
+real Cloudflare Workers AI generation, click and keyboard effects, and the Phase-6
+camera/game/assets/save/accessibility/netcode/scoreboard-performance proofs with zero
+unexpected network calls, mocks, interceptions, console errors, page errors, or secret
+output. The generated game artifact proves keyboard-state initialization before animation
+start. All local evidence is `DEV-ONLY; hosted proof still blocked`.
+
+Readiness is `verified_with_owner_blocks`: `17/19 = 89%`, with only I1
+`hosted_candidate_parity` and I5 `production_auth_identity` blocked. RC22 source
+`28727b198b057a6bdef6b5f34e9aa946fb2757a0` is the local rollback target. Review remains
+pending, Owner decision remains `no-release`, and production rollout remains false. No
+GHCR publication, default-branch write, hosted deploy, production-auth promotion, release
+promotion, payment, or secret output is claimed. Post-selection checks passed Phase-5 credit
+(`17/19`, I1/I5), current-candidate technical/source parity (`promotion_eligible=false`,
+canonical `blocked`) and the progress manifest (`overall=89`, `deltas=0`, `mirrors=2`). A
+repeated complete monolithic Chromium pass also passed in `39.1m`: `22/22` routes, `29/29`
+families and `161/161` actions (`160` direct, `1` exact preverified), two approved real
+gateway-provider responses, and zero mocks, interceptions, unexpected provider paths,
+console/page errors or secret output. Its unstaged working-report SHA-256 is
+`4E844972CA953C03A76746B7E1AE49726215133B648B45EC813DF55D0EDB80948`. Final local
+full-sweep classification is complete: every internal section passed and `npm run verify`
+stopped only at `current Cloudflare-native hosted Worker source parity`. The Current-Candidate
+verifier now accepts the exact three-path no-credit rebind only by delegating to the dedicated
+Phase-5 verifier; it reports `no_credit_requalification=true`, while partial/additional path
+sets remain fail-closed. This is the expected unclosed I1/B5-C1 boundary, not local green
+evidence for hosted parity.
+
+## Historical RC22 Local Qualification Evidence
 
 Recorded 2026-08-29. Active candidate `prod-candidate-2026-08-29-local-rc22` is bound
 to frozen source `28727b198b057a6bdef6b5f34e9aa946fb2757a0` through source-attestation

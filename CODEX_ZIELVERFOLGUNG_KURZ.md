@@ -4,9 +4,13 @@ Status: `ACTIVE_CURRENT_TRUTH`
 Branch: `codex/organism-visual-v2`
 Market Status: `MARKET_READY:false`
 
-Diese Datei ist die kurze Steuerung. Details:
+Diese Datei ist nur ein synchroner Kurzspiegel. Einzige Zielautoritaet ist
+`CODEX_ZIEL_MASTER_2026-08-29.md`; einzige Uebergabeautoritaet ist
+`CODEX_UEBERGABE_MASTER_2026-08-29.md`.
 
-- aktuelle Uebergabe: `AI_HANDOFF.md#current-rc22-handoff--2026-08-29`
+Weitere Referenzen:
+
+- aktuelle Uebergabe: `AI_HANDOFF.md#current-rc23-handoff--2026-08-29`
 - Weg zu 100: `CODEX_100_PROZENT_ZIEL_2026-08-29.md`
 - OAuth: `docs/runbooks/PRODUCTION_OAUTH_FIXPLAN_2026-08-29.md`
 - Optikregeln: `REGELN_OPTIK_UND_FERTIG.md`
@@ -27,15 +31,15 @@ Promotion bleiben danach separate Owner-Entscheidungen.
 
 | Feld | Stand |
 |---|---|
-| eingefrorene Candidate Source | `28727b198b057a6bdef6b5f34e9aa946fb2757a0` |
-| source-attestation Control | `a7ea8ea27c640f5430977b86b115bbea9ad8464e` |
-| aktiver Kandidat | `prod-candidate-2026-08-29-local-rc22` |
-| Qualifikations-CI | `33248839880`, success, alle beobachteten Job-Schritte gruen |
+| eingefrorene Candidate Source | `7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927` |
+| source-attestation Control | `5cfbf1f4b8a70116985cb27d7b949f4e2aaf45b1` |
+| aktiver Kandidat | `prod-candidate-2026-08-29-local-rc23` |
+| Qualifikations-CI | `33273326919`, success, `25/25` beobachtete Schritte gruen, `0` skipped |
 | Evidence | exakt `27` immutable Dateien; 5 lokale Ketten + CI-Attestation/Readback |
 | Readiness | `17/19 = 89%`; offen I1 und I5 |
-| Rollback | RC21 Source `c1b022a884eb16939fe0542b2eb9056b60706b20` |
+| Rollback | RC22 Source `28727b198b057a6bdef6b5f34e9aa946fb2757a0` |
 
-RC22 bleibt immutable. Neue Runtime-Source-Aenderungen benoetigen einen neuen Kandidaten.
+RC23 bleibt nach Auswahl immutable. Neue Runtime-Source-Aenderungen benoetigen einen neuen Kandidaten.
 
 ## 3. Fortschritt
 
@@ -52,7 +56,7 @@ L1 100 | L2 100 | L3 100 | L4 55 | L5 56 | L6 100 | L7 100
 Keine Prozentanhebung durch Doku, Konsolenwerte oder lokale Wiederholungen bereits
 kreditierter Beweise.
 
-## 4. Seit RC21 erledigt / in RC22 gebunden
+## 4. Seit RC22 erledigt / in RC23 gebunden
 
 - External-Gate-Claim-Set aus den exakten Claim-Flags abgeleitet; keine Duplikat- oder
   Case-Maskierung.
@@ -66,24 +70,27 @@ kreditierter Beweise.
   `22/22` Routen, `29/29` Familien, `161/161` Aktionen, Phase-6-Ketten und O4
   Audit/Readback/Rollback; keine Mocks, Interceptions, Console-/Page-Fehler.
 - candidate-scoped npm audit und canonical gitleaks gruen.
-- GitHub Actions `33248839880`: exact source checkout, single-path Control-Delta,
-  alle beobachteten Job-Schritte gruen.
+- GitHub Actions `33273326919`: exact source checkout, exaktes Vier-Dateien-Control-Delta,
+  `25/25` beobachtete Job-Schritte gruen, `0 skipped`.
 - exakt 27 Evidence-Dateien mit reproduzierten SHA-256-Werten gebunden.
+- zweiter kompletter monolithischer Chromium-Lauf gruen: `22/22`, `29/29`, `161/161`,
+  Working-Report SHA-256
+  `4E844972CA953C03A76746B7E1AE49726215133B648B45EC813DF55D0EDB80948`.
 
 `161/161` bedeutet sichtbare UI-Effektabdeckung, nicht 161 Backend- oder Layeraufrufe.
 Responsive-Report-SHA: `723D2DEF1E3B98C25885E2F6242342EB02D2238CAC46D510A5F7E103AEED8E5B`.
 Der generierte Working-Report unter `.codex/runs/CURRENT/product-acceptance/report.json`
-bleibt ausserhalb des Selection-Commits; die kanonische RC22-Browser-Summary ist dagegen
+bleibt ausserhalb des Selection-Commits; die kanonische RC23-Browser-Summary ist dagegen
 source-gebunden und Teil des 27-Dateien-Sets. Alle lokalen Browser-/Runtimebeweise:
 `DEV-ONLY; hosted proof still blocked`.
 
 ## 5. Letzter bindender Verifier
 
-RC22-Qualifikation:
+RC23-Qualifikation:
 
 ```text
-PASS: five local chains on source 28727b198b057a6bdef6b5f34e9aa946fb2757a0
-PASS: GitHub Actions 33248839880 via control a7ea8ea27c640f5430977b86b115bbea9ad8464e
+PASS: five local chains on source 7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927
+PASS: GitHub Actions 33273326919 via control 5cfbf1f4b8a70116985cb27d7b949f4e2aaf45b1
 PASS: exact 27-file evidence set
 ```
 
@@ -91,22 +98,22 @@ Post-selection real gemessen:
 
 ```text
 PASS verify:phase5-credit -> 17/19, blocked I1/I5
-PASS verify:current-release-candidate -> technical/source parity true, promotion false
+PASS verify:current-release-candidate -> technical/source parity true, no-credit rebind true, promotion false
 PASS verify_project_progress_manifest.py -> overall 89, deltas 0, mirrors 2
-FAIL npm run verify -> current Cloudflare-native hosted Worker source parity
+EXPECTED STOP npm run verify -> current Cloudflare-native hosted Worker source parity
 ```
 
-A6 pre-qualification aktuell:
+A6/Selection aktuell:
 
 ```text
 PASS endpoint snapshot -> 34/34, epoch_complete=true, current=false/prequalification
 PASS go-live runtime -> blocked_external_gates (Branch Protection + GHCR)
 PASS focused tests -> Agent API 95/95, Manifest 27/27, Snapshot 8/8
-BLOCK verify_project_progress_manifest.py -> unqualified post-RC22 runtime-source drift
+PASS verify_project_progress_manifest.py -> candidate_source_bound=true, freshness=verified
 ```
 
 Der Full-Sweep-Stop ist der erwartete ungeschlossene Hosted-I1-Ownerblock und kein Fehler
-der fuenf source-gebundenen lokalen RC22-Ketten. Hosted I1 und Production Auth I5 bleiben
+der fuenf source-gebundenen lokalen RC23-Ketten. Hosted I1 und Production Auth I5 bleiben
 rot. Kein Full-Sweep-Gruen wird behauptet; Verifier nicht abschwaechen.
 
 ## 6. Hosted-Wahrheit

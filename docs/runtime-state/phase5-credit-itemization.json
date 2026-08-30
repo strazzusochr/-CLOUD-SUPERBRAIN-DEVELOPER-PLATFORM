@@ -3,12 +3,12 @@
   "mode": "fully_itemized",
   "credit_blocked_until_candidate_qualified": false,
   "cell_id": "phase_5",
-  "updated_at_utc": "2026-08-29T11:03:10Z",
+  "updated_at_utc": "2026-08-29T21:15:54Z",
   "checklist_path": "docs/release-checklist.md",
   "rubric": "phase5-release-readiness-19-v2",
   "scoring_rule": "Each of the 19 JA/NEIN items is one equal binary unit. computed_percent = round(verified_item_count / 19 * 100). NEIN receives no partial credit.",
-  "active_release_id": "prod-candidate-2026-08-29-local-rc22",
-  "active_source_commit_sha": "28727b198b057a6bdef6b5f34e9aa946fb2757a0",
+  "active_release_id": "prod-candidate-2026-08-29-local-rc23",
+  "active_source_commit_sha": "7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927",
   "legacy_gap_reconstruction": {
     "recorded_percent": 68,
     "total_item_count": 19,
@@ -51,7 +51,7 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc22-readiness.json",
+          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc23-readiness.json",
           "claim": "Immutable GitHub Actions run URL, source SHA, and success conclusion are candidate-bound.",
           "anchor": "\"ci_workflow\": {"
         }
@@ -65,7 +65,7 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc22-readiness.json",
+          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc23-readiness.json",
           "claim": "Runtime, browser, candidate-image, candidate-runtime, and security artifacts are recorded as passed independent chains.",
           "anchor": "\"local_verification\": {"
         }
@@ -80,18 +80,18 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/current-release-candidate.json",
-          "claim": "The current candidate pointer selects the source-bound RC22 qualification while preserving the production non-claim.",
-          "anchor": "\"active_release_id\": \"prod-candidate-2026-08-29-local-rc22\""
+          "claim": "The current candidate pointer selects the source-bound RC23 qualification while preserving the production non-claim.",
+          "anchor": "\"active_release_id\": \"prod-candidate-2026-08-29-local-rc23\""
         },
         {
           "path": "AI_HANDOFF.md",
-          "claim": "Current handoff mirrors RC22, the canonical Phase-5 score, and the remaining Owner gates.",
-          "anchor": "Current RC22 Handoff"
+          "claim": "Current handoff mirrors RC23, the canonical Phase-5 score, and the remaining Owner gates.",
+          "anchor": "Current RC23 Handoff"
         },
         {
           "path": "docs/verification-register.md",
-          "claim": "The evidence register records the RC22 audit, score, and verifier result.",
-          "anchor": "Current RC22 Local Qualification Evidence"
+          "claim": "The evidence register records the RC23 audit, score, and verifier result.",
+          "anchor": "Current RC23 Local Qualification Evidence"
         }
       ]
     },
@@ -104,8 +104,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/current-release-candidate.json",
-          "claim": "The active pointer selects the exact source-bound RC22 candidate.",
-          "anchor": "\"active_release_id\": \"prod-candidate-2026-08-29-local-rc22\""
+          "claim": "The active pointer selects the exact source-bound RC23 candidate.",
+          "anchor": "\"active_release_id\": \"prod-candidate-2026-08-29-local-rc23\""
         },
         {
           "path": "scripts/verify-current-release-candidate.ps1",
@@ -122,7 +122,7 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc22-readiness.json",
+          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc23-readiness.json",
           "claim": "Candidate-scoped npm audit and canonical secret-scan results are recorded with a verification hash.",
           "anchor": "\"security\": {"
         }
@@ -139,12 +139,12 @@
       "evidence": [
         {
           "path": "docs/runtime-state/frontend-hosted-current.json",
-          "claim": "A hosted frontend exists, but its recorded source is not RC22.",
+          "claim": "A hosted frontend exists, but its recorded source is not RC23.",
           "anchor": "\"source_commit_sha\": \"67f41cecf38de109e762632ed971c9a7fdaff6ba\""
         },
         {
           "path": "docs/runtime-state/backend-hosted-current.json",
-          "claim": "The hosted backend is a read-only contract origin and not six-service RC22 parity.",
+          "claim": "The hosted backend is a read-only contract origin and not six-service RC23 parity.",
           "anchor": "\"read_only_contract_origin\": true"
         }
       ]
@@ -158,7 +158,7 @@
       "policy_basis": "E3_release_candidate_ready_ghcr_post_market",
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc22.md",
+          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc23.md",
           "claim": "Six clean-archive images, OCI revisions, embedded source hashes, and planned immutable tags are candidate-bound.",
           "anchor": "immutable_image_commit_sha:"
         },
@@ -177,8 +177,8 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc22.md",
-          "claim": "RC21 source and the rollback procedure are named without claiming a hosted rollback.",
+          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc23.md",
+          "claim": "RC22 source and the rollback procedure are named without claiming a hosted rollback.",
           "anchor": "rollback_target_commit_sha:"
         },
         {
@@ -196,8 +196,8 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc22-readiness.json",
-          "claim": "RC22 adds no provider, paid tier, card, or recurring infrastructure and remains inside the 20 EUR ceiling.",
+          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc23-readiness.json",
+          "claim": "RC23 adds no provider, paid tier, card, or recurring infrastructure and remains inside the 20 EUR ceiling.",
           "anchor": "\"new_recurring_infrastructure\": false"
         }
       ]
@@ -231,7 +231,7 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc22.md",
+          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc23.md",
           "claim": "The candidate names the exact health, metrics, and audit endpoints.",
           "anchor": "- Health: `/api/v1/health`"
         }
@@ -245,7 +245,7 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc22-readiness.json",
+          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc23-readiness.json",
           "claim": "Candidate-scoped observability contract paths and verification state are recorded.",
           "anchor": "\"/api/v1/errors/contract\""
         }
@@ -259,7 +259,7 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc22.md",
+          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc23.md",
           "claim": "Candidate, CI, local verification, browser, image, rollback, and readiness proofs are linked.",
           "anchor": "full_verifier_sweep_proof:"
         }
@@ -278,8 +278,8 @@
           "anchor": "# Incident Response Runbook"
         },
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc22.md",
-          "claim": "RC22 binds the runbook and stop conditions.",
+          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc23.md",
+          "claim": "RC23 binds the runbook and stop conditions.",
           "anchor": "- Escalation: `docs/runbooks/incident-response.md`"
         }
       ]
@@ -297,7 +297,7 @@
           "anchor": "# Rollback Deploy Runbook"
         },
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc22.md",
+          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc23.md",
           "claim": "The candidate names the exact rollback source.",
           "anchor": "rollback_target_commit_sha:"
         }
@@ -340,7 +340,7 @@
           "anchor": "GHCR publication"
         },
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc22.md",
+          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc23.md",
           "claim": "review_gate=pending and owner_decision=no-release preserve the stop gate.",
           "anchor": "review_gate: `pending`"
         }
@@ -354,7 +354,7 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc22-readiness.json",
+          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc23-readiness.json",
           "claim": "The two remaining blockers are explicitly accepted under no-release; no unknown question remains.",
           "anchor": "\"unknown_questions\": []"
         }
@@ -373,7 +373,7 @@
           "anchor": "\"production_rollout_claimed\": false"
         },
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc22.md",
+          "path": "docs/release-artifacts/prod-candidate-2026-08-29-local-rc23.md",
           "claim": "The candidate denies registry publication, promotion, rollout, and production status.",
           "anchor": "This artifact does not claim a production rollout."
         }
@@ -416,7 +416,7 @@
     "The score is release-candidate readiness, not production readiness.",
     "I2 does not publish to GHCR, verify a registry digest, open docker_registry_publish, or authorize promotion.",
     "I1 and I5 remain zero-credit Owner blocks.",
-    "The retired RC1 markers are preserved as history and never rebound to RC22.",
+    "The retired RC1 markers are preserved as history and never rebound to RC23.",
     "This itemization alone cannot make MARKET_READY true."
   ]
 }

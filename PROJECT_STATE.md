@@ -5,60 +5,56 @@ Letzte Aktualisierung: 2026-08-29
 
 ## AKTUELLER PROJEKTANKER
 
-### Session 2026-08-29 — RC22 qualifiziert; A1–A6 fuer RC23 in Arbeit
+### Session 2026-08-29 — RC23 lokal qualifiziert und ausgewaehlt
 
-- **Aktiv qualifiziert ist RC22:** `prod-candidate-2026-08-29-local-rc22`, eingefrorene
-  Source `28727b198b057a6bdef6b5f34e9aa946fb2757a0`, Kontroll-Commit
-  `a7ea8ea27c640f5430977b86b115bbea9ad8464e`, source-attestierter GitHub-Actions-Lauf
-  `33248839880` und exakt 27 immutable Evidence-Dateien. Alle fuenf lokalen Ketten
-  `candidate_images`, `runtime`, `browser`, `candidate_runtime` und `security` bestanden.
-  RC21-Source `c1b022a884eb16939fe0542b2eb9056b60706b20` ist der immutable Rollback-Anker.
-- **RC22 bleibt immutable:** Die nachfolgende A1–A6-Quelle ist noch kein qualifizierter
-  Kandidat und darf RC22-Evidence nicht umetikettieren. A1 (`d5bdad62`) und A2/A3
-  (`4c20b4f6`) sind auf dem Feature-Branch gepusht; A4 (`461fb99d`) und A5 (`c2e487fb`)
-  liegen lokal auf demselben Branch. Jede A6-Runtime-Source-Aenderung erzwingt einen neuen
-  vollstaendigen Kandidatenfreeze; vorgesehen ist RC23, nicht eine Mutation von RC22.
-- **A1–A5 abgeschlossen:** Das v2-Delta-Ledger bindet kuenftigen Credit an committed
-  Source/Evidence/Scorer-Replay; die P3-/P6-Rubriken bleiben
-  `DRAFT_OWNER_APPROVAL_REQUIRED` und kreditieren null; Team-Status projiziert lokal ehrlich
-  `external_degraded`; Production-Auth bindet I5 fail-closed an die Vercel-Frontend-Origin,
-  eine Owner-ADR und architekturspezifische Hosted-Runtime-Evidence. I5 bleibt geschlossen.
-- **A6 Gate-Wahrheit repariert:** Agent API und Go-Live-Verifier leiten die kanonische
-  Missing-Menge unabhaengig und in fester Reihenfolge aus exakt sechs Boolean-Claims ab:
-  `hosted_agent_api_contracts`, `github_branch_protection_current_verify`,
-  `ghcr_image_digest_verify`, `vercel_backend_origin_health`,
-  `canonical_gitleaks_scan`, `cloudflare_native_zero_card_hosted_runtime`. Unbekannte,
-  doppelte, case-abweichende, umsortierte oder nicht-boolsche Angaben sowie inkonsistenter
-  Status, Production-Claim oder Provenienz blockieren fail-closed.
-- **A6 Snapshot/Freshness repariert:** Der Full-Refresh erzeugte `34/34` API-Endpunkte mit
-  reservierter `__snapshot_metadata`, `payload_epoch_complete=true` und
-  `gate_atomic=true`. Weil die DEV-Runtime keine eigene Source-Attestation liefert, bleibt
-  er ehrlich `current=false`, `qualification_state=prequalification` und schreibt die
-  Payloads nicht RC22 zu. SHA-256 bindet Candidate-Pointer, Candidate-Artefakt, Manifest und
-  External-Gate-Summary. Der Manifest-Verifier verlangt nun die exakte Candidate-Schema-
-  und Source-Bindung, existierenden Ancestor, Phase-5-Paritaet und aktuelle Mirrors.
-- **Aktueller read-only External-Gate-Readback:** Selector ist die RC22-Source; Summary
-  `external-gate-summary-v2` bleibt `blocked`. Vier Claims sind evidence-bounded true;
-  offen sind exakt `github_branch_protection_current_verify` und
-  `ghcr_image_digest_verify`. `active_release_candidate_sha` ist leer und
-  `production_deploy_claim_allowed=false`; daraus folgt weder I1-Closure noch Promotion.
-- **A6 fokussiert verifiziert:** Go-Live-Regressions `14/14`, gesamte Agent-API-Suite
-  `95/95`, Manifest-Regressions `27/27`, Snapshot-Metadata `8/8`, Frontend-Cloud-Rewrite-
-  Verifier, Go-Live-Runtime-Verifier, PowerShell-AST, Python-Compile und Diff-Check sind
-  gruen. Der reale Manifest-Verifier blockiert absichtlich, solange die neue Runtime-Source
-  ausserhalb des aktiven RC22-Freeze liegt; dieser rote Guard ist der geforderte
-  Pre-Qualification-Schutz und kein Freibrief fuer Prozentcredit.
+- **Aktiv qualifiziert ist RC23:** `prod-candidate-2026-08-29-local-rc23`, eingefrorene
+  Source `7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927`, Kontroll-Commit
+  `5cfbf1f4b8a70116985cb27d7b949f4e2aaf45b1`, source-attestierter GitHub-Actions-Lauf
+  `33273326919` (`25/25` beobachtete Schritte gruen, `0` skipped) und exakt 27 immutable
+  Evidence-Dateien. RC22-Source `28727b198b057a6bdef6b5f34e9aa946fb2757a0` ist der
+  immutable lokale Rollback-Anker.
+- **Alle fuenf unabhaengigen Ketten bestanden:** sechs Clean-Archive-Images, Runtime
+  `10/10 healthy`, kompletter realer Chromium-Browser, Candidate-Runtime-Identitaet mit
+  echter Auswahl/Klick und Candidate-Archiv npm-audit plus canonical gitleaks. Browser-Pass
+  eins bestand `22/22` Routen, `29/29` Familien und `161/161` Aktionen ohne unerwartete
+  Provideraufrufe, Mocks, Interceptions, Console-/Page-Fehler oder Secret-Output.
+- **A1–A6 und Generated-Game-Guard gebunden:** Delta-Ledger, Zero-Credit-Rubriken,
+  Team-Status, Production-Auth-Evidence, Go-Live-Gate-Ableitung, Snapshot-Freshness und
+  Runtime-Source-Paritaet sind fail-closed. Der zusaetzliche Runnability-Guard verschiebt
+  einen eindeutigen vorzeitigen Animationsstart hinter die Keyboard-State-Initialisierung
+  und lehnt mehrdeutige Artefakte vor Persistenz ab; CI-Regression `20/20` ist gruen.
+- **Post-Selection fokussiert gruen:** Phase-5-Credit `17/19` mit exakt I1/I5 blockiert,
+  Current-Candidate `candidate_technical=true`, `runtime_source_parity=true`,
+  `no_credit_requalification=true`, `promotion_eligible=false`, canonical `blocked`;
+  Manifest `overall=89`, `deltas=0`, `mirrors=2`, `freshness=verified`. Der volle lokale
+  `npm run verify`-Sweep bestand alle internen Gates und stoppte erwartungsgemaess erst bei
+  `current Cloudflare-native hosted Worker source parity`.
+- **Browser-Pass zwei gruen:** der vollstaendig neu gestartete monolithische Chromium-Lauf
+  bestand in `39,1` Minuten mit `22/22` Routen, `29/29` Familien und `161/161` Aktionen
+  (`160` direkt, `1` exakt vorverifiziert), zwei freigegebenen echten Gateway-
+  Providerantworten sowie null Mocks, Interceptions, unerwarteten Providerpfaden, Console-/
+  Page-Fehlern oder Secret-Ausgabe. Working-Report SHA-256:
+  `4E844972CA953C03A76746B7E1AE49726215133B648B45EC813DF55D0EDB80948`. Die In-App-
+  Browser-Steuerung bleibt am lokalen `kernel-assets`-Transport blockiert und wird nicht als
+  sichtbarer In-App-Beweis umetikettiert.
+- **Aktueller read-only External-Gate-Stand:** Hosted I1 bleibt ohne source-gebundene
+  sechs-Service-Paritaet geschlossen; Production-Auth I5 bleibt ohne Owner-OAuth-IDs und
+  Hosted-Fail-Closed-Evidence geschlossen. GHCR ist unveroeffentlicht,
+  `production_deploy_claim_allowed=false`, Promotion und Rollout bleiben false. Kanonische
+  externe Wahrheit bleibt `docs/runtime-state/external-gate-audit-v2.json` ueber
+  `external-gate-summary-v2`; der aktuelle Zielbezeichner lautet exakt
+  `cloudflare_native_zero_card_hosted_runtime`.
 - **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
   P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
   L6 `100`, L7 `100`. `MARKET_READY:false`. I1 `hosted_candidate_parity` und I5
   `production_auth_identity` bleiben die einzigen Phase-5-Nullcredit-Items.
-- **Non-Claims:** Kein Main-/Default-Branch-Write, GHCR-Push, Hosted-Deploy, Live-Provider-
-  Call, OAuth-Aktivierung, Secret-Output, Release-Promotion oder Production-Rollout. Lokale
-  Runtime-/Browserbeweise bleiben `DEV-ONLY; hosted proof still blocked`.
-- **Naechster sicherer Schritt:** A6 inklusive synchroner Truth-Dokumente als Source-Commit
-  abschliessen, daraus RC23 einfrieren, alle fuenf lokalen Ketten seriell neu erzeugen,
-  source-attestiertes Branch-CI pruefen und erst danach einen separaten Selection-Commit
-  erstellen. Prozentwerte und Owner-Gates bleiben bis zu neuer Evidence unveraendert.
+- **Non-Claims:** Der qualifizierte Browserlauf enthielt ausschliesslich die explizit
+  genehmigten Gateway-Buildaktionen; keine direkten Provider-Bypaesse. Kein Main-/Default-
+  Branch-Write, GHCR-Push, Hosted-Deploy, OAuth-Aktivierung, Secret-Output,
+  Release-Promotion oder Production-Rollout. Lokale Runtime-/Browserbeweise bleiben
+  `DEV-ONLY; hosted proof still blocked`.
+- **Naechster sicherer Schritt:** Truth-Dokumente einfrieren, Selection-Commit erzeugen und nur den
+  Feature-Branch pushen. Prozentwerte und Owner-Gates bleiben unveraendert.
 
 ### Session 2026-08-28 — RC20 qualifiziert, RC21 in Bindung
 

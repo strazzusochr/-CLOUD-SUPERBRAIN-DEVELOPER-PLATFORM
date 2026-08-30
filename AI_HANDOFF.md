@@ -6,44 +6,48 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-## Current RC22 Handoff — 2026-08-29
+## Current RC23 Handoff — 2026-08-29
 
-Active locally qualified candidate: `prod-candidate-2026-08-29-local-rc22`, frozen source
-`28727b198b057a6bdef6b5f34e9aa946fb2757a0`, source-attestation control
-`a7ea8ea27c640f5430977b86b115bbea9ad8464e`, GitHub Actions run `33248839880`.
-The run completed successfully with every observed job step green, checked out the exact
-candidate source, and attested the single control delta
-`scripts/verify-main-deploy-transition.ps1`. The canonical evidence directory contains
-exactly 27 immutable files: the five independent local chains, their raw evidence, the CI
-checkout attestation, and the GitHub metadata readback.
+Active locally qualified candidate: `prod-candidate-2026-08-29-local-rc23`, frozen source
+`7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927`, source-attestation control
+`5cfbf1f4b8a70116985cb27d7b949f4e2aaf45b1`, GitHub Actions run `33273326919`.
+The run completed successfully with all 25 observed steps green and zero skipped steps,
+checked out the exact candidate source, and attested the exact four-file control delta. The
+canonical evidence directory contains exactly 27 immutable files: the five independent
+local chains, raw evidence, CI checkout attestation, and GitHub metadata readback.
 
-All five RC22 chains passed on the frozen source: six committed-archive images; runtime with
+All five RC23 chains passed on the frozen source: six committed-archive images; runtime with
 `10/10 healthy`; full real-Chromium browser proof; candidate-runtime source/image identity
-with a real selection and click; and candidate-scoped npm-audit plus canonical gitleaks.
+with real selection and click; and candidate-scoped npm-audit plus canonical gitleaks.
 Browser proof covers `22/22` routes, `29/29` action families and `161/161` action members,
 real Cloudflare Workers AI generation, click and keyboard input, and the Phase-6
-camera/game/assets/save/accessibility/netcode/scoreboard-performance paths. There were no
-unexpected network requests, mocks, route interception, console errors, page errors, or
-secret output. `DEV-ONLY; hosted proof still blocked`.
+camera/game/assets/save/accessibility/netcode/scoreboard-performance paths. The generated
+game artifact initializes keyboard state before animation start. There were no unexpected
+network requests, mocks, route interception, console errors, page errors, or secret output.
+`DEV-ONLY; hosted proof still blocked`.
 
 Phase-5 readiness remains `17/19 = 89%`. I1 `hosted_candidate_parity` and I5
-`production_auth_identity` are the only zero-credit Owner blocks. RC21 source
-`c1b022a884eb16939fe0542b2eb9056b60706b20` is the exact immutable local rollback target.
+`production_auth_identity` are the only zero-credit Owner blocks. RC22 source
+`28727b198b057a6bdef6b5f34e9aa946fb2757a0` is the exact immutable local rollback target.
 Review stays pending and Owner decision stays `no-release`; no GHCR publication,
 default-branch write, hosted deploy, production OAuth promotion, release promotion,
 production rollout, payment, or secret output is authorized or claimed.
 
-Post-selection verification passed `verify:phase5-credit`,
-`verify:current-release-candidate` and the project-progress manifest verifier. The full
-`npm run verify` sweep then stopped at the expected external Owner boundary
-`current Cloudflare-native hosted Worker source parity`; it does not invalidate the five
-source-bound local RC22 chains and it does not close I1. No hosted evidence was relabeled.
-
-RC22 remains immutable. A1 through A5 are complete after selection; A6 is the current
-next-candidate source repair. Do not relabel RC22 evidence for the changed runtime source.
-Finish A6, freeze RC23 from the final source, rerun all five local qualification chains and
-source-attested branch CI, then select the new candidate only from complete evidence. Do not
-change percentages without code, runtime proof, verifier acceptance and synchronized truth.
+The 27-file selection set and truth rebind are assembled. Post-selection verification passed
+Phase-5 credit (`17/19`, I1/I5), current-candidate technical/source parity
+(`promotion_eligible=false`, canonical `blocked`) and the progress manifest (`overall=89`,
+`deltas=0`, `mirrors=2`). The repeated monolithic browser pass also passed in 39.1 minutes:
+`22/22` routes, `29/29` families, `161/161` actions (`160` direct plus `1` exact preverified),
+two approved real gateway-provider responses, and zero mocks, interceptions, unexpected
+provider paths, console/page errors, or secret output. Its unstaged working-report SHA-256 is
+`4E844972CA953C03A76746B7E1AE49726215133B648B45EC813DF55D0EDB80948`. The final local
+`npm run verify` sweep passed every internal section and stopped only at the exact external
+`current Cloudflare-native hosted Worker source parity` gate. The Current-Candidate verifier
+now fail-closed delegates the exact three-path no-credit rebind to the dedicated Phase-5
+verifier; its positive result is `no_credit_requalification=true`, while partial/additional
+path sets remain rejected. Documentation freeze and feature-branch push are the next safe work. Do not change
+percentages without code, runtime proof, verifier acceptance and synchronized truth. Do not
+relabel localhost proof as hosted.
 
 ### Post-RC22 A1 Delta-Ledger Checkpoint
 
