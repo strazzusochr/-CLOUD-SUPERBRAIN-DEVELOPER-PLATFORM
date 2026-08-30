@@ -49,6 +49,13 @@ Phase-5 verifier; it reports `no_credit_requalification=true`, while partial/add
 sets remain fail-closed. This is the expected unclosed I1/B5-C1 boundary, not local green
 evidence for hosted parity.
 
+Selection commit `67cd698c6cff4f4230283bc5d2f91c3170f41485` was pushed to
+`origin/codex/organism-visual-v2`. GitHub Actions `pr-check` run `33282524897` attested the
+exact SHA and passed all `29/29` steps with `0` skipped and `0` failed. The following
+documentation-only freeze commit is accepted only after its own green final-head run; its
+run ID is intentionally not written into the same commit to avoid a self-referential
+documentation/CI cycle.
+
 ## Historical RC22 Local Qualification Evidence
 
 Recorded 2026-08-29. Active candidate `prod-candidate-2026-08-29-local-rc22` is bound

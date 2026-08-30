@@ -2,7 +2,7 @@
 
 Status: `ACTIVE_CURRENT_TRUTH`
 Branch: `codex/organism-visual-v2`
-Truth-Ref: lokaler Selection-Stand `5cfbf1f4`; eingefrorene Candidate-Source `7db18d90`
+Truth-Ref: gepushter Selection-Commit `67cd698c`; eingefrorene Candidate-Source `7db18d90`
 Market Status: `MARKET_READY:false`
 
 **Dies ist die einzige Zieldatei.** Sie sagt, was zu tun ist.
@@ -38,6 +38,11 @@ weiter bindend, soweit sie hier nicht ausdruecklich aktualisiert werden.
   I1/B5-C1-Blocker, kein lokaler Testfehler. Der Current-Candidate-Verifier akzeptiert den
   bereits streng durch Phase-5 validierten, exakt dreipfadigen No-Credit-Rebind jetzt
   fail-closed; Teilmengen oder Zusatzpfade bleiben verboten.
+- Selection-Commit `67cd698c6cff4f4230283bc5d2f91c3170f41485` ist auf den Feature-Branch
+  gepusht. Final-Head-CI `33282524897` attestierte exakt diesen SHA und bestand `29/29`
+  Schritte, `0` skipped, `0` failed. Ein nachfolgender reiner Doku-Freeze-Commit gilt nur
+  nach einem nochmals gruenen Head-`pr-check`; dessen Run-ID wird nicht in denselben Commit
+  zurueckgeschrieben, damit keine endlose Folge rein dokumentarischer Heads entsteht.
 - Browser-Pass 1 ist kanonisch gruen (`22/22`, `29/29`, `161/161`). Der erste sichtbare
   headed Pass 2 bestand 159 direkte Aktionen plus den exakten P0-Beweis; der einzige
   `replay-organism-performance-reset`-Deltatiming-Fehler wurde durch den anschliessenden
@@ -52,9 +57,8 @@ weiter bindend, soweit sie hier nicht ausdruecklich aktualisiert werden.
 
 Aktueller autonomer Rest vor jedem Owner-Gate:
 
-1. Ziel-/Uebergabe-Master und Truth-Dokumente einfrieren;
-2. RC23-Selection-Commit ohne Candidate-Runtime-Source-Aenderung erzeugen;
-3. nur `codex/organism-visual-v2` pushen und final-head CI mit `skipped=0` pruefen.
+1. reinen Doku-Freeze-Commit pushen;
+2. dessen final-head CI mit `skipped=0` pruefen.
 
 Danach bleiben ausschliesslich die expliziten Owner-/Hosted-Stufen B bis H. Kein Main-
 Push, GHCR-Push, Hosted-Deploy, OAuth-Gate-Flip oder Production-Rollout ist dadurch erlaubt.

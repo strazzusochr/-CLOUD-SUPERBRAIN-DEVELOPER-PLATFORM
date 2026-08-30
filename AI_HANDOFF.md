@@ -16,6 +16,12 @@ checked out the exact candidate source, and attested the exact four-file control
 canonical evidence directory contains exactly 27 immutable files: the five independent
 local chains, raw evidence, CI checkout attestation, and GitHub metadata readback.
 
+Selection commit `67cd698c6cff4f4230283bc5d2f91c3170f41485` is pushed to the feature
+branch. `pr-check` run `33282524897` attested that exact SHA and passed `29/29` steps with
+zero skipped and zero failed. The following documentation-only freeze commit is valid only
+after its own green final-head run; that run ID is intentionally not written back into the
+same commit to avoid an endless self-referential documentation/CI cycle.
+
 All five RC23 chains passed on the frozen source: six committed-archive images; runtime with
 `10/10 healthy`; full real-Chromium browser proof; candidate-runtime source/image identity
 with real selection and click; and candidate-scoped npm-audit plus canonical gitleaks.
@@ -45,7 +51,8 @@ provider paths, console/page errors, or secret output. Its unstaged working-repo
 `current Cloudflare-native hosted Worker source parity` gate. The Current-Candidate verifier
 now fail-closed delegates the exact three-path no-credit rebind to the dedicated Phase-5
 verifier; its positive result is `no_credit_requalification=true`, while partial/additional
-path sets remain rejected. Documentation freeze and feature-branch push are the next safe work. Do not change
+path sets remain rejected. The remaining safe work is the documentation-only push and its
+final-head CI. Do not change
 percentages without code, runtime proof, verifier acceptance and synchronized truth. Do not
 relabel localhost proof as hosted.
 

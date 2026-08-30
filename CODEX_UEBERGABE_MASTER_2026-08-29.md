@@ -2,7 +2,7 @@
 
 Status: `ACTIVE_CURRENT_HANDOFF`
 Branch: `codex/organism-visual-v2`
-Truth-Ref: lokaler Selection-Stand `5cfbf1f4`; eingefrorene Candidate-Source `7db18d90`
+Truth-Ref: gepushter Selection-Commit `67cd698c`; eingefrorene Candidate-Source `7db18d90`
 Market Status: `MARKET_READY:false`
 
 **Dies ist die einzige Uebergabe.** Sie sagt, was los ist.
@@ -44,6 +44,13 @@ Phase-5-Verifier akzeptiert; Zusatz-/Teilpfade bleiben rot. Current-Candidate me
 `runtime_source_parity=true`, `no_credit_requalification=true`, `promotion_eligible=false`,
 canonical `blocked`, Hosted-Snapshot `84` gegen Manifest `89`.
 
+Selection-Commit `67cd698c6cff4f4230283bc5d2f91c3170f41485` ist auf
+`origin/codex/organism-visual-v2` gepusht. `pr-check`-Lauf `33282524897` attestierte exakt
+diesen SHA und bestand `29/29` Schritte, `0` skipped, `0` failed. Dieser anschliessende reine
+Doku-Freeze-Commit darf erst nach einem weiteren gruenen final-head Lauf als abgeschlossen
+gelten; dessen Run-ID wird nicht in denselben Commit zurueckgeschrieben, um keinen
+selbstreferenziellen Commit/CI-Zyklus zu erzeugen.
+
 Browser-Pass 1 ist kanonisch gruen: `22/22` Routen, `29/29` Familien, `161/161` Aktionen,
 keine Mocks/Interceptions, keine unerwarteten Providerpfade, keine Console-/Page-Fehler.
 Der erste sichtbare headed Pass 2 isolierte genau einen zeitlichen Replay-Performance-
@@ -53,7 +60,7 @@ Minuten mit `22/22`, `29/29`, `161/161` (`160` direkt, `1` exakt vorverifiziert)
 freigegebenen echten Gateway-Providerantworten und null Mocks, Interceptions, unerwarteten
 Providerpfaden, Console-/Page-Fehlern oder Secret-Ausgabe. Working-Report SHA-256:
 `4E844972CA953C03A76746B7E1AE49726215133B648B45EC813DF55D0EDB80948`.
-Naechster Schritt: Master-Sync, Selection-Commit, Feature-Push und final-head CI.
+Naechster Schritt: Doku-Freeze pushen und dessen final-head CI pruefen.
 
 Aktueller Arbeitsbaum: der Selection-Index enthaelt ausschliesslich die RC23-Evidence,
 Readiness/Pointer, verifier-generierte O4-Wahrheit und synchrone Truth-Dokumente. Der

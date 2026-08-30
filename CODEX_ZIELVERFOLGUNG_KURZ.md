@@ -33,8 +33,10 @@ Promotion bleiben danach separate Owner-Entscheidungen.
 |---|---|
 | eingefrorene Candidate Source | `7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927` |
 | source-attestation Control | `5cfbf1f4b8a70116985cb27d7b949f4e2aaf45b1` |
+| gepushter Selection-Commit | `67cd698c6cff4f4230283bc5d2f91c3170f41485` |
 | aktiver Kandidat | `prod-candidate-2026-08-29-local-rc23` |
 | Qualifikations-CI | `33273326919`, success, `25/25` beobachtete Schritte gruen, `0` skipped |
+| Selection-Head-CI | `33282524897`, success, `29/29`, `0` skipped, `0` failed |
 | Evidence | exakt `27` immutable Dateien; 5 lokale Ketten + CI-Attestation/Readback |
 | Readiness | `17/19 = 89%`; offen I1 und I5 |
 | Rollback | RC22 Source `28727b198b057a6bdef6b5f34e9aa946fb2757a0` |
@@ -101,6 +103,7 @@ PASS verify:phase5-credit -> 17/19, blocked I1/I5
 PASS verify:current-release-candidate -> technical/source parity true, no-credit rebind true, promotion false
 PASS verify_project_progress_manifest.py -> overall 89, deltas 0, mirrors 2
 EXPECTED STOP npm run verify -> current Cloudflare-native hosted Worker source parity
+PASS pr-check 33282524897 -> exact 67cd698c, 29/29, skipped=0, failed=0
 ```
 
 A6/Selection aktuell:

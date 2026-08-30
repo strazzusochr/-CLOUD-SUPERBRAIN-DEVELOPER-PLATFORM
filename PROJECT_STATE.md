@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-08-29
+Letzte Aktualisierung: 2026-08-30
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -13,6 +13,12 @@ Letzte Aktualisierung: 2026-08-29
   `33273326919` (`25/25` beobachtete Schritte gruen, `0` skipped) und exakt 27 immutable
   Evidence-Dateien. RC22-Source `28727b198b057a6bdef6b5f34e9aa946fb2757a0` ist der
   immutable lokale Rollback-Anker.
+- **Selection gepusht und CI-gruen:** Commit
+  `67cd698c6cff4f4230283bc5d2f91c3170f41485` liegt auf
+  `origin/codex/organism-visual-v2`; `pr-check` `33282524897` attestierte genau diesen SHA
+  und bestand `29/29` Schritte bei `0` skipped und `0` failed. Der nachfolgende reine
+  Doku-Freeze ist nur nach eigenem gruenem final-head Lauf gueltig; die Run-ID wird nicht
+  selbstreferenziell in denselben Commit geschrieben.
 - **Alle fuenf unabhaengigen Ketten bestanden:** sechs Clean-Archive-Images, Runtime
   `10/10 healthy`, kompletter realer Chromium-Browser, Candidate-Runtime-Identitaet mit
   echter Auswahl/Klick und Candidate-Archiv npm-audit plus canonical gitleaks. Browser-Pass
@@ -53,8 +59,8 @@ Letzte Aktualisierung: 2026-08-29
   Branch-Write, GHCR-Push, Hosted-Deploy, OAuth-Aktivierung, Secret-Output,
   Release-Promotion oder Production-Rollout. Lokale Runtime-/Browserbeweise bleiben
   `DEV-ONLY; hosted proof still blocked`.
-- **Naechster sicherer Schritt:** Truth-Dokumente einfrieren, Selection-Commit erzeugen und nur den
-  Feature-Branch pushen. Prozentwerte und Owner-Gates bleiben unveraendert.
+- **Naechster sicherer Schritt:** reinen Doku-Freeze pushen und dessen final-head CI
+  pruefen. Prozentwerte und Owner-Gates bleiben unveraendert.
 
 ### Session 2026-08-28 — RC20 qualifiziert, RC21 in Bindung
 
