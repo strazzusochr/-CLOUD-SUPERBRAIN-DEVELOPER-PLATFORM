@@ -60,7 +60,10 @@
   "vars": {
     "RUNTIME_MODE": "cloudflare_native_hosted_candidate",
     "CONTRACT_ORIGIN": "https://cloud-superbrain-developer-platform.vercel.app",
-    "MEMORY_EMBEDDING_MODEL": "@cf/baai/bge-base-en-v1.5"
+    "MEMORY_EMBEDDING_MODEL": "@cf/baai/bge-base-en-v1.5",
+    "GITHUB_OAUTH_CLIENT_ID": "Ov23li4cxivUXK6RUJ2C",
+    "GITHUB_OAUTH_REDIRECT_URI": "https://frontend-seven-psi-78.vercel.app/api/v1/auth/callback",
+    "GITHUB_OAUTH_OWNER_IDS": "237145441"
   },
   "env": {
     "preview": {

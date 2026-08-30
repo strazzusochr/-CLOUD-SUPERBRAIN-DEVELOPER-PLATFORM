@@ -97,11 +97,93 @@ class FakeStatement {
       this.db.audit.push({ id, event_type, trace_id, subject_id, details_json, created_at });
       return { meta: { changes: 1 } };
     }
+    if (this.sql.startsWith("INSERT INTO oauth_states")) {
+      const [state, created_at, expires_at] = this.values;
+      this.db.oauthStates.set(state, { state, created_at, expires_at });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("DELETE FROM oauth_states")) {
+      const state = this.values[0];
+      const existed = this.db.oauthStates.delete(state);
+      return { meta: { changes: existed ? 1 : 0 } };
+    }
+    if (this.sql.startsWith("INSERT INTO refresh_token_families")) {
+      const [family_id, subject, active_token_hash, created_at, updated_at] = this.values;
+      this.db.refreshFamilies.set(family_id, { family_id, subject, active_token_hash, created_at, updated_at, revoked_at: null, revocation_reason: null });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("UPDATE refresh_token_families SET active_token_hash")) {
+      const [new_hash, updated_at, family_id, old_hash] = this.values;
+      const fam = this.db.refreshFamilies.get(family_id);
+      if (fam && fam.active_token_hash === old_hash && !fam.revoked_at) {
+        fam.active_token_hash = new_hash;
+        fam.updated_at = updated_at;
+        return { meta: { changes: 1 } };
+      }
+      return { meta: { changes: 0 } };
+    }
+    if (this.sql.startsWith("UPDATE refresh_token_families SET revoked_at")) {
+      const reasonMatch = this.sql.match(/revocation_reason\s*=\s*'([^']+)'/);
+      const reason = reasonMatch ? reasonMatch[1] : (this.values.length > 2 ? this.values[1] : "revoked");
+      if (this.sql.includes("WHERE family_id = ?")) {
+        const revoked_at = this.values[0];
+        const family_id = this.values[this.values.length - 1];
+        const fam = this.db.refreshFamilies.get(family_id);
+        if (fam) {
+          fam.revoked_at = revoked_at;
+          fam.revocation_reason = reason;
+          return { meta: { changes: 1 } };
+        }
+      } else if (this.sql.includes("WHERE active_token_hash = ?")) {
+        const revoked_at = this.values[0];
+        const active_token_hash = this.values[this.values.length - 1];
+        for (const fam of this.db.refreshFamilies.values()) {
+          if (fam.active_token_hash === active_token_hash) {
+            fam.revoked_at = revoked_at;
+            fam.revocation_reason = reason;
+            return { meta: { changes: 1 } };
+          }
+        }
+      }
+      return { meta: { changes: 0 } };
+    }
+    if (this.sql.startsWith("INSERT INTO refresh_token_history") || this.sql.startsWith("INSERT OR REPLACE INTO refresh_token_history")) {
+      const [token_hash, family_id, consumed_at, status] = this.values;
+      this.db.refreshHistory.set(token_hash, { token_hash, family_id, consumed_at, status });
+      return { meta: { changes: 1 } };
+    }
     throw new Error(`Unhandled run SQL: ${this.sql}`);
   }
 
   async first() {
     if (this.sql === "SELECT 1 AS ok") return { ok: 1 };
+    if (this.sql.startsWith("SELECT state FROM oauth_states")) {
+      const [state, nowIso] = this.values;
+      const row = this.db.oauthStates.get(state);
+      return row && row.expires_at > nowIso ? { state: row.state } : null;
+    }
+    if (this.sql.startsWith("SELECT family_id, status FROM refresh_token_history")) {
+      const row = this.db.refreshHistory.get(this.values[0]);
+      return row ? { family_id: row.family_id, status: row.status } : null;
+    }
+    if (this.sql.startsWith("SELECT family_id, subject, active_token_hash, revoked_at FROM refresh_token_families")) {
+      const activeHash = this.values[0];
+      for (const fam of this.db.refreshFamilies.values()) {
+        if (fam.active_token_hash === activeHash) {
+          return { family_id: fam.family_id, subject: fam.subject, active_token_hash: fam.active_token_hash, revoked_at: fam.revoked_at };
+        }
+      }
+      return null;
+    }
+    if (this.sql.startsWith("SELECT family_id FROM refresh_token_families")) {
+      const activeHash = this.values[0];
+      for (const fam of this.db.refreshFamilies.values()) {
+        if (fam.active_token_hash === activeHash) {
+          return { family_id: fam.family_id };
+        }
+      }
+      return null;
+    }
     if (this.sql.startsWith("SELECT id, event_type, trace_id, subject_id, details_json, created_at FROM audit_events")) {
       if (this.db.throwAuditReadback) throw new Error("simulated audit readback transport failure");
       if (this.db.omitAuditReadback) return null;
@@ -196,6 +278,9 @@ class FakeD1 {
     this.artifacts = new Map();
     this.nativeArtifacts = new Map();
     this.sessions = new Map();
+    this.oauthStates = new Map();
+    this.refreshFamilies = new Map();
+    this.refreshHistory = new Map();
     this.runs = new Map();
     this.tasks = [];
     this.memory = [];
@@ -219,6 +304,9 @@ class FakeD1 {
       artifacts: new Map([...this.artifacts].map(([key, value]) => [key, { ...value }])),
       nativeArtifacts: new Map([...this.nativeArtifacts].map(([key, value]) => [key, { ...value }])),
       sessions: new Map([...this.sessions].map(([key, value]) => [key, { ...value }])),
+      oauthStates: new Map([...this.oauthStates].map(([key, value]) => [key, { ...value }])),
+      refreshFamilies: new Map([...this.refreshFamilies].map(([key, value]) => [key, { ...value }])),
+      refreshHistory: new Map([...this.refreshHistory].map(([key, value]) => [key, { ...value }])),
       runs: new Map([...this.runs].map(([key, value]) => [key, { ...value }])),
       tasks: this.tasks.map((value) => ({ ...value })),
       memory: this.memory.map((value) => ({ ...value })),
@@ -233,6 +321,9 @@ class FakeD1 {
       this.artifacts = snapshot.artifacts;
       this.nativeArtifacts = snapshot.nativeArtifacts;
       this.sessions = snapshot.sessions;
+      this.oauthStates = snapshot.oauthStates;
+      this.refreshFamilies = snapshot.refreshFamilies;
+      this.refreshHistory = snapshot.refreshHistory;
       this.runs = snapshot.runs;
       this.tasks = snapshot.tasks;
       this.memory = snapshot.memory;
@@ -297,6 +388,11 @@ function env(options = {}) {
     RUNTIME_MODE: options.runtimeMode || "cloudflare_native_local_candidate",
     RUNTIME_COORDINATOR: new FakeDurableNamespace(),
     RUNTIME_QUEUE: new FakeQueue(),
+    GITHUB_OAUTH_CLIENT_ID: options.githubClientId !== undefined ? options.githubClientId : "test-github-client-id",
+    GITHUB_OAUTH_CLIENT_SECRET: options.githubClientSecret !== undefined ? options.githubClientSecret : "test-github-client-secret",
+    GITHUB_OAUTH_REDIRECT_URI: options.githubRedirectUri || "https://cloud-superbrain-developer-platform.vercel.app/api/v1/auth/callback",
+    GITHUB_OAUTH_OWNER_IDS: options.githubOwnerIds !== undefined ? options.githubOwnerIds : "123456,789012",
+    JWT_SIGNING_SECRET: options.jwtSigningSecret !== undefined ? options.jwtSigningSecret : "test-jwt-signing-secret-key-32-chars-long",
   };
 }
 
@@ -1185,4 +1281,191 @@ test("Cloudflare-native queue retry is bounded and cannot regress a failed termi
   assert.equal(lateDelivery.retried, 1);
   const stillFailed = await worker.fetch(new Request(stateUrl), fakeEnv);
   assert.equal((await stillFailed.json()).status, "failed");
+});
+
+test("OAuth contract reports fail-closed configuration status", async () => {
+  const fakeEnv = env();
+  const contract = await worker.fetch(new Request("https://state.example/api/v1/auth/contract"), fakeEnv);
+  const body = await contract.json();
+  assert.equal(contract.status, 200);
+  assert.equal(body.contract_version, "auth-github-jwt-refresh-v1");
+  assert.equal(body.mode, "verified_identity_fail_closed");
+  assert.equal(body.credential_issuance_ready, true);
+  assert.equal(body.credentials_configured, true);
+  assert.equal(body.owner_activation_granted, true);
+  assert.equal(body.jwt.algorithm, "HS256");
+  assert.equal(body.refresh_token.storage, "hash_only_d1");
+
+  const unconfiguredEnv = env({ githubClientSecret: "" });
+  const unconfiguredContract = await worker.fetch(new Request("https://state.example/api/v1/auth/contract"), unconfiguredEnv);
+  const unconfiguredBody = await unconfiguredContract.json();
+  assert.equal(unconfiguredContract.status, 200);
+  assert.equal(unconfiguredBody.mode, "local_contract_with_dry_run_oauth");
+  assert.equal(unconfiguredBody.credential_issuance_ready, false);
+});
+
+test("OAuth start issues state cookie and 303 redirect when configured", async () => {
+  const fakeEnv = env();
+  const start = await worker.fetch(new Request("https://state.example/api/v1/auth/github"), fakeEnv);
+  assert.equal(start.status, 303);
+  const location = start.headers.get("location");
+  assert.ok(location.startsWith("https://github.com/login/oauth/authorize?"));
+  assert.ok(location.includes("client_id=test-github-client-id"));
+  assert.ok(location.includes("scope=read%3Auser") || location.includes("scope=read:user"));
+  const setCookie = start.headers.get("set-cookie");
+  assert.ok(setCookie.includes("__Host-sb_oauth_state=phase3-auth-state-"));
+  assert.ok(setCookie.includes("SameSite=Lax"));
+  assert.ok(setCookie.includes("HttpOnly"));
+  assert.ok(setCookie.includes("Secure"));
+  assert.equal(fakeEnv.DB.oauthStates.size, 1);
+});
+
+test("OAuth callback validates state, exchanges token, enforces owner allowlist, and issues cookies", async () => {
+  const fakeEnv = env();
+  const originalFetch = globalThis.fetch;
+
+  // 1. Invalid state returns 401
+  const invalidStateReq = new Request("https://state.example/api/v1/auth/callback?code=test-code&state=phase3-auth-state-invalid1234567890", {
+    headers: { cookie: "__Host-sb_oauth_state=phase3-auth-state-mismatch123456789" },
+  });
+  const invalidStateRes = await worker.fetch(invalidStateReq, fakeEnv);
+  assert.equal(invalidStateRes.status, 401);
+  const invalidStateBody = await invalidStateRes.json();
+  assert.equal(invalidStateBody.error, "oauth_state_invalid");
+  assert.ok(invalidStateRes.headers.get("set-cookie").includes('__Host-sb_oauth_state=""'));
+
+  // 2. Mock GitHub API for token exchange and user fetch
+  let mockGitHubUserId = 123456;
+  globalThis.fetch = async (input, init) => {
+    const urlStr = typeof input === "string" ? input : input.url;
+    if (urlStr === "https://github.com/login/oauth/access_token") {
+      return new Response(JSON.stringify({ access_token: "gho_mock_access_token_12345", scope: "read:user" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    if (urlStr === "https://api.github.com/user") {
+      return new Response(JSON.stringify({ id: mockGitHubUserId, login: "testowner" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    return originalFetch(input, init);
+  };
+
+  try {
+    // Generate valid state in D1
+    const validState = "phase3-auth-state-valid1234567890123456";
+    fakeEnv.DB.oauthStates.set(validState, {
+      state: validState,
+      created_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 600000).toISOString(),
+    });
+
+    const successReq = new Request(`https://state.example/api/v1/auth/callback?code=gh_code_123&state=${validState}`, {
+      headers: { cookie: `__Host-sb_oauth_state=${validState}` },
+    });
+    const successRes = await worker.fetch(successReq, fakeEnv);
+    assert.equal(successRes.status, 200);
+    const successBody = await successRes.json();
+    assert.equal(successBody.status, "authenticated");
+    assert.equal(successBody.identity_verified, true);
+    assert.equal(successBody.access_token_issued, true);
+    assert.equal(successBody.refresh_token_issued, true);
+    assert.equal(successBody.audit_persisted, true);
+
+    // State consumed from D1
+    assert.equal(fakeEnv.DB.oauthStates.has(validState), false);
+    // Refresh family stored in D1
+    assert.equal(fakeEnv.DB.refreshFamilies.size, 1);
+    // Audit event saved in D1
+    assert.ok(fakeEnv.DB.audit.some((a) => a.event_type === "auth_github_callback_verified"));
+
+    // Verify Set-Cookie headers
+    const setCookies = successRes.headers.getSetCookie ? successRes.headers.getSetCookie() : [successRes.headers.get("set-cookie")];
+    const cookieHeaderString = setCookies.join("\n");
+    assert.ok(cookieHeaderString.includes("__Host-sb_access="));
+    assert.ok(cookieHeaderString.includes("__Host-sb_refresh="));
+    assert.ok(cookieHeaderString.includes('__Host-sb_oauth_state=""'));
+
+    // Extract access and refresh tokens for subsequent tests
+    const accessMatch = cookieHeaderString.match(/__Host-sb_access=([^;]+)/);
+    const refreshMatch = cookieHeaderString.match(/__Host-sb_refresh=([^;]+)/);
+    const accessToken = accessMatch[1];
+    const refreshToken = refreshMatch[1];
+
+    // 3. Test /api/v1/auth/me with issued access token
+    const meReq = new Request("https://state.example/api/v1/auth/me", {
+      headers: { cookie: `__Host-sb_access=${accessToken}` },
+    });
+    const meRes = await worker.fetch(meReq, fakeEnv);
+    assert.equal(meRes.status, 200);
+    const meBody = await meRes.json();
+    assert.equal(meBody.status, "authenticated");
+    assert.equal(meBody.identity.provider, "github");
+    assert.equal(meBody.identity.provider_user_id, 123456);
+    assert.equal(meBody.identity.subject, "github:123456");
+    assert.equal(meBody.jwt_signature_verified, true);
+
+    // 4. Test /api/v1/auth/refresh with issued refresh token
+    const refreshReq = new Request("https://state.example/api/v1/auth/refresh", {
+      method: "POST",
+      headers: { cookie: `__Host-sb_refresh=${refreshToken}` },
+    });
+    const refreshRes = await worker.fetch(refreshReq, fakeEnv);
+    assert.equal(refreshRes.status, 200);
+    const refreshBody = await refreshRes.json();
+    assert.equal(refreshBody.status, "rotated");
+    assert.equal(refreshBody.audit_persisted, true);
+
+    const newCookies = refreshRes.headers.getSetCookie ? refreshRes.headers.getSetCookie() : [refreshRes.headers.get("set-cookie")];
+    const newCookieHeaderString = newCookies.join("\n");
+    const newRefreshMatch = newCookieHeaderString.match(/__Host-sb_refresh=([^;]+)/);
+    const newRefreshToken = newRefreshMatch[1];
+
+    // 5. Test Replay Attack: Reusing old refresh token must fail with 401, revoke family, and blacklist
+    const replayReq = new Request("https://state.example/api/v1/auth/refresh", {
+      method: "POST",
+      headers: { cookie: `__Host-sb_refresh=${refreshToken}` },
+    });
+    const replayRes = await worker.fetch(replayReq, fakeEnv);
+    assert.equal(replayRes.status, 401);
+    const replayBody = await replayRes.json();
+    assert.equal(replayBody.reason, "blacklisted");
+    assert.ok(fakeEnv.DB.audit.some((a) => a.event_type === "auth_refresh_reuse_blocked"));
+
+    // Family is revoked in D1
+    const [family] = [...fakeEnv.DB.refreshFamilies.values()];
+    assert.ok(family.revoked_at);
+    assert.equal(family.revocation_reason, "token_replay_detected");
+
+    // 6. Test /api/v1/auth/logout
+    const logoutReq = new Request("https://state.example/api/v1/auth/logout", {
+      method: "POST",
+      headers: { cookie: `__Host-sb_refresh=${newRefreshToken}` },
+    });
+    const logoutRes = await worker.fetch(logoutReq, fakeEnv);
+    assert.equal(logoutRes.status, 200);
+    const logoutBody = await logoutRes.json();
+    assert.equal(logoutBody.status, "logged_out");
+    assert.ok(fakeEnv.DB.audit.some((a) => a.event_type === "auth_logout_verified"));
+
+    // 7. Disallowed owner ID returns 403
+    mockGitHubUserId = 999999;
+    const disallowedState = "phase3-auth-state-disallowed1234567890123456";
+    fakeEnv.DB.oauthStates.set(disallowedState, {
+      state: disallowedState,
+      created_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 600000).toISOString(),
+    });
+    const disallowedReq = new Request(`https://state.example/api/v1/auth/callback?code=gh_code_999&state=${disallowedState}`, {
+      headers: { cookie: `__Host-sb_oauth_state=${disallowedState}` },
+    });
+    const disallowedRes = await worker.fetch(disallowedReq, fakeEnv);
+    assert.equal(disallowedRes.status, 403);
+    const disallowedBody = await disallowedRes.json();
+    assert.equal(disallowedBody.error, "github_owner_identity_not_allowed");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

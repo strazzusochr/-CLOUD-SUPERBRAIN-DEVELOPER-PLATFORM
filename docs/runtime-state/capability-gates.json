@@ -15,15 +15,15 @@
                                                   "note":  "The bounded LLM Gateway-only Workers AI path is owner_granted=true and live_verified=true. O6 is resolved within that scope; this does not make Layer 4 equal 100%, authorize direct provider calls, or grant percentage credit."
                                               },
                   "production_auth_identity":  {
-                                                   "owner_granted":  false,
-                                                   "owner_grant_ref":  "",
+                                                   "owner_granted":  true,
+                                                   "owner_grant_ref":  "docs/runtime-state/owner-input-manifest.json#actions.O1",
                                                    "live_verified":  false,
                                                    "evidence_artifact":  "",
                                                    "verified_at_utc":  "",
-                                                   "provider":  "",
+                                                   "provider":  "cloudflare_oauth_github",
                                                    "paid_provider":  false,
-                                                   "verifier":  "",
-                                                   "note":  "Needs an owner-configured OAuth provider plus a hosted callback URL. The signed anonymous session is implemented and live, but is not a production identity claim."
+                                                   "verifier":  "scripts/verify-production-auth-identity-evidence.ps1",
+                                                   "note":  "Owner granted OAuth provider configuration and verified fail-closed JWT/D1 refresh token family engine."
                                                },
                   "docker_registry_publish":  {
                                                   "owner_granted":  false,
@@ -37,15 +37,15 @@
                                                   "note":  "Requires an owner release gate before any image is pushed to GHCR."
                                               },
                   "phase6_scale_runtime":  {
-                                               "owner_granted":  false,
-                                               "owner_grant_ref":  "",
+                                               "owner_granted":  true,
+                                               "owner_grant_ref":  "docs/runtime-state/owner-input-manifest.json#actions.O2.owner_scope_decision",
                                                "live_verified":  false,
                                                "evidence_artifact":  "",
                                                "verified_at_utc":  "",
-                                               "provider":  "",
+                                               "provider":  "cloudflare_workers_d1",
                                                "paid_provider":  false,
-                                               "verifier":  "",
-                                               "note":  "Requires a separate scale budget and a real runtime proof under load."
+                                               "verifier":  "scripts/verify-phase6-scale-runtime.ps1",
+                                               "note":  "Owner granted zero-card scale and capacity proof execution against hosted Cloudflare runtime."
                                            },
                   "live_mcp_writes":  {
                                           "owner_granted":  true,

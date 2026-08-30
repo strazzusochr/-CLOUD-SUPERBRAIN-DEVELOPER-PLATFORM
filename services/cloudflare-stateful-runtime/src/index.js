@@ -2039,6 +2039,722 @@ async function proxyContractOrigin(request, env, requestId) {
   }
 }
 
+const AUTH_STATE_COOKIE = "__Host-sb_oauth_state";
+const AUTH_ACCESS_COOKIE = "__Host-sb_access";
+const AUTH_REFRESH_COOKIE = "__Host-sb_refresh";
+const STATE_COOKIE_CLEAR = '__Host-sb_oauth_state=""; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; HttpOnly; SameSite=Lax';
+const ACCESS_COOKIE_CLEAR = '__Host-sb_access=""; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; HttpOnly; SameSite=Strict';
+const REFRESH_COOKIE_CLEAR = '__Host-sb_refresh=""; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; HttpOnly; SameSite=Strict';
+
+function getCookie(request, name) {
+  const cookieHeader = request.headers.get("cookie") || "";
+  for (const part of cookieHeader.split(";")) {
+    const [k, ...v] = part.trim().split("=");
+    if (k === name) return v.join("=");
+  }
+  return null;
+}
+
+function authResponse(body, status = 200, cookies = [], extraHeaders = {}) {
+  const headers = new Headers({
+    "content-type": "application/json",
+    "cache-control": "no-store",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "referrer-policy": "no-referrer",
+    "x-superbrain-source": SOURCE,
+    ...extraHeaders,
+  });
+  for (const c of cookies) {
+    headers.append("set-cookie", c);
+  }
+  return new Response(typeof body === "string" ? body : JSON.stringify(body), { status, headers });
+}
+
+function redirectResponse(location, cookies = [], status = 303) {
+  const headers = new Headers({
+    location,
+    "cache-control": "no-store",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "referrer-policy": "no-referrer",
+    "x-superbrain-source": SOURCE,
+  });
+  for (const c of cookies) {
+    headers.append("set-cookie", c);
+  }
+  return new Response(null, { status, headers });
+}
+
+function base64UrlEncode(bytes) {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function base64UrlEncodeString(str) {
+  return base64UrlEncode(new TextEncoder().encode(str));
+}
+
+function base64UrlDecode(str) {
+  let base64 = str.replace(/-/g, "+").replace(/_/g, "/");
+  while (base64.length % 4) base64 += "=";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function signJwtHS256(payload, secret) {
+  const header = { alg: "HS256", typ: "JWT" };
+  const encodedHeader = base64UrlEncodeString(JSON.stringify(header));
+  const encodedPayload = base64UrlEncodeString(JSON.stringify(payload));
+  const data = new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, data);
+  const encodedSignature = base64UrlEncode(new Uint8Array(signature));
+  return `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
+}
+
+async function verifyJwtHS256(token, secret) {
+  if (typeof token !== "string") return { valid: false, reason: "missing" };
+  const parts = token.split(".");
+  if (parts.length !== 3) return { valid: false, reason: "format" };
+  const [encodedHeader, encodedPayload, encodedSignature] = parts;
+  try {
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"],
+    );
+    const data = new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`);
+    const signature = base64UrlDecode(encodedSignature);
+    const valid = await crypto.subtle.verify("HMAC", key, signature, data);
+    if (!valid) return { valid: false, reason: "signature" };
+    const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(encodedPayload)));
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < now) return { valid: false, reason: "expired" };
+    return { valid: true, payload };
+  } catch {
+    return { valid: false, reason: "invalid" };
+  }
+}
+
+function parseOwnerIds(raw) {
+  if (!raw || typeof raw !== "string") return new Set();
+  const ids = new Set();
+  for (const token of raw.split(",")) {
+    const trimmed = token.trim();
+    if (/^\d+$/.test(trimmed)) {
+      const num = parseInt(trimmed, 10);
+      if (num > 0) ids.add(num);
+    }
+  }
+  return ids;
+}
+
+async function persistAuthAudit(env, eventType, details) {
+  if (!env.DB) return false;
+  try {
+    const id = `audit_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const traceId = details.trace_id || `trace_${Date.now()}`;
+    const subjectId = details.subject || null;
+    const createdAt = new Date().toISOString();
+    await env.DB.prepare("INSERT INTO audit_events (id, event_type, trace_id, subject_id, details_json, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .bind(id, eventType, traceId, subjectId, JSON.stringify(details), createdAt)
+      .run();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function authContractPayload(env) {
+  const credentialsConfigured = Boolean(
+    env.GITHUB_OAUTH_CLIENT_ID &&
+    env.GITHUB_OAUTH_CLIENT_SECRET &&
+    env.JWT_SIGNING_SECRET,
+  );
+  const ownerGranted = Boolean(env.GITHUB_OAUTH_OWNER_IDS && parseOwnerIds(env.GITHUB_OAUTH_OWNER_IDS).size > 0);
+  const ready = credentialsConfigured && ownerGranted;
+  return {
+    contract_version: "auth-github-jwt-refresh-v1",
+    mode: ready ? "verified_identity_fail_closed" : "local_contract_with_dry_run_oauth",
+    live_github_oauth_call: false,
+    github_oauth_configured: credentialsConfigured,
+    credentials_configured: credentialsConfigured,
+    owner_activation_granted: ownerGranted,
+    credential_issuance_ready: ready,
+    jwt: {
+      algorithm: "HS256",
+      access_token_ttl_seconds: 900,
+      issuer: "cloud-superbrain-agent-api",
+      audience: "cloud-superbrain-frontend",
+    },
+    refresh_token: {
+      ttl_seconds: 604800,
+      storage: "hash_only_d1",
+      rotation: "atomic",
+    },
+    cookie_flags: {
+      oauth_state: "__Host-sb_oauth_state; Path=/; Max-Age=600; Secure; HttpOnly; SameSite=Lax",
+      access: "__Host-sb_access; Path=/; Max-Age=900; Secure; HttpOnly; SameSite=Strict",
+      refresh: "__Host-sb_refresh; Path=/; Max-Age=604800; Secure; HttpOnly; SameSite=Strict",
+    },
+    non_claims: [
+      "No plaintext refresh token storage.",
+      "No client credentials or signing secret in client payload.",
+      "No wildcard callback origin.",
+      "No direct provider calls without explicit verified oauth flow.",
+    ],
+  };
+}
+
+async function authGithubStart(request, env, requestId) {
+  const contract = authContractPayload(env);
+  if (!contract.credential_issuance_ready) {
+    const ownerBlocked = contract.credentials_configured && !contract.owner_activation_granted;
+    return authResponse({
+      contract_version: contract.contract_version,
+      status: ownerBlocked ? "owner_activation_required" : "configuration_required",
+      mode: contract.mode,
+      live_github_oauth_call: false,
+      credentials_configured: contract.credentials_configured,
+      owner_activation_granted: contract.owner_activation_granted,
+      credential_issuance_ready: false,
+      credentials_issued: false,
+      state_required: true,
+      state_issued: false,
+      authorize_url: null,
+      missing_configuration: [
+        ...(!env.GITHUB_OAUTH_CLIENT_ID ? ["GITHUB_OAUTH_CLIENT_ID"] : []),
+        ...(!env.GITHUB_OAUTH_CLIENT_SECRET ? ["GITHUB_OAUTH_CLIENT_SECRET"] : []),
+        ...(!env.JWT_SIGNING_SECRET ? ["JWT_SIGNING_SECRET"] : []),
+      ],
+      activation_blockers: [
+        ...(!contract.owner_activation_granted ? ["GITHUB_OAUTH_OWNER_IDS"] : []),
+      ],
+      non_claims: contract.non_claims,
+    }, 200, [STATE_COOKIE_CLEAR]);
+  }
+
+  const randomBytes = new Uint8Array(24);
+  crypto.getRandomValues(randomBytes);
+  const state = `phase3-auth-state-${base64UrlEncode(randomBytes)}`;
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 600 * 1000).toISOString();
+  const createdAt = now.toISOString();
+
+  if (!env.DB) {
+    return authResponse({ error: "auth_state_storage_unavailable", credentials_issued: false, secret_output: false }, 503, [STATE_COOKIE_CLEAR]);
+  }
+  try {
+    await env.DB.prepare("INSERT INTO oauth_states (state, created_at, expires_at) VALUES (?, ?, ?)")
+      .bind(state, createdAt, expiresAt)
+      .run();
+  } catch {
+    return authResponse({ error: "auth_state_storage_unavailable", credentials_issued: false, secret_output: false }, 503, [STATE_COOKIE_CLEAR]);
+  }
+
+  const redirectUri = env.GITHUB_OAUTH_REDIRECT_URI || "https://cloud-superbrain-developer-platform.vercel.app/api/v1/auth/callback";
+  const params = new URLSearchParams({
+    client_id: env.GITHUB_OAUTH_CLIENT_ID,
+    redirect_uri: redirectUri,
+    scope: "read:user",
+    state,
+  });
+  const authorizeUrl = `https://github.com/login/oauth/authorize?${params.toString()}`;
+  const stateCookie = `__Host-sb_oauth_state=${state}; Path=/; Max-Age=600; Secure; HttpOnly; SameSite=Lax`;
+  return redirectResponse(authorizeUrl, [stateCookie]);
+}
+
+async function authGithubCallback(request, url, env, requestId) {
+  const traceId = safeRequestId(request.headers.get("x-request-id")) || `trace-auth-callback-${Date.now()}`;
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  const oauthError = url.searchParams.get("error");
+  const stateCookie = getCookie(request, AUTH_STATE_COOKIE);
+
+  const contract = authContractPayload(env);
+  if (!contract.credential_issuance_ready) {
+    await persistAuthAudit(env, "auth_github_callback_blocked", {
+      trace_id: traceId,
+      reason: "configuration_required",
+      credentials_issued: false,
+    });
+    return authResponse({
+      error: "github_oauth_not_configured",
+      owner_activation_granted: contract.owner_activation_granted,
+      credentials_issued: false,
+      live_github_oauth_call: false,
+      secret_output: false,
+    }, 503, [STATE_COOKIE_CLEAR]);
+  }
+
+  if (oauthError) {
+    await persistAuthAudit(env, "auth_github_callback_blocked", {
+      trace_id: traceId,
+      reason: "oauth_provider_denied",
+      credentials_issued: false,
+    });
+    return authResponse({
+      error: "oauth_provider_denied",
+      credentials_issued: false,
+      live_github_oauth_call: false,
+      secret_output: false,
+    }, 401, [STATE_COOKIE_CLEAR]);
+  }
+
+  const STATE_REGEX = /^phase3-auth-state-[A-Za-z0-9_-]{20,64}$/;
+  if (!state || !stateCookie || !STATE_REGEX.test(state) || !STATE_REGEX.test(stateCookie) || state !== stateCookie) {
+    await persistAuthAudit(env, "auth_github_callback_blocked", {
+      trace_id: traceId,
+      reason: "oauth_state_invalid",
+      credentials_issued: false,
+    });
+    return authResponse({
+      error: "oauth_state_invalid",
+      credentials_issued: false,
+      live_github_oauth_call: false,
+      secret_output: false,
+    }, 401, [STATE_COOKIE_CLEAR]);
+  }
+
+  const nowIso = new Date().toISOString();
+  let stateRow = null;
+  try {
+    stateRow = await env.DB.prepare("SELECT state FROM oauth_states WHERE state = ? AND expires_at > ?")
+      .bind(state, nowIso)
+      .first();
+    if (stateRow) {
+      await env.DB.prepare("DELETE FROM oauth_states WHERE state = ?")
+        .bind(state)
+        .run();
+    }
+  } catch {
+    return authResponse({ error: "auth_state_storage_unavailable", credentials_issued: false, secret_output: false }, 503, [STATE_COOKIE_CLEAR]);
+  }
+
+  if (!stateRow) {
+    await persistAuthAudit(env, "auth_github_callback_blocked", {
+      trace_id: traceId,
+      reason: "oauth_state_invalid",
+      credentials_issued: false,
+    });
+    return authResponse({
+      error: "oauth_state_invalid",
+      credentials_issued: false,
+      live_github_oauth_call: false,
+      secret_output: false,
+    }, 401, [STATE_COOKIE_CLEAR]);
+  }
+
+  if (!code || typeof code !== "string" || code.length < 1 || code.length > 255) {
+    await persistAuthAudit(env, "auth_github_callback_blocked", {
+      trace_id: traceId,
+      reason: "oauth_callback_parameters_invalid",
+      credentials_issued: false,
+    });
+    return authResponse({
+      error: "oauth_callback_parameters_invalid",
+      credentials_issued: false,
+      live_github_oauth_call: false,
+      secret_output: false,
+    }, 400, [STATE_COOKIE_CLEAR]);
+  }
+
+  let githubAccessToken = null;
+  try {
+    const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "User-Agent": "cloud-superbrain",
+      },
+      body: JSON.stringify({
+        client_id: env.GITHUB_OAUTH_CLIENT_ID,
+        client_secret: env.GITHUB_OAUTH_CLIENT_SECRET,
+        code,
+        redirect_uri: env.GITHUB_OAUTH_REDIRECT_URI || "https://cloud-superbrain-developer-platform.vercel.app/api/v1/auth/callback",
+      }),
+    });
+    if (!tokenRes.ok) throw new Error("token exchange failed");
+    const tokenData = await tokenRes.json();
+    if (tokenData.error || !tokenData.access_token) throw new Error(tokenData.error || "no access token");
+    githubAccessToken = tokenData.access_token;
+  } catch {
+    await persistAuthAudit(env, "auth_github_callback_blocked", {
+      trace_id: traceId,
+      reason: "oauth_exchange_failed",
+      credentials_issued: false,
+    });
+    return authResponse({
+      error: "oauth_exchange_failed",
+      credentials_issued: false,
+      live_github_oauth_call: false,
+      secret_output: false,
+    }, 401, [STATE_COOKIE_CLEAR]);
+  }
+
+  let githubUser = null;
+  try {
+    const userRes = await fetch("https://api.github.com/user", {
+      headers: {
+        Authorization: `Bearer ${githubAccessToken}`,
+        Accept: "application/vnd.github.v3+json",
+        "User-Agent": "cloud-superbrain",
+      },
+    });
+    if (!userRes.ok) throw new Error("user fetch failed");
+    githubUser = await userRes.json();
+  } catch {
+    await persistAuthAudit(env, "auth_github_callback_blocked", {
+      trace_id: traceId,
+      reason: "oauth_user_fetch_failed",
+      credentials_issued: false,
+    });
+    return authResponse({
+      error: "oauth_user_fetch_failed",
+      credentials_issued: false,
+      live_github_oauth_call: false,
+      secret_output: false,
+    }, 401, [STATE_COOKIE_CLEAR]);
+  }
+
+  const githubId = Number(githubUser?.id);
+  if (!Number.isInteger(githubId) || githubId <= 0) {
+    await persistAuthAudit(env, "auth_github_callback_blocked", {
+      trace_id: traceId,
+      reason: "oauth_user_id_invalid",
+      credentials_issued: false,
+    });
+    return authResponse({
+      error: "oauth_user_id_invalid",
+      credentials_issued: false,
+      secret_output: false,
+    }, 401, [STATE_COOKIE_CLEAR]);
+  }
+
+  const ownerIds = parseOwnerIds(env.GITHUB_OAUTH_OWNER_IDS);
+  if (!ownerIds.has(githubId)) {
+    await persistAuthAudit(env, "auth_github_callback_blocked", {
+      trace_id: traceId,
+      reason: "github_owner_identity_not_allowed",
+      credentials_issued: false,
+    });
+    return authResponse({
+      error: "github_owner_identity_not_allowed",
+      credentials_issued: false,
+      secret_output: false,
+    }, 403, [STATE_COOKIE_CLEAR]);
+  }
+
+  const subject = `github:${githubId}`;
+  const randomRefresh = new Uint8Array(24);
+  crypto.getRandomValues(randomRefresh);
+  const refreshToken = `csr_${base64UrlEncode(randomRefresh)}`;
+  const refreshHash = await sha256(refreshToken);
+
+  const randomFamily = new Uint8Array(16);
+  crypto.getRandomValues(randomFamily);
+  const familyId = `fam_${base64UrlEncode(randomFamily)}`;
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const issuedAtIso = new Date(nowSec * 1000).toISOString();
+  const expiresAtIso = new Date((nowSec + 900) * 1000).toISOString();
+
+  try {
+    await env.DB.prepare("INSERT INTO refresh_token_families (family_id, subject, active_token_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
+      .bind(familyId, subject, refreshHash, issuedAtIso, issuedAtIso)
+      .run();
+  } catch {
+    return authResponse({ error: "refresh_registry_unavailable", credentials_issued: false, secret_output: false }, 503, [STATE_COOKIE_CLEAR]);
+  }
+
+  const auditSaved = await persistAuthAudit(env, "auth_github_callback_verified", {
+    trace_id: traceId,
+    identity_verified: true,
+    oauth_state_consumed: true,
+    live_github_oauth_call: true,
+    cookie_flags: contract.cookie_flags,
+  });
+
+  if (!auditSaved) {
+    try {
+      await env.DB.prepare("UPDATE refresh_token_families SET revoked_at = ?, revocation_reason = 'audit_unavailable' WHERE family_id = ?")
+        .bind(new Date().toISOString(), familyId)
+        .run();
+    } catch {}
+    return authResponse({ error: "auth_audit_unavailable", credentials_issued: false, secret_output: false }, 503, [STATE_COOKIE_CLEAR]);
+  }
+
+  const jwtPayload = {
+    sub: subject,
+    provider: "github",
+    provider_user_id: githubId,
+    iss: "cloud-superbrain-agent-api",
+    aud: "cloud-superbrain-frontend",
+    iat: nowSec,
+    exp: nowSec + 900,
+    trace_id: traceId,
+    issued_at: issuedAtIso,
+    expires_at: expiresAtIso,
+  };
+  const accessToken = await signJwtHS256(jwtPayload, env.JWT_SIGNING_SECRET);
+
+  const cookies = [
+    STATE_COOKIE_CLEAR,
+    `__Host-sb_access=${accessToken}; Path=/; Max-Age=900; Secure; HttpOnly; SameSite=Strict`,
+    `__Host-sb_refresh=${refreshToken}; Path=/; Max-Age=604800; Secure; HttpOnly; SameSite=Strict`,
+  ];
+
+  const acceptHeader = request.headers.get("accept") || "";
+  if (acceptHeader.includes("text/html")) {
+    return redirectResponse("/workbench", cookies);
+  }
+
+  return authResponse({
+    status: "authenticated",
+    contract_version: "auth-github-jwt-refresh-v1",
+    mode: "verified_identity_fail_closed",
+    identity_verified: true,
+    oauth_state_consumed: true,
+    live_github_oauth_call: true,
+    access_token_issued: true,
+    refresh_token_issued: true,
+    audit_persisted: true,
+    access_token_expires_in: 900,
+    refresh_token_expires_in: 604800,
+    cookie_flags: contract.cookie_flags,
+    trace_id: traceId,
+    non_claims: contract.non_claims,
+  }, 200, cookies);
+}
+
+async function authMe(request, env, requestId) {
+  const accessToken = getCookie(request, AUTH_ACCESS_COOKIE);
+  if (!accessToken || !env.JWT_SIGNING_SECRET) {
+    return authResponse({
+      error: "access_token_invalid",
+      authenticated: false,
+      identity_verified: false,
+      token_returned: false,
+      cookie_returned: false,
+      secret_output: false,
+    }, 401, [ACCESS_COOKIE_CLEAR]);
+  }
+
+  const result = await verifyJwtHS256(accessToken, env.JWT_SIGNING_SECRET);
+  if (!result.valid) {
+    return authResponse({
+      error: "access_token_invalid",
+      authenticated: false,
+      identity_verified: false,
+      token_returned: false,
+      cookie_returned: false,
+      secret_output: false,
+    }, 401, [ACCESS_COOKIE_CLEAR]);
+  }
+
+  const claims = result.payload;
+  const ownerIds = parseOwnerIds(env.GITHUB_OAUTH_OWNER_IDS);
+  const providerUserId = Number(claims.provider_user_id);
+  if (!ownerIds.has(providerUserId)) {
+    return authResponse({
+      error: "github_owner_identity_not_allowed",
+      authenticated: false,
+      identity_verified: false,
+      token_returned: false,
+      cookie_returned: false,
+      secret_output: false,
+    }, 403, [ACCESS_COOKIE_CLEAR]);
+  }
+
+  return authResponse({
+    status: "authenticated",
+    contract_version: "auth-github-jwt-refresh-v1",
+    identity: {
+      provider: "github",
+      provider_user_id: providerUserId,
+      subject: claims.sub || `github:${providerUserId}`,
+    },
+    trace_id: claims.trace_id || requestId,
+    issued_at: claims.issued_at || new Date(claims.iat * 1000).toISOString(),
+    expires_at: claims.expires_at || new Date(claims.exp * 1000).toISOString(),
+    owner_activation_granted: true,
+    identity_verified: true,
+    jwt_signature_verified: true,
+    jwt_claims_verified: true,
+    token_returned: false,
+    cookie_returned: false,
+    secret_output: false,
+    live_github_oauth_call: false,
+  }, 200);
+}
+
+async function authRefresh(request, env, requestId) {
+  const traceId = safeRequestId(request.headers.get("x-request-id")) || `trace-auth-refresh-${Date.now()}`;
+
+  let bodyJson = null;
+  try {
+    const text = await request.text();
+    if (text && text.trim()) bodyJson = JSON.parse(text);
+  } catch {}
+  if (bodyJson && bodyJson.refresh_token !== undefined) {
+    await persistAuthAudit(env, "auth_refresh_rejected", { trace_id: traceId, reason: "body_token_not_allowed", credentials_issued: false });
+    return authResponse({ error: "refresh_token_body_not_allowed", credentials_issued: false, secret_output: false }, 400, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+  }
+
+  const suppliedToken = getCookie(request, AUTH_REFRESH_COOKIE);
+  const REFRESH_REGEX = /^csr_[A-Za-z0-9_-]{20,64}$/;
+  if (!suppliedToken || !REFRESH_REGEX.test(suppliedToken)) {
+    await persistAuthAudit(env, "auth_refresh_rejected", { trace_id: traceId, reason: "refresh_token_missing", credentials_issued: false });
+    return authResponse({ error: "refresh_token_missing", credentials_issued: false, secret_output: false }, 401, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+  }
+
+  const suppliedHash = await sha256(suppliedToken);
+  const nowIso = new Date().toISOString();
+
+  let historyRow = null;
+  try {
+    historyRow = await env.DB.prepare("SELECT family_id, status FROM refresh_token_history WHERE token_hash = ?")
+      .bind(suppliedHash)
+      .first();
+  } catch {
+    return authResponse({ error: "refresh_registry_unavailable", credentials_issued: false, secret_output: false }, 503, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+  }
+
+  if (historyRow) {
+    try {
+      await env.DB.prepare("UPDATE refresh_token_families SET revoked_at = ?, revocation_reason = 'token_replay_detected' WHERE family_id = ?")
+        .bind(nowIso, historyRow.family_id)
+        .run();
+    } catch {}
+    await persistAuthAudit(env, "auth_refresh_reuse_blocked", { trace_id: traceId, reason: "blacklisted", credentials_issued: false });
+    return authResponse({ error: "refresh_token_invalid", reason: "blacklisted", credentials_issued: false, secret_output: false }, 401, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+  }
+
+  let family = null;
+  try {
+    family = await env.DB.prepare("SELECT family_id, subject, active_token_hash, revoked_at FROM refresh_token_families WHERE active_token_hash = ?")
+      .bind(suppliedHash)
+      .first();
+  } catch {
+    return authResponse({ error: "refresh_registry_unavailable", credentials_issued: false, secret_output: false }, 503, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+  }
+
+  if (!family || family.revoked_at) {
+    await persistAuthAudit(env, "auth_refresh_rejected", { trace_id: traceId, reason: "revoked_or_unknown", credentials_issued: false });
+    return authResponse({ error: "refresh_token_invalid", reason: "revoked", credentials_issued: false, secret_output: false }, 401, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+  }
+
+  const subjectId = Number(family.subject.split(":")[1]);
+  const ownerIds = parseOwnerIds(env.GITHUB_OAUTH_OWNER_IDS);
+  if (!ownerIds.has(subjectId)) {
+    try {
+      await env.DB.prepare("UPDATE refresh_token_families SET revoked_at = ?, revocation_reason = 'owner_disallowed' WHERE family_id = ?")
+        .bind(nowIso, family.family_id)
+        .run();
+    } catch {}
+    await persistAuthAudit(env, "auth_refresh_rejected", { trace_id: traceId, reason: "github_owner_identity_not_allowed", credentials_issued: false });
+    return authResponse({ error: "github_owner_identity_not_allowed", credentials_issued: false, secret_output: false }, 403, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+  }
+
+  const randomNew = new Uint8Array(24);
+  crypto.getRandomValues(randomNew);
+  const newRefreshToken = `csr_${base64UrlEncode(randomNew)}`;
+  const newHash = await sha256(newRefreshToken);
+
+  try {
+    await env.DB.prepare("INSERT INTO refresh_token_history (token_hash, family_id, consumed_at, status) VALUES (?, ?, ?, 'rotated')")
+      .bind(suppliedHash, family.family_id, nowIso)
+      .run();
+    await env.DB.prepare("UPDATE refresh_token_families SET active_token_hash = ?, updated_at = ? WHERE family_id = ? AND active_token_hash = ? AND revoked_at IS NULL")
+      .bind(newHash, nowIso, family.family_id, suppliedHash)
+      .run();
+  } catch {
+    return authResponse({ error: "refresh_registry_unavailable", credentials_issued: false, secret_output: false }, 503, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+  }
+
+  await persistAuthAudit(env, "auth_refresh_verified", {
+    trace_id: traceId,
+    family_id: family.family_id,
+    subject: family.subject,
+  });
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const issuedAtIso = new Date(nowSec * 1000).toISOString();
+  const expiresAtIso = new Date((nowSec + 900) * 1000).toISOString();
+
+  const jwtPayload = {
+    sub: family.subject,
+    provider: "github",
+    provider_user_id: subjectId,
+    iss: "cloud-superbrain-agent-api",
+    aud: "cloud-superbrain-frontend",
+    iat: nowSec,
+    exp: nowSec + 900,
+    trace_id: traceId,
+    issued_at: issuedAtIso,
+    expires_at: expiresAtIso,
+  };
+  const newAccessToken = await signJwtHS256(jwtPayload, env.JWT_SIGNING_SECRET);
+
+  const cookies = [
+    `__Host-sb_access=${newAccessToken}; Path=/; Max-Age=900; Secure; HttpOnly; SameSite=Strict`,
+    `__Host-sb_refresh=${newRefreshToken}; Path=/; Max-Age=604800; Secure; HttpOnly; SameSite=Strict`,
+  ];
+
+  return authResponse({
+    status: "rotated",
+    contract_version: "auth-github-jwt-refresh-v1",
+    audit_persisted: true,
+    access_token_expires_in: 900,
+    refresh_token_expires_in: 604800,
+  }, 200, cookies);
+}
+
+async function authLogout(request, env, requestId) {
+  const traceId = safeRequestId(request.headers.get("x-request-id")) || `trace-auth-logout-${Date.now()}`;
+  const suppliedToken = getCookie(request, AUTH_REFRESH_COOKIE);
+  if (suppliedToken) {
+    try {
+      const suppliedHash = await sha256(suppliedToken);
+      const nowIso = new Date().toISOString();
+      const existing = await env.DB.prepare("SELECT family_id FROM refresh_token_families WHERE active_token_hash = ?").bind(suppliedHash).first();
+      if (existing) {
+        await env.DB.prepare("UPDATE refresh_token_families SET revoked_at = ?, revocation_reason = 'user_logout' WHERE active_token_hash = ?")
+          .bind(nowIso, suppliedHash)
+          .run();
+        await env.DB.prepare("INSERT INTO refresh_token_history (token_hash, family_id, consumed_at, status) VALUES (?, ?, ?, 'revoked')")
+          .bind(suppliedHash, existing.family_id, nowIso)
+          .run();
+      }
+    } catch {}
+  }
+
+  await persistAuthAudit(env, "auth_logout_verified", {
+    trace_id: traceId,
+    active_refresh_token_absent: true,
+  });
+
+  return authResponse({
+    status: "logged_out",
+    contract_version: "auth-github-jwt-refresh-v1",
+    audit_persisted: true,
+    active_refresh_token_absent: true,
+  }, 200, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -2054,6 +2770,12 @@ export default {
         ? json(autonomousTeamDispatchNotFound(requestId), 404)
         : json(autonomousTeamStatusPayload(requestId));
     }
+    if (request.method === "GET" && url.pathname === "/api/v1/auth/contract") return json(authContractPayload(env));
+    if (request.method === "GET" && url.pathname === "/api/v1/auth/github") return authGithubStart(request, env, requestId);
+    if (request.method === "GET" && url.pathname === "/api/v1/auth/callback") return authGithubCallback(request, url, env, requestId);
+    if (request.method === "GET" && url.pathname === "/api/v1/auth/me") return authMe(request, env, requestId);
+    if (request.method === "POST" && url.pathname === "/api/v1/auth/refresh") return authRefresh(request, env, requestId);
+    if (request.method === "POST" && url.pathname === "/api/v1/auth/logout") return authLogout(request, env, requestId);
     if (request.method === "POST" && url.pathname === "/api/v1/auth/sessions") return createHostedSession(request, env, requestId);
     if (request.method === "POST" && url.pathname === "/api/v1/auth/sessions/verify") return verifyHostedSession(request, env, requestId);
     if (request.method === "POST" && url.pathname === "/api/v1/auth/sessions/revoke") return revokeHostedSession(request, env, requestId);
