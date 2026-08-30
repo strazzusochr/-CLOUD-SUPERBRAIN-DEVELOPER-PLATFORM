@@ -23,12 +23,14 @@ Letzte Aktualisierung: 2026-08-30
   `33282746874` mit `29/29`, `0` skipped, `0` failed. Spaetere reine Doku-Syncs gelten
   genau dann als gruen, wenn der Remote-Feature-Head exakt dem `headSha` des neuesten
   erfolgreichen `pr-check` entspricht und dort `skipped=0`, `failed=0` gilt; die Run-ID
-  wird nicht selbstreferenziell in denselben Commit geschrieben.
+  wird nicht selbstreferenziell in denselben Commit geschrieben. Mess-Ref `f6822d44`
+  bestand danach `pr-check` `33283986186` ebenfalls mit `29/29`, `0` skipped, `0` failed.
 - **Alle fuenf unabhaengigen Ketten bestanden:** sechs Clean-Archive-Images, Runtime
   `10/10 healthy`, kompletter realer Chromium-Browser, Candidate-Runtime-Identitaet mit
   echter Auswahl/Klick und Candidate-Archiv npm-audit plus canonical gitleaks. Browser-Pass
-  eins bestand `22/22` Routen, `29/29` Familien und `161/161` Aktionen ohne unerwartete
-  Provideraufrufe, Mocks, Interceptions, Console-/Page-Fehler oder Secret-Output.
+  eins bestand `22/22` Routen, `29/29` Familien und `161/161` Aktionen (`160` direkt,
+  `1` exakt vorverifiziert) ohne unerwartete Provideraufrufe, Mocks, Interceptions,
+  Console-/Page-Fehler oder Secret-Output.
 - **A1–A6 und Generated-Game-Guard gebunden:** Delta-Ledger, Zero-Credit-Rubriken,
   Team-Status, Production-Auth-Evidence, Go-Live-Gate-Ableitung, Snapshot-Freshness und
   Runtime-Source-Paritaet sind fail-closed. Der zusaetzliche Runnability-Guard verschiebt
@@ -40,14 +42,12 @@ Letzte Aktualisierung: 2026-08-30
   Manifest `overall=89`, `deltas=0`, `mirrors=2`, `freshness=verified`. Der volle lokale
   `npm run verify`-Sweep bestand alle internen Gates und stoppte erwartungsgemaess erst bei
   `current Cloudflare-native hosted Worker source parity`.
-- **Browser-Pass zwei gruen:** der vollstaendig neu gestartete monolithische Chromium-Lauf
-  bestand in `39,1` Minuten mit `22/22` Routen, `29/29` Familien und `161/161` Aktionen
-  (`160` direkt, `1` exakt vorverifiziert), zwei freigegebenen echten Gateway-
-  Providerantworten sowie null Mocks, Interceptions, unerwarteten Providerpfaden, Console-/
-  Page-Fehlern oder Secret-Ausgabe. Working-Report SHA-256:
-  `4E844972CA953C03A76746B7E1AE49726215133B648B45EC813DF55D0EDB80948`. Die In-App-
-  Browser-Steuerung bleibt am lokalen `kernel-assets`-Transport blockiert und wird nicht als
-  sichtbarer In-App-Beweis umetikettiert.
+- **Browser-Pass zwei nur protokolliert:** fuer den wiederholten monolithischen Lauf werden
+  `39,1` Minuten, `22/22`, `29/29`, `161/161` und Report-Hash `4E844972…` berichtet. Die
+  exakten Reportbytes sind aber weder als immutable Artefakt committet noch im aktuellen
+  fremden Working-Report vorhanden. Pass 2 erhaelt deshalb keinen Evidenzclaim; der
+  committete Pass 1 bleibt kanonisch. Die In-App-Browser-Steuerung bleibt am lokalen
+  `kernel-assets`-Transport blockiert und wird nicht als sichtbarer In-App-Beweis umetikettiert.
 - **Aktueller read-only External-Gate-Stand:** Hosted I1 bleibt ohne source-gebundene
   sechs-Service-Paritaet geschlossen; Production-Auth I5 bleibt ohne Owner-OAuth-IDs und
   Hosted-Fail-Closed-Evidence geschlossen. GHCR ist unveroeffentlicht,
@@ -56,8 +56,8 @@ Letzte Aktualisierung: 2026-08-30
   `external-gate-summary-v2`; der aktuelle Zielbezeichner lautet exakt
   `cloudflare_native_zero_card_hosted_runtime`.
 - **Gate-/Hosted-Reaudit 2026-08-30:** `B1=F | B2=F | B3=F | B4=F | B5=F`.
-  Worker `d0674bfc` ist `108` Commits hinter Candidate `7db18d90` und `111` hinter dem
-  damaligen Head `6a62e28a`; Progress bleibt `84`, Team `500`, Auth alter Dry-run und OAuth
+  Worker `d0674bfc` ist `108` Commits hinter Candidate `7db18d90` und `112` hinter
+  Mess-Ref `f6822d44`; Progress bleibt `84`, Team `500`, Auth alter Dry-run und OAuth
   nicht konfiguriert. Worker-Rebind allein reicht fuer C2 nicht: `CONTRACT_ORIGIN` zeigt
   weiter auf Backend `21913f8c`, daher braucht Progress `89` einen source-bound Origin-
   Rebind/Deploy oder eine verifizierte native Projektion. B3-Environment/Default-Workflow
@@ -72,8 +72,10 @@ Letzte Aktualisierung: 2026-08-30
   Branch-Write, GHCR-Push, Hosted-Deploy, OAuth-Aktivierung, Secret-Output,
   Release-Promotion oder Production-Rollout. Lokale Runtime-/Browserbeweise bleiben
   `DEV-ONLY; hosted proof still blocked`.
-- **Naechster sicherer Schritt:** dynamische Head-CI-Regel fuer diesen Truth-Sync erfuellen;
-  danach explizite B1-B5-Entscheidungen. Kein autonomes Implementierungsitem bleibt offen.
+- **Naechster sicherer Schritt:** diese korrigierte Master-/Truth-Synchronisierung exakt
+  begrenzt committen, auf den Feature-Branch pushen und per dynamischer Head-CI-Regel
+  attestieren; danach explizite B1-B5-Entscheidungen. Vor diesen Gates ist kein
+  Implementierungsitem sicher autonom ausfuehrbar; zehn Hosted-Verifier bleiben spaeterer Neubau.
 
 ### Session 2026-08-28 — RC20 qualifiziert, RC21 in Bindung
 

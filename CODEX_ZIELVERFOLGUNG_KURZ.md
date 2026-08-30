@@ -38,6 +38,7 @@ Promotion bleiben danach separate Owner-Entscheidungen.
 | Qualifikations-CI | `33273326919`, success, `25/25` beobachtete Schritte gruen, `0` skipped |
 | Selection-Head-CI | `33282524897`, success, `29/29`, `0` skipped, `0` failed |
 | erster Doku-Freeze-CI | `33282746874` auf `6a62e28a`, success, `29/29`, `0` skipped, `0` failed |
+| Mess-Ref-CI | `33283986186` auf `f6822d44`, success, `29/29`, `0` skipped, `0` failed |
 | Evidence | exakt `27` immutable Dateien; 5 lokale Ketten + CI-Attestation/Readback |
 | Readiness | `17/19 = 89%`; offen I1 und I5 |
 | Rollback | RC22 Source `28727b198b057a6bdef6b5f34e9aa946fb2757a0` |
@@ -70,21 +71,22 @@ kreditierter Beweise.
 - lokaler Build `21/21`, Runtime `10/10 healthy`, sechs Clean-Archive-Images und
   candidate-runtime real selection/click gruen.
 - kompletter lokaler Browser-Umbrella gruen: echter Cloudflare-Workers-AI-Build,
-  `22/22` Routen, `29/29` Familien, `161/161` Aktionen, Phase-6-Ketten und O4
+  `22/22` Routen, `29/29` Familien, `161/161` Aktionen (`160` direkt, `1` exakt
+  vorverifiziert), Phase-6-Ketten und O4
   Audit/Readback/Rollback; keine Mocks, Interceptions, Console-/Page-Fehler.
 - candidate-scoped npm audit und canonical gitleaks gruen.
 - GitHub Actions `33273326919`: exact source checkout, exaktes Vier-Dateien-Control-Delta,
   `25/25` beobachtete Job-Schritte gruen, `0 skipped`.
 - exakt 27 Evidence-Dateien mit reproduzierten SHA-256-Werten gebunden.
-- zweiter kompletter monolithischer Chromium-Lauf gruen: `22/22`, `29/29`, `161/161`,
-  Working-Report SHA-256
-  `4E844972CA953C03A76746B7E1AE49726215133B648B45EC813DF55D0EDB80948`.
+- zweiter monolithischer Chromium-Lauf nur protokolliert: `22/22`, `29/29`, `161/161`,
+  Hash `4E844972…`; die exakten Reportbytes sind weder immutable committet noch im aktuellen
+  fremden Working-Report vorhanden und erhalten deshalb keinen Evidenzclaim.
 
 `161/161` bedeutet sichtbare UI-Effektabdeckung, nicht 161 Backend- oder Layeraufrufe.
 Responsive-Report-SHA: `723D2DEF1E3B98C25885E2F6242342EB02D2238CAC46D510A5F7E103AEED8E5B`.
-Der generierte Working-Report unter `.codex/runs/CURRENT/product-acceptance/report.json`
-bleibt ausserhalb des Selection-Commits; die kanonische RC23-Browser-Summary ist dagegen
-source-gebunden und Teil des 27-Dateien-Sets. Alle lokalen Browser-/Runtimebeweise:
+Der aktuelle fremde Working-Report unter `.codex/runs/CURRENT/product-acceptance/report.json`
+ist nicht der an `4E844972…` gebundene Pass-2-Beleg; die kanonische RC23-Browser-Summary
+und Pass-1-Rohlog sind source-gebunden im 27-Dateien-Set. Alle lokalen Browser-/Runtimebeweise:
 `DEV-ONLY; hosted proof still blocked`.
 
 ## 5. Letzter bindender Verifier
@@ -106,6 +108,7 @@ PASS verify_project_progress_manifest.py -> overall 89, deltas 0, mirrors 2
 EXPECTED STOP npm run verify -> current Cloudflare-native hosted Worker source parity
 PASS pr-check 33282524897 -> exact 67cd698c, 29/29, skipped=0, failed=0
 PASS pr-check 33282746874 -> exact 6a62e28a, 29/29, skipped=0, failed=0
+PASS pr-check 33283986186 -> exact f6822d44, 29/29, skipped=0, failed=0
 CURRENT RULE -> remote head == latest successful pr-check headSha; skipped=0; failed=0
 ```
 
@@ -123,7 +126,8 @@ der fuenf source-gebundenen lokalen RC23-Ketten. Hosted I1 und Production Auth I
 rot. Kein Full-Sweep-Gruen wird behauptet; Verifier nicht abschwaechen.
 
 Read-only Reaudit: `B1=F | B2=F | B3=F | B4=F | B5=F`; Worker `d0674bfc` bleibt
-`108` Commits hinter Candidate und liefert Progress `84`, Team `500`, alten Auth-Dry-run.
+`108` Commits hinter Candidate und `112` hinter Mess-Ref `f6822d44`; er liefert Progress
+`84`, Team `500`, alten Auth-Dry-run.
 C1-Source-Rebind allein schliesst C2 nicht, weil `CONTRACT_ORIGIN` auf Backend
 `21913f8c` bleibt. B3-Environment/Default-Workflow fehlen; B4 ist nur konfiguriert und
 Default traegt noch den alten `main-deploy`-Workflow.

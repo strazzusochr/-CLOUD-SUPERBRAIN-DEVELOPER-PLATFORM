@@ -2,7 +2,7 @@
 
 Status: `ACTIVE_CURRENT_HANDOFF`
 Branch: `codex/organism-visual-v2`
-Truth-Ref: gepushter Selection-Commit `67cd698c`; eingefrorene Candidate-Source `7db18d90`
+Mess-Ref: `f6822d44`; eingefrorene Candidate-Source `7db18d90`
 Market Status: `MARKET_READY:false`
 
 **Dies ist die einzige Uebergabe.** Sie sagt, was los ist.
@@ -56,11 +56,12 @@ Der erste Doku-Freeze `6a62e28af18f4692a93641bbe9bfecf00c73ffa6` bestand anschli
 Truth-Sync-Commits wird keine Run-ID in denselben Commit geschrieben: gueltig ist der Stand
 nur, wenn Remote-Branch-Head und `headSha` des neuesten abgeschlossenen erfolgreichen
 `pr-check` exakt gleich sind und dessen Schrittzaehler `skipped=0`, `failed=0` melden.
+Mess-Ref `f6822d44` bestand `pr-check` `33283986186` mit `29/29`, `0` skipped, `0` failed.
 
-Neuer read-only Gate-/Hosted-Reaudit (`2026-08-30T00:31Z`): alle Owner-Gates bleiben
+Neuer read-only Gate-/Hosted-Reaudit (`2026-08-30`): alle Owner-Gates bleiben
 explizit geschlossen (`B1=F`, `B2=F`, `B3=F`, `B4=F`, `B5=F`). Worker-Health ist `200`
 mit Source `d0674bfc`, D1-Read true; der Stand liegt `108` Commits hinter Candidate
-`7db18d90` und `111` hinter dem damaligen Head `6a62e28a`. Progress liefert weiter `84`,
+`7db18d90` und `112` hinter Mess-Ref `f6822d44`. Progress liefert weiter `84`,
 Team-Status stabil `500`, Auth-Vertrag alten Dry-run und `github_oauth_configured=false`;
 Callback-HEAD ist `503` ohne Redirect/Cookie. Keine mutierende Callback-GET-Probe lief.
 
@@ -77,13 +78,13 @@ Browser-Pass 1 ist kanonisch gruen: `22/22` Routen, `29/29` Familien, `161/161` 
 keine Mocks/Interceptions, keine unerwarteten Providerpfade, keine Console-/Page-Fehler.
 Der erste sichtbare headed Pass 2 isolierte genau einen zeitlichen Replay-Performance-
 Reset-Fehler; der exakte sichtbare Scoreboard-/Performance-Reset-Test bestand danach `1/1`.
-Der anschliessend vollstaendig neu gestartete monolithische Pass 2 bestand in `39,1`
-Minuten mit `22/22`, `29/29`, `161/161` (`160` direkt, `1` exakt vorverifiziert), zwei
-freigegebenen echten Gateway-Providerantworten und null Mocks, Interceptions, unerwarteten
-Providerpfaden, Console-/Page-Fehlern oder Secret-Ausgabe. Working-Report SHA-256:
-`4E844972CA953C03A76746B7E1AE49726215133B648B45EC813DF55D0EDB80948`.
-Naechster Schritt: dynamische Head-CI-Bedingung fuer diesen Truth-Sync erfuellen; danach
-explizite Owner-Entscheidungen B1-B5 einholen. Keine autonome Implementierung ist offen.
+Der anschliessende monolithische Pass 2 wird mit `39,1` Minuten, `22/22`, `29/29`,
+`161/161` und Hash `4E844972…` protokolliert. Seine exakten Reportbytes sind nicht als
+immutable Evidenz committet und im aktuellen fremden Working-Report nicht vorhanden;
+deshalb bleibt Pass 1 der kanonische Beweis. Naechster Schritt: diese korrigierte
+Master-/Truth-Synchronisierung exakt committen, pushen und per Head-CI belegen; danach
+explizite Owner-Entscheidungen B1-B5 einholen. Vor diesen Gates ist kein sicher autonom
+ausfuehrbares Implementierungsitem offen; die zehn Hosted-Verifier bleiben spaeterer Neubau.
 
 Aktueller Arbeitsbaum: der Selection-Index enthaelt ausschliesslich die RC23-Evidence,
 Readiness/Pointer, verifier-generierte O4-Wahrheit und synchrone Truth-Dokumente. Der

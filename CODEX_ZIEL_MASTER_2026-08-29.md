@@ -2,7 +2,7 @@
 
 Status: `ACTIVE_CURRENT_TRUTH`
 Branch: `codex/organism-visual-v2`
-Truth-Ref: gepushter Selection-Commit `67cd698c`; eingefrorene Candidate-Source `7db18d90`
+Mess-Ref dieser zweiten Nachmessung: `f6822d44`; eingefrorene Candidate-Source `7db18d90`
 Market Status: `MARKET_READY:false`
 
 **Dies ist die einzige Zieldatei.** Sie sagt, was zu tun ist.
@@ -16,69 +16,178 @@ Ersetzt und vereint: `CODEX_ZIELVERFOLGUNG_KURZ.md`,
 
 ---
 
-## 0. Aktueller Rebind — 2026-08-30
+## 0. Aktueller Rebind — 2026-08-30, zweite Messung
 
-Dieser Abschnitt ersetzt alle zeitabhaengigen Koordinaten und erledigt/offen-Angaben der
-darunter erhaltenen Messung auf `a7ff9714`. Die Strukturblocker und Owner-Gates bleiben
-weiter bindend, soweit sie hier nicht ausdruecklich aktualisiert werden.
+Dieser Abschnitt ersetzt alle zeitabhaengigen Koordinaten der darunter erhaltenen
+Erstmessung auf `a7ff9714`. Die Strukturblocker und Owner-Gates darunter bleiben bindend,
+soweit sie hier nicht ausdruecklich korrigiert werden.
 
-- RC23 `prod-candidate-2026-08-29-local-rc23` ist lokal an Source
-  `7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927` qualifiziert. Kontroll-Commit
-  `5cfbf1f4b8a70116985cb27d7b949f4e2aaf45b1`; GitHub Actions `33273326919`:
-  `25/25` beobachtete Schritte gruen, `0` skipped, exakter Source-Checkout attestiert.
-- Alle fuenf unabhaengigen lokalen Ketten sind source-gebunden gruen. Das unveraenderliche
-  Evidence-Set enthaelt exakt `27` Dateien. Phase-5 bleibt `17/19 = 89`; nur I1/I5 offen.
-- A1 bis A6 des historischen Plans sind erledigt. Zusaetzlich ist der generierte Game-TDZ-
-  Guard in Source `7db18d90` gebunden und mit `20/20` Regressionstests sowie echter
-  Browserausfuehrung belegt.
+**Diese Fassung ist eine unabhaengige Nachmessung gegen `f6822d44`.** Jede Zeile hier ist
+gegen den Mess-Ref oder gegen den Live-Endpunkt neu geprueft, nicht aus einem Protokoll
+uebernommen. Wo etwas nur protokolliert und nicht nachmessbar ist, steht das dabei.
+
+### 0.1 Koordinaten
+
+| Groesse | Wert |
+| --- | --- |
+| Mess-Ref der Nachmessung | `f6822d44` (damals `= origin/codex/organism-visual-v2`) |
+| Kandidat | RC23 `prod-candidate-2026-08-29-local-rc23` |
+| Eingefrorene Candidate-Source | `7db18d90` |
+| Kontroll-Commit | `5cfbf1f4` |
+| Selection-Commit | `67cd698c` |
+| Default-Branch | `chore/repo-bootstrap` @ `48e86ced` |
+| Hosted Worker Source | `d0674bfc` — **112 Commits zurueck** |
+| Overall | `89` — unveraendert |
+
+Nach dem Freeze auf `7db18d90` folgten vier Commits: `5cfbf1f4` (Verifier/Workflow-
+Kontrolle), `67cd698c` (Qualifikation und Evidence), `6a62e28a` und `f6822d44` (reine
+Doku). `67cd698c` bindet neben Evidence auch den verifier-erlaubten Endpoint-Snapshot-
+Truth-Uebergang; deshalb waere "kein Produktpfad" zu weitgehend. Nachgeprueft ist die
+engere, massgebliche Aussage: Candidate-Image-Source `7db18d90` blieb eingefroren und der
+Current-Candidate-Verifier bestaetigt `runtime_source_parity=true` sowie
+`no_credit_requalification=true`. `5cfbf1f4` ist allerdings ein ungewoehnlich grosser
+Kontroll-Commit (4 Dateien, +733 Zeilen in `verify_phase5_credit_itemization.py`,
+`verify-main-deploy-transition.ps1`, `pr-check.yml` und deren Tests). Das heisst: der
+Verifier, der RC23 heute prueft, ist **neuer** als die eingefrorene Kandidatenquelle. Nach
+dem Kontroll-Branch-Muster ist das zulaessig, aber es ist kein Beweis am Freeze-Stand.
+
+### 0.2 Was seit `a7ff9714` erledigt wurde
+
+- RC23 ist lokal an `7db18d90` qualifiziert. Alle fuenf unabhaengigen Ketten sind gruen:
+  sechs Clean-Archive-Images, Runtime `10/10 healthy`, Browser-Umbrella, Candidate-Runtime
+  mit realer Auswahl und Klick, Candidate-Archiv npm-audit/gitleaks.
+- Das immutable Evidence-Set enthaelt exakt **27** Dateien; nachgezaehlt am Mess-Ref.
+- GitHub Actions `33273326919` attestierte den exakten Source-Checkout `7db18d90` ueber
+  Kontroll-SHA `5cfbf1f4`, `25/25` Schritte, `0` skipped.
+- Final-Head-CI `33282524897` (fuer `67cd698c`), `33282746874` (fuer `6a62e28a`)
+  und `33283986186` (fuer `f6822d44`): jeweils `29/29`, `0` skipped, `0` failed.
+- A1 bis A6 des historischen Plans sind erledigt. Der Generated-Game-TDZ-Guard ist in
+  `7db18d90` gebunden, `20/20` Regressionstests plus echte Browserausfuehrung.
 - Post-Selection fokussiert gruen: `verify:phase5-credit`,
-  `verify:current-release-candidate` und `verify_project_progress_manifest.py`.
-- Der finale lokale `npm run verify`-Sweep ist bis zum exakten externen Stop gruen und endet
-  erst bei `current Cloudflare-native hosted Worker source parity`. Das ist der unveraenderte
-  I1/B5-C1-Blocker, kein lokaler Testfehler. Der Current-Candidate-Verifier akzeptiert den
-  bereits streng durch Phase-5 validierten, exakt dreipfadigen No-Credit-Rebind jetzt
-  fail-closed; Teilmengen oder Zusatzpfade bleiben verboten.
-- Selection-Commit `67cd698c6cff4f4230283bc5d2f91c3170f41485` ist auf den Feature-Branch
-  gepusht. Final-Head-CI `33282524897` attestierte exakt diesen SHA und bestand `29/29`
-  Schritte, `0` skipped, `0` failed. Ein nachfolgender reiner Doku-Freeze-Commit gilt nur
-  nach einem nochmals gruenen Head-`pr-check`; dessen Run-ID wird nicht in denselben Commit
-  zurueckgeschrieben, damit keine endlose Folge rein dokumentarischer Heads entsteht.
-- Erster Doku-Freeze `6a62e28af18f4692a93641bbe9bfecf00c73ffa6` ist gepusht und durch
-  `pr-check` `33282746874` mit `29/29`, `0` skipped, `0` failed belegt. Fuer jeden
-  spaeteren reinen Truth-Sync gilt dauerhaft statt einer selbstreferenziellen Run-ID:
-  `git rev-parse origin/codex/organism-visual-v2` muss exakt dem `headSha` des neuesten
-  abgeschlossenen `pr-check` mit `conclusion=success`, `skipped=0`, `failed=0` entsprechen.
-- Browser-Pass 1 ist kanonisch gruen (`22/22`, `29/29`, `161/161`). Der erste sichtbare
-  headed Pass 2 bestand 159 direkte Aktionen plus den exakten P0-Beweis; der einzige
-  `replay-organism-performance-reset`-Deltatiming-Fehler wurde durch den anschliessenden
-  sichtbaren exakten Scoreboard/Performance/Reset-Test (`1/1`) isoliert widerlegt. Der danach
-  neu gestartete monolithische Pass 2 bestand vollstaendig in `39,1` Minuten: `22/22`
-  Routen, `29/29` Familien, `161/161` Aktionen (`160` direkt, `1` exakt vorverifiziert),
-  zwei freigegebene echte Gateway-Providerantworten, keine Mocks/Interceptions,
-  unerwarteten Providerpfade, Console-/Page-Fehler oder Secret-Ausgabe. Working-Report SHA-256:
-  `4E844972CA953C03A76746B7E1AE49726215133B648B45EC813DF55D0EDB80948`.
-- Overall/Horizontal/Vertikal bleiben exakt `89` sowie die unten dokumentierten Werte.
-  `MARKET_READY:false`; `DEV-ONLY; hosted proof still blocked`.
-- Read-only Gate-/Hosted-Reaudit `2026-08-30T00:31Z`: `B1=F | B2=F | B3=F | B4=F |
-  B5=F`. Worker bleibt auf `d0674bfc`, damit `108` Commits hinter Candidate-Source
-  `7db18d90` und `111` hinter dem damaligen Branch-Head `6a62e28a`; Progress bleibt `84`,
-  Team-Status `500`, Auth-Vertrag im alten Dry-run-Modus, OAuth nicht konfiguriert.
-- C1/C2-Praezisierung aus Live-Beweis: Ein reiner Worker-Source-Rebind kann die native
-  Team-Route reparieren, aber weder Progress `89` noch Production OAuth liefern, solange
-  `CONTRACT_ORIGIN` weiter auf den veralteten Backend-Stand `21913f8c` zeigt. C2 braucht
-  zusaetzlich einen current source-bound Contract-Origin-Rebind/Deploy oder eine explizit
-  verifizierte native Worker-Projektion. Beides bleibt Teil der expliziten Hosted-/OAuth-
-  Freigaben, nicht autonome Arbeit.
-- B3 ist auch strukturell geschlossen: Environment `phase6-scale-hosted-writes` fehlt live
-  (`404`), das benoetigte Secret ist nicht nachweisbar und der Workflow ist auf dem Default-
-  Branch nicht registriert. B4 ist nicht dispatchbar: `registry-publication` ist nur
-  konfiguriert, Default-Branch fuehrt noch den alten `main-deploy`-Blob `555e8325`, waehrend
-  der sichere Feature-Blob `14e84b31` Owner-autorisiert auf den geschuetzten Default-
-  Kontrollstand gelangen muss.
+  `verify:current-release-candidate`, `verify_project_progress_manifest.py`.
+- Der finale lokale `npm run verify`-Sweep endet exakt am externen Stop
+  `current Cloudflare-native hosted Worker source parity` — der unveraenderte
+  I1/B5-C1-Blocker, kein lokaler Testfehler.
 
-Aktueller autonomer Rest vor jedem Owner-Gate: kein Implementierungsitem. Ein reiner
-Truth-Sync gilt erst nach Erfuellung der oben definierten dynamischen Head-CI-Bedingung.
-Danach bleiben ausschliesslich die expliziten Owner-/Hosted-Stufen B bis H.
+### 0.3 Workbench-Tiefentest — was belegt ist und was nicht
+
+- **Pass 1 ist belegt und committet.** Im RC23-Evidence-Set steht `raw/browser.log`
+  (SHA-256 `21A2DBBB…`) mit den woertlichen Zeilen
+  `[22-page-actions] routes=22 families=29 members=161 direct=160 preverified_exact=1`
+  und `[responsive-22] routes=22 viewports=2 clicks=44`. `browser.json` meldet
+  `status=passed`, `exit_code=0`. Praezise gelesen sind das **160 direkt bewiesene**
+  Aktionen plus **1 exakt vorverifizierte** — nicht 161 direkte.
+- **Pass 2 ist gelaufen, aber nicht belegt.** Der wiederholte monolithische Chromium-Lauf
+  (`39,1` Minuten, `22/22`, `29/29`, `161/161`) ist nur ueber seinen Report-Hash
+  `4E844972…` dokumentiert. `docs/verification-register.md` bezeichnet ihn selbst als
+  **"unstaged working-report"**. Die exakten, an `4E844972…` gebundenen Reportbytes sind
+  weder als immutable Artefakt committet noch im aktuellen fremden Working-Report
+  vorhanden. Pass 2 ist damit Protokoll, nicht nachpruefbare Evidenz.
+- **Die Workbench wurde nur lokal aktuell tiefengeprueft.** Historische Hosted-Beweise
+  binden nicht den aktuellen Kandidaten: Worker `112` Commits hinter dem Mess-Ref,
+  `/api/v1/team/status` `500`,
+  `github_oauth_configured=false`. "Gesamte Workbench" gilt fuer `localhost:8081`,
+  nicht fuer den Hosted-Stack.
+
+### 0.4 Live gemessen am 2026-08-30
+
+```text
+worker /api/v1/health            200   source_commit_sha = d0674bfc   d1_read_verified = true
+worker /api/v1/project/progress  200   overall_percent = 84   (Repo: 89)
+worker /api/v1/team/status       500   Internal Server Error
+worker /api/v1/auth/contract     200   mode = local_contract_with_dry_run_oauth
+                                       github_oauth_configured = false
+                                       live_github_oauth_call  = false
+worker /api/v1/auth/callback     503
+vercel /api/v1/health            200   status = degraded
+vercel /api/v1/project/progress  200   overall_percent = 84
+```
+
+Der Hosted-Snapshot meldet zusaetzlich abweichende Einzelzellen: `P2 86` statt `100`,
+`P5 68` statt `89`, `L3 68`, `L4 54`, `L5 55`, `L6 73`.
+
+### 0.5 Korrektur an C1 — ein Worker-Rebind allein reicht nicht
+
+Neu gemessen und **bestaetigt**: Der `CONTRACT_ORIGIN`
+(`https://cloud-superbrain-developer-platform.vercel.app`) liefert selbst
+`overall_percent = 84` und `status = degraded`. Der Worker reicht diesen Stand nur durch.
+
+Daraus folgt eine Praezisierung der Stufe C weiter unten: **C1 (Worker auf Candidate-Source
+`7db18d90`) kann die
+native `team/status`-Route reparieren, aber weder `progress = 89` noch Production OAuth
+liefern**, solange der Contract-Origin auf dem veralteten Backend-Stand steht. C2 braucht
+zusaetzlich einen source-gebundenen Contract-Origin-Rebind oder eine explizit verifizierte
+native Worker-Projektion. Beides gehoert zu den Hosted-/OAuth-Freigaben, nicht zur
+autonomen Flaeche.
+
+### 0.6 B3 und B4 sind strukturell tiefer blockiert als beschrieben
+
+Beides am Mess-Ref nachgeprueft:
+
+- **B3:** `.github/workflows/phase6-scale-runtime.yml` existiert auf dem Feature-Branch
+  (`0b2f7e3b`), aber **nicht auf dem Default-Branch** `chore/repo-bootstrap`. Das
+  Environment `phase6-scale-hosted-writes` (`:28`) und der Secret-Gate
+  `AGENT_API_AUTH_TOKEN` (`:41`, Fail-closed `:67`, Nutzung `:76`) sind daher nicht
+  dispatchbar. B3 braucht Environment **und** Secret **und** den Workflow auf dem
+  Default-Branch.
+- **B4:** `main-deploy.yml` fuehrt auf dem Default-Branch noch den alten Blob `555e8325`;
+  der gehaertete Feature-Blob ist `14e84b31`. Vor dem Dispatch muss der sichere Blob
+  Owner-autorisiert auf den geschuetzten Default-Stand gelangen.
+
+### 0.7 Fuenf Strukturblocker — Stand der Nachmessung
+
+| Blocker | Stand `a7ff9714` | Stand `f6822d44` |
+| --- | --- | --- |
+| B1 Rubriken | 3 Entwuerfe, nicht freigegeben | **unveraendert** — alle drei `DRAFT_OWNER_APPROVAL_REQUIRED`, `Credit-Anwendung erlaubt: false` |
+| B2 Verifier | 10/10 fehlen | **unveraendert** — 10/10 fehlen, einzeln geprueft |
+| B3 P5-Codepin | I1 gepinnt, I5 evidenzgetrieben | **unveraendert** — `BASELINE_BLOCKED_IDS = {"I1"}`, nur `blocked.add`, kein `discard`/`remove` |
+| B4 Delta-Ledger | v2, 0 Eintraege | **unveraendert** — v2, `baseline.source_sha = 9a3776ff`, `entries = 0` |
+| B5 Hosted-Abstand | 106 Commits | **verschlechtert: 112 Commits** |
+
+Owner-Gates unveraendert: **7 von 10 geschlossen**; offen bleiben
+`production_auth_identity`, `docker_registry_publish`, `phase6_scale_runtime`.
+Alle fuenf Owner-Freigaben B1 bis B5 sind weiterhin **nicht** erteilt.
+
+### 0.8 Korrigierte Zeilenangaben
+
+Die Zeilennummern der Erstmessung sind durch `5cfbf1f4` verschoben worden. Gueltig am
+Mess-Ref `f6822d44`:
+
+```text
+scripts/verify_phase5_credit_itemization.py
+  :44    BASELINE_BLOCKED_IDS = {"I1"}
+  :287   def expected_blocked_ids(*, auth_transition_verified: bool)
+  :290   blocked.add("I5")
+  :1221  def rounded_binary_percent -> math.floor((verified*100/total)+0.5)
+  :1871  computed_percent = rounded_binary_percent(verified_count, len(items))
+  :1877  expected_percent = rounded_binary_percent(...)
+  :1882  require(computed_percent == expected_percent, ...)
+
+scripts/verify_project_progress_manifest.py
+  :24    BASELINE_SOURCE_SHA = "9a3776ff..."
+  :328   expected_overall = round(sum(percent) / len(phases))
+
+scripts/verify-main-deploy-transition.ps1   (368 Zeilen)
+  :63    market_ready in der Liste verbotener Tokens  -> kein GHCR-Deadlock
+
+services/cloudflare-stateful-runtime/src/index.js   (2084 Zeilen)
+  :33    AUTONOMOUS_TEAM_STATUS_PATHS
+  :2051  GET-Dispatch fuer /api/v1/team/status  -> Route existiert im HEAD-Quellcode
+  :2057-2059  auth/sessions{,/verify,/revoke}   -> kein auth/github, kein auth/callback
+
+services/agent-api/app/main.py
+  :7435, :7455  active_target_gate = cloudflare_native_zero_card_hosted_runtime
+```
+
+### 0.9 Autonomer Rest
+
+**Kein vor B1 bis B5 sicher autonom ausfuehrbares Implementierungsitem.** Die zehn spaeter
+in Stufe E benoetigten Verifier bleiben realer Neubau, duerfen laut Abfolge aber erst nach
+Rubrikfreigabe und Hosted-Rebind entstehen. Ein reiner
+Truth-Sync gilt erst als gueltig, wenn `git rev-parse origin/codex/organism-visual-v2`
+exakt dem `headSha` des neuesten abgeschlossenen `pr-check` mit `conclusion=success`,
+`skipped=0` und `failed=0` entspricht — keine Run-ID wird in denselben Commit
+zurueckgeschrieben.
 
 Danach bleiben ausschliesslich die expliziten Owner-/Hosted-Stufen B bis H. Kein Main-
 Push, GHCR-Push, Hosted-Deploy, OAuth-Gate-Flip oder Production-Rollout ist dadurch erlaubt.
@@ -113,12 +222,12 @@ Vertikal:    L1 100 | L2 100 | L3 100 | L4 55 | L5 56 | L6 100 | L7 100
 | Optik | — | — | bewusst zuletzt: Cortex-Bug und 3-Sterne-Look separat |
 
 **Rechenregel:** `overall = round(sum(7 Phasen)/7)`
-(`scripts/verify_project_progress_manifest.py:151`). Layerarbeit ist wichtig,
+(`scripts/verify_project_progress_manifest.py:328`). Layerarbeit ist wichtig,
 bewegt die 89 aber **nie**. Keine Prozentanhebung durch Doku, Konsolenwerte oder
 Wiederholung bereits kreditierter Beweise.
 
 **166 offene Punkte gesamt.** 99 davon (L4 45 + L5 44 + P6 10) haengen an einer
-einzigen Wurzelbedingung: der Hosted Worker laeuft hinter HEAD (B5/C1).
+einzigen Wurzelbedingung: der Hosted Worker laeuft hinter Candidate-Source (B5/C1).
 
 ---
 
@@ -163,7 +272,7 @@ Die restlichen 2 Punkte liegen in der P6-Rubrik auf p95/5xx/Requestzahl.
 
 ### B2 — Die L4/L5-Rubrik benennt 10 Verifier, die nicht existieren — UNVERAENDERT
 
-Einzeln gegen den Truth-Ref geprueft, **alle 10 fehlen**:
+Einzeln gegen den Mess-Ref geprueft, **alle 10 fehlen**:
 
 ```
 verify-llm-hosted-stream-parity.ps1          verify-mcp-hosted-write.ps1
@@ -185,14 +294,14 @@ Aktueller Stand, `scripts/verify_phase5_credit_itemization.py`:
 ```python
 :44   BASELINE_BLOCKED_IDS = {"I1"}
 
-:277  def expected_blocked_ids(*, auth_transition_verified: bool) -> set[str]:
-:278      blocked = set(BASELINE_BLOCKED_IDS)
-:280      if not auth_transition_verified: blocked.add("I5")
-:281      return blocked
+:287  def expected_blocked_ids(*, auth_transition_verified: bool) -> set[str]:
+:288      blocked = set(BASELINE_BLOCKED_IDS)
+:290      if not auth_transition_verified: blocked.add("I5")
+:291      return blocked
 
-:1593 computed_percent = rounded_binary_percent(verified_count, len(items))
-:1604 require(computed_percent == expected_percent, ...)
-:1633 require(phase5.get("percent") == computed_percent, ...)
+:1871 computed_percent = rounded_binary_percent(verified_count, len(items))
+:1882 require(computed_percent == expected_percent, ...)
+:1911 require(phase5.get("percent") == computed_percent, ...)
 ```
 
 Daraus folgt exakt, ohne Auslegung:
@@ -234,11 +343,12 @@ der erste Test des Mechanismus — deshalb steht A1 vor allem anderen.
 Pruefschleife verwirft die Prozentspalte (`_`) und prueft nur `0 <= v <= 100`.
 Sie beschreiben ausschliesslich den eingefrorenen Baseline-Commit.
 
-### B5 — Hosted laeuft hinter HEAD — VERSCHLECHTERT: 106 Commits
+### B5 — Hosted laeuft hinter Mess-Ref — VERSCHLECHTERT: 112 Commits
 
-`d0674bfc` (Hosted) vs `a7ff9714` (Truth-HEAD). Bei der urspruenglichen Analyse
-waren es 86. Wurzelbedingung fuer **99 der 166 offenen Punkte** plus P5-I1 und
-den hosted Teil von P3.
+`d0674bfc` (Hosted) vs `f6822d44` (Mess-Ref) sind `112` Commits; gegen die
+eingefrorene Candidate-Source `7db18d90` sind es `108`. Bei der urspruenglichen Analyse
+waren es 86. Wurzelbedingung fuer **99 der 166 offenen Punkte** plus P5-I1 und den hosted
+Teil von P3.
 
 Live gemessen, unauthentifizierte GET:
 
@@ -261,16 +371,16 @@ B1 Rubriken freigeben ─┐
 B2 OAuth-ADR ──────────┤
 B3 P6-Environment ─────┤
 B4 GHCR-Dispatch ──────┤
-B5 + C1 Worker auf HEAD┼─> D OAuth   ──> P3 100, P5-I5  (P5 = 95)
+B5 + C1 Worker auf RC23┼─> D OAuth   ──> P3 100, P5-I5  (P5 = 95)
    (Wurzel fuer 99 Pkt)├─> E L4/L5   ──> L4 100, L5 100
                        ├─> F Scale   ──> P6 100
                        └─> G GHCR/I1 ──> P5 100 (Codewechsel noetig)
                                             └─> H overall 100
 ```
 
-**Engpass 1: C1** — Worker auf HEAD redeployen. Entsperrt 99 Punkte auf einmal,
+**Engpass 1: C1** — Worker auf Candidate-Source `7db18d90` redeployen. Entsperrt 99 Punkte,
 braucht keinen neuen Code. Er ist seit der Analyse **nicht** ausgefuehrt worden,
-und der Abstand ist von 86 auf 106 Commits gewachsen.
+und der Abstand ist von 86 ueber 106 auf 112 Commits gewachsen.
 
 **Engpass 2: B2** — OAuth-ADR. Ohne sie ist der groesste Rest (P3 +56) nicht startbar.
 
@@ -331,7 +441,7 @@ Fehlerzweig, kein Normalpfad; entsprechend niedrig priorisieren, aber richtigste
 implizit an — **ohne Secrets**. Der Owner-Gate-Check (`:67`) faellt dann
 fail-closed, bevor ein Request rausgeht. **P6 ist ohne B3 nicht ausfuehrbar.**
 
-**Zu B4 — kein Deadlock.** `scripts/verify-main-deploy-transition.ps1:56-68`
+**Zu B4 — kein Deadlock.** `scripts/verify-main-deploy-transition.ps1:63`
 fuehrt `market_ready` in der Liste **verbotener** Tokens
 (`forbidden legacy or runtime-release token is absent`). Die Kandidatenpublikation
 setzt `MARKET_READY:true` also **nicht** voraus. Sie braucht nur Owner-Dispatch
@@ -429,9 +539,10 @@ Evidence SHA-256-gebunden. Token nur im Prozess-Environment, nie in Ausgabe.
 ## 6. Naechster sicherer Ablauf ohne jede Freigabe
 
 Der aktuelle Ablauf steht verbindlich in Abschnitt 0. A1, A5 und A6 sind inzwischen
-erledigt; die alte Reihenfolge wird nicht erneut ausgefuehrt. Vor den Owner-Gates fehlen
-nur noch Master-Sync,
-Selection-Commit, Feature-Push und final-head CI mit `skipped=0`.
+erledigt; die alte Reihenfolge wird nicht erneut ausgefuehrt. Selection-Commit `67cd698c`,
+Feature-Push und die Head-CI bis Mess-Ref `f6822d44` sind bereits belegt. Fuer diese neue
+Master-Synchronisierung fehlen nur der exakt begrenzte Truth-Doku-Commit, Feature-Push und
+dessen final-head CI mit `skipped=0`; kein neuer Candidate-/Runtime-Source-Commit.
 
 ## 7. Schutzregeln
 

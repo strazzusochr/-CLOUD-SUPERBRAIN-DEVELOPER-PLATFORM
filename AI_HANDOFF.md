@@ -26,11 +26,13 @@ The first documentation freeze `6a62e28af18f4692a93641bbe9bfecf00c73ffa6` then p
 `pr-check` `33282746874` with `29/29`, zero skipped and zero failed. All later truth-only
 sync commits use a stable dynamic rule instead of embedding their own run ID: the remote
 feature head must exactly equal the latest completed successful `pr-check` head SHA, with
-zero skipped and zero failed steps.
+zero skipped and zero failed steps. Measurement ref
+`f6822d44047904b2e8f4fa8b47cb0e4059922291` passed `pr-check` `33283986186` with
+`29/29`, zero skipped and zero failed.
 
-Read-only gate/hosted re-audit at `2026-08-30T00:31Z` proves `B1=F | B2=F | B3=F |
+Read-only gate/hosted re-audit at `2026-08-30` proves `B1=F | B2=F | B3=F |
 B4=F | B5=F`. Worker source remains `d0674bfc`, 108 commits behind candidate `7db18d90`
-and 111 behind then-current head `6a62e28a`; progress is still 84, team status 500, and the
+and 112 behind measurement ref `f6822d44`; progress is still 84, team status 500, and the
 auth contract is the old dry-run mode with OAuth unconfigured. A Worker source rebind alone
 cannot make C2 true because `CONTRACT_ORIGIN` still serves backend source `21913f8c`; C2
 also requires a source-bound Contract-Origin rebind/deploy or a verified native Worker
@@ -58,17 +60,17 @@ production rollout, payment, or secret output is authorized or claimed.
 The 27-file selection set and truth rebind are assembled. Post-selection verification passed
 Phase-5 credit (`17/19`, I1/I5), current-candidate technical/source parity
 (`promotion_eligible=false`, canonical `blocked`) and the progress manifest (`overall=89`,
-`deltas=0`, `mirrors=2`). The repeated monolithic browser pass also passed in 39.1 minutes:
-`22/22` routes, `29/29` families, `161/161` actions (`160` direct plus `1` exact preverified),
-two approved real gateway-provider responses, and zero mocks, interceptions, unexpected
-provider paths, console/page errors, or secret output. Its unstaged working-report SHA-256 is
-`4E844972CA953C03A76746B7E1AE49726215133B648B45EC813DF55D0EDB80948`. The final local
+`deltas=0`, `mirrors=2`). A repeated monolithic browser pass is reported as `39.1m`,
+`22/22`, `29/29`, `161/161` with hash `4E844972…`, but its exact report bytes are neither
+committed as immutable evidence nor present in the current foreign working report. It is
+protocol only; the committed source-bound Pass 1 is the canonical browser evidence. The final local
 `npm run verify` sweep passed every internal section and stopped only at the exact external
 `current Cloudflare-native hosted Worker source parity` gate. The Current-Candidate verifier
 now fail-closed delegates the exact three-path no-credit rebind to the dedicated Phase-5
 verifier; its positive result is `no_credit_requalification=true`, while partial/additional
-path sets remain rejected. After the dynamic head-CI condition is satisfied, no autonomous
-implementation remains before explicit B1-B5 Owner decisions. Do not change
+path sets remain rejected. After this exact truth-only sync passes the dynamic head-CI
+condition, no implementation is safely autonomous before explicit B1-B5 Owner decisions;
+the ten hosted verifiers remain later gated build work. Do not change
 percentages without code, runtime proof, verifier acceptance and synchronized truth. Do not
 relabel localhost proof as hosted.
 

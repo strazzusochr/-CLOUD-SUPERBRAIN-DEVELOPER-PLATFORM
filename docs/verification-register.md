@@ -37,11 +37,10 @@ GHCR publication, default-branch write, hosted deploy, production-auth promotion
 promotion, payment, or secret output is claimed. Post-selection checks passed Phase-5 credit
 (`17/19`, I1/I5), current-candidate technical/source parity (`promotion_eligible=false`,
 canonical `blocked`) and the progress manifest (`overall=89`, `deltas=0`, `mirrors=2`). A
-repeated complete monolithic Chromium pass also passed in `39.1m`: `22/22` routes, `29/29`
-families and `161/161` actions (`160` direct, `1` exact preverified), two approved real
-gateway-provider responses, and zero mocks, interceptions, unexpected provider paths,
-console/page errors or secret output. Its unstaged working-report SHA-256 is
-`4E844972CA953C03A76746B7E1AE49726215133B648B45EC813DF55D0EDB80948`. Final local
+repeated complete monolithic Chromium pass is reported as `39.1m`, `22/22`, `29/29`,
+`161/161` and hash `4E844972…`; however, its exact report bytes are neither committed as
+immutable evidence nor present in the current foreign working report. It is protocol only,
+not canonical evidence. The committed source-bound Pass 1 remains authoritative. Final local
 full-sweep classification is complete: every internal section passed and `npm run verify`
 stopped only at `current Cloudflare-native hosted Worker source parity`. The Current-Candidate
 verifier now accepts the exact three-path no-credit rebind only by delegating to the dedicated
@@ -60,11 +59,12 @@ The first documentation freeze `6a62e28af18f4692a93641bbe9bfecf00c73ffa6` passed
 GitHub Actions `pr-check` `33282746874` with `29/29`, `0` skipped and `0` failed. Later
 truth-only commits use the stable acceptance predicate `remote feature head == latest
 completed successful pr-check headSha`, additionally requiring zero skipped and failed
-steps; no commit embeds its own future run ID.
+steps; no commit embeds its own future run ID. Measurement ref `f6822d44` passed exact-head
+`pr-check` `33283986186` with `29/29`, `0` skipped and `0` failed.
 
-Read-only gate/hosted audit at `2026-08-30T00:31Z` found all five explicit decisions still
+Read-only gate/hosted audit at `2026-08-30` found all five explicit decisions still
 closed: `B1=F | B2=F | B3=F | B4=F | B5=F`. Live Worker source `d0674bfc` is 108 commits
-behind candidate `7db18d90` and 111 behind then-current head `6a62e28a`; health/D1 read are
+behind candidate `7db18d90` and 112 behind measurement ref `f6822d44`; health/D1 read are
 green, but progress remains 84, team status 500 and auth is old dry-run with OAuth
 unconfigured. A Worker source-only rebind cannot close C2 because `CONTRACT_ORIGIN` still
 serves backend source `21913f8c`; C2 also requires a source-bound origin rebind/deploy or a
