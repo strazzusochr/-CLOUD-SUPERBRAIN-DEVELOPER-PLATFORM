@@ -2519,7 +2519,12 @@ async function authGithubCallback(request, url, env, requestId) {
 
   const acceptHeader = request.headers.get("accept") || "";
   if (acceptHeader.includes("text/html")) {
-    return redirectResponse("/workbench", cookies);
+    // "/workbench" does not exist on this worker: unknown paths fall through to
+    // CONTRACT_ORIGIN, which is the backend project, so the browser landed on a 404
+    // right after a successful login. Default to a path this worker actually serves and
+    // let the owner point POST_LOGIN_REDIRECT wherever the app really lives once the
+    // frontend and the session share one origin.
+    return redirectResponse(env.POST_LOGIN_REDIRECT || "/api/v1/auth/me", cookies);
   }
 
   return authResponse({

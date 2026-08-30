@@ -3,7 +3,7 @@
 Status: `ACTIVE_CURRENT_HANDOFF`
 Stand: **2026-08-30**
 Branch: `codex/organism-visual-v2`
-Truth-HEAD: **`4adb250c`** (`= origin/codex/organism-visual-v2`)
+Truth-HEAD: **`bc0f4dc8`+** (`origin/codex/organism-visual-v2`); hosted deployt: `bc0f4dc8`
 Market Status: `MARKET_READY:false` — Overall `89`
 
 **Dies ist die einzige Uebergabe.** Sie sagt, *was los ist*.
@@ -32,7 +32,7 @@ dabei.
 | Truth-HEAD | `4adb250c` — identisch mit `origin/codex/organism-visual-v2` |
 | Letzte Commits | `4adb250c` (Deploy-Flag-Fix), `a3098cae` (F1/F2-Fix + Audit), `e933ac39`, `9ec4741f` (OAuth + Verifier-Geruest) |
 | Hosted Worker | `cloud-superbrain-stateful-runtime.strazzusochr.workers.dev` |
-| Hosted Source | **`null`** — die Bindung wurde von einem Deploy geloescht, siehe §3 |
+| Hosted Source | `bc0f4dc8` — Bindung wiederhergestellt, Rueckstand 0 Commits, siehe §3A |
 | Alter RC-Zeiger | RC23 `prod-candidate-2026-08-29-local-rc23` @ `7db18d90` — **ueberholt**, siehe §6 |
 | D1 | `cloud-superbrain-state-prod` (`91520f43-5d38-4a31-9d5a-6fca890e1dd6`), Migrationen 0001–0005 angewandt |
 | Overall | `89` — `deltas=0`, Phase 5 `17/19`, blockiert `I1`, `I5` |
@@ -114,43 +114,74 @@ aufrufen.**
 
 ---
 
-## 4. Der Fix ist im Quellcode, aber noch nicht live
+## 3A. F1 und F2 sind live — und die OAuth-Kette ist hosted bewiesen
 
-Dry-Run gegen `4adb250c` ist gruen (2454 KiB, 13/13 Bindings, beide Source-Vars und die
-korrigierte Redirect-URI in der Binding-Tabelle). Der reale Deploy wurde **zweimal vom
-Auto-Mode-Klassifizierer der Claude-Code-Harness** geblockt — nicht von einem Projekt-Gate,
-nicht von fehlenden Zugangsdaten, nicht von einem Fehler im Skript.
-
-Aktuelle Divergenz, live gemessen:
+**Deploy am 2026-08-30, Version `6bf89fc8-3a3a-477f-bab0-82ab85b1a19c`**, gefahren ueber
+`scripts/deploy-cloudflare-stateful-runtime.ps1`. Live nachgemessen:
 
 ```text
-QUELLE  redirect_uri = https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev/api/v1/auth/callback
-LIVE    redirect_uri = https://frontend-seven-psi-78.vercel.app/api/v1/auth/callback     <- falsch
-LIVE    source_commit_sha = null                                                          <- fehlt
+source_commit_sha     = bc0f4dc881a1abf962425c786e74db57df3d3311   (= origin/HEAD zum Deploy-Zeitpunkt)
+source_archive_sha256 = 501c0e2099d318be958cee9a7feab2a0415b520793412d3c1d340cf96f750f1b
+redirect_uri          = https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev/api/v1/auth/callback
+scope                 = read:user
 ```
 
-**Der eine fehlende Befehl** (Owner oder ein Agent ohne diese Sperre):
+Der Hosted-Rueckstand von **114 Commits ist damit auf 0**. Die Source-Bindung ist wieder da
+und stimmt exakt mit dem deployten Commit. F1 und F2 sind erledigt.
 
-```powershell
-Set-Location 'D:\_sb_tmp\clean-head-7f181868'
-$env:TEMP='D:\_sb_tmp'; $env:TMP='D:\_sb_tmp'
-Get-Content 'C:\Users\immer\.codex\secrets\cloud-superbrain.local.env' | ForEach-Object {
-  if ($_ -match '^(CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID)=(.*)$') {
-    Set-Item -Path "env:$($Matches[1])" -Value ($Matches[2].Trim().Trim('"').Trim("'"))
-  }
-}
-pwsh -NoProfile -File .\scripts\deploy-cloudflare-stateful-runtime.ps1
+### Die Kette, mit echten Klicks im Browser gefahren
+
+Der Owner hat genau einmal auf Authorize geklickt. Alles andere ist gemessen. Belege
+stammen aus D1 (`audit_events`, `refresh_token_families`, `refresh_token_history`), also
+serverseitig — nicht aus einer Bildschirmbeobachtung.
+
+| Zeit (UTC) | Ereignis | Beleg |
+| --- | --- | --- |
+| `14:42:34` | **Cancel-Test** | `auth_github_callback_blocked`, `reason=oauth_provider_denied`, `credentials_issued=false` |
+| `14:46:52` | **Authorize** | `auth_github_callback_verified`, `identity_verified=true`, `oauth_state_consumed=true` |
+| `14:46:52` | Token-Familie | `fam_ivStou74K5...`, `subject=github:237145441` |
+| `14:53:05` | **Refresh-Rotation** | `auth_refresh_verified`, Historie `status=rotated` |
+| `14:57:50` | **Logout** | `auth_logout_verified`, Familie `revoked_at` gesetzt, `revocation_reason=user_logout`, Historie `status=revoked` |
+| `14:57:50` | **Zugang danach zu** | `auth_refresh_rejected`; HTTP: `logout=200`, `me=401`, `refresh=401` |
+
+`/api/v1/auth/me` waehrend der Sitzung:
+
+```json
+{"status":"authenticated",
+ "identity":{"provider":"github","provider_user_id":237145441,"subject":"github:237145441"},
+ "identity_verified":true,"jwt_signature_verified":true,"jwt_claims_verified":true,
+ "token_returned":false,"cookie_returned":false,"secret_output":false}
 ```
 
-Das Skript nimmt standardmaessig `HEAD` und berechnet beide Werte selbst. Fuer `4adb250c`
-ergibt das konkret:
+Echte numerische GitHub-Identitaet, JWT-Signatur und -Claims geprueft, Owner-Allowlist
+greift, und weder Token noch Cookie noch Secret erscheinen in der Antwort.
 
-```text
-SOURCE_COMMIT_SHA     = 4adb250c9948f9728c477eaabfc5964252b5707b
-SOURCE_ARCHIVE_SHA256 = 60c43b638f3ed6fd43162ae906c99c0781ff8289bf08d64333b0ec63269f118e
-```
+### Ein echter Produktfehler dabei gefunden und behoben
 
-Das Skript prueft beides selbst gegen die Live-Payload und bricht sonst ab.
+Nach erfolgreichem Login lief der Browser in einen **404 von Vercel**. Ursache:
+`src/index.js` leitete auf `/workbench` **am Worker** weiter. Diesen Pfad gibt es dort nicht;
+unbekannte Pfade fallen auf `CONTRACT_ORIGIN` durch, und das ist das **Backend**-Projekt,
+nicht das Frontend. Kein Sicherheitsproblem, aber der Login endete sichtbar im Nichts.
+
+Behoben: das Ziel ist jetzt `env.POST_LOGIN_REDIRECT` mit Default `/api/v1/auth/me` — ein
+Pfad, den dieser Worker wirklich bedient. Der Owner kann es umstellen, sobald Frontend und
+Sitzung auf einer Origin liegen.
+
+### Was das fuer den Kredit noch NICHT heisst
+
+Die Kette ist gefahren und belegt, aber **P3 bleibt bei 44 und I5 bleibt blockiert**, denn:
+
+1. `scripts/verify-production-auth-identity-evidence.ps1` verlangt ein Evidence-Dokument
+   nach `production-auth-identity-proof-v1` mit exakten Feldmengen, gebunden an einen
+   **eingefrorenen Kandidaten-SHA** (`ExpectedCandidateSha`, muss Ancestor von HEAD sein),
+   an eine `deployment_id` und an den Hash von `docs/runtime-state/frontend-hosted-current.json`.
+   Das Dokument existiert noch nicht.
+2. Der Kandidat dafuer ist RC24 — RC23 ist ueberholt (siehe §7).
+3. Der Kredit selbst braucht zusaetzlich die Rubrikfreigabe B1.
+
+Reihenfolge bleibt also: **RC24 einfrieren -> Evidence schreiben -> Verifier gruen ->
+B1 -> Delta-Ledger**. Der teure Teil, der echte Hosted-Beweis, ist ab jetzt erbracht und
+muss nicht wiederholt werden.
 
 ---
 
