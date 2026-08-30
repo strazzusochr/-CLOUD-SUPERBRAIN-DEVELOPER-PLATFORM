@@ -1,3 +1,9 @@
+> **UEBERHOLT — NICHT ALS ZIEL- ODER UEBERGABEDATEI VERWENDEN.**
+> Massgeblich sind ausschliesslich `CODEX_ZIEL_MASTER_2026-08-29.md` (was zu tun ist) und
+> `CODEX_UEBERGABE_MASTER_2026-08-29.md` (was los ist). Diese Datei bleibt nur als
+> historische Provenienz erhalten; ihre Koordinaten, Prozentwerte und Anweisungen sind
+> nicht mehr gueltig. Stand der Markierung: 2026-08-30.
+
 # CLOUD SUPERBRAIN - UEBERGABE 2026-08-29, SESSION 16
 
 Status: `CURRENT_HANDOFF`

@@ -12,6 +12,13 @@ Die Lage steht in `CODEX_UEBERGABE_MASTER_2026-08-29.md`.
 > Der Dateiname bleibt bewusst auf `2026-08-29` stehen, damit Codex genau eine Zieldatei und
 > genau eine Uebergabe findet. Massgeblich ist das Feld `Stand` oben.
 
+**Vorrangregel.** Im Repository liegen aus historischen Gruenden weitere `CODEX_*.md`.
+Gueltig sind ausschliesslich diese beiden Dateien. Ausdruecklich ueberholt und im Kopf
+entsprechend markiert sind `CODEX_100_PROZENT_ZIEL_2026-08-29.md`,
+`CODEX_ZIELVERFOLGUNG_KURZ.md`, `CODEX_UEBERGABE_2026-08-29-SESSION16.md`,
+`CODEX_MASTER_GOAL_AUTONOM_WEITER.md` und `CODEX_MASTER_GOAL_FINALE.md`. Alle uebrigen
+`CODEX_UEBERGABE_2026-0[478]-*.md` sind aeltere Sessionprotokolle ohne Weisungscharakter.
+
 ---
 
 ## 1. Endziel
@@ -92,7 +99,10 @@ pwsh -NoProfile -File .\scripts\deploy-cloudflare-stateful-runtime.ps1
 
 **Nie wieder `wrangler deploy` direkt aufrufen** — das hat F2 verursacht.
 
-**Abnahme (das Skript prueft es selbst):**
+**Abnahme (das Skript prueft es selbst).** Es deployt standardmaessig `HEAD` und berechnet
+`SOURCE_ARCHIVE_SHA256` daraus neu; die folgenden Werte gelten fuer `4adb250c` und aendern
+sich mit jedem weiteren Commit — entscheidend ist, dass Health **exakt den deployten
+Commit** meldet:
 
 ```text
 /api/v1/health   source_commit_sha     = 4adb250c9948f9728c477eaabfc5964252b5707b

@@ -12,6 +12,13 @@ Was zu tun ist, steht in `CODEX_ZIEL_MASTER_2026-08-29.md`.
 > Der Dateiname bleibt bewusst auf `2026-08-29` stehen, damit Codex genau eine Uebergabe
 > und genau eine Zieldatei findet. Massgeblich ist das Feld `Stand` oben.
 
+**Vorrangregel.** Im Repository liegen aus historischen Gruenden weitere `CODEX_*.md`.
+Gueltig sind ausschliesslich diese beiden Dateien. Ausdruecklich ueberholt und im Kopf
+entsprechend markiert sind `CODEX_100_PROZENT_ZIEL_2026-08-29.md`,
+`CODEX_ZIELVERFOLGUNG_KURZ.md`, `CODEX_UEBERGABE_2026-08-29-SESSION16.md`,
+`CODEX_MASTER_GOAL_AUTONOM_WEITER.md` und `CODEX_MASTER_GOAL_FINALE.md`. Alle uebrigen
+`CODEX_UEBERGABE_2026-0[478]-*.md` sind aeltere Sessionprotokolle ohne Weisungscharakter.
+
 Alles hier ist **gemessen** — live gegen den Endpunkt oder gegen den Quellcode am
 Truth-HEAD. Wo etwas nur protokolliert und nicht nachmessbar war, steht das ausdruecklich
 dabei.
@@ -135,7 +142,8 @@ Get-Content 'C:\Users\immer\.codex\secrets\cloud-superbrain.local.env' | ForEach
 pwsh -NoProfile -File .\scripts\deploy-cloudflare-stateful-runtime.ps1
 ```
 
-Erwartete Werte nach dem Deploy von `4adb250c`:
+Das Skript nimmt standardmaessig `HEAD` und berechnet beide Werte selbst. Fuer `4adb250c`
+ergibt das konkret:
 
 ```text
 SOURCE_COMMIT_SHA     = 4adb250c9948f9728c477eaabfc5964252b5707b
