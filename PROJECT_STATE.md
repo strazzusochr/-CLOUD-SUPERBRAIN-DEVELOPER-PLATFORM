@@ -19,6 +19,11 @@ Letzte Aktualisierung: 2026-08-30
   und bestand `29/29` Schritte bei `0` skipped und `0` failed. Der nachfolgende reine
   Doku-Freeze ist nur nach eigenem gruenem final-head Lauf gueltig; die Run-ID wird nicht
   selbstreferenziell in denselben Commit geschrieben.
+- **Dynamische Truth-Sync-Regel:** der erste Doku-Freeze `6a62e28a` bestand `pr-check`
+  `33282746874` mit `29/29`, `0` skipped, `0` failed. Spaetere reine Doku-Syncs gelten
+  genau dann als gruen, wenn der Remote-Feature-Head exakt dem `headSha` des neuesten
+  erfolgreichen `pr-check` entspricht und dort `skipped=0`, `failed=0` gilt; die Run-ID
+  wird nicht selbstreferenziell in denselben Commit geschrieben.
 - **Alle fuenf unabhaengigen Ketten bestanden:** sechs Clean-Archive-Images, Runtime
   `10/10 healthy`, kompletter realer Chromium-Browser, Candidate-Runtime-Identitaet mit
   echter Auswahl/Klick und Candidate-Archiv npm-audit plus canonical gitleaks. Browser-Pass
@@ -50,6 +55,14 @@ Letzte Aktualisierung: 2026-08-30
   externe Wahrheit bleibt `docs/runtime-state/external-gate-audit-v2.json` ueber
   `external-gate-summary-v2`; der aktuelle Zielbezeichner lautet exakt
   `cloudflare_native_zero_card_hosted_runtime`.
+- **Gate-/Hosted-Reaudit 2026-08-30:** `B1=F | B2=F | B3=F | B4=F | B5=F`.
+  Worker `d0674bfc` ist `108` Commits hinter Candidate `7db18d90` und `111` hinter dem
+  damaligen Head `6a62e28a`; Progress bleibt `84`, Team `500`, Auth alter Dry-run und OAuth
+  nicht konfiguriert. Worker-Rebind allein reicht fuer C2 nicht: `CONTRACT_ORIGIN` zeigt
+  weiter auf Backend `21913f8c`, daher braucht Progress `89` einen source-bound Origin-
+  Rebind/Deploy oder eine verifizierte native Projektion. B3-Environment/Default-Workflow
+  fehlen; B4-Environment ist nur konfiguriert, waehrend Default noch den alten
+  `main-deploy`-Blob traegt. Keine dieser Tatsachen ist eine Owner-Freigabe.
 - **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
   P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
   L6 `100`, L7 `100`. `MARKET_READY:false`. I1 `hosted_candidate_parity` und I5
@@ -59,8 +72,8 @@ Letzte Aktualisierung: 2026-08-30
   Branch-Write, GHCR-Push, Hosted-Deploy, OAuth-Aktivierung, Secret-Output,
   Release-Promotion oder Production-Rollout. Lokale Runtime-/Browserbeweise bleiben
   `DEV-ONLY; hosted proof still blocked`.
-- **Naechster sicherer Schritt:** reinen Doku-Freeze pushen und dessen final-head CI
-  pruefen. Prozentwerte und Owner-Gates bleiben unveraendert.
+- **Naechster sicherer Schritt:** dynamische Head-CI-Regel fuer diesen Truth-Sync erfuellen;
+  danach explizite B1-B5-Entscheidungen. Kein autonomes Implementierungsitem bleibt offen.
 
 ### Session 2026-08-28 — RC20 qualifiziert, RC21 in Bindung
 

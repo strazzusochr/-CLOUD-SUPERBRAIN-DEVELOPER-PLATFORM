@@ -37,6 +37,7 @@ Promotion bleiben danach separate Owner-Entscheidungen.
 | aktiver Kandidat | `prod-candidate-2026-08-29-local-rc23` |
 | Qualifikations-CI | `33273326919`, success, `25/25` beobachtete Schritte gruen, `0` skipped |
 | Selection-Head-CI | `33282524897`, success, `29/29`, `0` skipped, `0` failed |
+| erster Doku-Freeze-CI | `33282746874` auf `6a62e28a`, success, `29/29`, `0` skipped, `0` failed |
 | Evidence | exakt `27` immutable Dateien; 5 lokale Ketten + CI-Attestation/Readback |
 | Readiness | `17/19 = 89%`; offen I1 und I5 |
 | Rollback | RC22 Source `28727b198b057a6bdef6b5f34e9aa946fb2757a0` |
@@ -104,6 +105,8 @@ PASS verify:current-release-candidate -> technical/source parity true, no-credit
 PASS verify_project_progress_manifest.py -> overall 89, deltas 0, mirrors 2
 EXPECTED STOP npm run verify -> current Cloudflare-native hosted Worker source parity
 PASS pr-check 33282524897 -> exact 67cd698c, 29/29, skipped=0, failed=0
+PASS pr-check 33282746874 -> exact 6a62e28a, 29/29, skipped=0, failed=0
+CURRENT RULE -> remote head == latest successful pr-check headSha; skipped=0; failed=0
 ```
 
 A6/Selection aktuell:
@@ -118,6 +121,12 @@ PASS verify_project_progress_manifest.py -> candidate_source_bound=true, freshne
 Der Full-Sweep-Stop ist der erwartete ungeschlossene Hosted-I1-Ownerblock und kein Fehler
 der fuenf source-gebundenen lokalen RC23-Ketten. Hosted I1 und Production Auth I5 bleiben
 rot. Kein Full-Sweep-Gruen wird behauptet; Verifier nicht abschwaechen.
+
+Read-only Reaudit: `B1=F | B2=F | B3=F | B4=F | B5=F`; Worker `d0674bfc` bleibt
+`108` Commits hinter Candidate und liefert Progress `84`, Team `500`, alten Auth-Dry-run.
+C1-Source-Rebind allein schliesst C2 nicht, weil `CONTRACT_ORIGIN` auf Backend
+`21913f8c` bleibt. B3-Environment/Default-Workflow fehlen; B4 ist nur konfiguriert und
+Default traegt noch den alten `main-deploy`-Workflow.
 
 ## 6. Hosted-Wahrheit
 

@@ -51,6 +51,28 @@ Doku-Freeze-Commit darf erst nach einem weiteren gruenen final-head Lauf als abg
 gelten; dessen Run-ID wird nicht in denselben Commit zurueckgeschrieben, um keinen
 selbstreferenziellen Commit/CI-Zyklus zu erzeugen.
 
+Der erste Doku-Freeze `6a62e28af18f4692a93641bbe9bfecf00c73ffa6` bestand anschliessend
+`pr-check` `33282746874` mit `29/29`, `0` skipped und `0` failed. Fuer spaetere reine
+Truth-Sync-Commits wird keine Run-ID in denselben Commit geschrieben: gueltig ist der Stand
+nur, wenn Remote-Branch-Head und `headSha` des neuesten abgeschlossenen erfolgreichen
+`pr-check` exakt gleich sind und dessen Schrittzaehler `skipped=0`, `failed=0` melden.
+
+Neuer read-only Gate-/Hosted-Reaudit (`2026-08-30T00:31Z`): alle Owner-Gates bleiben
+explizit geschlossen (`B1=F`, `B2=F`, `B3=F`, `B4=F`, `B5=F`). Worker-Health ist `200`
+mit Source `d0674bfc`, D1-Read true; der Stand liegt `108` Commits hinter Candidate
+`7db18d90` und `111` hinter dem damaligen Head `6a62e28a`. Progress liefert weiter `84`,
+Team-Status stabil `500`, Auth-Vertrag alten Dry-run und `github_oauth_configured=false`;
+Callback-HEAD ist `503` ohne Redirect/Cookie. Keine mutierende Callback-GET-Probe lief.
+
+Kritische Ablaufkorrektur: Worker-Rebind allein kann die native Team-Route reparieren, aber
+C2 nicht schliessen, weil `CONTRACT_ORIGIN` weiterhin den veralteten Backend-Stand
+`21913f8c` liefert. Fuer Progress `89` und spaeter OAuth ist zusaetzlich ein current
+source-bound Contract-Origin-Rebind/Deploy oder eine verifizierte native Worker-Projektion
+erforderlich. B3 fehlt live komplett (`phase6-scale-hosted-writes=404`, Workflow nicht auf
+Default registriert). B4 besitzt nur die Environment-Schutzkonfiguration; Default nutzt den
+alten `main-deploy`-Blob `555e8325`, Feature den sicheren Blob `14e84b31`. Kein aktueller
+Dispatch, Registry-Write oder Hosted-Worker-Deploy existiert.
+
 Browser-Pass 1 ist kanonisch gruen: `22/22` Routen, `29/29` Familien, `161/161` Aktionen,
 keine Mocks/Interceptions, keine unerwarteten Providerpfade, keine Console-/Page-Fehler.
 Der erste sichtbare headed Pass 2 isolierte genau einen zeitlichen Replay-Performance-
@@ -60,7 +82,8 @@ Minuten mit `22/22`, `29/29`, `161/161` (`160` direkt, `1` exakt vorverifiziert)
 freigegebenen echten Gateway-Providerantworten und null Mocks, Interceptions, unerwarteten
 Providerpfaden, Console-/Page-Fehlern oder Secret-Ausgabe. Working-Report SHA-256:
 `4E844972CA953C03A76746B7E1AE49726215133B648B45EC813DF55D0EDB80948`.
-Naechster Schritt: Doku-Freeze pushen und dessen final-head CI pruefen.
+Naechster Schritt: dynamische Head-CI-Bedingung fuer diesen Truth-Sync erfuellen; danach
+explizite Owner-Entscheidungen B1-B5 einholen. Keine autonome Implementierung ist offen.
 
 Aktueller Arbeitsbaum: der Selection-Index enthaelt ausschliesslich die RC23-Evidence,
 Readiness/Pointer, verifier-generierte O4-Wahrheit und synchrone Truth-Dokumente. Der

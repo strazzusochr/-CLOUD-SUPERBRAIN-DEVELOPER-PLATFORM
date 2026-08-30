@@ -43,6 +43,11 @@ weiter bindend, soweit sie hier nicht ausdruecklich aktualisiert werden.
   Schritte, `0` skipped, `0` failed. Ein nachfolgender reiner Doku-Freeze-Commit gilt nur
   nach einem nochmals gruenen Head-`pr-check`; dessen Run-ID wird nicht in denselben Commit
   zurueckgeschrieben, damit keine endlose Folge rein dokumentarischer Heads entsteht.
+- Erster Doku-Freeze `6a62e28af18f4692a93641bbe9bfecf00c73ffa6` ist gepusht und durch
+  `pr-check` `33282746874` mit `29/29`, `0` skipped, `0` failed belegt. Fuer jeden
+  spaeteren reinen Truth-Sync gilt dauerhaft statt einer selbstreferenziellen Run-ID:
+  `git rev-parse origin/codex/organism-visual-v2` muss exakt dem `headSha` des neuesten
+  abgeschlossenen `pr-check` mit `conclusion=success`, `skipped=0`, `failed=0` entsprechen.
 - Browser-Pass 1 ist kanonisch gruen (`22/22`, `29/29`, `161/161`). Der erste sichtbare
   headed Pass 2 bestand 159 direkte Aktionen plus den exakten P0-Beweis; der einzige
   `replay-organism-performance-reset`-Deltatiming-Fehler wurde durch den anschliessenden
@@ -54,11 +59,26 @@ weiter bindend, soweit sie hier nicht ausdruecklich aktualisiert werden.
   `4E844972CA953C03A76746B7E1AE49726215133B648B45EC813DF55D0EDB80948`.
 - Overall/Horizontal/Vertikal bleiben exakt `89` sowie die unten dokumentierten Werte.
   `MARKET_READY:false`; `DEV-ONLY; hosted proof still blocked`.
+- Read-only Gate-/Hosted-Reaudit `2026-08-30T00:31Z`: `B1=F | B2=F | B3=F | B4=F |
+  B5=F`. Worker bleibt auf `d0674bfc`, damit `108` Commits hinter Candidate-Source
+  `7db18d90` und `111` hinter dem damaligen Branch-Head `6a62e28a`; Progress bleibt `84`,
+  Team-Status `500`, Auth-Vertrag im alten Dry-run-Modus, OAuth nicht konfiguriert.
+- C1/C2-Praezisierung aus Live-Beweis: Ein reiner Worker-Source-Rebind kann die native
+  Team-Route reparieren, aber weder Progress `89` noch Production OAuth liefern, solange
+  `CONTRACT_ORIGIN` weiter auf den veralteten Backend-Stand `21913f8c` zeigt. C2 braucht
+  zusaetzlich einen current source-bound Contract-Origin-Rebind/Deploy oder eine explizit
+  verifizierte native Worker-Projektion. Beides bleibt Teil der expliziten Hosted-/OAuth-
+  Freigaben, nicht autonome Arbeit.
+- B3 ist auch strukturell geschlossen: Environment `phase6-scale-hosted-writes` fehlt live
+  (`404`), das benoetigte Secret ist nicht nachweisbar und der Workflow ist auf dem Default-
+  Branch nicht registriert. B4 ist nicht dispatchbar: `registry-publication` ist nur
+  konfiguriert, Default-Branch fuehrt noch den alten `main-deploy`-Blob `555e8325`, waehrend
+  der sichere Feature-Blob `14e84b31` Owner-autorisiert auf den geschuetzten Default-
+  Kontrollstand gelangen muss.
 
-Aktueller autonomer Rest vor jedem Owner-Gate:
-
-1. reinen Doku-Freeze-Commit pushen;
-2. dessen final-head CI mit `skipped=0` pruefen.
+Aktueller autonomer Rest vor jedem Owner-Gate: kein Implementierungsitem. Ein reiner
+Truth-Sync gilt erst nach Erfuellung der oben definierten dynamischen Head-CI-Bedingung.
+Danach bleiben ausschliesslich die expliziten Owner-/Hosted-Stufen B bis H.
 
 Danach bleiben ausschliesslich die expliziten Owner-/Hosted-Stufen B bis H. Kein Main-
 Push, GHCR-Push, Hosted-Deploy, OAuth-Gate-Flip oder Production-Rollout ist dadurch erlaubt.

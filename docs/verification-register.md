@@ -56,6 +56,23 @@ documentation-only freeze commit is accepted only after its own green final-head
 run ID is intentionally not written into the same commit to avoid a self-referential
 documentation/CI cycle.
 
+The first documentation freeze `6a62e28af18f4692a93641bbe9bfecf00c73ffa6` passed
+GitHub Actions `pr-check` `33282746874` with `29/29`, `0` skipped and `0` failed. Later
+truth-only commits use the stable acceptance predicate `remote feature head == latest
+completed successful pr-check headSha`, additionally requiring zero skipped and failed
+steps; no commit embeds its own future run ID.
+
+Read-only gate/hosted audit at `2026-08-30T00:31Z` found all five explicit decisions still
+closed: `B1=F | B2=F | B3=F | B4=F | B5=F`. Live Worker source `d0674bfc` is 108 commits
+behind candidate `7db18d90` and 111 behind then-current head `6a62e28a`; health/D1 read are
+green, but progress remains 84, team status 500 and auth is old dry-run with OAuth
+unconfigured. A Worker source-only rebind cannot close C2 because `CONTRACT_ORIGIN` still
+serves backend source `21913f8c`; C2 also requires a source-bound origin rebind/deploy or a
+verified native Worker projection. GitHub has no `phase6-scale-hosted-writes` environment
+and no registered default-branch Phase-6 workflow. `registry-publication` protection exists,
+but no current approval/dispatch/publication does, and default still carries old
+`main-deploy` blob `555e8325` instead of safe feature blob `14e84b31`.
+
 ## Historical RC22 Local Qualification Evidence
 
 Recorded 2026-08-29. Active candidate `prod-candidate-2026-08-29-local-rc22` is bound
