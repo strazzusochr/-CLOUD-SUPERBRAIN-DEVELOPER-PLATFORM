@@ -7,6 +7,40 @@ Status: Active
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
 
+## Current RC26 Local Qualification Evidence
+
+Recorded 2026-08-31. Active candidate `prod-candidate-2026-08-31-local-rc26` is bound
+to frozen source `727b15398c278bd1c00fa251605e6a8d37b1abb3` through source-attestation
+control `64fc4a4a72f4612c314a39fe770d8f1b7ac00c10`. GitHub Actions `pr-check` run
+`33445048842` checked out that exact source and passed `30/30` observed steps with `0`
+skipped. Artifact `9777784684`, GitHub digest
+`sha256:1bfa1c43d05b876940ae84ebb022d33e9fb269376385dd17a7478a564c41bf13`,
+attestation SHA `4BCAA6C179194BE94AC40975F0F2D37C90F3A0B38EEF5E1DE926C166D9CA59F0`,
+and readback SHA `1048BED71A03159A30455ABF702378EF196FA7824650092987A4C44136DC0A5E`
+are preserved in the exact 27-file evidence set.
+
+Five independent local chains passed: six source-bound candidate images; runtime `10/10
+healthy`; complete real-Chromium browser proof with `22/22` routes, `29/29` families and
+`161/161` members; candidate-runtime source/image identity with real selection and click;
+and candidate-scoped npm-audit plus canonical gitleaks. Their proof hashes are respectively
+`4ECDA710E71D859FB95244BA06C3840494FFC12D621CDF54A90AC5E50983A0BC`,
+`BEC0DE683E6BBC611683E1DCF66A595C60BA469F8F9312E58FD3C56940078641`,
+`2B204C0AE555EFFF3FAEF93D971B0B84EF4EF5DBB10EA91C09E5348B9177052D`,
+`AC915C8284AD5BBFCF4F64525D6672DD25452F478E79031D484922FFF2109A88`,
+and `F357A5B8B4AEF7A38F72942A1574076B8C6DF769970D297B11105049765D4E8C`.
+B1 approval remains bound to commit
+`e87c28a7c6cf32982caa849794042daa53ef022a`; approval alone grants no percentage.
+
+The exact same-day `no_credit_requalification` keeps Phase 5 at `17/19 = 89%`, blocked
+`I1` hosted candidate parity and `I5` production auth identity. Overall remains `89`, the
+real delta ledger remains empty, and `MARKET_READY:false`. RC24 source
+`1cb03979740859f0350cf18f6f08ef06c3d72b72` remains the local rollback target. The
+candidate replaces the deprecated Workers AI preview default, repairs L4 trace-verifier
+tokenization, binds preview checks to deterministic bundles, and corrects one stale I1
+evidence anchor without awarding credit. No GHCR publication, default-branch write,
+production deploy, release promotion, production rollout, payment, or secret output is
+claimed. `DEV-ONLY; hosted proof still blocked`.
+
 ## Current RC25 Local Qualification Evidence
 
 Recorded 2026-08-31. Active candidate `prod-candidate-2026-08-31-local-rc25` is bound

@@ -5,11 +5,11 @@ Letzte Aktualisierung: 2026-08-31
 
 ## AKTUELLER PROJEKTANKER
 
-### Session 2026-08-31 — RC25 lokale Auswahlqualifikation
+### Session 2026-08-31 — Current RC26 Handoff
 
-- **Aktiver Kandidat:** `prod-candidate-2026-08-31-local-rc25`, eingefrorene Source
-  `4947ad03cb5ff197fd536c521051631a10261497`, Kontroll-Commit
-  `9f80698f94905c53566fb35a3e4bbe2d70c8a415`. GitHub-Actions-Lauf `33405335413`
+- **Aktiver Kandidat:** `prod-candidate-2026-08-31-local-rc26`, eingefrorene Source
+  `727b15398c278bd1c00fa251605e6a8d37b1abb3`, Kontroll-Commit
+  `64fc4a4a72f4612c314a39fe770d8f1b7ac00c10`. GitHub-Actions-Lauf `33445048842`
   attestierte exakt den Source-Checkout; `30/30` beobachtete Schritte waren gruen und
   `0` skipped. RC24-Source `1cb03979740859f0350cf18f6f08ef06c3d72b72` bleibt der
   immutable lokale Rollback-Anker.
@@ -18,6 +18,11 @@ Letzte Aktualisierung: 2026-08-31
   `161/161` Action-Membern sowie `candidate-runtime` mit exakt gestagter No-Credit-
   Source-Paritaet, sechs Image-Identitaeten und echtem Browser-Auswahlklick. Der immutable
   Evidence-Satz umfasst exakt `27` Dateien.
+- **RC26-Produktfix gebunden:** Der veraltete Workers-AI-Default wurde durch
+  `@cf/meta/llama-3.1-8b-instruct-fast` ersetzt, der L4-Trace-Verifier syntaktisch
+  repariert und die Preview-Deploy-Pruefung an deterministische Bundle-Hashes gebunden.
+  Der erste CI-Versuch deckte ausserdem einen stale I1-Evidenzanker auf; Source RC26
+  korrigiert nur diesen Anker und vergibt dafuer keinen Kredit.
 - **B1 gebunden, ohne Kredit:** Die drei genehmigten Rubriken sind durch Owner-Commit
   `e87c28a7c6cf32982caa849794042daa53ef022a` und den fail-closed Rubrik-Verifier gebunden.
   Aus der Freigabe allein folgt weder Prozentcredit noch Hosted-/Release-Status.
@@ -25,10 +30,12 @@ Letzte Aktualisierung: 2026-08-31
   P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
   L6 `100`, L7 `100`. `MARKET_READY:false`. I1 `hosted_candidate_parity` und I5
   `production_auth_identity` bleiben die einzigen Phase-5-Nullcredit-Items.
+- **Naechster sicherer Schritt:** RC26 auf die isolierten Preview-Worker und eine exakte
+  Vercel-Git-Preview binden, danach alle fuenf L4-Hosted-Verifier erneut source-bound
+  fahren. Diese Preview-Aktion ist keine Production-Promotion und vergibt allein keinen
+  Prozentcredit.
 - **Non-Claims:** `DEV-ONLY; hosted proof still blocked`. Kein Main-/Default-Branch-Write,
   GHCR-Push, Production-Deploy, Release-Promotion, Production-Rollout oder Secret-Output.
-  Der explizit freigegebene Candidate-Worker-Rebind folgt erst nach der abgeschlossenen
-  RC25-Qualifikation und ist keine Production-Promotion.
 
 ### Session 2026-08-29 — RC23 lokal qualifiziert und ausgewaehlt
 

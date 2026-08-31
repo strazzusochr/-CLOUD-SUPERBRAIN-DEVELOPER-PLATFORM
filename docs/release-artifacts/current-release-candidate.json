@@ -1,8 +1,8 @@
 {
-  "active_release_id": "prod-candidate-2026-08-31-local-rc25",
-  "source_commit_sha": "4947ad03cb5ff197fd536c521051631a10261497",
-  "updated_at": "2026-08-31T15:26:41Z",
-  "updated_by": "rc25-local-qualification",
-  "reason": "RC25 locally qualifies frozen source 4947ad03cb5ff197fd536c521051631a10261497 after GitHub Actions run 33405335413 passed with 30/30 observed steps green, 0 skipped, through control 9f80698f94905c53566fb35a3e4bbe2d70c8a415. Five independent source-bound chains passed: six clean-archive candidate images, 10/10 healthy runtime services, full real-Chromium browser proof, exact no-credit candidate-runtime parity with real selection/click, and candidate-scoped security. The approved-rubric verifier is bound without percentage credit, and RC24 source 1cb03979740859f0350cf18f6f08ef06c3d72b72 remains the rollback target. DEV-ONLY; hosted proof still blocked. Hosted candidate parity, production OAuth, GHCR publication, release promotion, and production rollout remain blocked.",
+  "active_release_id": "prod-candidate-2026-08-31-local-rc26",
+  "source_commit_sha": "727b15398c278bd1c00fa251605e6a8d37b1abb3",
+  "updated_at": "2026-08-31T23:08:26Z",
+  "updated_by": "rc26-local-qualification",
+  "reason": "RC26 selects frozen source 727b15398c278bd1c00fa251605e6a8d37b1abb3 after five source-bound local qualification chains and the 30/30 exact-source CI attestation passed. This no-credit transition replaces the deprecated Workers AI model, repairs L4 trace-verifier tokenization, verifies exact preview bundles, and corrects the stale I1 hosted-preview evidence anchor. RC24 source 1cb03979740859f0350cf18f6f08ef06c3d72b72 remains the rollback target. DEV-ONLY; hosted proof still blocked. I1, I5, GHCR publication, release promotion, and production rollout remain blocked.",
   "production_rollout_claimed": false
 }
