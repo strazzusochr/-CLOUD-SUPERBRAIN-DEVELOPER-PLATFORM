@@ -832,7 +832,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         step = source[step_start:step_end]
         expected_drift = (
             "[phase5-credit] active candidate has committed or staged runtime-source drift "
-            "outside the exact post-qualification truth transition\\n"
+            "outside the exact post-qualification or no-credit requalification truth transition\\n"
             "[project-progress] Phase-5 credit itemization is invalid"
         )
 
@@ -877,7 +877,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         expected_drift = (
             "[five-axis-audit] project progress verifier failed via python3: "
             "[phase5-credit] active candidate has committed or staged runtime-source drift "
-            "outside the exact post-qualification truth transition\\n"
+            "outside the exact post-qualification or no-credit requalification truth transition\\n"
             "[project-progress] Phase-5 credit itemization is invalid"
         )
         negative_pattern = (

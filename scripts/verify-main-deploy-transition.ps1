@@ -155,7 +155,7 @@ Assert-Contains "project-progress prequalification requires exact drift output" 
   'if [[ "$progress_output" != "$expected_progress_drift" ]]; then'
 Assert-Contains "project-progress prequalification pins runtime-source drift" `
   $projectProgressStep `
-  '[phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+  '[phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
 Assert-Regex "project-progress normal validation is retained" `
   $projectProgressStep `
   '(?ms)^\s{10}else\s*\r?\n\s{12}python scripts/verify_project_progress_manifest\.py\s*\r?\n\s{10}fi\s*$'
@@ -192,7 +192,7 @@ Assert-Contains "five-axis prequalification requires exact drift output" `
   'if [[ "$five_axis_output" != "$expected_five_axis_drift" ]]; then'
 Assert-Contains "five-axis prequalification pins runtime-source drift" `
   $fiveAxisStep `
-  '[five-axis-audit] project progress verifier failed via python3: [phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+  '[five-axis-audit] project progress verifier failed via python3: [phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
 Assert-Regex "five-axis normal validation is retained" `
   $fiveAxisStep `
   '(?ms)^\s{12}false\)\s*\r?\n\s{14}node --test scripts/tests/five-axis-delta-ledger-regression\.test\.mjs\s*\r?\n\s{14}node scripts/verify-five-axis-substance-audit\.mjs\s*\r?\n\s{14};;'

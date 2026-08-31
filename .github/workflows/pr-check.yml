@@ -234,7 +234,7 @@ jobs:
           set -euo pipefail
           python -m unittest scripts.tests.test_verify_project_progress_manifest -v
           if [[ "$SOURCE_PREQUALIFICATION" == "true" ]]; then
-            expected_progress_drift=$'[phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+            expected_progress_drift=$'[phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
             set +e
             progress_output="$(python scripts/verify_project_progress_manifest.py 2>&1)"
             progress_exit=$?
@@ -268,7 +268,7 @@ jobs:
           case "$SOURCE_PREQUALIFICATION" in
             true)
               node --test --test-name-pattern='^(rejects the retired v1 permanent-empty ledger contract without browser evidence|rejects a structurally typed but unauthenticated v2 ledger entry|keeps future evidence-backed vertical deltas reachable)$' scripts/tests/five-axis-delta-ledger-regression.test.mjs
-              expected_five_axis_drift=$'[five-axis-audit] project progress verifier failed via python3: [phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+              expected_five_axis_drift=$'[five-axis-audit] project progress verifier failed via python3: [phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
               set +e
               five_axis_output="$(node --input-type=module --eval 'try { await import("./scripts/verify-five-axis-substance-audit.mjs"); } catch (error) { console.error(error.message); process.exitCode = 1; }' 2>&1)"
               five_axis_exit=$?
