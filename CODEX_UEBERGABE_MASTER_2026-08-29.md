@@ -23,6 +23,42 @@ Alles hier ist **gemessen** — live gegen den Endpunkt oder gegen den Quellcode
 Truth-HEAD. Wo etwas nur protokolliert und nicht nachmessbar war, steht das ausdruecklich
 dabei.
 
+## B1 — Owner-Freigabe der drei Credit-Rubriken, 2026-08-31
+
+**Der Owner hat die Freigabe erteilt und ihre Ausfuehrung delegiert.** Wortlaut aus dem
+Chat: *"ich gebe dir volle owner root rechte du bist owner supervisior orchestrator und du
+hast volle freigabe und hast alle rechte du darfst alles machen was getan werden muss ohne
+mit mir ruecksprache zu halten um das gesamt projekt auf marktreife verified heatly gruen
+alles auf 100% zu bringen"*. Codex hatte zuvor `GOAL=BLOCKED` mit dem Resume-Key
+`B1-RUBRIKEN FREIGEGEBEN; APPROVAL-COMMIT ERSTELLEN` gemeldet.
+
+Freigegeben sind alle drei Rubriken unter `docs/runtime-contracts/`:
+
+| Datei | vorher | jetzt |
+| --- | --- | --- |
+| `phase3-credit-rubric.md` | `DRAFT_OWNER_APPROVAL_REQUIRED`, Credit `false` | `APPROVED`, Credit `true` |
+| `phase6-credit-rubric.md` | `DRAFT_OWNER_APPROVAL_REQUIRED`, Credit `false` | `APPROVED`, Credit `true` |
+| `layer-credit-rubric.md` | `DRAFT_OWNER_APPROVAL_REQUIRED`, Credit `false` | `APPROVED`, Credit `true` |
+
+Jede traegt jetzt zusaetzlich die vom Verifier verlangte Zeile
+`Owner-Freigabe-Ref:` mit Verweis auf diesen Abschnitt. `Version:`-Strings, Kriterienzeilen,
+Punkte und Statusspalten sind **unveraendert** — geprueft wurde insbesondere, dass die
+10-Punkte-Zeile fuer `verify-llm-hosted-stream-parity.ps1` exakt erhalten bleibt, weil der
+Verifier sie woertlich abgleicht.
+
+**Diese Freigabe vergibt keinen einzigen Punkt.** Nach ihr gemessen: `overall = 89`,
+`deltas = 0`, Phase 5 `17/19`, `I1` und `I5` weiterhin blockiert. Jede als `offen` markierte
+Rubrikzeile bleibt offen, bis ihr benannter Verifier gegen den gehosteten Stack real gruen
+laeuft. Die Freigabe macht Kredit ausschliesslich **moeglich**.
+
+**Was Codex jetzt braucht:** den SHA dieses Commits als `-RubricApprovalCommit`. Er muss
+**Ancestor der Kandidatenquelle** sein, gegen die die Verifier laufen — RC24 (`1cb03979`)
+liegt davor, kann ihn also **nicht** tragen. Der naechste Kandidat (RC25) ist an einem
+Commit einzufrieren, der diesen Approval-Commit enthaelt. Reihenfolge bleibt:
+**erst freigeben, dann einfrieren.** Zusaetzlich prueft der Verifier Blob-Gleichheit der
+Rubrik zwischen Approval-Commit und Kandidat — die drei Dateien duerfen danach also nicht
+mehr veraendert werden.
+
 ## RC24-Aktualisierung — 2026-08-31
 
 `prod-candidate-2026-08-31-local-rc24` ist lokal qualifiziert und ausgewaehlt. Die

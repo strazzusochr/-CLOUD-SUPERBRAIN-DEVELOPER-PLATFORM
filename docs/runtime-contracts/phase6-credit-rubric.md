@@ -1,13 +1,14 @@
-# Phase-6-Credit-Rubrik — OWNER-ENTWURF
+# Phase-6-Credit-Rubrik — OWNER-FREIGEGEBEN
 
-Status: `DRAFT_OWNER_APPROVAL_REQUIRED`
+Status: `APPROVED`
 Version: `phase6-credit-rubric-draft-v1`
 Erstellt: `2026-08-29`
 Zelle: `phase_6`
 Aktueller evidenzbasierter Credit: `90`
 Offener Hosted-Scale-Credit: `10`
 Summe: `100`
-Credit-Anwendung erlaubt: `false`
+Credit-Anwendung erlaubt: `true`
+Owner-Freigabe-Ref: `CODEX_UEBERGABE_MASTER_2026-08-29.md :: B1 Owner-Freigabe 2026-08-31 (Owner strazzusochr, an Claude delegiert)`
 
 Dieser Entwurf strukturiert den bestehenden P6-Stand und den einzigen offenen Block. Er
 aendert weder P6 `90` noch Overall `89`, das Gate `phase6_scale_runtime`, Hosted State,

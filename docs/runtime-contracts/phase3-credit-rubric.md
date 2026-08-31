@@ -1,13 +1,14 @@
-# Phase-3-Credit-Rubrik — OWNER-ENTWURF
+# Phase-3-Credit-Rubrik — OWNER-FREIGEGEBEN
 
-Status: `DRAFT_OWNER_APPROVAL_REQUIRED`
+Status: `APPROVED`
 Version: `phase3-credit-rubric-draft-v1`
 Erstellt: `2026-08-29`
 Zelle: `phase_3`
 Aktueller evidenzbasierter Credit: `44`
 Offener Hosted-OAuth-Credit: `56`
 Summe: `100`
-Credit-Anwendung erlaubt: `false`
+Credit-Anwendung erlaubt: `true`
+Owner-Freigabe-Ref: `CODEX_UEBERGABE_MASTER_2026-08-29.md :: B1 Owner-Freigabe 2026-08-31 (Owner strazzusochr, an Claude delegiert)`
 
 Dieser Entwurf definiert nur eine entscheidbare Messlatte. Er aendert weder P3 `44` noch
 Overall `89`, ein Capability-Gate, `live_verified`, eine Hosted-Konfiguration oder eine

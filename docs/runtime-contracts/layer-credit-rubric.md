@@ -1,14 +1,16 @@
-# Layer-Credit-Rubrik fuer L4 und L5 — OWNER-ENTWURF
+# Layer-Credit-Rubrik fuer L4 und L5 — OWNER-FREIGEGEBEN
 
-Status: `DRAFT_OWNER_APPROVAL_REQUIRED`  
+Status: `APPROVED`  
 Version: `layer-credit-rubric-draft-v1`  
 Erstellt: `2026-08-29`  
-Credit-Anwendung erlaubt: `false`
+Credit-Anwendung erlaubt: `true`
+Owner-Freigabe-Ref: `CODEX_UEBERGABE_MASTER_2026-08-29.md :: B1 Owner-Freigabe 2026-08-31 (Owner strazzusochr, an Claude delegiert)`
 
-Diese Datei ist der in V0 geforderte, **nicht freigegebene** Entwurf. Sie aendert
-keinen Prozentwert, kein Gate und keinen `live_verified`-Status. Die Punkte sind
-ein Vorschlag fuer die Owner-Entscheidung. Erst ein spaeterer, getrennter
-Owner-Freigabe-Commit darf einen evidenzberechnenden Verifier aktivieren.
+Diese Datei ist **freigegeben**. Die Freigabe legt ausschliesslich die Messlatte fest:
+welche Kriterien zaehlen, mit welchen Punkten, und welcher Verifier sie beweisen muss.
+Sie aendert **keinen** Prozentwert, **kein** Gate und **keinen** `live_verified`-Status —
+L4 bleibt `55`, L5 bleibt `56`, bis die benannten Verifier gegen den gehosteten Stack
+real gruen laufen. Jede als `offen` markierte Zeile bleibt offen, bis ihr Beweis vorliegt.
 
 Beweisregeln:
 
