@@ -355,13 +355,14 @@ jobs:
         working-directory: apps/frontend
         run: npm audit --audit-level=moderate
 
+      - name: Cloudflare stateful runtime install
+        run: npm ci --ignore-scripts --prefix services/cloudflare-stateful-runtime
+
       - name: OAuth boundary unit contract
         run: npm run verify:oauth-boundary
 
       - name: Cloudflare stateful runtime audit contract
-        run: |
-          npm ci --ignore-scripts --prefix services/cloudflare-stateful-runtime
-          npm test --prefix services/cloudflare-stateful-runtime
+        run: npm test --prefix services/cloudflare-stateful-runtime
 
       - name: Cloudflare LLM gateway contract
         run: |

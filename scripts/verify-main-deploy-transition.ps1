@@ -225,6 +225,13 @@ Assert-Contains "reusable candidate CI creates isolated control truth" $prCheck 
 Assert-Contains "reusable candidate CI runs the control-truth verifier" $prCheck 'python "$CONTROL_TRUTH_DIR/scripts/verify_phase5_credit_itemization.py"'
 Assert-True "main publication workflow cannot enable source prequalification" (-not $workflow.Contains('source_prequalification'))
 Assert-Contains "OAuth CI line is preserved" $prCheck 'run: npm run verify:oauth-boundary'
+Assert-Count "stateful runtime dependency install occurs exactly once" `
+  $prCheck `
+  'npm ci --ignore-scripts --prefix services/cloudflare-stateful-runtime' `
+  1
+Assert-Regex "stateful runtime dependencies precede OAuth and runtime tests" `
+  $prCheck `
+  '(?ms)npm ci --ignore-scripts --prefix services/cloudflare-stateful-runtime.*?run: npm run verify:oauth-boundary.*?run: npm test --prefix services/cloudflare-stateful-runtime'
 Assert-Contains "backend auth security tests are CI-gated" $prCheck 'python -m unittest discover -s services/agent-api/tests -p test_auth_security.py -v'
 Assert-Contains "Phase-6 scale static contracts are CI-gated" $prCheck 'run: npm run verify:phase6-scale:static'
 Assert-Contains "Cloudflare stateful runtime tests are CI-gated" $prCheck 'npm test --prefix services/cloudflare-stateful-runtime'

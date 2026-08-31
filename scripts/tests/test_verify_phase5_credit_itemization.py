@@ -823,6 +823,20 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         self.assertIn('os.environ["RUNNER_TEMP"]', source)
         self.assertNotIn("source_prequalification = candidate_sha != control_sha", source)
 
+    def test_pr_check_installs_stateful_runtime_before_oauth_boundary(self) -> None:
+        source = (REPO_ROOT / ".github" / "workflows" / "pr-check.yml").read_text(
+            encoding="utf-8"
+        )
+        install = "npm ci --ignore-scripts --prefix services/cloudflare-stateful-runtime"
+        oauth = "run: npm run verify:oauth-boundary"
+        stateful_test = "run: npm test --prefix services/cloudflare-stateful-runtime"
+
+        self.assertEqual(source.count(install), 1)
+        self.assertEqual(source.count(oauth), 1)
+        self.assertEqual(source.count(stateful_test), 1)
+        self.assertLess(source.index(install), source.index(oauth))
+        self.assertLess(source.index(oauth), source.index(stateful_test))
+
     def test_pr_check_prequalification_accepts_only_exact_post_selection_manifest_drift(self) -> None:
         source = (REPO_ROOT / ".github" / "workflows" / "pr-check.yml").read_text(
             encoding="utf-8"
