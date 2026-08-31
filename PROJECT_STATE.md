@@ -41,6 +41,12 @@ Letzte Aktualisierung: 2026-08-31
   diese Paritaet offen. `npm run verify:market-ready:static` verweigert folgerichtig
   `MARKET_READY` wegen der unter-100-Zellen/Owner-Gates und der bewusst bewahrten fremden
   Dirty-Evidence-Pfade.
+- **Truth-Sync und Delta-Ledger-Protokoll gruen:** Measurement-Ref `8adb6183` bestand
+  `pr-check` `33391613008` mit `30/30`, `0` skipped und `0` failed; Remote-Head und
+  Run-Head waren identisch. Der synthetische Ledger-Test bestand `27/27`, einschliesslich
+  Source-/Ancestor-, Projection-Hash-, Prozent-, Overall-, Baseline-, Artefakt- und
+  Scorer-Negativfaellen. Das reale Ledger bleibt `entries=0`; alle Prozente bleiben
+  unveraendert.
 
 ### Session 2026-08-29 — RC23 lokal qualifiziert und ausgewaehlt
 

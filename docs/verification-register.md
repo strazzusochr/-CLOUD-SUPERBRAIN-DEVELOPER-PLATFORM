@@ -49,6 +49,15 @@ Read-only hosted remeasurement: Worker `bc0f4dc8` returned health `200`, project
 L4/L5 hosted verifier scripts exist in the selected source, but no L4/L5 credit is awarded
 without rubric approval, exact hosted source parity, and their real hosted runs.
 
+Truth-document measurement ref `8adb6183` passed final-head `pr-check` `33391613008` with
+`30/30`, `0` skipped and `0` failed. Local command
+`py -3 -m unittest scripts.tests.test_verify_project_progress_manifest -v` passed `27/27`:
+the source-bound synthetic P3 replay is accepted, while wrong/unavailable/non-ancestor
+sources, projection drift, percent above 100, bad overall/baseline chain, missing or
+hash-mismatched artifacts, and unapproved/failed/timed-out scorers are rejected. The real
+ledger still has `entries=0`; this protocol proof grants no credit and changes no manifest
+value.
+
 ## Current RC23 Local Qualification Evidence
 
 Recorded 2026-08-29. Active candidate `prod-candidate-2026-08-29-local-rc23` is bound

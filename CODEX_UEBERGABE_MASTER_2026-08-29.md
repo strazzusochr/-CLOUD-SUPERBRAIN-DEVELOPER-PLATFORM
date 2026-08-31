@@ -51,6 +51,14 @@ hinter RC24-Source. Alle zehn L4/L5-Hosted-Verifier existieren jetzt als echte S
 ohne Rubrikfreigabe, Source-Rebind und reale Hosted-Laeufe bleiben L4/L5 trotzdem bei
 `55/56`. Diese RC24-Messung ersetzt entgegenstehende historische Aussagen weiter unten.
 
+Truth-Doku-Measurement-Ref `8adb6183` wurde lokal fast-forward integriert und durch
+`pr-check` `33391613008` auf exakt diesem SHA mit `30/30`, `0` skipped und `0` failed
+verifiziert. Der Delta-Ledger-Protokoll-Probelauf bestand lokal `27/27`; alle geforderten
+Negativfaelle greifen, waehrend das reale Ledger bei `entries=0` und alle Prozente
+unveraendert bleiben. Die nachfolgende reine Doku-Synchronisation gilt ueber die bestehende
+dynamische Regel: Remote-Feature-Head muss exakt dem neuesten erfolgreichen `pr-check`
+mit `skipped=0` und `failed=0` entsprechen.
+
 Die folgenden historischen Abschnitte bleiben als Diagnoseverlauf erhalten. Fuer den
 aktuellen Kandidaten und die aktuellen Non-Claims haben diese RC24-Aktualisierung,
 `PROJECT_STATE.md`, `AI_HANDOFF.md` und der Verification Register Vorrang.
@@ -61,6 +69,7 @@ aktuellen Kandidaten und die aktuellen Non-Claims haben diese RC24-Aktualisierun
 
 | Groesse | Wert |
 | --- | --- |
+| Truth-Doku-Measurement | `8adb6183` — `pr-check` `33391613008`, `30/30`, `0` skipped/failed |
 | Selection-Head | `378a66bf` — gepusht, `pr-check` `33369934779` `30/30` gruen |
 | RC24 Source / Control | `1cb03979` / `d016e4b9` |
 | Hosted Worker | `cloud-superbrain-stateful-runtime.strazzusochr.workers.dev` |

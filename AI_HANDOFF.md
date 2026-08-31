@@ -52,6 +52,13 @@ contracts, but they receive no credit before rubric approval, source rebind and 
 runs. Market progress may move only after the remaining Owner-gated evidence is real and
 accepted through the delta ledger.
 
+Truth-document measurement ref `8adb6183` passed `pr-check` `33391613008` on that exact
+remote head with `30/30`, zero skipped and zero failed. The synthetic delta-ledger protocol
+suite passed `27/27`, including fail-closed source/ancestor, projection-hash, percent,
+overall, baseline-chain, artifact and scorer cases. The real ledger remains empty and no
+progress value changed. The next truth-only documentation commit is accepted through the
+same dynamic final-head predicate; no self-referential future run ID is embedded.
+
 ## Current RC23 Handoff — 2026-08-29
 
 Active locally qualified candidate: `prod-candidate-2026-08-29-local-rc23`, frozen source

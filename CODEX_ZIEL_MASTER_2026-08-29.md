@@ -3,7 +3,7 @@
 Status: `ACTIVE_CURRENT_TRUTH`
 Stand: **2026-08-31**
 Branch: `codex/organism-visual-v2`
-Truth-HEAD: **`406e3187`**
+Measurement-Ref: **`8adb6183`** (Truth-Doku; Runtime-/Candidate-Source unveraendert)
 RC24 Qualification Source: **`1cb03979`** · Control: **`d016e4b9`** · Selection: **`378a66bf`**
 Hosted Worker: **`bc0f4dc8`** — acht Commits hinter RC24-Source
 Market Status: `MARKET_READY:false` — Overall `89`, Delta-Ledger `0`
@@ -21,7 +21,7 @@ Gueltig sind ausschliesslich diese beiden Dateien. Ueberholt und im Kopf markier
 `CODEX_MASTER_GOAL_FINALE.md`.
 
 **Diese Fassung ist vollstaendig neu geschrieben.** Sie enthaelt keine ueberholten Stufen
-mehr. Alles, was hier steht, ist gegen `406e3187`, gegen D1 oder gegen den Live-Endpunkt
+mehr. Alles, was hier steht, ist gegen `8adb6183`, gegen D1 oder gegen den Live-Endpunkt
 gemessen.
 
 ---
@@ -289,11 +289,17 @@ schlaegt fehl. Fuer `I5` gilt das **nicht** — dort genuegt der Beweis.
 ### S7 — Delta-Ledger und Finalstack
 
 `docs/runtime-state/project-progress-delta-ledger.json` ist der **einzige** zugelassene Weg,
-eine Manifestzelle zu bewegen. `entries = 0`, `baseline.source_sha = 9a3776ff`. Der
-Mechanismus ist bis heute **nie** erprobt — der erste echte Kredit ist zugleich sein erster
-Test. Vorher einen synthetischen Probeeintrag mit Negativfaellen fahren (falscher
-`source_sha`, falscher Projection-Hash, Zelle ausserhalb 0–100, Summe passt nicht zu
-`overall`) und danach entfernen.
+eine Manifestzelle zu bewegen. `entries = 0`, `baseline.source_sha = 9a3776ff`.
+
+Der synthetische Protokoll-Probelauf ist am Measurement-Ref `8adb6183` erledigt:
+`py -3 -m unittest scripts.tests.test_verify_project_progress_manifest -v` bestand
+`27/27`. Er akzeptiert den source-gebundenen P3-Replay und weist unter anderem falschen
+`source_sha`, Nicht-Ancestor, falschen Projection-Hash, Prozent ueber 100, falschen
+`overall`, alte Prozent-/Baseline-Kette, fehlende oder hash-abweichende Artefakte sowie
+nicht approvierte/fehlgeschlagene/timeoutende Scorer fail-closed ab. Das reale Ledger blieb
+unveraendert leer; kein Prozentwert wurde bewegt. Der erste **reale Kredit** bleibt damit
+weiterhin die erste Production-Anwendung des Mechanismus, aber nicht mehr dessen erster
+Protokolltest.
 
 Je bewegter Zelle **ein** SHA-gebundener Eintrag. Danach muss
 `py -3 scripts/verify_project_progress_manifest.py` die neuen Werte akzeptieren. **Niemals**
