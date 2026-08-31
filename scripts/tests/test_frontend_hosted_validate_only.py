@@ -44,6 +44,33 @@ class FrontendHostedValidateOnlyTests(unittest.TestCase):
         )
         self.assertRegex(self.source, guarded_write)
 
+    def test_preview_target_normalizes_vercel_api_null_without_weakening_production(self) -> None:
+        for marker in (
+            '$ExpectedTarget -ceq "preview"',
+            '$deploymentTarget = "preview"',
+            '"Vercel frontend deployment target"',
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.source)
+
+        self.assertNotIn(
+            'Assert-True (-not [string]::IsNullOrWhiteSpace([string]$deployment.target))',
+            self.source,
+        )
+
+    def test_workspace_artifacts_accepts_only_the_exact_hosted_d1_read_contract(self) -> None:
+        for marker in (
+            '$path -ceq "/api/v1/workspace/artifacts"',
+            '[string]$responseJson.source -ceq "cloudflare-d1"',
+            '"cloudflare-d1-stateful-runtime-v1"',
+            '"hosted D1 artifact read persisted"',
+            '"hosted D1 artifact read direct_provider_calls"',
+            '"hosted D1 artifact read live_provider_calls"',
+            '"hosted D1 artifact read secret_output"',
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.source)
+
 
 if __name__ == "__main__":
     unittest.main()

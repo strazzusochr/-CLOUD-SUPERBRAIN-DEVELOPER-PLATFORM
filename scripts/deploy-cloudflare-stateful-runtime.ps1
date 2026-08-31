@@ -26,7 +26,8 @@ param(
   [switch]$EnableHostedMcpWrites,
   [string]$CandidateBranch = "",
   [string]$LayerCreditRubricApprovalSha = "",
-  [string]$HostedMcpOwnerGrantCommitSha = ""
+  [string]$HostedMcpOwnerGrantCommitSha = "",
+  [string]$CandidateFrontendEvidenceCommitSha = ""
 )
 
 Set-StrictMode -Version Latest
@@ -221,15 +222,33 @@ try {
   $resolved = (& git rev-parse --verify "$CommitSha^{commit}").Trim()
   Assert-True "commit resolved ($resolved)" ($LASTEXITCODE -eq 0 -and $resolved -match "^[0-9a-f]{40}$")
 
+  $archiveSha = Get-GitArchiveSha256 $repoRoot $resolved
+  Assert-True "source archive SHA-256 computed without a retained archive" ($archiveSha -match "^[0-9a-f]{64}$")
+
+  $frontendEvidenceCommit = $resolved
+  if (-not [string]::IsNullOrWhiteSpace($CandidateFrontendEvidenceCommitSha)) {
+    Assert-True "frontend evidence control commit SHA is lowercase" (
+      $CandidateFrontendEvidenceCommitSha -match "^[0-9a-f]{40}$"
+    )
+    $frontendEvidenceCommit = (& git rev-parse --verify "$CandidateFrontendEvidenceCommitSha^{commit}" 2>$null).Trim()
+    Assert-True "frontend evidence control commit resolved exactly" (
+      $LASTEXITCODE -eq 0 -and $frontendEvidenceCommit -ceq $CandidateFrontendEvidenceCommitSha
+    )
+  }
+  & git merge-base --is-ancestor $resolved $frontendEvidenceCommit 2>$null
+  Assert-True "frontend evidence control commit is an ancestor-descendant continuation of the selected source" (
+    $LASTEXITCODE -eq 0
+  )
+
   $frontendEvidencePath = "docs/runtime-state/frontend-hosted-current.json"
-  $trackedFrontendEvidence = @(& git show "$resolved`:$frontendEvidencePath" 2>$null)
-  Assert-True "tracked frontend hosted evidence loaded from the selected commit" (
+  $trackedFrontendEvidence = @(& git show "$frontendEvidenceCommit`:$frontendEvidencePath" 2>$null)
+  Assert-True "tracked frontend hosted evidence loaded from the evidence control commit" (
     $LASTEXITCODE -eq 0 -and $trackedFrontendEvidence.Count -gt 0
   )
   try {
     $frontendEvidence = ($trackedFrontendEvidence -join "`n") | ConvertFrom-Json
   } catch {
-    throw "Worker deploy precondition failed: selected commit frontend hosted evidence is not valid JSON"
+    throw "Worker deploy precondition failed: frontend evidence control commit is not valid JSON"
   }
   Assert-True "tracked frontend hosted evidence contract is supported" (
     [string]$frontendEvidence.contract_version -ceq "frontend-hosted-current-proof-v1" -and
@@ -243,6 +262,9 @@ try {
     ([string]$frontendEvidence.source_commit_sha).Trim()
   } else { "" }
   Assert-True "tracked frontend evidence has a lowercase source commit" ($trackedFrontendSourceSha -match "^[0-9a-f]{40}$")
+  $trackedFrontendArchiveSha = if ($frontendEvidence.source_archive_sha256 -is [string]) {
+    ([string]$frontendEvidence.source_archive_sha256).Trim()
+  } else { "" }
 
   $candidateOriginRequired = -not $ValidateOnly
   Assert-True "candidate frontend origin is required for dry-run or publish" (
@@ -260,6 +282,29 @@ try {
     )
     Assert-True "tracked immutable frontend deployment is bound to the selected commit" (
       $trackedFrontendSourceSha -ceq $resolved
+    )
+    Assert-True "candidate frontend evidence target is preview" (
+      [string]$frontendEvidence.vercel_target -ceq "preview"
+    )
+    Assert-True "candidate frontend evidence archive matches the selected source" (
+      $trackedFrontendArchiveSha -match "^[0-9a-f]{64}$" -and
+      $trackedFrontendArchiveSha -ceq $archiveSha
+    )
+    Assert-True "candidate frontend evidence metadata is verified" (
+      $frontendEvidence.deployment_metadata_verified -is [bool] -and
+      $frontendEvidence.deployment_metadata_verified -eq $true
+    )
+    Assert-True "candidate frontend evidence carries no production alias parity claim" (
+      $frontendEvidence.deployment_alias_content_parity -is [bool] -and
+      $frontendEvidence.deployment_alias_content_parity -eq $false
+    )
+    Assert-True "candidate frontend evidence carries no production deploy claim" (
+      $frontendEvidence.production_operational_deploy_verified -is [bool] -and
+      $frontendEvidence.production_operational_deploy_verified -eq $false
+    )
+    Assert-True "candidate frontend evidence carries no production release claim" (
+      $frontendEvidence.production_release_claimed -is [bool] -and
+      $frontendEvidence.production_release_claimed -eq $false
     )
   }
   $candidateOAuthCallback = if ($candidateFrontendOriginCanonical) {
@@ -445,9 +490,6 @@ try {
     $null = & git cat-file -e "$resolved`:$pinnedPath" 2>$null
     Assert-True "selected commit contains pinned Worker package metadata" ($LASTEXITCODE -eq 0)
   }
-
-  $archiveSha = Get-GitArchiveSha256 $repoRoot $resolved
-  Assert-True "source archive SHA-256 computed without a retained archive" ($archiveSha -match "^[0-9a-f]{64}$")
 
   $trackedPackageLockText = @(& git show "$resolved`:services/cloudflare-stateful-runtime/package-lock.json" 2>$null)
   Assert-True "selected commit package lock loaded" ($LASTEXITCODE -eq 0 -and $trackedPackageLockText.Count -gt 0)

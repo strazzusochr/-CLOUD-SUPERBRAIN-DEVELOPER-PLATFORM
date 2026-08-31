@@ -130,8 +130,15 @@ function Get-AuthenticatedDeployment([object]$Config, [string]$ExpectedTarget, [
 
   Assert-Equal ([string]$deployment.id) ([string]$Config.deployment_id) "Vercel frontend deployment id"
   Assert-Equal ([string]$deployment.readyState) "READY" "Vercel frontend deployment state"
-  Assert-True (-not [string]::IsNullOrWhiteSpace([string]$deployment.target)) "Vercel frontend deployment target is missing"
-  Assert-Equal ([string]$deployment.target) $ExpectedTarget "Vercel frontend deployment target"
+  $deploymentTarget = ([string]$deployment.target).Trim()
+  if ([string]::IsNullOrWhiteSpace($deploymentTarget) -and $ExpectedTarget -ceq "preview") {
+    # Vercel's public deployment API represents the default Preview environment
+    # with target=null. Only normalize that documented Preview encoding; a missing
+    # Production target must continue to fail closed.
+    $deploymentTarget = "preview"
+  }
+  Assert-True (-not [string]::IsNullOrWhiteSpace($deploymentTarget)) "Vercel frontend deployment target is missing"
+  Assert-Equal $deploymentTarget $ExpectedTarget "Vercel frontend deployment target"
   Assert-Equal ([string]$deployment.projectId) ([string]$Config.vercel_project_id) "Vercel frontend project id"
   Assert-Equal ([string]$deployment.project.id) ([string]$Config.vercel_project_id) "Vercel frontend nested project id"
   Assert-Equal ([string]$deployment.name) ([string]$Config.vercel_project_name) "Vercel frontend deployment project name"
@@ -425,12 +432,29 @@ try {
     }
     Assert-True ($null -ne $responseJson) "Hosted read endpoint returned null JSON: $path"
     if ($former500Paths -contains $path) {
-      Assert-Equal ([string]$responseJson.source) "frontend-projection" "former-500 source label $path"
-      foreach ($falseProperty in @(
-        "live_backend", "direct_provider_calls", "live_provider_calls",
-        "live_mcp_writes", "production_deploy", "secret_output"
-      )) {
-        Assert-JsonFalseProperty $responseJson $falseProperty "former-500 response $path"
+      if (
+        $path -ceq "/api/v1/workspace/artifacts" -and
+        [string]$responseJson.source -ceq "cloudflare-d1"
+      ) {
+        Assert-Equal ([string]$responseJson.contract_version) "cloudflare-d1-stateful-runtime-v1" "hosted D1 artifact read contract"
+        Assert-Equal ([string]$responseJson.status) "verified" "hosted D1 artifact read status"
+        $persistedProperty = $responseJson.PSObject.Properties["persisted"]
+        Assert-True (
+          $null -ne $persistedProperty -and
+          $persistedProperty.Value -is [bool] -and
+          $persistedProperty.Value -eq $true
+        ) "hosted D1 artifact read persisted"
+        Assert-JsonFalseProperty $responseJson "direct_provider_calls" "hosted D1 artifact read direct_provider_calls"
+        Assert-JsonFalseProperty $responseJson "live_provider_calls" "hosted D1 artifact read live_provider_calls"
+        Assert-JsonFalseProperty $responseJson "secret_output" "hosted D1 artifact read secret_output"
+      } else {
+        Assert-Equal ([string]$responseJson.source) "frontend-projection" "former-500 source label $path"
+        foreach ($falseProperty in @(
+          "live_backend", "direct_provider_calls", "live_provider_calls",
+          "live_mcp_writes", "production_deploy", "secret_output"
+        )) {
+          Assert-JsonFalseProperty $responseJson $falseProperty "former-500 response $path"
+        }
       }
     }
   }

@@ -146,6 +146,25 @@ class CloudflareOAuthDeployConfigTests(unittest.TestCase):
 
         self.assertNotIn("Push-Location $workerDir\n  try {\n    $null = & node @deployArgs", self.wrapper)
 
+    def test_candidate_frontend_evidence_is_bound_from_a_descendant_control_commit(self) -> None:
+        for marker in (
+            '[string]$CandidateFrontendEvidenceCommitSha = ""',
+            "frontend evidence control commit is an ancestor-descendant continuation of the selected source",
+            '& git show "$frontendEvidenceCommit`:$frontendEvidencePath"',
+            "candidate frontend evidence target is preview",
+            "candidate frontend evidence archive matches the selected source",
+            "candidate frontend evidence metadata is verified",
+            "candidate frontend evidence carries no production release claim",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.wrapper)
+
+        source_resolve = self.wrapper.index('$resolved = (& git rev-parse --verify "$CommitSha^{commit}").Trim()')
+        evidence_read = self.wrapper.index('& git show "$frontendEvidenceCommit`:$frontendEvidencePath"')
+        wrangler_invocation = self.wrapper.index("& node @deployArgs")
+        self.assertLess(source_resolve, evidence_read)
+        self.assertLess(evidence_read, wrangler_invocation)
+
     def test_hosted_mcp_activation_is_explicit_immutable_and_off_by_default(self) -> None:
         for marker in (
             "[switch]$EnableHostedMcpWrites",
