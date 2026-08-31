@@ -890,7 +890,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             self.assertIn(path, current_paths)
         self.assertIn("scripts\\verify_phase5_credit_itemization.py", current)
 
-    def test_pr_check_prequalification_accepts_only_exact_post_selection_manifest_drift(self) -> None:
+    def test_pr_check_prequalification_accepts_only_clean_or_exact_post_selection_manifest_drift(self) -> None:
         source = (REPO_ROOT / ".github" / "workflows" / "pr-check.yml").read_text(
             encoding="utf-8"
         )
@@ -911,8 +911,10 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         self.assertIn(f"expected_progress_drift=$'{expected_drift}'", step)
         self.assertIn('progress_output="$(python scripts/verify_project_progress_manifest.py 2>&1)"', step)
         self.assertIn("progress_exit=$?", step)
-        self.assertIn('if [[ "$progress_exit" -ne 1 ]]; then', step)
+        self.assertIn('case "$progress_exit" in', step)
+        self.assertIn("source_truth_clean=true", step)
         self.assertIn('if [[ "$progress_output" != "$expected_progress_drift" ]]; then', step)
+        self.assertIn("unexpected project-progress exit", step)
         self.assertEqual(step.count("python scripts/verify_project_progress_manifest.py"), 2)
         self.assertNotIn("python scripts/verify_project_progress_manifest.py || true", step)
 
@@ -927,14 +929,14 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         )
         for marker in (
             "project-progress source prequalification env is bound",
-            "project-progress prequalification requires exact exit 1",
+            "project-progress prequalification accepts verifier-clean truth",
             "project-progress prequalification requires exact drift output",
             "project-progress normal validation is retained",
             "project-progress manifest has no blanket bypass",
         ):
             self.assertIn(marker, transition)
 
-    def test_five_axis_prequalification_accepts_only_exact_post_selection_manifest_drift(self) -> None:
+    def test_five_axis_prequalification_accepts_only_clean_or_exact_post_selection_manifest_drift(self) -> None:
         source = (REPO_ROOT / ".github" / "workflows" / "pr-check.yml").read_text(
             encoding="utf-8"
         )
@@ -963,14 +965,16 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         self.assertIn(f"expected_five_axis_drift=$'{expected_drift}'", step)
         self.assertIn("await import(\"./scripts/verify-five-axis-substance-audit.mjs\")", step)
         self.assertIn("five_axis_exit=$?", step)
-        self.assertIn('if [[ "$five_axis_exit" -ne 1 ]]; then', step)
+        self.assertIn('case "$five_axis_exit" in', step)
+        self.assertIn("source_truth_clean=true", step)
         self.assertIn('if [[ "$five_axis_output" != "$expected_five_axis_drift" ]]; then', step)
+        self.assertIn("unexpected five-axis exit", step)
         self.assertIn("            false)", step)
         self.assertIn("            *)", step)
         self.assertIn("unexpected SOURCE_PREQUALIFICATION value", step)
         self.assertEqual(
             step.count("node --test scripts/tests/five-axis-delta-ledger-regression.test.mjs"),
-            1,
+            2,
         )
         self.assertEqual(step.count("node scripts/verify-five-axis-substance-audit.mjs"), 1)
         self.assertNotIn("|| true", step)
@@ -981,7 +985,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         )
         for marker in (
             "five-axis source prequalification env is bound",
-            "five-axis prequalification requires exact exit 1",
+            "five-axis prequalification accepts verifier-clean truth",
             "five-axis prequalification requires exact drift output",
             "five-axis normal validation is retained",
             "five-axis prequalification rejects unexpected mode values",

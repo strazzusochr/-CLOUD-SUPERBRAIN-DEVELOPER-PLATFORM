@@ -147,9 +147,12 @@ Assert-Contains "project-progress source prequalification env is bound" `
 Assert-Contains "project-progress prequalification remains explicit" `
   $projectProgressStep `
   'if [[ "$SOURCE_PREQUALIFICATION" == "true" ]]; then'
-Assert-Contains "project-progress prequalification requires exact exit 1" `
+Assert-Contains "project-progress prequalification accepts verifier-clean truth" `
   $projectProgressStep `
-  'if [[ "$progress_exit" -ne 1 ]]; then'
+  '[project-progress] source_prequalification=true source_truth_clean=true'
+Assert-Contains "project-progress prequalification rejects unexpected exits" `
+  $projectProgressStep `
+  'source prequalification received unexpected project-progress exit'
 Assert-Contains "project-progress prequalification requires exact drift output" `
   $projectProgressStep `
   'if [[ "$progress_output" != "$expected_progress_drift" ]]; then'
@@ -184,9 +187,12 @@ Assert-Contains "five-axis prequalification remains explicit" `
 Assert-Contains "five-axis prequalification keeps negative ledger regressions" `
   $fiveAxisStep `
   "--test-name-pattern='^(rejects the retired v1 permanent-empty ledger contract without browser evidence|rejects a structurally typed but unauthenticated v2 ledger entry|keeps future evidence-backed vertical deltas reachable)$'"
-Assert-Contains "five-axis prequalification requires exact exit 1" `
+Assert-Contains "five-axis prequalification accepts verifier-clean truth" `
   $fiveAxisStep `
-  'if [[ "$five_axis_exit" -ne 1 ]]; then'
+  '[five-axis-audit] source_prequalification=true source_truth_clean=true'
+Assert-Contains "five-axis prequalification rejects unexpected exits" `
+  $fiveAxisStep `
+  'source prequalification received unexpected five-axis exit'
 Assert-Contains "five-axis prequalification requires exact drift output" `
   $fiveAxisStep `
   'if [[ "$five_axis_output" != "$expected_five_axis_drift" ]]; then'
