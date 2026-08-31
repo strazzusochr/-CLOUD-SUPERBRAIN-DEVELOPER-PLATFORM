@@ -49,7 +49,8 @@ Read-only hosted remeasurement: Worker `bc0f4dc8` returned health `200`, project
 L4/L5 hosted verifier scripts exist in the selected source, but no L4/L5 credit is awarded
 without rubric approval, exact hosted source parity, and their real hosted runs.
 
-Truth-document measurement ref `8adb6183` passed final-head `pr-check` `33391613008` with
+The ledger proof built from truth-document measurement ref `8adb6183` is pushed as
+final-head commit `20daf6e`; `pr-check` `33392612132` ran on that exact SHA and passed
 `30/30`, `0` skipped and `0` failed. Local command
 `py -3 -m unittest scripts.tests.test_verify_project_progress_manifest -v` passed `27/27`:
 the source-bound synthetic P3 replay is accepted, while wrong/unavailable/non-ancestor
@@ -57,6 +58,15 @@ sources, projection drift, percent above 100, bad overall/baseline chain, missin
 hash-mismatched artifacts, and unapproved/failed/timed-out scorers are rejected. The real
 ledger still has `entries=0`; this protocol proof grants no credit and changes no manifest
 value.
+
+Read-only GitHub/gate remeasurement at `20daf6e` corrects B3 provisioning without opening
+the gate: environment `phase6-scale-hosted-writes` exists and exposes only the secret name
+`AGENT_API_AUTH_TOKEN`, while workflow blob `0b2f7e3b` exists on the feature branch but the
+file is absent from default branch `chore/repo-bootstrap`.
+`phase6_scale_runtime.owner_granted=false`, so provisioning is `2/3` and B3 is closed.
+Default still has old `main-deploy` blob `555e8325` instead of safe feature blob
+`14e84b31`; `docker_registry_publish.owner_granted=false`, so B4 is closed. No secret value,
+default-branch write, dispatch, publication, gate approval or progress credit occurred.
 
 ## Current RC23 Local Qualification Evidence
 

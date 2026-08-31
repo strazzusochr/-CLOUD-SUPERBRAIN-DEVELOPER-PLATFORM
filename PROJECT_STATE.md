@@ -41,12 +41,19 @@ Letzte Aktualisierung: 2026-08-31
   diese Paritaet offen. `npm run verify:market-ready:static` verweigert folgerichtig
   `MARKET_READY` wegen der unter-100-Zellen/Owner-Gates und der bewusst bewahrten fremden
   Dirty-Evidence-Pfade.
-- **Truth-Sync und Delta-Ledger-Protokoll gruen:** Measurement-Ref `8adb6183` bestand
-  `pr-check` `33391613008` mit `30/30`, `0` skipped und `0` failed; Remote-Head und
-  Run-Head waren identisch. Der synthetische Ledger-Test bestand `27/27`, einschliesslich
-  Source-/Ancestor-, Projection-Hash-, Prozent-, Overall-, Baseline-, Artefakt- und
-  Scorer-Negativfaellen. Das reale Ledger bleibt `entries=0`; alle Prozente bleiben
-  unveraendert.
+- **Truth-Sync und Delta-Ledger-Protokoll gruen:** Der auf Measurement-Ref `8adb6183`
+  aufbauende Ledger-Nachweis ist als final-head Commit `20daf6e` gepusht; `pr-check`
+  `33392612132` bestand auf exakt diesem SHA mit `30/30`, `0` skipped und `0` failed.
+  Der synthetische Ledger-Test bestand `27/27`, einschliesslich Source-/Ancestor-,
+  Projection-Hash-, Prozent-, Overall-, Baseline-, Artefakt- und Scorer-Negativfaellen.
+  Das reale Ledger bleibt `entries=0`; alle Prozente bleiben unveraendert.
+- **B3/B4 read-only korrigiert:** GitHub fuehrt jetzt das Environment
+  `phase6-scale-hosted-writes` mit Secret-Name `AGENT_API_AUTH_TOKEN`; der Phase-6-Workflow
+  liegt als Blob `0b2f7e3b` aber nur auf dem Feature-Branch und fehlt auf Default
+  `chore/repo-bootstrap`. `phase6_scale_runtime.owner_granted=false`, also B3-Provisioning
+  `2/3`, B3 weiterhin geschlossen. Default traegt fuer `main-deploy` den alten Blob
+  `555e8325` statt `14e84b31`; `docker_registry_publish.owner_granted=false`, also B4
+  weiterhin geschlossen. Keine Gate-Freigabe, kein Secret-Wert und kein Prozentcredit.
 
 ### Session 2026-08-29 — RC23 lokal qualifiziert und ausgewaehlt
 

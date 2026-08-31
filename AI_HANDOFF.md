@@ -52,12 +52,23 @@ contracts, but they receive no credit before rubric approval, source rebind and 
 runs. Market progress may move only after the remaining Owner-gated evidence is real and
 accepted through the delta ledger.
 
-Truth-document measurement ref `8adb6183` passed `pr-check` `33391613008` on that exact
-remote head with `30/30`, zero skipped and zero failed. The synthetic delta-ledger protocol
-suite passed `27/27`, including fail-closed source/ancestor, projection-hash, percent,
-overall, baseline-chain, artifact and scorer cases. The real ledger remains empty and no
-progress value changed. The next truth-only documentation commit is accepted through the
-same dynamic final-head predicate; no self-referential future run ID is embedded.
+The ledger proof built from truth-document measurement ref `8adb6183` is pushed as
+final-head commit `20daf6e`; `pr-check` `33392612132` ran on that exact SHA and passed
+`30/30`, zero skipped and zero failed. The synthetic delta-ledger protocol suite passed
+`27/27`, including fail-closed source/ancestor, projection-hash, percent, overall,
+baseline-chain, artifact and scorer cases. The real ledger remains empty and no progress
+value changed. The next truth-only documentation commit is accepted through the same
+dynamic final-head predicate; no self-referential future run ID is embedded.
+
+Read-only B3/B4 re-audit at `20daf6e`: GitHub now has environment
+`phase6-scale-hosted-writes` and secret name `AGENT_API_AUTH_TOKEN`. Its workflow blob
+`0b2f7e3b` exists only on the feature branch and the file is absent from default branch
+`chore/repo-bootstrap`; `phase6_scale_runtime.owner_granted=false`. B3 provisioning is
+therefore `2/3` and B3 remains closed. Default still carries old `main-deploy` blob
+`555e8325` instead of safe feature blob `14e84b31`, while
+`docker_registry_publish.owner_granted=false`; B4 remains closed. This supersedes the older
+historical statement below that the Phase-6 environment itself is absent. No approval,
+secret value, provider write, publication or progress credit occurred.
 
 ## Current RC23 Handoff — 2026-08-29
 

@@ -3,7 +3,7 @@
 Status: `ACTIVE_CURRENT_TRUTH`
 Stand: **2026-08-31**
 Branch: `codex/organism-visual-v2`
-Measurement-Ref: **`8adb6183`** (Truth-Doku; Runtime-/Candidate-Source unveraendert)
+Measurement-Ref: **`20daf6e`** (final-head Truth-Doku; Runtime-/Candidate-Source unveraendert)
 RC24 Qualification Source: **`1cb03979`** · Control: **`d016e4b9`** · Selection: **`378a66bf`**
 Hosted Worker: **`bc0f4dc8`** — acht Commits hinter RC24-Source
 Market Status: `MARKET_READY:false` — Overall `89`, Delta-Ledger `0`
@@ -21,7 +21,7 @@ Gueltig sind ausschliesslich diese beiden Dateien. Ueberholt und im Kopf markier
 `CODEX_MASTER_GOAL_FINALE.md`.
 
 **Diese Fassung ist vollstaendig neu geschrieben.** Sie enthaelt keine ueberholten Stufen
-mehr. Alles, was hier steht, ist gegen `8adb6183`, gegen D1 oder gegen den Live-Endpunkt
+mehr. Alles, was hier steht, ist gegen `20daf6e`, gegen D1 oder gegen den Live-Endpunkt
 gemessen.
 
 ---
@@ -51,7 +51,7 @@ Delta-Ledger: 0 Eintraege
 | --- | ---: | --- |
 | P3 | **+56** | OAuth-Kette ist hosted gefahren. Es fehlen **5 von 12** Evidence-Schritten, das Evidence-Dokument und B1. |
 | P5 | **+11** | `I5` faellt evidenzgetrieben nach P3. `I1` braucht Hosted-Candidate-Paritaet **plus** Codeaenderung. |
-| P6 | **+10** | Verifier ist scharf, aber Environment und Secret fehlen (B3). Der alte 900er-Lauf zaehlt nicht. |
+| P6 | **+10** | Verifier ist scharf. Environment und Secret existieren; Default-Branch-Workflow und B3-Freigabe fehlen. Der alte 900er-Lauf zaehlt nicht. |
 | L4 | **+45** | Verifier sind jetzt **echt**. Es fehlen B1-Approval-Commit, Source-Rebind und die realen Hosted-Laeufe. |
 | L5 | **+44** | Dito, inkl. echtem SBOM. |
 
@@ -244,6 +244,11 @@ Voraussetzung **B3**: GitHub-Environment `phase6-scale-hosted-writes` existiert,
 das Secret `AGENT_API_AUTH_TOKEN`, und `.github/workflows/phase6-scale-runtime.yml` liegt
 auf dem **Default-Branch**. Alle drei Teile sind noetig, nicht zwei.
 
+Read-only neu gemessen an `20daf6e`: Environment und Secret-Name sind vorhanden. Der
+Feature-Branch traegt Workflow-Blob `0b2f7e3b86483719e28a8505289a692b501511e1`, auf dem
+Default-Branch `chore/repo-bootstrap` fehlt die Datei weiterhin. Das Provisioning steht
+damit bei `2/3`; `phase6_scale_runtime.owner_granted=false`, also bleibt **B3 geschlossen**.
+
 Der vorhandene 900er-Lauf zaehlt **nicht** — er lief am Verifier vorbei, waehrend das Gate
 `phase6_scale_runtime` auf `owner_granted=false` stand, und liefert weder D1-Readback noch
 No-Loss/No-Duplicate-Zaehlung noch Cleanup-Semantik noch Control-Tier.
@@ -336,8 +341,8 @@ Ledger enthaelt die legitimen Eintraege, Hosted-SHA = Kandidatenquelle, keine
 | --- | --- | --- |
 | **B1** | Die drei Rubriken freigeben — **als Commit**, dessen SHA jeder Verifier bekommt | L4 +45, L5 +44, P3 +56, P6 +10 |
 | **B2** | OAuth-ADR festschreiben (`owner_architecture_decision_ref`, `owner_approved`, `selected_architecture`) | P3-Evidence |
-| **B3** | Environment `phase6-scale-hosted-writes` + Secret `AGENT_API_AUTH_TOKEN` + Workflow auf Default-Branch | P6 +10 |
-| **B4** | `main-deploy`-Blob auf Default, dispatchen, `registry-publication` freigeben | GHCR / I1 |
+| **B3** | Provisioning `2/3`: Environment + Secret vorhanden; Workflow auf Default und explizite Gate-Freigabe fehlen | P6 +10 |
+| **B4** | Default traegt alten `main-deploy`-Blob `555e8325` statt `14e84b31`; dispatchen und `registry-publication` freigeben | GHCR / I1 |
 | **B5** | Hosted-Deploy-Freigabe fuer Worker **und** Vercel-Frontend aus derselben Quelle | S2, S4 |
 
 ### Drei Waende, die keine Freigabe verschiebt

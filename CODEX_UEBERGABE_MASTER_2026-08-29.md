@@ -51,13 +51,23 @@ hinter RC24-Source. Alle zehn L4/L5-Hosted-Verifier existieren jetzt als echte S
 ohne Rubrikfreigabe, Source-Rebind und reale Hosted-Laeufe bleiben L4/L5 trotzdem bei
 `55/56`. Diese RC24-Messung ersetzt entgegenstehende historische Aussagen weiter unten.
 
-Truth-Doku-Measurement-Ref `8adb6183` wurde lokal fast-forward integriert und durch
-`pr-check` `33391613008` auf exakt diesem SHA mit `30/30`, `0` skipped und `0` failed
+Truth-Doku-Measurement-Ref `8adb6183` wurde lokal fast-forward integriert; der darauf
+aufbauende Ledger-Protokoll-Nachweis ist als final-head Commit `20daf6e` gepusht und durch
+`pr-check` `33392612132` auf exakt diesem SHA mit `30/30`, `0` skipped und `0` failed
 verifiziert. Der Delta-Ledger-Protokoll-Probelauf bestand lokal `27/27`; alle geforderten
 Negativfaelle greifen, waehrend das reale Ledger bei `entries=0` und alle Prozente
-unveraendert bleiben. Die nachfolgende reine Doku-Synchronisation gilt ueber die bestehende
+unveraendert bleiben. Weitere reine Doku-Synchronisation gilt ueber die bestehende
 dynamische Regel: Remote-Feature-Head muss exakt dem neuesten erfolgreichen `pr-check`
 mit `skipped=0` und `failed=0` entsprechen.
+
+Read-only B3/B4-Reaudit an `20daf6e`: Das Environment `phase6-scale-hosted-writes` und der
+Secret-Name `AGENT_API_AUTH_TOKEN` existieren jetzt. Der zugehoerige Workflow liegt als Blob
+`0b2f7e3b` nur auf dem Feature-Branch und fehlt auf Default `chore/repo-bootstrap`; das Gate
+`phase6_scale_runtime` bleibt `owner_granted=false`. Default traegt fuer `main-deploy`
+weiter Blob `555e8325` statt des sicheren Feature-Blobs `14e84b31`; auch
+`docker_registry_publish` bleibt `owner_granted=false`. Damit ist B3-Provisioning `2/3`,
+B3/B4 bleiben geschlossen. Dies ersetzt historische Aussagen weiter unten, das Environment
+fehle vollstaendig. Keine Freigabe, kein Secret-Wert und kein Prozentcredit wurden erzeugt.
 
 Die folgenden historischen Abschnitte bleiben als Diagnoseverlauf erhalten. Fuer den
 aktuellen Kandidaten und die aktuellen Non-Claims haben diese RC24-Aktualisierung,
@@ -69,7 +79,7 @@ aktuellen Kandidaten und die aktuellen Non-Claims haben diese RC24-Aktualisierun
 
 | Groesse | Wert |
 | --- | --- |
-| Truth-Doku-Measurement | `8adb6183` — `pr-check` `33391613008`, `30/30`, `0` skipped/failed |
+| Truth-Doku-Measurement | `20daf6e` — `pr-check` `33392612132`, `30/30`, `0` skipped/failed |
 | Selection-Head | `378a66bf` — gepusht, `pr-check` `33369934779` `30/30` gruen |
 | RC24 Source / Control | `1cb03979` / `d016e4b9` |
 | Hosted Worker | `cloud-superbrain-stateful-runtime.strazzusochr.workers.dev` |
