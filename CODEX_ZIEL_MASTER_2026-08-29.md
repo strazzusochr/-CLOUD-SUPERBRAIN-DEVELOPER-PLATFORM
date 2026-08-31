@@ -6,7 +6,12 @@ Branch: `codex/organism-visual-v2`
 Measurement-Ref: **`20daf6e`** (final-head Truth-Doku; Runtime-/Candidate-Source unveraendert)
 RC24 Qualification Source: **`1cb03979`** · Control: **`d016e4b9`** · Selection: **`378a66bf`**
 Hosted Worker: **`bc0f4dc8`** — acht Commits hinter RC24-Source
+**B1 ERTEILT 2026-08-31** — `RubricApprovalCommit = e87c28a7c6cf32982caa849794042daa53ef022a`
 Market Status: `MARKET_READY:false` — Overall `89`, Delta-Ledger `0`
+
+> **Naechster Schritt ist S2.** S1 (B1) ist erledigt. Die Verifier sind ab jetzt startbar,
+> sobald der Kandidat den Approval-Commit als Ancestor enthaelt — RC24 tut das **nicht**,
+> RC25 muss auf `e87c28a7` oder spaeter eingefroren werden.
 
 **Dies ist die einzige Zieldatei.** Sie sagt, *was zu tun ist*.
 Die Lage steht in `CODEX_UEBERGABE_MASTER_2026-08-29.md`.
@@ -64,26 +69,38 @@ Delta-Ledger: 0 Eintraege
 ## 3. Kritischer Pfad
 
 ```text
-S1  B1  Rubriken freigeben  ──────────────┐  HARTER ENGPASS
-      (Approval-COMMIT, nicht nur Text)   │  ohne ihn laufen die L4/L5-Verifier gar nicht
+S1  B1  Rubriken freigeben  ── ERLEDIGT 2026-08-31  e87c28a7
                                           │
-S2  B5 + Hosted-Rebind auf RC24-Source ───┤  Voraussetzung fuer jeden Hosted-Beweis
+S1b RC25 an einem Commit einfrieren, ─────┤  RC24 liegt VOR dem Approval-Commit
+    der e87c28a7 als Ancestor hat         │  und kann ihn deshalb nicht tragen
                                           │
-      ├─> S3  L4/L5 Hosted-Laeufe ────────┼──> L4 +45, L5 +44
+S2  B5 + Hosted-Rebind auf RC25-Source ───┤  Voraussetzung fuer jeden Hosted-Beweis
+                                          │
+      ├─> S3  L4/L5 Hosted-Laeufe ────────┼──> L4 +45, L5 +44   AUTONOM, groesster Brocken
       │                                   │
       ├─> S4  P3-Evidence vervollstaendigen ──> P3 +56 ──> P5-I5   (braucht B2)
       │                                   │
-      ├─> S5  P6-Scale mit echtem Verifier ──> P6 +10              (braucht B3)
+      ├─> S5  P6-Scale mit echtem Verifier ──> P6 +10              (braucht B3-Secret)
       │                                   │
-      └─> S6  I1: Candidate-Paritaet + Codepin ──> P5 100          (braucht B4/GHCR)
+      └─> S6  I1: Candidate-Paritaet + Codepin ──> P5 100          (braucht B4-Klick)
                                           │
                           S7  Delta-Ledger buchen ──> Finalstack ──> MARKET_READY
 ```
 
-**Engpass ist jetzt B1, nicht mehr der Deploy.** Die zehn Verifier verlangen
-`-RubricApprovalCommit` als 40-stelligen Git-Commit, der **Ancestor der Kandidatenquelle**
-sein muss, und sie lesen den freigegebenen Rubriktext aus genau diesem Commit. Ohne einen
-solchen Commit brechen sie fail-closed ab — es gibt keinen Umweg.
+**S1 ist erledigt.** Der Owner hat am 2026-08-31 alle drei Rubriken freigegeben;
+Approval-Commit `e87c28a7c6cf32982caa849794042daa53ef022a`, gepusht auf
+`origin/codex/organism-visual-v2`. Alle drei tragen dort `Status: \`APPROVED\``,
+`Credit-Anwendung erlaubt: \`true\`` und eine `Owner-Freigabe-Ref:`-Zeile. Nachgemessen:
+`overall = 89`, `deltas = 0`, `17/19` — die Freigabe hat **keinen Punkt** vergeben, sie hat
+nur die Verifier startbar gemacht.
+
+**Der Engpass ist jetzt S1b.** Die Verifier verlangen
+`merge-base --is-ancestor <approval> <candidate>`. RC24 (`1cb03979`) liegt **vor**
+`e87c28a7` und faellt damit durch. Bevor irgendein L4/L5-Lauf zaehlen kann, muss ein neuer
+Kandidat RC25 an einem Commit eingefroren werden, der den Approval-Commit enthaelt.
+Das ist reine Codex-Arbeit, keine weitere Owner-Entscheidung.
+
+**Danach ist S3 der groesste autonome Block: 89 Punkte ohne jede Owner-Beteiligung.**
 
 ---
 
@@ -110,30 +127,47 @@ solchen Commit brechen sie fail-closed ab — es gibt keinen Umweg.
 
 ## 5. Die Stufen im Detail
 
-### S1 — B1: Rubriken freigeben (harter Engpass)
-
-Drei Dateien unter `docs/runtime-contracts/` stehen auf
-`DRAFT_OWNER_APPROVAL_REQUIRED` mit `Credit-Anwendung erlaubt: false`:
-`phase3-credit-rubric.md`, `phase6-credit-rubric.md`, `layer-credit-rubric.md`.
-
-**Die Freigabe ist ein Commit, kein Satz.** Die Verifier prüfen:
+### S1 — B1: Rubriken freigeben — ERLEDIGT 2026-08-31
 
 ```text
--RubricApprovalCommit  muss ^[0-9a-f]{40}$ sein
-                       muss ein existierender Commit sein
-                       muss Ancestor von ExpectedSourceCommitSha sein
-                       der Rubriktext wird aus GENAU diesem Commit gelesen
+RubricApprovalCommit = e87c28a7c6cf32982caa849794042daa53ef022a
+```
+
+Alle drei Rubriken unter `docs/runtime-contracts/` tragen bei diesem Commit
+`Status: \`APPROVED\``, `Credit-Anwendung erlaubt: \`true\`` und die vom Verifier verlangte
+`Owner-Freigabe-Ref:`-Zeile. Nachgemessen: `overall = 89`, `deltas = 0`, `17/19` — die
+Freigabe hat **keinen Punkt** vergeben. Kriterienzeilen, Punkte, Statusspalten und
+`Version:`-Strings sind unveraendert; insbesondere die woertlich abgeglichene 10-Punkte-Zeile
+fuer `verify-llm-hosted-stream-parity.ps1`.
+
+Der Vertrag, den jeder Verifier prueft:
+
+```text
+-RubricApprovalCommit  ^[0-9a-f]{40}$
+                       existierender Commit
+                       Ancestor von ExpectedSourceCommitSha
+                       Rubriktext wird aus GENAU diesem Commit gelesen
+                       Rubrik-Blob identisch in Approval-Commit und Kandidat
 Contract-Feld rubric_approval_sha  muss identisch sein
 ```
 
-Praktisch: Status auf approved setzen, Freigabe-Referenz eintragen, committen — und diesen
-Commit-SHA danach in jeden Verifier-Aufruf und in jedes Evidence-Dokument geben. Der
-Freigabe-Commit muss **vor** der Kandidatenquelle liegen, an der die Verifier laufen; bei
-RC25 also zuerst freigeben, dann einfrieren.
+**Die drei Rubriken sind ab jetzt eingefroren.** Jede weitere Aenderung bricht die
+Blob-Gleichheit (`rubric_blob_drift`) und erzwingt eine neue Owner-Freigabe.
 
-**Kredit:** keiner. B1 macht Kredit nur *moeglich*.
+### S1b — RC25 einfrieren (naechster Schritt, autonom)
 
-### S2 — B5 und Hosted-Rebind auf die RC24-Source
+RC24 ist bei `1cb03979` eingefroren und liegt **vor** `e87c28a7`. Damit faellt jeder
+L4/L5-Lauf gegen RC24 mit `rubric_commit_not_in_candidate` durch — unabhaengig davon, wie
+gut der Lauf war.
+
+**Aktion:** neuen Kandidaten RC25 an einem Commit einfrieren, der `e87c28a7` als Ancestor
+hat (HEAD oder spaeter), dann die fuenf Ketten fahren, Evidence-Set binden,
+`current-release-candidate.json` umstellen, Kontroll-Commit und CI mit `skipped=0`.
+Der Ablauf ist identisch zu RC24 — nur die Quelle ist neuer.
+
+**Kredit:** keiner. Voraussetzung fuer S2 und S3.
+
+### S2 — B5 und Hosted-Rebind auf die RC25-Source
 
 Der Worker laeuft auf `bc0f4dc8`, RC24-Source ist `1cb03979`. Acht Commits Abstand, darunter
 neuer Worker-Code (`mcp-hosted.js`) und die Migrationen 0006/0008. Solange das so bleibt,
@@ -339,7 +373,7 @@ Ledger enthaelt die legitimen Eintraege, Hosted-SHA = Kandidatenquelle, keine
 
 | Gate | Entscheidung | Blockiert |
 | --- | --- | --- |
-| **B1** | Die drei Rubriken freigeben — **als Commit**, dessen SHA jeder Verifier bekommt | L4 +45, L5 +44, P3 +56, P6 +10 |
+| ~~**B1**~~ | **ERTEILT 2026-08-31** — Approval-Commit `e87c28a7c6cf32982caa849794042daa53ef022a` | — |
 | **B2** | OAuth-ADR festschreiben (`owner_architecture_decision_ref`, `owner_approved`, `selected_architecture`) | P3-Evidence |
 | **B3** | Provisioning `2/3`: Environment + Secret vorhanden; Workflow auf Default und explizite Gate-Freigabe fehlen | P6 +10 |
 | **B4** | Default traegt alten `main-deploy`-Blob `555e8325` statt `14e84b31`; dispatchen und `registry-publication` freigeben | GHCR / I1 |

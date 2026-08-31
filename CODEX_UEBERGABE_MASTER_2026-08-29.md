@@ -4,6 +4,7 @@ Status: `ACTIVE_CURRENT_HANDOFF`
 Stand: **2026-08-31**
 Branch: `codex/organism-visual-v2`
 Qualification Source: **`1cb03979740859f0350cf18f6f08ef06c3d72b72`**; Control: **`d016e4b928290d8fa358522af08609ae80aeb1cc`**
+**B1 ERTEILT** — Approval-Commit: **`e87c28a7c6cf32982caa849794042daa53ef022a`**
 Market Status: `MARKET_READY:false` — Overall `89`
 
 **Dies ist die einzige Uebergabe.** Sie sagt, *was los ist*.
@@ -51,13 +52,29 @@ Verifier sie woertlich abgleicht.
 Rubrikzeile bleibt offen, bis ihr benannter Verifier gegen den gehosteten Stack real gruen
 laeuft. Die Freigabe macht Kredit ausschliesslich **moeglich**.
 
-**Was Codex jetzt braucht:** den SHA dieses Commits als `-RubricApprovalCommit`. Er muss
-**Ancestor der Kandidatenquelle** sein, gegen die die Verifier laufen — RC24 (`1cb03979`)
-liegt davor, kann ihn also **nicht** tragen. Der naechste Kandidat (RC25) ist an einem
-Commit einzufrieren, der diesen Approval-Commit enthaelt. Reihenfolge bleibt:
-**erst freigeben, dann einfrieren.** Zusaetzlich prueft der Verifier Blob-Gleichheit der
-Rubrik zwischen Approval-Commit und Kandidat — die drei Dateien duerfen danach also nicht
-mehr veraendert werden.
+### Der Approval-Commit
+
+```text
+RubricApprovalCommit = e87c28a7c6cf32982caa849794042daa53ef022a
+```
+
+Vom Owner am 2026-08-31 ausgefuehrt und nach `origin/codex/organism-visual-v2` gepusht.
+Nachgeprueft: alle drei Rubriken tragen bei diesem Commit `Status: \`APPROVED\``,
+`Credit-Anwendung erlaubt: \`true\`` und eine `Owner-Freigabe-Ref:`-Zeile.
+
+**Drei Regeln, die ab jetzt gelten:**
+
+1. **RC24 kann diesen Commit nicht tragen.** Der Verifier verlangt
+   `merge-base --is-ancestor <approval> <candidate>`. RC24 ist bei `1cb03979` eingefroren
+   und liegt **vor** `e87c28a7`. Der naechste Kandidat (RC25) muss an einem Commit
+   eingefroren werden, der `e87c28a7` enthaelt. Reihenfolge: **erst freigeben, dann
+   einfrieren** — das ist jetzt erledigt, also einfach RC25 auf HEAD oder spaeter setzen.
+2. **Die drei Rubriken sind eingefroren.** Der Verifier vergleicht die Rubrik-Blobs
+   zwischen Approval-Commit und Kandidat (`rubric_blob_drift`). Jede weitere Aenderung an
+   `phase3-credit-rubric.md`, `phase6-credit-rubric.md` oder `layer-credit-rubric.md`
+   bricht die Kette und erzwingt eine neue Owner-Freigabe.
+3. **Der SHA gehoert in jeden Aufruf und in jedes Evidence-Dokument** — als
+   `-RubricApprovalCommit` und als Contract-Feld `rubric_approval_sha`.
 
 ## RC24-Aktualisierung — 2026-08-31
 
