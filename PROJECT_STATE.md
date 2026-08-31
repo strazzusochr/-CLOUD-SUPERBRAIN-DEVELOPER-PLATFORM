@@ -5,55 +5,30 @@ Letzte Aktualisierung: 2026-08-31
 
 ## AKTUELLER PROJEKTANKER
 
-### Session 2026-08-31 — RC24 lokal qualifiziert und ausgewaehlt
+### Session 2026-08-31 — RC25 lokale Auswahlqualifikation
 
-- **Aktiv qualifiziert ist RC24:** `prod-candidate-2026-08-31-local-rc24`, eingefrorene Source
-  `1cb03979740859f0350cf18f6f08ef06c3d72b72`, Kontroll-Commit
-  `d016e4b928290d8fa358522af08609ae80aeb1cc`. GitHub-Actions-Lauf `33359506266`
-  attestierte exakt den Source-Checkout; `30/30` beobachtete Schritte waren gruen,
-  `0` skipped. RC23-Source `7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927` ist der
+- **Aktiver Kandidat:** `prod-candidate-2026-08-31-local-rc25`, eingefrorene Source
+  `4947ad03cb5ff197fd536c521051631a10261497`, Kontroll-Commit
+  `9f80698f94905c53566fb35a3e4bbe2d70c8a415`. GitHub-Actions-Lauf `33405335413`
+  attestierte exakt den Source-Checkout; `30/30` beobachtete Schritte waren gruen und
+  `0` skipped. RC24-Source `1cb03979740859f0350cf18f6f08ef06c3d72b72` bleibt der
   immutable lokale Rollback-Anker.
-- **Alle fuenf lokalen Ketten gruen:** sechs Clean-Archive-Images, Runtime `10/10 healthy`,
-  Candidate-Archiv npm-audit plus canonical gitleaks und kompletter realer Chromium-Lauf
-  mit `22/22` Routen, `29/29` Familien und `161/161` Action-Membern. Der Candidate-Runtime-
-  Beweis bestaetigt exakte No-Credit-Source-Paritaet, sechs Image-Identitaeten und echte
-  Auswahl/Klick; der immutable Evidence-Satz umfasst `27` Dateien.
-- **Selection gepusht und CI-gruen:** Commit
-  `378a66bfeb5d8685805a35e55ae825b2ce3a1503` liegt auf
-  `origin/codex/organism-visual-v2`; `pr-check` `33369934779` lief exakt auf diesem SHA
-  und bestand `30/30` Schritte mit `0` skipped und `0` failed. Der nachfolgende reine
-  Truth-Doku-Freeze gilt nach der stabilen Regel nur dann als final-head-gruen, wenn der
-  Remote-Feature-Head exakt dem neuesten erfolgreichen `pr-check`-`headSha` entspricht.
-- **Sichtbarer In-App-Zweitcheck:** alle `22/22` kanonischen Seiten lieferten HTTP `200`
-  und je einen echten, gefahrlosen Navigationsklick (`22/22`); Browser-Konsole `0` Errors.
-  Das ist ein supplementaerer Live-UI-Check, kein neuer Kredit und kein Ersatz fuer das
-  immutable `161/161`-Evidence-Artefakt.
+- **Alle fuenf lokalen Ketten gruen:** Candidate-Images, Runtime `10/10 healthy`,
+  Security, der reale Chromium-Browserlauf mit `22/22` Routen, `29/29` Familien und
+  `161/161` Action-Membern sowie `candidate-runtime` mit exakt gestagter No-Credit-
+  Source-Paritaet, sechs Image-Identitaeten und echtem Browser-Auswahlklick. Der immutable
+  Evidence-Satz umfasst exakt `27` Dateien.
+- **B1 gebunden, ohne Kredit:** Die drei genehmigten Rubriken sind durch Owner-Commit
+  `e87c28a7c6cf32982caa849794042daa53ef022a` und den fail-closed Rubrik-Verifier gebunden.
+  Aus der Freigabe allein folgt weder Prozentcredit noch Hosted-/Release-Status.
 - **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
   P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
   L6 `100`, L7 `100`. `MARKET_READY:false`. I1 `hosted_candidate_parity` und I5
   `production_auth_identity` bleiben die einzigen Phase-5-Nullcredit-Items.
 - **Non-Claims:** `DEV-ONLY; hosted proof still blocked`. Kein Main-/Default-Branch-Write,
-  GHCR-Push, Hosted-/Production-Deploy, OAuth-Aktivierung, Secret-Output,
-  Release-Promotion oder Production-Rollout.
-- **Hosted read-only nachgemessen:** Worker `bc0f4dc8` antwortet Health `200`, Progress
-  `84`, Team `200`/`external_degraded` und Auth-Modus `verified_identity_fail_closed`.
-  Er liegt `8` Commits hinter RC24-Source. Ohne explizite Hosted-Deploy-Freigabe bleibt
-  diese Paritaet offen. `npm run verify:market-ready:static` verweigert folgerichtig
-  `MARKET_READY` wegen der unter-100-Zellen/Owner-Gates und der bewusst bewahrten fremden
-  Dirty-Evidence-Pfade.
-- **Truth-Sync und Delta-Ledger-Protokoll gruen:** Der auf Measurement-Ref `8adb6183`
-  aufbauende Ledger-Nachweis ist als final-head Commit `20daf6e` gepusht; `pr-check`
-  `33392612132` bestand auf exakt diesem SHA mit `30/30`, `0` skipped und `0` failed.
-  Der synthetische Ledger-Test bestand `27/27`, einschliesslich Source-/Ancestor-,
-  Projection-Hash-, Prozent-, Overall-, Baseline-, Artefakt- und Scorer-Negativfaellen.
-  Das reale Ledger bleibt `entries=0`; alle Prozente bleiben unveraendert.
-- **B3/B4 read-only korrigiert:** GitHub fuehrt jetzt das Environment
-  `phase6-scale-hosted-writes` mit Secret-Name `AGENT_API_AUTH_TOKEN`; der Phase-6-Workflow
-  liegt als Blob `0b2f7e3b` aber nur auf dem Feature-Branch und fehlt auf Default
-  `chore/repo-bootstrap`. `phase6_scale_runtime.owner_granted=false`, also B3-Provisioning
-  `2/3`, B3 weiterhin geschlossen. Default traegt fuer `main-deploy` den alten Blob
-  `555e8325` statt `14e84b31`; `docker_registry_publish.owner_granted=false`, also B4
-  weiterhin geschlossen. Keine Gate-Freigabe, kein Secret-Wert und kein Prozentcredit.
+  GHCR-Push, Production-Deploy, Release-Promotion, Production-Rollout oder Secret-Output.
+  Der explizit freigegebene Candidate-Worker-Rebind folgt erst nach der abgeschlossenen
+  RC25-Qualifikation und ist keine Production-Promotion.
 
 ### Session 2026-08-29 — RC23 lokal qualifiziert und ausgewaehlt
 

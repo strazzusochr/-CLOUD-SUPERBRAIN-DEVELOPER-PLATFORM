@@ -6,6 +6,38 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
+## Current RC25 Handoff — 2026-08-31
+
+Active locally qualified candidate: `prod-candidate-2026-08-31-local-rc25`, frozen source
+`4947ad03cb5ff197fd536c521051631a10261497`, source-attestation control
+`9f80698f94905c53566fb35a3e4bbe2d70c8a415`. GitHub Actions run `33405335413`
+checked out that exact source and passed `30/30` observed steps with `0` skipped. Artifact
+`9763010563`, GitHub digest
+`sha256:471592d881ceed9af3525061cfde71f9d1b71e5c4c4e5da2b1064c5099240406`,
+attestation SHA `38B757F4C6E7CDD12282C715BEF7E52B2EE974BEE2AED7137C24AC7C368B4DF0`,
+and GitHub-readback SHA `D67A4C1D220325A45B499B7516785B6AF253B5E2BD34E2E2DFEF9DD057583F5C`
+are preserved in the exact 27-file evidence set.
+
+All five local qualification chains passed: six source-bound candidate images; runtime
+`10/10 healthy`; candidate-scoped npm-audit plus canonical gitleaks; the complete real
+Chromium matrix with `22/22` routes, `29/29` families and `161/161` members; and exact
+candidate-runtime source/image parity with a real Playwright selection and click. The B1
+approval commit `e87c28a7c6cf32982caa849794042daa53ef022a` is an ancestor of the frozen
+source and the approved-rubric verifier is green, but grants no percentage by itself.
+
+The no-credit selection preserves `17/19 = 89%`, blocked items `I1` and `I5`, all item
+rulings, `MARKET_READY:false`, and the empty real delta ledger. Overall remains `89`;
+horizontal `100/100/100/44/100/89/90`; vertical `100/100/100/55/56/100/100`. RC24
+source `1cb03979740859f0350cf18f6f08ef06c3d72b72` is the immutable local rollback
+target. `DEV-ONLY; hosted proof still blocked`.
+
+Next authorized stage after the RC25 selection verifier stack and feature-branch push is
+the candidate-only Cloudflare Worker rebind to RC25, including read-only migration audit
+and only missing additive D1 migrations `0006`/`0008`. This is not a production alias,
+release promotion, GHCR publication, default-branch write, or production rollout. Hosted
+L4/L5 credit remains unavailable until the ten real hosted verifier runs succeed and their
+evidence is accepted through the approved rubrics and delta ledger.
+
 ## Current RC24 Handoff — 2026-08-31
 
 Active locally qualified candidate: `prod-candidate-2026-08-31-local-rc24`, frozen source

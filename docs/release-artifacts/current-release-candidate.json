@@ -1,8 +1,8 @@
 {
-  "active_release_id": "prod-candidate-2026-08-31-local-rc24",
-  "source_commit_sha": "1cb03979740859f0350cf18f6f08ef06c3d72b72",
-  "updated_at": "2026-08-31T07:16:42Z",
-  "updated_by": "rc24-local-qualification",
-  "reason": "RC24 is locally qualified at frozen source 1cb03979740859f0350cf18f6f08ef06c3d72b72. All five independent source-bound chains passed: six committed-archive service images, 10/10 healthy runtime services, full real-Chromium browser proof with 22/22 routes and 161/161 action members, candidate-runtime identity with exact no-credit source parity plus real selection/click, and candidate-archive npm-audit/gitleaks security. GitHub Actions run 33359506266 passed with 30/30 observed steps green, 0 skipped, and attested the exact source checkout through control d016e4b928290d8fa358522af08609ae80aeb1cc. The immutable 27-file evidence set is preserved, and RC23 source 7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927 remains the verified rollback target. DEV-ONLY; hosted proof still blocked. Hosted candidate parity, production OAuth, GHCR publication, Owner approval, release promotion, and production rollout remain blocked.",
+  "active_release_id": "prod-candidate-2026-08-31-local-rc25",
+  "source_commit_sha": "4947ad03cb5ff197fd536c521051631a10261497",
+  "updated_at": "2026-08-31T15:26:41Z",
+  "updated_by": "rc25-local-qualification",
+  "reason": "RC25 locally qualifies frozen source 4947ad03cb5ff197fd536c521051631a10261497 after GitHub Actions run 33405335413 passed with 30/30 observed steps green, 0 skipped, through control 9f80698f94905c53566fb35a3e4bbe2d70c8a415. Five independent source-bound chains passed: six clean-archive candidate images, 10/10 healthy runtime services, full real-Chromium browser proof, exact no-credit candidate-runtime parity with real selection/click, and candidate-scoped security. The approved-rubric verifier is bound without percentage credit, and RC24 source 1cb03979740859f0350cf18f6f08ef06c3d72b72 remains the rollback target. DEV-ONLY; hosted proof still blocked. Hosted candidate parity, production OAuth, GHCR publication, release promotion, and production rollout remain blocked.",
   "production_rollout_claimed": false
 }

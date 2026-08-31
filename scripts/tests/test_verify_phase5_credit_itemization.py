@@ -888,6 +888,15 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             '"docs/runtime-state/external-gate-summary.json"',
         ):
             self.assertIn(path, current_paths)
+        for marker in (
+            "$noCreditRequalificationSameDayPaths = @(",
+            '"PROJECT_STATE.md"',
+            '"apps/frontend/lib/endpoint-snapshot.json"',
+            '"docs/runtime-state/external-gate-summary.json"',
+            "$isNoCreditRequalificationSameDay = Test-ExactPathSet",
+            "$isNoCreditRequalification = $isNoCreditRequalification -or $isNoCreditRequalificationSameDay",
+        ):
+            self.assertIn(marker, current)
         self.assertIn("scripts\\verify_phase5_credit_itemization.py", current)
 
     def test_pr_check_prequalification_accepts_only_clean_or_exact_post_selection_manifest_drift(self) -> None:

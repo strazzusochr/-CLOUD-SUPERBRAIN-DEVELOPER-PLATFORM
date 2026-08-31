@@ -7,6 +7,32 @@ Status: Active
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
 
+## Current RC25 Local Qualification Evidence
+
+Recorded 2026-08-31. Active candidate `prod-candidate-2026-08-31-local-rc25` is bound
+to frozen source `4947ad03cb5ff197fd536c521051631a10261497` through source-attestation
+control `9f80698f94905c53566fb35a3e4bbe2d70c8a415`. GitHub Actions `pr-check` run
+`33405335413` checked out that exact source and passed `30/30` observed steps with `0`
+skipped. Artifact `9763010563`, GitHub digest
+`sha256:471592d881ceed9af3525061cfde71f9d1b71e5c4c4e5da2b1064c5099240406`,
+attestation SHA `38B757F4C6E7CDD12282C715BEF7E52B2EE974BEE2AED7137C24AC7C368B4DF0`,
+and readback SHA `D67A4C1D220325A45B499B7516785B6AF253B5E2BD34E2E2DFEF9DD057583F5C`
+are preserved in the exact 27-file evidence set.
+
+Five independent local chains passed: six source-bound candidate images; runtime `10/10
+healthy`; complete real-Chromium browser proof with `22/22` routes, `29/29` families and
+`161/161` members; candidate-runtime source/image identity with real selection and click;
+and candidate-scoped npm-audit plus canonical gitleaks. B1 approval is bound to commit
+`e87c28a7c6cf32982caa849794042daa53ef022a`; no rubric percentage is inferred from
+approval alone.
+
+The exact same-day `no_credit_requalification` keeps Phase 5 at `17/19 = 89%`, blocked
+`I1` hosted candidate parity and `I5` production auth identity. Overall remains `89`, the
+real delta ledger remains empty, and `MARKET_READY:false`. RC24 source
+`1cb03979740859f0350cf18f6f08ef06c3d72b72` is the local rollback target. No GHCR
+publication, default-branch write, production deploy, release promotion, production
+rollout, payment, or secret output is claimed. `DEV-ONLY; hosted proof still blocked`.
+
 ## Current RC24 Local Qualification Evidence
 
 Recorded 2026-08-31. Active candidate `prod-candidate-2026-08-31-local-rc24` is bound

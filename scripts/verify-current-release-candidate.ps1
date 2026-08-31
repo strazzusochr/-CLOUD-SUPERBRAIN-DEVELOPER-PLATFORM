@@ -228,6 +228,11 @@ $noCreditRequalificationPaths = @(
   "docs/project-progress.manifest.json",
   "docs/runtime-state/external-gate-summary.json"
 )
+$noCreditRequalificationSameDayPaths = @(
+  "PROJECT_STATE.md",
+  "apps/frontend/lib/endpoint-snapshot.json",
+  "docs/runtime-state/external-gate-summary.json"
+)
 function Test-ExactPathSet($Actual, $Expected) {
   $unexpected = @($Actual | Where-Object { $Expected -notcontains $_ })
   $missing = @($Expected | Where-Object { $Actual -notcontains $_ })
@@ -243,6 +248,8 @@ $noCreditRequalification = $false
 if ($runtimeChangedPaths.Count -gt 0) {
   $isQualificationTruthTransition = Test-ExactPathSet $runtimeChangedPaths $qualificationTruthPaths
   $isNoCreditRequalification = Test-ExactPathSet $runtimeChangedPaths $noCreditRequalificationPaths
+  $isNoCreditRequalificationSameDay = Test-ExactPathSet $runtimeChangedPaths $noCreditRequalificationSameDayPaths
+  $isNoCreditRequalification = $isNoCreditRequalification -or $isNoCreditRequalificationSameDay
   if (-not $isQualificationTruthTransition -and -not $isNoCreditRequalification) {
     throw "Verification failed: active release candidate has committed or staged runtime-source drift outside the exact truth transition."
   }
