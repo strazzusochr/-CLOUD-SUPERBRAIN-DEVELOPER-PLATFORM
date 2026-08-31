@@ -70,7 +70,7 @@ class CloudflareOAuthDeployConfigTests(unittest.TestCase):
 
         config_guard = self.wrapper.index("OAuth callback uses the canonical frontend origin")
         source_guard = self.wrapper.index("worker tree matches the deployed commit")
-        wrangler_invocation = self.wrapper.index("& node @deployArgs")
+        wrangler_invocation = self.wrapper.index("& node @deployArgs", source_guard)
         self.assertLess(config_guard, source_guard)
         self.assertLess(source_guard, wrangler_invocation)
         self.assertNotRegex(self.wrapper, re.compile(r"--outdir.*worker-dryrun", re.IGNORECASE))
@@ -92,7 +92,7 @@ class CloudflareOAuthDeployConfigTests(unittest.TestCase):
 
         tracked_read = self.wrapper.index('& git show "$resolved`:$capabilityStatePath"')
         owner_binding = self.wrapper.index('"--var", "PRODUCTION_AUTH_OWNER_GRANTED:false"')
-        wrangler_invocation = self.wrapper.index("& node @deployArgs")
+        wrangler_invocation = self.wrapper.index("& node @deployArgs", owner_binding)
         self.assertLess(tracked_read, owner_binding)
         self.assertLess(owner_binding, wrangler_invocation)
         self.assertNotIn("PRODUCTION_AUTH_LIVE_VERIFIED", self.wrapper)
@@ -134,8 +134,9 @@ class CloudflareOAuthDeployConfigTests(unittest.TestCase):
             'npm ci --ignore-scripts --prefer-offline --no-audit --no-fund',
             'Push-Location $materializedWorkerDir',
             '"--metafile", $preflightMetafile',
-            '"--outfile", $preflightBundleFile',
-            '"deploy", $preflightBundleFile, "--no-bundle"',
+            '"--outdir", $preflightOutputDir',
+            '"deploy", $preflightBundleFile,',
+            '"--no-bundle", "--config", $materializedWranglerConfigPath',
             '"SOURCE_BUNDLE_SHA256:$sourceBundleSha"',
             'preview source_bundle_sha256 rebound',
             "preflight bundle inputs are confined to the selected source materialization",
@@ -161,7 +162,7 @@ class CloudflareOAuthDeployConfigTests(unittest.TestCase):
 
         source_resolve = self.wrapper.index('$resolved = (& git rev-parse --verify "$CommitSha^{commit}").Trim()')
         evidence_read = self.wrapper.index('& git show "$frontendEvidenceCommit`:$frontendEvidencePath"')
-        wrangler_invocation = self.wrapper.index("& node @deployArgs")
+        wrangler_invocation = self.wrapper.index("& node @deployArgs", evidence_read)
         self.assertLess(source_resolve, evidence_read)
         self.assertLess(evidence_read, wrangler_invocation)
 
@@ -177,6 +178,14 @@ class CloudflareOAuthDeployConfigTests(unittest.TestCase):
             "Owner grant commit authorizes the exact selected MCP scope",
             "named layer rubric commit is explicitly Owner-approved",
             "candidate uses the exact approved layer rubric blob",
+            "DeployLlmGateway",
+            "cloud-superbrain-llm-gateway-preview",
+            "cloud-superbrain-state-preview",
+            '"SOURCE_COMMIT_SHA:$resolved"',
+            '"SOURCE_ARCHIVE_SHA256:$archiveSha"',
+            "LLM preview source_commit_sha rebound",
+            "LLM preview source_archive_sha256 rebound",
+            "LLM preview gateway auth configured",
             "Get-GitBlobSha256",
             "Get-ManifestSha256",
             '"--var", "HOSTED_MCP_VERIFIER_BLOB_SHA256:$mcpVerifierManifestSha"',
@@ -191,7 +200,7 @@ class CloudflareOAuthDeployConfigTests(unittest.TestCase):
 
         disabled = self.wrapper.index('"--var", "HOSTED_MCP_WRITE_AUTHORIZED:false"')
         enabled = self.wrapper.index('"--var", "HOSTED_MCP_WRITE_AUTHORIZED:true"')
-        deploy = self.wrapper.index("& node @deployArgs")
+        deploy = self.wrapper.index("& node @deployArgs", enabled)
         self.assertLess(disabled, enabled)
         self.assertLess(enabled, deploy)
 

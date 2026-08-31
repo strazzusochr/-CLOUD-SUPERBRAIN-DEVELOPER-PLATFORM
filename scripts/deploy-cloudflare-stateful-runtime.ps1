@@ -27,7 +27,8 @@ param(
   [string]$CandidateBranch = "",
   [string]$LayerCreditRubricApprovalSha = "",
   [string]$HostedMcpOwnerGrantCommitSha = "",
-  [string]$CandidateFrontendEvidenceCommitSha = ""
+  [string]$CandidateFrontendEvidenceCommitSha = "",
+  [switch]$DeployLlmGateway
 )
 
 Set-StrictMode -Version Latest
@@ -153,6 +154,178 @@ function Remove-TransientMaterialization([string]$Path) {
   Write-Host "[worker-deploy] transient source materialization removed"
 }
 
+function Invoke-LlmGatewayCandidateDeploy(
+  [string]$RepositoryRoot,
+  [string]$SelectedCommit,
+  [bool]$IsDryRun,
+  [bool]$IsValidateOnly
+) {
+  $relativeServiceRoot = "services/cloudflare-llm-gateway"
+  $previewName = "cloud-superbrain-llm-gateway-preview"
+  $previewHealthUrl = "https://$previewName.strazzusochr.workers.dev/api/v1/health"
+  $resolved = (& git rev-parse --verify "$SelectedCommit^{commit}" 2>$null).Trim()
+  Assert-True "LLM candidate commit resolved ($resolved)" (
+    $LASTEXITCODE -eq 0 -and $resolved -match "^[0-9a-f]{40}$"
+  )
+  $archiveSha = Get-GitArchiveSha256 $RepositoryRoot $resolved
+  Assert-True "LLM candidate source archive SHA-256 computed" ($archiveSha -match "^[0-9a-f]{64}$")
+
+  $materializationRoot = Join-Path ([System.IO.Path]::GetTempPath()) (
+    "cloud-superbrain-worker-deploy-" + [Guid]::NewGuid().ToString("N")
+  )
+  $materializedServiceDir = Join-Path $materializationRoot "worker"
+  $serviceArchive = Join-Path $materializationRoot "worker-source.tar"
+  New-Item -ItemType Directory -Path $materializedServiceDir -Force | Out-Null
+  try {
+    & git archive --format=tar "--output=$serviceArchive" $resolved -- $relativeServiceRoot
+    Assert-True "selected LLM gateway source archive created" ($LASTEXITCODE -eq 0)
+    $null = & tar -xf $serviceArchive -C $materializedServiceDir --strip-components=2 2>&1
+    Assert-True "selected LLM gateway source archive materialized" ($LASTEXITCODE -eq 0)
+    foreach ($requiredPath in @("package.json", "package-lock.json", "wrangler.jsonc", "src/index.js")) {
+      Assert-True "selected LLM gateway materialization contains $requiredPath" (
+        Test-Path -LiteralPath (Join-Path $materializedServiceDir $requiredPath) -PathType Leaf
+      )
+    }
+
+    $materializedConfigPath = Join-Path $materializedServiceDir "wrangler.jsonc"
+    try {
+      $config = Get-Content -LiteralPath $materializedConfigPath -Raw | ConvertFrom-Json
+    } catch {
+      throw "Worker deploy precondition failed: selected LLM gateway wrangler config is invalid"
+    }
+    $preview = $config.env.PSObject.Properties["preview"].Value
+    Assert-True "LLM candidate deploy targets the dedicated preview Worker" (
+      $null -ne $preview -and [string]$preview.name -ceq $previewName
+    )
+    $previewDatabases = @($preview.d1_databases)
+    Assert-True "LLM candidate uses the isolated preview D1 binding" (
+      $previewDatabases.Count -eq 1 -and
+      [string]$previewDatabases[0].binding -ceq "DB" -and
+      [string]$previewDatabases[0].database_name -ceq "cloud-superbrain-state-preview"
+    )
+    $topVars = $config.vars
+    $previewVars = $preview.vars
+    Assert-True "LLM preview gateway mode is explicit" (
+      (Get-PlainTextVar $previewVars "GATEWAY_MODE") -ceq "cloudflare_workers_ai_live"
+    )
+    Assert-True "LLM preview AI Gateway id is explicit" (
+      (Get-PlainTextVar $previewVars "AI_GATEWAY_ID") -ceq $previewName
+    )
+    foreach ($secretName in @("GATEWAY_AUTH_TOKEN")) {
+      Assert-True "LLM $secretName remains outside plain-text vars" (
+        $null -eq $topVars.PSObject.Properties[$secretName] -and
+        $null -eq $previewVars.PSObject.Properties[$secretName]
+      )
+    }
+    foreach ($derivedName in @("SOURCE_COMMIT_SHA", "SOURCE_ARCHIVE_SHA256")) {
+      Assert-True "LLM $derivedName remains candidate-derived" (
+        $null -eq $topVars.PSObject.Properties[$derivedName] -and
+        $null -eq $previewVars.PSObject.Properties[$derivedName]
+      )
+    }
+    if ($IsValidateOnly) {
+      Write-Host "[worker-deploy] LLM validation complete; nothing was published"
+      return
+    }
+
+    try {
+      $lock = Get-Content -LiteralPath (Join-Path $materializedServiceDir "package-lock.json") -Raw | ConvertFrom-Json -AsHashtable
+    } catch {
+      throw "Worker deploy precondition failed: selected LLM gateway package lock is invalid"
+    }
+    $lockedWranglerVersion = [string]$lock["packages"]["node_modules/wrangler"]["version"]
+    Assert-True "selected LLM gateway package lock pins Wrangler" (
+      $lockedWranglerVersion -match "^[0-9]+\.[0-9]+\.[0-9]+$"
+    )
+    Push-Location $materializedServiceDir
+    try {
+      $null = & npm ci --ignore-scripts --prefer-offline --no-audit --no-fund 2>&1
+      $npmCiExitCode = $LASTEXITCODE
+    } finally { Pop-Location }
+    Assert-True "fresh LLM gateway dependency tree installed from the selected lock" ($npmCiExitCode -eq 0)
+    $wrangler = Join-Path $materializedServiceDir "node_modules/wrangler/bin/wrangler.js"
+    Assert-True "materialized LLM Wrangler present" (Test-Path -LiteralPath $wrangler -PathType Leaf)
+    $installedWranglerVersion = ((& node $wrangler --version 2>$null) -join "").Trim()
+    Assert-True "materialized LLM Wrangler matches the selected lock" (
+      $LASTEXITCODE -eq 0 -and $installedWranglerVersion -ceq $lockedWranglerVersion
+    )
+
+    $bindingArgs = @(
+      "--var", "GATEWAY_MODE:cloudflare_workers_ai_live",
+      "--var", "AI_GATEWAY_ID:$previewName",
+      "--var", "SOURCE_COMMIT_SHA:$resolved",
+      "--var", "SOURCE_ARCHIVE_SHA256:$archiveSha"
+    )
+    $preflightOutputDir = Join-Path $materializationRoot "preflight-output"
+    $preflightMetafile = Join-Path $materializationRoot "bundle-preflight-meta.json"
+    $preflightArgs = @($wrangler, "deploy", "--env", "preview") + $bindingArgs + @(
+      "--dry-run", "--outdir", $preflightOutputDir, "--metafile", $preflightMetafile
+    )
+    Push-Location $materializedServiceDir
+    try {
+      $null = & node @preflightArgs 2>&1
+      $preflightExitCode = $LASTEXITCODE
+    } finally { Pop-Location }
+    Assert-True "selected-source LLM Wrangler preflight exit code 0" ($preflightExitCode -eq 0)
+    $preflightScripts = @(Get-ChildItem -LiteralPath $preflightOutputDir -File -Filter "*.js")
+    Assert-True "selected-source LLM Wrangler emitted exactly one JavaScript upload bundle" (
+      $preflightScripts.Count -eq 1 -and $preflightScripts[0].Name -ceq "index.js"
+    )
+    Assert-True "LLM preflight bundle metafile created" (
+      Test-Path -LiteralPath $preflightMetafile -PathType Leaf
+    )
+    try {
+      $preflightMetadata = Get-Content -LiteralPath $preflightMetafile -Raw | ConvertFrom-Json
+    } catch {
+      throw "Worker deploy precondition failed: LLM preflight bundle metafile is invalid"
+    }
+    $materializedRootFull = [System.IO.Path]::GetFullPath($materializedServiceDir).TrimEnd(
+      [System.IO.Path]::DirectorySeparatorChar
+    )
+    foreach ($inputName in @($preflightMetadata.inputs.PSObject.Properties.Name)) {
+      $inputFull = if ([System.IO.Path]::IsPathRooted([string]$inputName)) {
+        [System.IO.Path]::GetFullPath([string]$inputName)
+      } else {
+        [System.IO.Path]::GetFullPath((Join-Path $materializedServiceDir ([string]$inputName)))
+      }
+      Assert-True "LLM preflight input is confined to the selected source materialization" (
+        $inputFull.StartsWith(
+          $materializedRootFull + [System.IO.Path]::DirectorySeparatorChar,
+          [System.StringComparison]::OrdinalIgnoreCase
+        )
+      )
+    }
+    $preflightBundleFile = $preflightScripts[0].FullName
+    $sourceBundleSha = (Get-FileHash -LiteralPath $preflightBundleFile -Algorithm SHA256).Hash.ToLowerInvariant()
+    Assert-True "exact LLM upload bundle SHA-256 computed" ($sourceBundleSha -match "^[0-9a-f]{64}$")
+    if ($IsDryRun) {
+      Write-Host "[worker-deploy] LLM dry-run complete; nothing was published"
+      return
+    }
+
+    $deployArgs = @(
+      $wrangler, "deploy", $preflightBundleFile,
+      "--no-bundle", "--config", $materializedConfigPath,
+      "--env", "preview"
+    ) + $bindingArgs
+    Push-Location $materializedServiceDir
+    try {
+      $null = & node @deployArgs 2>&1
+      $deployExitCode = $LASTEXITCODE
+    } finally { Pop-Location }
+    Assert-True "LLM Wrangler deploy exit code 0; command output suppressed" ($deployExitCode -eq 0)
+    $health = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 -Uri $previewHealthUrl).Content | ConvertFrom-Json
+    Assert-True "LLM preview reports healthy" ([string]$health.status -ceq "healthy")
+    Assert-True "LLM preview source_commit_sha rebound" ([string]$health.source_commit_sha -ceq $resolved)
+    Assert-True "LLM preview source_archive_sha256 rebound" ([string]$health.source_archive_sha256 -ceq $archiveSha)
+    Assert-True "LLM preview source binding configured" ($health.source_binding_configured -is [bool] -and $health.source_binding_configured)
+    Assert-True "LLM preview gateway auth configured" ($health.gateway_auth_configured -is [bool] -and $health.gateway_auth_configured)
+    Write-Host "[worker-deploy] LLM preview commit, archive, auth, and exact uploaded bundle verified"
+  } finally {
+    Remove-TransientMaterialization $materializationRoot
+  }
+}
+
 $canonicalPostLoginRedirect = "/workbench"
 $previewWorkerHostname = "cloud-superbrain-stateful-runtime-preview.strazzusochr.workers.dev"
 $previewWorkerHealthUrl = "https://$previewWorkerHostname/api/v1/health"
@@ -162,6 +335,19 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 Push-Location $repoRoot
 try {
   Assert-True "DryRun and ValidateOnly are mutually exclusive" (-not ($DryRun -and $ValidateOnly))
+
+  if ($DeployLlmGateway) {
+    Assert-True "LLM deploy mode excludes stateful-runtime-only arguments" (
+      -not $EnableHostedMcpWrites -and
+      [string]::IsNullOrWhiteSpace($CandidateFrontendOrigin) -and
+      [string]::IsNullOrWhiteSpace($CandidateBranch) -and
+      [string]::IsNullOrWhiteSpace($LayerCreditRubricApprovalSha) -and
+      [string]::IsNullOrWhiteSpace($HostedMcpOwnerGrantCommitSha) -and
+      [string]::IsNullOrWhiteSpace($CandidateFrontendEvidenceCommitSha)
+    )
+    Invoke-LlmGatewayCandidateDeploy $repoRoot $CommitSha $DryRun.IsPresent $ValidateOnly.IsPresent
+    return
+  }
 
   $workerDir = Join-Path $repoRoot "services/cloudflare-stateful-runtime"
   $wranglerConfigPath = Join-Path $workerDir "wrangler.jsonc"
@@ -568,13 +754,18 @@ try {
     )
     $bindingArgs += $mcpBindingArgs
 
-    $preflightBundleFile = Join-Path $materializationRoot "worker-bundle.mjs"
+    # Wrangler's --outfile is the complete multipart upload body, not a
+    # JavaScript entrypoint.  Hash and re-upload the deterministic entrypoint
+    # emitted by --outdir instead; otherwise --no-bundle tries to parse MIME
+    # headers as JavaScript.
+    $preflightOutputDir = Join-Path $materializationRoot "preflight-output"
+    $preflightBundleFile = Join-Path $preflightOutputDir "index.js"
     $preflightMetafile = Join-Path $materializationRoot "bundle-preflight-meta.json"
     $preflightArgs = @(
       $wrangler, "deploy", "--env", "preview"
     ) + $bindingArgs + @(
       "--dry-run",
-      "--outfile", $preflightBundleFile,
+      "--outdir", $preflightOutputDir,
       "--metafile", $preflightMetafile
     )
     Push-Location $materializedWorkerDir
@@ -583,7 +774,11 @@ try {
       $preflightExitCode = $LASTEXITCODE
     } finally { Pop-Location }
     Assert-True "selected-source Wrangler preflight exit code 0; command output suppressed" ($preflightExitCode -eq 0)
-    Assert-True "selected-source Wrangler emitted exactly one upload bundle" (Test-Path -LiteralPath $preflightBundleFile -PathType Leaf)
+    $preflightScriptFiles = @(Get-ChildItem -LiteralPath $preflightOutputDir -File -Filter "*.js")
+    Assert-True "selected-source Wrangler emitted exactly one JavaScript upload bundle" (
+      $preflightScriptFiles.Count -eq 1 -and
+      $preflightScriptFiles[0].FullName -ceq $preflightBundleFile
+    )
     Assert-True "preflight bundle metafile created" (Test-Path -LiteralPath $preflightMetafile -PathType Leaf)
     try {
       $preflightMetadata = Get-Content -LiteralPath $preflightMetafile -Raw | ConvertFrom-Json
@@ -618,7 +813,12 @@ try {
       return
     }
 
-    $deployArgs = @($wrangler, "deploy", $preflightBundleFile, "--no-bundle", "--env", "preview") + $bindingArgs + @(
+    $materializedWranglerConfigPath = Join-Path $materializedWorkerDir "wrangler.jsonc"
+    $deployArgs = @(
+      $wrangler, "deploy", $preflightBundleFile,
+      "--no-bundle", "--config", $materializedWranglerConfigPath,
+      "--env", "preview"
+    ) + $bindingArgs + @(
       "--var", "SOURCE_BUNDLE_SHA256:$sourceBundleSha"
     )
     Push-Location $materializedWorkerDir
