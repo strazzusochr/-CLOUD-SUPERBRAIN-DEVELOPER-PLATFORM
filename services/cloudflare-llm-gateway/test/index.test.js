@@ -55,6 +55,10 @@ function openAiSse(content = "verified") {
   ];
 }
 
+function openAiSseWithFinishReasonEof(content = "verified") {
+  return openAiSse(content).slice(0, -1);
+}
+
 function streamFrom(parts, { failAfter = null } = {}) {
   const encoder = new TextEncoder();
   return new ReadableStream({
@@ -330,11 +334,39 @@ test("stream mode forwards only real provider chat.completion.chunk frames and w
   assert.equal(proof.stream, true);
   assert.equal(proof.gateway_log_readback.verified, true);
   assert.equal(proof.audit_readback_verified, true);
+  assert.equal(proof.provider_stream_terminal_mode, "provider_done_marker");
+  assert.equal(proof.provider_finish_reason, "stop");
 });
 
-test("stream rejects synthetic full-completion frames, missing DONE, and post-DONE frames without credit evidence", async () => {
+test("stream canonicalizes provider finish_reason EOF to one DONE after log plus D1 readback", async () => {
+  const upstream = openAiSseWithFinishReasonEof("streamed completion");
+  const AI = aiBinding([{ stream: streamFrom(upstream) }]);
+  const DB = auditDb();
+  const environment = runtimeEnv(AI, { DB });
+  const response = await worker.fetch(chatRequest(completionBody({ stream: true }), { headers: { "x-request-id": "stream-finish-eof-test" } }), environment);
+  const sse = await readSse(response);
+  assert.deepEqual(sse.data.slice(0, -1), upstream.map((frame) => frame.match(/^data: (.*)\n\n$/s)[1]));
+  assert.equal(sse.data.filter((value) => value === "[DONE]").length, 1);
+  assert.equal(sse.data.at(-1), "[DONE]");
+  assert.equal(DB.writes.length, 1);
+  const proofResponse = await evidenceReadback(environment, "stream-finish-eof-test", responseTraceId(response));
+  const proof = await proofResponse.json();
+  assert.equal(proofResponse.status, 200);
+  assert.equal(proof.provider_stream_terminal_mode, "finish_reason_eof");
+  assert.equal(proof.provider_finish_reason, "stop");
+  assert.equal(proof.gateway_log_readback.verified, true);
+  assert.equal(proof.audit_readback_verified, true);
+});
+
+test("stream rejects synthetic full-completion frames, missing terminal evidence, and post-DONE frames without credit evidence", async () => {
   const fullCompletion = `data: ${JSON.stringify({ object: "chat.completion", choices: [{ message: { content: "fake" } }] })}\n\n`;
-  const malformedStreams = [streamFrom([fullCompletion, "data: [DONE]\n\n"]), streamFrom(openAiSse("partial").slice(0, -1)), streamFrom([...openAiSse("done"), openAiSse("late")[0]])];
+  const noTerminalEvidence = openAiSse("partial").slice(0, -2);
+  const malformedStreams = [
+    streamFrom([fullCompletion, "data: [DONE]\n\n"]),
+    streamFrom(noTerminalEvidence),
+    streamFrom([...openAiSse("done"), openAiSse("late")[0]]),
+    streamFrom([...openAiSseWithFinishReasonEof("done"), openAiSse("late")[0]]),
+  ];
   for (const [index, upstream] of malformedStreams.entries()) {
     const DB = auditDb();
     const response = await worker.fetch(chatRequest(completionBody({ stream: true }), { headers: { "x-request-id": `bad-stream-${index}` } }), runtimeEnv(aiBinding([{ stream: upstream }]), { DB }));

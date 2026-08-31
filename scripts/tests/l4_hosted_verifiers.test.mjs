@@ -109,12 +109,15 @@ test("provider-call verifiers require independently read real AI Gateway logs", 
   }
 });
 
-test("stream verifier accepts only real OpenAI chunks, deltas, one DONE, and no synthetic terminal", () => {
+test("stream verifier accepts only real OpenAI chunks, deltas, one DONE, provider terminal provenance, and no synthetic content frame", () => {
   const source = sourceByName.get("verify-llm-hosted-stream-parity.ps1");
   assert.match(source, /chat\.completion\.chunk/);
   assert.match(source, /synthetic_terminal_frame_forbidden/);
   assert.match(source, /stream_frame_not_delta/);
   assert.match(source, /doneCount -eq 1/);
+  assert.match(source, /stream_terminal_provenance_missing/);
+  assert.match(source, /finish_reason_eof/);
+  assert.match(source, /provider_finish_reason/);
   assert.match(source, /real_provider_stream=true/);
   assert.doesNotMatch(source, /terminal evidence object/);
 });
@@ -148,4 +151,8 @@ test("trace verifier derives correlation from gateway-log metadata plus D1 readb
   assert.match(source, /metadata_correlation_verified/);
   assert.match(source, /gateway_log_id_sha256/);
   assert.match(source, /d1_evidence_ref/);
+  assert.match(source, /Read-JsonResponse \$response 'trace'/);
+  assert.match(source, /Read-JsonResponse \$proof 'independent_evidence'|Read-JsonResponse \$response 'independent_evidence'/);
+  assert.doesNotMatch(source, /Read-JsonResponse \$[A-Za-z][A-Za-z0-9_]*'/);
+  assert.doesNotMatch(source, /Get-HeaderValue \$[A-Za-z][A-Za-z0-9_]*'/);
 });

@@ -68,21 +68,149 @@ function Assert-LiveProviderGate{
   $ref=[string]$g.owner_grant_ref;Require(-not[string]::IsNullOrWhiteSpace($ref))'live_llm_owner_grant_ref_missing' 'Tracked gate has no Owner grant reference.';$path=($ref-split'\s+::\s+',2)[0];Require($path-match'^[A-Za-z0-9_./-]+\.md$')'live_llm_owner_grant_ref_invalid' 'Grant reference is not a tracked Markdown path.';[void](Invoke-Git @('show',"$ExpectedSourceCommitSha`:$path")'live_llm_owner_grant_ref_untracked')
   $ep=[string]$g.evidence_artifact;Require($ep-match'^[A-Za-z0-9_./-]+\.json$')'live_llm_gate_evidence_ref_invalid' 'Gate evidence reference is invalid.';[void](Invoke-Git @('show',"$ExpectedSourceCommitSha`:$ep")'live_llm_gate_evidence_untracked');return [ordered]@{owner_grant_ref_sha256=Get-TextSha256 $ref;gate_evidence_path=$ep;gate_evidence_blob=Invoke-Git @('rev-parse',"$ExpectedSourceCommitSha`:$ep")'live_llm_gate_evidence_untracked'}
 }
-function Assert-SourceBinding($Health){Require([string]$Health.source_commit_sha-ceq$ExpectedSourceCommitSha)'hosted_source_commit_mismatch' 'Health commit mismatch.';Require([string]$Health.source_archive_sha256-ceq$ExpectedSourceArchiveSha256)'hosted_source_archive_mismatch' 'Health archive mismatch.';Assert-BooleanField $Health'source_binding_configured'$true'hosted_source_binding_unconfigured'}
-function Get-RequiredToken{Require($OwnerApprovedGatewayCredentialUse.IsPresent)'gateway_credential_confirmation_required' 'Credential switch is extra confirmation only.';Require($OwnerApprovedLiveProviderCalls.IsPresent)'live_provider_call_confirmation_required' 'Live-provider switch is extra confirmation only.';Require($OwnerApprovedHostedAuditWrites.IsPresent)'hosted_audit_write_confirmation_required' 'D1 audit-write switch is extra confirmation only.';$t=[Environment]::GetEnvironmentVariable($script:GatewayTokenEnvName,'Process');Require(-not[string]::IsNullOrWhiteSpace($t)-and$t.Length-ge16)'gateway_token_missing' 'The fixed approved gateway token is absent.';return $t}
-function Get-TraceId($Response){$tp=Get-HeaderValue $Response'traceparent';Require($tp-match'^00-([0-9a-f]{32})-[0-9a-f]{16}-0[01]$')'response_traceparent_invalid' 'Hosted response lacks a valid W3C traceparent.';return $Matches[1]}
-function Get-IndependentEvidence([string]$Base,[string]$Token,[string]$RequestId,[string]$TraceId){$u="$Base/api/v1/evidence?request_id=$([Uri]::EscapeDataString($RequestId))&trace_id=$TraceId";$r=Invoke-CapturedRequest $u 'GET' @{'x-superbrain-gateway-token'=$Token};Require([int]$r.StatusCode-eq200)'independent_evidence_http_status' 'Independent readback did not return 200.';$p=Read-JsonResponse $r'independent_evidence';Require([string]$p.contract_version-eq'llm-gateway-independent-evidence-v1'-and[string]$p.status-eq'verified')'independent_evidence_contract' 'Independent evidence is not verified.';Require([string]$p.request_id-eq$RequestId-and[string]$p.trace_id-eq$TraceId)'independent_evidence_correlation' 'Independent evidence correlation mismatch.';Require([string]$p.source_commit_sha-ceq$ExpectedSourceCommitSha-and[string]$p.source_archive_sha256-ceq$ExpectedSourceArchiveSha256)'independent_evidence_source_mismatch' 'Independent evidence source mismatch.';Assert-BooleanField $p'audit_readback_verified'$true'independent_audit_readback_unverified';Assert-BooleanField $p'direct_provider_calls'$false'independent_direct_provider_call_detected';Assert-BooleanField $p'secret_output'$false'independent_secret_output_unproven';return $p}
-function Write-ImmutableEvidence([hashtable]$Report){$id="{0}-{1}-{2}"-f([DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')),$ExpectedSourceCommitSha.Substring(0,12),([Guid]::NewGuid().ToString('N').Substring(0,8));$dir=Join-Path $OutDir $id;[void](New-Item -ItemType Directory -Path $dir -Force:$false);$path=Join-Path $dir'report.json';$b=[Text.UTF8Encoding]::new($false).GetBytes(($Report|ConvertTo-Json -Depth 24)+"`n");$f=[IO.File]::Open($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);try{$f.Write($b,0,$b.Length)}finally{$f.Dispose()};$d=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant();[IO.File]::WriteAllText((Join-Path $dir'report.sha256'),"$d  report.json`n",[Text.UTF8Encoding]::new($false));return [ordered]@{report_path=$path;evidence_sha256=$d}}
+function Assert-SourceBinding($Health) {
+  Require ([string]$Health.source_commit_sha -ceq $ExpectedSourceCommitSha) 'hosted_source_commit_mismatch' 'Health commit mismatch.'
+  Require ([string]$Health.source_archive_sha256 -ceq $ExpectedSourceArchiveSha256) 'hosted_source_archive_mismatch' 'Health archive mismatch.'
+  Assert-BooleanField $Health 'source_binding_configured' $true 'hosted_source_binding_unconfigured'
+}
+function Get-RequiredToken {
+  Require $OwnerApprovedGatewayCredentialUse.IsPresent 'gateway_credential_confirmation_required' 'Credential switch is extra confirmation only.'
+  Require $OwnerApprovedLiveProviderCalls.IsPresent 'live_provider_call_confirmation_required' 'Live-provider switch is extra confirmation only.'
+  Require $OwnerApprovedHostedAuditWrites.IsPresent 'hosted_audit_write_confirmation_required' 'D1 audit-write switch is extra confirmation only.'
+  $token = [Environment]::GetEnvironmentVariable($script:GatewayTokenEnvName, 'Process')
+  Require (-not [string]::IsNullOrWhiteSpace($token) -and $token.Length -ge 16) 'gateway_token_missing' 'The fixed approved gateway token is absent.'
+  return $token
+}
+function Get-TraceId($Response) {
+  $traceparent = Get-HeaderValue $Response 'traceparent'
+  Require ($traceparent -match '^00-([0-9a-f]{32})-[0-9a-f]{16}-0[01]$') 'response_traceparent_invalid' 'Hosted response lacks a valid W3C traceparent.'
+  return $Matches[1]
+}
+function Get-IndependentEvidence([string]$Base, [string]$Token, [string]$RequestId, [string]$TraceId) {
+  $uri = "$Base/api/v1/evidence?request_id=$([Uri]::EscapeDataString($RequestId))&trace_id=$TraceId"
+  $response = Invoke-CapturedRequest $uri 'GET' @{ 'x-superbrain-gateway-token' = $Token }
+  Require ([int]$response.StatusCode -eq 200) 'independent_evidence_http_status' 'Independent readback did not return 200.'
+  $proof = Read-JsonResponse $response 'independent_evidence'
+  Require ([string]$proof.contract_version -eq 'llm-gateway-independent-evidence-v1' -and [string]$proof.status -eq 'verified') 'independent_evidence_contract' 'Independent evidence is not verified.'
+  Require ([string]$proof.request_id -eq $RequestId -and [string]$proof.trace_id -eq $TraceId) 'independent_evidence_correlation' 'Independent evidence correlation mismatch.'
+  Require ([string]$proof.source_commit_sha -ceq $ExpectedSourceCommitSha -and [string]$proof.source_archive_sha256 -ceq $ExpectedSourceArchiveSha256) 'independent_evidence_source_mismatch' 'Independent evidence source mismatch.'
+  Assert-BooleanField $proof 'audit_readback_verified' $true 'independent_audit_readback_unverified'
+  Assert-BooleanField $proof 'direct_provider_calls' $false 'independent_direct_provider_call_detected'
+  Assert-BooleanField $proof 'secret_output' $false 'independent_secret_output_unproven'
+  return $proof
+}
+function Write-ImmutableEvidence([hashtable]$Report) {
+  $id = "{0}-{1}-{2}" -f ([DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')), $ExpectedSourceCommitSha.Substring(0, 12), ([Guid]::NewGuid().ToString('N').Substring(0, 8))
+  $dir = Join-Path $OutDir $id
+  [void](New-Item -ItemType Directory -Path $dir -Force:$false)
+  $path = Join-Path $dir 'report.json'
+  $bytes = [Text.UTF8Encoding]::new($false).GetBytes(($Report | ConvertTo-Json -Depth 24) + "`n")
+  $file = [IO.File]::Open($path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+  try { $file.Write($bytes, 0, $bytes.Length) } finally { $file.Dispose() }
+  $digest = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+  [IO.File]::WriteAllText((Join-Path $dir 'report.sha256'), "$digest  report.json`n", [Text.UTF8Encoding]::new($false))
+  return [ordered]@{ report_path = $path; evidence_sha256 = $digest }
+}
 
-$repoRoot=Split-Path -Parent $PSScriptRoot;Push-Location $repoRoot
-try{
-  Require($PSVersionTable.PSVersion.Major-ge7)'powershell_7_required' 'PowerShell 7 or newer is required.';Assert-SanctionedTarget $BaseUrl;$closure=Assert-CandidateClosure;Assert-ApprovedRubric;$gate=Assert-LiveProviderGate;$base=$script:SanctionedBaseUrl
-  $hr=Invoke-CapturedRequest "$base/api/v1/health";Require([int]$hr.StatusCode-eq200)'health_http_status' 'Health must return 200.';$health=Read-JsonResponse $hr'health';Require([string]$health.status-eq'healthy')'health_not_healthy' 'Gateway is not healthy.';Assert-SourceBinding $health
-  $cap=$health.verification_capabilities.trace_correlation;Require($null-ne$cap-and[string]$cap.contract_version-eq'llm-hosted-trace-correlation-probe-v1')'trace_correlation_capability_missing' 'Trace capability is missing.';Assert-BooleanField $cap'configured'$true'trace_capability_unconfigured';Assert-BooleanField $cap'verified'$false'trace_capability_health_overclaim';Assert-BooleanField $cap'gateway_log_readback_verified'$false'trace_capability_health_log_overclaim';Require([int]$cap.max_provider_calls-eq1)'trace_call_bound' 'Trace capability must cap one call.'
-  $token=Get-RequiredToken;$traceId=([Guid]::NewGuid().ToString('N')+[Guid]::NewGuid().ToString('N')).Substring(0,32);$spanId=[Guid]::NewGuid().ToString('N').Substring(0,16);$requestId='l4-trace-'+[Guid]::NewGuid().ToString('N')
-  $body=[ordered]@{model=$Model;messages=@(@{role='user';content='Return exactly the single word verified.'});max_tokens=16;temperature=0;stream=$false;metadata=@{verification_probe='trace_correlation';trace_id=$traceId}}|ConvertTo-Json -Depth 10 -Compress
-  $r=Invoke-CapturedRequest "$base/v1/chat/completions"'POST'@{'x-superbrain-gateway-token'=$token;'x-request-id'=$requestId;traceparent="00-$traceId-$spanId-01"}$body;Require([int]$r.StatusCode-eq200)'trace_http_status' 'Trace probe did not return 200.';Require((Get-TraceId $r)-eq$traceId)'trace_response_header_mismatch' 'Response trace ID mismatch.';$result=Read-JsonResponse $r'trace';Require([string]$result.object-eq'chat.completion'-and-not[string]::IsNullOrWhiteSpace([string]$result.choices[0].message.content))'trace_completion_invalid' 'Completion schema is invalid.'
-  $proof=Get-IndependentEvidence $base $token $requestId $traceId;Require([int]$proof.provider_call_count-eq1-and@($proof.gateway_attempts).Count-eq1)'trace_independent_call_count' 'Independent evidence does not prove exactly one provider call.';Assert-BooleanField $proof.gateway_log_readback'required'$true'trace_gateway_log_not_required';Assert-BooleanField $proof.gateway_log_readback'verified'$true'trace_gateway_log_unverified';$a=$proof.gateway_attempts[0];Require([string]$a.provider-eq'workers-ai'-and[string]$a.model-eq$Model-and$a.success-eq$true)'trace_gateway_log_identity' 'Gateway log provider/model/outcome mismatch.';Require([string]$a.metadata.trace_id-eq$traceId-and[string]$a.metadata.request_id-eq$requestId-and[int]$a.metadata.attempt_index-eq1-and[string]$a.metadata.verification_probe-eq'trace_correlation')'trace_gateway_log_metadata' 'Gateway log metadata correlation mismatch.';Assert-BooleanField $a'metadata_correlation_verified'$true'trace_metadata_unverified'
-  $report=[ordered]@{contract_version='llm-hosted-trace-correlation-evidence-v2';status='verified';criterion='L4 hosted trace ID correlates gateway, provider, and immutable evidence';criterion_points=4;credit_eligible=$true;checked_at=[DateTime]::UtcNow.ToString('o');rubric_approval_commit=$RubricApprovalCommit;base_url=$base;source=[ordered]@{commit_sha=$ExpectedSourceCommitSha;archive_sha256=$ExpectedSourceArchiveSha256;gateway_tree_sha=$closure.gateway_tree;verifier_blob=$closure.verifier_blob;runtime_blob=$closure.runtime_blob;wrangler_blob=$closure.wrangler_blob;rubric_blob=$closure.rubric_blob;capability_blob=$closure.capability_blob};authority=$gate;trace=[ordered]@{trace_id=$traceId;request_id_sha256=Get-TextSha256 $requestId;gateway_log_id_sha256=Get-TextSha256([string]$a.gateway_log_id);d1_evidence_ref=[string]$proof.evidence_ref;gateway_log_readback_verified=$true;audit_readback_verified=$true;response_sha256=Get-TextSha256([string]$r.Content)};live_provider_calls=$true;provider_call_count=1;direct_provider_calls=$false;provider_writes=$false;hosted_audit_write=$true;secret_output=$false;manifest_updated=$false;delta_ledger_entry_created=$false;production_deploy=$false;release_promotion=$false}
-  $written=Write-ImmutableEvidence $report;Write-Host "$script:Prefix status=verified candidate_bound=true gateway_log_readback=true d1_readback=true provider_calls=1 redirects=false secret_output=false evidence_sha256=$($written.evidence_sha256) report=$($written.report_path)"
-}catch{Write-Error "$script:Prefix status=blocked $($_.Exception.Message)";throw}finally{Pop-Location}
+$repoRoot = Split-Path -Parent $PSScriptRoot
+Push-Location $repoRoot
+try {
+  Require ($PSVersionTable.PSVersion.Major -ge 7) 'powershell_7_required' 'PowerShell 7 or newer is required.'
+  Assert-SanctionedTarget $BaseUrl
+  $closure = Assert-CandidateClosure
+  Assert-ApprovedRubric
+  $gate = Assert-LiveProviderGate
+  $base = $script:SanctionedBaseUrl
+
+  $healthResponse = Invoke-CapturedRequest "$base/api/v1/health"
+  Require ([int]$healthResponse.StatusCode -eq 200) 'health_http_status' 'Health must return 200.'
+  $health = Read-JsonResponse $healthResponse 'health'
+  Require ([string]$health.status -eq 'healthy') 'health_not_healthy' 'Gateway is not healthy.'
+  Assert-SourceBinding $health
+
+  $capability = $health.verification_capabilities.trace_correlation
+  Require ($null -ne $capability -and [string]$capability.contract_version -eq 'llm-hosted-trace-correlation-probe-v1') 'trace_correlation_capability_missing' 'Trace capability is missing.'
+  Assert-BooleanField $capability 'configured' $true 'trace_capability_unconfigured'
+  Assert-BooleanField $capability 'verified' $false 'trace_capability_health_overclaim'
+  Assert-BooleanField $capability 'gateway_log_readback_verified' $false 'trace_capability_health_log_overclaim'
+  Require ([int]$capability.max_provider_calls -eq 1) 'trace_call_bound' 'Trace capability must cap one call.'
+
+  $token = Get-RequiredToken
+  $traceId = ([Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')).Substring(0, 32)
+  $spanId = [Guid]::NewGuid().ToString('N').Substring(0, 16)
+  $requestId = 'l4-trace-' + [Guid]::NewGuid().ToString('N')
+  $body = [ordered]@{
+    model = $Model
+    messages = @(@{ role = 'user'; content = 'Return exactly the single word verified.' })
+    max_tokens = 16
+    temperature = 0
+    stream = $false
+    metadata = @{ verification_probe = 'trace_correlation'; trace_id = $traceId }
+  } | ConvertTo-Json -Depth 10 -Compress
+  $response = Invoke-CapturedRequest "$base/v1/chat/completions" 'POST' @{
+    'x-superbrain-gateway-token' = $token
+    'x-request-id' = $requestId
+    traceparent = "00-$traceId-$spanId-01"
+  } $body
+  Require ([int]$response.StatusCode -eq 200) 'trace_http_status' 'Trace probe did not return 200.'
+  Require ((Get-TraceId $response) -eq $traceId) 'trace_response_header_mismatch' 'Response trace ID mismatch.'
+  $result = Read-JsonResponse $response 'trace'
+  Require ([string]$result.object -eq 'chat.completion' -and -not [string]::IsNullOrWhiteSpace([string]$result.choices[0].message.content)) 'trace_completion_invalid' 'Completion schema is invalid.'
+
+  $proof = Get-IndependentEvidence $base $token $requestId $traceId
+  Require ([int]$proof.provider_call_count -eq 1 -and @($proof.gateway_attempts).Count -eq 1) 'trace_independent_call_count' 'Independent evidence does not prove exactly one provider call.'
+  Assert-BooleanField $proof.gateway_log_readback 'required' $true 'trace_gateway_log_not_required'
+  Assert-BooleanField $proof.gateway_log_readback 'verified' $true 'trace_gateway_log_unverified'
+  $attempt = $proof.gateway_attempts[0]
+  Require ([string]$attempt.provider -eq 'workers-ai' -and [string]$attempt.model -eq $Model -and $attempt.success -eq $true) 'trace_gateway_log_identity' 'Gateway log provider/model/outcome mismatch.'
+  Require ([string]$attempt.metadata.trace_id -eq $traceId -and [string]$attempt.metadata.request_id -eq $requestId -and [int]$attempt.metadata.attempt_index -eq 1 -and [string]$attempt.metadata.verification_probe -eq 'trace_correlation') 'trace_gateway_log_metadata' 'Gateway log metadata correlation mismatch.'
+  Assert-BooleanField $attempt 'metadata_correlation_verified' $true 'trace_metadata_unverified'
+
+  $report = [ordered]@{
+    contract_version = 'llm-hosted-trace-correlation-evidence-v2'
+    status = 'verified'
+    criterion = 'L4 hosted trace ID correlates gateway, provider, and immutable evidence'
+    criterion_points = 4
+    credit_eligible = $true
+    checked_at = [DateTime]::UtcNow.ToString('o')
+    rubric_approval_commit = $RubricApprovalCommit
+    base_url = $base
+    source = [ordered]@{
+      commit_sha = $ExpectedSourceCommitSha
+      archive_sha256 = $ExpectedSourceArchiveSha256
+      gateway_tree_sha = $closure.gateway_tree
+      verifier_blob = $closure.verifier_blob
+      runtime_blob = $closure.runtime_blob
+      wrangler_blob = $closure.wrangler_blob
+      rubric_blob = $closure.rubric_blob
+      capability_blob = $closure.capability_blob
+    }
+    authority = $gate
+    trace = [ordered]@{
+      trace_id = $traceId
+      request_id_sha256 = Get-TextSha256 $requestId
+      gateway_log_id_sha256 = Get-TextSha256 ([string]$attempt.gateway_log_id)
+      d1_evidence_ref = [string]$proof.evidence_ref
+      gateway_log_readback_verified = $true
+      audit_readback_verified = $true
+      response_sha256 = Get-TextSha256 ([string]$response.Content)
+    }
+    live_provider_calls = $true
+    provider_call_count = 1
+    direct_provider_calls = $false
+    provider_writes = $false
+    hosted_audit_write = $true
+    secret_output = $false
+    manifest_updated = $false
+    delta_ledger_entry_created = $false
+    production_deploy = $false
+    release_promotion = $false
+  }
+  $written = Write-ImmutableEvidence $report
+  Write-Host "$script:Prefix status=verified candidate_bound=true gateway_log_readback=true d1_readback=true provider_calls=1 redirects=false secret_output=false evidence_sha256=$($written.evidence_sha256) report=$($written.report_path)"
+} catch {
+  Write-Error "$script:Prefix status=blocked $($_.Exception.Message)"
+  throw
+} finally {
+  Pop-Location
+}

@@ -314,6 +314,8 @@ function sanitizedAuditDetails(env, context, details) {
     fallback_used: details.fallback_used === true,
     fallback,
     semantic_probe_verified: details.semantic_probe_verified === true,
+    provider_stream_terminal_mode: safeAuditText(details.provider_stream_terminal_mode),
+    provider_finish_reason: safeAuditText(details.provider_finish_reason),
     gateway_attempts: gatewayAttempts,
     gateway_log_readback_verified: details.gateway_log_readback_verified === true,
     live_provider_calls: details.live_provider_calls === true,
@@ -753,7 +755,7 @@ function validateSseEvent(eventBody) {
     .map((line) => line.slice(5).replace(/^ /, ""))
     .join("\n");
   if (!data) throw new GatewayFault("provider_stream_invalid_sse", 502, "The provider stream contained an SSE event without data.");
-  if (data === "[DONE]") return { done: true, content: "" };
+  if (data === "[DONE]") return { done: true, content: "", finishReason: null };
   let payload;
   try { payload = JSON.parse(data); } catch {
     throw new GatewayFault("provider_stream_invalid_json", 502, "The provider stream contained invalid JSON.");
@@ -762,6 +764,7 @@ function validateSseEvent(eventBody) {
     throw new GatewayFault("provider_stream_not_openai_chunk", 502, "The provider stream did not return OpenAI-compatible chat.completion.chunk frames.");
   }
   let content = "";
+  let finishReason = null;
   for (const choice of payload.choices) {
     if (!choice || typeof choice !== "object" || !choice.delta || typeof choice.delta !== "object" || Object.hasOwn(choice, "message")) {
       throw new GatewayFault("provider_stream_not_openai_delta", 502, "The provider stream contained a non-delta completion frame.");
@@ -772,8 +775,20 @@ function validateSseEvent(eventBody) {
       }
       content += choice.delta.content;
     }
+    if (choice.finish_reason !== undefined && choice.finish_reason !== null) {
+      if (
+        typeof choice.finish_reason !== "string"
+        || choice.finish_reason.length < 1
+        || choice.finish_reason.length > 64
+        || /[^A-Za-z0-9_.:-]/.test(choice.finish_reason)
+        || finishReason !== null
+      ) {
+        throw new GatewayFault("provider_stream_invalid_finish_reason", 502, "The provider stream contained an invalid or repeated finish reason.");
+      }
+      finishReason = choice.finish_reason;
+    }
   }
-  return { done: false, content };
+  return { done: false, content, finishReason };
 }
 
 async function readWithDeadline(reader, abortController, deadlineAt) {
@@ -832,6 +847,8 @@ function providerStreamResponse(env, context, model, probe, started) {
       let totalBytes = 0;
       let terminalRaw = null;
       let terminalSeen = false;
+      let finishReason = null;
+      let terminalMode = null;
       let content = "";
       let attempt = null;
       let fault = null;
@@ -857,16 +874,28 @@ function providerStreamResponse(env, context, model, probe, started) {
             if (terminalSeen) throw new GatewayFault("provider_stream_data_after_done", 502, "The provider stream emitted data after its terminal marker.");
             if (validated.done) {
               terminalSeen = true;
-              terminalRaw = event.raw;
+              terminalRaw = "data: [DONE]\n\n";
+              terminalMode = "provider_done_marker";
             } else {
+              if (finishReason !== null) {
+                throw new GatewayFault("provider_stream_data_after_finish", 502, "The provider stream emitted data after its finish reason.");
+              }
               content += validated.content;
               controller.enqueue(encoder.encode(event.raw));
+              if (validated.finishReason !== null) finishReason = validated.finishReason;
             }
           }
         }
         buffer += decoder.decode();
         if (buffer.trim() !== "") throw new GatewayFault("provider_stream_incomplete_frame", 502, "The provider stream ended with an incomplete SSE frame.");
-        if (!terminalSeen || !terminalRaw) throw new GatewayFault("provider_stream_done_missing", 502, "The provider stream ended without [DONE].");
+        if (!terminalSeen) {
+          if (finishReason === null) {
+            throw new GatewayFault("provider_stream_done_missing", 502, "The provider stream ended without [DONE] or an explicit finish reason.");
+          }
+          terminalRaw = "data: [DONE]\n\n";
+          terminalMode = "finish_reason_eof";
+        }
+        if (!terminalRaw || !terminalMode) throw new GatewayFault("provider_stream_done_missing", 502, "The provider stream has no verified terminal marker.");
         canonicalProbeContent(content, probe);
         attempt = await readGatewayLog(env, {
           logId: started.logId,
@@ -888,6 +917,8 @@ function providerStreamResponse(env, context, model, probe, started) {
           stream: true,
           fallback_used: false,
           semantic_probe_verified: probe === "hosted_stream_parity",
+          provider_stream_terminal_mode: terminalMode,
+          provider_finish_reason: finishReason,
           live_provider_calls: true,
           gateway_attempts: [attempt],
           gateway_log_readback_verified: true,
@@ -1172,6 +1203,8 @@ async function handleEvidenceReadback(request, env, context, url) {
     provider_call_count: expectedCount,
     stream: details.stream === true,
     semantic_probe_verified: details.semantic_probe_verified === true,
+    provider_stream_terminal_mode: details.provider_stream_terminal_mode,
+    provider_finish_reason: details.provider_finish_reason,
     reason_code: details.reason_code,
     fallback: details.fallback,
     gateway_log_readback: {
