@@ -16,7 +16,7 @@ const GATEWAY_LOG_READBACK_TIMEOUT_MS = 5_000;
 const GATEWAY_LOG_POLL_MS = 100;
 const ALLOWED_MODELS = Object.freeze([
   "@cf/qwen/qwen2.5-coder-32b-instruct",
-  "@cf/meta/llama-3.1-8b-instruct",
+  "@cf/meta/llama-3.1-8b-instruct-fast",
 ]);
 const ALLOWED_MODEL_SET = new Set(ALLOWED_MODELS);
 const TRACEPARENT_PATTERN = /^00-([0-9a-f]{32})-([0-9a-f]{16})-(0[01])$/;

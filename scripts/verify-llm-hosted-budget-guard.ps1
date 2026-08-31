@@ -5,7 +5,7 @@ param(
   [string]$RubricApprovalCommit = "",
   [switch]$OwnerApprovedGatewayCredentialUse,
   [switch]$OwnerApprovedHostedAuditWrites,
-  [string]$Model = "@cf/meta/llama-3.1-8b-instruct",
+  [string]$Model = "@cf/meta/llama-3.1-8b-instruct-fast",
   [string]$OutDir = ".phase1-artifacts/llm-gateway/hosted-budget-guard"
 )
 

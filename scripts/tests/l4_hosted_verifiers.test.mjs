@@ -39,6 +39,19 @@ test("every verifier pins the exact Preview host, fixed token env, and forbids r
   }
 });
 
+test("every verifier defaults to the active non-deprecated Workers AI model", () => {
+  for (const [name, source] of sourceByName) {
+    assert.match(source, /@cf\/meta\/llama-3\.1-8b-instruct-fast/, name);
+    assert.doesNotMatch(source, /@cf\/meta\/llama-3\.1-8b-instruct["']/, name);
+  }
+});
+
+test("PowerShell return keywords stay separated from their expressions", () => {
+  for (const [name, source] of sourceByName) {
+    assert.doesNotMatch(source, /return(?=[$'"\[])/, name);
+  }
+});
+
 test("every verifier binds its own blob, runtime, Wrangler, rubric, gates, HEAD, clean status, and reconstructed archive", () => {
   for (const [name, source] of sourceByName) {
     assert.match(source, /VerifierPath/, name);

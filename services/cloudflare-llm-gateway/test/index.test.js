@@ -5,7 +5,7 @@ import worker from "../src/index.js";
 
 const gatewayToken = "unit-test-gateway-token";
 const gatewayId = "cloud-superbrain-llm-gateway-preview";
-const primaryModel = "@cf/meta/llama-3.1-8b-instruct";
+const primaryModel = "@cf/meta/llama-3.1-8b-instruct-fast";
 const fallbackModel = "@cf/qwen/qwen2.5-coder-32b-instruct";
 
 function auditDb({ failWrite = false, failRead = false } = {}) {

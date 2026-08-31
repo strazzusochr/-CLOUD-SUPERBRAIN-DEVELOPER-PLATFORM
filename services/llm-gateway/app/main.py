@@ -37,7 +37,7 @@ CF_WORKERS_AI_MAX_TOKENS = int(os.getenv("CF_WORKERS_AI_MAX_TOKENS", "8192") or 
 CF_WORKERS_AI_MODE = "cloudflare_workers_ai_live"
 CF_WORKERS_AI_MODELS = {
     "@cf/qwen/qwen2.5-coder-32b-instruct",
-    "@cf/meta/llama-3.1-8b-instruct",
+    "@cf/meta/llama-3.1-8b-instruct-fast",
 }
 MODEL_STUDIO_MODE = "alibaba_model_studio_live"
 MODEL_STUDIO_BASE_URL = os.getenv("ALIBABA_MODEL_STUDIO_BASE_URL", "").strip().rstrip("/")

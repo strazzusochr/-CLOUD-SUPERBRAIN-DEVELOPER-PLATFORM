@@ -72,7 +72,7 @@ foreach ($marker in @(
   'SOURCE_COMMIT_SHA',
   'SOURCE_ARCHIVE_SHA256',
   '@cf/qwen/qwen2.5-coder-32b-instruct',
-  '@cf/meta/llama-3.1-8b-instruct',
+  '@cf/meta/llama-3.1-8b-instruct-fast',
   'MAX_BODY_BYTES',
   'MAX_INPUT_CHARS',
   'MAX_OUTPUT_TOKENS',

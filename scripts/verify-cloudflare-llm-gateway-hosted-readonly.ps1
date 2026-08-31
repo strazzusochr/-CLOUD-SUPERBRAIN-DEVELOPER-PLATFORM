@@ -87,7 +87,7 @@ try {
   Assert-Equal "models object" ([string]$models.object) "list"
   Assert-FalseField "models" $models "live_provider_calls"
   $expectedModels = @(
-    "@cf/meta/llama-3.1-8b-instruct",
+    "@cf/meta/llama-3.1-8b-instruct-fast",
     "@cf/qwen/qwen2.5-coder-32b-instruct"
   )
   $observedModels = @($models.data | ForEach-Object { [string]$_.id } | Sort-Object)

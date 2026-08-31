@@ -68,7 +68,7 @@ if ($DryRun) {
   $env:PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED = 'true'
   # Dritter, leicht zu übersehender Schalter: der Compose-Standard ist `gemma-3-1b-it`,
   # das lokale llama.cpp-Modell. Es steht NICHT auf der Workers-AI-Allowlist
-  # ({ @cf/qwen/qwen2.5-coder-32b-instruct, @cf/meta/llama-3.1-8b-instruct }).
+  # ({ @cf/qwen/qwen2.5-coder-32b-instruct, @cf/meta/llama-3.1-8b-instruct-fast }).
   # Ohne diese Zeile antwortet das Gateway mit 400 und der Build mit 503
   # „llm_gateway_generation_unavailable".
   $env:WORKBENCH_LLM_MODEL = $CfModel
@@ -212,7 +212,7 @@ $frontendFlag = (docker compose -f $ComposeFile exec -T frontend sh -lc 'printf 
 $workbenchModel = (docker compose -f $ComposeFile exec -T frontend sh -lc 'printf "%s" "$WORKBENCH_LLM_MODEL"' 2>$null)
 $tokenSet = (docker compose -f $ComposeFile exec -T llm-gateway sh -lc 'if [ -n "$CF_WORKERS_AI_TOKEN" ]; then printf yes; else printf no; fi' 2>$null)
 $accountSet = (docker compose -f $ComposeFile exec -T llm-gateway sh -lc 'if [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then printf yes; else printf no; fi' 2>$null)
-$allowedModels = @('@cf/qwen/qwen2.5-coder-32b-instruct', '@cf/meta/llama-3.1-8b-instruct')
+$allowedModels = @('@cf/qwen/qwen2.5-coder-32b-instruct', '@cf/meta/llama-3.1-8b-instruct-fast')
 $modelOk = $allowedModels -contains $workbenchModel
 Write-Host ("  Gateway-Modus            : {0}" -f $gatewayMode)
 Write-Host ("  Owner-Live-Master-Gate  : {0}" -f $ownerLiveGate)
