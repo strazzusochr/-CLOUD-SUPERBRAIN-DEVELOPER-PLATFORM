@@ -215,9 +215,15 @@ foreach ($requiredNoCreditGuard in @(
     $phase5CreditVerifier `
     $requiredNoCreditGuard
 }
-Assert-Contains "no-credit requalification has an exact runtime truth delta" `
+Assert-Contains "no-credit requalification keeps the cross-day exact runtime truth delta" `
   $phase5CreditVerifier `
-  'if changed_paths == NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS:'
+  'NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS,'
+Assert-Contains "no-credit requalification keeps the same-day exact runtime truth delta" `
+  $phase5CreditVerifier `
+  'NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS,'
+Assert-Contains "same-day no-credit requalification is date-bound" `
+  $phase5CreditVerifier `
+  'same-day no-credit requalification must keep the manifest date unchanged'
 Assert-Contains "direct Phase-5 truth check is retained" $prCheck 'if [[ "$CANDIDATE_DIFFERS" != "true" ]]; then'
 Assert-Contains "direct Phase-5 truth verifier is retained" $prCheck 'python scripts/verify_phase5_credit_itemization.py'
 Assert-Contains "reusable candidate CI validates control truth" $prCheck 'elif [[ "$SOURCE_PREQUALIFICATION" != "true" ]]; then'

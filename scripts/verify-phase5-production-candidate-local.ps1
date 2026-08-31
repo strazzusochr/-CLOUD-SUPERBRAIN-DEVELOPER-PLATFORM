@@ -122,6 +122,11 @@ try {
     "docs/project-progress.manifest.json",
     "docs/runtime-state/external-gate-summary.json"
   )
+  $noCreditRequalificationSameDayPaths = @(
+    "PROJECT_STATE.md",
+    "apps/frontend/lib/endpoint-snapshot.json",
+    "docs/runtime-state/external-gate-summary.json"
+  )
   # Compare the candidate tree with the index. In a clean checkout the index is
   # HEAD; before commit it also includes only the explicitly staged truth slice,
   # while unrelated unstaged build artifacts remain outside qualification truth.
@@ -134,6 +139,8 @@ try {
   if (-not $runtimeSourceMatchesHead) {
     $isQualificationTruthTransition = Test-ExactPathSet $runtimeChangedPaths $qualificationTruthPaths
     $isNoCreditRequalification = Test-ExactPathSet $runtimeChangedPaths $noCreditRequalificationPaths
+    $isNoCreditRequalificationSameDay = Test-ExactPathSet $runtimeChangedPaths $noCreditRequalificationSameDayPaths
+    $isNoCreditRequalification = $isNoCreditRequalification -or $isNoCreditRequalificationSameDay
     if ($isQualificationTruthTransition) {
       $itemization = Get-Content "docs\runtime-state\phase5-credit-itemization.json" -Raw | ConvertFrom-Json
       $legacyPhase5ForParity = [int]$itemization.legacy_gap_reconstruction.recorded_percent
@@ -186,6 +193,14 @@ try {
 
       $candidateUpdatedDate = ([DateTimeOffset]::Parse([string]$candidateConfig.updated_at)).UtcDateTime.ToString("yyyy-MM-dd")
       Assert-Equal "no-credit manifest last_verified" ([string]$currentManifest.last_verified) $candidateUpdatedDate
+      if ($isNoCreditRequalificationSameDay) {
+        Assert-Equal "same-day no-credit manifest date" $candidateUpdatedDate ([string]$sourceManifest.last_verified)
+      } else {
+        Assert-True "cross-day no-credit manifest date advances" (
+          [DateTime]::ParseExact($candidateUpdatedDate, "yyyy-MM-dd", $null) -gt
+          [DateTime]::ParseExact([string]$sourceManifest.last_verified, "yyyy-MM-dd", $null)
+        )
+      }
       $currentManifestProjection = $currentManifest | ConvertTo-Json -Depth 100 | ConvertFrom-Json
       $currentManifestProjection.last_verified = [string]$sourceManifest.last_verified
       Assert-Equal "no-credit manifest immutable projection" ($currentManifestProjection | ConvertTo-Json -Compress -Depth 100) ($sourceManifest | ConvertTo-Json -Compress -Depth 100)

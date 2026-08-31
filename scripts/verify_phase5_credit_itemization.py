@@ -77,6 +77,11 @@ NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS = {
     "docs/project-progress.manifest.json",
     "docs/runtime-state/external-gate-summary.json",
 }
+NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS = {
+    "PROJECT_STATE.md",
+    "apps/frontend/lib/endpoint-snapshot.json",
+    "docs/runtime-state/external-gate-summary.json",
+}
 CURRENT_RELEASE_CANDIDATE_REPO_PATH = "docs/release-artifacts/current-release-candidate.json"
 PHASE5_ITEMIZATION_REPO_PATH = "docs/runtime-state/phase5-credit-itemization.json"
 PROJECT_PROGRESS_MANIFEST_REPO_PATH = "docs/project-progress.manifest.json"
@@ -1339,6 +1344,8 @@ def require_no_credit_requalification(
     manifest: dict[str, Any],
     itemization: dict[str, Any],
     computed_percent: int,
+    *,
+    same_day_transition: bool,
 ) -> None:
     source_manifest = load_git_json(source_sha, PROJECT_PROGRESS_MANIFEST_REPO_PATH)
     index_manifest = load_index_json(PROJECT_PROGRESS_MANIFEST_REPO_PATH)
@@ -1432,6 +1439,16 @@ def require_no_credit_requalification(
         re.fullmatch(r"\d{4}-\d{2}-\d{2}", source_verified_date) is not None,
         "candidate source manifest last_verified is invalid",
     )
+    if same_day_transition:
+        require(
+            current_verified_date == source_verified_date,
+            "same-day no-credit requalification must keep the manifest date unchanged",
+        )
+    else:
+        require(
+            current_verified_date > source_verified_date,
+            "cross-day no-credit requalification must advance the manifest date",
+        )
 
     source_platform = load_git_text(source_sha, PLATFORM_MANIFEST_REPO_PATH)
     index_platform = load_index_text(PLATFORM_MANIFEST_REPO_PATH)
@@ -1565,8 +1582,19 @@ def require_runtime_source_parity(
     if not changed_paths:
         return
 
-    if changed_paths == NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS:
-        require_no_credit_requalification(source_sha, manifest, itemization, computed_percent)
+    if changed_paths in (
+        NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS,
+        NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS,
+    ):
+        require_no_credit_requalification(
+            source_sha,
+            manifest,
+            itemization,
+            computed_percent,
+            same_day_transition=(
+                changed_paths == NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS
+            ),
+        )
         print(
             "[phase5-credit] runtime_source_parity_mode=no_credit_requalification "
             "progress_credit_changed=false"

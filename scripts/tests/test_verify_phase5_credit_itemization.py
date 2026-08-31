@@ -1247,7 +1247,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         release_id = "prod-candidate-2026-08-31-local-rc24"
         previous_release_id = "prod-candidate-2026-08-29-local-rc23"
 
-        def build_fixture() -> tuple[
+        def build_fixture(*, same_day: bool = False) -> tuple[
             dict[str, object],
             dict[str, object],
             dict[tuple[str, ...], subprocess.CompletedProcess[str]],
@@ -1259,7 +1259,8 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
                 "last_verified": "2026-08-31",
             }
             source_manifest = copy.deepcopy(manifest)
-            source_manifest["last_verified"] = "2026-08-29"
+            source_date = "2026-08-31" if same_day else "2026-08-29"
+            source_manifest["last_verified"] = source_date
             score = {
                 "total_item_count": 19,
                 "verified_item_count": 17,
@@ -1348,8 +1349,8 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             index_external["requested_release_candidate_selector"] = source_sha
             candidate_artifact = f"release_id: `{release_id}`\nsource_commit_sha: `{source_sha}`\n"
             source_platform = (
-                "/* Project manifest, dated 2026-08-29. */\n"
-                'export const MANIFEST = { snapshot: "2026-08-29", overall: 89 };\n'
+                f"/* Project manifest, dated {source_date}. */\n"
+                f'export const MANIFEST = {{ snapshot: "{source_date}", overall: 89 }};\n'
             )
             index_platform = (
                 "/* Project manifest, dated 2026-08-31. */\n"
@@ -1438,6 +1439,25 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
 
         manifest, itemization, responses = build_fixture()
         run_fixture(manifest, itemization, responses)
+
+        same_day_manifest, same_day_itemization, same_day_responses = build_fixture(same_day=True)
+        run_fixture(
+            same_day_manifest,
+            same_day_itemization,
+            same_day_responses,
+            verifier.NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS,
+        )
+
+        cross_day_manifest, cross_day_itemization, cross_day_responses = build_fixture()
+        self.assert_rejected(
+            lambda: run_fixture(
+                cross_day_manifest,
+                cross_day_itemization,
+                cross_day_responses,
+                verifier.NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS,
+            ),
+            "same-day no-credit requalification must keep the manifest date unchanged",
+        )
 
         inflated_manifest, inflated_itemization, inflated_responses = build_fixture()
         inflated_itemization["current_score"]["computed_percent"] = 90  # type: ignore[index]
