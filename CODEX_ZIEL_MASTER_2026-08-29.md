@@ -3,8 +3,10 @@
 Status: `ACTIVE_CURRENT_TRUTH`
 Stand: **2026-08-31**
 Branch: `codex/organism-visual-v2`
-Qualification Source: **`1cb03979740859f0350cf18f6f08ef06c3d72b72`**; Control: **`d016e4b928290d8fa358522af08609ae80aeb1cc`**
-Market Status: `MARKET_READY:false` — Overall `89`
+Truth-HEAD: **`406e3187`**
+RC24 Qualification Source: **`1cb03979`** · Control: **`d016e4b9`** · Selection: **`378a66bf`**
+Hosted Worker: **`bc0f4dc8`** — acht Commits hinter RC24-Source
+Market Status: `MARKET_READY:false` — Overall `89`, Delta-Ledger `0`
 
 **Dies ist die einzige Zieldatei.** Sie sagt, *was zu tun ist*.
 Die Lage steht in `CODEX_UEBERGABE_MASTER_2026-08-29.md`.
@@ -12,56 +14,28 @@ Die Lage steht in `CODEX_UEBERGABE_MASTER_2026-08-29.md`.
 > Der Dateiname bleibt bewusst auf `2026-08-29` stehen, damit Codex genau eine Zieldatei und
 > genau eine Uebergabe findet. Massgeblich ist das Feld `Stand` oben.
 
-**Vorrangregel.** Im Repository liegen aus historischen Gruenden weitere `CODEX_*.md`.
-Gueltig sind ausschliesslich diese beiden Dateien. Ausdruecklich ueberholt und im Kopf
-entsprechend markiert sind `CODEX_100_PROZENT_ZIEL_2026-08-29.md`,
-`CODEX_ZIELVERFOLGUNG_KURZ.md`, `CODEX_UEBERGABE_2026-08-29-SESSION16.md`,
-`CODEX_MASTER_GOAL_AUTONOM_WEITER.md` und `CODEX_MASTER_GOAL_FINALE.md`. Alle uebrigen
-`CODEX_UEBERGABE_2026-0[478]-*.md` sind aeltere Sessionprotokolle ohne Weisungscharakter.
+**Vorrangregel.** Im Repository liegen weitere `CODEX_*.md` aus historischen Gruenden.
+Gueltig sind ausschliesslich diese beiden Dateien. Ueberholt und im Kopf markiert sind
+`CODEX_100_PROZENT_ZIEL_2026-08-29.md`, `CODEX_ZIELVERFOLGUNG_KURZ.md`,
+`CODEX_UEBERGABE_2026-08-29-SESSION16.md`, `CODEX_MASTER_GOAL_AUTONOM_WEITER.md` und
+`CODEX_MASTER_GOAL_FINALE.md`.
 
----
-
-## 0. RC24-Zielcheckpoint — 2026-08-31
-
-RC24 ist lokal source-gebunden qualifiziert: fuenf Ketten gruen, exaktes 27-Dateien-Set,
-CI `33359506266` mit `30/30`, Browser `22/22` Seiten, `29/29` Funktionsfamilien und
-`161/161` Aktionen. Der Auswahluebergang ist fail-closed als
-`no_credit_requalification` akzeptiert. Dadurch steigt kein Fortschritt: Overall `89`,
-P3 `44`, P5 `89`, P6 `90`, L4 `55`, L5 `56`; I1/I5 bleiben null Kredite und
-`MARKET_READY:false`.
-
-Der autonome RC24-Abschluss ist erfolgt: Selection-Commit `378a66bf` ist gepusht und
-`pr-check` `33369934779` lief auf dem exakten SHA mit `30/30`, `0` skipped, `0` failed.
-Ein supplementaerer sichtbarer Browserlauf bestaetigte `22/22` HTTP-200-Seiten,
-`22/22` echte sichere Klicks und `0` Console-Errors; er vergibt keinen Prozentkredit.
-
-Aktueller Engpass ist nicht mehr lokaler Neubau. Worker `bc0f4dc8` liegt acht Commits
-hinter RC24-Source und meldet Progress `84`. Die zehn L4/L5-Hosted-Verifier existieren,
-sind aber ohne Rubrikfreigabe, Source-Rebind und echte Hosted-Laeufe nicht kreditierbar.
-Die noch offenen Schritte sind deshalb in Reihenfolge: explizite Owner-Freigaben B1/B5,
-RC24-Hosted-Rebind und Readback, Owner-OAuth-Abnahme B2, P6-Environment B3 sowie
-Registry-Dispatch B4; danach Hosted-Verifier/Scale/GHCR, Delta-Ledger und Finalstack.
-
-Die Aussagen weiter unten, D0 sei noch nicht deployt oder die zehn Verifier existierten
-nur als Geruest, sind historischer Diagnosekontext und durch diesen Checkpoint ersetzt.
-Danach bleiben ausschliesslich echte, explizit freigegebene hosted Beweise und die
-sanktionierte Delta-Ledger-Buchung auf dem Weg zu 100.
-Kein lokaler RC24-Beweis darf als hosted, Production-Deploy, Promotion, Registry-Push,
-Produktions-OAuth oder Marktfreigabe umgedeutet werden. `DEV-ONLY; hosted proof still
-blocked`.
+**Diese Fassung ist vollstaendig neu geschrieben.** Sie enthaelt keine ueberholten Stufen
+mehr. Alles, was hier steht, ist gegen `406e3187`, gegen D1 oder gegen den Live-Endpunkt
+gemessen.
 
 ---
 
 ## 1. Endziel
 
-`npm run verify:market-ready` druckt real:
+`pwsh -NoProfile -File .\scripts\verify-market-ready.ps1 -IncludeExternalGates` druckt real:
 
 ```text
 MARKET_READY: true
 ```
 
-Dafuer muessen beide Matrizen **evidenzbasiert** 100 sein. Production-Deploy und
-Release-Promotion bleiben danach **separate** Owner-Entscheidungen.
+Beide Matrizen **evidenzbasiert** 100. Production-Deploy und Release-Promotion bleiben
+danach **separate** Owner-Entscheidungen.
 
 ---
 
@@ -73,191 +47,208 @@ Vertikal:    L1 100 | L2 100 | L3 100 | L4 55 | L5 56 | L6 100 | L7 100
 Delta-Ledger: 0 Eintraege
 ```
 
-| Zelle | Rest | Was den Rest wirklich blockiert |
+| Zelle | Rest | Was jetzt konkret fehlt |
 | --- | ---: | --- |
-| P3 | **+56** | Code ist fertig und deployfaehig. Es fehlt der **echte Authorize-Beweis** im Browser. |
-| P5 | **+11** | `I5` faellt automatisch nach dem P3-Beweis. `I1` braucht Hosted-Candidate-Paritaet **plus** eine Codeaenderung. |
-| P6 | **+10** | Der vorhandene 900er-Lauf ist kriterien-unvollstaendig. Wiederholung mit dem zugelassenen Verifier noetig. |
-| L4 | **+45** | Fuenf Verifier existieren nur als Geruest und beweisen nichts. Neu schreiben. |
-| L5 | **+44** | Dito, plus ein echtes SBOM. |
+| P3 | **+56** | OAuth-Kette ist hosted gefahren. Es fehlen **5 von 12** Evidence-Schritten, das Evidence-Dokument und B1. |
+| P5 | **+11** | `I5` faellt evidenzgetrieben nach P3. `I1` braucht Hosted-Candidate-Paritaet **plus** Codeaenderung. |
+| P6 | **+10** | Verifier ist scharf, aber Environment und Secret fehlen (B3). Der alte 900er-Lauf zaehlt nicht. |
+| L4 | **+45** | Verifier sind jetzt **echt**. Es fehlen B1-Approval-Commit, Source-Rebind und die realen Hosted-Laeufe. |
+| L5 | **+44** | Dito, inkl. echtem SBOM. |
 
-**166 offene Punkte.** `overall = round(sum(7 Phasen)/7)` — Layerarbeit (L4/L5) bewegt die
-89 **nie**; sie ist trotzdem Pflicht fuer die vertikale 100.
+**166 offene Punkte.** `overall = round(sum(7 Phasen)/7)`
+(`scripts/verify_project_progress_manifest.py:328`). L4/L5 sind Pflicht fuer die vertikale
+100, bewegen die 89 aber **nie**.
 
 ---
 
 ## 3. Kritischer Pfad
 
 ```text
-D0  Worker-Deploy (F1+F2 scharfschalten)  ── Voraussetzung fuer ALLES Hosted
-     │
-     ├─> D1  OAuth-Browserkette ──> P3 +56 ──> P5-I5
-     │        (braucht Owner: Passwort + 2FA)
-     │
-     ├─> D2  RC24 einfrieren + qualifizieren ──> P5-I1 (+ Codeaenderung)
-     │
-     ├─> D3  10 Verifier neu schreiben ──> L4 +45, L5 +44
-     │
-     └─> D4  P6-Scale mit echtem Verifier ──> P6 +10
-                     │
-                     └─> D5  Delta-Ledger buchen ──> D6  Final-Stack ──> MARKET_READY
+S1  B1  Rubriken freigeben  ──────────────┐  HARTER ENGPASS
+      (Approval-COMMIT, nicht nur Text)   │  ohne ihn laufen die L4/L5-Verifier gar nicht
+                                          │
+S2  B5 + Hosted-Rebind auf RC24-Source ───┤  Voraussetzung fuer jeden Hosted-Beweis
+                                          │
+      ├─> S3  L4/L5 Hosted-Laeufe ────────┼──> L4 +45, L5 +44
+      │                                   │
+      ├─> S4  P3-Evidence vervollstaendigen ──> P3 +56 ──> P5-I5   (braucht B2)
+      │                                   │
+      ├─> S5  P6-Scale mit echtem Verifier ──> P6 +10              (braucht B3)
+      │                                   │
+      └─> S6  I1: Candidate-Paritaet + Codepin ──> P5 100          (braucht B4/GHCR)
+                                          │
+                          S7  Delta-Ledger buchen ──> Finalstack ──> MARKET_READY
 ```
 
-**Engpass:** `D0`. Ohne ihn ist der Worker weiterhin auf die falsche Redirect-URI
-konfiguriert und ohne Source-Bindung — dann sind D1 und D2 unmoeglich.
+**Engpass ist jetzt B1, nicht mehr der Deploy.** Die zehn Verifier verlangen
+`-RubricApprovalCommit` als 40-stelligen Git-Commit, der **Ancestor der Kandidatenquelle**
+sein muss, und sie lesen den freigegebenen Rubriktext aus genau diesem Commit. Ohne einen
+solchen Commit brechen sie fail-closed ab — es gibt keinen Umweg.
 
 ---
 
-## 4. Die Stufen im Detail
+## 4. Was bereits erledigt ist — nicht wiederholen
 
-### D0 — Worker-Deploy: F1 und F2 scharfschalten
+- **F1/F2 sind live.** Deployment `6bf89fc8`, Source-Bindung gesetzt und geprueft.
+  `GITHUB_OAUTH_REDIRECT_URI` zeigt auf den Worker-Callback und stimmt mit der GitHub-App
+  ueberein (Wildcard aus, Scope `read:user`).
+- **Die OAuth-Kette ist hosted gefahren** — der Owner hat einmal Authorize geklickt.
+  Serverseitig in D1 belegt: Cancel fail-closed, Authorize mit `identity_verified` und
+  `oauth_state_consumed`, Familie `subject=github:237145441`, Refresh `rotated`, Logout
+  `revoked` mit `revocation_reason=user_logout`, danach `me=401`/`refresh=401`.
+  **Der teure Teil ist erbracht.**
+- **RC24 ist lokal qualifiziert**: fuenf Ketten gruen, 27-Dateien-Evidence-Set,
+  CI `33359506266` `30/30`, Selection-CI `33369934779` `30/30`, Browser `22/22`/`29/29`/`161/161`.
+- **Die zehn L4/L5-Verifier sind echte Skripte** (88–307 Zeilen statt 43–69), mit
+  Pflichtparametern, Owner-Grant-Pruefung gegen `capability-gates.json`, Rubrik-Bindung und
+  echten Hosted-Operationen inklusive Readback. Dazu neuer Worker-Code
+  (`src/mcp-hosted.js`, Migrationen 0006/0008).
+- **`scripts/deploy-cloudflare-stateful-runtime.ps1`** ist der einzige zugelassene
+  Deploy-Pfad und verhindert den Var-Verlust strukturell.
 
-**Zustand:** Beide Fixes sind in `4adb250c` committet und per Dry-Run validiert
-(13/13 Bindings, beide Source-Vars, korrigierte Redirect-URI). Sie sind **noch nicht live**.
+---
 
-**Aktion — genau ein Befehl:**
+## 5. Die Stufen im Detail
+
+### S1 — B1: Rubriken freigeben (harter Engpass)
+
+Drei Dateien unter `docs/runtime-contracts/` stehen auf
+`DRAFT_OWNER_APPROVAL_REQUIRED` mit `Credit-Anwendung erlaubt: false`:
+`phase3-credit-rubric.md`, `phase6-credit-rubric.md`, `layer-credit-rubric.md`.
+
+**Die Freigabe ist ein Commit, kein Satz.** Die Verifier prüfen:
+
+```text
+-RubricApprovalCommit  muss ^[0-9a-f]{40}$ sein
+                       muss ein existierender Commit sein
+                       muss Ancestor von ExpectedSourceCommitSha sein
+                       der Rubriktext wird aus GENAU diesem Commit gelesen
+Contract-Feld rubric_approval_sha  muss identisch sein
+```
+
+Praktisch: Status auf approved setzen, Freigabe-Referenz eintragen, committen — und diesen
+Commit-SHA danach in jeden Verifier-Aufruf und in jedes Evidence-Dokument geben. Der
+Freigabe-Commit muss **vor** der Kandidatenquelle liegen, an der die Verifier laufen; bei
+RC25 also zuerst freigeben, dann einfrieren.
+
+**Kredit:** keiner. B1 macht Kredit nur *moeglich*.
+
+### S2 — B5 und Hosted-Rebind auf die RC24-Source
+
+Der Worker laeuft auf `bc0f4dc8`, RC24-Source ist `1cb03979`. Acht Commits Abstand, darunter
+neuer Worker-Code (`mcp-hosted.js`) und die Migrationen 0006/0008. Solange das so bleibt,
+kann kein L4/L5-Verifier Source-Paritaet feststellen.
 
 ```powershell
-Set-Location 'D:\_sb_tmp\clean-head-7f181868'
+Set-Location <RC24-Arbeitsbaum>
 $env:TEMP='D:\_sb_tmp'; $env:TMP='D:\_sb_tmp'
 Get-Content 'C:\Users\immer\.codex\secrets\cloud-superbrain.local.env' | ForEach-Object {
   if ($_ -match '^(CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID)=(.*)$') {
     Set-Item -Path "env:$($Matches[1])" -Value ($Matches[2].Trim().Trim('"').Trim("'"))
   }
 }
-pwsh -NoProfile -File .\scripts\deploy-cloudflare-stateful-runtime.ps1
+pwsh -NoProfile -File .\scripts\deploy-cloudflare-stateful-runtime.ps1 -CommitSha 1cb03979740859f0350cf18f6f08ef06c3d72b72
 ```
 
-**Nie wieder `wrangler deploy` direkt aufrufen** — das hat F2 verursacht.
+**Vorher:** D1-Migrationen 0006 und 0008 remote anwenden, sonst laeuft der neue Worker gegen
+ein Schema, das die MCP-Write-Tabellen nicht hat.
 
-**Abnahme (das Skript prueft es selbst).** Es deployt standardmaessig `HEAD` und berechnet
-`SOURCE_ARCHIVE_SHA256` daraus neu; die folgenden Werte gelten fuer `4adb250c` und aendern
-sich mit jedem weiteren Commit — entscheidend ist, dass Health **exakt den deployten
-Commit** meldet:
+**Abnahme:** `/api/v1/health` meldet `source_commit_sha = 1cb03979...` und den passenden
+`source_archive_sha256`. Das Skript prueft das selbst.
+
+**Kredit:** keiner. Voraussetzung fuer S3 bis S6.
+
+**Erwartung daempfen:** `/api/v1/project/progress` bleibt bei `84` — siehe §7.
+
+### S3 — L4/L5: die zehn Verifier hosted fahren (+45 / +44)
+
+Erst nach S1 und S2. Jeder Verifier braucht mindestens:
 
 ```text
-/api/v1/health   source_commit_sha     = 4adb250c9948f9728c477eaabfc5964252b5707b
-                 source_archive_sha256 = 60c43b638f3ed6fd43162ae906c99c0781ff8289bf08d64333b0ec63269f118e
-/api/v1/auth/github  Location enthaelt
-                 redirect_uri = https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev/api/v1/auth/callback
+-ExpectedSourceCommitSha 1cb03979...
+-ExpectedSourceBundleSha256 <64 hex>
+-OwnerGrantRef <exakte Referenz aus capability-gates.json>
+-RubricApprovalCommit <40 hex aus S1>
 ```
 
-**Kredit:** keiner. D0 ist reine Voraussetzung.
+Der Verifier prueft zusaetzlich, dass das passende Gate in
+`docs/runtime-state/capability-gates.json` `owner_granted = true` traegt **und** die
+`owner_grant_ref` exakt uebereinstimmt. Beispiel `verify-mcp-hosted-write.ps1`: Gate
+`live_mcp_writes`, Evidence-Felder `write_performed`, `readback_verified`,
+`immutable_receipt_verified`, `channel_state_current`, `audit_persisted`,
+`audit_fail_closed`, `rollback_on_audit_failure`, `live_mcp_writes`; Contract-Phasen
+`bounded_write`, `server_readback`, `audit_prewrite`, `audit_postwrite`.
 
-**Erwartung daempfen:** `/api/v1/project/progress` bleibt danach bei `84`. Der Worker hat
-keine native Progress-Route und reicht an den degradierten `CONTRACT_ORIGIN` durch. Das ist
-ein eigener Punkt (§6), kein Fehler des Deploys.
+Nur der Erfolgspfad setzt `credit_eligible = $true`. Ein blockierter Lauf schreibt
+`credit_eligible = $false` — dann **nicht** kreditieren, sondern die Ursache beheben.
 
----
+**Kredit:** L4 `55 -> 100`, L5 `56 -> 100`.
 
-### D1 — OAuth-Browserkette: P3 +56 und P5-I5
+### S4 — P3 vervollstaendigen und Evidence schreiben (+56, danach I5)
 
-**Voraussetzung:** D0 gruen.
+`scripts/verify-production-auth-identity-evidence.ps1 -ValidateOnly -EvidencePath <pfad>
+-ExpectedCandidateSha <40 hex>` verlangt `production-auth-identity-proof-v1` mit **exakten**
+Feldmengen — unbekannte Felder lassen ihn ebenso scheitern wie fehlende.
 
-**Vorher pruefen:** Die GitHub-OAuth-App muss als Callback exakt
-`https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev/api/v1/auth/callback`
-fuehren, Scope nur `read:user`, Wildcard-Matching aus. Weicht das ab, scheitert die Kette an
-`redirect_uri_mismatch` — genau der Fehler aus F1.
-
-**Die Kette, in privatem Fenster, mit echten Klicks:**
-
-1. `/login` -> „Mit GitHub anmelden" -> **Cancel**. Erwartet: `401`, State geloescht, keine
-   Session.
-2. Erneut starten. Der Consent-Screen darf **nur** `read:user` zeigen.
-3. **Owner klickt Authorize selbst** — Passwort und 2FA bleiben beim Owner.
-4. Callback muss beweisen: echte numerische GitHub-ID, konsumierter One-Time-State,
-   persistiertes Audit **vor** der Credential-Ausgabe.
-5. `/api/v1/auth/me` liefert die Identitaet; Reload behaelt die Session.
-6. `POST /api/v1/auth/refresh` rotiert. Der **alte** Refresh-Token danach -> `401`
-   `auth_refresh_reuse_blocked`, die Familie ist widerrufen.
-7. Callback-Replay mit demselben State scheitert.
-8. `POST /api/v1/auth/logout` widerruft die Familie, loescht beide Cookies; Refresh danach
-   `401`.
-
-**Evidence:** SHA-256-gebunden ablegen, Audit-Kette request-/session-korreliert, **ohne**
-Codes, State, Tokens, Cookies oder Secrets im Klartext.
-
-**Kredit:** P3 `44 -> 100` gegen `docs/runtime-contracts/phase3-credit-rubric.md`
-(P3-01 bis P3-08, Summe 56) — **erst nach B1-Freigabe der Rubrik**. Danach faellt `I5`
-automatisch, weil `expected_blocked_ids` es rein evidenzgetrieben behandelt
-(`verify_phase5_credit_itemization.py:290`). P5 geht damit auf `95` (18/19).
-
----
-
-### D2 — RC24 einfrieren und qualifizieren: P5-I1
-
-**Warum noetig:** RC23 zeigt auf `7db18d90`. Mit `9ec4741f` ist neuer **Produktquellcode**
-dazugekommen (722 Zeilen OAuth, Migration 0005). RC23 kann I1 nicht mehr tragen.
-
-**Aktion:**
-
-1. Kandidaten an dem SHA einfrieren, der auch deployt ist (`4adb250c` oder spaeter).
-2. Die fuenf Ketten fahren: sechs Clean-Archive-Images, Runtime `10/10`, Browser-Umbrella,
-   Candidate-Runtime mit realer Auswahl und Klick, Candidate-Archiv npm-audit + gitleaks.
-3. Evidence-Set (27 Dateien) neu binden, `current-release-candidate.json` umstellen.
-4. Kontroll-Commit + CI mit `conclusion=success`, `skipped=0`, Source-Attestierung auf den
-   eingefrorenen SHA.
-5. Kandidatgebundenes Hosted-Staging mit **denselben** Digests -> das ist I1.
-
-**Danach — und nur danach — die Codeaenderung:**
-
-```python
-# scripts/verify_phase5_credit_itemization.py:44
-BASELINE_BLOCKED_IDS = set()      # war: {"I1"}
-```
-
-Ohne diese Aenderung bleibt `expected_percent` bei 95 und
-`require(computed_percent == expected_percent)` schlaegt fehl. Fuer `I5` gilt das **nicht** —
-dort genuegt der Beweis.
-
-**Kredit:** P5 `95 -> 100` (19/19).
-
----
-
-### D3 — Die zehn Verifier neu schreiben: L4 +45, L5 +44
-
-**Ausgangslage:** Die zehn Dateien in `scripts/` sind als `NOT CREDIT-BEARING` markiert und
-schreiben `status="scaffold_not_credit_bearing"` mit `credit_eligible=false`. Sie sind
-Geruest, kein Beweis (Details in der Uebergabe §5).
-
-**Beide Ziel-Gateways sind live** und antworten `200`:
+**Die zwoelf Kettenschritte** in `human_flow_verified_steps`:
 
 ```text
-https://cloud-superbrain-llm-gateway-preview.strazzusochr.workers.dev/api/v1/health  -> service=llm-gateway
-https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev/mcp/api/v1/health -> service=mcp-gateway
+bewiesen   github_cancel_no_credentials     github_authorize_owner_identity
+           callback_one_time_state          auth_me_verified_identity
+           refresh_atomic_rotation          logout_revocation_audited
+           post_logout_refresh_rejected
+
+offen      anonymous_login_no_identity      github_start_exact_query
+           reload_session_continuity        old_refresh_replay_rejected
+           callback_replay_rejected
 ```
 
-Echte Verifier sind also baubar. Jeder muss: einen **erfolgreichen** Hosted-Aufruf machen,
-das Ergebnis gegen das Rubrikkriterium pruefen, fail-closed sein und Evidence
-SHA-256-gebunden schreiben. Ein `401` auf einen Dummy-Token ist kein Beweis.
+`old_refresh_replay_rejected` ist der anspruchsvollste: der **alte** Refresh-Token muss nach
+der Rotation erneut gesendet werden. Aus dem Browser geht das nicht — die Cookies sind
+`HttpOnly` und werden bei der Rotation ersetzt. Es braucht einen Client, der den
+`Set-Cookie`-Wert vor der Rotation mitschneidet und danach replayt (`curl` mit Cookie-Jar
+oder ein Playwright-Kontext).
 
-| Punkte | L4 (LLM Gateway) | Punkte | L5 (MCP Gateway) |
-| ---: | --- | ---: | --- |
-| 10 | Stream vs. Non-Stream Paritaet — **echter Stream noetig** | 10 | Hosted-Write — **echter Write + Readback** |
-| 7 | Negative Guards | 10 | Audit-Readback + Rollback |
-| 4 | Trace-Korrelation | 6 | Auth-Scope |
-| 3 | Fallback | 4 | Timeout + Idempotenz |
-| 3 | Budget-Guard | 3 | SBOM **erzeugen** (nicht Pins pruefen) |
-| 10 | generativer Hosted-Beweis | 11 | Digest + Scan + approvierter Lauf |
-| 8 | Routing + Audit nach Rebind | | |
+**25 Felder muessen `true` sein**, darunter `hosted_https`, `real_browser`,
+`oauth_scope_exact_read_user_verified`, `callback_replay_rejected_verified`,
+`refresh_family_replay_rejected_verified`, `audit_before_credential_verified`,
+`rollback_verified`, `unauthenticated_me_401_verified`, `cookie_policy_verified`,
+`owner_numeric_id_allowlist_verified`, `source_parity_verified`,
+`request_session_audit_correlation_verified`, `redaction_verified`,
+`branch_protection_verified`, `secret_scan_verified`, `live_github_oauth_call`.
+**Vier muessen `false` sein:** `dev_only`, `secret_output`, `gate_promotion_performed`,
+`verifier_mutations_performed`.
 
-**Kredit:** L4 `55 -> 100`, L5 `56 -> 100` gegen
-`docs/runtime-contracts/layer-credit-rubric.md` — **erst nach B1-Freigabe**.
+**`source_binding` verlangt drei Mal denselben Kandidaten-SHA:**
 
----
+```text
+source_commit_sha == frontend_source_commit_sha == auth_runtime_source_commit_sha == ExpectedCandidateSha
+deployment_id     == auth_runtime_deployment_id
+immutable_frontend_deployment_verified     = true
+immutable_auth_runtime_deployment_verified = true
+```
 
-### D4 — Phase-6-Scale mit dem zugelassenen Verifier: P6 +10
+Das heisst: **auch das Vercel-Frontend muss aus demselben Commit unveraenderlich deployt
+sein**, nicht nur der Worker. Dazu Hash-gebundene Referenzen auf
+`docs/runtime-state/frontend-hosted-current.json`, auf ein Auth-Runtime-Evidence-Dokument
+und auf eine **Owner-Architekturentscheidung** (`owner_architecture_decision_ref` mit
+`owner_approved` und `selected_architecture`) — das ist **B2**.
 
-**Voraussetzung:** Gate `phase6_scale_runtime` offen; GitHub-Environment
-`phase6-scale-hosted-writes` existiert **und** enthaelt das Secret `AGENT_API_AUTH_TOKEN`;
-`.github/workflows/phase6-scale-runtime.yml` liegt auf dem **Default-Branch**.
+**Kredit:** P3 `44 -> 100`. Danach faellt `I5` automatisch, weil `expected_blocked_ids` es
+rein evidenzgetrieben behandelt (`verify_phase5_credit_itemization.py:290`). P5 geht auf
+`95` (18/19).
 
-**Der vorhandene Lauf zaehlt nicht.** Er lief am Verifier vorbei und liefert keinen
-D1-Readback, keine No-Loss/No-Duplicate-Zaehlung, keine Cleanup-Semantik und kein
-Control-Tier.
+### S5 — P6: 900 Requests mit dem zugelassenen Verifier (+10)
 
-**Aktion:** `scripts/verify-phase6-scale-runtime.ps1 -AllowHostedWrites` gegen
-`docs/runtime-state/phase6-scale-criterion.json` (v2):
+Voraussetzung **B3**: GitHub-Environment `phase6-scale-hosted-writes` existiert, enthaelt
+das Secret `AGENT_API_AUTH_TOKEN`, und `.github/workflows/phase6-scale-runtime.yml` liegt
+auf dem **Default-Branch**. Alle drei Teile sind noetig, nicht zwei.
+
+Der vorhandene 900er-Lauf zaehlt **nicht** — er lief am Verifier vorbei, waehrend das Gate
+`phase6_scale_runtime` auf `owner_granted=false` stand, und liefert weder D1-Readback noch
+No-Loss/No-Duplicate-Zaehlung noch Cleanup-Semantik noch Control-Tier.
+
+Gegen `docs/runtime-state/phase6-scale-criterion.json` (v2):
 
 ```text
 Reads   60 @ concurrency 1 | 240 @ 10 | 500 @ 50
@@ -267,39 +258,51 @@ Control /cdn-cgi/trace, separates Budget, max 500
 Gesamt  exakt 900 Worker-Requests
 ```
 
-Bestehen: Quote ≥ `0.99`, p95 ≤ `1500 ms`, eigene 5xx = `0`, 50 erstellt / eindeutig /
+Bestehen: Quote >= `0.99`, p95 <= `1500 ms`, eigene 5xx = `0`, 50 erstellt/eindeutig/
 geloescht, Verlust `0`, Duplikate `0`, Cleanup vollstaendig, Audit persistiert, Evidence
 SHA-256-gebunden. `429` ist **nur** auf Health-Read-Tiers zulaessig und muss fail-closed
-sein.
-
-Der Token gehoert ausschliesslich ins Prozess-Environment — nie in Ausgabe, Log oder Commit.
+sein. Der Token gehoert ausschliesslich ins Prozess-Environment.
 
 **Kredit:** P6 `90 -> 100`.
 
----
+### S6 — I1 und der P5-Abschluss
 
-### D5 — Delta-Ledger buchen
+1. **B4** freigeben: gehaerteten `main-deploy`-Blob auf den Default-Branch bringen, dann
+   Candidate dispatchen und `registry-publication` freigeben. Sechs unveraenderliche
+   SHA-Digests fuer frontend, agent-api, agent-worker, memory-worker, mcp-gateway,
+   llm-gateway. Das schliesst `ghcr_image_digest_verify` — das letzte External Gate.
+   **Kein Deadlock:** `scripts/verify-main-deploy-transition.ps1:63` fuehrt `market_ready`
+   in der Liste **verbotener** Tokens; die Publikation setzt `MARKET_READY:true` nicht voraus.
+2. Kandidatgebundenes Hosted-Staging mit **denselben** Digests -> das ist I1.
+3. **Erst danach** die Codeaenderung:
+
+```python
+# scripts/verify_phase5_credit_itemization.py:44
+BASELINE_BLOCKED_IDS = set()      # war: {"I1"}
+```
+
+Ohne sie bleibt `expected_percent` bei 95 und `require(computed_percent == expected_percent)`
+schlaegt fehl. Fuer `I5` gilt das **nicht** — dort genuegt der Beweis.
+
+**Kredit:** P5 `95 -> 100` (19/19).
+
+### S7 — Delta-Ledger und Finalstack
 
 `docs/runtime-state/project-progress-delta-ledger.json` ist der **einzige** zugelassene Weg,
 eine Manifestzelle zu bewegen. `entries = 0`, `baseline.source_sha = 9a3776ff`. Der
-Mechanismus ist bis heute **nie** erprobt worden — der erste echte Kredit ist zugleich sein
-erster Test. Vorher einen synthetischen Probeeintrag mit Negativfaellen fahren (falscher
+Mechanismus ist bis heute **nie** erprobt — der erste echte Kredit ist zugleich sein erster
+Test. Vorher einen synthetischen Probeeintrag mit Negativfaellen fahren (falscher
 `source_sha`, falscher Projection-Hash, Zelle ausserhalb 0–100, Summe passt nicht zu
-`overall`) und danach wieder entfernen.
+`overall`) und danach entfernen.
 
 Je bewegter Zelle **ein** SHA-gebundener Eintrag. Danach muss
-`py -3 scripts/verify_project_progress_manifest.py` die neuen Werte akzeptieren.
+`py -3 scripts/verify_project_progress_manifest.py` die neuen Werte akzeptieren. **Niemals**
+einen Prozentwert direkt im Manifest setzen.
 
-**Niemals** einen Prozentwert direkt im Manifest setzen.
-
----
-
-### D6 — Abschluss-Stack, streng seriell
+Finalstack, streng seriell:
 
 ```powershell
-Set-Location 'D:\_sb_tmp\clean-head-7f181868'
 $env:TEMP='D:\_sb_tmp'; $env:TMP='D:\_sb_tmp'; $env:PYTHONUTF8='1'
-
 npm run verify
 npm run verify:runtime
 pwsh -NoProfile -File .\scripts\start-dev-live.ps1
@@ -316,54 +319,58 @@ pwsh -NoProfile -File .\scripts\verify-market-ready.ps1 -IncludeExternalGates
 ```
 
 Zielausgabe muss **real** sein: `MARKET_READY: true`, Overall `100`, alle Zellen `100`,
-Ledger enthaelt die legitimen Eintraege, Hosted-SHA = Truth-HEAD, keine `OWNER_BLOCKED`
-mehr.
+Ledger enthaelt die legitimen Eintraege, Hosted-SHA = Kandidatenquelle, keine
+`OWNER_BLOCKED` mehr.
 
 ---
 
-## 5. Owner-Gates — was nur der Owner erteilen kann
+## 6. Owner-Gates
 
 | Gate | Entscheidung | Blockiert |
 | --- | --- | --- |
-| **B1** | Die drei Rubriken freigeben (`DRAFT_OWNER_APPROVAL_REQUIRED` -> approved, Freigabecommit benennen) | P3 +56, P6 +10, L4 +45, L5 +44 |
-| **B2** | OAuth-ADR festschreiben (Cloudflare-native ist implementiert und deployfaehig) | Dokumentationslage |
-| **B3** | Environment `phase6-scale-hosted-writes` anlegen, Secret `AGENT_API_AUTH_TOKEN` setzen, Workflow auf den Default-Branch bringen | P6 +10 |
-| **B4** | Gehaerteten `main-deploy`-Blob auf den Default-Branch bringen, dann Candidate dispatchen und `registry-publication` freigeben | GHCR / letztes External Gate |
-| **B5** | Hosted-Deploy-Freigabe fuer Worker **und** Contract-Origin | D0, D2, §6 |
+| **B1** | Die drei Rubriken freigeben — **als Commit**, dessen SHA jeder Verifier bekommt | L4 +45, L5 +44, P3 +56, P6 +10 |
+| **B2** | OAuth-ADR festschreiben (`owner_architecture_decision_ref`, `owner_approved`, `selected_architecture`) | P3-Evidence |
+| **B3** | Environment `phase6-scale-hosted-writes` + Secret `AGENT_API_AUTH_TOKEN` + Workflow auf Default-Branch | P6 +10 |
+| **B4** | `main-deploy`-Blob auf Default, dispatchen, `registry-publication` freigeben | GHCR / I1 |
+| **B5** | Hosted-Deploy-Freigabe fuer Worker **und** Vercel-Frontend aus derselben Quelle | S2, S4 |
 
-Zu **B4**: **kein Deadlock.** `scripts/verify-main-deploy-transition.ps1:63` fuehrt
-`market_ready` in der Liste **verbotener** Tokens. Die Kandidatenpublikation setzt
-`MARKET_READY:true` also nicht voraus.
+### Drei Waende, die keine Freigabe verschiebt
 
-### Drei Wände, die keine Freigabe verschiebt
-
-1. **Der GitHub-Authorize-Klick** braucht Passwort und 2FA des Owners. Nicht delegierbar.
+1. **Der GitHub-Authorize-Klick** braucht Passwort und 2FA des Owners. *Fuer die aktuelle
+   Kette bereits erledigt* — bei einem neuen Kandidaten faellt er erneut an.
 2. **Secret-Werte in Konsolen-Felder eintippen** ist einem Agenten kategorisch untersagt.
-3. **Die Deploy-Sperre der Claude-Code-Harness** — sie hat D0 zweimal geblockt. Der Owner
-   loest sie per Permission-Regel oder fuehrt den Befehl aus §D0 selbst aus.
+3. **Die Deploy-Sperre der Claude-Code-Harness** — Codex hat sie nicht, der Owner kann sie
+   per Permission-Regel aufheben oder den Befehl selbst ausfuehren.
 
 ---
 
-## 6. Der offene Architekturpunkt: die hosted `84`
+## 7. Der offene Architekturpunkt: drei Origins
 
-`/api/v1/project/progress` liefert hosted `84` statt `89` — und **kein Worker-Deploy aendert
-das**. Der Worker hat keine native Progress-Route; alles Unbekannte faellt auf
-`CONTRACT_ORIGIN` durch (`src/index.js:2011`), hart verdrahtet auf
-`cloud-superbrain-developer-platform.vercel.app`, der selbst `status=degraded` und `84`
-meldet.
+`/api/v1/project/progress` liefert hosted `84` statt `89`. **Kein Worker-Deploy aendert
+das.** Der Worker hat keine native Progress-Route; alles Unbekannte faellt auf
+`CONTRACT_ORIGIN` durch (`src/index.js:2011`), und dieser Origin meldet selbst `degraded`
+und `84`.
 
-Zwei saubere Wege, beide Owner-Entscheidung:
+```text
+Frontend   frontend-seven-psi-78.vercel.app
+Backend    cloud-superbrain-developer-platform.vercel.app   (= CONTRACT_ORIGIN, degraded)
+Session    cloud-superbrain-stateful-runtime.strazzusochr.workers.dev
+```
+
+Drei Origins, und `__Host-`-Cookies gelten nur auf einem davon. Dieselbe Wurzel erklaert,
+warum der Login zeitweise in einem 404 endete und warum ein Nutzer auf einer Frontend-Seite
+nicht als angemeldet erscheinen kann. Zwei saubere Wege, beide Owner-Entscheidung:
 
 - **A** — den Contract-Origin source-gebunden neu deployen, oder
 - **B** — eine native Progress-Projektion in den Worker bauen und `CONTRACT_ORIGIN` fuer
-  diese Route nicht mehr benutzen.
+  diese Route nicht mehr benutzen; Frontend-Pfade ueber den Worker routen.
 
-Bis dahin gilt: hosted `84` ist **kein Defekt des Workers**, sondern ein bekannter,
-dokumentierter Origin-Rueckstand.
+`source_binding` in S4 verlangt ohnehin ein Frontend-Deployment aus derselben Quelle — diese
+Entscheidung laesst sich also nicht umgehen.
 
 ---
 
-## 7. Schutzregeln — bindend
+## 8. Schutzregeln — bindend
 
 - nie `git add -A`; immer exakte Pathspecs; nie `git commit` ohne Pathspec
 - kein `git stash`, kein Force-Push, kein Push auf `chore/repo-bootstrap`
@@ -376,20 +383,22 @@ dokumentierter Origin-Rueckstand.
 - keine Secrets in Ausgabe, Log oder Commit
 - fremde Dirty-Pfade weder stagen noch zuruecksetzen
 - Worker **nur** ueber `scripts/deploy-cloudflare-stateful-runtime.ps1` deployen
-- `PYTHONUTF8=1` vor jedem Python-Verifier
-- solange ein RC eingefroren ist: kein neuer Produktcode-Commit, sonst driftet der Kandidat
+- `PYTHONUTF8=1` vor jedem Python-Verifier, `TEMP`/`TMP` auf `D:\_sb_tmp`
+- solange ein RC eingefroren ist: kein neuer Produktcode-Commit
 
 ---
 
-## 8. Was ausdruecklich verboten bleibt
+## 9. Was ausdruecklich verboten bleibt
 
-Ein Kredit ohne den zugehoerigen echten Beweis ist **Fake-Done** und zerstoert genau das,
-was dieses Projekt ausmacht. Konkret heute:
+Ein Kredit ohne den zugehoerigen echten Beweis ist Fake-Done. Konkret heute:
 
-- Die zehn Verifier-Geruste **nicht** fuer L4/L5 kreditieren.
-- Den vorhandenen 900er-Lauf **nicht** fuer P6 kreditieren.
-- `production_auth_identity` **nicht** oeffnen, bevor der Authorize-Klick real erfolgt ist.
-- `BASELINE_BLOCKED_IDS` **nicht** leeren, bevor I1 wirklich belegt ist.
+- **Keinen L4/L5-Verifier kreditieren, der `credit_eligible = false` schreibt.**
+- Den alten 900er-Lauf **nicht** fuer P6 kreditieren.
+- `production_auth_identity` **nicht** oeffnen, bevor das Evidence-Dokument den Verifier
+  besteht — die gefahrene Kette allein reicht nicht.
+- `BASELINE_BLOCKED_IDS` **nicht** leeren, bevor I1 belegt ist.
 - Keinen Prozentwert direkt im Manifest setzen — ausschliesslich ueber den Delta-Ledger.
+- Kein lokaler RC-Beweis darf als hosted, Production-Deploy, Promotion, Registry-Push,
+  Produktions-OAuth oder Marktfreigabe umgedeutet werden.
 
 `MARKET_READY:false` · `DEV-ONLY; hosted proof still blocked.`

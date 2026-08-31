@@ -217,33 +217,53 @@ muss nicht wiederholt werden.
 
 ---
 
-## 5. Die zehn L4/L5-Verifier duerfen NICHT kreditiert werden
+## 5. Die zehn L4/L5-Verifier — vom Geruest zum echten Beweismittel
 
-Alle zehn sind 43–69 Zeilen lang; bestehende Projekt-Verifier haben 200–400+. Gepruefte
-Substanz:
+**Historischer Befund (Audit 2026-08-30):** Alle zehn waren 43–69 Zeilen lang, wo bestehende
+Projekt-Verifier 200–400+ haben. `verify-mcp-hosted-write.ps1` machte **nur** einen
+`GET /mcp/api/v1/health` und schrieb dann `mcp_write_contract_verified = true` — null Writes.
+`verify-llm-hosted-stream-parity.ps1` schickte einen Request mit Dummy-Token, erwartete
+`401/501` und nannte das Stream-Paritaet. `verify-mcp-candidate-sbom.ps1` prueft
+`fastapi==`/`pydantic==` in `requirements.txt` und nannte das SBOM. Gemeinsames Muster:
+`status="verified"` unabhaengig vom Beobachteten. Sie wurden daraufhin mit einem
+`NOT CREDIT-BEARING`-Banner stillgelegt.
 
-| Skript | Was es tatsaechlich tut | Was die Rubrik verlangt |
-| --- | --- | --- |
-| `verify-mcp-hosted-write.ps1` | **nur** `GET /mcp/api/v1/health` | echter Hosted-Write — **null Writes ausgefuehrt** |
-| `verify-llm-hosted-stream-parity.ps1` | ein Request mit Dummy-Token, erwartet `401/501` | Paritaet Stream vs. Non-Stream — **es kommt nie ein Stream zustande** |
-| `verify-mcp-candidate-sbom.ps1` | prueft, ob `requirements.txt` `fastapi==`/`pydantic==` enthaelt | SBOM erzeugen + Digest + Scan — **kein SBOM, nicht hosted** |
-| `verify-llm-hosted-budget-guard.ps1` | ein Oversize-Request, erwartet Ablehnung | Budget-Guard inkl. Schwellen und Audit |
-| die uebrigen sechs | gleiches Muster: Health-Probe oder ein Negativfall | je 3–10 Punkte substanzieller Beweis |
+**Aktueller Stand (`406e3187`): das ist behoben.** Codex hat alle zehn in
+`7cc4f657` neu geschrieben — jetzt 88–307 Zeilen statt 43–69, mit echter Substanz:
 
-Gemeinsames Muster: **jedes Skript schreibt `status="verified"`, unabhaengig davon, was es
-beobachtet hat.** Ein `401` auf einen Dummy-Token ist kein Beweis fuer Stream-Paritaet.
+| Skript | vorher | jetzt |
+| --- | ---: | ---: |
+| `verify-mcp-hosted-write.ps1` | 58 | **307** |
+| `verify-mcp-hosted-timeout-idempotency.ps1` | 59 | **289** |
+| `verify-mcp-hosted-audit-readback-rollback.ps1` | 58 | **289** |
+| `verify-mcp-candidate-sbom.ps1` | 52 | **269** |
+| `verify-mcp-hosted-auth-scope.ps1` | 64 | **266** |
+| `verify-llm-hosted-budget-guard.ps1` | 75 | **248** |
+| `verify-llm-hosted-fallback.ps1` | 72 | **206** |
+| `verify-llm-hosted-stream-parity.ps1` | 78 | **126** |
+| `verify-llm-hosted-negative-guards.ps1` | 74 | **111** |
+| `verify-llm-hosted-trace-correlation.ps1` | 61 | **88** |
 
-**Entschaerft in `a3098cae`:** alle zehn tragen jetzt einen `NOT CREDIT-BEARING`-Banner und
-schreiben `status="scaffold_not_credit_bearing"` mit `credit_eligible = $false` und
-`credit_block_reason`. Auch das Artefakt kann damit nicht mehr als Beweis missverstanden
-werden.
+Nachgeprueft an `verify-mcp-hosted-write.ps1`: Pflichtparameter
+`ExpectedSourceCommitSha`, `ExpectedSourceBundleSha256`, `OwnerGrantRef` und
+`RubricApprovalCommit`; Abgleich des Owner-Grants gegen
+`docs/runtime-state/capability-gates.json` inklusive exakter `owner_grant_ref`; der
+Approval-Commit muss existieren **und** Ancestor der Kandidatenquelle sein, und der
+Rubriktext wird aus genau diesem Commit gelesen; Evidence-Felder `write_performed`,
+`readback_verified`, `immutable_receipt_verified`, `channel_state_current`,
+`audit_persisted`, `audit_fail_closed`, `rollback_on_audit_failure`, `live_mcp_writes`;
+Contract-Phasen `bounded_write`, `server_readback`, `audit_prewrite`, `audit_postwrite`.
+Dahinter steht neuer Worker-Code (`services/cloudflare-stateful-runtime/src/mcp-hosted.js`)
+und die Migrationen 0006 und 0008.
 
-**Gute Nachricht:** beide Ziel-Gateways sind live und antworten `200` —
-`cloud-superbrain-llm-gateway-preview.strazzusochr.workers.dev/api/v1/health` liefert
-`service=llm-gateway`, `.../mcp/api/v1/health` liefert `service=mcp-gateway`. Echte Verifier
-sind **baubar**. Die zehn Dateien taugen als Geruest, nicht als Beweis.
+`credit_eligible = $true` wird **nur** auf dem Erfolgspfad gesetzt; ein blockierter Lauf
+schreibt `credit_eligible = $false`. Selbstzertifizierung ist damit strukturell
+ausgeschlossen.
 
----
+**Trotzdem bleiben L4/L5 bei `55`/`56`**, denn es fehlen drei Dinge, keins davon im Skript:
+der B1-Approval-Commit, der Hosted-Source-Rebind auf die RC24-Quelle und die realen
+Hosted-Laeufe. Beide Ziel-Gateways sind live und antworten `200`. Details in §5 der
+Zieldatei.
 
 ## 6. Der P6-Lauf ist echte Last, aber kein vollstaendiger Beweis
 
@@ -289,7 +309,7 @@ fuenf Ketten qualifiziert werden. RC22 `28727b198b` bleibt der lokale Rollback-A
 | Blocker | Stand |
 | --- | --- |
 | **B1** Rubriken | drei Entwuerfe vorhanden, alle `DRAFT_OWNER_APPROVAL_REQUIRED`, `Credit-Anwendung erlaubt: false`. Spezifikationsluecke geschlossen, Freigabe fehlt. |
-| **B2** Verifier | 10/10 fehlen weiterhin **inhaltlich** — die Dateien existieren als Geruest (§5), erfuellen aber kein Rubrikkriterium. |
+| **B2** Verifier | **geloest.** Alle zehn sind echte, fail-closed gebundene Skripte (§5). Offen sind nur B1-Approval-Commit, Hosted-Rebind und die realen Laeufe. |
 | **B3** P5-Codepin | `BASELINE_BLOCKED_IDS = {"I1"}` (`verify_phase5_credit_itemization.py:44`), nur `blocked.add("I5")` (`:290`), **kein** `discard`, **kein** `remove`. I5 ist rein evidenzgetrieben; **I1 braucht Beweis UND Codeaenderung.** |
 | **B4** Delta-Ledger | `project-progress-delta-ledger-v2`, `baseline.source_sha = 9a3776ff`, `entries = 0`. Nie erprobt. Δ=0 heisst „nie kreditiert", nicht „kaputt". |
 | **B5** Hosted | Worker laeuft mit **geloeschter** Source-Bindung; `/api/v1/project/progress` liefert weiter `84`. |
