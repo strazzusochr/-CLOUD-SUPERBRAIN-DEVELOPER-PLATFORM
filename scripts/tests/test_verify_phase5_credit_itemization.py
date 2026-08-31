@@ -837,6 +837,59 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         self.assertLess(source.index(install), source.index(oauth))
         self.assertLess(source.index(oauth), source.index(stateful_test))
 
+    def test_candidate_runtime_accepts_only_exact_no_credit_requalification_truth(self) -> None:
+        source = (
+            REPO_ROOT / "scripts" / "verify-phase5-production-candidate-local.ps1"
+        ).read_text(encoding="utf-8-sig")
+
+        no_credit_start = source.index("$noCreditRequalificationPaths = @(")
+        no_credit_end = source.index("  # Compare the candidate tree with the index.", no_credit_start)
+        no_credit_paths = source[no_credit_start:no_credit_end]
+        for path in (
+            '"PROJECT_STATE.md"',
+            '"apps/frontend/lib/endpoint-snapshot.json"',
+            '"apps/frontend/lib/platform.ts"',
+            '"docs/project-progress.manifest.json"',
+            '"docs/runtime-state/external-gate-summary.json"',
+        ):
+            self.assertIn(path, no_credit_paths)
+
+        for marker in (
+            "$noCreditRequalificationPaths = @(",
+            '"PROJECT_STATE.md"',
+            '"apps/frontend/lib/endpoint-snapshot.json"',
+            '"docs/runtime-state/external-gate-summary.json"',
+            "$isNoCreditRequalification = Test-ExactPathSet",
+            "$noCreditRequalification = $true",
+            "$runtimeSourceMatchesHead -or $qualificationTruthTransition -or $noCreditRequalification",
+            'Assert-Equal "no-credit candidate source"',
+            'Assert-Equal "no-credit external selector"',
+            'Assert-Equal "no-credit snapshot source"',
+            'Assert-Equal "no-credit manifest last_verified"',
+            'Assert-Equal "no-credit manifest immutable projection"',
+            'Assert-Equal "no-credit platform snapshot mirror"',
+            'Assert-False "no-credit production rollout"',
+        ):
+            self.assertIn(marker, source)
+
+        self.assertNotIn("$runtimeChangedPaths.Count -eq 3", source)
+
+        current = (REPO_ROOT / "scripts" / "verify-current-release-candidate.ps1").read_text(
+            encoding="utf-8-sig"
+        )
+        current_start = current.index("$noCreditRequalificationPaths = @(")
+        current_end = current.index("function Test-ExactPathSet", current_start)
+        current_paths = current[current_start:current_end]
+        for path in (
+            '"PROJECT_STATE.md"',
+            '"apps/frontend/lib/endpoint-snapshot.json"',
+            '"apps/frontend/lib/platform.ts"',
+            '"docs/project-progress.manifest.json"',
+            '"docs/runtime-state/external-gate-summary.json"',
+        ):
+            self.assertIn(path, current_paths)
+        self.assertIn("scripts\\verify_phase5_credit_itemization.py", current)
+
     def test_pr_check_prequalification_accepts_only_exact_post_selection_manifest_drift(self) -> None:
         source = (REPO_ROOT / ".github" / "workflows" / "pr-check.yml").read_text(
             encoding="utf-8"
@@ -1191,8 +1244,8 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
     def test_no_credit_requalification_is_exact_source_bound_and_hash_bound(self) -> None:
         source_sha = "c" * 40
         previous_sha = "d" * 40
-        release_id = "prod-candidate-2026-08-29-local-rc23"
-        previous_release_id = "prod-candidate-2026-08-29-local-rc22"
+        release_id = "prod-candidate-2026-08-31-local-rc24"
+        previous_release_id = "prod-candidate-2026-08-29-local-rc23"
 
         def build_fixture() -> tuple[
             dict[str, object],
@@ -1203,8 +1256,10 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
                 "overall_percent": 89,
                 "horizontal": {"items": [{"id": "phase_5", "percent": 89}]},
                 "vertical": {"items": []},
-                "last_verified": "2026-08-29",
+                "last_verified": "2026-08-31",
             }
+            source_manifest = copy.deepcopy(manifest)
+            source_manifest["last_verified"] = "2026-08-29"
             score = {
                 "total_item_count": 19,
                 "verified_item_count": 17,
@@ -1260,7 +1315,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
                 {
                     "active_release_id": release_id,
                     "active_source_commit_sha": source_sha,
-                    "updated_at_utc": "2026-08-29T18:00:00Z",
+                    "updated_at_utc": "2026-08-31T18:00:00Z",
                 }
             )
             for item in index_itemization["items"]:  # type: ignore[index]
@@ -1275,7 +1330,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             index_pointer = {
                 "active_release_id": release_id,
                 "source_commit_sha": source_sha,
-                "updated_at": "2026-08-29T18:00:00Z",
+                "updated_at": "2026-08-31T18:00:00Z",
                 "production_rollout_claimed": False,
             }
             source_external = {
@@ -1292,9 +1347,18 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             index_external = copy.deepcopy(source_external)
             index_external["requested_release_candidate_selector"] = source_sha
             candidate_artifact = f"release_id: `{release_id}`\nsource_commit_sha: `{source_sha}`\n"
+            source_platform = (
+                "/* Project manifest, dated 2026-08-29. */\n"
+                'export const MANIFEST = { snapshot: "2026-08-29", overall: 89 };\n'
+            )
+            index_platform = (
+                "/* Project manifest, dated 2026-08-31. */\n"
+                'export const MANIFEST = { snapshot: "2026-08-31", overall: 89 };\n'
+            )
 
             texts = {
                 verifier.PROJECT_PROGRESS_MANIFEST_REPO_PATH: json.dumps(manifest),
+                verifier.PLATFORM_MANIFEST_REPO_PATH: index_platform,
                 verifier.PHASE5_ITEMIZATION_REPO_PATH: json.dumps(index_itemization),
                 verifier.CURRENT_RELEASE_CANDIDATE_REPO_PATH: json.dumps(index_pointer),
                 verifier.EXTERNAL_GATE_SUMMARY_REPO_PATH: json.dumps(index_external),
@@ -1341,7 +1405,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
 
             responses: dict[tuple[str, ...], subprocess.CompletedProcess[str]] = {}
             source_payloads = {
-                verifier.PROJECT_PROGRESS_MANIFEST_REPO_PATH: manifest,
+                verifier.PROJECT_PROGRESS_MANIFEST_REPO_PATH: source_manifest,
                 verifier.PHASE5_ITEMIZATION_REPO_PATH: source_itemization,
                 verifier.CURRENT_RELEASE_CANDIDATE_REPO_PATH: source_pointer,
                 verifier.EXTERNAL_GATE_SUMMARY_REPO_PATH: source_external,
@@ -1349,6 +1413,8 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             for path, payload in source_payloads.items():
                 args = ("show", f"{source_sha}:{path}")
                 responses[args] = subprocess.CompletedProcess(args, 0, json.dumps(payload), "")
+            platform_args = ("show", f"{source_sha}:{verifier.PLATFORM_MANIFEST_REPO_PATH}")
+            responses[platform_args] = subprocess.CompletedProcess(platform_args, 0, source_platform, "")
             for path, text in texts.items():
                 args = ("show", f":{path}")
                 responses[args] = subprocess.CompletedProcess(args, 0, text, "")

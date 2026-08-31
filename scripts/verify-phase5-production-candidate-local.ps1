@@ -24,6 +24,19 @@ function Assert-Equal([string]$Label, $Actual, $Expected) {
   if ($Actual -ne $Expected) { throw "Phase5 local candidate verification failed: $Label expected '$Expected' but got '$Actual'." }
 }
 
+function Assert-False([string]$Label, $Condition) {
+  Assert-True $Label (-not [bool]$Condition)
+}
+
+function Test-ExactPathSet($Actual, $Expected) {
+  $actualSet = @($Actual | Sort-Object -Unique)
+  $expectedSet = @($Expected | Sort-Object -Unique)
+  return (
+    $actualSet.Count -eq $expectedSet.Count -and
+    (@(Compare-Object -ReferenceObject $expectedSet -DifferenceObject $actualSet).Count -eq 0)
+  )
+}
+
 function Get-Sha256Hex([string]$Path) {
   $resolved = (Resolve-Path -LiteralPath $Path).Path
   $stream = [System.IO.File]::OpenRead($resolved)
@@ -102,6 +115,13 @@ try {
     "apps/frontend/lib/platform.ts",
     "docs/project-progress.manifest.json"
   )
+  $noCreditRequalificationPaths = @(
+    "PROJECT_STATE.md",
+    "apps/frontend/lib/endpoint-snapshot.json",
+    "apps/frontend/lib/platform.ts",
+    "docs/project-progress.manifest.json",
+    "docs/runtime-state/external-gate-summary.json"
+  )
   # Compare the candidate tree with the index. In a clean checkout the index is
   # HEAD; before commit it also includes only the explicitly staged truth slice,
   # while unrelated unstaged build artifacts remain outside qualification truth.
@@ -110,10 +130,11 @@ try {
   Assert-True "candidate runtime diff readable" ($LASTEXITCODE -eq 0)
   $runtimeSourceMatchesHead = $runtimeChangedPaths.Count -eq 0
   $qualificationTruthTransition = $false
+  $noCreditRequalification = $false
   if (-not $runtimeSourceMatchesHead) {
-    $unexpectedRuntimePaths = @($runtimeChangedPaths | Where-Object { $qualificationTruthPaths -notcontains $_ })
-    $missingTruthPaths = @($qualificationTruthPaths | Where-Object { $runtimeChangedPaths -notcontains $_ })
-    if ($unexpectedRuntimePaths.Count -eq 0 -and $missingTruthPaths.Count -eq 0) {
+    $isQualificationTruthTransition = Test-ExactPathSet $runtimeChangedPaths $qualificationTruthPaths
+    $isNoCreditRequalification = Test-ExactPathSet $runtimeChangedPaths $noCreditRequalificationPaths
+    if ($isQualificationTruthTransition) {
       $itemization = Get-Content "docs\runtime-state\phase5-credit-itemization.json" -Raw | ConvertFrom-Json
       $legacyPhase5ForParity = [int]$itemization.legacy_gap_reconstruction.recorded_percent
       $qualifiedPhase5ForParity = [int]$itemization.current_score.computed_percent
@@ -124,11 +145,117 @@ try {
         $currentPhase5 -eq $qualifiedPhase5ForParity -and
         ([int]$currentManifest.overall_percent - [int]$sourceManifest.overall_percent) -eq [int](($qualifiedPhase5ForParity - $legacyPhase5ForParity) / 7)
       )
+    } elseif ($isNoCreditRequalification) {
+      $selectionPaths = @(
+        "PROJECT_STATE.md",
+        "apps/frontend/lib/endpoint-snapshot.json",
+        "apps/frontend/lib/platform.ts",
+        "docs/release-artifacts/current-release-candidate.json",
+        $candidatePath,
+        "docs/project-progress.manifest.json",
+        "docs/runtime-state/external-gate-summary.json",
+        "docs/runtime-state/phase5-credit-itemization.json"
+      )
+      & git diff --quiet -- @selectionPaths
+      Assert-True "no-credit selection truth matches the staged index" ($LASTEXITCODE -eq 0)
+
+      $itemization = Get-Content "docs\runtime-state\phase5-credit-itemization.json" -Raw | ConvertFrom-Json
+      $sourceItemizationText = (& git show "${candidateSourceSha}:docs/runtime-state/phase5-credit-itemization.json" 2>$null | Out-String)
+      Assert-True "no-credit source itemization readable" ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($sourceItemizationText))
+      $sourceItemization = $sourceItemizationText | ConvertFrom-Json
+      Assert-Equal "no-credit candidate source" ([string]$itemization.active_source_commit_sha) $candidateSourceSha
+      Assert-Equal "no-credit candidate release" ([string]$itemization.active_release_id) ([string]$candidateConfig.active_release_id)
+      Assert-Equal "no-credit synchronized timestamp" ([string]$itemization.updated_at_utc) ([string]$candidateConfig.updated_at)
+      Assert-Equal "no-credit itemization mode" ([string]$itemization.mode) "fully_itemized"
+      Assert-False "no-credit qualification block" $itemization.credit_blocked_until_candidate_qualified
+      Assert-Equal "no-credit overall progress" ([int]$currentManifest.overall_percent) ([int]$sourceManifest.overall_percent)
+      Assert-Equal "no-credit Phase-5 progress" $currentPhase5 $sourcePhase5
+      Assert-Equal "no-credit computed Phase-5 progress" ([int]$itemization.current_score.computed_percent) $sourcePhase5
+      Assert-Equal "no-credit verified item count" ([int]$itemization.current_score.verified_item_count) ([int]$sourceItemization.current_score.verified_item_count)
+      Assert-Equal "no-credit blocked item count" ([int]$itemization.current_score.blocked_item_count) ([int]$sourceItemization.current_score.blocked_item_count)
+      Assert-Equal "no-credit blocked item IDs" ((@($itemization.current_score.blocked_item_ids) | Sort-Object) -join ",") ((@($sourceItemization.current_score.blocked_item_ids) | Sort-Object) -join ",")
+      Assert-Equal "no-credit rulings" ($itemization.rulings_applied | ConvertTo-Json -Compress -Depth 20) ($sourceItemization.rulings_applied | ConvertTo-Json -Compress -Depth 20)
+      foreach ($sourceItem in @($sourceItemization.items)) {
+        $currentItems = @($itemization.items | Where-Object { $_.id -eq $sourceItem.id })
+        Assert-Equal "no-credit item count $($sourceItem.id)" $currentItems.Count 1
+        $currentItem = $currentItems[0]
+        foreach ($field in @("section", "title", "status", "credit_awarded", "blocker_id", "owner_action", "policy_basis")) {
+          Assert-Equal "no-credit item $($sourceItem.id) $field" ([string]$currentItem.$field) ([string]$sourceItem.$field)
+        }
+      }
+
+      $candidateUpdatedDate = ([DateTimeOffset]::Parse([string]$candidateConfig.updated_at)).UtcDateTime.ToString("yyyy-MM-dd")
+      Assert-Equal "no-credit manifest last_verified" ([string]$currentManifest.last_verified) $candidateUpdatedDate
+      $currentManifestProjection = $currentManifest | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+      $currentManifestProjection.last_verified = [string]$sourceManifest.last_verified
+      Assert-Equal "no-credit manifest immutable projection" ($currentManifestProjection | ConvertTo-Json -Compress -Depth 100) ($sourceManifest | ConvertTo-Json -Compress -Depth 100)
+
+      $platform = Get-Content "apps\frontend\lib\platform.ts" -Raw
+      $sourcePlatform = (& git show "${candidateSourceSha}:apps/frontend/lib/platform.ts" 2>$null | Out-String)
+      Assert-True "no-credit source platform readable" ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($sourcePlatform))
+      $currentSnapshotToken = 'snapshot: "' + $candidateUpdatedDate + '"'
+      $sourceSnapshotToken = 'snapshot: "' + [string]$sourceManifest.last_verified + '"'
+      $currentDatedToken = 'dated ' + $candidateUpdatedDate
+      $sourceDatedToken = 'dated ' + [string]$sourceManifest.last_verified
+      Assert-Equal "no-credit platform snapshot mirror" ([regex]::Matches($platform, [regex]::Escape($currentSnapshotToken)).Count) 1
+      Assert-Equal "no-credit platform dated mirror" ([regex]::Matches($platform, [regex]::Escape($currentDatedToken)).Count) 1
+      $platformProjection = $platform.Replace($currentSnapshotToken, $sourceSnapshotToken).Replace($currentDatedToken, $sourceDatedToken)
+      Assert-Equal "no-credit platform immutable projection" $platformProjection $sourcePlatform
+
+      $external = Get-Content "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
+      $sourceExternalText = (& git show "${candidateSourceSha}:docs/runtime-state/external-gate-summary.json" 2>$null | Out-String)
+      Assert-True "no-credit source external truth readable" ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($sourceExternalText))
+      $sourceExternal = $sourceExternalText | ConvertFrom-Json
+      foreach ($field in @(
+        "contract_version", "source_contract_version", "status", "active_target_gate",
+        "active_release_candidate_sha", "ghcr_published_manifest_ref",
+        "ghcr_candidate_readback_source_artifact", "gate_ids",
+        "frontend_preview_claim_allowed", "hosted_staging_claim_allowed",
+        "branch_protection_claim_allowed", "ghcr_image_digest_claim_allowed",
+        "vercel_backend_origins_claim_allowed", "canonical_gitleaks_claim_allowed",
+        "cloudflare_native_zero_card_hosted_runtime_claim_allowed",
+        "gitlab_identity_claim_allowed", "huggingface_identity_claim_allowed",
+        "grafana_cloud_claim_allowed", "production_deploy_claim_allowed",
+        "missing_or_failed_gates", "failed_hosted_required_probe_ids",
+        "failed_vercel_origin_probe_ids", "legacy_provenance"
+      )) {
+        Assert-Equal "no-credit external truth $field" ($external.$field | ConvertTo-Json -Compress -Depth 20) ($sourceExternal.$field | ConvertTo-Json -Compress -Depth 20)
+      }
+      Assert-Equal "no-credit external selector" ([string]$external.requested_release_candidate_selector) $candidateSourceSha
+      Assert-Equal "no-credit external status" ([string]$external.status) "blocked"
+      Assert-Equal "no-credit external active SHA" ([string]$external.active_release_candidate_sha) ""
+      Assert-False "no-credit production deploy" $external.production_deploy_claim_allowed
+
+      $snapshot = Get-Content "apps\frontend\lib\endpoint-snapshot.json" -Raw | ConvertFrom-Json
+      $metadata = $snapshot.__snapshot_metadata
+      Assert-Equal "no-credit snapshot source" ([string]$metadata.candidate_source_commit_sha) $candidateSourceSha
+      Assert-Equal "no-credit snapshot release" ([string]$metadata.active_release_id) ([string]$candidateConfig.active_release_id)
+      Assert-Equal "no-credit snapshot endpoint count" ([int]$metadata.endpoint_count) 34
+      Assert-Equal "no-credit snapshot refresh count" ([int]$metadata.refreshed_endpoint_count) 34
+      Assert-Equal "no-credit snapshot reason" ([string]$metadata.current_reason) "runtime_source_unattested_prequalification"
+      Assert-False "no-credit snapshot current" $metadata.current
+      Assert-False "no-credit snapshot runtime attested" $metadata.runtime_source_attested
+      Assert-False "no-credit snapshot candidate parity" $metadata.candidate_source_parity
+      Assert-Equal "no-credit snapshot overall" ([int]$snapshot.'/api/v1/project/progress'.overall_percent) ([int]$currentManifest.overall_percent)
+
+      $projectState = Get-Content "PROJECT_STATE.md" -Raw
+      foreach ($marker in @(
+        [string]$candidateConfig.active_release_id,
+        $candidateSourceSha,
+        "Overall ``89%``",
+        "MARKET_READY:false",
+        "I1",
+        "I5"
+      )) {
+        Assert-True "no-credit project-state marker $marker" $projectState.Contains($marker)
+      }
+      Assert-False "no-credit production rollout" $candidateConfig.production_rollout_claimed
+      $noCreditRequalification = $true
     }
   }
-  $runtimeSourceParityVerified = $runtimeSourceMatchesHead -or $qualificationTruthTransition
+  $runtimeSourceParityVerified = $runtimeSourceMatchesHead -or $qualificationTruthTransition -or $noCreditRequalification
   if (-not $runtimeSourceMatchesHead -and -not $AllowNonCandidateHead.IsPresent) {
-    Assert-True "candidate runtime source matches HEAD or exact post-qualification truth transition" $runtimeSourceParityVerified
+    Assert-True "candidate runtime source matches HEAD or exact qualification truth transition" $runtimeSourceParityVerified
   }
   if (-not $runtimeSourceParityVerified) {
     Write-Host "[phase5-candidate-local] active candidate predates current HEAD; development-only verification"
@@ -155,7 +282,7 @@ try {
   Assert-True "secret non-claim source" $source.Contains('"secret_output": False')
 
   if ($StaticOnly) {
-    Write-Host "[phase5-candidate-local] static checks completed runtime_source_matches_head=$($runtimeSourceMatchesHead.ToString().ToLowerInvariant()) qualification_truth_transition=$($qualificationTruthTransition.ToString().ToLowerInvariant()) runtime_source_parity=$($runtimeSourceParityVerified.ToString().ToLowerInvariant())"
+    Write-Host "[phase5-candidate-local] static checks completed runtime_source_matches_head=$($runtimeSourceMatchesHead.ToString().ToLowerInvariant()) qualification_truth_transition=$($qualificationTruthTransition.ToString().ToLowerInvariant()) no_credit_requalification=$($noCreditRequalification.ToString().ToLowerInvariant()) runtime_source_parity=$($runtimeSourceParityVerified.ToString().ToLowerInvariant())"
     exit 0
   }
 

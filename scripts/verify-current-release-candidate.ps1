@@ -224,6 +224,8 @@ $qualificationTruthPaths = @(
 $noCreditRequalificationPaths = @(
   "PROJECT_STATE.md",
   "apps/frontend/lib/endpoint-snapshot.json",
+  "apps/frontend/lib/platform.ts",
+  "docs/project-progress.manifest.json",
   "docs/runtime-state/external-gate-summary.json"
 )
 function Test-ExactPathSet($Actual, $Expected) {

@@ -1,9 +1,9 @@
 # CODEX UEBERGABE-MASTER
 
 Status: `ACTIVE_CURRENT_HANDOFF`
-Stand: **2026-08-30**
+Stand: **2026-08-31**
 Branch: `codex/organism-visual-v2`
-Truth-HEAD: **`bc0f4dc8`+** (`origin/codex/organism-visual-v2`); hosted deployt: `bc0f4dc8`
+Qualification Source: **`1cb03979740859f0350cf18f6f08ef06c3d72b72`**; Control: **`d016e4b928290d8fa358522af08609ae80aeb1cc`**
 Market Status: `MARKET_READY:false` — Overall `89`
 
 **Dies ist die einzige Uebergabe.** Sie sagt, *was los ist*.
@@ -22,6 +22,26 @@ entsprechend markiert sind `CODEX_100_PROZENT_ZIEL_2026-08-29.md`,
 Alles hier ist **gemessen** — live gegen den Endpunkt oder gegen den Quellcode am
 Truth-HEAD. Wo etwas nur protokolliert und nicht nachmessbar war, steht das ausdruecklich
 dabei.
+
+## RC24-Aktualisierung — 2026-08-31
+
+`prod-candidate-2026-08-31-local-rc24` ist lokal qualifiziert und ausgewaehlt. Die
+eingefrorene Quelle ist `1cb03979740859f0350cf18f6f08ef06c3d72b72`, der
+Source-Attestation-Control ist `d016e4b928290d8fa358522af08609ae80aeb1cc`. Der exakte
+Source-Lauf `33359506266` ist mit `30/30` beobachteten Schritten, `0` skipped und `0`
+failed gruen. Das unveraenderliche Set enthaelt exakt 27 Evidence-Dateien.
+
+Fuenf lokale Ketten sind gruen: sechs Candidate-Images, Runtime `10/10 healthy`, Security,
+Candidate-Runtime mit echter Browserauswahl/einem echten Klick und der komplette
+Browserlauf mit `22/22` Seiten, `29/29` Funktionsfamilien und `161/161` Aktionen. Die
+Auswahl ist ausschliesslich als exakter Drei-Pfad-`no_credit_requalification`-Uebergang
+zulaessig. Sie erhoeht keinen Kredit: P5 bleibt `17/19 = 89`, I1/I5 bleiben blockiert,
+Overall bleibt `89`, Delta-Ledger `0`, `MARKET_READY:false`. RC23-Quelle `7db18d90` ist
+Rollback. `DEV-ONLY; hosted proof still blocked`.
+
+Die folgenden historischen Abschnitte bleiben als Diagnoseverlauf erhalten. Fuer den
+aktuellen Kandidaten und die aktuellen Non-Claims haben diese RC24-Aktualisierung,
+`PROJECT_STATE.md`, `AI_HANDOFF.md` und der Verification Register Vorrang.
 
 ---
 

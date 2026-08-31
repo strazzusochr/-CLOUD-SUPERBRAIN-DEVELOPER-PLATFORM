@@ -1,9 +1,9 @@
 # CODEX ZIEL-MASTER — MARKTREIFE-ZIELVERFOLGUNG
 
 Status: `ACTIVE_CURRENT_TRUTH`
-Stand: **2026-08-30**
+Stand: **2026-08-31**
 Branch: `codex/organism-visual-v2`
-Truth-HEAD: **`4adb250c`**
+Qualification Source: **`1cb03979740859f0350cf18f6f08ef06c3d72b72`**; Control: **`d016e4b928290d8fa358522af08609ae80aeb1cc`**
 Market Status: `MARKET_READY:false` — Overall `89`
 
 **Dies ist die einzige Zieldatei.** Sie sagt, *was zu tun ist*.
@@ -18,6 +18,24 @@ entsprechend markiert sind `CODEX_100_PROZENT_ZIEL_2026-08-29.md`,
 `CODEX_ZIELVERFOLGUNG_KURZ.md`, `CODEX_UEBERGABE_2026-08-29-SESSION16.md`,
 `CODEX_MASTER_GOAL_AUTONOM_WEITER.md` und `CODEX_MASTER_GOAL_FINALE.md`. Alle uebrigen
 `CODEX_UEBERGABE_2026-0[478]-*.md` sind aeltere Sessionprotokolle ohne Weisungscharakter.
+
+---
+
+## 0. RC24-Zielcheckpoint — 2026-08-31
+
+RC24 ist lokal source-gebunden qualifiziert: fuenf Ketten gruen, exaktes 27-Dateien-Set,
+CI `33359506266` mit `30/30`, Browser `22/22` Seiten, `29/29` Funktionsfamilien und
+`161/161` Aktionen. Der Auswahluebergang ist fail-closed als
+`no_credit_requalification` akzeptiert. Dadurch steigt kein Fortschritt: Overall `89`,
+P3 `44`, P5 `89`, P6 `90`, L4 `55`, L5 `56`; I1/I5 bleiben null Kredite und
+`MARKET_READY:false`.
+
+Naechster autonomer Schritt ist nur der Abschluss des lokalen Gate-Stacks, exakter Commit,
+Feature-Branch-Push und final-head CI. Danach bleiben ausschliesslich echte, explizit
+freigegebene hosted Beweise und die sanktionierte Delta-Ledger-Buchung auf dem Weg zu 100.
+Kein lokaler RC24-Beweis darf als hosted, Production-Deploy, Promotion, Registry-Push,
+Produktions-OAuth oder Marktfreigabe umgedeutet werden. `DEV-ONLY; hosted proof still
+blocked`.
 
 ---
 

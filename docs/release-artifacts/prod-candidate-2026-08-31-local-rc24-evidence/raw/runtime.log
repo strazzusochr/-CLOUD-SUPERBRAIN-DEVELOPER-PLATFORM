@@ -1,0 +1,277 @@
+PHASE5_EVIDENCE_RAW_V2
+[phase5-evidence] chain=runtime
+[phase5-evidence] release_id=prod-candidate-2026-08-31-local-rc24
+[phase5-evidence] source_commit_sha=1cb03979740859f0350cf18f6f08ef06c3d72b72
+[phase5-evidence] evidence_run_id=9c66dbaf-5ad8-4281-b36d-d528f97dbdab
+[phase5-evidence] command=npm run verify:runtime
+
+> cloud-superbrain-developer-platform@0.1.0 verify:runtime
+> powershell -ExecutionPolicy Bypass -File scripts\verify-phase1-runtime.ps1
+
+[docker-readiness] status=ready server_version=29.7.2
+[runtime] compose status
+NAME                                          IMAGE                                                                                                             COMMAND                  SERVICE         CREATED        STATUS                  PORTS
+cloud-superbrain-phase1-dev-agent-api-1       cloud-superbrain-phase1-dev-agent-api                                                                             "uvicorn app.main:ap…"   agent-api       2 hours ago    Up 2 hours (healthy)    8000/tcp
+cloud-superbrain-phase1-dev-agent-worker-1    cloud-superbrain-phase1-dev-agent-worker                                                                          "python -m app.worker"   agent-worker    47 hours ago   Up 15 hours (healthy)   
+cloud-superbrain-phase1-dev-frontend-1        cloud-superbrain-phase1-dev-frontend                                                                              "docker-entrypoint.s…"   frontend        34 hours ago   Up 15 hours (healthy)   3000/tcp
+cloud-superbrain-phase1-dev-llm-gateway-1     cloud-superbrain-phase1-dev-llm-gateway                                                                           "uvicorn app.main:ap…"   llm-gateway     2 hours ago    Up 2 hours (healthy)    4000/tcp
+cloud-superbrain-phase1-dev-local-llm-1       ghcr.io/ggml-org/llama.cpp:server@sha256:4f02c560799a1569be08b0183d52b94b0d4a6e4b88f52f20562d2334c73837d4         "/app/llama-server -…"   local-llm       4 days ago     Up 15 hours (healthy)   8080/tcp
+cloud-superbrain-phase1-dev-mcp-gateway-1     cloud-superbrain-phase1-dev-mcp-gateway                                                                           "uvicorn app.main:ap…"   mcp-gateway     2 hours ago    Up 2 hours (healthy)    9000/tcp
+cloud-superbrain-phase1-dev-memory-worker-1   cloud-superbrain-phase1-dev-memory-worker                                                                         "python -m app.worker"   memory-worker   47 hours ago   Up 15 hours (healthy)   
+cloud-superbrain-phase1-dev-nginx-1           nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0   "/docker-entrypoint.…"   nginx           33 hours ago   Up 15 hours (healthy)   0.0.0.0:8081->8080/tcp, [::]:8081->8080/tcp
+cloud-superbrain-phase1-dev-postgres-1        pgvector/pgvector:0.8.2-pg16@sha256:00ba258a66dac104fd5171074a0084462a64a1369d8513f3d0a634e2f24d15bc              "docker-entrypoint.s…"   postgres        47 hours ago   Up 15 hours (healthy)   5432/tcp
+cloud-superbrain-phase1-dev-redis-1           redis:7.4.2-alpine@sha256:02419de7eddf55aa5bcf49efb74e88fa8d931b4d77c07eff8a6b2144472b6952                        "docker-entrypoint.s…"   redis           33 hours ago   Up 15 hours (healthy)   6379/tcp
+[runtime] compose resource measurement
+[runtime] postgres backup proof
+[runtime] postgres restore proof
+[runtime] redis persistence proof
+[runtime] app containers non-root
+[runtime] app containers security hardening
+[runtime] refresh nginx upstream resolution
+[runtime] nginx health
+[runtime] frontend root
+[runtime] frontend content
+[runtime] agent-api health
+[runtime] project progress
+[runtime] project progress integrity
+[runtime] project progress completion contract
+[runtime] layer interface contracts
+[runtime] cloud provider inventory
+[cloud-provider-live-read] status=verified
+[cloud-provider-live-read] evidence_scope=DEV-ONLY
+[cloud-provider-live-read] live_verified_count=1/8
+[cloud-provider-live-read] ready_layer_count=3/7
+[cloud-provider-live-read] artifact=.phase1-artifacts\cloud-provider-live-read-20260831-053901.json
+[runtime] phase6 camera lighting contract
+[runtime] phase6 gameplay state contract
+[runtime] phase6 asset policy contract
+[runtime] phase6 save load contract
+[runtime] phase6 accessibility contract
+[runtime] phase6 netcode loopback contract
+[runtime] phase6 local scoreboard and performance contract
+[runtime] task assignment queue contract
+[runtime] agent llm streaming contract
+[runtime] autopilot mode harness
+[runtime] worker status regression harness
+[runtime] mcp health
+[runtime] fixed DEV-ONLY filesystem project-progress adapter
+[filesystem-project-progress] status=verified runtime_read=true audit_before_after=true secret_output=false DEV-ONLY hosted=false
+[runtime] memory embedding consistency contract
+[runtime] llm gateway safe mode and dry-run controls
+[runtime] mcp tool timeout/degraded paths
+[runtime] migration table
+[runtime] rate limit guard
+[runtime] session limit guard
+[runtime] prompt input guard
+[runtime] error response contract
+[runtime] security headers contract
+[runtime] CSRF origin guard contract
+[runtime] cross-origin response guard contract
+[runtime] trace id propagation contract
+[runtime] cache control no-store contract
+[runtime] request id correlation contract
+[runtime] prompt persistence and auto-task
+[runtime] memory search
+[runtime] memory purge contract
+[runtime] secret redaction persistence
+[runtime] agent-worker auto-task completion
+[runtime] sse stream
+[runtime] sse replay
+[runtime] internal memory
+[runtime] memory consolidation worker
+300
+[runtime] memory worker metadata secret guard
+[memory-secret-guard] static contract
+[memory-secret-guard] nested metadata runtime proof
+[memory-secret-guard] status=verified raw_secret_persisted=False
+[runtime] internal task queue
+[runtime] task policy gate
+[runtime] task session UUID fail-closed
+[runtime] budget endpoint
+[runtime] infrastructure budget endpoint
+[runtime] external gates endpoint
+[runtime] auth credential issuance fail-closed
+[auth-fail-closed] source guard AUTH_OAUTH_STATE_PREFIX
+[auth-fail-closed] source guard AUTH_REFRESH_ACTIVE_PREFIX
+[auth-fail-closed] source guard AUTH_OAUTH_STATE_COOKIE
+[auth-fail-closed] source guard AUTH_OAUTH_STATE_PATTERN
+[auth-fail-closed] source guard AUTH_SIGNING_SECRET_PATTERN
+[auth-fail-closed] source guard auth_signing_secret_is_strong
+[auth-fail-closed] source guard consume_oauth_state
+[auth-fail-closed] source guard consume_refresh_token
+[auth-fail-closed] source guard oauth_state_cookie_clear_headers
+[auth-fail-closed] source guard RedirectResponse
+[auth-fail-closed] source guard credential_issuance_ready
+[auth-fail-closed] source guard oauth_state_invalid
+[auth-fail-closed] source guard oauth_callback_parameters_invalid
+[auth-fail-closed] source guard oauth_provider_denied
+[auth-fail-closed] source guard refresh_token_body_not_allowed
+[auth-fail-closed] source guard auth_configuration_required
+[auth-fail-closed] source guard production_auth_owner_activation_required
+[auth-fail-closed] source guard auth_audit_unavailable
+[auth-fail-closed] source guard github_identity_verification_failed
+[auth-fail-closed] source guard auth_logout_no_active_token
+[auth-fail-closed] source guard "scope": "read:user"
+[auth-fail-closed] source guard auth_credential_issuance_fail_closed
+[auth-fail-closed] source guard oauth_state_one_time_enforced
+[auth-fail-closed] source guard refresh_token_registry_enforced
+[auth-fail-closed] unsafe source absent: create_access_jwt("github:local-contract-user"
+[auth-fail-closed] unsafe source absent: supplied_token = (request.refresh_token if request else None) or refresh_token_cookie
+[auth-fail-closed] unsafe source absent: "blacklist_key": blacklist_key
+[auth-fail-closed] unsafe source absent: phase3-local-dry-run-signing-secret
+[auth-fail-closed] unsafe source absent: "authorize_url": authorize_url
+[auth-fail-closed] unsafe source absent: "scope": "read:user user:email"
+[auth-fail-closed] unsafe source absent: "mode": "local_contract"
+[auth-fail-closed] unsafe source absent: jwt_signing_configured = len(signing_secret.encode("utf-8")) >= 32
+......................................
+----------------------------------------------------------------------
+Ran 38 tests in 0.893s
+
+OK
+[auth-fail-closed] auth unit tests
+[auth-fail-closed] auth unit test coverage count
+[auth-fail-closed] contract curl exit
+[auth-fail-closed] contract HTTP expected '200' got '200'
+[auth-fail-closed] contract version expected 'auth-github-jwt-refresh-v1' got 'auth-github-jwt-refresh-v1'
+[auth-fail-closed] contract mode expected 'verified_identity_fail_closed' got 'verified_identity_fail_closed'
+[auth-fail-closed] contract read has no provider call expected 'False' got 'False'
+[auth-fail-closed] OAuth state is one-time expected 'True' got 'True'
+[auth-fail-closed] OAuth state store expected 'redis' got 'redis'
+[auth-fail-closed] OAuth start body excludes state expected 'False' got 'False'
+[auth-fail-closed] OAuth minimal scope expected 'read:user' got 'read:user'
+[auth-fail-closed] OAuth state format expected 'phase3-auth-state-<32_urlsafe_chars>' got 'phase3-auth-state-<32_urlsafe_chars>'
+[auth-fail-closed] JWT signing secret format expected 'base64url_256_bit_minimum' got 'base64url_256_bit_minimum'
+[auth-fail-closed] refresh active registry required expected 'True' got 'True'
+[auth-fail-closed] refresh body token disabled expected 'False' got 'False'
+[auth-fail-closed] refresh signing secret required expected 'True' got 'True'
+[auth-fail-closed] refresh complete issuance configuration required expected 'True' got 'True'
+[auth-fail-closed] host-prefixed cookies expected 'True' got 'True'
+[auth-fail-closed] credential issuance audit persistence required expected 'True' got 'True'
+[auth-fail-closed] owner activation is an explicit issuance gate expected 'True' got 'True'
+[auth-fail-closed] real Redis OAuth-state and refresh concurrency
+[auth-fail-closed] OAuth start curl exit
+[auth-fail-closed] OAuth start HTTP expected '200' got '200'
+[auth-fail-closed] OAuth start issued no credentials expected 'False' got 'False'
+[auth-fail-closed] OAuth start made no provider call expected 'False' got 'False'
+[auth-fail-closed] OAuth start blocked by the exact inactive gate expected 'configuration_required' got 'configuration_required'
+[auth-fail-closed] OAuth start configuration truth expected 'False' got 'False'
+[auth-fail-closed] OAuth start owner activation truth expected 'False' got 'False'
+[auth-fail-closed] blocked start state not issued expected 'False' got 'False'
+[auth-fail-closed] arbitrary callback curl exit
+[auth-fail-closed] arbitrary callback configuration HTTP expected '503' got '503'
+[auth-fail-closed] arbitrary callback configuration error
+[auth-fail-closed] arbitrary callback issued no credentials
+[auth-fail-closed] arbitrary callback set no access cookie
+[auth-fail-closed] arbitrary callback set no refresh cookie
+[auth-fail-closed] arbitrary callback clears state cookie
+[auth-fail-closed] arbitrary callback expires state cookie
+[auth-fail-closed] body refresh curl exit
+[auth-fail-closed] body refresh HTTP expected '400' got '400'
+[auth-fail-closed] body refresh rejected
+[auth-fail-closed] body refresh issued no credentials
+[auth-fail-closed] unknown cookie refresh curl exit
+[auth-fail-closed] unknown cookie refresh HTTP expected '401' got '401'
+[auth-fail-closed] unknown cookie refresh rejected
+[auth-fail-closed] unknown cookie refresh reason
+[auth-fail-closed] unknown cookie refresh issued no access credential
+[auth-fail-closed] unknown cookie logout curl exit
+[auth-fail-closed] unknown cookie logout HTTP expected '200' got '200'
+[auth-fail-closed] unknown logout does not claim revoke expected 'False' got 'False'
+[auth-fail-closed] logout body token not accepted expected 'False' got 'False'
+[auth-fail-closed] unknown logout audit persisted expected 'True' got 'True'
+[auth-fail-closed] logout exposes no blacklist key
+[auth-fail-closed] status=verified_dev_only credentials_issued=false live_github_oauth_call=false
+[auth-fail-closed] DEV-ONLY; hosted proof still blocked
+[runtime] signed auth-session integrity
+[phase3-auth-session] contract and source guards
+[phase3-auth-session] deterministic token unit tests
+✔ accepts an intact signed session within its lifetime (6.715ms)
+✔ rejects signature tampering (0.777ms)
+✔ rejects expired and future-issued sessions (1.3296ms)
+✔ rejects malformed cookies and unsupported identity providers (1.1579ms)
+✔ validates hosted opaque session envelopes without exposing a signing secret (2.0551ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 466.882
+[phase3-auth-session] issue, verify, tamper, and provider rejection
+[phase3-auth-session] status=verified browser_click_verified=False
+[runtime] devops workflow dispatch contract
+[runtime] budget warning threshold
+DELETE 0
+INSERT 0 1
+[runtime] budget hard-stop threshold
+DELETE 0
+INSERT 0 1
+[runtime] costs endpoint
+[runtime] prometheus metrics
+[runtime] langgraph orchestrator dry-run
+[runtime] langgraph mcp timeout controlled proof
+[runtime] phase2 runtime graph start
+[runtime] organism runtime event projection
+[organism-runtime-events] verified run_id=ad102253-4f1d-4025-a90d-30bf61271c55 source_kind=agent_api_redacted
+[runtime] langgraph policy hard-stop dry-run
+[runtime] langgraph global retry limit hard-stop
+[runtime] langgraph node retry bounded failure probes
+[runtime] langgraph llm routing policy deny hard-stop
+[runtime] langgraph policy hard-stop sse dry-run stream
+[runtime] langgraph orchestrator sse dry-run stream
+[runtime] langgraph orchestrator sse error event contract
+[runtime] langgraph postgres checkpoint restart recovery
+ Container cloud-superbrain-phase1-dev-postgres-1 Running 
+ Container cloud-superbrain-phase1-dev-redis-1 Running 
+ Container cloud-superbrain-phase1-dev-llm-gateway-1 Recreate 
+ Container cloud-superbrain-phase1-dev-mcp-gateway-1 Recreate 
+ Container cloud-superbrain-phase1-dev-llm-gateway-1 Recreated 
+ Container cloud-superbrain-phase1-dev-mcp-gateway-1 Recreated 
+ Container cloud-superbrain-phase1-dev-agent-api-1 Recreate 
+ Container cloud-superbrain-phase1-dev-agent-api-1 Recreated 
+ Container cloud-superbrain-phase1-dev-frontend-1 Recreate 
+ Container cloud-superbrain-phase1-dev-frontend-1 Recreated 
+ Container cloud-superbrain-phase1-dev-nginx-1 Recreate 
+ Container cloud-superbrain-phase1-dev-nginx-1 Recreated 
+ Container cloud-superbrain-phase1-dev-mcp-gateway-1 Starting 
+ Container cloud-superbrain-phase1-dev-llm-gateway-1 Starting 
+ Container cloud-superbrain-phase1-dev-llm-gateway-1 Started 
+ Container cloud-superbrain-phase1-dev-mcp-gateway-1 Started 
+ Container cloud-superbrain-phase1-dev-mcp-gateway-1 Waiting 
+ Container cloud-superbrain-phase1-dev-llm-gateway-1 Waiting 
+ Container cloud-superbrain-phase1-dev-postgres-1 Waiting 
+ Container cloud-superbrain-phase1-dev-redis-1 Waiting 
+ Container cloud-superbrain-phase1-dev-postgres-1 Healthy 
+ Container cloud-superbrain-phase1-dev-redis-1 Healthy 
+ Container cloud-superbrain-phase1-dev-llm-gateway-1 Healthy 
+ Container cloud-superbrain-phase1-dev-mcp-gateway-1 Healthy 
+ Container cloud-superbrain-phase1-dev-agent-api-1 Starting 
+ Container cloud-superbrain-phase1-dev-agent-api-1 Started 
+ Container cloud-superbrain-phase1-dev-agent-api-1 Waiting 
+ Container cloud-superbrain-phase1-dev-agent-api-1 Healthy 
+ Container cloud-superbrain-phase1-dev-frontend-1 Starting 
+ Container cloud-superbrain-phase1-dev-frontend-1 Started 
+ Container cloud-superbrain-phase1-dev-frontend-1 Waiting 
+ Container cloud-superbrain-phase1-dev-agent-api-1 Waiting 
+ Container cloud-superbrain-phase1-dev-mcp-gateway-1 Waiting 
+ Container cloud-superbrain-phase1-dev-llm-gateway-1 Waiting 
+ Container cloud-superbrain-phase1-dev-agent-api-1 Healthy 
+ Container cloud-superbrain-phase1-dev-mcp-gateway-1 Healthy 
+ Container cloud-superbrain-phase1-dev-llm-gateway-1 Healthy 
+ Container cloud-superbrain-phase1-dev-frontend-1 Healthy 
+ Container cloud-superbrain-phase1-dev-nginx-1 Starting 
+ Container cloud-superbrain-phase1-dev-nginx-1 Started 
+[runtime] model capability matrix
+[runtime] rotation policy
+[runtime] rotation event audit
+[runtime] post-recreate steady-state proof
+[runtime] phase5 local production candidate proof
+[phase5-candidate-local] active candidate predates current HEAD; development-only verification
+[phase5-candidate-local] status=verified service_count=6 source_parity=false progress_credit=false browser_click_verified=False artifact=verification-runtime.json
+[runtime] O4 bounded live Agent/MCP write proof
+[runtime] O4 persisted proof revalidation; fresh write OWNER-BLOCKED by AGENT_API_AUTH_TOKEN
+[o4-write] status=verified gates=2 audit_fail_closed=true secret_output=false
+[runtime] phase1 runtime checks completed
+RUNTIME_EXIT=0
+[phase5-evidence] exit_code=0

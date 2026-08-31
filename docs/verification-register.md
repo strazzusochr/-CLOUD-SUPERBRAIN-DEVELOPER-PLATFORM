@@ -1,11 +1,39 @@
 # Verification Register - PATCHED
 
-Stand: 2026-08-29
+Stand: 2026-08-31
 Status: Active
 
 ## Current Progress Authority
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
+
+## Current RC24 Local Qualification Evidence
+
+Recorded 2026-08-31. Active candidate `prod-candidate-2026-08-31-local-rc24` is bound
+to frozen source `1cb03979740859f0350cf18f6f08ef06c3d72b72` through source-attestation
+control `d016e4b928290d8fa358522af08609ae80aeb1cc`. GitHub Actions `pr-check` run
+`33359506266` passed `30/30` observed steps with `0` skipped and `0` failed while checking
+out the exact source. Artifact `9746273273`, GitHub digest
+`sha256:3976c12f444ae3b83cf5c1fe002a8723ec6ba3671720c1aaf44a0d7bcc79f1f3`,
+attestation SHA `2B34F84805CD64921B36B578643B99B40818A78B04085E70621B925296A282FE`,
+and readback SHA `C1A45CAFF81CFC58B1EEF22052E08579EA5CB7588B9B41009CCB6CE64DF74660`
+are preserved in the exact 27-file evidence set.
+
+The five independent chains passed: six source-bound candidate images; runtime `10/10
+healthy`; full real-Chromium browser proof; candidate-runtime source/image identity with
+real selection and click; and candidate-scoped npm-audit plus canonical gitleaks. Browser
+evidence covers `22/22` routes, `29/29` action families and `161/161` action members (`160`
+direct and `1` preverified). Canonical report hash:
+`22C47192D4D8F48BC1D989AD9B88D367134E73D2DB6D86527524D9906DF9EF7B6`.
+
+The Phase-5 selection is accepted only as exact `no_credit_requalification`; it changes
+no progress credit, item ruling, blocked ID, or external-gate projection. Readiness remains
+`verified_with_owner_blocks`, `17/19 = 89%`, blocked `I1` hosted candidate parity and `I5`
+production auth identity. Overall remains `89`, the delta ledger remains empty, and
+`MARKET_READY:false`. RC23 source `7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927`
+is the immutable local rollback target. No production deploy, release promotion, GHCR
+publication, default-branch write, hosted write, production OAuth credit, payment, or secret
+output is claimed. `DEV-ONLY; hosted proof still blocked`.
 
 ## Current RC23 Local Qualification Evidence
 

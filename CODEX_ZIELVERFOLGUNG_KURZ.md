@@ -4,6 +4,12 @@
 > historische Provenienz erhalten; ihre Koordinaten, Prozentwerte und Anweisungen sind
 > nicht mehr gueltig. Stand der Markierung: 2026-08-30.
 
+> **ARCHIV-SYNC 2026-08-31:** Aktuell ist RC24
+> `prod-candidate-2026-08-31-local-rc24` auf Quelle `1cb03979`, Control `d016e4b9`.
+> Fuenf lokale Ketten, CI `30/30`, Browser `22/22`, `29/29`, `161/161` sind gruen;
+> Overall bleibt `89`, I1/I5 bleiben blockiert und `MARKET_READY:false`. Verbindliche
+> Details stehen ausschliesslich in den beiden Master-Dateien und `AI_HANDOFF.md`.
+
 # ZIELVERFOLGUNG KURZ - STAND 2026-08-29
 
 Status: `ACTIVE_CURRENT_TRUTH`

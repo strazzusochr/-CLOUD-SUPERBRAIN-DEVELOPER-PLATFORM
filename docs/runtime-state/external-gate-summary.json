@@ -6,7 +6,7 @@
   "generated_at_utc": "2026-08-29T17:25:49.1046628Z",
   "status": "blocked",
   "active_target_gate": "cloudflare_native_zero_card_hosted_runtime",
-  "requested_release_candidate_selector": "7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927",
+  "requested_release_candidate_selector": "1cb03979740859f0350cf18f6f08ef06c3d72b72",
   "active_release_candidate_sha": "",
   "ghcr_published_manifest_ref": "",
   "ghcr_candidate_readback_source_artifact": "",

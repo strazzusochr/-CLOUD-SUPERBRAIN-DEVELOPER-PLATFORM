@@ -73,12 +73,15 @@ QUALIFICATION_TRUTH_PATHS = {
 NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS = {
     "PROJECT_STATE.md",
     "apps/frontend/lib/endpoint-snapshot.json",
+    "apps/frontend/lib/platform.ts",
+    "docs/project-progress.manifest.json",
     "docs/runtime-state/external-gate-summary.json",
 }
 CURRENT_RELEASE_CANDIDATE_REPO_PATH = "docs/release-artifacts/current-release-candidate.json"
 PHASE5_ITEMIZATION_REPO_PATH = "docs/runtime-state/phase5-credit-itemization.json"
 PROJECT_PROGRESS_MANIFEST_REPO_PATH = "docs/project-progress.manifest.json"
 ENDPOINT_SNAPSHOT_REPO_PATH = "apps/frontend/lib/endpoint-snapshot.json"
+PLATFORM_MANIFEST_REPO_PATH = "apps/frontend/lib/platform.ts"
 EXTERNAL_GATE_SUMMARY_REPO_PATH = "docs/runtime-state/external-gate-summary.json"
 LOCAL_VERIFICATION_FILES = {
     "runtime": "runtime.json",
@@ -1234,6 +1237,12 @@ def load_git_json(source_sha: str, path: str) -> dict[str, Any]:
     return value
 
 
+def load_git_text(source_sha: str, path: str) -> str:
+    result = run_git("show", f"{source_sha}:{path}")
+    require(result.returncode == 0, f"candidate source is missing {path}")
+    return result.stdout
+
+
 def load_index_text(path: str) -> str:
     result = run_git("show", f":{path}")
     require(result.returncode == 0, f"staged qualification truth is missing {path}")
@@ -1334,8 +1343,13 @@ def require_no_credit_requalification(
     source_manifest = load_git_json(source_sha, PROJECT_PROGRESS_MANIFEST_REPO_PATH)
     index_manifest = load_index_json(PROJECT_PROGRESS_MANIFEST_REPO_PATH)
     require(
-        index_manifest == source_manifest and manifest == index_manifest,
-        "no-credit requalification may not change project progress truth",
+        manifest == index_manifest,
+        "working-tree project progress must exactly match the staged qualification truth",
+    )
+    require(
+        {key: value for key, value in index_manifest.items() if key != "last_verified"}
+        == {key: value for key, value in source_manifest.items() if key != "last_verified"},
+        "no-credit requalification may change only project progress last_verified",
     )
     require(
         index_manifest.get("overall_percent") == source_manifest.get("overall_percent"),
@@ -1402,6 +1416,42 @@ def require_no_credit_requalification(
     require(
         index_pointer.get("updated_at") == index_itemization.get("updated_at_utc"),
         "no-credit requalification pointer and itemization timestamps must match",
+    )
+    pointer_updated_at = str(index_pointer.get("updated_at", ""))
+    require(
+        re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", pointer_updated_at) is not None,
+        "no-credit requalification pointer timestamp is invalid",
+    )
+    current_verified_date = str(index_manifest.get("last_verified", ""))
+    source_verified_date = str(source_manifest.get("last_verified", ""))
+    require(
+        current_verified_date == pointer_updated_at[:10],
+        "no-credit requalification manifest last_verified must match the candidate date",
+    )
+    require(
+        re.fullmatch(r"\d{4}-\d{2}-\d{2}", source_verified_date) is not None,
+        "candidate source manifest last_verified is invalid",
+    )
+
+    source_platform = load_git_text(source_sha, PLATFORM_MANIFEST_REPO_PATH)
+    index_platform = load_index_text(PLATFORM_MANIFEST_REPO_PATH)
+    source_snapshot_token = f'snapshot: "{source_verified_date}"'
+    current_snapshot_token = f'snapshot: "{current_verified_date}"'
+    source_dated_token = f"dated {source_verified_date}"
+    current_dated_token = f"dated {current_verified_date}"
+    require(
+        source_platform.count(source_snapshot_token) == 1
+        and source_platform.count(source_dated_token) == 1,
+        "candidate source platform manifest date markers are ambiguous",
+    )
+    expected_platform = source_platform.replace(
+        source_snapshot_token,
+        current_snapshot_token,
+        1,
+    ).replace(source_dated_token, current_dated_token, 1)
+    require(
+        index_platform == expected_platform,
+        "no-credit requalification platform may change only the manifest snapshot date",
     )
     require(
         index_pointer.get("production_rollout_claimed") is False,

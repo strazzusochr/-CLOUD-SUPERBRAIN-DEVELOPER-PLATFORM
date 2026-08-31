@@ -6,6 +6,39 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
+## Current RC24 Handoff — 2026-08-31
+
+Active locally qualified candidate: `prod-candidate-2026-08-31-local-rc24`, frozen source
+`1cb03979740859f0350cf18f6f08ef06c3d72b72`, source-attestation control
+`d016e4b928290d8fa358522af08609ae80aeb1cc`. GitHub Actions run `33359506266`
+checked out that exact source and passed all `30/30` observed steps with `0` skipped and
+`0` failed. Artifact `9746273273`, GitHub digest
+`sha256:3976c12f444ae3b83cf5c1fe002a8723ec6ba3671720c1aaf44a0d7bcc79f1f3`,
+attestation SHA `2B34F84805CD64921B36B578643B99B40818A78B04085E70621B925296A282FE`,
+and the GitHub metadata readback are preserved in the exact 27-file evidence set.
+
+All five local qualification chains passed: six source-bound candidate images; runtime
+`10/10 healthy`; candidate-scoped npm-audit plus canonical gitleaks; candidate-runtime
+source/image parity with a real Playwright selection and click; and the full browser matrix.
+The browser evidence records `22/22` routes, `29/29` action families and `161/161` action
+members (`160` direct, `1` preverified), with no unexpected network, mock, interception,
+console-error, page-error, or secret-output claim. The canonical browser report hash is
+`22C47192D4D8F48BC1D989AD9B88D367134E73D2DB6D86527524D9906DF9EF7B6`.
+
+The dedicated Phase-5 verifier accepts the selection only as the exact three-path
+`no_credit_requalification` transition. It preserves `17/19 = 89%`, blocked items `I1`
+and `I5`, all item rulings, the external-gate projection, and `MARKET_READY:false`.
+Overall remains `89`; horizontal `100/100/100/44/100/89/90`; vertical
+`100/100/100/55/56/100/100`. RC23 source
+`7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927` is the immutable local rollback target.
+
+No production deploy, release promotion, registry publication, default-branch write,
+hosted MCP/Phase-6 write, production OAuth credit, rubric activation, payment, or secret
+output is authorized or claimed. `DEV-ONLY; hosted proof still blocked`. The next safe
+boundary is the final local verifier stack, exact-path commit, feature-branch push and
+final-head CI. Market progress may move only after the remaining Owner-gated hosted
+evidence is real and accepted through the delta ledger.
+
 ## Current RC23 Handoff — 2026-08-29
 
 Active locally qualified candidate: `prod-candidate-2026-08-29-local-rc23`, frozen source

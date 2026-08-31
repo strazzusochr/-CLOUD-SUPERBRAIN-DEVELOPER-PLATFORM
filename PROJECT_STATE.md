@@ -5,6 +5,27 @@ Letzte Aktualisierung: 2026-08-30
 
 ## AKTUELLER PROJEKTANKER
 
+### Session 2026-08-31 — RC24 lokal qualifiziert und ausgewaehlt
+
+- **Aktiv qualifiziert ist RC24:** `prod-candidate-2026-08-31-local-rc24`, eingefrorene Source
+  `1cb03979740859f0350cf18f6f08ef06c3d72b72`, Kontroll-Commit
+  `d016e4b928290d8fa358522af08609ae80aeb1cc`. GitHub-Actions-Lauf `33359506266`
+  attestierte exakt den Source-Checkout; `30/30` beobachtete Schritte waren gruen,
+  `0` skipped. RC23-Source `7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927` ist der
+  immutable lokale Rollback-Anker.
+- **Alle fuenf lokalen Ketten gruen:** sechs Clean-Archive-Images, Runtime `10/10 healthy`,
+  Candidate-Archiv npm-audit plus canonical gitleaks und kompletter realer Chromium-Lauf
+  mit `22/22` Routen, `29/29` Familien und `161/161` Action-Membern. Der Candidate-Runtime-
+  Beweis bestaetigt exakte No-Credit-Source-Paritaet, sechs Image-Identitaeten und echte
+  Auswahl/Klick; der immutable Evidence-Satz umfasst `27` Dateien.
+- **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
+  P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
+  L6 `100`, L7 `100`. `MARKET_READY:false`. I1 `hosted_candidate_parity` und I5
+  `production_auth_identity` bleiben die einzigen Phase-5-Nullcredit-Items.
+- **Non-Claims:** `DEV-ONLY; hosted proof still blocked`. Kein Main-/Default-Branch-Write,
+  GHCR-Push, Hosted-/Production-Deploy, OAuth-Aktivierung, Secret-Output,
+  Release-Promotion oder Production-Rollout.
+
 ### Session 2026-08-29 — RC23 lokal qualifiziert und ausgewaehlt
 
 - **Aktiv qualifiziert ist RC23:** `prod-candidate-2026-08-29-local-rc23`, eingefrorene
