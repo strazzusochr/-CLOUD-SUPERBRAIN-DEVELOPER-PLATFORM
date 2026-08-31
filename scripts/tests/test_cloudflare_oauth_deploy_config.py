@@ -126,6 +126,9 @@ class CloudflareOAuthDeployConfigTests(unittest.TestCase):
 
     def test_deploy_builds_only_from_a_transient_selected_commit_materialization(self) -> None:
         for marker in (
+            "ConvertFrom-Json -AsHashtable",
+            '$trackedPackageLock["packages"]',
+            '$lockPackages["node_modules/wrangler"]',
             'git archive --format=tar "--output=$workerArchive" $resolved -- services/cloudflare-stateful-runtime',
             'tar -xf $workerArchive -C $materializedWorkerDir --strip-components=2',
             'npm ci --ignore-scripts --prefer-offline --no-audit --no-fund',

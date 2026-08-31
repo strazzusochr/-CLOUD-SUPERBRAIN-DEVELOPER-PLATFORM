@@ -452,14 +452,21 @@ try {
   $trackedPackageLockText = @(& git show "$resolved`:services/cloudflare-stateful-runtime/package-lock.json" 2>$null)
   Assert-True "selected commit package lock loaded" ($LASTEXITCODE -eq 0 -and $trackedPackageLockText.Count -gt 0)
   try {
-    $trackedPackageLock = ($trackedPackageLockText -join "`n") | ConvertFrom-Json
+    # npm lockfiles legitimately contain the empty-string root package key. PowerShell 7
+    # rejects that JSON as a PSCustomObject, so parse it as an exact hashtable instead.
+    $trackedPackageLock = ($trackedPackageLockText -join "`n") | ConvertFrom-Json -AsHashtable
   } catch {
     throw "Worker deploy precondition failed: selected commit package lock is not valid JSON"
   }
-  $lockedWranglerProperty = $trackedPackageLock.packages.PSObject.Properties["node_modules/wrangler"]
+  $lockPackages = $trackedPackageLock["packages"]
+  $lockedWrangler = if ($lockPackages -is [System.Collections.IDictionary]) {
+    $lockPackages["node_modules/wrangler"]
+  } else { $null }
+  $lockedWranglerVersion = if ($lockedWrangler -is [System.Collections.IDictionary]) {
+    [string]$lockedWrangler["version"]
+  } else { "" }
   Assert-True "selected package lock pins Wrangler" (
-    $null -ne $lockedWranglerProperty -and
-    [string]$lockedWranglerProperty.Value.version -match "^[0-9]+\.[0-9]+\.[0-9]+$"
+    $lockedWranglerVersion -match "^[0-9]+\.[0-9]+\.[0-9]+$"
   )
   $materializationRoot = Join-Path ([System.IO.Path]::GetTempPath()) (
     "cloud-superbrain-worker-deploy-" + [Guid]::NewGuid().ToString("N")
@@ -493,7 +500,7 @@ try {
     $installedWranglerVersion = ((& node $wrangler --version 2>$null) -join "").Trim()
     Assert-True "materialized Wrangler matches the selected pinned lock" (
       $LASTEXITCODE -eq 0 -and
-      $installedWranglerVersion -ceq [string]$lockedWranglerProperty.Value.version
+      $installedWranglerVersion -ceq $lockedWranglerVersion
     )
 
     $bindingArgs = @(
