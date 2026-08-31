@@ -277,8 +277,14 @@ $requiredFiles = @(
   "migrations\0002_build_prompt_redaction.sql",
   "migrations\0003_zero_card_d1_artifacts.sql",
   "migrations\0004_hosted_sessions.sql",
+  "migrations\0005_oauth_auth_identity.sql",
+  "migrations\0006_hosted_mcp_write.sql",
+  "migrations\0007_oauth_refresh_expiry.sql",
+  "migrations\0008_hosted_mcp_timeout_effects.sql",
   "src\index.js",
-  "test\index.test.js"
+  "src\mcp-hosted.js",
+  "test\index.test.js",
+  "test\mcp-hosted.test.js"
 )
 foreach ($relative in $requiredFiles) {
   Assert-True (Test-Path -LiteralPath (Join-Path $workerRoot $relative)) "Cloudflare stateful runtime missing $relative"
@@ -291,7 +297,13 @@ $migration = Get-Content -LiteralPath (Join-Path $workerRoot "migrations\0001_fo
 $promptMigration = Get-Content -LiteralPath (Join-Path $workerRoot "migrations\0002_build_prompt_redaction.sql") -Raw
 $artifactMigration = Get-Content -LiteralPath (Join-Path $workerRoot "migrations\0003_zero_card_d1_artifacts.sql") -Raw
 $hostedSessionMigration = Get-Content -LiteralPath (Join-Path $workerRoot "migrations\0004_hosted_sessions.sql") -Raw
+$oauthMigration = Get-Content -LiteralPath (Join-Path $workerRoot "migrations\0005_oauth_auth_identity.sql") -Raw
+$mcpWriteMigration = Get-Content -LiteralPath (Join-Path $workerRoot "migrations\0006_hosted_mcp_write.sql") -Raw
+$oauthExpiryMigration = Get-Content -LiteralPath (Join-Path $workerRoot "migrations\0007_oauth_refresh_expiry.sql") -Raw
+$mcpTimeoutMigration = Get-Content -LiteralPath (Join-Path $workerRoot "migrations\0008_hosted_mcp_timeout_effects.sql") -Raw
+$mcpHostedSource = Get-Content -LiteralPath (Join-Path $workerRoot "src\mcp-hosted.js") -Raw
 $testSource = Get-Content -LiteralPath (Join-Path $workerRoot "test\index.test.js") -Raw
+$mcpTestSource = Get-Content -LiteralPath (Join-Path $workerRoot "test\mcp-hosted.test.js") -Raw
 $boundarySource = Get-Content -LiteralPath "apps\frontend\lib\frontendBoundary.ts" -Raw
 $buildSource = Get-Content -LiteralPath "apps\frontend\app\api\v1\build\route.ts" -Raw
 $buildReadSource = Get-Content -LiteralPath "apps\frontend\app\api\v1\build\[id]\route.ts" -Raw
@@ -333,7 +345,7 @@ Assert-Equal @($config.env.preview.queues.consumers).Count 1 "Preview Queue cons
 Assert-Equal ([int]$config.env.preview.queues.consumers[0].max_retries) 3 "Preview Queue retry bound"
 Assert-True ($null -eq $config.env.preview.PSObject.Properties["r2_buckets"]) "Preview config cannot declare an R2 binding"
 Assert-Equal ([string]$config.vars.RUNTIME_MODE) "cloudflare_native_hosted_candidate" "Production Cloudflare-native runtime mode"
-Assert-Equal ([string]$config.env.preview.vars.RUNTIME_MODE) "cloudflare_native_local_candidate" "Preview Cloudflare-native runtime mode"
+Assert-Equal ([string]$config.env.preview.vars.RUNTIME_MODE) "cloudflare_native_hosted_candidate" "Preview Cloudflare-native runtime mode"
 
 foreach ($marker in @(
   'cloudflare-d1-stateful-runtime-v1',
@@ -523,6 +535,48 @@ foreach ($marker in @(
 )) {
   Assert-Contains "D1 hosted session migration" $hostedSessionMigration $marker
 }
+foreach ($marker in @(
+  "CREATE TABLE IF NOT EXISTS oauth_states",
+  "CREATE TABLE IF NOT EXISTS refresh_token_families",
+  "CREATE TABLE IF NOT EXISTS refresh_token_history",
+  "token_hash TEXT PRIMARY KEY"
+)) {
+  Assert-Contains "D1 OAuth identity migration" $oauthMigration $marker
+}
+foreach ($marker in @(
+  "CREATE TABLE IF NOT EXISTS mcp_hosted_write_state",
+  "CREATE TABLE IF NOT EXISTS mcp_hosted_idempotency",
+  "idempotency_key TEXT PRIMARY KEY"
+)) {
+  Assert-Contains "D1 hosted MCP write migration" $mcpWriteMigration $marker
+}
+foreach ($marker in @(
+  "ALTER TABLE refresh_token_families",
+  "ADD COLUMN expires_at TEXT",
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_refresh_token_families_active_token_hash",
+  "trg_refresh_token_families_expiry_insert",
+  "+604800 seconds"
+)) {
+  Assert-Contains "D1 OAuth refresh-expiry migration" $oauthExpiryMigration $marker
+}
+foreach ($marker in @(
+  "ALTER TABLE mcp_hosted_idempotency ADD COLUMN trace_id TEXT",
+  "CREATE TABLE IF NOT EXISTS mcp_hosted_timeout_effects",
+  "effect_key TEXT PRIMARY KEY"
+)) {
+  Assert-Contains "D1 hosted MCP timeout migration" $mcpTimeoutMigration $marker
+}
+foreach ($marker in @(
+  'const TOOLSET = "cloudflare_d1_hosted_mcp_adapter"',
+  "request.body.getReader()",
+  "immutable_receipt_verified: true",
+  "timeout_no_aftereffect",
+  "export async function handleHostedMcpRoute"
+)) {
+  Assert-Contains "Hosted MCP runtime" $mcpHostedSource $marker
+}
+Assert-Contains "Hosted MCP runtime tests" $mcpTestSource "atomic idempotency barriers preserve the winner"
+Assert-Contains "Hosted MCP runtime tests" $mcpTestSource "streaming byte guard"
 
 foreach ($marker in @(
   'authEnvName: "AGENT_API_AUTH_TOKEN"',

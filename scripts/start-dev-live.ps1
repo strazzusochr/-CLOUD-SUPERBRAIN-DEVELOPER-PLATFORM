@@ -109,6 +109,36 @@ if ([string]::IsNullOrWhiteSpace($serviceToken)) {
 }
 $env:AGENT_API_AUTH_TOKEN = $serviceToken
 
+# --- Live-Provider-Credentials aus derselben lokalen Secrets-Datei ----------------------
+# Docker Compose expands these values from the caller environment. Keep DryRun genuinely
+# credential-free and never print either value.
+if (-not $DryRun -and (Test-Path -LiteralPath $secretsPath)) {
+  $providerCredentialKeys = @('CF_WORKERS_AI_TOKEN', 'CLOUDFLARE_ACCOUNT_ID')
+  $providerCredentials = @{}
+  foreach ($line in (Get-Content -LiteralPath $secretsPath)) {
+    if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$') {
+      $entryKey = $matches[1]
+      $entryValue = $matches[2].Trim().Trim('"')
+      if (($providerCredentialKeys -contains $entryKey) -and
+          -not [string]::IsNullOrWhiteSpace($entryValue) -and
+          -not $providerCredentials.ContainsKey($entryKey)) {
+        $providerCredentials[$entryKey] = $entryValue
+      }
+    }
+  }
+  foreach ($providerCredentialKey in $providerCredentialKeys) {
+    $currentValue = [Environment]::GetEnvironmentVariable($providerCredentialKey, 'Process')
+    if ([string]::IsNullOrWhiteSpace($currentValue) -and $providerCredentials.ContainsKey($providerCredentialKey)) {
+      Set-Item -Path "env:$providerCredentialKey" -Value $providerCredentials[$providerCredentialKey]
+    }
+  }
+  if (@($providerCredentialKeys | Where-Object {
+    [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_, 'Process'))
+  }).Count -eq 0) {
+    Write-Host 'Live-Provider-Credentials aus lokaler Secrets-Datei geladen (Werte nicht angezeigt).' -ForegroundColor Green
+  }
+}
+
 # --- O1: GitHub-OAuth + JWT-Signierschluessel aus der Secrets-Datei -----------------------
 # Die Agent API leitet `github_oauth_configured` und `credential_issuance_ready` aus genau
 # fuenf Werten ab. Fehlt einer, bleibt Auth fail-closed. Der JWT-Schluessel ist ein rein

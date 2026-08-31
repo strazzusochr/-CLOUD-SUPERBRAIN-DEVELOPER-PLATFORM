@@ -124,6 +124,16 @@ py -3 -m unittest `
   scripts.tests.test_production_auth_identity_evidence
 Assert-LastExitCode "market-ready transition regression tests"
 
+Write-Host "[verify] hosted OAuth and L4/L5 verifier regression tests"
+node --test scripts/tests/l4_hosted_verifiers.test.mjs
+Assert-LastExitCode "hosted L4 verifier regression tests"
+py -3 -m unittest scripts.tests.l5_hosted_verifiers_test -v
+Assert-LastExitCode "hosted L5 verifier regression tests"
+py -3 -m unittest scripts.tests.test_cloudflare_oauth_deploy_config -v
+Assert-LastExitCode "hosted OAuth deploy regression tests"
+py -3 -m unittest scripts.tests.test_cloudflare_oauth_hosted_current -v
+Assert-LastExitCode "hosted OAuth evidence regression tests"
+
 Write-Host "[verify] production auth evidence verifier contract"
 $productionAuthVerifierPath = "scripts\verify-production-auth-identity-evidence.ps1"
 if (-not (Test-Path -LiteralPath $productionAuthVerifierPath -PathType Leaf)) {

@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import worker, { RuntimeCoordinator } from "../src/index.js";
 
 const token = "unit-test-agent-token";
+const canonicalOauthOrigin = "https://frontend-seven-psi-78.vercel.app";
+const canonicalOauthRedirect = `${canonicalOauthOrigin}/api/v1/auth/callback`;
+const testJwtSigningSecret = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY";
 
 class FakeStatement {
   constructor(db, sql) {
@@ -103,19 +107,57 @@ class FakeStatement {
       return { meta: { changes: 1 } };
     }
     if (this.sql.startsWith("DELETE FROM oauth_states")) {
+      if (this.db.failOauthStateDeletes) throw new Error("simulated oauth state delete failure");
       const state = this.values[0];
-      const existed = this.db.oauthStates.delete(state);
+      const nowIso = this.values[1];
+      const row = this.db.oauthStates.get(state);
+      const existed = Boolean(row && (!nowIso || row.expires_at > nowIso));
+      if (existed) this.db.oauthStates.delete(state);
       return { meta: { changes: existed ? 1 : 0 } };
     }
     if (this.sql.startsWith("INSERT INTO refresh_token_families")) {
-      const [family_id, subject, active_token_hash, created_at, updated_at] = this.values;
-      this.db.refreshFamilies.set(family_id, { family_id, subject, active_token_hash, created_at, updated_at, revoked_at: null, revocation_reason: null });
+      if (this.db.failRefreshWrites) throw new Error("simulated refresh persistence failure");
+      const [family_id, subject, active_token_hash, created_at, updated_at, expires_at] = this.values;
+      if (this.db.refreshFamilies.has(family_id)) throw new Error("UNIQUE constraint failed: refresh_token_families.family_id");
+      if (
+        this.db.forceRefreshHashCollision
+        || [...this.db.refreshFamilies.values()].some((family) => family.active_token_hash === active_token_hash)
+      ) {
+        throw new Error("UNIQUE constraint failed: refresh_token_families.active_token_hash");
+      }
+      if (Date.parse(expires_at) - Date.parse(created_at) !== 604800000) throw new Error("refresh family expiry invariant failed");
+      this.db.refreshFamilies.set(family_id, {
+        family_id,
+        subject,
+        active_token_hash,
+        created_at,
+        updated_at,
+        expires_at,
+        revoked_at: null,
+        revocation_reason: null,
+      });
       return { meta: { changes: 1 } };
     }
     if (this.sql.startsWith("UPDATE refresh_token_families SET active_token_hash")) {
-      const [new_hash, updated_at, family_id, old_hash] = this.values;
+      if (this.db.failRefreshWrites) throw new Error("simulated refresh persistence failure");
+      const [new_hash, updated_at, family_id, old_hash, expectedExpiry, nowIso] = this.values;
       const fam = this.db.refreshFamilies.get(family_id);
-      if (fam && fam.active_token_hash === old_hash && !fam.revoked_at) {
+      if (
+        fam
+        && fam.active_token_hash === old_hash
+        && !fam.revoked_at
+        && (!this.sql.includes("expires_at = ?") || fam.expires_at === expectedExpiry)
+        && (!this.sql.includes("expires_at > ?") || fam.expires_at > nowIso)
+      ) {
+        if (this.db.keepRefreshFamilyUnchanged) return { meta: { changes: 1 } };
+        if (
+          this.db.forceRefreshHashCollision
+          || [...this.db.refreshFamilies.values()].some(
+            (family) => family.family_id !== family_id && family.active_token_hash === new_hash,
+          )
+        ) {
+          throw new Error("UNIQUE constraint failed: refresh_token_families.active_token_hash");
+        }
         fam.active_token_hash = new_hash;
         fam.updated_at = updated_at;
         return { meta: { changes: 1 } };
@@ -123,14 +165,25 @@ class FakeStatement {
       return { meta: { changes: 0 } };
     }
     if (this.sql.startsWith("UPDATE refresh_token_families SET revoked_at")) {
+      if (this.db.failRefreshWrites) throw new Error("simulated refresh persistence failure");
       const reasonMatch = this.sql.match(/revocation_reason\s*=\s*'([^']+)'/);
-      const reason = reasonMatch ? reasonMatch[1] : (this.values.length > 2 ? this.values[1] : "revoked");
+      const reason = reasonMatch ? reasonMatch[1] : "revoked";
       if (this.sql.includes("WHERE family_id = ?")) {
         const revoked_at = this.values[0];
-        const family_id = this.values[this.values.length - 1];
+        const hasUpdatedAt = this.sql.includes("updated_at = ?");
+        const family_id = this.values[hasUpdatedAt ? 2 : 1];
+        const active_token_hash = this.values[hasUpdatedAt ? 3 : 2] || null;
+        const expectedExpiry = hasUpdatedAt ? this.values[4] : null;
+        const nowIso = hasUpdatedAt ? this.values[5] : null;
         const fam = this.db.refreshFamilies.get(family_id);
-        if (fam) {
+        const expiryMatches = !hasUpdatedAt
+          || (this.sql.includes("COALESCE(expires_at")
+            ? String(fam?.expires_at || "") === String(expectedExpiry)
+            : fam?.expires_at === expectedExpiry);
+        const notExpired = !this.sql.includes("expires_at > ?") || fam?.expires_at > nowIso;
+        if (fam && !fam.revoked_at && (!active_token_hash || fam.active_token_hash === active_token_hash) && expiryMatches && notExpired) {
           fam.revoked_at = revoked_at;
+          if (hasUpdatedAt) fam.updated_at = this.values[1];
           fam.revocation_reason = reason;
           return { meta: { changes: 1 } };
         }
@@ -147,8 +200,52 @@ class FakeStatement {
       }
       return { meta: { changes: 0 } };
     }
+    if (this.sql.startsWith("UPDATE refresh_token_history SET status")) {
+      if (this.db.failRefreshWrites) throw new Error("simulated refresh persistence failure");
+      const [token_hash, family_id] = this.values;
+      const row = this.db.refreshHistory.get(token_hash);
+      if (!row || row.family_id !== family_id) return { meta: { changes: 0 } };
+      row.status = "blacklisted";
+      return { meta: { changes: 1 } };
+    }
     if (this.sql.startsWith("INSERT INTO refresh_token_history") || this.sql.startsWith("INSERT OR REPLACE INTO refresh_token_history")) {
-      const [token_hash, family_id, consumed_at, status] = this.values;
+      if (this.db.failRefreshWrites) throw new Error("simulated refresh persistence failure");
+      let token_hash = this.values[0];
+      let family_id = this.values[1];
+      let consumed_at = this.values[2];
+      if (this.sql.includes("SELECT family_id FROM refresh_token_families")) {
+        family_id = this.values[1];
+        const expectedActiveHash = this.values[2];
+        const expectedExpiry = this.values[3];
+        const hasExpiryThreshold = this.sql.includes("expires_at > ?");
+        const nowIso = hasExpiryThreshold ? this.values[4] : null;
+        consumed_at = this.values[hasExpiryThreshold ? 5 : 4];
+        const fam = this.db.refreshFamilies.get(family_id);
+        if (this.db.expireRefreshBeforeGuard && !this.db.expireRefreshBeforeGuardConsumed && hasExpiryThreshold && fam) {
+          const created_at = new Date(Date.now() - 604801000).toISOString();
+          const expires_at = new Date(Date.parse(created_at) + 604800000).toISOString();
+          fam.created_at = created_at;
+          fam.expires_at = expires_at;
+          this.db.expireRefreshBeforeGuardConsumed = true;
+          this.db.forcedExpiryAfterRollback = { family_id, created_at, expires_at };
+        }
+        const guardedFamily = this.db.refreshFamilies.get(family_id);
+        const expiryMatches = this.sql.includes("COALESCE(expires_at")
+          ? String(guardedFamily?.expires_at || "") === String(expectedExpiry)
+          : guardedFamily?.expires_at === expectedExpiry;
+        const guardPassed = guardedFamily
+          && guardedFamily.active_token_hash === expectedActiveHash
+          && !guardedFamily.revoked_at
+          && expiryMatches
+          && (!hasExpiryThreshold || guardedFamily.expires_at > nowIso);
+        if (!guardPassed) throw new Error("NOT NULL constraint failed: refresh_token_history.family_id");
+      }
+      if (this.db.refreshHistory.has(token_hash) && !this.sql.startsWith("INSERT OR REPLACE")) {
+        throw new Error("UNIQUE constraint failed: refresh_token_history.token_hash");
+      }
+      const literalStatus = this.sql.match(/,\s*'(rotated|revoked|blacklisted)'\s*\)$/i)?.[1];
+      const suppliedStatus = this.sql.includes("SELECT family_id FROM refresh_token_families") ? null : this.values[3];
+      const status = suppliedStatus || literalStatus;
       this.db.refreshHistory.set(token_hash, { token_hash, family_id, consumed_at, status });
       return { meta: { changes: 1 } };
     }
@@ -156,7 +253,10 @@ class FakeStatement {
   }
 
   async first() {
-    if (this.sql === "SELECT 1 AS ok") return { ok: 1 };
+    if (this.sql === "SELECT 1 AS ok") {
+      if (this.db.failHealthRead) throw new Error("simulated health read failure");
+      return { ok: 1 };
+    }
     if (this.sql.startsWith("SELECT state FROM oauth_states")) {
       const [state, nowIso] = this.values;
       const row = this.db.oauthStates.get(state);
@@ -166,12 +266,46 @@ class FakeStatement {
       const row = this.db.refreshHistory.get(this.values[0]);
       return row ? { family_id: row.family_id, status: row.status } : null;
     }
+    if (this.sql.startsWith("SELECT family_id, subject, active_token_hash, created_at, updated_at, expires_at, revoked_at, revocation_reason FROM refresh_token_families")) {
+      if (this.db.throwRefreshReadback) throw new Error("simulated refresh readback failure");
+      if (this.sql.includes("WHERE family_id = ?")) {
+        const row = this.db.refreshFamilies.get(this.values[0]);
+        return row ? { ...row } : null;
+      }
+      const activeHash = this.values[0];
+      for (const fam of this.db.refreshFamilies.values()) {
+        if (fam.active_token_hash === activeHash) return { ...fam };
+      }
+      return null;
+    }
     if (this.sql.startsWith("SELECT family_id, subject, active_token_hash, revoked_at FROM refresh_token_families")) {
+      if (this.db.throwRefreshReadback) throw new Error("simulated refresh readback failure");
+      if (this.sql.includes("WHERE family_id = ?")) {
+        const row = this.db.refreshFamilies.get(this.values[0]);
+        return row ? {
+          family_id: row.family_id,
+          subject: row.subject,
+          active_token_hash: row.active_token_hash,
+          revoked_at: row.revoked_at,
+        } : null;
+      }
       const activeHash = this.values[0];
       for (const fam of this.db.refreshFamilies.values()) {
         if (fam.active_token_hash === activeHash) {
           return { family_id: fam.family_id, subject: fam.subject, active_token_hash: fam.active_token_hash, revoked_at: fam.revoked_at };
         }
+      }
+      return null;
+    }
+    if (this.sql.startsWith("SELECT family_id, subject, active_token_hash, revoked_at, revocation_reason FROM refresh_token_families")) {
+      if (this.db.throwRefreshReadback) throw new Error("simulated refresh readback failure");
+      if (this.sql.includes("WHERE family_id = ?")) {
+        const row = this.db.refreshFamilies.get(this.values[0]);
+        return row ? { ...row } : null;
+      }
+      const activeHash = this.values[0];
+      for (const fam of this.db.refreshFamilies.values()) {
+        if (fam.active_token_hash === activeHash) return { ...fam };
       }
       return null;
     }
@@ -273,6 +407,13 @@ class FakeD1 {
     throwBuildReadback = false,
     throwDeleteReadback = false,
     keepBuildActiveOnDelete = false,
+    failOauthStateDeletes = false,
+    failRefreshWrites = false,
+    keepRefreshFamilyUnchanged = false,
+    throwRefreshReadback = false,
+    expireRefreshBeforeGuard = false,
+    forceRefreshHashCollision = false,
+    failHealthRead = false,
   } = {}) {
     this.builds = new Map();
     this.artifacts = new Map();
@@ -292,6 +433,15 @@ class FakeD1 {
     this.throwBuildReadback = throwBuildReadback;
     this.throwDeleteReadback = throwDeleteReadback;
     this.keepBuildActiveOnDelete = keepBuildActiveOnDelete;
+    this.failOauthStateDeletes = failOauthStateDeletes;
+    this.failRefreshWrites = failRefreshWrites;
+    this.keepRefreshFamilyUnchanged = keepRefreshFamilyUnchanged;
+    this.throwRefreshReadback = throwRefreshReadback;
+    this.expireRefreshBeforeGuard = expireRefreshBeforeGuard;
+    this.forceRefreshHashCollision = forceRefreshHashCollision;
+    this.failHealthRead = failHealthRead;
+    this.expireRefreshBeforeGuardConsumed = false;
+    this.forcedExpiryAfterRollback = null;
   }
 
   prepare(sql) {
@@ -328,6 +478,15 @@ class FakeD1 {
       this.tasks = snapshot.tasks;
       this.memory = snapshot.memory;
       this.audit = snapshot.audit;
+      if (this.forcedExpiryAfterRollback) {
+        const forced = this.forcedExpiryAfterRollback;
+        const family = this.refreshFamilies.get(forced.family_id);
+        if (family) {
+          family.created_at = forced.created_at;
+          family.expires_at = forced.expires_at;
+        }
+        this.forcedExpiryAfterRollback = null;
+      }
       throw error;
     }
   }
@@ -388,11 +547,17 @@ function env(options = {}) {
     RUNTIME_MODE: options.runtimeMode || "cloudflare_native_local_candidate",
     RUNTIME_COORDINATOR: new FakeDurableNamespace(),
     RUNTIME_QUEUE: new FakeQueue(),
-    GITHUB_OAUTH_CLIENT_ID: options.githubClientId !== undefined ? options.githubClientId : "test-github-client-id",
-    GITHUB_OAUTH_CLIENT_SECRET: options.githubClientSecret !== undefined ? options.githubClientSecret : "test-github-client-secret",
-    GITHUB_OAUTH_REDIRECT_URI: options.githubRedirectUri || "https://cloud-superbrain-developer-platform.vercel.app/api/v1/auth/callback",
+    GITHUB_OAUTH_CLIENT_ID: options.githubClientId !== undefined ? options.githubClientId : "Iv1.8a61f9b3a7aba766",
+    GITHUB_OAUTH_CLIENT_SECRET: options.githubClientSecret !== undefined ? options.githubClientSecret : "0123456789abcdef0123456789abcdef01234567",
+    OAUTH_PUBLIC_ORIGIN: options.oauthPublicOrigin !== undefined ? options.oauthPublicOrigin : canonicalOauthOrigin,
+    GITHUB_OAUTH_REDIRECT_URI: options.githubRedirectUri !== undefined ? options.githubRedirectUri : canonicalOauthRedirect,
     GITHUB_OAUTH_OWNER_IDS: options.githubOwnerIds !== undefined ? options.githubOwnerIds : "123456,789012",
-    JWT_SIGNING_SECRET: options.jwtSigningSecret !== undefined ? options.jwtSigningSecret : "test-jwt-signing-secret-key-32-chars-long",
+    JWT_SIGNING_SECRET: options.jwtSigningSecret !== undefined ? options.jwtSigningSecret : testJwtSigningSecret,
+    PRODUCTION_AUTH_OWNER_GRANTED: options.productionAuthOwnerGranted !== undefined ? options.productionAuthOwnerGranted : "true",
+    PRODUCTION_AUTH_OWNER_GRANT_REF: options.productionAuthOwnerGrantRef !== undefined
+      ? options.productionAuthOwnerGrantRef
+      : "capability-gate:production_auth_identity:test-owner-approved",
+    SOURCE_BUNDLE_SHA256: options.sourceBundleSha256,
   };
 }
 
@@ -420,6 +585,93 @@ function queueDelivery(body, attempts = 1) {
   };
 }
 
+function responseCookies(response) {
+  return response.headers.getSetCookie
+    ? response.headers.getSetCookie()
+    : [response.headers.get("set-cookie")].filter(Boolean);
+}
+
+function cookieValue(response, name) {
+  const match = responseCookies(response).join("\n").match(new RegExp(`${name}=([^;]+)`));
+  return match?.[1] || null;
+}
+
+function seedOauthState(fakeEnv, label = crypto.randomUUID().replaceAll("-", "")) {
+  const state = `phase3-auth-state-${label.slice(0, 32).padEnd(24, "0")}`;
+  fakeEnv.DB.oauthStates.set(state, {
+    state,
+    created_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 600_000).toISOString(),
+  });
+  return state;
+}
+
+async function invokeGithubCallback(fakeEnv, {
+  state = seedOauthState(fakeEnv),
+  userId = 123456,
+  scope = "read:user",
+  tokenType = "bearer",
+  accept = "application/json",
+  postLoginRedirect,
+} = {}) {
+  if (postLoginRedirect !== undefined) fakeEnv.POST_LOGIN_REDIRECT = postLoginRedirect;
+  const originalFetch = globalThis.fetch;
+  const calls = { exchange: 0, user: 0 };
+  const exchangeRedirectUris = [];
+  globalThis.fetch = async (input, init = {}) => {
+    const url = typeof input === "string" ? input : input.url;
+    if (url === "https://github.com/login/oauth/access_token") {
+      calls.exchange += 1;
+      exchangeRedirectUris.push(JSON.parse(String(init.body)).redirect_uri);
+      return Response.json({ access_token: "unit_fixture_provider_token", scope, token_type: tokenType });
+    }
+    if (url === "https://api.github.com/user") {
+      calls.user += 1;
+      return Response.json({ id: userId, login: "unit-owner" });
+    }
+    throw new Error(`unexpected outbound URL: ${url}`);
+  };
+  try {
+    const response = await worker.fetch(new Request(
+      `https://state.example/api/v1/auth/callback?code=unit-code&state=${state}`,
+      { headers: { accept, cookie: `__Host-sb_oauth_state=${state}` } },
+    ), fakeEnv);
+    return { response, calls, state, exchangeRedirectUris };
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+async function signedTestJwt(payload, secret, header = { alg: "HS256", typ: "JWT" }) {
+  const encodedHeader = Buffer.from(JSON.stringify(header)).toString("base64url");
+  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const key = await crypto.subtle.importKey(
+    "raw",
+    Buffer.from(secret, "base64url"),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`),
+  );
+  return `${encodedHeader}.${encodedPayload}.${Buffer.from(signature).toString("base64url")}`;
+}
+
+function decodedJwtPayload(tokenValue) {
+  return JSON.parse(Buffer.from(tokenValue.split(".")[1], "base64url").toString("utf8"));
+}
+
+function setRefreshFamilyAge(family, elapsedSeconds) {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const createdSec = nowSec - elapsedSeconds;
+  family.created_at = new Date(createdSec * 1000).toISOString();
+  family.updated_at = family.created_at;
+  family.expires_at = new Date((createdSec + 604800) * 1000).toISOString();
+}
+
 const validBuild = {
   id: "build_test_1",
   project_id: "default",
@@ -433,13 +685,36 @@ const validBuild = {
 };
 
 test("health verifies the D1 binding without a provider call", async () => {
-  const response = await worker.fetch(new Request("https://state.example/api/v1/health"), env());
+  const bundleSha = "a".repeat(64);
+  const response = await worker.fetch(new Request("https://state.example/api/v1/health"), env({ sourceBundleSha256: bundleSha }));
   const body = await response.json();
   assert.equal(response.status, 200);
   assert.equal(body.status, "healthy");
   assert.equal(body.d1_read_verified, true);
   assert.equal(body.live_provider_calls, false);
   assert.equal(body.secret_output, false);
+  assert.equal(body.source_bundle_sha256, bundleSha);
+
+  for (const invalid of [undefined, "A".repeat(64), "a".repeat(63), "g".repeat(64), ` ${bundleSha}`]) {
+    const invalidResponse = await worker.fetch(
+      new Request("https://state.example/api/v1/health"),
+      env({ sourceBundleSha256: invalid }),
+    );
+    assert.equal((await invalidResponse.json()).source_bundle_sha256, null);
+  }
+
+  const failedProbe = await worker.fetch(
+    new Request("https://state.example/api/v1/health"),
+    env({ sourceBundleSha256: bundleSha, failHealthRead: true }),
+  );
+  assert.equal(failedProbe.status, 503);
+  assert.equal((await failedProbe.json()).source_bundle_sha256, bundleSha);
+
+  const blockedEnv = env({ sourceBundleSha256: bundleSha });
+  delete blockedEnv.AGENT_API_AUTH_TOKEN;
+  const blockedHealth = await worker.fetch(new Request("https://state.example/api/v1/health"), blockedEnv);
+  assert.equal(blockedHealth.status, 503);
+  assert.equal((await blockedHealth.json()).source_bundle_sha256, bundleSha);
 });
 
 test("writes require the dedicated server-side agent token", async () => {
@@ -1292,7 +1567,14 @@ test("OAuth contract reports fail-closed configuration status", async () => {
   assert.equal(body.mode, "verified_identity_fail_closed");
   assert.equal(body.credential_issuance_ready, true);
   assert.equal(body.credentials_configured, true);
+  assert.equal(body.github_oauth_client_id_configured, true);
+  assert.equal(body.oauth_public_origin_configured, true);
+  assert.equal(body.github_oauth_redirect_uri_canonical, true);
+  assert.equal(body.jwt_signing_configured, true);
   assert.equal(body.owner_activation_granted, true);
+  assert.equal(body.owner_activation_grant_ref_configured, true);
+  assert.equal(body.owner_identity_allowlist_configured, true);
+  assert.deepEqual(body.activation_blockers, []);
   assert.equal(body.jwt.algorithm, "HS256");
   assert.equal(body.refresh_token.storage, "hash_only_d1");
 
@@ -1304,13 +1586,177 @@ test("OAuth contract reports fail-closed configuration status", async () => {
   assert.equal(unconfiguredBody.credential_issuance_ready, false);
 });
 
+test("OAuth refresh expiry migration fixes the seven-day invariant without modifying prior migrations", () => {
+  const migration = readFileSync(new URL("../migrations/0007_oauth_refresh_expiry.sql", import.meta.url), "utf8");
+  assert.match(migration, /ALTER TABLE refresh_token_families\s+ADD COLUMN expires_at TEXT;/);
+  assert.match(migration, /\+604800 seconds/g);
+  assert.match(migration, /refresh_expiry_migration_required/);
+  assert.match(
+    migration,
+    /CREATE UNIQUE INDEX IF NOT EXISTS idx_refresh_token_families_active_token_hash\s+ON refresh_token_families\(active_token_hash\);/,
+  );
+  assert.match(migration, /trg_refresh_token_families_expiry_insert/);
+  assert.match(migration, /trg_refresh_token_families_expiry_update/);
+  assert.match(migration, /RAISE\(ABORT, 'refresh family expiry must equal created_at \+ 604800 seconds'\)/);
+});
+
+test("OAuth origin is runtime-parameterized while preview config stays candidate-bound", () => {
+  const source = readFileSync(new URL("../src/index.js", import.meta.url), "utf8");
+  const config = JSON.parse(readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8"));
+  assert.equal(source.includes(canonicalOauthOrigin), false);
+  assert.equal(config.vars.OAUTH_PUBLIC_ORIGIN, canonicalOauthOrigin);
+  assert.equal(config.vars.GITHUB_OAUTH_REDIRECT_URI, `${config.vars.OAUTH_PUBLIC_ORIGIN}/api/v1/auth/callback`);
+  assert.equal(config.env.preview.vars.RUNTIME_MODE, "cloudflare_native_hosted_candidate");
+  for (const name of [
+    "CONTRACT_ORIGIN",
+    "OAUTH_PUBLIC_ORIGIN",
+    "GITHUB_OAUTH_CLIENT_ID",
+    "GITHUB_OAUTH_REDIRECT_URI",
+    "GITHUB_OAUTH_OWNER_IDS",
+    "POST_LOGIN_REDIRECT",
+  ]) {
+    assert.equal(Object.hasOwn(config.env.preview.vars, name), false, `${name} must be deploy-wrapper-bound for preview`);
+  }
+});
+
+test("OAuth runtime configuration requires the canonical callback, GitHub client shape, and decoded 256-bit signing key", async () => {
+  const invalidConfigurations = [
+    [{ oauthPublicOrigin: null }, "OAUTH_PUBLIC_ORIGIN"],
+    [{ oauthPublicOrigin: "http://candidate-oauth.vercel.app" }, "OAUTH_PUBLIC_ORIGIN"],
+    [{ oauthPublicOrigin: "https://localhost" }, "OAUTH_PUBLIC_ORIGIN"],
+    [{ oauthPublicOrigin: "https://candidate-oauth.workers.dev" }, "OAUTH_PUBLIC_ORIGIN"],
+    [{ oauthPublicOrigin: "https://vercel.app" }, "OAUTH_PUBLIC_ORIGIN"],
+    [{ oauthPublicOrigin: "https://*.vercel.app" }, "OAUTH_PUBLIC_ORIGIN"],
+    [{ oauthPublicOrigin: "https://candidate-oauth.vercel.app/" }, "OAUTH_PUBLIC_ORIGIN"],
+    [{ oauthPublicOrigin: "https://candidate-oauth.vercel.app:443" }, "OAUTH_PUBLIC_ORIGIN"],
+    [{ oauthPublicOrigin: "https://candidate-oauth.vercel.app:8443" }, "OAUTH_PUBLIC_ORIGIN"],
+    [{ oauthPublicOrigin: "https://candidate-oauth.vercel.app/login" }, "OAUTH_PUBLIC_ORIGIN"],
+    [{ oauthPublicOrigin: "https://candidate-oauth.vercel.app?preview=1" }, "OAUTH_PUBLIC_ORIGIN"],
+    [{ oauthPublicOrigin: "https://candidate-oauth.vercel.app#fragment" }, "OAUTH_PUBLIC_ORIGIN"],
+    [{ oauthPublicOrigin: "https://user@candidate-oauth.vercel.app" }, "OAUTH_PUBLIC_ORIGIN"],
+    [{ oauthPublicOrigin: " https://candidate-oauth.vercel.app" }, "OAUTH_PUBLIC_ORIGIN"],
+    [{ githubRedirectUri: "" }, "GITHUB_OAUTH_REDIRECT_URI"],
+    [{ githubRedirectUri: "http://localhost:8081/api/v1/auth/callback" }, "GITHUB_OAUTH_REDIRECT_URI"],
+    [{ githubRedirectUri: "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev/api/v1/auth/callback" }, "GITHUB_OAUTH_REDIRECT_URI"],
+    [{ githubRedirectUri: `${canonicalOauthRedirect}?next=/workbench` }, "GITHUB_OAUTH_REDIRECT_URI"],
+    [{ githubRedirectUri: "https://*.vercel.app/api/v1/auth/callback" }, "GITHUB_OAUTH_REDIRECT_URI"],
+    [{ githubClientId: "test-github-client-id" }, "GITHUB_OAUTH_CLIENT_ID"],
+    [{ githubClientId: "Iv1.not-hexadecimal" }, "GITHUB_OAUTH_CLIENT_ID"],
+    [{ jwtSigningSecret: "plain.text-signing-secret-at-least-32-bytes" }, "JWT_SIGNING_SECRET_BASE64URL_256_BIT_MINIMUM"],
+    [{ jwtSigningSecret: Buffer.alloc(31, 7).toString("base64url") }, "JWT_SIGNING_SECRET_BASE64URL_256_BIT_MINIMUM"],
+    [{ jwtSigningSecret: `${testJwtSigningSecret}=` }, "JWT_SIGNING_SECRET_BASE64URL_256_BIT_MINIMUM"],
+  ];
+  for (const [options, blocker] of invalidConfigurations) {
+    const fakeEnv = env(options);
+    const contract = await worker.fetch(new Request("https://state.example/api/v1/auth/contract"), fakeEnv);
+    const body = await contract.json();
+    assert.equal(body.credential_issuance_ready, false);
+    assert.ok(body.missing_configuration.includes(blocker));
+    assert.equal(JSON.stringify(body).includes(fakeEnv.JWT_SIGNING_SECRET), false);
+    const start = await worker.fetch(new Request("https://state.example/api/v1/auth/github"), fakeEnv);
+    assert.equal(start.status, 200);
+    assert.equal((await start.json()).status, "configuration_required");
+    assert.equal(fakeEnv.DB.oauthStates.size, 0);
+  }
+
+  for (const clientId of ["Iv1.8a61f9b3a7aba766", "Ov23liA1B2C3D4E5F6G7"]) {
+    const ready = await worker.fetch(
+      new Request("https://state.example/api/v1/auth/contract"),
+      env({ githubClientId: clientId }),
+    );
+    assert.equal((await ready.json()).credential_issuance_ready, true);
+  }
+
+  const candidateOrigin = "https://candidate-oauth-preview-abc123.vercel.app";
+  const candidateEnv = env({
+    oauthPublicOrigin: candidateOrigin,
+    githubRedirectUri: `${candidateOrigin}/api/v1/auth/callback`,
+  });
+  const candidateContract = await worker.fetch(
+    new Request("https://state.example/api/v1/auth/contract"),
+    candidateEnv,
+  );
+  assert.equal((await candidateContract.json()).credential_issuance_ready, true);
+  const candidateStart = await worker.fetch(new Request("https://state.example/api/v1/auth/github"), candidateEnv);
+  assert.equal(new URL(candidateStart.headers.get("location")).searchParams.get("redirect_uri"), `${candidateOrigin}/api/v1/auth/callback`);
+  const { response: candidateCallback, exchangeRedirectUris } = await invokeGithubCallback(candidateEnv);
+  assert.equal(candidateCallback.status, 200);
+  assert.deepEqual(exchangeRedirectUris, [`${candidateOrigin}/api/v1/auth/callback`]);
+});
+
+test("OAuth credentials and owner IDs cannot activate issuance without an explicit owner grant", async () => {
+  for (const grant of [undefined, true, "TRUE", " true", "true "]) {
+    const candidateEnv = env({ productionAuthOwnerGranted: grant });
+    if (grant === undefined) delete candidateEnv.PRODUCTION_AUTH_OWNER_GRANTED;
+    const candidateContract = await worker.fetch(new Request("https://state.example/api/v1/auth/contract"), candidateEnv);
+    const candidateBody = await candidateContract.json();
+    assert.equal(candidateBody.credentials_configured, true);
+    assert.equal(candidateBody.owner_identity_allowlist_configured, true);
+    assert.equal(candidateBody.owner_activation_granted, false);
+    assert.equal(candidateBody.credential_issuance_ready, false);
+    assert.deepEqual(candidateBody.activation_blockers, ["production_auth_identity_owner_grant"]);
+  }
+
+  const fakeEnv = env({ productionAuthOwnerGranted: "TRUE" });
+  const start = await worker.fetch(new Request("https://state.example/api/v1/auth/github"), fakeEnv);
+  const startBody = await start.json();
+  assert.equal(start.status, 200);
+  assert.equal(startBody.status, "owner_activation_required");
+  assert.deepEqual(startBody.activation_blockers, ["production_auth_identity_owner_grant"]);
+  assert.equal(startBody.credentials_issued, false);
+  assert.equal(fakeEnv.DB.oauthStates.size, 0);
+});
+
+test("OAuth owner activation still fails closed when the owner allowlist is invalid", async () => {
+  for (const ownerIds of ["", "0", "123456,invalid", "123456,123456", "1".repeat(17)]) {
+    const fakeEnv = env({ githubOwnerIds: ownerIds });
+    const contract = await worker.fetch(new Request("https://state.example/api/v1/auth/contract"), fakeEnv);
+    const body = await contract.json();
+    assert.equal(body.owner_identity_allowlist_configured, false);
+    assert.equal(body.owner_identity_allowlist_count, 0);
+    assert.equal(body.credentials_configured, false);
+    assert.equal(body.credential_issuance_ready, false);
+    assert.ok(body.missing_configuration.includes("GITHUB_OAUTH_OWNER_IDS"));
+  }
+});
+
+test("OAuth owner activation rejects a missing or malformed bounded grant reference", async () => {
+  for (const grantRef of [undefined, " owner-grant ", "x".repeat(257), "owner-grant\nref"]) {
+    const fakeEnv = env({ productionAuthOwnerGranted: "true", productionAuthOwnerGrantRef: grantRef });
+    if (grantRef === undefined) delete fakeEnv.PRODUCTION_AUTH_OWNER_GRANT_REF;
+    const contract = await worker.fetch(new Request("https://state.example/api/v1/auth/contract"), fakeEnv);
+    const body = await contract.json();
+    assert.equal(body.credentials_configured, true);
+    assert.equal(body.owner_activation_grant_ref_configured, false);
+    assert.equal(body.owner_activation_granted, false);
+    assert.equal(body.credential_issuance_ready, false);
+    assert.deepEqual(body.activation_blockers, ["production_auth_identity_owner_grant_ref"]);
+  }
+});
+
+test("OAuth owner activation requires the exact grant signal and a bounded reference", async () => {
+  const grantRef = "capability-gate:production_auth_identity:owner-approved";
+  const fakeEnv = env({
+    productionAuthOwnerGranted: "true",
+    productionAuthOwnerGrantRef: grantRef,
+  });
+  const contract = await worker.fetch(new Request("https://state.example/api/v1/auth/contract"), fakeEnv);
+  const body = await contract.json();
+  assert.equal(body.owner_activation_granted, true);
+  assert.equal(body.owner_activation_grant_ref_configured, true);
+  assert.equal(body.credential_issuance_ready, true);
+  assert.deepEqual(body.activation_blockers, []);
+  assert.equal(JSON.stringify(body).includes(grantRef), false);
+});
+
 test("OAuth start issues state cookie and 303 redirect when configured", async () => {
   const fakeEnv = env();
   const start = await worker.fetch(new Request("https://state.example/api/v1/auth/github"), fakeEnv);
   assert.equal(start.status, 303);
   const location = start.headers.get("location");
   assert.ok(location.startsWith("https://github.com/login/oauth/authorize?"));
-  assert.ok(location.includes("client_id=test-github-client-id"));
+  assert.ok(location.includes("client_id=Iv1.8a61f9b3a7aba766"));
+  assert.ok(location.includes(`redirect_uri=${encodeURIComponent(canonicalOauthRedirect)}`));
   assert.ok(location.includes("scope=read%3Auser") || location.includes("scope=read:user"));
   const setCookie = start.headers.get("set-cookie");
   assert.ok(setCookie.includes("__Host-sb_oauth_state=phase3-auth-state-"));
@@ -1318,6 +1764,531 @@ test("OAuth start issues state cookie and 303 redirect when configured", async (
   assert.ok(setCookie.includes("HttpOnly"));
   assert.ok(setCookie.includes("Secure"));
   assert.equal(fakeEnv.DB.oauthStates.size, 1);
+});
+
+test("invalid runtime configuration fails closed across callback, me, and active refresh", async () => {
+  const fakeEnv = env();
+  const { response: issued } = await invokeGithubCallback(fakeEnv);
+  assert.equal(issued.status, 200);
+  const accessToken = cookieValue(issued, "__Host-sb_access");
+  const refreshToken = cookieValue(issued, "__Host-sb_refresh");
+  const [family] = [...fakeEnv.DB.refreshFamilies.values()];
+  const originalHash = family.active_token_hash;
+
+  fakeEnv.GITHUB_OAUTH_REDIRECT_URI = "https://state.example/api/v1/auth/callback";
+  const { response: blockedCallback, calls } = await invokeGithubCallback(fakeEnv);
+  assert.equal(blockedCallback.status, 503);
+  assert.equal((await blockedCallback.json()).error, "github_oauth_not_configured");
+  assert.deepEqual(calls, { exchange: 0, user: 0 });
+
+  const me = await worker.fetch(new Request("https://state.example/api/v1/auth/me", {
+    headers: { cookie: `__Host-sb_access=${accessToken}` },
+  }), fakeEnv);
+  assert.equal(me.status, 503);
+  assert.equal((await me.json()).error, "auth_configuration_required");
+
+  const refresh = await worker.fetch(new Request("https://state.example/api/v1/auth/refresh", {
+    method: "POST",
+    headers: { cookie: `__Host-sb_refresh=${refreshToken}` },
+  }), fakeEnv);
+  assert.equal(refresh.status, 503);
+  assert.equal((await refresh.json()).error, "auth_configuration_required");
+  assert.equal(family.active_token_hash, originalHash);
+  assert.equal(family.revoked_at, null);
+});
+
+test("OAuth HTML callback redirects only to the strict post-login allowlist", async () => {
+  for (const [configuredRedirect, expectedRedirect] of [
+    [undefined, "/workbench"],
+    ["/login", "/login"],
+    ["/workbench", "/workbench"],
+    ["https://attacker.invalid/capture", "/workbench"],
+    ["//attacker.invalid/capture", "/workbench"],
+  ]) {
+    const fakeEnv = env();
+    const { response } = await invokeGithubCallback(fakeEnv, {
+      accept: "text/html,application/xhtml+xml",
+      postLoginRedirect: configuredRedirect,
+    });
+    assert.equal(response.status, 303);
+    assert.equal(response.headers.get("location"), expectedRedirect);
+    const cookies = responseCookies(response).join("\n");
+    assert.match(cookies, /__Host-sb_oauth_state=""/);
+    assert.match(cookies, /__Host-sb_access=/);
+    assert.match(cookies, /__Host-sb_refresh=/);
+    assert.equal(cookies.includes("Domain="), false);
+  }
+});
+
+test("OAuth callback stores an exact fixed family expiry and correlates a non-public stable sid", async () => {
+  const fakeEnv = env();
+  const { response } = await invokeGithubCallback(fakeEnv);
+  const responseBody = await response.json();
+  const accessToken = cookieValue(response, "__Host-sb_access");
+  const refreshToken = cookieValue(response, "__Host-sb_refresh");
+  const [family] = [...fakeEnv.DB.refreshFamilies.values()];
+  assert.equal(Date.parse(family.expires_at) - Date.parse(family.created_at), 604800000);
+  assert.equal(family.revoked_at, null);
+
+  const claims = decodedJwtPayload(accessToken);
+  assert.equal(claims.sid, family.family_id);
+  assert.match(claims.sid, /^fam_[A-Za-z0-9_-]{22}$/);
+  assert.equal(JSON.stringify(responseBody).includes(family.family_id), false);
+  assert.equal(JSON.stringify(responseBody).includes(refreshToken), false);
+
+  const callbackAudit = fakeEnv.DB.audit.find((row) => row.event_type === "auth_github_callback_verified");
+  const callbackDetails = JSON.parse(callbackAudit.details_json);
+  assert.equal(callbackDetails.sid, family.family_id);
+  assert.equal(callbackDetails.trace_id, claims.trace_id);
+  assert.equal(callbackDetails.subject, claims.sub);
+  assert.equal(callbackAudit.details_json.includes(refreshToken), false);
+  assert.equal(callbackAudit.details_json.includes(family.active_token_hash), false);
+
+  const me = await worker.fetch(new Request("https://state.example/api/v1/auth/me", {
+    headers: { cookie: `__Host-sb_access=${accessToken}` },
+  }), fakeEnv);
+  const meBody = await me.json();
+  assert.equal(me.status, 200);
+  assert.equal(meBody.identity.subject, claims.sub);
+  assert.equal(JSON.stringify(meBody).includes(family.family_id), false);
+});
+
+test("refresh family active-token hash collisions fail closed at issuance and rotation", async () => {
+  const issuanceEnv = env({ forceRefreshHashCollision: true });
+  const { response: rejectedIssuance } = await invokeGithubCallback(issuanceEnv);
+  const issuanceBody = await rejectedIssuance.json();
+  assert.equal(rejectedIssuance.status, 503);
+  assert.equal(issuanceBody.error, "auth_persistence_unavailable");
+  assert.equal(issuanceBody.credentials_issued, false);
+  assert.equal(cookieValue(rejectedIssuance, "__Host-sb_access"), null);
+  assert.equal(cookieValue(rejectedIssuance, "__Host-sb_refresh"), null);
+  assert.equal(issuanceEnv.DB.refreshFamilies.size, 0);
+  assert.equal(issuanceEnv.DB.audit.some((row) => row.event_type === "auth_github_callback_verified"), false);
+
+  const rotationEnv = env();
+  const { response: callback } = await invokeGithubCallback(rotationEnv);
+  const refreshToken = cookieValue(callback, "__Host-sb_refresh");
+  const [family] = [...rotationEnv.DB.refreshFamilies.values()];
+  const originalHash = family.active_token_hash;
+  rotationEnv.DB.forceRefreshHashCollision = true;
+  const rejectedRotation = await worker.fetch(new Request("https://state.example/api/v1/auth/refresh", {
+    method: "POST",
+    headers: { cookie: `__Host-sb_refresh=${refreshToken}` },
+  }), rotationEnv);
+  assert.equal(rejectedRotation.status, 503);
+  assert.equal((await rejectedRotation.json()).error, "refresh_registry_unavailable");
+  assert.equal(family.active_token_hash, originalHash);
+  assert.equal(family.revoked_at, null);
+  assert.equal(rotationEnv.DB.refreshHistory.size, 0);
+  assert.equal(rotationEnv.DB.audit.some((row) => row.event_type === "auth_refresh_rotated"), false);
+});
+
+test("refresh rotation preserves the stable sid and never extends the fixed family expiry", async () => {
+  const fakeEnv = env();
+  const { response: callback } = await invokeGithubCallback(fakeEnv);
+  const refreshToken = cookieValue(callback, "__Host-sb_refresh");
+  const [family] = [...fakeEnv.DB.refreshFamilies.values()];
+  setRefreshFamilyAge(family, 86400);
+  const originalCreatedAt = family.created_at;
+  const originalExpiresAt = family.expires_at;
+  const sid = family.family_id;
+
+  const refresh = await worker.fetch(new Request("https://state.example/api/v1/auth/refresh", {
+    method: "POST",
+    headers: { cookie: `__Host-sb_refresh=${refreshToken}` },
+  }), fakeEnv);
+  const body = await refresh.json();
+  assert.equal(refresh.status, 200);
+  assert.equal(family.created_at, originalCreatedAt);
+  assert.equal(family.expires_at, originalExpiresAt);
+  assert.ok(body.refresh_token_expires_in <= 518400);
+  assert.ok(body.refresh_token_expires_in > 518380);
+  const cookieText = responseCookies(refresh).join("\n");
+  assert.match(cookieText, new RegExp(`__Host-sb_refresh=[^;]+; Path=/; Max-Age=${body.refresh_token_expires_in};`));
+  const rotatedClaims = decodedJwtPayload(cookieValue(refresh, "__Host-sb_access"));
+  assert.equal(rotatedClaims.sid, sid);
+  assert.equal(JSON.stringify(body).includes(sid), false);
+  const audit = fakeEnv.DB.audit.find((row) => row.event_type === "auth_refresh_rotated");
+  assert.equal(JSON.parse(audit.details_json).sid, sid);
+});
+
+test("a copied refresh cookie is revoked with audited readback after its server-side family expiry", async () => {
+  const fakeEnv = env();
+  const { response: callback } = await invokeGithubCallback(fakeEnv);
+  const copiedRefreshToken = cookieValue(callback, "__Host-sb_refresh");
+  const [family] = [...fakeEnv.DB.refreshFamilies.values()];
+  setRefreshFamilyAge(family, 604801);
+  const sid = family.family_id;
+
+  const makeRefresh = () => worker.fetch(new Request("https://state.example/api/v1/auth/refresh", {
+    method: "POST",
+    headers: { cookie: `__Host-sb_refresh=${copiedRefreshToken}` },
+  }), fakeEnv);
+  const expired = await makeRefresh();
+  assert.equal(expired.status, 401);
+  assert.equal((await expired.json()).reason, "expired");
+  assert.equal(family.revocation_reason, "refresh_token_expired");
+  assert.ok(family.revoked_at);
+  assert.equal(fakeEnv.DB.refreshHistory.size, 1);
+  assert.equal([...fakeEnv.DB.refreshHistory.values()][0].status, "revoked");
+  const expiredCookies = responseCookies(expired).join("\n");
+  assert.match(expiredCookies, /__Host-sb_access=""/);
+  assert.match(expiredCookies, /__Host-sb_refresh=""/);
+  const expiryAudit = fakeEnv.DB.audit.find((row) => row.event_type === "auth_refresh_expired");
+  assert.equal(JSON.parse(expiryAudit.details_json).sid, sid);
+
+  const copiedReplay = await makeRefresh();
+  assert.equal(copiedReplay.status, 401);
+  assert.equal((await copiedReplay.json()).reason, "expired");
+  const rejectionAudit = fakeEnv.DB.audit.find((row) => row.event_type === "auth_refresh_rejected"
+    && JSON.parse(row.details_json).reason === "expired");
+  assert.equal(JSON.parse(rejectionAudit.details_json).sid, sid);
+});
+
+test("expiry at the atomic rotation guard rolls back rotation and persists only expiry revocation", async () => {
+  const fakeEnv = env({ expireRefreshBeforeGuard: true });
+  const { response: callback } = await invokeGithubCallback(fakeEnv);
+  const refreshToken = cookieValue(callback, "__Host-sb_refresh");
+  const refresh = await worker.fetch(new Request("https://state.example/api/v1/auth/refresh", {
+    method: "POST",
+    headers: { cookie: `__Host-sb_refresh=${refreshToken}` },
+  }), fakeEnv);
+  assert.equal(refresh.status, 401);
+  assert.equal((await refresh.json()).reason, "expired");
+  const [family] = [...fakeEnv.DB.refreshFamilies.values()];
+  assert.equal(family.revocation_reason, "refresh_token_expired");
+  assert.equal([...fakeEnv.DB.refreshHistory.values()].filter((row) => row.status === "rotated").length, 0);
+  assert.equal(fakeEnv.DB.audit.filter((row) => row.event_type === "auth_refresh_rotated").length, 0);
+  assert.equal(fakeEnv.DB.audit.filter((row) => row.event_type === "auth_refresh_expired").length, 1);
+});
+
+test("owner-disallowed refresh revocation persists guarded history and correlated audit before rejecting", async () => {
+  const fakeEnv = env();
+  const { response: callback } = await invokeGithubCallback(fakeEnv);
+  const refreshToken = cookieValue(callback, "__Host-sb_refresh");
+  fakeEnv.GITHUB_OAUTH_OWNER_IDS = "654321";
+
+  const refresh = await worker.fetch(new Request("https://state.example/api/v1/auth/refresh", {
+    method: "POST",
+    headers: { cookie: `__Host-sb_refresh=${refreshToken}` },
+  }), fakeEnv);
+  const body = await refresh.json();
+  assert.equal(refresh.status, 403);
+  assert.equal(body.error, "github_owner_identity_not_allowed");
+  const [family] = [...fakeEnv.DB.refreshFamilies.values()];
+  assert.equal(family.revocation_reason, "owner_disallowed");
+  assert.ok(family.revoked_at);
+  assert.equal(fakeEnv.DB.refreshHistory.get(family.active_token_hash)?.status, "revoked");
+  const audit = fakeEnv.DB.audit.find((row) => {
+    if (row.event_type !== "auth_refresh_rejected") return false;
+    return JSON.parse(row.details_json).reason === "github_owner_identity_not_allowed";
+  });
+  assert.equal(JSON.parse(audit.details_json).sid, family.family_id);
+  assert.equal(JSON.stringify(body).includes(family.family_id), false);
+});
+
+test("expiry at the owner-disallow CAS wins over owner revocation and remains audit-atomic", async () => {
+  const fakeEnv = env();
+  const { response: callback } = await invokeGithubCallback(fakeEnv);
+  const refreshToken = cookieValue(callback, "__Host-sb_refresh");
+  fakeEnv.GITHUB_OAUTH_OWNER_IDS = "654321";
+  fakeEnv.DB.expireRefreshBeforeGuard = true;
+
+  const refresh = await worker.fetch(new Request("https://state.example/api/v1/auth/refresh", {
+    method: "POST",
+    headers: { cookie: `__Host-sb_refresh=${refreshToken}` },
+  }), fakeEnv);
+  assert.equal(refresh.status, 401);
+  assert.equal((await refresh.json()).reason, "expired");
+  const [family] = [...fakeEnv.DB.refreshFamilies.values()];
+  assert.equal(family.revocation_reason, "refresh_token_expired");
+  assert.equal([...fakeEnv.DB.refreshHistory.values()].filter((row) => row.status === "revoked").length, 1);
+  assert.equal(fakeEnv.DB.audit.filter((row) => row.event_type === "auth_refresh_expired").length, 1);
+  assert.equal(fakeEnv.DB.audit.filter((row) => {
+    if (row.event_type !== "auth_refresh_rejected") return false;
+    return JSON.parse(row.details_json).reason === "github_owner_identity_not_allowed";
+  }).length, 0);
+});
+
+test("logout atomically expires an elapsed family and audits the same stable sid", async () => {
+  const fakeEnv = env();
+  const { response: callback } = await invokeGithubCallback(fakeEnv);
+  const refreshToken = cookieValue(callback, "__Host-sb_refresh");
+  const [family] = [...fakeEnv.DB.refreshFamilies.values()];
+  setRefreshFamilyAge(family, 604801);
+  const logout = await worker.fetch(new Request("https://state.example/api/v1/auth/logout", {
+    method: "POST",
+    headers: { cookie: `__Host-sb_refresh=${refreshToken}` },
+  }), fakeEnv);
+  const body = await logout.json();
+  assert.equal(logout.status, 200);
+  assert.equal(body.refresh_token_revoked, true);
+  assert.equal(body.active_refresh_token_absent, true);
+  assert.equal(family.revocation_reason, "refresh_token_expired");
+  const audit = fakeEnv.DB.audit.find((row) => row.event_type === "auth_logout_expired");
+  assert.equal(JSON.parse(audit.details_json).sid, family.family_id);
+  assert.equal(JSON.stringify(body).includes(family.family_id), false);
+});
+
+test("OAuth cancel validates and consumes state exactly once without a provider call", async () => {
+  const fakeEnv = env();
+  const state = seedOauthState(fakeEnv, "cancel-state-fixture-000000000000");
+  const originalFetch = globalThis.fetch;
+  let providerCalls = 0;
+  globalThis.fetch = async () => {
+    providerCalls += 1;
+    throw new Error("provider must not be called for cancel");
+  };
+  try {
+    const makeRequest = () => new Request(
+      `https://state.example/api/v1/auth/callback?error=access_denied&state=${state}`,
+      { headers: { cookie: `__Host-sb_oauth_state=${state}` } },
+    );
+    const cancelled = await worker.fetch(makeRequest(), fakeEnv);
+    assert.equal(cancelled.status, 401);
+    assert.equal((await cancelled.json()).error, "oauth_provider_denied");
+    assert.equal(fakeEnv.DB.oauthStates.has(state), false);
+    const replay = await worker.fetch(makeRequest(), fakeEnv);
+    assert.equal(replay.status, 401);
+    assert.equal((await replay.json()).error, "oauth_state_invalid");
+    assert.equal(providerCalls, 0);
+    assert.equal(fakeEnv.DB.audit.filter((row) => row.event_type === "auth_github_callback_blocked").length, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("concurrent OAuth callbacks consume one state and perform exactly one provider exchange", async () => {
+  const fakeEnv = env();
+  const state = seedOauthState(fakeEnv, "concurrent-state-fixture-00000000");
+  const originalFetch = globalThis.fetch;
+  const calls = { exchange: 0, user: 0 };
+  globalThis.fetch = async (input) => {
+    const url = typeof input === "string" ? input : input.url;
+    if (url === "https://github.com/login/oauth/access_token") {
+      calls.exchange += 1;
+      return Response.json({ access_token: "unit_fixture_provider_token", scope: "read:user", token_type: "bearer" });
+    }
+    if (url === "https://api.github.com/user") {
+      calls.user += 1;
+      return Response.json({ id: 123456, login: "unit-owner" });
+    }
+    throw new Error(`unexpected outbound URL: ${url}`);
+  };
+  try {
+    const makeRequest = () => new Request(
+      `https://state.example/api/v1/auth/callback?code=unit-code&state=${state}`,
+      { headers: { cookie: `__Host-sb_oauth_state=${state}` } },
+    );
+    const responses = await Promise.all([
+      worker.fetch(makeRequest(), fakeEnv),
+      worker.fetch(makeRequest(), fakeEnv),
+    ]);
+    assert.deepEqual(responses.map((response) => response.status).sort(), [200, 401]);
+    assert.equal(calls.exchange, 1);
+    assert.equal(calls.user, 1);
+    assert.equal(fakeEnv.DB.refreshFamilies.size, 1);
+    assert.equal(fakeEnv.DB.oauthStates.has(state), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("OAuth callback rejects any token scope other than exact read:user", async () => {
+  const fakeEnv = env();
+  const { response, calls, state } = await invokeGithubCallback(fakeEnv, { scope: "read:user repo" });
+  const body = await response.json();
+  assert.equal(response.status, 401);
+  assert.equal(body.error, "oauth_scope_invalid");
+  assert.equal(body.required_scope, "read:user");
+  assert.equal(calls.exchange, 1);
+  assert.equal(calls.user, 0);
+  assert.equal(fakeEnv.DB.oauthStates.has(state), false);
+  assert.equal(fakeEnv.DB.refreshFamilies.size, 0);
+});
+
+test("auth/me verifies exact JWT header, mandatory claims, canonical GitHub subject, and owner", async () => {
+  const fakeEnv = env();
+  const now = Math.floor(Date.now() / 1000);
+  const baseClaims = {
+    sub: "github:123456",
+    sid: "fam_AAAAAAAAAAAAAAAAAAAAAA",
+    provider: "github",
+    provider_user_id: 123456,
+    iss: "cloud-superbrain-agent-api",
+    aud: "cloud-superbrain-frontend",
+    iat: now,
+    exp: now + 900,
+    trace_id: "jwt-claims-test",
+    issued_at: new Date(now * 1000).toISOString(),
+    expires_at: new Date((now + 900) * 1000).toISOString(),
+  };
+  const invalidCases = [
+    [{ ...baseClaims }, { alg: "none", typ: "JWT" }],
+    [{ ...baseClaims, exp: undefined }, { alg: "HS256", typ: "JWT" }],
+    [{ ...baseClaims, iss: "wrong-issuer" }, { alg: "HS256", typ: "JWT" }],
+    [{ ...baseClaims, aud: "wrong-audience" }, { alg: "HS256", typ: "JWT" }],
+    [{ ...baseClaims, provider: "gitlab" }, { alg: "HS256", typ: "JWT" }],
+    [{ ...baseClaims, provider_user_id: "123456" }, { alg: "HS256", typ: "JWT" }],
+    [{ ...baseClaims, sub: "github:654321" }, { alg: "HS256", typ: "JWT" }],
+    [{ ...baseClaims, sid: undefined }, { alg: "HS256", typ: "JWT" }],
+    [{ ...baseClaims, sid: "family-invalid" }, { alg: "HS256", typ: "JWT" }],
+    [{ ...baseClaims, trace_id: "trace id" }, { alg: "HS256", typ: "JWT" }],
+    [{ ...baseClaims, issued_at: new Date((now - 1) * 1000).toISOString() }, { alg: "HS256", typ: "JWT" }],
+    [{ ...baseClaims, exp: now + 1800 }, { alg: "HS256", typ: "JWT" }],
+  ];
+  for (const [claims, header] of invalidCases) {
+    const normalizedClaims = Object.fromEntries(Object.entries(claims).filter(([, value]) => value !== undefined));
+    const jwt = await signedTestJwt(normalizedClaims, fakeEnv.JWT_SIGNING_SECRET, header);
+    const response = await worker.fetch(new Request("https://state.example/api/v1/auth/me", {
+      headers: { cookie: `__Host-sb_access=${jwt}` },
+    }), fakeEnv);
+    assert.equal(response.status, 401);
+    assert.equal((await response.json()).error, "access_token_invalid");
+  }
+
+  const nonOwnerJwt = await signedTestJwt({
+    ...baseClaims,
+    sub: "github:999999",
+    provider_user_id: 999999,
+  }, fakeEnv.JWT_SIGNING_SECRET);
+  const nonOwner = await worker.fetch(new Request("https://state.example/api/v1/auth/me", {
+    headers: { cookie: `__Host-sb_access=${nonOwnerJwt}` },
+  }), fakeEnv);
+  assert.equal(nonOwner.status, 403);
+  assert.equal((await nonOwner.json()).error, "github_owner_identity_not_allowed");
+});
+
+test("concurrent refresh rotation issues exactly one credential set and revokes the family on replay", async () => {
+  const fakeEnv = env();
+  const { response: callback } = await invokeGithubCallback(fakeEnv);
+  const refreshToken = cookieValue(callback, "__Host-sb_refresh");
+  assert.ok(refreshToken);
+  const makeRequest = () => new Request("https://state.example/api/v1/auth/refresh", {
+    method: "POST",
+    headers: { cookie: `__Host-sb_refresh=${refreshToken}` },
+  });
+  const responses = await Promise.all([
+    worker.fetch(makeRequest(), fakeEnv),
+    worker.fetch(makeRequest(), fakeEnv),
+  ]);
+  assert.deepEqual(responses.map((response) => response.status).sort(), [200, 401]);
+  const success = responses.find((response) => response.status === 200);
+  const rejected = responses.find((response) => response.status === 401);
+  const successBody = await success.json();
+  assert.deepEqual(Object.keys(successBody).sort(), [
+    "access_token_expires_in",
+    "access_token_issued",
+    "active_registry_verified",
+    "audit_persisted",
+    "contract_version",
+    "cookie_flags",
+    "old_refresh_token_blacklisted",
+    "refresh_token_expires_in",
+    "refresh_token_rotated",
+    "status",
+    "trace_id",
+  ]);
+  assert.equal((await rejected.json()).reason, "blacklisted");
+  const [family] = [...fakeEnv.DB.refreshFamilies.values()];
+  assert.ok(family.revoked_at);
+  assert.equal(family.revocation_reason, "token_replay_detected");
+  assert.equal(fakeEnv.DB.refreshHistory.values().next().value.status, "blacklisted");
+  const rotatedAudit = fakeEnv.DB.audit.find((row) => row.event_type === "auth_refresh_rotated");
+  const replayAudit = fakeEnv.DB.audit.find((row) => row.event_type === "auth_refresh_reuse_blocked");
+  assert.equal(JSON.parse(rotatedAudit.details_json).sid, family.family_id);
+  assert.equal(JSON.parse(replayAudit.details_json).sid, family.family_id);
+});
+
+test("logout atomically revokes one active refresh token, returns the RealLogin shape, and post-logout refresh is 401", async () => {
+  const fakeEnv = env();
+  const { response: callback } = await invokeGithubCallback(fakeEnv);
+  const refreshToken = cookieValue(callback, "__Host-sb_refresh");
+  const bodyOnlyLogout = await worker.fetch(new Request("https://state.example/api/v1/auth/logout", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  }), fakeEnv);
+  const bodyOnlyLogoutBody = await bodyOnlyLogout.json();
+  assert.equal(bodyOnlyLogout.status, 200);
+  assert.equal(bodyOnlyLogoutBody.body_token_accepted, false);
+  assert.equal(bodyOnlyLogoutBody.refresh_token_revoked, false);
+  assert.equal([...fakeEnv.DB.refreshFamilies.values()][0].revoked_at, null);
+  const logout = await worker.fetch(new Request("https://state.example/api/v1/auth/logout", {
+    method: "POST",
+    headers: { cookie: `__Host-sb_refresh=${refreshToken}` },
+  }), fakeEnv);
+  const logoutBody = await logout.json();
+  assert.equal(logout.status, 200);
+  assert.deepEqual(Object.keys(logoutBody).sort(), [
+    "active_refresh_token_absent",
+    "audit_persisted",
+    "body_token_accepted",
+    "contract_version",
+    "cookies_cleared",
+    "refresh_token_revoked",
+    "status",
+    "trace_id",
+  ]);
+  assert.equal(logoutBody.status, "logged_out");
+  assert.equal(logoutBody.refresh_token_revoked, true);
+  assert.equal(logoutBody.body_token_accepted, false);
+  assert.equal(logoutBody.cookies_cleared, true);
+  assert.equal(logoutBody.active_refresh_token_absent, true);
+  assert.equal(logoutBody.audit_persisted, true);
+  const [logoutFamily] = [...fakeEnv.DB.refreshFamilies.values()];
+  const logoutAudit = fakeEnv.DB.audit.find((row) => row.event_type === "auth_logout_revoked");
+  assert.equal(JSON.parse(logoutAudit.details_json).sid, logoutFamily.family_id);
+  const clearedCookies = responseCookies(logout).join("\n");
+  assert.match(clearedCookies, /__Host-sb_access=""/);
+  assert.match(clearedCookies, /__Host-sb_refresh=""/);
+  const [family] = [...fakeEnv.DB.refreshFamilies.values()];
+  assert.equal(family.revocation_reason, "user_logout");
+  assert.equal(fakeEnv.DB.refreshHistory.values().next().value.status, "revoked");
+
+  const afterLogout = await worker.fetch(new Request("https://state.example/api/v1/auth/refresh", {
+    method: "POST",
+    headers: { cookie: `__Host-sb_refresh=${refreshToken}` },
+  }), fakeEnv);
+  assert.equal(afterLogout.status, 401);
+  assert.equal((await afterLogout.json()).reason, "revoked");
+});
+
+test("callback, refresh, and logout fail closed on audit or storage failures without issuing cookies", async () => {
+  const callbackAuditEnv = env({ failAuditWrites: true });
+  const { response: callbackAuditFailure } = await invokeGithubCallback(callbackAuditEnv);
+  assert.equal(callbackAuditFailure.status, 503);
+  assert.equal(cookieValue(callbackAuditFailure, "__Host-sb_access"), null);
+  assert.equal(cookieValue(callbackAuditFailure, "__Host-sb_refresh"), null);
+  assert.equal(callbackAuditEnv.DB.refreshFamilies.size, 0);
+
+  const refreshEnv = env();
+  const { response: refreshCallback } = await invokeGithubCallback(refreshEnv);
+  const refreshToken = cookieValue(refreshCallback, "__Host-sb_refresh");
+  refreshEnv.DB.failAuditWrites = true;
+  const refreshFailure = await worker.fetch(new Request("https://state.example/api/v1/auth/refresh", {
+    method: "POST",
+    headers: { cookie: `__Host-sb_refresh=${refreshToken}` },
+  }), refreshEnv);
+  assert.equal(refreshFailure.status, 503);
+  assert.equal(cookieValue(refreshFailure, "__Host-sb_access"), '""');
+  assert.equal(cookieValue(refreshFailure, "__Host-sb_refresh"), '""');
+  assert.equal(refreshEnv.DB.refreshHistory.size, 0);
+
+  const logoutEnv = env();
+  const { response: logoutCallback } = await invokeGithubCallback(logoutEnv);
+  const logoutToken = cookieValue(logoutCallback, "__Host-sb_refresh");
+  logoutEnv.DB.failAuditWrites = true;
+  const logoutFailure = await worker.fetch(new Request("https://state.example/api/v1/auth/logout", {
+    method: "POST",
+    headers: { cookie: `__Host-sb_refresh=${logoutToken}` },
+  }), logoutEnv);
+  const logoutFailureBody = await logoutFailure.json();
+  assert.equal(logoutFailure.status, 503);
+  assert.equal(logoutFailureBody.cookies_cleared, true);
+  assert.equal(logoutFailureBody.audit_persisted, false);
+  assert.equal(logoutFailureBody.refresh_token_revoked, false);
+  assert.equal([...logoutEnv.DB.refreshFamilies.values()][0].revoked_at, null);
 });
 
 test("OAuth callback validates state, exchanges token, enforces owner allowlist, and issues cookies", async () => {
@@ -1339,7 +2310,7 @@ test("OAuth callback validates state, exchanges token, enforces owner allowlist,
   globalThis.fetch = async (input, init) => {
     const urlStr = typeof input === "string" ? input : input.url;
     if (urlStr === "https://github.com/login/oauth/access_token") {
-      return new Response(JSON.stringify({ access_token: "gho_mock_access_token_12345", scope: "read:user" }), {
+      return new Response(JSON.stringify({ access_token: "gho_mock_access_token_12345", scope: "read:user", token_type: "bearer" }), {
         status: 200,
         headers: { "content-type": "application/json" },
       });
@@ -1448,7 +2419,7 @@ test("OAuth callback validates state, exchanges token, enforces owner allowlist,
     assert.equal(logoutRes.status, 200);
     const logoutBody = await logoutRes.json();
     assert.equal(logoutBody.status, "logged_out");
-    assert.ok(fakeEnv.DB.audit.some((a) => a.event_type === "auth_logout_verified"));
+    assert.ok(fakeEnv.DB.audit.some((a) => a.event_type === "auth_logout_no_active_token"));
 
     // 7. Disallowed owner ID returns 403
     mockGitHubUserId = 999999;

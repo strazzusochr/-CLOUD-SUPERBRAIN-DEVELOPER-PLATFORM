@@ -1,61 +1,88 @@
-# NOT CREDIT-BEARING SCAFFOLDING.
-# Audited 2026-08-30: this script observes a health probe and/or a single negative case.
-# It does NOT satisfy the L4/L5 rubric criterion it is named after and must never be used
-# to credit a manifest cell or to create a delta-ledger entry. Rewrite it against the real
-# criterion in docs/runtime-contracts/layer-credit-rubric.md before any credit is claimed.
-# See CODEX_UEBERGABE_MASTER_2026-08-29.md section 0A.3.
-
 param(
   [string]$BaseUrl = "https://cloud-superbrain-llm-gateway-preview.strazzusochr.workers.dev",
+  [string]$ExpectedSourceCommitSha = "",
+  [string]$ExpectedSourceArchiveSha256 = "",
+  [string]$RubricApprovalCommit = "",
+  [switch]$OwnerApprovedGatewayCredentialUse,
+  [switch]$OwnerApprovedLiveProviderCalls,
+  [switch]$OwnerApprovedHostedAuditWrites,
+  [string]$Model = "@cf/meta/llama-3.1-8b-instruct",
   [string]$OutDir = ".phase1-artifacts/llm-gateway/hosted-trace-correlation"
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+$script:Prefix = "[llm-hosted-trace-correlation]"
+$script:SanctionedBaseUrl = "https://cloud-superbrain-llm-gateway-preview.strazzusochr.workers.dev"
+$script:GatewayTokenEnvName = "CLOUD_SUPERBRAIN_LLM_GATEWAY_TOKEN"
+$script:VerifierPath = "scripts/verify-llm-hosted-trace-correlation.ps1"
+$script:RuntimePath = "services/cloudflare-llm-gateway/src/index.js"
+$script:WranglerPath = "services/cloudflare-llm-gateway/wrangler.jsonc"
+$script:GatewayTreePath = "services/cloudflare-llm-gateway"
+$script:RubricPath = "docs/runtime-contracts/layer-credit-rubric.md"
+$script:CapabilityPath = "docs/runtime-state/capability-gates.json"
 
-function Assert-True([string]$Label, [bool]$Condition) {
-  if (-not $Condition) { throw "Hosted LLM trace correlation verification failed: $Label" }
-  Write-Host "[llm-trace-correlation] $Label"
+function Stop-Blocked([string]$Code, [string]$Detail) { throw "blocker=$Code detail=$Detail" }
+function Require([bool]$Condition, [string]$Code, [string]$Detail) { if (-not $Condition) { Stop-Blocked $Code $Detail } }
+function Get-TextSha256([string]$Value) { $sha=[Security.Cryptography.SHA256]::Create(); try { return (($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Value))|%{$_.ToString('x2')})-join '') } finally{$sha.Dispose()} }
+function Get-HeaderValue($Response,[string]$Name){$v=$Response.Headers[$Name];if($null-eq$v){return''};if($v-is[array]){return[string]$v[0]};return[string]$v}
+function Read-JsonResponse($Response,[string]$Label){try{return([string]$Response.Content|ConvertFrom-Json -ErrorAction Stop)}catch{Stop-Blocked "${Label}_invalid_json" "Hosted response was not valid JSON."}}
+
+function Invoke-CapturedRequest([string]$Uri,[string]$Method='GET',[hashtable]$Headers=@{},[string]$Body=''){
+  $p=@{Uri=$Uri;Method=$Method;Headers=$Headers;TimeoutSec=90;UseBasicParsing=$true;SkipHttpErrorCheck=$true;MaximumRedirection=0}
+  if($Method-ne'GET'){$p.ContentType='application/json';$p.Body=$Body}
+  try{$r=Invoke-WebRequest @p}catch{Stop-Blocked 'hosted_transport_failed' 'The sanctioned Preview request did not complete without redirect.'}
+  Require([int]$r.StatusCode-lt300-or[int]$r.StatusCode-ge400)'hosted_redirect_forbidden' 'Redirect responses are forbidden for credential-bearing hosted verification.'
+  return$r
 }
-
-function Assert-Equal([string]$Label, $Actual, $Expected) {
-  Assert-True $Label ($Actual -eq $Expected)
+function Invoke-Git([string[]]$Arguments,[string]$Blocker){$o=&git @Arguments 2>$null;if($LASTEXITCODE-ne0){Stop-Blocked $Blocker 'Git could not validate the immutable candidate binding.'};return(($o|Out-String).Trim())}
+function Get-GitArchiveSha256([string]$CommitSha){
+  $s=[Diagnostics.ProcessStartInfo]::new();$s.FileName='git';$s.WorkingDirectory=(Get-Location).Path;$s.UseShellExecute=$false;$s.CreateNoWindow=$true;$s.RedirectStandardOutput=$true;$s.RedirectStandardError=$true
+  [void]$s.ArgumentList.Add('archive');[void]$s.ArgumentList.Add('--format=tar');[void]$s.ArgumentList.Add($CommitSha);$p=[Diagnostics.Process]::Start($s);$e=$p.StandardError.ReadToEndAsync();$h=[Security.Cryptography.SHA256]::Create()
+  try{$d=$h.ComputeHash($p.StandardOutput.BaseStream)}finally{$h.Dispose()};$p.WaitForExit();$null=$e.GetAwaiter().GetResult();Require($p.ExitCode-eq0)'source_archive_reconstruction_failed' 'git archive could not reconstruct the candidate source.';return(($d|%{$_.ToString('x2')})-join'')
 }
+function Assert-BooleanField($Payload,[string]$Field,[bool]$Expected,[string]$Code){$p=$Payload.PSObject.Properties[$Field];Require($null-ne$p-and$p.Value-is[bool]-and[bool]$p.Value-eq$Expected)$Code "$Field must be the JSON boolean $($Expected.ToString().ToLowerInvariant())."}
+function Assert-SanctionedTarget([string]$Value){Require($Value-ceq$script:SanctionedBaseUrl)'unsanctioned_preview_host' 'BaseUrl must exactly equal the sanctioned Preview Worker origin; alternate hosts, paths, ports, queries, fragments, and userinfo are forbidden.'}
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
-Push-Location $repoRoot
-try {
-  $base = $BaseUrl.Trim().TrimEnd("/")
-  Write-Host "[llm-trace-correlation] BaseUrl: $base"
-
-  $requestId = "trace-test-uuid-" + [Guid]::NewGuid().ToString()
-  $traceHeaders = @{
-    "x-request-id" = $requestId
-  }
-
-  $resp = Invoke-WebRequest -UseBasicParsing -Uri "$base/api/v1/health" -Method Get -Headers $traceHeaders -TimeoutSec 30
-  Assert-Equal "health HTTP 200" ([int]$resp.StatusCode) 200
-  Assert-Equal "source header verified" ([string]$resp.Headers["x-superbrain-source"]) "cloudflare-workers-ai-llm-gateway"
-
-  if (-not (Test-Path -LiteralPath $OutDir)) {
-    New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
-  }
-  $reportPath = Join-Path $OutDir "report.json"
-  $report = [ordered]@{
-    contract_version = "llm-hosted-trace-correlation-v1"
-    status = "scaffold_not_credit_bearing"
-    credit_eligible = $false
-    credit_block_reason = "audited-2026-08-30-insufficient-evidence"
-    checked_at = [DateTime]::UtcNow.ToString("o")
-    base_url = $base
-    request_id_correlated = $true
-    source_header_present = $true
-    live_provider_calls = $false
-    direct_provider_calls = $false
-    secret_output = $false
-  }
-  $report | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $reportPath -Encoding utf8
-  Write-Host "[llm-trace-correlation] status=scaffold_not_credit_bearing report=$reportPath"
-} finally {
-  Pop-Location
+function Assert-CandidateClosure{
+  Require($ExpectedSourceCommitSha-match'^[0-9a-f]{40}$')'expected_source_commit_sha_required' 'Pass the exact lowercase candidate commit SHA.'
+  Require($ExpectedSourceArchiveSha256-match'^[0-9a-f]{64}$')'expected_source_archive_sha256_required' 'Pass the exact lowercase candidate archive SHA-256.'
+  Require((Invoke-Git @('rev-parse','HEAD')'head_unavailable')-ceq$ExpectedSourceCommitSha)'candidate_head_mismatch' 'HEAD must equal the exact hosted candidate commit before any HTTP request.'
+  $paths=@($script:VerifierPath,$script:RuntimePath,$script:WranglerPath,$script:RubricPath,$script:CapabilityPath);$blobs=[ordered]@{}
+  foreach($path in $paths){[void](Invoke-Git @('show',"$ExpectedSourceCommitSha`:$path")'candidate_blob_missing');$b=Invoke-Git @('rev-parse',"$ExpectedSourceCommitSha`:$path")'candidate_blob_missing';$w=Invoke-Git @('hash-object','--',$path)'worktree_blob_missing';Require($b-ceq$w)'candidate_blob_drift' "Bound path differs from its candidate blob: $path";$blobs[$path]=$b}
+  $drift=Invoke-Git @('status','--porcelain=v1','--untracked-files=all','--',$script:VerifierPath,$script:GatewayTreePath,$script:RubricPath,$script:CapabilityPath)'candidate_status_failed';Require([string]::IsNullOrWhiteSpace($drift))'candidate_worktree_drift' 'Staged, unstaged, or untracked drift exists in a bound candidate path.'
+  Require((Get-GitArchiveSha256 $ExpectedSourceCommitSha)-ceq$ExpectedSourceArchiveSha256)'source_archive_sha_mismatch' 'ExpectedSourceArchiveSha256 is not reproducible from git archive of the candidate commit.'
+  return[ordered]@{verifier_blob=$blobs[$script:VerifierPath];runtime_blob=$blobs[$script:RuntimePath];wrangler_blob=$blobs[$script:WranglerPath];rubric_blob=$blobs[$script:RubricPath];capability_blob=$blobs[$script:CapabilityPath];gateway_tree=Invoke-Git @('rev-parse',"$ExpectedSourceCommitSha`:$script:GatewayTreePath")'candidate_gateway_tree_missing'}
 }
+function Assert-ApprovedRubric{
+  Require($RubricApprovalCommit-match'^[0-9a-f]{40}$')'rubric_approval_commit_required' 'Pass the lowercase SHA of the Owner-approved rubric commit.';&git merge-base --is-ancestor $RubricApprovalCommit $ExpectedSourceCommitSha 2>$null;Require($LASTEXITCODE-eq0)'rubric_commit_not_in_candidate' 'The rubric approval commit is not an ancestor of the candidate.'
+  $approved=Invoke-Git @('show',"$RubricApprovalCommit`:$script:RubricPath")'rubric_approval_commit_invalid';$candidate=Invoke-Git @('show',"$ExpectedSourceCommitSha`:$script:RubricPath")'candidate_rubric_missing'
+  foreach($c in @($approved,$candidate)){Require($c-match'(?im)^Status:\s*`?(?:OWNER_)?APPROVED`?\s*$')'rubric_not_owner_approved' 'The immutable rubric is not marked APPROVED.';Require($c-match'(?im)^Credit-Anwendung erlaubt:\s*`?true`?\s*$')'rubric_credit_disabled' 'The immutable rubric does not allow credit application.'}
+  Require((Invoke-Git @('rev-parse',"$RubricApprovalCommit`:$script:RubricPath")'rubric_blob_missing')-ceq(Invoke-Git @('rev-parse',"$ExpectedSourceCommitSha`:$script:RubricPath")'candidate_rubric_missing'))'rubric_blob_drift' 'Candidate rubric differs from the approved blob.'
+  Require($candidate-match'(?im)^Owner-Freigabe-Ref:\s*`?[^`\r\n]{8,200}`?\s*$')'rubric_owner_grant_ref_missing' 'The approved rubric has no tracked Owner-Freigabe-Ref.'
+  Require($candidate-match'(?im)^\|\s*Hosted Trace-ID korreliert Gateway, Provider und Evidence\s*\|\s*4\s*\|.*verify-llm-hosted-trace-correlation\.ps1')'rubric_criterion_drift' 'The approved rubric lacks the exact 4-point trace row.'
+}
+function Assert-LiveProviderGate{
+  try{$s=(Invoke-Git @('show',"$ExpectedSourceCommitSha`:$script:CapabilityPath")'candidate_capability_gate_missing')|ConvertFrom-Json -ErrorAction Stop}catch{Stop-Blocked'capability_gate_invalid_json' 'The candidate capability gate is invalid JSON.'};Require([string]$s.contract_version-eq'capability-gate-state-v1')'capability_gate_contract_mismatch' 'Unexpected capability gate contract.';$g=$s.gates.live_llm_provider_calls
+  Require($null-ne$g-and$g.owner_granted-eq$true-and$g.live_verified-eq$true)'live_llm_provider_gate_closed' 'The tracked live LLM Owner/live gate is not verified.';Require($g.paid_provider-eq$false)'paid_provider_forbidden' 'The tracked gate does not prove the free path.';Require([string]$g.provider-eq'cloudflare_workers_ai')'live_llm_provider_gate_provider' 'Unexpected tracked provider.';Require([string]$g.verifier-eq'scripts/verify-live-llm-free-provider.ps1')'live_llm_provider_gate_verifier' 'Unexpected tracked gate verifier.'
+  $ref=[string]$g.owner_grant_ref;Require(-not[string]::IsNullOrWhiteSpace($ref))'live_llm_owner_grant_ref_missing' 'Tracked gate has no Owner grant reference.';$path=($ref-split'\s+::\s+',2)[0];Require($path-match'^[A-Za-z0-9_./-]+\.md$')'live_llm_owner_grant_ref_invalid' 'Grant reference is not a tracked Markdown path.';[void](Invoke-Git @('show',"$ExpectedSourceCommitSha`:$path")'live_llm_owner_grant_ref_untracked')
+  $ep=[string]$g.evidence_artifact;Require($ep-match'^[A-Za-z0-9_./-]+\.json$')'live_llm_gate_evidence_ref_invalid' 'Gate evidence reference is invalid.';[void](Invoke-Git @('show',"$ExpectedSourceCommitSha`:$ep")'live_llm_gate_evidence_untracked');return[ordered]@{owner_grant_ref_sha256=Get-TextSha256 $ref;gate_evidence_path=$ep;gate_evidence_blob=Invoke-Git @('rev-parse',"$ExpectedSourceCommitSha`:$ep")'live_llm_gate_evidence_untracked'}
+}
+function Assert-SourceBinding($Health){Require([string]$Health.source_commit_sha-ceq$ExpectedSourceCommitSha)'hosted_source_commit_mismatch' 'Health commit mismatch.';Require([string]$Health.source_archive_sha256-ceq$ExpectedSourceArchiveSha256)'hosted_source_archive_mismatch' 'Health archive mismatch.';Assert-BooleanField $Health'source_binding_configured'$true'hosted_source_binding_unconfigured'}
+function Get-RequiredToken{Require($OwnerApprovedGatewayCredentialUse.IsPresent)'gateway_credential_confirmation_required' 'Credential switch is extra confirmation only.';Require($OwnerApprovedLiveProviderCalls.IsPresent)'live_provider_call_confirmation_required' 'Live-provider switch is extra confirmation only.';Require($OwnerApprovedHostedAuditWrites.IsPresent)'hosted_audit_write_confirmation_required' 'D1 audit-write switch is extra confirmation only.';$t=[Environment]::GetEnvironmentVariable($script:GatewayTokenEnvName,'Process');Require(-not[string]::IsNullOrWhiteSpace($t)-and$t.Length-ge16)'gateway_token_missing' 'The fixed approved gateway token is absent.';return$t}
+function Get-TraceId($Response){$tp=Get-HeaderValue $Response'traceparent';Require($tp-match'^00-([0-9a-f]{32})-[0-9a-f]{16}-0[01]$')'response_traceparent_invalid' 'Hosted response lacks a valid W3C traceparent.';return$Matches[1]}
+function Get-IndependentEvidence([string]$Base,[string]$Token,[string]$RequestId,[string]$TraceId){$u="$Base/api/v1/evidence?request_id=$([Uri]::EscapeDataString($RequestId))&trace_id=$TraceId";$r=Invoke-CapturedRequest $u 'GET' @{'x-superbrain-gateway-token'=$Token};Require([int]$r.StatusCode-eq200)'independent_evidence_http_status' 'Independent readback did not return 200.';$p=Read-JsonResponse $r'independent_evidence';Require([string]$p.contract_version-eq'llm-gateway-independent-evidence-v1'-and[string]$p.status-eq'verified')'independent_evidence_contract' 'Independent evidence is not verified.';Require([string]$p.request_id-eq$RequestId-and[string]$p.trace_id-eq$TraceId)'independent_evidence_correlation' 'Independent evidence correlation mismatch.';Require([string]$p.source_commit_sha-ceq$ExpectedSourceCommitSha-and[string]$p.source_archive_sha256-ceq$ExpectedSourceArchiveSha256)'independent_evidence_source_mismatch' 'Independent evidence source mismatch.';Assert-BooleanField $p'audit_readback_verified'$true'independent_audit_readback_unverified';Assert-BooleanField $p'direct_provider_calls'$false'independent_direct_provider_call_detected';Assert-BooleanField $p'secret_output'$false'independent_secret_output_unproven';return$p}
+function Write-ImmutableEvidence([hashtable]$Report){$id="{0}-{1}-{2}"-f([DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')),$ExpectedSourceCommitSha.Substring(0,12),([Guid]::NewGuid().ToString('N').Substring(0,8));$dir=Join-Path $OutDir $id;[void](New-Item -ItemType Directory -Path $dir -Force:$false);$path=Join-Path $dir'report.json';$b=[Text.UTF8Encoding]::new($false).GetBytes(($Report|ConvertTo-Json -Depth 24)+"`n");$f=[IO.File]::Open($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);try{$f.Write($b,0,$b.Length)}finally{$f.Dispose()};$d=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant();[IO.File]::WriteAllText((Join-Path $dir'report.sha256'),"$d  report.json`n",[Text.UTF8Encoding]::new($false));return[ordered]@{report_path=$path;evidence_sha256=$d}}
+
+$repoRoot=Split-Path -Parent $PSScriptRoot;Push-Location $repoRoot
+try{
+  Require($PSVersionTable.PSVersion.Major-ge7)'powershell_7_required' 'PowerShell 7 or newer is required.';Assert-SanctionedTarget $BaseUrl;$closure=Assert-CandidateClosure;Assert-ApprovedRubric;$gate=Assert-LiveProviderGate;$base=$script:SanctionedBaseUrl
+  $hr=Invoke-CapturedRequest "$base/api/v1/health";Require([int]$hr.StatusCode-eq200)'health_http_status' 'Health must return 200.';$health=Read-JsonResponse $hr'health';Require([string]$health.status-eq'healthy')'health_not_healthy' 'Gateway is not healthy.';Assert-SourceBinding $health
+  $cap=$health.verification_capabilities.trace_correlation;Require($null-ne$cap-and[string]$cap.contract_version-eq'llm-hosted-trace-correlation-probe-v1')'trace_correlation_capability_missing' 'Trace capability is missing.';Assert-BooleanField $cap'configured'$true'trace_capability_unconfigured';Assert-BooleanField $cap'verified'$false'trace_capability_health_overclaim';Assert-BooleanField $cap'gateway_log_readback_verified'$false'trace_capability_health_log_overclaim';Require([int]$cap.max_provider_calls-eq1)'trace_call_bound' 'Trace capability must cap one call.'
+  $token=Get-RequiredToken;$traceId=([Guid]::NewGuid().ToString('N')+[Guid]::NewGuid().ToString('N')).Substring(0,32);$spanId=[Guid]::NewGuid().ToString('N').Substring(0,16);$requestId='l4-trace-'+[Guid]::NewGuid().ToString('N')
+  $body=[ordered]@{model=$Model;messages=@(@{role='user';content='Return exactly the single word verified.'});max_tokens=16;temperature=0;stream=$false;metadata=@{verification_probe='trace_correlation';trace_id=$traceId}}|ConvertTo-Json -Depth 10 -Compress
+  $r=Invoke-CapturedRequest "$base/v1/chat/completions"'POST'@{'x-superbrain-gateway-token'=$token;'x-request-id'=$requestId;traceparent="00-$traceId-$spanId-01"}$body;Require([int]$r.StatusCode-eq200)'trace_http_status' 'Trace probe did not return 200.';Require((Get-TraceId $r)-eq$traceId)'trace_response_header_mismatch' 'Response trace ID mismatch.';$result=Read-JsonResponse $r'trace';Require([string]$result.object-eq'chat.completion'-and-not[string]::IsNullOrWhiteSpace([string]$result.choices[0].message.content))'trace_completion_invalid' 'Completion schema is invalid.'
+  $proof=Get-IndependentEvidence $base $token $requestId $traceId;Require([int]$proof.provider_call_count-eq1-and@($proof.gateway_attempts).Count-eq1)'trace_independent_call_count' 'Independent evidence does not prove exactly one provider call.';Assert-BooleanField $proof.gateway_log_readback'required'$true'trace_gateway_log_not_required';Assert-BooleanField $proof.gateway_log_readback'verified'$true'trace_gateway_log_unverified';$a=$proof.gateway_attempts[0];Require([string]$a.provider-eq'workers-ai'-and[string]$a.model-eq$Model-and$a.success-eq$true)'trace_gateway_log_identity' 'Gateway log provider/model/outcome mismatch.';Require([string]$a.metadata.trace_id-eq$traceId-and[string]$a.metadata.request_id-eq$requestId-and[int]$a.metadata.attempt_index-eq1-and[string]$a.metadata.verification_probe-eq'trace_correlation')'trace_gateway_log_metadata' 'Gateway log metadata correlation mismatch.';Assert-BooleanField $a'metadata_correlation_verified'$true'trace_metadata_unverified'
+  $report=[ordered]@{contract_version='llm-hosted-trace-correlation-evidence-v2';status='verified';criterion='L4 hosted trace ID correlates gateway, provider, and immutable evidence';criterion_points=4;credit_eligible=$true;checked_at=[DateTime]::UtcNow.ToString('o');rubric_approval_commit=$RubricApprovalCommit;base_url=$base;source=[ordered]@{commit_sha=$ExpectedSourceCommitSha;archive_sha256=$ExpectedSourceArchiveSha256;gateway_tree_sha=$closure.gateway_tree;verifier_blob=$closure.verifier_blob;runtime_blob=$closure.runtime_blob;wrangler_blob=$closure.wrangler_blob;rubric_blob=$closure.rubric_blob;capability_blob=$closure.capability_blob};authority=$gate;trace=[ordered]@{trace_id=$traceId;request_id_sha256=Get-TextSha256 $requestId;gateway_log_id_sha256=Get-TextSha256([string]$a.gateway_log_id);d1_evidence_ref=[string]$proof.evidence_ref;gateway_log_readback_verified=$true;audit_readback_verified=$true;response_sha256=Get-TextSha256([string]$r.Content)};live_provider_calls=$true;provider_call_count=1;direct_provider_calls=$false;provider_writes=$false;hosted_audit_write=$true;secret_output=$false;manifest_updated=$false;delta_ledger_entry_created=$false;production_deploy=$false;release_promotion=$false}
+  $written=Write-ImmutableEvidence $report;Write-Host "$script:Prefix status=verified candidate_bound=true gateway_log_readback=true d1_readback=true provider_calls=1 redirects=false secret_output=false evidence_sha256=$($written.evidence_sha256) report=$($written.report_path)"
+}catch{Write-Error "$script:Prefix status=blocked $($_.Exception.Message)";throw}finally{Pop-Location}

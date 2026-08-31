@@ -4,6 +4,7 @@ param(
   [switch]$AllowLocalhost,
   [switch]$AllowHosted,
   [switch]$ApproveLiveProviderCall,
+  [switch]$Headed,
   [string]$ExpectedGatewayProvider = "cloudflare-workers-ai",
   [string]$EvidenceDir = ".codex\runs\CURRENT\product-acceptance",
   [string]$ExpectedSourceCommitSha = "",
@@ -237,7 +238,11 @@ try {
   Set-ProcessEnvironment "PRODUCT_ACCEPTANCE_SOURCE_ARCHIVE_SHA256" $sourceArchiveSha256
   Set-ProcessEnvironment "PRODUCT_ACCEPTANCE_DEPLOYMENT_ID" $(if ($isLocalhost) { "" } else { $ExpectedDeploymentId })
 
-  & npm.cmd run test:e2e:product-acceptance --prefix $frontendRoot
+  if ($Headed) {
+    & npm.cmd run test:e2e:product-acceptance --prefix $frontendRoot -- --headed
+  } else {
+    & npm.cmd run test:e2e:product-acceptance --prefix $frontendRoot
+  }
   $playwrightExitCode = $LASTEXITCODE
 } finally {
   foreach ($name in $environmentNames) {

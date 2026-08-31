@@ -49,7 +49,7 @@ members.
 | Route | Enabled families | Total members | Enabled | Non-enabled | Excluded gates |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `/home` | 3 | 19 | 18 | 1 conditional | 0 |
-| `/login` | 1 | 6 | 6 | 0 | 1 |
+| `/login` | 1 | 7 | 6 | 1 provider-gated | 0 |
 | `/workbench` | 3 | 10 | 10 | 0 | 0 |
 | `/organism` | 4 | 30 | 30 | 0 | 0 |
 | `/organism/replay` | 1 | 34 | 33 | 1 contract | 0 |
@@ -121,12 +121,14 @@ members.
 
 ## Excluded gates
 
-1. external OAuth activation
-2. live host filesystem read/write
-3. write-capable MCP execution
-4. live marketplace provider installation
-5. verifier-script execution from the Evidence UI
-6. Settings Apply
+The GitHub OAuth control is a registered `provider_gated` member on `/login`;
+it is not an excluded gate. The five actual excluded gates are:
+
+1. live host filesystem read/write
+2. write-capable MCP execution
+3. live marketplace provider installation
+4. verifier-script execution from the Evidence UI
+5. Settings Apply
 
 ## Verification
 

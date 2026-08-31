@@ -7,6 +7,7 @@ param(
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
+$sanctionedPreviewBaseUrl = "https://cloud-superbrain-llm-gateway-preview.strazzusochr.workers.dev"
 
 function Assert-True([bool]$Condition, [string]$Message) {
   if (-not $Condition) { throw $Message }
@@ -18,6 +19,18 @@ function Assert-Equal($Actual, $Expected, [string]$Label) {
 
 function Assert-Contains([string]$Label, [string]$Content, [string]$Needle) {
   if (-not $Content.Contains($Needle)) { throw "$Label missing marker: $Needle" }
+}
+
+function Invoke-NoRedirectJson([string]$Uri) {
+  try {
+    $response = Invoke-WebRequest -Method Get -Uri $Uri -TimeoutSec 30 -UseBasicParsing -SkipHttpErrorCheck -MaximumRedirection 0
+  } catch {
+    throw "Sanctioned Preview Worker request failed without redirects"
+  }
+  Assert-True ([int]$response.StatusCode -lt 300 -or [int]$response.StatusCode -ge 400) "Redirect responses are forbidden"
+  Assert-Equal ([int]$response.StatusCode) 200 "Sanctioned Preview Worker response status"
+  try { return ([string]$response.Content | ConvertFrom-Json -ErrorAction Stop) }
+  catch { throw "Sanctioned Preview Worker response was not valid JSON" }
 }
 
 $workerRoot = Join-Path $repoRoot "services\cloudflare-llm-gateway"
@@ -45,6 +58,8 @@ Assert-Equal ([string]$config.main) "src/index.js" "Worker entrypoint"
 Assert-Equal ([string]$config.ai.binding) "AI" "Production Workers AI binding"
 Assert-Equal ([string]$config.env.preview.name) "cloud-superbrain-llm-gateway-preview" "Preview Worker name"
 Assert-Equal ([string]$config.env.preview.ai.binding) "AI" "Preview Workers AI binding"
+Assert-Equal ([string]$config.vars.AI_GATEWAY_ID) "cloud-superbrain-llm-gateway" "Production AI Gateway ID"
+Assert-Equal ([string]$config.env.preview.vars.AI_GATEWAY_ID) "cloud-superbrain-llm-gateway-preview" "Preview AI Gateway ID"
 Assert-True ([bool]$config.workers_dev) "Worker must expose a free workers.dev HTTPS origin"
 
 foreach ($marker in @(
@@ -61,7 +76,24 @@ foreach ($marker in @(
   'MAX_BODY_BYTES',
   'MAX_INPUT_CHARS',
   'MAX_OUTPUT_TOKENS',
-  'stream_not_supported',
+  'text/event-stream; charset=utf-8',
+  'id: env.AI_GATEWAY_ID',
+  'skipCache: true',
+  'collectLog: true',
+  'cf-aig-collect-log-payload',
+  'metadata: gatewayMetadata',
+  'env.AI.aiGatewayLogId',
+  'env.AI.gateway',
+  '.getLog(',
+  'providerStream instanceof ReadableStream',
+  'chat.completion.chunk',
+  'provider_stream_not_openai_chunk',
+  '/api/v1/evidence',
+  'llm-gateway-independent-evidence-v1',
+  'gateway_log_readback_verified',
+  'source_binding_configured',
+  'requestTimeoutMs: timeoutMs',
+  'retries: { maxAttempts: 1 }',
   'live_provider_calls: true',
   'direct_provider_calls: false',
   'secret_output: false'
@@ -70,6 +102,8 @@ foreach ($marker in @(
 }
 Assert-True (-not $source.Contains("CLOUDFLARE_API_TOKEN")) "Worker runtime must use the AI binding, not a provider API token"
 Assert-True (-not $source.Contains("api.cloudflare.com/client/v4")) "Worker runtime must not bypass the Workers AI binding"
+Assert-True (-not $source.Contains("function sseResponse(")) "Worker runtime cannot synthesize buffered provider SSE"
+Assert-True (-not $source.Contains("terminal: true")) "Worker runtime cannot emit a fake full-completion terminal frame"
 
 foreach ($marker in @(
   'LLM_GATEWAY_AUTH_TOKEN',
@@ -88,7 +122,7 @@ foreach ($marker in @(
   'live_provider_calls: persistedBuild.live_provider_calls === true',
   'const WORKBENCH_LLM_MODEL = process.env.WORKBENCH_LLM_MODEL?.trim()',
   '|| "@cf/qwen/qwen2.5-coder-32b-instruct"',
-  'const models: Array<[string, number]> = [[WORKBENCH_LLM_MODEL, 50000]]',
+  'const models: Array<[string, number]> = [[WORKBENCH_LLM_MODEL, 100000]]',
   'process.env.PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED',
   'live_provider_calls_allowed: LIVE_PROVIDER_APPROVED'
 )) {
@@ -99,10 +133,13 @@ Assert-True (-not $buildSource.Contains("CLOUDFLARE_API_TOKEN")) "Frontend build
 Assert-Contains "Workbench live-call truth" $workbenchSource '"live_provider_calls=true" : "live_provider_calls=false"'
 
 foreach ($marker in @(
-  'requires the dedicated server-side gateway token',
-  'invokes an allowlisted Workers AI model once',
-  'fail closed before inference',
-  'assert.equal(calls.length, 1)'
+  'health advertises configuration only',
+  'non-stream completion uses the actual gateway path',
+  'stream mode forwards only real provider chat.completion.chunk frames',
+  'gateway-log model, provider, success, or metadata mismatch blocks completion',
+  'per-attempt deadline aborts best-effort',
+  'trace proof derives correlation from AI Gateway log metadata and D1 readback',
+  'independent evidence readback is authenticated'
 )) {
   Assert-Contains "Worker tests" $testSource $marker
 }
@@ -128,17 +165,15 @@ $evidence = [ordered]@{
 
 if (-not $StaticOnly) {
   Assert-True (-not [string]::IsNullOrWhiteSpace($BaseUrl)) "BaseUrl is required unless -StaticOnly is used"
-  $uri = [Uri]$BaseUrl
-  Assert-Equal $uri.Scheme "https" "Hosted Worker URL scheme"
-  Assert-True (-not @("localhost", "127.0.0.1", "::1").Contains($uri.Host)) "Hosted Worker proof cannot use localhost"
-  $normalized = $BaseUrl.TrimEnd("/")
-  $health = Invoke-RestMethod -Method Get -Uri "$normalized/api/v1/health" -TimeoutSec 30
+  Assert-True ($BaseUrl -ceq $sanctionedPreviewBaseUrl) "BaseUrl must exactly equal the sanctioned Preview Worker origin"
+  $normalized = $sanctionedPreviewBaseUrl
+  $health = Invoke-NoRedirectJson "$normalized/api/v1/health"
   Assert-Equal ([string]$health.contract_version) "cloudflare-workers-ai-llm-gateway-v1" "Hosted health contract"
   Assert-Equal ([string]$health.status) "healthy" "Hosted health status"
   Assert-Equal ([string]$health.service) "llm-gateway" "Hosted service marker"
   Assert-True ([bool]$health.live_provider_calls_available) "Hosted Workers AI path must be available"
   Assert-True (-not [bool]$health.live_provider_calls) "Health probe cannot execute inference"
-  $models = Invoke-RestMethod -Method Get -Uri "$normalized/v1/models" -TimeoutSec 30
+  $models = Invoke-NoRedirectJson "$normalized/v1/models"
   Assert-Equal @($models.data).Count 2 "Hosted allowlisted model count"
   $evidence.contract_version = "cloudflare-workers-ai-llm-gateway-hosted-proof-v1"
   $evidence.base_url = $normalized

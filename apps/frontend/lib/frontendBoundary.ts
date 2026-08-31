@@ -216,6 +216,7 @@ function validOAuthCookie(
   cookie: ParsedSetCookie,
   expectedState: string | null,
   mustClearState: boolean,
+  allowBoundedRefreshAge = false,
 ): boolean {
   if (cookie.name === OAUTH_STATE_COOKIE) {
     if (!validHostCookieShape(cookie, "lax")) return false;
@@ -231,9 +232,15 @@ function validOAuthCookie(
       && cookie.attributes.get("max-age") === "900";
   }
   if (cookie.name === OAUTH_REFRESH_COOKIE) {
+    const maxAgeText = cookie.attributes.get("max-age");
+    const maxAge = typeof maxAgeText === "string" && /^(?:0|[1-9][0-9]*)$/.test(maxAgeText)
+      ? Number(maxAgeText)
+      : Number.NaN;
     return validHostCookieShape(cookie, "strict")
       && /^csr_[A-Za-z0-9_-]{32,128}$/.test(cookie.value)
-      && cookie.attributes.get("max-age") === "604800";
+      && (allowBoundedRefreshAge
+        ? Number.isSafeInteger(maxAge) && maxAge >= 1 && maxAge <= 604800
+        : maxAge === 604800);
   }
   return false;
 }
@@ -318,7 +325,7 @@ function validatedAuthSessionSetCookieHeaders(
         : null;
     }
     return cookies.length === 2
-      && cookies.every((cookie) => expected.has(cookie.name) && validOAuthCookie(cookie, null, false))
+      && cookies.every((cookie) => expected.has(cookie.name) && validOAuthCookie(cookie, null, false, true))
       ? rawCookies
       : null;
   }
@@ -397,7 +404,7 @@ function safeOAuthRedirectLocation(
         queryKeys.join("|") !== "client_id|redirect_uri|scope|state"
         || location.searchParams.size !== 4
         || clientIds.length !== 1
-        || !/^[A-Za-z0-9_-]{1,128}$/.test(clientIds[0])
+        || !/^(?:[A-Za-z0-9]{20}|[IO]v1\.[A-Fa-f0-9]{16})$/.test(clientIds[0])
         || redirectUris.length !== 1
         || scopes.length !== 1
         || scopes[0] !== "read:user"

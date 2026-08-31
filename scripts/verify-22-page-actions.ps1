@@ -4,6 +4,7 @@ param(
   [switch]$AllowLocalhost,
   [switch]$AllowHosted,
   [switch]$ApproveLiveProviderCalls,
+  [switch]$Headed,
   [string]$EvidenceDir = ".codex\runs\CURRENT\22-page-actions",
   [string]$ProductReportPath = ".codex\runs\CURRENT\product-acceptance\report.json",
   [string]$ExpectedSourceCommitSha = "",
@@ -357,7 +358,11 @@ try {
   Set-ProcessEnvironment "PAGE_ACTIONS_DEPLOYMENT_ID" $(if ($isLocalhost) { "" } else { $ExpectedDeploymentId })
   Set-ProcessEnvironment "PAGE_ACTIONS_PRODUCT_REPORT_PATH" $resolvedProductReport
 
-  & npm.cmd run test:e2e:22-page-actions --prefix $frontendRoot
+  if ($Headed) {
+    & npm.cmd run test:e2e:22-page-actions --prefix $frontendRoot -- --headed
+  } else {
+    & npm.cmd run test:e2e:22-page-actions --prefix $frontendRoot
+  }
   $playwrightExitCode = $LASTEXITCODE
 } finally {
   foreach ($name in $environmentNames) {

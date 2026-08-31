@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 import ts from "typescript";
 
+import statefulWorker from "../../../services/cloudflare-stateful-runtime/src/index.js";
+
 const require = createRequire(import.meta.url);
 const boundarySource = fs.readFileSync(new URL("../lib/frontendBoundary.ts", import.meta.url), "utf8");
 const catchAllRouteSource = fs.readFileSync(new URL("../app/api/v1/[...slug]/route.ts", import.meta.url), "utf8");
@@ -18,6 +20,10 @@ const startDevLiveSource = fs.readFileSync(new URL("../../../scripts/start-dev-l
 const agentApiSource = fs.readFileSync(new URL("../../../services/agent-api/app/main.py", import.meta.url), "utf8");
 const devComposeSource = fs.readFileSync(new URL("../../../docker-compose.dev.yml", import.meta.url), "utf8");
 const cloudComposeSource = fs.readFileSync(new URL("../../../docker-compose.cloud.yml", import.meta.url), "utf8");
+const statefulWorkerConfigSource = fs.readFileSync(
+  new URL("../../../services/cloudflare-stateful-runtime/wrangler.jsonc", import.meta.url),
+  "utf8",
+);
 const apiRouteRoot = fileURLToPath(new URL("../app/api/", import.meta.url));
 const compiledBoundary = ts.transpileModule(boundarySource, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -108,6 +114,15 @@ test("DEV-LIVE loads all five fail-closed OAuth configuration values", () => {
   assert.doesNotMatch(startDevLiveSource, /O1-Konfiguration vollstaendig \(4\/4/);
 });
 
+test("DEV-LIVE loads existing Workers AI credentials only for the explicit live path", () => {
+  const declaration = startDevLiveSource.match(/\$providerCredentialKeys\s*=\s*@\(([^)]*)\)/s)?.[1] ?? "";
+  const keys = [...declaration.matchAll(/'([A-Z][A-Z0-9_]*)'/g)].map((match) => match[1]);
+  assert.deepEqual(keys, ["CF_WORKERS_AI_TOKEN", "CLOUDFLARE_ACCOUNT_ID"]);
+  assert.match(startDevLiveSource, /if \(-not \$DryRun -and \(Test-Path -LiteralPath \$secretsPath\)\)/);
+  assert.match(startDevLiveSource, /Set-Item -Path "env:\$providerCredentialKey" -Value \$providerCredentials\[\$providerCredentialKey\]/);
+  assert.match(startDevLiveSource, /Live-Provider-Credentials aus lokaler Secrets-Datei geladen \(Werte nicht angezeigt\)\./);
+});
+
 test("both Compose modes wire the same five OAuth configuration values", () => {
   const keys = [
     "GITHUB_OAUTH_CLIENT_ID",
@@ -124,6 +139,15 @@ test("both Compose modes wire the same five OAuth configuration values", () => {
   }
   assert.match(devComposeSource, /ausschliesslich aus diesen fuenf Werten/);
   assert.doesNotMatch(devComposeSource, /ausschliesslich aus diesen vier Werten/);
+});
+
+test("the production Worker binds OAuth to the canonical browser-visible frontend callback", () => {
+  assert.ok(
+    statefulWorkerConfigSource.includes(
+      `"GITHUB_OAUTH_REDIRECT_URI": "${CANONICAL_FRONTEND_CALLBACK}"`,
+    ),
+    "the Worker redirect_uri must be the canonical frontend callback, not a backend or Worker origin",
+  );
 });
 
 test("the frontend auth projection names all five missing OAuth values", () => {
@@ -164,6 +188,8 @@ function request(path, extraHeaders = {}, init = {}) {
 const OAUTH_STATE = `phase3-auth-state-${"A".repeat(32)}`;
 const ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJnaXRodWI6MSJ9.signature";
 const REFRESH_TOKEN = `csr_${"R".repeat(32)}`;
+const CANONICAL_FRONTEND_ORIGIN = "https://frontend-seven-psi-78.vercel.app";
+const CANONICAL_FRONTEND_CALLBACK = `${CANONICAL_FRONTEND_ORIGIN}/api/v1/auth/callback`;
 
 function oauthStateCookie(value = OAUTH_STATE) {
   return `__Host-sb_oauth_state=${value}; Path=/; Max-Age=600; Secure; HttpOnly; SameSite=Lax`;
@@ -177,8 +203,8 @@ function accessCookie() {
   return `__Host-sb_access=${ACCESS_TOKEN}; Path=/; Max-Age=900; Secure; HttpOnly; SameSite=Strict`;
 }
 
-function refreshCookie() {
-  return `__Host-sb_refresh=${REFRESH_TOKEN}; Path=/; Max-Age=604800; Secure; HttpOnly; SameSite=Strict`;
+function refreshCookie(maxAge = 604800) {
+  return `__Host-sb_refresh=${REFRESH_TOKEN}; Path=/; Max-Age=${maxAge}; Secure; HttpOnly; SameSite=Strict`;
 }
 
 function clearedCookie(name) {
@@ -187,7 +213,7 @@ function clearedCookie(name) {
 
 function githubLocation(overrides = {}) {
   const query = new URLSearchParams({
-    client_id: "client-id",
+    client_id: "0123456789ABCDEFGHIJ",
     redirect_uri: "https://frontend.example.test/api/v1/auth/callback",
     scope: "read:user",
     state: OAUTH_STATE,
@@ -216,6 +242,239 @@ function verifiedOwnerIdentity(overrides = {}) {
     live_github_oauth_call: false,
     ...overrides,
   };
+}
+
+class OAuthContractStatement {
+  constructor(db, sql) {
+    this.db = db;
+    this.sql = sql.replace(/\s+/g, " ").trim();
+    this.values = [];
+  }
+
+  bind(...values) {
+    this.values = values;
+    return this;
+  }
+
+  async run() {
+    if (this.sql.startsWith("INSERT INTO oauth_states")) {
+      const [state, createdAt, expiresAt] = this.values;
+      this.db.oauthStates.set(state, { state, created_at: createdAt, expires_at: expiresAt });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("DELETE FROM oauth_states")) {
+      const [state, nowIso] = this.values;
+      const row = this.db.oauthStates.get(state);
+      if (!row || (nowIso && row.expires_at <= nowIso)) return { meta: { changes: 0 } };
+      return { meta: { changes: this.db.oauthStates.delete(state) ? 1 : 0 } };
+    }
+    if (this.sql.startsWith("INSERT INTO refresh_token_families")) {
+      const [familyId, subject, activeTokenHash, createdAt, updatedAt, expiresAt] = this.values;
+      if (Date.parse(expiresAt) - Date.parse(createdAt) !== 604800000) {
+        throw new Error("refresh family expiry invariant failed");
+      }
+      if ([...this.db.refreshFamilies.values()].some((family) => family.active_token_hash === activeTokenHash)) {
+        throw new Error("UNIQUE constraint failed: refresh_token_families.active_token_hash");
+      }
+      this.db.refreshFamilies.set(familyId, {
+        family_id: familyId,
+        subject,
+        active_token_hash: activeTokenHash,
+        created_at: createdAt,
+        updated_at: updatedAt,
+        expires_at: expiresAt,
+        revoked_at: null,
+        revocation_reason: null,
+      });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("INSERT INTO refresh_token_history")) {
+      const tokenHash = this.values[0];
+      let familyId = this.values[1];
+      let consumedAt = this.values[2];
+      if (this.sql.includes("SELECT family_id FROM refresh_token_families")) {
+        const expectedActiveHash = this.values[2];
+        const expectedExpiry = this.values[3];
+        const hasExpiryThreshold = this.sql.includes("expires_at > ?");
+        const nowIso = hasExpiryThreshold ? this.values[4] : null;
+        consumedAt = this.values[hasExpiryThreshold ? 5 : 4];
+        const family = this.db.refreshFamilies.get(familyId);
+        const expiryMatches = this.sql.includes("COALESCE(expires_at")
+          ? String(family?.expires_at || "") === String(expectedExpiry)
+          : family?.expires_at === expectedExpiry;
+        if (!family
+          || family.active_token_hash !== expectedActiveHash
+          || family.revoked_at
+          || !expiryMatches
+          || (hasExpiryThreshold && family.expires_at <= nowIso)) {
+          throw new Error("NOT NULL constraint failed: refresh_token_history.family_id");
+        }
+      }
+      if (this.db.refreshHistory.has(tokenHash)) {
+        throw new Error("UNIQUE constraint failed: refresh_token_history.token_hash");
+      }
+      const status = this.sql.match(/,\s*'(rotated|revoked|blacklisted)'\s*\)$/i)?.[1] ?? this.values[3] ?? null;
+      this.db.refreshHistory.set(tokenHash, {
+        token_hash: tokenHash,
+        family_id: familyId,
+        consumed_at: consumedAt,
+        status,
+      });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("UPDATE refresh_token_families SET active_token_hash")) {
+      const [newHash, updatedAt, familyId, oldHash, expectedExpiry, nowIso] = this.values;
+      const family = this.db.refreshFamilies.get(familyId);
+      if (!family
+        || family.active_token_hash !== oldHash
+        || family.revoked_at
+        || (this.sql.includes("expires_at = ?") && family.expires_at !== expectedExpiry)
+        || (this.sql.includes("expires_at > ?") && family.expires_at <= nowIso)) {
+        return { meta: { changes: 0 } };
+      }
+      if ([...this.db.refreshFamilies.values()].some((entry) => entry.family_id !== familyId && entry.active_token_hash === newHash)) {
+        throw new Error("UNIQUE constraint failed: refresh_token_families.active_token_hash");
+      }
+      family.active_token_hash = newHash;
+      family.updated_at = updatedAt;
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("UPDATE refresh_token_families SET revoked_at")) {
+      const reason = this.sql.match(/revocation_reason\s*=\s*'([^']+)'/)?.[1] ?? "revoked";
+      const [revokedAt] = this.values;
+      const matchFamilyId = this.sql.includes("WHERE family_id = ?");
+      const hasUpdatedAt = this.sql.includes("updated_at = ?");
+      const needle = matchFamilyId ? this.values[hasUpdatedAt ? 2 : 1] : this.values.at(-1);
+      const family = matchFamilyId
+        ? this.db.refreshFamilies.get(needle)
+        : [...this.db.refreshFamilies.values()].find((entry) => entry.active_token_hash === needle);
+      if (!family) return { meta: { changes: 0 } };
+      if (this.sql.includes("revoked_at IS NULL") && family.revoked_at) return { meta: { changes: 0 } };
+      const activeTokenHash = matchFamilyId ? this.values[hasUpdatedAt ? 3 : 2] : null;
+      const expectedExpiry = hasUpdatedAt ? this.values[4] : null;
+      const nowIso = hasUpdatedAt ? this.values[5] : null;
+      if (activeTokenHash && family.active_token_hash !== activeTokenHash) return { meta: { changes: 0 } };
+      if (hasUpdatedAt && this.sql.includes("COALESCE(expires_at") && String(family.expires_at || "") !== String(expectedExpiry)) return { meta: { changes: 0 } };
+      if (hasUpdatedAt && !this.sql.includes("COALESCE(expires_at") && family.expires_at !== expectedExpiry) return { meta: { changes: 0 } };
+      if (this.sql.includes("expires_at > ?") && family.expires_at <= nowIso) return { meta: { changes: 0 } };
+      family.revoked_at = revokedAt;
+      if (hasUpdatedAt) family.updated_at = this.values[1];
+      family.revocation_reason = reason;
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("UPDATE refresh_token_history SET status")) {
+      const [tokenHash, familyId] = this.values;
+      const history = this.db.refreshHistory.get(tokenHash);
+      if (!history || history.family_id !== familyId) return { meta: { changes: 0 } };
+      history.status = this.sql.match(/SET status = '([^']+)'/)?.[1] ?? history.status;
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("INSERT INTO audit_events")) {
+      const [id, eventType, traceId, subjectId, detailsJson, createdAt] = this.values;
+      this.db.audit.push({
+        id,
+        event_type: eventType,
+        trace_id: traceId,
+        subject_id: subjectId,
+        details_json: detailsJson,
+        created_at: createdAt,
+      });
+      return { meta: { changes: 1 } };
+    }
+    throw new Error(`Unhandled OAuth integration run SQL: ${this.sql}`);
+  }
+
+  async first() {
+    if (this.sql.startsWith("SELECT state FROM oauth_states")) {
+      const [state, nowIso] = this.values;
+      const row = this.db.oauthStates.get(state);
+      return row && row.expires_at > nowIso ? { state } : null;
+    }
+    if (this.sql.startsWith("SELECT family_id, status FROM refresh_token_history")) {
+      const row = this.db.refreshHistory.get(this.values[0]);
+      return row ? { family_id: row.family_id, status: row.status } : null;
+    }
+    if (this.sql.startsWith("SELECT family_id, subject, active_token_hash, created_at, updated_at, expires_at, revoked_at, revocation_reason FROM refresh_token_families")) {
+      const needle = this.values[0];
+      const family = this.sql.includes("WHERE family_id = ?")
+        ? this.db.refreshFamilies.get(needle)
+        : [...this.db.refreshFamilies.values()].find((entry) => entry.active_token_hash === needle);
+      return family ? { ...family } : null;
+    }
+    if (this.sql.startsWith("SELECT family_id, subject, active_token_hash, revoked_at FROM refresh_token_families")) {
+      const needle = this.values[0];
+      const family = this.sql.includes("WHERE family_id = ?")
+        ? this.db.refreshFamilies.get(needle)
+        : [...this.db.refreshFamilies.values()].find((entry) => entry.active_token_hash === needle);
+      return family ? { ...family } : null;
+    }
+    if (this.sql.startsWith("SELECT family_id, subject, active_token_hash, revoked_at, revocation_reason FROM refresh_token_families")) {
+      const needle = this.values[0];
+      const family = this.sql.includes("WHERE family_id = ?")
+        ? this.db.refreshFamilies.get(needle)
+        : [...this.db.refreshFamilies.values()].find((entry) => entry.active_token_hash === needle);
+      return family ? { ...family } : null;
+    }
+    if (this.sql.startsWith("SELECT family_id FROM refresh_token_families")) {
+      const activeHash = this.values[0];
+      const family = [...this.db.refreshFamilies.values()]
+        .find((entry) => entry.active_token_hash === activeHash);
+      return family ? { family_id: family.family_id } : null;
+    }
+    if (this.sql.startsWith("SELECT id, event_type, trace_id, subject_id, details_json, created_at FROM audit_events")) {
+      const [id, eventType, traceId, subjectId] = this.values;
+      const audit = this.db.audit.find((entry) => entry.id === id
+        && entry.event_type === eventType
+        && entry.trace_id === traceId
+        && entry.subject_id === subjectId);
+      return audit ? { ...audit } : null;
+    }
+    throw new Error(`Unhandled OAuth integration first SQL: ${this.sql}`);
+  }
+}
+
+class OAuthContractD1 {
+  constructor() {
+    this.oauthStates = new Map();
+    this.refreshFamilies = new Map();
+    this.refreshHistory = new Map();
+    this.audit = [];
+  }
+
+  prepare(sql) {
+    return new OAuthContractStatement(this, sql);
+  }
+
+  async batch(statements) {
+    const results = [];
+    for (const statement of statements) results.push(await statement.run());
+    return results;
+  }
+}
+
+function canonicalFrontendRequest(pathname, extraHeaders = {}, init = {}) {
+  const url = new URL(pathname, CANONICAL_FRONTEND_ORIGIN);
+  return new Request(url, {
+    ...init,
+    headers: {
+      host: url.host,
+      "x-forwarded-host": url.host,
+      "x-forwarded-proto": "https",
+      ...extraHeaders,
+    },
+  });
+}
+
+function responseSetCookies(response) {
+  return typeof response.headers.getSetCookie === "function"
+    ? response.headers.getSetCookie()
+    : [response.headers.get("set-cookie")].filter(Boolean);
+}
+
+function responseCookieValue(response, name) {
+  const prefix = `${name}=`;
+  const header = responseSetCookies(response).find((value) => value.startsWith(prefix));
+  return header?.slice(prefix.length).split(";", 1)[0] ?? null;
 }
 
 // Returns the body of each POST/PUT/PATCH/DELETE handler in a route module. Assertions about
@@ -500,6 +759,29 @@ test("refresh proxy requires exact same origin and forwards only the refresh coo
   ]);
 });
 
+test("refresh proxy accepts a shrinking fixed-family TTL but rejects any extension", async () => {
+  process.env.AGENT_API_BASE_URL = "https://agent-api.example.test";
+  let refreshMaxAge = 604799;
+  globalThis.fetch = async () => {
+    const headers = new Headers({ "content-type": "application/json" });
+    headers.append("set-cookie", accessCookie());
+    headers.append("set-cookie", refreshCookie(refreshMaxAge));
+    return new Response(JSON.stringify({ status: "rotated", audit_persisted: true }), { status: 200, headers });
+  };
+  const invoke = () => proxyAuthSessionToBoundary(
+    request("/api/v1/auth/refresh", {
+      origin: "https://frontend.example.test",
+      "sec-fetch-site": "same-origin",
+      "content-type": "application/json",
+      cookie: `__Host-sb_refresh=${REFRESH_TOKEN}`,
+    }, { method: "POST", body: "{}" }),
+    "/api/v1/auth/refresh",
+  );
+  assert.equal((await invoke())?.status, 200);
+  refreshMaxAge = 604801;
+  assert.equal((await invoke())?.status, 502);
+});
+
 test("refresh errors preserve only the canonical two-cookie clear contract", async () => {
   process.env.AGENT_API_BASE_URL = "https://agent-api.example.test";
   for (const status of [400, 401, 403, 503]) {
@@ -606,6 +888,226 @@ test("logout blocks cross-site requests before fetch and accepts only two exact 
     "__Host-sb_access",
     "__Host-sb_refresh",
   ]);
+});
+
+test("the real Worker contract completes the canonical frontend OAuth lifecycle through the Next boundary", async () => {
+  process.env.AGENT_API_BASE_URL = "https://agent-api.example.test";
+  const db = new OAuthContractD1();
+  const workerEnv = {
+    DB: db,
+    GITHUB_OAUTH_CLIENT_ID: "Iv1.8a61f9b3a7aba766",
+    GITHUB_OAUTH_CLIENT_SECRET: "0123456789abcdef0123456789abcdef01234567",
+    OAUTH_PUBLIC_ORIGIN: CANONICAL_FRONTEND_ORIGIN,
+    GITHUB_OAUTH_REDIRECT_URI: CANONICAL_FRONTEND_CALLBACK,
+    GITHUB_OAUTH_OWNER_IDS: "123456",
+    JWT_SIGNING_SECRET: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY",
+    PRODUCTION_AUTH_OWNER_GRANTED: "true",
+    PRODUCTION_AUTH_OWNER_GRANT_REF: "test-only-owner-grant-ref",
+  };
+  let exchangeCount = 0;
+
+  globalThis.fetch = async (input, init = {}) => {
+    const target = new URL(input instanceof Request ? input.url : input.toString());
+    if (target.origin === "https://agent-api.example.test") {
+      const body = init.body === undefined || init.body === null ? undefined : init.body;
+      const workerRequest = new Request(
+        new URL(`${target.pathname}${target.search}`, "https://stateful-runtime.example.test"),
+        {
+          method: init.method ?? "GET",
+          headers: init.headers,
+          body,
+        },
+      );
+      return statefulWorker.fetch(workerRequest, workerEnv);
+    }
+    if (target.href === "https://github.com/login/oauth/access_token") {
+      exchangeCount += 1;
+      const payload = JSON.parse(String(init.body));
+      assert.equal(payload.redirect_uri, CANONICAL_FRONTEND_CALLBACK);
+      assert.equal(payload.code, "opaque-integration-code");
+      return Response.json({
+        access_token: "integration-provider-access",
+        token_type: "bearer",
+        scope: "read:user",
+      });
+    }
+    if (target.href === "https://api.github.com/user") {
+      assert.equal(new Headers(init.headers).get("authorization"), "Bearer integration-provider-access");
+      return Response.json({ id: 123456, login: "integration-owner" });
+    }
+    throw new Error(`Unexpected OAuth integration fetch target: ${target.origin}${target.pathname}`);
+  };
+
+  const start = await proxyOAuthGetToBoundary(
+    canonicalFrontendRequest("/api/v1/auth/github", { accept: "text/html" }),
+    "/api/v1/auth/github",
+  );
+  assert.equal(start?.status, 303, JSON.stringify(await start?.clone().json().catch(() => null)));
+  const authorizeLocation = new URL(start.headers.get("location"));
+  assert.equal(authorizeLocation.origin, "https://github.com");
+  assert.equal(authorizeLocation.pathname, "/login/oauth/authorize");
+  assert.equal(authorizeLocation.searchParams.get("redirect_uri"), CANONICAL_FRONTEND_CALLBACK);
+  assert.equal(authorizeLocation.searchParams.get("scope"), "read:user");
+  assert.deepEqual([...authorizeLocation.searchParams.keys()].sort(), ["client_id", "redirect_uri", "scope", "state"]);
+  const state = authorizeLocation.searchParams.get("state");
+  assert.match(state, /^phase3-auth-state-[A-Za-z0-9_-]{32}$/);
+  assert.equal(responseCookieValue(start, "__Host-sb_oauth_state"), state);
+  assert.deepEqual(responseSetCookies(start).map((value) => value.split("=", 1)[0]), ["__Host-sb_oauth_state"]);
+
+  const callbackPath = `/api/v1/auth/callback?code=opaque-integration-code&state=${encodeURIComponent(state)}`;
+  const callback = await proxyOAuthGetToBoundary(
+    canonicalFrontendRequest(callbackPath, {
+      accept: "text/html,application/xhtml+xml",
+      cookie: `__Host-sb_oauth_state=${state}`,
+      "x-request-id": "oauth-worker-next-integration",
+    }),
+    "/api/v1/auth/callback",
+  );
+  assert.equal(callback?.status, 303);
+  assert.equal(callback.headers.get("location"), "/workbench");
+  assert.deepEqual(responseSetCookies(callback).map((value) => value.split("=", 1)[0]).sort(), [
+    "__Host-sb_access",
+    "__Host-sb_oauth_state",
+    "__Host-sb_refresh",
+  ]);
+  const accessToken = responseCookieValue(callback, "__Host-sb_access");
+  const initialRefreshToken = responseCookieValue(callback, "__Host-sb_refresh");
+  assert.match(accessToken, /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+  assert.match(initialRefreshToken, /^csr_[A-Za-z0-9_-]{32}$/);
+  assert.equal(exchangeCount, 1);
+
+  const me = await proxyAuthSessionToBoundary(
+    canonicalFrontendRequest("/api/v1/auth/me", {
+      cookie: `__Host-sb_access=${accessToken}; __Host-sb_refresh=${initialRefreshToken}`,
+    }),
+    "/api/v1/auth/me",
+  );
+  assert.equal(me?.status, 200);
+  const meBody = await me.json();
+  assert.equal(meBody.status, "authenticated");
+  assert.equal(meBody.contract_version, "auth-github-jwt-refresh-v1");
+  assert.deepEqual(meBody.identity, {
+    provider: "github",
+    provider_user_id: 123456,
+    subject: "github:123456",
+  });
+  for (const field of [
+    "owner_activation_granted",
+    "identity_verified",
+    "jwt_signature_verified",
+    "jwt_claims_verified",
+  ]) {
+    assert.equal(meBody[field], true, `/auth/me must affirm ${field}`);
+  }
+  assert.equal(meBody.token_returned, false);
+  assert.equal(meBody.cookie_returned, false);
+  assert.equal(meBody.secret_output, false);
+  assert.equal(meBody.live_github_oauth_call, false);
+  assert.equal(responseSetCookies(me).length, 0);
+
+  const refresh = await proxyAuthSessionToBoundary(
+    canonicalFrontendRequest("/api/v1/auth/refresh", {
+      origin: CANONICAL_FRONTEND_ORIGIN,
+      "sec-fetch-site": "same-origin",
+      "content-type": "application/json",
+      cookie: `__Host-sb_refresh=${initialRefreshToken}`,
+    }, { method: "POST", body: "{}" }),
+    "/api/v1/auth/refresh",
+  );
+  assert.equal(refresh?.status, 200, JSON.stringify(await refresh?.clone().json().catch(() => null)));
+  const refreshBody = await refresh.json();
+  assert.equal(refreshBody.status, "rotated");
+  assert.equal(refreshBody.contract_version, "auth-github-jwt-refresh-v1");
+  for (const field of [
+    "access_token_issued",
+    "refresh_token_rotated",
+    "old_refresh_token_blacklisted",
+    "active_registry_verified",
+    "audit_persisted",
+  ]) {
+    assert.equal(refreshBody[field], true, `/auth/refresh must affirm ${field}`);
+  }
+  assert.equal(refreshBody.access_token_expires_in, 900);
+  assert.ok(refreshBody.refresh_token_expires_in >= 604790 && refreshBody.refresh_token_expires_in <= 604800);
+  assert.match(refreshBody.trace_id, /^(?:auth-refresh-)?[0-9a-f-]{36}$/);
+  assert.deepEqual(responseSetCookies(refresh).map((value) => value.split("=", 1)[0]).sort(), [
+    "__Host-sb_access",
+    "__Host-sb_refresh",
+  ]);
+  assert.match(
+    responseSetCookies(refresh).find((value) => value.startsWith("__Host-sb_refresh=")),
+    new RegExp(`(?:^|; )Max-Age=${refreshBody.refresh_token_expires_in}(?:;|$)`),
+  );
+  const rotatedAccessToken = responseCookieValue(refresh, "__Host-sb_access");
+  const rotatedRefreshToken = responseCookieValue(refresh, "__Host-sb_refresh");
+  assert.notEqual(rotatedAccessToken, accessToken);
+  assert.notEqual(rotatedRefreshToken, initialRefreshToken);
+
+  const logout = await proxyAuthSessionToBoundary(
+    canonicalFrontendRequest("/api/v1/auth/logout", {
+      origin: CANONICAL_FRONTEND_ORIGIN,
+      "sec-fetch-site": "same-origin",
+      cookie: `__Host-sb_refresh=${rotatedRefreshToken}`,
+    }, { method: "POST" }),
+    "/api/v1/auth/logout",
+  );
+  assert.equal(logout?.status, 200);
+  const logoutBody = await logout.json();
+  assert.equal(logoutBody.status, "logged_out");
+  assert.equal(logoutBody.contract_version, "auth-github-jwt-refresh-v1");
+  assert.equal(logoutBody.refresh_token_revoked, true);
+  assert.equal(logoutBody.body_token_accepted, false);
+  assert.equal(logoutBody.cookies_cleared, true);
+  assert.equal(logoutBody.active_refresh_token_absent, true);
+  assert.equal(logoutBody.audit_persisted, true);
+  assert.match(logoutBody.trace_id, /^(?:auth-logout-)?[0-9a-f-]{36}$/);
+  assert.deepEqual(responseSetCookies(logout).map((value) => value.split("=", 1)[0]).sort(), [
+    "__Host-sb_access",
+    "__Host-sb_refresh",
+  ]);
+
+  const postLogoutMe = await proxyAuthSessionToBoundary(
+    canonicalFrontendRequest("/api/v1/auth/me"),
+    "/api/v1/auth/me",
+  );
+  assert.equal(postLogoutMe?.status, 401);
+  assert.deepEqual(await postLogoutMe.json(), {
+    error: "access_token_invalid",
+    authenticated: false,
+    identity_verified: false,
+    token_returned: false,
+    cookie_returned: false,
+    secret_output: false,
+  });
+
+  for (const candidate of [initialRefreshToken, rotatedRefreshToken]) {
+    const rejected = await proxyAuthSessionToBoundary(
+      canonicalFrontendRequest("/api/v1/auth/refresh", {
+        origin: CANONICAL_FRONTEND_ORIGIN,
+        "sec-fetch-site": "same-origin",
+        cookie: `__Host-sb_refresh=${candidate}`,
+      }, { method: "POST", body: "{}" }),
+      "/api/v1/auth/refresh",
+    );
+    assert.equal(rejected?.status, 401);
+    assert.equal((await rejected.json()).error, "refresh_token_invalid");
+  }
+
+  const callbackReplay = await proxyOAuthGetToBoundary(
+    canonicalFrontendRequest(callbackPath, {
+      accept: "text/html",
+      cookie: `__Host-sb_oauth_state=${state}`,
+    }),
+    "/api/v1/auth/callback",
+  );
+  assert.equal(callbackReplay?.status, 401);
+  assert.equal((await callbackReplay.json()).error, "oauth_state_invalid");
+  assert.equal(exchangeCount, 1, "a consumed callback state must never reach the provider twice");
+  assert.ok(db.audit.some((entry) => entry.event_type === "auth_github_callback_verified"));
+  assert.ok(db.audit.some((entry) => entry.event_type === "auth_refresh_rotated"));
+  assert.ok(db.audit.some((entry) => entry.event_type === "auth_logout_revoked"));
+  assert.ok(db.audit.filter((entry) => entry.event_type === "auth_refresh_rejected"
+    && JSON.parse(entry.details_json).reason === "revoked").length >= 2);
 });
 
 test("only explicit localhost development may authorize a guest session without OAuth", async () => {

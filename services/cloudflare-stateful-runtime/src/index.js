@@ -1,5 +1,6 @@
 import { END, START, StateGraph, StateSchema } from "@langchain/langgraph";
 import { z } from "zod";
+import { handleHostedMcpRoute } from "./mcp-hosted.js";
 
 const CONTRACT_VERSION = "cloudflare-d1-stateful-runtime-v1";
 const RUNTIME_CONTRACT_VERSION = "cloudflare-d1-langgraph-runtime-v1";
@@ -9,6 +10,13 @@ const NATIVE_ARTIFACT_CONTENT_TYPE = "text/plain; charset=utf-8";
 const HOSTED_SESSION_CONTRACT_VERSION = "cloudflare-d1-hosted-session-v1";
 const HOSTED_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 const HOSTED_SESSION_TOKEN_BYTES = 32;
+const AUTH_ACCESS_TTL_SECONDS = 900;
+const AUTH_REFRESH_FAMILY_TTL_SECONDS = 604800;
+const AUTH_REFRESH_FAMILY_TTL_MS = AUTH_REFRESH_FAMILY_TTL_SECONDS * 1000;
+const AUTH_VERCEL_PUBLIC_HOST_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.vercel\.app$/;
+const AUTH_GITHUB_CLIENT_ID_PATTERN = /^(?:[A-Za-z0-9]{20}|[IO]v1\.[A-Fa-f0-9]{16})$/;
+const AUTH_REFRESH_FAMILY_ID_PATTERN = /^fam_[A-Za-z0-9_-]{22}$/;
+const AUTH_CANONICAL_ISO_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const SOURCE = "cloudflare-workers-d1-stateful-runtime";
 const AUTH_HEADER = "x-superbrain-agent-token";
 const MAX_BODY_BYTES = 192 * 1024;
@@ -757,11 +765,15 @@ function buildFromRow(row, includeHtml = true) {
 }
 
 function auditReadbackMatches(row, expected) {
+  const rowSubject = row?.subject_id ?? null;
+  const expectedSubject = expected.subjectId ?? null;
+  const subjectsMatch = rowSubject === null && expectedSubject === null
+    || String(rowSubject) === String(expectedSubject);
   return Boolean(row) &&
     String(row.id) === expected.id &&
     String(row.event_type) === expected.eventType &&
     String(row.trace_id) === expected.requestId &&
-    String(row.subject_id) === expected.subjectId &&
+    subjectsMatch &&
     String(row.details_json) === expected.detailsJson &&
     String(row.created_at) === expected.createdAt;
 }
@@ -1963,6 +1975,12 @@ async function consumeNativeQueue(batch, env) {
   }
 }
 
+function sourceBundleSha256(env) {
+  return typeof env.SOURCE_BUNDLE_SHA256 === "string" && /^[a-f0-9]{64}$/.test(env.SOURCE_BUNDLE_SHA256)
+    ? env.SOURCE_BUNDLE_SHA256
+    : null;
+}
+
 async function health(env, requestId) {
   if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
     return json({
@@ -1970,6 +1988,7 @@ async function health(env, requestId) {
       service: "agent-api-stateful-runtime",
       d1_binding_configured: Boolean(env.DB),
       write_auth_configured: Boolean(env.AGENT_API_AUTH_TOKEN),
+      source_bundle_sha256: sourceBundleSha256(env),
     }, 503);
   }
   try {
@@ -1983,6 +2002,7 @@ async function health(env, requestId) {
       mode: env.RUNTIME_MODE || "cloudflare_workers_d1_live",
       source_commit_sha: env.SOURCE_COMMIT_SHA || null,
       source_archive_sha256: env.SOURCE_ARCHIVE_SHA256 || null,
+      source_bundle_sha256: sourceBundleSha256(env),
       d1_binding_configured: true,
       d1_read_verified: healthy,
       write_auth_configured: true,
@@ -1997,7 +2017,11 @@ async function health(env, requestId) {
       secret_output: false,
     }, healthy ? 200 : 503);
   } catch {
-    return json(blocked("d1_health_probe_failed", requestId, "The D1 health query failed."), 503);
+    return json({
+      ...blocked("d1_health_probe_failed", requestId, "The D1 health query failed."),
+      service: "agent-api-stateful-runtime",
+      source_bundle_sha256: sourceBundleSha256(env),
+    }, 503);
   }
 }
 
@@ -2105,14 +2129,53 @@ function base64UrlDecode(str) {
   return bytes;
 }
 
+function jwtSigningKeyBytes(secret) {
+  if (
+    typeof secret !== "string"
+    || secret.length < 43
+    || secret.length > 512
+    || !/^[A-Za-z0-9_-]+$/.test(secret)
+  ) {
+    return null;
+  }
+  try {
+    const bytes = base64UrlDecode(secret);
+    return bytes.length >= 32 && base64UrlEncode(bytes) === secret ? bytes : null;
+  } catch {
+    return null;
+  }
+}
+
+function canonicalIsoMillis(value) {
+  if (typeof value !== "string" || !AUTH_CANONICAL_ISO_PATTERN.test(value)) return null;
+  const millis = Date.parse(value);
+  return Number.isFinite(millis) && new Date(millis).toISOString() === value ? millis : null;
+}
+
+function refreshFamilyLifetime(family, nowMillis = Date.now()) {
+  const createdMillis = canonicalIsoMillis(family?.created_at);
+  const expiresMillis = canonicalIsoMillis(family?.expires_at);
+  const valid = createdMillis !== null
+    && expiresMillis !== null
+    && expiresMillis - createdMillis === AUTH_REFRESH_FAMILY_TTL_MS;
+  return {
+    valid,
+    createdMillis,
+    expiresMillis,
+    remainingSeconds: valid ? Math.max(0, Math.floor((expiresMillis - nowMillis) / 1000)) : 0,
+  };
+}
+
 async function signJwtHS256(payload, secret) {
+  const signingKey = jwtSigningKeyBytes(secret);
+  if (!signingKey) throw new Error("invalid_jwt_signing_configuration");
   const header = { alg: "HS256", typ: "JWT" };
   const encodedHeader = base64UrlEncodeString(JSON.stringify(header));
   const encodedPayload = base64UrlEncodeString(JSON.stringify(payload));
   const data = new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`);
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(secret),
+    signingKey,
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
@@ -2122,15 +2185,32 @@ async function signJwtHS256(payload, secret) {
   return `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
 }
 
-async function verifyJwtHS256(token, secret) {
-  if (typeof token !== "string") return { valid: false, reason: "missing" };
+async function verifyJwtHS256(token, secret, ownerIds) {
+  const signingKey = jwtSigningKeyBytes(secret);
+  if (typeof token !== "string" || !signingKey) {
+    return { valid: false, reason: "missing" };
+  }
   const parts = token.split(".");
   if (parts.length !== 3) return { valid: false, reason: "format" };
   const [encodedHeader, encodedPayload, encodedSignature] = parts;
+  if (![encodedHeader, encodedPayload, encodedSignature].every((part) => /^[A-Za-z0-9_-]+$/.test(part))) {
+    return { valid: false, reason: "format" };
+  }
   try {
+    const header = JSON.parse(new TextDecoder().decode(base64UrlDecode(encodedHeader)));
+    if (
+      !header
+      || typeof header !== "object"
+      || Array.isArray(header)
+      || header.alg !== "HS256"
+      || header.typ !== "JWT"
+      || Object.keys(header).sort().join(",") !== "alg,typ"
+    ) {
+      return { valid: false, reason: "header" };
+    }
     const key = await crypto.subtle.importKey(
       "raw",
-      new TextEncoder().encode(secret),
+      signingKey,
       { name: "HMAC", hash: "SHA-256" },
       false,
       ["verify"],
@@ -2141,7 +2221,38 @@ async function verifyJwtHS256(token, secret) {
     if (!valid) return { valid: false, reason: "signature" };
     const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(encodedPayload)));
     const now = Math.floor(Date.now() / 1000);
-    if (payload.exp && payload.exp < now) return { valid: false, reason: "expired" };
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return { valid: false, reason: "claims" };
+    }
+    if (!Number.isInteger(payload.iat) || !Number.isInteger(payload.exp)) {
+      return { valid: false, reason: "claims" };
+    }
+    if (
+      payload.iat > now + 60
+      || payload.exp <= now
+      || payload.exp !== payload.iat + AUTH_ACCESS_TTL_SECONDS
+      || canonicalIsoMillis(payload.issued_at) !== payload.iat * 1000
+      || canonicalIsoMillis(payload.expires_at) !== payload.exp * 1000
+    ) {
+      return { valid: false, reason: payload.exp <= now ? "expired" : "claims" };
+    }
+    if (
+      payload.iss !== "cloud-superbrain-agent-api"
+      || payload.aud !== "cloud-superbrain-frontend"
+      || payload.provider !== "github"
+      || !Number.isSafeInteger(payload.provider_user_id)
+      || payload.provider_user_id <= 0
+      || payload.sub !== `github:${payload.provider_user_id}`
+      || typeof payload.sid !== "string"
+      || !AUTH_REFRESH_FAMILY_ID_PATTERN.test(payload.sid)
+      || typeof payload.trace_id !== "string"
+      || !/^[A-Za-z0-9_.:-]{1,128}$/.test(payload.trace_id)
+    ) {
+      return { valid: false, reason: "claims" };
+    }
+    if (!(ownerIds instanceof Set) || !ownerIds.has(payload.provider_user_id)) {
+      return { valid: false, reason: "owner_not_allowed" };
+    }
     return { valid: true, payload };
   } catch {
     return { valid: false, reason: "invalid" };
@@ -2149,65 +2260,185 @@ async function verifyJwtHS256(token, secret) {
 }
 
 function parseOwnerIds(raw) {
-  if (!raw || typeof raw !== "string") return new Set();
+  if (typeof raw !== "string" || raw.length < 1 || raw.length > 2048) return new Set();
+  const tokens = raw.split(",").map((token) => token.trim());
+  if (tokens.length < 1 || tokens.length > 64) return new Set();
   const ids = new Set();
-  for (const token of raw.split(",")) {
-    const trimmed = token.trim();
-    if (/^\d+$/.test(trimmed)) {
-      const num = parseInt(trimmed, 10);
-      if (num > 0) ids.add(num);
-    }
+  for (const token of tokens) {
+    if (!/^[1-9]\d{0,15}$/.test(token)) return new Set();
+    const num = Number(token);
+    if (!Number.isSafeInteger(num) || num < 1 || ids.has(num)) return new Set();
+    ids.add(num);
   }
   return ids;
 }
 
+function authAuditRecord(eventType, details) {
+  const traceId = safeRequestId(details.trace_id);
+  const subjectId = typeof details.subject === "string" && details.subject.length > 0
+    ? details.subject
+    : null;
+  const createdAt = new Date().toISOString();
+  return {
+    id: crypto.randomUUID(),
+    eventType,
+    traceId,
+    subjectId,
+    detailsJson: JSON.stringify(details),
+    createdAt,
+  };
+}
+
+function authAuditStatement(env, record) {
+  return env.DB.prepare("INSERT INTO audit_events (id, event_type, trace_id, subject_id, details_json, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(record.id, record.eventType, record.traceId, record.subjectId, record.detailsJson, record.createdAt);
+}
+
+async function authAuditReadback(env, record) {
+  const row = await env.DB.prepare(`
+    SELECT id, event_type, trace_id, subject_id, details_json, created_at
+    FROM audit_events
+    WHERE id = ? AND event_type = ? AND trace_id = ? AND subject_id IS ?
+    LIMIT 1
+  `).bind(record.id, record.eventType, record.traceId, record.subjectId).first();
+  return auditReadbackMatches(row, {
+    id: record.id,
+    eventType: record.eventType,
+    requestId: record.traceId,
+    subjectId: record.subjectId,
+    detailsJson: record.detailsJson,
+    createdAt: record.createdAt,
+  });
+}
+
 async function persistAuthAudit(env, eventType, details) {
-  if (!env.DB) return false;
+  if (!env.DB || !eventType || !details || typeof details !== "object" || containsSecretMaterial(details)) return false;
   try {
-    const id = `audit_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-    const traceId = details.trace_id || `trace_${Date.now()}`;
-    const subjectId = details.subject || null;
-    const createdAt = new Date().toISOString();
-    await env.DB.prepare("INSERT INTO audit_events (id, event_type, trace_id, subject_id, details_json, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-      .bind(id, eventType, traceId, subjectId, JSON.stringify(details), createdAt)
-      .run();
-    return true;
+    const record = authAuditRecord(eventType, details);
+    const result = await authAuditStatement(env, record).run();
+    if (Number(result?.meta?.changes || 0) !== 1) return false;
+    return await authAuditReadback(env, record);
   } catch {
     return false;
   }
 }
 
+function postLoginRedirect(env) {
+  const candidate = typeof env.POST_LOGIN_REDIRECT === "string" ? env.POST_LOGIN_REDIRECT.trim() : "";
+  return candidate === "/login" || candidate === "/workbench" ? candidate : "/workbench";
+}
+
+function canonicalOauthPublicOrigin(value) {
+  if (typeof value !== "string" || value.length < 1 || value.length > 256 || value !== value.trim()) {
+    return null;
+  }
+  try {
+    const parsed = new URL(value);
+    if (
+      parsed.protocol !== "https:"
+      || parsed.username !== ""
+      || parsed.password !== ""
+      || parsed.port !== ""
+      || parsed.pathname !== "/"
+      || parsed.search !== ""
+      || parsed.hash !== ""
+      || parsed.origin !== value
+      || !AUTH_VERCEL_PUBLIC_HOST_PATTERN.test(parsed.hostname)
+    ) {
+      return null;
+    }
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
+function canonicalOauthRedirectUri(env) {
+  const origin = canonicalOauthPublicOrigin(env.OAUTH_PUBLIC_ORIGIN);
+  return origin ? `${origin}/api/v1/auth/callback` : null;
+}
+
+async function authProviderFetch(input, init) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8_000);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function authContractPayload(env) {
-  const credentialsConfigured = Boolean(
-    env.GITHUB_OAUTH_CLIENT_ID &&
-    env.GITHUB_OAUTH_CLIENT_SECRET &&
-    env.JWT_SIGNING_SECRET,
+  const githubClientIdConfigured = typeof env.GITHUB_OAUTH_CLIENT_ID === "string"
+    && AUTH_GITHUB_CLIENT_ID_PATTERN.test(env.GITHUB_OAUTH_CLIENT_ID);
+  const githubClientSecretConfigured = typeof env.GITHUB_OAUTH_CLIENT_SECRET === "string"
+    && /^[\x21-\x7E]{20,256}$/.test(env.GITHUB_OAUTH_CLIENT_SECRET);
+  const oauthPublicOrigin = canonicalOauthPublicOrigin(env.OAUTH_PUBLIC_ORIGIN);
+  const expectedRedirectUri = oauthPublicOrigin ? `${oauthPublicOrigin}/api/v1/auth/callback` : null;
+  const githubRedirectConfigured = typeof env.GITHUB_OAUTH_REDIRECT_URI === "string"
+    && expectedRedirectUri !== null
+    && env.GITHUB_OAUTH_REDIRECT_URI === expectedRedirectUri;
+  const jwtSigningConfigured = Boolean(jwtSigningKeyBytes(env.JWT_SIGNING_SECRET));
+  const oauthCredentialsConfigured = githubClientIdConfigured
+    && githubClientSecretConfigured
+    && githubRedirectConfigured;
+  const ownerIds = parseOwnerIds(env.GITHUB_OAUTH_OWNER_IDS);
+  const ownerAllowlistConfigured = ownerIds.size > 0;
+  const credentialsConfigured = oauthCredentialsConfigured && jwtSigningConfigured && ownerAllowlistConfigured;
+  const ownerGrantDeclared = env.PRODUCTION_AUTH_OWNER_GRANTED === "true";
+  const ownerGrantRef = env.PRODUCTION_AUTH_OWNER_GRANT_REF;
+  const ownerGrantRefConfigured = Boolean(
+    typeof ownerGrantRef === "string"
+    && /^[\x21-\x7E]{1,256}$/.test(ownerGrantRef),
   );
-  const ownerGranted = Boolean(env.GITHUB_OAUTH_OWNER_IDS && parseOwnerIds(env.GITHUB_OAUTH_OWNER_IDS).size > 0);
+  const ownerGranted = ownerGrantDeclared && ownerGrantRefConfigured;
   const ready = credentialsConfigured && ownerGranted;
+  const missingConfiguration = [
+    ...(!githubClientIdConfigured ? ["GITHUB_OAUTH_CLIENT_ID"] : []),
+    ...(!githubClientSecretConfigured ? ["GITHUB_OAUTH_CLIENT_SECRET"] : []),
+    ...(!oauthPublicOrigin ? ["OAUTH_PUBLIC_ORIGIN"] : []),
+    ...(!githubRedirectConfigured ? ["GITHUB_OAUTH_REDIRECT_URI"] : []),
+    ...(!ownerAllowlistConfigured ? ["GITHUB_OAUTH_OWNER_IDS"] : []),
+    ...(!jwtSigningConfigured ? ["JWT_SIGNING_SECRET_BASE64URL_256_BIT_MINIMUM"] : []),
+  ];
+  const activationBlockers = [
+    ...(!ownerGrantDeclared ? ["production_auth_identity_owner_grant"] : []),
+    ...(!ownerGrantRefConfigured ? ["production_auth_identity_owner_grant_ref"] : []),
+  ];
   return {
     contract_version: "auth-github-jwt-refresh-v1",
     mode: ready ? "verified_identity_fail_closed" : "local_contract_with_dry_run_oauth",
     live_github_oauth_call: false,
-    github_oauth_configured: credentialsConfigured,
+    github_oauth_configured: oauthCredentialsConfigured,
+    github_oauth_client_id_configured: githubClientIdConfigured,
+    oauth_public_origin_configured: Boolean(oauthPublicOrigin),
+    github_oauth_redirect_uri_canonical: githubRedirectConfigured,
+    jwt_signing_configured: jwtSigningConfigured,
     credentials_configured: credentialsConfigured,
+    owner_identity_allowlist_configured: ownerAllowlistConfigured,
+    owner_identity_allowlist_count: ownerIds.size,
+    owner_activation_required: true,
     owner_activation_granted: ownerGranted,
+    owner_activation_grant_ref_configured: ownerGrantRefConfigured,
     credential_issuance_ready: ready,
+    missing_configuration: missingConfiguration,
+    activation_blockers: activationBlockers,
     jwt: {
       algorithm: "HS256",
-      access_token_ttl_seconds: 900,
+      access_token_ttl_seconds: AUTH_ACCESS_TTL_SECONDS,
       issuer: "cloud-superbrain-agent-api",
       audience: "cloud-superbrain-frontend",
     },
     refresh_token: {
-      ttl_seconds: 604800,
+      ttl_seconds: AUTH_REFRESH_FAMILY_TTL_SECONDS,
+      family_ttl_fixed: true,
       storage: "hash_only_d1",
       rotation: "atomic",
     },
     cookie_flags: {
       oauth_state: "__Host-sb_oauth_state; Path=/; Max-Age=600; Secure; HttpOnly; SameSite=Lax",
-      access: "__Host-sb_access; Path=/; Max-Age=900; Secure; HttpOnly; SameSite=Strict",
-      refresh: "__Host-sb_refresh; Path=/; Max-Age=604800; Secure; HttpOnly; SameSite=Strict",
+      access: `__Host-sb_access; Path=/; Max-Age=${AUTH_ACCESS_TTL_SECONDS}; Secure; HttpOnly; SameSite=Strict`,
+      refresh: `__Host-sb_refresh; Path=/; Max-Age=${AUTH_REFRESH_FAMILY_TTL_SECONDS}; Secure; HttpOnly; SameSite=Strict`,
     },
     non_claims: [
       "No plaintext refresh token storage.",
@@ -2234,16 +2465,15 @@ async function authGithubStart(request, env, requestId) {
       state_required: true,
       state_issued: false,
       authorize_url: null,
-      missing_configuration: [
-        ...(!env.GITHUB_OAUTH_CLIENT_ID ? ["GITHUB_OAUTH_CLIENT_ID"] : []),
-        ...(!env.GITHUB_OAUTH_CLIENT_SECRET ? ["GITHUB_OAUTH_CLIENT_SECRET"] : []),
-        ...(!env.JWT_SIGNING_SECRET ? ["JWT_SIGNING_SECRET"] : []),
-      ],
-      activation_blockers: [
-        ...(!contract.owner_activation_granted ? ["GITHUB_OAUTH_OWNER_IDS"] : []),
-      ],
+      missing_configuration: contract.missing_configuration,
+      activation_blockers: contract.activation_blockers,
       non_claims: contract.non_claims,
     }, 200, [STATE_COOKIE_CLEAR]);
+  }
+
+  const redirectUri = canonicalOauthRedirectUri(env);
+  if (!redirectUri) {
+    return authResponse({ error: "github_oauth_not_configured", credentials_issued: false, secret_output: false }, 503, [STATE_COOKIE_CLEAR]);
   }
 
   const randomBytes = new Uint8Array(24);
@@ -2264,7 +2494,6 @@ async function authGithubStart(request, env, requestId) {
     return authResponse({ error: "auth_state_storage_unavailable", credentials_issued: false, secret_output: false }, 503, [STATE_COOKIE_CLEAR]);
   }
 
-  const redirectUri = env.GITHUB_OAUTH_REDIRECT_URI || "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev/api/v1/auth/callback";
   const params = new URLSearchParams({
     client_id: env.GITHUB_OAUTH_CLIENT_ID,
     redirect_uri: redirectUri,
@@ -2276,8 +2505,184 @@ async function authGithubStart(request, env, requestId) {
   return redirectResponse(authorizeUrl, [stateCookie]);
 }
 
+async function consumeOauthState(env, state, nowIso) {
+  if (!env.DB) return false;
+  const result = await env.DB.prepare("DELETE FROM oauth_states WHERE state = ? AND expires_at > ?")
+    .bind(state, nowIso)
+    .run();
+  return Number(result?.meta?.changes || 0) === 1;
+}
+
+async function auditedAuthRejection(env, eventType, details, body, status, cookies) {
+  const auditSaved = await persistAuthAudit(env, eventType, details);
+  if (!auditSaved) {
+    return authResponse({
+      error: "auth_audit_unavailable",
+      credentials_issued: false,
+      secret_output: false,
+    }, 503, cookies);
+  }
+  return authResponse(body, status, cookies);
+}
+
+async function revokeExpiredRefreshFamily(env, family, nowIso, traceId, eventType) {
+  const sid = typeof family?.family_id === "string" && AUTH_REFRESH_FAMILY_ID_PATTERN.test(family.family_id)
+    ? family.family_id
+    : null;
+  const subject = typeof family?.subject === "string" && /^github:[1-9]\d{0,15}$/.test(family.subject)
+    ? family.subject
+    : null;
+  const activeHash = typeof family?.active_token_hash === "string" && /^[a-f0-9]{64}$/.test(family.active_token_hash)
+    ? family.active_token_hash
+    : null;
+  const nowMillis = canonicalIsoMillis(nowIso);
+  const lifetime = refreshFamilyLifetime(family, nowMillis ?? Date.now());
+  if (!env.DB || !sid || !subject || !activeHash || nowMillis === null || (lifetime.valid && lifetime.remainingSeconds > 0)) {
+    return false;
+  }
+  const observedExpiry = typeof family.expires_at === "string" ? family.expires_at : "";
+  const audit = authAuditRecord(eventType, {
+    trace_id: traceId,
+    sid,
+    subject,
+    reason: "refresh_token_expired",
+    refresh_token_revoked: true,
+    credentials_issued: false,
+  });
+  try {
+    const results = await env.DB.batch([
+      env.DB.prepare(`
+        INSERT INTO refresh_token_history (token_hash, family_id, consumed_at, status)
+        VALUES (
+          ?,
+          (SELECT family_id FROM refresh_token_families
+           WHERE family_id = ? AND active_token_hash = ? AND revoked_at IS NULL
+             AND COALESCE(expires_at, '') = ?),
+          ?,
+          'revoked'
+        )
+      `).bind(activeHash, sid, activeHash, observedExpiry, nowIso),
+      env.DB.prepare(`
+        UPDATE refresh_token_families
+        SET revoked_at = ?, updated_at = ?, revocation_reason = 'refresh_token_expired'
+        WHERE family_id = ? AND active_token_hash = ? AND revoked_at IS NULL
+          AND COALESCE(expires_at, '') = ?
+      `).bind(nowIso, nowIso, sid, activeHash, observedExpiry),
+      authAuditStatement(env, audit),
+    ]);
+    if (results.some((result) => Number(result?.meta?.changes || 0) !== 1)) return false;
+    const [revokedFamily, revokedHistory, auditVerified] = await Promise.all([
+      env.DB.prepare(`
+        SELECT family_id, subject, active_token_hash, created_at, updated_at, expires_at, revoked_at, revocation_reason
+        FROM refresh_token_families WHERE family_id = ?
+      `).bind(sid).first(),
+      env.DB.prepare("SELECT family_id, status FROM refresh_token_history WHERE token_hash = ?")
+        .bind(activeHash).first(),
+      authAuditReadback(env, audit),
+    ]);
+    return Boolean(
+      String(revokedFamily?.family_id) === sid
+      && String(revokedFamily?.subject) === subject
+      && String(revokedFamily?.active_token_hash) === activeHash
+      && String(revokedFamily?.expires_at ?? "") === observedExpiry
+      && revokedFamily?.revoked_at
+      && String(revokedFamily.revocation_reason) === "refresh_token_expired"
+      && String(revokedHistory?.family_id) === sid
+      && String(revokedHistory?.status) === "revoked"
+      && auditVerified
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function readRefreshFamilyById(env, familyId) {
+  return env.DB.prepare(`
+    SELECT family_id, subject, active_token_hash, created_at, updated_at, expires_at, revoked_at, revocation_reason
+    FROM refresh_token_families WHERE family_id = ?
+  `).bind(familyId).first();
+}
+
+async function readRefreshFamilyByActiveHash(env, activeHash) {
+  return env.DB.prepare(`
+    SELECT family_id, subject, active_token_hash, created_at, updated_at, expires_at, revoked_at, revocation_reason
+    FROM refresh_token_families WHERE active_token_hash = ?
+  `).bind(activeHash).first();
+}
+
+async function revokeRefreshReplay(env, replayedHistory, family, replayedHash, nowIso, traceId) {
+  const sid = String(replayedHistory?.family_id || "");
+  const activeHash = String(family?.active_token_hash || "");
+  const lifetime = refreshFamilyLifetime(family, canonicalIsoMillis(nowIso) ?? Date.now());
+  if (
+    !AUTH_REFRESH_FAMILY_ID_PATTERN.test(sid)
+    || String(family?.family_id) !== sid
+    || family?.revoked_at
+    || !/^[a-f0-9]{64}$/.test(activeHash)
+    || !/^[a-f0-9]{64}$/.test(replayedHash)
+    || !lifetime.valid
+    || lifetime.remainingSeconds < 1
+  ) {
+    return false;
+  }
+  const audit = authAuditRecord("auth_refresh_reuse_blocked", {
+    trace_id: traceId,
+    sid,
+    subject: String(family.subject),
+    reason: "blacklisted",
+    credentials_issued: false,
+  });
+  try {
+    const results = await env.DB.batch([
+      env.DB.prepare(`
+        INSERT INTO refresh_token_history (token_hash, family_id, consumed_at, status)
+        VALUES (
+          ?,
+          (SELECT family_id FROM refresh_token_families
+           WHERE family_id = ? AND active_token_hash = ? AND revoked_at IS NULL
+             AND expires_at = ? AND expires_at > ?),
+          ?,
+          'revoked'
+        )
+      `).bind(activeHash, sid, activeHash, family.expires_at, nowIso, nowIso),
+      env.DB.prepare(`
+        UPDATE refresh_token_families
+        SET revoked_at = ?, updated_at = ?, revocation_reason = 'token_replay_detected'
+        WHERE family_id = ? AND active_token_hash = ? AND revoked_at IS NULL
+          AND expires_at = ? AND expires_at > ?
+      `).bind(nowIso, nowIso, sid, activeHash, family.expires_at, nowIso),
+      env.DB.prepare("UPDATE refresh_token_history SET status = 'blacklisted' WHERE token_hash = ? AND family_id = ?")
+        .bind(replayedHash, sid),
+      authAuditStatement(env, audit),
+    ]);
+    if (results.some((result) => Number(result?.meta?.changes || 0) !== 1)) return false;
+    const [revokedFamily, activeHistory, blacklistedHistory, auditVerified] = await Promise.all([
+      readRefreshFamilyById(env, sid),
+      env.DB.prepare("SELECT family_id, status FROM refresh_token_history WHERE token_hash = ?")
+        .bind(activeHash).first(),
+      env.DB.prepare("SELECT family_id, status FROM refresh_token_history WHERE token_hash = ?")
+        .bind(replayedHash).first(),
+      authAuditReadback(env, audit),
+    ]);
+    return Boolean(
+      revokedFamily?.revoked_at
+      && String(revokedFamily.revocation_reason) === "token_replay_detected"
+      && String(revokedFamily.expires_at) === String(family.expires_at)
+      && String(activeHistory?.family_id) === sid
+      && String(activeHistory?.status) === "revoked"
+      && String(blacklistedHistory?.family_id) === sid
+      && String(blacklistedHistory?.status) === "blacklisted"
+      && auditVerified
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function authGithubCallback(request, url, env, requestId) {
-  const traceId = safeRequestId(request.headers.get("x-request-id")) || `trace-auth-callback-${Date.now()}`;
+  const traceId = safeRequestId(
+    request.headers.get("x-request-id") || requestId || `auth-callback-${crypto.randomUUID()}`,
+  );
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const oauthError = url.searchParams.get("error");
@@ -2285,42 +2690,48 @@ async function authGithubCallback(request, url, env, requestId) {
 
   const contract = authContractPayload(env);
   if (!contract.credential_issuance_ready) {
-    await persistAuthAudit(env, "auth_github_callback_blocked", {
+    const ownerBlocked = contract.credentials_configured && !contract.owner_activation_granted;
+    return auditedAuthRejection(env, "auth_github_callback_blocked", {
+      trace_id: traceId,
+      reason: ownerBlocked ? "owner_activation_required" : "configuration_required",
+      credentials_issued: false,
+    }, {
+      error: ownerBlocked ? "production_auth_owner_activation_required" : "github_oauth_not_configured",
+      owner_activation_granted: contract.owner_activation_granted,
+      activation_blockers: contract.activation_blockers,
+      credentials_issued: false,
+      live_github_oauth_call: false,
+      secret_output: false,
+    }, ownerBlocked ? 403 : 503, [STATE_COOKIE_CLEAR]);
+  }
+  const redirectUri = canonicalOauthRedirectUri(env);
+  if (!redirectUri) {
+    return auditedAuthRejection(env, "auth_github_callback_blocked", {
       trace_id: traceId,
       reason: "configuration_required",
       credentials_issued: false,
-    });
-    return authResponse({
+    }, {
       error: "github_oauth_not_configured",
-      owner_activation_granted: contract.owner_activation_granted,
       credentials_issued: false,
       live_github_oauth_call: false,
       secret_output: false,
     }, 503, [STATE_COOKIE_CLEAR]);
   }
 
-  if (oauthError) {
-    await persistAuthAudit(env, "auth_github_callback_blocked", {
-      trace_id: traceId,
-      reason: "oauth_provider_denied",
-      credentials_issued: false,
-    });
-    return authResponse({
-      error: "oauth_provider_denied",
-      credentials_issued: false,
-      live_github_oauth_call: false,
-      secret_output: false,
-    }, 401, [STATE_COOKIE_CLEAR]);
-  }
-
   const STATE_REGEX = /^phase3-auth-state-[A-Za-z0-9_-]{20,64}$/;
-  if (!state || !stateCookie || !STATE_REGEX.test(state) || !STATE_REGEX.test(stateCookie) || state !== stateCookie) {
-    await persistAuthAudit(env, "auth_github_callback_blocked", {
+  const stateMatches = Boolean(
+    state
+    && stateCookie
+    && STATE_REGEX.test(state)
+    && STATE_REGEX.test(stateCookie)
+    && await secureEqual(state, stateCookie),
+  );
+  if (!stateMatches) {
+    return auditedAuthRejection(env, "auth_github_callback_blocked", {
       trace_id: traceId,
       reason: "oauth_state_invalid",
       credentials_issued: false,
-    });
-    return authResponse({
+    }, {
       error: "oauth_state_invalid",
       credentials_issued: false,
       live_github_oauth_call: false,
@@ -2329,27 +2740,19 @@ async function authGithubCallback(request, url, env, requestId) {
   }
 
   const nowIso = new Date().toISOString();
-  let stateRow = null;
+  let stateConsumed = false;
   try {
-    stateRow = await env.DB.prepare("SELECT state FROM oauth_states WHERE state = ? AND expires_at > ?")
-      .bind(state, nowIso)
-      .first();
-    if (stateRow) {
-      await env.DB.prepare("DELETE FROM oauth_states WHERE state = ?")
-        .bind(state)
-        .run();
-    }
+    stateConsumed = await consumeOauthState(env, state, nowIso);
   } catch {
     return authResponse({ error: "auth_state_storage_unavailable", credentials_issued: false, secret_output: false }, 503, [STATE_COOKIE_CLEAR]);
   }
 
-  if (!stateRow) {
-    await persistAuthAudit(env, "auth_github_callback_blocked", {
+  if (!stateConsumed) {
+    return auditedAuthRejection(env, "auth_github_callback_blocked", {
       trace_id: traceId,
       reason: "oauth_state_invalid",
       credentials_issued: false,
-    });
-    return authResponse({
+    }, {
       error: "oauth_state_invalid",
       credentials_issued: false,
       live_github_oauth_call: false,
@@ -2357,14 +2760,30 @@ async function authGithubCallback(request, url, env, requestId) {
     }, 401, [STATE_COOKIE_CLEAR]);
   }
 
+  if (oauthError) {
+    return auditedAuthRejection(env, "auth_github_callback_blocked", {
+      trace_id: traceId,
+      reason: "oauth_provider_denied",
+      oauth_state_consumed: true,
+      credentials_issued: false,
+    }, {
+      error: "oauth_provider_denied",
+      oauth_state_consumed: true,
+      credentials_issued: false,
+      live_github_oauth_call: false,
+      secret_output: false,
+    }, 401, [STATE_COOKIE_CLEAR]);
+  }
+
   if (!code || typeof code !== "string" || code.length < 1 || code.length > 255) {
-    await persistAuthAudit(env, "auth_github_callback_blocked", {
+    return auditedAuthRejection(env, "auth_github_callback_blocked", {
       trace_id: traceId,
       reason: "oauth_callback_parameters_invalid",
+      oauth_state_consumed: true,
       credentials_issued: false,
-    });
-    return authResponse({
+    }, {
       error: "oauth_callback_parameters_invalid",
+      oauth_state_consumed: true,
       credentials_issued: false,
       live_github_oauth_call: false,
       secret_output: false,
@@ -2372,8 +2791,9 @@ async function authGithubCallback(request, url, env, requestId) {
   }
 
   let githubAccessToken = null;
+  let tokenData = null;
   try {
-    const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
+    const tokenRes = await authProviderFetch("https://github.com/login/oauth/access_token", {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -2384,30 +2804,59 @@ async function authGithubCallback(request, url, env, requestId) {
         client_id: env.GITHUB_OAUTH_CLIENT_ID,
         client_secret: env.GITHUB_OAUTH_CLIENT_SECRET,
         code,
-        redirect_uri: env.GITHUB_OAUTH_REDIRECT_URI || "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev/api/v1/auth/callback",
+        redirect_uri: redirectUri,
       }),
     });
     if (!tokenRes.ok) throw new Error("token exchange failed");
-    const tokenData = await tokenRes.json();
-    if (tokenData.error || !tokenData.access_token) throw new Error(tokenData.error || "no access token");
+    tokenData = await tokenRes.json();
+    if (
+      !tokenData
+      || typeof tokenData !== "object"
+      || Array.isArray(tokenData)
+      || tokenData.error
+      || typeof tokenData.access_token !== "string"
+      || tokenData.access_token.length < 1
+      || tokenData.access_token.length > 512
+      || /\s/.test(tokenData.access_token)
+      || String(tokenData.token_type || "").toLowerCase() !== "bearer"
+    ) {
+      throw new Error("invalid token response");
+    }
     githubAccessToken = tokenData.access_token;
   } catch {
-    await persistAuthAudit(env, "auth_github_callback_blocked", {
+    return auditedAuthRejection(env, "auth_github_callback_blocked", {
       trace_id: traceId,
       reason: "oauth_exchange_failed",
+      oauth_state_consumed: true,
       credentials_issued: false,
-    });
-    return authResponse({
+    }, {
       error: "oauth_exchange_failed",
+      oauth_state_consumed: true,
       credentials_issued: false,
       live_github_oauth_call: false,
       secret_output: false,
     }, 401, [STATE_COOKIE_CLEAR]);
   }
 
+  if (tokenData.scope !== "read:user") {
+    return auditedAuthRejection(env, "auth_github_callback_blocked", {
+      trace_id: traceId,
+      reason: "oauth_scope_invalid",
+      oauth_state_consumed: true,
+      credentials_issued: false,
+    }, {
+      error: "oauth_scope_invalid",
+      required_scope: "read:user",
+      oauth_state_consumed: true,
+      credentials_issued: false,
+      live_github_oauth_call: true,
+      secret_output: false,
+    }, 401, [STATE_COOKIE_CLEAR]);
+  }
+
   let githubUser = null;
   try {
-    const userRes = await fetch("https://api.github.com/user", {
+    const userRes = await authProviderFetch("https://api.github.com/user", {
       headers: {
         Authorization: `Bearer ${githubAccessToken}`,
         Accept: "application/vnd.github.v3+json",
@@ -2417,43 +2866,48 @@ async function authGithubCallback(request, url, env, requestId) {
     if (!userRes.ok) throw new Error("user fetch failed");
     githubUser = await userRes.json();
   } catch {
-    await persistAuthAudit(env, "auth_github_callback_blocked", {
+    return auditedAuthRejection(env, "auth_github_callback_blocked", {
       trace_id: traceId,
       reason: "oauth_user_fetch_failed",
+      oauth_state_consumed: true,
       credentials_issued: false,
-    });
-    return authResponse({
+    }, {
       error: "oauth_user_fetch_failed",
+      oauth_state_consumed: true,
       credentials_issued: false,
-      live_github_oauth_call: false,
+      live_github_oauth_call: true,
       secret_output: false,
     }, 401, [STATE_COOKIE_CLEAR]);
   }
 
-  const githubId = Number(githubUser?.id);
-  if (!Number.isInteger(githubId) || githubId <= 0) {
-    await persistAuthAudit(env, "auth_github_callback_blocked", {
+  const githubId = githubUser?.id;
+  if (!Number.isSafeInteger(githubId) || githubId <= 0) {
+    return auditedAuthRejection(env, "auth_github_callback_blocked", {
       trace_id: traceId,
       reason: "oauth_user_id_invalid",
+      oauth_state_consumed: true,
       credentials_issued: false,
-    });
-    return authResponse({
+    }, {
       error: "oauth_user_id_invalid",
+      oauth_state_consumed: true,
       credentials_issued: false,
+      live_github_oauth_call: true,
       secret_output: false,
     }, 401, [STATE_COOKIE_CLEAR]);
   }
 
   const ownerIds = parseOwnerIds(env.GITHUB_OAUTH_OWNER_IDS);
   if (!ownerIds.has(githubId)) {
-    await persistAuthAudit(env, "auth_github_callback_blocked", {
+    return auditedAuthRejection(env, "auth_github_callback_blocked", {
       trace_id: traceId,
       reason: "github_owner_identity_not_allowed",
+      oauth_state_consumed: true,
       credentials_issued: false,
-    });
-    return authResponse({
+    }, {
       error: "github_owner_identity_not_allowed",
+      oauth_state_consumed: true,
       credentials_issued: false,
+      live_github_oauth_call: true,
       secret_output: false,
     }, 403, [STATE_COOKIE_CLEAR]);
   }
@@ -2470,61 +2924,86 @@ async function authGithubCallback(request, url, env, requestId) {
 
   const nowSec = Math.floor(Date.now() / 1000);
   const issuedAtIso = new Date(nowSec * 1000).toISOString();
-  const expiresAtIso = new Date((nowSec + 900) * 1000).toISOString();
-
-  try {
-    await env.DB.prepare("INSERT INTO refresh_token_families (family_id, subject, active_token_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
-      .bind(familyId, subject, refreshHash, issuedAtIso, issuedAtIso)
-      .run();
-  } catch {
-    return authResponse({ error: "refresh_registry_unavailable", credentials_issued: false, secret_output: false }, 503, [STATE_COOKIE_CLEAR]);
-  }
-
-  const auditSaved = await persistAuthAudit(env, "auth_github_callback_verified", {
-    trace_id: traceId,
-    identity_verified: true,
-    oauth_state_consumed: true,
-    live_github_oauth_call: true,
-    cookie_flags: contract.cookie_flags,
-  });
-
-  if (!auditSaved) {
-    try {
-      await env.DB.prepare("UPDATE refresh_token_families SET revoked_at = ?, revocation_reason = 'audit_unavailable' WHERE family_id = ?")
-        .bind(new Date().toISOString(), familyId)
-        .run();
-    } catch {}
-    return authResponse({ error: "auth_audit_unavailable", credentials_issued: false, secret_output: false }, 503, [STATE_COOKIE_CLEAR]);
-  }
+  const expiresAtIso = new Date((nowSec + AUTH_ACCESS_TTL_SECONDS) * 1000).toISOString();
+  const familyExpiresAtIso = new Date((nowSec + AUTH_REFRESH_FAMILY_TTL_SECONDS) * 1000).toISOString();
 
   const jwtPayload = {
     sub: subject,
+    sid: familyId,
     provider: "github",
     provider_user_id: githubId,
     iss: "cloud-superbrain-agent-api",
     aud: "cloud-superbrain-frontend",
     iat: nowSec,
-    exp: nowSec + 900,
+    exp: nowSec + AUTH_ACCESS_TTL_SECONDS,
     trace_id: traceId,
     issued_at: issuedAtIso,
     expires_at: expiresAtIso,
   };
-  const accessToken = await signJwtHS256(jwtPayload, env.JWT_SIGNING_SECRET);
+  let accessToken;
+  try {
+    accessToken = await signJwtHS256(jwtPayload, env.JWT_SIGNING_SECRET);
+  } catch {
+    return authResponse({ error: "access_token_issuance_failed", credentials_issued: false, secret_output: false }, 503, [STATE_COOKIE_CLEAR]);
+  }
+
+  const successAudit = authAuditRecord("auth_github_callback_verified", {
+    trace_id: traceId,
+    sid: familyId,
+    subject,
+    provider_user_id: githubId,
+    identity_verified: true,
+    oauth_state_consumed: true,
+    oauth_scope_verified: "read:user",
+    live_github_oauth_call: true,
+    cookie_flags: contract.cookie_flags,
+  });
+  try {
+    const results = await env.DB.batch([
+      env.DB.prepare("INSERT INTO refresh_token_families (family_id, subject, active_token_hash, created_at, updated_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)")
+        .bind(familyId, subject, refreshHash, issuedAtIso, issuedAtIso, familyExpiresAtIso),
+      authAuditStatement(env, successAudit),
+    ]);
+    if (Number(results[0]?.meta?.changes || 0) !== 1 || Number(results[1]?.meta?.changes || 0) !== 1) {
+      throw new Error("auth_callback_change_count_invalid");
+    }
+    const family = await env.DB.prepare(`
+      SELECT family_id, subject, active_token_hash, created_at, updated_at, expires_at, revoked_at, revocation_reason
+      FROM refresh_token_families
+      WHERE family_id = ?
+      LIMIT 1
+    `).bind(familyId).first();
+    if (
+      !family
+      || String(family.family_id) !== familyId
+      || String(family.subject) !== subject
+      || String(family.active_token_hash) !== refreshHash
+      || String(family.created_at) !== issuedAtIso
+      || String(family.expires_at) !== familyExpiresAtIso
+      || !refreshFamilyLifetime(family, nowSec * 1000).valid
+      || family.revoked_at
+      || !(await authAuditReadback(env, successAudit))
+    ) {
+      throw new Error("auth_callback_readback_failed");
+    }
+  } catch {
+    return authResponse({
+      error: "auth_persistence_unavailable",
+      credentials_issued: false,
+      audit_persisted: false,
+      secret_output: false,
+    }, 503, [STATE_COOKIE_CLEAR]);
+  }
 
   const cookies = [
     STATE_COOKIE_CLEAR,
-    `__Host-sb_access=${accessToken}; Path=/; Max-Age=900; Secure; HttpOnly; SameSite=Strict`,
-    `__Host-sb_refresh=${refreshToken}; Path=/; Max-Age=604800; Secure; HttpOnly; SameSite=Strict`,
+    `__Host-sb_access=${accessToken}; Path=/; Max-Age=${AUTH_ACCESS_TTL_SECONDS}; Secure; HttpOnly; SameSite=Strict`,
+    `__Host-sb_refresh=${refreshToken}; Path=/; Max-Age=${AUTH_REFRESH_FAMILY_TTL_SECONDS}; Secure; HttpOnly; SameSite=Strict`,
   ];
 
   const acceptHeader = request.headers.get("accept") || "";
   if (acceptHeader.includes("text/html")) {
-    // "/workbench" does not exist on this worker: unknown paths fall through to
-    // CONTRACT_ORIGIN, which is the backend project, so the browser landed on a 404
-    // right after a successful login. Default to a path this worker actually serves and
-    // let the owner point POST_LOGIN_REDIRECT wherever the app really lives once the
-    // frontend and the session share one origin.
-    return redirectResponse(env.POST_LOGIN_REDIRECT || "/api/v1/auth/me", cookies);
+    return redirectResponse(postLoginRedirect(env), cookies);
   }
 
   return authResponse({
@@ -2537,8 +3016,8 @@ async function authGithubCallback(request, url, env, requestId) {
     access_token_issued: true,
     refresh_token_issued: true,
     audit_persisted: true,
-    access_token_expires_in: 900,
-    refresh_token_expires_in: 604800,
+    access_token_expires_in: AUTH_ACCESS_TTL_SECONDS,
+    refresh_token_expires_in: AUTH_REFRESH_FAMILY_TTL_SECONDS,
     cookie_flags: contract.cookie_flags,
     trace_id: traceId,
     non_claims: contract.non_claims,
@@ -2546,6 +3025,20 @@ async function authGithubCallback(request, url, env, requestId) {
 }
 
 async function authMe(request, env, requestId) {
+  const contract = authContractPayload(env);
+  if (!contract.credential_issuance_ready) {
+    const ownerBlocked = contract.credentials_configured && !contract.owner_activation_granted;
+    return authResponse({
+      error: ownerBlocked ? "production_auth_owner_activation_required" : "auth_configuration_required",
+      authenticated: false,
+      identity_verified: false,
+      owner_activation_granted: contract.owner_activation_granted,
+      activation_blockers: contract.activation_blockers,
+      token_returned: false,
+      cookie_returned: false,
+      secret_output: false,
+    }, ownerBlocked ? 403 : 503, [ACCESS_COOKIE_CLEAR]);
+  }
   const accessToken = getCookie(request, AUTH_ACCESS_COOKIE);
   if (!accessToken || !env.JWT_SIGNING_SECRET) {
     return authResponse({
@@ -2558,31 +3051,22 @@ async function authMe(request, env, requestId) {
     }, 401, [ACCESS_COOKIE_CLEAR]);
   }
 
-  const result = await verifyJwtHS256(accessToken, env.JWT_SIGNING_SECRET);
+  const ownerIds = parseOwnerIds(env.GITHUB_OAUTH_OWNER_IDS);
+  const result = await verifyJwtHS256(accessToken, env.JWT_SIGNING_SECRET, ownerIds);
   if (!result.valid) {
+    const ownerNotAllowed = result.reason === "owner_not_allowed";
     return authResponse({
-      error: "access_token_invalid",
+      error: ownerNotAllowed ? "github_owner_identity_not_allowed" : "access_token_invalid",
       authenticated: false,
       identity_verified: false,
       token_returned: false,
       cookie_returned: false,
       secret_output: false,
-    }, 401, [ACCESS_COOKIE_CLEAR]);
+    }, ownerNotAllowed ? 403 : 401, [ACCESS_COOKIE_CLEAR]);
   }
 
   const claims = result.payload;
-  const ownerIds = parseOwnerIds(env.GITHUB_OAUTH_OWNER_IDS);
-  const providerUserId = Number(claims.provider_user_id);
-  if (!ownerIds.has(providerUserId)) {
-    return authResponse({
-      error: "github_owner_identity_not_allowed",
-      authenticated: false,
-      identity_verified: false,
-      token_returned: false,
-      cookie_returned: false,
-      secret_output: false,
-    }, 403, [ACCESS_COOKIE_CLEAR]);
-  }
+  const providerUserId = claims.provider_user_id;
 
   return authResponse({
     status: "authenticated",
@@ -2590,11 +3074,11 @@ async function authMe(request, env, requestId) {
     identity: {
       provider: "github",
       provider_user_id: providerUserId,
-      subject: claims.sub || `github:${providerUserId}`,
+      subject: claims.sub,
     },
     trace_id: claims.trace_id || requestId,
-    issued_at: claims.issued_at || new Date(claims.iat * 1000).toISOString(),
-    expires_at: claims.expires_at || new Date(claims.exp * 1000).toISOString(),
+    issued_at: new Date(claims.iat * 1000).toISOString(),
+    expires_at: new Date(claims.exp * 1000).toISOString(),
     owner_activation_granted: true,
     identity_verified: true,
     jwt_signature_verified: true,
@@ -2607,163 +3091,555 @@ async function authMe(request, env, requestId) {
 }
 
 async function authRefresh(request, env, requestId) {
-  const traceId = safeRequestId(request.headers.get("x-request-id")) || `trace-auth-refresh-${Date.now()}`;
+  const traceId = safeRequestId(
+    request.headers.get("x-request-id") || requestId || `auth-refresh-${crypto.randomUUID()}`,
+  );
+  const clearCookies = [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR];
+  if (!env.DB || !env.JWT_SIGNING_SECRET) {
+    return authResponse({ error: "refresh_registry_unavailable", credentials_issued: false, secret_output: false }, 503, clearCookies);
+  }
 
   let bodyJson = null;
   try {
+    const declaredLength = Number(request.headers.get("content-length") || 0);
+    if (declaredLength > MAX_BODY_BYTES) throw new Error("request_too_large");
     const text = await request.text();
-    if (text && text.trim()) bodyJson = JSON.parse(text);
-  } catch {}
+    if (new TextEncoder().encode(text).byteLength > MAX_BODY_BYTES) throw new Error("request_too_large");
+    if (text.trim()) {
+      bodyJson = JSON.parse(text);
+      if (!bodyJson || typeof bodyJson !== "object" || Array.isArray(bodyJson)) throw new Error("invalid_request");
+    }
+  } catch (error) {
+    const code = error instanceof Error && error.message === "request_too_large" ? "request_too_large" : "invalid_request";
+    return auditedAuthRejection(env, "auth_refresh_rejected", {
+      trace_id: traceId,
+      reason: code,
+      credentials_issued: false,
+    }, { error: code, credentials_issued: false, secret_output: false }, code === "request_too_large" ? 413 : 400, clearCookies);
+  }
   if (bodyJson && bodyJson.refresh_token !== undefined) {
-    await persistAuthAudit(env, "auth_refresh_rejected", { trace_id: traceId, reason: "body_token_not_allowed", credentials_issued: false });
-    return authResponse({ error: "refresh_token_body_not_allowed", credentials_issued: false, secret_output: false }, 400, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+    return auditedAuthRejection(env, "auth_refresh_rejected", {
+      trace_id: traceId,
+      reason: "body_token_not_allowed",
+      credentials_issued: false,
+    }, { error: "refresh_token_body_not_allowed", credentials_issued: false, secret_output: false }, 400, clearCookies);
   }
 
   const suppliedToken = getCookie(request, AUTH_REFRESH_COOKIE);
-  const REFRESH_REGEX = /^csr_[A-Za-z0-9_-]{20,64}$/;
-  if (!suppliedToken || !REFRESH_REGEX.test(suppliedToken)) {
-    await persistAuthAudit(env, "auth_refresh_rejected", { trace_id: traceId, reason: "refresh_token_missing", credentials_issued: false });
-    return authResponse({ error: "refresh_token_missing", credentials_issued: false, secret_output: false }, 401, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+  const refreshRegex = /^csr_[A-Za-z0-9_-]{20,64}$/;
+  if (!suppliedToken || !refreshRegex.test(suppliedToken)) {
+    return auditedAuthRejection(env, "auth_refresh_rejected", {
+      trace_id: traceId,
+      reason: "refresh_token_missing",
+      credentials_issued: false,
+    }, { error: "refresh_token_missing", credentials_issued: false, secret_output: false }, 401, clearCookies);
   }
 
   const suppliedHash = await sha256(suppliedToken);
   const nowIso = new Date().toISOString();
-
-  let historyRow = null;
+  let historyRow;
+  let family;
   try {
     historyRow = await env.DB.prepare("SELECT family_id, status FROM refresh_token_history WHERE token_hash = ?")
       .bind(suppliedHash)
       .first();
+    family = historyRow ? null : await readRefreshFamilyByActiveHash(env, suppliedHash);
   } catch {
-    return authResponse({ error: "refresh_registry_unavailable", credentials_issued: false, secret_output: false }, 503, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+    return authResponse({ error: "refresh_registry_unavailable", credentials_issued: false, secret_output: false }, 503, clearCookies);
   }
 
   if (historyRow) {
     try {
-      await env.DB.prepare("UPDATE refresh_token_families SET revoked_at = ?, revocation_reason = 'token_replay_detected' WHERE family_id = ?")
-        .bind(nowIso, historyRow.family_id)
-        .run();
-    } catch {}
-    await persistAuthAudit(env, "auth_refresh_reuse_blocked", { trace_id: traceId, reason: "blacklisted", credentials_issued: false });
-    return authResponse({ error: "refresh_token_invalid", reason: "blacklisted", credentials_issued: false, secret_output: false }, 401, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+      const historicalFamily = await readRefreshFamilyById(env, historyRow.family_id);
+      if (!historicalFamily) throw new Error("refresh_family_missing");
+      const historicalLifetime = refreshFamilyLifetime(historicalFamily, canonicalIsoMillis(nowIso) ?? Date.now());
+      if (!historicalFamily.revoked_at && (!historicalLifetime.valid || historicalLifetime.remainingSeconds < 1)) {
+        if (!(await revokeExpiredRefreshFamily(env, historicalFamily, nowIso, traceId, "auth_refresh_expired"))) {
+          throw new Error("refresh_expiry_revocation_failed");
+        }
+        return authResponse({ error: "refresh_token_invalid", reason: "expired", credentials_issued: false, secret_output: false }, 401, clearCookies);
+      }
+      if (historicalFamily.revoked_at) {
+        const revokedReason = String(historicalFamily.revocation_reason || "revoked");
+        const auditSaved = await persistAuthAudit(env, "auth_refresh_rejected", {
+          trace_id: traceId,
+          sid: String(historicalFamily.family_id),
+          subject: String(historicalFamily.subject),
+          reason: revokedReason === "refresh_token_expired" ? "expired" : "revoked",
+          credentials_issued: false,
+        });
+        if (!auditSaved) throw new Error("refresh_rejection_audit_failed");
+        return authResponse({
+          error: "refresh_token_invalid",
+          reason: revokedReason === "refresh_token_expired" ? "expired" : "revoked",
+          credentials_issued: false,
+          secret_output: false,
+        }, 401, clearCookies);
+      }
+      if (String(historyRow.status) === "revoked") throw new Error("refresh_revocation_readback_inconsistent");
+      if (!(await revokeRefreshReplay(env, historyRow, historicalFamily, suppliedHash, nowIso, traceId))) {
+        throw new Error("refresh_replay_readback_failed");
+      }
+    } catch {
+      return authResponse({ error: "refresh_registry_unavailable", credentials_issued: false, secret_output: false }, 503, clearCookies);
+    }
+    return authResponse({ error: "refresh_token_invalid", reason: "blacklisted", credentials_issued: false, secret_output: false }, 401, clearCookies);
   }
 
-  let family = null;
-  try {
-    family = await env.DB.prepare("SELECT family_id, subject, active_token_hash, revoked_at FROM refresh_token_families WHERE active_token_hash = ?")
-      .bind(suppliedHash)
-      .first();
-  } catch {
-    return authResponse({ error: "refresh_registry_unavailable", credentials_issued: false, secret_output: false }, 503, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+  if (!family) {
+    return auditedAuthRejection(env, "auth_refresh_rejected", {
+      trace_id: traceId,
+      reason: "unknown",
+      credentials_issued: false,
+    }, { error: "refresh_token_invalid", reason: "revoked", credentials_issued: false, secret_output: false }, 401, clearCookies);
+  }
+  if (family.revoked_at) {
+    const expired = String(family.revocation_reason) === "refresh_token_expired";
+    return auditedAuthRejection(env, "auth_refresh_rejected", {
+      trace_id: traceId,
+      sid: String(family.family_id),
+      subject: String(family.subject),
+      reason: expired ? "expired" : "revoked",
+      credentials_issued: false,
+    }, {
+      error: "refresh_token_invalid",
+      reason: expired ? "expired" : "revoked",
+      credentials_issued: false,
+      secret_output: false,
+    }, 401, clearCookies);
   }
 
-  if (!family || family.revoked_at) {
-    await persistAuthAudit(env, "auth_refresh_rejected", { trace_id: traceId, reason: "revoked_or_unknown", credentials_issued: false });
-    return authResponse({ error: "refresh_token_invalid", reason: "revoked", credentials_issued: false, secret_output: false }, 401, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+  const initialLifetime = refreshFamilyLifetime(family, canonicalIsoMillis(nowIso) ?? Date.now());
+  if (!initialLifetime.valid || initialLifetime.remainingSeconds < 1) {
+    const revoked = await revokeExpiredRefreshFamily(env, family, nowIso, traceId, "auth_refresh_expired");
+    return revoked
+      ? authResponse({ error: "refresh_token_invalid", reason: "expired", credentials_issued: false, secret_output: false }, 401, clearCookies)
+      : authResponse({ error: "refresh_registry_unavailable", credentials_issued: false, secret_output: false }, 503, clearCookies);
   }
 
-  const subjectId = Number(family.subject.split(":")[1]);
+  const contract = authContractPayload(env);
+  if (!contract.credential_issuance_ready) {
+    const ownerBlocked = contract.credentials_configured && !contract.owner_activation_granted;
+    return auditedAuthRejection(env, "auth_refresh_rejected", {
+      trace_id: traceId,
+      sid: String(family.family_id),
+      subject: String(family.subject),
+      reason: ownerBlocked ? "owner_activation_required" : "credential_issuance_configuration_required",
+      credentials_issued: false,
+    }, {
+      error: ownerBlocked ? "production_auth_owner_activation_required" : "auth_configuration_required",
+      activation_blockers: contract.activation_blockers,
+      credentials_issued: false,
+      secret_output: false,
+    }, ownerBlocked ? 403 : 503, clearCookies);
+  }
+
+  const subjectMatch = /^github:([1-9]\d*)$/.exec(String(family.subject));
+  const subjectId = subjectMatch ? Number(subjectMatch[1]) : NaN;
   const ownerIds = parseOwnerIds(env.GITHUB_OAUTH_OWNER_IDS);
-  if (!ownerIds.has(subjectId)) {
+  if (!Number.isSafeInteger(subjectId) || !ownerIds.has(subjectId)) {
+    const ownerRejectionNowIso = new Date().toISOString();
+    const ownerRejectionLifetime = refreshFamilyLifetime(
+      family,
+      canonicalIsoMillis(ownerRejectionNowIso) ?? Date.now(),
+    );
+    if (!ownerRejectionLifetime.valid || ownerRejectionLifetime.remainingSeconds < 1) {
+      const revoked = await revokeExpiredRefreshFamily(
+        env,
+        family,
+        ownerRejectionNowIso,
+        traceId,
+        "auth_refresh_expired",
+      );
+      return revoked
+        ? authResponse({ error: "refresh_token_invalid", reason: "expired", credentials_issued: false, secret_output: false }, 401, clearCookies)
+        : authResponse({ error: "refresh_registry_unavailable", credentials_issued: false, secret_output: false }, 503, clearCookies);
+    }
+    const audit = authAuditRecord("auth_refresh_rejected", {
+      trace_id: traceId,
+      sid: String(family.family_id),
+      subject: String(family.subject),
+      reason: "github_owner_identity_not_allowed",
+      credentials_issued: false,
+    });
     try {
-      await env.DB.prepare("UPDATE refresh_token_families SET revoked_at = ?, revocation_reason = 'owner_disallowed' WHERE family_id = ?")
-        .bind(nowIso, family.family_id)
-        .run();
-    } catch {}
-    await persistAuthAudit(env, "auth_refresh_rejected", { trace_id: traceId, reason: "github_owner_identity_not_allowed", credentials_issued: false });
-    return authResponse({ error: "github_owner_identity_not_allowed", credentials_issued: false, secret_output: false }, 403, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+      const results = await env.DB.batch([
+        env.DB.prepare(`
+          INSERT INTO refresh_token_history (token_hash, family_id, consumed_at, status)
+          VALUES (
+            ?,
+            (SELECT family_id FROM refresh_token_families
+             WHERE family_id = ? AND active_token_hash = ? AND revoked_at IS NULL
+               AND expires_at = ? AND expires_at > ?),
+            ?,
+            'revoked'
+          )
+        `).bind(
+          suppliedHash,
+          family.family_id,
+          suppliedHash,
+          family.expires_at,
+          ownerRejectionNowIso,
+          ownerRejectionNowIso,
+        ),
+        env.DB.prepare(`
+          UPDATE refresh_token_families
+          SET revoked_at = ?, updated_at = ?, revocation_reason = 'owner_disallowed'
+          WHERE family_id = ? AND active_token_hash = ? AND revoked_at IS NULL
+            AND expires_at = ? AND expires_at > ?
+        `).bind(
+          ownerRejectionNowIso,
+          ownerRejectionNowIso,
+          family.family_id,
+          suppliedHash,
+          family.expires_at,
+          ownerRejectionNowIso,
+        ),
+        authAuditStatement(env, audit),
+      ]);
+      if (results.some((result) => Number(result?.meta?.changes || 0) !== 1)) {
+        throw new Error("owner_rejection_persistence_failed");
+      }
+      const [revokedFamily, revokedHistory, auditVerified] = await Promise.all([
+        readRefreshFamilyById(env, family.family_id),
+        env.DB.prepare("SELECT family_id, status FROM refresh_token_history WHERE token_hash = ?")
+          .bind(suppliedHash).first(),
+        authAuditReadback(env, audit),
+      ]);
+      if (
+        String(revokedFamily?.family_id) !== String(family.family_id)
+        || String(revokedFamily?.subject) !== String(family.subject)
+        || String(revokedFamily?.active_token_hash) !== suppliedHash
+        || String(revokedFamily?.expires_at) !== String(family.expires_at)
+        || !revokedFamily?.revoked_at
+        || String(revokedFamily.revocation_reason) !== "owner_disallowed"
+        || String(revokedHistory?.family_id) !== String(family.family_id)
+        || String(revokedHistory?.status) !== "revoked"
+        || !auditVerified
+      ) {
+        throw new Error("owner_rejection_readback_failed");
+      }
+    } catch {
+      try {
+        const latestFamily = await readRefreshFamilyById(env, family.family_id);
+        const expiryNowIso = new Date().toISOString();
+        const latestLifetime = refreshFamilyLifetime(
+          latestFamily,
+          canonicalIsoMillis(expiryNowIso) ?? Date.now(),
+        );
+        if (
+          latestFamily
+          && !latestFamily.revoked_at
+          && (!latestLifetime.valid || latestLifetime.remainingSeconds < 1)
+          && await revokeExpiredRefreshFamily(env, latestFamily, expiryNowIso, traceId, "auth_refresh_expired")
+        ) {
+          return authResponse({ error: "refresh_token_invalid", reason: "expired", credentials_issued: false, secret_output: false }, 401, clearCookies);
+        }
+      } catch {
+        // The registry/audit response remains fail-closed below.
+      }
+      return authResponse({ error: "refresh_registry_unavailable", credentials_issued: false, secret_output: false }, 503, clearCookies);
+    }
+    return authResponse({ error: "github_owner_identity_not_allowed", credentials_issued: false, secret_output: false }, 403, clearCookies);
   }
 
   const randomNew = new Uint8Array(24);
   crypto.getRandomValues(randomNew);
   const newRefreshToken = `csr_${base64UrlEncode(randomNew)}`;
   const newHash = await sha256(newRefreshToken);
-
-  try {
-    await env.DB.prepare("INSERT INTO refresh_token_history (token_hash, family_id, consumed_at, status) VALUES (?, ?, ?, 'rotated')")
-      .bind(suppliedHash, family.family_id, nowIso)
-      .run();
-    await env.DB.prepare("UPDATE refresh_token_families SET active_token_hash = ?, updated_at = ? WHERE family_id = ? AND active_token_hash = ? AND revoked_at IS NULL")
-      .bind(newHash, nowIso, family.family_id, suppliedHash)
-      .run();
-  } catch {
-    return authResponse({ error: "refresh_registry_unavailable", credentials_issued: false, secret_output: false }, 503, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+  const rotationNowIso = new Date().toISOString();
+  const rotationLifetime = refreshFamilyLifetime(family, canonicalIsoMillis(rotationNowIso) ?? Date.now());
+  if (!rotationLifetime.valid || rotationLifetime.remainingSeconds < 1) {
+    const revoked = await revokeExpiredRefreshFamily(env, family, rotationNowIso, traceId, "auth_refresh_expired");
+    return revoked
+      ? authResponse({ error: "refresh_token_invalid", reason: "expired", credentials_issued: false, secret_output: false }, 401, clearCookies)
+      : authResponse({ error: "refresh_registry_unavailable", credentials_issued: false, secret_output: false }, 503, clearCookies);
   }
-
-  await persistAuthAudit(env, "auth_refresh_verified", {
-    trace_id: traceId,
-    family_id: family.family_id,
-    subject: family.subject,
-  });
-
+  const rotatedRefreshTtlSeconds = rotationLifetime.remainingSeconds;
+  const rotatedCookieFlags = {
+    ...contract.cookie_flags,
+    refresh: `__Host-sb_refresh; Path=/; Max-Age=${rotatedRefreshTtlSeconds}; Secure; HttpOnly; SameSite=Strict`,
+  };
   const nowSec = Math.floor(Date.now() / 1000);
-  const issuedAtIso = new Date(nowSec * 1000).toISOString();
-  const expiresAtIso = new Date((nowSec + 900) * 1000).toISOString();
-
   const jwtPayload = {
-    sub: family.subject,
+    sub: String(family.subject),
+    sid: String(family.family_id),
     provider: "github",
     provider_user_id: subjectId,
     iss: "cloud-superbrain-agent-api",
     aud: "cloud-superbrain-frontend",
     iat: nowSec,
-    exp: nowSec + 900,
+    exp: nowSec + AUTH_ACCESS_TTL_SECONDS,
     trace_id: traceId,
-    issued_at: issuedAtIso,
-    expires_at: expiresAtIso,
+    issued_at: new Date(nowSec * 1000).toISOString(),
+    expires_at: new Date((nowSec + AUTH_ACCESS_TTL_SECONDS) * 1000).toISOString(),
   };
-  const newAccessToken = await signJwtHS256(jwtPayload, env.JWT_SIGNING_SECRET);
+  let newAccessToken;
+  try {
+    newAccessToken = await signJwtHS256(jwtPayload, env.JWT_SIGNING_SECRET);
+  } catch {
+    return authResponse({ error: "access_token_issuance_failed", credentials_issued: false, secret_output: false }, 503, clearCookies);
+  }
+
+  const successAudit = authAuditRecord("auth_refresh_rotated", {
+    trace_id: traceId,
+    sid: String(family.family_id),
+    subject: String(family.subject),
+    old_refresh_blacklisted: true,
+    new_refresh_issued: true,
+    active_registry_verified: true,
+    cookie_flags: rotatedCookieFlags,
+  });
+  try {
+    const results = await env.DB.batch([
+      env.DB.prepare(`
+        INSERT INTO refresh_token_history (token_hash, family_id, consumed_at, status)
+        VALUES (
+          ?,
+          (SELECT family_id FROM refresh_token_families
+           WHERE family_id = ? AND active_token_hash = ? AND revoked_at IS NULL
+             AND expires_at = ? AND expires_at > ?),
+          ?,
+          'rotated'
+        )
+      `).bind(suppliedHash, family.family_id, suppliedHash, family.expires_at, rotationNowIso, rotationNowIso),
+      env.DB.prepare(`
+        UPDATE refresh_token_families SET active_token_hash = ?, updated_at = ?
+        WHERE family_id = ? AND active_token_hash = ? AND revoked_at IS NULL
+          AND expires_at = ? AND expires_at > ?
+      `).bind(newHash, rotationNowIso, family.family_id, suppliedHash, family.expires_at, rotationNowIso),
+      authAuditStatement(env, successAudit),
+    ]);
+    if (results.some((result) => Number(result?.meta?.changes || 0) !== 1)) {
+      throw new Error("refresh_rotation_change_count_invalid");
+    }
+    const [rotatedFamily, consumedHistory, auditVerified] = await Promise.all([
+      readRefreshFamilyById(env, family.family_id),
+      env.DB.prepare("SELECT family_id, status FROM refresh_token_history WHERE token_hash = ?")
+        .bind(suppliedHash).first(),
+      authAuditReadback(env, successAudit),
+    ]);
+    if (
+      String(rotatedFamily?.family_id) !== String(family.family_id)
+      || String(rotatedFamily?.subject) !== String(family.subject)
+      || String(rotatedFamily?.active_token_hash) !== newHash
+      || String(rotatedFamily?.created_at) !== String(family.created_at)
+      || String(rotatedFamily?.expires_at) !== String(family.expires_at)
+      || !refreshFamilyLifetime(rotatedFamily, canonicalIsoMillis(rotationNowIso) ?? Date.now()).valid
+      || rotatedFamily?.revoked_at
+      || String(consumedHistory?.family_id) !== String(family.family_id)
+      || String(consumedHistory?.status) !== "rotated"
+      || !auditVerified
+    ) {
+      throw new Error("refresh_rotation_readback_failed");
+    }
+  } catch {
+    try {
+      const latestFamily = await readRefreshFamilyById(env, family.family_id);
+      const retryNowIso = new Date().toISOString();
+      const latestLifetime = refreshFamilyLifetime(latestFamily, canonicalIsoMillis(retryNowIso) ?? Date.now());
+      if (latestFamily && !latestFamily.revoked_at && (!latestLifetime.valid || latestLifetime.remainingSeconds < 1)) {
+        if (await revokeExpiredRefreshFamily(env, latestFamily, retryNowIso, traceId, "auth_refresh_expired")) {
+          return authResponse({ error: "refresh_token_invalid", reason: "expired", credentials_issued: false, secret_output: false }, 401, clearCookies);
+        }
+      }
+      const concurrentHistory = await env.DB.prepare("SELECT family_id, status FROM refresh_token_history WHERE token_hash = ?")
+        .bind(suppliedHash).first();
+      if (concurrentHistory && latestFamily && await revokeRefreshReplay(env, concurrentHistory, latestFamily, suppliedHash, retryNowIso, traceId)) {
+        return authResponse({ error: "refresh_token_invalid", reason: "blacklisted", credentials_issued: false, secret_output: false }, 401, clearCookies);
+      }
+    } catch {
+      // The registry outcome is unknown; fail closed without issuing cookies.
+    }
+    return authResponse({ error: "refresh_registry_unavailable", credentials_issued: false, secret_output: false }, 503, clearCookies);
+  }
 
   const cookies = [
-    `__Host-sb_access=${newAccessToken}; Path=/; Max-Age=900; Secure; HttpOnly; SameSite=Strict`,
-    `__Host-sb_refresh=${newRefreshToken}; Path=/; Max-Age=604800; Secure; HttpOnly; SameSite=Strict`,
+    `__Host-sb_access=${newAccessToken}; Path=/; Max-Age=${AUTH_ACCESS_TTL_SECONDS}; Secure; HttpOnly; SameSite=Strict`,
+    `__Host-sb_refresh=${newRefreshToken}; Path=/; Max-Age=${rotatedRefreshTtlSeconds}; Secure; HttpOnly; SameSite=Strict`,
   ];
-
   return authResponse({
     status: "rotated",
     contract_version: "auth-github-jwt-refresh-v1",
+    access_token_issued: true,
+    refresh_token_rotated: true,
+    old_refresh_token_blacklisted: true,
+    active_registry_verified: true,
     audit_persisted: true,
-    access_token_expires_in: 900,
-    refresh_token_expires_in: 604800,
+    access_token_expires_in: AUTH_ACCESS_TTL_SECONDS,
+    refresh_token_expires_in: rotatedRefreshTtlSeconds,
+    cookie_flags: rotatedCookieFlags,
+    trace_id: traceId,
   }, 200, cookies);
 }
 
 async function authLogout(request, env, requestId) {
-  const traceId = safeRequestId(request.headers.get("x-request-id")) || `trace-auth-logout-${Date.now()}`;
+  const traceId = safeRequestId(
+    request.headers.get("x-request-id") || requestId || `auth-logout-${crypto.randomUUID()}`,
+  );
   const suppliedToken = getCookie(request, AUTH_REFRESH_COOKIE);
-  if (suppliedToken) {
-    try {
-      const suppliedHash = await sha256(suppliedToken);
-      const nowIso = new Date().toISOString();
-      const existing = await env.DB.prepare("SELECT family_id FROM refresh_token_families WHERE active_token_hash = ?").bind(suppliedHash).first();
-      if (existing) {
-        await env.DB.prepare("UPDATE refresh_token_families SET revoked_at = ?, revocation_reason = 'user_logout' WHERE active_token_hash = ?")
-          .bind(nowIso, suppliedHash)
-          .run();
-        await env.DB.prepare("INSERT INTO refresh_token_history (token_hash, family_id, consumed_at, status) VALUES (?, ?, ?, 'revoked')")
-          .bind(suppliedHash, existing.family_id, nowIso)
-          .run();
-      }
-    } catch {}
-  }
-
-  await persistAuthAudit(env, "auth_logout_verified", {
+  const clearCookies = [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR];
+  const payload = (status, refreshTokenRevoked, activeRefreshTokenAbsent, auditPersisted) => ({
+    status,
+    contract_version: "auth-github-jwt-refresh-v1",
+    refresh_token_revoked: refreshTokenRevoked,
+    body_token_accepted: false,
+    cookies_cleared: true,
+    active_refresh_token_absent: activeRefreshTokenAbsent,
+    audit_persisted: auditPersisted,
     trace_id: traceId,
-    active_refresh_token_absent: true,
   });
 
-  return authResponse({
-    status: "logged_out",
-    contract_version: "auth-github-jwt-refresh-v1",
-    audit_persisted: true,
+  if (!env.DB) {
+    return authResponse(payload("storage_unavailable", false, false, false), 503, clearCookies);
+  }
+
+  if (!suppliedToken || !/^csr_[A-Za-z0-9_-]{20,64}$/.test(suppliedToken)) {
+    const auditSaved = await persistAuthAudit(env, "auth_logout_no_active_token", {
+      trace_id: traceId,
+      refresh_token_revoked: false,
+      body_token_accepted: false,
+      cookie_token_present: Boolean(suppliedToken),
+      rejection_reason: suppliedToken ? "malformed" : null,
+      cookies_cleared: true,
+      active_refresh_token_absent: true,
+    });
+    return authResponse(
+      payload(auditSaved ? "logged_out" : "audit_unavailable", false, true, auditSaved),
+      auditSaved ? 200 : 503,
+      clearCookies,
+    );
+  }
+
+  const suppliedHash = await sha256(suppliedToken);
+  const nowIso = new Date().toISOString();
+  let family;
+  try {
+    family = await readRefreshFamilyByActiveHash(env, suppliedHash);
+  } catch {
+    const auditSaved = await persistAuthAudit(env, "auth_logout_storage_unavailable", {
+      trace_id: traceId,
+      refresh_token_revoked: false,
+      cookie_token_present: true,
+      cookies_cleared: true,
+      credentials_issued: false,
+    });
+    return authResponse(payload("storage_unavailable", false, false, auditSaved), 503, clearCookies);
+  }
+
+  if (!family || family.revoked_at) {
+    const auditSaved = await persistAuthAudit(env, "auth_logout_no_active_token", {
+      trace_id: traceId,
+      ...(family ? { sid: String(family.family_id), subject: String(family.subject) } : {}),
+      refresh_token_revoked: false,
+      body_token_accepted: false,
+      cookie_token_present: true,
+      rejection_reason: family?.revoked_at ? "revoked" : "unknown",
+      cookies_cleared: true,
+      active_refresh_token_absent: true,
+    });
+    return authResponse(
+      payload(auditSaved ? "logged_out" : "audit_unavailable", false, true, auditSaved),
+      auditSaved ? 200 : 503,
+      clearCookies,
+    );
+  }
+
+  const logoutLifetime = refreshFamilyLifetime(family, canonicalIsoMillis(nowIso) ?? Date.now());
+  if (!logoutLifetime.valid || logoutLifetime.remainingSeconds < 1) {
+    const revoked = await revokeExpiredRefreshFamily(env, family, nowIso, traceId, "auth_logout_expired");
+    return authResponse(
+      payload(revoked ? "logged_out" : "storage_unavailable", revoked, revoked, revoked),
+      revoked ? 200 : 503,
+      clearCookies,
+    );
+  }
+
+  const logoutAudit = authAuditRecord("auth_logout_revoked", {
+    trace_id: traceId,
+    sid: String(family.family_id),
+    subject: String(family.subject),
+    refresh_token_revoked: true,
+    body_token_accepted: false,
+    cookie_token_present: true,
+    rejection_reason: null,
+    cookies_cleared: true,
     active_refresh_token_absent: true,
-  }, 200, [ACCESS_COOKIE_CLEAR, REFRESH_COOKIE_CLEAR]);
+  });
+  try {
+    const results = await env.DB.batch([
+      env.DB.prepare(`
+        INSERT INTO refresh_token_history (token_hash, family_id, consumed_at, status)
+        VALUES (
+          ?,
+          (SELECT family_id FROM refresh_token_families
+           WHERE family_id = ? AND active_token_hash = ? AND revoked_at IS NULL
+             AND expires_at = ? AND expires_at > ?),
+          ?,
+          'revoked'
+        )
+      `).bind(suppliedHash, family.family_id, suppliedHash, family.expires_at, nowIso, nowIso),
+      env.DB.prepare(`
+        UPDATE refresh_token_families
+        SET revoked_at = ?, updated_at = ?, revocation_reason = 'user_logout'
+        WHERE family_id = ? AND active_token_hash = ? AND revoked_at IS NULL
+          AND expires_at = ? AND expires_at > ?
+      `).bind(nowIso, nowIso, family.family_id, suppliedHash, family.expires_at, nowIso),
+      authAuditStatement(env, logoutAudit),
+    ]);
+    if (results.some((result) => Number(result?.meta?.changes || 0) !== 1)) {
+      throw new Error("logout_change_count_invalid");
+    }
+    const [revokedFamily, revokedHistory, auditVerified] = await Promise.all([
+      readRefreshFamilyById(env, family.family_id),
+      env.DB.prepare("SELECT family_id, status FROM refresh_token_history WHERE token_hash = ?")
+        .bind(suppliedHash).first(),
+      authAuditReadback(env, logoutAudit),
+    ]);
+    if (
+      !revokedFamily?.revoked_at
+      || String(revokedFamily.revocation_reason) !== "user_logout"
+      || String(revokedFamily.expires_at) !== String(family.expires_at)
+      || !refreshFamilyLifetime(revokedFamily, canonicalIsoMillis(nowIso) ?? Date.now()).valid
+      || String(revokedHistory?.family_id) !== String(family.family_id)
+      || String(revokedHistory?.status) !== "revoked"
+      || !auditVerified
+    ) {
+      throw new Error("logout_readback_failed");
+    }
+  } catch {
+    try {
+      const latestFamily = await readRefreshFamilyById(env, family.family_id);
+      const retryNowIso = new Date().toISOString();
+      const latestLifetime = refreshFamilyLifetime(latestFamily, canonicalIsoMillis(retryNowIso) ?? Date.now());
+      if (latestFamily && !latestFamily.revoked_at && (!latestLifetime.valid || latestLifetime.remainingSeconds < 1)) {
+        if (await revokeExpiredRefreshFamily(env, latestFamily, retryNowIso, traceId, "auth_logout_expired")) {
+          return authResponse(payload("logged_out", true, true, true), 200, clearCookies);
+        }
+      }
+    } catch {
+      // The registry outcome is unknown; the response remains fail closed.
+    }
+    const auditSaved = await persistAuthAudit(env, "auth_logout_storage_unavailable", {
+      trace_id: traceId,
+      sid: String(family.family_id),
+      subject: String(family.subject),
+      refresh_token_revoked: false,
+      cookie_token_present: true,
+      cookies_cleared: true,
+      credentials_issued: false,
+    });
+    return authResponse(payload(auditSaved ? "storage_unavailable" : "audit_unavailable", false, false, auditSaved), 503, clearCookies);
+  }
+  return authResponse(payload("logged_out", true, true, true), 200, clearCookies);
 }
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const requestId = safeRequestId(request.headers.get("x-request-id"));
+    const hostedMcpResponse = await handleHostedMcpRoute(request, url, env, requestId);
+    if (hostedMcpResponse) return hostedMcpResponse;
     const buildMatch = url.pathname.match(/^\/api\/v1\/build\/([A-Za-z0-9_-]{1,64})$/);
     const runtimeRunMatch = url.pathname.match(/^\/api\/v1\/phase2\/runtime\/runs\/([A-Za-z0-9_-]{1,64})$/);
     const nativeProbeMatch = url.pathname.match(/^\/api\/v1\/cloud-native\/probes\/([A-Za-z0-9_-]{1,64})$/);
