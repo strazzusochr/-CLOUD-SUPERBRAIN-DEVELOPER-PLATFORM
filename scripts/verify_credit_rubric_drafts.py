@@ -19,6 +19,10 @@ ENDPOINT_SNAPSHOT_PATH: Final = Path("apps/frontend/lib/endpoint-snapshot.json")
 PLATFORM_PATH: Final = Path("apps/frontend/lib/platform.ts")
 PHASE6_CRITERION_PATH: Final = Path("docs/runtime-state/phase6-scale-criterion.json")
 PHASE6_CRITERION_SHA256: Final = "edeeac95fac6fefe1dcde5b77a5d8b236685f28adf66f357706aed26971ed85f"
+OWNER_APPROVAL_REF: Final = (
+    "CODEX_UEBERGABE_MASTER_2026-08-29.md :: B1 Owner-Freigabe 2026-08-31 "
+    "(Owner strazzusochr, an Claude delegiert)"
+)
 
 EXPECTED_PHASE3_ROWS: Final = (
     ("P3-B00", "Bereits kreditierter historischer Phase-3-Gesamtblock; keine Neuberechnung in diesem Entwurf", 44, "bestehender Manifestwert"),
@@ -72,7 +76,7 @@ EXPECTED_BLOCKED_MULTSET: Final = (
 
 
 class RubricValidationError(ValueError):
-    """A deterministic, user-actionable draft-rubric validation failure."""
+    """A deterministic, user-actionable credit-rubric validation failure."""
 
 
 def require(condition: bool, message: str) -> None:
@@ -139,12 +143,13 @@ def validate_metadata(
     open_credit: int,
 ) -> None:
     expected = {
-        "Status": "DRAFT_OWNER_APPROVAL_REQUIRED",
+        "Status": "APPROVED",
         "Version": version,
         "Zelle": cell,
         "Aktueller evidenzbasierter Credit": str(current),
         "Summe": "100",
-        "Credit-Anwendung erlaubt": "false",
+        "Credit-Anwendung erlaubt": "true",
+        "Owner-Freigabe-Ref": OWNER_APPROVAL_REF,
     }
     open_label = "Offener Hosted-OAuth-Credit" if cell == "phase_3" else "Offener Hosted-Scale-Credit"
     expected[open_label] = str(open_credit)
@@ -428,7 +433,7 @@ def validate_rubrics(repo_root: Path = ROOT) -> dict[str, int | bool]:
         phase3_text = visible_markdown(phase3_file.read_text(encoding="utf-8"))
         phase6_text = visible_markdown(phase6_file.read_text(encoding="utf-8"))
     except (OSError, UnicodeError) as exc:
-        raise RubricValidationError(f"unable to read draft rubric: {exc}") from exc
+        raise RubricValidationError(f"unable to read credit rubric: {exc}") from exc
 
     validate_phase3(phase3_text)
     validate_phase6(phase6_text)
@@ -438,6 +443,7 @@ def validate_rubrics(repo_root: Path = ROOT) -> dict[str, int | bool]:
         "phase3_open": 56,
         "phase6_current": 90,
         "phase6_open": 10,
+        "rubrics_approved": True,
         "read_only": True,
         "credit_applied": False,
     }
@@ -454,7 +460,7 @@ def main() -> int:
         f"P3={result['phase3_current']}+{result['phase3_open']}=100 "
         f"P6={result['phase6_current']}+{result['phase6_open']}=100 "
         "requests=900+244=1144 blocked=22 "
-        "read_only=true credit_applied=false"
+        "rubrics_approved=true read_only=true credit_applied=false"
     )
     return 0
 

@@ -92,7 +92,7 @@ class CreditRubricDraftTests(unittest.TestCase):
             raise AssertionError(f"test mutation marker not found: {old}")
         return changed
 
-    def test_current_drafts_pass_without_writes_or_credit(self) -> None:
+    def test_current_approved_rubrics_pass_without_writes_or_credit(self) -> None:
         result = self.validate(guard_writes=True)
         self.assertEqual(
             result,
@@ -101,15 +101,17 @@ class CreditRubricDraftTests(unittest.TestCase):
                 "phase3_open": 56,
                 "phase6_current": 90,
                 "phase6_open": 10,
+                "rubrics_approved": True,
                 "read_only": True,
                 "credit_applied": False,
             },
         )
 
-    def test_phase3_requires_draft_status_zero_credit_and_current_math(self) -> None:
+    def test_phase3_requires_approved_status_without_automatic_credit_and_current_math(self) -> None:
         mutations = (
-            ("`DRAFT_OWNER_APPROVAL_REQUIRED`", "`APPROVED`"),
-            ("Credit-Anwendung erlaubt: `false`", "Credit-Anwendung erlaubt: `true`"),
+            ("`APPROVED`", "`DRAFT_OWNER_APPROVAL_REQUIRED`"),
+            ("Credit-Anwendung erlaubt: `true`", "Credit-Anwendung erlaubt: `false`"),
+            ("Owner-Freigabe-Ref: `CODEX_UEBERGABE_MASTER_2026-08-29.md :: B1 Owner-Freigabe 2026-08-31 (Owner strazzusochr, an Claude delegiert)`", "Owner-Freigabe-Ref: `invalid`") ,
             ("Aktueller evidenzbasierter Credit: `44`", "Aktueller evidenzbasierter Credit: `45`"),
             ("Offener Hosted-OAuth-Credit: `56`", "Offener Hosted-OAuth-Credit: `55`"),
             ("| P3-02 | Hosted Callback", "| P3-02 | Hosted Callback"),
@@ -124,7 +126,7 @@ class CreditRubricDraftTests(unittest.TestCase):
                 "| P3-02 | Hosted Callback tauscht einen echten Code gegen die verifizierte numerische GitHub-Identitaet und stellt erst danach die Session bereit | 11 | offen |",
             )
         )
-        self.assert_rejected(phase3=self.phase3 + "\nCredit-Anwendung erlaubt: `true`\n")
+        self.assert_rejected(phase3=self.phase3 + "\nCredit-Anwendung erlaubt: `false`\n")
 
     def test_phase3_pins_oauth_session_replay_logout_and_audit_semantics(self) -> None:
         mutations = (
@@ -153,10 +155,11 @@ class CreditRubricDraftTests(unittest.TestCase):
             with self.subTest(old=old):
                 self.assert_rejected(phase3=self.mutate(self.phase3, old, new))
 
-    def test_phase6_requires_draft_status_zero_credit_and_exact_weights(self) -> None:
+    def test_phase6_requires_approved_status_without_automatic_credit_and_exact_weights(self) -> None:
         mutations = (
-            ("`DRAFT_OWNER_APPROVAL_REQUIRED`", "`APPROVED`"),
-            ("Credit-Anwendung erlaubt: `false`", "Credit-Anwendung erlaubt: `true`"),
+            ("`APPROVED`", "`DRAFT_OWNER_APPROVAL_REQUIRED`"),
+            ("Credit-Anwendung erlaubt: `true`", "Credit-Anwendung erlaubt: `false`"),
+            ("Owner-Freigabe-Ref: `CODEX_UEBERGABE_MASTER_2026-08-29.md :: B1 Owner-Freigabe 2026-08-31 (Owner strazzusochr, an Claude delegiert)`", "Owner-Freigabe-Ref: `invalid`") ,
             ("Aktueller evidenzbasierter Credit: `90`", "Aktueller evidenzbasierter Credit: `91`"),
             ("Offener Hosted-Scale-Credit: `10`", "Offener Hosted-Scale-Credit: `9`"),
             ("| P6-H01 | Exakt 800 Hosted Reads in drei Stufen (`60@1`, `240@10`, `500@50`) | 3 | offen |", "| P6-H01 | Exakt 800 Hosted Reads in drei Stufen (`60@1`, `240@10`, `500@50`) | 4 | offen |"),
@@ -164,7 +167,7 @@ class CreditRubricDraftTests(unittest.TestCase):
         for old, new in mutations:
             with self.subTest(old=old):
                 self.assert_rejected(phase6=self.mutate(self.phase6, old, new))
-        self.assert_rejected(phase6=self.phase6 + "\nCredit-Anwendung erlaubt: `true`\n")
+        self.assert_rejected(phase6=self.phase6 + "\nCredit-Anwendung erlaubt: `false`\n")
 
     def test_phase6_pins_worker_control_and_total_request_math(self) -> None:
         mutations = (
