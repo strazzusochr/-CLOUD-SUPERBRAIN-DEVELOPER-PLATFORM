@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-08-30
+Letzte Aktualisierung: 2026-08-31
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -18,6 +18,16 @@ Letzte Aktualisierung: 2026-08-30
   mit `22/22` Routen, `29/29` Familien und `161/161` Action-Membern. Der Candidate-Runtime-
   Beweis bestaetigt exakte No-Credit-Source-Paritaet, sechs Image-Identitaeten und echte
   Auswahl/Klick; der immutable Evidence-Satz umfasst `27` Dateien.
+- **Selection gepusht und CI-gruen:** Commit
+  `378a66bfeb5d8685805a35e55ae825b2ce3a1503` liegt auf
+  `origin/codex/organism-visual-v2`; `pr-check` `33369934779` lief exakt auf diesem SHA
+  und bestand `30/30` Schritte mit `0` skipped und `0` failed. Der nachfolgende reine
+  Truth-Doku-Freeze gilt nach der stabilen Regel nur dann als final-head-gruen, wenn der
+  Remote-Feature-Head exakt dem neuesten erfolgreichen `pr-check`-`headSha` entspricht.
+- **Sichtbarer In-App-Zweitcheck:** alle `22/22` kanonischen Seiten lieferten HTTP `200`
+  und je einen echten, gefahrlosen Navigationsklick (`22/22`); Browser-Konsole `0` Errors.
+  Das ist ein supplementaerer Live-UI-Check, kein neuer Kredit und kein Ersatz fuer das
+  immutable `161/161`-Evidence-Artefakt.
 - **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
   P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
   L6 `100`, L7 `100`. `MARKET_READY:false`. I1 `hosted_candidate_parity` und I5
@@ -25,6 +35,12 @@ Letzte Aktualisierung: 2026-08-30
 - **Non-Claims:** `DEV-ONLY; hosted proof still blocked`. Kein Main-/Default-Branch-Write,
   GHCR-Push, Hosted-/Production-Deploy, OAuth-Aktivierung, Secret-Output,
   Release-Promotion oder Production-Rollout.
+- **Hosted read-only nachgemessen:** Worker `bc0f4dc8` antwortet Health `200`, Progress
+  `84`, Team `200`/`external_degraded` und Auth-Modus `verified_identity_fail_closed`.
+  Er liegt `8` Commits hinter RC24-Source. Ohne explizite Hosted-Deploy-Freigabe bleibt
+  diese Paritaet offen. `npm run verify:market-ready:static` verweigert folgerichtig
+  `MARKET_READY` wegen der unter-100-Zellen/Owner-Gates und der bewusst bewahrten fremden
+  Dirty-Evidence-Pfade.
 
 ### Session 2026-08-29 — RC23 lokal qualifiziert und ausgewaehlt
 

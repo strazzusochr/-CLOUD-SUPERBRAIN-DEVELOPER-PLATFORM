@@ -35,6 +35,20 @@ is the immutable local rollback target. No production deploy, release promotion,
 publication, default-branch write, hosted write, production OAuth credit, payment, or secret
 output is claimed. `DEV-ONLY; hosted proof still blocked`.
 
+Selection commit `378a66bfeb5d8685805a35e55ae825b2ce3a1503` was pushed to
+`origin/codex/organism-visual-v2`. Final-head `pr-check` run `33369934779` used that exact
+head and passed `30/30` steps with `0` skipped and `0` failed. A supplementary visible
+in-app browser pass loaded all `22/22` canonical routes with HTTP `200`, performed one real
+safe navigation click on each route (`22/22`), and returned zero console errors. This pass
+is operational confirmation only; it adds no progress credit and does not replace the
+tracked `161/161` action evidence.
+
+Read-only hosted remeasurement: Worker `bc0f4dc8` returned health `200`, project progress
+`84`, team status `200`/`external_degraded`, and auth mode
+`verified_identity_fail_closed`; it is eight commits behind RC24 source. All ten named
+L4/L5 hosted verifier scripts exist in the selected source, but no L4/L5 credit is awarded
+without rubric approval, exact hosted source parity, and their real hosted runs.
+
 ## Current RC23 Local Qualification Evidence
 
 Recorded 2026-08-29. Active candidate `prod-candidate-2026-08-29-local-rc23` is bound

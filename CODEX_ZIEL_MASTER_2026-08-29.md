@@ -30,9 +30,22 @@ CI `33359506266` mit `30/30`, Browser `22/22` Seiten, `29/29` Funktionsfamilien 
 P3 `44`, P5 `89`, P6 `90`, L4 `55`, L5 `56`; I1/I5 bleiben null Kredite und
 `MARKET_READY:false`.
 
-Naechster autonomer Schritt ist nur der Abschluss des lokalen Gate-Stacks, exakter Commit,
-Feature-Branch-Push und final-head CI. Danach bleiben ausschliesslich echte, explizit
-freigegebene hosted Beweise und die sanktionierte Delta-Ledger-Buchung auf dem Weg zu 100.
+Der autonome RC24-Abschluss ist erfolgt: Selection-Commit `378a66bf` ist gepusht und
+`pr-check` `33369934779` lief auf dem exakten SHA mit `30/30`, `0` skipped, `0` failed.
+Ein supplementaerer sichtbarer Browserlauf bestaetigte `22/22` HTTP-200-Seiten,
+`22/22` echte sichere Klicks und `0` Console-Errors; er vergibt keinen Prozentkredit.
+
+Aktueller Engpass ist nicht mehr lokaler Neubau. Worker `bc0f4dc8` liegt acht Commits
+hinter RC24-Source und meldet Progress `84`. Die zehn L4/L5-Hosted-Verifier existieren,
+sind aber ohne Rubrikfreigabe, Source-Rebind und echte Hosted-Laeufe nicht kreditierbar.
+Die noch offenen Schritte sind deshalb in Reihenfolge: explizite Owner-Freigaben B1/B5,
+RC24-Hosted-Rebind und Readback, Owner-OAuth-Abnahme B2, P6-Environment B3 sowie
+Registry-Dispatch B4; danach Hosted-Verifier/Scale/GHCR, Delta-Ledger und Finalstack.
+
+Die Aussagen weiter unten, D0 sei noch nicht deployt oder die zehn Verifier existierten
+nur als Geruest, sind historischer Diagnosekontext und durch diesen Checkpoint ersetzt.
+Danach bleiben ausschliesslich echte, explizit freigegebene hosted Beweise und die
+sanktionierte Delta-Ledger-Buchung auf dem Weg zu 100.
 Kein lokaler RC24-Beweis darf als hosted, Production-Deploy, Promotion, Registry-Push,
 Produktions-OAuth oder Marktfreigabe umgedeutet werden. `DEV-ONLY; hosted proof still
 blocked`.

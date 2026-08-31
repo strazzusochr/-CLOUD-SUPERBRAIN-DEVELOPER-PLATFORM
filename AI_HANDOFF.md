@@ -25,7 +25,7 @@ members (`160` direct, `1` preverified), with no unexpected network, mock, inter
 console-error, page-error, or secret-output claim. The canonical browser report hash is
 `22C47192D4D8F48BC1D989AD9B88D367134E73D2DB6D86527524D9906DF9EF7B6`.
 
-The dedicated Phase-5 verifier accepts the selection only as the exact three-path
+The dedicated Phase-5 verifier accepts the selection only as the exact five-path
 `no_credit_requalification` transition. It preserves `17/19 = 89%`, blocked items `I1`
 and `I5`, all item rulings, the external-gate projection, and `MARKET_READY:false`.
 Overall remains `89`; horizontal `100/100/100/44/100/89/90`; vertical
@@ -34,10 +34,23 @@ Overall remains `89`; horizontal `100/100/100/44/100/89/90`; vertical
 
 No production deploy, release promotion, registry publication, default-branch write,
 hosted MCP/Phase-6 write, production OAuth credit, rubric activation, payment, or secret
-output is authorized or claimed. `DEV-ONLY; hosted proof still blocked`. The next safe
-boundary is the final local verifier stack, exact-path commit, feature-branch push and
-final-head CI. Market progress may move only after the remaining Owner-gated hosted
-evidence is real and accepted through the delta ledger.
+output is authorized or claimed. `DEV-ONLY; hosted proof still blocked`.
+
+Selection commit `378a66bfeb5d8685805a35e55ae825b2ce3a1503` is pushed to the feature
+branch. Final-head `pr-check` `33369934779` ran on that exact SHA and passed `30/30`
+steps with zero skipped and zero failed. A supplementary visible in-app pass then loaded
+all `22/22` canonical pages with HTTP `200`, performed `22/22` real safe navigation
+clicks, and recorded zero browser-console errors; it grants no additional credit and does
+not replace the immutable `161/161` evidence. Subsequent truth-only freezes use the stable
+non-self-referential predicate: remote feature head equals the latest completed successful
+`pr-check` head SHA, with zero skipped and failed steps.
+
+Hosted read-only truth is Worker `bc0f4dc8`: health `200`, project progress `84`, team
+status `200`/`external_degraded`, auth mode `verified_identity_fail_closed`; it is eight
+commits behind RC24 source. The ten L4/L5 verifier scripts now exist and pass their local
+contracts, but they receive no credit before rubric approval, source rebind and real hosted
+runs. Market progress may move only after the remaining Owner-gated evidence is real and
+accepted through the delta ledger.
 
 ## Current RC23 Handoff — 2026-08-29
 

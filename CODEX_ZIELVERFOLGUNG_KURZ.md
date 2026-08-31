@@ -9,6 +9,8 @@
 > Fuenf lokale Ketten, CI `30/30`, Browser `22/22`, `29/29`, `161/161` sind gruen;
 > Overall bleibt `89`, I1/I5 bleiben blockiert und `MARKET_READY:false`. Verbindliche
 > Details stehen ausschliesslich in den beiden Master-Dateien und `AI_HANDOFF.md`.
+> Selection `378a66bf` ist gepusht; final-head `pr-check` `33369934779` bestand
+> `30/30`, `0` skipped, `0` failed. Worker `bc0f4dc8` liegt acht Commits hinter RC24.
 
 # ZIELVERFOLGUNG KURZ - STAND 2026-08-29
 

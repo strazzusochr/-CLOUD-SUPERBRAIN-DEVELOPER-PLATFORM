@@ -34,10 +34,22 @@ failed gruen. Das unveraenderliche Set enthaelt exakt 27 Evidence-Dateien.
 Fuenf lokale Ketten sind gruen: sechs Candidate-Images, Runtime `10/10 healthy`, Security,
 Candidate-Runtime mit echter Browserauswahl/einem echten Klick und der komplette
 Browserlauf mit `22/22` Seiten, `29/29` Funktionsfamilien und `161/161` Aktionen. Die
-Auswahl ist ausschliesslich als exakter Drei-Pfad-`no_credit_requalification`-Uebergang
+Auswahl ist ausschliesslich als exakter Fuenf-Pfad-`no_credit_requalification`-Uebergang
 zulaessig. Sie erhoeht keinen Kredit: P5 bleibt `17/19 = 89`, I1/I5 bleiben blockiert,
 Overall bleibt `89`, Delta-Ledger `0`, `MARKET_READY:false`. RC23-Quelle `7db18d90` ist
 Rollback. `DEV-ONLY; hosted proof still blocked`.
+
+Selection `378a66bfeb5d8685805a35e55ae825b2ce3a1503` ist auf den Feature-Branch
+gepusht. `pr-check` `33369934779` lief exakt darauf und bestand `30/30`, `0` skipped,
+`0` failed. Der sichtbare In-App-Zweitcheck lud `22/22` Seiten mit HTTP `200`, fuehrte
+`22/22` echte sichere Navigationsklicks aus und meldete `0` Console-Errors; er ist
+supplementaer und vergibt keinen Kredit.
+
+Hosted read-only ist Worker `bc0f4dc8`: Health `200`, Progress `84`, Team
+`200`/`external_degraded`, Auth `verified_identity_fail_closed`. Er liegt acht Commits
+hinter RC24-Source. Alle zehn L4/L5-Hosted-Verifier existieren jetzt als echte Skripte;
+ohne Rubrikfreigabe, Source-Rebind und reale Hosted-Laeufe bleiben L4/L5 trotzdem bei
+`55/56`. Diese RC24-Messung ersetzt entgegenstehende historische Aussagen weiter unten.
 
 Die folgenden historischen Abschnitte bleiben als Diagnoseverlauf erhalten. Fuer den
 aktuellen Kandidaten und die aktuellen Non-Claims haben diese RC24-Aktualisierung,
@@ -49,11 +61,11 @@ aktuellen Kandidaten und die aktuellen Non-Claims haben diese RC24-Aktualisierun
 
 | Groesse | Wert |
 | --- | --- |
-| Truth-HEAD | `4adb250c` — identisch mit `origin/codex/organism-visual-v2` |
-| Letzte Commits | `4adb250c` (Deploy-Flag-Fix), `a3098cae` (F1/F2-Fix + Audit), `e933ac39`, `9ec4741f` (OAuth + Verifier-Geruest) |
+| Selection-Head | `378a66bf` — gepusht, `pr-check` `33369934779` `30/30` gruen |
+| RC24 Source / Control | `1cb03979` / `d016e4b9` |
 | Hosted Worker | `cloud-superbrain-stateful-runtime.strazzusochr.workers.dev` |
-| Hosted Source | `bc0f4dc8` — Bindung wiederhergestellt, Rueckstand 0 Commits, siehe §3A |
-| Alter RC-Zeiger | RC23 `prod-candidate-2026-08-29-local-rc23` @ `7db18d90` — **ueberholt**, siehe §6 |
+| Hosted Source | `bc0f4dc8` — acht Commits hinter RC24-Source; Progress `84` |
+| Aktiver RC-Zeiger | RC24 `prod-candidate-2026-08-31-local-rc24` @ `1cb03979`; RC23 ist Rollback |
 | D1 | `cloud-superbrain-state-prod` (`91520f43-5d38-4a31-9d5a-6fca890e1dd6`), Migrationen 0001–0005 angewandt |
 | Overall | `89` — `deltas=0`, Phase 5 `17/19`, blockiert `I1`, `I5` |
 
