@@ -139,8 +139,8 @@
       "evidence": [
         {
           "path": "docs/runtime-state/frontend-hosted-current.json",
-          "claim": "The hosted frontend preview is source-bound to the current hosted-candidate commit, but it is not a full six-service hosted candidate-parity proof.",
-          "anchor": "\"source_commit_sha\": \"1ad419cb56368fb747d65e8ceec3798e18badbc4\""
+        "claim": "The hosted frontend preview is source-bound to the RC30 control lineage, but it is not a full six-service hosted candidate-parity proof.",
+        "anchor": "\"source_commit_sha\": \"4b26d00a1a842db73cbd5fa58dfffd3928d2342e\""
         },
         {
           "path": "docs/runtime-state/backend-hosted-current.json",
