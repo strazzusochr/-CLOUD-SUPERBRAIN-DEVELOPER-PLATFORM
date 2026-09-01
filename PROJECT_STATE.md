@@ -5,26 +5,23 @@ Letzte Aktualisierung: 2026-09-01
 
 ## AKTUELLER PROJEKTANKER
 
-### Session 2026-09-01 — Current RC27 Handoff
+### Session 2026-09-01 — Current RC29 Handoff
 
-- **Aktiver Kandidat:** `prod-candidate-2026-09-01-local-rc27`, eingefrorene Source
-  `0ca71d1c6168d64360a7764b725b2b673af00afe`, Kontroll-Commit
-  `cf89266b99c9f9437cebd70c60a49d80614297cf`. GitHub-Actions-Lauf `33454908593`
-  attestierte exakt den Source-Checkout; `30/30` beobachtete Schritte waren gruen und
-  `0` skipped. RC24-Source `1cb03979740859f0350cf18f6f08ef06c3d72b72` bleibt der
+- **Aktiver Prequalification-Kandidat:** `prod-candidate-2026-09-01-local-rc29`,
+  eingefrorene Source `41f07febae8b30d4813ff5b6c2f1d7fe623b6fbe`, Kontroll-Commit
+  `1ae1ff55bdbb04cc1d5a16ba0b9f34ab008d818d`. GitHub-Actions-Lauf `33521553311`
+  attestierte exakt den Source-Checkout; `31/31` beobachtete Schritte waren gruen,
+  `0` skipped. RC27-Source `0ca71d1c6168d64360a7764b725b2b673af00afe` bleibt der
   immutable lokale Rollback-Anker.
-- **Alle fuenf lokalen Ketten gruen:** Candidate-Images, Runtime `10/10 healthy`,
-  Security, der reale Chromium-Browserlauf mit `22/22` Routen, `29/29` Familien und
-  `161/161` Action-Membern sowie `candidate-runtime` mit exakt gestagter No-Credit-
-  Source-Paritaet, sechs Image-Identitaeten und echtem Browser-Auswahlklick. Die gesamte
-  Browsermatrix wurde zweimal real ausgefuehrt. Der immutable Evidence-Satz umfasst exakt
-  `27` Dateien.
-- **RC27-Produktfix gebunden:** Verifizierte Workers-AI-Stream-Terminals werden
-  normalisiert und Provider-/Malformed-Terminals bleiben fail-closed. Die kanonische
-  External-Gate-Zeit- und Snapshot-Hash-Paritaet ist wiederhergestellt; Phase-5-Zeitwerte
-  werden unter Windows PowerShell 5.1 locale-invariant geprueft. Der erste Browserlauf
-  entdeckte einen alten O4-Runtime-Proof; ein frischer source-paritaetischer Runtime-Proof
-  und der zweite komplette Browserlauf schlossen den Guard real.
+- **RC29-Qualifikation laeuft seriell:** sechs Clean-Archive-Images sind source-bound
+  gruen. Candidate-Runtime, Runtime, Security und der komplette reale Chromium-Browserlauf
+  werden jetzt neu an RC29 gebunden; bis alle fuenf Ketten und das immutable Evidence-Set
+  bestanden sind, wird keine Finalqualifikation behauptet.
+- **RC29-Produktfix gebunden:** Generierte Three.js-Artefakte berechnen eine fehlende
+  `boundingSphere` unmittelbar vor direktem Radiuszugriff lazy und fail-closed. Unit,
+  Lint, Build, Product-Acceptance, Browser-Contract, Responsive-Matrix und der vollstaendige
+  22-Seiten-Aktionslauf bestanden gegen die neue Quelle; die RC29-Evidence-Neubindung
+  bleibt der laufende Schritt.
 - **B1 gebunden, ohne Kredit:** Die drei genehmigten Rubriken sind durch Owner-Commit
   `e87c28a7c6cf32982caa849794042daa53ef022a` und den fail-closed Rubrik-Verifier gebunden.
   Aus der Freigabe allein folgt weder Prozentcredit noch Hosted-/Release-Status.
@@ -32,11 +29,10 @@ Letzte Aktualisierung: 2026-09-01
   P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
   L6 `100`, L7 `100`. `MARKET_READY:false`. I1 `hosted_candidate_parity` und I5
   `production_auth_identity` bleiben die einzigen Phase-5-Nullcredit-Items.
-- **Naechster sicherer Schritt:** Den RC27-Selection-Commit mit exakten Pathspecs auf den
-  Feature-Branch pushen und den finalen Head-CI-Lauf mit `skipped=0` abwarten. Erst danach
-  RC27 auf isolierte Preview-Worker und eine exakte Vercel-Git-Preview binden und die fuenf
-  L4-Hosted-Verifier erneut source-bound fahren. Das ist keine Production-Promotion und
-  vergibt allein keinen Prozentcredit.
+- **Naechster sicherer Schritt:** Die vier fehlenden RC29-Ketten seriell fahren, Evidence
+  immutable binden, die No-Credit-Selection mit exakten Pathspecs committen und pushen und
+  den finalen Head-CI-Lauf mit `skipped=0` abwarten. Erst danach darf S2 gegen RC29 neu
+  gemessen werden. Das ist keine Production-Promotion und vergibt allein keinen Kredit.
 - **Non-Claims:** `DEV-ONLY; hosted proof still blocked`. Kein Main-/Default-Branch-Write,
   GHCR-Push, Production-Deploy, Release-Promotion, Production-Rollout oder Secret-Output.
 
