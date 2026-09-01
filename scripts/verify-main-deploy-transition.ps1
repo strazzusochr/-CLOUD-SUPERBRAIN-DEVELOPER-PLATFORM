@@ -226,7 +226,7 @@ Assert-Contains "no-credit requalification keeps the cross-day exact runtime tru
   'NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS,'
 Assert-Contains "no-credit requalification keeps the same-day exact runtime truth delta" `
   $phase5CreditVerifier `
-  'NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS,'
+  'changed_paths in (NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS, NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS)'
 Assert-Contains "same-day no-credit requalification is date-bound" `
   $phase5CreditVerifier `
   'same-day no-credit requalification must keep the manifest date unchanged'
@@ -410,3 +410,5 @@ exit 0
 # rc29-source-prequalification-binding-41f07feb
 
 # rc30-source-prequalification-binding-9e88f84a
+
+# rc31-source-prequalification-binding-94cee685
