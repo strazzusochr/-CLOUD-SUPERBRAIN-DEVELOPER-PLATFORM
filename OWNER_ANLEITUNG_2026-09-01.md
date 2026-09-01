@@ -93,74 +93,28 @@ Die Ironie: **die rote Pruefung, die wir uebersteuert haben, war hier der Sicher
 
 ---
 
-## 3. Was du jetzt noch machen musst
+## 3. Was du jetzt noch machen musst — NICHTS
 
-Drei Dinge. Reihenfolge einhalten.
+Beide Schritte sind am 2026-09-01 von deinem zweiten Owner-Agenten ausgefuehrt und von mir
+**unabhaengig nachgemessen** worden:
 
-### Schritt A — PR #33 mergen
-
-**Der Pull Request ist fertig und liegt bereit:**
-
-<https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/33>
-
-Inhalt: **eine Datei**, `.github/workflows/main-deploy.yml`, byte-identisch mit der
-gehaerteten Fassung vom Arbeitszweig (Blob `14e84b31`). Commit `055351bf`.
-
-Das raeumt genau die Falle weg, in die wir bei PR #32 gelaufen sind:
-
-| | alt (liegt jetzt dort) | neu |
+| Schritt | Ergebnis | Beweis |
 | --- | --- | --- |
-| Ausloeser | **bei jedem Push** + manuell | **nur manuell**, Kandidat-SHA Pflicht |
-| Rechte | `packages: write` | `contents: read` |
-| Veroeffentlichung | ungeschuetzt | Environment `registry-publication` mit Freigabe |
+| **A** PR #33 mergen | ✅ erledigt | Merge-Commit `9c508aab` |
+| **B** `phase6-scale-hosted-writes` schuetzen | ✅ erledigt | `protection_rules: [required_reviewers]` |
 
-**Klicken — genau wie bei #32:** ganz nach unten, Haken bei
-*„Merge without waiting for requirements to be met (bypass rules)"*, dann
-**„Bypass rules and merge"**, dann bestaetigen.
-
-Die roten Meldungen sind dieselben wie vorher und aus demselben Grund: die alten
-Frontend-Bibliotheken auf dem Hauptzweig, nicht diese Aenderung. Der PR fasst keine
-`package.json` an.
-
-**Danach kontrollieren:**
-
-```powershell
-gh run list --repo 'strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM' --branch chore/repo-bootstrap --limit 3
-```
-
-Erwartung: **kein neuer `main-deploy`-Lauf**. Der Merge-Commit enthaelt bereits die
-dispatch-only Fassung, also darf kein Push-Ausloeser mehr greifen. Falls doch einer
-erscheint: er kann nichts veroeffentlichen, weil `verify` weiterhin rot ist.
-
-### Schritt B — `phase6-scale-hosted-writes` schuetzen
-
-**Korrektur zu einer frueheren Annahme:** `registry-publication` hat den Pflicht-Freigeber
-**bereits** (gemessen: `required_reviewers` = `strazzusochr`, `prevent_self_review=false`).
-Dort ist nichts zu tun.
-
-Ungeschuetzt ist dagegen das **andere** Environment:
+Kontrolliert:
 
 ```text
-registry-publication          protection_rules: required_reviewers ✅
-phase6-scale-hosted-writes    protection_rules: []                 ❌ leer
+main-deploy.yml @ chore/repo-bootstrap   Blob 14e84b31   11.623 Bytes
+on:-Block                                nur workflow_dispatch   <- Push-Trigger weg
+Neuer main-deploy-Lauf nach dem Merge    KEINER
+Capability-Gates                         unveraendert 3 offen
 ```
 
-Die Phase-6-Rubrik verlangt aber ausdruecklich ein *geschuetztes* Environment, und die
-L5-Zeile „Geschuetzter Workflow verlangt Environment-Review vor Write/Publish" (6 Punkte)
-haengt daran. So setzt du es:
+**Die Falle ist zu.** Ein Push auf den Hauptzweig startet jetzt keinen Deploy mehr.
 
-1. <https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/settings/environments>
-2. **`phase6-scale-hosted-writes`** anklicken
-3. Haken bei **„Required reviewers"**
-4. Dich selbst eintragen (`strazzusochr`)
-5. **„Save protection rules"**
-
-Das ist kein Deploy und veroeffentlicht nichts.
-
-### Schritt C — Nichts weiter. Der Rest ist Codex.
-
-Der eigentliche B3-Grant und der B4-Dispatch gehoeren in Codex' Ablauf, weil sie an
-Kandidat, Evidence und Reihenfolge haengen. Beides steht in der Zieldatei.
+Ab hier liegt alles bei Codex: RC-Zeiger geradeziehen, B3-Grant, S2 und S3.
 
 ---
 

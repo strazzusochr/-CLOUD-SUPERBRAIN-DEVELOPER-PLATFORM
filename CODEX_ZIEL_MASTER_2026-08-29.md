@@ -422,8 +422,8 @@ Ledger enthaelt die legitimen Eintraege, Hosted-SHA = Kandidatenquelle, keine
 | --- | --- | --- |
 | ~~**B1**~~ | **ERTEILT 2026-08-31** — Approval-Commit `e87c28a7c6cf32982caa849794042daa53ef022a` | — |
 | **B2** | OAuth-ADR festschreiben (`owner_architecture_decision_ref`, `owner_approved`, `selected_architecture`) | P3-Evidence |
-| **B3** | Provisioning **`3/3` seit 2026-09-01**: Environment, Secret und Default-Branch-Workflow vorhanden (PR #32, `ce75bb00`, `state=active`, id `347406379`). Offen ist nur noch der Gate-Grant `phase6_scale_runtime` mit `owner_grant_ref`. | P6 +10 |
-| **B4** | Default traegt weiter den alten `main-deploy`-Blob `555e8325` statt `14e84b31`. Owner-PR auf Zweig `owner/harden-main-deploy-on-default` vorbereitet, Datei noch nicht eingespielt. Danach dispatchen und `registry-publication` freigeben. | GHCR / I1 |
+| **B3** | Provisioning **vollstaendig seit 2026-09-01**: Environment, Secret, Default-Branch-Workflow (PR #32, `ce75bb00`, `state=active`, id `347406379`) **und Environment-Schutz** (`protection_rules: [required_reviewers]`, Reviewer `strazzusochr`). Offen ist **nur noch** der Gate-Grant `phase6_scale_runtime` mit `owner_grant_ref`. | P6 +10 |
+| **B4** | **Teil 1 erledigt 2026-09-01**: Default traegt jetzt den gehaerteten Blob `14e84b31` (11.623 Bytes), PR #33 gemerged als `9c508aab`. Push-Trigger ist weg, top-level `contents: read`, Publikation an `registry-publication` gebunden. Offen bleiben: Dispatch mit `candidate_sha` und der Gate-Grant `docker_registry_publish`. | GHCR / I1 |
 | **B5** | Hosted-Deploy-Freigabe fuer Worker **und** Vercel-Frontend aus derselben Quelle | S2, S4 |
 
 ### Drei Waende, die keine Freigabe verschiebt

@@ -97,6 +97,30 @@ Vorbereitet: Owner-Zweig `owner/harden-main-deploy-on-default`, Basis `ce75bb00`
 Datei darin fehlt noch — der Schreibbefehl wurde auf Claude-Seite vom Harness-Klassifizierer
 blockiert. Die exakten Befehle liegen dem Owner in `OWNER_ANLEITUNG_2026-09-01.md` vor.
 
+### Nachtrag 2026-09-01: die Default-Branch-Falle ist geschlossen
+
+Ein zweiter Owner-Agent hat PR #33 gemerged. **Unabhaengig nachgemessen**, nicht uebernommen:
+
+```text
+PR #33                     MERGED   Merge-Commit 9c508aabb72799c9b5eb8673268a8e2a6d50db87
+main-deploy.yml @ default  Blob 14e84b31   11.623 Bytes   (war 555e8325 / 2.981)
+on:-Block                  nur workflow_dispatch mit Pflichteingabe candidate_sha
+Neuer main-deploy-Lauf     KEINER — juengster bleibt 33497699169 auf ce75bb00
+phase6-scale-hosted-writes protection_rules: [required_reviewers]  Reviewer strazzusochr
+Capability-Gates           unveraendert 3 offen
+```
+
+Der `on: push`-Trigger ist im ausgelieferten Inhalt nachweislich verschwunden — der
+Merge-Commit trug bereits die dispatch-only Fassung, deshalb hat er sich nicht selbst
+ausgeloest. Die Vorhersage hat gehalten.
+
+**Damit ist B4 Teil 1 erledigt.** Jeder kuenftige Push auf `chore/repo-bootstrap` startet
+keinen Deploy mehr. Offen bleiben der Dispatch mit exaktem `candidate_sha` und der
+Gate-Grant `docker_registry_publish`.
+
+**B3 ist damit vollstaendig provisioniert** — Environment, Secret, Default-Branch-Workflow
+und Environment-Schutz. Offen ist ausschliesslich der Grant `phase6_scale_runtime`.
+
 ### Offener Befund: `verify:phase5-credit` ist am Branch-HEAD rot
 
 Am 2026-09-01 an `f1b25ed8` lokal gemessen:
