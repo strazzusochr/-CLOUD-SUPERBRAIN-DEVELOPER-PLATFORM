@@ -97,45 +97,32 @@ Die Ironie: **die rote Pruefung, die wir uebersteuert haben, war hier der Sicher
 
 Drei Dinge. Reihenfolge einhalten.
 
-### Schritt A — Den gehaerteten Deploy-Workflow auf den Hauptzweig
+### Schritt A — PR #33 mergen
 
-**Das raeumt genau die Falle weg, in die wir gerade gelaufen sind.**
+**Der Pull Request ist fertig und liegt bereit:**
 
-| | alt (liegt jetzt dort) | neu (gehaertet) |
+<https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/33>
+
+Inhalt: **eine Datei**, `.github/workflows/main-deploy.yml`, byte-identisch mit der
+gehaerteten Fassung vom Arbeitszweig (Blob `14e84b31`). Commit `055351bf`.
+
+Das raeumt genau die Falle weg, in die wir bei PR #32 gelaufen sind:
+
+| | alt (liegt jetzt dort) | neu |
 | --- | --- | --- |
-| Groesse | 2.981 Bytes | 11.623 Bytes |
 | Ausloeser | **bei jedem Push** + manuell | **nur manuell**, Kandidat-SHA Pflicht |
-| Rechte | `packages: write` von Anfang an | `contents: read` |
-| Veroeffentlichung | ungeschuetzt | gebunden an `registry-publication` mit Freigabe |
+| Rechte | `packages: write` | `contents: read` |
+| Veroeffentlichung | ungeschuetzt | Environment `registry-publication` mit Freigabe |
 
-Ich konnte diesen Pull Request nicht selbst anlegen — mein Werkzeug hat den Schreibbefehl
-blockiert. Fuehre diese Befehle in **PowerShell** aus. Der Zweig ist bereits angelegt,
-es fehlt nur die Datei darin.
-
-```powershell
-Set-Location 'D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM'
-$R = 'strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM'
-$new = gh api "repos/$R/contents/.github/workflows/main-deploy.yml?ref=codex/organism-visual-v2" --jq .content
-$old = gh api "repos/$R/contents/.github/workflows/main-deploy.yml?ref=chore/repo-bootstrap" --jq .sha
-$body = @{ message = 'ci: replace main-deploy on the default branch with the hardened workflow'; content = ($new -replace '\s',''); sha = $old; branch = 'owner/harden-main-deploy-on-default' } | ConvertTo-Json -Compress
-$body | Out-File -Encoding utf8 -NoNewline 'D:\_sb_tmp\md-put.json'
-gh api --method PUT "repos/$R/contents/.github/workflows/main-deploy.yml" --input 'D:\_sb_tmp\md-put.json'
-```
-
-Dann den Pull Request oeffnen:
-
-```powershell
-gh pr create --repo 'strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM' --base chore/repo-bootstrap --head owner/harden-main-deploy-on-default --title 'ci: harden main-deploy on the default branch' --body 'Ersetzt die alte main-deploy.yml auf dem Hauptzweig durch die gehaertete Fassung von codex/organism-visual-v2, byte-identisch. Die alte Fassung laeuft bei jedem Push auf diesen Zweig und traegt packages: write; die neue ist dispatch-only, faellt auf contents: read und bindet die Veroeffentlichung an das Environment registry-publication. Strikt sicherer als das, was sie ersetzt. Kein Image wird veroeffentlicht, kein Gate geoeffnet, kein Prozentwert bewegt.'
-```
-
-**Merge wie bei PR #32:** ganz nach unten, Haken bei
+**Klicken — genau wie bei #32:** ganz nach unten, Haken bei
 *„Merge without waiting for requirements to be met (bypass rules)"*, dann
-**„Bypass rules and merge"**.
+**„Bypass rules and merge"**, dann bestaetigen.
 
-Die roten Meldungen sind dieselben wie vorher und aus demselben Grund — die alten
-Frontend-Bibliotheken, nicht deine Aenderung.
+Die roten Meldungen sind dieselben wie vorher und aus demselben Grund: die alten
+Frontend-Bibliotheken auf dem Hauptzweig, nicht diese Aenderung. Der PR fasst keine
+`package.json` an.
 
-**Danach kontrollieren**, ob diesmal wirklich nichts ausgeloest wurde:
+**Danach kontrollieren:**
 
 ```powershell
 gh run list --repo 'strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM' --branch chore/repo-bootstrap --limit 3
@@ -143,28 +130,32 @@ gh run list --repo 'strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM' --branch 
 
 Erwartung: **kein neuer `main-deploy`-Lauf**. Der Merge-Commit enthaelt bereits die
 dispatch-only Fassung, also darf kein Push-Ausloeser mehr greifen. Falls doch einer
-auftaucht: er kann nichts veroeffentlichen, weil `verify` weiterhin rot ist — aber sag mir
-oder Codex Bescheid.
+erscheint: er kann nichts veroeffentlichen, weil `verify` weiterhin rot ist.
 
-### Schritt B — `registry-publication` mit Pflicht-Freigabe versehen
+### Schritt B — `phase6-scale-hosted-writes` schuetzen
 
-Damit spaeter niemand versehentlich Images veroeffentlicht, braucht das Environment einen
-Freigeber. Pruefe zuerst, ob schon einer eingetragen ist:
+**Korrektur zu einer frueheren Annahme:** `registry-publication` hat den Pflicht-Freigeber
+**bereits** (gemessen: `required_reviewers` = `strazzusochr`, `prevent_self_review=false`).
+Dort ist nichts zu tun.
 
-```powershell
-gh api "repos/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/environments/registry-publication" --jq '.protection_rules'
+Ungeschuetzt ist dagegen das **andere** Environment:
+
+```text
+registry-publication          protection_rules: required_reviewers ✅
+phase6-scale-hosted-writes    protection_rules: []                 ❌ leer
 ```
 
-Steht dort nichts von `required_reviewers`, dann im Browser:
+Die Phase-6-Rubrik verlangt aber ausdruecklich ein *geschuetztes* Environment, und die
+L5-Zeile „Geschuetzter Workflow verlangt Environment-Review vor Write/Publish" (6 Punkte)
+haengt daran. So setzt du es:
 
 1. <https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/settings/environments>
-2. **`registry-publication`** anklicken
+2. **`phase6-scale-hosted-writes`** anklicken
 3. Haken bei **„Required reviewers"**
 4. Dich selbst eintragen (`strazzusochr`)
 5. **„Save protection rules"**
 
-Das ist kein Deploy und veroeffentlicht nichts. Es sorgt nur dafuer, dass jede kuenftige
-Veroeffentlichung auf deine Bestaetigung wartet.
+Das ist kein Deploy und veroeffentlicht nichts.
 
 ### Schritt C — Nichts weiter. Der Rest ist Codex.
 
