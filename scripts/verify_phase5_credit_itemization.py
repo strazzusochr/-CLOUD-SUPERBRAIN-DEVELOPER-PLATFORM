@@ -12,6 +12,11 @@ import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+try:
+    from . import verify_project_progress_manifest as progress_truth
+except ImportError:  # Direct script execution from the repository root.
+    import verify_project_progress_manifest as progress_truth
+
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "docs/project-progress.manifest.json"
 ITEMIZATION_PATH = ROOT / "docs/runtime-state/phase5-credit-itemization.json"
@@ -88,6 +93,15 @@ PROJECT_PROGRESS_MANIFEST_REPO_PATH = "docs/project-progress.manifest.json"
 ENDPOINT_SNAPSHOT_REPO_PATH = "apps/frontend/lib/endpoint-snapshot.json"
 PLATFORM_MANIFEST_REPO_PATH = "apps/frontend/lib/platform.ts"
 EXTERNAL_GATE_SUMMARY_REPO_PATH = "docs/runtime-state/external-gate-summary.json"
+PROJECT_PROGRESS_DELTA_LEDGER_REPO_PATH = "docs/runtime-state/project-progress-delta-ledger.json"
+PROJECT_PROGRESS_DELTA_SCHEMA_REPO_PATH = "docs/runtime-contracts/project-progress-delta-ledger.schema.json"
+EVIDENCE_CREDIT_STAGED_PATHS = (
+    "PROJECT_STATE.md",
+    ENDPOINT_SNAPSHOT_REPO_PATH,
+    PLATFORM_MANIFEST_REPO_PATH,
+    PROJECT_PROGRESS_MANIFEST_REPO_PATH,
+    PROJECT_PROGRESS_DELTA_LEDGER_REPO_PATH,
+)
 LOCAL_VERIFICATION_FILES = {
     "runtime": "runtime.json",
     "browser": "browser.json",
@@ -245,7 +259,8 @@ def run_git(*args: str) -> subprocess.CompletedProcess[str]:
         ["git", *args],
         cwd=ROOT,
         check=False,
-        text=True,
+        encoding="utf-8",
+        errors="strict",
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -1561,6 +1576,138 @@ def require_no_credit_requalification(
     )
 
 
+def require_evidence_credited_progress_transition(
+    source_sha: str,
+    manifest: dict[str, Any],
+    itemization: dict[str, Any],
+    computed_percent: int,
+) -> None:
+    """Admit only a fully scored post-candidate progress-ledger transition.
+
+    Phase 5 remains owned by its 19-item scorer. Other phase/layer cells may move
+    after the frozen candidate only when the staged v2 ledger, immutable evidence,
+    approved static scorer, manifest, and both frontend mirrors validate together.
+    """
+
+    index_manifest = load_index_json(PROJECT_PROGRESS_MANIFEST_REPO_PATH)
+    require(
+        manifest == index_manifest,
+        "working-tree project progress must exactly match the staged evidence-credit truth",
+    )
+    source_manifest = load_git_json(source_sha, PROJECT_PROGRESS_MANIFEST_REPO_PATH)
+    source_projection = progress_truth.progress_projection(source_manifest)
+    index_projection = progress_truth.progress_projection(index_manifest)
+    require(
+        source_projection == progress_truth.expected_baseline_projection(),
+        "evidence-credit transition requires the frozen candidate to carry the pinned progress baseline",
+    )
+    require(
+        index_projection != source_projection,
+        "evidence-credit transition must change the progress projection",
+    )
+
+    source_phase5 = next(
+        (entry for entry in source_manifest["horizontal"]["items"] if entry.get("id") == "phase_5"),
+        None,
+    )
+    index_phase5 = next(
+        (entry for entry in index_manifest["horizontal"]["items"] if entry.get("id") == "phase_5"),
+        None,
+    )
+    require(source_phase5 is not None and index_phase5 is not None, "evidence-credit Phase-5 item missing")
+    require(
+        source_phase5.get("percent") == index_phase5.get("percent") == computed_percent,
+        "evidence-credit transition may not alter the independently scored Phase-5 percent",
+    )
+
+    index_itemization = load_index_json(PHASE5_ITEMIZATION_REPO_PATH)
+    source_itemization = load_git_json(source_sha, PHASE5_ITEMIZATION_REPO_PATH)
+    require(itemization == index_itemization, "working-tree Phase-5 truth must match the staged evidence-credit truth")
+    require(
+        phase5_credit_projection(index_itemization) == phase5_credit_projection(source_itemization),
+        "evidence-credit transition may not alter Phase-5 score, blockers, items, or rulings",
+    )
+
+    staged_diff = run_git("diff", "--quiet", "--", *EVIDENCE_CREDIT_STAGED_PATHS)
+    require(
+        staged_diff.returncode == 0,
+        "evidence-credit truth files must exactly match the staged index",
+    )
+
+    ledger = load_index_json(PROJECT_PROGRESS_DELTA_LEDGER_REPO_PATH)
+    entries = ledger.get("entries")
+    require(isinstance(entries, list) and entries, "evidence-credit transition requires a non-empty v2 delta ledger")
+    for index, entry in enumerate(entries):
+        require(isinstance(entry, dict), f"evidence-credit ledger entry[{index}] must be an object")
+        evidence_source = entry.get("source_sha")
+        require(
+            isinstance(evidence_source, str)
+            and re.fullmatch(r"[0-9a-f]{40}", evidence_source) is not None
+            and evidence_source != source_sha
+            and progress_truth.git_commit_is_ancestor(ROOT, source_sha, evidence_source),
+            f"evidence-credit ledger entry[{index}] must strictly descend from the frozen candidate",
+        )
+
+    endpoint_snapshot = load_index_json(ENDPOINT_SNAPSHOT_REPO_PATH)
+    platform_source = load_index_text(PLATFORM_MANIFEST_REPO_PATH)
+    ledger_schema = load_index_json(PROJECT_PROGRESS_DELTA_SCHEMA_REPO_PATH)
+    progress_truth.validate_progress_truth(
+        index_manifest,
+        ledger,
+        ledger_schema,
+        endpoint_snapshot,
+        platform_source,
+        ROOT,
+    )
+
+    current_pointer = load_index_json(CURRENT_RELEASE_CANDIDATE_REPO_PATH)
+    release_id = current_pointer.get("active_release_id")
+    require(
+        isinstance(release_id, str)
+        and current_pointer.get("source_commit_sha") == source_sha
+        and current_pointer.get("production_rollout_claimed") is False,
+        "evidence-credit transition must preserve the frozen non-production candidate pointer",
+    )
+    metadata = endpoint_snapshot.get("__snapshot_metadata", {})
+    require(isinstance(metadata, dict), "evidence-credit snapshot metadata is missing")
+    require(metadata.get("active_release_id") == release_id, "evidence-credit snapshot release mismatch")
+    require(metadata.get("candidate_source_commit_sha") == source_sha, "evidence-credit snapshot source mismatch")
+    require(metadata.get("runtime_source_attested") is False, "evidence-credit snapshot may not claim runtime attestation")
+    require(metadata.get("candidate_source_parity") is False, "evidence-credit snapshot may not claim runtime parity")
+    require(metadata.get("current") is False, "evidence-credit snapshot may not claim current hosted truth")
+    require(
+        metadata.get("project_progress_manifest_sha256")
+        == canonical_text_sha256(load_index_text(PROJECT_PROGRESS_MANIFEST_REPO_PATH)),
+        "evidence-credit snapshot manifest hash mismatch",
+    )
+
+    source_external = load_git_json(source_sha, EXTERNAL_GATE_SUMMARY_REPO_PATH)
+    index_external = load_index_json(EXTERNAL_GATE_SUMMARY_REPO_PATH)
+    require(
+        external_gate_truth_projection(index_external) == external_gate_truth_projection(source_external),
+        "evidence-credit transition may not inflate external gate truth",
+    )
+    require(
+        index_external.get("requested_release_candidate_selector") == source_sha
+        and index_external.get("status") == "blocked"
+        and index_external.get("active_release_candidate_sha") == ""
+        and index_external.get("production_deploy_claim_allowed") is False,
+        "evidence-credit transition must preserve blocked external production truth",
+    )
+
+    project_state = load_index_text("PROJECT_STATE.md")
+    current_anchor = project_state.split("### Session", 2)[1] if "### Session" in project_state else ""
+    require(
+        release_id in current_anchor
+        and source_sha in current_anchor
+        and f"Overall `{index_manifest['overall_percent']}%`" in current_anchor
+        and "MARKET_READY:false" in current_anchor
+        and "I1" in current_anchor
+        and "I5" in current_anchor,
+        "evidence-credit project anchor must preserve candidate, progress, and Phase-5 blockers",
+    )
+
+
 def require_runtime_source_parity(
     source_sha: str,
     manifest: dict[str, Any],
@@ -1582,23 +1729,40 @@ def require_runtime_source_parity(
     if not changed_paths:
         return
 
-    if changed_paths in (
-        NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS,
-        NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS,
-    ):
-        require_no_credit_requalification(
-            source_sha,
-            manifest,
-            itemization,
-            computed_percent,
-            same_day_transition=(
-                changed_paths == NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS
-            ),
+    if changed_paths in (NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS, NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS):
+        source_manifest = load_git_json(source_sha, PROJECT_PROGRESS_MANIFEST_REPO_PATH)
+        index_manifest = load_index_json(PROJECT_PROGRESS_MANIFEST_REPO_PATH)
+        progress_credit_changed = (
+            {key: value for key, value in index_manifest.items() if key != "last_verified"}
+            != {key: value for key, value in source_manifest.items() if key != "last_verified"}
         )
-        print(
-            "[phase5-credit] runtime_source_parity_mode=no_credit_requalification "
-            "progress_credit_changed=false"
-        )
+        if progress_credit_changed:
+            require(
+                changed_paths == NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS,
+                "evidence-credit transition requires the exact five-path runtime truth set",
+            )
+            require_evidence_credited_progress_transition(
+                source_sha,
+                manifest,
+                itemization,
+                computed_percent,
+            )
+            print(
+                "[phase5-credit] runtime_source_parity_mode=evidence_credited_progress_delta "
+                "progress_credit_changed=true phase5_credit_changed=false"
+            )
+        else:
+            require_no_credit_requalification(
+                source_sha,
+                manifest,
+                itemization,
+                computed_percent,
+                same_day_transition=(changed_paths == NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS),
+            )
+            print(
+                "[phase5-credit] runtime_source_parity_mode=no_credit_requalification "
+                "progress_credit_changed=false"
+            )
         return
 
     require(

@@ -3,16 +3,15 @@
 Status: `ACTIVE_CURRENT_TRUTH`
 Stand: **2026-09-01**
 Branch: `codex/organism-visual-v2`
-Measurement-Ref: **`f5a31e52`** (source-attested RC30 control; qualification truth is the dynamic selection commit)
-RC30 Qualification Source: **`9e88f84a`** · Control: **`f5a31e52`** · CI: **`33540678387`**
-Hosted Worker: **vor S2 neu messen** — kein RC30-Hosted-Rebind behauptet
+Measurement-Ref: **`532a3c8c`** (immutable RC30 Hosted-MCP evidence + static scorer)
+RC30 Qualification Source: **`9e88f84a`** · Source-Attestation: **`f5a31e52`** · Evidence-CI: **`33560498326`**
+Hosted Worker: **RC30 Preview source-bound** — Stateful + LLM Health melden `9e88f84a`
 **B1 ERTEILT 2026-08-31** — `RubricApprovalCommit = e87c28a7c6cf32982caa849794042daa53ef022a`
-Market Status: `MARKET_READY:false` — Overall `89`, Delta-Ledger `0`
+Market Status: `MARKET_READY:false` — Overall `89`, Delta-Ledger `1`, L5 `86`
 
-> **Naechster Schritt ist RC30-Freeze, danach S2.** S1 (B1) ist erledigt. RC30
-> enthaelt den Approval-Commit als Ancestor und ist lokal mit fuenf Ketten qualifiziert;
-> es fehlen nur exakter Evidence-/Truth-Commit, Feature-Branch-Push und finaler
-> Head-CI-Lauf mit `skipped=0`.
+> **Naechster Schritt ist der L5-Delta-/Truth-Freeze.** S1, RC30-Qualification und der
+> Worker-Teil von S2 sind erledigt. Vier Hosted-MCP-Verifier sind real gruen und als
+> 30-Punkte-Slice scorer-gebunden; danach bleiben L5 +14, L4 +45 und die Phasen-Gates.
 
 > **Wartung spaeter:** Die GitHub-Actions-Runtime-Pins bleiben fuer RC30 eingefroren.
 > `upload-artifact` v4.6.2 sowie `checkout`/`setup-node` v4 werden erst nach dem naechsten
@@ -55,10 +54,10 @@ angelegt (Basis `ce75bb00`); die Datei darin fehlt noch. Die exakten Befehle ste
 
 ---
 
-**Aktuelle lokale Aussagen** sind gegen RC30-Source `9e88f84a`, Control `f5a31e52`, den
-CI-Lauf `33540678387` und die fuenf lokalen Evidence-Ketten gemessen. Externe Aussagen,
-die noch nicht nach RC30 neu gemessen wurden, tragen ausdruecklich ihren aelteren Ref und
-duerfen vor S2 nicht als aktuelle Hosted-Wahrheit verwendet werden.
+**Aktuelle Aussagen** sind gegen RC30-Source `9e88f84a`, Evidence-Control `532a3c8c`,
+CI-Lauf `33560498326`, die fuenf lokalen Qualification-Ketten und die vier Hosted-MCP-
+Reports gemessen. Der einheitliche Vercel-Candidate-Pfad ist noch nicht gruen:
+`/mcp/api/v1/health` liefert dort `404` und schliesst I1 weiter fail-closed aus.
 
 ---
 
@@ -79,8 +78,8 @@ danach **separate** Owner-Entscheidungen.
 
 ```text
 Horizontal:  P0 100 | P1 100 | P2 100 | P3 44 | P4 100 | P5 89 | P6 90
-Vertikal:    L1 100 | L2 100 | L3 100 | L4 55 | L5 56 | L6 100 | L7 100
-Delta-Ledger: 0 Eintraege
+Vertikal:    L1 100 | L2 100 | L3 100 | L4 55 | L5 86 | L6 100 | L7 100
+Delta-Ledger: 1 Eintrag
 ```
 
 | Zelle | Rest | Was jetzt konkret fehlt |
@@ -88,10 +87,10 @@ Delta-Ledger: 0 Eintraege
 | P3 | **+56** | OAuth-Kette ist hosted gefahren. Es fehlen **5 von 12** Evidence-Schritten und das Evidence-Dokument; B1 ist erledigt. |
 | P5 | **+11** | `I5` faellt evidenzgetrieben nach P3. `I1` braucht Hosted-Candidate-Paritaet **plus** Codeaenderung. |
 | P6 | **+10** | Verifier ist scharf. Environment, Secret **und Default-Branch-Workflow existieren jetzt** (PR #32, Merge `ce75bb00`, `state=active`). Es fehlt nur noch der B3-Grant. Der alte 900er-Lauf zaehlt nicht. |
-| L4 | **+45** | Verifier sind jetzt **echt**, B1 ist gebunden. Es fehlen RC30-Source-Rebind und die realen Hosted-Laeufe. |
-| L5 | **+44** | Dito, inkl. echtem SBOM. |
+| L4 | **+45** | RC30-Preview ist source-bound; die fuenf generativen Verifier warten fail-closed auf das lokale Verifier-Credential. |
+| L5 | **+14** | Vier Hosted-Kriterien (+30) sind kreditiert. Offen: Registry-Digests, Remote-Scan, Candidate-SBOM-Credit und Protected-Publish. |
 
-**166 offene Punkte.** `overall = round(sum(7 Phasen)/7)`
+**136 offene Punkte.** `overall = round(sum(7 Phasen)/7)`
 (`scripts/verify_project_progress_manifest.py:328`). L4/L5 sind Pflicht fuer die vertikale
 100, bewegen die 89 aber **nie**.
 
@@ -102,12 +101,11 @@ Delta-Ledger: 0 Eintraege
 ```text
 S1  B1  Rubriken freigeben  ── ERLEDIGT 2026-08-31  e87c28a7
                                           │
-S1b RC30 lokal qualifiziert ──────────────┤  Source 9e88f84a, Control f5a31e52
-    Selection-Push + finaler CI fehlen    │  5 Ketten gruen, 27 Evidence-Dateien
+S1b RC30 lokal qualifiziert ── ERLEDIGT ─┤  Source 9e88f84a, 5 Ketten, 27 Dateien
                                           │
-S2  B5 + Hosted-Rebind auf RC30-Source ───┤  Voraussetzung fuer jeden Hosted-Beweis
+S2  Worker-Rebind auf RC30 ── ERLEDIGT ───┤  Vercel Unified-MCP bleibt 404
                                           │
-      ├─> S3  L4/L5 Hosted-Laeufe ────────┼──> L4 +45, L5 +44   AUTONOM, groesster Brocken
+      ├─> S3  L4/L5 Hosted-Laeufe ────────┼──> L4 +45, L5 +14   L5 vier Kriterien erledigt
       │                                   │
       ├─> S4  P3-Evidence vervollstaendigen ──> P3 +56 ──> P5-I5   (braucht B2)
       │                                   │
@@ -115,23 +113,19 @@ S2  B5 + Hosted-Rebind auf RC30-Source ───┤  Voraussetzung fuer jeden Ho
       │                                   │
       └─> S6  I1: Candidate-Paritaet + Codepin ──> P5 100          (braucht B4-Dispatch)
                                           │
-                          S7  Delta-Ledger buchen ──> Finalstack ──> MARKET_READY
+                          S7  Delta-Ledger: erster Real-Replay erledigt ──> Finalstack
 ```
 
 **S1 ist erledigt.** Der Owner hat am 2026-08-31 alle drei Rubriken freigegeben;
 Approval-Commit `e87c28a7c6cf32982caa849794042daa53ef022a`, gepusht auf
 `origin/codex/organism-visual-v2`. Alle drei tragen dort `Status: \`APPROVED\``,
 `Credit-Anwendung erlaubt: \`true\`` und eine `Owner-Freigabe-Ref:`-Zeile. Nachgemessen:
-`overall = 89`, `deltas = 0`, `17/19` — die Freigabe hat **keinen Punkt** vergeben, sie hat
+`overall = 89`, `17/19` — die Freigabe allein hat **keinen Punkt** vergeben, sie hat
 nur die Verifier startbar gemacht.
 
-**Der Engpass ist jetzt die S1b-Finalisierung.** RC30-Source `9e88f84a` enthaelt
-`e87c28a7` als Ancestor; Source-Attestation, 27-Dateien-Evidence und alle fuenf lokalen
-Ketten sind gruen. Bevor ein Hosted-Lauf zaehlen kann, muessen die Selection-Truth-Pfade
-mit exakten Pathspecs committed und gepusht sein und der finale Remote-Head-CI-Lauf
-`skipped=0` melden. Das ist reine Codex-Arbeit, keine weitere Owner-Entscheidung.
-
-**Danach ist S3 der groesste autonome Block: 89 Punkte ohne jede Owner-Beteiligung.**
+**Der aktuelle autonome Engpass ist geteilt:** L4 braucht das lokale Verifier-Credential;
+L5s letzte 14 Punkte brauchen B4/GHCR. Der erste reale v2-Ledger-Replay ist gruen und
+beweist, dass vertikaler Hosted-Credit ohne Phase-5-Inflation gebucht werden kann.
 
 ---
 
@@ -185,25 +179,22 @@ Contract-Feld rubric_approval_sha  muss identisch sein
 **Die drei Rubriken sind ab jetzt eingefroren.** Jede weitere Aenderung bricht die
 Blob-Gleichheit (`rubric_blob_drift`) und erzwingt eine neue Owner-Freigabe.
 
-### S1b — RC30 einfrieren (lokal erledigt; Remote-Finalisierung laeuft)
+### S1b — RC30 einfrieren — ERLEDIGT
 
 RC30-Source `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68` enthaelt den Approval-Commit.
 Control `f5a31e52e8bbf6d166c7a1c11932f15219c587c1` wurde durch `pr-check` `33540678387`
 source-attestiert. Candidate-Images, Runtime, Browser, Candidate-Runtime und Security sind
-gruen; das unveraenderliche Evidence-Set enthaelt exakt 27 Dateien.
+gruen; das unveraenderliche Evidence-Set enthaelt exakt 27 Dateien. Der spaetere
+Hosted-Evidence-Control `532a3c8c` bestand `pr-check` `33560498326` mit `31/31`,
+`skipped=0`, `failed=0`.
 
 RC29s finaler Head-CI-Lauf scheiterte an zwei neu veroeffentlichten HIGH-Advisories fuer
 `browserslist <=4.28.6`. RC30 pinnt `browserslist` `4.28.8`; der saubere Kandidaten-Audit
 meldet `0` Schwachstellen. Produktlogik und die RC29-Three.js-Reparatur bleiben unveraendert.
 
-**Restaktion:** Qualification-Truth und Handoff mit exakten Pathspecs committen, auf den
-Feature-Branch pushen und den finalen Head-CI-Lauf mit `skipped=0` abwarten. Der Commit-SHA
-wird nicht in sich selbst geschrieben; Remote-Head plus finaler CI sind die dynamische
-Bindung.
+**Kredit:** keiner aus Qualification; die spaeteren Hosted-Kriterien werden separat gebucht.
 
-**Kredit:** keiner. Voraussetzung fuer S2 und S3.
-
-### S2 — B5 und Hosted-Rebind auf die RC30-Source
+### S2 — Hosted-Rebind auf die RC30-Source — WORKER ERLEDIGT
 
 Vor jeder Mutation zuerst Worker-Health, Source-SHA, Bundle-SHA, D1-Migrationen und die
 isolierten Preview-Namen neu read-only messen. Solange Health nicht exakt RC30-Source und
@@ -225,14 +216,15 @@ pwsh -NoProfile -File .\scripts\deploy-cloudflare-stateful-runtime.ps1 -CommitSh
 den vorgesehenen Deploy-/Migrationspfad anwenden; keine Migration aus altem Protokollstand
 blind wiederholen.
 
-**Abnahme:** `/api/v1/health` meldet `source_commit_sha = 9e88f84a...` und den passenden
-`source_archive_sha256`. Das Skript prueft das selbst.
+**Abnahme:** Stateful- und LLM-Preview-Health melden `source_commit_sha = 9e88f84a...`,
+Archive `71e9dafe...` und den gebundenen Bundle-Hash. D1-Migrationen blieben unveraendert
+vollstaendig. Der einheitliche Vercel-Pfad ist separat blockiert (`/mcp/.../health = 404`).
 
 **Kredit:** keiner. Voraussetzung fuer S3 bis S6.
 
-**Erwartung daempfen:** `/api/v1/project/progress` bleibt bei `84` — siehe §7.
+**Non-Claim:** Preview-Rebind ist kein Production-Alias, Rollout oder Release.
 
-### S3 — L4/L5: die zehn Verifier hosted fahren (+45 / +44)
+### S3 — L4/L5 Hosted-Verifier — TEILWEISE ERLEDIGT (+0 / +30)
 
 Erst nach S1 und S2. Jeder Verifier braucht mindestens:
 
@@ -254,7 +246,8 @@ Der Verifier prueft zusaetzlich, dass das passende Gate in
 Nur der Erfolgspfad setzt `credit_eligible = $true`. Ein blockierter Lauf schreibt
 `credit_eligible = $false` — dann **nicht** kreditieren, sondern die Ursache beheben.
 
-**Kredit:** L4 `55 -> 100`, L5 `56 -> 100`.
+**Aktueller Kredit:** L5 `56 -> 86` durch exakt vier scorer-verifizierte Reports. L4 bleibt
+`55`; L5-Ziel `100` wartet auf die 14 Registry-/Scan-/Publish-Punkte.
 
 ### S4 — P3 vervollstaendigen und Evidence schreiben (+56, danach I5)
 
@@ -386,17 +379,16 @@ schlaegt fehl. Fuer `I5` gilt das **nicht** — dort genuegt der Beweis.
 ### S7 — Delta-Ledger und Finalstack
 
 `docs/runtime-state/project-progress-delta-ledger.json` ist der **einzige** zugelassene Weg,
-eine Manifestzelle zu bewegen. `entries = 0`, `baseline.source_sha = 9a3776ff`.
+eine Manifestzelle zu bewegen. `entries = 1`, `baseline.source_sha = 9a3776ff`.
 
 Der synthetische Protokoll-Probelauf ist am Measurement-Ref `8adb6183` erledigt:
 `py -3 -m unittest scripts.tests.test_verify_project_progress_manifest -v` bestand
 `27/27`. Er akzeptiert den source-gebundenen P3-Replay und weist unter anderem falschen
 `source_sha`, Nicht-Ancestor, falschen Projection-Hash, Prozent ueber 100, falschen
 `overall`, alte Prozent-/Baseline-Kette, fehlende oder hash-abweichende Artefakte sowie
-nicht approvierte/fehlgeschlagene/timeoutende Scorer fail-closed ab. Das reale Ledger blieb
-unveraendert leer; kein Prozentwert wurde bewegt. Der erste **reale Kredit** bleibt damit
-weiterhin die erste Production-Anwendung des Mechanismus, aber nicht mehr dessen erster
-Protokolltest.
+nicht approvierte/fehlgeschlagene/timeoutende Scorer fail-closed ab. Der erste reale
+Anwendungsfall ist jetzt erfolgreich: der statisch zugelassene L5-Scorer bindet vier
+immutable RC30-Reports und replayt `56 -> 86`, Overall `89`, ohne Phase-5-Aenderung.
 
 Je bewegter Zelle **ein** SHA-gebundener Eintrag. Danach muss
 `py -3 scripts/verify_project_progress_manifest.py` die neuen Werte akzeptieren. **Niemals**
@@ -435,7 +427,7 @@ Ledger enthaelt die legitimen Eintraege, Hosted-SHA = Kandidatenquelle, keine
 | **B2** | OAuth-ADR festschreiben (`owner_architecture_decision_ref`, `owner_approved`, `selected_architecture`) | P3-Evidence |
 | **B3** | Provisioning **vollstaendig seit 2026-09-01**: Environment, Secret, Default-Branch-Workflow (PR #32, `ce75bb00`, `state=active`, id `347406379`) **und Environment-Schutz** (`protection_rules: [required_reviewers]`, Reviewer `strazzusochr`). Offen ist **nur noch** der Gate-Grant `phase6_scale_runtime` mit `owner_grant_ref`. | P6 +10 |
 | **B4** | **Teil 1 erledigt 2026-09-01**: Default traegt jetzt den gehaerteten Blob `14e84b31` (11.623 Bytes), PR #33 gemerged als `9c508aab`. Push-Trigger ist weg, top-level `contents: read`, Publikation an `registry-publication` gebunden. Offen bleiben: Dispatch mit `candidate_sha` und der Gate-Grant `docker_registry_publish`. | GHCR / I1 |
-| **B5** | Hosted-Deploy-Freigabe fuer Worker **und** Vercel-Frontend aus derselben Quelle | S2, S4 |
+| **B5** | Worker-Preview ausgefuehrt; Vercel-Frontend/Unified-Origin ist wegen `/mcp/... = 404` noch nicht source-identisch abgenommen | I1, S4 |
 
 ### Drei Waende, die keine Freigabe verschiebt
 

@@ -873,6 +873,9 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             "$candidateUpdatedAtText = $Matches[1]",
             "[Globalization.CultureInfo]::InvariantCulture",
             "[Globalization.DateTimeStyles]::RoundtripKind",
+            "$evidenceCreditTransition = $false",
+            'Assert-True "evidence-credit delta-ledger verifier"',
+            "$runtimeSourceMatchesHead -or $qualificationTruthTransition -or $noCreditRequalification -or $evidenceCreditTransition",
         ):
             self.assertIn(marker, source)
 
@@ -902,6 +905,8 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             '"docs/runtime-state/external-gate-summary.json"',
             "$isNoCreditRequalificationSameDay = Test-ExactPathSet",
             "$isNoCreditRequalification = $isNoCreditRequalification -or $isNoCreditRequalificationSameDay",
+            "$evidenceCreditTransition = $false",
+            "evidence_credit_transition=",
         ):
             self.assertIn(marker, current)
         self.assertIn("scripts\\verify_phase5_credit_itemization.py", current)
@@ -1509,6 +1514,136 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             ),
             "runtime-source drift outside the exact post-qualification or no-credit requalification truth transition",
         )
+
+    def test_evidence_credited_progress_transition_is_ledger_scored_and_phase5_immutable(self) -> None:
+        source_sha = "c" * 40
+        evidence_sha = "e" * 40
+        release_id = "prod-candidate-2026-09-01-local-rc30"
+        baseline = verifier.progress_truth.expected_baseline_projection()
+
+        def as_manifest(projection: dict[str, object]) -> dict[str, object]:
+            return {
+                "overall_percent": projection["overall_percent"],
+                "progress_source": "docs/project-progress.manifest.json",
+                "horizontal": {
+                    "label": "Phase progress",
+                    "items": [
+                        {**copy.deepcopy(item), "status": "verified"}
+                        for item in projection["horizontal"]  # type: ignore[index]
+                    ],
+                },
+                "vertical": {
+                    "label": "Architecture-layer progress",
+                    "items": [
+                        {**copy.deepcopy(item), "status": "verified"}
+                        for item in projection["vertical"]  # type: ignore[index]
+                    ],
+                },
+                "truth_policy": "Evidence-based only",
+                "binding_document": "docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md",
+                "last_verified": "2026-09-01",
+                "non_claims": ["No production release."],
+            }
+
+        source_manifest = as_manifest(baseline)
+        index_manifest = copy.deepcopy(source_manifest)
+        next(item for item in index_manifest["vertical"]["items"] if item["id"] == "layer_5")["percent"] = 86  # type: ignore[index]
+        itemization = {"mode": "fully_itemized", "current_score": {"computed_percent": 89}}
+        source_itemization = copy.deepcopy(itemization)
+        manifest_text = json.dumps(index_manifest)
+        snapshot = {
+            "/api/v1/project/progress": index_manifest,
+            "__snapshot_metadata": {
+                "active_release_id": release_id,
+                "candidate_source_commit_sha": source_sha,
+                "runtime_source_attested": False,
+                "candidate_source_parity": False,
+                "current": False,
+                "project_progress_manifest_sha256": verifier.canonical_text_sha256(manifest_text),
+            },
+        }
+        external = {
+            "status": "blocked",
+            "requested_release_candidate_selector": source_sha,
+            "active_release_candidate_sha": "",
+            "production_deploy_claim_allowed": False,
+        }
+        index_payloads = {
+            verifier.PROJECT_PROGRESS_MANIFEST_REPO_PATH: index_manifest,
+            verifier.PHASE5_ITEMIZATION_REPO_PATH: itemization,
+            verifier.PROJECT_PROGRESS_DELTA_LEDGER_REPO_PATH: {
+                "contract_version": "project-progress-delta-ledger-v2",
+                "entries": [{"source_sha": evidence_sha}],
+            },
+            verifier.ENDPOINT_SNAPSHOT_REPO_PATH: snapshot,
+            verifier.PROJECT_PROGRESS_DELTA_SCHEMA_REPO_PATH: {"type": "object"},
+            verifier.CURRENT_RELEASE_CANDIDATE_REPO_PATH: {
+                "active_release_id": release_id,
+                "source_commit_sha": source_sha,
+                "production_rollout_claimed": False,
+            },
+            verifier.EXTERNAL_GATE_SUMMARY_REPO_PATH: external,
+        }
+        source_payloads = {
+            verifier.PROJECT_PROGRESS_MANIFEST_REPO_PATH: source_manifest,
+            verifier.PHASE5_ITEMIZATION_REPO_PATH: source_itemization,
+            verifier.EXTERNAL_GATE_SUMMARY_REPO_PATH: copy.deepcopy(external),
+        }
+        index_texts = {
+            verifier.PROJECT_PROGRESS_MANIFEST_REPO_PATH: manifest_text,
+            verifier.PLATFORM_MANIFEST_REPO_PATH: "export const MANIFEST = {} as const;\n",
+            "PROJECT_STATE.md": (
+                "# State\n### Session current\n"
+                f"{release_id} {source_sha} Overall `89%` MARKET_READY:false I1 I5\n"
+                "### Session history\n"
+            ),
+        }
+
+        def load_index_json(path: str) -> dict[str, object]:
+            return copy.deepcopy(index_payloads[path])
+
+        def load_git_json(_sha: str, path: str) -> dict[str, object]:
+            return copy.deepcopy(source_payloads[path])
+
+        def load_index_text(path: str) -> str:
+            return index_texts[path]
+
+        with (
+            patch.object(verifier, "load_index_json", side_effect=load_index_json),
+            patch.object(verifier, "load_git_json", side_effect=load_git_json),
+            patch.object(verifier, "load_index_text", side_effect=load_index_text),
+            patch.object(
+                verifier,
+                "run_git",
+                return_value=subprocess.CompletedProcess(("git", "diff"), 0, "", ""),
+            ),
+            patch.object(verifier.progress_truth, "git_commit_is_ancestor", return_value=True),
+            patch.object(verifier.progress_truth, "validate_progress_truth") as validate_progress,
+        ):
+            verifier.require_evidence_credited_progress_transition(
+                source_sha,
+                index_manifest,
+                itemization,
+                89,
+            )
+            validate_progress.assert_called_once()
+
+        inflated = copy.deepcopy(index_manifest)
+        next(item for item in inflated["horizontal"]["items"] if item["id"] == "phase_5")["percent"] = 95  # type: ignore[index]
+        index_payloads[verifier.PROJECT_PROGRESS_MANIFEST_REPO_PATH] = inflated
+        with (
+            patch.object(verifier, "load_index_json", side_effect=load_index_json),
+            patch.object(verifier, "load_git_json", side_effect=load_git_json),
+        ):
+            self.assert_rejected(
+                lambda: verifier.require_evidence_credited_progress_transition(
+                    source_sha,
+                    inflated,
+                    itemization,
+                    89,
+                ),
+                "may not alter the independently scored Phase-5 percent",
+            )
 
 
 if __name__ == "__main__":

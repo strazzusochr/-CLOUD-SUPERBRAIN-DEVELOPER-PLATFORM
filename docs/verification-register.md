@@ -5,7 +5,7 @@ Status: Active
 
 ## Current Progress Authority
 
-Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
+Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `86%`, Memory `100%`, and Observability `100%`. The v2 delta ledger contains one evidence-scored L5 entry.
 
 ## Current RC30 Local Qualification Evidence
 
@@ -32,22 +32,27 @@ and `73F7582477195E46A57467C8A4B0542E56500E8714BE73CC7EA66C36B49A2461`.
 The canonical 22-page report SHA is
 `AF0F9B98B256AA338333C3CC26420F267E9C888008AD4957484675B3FB009DB9`.
 
-The no-credit selection preserves `17/19 = 89%`, blocked I1
-`hosted_candidate_parity` and I5 `production_auth_identity`, all item rulings, the empty
-real delta ledger and `MARKET_READY:false`. B1 approval remains bound to
+The candidate selection preserves `17/19 = 89%`, blocked I1
+`hosted_candidate_parity` and I5 `production_auth_identity`, all item rulings and
+`MARKET_READY:false`. B1 approval remains bound to
 `e87c28a7c6cf32982caa849794042daa53ef022a` without percentage credit. RC27 source
 `0ca71d1c6168d64360a7764b725b2b673af00afe` remains the immutable local rollback
-target. No GHCR publication, default-branch write, production deploy, release promotion,
-production rollout, payment, or secret output is claimed. `DEV-ONLY; hosted proof still
-blocked`.
+target. Hosted-evidence commit `532a3c8cfff201f09617c6eb46d0111d56a9dcba` adds four
+immutable RC30 Hosted-MCP reports and one fail-closed static L5 scorer. Real Preview HTTPS
+runs verify bounded write/readback/audit, exact auth scope, timeout/idempotency and audit-
+readback/rollback. Their accepted 30-point ledger entry raises L5 `56 -> 86`; Overall stays
+`89` and Phase 5 stays `89`. GHCR digest/scan/publication credit, L4 generative credit, I1,
+I5, production deploy, release promotion and rollout remain blocked. No GHCR publication,
+default-branch write, payment, secret rotation or secret output is claimed.
 
 RC29 final-head CI failed on two newly published HIGH Browserslist advisories; RC30 pins
 patched `browserslist` `4.28.8`, and the clean candidate archive reports zero
-vulnerabilities. Prequalification selection commit `0b8b80dd` is the local predecessor
-of this evidence freeze. The next binding is the exact feature-branch push and a final-head `pr-check` with
-`skipped=0`; only then may S2 rebind the isolated candidate preview surfaces. Deferred
-GitHub Actions runtime-pin maintenance remains outside RC30 and starts only after the next
-freeze.
+vulnerabilities. S2 rebound only the isolated Cloudflare Preview Workers to RC30 source;
+it did not change a production alias. `pr-check` `33560498326` on hosted-evidence control
+`532a3c8c` passed `31/31`, `skipped=0`, `failed=0`. The unified Vercel candidate surface
+still returns `404` for `/mcp/api/v1/health`, so the current-release verifier and I1 remain
+fail-closed. Deferred GitHub Actions runtime-pin maintenance remains outside RC30 and
+starts only after the next freeze.
 
 ## Current RC27 Local Qualification Evidence
 

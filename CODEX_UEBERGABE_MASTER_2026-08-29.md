@@ -3,7 +3,7 @@
 Status: `ACTIVE_CURRENT_HANDOFF`
 Stand: **2026-09-01**
 Branch: `codex/organism-visual-v2`
-Qualification Source: **`9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68`**; Control: **`f5a31e52e8bbf6d166c7a1c11932f15219c587c1`**
+Qualification Source: **`9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68`**; Source-Attestation: **`f5a31e52e8bbf6d166c7a1c11932f15219c587c1`**; Hosted-Evidence-Control: **`532a3c8cfff201f09617c6eb46d0111d56a9dcba`**
 **B1 ERTEILT** — Approval-Commit: **`e87c28a7c6cf32982caa849794042daa53ef022a`**
 Market Status: `MARKET_READY:false` — Overall `89`
 
@@ -30,11 +30,19 @@ RC30 ist lokal mit allen fuenf unabhaengigen Ketten qualifiziert. Der exakte
 27-Dateien-Evidence-Satz bindet sechs Images, Runtime `10/10 healthy`, Security,
 Candidate-Runtime mit realem Playwright-Klick und den kompletten Chromium-Lauf
 `22/22` Routen, `29/29` Familien, `161/161` Mitglieder. GitHub-Run `33540678387`
-attestierte die eingefrorene Source mit `31/31`, `skipped=0`. Fortschritt bleibt
-`89`; I1/I5 und `MARKET_READY:false` bleiben unveraendert. Naechster Schritt ist der
-exakte Evidence-/Truth-Freeze, Feature-Branch-Push, finaler Head-CI-Lauf und erst danach
-S2 Candidate-Preview-Rebind. Workflow-Runtime-Pins werden erst nach diesem Freeze in
+attestierte die eingefrorene Source mit `31/31`, `skipped=0`. Der spaetere Hosted-
+Evidence-Control `532a3c8c` bestand `pr-check` `33560498326` ebenfalls mit `31/31`,
+`skipped=0`, `failed=0`. Stateful- und LLM-Preview-Worker melden RC30-Source plus
+gebundene Archiv-/Bundle-Hashes. Vier echte Hosted-MCP-Verifier sind gruen und der
+statisch zugelassene Scorer akzeptiert exakt 30 L5-Punkte; der erste reale v2-Ledger-
+Eintrag bewegt L5 `56 -> 86`, Overall bleibt `89`. I1/I5 und `MARKET_READY:false`
+bleiben unveraendert. Workflow-Runtime-Pins werden erst nach dem naechsten Freeze in
 einem separaten Wartungsslice aktualisiert.
+
+L5 fehlen noch 14 Registry-/Scan-/Protected-Publish-Punkte. L4 bleibt `55`, weil das
+lokale Credential fuer die fuenf generativen Hosted-Verifier nicht verfuegbar ist. Der
+einheitliche Vercel-Candidate-Pfad liefert fuer `/mcp/api/v1/health` `404`; damit bleiben
+Current-Release-Verifier und I1 korrekt fail-closed. Kein Secret wurde gelesen oder rotiert.
 
 RC29s finaler Head-CI-Lauf scheiterte an zwei neu veroeffentlichten HIGH-Advisories fuer
 `browserslist <=4.28.6`. RC30 pinnt die gepatchte Version `4.28.8`; der Kandidaten-Audit
@@ -49,8 +57,9 @@ Verification Register und den RC30-Evidence-Artefakten.
 
 ## Owner-Aktionen 2026-09-01 — gemessener Stand
 
-Zwei Owner-Handlungen sind ausgefuehrt und nachgeprueft. Beide vergeben **null** Punkte:
-`overall` bleibt `89`, Delta-Ledger bleibt `0`, `MARKET_READY:false`.
+Zwei Owner-Handlungen sind ausgefuehrt und nachgeprueft. Beide selbst vergeben **null**
+Punkte. Der spaetere eigenstaendige Hosted-MCP-Beweis vergibt L5 +30; `overall` bleibt
+`89`, Delta-Ledger `1`, `MARKET_READY:false`.
 
 ### 1. B3-Provisioning ist jetzt `3/3`
 
@@ -326,18 +335,18 @@ aktuellen Kandidaten und die aktuellen Non-Claims haben diese RC24-Aktualisierun
 
 | Groesse | Wert |
 | --- | --- |
-| Truth-Doku-Measurement | RC30 Source-Control `f5a31e52` — source-attestierter `pr-check` `33540678387`, `31/31`, `0` skipped |
-| Selection-Head | Der RC30-Evidence-/Truth-Freeze enthaelt diese Uebergabe; sein SHA wird absichtlich nicht selbstreferenziert und nach Push ueber Remote-Head plus finalen `pr-check` gebunden |
-| RC30 Source / Control | `9e88f84a` / `f5a31e52` |
-| Hosted Worker | `cloud-superbrain-stateful-runtime.strazzusochr.workers.dev` |
-| Hosted Source | Vor S2 neu messen; kein RC30-Rebind und keine RC30-Hosted-Paritaet behauptet |
+| Truth-Doku-Measurement | Hosted-Evidence-Control `532a3c8c` — `pr-check` `33560498326`, `31/31`, `0` skipped, `0` failed |
+| Selection-Head | RC30 bleibt auf Source `9e88f84a` eingefroren; spaetere Control-/Truth-Commits aendern diese Produktquelle nicht |
+| RC30 Source / Controls | `9e88f84a` / Source-Attestation `f5a31e52` / Hosted Evidence `532a3c8c` |
+| Hosted Worker | `cloud-superbrain-stateful-runtime-preview.strazzusochr.workers.dev` plus LLM Preview |
+| Hosted Source | Beide Preview-Worker source-bound auf `9e88f84a`; Unified Vercel MCP-Health bleibt `404` |
 | Aktiver RC-Zeiger | RC30 `prod-candidate-2026-09-01-local-rc30` @ `9e88f84a`; RC27 ist Rollback |
-| D1 | `cloud-superbrain-state-prod` (`91520f43-5d38-4a31-9d5a-6fca890e1dd6`), Migrationen 0001–0005 angewandt |
-| Overall | `89` — `deltas=0`, Phase 5 `17/19`, blockiert `I1`, `I5` |
+| D1 | `cloud-superbrain-state-prod` (`91520f43-5d38-4a31-9d5a-6fca890e1dd6`), Migrationsaudit `8/8` angewandt |
+| Overall | `89` — `deltas=1`, L5 `86`, Phase 5 `17/19`, blockiert `I1`, `I5` |
 
 ```text
 Horizontal:  P0 100 | P1 100 | P2 100 | P3 44 | P4 100 | P5 89 | P6 90
-Vertikal:    L1 100 | L2 100 | L3 100 | L4 55 | L5 56 | L6 100 | L7 100
+Vertikal:    L1 100 | L2 100 | L3 100 | L4 55 | L5 86 | L6 100 | L7 100
 ```
 
 `overall = round(sum(7 Phasen)/7)` (`scripts/verify_project_progress_manifest.py:328`).
@@ -526,10 +535,11 @@ und die Migrationen 0006 und 0008.
 schreibt `credit_eligible = $false`. Selbstzertifizierung ist damit strukturell
 ausgeschlossen.
 
-**Trotzdem bleiben L4/L5 bei `55`/`56`**, denn es fehlen drei Dinge, keins davon im Skript:
-der B1-Approval-Commit, der Hosted-Source-Rebind auf die RC24-Quelle und die realen
-Hosted-Laeufe. Beide Ziel-Gateways sind live und antworten `200`. Details in §5 der
-Zieldatei.
+**Aktuell:** B1 und der RC30-Preview-Rebind sind erledigt. Vier MCP-Laeufe sind real gruen
+und kreditiert; L5 steht bei `86`. Der SBOM-Lauf ist lokal real, aber ohne immutable
+Registry-Digests `credit_eligible=false`; Registry-/Remote-Scan-/Protected-Publish machen
+die restlichen 14 Punkte aus. L4 bleibt `55`, weil das lokale Verifier-Credential fuer die
+fuenf generativen Live-Laeufe fehlt. Beide Preview-Gateways selbst antworten gesund.
 
 ## 6. Der P6-Lauf ist echte Last, aber kein vollstaendiger Beweis
 
@@ -580,10 +590,10 @@ fuenf Ketten qualifiziert werden. RC22 `28727b198b` bleibt der lokale Rollback-A
 | Blocker | Stand |
 | --- | --- |
 | **SB1** Rubriken | **geloest 2026-08-31.** Alle drei tragen `Status: APPROVED`, `Credit-Anwendung erlaubt: true` und `Owner-Freigabe-Ref:`; Approval-Commit `e87c28a7`. Ab jetzt blob-eingefroren. |
-| **SB2** Verifier | **geloest.** Alle zehn sind echte, fail-closed gebundene Skripte (§5). Offen sind nur Hosted-Rebind und die realen Laeufe. |
+| **SB2** Verifier | **teilweise ausgefuehrt.** Alle zehn sind echte fail-closed Skripte; vier MCP-Laeufe sind gruen/kreditiert, der SBOM-Lauf bleibt ohne Registry-Digest uncreditiert, fuenf LLM-Laeufe warten auf das lokale Credential. |
 | **SB3** P5-Codepin | **unveraendert.** `BASELINE_BLOCKED_IDS = {"I1"}` (`verify_phase5_credit_itemization.py:44`), nur `blocked.add("I5")` (`:296`), **kein** `discard`, **kein** `remove`. I5 ist rein evidenzgetrieben; **I1 braucht Beweis UND Codeaenderung.** Am 2026-09-01 nachgeprueft. |
-| **SB4** Delta-Ledger | **unveraendert.** `project-progress-delta-ledger-v2`, `baseline.source_sha = 9a3776ff`, `entries = 0`. Nie erprobt. Δ=0 heisst „nie kreditiert", nicht „kaputt". Am 2026-09-01 nachgeprueft. |
-| **SB5** Hosted | **korrigiert.** Die Source-Bindung ist **nicht mehr geloescht** — F2 ist behoben. Live gemessen 2026-09-01: `/api/v1/health` meldet `status=healthy` und `source_commit_sha=bc0f4dc8…`. Sie ist aber **veraltet** gegenueber RC30-Source `9e88f84a`; `/api/v1/project/progress` liefert weiter `84` (Ursache in §8 unten). |
+| **SB4** Delta-Ledger | **geloest und real erprobt.** v2, Baseline `9a3776ff`, `entries = 1`; der approved L5-Scorer replayt source-/hash-gebunden `56 -> 86`, Overall `89`, Phase 5 unveraendert. |
+| **SB5** Hosted | **Worker-Rebind geloest.** Stateful- und LLM-Preview melden RC30 `9e88f84a`; vier MCP-Verifier sind source-bound gruen. Der einheitliche Vercel-Pfad bleibt mit `/mcp/api/v1/health = 404` offen und blockiert I1. |
 
 Capability-Gates: **7 von 10 geschlossen**. Offen: `production_auth_identity`,
 `docker_registry_publish`, `phase6_scale_runtime`.
@@ -654,8 +664,8 @@ c22-candidate` (HEAD folgt dem
   im Widerspruch zu §3A desselben Dokuments. Der Owner hat am 2026-08-30 real geklickt, die
   Kette ist serverseitig in D1 belegt. Was fehlt, ist das Evidence-Dokument nach
   `production-auth-identity-proof-v1` — der **Kredit**, nicht der Klick.
-- **keine Rubrik-Kreditanwendung**, kein Delta-Ledger-Eintrag. Die Rubriken sind seit
-  `e87c28a7` freigegeben; freigegeben heisst „messbar", nicht „kreditiert".
+- Rubrik-Kredit gilt **nur** fuer die vier Hosted-MCP-Kriterien (30 Punkte); keine L4-,
+  Registry-, SBOM-, P3-, P5- oder P6-Kreditanwendung darueber hinaus.
 - *Praezisierung 2026-09-01 zum Default-Branch:* zwei Owner-Merges auf `chore/repo-bootstrap`
   haben stattgefunden — `ce75bb00` (PR #32, Phase-6-Workflow) und `9c508aab` (PR #33,
   gehaerteter `main-deploy`). Beide betrafen **ausschliesslich** Workflow-Dateien, keinen
@@ -663,4 +673,4 @@ c22-candidate` (HEAD folgt dem
   Form nicht mehr; er gilt weiter fuer **Produktcode**.
 - kein Secret- oder Payment-Output
 - `MARKET_READY:false`
-- `DEV-ONLY; hosted proof still blocked.`
+- Hosted-MCP-Preview ist vierteilig verifiziert; Markt-/Release-Hosted-Proof bleibt blockiert.

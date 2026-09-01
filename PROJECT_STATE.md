@@ -9,8 +9,8 @@ Letzte Aktualisierung: 2026-09-01
 
 - **Aktiver Prequalification-Kandidat:** `prod-candidate-2026-09-01-local-rc30`,
   eingefrorene Source `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68`, Kontroll-Commit
-  `f5a31e52e8bbf6d166c7a1c11932f15219c587c1`. GitHub-Actions-Lauf `33540678387`
-  attestierte exakt den Source-Checkout; `31/31` beobachtete Schritte waren gruen,
+  `532a3c8cfff201f09617c6eb46d0111d56a9dcba`. GitHub-Actions-Lauf `33560498326`
+  attestierte exakt den Kontroll-Head; `31/31` beobachtete Schritte waren gruen,
   `0` skipped, und der Frontend-Audit meldete `0` Schwachstellen. RC27-Source
   `0ca71d1c6168d64360a7764b725b2b673af00afe` bleibt der
   immutable lokale Rollback-Anker.
@@ -27,20 +27,33 @@ Letzte Aktualisierung: 2026-09-01
 - **B1 gebunden, ohne Kredit:** Die drei genehmigten Rubriken sind durch Owner-Commit
   `e87c28a7c6cf32982caa849794042daa53ef022a` und den fail-closed Rubrik-Verifier gebunden.
   Aus der Freigabe allein folgt weder Prozentcredit noch Hosted-/Release-Status.
-- **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
-  P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
+- **Hosted Preview source-bound:** Der Cloudflare-Stateful-Worker und der LLM-Gateway-
+  Worker laufen ausschliesslich als Preview auf der eingefrorenen RC30-Source. Health
+  bindet Source, Archiv und Bundle; kein Production-Alias, Rollout oder Release wurde
+  veraendert. Der read-only LLM-Hosted-Check ist gruen; die fuenf generativen L4-Live-
+  Verifier warten weiter fail-closed auf das lokale Verifier-Credential.
+- **L5 Hosted-MCP-Credit:** Vier getrennte HTTPS-Verifier belegen bounded Write mit
+  Readback/Audit, exakte Auth-Scope-Grenzen, Timeout ohne Aftereffect plus Idempotenz und
+  Audit-Readback/Rollback. Die unveraenderlichen Rohreports und der 30-Punkte-Aggregat-
+  Beweis liegen unter `docs/release-artifacts/prod-candidate-2026-09-01-local-rc30-evidence/hosted-layer/`;
+  der statisch zugelassene read-only Scorer akzeptiert exakt L5 `56 -> 86`. Der erste
+  echte v2-Delta-Ledger-Eintrag ist damit evidence-, source- und hash-gebunden. Registry-
+  Digest, Remote-Scan, Candidate-SBOM-Credit und Protected-Publish bleiben uncreditiert.
+- **Fortschritt:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
+  P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `86`,
   L6 `100`, L7 `100`. `MARKET_READY:false`. I1 `hosted_candidate_parity` und I5
   `production_auth_identity` bleiben die einzigen Phase-5-Nullcredit-Items.
-- **Naechster sicherer Schritt:** Den exakten RC30-Evidence-/Truth-Freeze mit Pathspecs
+- **Naechster sicherer Schritt:** Den L5-Delta-/Truth-Slice mit exakten Pathspecs
   committen, auf den Feature-Branch pushen und den finalen Head-CI-Lauf mit `skipped=0`
-  abwarten. Erst danach darf S2 die isolierten Candidate-Preview-Surfaces auf RC30
-  rebinden und neu messen. Das vergibt allein keinen Kredit.
+  abwarten. Danach bleiben fuer L5 exakt 14 Punkte hinter B4/GHCR; L4 bleibt bis zu einer
+  expliziten Credential-/Secret-Rotationsentscheidung bei `55`.
 - **Wartung nach dem naechsten Freeze, nicht in RC30:** `actions/upload-artifact` v4.6.2
   in `pr-check.yml`, `main-deploy.yml` und `phase6-scale-runtime.yml` sowie
   `checkout`/`setup-node` v4 in `autonomous-fullstack.yml` separat aktualisieren. Die
   RC30-gepinnten Workflow-Dateien bleiben bis dahin unveraendert.
-- **Non-Claims:** `DEV-ONLY; hosted proof still blocked`. Kein Main-/Default-Branch-Write,
-  GHCR-Push, Production-Deploy, Release-Promotion, Production-Rollout oder Secret-Output.
+- **Non-Claims:** Hosted MCP ist nur fuer die vier genannten Preview-Kriterien verifiziert;
+  Markt-/Release-Readiness bleibt blockiert. Kein Main-/Default-Branch-Write, GHCR-Push,
+  Production-Deploy, Release-Promotion, Production-Rollout oder Secret-Output.
 
 ### Session 2026-08-29 — RC23 lokal qualifiziert und ausgewaehlt
 

@@ -36,6 +36,29 @@ class ProjectProgressTruthTests(unittest.TestCase):
         )
         self.snapshot = json.loads((REPO_ROOT / verifier.ENDPOINT_SNAPSHOT_PATH).read_text(encoding="utf-8"))
         self.platform = (REPO_ROOT / verifier.PLATFORM_MIRROR_PATH).read_text(encoding="utf-8")
+        baseline_projection = verifier.expected_baseline_projection()
+        baseline_horizontal = {
+            item["id"]: item["percent"] for item in baseline_projection["horizontal"]
+        }
+        baseline_vertical = {
+            item["id"]: item["percent"] for item in baseline_projection["vertical"]
+        }
+        self.baseline_manifest = copy.deepcopy(self.manifest)
+        self.baseline_manifest["overall_percent"] = baseline_projection["overall_percent"]
+        for item in self.baseline_manifest["horizontal"]["items"]:
+            item["percent"] = baseline_horizontal[item["id"]]
+        for item in self.baseline_manifest["vertical"]["items"]:
+            item["percent"] = baseline_vertical[item["id"]]
+        self.baseline_snapshot = copy.deepcopy(self.snapshot)
+        self.baseline_snapshot["/api/v1/project/progress"] = copy.deepcopy(
+            self.baseline_manifest
+        )
+        self.baseline_platform = self.platform.replace(
+            '{ name: "MCP Gateway", layer: 5, pct: 86 }',
+            '{ name: "MCP Gateway", layer: 5, pct: 56 }',
+            1,
+        )
+        self.assertNotEqual(self.baseline_platform, self.platform)
 
     def assert_rejected(self, callback, expected: str) -> None:
         with self.assertRaisesRegex(SystemExit, expected):
@@ -93,7 +116,7 @@ class ProjectProgressTruthTests(unittest.TestCase):
         )
 
     def synthetic_p3_delta(self):
-        manifest = copy.deepcopy(self.manifest)
+        manifest = copy.deepcopy(self.baseline_manifest)
         manifest["horizontal"]["items"][3]["percent"] = 45
         manifest["overall_percent"] = round(
             sum(item["percent"] for item in manifest["horizontal"]["items"]) / 7
@@ -120,14 +143,14 @@ class ProjectProgressTruthTests(unittest.TestCase):
                 "artifact_sha256": hashlib.sha256(artifact_bytes).hexdigest(),
             }
         ]
-        snapshot = copy.deepcopy(self.snapshot)
+        snapshot = copy.deepcopy(self.baseline_snapshot)
         snapshot["/api/v1/project/progress"] = copy.deepcopy(manifest)
-        platform = self.platform.replace(
+        platform = self.baseline_platform.replace(
             '{ id: "P3", pct: 44 }',
             '{ id: "P3", pct: 45 }',
             1,
         )
-        self.assertNotEqual(platform, self.platform)
+        self.assertNotEqual(platform, self.baseline_platform)
         return manifest, ledger, snapshot, platform, artifact_bytes
 
     def validate_synthetic_p3_delta(
@@ -471,8 +494,8 @@ class ProjectProgressTruthTests(unittest.TestCase):
         self.assert_rejected(lambda: self.validate(platform=p6_edited), "horizontal mirror differs")
 
         layer_edited = self.platform.replace(
-            '{ name: "MCP Gateway", layer: 5, pct: 56 }',
-            '{ name: "MCP Gateway", layer: 5, pct: 57 }',
+            '{ name: "MCP Gateway", layer: 5, pct: 86 }',
+            '{ name: "MCP Gateway", layer: 5, pct: 87 }',
             1,
         )
         self.assertNotEqual(layer_edited, self.platform)
@@ -860,9 +883,9 @@ class ProjectProgressTruthTests(unittest.TestCase):
         }
         repeated_source = copy.deepcopy(ledger)
         repeated_source["entries"].append(second_entry)
-        final_snapshot = copy.deepcopy(self.snapshot)
+        final_snapshot = copy.deepcopy(self.baseline_snapshot)
         final_snapshot["/api/v1/project/progress"] = copy.deepcopy(final_manifest)
-        final_platform = self.platform.replace(
+        final_platform = self.baseline_platform.replace(
             '{ id: "P3", pct: 44 }',
             '{ id: "P3", pct: 46 }',
             1,
@@ -953,10 +976,10 @@ class ProjectProgressTruthTests(unittest.TestCase):
                 "artifact_sha256": hashlib.sha256(second_artifact_bytes).hexdigest(),
             }
         )
-        final_snapshot = copy.deepcopy(self.snapshot)
+        final_snapshot = copy.deepcopy(self.baseline_snapshot)
         final_snapshot["/api/v1/project/progress"] = copy.deepcopy(final_manifest)
         final_platform = (
-            self.platform.replace('{ id: "P3", pct: 44 }', '{ id: "P3", pct: 45 }', 1)
+            self.baseline_platform.replace('{ id: "P3", pct: 44 }', '{ id: "P3", pct: 45 }', 1)
             .replace(
                 '{ name: "LLM Gateway", layer: 4, pct: 55 }',
                 '{ name: "LLM Gateway", layer: 4, pct: 56 }',

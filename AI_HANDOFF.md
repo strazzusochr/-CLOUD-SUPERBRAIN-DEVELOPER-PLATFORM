@@ -18,6 +18,18 @@ attestation SHA `F8781943AEF3E8AB6BE56DD4E49E597DC9A3D7E04C379525968F532B00BB255
 and GitHub-readback SHA `027330396730B34FEC9996BCBCD318AFD30EC528015909A31498451BC4B6B170`
 are preserved in the exact 27-file evidence set.
 
+Latest hosted-evidence control is `532a3c8cfff201f09617c6eb46d0111d56a9dcba`;
+feature-head `pr-check` `33560498326` passed `31/31`, `skipped=0`, `failed=0`. The
+Cloudflare stateful and LLM Preview Workers are rebound to RC30 source `9e88f84a` with
+matching archive and bundle hashes. Four source-bound Hosted-MCP verifiers are green:
+write/readback/audit, exact auth scope, timeout/idempotency, and audit-readback/rollback.
+Their immutable raw reports and aggregate live under the RC30 hosted-layer evidence tree.
+The read-only static scorer accepts exactly 30 L5 points, and the first real v2 delta-ledger
+entry moves MCP Gateway `56 -> 86`; Overall remains `89`. The remaining 14 L5 points are
+still blocked by unpublished GHCR digests/remote scan/protected publication. L4 stays `55`:
+its five generative hosted verifiers require the unavailable local verifier credential; no
+secret was read, copied, rotated, or output.
+
 All five local qualification chains passed: six source-bound candidate images; runtime
 `10/10 healthy`; candidate-scoped npm-audit plus canonical gitleaks; the complete real
 Chromium matrix with `22/22` routes, `29/29` families and `161/161` members; and exact
@@ -35,20 +47,20 @@ RC29 final-head CI exposed two newly published HIGH Browserslist advisories. RC3
 patched `browserslist` `4.28.8`; clean candidate-archive audit and canonical gitleaks both
 pass, while product runtime logic and the RC29 Three.js repair remain unchanged. The B1
 approval commit `e87c28a7c6cf32982caa849794042daa53ef022a`
-remains bound and grants no percentage by itself. The no-credit selection preserves
-`17/19 = 89%`, blocked items `I1` and `I5`, all item rulings, `MARKET_READY:false`, and
-the empty real delta ledger. Overall remains `89`; horizontal
-`100/100/100/44/100/89/90`; vertical `100/100/100/55/56/100/100`. RC27 source
+remains bound and grants no percentage by itself. Phase 5 preserves `17/19 = 89%`, blocked
+items `I1` and `I5`, all item rulings and `MARKET_READY:false`; the evidence-scored L5
+transition does not alter Phase-5 credit. Overall remains `89`; horizontal
+`100/100/100/44/100/89/90`; vertical `100/100/100/55/86/100/100`; delta ledger `1`.
+RC27 source
 `0ca71d1c6168d64360a7764b725b2b673af00afe` is the immutable local rollback target.
 `DEV-ONLY; hosted proof still blocked`.
 
-Prequalification selection commit `0b8b80dd` is the local predecessor of this exact-path
-RC30 evidence and truth freeze. Next safe stage is the feature-branch push and final-head
-`pr-check` with `skipped=0`. Only after that green run may S2 rebind the isolated candidate
-preview surfaces to RC30. This is not a
-production alias, release promotion, GHCR publication, default-branch write, or production
-rollout; hosted credit still requires approved-rubric evidence and a valid delta-ledger
-transition.
+Prequalification selection commit `0b8b80dd` remains historical. S2 is complete on isolated
+Preview Workers, and the four-credit L5 slice is scorer-accepted. Next safe stage is the
+exact delta/truth commit, feature-branch push and final-head `pr-check` with `skipped=0`.
+The unified Vercel candidate read is not green: `/mcp/api/v1/health` returns `404`, so no I1,
+release, or production claim is made. No production alias, release promotion, GHCR
+publication, default-branch write, production rollout, or secret output occurred.
 
 Deferred maintenance after the next freeze only: upgrade `actions/upload-artifact` from
 the RC30-pinned `v4.6.2` in `pr-check.yml`, `main-deploy.yml`, and

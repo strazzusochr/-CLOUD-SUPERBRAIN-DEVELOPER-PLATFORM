@@ -144,6 +144,7 @@ try {
   $runtimeSourceMatchesHead = $runtimeChangedPaths.Count -eq 0
   $qualificationTruthTransition = $false
   $noCreditRequalification = $false
+  $evidenceCreditTransition = $false
   if (-not $runtimeSourceMatchesHead) {
     $isQualificationTruthTransition = Test-ExactPathSet $runtimeChangedPaths $qualificationTruthPaths
     $isNoCreditRequalification = Test-ExactPathSet $runtimeChangedPaths $noCreditRequalificationPaths
@@ -161,6 +162,30 @@ try {
         ([int]$currentManifest.overall_percent - [int]$sourceManifest.overall_percent) -eq [int](($qualifiedPhase5ForParity - $legacyPhase5ForParity) / 7)
       )
     } elseif ($isNoCreditRequalification) {
+      $currentManifestForCredit = $currentManifest | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+      $currentManifestForCredit.last_verified = [string]$sourceManifest.last_verified
+      $progressCreditChanged = (
+        ($currentManifestForCredit | ConvertTo-Json -Compress -Depth 100) -ne
+        ($sourceManifest | ConvertTo-Json -Compress -Depth 100)
+      )
+      if ($progressCreditChanged) {
+        Assert-True "evidence-credit exact runtime truth paths" (
+          Test-ExactPathSet $runtimeChangedPaths $noCreditRequalificationPaths
+        )
+        $previousPythonUtf8 = [Environment]::GetEnvironmentVariable("PYTHONUTF8")
+        try {
+          $env:PYTHONUTF8 = "1"
+          & py -3 scripts\verify_phase5_credit_itemization.py
+          Assert-True "evidence-credit delta-ledger verifier" ($LASTEXITCODE -eq 0)
+        } finally {
+          if ($null -eq $previousPythonUtf8) {
+            Remove-Item Env:PYTHONUTF8 -ErrorAction SilentlyContinue
+          } else {
+            $env:PYTHONUTF8 = $previousPythonUtf8
+          }
+        }
+        $evidenceCreditTransition = $true
+      } else {
       $selectionPaths = @(
         "PROJECT_STATE.md",
         "apps/frontend/lib/endpoint-snapshot.json",
@@ -278,9 +303,10 @@ try {
       }
       Assert-False "no-credit production rollout" $candidateConfig.production_rollout_claimed
       $noCreditRequalification = $true
+      }
     }
   }
-  $runtimeSourceParityVerified = $runtimeSourceMatchesHead -or $qualificationTruthTransition -or $noCreditRequalification
+  $runtimeSourceParityVerified = $runtimeSourceMatchesHead -or $qualificationTruthTransition -or $noCreditRequalification -or $evidenceCreditTransition
   if (-not $runtimeSourceMatchesHead -and -not $AllowNonCandidateHead.IsPresent) {
     Assert-True "candidate runtime source matches HEAD or exact qualification truth transition" $runtimeSourceParityVerified
   }
@@ -309,7 +335,7 @@ try {
   Assert-True "secret non-claim source" $source.Contains('"secret_output": False')
 
   if ($StaticOnly) {
-    Write-Host "[phase5-candidate-local] static checks completed runtime_source_matches_head=$($runtimeSourceMatchesHead.ToString().ToLowerInvariant()) qualification_truth_transition=$($qualificationTruthTransition.ToString().ToLowerInvariant()) no_credit_requalification=$($noCreditRequalification.ToString().ToLowerInvariant()) runtime_source_parity=$($runtimeSourceParityVerified.ToString().ToLowerInvariant())"
+    Write-Host "[phase5-candidate-local] static checks completed runtime_source_matches_head=$($runtimeSourceMatchesHead.ToString().ToLowerInvariant()) qualification_truth_transition=$($qualificationTruthTransition.ToString().ToLowerInvariant()) no_credit_requalification=$($noCreditRequalification.ToString().ToLowerInvariant()) evidence_credit_transition=$($evidenceCreditTransition.ToString().ToLowerInvariant()) runtime_source_parity=$($runtimeSourceParityVerified.ToString().ToLowerInvariant())"
     exit 0
   }
 

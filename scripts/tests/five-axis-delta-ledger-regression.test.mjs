@@ -8,6 +8,7 @@ import test from "node:test";
 const root = resolve(import.meta.dirname, "..", "..");
 const verifier = resolve(root, "scripts", "verify-five-axis-substance-audit.mjs");
 const canonicalLedger = resolve(root, "docs", "runtime-state", "project-progress-delta-ledger.json");
+const canonicalManifest = resolve(root, "docs", "project-progress.manifest.json");
 
 function runLedgerOnly(ledgerPath = canonicalLedger) {
   return spawnSync(process.execPath, [verifier], {
@@ -26,7 +27,15 @@ test("accepts the canonical source-bound v2 delta ledger without browser evidenc
   const output = `${result.stdout}\n${result.stderr}`;
   assert.equal(result.status, 0, output);
   assert.match(output, /\[five-axis-audit\] DELTA-LEDGER PASS/);
-  assert.match(output, /deltas=0/);
+  const ledger = JSON.parse(readFileSync(canonicalLedger, "utf8"));
+  const manifest = JSON.parse(readFileSync(canonicalManifest, "utf8"));
+  const layer4 = manifest.vertical.items.find((item) => item.id === "layer_4");
+  const layer5 = manifest.vertical.items.find((item) => item.id === "layer_5");
+  assert.ok(layer4 && layer5, "canonical manifest must contain L4 and L5");
+  assert.match(
+    output,
+    new RegExp(`L4=${layer4.percent} L5=${layer5.percent} deltas=${ledger.entries.length}`),
+  );
 });
 
 test("rejects the retired v1 permanent-empty ledger contract without browser evidence", () => {

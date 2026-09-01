@@ -245,6 +245,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 $truthTransition = $false
 $noCreditRequalification = $false
+$evidenceCreditTransition = $false
 if ($runtimeChangedPaths.Count -gt 0) {
   $isQualificationTruthTransition = Test-ExactPathSet $runtimeChangedPaths $qualificationTruthPaths
   $isNoCreditRequalification = Test-ExactPathSet $runtimeChangedPaths $noCreditRequalificationPaths
@@ -255,12 +256,24 @@ if ($runtimeChangedPaths.Count -gt 0) {
   }
 
   if ($isNoCreditRequalification) {
+    $sourceManifestTextForCredit = (& git show "${sourceSha}:docs/project-progress.manifest.json" 2>$null | Out-String)
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($sourceManifestTextForCredit)) {
+      throw "Verification failed: candidate source manifest is unavailable for progress transition classification."
+    }
+    $sourceManifestForCredit = $sourceManifestTextForCredit | ConvertFrom-Json
+    $currentManifestForCredit = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
+    $currentManifestProjectionForCredit = $currentManifestForCredit | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+    $currentManifestProjectionForCredit.last_verified = [string]$sourceManifestForCredit.last_verified
+    $progressCreditChanged = (
+      ($currentManifestProjectionForCredit | ConvertTo-Json -Compress -Depth 100) -ne
+      ($sourceManifestForCredit | ConvertTo-Json -Compress -Depth 100)
+    )
     $previousPythonUtf8 = [Environment]::GetEnvironmentVariable("PYTHONUTF8")
     try {
       $env:PYTHONUTF8 = "1"
       & py -3 scripts\verify_phase5_credit_itemization.py
       if ($LASTEXITCODE -ne 0) {
-        throw "Verification failed: no-credit requalification verifier failed."
+        throw "Verification failed: evidence/no-credit progress-transition verifier failed."
       }
     } finally {
       if ($null -eq $previousPythonUtf8) {
@@ -270,7 +283,11 @@ if ($runtimeChangedPaths.Count -gt 0) {
       }
     }
     $truthTransition = $true
-    $noCreditRequalification = $true
+    if ($progressCreditChanged) {
+      $evidenceCreditTransition = $true
+    } else {
+      $noCreditRequalification = $true
+    }
   } else {
   $itemization = Get-Content "docs\runtime-state\phase5-credit-itemization.json" -Raw | ConvertFrom-Json
   Assert-Equal "post-qualification itemization mode" ([string]$itemization.mode) "fully_itemized"
@@ -359,4 +376,4 @@ if ($canonicalVerified) {
 
 $promotionEligible = ($canonicalVerified -and [bool]$canonicalSummary.production_deploy_claim_allowed)
 $snapshotStale = ($expectedHostedOverall -ne [int]$manifest.overall_percent)
-Write-Host "[current-release-candidate] verified candidate_technical=true runtime_source_parity=true qualification_truth_transition=$($truthTransition.ToString().ToLowerInvariant()) no_credit_requalification=$($noCreditRequalification.ToString().ToLowerInvariant()) promotion_eligible=$($promotionEligible.ToString().ToLowerInvariant()) canonical=$($canonicalSummary.status) boundary=$hostedBoundarySource hosted_snapshot_overall=$expectedHostedOverall current_manifest_overall=$([int]$manifest.overall_percent) snapshot_stale=$($snapshotStale.ToString().ToLowerInvariant())"
+Write-Host "[current-release-candidate] verified candidate_technical=true runtime_source_parity=true qualification_truth_transition=$($truthTransition.ToString().ToLowerInvariant()) no_credit_requalification=$($noCreditRequalification.ToString().ToLowerInvariant()) evidence_credit_transition=$($evidenceCreditTransition.ToString().ToLowerInvariant()) promotion_eligible=$($promotionEligible.ToString().ToLowerInvariant()) canonical=$($canonicalSummary.status) boundary=$hostedBoundarySource hosted_snapshot_overall=$expectedHostedOverall current_manifest_overall=$([int]$manifest.overall_percent) snapshot_stale=$($snapshotStale.ToString().ToLowerInvariant())"

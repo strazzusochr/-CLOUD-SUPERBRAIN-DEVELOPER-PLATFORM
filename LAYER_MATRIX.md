@@ -1,6 +1,6 @@
 # L1-L7 Layer Matrix (kanonisch)
 
-Stand: 2026-08-02
+Stand: 2026-09-01
 
 Diese Matrix verwendet das verbindliche Mapping aus `AGENTS.md`,
 `docs/system-architecture.md` und `docs/project-progress.manifest.json`.
@@ -13,7 +13,7 @@ oder Release-Beweis.
 | **L2 Orchestrator / LangGraph** | FastAPI, LangGraph-StateGraph, PostgreSQL-Checkpointer, SSE/Replay, Policy-, Budget-, Retry- und Evidence-Gates | 100 % im Manifest. Die kanonische lokale Ausführung bleibt für viele Pfade deterministisch; Cloudflare-stateful ist ein getrennt source-gebundener Hosted-Pfad. |
 | **L3 Agent Pool** | Planner, Coder, Tester, DevOps; Redis-Queue, Worker, Heartbeats, Ergebnis-Envelopes; begrenzter O4 Agent→MCP-Dateiwrite mit Audit/Readback/Rollback | 100 % im Manifest für den itemisierten Vertrag. Keine Behauptung einer allgemeinen autonomen Softwarelieferung oder beliebiger Tool-Writes. |
 | **L4 LLM Gateway** | OpenAI-kompatible Chat-/Responses-Verträge, Routing-/Policy-/Fallback-/Budget-Grenzen, begrenzter Cloudflare-Workers-AI-Livepfad | 55 % im Manifest. Standardmodus ist `deterministic_dry_run`; vollständige Live-Flotte, dynamisches Routing und Responses-Streaming sind nicht belegt. |
-| **L5 MCP Gateway / Tools** | Safe-Envelopes mit Scope, Timeout, Audit und Versionspins; interne Read-only-Tools; begrenzter O4-Dateiwrite | 56 % im Manifest. Allgemeine GitHub-/PostgreSQL-/Filesystem-/Playwright-/E2B-Adapter bleiben contract/dry-run; Writes bleiben allowlist- und owner-gegatet. |
+| **L5 MCP Gateway / Tools** | Safe-Envelopes mit Scope, Timeout, Audit und Versionspins; interne Read-only-Tools; begrenzte source-bound Hosted-MCP-Writes | 86 % im Manifest. Vier Preview-HTTPS-Kriterien sind per Rohreport, statischem Scorer und v2-Delta-Ledger verifiziert; GHCR-Digests, Remote-Scan, Candidate-SBOM-Credit und Protected-Publish bleiben offen. |
 | **L6 Memory** | Redis Working Memory, PostgreSQL/pgvector, Konsolidierung/Purge, Cloudflare D1 Persistenz und begrenzter Vectorize-Semantikbeweis | 100 % im Manifest für den itemisierten Vertrag. Beweise bleiben an ihren jeweiligen lokalen bzw. Hosted-Scope gebunden. |
 | **L7 Observability** | Audit-Feed, Request-/Trace-Korrelation, Metriken, Evidenzartefakte und begrenzte Hosted-OTLP-Ingestion | 100 % im Manifest. Keine Behauptung vollständiger Grafana-/Langfuse-Dashboards, Alerts oder Trace-UX. |
 
@@ -35,4 +35,4 @@ Production-Deploy, Release-Promotion, Registry-Push, Default-Branch-Write,
 Secret-/Scope-Erweiterung, allgemeine Live-MCP-Writes und Live-Provider-
 Aktivierung benötigen die in `AGENTS.md` festgelegte Owner-/Review-Freigabe.
 
-`MARKET_READY:false`; DEV-ONLY, hosted proof still blocked.
+`MARKET_READY:false`; der vierteilige Hosted-MCP-Preview-Slice ist verifiziert, Markt-/Release-Readiness bleibt blockiert.

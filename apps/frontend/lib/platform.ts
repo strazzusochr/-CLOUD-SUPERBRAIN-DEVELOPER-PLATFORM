@@ -145,7 +145,7 @@ export const MANIFEST = {
     { name: "Orchestrator", layer: 2, pct: 100 },
     { name: "Agent Pool", layer: 3, pct: 100 },
     { name: "LLM Gateway", layer: 4, pct: 55 },
-    { name: "MCP Gateway", layer: 5, pct: 56 },
+    { name: "MCP Gateway", layer: 5, pct: 86 },
     { name: "Memory", layer: 6, pct: 100 },
     { name: "Observability", layer: 7, pct: 100 },
   ],
