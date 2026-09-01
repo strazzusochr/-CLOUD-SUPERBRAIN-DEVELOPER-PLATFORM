@@ -27,6 +27,7 @@ const load = vm.runInThisContext(`(function (exports, module, require) { ${compi
 const moduleShim = { exports: {} };
 load(moduleShim.exports, moduleShim, module.createRequire(import.meta.url));
 const {
+  ensureGeneratedHtmlBoundingSpheres,
   ensureGeneratedHtmlDependencies,
   ensureGeneratedHtmlRuntimeOrder,
   findUnrunnableReferences,
@@ -246,6 +247,71 @@ test("runtime-order repair preserves the original script tag", () => {
   assert.equal(isRunnableGeneratedHtml(repaired), true);
 });
 
+test("live three.js collision code computes lazy bounding spheres before reading radius", () => {
+  const broken = DOC(`<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script><script>
+    function checkCollision(object1, object2) {
+      const distance = object1.position.distanceTo(object2.position);
+      return distance < (object1.geometry.boundingSphere.radius + object2.geometry.boundingSphere.radius);
+    }
+  </script>`);
+  const repaired = ensureGeneratedHtmlBoundingSpheres(broken);
+  assert.match(repaired, /function __superbrainBoundingSphereRadius\(object\)/);
+  assert.match(repaired, /__superbrainBoundingSphereRadius\(object1\)/);
+  assert.match(repaired, /__superbrainBoundingSphereRadius\(object2\)/);
+  assert.doesNotMatch(
+    repaired,
+    /object[12]\.geometry\.boundingSphere\.radius/,
+    "the null-prone direct radius reads must be gone",
+  );
+  assert.match(repaired, /geometry\.computeBoundingSphere\(\)/);
+  const executable = repaired.match(/<script>([\s\S]*?)<\/script>/)?.[1] ?? "";
+  const runtime = {
+    computed: 0,
+    result: false,
+    object1: {
+      position: { distanceTo: () => 1 },
+      geometry: {
+        boundingSphere: null,
+        computeBoundingSphere() { this.boundingSphere = { radius: 0.75 }; runtime.computed += 1; },
+      },
+    },
+    object2: {
+      position: {},
+      geometry: {
+        boundingSphere: null,
+        computeBoundingSphere() { this.boundingSphere = { radius: 0.75 }; runtime.computed += 1; },
+      },
+    },
+  };
+  vm.runInNewContext(`${executable}\nresult = checkCollision(object1, object2);`, runtime);
+  assert.equal(runtime.result, true, "the repaired collision function must execute successfully");
+  assert.equal(runtime.computed, 2, "both lazy geometry bounds must be computed exactly once");
+  assert.equal(
+    ensureGeneratedHtmlBoundingSpheres(repaired),
+    repaired,
+    "bounding-sphere repair must be idempotent",
+  );
+});
+
+test("bounding-sphere repair leaves strings, comments, and already safe code unchanged", () => {
+  const safe = DOC(`<script>
+    const text = "object.geometry.boundingSphere.radius";
+    // object.geometry.boundingSphere.radius
+    object.geometry.computeBoundingSphere();
+    const radius = object.geometry.boundingSphere?.radius ?? 0;
+  </script>`);
+  assert.equal(ensureGeneratedHtmlBoundingSpheres(safe), safe);
+});
+
+test("bounding-sphere repair preserves a nested mesh receiver", () => {
+  const nested = DOC(`<script>
+    const radius = player.mesh.geometry.boundingSphere.radius;
+  </script>`);
+  const repaired = ensureGeneratedHtmlBoundingSpheres(nested);
+  assert.match(repaired, /__superbrainBoundingSphereRadius\(player\.mesh\)/);
+  assert.doesNotMatch(repaired, /player\.__superbrainBoundingSphereRadius\(mesh\)/);
+});
+
 test("the rejection reason names the offending URL so the boundary can report it", () => {
   const html = DOC('<script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>');
   const [reason] = findUnrunnableReferences(html);
@@ -255,6 +321,7 @@ test("the rejection reason names the offending URL so the boundary can report it
 test("the production build route applies the runnability guard before persistence", () => {
   const route = fs.readFileSync(new URL("../app/api/v1/build/route.ts", import.meta.url), "utf8");
   assert.match(route, /ensureGeneratedHtmlDependencies/);
+  assert.match(route, /ensureGeneratedHtmlBoundingSpheres/);
   assert.match(route, /ensureGeneratedHtmlRuntimeOrder/);
   assert.match(route, /isRunnableGeneratedHtml\(value\)/);
   assert.match(route, /unrunnable_html/);
@@ -263,6 +330,10 @@ test("the production build route applies the runnability guard before persistenc
     route.indexOf("ensureGeneratedHtmlDependencies(extractHtml(rawContent))")
       < route.indexOf("findUnrunnableReferences(html)"),
     "known missing dependencies must be repaired before the fail-closed verdict",
+  );
+  assert.ok(
+    route.indexOf("ensureGeneratedHtmlBoundingSpheres(") < route.indexOf("findUnrunnableReferences(html)"),
+    "known three.js lazy-bounds defects must be repaired before the fail-closed verdict",
   );
   assert.ok(
     route.indexOf("ensureGeneratedHtmlRuntimeOrder(") < route.indexOf("findUnrunnableReferences(html)"),

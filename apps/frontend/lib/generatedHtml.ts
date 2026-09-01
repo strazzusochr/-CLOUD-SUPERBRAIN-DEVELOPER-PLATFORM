@@ -24,6 +24,21 @@ const THREE_MODULE_CORE = /(?:\/three(?:@[^/]*)?\/build\/three\.module(?:\.min)?
 const PINNED_THREE_CLASSIC = '<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>';
 const SIMPLE_KEYS_DECLARATION = /^[ \t]*(?:const|let)\s+keys\s*=\s*\{\s*\}\s*;[ \t]*$/m;
 const FUNCTION_DECLARATION = /\bfunction\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/g;
+const SIMPLE_BOUNDING_SPHERE_RADIUS = /(?<![.\w$])([A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*)\s*\.\s*geometry\s*\.\s*boundingSphere\s*\.\s*radius\b/g;
+const BOUNDING_SPHERE_RADIUS_HELPER = `
+function __superbrainBoundingSphereRadius(object) {
+  const geometry = object && object.geometry;
+  if (!geometry || typeof geometry.computeBoundingSphere !== "function") {
+    throw new Error("Three.js object has no computable geometry bounding sphere");
+  }
+  if (geometry.boundingSphere === null || typeof geometry.boundingSphere === "undefined") {
+    geometry.computeBoundingSphere();
+  }
+  const sphere = geometry.boundingSphere;
+  if (!sphere) throw new Error("Three.js geometry bounding sphere is unavailable");
+  return sphere.radius;
+}
+`;
 
 type DeadReference = {
   /** Matches the resolved script URL. */
@@ -171,6 +186,104 @@ function matchingBlockEnd(source: string, openingBrace: number): number {
   return -1;
 }
 
+/**
+ * Produces a same-length view where JavaScript comments and literals are replaced with spaces.
+ * Narrow source repairs can then use offsets from this view without rewriting examples, labels,
+ * or regular expressions that merely contain code-looking text.
+ */
+function maskJavaScriptNonCode(source: string): string {
+  const masked = source.split("");
+  let quote = "";
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+  let regularExpression = false;
+  let regularExpressionClass = false;
+  let previousSignificant = "";
+
+  const hide = (index: number): void => {
+    if (masked[index] !== "\n" && masked[index] !== "\r") masked[index] = " ";
+  };
+
+  for (let index = 0; index < source.length; index += 1) {
+    const current = source[index];
+    const next = source[index + 1] ?? "";
+    if (lineComment) {
+      hide(index);
+      if (current === "\n") lineComment = false;
+      continue;
+    }
+    if (blockComment) {
+      hide(index);
+      if (current === "*" && next === "/") {
+        hide(index + 1);
+        blockComment = false;
+        index += 1;
+      }
+      continue;
+    }
+    if (quote) {
+      hide(index);
+      if (escaped) escaped = false;
+      else if (current === "\\") escaped = true;
+      else if (current === quote) quote = "";
+      continue;
+    }
+    if (regularExpression) {
+      hide(index);
+      if (escaped) escaped = false;
+      else if (current === "\\") escaped = true;
+      else if (current === "[") regularExpressionClass = true;
+      else if (current === "]") regularExpressionClass = false;
+      else if (current === "/" && !regularExpressionClass) regularExpression = false;
+      continue;
+    }
+    if (current === "/" && next === "/") {
+      hide(index);
+      hide(index + 1);
+      lineComment = true;
+      index += 1;
+      continue;
+    }
+    if (current === "/" && next === "*") {
+      hide(index);
+      hide(index + 1);
+      blockComment = true;
+      index += 1;
+      continue;
+    }
+    if (current === "'" || current === '"' || current === "`") {
+      hide(index);
+      quote = current;
+      continue;
+    }
+    if (current === "/" && (!previousSignificant || /[([{,:;=!?&|+*%~^-]/.test(previousSignificant))) {
+      hide(index);
+      regularExpression = true;
+      regularExpressionClass = false;
+      continue;
+    }
+    if (!/\s/.test(current)) previousSignificant = current;
+  }
+  return masked.join("");
+}
+
+function repairBoundingSphereRadiusReads(scriptBody: string): string {
+  const code = maskJavaScriptNonCode(scriptBody);
+  const matches = [...code.matchAll(SIMPLE_BOUNDING_SPHERE_RADIUS)];
+  if (matches.length === 0) return scriptBody;
+  let repaired = scriptBody;
+  for (const match of matches.reverse()) {
+    const index = match.index ?? -1;
+    if (index < 0) continue;
+    const object = match[1];
+    repaired = `${repaired.slice(0, index)}__superbrainBoundingSphereRadius(${object})${repaired.slice(index + match[0].length)}`;
+  }
+  return repaired.includes("function __superbrainBoundingSphereRadius(object)")
+    ? repaired
+    : `${BOUNDING_SPHERE_RADIUS_HELPER}${repaired}`;
+}
+
 function findEarlyKeyboardStartup(scriptBody: string): EarlyKeyboardStartup | null {
   const keysDeclaration = scriptBody.match(SIMPLE_KEYS_DECLARATION);
   const keysIndex = keysDeclaration?.index ?? -1;
@@ -271,6 +384,23 @@ export function ensureGeneratedHtmlRuntimeOrder(html: string): string {
     if (keysDeclaration?.index === undefined) return script;
     const insertAt = keysDeclaration.index + keysDeclaration[0].length;
     const repairedBody = `${withoutEarlyCall.slice(0, insertAt)}\n${startup.indentation}${startup.entryPoint}();${withoutEarlyCall.slice(insertAt)}`;
+    const bodyStart = script.indexOf(">") + 1;
+    return `${script.slice(0, bodyStart)}${repairedBody}${script.slice(bodyStart + body.length)}`;
+  });
+}
+
+/**
+ * Three.js computes geometry bounding spheres lazily. Models frequently read
+ * `mesh.geometry.boundingSphere.radius` before the first computation, which throws on the first
+ * animation frame and leaves an otherwise valid game frozen. Replace only simple executable
+ * radius reads with a fail-closed helper; strings, comments, external scripts, and optional-safe
+ * reads are left byte-identical.
+ */
+export function ensureGeneratedHtmlBoundingSpheres(html: string): string {
+  return html.replace(SCRIPT_BLOCK, (script, attributes: string, body: string) => {
+    if (attributeValue(attributes, SRC_ATTR)) return script;
+    const repairedBody = repairBoundingSphereRadiusReads(body);
+    if (repairedBody === body) return script;
     const bodyStart = script.indexOf(">") + 1;
     return `${script.slice(0, bodyStart)}${repairedBody}${script.slice(bodyStart + body.length)}`;
   });

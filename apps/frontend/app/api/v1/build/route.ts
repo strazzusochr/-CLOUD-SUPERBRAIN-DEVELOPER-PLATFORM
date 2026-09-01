@@ -5,6 +5,7 @@
 
 import { authorizeBoundaryWrite, boundaryUnavailable, proxyToBoundary } from "../../../../lib/frontendBoundary";
 import {
+  ensureGeneratedHtmlBoundingSpheres,
   ensureGeneratedHtmlDependencies,
   ensureGeneratedHtmlRuntimeOrder,
   findUnrunnableReferences,
@@ -38,7 +39,8 @@ HARD RULES:
   * a considered palette of at least five distinct colours, with emissive on pickups so they glow,
   * varied geometry - not every object a box; use spheres, cylinders, cones where they suit.
 - Do not enable tone mapping unless you also raise light intensities to match; a dark render is a failed render.
-- For a playable game also implement: keyboard state via keydown/keyup (never a single keypress branch), initialize every keyboard-state binding before starting the animation loop, gravity and ground collision, collision or pickup detection, a visible score/HUD in the DOM, and a lose/win or reset path.`;
+- For a playable game also implement: keyboard state via keydown/keyup (never a single keypress branch), initialize every keyboard-state binding before starting the animation loop, gravity and ground collision, collision or pickup detection, a visible score/HUD in the DOM, and a lose/win or reset path.
+- If collision code reads geometry.boundingSphere.radius, call geometry.computeBoundingSphere() first (or use THREE.Box3); boundingSphere starts as null.`;
 
 const GPU_GUARD = `<script>(function(){var _r=window.requestAnimationFrame.bind(window),last=0;window.requestAnimationFrame=function(cb){return _r(function(t){if(document.hidden){window.requestAnimationFrame(cb);return;}if(t-last<15){window.requestAnimationFrame(cb);return;}last=t;cb(t);});};})();</script>`;
 const MAX_PROMPT_CHARS = 2_000;
@@ -159,8 +161,10 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
       if (!response.ok) throw new Error(String(out.error ?? out.detail ?? `LLM Gateway HTTP ${response.status}`));
       const choices = out.choices as Array<{ message?: { content?: string } }> | undefined;
       const rawContent = choices?.[0]?.message?.content ?? "";
-      const html = ensureGeneratedHtmlRuntimeOrder(
-        ensureGeneratedHtmlDependencies(extractHtml(rawContent)),
+      const html = ensureGeneratedHtmlBoundingSpheres(
+        ensureGeneratedHtmlRuntimeOrder(
+          ensureGeneratedHtmlDependencies(extractHtml(rawContent)),
+        ),
       );
       const unrunnableReferences = findUnrunnableReferences(html);
       // A 200 whose body fails these two gates used to fall straight through to the next
