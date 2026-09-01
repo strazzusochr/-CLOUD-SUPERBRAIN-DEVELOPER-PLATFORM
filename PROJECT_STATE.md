@@ -1,16 +1,17 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-09-01
+Letzte Aktualisierung: 2026-09-02
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
 
-### Session 2026-09-01 — Current RC30 Handoff
+### Session 2026-09-02 — Current RC30 Handoff
 
 - **Aktiver Prequalification-Kandidat:** `prod-candidate-2026-09-01-local-rc30`,
-  eingefrorene Source `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68`, Kontroll-Commit
-  `532a3c8cfff201f09617c6eb46d0111d56a9dcba`. GitHub-Actions-Lauf `33560498326`
-  attestierte exakt den Kontroll-Head; `31/31` beobachtete Schritte waren gruen,
+  eingefrorene Source `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68`, Hosted-Evidence-Commit
+  `532a3c8cfff201f09617c6eb46d0111d56a9dcba`. Truth-Control
+  `80c42c048a251e9eecdc63afed10a107c76ae1a2` ist gepusht; GitHub-Actions-Lauf
+  `33563519174` attestierte exakt diesen Head. `31/31` beobachtete Schritte waren gruen,
   `0` skipped, und der Frontend-Audit meldete `0` Schwachstellen. RC27-Source
   `0ca71d1c6168d64360a7764b725b2b673af00afe` bleibt der
   immutable lokale Rollback-Anker.
@@ -43,10 +44,13 @@ Letzte Aktualisierung: 2026-09-01
   P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `86`,
   L6 `100`, L7 `100`. `MARKET_READY:false`. I1 `hosted_candidate_parity` und I5
   `production_auth_identity` bleiben die einzigen Phase-5-Nullcredit-Items.
-- **Naechster sicherer Schritt:** Den L5-Delta-/Truth-Slice mit exakten Pathspecs
-  committen, auf den Feature-Branch pushen und den finalen Head-CI-Lauf mit `skipped=0`
-  abwarten. Danach bleiben fuer L5 exakt 14 Punkte hinter B4/GHCR; L4 bleibt bis zu einer
-  expliziten Credential-/Secret-Rotationsentscheidung bei `55`.
+- **Naechster sicherer Schritt:** Den I1-`404` im Unified-Vercel-Pfad ohne Production-
+  Mutation schliessen. Nachgemessene Ursache: Preview-`MCP_GATEWAY_BASE_URL` zeigt auf
+  den toten Production-Backend-Alias `/mcp`; der RC30-Stateful-Preview besitzt zwar die
+  vier nativen Hosted-MCP-Proberouten, aber noch keinen nativen
+  `/mcp/api/v1/health`-Handler. Danach source-bound Preview neu qualifizieren. Fuer L5
+  bleiben exakt 14 Punkte hinter B4/GHCR; L4 bleibt bis zu einer expliziten
+  Credential-/Secret-Rotationsentscheidung bei `55`.
 - **Wartung nach dem naechsten Freeze, nicht in RC30:** `actions/upload-artifact` v4.6.2
   in `pr-check.yml`, `main-deploy.yml` und `phase6-scale-runtime.yml` sowie
   `checkout`/`setup-node` v4 in `autonomous-fullstack.yml` separat aktualisieren. Die

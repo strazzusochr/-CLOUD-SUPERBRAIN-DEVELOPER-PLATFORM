@@ -30,6 +30,12 @@ still blocked by unpublished GHCR digests/remote scan/protected publication. L4 
 its five generative hosted verifiers require the unavailable local verifier credential; no
 secret was read, copied, rotated, or output.
 
+Truth-control `80c42c048a251e9eecdc63afed10a107c76ae1a2` is pushed and `pr-check`
+`33563519174` passed exactly that head with `31/31`, `skipped=0`, `failed=0`. The first
+CI attempt exposed a stale rubric-only `entries=[]` assertion; the follow-up keeps the
+rubric guard scoped to P3/P6 while the independently scorer-verified L5 ledger entry stays
+valid.
+
 All five local qualification chains passed: six source-bound candidate images; runtime
 `10/10 healthy`; candidate-scoped npm-audit plus canonical gitleaks; the complete real
 Chromium matrix with `22/22` routes, `29/29` families and `161/161` members; and exact
@@ -56,10 +62,12 @@ RC27 source
 `DEV-ONLY; hosted proof still blocked`.
 
 Prequalification selection commit `0b8b80dd` remains historical. S2 is complete on isolated
-Preview Workers, and the four-credit L5 slice is scorer-accepted. Next safe stage is the
-exact delta/truth commit, feature-branch push and final-head `pr-check` with `skipped=0`.
-The unified Vercel candidate read is not green: `/mcp/api/v1/health` returns `404`, so no I1,
-release, or production claim is made. No production alias, release promotion, GHCR
+Preview Workers, and the four-credit L5 slice is committed, pushed, scorer-accepted and
+final-head CI-green. The next safe code slice is the Unified-Vercel MCP-health repair:
+Preview `MCP_GATEWAY_BASE_URL` currently targets the dead Production backend alias `/mcp`,
+while the RC30 Stateful Preview has no native `/mcp/api/v1/health` handler. The endpoint
+therefore returns `404`; no I1, release, or production claim is made. No production alias,
+release promotion, GHCR
 publication, default-branch write, production rollout, or secret output occurred.
 
 Deferred maintenance after the next freeze only: upgrade `actions/upload-artifact` from

@@ -1,6 +1,6 @@
 # Verification Register - PATCHED
 
-Stand: 2026-09-01
+Stand: 2026-09-02
 Status: Active
 
 ## Current Progress Authority
@@ -53,6 +53,14 @@ it did not change a production alias. `pr-check` `33560498326` on hosted-evidenc
 still returns `404` for `/mcp/api/v1/health`, so the current-release verifier and I1 remain
 fail-closed. Deferred GitHub Actions runtime-pin maintenance remains outside RC30 and
 starts only after the next freeze.
+
+Truth-control `80c42c048a251e9eecdc63afed10a107c76ae1a2` applies that scored ledger
+transition and is pushed. `pr-check` `33563519174` passed the exact head with `31/31`,
+`skipped=0`, `failed=0`. The first attempt found and the follow-up fixed one stale
+rubric-only empty-ledger assertion without weakening P3/P6 guards. Read-only Vercel
+inspection narrows I1's `404` to the old Preview `MCP_GATEWAY_BASE_URL` targeting the
+dead Production backend alias `/mcp` plus the absent native Stateful-Preview
+`/mcp/api/v1/health` handler. No production or secret mutation was performed.
 
 ## Current RC27 Local Qualification Evidence
 

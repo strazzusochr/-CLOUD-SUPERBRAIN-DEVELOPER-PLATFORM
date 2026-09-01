@@ -1,9 +1,9 @@
 # CODEX UEBERGABE-MASTER
 
 Status: `ACTIVE_CURRENT_HANDOFF`
-Stand: **2026-09-01**
+Stand: **2026-09-02**
 Branch: `codex/organism-visual-v2`
-Qualification Source: **`9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68`**; Source-Attestation: **`f5a31e52e8bbf6d166c7a1c11932f15219c587c1`**; Hosted-Evidence-Control: **`532a3c8cfff201f09617c6eb46d0111d56a9dcba`**
+Qualification Source: **`9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68`**; Source-Attestation: **`f5a31e52e8bbf6d166c7a1c11932f15219c587c1`**; Hosted-Evidence-Control: **`532a3c8cfff201f09617c6eb46d0111d56a9dcba`**; Truth-Control: **`80c42c048a251e9eecdc63afed10a107c76ae1a2`**
 **B1 ERTEILT** — Approval-Commit: **`e87c28a7c6cf32982caa849794042daa53ef022a`**
 Market Status: `MARKET_READY:false` — Overall `89`
 
@@ -38,6 +38,12 @@ statisch zugelassene Scorer akzeptiert exakt 30 L5-Punkte; der erste reale v2-Le
 Eintrag bewegt L5 `56 -> 86`, Overall bleibt `89`. I1/I5 und `MARKET_READY:false`
 bleiben unveraendert. Workflow-Runtime-Pins werden erst nach dem naechsten Freeze in
 einem separaten Wartungsslice aktualisiert.
+
+Der Delta-/Truth-Uebergang und der anschliessende Rubrik-Scope-Fix enden auf Truth-Control
+`80c42c04`; `pr-check` `33563519174` bestand exakt diesen Head mit `31/31`, `skipped=0`,
+`failed=0`. Die aktuelle `404`-Ursache ist nachgemessen: Preview-
+`MCP_GATEWAY_BASE_URL` zeigt auf den toten Production-Backend-Alias `/mcp`, und der
+Stateful Preview besitzt noch keinen nativen `/mcp/api/v1/health`-Handler.
 
 L5 fehlen noch 14 Registry-/Scan-/Protected-Publish-Punkte. L4 bleibt `55`, weil das
 lokale Credential fuer die fuenf generativen Hosted-Verifier nicht verfuegbar ist. Der

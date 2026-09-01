@@ -1,17 +1,19 @@
 # CODEX ZIEL-MASTER — MARKTREIFE-ZIELVERFOLGUNG
 
 Status: `ACTIVE_CURRENT_TRUTH`
-Stand: **2026-09-01**
+Stand: **2026-09-02**
 Branch: `codex/organism-visual-v2`
 Measurement-Ref: **`532a3c8c`** (immutable RC30 Hosted-MCP evidence + static scorer)
 RC30 Qualification Source: **`9e88f84a`** · Source-Attestation: **`f5a31e52`** · Evidence-CI: **`33560498326`**
+Truth-Control: **`80c42c04`** · Final-Head-CI: **`33563519174`** (`31/31`, skipped/failed `0/0`)
 Hosted Worker: **RC30 Preview source-bound** — Stateful + LLM Health melden `9e88f84a`
 **B1 ERTEILT 2026-08-31** — `RubricApprovalCommit = e87c28a7c6cf32982caa849794042daa53ef022a`
 Market Status: `MARKET_READY:false` — Overall `89`, Delta-Ledger `1`, L5 `86`
 
-> **Naechster Schritt ist der L5-Delta-/Truth-Freeze.** S1, RC30-Qualification und der
-> Worker-Teil von S2 sind erledigt. Vier Hosted-MCP-Verifier sind real gruen und als
-> 30-Punkte-Slice scorer-gebunden; danach bleiben L5 +14, L4 +45 und die Phasen-Gates.
+> **Naechster Schritt ist der Unified-Vercel MCP-Health-Fix.** Der L5-Delta-/Truth-Slice
+> ist gepusht und final-head CI-gruen. Der `404` ist auf den alten Preview-
+> `MCP_GATEWAY_BASE_URL` plus den fehlenden nativen Stateful-Preview-MCP-Health-Handler
+> eingegrenzt. Danach bleiben L5 +14, L4 +45 und die Phasen-Gates.
 
 > **Wartung spaeter:** Die GitHub-Actions-Runtime-Pins bleiben fuer RC30 eingefroren.
 > `upload-artifact` v4.6.2 sowie `checkout`/`setup-node` v4 werden erst nach dem naechsten
@@ -55,7 +57,7 @@ angelegt (Basis `ce75bb00`); die Datei darin fehlt noch. Die exakten Befehle ste
 ---
 
 **Aktuelle Aussagen** sind gegen RC30-Source `9e88f84a`, Evidence-Control `532a3c8c`,
-CI-Lauf `33560498326`, die fuenf lokalen Qualification-Ketten und die vier Hosted-MCP-
+Truth-Control `80c42c04`, CI-Lauf `33563519174`, die fuenf lokalen Qualification-Ketten und die vier Hosted-MCP-
 Reports gemessen. Der einheitliche Vercel-Candidate-Pfad ist noch nicht gruen:
 `/mcp/api/v1/health` liefert dort `404` und schliesst I1 weiter fail-closed aus.
 

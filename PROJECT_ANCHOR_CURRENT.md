@@ -1,8 +1,8 @@
 # Cloud Superbrain Project Anchor
 
-## ⚓ CHECKPOINT 2026-09-01 — RC30 HOSTED-MCP DELTA
+## ⚓ CHECKPOINT 2026-09-02 — RC30 HOSTED-MCP DELTA
 
-**Anchor ID:** `cloud-superbrain-anchor-2026-09-01-rc30-hosted-mcp-l5-86`
+**Anchor ID:** `cloud-superbrain-anchor-2026-09-02-rc30-hosted-mcp-l5-86`
 **Status:** `ACTIVE_RESUME_POINT`
 **Workspace:** `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
 **Branch:** `codex/organism-visual-v2`
@@ -12,6 +12,7 @@
 | Frozen Product Source | `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68` (RC30) |
 | Source-Attestation | `f5a31e52e8bbf6d166c7a1c11932f15219c587c1`, `pr-check` `33540678387` |
 | Hosted-Evidence-Control | `532a3c8cfff201f09617c6eb46d0111d56a9dcba`, `pr-check` `33560498326`, `31/31`, skipped/failed `0/0` |
+| Truth-Control | `80c42c048a251e9eecdc63afed10a107c76ae1a2`, `pr-check` `33563519174`, `31/31`, skipped/failed `0/0` |
 | Preview-Runtime | Stateful + LLM source-/archive-/bundle-bound auf RC30; kein Production-Alias |
 | L5 Hosted Evidence | 4/4 ausgefuehrte Kriterien gruen: Write/Readback/Audit, Auth-Scope, Timeout/Idempotenz, Audit-Readback/Rollback |
 | Manifest | Overall **89** · P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 89 · P6 90 |
@@ -22,9 +23,9 @@
 
 ### NAECHSTER SICHERER SCHRITT
 
-1. Den exakten L5-Delta-/Truth-Slice mit Pathspecs committen und auf den Feature-Branch pushen.
-2. `pr-check` auf genau diesem finalen Head mit `skipped=0`, `failed=0` abschliessen.
-3. Danach nur innerhalb bestehender Gates weiter: kein GHCR-, Production-, Main-, Secret- oder Scope-Write.
+1. Red-first einen nativen source-bound `/mcp/api/v1/health`-Handler im Stateful Preview bauen.
+2. Preview `MCP_GATEWAY_BASE_URL` vom toten Production-Backend-Alias auf den verifizierten Preview-MCP-Pfad rebind-en.
+3. Unified-Vercel-Pfad und I1-Verifier erneut ausfuehren; kein GHCR-, Production-, Main-, Secret- oder Scope-Write.
 4. GitHub-Actions-Pins erst **nach dem naechsten Freeze** separat aktualisieren.
 
 ### FREMDE DIRTY-PFADE
