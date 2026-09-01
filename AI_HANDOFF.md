@@ -6,41 +6,43 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-## Current RC26 Handoff — 2026-08-31
+## Current RC27 Handoff — 2026-09-01
 
-Active locally qualified candidate: `prod-candidate-2026-08-31-local-rc26`, frozen source
-`727b15398c278bd1c00fa251605e6a8d37b1abb3`, source-attestation control
-`64fc4a4a72f4612c314a39fe770d8f1b7ac00c10`. GitHub Actions run `33445048842`
+Active locally qualified candidate: `prod-candidate-2026-09-01-local-rc27`, frozen source
+`0ca71d1c6168d64360a7764b725b2b673af00afe`, source-attestation control
+`cf89266b99c9f9437cebd70c60a49d80614297cf`. GitHub Actions run `33454908593`
 checked out that exact source and passed `30/30` observed steps with `0` skipped. Artifact
-`9777784684`, GitHub digest
-`sha256:1bfa1c43d05b876940ae84ebb022d33e9fb269376385dd17a7478a564c41bf13`,
-attestation SHA `4BCAA6C179194BE94AC40975F0F2D37C90F3A0B38EEF5E1DE926C166D9CA59F0`,
-and GitHub-readback SHA `1048BED71A03159A30455ABF702378EF196FA7824650092987A4C44136DC0A5E`
+`9781155870`, GitHub digest
+`sha256:7e80192e6fd421c34c5c8d5d91ea5c3a9b38bcdfa67b4af33d28ea6650371762`,
+attestation SHA `AE5F5D590A5D07BC4576D7404368C0D532C45536E1D67636E38CBA49002F5F38`,
+and GitHub-readback SHA `82742E47CB744237C65622A11C327508962BF20F56F9609D4699BE52F67A758D`
 are preserved in the exact 27-file evidence set.
 
 All five local qualification chains passed: six source-bound candidate images; runtime
 `10/10 healthy`; candidate-scoped npm-audit plus canonical gitleaks; the complete real
 Chromium matrix with `22/22` routes, `29/29` families and `161/161` members; and exact
-candidate-runtime source/image parity with a real Playwright selection and click. RC26
-replaces the deprecated preview default with `@cf/meta/llama-3.1-8b-instruct-fast`, repairs
-the L4 trace-verifier PowerShell tokens, and binds preview deployment checks to deterministic
-bundle hashes. The first CI attempt exposed one stale I1 evidence anchor; the frozen source
-corrects that anchor without changing any score or blocker.
+candidate-runtime source/image parity with a real Playwright selection and click. The
+browser matrix ran twice. The first pass exposed a stale O4 runtime-proof source boundary;
+a fresh source-parity runtime proof and the second full pass closed that guard.
 
-The B1 approval commit `e87c28a7c6cf32982caa849794042daa53ef022a` is an ancestor of
-the frozen source and the approved-rubric verifier is green, but grants no percentage by
-itself. The no-credit selection preserves `17/19 = 89%`, blocked items `I1` and `I5`, all
-item rulings, `MARKET_READY:false`, and the empty real delta ledger. Overall remains `89`;
-horizontal `100/100/100/44/100/89/90`; vertical `100/100/100/55/56/100/100`. RC24
-source `1cb03979740859f0350cf18f6f08ef06c3d72b72` is the immutable local rollback
-target. `DEV-ONLY; hosted proof still blocked`.
+RC27 normalizes only verified Workers AI stream terminals while malformed and provider-
+error terminals remain fail-closed. It restores canonical external-gate timestamp and
+endpoint-snapshot hash parity and parses Phase-5 candidate timestamps invariantly across
+Windows PowerShell locales. The B1 approval commit
+`e87c28a7c6cf32982caa849794042daa53ef022a` remains an ancestor and grants no percentage
+by itself. The no-credit selection preserves `17/19 = 89%`, blocked items `I1` and `I5`,
+all item rulings, `MARKET_READY:false`, and the empty real delta ledger. Overall remains
+`89`; horizontal `100/100/100/44/100/89/90`; vertical
+`100/100/100/55/56/100/100`. RC24 source
+`1cb03979740859f0350cf18f6f08ef06c3d72b72` is the immutable local rollback target.
+`DEV-ONLY; hosted proof still blocked`.
 
-Next authorized stage after the RC26 selection verifier stack and feature-branch push is
-the candidate-only rebind of the isolated Cloudflare preview Workers plus an exact Vercel
-Git-source preview. Then rerun the five L4 hosted verifiers against RC26. This is not a
-production alias, release promotion, GHCR publication, default-branch write, or production
-rollout. Hosted L4/L5 credit remains unavailable until the approved rubric, exact hosted
-evidence, and delta-ledger transition all pass.
+Next safe stage is an exact-path RC27 selection commit, feature-branch push, and final-head
+CI run with `skipped=0`. Only after that green run may the candidate-only rebind of the
+isolated Cloudflare preview Workers plus an exact Vercel Git-source preview proceed, followed
+by the five L4 hosted verifiers against RC27. This is not a production alias, release
+promotion, GHCR publication, default-branch write, or production rollout. Hosted credit
+still requires approved-rubric evidence and a valid delta-ledger transition.
 
 ## Current RC24 Handoff — 2026-08-31
 

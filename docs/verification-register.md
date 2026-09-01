@@ -1,11 +1,45 @@
 # Verification Register - PATCHED
 
-Stand: 2026-08-31
+Stand: 2026-09-01
 Status: Active
 
 ## Current Progress Authority
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
+
+## Current RC27 Local Qualification Evidence
+
+Recorded 2026-09-01. Active candidate `prod-candidate-2026-09-01-local-rc27` is bound
+to frozen source `0ca71d1c6168d64360a7764b725b2b673af00afe` through source-attestation
+control `cf89266b99c9f9437cebd70c60a49d80614297cf`. GitHub Actions `pr-check` run
+`33454908593` checked out that exact source and passed `30/30` observed steps with `0`
+skipped. Artifact `9781155870`, GitHub digest
+`sha256:7e80192e6fd421c34c5c8d5d91ea5c3a9b38bcdfa67b4af33d28ea6650371762`,
+attestation SHA `AE5F5D590A5D07BC4576D7404368C0D532C45536E1D67636E38CBA49002F5F38`,
+and readback SHA `82742E47CB744237C65622A11C327508962BF20F56F9609D4699BE52F67A758D`
+are preserved in the exact 27-file evidence set.
+
+Five independent local chains passed: six source-bound candidate images; runtime `10/10
+healthy`; complete real-Chromium browser proof with `22/22` routes, `29/29` families and
+`161/161` members; candidate-runtime source/image identity with real selection and click;
+and candidate-scoped npm-audit plus canonical gitleaks. Their proof hashes are respectively
+`71D598DFEA729D48257F0FA61C42679A1FCCEEDC912B6BBDC4104B17F0C36D00`,
+`0DEEA9F68CE3AE840F78DE1BB50DF1FDD3A80413E15E5E5FD6E5722F021B49AE`,
+`5486A22745016894F906F6265926F072D9C1E7BC8B8F037F55AC87588A15A08E`,
+`69776A6E5217D6D24A546BCFB5EF63F45E7A4623568A2E0758262EFFD14827BA`,
+and `C88C3F7117D2E415C3357B8B920FA7AB3AAA8919C31B25D92AB55179C7E96D19`.
+The browser matrix ran twice; pass one exposed an old O4 runtime proof, and a fresh source-
+parity runtime proof plus pass two closed the exact fail-closed guard. B1 approval remains
+bound to `e87c28a7c6cf32982caa849794042daa53ef022a` without percentage credit.
+
+The exact same-day `no_credit_requalification` keeps Phase 5 at `17/19 = 89%`, blocked
+`I1` hosted candidate parity and `I5` production auth identity. Overall remains `89`, the
+real delta ledger remains empty, and `MARKET_READY:false`. RC24 source
+`1cb03979740859f0350cf18f6f08ef06c3d72b72` remains the local rollback target. RC27
+normalizes verified stream terminals, restores truth-hash parity, and fixes locale-invariant
+candidate timestamp parsing without awarding credit. No GHCR publication, default-branch
+write, production deploy, release promotion, production rollout, payment, or secret output
+is claimed. `DEV-ONLY; hosted proof still blocked`.
 
 ## Current RC26 Local Qualification Evidence
 

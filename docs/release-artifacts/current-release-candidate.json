@@ -1,8 +1,8 @@
 {
-  "active_release_id": "prod-candidate-2026-08-31-local-rc26",
-  "source_commit_sha": "727b15398c278bd1c00fa251605e6a8d37b1abb3",
-  "updated_at": "2026-08-31T23:08:26Z",
-  "updated_by": "rc26-local-qualification",
-  "reason": "RC26 selects frozen source 727b15398c278bd1c00fa251605e6a8d37b1abb3 after five source-bound local qualification chains and the 30/30 exact-source CI attestation passed. This no-credit transition replaces the deprecated Workers AI model, repairs L4 trace-verifier tokenization, verifies exact preview bundles, and corrects the stale I1 hosted-preview evidence anchor. RC24 source 1cb03979740859f0350cf18f6f08ef06c3d72b72 remains the rollback target. DEV-ONLY; hosted proof still blocked. I1, I5, GHCR publication, release promotion, and production rollout remain blocked.",
+  "active_release_id": "prod-candidate-2026-09-01-local-rc27",
+  "source_commit_sha": "0ca71d1c6168d64360a7764b725b2b673af00afe",
+  "updated_at": "2026-09-01T02:35:04Z",
+  "updated_by": "rc27-local-qualification",
+  "reason": "RC27 selects frozen source 0ca71d1c6168d64360a7764b725b2b673af00afe after source-bound local qualification and the exact-source CI attestation. This no-credit transition normalizes verified Workers AI stream terminals, repairs L4 trace correlation, restores external-gate timestamp and snapshot-hash consistency, and makes Phase-5 timestamp parsing invariant across PowerShell locales. RC24 source 1cb03979740859f0350cf18f6f08ef06c3d72b72 remains the rollback target. DEV-ONLY; hosted proof still blocked. I1, I5, GHCR publication, release promotion, and production rollout remain blocked.",
   "production_rollout_claimed": false
 }

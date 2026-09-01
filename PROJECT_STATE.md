@@ -1,28 +1,30 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-08-31
+Letzte Aktualisierung: 2026-09-01
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
 
-### Session 2026-08-31 — Current RC26 Handoff
+### Session 2026-09-01 — Current RC27 Handoff
 
-- **Aktiver Kandidat:** `prod-candidate-2026-08-31-local-rc26`, eingefrorene Source
-  `727b15398c278bd1c00fa251605e6a8d37b1abb3`, Kontroll-Commit
-  `64fc4a4a72f4612c314a39fe770d8f1b7ac00c10`. GitHub-Actions-Lauf `33445048842`
+- **Aktiver Kandidat:** `prod-candidate-2026-09-01-local-rc27`, eingefrorene Source
+  `0ca71d1c6168d64360a7764b725b2b673af00afe`, Kontroll-Commit
+  `cf89266b99c9f9437cebd70c60a49d80614297cf`. GitHub-Actions-Lauf `33454908593`
   attestierte exakt den Source-Checkout; `30/30` beobachtete Schritte waren gruen und
   `0` skipped. RC24-Source `1cb03979740859f0350cf18f6f08ef06c3d72b72` bleibt der
   immutable lokale Rollback-Anker.
 - **Alle fuenf lokalen Ketten gruen:** Candidate-Images, Runtime `10/10 healthy`,
   Security, der reale Chromium-Browserlauf mit `22/22` Routen, `29/29` Familien und
   `161/161` Action-Membern sowie `candidate-runtime` mit exakt gestagter No-Credit-
-  Source-Paritaet, sechs Image-Identitaeten und echtem Browser-Auswahlklick. Der immutable
-  Evidence-Satz umfasst exakt `27` Dateien.
-- **RC26-Produktfix gebunden:** Der veraltete Workers-AI-Default wurde durch
-  `@cf/meta/llama-3.1-8b-instruct-fast` ersetzt, der L4-Trace-Verifier syntaktisch
-  repariert und die Preview-Deploy-Pruefung an deterministische Bundle-Hashes gebunden.
-  Der erste CI-Versuch deckte ausserdem einen stale I1-Evidenzanker auf; Source RC26
-  korrigiert nur diesen Anker und vergibt dafuer keinen Kredit.
+  Source-Paritaet, sechs Image-Identitaeten und echtem Browser-Auswahlklick. Die gesamte
+  Browsermatrix wurde zweimal real ausgefuehrt. Der immutable Evidence-Satz umfasst exakt
+  `27` Dateien.
+- **RC27-Produktfix gebunden:** Verifizierte Workers-AI-Stream-Terminals werden
+  normalisiert und Provider-/Malformed-Terminals bleiben fail-closed. Die kanonische
+  External-Gate-Zeit- und Snapshot-Hash-Paritaet ist wiederhergestellt; Phase-5-Zeitwerte
+  werden unter Windows PowerShell 5.1 locale-invariant geprueft. Der erste Browserlauf
+  entdeckte einen alten O4-Runtime-Proof; ein frischer source-paritaetischer Runtime-Proof
+  und der zweite komplette Browserlauf schlossen den Guard real.
 - **B1 gebunden, ohne Kredit:** Die drei genehmigten Rubriken sind durch Owner-Commit
   `e87c28a7c6cf32982caa849794042daa53ef022a` und den fail-closed Rubrik-Verifier gebunden.
   Aus der Freigabe allein folgt weder Prozentcredit noch Hosted-/Release-Status.
@@ -30,10 +32,11 @@ Letzte Aktualisierung: 2026-08-31
   P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
   L6 `100`, L7 `100`. `MARKET_READY:false`. I1 `hosted_candidate_parity` und I5
   `production_auth_identity` bleiben die einzigen Phase-5-Nullcredit-Items.
-- **Naechster sicherer Schritt:** RC26 auf die isolierten Preview-Worker und eine exakte
-  Vercel-Git-Preview binden, danach alle fuenf L4-Hosted-Verifier erneut source-bound
-  fahren. Diese Preview-Aktion ist keine Production-Promotion und vergibt allein keinen
-  Prozentcredit.
+- **Naechster sicherer Schritt:** Den RC27-Selection-Commit mit exakten Pathspecs auf den
+  Feature-Branch pushen und den finalen Head-CI-Lauf mit `skipped=0` abwarten. Erst danach
+  RC27 auf isolierte Preview-Worker und eine exakte Vercel-Git-Preview binden und die fuenf
+  L4-Hosted-Verifier erneut source-bound fahren. Das ist keine Production-Promotion und
+  vergibt allein keinen Prozentcredit.
 - **Non-Claims:** `DEV-ONLY; hosted proof still blocked`. Kein Main-/Default-Branch-Write,
   GHCR-Push, Production-Deploy, Release-Promotion, Production-Rollout oder Secret-Output.
 

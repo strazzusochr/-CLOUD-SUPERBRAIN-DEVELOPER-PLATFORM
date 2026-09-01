@@ -1,9 +1,9 @@
 # CODEX UEBERGABE-MASTER
 
 Status: `ACTIVE_CURRENT_HANDOFF`
-Stand: **2026-08-31**
+Stand: **2026-09-01**
 Branch: `codex/organism-visual-v2`
-Qualification Source: **`1cb03979740859f0350cf18f6f08ef06c3d72b72`**; Control: **`d016e4b928290d8fa358522af08609ae80aeb1cc`**
+Qualification Source: **`0ca71d1c6168d64360a7764b725b2b673af00afe`**; Control: **`cf89266b99c9f9437cebd70c60a49d80614297cf`**
 **B1 ERTEILT** — Approval-Commit: **`e87c28a7c6cf32982caa849794042daa53ef022a`**
 Market Status: `MARKET_READY:false` — Overall `89`
 
@@ -23,6 +23,33 @@ entsprechend markiert sind `CODEX_100_PROZENT_ZIEL_2026-08-29.md`,
 Alles hier ist **gemessen** — live gegen den Endpunkt oder gegen den Quellcode am
 Truth-HEAD. Wo etwas nur protokolliert und nicht nachmessbar war, steht das ausdruecklich
 dabei.
+
+## RC27-Aktualisierung — 2026-09-01
+
+`prod-candidate-2026-09-01-local-rc27` ist lokal source-bound qualifiziert. Die
+eingefrorene Quelle ist `0ca71d1c6168d64360a7764b725b2b673af00afe`, der
+Source-Attestation-Control `cf89266b99c9f9437cebd70c60a49d80614297cf`. GitHub Actions
+`pr-check` Lauf `33454908593` checkte exakt die Source aus und bestand `30/30`
+beobachtete Schritte mit `0` skipped. Artifact `9781155870`, GitHub-Digest
+`sha256:7e80192e6fd421c34c5c8d5d91ea5c3a9b38bcdfa67b4af33d28ea6650371762`
+und die lokal nachgerechnete Attestation sind im exakten 27-Dateien-Satz gebunden.
+
+Alle fuenf lokalen Ketten sind gruen: sechs Candidate-Images, Runtime `10/10 healthy`,
+Security, Candidate-Runtime mit echtem Chromium-Auswahlklick und die vollstaendige
+Browsermatrix `22/22` Seiten, `29/29` Funktionsfamilien, `161/161` Action-Member. Die
+Browsermatrix wurde zweimal real gefahren. Pass eins entdeckte einen alten O4-Runtime-
+Proof-Source-Guard; ein frischer Runtime-Proof und Pass zwei schlossen ihn fail-closed.
+
+RC27 normalisiert nur verifizierte Workers-AI-Stream-Terminals, stellt kanonische
+External-Gate-/Snapshot-Hash-Paritaet wieder her und prueft Phase-5-Zeitstempel locale-
+invariant. Die Auswahl ist weiterhin No-Credit: Overall `89`, P5 `17/19 = 89`, I1/I5
+blockiert, Delta-Ledger `0`, `MARKET_READY:false`. RC24-Source `1cb03979` bleibt Rollback.
+`DEV-ONLY; hosted proof still blocked`.
+
+Der naechste sichere Schritt ist der RC27-Selection-Commit mit exakten Pathspecs, Push auf
+den Feature-Branch und ein finaler Head-CI-Lauf mit `skipped=0`. Erst danach folgt S2:
+isolierter Candidate-Worker-/Vercel-Preview-Rebind, kein Production-Alias und keine
+Release-Promotion. Hosted RC27-Paritaet ist an diesem Stand noch nicht behauptet.
 
 ## B1 — Owner-Freigabe der drei Credit-Rubriken, 2026-08-31
 
@@ -132,12 +159,12 @@ aktuellen Kandidaten und die aktuellen Non-Claims haben diese RC24-Aktualisierun
 
 | Groesse | Wert |
 | --- | --- |
-| Truth-Doku-Measurement | `20daf6e` — `pr-check` `33392612132`, `30/30`, `0` skipped/failed |
-| Selection-Head | `378a66bf` — gepusht, `pr-check` `33369934779` `30/30` gruen |
-| RC24 Source / Control | `1cb03979` / `d016e4b9` |
+| Truth-Doku-Measurement | RC27 Source-Control `cf89266b` — source-attestierter `pr-check` `33454908593`, `30/30`, `0` skipped |
+| Selection-Head | Der RC27-Qualification-Commit enthaelt diese Uebergabe; sein SHA wird absichtlich nicht selbstreferenziert und nach Push ueber Remote-Head plus finalen `pr-check` gebunden |
+| RC27 Source / Control | `0ca71d1c` / `cf89266b` |
 | Hosted Worker | `cloud-superbrain-stateful-runtime.strazzusochr.workers.dev` |
-| Hosted Source | `bc0f4dc8` — acht Commits hinter RC24-Source; Progress `84` |
-| Aktiver RC-Zeiger | RC24 `prod-candidate-2026-08-31-local-rc24` @ `1cb03979`; RC23 ist Rollback |
+| Hosted Source | Vor S2 neu messen; kein RC27-Rebind und keine RC27-Hosted-Paritaet behauptet |
+| Aktiver RC-Zeiger | RC27 `prod-candidate-2026-09-01-local-rc27` @ `0ca71d1c`; RC24 ist Rollback |
 | D1 | `cloud-superbrain-state-prod` (`91520f43-5d38-4a31-9d5a-6fca890e1dd6`), Migrationen 0001–0005 angewandt |
 | Overall | `89` — `deltas=0`, Phase 5 `17/19`, blockiert `I1`, `I5` |
 
