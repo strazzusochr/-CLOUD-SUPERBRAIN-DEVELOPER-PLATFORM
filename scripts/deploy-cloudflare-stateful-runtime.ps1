@@ -448,6 +448,32 @@ try {
     ([string]$frontendEvidence.source_commit_sha).Trim()
   } else { "" }
   Assert-True "tracked frontend evidence has a lowercase source commit" ($trackedFrontendSourceSha -match "^[0-9a-f]{40}$")
+  & git cat-file -e "$trackedFrontendSourceSha^{commit}" 2>$null
+  Assert-True "tracked frontend source commit is available" ($LASTEXITCODE -eq 0)
+  & git merge-base --is-ancestor $resolved $trackedFrontendSourceSha 2>$null
+  Assert-True "tracked frontend source is the selected source or its qualification descendant" (
+    $LASTEXITCODE -eq 0
+  )
+  $allowedFrontendQualificationTruthPaths = @(
+    "apps/frontend/lib/endpoint-snapshot.json",
+    "apps/frontend/lib/platform.ts"
+  )
+  $frontendRuntimeDelta = @(
+    & git diff --name-only --diff-filter=ACDMRTUXB $resolved $trackedFrontendSourceSha -- apps/frontend
+  )
+  Assert-True "frontend runtime delta scan completed" ($LASTEXITCODE -eq 0)
+  $unexpectedFrontendRuntimeDelta = @(
+    $frontendRuntimeDelta |
+      ForEach-Object { ([string]$_).Replace("\", "/") } |
+      Where-Object { $allowedFrontendQualificationTruthPaths -notcontains $_ }
+  )
+  Assert-True "frontend runtime delta is limited to qualification truth paths" (
+    $unexpectedFrontendRuntimeDelta.Count -eq 0
+  )
+  $computedFrontendArchiveSha = Get-GitArchiveSha256 $repoRoot $trackedFrontendSourceSha
+  Assert-True "tracked frontend source archive SHA-256 computed" (
+    $computedFrontendArchiveSha -match "^[0-9a-f]{64}$"
+  )
   $trackedFrontendArchiveSha = if ($frontendEvidence.source_archive_sha256 -is [string]) {
     ([string]$frontendEvidence.source_archive_sha256).Trim()
   } else { "" }
@@ -466,15 +492,15 @@ try {
     Assert-True "candidate frontend origin is the tracked immutable deployment URL" (
       $candidateFrontendOriginCanonical -ceq $trackedImmutableFrontendOrigin
     )
-    Assert-True "tracked immutable frontend deployment is bound to the selected commit" (
-      $trackedFrontendSourceSha -ceq $resolved
+    Assert-True "tracked immutable frontend deployment is bound to the selected source lineage" (
+      $unexpectedFrontendRuntimeDelta.Count -eq 0
     )
     Assert-True "candidate frontend evidence target is preview" (
       [string]$frontendEvidence.vercel_target -ceq "preview"
     )
-    Assert-True "candidate frontend evidence archive matches the selected source" (
+    Assert-True "candidate frontend evidence archive matches the tracked frontend source" (
       $trackedFrontendArchiveSha -match "^[0-9a-f]{64}$" -and
-      $trackedFrontendArchiveSha -ceq $archiveSha
+      $trackedFrontendArchiveSha -ceq $computedFrontendArchiveSha
     )
     Assert-True "candidate frontend evidence metadata is verified" (
       $frontendEvidence.deployment_metadata_verified -is [bool] -and
