@@ -57,7 +57,15 @@ function Get-ContainerSha256([string]$Image, [string]$Path) {
 
 Push-Location $repoRoot
 try {
-  $candidateConfig = Get-Content "docs\release-artifacts\current-release-candidate.json" -Raw | ConvertFrom-Json
+  $candidateConfigText = Get-Content "docs\release-artifacts\current-release-candidate.json" -Raw
+  $candidateConfig = $candidateConfigText | ConvertFrom-Json
+  if ($candidateConfigText -notmatch '"updated_at"\s*:\s*"([^"]+)"') {
+    throw "Phase5 local candidate verification failed: active candidate updated_at is missing or invalid."
+  }
+  # Windows PowerShell 5.1 may deserialize ISO-8601 JSON timestamps to DateTime.
+  # Casting that object back to string is current-culture dependent (for example,
+  # en-US text cannot be parsed under de-DE). Keep the exact JSON token instead.
+  $candidateUpdatedAtText = $Matches[1]
   Assert-True "active release id" ([string]$candidateConfig.active_release_id -match '^prod-candidate-\d{4}-\d{2}-\d{2}-local-rc\d+$')
   Assert-Equal "production rollout claimed" ([bool]$candidateConfig.production_rollout_claimed) $false
   $candidatePath = "docs\release-artifacts\$($candidateConfig.active_release_id).md"
@@ -191,7 +199,11 @@ try {
         }
       }
 
-      $candidateUpdatedDate = ([DateTimeOffset]::Parse([string]$candidateConfig.updated_at)).UtcDateTime.ToString("yyyy-MM-dd")
+      $candidateUpdatedDate = ([DateTimeOffset]::Parse(
+        $candidateUpdatedAtText,
+        [Globalization.CultureInfo]::InvariantCulture,
+        [Globalization.DateTimeStyles]::RoundtripKind
+      )).UtcDateTime.ToString("yyyy-MM-dd", [Globalization.CultureInfo]::InvariantCulture)
       Assert-Equal "no-credit manifest last_verified" ([string]$currentManifest.last_verified) $candidateUpdatedDate
       if ($isNoCreditRequalificationSameDay) {
         Assert-Equal "same-day no-credit manifest date" $candidateUpdatedDate ([string]$sourceManifest.last_verified)

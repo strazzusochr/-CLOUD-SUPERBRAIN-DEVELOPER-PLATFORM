@@ -869,10 +869,17 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             'Assert-Equal "no-credit manifest immutable projection"',
             'Assert-Equal "no-credit platform snapshot mirror"',
             'Assert-False "no-credit production rollout"',
+            "$candidateConfigText = Get-Content",
+            "$candidateUpdatedAtText = $Matches[1]",
+            "[Globalization.CultureInfo]::InvariantCulture",
+            "[Globalization.DateTimeStyles]::RoundtripKind",
         ):
             self.assertIn(marker, source)
 
         self.assertNotIn("$runtimeChangedPaths.Count -eq 3", source)
+        self.assertNotIn(
+            "[DateTimeOffset]::Parse([string]$candidateConfig.updated_at)", source
+        )
 
         current = (REPO_ROOT / "scripts" / "verify-current-release-candidate.ps1").read_text(
             encoding="utf-8-sig"
