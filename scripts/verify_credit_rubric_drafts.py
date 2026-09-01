@@ -340,7 +340,15 @@ def validate_current_truth(repo_root: Path) -> None:
 
     ledger = load_json(repo_root, LEDGER_PATH, "progress delta ledger")
     require(ledger.get("contract_version") == "project-progress-delta-ledger-v2", "delta ledger contract drifted")
-    require(ledger.get("entries") == [], "rubric drafts must not add a progress delta")
+    entries = ledger.get("entries")
+    require(isinstance(entries, list), "delta ledger entries must be an array")
+    for index, entry in enumerate(entries):
+        require(isinstance(entry, dict), f"delta ledger entry[{index}] must be an object")
+        require(
+            (entry.get("scope"), entry.get("cell_id"))
+            not in {("horizontal", "phase_3"), ("horizontal", "phase_6")},
+            "rubric approval must not add a P3 or P6 progress delta",
+        )
 
     gates = load_json(repo_root, GATES_PATH, "capability gates")
     gate_map = gates.get("gates")

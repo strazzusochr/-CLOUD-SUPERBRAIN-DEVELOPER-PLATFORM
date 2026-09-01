@@ -280,6 +280,16 @@ class CreditRubricDraftTests(unittest.TestCase):
             payload["/api/v1/project/progress"]["overall_percent"] = 90
             return json.dumps(payload)
 
+        def changed_ledger_target(cell_id: str) -> str:
+            payload = json.loads(ledger)
+            payload["entries"].append(
+                {
+                    "scope": "horizontal",
+                    "cell_id": cell_id,
+                }
+            )
+            return json.dumps(payload)
+
         cases = (
             {verifier.MANIFEST_PATH: self.mutate(manifest, '"overall_percent": 89', '"overall_percent": 90')},
             {verifier.MANIFEST_PATH: self.mutate(manifest, '"id": "phase_3",\n        "label": "Phase 3 - Product Surface & Security",\n        "percent": 44', '"id": "phase_3",\n        "label": "Phase 3 - Product Surface & Security",\n        "percent": 45')},
@@ -287,7 +297,8 @@ class CreditRubricDraftTests(unittest.TestCase):
             {verifier.GATES_PATH: changed_gate("production_auth_identity", "owner_granted", True)},
             {verifier.GATES_PATH: changed_gate("phase6_scale_runtime", "owner_granted", True)},
             {verifier.GATES_PATH: changed_gate("phase6_scale_runtime", "live_verified", True)},
-            {verifier.LEDGER_PATH: self.mutate(ledger, '"entries": []', '"entries": [{}]')},
+            {verifier.LEDGER_PATH: changed_ledger_target("phase_3")},
+            {verifier.LEDGER_PATH: changed_ledger_target("phase_6")},
             {verifier.ENDPOINT_SNAPSHOT_PATH: changed_snapshot_overall()},
             {verifier.PLATFORM_PATH: self.mutate(platform, 'overall: 89', 'overall: 90')},
             {verifier.PHASE6_CRITERION_PATH: self.mutate(criterion, '"max_p95_ms": 1500', '"max_p95_ms": 99999')},
