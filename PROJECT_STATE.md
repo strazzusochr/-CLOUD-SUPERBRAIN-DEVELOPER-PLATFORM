@@ -5,24 +5,23 @@ Letzte Aktualisierung: 2026-09-01
 
 ## AKTUELLER PROJEKTANKER
 
-### Session 2026-09-01 — Current RC29 Handoff
+### Session 2026-09-01 — Current RC30 Handoff
 
-- **Aktiver Prequalification-Kandidat:** `prod-candidate-2026-09-01-local-rc29`,
-  eingefrorene Source `41f07febae8b30d4813ff5b6c2f1d7fe623b6fbe`, Kontroll-Commit
-  `1ae1ff55bdbb04cc1d5a16ba0b9f34ab008d818d`. GitHub-Actions-Lauf `33521553311`
+- **Aktiver Prequalification-Kandidat:** `prod-candidate-2026-09-01-local-rc30`,
+  eingefrorene Source `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68`, Kontroll-Commit
+  `f5a31e52e8bbf6d166c7a1c11932f15219c587c1`. GitHub-Actions-Lauf `33540678387`
   attestierte exakt den Source-Checkout; `31/31` beobachtete Schritte waren gruen,
-  `0` skipped. RC27-Source `0ca71d1c6168d64360a7764b725b2b673af00afe` bleibt der
+  `0` skipped, und der Frontend-Audit meldete `0` Schwachstellen. RC27-Source
+  `0ca71d1c6168d64360a7764b725b2b673af00afe` bleibt der
   immutable lokale Rollback-Anker.
-- **RC29 lokal qualifiziert:** Alle fuenf unabhaengigen Ketten sind source-bound gruen und
-  im exakten 27-Dateien-Evidence-Set gebunden: sechs Clean-Archive-Images, Runtime `10/10
-  healthy`, Candidate-Archiv-npm-audit plus kanonisches gitleaks, kompletter realer
-  Chromium-Lauf mit `22/22` Routen, `29/29` Aktionsfamilien und `161/161` Mitgliedern sowie
-  Candidate-Runtime-Paritaet mit echter Playwright-Auswahl und Klick.
-- **RC29-Produktfix gebunden:** Generierte Three.js-Artefakte berechnen eine fehlende
-  `boundingSphere` unmittelbar vor direktem Radiuszugriff lazy und fail-closed. Unit,
-  Lint, Build, Product-Acceptance, Browser-Contract, Responsive-Matrix und der vollstaendige
-  22-Seiten-Aktionslauf bestanden gegen die neue Quelle; die RC29-Evidence-Neubindung ist
-  mit den fuenf unabhaengigen Hash-Ketten abgeschlossen.
+- **RC30-Qualifikation laeuft seriell:** Sechs Clean-Archive-Images sind source-bound
+  gruen. Der erste Runtime-Lauf erreichte `10/10 healthy` und scheiterte ausschliesslich am
+  noch auf RC29 gebundenen kanonischen Zeiger; nach dieser RC30-Preselection werden Runtime,
+  Security, der komplette reale Chromium-Browserlauf und Candidate-Runtime neu gebunden.
+- **RC30-Sicherheitsfix gebunden:** RC29s finaler Head-CI-Lauf `33540131151` fiel an zwei
+  neu veroeffentlichten HIGH-Advisories fuer `browserslist <=4.28.6` aus. RC30 pinnt
+  `browserslist` `4.28.8`; sauberer `npm ci` und `npm audit --audit-level=moderate` sind
+  mit `0` Schwachstellen belegt. Produktlogik und RC29-Three.js-Reparatur bleiben gleich.
 - **B1 gebunden, ohne Kredit:** Die drei genehmigten Rubriken sind durch Owner-Commit
   `e87c28a7c6cf32982caa849794042daa53ef022a` und den fail-closed Rubrik-Verifier gebunden.
   Aus der Freigabe allein folgt weder Prozentcredit noch Hosted-/Release-Status.
@@ -30,15 +29,14 @@ Letzte Aktualisierung: 2026-09-01
   P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
   L6 `100`, L7 `100`. `MARKET_READY:false`. I1 `hosted_candidate_parity` und I5
   `production_auth_identity` bleiben die einzigen Phase-5-Nullcredit-Items.
-- **Naechster sicherer Schritt:** Den exakten RC29-Evidence-/Truth-Freeze mit Pathspecs
-  committen, auf den Feature-Branch pushen und den finalen Head-CI-Lauf mit `skipped=0`
-  abwarten. Erst danach darf S2 die isolierten Candidate-Preview-Surfaces auf RC29
-  rebinden und neu messen. Das ist keine Production-Promotion und vergibt allein keinen
-  Kredit.
-- **Wartung nach dem naechsten Freeze, nicht in RC29:** `actions/upload-artifact` v4.6.2
+- **Naechster sicherer Schritt:** Die vier fehlenden RC30-Ketten seriell fahren, Evidence
+  immutable binden, den finalen Truth-Freeze exakt committen und pushen und dessen
+  Head-CI-Lauf mit `skipped=0` abwarten. Erst danach darf S2 die isolierten
+  Candidate-Preview-Surfaces auf RC30 rebinden. Das vergibt allein keinen Kredit.
+- **Wartung nach dem naechsten Freeze, nicht in RC30:** `actions/upload-artifact` v4.6.2
   in `pr-check.yml`, `main-deploy.yml` und `phase6-scale-runtime.yml` sowie
   `checkout`/`setup-node` v4 in `autonomous-fullstack.yml` separat aktualisieren. Die
-  RC29-gepinnten Workflow-Dateien bleiben bis dahin unveraendert.
+  RC30-gepinnten Workflow-Dateien bleiben bis dahin unveraendert.
 - **Non-Claims:** `DEV-ONLY; hosted proof still blocked`. Kein Main-/Default-Branch-Write,
   GHCR-Push, Production-Deploy, Release-Promotion, Production-Rollout oder Secret-Output.
 

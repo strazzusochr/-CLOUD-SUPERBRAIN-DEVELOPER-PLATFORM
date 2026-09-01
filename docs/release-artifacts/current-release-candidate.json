@@ -1,8 +1,8 @@
 {
-  "active_release_id": "prod-candidate-2026-09-01-local-rc29",
-  "source_commit_sha": "41f07febae8b30d4813ff5b6c2f1d7fe623b6fbe",
-  "updated_at": "2026-09-01T15:21:33Z",
-  "updated_by": "rc29-local-prequalification",
-  "reason": "RC29 selects frozen source 41f07febae8b30d4813ff5b6c2f1d7fe623b6fbe after exact-source CI prequalification and all five local qualification chains passed with an exact 27-file evidence set. This same-day no-credit transition repairs generated Three.js artifacts by lazily computing missing bounding spheres before collision radius access while preserving fail-closed generation and persistence boundaries. RC27 source 0ca71d1c6168d64360a7764b725b2b673af00afe remains the rollback target. DEV-ONLY; hosted proof still blocked. I1, I5, GHCR publication, release promotion, and production rollout remain blocked.",
+  "active_release_id": "prod-candidate-2026-09-01-local-rc30",
+  "source_commit_sha": "9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68",
+  "updated_at": "2026-09-01T18:16:38Z",
+  "updated_by": "rc30-local-prequalification",
+  "reason": "RC30 selects frozen source 9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68 after exact-source CI prequalification and six clean-archive image qualifications. RC29 final-head CI failed on two newly published high-severity Browserslist advisories; RC30 pins patched Browserslist 4.28.8 and its clean audit reports zero vulnerabilities. RC27 source 0ca71d1c6168d64360a7764b725b2b673af00afe remains the rollback target. The remaining RC30 local evidence chains must still be rebound before final qualification. DEV-ONLY; hosted proof still blocked. I1, I5, GHCR publication, release promotion, and production rollout remain blocked.",
   "production_rollout_claimed": false
 }
