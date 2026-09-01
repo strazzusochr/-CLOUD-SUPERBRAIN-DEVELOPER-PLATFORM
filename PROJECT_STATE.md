@@ -5,6 +5,25 @@ Letzte Aktualisierung: 2026-09-02
 
 ## AKTUELLER PROJEKTANKER
 
+### Session 2026-09-02 — RC31 Source Prequalification
+
+- **Aktiver Prequalification-Kandidat:** `prod-candidate-2026-09-02-local-rc31`,
+  eingefrorene Source `94cee68508196195454139a7c4a432b024f91869`, Control
+  `7e99d6c815015ac792864700b2cf57ea8c042fe0`. GitHub-Actions-Lauf `33566857871`
+  attestiert den exakten Source-Checkout mit `31/31` gruenen Schritten und `0` skipped.
+- **Lokal laufende Qualifikation:** Sechs Clean-Archive-Images sind source-bound gebaut.
+  Runtime-, Browser-, Security- und Candidate-Runtime-Ketten werden jetzt seriell an RC31
+  gebunden. RC30-Source `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68` bleibt Rollback.
+- **Produktdelta:** Native `GET /mcp/api/v1/health` im Cloudflare-Stateful-Preview ist
+  fail-closed an Source, Archiv, Bundle und D1-Read gebunden; der Preview-Deploy-Wrapper
+  prueft die Route nach dem Deploy. Die eingefrorenen Workflow-Action-Pins bleiben
+  unveraendert bis zum naechsten Freeze.
+- **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
+  P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `86`,
+  L6 `100`, L7 `100`. `MARKET_READY:false`. I1 und I5 bleiben blockiert.
+- **Non-Claims:** DEV-ONLY; hosted proof still blocked. Kein Main-/Default-Branch-Write,
+  GHCR-Push, Production-Deploy, Release-Promotion, Production-Rollout oder Secret-Output.
+
 ### Session 2026-09-02 — Current RC30 Handoff
 
 - **Aktiver Prequalification-Kandidat:** `prod-candidate-2026-09-01-local-rc30`,
