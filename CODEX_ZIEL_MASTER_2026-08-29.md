@@ -106,9 +106,9 @@ S2  B5 + Hosted-Rebind auf RC27-Source ───┤  Voraussetzung fuer jeden Ho
       │                                   │
       ├─> S4  P3-Evidence vervollstaendigen ──> P3 +56 ──> P5-I5   (braucht B2)
       │                                   │
-      ├─> S5  P6-Scale mit echtem Verifier ──> P6 +10              (braucht B3-Secret)
+      ├─> S5  P6-Scale mit echtem Verifier ──> P6 +10              (braucht B3-Grant)
       │                                   │
-      └─> S6  I1: Candidate-Paritaet + Codepin ──> P5 100          (braucht B4-Klick)
+      └─> S6  I1: Candidate-Paritaet + Codepin ──> P5 100          (braucht B4-Dispatch)
                                           │
                           S7  Delta-Ledger buchen ──> Finalstack ──> MARKET_READY
 ```
@@ -353,8 +353,10 @@ sein. Der Token gehoert ausschliesslich ins Prozess-Environment.
 
 ### S6 — I1 und der P5-Abschluss
 
-1. **B4** freigeben: gehaerteten `main-deploy`-Blob auf den Default-Branch bringen, dann
-   Candidate dispatchen und `registry-publication` freigeben. Sechs unveraenderliche
+1. **B4 Teil 1 ist erledigt** (2026-09-01): der gehaertete `main-deploy`-Blob `14e84b31`
+   liegt auf dem Default-Branch, PR #33 gemerged als `9c508aab`; `registry-publication`
+   traegt bereits `required_reviewers`. Offen ist nur noch: Candidate dispatchen und den
+   Gate-Grant `docker_registry_publish` setzen. Sechs unveraenderliche
    SHA-Digests fuer frontend, agent-api, agent-worker, memory-worker, mcp-gateway,
    llm-gateway. Das schliesst `ghcr_image_digest_verify` — das letzte External Gate.
    **Kein Deadlock:** `scripts/verify-main-deploy-transition.ps1:63` fuehrt `market_ready`
@@ -431,8 +433,11 @@ Ledger enthaelt die legitimen Eintraege, Hosted-SHA = Kandidatenquelle, keine
 1. **Der GitHub-Authorize-Klick** braucht Passwort und 2FA des Owners. *Fuer die aktuelle
    Kette bereits erledigt* — bei einem neuen Kandidaten faellt er erneut an.
 2. **Secret-Werte in Konsolen-Felder eintippen** ist einem Agenten kategorisch untersagt.
-3. **Die Deploy-Sperre der Claude-Code-Harness** — Codex hat sie nicht, der Owner kann sie
-   per Permission-Regel aufheben oder den Befehl selbst ausfuehren.
+3. **Die Schreibsperren der Claude-Code-Harness.** Am 2026-09-01 praezise vermessen: Dateien
+   schreiben, committen, pushen, Branches anlegen und Pull Requests **oeffnen** ist erlaubt;
+   GitHub-**Einstellungen** aendern und Pull Requests **mergen** wird vom Auto-Mode-
+   Klassifizierer blockiert. Codex hat diese Sperre nicht. Fuer Claude gilt: vorbereiten ja,
+   ausloesen nein — der Owner oder ein zweiter Agent fuehrt den letzten Schritt aus.
 
 ---
 

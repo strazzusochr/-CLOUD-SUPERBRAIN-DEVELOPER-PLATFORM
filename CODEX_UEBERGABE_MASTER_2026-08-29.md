@@ -235,9 +235,11 @@ Nachgeprueft: alle drei Rubriken tragen bei diesem Commit `Status: \`APPROVED\``
 
 1. **RC24 kann diesen Commit nicht tragen.** Der Verifier verlangt
    `merge-base --is-ancestor <approval> <candidate>`. RC24 ist bei `1cb03979` eingefroren
-   und liegt **vor** `e87c28a7`. Der naechste Kandidat (RC25) muss an einem Commit
-   eingefroren werden, der `e87c28a7` enthaelt. Reihenfolge: **erst freigeben, dann
-   einfrieren** — das ist jetzt erledigt, also einfach RC25 auf HEAD oder spaeter setzen.
+   und liegt **vor** `e87c28a7`. Jeder Kandidat muss an einem Commit eingefroren werden,
+   der `e87c28a7` enthaelt. *Stand 2026-09-01:* RC25, RC26 und RC27 erfuellen das —
+   RC27-Source `0ca71d1c` traegt den Approval-Commit als Ancestor. Die Regel bleibt
+   trotzdem stehen, weil sie fuer **jeden** kuenftigen Kandidaten gilt: erst freigeben,
+   dann einfrieren.
 2. **Die drei Rubriken sind eingefroren.** Der Verifier vergleicht die Rubrik-Blobs
    zwischen Approval-Commit und Kandidat (`rubric_blob_drift`). Jede weitere Aenderung an
    `phase3-credit-rubric.md`, `phase6-credit-rubric.md` oder `layer-credit-rubric.md`
@@ -547,13 +549,18 @@ fuenf Ketten qualifiziert werden. RC22 `28727b198b` bleibt der lokale Rollback-A
 
 ## 8. Die fuenf Strukturblocker — Stand am Truth-HEAD
 
+> **Achtung, Namensraum.** Diese Tabelle hiess frueher ebenfalls `B1`–`B5` und kollidierte
+> damit mit den **Owner-Gates** `B1`–`B5` in §6 der Zieldatei, die etwas voellig anderes
+> bezeichnen. Sie heissen hier ab 2026-09-01 **`SB1`–`SB5`** (Strukturblocker).
+> Wo im Projekt von `B1`…`B5` die Rede ist, sind **immer die Owner-Gates** gemeint.
+
 | Blocker | Stand |
 | --- | --- |
-| **B1** Rubriken | drei Entwuerfe vorhanden, alle `DRAFT_OWNER_APPROVAL_REQUIRED`, `Credit-Anwendung erlaubt: false`. Spezifikationsluecke geschlossen, Freigabe fehlt. |
-| **B2** Verifier | **geloest.** Alle zehn sind echte, fail-closed gebundene Skripte (§5). Offen sind nur B1-Approval-Commit, Hosted-Rebind und die realen Laeufe. |
-| **B3** P5-Codepin | `BASELINE_BLOCKED_IDS = {"I1"}` (`verify_phase5_credit_itemization.py:44`), nur `blocked.add("I5")` (`:290`), **kein** `discard`, **kein** `remove`. I5 ist rein evidenzgetrieben; **I1 braucht Beweis UND Codeaenderung.** |
-| **B4** Delta-Ledger | `project-progress-delta-ledger-v2`, `baseline.source_sha = 9a3776ff`, `entries = 0`. Nie erprobt. Δ=0 heisst „nie kreditiert", nicht „kaputt". |
-| **B5** Hosted | Worker laeuft mit **geloeschter** Source-Bindung; `/api/v1/project/progress` liefert weiter `84`. |
+| **SB1** Rubriken | **geloest 2026-08-31.** Alle drei tragen `Status: APPROVED`, `Credit-Anwendung erlaubt: true` und `Owner-Freigabe-Ref:`; Approval-Commit `e87c28a7`. Ab jetzt blob-eingefroren. |
+| **SB2** Verifier | **geloest.** Alle zehn sind echte, fail-closed gebundene Skripte (§5). Offen sind nur Hosted-Rebind und die realen Laeufe. |
+| **SB3** P5-Codepin | **unveraendert.** `BASELINE_BLOCKED_IDS = {"I1"}` (`verify_phase5_credit_itemization.py:44`), nur `blocked.add("I5")` (`:296`), **kein** `discard`, **kein** `remove`. I5 ist rein evidenzgetrieben; **I1 braucht Beweis UND Codeaenderung.** Am 2026-09-01 nachgeprueft. |
+| **SB4** Delta-Ledger | **unveraendert.** `project-progress-delta-ledger-v2`, `baseline.source_sha = 9a3776ff`, `entries = 0`. Nie erprobt. Δ=0 heisst „nie kreditiert", nicht „kaputt". Am 2026-09-01 nachgeprueft. |
+| **SB5** Hosted | **korrigiert.** Die Source-Bindung ist **nicht mehr geloescht** — F2 ist behoben. Live gemessen 2026-09-01: `/api/v1/health` meldet `status=healthy` und `source_commit_sha=bc0f4dc8…`. Sie ist aber **veraltet** gegenueber RC27-Source `0ca71d1c`; `/api/v1/project/progress` liefert weiter `84` (Ursache in §8 unten). |
 
 Capability-Gates: **7 von 10 geschlossen**. Offen: `production_auth_identity`,
 `docker_registry_publish`, `phase6_scale_runtime`.
@@ -581,10 +588,18 @@ Progress-Projektion im Worker. Das ist eine eigene Entscheidung, kein Nebeneffek
 - Der Cloudflare-Token in `~/.codex/secrets/cloud-superbrain.local.env` verifiziert `active`
   und liest **Workers, D1 und Vectorize** (je HTTP 200). Die alte Scope-Sperre gilt nur noch
   fuer den separaten `CF_WORKERS_AI_TOKEN`.
-- Arbeitsbaum: `D:\_sb_tmp\clean-head-7f181868` (detached, auf `4adb250c`, sauber bis auf
+- *Veraltet, 2026-09-01 korrigiert:* der frueher hier genannte Arbeitsbaum
+  `D:\_sb_tmp\clean-head-7f181868` **existiert nicht mehr** (durch einen TMP-CLEAN-Lauf
+  entfernt). Codex arbeitet inzwischen aus `D:\_sb_tmp
+c22-candidate` (HEAD folgt dem
+  Feature-Branch). Dort lagen am 2026-09-01 sechs nicht committete Dateien, darunter
+  `docs/runtime-state/capability-gates.json` und `owner-input-manifest.json` — inhaltlich
+  nur regenerierte Verifier-Zeitstempel, **kein** Gate hat sich bewegt. Nicht aufraeumen,
+  nicht zuruecksetzen. Historischer Originaltext folgt:
+- ~~Arbeitsbaum: `D:\_sb_tmp\clean-head-7f181868` (detached, auf `4adb250c`, sauber bis auf
   eine untracked `uebergabe.md`). Der Hauptcheckout
   `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM` haengt hinterher und hat eigene
-  Dirty-Pfade — dort **nicht** operativ arbeiten.
+  Dirty-Pfade — dort **nicht** operativ arbeiten.~~
 
 ---
 
@@ -608,11 +623,21 @@ Progress-Projektion im Worker. Das ist eine eigene Entscheidung, kein Nebeneffek
 
 ## 11. Non-Claims — was heute ausdruecklich **nicht** gilt
 
-- kein Main-/Default-Branch-Push, kein GHCR-Push
+- **kein GHCR-Push**, kein Image veroeffentlicht
 - kein Production-Deploy, keine Promotion, kein Rollout
 - kein gueltiger Phase-6-Scale-Beweis
-- keine Production-OAuth-Identitaet (der Authorize-Klick ist nie erfolgt)
-- keine Rubrikaktivierung, kein Delta-Ledger-Eintrag
+- **keine kreditfaehige** Production-OAuth-Identitaet. *Korrektur 2026-09-01:* die frueher
+  hier stehende Formulierung „der Authorize-Klick ist nie erfolgt" war **falsch** und stand
+  im Widerspruch zu §3A desselben Dokuments. Der Owner hat am 2026-08-30 real geklickt, die
+  Kette ist serverseitig in D1 belegt. Was fehlt, ist das Evidence-Dokument nach
+  `production-auth-identity-proof-v1` — der **Kredit**, nicht der Klick.
+- **keine Rubrik-Kreditanwendung**, kein Delta-Ledger-Eintrag. Die Rubriken sind seit
+  `e87c28a7` freigegeben; freigegeben heisst „messbar", nicht „kreditiert".
+- *Praezisierung 2026-09-01 zum Default-Branch:* zwei Owner-Merges auf `chore/repo-bootstrap`
+  haben stattgefunden — `ce75bb00` (PR #32, Phase-6-Workflow) und `9c508aab` (PR #33,
+  gehaerteter `main-deploy`). Beide betrafen **ausschliesslich** Workflow-Dateien, keinen
+  Produktcode. Der frueher pauschale Non-Claim „kein Default-Branch-Push" gilt in dieser
+  Form nicht mehr; er gilt weiter fuer **Produktcode**.
 - kein Secret- oder Payment-Output
 - `MARKET_READY:false`
 - `DEV-ONLY; hosted proof still blocked.`
