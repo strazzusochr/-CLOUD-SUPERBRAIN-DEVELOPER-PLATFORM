@@ -10,7 +10,7 @@ immutable_image_commit_sha: `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68`
 source_attestation_control_sha: `f5a31e52e8bbf6d166c7a1c11932f15219c587c1`
 workflow_run_url: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/33540678387`
 pipeline_status: `success; exact source checkout attested; 31/31 observed steps green; skipped=0; frontend audit found 0 vulnerabilities; no release or production claim`
-smoke_result: `source prequalification and six clean-archive images passed; remaining RC30 local evidence chains are being rebound serially; DEV-ONLY; hosted proof still blocked`
+smoke_result: `all five RC30 local qualification chains passed and are bound in the exact 27-file evidence set; DEV-ONLY; hosted proof still blocked`
 observability_check: `candidate-bound local health, metrics, audit, trace, O4 fail-closed, and browser readback paths remain mandatory; production observability is not claimed`
 rollback_note: `local rollback target remains RC27 source 0ca71d1c6168d64360a7764b725b2b673af00afe because RC29 final-head CI failed; no hosted rollback is authorized or executed`
 rollback_target_commit_sha: `0ca71d1c6168d64360a7764b725b2b673af00afe`
@@ -30,10 +30,10 @@ browser_proof: `docs/release-artifacts/prod-candidate-2026-09-01-local-rc30-read
 post_rollback_browser_revalidation_proof: `not-applicable-retired-rc1-boundary`
 final_browser_e2e_recheck_proof: `docs/release-artifacts/prod-candidate-2026-09-01-local-rc30-readiness.json`
 full_verifier_sweep_proof: `docs/release-artifacts/prod-candidate-2026-09-01-local-rc30-readiness.json`
-full_verifier_sweep_status: `RC30 source CI and candidate images passed; remaining local evidence chains pending; hosted I1 and production-auth I5 remain blocked`
+full_verifier_sweep_status: `all five RC30 local qualification chains passed; runtime 10/10 healthy; 22/22 routes, 29/29 action families, 161/161 action members; candidate archive audit 0 vulnerabilities; hosted I1 and production-auth I5 remain blocked`
 truth_mirror_rebaseline_proof: `docs/runtime-state/phase5-credit-itemization.json`
 release_readiness_rerun_proof: `docs/release-artifacts/prod-candidate-2026-09-01-local-rc30-readiness.json`
-browser_rerun_status: `RC30 immutable candidate-browser evidence rebinding remains pending`
+browser_rerun_status: `immutable RC30 candidate-browser evidence passed with 22/22 routes, 29/29 action families, 161/161 action members, and a real candidate-runtime Playwright selection and click`
 review_gate: `pending`
 owner_decision: `no-release`
 hosted_staging_parity: `false`
@@ -44,8 +44,9 @@ phase5_computed_percent: `89`
 
 ## Phase-5 Readiness Checklist
 
-RC30 supersedes RC29 only after the same five independent local qualification chains are
-rebound to the exact source. RC30 changes only the frontend dependency resolution needed
+RC30 supersedes RC29 in local candidate truth after all five independent qualification
+chains were rebound to the exact source and preserved in 27 immutable evidence files. RC30
+changes only the frontend dependency resolution needed
 to close the newly disclosed Browserslist audit findings; it does not award percentage
 credit. I1 `hosted_candidate_parity` and I5 `production_auth_identity` remain zero-credit
 blocks.
@@ -53,7 +54,7 @@ blocks.
 | ID | JA/NEIN | Beleg |
 | --- | --- | --- |
 | C1 | JA | Exact candidate-source CI attestation is bound to RC30. |
-| C2 | JA | Runtime, browser, security, candidate-image, and candidate-runtime chains must be hash-bound before final selection. |
+| C2 | JA | Runtime, browser, security, candidate-image, and candidate-runtime chains passed and are hash-bound in the RC30 readiness evidence. |
 | C3 | JA | Candidate, readiness, and Phase-5 truth select the frozen RC30 source. |
 | C4 | JA | Runtime-source and no-credit requalification parity remain fail-closed, including same-day selection. |
 | C5 | JA | Candidate archive npm audit and canonical gitleaks scan are required. |

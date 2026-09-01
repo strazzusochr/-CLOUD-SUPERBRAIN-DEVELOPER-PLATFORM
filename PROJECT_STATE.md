@@ -14,14 +14,16 @@ Letzte Aktualisierung: 2026-09-01
   `0` skipped, und der Frontend-Audit meldete `0` Schwachstellen. RC27-Source
   `0ca71d1c6168d64360a7764b725b2b673af00afe` bleibt der
   immutable lokale Rollback-Anker.
-- **RC30-Qualifikation laeuft seriell:** Sechs Clean-Archive-Images sind source-bound
-  gruen. Der erste Runtime-Lauf erreichte `10/10 healthy` und scheiterte ausschliesslich am
-  noch auf RC29 gebundenen kanonischen Zeiger; nach dieser RC30-Preselection werden Runtime,
-  Security, der komplette reale Chromium-Browserlauf und Candidate-Runtime neu gebunden.
+- **RC30 lokal qualifiziert:** Alle fuenf unabhaengigen Ketten sind source-bound gruen und
+  im exakten 27-Dateien-Evidence-Set gebunden: sechs Clean-Archive-Images, Runtime `10/10
+  healthy`, Candidate-Archiv-npm-audit plus kanonisches gitleaks, kompletter realer
+  Chromium-Lauf mit `22/22` Routen, `29/29` Aktionsfamilien und `161/161` Mitgliedern sowie
+  Candidate-Runtime-Paritaet mit echter Playwright-Auswahl und Klick.
 - **RC30-Sicherheitsfix gebunden:** RC29s finaler Head-CI-Lauf `33540131151` fiel an zwei
   neu veroeffentlichten HIGH-Advisories fuer `browserslist <=4.28.6` aus. RC30 pinnt
   `browserslist` `4.28.8`; sauberer `npm ci` und `npm audit --audit-level=moderate` sind
-  mit `0` Schwachstellen belegt. Produktlogik und RC29-Three.js-Reparatur bleiben gleich.
+  mit `0` Schwachstellen belegt. Produktlogik und RC29-Three.js-Reparatur bleiben gleich;
+  die RC30-Evidence-Neubindung ist mit fuenf unabhaengigen Hash-Ketten abgeschlossen.
 - **B1 gebunden, ohne Kredit:** Die drei genehmigten Rubriken sind durch Owner-Commit
   `e87c28a7c6cf32982caa849794042daa53ef022a` und den fail-closed Rubrik-Verifier gebunden.
   Aus der Freigabe allein folgt weder Prozentcredit noch Hosted-/Release-Status.
@@ -29,10 +31,10 @@ Letzte Aktualisierung: 2026-09-01
   P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
   L6 `100`, L7 `100`. `MARKET_READY:false`. I1 `hosted_candidate_parity` und I5
   `production_auth_identity` bleiben die einzigen Phase-5-Nullcredit-Items.
-- **Naechster sicherer Schritt:** Die vier fehlenden RC30-Ketten seriell fahren, Evidence
-  immutable binden, den finalen Truth-Freeze exakt committen und pushen und dessen
-  Head-CI-Lauf mit `skipped=0` abwarten. Erst danach darf S2 die isolierten
-  Candidate-Preview-Surfaces auf RC30 rebinden. Das vergibt allein keinen Kredit.
+- **Naechster sicherer Schritt:** Den exakten RC30-Evidence-/Truth-Freeze mit Pathspecs
+  committen, auf den Feature-Branch pushen und den finalen Head-CI-Lauf mit `skipped=0`
+  abwarten. Erst danach darf S2 die isolierten Candidate-Preview-Surfaces auf RC30
+  rebinden und neu messen. Das vergibt allein keinen Kredit.
 - **Wartung nach dem naechsten Freeze, nicht in RC30:** `actions/upload-artifact` v4.6.2
   in `pr-check.yml`, `main-deploy.yml` und `phase6-scale-runtime.yml` sowie
   `checkout`/`setup-node` v4 in `autonomous-fullstack.yml` separat aktualisieren. Die
