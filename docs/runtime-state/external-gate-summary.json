@@ -3,7 +3,7 @@
   "source_contract_version": "external-gate-audit-v2",
   "source_artifact": "docs\\runtime-state\\external-gate-audit-v2.json",
   "local_run_artifact": ".phase1-artifacts\\external-gate-audit-v2-20260829-192549.json",
-  "generated_at_utc": "2026-08-31T23:08:26Z",
+  "generated_at_utc": "2026-08-29T17:25:49.1046628Z",
   "status": "blocked",
   "active_target_gate": "cloudflare_native_zero_card_hosted_runtime",
   "requested_release_candidate_selector": "727b15398c278bd1c00fa251605e6a8d37b1abb3",
