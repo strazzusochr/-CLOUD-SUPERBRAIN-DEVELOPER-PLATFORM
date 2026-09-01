@@ -16,6 +16,10 @@ class FakeStatement {
   }
 
   async first() {
+    if (this.sql === "SELECT 1 AS ok") {
+      if (this.db.failHealthRead) throw new Error("simulated health read failure");
+      return { ok: this.db.healthOk ? 1 : 0 };
+    }
     if (this.sql.includes("FROM mcp_hosted_idempotency")) {
       return this.db.idempotency.get(this.args[0]) || null;
     }
@@ -126,6 +130,8 @@ class FakeD1 {
     this.timeoutEffects = new Map();
     this.failCommitAudit = false;
     this.failAuditReadback = false;
+    this.failHealthRead = false;
+    this.healthOk = true;
     this.batchTail = Promise.resolve();
   }
 
@@ -221,6 +227,65 @@ function writePayload(channel = "runtime", simulateCommitAuditFailure = false) {
 async function route(req, fakeEnv) {
   return handleHostedMcpRoute(req, new URL(req.url), fakeEnv, req.headers.get("x-request-id"));
 }
+
+test("hosted MCP health is source-bound, D1-read verified, and non-mutating", async () => {
+  const fakeEnv = env();
+  const response = await route(request("/mcp/api/v1/health"), fakeEnv);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-superbrain-source"), "cloudflare-workers-hosted-mcp-runtime");
+  assert.equal(body.contract_version, "mcp-hosted-health-v1");
+  assert.equal(body.status, "healthy");
+  assert.equal(body.service, "mcp-gateway");
+  assert.equal(body.provider, "cloudflare-d1");
+  assert.equal(body.mode, "cloudflare_workers_d1_candidate_preview");
+  assert.equal(body.hosted, true);
+  assert.equal(body.DEV_ONLY, false);
+  assert.equal(body.source_commit_sha, SOURCE_COMMIT_SHA);
+  assert.equal(body.source_archive_sha256, SOURCE_ARCHIVE_SHA256);
+  assert.equal(body.source_bundle_sha256, SOURCE_BUNDLE_SHA256);
+  assert.equal(body.d1_binding_configured, true);
+  assert.equal(body.d1_read_verified, true);
+  assert.equal(body.persisted, true);
+  assert.equal(body.auth_required_for_writes, true);
+  assert.equal(body.provider_writes, false);
+  assert.equal(body.live_mcp_writes, false);
+  assert.equal(body.live_provider_calls, false);
+  assert.equal(body.direct_provider_calls, false);
+  assert.equal(body.production_deploy, false);
+  assert.equal(body.secret_output, false);
+  assert.equal(fakeEnv.DB.state.size, 0);
+  assert.equal(fakeEnv.DB.idempotency.size, 0);
+  assert.equal(fakeEnv.DB.audit.length, 0);
+});
+
+test("hosted MCP health fails closed when source binding or D1 read is invalid", async () => {
+  for (const missing of ["DB", "SOURCE_COMMIT_SHA", "SOURCE_ARCHIVE_SHA256", "SOURCE_BUNDLE_SHA256"]) {
+    const candidate = env();
+    delete candidate[missing];
+    const response = await route(request("/mcp/api/v1/health"), candidate);
+    const body = await response.json();
+    assert.equal(response.status, 503, missing);
+    assert.equal(body.status, "blocked", missing);
+    assert.equal(body.error, "hosted_mcp_health_configuration_unavailable", missing);
+    assert.equal(body.missing_configuration.includes(missing), true, missing);
+    assert.equal(body.provider_writes, false, missing);
+    assert.equal(body.secret_output, false, missing);
+  }
+
+  const degraded = env();
+  degraded.DB.healthOk = false;
+  const degradedResponse = await route(request("/mcp/api/v1/health"), degraded);
+  assert.equal(degradedResponse.status, 503);
+  assert.equal((await degradedResponse.json()).error, "hosted_mcp_d1_health_probe_failed");
+
+  const failed = env();
+  failed.DB.failHealthRead = true;
+  const failedResponse = await route(request("/mcp/api/v1/health"), failed);
+  assert.equal(failedResponse.status, 503);
+  assert.equal((await failedResponse.json()).error, "hosted_mcp_d1_health_probe_failed");
+});
 
 test("hosted MCP contract is source-bound and stays disabled until every owner/rubric/live gate exists", async () => {
   const enabledEnv = env();

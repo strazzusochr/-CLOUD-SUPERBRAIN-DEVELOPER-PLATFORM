@@ -139,6 +139,12 @@ class CloudflareOAuthDeployConfigTests(unittest.TestCase):
             '"--no-bundle", "--config", $materializedWranglerConfigPath',
             '"SOURCE_BUNDLE_SHA256:$sourceBundleSha"',
             'preview source_bundle_sha256 rebound',
+            'preview MCP health reports healthy',
+            'preview MCP health source_commit_sha rebound',
+            'preview MCP health source_archive_sha256 rebound',
+            'preview MCP health source_bundle_sha256 rebound',
+            'preview MCP health D1 read verified',
+            'preview MCP health is non-mutating',
             "preflight bundle inputs are confined to the selected source materialization",
             "transient source materialization removed",
         ):

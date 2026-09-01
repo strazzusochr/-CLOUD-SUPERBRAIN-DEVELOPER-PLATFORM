@@ -329,6 +329,7 @@ function Invoke-LlmGatewayCandidateDeploy(
 $canonicalPostLoginRedirect = "/workbench"
 $previewWorkerHostname = "cloud-superbrain-stateful-runtime-preview.strazzusochr.workers.dev"
 $previewWorkerHealthUrl = "https://$previewWorkerHostname/api/v1/health"
+$previewWorkerMcpHealthUrl = "https://$previewWorkerHostname/mcp/api/v1/health"
 $hostedMcpDeploymentEnvironment = "candidate_preview"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -860,7 +861,29 @@ try {
     Assert-True "preview source_archive_sha256 rebound" ([string]$health.source_archive_sha256 -eq $archiveSha)
     Assert-True "preview source_bundle_sha256 rebound" ([string]$health.source_bundle_sha256 -eq $sourceBundleSha)
     Assert-True "preview runtime mode rebound" ([string]$health.mode -ceq "cloudflare_native_hosted_candidate")
-    Write-Host "[worker-deploy] preview commit, archive, exact uploaded bundle, and runtime-mode binding verified"
+    $mcpHealth = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 `
+      -Uri $previewWorkerMcpHealthUrl).Content | ConvertFrom-Json
+    Assert-True "preview MCP health reports healthy" (
+      [string]$mcpHealth.contract_version -ceq "mcp-hosted-health-v1" -and
+      [string]$mcpHealth.status -ceq "healthy" -and
+      [string]$mcpHealth.service -ceq "mcp-gateway"
+    )
+    Assert-True "preview MCP health source_commit_sha rebound" ([string]$mcpHealth.source_commit_sha -ceq $resolved)
+    Assert-True "preview MCP health source_archive_sha256 rebound" ([string]$mcpHealth.source_archive_sha256 -ceq $archiveSha)
+    Assert-True "preview MCP health source_bundle_sha256 rebound" ([string]$mcpHealth.source_bundle_sha256 -ceq $sourceBundleSha)
+    Assert-True "preview MCP health D1 read verified" (
+      $mcpHealth.d1_binding_configured -is [bool] -and $mcpHealth.d1_binding_configured -and
+      $mcpHealth.d1_read_verified -is [bool] -and $mcpHealth.d1_read_verified -and
+      $mcpHealth.persisted -is [bool] -and $mcpHealth.persisted
+    )
+    Assert-True "preview MCP health is non-mutating" (
+      $mcpHealth.provider_writes -is [bool] -and -not $mcpHealth.provider_writes -and
+      $mcpHealth.live_mcp_writes -is [bool] -and -not $mcpHealth.live_mcp_writes -and
+      $mcpHealth.live_provider_calls -is [bool] -and -not $mcpHealth.live_provider_calls -and
+      $mcpHealth.production_deploy -is [bool] -and -not $mcpHealth.production_deploy -and
+      $mcpHealth.secret_output -is [bool] -and -not $mcpHealth.secret_output
+    )
+    Write-Host "[worker-deploy] preview commit, archive, exact uploaded bundle, runtime mode, and MCP health binding verified"
   } finally {
     Remove-TransientMaterialization $materializationRoot
   }

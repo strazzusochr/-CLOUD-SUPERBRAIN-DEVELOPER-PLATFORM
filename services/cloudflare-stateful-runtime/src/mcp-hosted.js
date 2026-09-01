@@ -1,4 +1,5 @@
 const CONTRACT_VERSION = "o4-live-agent-mcp-write-v1";
+const HEALTH_CONTRACT_VERSION = "mcp-hosted-health-v1";
 const EVIDENCE_REF = "hosted_mcp_write_readback_audit_verified";
 const SOURCE = "cloudflare-workers-hosted-mcp-runtime";
 const AUTH_HEADER = "x-superbrain-agent-token";
@@ -142,6 +143,77 @@ function gateState(env) {
   };
   const missing = Object.entries(checks).filter(([, present]) => !present).map(([name]) => name);
   return { enabled: missing.length === 0, missing };
+}
+
+function healthConfiguration(env) {
+  const checks = {
+    DB: Boolean(env.DB),
+    SOURCE_COMMIT_SHA: isSha(env.SOURCE_COMMIT_SHA, 40),
+    SOURCE_ARCHIVE_SHA256: isSha(env.SOURCE_ARCHIVE_SHA256, 64),
+    SOURCE_BUNDLE_SHA256: isSha(env.SOURCE_BUNDLE_SHA256, 64),
+  };
+  return {
+    ready: Object.values(checks).every(Boolean),
+    missing: Object.entries(checks).filter(([, present]) => !present).map(([name]) => name),
+  };
+}
+
+function healthPayload(env, overrides = {}) {
+  return {
+    contract_version: HEALTH_CONTRACT_VERSION,
+    status: "blocked",
+    service: "mcp-gateway",
+    provider: "cloudflare-d1",
+    mode: "cloudflare_workers_d1_candidate_preview",
+    hosted: true,
+    DEV_ONLY: false,
+    source_commit_sha: isSha(env.SOURCE_COMMIT_SHA, 40) ? env.SOURCE_COMMIT_SHA : null,
+    source_archive_sha256: isSha(env.SOURCE_ARCHIVE_SHA256, 64) ? env.SOURCE_ARCHIVE_SHA256 : null,
+    source_bundle_sha256: isSha(env.SOURCE_BUNDLE_SHA256, 64) ? env.SOURCE_BUNDLE_SHA256 : null,
+    d1_binding_configured: Boolean(env.DB),
+    d1_read_verified: false,
+    persisted: false,
+    auth_required_for_writes: true,
+    provider_writes: false,
+    live_mcp_writes: false,
+    live_provider_calls: false,
+    direct_provider_calls: false,
+    production_deploy: false,
+    secret_output: false,
+    ...overrides,
+  };
+}
+
+async function health(env) {
+  const configuration = healthConfiguration(env);
+  if (!configuration.ready) {
+    return json(healthPayload(env, {
+      error: "hosted_mcp_health_configuration_unavailable",
+      missing_configuration: configuration.missing,
+    }), 503);
+  }
+  try {
+    const probe = await env.DB.prepare("SELECT 1 AS ok").first();
+    if (Number(probe?.ok) !== 1) {
+      return json(healthPayload(env, {
+        status: "degraded",
+        error: "hosted_mcp_d1_health_probe_failed",
+        missing_configuration: [],
+      }), 503);
+    }
+    return json(healthPayload(env, {
+      status: "healthy",
+      missing_configuration: [],
+      d1_read_verified: true,
+      persisted: true,
+    }));
+  } catch {
+    return json(healthPayload(env, {
+      status: "degraded",
+      error: "hosted_mcp_d1_health_probe_failed",
+      missing_configuration: [],
+    }), 503);
+  }
 }
 
 function contract(env) {
@@ -786,6 +858,9 @@ export async function handleHostedMcpRoute(request, url, env) {
   const isHostedMcpPath = url.pathname.startsWith("/mcp/api/v1/") || url.pathname === "/api/v1/audit/mcp";
   if (isHostedMcpPath && (url.protocol !== "https:" || url.hostname !== CANDIDATE_PREVIEW_HOSTNAME)) {
     return rejection("hosted_mcp_candidate_preview_origin_required", 403);
+  }
+  if (request.method === "GET" && url.pathname === "/mcp/api/v1/health") {
+    return health(env);
   }
   if (request.method === "GET" && url.pathname === "/mcp/api/v1/tools/live-write/probe/contract") {
     return json(contract(env));
