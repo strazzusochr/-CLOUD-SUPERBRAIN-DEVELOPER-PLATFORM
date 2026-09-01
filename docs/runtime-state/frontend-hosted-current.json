@@ -1,10 +1,10 @@
 {
   "contract_version": "frontend-hosted-current-proof-v1",
   "status": "verified",
-  "source_commit_sha": "1ad419cb56368fb747d65e8ceec3798e18badbc4",
-  "source_archive_sha256": "119d388bac0ad296e66b7c4ac1ac6d50996ea625338bb4f789db4c6b1d26e44f",
-  "deployment_id": "dpl_CpAPVum4NhqxMG63oTwDiecx5A13",
-  "immutable_deployment_url": "https://frontend-nsodkcxzz-strazzusochrs-projects.vercel.app",
+  "source_commit_sha": "4b26d00a1a842db73cbd5fa58dfffd3928d2342e",
+  "source_archive_sha256": "3dbe4c6069cfa8da5b9f3d1ab65ae43b218114b11a11967a244d01bc72ecb2eb",
+  "deployment_id": "dpl_E93YtZRy3DgXmRQx1H1VtRBSV7BT",
+  "immutable_deployment_url": "https://frontend-c42ux1s9f-strazzusochrs-projects.vercel.app",
   "production_alias": "https://frontend-seven-psi-78.vercel.app",
   "vercel_target": "preview",
   "vercel_scope": "strazzusochrs-projects",
@@ -13,8 +13,8 @@
   "git_source_type": "github",
   "git_source_repo_id": "1218719331",
   "git_source_ref": "codex/organism-visual-v2",
-  "proof_artifact": ".phase1-artifacts/frontend-hosted-current-rc28-preview/report.json",
-  "proof_generated_at": "2026-09-01T04:37:21.020Z",
+  "proof_artifact": ".phase1-artifacts/frontend-hosted-current-rc30-preview/report.json",
+  "proof_generated_at": "2026-09-01T20:07:16.230Z",
   "browser_channel": "chrome",
   "browser_version": "148.0.7778.96",
   "page_count": 22,
@@ -32,10 +32,10 @@
   "production_operational_deploy_verified": false,
   "production_release_claimed": false,
   "non_claims": [
-    "The authenticated Vercel metadata binds this READY Preview redeploy to the exact current hosted-candidate commit and source-archive SHA-256.",
+    "The authenticated Vercel metadata binds this READY RC30-control Preview redeploy to commit 4b26d00a and its source-archive SHA-256; product runtime changes remain frozen at RC30 source 9e88f84a.",
     "The Git-integrated source is codex/organism-visual-v2, while the immutable redeploy metadata pins the exact commit independently of later branch movement.",
     "The responsive proof used real command-palette clicks for all 22 routes at desktop and mobile viewports after this deployment became READY.",
     "The production alias is contextual only: no alias parity, production deploy, promotion, or platform release is claimed.",
-    "This proof does not by itself claim Worker source parity, hosted MCP writes, registry publication, or MARKET_READY."
+    "This proof does not by itself claim Worker source parity, hosted MCP writes, registry publication, production alias parity, or MARKET_READY."
   ]
 }

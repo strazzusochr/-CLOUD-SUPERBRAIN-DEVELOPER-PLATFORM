@@ -143,7 +143,12 @@ function Get-AuthenticatedDeployment([object]$Config, [string]$ExpectedTarget, [
   Assert-Equal ([string]$deployment.project.id) ([string]$Config.vercel_project_id) "Vercel frontend nested project id"
   Assert-Equal ([string]$deployment.name) ([string]$Config.vercel_project_name) "Vercel frontend deployment project name"
   Assert-Equal ([string]$deployment.project.name) ([string]$Config.vercel_project_name) "Vercel frontend nested project name"
-  Assert-Equal ([string]$deployment.source) "redeploy" "Vercel frontend deployment source"
+  $deploymentSource = ([string]$deployment.source).Trim()
+  # Current Vercel CLI redeploys are returned as source=cli while the immutable
+  # redeploy intent remains attested by meta.action. Keep the accepted transport
+  # encoding closed to those two provider values; the Git/source/archive
+  # consensus checks below still bind the exact candidate bytes.
+  Assert-True (@("redeploy", "cli") -ccontains $deploymentSource) "Vercel frontend deployment source is not an accepted redeploy transport"
   Assert-Equal ([string]$deployment.meta.action) "redeploy" "Vercel frontend deployment action"
 
   $configuredDeploymentHost = ConvertTo-ExactHost ([string]$Config.immutable_deployment_url) "configured immutable deployment URL"
