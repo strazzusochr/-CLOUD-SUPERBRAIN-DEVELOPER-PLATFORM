@@ -3,7 +3,7 @@
 Status: `ACTIVE_CURRENT_HANDOFF`
 Stand: **2026-09-01**
 Branch: `codex/organism-visual-v2`
-Qualification Source: **`0ca71d1c6168d64360a7764b725b2b673af00afe`**; Control: **`cf89266b99c9f9437cebd70c60a49d80614297cf`**
+Qualification Source: **`41f07febae8b30d4813ff5b6c2f1d7fe623b6fbe`**; Control: **`1ae1ff55bdbb04cc1d5a16ba0b9f34ab008d818d`**
 **B1 ERTEILT** — Approval-Commit: **`e87c28a7c6cf32982caa849794042daa53ef022a`**
 Market Status: `MARKET_READY:false` — Overall `89`
 
@@ -23,6 +23,18 @@ entsprechend markiert sind `CODEX_100_PROZENT_ZIEL_2026-08-29.md`,
 Alles hier ist **gemessen** — live gegen den Endpunkt oder gegen den Quellcode am
 Truth-HEAD. Wo etwas nur protokolliert und nicht nachmessbar war, steht das ausdruecklich
 dabei.
+
+## RC29-Checkpoint 2026-09-01
+
+RC29 ist lokal mit allen fuenf unabhaengigen Ketten qualifiziert. Der exakte
+27-Dateien-Evidence-Satz bindet sechs Images, Runtime `10/10 healthy`, Security,
+Candidate-Runtime mit realem Playwright-Klick und den kompletten Chromium-Lauf
+`22/22` Routen, `29/29` Familien, `161/161` Mitglieder. GitHub-Run `33521553311`
+attestierte die eingefrorene Source mit `31/31`, `skipped=0`. Fortschritt bleibt
+`89`; I1/I5 und `MARKET_READY:false` bleiben unveraendert. Naechster Schritt ist der
+exakte Evidence-/Truth-Freeze, Feature-Branch-Push, finaler Head-CI-Lauf und erst danach
+S2 Candidate-Preview-Rebind. Workflow-Runtime-Pins werden erst nach diesem Freeze in
+einem separaten Wartungsslice aktualisiert.
 
 ## Owner-Aktionen 2026-09-01 — gemessener Stand
 
@@ -236,8 +248,8 @@ Nachgeprueft: alle drei Rubriken tragen bei diesem Commit `Status: \`APPROVED\``
 1. **RC24 kann diesen Commit nicht tragen.** Der Verifier verlangt
    `merge-base --is-ancestor <approval> <candidate>`. RC24 ist bei `1cb03979` eingefroren
    und liegt **vor** `e87c28a7`. Jeder Kandidat muss an einem Commit eingefroren werden,
-   der `e87c28a7` enthaelt. *Stand 2026-09-01:* RC25, RC26 und RC27 erfuellen das —
-   RC27-Source `0ca71d1c` traegt den Approval-Commit als Ancestor. Die Regel bleibt
+   der `e87c28a7` enthaelt. *Stand 2026-09-01:* RC25 bis RC29 erfuellen das —
+   RC29-Source `41f07feb` traegt den Approval-Commit als Ancestor. Die Regel bleibt
    trotzdem stehen, weil sie fuer **jeden** kuenftigen Kandidaten gilt: erst freigeben,
    dann einfrieren.
 2. **Die drei Rubriken sind eingefroren.** Der Verifier vergleicht die Rubrik-Blobs
@@ -303,12 +315,12 @@ aktuellen Kandidaten und die aktuellen Non-Claims haben diese RC24-Aktualisierun
 
 | Groesse | Wert |
 | --- | --- |
-| Truth-Doku-Measurement | RC27 Source-Control `cf89266b` — source-attestierter `pr-check` `33454908593`, `30/30`, `0` skipped |
-| Selection-Head | Der RC27-Qualification-Commit enthaelt diese Uebergabe; sein SHA wird absichtlich nicht selbstreferenziert und nach Push ueber Remote-Head plus finalen `pr-check` gebunden |
-| RC27 Source / Control | `0ca71d1c` / `cf89266b` |
+| Truth-Doku-Measurement | RC29 Source-Control `1ae1ff55` — source-attestierter `pr-check` `33521553311`, `31/31`, `0` skipped |
+| Selection-Head | Der RC29-Evidence-/Truth-Freeze enthaelt diese Uebergabe; sein SHA wird absichtlich nicht selbstreferenziert und nach Push ueber Remote-Head plus finalen `pr-check` gebunden |
+| RC29 Source / Control | `41f07feb` / `1ae1ff55` |
 | Hosted Worker | `cloud-superbrain-stateful-runtime.strazzusochr.workers.dev` |
-| Hosted Source | Vor S2 neu messen; kein RC27-Rebind und keine RC27-Hosted-Paritaet behauptet |
-| Aktiver RC-Zeiger | RC27 `prod-candidate-2026-09-01-local-rc27` @ `0ca71d1c`; RC24 ist Rollback |
+| Hosted Source | Vor S2 neu messen; kein RC29-Rebind und keine RC29-Hosted-Paritaet behauptet |
+| Aktiver RC-Zeiger | RC29 `prod-candidate-2026-09-01-local-rc29` @ `41f07feb`; RC27 ist Rollback |
 | D1 | `cloud-superbrain-state-prod` (`91520f43-5d38-4a31-9d5a-6fca890e1dd6`), Migrationen 0001–0005 angewandt |
 | Overall | `89` — `deltas=0`, Phase 5 `17/19`, blockiert `I1`, `I5` |
 
@@ -560,7 +572,7 @@ fuenf Ketten qualifiziert werden. RC22 `28727b198b` bleibt der lokale Rollback-A
 | **SB2** Verifier | **geloest.** Alle zehn sind echte, fail-closed gebundene Skripte (§5). Offen sind nur Hosted-Rebind und die realen Laeufe. |
 | **SB3** P5-Codepin | **unveraendert.** `BASELINE_BLOCKED_IDS = {"I1"}` (`verify_phase5_credit_itemization.py:44`), nur `blocked.add("I5")` (`:296`), **kein** `discard`, **kein** `remove`. I5 ist rein evidenzgetrieben; **I1 braucht Beweis UND Codeaenderung.** Am 2026-09-01 nachgeprueft. |
 | **SB4** Delta-Ledger | **unveraendert.** `project-progress-delta-ledger-v2`, `baseline.source_sha = 9a3776ff`, `entries = 0`. Nie erprobt. Δ=0 heisst „nie kreditiert", nicht „kaputt". Am 2026-09-01 nachgeprueft. |
-| **SB5** Hosted | **korrigiert.** Die Source-Bindung ist **nicht mehr geloescht** — F2 ist behoben. Live gemessen 2026-09-01: `/api/v1/health` meldet `status=healthy` und `source_commit_sha=bc0f4dc8…`. Sie ist aber **veraltet** gegenueber RC27-Source `0ca71d1c`; `/api/v1/project/progress` liefert weiter `84` (Ursache in §8 unten). |
+| **SB5** Hosted | **korrigiert.** Die Source-Bindung ist **nicht mehr geloescht** — F2 ist behoben. Live gemessen 2026-09-01: `/api/v1/health` meldet `status=healthy` und `source_commit_sha=bc0f4dc8…`. Sie ist aber **veraltet** gegenueber RC29-Source `41f07feb`; `/api/v1/project/progress` liefert weiter `84` (Ursache in §8 unten). |
 
 Capability-Gates: **7 von 10 geschlossen**. Offen: `production_auth_identity`,
 `docker_registry_publish`, `phase6_scale_runtime`.

@@ -10,7 +10,7 @@ immutable_image_commit_sha: `41f07febae8b30d4813ff5b6c2f1d7fe623b6fbe`
 source_attestation_control_sha: `1ae1ff55bdbb04cc1d5a16ba0b9f34ab008d818d`
 workflow_run_url: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/33521553311`
 pipeline_status: `success; exact source checkout attested; 31/31 observed steps green; skipped=0; no release or production claim`
-smoke_result: `source prequalification and six clean-archive images passed; remaining RC29 local evidence chains are being rebound serially; DEV-ONLY; hosted proof still blocked`
+smoke_result: `all five RC29 local qualification chains passed and are bound in the exact 27-file evidence set; DEV-ONLY; hosted proof still blocked`
 observability_check: `candidate-bound local health, metrics, audit, trace, O4 fail-closed, and browser readback paths remain mandatory; production observability is not claimed`
 rollback_note: `local rollback target is RC27 source 0ca71d1c6168d64360a7764b725b2b673af00afe; no hosted rollback is authorized or executed`
 rollback_target_commit_sha: `0ca71d1c6168d64360a7764b725b2b673af00afe`
@@ -30,10 +30,10 @@ browser_proof: `docs/release-artifacts/prod-candidate-2026-09-01-local-rc29-read
 post_rollback_browser_revalidation_proof: `not-applicable-retired-rc1-boundary`
 final_browser_e2e_recheck_proof: `docs/release-artifacts/prod-candidate-2026-09-01-local-rc29-readiness.json`
 full_verifier_sweep_proof: `docs/release-artifacts/prod-candidate-2026-09-01-local-rc29-readiness.json`
-full_verifier_sweep_status: `RC29 source CI and candidate images passed; remaining local evidence chains pending; hosted I1 and production-auth I5 remain blocked`
+full_verifier_sweep_status: `all five RC29 local qualification chains passed; runtime 10/10 healthy; 22/22 routes, 29/29 action families, 161/161 action members; hosted I1 and production-auth I5 remain blocked`
 truth_mirror_rebaseline_proof: `docs/runtime-state/phase5-credit-itemization.json`
 release_readiness_rerun_proof: `docs/release-artifacts/prod-candidate-2026-09-01-local-rc29-readiness.json`
-browser_rerun_status: `RC29 product acceptance and the 22-page action matrix passed during source qualification; immutable candidate-browser evidence rebinding remains pending`
+browser_rerun_status: `immutable RC29 candidate-browser evidence passed with 22/22 routes, 29/29 action families, 161/161 action members, and a real candidate-runtime Playwright selection and click`
 review_gate: `pending`
 owner_decision: `no-release`
 hosted_staging_parity: `false`
@@ -44,8 +44,9 @@ phase5_computed_percent: `89`
 
 ## Phase-5 Readiness Checklist
 
-RC29 supersedes RC27 only after the same five independent local qualification chains are
-rebound to the exact source. The source prevents generated Three.js artifacts from
+RC29 supersedes RC27 in local candidate truth after all five independent qualification
+chains were rebound to the exact source and preserved in 27 immutable evidence files. The
+source prevents generated Three.js artifacts from
 terminating their animation loop when collision code directly reads an uncomputed
 `boundingSphere.radius`. No percentage credit changes: I1 `hosted_candidate_parity` and
 I5 `production_auth_identity` remain zero-credit blocks.
@@ -53,7 +54,7 @@ I5 `production_auth_identity` remain zero-credit blocks.
 | ID | JA/NEIN | Beleg |
 | --- | --- | --- |
 | C1 | JA | Exact candidate-source CI attestation is bound to RC29. |
-| C2 | JA | Runtime, browser, security, candidate-image, and candidate-runtime chains must be hash-bound before final selection. |
+| C2 | JA | Runtime, browser, security, candidate-image, and candidate-runtime chains passed and are hash-bound in the RC29 readiness evidence. |
 | C3 | JA | Candidate, readiness, and Phase-5 truth select the frozen RC29 source. |
 | C4 | JA | Runtime-source and no-credit requalification parity remain fail-closed, including same-day selection. |
 | C5 | JA | Candidate archive npm audit and canonical gitleaks scan are required. |

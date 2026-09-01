@@ -7,6 +7,46 @@ Status: Active
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
 
+## Current RC29 Local Qualification Evidence
+
+Recorded 2026-09-01. Active candidate `prod-candidate-2026-09-01-local-rc29` is bound
+to frozen source `41f07febae8b30d4813ff5b6c2f1d7fe623b6fbe` through source-attestation
+control `1ae1ff55bdbb04cc1d5a16ba0b9f34ab008d818d`. GitHub Actions `pr-check` run
+`33521553311` checked out that exact source and passed `31/31` observed steps with `0`
+skipped. Artifact `9806020625`, GitHub digest
+`sha256:35256de1cad4fc039f35e9115467ca7d8879d26673de64c54d304fbf590039b7`,
+attestation SHA `B5890312555CCCA2BA7F804C06CFB5CB8C70D102519C255605C8C1B3188AE1F3`,
+and readback SHA `29FC8939A693D133079CF9A9BB9ACBEFFF101EFFC523EEE44E2831697104CA87`
+are preserved in the exact 27-file evidence set.
+
+Five independent local chains passed: six source-bound candidate images; runtime `10/10
+healthy`; complete real-Chromium browser proof with `22/22` routes, `29/29` families and
+`161/161` members; candidate-runtime source/image identity with a real Playwright
+selection and click; and candidate-scoped npm-audit plus canonical gitleaks. Their summary
+hashes are respectively
+`FDF3A44EEF6D65DF2855088F8F0D4126FA6BE1965EE2B1E7DED50182DDCE4A05`,
+`356F3E2FDFE9F43C4E3C95047A027FBA75C641CF21EF238FF679C65D28AF234E`,
+`702BAA09F8B959AE8F3EBA22F8B9D6A0841BA4744A7C71E74CFEB04873CB256A`,
+`8DB611130C7CACF532978F39668E1F147F231E6E5DB6A4A48F619BD4907BDED1`,
+and `123B0B55DD0D7D2DB7DBDA5EA8273736FAFC7D3A31D8E87AC719EB3FAB0D15CB`.
+The canonical 22-page report SHA is
+`6135A7DFE596AC6162D12CA35EC92C9E0AAB226FDEAAB94539EBCC9578A2D549`.
+
+The no-credit selection preserves `17/19 = 89%`, blocked I1
+`hosted_candidate_parity` and I5 `production_auth_identity`, all item rulings, the empty
+real delta ledger and `MARKET_READY:false`. B1 approval remains bound to
+`e87c28a7c6cf32982caa849794042daa53ef022a` without percentage credit. RC27 source
+`0ca71d1c6168d64360a7764b725b2b673af00afe` remains the immutable local rollback
+target. No GHCR publication, default-branch write, production deploy, release promotion,
+production rollout, payment, or secret output is claimed. `DEV-ONLY; hosted proof still
+blocked`.
+
+Prequalification selection commit `c034e168` is the local predecessor of this evidence
+freeze. The next binding is the exact feature-branch push and a final-head `pr-check` with
+`skipped=0`; only then may S2 rebind the isolated candidate preview surfaces. Deferred
+GitHub Actions runtime-pin maintenance remains outside RC29 and starts only after the next
+freeze.
+
 ## Current RC27 Local Qualification Evidence
 
 Recorded 2026-09-01. Active candidate `prod-candidate-2026-09-01-local-rc27` is bound

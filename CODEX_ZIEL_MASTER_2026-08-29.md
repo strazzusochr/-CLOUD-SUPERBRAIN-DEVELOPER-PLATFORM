@@ -3,15 +3,20 @@
 Status: `ACTIVE_CURRENT_TRUTH`
 Stand: **2026-09-01**
 Branch: `codex/organism-visual-v2`
-Measurement-Ref: **`cf89266b`** (source-attested RC27 control; qualification truth is the dynamic selection commit)
-RC27 Qualification Source: **`0ca71d1c`** · Control: **`cf89266b`** · CI: **`33454908593`**
-Hosted Worker: **vor S2 neu messen** — kein RC27-Hosted-Rebind behauptet
+Measurement-Ref: **`1ae1ff55`** (source-attested RC29 control; qualification truth is the dynamic selection commit)
+RC29 Qualification Source: **`41f07feb`** · Control: **`1ae1ff55`** · CI: **`33521553311`**
+Hosted Worker: **vor S2 neu messen** — kein RC29-Hosted-Rebind behauptet
 **B1 ERTEILT 2026-08-31** — `RubricApprovalCommit = e87c28a7c6cf32982caa849794042daa53ef022a`
 Market Status: `MARKET_READY:false` — Overall `89`, Delta-Ledger `0`
 
-> **Naechster Schritt ist S1b-Finalisierung, danach S2.** S1 (B1) ist erledigt. RC27
+> **Naechster Schritt ist RC29-Freeze, danach S2.** S1 (B1) ist erledigt. RC29
 > enthaelt den Approval-Commit als Ancestor und ist lokal mit fuenf Ketten qualifiziert;
-> es fehlen nur exakter Selection-Commit, Feature-Branch-Push und finaler Head-CI-Lauf.
+> es fehlen nur exakter Evidence-/Truth-Commit, Feature-Branch-Push und finaler
+> Head-CI-Lauf mit `skipped=0`.
+
+> **Wartung spaeter:** Die GitHub-Actions-Runtime-Pins bleiben fuer RC29 eingefroren.
+> `upload-artifact` v4.6.2 sowie `checkout`/`setup-node` v4 werden erst nach dem naechsten
+> Freeze in einem separaten Slice aktualisiert.
 
 **Dies ist die einzige Zieldatei.** Sie sagt, *was zu tun ist*.
 Die Lage steht in `CODEX_UEBERGABE_MASTER_2026-08-29.md`.
@@ -50,9 +55,9 @@ angelegt (Basis `ce75bb00`); die Datei darin fehlt noch. Die exakten Befehle ste
 
 ---
 
-**Aktuelle lokale Aussagen** sind gegen RC27-Source `0ca71d1c`, Control `cf89266b`, den
-CI-Lauf `33454908593` und die fuenf lokalen Evidence-Ketten gemessen. Externe Aussagen,
-die noch nicht nach RC27 neu gemessen wurden, tragen ausdruecklich ihren aelteren Ref und
+**Aktuelle lokale Aussagen** sind gegen RC29-Source `41f07feb`, Control `1ae1ff55`, den
+CI-Lauf `33521553311` und die fuenf lokalen Evidence-Ketten gemessen. Externe Aussagen,
+die noch nicht nach RC29 neu gemessen wurden, tragen ausdruecklich ihren aelteren Ref und
 duerfen vor S2 nicht als aktuelle Hosted-Wahrheit verwendet werden.
 
 ---
@@ -83,7 +88,7 @@ Delta-Ledger: 0 Eintraege
 | P3 | **+56** | OAuth-Kette ist hosted gefahren. Es fehlen **5 von 12** Evidence-Schritten und das Evidence-Dokument; B1 ist erledigt. |
 | P5 | **+11** | `I5` faellt evidenzgetrieben nach P3. `I1` braucht Hosted-Candidate-Paritaet **plus** Codeaenderung. |
 | P6 | **+10** | Verifier ist scharf. Environment, Secret **und Default-Branch-Workflow existieren jetzt** (PR #32, Merge `ce75bb00`, `state=active`). Es fehlt nur noch der B3-Grant. Der alte 900er-Lauf zaehlt nicht. |
-| L4 | **+45** | Verifier sind jetzt **echt**, B1 ist gebunden. Es fehlen RC27-Source-Rebind und die realen Hosted-Laeufe. |
+| L4 | **+45** | Verifier sind jetzt **echt**, B1 ist gebunden. Es fehlen RC29-Source-Rebind und die realen Hosted-Laeufe. |
 | L5 | **+44** | Dito, inkl. echtem SBOM. |
 
 **166 offene Punkte.** `overall = round(sum(7 Phasen)/7)`
@@ -97,10 +102,10 @@ Delta-Ledger: 0 Eintraege
 ```text
 S1  B1  Rubriken freigeben  ── ERLEDIGT 2026-08-31  e87c28a7
                                           │
-S1b RC27 lokal qualifiziert ──────────────┤  Source 0ca71d1c, Control cf89266b
+S1b RC29 lokal qualifiziert ──────────────┤  Source 41f07feb, Control 1ae1ff55
     Selection-Push + finaler CI fehlen    │  5 Ketten gruen, 27 Evidence-Dateien
                                           │
-S2  B5 + Hosted-Rebind auf RC27-Source ───┤  Voraussetzung fuer jeden Hosted-Beweis
+S2  B5 + Hosted-Rebind auf RC29-Source ───┤  Voraussetzung fuer jeden Hosted-Beweis
                                           │
       ├─> S3  L4/L5 Hosted-Laeufe ────────┼──> L4 +45, L5 +44   AUTONOM, groesster Brocken
       │                                   │
@@ -120,7 +125,7 @@ Approval-Commit `e87c28a7c6cf32982caa849794042daa53ef022a`, gepusht auf
 `overall = 89`, `deltas = 0`, `17/19` — die Freigabe hat **keinen Punkt** vergeben, sie hat
 nur die Verifier startbar gemacht.
 
-**Der Engpass ist jetzt die S1b-Finalisierung.** RC27-Source `0ca71d1c` enthaelt
+**Der Engpass ist jetzt die S1b-Finalisierung.** RC29-Source `41f07feb` enthaelt
 `e87c28a7` als Ancestor; Source-Attestation, 27-Dateien-Evidence und alle fuenf lokalen
 Ketten sind gruen. Bevor ein Hosted-Lauf zaehlen kann, muessen die Selection-Truth-Pfade
 mit exakten Pathspecs committed und gepusht sein und der finale Remote-Head-CI-Lauf
@@ -180,10 +185,10 @@ Contract-Feld rubric_approval_sha  muss identisch sein
 **Die drei Rubriken sind ab jetzt eingefroren.** Jede weitere Aenderung bricht die
 Blob-Gleichheit (`rubric_blob_drift`) und erzwingt eine neue Owner-Freigabe.
 
-### S1b — RC27 einfrieren (lokal erledigt; Remote-Finalisierung laeuft)
+### S1b — RC29 einfrieren (lokal erledigt; Remote-Finalisierung laeuft)
 
-RC27-Source `0ca71d1c6168d64360a7764b725b2b673af00afe` enthaelt den Approval-Commit.
-Control `cf89266b99c9f9437cebd70c60a49d80614297cf` wurde durch `pr-check` `33454908593`
+RC29-Source `41f07febae8b30d4813ff5b6c2f1d7fe623b6fbe` enthaelt den Approval-Commit.
+Control `1ae1ff55bdbb04cc1d5a16ba0b9f34ab008d818d` wurde durch `pr-check` `33521553311`
 source-attestiert. Candidate-Images, Runtime, Browser, Candidate-Runtime und Security sind
 gruen; das unveraenderliche Evidence-Set enthaelt exakt 27 Dateien.
 
@@ -194,29 +199,29 @@ Bindung.
 
 **Kredit:** keiner. Voraussetzung fuer S2 und S3.
 
-### S2 — B5 und Hosted-Rebind auf die RC27-Source
+### S2 — B5 und Hosted-Rebind auf die RC29-Source
 
 Vor jeder Mutation zuerst Worker-Health, Source-SHA, Bundle-SHA, D1-Migrationen und die
-isolierten Preview-Namen neu read-only messen. Solange Health nicht exakt RC27-Source und
+isolierten Preview-Namen neu read-only messen. Solange Health nicht exakt RC29-Source und
 den passenden Source-Archive-SHA meldet, kann kein L4/L5-Verifier Source-Paritaet
 feststellen.
 
 ```powershell
-Set-Location <RC27-Arbeitsbaum>
+Set-Location <RC29-Arbeitsbaum>
 $env:TEMP='D:\_sb_tmp'; $env:TMP='D:\_sb_tmp'
 Get-Content 'C:\Users\immer\.codex\secrets\cloud-superbrain.local.env' | ForEach-Object {
   if ($_ -match '^(CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID)=(.*)$') {
     Set-Item -Path "env:$($Matches[1])" -Value ($Matches[2].Trim().Trim('"').Trim("'"))
   }
 }
-pwsh -NoProfile -File .\scripts\deploy-cloudflare-stateful-runtime.ps1 -CommitSha 0ca71d1c6168d64360a7764b725b2b673af00afe
+pwsh -NoProfile -File .\scripts\deploy-cloudflare-stateful-runtime.ps1 -CommitSha 41f07febae8b30d4813ff5b6c2f1d7fe623b6fbe
 ```
 
 **Vorher:** D1 read-only auditieren und nur nachweislich fehlende additive Migrationen ueber
 den vorgesehenen Deploy-/Migrationspfad anwenden; keine Migration aus altem Protokollstand
 blind wiederholen.
 
-**Abnahme:** `/api/v1/health` meldet `source_commit_sha = 0ca71d1c...` und den passenden
+**Abnahme:** `/api/v1/health` meldet `source_commit_sha = 41f07feb...` und den passenden
 `source_archive_sha256`. Das Skript prueft das selbst.
 
 **Kredit:** keiner. Voraussetzung fuer S3 bis S6.
@@ -228,7 +233,7 @@ blind wiederholen.
 Erst nach S1 und S2. Jeder Verifier braucht mindestens:
 
 ```text
--ExpectedSourceCommitSha 0ca71d1c...
+-ExpectedSourceCommitSha 41f07feb...
 -ExpectedSourceBundleSha256 <64 hex>
 -OwnerGrantRef <exakte Referenz aus capability-gates.json>
 -RubricApprovalCommit <40 hex aus S1>

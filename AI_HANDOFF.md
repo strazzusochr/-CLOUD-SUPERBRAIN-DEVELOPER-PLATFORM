@@ -6,43 +6,53 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
-## Current RC27 Handoff — 2026-09-01
+## Current RC29 Handoff — 2026-09-01
 
-Active locally qualified candidate: `prod-candidate-2026-09-01-local-rc27`, frozen source
-`0ca71d1c6168d64360a7764b725b2b673af00afe`, source-attestation control
-`cf89266b99c9f9437cebd70c60a49d80614297cf`. GitHub Actions run `33454908593`
-checked out that exact source and passed `30/30` observed steps with `0` skipped. Artifact
-`9781155870`, GitHub digest
-`sha256:7e80192e6fd421c34c5c8d5d91ea5c3a9b38bcdfa67b4af33d28ea6650371762`,
-attestation SHA `AE5F5D590A5D07BC4576D7404368C0D532C45536E1D67636E38CBA49002F5F38`,
-and GitHub-readback SHA `82742E47CB744237C65622A11C327508962BF20F56F9609D4699BE52F67A758D`
+Active locally qualified candidate: `prod-candidate-2026-09-01-local-rc29`, frozen source
+`41f07febae8b30d4813ff5b6c2f1d7fe623b6fbe`, source-attestation control
+`1ae1ff55bdbb04cc1d5a16ba0b9f34ab008d818d`. GitHub Actions run `33521553311`
+checked out that exact source and passed `31/31` observed steps with `0` skipped. Artifact
+`9806020625`, GitHub digest
+`sha256:35256de1cad4fc039f35e9115467ca7d8879d26673de64c54d304fbf590039b7`,
+attestation SHA `B5890312555CCCA2BA7F804C06CFB5CB8C70D102519C255605C8C1B3188AE1F3`,
+and GitHub-readback SHA `29FC8939A693D133079CF9A9BB9ACBEFFF101EFFC523EEE44E2831697104CA87`
 are preserved in the exact 27-file evidence set.
 
 All five local qualification chains passed: six source-bound candidate images; runtime
 `10/10 healthy`; candidate-scoped npm-audit plus canonical gitleaks; the complete real
 Chromium matrix with `22/22` routes, `29/29` families and `161/161` members; and exact
 candidate-runtime source/image parity with a real Playwright selection and click. The
-browser matrix ran twice. The first pass exposed a stale O4 runtime-proof source boundary;
-a fresh source-parity runtime proof and the second full pass closed that guard.
+canonical 22-page report SHA is
+`6135A7DFE596AC6162D12CA35EC92C9E0AAB226FDEAAB94539EBCC9578A2D549`.
+Runtime, browser, image, candidate-runtime and security summary hashes are respectively
+`356F3E2FDFE9F43C4E3C95047A027FBA75C641CF21EF238FF679C65D28AF234E`,
+`702BAA09F8B959AE8F3EBA22F8B9D6A0841BA4744A7C71E74CFEB04873CB256A`,
+`FDF3A44EEF6D65DF2855088F8F0D4126FA6BE1965EE2B1E7DED50182DDCE4A05`,
+`8DB611130C7CACF532978F39668E1F147F231E6E5DB6A4A48F619BD4907BDED1`, and
+`123B0B55DD0D7D2DB7DBDA5EA8273736FAFC7D3A31D8E87AC719EB3FAB0D15CB`.
 
-RC27 normalizes only verified Workers AI stream terminals while malformed and provider-
-error terminals remain fail-closed. It restores canonical external-gate timestamp and
-endpoint-snapshot hash parity and parses Phase-5 candidate timestamps invariantly across
-Windows PowerShell locales. The B1 approval commit
-`e87c28a7c6cf32982caa849794042daa53ef022a` remains an ancestor and grants no percentage
-by itself. The no-credit selection preserves `17/19 = 89%`, blocked items `I1` and `I5`,
-all item rulings, `MARKET_READY:false`, and the empty real delta ledger. Overall remains
-`89`; horizontal `100/100/100/44/100/89/90`; vertical
-`100/100/100/55/56/100/100`. RC24 source
-`1cb03979740859f0350cf18f6f08ef06c3d72b72` is the immutable local rollback target.
+RC29 repairs generated Three.js artifacts at the source boundary: a direct collision-radius
+read now computes a missing `boundingSphere` lazily and fails closed if no usable radius is
+available. The B1 approval commit `e87c28a7c6cf32982caa849794042daa53ef022a`
+remains bound and grants no percentage by itself. The no-credit selection preserves
+`17/19 = 89%`, blocked items `I1` and `I5`, all item rulings, `MARKET_READY:false`, and
+the empty real delta ledger. Overall remains `89`; horizontal
+`100/100/100/44/100/89/90`; vertical `100/100/100/55/56/100/100`. RC27 source
+`0ca71d1c6168d64360a7764b725b2b673af00afe` is the immutable local rollback target.
 `DEV-ONLY; hosted proof still blocked`.
 
-Next safe stage is an exact-path RC27 selection commit, feature-branch push, and final-head
-CI run with `skipped=0`. Only after that green run may the candidate-only rebind of the
-isolated Cloudflare preview Workers plus an exact Vercel Git-source preview proceed, followed
-by the five L4 hosted verifiers against RC27. This is not a production alias, release
-promotion, GHCR publication, default-branch write, or production rollout. Hosted credit
-still requires approved-rubric evidence and a valid delta-ledger transition.
+Prequalification selection commit `c034e168` is the local predecessor of this exact-path
+RC29 evidence and truth freeze. Next safe stage is the feature-branch push and final-head
+`pr-check` with `skipped=0`. Only after that green run may S2 rebind the isolated candidate
+preview surfaces to RC29. This is not a
+production alias, release promotion, GHCR publication, default-branch write, or production
+rollout; hosted credit still requires approved-rubric evidence and a valid delta-ledger
+transition.
+
+Deferred maintenance after the next freeze only: upgrade `actions/upload-artifact` from
+the RC29-pinned `v4.6.2` in `pr-check.yml`, `main-deploy.yml`, and
+`phase6-scale-runtime.yml`, plus `checkout`/`setup-node` v4 in
+`autonomous-fullstack.yml`. Do not change those pins inside the RC29 binding.
 
 ## Current RC24 Handoff — 2026-08-31
 
