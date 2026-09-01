@@ -24,6 +24,124 @@ Alles hier ist **gemessen** — live gegen den Endpunkt oder gegen den Quellcode
 Truth-HEAD. Wo etwas nur protokolliert und nicht nachmessbar war, steht das ausdruecklich
 dabei.
 
+## Owner-Aktionen 2026-09-01 — gemessener Stand
+
+Zwei Owner-Handlungen sind ausgefuehrt und nachgeprueft. Beide vergeben **null** Punkte:
+`overall` bleibt `89`, Delta-Ledger bleibt `0`, `MARKET_READY:false`.
+
+### 1. B3-Provisioning ist jetzt `3/3`
+
+```text
+Environment  phase6-scale-hosted-writes           vorhanden
+  Secret     AGENT_API_AUTH_TOKEN                 vorhanden seit 2026-08-30T12:12:44Z
+Workflow     auf codex/organism-visual-v2         Blob 0b2f7e3b
+Workflow     auf chore/repo-bootstrap (Default)   Blob 0b2f7e3b  <- identisch
+             GitHub-Registrierung                 state=active  id=347406379
+Gate         phase6_scale_runtime                 owner_granted=false   <- weiterhin offen
+```
+
+Der Owner wollte zunaechst ein Secret unter `/settings/secrets/actions` eintragen. Das
+waere doppelt falsch gewesen: das Secret existierte bereits, und jene Seite fuehrt
+*Repository*-Secrets, nicht *Environment*-Secrets. Gefehlt hat ausschliesslich die
+Workflow-Datei auf dem Default-Branch — GitHub dispatcht `workflow_dispatch` nur aus der
+Default-Branch-Kopie.
+
+Eingespielt per Owner-PR #32 gegen `chore/repo-bootstrap`, Merge-Commit `ce75bb00`.
+Der Merge lief ueber den Admin-Bypass, weil zwei Anforderungen strukturell nicht
+erfuellbar sind: `required_approving_review_count=1` bei
+`require_last_push_approval=true` (es gibt nur einen Menschen) und der Pflicht-Check
+`verify`, der auf dem Default-Branch an sechs High-Severity-`npm audit`-Befunden in
+`next`, `postcss` und `sharp` scheitert. Der PR selbst fasst keine `package.json` an und
+kann diese Befunde weder verursachen noch verschlimmern.
+
+**Die sechs Audit-Befunde bleiben offen** und gehoeren auf eine eigene Liste. Sie sind
+nicht Teil dieser Uebergabe und wurden nicht behoben.
+
+### 2. Der alte `main-deploy` auf dem Default-Branch ist eine scharfe Falle
+
+Der Merge war ein Push auf `chore/repo-bootstrap`. Die dort liegende alte
+`main-deploy.yml` (Blob `555e8325`, 2.981 Bytes) traegt:
+
+```yaml
+on:
+  push:
+    branches: [chore/repo-bootstrap]
+permissions:
+  packages: write
+```
+
+Sie ist daraufhin **von selbst gestartet** — Lauf `33497699169`, `event=push`,
+Head `ce75bb00`. Ergebnis:
+
+```text
+verify           failure   Schritt 9 "Frontend audit"
+production-gate  skipped
+build-and-push   skipped
+```
+
+**Kein Image erreichte GHCR.** Belegt durch den Job-Status `skipped`; eine direkte
+Registry-Abfrage war nicht moeglich, weil dem Token `read:packages` fehlt. Wer es
+unabhaengig pruefen will, braucht ein Token mit diesem Scope.
+
+Bemerkenswert: der rote `npm audit`-Check, der den PR blockierte, war hier der
+Sicherheitsgurt, der die Veroeffentlichung stoppte.
+
+**Konsequenz fuer B4:** solange der gehaertete Blob `14e84b31` (11.623 Bytes) den alten
+nicht ersetzt, weckt **jeder** Push auf den Default-Branch diesen Workflow erneut. Die
+gehaertete Fassung ist dispatch-only mit Pflichtparameter `candidate_sha`, faellt
+top-level auf `contents: read` und bindet die Publikation an das Environment
+`registry-publication`. Der Austausch ist damit **strikt sicherer** als der Ist-Zustand
+und keine optionale Verbesserung mehr.
+
+Vorbereitet: Owner-Zweig `owner/harden-main-deploy-on-default`, Basis `ce75bb00`. Die
+Datei darin fehlt noch — der Schreibbefehl wurde auf Claude-Seite vom Harness-Klassifizierer
+blockiert. Die exakten Befehle liegen dem Owner in `OWNER_ANLEITUNG_2026-09-01.md` vor.
+
+### Offener Befund: `verify:phase5-credit` ist am Branch-HEAD rot
+
+Am 2026-09-01 an `f1b25ed8` lokal gemessen:
+
+```text
+[phase5-credit] active candidate has committed or staged runtime-source drift outside the
+                exact post-qualification or no-credit requalification truth transition
+[project-progress] Phase-5 credit itemization is invalid
+```
+
+Ursache ist **nicht** ein Produktfehler, sondern ein Zeiger, der zurueckhaengt.
+`require_runtime_source_parity` vergleicht den Index gegen die eingefrorene
+Kandidatenquelle `0ca71d1c` ueber `RUNTIME_SOURCE_PATHS`. Dabei driften **60 Pfade**,
+darunter `apps/frontend/app/api/v1/[...slug]/route.ts`, `apps/frontend/lib/platform.ts`,
+`apps/frontend/lib/endpoint-snapshot.json`, `.github/workflows/pr-check.yml`,
+`PROJECT_STATE.md`, `AI_HANDOFF.md` sowie die beiden RC27-/RC28-Preview-Artefaktordner.
+
+Das sind die Commits **nach** dem RC27-Freeze: `cf89266b`, `4f131eba`, `65c8f3a0`,
+`462e9d9a`, `1ad419cb`, `d63cf45e`, `f1b25ed8`. Zwei weitere Pfade kommen aus dieser
+Uebergabe selbst (die beiden Masterdateien); ohne sie bleiben **58** — der Befund besteht
+also unabhaengig davon.
+
+**Konsequenz:** RC27 kann in diesem Zustand nicht mehr die aktive Kandidatenwahrheit sein.
+Entweder wird der Zeiger auf einen RC28 an einem Commit weitergezogen, der die
+Post-Freeze-Arbeit enthaelt, oder die Post-Freeze-Commits gehoeren in einen exakten
+`no_credit_requalification`-Uebergang. Beides ist Codex-Arbeit und **kein** Owner-Gate.
+Bis dahin ist jede lokale `verify:phase5-credit`-Aussage ungueltig.
+
+Der CI-Lauf `33471127980` auf `f1b25ed8` ist trotzdem gruen; die CI bewertet diesen
+Paritaetspfad anders als der lokale Aufruf. Diese Diskrepanz ist nicht aufgeloest und
+sollte vor S7 verstanden werden — nicht umgangen.
+
+### Was daraus fuer Codex folgt
+
+- **Nicht** erneut versuchen, Environment oder Secret fuer P6 anzulegen. Beides existiert.
+- Der **B3-Grant** (`phase6_scale_runtime` auf `owner_granted=true` plus `owner_grant_ref`)
+  ist das einzige verbliebene B3-Stueck. Vorher `capability-gates.json` in
+  `D:/_sb_tmp/rc22-candidate` sauber machen — die Datei war dort dirty.
+- Vor **jedem** Push auf den Default-Branch pruefen, welche Workflows dort auf `push`
+  lauschen. Diese Lektion hat heute Glueck gehabt.
+- **Zuerst** den RC-Zeiger geradeziehen (siehe Befund oben). Solange `verify:phase5-credit`
+  lokal rot ist, traegt kein Delta-Ledger-Eintrag und kein Kredit.
+
+---
+
 ## RC27-Aktualisierung — 2026-09-01
 
 `prod-candidate-2026-09-01-local-rc27` ist lokal source-bound qualifiziert. Die

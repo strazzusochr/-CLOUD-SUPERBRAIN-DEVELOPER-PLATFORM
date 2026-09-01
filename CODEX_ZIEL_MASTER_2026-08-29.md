@@ -25,6 +25,31 @@ Gueltig sind ausschliesslich diese beiden Dateien. Ueberholt und im Kopf markier
 `CODEX_UEBERGABE_2026-08-29-SESSION16.md`, `CODEX_MASTER_GOAL_AUTONOM_WEITER.md` und
 `CODEX_MASTER_GOAL_FINALE.md`.
 
+## Owner-Aktionen 2026-09-01 — bereits ausgefuehrt, nicht wiederholen
+
+Der Owner hat an diesem Tag zwei Dinge selbst ausgefuehrt. Beide sind gemessen bestaetigt:
+
+1. **B1-Approval-Commit** `e87c28a7c6cf32982caa849794042daa53ef022a` (am 2026-08-31),
+   gepusht auf `origin/codex/organism-visual-v2`.
+2. **PR #32 gemerged** — `phase6-scale-runtime.yml` liegt jetzt auf dem Default-Branch,
+   Merge-Commit `ce75bb00`, byte-identisch (Blob `0b2f7e3b`), `state=active`.
+
+**Ein Nebeneffekt, den Codex kennen muss.** Der Merge war ein Push auf
+`chore/repo-bootstrap`, und die dort liegende **alte** `main-deploy.yml` traegt
+`on: push: branches: [chore/repo-bootstrap]` zusammen mit `packages: write`. Sie ist
+dadurch von selbst gestartet (Lauf `33497699169`). Sie brach im `verify`-Job an der
+Frontend-`npm audit`-Stufe ab; `production-gate` und `build-and-push` blieben `skipped`.
+**Kein Image erreichte GHCR** — belegt durch den Job-Status, nicht durch eine
+Registry-Abfrage (dem Token fehlt `read:packages`).
+
+Konsequenz: **jeder weitere Push auf den Default-Branch weckt diesen alten Workflow**,
+solange der gehaertete Blob `14e84b31` ihn nicht ersetzt hat. Das ist jetzt Teil von B4 und
+kein Nice-to-have mehr. Ein Owner-Zweig `owner/harden-main-deploy-on-default` ist bereits
+angelegt (Basis `ce75bb00`); die Datei darin fehlt noch. Die exakten Befehle stehen in
+`OWNER_ANLEITUNG_2026-09-01.md`.
+
+---
+
 **Aktuelle lokale Aussagen** sind gegen RC27-Source `0ca71d1c`, Control `cf89266b`, den
 CI-Lauf `33454908593` und die fuenf lokalen Evidence-Ketten gemessen. Externe Aussagen,
 die noch nicht nach RC27 neu gemessen wurden, tragen ausdruecklich ihren aelteren Ref und
@@ -57,7 +82,7 @@ Delta-Ledger: 0 Eintraege
 | --- | ---: | --- |
 | P3 | **+56** | OAuth-Kette ist hosted gefahren. Es fehlen **5 von 12** Evidence-Schritten und das Evidence-Dokument; B1 ist erledigt. |
 | P5 | **+11** | `I5` faellt evidenzgetrieben nach P3. `I1` braucht Hosted-Candidate-Paritaet **plus** Codeaenderung. |
-| P6 | **+10** | Verifier ist scharf. Environment und Secret existieren; Default-Branch-Workflow und B3-Freigabe fehlen. Der alte 900er-Lauf zaehlt nicht. |
+| P6 | **+10** | Verifier ist scharf. Environment, Secret **und Default-Branch-Workflow existieren jetzt** (PR #32, Merge `ce75bb00`, `state=active`). Es fehlt nur noch der B3-Grant. Der alte 900er-Lauf zaehlt nicht. |
 | L4 | **+45** | Verifier sind jetzt **echt**, B1 ist gebunden. Es fehlen RC27-Source-Rebind und die realen Hosted-Laeufe. |
 | L5 | **+44** | Dito, inkl. echtem SBOM. |
 
@@ -278,9 +303,27 @@ rein evidenzgetrieben behandelt (`verify_phase5_credit_itemization.py:290`). P5 
 
 ### S5 — P6: 900 Requests mit dem zugelassenen Verifier (+10)
 
-Voraussetzung **B3**: GitHub-Environment `phase6-scale-hosted-writes` existiert, enthaelt
-das Secret `AGENT_API_AUTH_TOKEN`, und `.github/workflows/phase6-scale-runtime.yml` liegt
-auf dem **Default-Branch**. Alle drei Teile sind noetig, nicht zwei.
+Voraussetzung **B3** ist seit 2026-09-01 zu drei Vierteln erfuellt. Gemessen:
+
+```text
+Environment  phase6-scale-hosted-writes           vorhanden
+  Secret     AGENT_API_AUTH_TOKEN                 vorhanden seit 2026-08-30T12:12:44Z
+Workflow     auf chore/repo-bootstrap (Default)   vorhanden  5.357 Bytes  Blob 0b2f7e3b
+             von GitHub registriert               state=active  id=347406379
+Gate         phase6_scale_runtime                 owner_granted=false   <- OFFEN
+```
+
+Der Workflow kam per Owner-PR #32 (Merge `ce75bb00`) byte-identisch vom Feature-Branch auf
+den Default-Branch; GitHub dispatcht `workflow_dispatch` ausschliesslich aus der
+Default-Branch-Kopie. Der Secret-**Wert** ist von aussen nicht pruefbar — GitHub gibt ihn
+nie heraus. Sollte er falsch sein, faellt das erst im Lauf auf.
+
+Offen bleibt der **Gate-Grant**: `phase6_scale_runtime` in
+`docs/runtime-state/capability-gates.json` auf `owner_granted=true` mit einer
+`owner_grant_ref` nach dem Muster der bereits erteilten Gates. Achtung: diese Datei stand
+am 2026-09-01 in Codex' Arbeitsbaum `D:/_sb_tmp/rc22-candidate` **dirty** (regenerierte
+Verifier-Zeitstempel). Vor jeder Aenderung dort erst den Arbeitsbaum sauber machen, sonst
+kollidieren Grant und Verifier-Schreibvorgang. `live_verified` bleibt unantastbar.
 
 Read-only neu gemessen an `20daf6e`: Environment und Secret-Name sind vorhanden. Der
 Feature-Branch traegt Workflow-Blob `0b2f7e3b86483719e28a8505289a692b501511e1`, auf dem
@@ -379,8 +422,8 @@ Ledger enthaelt die legitimen Eintraege, Hosted-SHA = Kandidatenquelle, keine
 | --- | --- | --- |
 | ~~**B1**~~ | **ERTEILT 2026-08-31** — Approval-Commit `e87c28a7c6cf32982caa849794042daa53ef022a` | — |
 | **B2** | OAuth-ADR festschreiben (`owner_architecture_decision_ref`, `owner_approved`, `selected_architecture`) | P3-Evidence |
-| **B3** | Provisioning `2/3`: Environment + Secret vorhanden; Workflow auf Default und explizite Gate-Freigabe fehlen | P6 +10 |
-| **B4** | Default traegt alten `main-deploy`-Blob `555e8325` statt `14e84b31`; dispatchen und `registry-publication` freigeben | GHCR / I1 |
+| **B3** | Provisioning **`3/3` seit 2026-09-01**: Environment, Secret und Default-Branch-Workflow vorhanden (PR #32, `ce75bb00`, `state=active`, id `347406379`). Offen ist nur noch der Gate-Grant `phase6_scale_runtime` mit `owner_grant_ref`. | P6 +10 |
+| **B4** | Default traegt weiter den alten `main-deploy`-Blob `555e8325` statt `14e84b31`. Owner-PR auf Zweig `owner/harden-main-deploy-on-default` vorbereitet, Datei noch nicht eingespielt. Danach dispatchen und `registry-publication` freigeben. | GHCR / I1 |
 | **B5** | Hosted-Deploy-Freigabe fuer Worker **und** Vercel-Frontend aus derselben Quelle | S2, S4 |
 
 ### Drei Waende, die keine Freigabe verschiebt
