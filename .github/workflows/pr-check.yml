@@ -378,6 +378,9 @@ jobs:
       - name: OAuth boundary unit contract
         run: npm run verify:oauth-boundary
 
+      - name: Current progress projection fallback unit contract
+        run: node --test apps/frontend/tests/current-projection-stale-origin.test.mjs
+
       - name: Cloudflare stateful runtime audit contract
         run: npm test --prefix services/cloudflare-stateful-runtime
 
