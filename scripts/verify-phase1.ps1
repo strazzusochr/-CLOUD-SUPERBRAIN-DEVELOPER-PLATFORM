@@ -96,7 +96,8 @@ py -3 -m py_compile `
   services\agent-api\app\models.py `
   services\llm-gateway\app\main.py `
   services\agent-worker\app\worker.py `
-  services\mcp-gateway\app\main.py
+  services\mcp-gateway\app\main.py `
+  scripts\score_layer5_hosted_mcp_credit.py
 Assert-LastExitCode "python syntax"
 
 Write-Host "[verify] external gate claim-map regression tests"
@@ -106,6 +107,10 @@ Assert-LastExitCode "external gate claim-map regression tests"
 Write-Host "[verify] project progress delta-ledger replay regression tests"
 py -3 -m unittest scripts.tests.test_verify_project_progress_manifest -v
 Assert-LastExitCode "project progress delta-ledger replay regression tests"
+
+Write-Host "[verify] Layer 5 hosted MCP delta-scorer regression tests"
+py -3 -m unittest scripts.tests.test_layer5_hosted_mcp_credit_scorer -v
+Assert-LastExitCode "Layer 5 hosted MCP delta-scorer regression tests"
 
 Write-Host "[verify] Phase 3/6 draft credit rubric integrity"
 py -3 -m unittest scripts.tests.test_credit_rubric_drafts -v

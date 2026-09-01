@@ -60,12 +60,21 @@ DELTA_ENTRY_KEYS = {
     "artifact_sha256",
 }
 
-# Empty by design. A future scorer is admitted only after its implementation is
-# evidence-only, source-commit compatible, read-only, and covered by protocol tests.
-# The key is the exact (scope, cell_id); the value pins both the exact ledger audit
-# string and argv tuple executed without a shell. No existing project verifier currently
-# satisfies that contract.
-APPROVED_DELTA_SCORERS: dict[tuple[str, str], tuple[str, tuple[str, ...]]] = {}
+# A scorer is admitted only after its implementation is evidence-only,
+# source-commit compatible, read-only, and covered by protocol tests. The key is
+# the exact (scope, cell_id); the value pins both the ledger audit string and the
+# argv tuple executed without a shell. The L5 scorer is deliberately limited to
+# the four RC30 hosted-MCP reports and the 56 -> 86 transition; registry/SBOM/
+# protected-publish credit remains outside its accepted evidence set.
+APPROVED_DELTA_SCORERS: dict[tuple[str, str], tuple[str, tuple[str, ...]]] = {
+    (
+        "vertical",
+        "layer_5",
+    ): (
+        "python scripts/score_layer5_hosted_mcp_credit.py --score-v1",
+        ("python", "scripts/score_layer5_hosted_mcp_credit.py", "--score-v1"),
+    ),
+}
 DELTA_SCORER_TIMEOUT_SECONDS = 30
 DELTA_SCORER_MAX_OUTPUT_CHARS = 65_536
 DELTA_SCORER_REQUEST_CONTRACT = "project-progress-delta-scorer-request-v1"
