@@ -28,6 +28,10 @@ const CURRENT_PROJECTION_REQUIRED_WHEN_EDGE_ORIGIN_IS_STALE = new Set([
   "/api/v1/clouds",
   "/api/v1/clouds/layers",
   "/api/v1/clouds/deployment-preflight",
+  "/api/v1/project/progress",
+  "/api/v1/project/progress/layers",
+  "/api/v1/project/progress/integrity",
+  "/api/v1/project/progress/completion",
 ]);
 
 function teamDispatchNotFound(): Response {
