@@ -14,6 +14,7 @@ const require = createRequire(import.meta.url);
 const boundarySource = fs.readFileSync(new URL("../lib/frontendBoundary.ts", import.meta.url), "utf8");
 const catchAllRouteSource = fs.readFileSync(new URL("../app/api/v1/[...slug]/route.ts", import.meta.url), "utf8");
 const endpointDefaultsSource = fs.readFileSync(new URL("../lib/endpointDefaults.ts", import.meta.url), "utf8");
+const gatewayProxySource = fs.readFileSync(new URL("../lib/gatewayProxy.ts", import.meta.url), "utf8");
 const actionMatrixSource = fs.readFileSync(new URL("../lib/actionMatrix.ts", import.meta.url), "utf8");
 const authSessionRouteSource = fs.readFileSync(new URL("../app/api/v1/auth/session/route.ts", import.meta.url), "utf8");
 const realLoginSource = fs.readFileSync(new URL("../components/real-login.tsx", import.meta.url), "utf8");
@@ -73,6 +74,17 @@ const {
   proxyReadToBoundary,
   proxyToBoundary,
 } = boundaryModule.exports;
+const compiledGatewayProxy = ts.transpileModule(gatewayProxySource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+const gatewayProxyModule = { exports: {} };
+new vm.Script(`(function (require, module, exports) { ${compiledGatewayProxy}\n})`)
+  .runInThisContext()((specifier) => {
+    if (specifier === "./endpointDefaults") return endpointDefaultsModule.exports;
+    if (specifier === "./frontendBoundary") return boundaryModule.exports;
+    return require(specifier);
+  }, gatewayProxyModule, gatewayProxyModule.exports);
+const { gatewayHandle } = gatewayProxyModule.exports;
 
 const originalFetch = globalThis.fetch;
 const originalAgentApiBaseUrl = process.env.AGENT_API_BASE_URL;
@@ -750,6 +762,41 @@ test("gateway endpoint policy replaces browser credentials with only configured 
     "/api/v1/chat",
   );
   assert.equal(response?.status, 200);
+});
+
+test("gateway reads fall back to deterministic contracts when the configured boundary is unavailable", async () => {
+  process.env.LLM_GATEWAY_BASE_URL = "https://llm-gateway.example.test";
+  globalThis.fetch = async () => new Response("error code: 1027", {
+    status: 429,
+    headers: { "content-type": "text/plain" },
+  });
+
+  const response = await gatewayHandle(
+    request("/llm/api/v1/responses/contract"),
+    ["api", "v1", "responses", "contract"],
+    "/llm",
+    "LLM_GATEWAY_BASE_URL",
+  );
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-superbrain-source"), "frontend-projection");
+  const payload = await response.json();
+  assert.equal(payload.contract_version, "llm-responses-adapter-contract-v2");
+  assert.equal(payload.live_backend, false);
+  assert.equal(payload.live_provider_calls, false);
+});
+
+test("gateway writes preserve upstream application failures and never project success", async () => {
+  process.env.LLM_GATEWAY_BASE_URL = "https://llm-gateway.example.test";
+  globalThis.fetch = async () => Response.json({ error: "rate_limited" }, { status: 429 });
+
+  const response = await gatewayHandle(
+    request("/llm/v1/responses", { "content-type": "application/json" }, { method: "POST", body: "{}" }),
+    ["v1", "responses"],
+    "/llm",
+    "LLM_GATEWAY_BASE_URL",
+  );
+  assert.equal(response.status, 429);
+  assert.equal((await response.json()).error, "rate_limited");
 });
 
 test("OAuth callback rejects duplicate or extra incoming query fields before fetch", async () => {

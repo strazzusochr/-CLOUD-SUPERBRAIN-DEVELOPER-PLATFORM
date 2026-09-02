@@ -629,10 +629,18 @@ if ($isLocalProof) {
   Assert-Contains "agent activity feed contract" $agentActivityFeed '"contract_version":"agent-activity-trace-v1"'
   Assert-Contains "agent activity feed mode" $agentActivityFeed '"mode":"audit_log_backed_filtered_feed"'
 } else {
-  Assert-Contains "hosted agent activity projection contract" $agentActivityFeed '"contract_version":"agent-activity-github-audit-projection-v1"'
-  Assert-Contains "hosted agent activity projection source" $agentActivityFeed '"source":"github-store"'
+  Assert-Contains "hosted agent activity projection contract" $agentActivityFeed '"contract_version":"agent-activity-trace-v1"'
+  Assert-Contains "hosted agent activity projection source" $agentActivityFeed '"source":"frontend-projection"'
+  Assert-Contains "hosted agent activity projection degraded" $agentActivityFeed '"status":"degraded"'
   Assert-Contains "hosted agent activity projection read-only" $agentActivityFeed '"read_only":true'
   Assert-Contains "hosted agent activity projection non-live" $agentActivityFeed '"live_backend":false'
+  Assert-Contains "hosted agent activity projection empty" $agentActivityFeed '"events":[]'
+  Assert-Contains "hosted agent activity projection no audit claim" $agentActivityFeed '"audit_persisted":false'
+  Assert-Contains "hosted agent activity projection no direct provider" $agentActivityFeed '"direct_provider_calls":false'
+  Assert-Contains "hosted agent activity projection no live provider" $agentActivityFeed '"live_provider_calls":false'
+  Assert-Contains "hosted agent activity projection no live MCP write" $agentActivityFeed '"live_mcp_writes":false'
+  Assert-Contains "hosted agent activity projection no production deploy" $agentActivityFeed '"production_deploy":false'
+  Assert-Contains "hosted agent activity projection no secret output" $agentActivityFeed '"secret_output":false'
 }
 
 Write-Host "[browser-contract] task assignment queue contract"

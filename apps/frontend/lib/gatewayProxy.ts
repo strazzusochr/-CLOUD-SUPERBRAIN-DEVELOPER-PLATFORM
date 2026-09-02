@@ -4,7 +4,7 @@
 // configured LLM or MCP gateway. No frontend provider fallback exists.
 
 import { projectedDefault } from "./endpointDefaults";
-import { boundaryUnavailable, proxyToBoundary } from "./frontendBoundary";
+import { boundaryUnavailable, proxyReadToBoundary, proxyToBoundary } from "./frontendBoundary";
 
 export async function gatewayHandle(
   req: Request,
@@ -15,7 +15,10 @@ export async function gatewayHandle(
   const pathname = `${prefix}/${(slug ?? []).join("/")}`;
   const kind = prefix === "/llm" ? "llm-gateway" : "mcp-gateway";
   const forwardPath = pathname.slice(prefix.length) || "/";
-  const live = await proxyToBoundary(req, kind, forwardPath);
+  const isRead = req.method === "GET" || req.method === "HEAD";
+  const live = isRead
+    ? await proxyReadToBoundary(req, kind, forwardPath)
+    : await proxyToBoundary(req, kind, forwardPath);
   if (live) return live;
 
   // 3) Deterministic contract projection for known gateway contract surfaces.
@@ -27,7 +30,7 @@ export async function gatewayHandle(
     });
   }
 
-  if (req.method !== "GET" && req.method !== "HEAD") {
+  if (!isRead) {
     return boundaryUnavailable(`${req.method} ${pathname}`, kind);
   }
   return Response.json(
