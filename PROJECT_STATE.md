@@ -7,6 +7,10 @@ Letzte Aktualisierung: 2026-09-02
 
 ### Session 2026-09-02 — Phase-6 Pre-Run Hardening / Owner Grant Recorded
 
+- **Aktiver qualifizierter Kandidat unveraendert:**
+  `prod-candidate-2026-09-02-local-rc33`, eingefrorene Source
+  `a632372863a39faa0e53d780c1942938a2b3241c`. Der Grant-/Hardening-Slice vergibt keinen
+  Candidate-Credit und ersetzt diese Qualification-Source nicht.
 - **Owner-Urkunde jetzt eng eingetragen:** `phase6_scale_runtime.owner_granted=true` mit
   der kontraktgueltigen Referenz
   `OWNER_GRANTS_2026-09-02.json::O2:phase6_scale_runtime`; `live_verified=false` und alle
@@ -45,8 +49,9 @@ Letzte Aktualisierung: 2026-09-02
   Head; der 900er GitHub-Actions-Lauf waere davor garantiert ungueltig.
 - **Fortschritt unveraendert:** Overall `89%`; P0-P6
   `100/100/100/44/100/89/90`; L1-L7 `100/100/100/55/86/100/100`;
-  `MARKET_READY:false`. Keine GHCR-Publikation, kein Production-Deploy, keine Promotion,
-  kein Secret-Output. `DEV-ONLY; hosted proof still blocked.`
+  `MARKET_READY:false`. Die Phase-5-Owner-Blocker `I1` und `I5` bleiben unveraendert.
+  Keine GHCR-Publikation, kein Production-Deploy, keine Promotion, kein Secret-Output.
+  `DEV-ONLY; hosted proof still blocked.`
 
 ### Session 2026-09-02 — RC33 Final-Head Qualification / Preview Quota Block
 
