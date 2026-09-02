@@ -4,6 +4,7 @@ Status: `ACTIVE_CURRENT_HANDOFF`
 Stand: **2026-09-02**
 Branch: `codex/organism-visual-v2`
 Qualification Source: **`a632372863a39faa0e53d780c1942938a2b3241c`**; Source-Attestation: **`5aad04d47375490dfbd8765d6e9e3f77241f3fdf`**; Hosted-Evidence-Control: **`532a3c8cfff201f09617c6eb46d0111d56a9dcba`** (immutable RC30 L5 evidence); Last Pushed Truth-Control: **`d9dbf8b3e7bd4deb5e20a029d88219f3c8b98810`**; Final-Head-CI: **`33597146482`** (`31/31`, skipped `0`)
+Phase-6 Hardened Code-Control: **`bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0`**; Exact-Head-CI: **`33605838142`** (`31/31`, skipped `0`, failed `0`)
 **B1 ERTEILT** — Approval-Commit: **`e87c28a7c6cf32982caa849794042daa53ef022a`**
 Market Status: `MARKET_READY:false` — Overall `89`
 
@@ -23,6 +24,43 @@ entsprechend markiert sind `CODEX_100_PROZENT_ZIEL_2026-08-29.md`,
 Alles hier ist **gemessen** — live gegen den Endpunkt oder gegen den Quellcode am
 Truth-HEAD. Wo etwas nur protokolliert und nicht nachmessbar war, steht das ausdruecklich
 dabei.
+
+## Phase-6 Pre-Run Checkpoint 2026-09-02
+
+Die eng begrenzte Owner-Urkunde ist jetzt eingetragen:
+`phase6_scale_runtime.owner_granted=true`, Referenz
+`OWNER_GRANTS_2026-09-02.json::O2:phase6_scale_runtime`. `live_verified=false`; Evidence,
+Provider, Zeit und Verifier bleiben leer. Das leere `evidence_sha256` vervollstaendigt nur
+das vom Deep-Verifier verlangte Pre-Promotion-Schema. Kein Workflow-Dispatch, kein Credit.
+
+Der Widerspruch zwischen Owner-Manifest und Rubrik-Verifier ist eng geschlossen, nicht
+umgangen. Commit `63983d6b` prueft den Null-Credit-Zustand exakt am B1-Approval-Commit
+`e87c28a7`, statt die aktuellen Gates fuer immer auf `false` zu pinnen; 15/15 fokussierte
+Tests und der Rubrik-Verifier bestehen. Commit `c24b7bfd` stoppt die gemessene
+Worker/Vercel-Rekursionsschleife mit Hop-Marker und `508`; Worker-Tests `68/68`, Check und
+Root-Verifier bestehen. Commit `bc2d4c8e` haelt die Edge-Control wie im eingefrorenen
+Phase-6-Kriterium vorgeschrieben rein attributiv, waehrend alle Worker-Passkriterien
+unveraendert fail-closed bleiben. Exact-head `pr-check` `33605838142` bestand alle `31/31`
+Schritte ohne Skip oder Fehler.
+
+Agent-api wurde lokal aus dem committed Archiv als
+`cloud-superbrain-local/agent-api:bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0` gebaut,
+Image-ID `sha256:b4943bfdac4aa1970ce6d3297d4ef0eb9763c0f52aa5c9b516f1d86b4b7d9b17`.
+Labels `4/4`, eingebettete Hashes `6/6`, User `appuser`; isolierter hardening Smoke auf
+`/api/v1/health` war HTTP `200`/`degraded`. Ohne `DATABASE_URL` ist der volle
+Health-Contract nicht als bestanden behauptet. Kein Push/Deploy.
+
+Der Phase-6-Lauf gehoert in GitHub Actions, ist jetzt aber weiterhin garantiert ungueltig:
+der einzige zulaessige Worker-Origin liefert `429/1027`, die letzte Hosted-Evidence ist
+rund 157 Stunden alt und die Source-Pruefung hatte 687 nicht allowlistete Pfade zum
+aktuellen Head. Reihenfolge: autorisierter Production-Worker-Rebind/Deploy mit Loop-Guard,
+danach genau eine read-only `200`-Neumessung, frische immutable Source-Bindung und erst
+dann ein einziger Workflow-Dispatch. `frontend-seven-psi-78` ist der bestaetigte OAuth-
+Frontend-Alias, aber kein Phase-6-Origin. GHCR bleibt ein separater externer Transfer.
+
+Fortschritt bleibt Overall `89`, P0-P6 `100/100/100/44/100/89/90`, L1-L7
+`100/100/100/55/86/100/100`, P5 `17/19`, I1/I5 blockiert,
+`MARKET_READY:false`; `DEV-ONLY; hosted proof still blocked.`
 
 ## RC33-Checkpoint 2026-09-02
 

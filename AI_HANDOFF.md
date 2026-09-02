@@ -6,6 +6,52 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
+## Current Phase-6 Pre-Run Handoff — 2026-09-02
+
+The narrow Owner certificate is now recorded as
+`phase6_scale_runtime.owner_granted=true` with canonical ref
+`OWNER_GRANTS_2026-09-02.json::O2:phase6_scale_runtime`. `live_verified` remains `false`;
+all evidence/provider fields remain empty. The additional empty `evidence_sha256` is only
+the exact pre-promotion schema required by the deep verifier. No Phase-6 workflow was
+dispatched and no credit was applied.
+
+Hardened code-control `bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0` is pushed to
+`origin/codex/organism-visual-v2`. Exact-head `pr-check` run `33605838142` passed
+`31/31` steps, with `0` skipped and `0` failed. Its three commits are:
+
+- `63983d6b`: preserves the B1 no-credit guarantee by reading the gate snapshot at the
+  immutable approval commit `e87c28a7`; it no longer turns the historical guarantee into
+  a permanent ban on later independently authorized grants. Focused tests `15/15` pass.
+- `c24b7bfd`: stops Worker -> Vercel -> Worker contract-origin recursion with a hop marker
+  and fail-closed `508`; Worker tests `68/68`, package check and root runtime verifier pass.
+- `bc2d4c8e`: keeps `/cdn-cgi/trace` attribution-only exactly as the frozen Phase-6
+  criterion requires. Control failures remain recorded; all 900 Worker-request, latency,
+  5xx, D1 readback, cleanup, uniqueness and audit criteria remain unchanged and fail-closed.
+
+The agent-api image was rebuilt locally from a clean committed archive:
+`cloud-superbrain-local/agent-api:bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0`, image ID
+`sha256:b4943bfdac4aa1970ce6d3297d4ef0eb9763c0f52aa5c9b516f1d86b4b7d9b17`.
+OCI/source labels match `4/4`, embedded committed-file hashes match `6/6`, and the image
+runs as `appuser`. A no-network, read-only, cap-drop-all smoke returned HTTP `200` from
+`/api/v1/health`, with expected `degraded` state because DB/Redis/gateways were absent.
+Do not claim the full health-contract integration: standalone `/api/v1/health/contract`
+requires `DATABASE_URL`. No registry login, GHCR push, deploy, or persistent smoke
+container occurred.
+
+Phase 6 must run in GitHub Actions, but must not be dispatched yet. Its only accepted
+origin is `https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev`; the
+confirmed OAuth production alias `frontend-seven-psi-78` is a separate origin and cannot
+substitute. The public Worker is still returning `429/1027`, its last hosted evidence was
+about 157 hours old, and its source comparison had 687 non-allowlisted paths to current
+HEAD. Required order: wait for quota reset, make one read-only `200` check, obtain a
+deploy the loop-guarded current source through the sole guarded production path, make
+exactly one `200` health check, verify fresh immutable source/evidence, and only then run
+the one-shot workflow dispatch. GHCR remains a separate external-transfer gate.
+
+Progress is unchanged: Overall `89`; P0-P6 `100/100/100/44/100/89/90`; L1-L7
+`100/100/100/55/86/100/100`; P5 `17/19`, I1/I5 blocked;
+`MARKET_READY:false`. `DEV-ONLY; hosted proof still blocked.`
+
 ## Current RC33 Handoff — 2026-09-02
 
 Active locally qualified candidate: `prod-candidate-2026-09-02-local-rc33`, frozen source

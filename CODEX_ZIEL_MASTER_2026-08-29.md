@@ -8,6 +8,7 @@ Hosted-Evidence-Control: **`532a3c8c`** (immutable RC30 Hosted-MCP evidence + st
 RC33 Qualification Source: **`a6323728`** · Source-Attestation: **`5aad04d4`** · Source-CI: **`33589444701`** (`31/31`, skipped `0`)
 Local Evidence: **5/5 chains · 27 files · run `7bbc2310-0bb3-42e5-8484-819c37d93431`**
 Last Pushed Truth-Control: **`d9dbf8b3e7bd4deb5e20a029d88219f3c8b98810`**
+Phase-6 Hardened Code-Control: **`bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0`** · exact-head CI **`33605838142`** (`31/31`, skipped `0`, failed `0`)
 Hosted Boundary: **Vercel Preview Ready; Cloudflare Preview HTTP `429/1027`, Stateful `94cee685`, LLM `87a2b17e`** — exact RC33 six-service parity is not proven
 **B1 ERTEILT 2026-08-31** — `RubricApprovalCommit = e87c28a7c6cf32982caa849794042daa53ef022a`
 Market Status: `MARKET_READY:false` — Overall `89`, Delta-Ledger `1`, L5 `86`
@@ -23,6 +24,23 @@ Market Status: `MARKET_READY:false` — Overall `89`, Delta-Ledger `1`, L5 `86`
 > **Wartung spaeter:** Die GitHub-Actions-Runtime-Pins bleiben fuer RC33 eingefroren.
 > `upload-artifact` v4.6.2 sowie `checkout`/`setup-node` v4 werden erst nach dem naechsten
 > Freeze in einem separaten Slice aktualisiert.
+
+> **AKTUELLER SCHRITT:** Die Phase-6-Urkunde ist jetzt eng als
+> `owner_granted=true` mit
+> `OWNER_GRANTS_2026-09-02.json::O2:phase6_scale_runtime` eingetragen;
+> `live_verified=false`, keine Evidence und kein Credit. Der Scale-Workflow bleibt bis
+> nach dem Worker-Rebind und genau einem `200`-Health-Read undispatcht. Der fruehere
+> Verifier-Widerspruch ist in `63983d6b` eng
+> behoben: der Null-Credit-Beweis wird am unveraenderlichen B1-Approval-Commit gelesen,
+> waehrend spaetere getrennt autorisierte Grants moeglich bleiben. Die Worker-Rekursion ist
+> in `c24b7bfd` lokal behoben und `/cdn-cgi/trace` in `bc2d4c8e` kriteriumsgemaess nur
+> Attribution-Control; exact-head CI `33605838142` ist vollstaendig gruen. Trotzdem bleibt
+> `live_verified=false`: zuerst den autorisierten Production-Worker-Rebind mit dem
+> Loop-Guard auf aktuelle Source, danach genau einmal HTTP `200`, frische immutable
+> Deployment-Evidence und erst dann ein einziger Actions-Lauf. Der OAuth-Alias
+> `frontend-seven-psi-78` ist
+> bestaetigt, ersetzt aber nicht den einzigen Phase-6-Origin
+> `cloud-superbrain-stateful-runtime.strazzusochr.workers.dev`. Kein GHCR-Transfer.
 
 **Dies ist die einzige Zieldatei.** Sie sagt, *was zu tun ist*.
 Die Lage steht in `CODEX_UEBERGABE_MASTER_2026-08-29.md`.

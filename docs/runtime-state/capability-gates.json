@@ -37,10 +37,11 @@
       "note": "Requires an owner release gate before any image is pushed to GHCR."
     },
     "phase6_scale_runtime": {
-      "owner_granted": false,
-      "owner_grant_ref": "",
+      "owner_granted": true,
+      "owner_grant_ref": "OWNER_GRANTS_2026-09-02.json::O2:phase6_scale_runtime",
       "live_verified": false,
       "evidence_artifact": "",
+      "evidence_sha256": "",
       "verified_at_utc": "",
       "provider": "",
       "paid_provider": false,

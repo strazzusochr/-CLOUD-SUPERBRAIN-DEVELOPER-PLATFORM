@@ -5,6 +5,49 @@ Letzte Aktualisierung: 2026-09-02
 
 ## AKTUELLER PROJEKTANKER
 
+### Session 2026-09-02 — Phase-6 Pre-Run Hardening / Owner Grant Recorded
+
+- **Owner-Urkunde jetzt eng eingetragen:** `phase6_scale_runtime.owner_granted=true` mit
+  der kontraktgueltigen Referenz
+  `OWNER_GRANTS_2026-09-02.json::O2:phase6_scale_runtime`; `live_verified=false` und alle
+  Evidence-/Provider-Felder bleiben leer. Das zusaetzliche leere `evidence_sha256` ist nur
+  die vom Deep-Verifier verlangte Pre-Promotion-Schemakomplettierung. Kein Workflow wurde
+  dispatcht und kein Gate kreditiert.
+- **Hardened Code-Control:** `bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0` ist auf
+  `origin/codex/organism-visual-v2` gepusht. `pr-check` `33605838142` bestand exakt diesen
+  Head mit `31/31` gruenen Schritten, `0` skipped und `0` failed.
+- **Rubrik-Invariante repariert:** `63983d6b` beweist den Null-Credit-Zustand am
+  B1-Approval-Commit `e87c28a7` per Git-Historie, statt aktuelle Owner-Gates dauerhaft
+  auf `false` festzunageln. Der Schutz wurde nicht entfernt; 15/15 fokussierte Tests und
+  der Rubrik-Verifier sind gruen.
+- **Quota-Wurzel behoben, aber nicht deployed:** `c24b7bfd` blockiert eine
+  Worker-zu-Vercel-zu-Worker-Rekursion mit einem internen Hop-Marker und fail-closed HTTP
+  `508`. Worker-Tests `68/68`, Check und Root-Verifier sind gruen. Der oeffentliche Worker
+  laeuft weiterhin auf dem alten Deployment und liefert aktuell `429/1027`.
+- **Phase-6-Kriterium exakt umgesetzt:** `bc2d4c8e` behandelt `/cdn-cgi/trace` wie im
+  eingefrorenen Kriterium vorgeschrieben nur als Attribution-Control. Fehlversuche bleiben
+  im Evidence-Feld sichtbar, entscheiden aber nicht den Worker-Pass. Die unveraenderten
+  Worker-Anforderungen — exakt 900 Requests, Read-/Write-/Delete-Readback, p95, 5xx,
+  Verlust, Duplikate, Cleanup und Audit — bleiben fail-closed. Static-Verifier gruen.
+- **Agent-API lokal neu gebaut:**
+  `cloud-superbrain-local/agent-api:bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0`, Image
+  `sha256:b4943bfdac4aa1970ce6d3297d4ef0eb9763c0f52aa5c9b516f1d86b4b7d9b17`.
+  OCI-/Source-Bindung `4/4`, eingebettete committed Dateien `6/6`, User `appuser`;
+  isolierter read-only/no-network Smoke `GET /api/v1/health = 200`, erwartungsgemaess
+  `degraded` ohne DB/Redis. Der volle Health-Contract ist ohne `DATABASE_URL` nicht als
+  bestanden behauptet. Kein Registry-Login und kein Push.
+- **Phase-6-Ausfuehrung bleibt geparkt:** Der einzig gueltige Scale-Origin ist
+  `https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev`; der bestaetigte
+  OAuth-Frontend-Alias `frontend-seven-psi-78` ersetzt ihn nicht. Vor Dispatch sind der
+  autorisierte Production-Worker-Rebind/Deploy mit dem Loop-Guard und danach genau eine
+  `200`-Neumessung erforderlich. Der letzte Hosted-
+  Stand war rund 157 Stunden alt und hatte 687 nicht allowlistete Sourcepfade zum aktuellen
+  Head; der 900er GitHub-Actions-Lauf waere davor garantiert ungueltig.
+- **Fortschritt unveraendert:** Overall `89%`; P0-P6
+  `100/100/100/44/100/89/90`; L1-L7 `100/100/100/55/86/100/100`;
+  `MARKET_READY:false`. Keine GHCR-Publikation, kein Production-Deploy, keine Promotion,
+  kein Secret-Output. `DEV-ONLY; hosted proof still blocked.`
+
 ### Session 2026-09-02 — RC33 Final-Head Qualification / Preview Quota Block
 
 - **Aktiver lokal qualifizierter Kandidat:** `prod-candidate-2026-09-02-local-rc33`,

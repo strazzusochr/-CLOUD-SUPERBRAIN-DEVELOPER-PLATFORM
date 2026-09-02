@@ -1,9 +1,46 @@
 # Cloud Superbrain Project Anchor
 
+## ⚓ CHECKPOINT 2026-09-02 — PHASE-6 PRE-RUN HARDENED / OWNER GRANT RECORDED
+
+**Anchor ID:** `cloud-superbrain-anchor-2026-09-02-phase6-prerun-grant-recorded`
+**Status:** `ACTIVE_RESUME_POINT`
+**Workspace:** `D:\_sb_tmp\rc29-control`
+**Branch:** lokal `codex/rc29-control`; Pushziel `origin/codex/organism-visual-v2`
+
+| Gegenstand | Ergebnis |
+|---|---|
+| Hardened Code-Control | `bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0`, gepusht |
+| Exact-Head CI | `pr-check` `33605838142`, `31/31` gruen, skipped `0`, failed `0` |
+| Rubrik-Schutz | `63983d6b`: B1-Null-Credit am Approval-Commit `e87c28a7` historisch gebunden; 15/15 Tests gruen |
+| Loop-Guard | `c24b7bfd`: Worker/Vercel-Hop-Marker, Rekursion fail-closed `508`; Worker `68/68` |
+| Phase-6-Control | `bc2d4c8e`: `/cdn-cgi/trace` attribution-only; Worker-Passkriterien unveraendert |
+| Gate | `owner_granted=true`, Ref `OWNER_GRANTS_2026-09-02.json::O2:phase6_scale_runtime`; `live_verified=false`; kein Dispatch/Credit |
+| Agent-API Image | lokal `cloud-superbrain-local/agent-api:bc2d4c8e...`, ID `sha256:b4943bfd...`; Labels `4/4`, Hashes `6/6`, Health HTTP `200`/`degraded`; kein Push |
+| Hosted Blocker | Phase-6-Origin HTTP `429/1027`; Evidence ~157 h alt; Source-Delta 687 nicht allowlistete Pfade |
+| Origin | OAuth-Frontend `frontend-seven-psi-78` bestaetigt; Phase 6 ausschliesslich `cloud-superbrain-stateful-runtime.strazzusochr.workers.dev` |
+| Fortschritt | Overall 89 · P0-P6 `100/100/100/44/100/89/90` · L1-L7 `100/100/100/55/86/100/100` |
+| Marktstatus | `MARKET_READY:false`; I1/I5 blockiert |
+
+### NAECHSTER SICHERER SCHRITT
+
+1. Den autorisierten Loop-Guard ueber einen expliziten Production-Modus des geschuetzten
+   Deploypfads auf den Phase-6-Worker binden; der bisherige Pfad ist Preview-only.
+2. Danach den Phase-6-Worker genau einmal read-only auf HTTP `200` pruefen.
+3. Frische immutable Deployment-Evidence source-bound committen.
+4. Erst dann genau einen GitHub-Actions-Lauf dispatchen. GHCR bleibt separat gehalten.
+
+### NICHT ANTASTEN
+
+Die sechs fremden Dirty-Pfade (`.codex/runs/...`, drei O4-Proofs,
+`capability-gates.json`, `owner-input-manifest.json`) weder stagen noch zuruecksetzen.
+Keine Backups/Worktrees erzeugen. Keine Action-Pins vor dem naechsten Freeze aktualisieren.
+
+---
+
 ## ⚓ CHECKPOINT 2026-09-02 — RC33 FINAL-HEAD / PREVIEW QUOTA BLOCK
 
 **Anchor ID:** `cloud-superbrain-anchor-2026-09-02-rc33-final-head-green-preview-1027`
-**Status:** `ACTIVE_RESUME_POINT`
+**Status:** `SUPERSEDED_RESUME_POINT`
 **Workspace:** `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
 **Branch:** `codex/organism-visual-v2`
 

@@ -7,6 +7,50 @@ Status: Active
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `86%`, Memory `100%`, and Observability `100%`. The v2 delta ledger contains one evidence-scored L5 entry.
 
+## Current Phase-6 Pre-Grant Hardening Evidence
+
+Recorded 2026-09-02. Hardened code-control
+`bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0` is pushed to the feature branch.
+GitHub Actions `pr-check` run `33605838142` checked out that exact head and passed
+`31/31` observed steps with `0` skipped and `0` failed.
+
+- `63983d6b` replaces the false permanent current-gate lock with an immutable historical
+  assertion: the B1 approval commit `e87c28a7` itself must show zero credit and both
+  rubric-controlled gates closed. The check still rejects a forged approval snapshot,
+  while permitting a later separately authorized gate transition. Focused unit result:
+  `15/15` pass; standalone rubric verifier pass.
+- `c24b7bfd` adds a contract-origin hop marker and returns fail-closed `508` on a bounce,
+  preventing the measured Worker -> Vercel -> Worker recursion. Stateful Worker tests
+  `68/68`, package check and root Cloudflare-runtime verifier pass.
+- `bc2d4c8e` enforces the frozen Phase-6 criterion that `/cdn-cgi/trace` is an
+  attribution control, not a pass criterion. Control failures remain recorded and
+  recomputed; no Worker threshold or required operation was removed. Both runtime and
+  evidence static Phase-6 verifiers pass.
+
+The locally rebuilt committed-source agent-api image is
+`cloud-superbrain-local/agent-api:bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0`, image ID
+`sha256:b4943bfdac4aa1970ce6d3297d4ef0eb9763c0f52aa5c9b516f1d86b4b7d9b17`.
+OCI/source labels match `4/4`, embedded committed-file hashes match `6/6`, and runtime
+user is `appuser`. A no-network, read-only, cap-drop-all standalone smoke returned HTTP
+`200` from `/api/v1/health` with expected `degraded` state in the absence of DB/Redis.
+`/api/v1/health/contract` is not claimed as integrated because standalone execution had
+no `DATABASE_URL`. No registry authentication, image push, hosted deploy or release
+action occurred.
+
+The narrow Owner certificate is now recorded as
+`phase6_scale_runtime.owner_granted=true`, canonical ref
+`OWNER_GRANTS_2026-09-02.json::O2:phase6_scale_runtime`. `live_verified=false`; all
+evidence/provider values remain empty, with an empty `evidence_sha256` added only to match
+the deep verifier's exact pre-promotion schema. No workflow dispatch or percentage credit. The
+accepted Phase-6 origin is exclusively
+`https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev`, currently blocked by
+HTTP `429/1027`; the last hosted evidence was about 157 hours old and source preflight had
+687 non-allowlisted paths to current HEAD. The confirmed OAuth frontend alias
+`frontend-seven-psi-78` is a separate origin. The authorized production-Worker rebind
+must deploy the loop guard first; exactly one `200` remeasurement and fresh immutable
+source evidence are prerequisites before the one-shot dispatch. Progress and
+`MARKET_READY:false` remain unchanged; no GHCR transfer is claimed.
+
 ## Current RC33 Local Qualification Evidence
 
 Recorded 2026-09-02. Active candidate `prod-candidate-2026-09-02-local-rc33` is bound
