@@ -224,6 +224,32 @@ test("health degrades when the explicit AI Gateway ID or D1 binding is absent", 
   }
 });
 
+test("provider status exposes the live-call policy without calling AI Gateway or writing audit state", async () => {
+  const AI = aiBinding();
+  const DB = auditDb();
+  const response = await worker.fetch(
+    new Request("https://gateway.example/api/v1/providers/status", { headers: { "x-request-id": "provider-status-test" } }),
+    runtimeEnv(AI, { DB }),
+  );
+  const payload = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(payload.contract_version, "llm-provider-status-v1");
+  assert.equal(payload.status, "configured");
+  assert.equal(payload.mode, "cloudflare_workers_ai_live");
+  assert.equal(payload.policy.external_provider_calls_disabled_by_default, false);
+  assert.equal(payload.policy.requires_request_metadata, "metadata.live_provider_calls_allowed=true");
+  assert.equal(payload.live_provider_calls, false);
+  assert.equal(payload.live_provider_calls_available, true);
+  assert.equal(payload.live_verified, false);
+  assert.equal(payload.providers[0].provider, "cloudflare_workers_ai");
+  assert.deepEqual(payload.providers[0].configured_models, [fallbackModel, primaryModel]);
+  assert.equal(payload.direct_provider_calls, false);
+  assert.equal(payload.secret_output, false);
+  assert.equal(AI.calls.length, 0);
+  assert.equal(AI.getLogCalls.length, 0);
+  assert.equal(DB.writes.length, 0);
+});
+
 test("the request stream is hard-limited without trusting Content-Length", async () => {
   const AI = aiBinding();
   const body = streamFrom([new Uint8Array(40_000), new Uint8Array(30_000)]);

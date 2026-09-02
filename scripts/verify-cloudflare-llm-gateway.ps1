@@ -68,6 +68,9 @@ foreach ($marker in @(
   'GATEWAY_AUTH_TOKEN',
   'x-superbrain-gateway-token',
   '/api/v1/health',
+  '/api/v1/providers/status',
+  'metadata.live_provider_calls_allowed=true',
+  'external_provider_calls_disabled_by_default: !configured',
   '/v1/chat/completions',
   'SOURCE_COMMIT_SHA',
   'SOURCE_ARCHIVE_SHA256',
@@ -134,6 +137,7 @@ Assert-Contains "Workbench live-call truth" $workbenchSource '"live_provider_cal
 
 foreach ($marker in @(
   'health advertises configuration only',
+  'provider status exposes the live-call policy without calling AI Gateway or writing audit state',
   'non-stream completion uses the actual gateway path',
   'stream mode forwards only real provider chat.completion.chunk frames',
   'gateway-log model, provider, success, or metadata mismatch blocks completion',
@@ -173,6 +177,13 @@ if (-not $StaticOnly) {
   Assert-Equal ([string]$health.service) "llm-gateway" "Hosted service marker"
   Assert-True ([bool]$health.live_provider_calls_available) "Hosted Workers AI path must be available"
   Assert-True (-not [bool]$health.live_provider_calls) "Health probe cannot execute inference"
+  $providerStatus = Invoke-NoRedirectJson "$normalized/api/v1/providers/status"
+  Assert-Equal ([string]$providerStatus.contract_version) "llm-provider-status-v1" "Hosted provider-status contract"
+  Assert-Equal ([string]$providerStatus.status) "configured" "Hosted provider-status readiness"
+  Assert-Equal ([string]$providerStatus.mode) "cloudflare_workers_ai_live" "Hosted provider-status mode"
+  Assert-True (-not [bool]$providerStatus.policy.external_provider_calls_disabled_by_default) "Hosted provider master gate must be open"
+  Assert-Equal ([string]$providerStatus.policy.requires_request_metadata) "metadata.live_provider_calls_allowed=true" "Hosted per-request provider approval"
+  Assert-True (-not [bool]$providerStatus.live_provider_calls) "Provider-status probe cannot execute inference"
   $models = Invoke-NoRedirectJson "$normalized/v1/models"
   Assert-Equal @($models.data).Count 2 "Hosted allowlisted model count"
   $evidence.contract_version = "cloudflare-workers-ai-llm-gateway-hosted-proof-v1"

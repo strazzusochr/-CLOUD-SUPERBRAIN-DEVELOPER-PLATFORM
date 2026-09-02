@@ -14,6 +14,8 @@ const MIN_ATTEMPT_TIMEOUT_MS = 10;
 const MAX_ATTEMPT_TIMEOUT_MS = 30_000;
 const GATEWAY_LOG_READBACK_TIMEOUT_MS = 5_000;
 const GATEWAY_LOG_POLL_MS = 100;
+const PROVIDER_ROTATION_BACKOFF_SECONDS = Object.freeze([30, 60, 120, 300]);
+const PROVIDER_RESET_AFTER_SECONDS = 900;
 const ALLOWED_MODELS = Object.freeze([
   "@cf/qwen/qwen2.5-coder-32b-instruct",
   "@cf/meta/llama-3.1-8b-instruct-fast",
@@ -1287,6 +1289,44 @@ export default {
         direct_provider_calls: false,
         secret_output: false,
         verification_capabilities: verificationCapabilities(configured),
+      }, configured ? 200 : 503, context);
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/v1/providers/status") {
+      return json({
+        contract_version: "llm-provider-status-v1",
+        status: configured ? "configured" : "blocked",
+        mode: env.GATEWAY_MODE || "cloudflare_workers_ai_live",
+        source_commit_sha: env.SOURCE_COMMIT_SHA || null,
+        source_archive_sha256: env.SOURCE_ARCHIVE_SHA256 || null,
+        live_provider_calls: false,
+        live_provider_calls_available: configured,
+        live_verified: false,
+        policy: {
+          rotation_backoff_seconds: PROVIDER_ROTATION_BACKOFF_SECONDS,
+          reset_after_seconds: PROVIDER_RESET_AFTER_SECONDS,
+          never_break_budget: true,
+          external_provider_calls_disabled_by_default: !configured,
+          requires_request_metadata: "metadata.live_provider_calls_allowed=true",
+          requires_owner_environment_gate: "GATEWAY_AUTH_TOKEN configured",
+        },
+        providers: [{
+          provider: "cloudflare_workers_ai",
+          status: configured ? "configured" : "blocked",
+          live_verified: false,
+          live_provider_calls: false,
+          live_provider_calls_available: configured,
+          model_count_visible: ALLOWED_MODELS.length,
+          configured_models: ALLOWED_MODELS,
+          visible_models_sample: ALLOWED_MODELS,
+          backoff_seconds: PROVIDER_ROTATION_BACKOFF_SECONDS,
+          reset_after_seconds: PROVIDER_RESET_AFTER_SECONDS,
+          gateway_only: true,
+          direct_provider_calls: false,
+          secret_output: false,
+        }],
+        direct_provider_calls: false,
+        secret_output: false,
       }, configured ? 200 : 503, context);
     }
 
