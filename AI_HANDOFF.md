@@ -6,6 +6,59 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
+## Current RC33 Handoff — 2026-09-02
+
+Active locally qualified candidate: `prod-candidate-2026-09-02-local-rc33`, frozen source
+`a632372863a39faa0e53d780c1942938a2b3241c`, source-attestation control
+`5aad04d47375490dfbd8765d6e9e3f77241f3fdf`. GitHub Actions run `33589444701`
+checked out that exact source and passed `31/31` observed steps with `0` skipped. Artifact
+`9831272175`, GitHub digest
+`sha256:88d8cd884f3df354a47385df188406f02bcaf209e5403d2deefcc15627e0aac3`,
+attestation SHA `1FFCE5AF18E66ADBB55DA8500F6FF661ACE160BC2B90E30AF96C38DAE5E1A436`,
+and GitHub-readback SHA `E5ED916119700499AAC60D9A8B21799453E365CFD3243893580CC23F24CB05FC`
+are preserved in the exact 27-file evidence set.
+
+All five independent local qualification chains passed and are bound to evidence run
+`7bbc2310-0bb3-42e5-8484-819c37d93431`: six source-bound clean-archive images; runtime
+`10/10 healthy`; candidate-scoped npm audit (`0` vulnerabilities) plus canonical gitleaks
+(`no leaks`); complete real Chromium proof with `22/22` routes, `29/29` action families and
+`161/161` members (`160` direct plus one exact preverified control); and candidate-runtime
+source/image parity with a real Playwright selection and click. The canonical 22-page report
+SHA is `FD081A2E40786511AB7FFF5D2CCEE2E7A64B9B77949442E4D43C4482680C8A87`.
+Runtime, browser, image, candidate-runtime and security summary hashes are respectively
+`869138F5268D53C9B73770A52BF1D4D1D719178890DB7712ECB3FE66D8018708`,
+`A26D3E5A098CBF4F9490FE4C0F283658DC03851F034CEAB78C2311735E3EFA32`,
+`51F8531B90EAF0763A6BF04C0993E44A4B293348E6F79821094FCE3190409505`,
+`ABE4A3BDCEDDCD7CFA248498F857624B1BED10846C3794DD08857A5680C99066`, and
+`9CA9F62BACD90C62064D505E4C4C996C01776F86F71AA66E8C753DA67EEC000D`.
+
+RC33 hardens the hosted Next API security-header boundary, restores three deterministic
+read projections, makes gateway read fallback fail closed, redacts non-contract provider
+platform errors, preserves the complete Phase-6 gameplay transition projection, and fixes
+byte-/EOL-safe Git blob parity in the candidate verifier. The runtime-identical Vercel
+Preview frontend source `50a591d4` passed the hosted browser contract with `22` routes at
+two viewports and `44` clicks, but it is not exact RC33 hosted evidence. RC31 source
+`94cee68508196195454139a7c4a432b024f91869` is the immutable local rollback target.
+
+The next safe slice is: commit and push only the RC33 qualification/evidence/truth paths,
+obtain final-head `pr-check` success with `skipped=0`, then remeasure the isolated Preview
+boundary without touching a production alias. Exact six-service hosted parity (I1), GHCR
+publication, and production OAuth identity (I5) stay behind their separate Owner gates.
+The latest current-candidate verifier passed its local credit and immutable-parity stages,
+then failed closed because the canonical hosted read
+`https://cloud-superbrain-developer-platform.vercel.app/api/v1/health` returns HTTP `404`.
+The full `npm run verify` stack passed all local static, regression, audit (`0`
+vulnerabilities), manifest and gate checks, then stopped exactly at `current Cloudflare-
+native hosted Worker source parity`. Treat both results as the current hosted I1 boundary;
+do not relabel local evidence as hosted.
+
+Phase 5 remains `17/19 = 89%`, blocked items `I1` and `I5`; Overall remains `89`, horizontal
+`100/100/100/44/100/89/90`, vertical `100/100/100/55/86/100/100`, and
+`MARKET_READY:false`. `DEV-ONLY; hosted proof still blocked`. No main/default-branch push,
+GHCR publication, production deploy, release promotion, rollout, payment, secret rotation,
+scope expansion, or secret output occurred. Keep `actions/upload-artifact` v4.6.2 and the
+checkout/setup-node v4 pins frozen until the next release freeze is complete.
+
 ## Current RC31 Handoff — 2026-09-02
 
 Active locally qualified candidate: `prod-candidate-2026-09-02-local-rc31`, frozen source

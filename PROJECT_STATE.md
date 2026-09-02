@@ -5,21 +5,39 @@ Letzte Aktualisierung: 2026-09-02
 
 ## AKTUELLER PROJEKTANKER
 
-### Session 2026-09-02 — RC33 Source Prequalification
+### Session 2026-09-02 — RC33 Local Qualification
 
-- **Aktiver Prequalification-Kandidat:** `prod-candidate-2026-09-02-local-rc33`,
+- **Aktiver lokal qualifizierter Kandidat:** `prod-candidate-2026-09-02-local-rc33`,
   eingefrorene Source `a632372863a39faa0e53d780c1942938a2b3241c`, Control
   `5aad04d47375490dfbd8765d6e9e3f77241f3fdf`. GitHub-Actions-Lauf `33589444701`
   attestiert den exakten Source-Checkout mit `31/31` gruenen Schritten und `0` skipped.
-- **Lokal laufende Qualifikation:** Sechs Clean-Archive-Images sind source-bound gebaut.
-  Runtime-, Browser-, Security- und Candidate-Runtime-Ketten werden jetzt seriell an RC33 gebunden.
-  RC31-Source `94cee68508196195454139a7c4a432b024f91869` bleibt Rollback.
+- **Lokal qualifiziert:** Alle fuenf unabhaengigen Ketten sind source-bound gruen und im
+  exakten 27-Dateien-Evidence-Set unter Run-ID `7bbc2310-0bb3-42e5-8484-819c37d93431`
+  gebunden: sechs Clean-Archive-Images, Runtime `10/10 healthy`, Candidate-Archiv-Audit
+  `0` Schwachstellen plus kanonisches gitleaks `no leaks`, kompletter realer Chromium-Lauf
+  mit `22/22` Routen, `29/29` Aktionsfamilien und `161/161` Mitgliedern sowie Candidate-
+  Runtime-Paritaet mit echter Playwright-Auswahl und Klick. RC31-Source
+  `94cee68508196195454139a7c4a432b024f91869` bleibt Rollback.
 - **Produktdelta:** Hosted Next-API-Sicherheitsheader, fehlende Read-only-Projektionen,
   fail-closed Gateway-Read-Fallback, JSON-Sanitisierung fuer Provider-Plattformfehler und
   die vollstaendige Gameplay-Transition-Projektion sowie ein byte-/EOL-sicherer Git-Blob-
   Vergleich im Candidate-Verifier sind im eingefrorenen Source enthalten. Der echte Vercel-
   Preview-Browservertrag der runtime-identischen Frontend-Source `50a591d4` lief mit
   `22 x 2` Routen und `44` Klicks gruen; er ist noch kein exakter RC33-Hosted-Beweis.
+- **Naechster sicherer Schritt:** RC33-Qualification/Evidence/Truth exakt committen und auf
+  den Feature-Branch pushen; danach final-head `pr-check` mit `skipped=0` abwarten und die
+  isolierte Preview-Grenze erneut messen. I1/GHCR und I5/Production-OAuth bleiben separate
+  Owner-Gates; kein Production-Alias.
+- **Letzter Verifier-Befund:** `verify:phase5-credit` gruen (`17/19`, exakt I1/I5
+  blockiert), Manifest gruen (`overall=89`, `deltas=1`, `freshness=verified`) und RC33-
+  Candidate-Runtime gruen (`service_count=6`, Source-Paritaet, echter Playwright-Klick).
+  `verify:current-release-candidate` bestand die lokalen Credit-/Immutable-Paritaetsstufen
+  und stoppte korrekt am kanonischen Hosted-Read: `GET
+  https://cloud-superbrain-developer-platform.vercel.app/api/v1/health` liefert `404`.
+  Der volle `npm run verify`-Stack bestand alle lokalen statischen, Regression-, Audit-
+  (`0` Schwachstellen), Manifest- und Gate-Pruefungen und stoppte danach exakt bei
+  `current Cloudflare-native hosted Worker source parity`. Das sind die aktuellen
+  I1/Hosted-Blocker, keine lokalen Qualification-Fehler.
 - **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
   P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `86`,
   L6 `100`, L7 `100`. `MARKET_READY:false`. I1 und I5 bleiben blockiert.

@@ -3,7 +3,7 @@
 Status: `ACTIVE_CURRENT_HANDOFF`
 Stand: **2026-09-02**
 Branch: `codex/organism-visual-v2`
-Qualification Source: **`94cee68508196195454139a7c4a432b024f91869`**; Source-Attestation: **`7e99d6c815015ac792864700b2cf57ea8c042fe0`**; Hosted-Evidence-Control: **`532a3c8cfff201f09617c6eb46d0111d56a9dcba`** (immutable RC30 L5 evidence); Last Pushed Truth-Control: **`80c42c048a251e9eecdc63afed10a107c76ae1a2`**
+Qualification Source: **`a632372863a39faa0e53d780c1942938a2b3241c`**; Source-Attestation: **`5aad04d47375490dfbd8765d6e9e3f77241f3fdf`**; Hosted-Evidence-Control: **`532a3c8cfff201f09617c6eb46d0111d56a9dcba`** (immutable RC30 L5 evidence); Last Pushed Truth-Control: **`34d00d533c262d57cd515f5b63f7916e98181413`**
 **B1 ERTEILT** — Approval-Commit: **`e87c28a7c6cf32982caa849794042daa53ef022a`**
 Market Status: `MARKET_READY:false` — Overall `89`
 
@@ -23,6 +23,52 @@ entsprechend markiert sind `CODEX_100_PROZENT_ZIEL_2026-08-29.md`,
 Alles hier ist **gemessen** — live gegen den Endpunkt oder gegen den Quellcode am
 Truth-HEAD. Wo etwas nur protokolliert und nicht nachmessbar war, steht das ausdruecklich
 dabei.
+
+## RC33-Checkpoint 2026-09-02
+
+RC33 ist lokal mit allen fuenf unabhaengigen Ketten qualifiziert. Die eingefrorene Source
+`a632372863a39faa0e53d780c1942938a2b3241c` enthaelt die Hosted-Next-API-
+Sicherheitsheader, drei wiederhergestellte deterministische Read-Projektionen, fail-closed
+Gateway-Read-Fallback, redaktierte Non-Contract-Providerfehler, die vollstaendige Phase-6-
+Gameplay-Transition-Projektion und den byte-/EOL-sicheren Candidate-Verifier-Vergleich.
+Source-Attestation-Control `5aad04d47375490dfbd8765d6e9e3f77241f3fdf` bestand
+GitHub `pr-check` `33589444701` mit `31/31` beobachteten Schritten und `0` skipped.
+Artifact `9831272175`, Digest
+`sha256:88d8cd884f3df354a47385df188406f02bcaf209e5403d2deefcc15627e0aac3`,
+Attestation-SHA `1FFCE5AF18E66ADBB55DA8500F6FF661ACE160BC2B90E30AF96C38DAE5E1A436`
+und Readback-SHA `E5ED916119700499AAC60D9A8B21799453E365CFD3243893580CC23F24CB05FC`
+sind gebunden.
+
+Der exakte 27-Dateien-Evidence-Satz bindet unter gemeinsamer Run-ID
+`7bbc2310-0bb3-42e5-8484-819c37d93431` sechs Clean-Archive-Images, Runtime `10/10
+healthy`, Kandidatenarchiv-Audit `0` Schwachstellen plus gitleaks `no leaks`, Candidate-
+Runtime mit realem Playwright-Klick und den kompletten Chromium-Lauf `22/22` Routen,
+`29/29` Familien, `161/161` Mitglieder. Alle fuenf Summary-Artefakte sind source- und
+raw-log-hashgebunden. RC31-Source `94cee68508196195454139a7c4a432b024f91869`
+ist der immutable lokale Rollback.
+
+Die runtime-identische Vercel-Preview-Frontend-Source `50a591d4` bestand den Hosted-
+Browservertrag mit 22 Routen bei zwei Viewports und 44 Klicks. Sie ist kein exakter RC33-
+sechs-Service-Beweis und schliesst I1 nicht. Naechster Ablauf: RC33-Qualification,
+Evidence und Truth exakt committen/pushen, final-head `pr-check` mit `skipped=0`, dann die
+isolierte Preview-Grenze neu messen. I1/GHCR und I5/Production-OAuth bleiben separate
+Owner-Gates; kein Production-Alias.
+
+Letzter Gate-Befund: Phase-5-Credit ist gruen (`17/19`, I1/I5), Manifest ist gruen
+(`overall=89`, `deltas=1`, `freshness=verified`), Candidate-Runtime ist gruen. Der Current-
+Release-Verifier bestand lokale Credit-/Immutable-Paritaet und stoppte fail-closed am
+kanonischen Hosted-Read `GET
+https://cloud-superbrain-developer-platform.vercel.app/api/v1/health = 404`. Das ist der
+erste aktuelle I1-Hosted-Blocker. Der volle `npm run verify`-Stack bestand alle lokalen
+statischen, Regression-, Audit- (`0` Schwachstellen), Manifest- und Gate-Pruefungen und
+stoppte danach exakt bei `current Cloudflare-native hosted Worker source parity`. Beides
+sind Hosted-Grenzen und keine lokalen Qualification-Fehler.
+
+Overall bleibt `89`; P0-P6 `100/100/100/44/100/89/90`; L1-L7
+`100/100/100/55/86/100/100`; P5 `17/19`; I1/I5 blockiert;
+`MARKET_READY:false`. GitHub-Actions-Runtime-Pins bleiben bis zum naechsten Freeze
+unveraendert. Kein Main-/Default-Branch-Push, GHCR-Push, Production-Deploy,
+Release-Promotion, Rollout, Payment, Scope-/Secret-Ausweitung oder Secret-Output.
 
 ## RC31-Checkpoint 2026-09-02
 
@@ -87,13 +133,13 @@ RC29s finaler Head-CI-Lauf scheiterte an zwei neu veroeffentlichten HIGH-Advisor
 `browserslist <=4.28.6`. RC30 pinnt die gepatchte Version `4.28.8`; der Kandidaten-Audit
 meldet `0` Schwachstellen. Produktlogik und die RC29-Three.js-Reparatur bleiben gleich.
 
-**Historienregel:** Der RC30-Checkpoint sowie alle zeitbezogenen Aussagen zu RC23 bis
+**Historienregel:** Die RC31-/RC30-Checkpoints sowie alle zeitbezogenen Aussagen zu RC23 bis
 RC28 — insbesondere
 `verify:phase5-credit ist rot`, `B1 fehlt`, `RC24 ist faellig`, `RC27-Selection ist der
 naechste Schritt` oder ein RC23/RC24-Zeiger — sind Diagnoseverlauf und durch diesen
-RC31-Checkpoint oben ersetzt. Aktuelle Kandidaten-, Gate- und Fortschrittswahrheit steht
-nur im RC31-Checkpoint, der Koordinatentabelle, `PROJECT_STATE.md`, `AI_HANDOFF.md`, dem
-Verification Register und den RC31-Evidence-Artefakten.
+RC33-Checkpoint oben ersetzt. Aktuelle Kandidaten-, Gate- und Fortschrittswahrheit steht
+nur im RC33-Checkpoint, der Koordinatentabelle, `PROJECT_STATE.md`, `AI_HANDOFF.md`, dem
+Verification Register und den RC33-Evidence-Artefakten.
 
 ## Owner-Aktionen 2026-09-01 — gemessener Stand
 
@@ -366,7 +412,7 @@ B3/B4 bleiben geschlossen. Dies ersetzt historische Aussagen weiter unten, das E
 fehle vollstaendig. Keine Freigabe, kein Secret-Wert und kein Prozentcredit wurden erzeugt.
 
 Die folgenden historischen Abschnitte bleiben als Diagnoseverlauf erhalten. Fuer den
-aktuellen Kandidaten und die aktuellen Non-Claims haben der RC31-Checkpoint oben,
+aktuellen Kandidaten und die aktuellen Non-Claims haben der RC33-Checkpoint oben,
 `PROJECT_STATE.md`, `AI_HANDOFF.md` und der Verification Register Vorrang.
 
 ---
@@ -375,12 +421,12 @@ aktuellen Kandidaten und die aktuellen Non-Claims haben der RC31-Checkpoint oben
 
 | Groesse | Wert |
 | --- | --- |
-| Truth-Doku-Measurement | RC31 Source-Attestation `7e99d6c8` — `pr-check` `33566857871`, `31/31`, `0` skipped; vertikales L5-Evidence-Control bleibt `532a3c8c` |
-| Selection-Head | RC31 bleibt auf Source `94cee685` eingefroren; spaetere Control-/Truth-Commits aendern diese Produktquelle nicht |
-| RC31 Source / Controls | `94cee685` / Source-Attestation `7e99d6c8` / immutable RC30 Hosted Evidence `532a3c8c` |
+| Truth-Doku-Measurement | RC33 Source-Attestation `5aad04d4` — `pr-check` `33589444701`, `31/31`, `0` skipped; vertikales L5-Evidence-Control bleibt `532a3c8c` |
+| Selection-Head | RC33 bleibt auf Source `a6323728` eingefroren; spaetere Control-/Truth-Commits aendern diese Produktquelle nicht |
+| RC33 Source / Controls | `a6323728` / Source-Attestation `5aad04d4` / immutable RC30 Hosted Evidence `532a3c8c` |
 | Hosted Worker | `cloud-superbrain-stateful-runtime-preview.strazzusochr.workers.dev` plus LLM Preview |
-| Hosted Source | Beide Preview-Worker noch source-bound auf RC30 `9e88f84a`; RC31 Preview-Rebind und Unified MCP-Health-Beweis stehen als naechstes an |
-| Aktiver RC-Zeiger | RC31 `prod-candidate-2026-09-02-local-rc31` @ `94cee685`; RC30 ist Rollback |
+| Hosted Source | Runtime-identische Vercel-Frontend-Source `50a591d4` browser-gruen; exakte RC33 sechs-Service-Paritaet fehlt |
+| Aktiver RC-Zeiger | RC33 `prod-candidate-2026-09-02-local-rc33` @ `a6323728`; RC31 ist Rollback |
 | D1 | `cloud-superbrain-state-prod` (`91520f43-5d38-4a31-9d5a-6fca890e1dd6`), Migrationsaudit `8/8` angewandt |
 | Overall | `89` — `deltas=1`, L5 `86`, Phase 5 `17/19`, blockiert `I1`, `I5` |
 

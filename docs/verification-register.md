@@ -7,6 +7,41 @@ Status: Active
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `86%`, Memory `100%`, and Observability `100%`. The v2 delta ledger contains one evidence-scored L5 entry.
 
+## Current RC33 Local Qualification Evidence
+
+Recorded 2026-09-02. Active candidate `prod-candidate-2026-09-02-local-rc33` is bound
+to frozen source `a632372863a39faa0e53d780c1942938a2b3241c` through source-attestation
+control `5aad04d47375490dfbd8765d6e9e3f77241f3fdf`. GitHub Actions `pr-check` run
+`33589444701` checked out that exact source and passed `31/31` observed steps with `0`
+skipped. Artifact `9831272175`, GitHub digest
+`sha256:88d8cd884f3df354a47385df188406f02bcaf209e5403d2deefcc15627e0aac3`,
+attestation SHA `1FFCE5AF18E66ADBB55DA8500F6FF661ACE160BC2B90E30AF96C38DAE5E1A436`,
+and readback SHA `E5ED916119700499AAC60D9A8B21799453E365CFD3243893580CC23F24CB05FC`
+are preserved in the exact 27-file evidence set.
+
+Five independent local chains passed under evidence run
+`7bbc2310-0bb3-42e5-8484-819c37d93431`: six source-bound candidate images; runtime
+`10/10 healthy`; complete real-Chromium proof with `22/22` routes, `29/29` families and
+`161/161` members; candidate-runtime source/image identity with a real Playwright selection
+and click; and candidate-scoped npm audit (`0` vulnerabilities) plus canonical gitleaks
+(`no leaks`). Their summary hashes are respectively
+`51F8531B90EAF0763A6BF04C0993E44A4B293348E6F79821094FCE3190409505`,
+`869138F5268D53C9B73770A52BF1D4D1D719178890DB7712ECB3FE66D8018708`,
+`A26D3E5A098CBF4F9490FE4C0F283658DC03851F034CEAB78C2311735E3EFA32`,
+`ABE4A3BDCEDDCD7CFA248498F857624B1BED10846C3794DD08857A5680C99066`, and
+`9CA9F62BACD90C62064D505E4C4C996C01776F86F71AA66E8C753DA67EEC000D`.
+The canonical 22-page report SHA is
+`FD081A2E40786511AB7FFF5D2CCEE2E7A64B9B77949442E4D43C4482680C8A87`.
+
+The candidate selection preserves `17/19 = 89%`, blocked I1
+`hosted_candidate_parity` and I5 `production_auth_identity`, all prior scoring rulings,
+and `MARKET_READY:false`. The runtime-identical Vercel Preview frontend source `50a591d4`
+passed 22 routes at two viewports and 44 real browser clicks, but is not exact RC33 hosted
+six-service parity. RC31 source `94cee68508196195454139a7c4a432b024f91869` is the
+immutable local rollback target. No GHCR publication, default-branch write, production
+deploy, release promotion, rollout, payment, scope expansion, secret rotation, or secret
+output is claimed. Workflow action pins remain frozen until the next release freeze.
+
 ## Current RC31 Local Qualification Evidence
 
 Recorded 2026-09-02. Active candidate `prod-candidate-2026-09-02-local-rc31` is bound

@@ -1,8 +1,8 @@
 {
   "active_release_id": "prod-candidate-2026-09-02-local-rc33",
   "source_commit_sha": "a632372863a39faa0e53d780c1942938a2b3241c",
-  "updated_at": "2026-09-02T04:06:32Z",
-  "updated_by": "rc33-local-prequalification",
-  "reason": "RC33 selects frozen source a632372863a39faa0e53d780c1942938a2b3241c for exact-source CI prequalification and six clean-archive image qualification. RC33 contains the hosted Next API security headers, deterministic browser-contract projections, fail-closed gateway read fallback, non-contract gateway error sanitization, Phase-6 gameplay transition projection, and the byte-/EOL-safe candidate-verifier repair. RC31 source 94cee68508196195454139a7c4a432b024f91869 is the rollback target. All RC33 evidence chains must be rebound before final qualification. DEV-ONLY; hosted proof still blocked. I1, I5, GHCR publication, release promotion, and production rollout remain blocked.",
+  "updated_at": "2026-09-02T05:09:20Z",
+  "updated_by": "rc33-local-qualification",
+  "reason": "RC33 selects frozen source a632372863a39faa0e53d780c1942938a2b3241c after exact-source CI prequalification and all five independent local qualification chains passed under one source-bound evidence run. The exact 27-file evidence set binds six clean-archive images, runtime 10/10 healthy, real Chromium browser actions across 22 routes and 161 registered members, candidate-runtime identity with a real selection and click, candidate archive npm audit with 0 vulnerabilities, and canonical gitleaks with no leaks. RC33 contains the hosted Next API security headers, deterministic browser-contract projections, fail-closed gateway read fallback, non-contract gateway error sanitization, Phase-6 gameplay transition projection, and the byte-/EOL-safe candidate-verifier repair. RC31 source 94cee68508196195454139a7c4a432b024f91869 is the rollback target. DEV-ONLY; hosted proof still blocked. I1, I5, GHCR publication, release promotion, and production rollout remain blocked.",
   "production_rollout_claimed": false
 }

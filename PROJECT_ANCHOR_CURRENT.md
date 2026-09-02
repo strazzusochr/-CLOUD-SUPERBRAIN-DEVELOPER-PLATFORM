@@ -1,34 +1,34 @@
 # Cloud Superbrain Project Anchor
 
-## ⚓ CHECKPOINT 2026-09-02 — RC31 LOCAL QUALIFICATION
+## ⚓ CHECKPOINT 2026-09-02 — RC33 LOCAL QUALIFICATION
 
-**Anchor ID:** `cloud-superbrain-anchor-2026-09-02-rc31-qualified-preview-rebind-next`
+**Anchor ID:** `cloud-superbrain-anchor-2026-09-02-rc33-qualified-final-head-ci-next`
 **Status:** `ACTIVE_RESUME_POINT`
 **Workspace:** `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
 **Branch:** `codex/organism-visual-v2`
 
 | Gegenstand | Ergebnis |
 |---|---|
-| Frozen Product Source | `94cee68508196195454139a7c4a432b024f91869` (RC31) |
-| Source-Attestation | `7e99d6c815015ac792864700b2cf57ea8c042fe0`, `pr-check` `33566857871`, `31/31`, skipped `0` |
-| CI Artifact | ID `9823530568`, digest `sha256:edca562a662779137d316e4240c8a9f5e8d81eabc34cc670122f34d86004cdb0` |
-| Local Qualification | 5/5 Ketten, 27 Dateien, Evidence-Run `1d69dcc1-8383-4447-8158-912e98b9f8fe` |
+| Frozen Product Source | `a632372863a39faa0e53d780c1942938a2b3241c` (RC33) |
+| Source-Attestation | `5aad04d47375490dfbd8765d6e9e3f77241f3fdf`, `pr-check` `33589444701`, `31/31`, skipped `0` |
+| CI Artifact | ID `9831272175`, digest `sha256:88d8cd884f3df354a47385df188406f02bcaf209e5403d2deefcc15627e0aac3` |
+| Local Qualification | 5/5 Ketten, 27 Dateien, Evidence-Run `7bbc2310-0bb3-42e5-8484-819c37d93431` |
 | Browser | `22/22` Routen, `29/29` Familien, `161/161` Aktionen; realer Candidate-Playwright-Klick |
 | Security / Runtime | Kandidatenarchiv-Audit `0` Schwachstellen, gitleaks gruen, Docker `10/10 healthy` |
-| Preview-Runtime | Noch RC30; RC31 native MCP-Health ist lokal/source-bound implementiert, Preview-Rebind folgt; kein Production-Alias |
-| Rollback | RC30 Source `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68` |
+| Preview-Runtime | Vercel Preview auf runtime-identischer Frontend-Source `50a591d4` browser-gruen; kein exakter RC33-I1-Beweis und kein Production-Alias |
+| Rollback | RC31 Source `94cee68508196195454139a7c4a432b024f91869` |
 | Manifest | Overall **89** · P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 89 · P6 90 |
 | Vertikal | L1 100 · L2 100 · L3 100 · L4 55 · **L5 86** · L6 100 · L7 100 |
 | Delta-Ledger | 1 realer, statisch gescorter, source-/hash-gebundener Eintrag: L5 `56 -> 86` |
 | Marktstatus | `MARKET_READY:false`; I1/I5 bleiben blockiert |
-| Externe Restwaende | I1 bis RC31 Preview-Rebind + Unified-HTTPS-Beweis; I5 Production OAuth; L4-Verifier-Credential; L5 GHCR/Remote-Scan/Protected-Publish; B2/B3/B4 |
+| Externe Restwaende | I1 exakte sechs-Service Hosted-Paritaet; I5 Production OAuth; L4-Verifier-Credential; L5 GHCR/Remote-Scan/Protected-Publish; B2/B3/B4 |
 
 ### NAECHSTER SICHERER SCHRITT
 
-1. RC31-Qualifikations- und Truth-Pfade exakt committen und auf den Feature-Branch pushen.
-2. Nur die isolierte Cloudflare Preview auf die eingefrorene RC31-Source rebind-en.
-3. Nur Vercel Preview `MCP_GATEWAY_BASE_URL` auf den verifizierten Preview-MCP-Pfad setzen.
-4. Unified-HTTPS-Health plus sichtbare reale Browserklicks erneut ausfuehren; kein GHCR-, Production-, Main-, Secret- oder Scope-Write.
+1. RC33-Qualifikations-, Evidence- und Truth-Pfade exakt committen und auf den Feature-Branch pushen.
+2. Final-head `pr-check` auf exakt diesem Commit mit `skipped=0` abwarten.
+3. Danach die isolierte Preview-Grenze read-only neu messen und nur Preview-Aktionen ausfuehren, die kein Owner-Gate erweitern.
+4. Fuer I1/GHCR und I5/Production-OAuth einen exakten Prompt an den Owner-AI-Assistenten senden; kein Gate von Hand oeffnen.
 5. GitHub-Actions-Pins erst **nach dem naechsten Freeze** separat aktualisieren.
 
 ### FREMDE DIRTY-PFADE
