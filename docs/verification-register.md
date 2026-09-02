@@ -7,6 +7,42 @@ Status: Active
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `86%`, Memory `100%`, and Observability `100%`. The v2 delta ledger contains one evidence-scored L5 entry.
 
+## Current RC31 Local Qualification Evidence
+
+Recorded 2026-09-02. Active candidate `prod-candidate-2026-09-02-local-rc31` is bound
+to frozen source `94cee68508196195454139a7c4a432b024f91869` through source-attestation
+control `7e99d6c815015ac792864700b2cf57ea8c042fe0`. GitHub Actions `pr-check` run
+`33566857871` checked out that exact source and passed `31/31` observed steps with `0`
+skipped. Artifact `9823530568`, GitHub digest
+`sha256:edca562a662779137d316e4240c8a9f5e8d81eabc34cc670122f34d86004cdb0`,
+attestation SHA `84A7282161AFCDA4C8A84DDACF0D82968CFCE1C5B5EC283E18BAEF073C477FC0`,
+and readback SHA `E4FB744827651299C2F6749FB13D9572E5BD324F023A6F97FF5F23FF4C1DDB29`
+are preserved in the exact 27-file evidence set.
+
+Five independent local chains passed under evidence run
+`1d69dcc1-8383-4447-8158-912e98b9f8fe`: six source-bound candidate images; runtime
+`10/10 healthy`; complete real-Chromium proof with `22/22` routes, `29/29` families and
+`161/161` members; candidate-runtime source/image identity with a real Playwright selection
+and click; and candidate-scoped npm audit plus canonical gitleaks. Their summary hashes are
+respectively
+`1ADCFB280D276A5A8D652EE3E4AEBFC2D507C4AA1D8125E1430547A308D5C298`,
+`0210DA8FD3945BC609DBF0FD4664A96E413DC8D832E664B1E2095CA3EB98D3F9`,
+`FC5E794FD382AB2F5179B6BA93558FE325FF29AD185873F318C55BE9768E3619`,
+`2A27CDC11DD5004DC59613910BBC5E1AB68A25F932FEB789BD1752F166410F38`, and
+`63101215BCAF592524A327F7F4C3CED55CE51CAE310EF488686E512BEF2E4E16`.
+The canonical 22-page report SHA is
+`7E4FFB57703BD48F3121A4A4D45D559555FD45802A724DEA8C5D51AEFF718794`.
+
+The candidate selection preserves `17/19 = 89%`, blocked I1
+`hosted_candidate_parity` and I5 `production_auth_identity`, all prior scoring rulings,
+and `MARKET_READY:false`. RC31 adds the native source-bound Cloudflare Preview MCP health
+route needed for the unified Preview repair. The hosted Preview still reports RC30 until
+the preview-only deploy/rebind is performed, so I1 remains fail-closed. RC30 source
+`9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68` is the immutable local rollback target.
+No GHCR publication, default-branch write, production deploy, release promotion, rollout,
+payment, scope expansion, secret rotation, or secret output is claimed. Workflow action
+pins remain frozen until the next release freeze.
+
 ## Current RC30 Local Qualification Evidence
 
 Recorded 2026-09-01. Active candidate `prod-candidate-2026-09-01-local-rc30` is bound

@@ -4,18 +4,21 @@ Status: `ACTIVE_CURRENT_TRUTH`
 Stand: **2026-09-02**
 Branch: `codex/organism-visual-v2`
 Measurement-Ref: **`532a3c8c`** (immutable RC30 Hosted-MCP evidence + static scorer)
-RC30 Qualification Source: **`9e88f84a`** · Source-Attestation: **`f5a31e52`** · Evidence-CI: **`33560498326`**
-Truth-Control: **`80c42c04`** · Final-Head-CI: **`33563519174`** (`31/31`, skipped/failed `0/0`)
-Hosted Worker: **RC30 Preview source-bound** — Stateful + LLM Health melden `9e88f84a`
+RC31 Qualification Source: **`94cee685`** · Source-Attestation: **`7e99d6c8`** · Source-CI: **`33566857871`** (`31/31`, skipped `0`)
+Local Evidence: **5/5 chains · 27 files · run `1d69dcc1-8383-4447-8158-912e98b9f8fe`**
+Last Pushed Truth-Control: **`80c42c04`** · RC31 qualification truth commit/push is next
+Hosted Worker: **RC30 Preview source-bound** — RC31 Preview rebind is not yet executed
 **B1 ERTEILT 2026-08-31** — `RubricApprovalCommit = e87c28a7c6cf32982caa849794042daa53ef022a`
 Market Status: `MARKET_READY:false` — Overall `89`, Delta-Ledger `1`, L5 `86`
 
-> **Naechster Schritt ist der Unified-Vercel MCP-Health-Fix.** Der L5-Delta-/Truth-Slice
-> ist gepusht und final-head CI-gruen. Der `404` ist auf den alten Preview-
-> `MCP_GATEWAY_BASE_URL` plus den fehlenden nativen Stateful-Preview-MCP-Health-Handler
-> eingegrenzt. Danach bleiben L5 +14, L4 +45 und die Phasen-Gates.
+> **Naechster Schritt ist der RC31 Preview-Rebind.** Der native source-bound
+> Stateful-Preview-MCP-Health-Handler ist implementiert, source-attestiert und lokal mit
+> allen fuenf RC31-Ketten qualifiziert. Jetzt RC31-Truth exakt committen/pushen, nur die
+> Cloudflare Preview auf RC31 deployen, nur Vercel Preview `MCP_GATEWAY_BASE_URL` rebind-en
+> und Unified-HTTPS plus sichtbare Browserklicks neu beweisen. Danach bleiben L5 +14,
+> L4 +45 und die Phasen-Gates.
 
-> **Wartung spaeter:** Die GitHub-Actions-Runtime-Pins bleiben fuer RC30 eingefroren.
+> **Wartung spaeter:** Die GitHub-Actions-Runtime-Pins bleiben fuer RC31 eingefroren.
 > `upload-artifact` v4.6.2 sowie `checkout`/`setup-node` v4 werden erst nach dem naechsten
 > Freeze in einem separaten Slice aktualisiert.
 
@@ -56,10 +59,12 @@ angelegt (Basis `ce75bb00`); die Datei darin fehlt noch. Die exakten Befehle ste
 
 ---
 
-**Aktuelle Aussagen** sind gegen RC30-Source `9e88f84a`, Evidence-Control `532a3c8c`,
-Truth-Control `80c42c04`, CI-Lauf `33563519174`, die fuenf lokalen Qualification-Ketten und die vier Hosted-MCP-
-Reports gemessen. Der einheitliche Vercel-Candidate-Pfad ist noch nicht gruen:
-`/mcp/api/v1/health` liefert dort `404` und schliesst I1 weiter fail-closed aus.
+**Aktuelle Aussagen** sind lokal gegen RC31-Source `94cee685`, Source-Attestation
+`7e99d6c8`, CI-Lauf `33566857871`, die fuenf lokalen Qualification-Ketten und das exakte
+27-Dateien-Evidence-Set gemessen. Die vertikale L5-Messung bleibt an Evidence-Control
+`532a3c8c` und die vier immutable RC30 Hosted-MCP-Reports gebunden. Der einheitliche
+Vercel-Candidate-Pfad ist bis zum RC31 Preview-Rebind noch nicht gruen und schliesst I1
+weiter fail-closed aus.
 
 ---
 
@@ -89,7 +94,7 @@ Delta-Ledger: 1 Eintrag
 | P3 | **+56** | OAuth-Kette ist hosted gefahren. Es fehlen **5 von 12** Evidence-Schritten und das Evidence-Dokument; B1 ist erledigt. |
 | P5 | **+11** | `I5` faellt evidenzgetrieben nach P3. `I1` braucht Hosted-Candidate-Paritaet **plus** Codeaenderung. |
 | P6 | **+10** | Verifier ist scharf. Environment, Secret **und Default-Branch-Workflow existieren jetzt** (PR #32, Merge `ce75bb00`, `state=active`). Es fehlt nur noch der B3-Grant. Der alte 900er-Lauf zaehlt nicht. |
-| L4 | **+45** | RC30-Preview ist source-bound; die fuenf generativen Verifier warten fail-closed auf das lokale Verifier-Credential. |
+| L4 | **+45** | RC30-Preview ist noch hosted aktiv; RC31-Rebind folgt. Die fuenf generativen Verifier warten zusaetzlich fail-closed auf das lokale Verifier-Credential. |
 | L5 | **+14** | Vier Hosted-Kriterien (+30) sind kreditiert. Offen: Registry-Digests, Remote-Scan, Candidate-SBOM-Credit und Protected-Publish. |
 
 **136 offene Punkte.** `overall = round(sum(7 Phasen)/7)`
@@ -103,9 +108,11 @@ Delta-Ledger: 1 Eintrag
 ```text
 S1  B1  Rubriken freigeben  ── ERLEDIGT 2026-08-31  e87c28a7
                                           │
-S1b RC30 lokal qualifiziert ── ERLEDIGT ─┤  Source 9e88f84a, 5 Ketten, 27 Dateien
+S1b RC31 lokal qualifiziert ── ERLEDIGT ─┤  Source 94cee685, 5 Ketten, 27 Dateien
                                           │
-S2  Worker-Rebind auf RC30 ── ERLEDIGT ───┤  Vercel Unified-MCP bleibt 404
+S2a Nativer MCP-Health-Fix ─── ERLEDIGT ──┤  source-attestiert, lokal verifiziert
+                                          │
+S2b RC31 Preview-Rebind ────── NAECHST ───┤  Cloudflare Preview + Vercel Preview only
                                           │
       ├─> S3  L4/L5 Hosted-Laeufe ────────┼──> L4 +45, L5 +14   L5 vier Kriterien erledigt
       │                                   │
@@ -181,7 +188,20 @@ Contract-Feld rubric_approval_sha  muss identisch sein
 **Die drei Rubriken sind ab jetzt eingefroren.** Jede weitere Aenderung bricht die
 Blob-Gleichheit (`rubric_blob_drift`) und erzwingt eine neue Owner-Freigabe.
 
-### S1b — RC30 einfrieren — ERLEDIGT
+### S1c — RC31 einfrieren und lokal qualifizieren — ERLEDIGT
+
+RC31-Source `94cee68508196195454139a7c4a432b024f91869` enthaelt den nativen fail-closed
+Stateful-Preview-MCP-Health-Handler. Control
+`7e99d6c815015ac792864700b2cf57ea8c042fe0` wurde durch `pr-check` `33566857871`
+source-attestiert (`31/31`, skipped `0`). Candidate-Images, Runtime, Browser,
+Candidate-Runtime und Security sind unter Evidence-Run
+`1d69dcc1-8383-4447-8158-912e98b9f8fe` gruen; das Evidence-Set enthaelt exakt 27
+Dateien. Browser: `22/22`, `29/29`, `161/161`; Runtime: `10/10 healthy`; Kandidaten-
+Archiv-Audit: `0` Schwachstellen. RC30 ist der lokale Rollback.
+
+**Kredit:** keiner aus Qualification; P5 bleibt `89`, I1/I5 bleiben blockiert.
+
+### S1b — RC30 einfrieren — ERLEDIGT (HISTORISCHER VORGAENGER)
 
 RC30-Source `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68` enthaelt den Approval-Commit.
 Control `f5a31e52e8bbf6d166c7a1c11932f15219c587c1` wurde durch `pr-check` `33540678387`
@@ -196,7 +216,7 @@ meldet `0` Schwachstellen. Produktlogik und die RC29-Three.js-Reparatur bleiben 
 
 **Kredit:** keiner aus Qualification; die spaeteren Hosted-Kriterien werden separat gebucht.
 
-### S2 — Hosted-Rebind auf die RC30-Source — WORKER ERLEDIGT
+### S2 — Hosted-Rebind auf die RC30-Source — ERLEDIGT (HISTORISCHER VORGAENGER)
 
 Vor jeder Mutation zuerst Worker-Health, Source-SHA, Bundle-SHA, D1-Migrationen und die
 isolierten Preview-Namen neu read-only messen. Solange Health nicht exakt RC30-Source und
@@ -226,12 +246,22 @@ vollstaendig. Der einheitliche Vercel-Pfad ist separat blockiert (`/mcp/.../heal
 
 **Non-Claim:** Preview-Rebind ist kein Production-Alias, Rollout oder Release.
 
+### S2b — Hosted-Rebind auf die RC31-Source — NAECHSTER SCHRITT
+
+Nur die isolierte Cloudflare Stateful Preview auf die eingefrorene RC31-Source deployen;
+Source-, Archiv-, Bundle- und D1-Read-Bindung muessen gruen sein. Danach nur die Vercel-
+Preview-Variable `MCP_GATEWAY_BASE_URL` auf den verifizierten Preview-MCP-Pfad setzen und
+die Vercel Preview neu deployen. Unified `/mcp/api/v1/health` muss ueber nichtlokales HTTPS
+`200`, `integrity=verified` und RC31-Source melden. Anschliessend echte sichtbare Browser-
+Navigation und Funktionsklicks auf dem Preview-Alias. Kein Production-Alias, kein GHCR,
+keine Scope-/Secret-Ausweitung.
+
 ### S3 — L4/L5 Hosted-Verifier — TEILWEISE ERLEDIGT (+0 / +30)
 
-Erst nach S1 und S2. Jeder Verifier braucht mindestens:
+Erst nach S1 und S2b. Jeder neue Verifier braucht mindestens:
 
 ```text
--ExpectedSourceCommitSha 9e88f84a...
+-ExpectedSourceCommitSha 94cee685...
 -ExpectedSourceBundleSha256 <64 hex>
 -OwnerGrantRef <exakte Referenz aus capability-gates.json>
 -RubricApprovalCommit <40 hex aus S1>
@@ -248,8 +278,10 @@ Der Verifier prueft zusaetzlich, dass das passende Gate in
 Nur der Erfolgspfad setzt `credit_eligible = $true`. Ein blockierter Lauf schreibt
 `credit_eligible = $false` — dann **nicht** kreditieren, sondern die Ursache beheben.
 
-**Aktueller Kredit:** L5 `56 -> 86` durch exakt vier scorer-verifizierte Reports. L4 bleibt
-`55`; L5-Ziel `100` wartet auf die 14 Registry-/Scan-/Publish-Punkte.
+**Aktueller Kredit:** L5 `56 -> 86` durch exakt vier immutable, auf RC30 source-bound
+scorer-verifizierte Reports. Dieser bereits kreditierte Beweis wird nicht umetikettiert.
+Neue Hosted-Laeufe muessen RC31-bound sein. L4 bleibt `55`; L5-Ziel `100` wartet auf die
+14 Registry-/Scan-/Publish-Punkte.
 
 ### S4 — P3 vervollstaendigen und Evidence schreiben (+56, danach I5)
 

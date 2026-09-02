@@ -1,32 +1,35 @@
 # Cloud Superbrain Project Anchor
 
-## ⚓ CHECKPOINT 2026-09-02 — RC30 HOSTED-MCP DELTA
+## ⚓ CHECKPOINT 2026-09-02 — RC31 LOCAL QUALIFICATION
 
-**Anchor ID:** `cloud-superbrain-anchor-2026-09-02-rc30-hosted-mcp-l5-86`
+**Anchor ID:** `cloud-superbrain-anchor-2026-09-02-rc31-qualified-preview-rebind-next`
 **Status:** `ACTIVE_RESUME_POINT`
 **Workspace:** `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
 **Branch:** `codex/organism-visual-v2`
 
 | Gegenstand | Ergebnis |
 |---|---|
-| Frozen Product Source | `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68` (RC30) |
-| Source-Attestation | `f5a31e52e8bbf6d166c7a1c11932f15219c587c1`, `pr-check` `33540678387` |
-| Hosted-Evidence-Control | `532a3c8cfff201f09617c6eb46d0111d56a9dcba`, `pr-check` `33560498326`, `31/31`, skipped/failed `0/0` |
-| Truth-Control | `80c42c048a251e9eecdc63afed10a107c76ae1a2`, `pr-check` `33563519174`, `31/31`, skipped/failed `0/0` |
-| Preview-Runtime | Stateful + LLM source-/archive-/bundle-bound auf RC30; kein Production-Alias |
-| L5 Hosted Evidence | 4/4 ausgefuehrte Kriterien gruen: Write/Readback/Audit, Auth-Scope, Timeout/Idempotenz, Audit-Readback/Rollback |
+| Frozen Product Source | `94cee68508196195454139a7c4a432b024f91869` (RC31) |
+| Source-Attestation | `7e99d6c815015ac792864700b2cf57ea8c042fe0`, `pr-check` `33566857871`, `31/31`, skipped `0` |
+| CI Artifact | ID `9823530568`, digest `sha256:edca562a662779137d316e4240c8a9f5e8d81eabc34cc670122f34d86004cdb0` |
+| Local Qualification | 5/5 Ketten, 27 Dateien, Evidence-Run `1d69dcc1-8383-4447-8158-912e98b9f8fe` |
+| Browser | `22/22` Routen, `29/29` Familien, `161/161` Aktionen; realer Candidate-Playwright-Klick |
+| Security / Runtime | Kandidatenarchiv-Audit `0` Schwachstellen, gitleaks gruen, Docker `10/10 healthy` |
+| Preview-Runtime | Noch RC30; RC31 native MCP-Health ist lokal/source-bound implementiert, Preview-Rebind folgt; kein Production-Alias |
+| Rollback | RC30 Source `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68` |
 | Manifest | Overall **89** · P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 89 · P6 90 |
 | Vertikal | L1 100 · L2 100 · L3 100 · L4 55 · **L5 86** · L6 100 · L7 100 |
 | Delta-Ledger | 1 realer, statisch gescorter, source-/hash-gebundener Eintrag: L5 `56 -> 86` |
 | Marktstatus | `MARKET_READY:false`; I1/I5 bleiben blockiert |
-| Externe Restwaende | L4-Verifier-Credential; L5 GHCR/Remote-Scan/Protected-Publish; Unified Vercel `/mcp/.../health = 404`; B2/B3/B4 |
+| Externe Restwaende | I1 bis RC31 Preview-Rebind + Unified-HTTPS-Beweis; I5 Production OAuth; L4-Verifier-Credential; L5 GHCR/Remote-Scan/Protected-Publish; B2/B3/B4 |
 
 ### NAECHSTER SICHERER SCHRITT
 
-1. Red-first einen nativen source-bound `/mcp/api/v1/health`-Handler im Stateful Preview bauen.
-2. Preview `MCP_GATEWAY_BASE_URL` vom toten Production-Backend-Alias auf den verifizierten Preview-MCP-Pfad rebind-en.
-3. Unified-Vercel-Pfad und I1-Verifier erneut ausfuehren; kein GHCR-, Production-, Main-, Secret- oder Scope-Write.
-4. GitHub-Actions-Pins erst **nach dem naechsten Freeze** separat aktualisieren.
+1. RC31-Qualifikations- und Truth-Pfade exakt committen und auf den Feature-Branch pushen.
+2. Nur die isolierte Cloudflare Preview auf die eingefrorene RC31-Source rebind-en.
+3. Nur Vercel Preview `MCP_GATEWAY_BASE_URL` auf den verifizierten Preview-MCP-Pfad setzen.
+4. Unified-HTTPS-Health plus sichtbare reale Browserklicks erneut ausfuehren; kein GHCR-, Production-, Main-, Secret- oder Scope-Write.
+5. GitHub-Actions-Pins erst **nach dem naechsten Freeze** separat aktualisieren.
 
 ### FREMDE DIRTY-PFADE
 

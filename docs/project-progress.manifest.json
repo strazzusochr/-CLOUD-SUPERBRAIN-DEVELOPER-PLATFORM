@@ -97,7 +97,7 @@
   },
   "truth_policy": "Evidence-based only: percentages increase only after code, runtime proof, and verifier/doc update.",
   "binding_document": "docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md",
-  "last_verified": "2026-09-01",
+  "last_verified": "2026-09-02",
   "non_claims": [
     "Live LLM calls are verified only in bounded Cloudflare Workers AI gateway acceptance paths, including the source-bound hosted product and 22-page proofs; general provider activation and dynamic routing are not verified.",
     "No production release readiness or release promotion is verified.",

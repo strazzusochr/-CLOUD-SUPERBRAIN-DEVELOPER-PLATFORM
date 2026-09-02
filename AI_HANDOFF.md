@@ -6,6 +6,47 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
+## Current RC31 Handoff — 2026-09-02
+
+Active locally qualified candidate: `prod-candidate-2026-09-02-local-rc31`, frozen source
+`94cee68508196195454139a7c4a432b024f91869`, source-attestation control
+`7e99d6c815015ac792864700b2cf57ea8c042fe0`. GitHub Actions run `33566857871`
+checked out that exact source and passed `31/31` observed steps with `0` skipped. Artifact
+`9823530568`, GitHub digest
+`sha256:edca562a662779137d316e4240c8a9f5e8d81eabc34cc670122f34d86004cdb0`,
+attestation SHA `84A7282161AFCDA4C8A84DDACF0D82968CFCE1C5B5EC283E18BAEF073C477FC0`,
+and GitHub-readback SHA `E4FB744827651299C2F6749FB13D9572E5BD324F023A6F97FF5F23FF4C1DDB29`
+are preserved in the exact 27-file evidence set.
+
+All five independent local qualification chains passed and are bound to one evidence run
+`1d69dcc1-8383-4447-8158-912e98b9f8fe`: six source-bound clean-archive images; runtime
+`10/10 healthy`; candidate-scoped npm audit plus canonical gitleaks; complete real Chromium
+proof with `22/22` routes, `29/29` action families and `161/161` members (`160` direct plus
+one exact preverified control); and candidate-runtime source/image parity with a real
+Playwright selection and click. The canonical 22-page report SHA is
+`7E4FFB57703BD48F3121A4A4D45D559555FD45802A724DEA8C5D51AEFF718794`.
+Runtime, browser, image, candidate-runtime and security summary hashes are respectively
+`0210DA8FD3945BC609DBF0FD4664A96E413DC8D832E664B1E2095CA3EB98D3F9`,
+`FC5E794FD382AB2F5179B6BA93558FE325FF29AD185873F318C55BE9768E3619`,
+`1ADCFB280D276A5A8D652EE3E4AEBFC2D507C4AA1D8125E1430547A308D5C298`,
+`2A27CDC11DD5004DC59613910BBC5E1AB68A25F932FEB789BD1752F166410F38`, and
+`63101215BCAF592524A327F7F4C3CED55CE51CAE310EF488686E512BEF2E4E16`.
+
+RC31 adds a native fail-closed `GET /mcp/api/v1/health` route to the Cloudflare stateful
+Preview runtime and verifies it in the sanctioned Preview deploy wrapper. The currently
+hosted Preview remains on RC30 until the next preview-only rebind; no production alias has
+been changed. RC30 source `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68` is the immutable local rollback target.
+The next safe slice is: push the committed RC31 qualification truth, deploy only the frozen
+RC31 source to the isolated Cloudflare Preview, rebind only Vercel Preview
+`MCP_GATEWAY_BASE_URL`, then run unified hosted health and real visible browser checks.
+
+Phase 5 remains `17/19 = 89%`, blocked items `I1` and `I5`; Overall remains `89`, horizontal
+`100/100/100/44/100/89/90`, vertical `100/100/100/55/86/100/100`, and
+`MARKET_READY:false`. `DEV-ONLY; hosted proof still blocked`. No main/default-branch push,
+GHCR publication, production deploy, release promotion, rollout, payment, secret rotation,
+scope expansion, or secret output occurred. Keep `actions/upload-artifact` v4.6.2 and the
+checkout/setup-node v4 pins frozen until the next release freeze is complete.
+
 ## Current RC30 Handoff — 2026-09-01
 
 Active locally qualified candidate: `prod-candidate-2026-09-01-local-rc30`, frozen source

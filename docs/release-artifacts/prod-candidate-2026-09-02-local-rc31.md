@@ -9,8 +9,8 @@ source_commit_semantics: `frozen RC31 source with fail-closed native stateful Pr
 immutable_image_commit_sha: `94cee68508196195454139a7c4a432b024f91869`
 source_attestation_control_sha: `7e99d6c815015ac792864700b2cf57ea8c042fe0`
 workflow_run_url: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/33566857871`
-pipeline_status: `success; exact source checkout attested; 31/31 observed steps green; skipped=0; no release or production claim`
-smoke_result: `source prequalification and six clean-archive images passed; remaining RC31 local evidence chains are being rebound serially; DEV-ONLY; hosted proof still blocked`
+pipeline_status: `success; exact source checkout attested; 31/31 observed steps green; skipped=0; frontend audit found 0 vulnerabilities; no release or production claim`
+smoke_result: `all five RC31 local qualification chains passed and are bound in the exact 27-file evidence set; DEV-ONLY; hosted proof still blocked`
 observability_check: `candidate-bound local health, metrics, audit, trace, O4 fail-closed, MCP health, and browser readback paths remain mandatory; production observability is not claimed`
 rollback_note: `local rollback target is RC30 source 9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68; no hosted rollback is authorized or executed`
 rollback_target_commit_sha: `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68`
@@ -30,10 +30,10 @@ browser_proof: `docs/release-artifacts/prod-candidate-2026-09-02-local-rc31-read
 post_rollback_browser_revalidation_proof: `not-applicable-retired-rc1-boundary`
 final_browser_e2e_recheck_proof: `docs/release-artifacts/prod-candidate-2026-09-02-local-rc31-readiness.json`
 full_verifier_sweep_proof: `docs/release-artifacts/prod-candidate-2026-09-02-local-rc31-readiness.json`
-full_verifier_sweep_status: `RC31 source CI and candidate images passed; remaining local evidence chains pending; hosted I1 and production-auth I5 remain blocked`
+full_verifier_sweep_status: `all five RC31 local qualification chains passed; runtime 10/10 healthy; 22/22 routes, 29/29 action families, 161/161 action members; candidate archive audit 0 vulnerabilities; hosted I1 and production-auth I5 remain blocked`
 truth_mirror_rebaseline_proof: `docs/runtime-state/phase5-credit-itemization.json`
 release_readiness_rerun_proof: `docs/release-artifacts/prod-candidate-2026-09-02-local-rc31-readiness.json`
-browser_rerun_status: `RC31 immutable candidate-browser evidence rebinding remains pending`
+browser_rerun_status: `immutable RC31 candidate-browser evidence passed with 22/22 routes, 29/29 action families, 161/161 action members, and a real candidate-runtime Playwright selection and click`
 review_gate: `pending`
 owner_decision: `no-release`
 hosted_staging_parity: `false`
@@ -44,9 +44,10 @@ phase5_computed_percent: `89`
 
 ## Phase-5 Readiness Checklist
 
-RC31 supersedes RC30 only after the same five independent local qualification chains are
-rebound to the exact source. RC31 adds the fail-closed native Preview MCP health surface
-needed to repair unified Preview routing; it does not award percentage credit. I1
+RC31 supersedes RC30 in local candidate truth after all five independent qualification
+chains were rebound to the exact source and preserved in 27 immutable evidence files.
+RC31 adds the fail-closed native Preview MCP health surface needed to repair unified
+Preview routing; it does not award percentage credit. I1
 `hosted_candidate_parity` and I5 `production_auth_identity` remain zero-credit blocks.
 
 | ID | JA/NEIN | Beleg |

@@ -3,7 +3,7 @@
   "mode": "fully_itemized",
   "credit_blocked_until_candidate_qualified": false,
   "cell_id": "phase_5",
-  "updated_at_utc": "2026-09-01T22:47:33Z",
+  "updated_at_utc": "2026-09-02T01:01:00Z",
   "checklist_path": "docs/release-checklist.md",
   "rubric": "phase5-release-readiness-19-v2",
   "scoring_rule": "Each of the 19 JA/NEIN items is one equal binary unit. computed_percent = round(verified_item_count / 19 * 100). NEIN receives no partial credit.",
@@ -139,8 +139,8 @@
       "evidence": [
         {
           "path": "docs/runtime-state/frontend-hosted-current.json",
-        "claim": "The hosted frontend preview remains on the prior RC30 lineage and is not a full six-service RC31 hosted candidate-parity proof.",
-        "anchor": "\"source_commit_sha\": \"4b26d00a1a842db73cbd5fa58dfffd3928d2342e\""
+          "claim": "The hosted frontend preview remains on the prior RC30 lineage and is not a full six-service RC31 hosted candidate-parity proof.",
+          "anchor": "\"source_commit_sha\": \"4b26d00a1a842db73cbd5fa58dfffd3928d2342e\""
         },
         {
           "path": "docs/runtime-state/backend-hosted-current.json",

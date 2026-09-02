@@ -5,19 +5,27 @@ Letzte Aktualisierung: 2026-09-02
 
 ## AKTUELLER PROJEKTANKER
 
-### Session 2026-09-02 — RC31 Source Prequalification
+### Session 2026-09-02 — RC31 Local Qualification
 
-- **Aktiver Prequalification-Kandidat:** `prod-candidate-2026-09-02-local-rc31`,
+- **Aktiver lokal qualifizierter Kandidat:** `prod-candidate-2026-09-02-local-rc31`,
   eingefrorene Source `94cee68508196195454139a7c4a432b024f91869`, Control
   `7e99d6c815015ac792864700b2cf57ea8c042fe0`. GitHub-Actions-Lauf `33566857871`
   attestiert den exakten Source-Checkout mit `31/31` gruenen Schritten und `0` skipped.
-- **Lokal laufende Qualifikation:** Sechs Clean-Archive-Images sind source-bound gebaut.
-  Runtime-, Browser-, Security- und Candidate-Runtime-Ketten werden jetzt seriell an RC31
-  gebunden. RC30-Source `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68` bleibt Rollback.
+- **Lokal qualifiziert:** Alle fuenf unabhaengigen Ketten sind source-bound gruen und im
+  exakten 27-Dateien-Evidence-Set gebunden: sechs Clean-Archive-Images, Runtime `10/10
+  healthy`, Candidate-Archiv-npm-audit plus kanonisches gitleaks, kompletter realer
+  Chromium-Lauf mit `22/22` Routen, `29/29` Aktionsfamilien und `161/161` Mitgliedern sowie
+  Candidate-Runtime-Paritaet mit echter Playwright-Auswahl und Klick. Gemeinsame Evidence-
+  Run-ID: `1d69dcc1-8383-4447-8158-912e98b9f8fe`. RC30-Source
+  `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68` bleibt Rollback.
 - **Produktdelta:** Native `GET /mcp/api/v1/health` im Cloudflare-Stateful-Preview ist
   fail-closed an Source, Archiv, Bundle und D1-Read gebunden; der Preview-Deploy-Wrapper
   prueft die Route nach dem Deploy. Die eingefrorenen Workflow-Action-Pins bleiben
   unveraendert bis zum naechsten Freeze.
+- **Naechster sicherer Schritt:** Qualifikations- und Truth-Commit auf den Feature-Branch
+  pushen, danach nur die isolierte Cloudflare Preview auf RC31 rebind-en, nur die Vercel-
+  Preview-Variable `MCP_GATEWAY_BASE_URL` auf diesen Preview-Pfad setzen und den Unified-
+  HTTPS-/Browserbeweis neu fahren. Kein Production-Alias.
 - **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
   P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `86`,
   L6 `100`, L7 `100`. `MARKET_READY:false`. I1 und I5 bleiben blockiert.
