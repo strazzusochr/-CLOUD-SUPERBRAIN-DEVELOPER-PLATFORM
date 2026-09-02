@@ -49,6 +49,26 @@ function Get-Sha256Hex([string]$Path) {
   }
 }
 
+function Get-GitBlobText([string]$ObjectSpec) {
+  $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+  $startInfo.FileName = "git"
+  $startInfo.Arguments = "cat-file blob `"$ObjectSpec`""
+  $startInfo.UseShellExecute = $false
+  $startInfo.RedirectStandardOutput = $true
+  $startInfo.RedirectStandardError = $true
+  $startInfo.CreateNoWindow = $true
+  $startInfo.StandardOutputEncoding = [System.Text.UTF8Encoding]::new($false)
+
+  $process = [System.Diagnostics.Process]::Start($startInfo)
+  $stdout = $process.StandardOutput.ReadToEnd()
+  $stderr = $process.StandardError.ReadToEnd()
+  $process.WaitForExit()
+  if ($process.ExitCode -ne 0) {
+    throw "Phase5 local candidate verification failed: git blob '$ObjectSpec' is unreadable: $($stderr.Trim())"
+  }
+  return $stdout
+}
+
 function Get-ContainerSha256([string]$Image, [string]$Path) {
   $value = (& docker run --rm --entrypoint sha256sum $Image $Path 2>&1 | Out-String).Trim()
   Assert-True "embedded hash readable for $Image $Path" ($LASTEXITCODE -eq 0 -and $value -match '^([0-9a-f]{64})\s+')
@@ -243,8 +263,8 @@ try {
       Assert-Equal "no-credit manifest immutable projection" ($currentManifestProjection | ConvertTo-Json -Compress -Depth 100) ($sourceManifest | ConvertTo-Json -Compress -Depth 100)
 
       $platform = Get-Content "apps\frontend\lib\platform.ts" -Raw
-      $sourcePlatform = (& git show "${candidateSourceSha}:apps/frontend/lib/platform.ts" 2>$null | Out-String)
-      Assert-True "no-credit source platform readable" ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($sourcePlatform))
+      $sourcePlatform = Get-GitBlobText "${candidateSourceSha}:apps/frontend/lib/platform.ts"
+      Assert-True "no-credit source platform readable" (-not [string]::IsNullOrWhiteSpace($sourcePlatform))
       $currentSnapshotToken = 'snapshot: "' + $candidateUpdatedDate + '"'
       $sourceSnapshotToken = 'snapshot: "' + [string]$sourceManifest.last_verified + '"'
       $currentDatedToken = 'dated ' + $candidateUpdatedDate
@@ -252,7 +272,9 @@ try {
       Assert-Equal "no-credit platform snapshot mirror" ([regex]::Matches($platform, [regex]::Escape($currentSnapshotToken)).Count) 1
       Assert-Equal "no-credit platform dated mirror" ([regex]::Matches($platform, [regex]::Escape($currentDatedToken)).Count) 1
       $platformProjection = $platform.Replace($currentSnapshotToken, $sourceSnapshotToken).Replace($currentDatedToken, $sourceDatedToken)
-      Assert-Equal "no-credit platform immutable projection" $platformProjection $sourcePlatform
+      $platformProjectionCanonical = $platformProjection.Replace("`r`n", "`n")
+      $sourcePlatformCanonical = $sourcePlatform.Replace("`r`n", "`n")
+      Assert-Equal "no-credit platform immutable projection" $platformProjectionCanonical $sourcePlatformCanonical
 
       $external = Get-Content "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
       $sourceExternalText = (& git show "${candidateSourceSha}:docs/runtime-state/external-gate-summary.json" 2>$null | Out-String)

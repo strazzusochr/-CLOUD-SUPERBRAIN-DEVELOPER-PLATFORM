@@ -868,6 +868,9 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             'Assert-Equal "no-credit manifest last_verified"',
             'Assert-Equal "no-credit manifest immutable projection"',
             'Assert-Equal "no-credit platform snapshot mirror"',
+            '$sourcePlatform = Get-GitBlobText',
+            '$platformProjectionCanonical = $platformProjection.Replace("`r`n", "`n")',
+            '$sourcePlatformCanonical = $sourcePlatform.Replace("`r`n", "`n")',
             'Assert-False "no-credit production rollout"',
             "$candidateConfigText = Get-Content",
             "$candidateUpdatedAtText = $Matches[1]",
@@ -882,6 +885,9 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         self.assertNotIn("$runtimeChangedPaths.Count -eq 3", source)
         self.assertNotIn(
             "[DateTimeOffset]::Parse([string]$candidateConfig.updated_at)", source
+        )
+        self.assertNotIn(
+            'git show "${candidateSourceSha}:apps/frontend/lib/platform.ts"', source
         )
 
         current = (REPO_ROOT / "scripts" / "verify-current-release-candidate.ps1").read_text(
