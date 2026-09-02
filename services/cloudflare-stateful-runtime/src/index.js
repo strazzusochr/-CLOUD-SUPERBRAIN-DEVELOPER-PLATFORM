@@ -19,6 +19,8 @@ const AUTH_REFRESH_FAMILY_ID_PATTERN = /^fam_[A-Za-z0-9_-]{22}$/;
 const AUTH_CANONICAL_ISO_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const SOURCE = "cloudflare-workers-d1-stateful-runtime";
 const AUTH_HEADER = "x-superbrain-agent-token";
+const CONTRACT_ORIGIN_HOP_PARAM = "__sb_contract_origin_hop";
+const CONTRACT_ORIGIN_HOP_VALUE = "1";
 const MAX_BODY_BYTES = 192 * 1024;
 const MAX_HTML_BYTES = 160 * 1024;
 const MAX_METADATA_BYTES = 8 * 1024;
@@ -2038,8 +2040,12 @@ async function proxyContractOrigin(request, env, requestId) {
     return json(blocked("route_not_found", requestId, "The requested stateful route does not exist."), 404);
   }
   const incoming = new URL(request.url);
+  if (incoming.searchParams.has(CONTRACT_ORIGIN_HOP_PARAM)) {
+    return json(blocked("proxy_loop_blocked", requestId, "Contract-origin bounce loop blocked."), 508);
+  }
   if (origin.origin === incoming.origin) return json(blocked("proxy_loop_blocked", requestId, "Contract-origin loop blocked."), 508);
   const target = new URL(`${origin.origin}${incoming.pathname}${incoming.search}`);
+  target.searchParams.set(CONTRACT_ORIGIN_HOP_PARAM, CONTRACT_ORIGIN_HOP_VALUE);
   const headers = new Headers();
   for (const name of ["accept", "x-request-id", "traceparent"]) {
     const value = request.headers.get(name);

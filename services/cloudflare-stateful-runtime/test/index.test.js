@@ -1196,6 +1196,37 @@ test("unmatched writes are never proxied to the contract origin", async () => {
   assert.equal(body.accepted, false);
 });
 
+test("contract-origin reads terminate a cross-origin bounce after one subrequest", async () => {
+  const fakeEnv = { ...env(), CONTRACT_ORIGIN: "https://frontend.example" };
+  const originalFetch = globalThis.fetch;
+  let contractOriginCalls = 0;
+  globalThis.fetch = async (input) => {
+    contractOriginCalls += 1;
+    const target = new URL(typeof input === "string" ? input : input.url ?? String(input));
+    assert.equal(target.origin, "https://frontend.example");
+    assert.equal(target.pathname, "/api/v1/project/progress");
+    assert.equal(target.searchParams.get("view"), "current");
+    assert.equal(target.searchParams.get("__sb_contract_origin_hop"), "1");
+    return worker.fetch(new Request(
+      `https://state.example${target.pathname}${target.search}`,
+      { headers: { accept: "application/json" } },
+    ), fakeEnv);
+  };
+  try {
+    const response = await worker.fetch(
+      new Request("https://state.example/api/v1/project/progress?view=current"),
+      fakeEnv,
+    );
+    const body = await response.json();
+    assert.equal(response.status, 508);
+    assert.equal(body.error, "proxy_loop_blocked");
+    assert.equal(body.accepted, false);
+    assert.equal(contractOriginCalls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("team status is a native read-only degraded projection on both aliases", async () => {
   const expectedRoles = ["supervisor", "planner", "explorer", "coder", "tester"];
   const expectedRoleMap = {
