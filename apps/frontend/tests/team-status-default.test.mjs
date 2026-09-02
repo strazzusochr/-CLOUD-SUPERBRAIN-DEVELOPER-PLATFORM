@@ -69,6 +69,16 @@ const ROLE_MAP = {
 const originalFetch = globalThis.fetch;
 const originalAgentApiInternalUrl = process.env.AGENT_API_INTERNAL_URL;
 
+test("go-live readiness projection mirrors the canonical contract field surface", () => {
+  const projected = endpointDefaults.projectedDefault("/api/v1/clouds/go-live-readiness/contract", "GET");
+  assert.equal(projected.status ?? 200, 200);
+  assert.equal(projected.payload.contract_version, "go-live-readiness-surface-v1");
+  assert.equal(projected.payload.endpoint, "GET /api/v1/clouds/go-live-readiness/contract");
+  assert.equal(projected.payload.expected_runtime_contract_version, "go-live-readiness-v1");
+  assert.ok(projected.payload.required_top_level_fields.includes("external_audit_expected_missing_or_failed_gates"));
+  assert.ok(projected.payload.required_verifiers.includes("scripts/verify-go-live-readiness.ps1"));
+});
+
 test.afterEach(() => {
   readProxyCalls = 0;
   globalThis.fetch = originalFetch;
