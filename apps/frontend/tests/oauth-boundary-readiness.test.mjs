@@ -799,6 +799,30 @@ test("gateway writes preserve upstream application failures and never project su
   assert.equal((await response.json()).error, "rate_limited");
 });
 
+test("gateway writes replace non-contract upstream errors with fail-closed JSON", async () => {
+  process.env.LLM_GATEWAY_BASE_URL = "https://llm-gateway.example.test";
+  globalThis.fetch = async () => new Response("error code: 1027", {
+    status: 429,
+    headers: { "content-type": "text/html; charset=UTF-8" },
+  });
+
+  const response = await gatewayHandle(
+    request("/llm/v1/responses", { "content-type": "application/json" }, { method: "POST", body: "{}" }),
+    ["v1", "responses"],
+    "/llm",
+    "LLM_GATEWAY_BASE_URL",
+  );
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("x-superbrain-source"), "frontend-boundary-blocked");
+  const payload = await response.json();
+  assert.equal(payload.error, "configured_boundary_unavailable");
+  assert.equal(payload.accepted, false);
+  assert.equal(payload.persisted, false);
+  assert.equal(payload.audit_persisted, false);
+  assert.equal(payload.live_provider_calls, false);
+  assert.equal(payload.secret_output, false);
+});
+
 test("OAuth callback rejects duplicate or extra incoming query fields before fetch", async () => {
   process.env.AGENT_API_BASE_URL = "https://agent-api.example.test";
   let calls = 0;

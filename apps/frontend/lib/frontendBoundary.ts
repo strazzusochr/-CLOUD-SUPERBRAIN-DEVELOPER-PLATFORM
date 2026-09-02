@@ -904,6 +904,7 @@ export function boundaryUnavailable(
       required_env: BOUNDARIES[kind].envNames,
       accepted: false,
       persisted: false,
+      audit_persisted: false,
       live_backend: false,
       direct_provider_calls: false,
       live_provider_calls: false,

@@ -19,7 +19,21 @@ export async function gatewayHandle(
   const live = isRead
     ? await proxyReadToBoundary(req, kind, forwardPath)
     : await proxyToBoundary(req, kind, forwardPath);
-  if (live) return live;
+  if (live) {
+    const mediaType = (live.headers.get("content-type") ?? "")
+      .split(";", 1)[0]
+      .trim()
+      .toLowerCase();
+    const isStructuredJson = mediaType === "application/json" || mediaType.endsWith("+json");
+    if (!isRead && live.status >= 400 && !isStructuredJson) {
+      return boundaryUnavailable(
+        `${req.method} ${pathname}`,
+        kind,
+        "The configured gateway returned a non-contract error; no action was accepted.",
+      );
+    }
+    return live;
+  }
 
   // 3) Deterministic contract projection for known gateway contract surfaces.
   const projected = projectedDefault(pathname, req.method);
