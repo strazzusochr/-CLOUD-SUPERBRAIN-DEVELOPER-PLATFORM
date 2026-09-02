@@ -525,6 +525,11 @@ const DEFAULTS: Record<string, () => Record<string, unknown>> = {
     evidence_ref: "phase6_3d_gameplay_state_runtime_visible",
     gameplay_state_strategy: "local_objective_score_checkpoint_state_machine",
     objectives: ["collect", "checkpoint", "survive"],
+    objective_transitions: {
+      collect: { next: "checkpoint", score_delta: 10, checkpoint_delta: 0 },
+      checkpoint: { next: "survive", score_delta: 0, checkpoint_delta: 1 },
+      survive: { next: "collect", score_delta: 10, checkpoint_delta: 0 },
+    },
     score_increment: 10,
     checkpoint_increment: 1,
     loop_interval_ms: 1000,

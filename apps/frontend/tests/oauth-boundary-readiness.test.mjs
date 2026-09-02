@@ -235,6 +235,13 @@ test("the frontend preserves the remaining deterministic browser-contract projec
   assert.equal(scoreboard?.leaderboard_maximum_entries, 3);
   assert.equal(scoreboard?.performance_sample_count, 12);
   assert.equal(scoreboard?.scale_capacity_claim_allowed, false);
+
+  const gameplay = endpointDefaultsModule.exports.projectedDefault("/api/v1/phase6/3d-gameplay-state/contract", "GET")?.payload;
+  assert.deepEqual(gameplay?.objective_transitions, {
+    collect: { next: "checkpoint", score_delta: 10, checkpoint_delta: 0 },
+    checkpoint: { next: "survive", score_delta: 0, checkpoint_delta: 1 },
+    survive: { next: "collect", score_delta: 10, checkpoint_delta: 0 },
+  });
 });
 
 test("OAuth callback timing remains monotonic across the backend and frontend boundary", () => {
