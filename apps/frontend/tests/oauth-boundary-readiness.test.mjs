@@ -205,6 +205,26 @@ test("the frontend security projections preserve the CSP, CSRF, and cross-origin
   assert.equal(crossOrigin?.production_deploy, false);
 });
 
+test("the frontend preserves the remaining deterministic browser-contract projections", () => {
+  const orchestrator = endpointDefaultsModule.exports.projectedDefault("/api/v1/orchestrator/completion/contract", "GET")?.payload;
+  assert.equal(orchestrator?.contract_version, "orchestrator-completion-evidence-v1");
+  assert.equal(orchestrator?.layer_progress_after_proof, 100);
+  assert.equal(orchestrator?.live_provider_calls, false);
+  assert.equal(orchestrator?.live_mcp_writes, false);
+
+  const candidate = endpointDefaultsModule.exports.projectedDefault("/api/v1/release-candidate/local/contract", "GET")?.payload;
+  assert.equal(candidate?.contract_version, "phase5-production-candidate-local-v1");
+  assert.equal(candidate?.service_count, 6);
+  assert.equal(candidate?.registry_publish, false);
+  assert.equal(candidate?.hosted_staging_parity, false);
+
+  const scoreboard = endpointDefaultsModule.exports.projectedDefault("/api/v1/phase6/local-scoreboard-performance/contract", "GET")?.payload;
+  assert.equal(scoreboard?.contract_version, "phase6-local-scoreboard-performance-runtime-v1");
+  assert.equal(scoreboard?.leaderboard_maximum_entries, 3);
+  assert.equal(scoreboard?.performance_sample_count, 12);
+  assert.equal(scoreboard?.scale_capacity_claim_allowed, false);
+});
+
 test("OAuth callback timing remains monotonic across the backend and frontend boundary", () => {
   assert.match(agentApiSource, /httpx\.Client\(timeout=10\.0, follow_redirects=False\)/);
   assert.match(catchAllRouteSource, /export const maxDuration = 30;/);
