@@ -5,6 +5,27 @@ Letzte Aktualisierung: 2026-09-02
 
 ## AKTUELLER PROJEKTANKER
 
+### Session 2026-09-02 — RC33 Source Prequalification
+
+- **Aktiver Prequalification-Kandidat:** `prod-candidate-2026-09-02-local-rc33`,
+  eingefrorene Source `a632372863a39faa0e53d780c1942938a2b3241c`, Control
+  `5aad04d47375490dfbd8765d6e9e3f77241f3fdf`. GitHub-Actions-Lauf `33589444701`
+  attestiert den exakten Source-Checkout mit `31/31` gruenen Schritten und `0` skipped.
+- **Lokal laufende Qualifikation:** Sechs Clean-Archive-Images sind source-bound gebaut.
+  Runtime-, Browser-, Security- und Candidate-Runtime-Ketten werden jetzt seriell an RC33 gebunden.
+  RC31-Source `94cee68508196195454139a7c4a432b024f91869` bleibt Rollback.
+- **Produktdelta:** Hosted Next-API-Sicherheitsheader, fehlende Read-only-Projektionen,
+  fail-closed Gateway-Read-Fallback, JSON-Sanitisierung fuer Provider-Plattformfehler und
+  die vollstaendige Gameplay-Transition-Projektion sowie ein byte-/EOL-sicherer Git-Blob-
+  Vergleich im Candidate-Verifier sind im eingefrorenen Source enthalten. Der echte Vercel-
+  Preview-Browservertrag der runtime-identischen Frontend-Source `50a591d4` lief mit
+  `22 x 2` Routen und `44` Klicks gruen; er ist noch kein exakter RC33-Hosted-Beweis.
+- **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
+  P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `86`,
+  L6 `100`, L7 `100`. `MARKET_READY:false`. I1 und I5 bleiben blockiert.
+- **Non-Claims:** DEV-ONLY; hosted proof still blocked. Kein Main-/Default-Branch-Write,
+  GHCR-Push, Production-Deploy, Release-Promotion, Production-Rollout oder Secret-Output.
+
 ### Session 2026-09-02 — RC31 Local Qualification
 
 - **Aktiver lokal qualifizierter Kandidat:** `prod-candidate-2026-09-02-local-rc31`,
