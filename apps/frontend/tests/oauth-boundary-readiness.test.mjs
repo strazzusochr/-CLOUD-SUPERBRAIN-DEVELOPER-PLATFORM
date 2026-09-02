@@ -167,6 +167,26 @@ test("the frontend auth projection names all five missing OAuth values", () => {
   });
 });
 
+test("the frontend security projections preserve the CSP, CSRF, and cross-origin contracts", () => {
+  const security = endpointDefaultsModule.exports.projectedDefault("/api/v1/security/headers/contract", "GET")?.payload;
+  assert.equal(security?.csp_report_contract.contract_version, "csp-report-contract-v1");
+  assert.equal(security?.csp_report_contract.evidence_ref, "csp_report_contract_visible");
+  assert.equal(security?.csrf_origin_contract.contract_version, "csrf-origin-guard-v1");
+  assert.equal(security?.cross_origin_response_contract.contract_version, "cross-origin-response-guard-v1");
+
+  const csrf = endpointDefaultsModule.exports.projectedDefault("/api/v1/security/csrf/contract", "GET")?.payload;
+  assert.equal(csrf?.phase3_progress_after_proof, 42);
+  assert.equal(csrf?.cookie_or_authorization_value_persisted, false);
+
+  const crossOrigin = endpointDefaultsModule.exports.projectedDefault("/api/v1/security/cross-origin/contract", "GET")?.payload;
+  assert.equal(crossOrigin?.phase3_progress_after_proof, 43);
+  assert.equal(crossOrigin?.headers["Cross-Origin-Opener-Policy"], "same-origin");
+  assert.equal(crossOrigin?.cors_policy.attacker_origin_reflected, false);
+  assert.equal(crossOrigin?.cors_policy.credentials_allowed_cross_origin, false);
+  assert.equal(crossOrigin?.provider_write, false);
+  assert.equal(crossOrigin?.production_deploy, false);
+});
+
 test("OAuth callback timing remains monotonic across the backend and frontend boundary", () => {
   assert.match(agentApiSource, /httpx\.Client\(timeout=10\.0, follow_redirects=False\)/);
   assert.match(catchAllRouteSource, /export const maxDuration = 30;/);
