@@ -159,6 +159,12 @@ test("the frontend auth projection names all five missing OAuth values", () => {
     "GITHUB_OAUTH_OWNER_IDS",
     "JWT_SIGNING_SECRET_BASE64URL_256_BIT_MINIMUM",
   ]);
+  assert.deepEqual(projected?.payload.cookie_flags, {
+    SameSite: "Strict",
+    HttpOnly: true,
+    Secure: true,
+    host_prefix: true,
+  });
 });
 
 test("OAuth callback timing remains monotonic across the backend and frontend boundary", () => {

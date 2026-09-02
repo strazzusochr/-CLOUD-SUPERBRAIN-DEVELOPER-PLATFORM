@@ -80,6 +80,7 @@ function authContract(): Record<string, unknown> {
       complete_issuance_configuration_required: true,
     },
     cookie: { SameSite: "Strict", HttpOnly: true, Secure: true, host_prefix: true },
+    cookie_flags: { SameSite: "Strict", HttpOnly: true, Secure: true, host_prefix: true },
     audit: { credential_issuance_requires_persistence: true, secret_material_allowed: false },
     endpoints: ["/api/v1/auth/github", "/api/v1/auth/callback", "/api/v1/auth/refresh", "/api/v1/auth/logout", "/api/v1/auth/me"],
     secret_output: false,
