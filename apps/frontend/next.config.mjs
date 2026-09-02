@@ -1,6 +1,28 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {};
 
+const apiSecurityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "no-referrer" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  {
+    key: "Content-Security-Policy",
+    value: "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; report-uri /api/v1/security/csp/report",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+  { key: "X-Superbrain-Security-Contract", value: "security-headers-v1" },
+];
+
+nextConfig.headers = async () => [
+  {
+    source: "/api/:path*",
+    headers: apiSecurityHeaders,
+  },
+];
+
 if (!process.env.VERCEL) {
   nextConfig.outputFileTracingRoot = new URL("../..", import.meta.url).pathname;
 }

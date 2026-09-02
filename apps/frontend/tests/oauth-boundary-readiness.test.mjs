@@ -8,6 +8,7 @@ import vm from "node:vm";
 import ts from "typescript";
 
 import statefulWorker from "../../../services/cloudflare-stateful-runtime/src/index.js";
+import nextConfig from "../next.config.mjs";
 
 const require = createRequire(import.meta.url);
 const boundarySource = fs.readFileSync(new URL("../lib/frontendBoundary.ts", import.meta.url), "utf8");
@@ -99,6 +100,23 @@ function restoreEnvironment() {
 
 test.afterEach(restoreEnvironment);
 test.after(restoreEnvironment);
+
+test("Next API responses carry the complete security-header contract", async () => {
+  assert.equal(typeof nextConfig.headers, "function");
+  const rules = await nextConfig.headers();
+  const apiRule = rules.find((rule) => rule.source === "/api/:path*");
+  assert.ok(apiRule);
+  const headers = Object.fromEntries(apiRule.headers.map(({ key, value }) => [key.toLowerCase(), value]));
+  assert.equal(headers["x-content-type-options"], "nosniff");
+  assert.equal(headers["x-frame-options"], "DENY");
+  assert.equal(headers["referrer-policy"], "no-referrer");
+  assert.equal(headers["permissions-policy"], "camera=(), microphone=(), geolocation=()");
+  assert.equal(headers["cross-origin-opener-policy"], "same-origin");
+  assert.equal(headers["cross-origin-resource-policy"], "same-origin");
+  assert.equal(headers["x-permitted-cross-domain-policies"], "none");
+  assert.equal(headers["x-superbrain-security-contract"], "security-headers-v1");
+  assert.match(headers["content-security-policy"], /report-uri \/api\/v1\/security\/csp\/report/);
+});
 
 test("DEV-LIVE loads all five fail-closed OAuth configuration values", () => {
   const declaration = startDevLiveSource.match(/\$oauthKeys\s*=\s*@\(([^)]*)\)/s)?.[1] ?? "";
