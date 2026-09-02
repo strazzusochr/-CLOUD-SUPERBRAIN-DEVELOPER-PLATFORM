@@ -3,7 +3,7 @@
 Status: `ACTIVE_CURRENT_HANDOFF`
 Stand: **2026-09-02**
 Branch: `codex/organism-visual-v2`
-Qualification Source: **`a632372863a39faa0e53d780c1942938a2b3241c`**; Source-Attestation: **`5aad04d47375490dfbd8765d6e9e3f77241f3fdf`**; Hosted-Evidence-Control: **`532a3c8cfff201f09617c6eb46d0111d56a9dcba`** (immutable RC30 L5 evidence); Last Pushed Truth-Control: **`34d00d533c262d57cd515f5b63f7916e98181413`**
+Qualification Source: **`a632372863a39faa0e53d780c1942938a2b3241c`**; Source-Attestation: **`5aad04d47375490dfbd8765d6e9e3f77241f3fdf`**; Hosted-Evidence-Control: **`532a3c8cfff201f09617c6eb46d0111d56a9dcba`** (immutable RC30 L5 evidence); Last Pushed Truth-Control: **`d9dbf8b3e7bd4deb5e20a029d88219f3c8b98810`**; Final-Head-CI: **`33597146482`** (`31/31`, skipped `0`)
 **B1 ERTEILT** — Approval-Commit: **`e87c28a7c6cf32982caa849794042daa53ef022a`**
 Market Status: `MARKET_READY:false` — Overall `89`
 
@@ -25,6 +25,22 @@ Truth-HEAD. Wo etwas nur protokolliert und nicht nachmessbar war, steht das ausd
 dabei.
 
 ## RC33-Checkpoint 2026-09-02
+
+Qualification-/Evidence-/Truth-Commit
+`d9dbf8b3e7bd4deb5e20a029d88219f3c8b98810` ist exakt auf den Feature-Branch gepusht.
+Final-head `pr-check` `33597146482` bestand diesen Head mit `31/31` gruenen Schritten,
+`0` skipped und `0` failed. Damit ist der RC33-Qualification-Freeze abgeschlossen.
+
+Die anschliessende read-only Preview-Neumessung bestaetigt aktive Cloudflare Stateful-/
+LLM-Preview-Deployments in der Control-Plane. Stateful ist an RC31-Source `94cee685`, LLM
+an `87a2b17e` und damit noch nicht an RC33 gebunden. Beide oeffentlichen Worker-Endpunkte liefern
+aktuell HTTP `429` mit Fehler `1027`: der accountweite Free-Plan-Tagesrequest-Grenzwert ist
+erreicht und setzt um `00:00 UTC` zurueck. Das Vercel-Preview-Deployment
+`dpl_CJzQ2YBuEzTpLS9KiFgvUSowo5MT` ist `Ready`; seine MCP-/LLM-Projektionen melden
+korrekt `degraded` und `live_backend=false`, solange die Cloudflare-Upstreams nicht
+erreichbar sind. Kein Redeploy umgeht diesen Quota-Blocker. Nach Reset einmal neu messen;
+Preview-Rebind und B2/B3/B4/B5 warten auf die bereits separat angeforderten Owner-
+Entscheidungen. Daraus folgt kein Credit und kein Production-Claim.
 
 RC33 ist lokal mit allen fuenf unabhaengigen Ketten qualifiziert. Die eingefrorene Source
 `a632372863a39faa0e53d780c1942938a2b3241c` enthaelt die Hosted-Next-API-
@@ -49,10 +65,10 @@ ist der immutable lokale Rollback.
 
 Die runtime-identische Vercel-Preview-Frontend-Source `50a591d4` bestand den Hosted-
 Browservertrag mit 22 Routen bei zwei Viewports und 44 Klicks. Sie ist kein exakter RC33-
-sechs-Service-Beweis und schliesst I1 nicht. Naechster Ablauf: RC33-Qualification,
-Evidence und Truth exakt committen/pushen, final-head `pr-check` mit `skipped=0`, dann die
-isolierte Preview-Grenze neu messen. I1/GHCR und I5/Production-OAuth bleiben separate
-Owner-Gates; kein Production-Alias.
+sechs-Service-Beweis und schliesst I1 nicht. Der Qualification-Push und final-head CI sind
+inzwischen abgeschlossen; der aktuelle Restablauf beginnt mit der einmaligen
+Preview-Neumessung nach dem Cloudflare-Quota-Reset. I1/GHCR und I5/Production-OAuth
+bleiben separate Owner-Gates; kein Production-Alias.
 
 Letzter Gate-Befund: Phase-5-Credit ist gruen (`17/19`, I1/I5), Manifest ist gruen
 (`overall=89`, `deltas=1`, `freshness=verified`), Candidate-Runtime ist gruen. Der Current-

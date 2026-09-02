@@ -5,7 +5,7 @@ Letzte Aktualisierung: 2026-09-02
 
 ## AKTUELLER PROJEKTANKER
 
-### Session 2026-09-02 — RC33 Local Qualification
+### Session 2026-09-02 — RC33 Final-Head Qualification / Preview Quota Block
 
 - **Aktiver lokal qualifizierter Kandidat:** `prod-candidate-2026-09-02-local-rc33`,
   eingefrorene Source `a632372863a39faa0e53d780c1942938a2b3241c`, Control
@@ -24,10 +24,24 @@ Letzte Aktualisierung: 2026-09-02
   Vergleich im Candidate-Verifier sind im eingefrorenen Source enthalten. Der echte Vercel-
   Preview-Browservertrag der runtime-identischen Frontend-Source `50a591d4` lief mit
   `22 x 2` Routen und `44` Klicks gruen; er ist noch kein exakter RC33-Hosted-Beweis.
-- **Naechster sicherer Schritt:** RC33-Qualification/Evidence/Truth exakt committen und auf
-  den Feature-Branch pushen; danach final-head `pr-check` mit `skipped=0` abwarten und die
-  isolierte Preview-Grenze erneut messen. I1/GHCR und I5/Production-OAuth bleiben separate
-  Owner-Gates; kein Production-Alias.
+- **Qualification-Freeze abgeschlossen:** Selection-Commit `34d00d533c262d57cd515f5b63f7916e98181413`
+  und Qualification-/Evidence-/Truth-Commit
+  `d9dbf8b3e7bd4deb5e20a029d88219f3c8b98810` sind exakt auf
+  `origin/codex/organism-visual-v2` gepusht. Final-head `pr-check` `33597146482` bestand
+  diesen exakten Head mit `31/31` gruenen Schritten, `0` skipped und `0` failed.
+- **Preview-Neumessung:** Die Cloudflare-Control-Plane ist erreichbar und bestaetigt
+  aktive Preview-Deployments; Stateful ist an RC31-Source `94cee685` und LLM an
+  `87a2b17e` gebunden, also noch nicht an RC33 `a6323728`. Die oeffentlichen
+  Stateful-/LLM-Preview-Endpunkte liefern
+  jedoch HTTP `429` mit Cloudflare-Fehler `1027` (accountweiter Free-Plan-Tagesrequest-
+  Grenzwert; Reset `00:00 UTC`). Das exakte Vercel-Preview-Deployment
+  `dpl_CJzQ2YBuEzTpLS9KiFgvUSowo5MT` ist `Ready`; `/api/v1/health` liefert `200`, waehrend
+  `/mcp/api/v1/health` und `/llm/api/v1/health` korrekt `degraded` und
+  `live_backend=false` melden, weil die Cloudflare-Upstreams nicht erreichbar sind.
+- **Naechster sicherer Schritt:** Nach dem Cloudflare-Quota-Reset genau einmal read-only
+  neu messen. Preview-Rebind, B2/B3/B4/B5, I1/GHCR und I5/Production-OAuth bleiben bis zu
+  den bereits angeforderten separaten Owner-Entscheidungen fail-closed; kein
+  Production-Alias und kein Quota-/Payment-Upgrade ohne Owner-Freigabe.
 - **Letzter Verifier-Befund:** `verify:phase5-credit` gruen (`17/19`, exakt I1/I5
   blockiert), Manifest gruen (`overall=89`, `deltas=1`, `freshness=verified`) und RC33-
   Candidate-Runtime gruen (`service_count=6`, Source-Paritaet, echter Playwright-Klick).

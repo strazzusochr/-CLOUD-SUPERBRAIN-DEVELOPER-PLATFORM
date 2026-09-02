@@ -33,6 +33,21 @@ and click; and candidate-scoped npm audit (`0` vulnerabilities) plus canonical g
 The canonical 22-page report SHA is
 `FD081A2E40786511AB7FFF5D2CCEE2E7A64B9B77949442E4D43C4482680C8A87`.
 
+Selection commit `34d00d533c262d57cd515f5b63f7916e98181413` and qualification/evidence/truth
+commit `d9dbf8b3e7bd4deb5e20a029d88219f3c8b98810` were pushed exactly to the feature
+branch. Final-head `pr-check` `33597146482` passed that exact head with `31/31` green
+steps, `0` skipped and `0` failed.
+
+The subsequent read-only Preview measurement found active Stateful and LLM Preview
+deployments in Cloudflare's control plane. Stateful was bound to RC31 source `94cee685`
+and LLM to `87a2b17e`, so neither was exact RC33. Both public Worker endpoints returned
+HTTP `429`, Cloudflare error `1027`, because the account-wide Free-plan daily request allowance
+was exhausted. Vercel Preview deployment `dpl_CJzQ2YBuEzTpLS9KiFgvUSowo5MT` remained
+`Ready`; its MCP and LLM projections correctly returned `degraded` with
+`live_backend=false` while their upstreams were unavailable. This is a fail-closed external
+quota boundary, not credit and not exact RC33 hosted parity. Remeasure once after the
+`00:00 UTC` reset; do not hammer the endpoints or infer a production claim.
+
 The candidate selection preserves `17/19 = 89%`, blocked I1
 `hosted_candidate_parity` and I5 `production_auth_identity`, all prior scoring rulings,
 and `MARKET_READY:false`. The runtime-identical Vercel Preview frontend source `50a591d4`

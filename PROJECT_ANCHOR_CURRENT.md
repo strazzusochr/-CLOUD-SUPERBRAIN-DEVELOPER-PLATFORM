@@ -1,8 +1,8 @@
 # Cloud Superbrain Project Anchor
 
-## ⚓ CHECKPOINT 2026-09-02 — RC33 LOCAL QUALIFICATION
+## ⚓ CHECKPOINT 2026-09-02 — RC33 FINAL-HEAD / PREVIEW QUOTA BLOCK
 
-**Anchor ID:** `cloud-superbrain-anchor-2026-09-02-rc33-qualified-final-head-ci-next`
+**Anchor ID:** `cloud-superbrain-anchor-2026-09-02-rc33-final-head-green-preview-1027`
 **Status:** `ACTIVE_RESUME_POINT`
 **Workspace:** `D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM`
 **Branch:** `codex/organism-visual-v2`
@@ -11,11 +11,12 @@
 |---|---|
 | Frozen Product Source | `a632372863a39faa0e53d780c1942938a2b3241c` (RC33) |
 | Source-Attestation | `5aad04d47375490dfbd8765d6e9e3f77241f3fdf`, `pr-check` `33589444701`, `31/31`, skipped `0` |
+| Qualification Truth | `d9dbf8b3e7bd4deb5e20a029d88219f3c8b98810`, final-head `pr-check` `33597146482`, `31/31`, skipped `0`, failed `0` |
 | CI Artifact | ID `9831272175`, digest `sha256:88d8cd884f3df354a47385df188406f02bcaf209e5403d2deefcc15627e0aac3` |
 | Local Qualification | 5/5 Ketten, 27 Dateien, Evidence-Run `7bbc2310-0bb3-42e5-8484-819c37d93431` |
 | Browser | `22/22` Routen, `29/29` Familien, `161/161` Aktionen; realer Candidate-Playwright-Klick |
 | Security / Runtime | Kandidatenarchiv-Audit `0` Schwachstellen, gitleaks gruen, Docker `10/10 healthy` |
-| Preview-Runtime | Vercel Preview auf runtime-identischer Frontend-Source `50a591d4` browser-gruen; kein exakter RC33-I1-Beweis und kein Production-Alias |
+| Preview-Runtime | Vercel Ready; Cloudflare Preview Stateful `94cee685`, LLM `87a2b17e`, aktuell HTTP `429/1027` (Free-Plan-Tageslimit); MCP/LLM deshalb `degraded`, kein exakter RC33-I1-Beweis |
 | Rollback | RC31 Source `94cee68508196195454139a7c4a432b024f91869` |
 | Manifest | Overall **89** · P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 89 · P6 90 |
 | Vertikal | L1 100 · L2 100 · L3 100 · L4 55 · **L5 86** · L6 100 · L7 100 |
@@ -25,11 +26,10 @@
 
 ### NAECHSTER SICHERER SCHRITT
 
-1. RC33-Qualifikations-, Evidence- und Truth-Pfade exakt committen und auf den Feature-Branch pushen.
-2. Final-head `pr-check` auf exakt diesem Commit mit `skipped=0` abwarten.
-3. Danach die isolierte Preview-Grenze read-only neu messen und nur Preview-Aktionen ausfuehren, die kein Owner-Gate erweitern.
-4. Fuer I1/GHCR und I5/Production-OAuth einen exakten Prompt an den Owner-AI-Assistenten senden; kein Gate von Hand oeffnen.
-5. GitHub-Actions-Pins erst **nach dem naechsten Freeze** separat aktualisieren.
+1. Cloudflare-Free-Plan-Reset um `00:00 UTC` abwarten und danach Stateful/LLM Preview genau einmal read-only neu messen; Endpunkte nicht hammern.
+2. Den bereits gesendeten Owner-AI-Prompt fuer Preview-Rebind, B2, B3, B4 und B5 getrennt beantworten lassen; allgemeines `ja` nicht als Einzelgrant werten.
+3. Nur nach exakter Freigabe Preview-Rebind und zugehoerige Hosted-Verifier seriell ausfuehren; kein Production-Alias und kein Payment-Upgrade ohne separate Freigabe.
+4. GitHub-Actions-Pins erst **nach dem naechsten Freeze** separat aktualisieren.
 
 ### FREMDE DIRTY-PFADE
 

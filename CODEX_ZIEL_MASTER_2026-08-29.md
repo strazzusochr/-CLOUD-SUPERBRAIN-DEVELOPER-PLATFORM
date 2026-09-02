@@ -3,20 +3,22 @@
 Status: `ACTIVE_CURRENT_TRUTH`
 Stand: **2026-09-02**
 Branch: `codex/organism-visual-v2`
-Measurement-Ref: **`532a3c8c`** (immutable RC30 Hosted-MCP evidence + static scorer)
+Qualification Truth-Control: **`d9dbf8b3`** (pushed; final-head CI `33597146482`, `31/31`, skipped `0`)
+Hosted-Evidence-Control: **`532a3c8c`** (immutable RC30 Hosted-MCP evidence + static scorer)
 RC33 Qualification Source: **`a6323728`** · Source-Attestation: **`5aad04d4`** · Source-CI: **`33589444701`** (`31/31`, skipped `0`)
 Local Evidence: **5/5 chains · 27 files · run `7bbc2310-0bb3-42e5-8484-819c37d93431`**
-Last Pushed Truth-Control: **`34d00d53`** · RC33 qualification truth commit/push is next
-Hosted Boundary: **Vercel Preview frontend `50a591d4` browser-gruen** — exact RC33 six-service parity is not proven
+Last Pushed Truth-Control: **`d9dbf8b3e7bd4deb5e20a029d88219f3c8b98810`**
+Hosted Boundary: **Vercel Preview Ready; Cloudflare Preview HTTP `429/1027`, Stateful `94cee685`, LLM `87a2b17e`** — exact RC33 six-service parity is not proven
 **B1 ERTEILT 2026-08-31** — `RubricApprovalCommit = e87c28a7c6cf32982caa849794042daa53ef022a`
 Market Status: `MARKET_READY:false` — Overall `89`, Delta-Ledger `1`, L5 `86`
 
-> **Naechster Schritt ist der RC33 Qualification-Freeze.** Alle fuenf lokalen RC33-Ketten
-> und das exakte 27-Dateien-Evidence-Set sind gruen. Jetzt Qualification/Evidence/Truth
-> exakt committen und auf den Feature-Branch pushen, danach final-head `pr-check` mit
-> `skipped=0`. Anschliessend die isolierte Preview-Grenze neu messen. I1/GHCR und
-> I5/Production-OAuth bleiben separate Owner-Gates. Danach bleiben L5 +14, L4 +45 und die
-> Phasen-Gates.
+> **RC33 Qualification-Freeze ist abgeschlossen.** Qualification-/Evidence-/Truth-Commit
+> `d9dbf8b3` ist gepusht; final-head `pr-check` `33597146482` bestand `31/31`, skipped `0`,
+> failed `0`. Die Preview-Neumessung ist aktuell durch den accountweiten Cloudflare-
+> Free-Plan-Tagesrequest-Grenzwert blockiert: Stateful und LLM liefern HTTP `429/1027`,
+> waehrend Vercel Ready ist und MCP/LLM deshalb fail-closed `degraded` melden. Nach dem
+> `00:00 UTC`-Reset einmal neu messen. Preview-Rebind, B2/B3/B4/B5, I1/GHCR und
+> I5/Production-OAuth warten auf die separat angeforderten Owner-Entscheidungen.
 
 > **Wartung spaeter:** Die GitHub-Actions-Runtime-Pins bleiben fuer RC33 eingefroren.
 > `upload-artifact` v4.6.2 sowie `checkout`/`setup-node` v4 werden erst nach dem naechsten
@@ -60,7 +62,8 @@ angelegt (Basis `ce75bb00`); die Datei darin fehlt noch. Die exakten Befehle ste
 ---
 
 **Aktuelle Aussagen** sind lokal gegen RC33-Source `a6323728`, Source-Attestation
-`5aad04d4`, CI-Lauf `33589444701`, die fuenf lokalen Qualification-Ketten und das exakte
+`5aad04d4`, Source-CI `33589444701`, finalen Truth-Head `d9dbf8b3`, final-head CI
+`33597146482`, die fuenf lokalen Qualification-Ketten und das exakte
 27-Dateien-Evidence-Set gemessen. Die vertikale L5-Messung bleibt an Evidence-Control
 `532a3c8c` und die vier immutable RC30 Hosted-MCP-Reports gebunden. Die runtime-identische
 Vercel-Frontend-Preview `50a591d4` ist browser-gruen, aber keine exakte RC33-sechs-Service-
@@ -112,7 +115,8 @@ S1d RC33 lokal qualifiziert ── ERLEDIGT ─┤  Source a6323728, 5 Ketten, 2
                                           │
 S2a Hosted-Boundary-Fixes ───── ERLEDIGT ──┤  source-attestiert, lokal verifiziert
                                           │
-S2c RC33 Final-Head-CI ─────── NAECHST ───┤  Feature-Branch only, skipped=0
+S2c RC33 Final-Head-CI ─────── ERLEDIGT ──┤  d9dbf8b3, CI 33597146482, skipped=0
+S2d Preview-Neumessung ─────── BLOCKIERT ─┤  CF Free-Plan-Tageslimit: HTTP 429/1027
                                           │
       ├─> S3  L4/L5 Hosted-Laeufe ────────┼──> L4 +45, L5 +14   L5 vier Kriterien erledigt
       │                                   │
@@ -132,9 +136,11 @@ Approval-Commit `e87c28a7c6cf32982caa849794042daa53ef022a`, gepusht auf
 `overall = 89`, `17/19` — die Freigabe allein hat **keinen Punkt** vergeben, sie hat
 nur die Verifier startbar gemacht.
 
-**Der aktuelle autonome Engpass ist geteilt:** L4 braucht das lokale Verifier-Credential;
-L5s letzte 14 Punkte brauchen B4/GHCR. Der erste reale v2-Ledger-Replay ist gruen und
-beweist, dass vertikaler Hosted-Credit ohne Phase-5-Inflation gebucht werden kann.
+**Der aktuelle Hosted-Engpass ist extern:** Cloudflare hat den accountweiten Free-Plan-
+Tagesrequest-Grenzwert erreicht und liefert bis zum `00:00 UTC`-Reset HTTP `429/1027`.
+Danach wird genau einmal neu gemessen. L4 braucht danach weiterhin das lokale Verifier-
+Credential; L5s letzte 14 Punkte brauchen B4/GHCR. Der erste reale v2-Ledger-Replay ist
+gruen und beweist, dass vertikaler Hosted-Credit ohne Phase-5-Inflation gebucht werden kann.
 
 ---
 

@@ -40,10 +40,23 @@ Preview frontend source `50a591d4` passed the hosted browser contract with `22` 
 two viewports and `44` clicks, but it is not exact RC33 hosted evidence. RC31 source
 `94cee68508196195454139a7c4a432b024f91869` is the immutable local rollback target.
 
-The next safe slice is: commit and push only the RC33 qualification/evidence/truth paths,
-obtain final-head `pr-check` success with `skipped=0`, then remeasure the isolated Preview
-boundary without touching a production alias. Exact six-service hosted parity (I1), GHCR
-publication, and production OAuth identity (I5) stay behind their separate Owner gates.
+Selection commit `34d00d533c262d57cd515f5b63f7916e98181413` and qualification/evidence/truth
+commit `d9dbf8b3e7bd4deb5e20a029d88219f3c8b98810` are pushed to the feature branch.
+Final-head `pr-check` run `33597146482` passed that exact head with `31/31` green steps,
+`0` skipped and `0` failed. The qualification freeze is therefore complete.
+
+The isolated Preview boundary was then remeasured read-only. Cloudflare control-plane
+reads succeed and show active Stateful/LLM Preview deployments. Stateful is bound to RC31
+source `94cee685`; LLM is bound to `87a2b17e`, so neither is exact RC33. Both public
+Preview Workers return HTTP `429`, Cloudflare error `1027`, because the account-wide Free-plan
+daily request allowance is exhausted until the `00:00 UTC` reset. Vercel Preview
+deployment `dpl_CJzQ2YBuEzTpLS9KiFgvUSowo5MT` is `Ready`; `/api/v1/health` is `200`, while
+the MCP and LLM health projections are correctly `degraded` with `live_backend=false`
+because their Cloudflare upstreams are unreachable. Do not hammer or redeploy around the
+quota error. Remeasure once after reset. Exact six-service hosted parity (I1), Preview
+rebind, GHCR publication, Phase-6 grant/run, and production OAuth identity (I5) stay
+behind their separately requested Owner decisions; no production alias or payment change.
+
 The latest current-candidate verifier passed its local credit and immutable-parity stages,
 then failed closed because the canonical hosted read
 `https://cloud-superbrain-developer-platform.vercel.app/api/v1/health` returns HTTP `404`.
