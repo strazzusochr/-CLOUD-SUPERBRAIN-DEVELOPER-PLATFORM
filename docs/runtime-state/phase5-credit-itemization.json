@@ -139,8 +139,8 @@
       "evidence": [
         {
           "path": "docs/runtime-state/frontend-hosted-current.json",
-          "claim": "The hosted frontend preview remains on the prior RC30 lineage and is not a full six-service RC31 hosted candidate-parity proof.",
-          "anchor": "\"source_commit_sha\": \"4b26d00a1a842db73cbd5fa58dfffd3928d2342e\""
+          "claim": "The hosted frontend RC31-control Preview is source- and archive-bound, but it is not a full six-service RC31 hosted candidate-parity proof.",
+          "anchor": "\"source_commit_sha\": \"dfcf613c9d06261ab40dde27f5bc75d7a40d1a5f\""
         },
         {
           "path": "docs/runtime-state/backend-hosted-current.json",
