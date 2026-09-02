@@ -1,10 +1,10 @@
 {
   "contract_version": "frontend-hosted-current-proof-v1",
   "status": "verified",
-  "source_commit_sha": "dfcf613c9d06261ab40dde27f5bc75d7a40d1a5f",
-  "source_archive_sha256": "09da42d3e333aa7524e80f7e8d82bea5cd6323a3784e4f0414ee91663cf15b83",
-  "deployment_id": "dpl_8suo7rrbpMpLmnBNoLcsx81YFMF4",
-  "immutable_deployment_url": "https://frontend-c8dvasoig-strazzusochrs-projects.vercel.app",
+  "source_commit_sha": "a8614fd34f67f2e0d749b2d76d78a55c0e3de021",
+  "source_archive_sha256": "f24d311e08f916b1873892c4d37b3f92daecd89f40af688630997de07470bc62",
+  "deployment_id": "dpl_QqTGoBzAo655YSLSR3KFQdQ8Q1ro",
+  "immutable_deployment_url": "https://frontend-bvbfmy935-strazzusochrs-projects.vercel.app",
   "production_alias": "https://frontend-seven-psi-78.vercel.app",
   "vercel_target": "preview",
   "vercel_scope": "strazzusochrs-projects",
@@ -13,8 +13,8 @@
   "git_source_type": "github",
   "git_source_repo_id": "1218719331",
   "git_source_ref": "codex/organism-visual-v2",
-  "proof_artifact": ".phase1-artifacts/frontend-hosted-current-rc31-preview/report.json",
-  "proof_generated_at": "2026-09-02T01:31:56.218Z",
+  "proof_artifact": ".phase1-artifacts/frontend-hosted-current-rc31-unified-preview/report.json",
+  "proof_generated_at": "2026-09-02T01:52:38.073Z",
   "browser_channel": "chrome",
   "browser_version": "148.0.7778.96",
   "page_count": 22,
@@ -32,9 +32,9 @@
   "production_operational_deploy_verified": false,
   "production_release_claimed": false,
   "non_claims": [
-    "The authenticated Vercel metadata binds this READY RC31-control Preview redeploy to commit dfcf613c and its source-archive SHA-256; product runtime changes remain frozen at RC31 source 94cee685.",
+    "The authenticated Vercel metadata binds this READY RC31-control Preview redeploy to commit a8614fd3 and its source-archive SHA-256; product runtime changes remain frozen at RC31 source 94cee685.",
     "The Git-integrated source is codex/organism-visual-v2, while the immutable redeploy metadata pins the exact commit independently of later branch movement.",
-    "The responsive proof used real command-palette clicks for all 22 routes at desktop and mobile viewports after this deployment became READY.",
+    "The responsive proof used real command-palette clicks for all 22 routes at desktop and mobile viewports after this deployment became READY; its Agent API, MCP Gateway, and LLM Gateway health routes all resolve to RC31 Preview runtimes.",
     "The production alias is contextual only: no alias parity, production deploy, promotion, or platform release is claimed.",
     "This proof does not by itself claim Worker source parity, hosted MCP writes, registry publication, production alias parity, or MARKET_READY."
   ]

@@ -139,8 +139,8 @@
       "evidence": [
         {
           "path": "docs/runtime-state/frontend-hosted-current.json",
-          "claim": "The hosted frontend RC31-control Preview is source- and archive-bound, but it is not a full six-service RC31 hosted candidate-parity proof.",
-          "anchor": "\"source_commit_sha\": \"dfcf613c9d06261ab40dde27f5bc75d7a40d1a5f\""
+      "claim": "The hosted frontend RC31-control Preview is source- and archive-bound and routes Agent API, MCP Gateway, and LLM Gateway health to RC31 Preview runtimes, but it is not a full six-service immutable-image candidate-parity proof.",
+      "anchor": "\"source_commit_sha\": \"a8614fd34f67f2e0d749b2d76d78a55c0e3de021\""
         },
         {
           "path": "docs/runtime-state/backend-hosted-current.json",
