@@ -77,6 +77,10 @@ Assert-Contains '$post429 -gt 0 -or $delete429 -gt 0' "write 429 fail-closed con
 Assert-Contains '$readOther = [int](($tierResults | Measure-Object -Property other_status -Sum).Sum)' "unexpected read status accounting"
 Assert-Contains '$transportTotal -gt 0' "transport failure fail-closed contract"
 Assert-Contains '$readOther -gt 0' "unexpected read status fail-closed contract"
+Assert-Contains 'criterion edge control must remain attribution-only' "edge control non-pass criterion binding"
+if ($source.Contains('$failures.Add("edge_control_failure")')) {
+  throw "edge control is attribution-only and must not decide the Worker pass criterion"
+}
 Assert-Contains 'Get-NonNegativeInteger' "strict non-negative integer parsing"
 Assert-Contains 'response accounting is not exact' "exact response accounting"
 Assert-Contains '$literalSuccessCount = [int]($validHealthJsonCount + $validCreatedIds.Count + $literalCleanupSuccessCount)' "literal success recomputation"
@@ -147,4 +151,4 @@ if ($source.Contains('+ $read429') -or $source.Contains('+`n  $read429')) {
   throw "read 429 must never contribute to the literal success numerator"
 }
 
-Write-Host "[phase6-scale-static] PASS: parser, zero-request preflight, exact accounting, literal success, source/deployment/time parity, provisional execution provenance, evidence-pair atomicity, and no-promotion contracts"
+Write-Host "[phase6-scale-static] PASS: parser, zero-request preflight, exact accounting, attribution-only edge control, literal success, source/deployment/time parity, provisional execution provenance, evidence-pair atomicity, and no-promotion contracts"

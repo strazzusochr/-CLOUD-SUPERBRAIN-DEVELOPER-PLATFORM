@@ -134,6 +134,7 @@ foreach ($required in @(
   '$candidateGate.evidence_sha256 = $evidenceSha256',
   'phase6-scale-execution-provenance-v1',
   'github-actions-phase6-scale-execution-readback-v1',
+  'Scale criterion edge control is not attribution-only.',
   'Automatic rollback did not restore the original capability state.'
 )) {
   Assert-True ($source.Contains($required)) "Missing promotion safety contract: $required"
@@ -472,6 +473,17 @@ try {
   Invoke-ExpectedPass $evidencePath $criterionPath $hostedPath $capabilityPath
   $capabilityHashAfter = (Get-FileHash -LiteralPath $capabilityPath -Algorithm SHA256).Hash
   Assert-True ($capabilityHashBefore -eq $capabilityHashAfter) 'Read-only verification mutated capability state.'
+
+  # /cdn-cgi/trace is an attribution control, not a Worker pass criterion.
+  # Preserve and recompute a failed control sample while the Worker evidence stays green.
+  $validEvidence.read_tiers[0].edge_control_records[0].status_code = 503
+  $validEvidence.read_tiers[0].edge_control_records[0].response_ok = $false
+  $validEvidence.aggregate.edge_control_failure_count = 1
+  Write-EvidenceBundle $evidencePath $validEvidence $executionReadbackPath $executionReadback
+  Invoke-ExpectedPass $evidencePath $criterionPath $hostedPath $capabilityPath
+  $validEvidence.read_tiers[0].edge_control_records[0].status_code = 200
+  $validEvidence.read_tiers[0].edge_control_records[0].response_ok = $true
+  $validEvidence.aggregate.edge_control_failure_count = 0
 
   [IO.File]::WriteAllText("$evidencePath.sha256", "$('0' * 64)  $([IO.Path]::GetFileName($evidencePath))`n", $utf8NoBom)
   Invoke-ExpectedFailure $evidencePath $criterionPath $hostedPath $capabilityPath 'tampered companion digest'

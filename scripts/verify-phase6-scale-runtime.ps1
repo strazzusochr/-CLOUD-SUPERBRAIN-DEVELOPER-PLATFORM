@@ -255,6 +255,10 @@ Require ([bool]$criterion.write_tier.no_duplicate_allowed) "write tier permits d
 Require ($criterion.write_tier.http_429_allowed -eq $false) "criterion permits throttled writes"
 Require ([string]$criterion.write_tier.cleanup_semantics -eq "soft_delete_then_active_row_absence_and_audit_readback") "criterion cleanup semantics changed"
 Require ([string]$criterion.control_tier.path -eq "/cdn-cgi/trace") "criterion control path changed"
+Require (
+  [string]$criterion.control_tier.not_a_pass_criterion -eq
+  "This block adds a measurement control only. It changes no threshold in pass_criteria."
+) "criterion edge control must remain attribution-only"
 $maxControlRequests = [int](Get-NonNegativeInteger $criterion.control_tier.max_control_requests "criterion control request cap")
 Require ($maxControlRequests -eq 500) "criterion control request cap changed"
 Require ([double]$criterion.pass_criteria.min_success_ratio -eq 0.99) "criterion success threshold changed"
@@ -949,7 +953,8 @@ if ($worstWorkerP95 -gt [double]$criterion.pass_criteria.max_p95_ms) { $failures
 if ($server5xxTotal -gt $own5xxAllowed) { $failures.Add("own_5xx_above_threshold") }
 if ($transportTotal -gt 0) { $failures.Add("transport_failure") }
 if ($readOther -gt 0) { $failures.Add("unexpected_read_status") }
-if ($controlFailureCount -gt 0) { $failures.Add("edge_control_failure") }
+# The locked criterion declares /cdn-cgi/trace attribution-only. Its result and
+# failure count remain in raw evidence, but cannot change the Worker verdict.
 if ($invalidHealthJsonCount -gt 0) { $failures.Add("invalid_health_json") }
 if ($post429 -gt 0 -or $delete429 -gt 0) { $failures.Add("write_or_cleanup_throttled") }
 if ($recordLossCount -gt 0) { $failures.Add("write_record_loss") }

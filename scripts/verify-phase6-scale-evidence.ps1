@@ -475,6 +475,10 @@ Assert-True ([bool]$hostedState.zero_card_verified -and -not [bool]$hostedState.
 Assert-True ([string]$hostedState.source_commit_sha -match '^[0-9a-f]{40}$') 'Hosted source commit SHA is invalid.'
 Assert-True ([string]$hostedState.source_archive_sha256 -match '^[0-9a-f]{64}$') 'Hosted source archive SHA-256 is invalid.'
 Assert-True ([string]$criterion.target.base_url -eq [string]$hostedState.base_url) 'Criterion and hosted state origins differ.'
+Assert-True (
+  [string]$criterion.control_tier.not_a_pass_criterion -eq
+  'This block adds a measurement control only. It changes no threshold in pass_criteria.'
+) 'Scale criterion edge control is not attribution-only.'
 Assert-True ($criterion.write_tier.http_429_allowed -eq $false) 'Scale criterion permits throttled writes.'
 Assert-True ([string]$criterion.write_tier.cleanup_semantics -eq 'soft_delete_then_active_row_absence_and_audit_readback') 'Scale criterion cleanup semantics mismatch.'
 Assert-True ([string]$criterion.pass_criteria.http_429_scope -eq 'health_read_tiers_only') 'Scale criterion 429 scope mismatch.'
