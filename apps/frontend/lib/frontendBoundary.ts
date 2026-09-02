@@ -899,6 +899,7 @@ export function boundaryUnavailable(
       contract_version: "frontend-provider-boundary-v1",
       status: "blocked",
       error: "configured_boundary_unavailable",
+      reason: "configured_boundary_unavailable",
       endpoint,
       required_boundary: kind,
       required_env: BOUNDARIES[kind].envNames,

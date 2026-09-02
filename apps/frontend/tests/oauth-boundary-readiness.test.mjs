@@ -816,6 +816,7 @@ test("gateway writes replace non-contract upstream errors with fail-closed JSON"
   assert.equal(response.headers.get("x-superbrain-source"), "frontend-boundary-blocked");
   const payload = await response.json();
   assert.equal(payload.error, "configured_boundary_unavailable");
+  assert.equal(payload.reason, "configured_boundary_unavailable");
   assert.equal(payload.accepted, false);
   assert.equal(payload.persisted, false);
   assert.equal(payload.audit_persisted, false);
