@@ -29,6 +29,7 @@ class CreditRubricDraftTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.phase3 = (REPO_ROOT / verifier.PHASE3_PATH).read_text(encoding="utf-8")
         cls.phase6 = (REPO_ROOT / verifier.PHASE6_PATH).read_text(encoding="utf-8")
+        cls.approval_gate_snapshot = verifier.load_approval_gate_snapshot(REPO_ROOT)
 
     def validate(
         self,
@@ -36,6 +37,7 @@ class CreditRubricDraftTests(unittest.TestCase):
         phase3: str | None = None,
         phase6: str | None = None,
         truth_overrides: dict[Path, str] | None = None,
+        approval_gate_snapshot: dict[str, object] | None = None,
         guard_writes: bool = False,
     ) -> dict[str, int | bool]:
         with tempfile.TemporaryDirectory() as temporary:
@@ -60,7 +62,10 @@ class CreditRubricDraftTests(unittest.TestCase):
                     target.write_text(override, encoding="utf-8")
 
             if not guard_writes:
-                return verifier.validate_rubrics(root)
+                return verifier.validate_rubrics(
+                    root,
+                    approval_gate_snapshot or self.approval_gate_snapshot,
+                )
 
             def guarded_io_open(file: object, mode: str = "r", *args: object, **kwargs: object):
                 if any(flag in mode for flag in ("w", "a", "x", "+")):
@@ -79,7 +84,10 @@ class CreditRubricDraftTests(unittest.TestCase):
                 patch("subprocess.run", side_effect=AssertionError("verifier attempted a subprocess")),
                 patch("subprocess.Popen", side_effect=AssertionError("verifier attempted a subprocess")),
             ):
-                return verifier.validate_rubrics(root)
+                return verifier.validate_rubrics(
+                    root,
+                    approval_gate_snapshot or self.approval_gate_snapshot,
+                )
 
     def assert_rejected(self, *, phase3: str | None = None, phase6: str | None = None) -> None:
         with self.assertRaises(verifier.RubricValidationError):
@@ -264,16 +272,10 @@ class CreditRubricDraftTests(unittest.TestCase):
 
     def test_current_progress_gates_ledger_mirrors_and_criterion_remain_bound(self) -> None:
         manifest = (REPO_ROOT / verifier.MANIFEST_PATH).read_text(encoding="utf-8")
-        gates = (REPO_ROOT / verifier.GATES_PATH).read_text(encoding="utf-8")
         ledger = (REPO_ROOT / verifier.LEDGER_PATH).read_text(encoding="utf-8")
         snapshot = (REPO_ROOT / verifier.ENDPOINT_SNAPSHOT_PATH).read_text(encoding="utf-8")
         platform = (REPO_ROOT / verifier.PLATFORM_PATH).read_text(encoding="utf-8")
         criterion = (REPO_ROOT / verifier.PHASE6_CRITERION_PATH).read_text(encoding="utf-8")
-
-        def changed_gate(gate_id: str, field: str, value: bool) -> str:
-            payload = json.loads(gates)
-            payload["gates"][gate_id][field] = value
-            return json.dumps(payload)
 
         def changed_snapshot_overall() -> str:
             payload = json.loads(snapshot)
@@ -294,9 +296,6 @@ class CreditRubricDraftTests(unittest.TestCase):
             {verifier.MANIFEST_PATH: self.mutate(manifest, '"overall_percent": 89', '"overall_percent": 90')},
             {verifier.MANIFEST_PATH: self.mutate(manifest, '"id": "phase_3",\n        "label": "Phase 3 - Product Surface & Security",\n        "percent": 44', '"id": "phase_3",\n        "label": "Phase 3 - Product Surface & Security",\n        "percent": 45')},
             {verifier.MANIFEST_PATH: self.mutate(manifest, '"id": "phase_6",\n        "label": "Phase 6 - Scale & 3D Platform",\n        "percent": 90', '"id": "phase_6",\n        "label": "Phase 6 - Scale & 3D Platform",\n        "percent": 100')},
-            {verifier.GATES_PATH: changed_gate("production_auth_identity", "owner_granted", True)},
-            {verifier.GATES_PATH: changed_gate("phase6_scale_runtime", "owner_granted", True)},
-            {verifier.GATES_PATH: changed_gate("phase6_scale_runtime", "live_verified", True)},
             {verifier.LEDGER_PATH: changed_ledger_target("phase_3")},
             {verifier.LEDGER_PATH: changed_ledger_target("phase_6")},
             {verifier.ENDPOINT_SNAPSHOT_PATH: changed_snapshot_overall()},
@@ -307,6 +306,25 @@ class CreditRubricDraftTests(unittest.TestCase):
             with self.subTest(path=next(iter(overrides))):
                 with self.assertRaises(verifier.RubricValidationError):
                     self.validate(truth_overrides=overrides)
+
+    def test_later_gate_transitions_do_not_rewrite_the_b1_zero_credit_fact(self) -> None:
+        gates = json.loads((REPO_ROOT / verifier.GATES_PATH).read_text(encoding="utf-8"))
+        gates["gates"]["production_auth_identity"]["owner_granted"] = True
+        gates["gates"]["phase6_scale_runtime"]["owner_granted"] = True
+        gates["gates"]["phase6_scale_runtime"]["owner_grant_ref"] = "owner-grant:phase6-scale:test"
+        result = self.validate(
+            truth_overrides={verifier.GATES_PATH: json.dumps(gates)},
+        )
+        self.assertFalse(result["credit_applied"])
+
+    def test_b1_approval_snapshot_must_keep_both_gates_closed(self) -> None:
+        for gate_id in ("production_auth_identity", "phase6_scale_runtime"):
+            for field in ("owner_granted", "live_verified"):
+                with self.subTest(gate_id=gate_id, field=field):
+                    snapshot = json.loads(json.dumps(self.approval_gate_snapshot))
+                    snapshot["gates"][gate_id][field] = True
+                    with self.assertRaises(verifier.RubricValidationError):
+                        self.validate(approval_gate_snapshot=snapshot)
 
 
 if __name__ == "__main__":

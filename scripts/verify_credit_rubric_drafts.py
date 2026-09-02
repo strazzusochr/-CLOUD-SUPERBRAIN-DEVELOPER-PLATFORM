@@ -4,6 +4,7 @@ import re
 import sys
 import json
 import hashlib
+import subprocess
 from collections import Counter
 from pathlib import Path
 from typing import Final
@@ -19,6 +20,7 @@ ENDPOINT_SNAPSHOT_PATH: Final = Path("apps/frontend/lib/endpoint-snapshot.json")
 PLATFORM_PATH: Final = Path("apps/frontend/lib/platform.ts")
 PHASE6_CRITERION_PATH: Final = Path("docs/runtime-state/phase6-scale-criterion.json")
 PHASE6_CRITERION_SHA256: Final = "edeeac95fac6fefe1dcde5b77a5d8b236685f28adf66f357706aed26971ed85f"
+RUBRIC_APPROVAL_COMMIT_SHA: Final = "e87c28a7c6cf32982caa849794042daa53ef022a"
 OWNER_APPROVAL_REF: Final = (
     "CODEX_UEBERGABE_MASTER_2026-08-29.md :: B1 Owner-Freigabe 2026-08-31 "
     "(Owner strazzusochr, an Claude delegiert)"
@@ -320,6 +322,48 @@ def load_json(repo_root: Path, relative_path: Path, context: str) -> dict[str, o
     return payload
 
 
+def load_approval_gate_snapshot(repo_root: Path) -> dict[str, object]:
+    """Read the gate state from the immutable B1 approval commit.
+
+    B1 guarantees that approving the rubrics did not itself open either gate.
+    That is a historical assertion about the approval commit, not a permanent
+    ban on later, independently authorized gate transitions.
+    """
+    revision = f"{RUBRIC_APPROVAL_COMMIT_SHA}:{GATES_PATH.as_posix()}"
+    try:
+        ancestor = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo_root),
+                "merge-base",
+                "--is-ancestor",
+                RUBRIC_APPROVAL_COMMIT_SHA,
+                "HEAD",
+            ],
+            check=False,
+            capture_output=True,
+            timeout=15,
+        )
+        require(ancestor.returncode == 0, "B1 approval commit is not an ancestor of HEAD")
+        completed = subprocess.run(
+            ["git", "-C", str(repo_root), "show", revision],
+            check=False,
+            capture_output=True,
+            timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RubricValidationError(f"unable to read B1 approval gate snapshot: {exc}") from exc
+    require(completed.returncode == 0, "B1 approval gate snapshot is unavailable")
+    require(len(completed.stdout) <= 1024 * 1024, "B1 approval gate snapshot is unexpectedly large")
+    try:
+        payload = json.loads(completed.stdout.decode("utf-8"))
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise RubricValidationError(f"B1 approval gate snapshot is invalid JSON: {exc}") from exc
+    require(isinstance(payload, dict), "B1 approval gate snapshot root must be an object")
+    return payload
+
+
 def progress_cell(manifest: dict[str, object], section: str, cell_id: str) -> int:
     group = manifest.get(section)
     require(isinstance(group, dict), f"manifest {section} must be an object")
@@ -332,7 +376,10 @@ def progress_cell(manifest: dict[str, object], section: str, cell_id: str) -> in
     return percent
 
 
-def validate_current_truth(repo_root: Path) -> None:
+def validate_current_truth(
+    repo_root: Path,
+    approval_gate_snapshot: dict[str, object] | None = None,
+) -> None:
     manifest = load_json(repo_root, MANIFEST_PATH, "progress manifest")
     require(manifest.get("overall_percent") == 89, "rubric draft must not change overall percent")
     require(progress_cell(manifest, "horizontal", "phase_3") == 44, "rubric draft must not change P3")
@@ -350,14 +397,26 @@ def validate_current_truth(repo_root: Path) -> None:
             "rubric approval must not add a P3 or P6 progress delta",
         )
 
-    gates = load_json(repo_root, GATES_PATH, "capability gates")
+    gates = load_json(repo_root, GATES_PATH, "current capability gates")
     gate_map = gates.get("gates")
-    require(isinstance(gate_map, dict), "capability gates.gates must be an object")
+    require(isinstance(gate_map, dict), "current capability gates.gates must be an object")
     for gate_id in ("production_auth_identity", "phase6_scale_runtime"):
-        gate = gate_map.get(gate_id)
-        require(isinstance(gate, dict), f"missing capability gate {gate_id}")
-        require(gate.get("owner_granted") is False, f"rubric draft must not grant {gate_id}")
-        require(gate.get("live_verified") is False, f"rubric draft must not verify {gate_id}")
+        require(isinstance(gate_map.get(gate_id), dict), f"missing current capability gate {gate_id}")
+
+    approval_gates = approval_gate_snapshot or load_approval_gate_snapshot(repo_root)
+    approval_gate_map = approval_gates.get("gates")
+    require(isinstance(approval_gate_map, dict), "B1 approval gate snapshot.gates must be an object")
+    for gate_id in ("production_auth_identity", "phase6_scale_runtime"):
+        approval_gate = approval_gate_map.get(gate_id)
+        require(isinstance(approval_gate, dict), f"missing B1 approval capability gate {gate_id}")
+        require(
+            approval_gate.get("owner_granted") is False,
+            f"B1 rubric approval commit must not grant {gate_id}",
+        )
+        require(
+            approval_gate.get("live_verified") is False,
+            f"B1 rubric approval commit must not verify {gate_id}",
+        )
 
     snapshot = load_json(repo_root, ENDPOINT_SNAPSHOT_PATH, "endpoint snapshot")
     require(
@@ -432,7 +491,10 @@ def validate_current_truth(repo_root: Path) -> None:
     require(criteria.get("own_5xx_allowed") == 0, "Phase-6 5xx allowance drifted")
 
 
-def validate_rubrics(repo_root: Path = ROOT) -> dict[str, int | bool]:
+def validate_rubrics(
+    repo_root: Path = ROOT,
+    approval_gate_snapshot: dict[str, object] | None = None,
+) -> dict[str, int | bool]:
     phase3_file = repo_root / PHASE3_PATH
     phase6_file = repo_root / PHASE6_PATH
     require(phase3_file.is_file(), f"missing {PHASE3_PATH.as_posix()}")
@@ -445,7 +507,7 @@ def validate_rubrics(repo_root: Path = ROOT) -> dict[str, int | bool]:
 
     validate_phase3(phase3_text)
     validate_phase6(phase6_text)
-    validate_current_truth(repo_root)
+    validate_current_truth(repo_root, approval_gate_snapshot)
     return {
         "phase3_current": 44,
         "phase3_open": 56,
