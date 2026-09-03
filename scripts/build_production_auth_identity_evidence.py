@@ -15,7 +15,7 @@ from score_phase3_oauth_credit import STEP_NAMES, _validate_flow
 
 
 CONTRACT_VERSION = "production-auth-identity-proof-v1"
-CI_CONTRACT = "exact-head-ci-attestation-v1"
+CI_CONTRACT = "exact-head-ci-attestation-v2"
 
 
 class EvidenceError(RuntimeError):
@@ -53,15 +53,50 @@ def hash_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
-def validate_ci(ci: Mapping[str, Any], candidate_sha: str) -> None:
+def validate_ci(ci: Mapping[str, Any], candidate_sha: str) -> str:
+    expected_fields = {
+        "contract_version", "status", "repository", "default_branch", "source_commit_sha",
+        "qualification_commit_sha", "run_head_sha", "source_checkout_attestation_sha256",
+        "source_checkout_binding_mode", "source_prequalification", "run_id", "run_attempt",
+        "run_url", "workflow_path", "workflow_event", "head_branch", "job_count",
+        "failed_job_count", "skipped_job_count", "skipped_step_count", "required_checks_passed",
+        "branch_protection_verified", "secret_scan_verified", "oauth_regression_verified",
+        "api_readback_complete", "provider_writes", "secret_output",
+    }
+    require(set(ci) == expected_fields, "exact-head CI attestation fields are not exact")
     require(ci.get("contract_version") == CI_CONTRACT and ci.get("status") == "verified", "exact-head CI attestation is not verified")
     require(ci.get("source_commit_sha") == candidate_sha, "exact-head CI source mismatch")
+    qualification_sha = ci.get("qualification_commit_sha")
+    require(
+        isinstance(qualification_sha, str)
+        and re.fullmatch(r"[0-9a-f]{40}", qualification_sha) is not None
+        and qualification_sha != candidate_sha,
+        "exact-head CI qualification SHA is invalid",
+    )
+    require(ci.get("run_head_sha") == qualification_sha, "exact-head CI run-head mismatch")
+    require(ci.get("source_checkout_binding_mode") == "source_checkout_attestation_v1", "exact-head CI checkout binding mismatch")
+    require(ci.get("source_prequalification") is True, "exact-head CI is not source prequalification")
+    require(
+        isinstance(ci.get("source_checkout_attestation_sha256"), str)
+        and re.fullmatch(r"[0-9a-f]{64}", ci["source_checkout_attestation_sha256"]) is not None,
+        "exact-head CI checkout attestation hash is invalid",
+    )
     require(type(ci.get("run_id")) is int and ci["run_id"] > 0, "exact-head CI run id is invalid")
     require(ci.get("run_attempt") == 1, "exact-head CI must use run attempt one")
-    require(ci.get("failed_job_count") == 0 and ci.get("skipped_job_count") == 0, "exact-head CI contains failed or skipped jobs")
-    for key in ("required_checks_passed", "branch_protection_verified", "secret_scan_verified", "oauth_regression_verified"):
+    require(
+        ci.get("failed_job_count") == 0
+        and ci.get("skipped_job_count") == 0
+        and ci.get("skipped_step_count") == 0,
+        "exact-head CI contains failed or skipped work",
+    )
+    for key in (
+        "required_checks_passed", "branch_protection_verified", "secret_scan_verified",
+        "oauth_regression_verified", "api_readback_complete",
+    ):
         require(ci.get(key) is True, f"exact-head CI {key} is not verified")
+    require(ci.get("provider_writes") is False, "exact-head CI performed provider writes")
     require(ci.get("secret_output") is False, "exact-head CI attestation exposed a secret")
+    return qualification_sha
 
 
 def build_evidence(
@@ -78,9 +113,9 @@ def build_evidence(
     runtime, runtime_raw = read_json(runtime_path, "OAuth runtime evidence")
     frontend, frontend_raw = read_json(frontend_path, "frontend hosted evidence")
     architecture, architecture_raw = read_json(architecture_path, "production auth architecture decision")
-    ci, _ = read_json(ci_path, "exact-head CI attestation")
+    ci, ci_raw = read_json(ci_path, "exact-head CI attestation")
     frontend_source_sha = _validate_flow(flow, candidate_sha)
-    validate_ci(ci, candidate_sha)
+    qualification_sha = validate_ci(ci, candidate_sha)
 
     require(runtime.get("contract_version") == "cloudflare-oauth-hosted-current-v1", "OAuth runtime contract mismatch")
     require(runtime.get("status") == "verified" and runtime.get("architecture") == "cloudflare_native", "OAuth runtime is not verified")
@@ -134,6 +169,9 @@ def build_evidence(
             "owner_architecture_decision_sha256": hash_bytes(architecture_raw),
             "auth_runtime_evidence_ref": file_ref(runtime_path),
             "auth_runtime_evidence_sha256": hash_bytes(runtime_raw),
+            "exact_head_ci_attestation_ref": file_ref(ci_path),
+            "exact_head_ci_attestation_sha256": hash_bytes(ci_raw),
+            "qualification_commit_sha": qualification_sha,
             "callback_origin": frontend_origin,
             "callback_url": f"{frontend_origin}/api/v1/auth/callback",
         },

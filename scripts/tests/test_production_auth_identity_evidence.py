@@ -21,6 +21,12 @@ ARCHITECTURE_DECISION_REF = "docs/runtime-state/production-auth-architecture-dec
 ARCHITECTURE_DECISION_SHA256_PLACEHOLDER = "<fixture-adr-sha256>"
 AUTH_RUNTIME_EVIDENCE_REF = "docs/runtime-state/cloudflare-oauth-hosted-current.json"
 AUTH_RUNTIME_EVIDENCE_SHA256_PLACEHOLDER = "<fixture-runtime-sha256>"
+CI_ATTESTATION_REF = (
+    "docs/release-artifacts/prod-candidate-2026-09-04-local-rc1-evidence/ci/"
+    "exact-head-ci-attestation.json"
+)
+CI_ATTESTATION_SHA256_PLACEHOLDER = "<fixture-ci-sha256>"
+QUALIFICATION_SHA_PLACEHOLDER = "<fixture-qualification-sha>"
 OAUTH_CONFIGURATION_NAMES = (
     "GITHUB_OAUTH_CLIENT_ID",
     "GITHUB_OAUTH_CLIENT_SECRET",
@@ -65,6 +71,9 @@ def valid_evidence() -> dict[str, object]:
             "owner_architecture_decision_sha256": ARCHITECTURE_DECISION_SHA256_PLACEHOLDER,
             "auth_runtime_evidence_ref": AUTH_RUNTIME_EVIDENCE_REF,
             "auth_runtime_evidence_sha256": AUTH_RUNTIME_EVIDENCE_SHA256_PLACEHOLDER,
+            "exact_head_ci_attestation_ref": CI_ATTESTATION_REF,
+            "exact_head_ci_attestation_sha256": CI_ATTESTATION_SHA256_PLACEHOLDER,
+            "qualification_commit_sha": QUALIFICATION_SHA_PLACEHOLDER,
             "callback_origin": FRONTEND_ORIGIN,
             "callback_url": f"{FRONTEND_ORIGIN}/api/v1/auth/callback",
         },
@@ -105,6 +114,38 @@ def valid_evidence() -> dict[str, object]:
     ):
         evidence[field] = False
     return evidence
+
+
+def valid_ci_attestation() -> dict[str, object]:
+    return {
+        "contract_version": "exact-head-ci-attestation-v2",
+        "status": "verified",
+        "repository": "example/project",
+        "default_branch": "main",
+        "source_commit_sha": SOURCE_SHA,
+        "qualification_commit_sha": QUALIFICATION_SHA_PLACEHOLDER,
+        "run_head_sha": QUALIFICATION_SHA_PLACEHOLDER,
+        "source_checkout_attestation_sha256": "a" * 64,
+        "source_checkout_binding_mode": "source_checkout_attestation_v1",
+        "source_prequalification": True,
+        "run_id": 123456,
+        "run_attempt": 1,
+        "run_url": "https://github.com/example/project/actions/runs/123456",
+        "workflow_path": ".github/workflows/pr-check.yml",
+        "workflow_event": "workflow_dispatch",
+        "head_branch": "codex/test",
+        "job_count": 1,
+        "failed_job_count": 0,
+        "skipped_job_count": 0,
+        "skipped_step_count": 0,
+        "required_checks_passed": True,
+        "branch_protection_verified": True,
+        "secret_scan_verified": True,
+        "oauth_regression_verified": True,
+        "api_readback_complete": True,
+        "provider_writes": False,
+        "secret_output": False,
+    }
 
 
 def valid_frontend_origin_evidence() -> dict[str, object]:
@@ -183,6 +224,7 @@ class ProductionAuthIdentityEvidenceTests(unittest.TestCase):
         architecture_decision: dict[str, object] | None = None,
         auth_runtime_evidence: dict[str, object] | None = None,
         auth_runtime_verifier_succeeds: bool = True,
+        ci_attestation: dict[str, object] | None = None,
     ) -> tuple[tempfile.TemporaryDirectory[str], Path]:
         directory = tempfile.TemporaryDirectory()
         root = Path(directory.name)
@@ -226,6 +268,27 @@ class ProductionAuthIdentityEvidenceTests(unittest.TestCase):
         candidate_sha = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=root, text=True
         ).strip()
+        qualification_control = root / "docs" / "runtime-state" / "source-qualification-control.json"
+        qualification_control.parent.mkdir(parents=True, exist_ok=True)
+        qualification_control.write_text(
+            json.dumps(
+                {
+                    "contract_version": "source-qualification-control-v1",
+                    "source_commit_sha": candidate_sha,
+                },
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", "docs/runtime-state/source-qualification-control.json"], cwd=root, check=True)
+        subprocess.run(
+            ["git", "commit", "--quiet", "-m", "qualification control"],
+            cwd=root,
+            check=True,
+        )
+        qualification_sha = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=root, text=True
+        ).strip()
 
         binding = evidence.get("source_binding")
         if isinstance(binding, dict):
@@ -236,11 +299,13 @@ class ProductionAuthIdentityEvidenceTests(unittest.TestCase):
             ):
                 if binding.get(field) == SOURCE_SHA:
                     binding[field] = candidate_sha
+            if binding.get("qualification_commit_sha") == QUALIFICATION_SHA_PLACEHOLDER:
+                binding["qualification_commit_sha"] = qualification_sha
         origin_evidence = frontend_origin_evidence or valid_frontend_origin_evidence()
         if origin_evidence.get("source_commit_sha") == SOURCE_SHA:
             origin_evidence["source_commit_sha"] = candidate_sha
         frontend_origin_path = root / FRONTEND_ORIGIN_EVIDENCE_REF
-        frontend_origin_path.parent.mkdir(parents=True)
+        frontend_origin_path.parent.mkdir(parents=True, exist_ok=True)
         frontend_origin_bytes = json.dumps(
             origin_evidence,
             sort_keys=True,
@@ -260,6 +325,17 @@ class ProductionAuthIdentityEvidenceTests(unittest.TestCase):
         runtime_evidence_path.parent.mkdir(parents=True, exist_ok=True)
         runtime_evidence_bytes = json.dumps(runtime_evidence, sort_keys=True).encode("utf-8")
         runtime_evidence_path.write_bytes(runtime_evidence_bytes)
+        ci_attestation = ci_attestation or valid_ci_attestation()
+        if ci_attestation.get("source_commit_sha") == SOURCE_SHA:
+            ci_attestation["source_commit_sha"] = candidate_sha
+        if ci_attestation.get("qualification_commit_sha") == QUALIFICATION_SHA_PLACEHOLDER:
+            ci_attestation["qualification_commit_sha"] = qualification_sha
+        if ci_attestation.get("run_head_sha") == QUALIFICATION_SHA_PLACEHOLDER:
+            ci_attestation["run_head_sha"] = qualification_sha
+        ci_attestation_path = root / CI_ATTESTATION_REF
+        ci_attestation_path.parent.mkdir(parents=True, exist_ok=True)
+        ci_attestation_bytes = json.dumps(ci_attestation, sort_keys=True).encode("utf-8")
+        ci_attestation_path.write_bytes(ci_attestation_bytes)
         if isinstance(binding, dict):
             if binding.get("frontend_origin_evidence_sha256") == FRONTEND_ORIGIN_EVIDENCE_SHA256_PLACEHOLDER:
                 binding["frontend_origin_evidence_sha256"] = hashlib.sha256(frontend_origin_bytes).hexdigest()
@@ -267,6 +343,8 @@ class ProductionAuthIdentityEvidenceTests(unittest.TestCase):
                 binding["owner_architecture_decision_sha256"] = hashlib.sha256(decision_bytes).hexdigest()
             if binding.get("auth_runtime_evidence_sha256") == AUTH_RUNTIME_EVIDENCE_SHA256_PLACEHOLDER:
                 binding["auth_runtime_evidence_sha256"] = hashlib.sha256(runtime_evidence_bytes).hexdigest()
+            if binding.get("exact_head_ci_attestation_sha256") == CI_ATTESTATION_SHA256_PLACEHOLDER:
+                binding["exact_head_ci_attestation_sha256"] = hashlib.sha256(ci_attestation_bytes).hexdigest()
         evidence_path = root / "evidence" / "production-auth.json"
         evidence_path.parent.mkdir(parents=True, exist_ok=True)
         evidence_path.write_text(json.dumps(evidence, sort_keys=True), encoding="utf-8")
@@ -318,6 +396,34 @@ class ProductionAuthIdentityEvidenceTests(unittest.TestCase):
         self.assertIn("callback_origin_bound=true", completed.stdout)
         self.assertIn("owner_architecture_adr_bound=true", completed.stdout)
         self.assertIn("auth_runtime_bound=true", completed.stdout)
+        self.assertIn("exact_head_ci_bound=true", completed.stdout)
+
+    def test_exact_head_ci_hash_lineage_and_claims_fail_closed(self) -> None:
+        for field, value in (
+            ("exact_head_ci_attestation_sha256", "0" * 64),
+            ("qualification_commit_sha", "f" * 40),
+        ):
+            with self.subTest(field=field):
+                evidence = valid_evidence()
+                binding = evidence["source_binding"]
+                assert isinstance(binding, dict)
+                binding[field] = value
+                directory, root = self.make_repo(evidence)
+                with directory:
+                    completed = self.run_verifier(root, "-ValidateOnly")
+                self.assertNotEqual(completed.returncode, 0)
+
+        for field, value in (
+            ("run_head_sha", "e" * 40),
+            ("provider_writes", True),
+        ):
+            with self.subTest(ci_field=field):
+                ci = valid_ci_attestation()
+                ci[field] = value
+                directory, root = self.make_repo(valid_evidence(), ci_attestation=ci)
+                with directory:
+                    completed = self.run_verifier(root, "-ValidateOnly")
+                self.assertNotEqual(completed.returncode, 0)
 
     def test_transition_fields_fail_closed(self) -> None:
         for field in (

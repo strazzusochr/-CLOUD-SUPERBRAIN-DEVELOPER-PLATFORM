@@ -106,17 +106,32 @@ def complete_auth_inputs(root: Path) -> dict[str, Path]:
     }
     write_json(paths["architecture"], architecture)
     ci = {
-        "contract_version": "exact-head-ci-attestation-v1",
+        "contract_version": "exact-head-ci-attestation-v2",
         "status": "verified",
+        "repository": "example/project",
+        "default_branch": "main",
         "source_commit_sha": CANDIDATE,
+        "qualification_commit_sha": "c" * 40,
+        "run_head_sha": "c" * 40,
+        "source_checkout_attestation_sha256": "d" * 64,
+        "source_checkout_binding_mode": "source_checkout_attestation_v1",
+        "source_prequalification": True,
         "run_id": 123456,
         "run_attempt": 1,
+        "run_url": "https://github.com/example/project/actions/runs/123456",
+        "workflow_path": ".github/workflows/pr-check.yml",
+        "workflow_event": "workflow_dispatch",
+        "head_branch": "codex/test",
+        "job_count": 1,
         "failed_job_count": 0,
         "skipped_job_count": 0,
+        "skipped_step_count": 0,
         "required_checks_passed": True,
         "branch_protection_verified": True,
         "secret_scan_verified": True,
         "oauth_regression_verified": True,
+        "api_readback_complete": True,
+        "provider_writes": False,
         "secret_output": False,
     }
     write_json(paths["ci"], ci)
@@ -141,6 +156,8 @@ class ProductionAuthPipelineTests(unittest.TestCase):
         self.assertEqual(value["contract_version"], "production-auth-identity-proof-v1")
         self.assertEqual(value["human_flow_verified_steps"], p3.STEP_NAMES)
         self.assertEqual(value["source_binding"]["frontend_source_commit_sha"], "b" * 40)
+        self.assertEqual(value["source_binding"]["qualification_commit_sha"], "c" * 40)
+        self.assertRegex(value["source_binding"]["exact_head_ci_attestation_sha256"], r"^[0-9a-f]{64}$")
         self.assertTrue(value["source_parity_verified"])
         self.assertFalse(value["gate_promotion_performed"])
 
@@ -151,6 +168,21 @@ class ProductionAuthPipelineTests(unittest.TestCase):
             ci["skipped_job_count"] = 1
             write_json(paths["ci"], ci)
             with self.assertRaisesRegex(build_auth.EvidenceError, "failed or skipped"):
+                build_auth.build_evidence(
+                    candidate_sha=CANDIDATE,
+                    flow_path=paths["flow"],
+                    runtime_path=paths["runtime"],
+                    frontend_path=paths["frontend"],
+                    architecture_path=paths["architecture"],
+                    ci_path=paths["ci"],
+                )
+
+        with self.make_repo_temp() as directory:
+            paths = complete_auth_inputs(Path(directory))
+            ci = json.loads(paths["ci"].read_text(encoding="utf-8"))
+            ci["run_head_sha"] = "e" * 40
+            write_json(paths["ci"], ci)
+            with self.assertRaisesRegex(build_auth.EvidenceError, "run-head mismatch"):
                 build_auth.build_evidence(
                     candidate_sha=CANDIDATE,
                     flow_path=paths["flow"],

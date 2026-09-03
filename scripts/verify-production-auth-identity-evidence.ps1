@@ -210,6 +210,9 @@ Assert-ExactPropertyNames $sourceBinding @(
   'owner_architecture_decision_sha256',
   'auth_runtime_evidence_ref',
   'auth_runtime_evidence_sha256',
+  'exact_head_ci_attestation_ref',
+  'exact_head_ci_attestation_sha256',
+  'qualification_commit_sha',
   'callback_origin',
   'callback_url'
 ) 'Production auth source_binding'
@@ -241,6 +244,9 @@ Assert-NonEmptyString $sourceBinding 'owner_architecture_decision_ref'
 Assert-NonEmptyString $sourceBinding 'owner_architecture_decision_sha256'
 Assert-NonEmptyString $sourceBinding 'auth_runtime_evidence_ref'
 Assert-NonEmptyString $sourceBinding 'auth_runtime_evidence_sha256'
+Assert-NonEmptyString $sourceBinding 'exact_head_ci_attestation_ref'
+Assert-NonEmptyString $sourceBinding 'exact_head_ci_attestation_sha256'
+Assert-NonEmptyString $sourceBinding 'qualification_commit_sha'
 Assert-NonEmptyString $sourceBinding 'callback_origin'
 Assert-NonEmptyString $sourceBinding 'callback_url'
 $callbackOrigin = Assert-NonLocalHttpsOrigin ([string]$sourceBinding.callback_origin) 'source_binding.callback_origin'
@@ -531,6 +537,108 @@ foreach ($marker in @(
     "Owner-selected auth runtime dynamic validation is missing marker: $marker"
 }
 
+$qualificationSha = [string]$sourceBinding.qualification_commit_sha
+Assert-True ($qualificationSha -cmatch '^[0-9a-f]{40}$' -and $qualificationSha -cne $ExpectedCandidateSha) `
+  "source_binding.qualification_commit_sha must be a distinct lowercase Git SHA."
+& git -C $repoRoot cat-file -e "$qualificationSha^{commit}" 2>$null
+Assert-True ($LASTEXITCODE -eq 0) "Qualification commit must resolve in Git."
+$qualificationParent = (& git -C $repoRoot rev-parse "$qualificationSha^").Trim()
+Assert-True ($LASTEXITCODE -eq 0 -and $qualificationParent -ceq $ExpectedCandidateSha) `
+  "Qualification commit must be a direct child of the candidate source."
+$qualificationDelta = @(& git -C $repoRoot diff --name-only $ExpectedCandidateSha $qualificationSha)
+Assert-True (
+  $LASTEXITCODE -eq 0 -and
+  $qualificationDelta.Count -eq 1 -and
+  $qualificationDelta[0] -ceq 'docs/runtime-state/source-qualification-control.json'
+) "Qualification delta must contain only the source qualification control."
+& git -C $repoRoot merge-base --is-ancestor $qualificationSha HEAD
+Assert-True ($LASTEXITCODE -eq 0) "Qualification commit must be an ancestor of the evidence HEAD."
+
+$ciAttestationRef = [string]$sourceBinding.exact_head_ci_attestation_ref
+Assert-True (
+  $ciAttestationRef -cmatch '^docs/release-artifacts/prod-candidate-\d{4}-\d{2}-\d{2}-local-rc\d+-evidence/ci/exact-head-ci-attestation\.json$'
+) "Exact-head CI attestation must use the canonical release evidence path."
+$resolvedCiAttestation = Resolve-RepoScopedFile $ciAttestationRef
+Assert-True ($null -ne $resolvedCiAttestation) "Exact-head CI attestation is unavailable."
+& git -C $repoRoot ls-files --error-unmatch -- $resolvedCiAttestation.relative 2>$null | Out-Null
+Assert-True ($LASTEXITCODE -eq 0) "Exact-head CI attestation must be tracked by Git."
+& git -C $repoRoot diff --quiet HEAD -- $resolvedCiAttestation.relative
+Assert-True ($LASTEXITCODE -eq 0) "Exact-head CI attestation must be clean relative to HEAD."
+$expectedCiAttestationSha = [string]$sourceBinding.exact_head_ci_attestation_sha256
+Assert-True ($expectedCiAttestationSha -cmatch '^[0-9a-f]{64}$') `
+  "exact_head_ci_attestation_sha256 must be a lowercase SHA-256."
+$actualCiAttestationSha = (Get-FileHash -LiteralPath $resolvedCiAttestation.absolute -Algorithm SHA256).Hash.ToLowerInvariant()
+Assert-True ($actualCiAttestationSha -ceq $expectedCiAttestationSha) "Exact-head CI attestation SHA-256 mismatch."
+try {
+  $ciAttestation = Get-Content -LiteralPath $resolvedCiAttestation.absolute -Raw | ConvertFrom-Json
+} catch {
+  throw "Exact-head CI attestation must be valid JSON."
+}
+Assert-ExactPropertyNames $ciAttestation @(
+  'contract_version',
+  'status',
+  'repository',
+  'default_branch',
+  'source_commit_sha',
+  'qualification_commit_sha',
+  'run_head_sha',
+  'source_checkout_attestation_sha256',
+  'source_checkout_binding_mode',
+  'source_prequalification',
+  'run_id',
+  'run_attempt',
+  'run_url',
+  'workflow_path',
+  'workflow_event',
+  'head_branch',
+  'job_count',
+  'failed_job_count',
+  'skipped_job_count',
+  'skipped_step_count',
+  'required_checks_passed',
+  'branch_protection_verified',
+  'secret_scan_verified',
+  'oauth_regression_verified',
+  'api_readback_complete',
+  'provider_writes',
+  'secret_output'
+) 'Exact-head CI attestation'
+Assert-True ([string]$ciAttestation.contract_version -ceq 'exact-head-ci-attestation-v2') `
+  "Exact-head CI attestation contract mismatch."
+Assert-True ([string]$ciAttestation.status -ceq 'verified') "Exact-head CI attestation status mismatch."
+Assert-True ([string]$ciAttestation.source_commit_sha -ceq $ExpectedCandidateSha) `
+  "Exact-head CI attestation source mismatch."
+Assert-True ([string]$ciAttestation.qualification_commit_sha -ceq $qualificationSha) `
+  "Exact-head CI attestation qualification mismatch."
+Assert-True ([string]$ciAttestation.run_head_sha -ceq $qualificationSha) `
+  "Exact-head CI attestation run-head mismatch."
+Assert-True ([string]$ciAttestation.source_checkout_binding_mode -ceq 'source_checkout_attestation_v1') `
+  "Exact-head CI attestation checkout binding mismatch."
+Assert-JsonBool $ciAttestation 'source_prequalification' $true
+Assert-True ([string]$ciAttestation.source_checkout_attestation_sha256 -cmatch '^[0-9a-f]{64}$') `
+  "Exact-head CI source-checkout hash is invalid."
+Assert-True ([long]$ciAttestation.run_id -gt 0 -and [int]$ciAttestation.run_attempt -eq 1) `
+  "Exact-head CI run identity is invalid."
+Assert-True (
+  [int]$ciAttestation.failed_job_count -eq 0 -and
+  [int]$ciAttestation.skipped_job_count -eq 0 -and
+  [int]$ciAttestation.skipped_step_count -eq 0
+) "Exact-head CI attestation contains failed or skipped work."
+foreach ($field in @(
+  'required_checks_passed',
+  'branch_protection_verified',
+  'secret_scan_verified',
+  'oauth_regression_verified',
+  'api_readback_complete'
+)) {
+  Assert-JsonBool $ciAttestation $field $true
+}
+Assert-JsonBool $ciAttestation 'provider_writes' $false
+Assert-JsonBool $ciAttestation 'secret_output' $false
+$forbiddenCiSecretProperties = @(Find-ForbiddenSecretProperties $ciAttestation 'exact_head_ci_attestation')
+Assert-True ($forbiddenCiSecretProperties.Count -eq 0) `
+  "Exact-head CI attestation contains forbidden raw secret properties."
+
 $expectedSteps = @(
   'anonymous_login_no_identity',
   'github_start_exact_query',
@@ -566,5 +674,5 @@ Assert-True ($forbiddenSecretProperties.Count -eq 0) `
 Write-Host ((
   "[production-auth-evidence] status=verified candidate_sha={0} " +
   "validation_mode=true read_only=true gate_promotion_performed=false secret_output=false " +
-  "callback_origin_bound=true owner_architecture_adr_bound=true auth_runtime_bound=true"
+  "callback_origin_bound=true owner_architecture_adr_bound=true auth_runtime_bound=true exact_head_ci_bound=true"
 ) -f $ExpectedCandidateSha)

@@ -48,6 +48,18 @@ Overall **89**, `MARKET_READY:false`.
   Pfad, Regel, Zeile und Hash des redigierten Kontexts und beweist zusaetzlich, dass
   drei frische synthetische PATs in denselben Pfaden 3/3 geblockt werden. Voller lokaler
   History-Scan danach: 777 Commits, 0 Funde. Keine breite Pfad-/Regelausnahme.
+  Vorbeugender Dual-Binding-Fund: der Exact-Head-CI-Evidence-Writer verglich bisher
+  GitHub `run.head_sha` direkt mit S. Im Source-Prequalification-Modus ist der Run-Head
+  absichtlich Q, waehrend der Checkout-Artefakt exakt S belegt. Der Builder verlangt nun
+  beide SHAs in `exact-head-ci-attestation-v2`, bindet Q an Run-Head und S an das unveraenderliche, vom Lauf hochgeladene
+  `pr-check-source-checkout-attestation-v1`; Control-Delta muss exakt nur die
+  Qualification-Control sein. Run-ID/-Versuch/-URL, Ref, Non-Claims und False-Claims
+  werden ebenfalls fail-closed verglichen. RC37-CI `33813714772` ist 29/29 gruen;
+  der neue Writer wurde erfolgreich gegen dessen echtes Actions-Artefakt erprobt.
+  Die Production-Auth-Evidence traegt jetzt CI-Dateireferenz, CI-SHA-256 und Q weiter;
+  der unabhaengige Verifier wiederholt Q-Direktkind-, Control-Delta-, v2-Feld-,
+  False-Claim- und Hashpruefung fail-closed. RC37 bleibt wegen dieses anschliessenden
+  Produktfixes ein Zwischenkandidat; als Naechstes folgt genau ein neu gebundenes S/Q.
   RC35 ist wegen des fehlgeschlagenen Gesamtlaufs nicht freigegeben; sein Owner-Paket
   ist ueberholt und darf nicht zur Ausfuehrung verwendet werden.
 - Kein Cloud-/Registry-Deploy, kein P6-Live-Dispatch, kein Provideraufruf, keine
