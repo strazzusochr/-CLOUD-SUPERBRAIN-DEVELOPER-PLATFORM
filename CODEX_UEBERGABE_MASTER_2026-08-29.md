@@ -1,15 +1,34 @@
 # CODEX UEBERGABE-MASTER
 
 Status: `ACTIVE_CURRENT_HANDOFF`
-Stand: **2026-09-02**
+Stand: **2026-09-03**
 Branch: `codex/organism-visual-v2`
 Qualification Source: **`a632372863a39faa0e53d780c1942938a2b3241c`**; Source-Attestation: **`5aad04d47375490dfbd8765d6e9e3f77241f3fdf`**; Hosted-Evidence-Control: **`532a3c8cfff201f09617c6eb46d0111d56a9dcba`** (immutable RC30 L5 evidence); Last Pushed Truth-Control: **`d9dbf8b3e7bd4deb5e20a029d88219f3c8b98810`**; Final-Head-CI: **`33597146482`** (`31/31`, skipped `0`)
 Phase-6 Hardened Code-Control: **`bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0`**; Exact-Head-CI: **`33605838142`** (`31/31`, skipped `0`, failed `0`)
+Phase-6 Grant/Anchor Control: **`664968f08a2b392463165118b77887cc21781a98`**; Exact-Head-CI: **`33610385136`** (`31/31`, skipped `0`, failed `0`)
 **B1 ERTEILT** — Approval-Commit: **`e87c28a7c6cf32982caa849794042daa53ef022a`**
 Market Status: `MARKET_READY:false` — Overall `89`
 
 **Dies ist die einzige Uebergabe.** Sie sagt, *was los ist*.
 Was zu tun ist, steht in `CODEX_ZIEL_MASTER_2026-08-29.md`.
+
+## Aktiver WIP-Checkpoint 2026-09-03
+
+Produkt-Freeze `S` ist integriert, aber noch nicht committed oder gepusht. Der gemessene
+Kredit bleibt Overall `89`: neu `0/136`, offen `136` (`P3 +56`, `P5 +11`, `P6 +10`,
+`L4 +45`, `L5 +14`); `MARKET_READY:false`.
+
+GHCR/I1/main-deploy lesen die neue Source-Qualification-Control mit exakter Release-ID,
+`runtime_candidate_sha=S` und `git archive` SHA-256. Die alte RC33-Phase-5-Zeile ist nicht
+mehr die Publikationsquelle. O1/O3 sind lokal nur als Owner grant/ref vorbereitet;
+`live_verified=false`. Sechs Images wurden lokal gebaut, Smoke-geprueft, mit Trivy auf
+zero HIGH/CRITICAL und zero Secrets gescannt und als CycloneDX-SBOM erzeugt. Fokusresultate:
+`119/119`, `60/60`, `15/15`, `36/36`, `69/69`, beide P6-Static-Verifier, Pins und Parser
+PASS. Keine externe Mutation und kein Kredit.
+
+Als Naechstes finalen Security-/Pfadinventar-Check ausfuehren, exakt nur den eigenen Slice
+stagen, `S` pushen und Exact-Head-CI verlangen; danach direkter Kindcommit `Q` nur mit der
+Qualification-Control. Die sechs fremden O4-Dirty-Pfade niemals in S aufnehmen.
 
 > Der Dateiname bleibt bewusst auf `2026-08-29` stehen, damit Codex genau eine Uebergabe
 > und genau eine Zieldatei findet. Massgeblich ist das Feld `Stand` oben.
@@ -32,16 +51,37 @@ Die eng begrenzte Owner-Urkunde ist jetzt eingetragen:
 `OWNER_GRANTS_2026-09-02.json::O2:phase6_scale_runtime`. `live_verified=false`; Evidence,
 Provider, Zeit und Verifier bleiben leer. Das leere `evidence_sha256` vervollstaendigt nur
 das vom Deep-Verifier verlangte Pre-Promotion-Schema. Kein Workflow-Dispatch, kein Credit.
+Grant-Commit `638ba0a9` und Ankerkorrektur `664968f0` sind gepusht. `pr-check`
+`33610385136` checkte exakt `664968f0` aus und bestand `31/31`, skipped `0`, failed `0`.
+Der Phase-5-Fehler zur fehlenden exakten Release-/Source-Nennung ist damit behoben;
+Phase 5 bleibt unveraendert `17/19`, I1/I5 blockiert.
 
 Der Widerspruch zwischen Owner-Manifest und Rubrik-Verifier ist eng geschlossen, nicht
 umgangen. Commit `63983d6b` prueft den Null-Credit-Zustand exakt am B1-Approval-Commit
 `e87c28a7`, statt die aktuellen Gates fuer immer auf `false` zu pinnen; 15/15 fokussierte
-Tests und der Rubrik-Verifier bestehen. Commit `c24b7bfd` stoppt die gemessene
-Worker/Vercel-Rekursionsschleife mit Hop-Marker und `508`; Worker-Tests `68/68`, Check und
-Root-Verifier bestehen. Commit `bc2d4c8e` haelt die Edge-Control wie im eingefrorenen
+  Tests und der Rubrik-Verifier bestehen. Commit `c24b7bfd` stoppt eine moegliche
+  Worker/Vercel-Rekursionsschleife mit Hop-Marker und `508`; Worker-Tests `68/68`, Check und
+  Root-Verifier bestehen. Commit `bc2d4c8e` haelt die Edge-Control wie im eingefrorenen
 Phase-6-Kriterium vorgeschrieben rein attributiv, waehrend alle Worker-Passkriterien
 unveraendert fail-closed bleiben. Exact-head `pr-check` `33605838142` bestand alle `31/31`
-Schritte ohne Skip oder Fehler.
+  Schritte ohne Skip oder Fehler.
+
+Das eingeloggte Cloudflare-Dashboard misst fuer die letzten 24 Stunden beim Production-
+Stateful-Worker `159` Invocations und `0` Errors, beim isolierten Stateful-Preview dagegen
+`868.21k` Invocations und `0` Errors; `868k` davon entfallen auf Preview-Version
+`fc27406d`. Preview ist damit der dominante gemessene Invocation-Verbraucher. Dass diese
+Last der primaere Beitrag zur kontoweiten Ausschoepfung war, ist stark gestuetzt; alleinige
+Verursachung ist nicht bewiesen und die offene Cross-
+Origin-Bounce-Schleife bleibt ohne Requestpfad-Analytics eine Ursache-Hypothese. Vor dem
+Reset keinen weiteren Worker-GET ausfuehren und danach den Loop-Guard sowohl Preview als
+auch dem finalen Phase-6-Production-Sourcepfad voranstellen. Vor Dispatch muss der
+kanonische Cloudflare-Stateful-Verifier frische source-bound O2Core-Write/Read/Delete-
+Evidence und den Hosted-State (<24 h) schreiben. Der separate P6-Deployment-Preflight
+bindet innerhalb zehn Minuten Preview=`0` und Production=`1` Worker-Request. Alle drei
+Pre-Run-Beweise sind beim Dispatch getrackt und <24 h. Ab Evidence-Control `C` bis
+Verifikation/Gate-Promotion gilt Commit-Freeze; genau ein `run_attempt=1`, kein Rerun.
+Der GitHub-Readback der Scale-Evidence muss innerhalb 24 h erfolgen; die menschliche
+Environment-Freigabe wird separat ueber GitHub-API/UI belegt.
 
 Agent-api wurde lokal aus dem committed Archiv als
 `cloud-superbrain-local/agent-api:bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0` gebaut,
@@ -76,9 +116,10 @@ aktuell HTTP `429` mit Fehler `1027`: der accountweite Free-Plan-Tagesrequest-Gr
 erreicht und setzt um `00:00 UTC` zurueck. Das Vercel-Preview-Deployment
 `dpl_CJzQ2YBuEzTpLS9KiFgvUSowo5MT` ist `Ready`; seine MCP-/LLM-Projektionen melden
 korrekt `degraded` und `live_backend=false`, solange die Cloudflare-Upstreams nicht
-erreichbar sind. Kein Redeploy umgeht diesen Quota-Blocker. Nach Reset einmal neu messen;
-Preview-Rebind und B2/B3/B4/B5 warten auf die bereits separat angeforderten Owner-
-Entscheidungen. Daraus folgt kein Credit und kein Production-Claim.
+erreichbar sind. Dieser damalige RC33-Folgepunkt ist durch den Phase-6-Pre-Run-Checkpoint
+oben ersetzt: nicht vor Guard/Rebind messen. Preview-Guard, enger Phase-6-Production-Rebind
+und B3 sind inzwischen autorisiert; B2/I5 und B4/I1/GHCR bleiben separat Owner-gegatet.
+Daraus folgt noch kein Credit und kein Production-Release-Claim.
 
 RC33 ist lokal mit allen fuenf unabhaengigen Ketten qualifiziert. Die eingefrorene Source
 `a632372863a39faa0e53d780c1942938a2b3241c` enthaelt die Hosted-Next-API-
@@ -104,9 +145,10 @@ ist der immutable lokale Rollback.
 Die runtime-identische Vercel-Preview-Frontend-Source `50a591d4` bestand den Hosted-
 Browservertrag mit 22 Routen bei zwei Viewports und 44 Klicks. Sie ist kein exakter RC33-
 sechs-Service-Beweis und schliesst I1 nicht. Der Qualification-Push und final-head CI sind
-inzwischen abgeschlossen; der aktuelle Restablauf beginnt mit der einmaligen
-Preview-Neumessung nach dem Cloudflare-Quota-Reset. I1/GHCR und I5/Production-OAuth
-bleiben separate Owner-Gates; kein Production-Alias.
+inzwischen abgeschlossen. Der aktive Restablauf steht im Phase-6-Pre-Run-Checkpoint
+oben: nach dem Reset zuerst Guard/Rebind ohne vorgezogenen Worker-Read, dann genau
+ein Production-Health-Read und die source-gebundene Evidence-Kette. I1/GHCR und
+I5/Production-OAuth bleiben separate Owner-Gates; kein Production-Release-Alias.
 
 Letzter Gate-Befund: Phase-5-Credit ist gruen (`17/19`, I1/I5), Manifest ist gruen
 (`overall=89`, `deltas=1`, `freshness=verified`), Candidate-Runtime ist gruen. Der Current-
@@ -195,13 +237,13 @@ RC33-Checkpoint oben ersetzt. Aktuelle Kandidaten-, Gate- und Fortschrittswahrhe
 nur im RC33-Checkpoint, der Koordinatentabelle, `PROJECT_STATE.md`, `AI_HANDOFF.md`, dem
 Verification Register und den RC33-Evidence-Artefakten.
 
-## Owner-Aktionen 2026-09-01 — gemessener Stand
+## Owner-Aktionen 2026-09-01 — HISTORISCHER, OBEN ERSETZTER STAND
 
 Zwei Owner-Handlungen sind ausgefuehrt und nachgeprueft. Beide selbst vergeben **null**
 Punkte. Der spaetere eigenstaendige Hosted-MCP-Beweis vergibt L5 +30; `overall` bleibt
 `89`, Delta-Ledger `1`, `MARKET_READY:false`.
 
-### 1. B3-Provisioning ist jetzt `3/3`
+### 1. B3-Provisioning war am 2026-09-01 `3/3` — Grant damals noch offen
 
 ```text
 Environment  phase6-scale-hosted-writes           vorhanden
@@ -209,7 +251,7 @@ Environment  phase6-scale-hosted-writes           vorhanden
 Workflow     auf codex/organism-visual-v2         Blob 0b2f7e3b
 Workflow     auf chore/repo-bootstrap (Default)   Blob 0b2f7e3b  <- identisch
              GitHub-Registrierung                 state=active  id=347406379
-Gate         phase6_scale_runtime                 owner_granted=false   <- weiterhin offen
+Gate         phase6_scale_runtime                 owner_granted=false   <- damaliger Stand
 ```
 
 Der Owner wollte zunaechst ein Secret unter `/settings/secrets/actions` eintragen. Das
@@ -290,10 +332,12 @@ ausgeloest. Die Vorhersage hat gehalten.
 keinen Deploy mehr. Offen bleiben der Dispatch mit exaktem `candidate_sha` und der
 Gate-Grant `docker_registry_publish`.
 
-**B3 ist damit vollstaendig provisioniert** — Environment, Secret, Default-Branch-Workflow
-und Environment-Schutz. Offen ist ausschliesslich der Grant `phase6_scale_runtime`.
+**B3 war damit technisch vollstaendig provisioniert** — Environment, Secret,
+Default-Branch-Workflow und Environment-Schutz. Der damals offene Grant wurde am
+2026-09-02 in `638ba0a9` erteilt und an Control `664968f0` durch CI `33610385136`
+attestiert; `live_verified=false` bleibt bis zum echten Lauf.
 
-### Offener Befund: `verify:phase5-credit` ist am Branch-HEAD rot
+### Historischer Befund: `verify:phase5-credit` war am damaligen Branch-HEAD rot — ERLEDIGT
 
 Am 2026-09-01 an `f1b25ed8` lokal gemessen:
 
@@ -325,12 +369,11 @@ Der CI-Lauf `33471127980` auf `f1b25ed8` ist trotzdem gruen; die CI bewertet die
 Paritaetspfad anders als der lokale Aufruf. Diese Diskrepanz ist nicht aufgeloest und
 sollte vor S7 verstanden werden — nicht umgangen.
 
-### Was daraus fuer Codex folgt
+### Was daraus damals fuer Codex folgte — NICHT ALS AKTUELLE ANLEITUNG VERWENDEN
 
 - **Nicht** erneut versuchen, Environment oder Secret fuer P6 anzulegen. Beides existiert.
-- Der **B3-Grant** (`phase6_scale_runtime` auf `owner_granted=true` plus `owner_grant_ref`)
-  ist das einzige verbliebene B3-Stueck. Vorher `capability-gates.json` in
-  `D:/_sb_tmp/rc22-candidate` sauber machen — die Datei war dort dirty.
+- Der **B3-Grant** war damals das einzige verbliebene B3-Stueck; er ist inzwischen
+  erteilt und CI-attestiert. Keine erneute Grant-Mutation vornehmen.
 - Vor **jedem** Push auf den Default-Branch pruefen, welche Workflows dort auf `push`
   lauschen. Diese Lektion hat heute Glueck gehabt.
 - **Zuerst** den RC-Zeiger geradeziehen (siehe Befund oben). Solange `verify:phase5-credit`
@@ -456,7 +499,8 @@ unveraendert bleiben. Weitere reine Doku-Synchronisation gilt ueber die bestehen
 dynamische Regel: Remote-Feature-Head muss exakt dem neuesten erfolgreichen `pr-check`
 mit `skipped=0` und `failed=0` entsprechen.
 
-Read-only B3/B4-Reaudit an `20daf6e`: Das Environment `phase6-scale-hosted-writes` und der
+**Historischer Messpunkt, durch den aktuellen Checkpoint oben ersetzt.** Read-only
+B3/B4-Reaudit an `20daf6e`: Das Environment `phase6-scale-hosted-writes` und der
 Secret-Name `AGENT_API_AUTH_TOKEN` existieren jetzt. Der zugehoerige Workflow liegt als Blob
 `0b2f7e3b` nur auf dem Feature-Branch und fehlt auf Default `chore/repo-bootstrap`; das Gate
 `phase6_scale_runtime` bleibt `owner_granted=false`. Default traegt fuer `main-deploy`

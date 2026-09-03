@@ -246,16 +246,44 @@ if ($LASTEXITCODE -ne 0) {
 $truthTransition = $false
 $noCreditRequalification = $false
 $evidenceCreditTransition = $false
+$dualBindingTransition = $false
+$dualBindingPath = "docs\runtime-state\source-truth-projection-binding.json"
+if (Test-Path -LiteralPath $dualBindingPath) {
+  $dualBinding = Get-Content -LiteralPath $dualBindingPath -Raw | ConvertFrom-Json
+  Assert-Equal "dual-binding contract" ([string]$dualBinding.contract_version) "source-truth-projection-binding-v1"
+  Assert-Equal "dual-binding runtime source" ([string]$dualBinding.runtime_candidate_sha) $sourceSha
+  Assert-Sha "dual-binding truth projection" ([string]$dualBinding.truth_projection_sha)
+  $dualBindingArgs = @(
+    "scripts\verify_source_truth_projection_binding.py",
+    "--runtime-sha", $sourceSha,
+    "--projection-sha", ([string]$dualBinding.truth_projection_sha),
+    "--receipt-sha", "HEAD"
+  )
+  $currentManifestForDualBinding = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
+  if ([int]$currentManifestForDualBinding.overall_percent -eq 100) {
+    $dualBindingArgs += "--require-ready"
+  }
+  & py -3 @dualBindingArgs
+  if ($LASTEXITCODE -ne 0) {
+    throw "Verification failed: source/truth-projection dual binding is invalid."
+  }
+  $dualBindingTransition = $true
+  $truthTransition = $true
+  $evidenceCreditTransition = $true
+}
 if ($runtimeChangedPaths.Count -gt 0) {
   $isQualificationTruthTransition = Test-ExactPathSet $runtimeChangedPaths $qualificationTruthPaths
   $isNoCreditRequalification = Test-ExactPathSet $runtimeChangedPaths $noCreditRequalificationPaths
   $isNoCreditRequalificationSameDay = Test-ExactPathSet $runtimeChangedPaths $noCreditRequalificationSameDayPaths
   $isNoCreditRequalification = $isNoCreditRequalification -or $isNoCreditRequalificationSameDay
-  if (-not $isQualificationTruthTransition -and -not $isNoCreditRequalification) {
+  if (-not $dualBindingTransition -and -not $isQualificationTruthTransition -and -not $isNoCreditRequalification) {
     throw "Verification failed: active release candidate has committed or staged runtime-source drift outside the exact truth transition."
   }
 
-  if ($isNoCreditRequalification) {
+  if ($dualBindingTransition) {
+    # The dedicated verifier has already proved S -> T -> R ancestry, the exact
+    # post-freeze allowlist, and byte-stable runtime/product paths.
+  } elseif ($isNoCreditRequalification) {
     $sourceManifestTextForCredit = (& git show "${sourceSha}:docs/project-progress.manifest.json" 2>$null | Out-String)
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($sourceManifestTextForCredit)) {
       throw "Verification failed: candidate source manifest is unavailable for progress transition classification."
@@ -343,13 +371,17 @@ $integrity = Get-Json "$BaseUrl/api/v1/project/progress/integrity" | ConvertFrom
 Assert-Equal "hosted integrity status" $integrity.status "verified"
 
 $completion = Get-Json "$BaseUrl/api/v1/project/progress/completion" | ConvertFrom-Json
-Assert-False "hosted completion can_set_all_to_100" $completion.can_set_all_to_100
 
 $canonicalSummary = Get-Content "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
 $canonicalMissing = @($canonicalSummary.missing_or_failed_gates)
 $canonicalVerified = ([string]$canonicalSummary.status -eq "verified" -and $canonicalMissing.Count -eq 0)
 $expectedExternalStatus = if ($canonicalVerified) { "verified" } else { "action_required" }
-if (-not $canonicalVerified) {
+$completionReady = ($canonicalVerified -and [int]$manifest.overall_percent -eq 100)
+if ($completionReady) {
+  Assert-True "hosted completion can_set_all_to_100" $completion.can_set_all_to_100
+  Assert-Equal "hosted completion status" ([string]$completion.status) "ready_for_100_percent_review"
+} else {
+  Assert-False "hosted completion can_set_all_to_100" $completion.can_set_all_to_100
   Assert-Equal "hosted completion status" ([string]$completion.status) "blocked_external_gates"
 }
 
@@ -376,4 +408,4 @@ if ($canonicalVerified) {
 
 $promotionEligible = ($canonicalVerified -and [bool]$canonicalSummary.production_deploy_claim_allowed)
 $snapshotStale = ($expectedHostedOverall -ne [int]$manifest.overall_percent)
-Write-Host "[current-release-candidate] verified candidate_technical=true runtime_source_parity=true qualification_truth_transition=$($truthTransition.ToString().ToLowerInvariant()) no_credit_requalification=$($noCreditRequalification.ToString().ToLowerInvariant()) evidence_credit_transition=$($evidenceCreditTransition.ToString().ToLowerInvariant()) promotion_eligible=$($promotionEligible.ToString().ToLowerInvariant()) canonical=$($canonicalSummary.status) boundary=$hostedBoundarySource hosted_snapshot_overall=$expectedHostedOverall current_manifest_overall=$([int]$manifest.overall_percent) snapshot_stale=$($snapshotStale.ToString().ToLowerInvariant())"
+Write-Host "[current-release-candidate] verified candidate_technical=true runtime_source_parity=true qualification_truth_transition=$($truthTransition.ToString().ToLowerInvariant()) dual_binding_transition=$($dualBindingTransition.ToString().ToLowerInvariant()) no_credit_requalification=$($noCreditRequalification.ToString().ToLowerInvariant()) evidence_credit_transition=$($evidenceCreditTransition.ToString().ToLowerInvariant()) promotion_eligible=$($promotionEligible.ToString().ToLowerInvariant()) canonical=$($canonicalSummary.status) boundary=$hostedBoundarySource hosted_snapshot_overall=$expectedHostedOverall current_manifest_overall=$([int]$manifest.overall_percent) snapshot_stale=$($snapshotStale.ToString().ToLowerInvariant())"

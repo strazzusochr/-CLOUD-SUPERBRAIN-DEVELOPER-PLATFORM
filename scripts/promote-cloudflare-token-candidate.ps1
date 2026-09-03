@@ -42,6 +42,154 @@ function Read-EnvMap([string]$Path) {
   return $map
 }
 
+function Assert-NoReparseSecretPath([string]$Root, [string]$Path) {
+  $resolvedRoot = [IO.Path]::GetFullPath($Root).
+    TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+  $resolvedPath = [IO.Path]::GetFullPath($Path)
+  $resolvedDirectory = [IO.Path]::GetDirectoryName($resolvedPath).
+    TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+  Assert-True (
+    $resolvedDirectory.Equals($resolvedRoot, [StringComparison]::OrdinalIgnoreCase) -or
+    $resolvedDirectory.StartsWith(
+      $resolvedRoot + [IO.Path]::DirectorySeparatorChar,
+      [StringComparison]::OrdinalIgnoreCase
+    )
+  ) 'Secret directory escaped the approved root.'
+
+  $cursor = $resolvedRoot
+  $rootItem = Get-Item -LiteralPath $cursor -Force
+  Assert-True (
+    $rootItem.PSIsContainer -and
+    -not ($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint)
+  ) 'Secrets root cannot be a junction or symlink.'
+
+  $relativeDirectory = [IO.Path]::GetRelativePath($resolvedRoot, $resolvedDirectory)
+  if ($relativeDirectory -ne '.') {
+    foreach ($segment in $relativeDirectory.Split(
+      [IO.Path]::DirectorySeparatorChar,
+      [StringSplitOptions]::RemoveEmptyEntries
+    )) {
+      $cursor = [IO.Path]::Combine($cursor, $segment)
+      $directoryItem = Get-Item -LiteralPath $cursor -Force
+      Assert-True (
+        $directoryItem.PSIsContainer -and
+        -not ($directoryItem.Attributes -band [IO.FileAttributes]::ReparsePoint)
+      ) 'Secret directory cannot contain a junction or symlink segment.'
+    }
+  }
+
+  $fileItem = Get-Item -LiteralPath $resolvedPath -Force
+  Assert-True (
+    -not $fileItem.PSIsContainer -and
+    -not ($fileItem.Attributes -band [IO.FileAttributes]::ReparsePoint)
+  ) 'Secret file must be a normal leaf file.'
+}
+
+function Assert-TokenFileStructure(
+  [string]$Path,
+  [string]$ExpectedActiveToken,
+  [string]$ExpectedCandidateToken
+) {
+  $lines = @(Get-Content -LiteralPath $Path)
+  $activePattern = '^\s*CLOUDFLARE_API_TOKEN\s*='
+  $candidatePattern = '^\s*CLOUDFLARE_API_TOKEN_CANDIDATE\s*='
+  Assert-True (@($lines | Where-Object { $_ -match $activePattern }).Count -eq 1) 'Active Cloudflare token entry must exist exactly once.'
+  Assert-True (@($lines | Where-Object { $_ -match $candidatePattern }).Count -eq 1) 'Candidate Cloudflare token entry must exist exactly once.'
+  $map = Read-EnvMap $Path
+  Assert-True ([string]$map['CLOUDFLARE_API_TOKEN'] -eq $ExpectedActiveToken) 'Active Cloudflare token content changed unexpectedly.'
+  Assert-True ([string]$map['CLOUDFLARE_API_TOKEN_CANDIDATE'] -eq $ExpectedCandidateToken) 'Candidate Cloudflare token content changed unexpectedly.'
+}
+
+function Assert-TokenFileHash([string]$Path, [string]$ExpectedHash, [string]$Label) {
+  $actualHash = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
+  Assert-True ($actualHash -eq $ExpectedHash) "$Label hash verification failed; no old rollbacks may be deleted."
+}
+
+function Remove-SupersededTokenRollbacks(
+  [string]$CurrentPath,
+  [string]$VerifiedRollbackPath,
+  [string]$ExpectedCurrentHash,
+  [string]$ExpectedRollbackHash,
+  [string]$ExpectedCurrentActiveToken,
+  [string]$ExpectedCurrentCandidateToken,
+  [string]$ExpectedRollbackActiveToken,
+  [string]$ExpectedRollbackCandidateToken
+) {
+  $resolvedCurrent = [IO.Path]::GetFullPath($CurrentPath)
+  $resolvedRollback = [IO.Path]::GetFullPath($VerifiedRollbackPath)
+  $secretDirectory = [IO.Path]::GetDirectoryName($resolvedCurrent)
+  $secretLeaf = [IO.Path]::GetFileName($resolvedCurrent)
+  Assert-True (
+    $secretLeaf.Equals('cloud-superbrain.local.env', [StringComparison]::OrdinalIgnoreCase)
+  ) 'Rollback retention is allowed only for the exact cloud-superbrain.local.env file.'
+  Assert-True (
+    [IO.Path]::GetDirectoryName($resolvedRollback).Equals(
+      $secretDirectory,
+      [StringComparison]::OrdinalIgnoreCase
+    )
+  ) 'Verified rollback is not in the exact secret directory.'
+
+  $directoryItem = Get-Item -LiteralPath $secretDirectory -Force
+  Assert-True (
+    $directoryItem.PSIsContainer -and
+    -not ($directoryItem.Attributes -band [IO.FileAttributes]::ReparsePoint)
+  ) 'Rollback retention cannot follow a junction or symlink directory.'
+
+  $rollbackPrefix = $secretLeaf + '.rollback-'
+  $rollbackNamePattern = '^' + [regex]::Escape($rollbackPrefix) + '[A-Za-z0-9][A-Za-z0-9-]*$'
+  $rollbackPaths = @(
+    [IO.Directory]::EnumerateFiles(
+      $secretDirectory,
+      $rollbackPrefix + '*',
+      [IO.SearchOption]::TopDirectoryOnly
+    ) | ForEach-Object { [IO.Path]::GetFullPath($_) }
+  )
+  Assert-True (
+    @($rollbackPaths | Where-Object {
+      $_.Equals($resolvedRollback, [StringComparison]::OrdinalIgnoreCase)
+    }).Count -gt 0
+  ) 'Verified rollback is missing after atomic promotion; old rollbacks must stay in place.'
+
+  foreach ($rollbackPath in $rollbackPaths) {
+    Assert-True (
+      [IO.Path]::GetDirectoryName($rollbackPath).Equals(
+        $secretDirectory,
+        [StringComparison]::OrdinalIgnoreCase
+      )
+    ) 'Rollback retention escaped the exact secret directory.'
+    Assert-True (
+      [IO.Path]::GetFileName($rollbackPath) -match $rollbackNamePattern
+    ) 'Rollback retention found a non-exact rollback leaf name.'
+    $rollbackItem = Get-Item -LiteralPath $rollbackPath -Force
+    Assert-True (
+      -not $rollbackItem.PSIsContainer -and
+      -not ($rollbackItem.Attributes -band [IO.FileAttributes]::ReparsePoint)
+    ) 'Rollback retention cannot delete a non-leaf or reparse target.'
+  }
+
+  $currentItem = Get-Item -LiteralPath $resolvedCurrent -Force
+  Assert-True (
+    -not $currentItem.PSIsContainer -and
+    -not ($currentItem.Attributes -band [IO.FileAttributes]::ReparsePoint)
+  ) 'Current secret file must remain a normal leaf file.'
+  Assert-TokenFileStructure `
+    -Path $resolvedCurrent `
+    -ExpectedActiveToken $ExpectedCurrentActiveToken `
+    -ExpectedCandidateToken $ExpectedCurrentCandidateToken
+  Assert-TokenFileStructure `
+    -Path $resolvedRollback `
+    -ExpectedActiveToken $ExpectedRollbackActiveToken `
+    -ExpectedCandidateToken $ExpectedRollbackCandidateToken
+  Assert-TokenFileHash -Path $resolvedCurrent -ExpectedHash $ExpectedCurrentHash -Label 'Current secret file'
+  Assert-TokenFileHash -Path $resolvedRollback -ExpectedHash $ExpectedRollbackHash -Label 'Verified rollback'
+
+  foreach ($rollbackPath in $rollbackPaths) {
+    if (-not $rollbackPath.Equals($resolvedRollback, [StringComparison]::OrdinalIgnoreCase)) {
+      Remove-Item -LiteralPath $rollbackPath -Force
+    }
+  }
+}
+
 function Resolve-SecretPath([string]$Path, [bool]$AllowTest) {
   $resolved = [IO.Path]::GetFullPath($Path)
   $secretRoot = [IO.Path]::GetFullPath([IO.Path]::Combine(
@@ -58,7 +206,15 @@ function Resolve-SecretPath([string]$Path, [bool]$AllowTest) {
     [StringComparison]::OrdinalIgnoreCase
   )
   Assert-True ($approved -or $testApproved) 'Secret path is outside the approved private directory.'
+  Assert-True (
+    [IO.Path]::GetFileName($resolved).Equals(
+      'cloud-superbrain.local.env',
+      [StringComparison]::OrdinalIgnoreCase
+    )
+  ) 'Secret file name must be exactly cloud-superbrain.local.env.'
   Assert-True (Test-Path -LiteralPath $resolved -PathType Leaf) 'Secret file is missing.'
+  $validatedRoot = if ($approved) { $secretRoot } else { $testRoot }
+  Assert-NoReparseSecretPath -Root $validatedRoot -Path $resolved
   return $resolved
 }
 
@@ -83,10 +239,15 @@ function Resolve-EvidencePath([string]$Path, [string]$Label, [bool]$AllowTest) {
 
 function Write-ActiveTokenAtomically([string]$Path, [string]$CandidateToken) {
   $lines = @(Get-Content -LiteralPath $Path)
+  $originalMap = Read-EnvMap $Path
+  $originalActiveToken = [string]$originalMap['CLOUDFLARE_API_TOKEN']
+  $originalCandidateToken = [string]$originalMap['CLOUDFLARE_API_TOKEN_CANDIDATE']
+  Assert-TokenFileStructure `
+    -Path $Path `
+    -ExpectedActiveToken $originalActiveToken `
+    -ExpectedCandidateToken $originalCandidateToken
+  $originalHash = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
   $activePattern = '^\s*CLOUDFLARE_API_TOKEN\s*='
-  $candidatePattern = '^\s*CLOUDFLARE_API_TOKEN_CANDIDATE\s*='
-  Assert-True (@($lines | Where-Object { $_ -match $activePattern }).Count -eq 1) 'Active Cloudflare token entry must exist exactly once.'
-  Assert-True (@($lines | Where-Object { $_ -match $candidatePattern }).Count -eq 1) 'Candidate Cloudflare token entry must exist exactly once.'
   $updated = @(
     foreach ($line in $lines) {
       if ($line -match $activePattern) {
@@ -103,6 +264,7 @@ function Write-ActiveTokenAtomically([string]$Path, [string]$CandidateToken) {
     $candidateMap = Read-EnvMap $temporaryPath
     Assert-True ([string]$candidateMap['CLOUDFLARE_API_TOKEN'] -eq $CandidateToken) 'Candidate promotion write verification failed.'
     Assert-True ([string]$candidateMap['CLOUDFLARE_API_TOKEN_CANDIDATE'] -eq $CandidateToken) 'Candidate source changed during promotion.'
+    $expectedCurrentHash = (Get-FileHash -LiteralPath $temporaryPath -Algorithm SHA256).Hash.ToUpperInvariant()
     [IO.File]::Replace($temporaryPath, $Path, $rollbackPath, $true)
   } finally {
     if (Test-Path -LiteralPath $temporaryPath -PathType Leaf) {
@@ -112,6 +274,15 @@ function Write-ActiveTokenAtomically([string]$Path, [string]$CandidateToken) {
   $written = Read-EnvMap $Path
   Assert-True ([string]$written['CLOUDFLARE_API_TOKEN'] -eq $CandidateToken) 'Promoted active token verification failed.'
   Assert-True ([string]$written['CLOUDFLARE_API_TOKEN_CANDIDATE'] -eq $CandidateToken) 'Promoted candidate verification failed.'
+  Remove-SupersededTokenRollbacks `
+    -CurrentPath $Path `
+    -VerifiedRollbackPath $rollbackPath `
+    -ExpectedCurrentHash $expectedCurrentHash `
+    -ExpectedRollbackHash $originalHash `
+    -ExpectedCurrentActiveToken $CandidateToken `
+    -ExpectedCurrentCandidateToken $CandidateToken `
+    -ExpectedRollbackActiveToken $originalActiveToken `
+    -ExpectedRollbackCandidateToken $originalCandidateToken
   return $rollbackPath
 }
 

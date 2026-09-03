@@ -62,6 +62,167 @@ function Read-EnvMap([string]$Path) {
   return $map
 }
 
+function Assert-NoReparseSecretPath([string]$Root, [string]$Path) {
+  $resolvedRoot = [IO.Path]::GetFullPath($Root).
+    TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+  $resolvedPath = [IO.Path]::GetFullPath($Path)
+  $resolvedDirectory = [IO.Path]::GetDirectoryName($resolvedPath).
+    TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+  if (-not (
+    $resolvedDirectory.Equals($resolvedRoot, [StringComparison]::OrdinalIgnoreCase) -or
+    $resolvedDirectory.StartsWith(
+      $resolvedRoot + [IO.Path]::DirectorySeparatorChar,
+      [StringComparison]::OrdinalIgnoreCase
+    )
+  )) {
+    throw 'Secrets-Dateiverzeichnis liegt ausserhalb der freigegebenen Wurzel.'
+  }
+
+  $cursor = $resolvedRoot
+  $rootItem = Get-Item -LiteralPath $cursor -Force
+  if (-not $rootItem.PSIsContainer -or ($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+    throw 'Secrets-Wurzel darf kein Junction- oder Symlink-Pfad sein.'
+  }
+  $relativeDirectory = [IO.Path]::GetRelativePath($resolvedRoot, $resolvedDirectory)
+  if ($relativeDirectory -ne '.') {
+    foreach ($segment in $relativeDirectory.Split(
+      [IO.Path]::DirectorySeparatorChar,
+      [StringSplitOptions]::RemoveEmptyEntries
+    )) {
+      $cursor = [IO.Path]::Combine($cursor, $segment)
+      $directoryItem = Get-Item -LiteralPath $cursor -Force
+      if (-not $directoryItem.PSIsContainer -or ($directoryItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw 'Secrets-Dateiverzeichnis darf keinen Junction- oder Symlink-Pfad enthalten.'
+      }
+    }
+  }
+
+  $fileItem = Get-Item -LiteralPath $resolvedPath -Force
+  if ($fileItem.PSIsContainer -or ($fileItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+    throw 'Secrets-Datei muss eine normale Leaf-Datei sein.'
+  }
+}
+
+function Assert-TokenFileStructure(
+  [string]$Path,
+  [string]$ExpectedActiveToken,
+  [string]$ExpectedCandidateToken,
+  [bool]$RequireCandidate
+) {
+  $lines = @(Get-Content -LiteralPath $Path)
+  $accountPattern = '^\s*CLOUDFLARE_ACCOUNT_ID\s*='
+  $activePattern = '^\s*CLOUDFLARE_API_TOKEN\s*='
+  $candidatePattern = '^\s*CLOUDFLARE_API_TOKEN_CANDIDATE\s*='
+  if (@($lines | Where-Object { $_ -match $accountPattern }).Count -ne 1) {
+    throw 'Token-Dateistruktur ist ungueltig: Account-ID muss exakt einmal vorkommen.'
+  }
+  if (@($lines | Where-Object { $_ -match $activePattern }).Count -ne 1) {
+    throw 'Token-Dateistruktur ist ungueltig: aktiver Token muss exakt einmal vorkommen.'
+  }
+  if ($RequireCandidate -and @($lines | Where-Object { $_ -match $candidatePattern }).Count -ne 1) {
+    throw 'Token-Dateistruktur ist ungueltig: Kandidat muss exakt einmal vorkommen.'
+  }
+  $map = Read-EnvMap $Path
+  if ([string]$map['CLOUDFLARE_ACCOUNT_ID'] -notmatch '^[A-Fa-f0-9]{32}$') {
+    throw 'Token-Dateistruktur ist ungueltig: Account-ID-Form.'
+  }
+  if ([string]$map['CLOUDFLARE_API_TOKEN'] -ne $ExpectedActiveToken) {
+    throw 'Token-Dateistruktur ist ungueltig: aktiver Token stimmt nicht.'
+  }
+  if ($RequireCandidate -and [string]$map['CLOUDFLARE_API_TOKEN_CANDIDATE'] -ne $ExpectedCandidateToken) {
+    throw 'Token-Dateistruktur ist ungueltig: Kandidat stimmt nicht.'
+  }
+}
+
+function Assert-TokenFileHash([string]$Path, [string]$ExpectedHash, [string]$Label) {
+  $actualHash = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
+  if ($actualHash -ne $ExpectedHash) {
+    throw "$Label Hash-Verifikation fehlgeschlagen; keine alten Rollbacks geloescht."
+  }
+}
+
+function Remove-SupersededTokenRollbacks(
+  [string]$CurrentPath,
+  [string]$VerifiedRollbackPath,
+  [string]$ExpectedCurrentHash,
+  [string]$ExpectedRollbackHash,
+  [string]$ExpectedCurrentActiveToken,
+  [string]$ExpectedCurrentCandidateToken,
+  [string]$ExpectedRollbackActiveToken
+) {
+  $resolvedCurrent = [IO.Path]::GetFullPath($CurrentPath)
+  $resolvedRollback = [IO.Path]::GetFullPath($VerifiedRollbackPath)
+  $secretDirectory = [IO.Path]::GetDirectoryName($resolvedCurrent)
+  $secretLeaf = [IO.Path]::GetFileName($resolvedCurrent)
+  if (-not $secretLeaf.Equals('cloud-superbrain.local.env', [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Rollback-Aufbewahrung ist nur fuer die exakte Secrets-Datei erlaubt.'
+  }
+  if (-not [IO.Path]::GetDirectoryName($resolvedRollback).Equals(
+    $secretDirectory,
+    [StringComparison]::OrdinalIgnoreCase
+  )) {
+    throw 'Verifizierter Rollback liegt nicht im exakten Secrets-Dateiverzeichnis.'
+  }
+  $directoryItem = Get-Item -LiteralPath $secretDirectory -Force
+  if (-not $directoryItem.PSIsContainer -or ($directoryItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+    throw 'Rollback-Aufbewahrung folgt keinem Junction- oder Symlink-Verzeichnis.'
+  }
+
+  $rollbackPrefix = $secretLeaf + '.rollback-'
+  $rollbackNamePattern = '^' + [regex]::Escape($rollbackPrefix) + '[A-Za-z0-9][A-Za-z0-9-]*$'
+  $rollbackPaths = @(
+    [IO.Directory]::EnumerateFiles(
+      $secretDirectory,
+      $rollbackPrefix + '*',
+      [IO.SearchOption]::TopDirectoryOnly
+    ) | ForEach-Object { [IO.Path]::GetFullPath($_) }
+  )
+  if (-not ($rollbackPaths | Where-Object {
+    $_.Equals($resolvedRollback, [StringComparison]::OrdinalIgnoreCase)
+  })) {
+    throw 'Der neue verifizierte Rollback fehlt; keine alten Rollbacks geloescht.'
+  }
+
+  foreach ($rollbackPath in $rollbackPaths) {
+    if (-not [IO.Path]::GetDirectoryName($rollbackPath).Equals(
+      $secretDirectory,
+      [StringComparison]::OrdinalIgnoreCase
+    )) {
+      throw 'Rollback-Aufbewahrung hat das exakte Secrets-Dateiverzeichnis verlassen.'
+    }
+    if ([IO.Path]::GetFileName($rollbackPath) -notmatch $rollbackNamePattern) {
+      throw 'Nicht-exakter Rollback-Dateiname; keine alten Rollbacks geloescht.'
+    }
+    $rollbackItem = Get-Item -LiteralPath $rollbackPath -Force
+    if ($rollbackItem.PSIsContainer -or ($rollbackItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+      throw 'Rollback-Aufbewahrung folgt keiner Junction- oder Symlink-Datei.'
+    }
+  }
+
+  $currentItem = Get-Item -LiteralPath $resolvedCurrent -Force
+  if ($currentItem.PSIsContainer -or ($currentItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+    throw 'Aktuelle Secrets-Datei ist keine normale Leaf-Datei.'
+  }
+  Assert-TokenFileStructure `
+    -Path $resolvedCurrent `
+    -ExpectedActiveToken $ExpectedCurrentActiveToken `
+    -ExpectedCandidateToken $ExpectedCurrentCandidateToken `
+    -RequireCandidate $true
+  Assert-TokenFileStructure `
+    -Path $resolvedRollback `
+    -ExpectedActiveToken $ExpectedRollbackActiveToken `
+    -ExpectedCandidateToken '' `
+    -RequireCandidate $false
+  Assert-TokenFileHash -Path $resolvedCurrent -ExpectedHash $ExpectedCurrentHash -Label 'Aktuelle Secrets-Datei'
+  Assert-TokenFileHash -Path $resolvedRollback -ExpectedHash $ExpectedRollbackHash -Label 'Neuer Rollback'
+
+  foreach ($rollbackPath in $rollbackPaths) {
+    if (-not $rollbackPath.Equals($resolvedRollback, [StringComparison]::OrdinalIgnoreCase)) {
+      Remove-Item -LiteralPath $rollbackPath -Force
+    }
+  }
+}
+
 function Resolve-ApprovedSecretFile([string]$Path, [bool]$AllowTestPath) {
   if ([string]::IsNullOrWhiteSpace($Path)) { throw 'Secrets-Dateipfad fehlt.' }
   $resolved = [IO.Path]::GetFullPath($Path)
@@ -83,9 +244,17 @@ function Resolve-ApprovedSecretFile([string]$Path, [bool]$AllowTestPath) {
   if (-not ($underApprovedRoot -or $underTestRoot)) {
     throw 'Secrets-Datei muss im privaten Codex-Secrets-Verzeichnis liegen.'
   }
+  if (-not [IO.Path]::GetFileName($resolved).Equals(
+    'cloud-superbrain.local.env',
+    [StringComparison]::OrdinalIgnoreCase
+  )) {
+    throw 'Secrets-Datei muss exakt cloud-superbrain.local.env heissen.'
+  }
   if (-not (Test-Path -LiteralPath $resolved -PathType Leaf)) {
     throw 'Secrets-Datei fehlt; keine Datei wurde angelegt.'
   }
+  $validatedRoot = if ($underApprovedRoot) { $approvedRoot } else { $testRoot }
+  Assert-NoReparseSecretPath -Root $validatedRoot -Path $resolved
   return $resolved
 }
 
@@ -191,6 +360,14 @@ function Write-CandidateAtomically(
   [string]$Value
 ) {
   $lines = @(Get-Content -LiteralPath $Path)
+  $originalMap = Read-EnvMap $Path
+  $originalActiveToken = [string]$originalMap['CLOUDFLARE_API_TOKEN']
+  Assert-TokenFileStructure `
+    -Path $Path `
+    -ExpectedActiveToken $originalActiveToken `
+    -ExpectedCandidateToken '' `
+    -RequireCandidate $false
+  $originalHash = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
   $replaced = $false
   $outputLines = foreach ($line in $lines) {
     if ($line -match ('^\s*' + [regex]::Escape($Key) + '\s*=')) {
@@ -216,11 +393,20 @@ function Write-CandidateAtomically(
     if ($temporaryMap[$Key] -ne $Value) {
       throw 'Kandidaten-Schreibprüfung fehlgeschlagen; Originaldatei unverändert.'
     }
+    $expectedCurrentHash = (Get-FileHash -LiteralPath $temporaryPath -Algorithm SHA256).Hash.ToUpperInvariant()
     [IO.File]::Replace($temporaryPath, $Path, $rollbackPath, $true)
     $writtenMap = Read-EnvMap $Path
     if ($writtenMap[$Key] -ne $Value) {
       throw 'Atomare Schreibprüfung fehlgeschlagen; Rollback-Datei liegt bereit.'
     }
+    Remove-SupersededTokenRollbacks `
+      -CurrentPath $Path `
+      -VerifiedRollbackPath $rollbackPath `
+      -ExpectedCurrentHash $expectedCurrentHash `
+      -ExpectedRollbackHash $originalHash `
+      -ExpectedCurrentActiveToken $originalActiveToken `
+      -ExpectedCurrentCandidateToken $Value `
+      -ExpectedRollbackActiveToken $originalActiveToken
     return $rollbackPath
   } finally {
     if (Test-Path -LiteralPath $temporaryPath -PathType Leaf) {

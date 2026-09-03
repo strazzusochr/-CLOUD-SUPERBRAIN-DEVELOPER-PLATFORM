@@ -150,6 +150,9 @@ class HostedMcpVerifierTests(unittest.TestCase):
         self.assertNotIn("scaffold_not_credit_bearing", source)
         for marker in (
             "syft",
+            '$requiredSyftVersion = "1.51.0"',
+            '$requiredSyftBinarySha256 = "75adfff66c266adac51fe8addeca97702f82b4d822d02bf70b79f556c84d3a46"',
+            "syft_binary_sha256",
             "scan $tag --from docker",
             "cyclonedx-json=",
             "CycloneDX",

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import copy
 import json
 import re
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
+from typing import Callable
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -215,6 +219,360 @@ class CloudflareOAuthDeployConfigTests(unittest.TestCase):
         deploy = self.wrapper.index("& node @deployArgs", enabled)
         self.assertLess(disabled, enabled)
         self.assertLess(enabled, deploy)
+
+    def test_phase6_production_mode_is_explicit_and_control_commit_bound(self) -> None:
+        for marker in (
+            "[switch]$Phase6Production",
+            '[string]$Phase6ControlCommitSha = ""',
+            "phase6 production source SHA is an explicit lowercase commit",
+            "phase6 production control SHA is an explicit lowercase commit",
+            "phase6 production source commit resolved exactly",
+            "phase6 production control commit resolved exactly",
+            "phase6 production control commit descends from the source commit",
+            '& git merge-base --is-ancestor $resolvedSource $resolvedControl',
+            '& git show "$resolvedControl`:$capabilityStatePath"',
+            "phase6 production gate is Owner-granted but not yet live-verified",
+            "phase6 production gate is non-paid",
+            '^[A-Za-z0-9_.:-]+$',
+            "phase6 production mode excludes preview, LLM, and hosted MCP activation arguments",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.wrapper)
+
+        production_dispatch = self.wrapper.index("if ($Phase6Production)")
+        preview_evidence = self.wrapper.index('$frontendEvidencePath = "docs/runtime-state/frontend-hosted-current.json"')
+        self.assertLess(production_dispatch, preview_evidence)
+
+    def test_phase6_production_validates_exact_top_level_and_isolated_preview_bindings(self) -> None:
+        production = self.wrapper.split("function Invoke-Phase6ProductionDeploy", 1)[1].split(
+            "function Invoke-LlmGatewayCandidateDeploy", 1
+        )[0]
+        for marker in (
+            "phase6 production targets the canonical top-level Worker",
+            "cloud-superbrain-stateful-runtime",
+            "phase6 production D1 binding is exact",
+            "cloud-superbrain-state-prod",
+            "91520f43-5d38-4a31-9d5a-6fca890e1dd6",
+            "phase6 production Durable Object binding is exact",
+            "RuntimeCoordinator",
+            "phase6 production migration is exact",
+            "v1-cloudflare-native-coordinator",
+            "phase6 production queue producer is exact",
+            "phase6 production queue consumer is exact",
+            "cloud-superbrain-runtime-candidate",
+            "phase6 production Vectorize binding is exact",
+            "cloud-superbrain-memory-v1",
+            "phase6 production Workers AI binding is exact",
+            "phase6 production has no R2 binding",
+            "phase6 production public runtime vars are exact",
+            "phase6 preview Worker is isolated",
+            "phase6 preview D1 binding is isolated",
+            "cloud-superbrain-state-preview",
+            "phase6 preview queue is isolated",
+            "cloud-superbrain-runtime-candidate-preview",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, production)
+
+    def test_phase6_production_wrangler_is_top_level_keep_vars_and_fail_closed(self) -> None:
+        production = self.wrapper.split("function Invoke-Phase6ProductionDeploy", 1)[1].split(
+            "function Invoke-LlmGatewayCandidateDeploy", 1
+        )[0]
+        for marker in (
+            '"--keep-vars"',
+            '"--no-experimental-auto-create"',
+            '"--var", "SOURCE_COMMIT_SHA:$resolvedSource"',
+            '"--var", "SOURCE_ARCHIVE_SHA256:$archiveSha"',
+            '"--var", "SOURCE_BUNDLE_SHA256:$sourceBundleSha"',
+            '"--var", "HOSTED_MCP_WRITE_AUTHORIZED:false"',
+            '"--var", "LIVE_MCP_WRITES_ENABLED:false"',
+            'Where-Object { [string]$_ -cmatch "^PRODUCTION_AUTH_" }',
+            "phase6 production source cannot overwrite remote PRODUCTION_AUTH_* values",
+            "phase6 production Wrangler deploy exit code 0; command output suppressed",
+            '"deployments", "status"',
+            '"--name", $productionWorkerName',
+            '"--json"',
+            "phase6 production latest deployment is exactly the uploaded version at 100 percent",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, production)
+
+        self.assertNotIn('"--env"', production)
+        self.assertNotIn("PRODUCTION_AUTH_OWNER_GRANTED:", production)
+        self.assertNotIn("PRODUCTION_AUTH_OWNER_GRANT_REF:", production)
+
+    def test_phase6_wrangler_children_scrub_legacy_and_staged_credentials(self) -> None:
+        helper = self.wrapper.split("function Invoke-ScrubbedWranglerChild", 1)[1].split(
+            "function Invoke-Phase6PreviewLoopGuardDeploy", 1
+        )[0]
+        for marker in (
+            '[void]$startInfo.Environment.Remove("CLOUDFLARE_API_TOKEN_CANDIDATE")',
+            '[void]$startInfo.Environment.Remove("CLOUDFLARE_API_KEY")',
+            '[void]$startInfo.Environment.Remove("CLOUDFLARE_EMAIL")',
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, helper)
+
+        phase6 = self.wrapper.split("function Invoke-Phase6PreviewLoopGuardDeploy", 1)[1].split(
+            "function Invoke-LlmGatewayCandidateDeploy", 1
+        )[0]
+        self.assertGreaterEqual(phase6.count("Invoke-ScrubbedWranglerChild"), 7)
+        for argument_variable in (
+            "d1ListArgs",
+            "preflightArgs",
+            "deployArgs",
+            "deploymentStatusArgs",
+        ):
+            self.assertNotRegex(phase6, rf"&\s+node\s+\$wrangler\s+@{argument_variable}\b")
+
+    def test_phase6_production_performs_one_redirect_free_health_read_only(self) -> None:
+        production = self.wrapper.split("function Invoke-Phase6ProductionDeploy", 1)[1].split(
+            "function Invoke-LlmGatewayCandidateDeploy", 1
+        )[0]
+        for marker in (
+            "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev/api/v1/health",
+            "$handler.AllowAutoRedirect = $false",
+            "[System.Net.Http.HttpMethod]::Get",
+            "phase6 production health status code is 200",
+            "phase6 production health reports healthy",
+            "phase6 production health verifies D1",
+            "phase6 production health source_commit_sha rebound",
+            "phase6 production health source_archive_sha256 rebound",
+            "phase6 production health source_bundle_sha256 rebound",
+            "phase6 production deploy metadata parsed only from bounded Wrangler labels",
+            "phase6 production deployment and Worker version IDs are distinct",
+            'contract_version = "cloudflare-phase6-production-deploy-result-v1"',
+            "base_url = $productionBaseUrl",
+            "verified_at_utc = [DateTimeOffset]::UtcNow",
+            "worker_version_id = $workerVersionId",
+            "deployment_id = $deploymentId",
+            "health_status = 200",
+            "d1_read_verified = $true",
+            "phase6 production issued exactly one Worker request",
+            "worker_request_count = $workerRequestCount",
+            "secret_output = $false",
+            "Write-Output ($deployResult | ConvertTo-Json -Compress)",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, production)
+
+        self.assertEqual(production.count(".SendAsync("), 1)
+        self.assertEqual(production.count("HttpRequestMessage]::new"), 1)
+        self.assertEqual(production.count('"deployments", "status"'), 1)
+        self.assertEqual(production.count("Write-Output"), 1)
+        self.assertLess(production.index("Remove-TransientMaterialization"), production.index("Write-Output"))
+        self.assertNotIn("Invoke-WebRequest", production)
+        self.assertNotIn("/mcp/", production)
+        self.assertNotIn("Set-Content", production)
+        self.assertNotIn("Out-File", production)
+
+        result_block = re.search(
+            r"\$deployResult = \[ordered\]@\{(?P<body>.*?)\n\s*\}", production, re.DOTALL
+        )
+        self.assertIsNotNone(result_block)
+        result_properties = re.findall(r"^\s{6}([a-z0-9_]+)\s*=", result_block.group("body"), re.MULTILINE)
+        self.assertEqual(
+            result_properties,
+            [
+                "contract_version",
+                "base_url",
+                "verified_at_utc",
+                "source_commit_sha",
+                "source_archive_sha256",
+                "source_bundle_sha256",
+                "worker_version_id",
+                "deployment_id",
+                "health_status",
+                "d1_read_verified",
+                "worker_request_count",
+                "secret_output",
+            ],
+        )
+
+    def test_phase6_binding_shape_rejects_added_families_and_fields(self) -> None:
+        self.assertIn("function Assert-Phase6WranglerConfigShape", self.wrapper)
+        mutations: tuple[tuple[str, Callable[[dict], None]], ...] = (
+            ("top-level services", lambda value: value.__setitem__("services", [])),
+            ("top-level kv", lambda value: value.__setitem__("kv_namespaces", [])),
+            ("top-level hyperdrive", lambda value: value.__setitem__("hyperdrive", [])),
+            (
+                "top-level analytics",
+                lambda value: value.__setitem__("analytics_engine_datasets", []),
+            ),
+            ("top-level unsafe", lambda value: value.__setitem__("unsafe", {"bindings": []})),
+            ("preview services", lambda value: value["env"]["preview"].__setitem__("services", [])),
+            ("preview kv", lambda value: value["env"]["preview"].__setitem__("kv_namespaces", [])),
+            (
+                "preview hyperdrive",
+                lambda value: value["env"]["preview"].__setitem__("hyperdrive", []),
+            ),
+            (
+                "preview analytics",
+                lambda value: value["env"]["preview"].__setitem__("analytics_engine_datasets", []),
+            ),
+            (
+                "preview unsafe",
+                lambda value: value["env"]["preview"].__setitem__("unsafe", {"bindings": []}),
+            ),
+            (
+                "production D1 extra field",
+                lambda value: value["d1_databases"][0].__setitem__("preview_database_id", "x"),
+            ),
+            (
+                "preview queue extra field",
+                lambda value: value["env"]["preview"]["queues"]["producers"][0].__setitem__(
+                    "delivery_delay", 1
+                ),
+            ),
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            temp_root = Path(directory)
+            baseline_path = temp_root / "baseline.json"
+            baseline_path.write_text(json.dumps(self.config), encoding="utf-8")
+            baseline = self._run_shape_validation(baseline_path)
+            self.assertEqual(baseline.returncode, 0, baseline.stdout + baseline.stderr)
+
+            for index, (label, mutate) in enumerate(mutations):
+                mutated = copy.deepcopy(self.config)
+                mutate(mutated)
+                config_path = temp_root / f"mutation-{index}.json"
+                config_path.write_text(json.dumps(mutated), encoding="utf-8")
+                completed = self._run_shape_validation(config_path)
+                with self.subTest(label=label):
+                    self.assertNotEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
+    @staticmethod
+    def _run_shape_validation(config_path: Path) -> subprocess.CompletedProcess[str]:
+        command = (
+            f". '{DEPLOY_WRAPPER.as_posix()}'; "
+            f"$config = Get-Content -LiteralPath '{config_path.as_posix()}' -Raw | ConvertFrom-Json; "
+            "Assert-Phase6WranglerConfigShape $config"
+        )
+        return subprocess.run(
+            ["pwsh", "-NoProfile", "-Command", command],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def test_phase6_preview_loop_guard_is_explicit_and_contains_the_guard_commit(self) -> None:
+        for marker in (
+            "[switch]$Phase6PreviewLoopGuard",
+            "function Invoke-Phase6PreviewLoopGuardDeploy",
+            "c24b7bfddc37cfa0c16d1ebc7f70829417ac4080",
+            '& git merge-base --is-ancestor $loopGuardCommit $resolvedSource',
+            "phase6 preview loop-guard source contains the cross-origin bounce-loop fix",
+            "phase6 preview loop-guard Worker tree matches the source commit",
+            'git archive --format=tar "--output=$workerArchive" $resolvedSource -- $relativeWorkerRoot',
+            "phase6 preview loop-guard mode excludes production, LLM, and candidate activation arguments",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.wrapper)
+
+        preview_guard_dispatch = self.wrapper.index("if ($Phase6PreviewLoopGuard)")
+        production_dispatch = self.wrapper.index("if ($Phase6Production)")
+        default_preview = self.wrapper.index('$workerDir = Join-Path $repoRoot "services/cloudflare-stateful-runtime"')
+        self.assertLess(preview_guard_dispatch, production_dispatch)
+        self.assertLess(preview_guard_dispatch, default_preview)
+
+    def test_phase6_preview_loop_guard_resolves_existing_d1_without_provisioning(self) -> None:
+        preview_guard = self.wrapper.split("function Invoke-Phase6PreviewLoopGuardDeploy", 1)[1].split(
+            "function Invoke-Phase6ProductionDeploy", 1
+        )[0]
+        for marker in (
+            "phase6 preview loop-guard Worker binding is exact and isolated",
+            "cloud-superbrain-stateful-runtime-preview",
+            "phase6 preview loop-guard D1 declaration is exact and isolated",
+            "cloud-superbrain-state-preview",
+            "phase6 preview loop-guard queue binding is exact and isolated",
+            "cloud-superbrain-runtime-candidate-preview",
+            "phase6 preview loop-guard Durable Object binding is exact",
+            "phase6 preview loop-guard Vectorize binding is exact",
+            "phase6 preview loop-guard Workers AI binding is exact",
+            '"d1", "list"',
+            '"--json"',
+            "phase6 preview loop-guard D1 list output is bounded",
+            "phase6 preview loop-guard resolves exactly one existing preview D1 database",
+            "phase6 preview loop-guard existing D1 database ID is a UUID",
+            '$previewDatabase | Add-Member -NotePropertyName "database_id"',
+            "phase6 preview loop-guard repository wrangler config remains byte-identical",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, preview_guard)
+
+        self.assertEqual(preview_guard.count('"d1", "list"'), 1)
+        self.assertNotIn('"d1", "create"', preview_guard)
+        self.assertNotIn("$repositoryConfigPath | Set-Content", preview_guard)
+
+    def test_phase6_preview_loop_guard_deploy_is_non_mutating_and_control_plane_only(self) -> None:
+        preview_guard = self.wrapper.split("function Invoke-Phase6PreviewLoopGuardDeploy", 1)[1].split(
+            "function Invoke-Phase6ProductionDeploy", 1
+        )[0]
+        for marker in (
+            '"--env", "preview"',
+            '"--keep-vars"',
+            '"--no-experimental-auto-create"',
+            '"--var", "SOURCE_COMMIT_SHA:$resolvedSource"',
+            '"--var", "SOURCE_ARCHIVE_SHA256:$archiveSha"',
+            '"--var", "SOURCE_BUNDLE_SHA256:$sourceBundleSha"',
+            '"--var", "HOSTED_MCP_WRITE_AUTHORIZED:false"',
+            '"--var", "LIVE_MCP_WRITES_ENABLED:false"',
+            '"deployments", "status"',
+            "phase6 preview loop-guard latest deployment is the uploaded version at 100 percent",
+            "phase6 preview loop-guard deployment and Worker version IDs are distinct",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, preview_guard)
+
+        self.assertEqual(preview_guard.count('"deployments", "status"'), 1)
+        self.assertNotIn("Invoke-WebRequest", preview_guard)
+        self.assertNotIn("HttpClient", preview_guard)
+        self.assertNotIn("SendAsync", preview_guard)
+        self.assertNotIn("PRODUCTION_AUTH_", preview_guard)
+
+    def test_phase6_preview_loop_guard_emits_exact_machine_result(self) -> None:
+        preview_guard = self.wrapper.split("function Invoke-Phase6PreviewLoopGuardDeploy", 1)[1].split(
+            "function Invoke-Phase6ProductionDeploy", 1
+        )[0]
+        for marker in (
+            'contract_version = "cloudflare-phase6-preview-guard-deploy-result-v1"',
+            "base_url = $previewBaseUrl",
+            "verified_at_utc = [DateTimeOffset]::UtcNow",
+            "worker_version_id = $workerVersionId",
+            "deployment_id = $deploymentId",
+            "control_plane_verified = $true",
+            "worker_request_count = 0",
+            "secret_output = $false",
+            "Write-Output ($deployResult | ConvertTo-Json -Compress)",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, preview_guard)
+
+        self.assertEqual(preview_guard.count("Write-Output"), 1)
+        self.assertLess(preview_guard.index("Remove-TransientMaterialization"), preview_guard.index("Write-Output"))
+        result_block = re.search(
+            r"\$deployResult = \[ordered\]@\{(?P<body>.*?)\n\s*\}", preview_guard, re.DOTALL
+        )
+        self.assertIsNotNone(result_block)
+        result_properties = re.findall(r"^\s{6}([a-z0-9_]+)\s*=", result_block.group("body"), re.MULTILINE)
+        self.assertEqual(
+            result_properties,
+            [
+                "contract_version",
+                "base_url",
+                "verified_at_utc",
+                "source_commit_sha",
+                "source_archive_sha256",
+                "source_bundle_sha256",
+                "worker_version_id",
+                "deployment_id",
+                "control_plane_verified",
+                "worker_request_count",
+                "secret_output",
+            ],
+        )
 
 
 if __name__ == "__main__":

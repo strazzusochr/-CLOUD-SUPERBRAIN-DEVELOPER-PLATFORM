@@ -1,7 +1,36 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-09-02
+Letzte Aktualisierung: 2026-09-03
 ══════════════════════════════════════════════════════════════════
+
+## WIP-CHECKPOINT 2026-09-03 — PRODUKT-FREEZE S WIRD QUALIFIZIERT
+
+- **Kreditstand unveraendert:** Overall `89`; neu kreditiert `0/136`, offen `136`:
+  P3 `+56`, P5 `+11`, P6 `+10`, L4 `+45`, L5 `+14`. Vorbereitungsarbeit ist kein
+  Prozentbeweis und `MARKET_READY:false` bleibt verbindlich.
+- **S/Q-Kette geschlossen:** GHCR, I1 und `main-deploy` binden die Runtime-Source kuenftig
+  an `source-qualification-control-v1`: exakte Release-ID, `runtime_candidate_sha=S` und
+  SHA-256 des exakten `git archive`. Die alte RC33-Phase-5-Zeile ist nicht mehr die
+  Publikationsquelle. Q darf nur die Qualification-Control tragen und vergibt `0` Credit.
+- **Owner-Urkunde vorbereitet:** O1 `production_auth_identity` und O3
+  `docker_registry_publish` sind im lokalen Kandidaten nur als `owner_granted=true` plus
+  exakter Referenz auf `OWNER_GRANTS_2026-09-02.json` eingetragen. `live_verified=false`;
+  keine Evidence, kein Dispatch, kein Push, kein Deploy und kein Kredit. Die fremden
+  O4-Artefakt-Hunks derselben Arbeitsdatei bleiben vom S-Commit ausgeschlossen.
+- **Sechs lokale Images gruen:** alle sechs Builds erfolgreich; HTTP-200-Smokes fuer
+  agent-api, MCP, LLM und Frontend, beide Worker importierbar. Alle sechs lokalen Images
+  wurden mit aktueller Trivy-DB auf `HIGH,CRITICAL` plus Secrets gescannt: jeweils `0/0`.
+  Sechs CycloneDX-SBOMs wurden erfolgreich erzeugt und nach Pruefung aus dem Temp-Bereich
+  entfernt. Die fuenf Python-Runtimes nutzen die immutable Alpine-Basis plus Security-
+  Upgrade; der Frontend-Production-Runner entfernt die nicht benoetigte npm-CLI und startet
+  Next direkt mit Node. Keine Registry- oder Cloud-Schreibaktion.
+- **Aktuelle Verifikation:** Market-Ready-Unit `119/119`; Progress/Phase-5-Unit `60/60`;
+  Rubrik `15/15`; OAuth `36/36`; Stateful Worker `69/69`; P6-Static beide PASS;
+  Supply-Chain-Pins PASS; PowerShell-Parser PASS; lokaler Next/Docker-Build PASS.
+- **Naechster sicherer Schritt:** Security-Scan und exaktes Pfadinventar abschliessen,
+  ausschliesslich den Produkt-Slice stagen, `S` committen/pushen und Exact-Head-CI abwarten;
+  danach direkten Kindcommit `Q` mit neuer Qualification-Control erzeugen. Bis dahin ist
+  weder S noch Q behauptet.
 
 ## AKTUELLER PROJEKTANKER
 
@@ -17,6 +46,11 @@ Letzte Aktualisierung: 2026-09-02
   Evidence-/Provider-Felder bleiben leer. Das zusaetzliche leere `evidence_sha256` ist nur
   die vom Deep-Verifier verlangte Pre-Promotion-Schemakomplettierung. Kein Workflow wurde
   dispatcht und kein Gate kreditiert.
+- **Grant ist CI-attestiert:** Grant-Commit `638ba0a9`, RC33-Ankerkorrektur
+  `664968f08a2b392463165118b77887cc21781a98`; `pr-check` `33610385136` checkte exakt
+  `664968f0` aus und bestand `31/31` Schritte, `0` skipped, `0` failed. Damit ist der
+  gemeldete Phase-5-Fehler `no-credit requalification project anchor must name the exact
+  release and source` behoben; Phase 5 bleibt korrekt `17/19`, I1/I5 blockiert.
 - **Hardened Code-Control:** `bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0` ist auf
   `origin/codex/organism-visual-v2` gepusht. `pr-check` `33605838142` bestand exakt diesen
   Head mit `31/31` gruenen Schritten, `0` skipped und `0` failed.
@@ -24,10 +58,28 @@ Letzte Aktualisierung: 2026-09-02
   B1-Approval-Commit `e87c28a7` per Git-Historie, statt aktuelle Owner-Gates dauerhaft
   auf `false` festzunageln. Der Schutz wurde nicht entfernt; 15/15 fokussierte Tests und
   der Rubrik-Verifier sind gruen.
-- **Quota-Wurzel behoben, aber nicht deployed:** `c24b7bfd` blockiert eine
+- **Quota-Wurzel gehaertet, aber nicht deployed:** `c24b7bfd` blockiert eine moegliche
   Worker-zu-Vercel-zu-Worker-Rekursion mit einem internen Hop-Marker und fail-closed HTTP
   `508`. Worker-Tests `68/68`, Check und Root-Verifier sind gruen. Der oeffentliche Worker
   laeuft weiterhin auf dem alten Deployment und liefert aktuell `429/1027`.
+- **Cloudflare-Dashboard-Messung, 24 Stunden:** Der Production-Stateful-Worker zeigt
+  `159` Invocations und `0` Errors. Der isolierte Stateful-Preview-Worker zeigt dagegen
+  `868.21k` Invocations und `0` Errors; davon werden `868k` der aktuellen Preview-Version
+  `fc27406d` zugeordnet. Damit ist Preview der dominante gemessene Invocation-Verbraucher.
+  Dass diese Last der primaere Beitrag zur kontoweiten Ausschoepfung war, ist stark
+  gestuetzt, aber eine alleinige Verursachung ist nicht bewiesen; dass exakt
+  die offene Cross-Origin-Bounce-Schleife diese Last erzeugt hat, bleibt eine begruendete
+  Hypothese und ist ohne Requestpfad-Analytics nicht als Kausalbeweis behauptet. Deshalb
+  muss der Loop-Guard vor dem Quota-Reset-Lauf auch Preview erreichen; kein weiterer
+  Worker-GET vor dem Reset. Vor dem Dispatch muss anschliessend der kanonische
+  `verify-cloudflare-stateful-runtime.ps1` die O2Core-Write/Read/Delete-Evidence und
+  `cloudflare-native-hosted-current.json` frisch (<24 h) an dieselbe Source binden; der
+  separate P6-Deployment-Preflight bindet Preview=`0` und Production=`1` Worker-Request
+  innerhalb zehn Minuten. Preview-, Deployment- und O2Core-Evidence muessen beim Dispatch
+  getrackt und <24 h alt sein. Ab dem Evidence-Control `C` gilt bis Verifikation/Promotion
+  ein Branch-Commit-Freeze; exakt ein Dispatch, kein Rerun. Der GitHub-Readback der
+  P6-Evidence muss innerhalb 24 Stunden erfolgen; der menschliche Environment-Review wird
+  separat per GitHub-API/UI belegt.
 - **Phase-6-Kriterium exakt umgesetzt:** `bc2d4c8e` behandelt `/cdn-cgi/trace` wie im
   eingefrorenen Kriterium vorgeschrieben nur als Attribution-Control. Fehlversuche bleiben
   im Evidence-Feld sichtbar, entscheiden aber nicht den Worker-Pass. Die unveraenderten
@@ -86,10 +138,11 @@ Letzte Aktualisierung: 2026-09-02
   `dpl_CJzQ2YBuEzTpLS9KiFgvUSowo5MT` ist `Ready`; `/api/v1/health` liefert `200`, waehrend
   `/mcp/api/v1/health` und `/llm/api/v1/health` korrekt `degraded` und
   `live_backend=false` melden, weil die Cloudflare-Upstreams nicht erreichbar sind.
-- **Naechster sicherer Schritt:** Nach dem Cloudflare-Quota-Reset genau einmal read-only
-  neu messen. Preview-Rebind, B2/B3/B4/B5, I1/GHCR und I5/Production-OAuth bleiben bis zu
-  den bereits angeforderten separaten Owner-Entscheidungen fail-closed; kein
-  Production-Alias und kein Quota-/Payment-Upgrade ohne Owner-Freigabe.
+- **Historischer RC33-Folgepunkt, inzwischen ersetzt:** Nicht vor dem Rebind messen. Die
+  aktuelle Reihenfolge steht im Phase-6-Pre-Run-Checkpoint oben: nach Reset Preview-Guard,
+  enger autorisierter Production-Rebind, ein eigenstaendiger Health-Read, frische canonical
+  O2Core-Evidence, ein P6-Dispatch und Readback <24 h. B2/I5 sowie B4/I1/GHCR bleiben
+  separat Owner-gegatet; kein Quota-/Payment-Upgrade.
 - **Letzter Verifier-Befund:** `verify:phase5-credit` gruen (`17/19`, exakt I1/I5
   blockiert), Manifest gruen (`overall=89`, `deltas=1`, `freshness=verified`) und RC33-
   Candidate-Runtime gruen (`service_count=6`, Source-Paritaet, echter Playwright-Klick).

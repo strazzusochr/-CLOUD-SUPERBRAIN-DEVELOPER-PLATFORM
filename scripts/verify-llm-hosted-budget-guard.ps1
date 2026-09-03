@@ -212,7 +212,7 @@ try {
   Require ([string]$health.status -eq "healthy") "health_not_healthy" "Hosted gateway health is not healthy."
   Assert-SourceBinding $health
 
-  $token = Get-RequiredToken
+  $token = (Get-RequiredToken)
   $requestId = "l4-budget-" + [Guid]::NewGuid().ToString("N")
   $inputLength = $script:MaxInputChars + 1
   $payload = [ordered]@{

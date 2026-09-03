@@ -33,7 +33,7 @@
 [CmdletBinding()]
 param(
   [switch]$DryRun,
-  [string]$ComposeFile = 'docker-compose.dev.yml',
+  [string[]]$ComposeFile = @('docker-compose.dev.yml'),
   [int]$HealthTimeoutSeconds = 240
 )
 
@@ -42,8 +42,45 @@ if (-not (Test-Path -LiteralPath 'D:\_sb_tmp')) { New-Item -ItemType Directory -
 $env:TEMP = 'D:\_sb_tmp'
 $env:TMP  = 'D:\_sb_tmp'
 
-if (-not (Test-Path -LiteralPath $ComposeFile)) {
-  throw "Compose-Datei nicht gefunden: $ComposeFile - bitte im Repo-Wurzelverzeichnis ausführen."
+foreach ($composePath in $ComposeFile) {
+  if (-not (Test-Path -LiteralPath $composePath -PathType Leaf)) {
+    throw "Compose-Datei nicht gefunden: $composePath - bitte im Repo-Wurzelverzeichnis ausführen."
+  }
+}
+
+$composeArgs = @()
+foreach ($composePath in $ComposeFile) { $composeArgs += @('-f', $composePath) }
+
+# Git worktrees expose `.git` as a pointer file, while docker-compose.dev.yml mounts
+# `.git/HEAD` into two services. Resolve the actual administrative HEAD and add a
+# tiny ignored override so Docker never tries to create a directory below the file.
+if (Test-Path -LiteralPath '.git' -PathType Leaf) {
+  $worktreeHead = (& git rev-parse --path-format=absolute --git-path HEAD 2>$null | Out-String).Trim()
+  if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $worktreeHead -PathType Leaf)) {
+    throw 'Git-worktree HEAD konnte nicht sicher aufgeloest werden.'
+  }
+  $shimDir = [IO.Path]::GetFullPath((Join-Path (Get-Location) '.codex\psutf8-shim'))
+  [IO.Directory]::CreateDirectory($shimDir) | Out-Null
+  $shimPath = Join-Path $shimDir 'worktree-compose.override.yml'
+  $yamlHead = ([IO.Path]::GetFullPath($worktreeHead)).Replace('\', '/').Replace("'", "''")
+  $shim = @"
+services:
+  agent-api:
+    volumes:
+      - type: bind
+        source: '$yamlHead'
+        target: /app/o4-git/HEAD
+        read_only: true
+  mcp-gateway:
+    volumes:
+      - type: bind
+        source: '$yamlHead'
+        target: /app/o4-git/HEAD
+        read_only: true
+"@
+  [IO.File]::WriteAllText($shimPath, $shim, [Text.UTF8Encoding]::new($false))
+  $composeArgs += @('-f', $shimPath)
+  Write-Host 'Git-Worktree erkannt; echter HEAD-Pfad ist ueber einen ignorierten Compose-Override gebunden.'
 }
 
 # --- Freier Speicher: bekannter Stolperstein, tarnt sich als Verifier-Fehler --------------
@@ -178,7 +215,7 @@ if ($missingOauth.Count -gt 0) {
 
 Write-Host ''
 Write-Host 'Starte Stack ...'
-docker compose -f $ComposeFile up -d
+docker compose @composeArgs up -d
 if ($LASTEXITCODE -ne 0) { throw "docker compose up fehlgeschlagen (Exit $LASTEXITCODE)" }
 
 # --- Auf Health warten --------------------------------------------------------------------
@@ -188,7 +225,7 @@ $deadline = (Get-Date).AddSeconds($HealthTimeoutSeconds)
 $healthy = 0
 $total = 0
 do {
-  $rows = @(docker compose -f $ComposeFile ps --format json 2>$null | ForEach-Object { $_ | ConvertFrom-Json })
+  $rows = @(docker compose @composeArgs ps --format json 2>$null | ForEach-Object { $_ | ConvertFrom-Json })
   $total = $rows.Count
   $healthy = @($rows | Where-Object { $_.Health -eq 'healthy' }).Count
   if ($total -gt 0 -and $healthy -eq $total) { break }
@@ -206,12 +243,12 @@ if ($total -eq 0 -or $healthy -ne $total) {
 # --- Effektiv gesetzte Schalter zurücklesen (nicht raten) ---------------------------------
 Write-Host ''
 Write-Host '=== Effektive Schalter ===' -ForegroundColor Cyan
-$gatewayMode = (docker compose -f $ComposeFile exec -T llm-gateway sh -lc 'printf "%s" "$LLM_GATEWAY_MODE"' 2>$null)
-$ownerLiveGate = (docker compose -f $ComposeFile exec -T llm-gateway sh -lc 'printf "%s" "$LLM_LIVE_PROVIDER_DEFAULT"' 2>$null)
-$frontendFlag = (docker compose -f $ComposeFile exec -T frontend sh -lc 'printf "%s" "$PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED"' 2>$null)
-$workbenchModel = (docker compose -f $ComposeFile exec -T frontend sh -lc 'printf "%s" "$WORKBENCH_LLM_MODEL"' 2>$null)
-$tokenSet = (docker compose -f $ComposeFile exec -T llm-gateway sh -lc 'if [ -n "$CF_WORKERS_AI_TOKEN" ]; then printf yes; else printf no; fi' 2>$null)
-$accountSet = (docker compose -f $ComposeFile exec -T llm-gateway sh -lc 'if [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then printf yes; else printf no; fi' 2>$null)
+$gatewayMode = (docker compose @composeArgs exec -T llm-gateway sh -lc 'printf "%s" "$LLM_GATEWAY_MODE"' 2>$null)
+$ownerLiveGate = (docker compose @composeArgs exec -T llm-gateway sh -lc 'printf "%s" "$LLM_LIVE_PROVIDER_DEFAULT"' 2>$null)
+$frontendFlag = (docker compose @composeArgs exec -T frontend sh -lc 'printf "%s" "$PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED"' 2>$null)
+$workbenchModel = (docker compose @composeArgs exec -T frontend sh -lc 'printf "%s" "$WORKBENCH_LLM_MODEL"' 2>$null)
+$tokenSet = (docker compose @composeArgs exec -T llm-gateway sh -lc 'if [ -n "$CF_WORKERS_AI_TOKEN" ]; then printf yes; else printf no; fi' 2>$null)
+$accountSet = (docker compose @composeArgs exec -T llm-gateway sh -lc 'if [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then printf yes; else printf no; fi' 2>$null)
 $allowedModels = @('@cf/qwen/qwen2.5-coder-32b-instruct', '@cf/meta/llama-3.1-8b-instruct-fast')
 $modelOk = $allowedModels -contains $workbenchModel
 Write-Host ("  Gateway-Modus            : {0}" -f $gatewayMode)

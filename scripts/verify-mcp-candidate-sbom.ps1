@@ -18,6 +18,8 @@ $rubricPath = "docs/runtime-contracts/layer-credit-rubric.md"
 $requiredServices = @("frontend", "agent-api", "agent-worker", "memory-worker", "mcp-gateway", "llm-gateway")
 $ghcrNamespace = "ghcr.io/strazzusochr/cloud-superbrain-developer-platform"
 $sourceRepositoryUrl = "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM"
+$requiredSyftVersion = "1.51.0"
+$requiredSyftBinarySha256 = "75adfff66c266adac51fe8addeca97702f82b4d822d02bf70b79f556c84d3a46"
 
 function Assert-True([string]$Label, [bool]$Condition) { if (-not $Condition) { throw $Label } }
 function Get-PropertyValue($Object, [string]$Name) {
@@ -131,7 +133,8 @@ function Get-RegistryDigestMap([string]$Path, [string]$ReleaseId, [string]$Sourc
 
 Push-Location $repoRoot
 try {
-  Assert-True "syft_command_missing" ($null -ne (Get-Command $SyftCommand -ErrorAction SilentlyContinue))
+  $syftCommandInfo = Get-Command $SyftCommand -CommandType Application -ErrorAction SilentlyContinue
+  Assert-True "syft_command_missing" ($null -ne $syftCommandInfo)
   Assert-True "docker_command_missing" ($null -ne (Get-Command $DockerCommand -ErrorAction SilentlyContinue))
   Assert-True "gitleaks_command_missing" ($null -ne (Get-Command $GitleaksCommand -ErrorAction SilentlyContinue))
 
@@ -165,7 +168,11 @@ try {
   $syftVersionJson = (& $SyftCommand version -o json 2>$null | Out-String)
   Assert-True "syft_version_failed" ($LASTEXITCODE -eq 0)
   try { $syftVersion = $syftVersionJson | ConvertFrom-Json } catch { throw "syft_version_json_invalid" }
-  Assert-True "syft_version_missing" ([string](Get-PropertyValue $syftVersion "version") -match '^\d+\.\d+\.\d+')
+  Assert-True "syft_version_not_pinned" ([string](Get-PropertyValue $syftVersion "version") -ceq $requiredSyftVersion)
+  $syftBinaryPath = [IO.Path]::GetFullPath([string]$syftCommandInfo.Source)
+  Assert-True "syft_binary_missing" (Test-Path -LiteralPath $syftBinaryPath -PathType Leaf)
+  $syftBinarySha256 = (Get-FileHash -LiteralPath $syftBinaryPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  Assert-True "syft_binary_hash_mismatch" ($syftBinarySha256 -ceq $requiredSyftBinarySha256)
 
   $imageResults = @()
   $seen = @{}
@@ -238,6 +245,7 @@ try {
     sbom_count = $imageResults.Count
     sbom_format = "CycloneDX JSON"
     syft_version = [string](Get-PropertyValue $syftVersion "version")
+    syft_binary_sha256 = $syftBinarySha256
     images = $imageResults
     aggregate_binding_sha256 = $bindingDigest
     gitleaks_scan = "passed"

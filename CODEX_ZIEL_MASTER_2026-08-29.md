@@ -1,7 +1,7 @@
 # CODEX ZIEL-MASTER — MARKTREIFE-ZIELVERFOLGUNG
 
 Status: `ACTIVE_CURRENT_TRUTH`
-Stand: **2026-09-02**
+Stand: **2026-09-03**
 Branch: `codex/organism-visual-v2`
 Qualification Truth-Control: **`d9dbf8b3`** (pushed; final-head CI `33597146482`, `31/31`, skipped `0`)
 Hosted-Evidence-Control: **`532a3c8c`** (immutable RC30 Hosted-MCP evidence + static scorer)
@@ -9,17 +9,31 @@ RC33 Qualification Source: **`a6323728`** · Source-Attestation: **`5aad04d4`** 
 Local Evidence: **5/5 chains · 27 files · run `7bbc2310-0bb3-42e5-8484-819c37d93431`**
 Last Pushed Truth-Control: **`d9dbf8b3e7bd4deb5e20a029d88219f3c8b98810`**
 Phase-6 Hardened Code-Control: **`bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0`** · exact-head CI **`33605838142`** (`31/31`, skipped `0`, failed `0`)
+Phase-6 Grant/Anchor Control: **`664968f08a2b392463165118b77887cc21781a98`** · exact-head CI **`33610385136`** (`31/31`, skipped `0`, failed `0`)
 Hosted Boundary: **Vercel Preview Ready; Cloudflare Preview HTTP `429/1027`, Stateful `94cee685`, LLM `87a2b17e`** — exact RC33 six-service parity is not proven
 **B1 ERTEILT 2026-08-31** — `RubricApprovalCommit = e87c28a7c6cf32982caa849794042daa53ef022a`
 Market Status: `MARKET_READY:false` — Overall `89`, Delta-Ledger `1`, L5 `86`
+
+> **AKTIVER WIP-SCHRITT 2026-09-03:** Produkt-Freeze `S` ist noch nicht committed.
+> Neu kreditiert `0/136`, offen `136` (`P3 +56`, `P5 +11`, `P6 +10`, `L4 +45`,
+> `L5 +14`). Die S/Q-Publikationskette ist jetzt auf
+> `source-qualification-control-v1` mit exakter Release-ID, `S` und `git archive` SHA-256
+> umgestellt. Sechs lokale Images bauen, starten/importieren und scannen gruen
+> (HIGH/CRITICAL `0`, Secrets `0`); CycloneDX `6/6`. Unit `119/119`, Progress/Phase5
+> `60/60`, Rubrik `15/15`, OAuth `36/36`, Stateful Worker `69/69`, P6-Static und
+> Supply-Chain-Pins sind PASS. O1/O3 sind nur als grant/ref vorbereitet;
+> `live_verified=false`. Kein Push, Deploy, Dispatch, Providercall oder Prozentkredit.
+> Naechster Schritt: finaler Security-/Pfadinventar-Check, exakter S-Commit/Push,
+> Exact-Head-CI und danach direkter Q-Kindcommit.
 
 > **RC33 Qualification-Freeze ist abgeschlossen.** Qualification-/Evidence-/Truth-Commit
 > `d9dbf8b3` ist gepusht; final-head `pr-check` `33597146482` bestand `31/31`, skipped `0`,
 > failed `0`. Die Preview-Neumessung ist aktuell durch den accountweiten Cloudflare-
 > Free-Plan-Tagesrequest-Grenzwert blockiert: Stateful und LLM liefern HTTP `429/1027`,
 > waehrend Vercel Ready ist und MCP/LLM deshalb fail-closed `degraded` melden. Nach dem
-> `00:00 UTC`-Reset einmal neu messen. Preview-Rebind, B2/B3/B4/B5, I1/GHCR und
-> I5/Production-OAuth warten auf die separat angeforderten Owner-Entscheidungen.
+> `00:00 UTC`-Reset gilt die aktuelle Reihenfolge aus dem Phase-6-Checkpoint unten.
+> Preview-Loop-Guard, Phase-6-Production-Rebind und B3 sind inzwischen eng autorisiert;
+> B2/Production-OAuth sowie B4/I1/GHCR bleiben getrennte Owner-Entscheidungen.
 
 > **Wartung spaeter:** Die GitHub-Actions-Runtime-Pins bleiben fuer RC33 eingefroren.
 > `upload-artifact` v4.6.2 sowie `checkout`/`setup-node` v4 werden erst nach dem naechsten
@@ -41,6 +55,21 @@ Market Status: `MARKET_READY:false` — Overall `89`, Delta-Ledger `1`, L5 `86`
 > `frontend-seven-psi-78` ist
 > bestaetigt, ersetzt aber nicht den einzigen Phase-6-Origin
 > `cloud-superbrain-stateful-runtime.strazzusochr.workers.dev`. Kein GHCR-Transfer.
+> Der Grant ist auf Control `664968f0` durch `pr-check` `33610385136` mit `31/31`,
+> skipped `0`, failed `0` attestiert; der Phase-5-Ankerfehler ist damit geschlossen,
+> ohne I1/I5 oder Prozente zu veraendern.
+
+> **QUOTA-ATTRIBUTION:** Das eingeloggte Cloudflare-Dashboard misst ueber 24 Stunden
+> Production Stateful mit `159` Invocations/`0` Errors, Preview Stateful dagegen mit
+> `868.21k`/`0`; `868k` entfallen auf Preview-Version `fc27406d`. Preview ist damit der
+> dominante gemessene Invocation-Verbraucher. Dass diese Last der primaere Beitrag zur
+> Shared-Limit-Ausschoepfung war, ist stark gestuetzt; alleinige Verursachung ist nicht
+> bewiesen und die Cross-Origin-Bounce bleibt ohne Requestpfad-
+> Analytics eine begruendete, aber nicht kausal bewiesene Ursache. Vor dem Reset keine
+> weiteren Worker-Reads; danach Loop-Guard zuerst auf Preview und den finalen Phase-6-
+> Production-Sourcepfad, dann exakt ein eigenstaendiger Production-Health-Read, ein frischer
+> kanonischer O2Core-Write/Read/Delete-Verifierlauf mit State/Evidence <24 h und ein Scale-
+> Run. Dessen GitHub-Readback muss innerhalb 24 h nach Evidence-Erzeugung folgen.
 
 **Dies ist die einzige Zieldatei.** Sie sagt, *was zu tun ist*.
 Die Lage steht in `CODEX_UEBERGABE_MASTER_2026-08-29.md`.
@@ -114,7 +143,7 @@ Delta-Ledger: 1 Eintrag
 | --- | ---: | --- |
 | P3 | **+56** | OAuth-Kette ist hosted gefahren. Es fehlen **5 von 12** Evidence-Schritten und das Evidence-Dokument; B1 ist erledigt. |
 | P5 | **+11** | `I5` faellt evidenzgetrieben nach P3. `I1` braucht Hosted-Candidate-Paritaet **plus** Codeaenderung. |
-| P6 | **+10** | Verifier ist scharf. Environment, Secret **und Default-Branch-Workflow existieren jetzt** (PR #32, Merge `ce75bb00`, `state=active`). Es fehlt nur noch der B3-Grant. Der alte 900er-Lauf zaehlt nicht. |
+| P6 | **+10** | Verifier, Environment, Secret, geschuetzter Default-Branch-Workflow und B3-Grant sind vorhanden. Offen: Quota-Reset, Preview-Guard, finaler Production-Rebind, frische canonical O2Core-Evidence <24 h, genau ein 900er-Lauf und GitHub-Readback <24 h. Der alte 900er-Lauf zaehlt nicht. |
 | L4 | **+45** | Exakte RC33 Hosted-Paritaet fehlt. Die fuenf generativen Verifier warten zusaetzlich fail-closed auf das lokale Verifier-Credential. |
 | L5 | **+14** | Vier Hosted-Kriterien (+30) sind kreditiert. Offen: Registry-Digests, Remote-Scan, Candidate-SBOM-Credit und Protected-Publish. |
 
@@ -134,13 +163,13 @@ S1d RC33 lokal qualifiziert ── ERLEDIGT ─┤  Source a6323728, 5 Ketten, 2
 S2a Hosted-Boundary-Fixes ───── ERLEDIGT ──┤  source-attestiert, lokal verifiziert
                                           │
 S2c RC33 Final-Head-CI ─────── ERLEDIGT ──┤  d9dbf8b3, CI 33597146482, skipped=0
-S2d Preview-Neumessung ─────── BLOCKIERT ─┤  CF Free-Plan-Tageslimit: HTTP 429/1027
+S2d Preview-Guard/O2-Refresh ── BLOCKIERT ─┤  CF Free-Plan-Tageslimit: HTTP 429/1027
                                           │
       ├─> S3  L4/L5 Hosted-Laeufe ────────┼──> L4 +45, L5 +14   L5 vier Kriterien erledigt
       │                                   │
       ├─> S4  P3-Evidence vervollstaendigen ──> P3 +56 ──> P5-I5   (braucht B2)
       │                                   │
-      ├─> S5  P6-Scale mit echtem Verifier ──> P6 +10              (braucht B3-Grant)
+      ├─> S5  P6-Scale mit echtem Verifier ──> P6 +10              (B3 erteilt; braucht frische Evidence)
       │                                   │
       └─> S6  I1: Candidate-Paritaet + Codepin ──> P5 100          (braucht B4-Dispatch)
                                           │
@@ -295,13 +324,31 @@ die Vercel Preview neu deployen. Unified `/mcp/api/v1/health` muss ueber nichtlo
 Navigation und Funktionsklicks auf dem Preview-Alias. Kein Production-Alias, kein GHCR,
 keine Scope-/Secret-Ausweitung.
 
-### S2c — RC33 Qualification-Freeze und Preview-Neumessung — NAECHSTER SCHRITT
+### S2c — RC33 Qualification-Freeze — ERLEDIGT
 
-RC33-Qualification/Evidence/Truth exakt committen und nur auf den Feature-Branch pushen.
-Der final-head `pr-check` muss denselben Head mit `31/31` und `skipped=0` bestaetigen.
-Danach die isolierte Preview-Grenze read-only neu messen. Nur Preview-Mutationen ohne
-Production-Alias sind autonom; I1/GHCR und I5/Production-OAuth brauchen separate explizite
-Owner-Freigaben. `live_verified` wird nie von Hand gesetzt.
+RC33 ist mit Control `664968f0` und exact-head `pr-check` `33610385136` (`31/31`,
+`skipped=0`, `failed=0`) eingefroren. Der Phase-5-Ankerfehler ist geschlossen; kein
+Kredit wurde vergeben.
+
+### S2d — Phase-6 Preview-Guard, Production-Rebind und O2Core — AKTUELLER SCHRITT
+
+Vor dem `00:00 UTC`-Reset keinen Worker-Endpunkt aufrufen. Danach aus dem finalen,
+CI-gruenen Source-Commit `S`: Preview-Loop-Guard rein ueber die Control Plane deployen
+(`0` Worker-Requests), denselben Source auf den eng autorisierten Production-Worker
+deployen und dort exakt einen redirect-freien Health-GET (`200`) ausfuehren. Beide
+Deploy-Ergebnisse innerhalb zehn Minuten mit
+`write-phase6-scale-deployment-preflight.ps1` in den separaten P6-Preflight-State plus
+immutable Evidence/Sidecar binden. Danach einmal den kanonischen O2Core-Verifier mit
+echtem Write/Read/Delete fahren. Preview-, Deployment- und canonical O2Core-Evidence
+muessen beim Dispatch source-bound, getrackt und juenger als 24 Stunden sein.
+
+Der daraus entstehende Control-Commit `C` darf nur die allowlisteten State-/Evidence-
+Pfade enthalten. Ab `C` bis zur P6-Evidence-Verifikation/Gate-Promotion keinen weiteren
+Branch-Commit erzeugen. Auf exakt `C` ist nur `run_attempt=1` und genau ein Dispatch
+erlaubt; ein zweiter Lauf oder Rerun ist ungueltig. GitHub-Run/Artefakt-Readback sofort,
+spaetestens 24 Stunden nach der Scale-Evidence, sammeln. Die menschliche Environment-
+Freigabe separat per GitHub-API/UI belegen. I1/GHCR und I5/Production-OAuth bleiben
+getrennte Owner-Gates; `live_verified` wird nie von Hand gesetzt.
 
 ### S3 — L4/L5 Hosted-Verifier — TEILWEISE ERLEDIGT (+0 / +30)
 
@@ -386,32 +433,30 @@ rein evidenzgetrieben behandelt (`verify_phase5_credit_itemization.py:290`). P5 
 
 ### S5 — P6: 900 Requests mit dem zugelassenen Verifier (+10)
 
-Voraussetzung **B3** ist seit 2026-09-01 zu drei Vierteln erfuellt. Gemessen:
+Voraussetzung **B3 ist seit 2026-09-02 vollstaendig erfuellt und CI-attestiert.** Gemessen:
 
 ```text
-Environment  phase6-scale-hosted-writes           vorhanden
+Environment  phase6-scale-hosted-writes           vorhanden, Required Reviewer aktiv
   Secret     AGENT_API_AUTH_TOKEN                 vorhanden seit 2026-08-30T12:12:44Z
-Workflow     auf chore/repo-bootstrap (Default)   vorhanden  5.357 Bytes  Blob 0b2f7e3b
-             von GitHub registriert               state=active  id=347406379
-Gate         phase6_scale_runtime                 owner_granted=false   <- OFFEN
+Workflow     auf chore/repo-bootstrap (Default)   vorhanden, state=active, id=347406379
+Gate         phase6_scale_runtime                 owner_granted=true
+Grant-Ref    OWNER_GRANTS_2026-09-02.json::O2:phase6_scale_runtime
+CI           Control 664968f0                     run 33610385136, 31/31, skipped=0
 ```
 
-Der Workflow kam per Owner-PR #32 (Merge `ce75bb00`) byte-identisch vom Feature-Branch auf
-den Default-Branch; GitHub dispatcht `workflow_dispatch` ausschliesslich aus der
-Default-Branch-Kopie. Der Secret-**Wert** ist von aussen nicht pruefbar — GitHub gibt ihn
-nie heraus. Sollte er falsch sein, faellt das erst im Lauf auf.
+Der Workflow kam per Owner-PR #32 (Merge `ce75bb00`) auf den Default-Branch und ist dort
+als `workflow_dispatch` aktiv. Der Secret-**Wert** ist von aussen nicht pruefbar — GitHub
+gibt ihn nie heraus; ein falscher Wert faellt im geschuetzten Lauf fail-closed auf. Der
+Grant wurde in `638ba0a9` eng eingetragen, `live_verified=false` blieb unveraendert, und
+Control `664968f0` ist durch `pr-check` `33610385136` exakt attestiert.
 
-Offen bleibt der **Gate-Grant**: `phase6_scale_runtime` in
-`docs/runtime-state/capability-gates.json` auf `owner_granted=true` mit einer
-`owner_grant_ref` nach dem Muster der bereits erteilten Gates. Achtung: diese Datei stand
-am 2026-09-01 in Codex' Arbeitsbaum `D:/_sb_tmp/rc22-candidate` **dirty** (regenerierte
-Verifier-Zeitstempel). Vor jeder Aenderung dort erst den Arbeitsbaum sauber machen, sonst
-kollidieren Grant und Verifier-Schreibvorgang. `live_verified` bleibt unantastbar.
-
-Read-only neu gemessen an `20daf6e`: Environment und Secret-Name sind vorhanden. Der
-Feature-Branch traegt Workflow-Blob `0b2f7e3b86483719e28a8505289a692b501511e1`, auf dem
-Default-Branch `chore/repo-bootstrap` fehlt die Datei weiterhin. Das Provisioning steht
-damit bei `2/3`; `phase6_scale_runtime.owner_granted=false`, also bleibt **B3 geschlossen**.
+Der aktuelle Blocker ist nicht B3, sondern die kontoweite Cloudflare-Quota plus zwei
+Frischefenster. Nach Reset zuerst den Preview-Loop-Guard und den finalen Production-Source-
+Rebind ausfuehren. Danach muss `verify-cloudflare-stateful-runtime.ps1` die canonical
+O2Core-Write/Read/Delete-Evidence samt `cloudflare-native-hosted-current.json` source-bound
+und <24 h neu erzeugen. Erst dann folgt genau ein Scale-Dispatch; dessen GitHub-Readback
+muss innerhalb 24 h nach Evidence-Erzeugung gesammelt werden. `live_verified` wird erst
+durch den erfolgreichen Beweis bewegt, niemals von Hand.
 
 Der vorhandene 900er-Lauf zaehlt **nicht** — er lief am Verifier vorbei, waehrend das Gate
 `phase6_scale_runtime` auf `owner_granted=false` stand, und liefert weder D1-Readback noch
@@ -506,9 +551,9 @@ Ledger enthaelt die legitimen Eintraege, Hosted-SHA = Kandidatenquelle, keine
 | --- | --- | --- |
 | ~~**B1**~~ | **ERTEILT 2026-08-31** — Approval-Commit `e87c28a7c6cf32982caa849794042daa53ef022a` | — |
 | **B2** | OAuth-ADR festschreiben (`owner_architecture_decision_ref`, `owner_approved`, `selected_architecture`) | P3-Evidence |
-| **B3** | Provisioning **vollstaendig seit 2026-09-01**: Environment, Secret, Default-Branch-Workflow (PR #32, `ce75bb00`, `state=active`, id `347406379`) **und Environment-Schutz** (`protection_rules: [required_reviewers]`, Reviewer `strazzusochr`). Offen ist **nur noch** der Gate-Grant `phase6_scale_runtime` mit `owner_grant_ref`. | P6 +10 |
+| ~~**B3**~~ | **ERTEILT UND CI-ATTESTIERT 2026-09-02**: Environment, Secret, Default-Branch-Workflow (PR #32, `ce75bb00`, `state=active`, id `347406379`), Required Reviewer sowie Gate-Grant `OWNER_GRANTS_2026-09-02.json::O2:phase6_scale_runtime`; Control `664968f0`, CI `33610385136`. `live_verified=false` bis zum echten Lauf. | — |
 | **B4** | **Teil 1 erledigt 2026-09-01**: Default traegt jetzt den gehaerteten Blob `14e84b31` (11.623 Bytes), PR #33 gemerged als `9c508aab`. Push-Trigger ist weg, top-level `contents: read`, Publikation an `registry-publication` gebunden. Offen bleiben: Dispatch mit `candidate_sha` und der Gate-Grant `docker_registry_publish`. | GHCR / I1 |
-| **B5** | Worker-Preview ausgefuehrt; Vercel-Frontend/Unified-Origin ist wegen `/mcp/... = 404` noch nicht source-identisch abgenommen | I1, S4 |
+| **B5** | Der enge Phase-6-Production-Rebind und der notwendige Preview-Loop-Guard sind 2026-09-02 autorisiert. Die breitere sechs-Service-I1-Paritaet/Vercel-Unified-Origin bleibt separat offen. | I1, S4 |
 
 ### Drei Waende, die keine Freigabe verschiebt
 

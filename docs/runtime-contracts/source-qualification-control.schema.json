@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloud-superbrain.invalid/contracts/source-qualification-control.schema.json",
+  "title": "Source qualification control",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "contract_version",
+    "release_id",
+    "runtime_candidate_sha",
+    "source_archive_sha256",
+    "production_rollout_claimed",
+    "percentage_credit_awarded",
+    "secret_output"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../runtime-contracts/source-qualification-control.schema.json"
+    },
+    "contract_version": {
+      "const": "source-qualification-control-v1"
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^prod-candidate-[0-9]{4}-[0-9]{2}-[0-9]{2}-local-rc[0-9]+$"
+    },
+    "runtime_candidate_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "source_archive_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "production_rollout_claimed": {
+      "const": false
+    },
+    "percentage_credit_awarded": {
+      "const": 0
+    },
+    "secret_output": {
+      "const": false
+    }
+  }
+}

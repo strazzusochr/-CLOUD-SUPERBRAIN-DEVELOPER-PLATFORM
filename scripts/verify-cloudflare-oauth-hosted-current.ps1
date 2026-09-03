@@ -63,7 +63,7 @@ $auditContract = @(
   [ordered]@{ step = "logout_revocation_audited";         event = "auth_logout_revoked" }
 )
 
-$allowedCandidateTargets = @("preview", "staging")
+$allowedIdentityTargets = @("production")
 $factCodesByKind = @{
   browser = @{
     anonymous_login_no_identity = @("human_navigation", "auth_me_http_401", "identity_projection_absent")
@@ -363,7 +363,7 @@ $flow = $flowDocument.json
 Assert-NoSensitiveEvidence $flow "Cloudflare OAuth flow evidence"
 Assert-ExactPropertyNames $flow @(
   "contract_version", "status", "architecture", "source_binding", "approval_binding", "sensitive_hash_bindings",
-  "execution", "human_flow_steps", "scorer_outputs", "atomic_replay_evidence", "audit_correlations",
+  "execution", "human_flow_steps", "token_families", "scorer_outputs", "atomic_replay_evidence", "audit_correlations",
   "redaction", "gate_transition", "non_claims"
 ) "Cloudflare OAuth flow evidence"
 Assert-True ([string]$flow.contract_version -ceq "cloudflare-oauth-hosted-current-flow-v1") "Flow evidence contract mismatch."
@@ -389,9 +389,14 @@ Assert-ExactPropertyNames $binding @(
   "frontend_origin", "worker_origin", "callback_url", "frontend_evidence_ref",
   "frontend_evidence_sha256", "runtime_evidence_sha256"
 ) "Flow source_binding"
-foreach ($field in @("candidate_source_commit_sha", "frontend_source_commit_sha", "worker_source_commit_sha")) {
+foreach ($field in @("candidate_source_commit_sha", "worker_source_commit_sha")) {
   Assert-True ([string]$binding.$field -ceq $ExpectedCandidateSha) "source_binding.$field must equal ExpectedCandidateSha."
 }
+Assert-LowerGitSha ([string]$binding.frontend_source_commit_sha) "source_binding.frontend_source_commit_sha"
+& git -C $repoRoot cat-file -e "$([string]$binding.frontend_source_commit_sha)^{commit}" 2>$null
+Assert-True ($LASTEXITCODE -eq 0) "Frontend source commit must resolve locally."
+& git -C $repoRoot merge-base --is-ancestor ([string]$binding.frontend_source_commit_sha) HEAD
+Assert-True ($LASTEXITCODE -eq 0) "Frontend source commit must be an ancestor of the evidence HEAD."
 foreach ($field in @(
   "worker_source_archive_sha256", "frontend_deployment_id_sha256", "worker_deployment_id_sha256",
   "frontend_evidence_sha256", "runtime_evidence_sha256"
@@ -419,19 +424,20 @@ foreach ($field in @(
 )) { Assert-True ($null -ne $frontend.PSObject.Properties[$field]) "Hosted frontend evidence is missing '$field'." }
 Assert-True ([string]$frontend.contract_version -ceq "frontend-hosted-current-proof-v1") "Hosted frontend contract mismatch."
 Assert-True ([string]$frontend.status -ceq "verified") "Hosted frontend evidence status must be verified."
-Assert-True ([string]$frontend.source_commit_sha -ceq $ExpectedCandidateSha) "Hosted frontend source SHA mismatch."
-Assert-True ([string]$frontend.vercel_target -ceq "preview") `
-  "OAuth hosted-candidate evidence requires an immutable Vercel preview deployment."
+Assert-True ([string]$frontend.source_commit_sha -ceq [string]$binding.frontend_source_commit_sha) "Hosted frontend source SHA mismatch."
+Assert-True ([string]$frontend.vercel_target -ceq "production") `
+  "OAuth identity evidence requires the canonical production frontend target."
 $immutableFrontendOrigin = Assert-NonLocalHttpsOrigin ([string]$frontend.immutable_deployment_url) "Immutable frontend origin" ".vercel.app"
-Assert-True ($immutableFrontendOrigin -ceq $boundFrontendOrigin) `
-  "Bound frontend origin must equal the immutable candidate deployment origin."
-Assert-True ($null -eq $frontend.production_alias -or [string]::IsNullOrWhiteSpace([string]$frontend.production_alias)) `
-  "Hosted-candidate OAuth evidence must not bind or require a production alias."
+$productionFrontendOrigin = Assert-NonLocalHttpsOrigin ([string]$frontend.production_alias) "Production frontend origin" ".vercel.app"
+Assert-True ($productionFrontendOrigin -ceq $boundFrontendOrigin) `
+  "Bound frontend origin must equal the canonical production alias."
+Assert-True ($immutableFrontendOrigin -cne $productionFrontendOrigin) `
+  "Production alias must be distinct from its immutable deployment origin."
 Assert-True ((Get-StringSha256 ([string]$frontend.deployment_id)) -ceq [string]$binding.frontend_deployment_id_sha256) `
   "Frontend deployment binding mismatch."
 Assert-JsonBool $frontend "deployment_metadata_verified" $true "Hosted frontend evidence"
-Assert-JsonBool $frontend "deployment_alias_content_parity" $false "Hosted frontend evidence"
-Assert-JsonBool $frontend "production_operational_deploy_verified" $false "Hosted frontend evidence"
+Assert-JsonBool $frontend "deployment_alias_content_parity" $true "Hosted frontend evidence"
+Assert-JsonBool $frontend "production_operational_deploy_verified" $true "Hosted frontend evidence"
 Assert-JsonBool $frontend "production_release_claimed" $false "Hosted frontend evidence"
 
 $approval = $flow.approval_binding
@@ -466,9 +472,9 @@ Assert-True ([string]$owner.status -ceq "owner_approved") "Owner architecture de
 Assert-JsonBool $owner "owner_approved" $true "Owner architecture decision"
 Assert-True ([string]$owner.selected_architecture -ceq "cloudflare_native") "Owner architecture must select cloudflare_native."
 $approvedTarget = [string]$owner.target
-Assert-True ($allowedCandidateTargets -ccontains $approvedTarget) `
-  "Owner architecture target must be a hosted candidate: preview or staging."
-Assert-True ([string]$owner.callback_origin -ceq $boundFrontendOrigin) "Owner architecture candidate callback origin mismatch."
+Assert-True ($allowedIdentityTargets -ccontains $approvedTarget) `
+  "Owner architecture target must be production identity without a release claim."
+Assert-True ([string]$owner.callback_origin -ceq $boundFrontendOrigin) "Owner architecture callback origin mismatch."
 Assert-True ([string]$owner.source_commit_sha -ceq $ExpectedCandidateSha) "Owner architecture source SHA mismatch."
 Assert-True ([string]$owner.auth_runtime_evidence_ref -ceq $canonicalRuntimeEvidence) "Owner architecture runtime evidence ref mismatch."
 Assert-True ([string]$owner.auth_runtime_verifier_ref -ceq "scripts/verify-cloudflare-oauth-hosted-current.ps1") `
@@ -492,7 +498,7 @@ Assert-JsonBool $consent "real_provider_consent_approved" $true "Live consent ap
 Assert-JsonBool $consent "secret_output" $false "Live consent approval"
 Assert-True ([string]$consent.source_commit_sha -ceq $ExpectedCandidateSha) "Live consent source SHA mismatch."
 Assert-True ([string]$consent.target -ceq $approvedTarget) `
-  "Live consent target must equal the approved preview or staging candidate target."
+  "Live consent target must equal the approved production identity target."
 Assert-True ([string]$consent.architecture -ceq "cloudflare_native") "Live consent architecture mismatch."
 Assert-True ([string]$consent.oauth_scope -ceq "read:user") "Live consent OAuth scope must be exactly read:user."
 Assert-True ([string]$consent.frontend_origin -ceq $boundFrontendOrigin) "Live consent frontend origin mismatch."
@@ -506,7 +512,7 @@ Assert-ExactPropertyNames $execution @(
   "deployment_write_count", "localhost_transport_count", "owner_interaction", "started_at", "completed_at"
 ) "Flow execution"
 Assert-True ([string]$execution.target -ceq $approvedTarget) `
-  "Execution target must equal the approved preview or staging candidate target."
+  "Execution target must equal the approved production identity target."
 Assert-True ([string]$execution.transport -ceq "hosted_https") "Flow execution transport must be hosted_https."
 Assert-True ([string]$execution.browser_channel -ceq "chrome") "Flow execution browser channel must be chrome."
 Assert-True ([string]$execution.browser_execution -ceq "real_chrome") "Flow execution must identify the real browser executor."
@@ -539,7 +545,7 @@ function Get-SanitizedArtifact([string]$Reference, [string]$Hash, [string]$Kind)
   Assert-ExactPropertyNames $artifact @(
     "contract_version", "status", "artifact_kind", "candidate_source_commit_sha",
     "frontend_deployment_id_sha256", "worker_deployment_id_sha256", "covered_steps",
-    "request_correlation_sha256s", "session_correlation_sha256", "audit_event_types",
+    "request_correlation_sha256s", "session_correlation_sha256s", "audit_event_types",
     "generated_at", "raw_capture_sha256", "redaction_manifest_sha256", "sensitive_value_sha256s",
     "observations", "secret_value_count"
   ) "Sanitized $Kind artifact"
@@ -592,7 +598,8 @@ $steps = @($flow.human_flow_steps)
 Assert-True ($steps.Count -eq 12) "Flow evidence must contain exactly 12 human/browser/D1 steps."
 $stepByName = @{}
 $requestHashes = @()
-$sessionHash = $null
+$sessionHashA = $null
+$sessionHashB = $null
 $artifactByKind = @{}
 
 for ($index = 0; $index -lt 12; $index++) {
@@ -623,9 +630,15 @@ for ($index = 0; $index -lt 12; $index++) {
     Assert-True ($null -eq $step.session_correlation_sha256) "$label must not contain a pre-auth session correlation."
   } else {
     Assert-LowerSha256 ([string]$step.session_correlation_sha256) "$label session correlation"
-    if ($null -eq $sessionHash) { $sessionHash = [string]$step.session_correlation_sha256 }
-    Assert-True ([string]$step.session_correlation_sha256 -ceq $sessionHash) `
-      "All post-auth steps must use one stable hashed session correlation."
+    if ($index -lt 10) {
+      if ($null -eq $sessionHashA) { $sessionHashA = [string]$step.session_correlation_sha256 }
+      Assert-True ([string]$step.session_correlation_sha256 -ceq $sessionHashA) `
+        "$label must remain bound to refresh-replay family A."
+    } else {
+      if ($null -eq $sessionHashB) { $sessionHashB = [string]$step.session_correlation_sha256 }
+      Assert-True ([string]$step.session_correlation_sha256 -ceq $sessionHashB) `
+        "$label must remain bound to logout family B."
+    }
   }
 
   $evidence = $step.evidence
@@ -650,7 +663,61 @@ for ($index = 0; $index -lt 12; $index++) {
 }
 
 Assert-True (@($requestHashes | Select-Object -Unique).Count -eq 12) "Each human-flow step requires a distinct hashed request correlation."
+Assert-True ($null -ne $sessionHashA -and $null -ne $sessionHashB -and $sessionHashA -cne $sessionHashB) `
+  "Refresh-replay family A and logout family B require distinct session correlations."
 Assert-True ($artifactByKind.Count -eq 3) "Flow evidence must bind exactly browser, D1-readback, and audit-readback artifacts."
+
+$tokenFamilies = $flow.token_families
+Assert-ExactPropertyNames $tokenFamilies @(
+  "contract_version", "distinct_family_count", "distinct_family_ids_verified", "families", "secret_value_count"
+) "Flow token_families"
+Assert-True ([string]$tokenFamilies.contract_version -ceq "cloudflare-oauth-token-families-v1") `
+  "Token-family contract mismatch."
+Assert-True ([int]$tokenFamilies.distinct_family_count -eq 2) "Token-family proof must contain exactly two families."
+Assert-JsonBool $tokenFamilies "distinct_family_ids_verified" $true "Flow token_families"
+Assert-True ([int]$tokenFamilies.secret_value_count -eq 0) "Flow token_families.secret_value_count must be zero."
+$families = @($tokenFamilies.families)
+Assert-True ($families.Count -eq 2) "Token-family proof must contain exactly family A and family B."
+$familyContract = @(
+  [ordered]@{
+    label = "family_a"; purpose = "refresh_replay"; session = $sessionHashA;
+    issuance = "callback_one_time_state"; terminal = "old_refresh_replay_rejected";
+    reason = "token_replay_detected"; status = 401
+  },
+  [ordered]@{
+    label = "family_b"; purpose = "logout"; session = $sessionHashB;
+    issuance = "independent_family_b_callback"; terminal = "logout_revocation_audited";
+    reason = "user_logout"; status = 200
+  }
+)
+$familyIdHashes = @()
+for ($familyIndex = 0; $familyIndex -lt 2; $familyIndex++) {
+  $family = $families[$familyIndex]
+  $expectedFamily = $familyContract[$familyIndex]
+  $familyLabel = "token_families.families[$familyIndex]"
+  Assert-ExactPropertyNames $family @(
+    "label", "purpose", "family_id_sha256", "session_correlation_sha256", "issuance_evidence_step",
+    "terminal_evidence_step", "terminal_reason", "terminal_http_status", "credential_issue_after_terminal_count"
+  ) $familyLabel
+  Assert-True ([string]$family.label -ceq [string]$expectedFamily.label) "$familyLabel label mismatch."
+  Assert-True ([string]$family.purpose -ceq [string]$expectedFamily.purpose) "$familyLabel purpose mismatch."
+  Assert-LowerSha256 ([string]$family.family_id_sha256) "$familyLabel family identity"
+  $familyIdHashes += [string]$family.family_id_sha256
+  Assert-True ([string]$family.session_correlation_sha256 -ceq [string]$expectedFamily.session) `
+    "$familyLabel session correlation mismatch."
+  Assert-True ([string]$family.issuance_evidence_step -ceq [string]$expectedFamily.issuance) `
+    "$familyLabel issuance evidence mismatch."
+  Assert-True ([string]$family.terminal_evidence_step -ceq [string]$expectedFamily.terminal) `
+    "$familyLabel terminal evidence mismatch."
+  Assert-True ([string]$family.terminal_reason -ceq [string]$expectedFamily.reason) `
+    "$familyLabel terminal reason mismatch."
+  Assert-True ([int]$family.terminal_http_status -eq [int]$expectedFamily.status) `
+    "$familyLabel terminal HTTP status mismatch."
+  Assert-True ([int]$family.credential_issue_after_terminal_count -eq 0) `
+    "$familyLabel must issue no credentials after its terminal security event."
+}
+Assert-True (@($familyIdHashes | Select-Object -Unique).Count -eq 2) `
+  "Refresh-replay family A and logout family B must have distinct family identity hashes."
 
 $browserCovered = @($expectedStepNames)
 $d1Covered = @(
@@ -679,7 +746,14 @@ foreach ($kind in @("browser", "d1_readback", "audit_readback")) {
   Assert-StringArrayExact $artifact.covered_steps $coveredByKind[$kind] "Sanitized $kind artifact covered_steps"
   $expectedRequests = @($coveredByKind[$kind] | ForEach-Object { [string]$stepByName[$_].request_correlation_sha256 })
   Assert-StringSetExact $artifact.request_correlation_sha256s $expectedRequests "Sanitized $kind artifact request correlations"
-  Assert-True ([string]$artifact.session_correlation_sha256 -ceq $sessionHash) "Sanitized $kind artifact session correlation mismatch."
+  $expectedSessions = @(
+    $coveredByKind[$kind] |
+      ForEach-Object { $stepByName[$_].session_correlation_sha256 } |
+      Where-Object { $null -ne $_ } |
+      Select-Object -Unique
+  )
+  Assert-StringSetExact $artifact.session_correlation_sha256s $expectedSessions `
+    "Sanitized $kind artifact session correlations"
   Assert-StringSetExact $artifact.sensitive_value_sha256s $sensitiveByKind[$kind] `
     "Sanitized $kind artifact sensitive-value bindings"
   $observations = @($artifact.observations)
@@ -929,8 +1003,8 @@ if ($Hosted) {
   Assert-True ([string]$contract.cookie_flags.refresh -ceq "__Host-sb_refresh; Path=/; Max-Age=604800; Secure; HttpOnly; SameSite=Strict") `
     "Hosted refresh cookie policy mismatch."
 
-  Write-Host "[production-auth-runtime] status=evidence_envelope_valid architecture=cloudflare_native validation_mode=false hosted_mode=true read_only=true source_parity=true proof_scope=hosted_candidate exact_human_flow_steps=12 atomic_replay_evidence=scored audit_correlation_evidence=scored hosted_binding_readback=true provider_writes=false deployment_writes=false full_live_proof=false production_release=false gate_promotion_performed=false live_verified_set=false secret_output=false"
+  Write-Host "[production-auth-runtime] status=verified architecture=cloudflare_native validation_mode=false hosted_mode=true read_only=true source_parity=true proof_scope=production_identity exact_human_flow_steps=12 atomic_replay_evidence=scored audit_correlation_evidence=scored hosted_binding_readback=true provider_writes=false deployment_writes=false full_live_proof=false production_release=false gate_promotion_performed=false live_verified_set=false secret_output=false"
   exit 0
 }
 
-Write-Host "[production-auth-runtime] status=evidence_envelope_valid architecture=cloudflare_native validation_mode=true hosted_mode=false read_only=true source_parity=true proof_scope=hosted_candidate exact_human_flow_steps=12 atomic_replay_evidence=scored audit_correlation_evidence=scored hosted_binding_readback=false provider_writes=false deployment_writes=false full_live_proof=false production_release=false gate_promotion_performed=false live_verified_set=false secret_output=false"
+Write-Host "[production-auth-runtime] status=verified architecture=cloudflare_native validation_mode=true hosted_mode=false read_only=true source_parity=true proof_scope=production_identity exact_human_flow_steps=12 atomic_replay_evidence=scored audit_correlation_evidence=scored hosted_binding_readback=false provider_writes=false deployment_writes=false full_live_proof=false production_release=false gate_promotion_performed=false live_verified_set=false secret_output=false"

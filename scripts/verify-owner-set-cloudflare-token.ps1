@@ -32,10 +32,16 @@ $source = Get-Content -Raw -LiteralPath $targetScript
 foreach ($required in @(
   'CLOUDFLARE_API_TOKEN_CANDIDATE',
   'Resolve-ApprovedSecretFile',
+  'Assert-NoReparseSecretPath',
   'Test-ResultShape',
   'Invoke-SanitizedGet',
   'Write-CandidateAtomically',
+  'Remove-SupersededTokenRollbacks',
+  'Assert-TokenFileHash',
   '[IO.File]::Replace',
+  '[IO.SearchOption]::TopDirectoryOnly',
+  '[IO.FileAttributes]::ReparsePoint',
+  'cloud-superbrain.local.env',
   '-Method GET',
   '-SkipHttpErrorCheck',
   'permission_or_account_scope',
@@ -62,6 +68,7 @@ foreach ($forbidden in @(
   'throw $plain',
   'Write-Host $headers',
   'Write-Output $headers',
+  'Remove-Item -Recurse',
   '$env:TEMP =',
   '$env:TMP ='
 )) {
@@ -82,7 +89,9 @@ function Invoke-SyntheticScenario(
   [bool]$InitialCandidateMatches = $false,
   [bool]$InitialMainMatches = $false,
   [bool]$InvalidAccount = $false,
-  [bool]$AllowTestPath = $true
+  [bool]$AllowTestPath = $true,
+  [int]$InitialRollbackCount = 0,
+  [bool]$ExpectRetentionFailure = $false
 ) {
   $script:scenarioCount += 1
   $scenarioRoot = Join-Path $testRoot $Name
@@ -101,12 +110,25 @@ function Invoke-SyntheticScenario(
   }
   $before = ($beforeLines -join "`n") + "`n"
   [IO.File]::WriteAllText($secretFile, $before, [Text.UTF8Encoding]::new($false))
+  $initialRollbackPaths = @(
+    for ($index = 0; $index -lt $InitialRollbackCount; $index += 1) {
+      $qualifier = if ($index % 2 -eq 0) { 'qualified-' } else { '' }
+      $rollbackPath = Join-Path $scenarioRoot (
+        'cloud-superbrain.local.env.rollback-' +
+        $qualifier +
+        ('20000101-00000{0}-{1}' -f $index, ('a' * 8))
+      )
+      [IO.File]::WriteAllText($rollbackPath, $before, [Text.UTF8Encoding]::new($false))
+      $rollbackPath
+    }
+  )
 
   $wrapper = @'
 $ErrorActionPreference = 'Stop'
 $global:SyntheticScenarioMode = '__MODE__'
 $global:SyntheticClipboardMarker = '__CLIPBOARD_MARKER__'
 $global:SyntheticUseCurlEnvelope = __USE_CURL__
+$global:SyntheticRetentionHashFailure = __RETENTION_HASH_FAILURE__
 
 function global:Get-Clipboard {
   param([switch]$Raw)
@@ -120,6 +142,19 @@ function global:Get-Clipboard {
 function global:Set-Clipboard {
   param([object]$Value)
   [IO.File]::WriteAllText($global:SyntheticClipboardMarker, 'cleared', [Text.UTF8Encoding]::new($false))
+}
+
+function global:Get-FileHash {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)][string]$LiteralPath,
+    [string]$Algorithm
+  )
+  $actual = Microsoft.PowerShell.Utility\Get-FileHash -LiteralPath $LiteralPath -Algorithm $Algorithm
+  if ($global:SyntheticRetentionHashFailure -and $LiteralPath -like '*.rollback-*') {
+    return [pscustomobject]@{ Hash = ('0' * 64) }
+  }
+  return $actual
 }
 
 function global:Invoke-WebRequest {
@@ -222,6 +257,7 @@ function global:Invoke-WebRequest {
     Replace('__MODE__', (ConvertTo-SingleQuotedLiteral $Mode)).
     Replace('__CLIPBOARD_MARKER__', (ConvertTo-SingleQuotedLiteral $clipboardMarker)).
     Replace('__USE_CURL__', $(if ($UseCurlEnvelope) { '$true' } else { '$false' })).
+    Replace('__RETENTION_HASH_FAILURE__', $(if ($ExpectRetentionFailure) { '$true' } else { '$false' })).
     Replace('__TARGET_SCRIPT__', (ConvertTo-SingleQuotedLiteral $targetScript)).
     Replace('__SECRET_FILE__', (ConvertTo-SingleQuotedLiteral $secretFile)).
     Replace('__PROFILE__', (ConvertTo-SingleQuotedLiteral $Profile)).
@@ -253,14 +289,21 @@ function global:Invoke-WebRequest {
   $candidateTemps = @(Get-ChildItem -LiteralPath $scenarioRoot -Filter 'cloud-superbrain.local.env.candidate-*')
   Assert-True ($candidateTemps.Count -eq 0) "$Name left a plaintext candidate temporary file."
 
-  if ($ExpectCandidateWrite) {
+  if ($ExpectRetentionFailure) {
+    Assert-True ($after.Contains("CLOUDFLARE_API_TOKEN=$oldSyntheticToken")) "$Name changed the active token during the failed retention check."
+    Assert-True ($after.Contains("CLOUDFLARE_API_TOKEN_CANDIDATE=$newSyntheticToken")) "$Name did not finish the atomic candidate write before the retention check."
+    foreach ($initialRollbackPath in $initialRollbackPaths) {
+      Assert-True (Test-Path -LiteralPath $initialRollbackPath -PathType Leaf) "$Name deleted an old rollback before hash verification completed."
+    }
+    Assert-True ($rollbacks.Count -eq ($InitialRollbackCount + 1)) "$Name retention failure did not preserve every rollback."
+  } elseif ($ExpectCandidateWrite) {
     Assert-True ($after.Contains("CLOUDFLARE_API_TOKEN=$oldSyntheticToken")) "$Name changed the active token."
     Assert-True ($after.Contains("CLOUDFLARE_API_TOKEN_CANDIDATE=$newSyntheticToken")) "$Name did not stage the candidate."
-    Assert-True ($rollbacks.Count -eq 1) "$Name expected exactly one rollback file."
+    Assert-True ($rollbacks.Count -eq 1) "$Name did not retain exactly the newest verified rollback."
     Assert-True $output.Contains('Edit-Rechte bleiben unbewiesen.') "$Name overclaimed Edit readiness."
   } else {
     Assert-True ($after -eq $before) "$Name changed the secret file despite a non-write outcome."
-    Assert-True ($rollbacks.Count -eq 0) "$Name created a rollback despite a non-write outcome."
+    Assert-True ($rollbacks.Count -eq $InitialRollbackCount) "$Name changed rollback retention despite a non-write outcome."
   }
 
   $clipboardWasRead = $AllowTestPath -and -not $InvalidAccount
@@ -272,7 +315,7 @@ function global:Invoke-WebRequest {
   return $safeOutput
 }
 
-Invoke-SyntheticScenario -Name 'full-success-curl' -Mode 'success' -ExpectSuccess $true -ExpectCandidateWrite $true | Out-Null
+Invoke-SyntheticScenario -Name 'full-success-curl' -Mode 'success' -ExpectSuccess $true -ExpectCandidateWrite $true -InitialRollbackCount 4 | Out-Null
 $o2Output = Invoke-SyntheticScenario -Name 'o2-core-success' -Mode 'success' -ExpectSuccess $true -ExpectCandidateWrite $true -Profile 'O2Core'
 Assert-True (-not $o2Output.Contains('R2                   HTTP')) 'O2Core incorrectly required R2.'
 Assert-True (-not $o2Output.Contains('Vectorize            HTTP')) 'O2Core incorrectly required Vectorize.'
@@ -290,8 +333,9 @@ Invoke-SyntheticScenario -Name 'rate-limited' -Mode 'rate-limited' -ExpectSucces
 Invoke-SyntheticScenario -Name 'transport-failure' -Mode 'timeout' -ExpectSuccess $false -ExpectCandidateWrite $false | Out-Null
 Invoke-SyntheticScenario -Name 'invalid-account-id' -Mode 'success' -ExpectSuccess $false -ExpectCandidateWrite $false -InvalidAccount $true | Out-Null
 Invoke-SyntheticScenario -Name 'repo-local-path-rejected' -Mode 'success' -ExpectSuccess $false -ExpectCandidateWrite $false -AllowTestPath $false | Out-Null
+Invoke-SyntheticScenario -Name 'retention-hash-failure' -Mode 'success' -ExpectSuccess $false -ExpectCandidateWrite $false -InitialRollbackCount 3 -ExpectRetentionFailure $true | Out-Null
 
 Write-Host (
-  '[verify-owner-token] parse=pass static=pass synthetic={0}/{0} candidate_only=true atomic=true clipboard_failures_cleared=true secret_output=false cloud_mutation=false' -f
+  '[verify-owner-token] parse=pass static=pass synthetic={0}/{0} candidate_only=true atomic=true rollback_retention=1 hash_guard=true clipboard_failures_cleared=true secret_output=false cloud_mutation=false' -f
   $scenarioCount
 )

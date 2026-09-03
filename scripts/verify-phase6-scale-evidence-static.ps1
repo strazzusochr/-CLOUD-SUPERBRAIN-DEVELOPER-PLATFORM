@@ -72,6 +72,7 @@ function Invoke-ExpectedPass([string]$Evidence, [string]$Criterion, [string]$Hos
     -EvidencePath $Evidence `
     -CriterionPath $Criterion `
     -HostedStatePath $Hosted `
+    -DeploymentPreflightStatePath $script:deploymentPreflightPath `
     -CapabilityStatePath $Capability `
     -AllowTestPaths `
     -TrustSyntheticGitHubReadbackForTests 2>&1)
@@ -84,6 +85,7 @@ function Invoke-ExpectedFailure([string]$Evidence, [string]$Criterion, [string]$
     -EvidencePath $Evidence `
     -CriterionPath $Criterion `
     -HostedStatePath $Hosted `
+    -DeploymentPreflightStatePath $script:deploymentPreflightPath `
     -CapabilityStatePath $Capability `
     -AllowTestPaths `
     -TrustSyntheticGitHubReadbackForTests 2>&1)
@@ -95,6 +97,7 @@ function Invoke-ExpectedUntrustedFailure([string]$Evidence, [string]$Criterion, 
     -EvidencePath $Evidence `
     -CriterionPath $Criterion `
     -HostedStatePath $Hosted `
+    -DeploymentPreflightStatePath $script:deploymentPreflightPath `
     -CapabilityStatePath $Capability `
     -AllowTestPaths 2>&1)
   Assert-True ($LASTEXITCODE -ne 0) 'A fully self-consistent synthetic GitHub bundle passed without the explicit test-only trust switch.'
@@ -134,6 +137,18 @@ foreach ($required in @(
   '$candidateGate.evidence_sha256 = $evidenceSha256',
   'phase6-scale-execution-provenance-v1',
   'github-actions-phase6-scale-execution-readback-v1',
+  'github-actions-phase6-environment-review-v1',
+  'actions/workflows/phase6-scale-runtime.yml/runs?event=workflow_dispatch',
+  'actions/runs/$runId/approvals',
+  'Execution must be the first and only run attempt.',
+  'Preview-to-production deployment window exceeded ten minutes.',
+  'docs\runtime-state\cloudflare-native-hosted-current.json',
+  'docs\runtime-state\phase6-scale-hosted-current.json',
+  'DeploymentPreflightStatePath',
+  'cloudflare-d1-stateful-runtime-hosted-proof-v1',
+  'hosted_write_read_delete_verified -eq $false',
+  'preview_guard_verified -eq $true',
+  'c24b7bfddc37cfa0c16d1ebc7f70829417ac4080',
   'Scale criterion edge control is not attribution-only.',
   'Automatic rollback did not restore the original capability state.'
 )) {
@@ -155,19 +170,56 @@ New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
 try {
   $criterionPath = Join-Path $tempRoot 'phase6-scale-criterion.json'
   $hostedPath = Join-Path $tempRoot 'cloudflare-native-hosted-current.json'
+  $script:deploymentPreflightPath = Join-Path $tempRoot 'phase6-scale-hosted-current.json'
   $capabilityPath = Join-Path $tempRoot 'capability-gates.json'
   # Forward slashes: pr-check runs this on ubuntu-latest, where a backslash is a literal
   # character and -LiteralPath would look for a file whose name contains it.
   Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/runtime-state/phase6-scale-criterion.json') -Destination $criterionPath
-  Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/runtime-state/cloudflare-native-hosted-current.json') -Destination $hostedPath
   Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/runtime-state/capability-gates.json') -Destination $capabilityPath
   $criterion = Get-Content -LiteralPath $criterionPath -Raw | ConvertFrom-Json -Depth 30
-  $hosted = Get-Content -LiteralPath $hostedPath -Raw | ConvertFrom-Json -Depth 30
+  $hosted = [ordered]@{
+    contract_version = 'phase6-scale-hosted-deployment-current-v1'
+    status = 'preflight_verified'
+    verified_at_utc = ''
+    base_url = [string]$criterion.target.base_url
+    runtime_contract_version = 'cloudflare-native-runtime-candidate-v2'
+    health_contract_version = 'cloudflare-d1-stateful-runtime-v1'
+    source_commit_sha = ''
+    source_archive_sha256 = ''
+    source_bundle_sha256 = ('3' * 64)
+    worker_version_id = ''
+    deployment_id = ''
+    evidence_artifact = ''
+    evidence_sha256 = ''
+    health_status = 200
+    d1_read_verified = $true
+    production_worker_request_count = 1
+    preview_worker_request_count = 0
+    deployment_preflight_verified = $true
+    health_json_source_binding_verified = $true
+    preview_guard_verified = $true
+    preview_guard_verified_at_utc = ''
+    preview_worker_version_id = ''
+    preview_deployment_id = ''
+    hosted_write_read_delete_verified = $false
+    phase6_scale_run_started = $false
+    phase6_scale_run_verified = $false
+    zero_card_verified = $true
+    paid_provider = $false
+    dev_only = $false
+    secret_output = $false
+    non_claims = @(
+      'This preflight proves exactly one Worker request: one HTTP 200 health/source/deployment binding.',
+      'The Preview guard used control-plane verification and issued zero Worker requests.',
+      'No create, readback, delete, scale, release, or percentage credit is claimed.'
+    )
+  }
   $repositoryHeadSha = (& git -C $repoRoot rev-parse HEAD).Trim()
   $deployedSourceSha = (& git -C $repoRoot rev-parse HEAD^).Trim()
   $sourceArchiveSha256 = Get-GitArchiveSha256 $deployedSourceSha
   $generatedAt = (Get-Date).ToUniversalTime().AddMinutes(-2)
   $hostedVerifiedAt = $generatedAt.AddMinutes(-5)
+  $previewVerifiedAt = $hostedVerifiedAt.AddMinutes(-1)
   $runCreatedAt = $generatedAt.AddMinutes(-1)
   $runUpdatedAt = $generatedAt.AddMinutes(1)
   $collectedAt = $generatedAt.AddMinutes(2)
@@ -177,29 +229,99 @@ try {
   $githubRunUrl = "https://github.com/$githubRepository/actions/runs/$githubRunId"
   $githubRef = 'refs/heads/codex/phase6-scale-static-fixture'
   $githubArtifactName = "phase6-scale-execution-evidence-$githubRunId-$githubRunAttempt"
+  $githubActor = 'phase6-dispatcher'
+  $githubTriggeringActor = 'phase6-dispatcher'
+  $githubReviewer = 'phase6-reviewer'
+  [long]$githubReviewerId = 7654321
+  [long]$githubEnvironmentId = 161088068
+  $githubEnvironmentName = 'phase6-scale-hosted-writes'
   $hosted.source_commit_sha = $deployedSourceSha
   $hosted.source_archive_sha256 = $sourceArchiveSha256
   $hosted.verified_at_utc = $hostedVerifiedAt.ToString('o')
   $workerVersionId = '11111111-1111-4111-8111-111111111111'
   $deploymentId = '22222222-2222-4222-8222-222222222222'
-  $deploymentPath = Join-Path $tempRoot 'cloudflare-deployment-v2.json'
+  $hosted.worker_version_id = $workerVersionId
+  $hosted.deployment_id = $deploymentId
+  $hosted.preview_guard_verified_at_utc = $previewVerifiedAt.ToString('o')
+  $hosted.preview_worker_version_id = '33333333-3333-4333-8333-333333333333'
+  $hosted.preview_deployment_id = '44444444-4444-4444-8444-444444444444'
+  $deploymentPath = Join-Path $tempRoot 'phase6-deployment-preflight.json'
   $deployment = [ordered]@{
-    contract_version = 'cloudflare-d1-stateful-runtime-hosted-proof-v2'
+    contract_version = 'phase6-scale-deployment-preflight-evidence-v1'
     verified_at_utc = $hostedVerifiedAt.ToString('o')
+    status = 'verified'
+    purpose = 'phase6_scale_single_run_preflight'
     base_url = [string]$hosted.base_url
     source_commit_sha = [string]$hosted.source_commit_sha
     source_archive_sha256 = [string]$hosted.source_archive_sha256
+    source_bundle_sha256 = [string]$hosted.source_bundle_sha256
     worker_version_id = $workerVersionId
     deployment_id = $deploymentId
+    health_status = 200
+    d1_read_verified = $true
+    production_worker_request_count = 1
+    preview_worker_request_count = 0
     source_binding_verified = $true
-    hosted_write_read_delete_verified = $true
+    health_json_source_binding_verified = $true
+    preview_guard_verified = $true
+    preview_guard_verified_at_utc = $previewVerifiedAt.ToString('o')
+    preview_worker_version_id = [string]$hosted.preview_worker_version_id
+    preview_deployment_id = [string]$hosted.preview_deployment_id
+    hosted_write_read_delete_verified = $false
+    phase6_scale_run_started = $false
+    phase6_scale_run_verified = $false
+    zero_card = $true
+    paid_provider = $false
     dev_only = $false
     secret_output = $false
+    producer = 'scripts/deploy-cloudflare-stateful-runtime.ps1'
+    writer = 'scripts/write-phase6-scale-deployment-preflight.ps1'
+    non_claims = @(
+      'This preflight proves exactly one Worker request: one HTTP 200 health/source/deployment binding.',
+      'The Preview guard used control-plane verification and issued zero Worker requests.',
+      'No create, readback, delete, scale, release, or percentage credit is claimed.'
+    )
   }
   Write-Json $deploymentPath $deployment
+  Write-Digest $deploymentPath
   $hosted.evidence_artifact = $deploymentPath
   $hosted.evidence_sha256 = (Get-FileHash -LiteralPath $deploymentPath -Algorithm SHA256).Hash.ToLowerInvariant()
-  Write-Json $hostedPath $hosted
+  Write-Json $script:deploymentPreflightPath $hosted
+
+  $canonicalHosted = Get-Content -LiteralPath (Join-Path $repoRoot 'docs/runtime-state/cloudflare-native-hosted-current.json') -Raw | ConvertFrom-Json -Depth 30
+  $sourceCanonicalEvidencePath = Join-Path $repoRoot ([string]$canonicalHosted.evidence_artifact)
+  $canonicalHostedEvidence = Get-Content -LiteralPath $sourceCanonicalEvidencePath -Raw | ConvertFrom-Json -Depth 30
+  $canonicalHostedEvidencePath = Join-Path $tempRoot 'canonical-o2core-hosted-evidence.json'
+  $canonicalHostedEvidence.checked_at = $hostedVerifiedAt.ToString('o')
+  $canonicalHostedEvidence.base_url = [string]$hosted.base_url
+  $canonicalHostedEvidence.source_commit_sha = $deployedSourceSha
+  $canonicalHostedEvidence.source_archive_sha256 = $sourceArchiveSha256
+  $canonicalHostedEvidence.cloudflare_native_hosted_source_parity_verified = $true
+  $canonicalHostedEvidence.cloudflare_native_create_enqueue_queue_do_d1_artifact_roundtrip = $true
+  $canonicalHostedEvidence.cloudflare_native_d1_artifact_write_read_delete = $true
+  $canonicalHostedEvidence.cloudflare_native_d1_read_verified = $true
+  $canonicalHostedEvidence.cloudflare_native_zero_card_execution_verified = $true
+  $canonicalHostedEvidence.cloudflare_native_paid_fallback_used = $false
+  $canonicalHostedEvidence.secret_output = $false
+  Write-Json $canonicalHostedEvidencePath $canonicalHostedEvidence
+  $canonicalHosted.contract_version = 'cloudflare-native-hosted-current-v1'
+  $canonicalHosted.status = 'verified'
+  $canonicalHosted.verified_at_utc = $hostedVerifiedAt.ToString('o')
+  $canonicalHosted.base_url = [string]$hosted.base_url
+  $canonicalHosted.source_commit_sha = $deployedSourceSha
+  $canonicalHosted.source_archive_sha256 = $sourceArchiveSha256
+  $canonicalHosted.evidence_artifact = $canonicalHostedEvidencePath
+  $canonicalHosted.evidence_sha256 = (Get-FileHash -LiteralPath $canonicalHostedEvidencePath -Algorithm SHA256).Hash.ToLowerInvariant()
+  $canonicalHosted.hosted_source_parity_verified = $true
+  $canonicalHosted.hosted_stateful_roundtrip_verified = $true
+  $canonicalHosted.create_enqueue_queue_do_d1_artifact_roundtrip = $true
+  $canonicalHosted.d1_artifact_write_read_delete_verified = $true
+  $canonicalHosted.zero_card_verified = $true
+  $canonicalHosted.paid_provider = $false
+  $canonicalHosted.dev_only = $false
+  $canonicalHosted.hosted_proof = $true
+  $canonicalHosted.secret_output = $false
+  Write-Json $hostedPath $canonicalHosted
   $capability = Get-Content -LiteralPath $capabilityPath -Raw | ConvertFrom-Json -Depth 30
   $ownerGrantRef = 'owner-grant:phase6-scale:pre-live'
   $capability.gates.phase6_scale_runtime.owner_granted = $true
@@ -228,6 +350,29 @@ try {
   $stamp = $generatedAt.ToString('yyyyMMddTHHmmssfffZ')
   $runId = [Guid]::NewGuid().ToString('N')
   $evidencePath = Join-Path $tempRoot "scale-evidence-$stamp-$runId.json"
+  $environmentReviewCapturedAt = $generatedAt.AddSeconds(-30)
+  $environmentReviewPath = Join-Path $tempRoot "environment-review-$githubRunId-$githubRunAttempt.json"
+  $environmentReview = [ordered]@{
+    contract_version = 'github-actions-phase6-environment-review-v1'
+    captured_at_utc = $environmentReviewCapturedAt.ToString('o')
+    repository = $githubRepository
+    run_id = $githubRunId
+    run_attempt = $githubRunAttempt
+    head_sha = $repositoryHeadSha
+    environment_name = $githubEnvironmentName
+    environment_id = $githubEnvironmentId
+    review_state = 'approved'
+    reviewer_login = $githubReviewer
+    reviewer_id = $githubReviewerId
+    reviewer_type = 'User'
+    actor_login = $githubActor
+    triggering_actor_login = $githubTriggeringActor
+    secret_output = $false
+  }
+  Write-Json $environmentReviewPath $environmentReview
+  Write-Digest $environmentReviewPath
+  $environmentReviewSha256 = (Get-FileHash -LiteralPath $environmentReviewPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  $environmentReviewSidecarSha256 = (Get-FileHash -LiteralPath "$environmentReviewPath.sha256" -Algorithm SHA256).Hash.ToLowerInvariant()
   $writeRecords = @()
   $cleanupRecords = @()
   for ($index = 1; $index -le 50; $index++) {
@@ -330,15 +475,24 @@ try {
       declared_before_first_full_write_run = $true
     }
     source_binding = [ordered]@{
-      hosted_state_contract_version = [string]$hosted.contract_version
+      hosted_state_contract_version = [string]$canonicalHosted.contract_version
       hosted_state_file_sha256 = (Get-FileHash -LiteralPath $hostedPath -Algorithm SHA256).Hash.ToLowerInvariant()
+      hosted_runtime_evidence_artifact = [string]$canonicalHosted.evidence_artifact
+      hosted_runtime_evidence_sha256 = ([string]$canonicalHosted.evidence_sha256).ToLowerInvariant()
+      deployment_preflight_state_contract_version = [string]$hosted.contract_version
+      deployment_preflight_state_file_sha256 = (Get-FileHash -LiteralPath $script:deploymentPreflightPath -Algorithm SHA256).Hash.ToLowerInvariant()
       base_url = [string]$hosted.base_url
       source_commit_sha = [string]$hosted.source_commit_sha
       source_archive_sha256 = [string]$hosted.source_archive_sha256
+      source_bundle_sha256 = [string]$hosted.source_bundle_sha256
       deployment_evidence_artifact = [string]$hosted.evidence_artifact
       deployment_evidence_sha256 = ([string]$hosted.evidence_sha256).ToLowerInvariant()
       worker_version_id = $workerVersionId
       deployment_id = $deploymentId
+      preview_guard_verified = $true
+      preview_guard_verified_at_utc = $previewVerifiedAt.ToString('o')
+      preview_worker_version_id = [string]$hosted.preview_worker_version_id
+      preview_deployment_id = [string]$hosted.preview_deployment_id
       verifier_script_sha256 = $runtimeVerifierSha256
       repository_head_sha = $repositoryHeadSha
       capability_state_sha256 = $capabilityStateSha256
@@ -364,6 +518,23 @@ try {
         source_commit_sha = $deployedSourceSha
         control_delta = @('scripts/verify-phase6-scale-runtime.ps1')
         artifact_name = $githubArtifactName
+        environment_review = [ordered]@{
+          contract_version = 'github-actions-phase6-environment-review-v1'
+          review_artifact_name = [IO.Path]::GetFileName($environmentReviewPath)
+          review_artifact_sha256 = $environmentReviewSha256
+          review_sidecar_name = [IO.Path]::GetFileName("$environmentReviewPath.sha256")
+          review_sidecar_sha256 = $environmentReviewSidecarSha256
+          captured_at_utc = $environmentReviewCapturedAt.ToString('o')
+          environment_name = $githubEnvironmentName
+          environment_id = $githubEnvironmentId
+          review_state = 'approved'
+          reviewer_login = $githubReviewer
+          reviewer_id = $githubReviewerId
+          reviewer_type = 'User'
+          actor_login = $githubActor
+          triggering_actor_login = $githubTriggeringActor
+          human_review_verified = $true
+        }
         post_run_api_readback_required = $true
         verified = $false
       }
@@ -474,6 +645,59 @@ try {
   $capabilityHashAfter = (Get-FileHash -LiteralPath $capabilityPath -Algorithm SHA256).Hash
   Assert-True ($capabilityHashBefore -eq $capabilityHashAfter) 'Read-only verification mutated capability state.'
 
+  $validEvidence.source_binding.execution_attestation.run_attempt = 2
+  Write-EvidenceBundle $evidencePath $validEvidence $executionReadbackPath $executionReadback
+  Invoke-ExpectedFailure $evidencePath $criterionPath $hostedPath $capabilityPath 'GitHub rerun attempt'
+  $validEvidence.source_binding.execution_attestation.run_attempt = 1
+
+  $environmentReview.review_state = 'rejected'
+  Write-Json $environmentReviewPath $environmentReview
+  Write-Digest $environmentReviewPath
+  $validEvidence.source_binding.execution_attestation.environment_review.review_state = 'rejected'
+  $validEvidence.source_binding.execution_attestation.environment_review.review_artifact_sha256 = (Get-FileHash -LiteralPath $environmentReviewPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  $validEvidence.source_binding.execution_attestation.environment_review.review_sidecar_sha256 = (Get-FileHash -LiteralPath "$environmentReviewPath.sha256" -Algorithm SHA256).Hash.ToLowerInvariant()
+  Write-EvidenceBundle $evidencePath $validEvidence $executionReadbackPath $executionReadback
+  Invoke-ExpectedFailure $evidencePath $criterionPath $hostedPath $capabilityPath 'rejected GitHub Environment review'
+  $environmentReview.review_state = 'approved'
+  Write-Json $environmentReviewPath $environmentReview
+  Write-Digest $environmentReviewPath
+  $validEvidence.source_binding.execution_attestation.environment_review.review_state = 'approved'
+  $validEvidence.source_binding.execution_attestation.environment_review.review_artifact_sha256 = (Get-FileHash -LiteralPath $environmentReviewPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  $validEvidence.source_binding.execution_attestation.environment_review.review_sidecar_sha256 = (Get-FileHash -LiteralPath "$environmentReviewPath.sha256" -Algorithm SHA256).Hash.ToLowerInvariant()
+
+  $validEvidence.source_binding.execution_attestation.environment_review.review_artifact_sha256 = ('0' * 64)
+  Write-EvidenceBundle $evidencePath $validEvidence $executionReadbackPath $executionReadback
+  Invoke-ExpectedFailure $evidencePath $criterionPath $hostedPath $capabilityPath 'Environment-review artifact digest tamper'
+  $validEvidence.source_binding.execution_attestation.environment_review.review_artifact_sha256 = (Get-FileHash -LiteralPath $environmentReviewPath -Algorithm SHA256).Hash.ToLowerInvariant()
+
+  $hosted.hosted_write_read_delete_verified = $true
+  Write-Json $script:deploymentPreflightPath $hosted
+  $validEvidence.source_binding.deployment_preflight_state_file_sha256 = (Get-FileHash -LiteralPath $script:deploymentPreflightPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  Write-EvidenceBundle $evidencePath $validEvidence $executionReadbackPath $executionReadback
+  Invoke-ExpectedFailure $evidencePath $criterionPath $hostedPath $capabilityPath 'false pre-run write/read/delete claim'
+  $hosted.hosted_write_read_delete_verified = $false
+  Write-Json $script:deploymentPreflightPath $hosted
+  $validEvidence.source_binding.deployment_preflight_state_file_sha256 = (Get-FileHash -LiteralPath $script:deploymentPreflightPath -Algorithm SHA256).Hash.ToLowerInvariant()
+
+  $longWindowPreviewAt = $hostedVerifiedAt.AddMinutes(-11)
+  $deployment.preview_guard_verified_at_utc = $longWindowPreviewAt.ToString('o')
+  Write-Json $deploymentPath $deployment
+  Write-Digest $deploymentPath
+  $hosted.preview_guard_verified_at_utc = $longWindowPreviewAt.ToString('o')
+  $hosted.evidence_sha256 = (Get-FileHash -LiteralPath $deploymentPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  Write-Json $script:deploymentPreflightPath $hosted
+  Write-EvidenceBundle $evidencePath $validEvidence $executionReadbackPath $executionReadback
+  Invoke-ExpectedFailure $evidencePath $criterionPath $hostedPath $capabilityPath 'Preview-to-production deployment window over ten minutes'
+  $deployment.preview_guard_verified_at_utc = $previewVerifiedAt.ToString('o')
+  Write-Json $deploymentPath $deployment
+  Write-Digest $deploymentPath
+  $hosted.preview_guard_verified_at_utc = $previewVerifiedAt.ToString('o')
+  $hosted.evidence_sha256 = (Get-FileHash -LiteralPath $deploymentPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  Write-Json $script:deploymentPreflightPath $hosted
+  $validEvidence.source_binding.preview_guard_verified_at_utc = $previewVerifiedAt.ToString('o')
+  $validEvidence.source_binding.deployment_evidence_sha256 = ([string]$hosted.evidence_sha256).ToLowerInvariant()
+  $validEvidence.source_binding.deployment_preflight_state_file_sha256 = (Get-FileHash -LiteralPath $script:deploymentPreflightPath -Algorithm SHA256).Hash.ToLowerInvariant()
+
   # /cdn-cgi/trace is an attribution control, not a Worker pass criterion.
   # Preserve and recompute a failed control sample while the Worker evidence stays green.
   $validEvidence.read_tiers[0].edge_control_records[0].status_code = 503
@@ -556,6 +780,11 @@ try {
   Invoke-ExpectedFailure $evidencePath $criterionPath $hostedPath $capabilityPath 'future GitHub execution readback'
   $executionReadback.collected_at_utc = $collectedAt.ToString('o')
 
+  $executionReadback.collected_at_utc = $generatedAt.AddHours(25).ToString('o')
+  Write-EvidenceBundle $evidencePath $validEvidence $executionReadbackPath $executionReadback
+  Invoke-ExpectedFailure $evidencePath $criterionPath $hostedPath $capabilityPath 'GitHub execution readback after 24 hours'
+  $executionReadback.collected_at_utc = $collectedAt.ToString('o')
+
   $validEvidence.result = 'verified'
   Write-EvidenceBundle $evidencePath $validEvidence $executionReadbackPath $executionReadback
   Invoke-ExpectedFailure $evidencePath $criterionPath $hostedPath $capabilityPath 'legacy pre-readback verified result'
@@ -617,7 +846,7 @@ try {
   Write-Json $capabilityPath $capability
   Invoke-ExpectedFailure $evidencePath $criterionPath $hostedPath $capabilityPath 'capability-state identity tamper'
 
-  Write-Host '[phase6-scale-evidence-static] PASS: v2 parser, GitHub execution readback, literal-success/count/ordinal/hash/latency/audit/source tamper rejection, read-only proof, and rollback-safe promotion guards'
+  Write-Host '[phase6-scale-evidence-static] PASS: v2 parser, one-shot GitHub run, protected Environment human review, artifact/readback within 24 hours, ten-minute deployment window, literal-success/count/ordinal/hash/latency/audit/source tamper rejection, read-only proof, and rollback-safe promotion guards'
 } finally {
   $resolvedTemp = [IO.Path]::GetFullPath($tempRoot)
   Assert-True ($resolvedTemp.StartsWith($testRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) 'Refusing unsafe temp cleanup.'

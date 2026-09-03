@@ -3587,6 +3587,9 @@ foreach ($required in @(
   'active release candidate has committed or staged runtime-source drift outside the exact truth transition',
   'qualificationTruthPaths',
   'qualification_truth_transition=',
+  'dual_binding_transition=',
+  'source-truth-projection-binding-v1',
+  'verify_source_truth_projection_binding.py',
   'backendState.overall_percent',
   'runtime_source_parity=true',
   'snapshot_stale=',
@@ -3602,10 +3605,54 @@ foreach ($required in @(
   'not isinstance(exc.reason, transient_errors)',
   'time.sleep(attempt)',
   'Assert-Equal "hosted status $url" ([int]$status) 200',
+  'ready_for_100_percent_review',
   'Verified hosted read failed after bounded retries'
 )) {
   if (-not $currentReleaseCandidateVerifier.Contains($required)) {
     throw "Current release candidate verifier missing canonical gate classification: $required"
+  }
+}
+$dualBindingVerifierPath = Join-Path $PSScriptRoot 'verify_source_truth_projection_binding.py'
+if (-not (Test-Path -LiteralPath $dualBindingVerifierPath -PathType Leaf)) {
+  throw 'Missing source/truth-projection binding verifier'
+}
+$dualBindingVerifierSource = Get-Content -LiteralPath $dualBindingVerifierPath -Raw
+foreach ($required in @(
+  'source-truth-projection-binding-v1',
+  'runtime-to-projection ancestry',
+  'projection-to-receipt ancestry',
+  'runtime product drift exists after source freeze',
+  'receipt must not modify truth projection paths',
+  'all seven horizontal cells must be 100',
+  'all seven vertical cells must be 100'
+)) {
+  if (-not $dualBindingVerifierSource.Contains($required)) {
+    throw "Source/truth-projection binding verifier missing fail-closed guard: $required"
+  }
+}
+$ownerRequestWriterPath = Join-Path $PSScriptRoot 'write-market-ready-owner-request.ps1'
+$ownerRequestVerifierPath = Join-Path $PSScriptRoot 'verify-market-ready-owner-request.ps1'
+foreach ($requiredPath in @($ownerRequestWriterPath, $ownerRequestVerifierPath)) {
+  if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
+    throw "Missing market-ready owner request component: $requiredPath"
+  }
+}
+$sourceQualificationWriterPath = Join-Path $PSScriptRoot 'write-source-qualification-control.ps1'
+$sourceQualificationVerifierPath = Join-Path $PSScriptRoot 'verify-source-qualification-control.ps1'
+foreach ($requiredPath in @($sourceQualificationWriterPath, $sourceQualificationVerifierPath)) {
+  if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
+    throw "Missing source qualification control component: $requiredPath"
+  }
+}
+$prCheckSource = Get-Content -LiteralPath '.github\workflows\pr-check.yml' -Raw
+foreach ($required in @(
+  'docs/runtime-state/source-qualification-control.json',
+  'source qualification control JSON must be the only S-to-Q path',
+  'source qualification control candidate mismatch',
+  'source qualification control may not award credit'
+)) {
+  if (-not $prCheckSource.Contains($required)) {
+    throw "pr-check missing source qualification fail-closed guard: $required"
   }
 }
 foreach ($forbidden in @('ssl._create_unverified_context', 'ssl.CERT_NONE', 'check_hostname = False')) {

@@ -93,7 +93,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot; Push-Location $repoRoot
 try {
   Require ($PSVersionTable.PSVersion.Major -ge 7) "powershell_7_required" "PowerShell 7 or newer is required."; Assert-SanctionedTarget $BaseUrl; $closure = Assert-CandidateClosure; Assert-ApprovedRubric; $gateBinding = Assert-LiveProviderGate; $base = $script:SanctionedBaseUrl
   $healthResponse = Invoke-CapturedRequest "$base/api/v1/health"; Require ([int]$healthResponse.StatusCode -eq 200) "health_http_status" "Health must return 200."; $health = Read-JsonResponse $healthResponse "health"; Require ([string]$health.status -eq "healthy") "health_not_healthy" "Gateway is not healthy."; Assert-SourceBinding $health
-  $token = Get-RequiredToken
+  $token = (Get-RequiredToken)
   $baseBody = [ordered]@{ model = $Model; messages = @(@{ role = "user"; content = "Return a bounded response." }); max_tokens = 8; temperature = 0; stream = $false } | ConvertTo-Json -Depth 10 -Compress
   $probes = @()
   $missingId = "l4-negative-missing-" + [Guid]::NewGuid().ToString("N"); $missing = Invoke-CapturedRequest "$base/v1/chat/completions" "POST" @{ "x-request-id" = $missingId } $baseBody; $probes += Assert-ZeroCallGuard $missing 401 "gateway_authentication_required" "missing_auth" $token $missingId

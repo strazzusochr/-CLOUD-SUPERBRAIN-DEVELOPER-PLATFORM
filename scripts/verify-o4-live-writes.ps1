@@ -195,6 +195,12 @@ function Assert-StaticImplementation {
   Assert-True "Nginx routes the exact O4 endpoint to the frontend boundary" (
     $nginx -match '(?ms)location = /api/v1/tools/live-write/probe\s*\{.*?proxy_pass \$frontend;'
   )
+  $effectiveComposeVerifier = Join-Path $repoRoot 'scripts\verify-o4-effective-compose.ps1'
+  Assert-True 'effective Compose verifier exists' (Test-Path -LiteralPath $effectiveComposeVerifier -PathType Leaf)
+  $powerShellExecutable = (Get-Process -Id $PID).Path
+  $effectiveOutput = @(& $powerShellExecutable -NoProfile -ExecutionPolicy Bypass -File $effectiveComposeVerifier -RepoRoot $repoRoot 2>&1)
+  Assert-True 'effective Compose verifier exits zero' ($LASTEXITCODE -eq 0)
+  Assert-True 'effective Compose verifier success marker' (($effectiveOutput -join "`n").Contains('[o4-effective-compose] PASS'))
 }
 
 function Assert-ExternalBranchProtection($Summary) {
@@ -311,6 +317,7 @@ $proofRuntimePaths = @(
   "services/agent-api",
   "services/mcp-gateway",
   "scripts/start-dev-live.ps1",
+  "scripts/verify-o4-effective-compose.ps1",
   "scripts/verify-o4-live-write-browser.cjs",
   "scripts/verify-o4-live-writes.ps1"
 )

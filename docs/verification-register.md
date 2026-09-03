@@ -1,13 +1,32 @@
 # Verification Register - PATCHED
 
-Stand: 2026-09-02
+Stand: 2026-09-03
 Status: Active
 
 ## Current Progress Authority
 
 Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `86%`, Memory `100%`, and Observability `100%`. The v2 delta ledger contains one evidence-scored L5 entry.
 
-## Current Phase-6 Pre-Grant Hardening Evidence
+## 2026-09-03 Product-Freeze WIP Verification
+
+No percentage was awarded: `0/136` newly credited, `136` open, Overall `89`,
+`MARKET_READY:false`. The uncommitted S/Q implementation binds publication and I1 to
+`source-qualification-control-v1` with exact release, runtime source and reconstructed
+archive SHA-256. O1/O3 remain grant/ref-only and every relevant `live_verified` value is
+false.
+
+Local, non-credit preflight evidence: six successful image builds; HTTP `200` from the
+agent-api, MCP, LLM and frontend containers; successful imports for both workers; six
+Trivy image scans with zero HIGH/CRITICAL and zero secret findings; six valid CycloneDX
+SBOMs. The agent-api runtime no longer ships the CI-only gitleaks executable, all five
+Python runtimes use the immutable Alpine base plus package security updates, and the
+frontend production image removes npm and starts Next directly through Node. Supply-chain
+static guards pin these properties. Focused results: market-ready unit `119/119`, progress
+and Phase-5 unit `60/60`, rubric `15/15`, OAuth `36/36`, Stateful Worker `69/69`, both
+Phase-6 static verifiers PASS, supply-chain pins PASS, PowerShell parsing PASS. No cloud
+write, registry push, workflow dispatch, provider call, deployment or promotion occurred.
+
+## Current Phase-6 Pre-Run Hardening and Grant Evidence
 
 Recorded 2026-09-02. Hardened code-control
 `bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0` is pushed to the feature branch.
@@ -20,7 +39,7 @@ GitHub Actions `pr-check` run `33605838142` checked out that exact head and pass
   while permitting a later separately authorized gate transition. Focused unit result:
   `15/15` pass; standalone rubric verifier pass.
 - `c24b7bfd` adds a contract-origin hop marker and returns fail-closed `508` on a bounce,
-  preventing the measured Worker -> Vercel -> Worker recursion. Stateful Worker tests
+  preventing a possible Worker -> Vercel -> Worker recursion. Stateful Worker tests
   `68/68`, package check and root Cloudflare-runtime verifier pass.
 - `bc2d4c8e` enforces the frozen Phase-6 criterion that `/cdn-cgi/trace` is an
   attribution control, not a pass criterion. Control failures remain recorded and
@@ -42,14 +61,36 @@ The narrow Owner certificate is now recorded as
 `OWNER_GRANTS_2026-09-02.json::O2:phase6_scale_runtime`. `live_verified=false`; all
 evidence/provider values remain empty, with an empty `evidence_sha256` added only to match
 the deep verifier's exact pre-promotion schema. No workflow dispatch or percentage credit. The
+grant commit `638ba0a9` and RC33 anchor correction
+`664968f08a2b392463165118b77887cc21781a98` are pushed. GitHub Actions `pr-check`
+`33610385136` checked out exact head `664968f0` and passed `31/31` observed steps, `0`
+skipped, `0` failed. This closes the reported Phase-5 no-credit release/source anchor
+error while preserving `17/19` and blocked I1/I5. The
 accepted Phase-6 origin is exclusively
 `https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev`, currently blocked by
 HTTP `429/1027`; the last hosted evidence was about 157 hours old and source preflight had
 687 non-allowlisted paths to current HEAD. The confirmed OAuth frontend alias
 `frontend-seven-psi-78` is a separate origin. The authorized production-Worker rebind
-must deploy the loop guard first; exactly one `200` remeasurement and fresh immutable
-source evidence are prerequisites before the one-shot dispatch. Progress and
+must deploy the loop guard first; the production wrapper's single standalone `200` read,
+then a fresh canonical O2Core write/read/delete verifier result plus source-bound hosted
+state younger than 24 hours are prerequisites. A separate deployment preflight must bind
+Preview=`0` and Production=`1` Worker request within ten minutes; Preview, deployment, and
+O2Core evidence must all be tracked and younger than 24 hours at dispatch. After committing
+these controls as `C`, no branch commit is permitted through evidence verification/gate
+promotion. Exactly one `run_attempt=1` dispatch is allowed, with no rerun. Its GitHub
+execution readback must be collected within 24 hours after evidence generation, and the
+human Environment review must be preserved separately through GitHub API/UI evidence. Progress and
 `MARKET_READY:false` remain unchanged; no GHCR transfer is claimed.
+
+Cloudflare dashboard evidence from the signed-in account attributes the last 24 hours as
+`159` invocations and `0` errors for the production Stateful Worker versus `868.21k`
+invocations and `0` errors for the isolated Stateful Preview Worker; `868k` are attributed
+to Preview version `fc27406d`. This establishes Preview as the dominant measured invocation
+consumer and strongly supports its role in the shared-quota exhaustion; it does not prove
+the exact request path or sole causality, so the cross-origin bounce remains a supported
+hypothesis. No Worker endpoint was called while collecting these control-plane
+metrics. Do not spend another Worker request before reset; deploy the guard to Preview and
+the final Phase-6 production source before the single production health read.
 
 ## Current RC33 Local Qualification Evidence
 
@@ -89,8 +130,10 @@ HTTP `429`, Cloudflare error `1027`, because the account-wide Free-plan daily re
 was exhausted. Vercel Preview deployment `dpl_CJzQ2YBuEzTpLS9KiFgvUSowo5MT` remained
 `Ready`; its MCP and LLM projections correctly returned `degraded` with
 `live_backend=false` while their upstreams were unavailable. This is a fail-closed external
-quota boundary, not credit and not exact RC33 hosted parity. Remeasure once after the
-`00:00 UTC` reset; do not hammer the endpoints or infer a production claim.
+quota boundary, not credit and not exact RC33 hosted parity. That earlier follow-up is
+superseded by the current Phase-6 pre-run sequence: guard/rebind before measurement, fresh
+canonical O2Core evidence, then one scale dispatch and readback inside its 24-hour window.
+Do not hammer the endpoints or infer a production release claim.
 
 The candidate selection preserves `17/19 = 89%`, blocked I1
 `hosted_candidate_parity` and I5 `production_auth_identity`, all prior scoring rulings,
@@ -338,7 +381,7 @@ hash-mismatched artifacts, and unapproved/failed/timed-out scorers are rejected.
 ledger still has `entries=0`; this protocol proof grants no credit and changes no manifest
 value.
 
-Read-only GitHub/gate remeasurement at `20daf6e` corrects B3 provisioning without opening
+Historical read-only GitHub/gate remeasurement at `20daf6e` corrected B3 provisioning without opening
 the gate: environment `phase6-scale-hosted-writes` exists and exposes only the secret name
 `AGENT_API_AUTH_TOKEN`, while workflow blob `0b2f7e3b` exists on the feature branch but the
 file is absent from default branch `chore/repo-bootstrap`.
@@ -346,6 +389,8 @@ file is absent from default branch `chore/repo-bootstrap`.
 Default still has old `main-deploy` blob `555e8325` instead of safe feature blob
 `14e84b31`; `docker_registry_publish.owner_granted=false`, so B4 is closed. No secret value,
 default-branch write, dispatch, publication, gate approval or progress credit occurred.
+The active Phase-6 checkpoint supersedes this historical state: the owner grant is now
+committed, while `live_verified` remains false pending real hosted evidence.
 
 ## Current RC23 Local Qualification Evidence
 

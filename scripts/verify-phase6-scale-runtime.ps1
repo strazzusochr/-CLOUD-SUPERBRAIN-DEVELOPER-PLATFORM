@@ -13,6 +13,7 @@
 param(
   [string]$CriterionPath,
   [string]$HostedStatePath,
+  [string]$DeploymentPreflightStatePath,
   [string]$BaseUrl,
   [switch]$AllowHostedWrites
 )
@@ -23,10 +24,17 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $canonicalCriterionPath = Join-Path $repoRoot "docs\runtime-state\phase6-scale-criterion.json"
 $canonicalHostedStatePath = Join-Path $repoRoot "docs\runtime-state\cloudflare-native-hosted-current.json"
+$canonicalDeploymentPreflightStatePath = Join-Path $repoRoot "docs\runtime-state\phase6-scale-hosted-current.json"
 $capabilityGatesPath = Join-Path $repoRoot "docs\runtime-state\capability-gates.json"
+$releaseCandidateRelativePath = "docs/release-artifacts/current-release-candidate.json"
+$releaseCandidatePath = Join-Path $repoRoot $releaseCandidateRelativePath
+$canonicalArtifactRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot ".phase1-artifacts\phase6-scale")).TrimEnd('\', '/')
+$protectedEnvironmentName = "phase6-scale-hosted-writes"
 $expectedCriterionSha256 = "edeeac95fac6fefe1dcde5b77a5d8b236685f28adf66f357706aed26971ed85f"
+$minimumLoopFixCommit = "c24b7bfddc37cfa0c16d1ebc7f70829417ac4080"
 if (-not $CriterionPath) { $CriterionPath = $canonicalCriterionPath }
 if (-not $HostedStatePath) { $HostedStatePath = $canonicalHostedStatePath }
+if (-not $DeploymentPreflightStatePath) { $DeploymentPreflightStatePath = $canonicalDeploymentPreflightStatePath }
 
 function Fail([string]$Message) {
   Write-Host "[phase6-scale] FAIL: $Message"
@@ -90,18 +98,24 @@ function Has-Property($Value, [string]$Name) {
   return ($null -ne $Value -and $null -ne $Value.PSObject.Properties[$Name])
 }
 
+function Assert-ExactProperties($Value, [string[]]$Expected, [string]$Label) {
+  Require ($null -ne $Value) "$Label is missing"
+  $actualNames = @($Value.PSObject.Properties.Name | Sort-Object -Unique)
+  $expectedNames = @($Expected | Sort-Object -Unique)
+  $difference = @(Compare-Object -ReferenceObject $expectedNames -DifferenceObject $actualNames -CaseSensitive)
+  Require ($actualNames.Count -eq $expectedNames.Count -and $difference.Count -eq 0) "$Label property set is invalid"
+}
+
 function Get-OptionalStringProperty($Value, [string]$Name) {
   if (Has-Property $Value $Name) { return [string]$Value.$Name }
   return ""
 }
 
 function Get-NonNegativeInteger($Value, [string]$Label) {
-  Require ($null -ne $Value -and $Value -isnot [bool]) "$Label must be a non-negative integer"
-  $text = [Convert]::ToString($Value, [Globalization.CultureInfo]::InvariantCulture)
-  Require ($text -match '^(?:0|[1-9][0-9]*)$') "$Label must be a non-negative integer"
-  $parsed = 0L
-  Require ([Int64]::TryParse($text, [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture, [ref]$parsed)) "$Label is outside the Int64 range"
-  return $parsed
+  $integerTypes = @([byte], [sbyte], [int16], [uint16], [int32], [uint32], [int64], [uint64])
+  Require (@($integerTypes | Where-Object { $Value -is $_ }).Count -gt 0) "$Label must be a non-negative integer"
+  Require ([decimal]$Value -ge 0 -and [decimal]$Value -le [long]::MaxValue) "$Label is outside the Int64 range"
+  return [long]$Value
 }
 
 function Get-StrictUtcTimestamp($Value, [string]$Label) {
@@ -175,17 +189,27 @@ if (-not (Test-Path -LiteralPath $CriterionPath -PathType Leaf)) {
 if (-not (Test-Path -LiteralPath $HostedStatePath -PathType Leaf)) {
   Fail "hosted state file missing: $HostedStatePath"
 }
+if (-not (Test-Path -LiteralPath $DeploymentPreflightStatePath -PathType Leaf)) {
+  Fail "Phase6 deployment-preflight state file missing: $DeploymentPreflightStatePath"
+}
 if (-not (Test-Path -LiteralPath $capabilityGatesPath -PathType Leaf)) {
   Fail "capability gate file missing: $capabilityGatesPath"
 }
+if (-not (Test-Path -LiteralPath $releaseCandidatePath -PathType Leaf)) {
+  Fail "frozen release-candidate pointer missing: $releaseCandidatePath"
+}
 $resolvedCriterionPath = (Resolve-Path -LiteralPath $CriterionPath).Path
 $resolvedHostedStatePath = (Resolve-Path -LiteralPath $HostedStatePath).Path
+$resolvedDeploymentPreflightStatePath = (Resolve-Path -LiteralPath $DeploymentPreflightStatePath).Path
 Require ($resolvedCriterionPath -eq (Resolve-Path -LiteralPath $canonicalCriterionPath).Path) "caller-supplied criterion files are forbidden for a hosted write run"
 Require ($resolvedHostedStatePath -eq (Resolve-Path -LiteralPath $canonicalHostedStatePath).Path) "caller-supplied hosted-state files are forbidden for a hosted write run"
+Require ($resolvedDeploymentPreflightStatePath -eq (Resolve-Path -LiteralPath $canonicalDeploymentPreflightStatePath).Path) "caller-supplied deployment-preflight state files are forbidden for a hosted write run"
 foreach ($trackedTruthRelativePath in @(
   "docs/runtime-state/phase6-scale-criterion.json",
   "docs/runtime-state/cloudflare-native-hosted-current.json",
-  "docs/runtime-state/capability-gates.json"
+  "docs/runtime-state/phase6-scale-hosted-current.json",
+  "docs/runtime-state/capability-gates.json",
+  $releaseCandidateRelativePath
 )) {
   & git.exe -C $repoRoot ls-files --error-unmatch -- $trackedTruthRelativePath 2>$null | Out-Null
   Require ($LASTEXITCODE -eq 0) "runtime truth file is not tracked: $trackedTruthRelativePath"
@@ -197,7 +221,9 @@ Require ($actualCriterionSha256 -eq $expectedCriterionSha256) "criterion bytes d
 
 $criterion = Get-Content -LiteralPath $CriterionPath -Raw | ConvertFrom-Json
 $hostedState = Get-Content -LiteralPath $HostedStatePath -Raw | ConvertFrom-Json
+$deploymentPreflightState = Get-Content -LiteralPath $DeploymentPreflightStatePath -Raw | ConvertFrom-Json
 $capabilityGates = Get-Content -LiteralPath $capabilityGatesPath -Raw | ConvertFrom-Json
+$releaseCandidate = Get-Content -LiteralPath $releaseCandidatePath -Raw | ConvertFrom-Json
 
 Require ([string]$criterion.contract_version -eq "phase6-scale-criterion-v2") "unexpected criterion contract_version"
 Require ([bool]$criterion.declared_before_first_run) "criterion was not declared before the first run"
@@ -205,24 +231,77 @@ Require ([bool]$criterion.declared_before_first_full_write_run) "criterion v2 wa
 Require ([bool]$criterion.envelope.zero_card) "criterion is not zero-card"
 Require ([bool]$criterion.envelope.payment_forbidden) "criterion does not forbid payment"
 Require ([bool]$criterion.envelope.paid_fallback_forbidden) "criterion does not forbid paid fallback"
-Require ([string]$hostedState.contract_version -eq "cloudflare-native-hosted-current-v1") "unexpected hosted-state contract_version"
-Require ([string]$hostedState.status -eq "verified") "hosted state is not verified"
-Require ([bool]$hostedState.hosted_proof -and -not [bool]$hostedState.dev_only) "hosted state is not a non-DEV hosted proof"
-Require ([string]$hostedState.source_commit_sha -match '^[0-9a-f]{40}$') "hosted source commit SHA is invalid"
-Require ([string]$hostedState.source_archive_sha256 -match '^[0-9a-f]{64}$') "hosted source archive SHA-256 is invalid"
+Require ([string]$hostedState.contract_version -eq "cloudflare-native-hosted-current-v1") "unexpected canonical hosted-state contract_version"
+Require ([string]$hostedState.status -eq "verified") "canonical hosted runtime state is not verified"
+Require ([string]$hostedState.runtime_contract_version -eq "cloudflare-native-runtime-candidate-v2") "canonical hosted runtime contract is invalid"
+Require ([string]$hostedState.base_url -match '^https://[^/]+\.workers\.dev$') "canonical hosted runtime origin is invalid"
+Require ([string]$hostedState.source_commit_sha -match '^[0-9a-f]{40}$') "canonical hosted source commit SHA is invalid"
+Require ([string]$hostedState.source_archive_sha256 -match '^[0-9a-f]{64}$') "canonical hosted source archive SHA-256 is invalid"
+Require ($hostedState.hosted_proof -eq $true -and $hostedState.dev_only -eq $false) "canonical hosted runtime is not a non-DEV hosted proof"
+Require ($hostedState.hosted_source_parity_verified -eq $true -and $hostedState.hosted_stateful_roundtrip_verified -eq $true) "canonical hosted source/stateful proof is incomplete"
+Require ($hostedState.create_enqueue_queue_do_d1_artifact_roundtrip -eq $true -and $hostedState.d1_artifact_write_read_delete_verified -eq $true) "canonical O2Core write/read/delete proof is incomplete"
+Require ($hostedState.zero_card_verified -eq $true -and $hostedState.paid_provider -eq $false -and $hostedState.secret_output -eq $false) "canonical hosted proof violates zero-card or secret-output policy"
+
+Assert-ExactProperties $releaseCandidate @(
+  "active_release_id", "source_commit_sha", "updated_at", "updated_by", "reason", "production_rollout_claimed"
+) "frozen release-candidate pointer"
+Require ([string]$releaseCandidate.active_release_id -match '^prod-candidate-[A-Za-z0-9._-]{1,96}$') "frozen release ID is invalid"
+Require ([string]$releaseCandidate.source_commit_sha -match '^[0-9a-f]{40}$') "frozen release-candidate source SHA is invalid"
+Require-BoundedText ([string]$releaseCandidate.updated_by) 128 "frozen release-candidate updater"
+Require-BoundedText ([string]$releaseCandidate.reason) 4096 "frozen release-candidate reason"
+Require ($releaseCandidate.production_rollout_claimed -eq $false) "release-candidate pointer falsely claims production rollout"
+$releaseCandidateFileSha256 = (Get-FileHash -LiteralPath $releaseCandidatePath -Algorithm SHA256).Hash.ToLowerInvariant()
+
+Assert-ExactProperties $deploymentPreflightState @(
+  "contract_version", "status", "verified_at_utc", "base_url", "runtime_contract_version",
+  "health_contract_version", "source_commit_sha", "source_archive_sha256", "source_bundle_sha256",
+  "worker_version_id", "deployment_id", "evidence_artifact", "evidence_sha256", "health_status", "d1_read_verified",
+  "production_worker_request_count", "preview_worker_request_count",
+  "deployment_preflight_verified", "health_json_source_binding_verified", "preview_guard_verified",
+  "preview_guard_verified_at_utc", "preview_worker_version_id", "preview_deployment_id",
+  "hosted_write_read_delete_verified",
+  "phase6_scale_run_started", "phase6_scale_run_verified", "zero_card_verified", "paid_provider",
+  "dev_only", "secret_output", "non_claims"
+) "Phase6 hosted deployment state"
+Require ([string]$deploymentPreflightState.contract_version -eq "phase6-scale-hosted-deployment-current-v1") "unexpected Phase6 deployment-state contract_version"
+Require ([string]$deploymentPreflightState.status -eq "preflight_verified") "Phase6 hosted deployment preflight is not verified"
+Require ([string]$deploymentPreflightState.runtime_contract_version -eq "cloudflare-native-runtime-candidate-v2" -and [string]$deploymentPreflightState.health_contract_version -eq "cloudflare-d1-stateful-runtime-v1") "Phase6 hosted deployment preflight runtime contract is invalid"
+Require ([bool]$deploymentPreflightState.deployment_preflight_verified -and -not [bool]$deploymentPreflightState.dev_only) "Phase6 hosted state is not a non-DEV deployment preflight"
+Require ([string]$deploymentPreflightState.source_commit_sha -match '^[0-9a-f]{40}$') "Phase6 hosted source commit SHA is invalid"
+Require ([string]$deploymentPreflightState.source_archive_sha256 -match '^[0-9a-f]{64}$') "Phase6 hosted source archive SHA-256 is invalid"
+Require ([string]$deploymentPreflightState.source_bundle_sha256 -match '^[0-9a-f]{64}$') "Phase6 hosted source bundle SHA-256 is invalid"
+Require ([string]$deploymentPreflightState.worker_version_id -match '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') "Phase6 hosted Worker version ID is invalid"
+Require ([string]$deploymentPreflightState.deployment_id -match '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') "Phase6 hosted deployment ID is invalid"
+Require ([string]$deploymentPreflightState.preview_worker_version_id -match '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') "Phase6 Preview Worker version ID is invalid"
+Require ([string]$deploymentPreflightState.preview_deployment_id -match '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') "Phase6 Preview deployment ID is invalid"
+Require ([string]$deploymentPreflightState.preview_worker_version_id -cne [string]$deploymentPreflightState.worker_version_id -and [string]$deploymentPreflightState.preview_deployment_id -cne [string]$deploymentPreflightState.deployment_id) "Preview and production deployment identities are not isolated"
+Require ($deploymentPreflightState.health_status -eq 200 -and $deploymentPreflightState.d1_read_verified -eq $true) "Phase6 hosted preflight did not record the single healthy D1 read"
+$preflightProductionWorkerRequests = Get-NonNegativeInteger $deploymentPreflightState.production_worker_request_count "Phase6 hosted preflight production Worker request count"
+$preflightPreviewWorkerRequests = Get-NonNegativeInteger $deploymentPreflightState.preview_worker_request_count "Phase6 hosted preflight Preview Worker request count"
+Require ($preflightProductionWorkerRequests -eq 1 -and $preflightPreviewWorkerRequests -eq 0) "Phase6 hosted preflight request accounting is not exactly Production=1 and Preview=0"
+Require ($deploymentPreflightState.health_json_source_binding_verified -eq $true -and $deploymentPreflightState.preview_guard_verified -eq $true) "Phase6 hosted preflight health or Preview guard is not verified"
+Require ($deploymentPreflightState.hosted_write_read_delete_verified -eq $false) "Phase6 hosted preflight must not claim write/read/delete verification before the Phase6 run"
+Require ($deploymentPreflightState.phase6_scale_run_started -eq $false -and $deploymentPreflightState.phase6_scale_run_verified -eq $false) "Phase6 hosted preflight falsely claims a Phase6 run"
+Require ($deploymentPreflightState.zero_card_verified -eq $true -and $deploymentPreflightState.paid_provider -eq $false -and $deploymentPreflightState.secret_output -eq $false) "Phase6 hosted preflight violates zero-card or secret-output policy"
+Require ([string]$deploymentPreflightState.source_commit_sha -ceq [string]$hostedState.source_commit_sha -and [string]$deploymentPreflightState.source_archive_sha256 -ceq [string]$hostedState.source_archive_sha256) "canonical O2Core and Phase6 deployment preflight bind different sources"
 Require ([string]$capabilityGates.contract_version -eq "capability-gate-state-v1") "unexpected capability-gate contract_version"
 $scaleGate = $capabilityGates.gates.phase6_scale_runtime
 if ($null -eq $scaleGate -or $scaleGate.owner_granted -ne $true -or [string]::IsNullOrWhiteSpace([string]$scaleGate.owner_grant_ref)) {
   Blocked "phase6_scale_runtime has no recorded Owner grant; zero HTTP requests issued"
 }
 Require ($scaleGate.paid_provider -ne $true) "phase6 scale gate declares a paid provider"
+Require ($scaleGate.live_verified -eq $false) "phase6 scale gate was already consumed"
+foreach ($unconsumedField in @("evidence_artifact", "evidence_sha256", "verified_at_utc", "provider", "verifier")) {
+  Require ([string]::IsNullOrEmpty([string]$scaleGate.$unconsumedField)) "phase6 scale gate is not in its unconsumed pre-run state: $unconsumedField"
+}
 
 $criterionBaseUrl = Normalize-BaseUrl ([string]$criterion.target.base_url)
 $hostedBaseUrl = Normalize-BaseUrl ([string]$hostedState.base_url)
-Require ($criterionBaseUrl -eq $hostedBaseUrl) "criterion and hosted state do not bind the same origin"
+$preflightBaseUrl = Normalize-BaseUrl ([string]$deploymentPreflightState.base_url)
+Require ($criterionBaseUrl -eq $hostedBaseUrl -and $criterionBaseUrl -eq $preflightBaseUrl) "criterion, canonical hosted state, and Phase6 preflight do not bind the same origin"
 if (-not $BaseUrl) { $BaseUrl = $criterionBaseUrl }
 $BaseUrl = Normalize-BaseUrl $BaseUrl
-Require ($BaseUrl -eq $criterionBaseUrl -and $BaseUrl -eq $hostedBaseUrl) "requested base url is not bound to criterion and hosted state"
+Require ($BaseUrl -eq $criterionBaseUrl -and $BaseUrl -eq $hostedBaseUrl -and $BaseUrl -eq $preflightBaseUrl) "requested base url is not bound to criterion and hosted states"
 
 $declaredReadTiers = @($criterion.read_tiers)
 Require ($declaredReadTiers.Count -eq 3) "criterion must declare exactly three read tiers"
@@ -269,50 +348,114 @@ Require ([bool]$criterion.pass_criteria.throttle_must_fail_closed) "criterion no
 Require ([string]$criterion.pass_criteria.http_429_scope -eq "health_read_tiers_only") "criterion 429 scope changed"
 Require ([bool]$criterion.fail_closed.missing_write_auth_is_failure) "criterion no longer fails on missing write authentication"
 
-$hostedEvidenceRelativePath = [string]$hostedState.evidence_artifact
+$canonicalHostedEvidenceRelativePath = [string]$hostedState.evidence_artifact
+$canonicalHostedEvidencePath = Resolve-RepoScopedPath $canonicalHostedEvidenceRelativePath "canonical O2Core hosted evidence"
+& git.exe -C $repoRoot ls-files --error-unmatch -- $canonicalHostedEvidenceRelativePath 2>$null | Out-Null
+Require ($LASTEXITCODE -eq 0) "canonical O2Core hosted evidence is not tracked"
+& git.exe -C $repoRoot diff --quiet HEAD -- $canonicalHostedEvidenceRelativePath
+Require ($LASTEXITCODE -eq 0) "canonical O2Core hosted evidence has uncommitted changes"
+$canonicalHostedEvidenceSha256 = (Get-FileHash -LiteralPath $canonicalHostedEvidencePath -Algorithm SHA256).Hash.ToLowerInvariant()
+Require ($canonicalHostedEvidenceSha256 -eq ([string]$hostedState.evidence_sha256).ToLowerInvariant()) "canonical O2Core hosted evidence SHA-256 mismatch"
+$canonicalHostedEvidence = Get-Content -LiteralPath $canonicalHostedEvidencePath -Raw | ConvertFrom-Json
+Require ([string]$canonicalHostedEvidence.contract_version -eq "cloudflare-d1-stateful-runtime-hosted-proof-v1" -and [string]$canonicalHostedEvidence.status -eq "verified") "canonical O2Core hosted evidence contract is invalid"
+Require ([string]$canonicalHostedEvidence.base_url -ceq [string]$hostedState.base_url) "canonical O2Core hosted evidence base URL mismatch"
+Require ([string]$canonicalHostedEvidence.source_commit_sha -ceq [string]$hostedState.source_commit_sha -and [string]$canonicalHostedEvidence.source_archive_sha256 -ceq [string]$hostedState.source_archive_sha256) "canonical O2Core hosted evidence source binding mismatch"
+Require ($canonicalHostedEvidence.cloudflare_native_hosted_source_parity_verified -eq $true -and $canonicalHostedEvidence.cloudflare_native_hosted_proof -eq $true -and $canonicalHostedEvidence.cloudflare_native_dev_only -eq $false) "canonical O2Core hosted evidence lacks non-DEV source parity"
+Require ($canonicalHostedEvidence.cloudflare_native_create_enqueue_queue_do_d1_artifact_roundtrip -eq $true -and $canonicalHostedEvidence.cloudflare_native_d1_artifact_write_read_delete -eq $true) "canonical O2Core hosted evidence lacks write/read/delete roundtrip"
+Require ($canonicalHostedEvidence.cloudflare_native_d1_read_verified -eq $true -and $canonicalHostedEvidence.cloudflare_native_zero_card_execution_verified -eq $true -and $canonicalHostedEvidence.cloudflare_native_paid_fallback_used -eq $false) "canonical O2Core hosted evidence lacks zero-card D1 verification"
+Require ($canonicalHostedEvidence.secret_output -eq $false -and $canonicalHostedEvidence.live_provider_call_executed -eq $false) "canonical O2Core hosted evidence exposes secrets or live provider calls"
+
+$hostedEvidenceRelativePath = [string]$deploymentPreflightState.evidence_artifact
 $hostedEvidencePath = Resolve-RepoScopedPath $hostedEvidenceRelativePath "hosted deployment evidence"
+$hostedEvidenceSidecarRelativePath = "$hostedEvidenceRelativePath.sha256"
+$hostedEvidenceSidecarPath = Resolve-RepoScopedPath $hostedEvidenceSidecarRelativePath "hosted deployment evidence digest"
 & git.exe -C $repoRoot ls-files --error-unmatch -- $hostedEvidenceRelativePath 2>$null | Out-Null
 Require ($LASTEXITCODE -eq 0) "hosted deployment evidence is not tracked and immutable"
+& git.exe -C $repoRoot ls-files --error-unmatch -- $hostedEvidenceSidecarRelativePath 2>$null | Out-Null
+Require ($LASTEXITCODE -eq 0) "hosted deployment evidence digest is not tracked and immutable"
 & git.exe -C $repoRoot diff --quiet HEAD -- $hostedEvidenceRelativePath
 Require ($LASTEXITCODE -eq 0) "hosted deployment evidence has uncommitted changes"
+& git.exe -C $repoRoot diff --quiet HEAD -- $hostedEvidenceSidecarRelativePath
+Require ($LASTEXITCODE -eq 0) "hosted deployment evidence digest has uncommitted changes"
 $hostedEvidenceSha256 = (Get-FileHash -LiteralPath $hostedEvidencePath -Algorithm SHA256).Hash.ToLowerInvariant()
-Require ($hostedEvidenceSha256 -eq ([string]$hostedState.evidence_sha256).ToLowerInvariant()) "hosted deployment evidence SHA-256 mismatch"
+Require ($hostedEvidenceSha256 -eq ([string]$deploymentPreflightState.evidence_sha256).ToLowerInvariant()) "hosted deployment evidence SHA-256 mismatch"
+$hostedEvidenceSidecarLine = (Get-Content -LiteralPath $hostedEvidenceSidecarPath -Raw).Trim()
+Require ($hostedEvidenceSidecarLine -ceq "$hostedEvidenceSha256  $([IO.Path]::GetFileName($hostedEvidencePath))") "hosted deployment evidence digest sidecar mismatch"
 $hostedEvidence = Get-Content -LiteralPath $hostedEvidencePath -Raw | ConvertFrom-Json
-Require ([string]$hostedEvidence.contract_version -eq "cloudflare-d1-stateful-runtime-hosted-proof-v2") "hosted deployment evidence must be rebound with the v2 immutable deployment contract"
-Require ([string]$hostedEvidence.base_url -eq [string]$hostedState.base_url) "hosted deployment evidence base URL mismatch"
-Require ([string]$hostedEvidence.source_commit_sha -match '^[0-9a-f]{40}$' -and [string]$hostedEvidence.source_commit_sha -ceq [string]$hostedState.source_commit_sha) "hosted deployment evidence source commit mismatch"
-Require ([string]$hostedEvidence.source_archive_sha256 -match '^[0-9a-f]{64}$' -and [string]$hostedEvidence.source_archive_sha256 -ceq [string]$hostedState.source_archive_sha256) "hosted deployment evidence source archive mismatch"
+Assert-ExactProperties $hostedEvidence @(
+  "contract_version", "verified_at_utc", "status", "purpose", "base_url", "source_commit_sha",
+  "source_archive_sha256", "source_bundle_sha256", "worker_version_id", "deployment_id", "health_status",
+  "d1_read_verified", "production_worker_request_count", "preview_worker_request_count",
+  "source_binding_verified", "health_json_source_binding_verified", "preview_guard_verified",
+  "preview_guard_verified_at_utc", "preview_worker_version_id", "preview_deployment_id",
+  "hosted_write_read_delete_verified", "phase6_scale_run_started", "phase6_scale_run_verified",
+  "zero_card", "paid_provider", "dev_only", "secret_output", "producer", "writer", "non_claims"
+) "hosted deployment preflight evidence"
+Require ([string]$hostedEvidence.contract_version -eq "phase6-scale-deployment-preflight-evidence-v1") "hosted deployment evidence must use the immutable Phase6 preflight contract"
+Require ([string]$hostedEvidence.status -eq "verified" -and [string]$hostedEvidence.purpose -eq "phase6_scale_single_run_preflight") "hosted deployment preflight status or purpose is invalid"
+Require ([string]$hostedEvidence.base_url -eq [string]$deploymentPreflightState.base_url) "hosted deployment evidence base URL mismatch"
+Require ([string]$hostedEvidence.source_commit_sha -match '^[0-9a-f]{40}$' -and [string]$hostedEvidence.source_commit_sha -ceq [string]$deploymentPreflightState.source_commit_sha) "hosted deployment evidence source commit mismatch"
+Require ([string]$hostedEvidence.source_archive_sha256 -match '^[0-9a-f]{64}$' -and [string]$hostedEvidence.source_archive_sha256 -ceq [string]$deploymentPreflightState.source_archive_sha256) "hosted deployment evidence source archive mismatch"
+Require ([string]$hostedEvidence.source_bundle_sha256 -match '^[0-9a-f]{64}$' -and [string]$hostedEvidence.source_bundle_sha256 -ceq [string]$deploymentPreflightState.source_bundle_sha256) "hosted deployment evidence source bundle mismatch"
 Require ([string]$hostedEvidence.worker_version_id -match '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') "hosted deployment evidence Worker version ID is invalid"
 Require ([string]$hostedEvidence.deployment_id -match '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') "hosted deployment evidence deployment ID is invalid"
-Require ($hostedEvidence.source_binding_verified -eq $true -and $hostedEvidence.hosted_write_read_delete_verified -eq $true) "hosted deployment evidence lacks source-bound runtime proof"
-Require ($hostedEvidence.dev_only -eq $false -and $hostedEvidence.secret_output -eq $false) "hosted deployment evidence is DEV-only or exposes secret output"
+Require ([string]$hostedEvidence.worker_version_id -ceq [string]$deploymentPreflightState.worker_version_id -and [string]$hostedEvidence.deployment_id -ceq [string]$deploymentPreflightState.deployment_id) "hosted deployment identity differs from hosted state"
+Require ([string]$hostedEvidence.preview_worker_version_id -ceq [string]$deploymentPreflightState.preview_worker_version_id -and [string]$hostedEvidence.preview_deployment_id -ceq [string]$deploymentPreflightState.preview_deployment_id) "Preview deployment identity differs from hosted state"
+Require ($hostedEvidence.health_status -eq 200 -and $hostedEvidence.d1_read_verified -eq $true) "hosted deployment preflight did not bind the single health HTTP 200"
+$evidenceProductionWorkerRequests = Get-NonNegativeInteger $hostedEvidence.production_worker_request_count "hosted deployment preflight production Worker request count"
+$evidencePreviewWorkerRequests = Get-NonNegativeInteger $hostedEvidence.preview_worker_request_count "hosted deployment preflight Preview Worker request count"
+Require ($evidenceProductionWorkerRequests -eq 1 -and $evidencePreviewWorkerRequests -eq 0) "hosted deployment preflight request accounting is not exactly Production=1 and Preview=0"
+Require ($hostedEvidence.source_binding_verified -eq $true -and $hostedEvidence.health_json_source_binding_verified -eq $true -and $hostedEvidence.preview_guard_verified -eq $true) "hosted deployment preflight lacks source-bound Preview/health proof"
+Require ($hostedEvidence.hosted_write_read_delete_verified -eq $false) "hosted deployment preflight must explicitly deny write/read/delete proof"
+Require ($hostedEvidence.phase6_scale_run_started -eq $false -and $hostedEvidence.phase6_scale_run_verified -eq $false) "hosted deployment preflight falsely claims Phase6 execution"
+Require ($hostedEvidence.zero_card -eq $true -and $hostedEvidence.paid_provider -eq $false -and $hostedEvidence.dev_only -eq $false -and $hostedEvidence.secret_output -eq $false) "hosted deployment preflight violates zero-card, DEV, or secret-output policy"
+Require ([string]$hostedEvidence.producer -ceq "scripts/deploy-cloudflare-stateful-runtime.ps1" -and [string]$hostedEvidence.writer -ceq "scripts/write-phase6-scale-deployment-preflight.ps1") "hosted deployment preflight producer identity is invalid"
 Require ((Get-GitArchiveSha256 ([string]$hostedState.source_commit_sha)) -ceq [string]$hostedState.source_archive_sha256) "hosted source archive does not match the declared Git commit"
 
 $repositoryHeadSha = [string](& git.exe -C $repoRoot rev-parse HEAD)
 $repositoryHeadSha = $repositoryHeadSha.Trim()
 Require ($repositoryHeadSha -match '^[0-9a-f]{40}$') "repository HEAD SHA is invalid"
+& git.exe -C $repoRoot merge-base --is-ancestor $minimumLoopFixCommit ([string]$hostedState.source_commit_sha)
+Require ($LASTEXITCODE -eq 0) "deployed source predates the required contract-origin loop fix"
+& git.exe -C $repoRoot merge-base --is-ancestor ([string]$releaseCandidate.source_commit_sha) ([string]$hostedState.source_commit_sha)
+Require ($LASTEXITCODE -eq 0) "deployed source is not descended from the frozen release-candidate source"
 & git.exe -C $repoRoot merge-base --is-ancestor ([string]$hostedState.source_commit_sha) $repositoryHeadSha
 Require ($LASTEXITCODE -eq 0) "deployed source commit is not an ancestor of the execution control HEAD"
 
 $verifierRelativePath = "scripts/verify-phase6-scale-runtime.ps1"
 Assert-TrackedHeadBytes "docs/runtime-state/phase6-scale-criterion.json" "scale criterion" $repositoryHeadSha
-Assert-TrackedHeadBytes "docs/runtime-state/cloudflare-native-hosted-current.json" "hosted state" $repositoryHeadSha
+Assert-TrackedHeadBytes "docs/runtime-state/cloudflare-native-hosted-current.json" "canonical hosted state" $repositoryHeadSha
+Assert-TrackedHeadBytes "docs/runtime-state/phase6-scale-hosted-current.json" "Phase6 deployment-preflight state" $repositoryHeadSha
 Assert-TrackedHeadBytes "docs/runtime-state/capability-gates.json" "capability state" $repositoryHeadSha
+Assert-TrackedHeadBytes $releaseCandidateRelativePath "frozen release-candidate pointer" $repositoryHeadSha
+Assert-TrackedHeadBytes $canonicalHostedEvidenceRelativePath "canonical O2Core hosted evidence" $repositoryHeadSha
 Assert-TrackedHeadBytes $hostedEvidenceRelativePath "hosted deployment evidence" $repositoryHeadSha
+Assert-TrackedHeadBytes $hostedEvidenceSidecarRelativePath "hosted deployment evidence digest" $repositoryHeadSha
 Assert-TrackedHeadBytes $verifierRelativePath "runtime verifier" $repositoryHeadSha
 
 $criterionDeclaredAt = Get-StrictUtcTimestamp $criterion.declared_at_utc "criterion declaration timestamp"
-$hostedVerifiedAt = Get-StrictUtcTimestamp $hostedState.verified_at_utc "hosted-state verification timestamp"
+$canonicalHostedVerifiedAt = Get-StrictUtcTimestamp $hostedState.verified_at_utc "canonical hosted-state verification timestamp"
+$canonicalEvidenceCheckedAt = Get-StrictUtcTimestamp $canonicalHostedEvidence.checked_at "canonical O2Core evidence timestamp"
+$deploymentPreflightVerifiedAt = Get-StrictUtcTimestamp $deploymentPreflightState.verified_at_utc "Phase6 deployment-preflight state timestamp"
+$previewGuardVerifiedAt = Get-StrictUtcTimestamp $deploymentPreflightState.preview_guard_verified_at_utc "Phase6 Preview-guard timestamp"
 $deploymentTimestampProperties = @("verified_at_utc", "checked_at") | Where-Object { Has-Property $hostedEvidence $_ }
 Require ($deploymentTimestampProperties.Count -eq 1) "hosted deployment evidence must expose exactly one verification timestamp"
 $deploymentCheckedAt = Get-StrictUtcTimestamp $hostedEvidence.($deploymentTimestampProperties[0]) "hosted deployment evidence timestamp"
 $preflightNow = [DateTimeOffset](Get-Date).ToUniversalTime()
 $allowedClockSkew = [TimeSpan]::FromMinutes(5)
 $maximumDeploymentAge = [TimeSpan]::FromHours(24)
+Require ($canonicalEvidenceCheckedAt -ge $criterionDeclaredAt) "canonical O2Core hosted evidence predates the locked scale criterion"
+Require ($canonicalEvidenceCheckedAt -eq $canonicalHostedVerifiedAt) "canonical hosted state and O2Core evidence timestamps are not identical"
+Require ($canonicalHostedVerifiedAt -le ($preflightNow + $allowedClockSkew)) "canonical O2Core hosted evidence is future-dated"
+Require (($preflightNow - $canonicalHostedVerifiedAt) -le $maximumDeploymentAge) "canonical O2Core hosted evidence is stale"
 Require ($deploymentCheckedAt -ge $criterionDeclaredAt) "hosted deployment evidence predates the locked scale criterion"
-Require ($deploymentCheckedAt -eq $hostedVerifiedAt) "hosted state and deployment evidence timestamps are not identical"
-Require ($hostedVerifiedAt -le ($preflightNow + $allowedClockSkew)) "hosted deployment evidence is future-dated"
-Require (($preflightNow - $hostedVerifiedAt) -le $maximumDeploymentAge) "hosted deployment evidence is stale"
+Require ($deploymentCheckedAt -eq $deploymentPreflightVerifiedAt) "Phase6 deployment-preflight state and evidence timestamps are not identical"
+Require ((Get-StrictUtcTimestamp $hostedEvidence.preview_guard_verified_at_utc "Phase6 deployment-preflight evidence Preview timestamp") -eq $previewGuardVerifiedAt) "Phase6 Preview timestamp differs between state and evidence"
+Require ($previewGuardVerifiedAt -le $deploymentPreflightVerifiedAt) "Phase6 Preview guard did not precede production deployment verification"
+Require (($deploymentPreflightVerifiedAt - $previewGuardVerifiedAt).TotalMinutes -le 10) "Phase6 Preview-to-production deployment window exceeded ten minutes"
+Require (($preflightNow - $previewGuardVerifiedAt) -le $maximumDeploymentAge) "Phase6 Preview-guard evidence is stale"
+Require ($deploymentPreflightVerifiedAt -le ($preflightNow + $allowedClockSkew)) "hosted deployment evidence is future-dated"
+Require (($preflightNow - $deploymentPreflightVerifiedAt) -le $maximumDeploymentAge) "hosted deployment evidence is stale"
 
 # The execution itself must happen in a GitHub-hosted workflow context. This is
 # only provisional provenance: the completed run and uploaded evidence pair are
@@ -323,7 +466,7 @@ Require ($githubRepository -match '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') "GITHUB_R
 $githubRunId = Get-NonNegativeInteger (Get-RequiredEnvironment "GITHUB_RUN_ID") "GITHUB_RUN_ID"
 Require ($githubRunId -gt 0) "GITHUB_RUN_ID must be positive"
 $githubRunAttempt = Get-NonNegativeInteger (Get-RequiredEnvironment "GITHUB_RUN_ATTEMPT") "GITHUB_RUN_ATTEMPT"
-Require ($githubRunAttempt -gt 0 -and $githubRunAttempt -le [int]::MaxValue) "GITHUB_RUN_ATTEMPT is invalid"
+Require ($githubRunAttempt -eq 1) "Phase6 scale execution forbids reruns; GITHUB_RUN_ATTEMPT must equal 1"
 $githubSha = (Get-RequiredEnvironment "GITHUB_SHA").ToLowerInvariant()
 Require ($githubSha -match '^[0-9a-f]{40}$' -and $githubSha -ceq $repositoryHeadSha) "GitHub execution SHA is not the exact repository HEAD"
 $githubRef = Get-RequiredEnvironment "GITHUB_REF"
@@ -343,20 +486,70 @@ $githubJob = Get-RequiredEnvironment "GITHUB_JOB"
 Require ($githubJob -match '^[A-Za-z0-9_.-]{1,128}$') "GITHUB_JOB is invalid"
 $githubServerUrl = Get-RequiredEnvironment "GITHUB_SERVER_URL"
 Require ($githubServerUrl -ceq "https://github.com") "GITHUB_SERVER_URL is not the trusted GitHub origin"
+$githubActor = Get-RequiredEnvironment "GITHUB_ACTOR"
+$githubTriggeringActor = Get-RequiredEnvironment "GITHUB_TRIGGERING_ACTOR"
+foreach ($actor in @($githubActor, $githubTriggeringActor)) {
+  Require ($actor -match '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$') "GitHub actor identity is invalid"
+}
+$githubEnvironment = Get-RequiredEnvironment "PHASE6_GITHUB_ENVIRONMENT"
+Require ($githubEnvironment -ceq $protectedEnvironmentName) "Phase6 execution is not bound to the protected GitHub Environment"
 $githubRunUrl = "$githubServerUrl/$githubRepository/actions/runs/$githubRunId"
 $githubArtifactName = "phase6-scale-execution-evidence-$githubRunId-$githubRunAttempt"
+$environmentReviewPath = [IO.Path]::GetFullPath((Get-RequiredEnvironment "PHASE6_ENVIRONMENT_REVIEW_PATH"))
+Require ($environmentReviewPath.StartsWith($canonicalArtifactRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) "Environment-review artifact is outside the immutable Phase6 artifact directory"
+$expectedEnvironmentReviewLeaf = "environment-review-$githubRunId-$githubRunAttempt.json"
+Require ([IO.Path]::GetFileName($environmentReviewPath) -ceq $expectedEnvironmentReviewLeaf) "Environment-review artifact name is not run/attempt bound"
+Require (Test-Path -LiteralPath $environmentReviewPath -PathType Leaf) "Environment-review artifact is missing"
+$environmentReviewItem = Get-Item -LiteralPath $environmentReviewPath -Force
+Require ([string]::IsNullOrEmpty([string]$environmentReviewItem.LinkType) -and $environmentReviewItem.Length -gt 0 -and $environmentReviewItem.Length -le 16384) "Environment-review artifact is linked or outside its size bound"
+$environmentReviewSidecarPath = "$environmentReviewPath.sha256"
+Require (Test-Path -LiteralPath $environmentReviewSidecarPath -PathType Leaf) "Environment-review digest sidecar is missing"
+$environmentReviewSidecarItem = Get-Item -LiteralPath $environmentReviewSidecarPath -Force
+Require ([string]::IsNullOrEmpty([string]$environmentReviewSidecarItem.LinkType) -and $environmentReviewSidecarItem.Length -gt 0 -and $environmentReviewSidecarItem.Length -le 256) "Environment-review digest sidecar is linked or outside its size bound"
+$environmentReviewRaw = Get-Content -LiteralPath $environmentReviewPath -Raw
+Require ($environmentReviewRaw -notmatch '(?i)(?:sk-|ghp_|github_pat_|glpat-|cfat_|vck_|hf_)[A-Za-z0-9_-]{12,}') "Environment-review artifact contains secret-shaped material"
+Require ($environmentReviewRaw -notmatch '(?i)\"(?:authorization|cookie|password|private_key|client_secret|token|credential|comment)\"\s*:') "Environment-review artifact contains a forbidden free-text or credential field"
+try { $environmentReview = $environmentReviewRaw | ConvertFrom-Json -Depth 10 -ErrorAction Stop }
+catch { Fail "Environment-review artifact is not valid JSON" }
+Assert-ExactProperties $environmentReview @(
+  "contract_version", "captured_at_utc", "repository", "run_id", "run_attempt", "head_sha",
+  "environment_name", "environment_id", "review_state", "reviewer_login", "reviewer_id",
+  "reviewer_type", "actor_login", "triggering_actor_login", "secret_output"
+) "Environment-review artifact"
+Require ([string]$environmentReview.contract_version -ceq "github-actions-phase6-environment-review-v1") "Environment-review contract is invalid"
+Require ([string]$environmentReview.repository -ceq $githubRepository -and [string]$environmentReview.head_sha -ceq $githubSha) "Environment review is not repository/head bound"
+Require ((Get-NonNegativeInteger $environmentReview.run_id "Environment-review run ID") -eq $githubRunId -and (Get-NonNegativeInteger $environmentReview.run_attempt "Environment-review run attempt") -eq 1) "Environment review is not bound to this one-shot run"
+Require ([string]$environmentReview.environment_name -ceq $protectedEnvironmentName -and (Get-NonNegativeInteger $environmentReview.environment_id "Environment ID") -gt 0) "Environment review is not bound to the protected Environment identity"
+Require ([string]$environmentReview.review_state -ceq "approved" -and [string]$environmentReview.reviewer_type -ceq "User") "Environment review is not an approved human review"
+Require ([string]$environmentReview.reviewer_login -match '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$' -and [string]$environmentReview.reviewer_login -notmatch '(?i)\[bot\]$') "Environment reviewer login is not human-shaped"
+Require ((Get-NonNegativeInteger $environmentReview.reviewer_id "Environment reviewer ID") -gt 0) "Environment reviewer ID is invalid"
+Require ([string]$environmentReview.actor_login -ceq $githubActor -and [string]$environmentReview.triggering_actor_login -ceq $githubTriggeringActor) "Environment review actor binding mismatch"
+Require ($environmentReview.secret_output -eq $false) "Environment-review artifact declares secret output"
+$environmentReviewCapturedAt = Get-StrictUtcTimestamp $environmentReview.captured_at_utc "Environment-review capture timestamp"
+Require ($environmentReviewCapturedAt -le ($preflightNow + $allowedClockSkew) -and ($preflightNow - $environmentReviewCapturedAt).TotalMinutes -le 10) "Environment review was not captured immediately before the one-shot execution"
+$environmentReviewSha256 = (Get-FileHash -LiteralPath $environmentReviewPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$environmentReviewSidecarRaw = Get-Content -LiteralPath $environmentReviewSidecarPath -Raw
+Require ($environmentReviewSidecarRaw -match '^([0-9a-f]{64})  ([^\\/\r\n]+)\r?\n?$') "Environment-review digest sidecar format is invalid"
+Require ($matches[1] -ceq $environmentReviewSha256 -and $matches[2] -ceq $expectedEnvironmentReviewLeaf) "Environment-review digest sidecar does not bind the review bytes"
+$environmentReviewSidecarSha256 = (Get-FileHash -LiteralPath $environmentReviewSidecarPath -Algorithm SHA256).Hash.ToLowerInvariant()
 
 $allowedControlDelta = @(
   $githubWorkflowPath,
   "docs/runtime-state/phase6-scale-criterion.json",
   "docs/runtime-state/cloudflare-native-hosted-current.json",
+  "docs/runtime-state/phase6-scale-hosted-current.json",
   "docs/runtime-state/capability-gates.json",
+  $releaseCandidateRelativePath,
+  $canonicalHostedEvidenceRelativePath.Replace('\', '/'),
   $hostedEvidenceRelativePath.Replace('\', '/'),
+  $hostedEvidenceSidecarRelativePath.Replace('\', '/'),
   "scripts/verify-phase6-scale-runtime.ps1",
   "scripts/verify-phase6-scale-runtime-static.ps1",
   "scripts/verify-phase6-scale-evidence.ps1",
   "scripts/verify-phase6-scale-evidence-static.ps1",
-  "scripts/collect-phase6-scale-execution-readback.ps1"
+  "scripts/collect-phase6-scale-execution-readback.ps1",
+  "scripts/write-phase6-scale-deployment-preflight.ps1",
+  "scripts/write-phase6-scale-deployment-preflight-static.ps1"
 ) | Sort-Object -Unique
 $controlDelta = @(& git.exe -C $repoRoot diff --name-only --diff-filter=ACDMRTUXB ([string]$hostedState.source_commit_sha) $repositoryHeadSha --)
 Require ($LASTEXITCODE -eq 0) "source/control delta cannot be resolved"
@@ -394,7 +587,7 @@ $handler.MaxConnectionsPerServer = 128
 $handler.PooledConnectionLifetime = [TimeSpan]::FromMinutes(10)
 $handler.AllowAutoRedirect = $false
 $httpClient = [Net.Http.HttpClient]::new($handler)
-$httpClient.Timeout = [TimeSpan]::FromSeconds(30)
+$httpClient.Timeout = [TimeSpan]::FromSeconds(10)
 
 function Invoke-HttpBatch([object[]]$Specs, [int]$Concurrency, [bool]$WorkerRequest) {
   $results = [Collections.Generic.List[object]]::new()
@@ -478,6 +671,7 @@ function Test-HealthBody($Body) {
     provider = "cloudflare-d1"
     source_commit_sha = [string]$hostedState.source_commit_sha
     source_archive_sha256 = [string]$hostedState.source_archive_sha256
+    source_bundle_sha256 = [string]$deploymentPreflightState.source_bundle_sha256
   }
   foreach ($entry in $expected.GetEnumerator()) {
     if (-not (Has-Property $Body $entry.Key) -or [string]$Body.($entry.Key) -ne [string]$entry.Value) { $errors.Add("field:$($entry.Key)") }
@@ -573,6 +767,7 @@ function Test-DeleteBody($Body, [string]$ExpectedId, [string]$ExpectedRequestId,
 
 $criterionFileSha256 = $actualCriterionSha256
 $hostedStateFileSha256 = (Get-FileHash -LiteralPath $HostedStatePath -Algorithm SHA256).Hash.ToLowerInvariant()
+$deploymentPreflightStateFileSha256 = (Get-FileHash -LiteralPath $DeploymentPreflightStatePath -Algorithm SHA256).Hash.ToLowerInvariant()
 $capabilityStateFileSha256 = (Get-FileHash -LiteralPath $capabilityGatesPath -Algorithm SHA256).Hash.ToLowerInvariant()
 $gateIdentityJson = [ordered]@{
   gate_id = "phase6_scale_runtime"
@@ -969,10 +1164,13 @@ if ($uncleanThrottleCount -gt 0) { $failures.Add("throttle_did_not_fail_closed")
 
 $generatedAt = (Get-Date).ToUniversalTime()
 $timestamp = $generatedAt.ToString("yyyyMMddTHHmmssfffZ")
-$artifactDir = Join-Path $repoRoot ".phase1-artifacts\phase6-scale"
+  $artifactDir = $canonicalArtifactRoot
 New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null
 $reportPath = Join-Path $artifactDir "scale-evidence-$timestamp-$runId.json"
 $shaPath = "$reportPath.sha256"
+$relativeReportPath = [IO.Path]::GetRelativePath($repoRoot, $reportPath).Replace('\', '/')
+$executionReadbackArtifact = "$relativeReportPath.execution-readback.json"
+$executionReadbackSha256Sidecar = "$executionReadbackArtifact.sha256"
 
 $report = [ordered]@{
   contract_version = "phase6-scale-evidence-v2"
@@ -989,19 +1187,34 @@ $report = [ordered]@{
   source_binding = [ordered]@{
     hosted_state_contract_version = [string]$hostedState.contract_version
     hosted_state_file_sha256 = $hostedStateFileSha256
+    hosted_runtime_evidence_artifact = $canonicalHostedEvidenceRelativePath
+    hosted_runtime_evidence_sha256 = $canonicalHostedEvidenceSha256
+    deployment_preflight_state_contract_version = [string]$deploymentPreflightState.contract_version
+    deployment_preflight_state_file_sha256 = $deploymentPreflightStateFileSha256
     base_url = $BaseUrl
     source_commit_sha = [string]$hostedState.source_commit_sha
     source_archive_sha256 = [string]$hostedState.source_archive_sha256
+    source_bundle_sha256 = [string]$deploymentPreflightState.source_bundle_sha256
     deployment_evidence_artifact = $hostedEvidenceRelativePath
     deployment_evidence_sha256 = $hostedEvidenceSha256
     worker_version_id = [string]$hostedEvidence.worker_version_id
     deployment_id = [string]$hostedEvidence.deployment_id
+    preview_guard_verified = [bool]$hostedEvidence.preview_guard_verified
+    preview_guard_verified_at_utc = [string]$hostedEvidence.preview_guard_verified_at_utc
+    preview_worker_version_id = [string]$hostedEvidence.preview_worker_version_id
+    preview_deployment_id = [string]$hostedEvidence.preview_deployment_id
     verifier_script_sha256 = $verifierScriptSha256
     repository_head_sha = $repositoryHeadSha
     capability_state_sha256 = $capabilityStateFileSha256
     gate_identity_sha256 = $gateIdentitySha256
     owner_granted = [bool]$scaleGate.owner_granted
     owner_grant_ref = [string]$scaleGate.owner_grant_ref
+    release_candidate = [ordered]@{
+      artifact = $releaseCandidateRelativePath
+      file_sha256 = $releaseCandidateFileSha256
+      active_release_id = [string]$releaseCandidate.active_release_id
+      source_commit_sha = [string]$releaseCandidate.source_commit_sha
+    }
     health_json_source_binding_verified = ($validHealthJsonCount -gt 0 -and $invalidHealthJsonCount -eq 0)
     execution_attestation = [ordered]@{
       contract_version = "phase6-scale-execution-provenance-v1"
@@ -1021,6 +1234,30 @@ $report = [ordered]@{
       workflow_ref = $githubWorkflowRef
       job = $githubJob
       artifact_name = $githubArtifactName
+      environment_review = [ordered]@{
+        contract_version = [string]$environmentReview.contract_version
+        review_artifact_name = $expectedEnvironmentReviewLeaf
+        review_artifact_sha256 = $environmentReviewSha256
+        review_sidecar_name = [IO.Path]::GetFileName($environmentReviewSidecarPath)
+        review_sidecar_sha256 = $environmentReviewSidecarSha256
+        captured_at_utc = [string]$environmentReview.captured_at_utc
+        environment_name = [string]$environmentReview.environment_name
+        environment_id = [long]$environmentReview.environment_id
+        review_state = [string]$environmentReview.review_state
+        reviewer_login = [string]$environmentReview.reviewer_login
+        reviewer_id = [long]$environmentReview.reviewer_id
+        reviewer_type = [string]$environmentReview.reviewer_type
+        actor_login = [string]$environmentReview.actor_login
+        triggering_actor_login = [string]$environmentReview.triggering_actor_login
+        human_review_verified = $true
+      }
+      post_run_readback = [ordered]@{
+        execution_readback_artifact = $executionReadbackArtifact
+        execution_readback_sha256_sidecar = $executionReadbackSha256Sidecar
+        hash_algorithm = "sha256"
+        readback_deadline_hours = 24
+        tracked_clean_required = $true
+      }
       post_run_api_readback_required = $true
       verified = $false
     }
@@ -1145,6 +1382,7 @@ Write-Host "[phase6-scale] evidence        : $reportPath"
 Write-Host "[phase6-scale] evidence SHA256 : $reportSha256"
 Write-Host "[phase6-scale] gate promoted   : false"
 Write-Host "[phase6-scale] GitHub artifact : $githubArtifactName"
+Write-Host "[phase6-scale] Environment     : $githubEnvironment (human review bound)"
 Write-Host "[phase6-scale] API readback    : pending after completed run"
 
 if ($failures.Count -gt 0) {

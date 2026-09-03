@@ -12,6 +12,18 @@ import { Component, type ReactNode, useCallback, useEffect, useRef, useState } f
 import CortexCanvas from "./CortexCanvas";
 import type { RunState } from "./regionMap";
 
+function CortexLoadingSurface() {
+  return (
+    <div
+      className="cortex-wrap"
+      data-testid="organism-renderer-pending"
+      data-renderer-state="loading"
+      data-renderer-loading-fallback="neutral"
+      aria-hidden="true"
+    />
+  );
+}
+
 export type OrganismVisualTelemetry = {
   sourceKind: string;
   live: boolean;
@@ -24,7 +36,7 @@ export type OrganismVisualTelemetry = {
 
 const CortexCanvas3D = dynamic(() => import("./CortexCanvas3D"), {
   ssr: false,
-  loading: () => <div className="cortex-wrap" />,
+  loading: CortexLoadingSurface,
 });
 
 type Props = {
@@ -127,7 +139,7 @@ export default function CortexLive(props: Props) {
   }, [onMode]);
 
   if (mode === "pending") {
-    return <div className="cortex-wrap" data-testid="organism-renderer-pending" aria-hidden="true" />;
+    return <CortexLoadingSurface />;
   }
 
   if (mode === "3d") {

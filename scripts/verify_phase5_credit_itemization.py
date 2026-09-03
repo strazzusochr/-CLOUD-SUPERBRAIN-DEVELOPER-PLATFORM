@@ -6,6 +6,7 @@ import io
 import math
 import re
 import subprocess
+import sys
 import urllib.error
 import urllib.request
 import zipfile
@@ -46,8 +47,19 @@ EXPECTED_ITEMS = {
     "O5": "operations",
 }
 LEGACY_MISSING_IDS = {"I1", "I2", "I4", "I5", "V1", "O4"}
-BASELINE_BLOCKED_IDS = {"I1"}
 PRODUCTION_AUTH_VERIFIER_PATH = "scripts/verify-production-auth-identity-evidence.ps1"
+HOSTED_CANDIDATE_PARITY_CONTRACT = "i1-hosted-candidate-parity-v1"
+HOSTED_CANDIDATE_PARITY_VERIFIER_PATH = "scripts/verify_i1_codespaces_candidate.py"
+REGISTRY_RELEASE_CONTRACT = "layer5-registry-release-credit-evidence-v1"
+REGISTRY_RELEASE_VERIFIER_PATH = "scripts/verify_layer5_registry_release_evidence.py"
+EXPECTED_HOSTED_CANDIDATE_SERVICES = {
+    "frontend",
+    "agent-api",
+    "agent-worker",
+    "memory-worker",
+    "mcp-gateway",
+    "llm-gateway",
+}
 RETIRED_RC1_MARKERS = {
     "candidate_browser_bridge_retired_current_hosted_blocked",
     "candidate_browser_evidence_retired_current_hosted_blocked",
@@ -307,11 +319,133 @@ def sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest().upper()
 
 
-def expected_blocked_ids(*, auth_transition_verified: bool) -> set[str]:
-    blocked = set(BASELINE_BLOCKED_IDS)
+def expected_blocked_ids(
+    *,
+    hosted_transition_verified: bool,
+    auth_transition_verified: bool,
+) -> set[str]:
+    blocked: set[str] = set()
+    if not hosted_transition_verified:
+        blocked.add("I1")
     if not auth_transition_verified:
         blocked.add("I5")
     return blocked
+
+
+def validate_hosted_candidate_parity_transition(
+    item: Any,
+    release_id: str,
+    source_sha: str,
+) -> bool:
+    """Derive I1 only from one tracked, hash-bound six-service HTTPS proof."""
+
+    require(isinstance(item, dict), "I1 item must be an object")
+    status = item.get("status")
+    if status == "blocked_owner":
+        require(item.get("credit_awarded") is False, "blocked I1 may not receive credit")
+        return False
+    require(status == "verified", "I1 status is invalid")
+    require(item.get("credit_awarded") is True, "verified I1 must receive its single rubric credit")
+    evidence = item.get("evidence")
+    require(isinstance(evidence, list), "I1 evidence must be an array")
+
+    candidates: list[tuple[dict[str, Any], dict[str, Any], str]] = []
+    for index, reference in enumerate(evidence):
+        if not isinstance(reference, dict) or not isinstance(reference.get("path"), str):
+            continue
+        normalized = require_tracked_repo_path(reference["path"], f"I1 evidence #{index + 1}")
+        try:
+            payload = load_json(ROOT / normalized)
+        except SystemExit:
+            raise
+        if payload.get("contract_version") == HOSTED_CANDIDATE_PARITY_CONTRACT:
+            candidates.append((reference, payload, normalized))
+    require(
+        len(candidates) == 1,
+        "I1 verified status requires exactly one hosted candidate parity artifact",
+    )
+    reference, proof, proof_path = candidates[0]
+    require(
+        reference.get("contract_version") == HOSTED_CANDIDATE_PARITY_CONTRACT,
+        "I1 evidence reference contract mismatch",
+    )
+    require(
+        reference.get("verifier") == HOSTED_CANDIDATE_PARITY_VERIFIER_PATH,
+        "I1 evidence must name the dedicated hosted candidate parity verifier",
+    )
+    expected_sha = reference.get("sha256")
+    require(
+        isinstance(expected_sha, str) and re.fullmatch(r"[0-9A-Fa-f]{64}", expected_sha) is not None,
+        "I1 evidence SHA-256 is invalid",
+    )
+    require(sha256_file(ROOT / proof_path) == expected_sha.upper(), "I1 evidence SHA-256 mismatch")
+    require(
+        run_git("diff", "--quiet", "HEAD", "--", proof_path).returncode == 0,
+        "I1 evidence must be clean relative to HEAD",
+    )
+    require(proof.get("status") == "verified", "I1 hosted candidate parity is not verified")
+    require(proof.get("release_id") == release_id, "I1 release binding mismatch")
+    require(proof.get("source_commit_sha") == source_sha, "I1 source binding mismatch")
+    require(proof.get("service_count") == 6, "I1 must prove exactly six hosted services")
+    base_url = proof.get("base_url")
+    require(
+        isinstance(base_url, str)
+        and re.fullmatch(r"https://[^\s/]+(?::\d+)?(?:/.*)?", base_url) is not None
+        and "localhost" not in base_url.lower()
+        and "127.0.0.1" not in base_url,
+        "I1 base URL must be non-local HTTPS",
+    )
+    hosting = proof.get("hosting")
+    require(
+        isinstance(hosting, dict)
+        and hosting.get("provider") in {"github_codespaces", "cloudflare_named_tunnel"},
+        "I1 hosting provider is not approved",
+    )
+    for key in (
+        "registry_digest_readback_verified",
+        "runtime_image_identity_verified",
+        "oci_source_revision_verified",
+        "same_origin_https_verified",
+        "sse_verified",
+        "digest_only_compose_verified",
+        "source_bind_mounts_absent",
+        "builds_absent",
+    ):
+        require(proof.get(key) is True, f"I1 {key} is not verified")
+    for key in (
+        "live_provider_calls",
+        "registry_write_performed",
+        "production_deploy",
+        "secret_output",
+    ):
+        require(proof.get(key) is False, f"I1 {key} must be false")
+
+    images = proof.get("images")
+    require(isinstance(images, list) and len(images) == 6, "I1 image evidence count mismatch")
+    image_services: set[str] = set()
+    digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
+    for index, image in enumerate(images):
+        require(isinstance(image, dict), f"I1 image[{index}] must be an object")
+        service = image.get("service")
+        require(service in EXPECTED_HOSTED_CANDIDATE_SERVICES, f"I1 image[{index}] service mismatch")
+        require(service not in image_services, f"I1 image[{index}] duplicates a service")
+        image_services.add(str(service))
+        for key in ("top_digest", "amd64_manifest_digest", "config_digest", "runtime_image_id"):
+            require(
+                isinstance(image.get(key), str) and digest_pattern.fullmatch(image[key]) is not None,
+                f"I1 image[{index}] {key} is invalid",
+            )
+        require(image.get("runtime_image_id") == image.get("config_digest"), f"I1 image[{index}] runtime identity mismatch")
+        require(image.get("oci_revision") == source_sha, f"I1 image[{index}] OCI revision mismatch")
+        require(image.get("source_bind_mount_count") == 0, f"I1 image[{index}] has a source bind mount")
+        require(image.get("running") is True and image.get("healthy") is True, f"I1 image[{index}] is not healthy")
+        image_ref = image.get("image_ref")
+        require(
+            isinstance(image_ref, str) and re.search(r"@sha256:[0-9a-f]{64}$", image_ref) is not None,
+            f"I1 image[{index}] is not digest-only",
+        )
+    require(image_services == EXPECTED_HOSTED_CANDIDATE_SERVICES, "I1 hosted service set mismatch")
+    return True
 
 
 def validate_production_auth_transition(gate: Any, source_sha: str) -> bool:
@@ -392,6 +526,100 @@ def validate_production_auth_transition(gate: Any, source_sha: str) -> bool:
     marker = "validation_mode=true read_only=true gate_promotion_performed=false secret_output=false"
     require(completed.returncode == 0, "production auth evidence failed dedicated validation")
     require(marker in completed.stdout, "production auth verifier omitted the read-only validation marker")
+    return True
+
+
+def validate_registry_release_transition(gate: Any, source_sha: str) -> bool:
+    """Validate an optional GHCR gate without awarding a Phase-5 rubric item."""
+
+    require(isinstance(gate, dict), "registry capability gate must be an object")
+    owner_granted = gate.get("owner_granted") is True
+    live_verified = gate.get("live_verified") is True
+    require(
+        not live_verified or owner_granted,
+        "registry gate may not be live-verified without an Owner grant",
+    )
+    if not (owner_granted and live_verified):
+        return False
+    require(gate.get("paid_provider") is False, "registry proof must remain free-only")
+    require(gate.get("provider") == "ghcr", "registry proof provider must be ghcr")
+    require(
+        isinstance(gate.get("owner_grant_ref"), str) and gate["owner_grant_ref"].strip(),
+        "registry gate is missing its Owner grant reference",
+    )
+    require(
+        gate.get("verifier") == REGISTRY_RELEASE_VERIFIER_PATH,
+        "registry gate must name the dedicated registry evidence verifier",
+    )
+    verifier_path = require_tracked_repo_path(
+        REGISTRY_RELEASE_VERIFIER_PATH,
+        "registry evidence verifier",
+    )
+    require(
+        run_git("diff", "--quiet", "HEAD", "--", verifier_path).returncode == 0,
+        "registry evidence verifier must be clean relative to HEAD",
+    )
+    evidence_path = require_tracked_repo_path(gate.get("evidence_artifact"), "registry gate")
+    require(
+        run_git("diff", "--quiet", "HEAD", "--", evidence_path).returncode == 0,
+        "registry evidence must be clean relative to HEAD",
+    )
+    evidence_sha = gate.get("evidence_sha256")
+    require(
+        isinstance(evidence_sha, str) and re.fullmatch(r"[0-9A-Fa-f]{64}", evidence_sha) is not None,
+        "registry evidence SHA-256 is invalid",
+    )
+    require(sha256_file(ROOT / evidence_path) == evidence_sha.upper(), "registry evidence SHA-256 mismatch")
+    evidence = load_json(ROOT / evidence_path)
+    require(evidence.get("contract_version") == REGISTRY_RELEASE_CONTRACT, "registry evidence contract mismatch")
+    require(evidence.get("status") == "verified", "registry evidence is not verified")
+    require(evidence.get("scope") == "vertical" and evidence.get("cell_id") == "layer_5", "registry evidence cell mismatch")
+    require(evidence.get("old_percent") == 86 and evidence.get("new_percent") == 100, "registry evidence transition mismatch")
+    require(evidence.get("points_awarded") == 14 and evidence.get("credit_eligible") is True, "registry evidence credit total mismatch")
+    require(evidence.get("source_commit_sha") == source_sha, "registry evidence source mismatch")
+    release_id = evidence.get("release_id")
+    control_sha = evidence.get("control_commit_sha")
+    require(
+        isinstance(release_id, str)
+        and re.fullmatch(r"prod-candidate-\d{4}-\d{2}-\d{2}-local-rc\d+", release_id) is not None,
+        "registry evidence release ID is invalid",
+    )
+    require(
+        isinstance(control_sha, str) and re.fullmatch(r"[0-9a-f]{40}", control_sha) is not None,
+        "registry evidence control SHA is invalid",
+    )
+    require(
+        progress_truth.git_commit_is_ancestor(ROOT, source_sha, control_sha),
+        "registry evidence control must descend from the candidate source",
+    )
+
+    command = [
+        sys.executable,
+        str(ROOT / REGISTRY_RELEASE_VERIFIER_PATH),
+        "--evidence",
+        evidence_path,
+        "--expected-release-id",
+        release_id,
+        "--expected-source-sha",
+        source_sha,
+        "--expected-control-sha",
+        control_sha,
+        "--validate-only",
+    ]
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=ROOT,
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except OSError as exc:
+        fail(f"registry evidence verifier could not run: {exc}")
+    marker = "[layer5-registry-release-evidence] PASS credit_eligible=true points=14 transition=86->100"
+    require(completed.returncode == 0, "registry evidence failed dedicated validation")
+    require(marker in completed.stdout, "registry evidence verifier omitted the read-only validation marker")
     return True
 
 
@@ -1325,6 +1553,108 @@ def phase5_credit_projection(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def validate_phase5_itemization_credit_transition(
+    source_itemization: dict[str, Any],
+    current_itemization: dict[str, Any],
+    *,
+    source_percent: int,
+    current_percent: int,
+    computed_percent: int,
+    hosted_transition_verified: bool,
+    auth_transition_verified: bool,
+) -> bool:
+    """Validate the only admitted Phase-5 post-candidate credit transition.
+
+    Phase 5 is a 19-item binary rubric.  Its two remaining items must close in
+    one evidence-bound 89 -> 100 transition; a transient 95 percent state is not
+    a publishable ledger state and registry evidence does not add a rubric item.
+    """
+
+    source_projection = phase5_credit_projection(source_itemization)
+    current_projection = phase5_credit_projection(current_itemization)
+    if source_percent == current_percent:
+        require(
+            current_percent == computed_percent,
+            "unchanged Phase-5 manifest percent must equal the computed rubric score",
+        )
+        require(
+            current_projection == source_projection,
+            "non-Phase-5 evidence credit may not alter Phase-5 score, blockers, items, or rulings",
+        )
+        return False
+
+    require(
+        (source_percent, current_percent, computed_percent) == (89, 100, 100),
+        "Phase-5 credit transition must be atomic 89->100",
+    )
+    require(
+        hosted_transition_verified and auth_transition_verified,
+        "Phase-5 89->100 requires validated I1 and I5 evidence",
+    )
+
+    source_top = {key: value for key, value in source_projection.items() if key not in {"current_score", "items"}}
+    current_top = {key: value for key, value in current_projection.items() if key not in {"current_score", "items"}}
+    require(source_top == current_top, "Phase-5 89->100 may not alter rubric policy or rulings")
+
+    source_score = source_projection.get("current_score")
+    current_score = current_projection.get("current_score")
+    require(
+        isinstance(source_score, dict)
+        and source_score.get("total_item_count") == 19
+        and source_score.get("verified_item_count") == 17
+        and source_score.get("blocked_item_count") == 2
+        and set(source_score.get("blocked_item_ids", [])) == {"I1", "I5"}
+        and source_score.get("computed_percent") == 89,
+        "Phase-5 source prestate must be the evidence-derived 17/19 score",
+    )
+    require(
+        isinstance(current_score, dict)
+        and current_score.get("total_item_count") == 19
+        and current_score.get("verified_item_count") == 19
+        and current_score.get("blocked_item_count") == 0
+        and current_score.get("blocked_item_ids") == []
+        and current_score.get("computed_percent") == 100,
+        "Phase-5 target state must be the evidence-derived 19/19 score",
+    )
+
+    def item_map(projection: dict[str, Any], label: str) -> dict[str, dict[str, Any]]:
+        entries = projection.get("items")
+        require(isinstance(entries, list) and len(entries) == 19, f"{label} Phase-5 item count mismatch")
+        mapped = {
+            str(entry.get("id")): entry
+            for entry in entries
+            if isinstance(entry, dict) and isinstance(entry.get("id"), str)
+        }
+        require(len(mapped) == 19 and set(mapped) == set(EXPECTED_ITEMS), f"{label} Phase-5 item IDs mismatch")
+        return mapped
+
+    source_items = item_map(source_projection, "source")
+    current_items = item_map(current_projection, "target")
+    dynamic_keys = {"status", "credit_awarded", "blocker_id", "owner_action"}
+    for item_id in EXPECTED_ITEMS:
+        source_item = source_items[item_id]
+        current_item = current_items[item_id]
+        if item_id not in {"I1", "I5"}:
+            require(current_item == source_item, f"Phase-5 89->100 may not change item {item_id}")
+            continue
+        require(
+            source_item.get("status") == "blocked_owner"
+            and source_item.get("credit_awarded") is False,
+            f"Phase-5 source {item_id} must be zero-credit",
+        )
+        require(
+            current_item.get("status") == "verified"
+            and current_item.get("credit_awarded") is True,
+            f"Phase-5 target {item_id} must be evidence-verified",
+        )
+        require(
+            {key: value for key, value in current_item.items() if key not in dynamic_keys}
+            == {key: value for key, value in source_item.items() if key not in dynamic_keys},
+            f"Phase-5 {item_id} transition altered its rubric identity",
+        )
+    return True
+
+
 def external_gate_truth_projection(payload: dict[str, Any]) -> dict[str, Any]:
     keys = (
         "contract_version",
@@ -1352,6 +1682,61 @@ def external_gate_truth_projection(payload: dict[str, Any]) -> dict[str, Any]:
         "legacy_provenance",
     )
     return {key: payload.get(key) for key in keys}
+
+
+def partition_delta_ledger_at_candidate(
+    entries: Any,
+    candidate_source_sha: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Split the ledger into the candidate's committed prefix and later credit.
+
+    A qualified candidate may be selected after earlier evidence-scored deltas have
+    already landed.  Those entries are part of its prestate and must be replayed,
+    not rejected merely because the prestate no longer equals the original pinned
+    baseline.  Entries after the candidate form one contiguous suffix.  Divergent
+    histories and prefix entries appearing after that suffix fail closed.
+    """
+
+    require(isinstance(entries, list), "evidence-credit ledger entries must be an array")
+    require(
+        re.fullmatch(r"[0-9a-f]{40}", candidate_source_sha) is not None,
+        "frozen candidate source SHA is invalid",
+    )
+    prefix: list[dict[str, Any]] = []
+    suffix: list[dict[str, Any]] = []
+    suffix_started = False
+    for index, entry in enumerate(entries):
+        require(isinstance(entry, dict), f"evidence-credit ledger entry[{index}] must be an object")
+        evidence_source = entry.get("source_sha")
+        require(
+            isinstance(evidence_source, str)
+            and re.fullmatch(r"[0-9a-f]{40}", evidence_source) is not None,
+            f"evidence-credit ledger entry[{index}] source SHA is invalid",
+        )
+        at_or_before_candidate = evidence_source == candidate_source_sha or progress_truth.git_commit_is_ancestor(
+            ROOT,
+            evidence_source,
+            candidate_source_sha,
+        )
+        strictly_after_candidate = evidence_source != candidate_source_sha and progress_truth.git_commit_is_ancestor(
+            ROOT,
+            candidate_source_sha,
+            evidence_source,
+        )
+        require(
+            at_or_before_candidate != strictly_after_candidate,
+            f"evidence-credit ledger entry[{index}] is not comparable with the frozen candidate",
+        )
+        if at_or_before_candidate:
+            require(
+                not suffix_started,
+                "evidence-credit ledger candidate prefix is not contiguous",
+            )
+            prefix.append(entry)
+        else:
+            suffix_started = True
+            suffix.append(entry)
+    return prefix, suffix
 
 
 def require_no_credit_requalification(
@@ -1581,6 +1966,9 @@ def require_evidence_credited_progress_transition(
     manifest: dict[str, Any],
     itemization: dict[str, Any],
     computed_percent: int,
+    *,
+    hosted_transition_verified: bool = False,
+    auth_transition_verified: bool = False,
 ) -> None:
     """Admit only a fully scored post-candidate progress-ledger transition.
 
@@ -1598,10 +1986,6 @@ def require_evidence_credited_progress_transition(
     source_projection = progress_truth.progress_projection(source_manifest)
     index_projection = progress_truth.progress_projection(index_manifest)
     require(
-        source_projection == progress_truth.expected_baseline_projection(),
-        "evidence-credit transition requires the frozen candidate to carry the pinned progress baseline",
-    )
-    require(
         index_projection != source_projection,
         "evidence-credit transition must change the progress projection",
     )
@@ -1615,17 +1999,18 @@ def require_evidence_credited_progress_transition(
         None,
     )
     require(source_phase5 is not None and index_phase5 is not None, "evidence-credit Phase-5 item missing")
-    require(
-        source_phase5.get("percent") == index_phase5.get("percent") == computed_percent,
-        "evidence-credit transition may not alter the independently scored Phase-5 percent",
-    )
 
     index_itemization = load_index_json(PHASE5_ITEMIZATION_REPO_PATH)
     source_itemization = load_git_json(source_sha, PHASE5_ITEMIZATION_REPO_PATH)
     require(itemization == index_itemization, "working-tree Phase-5 truth must match the staged evidence-credit truth")
-    require(
-        phase5_credit_projection(index_itemization) == phase5_credit_projection(source_itemization),
-        "evidence-credit transition may not alter Phase-5 score, blockers, items, or rulings",
+    phase5_credit_changed = validate_phase5_itemization_credit_transition(
+        source_itemization,
+        index_itemization,
+        source_percent=source_phase5.get("percent"),
+        current_percent=index_phase5.get("percent"),
+        computed_percent=computed_percent,
+        hosted_transition_verified=hosted_transition_verified,
+        auth_transition_verified=auth_transition_verified,
     )
 
     staged_diff = run_git("diff", "--quiet", "--", *EVIDENCE_CREDIT_STAGED_PATHS)
@@ -1637,15 +2022,30 @@ def require_evidence_credited_progress_transition(
     ledger = load_index_json(PROJECT_PROGRESS_DELTA_LEDGER_REPO_PATH)
     entries = ledger.get("entries")
     require(isinstance(entries, list) and entries, "evidence-credit transition requires a non-empty v2 delta ledger")
-    for index, entry in enumerate(entries):
-        require(isinstance(entry, dict), f"evidence-credit ledger entry[{index}] must be an object")
-        evidence_source = entry.get("source_sha")
+    candidate_prefix, post_candidate_entries = partition_delta_ledger_at_candidate(entries, source_sha)
+    require(
+        post_candidate_entries,
+        "evidence-credit transition requires at least one ledger entry after the frozen candidate",
+    )
+    candidate_prestate = progress_truth.replay_delta_ledger_entries(
+        candidate_prefix,
+        progress_truth.expected_baseline_projection(),
+        ROOT,
+    )
+    require(
+        source_projection == candidate_prestate,
+        "frozen candidate progress does not match its replayed ledger prefix prestate",
+    )
+    if phase5_credit_changed:
         require(
-            isinstance(evidence_source, str)
-            and re.fullmatch(r"[0-9a-f]{40}", evidence_source) is not None
-            and evidence_source != source_sha
-            and progress_truth.git_commit_is_ancestor(ROOT, source_sha, evidence_source),
-            f"evidence-credit ledger entry[{index}] must strictly descend from the frozen candidate",
+            any(
+                entry.get("scope") == "horizontal"
+                and entry.get("cell_id") == "phase_5"
+                and entry.get("old_percent") == 89
+                and entry.get("new_percent") == 100
+                for entry in post_candidate_entries
+            ),
+            "Phase-5 89->100 requires its exact post-candidate ledger entry",
         )
 
     endpoint_snapshot = load_index_json(ENDPOINT_SNAPSHOT_REPO_PATH)
@@ -1697,15 +2097,21 @@ def require_evidence_credited_progress_transition(
 
     project_state = load_index_text("PROJECT_STATE.md")
     current_anchor = project_state.split("### Session", 2)[1] if "### Session" in project_state else ""
+    require(release_id in current_anchor and source_sha in current_anchor, "evidence-credit project anchor candidate mismatch")
     require(
-        release_id in current_anchor
-        and source_sha in current_anchor
-        and f"Overall `{index_manifest['overall_percent']}%`" in current_anchor
-        and "MARKET_READY:false" in current_anchor
-        and "I1" in current_anchor
-        and "I5" in current_anchor,
-        "evidence-credit project anchor must preserve candidate, progress, and Phase-5 blockers",
+        f"Overall `{index_manifest['overall_percent']}%`" in current_anchor,
+        "evidence-credit project anchor progress mismatch",
     )
+    if phase5_credit_changed:
+        require(
+            "MARKET_READY:true" in current_anchor and "I1" in current_anchor and "I5" in current_anchor,
+            "Phase-5 100 project anchor must record market readiness and the verified I1/I5 transition",
+        )
+    else:
+        require(
+            "MARKET_READY:false" in current_anchor and "I1" in current_anchor and "I5" in current_anchor,
+            "evidence-credit project anchor must preserve Phase-5 blockers",
+        )
 
 
 def require_runtime_source_parity(
@@ -1713,6 +2119,9 @@ def require_runtime_source_parity(
     manifest: dict[str, Any],
     itemization: dict[str, Any],
     computed_percent: int,
+    *,
+    hosted_transition_verified: bool = False,
+    auth_transition_verified: bool = False,
 ) -> None:
     diff = run_git(
         "diff",
@@ -1746,6 +2155,8 @@ def require_runtime_source_parity(
                 manifest,
                 itemization,
                 computed_percent,
+                hosted_transition_verified=hosted_transition_verified,
+                auth_transition_verified=auth_transition_verified,
             )
             print(
                 "[phase5-credit] runtime_source_parity_mode=evidence_credited_progress_delta "
@@ -1825,6 +2236,9 @@ def validate_candidate(
     expected_blocked_item_ids: set[str],
     manifest: dict[str, Any],
     itemization: dict[str, Any],
+    *,
+    hosted_transition_verified: bool = False,
+    auth_transition_verified: bool = False,
 ) -> None:
     candidate_path = ROOT / f"docs/release-artifacts/{release_id}.md"
     readiness_path = ROOT / f"docs/release-artifacts/{release_id}-readiness.json"
@@ -1982,7 +2396,14 @@ def validate_candidate(
         run_git("merge-base", "--is-ancestor", source_sha, "HEAD").returncode == 0,
         "candidate source commit is not an ancestor of HEAD",
     )
-    require_runtime_source_parity(source_sha, manifest, itemization, computed_percent)
+    require_runtime_source_parity(
+        source_sha,
+        manifest,
+        itemization,
+        computed_percent,
+        hosted_transition_verified=hosted_transition_verified,
+        auth_transition_verified=auth_transition_verified,
+    )
 
 
 def main() -> int:
@@ -2026,11 +2447,25 @@ def main() -> int:
     require(current_candidate.get("active_release_id") == release_id, "current candidate pointer mismatch")
     require(current_candidate.get("production_rollout_claimed") is False, "current candidate may not claim rollout")
 
+    items = itemization.get("items", [])
+    require(isinstance(items, list), "itemization items must be an array")
+    i1_items = [item for item in items if isinstance(item, dict) and item.get("id") == "I1"]
+    require(len(i1_items) == 1, "itemization must contain exactly one I1 item")
+    hosted_transition_verified = validate_hosted_candidate_parity_transition(
+        i1_items[0],
+        release_id,
+        source_sha,
+    )
     auth_transition_verified = validate_production_auth_transition(
         gates.get("production_auth_identity", {}),
         source_sha,
     )
+    registry_transition_verified = validate_registry_release_transition(
+        gates.get("docker_registry_publish", {}),
+        source_sha,
+    )
     expected_blocked_item_ids = expected_blocked_ids(
+        hosted_transition_verified=hosted_transition_verified,
         auth_transition_verified=auth_transition_verified,
     )
 
@@ -2058,7 +2493,6 @@ def main() -> int:
         "legacy gap must reconstruct the missing 32 points",
     )
 
-    items = itemization.get("items", [])
     require(isinstance(items, list) and len(items) == 19, "itemization must contain exactly 19 items")
     by_id: dict[str, dict[str, Any]] = {}
     for item in items:
@@ -2161,12 +2595,17 @@ def main() -> int:
         )
 
     require(
+        (by_id["I1"]["status"] == "verified") is hosted_transition_verified,
+        "I1 status must match the validated hosted candidate parity transition",
+    )
+    require(
         (by_id["I5"]["status"] == "verified") is auth_transition_verified,
         "I5 status must match the validated production-auth transition",
     )
-    registry_gate = gates.get("docker_registry_publish", {})
-    require(registry_gate.get("owner_granted") is False, "E3 must not silently grant registry publication")
-    require(registry_gate.get("live_verified") is False, "E3 must not silently verify registry publication")
+    require(
+        by_id["I2"]["credit_awarded"] is True,
+        "registry publication may not add a second Phase-5 credit to I2",
+    )
 
     if mode == "fully_itemized":
         validate_candidate(
@@ -2178,12 +2617,14 @@ def main() -> int:
             expected_blocked_item_ids,
             manifest,
             itemization,
+            hosted_transition_verified=hosted_transition_verified,
+            auth_transition_verified=auth_transition_verified,
         )
     credited = legacy_percent if mode == "legacy_reconstruction" else computed_percent
     print(
         f"[phase5-credit] verified mode={mode} legacy_gap=32 "
         f"computed={computed_percent} credited={credited} verified={verified_count}/19 "
-        f"blocked={','.join(sorted(blocked_ids))}"
+        f"blocked={','.join(sorted(blocked_ids))} registry_verified={str(registry_transition_verified).lower()}"
     )
     return 0
 

@@ -181,14 +181,19 @@ class GhcrCandidateVerifierTests(unittest.TestCase):
                 ["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True
             ).stdout.strip()
 
-            truth_path = repo / "docs" / "runtime-state" / "phase5-credit-itemization.json"
+            truth_path = repo / "docs" / "runtime-state" / "source-qualification-control.json"
             truth_path.parent.mkdir(parents=True)
             truth_path.write_text(
                 json.dumps(
                     {
-                        "contract_version": "phase5-credit-itemization-v2",
-                        "active_release_id": "prod-candidate-test-rc1",
-                        "active_source_commit_sha": candidate_sha,
+                        "$schema": "../runtime-contracts/source-qualification-control.schema.json",
+                        "contract_version": "source-qualification-control-v1",
+                        "release_id": "prod-candidate-test-rc1",
+                        "runtime_candidate_sha": candidate_sha,
+                        "source_archive_sha256": "f" * 64,
+                        "production_rollout_claimed": False,
+                        "percentage_credit_awarded": 0,
+                        "secret_output": False,
                     }
                 )
                 + "\n",

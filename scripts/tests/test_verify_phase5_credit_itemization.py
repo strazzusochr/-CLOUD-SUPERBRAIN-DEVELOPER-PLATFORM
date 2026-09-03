@@ -565,16 +565,202 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, expected):
             callback()
 
+    def test_candidate_progress_prestate_partitions_a_valid_ledger_prefix(self) -> None:
+        before = "a" * 40
+        candidate = "b" * 40
+        after = "c" * 40
+        entries = [
+            {"entry_id": "before-candidate", "source_sha": before},
+            {"entry_id": "after-candidate", "source_sha": after},
+        ]
+
+        def is_ancestor(_root: Path, ancestor: str, descendant: str) -> bool:
+            return (ancestor, descendant) in {
+                (before, candidate),
+                (candidate, after),
+            }
+
+        with patch.object(
+            verifier.progress_truth,
+            "git_commit_is_ancestor",
+            side_effect=is_ancestor,
+        ):
+            prefix, suffix = verifier.partition_delta_ledger_at_candidate(
+                entries,
+                candidate,
+            )
+        self.assertEqual(prefix, [entries[0]])
+        self.assertEqual(suffix, [entries[1]])
+
+        interleaved = [entries[1], entries[0]]
+        with patch.object(
+            verifier.progress_truth,
+            "git_commit_is_ancestor",
+            side_effect=is_ancestor,
+        ):
+            self.assert_rejected(
+                lambda: verifier.partition_delta_ledger_at_candidate(
+                    interleaved,
+                    candidate,
+                ),
+                "prefix is not contiguous",
+            )
+
+        divergent = [{"entry_id": "divergent", "source_sha": "d" * 40}]
+        with patch.object(
+            verifier.progress_truth,
+            "git_commit_is_ancestor",
+            side_effect=is_ancestor,
+        ):
+            self.assert_rejected(
+                lambda: verifier.partition_delta_ledger_at_candidate(
+                    divergent,
+                    candidate,
+                ),
+                "is not comparable with the frozen candidate",
+            )
+
     def test_i5_closes_only_after_validated_auth_transition(self) -> None:
         self.assertEqual(
-            verifier.expected_blocked_ids(auth_transition_verified=False),
+            verifier.expected_blocked_ids(
+                hosted_transition_verified=False,
+                auth_transition_verified=False,
+            ),
             {"I1", "I5"},
         )
         self.assertEqual(
-            verifier.expected_blocked_ids(auth_transition_verified=True),
+            verifier.expected_blocked_ids(
+                hosted_transition_verified=False,
+                auth_transition_verified=True,
+            ),
             {"I1"},
         )
+        self.assertEqual(
+            verifier.expected_blocked_ids(
+                hosted_transition_verified=True,
+                auth_transition_verified=False,
+            ),
+            {"I5"},
+        )
+        self.assertEqual(
+            verifier.expected_blocked_ids(
+                hosted_transition_verified=True,
+                auth_transition_verified=True,
+            ),
+            set(),
+        )
         self.assertEqual(verifier.rounded_binary_percent(18, 19), 95)
+
+    def test_i1_and_registry_live_claims_fail_without_bound_evidence(self) -> None:
+        self.assertFalse(
+            verifier.validate_hosted_candidate_parity_transition(
+                {
+                    "status": "blocked_owner",
+                    "credit_awarded": False,
+                    "evidence": [],
+                },
+                RELEASE_ID,
+                SOURCE_SHA,
+            )
+        )
+        self.assert_rejected(
+            lambda: verifier.validate_hosted_candidate_parity_transition(
+                {
+                    "status": "verified",
+                    "credit_awarded": True,
+                    "evidence": [],
+                },
+                RELEASE_ID,
+                SOURCE_SHA,
+            ),
+            "I1 verified status requires exactly one hosted candidate parity artifact",
+        )
+        self.assertFalse(
+            verifier.validate_registry_release_transition(
+                {
+                    "owner_granted": False,
+                    "live_verified": False,
+                },
+                SOURCE_SHA,
+            )
+        )
+        self.assert_rejected(
+            lambda: verifier.validate_registry_release_transition(
+                {
+                    "owner_granted": True,
+                    "live_verified": True,
+                    "paid_provider": False,
+                    "provider": "ghcr",
+                    "owner_grant_ref": "owner-approved-registry-publication",
+                    "verifier": "",
+                },
+                SOURCE_SHA,
+            ),
+            "dedicated registry evidence verifier",
+        )
+
+    def test_phase5_89_to_100_requires_atomic_i1_and_i5_evidence_transition(self) -> None:
+        source = json.loads(verifier.ITEMIZATION_PATH.read_text(encoding="utf-8"))
+        current = copy.deepcopy(source)
+        for item in current["items"]:
+            if item["id"] in {"I1", "I5"}:
+                item["status"] = "verified"
+                item["credit_awarded"] = True
+        current["current_score"] = {
+            "total_item_count": 19,
+            "verified_item_count": 19,
+            "blocked_item_count": 0,
+            "blocked_item_ids": [],
+            "computed_percent": 100,
+        }
+        self.assertTrue(
+            verifier.validate_phase5_itemization_credit_transition(
+                source,
+                current,
+                source_percent=89,
+                current_percent=100,
+                computed_percent=100,
+                hosted_transition_verified=True,
+                auth_transition_verified=True,
+            )
+        )
+
+        one_gate = copy.deepcopy(current)
+        i5 = next(item for item in one_gate["items"] if item["id"] == "I5")
+        i5["status"] = "blocked_owner"
+        i5["credit_awarded"] = False
+        one_gate["current_score"] = {
+            "total_item_count": 19,
+            "verified_item_count": 18,
+            "blocked_item_count": 1,
+            "blocked_item_ids": ["I5"],
+            "computed_percent": 95,
+        }
+        self.assert_rejected(
+            lambda: verifier.validate_phase5_itemization_credit_transition(
+                source,
+                one_gate,
+                source_percent=89,
+                current_percent=95,
+                computed_percent=95,
+                hosted_transition_verified=True,
+                auth_transition_verified=False,
+            ),
+            "Phase-5 credit transition must be atomic 89->100",
+        )
+
+        self.assert_rejected(
+            lambda: verifier.validate_phase5_itemization_credit_transition(
+                source,
+                current,
+                source_percent=89,
+                current_percent=100,
+                computed_percent=100,
+                hosted_transition_verified=True,
+                auth_transition_verified=False,
+            ),
+            "requires validated I1 and I5 evidence",
+        )
 
     def test_i5_rejects_live_flags_without_the_dedicated_evidence_verifier(self) -> None:
         self.assertFalse(
@@ -1623,7 +1809,15 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
                 "run_git",
                 return_value=subprocess.CompletedProcess(("git", "diff"), 0, "", ""),
             ),
-            patch.object(verifier.progress_truth, "git_commit_is_ancestor", return_value=True),
+            patch.object(
+                verifier.progress_truth,
+                "git_commit_is_ancestor",
+                side_effect=lambda _root, ancestor, descendant: (
+                    ancestor,
+                    descendant,
+                )
+                == (source_sha, evidence_sha),
+            ),
             patch.object(verifier.progress_truth, "validate_progress_truth") as validate_progress,
         ):
             verifier.require_evidence_credited_progress_transition(
@@ -1648,7 +1842,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
                     itemization,
                     89,
                 ),
-                "may not alter the independently scored Phase-5 percent",
+                "Phase-5 credit transition must be atomic 89->100",
             )
 
 

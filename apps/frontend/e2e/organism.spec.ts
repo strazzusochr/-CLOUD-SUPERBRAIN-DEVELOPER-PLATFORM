@@ -377,6 +377,138 @@ test.describe("Cloud Superbrain platform", () => {
     expect(alternateCortexSeen, "the boot path must show one cortex implementation only").toBe(false);
   });
 
+  test("organism core stays neutral while loading across three cold reloads and uses procedural geometry only on error", async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.addInitScript(() => {
+      const state = {
+        statuses: [] as string[],
+        maxWrapperCount: 0,
+        maxWebglCanvasCount: 0,
+        proceduralSeen: false,
+        alternate2dCanvasSeen: false,
+      };
+      Object.defineProperty(window, "__organismCoreBootState", {
+        value: state,
+        configurable: true,
+      });
+      const inspect = () => {
+        state.maxWrapperCount = Math.max(state.maxWrapperCount, document.querySelectorAll(".cortex-wrap").length);
+        state.maxWebglCanvasCount = Math.max(
+          state.maxWebglCanvasCount,
+          document.querySelectorAll(".cortex-wrap canvas").length,
+        );
+        state.alternate2dCanvasSeen ||= Boolean(document.querySelector("canvas.cortex-canvas"));
+        for (const surface of document.querySelectorAll<HTMLElement>(".cortex-wrap[data-core-asset-status]")) {
+          const status = surface.dataset.coreAssetStatus;
+          if (status && state.statuses.at(-1) !== status) state.statuses.push(status);
+          state.proceduralSeen ||= surface.dataset.coreProceduralFallback === "true";
+        }
+      };
+      new MutationObserver(inspect).observe(document, {
+        attributes: true,
+        attributeFilter: ["data-core-asset-status", "data-core-procedural-fallback"],
+        childList: true,
+        subtree: true,
+      });
+      document.addEventListener("readystatechange", inspect);
+    });
+
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Network.enable");
+    await cdp.send("Network.setCacheDisabled", { cacheDisabled: true });
+
+    let coreRequestCount = 0;
+    let releaseCoreRequest: (() => void) | undefined;
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname === "/organism/core.glb") coreRequestCount += 1;
+    });
+    await page.route("**/organism/core.glb", async (route) => {
+      await new Promise<void>((resolveRequest) => {
+        releaseCoreRequest = resolveRequest;
+      });
+      await route.continue();
+    });
+
+    const loadWithHeldCore = async (kind: "initial" | "reload", expectedRequestCount: number) => {
+      releaseCoreRequest = undefined;
+      const navigation = kind === "initial"
+        ? page.goto("/organism", { waitUntil: "domcontentloaded" })
+        : page.reload({ waitUntil: "domcontentloaded" });
+
+      await expect.poll(() => coreRequestCount, { timeout: 30_000 }).toBe(expectedRequestCount);
+      const surface = page.locator('.cortex-wrap[data-core-loading-fallback="neutral"]');
+      await expect(surface).toHaveCount(1);
+      await expect(surface).toHaveAttribute("data-core-asset-status", "loading");
+      await expect(page.locator(".cortex-wrap")).toHaveCount(1);
+      await expect(surface.locator("canvas")).toHaveCount(1);
+      await expect(surface).toHaveAttribute("data-core-loading-fallback", "neutral");
+      await expect(surface).toHaveAttribute("data-core-procedural-fallback", "false");
+
+      const release = releaseCoreRequest as (() => void) | undefined;
+      expect(release, `held GLB request ${expectedRequestCount}`).toBeDefined();
+      if (!release) throw new Error(`GLB request ${expectedRequestCount} was not held`);
+      release();
+      await navigation;
+      await expect(surface).toHaveAttribute("data-core-asset-status", "ready", { timeout: 30_000 });
+      await expect(surface).toHaveAttribute("data-core-render-source", "glb");
+      await expect(page.locator(".cortex-wrap")).toHaveCount(1);
+      await expect(surface.locator("canvas")).toHaveCount(1);
+      expect(await surface.locator("canvas").evaluate((canvas) => Boolean(
+        (canvas as HTMLCanvasElement).getContext("webgl2")
+          || (canvas as HTMLCanvasElement).getContext("webgl"),
+      )), `WebGL context on ${kind} ${expectedRequestCount}`).toBe(true);
+
+      const observation = await page.evaluate(() => (
+        window as Window & {
+          __organismCoreBootState?: {
+            statuses: string[];
+            maxWrapperCount: number;
+            maxWebglCanvasCount: number;
+            proceduralSeen: boolean;
+            alternate2dCanvasSeen: boolean;
+          };
+        }
+      ).__organismCoreBootState);
+      expect(observation?.statuses, `core states on ${kind} ${expectedRequestCount}`).toEqual(["loading", "ready"]);
+      expect(observation?.maxWrapperCount, `single cortex wrapper on ${kind} ${expectedRequestCount}`).toBe(1);
+      expect(observation?.maxWebglCanvasCount, `single WebGL canvas on ${kind} ${expectedRequestCount}`).toBe(1);
+      expect(observation?.proceduralSeen, `no procedural loading mesh on ${kind} ${expectedRequestCount}`).toBe(false);
+      expect(observation?.alternate2dCanvasSeen, `no alternate 2D canvas on ${kind} ${expectedRequestCount}`).toBe(false);
+    };
+
+    await loadWithHeldCore("initial", 1);
+    for (let coldReload = 1; coldReload <= 3; coldReload += 1) {
+      await loadWithHeldCore("reload", coldReload + 1);
+    }
+
+    await page.unroute("**/organism/core.glb");
+    const requestsBeforeReducedMotion = coreRequestCount;
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("phase6-reduced-motion-fallback")).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".cortex-wrap")).toHaveCount(1);
+    await expect(page.locator(".cortex-wrap canvas")).toHaveCount(0);
+    await expect(page.locator("canvas.cortex-canvas")).toHaveCount(0);
+    expect(coreRequestCount, "reduced motion intentionally stays on the semantic 2D path without fetching the GLB").toBe(requestsBeforeReducedMotion);
+
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.route("**/organism/core.glb", async (route) => {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/octet-stream",
+        body: "intentional core asset failure",
+      });
+    });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const failedSurface = page.locator('.cortex-wrap[data-core-asset-status="error"]');
+    await expect(failedSurface).toHaveCount(1, { timeout: 30_000 });
+    await expect(failedSurface).toHaveAttribute("data-core-render-source", "procedural_error");
+    await expect(failedSurface).toHaveAttribute("data-core-procedural-fallback", "true");
+    await expect(page.locator(".cortex-wrap")).toHaveCount(1);
+    await expect(failedSurface.locator("canvas")).toHaveCount(1);
+  });
+
   test("organism 3D renders a WebGL canvas with no console errors (+ screenshot proof)", async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));

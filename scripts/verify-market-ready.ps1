@@ -426,6 +426,43 @@ try {
 }
 Add-Result "candidate-binding" $candidateStateOk $candidateStateDetail
 
+# Final READY truth is intentionally split from the immutable runtime source.  The
+# receipt names both commits and a dedicated verifier proves that S -> T contains
+# only evidence/truth projection changes and that T -> R cannot mutate truth again.
+$dualBindingOk = (-not ($allHundred -and $overallHundred))
+$dualBindingDetail = "not required below 100"
+if ($allHundred -and $overallHundred) {
+  $bindingRelativePath = "docs/runtime-state/source-truth-projection-binding.json"
+  $bindingPath = Resolve-RepoScopedFile $bindingRelativePath
+  if (-not $bindingPath) {
+    $dualBindingOk = $false
+    $dualBindingDetail = "missing source/truth-projection binding"
+  } else {
+    try {
+      $binding = Get-Content -LiteralPath $bindingPath -Raw | ConvertFrom-Json
+      $projectionSha = [string]$binding.truth_projection_sha
+      $bindingRuntimeSha = [string]$binding.runtime_candidate_sha
+      $bindingOutput = @(& py -3 (Join-Path $repoRoot "scripts\verify_source_truth_projection_binding.py") `
+        --runtime-sha $bindingRuntimeSha `
+        --projection-sha $projectionSha `
+        --receipt-sha HEAD `
+        --require-ready 2>&1)
+      $bindingExit = $LASTEXITCODE
+      if ($null -eq $bindingExit) { $bindingExit = 127 }
+      $dualBindingOk = (
+        $bindingExit -eq 0 -and
+        $bindingRuntimeSha -eq $candidateSha -and
+        (Test-TrackedCleanRepoFile $bindingRelativePath)
+      )
+      $dualBindingDetail = "exit=$bindingExit runtime=$bindingRuntimeSha projection=$projectionSha candidate_match=$($bindingRuntimeSha -eq $candidateSha) tracked_clean=$(Test-TrackedCleanRepoFile $bindingRelativePath)"
+    } catch {
+      $dualBindingOk = $false
+      $dualBindingDetail = "binding parse/verification error: $($_.Exception.Message)"
+    }
+  }
+}
+Add-Result "source-truth-projection-binding" $dualBindingOk $dualBindingDetail
+
 # The owner-input manifest makes the below-100 classification executable. It never raises
 # percentages; it only proves that every current gap has an explicit Owner action and verifier.
 $ownerInputPath = Join-Path $repoRoot "docs\runtime-state\owner-input-manifest.json"
@@ -1113,6 +1150,7 @@ if ($null -ne $ownerInput -and
     $o5ResolvedOk -and
     $o6ResolvedOk -and
     $readyGatesOk -and
+    $dualBindingOk -and
     $readyTruthFilesClean -and
     $readyTrackedWorktreeClean
   )
@@ -1311,6 +1349,7 @@ $readyContractOk = (
   $allHundred -and
   $overallHundred -and
   $candidateStateOk -and
+  $dualBindingOk -and
   $hostedAcceptanceOk -and
   $externalReadyOk -and
   $readyTruthFilesClean -and
@@ -1322,7 +1361,7 @@ $readyContractOk = (
 Add-Result `
   "ready-evidence-candidate-source-bound" `
   $readyContractOk `
-  "truth_mode=$truthMode static_only=$([bool]$StaticOnly) external=$([bool]$IncludeExternalGates) candidate=$candidateStateOk tracked_evidence=$readyTruthFilesClean tracked_worktree=$readyTrackedWorktreeClean" `
+  "truth_mode=$truthMode static_only=$([bool]$StaticOnly) external=$([bool]$IncludeExternalGates) candidate=$candidateStateOk dual_binding=$dualBindingOk tracked_evidence=$readyTruthFilesClean tracked_worktree=$readyTrackedWorktreeClean" `
   $true `
   ($truthMode -eq "owner_blocked" -and $ownerMatrixOk) `
   "readiness"

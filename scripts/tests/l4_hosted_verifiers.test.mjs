@@ -6,6 +6,7 @@ import test from "node:test";
 
 const root = resolve(import.meta.dirname, "..", "..");
 const scripts = [
+  "verify-llm-hosted-generative-routing-audit.ps1",
   "verify-llm-hosted-stream-parity.ps1",
   "verify-llm-hosted-fallback.ps1",
   "verify-llm-hosted-budget-guard.ps1",
@@ -97,6 +98,7 @@ test("every verifier requires independent D1 evidence and refuses self-declared 
 
 test("provider-call verifiers require independently read real AI Gateway logs", () => {
   for (const name of [
+    "verify-llm-hosted-generative-routing-audit.ps1",
     "verify-llm-hosted-stream-parity.ps1",
     "verify-llm-hosted-fallback.ps1",
     "verify-llm-hosted-trace-correlation.ps1",
@@ -107,6 +109,24 @@ test("provider-call verifiers require independently read real AI Gateway logs", 
     assert.match(source, /gateway_log_id/, name);
     assert.match(source, /provider_call_count/, name);
   }
+});
+
+test("current hosted chain proves only the new 10+4+4 source-bound claims and excludes legacy credit", () => {
+  const source = sourceByName.get("verify-llm-hosted-generative-routing-audit.ps1");
+  assert.match(source, /VerifierPath = "scripts\/verify-live-llm-evidence-chain\.ps1"/);
+  assert.match(source, /llm-hosted-current-evidence-chain-v2/);
+  assert.match(source, /current_hosted_llm_generative_routing_audit_verified/);
+  assert.match(source, /hosted_generative_source_bound/);
+  assert.match(source, /hosted_routing_allowlist/);
+  assert.match(source, /hosted_completion_audit/);
+  assert.match(source, /criterion_points = 18/);
+  assert.match(source, /progress_credit_recommended = 0/);
+  assert.match(source, /excluded_from_current_delta = \$true/);
+  assert.match(source, /provider_call_count = 1/);
+  assert.match(source, /gateway_log_readback_verified/);
+  assert.match(source, /audit_readback_verified/);
+  assert.match(source, /allowed_models_sha256/);
+  assert.match(source, /fallback_used = \$false/);
 });
 
 test("stream verifier accepts only real OpenAI chunks, deltas, one DONE, provider terminal provenance, and no synthetic content frame", () => {

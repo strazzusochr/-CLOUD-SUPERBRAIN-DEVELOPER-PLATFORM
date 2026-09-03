@@ -135,7 +135,7 @@ try {
   Assert-BooleanField $capability 'gateway_log_readback_verified' $false 'trace_capability_health_log_overclaim'
   Require ([int]$capability.max_provider_calls -eq 1) 'trace_call_bound' 'Trace capability must cap one call.'
 
-  $token = Get-RequiredToken
+  $token = (Get-RequiredToken)
   $traceId = ([Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')).Substring(0, 32)
   $spanId = [Guid]::NewGuid().ToString('N').Substring(0, 16)
   $requestId = 'l4-trace-' + [Guid]::NewGuid().ToString('N')

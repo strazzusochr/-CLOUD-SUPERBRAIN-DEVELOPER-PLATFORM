@@ -23,8 +23,8 @@ from urllib.parse import urlparse
 
 
 CONTRACT_VERSION = "ghcr-release-manifest-v1"
-ACTIVE_TRUTH_CONTRACT_VERSION = "phase5-credit-itemization-v2"
-CANONICAL_ACTIVE_TRUTH_PATH = Path("docs/runtime-state/phase5-credit-itemization.json")
+ACTIVE_TRUTH_CONTRACT_VERSION = "source-qualification-control-v1"
+CANONICAL_ACTIVE_TRUTH_PATH = Path("docs/runtime-state/source-qualification-control.json")
 EXPECTED_SERVICES = (
     "agent-api",
     "mcp-gateway",
@@ -201,14 +201,36 @@ def _validate_active_truth_object(
         truth.get("contract_version") == ACTIVE_TRUTH_CONTRACT_VERSION,
         f"{label} contract_version is invalid",
     )
+    _require(set(truth) == {
+        "$schema",
+        "contract_version",
+        "release_id",
+        "runtime_candidate_sha",
+        "source_archive_sha256",
+        "production_rollout_claimed",
+        "percentage_credit_awarded",
+        "secret_output",
+    }, f"{label} field set is invalid")
+    _require(
+        truth.get("$schema") == "../runtime-contracts/source-qualification-control.schema.json",
+        f"{label} schema reference is invalid",
+    )
     truth_candidate = _require_sha40(
-        truth.get("active_source_commit_sha"), f"{label} active_source_commit_sha"
+        truth.get("runtime_candidate_sha"), f"{label} runtime_candidate_sha"
     )
     _require(
         truth_candidate == candidate_sha,
         f"{label} selects a stale candidate instead of the requested active candidate",
     )
-    return _require_release_id(truth.get("active_release_id"), f"{label} active_release_id")
+    _require(
+        isinstance(truth.get("source_archive_sha256"), str)
+        and re.fullmatch(r"[0-9a-f]{64}", truth["source_archive_sha256"]) is not None,
+        f"{label} source archive SHA-256 is invalid",
+    )
+    _require(truth.get("production_rollout_claimed") is False, f"{label} may not claim rollout")
+    _require(truth.get("percentage_credit_awarded") == 0, f"{label} may not award percentage credit")
+    _require(truth.get("secret_output") is False, f"{label} may not report secret output")
+    return _require_release_id(truth.get("release_id"), f"{label} release_id")
 
 
 def load_active_candidate_truth(
@@ -225,7 +247,7 @@ def load_active_candidate_truth(
         raise VerificationError("active candidate truth is unavailable") from exc
     _require(
         requested_path == canonical_path,
-        "active candidate truth must use docs/runtime-state/phase5-credit-itemization.json",
+        "active candidate truth must use docs/runtime-state/source-qualification-control.json",
     )
 
     _require_tracked_clean_repo_file(requested_path, "active candidate truth")

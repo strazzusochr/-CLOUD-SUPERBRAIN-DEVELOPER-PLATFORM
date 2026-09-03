@@ -52,6 +52,7 @@ type LightingProfile = "studio" | "night" | "sunrise";
 type GameplayObjective = "collect" | "checkpoint" | "survive";
 type AssetProfile = "cube" | "beacon" | "ring";
 type MaterialVariant = "cyan" | "amber" | "rose";
+type CoreAssetStatus = "loading" | "ready" | "error";
 
 type VisualTelemetry = {
   sourceKind: string;
@@ -342,7 +343,15 @@ function CoreCrystalMaterial({ pbr, color }: { pbr: boolean; color: string }) {
   );
 }
 
-function CrystalGLB({ pbr, color }: { pbr: boolean; color: string }) {
+function CrystalGLB({
+  pbr,
+  color,
+  onReady,
+}: {
+  pbr: boolean;
+  color: string;
+  onReady: () => void;
+}) {
   const gltf = useGLTF(CORE_GLB);
   const geometry = useMemo(() => {
     let g: THREE.BufferGeometry | null = null;
@@ -352,7 +361,12 @@ function CrystalGLB({ pbr, color }: { pbr: boolean; color: string }) {
     });
     return g;
   }, [gltf]);
-  if (!geometry) return <ProceduralCrystal pbr={pbr} color={color} />;
+  useEffect(() => {
+    if (geometry) onReady();
+  }, [geometry, onReady]);
+  if (!geometry) {
+    throw new Error("The organism core GLB contains no renderable mesh geometry.");
+  }
   return (
     <mesh geometry={geometry}>
       <CoreCrystalMaterial color={color} pbr={pbr} />
@@ -371,14 +385,21 @@ function ProceduralCrystal({ pbr, color }: { pbr: boolean; color: string }) {
   );
 }
 
-/** Render-error boundary: if the GLB fails to load/parse, show procedural geometry. */
-class CrystalBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
-  constructor(props: { fallback: ReactNode; children: ReactNode }) {
+/** Render-error boundary: only a genuine GLB load/parse/render failure may show procedural geometry. */
+class CrystalBoundary extends Component<{
+  fallback: ReactNode;
+  children: ReactNode;
+  onError: () => void;
+}, { failed: boolean }> {
+  constructor(props: { fallback: ReactNode; children: ReactNode; onError: () => void }) {
     super(props);
     this.state = { failed: false };
   }
   static getDerivedStateFromError() {
     return { failed: true };
+  }
+  componentDidCatch() {
+    this.props.onError();
   }
   render() {
     return this.state.failed ? this.props.fallback : this.props.children;
@@ -386,7 +407,19 @@ class CrystalBoundary extends Component<{ fallback: ReactNode; children: ReactNo
 }
 
 /** Central core: real GLB crystal + reactor rings + multi-layer additive glow. */
-function Core({ color, tex, pbr }: { color: string; tex: THREE.Texture; pbr: boolean }) {
+function Core({
+  color,
+  tex,
+  pbr,
+  onAssetReady,
+  onAssetError,
+}: {
+  color: string;
+  tex: THREE.Texture;
+  pbr: boolean;
+  onAssetReady: () => void;
+  onAssetError: () => void;
+}) {
   const halo = useRef<THREE.Sprite>(null);
   const shell = useRef<THREE.Mesh>(null);
   const core = useRef<THREE.Group>(null);
@@ -434,11 +467,11 @@ function Core({ color, tex, pbr }: { color: string; tex: THREE.Texture; pbr: boo
         <torusGeometry args={[0.88, 0.008, 8, 96]} />
         <meshBasicMaterial color={ORGANISM_COLORS.ice} transparent opacity={0.4} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
-      {/* Real GLB crystal core (procedural fallback on load failure) */}
+      {/* Normal loading is intentionally neutral; procedural geometry is error-only. */}
       <group ref={core}>
-        <CrystalBoundary fallback={procedural}>
-          <Suspense fallback={procedural}>
-            <CrystalGLB pbr={pbr} color={coreColor} />
+        <CrystalBoundary fallback={procedural} onError={onAssetError}>
+          <Suspense fallback={null}>
+            <CrystalGLB pbr={pbr} color={coreColor} onReady={onAssetReady} />
           </Suspense>
         </CrystalBoundary>
       </group>
@@ -1016,6 +1049,8 @@ function Scene({
   onToggleAutoRotate,
   onCameraApplied,
   onLightingApplied,
+  onCoreAssetReady,
+  onCoreAssetError,
 }: {
   runState: RunState;
   nodeCount: number;
@@ -1044,6 +1079,8 @@ function Scene({
   onToggleAutoRotate?: () => void;
   onCameraApplied?: (state: CameraAppliedState) => void;
   onLightingApplied?: (state: LightingAppliedState) => void;
+  onCoreAssetReady: () => void;
+  onCoreAssetError: () => void;
 }) {
   const tex = useGlow();
   const sc = STATE_COLOR[runState];
@@ -1072,7 +1109,13 @@ function Scene({
       <Stats onStats={onStats} nodes={nodeCount} />
       <group rotation={[0.32, 0, 0]}>
         <Brain count={nodeCount} tex={tex} />
-        <Core color={sc} tex={tex} pbr={pbr} />
+        <Core
+          color={sc}
+          tex={tex}
+          pbr={pbr}
+          onAssetReady={onCoreAssetReady}
+          onAssetError={onCoreAssetError}
+        />
         {HUBS.map((h) => (
           <Hub key={h.id} hub={h} active={active} onSelect={onSelect} showLabel={showLabels} visible={hubVisible(h, visibleLayers, visibleAgents)} tex={tex} pbr={pbr} />
         ))}
@@ -1163,6 +1206,7 @@ export default function CortexCanvas3D({
   const boundedFov = [38, 45, 58].includes(fovDegrees) ? fovDegrees : 45;
   const boundedExposure = Math.min(1.18, Math.max(0.72, exposure));
   const [pbr] = useState(() => detectHardwareGPU());
+  const [coreAssetStatus, setCoreAssetStatus] = useState<CoreAssetStatus>("loading");
   const [cameraApplied, setCameraApplied] = useState<CameraAppliedState>({ preset: cameraPreset, fov: boundedFov, position: "pending", framingScale: 1 });
   const [lightingApplied, setLightingApplied] = useState<LightingAppliedState>({ profile: lightingProfile, exposure: boundedExposure });
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -1170,6 +1214,8 @@ export default function CortexCanvas3D({
   const renderActive = onScreen && !paused;
   const onCameraApplied = useCallback((state: CameraAppliedState) => setCameraApplied(state), []);
   const onLightingApplied = useCallback((state: LightingAppliedState) => setLightingApplied(state), []);
+  const onCoreAssetReady = useCallback(() => setCoreAssetStatus("ready"), []);
+  const onCoreAssetError = useCallback(() => setCoreAssetStatus("error"), []);
   useEffect(() => {
     // Preload the GLB only when the 3D canvas actually mounts (not at import time,
     // so the 2D reduced-motion / no-WebGL path never triggers the fetch).
@@ -1209,6 +1255,10 @@ export default function CortexCanvas3D({
       data-netcode-server-sync="false"
       data-organism-visual-version="v2"
       data-visual-telemetry-source={visualTelemetry.sourceKind}
+      data-core-asset-status={coreAssetStatus}
+      data-core-loading-fallback="neutral"
+      data-core-render-source={coreAssetStatus === "ready" ? "glb" : coreAssetStatus === "error" ? "procedural_error" : "neutral"}
+      data-core-procedural-fallback={String(coreAssetStatus === "error")}
     >
       <Canvas
         camera={{ position: CAMERA_PRESETS[cameraPreset].position, fov: boundedFov }}
@@ -1247,6 +1297,8 @@ export default function CortexCanvas3D({
           onToggleAutoRotate={onToggleAutoRotate}
           onCameraApplied={onCameraApplied}
           onLightingApplied={onLightingApplied}
+          onCoreAssetReady={onCoreAssetReady}
+          onCoreAssetError={onCoreAssetError}
         />
       </Canvas>
       <VisualOverlay telemetry={visualTelemetry} paused={paused} runState={runState} pbr={pbr} />

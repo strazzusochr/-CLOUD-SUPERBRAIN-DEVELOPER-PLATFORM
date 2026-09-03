@@ -61,6 +61,7 @@ jobs:
           RUN_ATTEMPT: ${{ github.run_attempt }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          import hashlib
           import json
           import os
           import pathlib
@@ -138,6 +139,7 @@ jobs:
               # commit — never between it and the candidate.
               allowed_control_paths = {
                   ".github/workflows/pr-check.yml",
+                  "docs/runtime-state/source-qualification-control.json",
                   "scripts/tests/test_verify_phase5_credit_itemization.py",
                   "scripts/verify-main-deploy-transition.ps1",
                   "scripts/verify-supply-chain-pins.ps1",
@@ -168,6 +170,65 @@ jobs:
                       "source prequalification control delta contains non-control paths: "
                       + ", ".join(unexpected_paths)
                   )
+              qualification_control_path = "docs/runtime-state/source-qualification-control.json"
+              if qualification_control_path in control_delta:
+                  if control_delta != [qualification_control_path]:
+                      raise SystemExit(
+                          "source qualification control JSON must be the only S-to-Q path"
+                      )
+                  raw_control = subprocess.run(
+                      ["git", "show", f"{control_sha}:{qualification_control_path}"],
+                      check=True,
+                      capture_output=True,
+                      text=True,
+                      encoding="utf-8",
+                  ).stdout
+                  qualification_control = json.loads(raw_control)
+                  expected_keys = {
+                      "$schema",
+                      "contract_version",
+                      "release_id",
+                      "runtime_candidate_sha",
+                      "source_archive_sha256",
+                      "production_rollout_claimed",
+                      "percentage_credit_awarded",
+                      "secret_output",
+                  }
+                  if set(qualification_control) != expected_keys:
+                      raise SystemExit("source qualification control fields are not exact")
+                  if qualification_control.get("$schema") != "../runtime-contracts/source-qualification-control.schema.json":
+                      raise SystemExit("source qualification control schema reference mismatch")
+                  if qualification_control.get("contract_version") != "source-qualification-control-v1":
+                      raise SystemExit("source qualification control contract mismatch")
+                  if qualification_control.get("runtime_candidate_sha") != candidate_sha:
+                      raise SystemExit("source qualification control candidate mismatch")
+                  source_archive_sha256 = qualification_control.get("source_archive_sha256")
+                  if re.fullmatch(r"[0-9a-f]{64}", str(source_archive_sha256)) is None:
+                      raise SystemExit("source qualification control archive hash is invalid")
+                  archive_process = subprocess.Popen(
+                      ["git", "archive", "--format=tar", candidate_sha],
+                      stdout=subprocess.PIPE,
+                  )
+                  archive_hasher = hashlib.sha256()
+                  assert archive_process.stdout is not None
+                  for archive_chunk in iter(lambda: archive_process.stdout.read(1024 * 1024), b""):
+                      archive_hasher.update(archive_chunk)
+                  archive_process.stdout.close()
+                  if archive_process.wait() != 0:
+                      raise SystemExit("source qualification candidate archive could not be generated")
+                  if archive_hasher.hexdigest() != source_archive_sha256:
+                      raise SystemExit("source qualification control archive hash mismatch")
+                  if re.fullmatch(
+                      r"prod-candidate-[0-9]{4}-[0-9]{2}-[0-9]{2}-local-rc[0-9]+",
+                      str(qualification_control.get("release_id", "")),
+                  ) is None:
+                      raise SystemExit("source qualification control release ID mismatch")
+                  if qualification_control.get("production_rollout_claimed") is not False:
+                      raise SystemExit("source qualification control may not claim rollout")
+                  if qualification_control.get("percentage_credit_awarded") != 0:
+                      raise SystemExit("source qualification control may not award credit")
+                  if qualification_control.get("secret_output") is not False:
+                      raise SystemExit("source qualification control may not emit secrets")
 
           if source_prequalification:
               binding_mode = "source_checkout_attestation_v1"
@@ -225,7 +286,49 @@ jobs:
           fi
 
       - name: Python syntax
-        run: python -m py_compile services/agent-api/app/main.py services/mcp-gateway/app/main.py
+        run: |
+          python -m py_compile services/agent-api/app/main.py services/mcp-gateway/app/main.py
+          python -m py_compile \
+            scripts/build_exact_head_ci_attestation.py \
+            scripts/build_layer4_hosted_llm_current_evidence.py \
+            scripts/build_layer5_registry_release_input.py \
+            scripts/build_phase3_oauth_credit_input.py \
+            scripts/build_phase5_market_ready_credit_input.py \
+            scripts/build_production_auth_identity_evidence.py \
+            scripts/collect_ghcr_publication_evidence.py \
+            scripts/collect_i1_codespaces_evidence.py \
+            scripts/i1_codespaces_contract.py \
+            scripts/launch_i1_codespaces_candidate.py \
+            scripts/progress_credit_scorer_common.py \
+            scripts/score_layer4_hosted_llm_credit.py \
+            scripts/score_layer5_registry_release_credit.py \
+            scripts/score_phase3_oauth_credit.py \
+            scripts/score_phase5_market_ready_credit.py \
+            scripts/score_phase6_scale_credit.py \
+            scripts/validate_layer4_hosted_llm_current_evidence.py \
+            scripts/verify_ghcr_remote_scan.py \
+            scripts/verify_i1_codespaces_candidate.py \
+            scripts/verify_i1_codespaces_static.py \
+            scripts/verify_layer5_registry_release_evidence.py \
+            scripts/verify_source_truth_projection_binding.py
+
+      - name: PowerShell syntax
+        shell: pwsh
+        run: |
+          $failures = @()
+          foreach ($path in Get-ChildItem -LiteralPath scripts -Filter '*.ps1' -File) {
+            $tokens = $null
+            $errors = $null
+            [Management.Automation.Language.Parser]::ParseFile($path.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $failures += "$($path.FullName): $($errors -join '; ')"
+            }
+          }
+          if ($failures.Count -gt 0) {
+            $failures | ForEach-Object { Write-Error $_ }
+            exit 1
+          }
+          Write-Host "[powershell-syntax] PASS scripts=$((Get-ChildItem -LiteralPath scripts -Filter '*.ps1' -File).Count)"
 
       - name: Project progress delta-ledger replay regression
         env:
@@ -358,6 +461,24 @@ jobs:
           python -m unittest scripts.tests.test_market_ready_entrypoint -v
           python -m unittest scripts.tests.test_frontend_hosted_validate_only -v
           python -m unittest scripts.tests.test_production_auth_identity_evidence -v
+          python -m unittest \
+            scripts.tests.test_new_progress_credit_scorers \
+            scripts.tests.test_remaining_progress_credit_scorers \
+            scripts.tests.test_exact_head_ci_attestation \
+            scripts.tests.test_production_auth_pipeline \
+            scripts.tests.test_layer4_hosted_llm_current_evidence \
+            scripts.tests.test_layer5_registry_release_evidence \
+            scripts.tests.test_registry_gate_promoter \
+            scripts.tests.test_o4_effective_compose_guard \
+            scripts.tests.test_i1_codespaces_candidate \
+            scripts.tests.test_source_qualification_control \
+            scripts.tests.test_verify_source_truth_projection_binding \
+            scripts.tests.test_market_ready_owner_request \
+            scripts.tests.test_browser_hosted_progress_completion_contract \
+            scripts.tests.test_cloudflare_oauth_deploy_config \
+            scripts.tests.test_cloudflare_oauth_hosted_current \
+            -v
+          node --test scripts/tests/l4_hosted_verifiers.test.mjs
 
       - name: Frontend install
         working-directory: apps/frontend
@@ -399,6 +520,26 @@ jobs:
           tar -xzf "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" gitleaks
           sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
           gitleaks version
+
+      - name: Verify gitleaks positive control
+        shell: bash
+        run: |
+          set -euo pipefail
+          probe_path="${RUNNER_TEMP}/gitleaks-positive-control.txt"
+          printf 'synthetic_probe = "ghp_%s"\n' 'wA9mK2pLxN4vRtQzY6bC8dEfGhJlM0oPq1rS' > "${probe_path}"
+          set +e
+          gitleaks detect \
+            --no-git \
+            --source "${probe_path}" \
+            --config .gitleaks.toml \
+            --redact \
+            --no-banner \
+            --exit-code 42 \
+            >/dev/null 2>&1
+          probe_status=$?
+          set -e
+          rm -f "${probe_path}"
+          test "${probe_status}" -eq 42
 
       - name: Secret scan
         run: gitleaks detect --source . --redact --no-banner --exit-code 1

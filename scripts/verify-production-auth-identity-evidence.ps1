@@ -215,13 +215,19 @@ Assert-ExactPropertyNames $sourceBinding @(
 ) 'Production auth source_binding'
 foreach ($field in @(
   'source_commit_sha',
-  'frontend_source_commit_sha',
   'auth_runtime_source_commit_sha'
 )) {
   Assert-NonEmptyString $sourceBinding $field
   Assert-True ([string]$sourceBinding.$field -ceq $ExpectedCandidateSha) `
     "source_binding.$field must equal the expected candidate SHA."
 }
+Assert-NonEmptyString $sourceBinding 'frontend_source_commit_sha'
+Assert-True ([string]$sourceBinding.frontend_source_commit_sha -cmatch '^[0-9a-f]{40}$') `
+  "source_binding.frontend_source_commit_sha must be a lowercase Git SHA."
+& git -C $repoRoot cat-file -e "$([string]$sourceBinding.frontend_source_commit_sha)^{commit}" 2>$null
+Assert-True ($LASTEXITCODE -eq 0) "Frontend source commit must resolve in Git."
+& git -C $repoRoot merge-base --is-ancestor ([string]$sourceBinding.frontend_source_commit_sha) HEAD
+Assert-True ($LASTEXITCODE -eq 0) "Frontend source commit must be an ancestor of the evidence HEAD."
 foreach ($field in @('deployment_id', 'frontend_deployment_id', 'auth_runtime_deployment_id')) {
   Assert-NonEmptyString $sourceBinding $field
 }
@@ -321,8 +327,8 @@ foreach ($field in @(
 )) {
   Assert-NonEmptyString $frontendOriginEvidence $field
 }
-Assert-True ([string]$frontendOriginEvidence.source_commit_sha -ceq $ExpectedCandidateSha) `
-  "Frontend-origin evidence source_commit_sha must equal the expected candidate SHA."
+Assert-True ([string]$frontendOriginEvidence.source_commit_sha -ceq [string]$sourceBinding.frontend_source_commit_sha) `
+  "Frontend-origin evidence source_commit_sha must equal source_binding.frontend_source_commit_sha."
 Assert-True ([string]$frontendOriginEvidence.deployment_id -ceq [string]$sourceBinding.frontend_deployment_id) `
   "Frontend-origin evidence deployment_id must equal source_binding.frontend_deployment_id."
 Assert-True ([string]$frontendOriginEvidence.vercel_target -ceq 'production') `

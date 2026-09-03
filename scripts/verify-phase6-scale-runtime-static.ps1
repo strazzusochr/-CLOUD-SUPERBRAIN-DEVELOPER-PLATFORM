@@ -32,22 +32,48 @@ Assert-Contains 'caller-supplied criterion files are forbidden for a hosted writ
 Assert-Contains 'caller-supplied hosted-state files are forbidden for a hosted write run' "canonical hosted-state path guard"
 Assert-Contains 'git.exe -C $repoRoot diff --quiet HEAD -- $trackedTruthRelativePath' "tracked truth HEAD-byte guard"
 Assert-Contains '$handler.AllowAutoRedirect = $false' "cross-origin redirect/token-leak guard"
-Assert-Contains 'cloudflare-d1-stateful-runtime-hosted-proof-v2' "immutable deployment rebind contract"
+Assert-Contains 'phase6-scale-hosted-deployment-current-v1' "isolated Phase6 hosted-state contract"
+Assert-Contains 'cloudflare-native-hosted-current-v1' "canonical O2Core hosted-state contract"
+Assert-Contains 'cloudflare-d1-stateful-runtime-hosted-proof-v1' "canonical O2Core hosted evidence contract"
+Assert-Contains 'phase6-scale-deployment-preflight-evidence-v1' "immutable deployment preflight contract"
+Assert-Contains 'hostedEvidence.hosted_write_read_delete_verified -eq $false' "truthful pre-run write/read/delete non-claim"
+Assert-Contains 'hostedEvidence.health_status -eq 200' "single health-200 preflight binding"
+Assert-Contains 'Get-NonNegativeInteger $hostedEvidence.production_worker_request_count' "strict production Worker request parsing"
+Assert-Contains 'Get-NonNegativeInteger $hostedEvidence.preview_worker_request_count' "strict Preview Worker request parsing"
+Assert-Contains '$evidenceProductionWorkerRequests -eq 1 -and $evidencePreviewWorkerRequests -eq 0' "exactly Production=1 and Preview=0 request binding"
+Assert-Contains 'hostedEvidence.health_json_source_binding_verified -eq $true' "health JSON source binding"
+Assert-Contains 'hostedEvidence.preview_guard_verified -eq $true' "Preview zero-request guard binding"
+Assert-Contains 'hostedEvidence.source_bundle_sha256' "uploaded bundle binding"
 Assert-Contains 'Get-GitArchiveSha256' "Git archive source recomputation"
 Assert-Contains 'hostedEvidence.worker_version_id' "Worker version binding"
 Assert-Contains 'hostedEvidence.deployment_id' "deployment identity binding"
 Assert-Contains 'worker_version_id = [string]$hostedEvidence.worker_version_id' "Worker version evidence binding"
 Assert-Contains 'deployment_id = [string]$hostedEvidence.deployment_id' "deployment identity evidence binding"
 Assert-Contains 'merge-base --is-ancestor' "deployed source ancestor binding"
+Assert-Contains 'c24b7bfddc37cfa0c16d1ebc7f70829417ac4080' "contract-origin loop-fix lower bound"
 Assert-Contains 'source_control_allowlist_v1' "source/control allowlist binding mode"
 Assert-Contains '$unexpectedControlDelta.Count -eq 0' "source/control path allowlist"
 Assert-Contains 'scripts/collect-phase6-scale-execution-readback.ps1' "post-run collector control allowlist"
+Assert-Contains 'scripts/write-phase6-scale-deployment-preflight.ps1' "deployment-preflight writer control allowlist"
+Assert-Contains 'scripts/write-phase6-scale-deployment-preflight-static.ps1' "deployment-preflight writer test control allowlist"
 Assert-Contains 'control_delta = @($controlDelta)' "source/control delta evidence"
 Assert-Contains 'source_commit_sha = [string]$hostedState.source_commit_sha' "execution provenance source binding"
 Assert-Contains 'Assert-TrackedHeadBytes $hostedEvidenceRelativePath' "deployment evidence existed at execution HEAD"
 Assert-Contains 'hosted deployment evidence is future-dated' "future deployment evidence rejection"
 Assert-Contains 'hosted deployment evidence is stale' "stale deployment evidence rejection"
-Assert-Contains '$deploymentCheckedAt -eq $hostedVerifiedAt' "deployment timestamp parity"
+Assert-Contains '$canonicalEvidenceCheckedAt -eq $canonicalHostedVerifiedAt' "canonical O2Core timestamp parity"
+Assert-Contains '$deploymentCheckedAt -eq $deploymentPreflightVerifiedAt' "deployment preflight timestamp parity"
+Assert-Contains 'Phase6 Preview-to-production deployment window exceeded ten minutes' "ten-minute deployment window"
+Assert-Contains 'canonical O2Core hosted evidence is stale' "canonical O2Core 24-hour freshness"
+Assert-Contains 'hosted deployment evidence is stale' "deployment preflight 24-hour freshness"
+Assert-Contains '$githubRunAttempt -eq 1' "GitHub rerun rejection"
+Assert-Contains 'PHASE6_GITHUB_ENVIRONMENT' "protected GitHub Environment binding"
+Assert-Contains 'PHASE6_ENVIRONMENT_REVIEW_PATH' "human Environment-review artifact input"
+Assert-Contains 'github-actions-phase6-environment-review-v1' "human Environment-review evidence contract"
+Assert-Contains 'human_review_verified = $true' "human Environment review verdict"
+Assert-Contains 'review_artifact_sha256' "Environment-review artifact digest binding"
+Assert-Contains 'review_sidecar_sha256' "Environment-review sidecar digest binding"
+Assert-Contains '$scaleGate.live_verified -eq $false' "unconsumed gate guard"
 Assert-Contains '$readExpected -eq 800' "exact 800-read contract"
 Assert-Contains '$declaredReadTiers.Count -eq 3' "exact three-tier contract"
 Assert-Contains '@{ concurrency = 1; requests = 60 }' "locked c1 read tier"
@@ -56,6 +82,7 @@ Assert-Contains '@{ concurrency = 50; requests = 500 }' "locked c50 read tier"
 Assert-Contains '$writeExpected -eq 50' "exact 50-record contract"
 Assert-Contains '$writeConcurrency -eq 10' "write concurrency 10 contract"
 Assert-Contains '$maxWorkerRequests -eq 900' "900-Worker-request cap"
+Assert-Contains '$httpClient.Timeout = [TimeSpan]::FromSeconds(10)' "fail-fast request timeout within cleanup-safe job budget"
 Assert-Contains 'url = "$BaseUrl/api/v1/builds"' "real build POST path"
 Assert-Contains 'url = "$BaseUrl/api/v1/build/$id"' "real build DELETE path"
 Assert-Contains '} finally {' "literal cleanup finally block"
@@ -115,8 +142,24 @@ foreach ($requiredWorkflowContract in @(
   'allow_hosted_writes:',
   'permissions:',
   'contents: read',
+  'actions: read',
   'environment: phase6-scale-hosted-writes',
+  'timeout-minutes: 35',
   'persist-credentials: false',
+  'docs/runtime-state/cloudflare-native-hosted-current.json',
+  'docs/runtime-state/phase6-scale-hosted-current.json',
+  '$preflight.preview_guard_verified -ne $true',
+  '$preflight.hosted_write_read_delete_verified -ne $false',
+  '$env:GITHUB_RUN_ATTEMPT -cne ''1''',
+  '$runs.total_count -ne 1',
+  'Phase6 one-shot guard found a rerun or another dispatch',
+  'actions/runs/$($env:GITHUB_RUN_ID)/approvals',
+  'github-actions-phase6-environment-review-v1',
+  'Exactly one approved human review for the protected Phase6 Environment is required.',
+  'PHASE6_GITHUB_ENVIRONMENT: phase6-scale-hosted-writes',
+  'PHASE6_ENVIRONMENT_REVIEW_PATH: ${{ steps.preflight.outputs.environment_review_path }}',
+  '${{ steps.preflight.outputs.environment_review_sidecar_path }}',
+  '$gate.live_verified -ne $false',
   'AGENT_API_AUTH_TOKEN: ${{ secrets.AGENT_API_AUTH_TOKEN }}',
   'scripts/verify-phase6-scale-runtime.ps1 -AllowHostedWrites',
   'phase6-scale-execution-evidence-${{ github.run_id }}-${{ github.run_attempt }}',
@@ -125,6 +168,10 @@ foreach ($requiredWorkflowContract in @(
   if (-not $workflowSource.Contains($requiredWorkflowContract)) {
     throw "Phase6 scale workflow is missing contract: $requiredWorkflowContract"
   }
+}
+$githubApiReads = @([regex]::Matches($workflowSource, '\.GetAsync\(')).Count
+if ($githubApiReads -ne 2 -or -not $workflowSource.Contains('$handler.AllowAutoRedirect = $false')) {
+  throw 'Phase6 workflow must perform exactly two redirect-free GitHub preflight reads: one-shot runs plus Environment approvals.'
 }
 foreach ($forbiddenWorkflowContract in @('push:', 'pull_request:', 'schedule:', 'workflow_run:', 'docker login', 'gh auth', 'registry push', 'production deploy', '-Promote')) {
   if ($workflowSource -match "(?im)^\s*$([regex]::Escape($forbiddenWorkflowContract))") {
@@ -135,9 +182,11 @@ foreach ($forbiddenWorkflowContract in @('push:', 'pull_request:', 'schedule:', 
 $authGuardOffset = $source.IndexOf('if ([string]::IsNullOrWhiteSpace($authValue))')
 $ownerGuardOffset = $source.IndexOf('if (-not $AllowHostedWrites)')
 $recordedOwnerGuardOffset = $source.IndexOf('if ($null -eq $scaleGate -or $scaleGate.owner_granted -ne $true')
+$unconsumedGateGuardOffset = $source.IndexOf('$scaleGate.live_verified -eq $false')
+$rerunGuardOffset = $source.IndexOf('$githubRunAttempt -eq 1')
 $clientOffset = $source.IndexOf('Add-Type -AssemblyName System.Net.Http')
-if ($authGuardOffset -lt 0 -or $ownerGuardOffset -lt 0 -or $recordedOwnerGuardOffset -lt 0 -or $clientOffset -lt 0 -or
-    $authGuardOffset -ge $clientOffset -or $ownerGuardOffset -ge $clientOffset -or $recordedOwnerGuardOffset -ge $clientOffset) {
+if ($authGuardOffset -lt 0 -or $ownerGuardOffset -lt 0 -or $recordedOwnerGuardOffset -lt 0 -or $unconsumedGateGuardOffset -lt 0 -or $rerunGuardOffset -lt 0 -or $clientOffset -lt 0 -or
+    $authGuardOffset -ge $clientOffset -or $ownerGuardOffset -ge $clientOffset -or $recordedOwnerGuardOffset -ge $clientOffset -or $unconsumedGateGuardOffset -ge $clientOffset -or $rerunGuardOffset -ge $clientOffset) {
   throw "authorization guard must precede HttpClient construction"
 }
 
@@ -151,4 +200,7 @@ if ($source.Contains('+ $read429') -or $source.Contains('+`n  $read429')) {
   throw "read 429 must never contribute to the literal success numerator"
 }
 
-Write-Host "[phase6-scale-static] PASS: parser, zero-request preflight, exact accounting, attribution-only edge control, literal success, source/deployment/time parity, provisional execution provenance, evidence-pair atomicity, and no-promotion contracts"
+& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'write-phase6-scale-deployment-preflight-static.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Phase6 deployment-preflight writer static contract failed' }
+
+Write-Host "[phase6-scale-static] PASS: parser, truthful deployment-health preflight, zero-request authorization, exact accounting, attribution-only edge control, literal success, source/deployment/time parity, provisional execution provenance, evidence-pair atomicity, and no-promotion contracts"

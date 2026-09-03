@@ -557,6 +557,8 @@ function env(options = {}) {
     PRODUCTION_AUTH_OWNER_GRANT_REF: options.productionAuthOwnerGrantRef !== undefined
       ? options.productionAuthOwnerGrantRef
       : "capability-gate:production_auth_identity:test-owner-approved",
+    SOURCE_COMMIT_SHA: options.sourceCommitSha,
+    SOURCE_ARCHIVE_SHA256: options.sourceArchiveSha256,
     SOURCE_BUNDLE_SHA256: options.sourceBundleSha256,
   };
 }
@@ -1617,6 +1619,91 @@ test("OAuth contract reports fail-closed configuration status", async () => {
   assert.equal(unconfiguredBody.credential_issuance_ready, false);
 });
 
+test("production OAuth evidence status is a non-promoting source-bound preflight contract", async () => {
+  const sourceCommitSha = "a".repeat(40);
+  const sourceArchiveSha256 = "b".repeat(64);
+  const sourceBundleSha256 = "c".repeat(64);
+  const fakeEnv = env({ sourceCommitSha, sourceArchiveSha256, sourceBundleSha256 });
+  const before = {
+    oauthStates: fakeEnv.DB.oauthStates.size,
+    refreshFamilies: fakeEnv.DB.refreshFamilies.size,
+    refreshHistory: fakeEnv.DB.refreshHistory.size,
+    audit: fakeEnv.DB.audit.length,
+  };
+
+  const response = await worker.fetch(
+    new Request("https://state.example/api/v1/auth/evidence/status"),
+    fakeEnv,
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(Object.keys(body).sort(), [
+    "architecture",
+    "audit_policy",
+    "blockers",
+    "contract_version",
+    "cookie_policy",
+    "credential_issuance_ready",
+    "evidence_collection_ready",
+    "gate_promotion_performed",
+    "identity_policy",
+    "live_verified",
+    "non_claims",
+    "oauth_scope",
+    "oauth_state_policy",
+    "secret_output",
+    "source_binding",
+    "status",
+    "token_family_policy",
+  ]);
+  assert.equal(body.contract_version, "production-auth-evidence-status-v1");
+  assert.equal(body.status, "ready_for_hosted_evidence");
+  assert.equal(body.architecture, "cloudflare_native");
+  assert.equal(body.oauth_scope, "read:user");
+  assert.equal(body.credential_issuance_ready, true);
+  assert.equal(body.evidence_collection_ready, true);
+  assert.equal(body.oauth_state_policy.one_time, true);
+  assert.equal(body.oauth_state_policy.storage, "cloudflare_d1");
+  assert.equal(body.identity_policy.provider, "github");
+  assert.equal(body.identity_policy.positive_numeric_id_required, true);
+  assert.equal(body.identity_policy.owner_allowlist_required, true);
+  assert.equal(body.token_family_policy.distinct_families_required, true);
+  assert.equal(body.token_family_policy.family_a, "refresh_replay");
+  assert.equal(body.token_family_policy.family_b, "logout");
+  assert.equal(body.audit_policy.persist_before_credential_issuance, true);
+  assert.equal(body.audit_policy.readback_required, true);
+  assert.equal(body.cookie_policy.oauth_state, "__Host-sb_oauth_state; Path=/; Max-Age=600; Secure; HttpOnly; SameSite=Lax");
+  assert.equal(body.cookie_policy.access, "__Host-sb_access; Path=/; Max-Age=900; Secure; HttpOnly; SameSite=Strict");
+  assert.equal(body.cookie_policy.refresh, "__Host-sb_refresh; Path=/; Max-Age=604800; Secure; HttpOnly; SameSite=Strict");
+  assert.deepEqual(body.source_binding, {
+    source_commit_sha: sourceCommitSha,
+    source_archive_sha256: sourceArchiveSha256,
+    source_bundle_sha256: sourceBundleSha256,
+  });
+  assert.equal(body.live_verified, false);
+  assert.equal(body.gate_promotion_performed, false);
+  assert.equal(body.secret_output, false);
+  assert.deepEqual(body.blockers, []);
+  assert.deepEqual({
+    oauthStates: fakeEnv.DB.oauthStates.size,
+    refreshFamilies: fakeEnv.DB.refreshFamilies.size,
+    refreshHistory: fakeEnv.DB.refreshHistory.size,
+    audit: fakeEnv.DB.audit.length,
+  }, before);
+
+  const blocked = await worker.fetch(
+    new Request("https://state.example/api/v1/auth/evidence/status"),
+    env({ productionAuthOwnerGranted: "false", sourceCommitSha, sourceArchiveSha256, sourceBundleSha256 }),
+  );
+  const blockedBody = await blocked.json();
+  assert.equal(blocked.status, 200);
+  assert.equal(blockedBody.status, "blocked");
+  assert.equal(blockedBody.evidence_collection_ready, false);
+  assert.deepEqual(blockedBody.blockers, ["production_auth_identity_owner_grant"]);
+  assert.equal(blockedBody.live_verified, false);
+});
+
 test("OAuth refresh expiry migration fixes the seven-day invariant without modifying prior migrations", () => {
   const migration = readFileSync(new URL("../migrations/0007_oauth_refresh_expiry.sql", import.meta.url), "utf8");
   assert.match(migration, /ALTER TABLE refresh_token_families\s+ADD COLUMN expires_at TEXT;/);
@@ -2423,7 +2510,7 @@ test("OAuth callback validates state, exchanges token, enforces owner allowlist,
     const newCookies = refreshRes.headers.getSetCookie ? refreshRes.headers.getSetCookie() : [refreshRes.headers.get("set-cookie")];
     const newCookieHeaderString = newCookies.join("\n");
     const newRefreshMatch = newCookieHeaderString.match(/__Host-sb_refresh=([^;]+)/);
-    const newRefreshToken = newRefreshMatch[1];
+    assert.ok(newRefreshMatch?.[1]);
 
     // 5. Test Replay Attack: Reusing old refresh token must fail with 401, revoke family, and blacklist
     const replayReq = new Request("https://state.example/api/v1/auth/refresh", {
@@ -2437,22 +2524,52 @@ test("OAuth callback validates state, exchanges token, enforces owner allowlist,
     assert.ok(fakeEnv.DB.audit.some((a) => a.event_type === "auth_refresh_reuse_blocked"));
 
     // Family is revoked in D1
-    const [family] = [...fakeEnv.DB.refreshFamilies.values()];
-    assert.ok(family.revoked_at);
-    assert.equal(family.revocation_reason, "token_replay_detected");
+    const [replayFamily] = [...fakeEnv.DB.refreshFamilies.values()];
+    assert.ok(replayFamily.revoked_at);
+    assert.equal(replayFamily.revocation_reason, "token_replay_detected");
 
-    // 6. Test /api/v1/auth/logout
+    // 6. Establish a distinct active token family for logout. The replay family
+    // is intentionally terminal and can never satisfy the logout rubric.
+    const logoutState = "phase3-auth-state-logoutfamily12345678901234";
+    fakeEnv.DB.oauthStates.set(logoutState, {
+      state: logoutState,
+      created_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 600000).toISOString(),
+    });
+    const logoutFamilyCallback = await worker.fetch(new Request(
+      `https://state.example/api/v1/auth/callback?code=gh_code_logout_family&state=${logoutState}`,
+      { headers: { cookie: `__Host-sb_oauth_state=${logoutState}` } },
+    ), fakeEnv);
+    assert.equal(logoutFamilyCallback.status, 200);
+    const logoutRefreshToken = cookieValue(logoutFamilyCallback, "__Host-sb_refresh");
+    assert.ok(logoutRefreshToken);
+    const [familyA, familyB] = [...fakeEnv.DB.refreshFamilies.values()];
+    assert.equal(fakeEnv.DB.refreshFamilies.size, 2);
+    assert.notEqual(familyA.family_id, familyB.family_id);
+    assert.equal(familyA.family_id, replayFamily.family_id);
+    assert.equal(familyA.revocation_reason, "token_replay_detected");
+    assert.equal(familyB.revoked_at, null);
+
+    // 7. Logout revokes active family B and post-logout refresh remains closed.
     const logoutReq = new Request("https://state.example/api/v1/auth/logout", {
       method: "POST",
-      headers: { cookie: `__Host-sb_refresh=${newRefreshToken}` },
+      headers: { cookie: `__Host-sb_refresh=${logoutRefreshToken}` },
     });
     const logoutRes = await worker.fetch(logoutReq, fakeEnv);
     assert.equal(logoutRes.status, 200);
     const logoutBody = await logoutRes.json();
     assert.equal(logoutBody.status, "logged_out");
-    assert.ok(fakeEnv.DB.audit.some((a) => a.event_type === "auth_logout_no_active_token"));
+    assert.equal(logoutBody.refresh_token_revoked, true);
+    assert.ok(fakeEnv.DB.audit.some((a) => a.event_type === "auth_logout_revoked"));
+    assert.equal(familyB.revocation_reason, "user_logout");
+    const postLogoutRefresh = await worker.fetch(new Request("https://state.example/api/v1/auth/refresh", {
+      method: "POST",
+      headers: { cookie: `__Host-sb_refresh=${logoutRefreshToken}` },
+    }), fakeEnv);
+    assert.equal(postLogoutRefresh.status, 401);
+    assert.equal((await postLogoutRefresh.json()).reason, "revoked");
 
-    // 7. Disallowed owner ID returns 403
+    // 8. Disallowed owner ID returns 403
     mockGitHubUserId = 999999;
     const disallowedState = "phase3-auth-state-disallowed1234567890123456";
     fakeEnv.DB.oauthStates.set(disallowedState, {

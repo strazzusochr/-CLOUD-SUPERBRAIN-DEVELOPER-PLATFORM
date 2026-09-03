@@ -62,17 +62,64 @@ DELTA_ENTRY_KEYS = {
 
 # A scorer is admitted only after its implementation is evidence-only,
 # source-commit compatible, read-only, and covered by protocol tests. The key is
-# the exact (scope, cell_id); the value pins both the ledger audit string and the
-# argv tuple executed without a shell. The L5 scorer is deliberately limited to
-# the four RC30 hosted-MCP reports and the 56 -> 86 transition; registry/SBOM/
-# protected-publish credit remains outside its accepted evidence set.
-APPROVED_DELTA_SCORERS: dict[tuple[str, str], tuple[str, tuple[str, ...]]] = {
+# the exact (scope, cell_id, old_percent, new_percent) transition; the value pins
+# both the ledger audit string and the argv tuple executed without a shell. This
+# prevents an approved scorer for one bounded slice from being reused to hand-raise
+# the same cell to any other percentage.
+APPROVED_DELTA_SCORERS: dict[tuple[str, str, int, int], tuple[str, tuple[str, ...]]] = {
+    (
+        "horizontal",
+        "phase_3",
+        44,
+        100,
+    ): (
+        "python scripts/score_phase3_oauth_credit.py --score-v1",
+        ("python", "scripts/score_phase3_oauth_credit.py", "--score-v1"),
+    ),
+    (
+        "horizontal",
+        "phase_5",
+        89,
+        100,
+    ): (
+        "python scripts/score_phase5_market_ready_credit.py --score-v1",
+        ("python", "scripts/score_phase5_market_ready_credit.py", "--score-v1"),
+    ),
+    (
+        "horizontal",
+        "phase_6",
+        90,
+        100,
+    ): (
+        "python scripts/score_phase6_scale_credit.py --score-v1",
+        ("python", "scripts/score_phase6_scale_credit.py", "--score-v1"),
+    ),
+    (
+        "vertical",
+        "layer_4",
+        55,
+        100,
+    ): (
+        "python scripts/score_layer4_hosted_llm_credit.py --score-v1",
+        ("python", "scripts/score_layer4_hosted_llm_credit.py", "--score-v1"),
+    ),
     (
         "vertical",
         "layer_5",
+        56,
+        86,
     ): (
         "python scripts/score_layer5_hosted_mcp_credit.py --score-v1",
         ("python", "scripts/score_layer5_hosted_mcp_credit.py", "--score-v1"),
+    ),
+    (
+        "vertical",
+        "layer_5",
+        86,
+        100,
+    ): (
+        "python scripts/score_layer5_registry_release_credit.py --score-v1",
+        ("python", "scripts/score_layer5_registry_release_credit.py", "--score-v1"),
     ),
 }
 DELTA_SCORER_TIMEOUT_SECONDS = 30
@@ -654,7 +701,12 @@ def execute_approved_delta_scorer(
     # Approved scorers must read evidence from source_sha:artifact_path (Git object
     # bytes), never by following the current working-tree path. The replay verifies
     # those committed bytes before invoking any scorer.
-    scorer_key = (entry["scope"], entry["cell_id"])
+    scorer_key = (
+        entry["scope"],
+        entry["cell_id"],
+        entry["old_percent"],
+        entry["new_percent"],
+    )
     scorer_spec = APPROVED_DELTA_SCORERS.get(scorer_key)
     require(scorer_spec is not None, f"{context} cell has no statically approved evidence scorer")
     require(
@@ -667,7 +719,8 @@ def execute_approved_delta_scorer(
     approved_command, approved_argv = scorer_spec
     require(
         entry["verifier_command"] == approved_command,
-        f"{context} verifier_command is not the statically approved scorer for {scorer_key[0]}/{scorer_key[1]}",
+        f"{context} verifier_command is not the statically approved scorer for "
+        f"{scorer_key[0]}/{scorer_key[1]} {scorer_key[2]}->{scorer_key[3]}",
     )
     require(
         approved_argv

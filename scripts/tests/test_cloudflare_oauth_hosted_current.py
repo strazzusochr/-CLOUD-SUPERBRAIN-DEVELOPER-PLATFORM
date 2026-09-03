@@ -31,7 +31,10 @@ WORKER_ORIGIN = "https://auth-fixture.example.workers.dev"
 FRONTEND_DEPLOYMENT_ID = "frontend-deployment-fixture"
 WORKER_DEPLOYMENT_ID = "worker-deployment-fixture"
 WORKER_ARCHIVE_SHA = "a" * 64
-SESSION_SHA = hashlib.sha256(b"sanitized-session-correlation").hexdigest()
+SESSION_A_SHA = hashlib.sha256(b"sanitized-session-correlation-family-a").hexdigest()
+SESSION_B_SHA = hashlib.sha256(b"sanitized-session-correlation-family-b").hexdigest()
+FAMILY_A_SHA = hashlib.sha256(b"refresh-family-a").hexdigest()
+FAMILY_B_SHA = hashlib.sha256(b"refresh-family-b").hexdigest()
 
 STEP_NAMES = [
     "anonymous_login_no_identity",
@@ -152,6 +155,14 @@ def observation_fact_sha256(observations: list[dict[str, object]]) -> str:
     return sha256_text("\n".join(lines))
 
 
+def session_sha_for_step_index(step_index: int) -> str | None:
+    if step_index < 4:
+        return None
+    if step_index < 10:
+        return SESSION_A_SHA
+    return SESSION_B_SHA
+
+
 class CloudflareOauthHostedCurrentTests(unittest.TestCase):
     def git(self, root: Path, *args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
@@ -170,7 +181,7 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
         return payload
 
     def make_repo(
-        self, target: str = "preview"
+        self, target: str = "production"
     ) -> tuple[tempfile.TemporaryDirectory[str], Path, str]:
         directory = tempfile.TemporaryDirectory()
         root = Path(directory.name)
@@ -180,6 +191,12 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
         self.git(root, "init", "--quiet")
         self.git(root, "config", "user.email", "oauth-verifier@example.invalid")
         self.git(root, "config", "user.name", "OAuth Verifier Test")
+        (root / "frontend-source.txt").write_text(
+            "existing canonical frontend source\n", encoding="utf-8"
+        )
+        self.git(root, "add", "frontend-source.txt")
+        self.git(root, "commit", "--quiet", "-m", "frontend source")
+        frontend_source_sha = self.git(root, "rev-parse", "HEAD").stdout.strip()
         (root / "candidate-source.txt").write_text(
             "immutable OAuth candidate source\n", encoding="utf-8"
         )
@@ -203,14 +220,14 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
         frontend = {
             "contract_version": "frontend-hosted-current-proof-v1",
             "status": "verified",
-            "source_commit_sha": candidate_sha,
+            "source_commit_sha": frontend_source_sha,
             "deployment_id": FRONTEND_DEPLOYMENT_ID,
             "immutable_deployment_url": IMMUTABLE_FRONTEND_ORIGIN,
-            "production_alias": None,
-            "vercel_target": "preview",
+            "production_alias": FRONTEND_ORIGIN,
+            "vercel_target": "production",
             "deployment_metadata_verified": True,
-            "deployment_alias_content_parity": False,
-            "production_operational_deploy_verified": False,
+            "deployment_alias_content_parity": True,
+            "production_operational_deploy_verified": True,
             "production_release_claimed": False,
         }
         frontend_payload = self.write_json(root, FRONTEND_REF, frontend)
@@ -221,7 +238,7 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
             "owner_approved": True,
             "selected_architecture": "cloudflare_native",
             "target": target,
-            "callback_origin": IMMUTABLE_FRONTEND_ORIGIN,
+            "callback_origin": FRONTEND_ORIGIN,
             "source_commit_sha": candidate_sha,
             "auth_runtime_evidence_ref": RUNTIME_REF,
             "auth_runtime_verifier_ref": "scripts/verify-cloudflare-oauth-hosted-current.ps1",
@@ -237,7 +254,7 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
             "target": target,
             "architecture": "cloudflare_native",
             "oauth_scope": "read:user",
-            "frontend_origin": IMMUTABLE_FRONTEND_ORIGIN,
+            "frontend_origin": FRONTEND_ORIGIN,
             "worker_origin": WORKER_ORIGIN,
             "real_provider_consent_approved": True,
             "approved_at": "2026-08-30T10:00:00Z",
@@ -283,7 +300,7 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
                         "http_status": STEP_CONTRACT[step_index][2],
                         "fact_codes": FACT_CODES[kind][step],
                         "request_correlation_sha256": request_hashes[step_index],
-                        "session_correlation_sha256": None if step_index < 4 else SESSION_SHA,
+                        "session_correlation_sha256": session_sha_for_step_index(step_index),
                         "source_record_sha256": sha256_text(f"raw-derived-{kind}-{step}"),
                     }
                 )
@@ -297,7 +314,13 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
                 "worker_deployment_id_sha256": worker_deployment_hash,
                 "covered_steps": covered,
                 "request_correlation_sha256s": covered_requests,
-                "session_correlation_sha256": SESSION_SHA,
+                "session_correlation_sha256s": list(
+                    dict.fromkeys(
+                        session_sha_for_step_index(STEP_NAMES.index(step))
+                        for step in covered
+                        if session_sha_for_step_index(STEP_NAMES.index(step)) is not None
+                    )
+                ),
                 "audit_event_types": audit_events if kind == "audit_readback" else [],
                 "generated_at": "2026-08-30T10:05:00Z",
                 "raw_capture_sha256": sha256_text(f"ephemeral-raw-capture-{kind}"),
@@ -374,7 +397,7 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
                     "d1_readback_match_count": 1 if d1 else 0,
                     "credential_issue_count": 1 if credentials else 0,
                     "request_correlation_sha256": request_hashes[index - 1],
-                    "session_correlation_sha256": None if index <= 4 else SESSION_SHA,
+                    "session_correlation_sha256": session_sha_for_step_index(index - 1),
                     "evidence": evidence,
                     "secret_value_count": 0,
                 }
@@ -409,14 +432,14 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
             "architecture": "cloudflare_native",
             "source_binding": {
                 "candidate_source_commit_sha": candidate_sha,
-                "frontend_source_commit_sha": candidate_sha,
+                "frontend_source_commit_sha": frontend_source_sha,
                 "worker_source_commit_sha": candidate_sha,
                 "worker_source_archive_sha256": WORKER_ARCHIVE_SHA,
                 "frontend_deployment_id_sha256": frontend_deployment_hash,
                 "worker_deployment_id_sha256": worker_deployment_hash,
-                "frontend_origin": IMMUTABLE_FRONTEND_ORIGIN,
+                "frontend_origin": FRONTEND_ORIGIN,
                 "worker_origin": WORKER_ORIGIN,
-                "callback_url": f"{IMMUTABLE_FRONTEND_ORIGIN}/api/v1/auth/callback",
+                "callback_url": f"{FRONTEND_ORIGIN}/api/v1/auth/callback",
                 "frontend_evidence_ref": FRONTEND_REF,
                 "frontend_evidence_sha256": sha256_bytes(frontend_payload),
                 "runtime_evidence_sha256": sha256_bytes(runtime_payload),
@@ -428,7 +451,7 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
                 "live_consent_approval_sha256": sha256_bytes(consent_payload),
                 "owner_approved_candidate_sha": candidate_sha,
                 "approved_oauth_scope": "read:user",
-                "approved_callback_origin": IMMUTABLE_FRONTEND_ORIGIN,
+                "approved_callback_origin": FRONTEND_ORIGIN,
                 "approved_worker_origin": WORKER_ORIGIN,
             },
             "sensitive_hash_bindings": sensitive_hash_bindings,
@@ -449,6 +472,36 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
                 "completed_at": "2026-08-30T10:10:00Z",
             },
             "human_flow_steps": steps,
+            "token_families": {
+                "contract_version": "cloudflare-oauth-token-families-v1",
+                "distinct_family_count": 2,
+                "distinct_family_ids_verified": True,
+                "families": [
+                    {
+                        "label": "family_a",
+                        "purpose": "refresh_replay",
+                        "family_id_sha256": FAMILY_A_SHA,
+                        "session_correlation_sha256": SESSION_A_SHA,
+                        "issuance_evidence_step": "callback_one_time_state",
+                        "terminal_evidence_step": "old_refresh_replay_rejected",
+                        "terminal_reason": "token_replay_detected",
+                        "terminal_http_status": 401,
+                        "credential_issue_after_terminal_count": 0,
+                    },
+                    {
+                        "label": "family_b",
+                        "purpose": "logout",
+                        "family_id_sha256": FAMILY_B_SHA,
+                        "session_correlation_sha256": SESSION_B_SHA,
+                        "issuance_evidence_step": "independent_family_b_callback",
+                        "terminal_evidence_step": "logout_revocation_audited",
+                        "terminal_reason": "user_logout",
+                        "terminal_http_status": 200,
+                        "credential_issue_after_terminal_count": 0,
+                    },
+                ],
+                "secret_value_count": 0,
+            },
             "scorer_outputs": {
                 kind: {"ref": SCORER_REFS[kind], "sha256": scorer_hashes[kind]}
                 for kind in ("browser", "d1_readback", "audit_readback")
@@ -551,10 +604,10 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
                 if path.is_file() and ".git" not in path.parts
             )
         self.assertEqual(completed.returncode, 0, completed.stderr)
-        self.assertIn("status=evidence_envelope_valid architecture=cloudflare_native", completed.stdout)
+        self.assertIn("status=verified architecture=cloudflare_native", completed.stdout)
         self.assertIn("exact_human_flow_steps=12 atomic_replay_evidence=scored", completed.stdout)
         self.assertIn(
-            "read_only=true source_parity=true proof_scope=hosted_candidate", completed.stdout
+            "read_only=true source_parity=true proof_scope=production_identity", completed.stdout
         )
         self.assertIn(
             "full_live_proof=false production_release=false gate_promotion_performed=false live_verified_set=false secret_output=false",
@@ -639,6 +692,26 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
                 self.assertNotEqual(completed.returncode, 0)
                 self.assertIn(field, completed.stderr)
 
+    def test_refresh_replay_and_logout_require_two_distinct_token_families(self) -> None:
+        mutations = (
+            lambda flow: flow["token_families"]["families"][1].__setitem__(
+                "family_id_sha256", FAMILY_A_SHA
+            ),
+            lambda flow: flow["token_families"]["families"][1].__setitem__(
+                "session_correlation_sha256", SESSION_A_SHA
+            ),
+            lambda flow: flow["human_flow_steps"][10].__setitem__(
+                "session_correlation_sha256", SESSION_A_SHA
+            ),
+        )
+        for mutate in mutations:
+            directory, root, candidate_sha = self.make_repo()
+            with directory:
+                self.update_flow(root, mutate)
+                completed = self.run_verifier(root, candidate_sha, "-ValidateOnly")
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertRegex(completed.stderr.lower(), r"famil(?:y|ies)")
+
     def test_callback_refresh_logout_audit_correlation_fail_closed(self) -> None:
         directory, root, candidate_sha = self.make_repo()
         with directory:
@@ -719,35 +792,35 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("Hosted mode requires explicit HostedBaseUrl", completed.stderr)
 
-    def test_preview_and_staging_are_allowed_but_production_target_is_rejected(self) -> None:
+    def test_production_target_is_required_and_alias_parity_is_fail_closed(self) -> None:
+        directory, root, candidate_sha = self.make_repo(target="production")
+        with directory:
+            completed = self.run_verifier(root, candidate_sha, "-ValidateOnly")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
         for target in ("preview", "staging"):
             with self.subTest(target=target):
                 directory, root, candidate_sha = self.make_repo(target=target)
                 with directory:
                     completed = self.run_verifier(root, candidate_sha, "-ValidateOnly")
-                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertIn("production", completed.stderr)
 
         directory, root, candidate_sha = self.make_repo(target="production")
         with directory:
-            completed = self.run_verifier(root, candidate_sha, "-ValidateOnly")
-        self.assertNotEqual(completed.returncode, 0)
-        self.assertIn("preview or staging", completed.stderr)
-
-        directory, root, candidate_sha = self.make_repo(target="preview")
-        with directory:
             frontend_path = root / FRONTEND_REF
             frontend = json.loads(frontend_path.read_text(encoding="utf-8"))
-            frontend["production_alias"] = FRONTEND_ORIGIN
+            frontend["deployment_alias_content_parity"] = False
             frontend_path.write_bytes(json_bytes(frontend))
             frontend_hash = sha256_bytes(frontend_path.read_bytes())
             flow_path = root / FLOW_REF
             flow = json.loads(flow_path.read_text(encoding="utf-8"))
             flow["source_binding"]["frontend_evidence_sha256"] = frontend_hash
             flow_path.write_bytes(json_bytes(flow))
-            self.commit_all(root, "injected production alias")
+            self.commit_all(root, "removed production alias parity")
             completed = self.run_verifier(root, candidate_sha, "-ValidateOnly")
         self.assertNotEqual(completed.returncode, 0)
-        self.assertIn("must not bind or require a production alias", completed.stderr)
+        self.assertIn("alias", completed.stderr.lower())
 
     def test_artifact_and_scorer_tampering_cannot_be_replaced_by_boolean_claims(self) -> None:
         directory, root, candidate_sha = self.make_repo()

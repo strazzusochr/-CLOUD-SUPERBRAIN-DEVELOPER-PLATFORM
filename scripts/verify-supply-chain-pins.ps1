@@ -42,16 +42,16 @@ if ($workflowFiles.Count -eq 0) {
 
 $expectedActions = @(
   [pscustomobject]@{ Action = "actions/checkout"; Sha = "11d5960a326750d5838078e36cf38b85af677262"; Comment = "v4"; Count = 1 },
-  [pscustomobject]@{ Action = "actions/checkout"; Sha = "d23441a48e516b6c34aea4fa41551a30e30af803"; Comment = "v6"; Count = 8 },
-  [pscustomobject]@{ Action = "actions/upload-artifact"; Sha = "ea165f8d65b6e75b540449e92b4886f43607fa02"; Comment = "v4.6.2"; Count = 3 },
+  [pscustomobject]@{ Action = "actions/checkout"; Sha = "d23441a48e516b6c34aea4fa41551a30e30af803"; Comment = "v6"; Count = 10 },
+  [pscustomobject]@{ Action = "actions/upload-artifact"; Sha = "ea165f8d65b6e75b540449e92b4886f43607fa02"; Comment = "v4.6.2"; Count = 5 },
   [pscustomobject]@{ Action = "actions/setup-node"; Sha = "49933ea5288caeca8642d1e84afbd3f7d6820020"; Comment = "v4"; Count = 1 },
   [pscustomobject]@{ Action = "actions/setup-node"; Sha = "249970729cb0ef3589644e2896645e5dc5ba9c38"; Comment = "v6"; Count = 1 },
   [pscustomobject]@{ Action = "actions/setup-python"; Sha = "a26af69be951a213d495a4c3e4e4022e16d87065"; Comment = "v5"; Count = 1 },
-  [pscustomobject]@{ Action = "actions/setup-python"; Sha = "ece7cb06caefa5fff74198d8649806c4678c61a1"; Comment = "v6"; Count = 3 },
+  [pscustomobject]@{ Action = "actions/setup-python"; Sha = "ece7cb06caefa5fff74198d8649806c4678c61a1"; Comment = "v6"; Count = 4 },
   [pscustomobject]@{ Action = "pnpm/action-setup"; Sha = "eae0cfeb286e66ffb5155f1a79b90583a127a68b"; Comment = "v2.4.1"; Count = 1 },
   [pscustomobject]@{ Action = "docker/setup-qemu-action"; Sha = "96fe6ef7f33517b61c61be40b68a1882f3264fb8"; Comment = "v4"; Count = 1 },
-  [pscustomobject]@{ Action = "docker/setup-buildx-action"; Sha = "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c"; Comment = "v4"; Count = 1 },
-  [pscustomobject]@{ Action = "docker/login-action"; Sha = "abd2ef45e78c5afb21d64d4ca52ee8550d9572c7"; Comment = "v4"; Count = 1 },
+  [pscustomobject]@{ Action = "docker/setup-buildx-action"; Sha = "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c"; Comment = "v4"; Count = 2 },
+  [pscustomobject]@{ Action = "docker/login-action"; Sha = "abd2ef45e78c5afb21d64d4ca52ee8550d9572c7"; Comment = "v4"; Count = 2 },
   [pscustomobject]@{ Action = "docker/build-push-action"; Sha = "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a"; Comment = "v7"; Count = 1 }
 )
 
@@ -105,8 +105,8 @@ foreach ($relativePath in $workflowFiles) {
   }
 }
 
-if ($externalActionCount -ne 23) {
-  Fail-SupplyChainVerification "expected exactly 23 external action references, found $externalActionCount"
+if ($externalActionCount -ne 30) {
+  Fail-SupplyChainVerification "expected exactly 30 external action references, found $externalActionCount"
 }
 foreach ($key in $expectedActionKeys.Keys) {
   $actual = if ($actualActionCounts.ContainsKey($key)) { [int]$actualActionCounts[$key] } else { 0 }
@@ -152,10 +152,10 @@ $imageFiles = @(
 $expectedImageOccurrences = @{
   "apps/frontend/Dockerfile|node:24.16.0-alpine" = 4
   "services/agent-api/Dockerfile|python:3.14-alpine" = 2
-  "services/agent-worker/Dockerfile|python:3.14-slim" = 1
-  "services/llm-gateway/Dockerfile|python:3.14-slim" = 1
-  "services/mcp-gateway/Dockerfile|python:3.14-slim" = 1
-  "services/memory-worker/Dockerfile|python:3.14-slim" = 1
+  "services/agent-worker/Dockerfile|python:3.14-alpine" = 1
+  "services/llm-gateway/Dockerfile|python:3.14-alpine" = 1
+  "services/mcp-gateway/Dockerfile|python:3.14-alpine" = 1
+  "services/memory-worker/Dockerfile|python:3.14-alpine" = 1
   "docker-compose.dev.yml|ghcr.io/ggml-org/llama.cpp:server" = 1
   "docker-compose.dev.yml|pgvector/pgvector:0.8.2-pg16" = 1
   "docker-compose.dev.yml|redis:7.4.2-alpine" = 1
@@ -246,8 +246,8 @@ foreach ($imageFile in $imageFiles) {
 if ($externalImageCount -ne 18) {
   Fail-SupplyChainVerification "expected exactly 18 external image occurrences, found $externalImageCount"
 }
-if ($actualUniqueImages.Count -ne 9) {
-  Fail-SupplyChainVerification "expected exactly 9 unique external images, found $($actualUniqueImages.Count)"
+if ($actualUniqueImages.Count -ne 8) {
+  Fail-SupplyChainVerification "expected exactly 8 unique external images, found $($actualUniqueImages.Count)"
 }
 if ($internalVariableImageCount -ne 6) {
   Fail-SupplyChainVerification "expected exactly 6 variable internal GHCR image references, found $internalVariableImageCount"
@@ -264,4 +264,41 @@ foreach ($key in $expectedImageOccurrences.Keys) {
   }
 }
 
-Write-Host "[verify] supply-chain pins PASS (23 external actions, 18 external image occurrences, 9 unique external images, 6 internal GHCR references)"
+# Runtime-image hardening: scanners and package managers stay in CI/build stages,
+# while every shipped Alpine Python image applies repository security updates.
+$pythonRuntimeDockerfiles = @(
+  "services/agent-api/Dockerfile",
+  "services/agent-worker/Dockerfile",
+  "services/llm-gateway/Dockerfile",
+  "services/mcp-gateway/Dockerfile",
+  "services/memory-worker/Dockerfile"
+)
+foreach ($relativePath in $pythonRuntimeDockerfiles) {
+  $dockerfileText = Get-Content -LiteralPath (Join-Path $repoRoot $relativePath) -Raw
+  if (-not $dockerfileText.Contains("apk upgrade --no-cache")) {
+    Fail-SupplyChainVerification "runtime security upgrade is missing from $relativePath"
+  }
+}
+
+$agentApiDockerfile = Get-Content -LiteralPath (Join-Path $repoRoot "services/agent-api/Dockerfile") -Raw
+if ($agentApiDockerfile -match '(?i)gitleaks') {
+  Fail-SupplyChainVerification "agent-api serving image must not embed the CI-only gitleaks scanner"
+}
+
+$frontendDockerfile = Get-Content -LiteralPath (Join-Path $repoRoot "apps/frontend/Dockerfile") -Raw
+$frontendRunner = [regex]::Match($frontendDockerfile, '(?ms)^FROM .+ AS runner\s*(?<body>.*)\z')
+if (-not $frontendRunner.Success) {
+  Fail-SupplyChainVerification "frontend production runner stage is missing"
+}
+$frontendRunnerBody = $frontendRunner.Groups['body'].Value
+if (-not $frontendRunnerBody.Contains("apk upgrade --no-cache")) {
+  Fail-SupplyChainVerification "frontend production runner does not apply Alpine security updates"
+}
+if (-not $frontendRunnerBody.Contains("rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx")) {
+  Fail-SupplyChainVerification "frontend production runner retains the npm package-manager surface"
+}
+if (-not $frontendRunnerBody.Contains('CMD ["node", "node_modules/next/dist/bin/next", "start"')) {
+  Fail-SupplyChainVerification "frontend production runner does not start Next directly with Node"
+}
+
+Write-Host "[verify] supply-chain pins PASS (30 external actions, 18 external image occurrences, 8 unique external images, 6 internal GHCR references)"

@@ -5,7 +5,8 @@
   Default mode is read-only. Promotion requires -Promote plus the exact current
   capability-state and phase6 gate identity hashes. The Owner grant must already
   exist in canonical capability-gates.json before the live run; this verifier
-  never creates, replaces, or derives that grant. No token or live HTTP is used.
+  never creates, replaces, or derives that grant. No token or provider/Worker HTTP
+  is used; anonymous GitHub execution/artifact readback is required in live mode.
 #>
 [CmdletBinding()]
 param(
@@ -13,6 +14,7 @@ param(
   [string]$EvidencePath,
   [string]$CriterionPath,
   [string]$HostedStatePath,
+  [string]$DeploymentPreflightStatePath,
   [string]$CapabilityStatePath,
   [string]$ExecutionReadbackPath,
   [switch]$Promote,
@@ -44,10 +46,13 @@ $preferredTestRoot = if (-not [string]::IsNullOrWhiteSpace($env:SUPERBRAIN_TEST_
 $testRoot = [IO.Path]::GetFullPath($preferredTestRoot).TrimEnd('\', '/')
 $canonicalCriterion = [IO.Path]::GetFullPath((Join-Path $repoRoot 'docs\runtime-state\phase6-scale-criterion.json'))
 $canonicalHostedState = [IO.Path]::GetFullPath((Join-Path $repoRoot 'docs\runtime-state\cloudflare-native-hosted-current.json'))
+$canonicalDeploymentPreflightState = [IO.Path]::GetFullPath((Join-Path $repoRoot 'docs\runtime-state\phase6-scale-hosted-current.json'))
 $canonicalCapabilityState = [IO.Path]::GetFullPath((Join-Path $repoRoot 'docs\runtime-state\capability-gates.json'))
 $canonicalRuntimeVerifier = [IO.Path]::GetFullPath((Join-Path $repoRoot 'scripts\verify-phase6-scale-runtime.ps1'))
+$minimumLoopFixCommit = 'c24b7bfddc37cfa0c16d1ebc7f70829417ac4080'
 if (-not $CriterionPath) { $CriterionPath = $canonicalCriterion }
 if (-not $HostedStatePath) { $HostedStatePath = $canonicalHostedState }
+if (-not $DeploymentPreflightStatePath) { $DeploymentPreflightStatePath = $canonicalDeploymentPreflightState }
 if (-not $CapabilityStatePath) { $CapabilityStatePath = $canonicalCapabilityState }
 
 function Assert-True([bool]$Condition, [string]$Message) {
@@ -114,7 +119,11 @@ function Assert-LiveGithubExecutionProvenance(
   $CapturedReadback,
   [string]$EvidenceFile,
   [string]$EvidenceSidecar,
-  [string]$EvidenceDigest
+  [string]$EvidenceDigest,
+  [string]$EnvironmentReviewFile,
+  [string]$EnvironmentReviewSidecar,
+  [string]$EnvironmentReviewDigest,
+  [string]$EnvironmentReviewSidecarDigest
 ) {
   Add-Type -AssemblyName System.Net.Http
   Add-Type -AssemblyName System.IO.Compression
@@ -132,12 +141,21 @@ function Assert-LiveGithubExecutionProvenance(
     $artifactId = [long]$CapturedReadback.artifact.id
     $runApiUrl = "https://api.github.com/repos/$repository/actions/runs/$runId"
     $artifactApiUrl = "https://api.github.com/repos/$repository/actions/artifacts/$artifactId"
+    $queryHeadSha = [Uri]::EscapeDataString([string]$Binding.head_sha)
+    $workflowRunsApiUrl = "https://api.github.com/repos/$repository/actions/workflows/phase6-scale-runtime.yml/runs?event=workflow_dispatch&head_sha=$queryHeadSha&per_page=100"
+    $approvalsApiUrl = "https://api.github.com/repos/$repository/actions/runs/$runId/approvals"
     $liveRunResponse = Get-HttpBytes $client $runApiUrl 2097152 'GitHub workflow-run API'
     $liveArtifactResponse = Get-HttpBytes $client $artifactApiUrl 2097152 'GitHub artifact API'
+    $workflowRunsResponse = Get-HttpBytes $client $workflowRunsApiUrl 4194304 'GitHub one-shot workflow-run API'
+    $approvalsResponse = Get-HttpBytes $client $approvalsApiUrl 2097152 'GitHub Environment-review API'
     Assert-True ($liveRunResponse.final_uri.AbsoluteUri -ceq $runApiUrl) 'GitHub workflow-run API redirected unexpectedly.'
     Assert-True ($liveArtifactResponse.final_uri.AbsoluteUri -ceq $artifactApiUrl) 'GitHub artifact API redirected unexpectedly.'
+    Assert-True ($workflowRunsResponse.final_uri.AbsoluteUri -ceq $workflowRunsApiUrl) 'GitHub one-shot workflow-run API redirected unexpectedly.'
+    Assert-True ($approvalsResponse.final_uri.AbsoluteUri -ceq $approvalsApiUrl) 'GitHub Environment-review API redirected unexpectedly.'
     $liveRun = ([Text.Encoding]::UTF8.GetString($liveRunResponse.bytes) | ConvertFrom-Json -Depth 20)
     $liveArtifact = ([Text.Encoding]::UTF8.GetString($liveArtifactResponse.bytes) | ConvertFrom-Json -Depth 20)
+    $workflowRuns = ([Text.Encoding]::UTF8.GetString($workflowRunsResponse.bytes) | ConvertFrom-Json -Depth 20)
+    $approvalHistory = @([Text.Encoding]::UTF8.GetString($approvalsResponse.bytes) | ConvertFrom-Json -Depth 20)
     foreach ($field in @('id', 'run_attempt', 'event', 'status', 'conclusion', 'head_branch', 'head_sha', 'html_url', 'created_at', 'updated_at')) {
       Assert-True ([string]$liveRun.$field -ceq [string]$CapturedReadback.run.$field) "Live GitHub run $field differs from the captured readback."
     }
@@ -146,6 +164,27 @@ function Assert-LiveGithubExecutionProvenance(
     }
     Assert-True ([string]$liveArtifact.workflow_run.id -ceq [string]$CapturedReadback.artifact.workflow_run.id) 'Live GitHub artifact run ID differs from the captured readback.'
     Assert-True ([string]$liveArtifact.workflow_run.head_sha -ceq [string]$CapturedReadback.artifact.workflow_run.head_sha) 'Live GitHub artifact head SHA differs from the captured readback.'
+    Assert-True ([int64]$workflowRuns.total_count -eq 1) 'GitHub post-run one-shot read found more or fewer than one dispatch for the execution-control SHA.'
+    $matchingRuns = @($workflowRuns.workflow_runs | Where-Object {
+      [long]$_.id -eq $runId -and [int]$_.run_attempt -eq 1 -and
+      [string]$_.event -ceq 'workflow_dispatch' -and [string]$_.head_sha -ceq [string]$Binding.head_sha
+    })
+    Assert-True ($matchingRuns.Count -eq 1) 'GitHub post-run one-shot read does not bind the exact run/attempt/head.'
+    $reviewBinding = $Binding.environment_review
+    Assert-True ([string]$liveRun.actor.login -ceq [string]$reviewBinding.actor_login) 'Live GitHub run actor differs from the Environment-review binding.'
+    Assert-True ([string]$liveRun.triggering_actor.login -ceq [string]$reviewBinding.triggering_actor_login) 'Live GitHub triggering actor differs from the Environment-review binding.'
+    $matchingReviews = @($approvalHistory | Where-Object {
+      $environments = @($_.environments)
+      $environments.Count -eq 1 -and [string]$environments[0].name -ceq [string]$reviewBinding.environment_name
+    })
+    Assert-True ($matchingReviews.Count -eq 1) 'GitHub review history does not contain exactly one bound Environment review.'
+    $matchingReview = $matchingReviews[0]
+    $matchingEnvironment = @($matchingReview.environments)[0]
+    Assert-True ([string]$matchingReview.state -ceq 'approved') 'GitHub Environment review is not approved.'
+    Assert-True ([string]$matchingEnvironment.id -ceq [string]$reviewBinding.environment_id) 'Live GitHub Environment ID differs from the evidence binding.'
+    Assert-True ([string]$matchingReview.user.login -ceq [string]$reviewBinding.reviewer_login -and
+      [string]$matchingReview.user.id -ceq [string]$reviewBinding.reviewer_id -and
+      [string]$matchingReview.user.type -ceq [string]$reviewBinding.reviewer_type) 'Live GitHub reviewer identity differs from the evidence binding.'
 
     $archiveResponse = Get-HttpBytes $client ([string]$liveArtifact.archive_download_url) 33554432 'GitHub execution artifact'
     $archiveHost = $archiveResponse.final_uri.Host.ToLowerInvariant()
@@ -165,21 +204,36 @@ function Assert-LiveGithubExecutionProvenance(
       try {
         $evidenceLeafName = [IO.Path]::GetFileName($EvidenceFile)
         $sidecarLeafName = [IO.Path]::GetFileName($EvidenceSidecar)
+        $environmentReviewLeafName = [IO.Path]::GetFileName($EnvironmentReviewFile)
+        $environmentReviewSidecarLeafName = [IO.Path]::GetFileName($EnvironmentReviewSidecar)
         $evidenceEntries = @($zip.Entries | Where-Object { [IO.Path]::GetFileName($_.FullName) -ceq $evidenceLeafName })
         $sidecarEntries = @($zip.Entries | Where-Object { [IO.Path]::GetFileName($_.FullName) -ceq $sidecarLeafName })
-        Assert-True ($evidenceEntries.Count -eq 1 -and $sidecarEntries.Count -eq 1) 'GitHub artifact must contain exactly one evidence file and one digest sidecar.'
+        $environmentReviewEntries = @($zip.Entries | Where-Object { [IO.Path]::GetFileName($_.FullName) -ceq $environmentReviewLeafName })
+        $environmentReviewSidecarEntries = @($zip.Entries | Where-Object { [IO.Path]::GetFileName($_.FullName) -ceq $environmentReviewSidecarLeafName })
+        Assert-True ($evidenceEntries.Count -eq 1 -and $sidecarEntries.Count -eq 1 -and
+          $environmentReviewEntries.Count -eq 1 -and $environmentReviewSidecarEntries.Count -eq 1) 'GitHub artifact must contain exactly one scale-evidence pair and one Environment-review pair.'
         $downloadedEvidence = [IO.MemoryStream]::new()
         $downloadedSidecar = [IO.MemoryStream]::new()
+        $downloadedEnvironmentReview = [IO.MemoryStream]::new()
+        $downloadedEnvironmentReviewSidecar = [IO.MemoryStream]::new()
         try {
           $entryStream = $evidenceEntries[0].Open()
           try { $entryStream.CopyTo($downloadedEvidence) } finally { $entryStream.Dispose() }
           $entryStream = $sidecarEntries[0].Open()
           try { $entryStream.CopyTo($downloadedSidecar) } finally { $entryStream.Dispose() }
+          $entryStream = $environmentReviewEntries[0].Open()
+          try { $entryStream.CopyTo($downloadedEnvironmentReview) } finally { $entryStream.Dispose() }
+          $entryStream = $environmentReviewSidecarEntries[0].Open()
+          try { $entryStream.CopyTo($downloadedEnvironmentReviewSidecar) } finally { $entryStream.Dispose() }
           Assert-True ((Get-BytesSha256 $downloadedEvidence.ToArray()) -eq $EvidenceDigest) 'Live GitHub artifact evidence bytes differ from the canonical evidence.'
           Assert-True ((Get-BytesSha256 $downloadedSidecar.ToArray()) -eq (Get-FileSha256 $EvidenceSidecar)) 'Live GitHub artifact sidecar bytes differ from the canonical sidecar.'
+          Assert-True ((Get-BytesSha256 $downloadedEnvironmentReview.ToArray()) -eq $EnvironmentReviewDigest) 'Live GitHub artifact Environment-review bytes differ from the canonical review.'
+          Assert-True ((Get-BytesSha256 $downloadedEnvironmentReviewSidecar.ToArray()) -eq $EnvironmentReviewSidecarDigest) 'Live GitHub artifact Environment-review sidecar bytes differ from the canonical sidecar.'
         } finally {
           $downloadedEvidence.Dispose()
           $downloadedSidecar.Dispose()
+          $downloadedEnvironmentReview.Dispose()
+          $downloadedEnvironmentReviewSidecar.Dispose()
         }
       } finally {
         $zip.Dispose()
@@ -384,7 +438,7 @@ function Assert-TrackedCleanAgainstHead([string]$RelativePath) {
 
 function Get-GitArchiveSha256([string]$CommitSha) {
   Assert-True ($CommitSha -match '^[0-9a-f]{40}$') 'Git archive source commit is invalid.'
-  $temporaryRoot = [IO.Path]::GetFullPath('D:\_sb_tmp')
+  $temporaryRoot = $testRoot
   New-Item -ItemType Directory -Force -Path $temporaryRoot | Out-Null
   $temporaryPath = Join-Path $temporaryRoot "phase6-evidence-archive-$([Guid]::NewGuid().ToString('N')).tar"
   try {
@@ -409,6 +463,7 @@ function Get-GateIdentity([object]$Gate) {
 $resolvedEvidence = Resolve-InputFile $EvidencePath 'Scale evidence'
 $resolvedCriterion = Resolve-InputFile $CriterionPath 'Scale criterion' $canonicalCriterion
 $resolvedHostedState = Resolve-InputFile $HostedStatePath 'Hosted state' $canonicalHostedState
+$resolvedDeploymentPreflightState = Resolve-InputFile $DeploymentPreflightStatePath 'Phase6 deployment-preflight state' $canonicalDeploymentPreflightState
 $resolvedCapabilityState = Resolve-InputFile $CapabilityStatePath 'Capability state' $canonicalCapabilityState
 if ($Promote) {
   Assert-True (-not $AllowTestPaths) 'Promotion is forbidden in test-path mode.'
@@ -454,6 +509,7 @@ if (-not $AllowTestPaths) {
 
 $criterion = Read-JsonFile $resolvedCriterion 'Scale criterion'
 $hostedState = Read-JsonFile $resolvedHostedState 'Hosted state'
+$deploymentPreflightState = Read-JsonFile $resolvedDeploymentPreflightState 'Phase6 deployment-preflight state'
 $capabilityState = Read-JsonFile $resolvedCapabilityState 'Capability state'
 $evidenceRaw = Get-Content -LiteralPath $resolvedEvidence -Raw
 $evidence = Read-JsonFile $resolvedEvidence 'Scale evidence'
@@ -468,13 +524,47 @@ Assert-True ([bool]$criterion.declared_before_first_full_write_run) 'Scale crite
 Assert-True ([bool]$criterion.envelope.zero_card) 'Scale criterion is not zero-card.'
 Assert-True ([bool]$criterion.envelope.payment_forbidden) 'Scale criterion permits payment.'
 Assert-True ([bool]$criterion.envelope.paid_fallback_forbidden) 'Scale criterion permits paid fallback.'
-Assert-True ([string]$hostedState.contract_version -eq 'cloudflare-native-hosted-current-v1') 'Hosted state contract mismatch.'
-Assert-True ([string]$hostedState.status -eq 'verified') 'Hosted state is not verified.'
-Assert-True ([bool]$hostedState.hosted_proof -and -not [bool]$hostedState.dev_only) 'Hosted state is not a real hosted proof.'
-Assert-True ([bool]$hostedState.zero_card_verified -and -not [bool]$hostedState.paid_provider) 'Hosted state is not zero-card.'
-Assert-True ([string]$hostedState.source_commit_sha -match '^[0-9a-f]{40}$') 'Hosted source commit SHA is invalid.'
-Assert-True ([string]$hostedState.source_archive_sha256 -match '^[0-9a-f]{64}$') 'Hosted source archive SHA-256 is invalid.'
-Assert-True ([string]$criterion.target.base_url -eq [string]$hostedState.base_url) 'Criterion and hosted state origins differ.'
+Assert-True ([string]$hostedState.contract_version -eq 'cloudflare-native-hosted-current-v1') 'Canonical hosted-state contract mismatch.'
+Assert-True ([string]$hostedState.status -eq 'verified') 'Canonical hosted runtime state is not verified.'
+Assert-True ([string]$hostedState.runtime_contract_version -eq 'cloudflare-native-runtime-candidate-v2') 'Canonical hosted runtime contract is invalid.'
+Assert-True ([string]$hostedState.base_url -match '^https://[^/]+\.workers\.dev$') 'Canonical hosted runtime origin is invalid.'
+Assert-True ([string]$hostedState.source_commit_sha -match '^[0-9a-f]{40}$') 'Canonical hosted source commit SHA is invalid.'
+Assert-True ([string]$hostedState.source_archive_sha256 -match '^[0-9a-f]{64}$') 'Canonical hosted source archive SHA-256 is invalid.'
+Assert-True ($hostedState.hosted_proof -eq $true -and $hostedState.dev_only -eq $false) 'Canonical hosted runtime is not a non-DEV hosted proof.'
+Assert-True ($hostedState.hosted_source_parity_verified -eq $true -and $hostedState.hosted_stateful_roundtrip_verified -eq $true) 'Canonical hosted source/stateful proof is incomplete.'
+Assert-True ($hostedState.create_enqueue_queue_do_d1_artifact_roundtrip -eq $true -and $hostedState.d1_artifact_write_read_delete_verified -eq $true) 'Canonical O2Core write/read/delete proof is incomplete.'
+Assert-True ($hostedState.zero_card_verified -eq $true -and $hostedState.paid_provider -eq $false -and $hostedState.secret_output -eq $false) 'Canonical hosted proof violates zero-card or secret-output policy.'
+
+Assert-ExactProperties $deploymentPreflightState @(
+  'contract_version', 'status', 'verified_at_utc', 'base_url', 'runtime_contract_version',
+  'health_contract_version', 'source_commit_sha', 'source_archive_sha256', 'source_bundle_sha256',
+  'worker_version_id', 'deployment_id', 'evidence_artifact', 'evidence_sha256', 'health_status',
+  'd1_read_verified', 'production_worker_request_count', 'preview_worker_request_count',
+  'deployment_preflight_verified', 'health_json_source_binding_verified',
+  'preview_guard_verified', 'preview_guard_verified_at_utc', 'preview_worker_version_id', 'preview_deployment_id',
+  'hosted_write_read_delete_verified', 'phase6_scale_run_started', 'phase6_scale_run_verified',
+  'zero_card_verified', 'paid_provider', 'dev_only', 'secret_output', 'non_claims'
+) 'Hosted deployment state'
+Assert-True ([string]$deploymentPreflightState.contract_version -eq 'phase6-scale-hosted-deployment-current-v1') 'Hosted deployment state contract mismatch.'
+Assert-True ([string]$deploymentPreflightState.status -eq 'preflight_verified' -and $deploymentPreflightState.deployment_preflight_verified -eq $true) 'Hosted deployment preflight is not verified.'
+Assert-True ([string]$deploymentPreflightState.runtime_contract_version -eq 'cloudflare-native-runtime-candidate-v2' -and [string]$deploymentPreflightState.health_contract_version -eq 'cloudflare-d1-stateful-runtime-v1') 'Hosted deployment runtime contracts are invalid.'
+Assert-True ($deploymentPreflightState.health_status -eq 200 -and $deploymentPreflightState.d1_read_verified -eq $true -and $deploymentPreflightState.health_json_source_binding_verified -eq $true) 'Hosted deployment preflight lacks its single health HTTP 200 binding.'
+Assert-Integer $deploymentPreflightState 'production_worker_request_count' 1 'Hosted deployment preflight'
+Assert-Integer $deploymentPreflightState 'preview_worker_request_count' 0 'Hosted deployment preflight'
+Assert-True ($deploymentPreflightState.preview_guard_verified -eq $true) 'Hosted deployment preflight lacks the zero-request Preview guard.'
+Assert-True ($deploymentPreflightState.hosted_write_read_delete_verified -eq $false) 'Hosted deployment preflight must explicitly deny write/read/delete proof.'
+Assert-True ($deploymentPreflightState.phase6_scale_run_started -eq $false -and $deploymentPreflightState.phase6_scale_run_verified -eq $false) 'Hosted deployment state falsely claims a Phase6 run.'
+Assert-True (-not [bool]$deploymentPreflightState.dev_only) 'Hosted deployment state is DEV-only.'
+Assert-True ([bool]$deploymentPreflightState.zero_card_verified -and -not [bool]$deploymentPreflightState.paid_provider) 'Hosted deployment state is not zero-card.'
+Assert-True ([string]$deploymentPreflightState.source_commit_sha -match '^[0-9a-f]{40}$') 'Hosted deployment source commit SHA is invalid.'
+Assert-True ([string]$deploymentPreflightState.source_archive_sha256 -match '^[0-9a-f]{64}$') 'Hosted deployment source archive SHA-256 is invalid.'
+Assert-True ([string]$deploymentPreflightState.source_bundle_sha256 -match '^[0-9a-f]{64}$') 'Hosted deployment source bundle SHA-256 is invalid.'
+foreach ($idField in @('worker_version_id', 'deployment_id', 'preview_worker_version_id', 'preview_deployment_id')) {
+  Assert-True ([string]$deploymentPreflightState.$idField -match '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') "Hosted deployment $idField is invalid."
+}
+Assert-True ([string]$deploymentPreflightState.preview_worker_version_id -cne [string]$deploymentPreflightState.worker_version_id -and [string]$deploymentPreflightState.preview_deployment_id -cne [string]$deploymentPreflightState.deployment_id) 'Preview and production deployment identities are not isolated.'
+Assert-True ([string]$hostedState.source_commit_sha -ceq [string]$deploymentPreflightState.source_commit_sha -and [string]$hostedState.source_archive_sha256 -ceq [string]$deploymentPreflightState.source_archive_sha256) 'Canonical O2Core and Phase6 deployment preflight bind different sources.'
+Assert-True ([string]$criterion.target.base_url -eq [string]$hostedState.base_url -and [string]$criterion.target.base_url -eq [string]$deploymentPreflightState.base_url) 'Criterion and hosted states origins differ.'
 Assert-True (
   [string]$criterion.control_tier.not_a_pass_criterion -eq
   'This block adds a measurement control only. It changes no threshold in pass_criteria.'
@@ -482,24 +572,67 @@ Assert-True (
 Assert-True ($criterion.write_tier.http_429_allowed -eq $false) 'Scale criterion permits throttled writes.'
 Assert-True ([string]$criterion.write_tier.cleanup_semantics -eq 'soft_delete_then_active_row_absence_and_audit_readback') 'Scale criterion cleanup semantics mismatch.'
 Assert-True ([string]$criterion.pass_criteria.http_429_scope -eq 'health_read_tiers_only') 'Scale criterion 429 scope mismatch.'
-$deploymentEvidencePath = Resolve-BoundArtifact ([string]$hostedState.evidence_artifact) 'Hosted deployment evidence'
+$canonicalHostedEvidencePath = Resolve-BoundArtifact ([string]$hostedState.evidence_artifact) 'Canonical O2Core hosted evidence'
+$canonicalHostedEvidenceRelativePath = [IO.Path]::GetRelativePath($repoRoot, $canonicalHostedEvidencePath).Replace('\', '/')
+$canonicalHostedEvidenceSha256 = Get-FileSha256 $canonicalHostedEvidencePath
+Assert-True ([string]$hostedState.evidence_sha256 -match '^[0-9a-fA-F]{64}$' -and $canonicalHostedEvidenceSha256 -eq ([string]$hostedState.evidence_sha256).ToLowerInvariant()) 'Canonical O2Core hosted evidence file hash mismatch.'
+$canonicalHostedEvidence = Read-JsonFile $canonicalHostedEvidencePath 'Canonical O2Core hosted evidence'
+Assert-True ([string]$canonicalHostedEvidence.contract_version -eq 'cloudflare-d1-stateful-runtime-hosted-proof-v1' -and [string]$canonicalHostedEvidence.status -eq 'verified') 'Canonical O2Core hosted evidence contract is invalid.'
+Assert-True ([string]$canonicalHostedEvidence.base_url -ceq [string]$hostedState.base_url) 'Canonical O2Core hosted evidence base URL mismatch.'
+Assert-True ([string]$canonicalHostedEvidence.source_commit_sha -ceq [string]$hostedState.source_commit_sha -and [string]$canonicalHostedEvidence.source_archive_sha256 -ceq [string]$hostedState.source_archive_sha256) 'Canonical O2Core hosted evidence source mismatch.'
+Assert-True ($canonicalHostedEvidence.cloudflare_native_hosted_source_parity_verified -eq $true -and $canonicalHostedEvidence.cloudflare_native_create_enqueue_queue_do_d1_artifact_roundtrip -eq $true -and $canonicalHostedEvidence.cloudflare_native_d1_artifact_write_read_delete -eq $true) 'Canonical O2Core hosted evidence lacks source/W-R-D proof.'
+Assert-True ($canonicalHostedEvidence.cloudflare_native_d1_read_verified -eq $true -and $canonicalHostedEvidence.cloudflare_native_zero_card_execution_verified -eq $true -and $canonicalHostedEvidence.cloudflare_native_paid_fallback_used -eq $false -and $canonicalHostedEvidence.secret_output -eq $false) 'Canonical O2Core hosted evidence violates D1, zero-card, or secret-output policy.'
+if (-not $AllowTestPaths) {
+  Assert-TrackedCleanAgainstHead $canonicalHostedEvidenceRelativePath
+}
+
+$deploymentEvidencePath = Resolve-BoundArtifact ([string]$deploymentPreflightState.evidence_artifact) 'Hosted deployment evidence'
 $deploymentEvidenceSha256 = Get-FileSha256 $deploymentEvidencePath
-Assert-True ([string]$hostedState.evidence_sha256 -match '^[0-9a-fA-F]{64}$' -and $deploymentEvidenceSha256 -eq ([string]$hostedState.evidence_sha256).ToLowerInvariant()) 'Hosted deployment evidence file hash mismatch.'
+Assert-True ([string]$deploymentPreflightState.evidence_sha256 -match '^[0-9a-fA-F]{64}$' -and $deploymentEvidenceSha256 -eq ([string]$deploymentPreflightState.evidence_sha256).ToLowerInvariant()) 'Hosted deployment evidence file hash mismatch.'
+$deploymentEvidenceSidecarPath = "$deploymentEvidencePath.sha256"
+Assert-True (Test-Path -LiteralPath $deploymentEvidenceSidecarPath -PathType Leaf) 'Hosted deployment evidence digest sidecar is missing.'
+$deploymentEvidenceSidecar = Get-Content -LiteralPath $deploymentEvidenceSidecarPath -Raw
+Assert-True ($deploymentEvidenceSidecar -match '^([0-9a-fA-F]{64})  ([^\\/\r\n]+)\r?\n?$') 'Hosted deployment evidence digest sidecar format is invalid.'
+Assert-True ($matches[1].ToLowerInvariant() -eq $deploymentEvidenceSha256 -and $matches[2] -ceq [IO.Path]::GetFileName($deploymentEvidencePath)) 'Hosted deployment evidence digest sidecar mismatch.'
 $deploymentEvidence = Read-JsonFile $deploymentEvidencePath 'Hosted deployment evidence'
-Assert-True ([string]$deploymentEvidence.contract_version -eq 'cloudflare-d1-stateful-runtime-hosted-proof-v2') 'Hosted deployment evidence is not the v2 immutable contract.'
-Assert-True ([string]$deploymentEvidence.base_url -eq [string]$hostedState.base_url) 'Hosted deployment base URL mismatch.'
-Assert-True ([string]$deploymentEvidence.source_commit_sha -eq [string]$hostedState.source_commit_sha) 'Hosted deployment source commit mismatch.'
-Assert-True ([string]$deploymentEvidence.source_archive_sha256 -eq [string]$hostedState.source_archive_sha256) 'Hosted deployment source archive mismatch.'
-Assert-True ($deploymentEvidence.source_binding_verified -eq $true -and $deploymentEvidence.hosted_write_read_delete_verified -eq $true) 'Hosted deployment evidence lacks source-bound write/read/delete proof.'
-Assert-True ($deploymentEvidence.dev_only -eq $false -and $deploymentEvidence.secret_output -eq $false) 'Hosted deployment evidence is DEV-only or exposes secrets.'
+Assert-ExactProperties $deploymentEvidence @(
+  'contract_version', 'verified_at_utc', 'status', 'purpose', 'base_url', 'source_commit_sha',
+  'source_archive_sha256', 'source_bundle_sha256', 'worker_version_id', 'deployment_id', 'health_status',
+  'd1_read_verified', 'production_worker_request_count', 'preview_worker_request_count',
+  'source_binding_verified', 'health_json_source_binding_verified', 'preview_guard_verified',
+  'preview_guard_verified_at_utc', 'preview_worker_version_id', 'preview_deployment_id',
+  'hosted_write_read_delete_verified', 'phase6_scale_run_started', 'phase6_scale_run_verified',
+  'zero_card', 'paid_provider', 'dev_only', 'secret_output', 'producer', 'writer', 'non_claims'
+) 'Hosted deployment preflight evidence'
+Assert-True ([string]$deploymentEvidence.contract_version -eq 'phase6-scale-deployment-preflight-evidence-v1') 'Hosted deployment evidence is not the immutable Phase6 preflight contract.'
+Assert-True ([string]$deploymentEvidence.status -eq 'verified' -and [string]$deploymentEvidence.purpose -eq 'phase6_scale_single_run_preflight') 'Hosted deployment preflight status or purpose is invalid.'
+Assert-True ([string]$deploymentEvidence.base_url -eq [string]$deploymentPreflightState.base_url) 'Hosted deployment base URL mismatch.'
+Assert-True ([string]$deploymentEvidence.source_commit_sha -eq [string]$deploymentPreflightState.source_commit_sha) 'Hosted deployment source commit mismatch.'
+Assert-True ([string]$deploymentEvidence.source_archive_sha256 -eq [string]$deploymentPreflightState.source_archive_sha256) 'Hosted deployment source archive mismatch.'
+Assert-True ([string]$deploymentEvidence.source_bundle_sha256 -eq [string]$deploymentPreflightState.source_bundle_sha256) 'Hosted deployment source bundle mismatch.'
+Assert-True ([string]$deploymentEvidence.worker_version_id -eq [string]$deploymentPreflightState.worker_version_id -and [string]$deploymentEvidence.deployment_id -eq [string]$deploymentPreflightState.deployment_id) 'Hosted deployment identity mismatch.'
+Assert-True ([string]$deploymentEvidence.preview_worker_version_id -eq [string]$deploymentPreflightState.preview_worker_version_id -and [string]$deploymentEvidence.preview_deployment_id -eq [string]$deploymentPreflightState.preview_deployment_id) 'Preview deployment identity mismatch.'
+Assert-True ($deploymentEvidence.health_status -eq 200 -and $deploymentEvidence.d1_read_verified -eq $true) 'Hosted deployment evidence lacks its single health HTTP 200.'
+Assert-Integer $deploymentEvidence 'production_worker_request_count' 1 'Hosted deployment evidence'
+Assert-Integer $deploymentEvidence 'preview_worker_request_count' 0 'Hosted deployment evidence'
+Assert-True ($deploymentEvidence.source_binding_verified -eq $true -and $deploymentEvidence.health_json_source_binding_verified -eq $true -and $deploymentEvidence.preview_guard_verified -eq $true) 'Hosted deployment evidence lacks source-bound Preview/health proof.'
+Assert-True ($deploymentEvidence.hosted_write_read_delete_verified -eq $false) 'Hosted deployment preflight must explicitly deny write/read/delete proof.'
+Assert-True ($deploymentEvidence.phase6_scale_run_started -eq $false -and $deploymentEvidence.phase6_scale_run_verified -eq $false) 'Hosted deployment preflight falsely claims Phase6 execution.'
+Assert-True ($deploymentEvidence.zero_card -eq $true -and $deploymentEvidence.paid_provider -eq $false -and $deploymentEvidence.dev_only -eq $false -and $deploymentEvidence.secret_output -eq $false) 'Hosted deployment evidence violates zero-card, DEV, or secret-output policy.'
+Assert-True ([string]$deploymentEvidence.producer -ceq 'scripts/deploy-cloudflare-stateful-runtime.ps1' -and [string]$deploymentEvidence.writer -ceq 'scripts/write-phase6-scale-deployment-preflight.ps1') 'Hosted deployment preflight producer identity is invalid.'
 $deploymentTimestampProperty = @('verified_at_utc', 'checked_at') | Where-Object { $null -ne $deploymentEvidence.PSObject.Properties[$_] } | Select-Object -First 1
 Assert-True (-not [string]::IsNullOrWhiteSpace([string]$deploymentTimestampProperty)) 'Hosted deployment evidence has no verification timestamp.'
 $deploymentVerifiedAt = ConvertTo-UtcTimestamp (Get-Property $deploymentEvidence $deploymentTimestampProperty 'Hosted deployment evidence') 'Hosted deployment evidence timestamp'
-$hostedStateVerifiedAt = ConvertTo-UtcTimestamp $hostedState.verified_at_utc 'Hosted-state verification timestamp'
-Assert-True ($deploymentVerifiedAt -eq $hostedStateVerifiedAt) 'Hosted deployment and hosted-state timestamps differ.'
+$deploymentStateVerifiedAt = ConvertTo-UtcTimestamp $deploymentPreflightState.verified_at_utc 'Deployment-preflight state verification timestamp'
+$previewGuardVerifiedAt = ConvertTo-UtcTimestamp $deploymentPreflightState.preview_guard_verified_at_utc 'Preview-guard verification timestamp'
+Assert-True ($deploymentVerifiedAt -eq $deploymentStateVerifiedAt) 'Hosted deployment evidence and deployment-preflight state timestamps differ.'
+Assert-True ((ConvertTo-UtcTimestamp $deploymentEvidence.preview_guard_verified_at_utc 'Deployment-preflight evidence Preview timestamp') -eq $previewGuardVerifiedAt) 'Preview timestamp differs between state and evidence.'
+Assert-True ($previewGuardVerifiedAt -le $deploymentVerifiedAt) 'Preview guard did not precede production deployment verification.'
+Assert-True (($deploymentVerifiedAt - $previewGuardVerifiedAt).TotalMinutes -le 10) 'Preview-to-production deployment window exceeded ten minutes.'
 if (-not $AllowTestPaths) {
   $deploymentRelativePath = [IO.Path]::GetRelativePath($repoRoot, $deploymentEvidencePath).Replace('\', '/')
   Assert-TrackedCleanAgainstHead $deploymentRelativePath
+  Assert-TrackedCleanAgainstHead "$deploymentRelativePath.sha256"
 }
 
 $topProperties = @(
@@ -518,9 +651,11 @@ Assert-True ($generatedAt.ToUniversalTime().ToString('yyyyMMddTHHmmssfffZ') -eq 
 $declaredAt = [DateTimeOffset]::Parse([string]$criterion.declared_at_utc, [Globalization.CultureInfo]::InvariantCulture)
 Assert-True ($generatedAt -ge $declaredAt) 'Evidence predates the declared criterion.'
 $hostedVerifiedAt = ConvertTo-UtcTimestamp $hostedState.verified_at_utc 'Hosted-state verification timestamp'
-Assert-True ($hostedVerifiedAt -ge $declaredAt) 'Hosted state predates the declared criterion.'
-Assert-True ($generatedAt -ge $hostedVerifiedAt) 'Evidence predates the hosted deployment state.'
-Assert-True (($generatedAt - $hostedVerifiedAt).TotalHours -le 24) 'Evidence is stale relative to the hosted deployment state.'
+$canonicalEvidenceCheckedAt = ConvertTo-UtcTimestamp $canonicalHostedEvidence.checked_at 'Canonical O2Core evidence timestamp'
+Assert-True ($hostedVerifiedAt -ge $declaredAt -and $canonicalEvidenceCheckedAt -eq $hostedVerifiedAt) 'Canonical O2Core state/evidence timestamp binding is invalid.'
+Assert-True ($generatedAt -ge $hostedVerifiedAt -and ($generatedAt - $hostedVerifiedAt).TotalHours -le 24) 'Scale evidence is stale relative to the canonical O2Core proof.'
+Assert-True ($generatedAt -ge $deploymentStateVerifiedAt -and ($generatedAt - $deploymentStateVerifiedAt).TotalHours -le 24) 'Scale evidence is stale relative to the deployment preflight.'
+Assert-True ($generatedAt -ge $previewGuardVerifiedAt -and ($generatedAt - $previewGuardVerifiedAt).TotalHours -le 24) 'Scale evidence is stale relative to the Preview guard.'
 Assert-True ($generatedAt -le [DateTimeOffset]::UtcNow.AddMinutes(5)) 'Evidence timestamp is in the future.'
 
 Assert-ExactProperties $evidence.criterion_binding @('contract_version', 'gate_id', 'file_sha256', 'declared_before_first_run', 'declared_before_first_full_write_run') 'criterion binding'
@@ -531,24 +666,36 @@ Assert-Boolean $evidence.criterion_binding 'declared_before_first_run' $true 'cr
 Assert-Boolean $evidence.criterion_binding 'declared_before_first_full_write_run' $true 'criterion binding'
 
 $sourceProperties = @(
-  'hosted_state_contract_version', 'hosted_state_file_sha256', 'base_url', 'source_commit_sha',
-  'source_archive_sha256', 'deployment_evidence_artifact', 'deployment_evidence_sha256',
-  'worker_version_id', 'deployment_id', 'verifier_script_sha256', 'repository_head_sha',
+  'hosted_state_contract_version', 'hosted_state_file_sha256',
+  'hosted_runtime_evidence_artifact', 'hosted_runtime_evidence_sha256',
+  'deployment_preflight_state_contract_version', 'deployment_preflight_state_file_sha256',
+  'base_url', 'source_commit_sha',
+  'source_archive_sha256', 'source_bundle_sha256', 'deployment_evidence_artifact', 'deployment_evidence_sha256',
+  'worker_version_id', 'deployment_id', 'preview_guard_verified', 'preview_guard_verified_at_utc',
+  'preview_worker_version_id', 'preview_deployment_id', 'verifier_script_sha256', 'repository_head_sha',
   'capability_state_sha256', 'gate_identity_sha256', 'owner_granted', 'owner_grant_ref',
   'health_json_source_binding_verified', 'execution_attestation'
 )
 Assert-ExactProperties $evidence.source_binding $sourceProperties 'source binding'
 Assert-True ([string]$evidence.source_binding.hosted_state_contract_version -eq [string]$hostedState.contract_version) 'Hosted state contract binding mismatch.'
 Assert-True ([string]$evidence.source_binding.hosted_state_file_sha256 -eq (Get-FileSha256 $resolvedHostedState)) 'Hosted state file hash mismatch.'
+Assert-True ([string]$evidence.source_binding.hosted_runtime_evidence_artifact -eq [string]$hostedState.evidence_artifact) 'Canonical O2Core evidence path binding mismatch.'
+Assert-True ([string]$evidence.source_binding.hosted_runtime_evidence_sha256 -ieq $canonicalHostedEvidenceSha256) 'Canonical O2Core evidence hash binding mismatch.'
+Assert-True ([string]$evidence.source_binding.deployment_preflight_state_contract_version -eq [string]$deploymentPreflightState.contract_version) 'Deployment-preflight state contract binding mismatch.'
+Assert-True ([string]$evidence.source_binding.deployment_preflight_state_file_sha256 -eq (Get-FileSha256 $resolvedDeploymentPreflightState)) 'Deployment-preflight state file hash mismatch.'
 Assert-True ([string]$evidence.source_binding.base_url -eq [string]$criterion.target.base_url) 'Evidence base URL mismatch.'
 Assert-True ([string]$evidence.source_binding.source_commit_sha -eq [string]$hostedState.source_commit_sha) 'Evidence source commit mismatch.'
 Assert-True ([string]$evidence.source_binding.source_archive_sha256 -eq [string]$hostedState.source_archive_sha256) 'Evidence source archive mismatch.'
-Assert-True ([string]$evidence.source_binding.deployment_evidence_artifact -eq [string]$hostedState.evidence_artifact) 'Deployment evidence path binding mismatch.'
-Assert-True ([string]$evidence.source_binding.deployment_evidence_sha256 -match '^[0-9a-fA-F]{64}$' -and [string]$evidence.source_binding.deployment_evidence_sha256 -ieq [string]$hostedState.evidence_sha256) 'Deployment evidence SHA-256 binding mismatch.'
+Assert-True ([string]$evidence.source_binding.source_bundle_sha256 -eq [string]$deploymentPreflightState.source_bundle_sha256) 'Evidence source bundle mismatch.'
+Assert-True ([string]$evidence.source_binding.deployment_evidence_artifact -eq [string]$deploymentPreflightState.evidence_artifact) 'Deployment evidence path binding mismatch.'
+Assert-True ([string]$evidence.source_binding.deployment_evidence_sha256 -match '^[0-9a-fA-F]{64}$' -and [string]$evidence.source_binding.deployment_evidence_sha256 -ieq [string]$deploymentPreflightState.evidence_sha256) 'Deployment evidence SHA-256 binding mismatch.'
 Assert-True ([string]$evidence.source_binding.worker_version_id -match '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') 'Worker version ID binding is invalid.'
 Assert-True ([string]$evidence.source_binding.deployment_id -match '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') 'Deployment ID binding is invalid.'
 Assert-True ([string]$evidence.source_binding.worker_version_id -eq [string]$deploymentEvidence.worker_version_id) 'Worker version ID does not match deployment evidence.'
 Assert-True ([string]$evidence.source_binding.deployment_id -eq [string]$deploymentEvidence.deployment_id) 'Deployment ID does not match deployment evidence.'
+Assert-Boolean $evidence.source_binding 'preview_guard_verified' $true 'source binding'
+Assert-True ([string]$evidence.source_binding.preview_guard_verified_at_utc -ceq [string]$deploymentEvidence.preview_guard_verified_at_utc) 'Preview timestamp binding mismatch.'
+Assert-True ([string]$evidence.source_binding.preview_worker_version_id -ceq [string]$deploymentEvidence.preview_worker_version_id -and [string]$evidence.source_binding.preview_deployment_id -ceq [string]$deploymentEvidence.preview_deployment_id) 'Preview deployment identity binding mismatch.'
 Assert-Boolean $evidence.source_binding 'owner_granted' $true 'source binding'
 Assert-BoundedIdentifier ([string]$evidence.source_binding.owner_grant_ref) 256 'Evidence Owner grant reference'
 Assert-Boolean $evidence.source_binding 'health_json_source_binding_verified' $true 'source binding'
@@ -556,7 +703,8 @@ $executionBinding = $evidence.source_binding.execution_attestation
 Assert-ExactProperties $executionBinding @(
   'contract_version', 'status', 'binding_mode', 'github_actions', 'repository', 'run_id', 'run_attempt',
   'run_url', 'event_name', 'ref', 'head_sha', 'workflow', 'workflow_ref', 'job',
-  'source_commit_sha', 'control_delta', 'artifact_name', 'post_run_api_readback_required', 'verified'
+  'source_commit_sha', 'control_delta', 'artifact_name', 'environment_review',
+  'post_run_api_readback_required', 'verified'
 ) 'execution attestation binding'
 Assert-True ([string]$executionBinding.contract_version -eq 'phase6-scale-execution-provenance-v1') 'Execution-attestation binding contract mismatch.'
 Assert-True ([string]$executionBinding.status -eq 'provisional_pending_github_readback') 'Execution-attestation binding status is not provisional.'
@@ -566,7 +714,7 @@ Assert-Boolean $executionBinding 'post_run_api_readback_required' $true 'executi
 Assert-Boolean $executionBinding 'verified' $false 'execution attestation binding'
 $executionRunId = Get-NonNegativeInteger $executionBinding 'run_id' 'execution attestation binding'
 $executionRunAttempt = Get-NonNegativeInteger $executionBinding 'run_attempt' 'execution attestation binding'
-Assert-True ($executionRunId -gt 0 -and $executionRunAttempt -gt 0) 'Execution run identity must be positive.'
+Assert-True ($executionRunId -gt 0 -and $executionRunAttempt -eq 1) 'Execution must be the first and only run attempt.'
 Assert-True ([string]$executionBinding.repository -match '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') 'Execution repository is invalid.'
 $expectedRunUrl = "https://github.com/$([string]$executionBinding.repository)/actions/runs/$executionRunId"
 Assert-True ([string]$executionBinding.run_url -ceq $expectedRunUrl) 'Execution run URL mismatch.'
@@ -584,13 +732,18 @@ $allowedControlPaths = @(
   [string]$workflowPathMatch.Groups['path'].Value,
   'docs/runtime-state/phase6-scale-criterion.json',
   'docs/runtime-state/cloudflare-native-hosted-current.json',
+  'docs/runtime-state/phase6-scale-hosted-current.json',
   'docs/runtime-state/capability-gates.json',
+  ([string]$evidence.source_binding.hosted_runtime_evidence_artifact).Replace('\', '/'),
   ([string]$evidence.source_binding.deployment_evidence_artifact).Replace('\', '/'),
+  (([string]$evidence.source_binding.deployment_evidence_artifact).Replace('\', '/') + '.sha256'),
   'scripts/verify-phase6-scale-runtime.ps1',
   'scripts/verify-phase6-scale-runtime-static.ps1',
   'scripts/verify-phase6-scale-evidence.ps1',
   'scripts/verify-phase6-scale-evidence-static.ps1',
-  'scripts/collect-phase6-scale-execution-readback.ps1'
+  'scripts/collect-phase6-scale-execution-readback.ps1',
+  'scripts/write-phase6-scale-deployment-preflight.ps1',
+  'scripts/write-phase6-scale-deployment-preflight-static.ps1'
 ) | Sort-Object -Unique
 $controlDeltaPaths = @(if ($AllowTestPaths) {
   @($recordedControlDelta)
@@ -606,6 +759,65 @@ Assert-BoundedText ([string]$executionBinding.workflow_ref) 512 'Execution workf
 Assert-BoundedText ([string]$executionBinding.job) 256 'Execution job'
 $expectedExecutionArtifactName = "phase6-scale-execution-evidence-$executionRunId-$executionRunAttempt"
 Assert-True ([string]$executionBinding.artifact_name -ceq $expectedExecutionArtifactName) 'Execution artifact name mismatch.'
+
+$environmentReviewBinding = $executionBinding.environment_review
+Assert-ExactProperties $environmentReviewBinding @(
+  'contract_version', 'review_artifact_name', 'review_artifact_sha256', 'review_sidecar_name',
+  'review_sidecar_sha256', 'captured_at_utc', 'environment_name', 'environment_id',
+  'review_state', 'reviewer_login', 'reviewer_id', 'reviewer_type', 'actor_login',
+  'triggering_actor_login', 'human_review_verified'
+) 'Environment-review binding'
+Assert-True ([string]$environmentReviewBinding.contract_version -ceq 'github-actions-phase6-environment-review-v1') 'Environment-review binding contract mismatch.'
+$expectedEnvironmentReviewLeaf = "environment-review-$executionRunId-$executionRunAttempt.json"
+Assert-True ([string]$environmentReviewBinding.review_artifact_name -ceq $expectedEnvironmentReviewLeaf) 'Environment-review artifact name mismatch.'
+Assert-True ([string]$environmentReviewBinding.review_sidecar_name -ceq "$expectedEnvironmentReviewLeaf.sha256") 'Environment-review sidecar name mismatch.'
+foreach ($hashField in @('review_artifact_sha256', 'review_sidecar_sha256')) {
+  Assert-True ([string](Get-Property $environmentReviewBinding $hashField 'Environment-review binding') -match '^[0-9a-f]{64}$') "Environment-review binding $hashField is invalid."
+}
+Assert-Boolean $environmentReviewBinding 'human_review_verified' $true 'Environment-review binding'
+Assert-Integer $environmentReviewBinding 'environment_id' ([long]$environmentReviewBinding.environment_id) 'Environment-review binding'
+Assert-True ([long]$environmentReviewBinding.environment_id -gt 0) 'Environment-review binding Environment ID is invalid.'
+Assert-Integer $environmentReviewBinding 'reviewer_id' ([long]$environmentReviewBinding.reviewer_id) 'Environment-review binding'
+Assert-True ([long]$environmentReviewBinding.reviewer_id -gt 0) 'Environment-review binding reviewer ID is invalid.'
+Assert-True ([string]$environmentReviewBinding.environment_name -ceq 'phase6-scale-hosted-writes') 'Execution is not bound to the protected Phase6 Environment.'
+Assert-True ([string]$environmentReviewBinding.review_state -ceq 'approved' -and [string]$environmentReviewBinding.reviewer_type -ceq 'User') 'Execution lacks an approved human Environment review.'
+Assert-True ([string]$environmentReviewBinding.reviewer_login -match '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$' -and [string]$environmentReviewBinding.reviewer_login -notmatch '(?i)\[bot\]$') 'Environment reviewer login is not human-shaped.'
+foreach ($actorField in @('actor_login', 'triggering_actor_login')) {
+  Assert-True ([string](Get-Property $environmentReviewBinding $actorField 'Environment-review binding') -match '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$') "Environment-review binding $actorField is invalid."
+}
+$environmentReviewCapturedAt = ConvertTo-UtcTimestamp $environmentReviewBinding.captured_at_utc 'Environment-review binding capture timestamp'
+Assert-True ($environmentReviewCapturedAt -le $generatedAt -and ($generatedAt - $environmentReviewCapturedAt).TotalHours -le 1) 'Environment review was not captured immediately before the bounded run.'
+$environmentReviewDirectory = Split-Path -Parent $resolvedEvidence
+$resolvedEnvironmentReview = Resolve-InputFile (Join-Path $environmentReviewDirectory $expectedEnvironmentReviewLeaf) 'Environment-review artifact'
+$resolvedEnvironmentReviewSidecar = Resolve-InputFile "$resolvedEnvironmentReview.sha256" 'Environment-review digest sidecar'
+$environmentReviewSha256 = Get-FileSha256 $resolvedEnvironmentReview
+$environmentReviewSidecarSha256 = Get-FileSha256 $resolvedEnvironmentReviewSidecar
+Assert-True ($environmentReviewSha256 -ceq [string]$environmentReviewBinding.review_artifact_sha256) 'Environment-review artifact SHA-256 mismatch.'
+Assert-True ($environmentReviewSidecarSha256 -ceq [string]$environmentReviewBinding.review_sidecar_sha256) 'Environment-review sidecar SHA-256 mismatch.'
+$environmentReviewSidecarRaw = Get-Content -LiteralPath $resolvedEnvironmentReviewSidecar -Raw
+Assert-True ($environmentReviewSidecarRaw -match '^([0-9a-f]{64})  ([^\\/\r\n]+)\r?\n?$') 'Environment-review digest sidecar format is invalid.'
+Assert-True ($matches[1] -ceq $environmentReviewSha256 -and $matches[2] -ceq $expectedEnvironmentReviewLeaf) 'Environment-review digest sidecar does not bind the review bytes.'
+$environmentReviewRaw = Get-Content -LiteralPath $resolvedEnvironmentReview -Raw
+Assert-True ($environmentReviewRaw -notmatch '(?i)(?:sk-|ghp_|github_pat_|glpat-|cfat_|vck_|hf_)[A-Za-z0-9_-]{12,}') 'Environment-review artifact contains secret-shaped material.'
+Assert-True ($environmentReviewRaw -notmatch '(?i)"(?:authorization|cookie|password|private_key|client_secret|token|credential|comment)"\s*:') 'Environment-review artifact contains a forbidden free-text or credential field.'
+$environmentReview = Read-JsonFile $resolvedEnvironmentReview 'Environment-review artifact'
+Assert-ExactProperties $environmentReview @(
+  'contract_version', 'captured_at_utc', 'repository', 'run_id', 'run_attempt', 'head_sha',
+  'environment_name', 'environment_id', 'review_state', 'reviewer_login', 'reviewer_id',
+  'reviewer_type', 'actor_login', 'triggering_actor_login', 'secret_output'
+) 'Environment-review artifact'
+foreach ($field in @('contract_version', 'captured_at_utc', 'environment_name', 'environment_id', 'review_state', 'reviewer_login', 'reviewer_id', 'reviewer_type', 'actor_login', 'triggering_actor_login')) {
+  Assert-True ([string]$environmentReview.$field -ceq [string]$environmentReviewBinding.$field) "Environment-review artifact/binding mismatch at $field."
+}
+Assert-True ([string]$environmentReview.repository -ceq [string]$executionBinding.repository -and [string]$environmentReview.head_sha -ceq [string]$executionBinding.head_sha) 'Environment-review artifact repository/head binding mismatch.'
+Assert-Integer $environmentReview 'run_id' $executionRunId 'Environment-review artifact'
+Assert-Integer $environmentReview 'run_attempt' 1 'Environment-review artifact'
+Assert-Boolean $environmentReview 'secret_output' $false 'Environment-review artifact'
+if (-not $AllowTestPaths) {
+  foreach ($reviewPath in @($resolvedEnvironmentReview, $resolvedEnvironmentReviewSidecar)) {
+    Assert-TrackedCleanAgainstHead ([IO.Path]::GetRelativePath($repoRoot, $reviewPath).Replace('\', '/'))
+  }
+}
 
 Assert-ExactProperties $executionReadback @(
   'contract_version', 'collected_at_utc', 'repository', 'run', 'artifact',
@@ -658,7 +870,7 @@ Assert-True ([string]$executionReadback.downloaded_evidence_sha256 -eq $evidence
 Assert-True ([string]$executionReadback.downloaded_sidecar_sha256 -eq (Get-FileSha256 $companionPath)) 'Downloaded GitHub artifact sidecar digest mismatch.'
 Assert-True ([string]$executionReadback.sidecar_declared_evidence_sha256 -eq $evidenceSha256) 'Downloaded GitHub artifact sidecar declaration mismatch.'
 if (-not $AllowTestPaths) {
-  Assert-LiveGithubExecutionProvenance $executionBinding $executionReadback $resolvedEvidence $companionPath $evidenceSha256
+  Assert-LiveGithubExecutionProvenance $executionBinding $executionReadback $resolvedEvidence $companionPath $evidenceSha256 $resolvedEnvironmentReview $resolvedEnvironmentReviewSidecar $environmentReviewSha256 $environmentReviewSidecarSha256
   $currentEvidenceHead = Get-RepositoryHeadSha
   $evidenceHeadDelta = @(Get-GitDelta ([string]$executionBinding.head_sha) $currentEvidenceHead 'Control-to-evidence delta')
   $evidenceHeadPaths = @($evidenceHeadDelta.path | Sort-Object -Unique)
@@ -666,7 +878,9 @@ if (-not $AllowTestPaths) {
   $relativeSidecarForHead = [IO.Path]::GetRelativePath($repoRoot, $companionPath).Replace('\', '/')
   $relativeReadbackForHead = [IO.Path]::GetRelativePath($repoRoot, $resolvedExecutionReadback).Replace('\', '/')
   $relativeReadbackSidecarForHead = [IO.Path]::GetRelativePath($repoRoot, $executionReadbackCompanionPath).Replace('\', '/')
-  $requiredEvidenceHeadPaths = @($relativeEvidenceForHead, $relativeSidecarForHead, $relativeReadbackForHead, $relativeReadbackSidecarForHead)
+  $relativeEnvironmentReviewForHead = [IO.Path]::GetRelativePath($repoRoot, $resolvedEnvironmentReview).Replace('\', '/')
+  $relativeEnvironmentReviewSidecarForHead = [IO.Path]::GetRelativePath($repoRoot, $resolvedEnvironmentReviewSidecar).Replace('\', '/')
+  $requiredEvidenceHeadPaths = @($relativeEvidenceForHead, $relativeSidecarForHead, $relativeReadbackForHead, $relativeReadbackSidecarForHead, $relativeEnvironmentReviewForHead, $relativeEnvironmentReviewSidecarForHead)
   $allowedEvidenceHeadPaths = @($requiredEvidenceHeadPaths + 'docs/runtime-state/capability-gates.json') | Sort-Object -Unique
   $forbiddenEvidenceHeadPaths = @($evidenceHeadPaths | Where-Object { $allowedEvidenceHeadPaths -cnotcontains $_ })
   Assert-True ($forbiddenEvidenceHeadPaths.Count -eq 0) "Control-to-evidence delta contains non-evidence paths: $($forbiddenEvidenceHeadPaths -join ',')"
@@ -679,6 +893,8 @@ if (-not $AllowTestPaths) {
 Assert-True ([string]$evidence.source_binding.verifier_script_sha256 -match '^[0-9a-f]{64}$') 'Runtime verifier script SHA-256 binding is invalid.'
 Assert-True ([string]$evidence.source_binding.verifier_script_sha256 -eq (Get-FileSha256 $canonicalRuntimeVerifier)) 'Runtime verifier script SHA-256 binding mismatch.'
 Assert-RepositoryHeadBinding ([string]$evidence.source_binding.repository_head_sha)
+& git -C $repoRoot merge-base --is-ancestor $minimumLoopFixCommit ([string]$hostedState.source_commit_sha)
+Assert-True ($LASTEXITCODE -eq 0) 'Deployed source predates the required contract-origin loop fix.'
 Assert-True ((Get-GitArchiveSha256 ([string]$hostedState.source_commit_sha)) -eq [string]$hostedState.source_archive_sha256) 'Hosted source archive does not match its Git commit.'
 Assert-True ([string]$evidence.source_binding.capability_state_sha256 -match '^[0-9a-f]{64}$') 'Capability-state SHA-256 binding is invalid.'
 Assert-True ([string]$evidence.source_binding.capability_state_sha256 -eq (Get-FileSha256 $resolvedCapabilityState)) 'Capability-state SHA-256 binding mismatch.'
@@ -971,18 +1187,25 @@ $relativeEvidence = [IO.Path]::GetRelativePath($repoRoot, $resolvedEvidence).Rep
 $relativeCompanion = [IO.Path]::GetRelativePath($repoRoot, $companionPath).Replace('\', '/')
 $relativeExecutionReadback = [IO.Path]::GetRelativePath($repoRoot, $resolvedExecutionReadback).Replace('\', '/')
 $relativeExecutionReadbackCompanion = [IO.Path]::GetRelativePath($repoRoot, $executionReadbackCompanionPath).Replace('\', '/')
+$relativeEnvironmentReview = [IO.Path]::GetRelativePath($repoRoot, $resolvedEnvironmentReview).Replace('\', '/')
+$relativeEnvironmentReviewCompanion = [IO.Path]::GetRelativePath($repoRoot, $resolvedEnvironmentReviewSidecar).Replace('\', '/')
 $relativeDeploymentEvidence = [IO.Path]::GetRelativePath($repoRoot, $deploymentEvidencePath).Replace('\', '/')
 foreach ($truthPath in @(
   'docs/runtime-state/phase6-scale-criterion.json',
   'docs/runtime-state/cloudflare-native-hosted-current.json',
+  'docs/runtime-state/phase6-scale-hosted-current.json',
   'docs/runtime-state/capability-gates.json',
   'scripts/verify-phase6-scale-runtime.ps1',
   'scripts/verify-phase6-scale-evidence.ps1',
+  $canonicalHostedEvidenceRelativePath,
   $relativeDeploymentEvidence,
+  "$relativeDeploymentEvidence.sha256",
   $relativeEvidence,
   $relativeCompanion,
   $relativeExecutionReadback,
-  $relativeExecutionReadbackCompanion
+  $relativeExecutionReadbackCompanion,
+  $relativeEnvironmentReview,
+  $relativeEnvironmentReviewCompanion
 )) {
   Assert-TrackedCleanAgainstHead $truthPath
 }
@@ -990,9 +1213,12 @@ $recordedRepositoryHead = [string]$evidence.source_binding.repository_head_sha
 foreach ($boundPath in @(
   'docs/runtime-state/phase6-scale-criterion.json',
   'docs/runtime-state/cloudflare-native-hosted-current.json',
+  'docs/runtime-state/phase6-scale-hosted-current.json',
   'docs/runtime-state/capability-gates.json',
   'scripts/verify-phase6-scale-runtime.ps1',
-  $relativeDeploymentEvidence
+  $canonicalHostedEvidenceRelativePath,
+  $relativeDeploymentEvidence,
+  "$relativeDeploymentEvidence.sha256"
 )) {
   & git -C $repoRoot diff --quiet "$recordedRepositoryHead..HEAD" -- $boundPath
   Assert-True ($LASTEXITCODE -eq 0) "Source-bound file changed after the recorded live-run HEAD: $boundPath"

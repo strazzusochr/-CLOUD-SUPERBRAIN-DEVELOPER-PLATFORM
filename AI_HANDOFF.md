@@ -6,6 +6,30 @@
 
 Open this entire folder in the next IDE or AI-agent tool. Do not copy only tracked Git files: the current project state contains many new, untracked files that are required for a 1:1 handoff.
 
+## Active WIP — 2026-09-03 S/Q Qualification
+
+Current credit remains exactly `89%`: `0/136` newly credited and `136` open
+(`P3 +56`, `P5 +11`, `P6 +10`, `L4 +45`, `L5 +14`). `MARKET_READY:false` is still the
+only valid claim. The product-freeze commit `S` is not yet committed or pushed.
+
+The publication/I1 chain now uses `source-qualification-control-v1` instead of treating
+the old RC33 Phase-5 itemization as the new source authority. Direct child `Q` will bind an
+exact release ID, `runtime_candidate_sha=S`, and the SHA-256 of `git archive S`, with zero
+rollout and zero credit. GHCR preflight recomputes that archive hash. O1/O3 Owner grants
+are prepared locally as grant/ref only; every `live_verified` field remains false. Preserve
+and exclude the six foreign O4 dirty paths when staging.
+
+Local prefreeze evidence is green: six image builds, four HTTP-200 serving smokes, two
+worker import smokes, six Trivy results with zero HIGH/CRITICAL and zero secrets, and six
+valid CycloneDX SBOMs. Focused gates are green: market-ready unit `119/119`, progress and
+Phase-5 unit `60/60`, rubric `15/15`, OAuth `36/36`, Stateful Worker `69/69`, Phase-6
+static runtime/evidence, supply-chain pins, and all PowerShell parsers. No registry push,
+deploy, provider call, workflow dispatch, or percentage transition was performed.
+
+Next: finish the final secret/inventory checks, stage only the owned product slice, create
+and push `S`, require exact-head CI with no failed or skipped checks, then create direct
+child `Q`. Do not run live evidence against an unqualified WIP tree.
+
 ## Current Phase-6 Pre-Run Handoff — 2026-09-02
 
 The narrow Owner certificate is now recorded as
@@ -15,6 +39,12 @@ all evidence/provider fields remain empty. The additional empty `evidence_sha256
 the exact pre-promotion schema required by the deep verifier. No Phase-6 workflow was
 dispatched and no credit was applied.
 
+The grant is CI-attested. Grant commit `638ba0a9` and RC33 anchor correction
+`664968f08a2b392463165118b77887cc21781a98` are pushed; `pr-check` run `33610385136`
+checked out exact head `664968f0` and passed `31/31` steps with `0` skipped and `0`
+failed. This fixes the reported Phase-5 error that the no-credit requalification anchor
+did not name the exact release/source. Phase 5 remains correctly `17/19`, blocked I1/I5.
+
 Hardened code-control `bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0` is pushed to
 `origin/codex/organism-visual-v2`. Exact-head `pr-check` run `33605838142` passed
 `31/31` steps, with `0` skipped and `0` failed. Its three commits are:
@@ -22,11 +52,21 @@ Hardened code-control `bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0` is pushed to
 - `63983d6b`: preserves the B1 no-credit guarantee by reading the gate snapshot at the
   immutable approval commit `e87c28a7`; it no longer turns the historical guarantee into
   a permanent ban on later independently authorized grants. Focused tests `15/15` pass.
-- `c24b7bfd`: stops Worker -> Vercel -> Worker contract-origin recursion with a hop marker
-  and fail-closed `508`; Worker tests `68/68`, package check and root runtime verifier pass.
+- `c24b7bfd`: stops a possible Worker -> Vercel -> Worker contract-origin recursion with a
+  hop marker and fail-closed `508`; Worker tests `68/68`, package check and root runtime
+  verifier pass.
 - `bc2d4c8e`: keeps `/cdn-cgi/trace` attribution-only exactly as the frozen Phase-6
   criterion requires. Control failures remain recorded; all 900 Worker-request, latency,
   5xx, D1 readback, cleanup, uniqueness and audit criteria remain unchanged and fail-closed.
+
+Cloudflare's signed-in dashboard attributes the last 24 hours as `159` invocations and
+`0` errors on the production Stateful Worker versus `868.21k` invocations and `0` errors
+on the isolated Stateful Preview Worker; `868k` are attributed to Preview version
+`fc27406d`. Preview is therefore the dominant measured invocation consumer. Its role in
+exhausting the shared quota is strongly supported, while the open cross-origin bounce is a
+cause hypothesis rather than proven request-path attribution. Deploy the loop guard
+to Preview as well as the final Phase-6 production source before spending the reset window;
+make no additional Worker GET before reset.
 
 The agent-api image was rebuilt locally from a clean committed archive:
 `cloud-superbrain-local/agent-api:bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0`, image ID
@@ -43,10 +83,19 @@ origin is `https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev`; 
 confirmed OAuth production alias `frontend-seven-psi-78` is a separate origin and cannot
 substitute. The public Worker is still returning `429/1027`, its last hosted evidence was
 about 157 hours old, and its source comparison had 687 non-allowlisted paths to current
-HEAD. Required order: wait for quota reset, make one read-only `200` check, obtain a
-deploy the loop-guarded current source through the sole guarded production path, make
-exactly one `200` health check, verify fresh immutable source/evidence, and only then run
-the one-shot workflow dispatch. GHCR remains a separate external-transfer gate.
+HEAD. Required order: wait for quota reset; deploy the loop guard to Preview first and the
+final current source through the sole guarded production path; perform the production
+wrapper's single standalone `200` health read; run the canonical
+`verify-cloudflare-stateful-runtime.ps1` so its O2Core write/read/delete evidence and
+`cloudflare-native-hosted-current.json` are source-bound and younger than 24 hours; commit
+the separate P6 deployment-preflight state/evidence within ten minutes, explicitly binding
+Preview=`0` and Production=`1` Worker request; then commit the immutable controls as `C`.
+From `C` through evidence verification/gate promotion, make no branch commit. Dispatch the
+workflow exactly once with `run_attempt=1` and never rerun it. Preview, deployment, and
+canonical O2Core evidence must all be tracked and younger than 24 hours at dispatch. The
+GitHub execution readback must be collected within 24 hours after scale evidence generation;
+capture the human Environment approval separately through GitHub API/UI evidence.
+GHCR remains a separate external-transfer gate.
 
 Progress is unchanged: Overall `89`; P0-P6 `100/100/100/44/100/89/90`; L1-L7
 `100/100/100/55/86/100/100`; P5 `17/19`, I1/I5 blocked;
@@ -98,10 +147,10 @@ Preview Workers return HTTP `429`, Cloudflare error `1027`, because the account-
 daily request allowance is exhausted until the `00:00 UTC` reset. Vercel Preview
 deployment `dpl_CJzQ2YBuEzTpLS9KiFgvUSowo5MT` is `Ready`; `/api/v1/health` is `200`, while
 the MCP and LLM health projections are correctly `degraded` with `live_backend=false`
-because their Cloudflare upstreams are unreachable. Do not hammer or redeploy around the
-quota error. Remeasure once after reset. Exact six-service hosted parity (I1), Preview
-rebind, GHCR publication, Phase-6 grant/run, and production OAuth identity (I5) stay
-behind their separately requested Owner decisions; no production alias or payment change.
+because their Cloudflare upstreams are unreachable. This RC33 follow-up is superseded by
+the Phase-6 pre-run checkpoint above: do not measure before the guard/rebind. Preview guard,
+the narrow Production rebind, and B3 are now authorized; B2/production OAuth and B4/I1/GHCR
+remain separate Owner decisions. No production release/promotion or payment change.
 
 The latest current-candidate verifier passed its local credit and immutable-parity stages,
 then failed closed because the canonical hosted read
@@ -282,7 +331,7 @@ baseline-chain, artifact and scorer cases. The real ledger remains empty and no 
 value changed. The next truth-only documentation commit is accepted through the same
 dynamic final-head predicate; no self-referential future run ID is embedded.
 
-Read-only B3/B4 re-audit at `20daf6e`: GitHub now has environment
+Historical read-only B3/B4 re-audit at `20daf6e`: GitHub then had environment
 `phase6-scale-hosted-writes` and secret name `AGENT_API_AUTH_TOKEN`. Its workflow blob
 `0b2f7e3b` exists only on the feature branch and the file is absent from default branch
 `chore/repo-bootstrap`; `phase6_scale_runtime.owner_granted=false`. B3 provisioning is
@@ -290,7 +339,9 @@ therefore `2/3` and B3 remains closed. Default still carries old `main-deploy` b
 `555e8325` instead of safe feature blob `14e84b31`, while
 `docker_registry_publish.owner_granted=false`; B4 remains closed. This supersedes the older
 historical statement below that the Phase-6 environment itself is absent. No approval,
-secret value, provider write, publication or progress credit occurred.
+secret value, provider write, publication or progress credit occurred. The active
+Phase-6 checkpoint above supersedes this historical B3 state: the owner grant is
+now committed, while `live_verified` remains fail-closed until real evidence.
 
 ## Current RC23 Handoff — 2026-08-29
 

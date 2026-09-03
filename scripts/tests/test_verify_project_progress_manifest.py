@@ -169,7 +169,7 @@ class ProjectProgressTruthTests(unittest.TestCase):
         artifact_object_mode: str = "100644",
         artifact_payloads: dict[str, bytes] | None = None,
         approved_scorers: dict[
-            tuple[str, str], tuple[str, tuple[str, ...]]
+            tuple[str, str, int, int], tuple[str, tuple[str, ...]]
         ]
         | None = None,
         scorer_stdout: str | None = None,
@@ -242,6 +242,38 @@ class ProjectProgressTruthTests(unittest.TestCase):
                 stderr="synthetic scorer failure" if scorer_returncode else "",
             )
 
+        default_approved_scorers = {
+            ("horizontal", "phase_3", 44, 45): (
+                SYNTHETIC_P3_SCORER_COMMAND,
+                SYNTHETIC_P3_SCORER_ARGV,
+            ),
+            ("vertical", "layer_4", 55, 56): (
+                SYNTHETIC_L4_SCORER_COMMAND,
+                SYNTHETIC_L4_SCORER_ARGV,
+            ),
+        }
+        # Protocol tests exercise chained ledger entries without weakening the
+        # production allowlist. Admit only the exact synthetic transitions that
+        # occur in this fixture so replay reaches the ancestry/evidence guards
+        # each test is intended to cover.
+        for entry in ledger["entries"]:
+            key = (
+                entry["scope"],
+                entry["cell_id"],
+                entry["old_percent"],
+                entry["new_percent"],
+            )
+            if entry["scope"] == "horizontal" and entry["cell_id"] == "phase_3":
+                default_approved_scorers[key] = (
+                    SYNTHETIC_P3_SCORER_COMMAND,
+                    SYNTHETIC_P3_SCORER_ARGV,
+                )
+            elif entry["scope"] == "vertical" and entry["cell_id"] == "layer_4":
+                default_approved_scorers[key] = (
+                    SYNTHETIC_L4_SCORER_COMMAND,
+                    SYNTHETIC_L4_SCORER_ARGV,
+                )
+
         with (
             patch.object(
                 verifier,
@@ -258,16 +290,7 @@ class ProjectProgressTruthTests(unittest.TestCase):
                 "APPROVED_DELTA_SCORERS",
                 approved_scorers
                 if approved_scorers is not None
-                else {
-                    ("horizontal", "phase_3"): (
-                        SYNTHETIC_P3_SCORER_COMMAND,
-                        SYNTHETIC_P3_SCORER_ARGV,
-                    ),
-                    ("vertical", "layer_4"): (
-                        SYNTHETIC_L4_SCORER_COMMAND,
-                        SYNTHETIC_L4_SCORER_ARGV,
-                    ),
-                },
+                else default_approved_scorers,
             ),
             patch.object(
                 verifier.subprocess,
@@ -527,6 +550,20 @@ class ProjectProgressTruthTests(unittest.TestCase):
             timeout=verifier.DELTA_SCORER_TIMEOUT_SECONDS,
             env=verifier.delta_scorer_environment(),
             shell=False,
+        )
+
+    def test_approved_scorers_are_bound_to_exact_cell_transition(self) -> None:
+        expected = {
+            ("horizontal", "phase_3", 44, 100): "python scripts/score_phase3_oauth_credit.py --score-v1",
+            ("horizontal", "phase_5", 89, 100): "python scripts/score_phase5_market_ready_credit.py --score-v1",
+            ("horizontal", "phase_6", 90, 100): "python scripts/score_phase6_scale_credit.py --score-v1",
+            ("vertical", "layer_4", 55, 100): "python scripts/score_layer4_hosted_llm_credit.py --score-v1",
+            ("vertical", "layer_5", 56, 86): "python scripts/score_layer5_hosted_mcp_credit.py --score-v1",
+            ("vertical", "layer_5", 86, 100): "python scripts/score_layer5_registry_release_credit.py --score-v1",
+        }
+        self.assertEqual(
+            {key: value[0] for key, value in verifier.APPROVED_DELTA_SCORERS.items()},
+            expected,
         )
 
     def test_v2_rejects_bad_unavailable_and_non_ancestor_entry_sources(self) -> None:

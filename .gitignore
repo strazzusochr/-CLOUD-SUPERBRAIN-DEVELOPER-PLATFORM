@@ -60,3 +60,7 @@ AGENTS.codex-backup.md
 # every frontend build dirty the runtime worktree, which blocked the O4 live-write proof
 # and forced a clean-clone detour on each run.
 *.tsbuildinfo
+
+# Lokales UTF-8/Docker-Shim: enthaelt eine kompilierte docker.exe und
+# darf niemals ins Repository. Nur .codex/runs/ war bisher ignoriert.
+.codex/psutf8-shim/

@@ -13,6 +13,7 @@ const HOSTED_SESSION_TOKEN_BYTES = 32;
 const AUTH_ACCESS_TTL_SECONDS = 900;
 const AUTH_REFRESH_FAMILY_TTL_SECONDS = 604800;
 const AUTH_REFRESH_FAMILY_TTL_MS = AUTH_REFRESH_FAMILY_TTL_SECONDS * 1000;
+const AUTH_EVIDENCE_STATUS_CONTRACT_VERSION = "production-auth-evidence-status-v1";
 const AUTH_VERCEL_PUBLIC_HOST_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.vercel\.app$/;
 const AUTH_GITHUB_CLIENT_ID_PATTERN = /^(?:[A-Za-z0-9]{20}|[IO]v1\.[A-Fa-f0-9]{16})$/;
 const AUTH_REFRESH_FAMILY_ID_PATTERN = /^fam_[A-Za-z0-9_-]{22}$/;
@@ -2455,6 +2456,72 @@ function authContractPayload(env) {
   };
 }
 
+function productionAuthEvidenceStatusPayload(env) {
+  const auth = authContractPayload(env);
+  const sourceCommitSha = typeof env.SOURCE_COMMIT_SHA === "string" && /^[a-f0-9]{40}$/.test(env.SOURCE_COMMIT_SHA)
+    ? env.SOURCE_COMMIT_SHA
+    : null;
+  const sourceArchiveSha256 = typeof env.SOURCE_ARCHIVE_SHA256 === "string" && /^[a-f0-9]{64}$/.test(env.SOURCE_ARCHIVE_SHA256)
+    ? env.SOURCE_ARCHIVE_SHA256
+    : null;
+  const sourceBundle = sourceBundleSha256(env);
+  const blockers = [
+    ...auth.missing_configuration,
+    ...auth.activation_blockers,
+    ...(!env.DB ? ["cloudflare_d1_binding"] : []),
+    ...(!sourceCommitSha ? ["source_commit_sha"] : []),
+    ...(!sourceArchiveSha256 ? ["source_archive_sha256"] : []),
+    ...(!sourceBundle ? ["source_bundle_sha256"] : []),
+  ];
+  const evidenceCollectionReady = auth.credential_issuance_ready && blockers.length === 0;
+  return {
+    contract_version: AUTH_EVIDENCE_STATUS_CONTRACT_VERSION,
+    status: evidenceCollectionReady ? "ready_for_hosted_evidence" : "blocked",
+    architecture: "cloudflare_native",
+    evidence_collection_ready: evidenceCollectionReady,
+    credential_issuance_ready: auth.credential_issuance_ready,
+    oauth_scope: "read:user",
+    oauth_state_policy: {
+      storage: "cloudflare_d1",
+      one_time: true,
+      cookie_name: AUTH_STATE_COOKIE,
+    },
+    identity_policy: {
+      provider: "github",
+      positive_numeric_id_required: true,
+      owner_allowlist_required: true,
+      owner_allowlist_configured: auth.owner_identity_allowlist_configured,
+    },
+    token_family_policy: {
+      distinct_families_required: true,
+      family_a: "refresh_replay",
+      family_b: "logout",
+      replay_revokes_entire_family: true,
+      logout_revokes_active_family_only: true,
+    },
+    cookie_policy: auth.cookie_flags,
+    audit_policy: {
+      persist_before_credential_issuance: true,
+      readback_required: true,
+      fail_closed: true,
+    },
+    source_binding: {
+      source_commit_sha: sourceCommitSha,
+      source_archive_sha256: sourceArchiveSha256,
+      source_bundle_sha256: sourceBundle,
+    },
+    blockers,
+    live_verified: false,
+    gate_promotion_performed: false,
+    secret_output: false,
+    non_claims: [
+      "Readiness does not prove a live GitHub OAuth flow.",
+      "Two distinct refresh-token families must be demonstrated by sanitized raw evidence.",
+      "Only the evidence-bound gate promoter may transition live_verified after independent verification.",
+    ],
+  };
+}
+
 async function authGithubStart(request, env, requestId) {
   const contract = authContractPayload(env);
   if (!contract.credential_issuance_ready) {
@@ -3658,6 +3725,7 @@ export default {
         : json(autonomousTeamStatusPayload(requestId));
     }
     if (request.method === "GET" && url.pathname === "/api/v1/auth/contract") return json(authContractPayload(env));
+    if (request.method === "GET" && url.pathname === "/api/v1/auth/evidence/status") return json(productionAuthEvidenceStatusPayload(env));
     if (request.method === "GET" && url.pathname === "/api/v1/auth/github") return authGithubStart(request, env, requestId);
     if (request.method === "GET" && url.pathname === "/api/v1/auth/callback") return authGithubCallback(request, url, env, requestId);
     if (request.method === "GET" && url.pathname === "/api/v1/auth/me") return authMe(request, env, requestId);

@@ -1,5 +1,13 @@
 title = "Cloud Superbrain gitleaks config"
 
+# Der gitleaks-Standardregelsatz ist Pflicht. Ohne ihn passieren GitHub-PATs,
+# AWS-, OpenAI-, Slack-Tokens und PEM-Private-Keys den Scan ungesehen.
+# Nachgemessen 2026-09-03 mit gitleaks 8.30.1: ohne diese Zeile meldet ein
+# synthetisches, nicht stopword-basiertes ghp_-Muster "no leaks found". Mit
+# useDefault=true wird dieselbe Positivkontrolle korrekt geblockt.
+[extend]
+useDefault = true
+
 [[rules]]
 id = "cloudflare-api-token"
 description = "Cloudflare API token prefix"
@@ -30,7 +38,7 @@ description = "Hetzner or hcloud token assignment"
 regex = '''(?i)\b(hetzner|hcloud|cloud)\s+token\s+[A-Za-z0-9_-]{32,}\b'''
 keywords = ["hetzner", "hcloud", "cloud"]
 
-[allowlist]
+[[allowlists]]
 description = "Allow documented placeholders only."
 regexes = [
   '''change-me-now''',
@@ -42,4 +50,28 @@ regexes = [
 ]
 paths = [
   '''\.env\.example$'''
+]
+
+# Nur die Heuristik "generic-api-key" wird in Beweisartefakten stummgeschaltet.
+# Dort stehen SHA-256-Image-Digests, Git-SHAs und Build-Logs, die sie als
+# Schluessel missdeutet - nachgemessen 79 Treffer, alle falsch.
+# Jede echte Credential-Regel bleibt in diesen Pfaden aktiv.
+[[allowlists]]
+description = "Evidence artifacts contain digests, not credentials"
+targetRules = ["generic-api-key"]
+paths = [
+  '''^docs/release-artifacts/''',
+  '''^\.codex/runs/''',
+  '''^\.phase1-artifacts/''',
+  '''^apps/frontend/\.next/''',
+  '''package-lock\.json$''',
+  '''^services/cloudflare-stateful-runtime/''',
+  '''/tests?/''',
+  '''\.test\.(mjs|js|ts)$'''
+]
+# Ein reiner Hex-SHA ist niemals eine Zugangsberechtigung. Git-SHAs (40) und
+# Image-Digests (64) tauchen in Wahrheitsdokumenten und Evidenz staendig auf.
+regexes = [
+  '''^[0-9a-f]{40}$''',
+  '''^[0-9a-f]{64}$'''
 ]

@@ -1,5 +1,33 @@
 # Cloud Superbrain Project Anchor
 
+## ⚓ CHECKPOINT 2026-09-03 — S PREFREEZE WIP / NO CREDIT
+
+**Anchor ID:** `cloud-superbrain-anchor-2026-09-03-s-prefreeze-wip`
+**Status:** `ACTIVE_RESUME_POINT`
+**Workspace:** `D:\_sb_tmp\rc29-control`
+**Branch:** lokal `codex/rc29-control`; Pushziel `origin/codex/organism-visual-v2`
+
+| Gegenstand | Ergebnis |
+|---|---|
+| Kredit | Overall `89`; neu `0/136`, offen `136`; `MARKET_READY:false` |
+| S | noch nicht committed/pushed; Produkt-, Workflow-, Scorer-, OAuth-, P6-, I1- und Cortex-WIP integriert |
+| Q-Vertrag | `source-qualification-control-v1`; Release + exaktes `S` + `git archive` SHA-256; Credit `0` |
+| Owner | O1/O3 grant/ref lokal vorbereitet; `live_verified=false`; keine externe Aktion |
+| Images | 6/6 gebaut; 4/4 HTTP 200; 2/2 Worker-Imports; Trivy 6/6 je HIGH/CRITICAL `0`, Secrets `0`; CycloneDX 6/6 |
+| Tests | Unit `119/119`; Progress/Phase5 `60/60`; Rubrik `15/15`; OAuth `36/36`; Worker `69/69`; P6 static PASS; Pins/Pwsh PASS |
+| Extern | kein GHCR, Deploy, Dispatch, Providercall oder Prozentkredit |
+
+### NAECHSTER SICHERER SCHRITT
+
+1. finalen gitleaks-/Fallback-Scan und exaktes Worktree-Inventar ausfuehren;
+2. die sechs fremden Dirty-Pfade aus dem Index halten, insbesondere nur eigene Hunks aus
+   `docs/runtime-state/capability-gates.json` aufnehmen;
+3. Produkt-Freeze `S` committen und explizit auf den Feature-Branch pushen;
+4. Exact-Head-CI `failed=0`, `skipped=0` abwarten;
+5. direkten Kindcommit `Q` nur mit der Qualification-Control erzeugen und pruefen.
+
+---
+
 ## ⚓ CHECKPOINT 2026-09-02 — PHASE-6 PRE-RUN HARDENED / OWNER GRANT RECORDED
 
 **Anchor ID:** `cloud-superbrain-anchor-2026-09-02-phase6-prerun-grant-recorded`
@@ -11,23 +39,34 @@
 |---|---|
 | Hardened Code-Control | `bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0`, gepusht |
 | Exact-Head CI | `pr-check` `33605838142`, `31/31` gruen, skipped `0`, failed `0` |
+| Grant/Anchor Control | `664968f08a2b392463165118b77887cc21781a98`, gepusht; `pr-check` `33610385136`, `31/31`, skipped `0`, failed `0`; Phase-5-Ankerfehler geschlossen |
 | Rubrik-Schutz | `63983d6b`: B1-Null-Credit am Approval-Commit `e87c28a7` historisch gebunden; 15/15 Tests gruen |
 | Loop-Guard | `c24b7bfd`: Worker/Vercel-Hop-Marker, Rekursion fail-closed `508`; Worker `68/68` |
 | Phase-6-Control | `bc2d4c8e`: `/cdn-cgi/trace` attribution-only; Worker-Passkriterien unveraendert |
 | Gate | `owner_granted=true`, Ref `OWNER_GRANTS_2026-09-02.json::O2:phase6_scale_runtime`; `live_verified=false`; kein Dispatch/Credit |
 | Agent-API Image | lokal `cloud-superbrain-local/agent-api:bc2d4c8e...`, ID `sha256:b4943bfd...`; Labels `4/4`, Hashes `6/6`, Health HTTP `200`/`degraded`; kein Push |
 | Hosted Blocker | Phase-6-Origin HTTP `429/1027`; Evidence ~157 h alt; Source-Delta 687 nicht allowlistete Pfade |
+| Quota-Attribution | Cloudflare 24h: Production Stateful `159` Invocations/`0` Errors; Preview Stateful `868.21k`/`0`, davon `868k` auf Version `fc27406d`. Preview ist der dominante gemessene Invocation-Verbraucher; Shared-Limit-Zuordnung ist stark gestuetzt, Bounce-Ursache bleibt ohne Requestpfad-Analytics eine Hypothese. |
 | Origin | OAuth-Frontend `frontend-seven-psi-78` bestaetigt; Phase 6 ausschliesslich `cloud-superbrain-stateful-runtime.strazzusochr.workers.dev` |
 | Fortschritt | Overall 89 · P0-P6 `100/100/100/44/100/89/90` · L1-L7 `100/100/100/55/86/100/100` |
 | Marktstatus | `MARKET_READY:false`; I1/I5 blockiert |
 
 ### NAECHSTER SICHERER SCHRITT
 
-1. Den autorisierten Loop-Guard ueber einen expliziten Production-Modus des geschuetzten
-   Deploypfads auf den Phase-6-Worker binden; der bisherige Pfad ist Preview-only.
-2. Danach den Phase-6-Worker genau einmal read-only auf HTTP `200` pruefen.
-3. Frische immutable Deployment-Evidence source-bound committen.
-4. Erst dann genau einen GitHub-Actions-Lauf dispatchen. GHCR bleibt separat gehalten.
+1. Vor dem `00:00 UTC`-Reset keinen weiteren Worker-GET ausfuehren.
+2. Den Loop-Guard nach dem Reset zuerst auf den isolierten Stateful-Preview und ueber den
+   expliziten Production-Modus des geschuetzten Deploypfads auf den Phase-6-Worker binden.
+3. Danach im Production-Wrapper genau einen eigenstaendigen HTTP-`200`-Health-Read ausfuehren.
+4. Den kanonischen Cloudflare-Stateful-Verifier einmal mit den erforderlichen O2Core-
+   Requests fahren; dessen Write/Read/Delete-Evidence und Hosted-State muessen source-bound
+   und beim Dispatch juenger als 24 Stunden sein.
+5. Preview- und Production-Deploy-Ergebnis innerhalb zehn Minuten offline mit dem
+   P6-Deployment-Preflight-Writer binden; Preview=`0`, Production=`1` Worker-Request.
+   Frische immutable Deployment-/O2Core-Evidence source-bound in Control `C` committen.
+6. Ab `C` bis Evidence-Verifikation/Gate-Promotion keinen Branch-Commit erzeugen. Exakt
+   einen GitHub-Actions-Lauf (`run_attempt=1`, kein Rerun) dispatchen und dessen Readback
+   innerhalb 24 Stunden nach Evidence-Erzeugung sammeln. Den menschlichen Environment-
+   Review separat belegen. GHCR bleibt separat gehalten.
 
 ### NICHT ANTASTEN
 
@@ -61,12 +100,12 @@ Keine Backups/Worktrees erzeugen. Keine Action-Pins vor dem naechsten Freeze akt
 | Marktstatus | `MARKET_READY:false`; I1/I5 bleiben blockiert |
 | Externe Restwaende | I1 exakte sechs-Service Hosted-Paritaet; I5 Production OAuth; L4-Verifier-Credential; L5 GHCR/Remote-Scan/Protected-Publish; B2/B3/B4 |
 
-### NAECHSTER SICHERER SCHRITT
+### HISTORISCHER RC33-FOLGESCHRITT
 
-1. Cloudflare-Free-Plan-Reset um `00:00 UTC` abwarten und danach Stateful/LLM Preview genau einmal read-only neu messen; Endpunkte nicht hammern.
-2. Den bereits gesendeten Owner-AI-Prompt fuer Preview-Rebind, B2, B3, B4 und B5 getrennt beantworten lassen; allgemeines `ja` nicht als Einzelgrant werten.
-3. Nur nach exakter Freigabe Preview-Rebind und zugehoerige Hosted-Verifier seriell ausfuehren; kein Production-Alias und kein Payment-Upgrade ohne separate Freigabe.
-4. GitHub-Actions-Pins erst **nach dem naechsten Freeze** separat aktualisieren.
+Dieser damalige Ablauf ist durch den aktiven Phase-6-Pre-Run-Checkpoint am Anfang
+dieser Datei ersetzt. Insbesondere darf nach dem Reset nicht vor Guard/Rebind ein
+zusaetzlicher Worker-Read erfolgen. GitHub-Actions-Pins bleiben bis nach dem
+naechsten Freeze unangetastet.
 
 ### FREMDE DIRTY-PFADE
 
