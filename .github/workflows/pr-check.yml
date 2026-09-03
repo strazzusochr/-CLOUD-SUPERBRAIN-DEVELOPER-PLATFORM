@@ -540,6 +540,7 @@ jobs:
           set -e
           rm -f "${probe_path}"
           test "${probe_status}" -eq 42
+          python scripts/verify_gitleaks_history_exceptions.py
 
       - name: Secret scan
         run: gitleaks detect --source . --redact --no-banner --exit-code 1

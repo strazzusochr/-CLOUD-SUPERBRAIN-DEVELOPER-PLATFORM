@@ -39,6 +39,15 @@ Overall **89**, `MARKET_READY:false`.
   neu gebaut. Echte Container-Probe danach: Login HTTP 200, core.glb HTTP 200,
   93112 Bytes, SHA-256 identisch zur Quelle. Trivy HIGH/CRITICAL=0, Secrets=0.
   Alles DEV-ONLY; kein Hosted-Kredit. Der kurzlebige Testcontainer wurde entfernt.
+  RC36-CI `33800701350`: 26 Schritte bis einschliesslich Frontend-Audit, OAuth,
+  Stateful-/LLM-Tests und Gitleaks-Positivkontrolle PASS; History-Secret-Scan meldete
+  drei alte `generic-api-key`-Heuristiktreffer, deshalb Gesamtlauf FAIL und RC36 nicht
+  freigegeben. Redigierte Pruefung ordnete alle drei historischer Prosa bzw. einem
+  verbotenen Authorization-Header-Canary zu, nicht providerspezifischen Credentials.
+  Exakte Fingerprints in `.gitleaksignore`; neuer fail-closed Verifier bindet Commit,
+  Pfad, Regel, Zeile und Hash des redigierten Kontexts und beweist zusaetzlich, dass
+  drei frische synthetische PATs in denselben Pfaden 3/3 geblockt werden. Voller lokaler
+  History-Scan danach: 777 Commits, 0 Funde. Keine breite Pfad-/Regelausnahme.
   RC35 ist wegen des fehlgeschlagenen Gesamtlaufs nicht freigegeben; sein Owner-Paket
   ist ueberholt und darf nicht zur Ausfuehrung verwendet werden.
 - Kein Cloud-/Registry-Deploy, kein P6-Live-Dispatch, kein Provideraufruf, keine
