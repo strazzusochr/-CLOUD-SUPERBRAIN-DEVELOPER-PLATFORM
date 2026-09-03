@@ -13,6 +13,12 @@ VERIFIER = ROOT / "scripts" / "verify-market-ready-owner-request.ps1"
 
 
 class MarketReadyOwnerRequestTests(unittest.TestCase):
+    def test_writer_confines_output_to_platform_temp_or_request_root(self) -> None:
+        source = WRITER.read_text(encoding="utf-8")
+        self.assertNotIn("& git.exe ", source)
+        self.assertIn("[IO.Path]::GetFullPath([IO.Path]::GetTempPath())", source)
+        self.assertIn("output is confined to a temporary/request artifact root", source)
+
     def test_writer_and_verifier_emit_no_authorization_or_credit(self) -> None:
         head = subprocess.run(
             ["git", "rev-parse", "HEAD"],
@@ -21,7 +27,7 @@ class MarketReadyOwnerRequestTests(unittest.TestCase):
             text=True,
             check=True,
         ).stdout.strip()
-        with tempfile.TemporaryDirectory(dir="D:\\_sb_tmp") as temp_dir:
+        with tempfile.TemporaryDirectory() as temp_dir:
             output = Path(temp_dir) / "owner-request.json"
             writer = subprocess.run(
                 [

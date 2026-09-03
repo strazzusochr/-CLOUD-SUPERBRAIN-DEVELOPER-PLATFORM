@@ -16,17 +16,17 @@ Assert-True "source SHA is exact" ($SourceSha -cmatch '^[0-9a-f]{40}$')
 Assert-True "qualification SHA is exact" ($QualificationSha -cmatch '^[0-9a-f]{40}$')
 Assert-True "release ID is bounded" ($ReleaseId -cmatch '^prod-candidate-[0-9]{4}-[0-9]{2}-[0-9]{2}-local-rc[0-9]+$')
 
-& git.exe -C $repoRoot cat-file -e "$SourceSha^{commit}" 2>$null
+& git -C $repoRoot cat-file -e "$SourceSha^{commit}" 2>$null
 Assert-True "source commit exists" ($LASTEXITCODE -eq 0)
-& git.exe -C $repoRoot cat-file -e "$QualificationSha^{commit}" 2>$null
+& git -C $repoRoot cat-file -e "$QualificationSha^{commit}" 2>$null
 Assert-True "qualification commit exists" ($LASTEXITCODE -eq 0)
-& git.exe -C $repoRoot merge-base --is-ancestor $SourceSha $QualificationSha
+& git -C $repoRoot merge-base --is-ancestor $SourceSha $QualificationSha
 Assert-True "qualification descends from source" ($LASTEXITCODE -eq 0)
 
 $resolvedOutput = [IO.Path]::GetFullPath($OutputPath)
 $safeParents = @(
   [IO.Path]::GetFullPath((Join-Path $repoRoot '.codex\runs\CURRENT')).TrimEnd('\', '/'),
-  [IO.Path]::GetFullPath('D:\_sb_tmp').TrimEnd('\', '/')
+  [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/')
 )
 Assert-True "output is confined to a temporary/request artifact root" (@(
   $safeParents | Where-Object {

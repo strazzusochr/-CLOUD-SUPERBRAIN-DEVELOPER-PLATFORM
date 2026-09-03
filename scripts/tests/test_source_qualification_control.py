@@ -12,8 +12,15 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class SourceQualificationControlTests(unittest.TestCase):
+    def test_scripts_use_platform_neutral_git_and_temp_directory(self) -> None:
+        for name in ("write-source-qualification-control.ps1", "verify-source-qualification-control.ps1"):
+            source = (ROOT / "scripts" / name).read_text(encoding="utf-8")
+            self.assertNotIn("& git.exe ", source)
+            self.assertIn("& git -C $repoRoot", source)
+            self.assertIn("[IO.Path]::GetTempPath()", source)
+
     def test_writer_and_verifier_bind_release_to_source_without_credit(self) -> None:
-        with tempfile.TemporaryDirectory(dir="D:\\_sb_tmp") as temp_dir:
+        with tempfile.TemporaryDirectory() as temp_dir:
             repo = Path(temp_dir)
             (repo / "scripts").mkdir(parents=True)
             shutil.copy2(ROOT / "scripts" / "write-source-qualification-control.ps1", repo / "scripts")

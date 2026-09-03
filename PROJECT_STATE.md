@@ -1,5 +1,32 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
+## AKTIVER CHECKPOINT 2026-09-03 — CI-PORTABILITAET / NEUBINDUNG
+
+Dieser Abschnitt ersetzt die untenstehenden Prefreeze-WIP-Aussagen.
+Matrixpunkte: **1264/1400 erfuellt, 136 offen**; neu kreditiert **0/136**;
+Overall **89**, `MARKET_READY:false`.
+
+- Produkt-Slice `8b29aca5c0e1feff6e49c63802610bfc081502fd` (114 Pfade) und
+  Q `50b5ec9534b9188756a3b3bd4a154c0317223995` wurden auf den Feature-Branch
+  gepusht. Alle sechs fremden Dirty-Dateien blieben bytegleich; nur O1/O3-Grant-Hunks
+  der Capability-Datei wurden committed, keine Live-Verification oder Punkte.
+- CI `33795228836` hat S/Q-, Ledger-, Rubrik-, P6- und Phase-5-Bindungspruefungen
+  bestanden. Im neuen 106-Test-Block: 103 PASS, zwei Windows-Temppfad-Fehler und ein
+  ErrorView-Zeilenumbruch im negativen Docker-Shadow-Test. Der Docker-Guard selbst
+  wies korrekt ab. Der Gesamtlauf ist **failure**, keine CI-Freigabe.
+- Die Korrektur nutzt das Betriebssystem-Tempverzeichnis (lokal weiterhin
+  `TEMP/TMP=D:\_sb_tmp`), plattformneutrales `git` und die unverkuerzte Exception
+  fuer den negativen Test. Keine Schutzpruefung wird entfernt; zwei neue
+  Portabilitaetsregressionen kommen hinzu.
+- Der vorige S/Q-Versuch ist nicht release-qualifiziert. Nach fokussierten Tests
+  folgt ein neuer Produkt-Freeze, dann ein direkter Q-Kindcommit mit Source-/Archivhash;
+  erst danach CI mit exakt ausgechecktem S. Q muss vor dieser Source-Prequalification
+  existieren: der alte RC33-Full-Credit-Verifier darf neuen Produktcode nicht krediteren.
+- Kein Cloud-/Registry-Deploy, kein P6-Live-Dispatch, kein Provideraufruf, keine
+  Production-Promotion. Owner-Paket erst mit den neu gebundenen SHAs ausgeben.
+
+
+
 Letzte Aktualisierung: 2026-09-03
 ══════════════════════════════════════════════════════════════════
 

@@ -14,7 +14,7 @@ function Assert-True([string]$Label, [bool]$Value) {
 function Get-GitArchiveSha256([string]$CommitSha) {
   $archivePath = Join-Path ([IO.Path]::GetTempPath()) ("source-qualification-{0}.tar" -f ([Guid]::NewGuid().ToString('N')))
   try {
-    & git.exe -C $repoRoot archive --format=tar "--output=$archivePath" $CommitSha
+    & git -C $repoRoot archive --format=tar "--output=$archivePath" $CommitSha
     Assert-True "source archive created" ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $archivePath -PathType Leaf))
     return (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
   } finally {
@@ -24,7 +24,7 @@ function Get-GitArchiveSha256([string]$CommitSha) {
 
 Assert-True "source SHA is exact" ($SourceSha -cmatch '^[0-9a-f]{40}$')
 Assert-True "release ID is exact" ($ReleaseId -cmatch '^prod-candidate-[0-9]{4}-[0-9]{2}-[0-9]{2}-local-rc[0-9]+$')
-& git.exe -C $repoRoot cat-file -e "$SourceSha^{commit}" 2>$null
+& git -C $repoRoot cat-file -e "$SourceSha^{commit}" 2>$null
 Assert-True "source commit exists" ($LASTEXITCODE -eq 0)
 $sourceArchiveSha256 = Get-GitArchiveSha256 $SourceSha
 Assert-True "source archive SHA-256 is exact" ($sourceArchiveSha256 -cmatch '^[0-9a-f]{64}$')

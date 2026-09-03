@@ -14,7 +14,7 @@ function Assert-True([string]$Label, [bool]$Value) {
 function Get-GitArchiveSha256([string]$CommitSha) {
   $archivePath = Join-Path ([IO.Path]::GetTempPath()) ("source-qualification-verify-{0}.tar" -f ([Guid]::NewGuid().ToString('N')))
   try {
-    & git.exe -C $repoRoot archive --format=tar "--output=$archivePath" $CommitSha
+    & git -C $repoRoot archive --format=tar "--output=$archivePath" $CommitSha
     Assert-True "source archive created" ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $archivePath -PathType Leaf))
     return (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
   } finally {
@@ -36,7 +36,7 @@ Assert-True "release" ([string]$control.release_id -ceq $ExpectedReleaseId)
 Assert-True "rollout false" ($control.production_rollout_claimed -is [bool] -and -not $control.production_rollout_claimed)
 Assert-True "credit zero" ([int]$control.percentage_credit_awarded -eq 0)
 Assert-True "secret output false" ($control.secret_output -is [bool] -and -not $control.secret_output)
-& git.exe -C $repoRoot cat-file -e "$ExpectedSourceSha^{commit}" 2>$null
+& git -C $repoRoot cat-file -e "$ExpectedSourceSha^{commit}" 2>$null
 Assert-True "source commit exists" ($LASTEXITCODE -eq 0)
 $computedArchiveSha256 = Get-GitArchiveSha256 $ExpectedSourceSha
 Assert-True "archive matches source commit" ([string]$control.source_archive_sha256 -ceq $computedArchiveSha256)

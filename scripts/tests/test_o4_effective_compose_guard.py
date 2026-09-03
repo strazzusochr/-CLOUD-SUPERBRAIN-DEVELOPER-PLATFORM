@@ -36,18 +36,21 @@ class O4EffectiveComposeGuardTests(unittest.TestCase):
             fake_root = Path(temporary)
             fake_docker = fake_root / ("docker.exe" if os.name == "nt" else "docker")
             fake_docker.write_bytes(b"this file must never be executed")
+            # Capture the actual exception, not host-width/ANSI-formatted ErrorView output.
+            quote = lambda path: "'" + str(path).replace("'", "''") + "'"
+            command = (
+                f"try {{ & {quote(SCRIPT)} -RepoRoot {quote(fake_root)} "
+                f"-DockerExecutable {quote(fake_docker)} }} "
+                "catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }"
+            )
             result = subprocess.run(
                 [
                     "pwsh",
                     "-NoProfile",
                     "-ExecutionPolicy",
                     "Bypass",
-                    "-File",
-                    str(SCRIPT),
-                    "-RepoRoot",
-                    str(fake_root),
-                    "-DockerExecutable",
-                    str(fake_docker),
+                    "-Command",
+                    command,
                 ],
                 cwd=ROOT,
                 text=True,
