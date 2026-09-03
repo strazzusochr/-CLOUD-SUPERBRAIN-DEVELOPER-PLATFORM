@@ -22,6 +22,25 @@ Overall **89**, `MARKET_READY:false`.
   folgt ein neuer Produkt-Freeze, dann ein direkter Q-Kindcommit mit Source-/Archivhash;
   erst danach CI mit exakt ausgechecktem S. Q muss vor dieser Source-Prequalification
   existieren: der alte RC33-Full-Credit-Verifier darf neuen Produktcode nicht krediteren.
+- RC35: S `4b46f9e486fc8c98894a78ff6e72c4ba66024416`, Q
+  `6538acee50edd922f3491e590dbfc871b64dee98`, CI `33796055412`:
+  Portabilitaetskorrekturen bestanden; 108/108 Python- und 13/13 L4-Tests gruen.
+  Der anschliessende Frontend-Audit fand genau eine moderate fflate-Luecke
+  (GHSA-px8p-9vwx-vf98; Advisory am 2026-09-03 aktualisiert).
+  Gezielt nur das transitive Lockfile-Paket `0.6.10 -> 0.6.11` aktualisiert;
+  erneuter npm-Audit: 0 Schwachstellen. Lint und Produktionsbuild mit Node 24 bestanden.
+  Browser DEV-ONLY: Cortex-Start und drei Kaltstarts bestanden; Accessibility meldete
+  zuerst Screenshot-ausgeloeste Next-Prefetches (Header und Trace-Zeitfolge nachgewiesen).
+  Screenshot hinter die vollstaendigen, ungefilterten Netzwerk-Assertions verschoben;
+  isolierte Accessibility-Gegenprobe danach PASS. Alle drei fokussierten Browserfaelle
+  damit abgedeckt; neuer statischer Regressionstest plus bestehende zwei Tests 3/3 PASS.
+  Zusaetzlicher Runtime-Fund: dem Production-Image fehlte `public/` (Red-Probe
+  `GLB_MISSING`). Docker-COPY plus Supply-Chain-Guard ergaenzt, Production-Image
+  neu gebaut. Echte Container-Probe danach: Login HTTP 200, core.glb HTTP 200,
+  93112 Bytes, SHA-256 identisch zur Quelle. Trivy HIGH/CRITICAL=0, Secrets=0.
+  Alles DEV-ONLY; kein Hosted-Kredit. Der kurzlebige Testcontainer wurde entfernt.
+  RC35 ist wegen des fehlgeschlagenen Gesamtlaufs nicht freigegeben; sein Owner-Paket
+  ist ueberholt und darf nicht zur Ausfuehrung verwendet werden.
 - Kein Cloud-/Registry-Deploy, kein P6-Live-Dispatch, kein Provideraufruf, keine
   Production-Promotion. Owner-Paket erst mit den neu gebundenen SHAs ausgeben.
 

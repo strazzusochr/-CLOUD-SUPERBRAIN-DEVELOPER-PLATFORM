@@ -1081,12 +1081,6 @@ test.describe("Cloud Superbrain platform", () => {
     await expect(page.getByTestId("batch1-organism-action-result")).toContainText("kind=hub");
     await expect(page.getByTestId("batch1-organism-action-result")).toContainText("value=prefrontal");
 
-    const artifactPath = phase6ArtifactPath("phase6-accessibility.png");
-    if (artifactPath) {
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await page.screenshot({ path: artifactPath, fullPage: true });
-    }
-
     await toggle.click();
     await expect(state).toContainText("user_override=false");
     await expect(state).toContainText("motion_mode=standard");
@@ -1103,6 +1097,18 @@ test.describe("Cloud Superbrain platform", () => {
 
     expect(accessibilityRequests, "accessibility controls remain browser-local").toEqual([]);
     expect(errors, "no console/page errors during accessibility interactions").toEqual([]);
+
+    // Full-page evidence capture scrolls the layout and can start unrelated Next Link
+    // prefetches. Keep it after the complete control/network assertions; no request
+    // type is filtered out of the measured accessibility interaction window.
+    captureAccessibilityRequests = false;
+    const artifactPath = phase6ArtifactPath("phase6-accessibility.png");
+    if (artifactPath) {
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await expect(fallback).toBeVisible();
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({ path: artifactPath, fullPage: true });
+    }
   });
 
   test("organism Phase-6 netcode loopback enforces two-peer ready and lockstep boundaries", async ({ page }) => {

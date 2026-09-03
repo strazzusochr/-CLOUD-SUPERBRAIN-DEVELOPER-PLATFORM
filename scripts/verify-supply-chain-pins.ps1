@@ -291,6 +291,9 @@ if (-not $frontendRunner.Success) {
   Fail-SupplyChainVerification "frontend production runner stage is missing"
 }
 $frontendRunnerBody = $frontendRunner.Groups['body'].Value
+if (-not $frontendRunnerBody.Contains('COPY --from=builder /app/public ./public')) {
+  Fail-SupplyChainVerification "frontend production runner omits public assets, including the Cortex GLB"
+}
 if (-not $frontendRunnerBody.Contains("apk upgrade --no-cache")) {
   Fail-SupplyChainVerification "frontend production runner does not apply Alpine security updates"
 }
