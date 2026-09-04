@@ -231,7 +231,12 @@ Assert-Contains "five-axis prequalification pins runtime-source drift" `
   '[five-axis-audit] project progress verifier failed via python3: [phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
 Assert-Regex "five-axis reusable candidate validates control truth" `
   $fiveAxisStep `
-  '(?ms)^\s{12}false:true\)\s*\r?\n.*?node --test scripts/tests/five-axis-delta-ledger-regression\.test\.mjs.*?git worktree add --detach "\$CONTROL_TRUTH_DIR" "\$\{GITHUB_SHA\}".*?cd "\$CONTROL_TRUTH_DIR".*?node scripts/verify-five-axis-substance-audit\.mjs.*?reusable_candidate=true control_truth_verified=true.*?^\s{14};;'
+  '(?ms)^\s{12}false:true\)\s*\r?\n.*?node --test --test-name-pattern=.*?scripts/tests/five-axis-delta-ledger-regression\.test\.mjs.*?git worktree add --detach "\$CONTROL_TRUTH_DIR" "\$\{GITHUB_SHA\}".*?cd "\$CONTROL_TRUTH_DIR".*?node --test scripts/tests/five-axis-delta-ledger-regression\.test\.mjs.*?node scripts/verify-five-axis-substance-audit\.mjs.*?reusable_candidate=true control_truth_verified=true.*?^\s{14};;'
+$fiveAxisNegativePattern = [regex]::Escape("--test-name-pattern='^(rejects the retired v1 permanent-empty ledger contract without browser evidence|rejects a structurally typed but unauthenticated v2 ledger entry|keeps future evidence-backed vertical deltas reachable)$'")
+Assert-Count "five-axis candidate and source-prequalification modes keep structural negative tests" `
+  $fiveAxisStep `
+  $fiveAxisNegativePattern `
+  2
 Assert-Regex "five-axis normal validation is retained" `
   $fiveAxisStep `
   '(?ms)^\s{12}false:false\)\s*\r?\n\s{14}node --test scripts/tests/five-axis-delta-ledger-regression\.test\.mjs\s*\r?\n\s{14}node scripts/verify-five-axis-substance-audit\.mjs\s*\r?\n\s{14};;'

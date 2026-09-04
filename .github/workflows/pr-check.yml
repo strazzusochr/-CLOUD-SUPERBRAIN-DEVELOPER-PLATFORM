@@ -432,10 +432,11 @@ jobs:
               esac
               ;;
             false:true)
-              node --test scripts/tests/five-axis-delta-ledger-regression.test.mjs
+              node --test --test-name-pattern='^(rejects the retired v1 permanent-empty ledger contract without browser evidence|rejects a structurally typed but unauthenticated v2 ledger entry|keeps future evidence-backed vertical deltas reachable)$' scripts/tests/five-axis-delta-ledger-regression.test.mjs
               git worktree add --detach "$CONTROL_TRUTH_DIR" "${GITHUB_SHA}"
               (
                 cd "$CONTROL_TRUTH_DIR"
+                node --test scripts/tests/five-axis-delta-ledger-regression.test.mjs
                 node scripts/verify-five-axis-substance-audit.mjs
               )
               echo '[five-axis-audit] reusable_candidate=true control_truth_verified=true'
