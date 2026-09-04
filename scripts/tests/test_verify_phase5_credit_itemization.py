@@ -1215,6 +1215,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             step.count("node --test scripts/tests/five-axis-delta-ledger-regression.test.mjs"),
             3,
         )
+        self.assertEqual(step.count(f"--test-name-pattern='{negative_pattern}'"), 2)
         self.assertEqual(step.count("node scripts/verify-five-axis-substance-audit.mjs"), 2)
         self.assertNotIn("node scripts/verify-five-axis-substance-audit.mjs || true", step)
         self.assertNotIn("continue-on-error", step)
