@@ -8,6 +8,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\', '/')
 $verifierPath = Join-Path $PSScriptRoot 'verify-phase6-scale-evidence.ps1'
 $collectorPath = Join-Path $PSScriptRoot 'collect-phase6-scale-execution-readback.ps1'
+$minimumLoopFixCommit = 'c24b7bfddc37cfa0c16d1ebc7f70829417ac4080'
 # The project pins scratch work to D:\_sb_tmp on the Windows workstation, but pr-check runs
 # this contract on ubuntu-latest where that drive does not exist: GetFullPath would resolve it
 # relative to the working directory and the cleanup guard below would correctly refuse to
@@ -55,6 +56,28 @@ function Get-GitArchiveSha256([string]$CommitSha) {
   } finally {
     if (Test-Path -LiteralPath $archivePath -PathType Leaf) { Remove-Item -LiteralPath $archivePath -Force }
   }
+}
+
+function Resolve-EligibleDeployedSourceParent([string]$HeadSha) {
+  Assert-True ($HeadSha -match '^[0-9a-f]{40}$') 'Static-fixture control HEAD is invalid.'
+  $parentLine = [string](& git -C $repoRoot show -s --format='%P' $HeadSha 2>$null)
+  Assert-True ($LASTEXITCODE -eq 0) 'Unable to resolve direct parents for the static-fixture control HEAD.'
+  $parents = @($parentLine.Trim() -split '\s+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+  Assert-True ($parents.Count -gt 0) 'Static-fixture control HEAD has no direct parent.'
+
+  foreach ($parentSha in $parents) {
+    Assert-True ($parentSha -match '^[0-9a-f]{40}$') 'Static-fixture control HEAD contains an invalid parent SHA.'
+    & git -C $repoRoot merge-base --is-ancestor $minimumLoopFixCommit $parentSha
+    $loopFixAncestryExit = $LASTEXITCODE
+    if ($loopFixAncestryExit -eq 0) {
+      & git -C $repoRoot merge-base --is-ancestor $parentSha $HeadSha
+      Assert-True ($LASTEXITCODE -eq 0 -and $parentSha -cne $HeadSha) 'Selected deployment fixture is not a distinct direct control-HEAD ancestor.'
+      return $parentSha
+    }
+    Assert-True ($loopFixAncestryExit -eq 1) 'Unable to verify the required loop-fix ancestry for a direct control-HEAD parent.'
+  }
+
+  throw 'No direct control-HEAD parent contains the required contract-origin loop fix.'
 }
 
 function Write-EvidenceBundle([string]$EvidencePath, $Evidence, [string]$ReadbackPath, $Readback) {
@@ -148,7 +171,7 @@ foreach ($required in @(
   'cloudflare-d1-stateful-runtime-hosted-proof-v1',
   'hosted_write_read_delete_verified -eq $false',
   'preview_guard_verified -eq $true',
-  'c24b7bfddc37cfa0c16d1ebc7f70829417ac4080',
+  $minimumLoopFixCommit,
   'Scale criterion edge control is not attribution-only.',
   'Automatic rollback did not restore the original capability state.'
 )) {
@@ -215,7 +238,7 @@ try {
     )
   }
   $repositoryHeadSha = (& git -C $repoRoot rev-parse HEAD).Trim()
-  $deployedSourceSha = (& git -C $repoRoot rev-parse HEAD^).Trim()
+  $deployedSourceSha = Resolve-EligibleDeployedSourceParent $repositoryHeadSha
   $sourceArchiveSha256 = Get-GitArchiveSha256 $deployedSourceSha
   $generatedAt = (Get-Date).ToUniversalTime().AddMinutes(-2)
   $hostedVerifiedAt = $generatedAt.AddMinutes(-5)
