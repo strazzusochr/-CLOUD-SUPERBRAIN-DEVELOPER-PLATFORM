@@ -1120,6 +1120,14 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             "SOURCE_PREQUALIFICATION: ${{ steps.source-binding.outputs.source_prequalification }}",
             step,
         )
+        self.assertIn(
+            "CANDIDATE_DIFFERS: ${{ steps.source-binding.outputs.candidate_differs }}",
+            step,
+        )
+        self.assertIn(
+            "CONTROL_TRUTH_DIR: ${{ runner.temp }}/pr-check-control-project-progress",
+            step,
+        )
         self.assertIn("set -euo pipefail", step)
         self.assertIn(f"expected_progress_drift=$'{expected_drift}'", step)
         self.assertIn('progress_output="$(python scripts/verify_project_progress_manifest.py 2>&1)"', step)
@@ -1128,14 +1136,20 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         self.assertIn("source_truth_clean=true", step)
         self.assertIn('if [[ "$progress_output" != "$expected_progress_drift" ]]; then', step)
         self.assertIn("unexpected project-progress exit", step)
-        self.assertEqual(step.count("python scripts/verify_project_progress_manifest.py"), 2)
+        self.assertIn('case "${SOURCE_PREQUALIFICATION}:${CANDIDATE_DIFFERS}" in', step)
+        self.assertIn("            false:true)", step)
+        self.assertIn('git worktree add --detach "$CONTROL_TRUTH_DIR" "${GITHUB_SHA}"', step)
+        self.assertIn("reusable_candidate=true control_truth_verified=true", step)
+        self.assertIn("            false:false)", step)
+        self.assertIn("unexpected source/candidate binding mode", step)
+        self.assertEqual(step.count("python scripts/verify_project_progress_manifest.py"), 3)
         self.assertNotIn("python scripts/verify_project_progress_manifest.py || true", step)
 
         unit_index = step.index("python -m unittest scripts.tests.test_verify_project_progress_manifest -v")
-        branch_index = step.index('if [[ "$SOURCE_PREQUALIFICATION" == "true" ]]; then')
+        branch_index = step.index('case "${SOURCE_PREQUALIFICATION}:${CANDIDATE_DIFFERS}" in')
         endpoint_index = step.index("node --test scripts/tests/endpoint-snapshot-metadata.test.mjs")
         self.assertLess(unit_index, branch_index)
-        self.assertGreater(endpoint_index, step.rindex("          fi"))
+        self.assertGreater(endpoint_index, step.rindex("          esac"))
 
         transition = (REPO_ROOT / "scripts" / "verify-main-deploy-transition.ps1").read_text(
             encoding="utf-8-sig"
@@ -1144,6 +1158,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             "project-progress source prequalification env is bound",
             "project-progress prequalification accepts verifier-clean truth",
             "project-progress prequalification requires exact drift output",
+            "project-progress reusable candidate validates control truth",
             "project-progress normal validation is retained",
             "project-progress manifest has no blanket bypass",
         ):
@@ -1172,8 +1187,16 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             "SOURCE_PREQUALIFICATION: ${{ steps.source-binding.outputs.source_prequalification }}",
             step,
         )
+        self.assertIn(
+            "CANDIDATE_DIFFERS: ${{ steps.source-binding.outputs.candidate_differs }}",
+            step,
+        )
+        self.assertIn(
+            "CONTROL_TRUTH_DIR: ${{ runner.temp }}/pr-check-control-five-axis",
+            step,
+        )
         self.assertIn("set -euo pipefail", step)
-        self.assertIn('case "$SOURCE_PREQUALIFICATION" in', step)
+        self.assertIn('case "${SOURCE_PREQUALIFICATION}:${CANDIDATE_DIFFERS}" in', step)
         self.assertIn(f"--test-name-pattern='{negative_pattern}'", step)
         self.assertIn(f"expected_five_axis_drift=$'{expected_drift}'", step)
         self.assertIn("await import(\"./scripts/verify-five-axis-substance-audit.mjs\")", step)
@@ -1182,15 +1205,18 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         self.assertIn("source_truth_clean=true", step)
         self.assertIn('if [[ "$five_axis_output" != "$expected_five_axis_drift" ]]; then', step)
         self.assertIn("unexpected five-axis exit", step)
-        self.assertIn("            false)", step)
+        self.assertIn("            false:true)", step)
+        self.assertIn('git worktree add --detach "$CONTROL_TRUTH_DIR" "${GITHUB_SHA}"', step)
+        self.assertIn("reusable_candidate=true control_truth_verified=true", step)
+        self.assertIn("            false:false)", step)
         self.assertIn("            *)", step)
-        self.assertIn("unexpected SOURCE_PREQUALIFICATION value", step)
+        self.assertIn("unexpected source/candidate binding mode", step)
         self.assertEqual(
             step.count("node --test scripts/tests/five-axis-delta-ledger-regression.test.mjs"),
-            2,
+            3,
         )
-        self.assertEqual(step.count("node scripts/verify-five-axis-substance-audit.mjs"), 1)
-        self.assertNotIn("|| true", step)
+        self.assertEqual(step.count("node scripts/verify-five-axis-substance-audit.mjs"), 2)
+        self.assertNotIn("node scripts/verify-five-axis-substance-audit.mjs || true", step)
         self.assertNotIn("continue-on-error", step)
 
         transition = (REPO_ROOT / "scripts" / "verify-main-deploy-transition.ps1").read_text(
@@ -1200,8 +1226,9 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             "five-axis source prequalification env is bound",
             "five-axis prequalification accepts verifier-clean truth",
             "five-axis prequalification requires exact drift output",
+            "five-axis reusable candidate validates control truth",
             "five-axis normal validation is retained",
-            "five-axis prequalification rejects unexpected mode values",
+            "five-axis rejects unexpected binding mode values",
             "five-axis audit has no blanket bypass",
         ):
             self.assertIn(marker, transition)
