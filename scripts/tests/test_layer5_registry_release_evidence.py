@@ -188,12 +188,33 @@ def make_run(*, actor: str = "dispatcher") -> dict[str, object]:
         "head_branch": "chore/repo-bootstrap",
         "html_url": f"https://github.com/{REPOSITORY}/actions/runs/{RUN_ID}",
         "actor": {"login": actor, "id": 10, "type": "User"},
-        "inputs": {"candidate_sha": CANDIDATE_SHA},
+        # GitHub's workflow-run REST response currently omits dispatch inputs.
+        "inputs": None,
     }
 
 
-def make_jobs(*, skip_service: str | None = None) -> dict[str, object]:
-    jobs: list[dict[str, object]] = []
+def make_jobs(*, skip_service: str | None = None, preflight_conclusion: str = "success") -> dict[str, object]:
+    jobs: list[dict[str, object]] = [
+        {
+            "id": 999,
+            "run_id": int(RUN_ID),
+            "name": "Bind control SHA to tracked candidate truth",
+            "status": "completed",
+            "conclusion": preflight_conclusion,
+            "head_sha": CONTROL_SHA,
+            "started_at": "2026-09-02T10:00:00Z",
+            "completed_at": "2026-09-02T10:01:00Z",
+            "steps": [
+                {
+                    "name": "Validate control branch and active candidate",
+                    "status": "completed",
+                    "conclusion": preflight_conclusion,
+                    "started_at": "2026-09-02T10:00:10Z",
+                    "completed_at": "2026-09-02T10:00:20Z",
+                }
+            ],
+        }
+    ]
     for index, service in enumerate(SERVICES, start=1):
         jobs.append(
             {
@@ -392,6 +413,7 @@ class Layer5RegistryReleaseEvidenceTests(unittest.TestCase):
                 "configured required reviewer",
             ),
             ("jobs_path", make_jobs(skip_service="frontend"), "push step"),
+            ("jobs_path", make_jobs(preflight_conclusion="failure"), "candidate preflight"),
         ]
         for key, value, expected in cases:
             with self.subTest(key=key, expected=expected), tempfile.TemporaryDirectory() as temporary:

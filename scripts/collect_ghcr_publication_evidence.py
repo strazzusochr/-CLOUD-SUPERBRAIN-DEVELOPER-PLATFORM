@@ -175,6 +175,43 @@ def _select_publish_jobs(jobs_payload: Mapping[str, Any], control_sha: str) -> l
     return [selected[service] for service in EXPECTED_SERVICES]
 
 
+def _require_candidate_preflight(jobs_payload: Mapping[str, Any], control_sha: str) -> None:
+    """Bind the dispatch candidate through the successful fail-closed preflight.
+
+    GitHub's workflow-run REST response does not expose ``workflow_dispatch``
+    inputs. The preflight job is therefore the API-visible proof that the exact
+    candidate input was validated before any protected publication job ran.
+    """
+
+    jobs = jobs_payload.get("jobs")
+    _require(isinstance(jobs, list), "workflow jobs response is missing jobs")
+    matches = [
+        job
+        for job in jobs
+        if isinstance(job, dict) and job.get("name") == "Bind control SHA to tracked candidate truth"
+    ]
+    _require(len(matches) == 1, "exactly one candidate preflight job is required")
+    preflight = matches[0]
+    _require(
+        preflight.get("status") == "completed" and preflight.get("conclusion") == "success",
+        "candidate preflight job did not succeed",
+    )
+    _require(preflight.get("head_sha") == control_sha, "candidate preflight control SHA mismatch")
+    steps = preflight.get("steps")
+    _require(isinstance(steps, list), "candidate preflight steps are missing")
+    validation_steps = [
+        step
+        for step in steps
+        if isinstance(step, dict) and step.get("name") == "Validate control branch and active candidate"
+    ]
+    _require(len(validation_steps) == 1, "candidate preflight validation step is missing or duplicated")
+    validation = validation_steps[0]
+    _require(
+        validation.get("status") == "completed" and validation.get("conclusion") == "success",
+        "candidate preflight validation step did not succeed",
+    )
+
+
 def _select_review(approvals_payload: Any, environment_payload: Mapping[str, Any], triggering_actor: str) -> dict[str, Any]:
     _require(isinstance(approvals_payload, list), "workflow approval history must be an array")
     relevant: list[Mapping[str, Any]] = []
@@ -288,13 +325,18 @@ def build_publication_evidence(
     _require(run.get("head_sha") == control_sha, "workflow run control SHA mismatch")
     _require(run.get("head_branch") == "chore/repo-bootstrap", "workflow run branch mismatch")
     _require(run.get("html_url") == manifest["workflow"]["run_url"], "workflow run URL mismatch")
-    inputs = run.get("inputs")
-    _require(isinstance(inputs, dict) and inputs.get("candidate_sha") == candidate_sha, "workflow dispatch candidate input mismatch")
     actor = run.get("actor")
     _require(isinstance(actor, dict) and isinstance(actor.get("login"), str), "workflow triggering actor is missing")
     triggering_actor = actor["login"]
 
     jobs, jobs_raw = _read_json(Path(jobs_path), "workflow jobs readback")
+    _require_candidate_preflight(jobs, control_sha)
+    inputs = run.get("inputs")
+    if inputs is not None:
+        _require(
+            isinstance(inputs, dict) and inputs.get("candidate_sha") == candidate_sha,
+            "workflow dispatch candidate input mismatch",
+        )
     publish_jobs = _select_publish_jobs(jobs, control_sha)
     approvals, approvals_raw = _read_json(Path(approvals_path), "workflow approval history", array_allowed=True)
     environment, environment_raw = _read_json(Path(environment_path), "registry-publication environment")

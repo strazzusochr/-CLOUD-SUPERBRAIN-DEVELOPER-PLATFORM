@@ -349,7 +349,10 @@ foreach ($required in @(
   'WORKFLOW_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}',
   'run: python scripts/verify_ghcr_candidate.py',
   'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2',
-  'ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}',
+  'artifact_digest: ${{ steps.normalize-artifact-digest.outputs.artifact_digest }}',
+  'RAW_ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}',
+  '[[ "${artifact_sha}" =~ ^[0-9a-f]{64}$ ]]',
+  'ARTIFACT_DIGEST: ${{ steps.normalize-artifact-digest.outputs.artifact_digest }}',
   'overwrite: false',
   'retention-days: 90'
 )) {
