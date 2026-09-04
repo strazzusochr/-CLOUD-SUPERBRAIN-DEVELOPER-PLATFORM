@@ -169,6 +169,7 @@ jobs:
     needs: candidate-preflight
     permissions:
       contents: read
+      security-events: write
     uses: ./.github/workflows/pr-check.yml
     with:
       candidate_sha: ${{ needs.candidate-preflight.outputs.candidate_sha }}

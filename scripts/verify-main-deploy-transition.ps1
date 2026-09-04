@@ -79,7 +79,17 @@ Assert-Regex "top-level contents permission is read-only" $topPermissions.Groups
 Assert-Count "top-level permission has one entry" $topPermissions.Groups['body'].Value '(?m)^\s{2}[a-z-]+:\s*\w+\s*$' 1
 Assert-Count "packages write appears only once" $workflow '(?m)^\s+packages: write\s*$' 1
 Assert-Count "packages read appears only in aggregate job" $workflow '(?m)^\s+packages: read\s*$' 1
-foreach ($forbiddenPermission in @('contents: write', 'actions: write', 'deployments: write', 'id-token: write', 'security-events: write', 'delete-packages')) {
+Assert-Count "security-events write appears exactly once for reusable candidate CI" $workflow '(?m)^\s+security-events: write\s*$' 1
+$verifyCandidateJobMatch = [regex]::Match(
+  $workflow,
+  '(?ms)^  verify-candidate:\s*\r?\n(?<body>.*?)(?=^  [a-zA-Z0-9_-]+:\s*(?:\r?\n|$)|\z)'
+)
+Assert-True "verify-candidate job block is parseable" $verifyCandidateJobMatch.Success
+$verifyCandidateJobBlock = $verifyCandidateJobMatch.Groups['body'].Value
+Assert-Regex "security-events write is limited to reusable candidate CI" `
+  $verifyCandidateJobBlock `
+  '(?ms)^\s{4}permissions:\s+^\s{6}contents: read\s+^\s{6}security-events: write\s+^\s{4}uses: \.\/\.github\/workflows\/pr-check\.yml\s*$'
+foreach ($forbiddenPermission in @('contents: write', 'actions: write', 'deployments: write', 'id-token: write', 'delete-packages')) {
   Assert-True "permission expansion is absent: $forbiddenPermission" (-not $workflow.Contains($forbiddenPermission))
 }
 Assert-Regex "publication job uses registry-publication without deployment claim" $workflow '(?ms)^\s{2}publish-candidate:.*?^\s{4}environment:\s+^\s{6}name: registry-publication\s+^\s{6}deployment: false\s*$'
