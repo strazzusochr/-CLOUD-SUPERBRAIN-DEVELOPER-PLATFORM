@@ -1,10 +1,22 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-## AKTIVER CHECKPOINT 2026-09-03 — CI-PORTABILITAET / NEUBINDUNG
+## AKTIVER CHECKPOINT 2026-09-04 — RC38 DUAL-BINDING / LOKALE QUALIFIKATION
 
 Dieser Abschnitt ersetzt die untenstehenden Prefreeze-WIP-Aussagen.
 Matrixpunkte: **1264/1400 erfuellt, 136 offen**; neu kreditiert **0/136**;
 Overall **89**, `MARKET_READY:false`.
+
+- RC38 friert Produktquelle `5668e7cb89eac03a929853f004204b56bd171cb9` ein.
+  Der direkte Q-Kindcommit `bbdf952eb369f2ae00310d797333e3e08960a668` aendert
+  ausschliesslich die Source-Qualification-Control. GitHub Actions `33817644414`
+  ist erfolgreich (29/29 beobachtete Schritte, failed=0, skipped=0); die
+  `exact-head-ci-attestation-v2` bindet Q als Run-Head und S als unveraenderten
+  Source-Checkout. Der RC37-Owner-Request bleibt ausdruecklich zurueckgezogen.
+- Die RC38-Auswahl ist ein **no-credit**-Uebergang: Matrixpunkte bleiben
+  **1264/1400 erfuellt, 136 offen**. I1 `hosted_candidate_parity` und I5
+  `production_auth_identity` bleiben blockiert; `live_verified` wird nicht manuell
+  gesetzt. Noch keine GHCR-Publikation, kein Cloud-Deploy, kein P6-Dispatch und
+  kein Provider-Aufruf.
 
 - Produkt-Slice `8b29aca5c0e1feff6e49c63802610bfc081502fd` (114 Pfade) und
   Q `50b5ec9534b9188756a3b3bd4a154c0317223995` wurden auf den Feature-Branch
@@ -100,6 +112,23 @@ Letzte Aktualisierung: 2026-09-03
   weder S noch Q behauptet.
 
 ## AKTUELLER PROJEKTANKER
+
+### Session 2026-09-04 — RC38 Local Qualification
+
+- **RC38 Source / Control:** Release `prod-candidate-2026-09-04-local-rc38`,
+  Produktquelle `5668e7cb89eac03a929853f004204b56bd171cb9`, direkter
+  Qualification-Control-Kindcommit `bbdf952eb369f2ae00310d797333e3e08960a668`.
+  Der CI-Lauf `33817644414` hat die Source-Prequalification mit `failed=0` und
+  `skipped=0` abgeschlossen; der v2-Receipt liegt release-scoped vor.
+- **Kreditstand bleibt unveraendert:** Overall `89%`, `1264/1400` erfuellt,
+  `136` offen. Horizontal P3 `44`, P5 `89`, P6 `90`; vertikal L4 `55`, L5
+  `86`. `MARKET_READY:false` bleibt die einzige gueltige Marktbehauptung.
+- **Owner-Blocker bleiben sichtbar:** I1 `hosted_candidate_parity` und I5
+  `production_auth_identity` sind nicht gutgeschrieben. Die RC37-MR1–MR8-
+  Entscheidungen sind withdrawn/denied und geben keine externe Aktion frei.
+- **Non-Claims:** Kein Registry-Push, kein Production-Deploy, keine Promotion,
+  kein P6-Scale-Dispatch, kein Live-Provider-Aufruf und keine manuelle
+  `live_verified`-Promotion. `DEV-ONLY; hosted proof still blocked.`
 
 ### Session 2026-09-02 — Phase-6 Pre-Run Hardening / Owner Grant Recorded
 
