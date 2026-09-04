@@ -7,8 +7,10 @@ frozen source `5668e7cb89eac03a929853f004204b56bd171cb9` and direct control chil
 `bbdf952eb369f2ae00310d797333e3e08960a668`. GitHub Actions `33817644414` completed
 successfully with 29/29 observed steps, no failed jobs, and no skipped jobs or steps.
 Its tracked `exact-head-ci-attestation-v2` proves Q run-head plus immutable S checkout.
-This source qualification awards zero credit; the authoritative score remains Overall 89,
-I1/I5 remain blocked, and `MARKET_READY:false`.
+The RC38 runtime, candidate, security, and browser artifacts are hash-bound in the
+release-scoped evidence directory; the browser chain passed all 22 routes/161 actions
+as DEV-ONLY proof. This source qualification awards zero credit; the authoritative score
+remains Overall 89, I1/I5 remain blocked, and `MARKET_READY:false`.
 
 ## AKTIVER CHECKPOINT 2026-09-03 — CI-PORTABILITAET / NEUBINDUNG
 

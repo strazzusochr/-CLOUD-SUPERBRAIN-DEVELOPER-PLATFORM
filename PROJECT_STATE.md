@@ -15,8 +15,12 @@ Overall **89**, `MARKET_READY:false`.
 - Die RC38-Auswahl ist ein **no-credit**-Uebergang: Matrixpunkte bleiben
   **1264/1400 erfuellt, 136 offen**. I1 `hosted_candidate_parity` und I5
   `production_auth_identity` bleiben blockiert; `live_verified` wird nicht manuell
-  gesetzt. Noch keine GHCR-Publikation, kein Cloud-Deploy, kein P6-Dispatch und
-  kein Provider-Aufruf.
+  gesetzt. Die unabhaengigen RC38-Local-Chains (Runtime, Candidate, Security und
+  Browser) sind unter `docs/release-artifacts/prod-candidate-2026-09-04-local-rc38-evidence/`
+  mit `status=passed|verified` gebunden. `npm run verify:browser` hat den DEV-ONLY-
+  Browservertrag, Product Acceptance, alle 22 Routen/161 Aktionen und O4-Live-Writes
+  bestanden; Hosted-Proof, GHCR-Publikation, Cloud-Deploy, P6-Dispatch und Production-
+  OAuth bleiben ungeoeffnet.
 
 - Produkt-Slice `8b29aca5c0e1feff6e49c63802610bfc081502fd` (114 Pfade) und
   Q `50b5ec9534b9188756a3b3bd4a154c0317223995` wurden auf den Feature-Branch

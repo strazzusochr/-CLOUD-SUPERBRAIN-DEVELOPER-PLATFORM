@@ -33,7 +33,7 @@ full_verifier_sweep_proof: `docs/release-artifacts/prod-candidate-2026-09-04-loc
 full_verifier_sweep_status: `RC38 remains source-bound, DEV-ONLY, and no-release; I1 and I5 remain blocked until immutable hosted evidence exists`
 truth_mirror_rebaseline_proof: `docs/runtime-state/phase5-credit-itemization.json`
 release_readiness_rerun_proof: `docs/release-artifacts/prod-candidate-2026-09-04-local-rc38-readiness.json`
-browser_rerun_status: `No RC38 browser qualification is claimed until its independent evidence chain is hash-bound; any future browser run remains DEV-ONLY and cannot satisfy I1 or I5.`
+browser_rerun_status: `RC38 browser evidence is independently hash-bound and passed DEV-ONLY: browser-contract, Product Acceptance, 22 routes/161 actions, and O4 live writes; it cannot satisfy hosted I1 or I5.`
 review_gate: `pending`
 owner_decision: `no-release`
 hosted_staging_parity: `false`
