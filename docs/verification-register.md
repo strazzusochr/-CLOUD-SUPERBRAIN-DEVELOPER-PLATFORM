@@ -1,5 +1,15 @@
 # Verification Register - PATCHED
 
+## Current RC38 Local Qualification Evidence
+
+The active no-credit candidate target is `prod-candidate-2026-09-04-local-rc38` with
+frozen source `5668e7cb89eac03a929853f004204b56bd171cb9` and direct control child
+`bbdf952eb369f2ae00310d797333e3e08960a668`. GitHub Actions `33817644414` completed
+successfully with 29/29 observed steps, no failed jobs, and no skipped jobs or steps.
+Its tracked `exact-head-ci-attestation-v2` proves Q run-head plus immutable S checkout.
+This source qualification awards zero credit; the authoritative score remains Overall 89,
+I1/I5 remain blocked, and `MARKET_READY:false`.
+
 ## AKTIVER CHECKPOINT 2026-09-03 — CI-PORTABILITAET / NEUBINDUNG
 
 Dieser Abschnitt ersetzt die untenstehenden Prefreeze-WIP-Aussagen.

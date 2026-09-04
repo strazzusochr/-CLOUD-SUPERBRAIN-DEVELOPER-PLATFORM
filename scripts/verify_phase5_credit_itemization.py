@@ -123,6 +123,7 @@ LOCAL_VERIFICATION_FILES = {
 }
 SOURCE_PREQUALIFICATION_CONTROL_PATHS = {
     ".github/workflows/pr-check.yml",
+    "docs/runtime-state/source-qualification-control.json",
     "scripts/tests/test_verify_phase5_credit_itemization.py",
     "scripts/verify-main-deploy-transition.ps1",
     "scripts/verify-supply-chain-pins.ps1",

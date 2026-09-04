@@ -1,5 +1,16 @@
 # AI Handoff - Cloud Superbrain Developer Platform
 
+## Current RC38 Local Qualification
+
+Release `prod-candidate-2026-09-04-local-rc38` uses frozen product source
+`5668e7cb89eac03a929853f004204b56bd171cb9` and direct Qualification-Control
+child `bbdf952eb369f2ae00310d797333e3e08960a668`. GitHub Actions run
+`33817644414` is successful with 29/29 observed steps, `failed=0`, and `skipped=0`.
+The tracked `exact-head-ci-attestation-v2` binds Q as run head and S as immutable
+source checkout. This is a no-credit, DEV-ONLY candidate qualification: Overall remains
+`89%`, I1/I5 remain Owner-blocked, and `MARKET_READY:false`. RC37 grants are withdrawn
+and do not authorize deploys, publications, provider calls, or promotions.
+
 ## AKTIVER CHECKPOINT 2026-09-03 — CI-PORTABILITAET / NEUBINDUNG
 
 Dieser Abschnitt ersetzt die untenstehenden Prefreeze-WIP-Aussagen.

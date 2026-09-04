@@ -1,5 +1,15 @@
 # Cloud Superbrain Project Anchor
 
+## AKTIVER RC38-ANERKER 2026-09-04 — DUAL-BINDING / NO-CREDIT
+
+Release `prod-candidate-2026-09-04-local-rc38` binds source
+`5668e7cb89eac03a929853f004204b56bd171cb9` to direct Q
+`bbdf952eb369f2ae00310d797333e3e08960a668`. CI `33817644414` is successful
+(29/29, failed=0, skipped=0), and the tracked v2 receipt binds Q run-head to S checkout.
+Credit remains Overall `89%` (`1264/1400` fulfilled, `136` open); I1/I5 and all external
+gates remain blocked, `MARKET_READY:false`. No registry push, cloud deploy, P6 dispatch,
+provider call, or manual `live_verified` transition is authorized by this anchor.
+
 ## AKTIVER CHECKPOINT 2026-09-03 — CI-PORTABILITAET / NEUBINDUNG
 
 Dieser Abschnitt ersetzt die untenstehenden Prefreeze-WIP-Aussagen.
